@@ -3882,37 +3882,37 @@ reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0
 accept	accept	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_drop_disk_clause	ALTER DISKGROUP a DROP DISK a
 reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_drop_disk_clause!drop-1	ALTER DISKGROUP a DISK a
 reject@23	reject@23	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_drop_disk_clause!drop-2	ALTER DISKGROUP a DROP a
-accept	reject@27	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_drop_disk_clause!drop-3	ALTER DISKGROUP a DROP DISK
+reject@27	reject@27	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_drop_disk_clause!drop-3	ALTER DISKGROUP a DROP DISK
 reject@30	reject@30	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_drop_disk_clause!insert	ALTER DISKGROUP a DROP DISK a zzz
 reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_drop_disk_clause!swap	ALTER DISKGROUP a DUALITY DISK a
-accept	reject@29	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_resize_disk_clause	ALTER DISKGROUP a RESIZE ALL 1
+reject@29	reject@29	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_resize_disk_clause	ALTER DISKGROUP a RESIZE ALL 1
 reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_resize_disk_clause!drop-1	ALTER DISKGROUP a ALL 1
 reject@25	reject@25	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_resize_disk_clause!drop-2	ALTER DISKGROUP a RESIZE 1
 accept	accept	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_resize_disk_clause!drop-3	ALTER DISKGROUP a RESIZE ALL
-reject@31	reject@29	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_resize_disk_clause!insert	ALTER DISKGROUP a RESIZE ALL 1 zzz
+reject@29	reject@29	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_resize_disk_clause!insert	ALTER DISKGROUP a RESIZE ALL 1 zzz
 reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_resize_disk_clause!swap	ALTER DISKGROUP a RESOLVE ALL 1
 accept	accept	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_replace_disk_clause	ALTER DISKGROUP a REPLACE DISK a WITH 's'
 reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_replace_disk_clause!drop-1	ALTER DISKGROUP a DISK a WITH 's'
 reject@26	reject@26	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_replace_disk_clause!drop-2	ALTER DISKGROUP a REPLACE a WITH 's'
-accept	reject@36	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_replace_disk_clause!drop-3	ALTER DISKGROUP a REPLACE DISK WITH 's'
-accept	reject@33	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_replace_disk_clause!drop-4	ALTER DISKGROUP a REPLACE DISK a 's'
+reject@31	reject@36	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_replace_disk_clause!drop-3	ALTER DISKGROUP a REPLACE DISK WITH 's'
+reject@33	reject@33	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_replace_disk_clause!drop-4	ALTER DISKGROUP a REPLACE DISK a 's'
 accept	accept	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_replace_disk_clause!drop-5	ALTER DISKGROUP a REPLACE DISK a WITH
 reject@42	reject@42	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_replace_disk_clause!insert	ALTER DISKGROUP a REPLACE DISK a WITH 's' zzz
 reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_replace_disk_clause!swap	ALTER DISKGROUP a REPLAY DISK a WITH 's'
 accept	accept	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_rename_disk_clause	ALTER DISKGROUP a RENAME DISKS ALL
 reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_rename_disk_clause!drop-1	ALTER DISKGROUP a DISKS ALL
 reject@25	reject@25	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_rename_disk_clause!drop-2	ALTER DISKGROUP a RENAME ALL
-accept	reject@30	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_rename_disk_clause!drop-3	ALTER DISKGROUP a RENAME DISKS
+reject@30	reject@30	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_rename_disk_clause!drop-3	ALTER DISKGROUP a RENAME DISKS
 reject@35	reject@35	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_rename_disk_clause!insert	ALTER DISKGROUP a RENAME DISKS ALL zzz
 reject@18	reject@25	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_rename_disk_clause!swap	ALTER DISKGROUP a REPAIR DISKS ALL
 accept	accept	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_disk_online_clause	ALTER DISKGROUP a ONLINE ALL
 reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_disk_online_clause!drop-1	ALTER DISKGROUP a ALL
-accept	reject@24	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_disk_online_clause!drop-2	ALTER DISKGROUP a ONLINE
+reject@24	reject@24	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_disk_online_clause!drop-2	ALTER DISKGROUP a ONLINE
 reject@29	reject@29	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_disk_online_clause!insert	ALTER DISKGROUP a ONLINE ALL zzz
 reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_disk_online_clause!swap	ALTER DISKGROUP a ONLY ALL
 accept	accept	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_disk_offline_clause	ALTER DISKGROUP a OFFLINE DISK a
 reject@26	reject@26	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_disk_offline_clause!drop-2	ALTER DISKGROUP a OFFLINE a
-accept	reject@30	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_disk_offline_clause!drop-3	ALTER DISKGROUP a OFFLINE DISK
+reject@30	reject@30	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_disk_offline_clause!drop-3	ALTER DISKGROUP a OFFLINE DISK
 reject@33	reject@33	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_disk_offline_clause!insert	ALTER DISKGROUP a OFFLINE DISK a zzz
 reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_disk_offline_clause!swap	ALTER DISKGROUP a OFFSET DISK a
 accept	accept	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_rebalance_diskgroup_clause	ALTER DISKGROUP a REBALANCE
@@ -3936,10 +3936,10 @@ reject@23	reject@23	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0
 accept	accept	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_diskgroup_alias_clauses!drop-3	ALTER DISKGROUP a DROP ALIAS
 reject@33	reject@33	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_diskgroup_alias_clauses!insert	ALTER DISKGROUP a DROP ALIAS 's' zzz
 reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_diskgroup_alias_clauses!swap	ALTER DISKGROUP a DUALITY ALIAS 's'
-accept	reject@33	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_diskgroup_volume_clauses	ALTER DISKGROUP a MODIFY VOLUME a
+reject@33	reject@33	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_diskgroup_volume_clauses	ALTER DISKGROUP a MODIFY VOLUME a
 reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_diskgroup_volume_clauses!drop-1	ALTER DISKGROUP a VOLUME a
 reject@25	reject@25	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_diskgroup_volume_clauses!drop-2	ALTER DISKGROUP a MODIFY a
-accept	reject@31	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_diskgroup_volume_clauses!drop-3	ALTER DISKGROUP a MODIFY VOLUME
+reject@31	reject@31	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_diskgroup_volume_clauses!drop-3	ALTER DISKGROUP a MODIFY VOLUME
 reject@34	reject@34	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_diskgroup_volume_clauses!insert	ALTER DISKGROUP a MODIFY VOLUME a zzz
 reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_diskgroup_volume_clauses!swap	ALTER DISKGROUP a MODULE VOLUME a
 reject@32	reject@32	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_diskgroup_attributes	ALTER DISKGROUP a SET ATTRIBUTE a = 1
@@ -3950,7 +3950,7 @@ reject@32	reject@32	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0
 reject@32	reject@32	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_diskgroup_attributes!drop-5	ALTER DISKGROUP a SET ATTRIBUTE a =
 reject@32	reject@32	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_diskgroup_attributes!insert	ALTER DISKGROUP a SET ATTRIBUTE a = 1 zzz
 reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_diskgroup_attributes!swap	ALTER DISKGROUP a SETS ATTRIBUTE a = 1
-accept	reject@33	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_modify_diskgroup_file	ALTER DISKGROUP a MODIFY FILE 's'
+reject@33	reject@33	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_modify_diskgroup_file	ALTER DISKGROUP a MODIFY FILE 's'
 reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_modify_diskgroup_file!drop-1	ALTER DISKGROUP a FILE 's'
 reject@25	reject@25	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_modify_diskgroup_file!drop-2	ALTER DISKGROUP a MODIFY 's'
 accept	accept	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_modify_diskgroup_file!drop-3	ALTER DISKGROUP a MODIFY FILE
@@ -3960,52 +3960,52 @@ accept	accept	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756
 accept	accept	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_drop_diskgroup_file_clause!drop-3	ALTER DISKGROUP a DROP FILE
 reject@32	reject@32	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_drop_diskgroup_file_clause!insert	ALTER DISKGROUP a DROP FILE 's' zzz
 reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_drop_diskgroup_file_clause!swap	ALTER DISKGROUP a DUALITY FILE 's'
-accept	reject@36	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_convert_redundancy_clause	ALTER DISKGROUP a CONVERT REDUNDANCY
+reject@36	reject@36	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_convert_redundancy_clause	ALTER DISKGROUP a CONVERT REDUNDANCY
 reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_convert_redundancy_clause!drop-1	ALTER DISKGROUP a REDUNDANCY
-accept	reject@25	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_convert_redundancy_clause!drop-2	ALTER DISKGROUP a CONVERT
+reject@25	reject@25	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_convert_redundancy_clause!drop-2	ALTER DISKGROUP a CONVERT
 reject@37	reject@37	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_convert_redundancy_clause!insert	ALTER DISKGROUP a CONVERT REDUNDANCY zzz
 reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_convert_redundancy_clause!swap	ALTER DISKGROUP a COPY REDUNDANCY
-accept	reject@32	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_usergroup_clauses	ALTER DISKGROUP a ADD USERGROUP a
+reject@32	reject@32	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_usergroup_clauses	ALTER DISKGROUP a ADD USERGROUP a
 reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_usergroup_clauses!drop-1	ALTER DISKGROUP a USERGROUP a
 reject@22	reject@22	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_usergroup_clauses!drop-2	ALTER DISKGROUP a ADD a
 accept	accept	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_usergroup_clauses!drop-3	ALTER DISKGROUP a ADD USERGROUP
-reject@34	reject@32	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_usergroup_clauses!insert	ALTER DISKGROUP a ADD USERGROUP a zzz
+reject@32	reject@32	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_usergroup_clauses!insert	ALTER DISKGROUP a ADD USERGROUP a zzz
 reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_usergroup_clauses!swap	ALTER DISKGROUP a ADMIN USERGROUP a
-accept	reject@27	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_user_clauses	ALTER DISKGROUP a ADD USER a
+reject@27	reject@27	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_user_clauses	ALTER DISKGROUP a ADD USER a
 reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_user_clauses!drop-1	ALTER DISKGROUP a USER a
 accept	accept	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_user_clauses!drop-3	ALTER DISKGROUP a ADD USER
-reject@29	reject@27	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_user_clauses!insert	ALTER DISKGROUP a ADD USER a zzz
+reject@27	reject@27	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_user_clauses!insert	ALTER DISKGROUP a ADD USER a zzz
 reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_user_clauses!swap	ALTER DISKGROUP a ADMIN USER a
-accept	reject@33	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_file_permissions_clause	ALTER DISKGROUP a SET PERMISSION 's'
+reject@33	reject@33	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_file_permissions_clause	ALTER DISKGROUP a SET PERMISSION 's'
 reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_file_permissions_clause!drop-1	ALTER DISKGROUP a PERMISSION 's'
 reject@22	reject@22	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_file_permissions_clause!drop-2	ALTER DISKGROUP a SET 's'
-accept	reject@32	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_file_permissions_clause!drop-3	ALTER DISKGROUP a SET PERMISSION
-accept	reject@33	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_file_permissions_clause!insert	ALTER DISKGROUP a SET PERMISSION 's' zzz
+reject@32	reject@32	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_file_permissions_clause!drop-3	ALTER DISKGROUP a SET PERMISSION
+reject@33	reject@33	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_file_permissions_clause!insert	ALTER DISKGROUP a SET PERMISSION 's' zzz
 reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_file_permissions_clause!swap	ALTER DISKGROUP a SETS PERMISSION 's'
-accept	reject@22	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_file_owner_clause	ALTER DISKGROUP a SET OWNER a FILE 's'
+reject@22	reject@22	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_file_owner_clause	ALTER DISKGROUP a SET OWNER a FILE 's'
 reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_file_owner_clause!drop-1	ALTER DISKGROUP a OWNER a FILE 's'
 reject@22	reject@22	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_file_owner_clause!drop-2	ALTER DISKGROUP a SET a FILE 's'
-accept	reject@22	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_file_owner_clause!drop-3	ALTER DISKGROUP a SET OWNER FILE 's'
-accept	reject@22	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_file_owner_clause!drop-4	ALTER DISKGROUP a SET OWNER a 's'
-accept	reject@22	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_file_owner_clause!drop-5	ALTER DISKGROUP a SET OWNER a FILE
-accept	reject@22	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_file_owner_clause!insert	ALTER DISKGROUP a SET OWNER a FILE 's' zzz
+reject@22	reject@22	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_file_owner_clause!drop-3	ALTER DISKGROUP a SET OWNER FILE 's'
+reject@22	reject@22	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_file_owner_clause!drop-4	ALTER DISKGROUP a SET OWNER a 's'
+reject@22	reject@22	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_file_owner_clause!drop-5	ALTER DISKGROUP a SET OWNER a FILE
+reject@22	reject@22	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_file_owner_clause!insert	ALTER DISKGROUP a SET OWNER a FILE 's' zzz
 reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_file_owner_clause!swap	ALTER DISKGROUP a SETS OWNER a FILE 's'
 accept	accept	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_scrub_clause	ALTER DISKGROUP a SCRUB
 reject@24	reject@24	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_scrub_clause!insert	ALTER DISKGROUP a SCRUB zzz
 reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_scrub_clause!swap	ALTER DISKGROUP a SEARCH
 accept	accept	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_quotagroup_clauses	ALTER DISKGROUP a ADD QUOTAGROUP a
 reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_quotagroup_clauses!drop-1	ALTER DISKGROUP a QUOTAGROUP a
-accept	reject@32	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_quotagroup_clauses!drop-3	ALTER DISKGROUP a ADD QUOTAGROUP
+reject@32	reject@32	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_quotagroup_clauses!drop-3	ALTER DISKGROUP a ADD QUOTAGROUP
 reject@35	reject@35	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_quotagroup_clauses!insert	ALTER DISKGROUP a ADD QUOTAGROUP a zzz
 reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_quotagroup_clauses!swap	ALTER DISKGROUP a ADMIN QUOTAGROUP a
 accept	accept	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_filegroup_clauses	ALTER DISKGROUP a ADD FILEGROUP a
 reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_filegroup_clauses!drop-1	ALTER DISKGROUP a FILEGROUP a
-accept	reject@31	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_filegroup_clauses!drop-3	ALTER DISKGROUP a ADD FILEGROUP
+reject@31	reject@31	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_filegroup_clauses!drop-3	ALTER DISKGROUP a ADD FILEGROUP
 reject@34	reject@34	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_filegroup_clauses!insert	ALTER DISKGROUP a ADD FILEGROUP a zzz
 reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_filegroup_clauses!swap	ALTER DISKGROUP a ADMIN FILEGROUP a
 accept	accept	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_undrop_disk_clause	ALTER DISKGROUP a UNDROP DISKS
 reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_undrop_disk_clause!drop-1	ALTER DISKGROUP a DISKS
-accept	reject@24	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_undrop_disk_clause!drop-2	ALTER DISKGROUP a UNDROP
+reject@24	reject@24	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_undrop_disk_clause!drop-2	ALTER DISKGROUP a UNDROP
 reject@31	reject@31	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_undrop_disk_clause!insert	ALTER DISKGROUP a UNDROP DISKS zzz
 reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_undrop_disk_clause!swap	ALTER DISKGROUP a UNIFORM DISKS
 accept	accept	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_diskgroup_availability	ALTER DISKGROUP a MOUNT
@@ -4014,7 +4014,7 @@ reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0
 accept	accept	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_enable_disable_volume	ALTER DISKGROUP a ENABLE VOLUME ALL
 reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_enable_disable_volume!drop-1	ALTER DISKGROUP a VOLUME ALL
 reject@25	reject@25	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_enable_disable_volume!drop-2	ALTER DISKGROUP a ENABLE ALL
-accept	reject@31	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_enable_disable_volume!drop-3	ALTER DISKGROUP a ENABLE VOLUME
+reject@31	reject@31	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_enable_disable_volume!drop-3	ALTER DISKGROUP a ENABLE VOLUME
 reject@36	reject@36	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_enable_disable_volume!insert	ALTER DISKGROUP a ENABLE VOLUME ALL zzz
 reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_enable_disable_volume!swap	ALTER DISKGROUP a ENABLE_ALL VOLUME ALL
 accept	accept	engine	alterDiskgroup_add_disk_clause/ADD_DISK_alterDiskgroup_qualified_disk_clause_(,_alterD~fd9c441c	ALTER DISKGROUP a ADD DISK 's'
@@ -4027,15 +4027,15 @@ accept	accept	engine	alterDiskgroup_drop_disk_clause/DROP_DISK_ID_(,_ID)*_(FORCE
 accept	accept	engine	alterDiskgroup_drop_disk_clause/DROP_DISKS_IN_FAILGROUP_ID_(FORCE|NOFORCE)?_(alterDiskg~31d4683d	ALTER DISKGROUP a DROP DISKS IN FAILGROUP a
 reject@18	reject@18	engine	alterDiskgroup_drop_disk_clause/DROP_DISKS_IN_FAILGROUP_ID_(FORCE|NOFORCE)?_(alterDiskg~31d4683d!drop-1	ALTER DISKGROUP a DISKS IN FAILGROUP a
 reject@23	reject@23	engine	alterDiskgroup_drop_disk_clause/DROP_DISKS_IN_FAILGROUP_ID_(FORCE|NOFORCE)?_(alterDiskg~31d4683d!drop-2	ALTER DISKGROUP a DROP IN FAILGROUP a
-accept	reject@29	engine	alterDiskgroup_drop_disk_clause/DROP_DISKS_IN_FAILGROUP_ID_(FORCE|NOFORCE)?_(alterDiskg~31d4683d!drop-3	ALTER DISKGROUP a DROP DISKS FAILGROUP a
-accept	reject@32	engine	alterDiskgroup_drop_disk_clause/DROP_DISKS_IN_FAILGROUP_ID_(FORCE|NOFORCE)?_(alterDiskg~31d4683d!drop-4	ALTER DISKGROUP a DROP DISKS IN a
+reject@29	reject@29	engine	alterDiskgroup_drop_disk_clause/DROP_DISKS_IN_FAILGROUP_ID_(FORCE|NOFORCE)?_(alterDiskg~31d4683d!drop-3	ALTER DISKGROUP a DROP DISKS FAILGROUP a
+reject@32	reject@32	engine	alterDiskgroup_drop_disk_clause/DROP_DISKS_IN_FAILGROUP_ID_(FORCE|NOFORCE)?_(alterDiskg~31d4683d!drop-4	ALTER DISKGROUP a DROP DISKS IN a
 accept	accept	engine	alterDiskgroup_drop_disk_clause/DROP_DISKS_IN_FAILGROUP_ID_(FORCE|NOFORCE)?_(alterDiskg~31d4683d!drop-5	ALTER DISKGROUP a DROP DISKS IN FAILGROUP
 reject@44	reject@44	engine	alterDiskgroup_drop_disk_clause/DROP_DISKS_IN_FAILGROUP_ID_(FORCE|NOFORCE)?_(alterDiskg~31d4683d!insert	ALTER DISKGROUP a DROP DISKS IN FAILGROUP a zzz
 reject@18	reject@18	engine	alterDiskgroup_drop_disk_clause/DROP_DISKS_IN_FAILGROUP_ID_(FORCE|NOFORCE)?_(alterDiskg~31d4683d!swap	ALTER DISKGROUP a DUALITY DISKS IN FAILGROUP a
 accept	accept	engine	alterDiskgroup_drop_disk_clause(,_ID)*/%empty	ALTER DISKGROUP a DROP DISK a
 accept	accept	engine	alterDiskgroup_drop_disk_clause(,_ID)*/,_ID_(,_ID)*	ALTER DISKGROUP a DROP DISK a, a
 reject@30	reject@30	engine	alterDiskgroup_drop_disk_clause(,_ID)*/,_ID_(,_ID)*!drop-1	ALTER DISKGROUP a DROP DISK a a
-reject@29	reject@30	engine	alterDiskgroup_drop_disk_clause(,_ID)*/,_ID_(,_ID)*!drop-2	ALTER DISKGROUP a DROP DISK a,
+reject@30	reject@30	engine	alterDiskgroup_drop_disk_clause(,_ID)*/,_ID_(,_ID)*!drop-2	ALTER DISKGROUP a DROP DISK a,
 reject@33	reject@33	engine	alterDiskgroup_drop_disk_clause(,_ID)*/,_ID_(,_ID)*!insert	ALTER DISKGROUP a DROP DISK a, a zzz
 accept	accept	engine	alterDiskgroup_drop_disk_clause(FORCE|NOFORCE)?/%empty	ALTER DISKGROUP a DROP DISK a
 accept	accept	engine	alterDiskgroup_drop_disk_clause(FORCE|NOFORCE)?/FORCE	ALTER DISKGROUP a DROP DISK a FORCE
@@ -4048,7 +4048,7 @@ accept	accept	engine	alterDiskgroup_drop_disk_clause(alterDiskgroup_rebalance_di
 accept	accept	engine	alterDiskgroup_drop_disk_clause(alterDiskgroup_rebalance_diskgroup_clause)?/alterDiskgroup_rebalance_diskgroup_clause	ALTER DISKGROUP a DROP DISK a REBALANCE
 reject@40	reject@40	engine	alterDiskgroup_drop_disk_clause(alterDiskgroup_rebalance_diskgroup_clause)?/alterDiskgroup_rebalance_diskgroup_clause!insert	ALTER DISKGROUP a DROP DISK a REBALANCE zzz
 reject@30	reject@30	engine	alterDiskgroup_drop_disk_clause(alterDiskgroup_rebalance_diskgroup_clause)?/alterDiskgroup_rebalance_diskgroup_clause!swap	ALTER DISKGROUP a DROP DISK a REBUILD
-accept	reject@29	engine	alterDiskgroup_resize_disk_clause/RESIZE_ALL_alterDiskgroup_size_clause	ALTER DISKGROUP a RESIZE ALL 1
+reject@29	reject@29	engine	alterDiskgroup_resize_disk_clause/RESIZE_ALL_alterDiskgroup_size_clause	ALTER DISKGROUP a RESIZE ALL 1
 accept	accept	engine	alterDiskgroup_replace_disk_clause/REPLACE_DISK_ID_WITH_STRING_(FORCE|NOFORCE)?_(POWER_NUM~38fabbb5	ALTER DISKGROUP a REPLACE DISK a WITH 's'
 accept	accept	engine	alterDiskgroup_replace_disk_clause(FORCE|NOFORCE)?/%empty	ALTER DISKGROUP a REPLACE DISK a WITH 's'
 accept	accept	engine	alterDiskgroup_replace_disk_clause(FORCE|NOFORCE)?/FORCE	ALTER DISKGROUP a REPLACE DISK a WITH 's' FORCE
@@ -4063,10 +4063,10 @@ reject@42	reject@42	engine	alterDiskgroup_replace_disk_clause(POWER_NUMBER|POWER
 accept	accept	engine	alterDiskgroup_replace_disk_clause(POWER_NUMBER|POWER_LIMIT_NUMBER)?/POWER_NUMBER!drop-2	ALTER DISKGROUP a REPLACE DISK a WITH 's' POWER
 reject@50	reject@50	engine	alterDiskgroup_replace_disk_clause(POWER_NUMBER|POWER_LIMIT_NUMBER)?/POWER_NUMBER!insert	ALTER DISKGROUP a REPLACE DISK a WITH 's' POWER 1 zzz
 reject@42	reject@42	engine	alterDiskgroup_replace_disk_clause(POWER_NUMBER|POWER_LIMIT_NUMBER)?/POWER_NUMBER!swap	ALTER DISKGROUP a REPLACE DISK a WITH 's' PREBUILT 1
-accept	reject@48	engine	alterDiskgroup_replace_disk_clause(POWER_NUMBER|POWER_LIMIT_NUMBER)?/POWER_LIMIT_NUMBER	ALTER DISKGROUP a REPLACE DISK a WITH 's' POWER LIMIT 1
+reject@48	reject@48	engine	alterDiskgroup_replace_disk_clause(POWER_NUMBER|POWER_LIMIT_NUMBER)?/POWER_LIMIT_NUMBER	ALTER DISKGROUP a REPLACE DISK a WITH 's' POWER LIMIT 1
 reject@42	reject@42	engine	alterDiskgroup_replace_disk_clause(POWER_NUMBER|POWER_LIMIT_NUMBER)?/POWER_LIMIT_NUMBER!drop-1	ALTER DISKGROUP a REPLACE DISK a WITH 's' LIMIT 1
-accept	reject@48	engine	alterDiskgroup_replace_disk_clause(POWER_NUMBER|POWER_LIMIT_NUMBER)?/POWER_LIMIT_NUMBER!drop-3	ALTER DISKGROUP a REPLACE DISK a WITH 's' POWER LIMIT
-reject@56	reject@48	engine	alterDiskgroup_replace_disk_clause(POWER_NUMBER|POWER_LIMIT_NUMBER)?/POWER_LIMIT_NUMBER!insert	ALTER DISKGROUP a REPLACE DISK a WITH 's' POWER LIMIT 1 zzz
+reject@48	reject@48	engine	alterDiskgroup_replace_disk_clause(POWER_NUMBER|POWER_LIMIT_NUMBER)?/POWER_LIMIT_NUMBER!drop-3	ALTER DISKGROUP a REPLACE DISK a WITH 's' POWER LIMIT
+reject@48	reject@48	engine	alterDiskgroup_replace_disk_clause(POWER_NUMBER|POWER_LIMIT_NUMBER)?/POWER_LIMIT_NUMBER!insert	ALTER DISKGROUP a REPLACE DISK a WITH 's' POWER LIMIT 1 zzz
 reject@42	reject@42	engine	alterDiskgroup_replace_disk_clause(POWER_NUMBER|POWER_LIMIT_NUMBER)?/POWER_LIMIT_NUMBER!swap	ALTER DISKGROUP a REPLACE DISK a WITH 's' PREBUILT LIMIT 1
 accept	accept	engine	alterDiskgroup_replace_disk_clause(WAIT|NOWAIT)?/%empty	ALTER DISKGROUP a REPLACE DISK a WITH 's'
 accept	accept	engine	alterDiskgroup_replace_disk_clause(WAIT|NOWAIT)?/WAIT	ALTER DISKGROUP a REPLACE DISK a WITH 's' WAIT
@@ -4075,32 +4075,32 @@ reject@42	reject@42	engine	alterDiskgroup_replace_disk_clause(WAIT|NOWAIT)?/WAIT
 accept	accept	engine	alterDiskgroup_replace_disk_clause(WAIT|NOWAIT)?/NOWAIT	ALTER DISKGROUP a REPLACE DISK a WITH 's' NOWAIT
 reject@49	reject@49	engine	alterDiskgroup_replace_disk_clause(WAIT|NOWAIT)?/NOWAIT!insert	ALTER DISKGROUP a REPLACE DISK a WITH 's' NOWAIT zzz
 reject@42	reject@42	engine	alterDiskgroup_replace_disk_clause(WAIT|NOWAIT)?/NOWAIT!swap	ALTER DISKGROUP a REPLACE DISK a WITH 's' NULL
-accept	reject@30	engine	alterDiskgroup_rename_disk_clause/RENAME_DISK_ID_TO_ID_(,_ID_TO_ID)*	ALTER DISKGROUP a RENAME DISK a TO a
+reject@30	reject@30	engine	alterDiskgroup_rename_disk_clause/RENAME_DISK_ID_TO_ID_(,_ID_TO_ID)*	ALTER DISKGROUP a RENAME DISK a TO a
 reject@18	reject@18	engine	alterDiskgroup_rename_disk_clause/RENAME_DISK_ID_TO_ID_(,_ID_TO_ID)*!drop-1	ALTER DISKGROUP a DISK a TO a
 reject@25	reject@25	engine	alterDiskgroup_rename_disk_clause/RENAME_DISK_ID_TO_ID_(,_ID_TO_ID)*!drop-2	ALTER DISKGROUP a RENAME a TO a
-accept	reject@30	engine	alterDiskgroup_rename_disk_clause/RENAME_DISK_ID_TO_ID_(,_ID_TO_ID)*!drop-3	ALTER DISKGROUP a RENAME DISK TO a
-accept	reject@30	engine	alterDiskgroup_rename_disk_clause/RENAME_DISK_ID_TO_ID_(,_ID_TO_ID)*!drop-4	ALTER DISKGROUP a RENAME DISK a a
-accept	reject@30	engine	alterDiskgroup_rename_disk_clause/RENAME_DISK_ID_TO_ID_(,_ID_TO_ID)*!drop-5	ALTER DISKGROUP a RENAME DISK a TO
-reject@37	reject@30	engine	alterDiskgroup_rename_disk_clause/RENAME_DISK_ID_TO_ID_(,_ID_TO_ID)*!insert	ALTER DISKGROUP a RENAME DISK a TO a zzz
+reject@30	reject@30	engine	alterDiskgroup_rename_disk_clause/RENAME_DISK_ID_TO_ID_(,_ID_TO_ID)*!drop-3	ALTER DISKGROUP a RENAME DISK TO a
+reject@30	reject@30	engine	alterDiskgroup_rename_disk_clause/RENAME_DISK_ID_TO_ID_(,_ID_TO_ID)*!drop-4	ALTER DISKGROUP a RENAME DISK a a
+reject@30	reject@30	engine	alterDiskgroup_rename_disk_clause/RENAME_DISK_ID_TO_ID_(,_ID_TO_ID)*!drop-5	ALTER DISKGROUP a RENAME DISK a TO
+reject@30	reject@30	engine	alterDiskgroup_rename_disk_clause/RENAME_DISK_ID_TO_ID_(,_ID_TO_ID)*!insert	ALTER DISKGROUP a RENAME DISK a TO a zzz
 reject@18	reject@25	engine	alterDiskgroup_rename_disk_clause/RENAME_DISK_ID_TO_ID_(,_ID_TO_ID)*!swap	ALTER DISKGROUP a REPAIR DISK a TO a
 accept	accept	engine	alterDiskgroup_rename_disk_clause/RENAME_DISKS_ALL	ALTER DISKGROUP a RENAME DISKS ALL
-accept	reject@30	engine	alterDiskgroup_rename_disk_clause(,_ID_TO_ID)*/%empty	ALTER DISKGROUP a RENAME DISK a TO a
-accept	reject@30	engine	alterDiskgroup_rename_disk_clause(,_ID_TO_ID)*/,_ID_TO_ID_(,_ID_TO_ID)*	ALTER DISKGROUP a RENAME DISK a TO a, a TO a
-reject@37	reject@30	engine	alterDiskgroup_rename_disk_clause(,_ID_TO_ID)*/,_ID_TO_ID_(,_ID_TO_ID)*!drop-1	ALTER DISKGROUP a RENAME DISK a TO a a TO a
-accept	reject@30	engine	alterDiskgroup_rename_disk_clause(,_ID_TO_ID)*/,_ID_TO_ID_(,_ID_TO_ID)*!drop-2	ALTER DISKGROUP a RENAME DISK a TO a, TO a
-accept	reject@30	engine	alterDiskgroup_rename_disk_clause(,_ID_TO_ID)*/,_ID_TO_ID_(,_ID_TO_ID)*!drop-3	ALTER DISKGROUP a RENAME DISK a TO a, a a
-accept	reject@30	engine	alterDiskgroup_rename_disk_clause(,_ID_TO_ID)*/,_ID_TO_ID_(,_ID_TO_ID)*!drop-4	ALTER DISKGROUP a RENAME DISK a TO a, a TO
-reject@45	reject@30	engine	alterDiskgroup_rename_disk_clause(,_ID_TO_ID)*/,_ID_TO_ID_(,_ID_TO_ID)*!insert	ALTER DISKGROUP a RENAME DISK a TO a, a TO a zzz
-reject@49	reject@30	engine	alterDiskgroup_rename_disk_clause(,_ID_TO_ID)*/,_ID_TO_ID_(,_ID_TO_ID)*!swap	ALTER DISKGROUP a RENAME DISK a TO a, a TOPLEVEL a
+reject@30	reject@30	engine	alterDiskgroup_rename_disk_clause(,_ID_TO_ID)*/%empty	ALTER DISKGROUP a RENAME DISK a TO a
+reject@30	reject@30	engine	alterDiskgroup_rename_disk_clause(,_ID_TO_ID)*/,_ID_TO_ID_(,_ID_TO_ID)*	ALTER DISKGROUP a RENAME DISK a TO a, a TO a
+reject@30	reject@30	engine	alterDiskgroup_rename_disk_clause(,_ID_TO_ID)*/,_ID_TO_ID_(,_ID_TO_ID)*!drop-1	ALTER DISKGROUP a RENAME DISK a TO a a TO a
+reject@30	reject@30	engine	alterDiskgroup_rename_disk_clause(,_ID_TO_ID)*/,_ID_TO_ID_(,_ID_TO_ID)*!drop-2	ALTER DISKGROUP a RENAME DISK a TO a, TO a
+reject@30	reject@30	engine	alterDiskgroup_rename_disk_clause(,_ID_TO_ID)*/,_ID_TO_ID_(,_ID_TO_ID)*!drop-3	ALTER DISKGROUP a RENAME DISK a TO a, a a
+reject@30	reject@30	engine	alterDiskgroup_rename_disk_clause(,_ID_TO_ID)*/,_ID_TO_ID_(,_ID_TO_ID)*!drop-4	ALTER DISKGROUP a RENAME DISK a TO a, a TO
+reject@30	reject@30	engine	alterDiskgroup_rename_disk_clause(,_ID_TO_ID)*/,_ID_TO_ID_(,_ID_TO_ID)*!insert	ALTER DISKGROUP a RENAME DISK a TO a, a TO a zzz
+reject@30	reject@30	engine	alterDiskgroup_rename_disk_clause(,_ID_TO_ID)*/,_ID_TO_ID_(,_ID_TO_ID)*!swap	ALTER DISKGROUP a RENAME DISK a TO a, a TOPLEVEL a
 accept	accept	engine	alterDiskgroup_disk_online_clause/ONLINE_DISK_ID_(,_ID)*_(POWER_NUMBER)?_(WAIT|NOWAIT)?	ALTER DISKGROUP a ONLINE DISK a
 reject@25	reject@25	engine	alterDiskgroup_disk_online_clause/ONLINE_DISK_ID_(,_ID)*_(POWER_NUMBER)?_(WAIT|NOWAIT)?!drop-2	ALTER DISKGROUP a ONLINE a
-accept	reject@29	engine	alterDiskgroup_disk_online_clause/ONLINE_DISK_ID_(,_ID)*_(POWER_NUMBER)?_(WAIT|NOWAIT)?!drop-3	ALTER DISKGROUP a ONLINE DISK
+reject@29	reject@29	engine	alterDiskgroup_disk_online_clause/ONLINE_DISK_ID_(,_ID)*_(POWER_NUMBER)?_(WAIT|NOWAIT)?!drop-3	ALTER DISKGROUP a ONLINE DISK
 reject@32	reject@32	engine	alterDiskgroup_disk_online_clause/ONLINE_DISK_ID_(,_ID)*_(POWER_NUMBER)?_(WAIT|NOWAIT)?!insert	ALTER DISKGROUP a ONLINE DISK a zzz
 reject@18	reject@18	engine	alterDiskgroup_disk_online_clause/ONLINE_DISK_ID_(,_ID)*_(POWER_NUMBER)?_(WAIT|NOWAIT)?!swap	ALTER DISKGROUP a ONLY DISK a
 accept	accept	engine	alterDiskgroup_disk_online_clause/ONLINE_DISKS_IN_FAILGROUP_ID_(POWER_NUMBER)?_(WAIT|NOWAIT)?	ALTER DISKGROUP a ONLINE DISKS IN FAILGROUP a
 reject@25	reject@25	engine	alterDiskgroup_disk_online_clause/ONLINE_DISKS_IN_FAILGROUP_ID_(POWER_NUMBER)?_(WAIT|NOWAIT)?!drop-2	ALTER DISKGROUP a ONLINE IN FAILGROUP a
-accept	reject@31	engine	alterDiskgroup_disk_online_clause/ONLINE_DISKS_IN_FAILGROUP_ID_(POWER_NUMBER)?_(WAIT|NOWAIT)?!drop-3	ALTER DISKGROUP a ONLINE DISKS FAILGROUP a
-accept	reject@34	engine	alterDiskgroup_disk_online_clause/ONLINE_DISKS_IN_FAILGROUP_ID_(POWER_NUMBER)?_(WAIT|NOWAIT)?!drop-4	ALTER DISKGROUP a ONLINE DISKS IN a
+reject@31	reject@31	engine	alterDiskgroup_disk_online_clause/ONLINE_DISKS_IN_FAILGROUP_ID_(POWER_NUMBER)?_(WAIT|NOWAIT)?!drop-3	ALTER DISKGROUP a ONLINE DISKS FAILGROUP a
+reject@34	reject@34	engine	alterDiskgroup_disk_online_clause/ONLINE_DISKS_IN_FAILGROUP_ID_(POWER_NUMBER)?_(WAIT|NOWAIT)?!drop-4	ALTER DISKGROUP a ONLINE DISKS IN a
 accept	accept	engine	alterDiskgroup_disk_online_clause/ONLINE_DISKS_IN_FAILGROUP_ID_(POWER_NUMBER)?_(WAIT|NOWAIT)?!drop-5	ALTER DISKGROUP a ONLINE DISKS IN FAILGROUP
 reject@46	reject@46	engine	alterDiskgroup_disk_online_clause/ONLINE_DISKS_IN_FAILGROUP_ID_(POWER_NUMBER)?_(WAIT|NOWAIT)?!insert	ALTER DISKGROUP a ONLINE DISKS IN FAILGROUP a zzz
 reject@18	reject@18	engine	alterDiskgroup_disk_online_clause/ONLINE_DISKS_IN_FAILGROUP_ID_(POWER_NUMBER)?_(WAIT|NOWAIT)?!swap	ALTER DISKGROUP a ONLY DISKS IN FAILGROUP a
@@ -4108,7 +4108,7 @@ accept	accept	engine	alterDiskgroup_disk_online_clause/ONLINE_ALL_(POWER_NUMBER)
 accept	accept	engine	alterDiskgroup_disk_online_clause(,_ID)*/%empty	ALTER DISKGROUP a ONLINE DISK a
 accept	accept	engine	alterDiskgroup_disk_online_clause(,_ID)*/,_ID_(,_ID)*	ALTER DISKGROUP a ONLINE DISK a, a
 reject@32	reject@32	engine	alterDiskgroup_disk_online_clause(,_ID)*/,_ID_(,_ID)*!drop-1	ALTER DISKGROUP a ONLINE DISK a a
-reject@31	reject@32	engine	alterDiskgroup_disk_online_clause(,_ID)*/,_ID_(,_ID)*!drop-2	ALTER DISKGROUP a ONLINE DISK a,
+reject@32	reject@32	engine	alterDiskgroup_disk_online_clause(,_ID)*/,_ID_(,_ID)*!drop-2	ALTER DISKGROUP a ONLINE DISK a,
 reject@35	reject@35	engine	alterDiskgroup_disk_online_clause(,_ID)*/,_ID_(,_ID)*!insert	ALTER DISKGROUP a ONLINE DISK a, a zzz
 accept	accept	engine	alterDiskgroup_disk_online_clause(POWER_NUMBER)?/%empty	ALTER DISKGROUP a ONLINE ALL
 accept	accept	engine	alterDiskgroup_disk_online_clause(POWER_NUMBER)?/POWER_NUMBER	ALTER DISKGROUP a ONLINE ALL POWER 1
@@ -4126,41 +4126,41 @@ reject@29	reject@29	engine	alterDiskgroup_disk_online_clause(WAIT|NOWAIT)?/NOWAI
 accept	accept	engine	alterDiskgroup_disk_offline_clause/OFFLINE_DISK_ID_(,_ID)*_(alterDiskgroup_timeout_clause)~014d5e8e	ALTER DISKGROUP a OFFLINE DISK a
 accept	accept	engine	alterDiskgroup_disk_offline_clause/OFFLINE_DISKS_IN_FAILGROUP_ID_(alterDiskgroup_timeout_c~dfc2226d	ALTER DISKGROUP a OFFLINE DISKS IN FAILGROUP a
 reject@26	reject@26	engine	alterDiskgroup_disk_offline_clause/OFFLINE_DISKS_IN_FAILGROUP_ID_(alterDiskgroup_timeout_c~dfc2226d!drop-2	ALTER DISKGROUP a OFFLINE IN FAILGROUP a
-accept	reject@32	engine	alterDiskgroup_disk_offline_clause/OFFLINE_DISKS_IN_FAILGROUP_ID_(alterDiskgroup_timeout_c~dfc2226d!drop-3	ALTER DISKGROUP a OFFLINE DISKS FAILGROUP a
-accept	reject@35	engine	alterDiskgroup_disk_offline_clause/OFFLINE_DISKS_IN_FAILGROUP_ID_(alterDiskgroup_timeout_c~dfc2226d!drop-4	ALTER DISKGROUP a OFFLINE DISKS IN a
+reject@32	reject@32	engine	alterDiskgroup_disk_offline_clause/OFFLINE_DISKS_IN_FAILGROUP_ID_(alterDiskgroup_timeout_c~dfc2226d!drop-3	ALTER DISKGROUP a OFFLINE DISKS FAILGROUP a
+reject@35	reject@35	engine	alterDiskgroup_disk_offline_clause/OFFLINE_DISKS_IN_FAILGROUP_ID_(alterDiskgroup_timeout_c~dfc2226d!drop-4	ALTER DISKGROUP a OFFLINE DISKS IN a
 accept	accept	engine	alterDiskgroup_disk_offline_clause/OFFLINE_DISKS_IN_FAILGROUP_ID_(alterDiskgroup_timeout_c~dfc2226d!drop-5	ALTER DISKGROUP a OFFLINE DISKS IN FAILGROUP
 reject@47	reject@47	engine	alterDiskgroup_disk_offline_clause/OFFLINE_DISKS_IN_FAILGROUP_ID_(alterDiskgroup_timeout_c~dfc2226d!insert	ALTER DISKGROUP a OFFLINE DISKS IN FAILGROUP a zzz
 reject@18	reject@18	engine	alterDiskgroup_disk_offline_clause/OFFLINE_DISKS_IN_FAILGROUP_ID_(alterDiskgroup_timeout_c~dfc2226d!swap	ALTER DISKGROUP a OFFSET DISKS IN FAILGROUP a
 accept	accept	engine	alterDiskgroup_disk_offline_clause(,_ID)*/%empty	ALTER DISKGROUP a OFFLINE DISK a
 accept	accept	engine	alterDiskgroup_disk_offline_clause(,_ID)*/,_ID_(,_ID)*	ALTER DISKGROUP a OFFLINE DISK a, a
 reject@33	reject@33	engine	alterDiskgroup_disk_offline_clause(,_ID)*/,_ID_(,_ID)*!drop-1	ALTER DISKGROUP a OFFLINE DISK a a
-reject@32	reject@33	engine	alterDiskgroup_disk_offline_clause(,_ID)*/,_ID_(,_ID)*!drop-2	ALTER DISKGROUP a OFFLINE DISK a,
+reject@33	reject@33	engine	alterDiskgroup_disk_offline_clause(,_ID)*/,_ID_(,_ID)*!drop-2	ALTER DISKGROUP a OFFLINE DISK a,
 reject@36	reject@36	engine	alterDiskgroup_disk_offline_clause(,_ID)*/,_ID_(,_ID)*!insert	ALTER DISKGROUP a OFFLINE DISK a, a zzz
 accept	accept	engine	alterDiskgroup_disk_offline_clause(alterDiskgroup_timeout_clause)?/%empty	ALTER DISKGROUP a OFFLINE DISK a
-reject@33	reject@45	engine	alterDiskgroup_disk_offline_clause(alterDiskgroup_timeout_clause)?/alterDiskgroup_timeout_clause	ALTER DISKGROUP a OFFLINE DISK a DISK REPAIR TIME
+reject@45	reject@45	engine	alterDiskgroup_disk_offline_clause(alterDiskgroup_timeout_clause)?/alterDiskgroup_timeout_clause	ALTER DISKGROUP a OFFLINE DISK a DISK REPAIR TIME
 reject@33	reject@33	engine	alterDiskgroup_disk_offline_clause(alterDiskgroup_timeout_clause)?/alterDiskgroup_timeout_clause!drop-1	ALTER DISKGROUP a OFFLINE DISK a REPAIR TIME
-reject@33	accept	engine	alterDiskgroup_disk_offline_clause(alterDiskgroup_timeout_clause)?/alterDiskgroup_timeout_clause!drop-2	ALTER DISKGROUP a OFFLINE DISK a DISK TIME
-reject@33	accept	engine	alterDiskgroup_disk_offline_clause(alterDiskgroup_timeout_clause)?/alterDiskgroup_timeout_clause!drop-3	ALTER DISKGROUP a OFFLINE DISK a DISK REPAIR
-reject@33	reject@45	engine	alterDiskgroup_disk_offline_clause(alterDiskgroup_timeout_clause)?/alterDiskgroup_timeout_clause!insert	ALTER DISKGROUP a OFFLINE DISK a DISK REPAIR TIME zzz
+accept	accept	engine	alterDiskgroup_disk_offline_clause(alterDiskgroup_timeout_clause)?/alterDiskgroup_timeout_clause!drop-2	ALTER DISKGROUP a OFFLINE DISK a DISK TIME
+accept	accept	engine	alterDiskgroup_disk_offline_clause(alterDiskgroup_timeout_clause)?/alterDiskgroup_timeout_clause!drop-3	ALTER DISKGROUP a OFFLINE DISK a DISK REPAIR
+reject@45	reject@45	engine	alterDiskgroup_disk_offline_clause(alterDiskgroup_timeout_clause)?/alterDiskgroup_timeout_clause!insert	ALTER DISKGROUP a OFFLINE DISK a DISK REPAIR TIME zzz
 reject@33	reject@33	engine	alterDiskgroup_disk_offline_clause(alterDiskgroup_timeout_clause)?/alterDiskgroup_timeout_clause!swap	ALTER DISKGROUP a OFFLINE DISK a DISKGROUP REPAIR TIME
 accept	accept	engine	alterDiskgroup_disk_offline_clause(WAIT|NOWAIT)?/%empty	ALTER DISKGROUP a OFFLINE DISK a
-reject@33	accept	engine	alterDiskgroup_disk_offline_clause(WAIT|NOWAIT)?/WAIT	ALTER DISKGROUP a OFFLINE DISK a WAIT
-reject@33	reject@38	engine	alterDiskgroup_disk_offline_clause(WAIT|NOWAIT)?/WAIT!insert	ALTER DISKGROUP a OFFLINE DISK a WAIT zzz
+accept	accept	engine	alterDiskgroup_disk_offline_clause(WAIT|NOWAIT)?/WAIT	ALTER DISKGROUP a OFFLINE DISK a WAIT
+reject@38	reject@38	engine	alterDiskgroup_disk_offline_clause(WAIT|NOWAIT)?/WAIT!insert	ALTER DISKGROUP a OFFLINE DISK a WAIT zzz
 reject@33	reject@33	engine	alterDiskgroup_disk_offline_clause(WAIT|NOWAIT)?/WAIT!swap	ALTER DISKGROUP a OFFLINE DISK a WALLET
-reject@33	accept	engine	alterDiskgroup_disk_offline_clause(WAIT|NOWAIT)?/NOWAIT	ALTER DISKGROUP a OFFLINE DISK a NOWAIT
-reject@33	reject@40	engine	alterDiskgroup_disk_offline_clause(WAIT|NOWAIT)?/NOWAIT!insert	ALTER DISKGROUP a OFFLINE DISK a NOWAIT zzz
+accept	accept	engine	alterDiskgroup_disk_offline_clause(WAIT|NOWAIT)?/NOWAIT	ALTER DISKGROUP a OFFLINE DISK a NOWAIT
+reject@40	reject@40	engine	alterDiskgroup_disk_offline_clause(WAIT|NOWAIT)?/NOWAIT!insert	ALTER DISKGROUP a OFFLINE DISK a NOWAIT zzz
 reject@33	reject@33	engine	alterDiskgroup_disk_offline_clause(WAIT|NOWAIT)?/NOWAIT!swap	ALTER DISKGROUP a OFFLINE DISK a NULL
 accept	accept	engine	alterDiskgroup_rebalance_diskgroup_clause/REBALANCE_(WITH_(RESTORE|BALANCE|PREPARE|COMPAC~1225d4d6)*	ALTER DISKGROUP a REBALANCE
 accept	accept	engine	alterDiskgroup_rebalance_diskgroup_clause/REBALANCE_(WITHOUT_(BALANCE|PREPARE|COMPACT)_(,~ea80976~caa1c716	ALTER DISKGROUP a REBALANCE
-accept	reject@25	engine	alterDiskgroup_rebalance_diskgroup_clause/MODIFY_POWER_(NUMBER)?	ALTER DISKGROUP a MODIFY POWER
+reject@25	reject@25	engine	alterDiskgroup_rebalance_diskgroup_clause/MODIFY_POWER_(NUMBER)?	ALTER DISKGROUP a MODIFY POWER
 reject@18	reject@18	engine	alterDiskgroup_rebalance_diskgroup_clause/MODIFY_POWER_(NUMBER)?!drop-1	ALTER DISKGROUP a POWER
-accept	reject@24	engine	alterDiskgroup_rebalance_diskgroup_clause/MODIFY_POWER_(NUMBER)?!drop-2	ALTER DISKGROUP a MODIFY
-reject@31	reject@25	engine	alterDiskgroup_rebalance_diskgroup_clause/MODIFY_POWER_(NUMBER)?!insert	ALTER DISKGROUP a MODIFY POWER zzz
+reject@24	reject@24	engine	alterDiskgroup_rebalance_diskgroup_clause/MODIFY_POWER_(NUMBER)?!drop-2	ALTER DISKGROUP a MODIFY
+reject@25	reject@25	engine	alterDiskgroup_rebalance_diskgroup_clause/MODIFY_POWER_(NUMBER)?!insert	ALTER DISKGROUP a MODIFY POWER zzz
 reject@18	reject@18	engine	alterDiskgroup_rebalance_diskgroup_clause/MODIFY_POWER_(NUMBER)?!swap	ALTER DISKGROUP a MODULE POWER
 accept	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(WITH_(RESTORE|BALANCE|PREPARE|COMPAC~1225d4d6)*/%empty	ALTER DISKGROUP a REBALANCE
 accept	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(WITH_(RESTORE|BALANCE|PREPARE|COMPAC~1225d4d6)*/WITH_(RESTORE|BALANCE|PREPARE|COMPACT)_(,_(RESTORE|BALA~95d59893	ALTER DISKGROUP a REBALANCE WITH RESTORE
 reject@28	reject@28	engine	alterDiskgroup_rebalance_diskgroup_clause(WITH_(RESTORE|BALANCE|PREPARE|COMPAC~1225d4d6)*/WITH_(RESTORE|BALANCE|PREPARE|COMPACT)_(,_(RESTORE|BALA~95d59893!drop-1	ALTER DISKGROUP a REBALANCE RESTORE
-accept	reject@32	engine	alterDiskgroup_rebalance_diskgroup_clause(WITH_(RESTORE|BALANCE|PREPARE|COMPAC~1225d4d6)*/WITH_(RESTORE|BALANCE|PREPARE|COMPACT)_(,_(RESTORE|BALA~95d59893!drop-2	ALTER DISKGROUP a REBALANCE WITH
+reject@32	reject@32	engine	alterDiskgroup_rebalance_diskgroup_clause(WITH_(RESTORE|BALANCE|PREPARE|COMPAC~1225d4d6)*/WITH_(RESTORE|BALANCE|PREPARE|COMPACT)_(,_(RESTORE|BALA~95d59893!drop-2	ALTER DISKGROUP a REBALANCE WITH
 reject@41	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(WITH_(RESTORE|BALANCE|PREPARE|COMPAC~1225d4d6)*/WITH_(RESTORE|BALANCE|PREPARE|COMPACT)_(,_(RESTORE|BALA~95d59893!insert	ALTER DISKGROUP a REBALANCE WITH RESTORE zzz
 reject@36	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(WITH_(RESTORE|BALANCE|PREPARE|COMPAC~1225d4d6)*/WITH_(RESTORE|BALANCE|PREPARE|COMPACT)_(,_(RESTORE|BALA~95d59893!swap	ALTER DISKGROUP a REBALANCE WITHOUT RESTORE
 accept	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(RESTORE|BALANCE|PREPARE|COMPACT)/RESTORE	ALTER DISKGROUP a REBALANCE WITH RESTORE
@@ -4183,7 +4183,7 @@ reject@42	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(,_(RESTORE|BAL
 accept	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(WITHOUT_(BALANCE|PREPARE|COMPACT)_(,~ea809762)*/%empty	ALTER DISKGROUP a REBALANCE
 accept	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(WITHOUT_(BALANCE|PREPARE|COMPACT)_(,~ea809762)*/WITHOUT_(BALANCE|PREPARE|COMPACT)_(,_(BALANCE|PREPARE|C~6ba1e831	ALTER DISKGROUP a REBALANCE WITHOUT BALANCE
 reject@28	reject@28	engine	alterDiskgroup_rebalance_diskgroup_clause(WITHOUT_(BALANCE|PREPARE|COMPACT)_(,~ea809762)*/WITHOUT_(BALANCE|PREPARE|COMPACT)_(,_(BALANCE|PREPARE|C~6ba1e831!drop-1	ALTER DISKGROUP a REBALANCE BALANCE
-accept	reject@35	engine	alterDiskgroup_rebalance_diskgroup_clause(WITHOUT_(BALANCE|PREPARE|COMPACT)_(,~ea809762)*/WITHOUT_(BALANCE|PREPARE|COMPACT)_(,_(BALANCE|PREPARE|C~6ba1e831!drop-2	ALTER DISKGROUP a REBALANCE WITHOUT
+reject@35	reject@35	engine	alterDiskgroup_rebalance_diskgroup_clause(WITHOUT_(BALANCE|PREPARE|COMPACT)_(,~ea809762)*/WITHOUT_(BALANCE|PREPARE|COMPACT)_(,_(BALANCE|PREPARE|C~6ba1e831!drop-2	ALTER DISKGROUP a REBALANCE WITHOUT
 reject@44	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(WITHOUT_(BALANCE|PREPARE|COMPACT)_(,~ea809762)*/WITHOUT_(BALANCE|PREPARE|COMPACT)_(,_(BALANCE|PREPARE|C~6ba1e831!insert	ALTER DISKGROUP a REBALANCE WITHOUT BALANCE zzz
 reject@28	reject@28	engine	alterDiskgroup_rebalance_diskgroup_clause(WITHOUT_(BALANCE|PREPARE|COMPACT)_(,~ea809762)*/WITHOUT_(BALANCE|PREPARE|COMPACT)_(,_(BALANCE|PREPARE|C~6ba1e831!swap	ALTER DISKGROUP a REBALANCE WORK BALANCE
 accept	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(BALANCE|PREPARE|COMPACT)/BALANCE	ALTER DISKGROUP a REBALANCE WITHOUT BALANCE
@@ -4213,28 +4213,28 @@ reject@28	reject@28	engine	alterDiskgroup_rebalance_diskgroup_clause(WAIT|NOWAIT
 accept	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(WAIT|NOWAIT)?/NOWAIT	ALTER DISKGROUP a REBALANCE NOWAIT
 reject@35	reject@35	engine	alterDiskgroup_rebalance_diskgroup_clause(WAIT|NOWAIT)?/NOWAIT!insert	ALTER DISKGROUP a REBALANCE NOWAIT zzz
 reject@28	reject@28	engine	alterDiskgroup_rebalance_diskgroup_clause(WAIT|NOWAIT)?/NOWAIT!swap	ALTER DISKGROUP a REBALANCE NULL
-accept	reject@25	engine	alterDiskgroup_rebalance_diskgroup_clause(NUMBER)?/%empty	ALTER DISKGROUP a MODIFY POWER
-accept	reject@25	engine	alterDiskgroup_rebalance_diskgroup_clause(NUMBER)?/NUMBER	ALTER DISKGROUP a MODIFY POWER 1
-reject@33	reject@25	engine	alterDiskgroup_rebalance_diskgroup_clause(NUMBER)?/NUMBER!insert	ALTER DISKGROUP a MODIFY POWER 1 zzz
+reject@25	reject@25	engine	alterDiskgroup_rebalance_diskgroup_clause(NUMBER)?/%empty	ALTER DISKGROUP a MODIFY POWER
+reject@25	reject@25	engine	alterDiskgroup_rebalance_diskgroup_clause(NUMBER)?/NUMBER	ALTER DISKGROUP a MODIFY POWER 1
+reject@25	reject@25	engine	alterDiskgroup_rebalance_diskgroup_clause(NUMBER)?/NUMBER!insert	ALTER DISKGROUP a MODIFY POWER 1 zzz
 accept	accept	engine	alterDiskgroup_check_diskgroup_clause/CHECK_(REPAIR|NOREPAIR)?	ALTER DISKGROUP a CHECK
 accept	accept	engine	alterDiskgroup_check_diskgroup_clause/CHECK_ALL_(REPAIR|NOREPAIR)?	ALTER DISKGROUP a CHECK ALL
 reject@28	reject@28	engine	alterDiskgroup_check_diskgroup_clause/CHECK_ALL_(REPAIR|NOREPAIR)?!insert	ALTER DISKGROUP a CHECK ALL zzz
 reject@18	reject@18	engine	alterDiskgroup_check_diskgroup_clause/CHECK_ALL_(REPAIR|NOREPAIR)?!swap	ALTER DISKGROUP a CHECKPOINT ALL
-accept	reject@29	engine	alterDiskgroup_check_diskgroup_clause/CHECK_DISK_ID_(,_ID)*_(REPAIR|NOREPAIR)?	ALTER DISKGROUP a CHECK DISK a
+reject@29	reject@29	engine	alterDiskgroup_check_diskgroup_clause/CHECK_DISK_ID_(,_ID)*_(REPAIR|NOREPAIR)?	ALTER DISKGROUP a CHECK DISK a
 reject@24	reject@24	engine	alterDiskgroup_check_diskgroup_clause/CHECK_DISK_ID_(,_ID)*_(REPAIR|NOREPAIR)?!drop-2	ALTER DISKGROUP a CHECK a
 accept	accept	engine	alterDiskgroup_check_diskgroup_clause/CHECK_DISK_ID_(,_ID)*_(REPAIR|NOREPAIR)?!drop-3	ALTER DISKGROUP a CHECK DISK
-reject@31	reject@29	engine	alterDiskgroup_check_diskgroup_clause/CHECK_DISK_ID_(,_ID)*_(REPAIR|NOREPAIR)?!insert	ALTER DISKGROUP a CHECK DISK a zzz
+reject@29	reject@29	engine	alterDiskgroup_check_diskgroup_clause/CHECK_DISK_ID_(,_ID)*_(REPAIR|NOREPAIR)?!insert	ALTER DISKGROUP a CHECK DISK a zzz
 reject@18	reject@18	engine	alterDiskgroup_check_diskgroup_clause/CHECK_DISK_ID_(,_ID)*_(REPAIR|NOREPAIR)?!swap	ALTER DISKGROUP a CHECKPOINT DISK a
-accept	reject@24	engine	alterDiskgroup_check_diskgroup_clause/CHECK_DISKS_IN_FAILGROUP_ID_(REPAIR|NOREPAIR)?	ALTER DISKGROUP a CHECK DISKS IN FAILGROUP a
+reject@24	reject@24	engine	alterDiskgroup_check_diskgroup_clause/CHECK_DISKS_IN_FAILGROUP_ID_(REPAIR|NOREPAIR)?	ALTER DISKGROUP a CHECK DISKS IN FAILGROUP a
 reject@24	reject@24	engine	alterDiskgroup_check_diskgroup_clause/CHECK_DISKS_IN_FAILGROUP_ID_(REPAIR|NOREPAIR)?!drop-2	ALTER DISKGROUP a CHECK IN FAILGROUP a
-accept	reject@24	engine	alterDiskgroup_check_diskgroup_clause/CHECK_DISKS_IN_FAILGROUP_ID_(REPAIR|NOREPAIR)?!drop-3	ALTER DISKGROUP a CHECK DISKS FAILGROUP a
-accept	reject@24	engine	alterDiskgroup_check_diskgroup_clause/CHECK_DISKS_IN_FAILGROUP_ID_(REPAIR|NOREPAIR)?!drop-4	ALTER DISKGROUP a CHECK DISKS IN a
-accept	reject@24	engine	alterDiskgroup_check_diskgroup_clause/CHECK_DISKS_IN_FAILGROUP_ID_(REPAIR|NOREPAIR)?!drop-5	ALTER DISKGROUP a CHECK DISKS IN FAILGROUP
-reject@45	reject@24	engine	alterDiskgroup_check_diskgroup_clause/CHECK_DISKS_IN_FAILGROUP_ID_(REPAIR|NOREPAIR)?!insert	ALTER DISKGROUP a CHECK DISKS IN FAILGROUP a zzz
+reject@24	reject@24	engine	alterDiskgroup_check_diskgroup_clause/CHECK_DISKS_IN_FAILGROUP_ID_(REPAIR|NOREPAIR)?!drop-3	ALTER DISKGROUP a CHECK DISKS FAILGROUP a
+reject@24	reject@24	engine	alterDiskgroup_check_diskgroup_clause/CHECK_DISKS_IN_FAILGROUP_ID_(REPAIR|NOREPAIR)?!drop-4	ALTER DISKGROUP a CHECK DISKS IN a
+reject@24	reject@24	engine	alterDiskgroup_check_diskgroup_clause/CHECK_DISKS_IN_FAILGROUP_ID_(REPAIR|NOREPAIR)?!drop-5	ALTER DISKGROUP a CHECK DISKS IN FAILGROUP
+reject@24	reject@24	engine	alterDiskgroup_check_diskgroup_clause/CHECK_DISKS_IN_FAILGROUP_ID_(REPAIR|NOREPAIR)?!insert	ALTER DISKGROUP a CHECK DISKS IN FAILGROUP a zzz
 reject@18	reject@18	engine	alterDiskgroup_check_diskgroup_clause/CHECK_DISKS_IN_FAILGROUP_ID_(REPAIR|NOREPAIR)?!swap	ALTER DISKGROUP a CHECKPOINT DISKS IN FAILGROUP a
 accept	accept	engine	alterDiskgroup_check_diskgroup_clause/CHECK_FILE_alterDiskgroup_file_specification_(,_alterDi~446679a3	ALTER DISKGROUP a CHECK FILE
 reject@18	reject@18	engine	alterDiskgroup_check_diskgroup_clause/CHECK_FILE_alterDiskgroup_file_specification_(,_alterDi~446679a3!drop-1	ALTER DISKGROUP a FILE
-accept	reject@29	engine	alterDiskgroup_check_diskgroup_clause/CHECK_FILE_alterDiskgroup_file_specification_(,_alterDi~446679a3!insert	ALTER DISKGROUP a CHECK FILE zzz
+reject@29	reject@29	engine	alterDiskgroup_check_diskgroup_clause/CHECK_FILE_alterDiskgroup_file_specification_(,_alterDi~446679a3!insert	ALTER DISKGROUP a CHECK FILE zzz
 reject@18	reject@18	engine	alterDiskgroup_check_diskgroup_clause/CHECK_FILE_alterDiskgroup_file_specification_(,_alterDi~446679a3!swap	ALTER DISKGROUP a CHECKPOINT FILE
 accept	accept	engine	alterDiskgroup_check_diskgroup_clause(REPAIR|NOREPAIR)?/%empty	ALTER DISKGROUP a CHECK
 accept	accept	engine	alterDiskgroup_check_diskgroup_clause(REPAIR|NOREPAIR)?/REPAIR	ALTER DISKGROUP a CHECK REPAIR
@@ -4243,35 +4243,35 @@ reject@24	reject@24	engine	alterDiskgroup_check_diskgroup_clause(REPAIR|NOREPAIR
 accept	accept	engine	alterDiskgroup_check_diskgroup_clause(REPAIR|NOREPAIR)?/NOREPAIR	ALTER DISKGROUP a CHECK NOREPAIR
 reject@33	reject@33	engine	alterDiskgroup_check_diskgroup_clause(REPAIR|NOREPAIR)?/NOREPAIR!insert	ALTER DISKGROUP a CHECK NOREPAIR zzz
 reject@24	reject@24	engine	alterDiskgroup_check_diskgroup_clause(REPAIR|NOREPAIR)?/NOREPAIR!swap	ALTER DISKGROUP a CHECK NOREPLAY
-accept	reject@29	engine	alterDiskgroup_check_diskgroup_clause(,_ID)*/%empty	ALTER DISKGROUP a CHECK DISK a
-accept	reject@29	engine	alterDiskgroup_check_diskgroup_clause(,_ID)*/,_ID_(,_ID)*	ALTER DISKGROUP a CHECK DISK a, a
-reject@31	reject@29	engine	alterDiskgroup_check_diskgroup_clause(,_ID)*/,_ID_(,_ID)*!drop-1	ALTER DISKGROUP a CHECK DISK a a
-reject@30	reject@29	engine	alterDiskgroup_check_diskgroup_clause(,_ID)*/,_ID_(,_ID)*!drop-2	ALTER DISKGROUP a CHECK DISK a,
-reject@34	reject@29	engine	alterDiskgroup_check_diskgroup_clause(,_ID)*/,_ID_(,_ID)*!insert	ALTER DISKGROUP a CHECK DISK a, a zzz
+reject@29	reject@29	engine	alterDiskgroup_check_diskgroup_clause(,_ID)*/%empty	ALTER DISKGROUP a CHECK DISK a
+reject@29	reject@29	engine	alterDiskgroup_check_diskgroup_clause(,_ID)*/,_ID_(,_ID)*	ALTER DISKGROUP a CHECK DISK a, a
+reject@29	reject@29	engine	alterDiskgroup_check_diskgroup_clause(,_ID)*/,_ID_(,_ID)*!drop-1	ALTER DISKGROUP a CHECK DISK a a
+reject@29	reject@29	engine	alterDiskgroup_check_diskgroup_clause(,_ID)*/,_ID_(,_ID)*!drop-2	ALTER DISKGROUP a CHECK DISK a,
+reject@29	reject@29	engine	alterDiskgroup_check_diskgroup_clause(,_ID)*/,_ID_(,_ID)*!insert	ALTER DISKGROUP a CHECK DISK a, a zzz
 accept	accept	engine	alterDiskgroup_check_diskgroup_clause(,_alterDiskgroup_file_specification)*/%empty	ALTER DISKGROUP a CHECK FILE
 reject@28	reject@28	engine	alterDiskgroup_check_diskgroup_clause(,_alterDiskgroup_file_specification)*/,_alterDiskgroup_file_specification_(,_alterDiskgroup_f~71d75415	ALTER DISKGROUP a CHECK FILE,
 reject@28	reject@28	engine	alterDiskgroup_check_diskgroup_clause(,_alterDiskgroup_file_specification)*/,_alterDiskgroup_file_specification_(,_alterDiskgroup_f~71d75415!insert	ALTER DISKGROUP a CHECK FILE, zzz
 accept	accept	engine	alterDiskgroup_diskgroup_template_clauses/ADD_TEMPLATE_ID_ATTRIBUTES_(_alterDiskgroup_qualified_t~348e9f10	ALTER DISKGROUP a ADD TEMPLATE a ATTRIBUTES()
 reject@18	reject@18	engine	alterDiskgroup_diskgroup_template_clauses/ADD_TEMPLATE_ID_ATTRIBUTES_(_alterDiskgroup_qualified_t~348e9f10!drop-1	ALTER DISKGROUP a TEMPLATE a ATTRIBUTES()
 reject@22	reject@22	engine	alterDiskgroup_diskgroup_template_clauses/ADD_TEMPLATE_ID_ATTRIBUTES_(_alterDiskgroup_qualified_t~348e9f10!drop-2	ALTER DISKGROUP a ADD a ATTRIBUTES()
-accept	reject@41	engine	alterDiskgroup_diskgroup_template_clauses/ADD_TEMPLATE_ID_ATTRIBUTES_(_alterDiskgroup_qualified_t~348e9f10!drop-3	ALTER DISKGROUP a ADD TEMPLATE ATTRIBUTES()
-accept	reject@32	engine	alterDiskgroup_diskgroup_template_clauses/ADD_TEMPLATE_ID_ATTRIBUTES_(_alterDiskgroup_qualified_t~348e9f10!drop-4	ALTER DISKGROUP a ADD TEMPLATE a()
+reject@41	reject@41	engine	alterDiskgroup_diskgroup_template_clauses/ADD_TEMPLATE_ID_ATTRIBUTES_(_alterDiskgroup_qualified_t~348e9f10!drop-3	ALTER DISKGROUP a ADD TEMPLATE ATTRIBUTES()
+reject@32	reject@32	engine	alterDiskgroup_diskgroup_template_clauses/ADD_TEMPLATE_ID_ATTRIBUTES_(_alterDiskgroup_qualified_t~348e9f10!drop-4	ALTER DISKGROUP a ADD TEMPLATE a()
 reject@43	reject@43	engine	alterDiskgroup_diskgroup_template_clauses/ADD_TEMPLATE_ID_ATTRIBUTES_(_alterDiskgroup_qualified_t~348e9f10!drop-5	ALTER DISKGROUP a ADD TEMPLATE a ATTRIBUTES)
 reject@44	reject@44	engine	alterDiskgroup_diskgroup_template_clauses/ADD_TEMPLATE_ID_ATTRIBUTES_(_alterDiskgroup_qualified_t~348e9f10!drop-6	ALTER DISKGROUP a ADD TEMPLATE a ATTRIBUTES(
 reject@46	reject@46	engine	alterDiskgroup_diskgroup_template_clauses/ADD_TEMPLATE_ID_ATTRIBUTES_(_alterDiskgroup_qualified_t~348e9f10!insert	ALTER DISKGROUP a ADD TEMPLATE a ATTRIBUTES() zzz
 reject@18	reject@18	engine	alterDiskgroup_diskgroup_template_clauses/ADD_TEMPLATE_ID_ATTRIBUTES_(_alterDiskgroup_qualified_t~348e9f10!swap	ALTER DISKGROUP a ADMIN TEMPLATE a ATTRIBUTES()
 accept	accept	engine	alterDiskgroup_diskgroup_template_clauses/MODIFY_TEMPLATE_ID_ATTRIBUTES_(_alterDiskgroup_qualifie~9b371366	ALTER DISKGROUP a MODIFY TEMPLATE a ATTRIBUTES()
 reject@25	reject@25	engine	alterDiskgroup_diskgroup_template_clauses/MODIFY_TEMPLATE_ID_ATTRIBUTES_(_alterDiskgroup_qualifie~9b371366!drop-2	ALTER DISKGROUP a MODIFY a ATTRIBUTES()
-accept	reject@44	engine	alterDiskgroup_diskgroup_template_clauses/MODIFY_TEMPLATE_ID_ATTRIBUTES_(_alterDiskgroup_qualifie~9b371366!drop-3	ALTER DISKGROUP a MODIFY TEMPLATE ATTRIBUTES()
-accept	reject@35	engine	alterDiskgroup_diskgroup_template_clauses/MODIFY_TEMPLATE_ID_ATTRIBUTES_(_alterDiskgroup_qualifie~9b371366!drop-4	ALTER DISKGROUP a MODIFY TEMPLATE a()
+reject@44	reject@44	engine	alterDiskgroup_diskgroup_template_clauses/MODIFY_TEMPLATE_ID_ATTRIBUTES_(_alterDiskgroup_qualifie~9b371366!drop-3	ALTER DISKGROUP a MODIFY TEMPLATE ATTRIBUTES()
+reject@35	reject@35	engine	alterDiskgroup_diskgroup_template_clauses/MODIFY_TEMPLATE_ID_ATTRIBUTES_(_alterDiskgroup_qualifie~9b371366!drop-4	ALTER DISKGROUP a MODIFY TEMPLATE a()
 reject@46	reject@46	engine	alterDiskgroup_diskgroup_template_clauses/MODIFY_TEMPLATE_ID_ATTRIBUTES_(_alterDiskgroup_qualifie~9b371366!drop-5	ALTER DISKGROUP a MODIFY TEMPLATE a ATTRIBUTES)
 reject@47	reject@47	engine	alterDiskgroup_diskgroup_template_clauses/MODIFY_TEMPLATE_ID_ATTRIBUTES_(_alterDiskgroup_qualifie~9b371366!drop-6	ALTER DISKGROUP a MODIFY TEMPLATE a ATTRIBUTES(
 reject@49	reject@49	engine	alterDiskgroup_diskgroup_template_clauses/MODIFY_TEMPLATE_ID_ATTRIBUTES_(_alterDiskgroup_qualifie~9b371366!insert	ALTER DISKGROUP a MODIFY TEMPLATE a ATTRIBUTES() zzz
 reject@18	reject@18	engine	alterDiskgroup_diskgroup_template_clauses/MODIFY_TEMPLATE_ID_ATTRIBUTES_(_alterDiskgroup_qualifie~9b371366!swap	ALTER DISKGROUP a MODULE TEMPLATE a ATTRIBUTES()
 accept	accept	engine	alterDiskgroup_diskgroup_template_clauses/ALTER_TEMPLATE_ID_ATTRIBUTES_(_alterDiskgroup_qualified~575a9d29	ALTER DISKGROUP a ALTER TEMPLATE a ATTRIBUTES()
 reject@24	reject@24	engine	alterDiskgroup_diskgroup_template_clauses/ALTER_TEMPLATE_ID_ATTRIBUTES_(_alterDiskgroup_qualified~575a9d29!drop-2	ALTER DISKGROUP a ALTER a ATTRIBUTES()
-accept	reject@43	engine	alterDiskgroup_diskgroup_template_clauses/ALTER_TEMPLATE_ID_ATTRIBUTES_(_alterDiskgroup_qualified~575a9d29!drop-3	ALTER DISKGROUP a ALTER TEMPLATE ATTRIBUTES()
-accept	reject@34	engine	alterDiskgroup_diskgroup_template_clauses/ALTER_TEMPLATE_ID_ATTRIBUTES_(_alterDiskgroup_qualified~575a9d29!drop-4	ALTER DISKGROUP a ALTER TEMPLATE a()
+reject@43	reject@43	engine	alterDiskgroup_diskgroup_template_clauses/ALTER_TEMPLATE_ID_ATTRIBUTES_(_alterDiskgroup_qualified~575a9d29!drop-3	ALTER DISKGROUP a ALTER TEMPLATE ATTRIBUTES()
+reject@34	reject@34	engine	alterDiskgroup_diskgroup_template_clauses/ALTER_TEMPLATE_ID_ATTRIBUTES_(_alterDiskgroup_qualified~575a9d29!drop-4	ALTER DISKGROUP a ALTER TEMPLATE a()
 reject@45	reject@45	engine	alterDiskgroup_diskgroup_template_clauses/ALTER_TEMPLATE_ID_ATTRIBUTES_(_alterDiskgroup_qualified~575a9d29!drop-5	ALTER DISKGROUP a ALTER TEMPLATE a ATTRIBUTES)
 reject@46	reject@46	engine	alterDiskgroup_diskgroup_template_clauses/ALTER_TEMPLATE_ID_ATTRIBUTES_(_alterDiskgroup_qualified~575a9d29!drop-6	ALTER DISKGROUP a ALTER TEMPLATE a ATTRIBUTES(
 reject@48	reject@48	engine	alterDiskgroup_diskgroup_template_clauses/ALTER_TEMPLATE_ID_ATTRIBUTES_(_alterDiskgroup_qualified~575a9d29!insert	ALTER DISKGROUP a ALTER TEMPLATE a ATTRIBUTES() zzz
@@ -4285,8 +4285,8 @@ reject@18	reject@18	engine	alterDiskgroup_diskgroup_directory_clauses/DROP_DIREC
 accept	accept	engine	alterDiskgroup_diskgroup_directory_clauses/RENAME_DIRECTORY_STRING_TO_STRING	ALTER DISKGROUP a RENAME DIRECTORY 's' TO 's'
 reject@18	reject@18	engine	alterDiskgroup_diskgroup_directory_clauses/RENAME_DIRECTORY_STRING_TO_STRING!drop-1	ALTER DISKGROUP a DIRECTORY 's' TO 's'
 reject@25	reject@25	engine	alterDiskgroup_diskgroup_directory_clauses/RENAME_DIRECTORY_STRING_TO_STRING!drop-2	ALTER DISKGROUP a RENAME 's' TO 's'
-accept	reject@35	engine	alterDiskgroup_diskgroup_directory_clauses/RENAME_DIRECTORY_STRING_TO_STRING!drop-3	ALTER DISKGROUP a RENAME DIRECTORY TO 's'
-accept	reject@39	engine	alterDiskgroup_diskgroup_directory_clauses/RENAME_DIRECTORY_STRING_TO_STRING!drop-4	ALTER DISKGROUP a RENAME DIRECTORY 's' 's'
+reject@35	reject@35	engine	alterDiskgroup_diskgroup_directory_clauses/RENAME_DIRECTORY_STRING_TO_STRING!drop-3	ALTER DISKGROUP a RENAME DIRECTORY TO 's'
+reject@39	reject@39	engine	alterDiskgroup_diskgroup_directory_clauses/RENAME_DIRECTORY_STRING_TO_STRING!drop-4	ALTER DISKGROUP a RENAME DIRECTORY 's' 's'
 accept	accept	engine	alterDiskgroup_diskgroup_directory_clauses/RENAME_DIRECTORY_STRING_TO_STRING!drop-5	ALTER DISKGROUP a RENAME DIRECTORY 's' TO
 reject@46	reject@46	engine	alterDiskgroup_diskgroup_directory_clauses/RENAME_DIRECTORY_STRING_TO_STRING!insert	ALTER DISKGROUP a RENAME DIRECTORY 's' TO 's' zzz
 reject@18	reject@25	engine	alterDiskgroup_diskgroup_directory_clauses/RENAME_DIRECTORY_STRING_TO_STRING!swap	ALTER DISKGROUP a REPAIR DIRECTORY 's' TO 's'
@@ -4297,16 +4297,16 @@ reject@37	reject@37	engine	alterDiskgroup_diskgroup_directory_clauses(FORCE)?/FO
 accept	accept	engine	alterDiskgroup_diskgroup_alias_clauses/ADD_ALIAS_STRING_FOR_STRING	ALTER DISKGROUP a ADD ALIAS 's' FOR 's'
 reject@18	reject@18	engine	alterDiskgroup_diskgroup_alias_clauses/ADD_ALIAS_STRING_FOR_STRING!drop-1	ALTER DISKGROUP a ALIAS 's' FOR 's'
 reject@22	reject@22	engine	alterDiskgroup_diskgroup_alias_clauses/ADD_ALIAS_STRING_FOR_STRING!drop-2	ALTER DISKGROUP a ADD 's' FOR 's'
-accept	reject@28	engine	alterDiskgroup_diskgroup_alias_clauses/ADD_ALIAS_STRING_FOR_STRING!drop-3	ALTER DISKGROUP a ADD ALIAS FOR 's'
-accept	reject@32	engine	alterDiskgroup_diskgroup_alias_clauses/ADD_ALIAS_STRING_FOR_STRING!drop-4	ALTER DISKGROUP a ADD ALIAS 's' 's'
+reject@28	reject@28	engine	alterDiskgroup_diskgroup_alias_clauses/ADD_ALIAS_STRING_FOR_STRING!drop-3	ALTER DISKGROUP a ADD ALIAS FOR 's'
+reject@32	reject@32	engine	alterDiskgroup_diskgroup_alias_clauses/ADD_ALIAS_STRING_FOR_STRING!drop-4	ALTER DISKGROUP a ADD ALIAS 's' 's'
 accept	accept	engine	alterDiskgroup_diskgroup_alias_clauses/ADD_ALIAS_STRING_FOR_STRING!drop-5	ALTER DISKGROUP a ADD ALIAS 's' FOR
 reject@40	reject@40	engine	alterDiskgroup_diskgroup_alias_clauses/ADD_ALIAS_STRING_FOR_STRING!insert	ALTER DISKGROUP a ADD ALIAS 's' FOR 's' zzz
 reject@18	reject@18	engine	alterDiskgroup_diskgroup_alias_clauses/ADD_ALIAS_STRING_FOR_STRING!swap	ALTER DISKGROUP a ADMIN ALIAS 's' FOR 's'
 accept	accept	engine	alterDiskgroup_diskgroup_alias_clauses/DROP_ALIAS_STRING	ALTER DISKGROUP a DROP ALIAS 's'
 accept	accept	engine	alterDiskgroup_diskgroup_alias_clauses/RENAME_ALIAS_STRING_TO_STRING	ALTER DISKGROUP a RENAME ALIAS 's' TO 's'
 reject@18	reject@18	engine	alterDiskgroup_diskgroup_alias_clauses/RENAME_ALIAS_STRING_TO_STRING!drop-1	ALTER DISKGROUP a ALIAS 's' TO 's'
-accept	reject@31	engine	alterDiskgroup_diskgroup_alias_clauses/RENAME_ALIAS_STRING_TO_STRING!drop-3	ALTER DISKGROUP a RENAME ALIAS TO 's'
-accept	reject@35	engine	alterDiskgroup_diskgroup_alias_clauses/RENAME_ALIAS_STRING_TO_STRING!drop-4	ALTER DISKGROUP a RENAME ALIAS 's' 's'
+reject@31	reject@31	engine	alterDiskgroup_diskgroup_alias_clauses/RENAME_ALIAS_STRING_TO_STRING!drop-3	ALTER DISKGROUP a RENAME ALIAS TO 's'
+reject@35	reject@35	engine	alterDiskgroup_diskgroup_alias_clauses/RENAME_ALIAS_STRING_TO_STRING!drop-4	ALTER DISKGROUP a RENAME ALIAS 's' 's'
 accept	accept	engine	alterDiskgroup_diskgroup_alias_clauses/RENAME_ALIAS_STRING_TO_STRING!drop-5	ALTER DISKGROUP a RENAME ALIAS 's' TO
 reject@42	reject@42	engine	alterDiskgroup_diskgroup_alias_clauses/RENAME_ALIAS_STRING_TO_STRING!insert	ALTER DISKGROUP a RENAME ALIAS 's' TO 's' zzz
 reject@18	reject@25	engine	alterDiskgroup_diskgroup_alias_clauses/RENAME_ALIAS_STRING_TO_STRING!swap	ALTER DISKGROUP a REPAIR ALIAS 's' TO 's'
@@ -4314,18 +4314,18 @@ reject@31	reject@31	engine	alterDiskgroup_diskgroup_volume_clauses/alterDiskgrou
 reject@18	reject@18	engine	alterDiskgroup_diskgroup_volume_clauses/alterDiskgroup_add_volume_clause!drop-1	ALTER DISKGROUP a VOLUME a 1
 reject@22	reject@22	engine	alterDiskgroup_diskgroup_volume_clauses/alterDiskgroup_add_volume_clause!drop-2	ALTER DISKGROUP a ADD a 1
 reject@29	reject@30	engine	alterDiskgroup_diskgroup_volume_clauses/alterDiskgroup_add_volume_clause!drop-3	ALTER DISKGROUP a ADD VOLUME 1
-accept	reject@30	engine	alterDiskgroup_diskgroup_volume_clauses/alterDiskgroup_add_volume_clause!drop-4	ALTER DISKGROUP a ADD VOLUME a
+reject@30	reject@30	engine	alterDiskgroup_diskgroup_volume_clauses/alterDiskgroup_add_volume_clause!drop-4	ALTER DISKGROUP a ADD VOLUME a
 reject@31	reject@31	engine	alterDiskgroup_diskgroup_volume_clauses/alterDiskgroup_add_volume_clause!insert	ALTER DISKGROUP a ADD VOLUME a 1 zzz
 reject@18	reject@18	engine	alterDiskgroup_diskgroup_volume_clauses/alterDiskgroup_add_volume_clause!swap	ALTER DISKGROUP a ADMIN VOLUME a 1
-accept	reject@33	engine	alterDiskgroup_diskgroup_volume_clauses/alterDiskgroup_modify_volume_clause	ALTER DISKGROUP a MODIFY VOLUME a
-accept	reject@34	engine	alterDiskgroup_diskgroup_volume_clauses/RESIZE_VOLUME_ID_alterDiskgroup_size_clause	ALTER DISKGROUP a RESIZE VOLUME a 1
+reject@33	reject@33	engine	alterDiskgroup_diskgroup_volume_clauses/alterDiskgroup_modify_volume_clause	ALTER DISKGROUP a MODIFY VOLUME a
+reject@34	reject@34	engine	alterDiskgroup_diskgroup_volume_clauses/RESIZE_VOLUME_ID_alterDiskgroup_size_clause	ALTER DISKGROUP a RESIZE VOLUME a 1
 reject@25	reject@25	engine	alterDiskgroup_diskgroup_volume_clauses/RESIZE_VOLUME_ID_alterDiskgroup_size_clause!drop-2	ALTER DISKGROUP a RESIZE a 1
-accept	reject@33	engine	alterDiskgroup_diskgroup_volume_clauses/RESIZE_VOLUME_ID_alterDiskgroup_size_clause!drop-3	ALTER DISKGROUP a RESIZE VOLUME 1
-accept	reject@33	engine	alterDiskgroup_diskgroup_volume_clauses/RESIZE_VOLUME_ID_alterDiskgroup_size_clause!drop-4	ALTER DISKGROUP a RESIZE VOLUME a
-reject@36	reject@34	engine	alterDiskgroup_diskgroup_volume_clauses/RESIZE_VOLUME_ID_alterDiskgroup_size_clause!insert	ALTER DISKGROUP a RESIZE VOLUME a 1 zzz
+reject@32	reject@33	engine	alterDiskgroup_diskgroup_volume_clauses/RESIZE_VOLUME_ID_alterDiskgroup_size_clause!drop-3	ALTER DISKGROUP a RESIZE VOLUME 1
+reject@33	reject@33	engine	alterDiskgroup_diskgroup_volume_clauses/RESIZE_VOLUME_ID_alterDiskgroup_size_clause!drop-4	ALTER DISKGROUP a RESIZE VOLUME a
+reject@34	reject@34	engine	alterDiskgroup_diskgroup_volume_clauses/RESIZE_VOLUME_ID_alterDiskgroup_size_clause!insert	ALTER DISKGROUP a RESIZE VOLUME a 1 zzz
 reject@18	reject@18	engine	alterDiskgroup_diskgroup_volume_clauses/RESIZE_VOLUME_ID_alterDiskgroup_size_clause!swap	ALTER DISKGROUP a RESOLVE VOLUME a 1
 accept	accept	engine	alterDiskgroup_diskgroup_volume_clauses/DROP_VOLUME_ID	ALTER DISKGROUP a DROP VOLUME a
-accept	reject@29	engine	alterDiskgroup_diskgroup_volume_clauses/DROP_VOLUME_ID!drop-3	ALTER DISKGROUP a DROP VOLUME
+reject@29	reject@29	engine	alterDiskgroup_diskgroup_volume_clauses/DROP_VOLUME_ID!drop-3	ALTER DISKGROUP a DROP VOLUME
 reject@32	reject@32	engine	alterDiskgroup_diskgroup_volume_clauses/DROP_VOLUME_ID!insert	ALTER DISKGROUP a DROP VOLUME a zzz
 reject@18	reject@18	engine	alterDiskgroup_diskgroup_volume_clauses/DROP_VOLUME_ID!swap	ALTER DISKGROUP a DUALITY VOLUME a
 reject@32	reject@32	engine	alterDiskgroup_diskgroup_attributes/SET_ATTRIBUTE_ID_=_EXPR_(,_ID_=_EXPR)*	ALTER DISKGROUP a SET ATTRIBUTE a = 1
@@ -4336,93 +4336,93 @@ reject@32	reject@32	engine	alterDiskgroup_diskgroup_attributes(,_ID_=_EXPR)*/,_I
 reject@32	reject@32	engine	alterDiskgroup_diskgroup_attributes(,_ID_=_EXPR)*/,_ID_=_EXPR_(,_ID_=_EXPR)*!drop-3	ALTER DISKGROUP a SET ATTRIBUTE a = 1, a 1
 reject@32	reject@32	engine	alterDiskgroup_diskgroup_attributes(,_ID_=_EXPR)*/,_ID_=_EXPR_(,_ID_=_EXPR)*!drop-4	ALTER DISKGROUP a SET ATTRIBUTE a = 1, a =
 reject@32	reject@32	engine	alterDiskgroup_diskgroup_attributes(,_ID_=_EXPR)*/,_ID_=_EXPR_(,_ID_=_EXPR)*!insert	ALTER DISKGROUP a SET ATTRIBUTE a = 1, a = 1 zzz
-accept	reject@33	engine	alterDiskgroup_modify_diskgroup_file/MODIFY_FILE_STRING_(alterDiskgroup_redundancy_clause)?	ALTER DISKGROUP a MODIFY FILE 's'
-accept	reject@33	engine	alterDiskgroup_modify_diskgroup_file(alterDiskgroup_redundancy_clause)?/%empty	ALTER DISKGROUP a MODIFY FILE 's'
-accept	reject@34	engine	alterDiskgroup_modify_diskgroup_file(alterDiskgroup_redundancy_clause)?/alterDiskgroup_redundancy_clause	ALTER DISKGROUP a MODIFY FILE 's' MIRROR
-reject@41	reject@34	engine	alterDiskgroup_modify_diskgroup_file(alterDiskgroup_redundancy_clause)?/alterDiskgroup_redundancy_clause!insert	ALTER DISKGROUP a MODIFY FILE 's' MIRROR zzz
+reject@33	reject@33	engine	alterDiskgroup_modify_diskgroup_file/MODIFY_FILE_STRING_(alterDiskgroup_redundancy_clause)?	ALTER DISKGROUP a MODIFY FILE 's'
+reject@33	reject@33	engine	alterDiskgroup_modify_diskgroup_file(alterDiskgroup_redundancy_clause)?/%empty	ALTER DISKGROUP a MODIFY FILE 's'
+reject@34	reject@34	engine	alterDiskgroup_modify_diskgroup_file(alterDiskgroup_redundancy_clause)?/alterDiskgroup_redundancy_clause	ALTER DISKGROUP a MODIFY FILE 's' MIRROR
+reject@34	reject@34	engine	alterDiskgroup_modify_diskgroup_file(alterDiskgroup_redundancy_clause)?/alterDiskgroup_redundancy_clause!insert	ALTER DISKGROUP a MODIFY FILE 's' MIRROR zzz
 reject@34	reject@34	engine	alterDiskgroup_modify_diskgroup_file(alterDiskgroup_redundancy_clause)?/alterDiskgroup_redundancy_clause!swap	ALTER DISKGROUP a MODIFY FILE 's' MIXED
 accept	accept	engine	alterDiskgroup_drop_diskgroup_file_clause/DROP_FILE_STRING	ALTER DISKGROUP a DROP FILE 's'
-accept	reject@28	engine	alterDiskgroup_drop_diskgroup_file_clause/DROP_FILE_ID	ALTER DISKGROUP a DROP FILE a
+reject@28	reject@28	engine	alterDiskgroup_drop_diskgroup_file_clause/DROP_FILE_ID	ALTER DISKGROUP a DROP FILE a
 reject@18	reject@18	engine	alterDiskgroup_drop_diskgroup_file_clause/DROP_FILE_ID!drop-1	ALTER DISKGROUP a FILE a
-reject@30	reject@28	engine	alterDiskgroup_drop_diskgroup_file_clause/DROP_FILE_ID!insert	ALTER DISKGROUP a DROP FILE a zzz
+reject@28	reject@28	engine	alterDiskgroup_drop_diskgroup_file_clause/DROP_FILE_ID!insert	ALTER DISKGROUP a DROP FILE a zzz
 reject@18	reject@18	engine	alterDiskgroup_drop_diskgroup_file_clause/DROP_FILE_ID!swap	ALTER DISKGROUP a DUALITY FILE a
-accept	reject@36	engine	alterDiskgroup_convert_redundancy_clause/CONVERT_REDUNDANCY	ALTER DISKGROUP a CONVERT REDUNDANCY
-accept	reject@32	engine	alterDiskgroup_usergroup_clauses/ADD_USERGROUP_ID_(MEMBER_ID)?	ALTER DISKGROUP a ADD USERGROUP a
-accept	reject@35	engine	alterDiskgroup_usergroup_clauses/MODIFY_USERGROUP_ID_(ADD_MEMBER_ID|DROP_MEMBER_ID)	ALTER DISKGROUP a MODIFY USERGROUP a ADD MEMBER a
+reject@36	reject@36	engine	alterDiskgroup_convert_redundancy_clause/CONVERT_REDUNDANCY	ALTER DISKGROUP a CONVERT REDUNDANCY
+reject@32	reject@32	engine	alterDiskgroup_usergroup_clauses/ADD_USERGROUP_ID_(MEMBER_ID)?	ALTER DISKGROUP a ADD USERGROUP a
+reject@35	reject@35	engine	alterDiskgroup_usergroup_clauses/MODIFY_USERGROUP_ID_(ADD_MEMBER_ID|DROP_MEMBER_ID)	ALTER DISKGROUP a MODIFY USERGROUP a ADD MEMBER a
 reject@18	reject@18	engine	alterDiskgroup_usergroup_clauses/MODIFY_USERGROUP_ID_(ADD_MEMBER_ID|DROP_MEMBER_ID)!drop-1	ALTER DISKGROUP a USERGROUP a ADD MEMBER a
 reject@25	reject@25	engine	alterDiskgroup_usergroup_clauses/MODIFY_USERGROUP_ID_(ADD_MEMBER_ID|DROP_MEMBER_ID)!drop-2	ALTER DISKGROUP a MODIFY a ADD MEMBER a
-accept	reject@35	engine	alterDiskgroup_usergroup_clauses/MODIFY_USERGROUP_ID_(ADD_MEMBER_ID|DROP_MEMBER_ID)!drop-3	ALTER DISKGROUP a MODIFY USERGROUP ADD MEMBER a
-accept	reject@35	engine	alterDiskgroup_usergroup_clauses/MODIFY_USERGROUP_ID_(ADD_MEMBER_ID|DROP_MEMBER_ID)!drop-4	ALTER DISKGROUP a MODIFY USERGROUP a MEMBER a
-accept	reject@35	engine	alterDiskgroup_usergroup_clauses/MODIFY_USERGROUP_ID_(ADD_MEMBER_ID|DROP_MEMBER_ID)!drop-5	ALTER DISKGROUP a MODIFY USERGROUP a ADD a
-accept	reject@35	engine	alterDiskgroup_usergroup_clauses/MODIFY_USERGROUP_ID_(ADD_MEMBER_ID|DROP_MEMBER_ID)!drop-6	ALTER DISKGROUP a MODIFY USERGROUP a ADD MEMBER
-reject@50	reject@35	engine	alterDiskgroup_usergroup_clauses/MODIFY_USERGROUP_ID_(ADD_MEMBER_ID|DROP_MEMBER_ID)!insert	ALTER DISKGROUP a MODIFY USERGROUP a ADD MEMBER a zzz
+reject@35	reject@35	engine	alterDiskgroup_usergroup_clauses/MODIFY_USERGROUP_ID_(ADD_MEMBER_ID|DROP_MEMBER_ID)!drop-3	ALTER DISKGROUP a MODIFY USERGROUP ADD MEMBER a
+reject@35	reject@35	engine	alterDiskgroup_usergroup_clauses/MODIFY_USERGROUP_ID_(ADD_MEMBER_ID|DROP_MEMBER_ID)!drop-4	ALTER DISKGROUP a MODIFY USERGROUP a MEMBER a
+reject@35	reject@35	engine	alterDiskgroup_usergroup_clauses/MODIFY_USERGROUP_ID_(ADD_MEMBER_ID|DROP_MEMBER_ID)!drop-5	ALTER DISKGROUP a MODIFY USERGROUP a ADD a
+reject@35	reject@35	engine	alterDiskgroup_usergroup_clauses/MODIFY_USERGROUP_ID_(ADD_MEMBER_ID|DROP_MEMBER_ID)!drop-6	ALTER DISKGROUP a MODIFY USERGROUP a ADD MEMBER
+reject@35	reject@35	engine	alterDiskgroup_usergroup_clauses/MODIFY_USERGROUP_ID_(ADD_MEMBER_ID|DROP_MEMBER_ID)!insert	ALTER DISKGROUP a MODIFY USERGROUP a ADD MEMBER a zzz
 reject@18	reject@18	engine	alterDiskgroup_usergroup_clauses/MODIFY_USERGROUP_ID_(ADD_MEMBER_ID|DROP_MEMBER_ID)!swap	ALTER DISKGROUP a MODULE USERGROUP a ADD MEMBER a
-accept	reject@33	engine	alterDiskgroup_usergroup_clauses/DROP_USERGROUP_ID	ALTER DISKGROUP a DROP USERGROUP a
+reject@33	reject@33	engine	alterDiskgroup_usergroup_clauses/DROP_USERGROUP_ID	ALTER DISKGROUP a DROP USERGROUP a
 accept	accept	engine	alterDiskgroup_usergroup_clauses/DROP_USERGROUP_ID!drop-3	ALTER DISKGROUP a DROP USERGROUP
-reject@35	reject@33	engine	alterDiskgroup_usergroup_clauses/DROP_USERGROUP_ID!insert	ALTER DISKGROUP a DROP USERGROUP a zzz
+reject@33	reject@33	engine	alterDiskgroup_usergroup_clauses/DROP_USERGROUP_ID!insert	ALTER DISKGROUP a DROP USERGROUP a zzz
 reject@18	reject@18	engine	alterDiskgroup_usergroup_clauses/DROP_USERGROUP_ID!swap	ALTER DISKGROUP a DUALITY USERGROUP a
-accept	reject@32	engine	alterDiskgroup_usergroup_clauses(MEMBER_ID)?/%empty	ALTER DISKGROUP a ADD USERGROUP a
-accept	reject@32	engine	alterDiskgroup_usergroup_clauses(MEMBER_ID)?/MEMBER_ID	ALTER DISKGROUP a ADD USERGROUP a MEMBER a
-reject@34	reject@32	engine	alterDiskgroup_usergroup_clauses(MEMBER_ID)?/MEMBER_ID!drop-1	ALTER DISKGROUP a ADD USERGROUP a a
-accept	reject@32	engine	alterDiskgroup_usergroup_clauses(MEMBER_ID)?/MEMBER_ID!drop-2	ALTER DISKGROUP a ADD USERGROUP a MEMBER
-reject@43	reject@32	engine	alterDiskgroup_usergroup_clauses(MEMBER_ID)?/MEMBER_ID!insert	ALTER DISKGROUP a ADD USERGROUP a MEMBER a zzz
-reject@34	reject@32	engine	alterDiskgroup_usergroup_clauses(MEMBER_ID)?/MEMBER_ID!swap	ALTER DISKGROUP a ADD USERGROUP a MEMBER_CAPTION a
-accept	reject@35	engine	alterDiskgroup_usergroup_clauses(ADD_MEMBER_ID|DROP_MEMBER_ID)/ADD_MEMBER_ID	ALTER DISKGROUP a MODIFY USERGROUP a ADD MEMBER a
-reject@43	reject@35	engine	alterDiskgroup_usergroup_clauses(ADD_MEMBER_ID|DROP_MEMBER_ID)/ADD_MEMBER_ID!swap	ALTER DISKGROUP a MODIFY USERGROUP a ADMIN MEMBER a
-accept	reject@35	engine	alterDiskgroup_usergroup_clauses(ADD_MEMBER_ID|DROP_MEMBER_ID)/DROP_MEMBER_ID	ALTER DISKGROUP a MODIFY USERGROUP a DROP MEMBER a
-accept	reject@35	engine	alterDiskgroup_usergroup_clauses(ADD_MEMBER_ID|DROP_MEMBER_ID)/DROP_MEMBER_ID!drop-2	ALTER DISKGROUP a MODIFY USERGROUP a DROP a
-accept	reject@35	engine	alterDiskgroup_usergroup_clauses(ADD_MEMBER_ID|DROP_MEMBER_ID)/DROP_MEMBER_ID!drop-3	ALTER DISKGROUP a MODIFY USERGROUP a DROP MEMBER
-reject@51	reject@35	engine	alterDiskgroup_usergroup_clauses(ADD_MEMBER_ID|DROP_MEMBER_ID)/DROP_MEMBER_ID!insert	ALTER DISKGROUP a MODIFY USERGROUP a DROP MEMBER a zzz
-reject@45	reject@35	engine	alterDiskgroup_usergroup_clauses(ADD_MEMBER_ID|DROP_MEMBER_ID)/DROP_MEMBER_ID!swap	ALTER DISKGROUP a MODIFY USERGROUP a DUALITY MEMBER a
-accept	reject@27	engine	alterDiskgroup_user_clauses/ADD_USER_ID_(,_ID)*	ALTER DISKGROUP a ADD USER a
-accept	reject@28	engine	alterDiskgroup_user_clauses/DROP_USER_ID_(CASCADE)?_(,_ID_CASCADE?)*	ALTER DISKGROUP a DROP USER a
+reject@32	reject@32	engine	alterDiskgroup_usergroup_clauses(MEMBER_ID)?/%empty	ALTER DISKGROUP a ADD USERGROUP a
+reject@32	reject@32	engine	alterDiskgroup_usergroup_clauses(MEMBER_ID)?/MEMBER_ID	ALTER DISKGROUP a ADD USERGROUP a MEMBER a
+reject@32	reject@32	engine	alterDiskgroup_usergroup_clauses(MEMBER_ID)?/MEMBER_ID!drop-1	ALTER DISKGROUP a ADD USERGROUP a a
+reject@32	reject@32	engine	alterDiskgroup_usergroup_clauses(MEMBER_ID)?/MEMBER_ID!drop-2	ALTER DISKGROUP a ADD USERGROUP a MEMBER
+reject@32	reject@32	engine	alterDiskgroup_usergroup_clauses(MEMBER_ID)?/MEMBER_ID!insert	ALTER DISKGROUP a ADD USERGROUP a MEMBER a zzz
+reject@32	reject@32	engine	alterDiskgroup_usergroup_clauses(MEMBER_ID)?/MEMBER_ID!swap	ALTER DISKGROUP a ADD USERGROUP a MEMBER_CAPTION a
+reject@35	reject@35	engine	alterDiskgroup_usergroup_clauses(ADD_MEMBER_ID|DROP_MEMBER_ID)/ADD_MEMBER_ID	ALTER DISKGROUP a MODIFY USERGROUP a ADD MEMBER a
+reject@35	reject@35	engine	alterDiskgroup_usergroup_clauses(ADD_MEMBER_ID|DROP_MEMBER_ID)/ADD_MEMBER_ID!swap	ALTER DISKGROUP a MODIFY USERGROUP a ADMIN MEMBER a
+reject@35	reject@35	engine	alterDiskgroup_usergroup_clauses(ADD_MEMBER_ID|DROP_MEMBER_ID)/DROP_MEMBER_ID	ALTER DISKGROUP a MODIFY USERGROUP a DROP MEMBER a
+reject@35	reject@35	engine	alterDiskgroup_usergroup_clauses(ADD_MEMBER_ID|DROP_MEMBER_ID)/DROP_MEMBER_ID!drop-2	ALTER DISKGROUP a MODIFY USERGROUP a DROP a
+reject@35	reject@35	engine	alterDiskgroup_usergroup_clauses(ADD_MEMBER_ID|DROP_MEMBER_ID)/DROP_MEMBER_ID!drop-3	ALTER DISKGROUP a MODIFY USERGROUP a DROP MEMBER
+reject@35	reject@35	engine	alterDiskgroup_usergroup_clauses(ADD_MEMBER_ID|DROP_MEMBER_ID)/DROP_MEMBER_ID!insert	ALTER DISKGROUP a MODIFY USERGROUP a DROP MEMBER a zzz
+reject@35	reject@35	engine	alterDiskgroup_usergroup_clauses(ADD_MEMBER_ID|DROP_MEMBER_ID)/DROP_MEMBER_ID!swap	ALTER DISKGROUP a MODIFY USERGROUP a DUALITY MEMBER a
+reject@27	reject@27	engine	alterDiskgroup_user_clauses/ADD_USER_ID_(,_ID)*	ALTER DISKGROUP a ADD USER a
+reject@28	reject@28	engine	alterDiskgroup_user_clauses/DROP_USER_ID_(CASCADE)?_(,_ID_CASCADE?)*	ALTER DISKGROUP a DROP USER a
 accept	accept	engine	alterDiskgroup_user_clauses/DROP_USER_ID_(CASCADE)?_(,_ID_CASCADE?)*!drop-3	ALTER DISKGROUP a DROP USER
-reject@30	reject@28	engine	alterDiskgroup_user_clauses/DROP_USER_ID_(CASCADE)?_(,_ID_CASCADE?)*!insert	ALTER DISKGROUP a DROP USER a zzz
+reject@28	reject@28	engine	alterDiskgroup_user_clauses/DROP_USER_ID_(CASCADE)?_(,_ID_CASCADE?)*!insert	ALTER DISKGROUP a DROP USER a zzz
 reject@18	reject@18	engine	alterDiskgroup_user_clauses/DROP_USER_ID_(CASCADE)?_(,_ID_CASCADE?)*!swap	ALTER DISKGROUP a DUALITY USER a
-accept	reject@31	engine	alterDiskgroup_user_clauses/REPLACE_USER_ID_WITH_ID	ALTER DISKGROUP a REPLACE USER a WITH a
+reject@31	reject@31	engine	alterDiskgroup_user_clauses/REPLACE_USER_ID_WITH_ID	ALTER DISKGROUP a REPLACE USER a WITH a
 reject@18	reject@18	engine	alterDiskgroup_user_clauses/REPLACE_USER_ID_WITH_ID!drop-1	ALTER DISKGROUP a USER a WITH a
 reject@26	reject@26	engine	alterDiskgroup_user_clauses/REPLACE_USER_ID_WITH_ID!drop-2	ALTER DISKGROUP a REPLACE a WITH a
-accept	reject@31	engine	alterDiskgroup_user_clauses/REPLACE_USER_ID_WITH_ID!drop-3	ALTER DISKGROUP a REPLACE USER WITH a
-accept	reject@31	engine	alterDiskgroup_user_clauses/REPLACE_USER_ID_WITH_ID!drop-4	ALTER DISKGROUP a REPLACE USER a a
-accept	reject@31	engine	alterDiskgroup_user_clauses/REPLACE_USER_ID_WITH_ID!drop-5	ALTER DISKGROUP a REPLACE USER a WITH
-reject@40	reject@31	engine	alterDiskgroup_user_clauses/REPLACE_USER_ID_WITH_ID!insert	ALTER DISKGROUP a REPLACE USER a WITH a zzz
+reject@31	reject@31	engine	alterDiskgroup_user_clauses/REPLACE_USER_ID_WITH_ID!drop-3	ALTER DISKGROUP a REPLACE USER WITH a
+reject@31	reject@31	engine	alterDiskgroup_user_clauses/REPLACE_USER_ID_WITH_ID!drop-4	ALTER DISKGROUP a REPLACE USER a a
+reject@31	reject@31	engine	alterDiskgroup_user_clauses/REPLACE_USER_ID_WITH_ID!drop-5	ALTER DISKGROUP a REPLACE USER a WITH
+reject@31	reject@31	engine	alterDiskgroup_user_clauses/REPLACE_USER_ID_WITH_ID!insert	ALTER DISKGROUP a REPLACE USER a WITH a zzz
 reject@18	reject@18	engine	alterDiskgroup_user_clauses/REPLACE_USER_ID_WITH_ID!swap	ALTER DISKGROUP a REPLAY USER a WITH a
-accept	reject@27	engine	alterDiskgroup_user_clauses(,_ID)*/%empty	ALTER DISKGROUP a ADD USER a
-accept	reject@27	engine	alterDiskgroup_user_clauses(,_ID)*/,_ID_(,_ID)*	ALTER DISKGROUP a ADD USER a, a
-reject@29	reject@27	engine	alterDiskgroup_user_clauses(,_ID)*/,_ID_(,_ID)*!drop-1	ALTER DISKGROUP a ADD USER a a
-reject@29	reject@27	engine	alterDiskgroup_user_clauses(,_ID)*/,_ID_(,_ID)*!drop-2	ALTER DISKGROUP a ADD USER a,
-reject@32	reject@27	engine	alterDiskgroup_user_clauses(,_ID)*/,_ID_(,_ID)*!insert	ALTER DISKGROUP a ADD USER a, a zzz
-accept	reject@28	engine	alterDiskgroup_user_clauses(CASCADE)?/%empty	ALTER DISKGROUP a DROP USER a
-accept	reject@28	engine	alterDiskgroup_user_clauses(CASCADE)?/CASCADE	ALTER DISKGROUP a DROP USER a CASCADE
-reject@38	reject@28	engine	alterDiskgroup_user_clauses(CASCADE)?/CASCADE!insert	ALTER DISKGROUP a DROP USER a CASCADE zzz
-reject@30	reject@28	engine	alterDiskgroup_user_clauses(CASCADE)?/CASCADE!swap	ALTER DISKGROUP a DROP USER a CASE
-accept	reject@28	engine	alterDiskgroup_user_clauses(,_ID_CASCADE?)*/%empty	ALTER DISKGROUP a DROP USER a
-accept	reject@28	engine	alterDiskgroup_user_clauses(,_ID_CASCADE?)*/,_ID_(CASCADE)?_(,_ID_CASCADE?)*	ALTER DISKGROUP a DROP USER a, a
-reject@30	reject@28	engine	alterDiskgroup_user_clauses(,_ID_CASCADE?)*/,_ID_(CASCADE)?_(,_ID_CASCADE?)*!drop-1	ALTER DISKGROUP a DROP USER a a
-reject@30	reject@28	engine	alterDiskgroup_user_clauses(,_ID_CASCADE?)*/,_ID_(CASCADE)?_(,_ID_CASCADE?)*!drop-2	ALTER DISKGROUP a DROP USER a,
-reject@33	reject@28	engine	alterDiskgroup_user_clauses(,_ID_CASCADE?)*/,_ID_(CASCADE)?_(,_ID_CASCADE?)*!insert	ALTER DISKGROUP a DROP USER a, a zzz
-accept	reject@33	engine	alterDiskgroup_file_permissions_clause/SET_PERMISSION_STRING_(FILE_PERM_OWNER_EXPR)?_(FILE_PER~6e3b70bb	ALTER DISKGROUP a SET PERMISSION 's'
-accept	reject@33	engine	alterDiskgroup_file_permissions_clause(FILE_PERM_OWNER_EXPR)?/%empty	ALTER DISKGROUP a SET PERMISSION 's'
-accept	reject@33	engine	alterDiskgroup_file_permissions_clause(FILE_PERM_OWNER_EXPR)?/FILE_PERM_OWNER_EXPR	ALTER DISKGROUP a SET PERMISSION 's' FILE_PERM_OWNER 1
-accept	reject@33	engine	alterDiskgroup_file_permissions_clause(FILE_PERM_OWNER_EXPR)?/FILE_PERM_OWNER_EXPR!drop-1	ALTER DISKGROUP a SET PERMISSION 's' 1
-accept	reject@33	engine	alterDiskgroup_file_permissions_clause(FILE_PERM_OWNER_EXPR)?/FILE_PERM_OWNER_EXPR!drop-2	ALTER DISKGROUP a SET PERMISSION 's' FILE_PERM_OWNER
-accept	reject@33	engine	alterDiskgroup_file_permissions_clause(FILE_PERM_OWNER_EXPR)?/FILE_PERM_OWNER_EXPR!insert	ALTER DISKGROUP a SET PERMISSION 's' FILE_PERM_OWNER 1 zzz
-accept	reject@33	engine	alterDiskgroup_file_permissions_clause(FILE_PERM_OWNER_EXPR)?/FILE_PERM_OWNER_EXPR!swap	ALTER DISKGROUP a SET PERMISSION 's' FILTER 1
-accept	reject@33	engine	alterDiskgroup_file_permissions_clause(FILE_PERM_GROUP_EXPR)?/%empty	ALTER DISKGROUP a SET PERMISSION 's'
-accept	reject@33	engine	alterDiskgroup_file_permissions_clause(FILE_PERM_GROUP_EXPR)?/FILE_PERM_GROUP_EXPR	ALTER DISKGROUP a SET PERMISSION 's' FILE_PERM_GROUP 1
-accept	reject@33	engine	alterDiskgroup_file_permissions_clause(FILE_PERM_GROUP_EXPR)?/FILE_PERM_GROUP_EXPR!drop-2	ALTER DISKGROUP a SET PERMISSION 's' FILE_PERM_GROUP
-accept	reject@33	engine	alterDiskgroup_file_permissions_clause(FILE_PERM_GROUP_EXPR)?/FILE_PERM_GROUP_EXPR!insert	ALTER DISKGROUP a SET PERMISSION 's' FILE_PERM_GROUP 1 zzz
-accept	reject@33	engine	alterDiskgroup_file_permissions_clause(FILE_PERM_OTHER_EXPR)?/%empty	ALTER DISKGROUP a SET PERMISSION 's'
-accept	reject@33	engine	alterDiskgroup_file_permissions_clause(FILE_PERM_OTHER_EXPR)?/FILE_PERM_OTHER_EXPR	ALTER DISKGROUP a SET PERMISSION 's' FILE_PERM_OTHER 1
-accept	reject@33	engine	alterDiskgroup_file_permissions_clause(FILE_PERM_OTHER_EXPR)?/FILE_PERM_OTHER_EXPR!drop-2	ALTER DISKGROUP a SET PERMISSION 's' FILE_PERM_OTHER
-accept	reject@33	engine	alterDiskgroup_file_permissions_clause(FILE_PERM_OTHER_EXPR)?/FILE_PERM_OTHER_EXPR!insert	ALTER DISKGROUP a SET PERMISSION 's' FILE_PERM_OTHER 1 zzz
-accept	reject@22	engine	alterDiskgroup_file_owner_clause/SET_OWNER_ID_FILE_STRING	ALTER DISKGROUP a SET OWNER a FILE 's'
-accept	reject@22	engine	alterDiskgroup_file_owner_clause/SET_GROUP_ID_FILE_STRING	ALTER DISKGROUP a SET GROUP a FILE 's'
+reject@27	reject@27	engine	alterDiskgroup_user_clauses(,_ID)*/%empty	ALTER DISKGROUP a ADD USER a
+reject@27	reject@27	engine	alterDiskgroup_user_clauses(,_ID)*/,_ID_(,_ID)*	ALTER DISKGROUP a ADD USER a, a
+reject@27	reject@27	engine	alterDiskgroup_user_clauses(,_ID)*/,_ID_(,_ID)*!drop-1	ALTER DISKGROUP a ADD USER a a
+reject@27	reject@27	engine	alterDiskgroup_user_clauses(,_ID)*/,_ID_(,_ID)*!drop-2	ALTER DISKGROUP a ADD USER a,
+reject@27	reject@27	engine	alterDiskgroup_user_clauses(,_ID)*/,_ID_(,_ID)*!insert	ALTER DISKGROUP a ADD USER a, a zzz
+reject@28	reject@28	engine	alterDiskgroup_user_clauses(CASCADE)?/%empty	ALTER DISKGROUP a DROP USER a
+reject@28	reject@28	engine	alterDiskgroup_user_clauses(CASCADE)?/CASCADE	ALTER DISKGROUP a DROP USER a CASCADE
+reject@28	reject@28	engine	alterDiskgroup_user_clauses(CASCADE)?/CASCADE!insert	ALTER DISKGROUP a DROP USER a CASCADE zzz
+reject@28	reject@28	engine	alterDiskgroup_user_clauses(CASCADE)?/CASCADE!swap	ALTER DISKGROUP a DROP USER a CASE
+reject@28	reject@28	engine	alterDiskgroup_user_clauses(,_ID_CASCADE?)*/%empty	ALTER DISKGROUP a DROP USER a
+reject@28	reject@28	engine	alterDiskgroup_user_clauses(,_ID_CASCADE?)*/,_ID_(CASCADE)?_(,_ID_CASCADE?)*	ALTER DISKGROUP a DROP USER a, a
+reject@28	reject@28	engine	alterDiskgroup_user_clauses(,_ID_CASCADE?)*/,_ID_(CASCADE)?_(,_ID_CASCADE?)*!drop-1	ALTER DISKGROUP a DROP USER a a
+reject@28	reject@28	engine	alterDiskgroup_user_clauses(,_ID_CASCADE?)*/,_ID_(CASCADE)?_(,_ID_CASCADE?)*!drop-2	ALTER DISKGROUP a DROP USER a,
+reject@28	reject@28	engine	alterDiskgroup_user_clauses(,_ID_CASCADE?)*/,_ID_(CASCADE)?_(,_ID_CASCADE?)*!insert	ALTER DISKGROUP a DROP USER a, a zzz
+reject@33	reject@33	engine	alterDiskgroup_file_permissions_clause/SET_PERMISSION_STRING_(FILE_PERM_OWNER_EXPR)?_(FILE_PER~6e3b70bb	ALTER DISKGROUP a SET PERMISSION 's'
+reject@33	reject@33	engine	alterDiskgroup_file_permissions_clause(FILE_PERM_OWNER_EXPR)?/%empty	ALTER DISKGROUP a SET PERMISSION 's'
+reject@33	reject@33	engine	alterDiskgroup_file_permissions_clause(FILE_PERM_OWNER_EXPR)?/FILE_PERM_OWNER_EXPR	ALTER DISKGROUP a SET PERMISSION 's' FILE_PERM_OWNER 1
+reject@33	reject@33	engine	alterDiskgroup_file_permissions_clause(FILE_PERM_OWNER_EXPR)?/FILE_PERM_OWNER_EXPR!drop-1	ALTER DISKGROUP a SET PERMISSION 's' 1
+reject@33	reject@33	engine	alterDiskgroup_file_permissions_clause(FILE_PERM_OWNER_EXPR)?/FILE_PERM_OWNER_EXPR!drop-2	ALTER DISKGROUP a SET PERMISSION 's' FILE_PERM_OWNER
+reject@33	reject@33	engine	alterDiskgroup_file_permissions_clause(FILE_PERM_OWNER_EXPR)?/FILE_PERM_OWNER_EXPR!insert	ALTER DISKGROUP a SET PERMISSION 's' FILE_PERM_OWNER 1 zzz
+reject@33	reject@33	engine	alterDiskgroup_file_permissions_clause(FILE_PERM_OWNER_EXPR)?/FILE_PERM_OWNER_EXPR!swap	ALTER DISKGROUP a SET PERMISSION 's' FILTER 1
+reject@33	reject@33	engine	alterDiskgroup_file_permissions_clause(FILE_PERM_GROUP_EXPR)?/%empty	ALTER DISKGROUP a SET PERMISSION 's'
+reject@33	reject@33	engine	alterDiskgroup_file_permissions_clause(FILE_PERM_GROUP_EXPR)?/FILE_PERM_GROUP_EXPR	ALTER DISKGROUP a SET PERMISSION 's' FILE_PERM_GROUP 1
+reject@33	reject@33	engine	alterDiskgroup_file_permissions_clause(FILE_PERM_GROUP_EXPR)?/FILE_PERM_GROUP_EXPR!drop-2	ALTER DISKGROUP a SET PERMISSION 's' FILE_PERM_GROUP
+reject@33	reject@33	engine	alterDiskgroup_file_permissions_clause(FILE_PERM_GROUP_EXPR)?/FILE_PERM_GROUP_EXPR!insert	ALTER DISKGROUP a SET PERMISSION 's' FILE_PERM_GROUP 1 zzz
+reject@33	reject@33	engine	alterDiskgroup_file_permissions_clause(FILE_PERM_OTHER_EXPR)?/%empty	ALTER DISKGROUP a SET PERMISSION 's'
+reject@33	reject@33	engine	alterDiskgroup_file_permissions_clause(FILE_PERM_OTHER_EXPR)?/FILE_PERM_OTHER_EXPR	ALTER DISKGROUP a SET PERMISSION 's' FILE_PERM_OTHER 1
+reject@33	reject@33	engine	alterDiskgroup_file_permissions_clause(FILE_PERM_OTHER_EXPR)?/FILE_PERM_OTHER_EXPR!drop-2	ALTER DISKGROUP a SET PERMISSION 's' FILE_PERM_OTHER
+reject@33	reject@33	engine	alterDiskgroup_file_permissions_clause(FILE_PERM_OTHER_EXPR)?/FILE_PERM_OTHER_EXPR!insert	ALTER DISKGROUP a SET PERMISSION 's' FILE_PERM_OTHER 1 zzz
+reject@22	reject@22	engine	alterDiskgroup_file_owner_clause/SET_OWNER_ID_FILE_STRING	ALTER DISKGROUP a SET OWNER a FILE 's'
+reject@22	reject@22	engine	alterDiskgroup_file_owner_clause/SET_GROUP_ID_FILE_STRING	ALTER DISKGROUP a SET GROUP a FILE 's'
 reject@18	reject@18	engine	alterDiskgroup_file_owner_clause/SET_GROUP_ID_FILE_STRING!drop-1	ALTER DISKGROUP a GROUP a FILE 's'
-accept	reject@22	engine	alterDiskgroup_file_owner_clause/SET_GROUP_ID_FILE_STRING!drop-3	ALTER DISKGROUP a SET GROUP FILE 's'
-accept	reject@22	engine	alterDiskgroup_file_owner_clause/SET_GROUP_ID_FILE_STRING!drop-4	ALTER DISKGROUP a SET GROUP a 's'
-accept	reject@22	engine	alterDiskgroup_file_owner_clause/SET_GROUP_ID_FILE_STRING!drop-5	ALTER DISKGROUP a SET GROUP a FILE
-accept	reject@22	engine	alterDiskgroup_file_owner_clause/SET_GROUP_ID_FILE_STRING!insert	ALTER DISKGROUP a SET GROUP a FILE 's' zzz
+reject@22	reject@22	engine	alterDiskgroup_file_owner_clause/SET_GROUP_ID_FILE_STRING!drop-3	ALTER DISKGROUP a SET GROUP FILE 's'
+reject@22	reject@22	engine	alterDiskgroup_file_owner_clause/SET_GROUP_ID_FILE_STRING!drop-4	ALTER DISKGROUP a SET GROUP a 's'
+reject@22	reject@22	engine	alterDiskgroup_file_owner_clause/SET_GROUP_ID_FILE_STRING!drop-5	ALTER DISKGROUP a SET GROUP a FILE
+reject@22	reject@22	engine	alterDiskgroup_file_owner_clause/SET_GROUP_ID_FILE_STRING!insert	ALTER DISKGROUP a SET GROUP a FILE 's' zzz
 reject@18	reject@18	engine	alterDiskgroup_file_owner_clause/SET_GROUP_ID_FILE_STRING!swap	ALTER DISKGROUP a SETS GROUP a FILE 's'
 accept	accept	engine	alterDiskgroup_scrub_clause/SCRUB_((FILE_alterDiskgroup_file_specificat~7a040b4c)?_~d2871e6a	ALTER DISKGROUP a SCRUB
 accept	accept	engine	alterDiskgroup_scrub_clause/SCRUB_STOP	ALTER DISKGROUP a SCRUB STOP
@@ -4434,12 +4434,12 @@ accept	accept	engine	alterDiskgroup_scrub_clause((FILE_alterDiskgroup_file_speci
 accept	accept	engine	alterDiskgroup_scrub_clause((FILE_alterDiskgroup_file_specificat~7a040b4c)?/(DISK_ID)?	ALTER DISKGROUP a SCRUB
 accept	accept	engine	alterDiskgroup_scrub_clause(FILE_alterDiskgroup_file_specification)?/%empty	ALTER DISKGROUP a SCRUB
 accept	accept	engine	alterDiskgroup_scrub_clause(FILE_alterDiskgroup_file_specification)?/FILE_alterDiskgroup_file_specification	ALTER DISKGROUP a SCRUB FILE
-accept	reject@29	engine	alterDiskgroup_scrub_clause(FILE_alterDiskgroup_file_specification)?/FILE_alterDiskgroup_file_specification!insert	ALTER DISKGROUP a SCRUB FILE zzz
+reject@29	reject@29	engine	alterDiskgroup_scrub_clause(FILE_alterDiskgroup_file_specification)?/FILE_alterDiskgroup_file_specification!insert	ALTER DISKGROUP a SCRUB FILE zzz
 reject@24	reject@24	engine	alterDiskgroup_scrub_clause(FILE_alterDiskgroup_file_specification)?/FILE_alterDiskgroup_file_specification!swap	ALTER DISKGROUP a SCRUB FILEGROUP
 accept	accept	engine	alterDiskgroup_scrub_clause(DISK_ID)?/%empty	ALTER DISKGROUP a SCRUB
 accept	accept	engine	alterDiskgroup_scrub_clause(DISK_ID)?/DISK_ID	ALTER DISKGROUP a SCRUB DISK a
 reject@24	reject@24	engine	alterDiskgroup_scrub_clause(DISK_ID)?/DISK_ID!drop-1	ALTER DISKGROUP a SCRUB a
-accept	reject@28	engine	alterDiskgroup_scrub_clause(DISK_ID)?/DISK_ID!drop-2	ALTER DISKGROUP a SCRUB DISK
+reject@28	reject@28	engine	alterDiskgroup_scrub_clause(DISK_ID)?/DISK_ID!drop-2	ALTER DISKGROUP a SCRUB DISK
 reject@31	reject@31	engine	alterDiskgroup_scrub_clause(DISK_ID)?/DISK_ID!insert	ALTER DISKGROUP a SCRUB DISK a zzz
 reject@24	reject@24	engine	alterDiskgroup_scrub_clause(DISK_ID)?/DISK_ID!swap	ALTER DISKGROUP a SCRUB DISKGROUP a
 accept	accept	engine	alterDiskgroup_scrub_clause(REPAIR|NOREPAIR)?/%empty	ALTER DISKGROUP a SCRUB
@@ -4456,16 +4456,16 @@ accept	accept	engine	alterDiskgroup_scrub_clause(POWER_(AUTO|LOW|HIGH|MAX))?/POW
 reject@35	reject@35	engine	alterDiskgroup_scrub_clause(POWER_(AUTO|LOW|HIGH|MAX))?/POWER_(AUTO|LOW|HIGH|MAX)!insert	ALTER DISKGROUP a SCRUB POWER AUTO zzz
 reject@24	reject@24	engine	alterDiskgroup_scrub_clause(POWER_(AUTO|LOW|HIGH|MAX))?/POWER_(AUTO|LOW|HIGH|MAX)!swap	ALTER DISKGROUP a SCRUB PREBUILT AUTO
 accept	accept	engine	alterDiskgroup_scrub_clause(AUTO|LOW|HIGH|MAX)/AUTO	ALTER DISKGROUP a SCRUB POWER AUTO
-accept	reject@30	engine	alterDiskgroup_scrub_clause(AUTO|LOW|HIGH|MAX)/AUTO!swap	ALTER DISKGROUP a SCRUB POWER AUTOALLOCATE
+reject@30	reject@30	engine	alterDiskgroup_scrub_clause(AUTO|LOW|HIGH|MAX)/AUTO!swap	ALTER DISKGROUP a SCRUB POWER AUTOALLOCATE
 accept	accept	engine	alterDiskgroup_scrub_clause(AUTO|LOW|HIGH|MAX)/LOW	ALTER DISKGROUP a SCRUB POWER LOW
 reject@34	reject@34	engine	alterDiskgroup_scrub_clause(AUTO|LOW|HIGH|MAX)/LOW!insert	ALTER DISKGROUP a SCRUB POWER LOW zzz
-accept	reject@30	engine	alterDiskgroup_scrub_clause(AUTO|LOW|HIGH|MAX)/LOW!swap	ALTER DISKGROUP a SCRUB POWER M
+reject@30	reject@30	engine	alterDiskgroup_scrub_clause(AUTO|LOW|HIGH|MAX)/LOW!swap	ALTER DISKGROUP a SCRUB POWER M
 accept	accept	engine	alterDiskgroup_scrub_clause(AUTO|LOW|HIGH|MAX)/HIGH	ALTER DISKGROUP a SCRUB POWER HIGH
 reject@35	reject@35	engine	alterDiskgroup_scrub_clause(AUTO|LOW|HIGH|MAX)/HIGH!insert	ALTER DISKGROUP a SCRUB POWER HIGH zzz
-accept	reject@30	engine	alterDiskgroup_scrub_clause(AUTO|LOW|HIGH|MAX)/HIGH!swap	ALTER DISKGROUP a SCRUB POWER HNSW
+reject@30	reject@30	engine	alterDiskgroup_scrub_clause(AUTO|LOW|HIGH|MAX)/HIGH!swap	ALTER DISKGROUP a SCRUB POWER HNSW
 accept	accept	engine	alterDiskgroup_scrub_clause(AUTO|LOW|HIGH|MAX)/MAX	ALTER DISKGROUP a SCRUB POWER MAX
 reject@34	reject@34	engine	alterDiskgroup_scrub_clause(AUTO|LOW|HIGH|MAX)/MAX!insert	ALTER DISKGROUP a SCRUB POWER MAX zzz
-accept	reject@30	engine	alterDiskgroup_scrub_clause(AUTO|LOW|HIGH|MAX)/MAX!swap	ALTER DISKGROUP a SCRUB POWER MAXIMIZE
+reject@30	reject@30	engine	alterDiskgroup_scrub_clause(AUTO|LOW|HIGH|MAX)/MAX!swap	ALTER DISKGROUP a SCRUB POWER MAXIMIZE
 accept	accept	engine	alterDiskgroup_scrub_clause(WAIT|NOWAIT)?/%empty	ALTER DISKGROUP a SCRUB
 accept	accept	engine	alterDiskgroup_scrub_clause(WAIT|NOWAIT)?/WAIT	ALTER DISKGROUP a SCRUB WAIT
 reject@29	reject@29	engine	alterDiskgroup_scrub_clause(WAIT|NOWAIT)?/WAIT!insert	ALTER DISKGROUP a SCRUB WAIT zzz
@@ -4484,31 +4484,31 @@ accept	accept	engine	alterDiskgroup_quotagroup_clauses/ADD_QUOTAGROUP_ID_(SET_QU
 accept	accept	engine	alterDiskgroup_quotagroup_clauses/MODIFY_QUOTAGROUP_ID_SET_QUOTA_=_(alterDiskgroup_size_c~c815d025	ALTER DISKGROUP a MODIFY QUOTAGROUP a SET QUOTA = 1
 reject@18	reject@18	engine	alterDiskgroup_quotagroup_clauses/MODIFY_QUOTAGROUP_ID_SET_QUOTA_=_(alterDiskgroup_size_c~c815d025!drop-1	ALTER DISKGROUP a QUOTAGROUP a SET QUOTA = 1
 reject@25	reject@25	engine	alterDiskgroup_quotagroup_clauses/MODIFY_QUOTAGROUP_ID_SET_QUOTA_=_(alterDiskgroup_size_c~c815d025!drop-2	ALTER DISKGROUP a MODIFY a SET QUOTA = 1
-accept	reject@40	engine	alterDiskgroup_quotagroup_clauses/MODIFY_QUOTAGROUP_ID_SET_QUOTA_=_(alterDiskgroup_size_c~c815d025!drop-3	ALTER DISKGROUP a MODIFY QUOTAGROUP SET QUOTA = 1
-accept	reject@38	engine	alterDiskgroup_quotagroup_clauses/MODIFY_QUOTAGROUP_ID_SET_QUOTA_=_(alterDiskgroup_size_c~c815d025!drop-4	ALTER DISKGROUP a MODIFY QUOTAGROUP a QUOTA = 1
-accept	reject@44	engine	alterDiskgroup_quotagroup_clauses/MODIFY_QUOTAGROUP_ID_SET_QUOTA_=_(alterDiskgroup_size_c~c815d025!drop-5	ALTER DISKGROUP a MODIFY QUOTAGROUP a SET = 1
-accept	reject@48	engine	alterDiskgroup_quotagroup_clauses/MODIFY_QUOTAGROUP_ID_SET_QUOTA_=_(alterDiskgroup_size_c~c815d025!drop-6	ALTER DISKGROUP a MODIFY QUOTAGROUP a SET QUOTA 1
+reject@36	reject@40	engine	alterDiskgroup_quotagroup_clauses/MODIFY_QUOTAGROUP_ID_SET_QUOTA_=_(alterDiskgroup_size_c~c815d025!drop-3	ALTER DISKGROUP a MODIFY QUOTAGROUP SET QUOTA = 1
+reject@38	reject@38	engine	alterDiskgroup_quotagroup_clauses/MODIFY_QUOTAGROUP_ID_SET_QUOTA_=_(alterDiskgroup_size_c~c815d025!drop-4	ALTER DISKGROUP a MODIFY QUOTAGROUP a QUOTA = 1
+reject@42	reject@44	engine	alterDiskgroup_quotagroup_clauses/MODIFY_QUOTAGROUP_ID_SET_QUOTA_=_(alterDiskgroup_size_c~c815d025!drop-5	ALTER DISKGROUP a MODIFY QUOTAGROUP a SET = 1
+reject@48	reject@48	engine	alterDiskgroup_quotagroup_clauses/MODIFY_QUOTAGROUP_ID_SET_QUOTA_=_(alterDiskgroup_size_c~c815d025!drop-6	ALTER DISKGROUP a MODIFY QUOTAGROUP a SET QUOTA 1
 reject@49	accept	engine	alterDiskgroup_quotagroup_clauses/MODIFY_QUOTAGROUP_ID_SET_QUOTA_=_(alterDiskgroup_size_c~c815d025!drop-7	ALTER DISKGROUP a MODIFY QUOTAGROUP a SET QUOTA =
 reject@52	reject@52	engine	alterDiskgroup_quotagroup_clauses/MODIFY_QUOTAGROUP_ID_SET_QUOTA_=_(alterDiskgroup_size_c~c815d025!insert	ALTER DISKGROUP a MODIFY QUOTAGROUP a SET QUOTA = 1 zzz
 reject@18	reject@18	engine	alterDiskgroup_quotagroup_clauses/MODIFY_QUOTAGROUP_ID_SET_QUOTA_=_(alterDiskgroup_size_c~c815d025!swap	ALTER DISKGROUP a MODULE QUOTAGROUP a SET QUOTA = 1
-accept	reject@49	engine	alterDiskgroup_quotagroup_clauses/MOVE_FILEGROUP_ID_TO_QUOTAGROUP_ID	ALTER DISKGROUP a MOVE FILEGROUP a TO QUOTAGROUP a
+reject@49	reject@49	engine	alterDiskgroup_quotagroup_clauses/MOVE_FILEGROUP_ID_TO_QUOTAGROUP_ID	ALTER DISKGROUP a MOVE FILEGROUP a TO QUOTAGROUP a
 reject@18	reject@18	engine	alterDiskgroup_quotagroup_clauses/MOVE_FILEGROUP_ID_TO_QUOTAGROUP_ID!drop-1	ALTER DISKGROUP a FILEGROUP a TO QUOTAGROUP a
 reject@23	reject@23	engine	alterDiskgroup_quotagroup_clauses/MOVE_FILEGROUP_ID_TO_QUOTAGROUP_ID!drop-2	ALTER DISKGROUP a MOVE a TO QUOTAGROUP a
-accept	reject@36	engine	alterDiskgroup_quotagroup_clauses/MOVE_FILEGROUP_ID_TO_QUOTAGROUP_ID!drop-3	ALTER DISKGROUP a MOVE FILEGROUP TO QUOTAGROUP a
-accept	reject@35	engine	alterDiskgroup_quotagroup_clauses/MOVE_FILEGROUP_ID_TO_QUOTAGROUP_ID!drop-4	ALTER DISKGROUP a MOVE FILEGROUP a QUOTAGROUP a
+reject@33	reject@36	engine	alterDiskgroup_quotagroup_clauses/MOVE_FILEGROUP_ID_TO_QUOTAGROUP_ID!drop-3	ALTER DISKGROUP a MOVE FILEGROUP TO QUOTAGROUP a
+reject@35	reject@35	engine	alterDiskgroup_quotagroup_clauses/MOVE_FILEGROUP_ID_TO_QUOTAGROUP_ID!drop-4	ALTER DISKGROUP a MOVE FILEGROUP a QUOTAGROUP a
 accept	accept	engine	alterDiskgroup_quotagroup_clauses/MOVE_FILEGROUP_ID_TO_QUOTAGROUP_ID!drop-5	ALTER DISKGROUP a MOVE FILEGROUP a TO a
 accept	accept	engine	alterDiskgroup_quotagroup_clauses/MOVE_FILEGROUP_ID_TO_QUOTAGROUP_ID!drop-6	ALTER DISKGROUP a MOVE FILEGROUP a TO QUOTAGROUP
-reject@51	reject@49	engine	alterDiskgroup_quotagroup_clauses/MOVE_FILEGROUP_ID_TO_QUOTAGROUP_ID!insert	ALTER DISKGROUP a MOVE FILEGROUP a TO QUOTAGROUP a zzz
+reject@49	reject@49	engine	alterDiskgroup_quotagroup_clauses/MOVE_FILEGROUP_ID_TO_QUOTAGROUP_ID!insert	ALTER DISKGROUP a MOVE FILEGROUP a TO QUOTAGROUP a zzz
 reject@18	reject@18	engine	alterDiskgroup_quotagroup_clauses/MOVE_FILEGROUP_ID_TO_QUOTAGROUP_ID!swap	ALTER DISKGROUP a MOVEMENT FILEGROUP a TO QUOTAGROUP a
 accept	accept	engine	alterDiskgroup_quotagroup_clauses/DROP_QUOTAGROUP_ID	ALTER DISKGROUP a DROP QUOTAGROUP a
-accept	reject@33	engine	alterDiskgroup_quotagroup_clauses/DROP_QUOTAGROUP_ID!drop-3	ALTER DISKGROUP a DROP QUOTAGROUP
+reject@33	reject@33	engine	alterDiskgroup_quotagroup_clauses/DROP_QUOTAGROUP_ID!drop-3	ALTER DISKGROUP a DROP QUOTAGROUP
 reject@36	reject@36	engine	alterDiskgroup_quotagroup_clauses/DROP_QUOTAGROUP_ID!insert	ALTER DISKGROUP a DROP QUOTAGROUP a zzz
 reject@18	reject@18	engine	alterDiskgroup_quotagroup_clauses/DROP_QUOTAGROUP_ID!swap	ALTER DISKGROUP a DUALITY QUOTAGROUP a
 accept	accept	engine	alterDiskgroup_quotagroup_clauses(SET_QUOTA_=_(alterDiskgroup_size_cla~3b033c4a)?/%empty	ALTER DISKGROUP a ADD QUOTAGROUP a
 accept	accept	engine	alterDiskgroup_quotagroup_clauses(SET_QUOTA_=_(alterDiskgroup_size_cla~3b033c4a)?/SET_QUOTA_=_(alterDiskgroup_size_clause|UNLIMITED)	ALTER DISKGROUP a ADD QUOTAGROUP a SET QUOTA = 1
 reject@35	reject@35	engine	alterDiskgroup_quotagroup_clauses(SET_QUOTA_=_(alterDiskgroup_size_cla~3b033c4a)?/SET_QUOTA_=_(alterDiskgroup_size_clause|UNLIMITED)!drop-1	ALTER DISKGROUP a ADD QUOTAGROUP a QUOTA = 1
-accept	reject@41	engine	alterDiskgroup_quotagroup_clauses(SET_QUOTA_=_(alterDiskgroup_size_cla~3b033c4a)?/SET_QUOTA_=_(alterDiskgroup_size_clause|UNLIMITED)!drop-2	ALTER DISKGROUP a ADD QUOTAGROUP a SET = 1
-accept	reject@45	engine	alterDiskgroup_quotagroup_clauses(SET_QUOTA_=_(alterDiskgroup_size_cla~3b033c4a)?/SET_QUOTA_=_(alterDiskgroup_size_clause|UNLIMITED)!drop-3	ALTER DISKGROUP a ADD QUOTAGROUP a SET QUOTA 1
+reject@39	reject@41	engine	alterDiskgroup_quotagroup_clauses(SET_QUOTA_=_(alterDiskgroup_size_cla~3b033c4a)?/SET_QUOTA_=_(alterDiskgroup_size_clause|UNLIMITED)!drop-2	ALTER DISKGROUP a ADD QUOTAGROUP a SET = 1
+reject@45	reject@45	engine	alterDiskgroup_quotagroup_clauses(SET_QUOTA_=_(alterDiskgroup_size_cla~3b033c4a)?/SET_QUOTA_=_(alterDiskgroup_size_clause|UNLIMITED)!drop-3	ALTER DISKGROUP a ADD QUOTAGROUP a SET QUOTA 1
 reject@46	accept	engine	alterDiskgroup_quotagroup_clauses(SET_QUOTA_=_(alterDiskgroup_size_cla~3b033c4a)?/SET_QUOTA_=_(alterDiskgroup_size_clause|UNLIMITED)!drop-4	ALTER DISKGROUP a ADD QUOTAGROUP a SET QUOTA =
 reject@49	reject@49	engine	alterDiskgroup_quotagroup_clauses(SET_QUOTA_=_(alterDiskgroup_size_cla~3b033c4a)?/SET_QUOTA_=_(alterDiskgroup_size_clause|UNLIMITED)!insert	ALTER DISKGROUP a ADD QUOTAGROUP a SET QUOTA = 1 zzz
 reject@35	reject@35	engine	alterDiskgroup_quotagroup_clauses(SET_QUOTA_=_(alterDiskgroup_size_cla~3b033c4a)?/SET_QUOTA_=_(alterDiskgroup_size_clause|UNLIMITED)!swap	ALTER DISKGROUP a ADD QUOTAGROUP a SETS QUOTA = 1
@@ -4517,20 +4517,20 @@ accept	accept	engine	alterDiskgroup_quotagroup_clauses(alterDiskgroup_size_claus
 reject@57	reject@57	engine	alterDiskgroup_quotagroup_clauses(alterDiskgroup_size_clause|UNLIMITED)/UNLIMITED!insert	ALTER DISKGROUP a ADD QUOTAGROUP a SET QUOTA = UNLIMITED zzz
 reject@47	reject@47	engine	alterDiskgroup_quotagroup_clauses(alterDiskgroup_size_clause|UNLIMITED)/UNLIMITED!swap	ALTER DISKGROUP a ADD QUOTAGROUP a SET QUOTA = UNLOCK
 accept	accept	engine	alterDiskgroup_filegroup_clauses/alterDiskgroup_add_filegroup_clause	ALTER DISKGROUP a ADD FILEGROUP a
-accept	reject@36	engine	alterDiskgroup_filegroup_clauses/alterDiskgroup_modify_filegroup_clause	ALTER DISKGROUP a MODIFY FILEGROUP a
-accept	reject@34	engine	alterDiskgroup_filegroup_clauses/alterDiskgroup_modify_filegroup_clause!drop-3	ALTER DISKGROUP a MODIFY FILEGROUP
+reject@36	reject@36	engine	alterDiskgroup_filegroup_clauses/alterDiskgroup_modify_filegroup_clause	ALTER DISKGROUP a MODIFY FILEGROUP a
+reject@34	reject@34	engine	alterDiskgroup_filegroup_clauses/alterDiskgroup_modify_filegroup_clause!drop-3	ALTER DISKGROUP a MODIFY FILEGROUP
 reject@37	reject@37	engine	alterDiskgroup_filegroup_clauses/alterDiskgroup_modify_filegroup_clause!insert	ALTER DISKGROUP a MODIFY FILEGROUP a zzz
 reject@18	reject@18	engine	alterDiskgroup_filegroup_clauses/alterDiskgroup_modify_filegroup_clause!swap	ALTER DISKGROUP a MODULE FILEGROUP a
-accept	reject@31	engine	alterDiskgroup_filegroup_clauses/alterDiskgroup_move_to_filegroup_clause	ALTER DISKGROUP a MOVE FILE TO FILEGROUP a
+reject@28	reject@31	engine	alterDiskgroup_filegroup_clauses/alterDiskgroup_move_to_filegroup_clause	ALTER DISKGROUP a MOVE FILE TO FILEGROUP a
 reject@18	reject@18	engine	alterDiskgroup_filegroup_clauses/alterDiskgroup_move_to_filegroup_clause!drop-1	ALTER DISKGROUP a FILE TO FILEGROUP a
 reject@23	reject@23	engine	alterDiskgroup_filegroup_clauses/alterDiskgroup_move_to_filegroup_clause!drop-2	ALTER DISKGROUP a MOVE TO FILEGROUP a
-accept	reject@38	engine	alterDiskgroup_filegroup_clauses/alterDiskgroup_move_to_filegroup_clause!drop-3	ALTER DISKGROUP a MOVE FILE FILEGROUP a
-accept	reject@31	engine	alterDiskgroup_filegroup_clauses/alterDiskgroup_move_to_filegroup_clause!drop-4	ALTER DISKGROUP a MOVE FILE TO a
-accept	reject@31	engine	alterDiskgroup_filegroup_clauses/alterDiskgroup_move_to_filegroup_clause!drop-5	ALTER DISKGROUP a MOVE FILE TO FILEGROUP
-reject@43	reject@31	engine	alterDiskgroup_filegroup_clauses/alterDiskgroup_move_to_filegroup_clause!insert	ALTER DISKGROUP a MOVE FILE TO FILEGROUP a zzz
+reject@28	reject@38	engine	alterDiskgroup_filegroup_clauses/alterDiskgroup_move_to_filegroup_clause!drop-3	ALTER DISKGROUP a MOVE FILE FILEGROUP a
+reject@28	reject@31	engine	alterDiskgroup_filegroup_clauses/alterDiskgroup_move_to_filegroup_clause!drop-4	ALTER DISKGROUP a MOVE FILE TO a
+reject@28	reject@31	engine	alterDiskgroup_filegroup_clauses/alterDiskgroup_move_to_filegroup_clause!drop-5	ALTER DISKGROUP a MOVE FILE TO FILEGROUP
+reject@28	reject@31	engine	alterDiskgroup_filegroup_clauses/alterDiskgroup_move_to_filegroup_clause!insert	ALTER DISKGROUP a MOVE FILE TO FILEGROUP a zzz
 reject@18	reject@18	engine	alterDiskgroup_filegroup_clauses/alterDiskgroup_move_to_filegroup_clause!swap	ALTER DISKGROUP a MOVEMENT FILE TO FILEGROUP a
 accept	accept	engine	alterDiskgroup_filegroup_clauses/alterDiskgroup_drop_filegroup_clause	ALTER DISKGROUP a DROP FILEGROUP a
-accept	reject@32	engine	alterDiskgroup_filegroup_clauses/alterDiskgroup_drop_filegroup_clause!drop-3	ALTER DISKGROUP a DROP FILEGROUP
+reject@32	reject@32	engine	alterDiskgroup_filegroup_clauses/alterDiskgroup_drop_filegroup_clause!drop-3	ALTER DISKGROUP a DROP FILEGROUP
 reject@35	reject@35	engine	alterDiskgroup_filegroup_clauses/alterDiskgroup_drop_filegroup_clause!insert	ALTER DISKGROUP a DROP FILEGROUP a zzz
 reject@18	reject@18	engine	alterDiskgroup_filegroup_clauses/alterDiskgroup_drop_filegroup_clause!swap	ALTER DISKGROUP a DUALITY FILEGROUP a
 accept	accept	engine	alterDiskgroup_undrop_disk_clause/UNDROP_DISKS	ALTER DISKGROUP a UNDROP DISKS
@@ -4539,8 +4539,8 @@ accept	accept	engine	alterDiskgroup_diskgroup_availability/DISMOUNT_(ALL)?_(FORC
 reject@27	reject@27	engine	alterDiskgroup_diskgroup_availability/DISMOUNT_(ALL)?_(FORCE)?!insert	ALTER DISKGROUP a DISMOUNT zzz
 reject@18	reject@18	engine	alterDiskgroup_diskgroup_availability/DISMOUNT_(ALL)?_(FORCE)?!swap	ALTER DISKGROUP a DISPLAY
 accept	accept	engine	alterDiskgroup_diskgroup_availability(ALL)?/%empty	ALTER DISKGROUP a MOUNT
-accept	reject@24	engine	alterDiskgroup_diskgroup_availability(ALL)?/ALL	ALTER DISKGROUP a MOUNT ALL
-reject@28	reject@24	engine	alterDiskgroup_diskgroup_availability(ALL)?/ALL!insert	ALTER DISKGROUP a MOUNT ALL zzz
+reject@24	reject@24	engine	alterDiskgroup_diskgroup_availability(ALL)?/ALL	ALTER DISKGROUP a MOUNT ALL
+reject@24	reject@24	engine	alterDiskgroup_diskgroup_availability(ALL)?/ALL!insert	ALTER DISKGROUP a MOUNT ALL zzz
 reject@24	reject@24	engine	alterDiskgroup_diskgroup_availability(ALL)?/ALL!swap	ALTER DISKGROUP a MOUNT ALLOCATE
 accept	accept	engine	alterDiskgroup_diskgroup_availability(RESTRICTED|NORMAL)?/%empty	ALTER DISKGROUP a MOUNT
 accept	accept	engine	alterDiskgroup_diskgroup_availability(RESTRICTED|NORMAL)?/RESTRICTED	ALTER DISKGROUP a MOUNT RESTRICTED
@@ -4563,7 +4563,7 @@ reject@27	reject@27	engine	alterDiskgroup_diskgroup_availability(FORCE)?/FORCE!s
 accept	accept	engine	alterDiskgroup_enable_disable_volume/ENABLE_VOLUME_(ALL|ID_(,_ID)*)	ALTER DISKGROUP a ENABLE VOLUME ALL
 accept	accept	engine	alterDiskgroup_enable_disable_volume/DISABLE_VOLUME_(ALL|ID_(,_ID)*)	ALTER DISKGROUP a DISABLE VOLUME ALL
 reject@26	reject@26	engine	alterDiskgroup_enable_disable_volume/DISABLE_VOLUME_(ALL|ID_(,_ID)*)!drop-2	ALTER DISKGROUP a DISABLE ALL
-accept	reject@32	engine	alterDiskgroup_enable_disable_volume/DISABLE_VOLUME_(ALL|ID_(,_ID)*)!drop-3	ALTER DISKGROUP a DISABLE VOLUME
+reject@32	reject@32	engine	alterDiskgroup_enable_disable_volume/DISABLE_VOLUME_(ALL|ID_(,_ID)*)!drop-3	ALTER DISKGROUP a DISABLE VOLUME
 reject@37	reject@37	engine	alterDiskgroup_enable_disable_volume/DISABLE_VOLUME_(ALL|ID_(,_ID)*)!insert	ALTER DISKGROUP a DISABLE VOLUME ALL zzz
 reject@18	reject@18	engine	alterDiskgroup_enable_disable_volume/DISABLE_VOLUME_(ALL|ID_(,_ID)*)!swap	ALTER DISKGROUP a DISABLE_ALL VOLUME ALL
 accept	accept	engine	alterDiskgroup_enable_disable_volume(ALL|ID_(,_ID)*)/ALL	ALTER DISKGROUP a ENABLE VOLUME ALL
@@ -4577,87 +4577,87 @@ reject@34	reject@34	engine	alterDiskgroup_enable_disable_volume(,_ID)*/,_ID_(,_I
 reject@37	reject@37	engine	alterDiskgroup_enable_disable_volume(,_ID)*/,_ID_(,_ID)*!insert	ALTER DISKGROUP a ENABLE VOLUME a, a zzz
 accept	accept	engine	alterDiskgroup_qualified_disk_clause/(QUORUM|REGULAR)?_(NAME_ID)?_STRING_(alterDiskgroup_siz~432d6798	ALTER DISKGROUP a ADD DISK 's'
 accept	accept	engine	alterDiskgroup_qualified_disk_clause(QUORUM|REGULAR)?/%empty	ALTER DISKGROUP a ADD DISK 's'
-reject@31	reject@27	engine	alterDiskgroup_qualified_disk_clause(QUORUM|REGULAR)?/%empty!insert	ALTER DISKGROUP a ADD DISK zzz 's'
-reject@34	reject@27	engine	alterDiskgroup_qualified_disk_clause(QUORUM|REGULAR)?/QUORUM	ALTER DISKGROUP a ADD DISK QUORUM 's'
-reject@34	reject@27	engine	alterDiskgroup_qualified_disk_clause(QUORUM|REGULAR)?/QUORUM!insert	ALTER DISKGROUP a ADD DISK QUORUM zzz 's'
-reject@33	reject@27	engine	alterDiskgroup_qualified_disk_clause(QUORUM|REGULAR)?/QUORUM!swap	ALTER DISKGROUP a ADD DISK QUOTA 's'
-reject@35	reject@27	engine	alterDiskgroup_qualified_disk_clause(QUORUM|REGULAR)?/REGULAR	ALTER DISKGROUP a ADD DISK REGULAR 's'
-reject@35	reject@27	engine	alterDiskgroup_qualified_disk_clause(QUORUM|REGULAR)?/REGULAR!insert	ALTER DISKGROUP a ADD DISK REGULAR zzz 's'
-reject@34	reject@27	engine	alterDiskgroup_qualified_disk_clause(QUORUM|REGULAR)?/REGULAR!swap	ALTER DISKGROUP a ADD DISK REJECT 's'
+reject@27	reject@27	engine	alterDiskgroup_qualified_disk_clause(QUORUM|REGULAR)?/%empty!insert	ALTER DISKGROUP a ADD DISK zzz 's'
+reject@27	reject@27	engine	alterDiskgroup_qualified_disk_clause(QUORUM|REGULAR)?/QUORUM	ALTER DISKGROUP a ADD DISK QUORUM 's'
+reject@27	reject@27	engine	alterDiskgroup_qualified_disk_clause(QUORUM|REGULAR)?/QUORUM!insert	ALTER DISKGROUP a ADD DISK QUORUM zzz 's'
+reject@27	reject@27	engine	alterDiskgroup_qualified_disk_clause(QUORUM|REGULAR)?/QUORUM!swap	ALTER DISKGROUP a ADD DISK QUOTA 's'
+reject@27	reject@27	engine	alterDiskgroup_qualified_disk_clause(QUORUM|REGULAR)?/REGULAR	ALTER DISKGROUP a ADD DISK REGULAR 's'
+reject@27	reject@27	engine	alterDiskgroup_qualified_disk_clause(QUORUM|REGULAR)?/REGULAR!insert	ALTER DISKGROUP a ADD DISK REGULAR zzz 's'
+reject@27	reject@27	engine	alterDiskgroup_qualified_disk_clause(QUORUM|REGULAR)?/REGULAR!swap	ALTER DISKGROUP a ADD DISK REJECT 's'
 accept	accept	engine	alterDiskgroup_qualified_disk_clause(NAME_ID)?/%empty	ALTER DISKGROUP a ADD DISK 's'
-reject@32	reject@27	engine	alterDiskgroup_qualified_disk_clause(NAME_ID)?/NAME_ID	ALTER DISKGROUP a ADD DISK NAME a 's'
-reject@29	reject@27	engine	alterDiskgroup_qualified_disk_clause(NAME_ID)?/NAME_ID!drop-1	ALTER DISKGROUP a ADD DISK a 's'
-reject@32	reject@27	engine	alterDiskgroup_qualified_disk_clause(NAME_ID)?/NAME_ID!drop-2	ALTER DISKGROUP a ADD DISK NAME 's'
-accept	reject@27	engine	alterDiskgroup_qualified_disk_clause(NAME_ID)?/NAME_ID!truncate	ALTER DISKGROUP a ADD DISK NAME
-reject@32	reject@27	engine	alterDiskgroup_qualified_disk_clause(NAME_ID)?/NAME_ID!insert	ALTER DISKGROUP a ADD DISK NAME a zzz 's'
-reject@33	reject@27	engine	alterDiskgroup_qualified_disk_clause(NAME_ID)?/NAME_ID!swap	ALTER DISKGROUP a ADD DISK NAMED a 's'
+reject@27	reject@27	engine	alterDiskgroup_qualified_disk_clause(NAME_ID)?/NAME_ID	ALTER DISKGROUP a ADD DISK NAME a 's'
+reject@27	reject@27	engine	alterDiskgroup_qualified_disk_clause(NAME_ID)?/NAME_ID!drop-1	ALTER DISKGROUP a ADD DISK a 's'
+reject@27	reject@27	engine	alterDiskgroup_qualified_disk_clause(NAME_ID)?/NAME_ID!drop-2	ALTER DISKGROUP a ADD DISK NAME 's'
+reject@27	reject@27	engine	alterDiskgroup_qualified_disk_clause(NAME_ID)?/NAME_ID!truncate	ALTER DISKGROUP a ADD DISK NAME
+reject@27	reject@27	engine	alterDiskgroup_qualified_disk_clause(NAME_ID)?/NAME_ID!insert	ALTER DISKGROUP a ADD DISK NAME a zzz 's'
+reject@27	reject@27	engine	alterDiskgroup_qualified_disk_clause(NAME_ID)?/NAME_ID!swap	ALTER DISKGROUP a ADD DISK NAMED a 's'
 accept	accept	engine	alterDiskgroup_qualified_disk_clause(alterDiskgroup_size_clause)?/%empty	ALTER DISKGROUP a ADD DISK 's'
 reject@31	reject@31	engine	alterDiskgroup_qualified_disk_clause(alterDiskgroup_size_clause)?/alterDiskgroup_size_clause	ALTER DISKGROUP a ADD DISK 's' 1
 reject@31	reject@31	engine	alterDiskgroup_qualified_disk_clause(alterDiskgroup_size_clause)?/alterDiskgroup_size_clause!insert	ALTER DISKGROUP a ADD DISK 's' 1 zzz
 accept	accept	engine	alterDiskgroup_qualified_disk_clause(FAILGROUP_ID)?/%empty	ALTER DISKGROUP a ADD DISK 's'
-accept	reject@42	engine	alterDiskgroup_qualified_disk_clause(FAILGROUP_ID)?/FAILGROUP_ID	ALTER DISKGROUP a ADD DISK 's' FAILGROUP a
+reject@42	reject@42	engine	alterDiskgroup_qualified_disk_clause(FAILGROUP_ID)?/FAILGROUP_ID	ALTER DISKGROUP a ADD DISK 's' FAILGROUP a
 reject@31	reject@31	engine	alterDiskgroup_qualified_disk_clause(FAILGROUP_ID)?/FAILGROUP_ID!drop-1	ALTER DISKGROUP a ADD DISK 's' a
 accept	accept	engine	alterDiskgroup_qualified_disk_clause(FAILGROUP_ID)?/FAILGROUP_ID!drop-2	ALTER DISKGROUP a ADD DISK 's' FAILGROUP
 reject@43	reject@43	engine	alterDiskgroup_qualified_disk_clause(FAILGROUP_ID)?/FAILGROUP_ID!insert	ALTER DISKGROUP a ADD DISK 's' FAILGROUP a zzz
 reject@31	reject@31	engine	alterDiskgroup_qualified_disk_clause(FAILGROUP_ID)?/FAILGROUP_ID!swap	ALTER DISKGROUP a ADD DISK 's' FAILOVER a
-accept	reject@29	engine	alterDiskgroup_size_clause/NUMBER_(K|M|G|T|P)?	ALTER DISKGROUP a RESIZE ALL 1
-accept	reject@29	engine	alterDiskgroup_size_clause(K|M|G|T|P)?/%empty	ALTER DISKGROUP a RESIZE ALL 1
-accept	reject@29	engine	alterDiskgroup_size_clause(K|M|G|T|P)?/K	ALTER DISKGROUP a RESIZE ALL 1 K
-reject@33	reject@29	engine	alterDiskgroup_size_clause(K|M|G|T|P)?/K!insert	ALTER DISKGROUP a RESIZE ALL 1 K zzz
-reject@31	reject@29	engine	alterDiskgroup_size_clause(K|M|G|T|P)?/K!swap	ALTER DISKGROUP a RESIZE ALL 1 KEEP
-accept	reject@29	engine	alterDiskgroup_size_clause(K|M|G|T|P)?/M	ALTER DISKGROUP a RESIZE ALL 1 M
-reject@33	reject@29	engine	alterDiskgroup_size_clause(K|M|G|T|P)?/M!insert	ALTER DISKGROUP a RESIZE ALL 1 M zzz
-reject@31	reject@29	engine	alterDiskgroup_size_clause(K|M|G|T|P)?/M!swap	ALTER DISKGROUP a RESIZE ALL 1 MAIN
-accept	reject@29	engine	alterDiskgroup_size_clause(K|M|G|T|P)?/G	ALTER DISKGROUP a RESIZE ALL 1 G
-reject@33	reject@29	engine	alterDiskgroup_size_clause(K|M|G|T|P)?/G!insert	ALTER DISKGROUP a RESIZE ALL 1 G zzz
-reject@31	reject@29	engine	alterDiskgroup_size_clause(K|M|G|T|P)?/G!swap	ALTER DISKGROUP a RESIZE ALL 1 GENERATED
-accept	reject@29	engine	alterDiskgroup_size_clause(K|M|G|T|P)?/T	ALTER DISKGROUP a RESIZE ALL 1 T
-reject@33	reject@29	engine	alterDiskgroup_size_clause(K|M|G|T|P)?/T!insert	ALTER DISKGROUP a RESIZE ALL 1 T zzz
-reject@31	reject@29	engine	alterDiskgroup_size_clause(K|M|G|T|P)?/T!swap	ALTER DISKGROUP a RESIZE ALL 1 TABLE
-accept	reject@29	engine	alterDiskgroup_size_clause(K|M|G|T|P)?/P	ALTER DISKGROUP a RESIZE ALL 1 P
-reject@33	reject@29	engine	alterDiskgroup_size_clause(K|M|G|T|P)?/P!insert	ALTER DISKGROUP a RESIZE ALL 1 P zzz
-reject@31	reject@29	engine	alterDiskgroup_size_clause(K|M|G|T|P)?/P!swap	ALTER DISKGROUP a RESIZE ALL 1 PACKAGE
-reject@33	reject@45	engine	alterDiskgroup_timeout_clause/DISK_REPAIR_TIME_(NUMBER_MINUTE|NUMBER_HOUR)?	ALTER DISKGROUP a OFFLINE DISK a DISK REPAIR TIME
-reject@33	reject@45	engine	alterDiskgroup_timeout_clause(NUMBER_MINUTE|NUMBER_HOUR)?/%empty	ALTER DISKGROUP a OFFLINE DISK a DISK REPAIR TIME
-reject@33	reject@45	engine	alterDiskgroup_timeout_clause(NUMBER_MINUTE|NUMBER_HOUR)?/NUMBER_MINUTE	ALTER DISKGROUP a OFFLINE DISK a DISK REPAIR TIME 1 MINUTE
-reject@33	reject@45	engine	alterDiskgroup_timeout_clause(NUMBER_MINUTE|NUMBER_HOUR)?/NUMBER_MINUTE!drop-1	ALTER DISKGROUP a OFFLINE DISK a DISK REPAIR TIME MINUTE
-reject@33	reject@45	engine	alterDiskgroup_timeout_clause(NUMBER_MINUTE|NUMBER_HOUR)?/NUMBER_MINUTE!drop-2	ALTER DISKGROUP a OFFLINE DISK a DISK REPAIR TIME 1
-reject@33	reject@45	engine	alterDiskgroup_timeout_clause(NUMBER_MINUTE|NUMBER_HOUR)?/NUMBER_MINUTE!insert	ALTER DISKGROUP a OFFLINE DISK a DISK REPAIR TIME 1 MINUTE zzz
-reject@33	reject@45	engine	alterDiskgroup_timeout_clause(NUMBER_MINUTE|NUMBER_HOUR)?/NUMBER_MINUTE!swap	ALTER DISKGROUP a OFFLINE DISK a DISK REPAIR TIME 1 MINUTES
-reject@33	reject@45	engine	alterDiskgroup_timeout_clause(NUMBER_MINUTE|NUMBER_HOUR)?/NUMBER_HOUR	ALTER DISKGROUP a OFFLINE DISK a DISK REPAIR TIME 1 HOUR
-reject@33	reject@45	engine	alterDiskgroup_timeout_clause(NUMBER_MINUTE|NUMBER_HOUR)?/NUMBER_HOUR!drop-1	ALTER DISKGROUP a OFFLINE DISK a DISK REPAIR TIME HOUR
-reject@33	reject@45	engine	alterDiskgroup_timeout_clause(NUMBER_MINUTE|NUMBER_HOUR)?/NUMBER_HOUR!insert	ALTER DISKGROUP a OFFLINE DISK a DISK REPAIR TIME 1 HOUR zzz
-reject@33	reject@45	engine	alterDiskgroup_timeout_clause(NUMBER_MINUTE|NUMBER_HOUR)?/NUMBER_HOUR!swap	ALTER DISKGROUP a OFFLINE DISK a DISK REPAIR TIME 1 HOURS
+reject@29	reject@29	engine	alterDiskgroup_size_clause/NUMBER_(K|M|G|T|P)?	ALTER DISKGROUP a RESIZE ALL 1
+reject@29	reject@29	engine	alterDiskgroup_size_clause(K|M|G|T|P)?/%empty	ALTER DISKGROUP a RESIZE ALL 1
+reject@29	reject@29	engine	alterDiskgroup_size_clause(K|M|G|T|P)?/K	ALTER DISKGROUP a RESIZE ALL 1 K
+reject@29	reject@29	engine	alterDiskgroup_size_clause(K|M|G|T|P)?/K!insert	ALTER DISKGROUP a RESIZE ALL 1 K zzz
+reject@29	reject@29	engine	alterDiskgroup_size_clause(K|M|G|T|P)?/K!swap	ALTER DISKGROUP a RESIZE ALL 1 KEEP
+reject@29	reject@29	engine	alterDiskgroup_size_clause(K|M|G|T|P)?/M	ALTER DISKGROUP a RESIZE ALL 1 M
+reject@29	reject@29	engine	alterDiskgroup_size_clause(K|M|G|T|P)?/M!insert	ALTER DISKGROUP a RESIZE ALL 1 M zzz
+reject@29	reject@29	engine	alterDiskgroup_size_clause(K|M|G|T|P)?/M!swap	ALTER DISKGROUP a RESIZE ALL 1 MAIN
+reject@29	reject@29	engine	alterDiskgroup_size_clause(K|M|G|T|P)?/G	ALTER DISKGROUP a RESIZE ALL 1 G
+reject@29	reject@29	engine	alterDiskgroup_size_clause(K|M|G|T|P)?/G!insert	ALTER DISKGROUP a RESIZE ALL 1 G zzz
+reject@29	reject@29	engine	alterDiskgroup_size_clause(K|M|G|T|P)?/G!swap	ALTER DISKGROUP a RESIZE ALL 1 GENERATED
+reject@29	reject@29	engine	alterDiskgroup_size_clause(K|M|G|T|P)?/T	ALTER DISKGROUP a RESIZE ALL 1 T
+reject@29	reject@29	engine	alterDiskgroup_size_clause(K|M|G|T|P)?/T!insert	ALTER DISKGROUP a RESIZE ALL 1 T zzz
+reject@29	reject@29	engine	alterDiskgroup_size_clause(K|M|G|T|P)?/T!swap	ALTER DISKGROUP a RESIZE ALL 1 TABLE
+reject@29	reject@29	engine	alterDiskgroup_size_clause(K|M|G|T|P)?/P	ALTER DISKGROUP a RESIZE ALL 1 P
+reject@29	reject@29	engine	alterDiskgroup_size_clause(K|M|G|T|P)?/P!insert	ALTER DISKGROUP a RESIZE ALL 1 P zzz
+reject@29	reject@29	engine	alterDiskgroup_size_clause(K|M|G|T|P)?/P!swap	ALTER DISKGROUP a RESIZE ALL 1 PACKAGE
+reject@45	reject@45	engine	alterDiskgroup_timeout_clause/DISK_REPAIR_TIME_(NUMBER_MINUTE|NUMBER_HOUR)?	ALTER DISKGROUP a OFFLINE DISK a DISK REPAIR TIME
+reject@45	reject@45	engine	alterDiskgroup_timeout_clause(NUMBER_MINUTE|NUMBER_HOUR)?/%empty	ALTER DISKGROUP a OFFLINE DISK a DISK REPAIR TIME
+reject@45	reject@45	engine	alterDiskgroup_timeout_clause(NUMBER_MINUTE|NUMBER_HOUR)?/NUMBER_MINUTE	ALTER DISKGROUP a OFFLINE DISK a DISK REPAIR TIME 1 MINUTE
+reject@45	reject@45	engine	alterDiskgroup_timeout_clause(NUMBER_MINUTE|NUMBER_HOUR)?/NUMBER_MINUTE!drop-1	ALTER DISKGROUP a OFFLINE DISK a DISK REPAIR TIME MINUTE
+reject@45	reject@45	engine	alterDiskgroup_timeout_clause(NUMBER_MINUTE|NUMBER_HOUR)?/NUMBER_MINUTE!drop-2	ALTER DISKGROUP a OFFLINE DISK a DISK REPAIR TIME 1
+reject@45	reject@45	engine	alterDiskgroup_timeout_clause(NUMBER_MINUTE|NUMBER_HOUR)?/NUMBER_MINUTE!insert	ALTER DISKGROUP a OFFLINE DISK a DISK REPAIR TIME 1 MINUTE zzz
+reject@45	reject@45	engine	alterDiskgroup_timeout_clause(NUMBER_MINUTE|NUMBER_HOUR)?/NUMBER_MINUTE!swap	ALTER DISKGROUP a OFFLINE DISK a DISK REPAIR TIME 1 MINUTES
+reject@45	reject@45	engine	alterDiskgroup_timeout_clause(NUMBER_MINUTE|NUMBER_HOUR)?/NUMBER_HOUR	ALTER DISKGROUP a OFFLINE DISK a DISK REPAIR TIME 1 HOUR
+reject@45	reject@45	engine	alterDiskgroup_timeout_clause(NUMBER_MINUTE|NUMBER_HOUR)?/NUMBER_HOUR!drop-1	ALTER DISKGROUP a OFFLINE DISK a DISK REPAIR TIME HOUR
+reject@45	reject@45	engine	alterDiskgroup_timeout_clause(NUMBER_MINUTE|NUMBER_HOUR)?/NUMBER_HOUR!insert	ALTER DISKGROUP a OFFLINE DISK a DISK REPAIR TIME 1 HOUR zzz
+reject@45	reject@45	engine	alterDiskgroup_timeout_clause(NUMBER_MINUTE|NUMBER_HOUR)?/NUMBER_HOUR!swap	ALTER DISKGROUP a OFFLINE DISK a DISK REPAIR TIME 1 HOURS
 accept	accept	engine	alterDiskgroup_file_specification/(STRING)?_(SIZE_alterDiskgroup_size_clause)?_(REUSE)?_(~b3fc1d4d	ALTER DISKGROUP a CHECK FILE
 accept	accept	engine	alterDiskgroup_file_specification(STRING)?/%empty	ALTER DISKGROUP a CHECK FILE
 accept	accept	engine	alterDiskgroup_file_specification(STRING)?/STRING	ALTER DISKGROUP a CHECK FILE 's'
-accept	reject@33	engine	alterDiskgroup_file_specification(STRING)?/STRING!insert	ALTER DISKGROUP a CHECK FILE 's' zzz
+reject@33	reject@33	engine	alterDiskgroup_file_specification(STRING)?/STRING!insert	ALTER DISKGROUP a CHECK FILE 's' zzz
 accept	accept	engine	alterDiskgroup_file_specification(SIZE_alterDiskgroup_size_clause)?/%empty	ALTER DISKGROUP a CHECK FILE
-reject@34	reject@29	engine	alterDiskgroup_file_specification(SIZE_alterDiskgroup_size_clause)?/SIZE_alterDiskgroup_size_clause	ALTER DISKGROUP a CHECK FILE SIZE 1
+reject@29	reject@29	engine	alterDiskgroup_file_specification(SIZE_alterDiskgroup_size_clause)?/SIZE_alterDiskgroup_size_clause	ALTER DISKGROUP a CHECK FILE SIZE 1
 reject@29	reject@29	engine	alterDiskgroup_file_specification(SIZE_alterDiskgroup_size_clause)?/SIZE_alterDiskgroup_size_clause!drop-1	ALTER DISKGROUP a CHECK FILE 1
-accept	reject@29	engine	alterDiskgroup_file_specification(SIZE_alterDiskgroup_size_clause)?/SIZE_alterDiskgroup_size_clause!drop-2	ALTER DISKGROUP a CHECK FILE SIZE
-reject@34	reject@29	engine	alterDiskgroup_file_specification(SIZE_alterDiskgroup_size_clause)?/SIZE_alterDiskgroup_size_clause!insert	ALTER DISKGROUP a CHECK FILE SIZE 1 zzz
-reject@34	reject@29	engine	alterDiskgroup_file_specification(SIZE_alterDiskgroup_size_clause)?/SIZE_alterDiskgroup_size_clause!swap	ALTER DISKGROUP a CHECK FILE SKIP 1
+reject@29	reject@29	engine	alterDiskgroup_file_specification(SIZE_alterDiskgroup_size_clause)?/SIZE_alterDiskgroup_size_clause!drop-2	ALTER DISKGROUP a CHECK FILE SIZE
+reject@29	reject@29	engine	alterDiskgroup_file_specification(SIZE_alterDiskgroup_size_clause)?/SIZE_alterDiskgroup_size_clause!insert	ALTER DISKGROUP a CHECK FILE SIZE 1 zzz
+reject@29	reject@29	engine	alterDiskgroup_file_specification(SIZE_alterDiskgroup_size_clause)?/SIZE_alterDiskgroup_size_clause!swap	ALTER DISKGROUP a CHECK FILE SKIP 1
 accept	accept	engine	alterDiskgroup_file_specification(REUSE)?/%empty	ALTER DISKGROUP a CHECK FILE
-accept	reject@29	engine	alterDiskgroup_file_specification(REUSE)?/REUSE	ALTER DISKGROUP a CHECK FILE REUSE
-accept	reject@29	engine	alterDiskgroup_file_specification(REUSE)?/REUSE!insert	ALTER DISKGROUP a CHECK FILE REUSE zzz
-accept	reject@29	engine	alterDiskgroup_file_specification(REUSE)?/REUSE!swap	ALTER DISKGROUP a CHECK FILE REVERSE
+reject@29	reject@29	engine	alterDiskgroup_file_specification(REUSE)?/REUSE	ALTER DISKGROUP a CHECK FILE REUSE
+reject@29	reject@29	engine	alterDiskgroup_file_specification(REUSE)?/REUSE!insert	ALTER DISKGROUP a CHECK FILE REUSE zzz
+reject@29	reject@29	engine	alterDiskgroup_file_specification(REUSE)?/REUSE!swap	ALTER DISKGROUP a CHECK FILE REVERSE
 accept	accept	engine	alterDiskgroup_file_specification(alterDiskgroup_autoextend_clause)?/%empty	ALTER DISKGROUP a CHECK FILE
-accept	reject@29	engine	alterDiskgroup_file_specification(alterDiskgroup_autoextend_clause)?/alterDiskgroup_autoextend_clause	ALTER DISKGROUP a CHECK FILE AUTOEXTEND OFF
-accept	reject@29	engine	alterDiskgroup_file_specification(alterDiskgroup_autoextend_clause)?/alterDiskgroup_autoextend_clause!drop-1	ALTER DISKGROUP a CHECK FILE OFF
-accept	reject@29	engine	alterDiskgroup_file_specification(alterDiskgroup_autoextend_clause)?/alterDiskgroup_autoextend_clause!drop-2	ALTER DISKGROUP a CHECK FILE AUTOEXTEND
-accept	reject@29	engine	alterDiskgroup_file_specification(alterDiskgroup_autoextend_clause)?/alterDiskgroup_autoextend_clause!insert	ALTER DISKGROUP a CHECK FILE AUTOEXTEND OFF zzz
-accept	reject@29	engine	alterDiskgroup_file_specification(alterDiskgroup_autoextend_clause)?/alterDiskgroup_autoextend_clause!swap	ALTER DISKGROUP a CHECK FILE AUTOMATIC OFF
+reject@29	reject@29	engine	alterDiskgroup_file_specification(alterDiskgroup_autoextend_clause)?/alterDiskgroup_autoextend_clause	ALTER DISKGROUP a CHECK FILE AUTOEXTEND OFF
+reject@29	reject@29	engine	alterDiskgroup_file_specification(alterDiskgroup_autoextend_clause)?/alterDiskgroup_autoextend_clause!drop-1	ALTER DISKGROUP a CHECK FILE OFF
+reject@29	reject@29	engine	alterDiskgroup_file_specification(alterDiskgroup_autoextend_clause)?/alterDiskgroup_autoextend_clause!drop-2	ALTER DISKGROUP a CHECK FILE AUTOEXTEND
+reject@29	reject@29	engine	alterDiskgroup_file_specification(alterDiskgroup_autoextend_clause)?/alterDiskgroup_autoextend_clause!insert	ALTER DISKGROUP a CHECK FILE AUTOEXTEND OFF zzz
+reject@29	reject@29	engine	alterDiskgroup_file_specification(alterDiskgroup_autoextend_clause)?/alterDiskgroup_autoextend_clause!swap	ALTER DISKGROUP a CHECK FILE AUTOMATIC OFF
 accept	accept	engine	alterDiskgroup_qualified_template_clause/(alterDiskgroup_redundancy_clause)?_(alterDiskgroup_str~eaf3d900	ALTER DISKGROUP a ADD TEMPLATE a ATTRIBUTES()
-accept	reject@44	engine	alterDiskgroup_qualified_template_clause/(alterDiskgroup_redundancy_clause)?_(alterDiskgroup_str~eaf3d900!insert	ALTER DISKGROUP a ADD TEMPLATE a ATTRIBUTES(zzz)
+reject@44	reject@44	engine	alterDiskgroup_qualified_template_clause/(alterDiskgroup_redundancy_clause)?_(alterDiskgroup_str~eaf3d900!insert	ALTER DISKGROUP a ADD TEMPLATE a ATTRIBUTES(zzz)
 accept	accept	engine	alterDiskgroup_qualified_template_clause(alterDiskgroup_redundancy_clause)?/%empty	ALTER DISKGROUP a ADD TEMPLATE a ATTRIBUTES()
 accept	accept	engine	alterDiskgroup_qualified_template_clause(alterDiskgroup_redundancy_clause)?/alterDiskgroup_redundancy_clause	ALTER DISKGROUP a ADD TEMPLATE a ATTRIBUTES(MIRROR)
-accept	reject@51	engine	alterDiskgroup_qualified_template_clause(alterDiskgroup_redundancy_clause)?/alterDiskgroup_redundancy_clause!insert	ALTER DISKGROUP a ADD TEMPLATE a ATTRIBUTES(MIRROR zzz)
-accept	reject@44	engine	alterDiskgroup_qualified_template_clause(alterDiskgroup_redundancy_clause)?/alterDiskgroup_redundancy_clause!swap	ALTER DISKGROUP a ADD TEMPLATE a ATTRIBUTES(MIXED)
+reject@51	reject@51	engine	alterDiskgroup_qualified_template_clause(alterDiskgroup_redundancy_clause)?/alterDiskgroup_redundancy_clause!insert	ALTER DISKGROUP a ADD TEMPLATE a ATTRIBUTES(MIRROR zzz)
+reject@44	reject@44	engine	alterDiskgroup_qualified_template_clause(alterDiskgroup_redundancy_clause)?/alterDiskgroup_redundancy_clause!swap	ALTER DISKGROUP a ADD TEMPLATE a ATTRIBUTES(MIXED)
 accept	accept	engine	alterDiskgroup_qualified_template_clause(alterDiskgroup_striping_clause)?/%empty	ALTER DISKGROUP a ADD TEMPLATE a ATTRIBUTES()
 accept	accept	engine	alterDiskgroup_qualified_template_clause(alterDiskgroup_striping_clause)?/alterDiskgroup_striping_clause	ALTER DISKGROUP a ADD TEMPLATE a ATTRIBUTES(FINE)
-accept	reject@49	engine	alterDiskgroup_qualified_template_clause(alterDiskgroup_striping_clause)?/alterDiskgroup_striping_clause!insert	ALTER DISKGROUP a ADD TEMPLATE a ATTRIBUTES(FINE zzz)
-accept	reject@44	engine	alterDiskgroup_qualified_template_clause(alterDiskgroup_striping_clause)?/alterDiskgroup_striping_clause!swap	ALTER DISKGROUP a ADD TEMPLATE a ATTRIBUTES(FINISH)
+reject@49	reject@49	engine	alterDiskgroup_qualified_template_clause(alterDiskgroup_striping_clause)?/alterDiskgroup_striping_clause!insert	ALTER DISKGROUP a ADD TEMPLATE a ATTRIBUTES(FINE zzz)
+reject@44	reject@44	engine	alterDiskgroup_qualified_template_clause(alterDiskgroup_striping_clause)?/alterDiskgroup_striping_clause!swap	ALTER DISKGROUP a ADD TEMPLATE a ATTRIBUTES(FINISH)
 reject@31	reject@31	engine	alterDiskgroup_add_volume_clause/ADD_VOLUME_ID_alterDiskgroup_size_clause_(alterDiskgrou~9b60b32f	ALTER DISKGROUP a ADD VOLUME a 1
 reject@31	reject@31	engine	alterDiskgroup_add_volume_clause(alterDiskgroup_redundancy_clause)?/%empty	ALTER DISKGROUP a ADD VOLUME a 1
 reject@31	reject@31	engine	alterDiskgroup_add_volume_clause(alterDiskgroup_redundancy_clause)?/alterDiskgroup_redundancy_clause	ALTER DISKGROUP a ADD VOLUME a 1 MIRROR
@@ -4673,87 +4673,87 @@ reject@31	reject@31	engine	alterDiskgroup_add_volume_clause(STRIPE_COLUMNS_NUMBE
 reject@31	reject@31	engine	alterDiskgroup_add_volume_clause(STRIPE_COLUMNS_NUMBER)?/STRIPE_COLUMNS_NUMBER	ALTER DISKGROUP a ADD VOLUME a 1 STRIPE_COLUMNS 1
 reject@31	reject@31	engine	alterDiskgroup_add_volume_clause(STRIPE_COLUMNS_NUMBER)?/STRIPE_COLUMNS_NUMBER!drop-2	ALTER DISKGROUP a ADD VOLUME a 1 STRIPE_COLUMNS
 reject@31	reject@31	engine	alterDiskgroup_add_volume_clause(STRIPE_COLUMNS_NUMBER)?/STRIPE_COLUMNS_NUMBER!insert	ALTER DISKGROUP a ADD VOLUME a 1 STRIPE_COLUMNS 1 zzz
-accept	reject@33	engine	alterDiskgroup_modify_volume_clause/MODIFY_VOLUME_ID_(MOUNTPATH_STRING)?_(USAGE_STRING)?	ALTER DISKGROUP a MODIFY VOLUME a
-accept	reject@33	engine	alterDiskgroup_modify_volume_clause(MOUNTPATH_STRING)?/%empty	ALTER DISKGROUP a MODIFY VOLUME a
+reject@33	reject@33	engine	alterDiskgroup_modify_volume_clause/MODIFY_VOLUME_ID_(MOUNTPATH_STRING)?_(USAGE_STRING)?	ALTER DISKGROUP a MODIFY VOLUME a
+reject@33	reject@33	engine	alterDiskgroup_modify_volume_clause(MOUNTPATH_STRING)?/%empty	ALTER DISKGROUP a MODIFY VOLUME a
 accept	accept	engine	alterDiskgroup_modify_volume_clause(MOUNTPATH_STRING)?/MOUNTPATH_STRING	ALTER DISKGROUP a MODIFY VOLUME a MOUNTPATH 's'
 reject@34	reject@34	engine	alterDiskgroup_modify_volume_clause(MOUNTPATH_STRING)?/MOUNTPATH_STRING!drop-1	ALTER DISKGROUP a MODIFY VOLUME a 's'
 accept	accept	engine	alterDiskgroup_modify_volume_clause(MOUNTPATH_STRING)?/MOUNTPATH_STRING!drop-2	ALTER DISKGROUP a MODIFY VOLUME a MOUNTPATH
 reject@48	reject@48	engine	alterDiskgroup_modify_volume_clause(MOUNTPATH_STRING)?/MOUNTPATH_STRING!insert	ALTER DISKGROUP a MODIFY VOLUME a MOUNTPATH 's' zzz
 reject@34	reject@34	engine	alterDiskgroup_modify_volume_clause(MOUNTPATH_STRING)?/MOUNTPATH_STRING!swap	ALTER DISKGROUP a MODIFY VOLUME a MOUNTPOINT 's'
-accept	reject@33	engine	alterDiskgroup_modify_volume_clause(USAGE_STRING)?/%empty	ALTER DISKGROUP a MODIFY VOLUME a
+reject@33	reject@33	engine	alterDiskgroup_modify_volume_clause(USAGE_STRING)?/%empty	ALTER DISKGROUP a MODIFY VOLUME a
 accept	accept	engine	alterDiskgroup_modify_volume_clause(USAGE_STRING)?/USAGE_STRING	ALTER DISKGROUP a MODIFY VOLUME a USAGE 's'
 accept	accept	engine	alterDiskgroup_modify_volume_clause(USAGE_STRING)?/USAGE_STRING!drop-2	ALTER DISKGROUP a MODIFY VOLUME a USAGE
 reject@44	reject@44	engine	alterDiskgroup_modify_volume_clause(USAGE_STRING)?/USAGE_STRING!insert	ALTER DISKGROUP a MODIFY VOLUME a USAGE 's' zzz
 reject@34	reject@34	engine	alterDiskgroup_modify_volume_clause(USAGE_STRING)?/USAGE_STRING!swap	ALTER DISKGROUP a MODIFY VOLUME a USE 's'
-accept	reject@34	engine	alterDiskgroup_redundancy_clause/MIRROR	ALTER DISKGROUP a MODIFY FILE 's' MIRROR
-accept	reject@34	engine	alterDiskgroup_redundancy_clause/HIGH	ALTER DISKGROUP a MODIFY FILE 's' HIGH
-reject@39	reject@34	engine	alterDiskgroup_redundancy_clause/HIGH!insert	ALTER DISKGROUP a MODIFY FILE 's' HIGH zzz
+reject@34	reject@34	engine	alterDiskgroup_redundancy_clause/MIRROR	ALTER DISKGROUP a MODIFY FILE 's' MIRROR
+reject@34	reject@34	engine	alterDiskgroup_redundancy_clause/HIGH	ALTER DISKGROUP a MODIFY FILE 's' HIGH
+reject@34	reject@34	engine	alterDiskgroup_redundancy_clause/HIGH!insert	ALTER DISKGROUP a MODIFY FILE 's' HIGH zzz
 reject@34	reject@34	engine	alterDiskgroup_redundancy_clause/HIGH!swap	ALTER DISKGROUP a MODIFY FILE 's' HNSW
-accept	reject@34	engine	alterDiskgroup_redundancy_clause/UNPROTECTED	ALTER DISKGROUP a MODIFY FILE 's' UNPROTECTED
-reject@46	reject@34	engine	alterDiskgroup_redundancy_clause/UNPROTECTED!insert	ALTER DISKGROUP a MODIFY FILE 's' UNPROTECTED zzz
+reject@34	reject@34	engine	alterDiskgroup_redundancy_clause/UNPROTECTED	ALTER DISKGROUP a MODIFY FILE 's' UNPROTECTED
+reject@34	reject@34	engine	alterDiskgroup_redundancy_clause/UNPROTECTED!insert	ALTER DISKGROUP a MODIFY FILE 's' UNPROTECTED zzz
 reject@34	reject@34	engine	alterDiskgroup_redundancy_clause/UNPROTECTED!swap	ALTER DISKGROUP a MODIFY FILE 's' UNQUIESCE
-accept	reject@34	engine	alterDiskgroup_redundancy_clause/PARITY	ALTER DISKGROUP a MODIFY FILE 's' PARITY
-reject@41	reject@34	engine	alterDiskgroup_redundancy_clause/PARITY!insert	ALTER DISKGROUP a MODIFY FILE 's' PARITY zzz
+reject@34	reject@34	engine	alterDiskgroup_redundancy_clause/PARITY	ALTER DISKGROUP a MODIFY FILE 's' PARITY
+reject@34	reject@34	engine	alterDiskgroup_redundancy_clause/PARITY!insert	ALTER DISKGROUP a MODIFY FILE 's' PARITY zzz
 reject@34	reject@34	engine	alterDiskgroup_redundancy_clause/PARITY!swap	ALTER DISKGROUP a MODIFY FILE 's' PARTIAL
-accept	reject@34	engine	alterDiskgroup_redundancy_clause/DOUBLE	ALTER DISKGROUP a MODIFY FILE 's' DOUBLE
-reject@41	reject@34	engine	alterDiskgroup_redundancy_clause/DOUBLE!insert	ALTER DISKGROUP a MODIFY FILE 's' DOUBLE zzz
+reject@34	reject@34	engine	alterDiskgroup_redundancy_clause/DOUBLE	ALTER DISKGROUP a MODIFY FILE 's' DOUBLE
+reject@34	reject@34	engine	alterDiskgroup_redundancy_clause/DOUBLE!insert	ALTER DISKGROUP a MODIFY FILE 's' DOUBLE zzz
 reject@34	reject@34	engine	alterDiskgroup_redundancy_clause/DOUBLE!swap	ALTER DISKGROUP a MODIFY FILE 's' DOWNGRADE
 accept	accept	engine	alterDiskgroup_add_filegroup_clause/ADD_FILEGROUP_ID_(DATABASE_ID?)?_(CLUSTER_ID)?_(VOLUME_~154bf454	ALTER DISKGROUP a ADD FILEGROUP a
 accept	accept	engine	alterDiskgroup_add_filegroup_clause(DATABASE_ID?)?/%empty	ALTER DISKGROUP a ADD FILEGROUP a
-accept	reject@42	engine	alterDiskgroup_add_filegroup_clause(DATABASE_ID?)?/DATABASE_(ID)?	ALTER DISKGROUP a ADD FILEGROUP a DATABASE
+reject@42	reject@42	engine	alterDiskgroup_add_filegroup_clause(DATABASE_ID?)?/DATABASE_(ID)?	ALTER DISKGROUP a ADD FILEGROUP a DATABASE
 accept	accept	engine	alterDiskgroup_add_filegroup_clause(DATABASE_ID?)?/DATABASE_(ID)?!insert	ALTER DISKGROUP a ADD FILEGROUP a DATABASE zzz
 reject@34	reject@34	engine	alterDiskgroup_add_filegroup_clause(DATABASE_ID?)?/DATABASE_(ID)?!swap	ALTER DISKGROUP a ADD FILEGROUP a DATAFILE
-accept	reject@42	engine	alterDiskgroup_add_filegroup_clause(ID)?/%empty	ALTER DISKGROUP a ADD FILEGROUP a DATABASE
+reject@42	reject@42	engine	alterDiskgroup_add_filegroup_clause(ID)?/%empty	ALTER DISKGROUP a ADD FILEGROUP a DATABASE
 accept	accept	engine	alterDiskgroup_add_filegroup_clause(ID)?/ID	ALTER DISKGROUP a ADD FILEGROUP a DATABASE a
 reject@45	reject@45	engine	alterDiskgroup_add_filegroup_clause(ID)?/ID!insert	ALTER DISKGROUP a ADD FILEGROUP a DATABASE a zzz
 accept	accept	engine	alterDiskgroup_add_filegroup_clause(CLUSTER_ID)?/%empty	ALTER DISKGROUP a ADD FILEGROUP a
 accept	accept	engine	alterDiskgroup_add_filegroup_clause(CLUSTER_ID)?/CLUSTER_ID	ALTER DISKGROUP a ADD FILEGROUP a CLUSTER a
 reject@34	reject@34	engine	alterDiskgroup_add_filegroup_clause(CLUSTER_ID)?/CLUSTER_ID!drop-1	ALTER DISKGROUP a ADD FILEGROUP a a
-accept	reject@41	engine	alterDiskgroup_add_filegroup_clause(CLUSTER_ID)?/CLUSTER_ID!drop-2	ALTER DISKGROUP a ADD FILEGROUP a CLUSTER
+reject@41	reject@41	engine	alterDiskgroup_add_filegroup_clause(CLUSTER_ID)?/CLUSTER_ID!drop-2	ALTER DISKGROUP a ADD FILEGROUP a CLUSTER
 reject@44	reject@44	engine	alterDiskgroup_add_filegroup_clause(CLUSTER_ID)?/CLUSTER_ID!insert	ALTER DISKGROUP a ADD FILEGROUP a CLUSTER a zzz
 reject@34	reject@34	engine	alterDiskgroup_add_filegroup_clause(CLUSTER_ID)?/CLUSTER_ID!swap	ALTER DISKGROUP a ADD FILEGROUP a CLUSTERING a
 accept	accept	engine	alterDiskgroup_add_filegroup_clause(VOLUME_ID)?/%empty	ALTER DISKGROUP a ADD FILEGROUP a
 accept	accept	engine	alterDiskgroup_add_filegroup_clause(VOLUME_ID)?/VOLUME_ID	ALTER DISKGROUP a ADD FILEGROUP a VOLUME a
-accept	reject@40	engine	alterDiskgroup_add_filegroup_clause(VOLUME_ID)?/VOLUME_ID!drop-2	ALTER DISKGROUP a ADD FILEGROUP a VOLUME
+reject@40	reject@40	engine	alterDiskgroup_add_filegroup_clause(VOLUME_ID)?/VOLUME_ID!drop-2	ALTER DISKGROUP a ADD FILEGROUP a VOLUME
 reject@43	reject@43	engine	alterDiskgroup_add_filegroup_clause(VOLUME_ID)?/VOLUME_ID!insert	ALTER DISKGROUP a ADD FILEGROUP a VOLUME a zzz
 reject@34	reject@34	engine	alterDiskgroup_add_filegroup_clause(VOLUME_ID)?/VOLUME_ID!swap	ALTER DISKGROUP a ADD FILEGROUP a WAIT a
 accept	accept	engine	alterDiskgroup_add_filegroup_clause(TEMPLATE_ID)?/%empty	ALTER DISKGROUP a ADD FILEGROUP a
-accept	reject@43	engine	alterDiskgroup_add_filegroup_clause(TEMPLATE_ID)?/TEMPLATE_ID	ALTER DISKGROUP a ADD FILEGROUP a TEMPLATE a
+reject@43	reject@43	engine	alterDiskgroup_add_filegroup_clause(TEMPLATE_ID)?/TEMPLATE_ID	ALTER DISKGROUP a ADD FILEGROUP a TEMPLATE a
 accept	accept	engine	alterDiskgroup_add_filegroup_clause(TEMPLATE_ID)?/TEMPLATE_ID!drop-2	ALTER DISKGROUP a ADD FILEGROUP a TEMPLATE
-reject@45	reject@43	engine	alterDiskgroup_add_filegroup_clause(TEMPLATE_ID)?/TEMPLATE_ID!insert	ALTER DISKGROUP a ADD FILEGROUP a TEMPLATE a zzz
+reject@43	reject@43	engine	alterDiskgroup_add_filegroup_clause(TEMPLATE_ID)?/TEMPLATE_ID!insert	ALTER DISKGROUP a ADD FILEGROUP a TEMPLATE a zzz
 reject@34	reject@34	engine	alterDiskgroup_add_filegroup_clause(TEMPLATE_ID)?/TEMPLATE_ID!swap	ALTER DISKGROUP a ADD FILEGROUP a TEMPORARY a
 accept	accept	engine	alterDiskgroup_add_filegroup_clause(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*/%empty	ALTER DISKGROUP a ADD FILEGROUP a
-accept	reject@34	engine	alterDiskgroup_add_filegroup_clause(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*/SET_ID_=_EXPR_(,_ID_=_EXPR)?_(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*	ALTER DISKGROUP a ADD FILEGROUP a SET a = 1
+reject@34	reject@34	engine	alterDiskgroup_add_filegroup_clause(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*/SET_ID_=_EXPR_(,_ID_=_EXPR)?_(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*	ALTER DISKGROUP a ADD FILEGROUP a SET a = 1
 reject@34	reject@34	engine	alterDiskgroup_add_filegroup_clause(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*/SET_ID_=_EXPR_(,_ID_=_EXPR)?_(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*!drop-1	ALTER DISKGROUP a ADD FILEGROUP a a = 1
-reject@40	reject@34	engine	alterDiskgroup_add_filegroup_clause(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*/SET_ID_=_EXPR_(,_ID_=_EXPR)?_(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*!drop-2	ALTER DISKGROUP a ADD FILEGROUP a SET = 1
-reject@40	reject@34	engine	alterDiskgroup_add_filegroup_clause(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*/SET_ID_=_EXPR_(,_ID_=_EXPR)?_(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*!drop-3	ALTER DISKGROUP a ADD FILEGROUP a SET a 1
-reject@41	reject@34	engine	alterDiskgroup_add_filegroup_clause(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*/SET_ID_=_EXPR_(,_ID_=_EXPR)?_(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*!drop-4	ALTER DISKGROUP a ADD FILEGROUP a SET a =
-reject@44	reject@34	engine	alterDiskgroup_add_filegroup_clause(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*/SET_ID_=_EXPR_(,_ID_=_EXPR)?_(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*!insert	ALTER DISKGROUP a ADD FILEGROUP a SET a = 1 zzz
+reject@34	reject@34	engine	alterDiskgroup_add_filegroup_clause(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*/SET_ID_=_EXPR_(,_ID_=_EXPR)?_(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*!drop-2	ALTER DISKGROUP a ADD FILEGROUP a SET = 1
+reject@34	reject@34	engine	alterDiskgroup_add_filegroup_clause(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*/SET_ID_=_EXPR_(,_ID_=_EXPR)?_(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*!drop-3	ALTER DISKGROUP a ADD FILEGROUP a SET a 1
+reject@34	reject@34	engine	alterDiskgroup_add_filegroup_clause(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*/SET_ID_=_EXPR_(,_ID_=_EXPR)?_(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*!drop-4	ALTER DISKGROUP a ADD FILEGROUP a SET a =
+reject@34	reject@34	engine	alterDiskgroup_add_filegroup_clause(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*/SET_ID_=_EXPR_(,_ID_=_EXPR)?_(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*!insert	ALTER DISKGROUP a ADD FILEGROUP a SET a = 1 zzz
 reject@34	reject@34	engine	alterDiskgroup_add_filegroup_clause(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*/SET_ID_=_EXPR_(,_ID_=_EXPR)?_(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*!swap	ALTER DISKGROUP a ADD FILEGROUP a SETS a = 1
-accept	reject@34	engine	alterDiskgroup_add_filegroup_clause(,_ID_=_EXPR)?/%empty	ALTER DISKGROUP a ADD FILEGROUP a SET a = 1
-accept	reject@34	engine	alterDiskgroup_add_filegroup_clause(,_ID_=_EXPR)?/,_ID_=_EXPR	ALTER DISKGROUP a ADD FILEGROUP a SET a = 1, a = 1
-reject@44	reject@34	engine	alterDiskgroup_add_filegroup_clause(,_ID_=_EXPR)?/,_ID_=_EXPR!drop-1	ALTER DISKGROUP a ADD FILEGROUP a SET a = 1 a = 1
-reject@47	reject@34	engine	alterDiskgroup_add_filegroup_clause(,_ID_=_EXPR)?/,_ID_=_EXPR!drop-2	ALTER DISKGROUP a ADD FILEGROUP a SET a = 1, = 1
-reject@47	reject@34	engine	alterDiskgroup_add_filegroup_clause(,_ID_=_EXPR)?/,_ID_=_EXPR!drop-3	ALTER DISKGROUP a ADD FILEGROUP a SET a = 1, a 1
-reject@48	reject@34	engine	alterDiskgroup_add_filegroup_clause(,_ID_=_EXPR)?/,_ID_=_EXPR!drop-4	ALTER DISKGROUP a ADD FILEGROUP a SET a = 1, a =
-reject@51	reject@34	engine	alterDiskgroup_add_filegroup_clause(,_ID_=_EXPR)?/,_ID_=_EXPR!insert	ALTER DISKGROUP a ADD FILEGROUP a SET a = 1, a = 1 zzz
-accept	reject@36	engine	alterDiskgroup_modify_filegroup_clause/MODIFY_FILEGROUP_ID_(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*	ALTER DISKGROUP a MODIFY FILEGROUP a
-accept	reject@36	engine	alterDiskgroup_modify_filegroup_clause(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*/%empty	ALTER DISKGROUP a MODIFY FILEGROUP a
-accept	reject@41	engine	alterDiskgroup_modify_filegroup_clause(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*/SET_ID_=_EXPR_(,_ID_=_EXPR)?_(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*	ALTER DISKGROUP a MODIFY FILEGROUP a SET a = 1
+reject@34	reject@34	engine	alterDiskgroup_add_filegroup_clause(,_ID_=_EXPR)?/%empty	ALTER DISKGROUP a ADD FILEGROUP a SET a = 1
+reject@34	reject@34	engine	alterDiskgroup_add_filegroup_clause(,_ID_=_EXPR)?/,_ID_=_EXPR	ALTER DISKGROUP a ADD FILEGROUP a SET a = 1, a = 1
+reject@34	reject@34	engine	alterDiskgroup_add_filegroup_clause(,_ID_=_EXPR)?/,_ID_=_EXPR!drop-1	ALTER DISKGROUP a ADD FILEGROUP a SET a = 1 a = 1
+reject@34	reject@34	engine	alterDiskgroup_add_filegroup_clause(,_ID_=_EXPR)?/,_ID_=_EXPR!drop-2	ALTER DISKGROUP a ADD FILEGROUP a SET a = 1, = 1
+reject@34	reject@34	engine	alterDiskgroup_add_filegroup_clause(,_ID_=_EXPR)?/,_ID_=_EXPR!drop-3	ALTER DISKGROUP a ADD FILEGROUP a SET a = 1, a 1
+reject@34	reject@34	engine	alterDiskgroup_add_filegroup_clause(,_ID_=_EXPR)?/,_ID_=_EXPR!drop-4	ALTER DISKGROUP a ADD FILEGROUP a SET a = 1, a =
+reject@34	reject@34	engine	alterDiskgroup_add_filegroup_clause(,_ID_=_EXPR)?/,_ID_=_EXPR!insert	ALTER DISKGROUP a ADD FILEGROUP a SET a = 1, a = 1 zzz
+reject@36	reject@36	engine	alterDiskgroup_modify_filegroup_clause/MODIFY_FILEGROUP_ID_(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*	ALTER DISKGROUP a MODIFY FILEGROUP a
+reject@36	reject@36	engine	alterDiskgroup_modify_filegroup_clause(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*/%empty	ALTER DISKGROUP a MODIFY FILEGROUP a
+reject@41	reject@41	engine	alterDiskgroup_modify_filegroup_clause(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*/SET_ID_=_EXPR_(,_ID_=_EXPR)?_(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*	ALTER DISKGROUP a MODIFY FILEGROUP a SET a = 1
 reject@37	reject@37	engine	alterDiskgroup_modify_filegroup_clause(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*/SET_ID_=_EXPR_(,_ID_=_EXPR)?_(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*!drop-1	ALTER DISKGROUP a MODIFY FILEGROUP a a = 1
-accept	reject@41	engine	alterDiskgroup_modify_filegroup_clause(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*/SET_ID_=_EXPR_(,_ID_=_EXPR)?_(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*!drop-2	ALTER DISKGROUP a MODIFY FILEGROUP a SET = 1
-reject@43	reject@41	engine	alterDiskgroup_modify_filegroup_clause(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*/SET_ID_=_EXPR_(,_ID_=_EXPR)?_(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*!drop-3	ALTER DISKGROUP a MODIFY FILEGROUP a SET a 1
-reject@44	reject@41	engine	alterDiskgroup_modify_filegroup_clause(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*/SET_ID_=_EXPR_(,_ID_=_EXPR)?_(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*!drop-4	ALTER DISKGROUP a MODIFY FILEGROUP a SET a =
-reject@47	reject@41	engine	alterDiskgroup_modify_filegroup_clause(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*/SET_ID_=_EXPR_(,_ID_=_EXPR)?_(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*!insert	ALTER DISKGROUP a MODIFY FILEGROUP a SET a = 1 zzz
+reject@41	reject@41	engine	alterDiskgroup_modify_filegroup_clause(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*/SET_ID_=_EXPR_(,_ID_=_EXPR)?_(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*!drop-2	ALTER DISKGROUP a MODIFY FILEGROUP a SET = 1
+reject@41	reject@41	engine	alterDiskgroup_modify_filegroup_clause(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*/SET_ID_=_EXPR_(,_ID_=_EXPR)?_(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*!drop-3	ALTER DISKGROUP a MODIFY FILEGROUP a SET a 1
+reject@41	reject@41	engine	alterDiskgroup_modify_filegroup_clause(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*/SET_ID_=_EXPR_(,_ID_=_EXPR)?_(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*!drop-4	ALTER DISKGROUP a MODIFY FILEGROUP a SET a =
+reject@41	reject@41	engine	alterDiskgroup_modify_filegroup_clause(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*/SET_ID_=_EXPR_(,_ID_=_EXPR)?_(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*!insert	ALTER DISKGROUP a MODIFY FILEGROUP a SET a = 1 zzz
 reject@37	reject@37	engine	alterDiskgroup_modify_filegroup_clause(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*/SET_ID_=_EXPR_(,_ID_=_EXPR)?_(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*!swap	ALTER DISKGROUP a MODIFY FILEGROUP a SETS a = 1
-accept	reject@41	engine	alterDiskgroup_modify_filegroup_clause(,_ID_=_EXPR)?/%empty	ALTER DISKGROUP a MODIFY FILEGROUP a SET a = 1
-accept	reject@41	engine	alterDiskgroup_modify_filegroup_clause(,_ID_=_EXPR)?/,_ID_=_EXPR	ALTER DISKGROUP a MODIFY FILEGROUP a SET a = 1, a = 1
-reject@47	reject@41	engine	alterDiskgroup_modify_filegroup_clause(,_ID_=_EXPR)?/,_ID_=_EXPR!drop-1	ALTER DISKGROUP a MODIFY FILEGROUP a SET a = 1 a = 1
-accept	reject@41	engine	alterDiskgroup_modify_filegroup_clause(,_ID_=_EXPR)?/,_ID_=_EXPR!drop-2	ALTER DISKGROUP a MODIFY FILEGROUP a SET a = 1, = 1
-reject@50	reject@41	engine	alterDiskgroup_modify_filegroup_clause(,_ID_=_EXPR)?/,_ID_=_EXPR!drop-3	ALTER DISKGROUP a MODIFY FILEGROUP a SET a = 1, a 1
-reject@51	reject@41	engine	alterDiskgroup_modify_filegroup_clause(,_ID_=_EXPR)?/,_ID_=_EXPR!drop-4	ALTER DISKGROUP a MODIFY FILEGROUP a SET a = 1, a =
-reject@54	reject@41	engine	alterDiskgroup_modify_filegroup_clause(,_ID_=_EXPR)?/,_ID_=_EXPR!insert	ALTER DISKGROUP a MODIFY FILEGROUP a SET a = 1, a = 1 zzz
-accept	reject@31	engine	alterDiskgroup_move_to_filegroup_clause/MOVE_FILE_alterDiskgroup_file_specification_TO_FILEGROUP_ID	ALTER DISKGROUP a MOVE FILE TO FILEGROUP a
+reject@41	reject@41	engine	alterDiskgroup_modify_filegroup_clause(,_ID_=_EXPR)?/%empty	ALTER DISKGROUP a MODIFY FILEGROUP a SET a = 1
+reject@41	reject@41	engine	alterDiskgroup_modify_filegroup_clause(,_ID_=_EXPR)?/,_ID_=_EXPR	ALTER DISKGROUP a MODIFY FILEGROUP a SET a = 1, a = 1
+reject@41	reject@41	engine	alterDiskgroup_modify_filegroup_clause(,_ID_=_EXPR)?/,_ID_=_EXPR!drop-1	ALTER DISKGROUP a MODIFY FILEGROUP a SET a = 1 a = 1
+reject@41	reject@41	engine	alterDiskgroup_modify_filegroup_clause(,_ID_=_EXPR)?/,_ID_=_EXPR!drop-2	ALTER DISKGROUP a MODIFY FILEGROUP a SET a = 1, = 1
+reject@41	reject@41	engine	alterDiskgroup_modify_filegroup_clause(,_ID_=_EXPR)?/,_ID_=_EXPR!drop-3	ALTER DISKGROUP a MODIFY FILEGROUP a SET a = 1, a 1
+reject@41	reject@41	engine	alterDiskgroup_modify_filegroup_clause(,_ID_=_EXPR)?/,_ID_=_EXPR!drop-4	ALTER DISKGROUP a MODIFY FILEGROUP a SET a = 1, a =
+reject@41	reject@41	engine	alterDiskgroup_modify_filegroup_clause(,_ID_=_EXPR)?/,_ID_=_EXPR!insert	ALTER DISKGROUP a MODIFY FILEGROUP a SET a = 1, a = 1 zzz
+reject@28	reject@31	engine	alterDiskgroup_move_to_filegroup_clause/MOVE_FILE_alterDiskgroup_file_specification_TO_FILEGROUP_ID	ALTER DISKGROUP a MOVE FILE TO FILEGROUP a
 accept	accept	engine	alterDiskgroup_drop_filegroup_clause/DROP_FILEGROUP_ID_(CASCADE_(FOR_DATABASE_ID_(FOR_PLUGGA~27772710	ALTER DISKGROUP a DROP FILEGROUP a
 accept	accept	engine	alterDiskgroup_drop_filegroup_clause(CASCADE_(FOR_DATABASE_ID_(FOR_PLUGGA~6717d2a8)?/%empty	ALTER DISKGROUP a DROP FILEGROUP a
 accept	accept	engine	alterDiskgroup_drop_filegroup_clause(CASCADE_(FOR_DATABASE_ID_(FOR_PLUGGA~6717d2a8)?/CASCADE_(FOR_DATABASE_ID_(FOR_PLUGGABLE_DATABASE_ID)?)?	ALTER DISKGROUP a DROP FILEGROUP a CASCADE
@@ -4767,39 +4767,39 @@ accept	accept	engine	alterDiskgroup_drop_filegroup_clause(FOR_DATABASE_ID_(FOR_P
 reject@58	reject@58	engine	alterDiskgroup_drop_filegroup_clause(FOR_DATABASE_ID_(FOR_PLUGGABLE_DATABASE_ID)?)?/FOR_DATABASE_ID_(FOR_PLUGGABLE_DATABASE_ID)?!insert	ALTER DISKGROUP a DROP FILEGROUP a CASCADE FOR DATABASE a zzz
 reject@43	reject@43	engine	alterDiskgroup_drop_filegroup_clause(FOR_DATABASE_ID_(FOR_PLUGGABLE_DATABASE_ID)?)?/FOR_DATABASE_ID_(FOR_PLUGGABLE_DATABASE_ID)?!swap	ALTER DISKGROUP a DROP FILEGROUP a CASCADE FORCE DATABASE a
 accept	accept	engine	alterDiskgroup_drop_filegroup_clause(FOR_PLUGGABLE_DATABASE_ID)?/%empty	ALTER DISKGROUP a DROP FILEGROUP a CASCADE FOR DATABASE a
-accept	reject@58	engine	alterDiskgroup_drop_filegroup_clause(FOR_PLUGGABLE_DATABASE_ID)?/FOR_PLUGGABLE_DATABASE_ID	ALTER DISKGROUP a DROP FILEGROUP a CASCADE FOR DATABASE a FOR PLUGGABLE DATABASE a
+reject@58	reject@58	engine	alterDiskgroup_drop_filegroup_clause(FOR_PLUGGABLE_DATABASE_ID)?/FOR_PLUGGABLE_DATABASE_ID	ALTER DISKGROUP a DROP FILEGROUP a CASCADE FOR DATABASE a FOR PLUGGABLE DATABASE a
 reject@58	reject@58	engine	alterDiskgroup_drop_filegroup_clause(FOR_PLUGGABLE_DATABASE_ID)?/FOR_PLUGGABLE_DATABASE_ID!drop-1	ALTER DISKGROUP a DROP FILEGROUP a CASCADE FOR DATABASE a PLUGGABLE DATABASE a
-accept	reject@58	engine	alterDiskgroup_drop_filegroup_clause(FOR_PLUGGABLE_DATABASE_ID)?/FOR_PLUGGABLE_DATABASE_ID!drop-2	ALTER DISKGROUP a DROP FILEGROUP a CASCADE FOR DATABASE a FOR DATABASE a
-accept	reject@58	engine	alterDiskgroup_drop_filegroup_clause(FOR_PLUGGABLE_DATABASE_ID)?/FOR_PLUGGABLE_DATABASE_ID!drop-3	ALTER DISKGROUP a DROP FILEGROUP a CASCADE FOR DATABASE a FOR PLUGGABLE a
-accept	reject@58	engine	alterDiskgroup_drop_filegroup_clause(FOR_PLUGGABLE_DATABASE_ID)?/FOR_PLUGGABLE_DATABASE_ID!drop-4	ALTER DISKGROUP a DROP FILEGROUP a CASCADE FOR DATABASE a FOR PLUGGABLE DATABASE
-reject@83	reject@58	engine	alterDiskgroup_drop_filegroup_clause(FOR_PLUGGABLE_DATABASE_ID)?/FOR_PLUGGABLE_DATABASE_ID!insert	ALTER DISKGROUP a DROP FILEGROUP a CASCADE FOR DATABASE a FOR PLUGGABLE DATABASE a zzz
+reject@58	reject@58	engine	alterDiskgroup_drop_filegroup_clause(FOR_PLUGGABLE_DATABASE_ID)?/FOR_PLUGGABLE_DATABASE_ID!drop-2	ALTER DISKGROUP a DROP FILEGROUP a CASCADE FOR DATABASE a FOR DATABASE a
+reject@58	reject@58	engine	alterDiskgroup_drop_filegroup_clause(FOR_PLUGGABLE_DATABASE_ID)?/FOR_PLUGGABLE_DATABASE_ID!drop-3	ALTER DISKGROUP a DROP FILEGROUP a CASCADE FOR DATABASE a FOR PLUGGABLE a
+reject@58	reject@58	engine	alterDiskgroup_drop_filegroup_clause(FOR_PLUGGABLE_DATABASE_ID)?/FOR_PLUGGABLE_DATABASE_ID!drop-4	ALTER DISKGROUP a DROP FILEGROUP a CASCADE FOR DATABASE a FOR PLUGGABLE DATABASE
+reject@58	reject@58	engine	alterDiskgroup_drop_filegroup_clause(FOR_PLUGGABLE_DATABASE_ID)?/FOR_PLUGGABLE_DATABASE_ID!insert	ALTER DISKGROUP a DROP FILEGROUP a CASCADE FOR DATABASE a FOR PLUGGABLE DATABASE a zzz
 reject@58	reject@58	engine	alterDiskgroup_drop_filegroup_clause(FOR_PLUGGABLE_DATABASE_ID)?/FOR_PLUGGABLE_DATABASE_ID!swap	ALTER DISKGROUP a DROP FILEGROUP a CASCADE FOR DATABASE a FORCE PLUGGABLE DATABASE a
-accept	reject@29	engine	alterDiskgroup_autoextend_clause/AUTOEXTEND_(OFF|ON_(NEXT_alterDiskgroup_size_cla~00f7a2d0)	ALTER DISKGROUP a CHECK FILE AUTOEXTEND OFF
-accept	reject@29	engine	alterDiskgroup_autoextend_clause(OFF|ON_(NEXT_alterDiskgroup_size_cla~00f7a2d0)/OFF	ALTER DISKGROUP a CHECK FILE AUTOEXTEND OFF
-accept	reject@29	engine	alterDiskgroup_autoextend_clause(OFF|ON_(NEXT_alterDiskgroup_size_cla~00f7a2d0)/OFF!swap	ALTER DISKGROUP a CHECK FILE AUTOEXTEND OFFLINE
-accept	reject@29	engine	alterDiskgroup_autoextend_clause(OFF|ON_(NEXT_alterDiskgroup_size_cla~00f7a2d0)/ON_(NEXT_alterDiskgroup_size_clause)?_(alterDiskgroup_m~b0265c51	ALTER DISKGROUP a CHECK FILE AUTOEXTEND ON
-accept	reject@29	engine	alterDiskgroup_autoextend_clause(OFF|ON_(NEXT_alterDiskgroup_size_cla~00f7a2d0)/ON_(NEXT_alterDiskgroup_size_clause)?_(alterDiskgroup_m~b0265c51!insert	ALTER DISKGROUP a CHECK FILE AUTOEXTEND ON zzz
-accept	reject@29	engine	alterDiskgroup_autoextend_clause(OFF|ON_(NEXT_alterDiskgroup_size_cla~00f7a2d0)/ON_(NEXT_alterDiskgroup_size_clause)?_(alterDiskgroup_m~b0265c51!swap	ALTER DISKGROUP a CHECK FILE AUTOEXTEND ONE
-accept	reject@29	engine	alterDiskgroup_autoextend_clause(NEXT_alterDiskgroup_size_clause)?/%empty	ALTER DISKGROUP a CHECK FILE AUTOEXTEND ON
-reject@48	reject@29	engine	alterDiskgroup_autoextend_clause(NEXT_alterDiskgroup_size_clause)?/NEXT_alterDiskgroup_size_clause	ALTER DISKGROUP a CHECK FILE AUTOEXTEND ON NEXT 1
-reject@43	reject@29	engine	alterDiskgroup_autoextend_clause(NEXT_alterDiskgroup_size_clause)?/NEXT_alterDiskgroup_size_clause!drop-1	ALTER DISKGROUP a CHECK FILE AUTOEXTEND ON 1
-accept	reject@29	engine	alterDiskgroup_autoextend_clause(NEXT_alterDiskgroup_size_clause)?/NEXT_alterDiskgroup_size_clause!drop-2	ALTER DISKGROUP a CHECK FILE AUTOEXTEND ON NEXT
-reject@48	reject@29	engine	alterDiskgroup_autoextend_clause(NEXT_alterDiskgroup_size_clause)?/NEXT_alterDiskgroup_size_clause!insert	ALTER DISKGROUP a CHECK FILE AUTOEXTEND ON NEXT 1 zzz
-reject@46	reject@29	engine	alterDiskgroup_autoextend_clause(NEXT_alterDiskgroup_size_clause)?/NEXT_alterDiskgroup_size_clause!swap	ALTER DISKGROUP a CHECK FILE AUTOEXTEND ON NO 1
-accept	reject@29	engine	alterDiskgroup_autoextend_clause(alterDiskgroup_maxsize_clause)?/%empty	ALTER DISKGROUP a CHECK FILE AUTOEXTEND ON
-reject@51	reject@29	engine	alterDiskgroup_autoextend_clause(alterDiskgroup_maxsize_clause)?/alterDiskgroup_maxsize_clause	ALTER DISKGROUP a CHECK FILE AUTOEXTEND ON MAXSIZE 1
-accept	reject@29	engine	alterDiskgroup_autoextend_clause(alterDiskgroup_maxsize_clause)?/alterDiskgroup_maxsize_clause!drop-2	ALTER DISKGROUP a CHECK FILE AUTOEXTEND ON MAXSIZE
-reject@51	reject@29	engine	alterDiskgroup_autoextend_clause(alterDiskgroup_maxsize_clause)?/alterDiskgroup_maxsize_clause!insert	ALTER DISKGROUP a CHECK FILE AUTOEXTEND ON MAXSIZE 1 zzz
-reject@52	reject@29	engine	alterDiskgroup_autoextend_clause(alterDiskgroup_maxsize_clause)?/alterDiskgroup_maxsize_clause!swap	ALTER DISKGROUP a CHECK FILE AUTOEXTEND ON MAXTRANS 1
+reject@29	reject@29	engine	alterDiskgroup_autoextend_clause/AUTOEXTEND_(OFF|ON_(NEXT_alterDiskgroup_size_cla~00f7a2d0)	ALTER DISKGROUP a CHECK FILE AUTOEXTEND OFF
+reject@29	reject@29	engine	alterDiskgroup_autoextend_clause(OFF|ON_(NEXT_alterDiskgroup_size_cla~00f7a2d0)/OFF	ALTER DISKGROUP a CHECK FILE AUTOEXTEND OFF
+reject@29	reject@29	engine	alterDiskgroup_autoextend_clause(OFF|ON_(NEXT_alterDiskgroup_size_cla~00f7a2d0)/OFF!swap	ALTER DISKGROUP a CHECK FILE AUTOEXTEND OFFLINE
+reject@29	reject@29	engine	alterDiskgroup_autoextend_clause(OFF|ON_(NEXT_alterDiskgroup_size_cla~00f7a2d0)/ON_(NEXT_alterDiskgroup_size_clause)?_(alterDiskgroup_m~b0265c51	ALTER DISKGROUP a CHECK FILE AUTOEXTEND ON
+reject@29	reject@29	engine	alterDiskgroup_autoextend_clause(OFF|ON_(NEXT_alterDiskgroup_size_cla~00f7a2d0)/ON_(NEXT_alterDiskgroup_size_clause)?_(alterDiskgroup_m~b0265c51!insert	ALTER DISKGROUP a CHECK FILE AUTOEXTEND ON zzz
+reject@29	reject@29	engine	alterDiskgroup_autoextend_clause(OFF|ON_(NEXT_alterDiskgroup_size_cla~00f7a2d0)/ON_(NEXT_alterDiskgroup_size_clause)?_(alterDiskgroup_m~b0265c51!swap	ALTER DISKGROUP a CHECK FILE AUTOEXTEND ONE
+reject@29	reject@29	engine	alterDiskgroup_autoextend_clause(NEXT_alterDiskgroup_size_clause)?/%empty	ALTER DISKGROUP a CHECK FILE AUTOEXTEND ON
+reject@29	reject@29	engine	alterDiskgroup_autoextend_clause(NEXT_alterDiskgroup_size_clause)?/NEXT_alterDiskgroup_size_clause	ALTER DISKGROUP a CHECK FILE AUTOEXTEND ON NEXT 1
+reject@29	reject@29	engine	alterDiskgroup_autoextend_clause(NEXT_alterDiskgroup_size_clause)?/NEXT_alterDiskgroup_size_clause!drop-1	ALTER DISKGROUP a CHECK FILE AUTOEXTEND ON 1
+reject@29	reject@29	engine	alterDiskgroup_autoextend_clause(NEXT_alterDiskgroup_size_clause)?/NEXT_alterDiskgroup_size_clause!drop-2	ALTER DISKGROUP a CHECK FILE AUTOEXTEND ON NEXT
+reject@29	reject@29	engine	alterDiskgroup_autoextend_clause(NEXT_alterDiskgroup_size_clause)?/NEXT_alterDiskgroup_size_clause!insert	ALTER DISKGROUP a CHECK FILE AUTOEXTEND ON NEXT 1 zzz
+reject@29	reject@29	engine	alterDiskgroup_autoextend_clause(NEXT_alterDiskgroup_size_clause)?/NEXT_alterDiskgroup_size_clause!swap	ALTER DISKGROUP a CHECK FILE AUTOEXTEND ON NO 1
+reject@29	reject@29	engine	alterDiskgroup_autoextend_clause(alterDiskgroup_maxsize_clause)?/%empty	ALTER DISKGROUP a CHECK FILE AUTOEXTEND ON
+reject@29	reject@29	engine	alterDiskgroup_autoextend_clause(alterDiskgroup_maxsize_clause)?/alterDiskgroup_maxsize_clause	ALTER DISKGROUP a CHECK FILE AUTOEXTEND ON MAXSIZE 1
+reject@29	reject@29	engine	alterDiskgroup_autoextend_clause(alterDiskgroup_maxsize_clause)?/alterDiskgroup_maxsize_clause!drop-2	ALTER DISKGROUP a CHECK FILE AUTOEXTEND ON MAXSIZE
+reject@29	reject@29	engine	alterDiskgroup_autoextend_clause(alterDiskgroup_maxsize_clause)?/alterDiskgroup_maxsize_clause!insert	ALTER DISKGROUP a CHECK FILE AUTOEXTEND ON MAXSIZE 1 zzz
+reject@29	reject@29	engine	alterDiskgroup_autoextend_clause(alterDiskgroup_maxsize_clause)?/alterDiskgroup_maxsize_clause!swap	ALTER DISKGROUP a CHECK FILE AUTOEXTEND ON MAXTRANS 1
 accept	accept	engine	alterDiskgroup_striping_clause/FINE	ALTER DISKGROUP a ADD TEMPLATE a ATTRIBUTES(FINE)
 accept	accept	engine	alterDiskgroup_striping_clause/COARSE	ALTER DISKGROUP a ADD TEMPLATE a ATTRIBUTES(COARSE)
-accept	reject@51	engine	alterDiskgroup_striping_clause/COARSE!insert	ALTER DISKGROUP a ADD TEMPLATE a ATTRIBUTES(COARSE zzz)
-accept	reject@44	engine	alterDiskgroup_striping_clause/COARSE!swap	ALTER DISKGROUP a ADD TEMPLATE a ATTRIBUTES(COLLATE)
-reject@51	reject@29	engine	alterDiskgroup_maxsize_clause/MAXSIZE_(alterDiskgroup_size_clause|UNLIMITED)	ALTER DISKGROUP a CHECK FILE AUTOEXTEND ON MAXSIZE 1
-reject@51	reject@29	engine	alterDiskgroup_maxsize_clause(alterDiskgroup_size_clause|UNLIMITED)/alterDiskgroup_size_clause	ALTER DISKGROUP a CHECK FILE AUTOEXTEND ON MAXSIZE 1
-accept	reject@29	engine	alterDiskgroup_maxsize_clause(alterDiskgroup_size_clause|UNLIMITED)/UNLIMITED	ALTER DISKGROUP a CHECK FILE AUTOEXTEND ON MAXSIZE UNLIMITED
-accept	reject@29	engine	alterDiskgroup_maxsize_clause(alterDiskgroup_size_clause|UNLIMITED)/UNLIMITED!insert	ALTER DISKGROUP a CHECK FILE AUTOEXTEND ON MAXSIZE UNLIMITED zzz
-accept	reject@29	engine	alterDiskgroup_maxsize_clause(alterDiskgroup_size_clause|UNLIMITED)/UNLIMITED!swap	ALTER DISKGROUP a CHECK FILE AUTOEXTEND ON MAXSIZE UNLOCK
+reject@51	reject@51	engine	alterDiskgroup_striping_clause/COARSE!insert	ALTER DISKGROUP a ADD TEMPLATE a ATTRIBUTES(COARSE zzz)
+reject@44	reject@44	engine	alterDiskgroup_striping_clause/COARSE!swap	ALTER DISKGROUP a ADD TEMPLATE a ATTRIBUTES(COLLATE)
+reject@29	reject@29	engine	alterDiskgroup_maxsize_clause/MAXSIZE_(alterDiskgroup_size_clause|UNLIMITED)	ALTER DISKGROUP a CHECK FILE AUTOEXTEND ON MAXSIZE 1
+reject@29	reject@29	engine	alterDiskgroup_maxsize_clause(alterDiskgroup_size_clause|UNLIMITED)/alterDiskgroup_size_clause	ALTER DISKGROUP a CHECK FILE AUTOEXTEND ON MAXSIZE 1
+reject@29	reject@29	engine	alterDiskgroup_maxsize_clause(alterDiskgroup_size_clause|UNLIMITED)/UNLIMITED	ALTER DISKGROUP a CHECK FILE AUTOEXTEND ON MAXSIZE UNLIMITED
+reject@29	reject@29	engine	alterDiskgroup_maxsize_clause(alterDiskgroup_size_clause|UNLIMITED)/UNLIMITED!insert	ALTER DISKGROUP a CHECK FILE AUTOEXTEND ON MAXSIZE UNLIMITED zzz
+reject@29	reject@29	engine	alterDiskgroup_maxsize_clause(alterDiskgroup_size_clause|UNLIMITED)/UNLIMITED!swap	ALTER DISKGROUP a CHECK FILE AUTOEXTEND ON MAXSIZE UNLOCK
 accept	accept	engine	alterFlashbackArchive/ALTER_FLASHBACK_ARCHIVE_ID_(SET_DEFAULT|(ADD|MODIFY)_TA~e974ee73	ALTER FLASHBACK ARCHIVE a SET DEFAULT
 accept	accept	engine	alterFlashbackArchive(SET_DEFAULT|(ADD|MODIFY)_TABLESPACE_~b0311a42)/SET_DEFAULT	ALTER FLASHBACK ARCHIVE a SET DEFAULT
 accept	reject@31	engine	alterFlashbackArchive(SET_DEFAULT|(ADD|MODIFY)_TABLESPACE_~b0311a42)/SET_DEFAULT!swap	ALTER FLASHBACK ARCHIVE a SETS DEFAULT
