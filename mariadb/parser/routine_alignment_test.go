@@ -8,11 +8,27 @@ import (
 )
 
 // routineParserCodes are the errors other than 1064 that MariaDB raises while it
-// parses a routine body and that omni's parser raises too. MariaDB's other
-// parse-time routine errors (1308 LEAVE with no matching label, 1313 RETURN
-// outside a function, 1331 a duplicate variable, ...) are mariadb/validate's to
-// report, so Parse accepts those bodies.
+// parses a routine body and that omni's parser raises too.
 var routineParserCodes = map[uint16]bool{
+	1308: true, // ER_SP_LILABEL_MISMATCH: LEAVE or ITERATE with no label in reach
+	1309: true, // ER_SP_LABEL_REDEFINE: a label already in reach
+	1303: true, // ER_SP_NO_RECURSIVE_CREATE: CREATE PROCEDURE, FUNCTION or TRIGGER in a stored program
+	1314: true, // ER_SP_BADSTATEMENT: USE, LOCK, ALTER VIEW, CHECK, LOAD, HELP or HANDLER in a stored program
+	1319: true, // ER_SP_COND_MISMATCH: a handler, SIGNAL or RESIGNAL naming no condition in reach
+	1320: true, // ER_SP_NORETURN: a function with no RETURN
+	1323: true, // ER_SP_BAD_CURSOR_SELECT: a cursor's query that writes INTO
+	1324: true, // ER_SP_CURSOR_MISMATCH: OPEN, FETCH or CLOSE of no cursor in reach
+	1327: true, // ER_SP_UNDECLARED_VAR: FETCH, GET DIAGNOSTICS, SELECT INTO or LIMIT naming no variable in reach
+	1330: true, // ER_SP_DUP_PARAM: two parameters of one name
+	1331: true, // ER_SP_DUP_VAR: two variables of one name in a block
+	1332: true, // ER_SP_DUP_COND: two conditions of one name in a block
+	1333: true, // ER_SP_DUP_CURS: two cursors of one name in a block
+	1336: true, // ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG: dynamic SQL, RESET or FLUSH in a function or trigger
+	1357: true, // ER_SP_NO_DROP_SP: ALTER or DROP of a routine in a stored program
+	1413: true, // ER_SP_DUP_HANDLER: a condition value two handlers of a block have
+	1422: true, // ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG: a statement that commits in a function or trigger
+	1445: true, // ER_SP_CANT_SET_AUTOCOMMIT: SET autocommit or SET PASSWORD in a function or trigger
+	1576: true, // ER_EVENT_RECURSION_FORBIDDEN: CREATE EVENT, or ALTER EVENT ... DO, in a stored program
 	1313: true, // ER_SP_BADRETURN: RETURN anywhere but in a function
 	1310: true, // ER_SP_LABEL_MISMATCH: an end label that does not match its begin label
 	1362: true, // ER_TRG_CANT_CHANGE_ROW: an assignment to a row a trigger can't change

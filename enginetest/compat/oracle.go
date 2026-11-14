@@ -1,6 +1,7 @@
 package compat
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -50,14 +51,14 @@ BEGIN
   fn := DBMS_SQL.LAST_SQL_FUNCTION_CODE;
   DBMS_SQL.CLOSE_CURSOR(c);
   IF code = 24344 THEN
-    SELECT LISTAGG(CASE WHEN text LIKE 'PL/SQL: ORA-%' THEN REGEXP_SUBSTR(text, 'ORA-[0-9]{5}')
+    SELECT LISTAGG(CASE WHEN text LIKE 'PL/SQL: ORA-%' THEN REGEXP_SUBSTR(text, '^PL/SQL: (ORA-[0-9]{5})', 1, 1, NULL, 1)
                         ELSE 'PLS-' || TO_CHAR(message_number, 'FM00000') END, ',')
              WITHIN GROUP (ORDER BY name, type, sequence)
       INTO compile FROM user_errors WHERE attribute = 'ERROR';
   ELSIF code = 6550 THEN
-    FOR i IN 1 .. REGEXP_COUNT(stack, '(PLS|PL/SQL: ORA)-[0-9]{5}') LOOP
+    FOR i IN 1 .. REGEXP_COUNT(stack, '^(PLS|PL/SQL: ORA)-[0-9]{5}', 1, 'm') LOOP
       compile := compile || CASE WHEN i > 1 THEN ',' END ||
-        REPLACE(REGEXP_SUBSTR(stack, '(PLS|PL/SQL: ORA)-[0-9]{5}', 1, i), 'PL/SQL: ', '');
+        REPLACE(REGEXP_SUBSTR(stack, '^(PLS|PL/SQL: ORA)-[0-9]{5}', 1, i, 'm'), 'PL/SQL: ', '');
     END LOOP;
   END IF;
   IF code IN (0, 24344) AND fn NOT IN (` + oracleParsedOnly + `) THEN
@@ -127,17 +128,26 @@ var oracleAfterParse = map[int]bool{
 
 // oracleParserCode reports whether a code is one Oracle's SQL parser
 // raises: ORA-00900 to 00999 (invalid SQL statement, missing keyword,
-// missing expression, ...), 01700 to 01799 (the lexer's: an unterminated
-// string or comment, a zero-length identifier), 02000 to 02099 (missing
-// keyword and option errors) and 03048 to 03050 (23ai's errors naming the
-// word that is not valid where it stands), less the codes of that range
-// raised after the parse, in oracleResolved. It decides an error at the end
-// of the statement, where the probe cannot, and one whose probe says
-// nothing.
+// missing expression, ...), the lexer's and the parser's of 01700 to 01799
+// (oracleLexer), 02000 to 02099 (missing keyword and option errors) and
+// 03048 to 03050 (23ai's errors naming the word that is not valid where it
+// stands), less the codes of those ranges raised after the parse, in
+// oracleResolved. It decides an error at the end of the statement, where
+// the probe cannot, one whose probe says nothing, and a SQL statement's
+// error inside PL/SQL.
 func oracleParserCode(code int) bool {
-	return (code >= 900 && code <= 999 || code >= 1700 && code <= 1799 ||
+	return (code >= 900 && code <= 999 || oracleLexer[code] ||
 		code >= 2000 && code <= 2099 || code >= 3048 && code <= 3050) && !oracleResolved[code]
 }
+
+// oracleLexer are the codes of 01700 to 01799 the lexer and the parser
+// raise: an invalid ALTER TABLE option (01735), a missing double quote
+// (01740), a zero-length identifier (01741), a comment not terminated
+// (01742), an invalid bind variable name (01745), an invalid column
+// specification (01747), a quoted string not terminated (01756). The rest
+// of the range is checked after the parse, as 01790, a set operation's
+// columns of different types.
+var oracleLexer = map[int]bool{1735: true, 1740: true, 1741: true, 1742: true, 1745: true, 1747: true, 1756: true}
 
 // oracleResolved are codes among the parser's that Oracle raises after the
 // parse, resolving names and types: an invalid identifier (00904, a column
@@ -179,6 +189,20 @@ func readOracle(err error) (oracleError, bool) {
 // dropped with it (end-of-file on the connection).
 var oracleFailure = regexp.MustCompile(`ORA-00600|ORA-00000|ORA-07445|ORA-03113|ORA-03114|^EOF$`)
 
+// ErrNoAnswer is what a judge's parse returns for a text Oracle gave no
+// answer to in the time the judge allows, having cut that session's
+// connection so the server frees what it held. OracleVerdict reads it as
+// Oracle failing on the text: ALTER MATERIALIZED VIEW LOG ON a MODIFY
+// PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) DEPENDENT
+// TABLES(a(PARTITION)) leaves the pinned server's session waiting on the
+// client, and the client on the server, for good.
+var ErrNoAnswer = errors.New("Oracle gave no answer")
+
+// oracleFailed reports whether err is Oracle failing in its own code.
+func oracleFailed(err error) bool {
+	return errors.Is(err, ErrNoAnswer) || oracleFailure.MatchString(firstLine(err))
+}
+
 // OracleVerdict reads Oracle's answer to OracleParse of a statement:
 // whether Oracle takes its syntax. parse runs OracleParse on a text and
 // returns its error. It is called again with OracleProbeTail after the
@@ -207,17 +231,18 @@ var oracleFailure = regexp.MustCompile(`ORA-00600|ORA-00000|ORA-07445|ORA-03113|
 // in the block. The errors in oracleAfterParse are acceptances. An error at
 // the very end of the statement, where the probe's tail is met either way,
 // is decided by its code. And Oracle failing in its own code on the
-// statement (oracleFailure), on two sessions, is a rejection with no byte:
-// no statement Oracle runs, though not one its parser names an error in.
+// statement (oracleFailure, or no answer at all: ErrNoAnswer), on two
+// sessions, is a rejection with no byte: no statement Oracle runs, though
+// not one its parser names an error in.
 //
 // An answer that is no verdict comes back as an error, so the caller fails
 // rather than records agreement: an error OracleParse did not raise and
 // that is no failure of Oracle's (a timeout), and a probe the server took.
 func OracleVerdict(statement string, parse func(text string) error) (string, error) {
 	err := parse(statement)
-	if err != nil && oracleFailure.MatchString(firstLine(err)) {
+	if err != nil && oracleFailed(err) {
 		// Again, on the new session database/sql opens for a dropped one.
-		if err = parse(statement); err != nil && oracleFailure.MatchString(firstLine(err)) {
+		if err = parse(statement); err != nil && oracleFailed(err) {
 			return Reject, nil
 		}
 	}
@@ -264,7 +289,7 @@ func OracleVerdict(statement string, parse func(text string) error) (string, err
 	}
 	p, ok := readOracle(probeErr)
 	switch {
-	case !ok && oracleFailure.MatchString(firstLine(probeErr)):
+	case !ok && oracleFailed(probeErr):
 		return byCode(), nil
 	case !ok:
 		return "", probeErr

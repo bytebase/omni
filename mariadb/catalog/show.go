@@ -7,6 +7,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/bytebase/omni/mariadb/deparse"
 )
 
 // charsetForCollation derives the charset name from a collation name.
@@ -35,54 +37,9 @@ func charsetForCollation(collation string) string {
 }
 
 // defaultCollationForCharset returns the default collation for each charset
-// MariaDB has. Measured on mariadb:11.8.8 through
-// information_schema.CHARACTER_SETS: the Unicode charsets default to the
-// UCA 14.0.0 collations, where MySQL 8.0 defaults utf8mb4 to
-// utf8mb4_0900_ai_ci and the rest to <charset>_general_ci. MariaDB has no
-// gb18030.
-var defaultCollationForCharset = map[string]string{
-	"utf8mb4":  "utf8mb4_uca1400_ai_ci",
-	"utf8mb3":  "utf8mb3_uca1400_ai_ci",
-	"utf8":     "utf8mb3_uca1400_ai_ci",
-	"ucs2":     "ucs2_uca1400_ai_ci",
-	"utf16":    "utf16_uca1400_ai_ci",
-	"utf32":    "utf32_uca1400_ai_ci",
-	"utf16le":  "utf16le_general_ci",
-	"latin1":   "latin1_swedish_ci",
-	"latin2":   "latin2_general_ci",
-	"latin5":   "latin5_turkish_ci",
-	"latin7":   "latin7_general_ci",
-	"ascii":    "ascii_general_ci",
-	"binary":   "binary",
-	"gbk":      "gbk_chinese_ci",
-	"big5":     "big5_chinese_ci",
-	"euckr":    "euckr_korean_ci",
-	"gb2312":   "gb2312_chinese_ci",
-	"sjis":     "sjis_japanese_ci",
-	"ujis":     "ujis_japanese_ci",
-	"cp932":    "cp932_japanese_ci",
-	"eucjpms":  "eucjpms_japanese_ci",
-	"cp1250":   "cp1250_general_ci",
-	"cp1251":   "cp1251_general_ci",
-	"cp1256":   "cp1256_general_ci",
-	"cp1257":   "cp1257_general_ci",
-	"cp850":    "cp850_general_ci",
-	"cp852":    "cp852_general_ci",
-	"cp866":    "cp866_general_ci",
-	"dec8":     "dec8_swedish_ci",
-	"hp8":      "hp8_english_ci",
-	"keybcs2":  "keybcs2_general_ci",
-	"koi8r":    "koi8r_general_ci",
-	"koi8u":    "koi8u_general_ci",
-	"macce":    "macce_general_ci",
-	"macroman": "macroman_general_ci",
-	"swe7":     "swe7_swedish_ci",
-	"geostd8":  "geostd8_general_ci",
-	"tis620":   "tis620_thai_ci",
-	"hebrew":   "hebrew_general_ci",
-	"greek":    "greek_general_ci",
-	"armscii8": "armscii8_general_ci",
-}
+// MariaDB has. The table lives in deparse, which writes a collation of its own
+// for a dynamic column's string type.
+var defaultCollationForCharset = deparse.DefaultCollations
 
 // ShowCreateTable produces MariaDB-compatible SHOW CREATE TABLE output.
 // Returns "" if the database or table does not exist.
@@ -106,12 +63,13 @@ func (c *Catalog) ShowCreateTable(database, table string) string {
 	// Columns. The CHECK each one carries is indexed once for the whole
 	// rendering, not looked up per column.
 	checks := columnChecks(tbl)
+	plainOptions := c.ignoresBadTableOptions()
 	parts := make([]string, 0, len(tbl.Columns)+len(tbl.Indexes)+len(tbl.Constraints))
 	for _, col := range tbl.Columns {
 		if col.Hidden == ColumnHiddenSystem {
 			continue
 		}
-		parts = append(parts, showColumnWithTable(col, tbl, checks))
+		parts = append(parts, showColumnWithTable(col, tbl, checks, plainOptions))
 	}
 
 	// Application-time period — rendered before SYSTEM_TIME; the name is
@@ -119,12 +77,6 @@ func (c *Catalog) ShowCreateTable(database, table string) string {
 	if tbl.AppPeriodName != "" {
 		parts = append(parts, "PERIOD FOR "+backtickIDQ(tbl.AppPeriodName)+
 			" ("+backtickIDQ(tbl.AppPeriodStartCol)+", "+backtickIDQ(tbl.AppPeriodEndCol)+")")
-	}
-
-	// PERIOD FOR SYSTEM_TIME — after columns, before keys/constraints.
-	if tbl.PeriodStartCol != "" {
-		parts = append(parts, "PERIOD FOR SYSTEM_TIME ("+backtickIDQ(tbl.PeriodStartCol)+
-			", "+backtickIDQ(tbl.PeriodEndCol)+")")
 	}
 
 	// Indexes — MySQL 8.0 orders them in groups:
@@ -155,6 +107,15 @@ func (c *Catalog) ShowCreateTable(database, table string) string {
 		for _, idx := range group {
 			parts = append(parts, showIndex(idx))
 		}
+	}
+
+	// PERIOD FOR SYSTEM_TIME, after the keys and before the foreign keys and
+	// checks, where the application-time period comes before the keys.
+	// Measured on mariadb:11.8.8: PRIMARY KEY (`id`,`re`), KEY `f3` (`a`),
+	// PERIOD FOR SYSTEM_TIME (`rs`, `re`), CONSTRAINT `f3` FOREIGN KEY ...
+	if tbl.PeriodStartCol != "" {
+		parts = append(parts, "PERIOD FOR SYSTEM_TIME ("+backtickIDQ(tbl.PeriodStartCol)+
+			", "+backtickIDQ(tbl.PeriodEndCol)+")")
 	}
 
 	// Constraints (FK and CHECK only — PK/UNIQUE are shown via indexes).
@@ -212,12 +173,13 @@ func (c *Catalog) ShowCreateTable(database, table string) string {
 }
 
 func showColumn(col *Column) string {
-	return showColumnWithTable(col, nil, nil)
+	return showColumnWithTable(col, nil, nil, false)
 }
 
 // showColumnWithTable writes a column definition. checks holds the CHECK each
-// column of the table carries, indexed by columnChecks.
-func showColumnWithTable(col *Column, tbl *Table, checks map[string]*Constraint) string {
+// column of the table carries, indexed by columnChecks. plainOptions says
+// whether the engine-defined options are written bare (see writeColumnTail).
+func showColumnWithTable(col *Column, tbl *Table, checks map[string]*Constraint, plainOptions bool) string {
 	var b strings.Builder
 	b.WriteString(backtickIDQ(col.Name) + " " + col.ColumnType)
 
@@ -271,12 +233,7 @@ func showColumnWithTable(col *Column, tbl *Table, checks map[string]*Constraint)
 			// System-versioning period column: GENERATED ALWAYS AS ROW START/END
 			// (no expression, no VIRTUAL/STORED mode).
 			b.WriteString(fmt.Sprintf(" GENERATED ALWAYS AS %s", col.Generated.RowBound))
-			if col.Comment != "" {
-				b.WriteString(fmt.Sprintf(" COMMENT '%s'", escapeComment(col.Comment)))
-			}
-			if col.Invisible {
-				b.WriteString(" INVISIBLE")
-			}
+			writeColumnTail(&b, col, plainOptions)
 			return b.String()
 		}
 		mode := "VIRTUAL"
@@ -292,12 +249,7 @@ func showColumnWithTable(col *Column, tbl *Table, checks map[string]*Constraint)
 		if !col.Nullable {
 			b.WriteString(" NOT NULL")
 		}
-		if col.Comment != "" {
-			b.WriteString(fmt.Sprintf(" COMMENT '%s'", escapeComment(col.Comment)))
-		}
-		if col.Invisible {
-			b.WriteString(" INVISIBLE")
-		}
+		writeColumnTail(&b, col, plainOptions)
 		return b.String()
 	}
 
@@ -337,21 +289,13 @@ func showColumnWithTable(col *Column, tbl *Table, checks map[string]*Constraint)
 		b.WriteString(fmt.Sprintf(" ON UPDATE %s", formatOnUpdate(col.OnUpdate, col.OnUpdateKind)))
 	}
 
-	// COMMENT.
-	if col.Comment != "" {
-		b.WriteString(fmt.Sprintf(" COMMENT '%s'", escapeComment(col.Comment)))
-	}
-
-	// INVISIBLE. MariaDB writes the keyword bare; MySQL 8.0 hides it in a
-	// version comment. Measured on mariadb:11.8.8.
-	if col.Invisible {
-		b.WriteString(" INVISIBLE")
-	}
-
-	// Column-level WITHOUT SYSTEM VERSIONING (WITH is the implicit default).
+	// Column-level WITHOUT SYSTEM VERSIONING (WITH is the implicit default),
+	// which MariaDB 11.8.8 writes before INVISIBLE.
 	if col.SystemVersioning == "WITHOUT" {
 		b.WriteString(" WITHOUT SYSTEM VERSIONING")
 	}
+
+	writeColumnTail(&b, col, plainOptions)
 
 	// The column's own CHECK, which MariaDB writes on the column and names
 	// after it, last in the definition and after any COMMENT:
@@ -362,6 +306,29 @@ func showColumnWithTable(col *Column, tbl *Table, checks map[string]*Constraint)
 	}
 
 	return b.String()
+}
+
+// writeColumnTail writes what MariaDB 11.8.8 ends a column with before its
+// versioning and its CHECK, in its order: INVISIBLE, the engine-defined options,
+// then COMMENT, as in `a` int(11) DEFAULT NULL INVISIBLE `x`=1 COMMENT 'c'.
+// INVISIBLE is bare, where MySQL 8.0 hides it in a version comment. The options
+// are the engine's to know, and InnoDB knows none, so they are written inside a
+// comment, /* `x`=1 */, unless sql_mode has IGNORE_BAD_TABLE_OPTIONS as SHOW
+// CREATE TABLE runs (plainOptions).
+func writeColumnTail(b *strings.Builder, col *Column, plainOptions bool) {
+	if col.Invisible {
+		b.WriteString(" INVISIBLE")
+	}
+	if len(col.EngineOptions) > 0 {
+		if plainOptions {
+			b.WriteString(" " + strings.Join(col.EngineOptions, " "))
+		} else {
+			b.WriteString(" /* " + strings.Join(col.EngineOptions, " ") + " */")
+		}
+	}
+	if col.Comment != "" {
+		b.WriteString(fmt.Sprintf(" COMMENT '%s'", escapeComment(col.Comment)))
+	}
 }
 
 // columnCheckOf returns the CHECK constraint that belongs to the named column
@@ -909,8 +876,21 @@ func showTableOptions(tbl *Table) string {
 	if tbl.Checksum != "" && tbl.Checksum != "0" {
 		parts = append(parts, fmt.Sprintf("CHECKSUM=%s", tbl.Checksum))
 	}
+	if tbl.PageChecksum != "" {
+		parts = append(parts, fmt.Sprintf("PAGE_CHECKSUM=%s", tbl.PageChecksum))
+	}
 	if tbl.DelayKeyWrite != "" && tbl.DelayKeyWrite != "0" {
 		parts = append(parts, fmt.Sprintf("DELAY_KEY_WRITE=%s", tbl.DelayKeyWrite))
+	}
+	if tbl.Transactional != "" {
+		parts = append(parts, fmt.Sprintf("TRANSACTIONAL=%s", tbl.Transactional))
+	}
+	for _, o := range tbl.EngineOptions {
+		value := o.Value
+		if o.Quoted {
+			value = "'" + escapeComment(o.Value) + "'"
+		}
+		parts = append(parts, fmt.Sprintf("`%s`=%s", o.Name, value))
 	}
 
 	return strings.Join(parts, " ")
@@ -1061,6 +1041,11 @@ func showPartitioning(pi *PartitionInfo) string {
 					} else {
 						b.WriteString(fmt.Sprintf(" VALUES LESS THAN (%s)", pd.ValueExpr))
 					}
+				case strings.HasPrefix(pi.Type, "LIST") && pd.ValueExpr == "DEFAULT":
+					// The catch-all partition: PARTITION `p1` DEFAULT ENGINE = InnoDB.
+					// A string 'DEFAULT' is quoted, so it is not this. Measured on
+					// mariadb:11.8.8.
+					b.WriteString(" DEFAULT")
 				case strings.HasPrefix(pi.Type, "LIST"):
 					b.WriteString(fmt.Sprintf(" VALUES IN (%s)", pd.ValueExpr))
 				}

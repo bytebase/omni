@@ -276,8 +276,11 @@ func (p *Parser) parseStartDispatch() (nodes.Node, error) {
 	}
 
 	// Fall through to START TRANSACTION (parseBeginStmt expects p.cur is START or BEGIN)
-	// We already consumed START, so we need to handle TRANSACTION here
-	p.match(kwTRANSACTION)
+	// We already consumed START, so we need to handle TRANSACTION here. start:
+	// START_SYM TRANSACTION_SYM opt_start_transaction_option_list, TRANSACTION required.
+	if _, err := p.expect(kwTRANSACTION); err != nil {
+		return nil, err
+	}
 
 	// Completion: after START TRANSACTION, offer transaction characteristic keywords.
 	p.checkCursor()
@@ -328,19 +331,48 @@ func (p *Parser) parseResetDispatch() (nodes.Node, error) {
 	start := p.pos()
 	p.advance() // consume RESET
 
-	if p.cur.Type == kwREPLICA || p.cur.Type == kwSLAVE {
-		return p.parseResetReplicaStmt(start)
-	}
-	if p.cur.Type == kwMASTER {
-		return p.parseResetMasterStmt(start)
-	}
 	if p.cur.Type == kwPERSIST {
 		return p.parseResetPersistStmt(start)
 	}
 
-	// reset_option is SLAVE, REPLICA or MASTER, read above, and PERSIST; MySQL
-	// 8.0 has no other (reset in sql/sql_yacc.yy).
-	return nil, p.syntaxErrorAtCur()
+	// reset_options is a comma list of reset_option: SLAVE, REPLICA or MASTER, in any
+	// order and repeated. One option is its own statement; a list is a FlushStmt that
+	// keeps each option's text. mysql:8.0 runs `RESET SLAVE, SLAVE`.
+	//
+	// Ref: reset, reset_options and reset_option in MySQL 8.0 sql/sql_yacc.yy.
+	var first nodes.Node
+	var options []string
+	for {
+		optStart := p.pos()
+		nodeStart := optStart
+		if len(options) == 0 {
+			nodeStart = start
+		}
+		var node nodes.Node
+		var err error
+		switch p.cur.Type {
+		case kwREPLICA, kwSLAVE:
+			node, err = p.parseResetReplicaStmt(nodeStart)
+		case kwMASTER:
+			node, err = p.parseResetMasterStmt(nodeStart)
+		default:
+			return nil, p.syntaxErrorAtCur()
+		}
+		if err != nil {
+			return nil, err
+		}
+		if len(options) == 0 {
+			first = node
+		}
+		options = append(options, p.inputText(optStart, p.prev.End))
+		if _, ok := p.match(','); !ok {
+			break
+		}
+	}
+	if len(options) == 1 {
+		return first, nil
+	}
+	return &nodes.FlushStmt{Loc: nodes.Loc{Start: start, End: p.prev.End}, Options: options}, nil
 }
 
 // parseStopDispatch dispatches STOP statements.
@@ -494,14 +526,15 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 	case kwDEFINER:
 		// CREATE DEFINER=... {VIEW|FUNCTION|PROCEDURE|TRIGGER|EVENT}
 		// Parse DEFINER = user[@host] and propagate to sub-parsers.
-		definer := p.parseDefinerValue()
-		// Optional SQL SECURITY {DEFINER|INVOKER}
+		definer, err := p.parseDefinerValue()
+		if err != nil {
+			return nil, err
+		}
+		// Optional SQL SECURITY {DEFINER|INVOKER} (view_suid)
 		var sqlSecurity string
 		if p.cur.Type == kwSQL {
-			p.advance()
-			p.match(kwSECURITY)
-			if p.isIdentToken() {
-				sqlSecurity, _, _ = p.parseIdentifier()
+			if sqlSecurity, err = p.parseViewSQLSecurity(); err != nil {
+				return nil, err
 			}
 		}
 		// Now dispatch on the object keyword
@@ -657,14 +690,15 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 	case kwDEFINER:
 		// ALTER DEFINER = user {VIEW|EVENT}
 		// Parse DEFINER = user[@host] and propagate to sub-parsers.
-		definer := p.parseDefinerValue()
-		// Optional SQL SECURITY {DEFINER|INVOKER}
+		definer, err := p.parseDefinerValue()
+		if err != nil {
+			return nil, err
+		}
+		// Optional SQL SECURITY {DEFINER|INVOKER} (view_suid)
 		var sqlSecurity string
 		if p.cur.Type == kwSQL {
-			p.advance()
-			p.match(kwSECURITY)
-			if p.isIdentToken() {
-				sqlSecurity, _, _ = p.parseIdentifier()
+			if sqlSecurity, err = p.parseViewSQLSecurity(); err != nil {
+				return nil, err
 			}
 		}
 		switch p.cur.Type {
@@ -821,15 +855,19 @@ func (p *Parser) parseDropDispatch() (nodes.Node, error) {
 // definer string. Handles: 'user'@'host', user@host, CURRENT_USER, CURRENT_USER().
 // The current token must be DEFINER; on return, the current token is the one
 // after the definer clause.
-func (p *Parser) parseDefinerValue() string {
+//
+// definer: DEFINER_SYM EQ user (sql_yacc.yy), so `=` and the user are required.
+func (p *Parser) parseDefinerValue() (string, error) {
 	p.advance() // consume DEFINER
-	p.match('=')
+	if _, err := p.expect('='); err != nil {
+		return "", err
+	}
 
 	// Completion: after DEFINER=, offer CURRENT_USER keyword.
 	p.checkCursor()
 	if p.collectMode() {
 		p.addTokenCandidate(kwCURRENT_USER)
-		return ""
+		return "", &ParseError{Message: "collecting"}
 	}
 
 	// Parse user part: identifier, string literal, or CURRENT_USER
@@ -844,14 +882,16 @@ func (p *Parser) parseDefinerValue() string {
 	} else if p.isIdentToken() {
 		user, _, _ = p.parseIdentifier()
 	} else {
-		return ""
+		return "", p.syntaxErrorAtCur()
 	}
 
 	// Handle CURRENT_USER()
 	if isCurUser && p.cur.Type == '(' {
 		p.advance() // consume (
-		p.match(')')
-		return "CURRENT_USER()"
+		if _, err := p.expect(')'); err != nil {
+			return "", err
+		}
+		return "CURRENT_USER()", nil
 	}
 
 	// Handle @host: the lexer scans @host as a single tokIDENT with Str="@host",
@@ -869,12 +909,12 @@ func (p *Parser) parseDefinerValue() string {
 			} else if p.isIdentToken() {
 				host, _, _ = p.parseIdentifier()
 			}
-			return user + "@" + host
+			return user + "@" + host, nil
 		}
 		// @host as single token: strip @ prefix
 		host := atHost[1:]
-		return user + "@" + host
+		return user + "@" + host, nil
 	}
 
-	return user
+	return user, nil
 }

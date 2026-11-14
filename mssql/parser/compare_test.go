@@ -11006,6 +11006,20 @@ func TestParseSelectQueryHintRemainingDepth(t *testing.T) {
 		}
 	})
 
+	// A USE HINT list holding anything but names and commas is refused. The
+	// list loop moved only over those, and looped forever on the rest.
+	t.Run("query_hint_use_hint_stray_word", func(t *testing.T) {
+		for _, sql := range []string{
+			"SELECT * OPTION(USE HINT('a' zzz))",
+			"SELECT * OPTION(USE HINT(zzz))",
+			"SELECT * OPTION(USE HINT('a', 1))",
+		} {
+			if _, err := Parse(sql); err == nil {
+				t.Errorf("Parse(%q) took a USE HINT list SQL Server refuses", sql)
+			}
+		}
+	})
+
 	// PARAMETERIZATION with mode
 	t.Run("query_hint_parameterization", func(t *testing.T) {
 		sql := "SELECT * FROM t OPTION (PARAMETERIZATION FORCED)"

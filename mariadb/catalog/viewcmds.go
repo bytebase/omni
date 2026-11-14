@@ -745,9 +745,10 @@ func (c *Catalog) deparseViewSelect(sel *nodes.SelectStmt, rawText, source strin
 
 	// Resolve: qualify columns, expand *, normalize JOINs.
 	resolver := &deparse.Resolver{
-		Lookup:         lookup,
-		DefaultCharset: charset,
-		Source:         source,
+		Lookup:              lookup,
+		DefaultCharset:      charset,
+		ConnectionCollation: c.session.CollationConnection,
+		Source:              source,
 	}
 	resolver.Resolve(sel)
 

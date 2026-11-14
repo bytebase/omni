@@ -184,6 +184,40 @@ func errNoSuchTable(db, name string) error {
 		Message: fmt.Sprintf("Table '%s.%s' doesn't exist", db, name)}
 }
 
+// errPartitionMgmtOnNonpartitioned is 1505, a partition action on a table with no
+// partitions.
+func errPartitionMgmtOnNonpartitioned() error {
+	return &Error{Code: 1505, SQLState: "HY000",
+		Message: "Partition management on a not partitioned table is not possible"}
+}
+
+// errOnlyOnRangeListPartitioning is 1512, an action RANGE and LIST partitioning
+// alone take.
+func errOnlyOnRangeListPartitioning(action string) error {
+	return &Error{Code: 1512, SQLState: "HY000",
+		Message: fmt.Sprintf("%s can only be used on RANGE/LIST partitions", action)}
+}
+
+// errDropPartitionNonExistent is 1507, a partition the table does not have.
+func errDropPartitionNonExistent() error {
+	return &Error{Code: 1507, SQLState: "HY000", Message: "Wrong partition name or partition list"}
+}
+
+// errDropLastPartition is 1508, an action that would leave the table no partition.
+func errDropLastPartition() error {
+	return &Error{Code: 1508, SQLState: "HY000", Message: "Cannot remove all partitions, use DROP TABLE instead"}
+}
+
+// errSameNamePartition is 1517, a partition name the table already has.
+func errSameNamePartition(name string) error {
+	return &Error{Code: 1517, SQLState: "HY000", Message: fmt.Sprintf("Duplicate partition name %s", name)}
+}
+
+// errTablesDifferentMetadata is 1736, two tables an action needs alike that are not.
+func errTablesDifferentMetadata() error {
+	return &Error{Code: 1736, SQLState: "HY000", Message: "Tables have different definitions"}
+}
+
 func errDupColumn(name string) error {
 	return &Error{Code: ErrDupColumn, SQLState: sqlState(ErrDupColumn),
 		Message: fmt.Sprintf("Duplicate column name '%s'", name)}
@@ -553,4 +587,17 @@ func errCannotDropColumnFunctionalIndex(column string) error {
 func errWrongArguments(fn string) error {
 	return &Error{Code: ErrWrongArguments, SQLState: sqlState(ErrWrongArguments),
 		Message: fmt.Sprintf("Incorrect arguments to %s", fn)}
+}
+
+// errUnknownOption is 1911: an engine-defined option the table's engine does
+// not define. Measured on mariadb:11.8.8.
+func errUnknownOption(name string) error {
+	return &Error{Code: 1911, SQLState: "HY000", Message: fmt.Sprintf("Unknown option '%s'", name)}
+}
+
+// errSequenceInvalidTableStructure is 4086: SEQUENCE=1 on a table whose columns
+// are not a sequence's. Measured on mariadb:11.8.8.
+func errSequenceInvalidTableStructure(db, table string) error {
+	return &Error{Code: 4086, SQLState: "HY000",
+		Message: fmt.Sprintf("Sequence '%s.%s' table structure is invalid (Wrong number of columns)", db, table)}
 }

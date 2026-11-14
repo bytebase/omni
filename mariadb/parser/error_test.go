@@ -587,3 +587,29 @@ func TestParseBareIntervalOperand(t *testing.T) {
 		}
 	}
 }
+
+// TestParseWeightStringLevelsAndNumbers holds WEIGHT_STRING to MariaDB's
+// opt_ws_levels and its four-number form.
+func TestParseWeightStringLevelsAndNumbers(t *testing.T) {
+	for _, sql := range []string{
+		"DO WEIGHT_STRING(a, 1, 2, 3)",
+		"DO WEIGHT_STRING(a LEVEL 1 ASC REVERSE, 2 DESC, 3)",
+		"DO WEIGHT_STRING(a LEVEL 1 - 3)",
+		"DO WEIGHT_STRING(a AS CHAR(2) LEVEL 0x1)",
+	} {
+		if _, err := Parse(sql); err != nil {
+			t.Errorf("Parse(%q): %v", sql, err)
+		}
+	}
+	for _, sql := range []string{
+		"DO WEIGHT_STRING(a AS BINARY(2) LEVEL 1)",
+		"DO WEIGHT_STRING(a LEVEL 1.5)",
+		"DO WEIGHT_STRING(a LEVEL 1 - 2, 3)",
+		"DO WEIGHT_STRING(a LEVEL)",
+		"DO WEIGHT_STRING(a, 1, 2)",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q): want an error", sql)
+		}
+	}
+}

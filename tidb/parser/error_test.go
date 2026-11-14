@@ -563,7 +563,8 @@ func TestParseError_InvalidIntervalUnit(t *testing.T) {
 // form is paired with its valid counterpart to guard against a completeness gap.
 //
 // Refs (TiDB v8.5.5 pkg/parser/parser.y): RenameTableStmt, DeallocateStmt,
-// PreparedStmt/PrepareSQL, BinlogStmt, ViewDefiner, WithRollupClause.
+// PreparedStmt/PrepareSQL, BinlogStmt, ViewDefiner, Username's OptionalBraces,
+// ViewSQLSecurity, WithRollupClause.
 func TestParseError_RequiredKeywordsSingleToken(t *testing.T) {
 	reject := []struct {
 		name string
@@ -574,6 +575,11 @@ func TestParseError_RequiredKeywordsSingleToken(t *testing.T) {
 		{"prepare_from_missing_value", "PREPARE s FROM"},
 		{"binlog_missing_string", "BINLOG"},
 		{"definer_missing_eq", "CREATE DEFINER CURRENT_USER VIEW v AS SELECT *"},
+		{"definer_missing_user", "CREATE DEFINER = VIEW v AS SELECT *"},
+		{"definer_current_user_unclosed", "CREATE DEFINER = CURRENT_USER( VIEW v AS SELECT *"},
+		{"definer_sql_security_name", "CREATE DEFINER = u SQL SECURITY u VIEW v AS SELECT *"},
+		{"sql_security_name", "CREATE SQL SECURITY u VIEW v AS SELECT *"},
+		{"sql_missing_security", "CREATE SQL INVOKER VIEW v AS SELECT *"},
 		{"group_by_with_missing_rollup", "SELECT * GROUP BY c WITH"},
 	}
 	for _, tc := range reject {
@@ -596,6 +602,9 @@ func TestParseError_RequiredKeywordsSingleToken(t *testing.T) {
 		{"prepare_from_var", "PREPARE s FROM @v"},
 		{"binlog_string", "BINLOG 'abc'"},
 		{"definer_eq_view", "CREATE DEFINER = CURRENT_USER VIEW v AS SELECT *"},
+		{"definer_current_user_braces", "CREATE DEFINER = CURRENT_USER() VIEW v AS SELECT *"},
+		{"definer_sql_security_invoker", "CREATE DEFINER = u SQL SECURITY INVOKER VIEW v AS SELECT *"},
+		{"sql_security_definer", "CREATE SQL SECURITY DEFINER VIEW v AS SELECT *"},
 		{"group_by_with_rollup", "SELECT * GROUP BY c WITH ROLLUP"},
 		{"group_by_plain", "SELECT * GROUP BY c"},
 	}

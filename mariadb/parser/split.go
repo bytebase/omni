@@ -1,5 +1,7 @@
 package parser
 
+import "strings"
+
 // Segment represents a portion of SQL text delimited by top-level semicolons.
 type Segment struct {
 	Text      string // the raw text of this segment (without trailing semicolon)
@@ -231,6 +233,9 @@ func Split(sql string) []Segment {
 	// WHILE/CASE/LOOP/REPEAT bodies already open unconditionally; only IF needs
 	// this.
 	routineHeaderParen := -1
+	// setTarget is where the statement SET STATEMENT ... FOR wraps starts, the innermost one
+	// when they nest, -1 before one.
+	setTarget := -1
 
 	for i < len(sql) {
 		// Check for DELIMITER directive (only at statement-start position).
@@ -259,6 +264,7 @@ func Split(sql string) []Segment {
 				}
 				i = j
 				stmtStart = i
+				setTarget = -1
 				atStmtStart = true
 				continue
 			}
@@ -309,12 +315,35 @@ func Split(sql string) []Segment {
 				atStmtStart = false
 			}
 			i = endOfWord
+			// BEGIN NOT ATOMIC: the block's first statement follows ATOMIC, whatever
+			// comments stand between the three words.
+			if isCompound {
+				j := skipSpaceAndComments(sql, i)
+				if matchWord(sql, j, "NOT") {
+					k := skipSpaceAndComments(sql, skipToEndOfWord(sql, j))
+					if matchWord(sql, k, "ATOMIC") {
+						i = skipToEndOfWord(sql, k)
+					}
+				}
+			}
 
 		// FOR — SET STATEMENT ... FOR takes a whole statement, so what follows it is at
 		// stmt-start: `SET STATEMENT a = 1 FOR IF b THEN c; END IF`. Elsewhere the next word
-		// is no IF: FOR EACH ROW, FOR UPDATE, FOR i IN.
-		case (b == 'f' || b == 'F') && matchWord(sql, i, "FOR"):
-			atStmtStart = true
+		// is no IF: FOR EACH ROW, FOR UPDATE. FOR name IN opens MariaDB's FOR loop, which
+		// END FOR closes, wherever it stands: a routine's body after its RETURNS or its
+		// characteristics is no position atStmtStart knows. No other FOR is followed by a
+		// name and IN.
+		case (b == 'f' || b == 'F') && matchWord(sql, i, "FOR") && !inLexerIdent(sql, i, i+3):
+			if prevWord(sql, i) != "END" && forLoopFollows(sql, skipToEndOfWord(sql, i)) {
+				depth++
+				atStmtStart = false
+			} else {
+				atStmtStart = true
+				// The last such FOR, so nested wrappers end at the innermost statement.
+				if depth == 0 {
+					setTarget = skipToEndOfWord(sql, i)
+				}
+			}
 			i = skipToEndOfWord(sql, i)
 
 		// PROCEDURE after CREATE — enter the routine header so the body position
@@ -327,6 +356,23 @@ func Split(sql string) []Segment {
 			}
 			atStmtStart = false
 			i = endOfWord
+
+		// PACKAGE as the object of CREATE [OR REPLACE] [DEFINER = user] opens MariaDB's
+		// package, which its END closes: the ';' after each routine it lists do not end
+		// it. Anywhere else PACKAGE is a word (DROP PACKAGE, a column named package).
+		case (b == 'p' || b == 'P') && matchWord(sql, i, "PACKAGE"):
+			// A PACKAGE that touches an @, a dot or another byte of a name is part of a
+			// longer token, a definer's host such as root@package or root@foo.package.
+			// Under SET STATEMENT ... FOR, the head is the wrapped statement's.
+			head := sql[stmtStart:i]
+			if setTarget > stmtStart && startsWithWord(sql[stmtStart:setTarget], "SET") {
+				head = sql[setTarget:i]
+			}
+			if depth == 0 && !packageInLongerToken(sql, i, i+len("PACKAGE")) && createsPackage(head) {
+				depth++
+			}
+			atStmtStart = false
+			i = skipToEndOfWord(sql, i)
 
 		// IF — compound flow-control iff at stmt-start and not preceded by END.
 		// atStmtStart encodes MySQL's yacc grammar-position disambiguation:
@@ -431,6 +477,7 @@ func Split(sql string) []Segment {
 				}
 				i += len(delim)
 				stmtStart = i
+				setTarget = -1
 				atStmtStart = true
 				continue
 			}
@@ -484,6 +531,203 @@ func Split(sql string) []Segment {
 		return nil
 	}
 	return segments
+}
+
+// createsPackage reports whether head, the text of a statement up to a PACKAGE, is the head
+// of CREATE PACKAGE: CREATE, OR REPLACE, and a definer, CURRENT_USER[()], CURRENT_ROLE[()] or
+// user[@host], a name bare or quoted. Comments may stand anywhere between the words.
+//
+// Ref: create_routine's sp_handler_package_spec and sp_handler_package_body arms, and
+// definer_opt, in MariaDB 11.8 sql/sql_yacc.yy.
+func createsPackage(head string) bool {
+	toks := packageHeadTokens(head)
+	if toks == nil {
+		return false
+	}
+	at := func(i int, word string) bool { return i < len(toks) && strings.EqualFold(toks[i], word) }
+	i := 0
+	if !at(i, "CREATE") {
+		return false
+	}
+	i++
+	if at(i, "OR") {
+		if !at(i+1, "REPLACE") {
+			return false
+		}
+		i += 2
+	}
+	if at(i, "DEFINER") {
+		i++
+		if at(i, "=") {
+			i++
+		}
+		switch {
+		case at(i, "CURRENT_USER") || at(i, "CURRENT_ROLE"):
+			i++
+			if at(i, "(") && at(i+1, ")") {
+				i += 2
+			}
+		case i < len(toks) && toks[i] != "@" && toks[i] != "=" && toks[i] != "(" && toks[i] != ")":
+			i++
+			// user@host, or user@ with the host empty, as mariadb:11.8.8 reads root@.
+			if at(i, "@") {
+				i++
+				if i < len(toks) {
+					i++
+				}
+			}
+		default:
+			return false
+		}
+	}
+	return i == len(toks)
+}
+
+// maxPackageHeadTokens is the most tokens a CREATE PACKAGE head holds:
+// CREATE OR REPLACE DEFINER = user @ host, eight.
+const maxPackageHeadTokens = 8
+
+// packageHeadTokens cuts a statement's head into words, quoted names and strings, and the
+// characters @ = ( ), dropping whitespace and comments and reading an executable comment's
+// text as the lexer does. It returns nil for anything else, which no CREATE PACKAGE head
+// holds: a first word other than CREATE, more tokens than maxPackageHeadTokens, or another
+// character. It stops there, so a statement that names package many times is not scanned
+// again from its start at each one.
+func packageHeadTokens(head string) []string {
+	var toks []string
+	// execClose is where the executable comment being read closes, -1 outside one. Executable
+	// comments do not nest: an opener inside one is dropped, as the lexer drops it.
+	execClose := -1
+	i := 0
+	for i < len(head) {
+		if len(toks) > maxPackageHeadTokens || (len(toks) == 1 && !strings.EqualFold(toks[0], "CREATE")) {
+			return nil
+		}
+		if i == execClose {
+			i += 2
+			execClose = -1
+			continue
+		}
+		c := head[i]
+		switch {
+		case c == ' ' || c == '\t' || c == '\n' || c == '\r':
+			i++
+		case isDashComment(head, i):
+			i = skipDashComment(head, i)
+		case c == '#':
+			i = skipHashComment(head, i)
+		case c == '/' && i+1 < len(head) && head[i+1] == '*':
+			bodyStart, ok := execOpener(head, i)
+			switch {
+			case !ok:
+				// An ordinary comment, or a versioned one the server skips.
+				i = skipBlockCommentMySQL(head, i)
+			case execClose >= 0:
+				i = bodyStart
+			default:
+				// The server reads the text of /*! ... */ and /*M! ... */ as the statement's.
+				end, closed := skipExecutableComment(head, i)
+				execClose = len(head)
+				if closed {
+					execClose = end - 2
+				}
+				i = bodyStart
+			}
+		case c == '\'':
+			j := skipSingleQuoteMySQL(head, i)
+			toks = append(toks, head[i:j])
+			i = j
+		case c == '"':
+			j := skipDoubleQuoteMySQL(head, i)
+			toks = append(toks, head[i:j])
+			i = j
+		case c == '`':
+			j := skipBacktick(head, i)
+			toks = append(toks, head[i:j])
+			i = j
+		case c == '@' || c == '=' || c == '(' || c == ')':
+			toks = append(toks, string(c))
+			i++
+		case isPackageHeadIdentByte(c):
+			j := i
+			for j < len(head) && isPackageHeadIdentByte(head[j]) && j != execClose {
+				j++
+			}
+			toks = append(toks, head[i:j])
+			i = j
+		default:
+			return nil
+		}
+	}
+	if len(toks) > maxPackageHeadTokens {
+		return nil
+	}
+	return toks
+}
+
+// startsWithWord reports whether text's first word, after whitespace and comments, is word.
+func startsWithWord(text, word string) bool {
+	return matchWord(text, skipSpaceAndComments(text, 0), word)
+}
+
+// packageInLongerToken reports whether sql[start:end], a PACKAGE, is part of a longer name or
+// account in the lexer's alphabet.
+func packageInLongerToken(sql string, start, end int) bool {
+	return (start > 0 && (sql[start-1] == '@' || isPackageHeadIdentByte(sql[start-1]))) ||
+		(end < len(sql) && isPackageHeadIdentByte(sql[end]))
+}
+
+// isPackageHeadIdentByte reports a byte of an unquoted name or host as the lexer reads one: a
+// letter, a digit, _ and $, any byte of a multi-byte UTF-8 character, and the dots of a host
+// such as 127.0.0.1, which the lexer reads after @.
+func isPackageHeadIdentByte(b byte) bool {
+	return isIdentByte(b) || b == '$' || b >= 0x80 || b == '.'
+}
+
+// skipSpaceAndComments skips whitespace and comments from i. An executable comment is
+// text the server reads, so it stops there.
+func skipSpaceAndComments(sql string, i int) int {
+	for i < len(sql) {
+		switch {
+		case sql[i] == ' ' || sql[i] == '\t' || sql[i] == '\n' || sql[i] == '\r':
+			i++
+		case isDashComment(sql, i):
+			i = skipDashComment(sql, i)
+		case sql[i] == '#':
+			i = skipHashComment(sql, i)
+		case sql[i] == '/' && i+1 < len(sql) && sql[i+1] == '*' && !isExecutableCommentStart(sql, i):
+			i = skipBlockCommentMySQL(sql, i)
+		default:
+			return i
+		}
+	}
+	return i
+}
+
+// inLexerIdent reports whether sql[start:end] is part of a longer name in the lexer's
+// alphabet, which takes $ and multi-byte UTF-8 where matchWord's boundary does not: the for
+// of for$r or forë is no FOR.
+func inLexerIdent(sql string, start, end int) bool {
+	return (start > 0 && isIdentChar(sql[start-1])) || (end < len(sql) && isIdentChar(sql[end]))
+}
+
+// forLoopFollows reports whether a FOR loop's record and IN follow i, the end of a FOR: a
+// name, bare or quoted, then IN, with comments allowed between.
+func forLoopFollows(sql string, i int) bool {
+	j := skipSpaceAndComments(sql, i)
+	switch {
+	case j < len(sql) && sql[j] == '`':
+		j = skipBacktick(sql, j)
+	case j < len(sql) && isIdentChar(sql[j]):
+		// The lexer's alphabet: $ and multi-byte UTF-8 too.
+		for j < len(sql) && isIdentChar(sql[j]) {
+			j++
+		}
+	default:
+		return false
+	}
+	k := skipSpaceAndComments(sql, j)
+	return matchWord(sql, k, "IN") && !inLexerIdent(sql, k, k+2)
 }
 
 // skipSingleQuoteMySQL skips a single-quoted string starting at position i.

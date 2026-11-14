@@ -180,6 +180,7 @@ const (
 	aPunct        // an operator: : ; | ( ) ? * + ~ . .. = += # -> , < > @ ::
 	aAction       // a { ... } action or option block
 	aArg          // a [ ... ] argument or character set; text is its content
+	aNumber       // an integer, as a lexer command's argument: -> channel(2)
 )
 
 type atok struct {
@@ -238,6 +239,12 @@ func lexANTLR(src string) ([]atok, error) {
 			word, next := readWord(r, i)
 			out = append(out, atok{kind: aIdent, text: word, pos: byteAt(start)})
 			i = next
+		case c >= '0' && c <= '9':
+			start := i
+			for i < n && r[i] >= '0' && r[i] <= '9' {
+				i++
+			}
+			out = append(out, atok{kind: aNumber, text: string(r[start:i]), pos: byteAt(start)})
 		default:
 			start := i
 			op := string(c)
@@ -401,7 +408,11 @@ func (p *antlrParser) file() error {
 			}
 			p.i += 2
 		case t.kind == aIdent && t.text == "import":
-			return p.errorf("import is not supported: give the imported grammar's text along with this one")
+			// import X; as StarRocks.g4 imports its lexer: the caller gives
+			// the imported grammar's text after this one (compat.Suite.Lexer).
+			if err := p.skipTo(";"); err != nil {
+				return err
+			}
 		case t.kind == aPunct && t.text == "@":
 			// A named action: @header {...}, @parser::members {...}.
 			p.i++

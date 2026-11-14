@@ -91,7 +91,14 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	tblCollationExplicit := false
 	tableOptionVersioned := false
 	sawExplicitColumnWith := false // an explicit column-level WITH appeared (even if a later WITHOUT overrode it)
+	var engineOptions []*nodes.TableOption
 	for _, opt := range stmt.Options {
+		// An engine-defined option is the engine's by its form, whatever its
+		// name: `PAGE_CHECKSUM` = 1, quoted, is one, and InnoDB answers 1911.
+		if opt.EngineDefined {
+			engineOptions = append(engineOptions, opt)
+			continue
+		}
 		switch toLower(opt.Name) {
 		case "system versioning":
 			tbl.SystemVersioned = true
@@ -136,6 +143,21 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			tbl.Checksum = normalizedChecksum(opt.Value)
 		case "delay_key_write":
 			tbl.DelayKeyWrite = opt.Value
+		case "page_checksum":
+			tbl.PageChecksum = choiceValue(opt.Value)
+		case "transactional":
+			tbl.Transactional = choiceValue(opt.Value)
+		case "sequence":
+			if opt.Value == "1" {
+				return errSequenceInvalidTableStructure(db.Name, stmt.Table.Name)
+			}
+		}
+	}
+	// Engine-defined options are checked against the engine the statement leaves,
+	// which an ENGINE option after them still sets.
+	for _, opt := range engineOptions {
+		if err := tbl.setEngineOption(opt.Name, opt.Value, opt.StringValue); err != nil {
+			return err
 		}
 	}
 	// When charset is specified without explicit collation, derive the default collation.
@@ -310,6 +332,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		}
 		if colDef.Comment != "" {
 			col.Comment = colDef.Comment
+		}
+		if err := c.applyColumnEngineOptions(tbl, col, colDef); err != nil {
+			return err
 		}
 		if colDef.DefaultValue != nil {
 			setColumnDefaultFromExpr(col, colDef.DefaultValue)
@@ -1144,6 +1169,7 @@ func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause) *PartitionInfo {
 		// Values.
 		if pd.Values != nil {
 			pdi.ValueExpr = partitionValueToString(pd.Values, pc.Type)
+			pdi.bound = pd.Values
 		}
 		// Options.
 		for _, opt := range pd.Options {
@@ -2289,20 +2315,52 @@ func applyIndexOptions(idx *Index, opts []*nodes.IndexOption) {
 }
 
 // engineOptionText writes an engine-defined option as MariaDB 11.8.8's SHOW CREATE
-// TABLE does: the name quoted as written, a word or a number bare, a string quoted.
+// TABLE does: the name quoted as written, a backquote in it doubled, a word or a
+// number bare, a string quoted.
 // VECTOR KEY `i` (`v`) COMMENT 'c' `M`=6 `DISTANCE`=cosine
 func engineOptionText(opt *nodes.IndexOption) string {
 	// DEFAULT has no value, so it prints nothing.
 	switch v := opt.Value.(type) {
 	case *nodes.StringLit:
 		if opt.ValueIsWord {
-			return fmt.Sprintf("`%s`=%s", opt.Name, v.Value)
+			return fmt.Sprintf("%s=%s", backtickIDQ(opt.Name), v.Value)
 		}
-		return fmt.Sprintf("`%s`='%s'", opt.Name, escapeComment(v.Value))
+		return fmt.Sprintf("%s='%s'", backtickIDQ(opt.Name), escapeComment(v.Value))
 	case *nodes.IntLit:
-		return fmt.Sprintf("`%s`=%d", opt.Name, v.Value)
+		return fmt.Sprintf("%s=%d", backtickIDQ(opt.Name), v.Value)
 	}
 	return ""
+}
+
+// applyColumnEngineOptions gives a column the engine-defined options its definition
+// writes, `a INT x = 1`. The engines engineTableOptions lists define no column
+// option, so on them each is 1911 unless sql_mode has IGNORE_BAD_TABLE_OPTIONS,
+// under which the column keeps them, last setting of a name winning as an index's
+// do, and SHOW CREATE TABLE writes them. An engine not listed keeps its own list,
+// which the catalog does not know, so its options are taken as written, as a
+// table's are. Measured on mariadb:11.8.8.
+func (c *Catalog) applyColumnEngineOptions(tbl *Table, col *Column, colDef *nodes.ColumnDef) error {
+	if len(colDef.EngineOptions) == 0 {
+		return nil
+	}
+	engine := toLower(tbl.Engine)
+	if engine == "" {
+		engine = "innodb"
+	}
+	if _, known := engineTableOptions[engine]; known && !c.ignoresBadTableOptions() {
+		return errUnknownOption(colDef.EngineOptions[0].Name)
+	}
+	for _, opt := range colDef.EngineOptions {
+		col.EngineOptions = setEngineOption(col.EngineOptions, opt)
+	}
+	return nil
+}
+
+// ignoresBadTableOptions reports whether sql_mode has IGNORE_BAD_TABLE_OPTIONS,
+// which turns an engine-defined option the engine does not know from an error
+// into a warning and keeps it.
+func (c *Catalog) ignoresBadTableOptions() bool {
+	return strings.Contains(strings.ToUpper(c.session.SQLMode), "IGNORE_BAD_TABLE_OPTIONS")
 }
 
 // setEngineOption applies one engine-defined option to the list SHOW CREATE TABLE prints. The
@@ -2310,7 +2368,7 @@ func engineOptionText(opt *nodes.IndexOption) string {
 // `DISTANCE`=cosine `M`=7 for M=6 DISTANCE=cosine M=7. DEFAULT clears it: M=6 M=DEFAULT prints
 // nothing, and m=6 M=DEFAULT does too.
 func setEngineOption(options []string, opt *nodes.IndexOption) []string {
-	prefix := toLower("`" + opt.Name + "`=")
+	prefix := toLower(backtickIDQ(opt.Name) + "=")
 	kept := options[:0:0]
 	for _, text := range options {
 		if !strings.HasPrefix(toLower(text), prefix) {
@@ -3398,30 +3456,34 @@ func (c *Catalog) dropReplacedTable(db *Database, tbl *Table) {
 // It copies the structure (columns, indexes, constraints) from the source table.
 func (c *Catalog) createTableLike(db *Database, tableName, key string, srcTbl *Table, stmt *nodes.CreateTableStmt) error {
 	tbl := &Table{
-		Name:              tableName,
-		Database:          db,
-		Columns:           make([]*Column, 0, len(srcTbl.Columns)),
-		colByName:         make(map[string]int),
-		Indexes:           make([]*Index, 0, len(srcTbl.Indexes)),
-		Constraints:       make([]*Constraint, 0, len(srcTbl.Constraints)),
-		Engine:            srcTbl.Engine,
-		Charset:           srcTbl.Charset,
-		Collation:         srcTbl.Collation,
-		Comment:           srcTbl.Comment,
-		RowFormat:         srcTbl.RowFormat,
-		KeyBlockSize:      srcTbl.KeyBlockSize,
-		Compression:       srcTbl.Compression,
-		Encryption:        srcTbl.Encryption,
-		StatsPersistent:   srcTbl.StatsPersistent,
-		StatsAutoRecalc:   srcTbl.StatsAutoRecalc,
-		StatsSamplePages:  srcTbl.StatsSamplePages,
-		MinRows:           srcTbl.MinRows,
-		MaxRows:           srcTbl.MaxRows,
-		AvgRowLength:      srcTbl.AvgRowLength,
-		Tablespace:        srcTbl.Tablespace,
-		PackKeys:          srcTbl.PackKeys,
-		Checksum:          srcTbl.Checksum,
-		DelayKeyWrite:     srcTbl.DelayKeyWrite,
+		Name:             tableName,
+		Database:         db,
+		Columns:          make([]*Column, 0, len(srcTbl.Columns)),
+		colByName:        make(map[string]int),
+		Indexes:          make([]*Index, 0, len(srcTbl.Indexes)),
+		Constraints:      make([]*Constraint, 0, len(srcTbl.Constraints)),
+		Engine:           srcTbl.Engine,
+		Charset:          srcTbl.Charset,
+		Collation:        srcTbl.Collation,
+		Comment:          srcTbl.Comment,
+		RowFormat:        srcTbl.RowFormat,
+		KeyBlockSize:     srcTbl.KeyBlockSize,
+		Compression:      srcTbl.Compression,
+		Encryption:       srcTbl.Encryption,
+		StatsPersistent:  srcTbl.StatsPersistent,
+		StatsAutoRecalc:  srcTbl.StatsAutoRecalc,
+		StatsSamplePages: srcTbl.StatsSamplePages,
+		MinRows:          srcTbl.MinRows,
+		MaxRows:          srcTbl.MaxRows,
+		AvgRowLength:     srcTbl.AvgRowLength,
+		Tablespace:       srcTbl.Tablespace,
+		PackKeys:         srcTbl.PackKeys,
+		Checksum:         srcTbl.Checksum,
+		DelayKeyWrite:    srcTbl.DelayKeyWrite,
+		// LIKE copies TRANSACTIONAL and the engine-defined options and drops
+		// PAGE_CHECKSUM, as MariaDB 11.8.8 does.
+		Transactional:     srcTbl.Transactional,
+		EngineOptions:     append([]EngineOption(nil), srcTbl.EngineOptions...),
 		Temporary:         stmt.Temporary,
 		SystemVersioned:   srcTbl.SystemVersioned,
 		PeriodStartCol:    srcTbl.PeriodStartCol,
@@ -3452,7 +3514,8 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, srcTbl *T
 			// check comes with it, so the marker has to come as well: without
 			// it a later ALTER reads the column as newly typed and leaves the
 			// check behind when the type moves away from JSON.
-			IsJSON: srcCol.IsJSON,
+			IsJSON:        srcCol.IsJSON,
+			EngineOptions: append([]string(nil), srcCol.EngineOptions...),
 		}
 		if srcCol.Default != nil {
 			def := *srcCol.Default

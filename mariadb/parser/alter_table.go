@@ -52,12 +52,24 @@ func (p *Parser) parseAlterTableStmt(start int) (*nodes.AlterTableStmt, error) {
 		Loc: nodes.Loc{Start: start},
 	}
 
+	// TABLE opt_if_exists: mariadb:11.8.8 runs `ALTER TABLE IF EXISTS t`, and answers a
+	// note for a table it does not have.
+	// Ref: alter in MariaDB 11.8 sql/sql_yacc.yy.
+	ifExists, err := p.parseOptIfExists()
+	if err != nil {
+		return nil, err
+	}
+	stmt.IfExists = ifExists
+
 	// Table name
 	ref, err := p.parseTableRef()
 	if err != nil {
 		return nil, err
 	}
 	stmt.Table = ref
+	outer := p.ddlTable
+	p.ddlTable = ref
+	defer func() { p.ddlTable = outer }()
 
 	// Completion: after ALTER TABLE table-name, offer sub-command keywords.
 	p.checkCursor()
@@ -83,6 +95,17 @@ func (p *Parser) parseAlterTableStmt(start int) (*nodes.AlterTableStmt, error) {
 		cmd, err := p.parseAlterTableCmd()
 		if err != nil {
 			return nil, err
+		}
+		// EXCHANGE PARTITION and the two CONVERT arms are whole alter_commands
+		// of their own, not alter_list_items: MariaDB 11.8.8 answers 1064 for
+		// one with another action, or a partitioning clause, before or after it.
+		if standsAlone(cmd) {
+			if len(stmt.Commands) > 0 {
+				return nil, &ParseError{Message: "syntax error", Position: cmd.Loc.Start}
+			}
+			if p.cur.Type == ',' || p.startsAlterPartitioningTail() {
+				return nil, p.syntaxErrorAtCur()
+			}
 		}
 		stmt.Commands = append(stmt.Commands, cmd)
 		if cmd.Type == nodes.ATTableOption {
@@ -125,6 +148,18 @@ func (p *Parser) parseAlterTableStmt(start int) (*nodes.AlterTableStmt, error) {
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// standsAlone reports whether cmd is an alter_commands arm that takes no other
+// action beside it.
+//
+// Ref: alter_commands in MariaDB 11.8 sql/sql_yacc.yy.
+func standsAlone(cmd *nodes.AlterTableCmd) bool {
+	switch cmd.Type {
+	case nodes.ATExchangePartition, nodes.ATConvertPartitionToTable, nodes.ATConvertTableToPartition:
+		return true
+	}
+	return false
 }
 
 // startsAlterPartitioningTail reports whether the parser sits on the
@@ -482,6 +517,20 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 		return cmd, nil
 
 	case kwWITH:
+		// WITH SYSTEM VERSIONING is versioning_option, a table option that sets
+		// the flag ADD SYSTEM VERSIONING sets. Ref: create_table_option in
+		// MariaDB 11.8 sql/sql_yacc.yy.
+		if p.peekNext().Type == kwSYSTEM {
+			p.advance() // WITH
+			p.advance() // SYSTEM
+			if !p.atBareWord("VERSIONING") {
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance()
+			cmd.Type = nodes.ATAddSystemVersioning
+			cmd.Loc.End = p.prev.End
+			return cmd, nil
+		}
 		// WITH VALIDATION
 		p.advance()
 		if _, err := p.expect(kwVALIDATION); err != nil {
@@ -634,9 +683,19 @@ func (p *Parser) parseAlterAdd(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, 
 		return cmd, nil
 	}
 
-	// ADD [COLUMN]
+	// ADD [COLUMN] [IF NOT EXISTS], add_column's opt_if_not_exists_table_element,
+	// which the paren form takes too.
 	cmd.Type = nodes.ATAddColumn
 	p.match(kwCOLUMN)
+	if _, ok := p.match(kwIF); ok {
+		if _, err := p.expect(kwNOT); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(kwEXISTS_KW); err != nil {
+			return nil, err
+		}
+		cmd.IfNotExists = true
+	}
 
 	// Completion: after ADD COLUMN, identifier context (no specific candidates).
 	p.checkCursor()
@@ -825,7 +884,7 @@ func (p *Parser) parseAlterDropName(cmd *nodes.AlterTableCmd, rule string) (*nod
 		p.addRuleCandidate(rule)
 		return nil, &ParseError{Message: "collecting"}
 	}
-	name, _, err := p.parseIdentifier()
+	name, err := p.parseFieldIdent()
 	if err != nil {
 		return nil, err
 	}
@@ -901,7 +960,7 @@ func (p *Parser) parseAlterChange(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 	}
 
 	// Old column name
-	oldName, _, err := p.parseIdentifier()
+	oldName, err := p.parseFieldIdent()
 	if err != nil {
 		return nil, err
 	}
@@ -1028,7 +1087,7 @@ func (p *Parser) parseAlterColumn(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 	// ALTER [COLUMN] col_name ...
 	p.match(kwCOLUMN)
 
-	name, _, err := p.parseIdentifier()
+	name, err := p.parseFieldIdent()
 	if err != nil {
 		return nil, err
 	}
@@ -1130,7 +1189,7 @@ func (p *Parser) parseAlterRename(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 			p.addRuleCandidate("index_ref")
 			return nil, &ParseError{Message: "collecting"}
 		}
-		oldName, _, err := p.parseIdentifier()
+		oldName, err := p.parseFieldIdent()
 		if err != nil {
 			return nil, err
 		}
@@ -1140,7 +1199,7 @@ func (p *Parser) parseAlterRename(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 		if _, err := p.expect(kwTO); err != nil {
 			return nil, err
 		}
-		newName, _, err := p.parseIdentifier()
+		newName, err := p.parseFieldIdent()
 		if err != nil {
 			return nil, err
 		}
@@ -1172,6 +1231,10 @@ func (p *Parser) parseAlterRename(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 // parseAlterConvert parses CONVERT TO CHARACTER SET charset_name [COLLATE collation_name].
 func (p *Parser) parseAlterConvert(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, error) {
 	p.advance() // consume CONVERT
+	switch p.cur.Type {
+	case kwPARTITION, kwTABLE:
+		return p.parseAlterConvertPartition(cmd)
+	}
 	cmd.Type = nodes.ATConvertCharset
 
 	// CONVERT TO CHARACTER SET, CHARSET or CHAR SET is required, and so is
@@ -1209,6 +1272,68 @@ func (p *Parser) parseAlterConvert(cmd *nodes.AlterTableCmd) (*nodes.AlterTableC
 		cmd.NewName = collation
 	}
 
+	cmd.Loc.End = p.prev.End
+	return cmd, nil
+}
+
+// parseAlterConvertPartition reads MariaDB's two CONVERT arms of alter_commands,
+// which turn a partition into a table of its own and a table into a partition.
+// CONVERT is consumed.
+//
+//	CONVERT PARTITION alt_part_name_item TO TABLE table_ident opt_without_validation
+//	CONVERT TABLE table_ident TO PARTITION part_definition opt_without_validation
+//
+// The second puts its table in the statement's table list, so naming the table
+// altered is 1066 (refuseSameTable); the first does not, and MariaDB 11.8.8 runs
+// `ALTER TABLE t CONVERT PARTITION p TO TABLE t`.
+//
+// Ref: alter_commands in MariaDB 11.8 sql/sql_yacc.yy.
+func (p *Parser) parseAlterConvertPartition(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, error) {
+	if _, ok := p.match(kwPARTITION); ok {
+		cmd.Type = nodes.ATConvertPartitionToTable
+		name, _, err := p.parseIdent()
+		if err != nil {
+			return nil, err
+		}
+		cmd.Name = name
+		if _, err := p.expect(kwTO); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(kwTABLE); err != nil {
+			return nil, err
+		}
+		ref, err := p.parseTableRef()
+		if err != nil {
+			return nil, err
+		}
+		cmd.ConvertTable = ref
+	} else {
+		p.advance() // TABLE
+		cmd.Type = nodes.ATConvertTableToPartition
+		ref, err := p.parseTableRef()
+		if err != nil {
+			return nil, err
+		}
+		if err := p.refuseSameTable(ref); err != nil {
+			return nil, err
+		}
+		cmd.ConvertTable = ref
+		if _, err := p.expect(kwTO); err != nil {
+			return nil, err
+		}
+		// TO PARTITION, then a part_definition, which may spell PARTITION again.
+		if _, err := p.expect(kwPARTITION); err != nil {
+			return nil, err
+		}
+		pd, err := p.parsePartitionDef()
+		if err != nil {
+			return nil, err
+		}
+		cmd.PartitionDefs = []*nodes.PartitionDef{pd}
+	}
+	if err := p.parseOptWithoutValidation(cmd); err != nil {
+		return nil, err
+	}
 	cmd.Loc.End = p.prev.End
 	return cmd, nil
 }
@@ -1358,27 +1483,31 @@ func (p *Parser) parseAlterExchangePartition(cmd *nodes.AlterTableCmd) (*nodes.A
 	if err != nil {
 		return nil, err
 	}
+	if err := p.refuseSameTable(tblRef); err != nil {
+		return nil, err
+	}
 	cmd.ExchangeTable = tblRef
 
-	// Optional [{WITH | WITHOUT} VALIDATION]
-	if p.cur.Type == kwWITH {
-		p.advance()
-		if _, err := p.expect(kwVALIDATION); err != nil {
-			return nil, err
-		}
-		v := true
-		cmd.WithValidation = &v
-	} else if p.cur.Type == kwWITHOUT {
-		p.advance()
-		if _, err := p.expect(kwVALIDATION); err != nil {
-			return nil, err
-		}
-		v := false
-		cmd.WithValidation = &v
+	if err := p.parseOptWithoutValidation(cmd); err != nil {
+		return nil, err
 	}
-
 	cmd.Loc.End = p.prev.End
 	return cmd, nil
+}
+
+// parseOptWithoutValidation reads opt_without_validation, [{WITH | WITHOUT}
+// VALIDATION], which EXCHANGE PARTITION and both CONVERT arms end with.
+func (p *Parser) parseOptWithoutValidation(cmd *nodes.AlterTableCmd) error {
+	if p.cur.Type != kwWITH && p.cur.Type != kwWITHOUT {
+		return nil
+	}
+	with := p.cur.Type == kwWITH
+	p.advance()
+	if _, err := p.expect(kwVALIDATION); err != nil {
+		return err
+	}
+	cmd.WithValidation = &with
+	return nil
 }
 
 // parseColumnPositioning parses optional FIRST | AFTER col_name.

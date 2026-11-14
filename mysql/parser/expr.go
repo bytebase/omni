@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"math"
 	"strings"
 
 	nodes "github.com/bytebase/omni/mysql/ast"
@@ -860,6 +861,12 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 	// keeps the space so the call does not re-lex as the builtin.
 	spacedGeneric := schema == "" && !p.backtickQuotedAt(p.prev.Loc) && p.spacedFuncWordIsName(strings.ToUpper(name))
 	builtin := schema == "" && !p.backtickQuotedAt(p.prev.Loc) && !spacedGeneric
+	// An unqualified call through function_call_generic, IDENT_sys '('
+	// opt_udf_expr_list ')', takes udf_expr arguments, each `expr [select_alias]`.
+	// A native function refuses the alias (1583) and a stored one does (1584), but
+	// only once the statement has parsed. A keyword's own production, a qualified
+	// name and a SYM_FN word right before '(' take plain expressions.
+	udfArgs := schema == "" && (p.backtickQuotedAt(p.prev.Loc) || p.prev.Type == tokIDENT && !p.adjacentSymFn(strings.ToUpper(name)))
 	// A spaced gated keyword is a generic stored-function call, which a partition
 	// expression forbids like any qualified or quoted one: mysql:8.0 accepts
 	// HASH(sum(a)) but rejects HASH(sum (a)) and HASH(`sum`(a)).
@@ -981,6 +988,18 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 			return nil, p.syntaxErrorAtCur()
 		}
 		fc.Args = append(fc.Args, arg)
+		if udfArgs {
+			alias, err := p.parseUDFArgAlias()
+			if err != nil {
+				return nil, err
+			}
+			if alias != nil {
+				for len(fc.ArgAliases) < len(fc.Args)-1 {
+					fc.ArgAliases = append(fc.ArgAliases, nil)
+				}
+				fc.ArgAliases = append(fc.ArgAliases, alias)
+			}
+		}
 		if p.cur.Type != ',' {
 			break
 		}
@@ -1776,6 +1795,40 @@ func (p *Parser) parseWeightStringFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, 
 	ws := &nodes.WeightStringExpr{Loc: fc.Loc, Expr: arg}
 	asBinary := false
 
+	// WEIGHT_STRING(expr, result_length, num_codepoints, flags), each a ulong_num:
+	// the form the server once wrote for itself. MySQL 8.0.46 stores it as
+	// weight_string(expr as char(num_codepoints)), or weight_string(expr) when that
+	// is 0, so the AST holds num_codepoints as AsChar and the other two beside it.
+	if p.cur.Type == ',' {
+		var nums [3]uint64
+		var numToks [3]Token
+		for i := range nums {
+			if _, err := p.expect(','); err != nil {
+				return nil, err
+			}
+			tok, err := p.parseReplicationNumber(replUlong)
+			if err != nil {
+				return nil, err
+			}
+			numToks[i], nums[i] = tok, replicationWhole(tok)
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		ws.Numbers = true
+		ws.ResultLength, ws.Flags = nums[0], nums[2]
+		if nums[1] != 0 {
+			ws.AsChar = &nodes.DataType{
+				Loc:       nodes.Loc{Start: numToks[1].Loc, End: numToks[1].End},
+				Name:      "CHAR",
+				Length:    int(min(nums[1], math.MaxInt32)),
+				HasLength: true,
+			}
+		}
+		ws.Loc.End = p.prev.End
+		return ws, nil
+	}
+
 	if p.cur.Type == kwAS {
 		p.advance()
 		var typeName string
@@ -2112,6 +2165,10 @@ func (p *Parser) parseCastExpr() (nodes.ExprNode, error) {
 		return nil, p.syntaxErrorAtCur()
 	}
 
+	if p.cur.Type == kwAT {
+		return p.parseCastAtTimeZone(start, expr)
+	}
+
 	if _, err := p.expect(kwAS); err != nil {
 		return nil, err
 	}
@@ -2142,6 +2199,86 @@ func (p *Parser) parseCastExpr() (nodes.ExprNode, error) {
 		TypeName: dt,
 		Array:    isArray,
 	}, nil
+}
+
+// parseUDFArgAlias reads a udf_expr's select_alias, `[AS] ident` or `[AS]
+// 'text'`, and returns nil when none follows. An alias may be empty: `f(a AS '')`.
+// Ref: udf_expr and select_alias in MySQL 8.0 sql/sql_yacc.yy.
+func (p *Parser) parseUDFArgAlias() (*string, error) {
+	_, as := p.match(kwAS)
+	if p.cur.Type == tokSCONST {
+		alias := p.advance().Str
+		return &alias, nil
+	}
+	if as || p.isIdentToken() {
+		alias, _, err := p.parseIdent()
+		if err != nil {
+			return nil, err
+		}
+		return &alias, nil
+	}
+	return nil, nil
+}
+
+// adjacentSymFn reports whether the function word just read is a SYM_FN word
+// right before its '(', which the lexer folds into the keyword of a production
+// of its own. p.prev is the word and p.cur its '('.
+func (p *Parser) adjacentSymFn(upperName string) bool {
+	return (spacedTemporalWords[upperName] || spacedFuncWords[upperName]) && p.prev.End == p.cur.Loc
+}
+
+// parseCastAtTimeZone reads the rest of CAST(expr AT TIME ZONE [INTERVAL] 'tz' AS
+// DATETIME[(n)]), p.cur at AT. The target is DATETIME and nothing else, and the
+// zone a plain string. AT LOCAL is refused by the grammar's action
+// (ER_NOT_SUPPORTED_YET), so it is no form here.
+//
+// Ref: simple_expr's `CAST_SYM '(' expr AT_SYM TIME_SYM ZONE_SYM opt_interval
+// TEXT_STRING_literal AS DATETIME_SYM type_datetime_precision ')'` in MySQL 8.0
+// sql/sql_yacc.yy.
+func (p *Parser) parseCastAtTimeZone(start int, expr nodes.ExprNode) (nodes.ExprNode, error) {
+	p.advance() // consume AT
+	if _, err := p.expect(kwTIME); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(kwZONE); err != nil {
+		return nil, err
+	}
+	cast := &nodes.CastExpr{Loc: nodes.Loc{Start: start}, Expr: expr}
+	if _, ok := p.match(kwINTERVAL); ok {
+		cast.AtTimeZoneInterval = true
+	}
+	if p.cur.Type != tokSCONST {
+		return nil, p.syntaxErrorAtCur()
+	}
+	cast.AtTimeZone = p.advance().Str
+	if _, err := p.expect(kwAS); err != nil {
+		return nil, err
+	}
+	typeTok, err := p.expect(kwDATETIME)
+	if err != nil {
+		return nil, err
+	}
+	cast.TypeName = &nodes.DataType{Loc: nodes.Loc{Start: typeTok.Loc, End: typeTok.End}, Name: "DATETIME"}
+	if p.cur.Type == '(' {
+		p.advance()
+		if p.cur.Type != tokICONST {
+			return nil, p.syntaxErrorAtCur()
+		}
+		cast.TypeName.Length = int(p.advance().Ival)
+		cast.TypeName.HasLength = true
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		cast.TypeName.Loc.End = p.prev.End
+		if err := castTypeRefused(cast.TypeName); err != nil {
+			return nil, err
+		}
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	cast.Loc.End = p.prev.End
+	return cast, nil
 }
 
 // parseExtractExpr parses EXTRACT(unit FROM expr).

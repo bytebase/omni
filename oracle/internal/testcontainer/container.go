@@ -14,6 +14,7 @@ import (
 	"database/sql/driver"
 	"errors"
 	"fmt"
+	"net"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -61,9 +62,11 @@ const (
 )
 
 // JudgeFixture is the scratch schema's one object, built again after every
-// statement that ran: the table a, on which a trigger row's header can
-// stand, so the trigger's body reaches the PL/SQL compiler.
-const JudgeFixture = "CREATE TABLE a (a NUMBER)"
+// statement that ran: the table t, on which a trigger row's header stands
+// (tokens.tsv's TRIGGER_SOURCE), so the trigger's body reaches the PL/SQL
+// compiler. It is not named a, the name every other row gives, so the rows
+// on a table a find none, and answer at once.
+const JudgeFixture = "CREATE TABLE t (a NUMBER)"
 
 // Open returns t's connection to Oracle as user, SYSTEM or a user the test
 // created with Password: a replay of its tape, or the pinned server in a
@@ -292,11 +295,12 @@ func checkDigest(ctx context.Context, c testcontainers.Container, digest string)
 	return fmt.Errorf("the Oracle container runs an image with digests %v, but %s pins %s", img.RepoDigests, Pins, digest)
 }
 
-// Judge returns a connection for the compat judge, whose answers go to
-// compat.tsv: as the judge's account, on a scratch schema made again for
-// this call, holding JudgeFixture. It runs in a recording only, outside any
-// tape, and starts the server.
-func Judge(t testing.TB, pin enginetest.Pin) *sql.DB {
+// Judge makes the compat judge's account, whose answers go to compat.tsv,
+// with a scratch schema holding JudgeFixture, and returns what opens a
+// session as that account: the session, and what ends it however it stands
+// (Cuttable, and the server process killed). It runs in a recording only,
+// and starts the server.
+func Judge(t testing.TB, pin enginetest.Pin) func() (*sql.DB, func()) {
 	t.Helper()
 	if !enginetest.Recording(t) {
 		t.Fatalf("testcontainer: the judge runs in a recording only")
@@ -306,7 +310,7 @@ func Judge(t testing.TB, pin enginetest.Pin) *sql.DB {
 		t.Fatalf("Oracle: %v", err)
 	}
 	admin := sql.OpenDB(connector("system", Password))
-	defer admin.Close()
+	t.Cleanup(func() { _ = admin.Close() })
 	var users int
 	if err := admin.QueryRowContext(ctx, "SELECT COUNT(*) FROM dba_users WHERE username = :1", judgeUser).Scan(&users); err != nil {
 		t.Fatalf("Oracle: %v", err)
@@ -324,13 +328,74 @@ func Judge(t testing.TB, pin enginetest.Pin) *sql.DB {
 			t.Fatalf("Oracle: %s: %v", stmt, err)
 		}
 	}
-	db := sql.OpenDB(connector(judgeUser, judgeSecret))
-	db.SetMaxOpenConns(1)
-	t.Cleanup(func() { _ = db.Close() })
+	port, _ := strconv.Atoi(server.port)
+	url := go_ora.BuildUrl(server.host, port, service, judgeUser, judgeSecret, nil)
+	open := func() (*sql.DB, func()) {
+		db, cut := Cuttable(url)
+		var sid, audsid string
+		if err := db.QueryRowContext(ctx, "SELECT SYS_CONTEXT('USERENV', 'SID'), SYS_CONTEXT('USERENV', 'SESSIONID') FROM dual").Scan(&sid, &audsid); err != nil {
+			t.Fatalf("Oracle: the judge's session: %v", err)
+		}
+		end := func() {
+			cut()
+			// A parse the server never finishes keeps its process, and the
+			// locks it holds, after its session is killed: kill the process.
+			var spid string
+			if err := admin.QueryRowContext(ctx, `SELECT p.spid FROM v$session s JOIN v$process p ON p.addr = s.paddr WHERE s.sid = :1 AND s.audsid = :2`, sid, audsid).Scan(&spid); err != nil {
+				return // gone already
+			}
+			if code, _, err := server.container.Exec(ctx, []string{"bash", "-c", "kill -9 " + spid}); err != nil || code != 0 {
+				t.Fatalf("Oracle: kill the judge's server process %s: exit %d, %v", spid, code, err)
+			}
+		}
+		return db, end
+	}
+	db, _ := open()
+	defer db.Close()
 	if _, err := db.ExecContext(ctx, JudgeFixture); err != nil {
 		t.Fatalf("Oracle: %s: %v", JudgeFixture, err)
 	}
-	return db
+	return open
+}
+
+// Cuttable opens one session to the go-ora URL url, and returns it with
+// what cuts its network connection. A statement the server never answers
+// leaves go-ora reading for good and the server's session holding its
+// locks; cutting the connection ends both, where closing the session would
+// wait on the read.
+func Cuttable(url string) (*sql.DB, func()) {
+	d := &cutDialer{}
+	c := go_ora.NewConnector(url).(*go_ora.OracleConnector)
+	c.Dialer(d)
+	db := sql.OpenDB(c)
+	db.SetMaxOpenConns(1)
+	return db, d.cut
+}
+
+// cutDialer dials go-ora's connections and keeps them, so cut can close
+// them.
+type cutDialer struct {
+	mu    sync.Mutex
+	conns []net.Conn
+}
+
+func (d *cutDialer) DialContext(ctx context.Context, network, address string) (net.Conn, error) {
+	c, err := (&net.Dialer{}).DialContext(ctx, network, address)
+	if err == nil {
+		d.mu.Lock()
+		d.conns = append(d.conns, c)
+		d.mu.Unlock()
+	}
+	return c, err
+}
+
+func (d *cutDialer) cut() {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	for _, c := range d.conns {
+		_ = c.Close()
+	}
+	d.conns = nil
 }
 
 // Terminate removes the server this process started.

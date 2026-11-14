@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	nodes "github.com/bytebase/omni/tidb/ast"
 )
 
@@ -68,17 +70,19 @@ func (p *Parser) parseExecuteStmt() (*nodes.ExecuteStmt, error) {
 	stmt.Name = name
 
 	// Optional USING
+	// USING takes user variables and nothing else. Ref: ExecuteStmt's
+	// "USING" UserVariableList in tidb/testdata/parser.y.
 	if p.cur.Type == kwUSING {
 		p.advance()
 		for {
-			expr, err := p.parseExpr()
+			if !p.atUsingVariable() {
+				return nil, p.syntaxErrorAtCur()
+			}
+			ref, err := p.parseVariableRef()
 			if err != nil {
 				return nil, err
 			}
-			if expr == nil {
-				return nil, p.syntaxErrorAtCur()
-			}
-			stmt.Params = append(stmt.Params, expr)
+			stmt.Params = append(stmt.Params, ref)
 			if p.cur.Type != ',' {
 				break
 			}
@@ -117,4 +121,13 @@ func (p *Parser) parseDeallocateStmt() (*nodes.DeallocateStmt, error) {
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// atUsingVariable reports whether p.cur is a user variable as singleAtIdentifier
+// spells one, the unnamed one included: a bare @, and an @ before two quotes or
+// two backquotes, which the lexer folds into a token whose text is "@" alone. The
+// source text, which starts at the @, tells it from a backquoted name.
+func (p *Parser) atUsingVariable() bool {
+	return p.cur.Type == tokIDENT && strings.HasPrefix(p.cur.Str, "@") &&
+		strings.HasPrefix(p.inputText(p.cur.Loc, p.cur.End), "@")
 }

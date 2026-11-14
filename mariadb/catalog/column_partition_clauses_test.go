@@ -1,0 +1,426 @@
+package catalog
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"strings"
+	"testing"
+)
+
+// columnPartitionClauseCases hold what the column, key and partition clauses of
+// MariaDB's grammar that the parser reads since the grammar's rows held it to them
+// do to the tables: a column's engine-defined options, CONSTRAINT before its
+// REFERENCES, NOT NULL ENABLE, a qualified column name, the PARTITION keyword a
+// partition definition may leave off, and CONVERT PARTITION and CONVERT TABLE.
+// Each case runs its setup and then sql on mariadb:11.8.8 and on the catalog, which
+// must answer the same code and print each of tables the same (a table's name
+// backquoted where it needs it).
+var columnPartitionClauseCases = []struct {
+	name    string
+	setup   []string
+	sql     string
+	tables  []string
+	errCode int
+}{
+	{
+		name:   "a column's reference takes a constraint name",
+		setup:  []string{"CREATE TABLE p (id INT PRIMARY KEY)"},
+		sql:    "CREATE TABLE c (a INT CONSTRAINT fk1 REFERENCES p (id), b INT CONSTRAINT REFERENCES p (id), d INT CHECK (d > 0) CONSTRAINT fk2 REFERENCES p (id) ON DELETE CASCADE)",
+		tables: []string{"c"},
+	},
+	{
+		name:   "NOT NULL ENABLE is NOT NULL",
+		sql:    "CREATE TABLE n (a INT NOT NULL ENABLE DEFAULT 1, b INT NOT NULL ENABLE)",
+		tables: []string{"n"},
+	},
+	{
+		name:   "INVISIBLE comes before COMMENT",
+		sql:    "CREATE TABLE i (a INT COMMENT 'c' INVISIBLE, b INT, c INT AS (b) VIRTUAL COMMENT 'g' INVISIBLE, d INT COMMENT 'd' WITHOUT SYSTEM VERSIONING) WITH SYSTEM VERSIONING",
+		tables: []string{"i"},
+	},
+	{
+		name:   "a ROW START column takes a key",
+		sql:    "CREATE TABLE v (a INT, s TIMESTAMP(6) AS ROW START KEY, e TIMESTAMP(6) AS ROW END, PERIOD FOR SYSTEM_TIME (s, e)) WITH SYSTEM VERSIONING",
+		tables: []string{"v"},
+	},
+	{
+		name:   "a ROW START column takes asrow_attribute",
+		sql:    "CREATE TABLE v (a INT, s TIMESTAMP(6) AS ROW START NOT NULL ENABLE UNIQUE COMMENT 'r', e TIMESTAMP(6) GENERATED ALWAYS AS ROW END INVISIBLE, PERIOD FOR SYSTEM_TIME (s, e)) WITH SYSTEM VERSIONING",
+		tables: []string{"v"},
+	},
+	{
+		name:    "a ROW START column ALTER adds to a table not versioned",
+		setup:   []string{"CREATE TABLE v (a INT PRIMARY KEY)"},
+		sql:     "ALTER TABLE v ADD a TIMESTAMP(6) AS ROW START KEY",
+		errCode: 4124,
+	},
+	{
+		name:   "ROW START and ROW END ALTER adds with SYSTEM VERSIONING",
+		setup:  []string{"CREATE TABLE v (a INT, KEY k (a))"},
+		sql:    "ALTER TABLE v ADD s TIMESTAMP(6) AS ROW START, ADD e TIMESTAMP(6) AS ROW END, ADD PERIOD FOR SYSTEM_TIME (s, e), ADD SYSTEM VERSIONING",
+		tables: []string{"v"},
+	},
+	{
+		name:    "an engine-defined option InnoDB does not know",
+		sql:     "CREATE TABLE o (a INT x = 1)",
+		errCode: 1911,
+	},
+	{
+		name:    "an engine-defined option ALTER adds",
+		setup:   []string{"CREATE TABLE o (a INT)"},
+		sql:     "ALTER TABLE o ADD b INT x = 's'",
+		errCode: 1911,
+	},
+	{
+		name:   "engine-defined options under IGNORE_BAD_TABLE_OPTIONS",
+		setup:  []string{"SET sql_mode = 'IGNORE_BAD_TABLE_OPTIONS'"},
+		sql:    "CREATE TABLE o (a INT NOT NULL DEFAULT 1 COMMENT 'c' x = 1 INVISIBLE CHECK (a > 0), b INT y = 2 z := 'it''s' Y = w, c INT q = 1 q = DEFAULT, d INT `select` = 0x41 READ_ONLY = 7, e INT `x``y` = 1, f INT u = 0xffffffffffffffff v = 9223372036854775808 t = 9223372036854775807, KEY k (e) `m``n` = 2, KEY k2 (f) w = 18446744073709551615)",
+		tables: []string{"o"},
+	},
+	{
+		name:   "MODIFY gives a column the options it writes",
+		setup:  []string{"SET sql_mode = 'IGNORE_BAD_TABLE_OPTIONS'", "CREATE TABLE o (a INT x = 1, b INT y = 2)"},
+		sql:    "ALTER TABLE o MODIFY a INT, CHANGE b b INT k = 3",
+		tables: []string{"o"},
+	},
+	{
+		name:   "options outside IGNORE_BAD_TABLE_OPTIONS print in a comment",
+		setup:  []string{"SET sql_mode = 'IGNORE_BAD_TABLE_OPTIONS'", "CREATE TABLE o (a INT x = 1, b INT y = 2 z = 3)", "SET sql_mode = DEFAULT"},
+		sql:    "ALTER TABLE o ADD c INT",
+		tables: []string{"o"},
+	},
+	{
+		name:   "a column named after its table",
+		setup:  []string{"CREATE TABLE q (a INT, b INT, c INT DEFAULT 1)"},
+		sql:    "ALTER TABLE q DROP q.b, ALTER q.c DROP DEFAULT, CHANGE .a z INT, ADD q.d INT",
+		tables: []string{"q"},
+	},
+	{
+		name:   "partitions without the PARTITION keyword",
+		sql:    "CREATE TABLE pr (a INT) PARTITION BY RANGE (a) (p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (20))",
+		tables: []string{"pr"},
+	},
+	{
+		name:   "ADD PARTITION without the keyword",
+		setup:  []string{"CREATE TABLE pr (a INT) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))"},
+		sql:    "ALTER TABLE pr ADD PARTITION (p1 VALUES LESS THAN (20), PARTITION p2 VALUES LESS THAN (30))",
+		tables: []string{"pr"},
+	},
+	{
+		name:   "REORGANIZE PARTITION without the keyword",
+		setup:  []string{"CREATE TABLE pr (a INT) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (20))"},
+		sql:    "ALTER TABLE pr REORGANIZE PARTITION p1 INTO (p1a VALUES LESS THAN (15), p1b VALUES LESS THAN (20))",
+		tables: []string{"pr"},
+	},
+	{
+		name:   "CONVERT PARTITION makes a table",
+		setup:  []string{"CREATE TABLE pt (a INT PRIMARY KEY, b VARCHAR(10) COMMENT 'bb') PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (20), PARTITION p2 VALUES LESS THAN (30))"},
+		sql:    "ALTER TABLE pt CONVERT PARTITION p1 TO TABLE ct",
+		tables: []string{"pt", "ct"},
+	},
+	{
+		name:   "CONVERT TABLE makes a partition",
+		setup:  []string{"CREATE TABLE pt (a INT PRIMARY KEY, b VARCHAR(10) COMMENT 'bb') PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))", "CREATE TABLE ct (a INT PRIMARY KEY, b VARCHAR(10) COMMENT 'bb')"},
+		sql:    "ALTER TABLE pt CONVERT TABLE ct TO PARTITION p1 VALUES LESS THAN (20) WITHOUT VALIDATION",
+		tables: []string{"pt", "ct"},
+	},
+	{
+		name:   "CONVERT TABLE into a table whose name holds a parenthesis",
+		setup:  []string{"CREATE TABLE `pt (x` (a INT PRIMARY KEY) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))", "CREATE TABLE ct (a INT PRIMARY KEY)"},
+		sql:    "ALTER TABLE `pt (x` CONVERT TABLE ct TO PARTITION p1 VALUES LESS THAN (20)",
+		tables: []string{"`pt (x`", "ct"},
+	},
+	{
+		name:    "CONVERT TABLE of another definition",
+		setup:   []string{"CREATE TABLE pt (a INT PRIMARY KEY) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))", "CREATE TABLE ct (a INT)"},
+		sql:     "ALTER TABLE pt CONVERT TABLE ct TO PARTITION p1 VALUES LESS THAN (20)",
+		errCode: 1736,
+	},
+	{
+		name:    "CONVERT TABLE of another definition, the clause in a comment",
+		setup:   []string{"CREATE TABLE pt (a INT COMMENT '\\n PARTITION BY x', b INT) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))", "CREATE TABLE ct (a INT COMMENT '\\n PARTITION BY x', b VARCHAR(20))"},
+		sql:     "ALTER TABLE pt CONVERT TABLE ct TO PARTITION p1 VALUES LESS THAN (20)",
+		errCode: 1736,
+	},
+	{
+		name:    "CONVERT TABLE of a partitioned table",
+		setup:   []string{"CREATE TABLE pt (a INT) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))", "CREATE TABLE ct (a INT) PARTITION BY HASH (a)"},
+		sql:     "ALTER TABLE pt CONVERT TABLE ct TO PARTITION p1 VALUES LESS THAN (20)",
+		errCode: 1736,
+	},
+	{
+		name:    "CONVERT TABLE to a partition the table has",
+		setup:   []string{"CREATE TABLE pt (a INT) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))", "CREATE TABLE ct (a INT)"},
+		sql:     "ALTER TABLE pt CONVERT TABLE ct TO PARTITION P0 VALUES LESS THAN (20)",
+		errCode: 1517,
+	},
+	{
+		name:    "CONVERT TABLE to a bound below the table's last",
+		setup:   []string{"CREATE TABLE pt (a INT) PARTITION BY RANGE COLUMNS (a) (PARTITION p0 VALUES LESS THAN (10))", "CREATE TABLE ct (a INT)"},
+		sql:     "ALTER TABLE pt CONVERT TABLE ct TO PARTITION p1 VALUES LESS THAN (5)",
+		errCode: 1493,
+	},
+	{
+		name:    "ADD PARTITION at the table's last bound",
+		setup:   []string{"CREATE TABLE pt (a INT) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))"},
+		sql:     "ALTER TABLE pt ADD PARTITION (p1 VALUES LESS THAN (10))",
+		errCode: 1493,
+	},
+	{
+		name:    "ADD PARTITION after MAXVALUE",
+		setup:   []string{"CREATE TABLE pt (a INT) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN MAXVALUE)"},
+		sql:     "ALTER TABLE pt ADD PARTITION (p1 VALUES LESS THAN (5))",
+		errCode: 1481,
+	},
+	{
+		name:    "ADD PARTITION below a RANGE COLUMNS bound of two columns",
+		setup:   []string{"CREATE TABLE pt (a INT, b INT) PARTITION BY RANGE COLUMNS (a, b) (PARTITION p0 VALUES LESS THAN (10, MAXVALUE))"},
+		sql:     "ALTER TABLE pt ADD PARTITION (p1 VALUES LESS THAN (10, 5))",
+		errCode: 1493,
+	},
+	{
+		name:   "ADD PARTITION above the table's last bound",
+		setup:  []string{"CREATE TABLE pt (a INT) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))"},
+		sql:    "ALTER TABLE pt ADD PARTITION (p1 VALUES LESS THAN (20), p2 VALUES LESS THAN MAXVALUE)",
+		tables: []string{"pt"},
+	},
+	{
+		name:    "CONVERT TABLE to a LIST value the table holds",
+		setup:   []string{"CREATE TABLE pt (a INT) PARTITION BY LIST (a) (PARTITION p0 VALUES IN (1, 2))", "CREATE TABLE ct (a INT)"},
+		sql:     "ALTER TABLE pt CONVERT TABLE ct TO PARTITION p1 VALUES IN (2)",
+		errCode: 1495,
+	},
+	{
+		name:    "ADD PARTITION of one LIST value twice",
+		setup:   []string{"CREATE TABLE pt (a INT) PARTITION BY LIST (a) (PARTITION p0 VALUES IN (1))"},
+		sql:     "ALTER TABLE pt ADD PARTITION (p1 VALUES IN (3), p2 VALUES IN (3))",
+		errCode: 1495,
+	},
+	{
+		name:    "ADD PARTITION of a LIST COLUMNS tuple the table holds",
+		setup:   []string{"CREATE TABLE pt (a INT, b INT) PARTITION BY LIST COLUMNS (a, b) (PARTITION p0 VALUES IN ((1, 2)))"},
+		sql:     "ALTER TABLE pt ADD PARTITION (p1 VALUES IN ((1, 2)))",
+		errCode: 1495,
+	},
+	{
+		name:    "ADD PARTITION of NULL again",
+		setup:   []string{"CREATE TABLE pt (a INT) PARTITION BY LIST (a) (PARTITION p0 VALUES IN (NULL))"},
+		sql:     "ALTER TABLE pt ADD PARTITION (p1 VALUES IN (NULL))",
+		errCode: 1495,
+	},
+	{
+		name:   "ADD PARTITION of new LIST values",
+		setup:  []string{"CREATE TABLE pt (a INT) PARTITION BY LIST (a) (PARTITION p0 VALUES IN (1, 2))"},
+		sql:    "ALTER TABLE pt ADD PARTITION (p1 VALUES IN (3, 4), p2 VALUES IN (5))",
+		tables: []string{"pt"},
+	},
+	{
+		name:    "CONVERT PARTITION of the last partition",
+		setup:   []string{"CREATE TABLE pt (a INT) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))"},
+		sql:     "ALTER TABLE pt CONVERT PARTITION p0 TO TABLE ct",
+		errCode: 1508,
+	},
+	{
+		name:    "CONVERT TABLE to a VALUES IN partition of a RANGE table",
+		setup:   []string{"CREATE TABLE pt (a INT) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))", "CREATE TABLE ct (a INT)"},
+		sql:     "ALTER TABLE pt CONVERT TABLE ct TO PARTITION p1 VALUES IN (20)",
+		errCode: 1480,
+	},
+	{
+		name:    "CONVERT TABLE to a RANGE partition of no bound",
+		setup:   []string{"CREATE TABLE pt (a INT) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))", "CREATE TABLE ct (a INT)"},
+		sql:     "ALTER TABLE pt CONVERT TABLE ct TO PARTITION p1",
+		errCode: 1479,
+	},
+	{
+		name:    "ADD PARTITION of LESS THAN to a LIST table",
+		setup:   []string{"CREATE TABLE pt (a INT) PARTITION BY LIST (a) (PARTITION p0 VALUES IN (1))"},
+		sql:     "ALTER TABLE pt ADD PARTITION (p1 VALUES LESS THAN (20))",
+		errCode: 1480,
+	},
+	{
+		name:    "ADD PARTITION of DEFAULT to a RANGE table",
+		setup:   []string{"CREATE TABLE pt (a INT) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))"},
+		sql:     "ALTER TABLE pt ADD PARTITION (p1 DEFAULT)",
+		errCode: 1480,
+	},
+	{
+		name:    "ADD PARTITION of VALUES IN to a HASH table",
+		setup:   []string{"CREATE TABLE pt (a INT) PARTITION BY HASH (a) PARTITIONS 2"},
+		sql:     "ALTER TABLE pt ADD PARTITION (p9 VALUES IN (1))",
+		errCode: 1480,
+	},
+	{
+		name:   "ADD PARTITION of DEFAULT to a LIST table",
+		setup:  []string{"CREATE TABLE pt (a INT) PARTITION BY LIST (a) (PARTITION p0 VALUES IN (1))"},
+		sql:    "ALTER TABLE pt ADD PARTITION (p1 DEFAULT)",
+		tables: []string{"pt"},
+	},
+	{
+		name:   "ADD PARTITION of a value a binary collation tells apart",
+		setup:  []string{"CREATE TABLE pt (a VARCHAR(10) COLLATE utf8mb4_bin) PARTITION BY LIST COLUMNS (a) (PARTITION p0 VALUES IN ('A'))"},
+		sql:    "ALTER TABLE pt ADD PARTITION (p1 VALUES IN ('a'))",
+		tables: []string{"pt"},
+	},
+	{
+		name:    "CONVERT PARTITION of a subpartitioned table",
+		setup:   []string{"CREATE TABLE pt (a INT) PARTITION BY RANGE (a) SUBPARTITION BY HASH (a) SUBPARTITIONS 2 (PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (20))"},
+		sql:     "ALTER TABLE pt CONVERT PARTITION p0 TO TABLE ct",
+		errCode: 4184,
+	},
+	{
+		name:    "CONVERT TABLE into a subpartitioned table",
+		setup:   []string{"CREATE TABLE pt (a INT) PARTITION BY RANGE (a) SUBPARTITION BY HASH (a) SUBPARTITIONS 2 (PARTITION p0 VALUES LESS THAN (10))", "CREATE TABLE ct (a INT)"},
+		sql:     "ALTER TABLE pt CONVERT TABLE ct TO PARTITION p1 VALUES LESS THAN (20)",
+		errCode: 1734,
+	},
+	{
+		name:    "CONVERT TABLE to a RANGE COLUMNS bound one column short",
+		setup:   []string{"CREATE TABLE pt (a INT, b INT) PARTITION BY RANGE COLUMNS (a, b) (PARTITION p0 VALUES LESS THAN (10, 10))", "CREATE TABLE ct (a INT, b INT)"},
+		sql:     "ALTER TABLE pt CONVERT TABLE ct TO PARTITION p1 VALUES LESS THAN (20)",
+		errCode: 1653,
+	},
+	{
+		name:    "ADD PARTITION of a RANGE COLUMNS bound one column long",
+		setup:   []string{"CREATE TABLE pt (a INT, b INT) PARTITION BY RANGE COLUMNS (a, b) (PARTITION p0 VALUES LESS THAN (10, 10))"},
+		sql:     "ALTER TABLE pt ADD PARTITION (p1 VALUES LESS THAN (20, 20, 20))",
+		errCode: 1653,
+	},
+	{
+		name:    "ADD PARTITION of two values to a RANGE table",
+		setup:   []string{"CREATE TABLE pt (a INT) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))"},
+		sql:     "ALTER TABLE pt ADD PARTITION (p1 VALUES LESS THAN (20, 30))",
+		errCode: 1653,
+	},
+	{
+		name:    "ADD PARTITION of a scalar to LIST COLUMNS of two",
+		setup:   []string{"CREATE TABLE pt (a INT, b INT) PARTITION BY LIST COLUMNS (a, b) (PARTITION p0 VALUES IN ((1, 2)))"},
+		sql:     "ALTER TABLE pt ADD PARTITION (p1 VALUES IN (3))",
+		errCode: 1653,
+	},
+	{
+		name:    "ADD PARTITION of a tuple to LIST",
+		setup:   []string{"CREATE TABLE pt (a INT) PARTITION BY LIST (a) (PARTITION p0 VALUES IN (1))"},
+		sql:     "ALTER TABLE pt ADD PARTITION (p1 VALUES IN ((3, 4)))",
+		errCode: 1653,
+	},
+	{
+		name:   "ADD PARTITION of LIST COLUMNS tuples",
+		setup:  []string{"CREATE TABLE pt (a INT, b INT) PARTITION BY LIST COLUMNS (a, b) (PARTITION p0 VALUES IN ((1, 2)))"},
+		sql:    "ALTER TABLE pt ADD PARTITION (p1 VALUES IN ((3, 4), (5, 6)))",
+		tables: []string{"pt"},
+	},
+	{
+		name:    "CONVERT TABLE of no table",
+		setup:   []string{"CREATE TABLE pt (a INT PRIMARY KEY) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))"},
+		sql:     "ALTER TABLE pt CONVERT TABLE ct TO PARTITION p1 VALUES LESS THAN (20)",
+		errCode: 1146,
+	},
+	{
+		name:    "CONVERT PARTITION of no partition",
+		setup:   []string{"CREATE TABLE pt (a INT PRIMARY KEY) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (20))"},
+		sql:     "ALTER TABLE pt CONVERT PARTITION p9 TO TABLE ct",
+		errCode: 1507,
+	},
+	{
+		name:    "CONVERT PARTITION to a table there",
+		setup:   []string{"CREATE TABLE pt (a INT PRIMARY KEY) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (20))", "CREATE TABLE ct (a INT)"},
+		sql:     "ALTER TABLE pt CONVERT PARTITION p1 TO TABLE ct",
+		errCode: 1050,
+	},
+	{
+		name:    "CONVERT PARTITION of HASH partitions",
+		setup:   []string{"CREATE TABLE pt (a INT) PARTITION BY HASH (a) PARTITIONS 2"},
+		sql:     "ALTER TABLE pt CONVERT PARTITION p0 TO TABLE ct",
+		errCode: 1512,
+	},
+	{
+		name:    "CONVERT PARTITION of a table with none",
+		setup:   []string{"CREATE TABLE pt (a INT)"},
+		sql:     "ALTER TABLE pt CONVERT PARTITION p0 TO TABLE ct",
+		errCode: 1505,
+	},
+	{
+		name:    "CONVERT TABLE into a table with none",
+		setup:   []string{"CREATE TABLE pt (a INT)", "CREATE TABLE ct (a INT)"},
+		sql:     "ALTER TABLE pt CONVERT TABLE ct TO PARTITION p0",
+		errCode: 1505,
+	},
+}
+
+// TestColumnPartitionClausesOracle holds the catalog to mariadb:11.8.8 on
+// columnPartitionClauseCases.
+func TestColumnPartitionClausesOracle(t *testing.T) {
+	ctx := context.Background()
+	conn := mariadbDatabase(t)
+	reset := func() {
+		for _, stmt := range []string{"SET sql_mode = DEFAULT", "DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`"} {
+			if _, err := conn.ExecContext(ctx, stmt); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	t.Cleanup(reset)
+	for _, tc := range columnPartitionClauseCases {
+		t.Run(tc.name, func(t *testing.T) {
+			reset()
+			cat := New()
+			execAlterClauses(t, cat, "CREATE DATABASE d; USE d;")
+			for _, stmt := range tc.setup {
+				if _, err := conn.ExecContext(ctx, stmt); err != nil {
+					t.Fatalf("mariadb setup %q: %v", stmt, err)
+				}
+				execAlterClauses(t, cat, stmt)
+			}
+			engCode, engMsg := mariadbErr(t, tc.sql, func() error { _, err := conn.ExecContext(ctx, tc.sql); return err }())
+			if engCode != tc.errCode {
+				t.Fatalf("mariadb answered %d (%s), the case says %d", engCode, engMsg, tc.errCode)
+			}
+			catCode, catMsg := 0, ""
+			if err := execAlterClausesExpectError(t, cat, tc.sql); err != nil {
+				var cerr *Error
+				if !errors.As(err, &cerr) {
+					t.Fatalf("catalog: %v", err)
+				}
+				catCode, catMsg = cerr.Code, cerr.Message
+			}
+			if catCode != engCode {
+				t.Fatalf("catalog answered %d (%s), mariadb %d (%s)", catCode, catMsg, engCode, engMsg)
+			}
+			for _, table := range tc.tables {
+				eng := showCreateOrNone(t, conn, table)
+				omni := cat.ShowCreateTable("d", strings.Trim(table, "`"))
+				if normalizeWhitespace(eng) != normalizeWhitespace(omni) {
+					t.Errorf("SHOW CREATE TABLE %s differs:\n--- mariadb ---\n%s\n--- catalog ---\n%s", table, eng, omni)
+				}
+			}
+		})
+	}
+}
+
+// showCreateOrNone is SHOW CREATE TABLE of a table on the server, or "" when it
+// has none of the name (1146).
+func showCreateOrNone(t *testing.T, conn *sql.DB, table string) string {
+	t.Helper()
+	var name, ddl string
+	err := conn.QueryRowContext(context.Background(), "SHOW CREATE TABLE "+table).Scan(&name, &ddl)
+	if code, _ := mariadbErr(t, "SHOW CREATE TABLE "+table, err); code == 1146 {
+		return ""
+	}
+	return ddl
+}
+
+// TestListValuesPastInt64NotCompared: the lexer clamps an integer past 2^63-1, so
+// two such LIST values written apart read alike, and the duplicate check must not
+// take them for one value. (MariaDB 11.8.8 answers 1654 for the second on a BIGINT
+// UNSIGNED column, which the catalog does not check.)
+func TestListValuesPastInt64NotCompared(t *testing.T) {
+	c := New()
+	execAlterClauses(t, c, "CREATE DATABASE d; USE d; CREATE TABLE pt (a BIGINT UNSIGNED) PARTITION BY LIST COLUMNS (a) (PARTITION p0 VALUES IN (9223372036854775808));")
+	err := execAlterClausesExpectError(t, c, "ALTER TABLE pt ADD PARTITION (PARTITION p1 VALUES IN (9223372036854775809));")
+	var cerr *Error
+	if errors.As(err, &cerr) && cerr.Code == 1495 {
+		t.Fatalf("two values past 2^63-1 were taken for one: %v", err)
+	}
+}

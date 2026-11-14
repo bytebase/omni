@@ -45,6 +45,14 @@ func (p *Parser) parseWithClause() ([]*nodes.CommonTableExpr, error) {
 		if err != nil {
 			return nil, err
 		}
+		// Two elements of one WITH under one name are 4004, ER_DUP_QUERY_NAME, whatever
+		// their case: With_clause::check_dependencies compares the names with
+		// system_charset_info while the statement parses.
+		for _, prev := range ctes {
+			if strings.EqualFold(prev.Name, name) {
+				return nil, &ParseError{Message: "Duplicate query name `" + name + "` in WITH clause", Position: start}
+			}
+		}
 
 		cte := &nodes.CommonTableExpr{
 			Loc:       nodes.Loc{Start: start},
@@ -248,13 +256,13 @@ func (p *Parser) parseOuterOrderByLimit(stmt *nodes.SelectStmt) error {
 			return &ParseError{Message: "duplicate ORDER BY clause", Position: p.cur.Loc}
 		}
 	}
-	if _, ok := p.match(kwLIMIT); ok {
-		limit, err := p.parseLimitClause()
+	if p.atSelectLimit() {
+		limit, err := p.parseSelectLimit()
 		if err != nil {
 			return err
 		}
 		stmt.Limit = limit
-		if p.cur.Type == kwLIMIT {
+		if p.atSelectLimit() {
 			return &ParseError{Message: "duplicate LIMIT clause", Position: p.cur.Loc}
 		}
 	}
@@ -560,7 +568,9 @@ func (p *Parser) parseSimpleSelect() (*nodes.SelectStmt, error) {
 			stmt.DistinctKind = nodes.DistinctAll
 			p.advance()
 			continue
-		case kwDISTINCT, kwDISTINCTROW:
+		case kwDISTINCT, kwDISTINCTROW, kwUNIQUE:
+			// UNIQUE is DISTINCT by another name (query_expression_option's
+			// UNIQUE_SYM), and is stored as distinct (mariadb:11.8.8).
 			if sawAll {
 				return nil, &ParseError{Message: "Incorrect usage of ALL and DISTINCT", Position: p.cur.Loc}
 			}
@@ -779,9 +789,9 @@ func (p *Parser) parseSimpleSelect() (*nodes.SelectStmt, error) {
 		}
 	}
 
-	// LIMIT clause
-	if _, ok := p.match(kwLIMIT); ok {
-		limit, err := p.parseLimitClause()
+	// LIMIT clause, or FETCH FIRST and OFFSET ROWS in its place.
+	if p.atSelectLimit() {
+		limit, err := p.parseSelectLimit()
 		if err != nil {
 			return nil, err
 		}
@@ -1463,6 +1473,14 @@ func (p *Parser) matchJoinType() (nodes.JoinType, bool, error) {
 			}
 			return nodes.JoinNaturalRight, true, nil
 		}
+		// NATURAL inner_join: JOIN, INNER JOIN or STRAIGHT_JOIN. mariadb:11.8.8 runs
+		// NATURAL INNER JOIN and NATURAL STRAIGHT_JOIN, a natural join whose order is
+		// fixed, which the tree keeps as a natural join.
+		// Ref: table_ref NATURAL inner_join table_factor in MariaDB 11.8 sql/sql_yacc.yy.
+		if _, ok := p.match(kwSTRAIGHT_JOIN); ok {
+			return nodes.JoinNatural, true, nil
+		}
+		p.match(kwINNER)
 		if _, err := p.expect(kwJOIN); err != nil {
 			return 0, false, err
 		}
@@ -1539,7 +1557,8 @@ func (p *Parser) parenOpensQuery() bool {
 // inner block was looked at.
 func continuesParenQuery(tokenType int) bool {
 	switch tokenType {
-	case ')', kwUNION, kwEXCEPT, kwINTERSECT, kwORDER, kwLIMIT, kwFOR, kwLOCK, tokEOF:
+	// FETCH and OFFSET open the fetch_first_clause that stands in LIMIT's place.
+	case ')', kwUNION, kwEXCEPT, kwINTERSECT, kwORDER, kwLIMIT, kwFETCH, kwOFFSET, kwFOR, kwLOCK, tokEOF:
 		return true
 	default:
 		return false
@@ -2064,7 +2083,7 @@ func (p *Parser) parseGroupByList() ([]*nodes.OrderByItem, error) {
 // grammar's limit_option is an identifier, a parameter marker or an integer
 // literal, so `LIMIT 1 + 1`, `LIMIT (1)`, `LIMIT -1`, `LIMIT 1 OR 2`, `LIMIT 1 || 2`,
 // `LIMIT @a`, `LIMIT 0x10` and `LIMIT 1.5` are all 1064. The identifier is a stored
-// program's local variable, and parses anywhere (ER_SP_UNDECLARED_VAR comes later).
+// program's local variable, in reach of the statement (checkSPVarRef).
 func (p *Parser) parseLimitValue() (nodes.ExprNode, error) {
 	if p.cur.Type == tokICONST {
 		// limit_option takes the integer tokens up to ULONGLONG_NUM. What is past 64
@@ -2095,6 +2114,8 @@ func (p *Parser) parseLimitValue() (nodes.ExprNode, error) {
 			}
 			ref.Table, ref.Column = name, column
 			ref.Loc.End = p.prev.End
+		} else if err := p.checkSPVarRef(name, start, true); err != nil {
+			return nil, err
 		}
 		return ref, nil
 	}
@@ -2103,6 +2124,87 @@ func (p *Parser) parseLimitValue() (nodes.ExprNode, error) {
 		return &nodes.ParamMarkerExpr{Loc: nodes.Loc{Start: tok.Loc, End: tok.End}}, nil
 	}
 	return nil, p.syntaxErrorAtCur()
+}
+
+// atSelectLimit reports whether a query's limit_clause starts here: LIMIT, or the
+// fetch_first_clause that stands in its place, which opens with FETCH or OFFSET.
+func (p *Parser) atSelectLimit() bool {
+	switch p.cur.Type {
+	case kwLIMIT, kwFETCH, kwOFFSET:
+		return true
+	}
+	return false
+}
+
+// parseSelectLimit reads a query's limit_clause from its first word: LIMIT and
+// its options, or fetch_first_clause (MariaDB 11.8 sql/sql_yacc.yy):
+//
+//	fetch_first_clause:
+//	    FETCH_SYM first_or_next row_or_rows only_or_with_ties
+//	  | OFFSET_SYM limit_option row_or_rows FETCH_SYM first_or_next row_or_rows only_or_with_ties
+//	  | FETCH_SYM first_or_next limit_option row_or_rows only_or_with_ties
+//	  | OFFSET_SYM limit_option row_or_rows FETCH_SYM first_or_next limit_option row_or_rows only_or_with_ties
+//	  | OFFSET_SYM limit_option row_or_rows
+//	first_or_next: FIRST_SYM | NEXT_SYM
+//	row_or_rows: ROW_SYM | ROWS_SYM
+//	only_or_with_ties: ONLY_SYM | WITH TIES_SYM
+//
+// The count is a limit_option, as LIMIT's is, and is 1 when left out. Only a
+// query takes these: mariadb:11.8.8 answers 1064 for them in DELETE and UPDATE,
+// and for LIMIT and FETCH together.
+func (p *Parser) parseSelectLimit() (*nodes.Limit, error) {
+	if _, ok := p.match(kwLIMIT); ok {
+		return p.parseLimitClause()
+	}
+	limit := &nodes.Limit{Loc: nodes.Loc{Start: p.pos()}, Fetch: true}
+	rowOrRows := func() error {
+		if _, ok := p.match(kwROW, kwROWS); !ok {
+			return p.syntaxErrorAtCur()
+		}
+		return nil
+	}
+	if _, ok := p.match(kwOFFSET); ok {
+		offset, err := p.parseLimitValue()
+		if err != nil {
+			return nil, err
+		}
+		limit.Offset = offset
+		if err := rowOrRows(); err != nil {
+			return nil, err
+		}
+		if p.cur.Type != kwFETCH {
+			limit.Loc.End = p.prev.End
+			return limit, nil
+		}
+	}
+	p.advance() // consume FETCH
+	if _, ok := p.match(kwFIRST, kwNEXT); !ok {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if p.cur.Type == kwROW || p.cur.Type == kwROWS {
+		// No count: one row. The literal stands for nothing in the text.
+		limit.Count = &nodes.IntLit{Loc: nodes.Loc{Start: -1, End: -1}, Value: 1}
+	} else {
+		count, err := p.parseLimitValue()
+		if err != nil {
+			return nil, err
+		}
+		limit.Count = count
+	}
+	if err := rowOrRows(); err != nil {
+		return nil, err
+	}
+	if _, ok := p.match(kwONLY); !ok {
+		if _, err := p.expect(kwWITH); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(kwTIES); err != nil {
+			return nil, err
+		}
+		limit.WithTies = true
+	}
+	limit.Loc.End = p.prev.End
+	return limit, nil
 }
 
 // parseLimitClause parses LIMIT [offset,] count or LIMIT count OFFSET offset.
@@ -2428,11 +2530,14 @@ func (p *Parser) parseIntoClause() (*nodes.IntoClause, error) {
 
 	switch p.cur.Type {
 	case kwOUTFILE:
+		// OUTFILE TEXT_STRING_filesystem ...: the name is no option, and
+		// mariadb:11.8.8 answers 1064 for INTO OUTFILE with nothing after it.
 		p.advance()
-		if p.cur.Type == tokSCONST {
-			into.Outfile = p.cur.Str
-			p.advance()
+		if p.cur.Type != tokSCONST {
+			return nil, p.syntaxErrorAtCur()
 		}
+		into.Outfile = p.cur.Str
+		p.advance()
 
 		// [CHARACTER SET charset_name]
 		if p.cur.Type == kwCHARACTER {
@@ -2471,11 +2576,13 @@ func (p *Parser) parseIntoClause() (*nodes.IntoClause, error) {
 		}
 
 	case kwDUMPFILE:
+		// DUMPFILE TEXT_STRING_filesystem, which is no option either.
 		p.advance()
-		if p.cur.Type == tokSCONST {
-			into.Dumpfile = p.cur.Str
-			p.advance()
+		if p.cur.Type != tokSCONST {
+			return nil, p.syntaxErrorAtCur()
 		}
+		into.Dumpfile = p.cur.Str
+		p.advance()
 	default:
 		// INTO var_name [, var_name ...]. Accepts @user_vars as well as bare
 		// identifiers (stored-program local variables / parameters declared
@@ -2492,6 +2599,9 @@ func (p *Parser) parseIntoClause() (*nodes.IntoClause, error) {
 				nameStart := p.pos()
 				name, _, err := p.parseLvalueIdent()
 				if err != nil {
+					return nil, err
+				}
+				if err := p.checkSPVarRef(name, nameStart, true); err != nil {
 					return nil, err
 				}
 				into.Vars = append(into.Vars, &nodes.VariableRef{
@@ -2748,10 +2858,12 @@ func (p *Parser) parseQueryAfterValues(values *nodes.ValuesStmt) (*nodes.SelectS
 // applies to the whole expression.
 func (p *Parser) atQueryExpressionTail() bool {
 	switch p.cur.Type {
-	case kwORDER, kwLIMIT, kwFOR, kwLOCK:
+	case kwORDER, kwFOR, kwLOCK:
 		return true
 	}
-	return setOpPrecedence(p.cur.Type) > 0
+	// FETCH FIRST and OFFSET ROWS stand where LIMIT does: mariadb:11.8.8 parses
+	// INSERT INTO t VALUES (1) FETCH FIRST ROW ONLY and ... OFFSET 1 ROWS.
+	return p.atSelectLimit() || setOpPrecedence(p.cur.Type) > 0
 }
 
 // parseQueryStatement parses a query expression that stands as a statement or
@@ -2777,15 +2889,27 @@ func (p *Parser) parseQueryStatement() (*nodes.SelectStmt, error) {
 // VALUES (1) INTO @x or (SELECT 1) INTO @x. It is held by the SelectStmt
 // for the whole expression. A statement takes one INTO.
 func (p *Parser) parseTrailingInto(sel *nodes.SelectStmt) error {
-	if sel == nil || p.cur.Type != kwINTO || hasInto(sel) {
+	if sel == nil || hasInto(sel) {
 		return nil
 	}
-	p.advance() // consume INTO
-	into, err := p.parseIntoClause()
-	if err != nil {
-		return err
+	switch p.cur.Type {
+	case kwINTO:
+		p.advance() // consume INTO
+		into, err := p.parseIntoClause()
+		if err != nil {
+			return err
+		}
+		sel.Into = into
+	case kwPROCEDURE:
+		pc, err := p.parseProcedureClause(sel)
+		if err != nil {
+			return err
+		}
+		sel.Procedure = pc
+	default:
+		return nil
 	}
-	sel.Into = into
+	var err error
 	if sel.ForUpdate == nil {
 		switch p.cur.Type {
 		case kwFOR:
@@ -2800,6 +2924,63 @@ func (p *Parser) parseTrailingInto(sel *nodes.SelectStmt) error {
 	}
 	sel.Loc.End = p.prev.End
 	return nil
+}
+
+// parseProcedureClause reads the PROCEDURE clause opt_procedure_or_into gives a
+// SELECT statement in INTO's place, from the PROCEDURE keyword:
+//
+//	procedure_clause: PROCEDURE_SYM ident '(' procedure_list ')'
+//	procedure_list: %empty | procedure_list2
+//	procedure_list2: procedure_list2 ',' procedure_item | procedure_item
+//	procedure_item: remember_name expr remember_end
+//
+// Only a statement takes it: mariadb:11.8.8 answers 1064 for it in a subquery,
+// a view, INSERT ... SELECT and inside parentheses, and parses
+// (SELECT a FROM t) PROCEDURE ANALYSE(). Its actions refuse a subquery among the
+// arguments (1970) and a set operation before it (1234) while the statement
+// parses; a WITH clause is refused (1221) only after it has parsed.
+func (p *Parser) parseProcedureClause(sel *nodes.SelectStmt) (*nodes.ProcedureClause, error) {
+	start := p.pos()
+	p.advance() // consume PROCEDURE
+	name, _, err := p.parseIdent()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	pc := &nodes.ProcedureClause{Loc: nodes.Loc{Start: start}, Name: name}
+	if p.cur.Type != ')' {
+		saved := p.procedureArgs
+		p.procedureArgs = true
+		for {
+			arg, err := p.parseExpr()
+			if err != nil {
+				p.procedureArgs = saved
+				return nil, err
+			}
+			if arg == nil {
+				p.procedureArgs = saved
+				return nil, p.syntaxErrorAtCur()
+			}
+			pc.Args = append(pc.Args, arg)
+			if p.cur.Type != ',' {
+				break
+			}
+			p.advance()
+		}
+		p.procedureArgs = saved
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	pc.Loc.End = p.prev.End
+	for s := sel; s != nil; s = s.ParenSource {
+		if s.SetOp != nodes.SetOpNone {
+			return nil, &ParseError{Message: "Incorrect usage/placement of 'PROCEDURE'", Position: start}
+		}
+	}
+	return pc, nil
 }
 
 // hasInto reports whether the query expression or the query primary it ends
@@ -2827,6 +3008,10 @@ func hasInto(sel *nodes.SelectStmt) bool {
 func (p *Parser) parseSubqueryExpr() (*nodes.SubqueryExpr, error) {
 	if err := p.refuseStoredExprSubquery(p.pos(), false); err != nil {
 		return nil, err
+	}
+	if p.procedureArgs {
+		// procedure_clause sets clause_that_disallows_subselect while its list parses.
+		return nil, &ParseError{Message: "PROCEDURE does not support subqueries or stored functions", Position: p.pos()}
 	}
 	start := p.pos()
 	sel, err := p.parseSelectStmt()

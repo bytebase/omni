@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	nodes "github.com/bytebase/omni/mariadb/ast"
 )
 
@@ -45,10 +47,18 @@ func (p *Parser) finishLoadableFunction(stmt *nodes.CreateFunctionStmt) (*nodes.
 	if _, err := p.expect(kwRETURNS); err != nil {
 		return nil, err
 	}
+	// udf_type is STRING, REAL, DECIMAL or INT, each a keyword with the spellings its
+	// lexer gives the token (DEC, INTEGER, INT4); a backquoted name is none of them.
+	//
+	// Ref: udf_type in sql/sql_yacc.yy and the keyword table in sql/lex.h.
 	retStart := p.pos()
-	retType, _, err := p.parseKeywordOrIdent()
-	if err != nil {
-		return nil, err
+	var retType string
+	switch strings.ToUpper(p.inputText(p.cur.Loc, p.cur.End)) {
+	case "STRING", "REAL", "DECIMAL", "DEC", "INT", "INTEGER", "INT4":
+		retType = strings.ToUpper(p.cur.Str)
+		p.advance()
+	default:
+		return nil, p.syntaxErrorAtCur()
 	}
 	stmt.Returns = &nodes.DataType{
 		Loc:  nodes.Loc{Start: retStart, End: p.prev.End},
@@ -132,12 +142,14 @@ func (p *Parser) parseCreateFunctionStmt(start int, orReplace, isProcedure bool)
 		return nil, &ParseError{Message: "collecting"}
 	}
 
+	var paramNames []string
 	if p.cur.Type != ')' {
 		for {
-			param, err := p.parseFuncParam(isProcedure)
+			param, err := p.parseSpParam(isProcedure, paramNames)
 			if err != nil {
 				return nil, err
 			}
+			paramNames = append(paramNames, param.Name)
 			stmt.Params = append(stmt.Params, param)
 			if p.cur.Type != ',' {
 				break
@@ -196,12 +208,17 @@ func (p *Parser) parseCreateFunctionStmt(start int, orReplace, isProcedure bool)
 	// compound statements, labels, DECLAREs, etc.). See
 	// docs/plans/2026-04-20-mysql-routine-body-grammar.md.
 	bodyStart := p.pos()
-	outerRoutine := p.routine
-	p.routine = routineScope{noResultSet: !isProcedure, function: !isProcedure}
-	defer func() { p.routine = outerRoutine }()
+	defer p.enterStoredProgram(routineScope{noResultSet: !isProcedure, function: !isProcedure}, paramNames...)()
 	body, err := p.parseCompoundStmtOrStmt()
 	if err != nil {
 		return nil, err
+	}
+	// A function's body must hold a RETURN somewhere: 1320, ER_SP_NORETURN, when none was
+	// read.
+	//
+	// Ref: LEX::sp_body_finalize_function in MariaDB 11.8 sql/sql_lex.cc.
+	if !isProcedure && !p.routine.hasReturn && !p.completing {
+		return nil, &ParseError{Message: "No RETURN found in FUNCTION " + stmt.Name.Name, Position: bodyStart}
 	}
 	bodyEnd := p.pos()
 	stmt.Body = body
@@ -211,46 +228,9 @@ func (p *Parser) parseCreateFunctionStmt(start int, orReplace, isProcedure bool)
 	return stmt, nil
 }
 
-// parseFuncParam parses a function/procedure parameter.
+// parseRoutineCharacteristic parses a routine characteristic, every word of it required.
 //
-//	[IN | OUT | INOUT] param_name type
-func (p *Parser) parseFuncParam(isProcedure bool) (*nodes.FuncParam, error) {
-	start := p.pos()
-	param := &nodes.FuncParam{Loc: nodes.Loc{Start: start}}
-
-	// Optional direction for procedures
-	if isProcedure {
-		if p.cur.Type == kwIN {
-			param.Direction = "IN"
-			p.advance()
-		} else if p.cur.Type == kwOUT {
-			param.Direction = "OUT"
-			p.advance()
-		} else if p.cur.Type == kwINOUT {
-			param.Direction = "INOUT"
-			p.advance()
-		}
-	}
-
-	// Parameter name
-	name, _, err := p.parseIdentifier()
-	if err != nil {
-		return nil, err
-	}
-	param.Name = name
-
-	// Data type
-	dt, err := p.parseDataType()
-	if err != nil {
-		return nil, err
-	}
-	param.TypeName = dt
-
-	param.Loc.End = p.prev.End
-	return param, nil
-}
-
-// parseRoutineCharacteristic parses a routine characteristic.
+// Ref: sp_chistic, sp_c_chistic and sp_suid in MariaDB 11.8 sql/sql_yacc.yy.
 func (p *Parser) parseRoutineCharacteristic() (*nodes.RoutineCharacteristic, bool, error) {
 	start := p.pos()
 
@@ -269,13 +249,13 @@ func (p *Parser) parseRoutineCharacteristic() (*nodes.RoutineCharacteristic, boo
 		return nil, false, p.syntaxErrorAtCur()
 
 	case p.cur.Type == kwLANGUAGE:
+		// LANGUAGE SQL, the one language.
 		p.advance()
-		name, _, err := p.parseKeywordOrIdent()
-		if err != nil {
+		if _, err := p.expect(kwSQL); err != nil {
 			return nil, false, err
 		}
 		return &nodes.RoutineCharacteristic{
-			Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "LANGUAGE", Value: name,
+			Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "LANGUAGE", Value: "SQL",
 		}, true, nil
 
 	case p.cur.Type == kwDETERMINISTIC:
@@ -297,22 +277,32 @@ func (p *Parser) parseRoutineCharacteristic() (*nodes.RoutineCharacteristic, boo
 		return nil, false, nil
 
 	case p.cur.Type == kwSQL:
+		// sp_suid: SQL SECURITY {DEFINER | INVOKER}.
 		p.advance()
-		if p.cur.Type == kwSECURITY {
-			p.advance()
-			name, _, err := p.parseKeywordOrIdent()
-			if err != nil {
-				return nil, false, err
-			}
-			return &nodes.RoutineCharacteristic{
-				Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "SQL SECURITY", Value: name,
-			}, true, nil
+		if _, err := p.expect(kwSECURITY); err != nil {
+			return nil, false, err
 		}
-		return nil, false, nil
+		var val string
+		switch p.cur.Type {
+		case kwDEFINER:
+			val = "DEFINER"
+		case kwINVOKER:
+			val = "INVOKER"
+		default:
+			return nil, false, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		return &nodes.RoutineCharacteristic{
+			Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "SQL SECURITY", Value: val,
+		}, true, nil
 
+	// CONTAINS SQL, READS SQL DATA and MODIFIES SQL DATA are read whole.
+	// Ref: sp_chistic in MariaDB 11.8 sql/sql_yacc.yy.
 	case p.cur.Type == kwCONTAINS:
 		p.advance()
-		p.match(kwSQL)
+		if _, err := p.expect(kwSQL); err != nil {
+			return nil, false, err
+		}
 		return &nodes.RoutineCharacteristic{
 			Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "DATA ACCESS", Value: "CONTAINS SQL",
 		}, true, nil
@@ -329,9 +319,8 @@ func (p *Parser) parseRoutineCharacteristic() (*nodes.RoutineCharacteristic, boo
 
 	case p.cur.Type == kwREADS:
 		p.advance()
-		p.match(kwSQL)
-		if p.cur.Type == kwDATA {
-			p.advance()
+		if err := p.expectSQLData(); err != nil {
+			return nil, false, err
 		}
 		return &nodes.RoutineCharacteristic{
 			Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "DATA ACCESS", Value: "READS SQL DATA",
@@ -339,9 +328,8 @@ func (p *Parser) parseRoutineCharacteristic() (*nodes.RoutineCharacteristic, boo
 
 	case p.cur.Type == kwMODIFIES:
 		p.advance()
-		p.match(kwSQL)
-		if p.cur.Type == kwDATA {
-			p.advance()
+		if err := p.expectSQLData(); err != nil {
+			return nil, false, err
 		}
 		return &nodes.RoutineCharacteristic{
 			Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "DATA ACCESS", Value: "MODIFIES SQL DATA",
@@ -349,4 +337,13 @@ func (p *Parser) parseRoutineCharacteristic() (*nodes.RoutineCharacteristic, boo
 	}
 
 	return nil, false, nil
+}
+
+// expectSQLData reads the SQL DATA after READS or MODIFIES.
+func (p *Parser) expectSQLData() error {
+	if _, err := p.expect(kwSQL); err != nil {
+		return err
+	}
+	_, err := p.expect(kwDATA)
+	return err
 }

@@ -526,6 +526,14 @@ var keywordCategories = map[int]keywordCategory{
 	kwSTATS_AUTO_RECALC:  kwCatReserved,
 	kwSTATS_PERSISTENT:   kwCatReserved,
 	kwSTATS_SAMPLE_PAGES: kwCatReserved,
+
+	// Reserved on MariaDB 11.8 alone, measured: each is a 1064 as a column name,
+	// an alias, a routine name and a system variable.
+	kwCURRENT_ROLE:           kwCatReserved,
+	kwIGNORE_DOMAIN_IDS:      kwCatReserved,
+	kwMASTER_DEMOTE_TO_SLAVE: kwCatReserved,
+	kwPAGE_CHECKSUM:          kwCatReserved,
+	kwPARSE_VCOL_EXPR:        kwCatReserved,
 }
 
 // isReserved returns true if the token type is a reserved keyword that cannot
@@ -1126,6 +1134,12 @@ func (p *Parser) atQuotedUserVar() bool {
 	}
 	next := p.peekNext()
 	return next.Type == tokSCONST && next.Loc == p.cur.End && next.Str != ""
+}
+
+// atUserVar reports whether p.cur starts a named user variable, `'@' ident_or_text`:
+// @name or @'name', not @@name.
+func (p *Parser) atUserVar() bool {
+	return p.cur.Type == tokIDENT && len(p.cur.Str) > 1 && p.cur.Str[0] == '@' || p.atQuotedUserVar()
 }
 
 // isVariableRef returns true if the current token is a variable reference.

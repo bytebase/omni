@@ -161,3 +161,113 @@
 | utf8mb4
 : bytes
 | utf8mb4_uca1400_ai_ci
+> exec
+| DROP VIEW IF EXISTS v_trim_oracle
+< ok 0 0
+> exec
+| CREATE VIEW v_trim_oracle AS SELECT TRIM_ORACLE(a) AS c1, TRIM_ORACLE(LEADING 'x' FROM a) AS c2, TRIM_ORACLE('x' FROM a) AS c3, TRIM_ORACLE(TRAILING FROM a) AS c4 FROM tv
+< ok 0 0
+> query
+| SHOW CREATE VIEW v_trim_oracle
+< result
+< column "View" "VARCHAR"
+< column "Create View" "VARCHAR"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< row
+: bytes
+| v_trim_oracle
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_trim_oracle` AS select oracle_schema.trim(`tv`.`a`) AS `c1`,oracle_schema.trim(leading 'x' from `tv`.`a`) AS `c2`,oracle_schema.trim(both 'x' from `tv`.`a`) AS `c3`,oracle_schema.rtrim(`tv`.`a`) AS `c4` from `tv`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_uca1400_ai_ci
+> exec
+| DROP VIEW IF EXISTS v_trim_mariadb_schema
+< ok 0 0
+> exec
+| CREATE VIEW v_trim_mariadb_schema AS SELECT mariadb_schema.trim(LEADING 'x' FROM a) AS c1, mariadb_schema.trim('x' FROM a) AS c2, mariadb_schema.trim(a) AS c3 FROM tv
+< ok 0 0
+> query
+| SHOW CREATE VIEW v_trim_mariadb_schema
+< result
+< column "View" "VARCHAR"
+< column "Create View" "VARCHAR"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< row
+: bytes
+| v_trim_mariadb_schema
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_trim_mariadb_schema` AS select trim(leading 'x' from `tv`.`a`) AS `c1`,trim(both 'x' from `tv`.`a`) AS `c2`,trim(`tv`.`a`) AS `c3` from `tv`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_uca1400_ai_ci
+> exec
+| DROP VIEW IF EXISTS v_value_func
+< ok 0 0
+> exec
+| CREATE VIEW v_value_func AS SELECT VALUE(a) AS c1, VALUE(t.b) AS c2 FROM t
+< ok 0 0
+> query
+| SHOW CREATE VIEW v_value_func
+< result
+< column "View" "VARCHAR"
+< column "Create View" "VARCHAR"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< row
+: bytes
+| v_value_func
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_value_func` AS select value(`t`.`a`) AS `c1`,value(`t`.`b`) AS `c2` from `t`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_uca1400_ai_ci
+> exec
+| DROP VIEW IF EXISTS v_dyncol_create
+< ok 0 0
+> exec
+| CREATE VIEW v_dyncol_create AS SELECT COLUMN_CREATE('a', 1 AS INT, 'b', 'x' AS CHAR CHARACTER SET latin1, 'c', 1.5 AS DECIMAL(5,2), 'd', a AS UNSIGNED INT, 'e', 1 AS REAL, 'f', '10:00' AS TIME(2), 'g', 'y' AS NCHAR, 'h', 'z' AS CHAR BYTE, 'i', 2) AS c1 FROM tv
+< ok 0 0
+> query
+| SHOW CREATE VIEW v_dyncol_create
+< result
+< column "View" "VARCHAR"
+< column "Create View" "VARCHAR"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< row
+: bytes
+| v_dyncol_create
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_dyncol_create` AS select column_create('a',1 AS int,'b','x' AS char charset latin1 collate latin1_swedish_ci ,'c',1.5 AS decimal,'d',`tv`.`a` AS unsigned int,'e',1 AS double,'f','10:00' AS time,'g','y' AS char charset utf8mb3 collate utf8mb3_general_ci ,'h','z' AS char charset binary ,'i',2) AS `c1` from `tv`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_uca1400_ai_ci
+> exec
+| DROP VIEW IF EXISTS v_dyncol_get
+< ok 0 0
+> exec
+| CREATE VIEW v_dyncol_get AS SELECT COLUMN_ADD(a, 'x', 1 AS DOUBLE, 'y', 'q' AS CHAR CHARSET latin1 COLLATE latin1_bin) AS c1, COLUMN_DELETE(a, 'a', 'b') AS c2, COLUMN_GET(a, 'a' AS INT) AS c3, COLUMN_GET(a, 'a' AS CHAR(3)) AS c4, COLUMN_GET(a, 'a' AS DECIMAL(10,2)) AS c5 FROM tv
+< ok 0 0
+> query
+| SHOW CREATE VIEW v_dyncol_get
+< result
+< column "View" "VARCHAR"
+< column "Create View" "VARCHAR"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< row
+: bytes
+| v_dyncol_get
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_dyncol_get` AS select column_add(`tv`.`a`,'x',1 AS double,'y','q' AS char charset latin1 collate latin1_bin ) AS `c1`,column_add(`tv`.`a`,'a',NULL AS int,'b',NULL AS int) AS `c2`,column_get(`tv`.`a`,'a' as signed) AS `c3`,column_get(`tv`.`a`,'a' as char(3) charset utf8mb4) AS `c4`,column_get(`tv`.`a`,'a' as decimal(10,2)) AS `c5` from `tv`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_uca1400_ai_ci

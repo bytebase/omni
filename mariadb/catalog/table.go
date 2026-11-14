@@ -1,5 +1,7 @@
 package catalog
 
+import nodes "github.com/bytebase/omni/mariadb/ast"
+
 type Table struct {
 	Name             string
 	Database         *Database
@@ -27,7 +29,13 @@ type Table struct {
 	PackKeys         string
 	Checksum         string
 	DelayKeyWrite    string
-	Partitioning     *PartitionInfo
+	// PageChecksum and Transactional are "0", "1", or "" when unset (DEFAULT).
+	PageChecksum  string
+	Transactional string
+	// EngineOptions are the engine-defined options, `name`=value, in the order
+	// MariaDB prints them: a later setting of a name moves it to the end.
+	EngineOptions []EngineOption
+	Partitioning  *PartitionInfo
 
 	// System versioning (MariaDB temporal). SystemVersioned is set by
 	// WITH SYSTEM VERSIONING or by any versioned/period column.
@@ -88,6 +96,9 @@ type PartitionDefInfo struct {
 	Engine        string // ENGINE option for this partition
 	Comment       string // COMMENT option for this partition
 	SubPartitions []*SubPartitionDefInfo
+	// bound is the VALUES bound as the statement wrote it, which a partition
+	// added later is ordered against (checkAddedRangeBounds). Nil when not known.
+	bound nodes.Node
 }
 
 // SubPartitionDefInfo holds a single subpartition definition.
@@ -126,6 +137,11 @@ type Column struct {
 	// what DataType and ColumnType hold; this says what it was written as, for
 	// a caller that needs to tell such a column from a plain longtext.
 	IsJSON bool
+	// EngineOptions are the column's engine-defined options as SHOW CREATE
+	// TABLE writes them, `x`=1, in the order it writes them. InnoDB knows
+	// none, so a column carries any only when sql_mode had
+	// IGNORE_BAD_TABLE_OPTIONS as the statement ran.
+	EngineOptions []string
 }
 
 type ColumnDefaultKind int
@@ -251,6 +267,7 @@ type Event struct {
 // but has independent slices and maps so that mutations do not affect the original.
 func cloneTable(src *Table) Table {
 	dst := *src // shallow copy of all scalar fields
+	dst.EngineOptions = append([]EngineOption(nil), src.EngineOptions...)
 
 	// Deep copy columns.
 	dst.Columns = make([]*Column, len(src.Columns))
@@ -351,4 +368,56 @@ func (t *Table) HiddenColumns() []*Column {
 		}
 	}
 	return result
+}
+
+// EngineOption is an engine-defined table option. Quoted records a string value.
+type EngineOption struct {
+	Name   string
+	Value  string
+	Quoted bool
+}
+
+// engineTableOptions are the engine-defined table options each engine the pinned
+// server carries defines (ha_innodb.cc's innodb_table_option_list; MyISAM, Aria
+// and MEMORY define none). Any other name is 1911 on these engines; an engine
+// not listed here keeps its own list, which the catalog does not know, so its
+// options are taken as written.
+var engineTableOptions = map[string]map[string]bool{
+	"innodb": {
+		"page_compressed": true, "page_compression_level": true,
+		"encrypted": true, "encryption_key_id": true,
+	},
+	"myisam": {}, "aria": {}, "memory": {},
+}
+
+// setEngineOption applies one engine-defined option: DEFAULT removes it, any
+// other value replaces it and moves it to the end, as MariaDB 11.8.8 prints it.
+func (t *Table) setEngineOption(name, value string, quoted bool) error {
+	engine := toLower(t.Engine)
+	if engine == "" {
+		engine = "innodb"
+	}
+	if known, ok := engineTableOptions[engine]; ok && !known[toLower(name)] {
+		return errUnknownOption(name)
+	}
+	var kept []EngineOption
+	for _, o := range t.EngineOptions {
+		if !eqFoldStr(o.Name, name) {
+			kept = append(kept, o)
+		}
+	}
+	t.EngineOptions = kept
+	if !quoted && eqFoldStr(value, "DEFAULT") {
+		return nil
+	}
+	t.EngineOptions = append(t.EngineOptions, EngineOption{Name: name, Value: value, Quoted: quoted})
+	return nil
+}
+
+// choiceValue is a choice option's stored value: "" for DEFAULT.
+func choiceValue(v string) string {
+	if eqFoldStr(v, "DEFAULT") {
+		return ""
+	}
+	return v
 }

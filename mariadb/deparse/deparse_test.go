@@ -468,6 +468,23 @@ func TestDeparse_Section_3_2_SpecialFunctionForms(t *testing.T) {
 		{"trim_trailing", "TRIM(TRAILING 'x' FROM a)", "trim(trailing 'x' from `a`)"},
 		// TRIM BOTH
 		{"trim_both", "TRIM(BOTH 'x' FROM a)", "trim(both 'x' from `a`)"},
+		// TRIM_ORACLE is stored as oracle_schema.trim (mariadb:11.8.8).
+		{"trim_oracle", "TRIM_ORACLE('x' FROM a)", "oracle_schema.trim(both 'x' from `a`)"},
+		{"trim_oracle_leading", "TRIM_ORACLE(LEADING FROM a)", "oracle_schema.ltrim(`a`)"},
+		// mariadb_schema's TRIM is the default one, stored with no schema
+		// (mariadb:11.8.8).
+		{"mariadb_schema_trim_leading", "mariadb_schema.trim(LEADING 'x' FROM a)", "trim(leading 'x' from `a`)"},
+		{"mariadb_schema_trim_from", "mariadb_schema.trim('x' FROM a)", "trim(both 'x' from `a`)"},
+		{"mariadb_schema_trim", "mariadb_schema.trim(a)", "trim(`a`)"},
+		// No TRIM arm reads an empty list: this is an ordinary call.
+		{"oracle_schema_trim_empty", "oracle_schema.trim()", "`oracle_schema`.`trim`()"},
+		// A stored package's routine keeps its three parts as written:
+		// `d`.`PK`.`F`(3) (mariadb:11.8.8).
+		{"package_routine", "d.PK.F(3, a)", "`d`.`PK`.`F`(3,`a`)"},
+		{"dyncol_delete", "COLUMN_DELETE(a, 'x')", "column_add(`a`,'x',NULL AS int)"},
+		{"dyncol_create", "COLUMN_CREATE('x', 1 AS UNSIGNED INT, 'y', 'z' AS CHAR BINARY)",
+			"column_create('x',1 AS unsigned int,'y','z' AS char charset utf8mb4 collate utf8mb4_bin )"},
+		{"dyncol_get", "COLUMN_GET(a, 'x' AS INT)", "column_get(`a`,'x' as signed)"},
 	}
 
 	for _, tc := range cases {
@@ -1299,6 +1316,18 @@ func TestDeparseSelect_SourceClauses(t *testing.T) {
 		// A value is written as writeExpr writes any expression, which
 		// parenthesizes 1 + 1 where MariaDB does not.
 		{"VALUES (1 + 1, 'x') UNION VALUES (3, 'y')", "values (1 + 1,'x') union values (3,'y')"},
+		// PROCEDURE follows a parenthesized query and VALUES as it does a SELECT.
+		{"(SELECT 1) PROCEDURE ANALYSE()", "(select 1 AS `1`) procedure `ANALYSE`()"},
+		{"VALUES (1) PROCEDURE ANALYSE(10)", "values (1) procedure `ANALYSE`(10)"},
+		{"SELECT a FROM t PROCEDURE ANALYSE(10, 2)", "select `a` AS `a` from `t` procedure `ANALYSE`(10,2)"},
+		// Rebuilt with no source text, an unaliased item's name spells FETCH in
+		// its own words, taking FIRST and ROW(S) where the AST keeps no choice.
+		{"SELECT (SELECT 1 OFFSET 2 ROWS)", "select (select 1) AS `(SELECT 1 OFFSET 2 ROWS)`"},
+		// A bare OFFSET that holds a parameter marker keeps its binding.
+		{"SELECT a FROM t OFFSET ? ROWS", "select `a` AS `a` from `t` offset ? rows"},
+		{"SELECT (SELECT a FROM t ORDER BY a FETCH FIRST 2 ROWS WITH TIES)",
+			"select (select `a` from `t` order by `a` fetch first 2 rows with ties) AS `(SELECT a FROM t ORDER BY a FETCH FIRST 2 ROWS WITH TIES)`"},
+		{"SELECT (SELECT a FROM t FETCH NEXT ROW ONLY)", "select (select `a` from `t` limit 1) AS `(SELECT a FROM t FETCH FIRST ROW ONLY)`"},
 	}
 	for _, tc := range cases {
 		got := DeparseSelect(parseSelect(t, tc.input))
