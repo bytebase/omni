@@ -75,9 +75,10 @@ func (w *writer) writeObjectClause(kind string, c *ast.ObjectClause) error {
 	}
 	commas := objectOptionCommas(kind, c.Keywords)
 	for i, o := range c.Options {
-		// A clause's bare entries are a list (VECTOR INDEXES); some pages
-		// separate a clause's properties with commas (objectOptionCommas).
-		if i > 0 && (commas || (o.Bare && c.Options[i-1].Bare)) {
+		// A clause's bare entries and nameless options are lists
+		// (listsWith); some pages separate a clause's properties with
+		// commas (objectOptionCommas).
+		if i > 0 && (commas || listsWith(c.Options[i-1], o)) {
 			w.buf.WriteByte(',')
 		}
 		w.buf.WriteByte(' ')
@@ -104,6 +105,13 @@ func (w *writer) writeObjectClause(kind string, c *ast.ObjectClause) error {
 		return w.writeNode(c.Query)
 	}
 	return nil
+}
+
+// listsWith reports whether option o continues a comma list after prev: a
+// clause's bare entries (VECTOR INDEXES a, b) or its nameless options
+// (REGION GROUPS 'a', 'b').
+func listsWith(prev, o *ast.CopyOption) bool {
+	return (o.Bare && prev.Bare) || (o.Name == "" && prev.Name == "")
 }
 
 // objectOptionCommas reports whether a clause of an object of kind separates

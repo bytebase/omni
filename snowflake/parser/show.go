@@ -228,6 +228,10 @@ func (p *Parser) startsShowClassWord() bool {
 func (p *Parser) parseShowScope(stmt *ast.ShowStmt) error {
 	p.advance() // consume IN/FOR
 
+	if ok, err := p.parseShowOrganizationScope(stmt); ok {
+		return err
+	}
+
 	// SHOW BACKUPS IN BACKUP SET <name> and SHOW SNAPSHOTS IN SNAPSHOT SET
 	// <name> (https://docs.snowflake.com/en/sql-reference/sql/show-backups-in-backup-set,
 	// https://docs.snowflake.com/en/sql-reference/sql/show-snapshots-in-snapshot-set).

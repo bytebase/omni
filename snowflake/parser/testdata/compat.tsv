@@ -866,21 +866,21 @@ reject	undocumented	docs	statement/alterOpenflowRuntime!drop-4	ALTER OPENFLOW RU
 reject	undocumented	docs	statement/alterOpenflowRuntime!drop-5	ALTER OPENFLOW RUNTIME a
 reject	undocumented	docs	statement/alterOpenflowRuntime!insert	ALTER OPENFLOW RUNTIME a UPGRADE zzz
 reject	undocumented	docs	statement/alterOpenflowRuntime!swap	ALWAYS OPENFLOW RUNTIME a UPGRADE
-reject	accept	docs	statement/alterOrganization	ALTER ORGANIZATION UNSET DOMAIN_NAMES
+accept	accept	docs	statement/alterOrganization	ALTER ORGANIZATION UNSET DOMAIN_NAMES
 reject	undocumented	docs	statement/alterOrganization!drop-1	ORGANIZATION UNSET DOMAIN_NAMES
 reject	undocumented	docs	statement/alterOrganization!drop-2	ALTER UNSET DOMAIN_NAMES
 reject	undocumented	docs	statement/alterOrganization!drop-3	ALTER ORGANIZATION DOMAIN_NAMES
 reject	undocumented	docs	statement/alterOrganization!drop-4	ALTER ORGANIZATION UNSET
 reject	undocumented	docs	statement/alterOrganization!insert	ALTER ORGANIZATION UNSET DOMAIN_NAMES zzz
 reject	undocumented	docs	statement/alterOrganization!swap	ALWAYS ORGANIZATION UNSET DOMAIN_NAMES
-reject	accept	docs	statement/alterOrganizationAccount	ALTER ORGANIZATION ACCOUNT UNSET a
+accept	accept	docs	statement/alterOrganizationAccount	ALTER ORGANIZATION ACCOUNT UNSET a
 reject	undocumented	docs	statement/alterOrganizationAccount!drop-1	ORGANIZATION ACCOUNT UNSET a
 reject	undocumented	docs	statement/alterOrganizationAccount!drop-3	ALTER ORGANIZATION UNSET a
 reject	undocumented	docs	statement/alterOrganizationAccount!drop-4	ALTER ORGANIZATION ACCOUNT a
 reject	undocumented	docs	statement/alterOrganizationAccount!drop-5	ALTER ORGANIZATION ACCOUNT UNSET
 reject	undocumented	docs	statement/alterOrganizationAccount!insert	ALTER ORGANIZATION ACCOUNT UNSET a zzz
 reject	undocumented	docs	statement/alterOrganizationAccount!swap	ALWAYS ORGANIZATION ACCOUNT UNSET a
-reject	accept	docs	statement/alterOrganizationProfile	ALTER ORGANIZATION PROFILE a PUBLISH
+accept	accept	docs	statement/alterOrganizationProfile	ALTER ORGANIZATION PROFILE a PUBLISH
 reject	undocumented	docs	statement/alterOrganizationProfile!drop-1	ORGANIZATION PROFILE a PUBLISH
 reject	undocumented	docs	statement/alterOrganizationProfile!drop-2	ALTER PROFILE a PUBLISH
 reject	undocumented	docs	statement/alterOrganizationProfile!drop-3	ALTER ORGANIZATION a PUBLISH
@@ -888,7 +888,7 @@ reject	undocumented	docs	statement/alterOrganizationProfile!drop-4	ALTER ORGANIZ
 reject	undocumented	docs	statement/alterOrganizationProfile!drop-5	ALTER ORGANIZATION PROFILE a
 reject	undocumented	docs	statement/alterOrganizationProfile!insert	ALTER ORGANIZATION PROFILE a PUBLISH zzz
 reject	undocumented	docs	statement/alterOrganizationProfile!swap	ALWAYS ORGANIZATION PROFILE a PUBLISH
-reject	accept	docs	statement/alterOrganizationSetEventRoutingTable	ALTER ORGANIZATION SET EVENT ROUTING TABLE a FOR ALL APPLICATION LISTINGS
+accept	accept	docs	statement/alterOrganizationSetEventRoutingTable	ALTER ORGANIZATION SET EVENT ROUTING TABLE a FOR ALL APPLICATION LISTINGS
 reject	undocumented	docs	statement/alterOrganizationSetEventRoutingTable!drop-1	ORGANIZATION SET EVENT ROUTING TABLE a FOR ALL APPLICATION LISTINGS
 reject	undocumented	docs	statement/alterOrganizationSetEventRoutingTable!drop-2	ALTER SET EVENT ROUTING TABLE a FOR ALL APPLICATION LISTINGS
 reject	undocumented	docs	statement/alterOrganizationSetEventRoutingTable!drop-3	ALTER ORGANIZATION EVENT ROUTING TABLE a FOR ALL APPLICATION LISTINGS
@@ -902,7 +902,7 @@ reject	undocumented	docs	statement/alterOrganizationSetEventRoutingTable!drop-10
 reject	undocumented	docs	statement/alterOrganizationSetEventRoutingTable!drop-11	ALTER ORGANIZATION SET EVENT ROUTING TABLE a FOR ALL APPLICATION
 reject	undocumented	docs	statement/alterOrganizationSetEventRoutingTable!insert	ALTER ORGANIZATION SET EVENT ROUTING TABLE a FOR ALL APPLICATION LISTINGS zzz
 reject	undocumented	docs	statement/alterOrganizationSetEventRoutingTable!swap	ALWAYS ORGANIZATION SET EVENT ROUTING TABLE a FOR ALL APPLICATION LISTINGS
-reject	accept	docs	statement/alterOrganizationUnsetEventRoutingTable	ALTER ORGANIZATION UNSET EVENT ROUTING TABLE FOR ALL APPLICATION LISTINGS
+accept	accept	docs	statement/alterOrganizationUnsetEventRoutingTable	ALTER ORGANIZATION UNSET EVENT ROUTING TABLE FOR ALL APPLICATION LISTINGS
 reject	undocumented	docs	statement/alterOrganizationUnsetEventRoutingTable!drop-1	ORGANIZATION UNSET EVENT ROUTING TABLE FOR ALL APPLICATION LISTINGS
 reject	undocumented	docs	statement/alterOrganizationUnsetEventRoutingTable!drop-2	ALTER UNSET EVENT ROUTING TABLE FOR ALL APPLICATION LISTINGS
 reject	undocumented	docs	statement/alterOrganizationUnsetEventRoutingTable!drop-3	ALTER ORGANIZATION EVENT ROUTING TABLE FOR ALL APPLICATION LISTINGS
@@ -915,7 +915,7 @@ reject	undocumented	docs	statement/alterOrganizationUnsetEventRoutingTable!drop-
 reject	undocumented	docs	statement/alterOrganizationUnsetEventRoutingTable!drop-10	ALTER ORGANIZATION UNSET EVENT ROUTING TABLE FOR ALL APPLICATION
 reject	undocumented	docs	statement/alterOrganizationUnsetEventRoutingTable!insert	ALTER ORGANIZATION UNSET EVENT ROUTING TABLE FOR ALL APPLICATION LISTINGS zzz
 reject	undocumented	docs	statement/alterOrganizationUnsetEventRoutingTable!swap	ALWAYS ORGANIZATION UNSET EVENT ROUTING TABLE FOR ALL APPLICATION LISTINGS
-reject	accept	docs	statement/alterOrganizationUser	ALTER ORGANIZATION USER a UNSET EMAIL
+accept	accept	docs	statement/alterOrganizationUser	ALTER ORGANIZATION USER a UNSET EMAIL
 reject	undocumented	docs	statement/alterOrganizationUser!drop-1	ORGANIZATION USER a UNSET EMAIL
 accept	accept	docs	statement/alterOrganizationUser!drop-2	ALTER USER a UNSET EMAIL
 reject	undocumented	docs	statement/alterOrganizationUser!drop-3	ALTER ORGANIZATION a UNSET EMAIL
@@ -924,7 +924,7 @@ reject	undocumented	docs	statement/alterOrganizationUser!drop-5	ALTER ORGANIZATI
 reject	undocumented	docs	statement/alterOrganizationUser!drop-6	ALTER ORGANIZATION USER a UNSET
 reject	undocumented	docs	statement/alterOrganizationUser!insert	ALTER ORGANIZATION USER a UNSET EMAIL zzz
 reject	undocumented	docs	statement/alterOrganizationUser!swap	ALWAYS ORGANIZATION USER a UNSET EMAIL
-reject	accept	docs	statement/alterOrganizationUserGroup	ALTER ORGANIZATION USER GROUP a ADD ORGANIZATION USERS a
+accept	accept	docs	statement/alterOrganizationUserGroup	ALTER ORGANIZATION USER GROUP a ADD ORGANIZATION USERS a
 reject	undocumented	docs	statement/alterOrganizationUserGroup!drop-1	ORGANIZATION USER GROUP a ADD ORGANIZATION USERS a
 reject	undocumented	docs	statement/alterOrganizationUserGroup!drop-2	ALTER USER GROUP a ADD ORGANIZATION USERS a
 reject	undocumented	docs	statement/alterOrganizationUserGroup!drop-3	ALTER ORGANIZATION GROUP a ADD ORGANIZATION USERS a
@@ -2560,7 +2560,7 @@ reject	undocumented	docs	statement/createOpenflowRuntime!drop-18	CREATE OPENFLOW
 reject	undocumented	docs	statement/createOpenflowRuntime!drop-19	CREATE OPENFLOW RUNTIME a IN DEPLOYMENT a NODE_TYPE = SMALL MIN_NODES = 1 MAX_NODES = 1 EXECUTE_AS_ROLE =
 reject	undocumented	docs	statement/createOpenflowRuntime!insert	CREATE OPENFLOW RUNTIME a IN DEPLOYMENT a NODE_TYPE = SMALL MIN_NODES = 1 MAX_NODES = 1 EXECUTE_AS_ROLE = a zzz
 reject	undocumented	docs	statement/createOpenflowRuntime!swap	CREATION OPENFLOW RUNTIME a IN DEPLOYMENT a NODE_TYPE = SMALL MIN_NODES = 1 MAX_NODES = 1 EXECUTE_AS_ROLE = a
-reject	accept	docs	statement/createOrganizationAccount	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' EDITION = ENTERPRISE
+accept	accept	docs	statement/createOrganizationAccount	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' EDITION = ENTERPRISE
 reject	undocumented	docs	statement/createOrganizationAccount!drop-1	ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' EDITION = ENTERPRISE
 reject	undocumented	docs	statement/createOrganizationAccount!drop-3	CREATE ORGANIZATION a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' EDITION = ENTERPRISE
 reject	undocumented	docs	statement/createOrganizationAccount!drop-4	CREATE ORGANIZATION ACCOUNT ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' EDITION = ENTERPRISE
@@ -2586,19 +2586,19 @@ reject	undocumented	docs	statement/createOrganizationListing!drop-5	CREATE ORGAN
 reject	undocumented	docs	statement/createOrganizationListing!drop-6	CREATE ORGANIZATION LISTING a AS
 reject	undocumented	docs	statement/createOrganizationListing!insert	CREATE ORGANIZATION LISTING a AS 's' zzz
 reject	undocumented	docs	statement/createOrganizationListing!swap	CREATION ORGANIZATION LISTING a AS 's'
-reject	accept	docs	statement/createOrganizationProfile	CREATE ORGANIZATION PROFILE a
+accept	accept	docs	statement/createOrganizationProfile	CREATE ORGANIZATION PROFILE a
 reject	undocumented	docs	statement/createOrganizationProfile!drop-1	ORGANIZATION PROFILE a
 reject	undocumented	docs	statement/createOrganizationProfile!drop-2	CREATE PROFILE a
 reject	undocumented	docs	statement/createOrganizationProfile!drop-3	CREATE ORGANIZATION a
 reject	undocumented	docs	statement/createOrganizationProfile!drop-4	CREATE ORGANIZATION PROFILE
 reject	undocumented	docs	statement/createOrganizationProfile!insert	CREATE ORGANIZATION PROFILE a zzz
 reject	undocumented	docs	statement/createOrganizationProfile!swap	CREATION ORGANIZATION PROFILE a
-reject	accept	docs	statement/createOrganizationUser	CREATE ORGANIZATION USER a
+accept	accept	docs	statement/createOrganizationUser	CREATE ORGANIZATION USER a
 reject	undocumented	docs	statement/createOrganizationUser!drop-1	ORGANIZATION USER a
 reject	undocumented	docs	statement/createOrganizationUser!drop-4	CREATE ORGANIZATION USER
 reject	undocumented	docs	statement/createOrganizationUser!insert	CREATE ORGANIZATION USER a zzz
 reject	undocumented	docs	statement/createOrganizationUser!swap	CREATION ORGANIZATION USER a
-reject	accept	docs	statement/createOrganizationUserGroup	CREATE ORGANIZATION USER GROUP a
+accept	accept	docs	statement/createOrganizationUserGroup	CREATE ORGANIZATION USER GROUP a
 reject	undocumented	docs	statement/createOrganizationUserGroup!drop-1	ORGANIZATION USER GROUP a
 accept	undocumented	docs	statement/createOrganizationUserGroup!drop-2	CREATE USER GROUP a
 reject	undocumented	docs	statement/createOrganizationUserGroup!drop-3	CREATE ORGANIZATION GROUP a
@@ -3905,17 +3905,17 @@ reject	undocumented	docs	statement/dropOpenflowRuntime!drop-2	DROP RUNTIME a
 reject	undocumented	docs	statement/dropOpenflowRuntime!drop-4	DROP OPENFLOW RUNTIME
 reject	undocumented	docs	statement/dropOpenflowRuntime!insert	DROP OPENFLOW RUNTIME a zzz
 reject	undocumented	docs	statement/dropOpenflowRuntime!swap	DROP_FROM_SOURCE_CATALOG OPENFLOW RUNTIME a
-reject	accept	docs	statement/dropOrganizationProfile	DROP ORGANIZATION PROFILE a
+accept	accept	docs	statement/dropOrganizationProfile	DROP ORGANIZATION PROFILE a
 reject	undocumented	docs	statement/dropOrganizationProfile!drop-2	DROP PROFILE a
 reject	undocumented	docs	statement/dropOrganizationProfile!drop-3	DROP ORGANIZATION a
 reject	undocumented	docs	statement/dropOrganizationProfile!drop-4	DROP ORGANIZATION PROFILE
 reject	undocumented	docs	statement/dropOrganizationProfile!insert	DROP ORGANIZATION PROFILE a zzz
 reject	undocumented	docs	statement/dropOrganizationProfile!swap	DROP_FROM_SOURCE_CATALOG ORGANIZATION PROFILE a
-reject	accept	docs	statement/dropOrganizationUser	DROP ORGANIZATION USER a
+accept	accept	docs	statement/dropOrganizationUser	DROP ORGANIZATION USER a
 reject	undocumented	docs	statement/dropOrganizationUser!drop-4	DROP ORGANIZATION USER
 reject	undocumented	docs	statement/dropOrganizationUser!insert	DROP ORGANIZATION USER a zzz
 reject	undocumented	docs	statement/dropOrganizationUser!swap	DROP_FROM_SOURCE_CATALOG ORGANIZATION USER a
-reject	accept	docs	statement/dropOrganizationUserGroup	DROP ORGANIZATION USER GROUP a
+accept	accept	docs	statement/dropOrganizationUserGroup	DROP ORGANIZATION USER GROUP a
 reject	undocumented	docs	statement/dropOrganizationUserGroup!drop-2	DROP USER GROUP a
 reject	undocumented	docs	statement/dropOrganizationUserGroup!drop-3	DROP ORGANIZATION GROUP a
 reject	undocumented	docs	statement/dropOrganizationUserGroup!drop-5	DROP ORGANIZATION USER GROUP
@@ -4730,7 +4730,7 @@ reject	undocumented	docs	statement/showEntitiesInDcmProject!drop-5	SHOW ENTITIES
 reject	undocumented	docs	statement/showEntitiesInDcmProject!drop-6	SHOW ENTITIES IN DCM PROJECT
 reject	undocumented	docs	statement/showEntitiesInDcmProject!insert	SHOW ENTITIES IN DCM PROJECT a zzz
 reject	undocumented	docs	statement/showEntitiesInDcmProject!swap	SHOW_INITIAL_ROWS ENTITIES IN DCM PROJECT a
-reject	accept	docs	statement/showEventRoutingTableOnOrganization	SHOW EVENT ROUTING TABLE ON ORGANIZATION FOR ALL APPLICATION LISTINGS
+accept	accept	docs	statement/showEventRoutingTableOnOrganization	SHOW EVENT ROUTING TABLE ON ORGANIZATION FOR ALL APPLICATION LISTINGS
 reject	undocumented	docs	statement/showEventRoutingTableOnOrganization!drop-1	EVENT ROUTING TABLE ON ORGANIZATION FOR ALL APPLICATION LISTINGS
 reject	undocumented	docs	statement/showEventRoutingTableOnOrganization!drop-2	SHOW ROUTING TABLE ON ORGANIZATION FOR ALL APPLICATION LISTINGS
 reject	undocumented	docs	statement/showEventRoutingTableOnOrganization!drop-3	SHOW EVENT TABLE ON ORGANIZATION FOR ALL APPLICATION LISTINGS
@@ -5570,7 +5570,7 @@ reject	undocumented	docs	statement/showVersionsInOpenflowConnector!drop-5	SHOW V
 reject	undocumented	docs	statement/showVersionsInOpenflowConnector!drop-6	SHOW VERSIONS IN OPENFLOW CONNECTOR
 reject	undocumented	docs	statement/showVersionsInOpenflowConnector!insert	SHOW VERSIONS IN OPENFLOW CONNECTOR a zzz
 reject	undocumented	docs	statement/showVersionsInOpenflowConnector!swap	SHOW_INITIAL_ROWS VERSIONS IN OPENFLOW CONNECTOR a
-reject	accept	docs	statement/showVersionsInOrganizationProfile	SHOW VERSIONS IN ORGANIZATION PROFILE a
+accept	accept	docs	statement/showVersionsInOrganizationProfile	SHOW VERSIONS IN ORGANIZATION PROFILE a
 reject	undocumented	docs	statement/showVersionsInOrganizationProfile!drop-1	VERSIONS IN ORGANIZATION PROFILE a
 reject	undocumented	docs	statement/showVersionsInOrganizationProfile!drop-2	SHOW IN ORGANIZATION PROFILE a
 accept	undocumented	docs	statement/showVersionsInOrganizationProfile!drop-3	SHOW VERSIONS ORGANIZATION PROFILE a
@@ -17484,7 +17484,7 @@ accept	accept	docs	alterOpenflowRuntime(CASCADE)?/%empty	ALTER OPENFLOW RUNTIME 
 accept	accept	docs	alterOpenflowRuntime(CASCADE)?/CASCADE	ALTER OPENFLOW RUNTIME a TERMINATE CASCADE
 reject	undocumented	docs	alterOpenflowRuntime(CASCADE)?/CASCADE!insert	ALTER OPENFLOW RUNTIME a TERMINATE CASCADE zzz
 reject	undocumented	docs	alterOpenflowRuntime(CASCADE)?/CASCADE!swap	ALTER OPENFLOW RUNTIME a TERMINATE CASES
-reject	accept	docs	alterOrganization/ALTER_ORGANIZATION_SET_DEFAULT_TENANT_TYPE_=_(INTERNAL|EXTERNAL)	ALTER ORGANIZATION SET DEFAULT_TENANT_TYPE = INTERNAL
+accept	accept	docs	alterOrganization/ALTER_ORGANIZATION_SET_DEFAULT_TENANT_TYPE_=_(INTERNAL|EXTERNAL)	ALTER ORGANIZATION SET DEFAULT_TENANT_TYPE = INTERNAL
 reject	undocumented	docs	alterOrganization/ALTER_ORGANIZATION_SET_DEFAULT_TENANT_TYPE_=_(INTERNAL|EXTERNAL)!drop-1	ORGANIZATION SET DEFAULT_TENANT_TYPE = INTERNAL
 reject	undocumented	docs	alterOrganization/ALTER_ORGANIZATION_SET_DEFAULT_TENANT_TYPE_=_(INTERNAL|EXTERNAL)!drop-2	ALTER SET DEFAULT_TENANT_TYPE = INTERNAL
 reject	undocumented	docs	alterOrganization/ALTER_ORGANIZATION_SET_DEFAULT_TENANT_TYPE_=_(INTERNAL|EXTERNAL)!drop-3	ALTER ORGANIZATION DEFAULT_TENANT_TYPE = INTERNAL
@@ -17493,7 +17493,7 @@ reject	undocumented	docs	alterOrganization/ALTER_ORGANIZATION_SET_DEFAULT_TENANT
 reject	undocumented	docs	alterOrganization/ALTER_ORGANIZATION_SET_DEFAULT_TENANT_TYPE_=_(INTERNAL|EXTERNAL)!drop-6	ALTER ORGANIZATION SET DEFAULT_TENANT_TYPE =
 reject	undocumented	docs	alterOrganization/ALTER_ORGANIZATION_SET_DEFAULT_TENANT_TYPE_=_(INTERNAL|EXTERNAL)!insert	ALTER ORGANIZATION SET DEFAULT_TENANT_TYPE = INTERNAL zzz
 reject	undocumented	docs	alterOrganization/ALTER_ORGANIZATION_SET_DEFAULT_TENANT_TYPE_=_(INTERNAL|EXTERNAL)!swap	ALWAYS ORGANIZATION SET DEFAULT_TENANT_TYPE = INTERNAL
-reject	accept	docs	alterOrganization/ALTER_ORGANIZATION_SET_DOMAIN_NAMES_=_(_STRING_(,_STRING)*_)	ALTER ORGANIZATION SET DOMAIN_NAMES =('s')
+accept	accept	docs	alterOrganization/ALTER_ORGANIZATION_SET_DOMAIN_NAMES_=_(_STRING_(,_STRING)*_)	ALTER ORGANIZATION SET DOMAIN_NAMES =('s')
 reject	undocumented	docs	alterOrganization/ALTER_ORGANIZATION_SET_DOMAIN_NAMES_=_(_STRING_(,_STRING)*_)!drop-1	ORGANIZATION SET DOMAIN_NAMES =('s')
 reject	undocumented	docs	alterOrganization/ALTER_ORGANIZATION_SET_DOMAIN_NAMES_=_(_STRING_(,_STRING)*_)!drop-2	ALTER SET DOMAIN_NAMES =('s')
 reject	undocumented	docs	alterOrganization/ALTER_ORGANIZATION_SET_DOMAIN_NAMES_=_(_STRING_(,_STRING)*_)!drop-3	ALTER ORGANIZATION DOMAIN_NAMES =('s')
@@ -17504,21 +17504,21 @@ reject	undocumented	docs	alterOrganization/ALTER_ORGANIZATION_SET_DOMAIN_NAMES_=
 reject	undocumented	docs	alterOrganization/ALTER_ORGANIZATION_SET_DOMAIN_NAMES_=_(_STRING_(,_STRING)*_)!drop-8	ALTER ORGANIZATION SET DOMAIN_NAMES =('s'
 reject	undocumented	docs	alterOrganization/ALTER_ORGANIZATION_SET_DOMAIN_NAMES_=_(_STRING_(,_STRING)*_)!insert	ALTER ORGANIZATION SET DOMAIN_NAMES =('s') zzz
 reject	undocumented	docs	alterOrganization/ALTER_ORGANIZATION_SET_DOMAIN_NAMES_=_(_STRING_(,_STRING)*_)!swap	ALWAYS ORGANIZATION SET DOMAIN_NAMES =('s')
-reject	accept	docs	alterOrganization/ALTER_ORGANIZATION_UNSET_DOMAIN_NAMES	ALTER ORGANIZATION UNSET DOMAIN_NAMES
-reject	accept	docs	alterOrganization(INTERNAL|EXTERNAL)/INTERNAL	ALTER ORGANIZATION SET DEFAULT_TENANT_TYPE = INTERNAL
+accept	accept	docs	alterOrganization/ALTER_ORGANIZATION_UNSET_DOMAIN_NAMES	ALTER ORGANIZATION UNSET DOMAIN_NAMES
+accept	accept	docs	alterOrganization(INTERNAL|EXTERNAL)/INTERNAL	ALTER ORGANIZATION SET DEFAULT_TENANT_TYPE = INTERNAL
 reject	undocumented	docs	alterOrganization(INTERNAL|EXTERNAL)/INTERNAL!swap	ALTER ORGANIZATION SET DEFAULT_TENANT_TYPE = INTERNAL_STAGE
-reject	accept	docs	alterOrganization(INTERNAL|EXTERNAL)/EXTERNAL	ALTER ORGANIZATION SET DEFAULT_TENANT_TYPE = EXTERNAL
+accept	accept	docs	alterOrganization(INTERNAL|EXTERNAL)/EXTERNAL	ALTER ORGANIZATION SET DEFAULT_TENANT_TYPE = EXTERNAL
 reject	undocumented	docs	alterOrganization(INTERNAL|EXTERNAL)/EXTERNAL!insert	ALTER ORGANIZATION SET DEFAULT_TENANT_TYPE = EXTERNAL zzz
 reject	undocumented	docs	alterOrganization(INTERNAL|EXTERNAL)/EXTERNAL!swap	ALTER ORGANIZATION SET DEFAULT_TENANT_TYPE = EXTERNAL_ACCESS
-reject	accept	docs	alterOrganization(,_STRING)*/%empty	ALTER ORGANIZATION SET DOMAIN_NAMES =('s')
+accept	accept	docs	alterOrganization(,_STRING)*/%empty	ALTER ORGANIZATION SET DOMAIN_NAMES =('s')
 reject	undocumented	docs	alterOrganization(,_STRING)*/%empty!insert	ALTER ORGANIZATION SET DOMAIN_NAMES =('s' zzz)
-reject	accept	docs	alterOrganization(,_STRING)*/,_STRING_(,_STRING)*	ALTER ORGANIZATION SET DOMAIN_NAMES =('s', 's')
+accept	accept	docs	alterOrganization(,_STRING)*/,_STRING_(,_STRING)*	ALTER ORGANIZATION SET DOMAIN_NAMES =('s', 's')
 reject	undocumented	docs	alterOrganization(,_STRING)*/,_STRING_(,_STRING)*!drop-1	ALTER ORGANIZATION SET DOMAIN_NAMES =('s' 's')
 reject	undocumented	docs	alterOrganization(,_STRING)*/,_STRING_(,_STRING)*!drop-2	ALTER ORGANIZATION SET DOMAIN_NAMES =('s',)
 reject	undocumented	docs	alterOrganization(,_STRING)*/,_STRING_(,_STRING)*!truncate	ALTER ORGANIZATION SET DOMAIN_NAMES =('s',
 reject	undocumented	docs	alterOrganization(,_STRING)*/,_STRING_(,_STRING)*!insert	ALTER ORGANIZATION SET DOMAIN_NAMES =('s', 's' zzz)
-reject	accept	docs	alterOrganizationAccount/ALTER_ORGANIZATION_ACCOUNT_UNSET_ID_(,_ID)*	ALTER ORGANIZATION ACCOUNT UNSET a
-reject	accept	docs	alterOrganizationAccount/ALTER_ORGANIZATION_ACCOUNT_SET_RESOURCE_MONITOR_=_ID	ALTER ORGANIZATION ACCOUNT SET RESOURCE_MONITOR = a
+accept	accept	docs	alterOrganizationAccount/ALTER_ORGANIZATION_ACCOUNT_UNSET_ID_(,_ID)*	ALTER ORGANIZATION ACCOUNT UNSET a
+accept	accept	docs	alterOrganizationAccount/ALTER_ORGANIZATION_ACCOUNT_SET_RESOURCE_MONITOR_=_ID	ALTER ORGANIZATION ACCOUNT SET RESOURCE_MONITOR = a
 reject	undocumented	docs	alterOrganizationAccount/ALTER_ORGANIZATION_ACCOUNT_SET_RESOURCE_MONITOR_=_ID!drop-1	ORGANIZATION ACCOUNT SET RESOURCE_MONITOR = a
 reject	undocumented	docs	alterOrganizationAccount/ALTER_ORGANIZATION_ACCOUNT_SET_RESOURCE_MONITOR_=_ID!drop-3	ALTER ORGANIZATION SET RESOURCE_MONITOR = a
 reject	undocumented	docs	alterOrganizationAccount/ALTER_ORGANIZATION_ACCOUNT_SET_RESOURCE_MONITOR_=_ID!drop-4	ALTER ORGANIZATION ACCOUNT RESOURCE_MONITOR = a
@@ -17527,7 +17527,7 @@ reject	undocumented	docs	alterOrganizationAccount/ALTER_ORGANIZATION_ACCOUNT_SET
 reject	undocumented	docs	alterOrganizationAccount/ALTER_ORGANIZATION_ACCOUNT_SET_RESOURCE_MONITOR_=_ID!drop-7	ALTER ORGANIZATION ACCOUNT SET RESOURCE_MONITOR =
 reject	undocumented	docs	alterOrganizationAccount/ALTER_ORGANIZATION_ACCOUNT_SET_RESOURCE_MONITOR_=_ID!insert	ALTER ORGANIZATION ACCOUNT SET RESOURCE_MONITOR = a zzz
 reject	undocumented	docs	alterOrganizationAccount/ALTER_ORGANIZATION_ACCOUNT_SET_RESOURCE_MONITOR_=_ID!swap	ALWAYS ORGANIZATION ACCOUNT SET RESOURCE_MONITOR = a
-reject	accept	docs	alterOrganizationAccount/ALTER_ORGANIZATION_ACCOUNT_SET_(PASSWORD|SESSION)_POLICY_QNAME	ALTER ORGANIZATION ACCOUNT SET PASSWORD POLICY a
+accept	accept	docs	alterOrganizationAccount/ALTER_ORGANIZATION_ACCOUNT_SET_(PASSWORD|SESSION)_POLICY_QNAME	ALTER ORGANIZATION ACCOUNT SET PASSWORD POLICY a
 reject	undocumented	docs	alterOrganizationAccount/ALTER_ORGANIZATION_ACCOUNT_SET_(PASSWORD|SESSION)_POLICY_QNAME!drop-1	ORGANIZATION ACCOUNT SET PASSWORD POLICY a
 accept	accept	docs	alterOrganizationAccount/ALTER_ORGANIZATION_ACCOUNT_SET_(PASSWORD|SESSION)_POLICY_QNAME!drop-2	ALTER ACCOUNT SET PASSWORD POLICY a
 reject	undocumented	docs	alterOrganizationAccount/ALTER_ORGANIZATION_ACCOUNT_SET_(PASSWORD|SESSION)_POLICY_QNAME!drop-3	ALTER ORGANIZATION SET PASSWORD POLICY a
@@ -17537,55 +17537,55 @@ reject	undocumented	docs	alterOrganizationAccount/ALTER_ORGANIZATION_ACCOUNT_SET
 reject	undocumented	docs	alterOrganizationAccount/ALTER_ORGANIZATION_ACCOUNT_SET_(PASSWORD|SESSION)_POLICY_QNAME!drop-7	ALTER ORGANIZATION ACCOUNT SET PASSWORD POLICY
 reject	undocumented	docs	alterOrganizationAccount/ALTER_ORGANIZATION_ACCOUNT_SET_(PASSWORD|SESSION)_POLICY_QNAME!insert	ALTER ORGANIZATION ACCOUNT SET PASSWORD POLICY a zzz
 reject	undocumented	docs	alterOrganizationAccount/ALTER_ORGANIZATION_ACCOUNT_SET_(PASSWORD|SESSION)_POLICY_QNAME!swap	ALWAYS ORGANIZATION ACCOUNT SET PASSWORD POLICY a
-reject	accept	docs	alterOrganizationAccount/ALTER_ORGANIZATION_ACCOUNT_UNSET_(PASSWORD|SESSION)_POLICY	ALTER ORGANIZATION ACCOUNT UNSET PASSWORD POLICY
+accept	accept	docs	alterOrganizationAccount/ALTER_ORGANIZATION_ACCOUNT_UNSET_(PASSWORD|SESSION)_POLICY	ALTER ORGANIZATION ACCOUNT UNSET PASSWORD POLICY
 reject	undocumented	docs	alterOrganizationAccount/ALTER_ORGANIZATION_ACCOUNT_UNSET_(PASSWORD|SESSION)_POLICY!drop-1	ORGANIZATION ACCOUNT UNSET PASSWORD POLICY
 reject	undocumented	docs	alterOrganizationAccount/ALTER_ORGANIZATION_ACCOUNT_UNSET_(PASSWORD|SESSION)_POLICY!drop-3	ALTER ORGANIZATION UNSET PASSWORD POLICY
 reject	undocumented	docs	alterOrganizationAccount/ALTER_ORGANIZATION_ACCOUNT_UNSET_(PASSWORD|SESSION)_POLICY!drop-4	ALTER ORGANIZATION ACCOUNT PASSWORD POLICY
-reject	accept	docs	alterOrganizationAccount/ALTER_ORGANIZATION_ACCOUNT_UNSET_(PASSWORD|SESSION)_POLICY!drop-5	ALTER ORGANIZATION ACCOUNT UNSET POLICY
-reject	accept	docs	alterOrganizationAccount/ALTER_ORGANIZATION_ACCOUNT_UNSET_(PASSWORD|SESSION)_POLICY!drop-6	ALTER ORGANIZATION ACCOUNT UNSET PASSWORD
+accept	accept	docs	alterOrganizationAccount/ALTER_ORGANIZATION_ACCOUNT_UNSET_(PASSWORD|SESSION)_POLICY!drop-5	ALTER ORGANIZATION ACCOUNT UNSET POLICY
+accept	accept	docs	alterOrganizationAccount/ALTER_ORGANIZATION_ACCOUNT_UNSET_(PASSWORD|SESSION)_POLICY!drop-6	ALTER ORGANIZATION ACCOUNT UNSET PASSWORD
 reject	undocumented	docs	alterOrganizationAccount/ALTER_ORGANIZATION_ACCOUNT_UNSET_(PASSWORD|SESSION)_POLICY!insert	ALTER ORGANIZATION ACCOUNT UNSET PASSWORD POLICY zzz
 reject	undocumented	docs	alterOrganizationAccount/ALTER_ORGANIZATION_ACCOUNT_UNSET_(PASSWORD|SESSION)_POLICY!swap	ALWAYS ORGANIZATION ACCOUNT UNSET PASSWORD POLICY
-reject	accept	docs	alterOrganizationAccount/ALTER_ORGANIZATION_ACCOUNT_SET_TAG_QNAME_=_STRING_(,_QN~425616c1	ALTER ORGANIZATION ACCOUNT SET TAG a = 's'
+accept	accept	docs	alterOrganizationAccount/ALTER_ORGANIZATION_ACCOUNT_SET_TAG_QNAME_=_STRING_(,_QN~425616c1	ALTER ORGANIZATION ACCOUNT SET TAG a = 's'
 reject	undocumented	docs	alterOrganizationAccount/ALTER_ORGANIZATION_ACCOUNT_SET_TAG_QNAME_=_STRING_(,_QN~425616c1!drop-1	ORGANIZATION ACCOUNT SET TAG a = 's'
 reject	undocumented	docs	alterOrganizationAccount/ALTER_ORGANIZATION_ACCOUNT_SET_TAG_QNAME_=_STRING_(,_QN~425616c1!drop-3	ALTER ORGANIZATION SET TAG a = 's'
 reject	undocumented	docs	alterOrganizationAccount/ALTER_ORGANIZATION_ACCOUNT_SET_TAG_QNAME_=_STRING_(,_QN~425616c1!drop-4	ALTER ORGANIZATION ACCOUNT TAG a = 's'
-reject	undocumented	docs	alterOrganizationAccount/ALTER_ORGANIZATION_ACCOUNT_SET_TAG_QNAME_=_STRING_(,_QN~425616c1!drop-5	ALTER ORGANIZATION ACCOUNT SET a = 's'
+accept	undocumented	docs	alterOrganizationAccount/ALTER_ORGANIZATION_ACCOUNT_SET_TAG_QNAME_=_STRING_(,_QN~425616c1!drop-5	ALTER ORGANIZATION ACCOUNT SET a = 's'
 reject	undocumented	docs	alterOrganizationAccount/ALTER_ORGANIZATION_ACCOUNT_SET_TAG_QNAME_=_STRING_(,_QN~425616c1!drop-6	ALTER ORGANIZATION ACCOUNT SET TAG = 's'
 reject	undocumented	docs	alterOrganizationAccount/ALTER_ORGANIZATION_ACCOUNT_SET_TAG_QNAME_=_STRING_(,_QN~425616c1!drop-7	ALTER ORGANIZATION ACCOUNT SET TAG a 's'
 reject	undocumented	docs	alterOrganizationAccount/ALTER_ORGANIZATION_ACCOUNT_SET_TAG_QNAME_=_STRING_(,_QN~425616c1!drop-8	ALTER ORGANIZATION ACCOUNT SET TAG a =
 reject	undocumented	docs	alterOrganizationAccount/ALTER_ORGANIZATION_ACCOUNT_SET_TAG_QNAME_=_STRING_(,_QN~425616c1!insert	ALTER ORGANIZATION ACCOUNT SET TAG a = 's' zzz
 reject	undocumented	docs	alterOrganizationAccount/ALTER_ORGANIZATION_ACCOUNT_SET_TAG_QNAME_=_STRING_(,_QN~425616c1!swap	ALWAYS ORGANIZATION ACCOUNT SET TAG a = 's'
-reject	accept	docs	alterOrganizationAccount/ALTER_ORGANIZATION_ACCOUNT_UNSET_TAG_QNAME_(,_QNAME)*	ALTER ORGANIZATION ACCOUNT UNSET TAG a
+accept	accept	docs	alterOrganizationAccount/ALTER_ORGANIZATION_ACCOUNT_UNSET_TAG_QNAME_(,_QNAME)*	ALTER ORGANIZATION ACCOUNT UNSET TAG a
 reject	undocumented	docs	alterOrganizationAccount/ALTER_ORGANIZATION_ACCOUNT_UNSET_TAG_QNAME_(,_QNAME)*!drop-1	ORGANIZATION ACCOUNT UNSET TAG a
 reject	undocumented	docs	alterOrganizationAccount/ALTER_ORGANIZATION_ACCOUNT_UNSET_TAG_QNAME_(,_QNAME)*!drop-3	ALTER ORGANIZATION UNSET TAG a
 reject	undocumented	docs	alterOrganizationAccount/ALTER_ORGANIZATION_ACCOUNT_UNSET_TAG_QNAME_(,_QNAME)*!drop-4	ALTER ORGANIZATION ACCOUNT TAG a
 reject	accept	docs	alterOrganizationAccount/ALTER_ORGANIZATION_ACCOUNT_UNSET_TAG_QNAME_(,_QNAME)*!drop-6	ALTER ORGANIZATION ACCOUNT UNSET TAG
 reject	undocumented	docs	alterOrganizationAccount/ALTER_ORGANIZATION_ACCOUNT_UNSET_TAG_QNAME_(,_QNAME)*!insert	ALTER ORGANIZATION ACCOUNT UNSET TAG a zzz
 reject	undocumented	docs	alterOrganizationAccount/ALTER_ORGANIZATION_ACCOUNT_UNSET_TAG_QNAME_(,_QNAME)*!swap	ALWAYS ORGANIZATION ACCOUNT UNSET TAG a
-reject	accept	docs	alterOrganizationAccount(,_ID)*/%empty	ALTER ORGANIZATION ACCOUNT UNSET a
-reject	accept	docs	alterOrganizationAccount(,_ID)*/,_ID_(,_ID)*	ALTER ORGANIZATION ACCOUNT UNSET a, a
+accept	accept	docs	alterOrganizationAccount(,_ID)*/%empty	ALTER ORGANIZATION ACCOUNT UNSET a
+accept	accept	docs	alterOrganizationAccount(,_ID)*/,_ID_(,_ID)*	ALTER ORGANIZATION ACCOUNT UNSET a, a
 reject	undocumented	docs	alterOrganizationAccount(,_ID)*/,_ID_(,_ID)*!drop-1	ALTER ORGANIZATION ACCOUNT UNSET a a
 reject	undocumented	docs	alterOrganizationAccount(,_ID)*/,_ID_(,_ID)*!drop-2	ALTER ORGANIZATION ACCOUNT UNSET a,
 reject	undocumented	docs	alterOrganizationAccount(,_ID)*/,_ID_(,_ID)*!insert	ALTER ORGANIZATION ACCOUNT UNSET a, a zzz
-reject	accept	docs	alterOrganizationAccount(PASSWORD|SESSION)/PASSWORD	ALTER ORGANIZATION ACCOUNT UNSET PASSWORD POLICY
+accept	accept	docs	alterOrganizationAccount(PASSWORD|SESSION)/PASSWORD	ALTER ORGANIZATION ACCOUNT UNSET PASSWORD POLICY
 reject	undocumented	docs	alterOrganizationAccount(PASSWORD|SESSION)/PASSWORD!insert	ALTER ORGANIZATION ACCOUNT UNSET PASSWORD zzz POLICY
 reject	undocumented	docs	alterOrganizationAccount(PASSWORD|SESSION)/PASSWORD!swap	ALTER ORGANIZATION ACCOUNT UNSET PASSWORD_HISTORY POLICY
-reject	accept	docs	alterOrganizationAccount(PASSWORD|SESSION)/SESSION	ALTER ORGANIZATION ACCOUNT UNSET SESSION POLICY
+accept	accept	docs	alterOrganizationAccount(PASSWORD|SESSION)/SESSION	ALTER ORGANIZATION ACCOUNT UNSET SESSION POLICY
 reject	undocumented	docs	alterOrganizationAccount(PASSWORD|SESSION)/SESSION!insert	ALTER ORGANIZATION ACCOUNT UNSET SESSION zzz POLICY
 reject	undocumented	docs	alterOrganizationAccount(PASSWORD|SESSION)/SESSION!swap	ALTER ORGANIZATION ACCOUNT UNSET SESSION_IDLE_TIMEOUT_MINS POLICY
-reject	accept	docs	alterOrganizationAccount(,_QNAME_=_STRING)*/%empty	ALTER ORGANIZATION ACCOUNT SET TAG a = 's'
-reject	accept	docs	alterOrganizationAccount(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*	ALTER ORGANIZATION ACCOUNT SET TAG a = 's', a = 's'
+accept	accept	docs	alterOrganizationAccount(,_QNAME_=_STRING)*/%empty	ALTER ORGANIZATION ACCOUNT SET TAG a = 's'
+accept	accept	docs	alterOrganizationAccount(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*	ALTER ORGANIZATION ACCOUNT SET TAG a = 's', a = 's'
 reject	undocumented	docs	alterOrganizationAccount(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-1	ALTER ORGANIZATION ACCOUNT SET TAG a = 's' a = 's'
 reject	undocumented	docs	alterOrganizationAccount(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-2	ALTER ORGANIZATION ACCOUNT SET TAG a = 's', = 's'
 reject	undocumented	docs	alterOrganizationAccount(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-3	ALTER ORGANIZATION ACCOUNT SET TAG a = 's', a 's'
 reject	undocumented	docs	alterOrganizationAccount(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-4	ALTER ORGANIZATION ACCOUNT SET TAG a = 's', a =
 reject	undocumented	docs	alterOrganizationAccount(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!insert	ALTER ORGANIZATION ACCOUNT SET TAG a = 's', a = 's' zzz
-reject	accept	docs	alterOrganizationAccount(,_QNAME)*/%empty	ALTER ORGANIZATION ACCOUNT UNSET TAG a
-reject	accept	docs	alterOrganizationAccount(,_QNAME)*/,_QNAME_(,_QNAME)*	ALTER ORGANIZATION ACCOUNT UNSET TAG a, a
+accept	accept	docs	alterOrganizationAccount(,_QNAME)*/%empty	ALTER ORGANIZATION ACCOUNT UNSET TAG a
+accept	accept	docs	alterOrganizationAccount(,_QNAME)*/,_QNAME_(,_QNAME)*	ALTER ORGANIZATION ACCOUNT UNSET TAG a, a
 reject	undocumented	docs	alterOrganizationAccount(,_QNAME)*/,_QNAME_(,_QNAME)*!drop-1	ALTER ORGANIZATION ACCOUNT UNSET TAG a a
 reject	undocumented	docs	alterOrganizationAccount(,_QNAME)*/,_QNAME_(,_QNAME)*!drop-2	ALTER ORGANIZATION ACCOUNT UNSET TAG a,
 reject	undocumented	docs	alterOrganizationAccount(,_QNAME)*/,_QNAME_(,_QNAME)*!insert	ALTER ORGANIZATION ACCOUNT UNSET TAG a, a zzz
-reject	accept	docs	alterOrganizationProfile/ALTER_ORGANIZATION_PROFILE_(IF_EXISTS)?_ID_AS_STRING	ALTER ORGANIZATION PROFILE a AS 's'
+accept	accept	docs	alterOrganizationProfile/ALTER_ORGANIZATION_PROFILE_(IF_EXISTS)?_ID_AS_STRING	ALTER ORGANIZATION PROFILE a AS 's'
 reject	undocumented	docs	alterOrganizationProfile/ALTER_ORGANIZATION_PROFILE_(IF_EXISTS)?_ID_AS_STRING!drop-1	ORGANIZATION PROFILE a AS 's'
 reject	undocumented	docs	alterOrganizationProfile/ALTER_ORGANIZATION_PROFILE_(IF_EXISTS)?_ID_AS_STRING!drop-2	ALTER PROFILE a AS 's'
 reject	undocumented	docs	alterOrganizationProfile/ALTER_ORGANIZATION_PROFILE_(IF_EXISTS)?_ID_AS_STRING!drop-3	ALTER ORGANIZATION a AS 's'
@@ -17594,7 +17594,7 @@ reject	undocumented	docs	alterOrganizationProfile/ALTER_ORGANIZATION_PROFILE_(IF
 reject	undocumented	docs	alterOrganizationProfile/ALTER_ORGANIZATION_PROFILE_(IF_EXISTS)?_ID_AS_STRING!drop-6	ALTER ORGANIZATION PROFILE a AS
 reject	undocumented	docs	alterOrganizationProfile/ALTER_ORGANIZATION_PROFILE_(IF_EXISTS)?_ID_AS_STRING!insert	ALTER ORGANIZATION PROFILE a AS 's' zzz
 reject	undocumented	docs	alterOrganizationProfile/ALTER_ORGANIZATION_PROFILE_(IF_EXISTS)?_ID_AS_STRING!swap	ALWAYS ORGANIZATION PROFILE a AS 's'
-reject	accept	docs	alterOrganizationProfile/ALTER_ORGANIZATION_PROFILE_(IF_EXISTS)?_ID_RENAME_TO_ID	ALTER ORGANIZATION PROFILE a RENAME TO a
+accept	accept	docs	alterOrganizationProfile/ALTER_ORGANIZATION_PROFILE_(IF_EXISTS)?_ID_RENAME_TO_ID	ALTER ORGANIZATION PROFILE a RENAME TO a
 reject	undocumented	docs	alterOrganizationProfile/ALTER_ORGANIZATION_PROFILE_(IF_EXISTS)?_ID_RENAME_TO_ID!drop-1	ORGANIZATION PROFILE a RENAME TO a
 reject	undocumented	docs	alterOrganizationProfile/ALTER_ORGANIZATION_PROFILE_(IF_EXISTS)?_ID_RENAME_TO_ID!drop-2	ALTER PROFILE a RENAME TO a
 reject	undocumented	docs	alterOrganizationProfile/ALTER_ORGANIZATION_PROFILE_(IF_EXISTS)?_ID_RENAME_TO_ID!drop-3	ALTER ORGANIZATION a RENAME TO a
@@ -17604,8 +17604,8 @@ reject	undocumented	docs	alterOrganizationProfile/ALTER_ORGANIZATION_PROFILE_(IF
 reject	undocumented	docs	alterOrganizationProfile/ALTER_ORGANIZATION_PROFILE_(IF_EXISTS)?_ID_RENAME_TO_ID!drop-7	ALTER ORGANIZATION PROFILE a RENAME TO
 reject	undocumented	docs	alterOrganizationProfile/ALTER_ORGANIZATION_PROFILE_(IF_EXISTS)?_ID_RENAME_TO_ID!insert	ALTER ORGANIZATION PROFILE a RENAME TO a zzz
 reject	undocumented	docs	alterOrganizationProfile/ALTER_ORGANIZATION_PROFILE_(IF_EXISTS)?_ID_RENAME_TO_ID!swap	ALWAYS ORGANIZATION PROFILE a RENAME TO a
-reject	accept	docs	alterOrganizationProfile/ALTER_ORGANIZATION_PROFILE_(IF_EXISTS)?_ID_PUBLISH	ALTER ORGANIZATION PROFILE a PUBLISH
-reject	accept	docs	alterOrganizationProfile/ALTER_ORGANIZATION_PROFILE_ID_ADD_VERSION_((IF_NOT_EXIS~b4987c56	ALTER ORGANIZATION PROFILE a ADD VERSION FROM @a
+accept	accept	docs	alterOrganizationProfile/ALTER_ORGANIZATION_PROFILE_(IF_EXISTS)?_ID_PUBLISH	ALTER ORGANIZATION PROFILE a PUBLISH
+accept	accept	docs	alterOrganizationProfile/ALTER_ORGANIZATION_PROFILE_ID_ADD_VERSION_((IF_NOT_EXIS~b4987c56	ALTER ORGANIZATION PROFILE a ADD VERSION FROM @a
 reject	undocumented	docs	alterOrganizationProfile/ALTER_ORGANIZATION_PROFILE_ID_ADD_VERSION_((IF_NOT_EXIS~b4987c56!drop-1	ORGANIZATION PROFILE a ADD VERSION FROM @a
 reject	undocumented	docs	alterOrganizationProfile/ALTER_ORGANIZATION_PROFILE_ID_ADD_VERSION_((IF_NOT_EXIS~b4987c56!drop-2	ALTER PROFILE a ADD VERSION FROM @a
 reject	undocumented	docs	alterOrganizationProfile/ALTER_ORGANIZATION_PROFILE_ID_ADD_VERSION_((IF_NOT_EXIS~b4987c56!drop-3	ALTER ORGANIZATION a ADD VERSION FROM @a
@@ -17616,7 +17616,7 @@ reject	undocumented	docs	alterOrganizationProfile/ALTER_ORGANIZATION_PROFILE_ID_
 reject	undocumented	docs	alterOrganizationProfile/ALTER_ORGANIZATION_PROFILE_ID_ADD_VERSION_((IF_NOT_EXIS~b4987c56!drop-8	ALTER ORGANIZATION PROFILE a ADD VERSION FROM
 reject	undocumented	docs	alterOrganizationProfile/ALTER_ORGANIZATION_PROFILE_ID_ADD_VERSION_((IF_NOT_EXIS~b4987c56!insert	ALTER ORGANIZATION PROFILE a ADD VERSION FROM @a zzz
 reject	undocumented	docs	alterOrganizationProfile/ALTER_ORGANIZATION_PROFILE_ID_ADD_VERSION_((IF_NOT_EXIS~b4987c56!swap	ALWAYS ORGANIZATION PROFILE a ADD VERSION FROM @a
-reject	accept	docs	alterOrganizationProfile/ALTER_ORGANIZATION_PROFILE_ID_ADD_LIVE_VERSION_((IF_NOT~c9790858	ALTER ORGANIZATION PROFILE a ADD LIVE VERSION FROM LAST
+accept	accept	docs	alterOrganizationProfile/ALTER_ORGANIZATION_PROFILE_ID_ADD_LIVE_VERSION_((IF_NOT~c9790858	ALTER ORGANIZATION PROFILE a ADD LIVE VERSION FROM LAST
 reject	undocumented	docs	alterOrganizationProfile/ALTER_ORGANIZATION_PROFILE_ID_ADD_LIVE_VERSION_((IF_NOT~c9790858!drop-1	ORGANIZATION PROFILE a ADD LIVE VERSION FROM LAST
 reject	undocumented	docs	alterOrganizationProfile/ALTER_ORGANIZATION_PROFILE_ID_ADD_LIVE_VERSION_((IF_NOT~c9790858!drop-2	ALTER PROFILE a ADD LIVE VERSION FROM LAST
 reject	undocumented	docs	alterOrganizationProfile/ALTER_ORGANIZATION_PROFILE_ID_ADD_LIVE_VERSION_((IF_NOT~c9790858!drop-3	ALTER ORGANIZATION a ADD LIVE VERSION FROM LAST
@@ -17628,45 +17628,45 @@ reject	undocumented	docs	alterOrganizationProfile/ALTER_ORGANIZATION_PROFILE_ID_
 reject	undocumented	docs	alterOrganizationProfile/ALTER_ORGANIZATION_PROFILE_ID_ADD_LIVE_VERSION_((IF_NOT~c9790858!drop-9	ALTER ORGANIZATION PROFILE a ADD LIVE VERSION FROM
 reject	undocumented	docs	alterOrganizationProfile/ALTER_ORGANIZATION_PROFILE_ID_ADD_LIVE_VERSION_((IF_NOT~c9790858!insert	ALTER ORGANIZATION PROFILE a ADD LIVE VERSION FROM LAST zzz
 reject	undocumented	docs	alterOrganizationProfile/ALTER_ORGANIZATION_PROFILE_ID_ADD_LIVE_VERSION_((IF_NOT~c9790858!swap	ALWAYS ORGANIZATION PROFILE a ADD LIVE VERSION FROM LAST
-reject	accept	docs	alterOrganizationProfile/ALTER_ORGANIZATION_PROFILE_ID_COMMIT	ALTER ORGANIZATION PROFILE a COMMIT
+accept	accept	docs	alterOrganizationProfile/ALTER_ORGANIZATION_PROFILE_ID_COMMIT	ALTER ORGANIZATION PROFILE a COMMIT
 reject	undocumented	docs	alterOrganizationProfile/ALTER_ORGANIZATION_PROFILE_ID_COMMIT!drop-1	ORGANIZATION PROFILE a COMMIT
 reject	undocumented	docs	alterOrganizationProfile/ALTER_ORGANIZATION_PROFILE_ID_COMMIT!drop-2	ALTER PROFILE a COMMIT
 reject	undocumented	docs	alterOrganizationProfile/ALTER_ORGANIZATION_PROFILE_ID_COMMIT!drop-3	ALTER ORGANIZATION a COMMIT
 reject	undocumented	docs	alterOrganizationProfile/ALTER_ORGANIZATION_PROFILE_ID_COMMIT!drop-4	ALTER ORGANIZATION PROFILE COMMIT
 reject	undocumented	docs	alterOrganizationProfile/ALTER_ORGANIZATION_PROFILE_ID_COMMIT!insert	ALTER ORGANIZATION PROFILE a COMMIT zzz
 reject	undocumented	docs	alterOrganizationProfile/ALTER_ORGANIZATION_PROFILE_ID_COMMIT!swap	ALWAYS ORGANIZATION PROFILE a COMMIT
-reject	accept	docs	alterOrganizationProfile/ALTER_ORGANIZATION_PROFILE_ID_ABORT	ALTER ORGANIZATION PROFILE a ABORT
+accept	accept	docs	alterOrganizationProfile/ALTER_ORGANIZATION_PROFILE_ID_ABORT	ALTER ORGANIZATION PROFILE a ABORT
 reject	undocumented	docs	alterOrganizationProfile/ALTER_ORGANIZATION_PROFILE_ID_ABORT!drop-1	ORGANIZATION PROFILE a ABORT
 reject	undocumented	docs	alterOrganizationProfile/ALTER_ORGANIZATION_PROFILE_ID_ABORT!drop-2	ALTER PROFILE a ABORT
 reject	undocumented	docs	alterOrganizationProfile/ALTER_ORGANIZATION_PROFILE_ID_ABORT!drop-3	ALTER ORGANIZATION a ABORT
 reject	undocumented	docs	alterOrganizationProfile/ALTER_ORGANIZATION_PROFILE_ID_ABORT!drop-4	ALTER ORGANIZATION PROFILE ABORT
 reject	undocumented	docs	alterOrganizationProfile/ALTER_ORGANIZATION_PROFILE_ID_ABORT!insert	ALTER ORGANIZATION PROFILE a ABORT zzz
 reject	undocumented	docs	alterOrganizationProfile/ALTER_ORGANIZATION_PROFILE_ID_ABORT!swap	ALWAYS ORGANIZATION PROFILE a ABORT
-reject	accept	docs	alterOrganizationProfile(IF_EXISTS)?/%empty	ALTER ORGANIZATION PROFILE a PUBLISH
+accept	accept	docs	alterOrganizationProfile(IF_EXISTS)?/%empty	ALTER ORGANIZATION PROFILE a PUBLISH
 reject	undocumented	docs	alterOrganizationProfile(IF_EXISTS)?/%empty!insert	ALTER ORGANIZATION PROFILE zzz a PUBLISH
-reject	accept	docs	alterOrganizationProfile(IF_EXISTS)?/IF_EXISTS	ALTER ORGANIZATION PROFILE IF EXISTS a PUBLISH
+accept	accept	docs	alterOrganizationProfile(IF_EXISTS)?/IF_EXISTS	ALTER ORGANIZATION PROFILE IF EXISTS a PUBLISH
 reject	undocumented	docs	alterOrganizationProfile(IF_EXISTS)?/IF_EXISTS!drop-1	ALTER ORGANIZATION PROFILE EXISTS a PUBLISH
 reject	undocumented	docs	alterOrganizationProfile(IF_EXISTS)?/IF_EXISTS!drop-2	ALTER ORGANIZATION PROFILE IF a PUBLISH
 reject	undocumented	docs	alterOrganizationProfile(IF_EXISTS)?/IF_EXISTS!truncate	ALTER ORGANIZATION PROFILE IF
 reject	undocumented	docs	alterOrganizationProfile(IF_EXISTS)?/IF_EXISTS!insert	ALTER ORGANIZATION PROFILE IF EXISTS zzz a PUBLISH
 reject	undocumented	docs	alterOrganizationProfile(IF_EXISTS)?/IF_EXISTS!swap	ALTER ORGANIZATION PROFILE IGNORE EXISTS a PUBLISH
-reject	accept	docs	alterOrganizationProfile((IF_NOT_EXISTS)?_ID)?/%empty	ALTER ORGANIZATION PROFILE a ADD VERSION FROM @a
-reject	accept	docs	alterOrganizationProfile((IF_NOT_EXISTS)?_ID)?/%empty!insert	ALTER ORGANIZATION PROFILE a ADD VERSION zzz FROM @a
-reject	accept	docs	alterOrganizationProfile((IF_NOT_EXISTS)?_ID)?/(IF_NOT_EXISTS)?_ID	ALTER ORGANIZATION PROFILE a ADD VERSION a FROM @a
+accept	accept	docs	alterOrganizationProfile((IF_NOT_EXISTS)?_ID)?/%empty	ALTER ORGANIZATION PROFILE a ADD VERSION FROM @a
+accept	accept	docs	alterOrganizationProfile((IF_NOT_EXISTS)?_ID)?/%empty!insert	ALTER ORGANIZATION PROFILE a ADD VERSION zzz FROM @a
+accept	accept	docs	alterOrganizationProfile((IF_NOT_EXISTS)?_ID)?/(IF_NOT_EXISTS)?_ID	ALTER ORGANIZATION PROFILE a ADD VERSION a FROM @a
 reject	undocumented	docs	alterOrganizationProfile((IF_NOT_EXISTS)?_ID)?/(IF_NOT_EXISTS)?_ID!truncate	ALTER ORGANIZATION PROFILE a ADD VERSION
 reject	undocumented	docs	alterOrganizationProfile((IF_NOT_EXISTS)?_ID)?/(IF_NOT_EXISTS)?_ID!insert	ALTER ORGANIZATION PROFILE a ADD VERSION a zzz FROM @a
-reject	accept	docs	alterOrganizationProfile(IF_NOT_EXISTS)?/%empty	ALTER ORGANIZATION PROFILE a ADD VERSION a FROM @a
+accept	accept	docs	alterOrganizationProfile(IF_NOT_EXISTS)?/%empty	ALTER ORGANIZATION PROFILE a ADD VERSION a FROM @a
 reject	undocumented	docs	alterOrganizationProfile(IF_NOT_EXISTS)?/%empty!insert	ALTER ORGANIZATION PROFILE a ADD VERSION zzz a FROM @a
-reject	accept	docs	alterOrganizationProfile(IF_NOT_EXISTS)?/IF_NOT_EXISTS	ALTER ORGANIZATION PROFILE a ADD VERSION IF NOT EXISTS a FROM @a
+accept	accept	docs	alterOrganizationProfile(IF_NOT_EXISTS)?/IF_NOT_EXISTS	ALTER ORGANIZATION PROFILE a ADD VERSION IF NOT EXISTS a FROM @a
 reject	undocumented	docs	alterOrganizationProfile(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	ALTER ORGANIZATION PROFILE a ADD VERSION NOT EXISTS a FROM @a
 reject	undocumented	docs	alterOrganizationProfile(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	ALTER ORGANIZATION PROFILE a ADD VERSION IF EXISTS a FROM @a
 reject	undocumented	docs	alterOrganizationProfile(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	ALTER ORGANIZATION PROFILE a ADD VERSION IF NOT a FROM @a
 reject	undocumented	docs	alterOrganizationProfile(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	ALTER ORGANIZATION PROFILE a ADD VERSION IF NOT
 reject	undocumented	docs	alterOrganizationProfile(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	ALTER ORGANIZATION PROFILE a ADD VERSION IF NOT EXISTS zzz a FROM @a
 reject	undocumented	docs	alterOrganizationProfile(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	ALTER ORGANIZATION PROFILE a ADD VERSION IGNORE NOT EXISTS a FROM @a
-reject	accept	docs	alterOrganizationSetEventRoutingTable/ALTER_ORGANIZATION_SET_EVENT_ROUTING_TABLE_QNAME_FOR_AL~3d61f2fa	ALTER ORGANIZATION SET EVENT ROUTING TABLE a FOR ALL APPLICATION LISTINGS
-reject	accept	docs	alterOrganizationUnsetEventRoutingTable/ALTER_ORGANIZATION_UNSET_EVENT_ROUTING_TABLE_FOR_ALL_AP~b2db7ba4	ALTER ORGANIZATION UNSET EVENT ROUTING TABLE FOR ALL APPLICATION LISTINGS
-reject	accept	docs	alterOrganizationUser/ALTER_ORGANIZATION_USER_(IF_EXISTS)?_ID_SET_alterOrgani~f710519c	ALTER ORGANIZATION USER a SET EMAIL = 's'
+accept	accept	docs	alterOrganizationSetEventRoutingTable/ALTER_ORGANIZATION_SET_EVENT_ROUTING_TABLE_QNAME_FOR_AL~3d61f2fa	ALTER ORGANIZATION SET EVENT ROUTING TABLE a FOR ALL APPLICATION LISTINGS
+accept	accept	docs	alterOrganizationUnsetEventRoutingTable/ALTER_ORGANIZATION_UNSET_EVENT_ROUTING_TABLE_FOR_ALL_AP~b2db7ba4	ALTER ORGANIZATION UNSET EVENT ROUTING TABLE FOR ALL APPLICATION LISTINGS
+accept	accept	docs	alterOrganizationUser/ALTER_ORGANIZATION_USER_(IF_EXISTS)?_ID_SET_alterOrgani~f710519c	ALTER ORGANIZATION USER a SET EMAIL = 's'
 reject	undocumented	docs	alterOrganizationUser/ALTER_ORGANIZATION_USER_(IF_EXISTS)?_ID_SET_alterOrgani~f710519c!drop-1	ORGANIZATION USER a SET EMAIL = 's'
 accept	accept	docs	alterOrganizationUser/ALTER_ORGANIZATION_USER_(IF_EXISTS)?_ID_SET_alterOrgani~f710519c!drop-2	ALTER USER a SET EMAIL = 's'
 reject	undocumented	docs	alterOrganizationUser/ALTER_ORGANIZATION_USER_(IF_EXISTS)?_ID_SET_alterOrgani~f710519c!drop-3	ALTER ORGANIZATION a SET EMAIL = 's'
@@ -17677,44 +17677,44 @@ reject	undocumented	docs	alterOrganizationUser/ALTER_ORGANIZATION_USER_(IF_EXIST
 reject	undocumented	docs	alterOrganizationUser/ALTER_ORGANIZATION_USER_(IF_EXISTS)?_ID_SET_alterOrgani~f710519c!drop-8	ALTER ORGANIZATION USER a SET EMAIL =
 reject	undocumented	docs	alterOrganizationUser/ALTER_ORGANIZATION_USER_(IF_EXISTS)?_ID_SET_alterOrgani~f710519c!insert	ALTER ORGANIZATION USER a SET EMAIL = 's' zzz
 reject	undocumented	docs	alterOrganizationUser/ALTER_ORGANIZATION_USER_(IF_EXISTS)?_ID_SET_alterOrgani~f710519c!swap	ALWAYS ORGANIZATION USER a SET EMAIL = 's'
-reject	accept	docs	alterOrganizationUser/ALTER_ORGANIZATION_USER_ID_UNSET_(EMAIL|DISPLAY_NAME|FI~53d09480	ALTER ORGANIZATION USER a UNSET EMAIL
-reject	accept	docs	alterOrganizationUser(IF_EXISTS)?/%empty	ALTER ORGANIZATION USER a SET EMAIL = 's'
+accept	accept	docs	alterOrganizationUser/ALTER_ORGANIZATION_USER_ID_UNSET_(EMAIL|DISPLAY_NAME|FI~53d09480	ALTER ORGANIZATION USER a UNSET EMAIL
+accept	accept	docs	alterOrganizationUser(IF_EXISTS)?/%empty	ALTER ORGANIZATION USER a SET EMAIL = 's'
 reject	undocumented	docs	alterOrganizationUser(IF_EXISTS)?/%empty!insert	ALTER ORGANIZATION USER zzz a SET EMAIL = 's'
-reject	accept	docs	alterOrganizationUser(IF_EXISTS)?/IF_EXISTS	ALTER ORGANIZATION USER IF EXISTS a SET EMAIL = 's'
+accept	accept	docs	alterOrganizationUser(IF_EXISTS)?/IF_EXISTS	ALTER ORGANIZATION USER IF EXISTS a SET EMAIL = 's'
 reject	undocumented	docs	alterOrganizationUser(IF_EXISTS)?/IF_EXISTS!drop-1	ALTER ORGANIZATION USER EXISTS a SET EMAIL = 's'
 reject	undocumented	docs	alterOrganizationUser(IF_EXISTS)?/IF_EXISTS!drop-2	ALTER ORGANIZATION USER IF a SET EMAIL = 's'
 reject	undocumented	docs	alterOrganizationUser(IF_EXISTS)?/IF_EXISTS!truncate	ALTER ORGANIZATION USER IF
 reject	undocumented	docs	alterOrganizationUser(IF_EXISTS)?/IF_EXISTS!insert	ALTER ORGANIZATION USER IF EXISTS zzz a SET EMAIL = 's'
 reject	undocumented	docs	alterOrganizationUser(IF_EXISTS)?/IF_EXISTS!swap	ALTER ORGANIZATION USER IGNORE EXISTS a SET EMAIL = 's'
-reject	accept	docs	alterOrganizationUser(EMAIL|DISPLAY_NAME|FIRST_NAME|MIDDLE~c9a528e1)/EMAIL	ALTER ORGANIZATION USER a UNSET EMAIL
+accept	accept	docs	alterOrganizationUser(EMAIL|DISPLAY_NAME|FIRST_NAME|MIDDLE~c9a528e1)/EMAIL	ALTER ORGANIZATION USER a UNSET EMAIL
 reject	undocumented	docs	alterOrganizationUser(EMAIL|DISPLAY_NAME|FIRST_NAME|MIDDLE~c9a528e1)/EMAIL!swap	ALTER ORGANIZATION USER a UNSET EMAIL_DISTRIBUTION_LIST
-reject	accept	docs	alterOrganizationUser(EMAIL|DISPLAY_NAME|FIRST_NAME|MIDDLE~c9a528e1)/DISPLAY_NAME	ALTER ORGANIZATION USER a UNSET DISPLAY_NAME
+accept	accept	docs	alterOrganizationUser(EMAIL|DISPLAY_NAME|FIRST_NAME|MIDDLE~c9a528e1)/DISPLAY_NAME	ALTER ORGANIZATION USER a UNSET DISPLAY_NAME
 reject	undocumented	docs	alterOrganizationUser(EMAIL|DISPLAY_NAME|FIRST_NAME|MIDDLE~c9a528e1)/DISPLAY_NAME!insert	ALTER ORGANIZATION USER a UNSET DISPLAY_NAME zzz
 reject	undocumented	docs	alterOrganizationUser(EMAIL|DISPLAY_NAME|FIRST_NAME|MIDDLE~c9a528e1)/DISPLAY_NAME!swap	ALTER ORGANIZATION USER a UNSET DISTINCT
-reject	accept	docs	alterOrganizationUser(EMAIL|DISPLAY_NAME|FIRST_NAME|MIDDLE~c9a528e1)/FIRST_NAME	ALTER ORGANIZATION USER a UNSET FIRST_NAME
+accept	accept	docs	alterOrganizationUser(EMAIL|DISPLAY_NAME|FIRST_NAME|MIDDLE~c9a528e1)/FIRST_NAME	ALTER ORGANIZATION USER a UNSET FIRST_NAME
 reject	undocumented	docs	alterOrganizationUser(EMAIL|DISPLAY_NAME|FIRST_NAME|MIDDLE~c9a528e1)/FIRST_NAME!insert	ALTER ORGANIZATION USER a UNSET FIRST_NAME zzz
 reject	undocumented	docs	alterOrganizationUser(EMAIL|DISPLAY_NAME|FIRST_NAME|MIDDLE~c9a528e1)/FIRST_NAME!swap	ALTER ORGANIZATION USER a UNSET FLAT
-reject	accept	docs	alterOrganizationUser(EMAIL|DISPLAY_NAME|FIRST_NAME|MIDDLE~c9a528e1)/MIDDLE_NAME	ALTER ORGANIZATION USER a UNSET MIDDLE_NAME
+accept	accept	docs	alterOrganizationUser(EMAIL|DISPLAY_NAME|FIRST_NAME|MIDDLE~c9a528e1)/MIDDLE_NAME	ALTER ORGANIZATION USER a UNSET MIDDLE_NAME
 reject	undocumented	docs	alterOrganizationUser(EMAIL|DISPLAY_NAME|FIRST_NAME|MIDDLE~c9a528e1)/MIDDLE_NAME!insert	ALTER ORGANIZATION USER a UNSET MIDDLE_NAME zzz
 reject	undocumented	docs	alterOrganizationUser(EMAIL|DISPLAY_NAME|FIRST_NAME|MIDDLE~c9a528e1)/MIDDLE_NAME!swap	ALTER ORGANIZATION USER a UNSET MINIMUM_VERSION
-reject	accept	docs	alterOrganizationUser(EMAIL|DISPLAY_NAME|FIRST_NAME|MIDDLE~c9a528e1)/LAST_NAME	ALTER ORGANIZATION USER a UNSET LAST_NAME
+accept	accept	docs	alterOrganizationUser(EMAIL|DISPLAY_NAME|FIRST_NAME|MIDDLE~c9a528e1)/LAST_NAME	ALTER ORGANIZATION USER a UNSET LAST_NAME
 reject	undocumented	docs	alterOrganizationUser(EMAIL|DISPLAY_NAME|FIRST_NAME|MIDDLE~c9a528e1)/LAST_NAME!insert	ALTER ORGANIZATION USER a UNSET LAST_NAME zzz
 reject	undocumented	docs	alterOrganizationUser(EMAIL|DISPLAY_NAME|FIRST_NAME|MIDDLE~c9a528e1)/LAST_NAME!swap	ALTER ORGANIZATION USER a UNSET LAST_QUERY_ID
-reject	accept	docs	alterOrganizationUser(EMAIL|DISPLAY_NAME|FIRST_NAME|MIDDLE~c9a528e1)/TYPE	ALTER ORGANIZATION USER a UNSET TYPE
+accept	accept	docs	alterOrganizationUser(EMAIL|DISPLAY_NAME|FIRST_NAME|MIDDLE~c9a528e1)/TYPE	ALTER ORGANIZATION USER a UNSET TYPE
 reject	undocumented	docs	alterOrganizationUser(EMAIL|DISPLAY_NAME|FIRST_NAME|MIDDLE~c9a528e1)/TYPE!insert	ALTER ORGANIZATION USER a UNSET TYPE zzz
 reject	undocumented	docs	alterOrganizationUser(EMAIL|DISPLAY_NAME|FIRST_NAME|MIDDLE~c9a528e1)/TYPE!swap	ALTER ORGANIZATION USER a UNSET TYPES
-reject	accept	docs	alterOrganizationUser(EMAIL|DISPLAY_NAME|FIRST_NAME|MIDDLE~c9a528e1)/COMMENT	ALTER ORGANIZATION USER a UNSET COMMENT
+accept	accept	docs	alterOrganizationUser(EMAIL|DISPLAY_NAME|FIRST_NAME|MIDDLE~c9a528e1)/COMMENT	ALTER ORGANIZATION USER a UNSET COMMENT
 reject	undocumented	docs	alterOrganizationUser(EMAIL|DISPLAY_NAME|FIRST_NAME|MIDDLE~c9a528e1)/COMMENT!insert	ALTER ORGANIZATION USER a UNSET COMMENT zzz
 reject	undocumented	docs	alterOrganizationUser(EMAIL|DISPLAY_NAME|FIRST_NAME|MIDDLE~c9a528e1)/COMMENT!swap	ALTER ORGANIZATION USER a UNSET COMMENTS
-reject	accept	docs	alterOrganizationUser(,_(EMAIL|DISPLAY_NAME|FIRST_NAME|MID~9a8d19f7)*/%empty	ALTER ORGANIZATION USER a UNSET EMAIL
-reject	accept	docs	alterOrganizationUser(,_(EMAIL|DISPLAY_NAME|FIRST_NAME|MID~9a8d19f7)*/,_(EMAIL|DISPLAY_NAME|FIRST_NAME|MIDDLE~c9a528e1)_(,_(E~3a183635	ALTER ORGANIZATION USER a UNSET EMAIL, EMAIL
+accept	accept	docs	alterOrganizationUser(,_(EMAIL|DISPLAY_NAME|FIRST_NAME|MID~9a8d19f7)*/%empty	ALTER ORGANIZATION USER a UNSET EMAIL
+accept	accept	docs	alterOrganizationUser(,_(EMAIL|DISPLAY_NAME|FIRST_NAME|MID~9a8d19f7)*/,_(EMAIL|DISPLAY_NAME|FIRST_NAME|MIDDLE~c9a528e1)_(,_(E~3a183635	ALTER ORGANIZATION USER a UNSET EMAIL, EMAIL
 reject	undocumented	docs	alterOrganizationUser(,_(EMAIL|DISPLAY_NAME|FIRST_NAME|MID~9a8d19f7)*/,_(EMAIL|DISPLAY_NAME|FIRST_NAME|MIDDLE~c9a528e1)_(,_(E~3a183635!drop-1	ALTER ORGANIZATION USER a UNSET EMAIL EMAIL
 reject	undocumented	docs	alterOrganizationUser(,_(EMAIL|DISPLAY_NAME|FIRST_NAME|MID~9a8d19f7)*/,_(EMAIL|DISPLAY_NAME|FIRST_NAME|MIDDLE~c9a528e1)_(,_(E~3a183635!drop-2	ALTER ORGANIZATION USER a UNSET EMAIL,
 reject	undocumented	docs	alterOrganizationUser(,_(EMAIL|DISPLAY_NAME|FIRST_NAME|MID~9a8d19f7)*/,_(EMAIL|DISPLAY_NAME|FIRST_NAME|MIDDLE~c9a528e1)_(,_(E~3a183635!insert	ALTER ORGANIZATION USER a UNSET EMAIL, EMAIL zzz
 reject	undocumented	docs	alterOrganizationUser(,_(EMAIL|DISPLAY_NAME|FIRST_NAME|MID~9a8d19f7)*/,_(EMAIL|DISPLAY_NAME|FIRST_NAME|MIDDLE~c9a528e1)_(,_(E~3a183635!swap	ALTER ORGANIZATION USER a UNSET EMAIL, EMAIL_DISTRIBUTION_LIST
-reject	accept	docs	alterOrganizationUser_objectProperties/(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)+	ALTER ORGANIZATION USER a SET EMAIL = 's'
+accept	accept	docs	alterOrganizationUser_objectProperties/(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)+	ALTER ORGANIZATION USER a SET EMAIL = 's'
 reject	undocumented	docs	alterOrganizationUser_objectProperties/(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)+!swap	ALTER ORGANIZATION USER a SET EMAIL_DISTRIBUTION_LIST = 's'
-reject	accept	docs	alterOrganizationUser_objectProperties(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)+/(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)	ALTER ORGANIZATION USER a SET EMAIL = 's'
+accept	accept	docs	alterOrganizationUser_objectProperties(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)+/(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)	ALTER ORGANIZATION USER a SET EMAIL = 's'
 reject	accept	docs	alterOrganizationUser_objectProperties(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)+/(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)_(EMAIL_~a0ac00d3	ALTER ORGANIZATION USER a SET EMAIL = 's' EMAIL = 's'
 reject	undocumented	docs	alterOrganizationUser_objectProperties(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)+/(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)_(EMAIL_~a0ac00d3!drop-1	ALTER ORGANIZATION USER a SET = 's' EMAIL = 's'
 reject	undocumented	docs	alterOrganizationUser_objectProperties(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)+/(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)_(EMAIL_~a0ac00d3!drop-2	ALTER ORGANIZATION USER a SET EMAIL 's' EMAIL = 's'
@@ -17724,45 +17724,45 @@ reject	undocumented	docs	alterOrganizationUser_objectProperties(EMAIL_=_STRING|D
 reject	undocumented	docs	alterOrganizationUser_objectProperties(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)+/(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)_(EMAIL_~a0ac00d3!drop-6	ALTER ORGANIZATION USER a SET EMAIL = 's' EMAIL =
 reject	undocumented	docs	alterOrganizationUser_objectProperties(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)+/(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)_(EMAIL_~a0ac00d3!insert	ALTER ORGANIZATION USER a SET EMAIL = 's' EMAIL = 's' zzz
 reject	undocumented	docs	alterOrganizationUser_objectProperties(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)+/(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)_(EMAIL_~a0ac00d3!swap	ALTER ORGANIZATION USER a SET EMAIL_DISTRIBUTION_LIST = 's' EMAIL = 's'
-reject	accept	docs	alterOrganizationUser_objectProperties(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)/EMAIL_=_STRING	ALTER ORGANIZATION USER a SET EMAIL = 's'
-reject	accept	docs	alterOrganizationUser_objectProperties(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)/DISPLAY_NAME_=_STRING	ALTER ORGANIZATION USER a SET DISPLAY_NAME = 's'
+accept	accept	docs	alterOrganizationUser_objectProperties(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)/EMAIL_=_STRING	ALTER ORGANIZATION USER a SET EMAIL = 's'
+accept	accept	docs	alterOrganizationUser_objectProperties(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)/DISPLAY_NAME_=_STRING	ALTER ORGANIZATION USER a SET DISPLAY_NAME = 's'
 reject	undocumented	docs	alterOrganizationUser_objectProperties(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)/DISPLAY_NAME_=_STRING!drop-2	ALTER ORGANIZATION USER a SET DISPLAY_NAME 's'
 reject	undocumented	docs	alterOrganizationUser_objectProperties(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)/DISPLAY_NAME_=_STRING!drop-3	ALTER ORGANIZATION USER a SET DISPLAY_NAME =
 reject	undocumented	docs	alterOrganizationUser_objectProperties(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)/DISPLAY_NAME_=_STRING!insert	ALTER ORGANIZATION USER a SET DISPLAY_NAME = 's' zzz
 reject	undocumented	docs	alterOrganizationUser_objectProperties(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)/DISPLAY_NAME_=_STRING!swap	ALTER ORGANIZATION USER a SET DISTINCT = 's'
-reject	accept	docs	alterOrganizationUser_objectProperties(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)/FIRST_NAME_=_STRING	ALTER ORGANIZATION USER a SET FIRST_NAME = 's'
+accept	accept	docs	alterOrganizationUser_objectProperties(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)/FIRST_NAME_=_STRING	ALTER ORGANIZATION USER a SET FIRST_NAME = 's'
 reject	undocumented	docs	alterOrganizationUser_objectProperties(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)/FIRST_NAME_=_STRING!drop-2	ALTER ORGANIZATION USER a SET FIRST_NAME 's'
 reject	undocumented	docs	alterOrganizationUser_objectProperties(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)/FIRST_NAME_=_STRING!drop-3	ALTER ORGANIZATION USER a SET FIRST_NAME =
 reject	undocumented	docs	alterOrganizationUser_objectProperties(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)/FIRST_NAME_=_STRING!insert	ALTER ORGANIZATION USER a SET FIRST_NAME = 's' zzz
 reject	undocumented	docs	alterOrganizationUser_objectProperties(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)/FIRST_NAME_=_STRING!swap	ALTER ORGANIZATION USER a SET FLAT = 's'
-reject	accept	docs	alterOrganizationUser_objectProperties(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)/MIDDLE_NAME_=_STRING	ALTER ORGANIZATION USER a SET MIDDLE_NAME = 's'
+accept	accept	docs	alterOrganizationUser_objectProperties(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)/MIDDLE_NAME_=_STRING	ALTER ORGANIZATION USER a SET MIDDLE_NAME = 's'
 reject	undocumented	docs	alterOrganizationUser_objectProperties(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)/MIDDLE_NAME_=_STRING!drop-2	ALTER ORGANIZATION USER a SET MIDDLE_NAME 's'
 reject	undocumented	docs	alterOrganizationUser_objectProperties(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)/MIDDLE_NAME_=_STRING!drop-3	ALTER ORGANIZATION USER a SET MIDDLE_NAME =
 reject	undocumented	docs	alterOrganizationUser_objectProperties(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)/MIDDLE_NAME_=_STRING!insert	ALTER ORGANIZATION USER a SET MIDDLE_NAME = 's' zzz
 reject	undocumented	docs	alterOrganizationUser_objectProperties(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)/MIDDLE_NAME_=_STRING!swap	ALTER ORGANIZATION USER a SET MINIMUM_VERSION = 's'
-reject	accept	docs	alterOrganizationUser_objectProperties(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)/LAST_NAME_=_STRING	ALTER ORGANIZATION USER a SET LAST_NAME = 's'
+accept	accept	docs	alterOrganizationUser_objectProperties(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)/LAST_NAME_=_STRING	ALTER ORGANIZATION USER a SET LAST_NAME = 's'
 reject	undocumented	docs	alterOrganizationUser_objectProperties(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)/LAST_NAME_=_STRING!drop-2	ALTER ORGANIZATION USER a SET LAST_NAME 's'
 reject	undocumented	docs	alterOrganizationUser_objectProperties(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)/LAST_NAME_=_STRING!drop-3	ALTER ORGANIZATION USER a SET LAST_NAME =
 reject	undocumented	docs	alterOrganizationUser_objectProperties(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)/LAST_NAME_=_STRING!insert	ALTER ORGANIZATION USER a SET LAST_NAME = 's' zzz
 reject	undocumented	docs	alterOrganizationUser_objectProperties(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)/LAST_NAME_=_STRING!swap	ALTER ORGANIZATION USER a SET LAST_QUERY_ID = 's'
-reject	accept	docs	alterOrganizationUser_objectProperties(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)/TYPE_=_(PERSON|SERVICE)	ALTER ORGANIZATION USER a SET TYPE = PERSON
+accept	accept	docs	alterOrganizationUser_objectProperties(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)/TYPE_=_(PERSON|SERVICE)	ALTER ORGANIZATION USER a SET TYPE = PERSON
 reject	undocumented	docs	alterOrganizationUser_objectProperties(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)/TYPE_=_(PERSON|SERVICE)!drop-1	ALTER ORGANIZATION USER a SET = PERSON
 reject	undocumented	docs	alterOrganizationUser_objectProperties(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)/TYPE_=_(PERSON|SERVICE)!drop-2	ALTER ORGANIZATION USER a SET TYPE PERSON
 reject	undocumented	docs	alterOrganizationUser_objectProperties(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)/TYPE_=_(PERSON|SERVICE)!drop-3	ALTER ORGANIZATION USER a SET TYPE =
 reject	undocumented	docs	alterOrganizationUser_objectProperties(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)/TYPE_=_(PERSON|SERVICE)!insert	ALTER ORGANIZATION USER a SET TYPE = PERSON zzz
 reject	undocumented	docs	alterOrganizationUser_objectProperties(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)/TYPE_=_(PERSON|SERVICE)!swap	ALTER ORGANIZATION USER a SET TYPES = PERSON
-reject	accept	docs	alterOrganizationUser_objectProperties(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)/COMMENT_=_STRING	ALTER ORGANIZATION USER a SET COMMENT = 's'
+accept	accept	docs	alterOrganizationUser_objectProperties(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)/COMMENT_=_STRING	ALTER ORGANIZATION USER a SET COMMENT = 's'
 reject	undocumented	docs	alterOrganizationUser_objectProperties(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)/COMMENT_=_STRING!drop-2	ALTER ORGANIZATION USER a SET COMMENT 's'
 reject	undocumented	docs	alterOrganizationUser_objectProperties(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)/COMMENT_=_STRING!drop-3	ALTER ORGANIZATION USER a SET COMMENT =
 reject	undocumented	docs	alterOrganizationUser_objectProperties(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)/COMMENT_=_STRING!insert	ALTER ORGANIZATION USER a SET COMMENT = 's' zzz
 reject	undocumented	docs	alterOrganizationUser_objectProperties(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)/COMMENT_=_STRING!swap	ALTER ORGANIZATION USER a SET COMMENTS = 's'
-reject	accept	docs	alterOrganizationUser_objectProperties(PERSON|SERVICE)/PERSON	ALTER ORGANIZATION USER a SET TYPE = PERSON
+accept	accept	docs	alterOrganizationUser_objectProperties(PERSON|SERVICE)/PERSON	ALTER ORGANIZATION USER a SET TYPE = PERSON
 reject	undocumented	docs	alterOrganizationUser_objectProperties(PERSON|SERVICE)/PERSON!swap	ALTER ORGANIZATION USER a SET TYPE = PERSONAL
-reject	accept	docs	alterOrganizationUser_objectProperties(PERSON|SERVICE)/SERVICE	ALTER ORGANIZATION USER a SET TYPE = SERVICE
+accept	accept	docs	alterOrganizationUser_objectProperties(PERSON|SERVICE)/SERVICE	ALTER ORGANIZATION USER a SET TYPE = SERVICE
 reject	undocumented	docs	alterOrganizationUser_objectProperties(PERSON|SERVICE)/SERVICE!insert	ALTER ORGANIZATION USER a SET TYPE = SERVICE zzz
 reject	undocumented	docs	alterOrganizationUser_objectProperties(PERSON|SERVICE)/SERVICE!swap	ALTER ORGANIZATION USER a SET TYPE = SERVICES
-reject	accept	docs	alterOrganizationUserGroup/ALTER_ORGANIZATION_USER_GROUP_(IF_EXISTS)?_ID_ADD_ORGAN~8df3d45b	ALTER ORGANIZATION USER GROUP a ADD ORGANIZATION USERS a
-reject	accept	docs	alterOrganizationUserGroup/ALTER_ORGANIZATION_USER_GROUP_(IF_EXISTS)?_ID_REMOVE_OR~63985cae	ALTER ORGANIZATION USER GROUP a REMOVE ORGANIZATION USERS a
+accept	accept	docs	alterOrganizationUserGroup/ALTER_ORGANIZATION_USER_GROUP_(IF_EXISTS)?_ID_ADD_ORGAN~8df3d45b	ALTER ORGANIZATION USER GROUP a ADD ORGANIZATION USERS a
+accept	accept	docs	alterOrganizationUserGroup/ALTER_ORGANIZATION_USER_GROUP_(IF_EXISTS)?_ID_REMOVE_OR~63985cae	ALTER ORGANIZATION USER GROUP a REMOVE ORGANIZATION USERS a
 reject	undocumented	docs	alterOrganizationUserGroup/ALTER_ORGANIZATION_USER_GROUP_(IF_EXISTS)?_ID_REMOVE_OR~63985cae!drop-1	ORGANIZATION USER GROUP a REMOVE ORGANIZATION USERS a
 reject	undocumented	docs	alterOrganizationUserGroup/ALTER_ORGANIZATION_USER_GROUP_(IF_EXISTS)?_ID_REMOVE_OR~63985cae!drop-2	ALTER USER GROUP a REMOVE ORGANIZATION USERS a
 reject	undocumented	docs	alterOrganizationUserGroup/ALTER_ORGANIZATION_USER_GROUP_(IF_EXISTS)?_ID_REMOVE_OR~63985cae!drop-3	ALTER ORGANIZATION GROUP a REMOVE ORGANIZATION USERS a
@@ -17773,7 +17773,7 @@ reject	undocumented	docs	alterOrganizationUserGroup/ALTER_ORGANIZATION_USER_GROU
 reject	undocumented	docs	alterOrganizationUserGroup/ALTER_ORGANIZATION_USER_GROUP_(IF_EXISTS)?_ID_REMOVE_OR~63985cae!drop-9	ALTER ORGANIZATION USER GROUP a REMOVE ORGANIZATION USERS
 reject	undocumented	docs	alterOrganizationUserGroup/ALTER_ORGANIZATION_USER_GROUP_(IF_EXISTS)?_ID_REMOVE_OR~63985cae!insert	ALTER ORGANIZATION USER GROUP a REMOVE ORGANIZATION USERS a zzz
 reject	undocumented	docs	alterOrganizationUserGroup/ALTER_ORGANIZATION_USER_GROUP_(IF_EXISTS)?_ID_REMOVE_OR~63985cae!swap	ALWAYS ORGANIZATION USER GROUP a REMOVE ORGANIZATION USERS a
-reject	accept	docs	alterOrganizationUserGroup/ALTER_ORGANIZATION_USER_GROUP_(IF_EXISTS)?_ID_SET_VISIB~74685a1d	ALTER ORGANIZATION USER GROUP a SET VISIBILITY = ALL
+accept	accept	docs	alterOrganizationUserGroup/ALTER_ORGANIZATION_USER_GROUP_(IF_EXISTS)?_ID_SET_VISIB~74685a1d	ALTER ORGANIZATION USER GROUP a SET VISIBILITY = ALL
 reject	undocumented	docs	alterOrganizationUserGroup/ALTER_ORGANIZATION_USER_GROUP_(IF_EXISTS)?_ID_SET_VISIB~74685a1d!drop-1	ORGANIZATION USER GROUP a SET VISIBILITY = ALL
 reject	undocumented	docs	alterOrganizationUserGroup/ALTER_ORGANIZATION_USER_GROUP_(IF_EXISTS)?_ID_SET_VISIB~74685a1d!drop-2	ALTER USER GROUP a SET VISIBILITY = ALL
 reject	undocumented	docs	alterOrganizationUserGroup/ALTER_ORGANIZATION_USER_GROUP_(IF_EXISTS)?_ID_SET_VISIB~74685a1d!drop-3	ALTER ORGANIZATION GROUP a SET VISIBILITY = ALL
@@ -17785,7 +17785,7 @@ reject	undocumented	docs	alterOrganizationUserGroup/ALTER_ORGANIZATION_USER_GROU
 reject	undocumented	docs	alterOrganizationUserGroup/ALTER_ORGANIZATION_USER_GROUP_(IF_EXISTS)?_ID_SET_VISIB~74685a1d!drop-9	ALTER ORGANIZATION USER GROUP a SET VISIBILITY =
 reject	undocumented	docs	alterOrganizationUserGroup/ALTER_ORGANIZATION_USER_GROUP_(IF_EXISTS)?_ID_SET_VISIB~74685a1d!insert	ALTER ORGANIZATION USER GROUP a SET VISIBILITY = ALL zzz
 reject	undocumented	docs	alterOrganizationUserGroup/ALTER_ORGANIZATION_USER_GROUP_(IF_EXISTS)?_ID_SET_VISIB~74685a1d!swap	ALWAYS ORGANIZATION USER GROUP a SET VISIBILITY = ALL
-reject	accept	docs	alterOrganizationUserGroup/ALTER_ORGANIZATION_USER_GROUP_(IF_EXISTS)?_ID_SET_IS_GR~71570b3c	ALTER ORGANIZATION USER GROUP a SET IS_GRANTABLE = TRUE
+accept	accept	docs	alterOrganizationUserGroup/ALTER_ORGANIZATION_USER_GROUP_(IF_EXISTS)?_ID_SET_IS_GR~71570b3c	ALTER ORGANIZATION USER GROUP a SET IS_GRANTABLE = TRUE
 reject	undocumented	docs	alterOrganizationUserGroup/ALTER_ORGANIZATION_USER_GROUP_(IF_EXISTS)?_ID_SET_IS_GR~71570b3c!drop-1	ORGANIZATION USER GROUP a SET IS_GRANTABLE = TRUE
 reject	undocumented	docs	alterOrganizationUserGroup/ALTER_ORGANIZATION_USER_GROUP_(IF_EXISTS)?_ID_SET_IS_GR~71570b3c!drop-2	ALTER USER GROUP a SET IS_GRANTABLE = TRUE
 reject	undocumented	docs	alterOrganizationUserGroup/ALTER_ORGANIZATION_USER_GROUP_(IF_EXISTS)?_ID_SET_IS_GR~71570b3c!drop-3	ALTER ORGANIZATION GROUP a SET IS_GRANTABLE = TRUE
@@ -17797,40 +17797,40 @@ reject	undocumented	docs	alterOrganizationUserGroup/ALTER_ORGANIZATION_USER_GROU
 reject	undocumented	docs	alterOrganizationUserGroup/ALTER_ORGANIZATION_USER_GROUP_(IF_EXISTS)?_ID_SET_IS_GR~71570b3c!drop-9	ALTER ORGANIZATION USER GROUP a SET IS_GRANTABLE =
 reject	undocumented	docs	alterOrganizationUserGroup/ALTER_ORGANIZATION_USER_GROUP_(IF_EXISTS)?_ID_SET_IS_GR~71570b3c!insert	ALTER ORGANIZATION USER GROUP a SET IS_GRANTABLE = TRUE zzz
 reject	undocumented	docs	alterOrganizationUserGroup/ALTER_ORGANIZATION_USER_GROUP_(IF_EXISTS)?_ID_SET_IS_GR~71570b3c!swap	ALWAYS ORGANIZATION USER GROUP a SET IS_GRANTABLE = TRUE
-reject	accept	docs	alterOrganizationUserGroup(IF_EXISTS)?/%empty	ALTER ORGANIZATION USER GROUP a ADD ORGANIZATION USERS a
+accept	accept	docs	alterOrganizationUserGroup(IF_EXISTS)?/%empty	ALTER ORGANIZATION USER GROUP a ADD ORGANIZATION USERS a
 reject	undocumented	docs	alterOrganizationUserGroup(IF_EXISTS)?/%empty!insert	ALTER ORGANIZATION USER GROUP zzz a ADD ORGANIZATION USERS a
-reject	accept	docs	alterOrganizationUserGroup(IF_EXISTS)?/IF_EXISTS	ALTER ORGANIZATION USER GROUP IF EXISTS a ADD ORGANIZATION USERS a
+accept	accept	docs	alterOrganizationUserGroup(IF_EXISTS)?/IF_EXISTS	ALTER ORGANIZATION USER GROUP IF EXISTS a ADD ORGANIZATION USERS a
 reject	undocumented	docs	alterOrganizationUserGroup(IF_EXISTS)?/IF_EXISTS!drop-1	ALTER ORGANIZATION USER GROUP EXISTS a ADD ORGANIZATION USERS a
 reject	undocumented	docs	alterOrganizationUserGroup(IF_EXISTS)?/IF_EXISTS!drop-2	ALTER ORGANIZATION USER GROUP IF a ADD ORGANIZATION USERS a
 reject	undocumented	docs	alterOrganizationUserGroup(IF_EXISTS)?/IF_EXISTS!truncate	ALTER ORGANIZATION USER GROUP IF
 reject	undocumented	docs	alterOrganizationUserGroup(IF_EXISTS)?/IF_EXISTS!insert	ALTER ORGANIZATION USER GROUP IF EXISTS zzz a ADD ORGANIZATION USERS a
 reject	undocumented	docs	alterOrganizationUserGroup(IF_EXISTS)?/IF_EXISTS!swap	ALTER ORGANIZATION USER GROUP IGNORE EXISTS a ADD ORGANIZATION USERS a
-reject	accept	docs	alterOrganizationUserGroup(,_ID)*/%empty	ALTER ORGANIZATION USER GROUP a ADD ORGANIZATION USERS a
-reject	accept	docs	alterOrganizationUserGroup(,_ID)*/,_ID_(,_ID)*	ALTER ORGANIZATION USER GROUP a ADD ORGANIZATION USERS a, a
+accept	accept	docs	alterOrganizationUserGroup(,_ID)*/%empty	ALTER ORGANIZATION USER GROUP a ADD ORGANIZATION USERS a
+accept	accept	docs	alterOrganizationUserGroup(,_ID)*/,_ID_(,_ID)*	ALTER ORGANIZATION USER GROUP a ADD ORGANIZATION USERS a, a
 reject	undocumented	docs	alterOrganizationUserGroup(,_ID)*/,_ID_(,_ID)*!drop-1	ALTER ORGANIZATION USER GROUP a ADD ORGANIZATION USERS a a
 reject	undocumented	docs	alterOrganizationUserGroup(,_ID)*/,_ID_(,_ID)*!drop-2	ALTER ORGANIZATION USER GROUP a ADD ORGANIZATION USERS a,
 reject	undocumented	docs	alterOrganizationUserGroup(,_ID)*/,_ID_(,_ID)*!insert	ALTER ORGANIZATION USER GROUP a ADD ORGANIZATION USERS a, a zzz
-reject	accept	docs	alterOrganizationUserGroup(ALL|ACCOUNTS_ID_(,_ID)*|REGION_GROUP~d7a02ef9)/ALL	ALTER ORGANIZATION USER GROUP a SET VISIBILITY = ALL
+accept	accept	docs	alterOrganizationUserGroup(ALL|ACCOUNTS_ID_(,_ID)*|REGION_GROUP~d7a02ef9)/ALL	ALTER ORGANIZATION USER GROUP a SET VISIBILITY = ALL
 reject	undocumented	docs	alterOrganizationUserGroup(ALL|ACCOUNTS_ID_(,_ID)*|REGION_GROUP~d7a02ef9)/ALL!swap	ALTER ORGANIZATION USER GROUP a SET VISIBILITY = ALLOWED
-reject	accept	docs	alterOrganizationUserGroup(ALL|ACCOUNTS_ID_(,_ID)*|REGION_GROUP~d7a02ef9)/ACCOUNTS_ID_(,_ID)*	ALTER ORGANIZATION USER GROUP a SET VISIBILITY = ACCOUNTS a
+accept	accept	docs	alterOrganizationUserGroup(ALL|ACCOUNTS_ID_(,_ID)*|REGION_GROUP~d7a02ef9)/ACCOUNTS_ID_(,_ID)*	ALTER ORGANIZATION USER GROUP a SET VISIBILITY = ACCOUNTS a
 reject	undocumented	docs	alterOrganizationUserGroup(ALL|ACCOUNTS_ID_(,_ID)*|REGION_GROUP~d7a02ef9)/ACCOUNTS_ID_(,_ID)*!drop-1	ALTER ORGANIZATION USER GROUP a SET VISIBILITY = a
 reject	undocumented	docs	alterOrganizationUserGroup(ALL|ACCOUNTS_ID_(,_ID)*|REGION_GROUP~d7a02ef9)/ACCOUNTS_ID_(,_ID)*!drop-2	ALTER ORGANIZATION USER GROUP a SET VISIBILITY = ACCOUNTS
 reject	undocumented	docs	alterOrganizationUserGroup(ALL|ACCOUNTS_ID_(,_ID)*|REGION_GROUP~d7a02ef9)/ACCOUNTS_ID_(,_ID)*!insert	ALTER ORGANIZATION USER GROUP a SET VISIBILITY = ACCOUNTS a zzz
 reject	undocumented	docs	alterOrganizationUserGroup(ALL|ACCOUNTS_ID_(,_ID)*|REGION_GROUP~d7a02ef9)/ACCOUNTS_ID_(,_ID)*!swap	ALTER ORGANIZATION USER GROUP a SET VISIBILITY = ACTION a
-reject	accept	docs	alterOrganizationUserGroup(ALL|ACCOUNTS_ID_(,_ID)*|REGION_GROUP~d7a02ef9)/REGION_GROUPS_STRING_(,_STRING)*	ALTER ORGANIZATION USER GROUP a SET VISIBILITY = REGION GROUPS 's'
+accept	accept	docs	alterOrganizationUserGroup(ALL|ACCOUNTS_ID_(,_ID)*|REGION_GROUP~d7a02ef9)/REGION_GROUPS_STRING_(,_STRING)*	ALTER ORGANIZATION USER GROUP a SET VISIBILITY = REGION GROUPS 's'
 reject	undocumented	docs	alterOrganizationUserGroup(ALL|ACCOUNTS_ID_(,_ID)*|REGION_GROUP~d7a02ef9)/REGION_GROUPS_STRING_(,_STRING)*!drop-1	ALTER ORGANIZATION USER GROUP a SET VISIBILITY = GROUPS 's'
 reject	undocumented	docs	alterOrganizationUserGroup(ALL|ACCOUNTS_ID_(,_ID)*|REGION_GROUP~d7a02ef9)/REGION_GROUPS_STRING_(,_STRING)*!drop-2	ALTER ORGANIZATION USER GROUP a SET VISIBILITY = REGION 's'
 reject	undocumented	docs	alterOrganizationUserGroup(ALL|ACCOUNTS_ID_(,_ID)*|REGION_GROUP~d7a02ef9)/REGION_GROUPS_STRING_(,_STRING)*!drop-3	ALTER ORGANIZATION USER GROUP a SET VISIBILITY = REGION GROUPS
 reject	undocumented	docs	alterOrganizationUserGroup(ALL|ACCOUNTS_ID_(,_ID)*|REGION_GROUP~d7a02ef9)/REGION_GROUPS_STRING_(,_STRING)*!insert	ALTER ORGANIZATION USER GROUP a SET VISIBILITY = REGION GROUPS 's' zzz
 reject	undocumented	docs	alterOrganizationUserGroup(ALL|ACCOUNTS_ID_(,_ID)*|REGION_GROUP~d7a02ef9)/REGION_GROUPS_STRING_(,_STRING)*!swap	ALTER ORGANIZATION USER GROUP a SET VISIBILITY = REGIONS GROUPS 's'
-reject	accept	docs	alterOrganizationUserGroup(,_STRING)*/%empty	ALTER ORGANIZATION USER GROUP a SET VISIBILITY = REGION GROUPS 's'
-reject	accept	docs	alterOrganizationUserGroup(,_STRING)*/,_STRING_(,_STRING)*	ALTER ORGANIZATION USER GROUP a SET VISIBILITY = REGION GROUPS 's', 's'
+accept	accept	docs	alterOrganizationUserGroup(,_STRING)*/%empty	ALTER ORGANIZATION USER GROUP a SET VISIBILITY = REGION GROUPS 's'
+accept	accept	docs	alterOrganizationUserGroup(,_STRING)*/,_STRING_(,_STRING)*	ALTER ORGANIZATION USER GROUP a SET VISIBILITY = REGION GROUPS 's', 's'
 reject	undocumented	docs	alterOrganizationUserGroup(,_STRING)*/,_STRING_(,_STRING)*!drop-1	ALTER ORGANIZATION USER GROUP a SET VISIBILITY = REGION GROUPS 's' 's'
 reject	undocumented	docs	alterOrganizationUserGroup(,_STRING)*/,_STRING_(,_STRING)*!drop-2	ALTER ORGANIZATION USER GROUP a SET VISIBILITY = REGION GROUPS 's',
 reject	undocumented	docs	alterOrganizationUserGroup(,_STRING)*/,_STRING_(,_STRING)*!insert	ALTER ORGANIZATION USER GROUP a SET VISIBILITY = REGION GROUPS 's', 's' zzz
-reject	accept	docs	alterOrganizationUserGroup(TRUE|FALSE)/TRUE	ALTER ORGANIZATION USER GROUP a SET IS_GRANTABLE = TRUE
+accept	accept	docs	alterOrganizationUserGroup(TRUE|FALSE)/TRUE	ALTER ORGANIZATION USER GROUP a SET IS_GRANTABLE = TRUE
 reject	undocumented	docs	alterOrganizationUserGroup(TRUE|FALSE)/TRUE!swap	ALTER ORGANIZATION USER GROUP a SET IS_GRANTABLE = TRUNCATE
-reject	accept	docs	alterOrganizationUserGroup(TRUE|FALSE)/FALSE	ALTER ORGANIZATION USER GROUP a SET IS_GRANTABLE = FALSE
+accept	accept	docs	alterOrganizationUserGroup(TRUE|FALSE)/FALSE	ALTER ORGANIZATION USER GROUP a SET IS_GRANTABLE = FALSE
 reject	undocumented	docs	alterOrganizationUserGroup(TRUE|FALSE)/FALSE!insert	ALTER ORGANIZATION USER GROUP a SET IS_GRANTABLE = FALSE zzz
 reject	undocumented	docs	alterOrganizationUserGroup(TRUE|FALSE)/FALSE!swap	ALTER ORGANIZATION USER GROUP a SET IS_GRANTABLE = FAMILIES
 accept	accept	docs	alterPackagesPolicy/ALTER_PACKAGES_POLICY_(IF_EXISTS)?_QNAME_SET_(ALLOWLIST~cd7360f9	ALTER PACKAGES POLICY a SET COMMENT = 's'
@@ -42389,65 +42389,65 @@ reject	undocumented	docs	createOpenflowRuntime(COMMENT_=_STRING)?/COMMENT_=_STRI
 reject	undocumented	docs	createOpenflowRuntime(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	CREATE OPENFLOW RUNTIME a IN DEPLOYMENT a NODE_TYPE = SMALL MIN_NODES = 1 MAX_NODES = 1 EXECUTE_AS_ROLE = a COMMENT =
 reject	undocumented	docs	createOpenflowRuntime(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	CREATE OPENFLOW RUNTIME a IN DEPLOYMENT a NODE_TYPE = SMALL MIN_NODES = 1 MAX_NODES = 1 EXECUTE_AS_ROLE = a COMMENT = 's' zzz
 reject	undocumented	docs	createOpenflowRuntime(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE OPENFLOW RUNTIME a IN DEPLOYMENT a NODE_TYPE = SMALL MIN_NODES = 1 MAX_NODES = 1 EXECUTE_AS_ROLE = a COMMENTS = 's'
-reject	accept	docs	createOrganizationAccount/CREATE_ORGANIZATION_ACCOUNT_ID_ADMIN_NAME_=_STRING_(ADM~e30458eb	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' EDITION = ENTERPRISE
-reject	accept	docs	createOrganizationAccount(ADMIN_PASSWORD_=_STRING|ADMIN_RSA_PU~7156d253)/ADMIN_PASSWORD_=_STRING	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' EDITION = ENTERPRISE
+accept	accept	docs	createOrganizationAccount/CREATE_ORGANIZATION_ACCOUNT_ID_ADMIN_NAME_=_STRING_(ADM~e30458eb	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' EDITION = ENTERPRISE
+accept	accept	docs	createOrganizationAccount(ADMIN_PASSWORD_=_STRING|ADMIN_RSA_PU~7156d253)/ADMIN_PASSWORD_=_STRING	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' EDITION = ENTERPRISE
 reject	undocumented	docs	createOrganizationAccount(ADMIN_PASSWORD_=_STRING|ADMIN_RSA_PU~7156d253)/ADMIN_PASSWORD_=_STRING!truncate	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD =
 reject	undocumented	docs	createOrganizationAccount(ADMIN_PASSWORD_=_STRING|ADMIN_RSA_PU~7156d253)/ADMIN_PASSWORD_=_STRING!insert	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' zzz EMAIL = 's' EDITION = ENTERPRISE
-reject	accept	docs	createOrganizationAccount(ADMIN_PASSWORD_=_STRING|ADMIN_RSA_PU~7156d253)/ADMIN_RSA_PUBLIC_KEY_=_STRING	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_RSA_PUBLIC_KEY = 's' EMAIL = 's' EDITION = ENTERPRISE
+accept	accept	docs	createOrganizationAccount(ADMIN_PASSWORD_=_STRING|ADMIN_RSA_PU~7156d253)/ADMIN_RSA_PUBLIC_KEY_=_STRING	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_RSA_PUBLIC_KEY = 's' EMAIL = 's' EDITION = ENTERPRISE
 reject	undocumented	docs	createOrganizationAccount(ADMIN_PASSWORD_=_STRING|ADMIN_RSA_PU~7156d253)/ADMIN_RSA_PUBLIC_KEY_=_STRING!drop-2	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_RSA_PUBLIC_KEY 's' EMAIL = 's' EDITION = ENTERPRISE
 reject	undocumented	docs	createOrganizationAccount(ADMIN_PASSWORD_=_STRING|ADMIN_RSA_PU~7156d253)/ADMIN_RSA_PUBLIC_KEY_=_STRING!drop-3	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_RSA_PUBLIC_KEY = EMAIL = 's' EDITION = ENTERPRISE
 reject	undocumented	docs	createOrganizationAccount(ADMIN_PASSWORD_=_STRING|ADMIN_RSA_PU~7156d253)/ADMIN_RSA_PUBLIC_KEY_=_STRING!truncate	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_RSA_PUBLIC_KEY =
 reject	undocumented	docs	createOrganizationAccount(ADMIN_PASSWORD_=_STRING|ADMIN_RSA_PU~7156d253)/ADMIN_RSA_PUBLIC_KEY_=_STRING!insert	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_RSA_PUBLIC_KEY = 's' zzz EMAIL = 's' EDITION = ENTERPRISE
 reject	undocumented	docs	createOrganizationAccount(ADMIN_PASSWORD_=_STRING|ADMIN_RSA_PU~7156d253)/ADMIN_RSA_PUBLIC_KEY_=_STRING!swap	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_USER_TYPE = 's' EMAIL = 's' EDITION = ENTERPRISE
-reject	accept	docs	createOrganizationAccount(FIRST_NAME_=_STRING)?/%empty	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' EDITION = ENTERPRISE
-reject	accept	docs	createOrganizationAccount(FIRST_NAME_=_STRING)?/FIRST_NAME_=_STRING	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' FIRST_NAME = 's' EMAIL = 's' EDITION = ENTERPRISE
+accept	accept	docs	createOrganizationAccount(FIRST_NAME_=_STRING)?/%empty	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' EDITION = ENTERPRISE
+accept	accept	docs	createOrganizationAccount(FIRST_NAME_=_STRING)?/FIRST_NAME_=_STRING	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' FIRST_NAME = 's' EMAIL = 's' EDITION = ENTERPRISE
 reject	undocumented	docs	createOrganizationAccount(FIRST_NAME_=_STRING)?/FIRST_NAME_=_STRING!drop-1	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' = 's' EMAIL = 's' EDITION = ENTERPRISE
 reject	undocumented	docs	createOrganizationAccount(FIRST_NAME_=_STRING)?/FIRST_NAME_=_STRING!drop-2	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' FIRST_NAME 's' EMAIL = 's' EDITION = ENTERPRISE
 reject	undocumented	docs	createOrganizationAccount(FIRST_NAME_=_STRING)?/FIRST_NAME_=_STRING!drop-3	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' FIRST_NAME = EMAIL = 's' EDITION = ENTERPRISE
 reject	undocumented	docs	createOrganizationAccount(FIRST_NAME_=_STRING)?/FIRST_NAME_=_STRING!truncate	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' FIRST_NAME =
 reject	undocumented	docs	createOrganizationAccount(FIRST_NAME_=_STRING)?/FIRST_NAME_=_STRING!insert	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' FIRST_NAME = 's' zzz EMAIL = 's' EDITION = ENTERPRISE
 reject	undocumented	docs	createOrganizationAccount(FIRST_NAME_=_STRING)?/FIRST_NAME_=_STRING!swap	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' FLAT = 's' EMAIL = 's' EDITION = ENTERPRISE
-reject	accept	docs	createOrganizationAccount(LAST_NAME_=_STRING)?/%empty	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' EDITION = ENTERPRISE
-reject	accept	docs	createOrganizationAccount(LAST_NAME_=_STRING)?/LAST_NAME_=_STRING	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' LAST_NAME = 's' EMAIL = 's' EDITION = ENTERPRISE
+accept	accept	docs	createOrganizationAccount(LAST_NAME_=_STRING)?/%empty	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' EDITION = ENTERPRISE
+accept	accept	docs	createOrganizationAccount(LAST_NAME_=_STRING)?/LAST_NAME_=_STRING	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' LAST_NAME = 's' EMAIL = 's' EDITION = ENTERPRISE
 reject	undocumented	docs	createOrganizationAccount(LAST_NAME_=_STRING)?/LAST_NAME_=_STRING!drop-2	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' LAST_NAME 's' EMAIL = 's' EDITION = ENTERPRISE
 reject	undocumented	docs	createOrganizationAccount(LAST_NAME_=_STRING)?/LAST_NAME_=_STRING!drop-3	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' LAST_NAME = EMAIL = 's' EDITION = ENTERPRISE
 reject	undocumented	docs	createOrganizationAccount(LAST_NAME_=_STRING)?/LAST_NAME_=_STRING!truncate	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' LAST_NAME =
 reject	undocumented	docs	createOrganizationAccount(LAST_NAME_=_STRING)?/LAST_NAME_=_STRING!insert	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' LAST_NAME = 's' zzz EMAIL = 's' EDITION = ENTERPRISE
 reject	undocumented	docs	createOrganizationAccount(LAST_NAME_=_STRING)?/LAST_NAME_=_STRING!swap	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' LAST_QUERY_ID = 's' EMAIL = 's' EDITION = ENTERPRISE
-reject	accept	docs	createOrganizationAccount(MUST_CHANGE_PASSWORD_=_(TRUE|FALSE))?/%empty	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' EDITION = ENTERPRISE
+accept	accept	docs	createOrganizationAccount(MUST_CHANGE_PASSWORD_=_(TRUE|FALSE))?/%empty	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' EDITION = ENTERPRISE
 reject	undocumented	docs	createOrganizationAccount(MUST_CHANGE_PASSWORD_=_(TRUE|FALSE))?/%empty!insert	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' zzz EDITION = ENTERPRISE
-reject	accept	docs	createOrganizationAccount(MUST_CHANGE_PASSWORD_=_(TRUE|FALSE))?/MUST_CHANGE_PASSWORD_=_(TRUE|FALSE)	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' MUST_CHANGE_PASSWORD = TRUE EDITION = ENTERPRISE
+accept	accept	docs	createOrganizationAccount(MUST_CHANGE_PASSWORD_=_(TRUE|FALSE))?/MUST_CHANGE_PASSWORD_=_(TRUE|FALSE)	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' MUST_CHANGE_PASSWORD = TRUE EDITION = ENTERPRISE
 reject	undocumented	docs	createOrganizationAccount(MUST_CHANGE_PASSWORD_=_(TRUE|FALSE))?/MUST_CHANGE_PASSWORD_=_(TRUE|FALSE)!drop-1	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' = TRUE EDITION = ENTERPRISE
 reject	undocumented	docs	createOrganizationAccount(MUST_CHANGE_PASSWORD_=_(TRUE|FALSE))?/MUST_CHANGE_PASSWORD_=_(TRUE|FALSE)!drop-2	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' MUST_CHANGE_PASSWORD TRUE EDITION = ENTERPRISE
 reject	undocumented	docs	createOrganizationAccount(MUST_CHANGE_PASSWORD_=_(TRUE|FALSE))?/MUST_CHANGE_PASSWORD_=_(TRUE|FALSE)!drop-3	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' MUST_CHANGE_PASSWORD = EDITION = ENTERPRISE
 reject	undocumented	docs	createOrganizationAccount(MUST_CHANGE_PASSWORD_=_(TRUE|FALSE))?/MUST_CHANGE_PASSWORD_=_(TRUE|FALSE)!truncate	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' MUST_CHANGE_PASSWORD =
 reject	undocumented	docs	createOrganizationAccount(MUST_CHANGE_PASSWORD_=_(TRUE|FALSE))?/MUST_CHANGE_PASSWORD_=_(TRUE|FALSE)!insert	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' MUST_CHANGE_PASSWORD = TRUE zzz EDITION = ENTERPRISE
 reject	undocumented	docs	createOrganizationAccount(MUST_CHANGE_PASSWORD_=_(TRUE|FALSE))?/MUST_CHANGE_PASSWORD_=_(TRUE|FALSE)!swap	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' NAME = TRUE EDITION = ENTERPRISE
-reject	accept	docs	createOrganizationAccount(TRUE|FALSE)/TRUE	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' MUST_CHANGE_PASSWORD = TRUE EDITION = ENTERPRISE
+accept	accept	docs	createOrganizationAccount(TRUE|FALSE)/TRUE	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' MUST_CHANGE_PASSWORD = TRUE EDITION = ENTERPRISE
 reject	undocumented	docs	createOrganizationAccount(TRUE|FALSE)/TRUE!swap	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' MUST_CHANGE_PASSWORD = TRUNCATE EDITION = ENTERPRISE
-reject	accept	docs	createOrganizationAccount(TRUE|FALSE)/FALSE	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' MUST_CHANGE_PASSWORD = FALSE EDITION = ENTERPRISE
+accept	accept	docs	createOrganizationAccount(TRUE|FALSE)/FALSE	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' MUST_CHANGE_PASSWORD = FALSE EDITION = ENTERPRISE
 reject	undocumented	docs	createOrganizationAccount(TRUE|FALSE)/FALSE!insert	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' MUST_CHANGE_PASSWORD = FALSE zzz EDITION = ENTERPRISE
 reject	undocumented	docs	createOrganizationAccount(TRUE|FALSE)/FALSE!swap	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' MUST_CHANGE_PASSWORD = FAMILIES EDITION = ENTERPRISE
-reject	accept	docs	createOrganizationAccount(ENTERPRISE|BUSINESS_CRITICAL)/ENTERPRISE	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' EDITION = ENTERPRISE
+accept	accept	docs	createOrganizationAccount(ENTERPRISE|BUSINESS_CRITICAL)/ENTERPRISE	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' EDITION = ENTERPRISE
 reject	undocumented	docs	createOrganizationAccount(ENTERPRISE|BUSINESS_CRITICAL)/ENTERPRISE!swap	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' EDITION = ENTITIES
-reject	accept	docs	createOrganizationAccount(ENTERPRISE|BUSINESS_CRITICAL)/BUSINESS_CRITICAL	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' EDITION = BUSINESS_CRITICAL
+accept	accept	docs	createOrganizationAccount(ENTERPRISE|BUSINESS_CRITICAL)/BUSINESS_CRITICAL	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' EDITION = BUSINESS_CRITICAL
 reject	undocumented	docs	createOrganizationAccount(ENTERPRISE|BUSINESS_CRITICAL)/BUSINESS_CRITICAL!insert	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' EDITION = BUSINESS_CRITICAL zzz
 reject	undocumented	docs	createOrganizationAccount(ENTERPRISE|BUSINESS_CRITICAL)/BUSINESS_CRITICAL!swap	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' EDITION = BY
-reject	accept	docs	createOrganizationAccount(REGION_GROUP_=_ID)?/%empty	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' EDITION = ENTERPRISE
-reject	accept	docs	createOrganizationAccount(REGION_GROUP_=_ID)?/REGION_GROUP_=_ID	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' EDITION = ENTERPRISE REGION_GROUP = a
+accept	accept	docs	createOrganizationAccount(REGION_GROUP_=_ID)?/%empty	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' EDITION = ENTERPRISE
+accept	accept	docs	createOrganizationAccount(REGION_GROUP_=_ID)?/REGION_GROUP_=_ID	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' EDITION = ENTERPRISE REGION_GROUP = a
 reject	undocumented	docs	createOrganizationAccount(REGION_GROUP_=_ID)?/REGION_GROUP_=_ID!drop-1	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' EDITION = ENTERPRISE = a
 reject	undocumented	docs	createOrganizationAccount(REGION_GROUP_=_ID)?/REGION_GROUP_=_ID!drop-2	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' EDITION = ENTERPRISE REGION_GROUP a
 reject	undocumented	docs	createOrganizationAccount(REGION_GROUP_=_ID)?/REGION_GROUP_=_ID!drop-3	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' EDITION = ENTERPRISE REGION_GROUP =
 reject	undocumented	docs	createOrganizationAccount(REGION_GROUP_=_ID)?/REGION_GROUP_=_ID!insert	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' EDITION = ENTERPRISE REGION_GROUP = a zzz
 reject	undocumented	docs	createOrganizationAccount(REGION_GROUP_=_ID)?/REGION_GROUP_=_ID!swap	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' EDITION = ENTERPRISE REGISTER = a
-reject	accept	docs	createOrganizationAccount(REGION_=_ID)?/%empty	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' EDITION = ENTERPRISE
-reject	accept	docs	createOrganizationAccount(REGION_=_ID)?/REGION_=_ID	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' EDITION = ENTERPRISE REGION = a
+accept	accept	docs	createOrganizationAccount(REGION_=_ID)?/%empty	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' EDITION = ENTERPRISE
+accept	accept	docs	createOrganizationAccount(REGION_=_ID)?/REGION_=_ID	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' EDITION = ENTERPRISE REGION = a
 reject	undocumented	docs	createOrganizationAccount(REGION_=_ID)?/REGION_=_ID!drop-2	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' EDITION = ENTERPRISE REGION a
 reject	undocumented	docs	createOrganizationAccount(REGION_=_ID)?/REGION_=_ID!drop-3	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' EDITION = ENTERPRISE REGION =
 reject	undocumented	docs	createOrganizationAccount(REGION_=_ID)?/REGION_=_ID!insert	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' EDITION = ENTERPRISE REGION = a zzz
 reject	undocumented	docs	createOrganizationAccount(REGION_=_ID)?/REGION_=_ID!swap	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' EDITION = ENTERPRISE REGIONS = a
-reject	accept	docs	createOrganizationAccount(COMMENT_=_STRING)?/%empty	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' EDITION = ENTERPRISE
-reject	accept	docs	createOrganizationAccount(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' EDITION = ENTERPRISE COMMENT = 's'
+accept	accept	docs	createOrganizationAccount(COMMENT_=_STRING)?/%empty	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' EDITION = ENTERPRISE
+accept	accept	docs	createOrganizationAccount(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' EDITION = ENTERPRISE COMMENT = 's'
 reject	undocumented	docs	createOrganizationAccount(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-1	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' EDITION = ENTERPRISE = 's'
 reject	undocumented	docs	createOrganizationAccount(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-2	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' EDITION = ENTERPRISE COMMENT 's'
 reject	undocumented	docs	createOrganizationAccount(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' EDITION = ENTERPRISE COMMENT =
@@ -42498,15 +42498,15 @@ reject	undocumented	docs	createOrganizationListing(TRUE|FALSE)/TRUE!swap	CREATE 
 accept	accept	docs	createOrganizationListing(TRUE|FALSE)/FALSE	CREATE ORGANIZATION LISTING a AS 's' PUBLISH = FALSE
 reject	undocumented	docs	createOrganizationListing(TRUE|FALSE)/FALSE!insert	CREATE ORGANIZATION LISTING a AS 's' PUBLISH = FALSE zzz
 reject	undocumented	docs	createOrganizationListing(TRUE|FALSE)/FALSE!swap	CREATE ORGANIZATION LISTING a AS 's' PUBLISH = FAMILIES
-reject	accept	docs	createOrganizationProfile/CREATE_ORGANIZATION_PROFILE_(IF_NOT_EXISTS)?_ID	CREATE ORGANIZATION PROFILE a
-reject	accept	docs	createOrganizationProfile/CREATE_ORGANIZATION_PROFILE_(IF_NOT_EXISTS)?_ID_AS_STRI~f49bc2b1	CREATE ORGANIZATION PROFILE a AS 's'
+accept	accept	docs	createOrganizationProfile/CREATE_ORGANIZATION_PROFILE_(IF_NOT_EXISTS)?_ID	CREATE ORGANIZATION PROFILE a
+accept	accept	docs	createOrganizationProfile/CREATE_ORGANIZATION_PROFILE_(IF_NOT_EXISTS)?_ID_AS_STRI~f49bc2b1	CREATE ORGANIZATION PROFILE a AS 's'
 reject	undocumented	docs	createOrganizationProfile/CREATE_ORGANIZATION_PROFILE_(IF_NOT_EXISTS)?_ID_AS_STRI~f49bc2b1!drop-2	CREATE PROFILE a AS 's'
 reject	undocumented	docs	createOrganizationProfile/CREATE_ORGANIZATION_PROFILE_(IF_NOT_EXISTS)?_ID_AS_STRI~f49bc2b1!drop-4	CREATE ORGANIZATION PROFILE AS 's'
 reject	undocumented	docs	createOrganizationProfile/CREATE_ORGANIZATION_PROFILE_(IF_NOT_EXISTS)?_ID_AS_STRI~f49bc2b1!drop-5	CREATE ORGANIZATION PROFILE a 's'
 reject	undocumented	docs	createOrganizationProfile/CREATE_ORGANIZATION_PROFILE_(IF_NOT_EXISTS)?_ID_AS_STRI~f49bc2b1!drop-6	CREATE ORGANIZATION PROFILE a AS
 reject	undocumented	docs	createOrganizationProfile/CREATE_ORGANIZATION_PROFILE_(IF_NOT_EXISTS)?_ID_AS_STRI~f49bc2b1!insert	CREATE ORGANIZATION PROFILE a AS 's' zzz
 reject	undocumented	docs	createOrganizationProfile/CREATE_ORGANIZATION_PROFILE_(IF_NOT_EXISTS)?_ID_AS_STRI~f49bc2b1!swap	CREATION ORGANIZATION PROFILE a AS 's'
-reject	accept	docs	createOrganizationProfile/CREATE_ORGANIZATION_PROFILE_(IF_NOT_EXISTS)?_ID_FROM_ST~11e3909d	CREATE ORGANIZATION PROFILE a FROM @a
+accept	accept	docs	createOrganizationProfile/CREATE_ORGANIZATION_PROFILE_(IF_NOT_EXISTS)?_ID_FROM_ST~11e3909d	CREATE ORGANIZATION PROFILE a FROM @a
 reject	undocumented	docs	createOrganizationProfile/CREATE_ORGANIZATION_PROFILE_(IF_NOT_EXISTS)?_ID_FROM_ST~11e3909d!drop-1	ORGANIZATION PROFILE a FROM @a
 reject	undocumented	docs	createOrganizationProfile/CREATE_ORGANIZATION_PROFILE_(IF_NOT_EXISTS)?_ID_FROM_ST~11e3909d!drop-2	CREATE PROFILE a FROM @a
 reject	undocumented	docs	createOrganizationProfile/CREATE_ORGANIZATION_PROFILE_(IF_NOT_EXISTS)?_ID_FROM_ST~11e3909d!drop-3	CREATE ORGANIZATION a FROM @a
@@ -42515,52 +42515,52 @@ reject	undocumented	docs	createOrganizationProfile/CREATE_ORGANIZATION_PROFILE_(
 reject	undocumented	docs	createOrganizationProfile/CREATE_ORGANIZATION_PROFILE_(IF_NOT_EXISTS)?_ID_FROM_ST~11e3909d!drop-6	CREATE ORGANIZATION PROFILE a FROM
 reject	undocumented	docs	createOrganizationProfile/CREATE_ORGANIZATION_PROFILE_(IF_NOT_EXISTS)?_ID_FROM_ST~11e3909d!insert	CREATE ORGANIZATION PROFILE a FROM @a zzz
 reject	undocumented	docs	createOrganizationProfile/CREATE_ORGANIZATION_PROFILE_(IF_NOT_EXISTS)?_ID_FROM_ST~11e3909d!swap	CREATION ORGANIZATION PROFILE a FROM @a
-reject	accept	docs	createOrganizationProfile(IF_NOT_EXISTS)?/%empty	CREATE ORGANIZATION PROFILE a
+accept	accept	docs	createOrganizationProfile(IF_NOT_EXISTS)?/%empty	CREATE ORGANIZATION PROFILE a
 reject	undocumented	docs	createOrganizationProfile(IF_NOT_EXISTS)?/%empty!insert	CREATE ORGANIZATION PROFILE zzz a
-reject	accept	docs	createOrganizationProfile(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE ORGANIZATION PROFILE IF NOT EXISTS a
+accept	accept	docs	createOrganizationProfile(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE ORGANIZATION PROFILE IF NOT EXISTS a
 reject	undocumented	docs	createOrganizationProfile(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	CREATE ORGANIZATION PROFILE NOT EXISTS a
 reject	undocumented	docs	createOrganizationProfile(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	CREATE ORGANIZATION PROFILE IF EXISTS a
 reject	undocumented	docs	createOrganizationProfile(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE ORGANIZATION PROFILE IF NOT a
 reject	undocumented	docs	createOrganizationProfile(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE ORGANIZATION PROFILE IF NOT
 reject	undocumented	docs	createOrganizationProfile(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE ORGANIZATION PROFILE IF NOT EXISTS zzz a
 reject	undocumented	docs	createOrganizationProfile(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE ORGANIZATION PROFILE IGNORE NOT EXISTS a
-reject	accept	docs	createOrganizationProfile(VERSION_ID)?/%empty	CREATE ORGANIZATION PROFILE a AS 's'
-reject	accept	docs	createOrganizationProfile(VERSION_ID)?/VERSION_ID	CREATE ORGANIZATION PROFILE a AS 's' VERSION a
+accept	accept	docs	createOrganizationProfile(VERSION_ID)?/%empty	CREATE ORGANIZATION PROFILE a AS 's'
+accept	accept	docs	createOrganizationProfile(VERSION_ID)?/VERSION_ID	CREATE ORGANIZATION PROFILE a AS 's' VERSION a
 reject	undocumented	docs	createOrganizationProfile(VERSION_ID)?/VERSION_ID!drop-1	CREATE ORGANIZATION PROFILE a AS 's' a
 reject	undocumented	docs	createOrganizationProfile(VERSION_ID)?/VERSION_ID!drop-2	CREATE ORGANIZATION PROFILE a AS 's' VERSION
 reject	undocumented	docs	createOrganizationProfile(VERSION_ID)?/VERSION_ID!insert	CREATE ORGANIZATION PROFILE a AS 's' VERSION a zzz
 reject	undocumented	docs	createOrganizationProfile(VERSION_ID)?/VERSION_ID!swap	CREATE ORGANIZATION PROFILE a AS 's' VERSIONED a
-reject	accept	docs	createOrganizationProfile(PUBLISH_=_(TRUE|FALSE))?/%empty	CREATE ORGANIZATION PROFILE a AS 's'
-reject	accept	docs	createOrganizationProfile(PUBLISH_=_(TRUE|FALSE))?/PUBLISH_=_(TRUE|FALSE)	CREATE ORGANIZATION PROFILE a AS 's' PUBLISH = TRUE
+accept	accept	docs	createOrganizationProfile(PUBLISH_=_(TRUE|FALSE))?/%empty	CREATE ORGANIZATION PROFILE a AS 's'
+accept	accept	docs	createOrganizationProfile(PUBLISH_=_(TRUE|FALSE))?/PUBLISH_=_(TRUE|FALSE)	CREATE ORGANIZATION PROFILE a AS 's' PUBLISH = TRUE
 reject	undocumented	docs	createOrganizationProfile(PUBLISH_=_(TRUE|FALSE))?/PUBLISH_=_(TRUE|FALSE)!drop-1	CREATE ORGANIZATION PROFILE a AS 's' = TRUE
 reject	undocumented	docs	createOrganizationProfile(PUBLISH_=_(TRUE|FALSE))?/PUBLISH_=_(TRUE|FALSE)!drop-2	CREATE ORGANIZATION PROFILE a AS 's' PUBLISH TRUE
 reject	undocumented	docs	createOrganizationProfile(PUBLISH_=_(TRUE|FALSE))?/PUBLISH_=_(TRUE|FALSE)!drop-3	CREATE ORGANIZATION PROFILE a AS 's' PUBLISH =
 reject	undocumented	docs	createOrganizationProfile(PUBLISH_=_(TRUE|FALSE))?/PUBLISH_=_(TRUE|FALSE)!insert	CREATE ORGANIZATION PROFILE a AS 's' PUBLISH = TRUE zzz
 reject	undocumented	docs	createOrganizationProfile(PUBLISH_=_(TRUE|FALSE))?/PUBLISH_=_(TRUE|FALSE)!swap	CREATE ORGANIZATION PROFILE a AS 's' PUBLISHED = TRUE
-reject	accept	docs	createOrganizationProfile(TRUE|FALSE)/TRUE	CREATE ORGANIZATION PROFILE a AS 's' PUBLISH = TRUE
+accept	accept	docs	createOrganizationProfile(TRUE|FALSE)/TRUE	CREATE ORGANIZATION PROFILE a AS 's' PUBLISH = TRUE
 reject	undocumented	docs	createOrganizationProfile(TRUE|FALSE)/TRUE!swap	CREATE ORGANIZATION PROFILE a AS 's' PUBLISH = TRUNCATE
-reject	accept	docs	createOrganizationProfile(TRUE|FALSE)/FALSE	CREATE ORGANIZATION PROFILE a AS 's' PUBLISH = FALSE
+accept	accept	docs	createOrganizationProfile(TRUE|FALSE)/FALSE	CREATE ORGANIZATION PROFILE a AS 's' PUBLISH = FALSE
 reject	undocumented	docs	createOrganizationProfile(TRUE|FALSE)/FALSE!insert	CREATE ORGANIZATION PROFILE a AS 's' PUBLISH = FALSE zzz
 reject	undocumented	docs	createOrganizationProfile(TRUE|FALSE)/FALSE!swap	CREATE ORGANIZATION PROFILE a AS 's' PUBLISH = FAMILIES
-reject	accept	docs	createOrganizationUser/CREATE_ORGANIZATION_USER_(IF_NOT_EXISTS)?_ID_(createOrg~6a41ff89	CREATE ORGANIZATION USER a
-reject	accept	docs	createOrganizationUser(IF_NOT_EXISTS)?/%empty	CREATE ORGANIZATION USER a
+accept	accept	docs	createOrganizationUser/CREATE_ORGANIZATION_USER_(IF_NOT_EXISTS)?_ID_(createOrg~6a41ff89	CREATE ORGANIZATION USER a
+accept	accept	docs	createOrganizationUser(IF_NOT_EXISTS)?/%empty	CREATE ORGANIZATION USER a
 reject	undocumented	docs	createOrganizationUser(IF_NOT_EXISTS)?/%empty!insert	CREATE ORGANIZATION USER zzz a
-reject	accept	docs	createOrganizationUser(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE ORGANIZATION USER IF NOT EXISTS a
+accept	accept	docs	createOrganizationUser(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE ORGANIZATION USER IF NOT EXISTS a
 reject	undocumented	docs	createOrganizationUser(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	CREATE ORGANIZATION USER NOT EXISTS a
 reject	undocumented	docs	createOrganizationUser(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	CREATE ORGANIZATION USER IF EXISTS a
 reject	undocumented	docs	createOrganizationUser(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE ORGANIZATION USER IF NOT a
 reject	undocumented	docs	createOrganizationUser(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE ORGANIZATION USER IF NOT
 reject	undocumented	docs	createOrganizationUser(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE ORGANIZATION USER IF NOT EXISTS zzz a
 reject	undocumented	docs	createOrganizationUser(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE ORGANIZATION USER IGNORE NOT EXISTS a
-reject	accept	docs	createOrganizationUser(createOrganizationUser_objectProperties)?/%empty	CREATE ORGANIZATION USER a
-reject	accept	docs	createOrganizationUser(createOrganizationUser_objectProperties)?/createOrganizationUser_objectProperties	CREATE ORGANIZATION USER a EMAIL = 's'
+accept	accept	docs	createOrganizationUser(createOrganizationUser_objectProperties)?/%empty	CREATE ORGANIZATION USER a
+accept	accept	docs	createOrganizationUser(createOrganizationUser_objectProperties)?/createOrganizationUser_objectProperties	CREATE ORGANIZATION USER a EMAIL = 's'
 reject	undocumented	docs	createOrganizationUser(createOrganizationUser_objectProperties)?/createOrganizationUser_objectProperties!drop-1	CREATE ORGANIZATION USER a = 's'
 reject	undocumented	docs	createOrganizationUser(createOrganizationUser_objectProperties)?/createOrganizationUser_objectProperties!drop-2	CREATE ORGANIZATION USER a EMAIL 's'
 reject	undocumented	docs	createOrganizationUser(createOrganizationUser_objectProperties)?/createOrganizationUser_objectProperties!drop-3	CREATE ORGANIZATION USER a EMAIL =
 reject	undocumented	docs	createOrganizationUser(createOrganizationUser_objectProperties)?/createOrganizationUser_objectProperties!insert	CREATE ORGANIZATION USER a EMAIL = 's' zzz
 reject	undocumented	docs	createOrganizationUser(createOrganizationUser_objectProperties)?/createOrganizationUser_objectProperties!swap	CREATE ORGANIZATION USER a EMAIL_DISTRIBUTION_LIST = 's'
-reject	accept	docs	createOrganizationUser_objectProperties/(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)+	CREATE ORGANIZATION USER a EMAIL = 's'
-reject	accept	docs	createOrganizationUser_objectProperties(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)+/(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)	CREATE ORGANIZATION USER a EMAIL = 's'
+accept	accept	docs	createOrganizationUser_objectProperties/(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)+	CREATE ORGANIZATION USER a EMAIL = 's'
+accept	accept	docs	createOrganizationUser_objectProperties(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)+/(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)	CREATE ORGANIZATION USER a EMAIL = 's'
 reject	accept	docs	createOrganizationUser_objectProperties(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)+/(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)_(EMAIL_~af480bb8	CREATE ORGANIZATION USER a EMAIL = 's' EMAIL = 's'
 reject	undocumented	docs	createOrganizationUser_objectProperties(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)+/(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)_(EMAIL_~af480bb8!drop-1	CREATE ORGANIZATION USER a = 's' EMAIL = 's'
 reject	undocumented	docs	createOrganizationUser_objectProperties(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)+/(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)_(EMAIL_~af480bb8!drop-2	CREATE ORGANIZATION USER a EMAIL 's' EMAIL = 's'
@@ -42570,68 +42570,68 @@ reject	undocumented	docs	createOrganizationUser_objectProperties(EMAIL_=_STRING|
 reject	undocumented	docs	createOrganizationUser_objectProperties(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)+/(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)_(EMAIL_~af480bb8!drop-6	CREATE ORGANIZATION USER a EMAIL = 's' EMAIL =
 reject	undocumented	docs	createOrganizationUser_objectProperties(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)+/(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)_(EMAIL_~af480bb8!insert	CREATE ORGANIZATION USER a EMAIL = 's' EMAIL = 's' zzz
 reject	undocumented	docs	createOrganizationUser_objectProperties(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)+/(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)_(EMAIL_~af480bb8!swap	CREATE ORGANIZATION USER a EMAIL_DISTRIBUTION_LIST = 's' EMAIL = 's'
-reject	accept	docs	createOrganizationUser_objectProperties(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)/EMAIL_=_STRING	CREATE ORGANIZATION USER a EMAIL = 's'
-reject	accept	docs	createOrganizationUser_objectProperties(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)/LOGIN_NAME_=_STRING	CREATE ORGANIZATION USER a LOGIN_NAME = 's'
+accept	accept	docs	createOrganizationUser_objectProperties(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)/EMAIL_=_STRING	CREATE ORGANIZATION USER a EMAIL = 's'
+accept	accept	docs	createOrganizationUser_objectProperties(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)/LOGIN_NAME_=_STRING	CREATE ORGANIZATION USER a LOGIN_NAME = 's'
 reject	undocumented	docs	createOrganizationUser_objectProperties(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)/LOGIN_NAME_=_STRING!drop-2	CREATE ORGANIZATION USER a LOGIN_NAME 's'
 reject	undocumented	docs	createOrganizationUser_objectProperties(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)/LOGIN_NAME_=_STRING!drop-3	CREATE ORGANIZATION USER a LOGIN_NAME =
 reject	undocumented	docs	createOrganizationUser_objectProperties(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)/LOGIN_NAME_=_STRING!insert	CREATE ORGANIZATION USER a LOGIN_NAME = 's' zzz
 reject	undocumented	docs	createOrganizationUser_objectProperties(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)/LOGIN_NAME_=_STRING!swap	CREATE ORGANIZATION USER a LOG_EVENT_LEVEL = 's'
-reject	accept	docs	createOrganizationUser_objectProperties(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)/DISPLAY_NAME_=_STRING	CREATE ORGANIZATION USER a DISPLAY_NAME = 's'
+accept	accept	docs	createOrganizationUser_objectProperties(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)/DISPLAY_NAME_=_STRING	CREATE ORGANIZATION USER a DISPLAY_NAME = 's'
 reject	undocumented	docs	createOrganizationUser_objectProperties(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)/DISPLAY_NAME_=_STRING!drop-2	CREATE ORGANIZATION USER a DISPLAY_NAME 's'
 reject	undocumented	docs	createOrganizationUser_objectProperties(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)/DISPLAY_NAME_=_STRING!drop-3	CREATE ORGANIZATION USER a DISPLAY_NAME =
 reject	undocumented	docs	createOrganizationUser_objectProperties(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)/DISPLAY_NAME_=_STRING!insert	CREATE ORGANIZATION USER a DISPLAY_NAME = 's' zzz
 reject	undocumented	docs	createOrganizationUser_objectProperties(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)/DISPLAY_NAME_=_STRING!swap	CREATE ORGANIZATION USER a DISTINCT = 's'
-reject	accept	docs	createOrganizationUser_objectProperties(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)/FIRST_NAME_=_STRING	CREATE ORGANIZATION USER a FIRST_NAME = 's'
+accept	accept	docs	createOrganizationUser_objectProperties(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)/FIRST_NAME_=_STRING	CREATE ORGANIZATION USER a FIRST_NAME = 's'
 reject	undocumented	docs	createOrganizationUser_objectProperties(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)/FIRST_NAME_=_STRING!drop-2	CREATE ORGANIZATION USER a FIRST_NAME 's'
 reject	undocumented	docs	createOrganizationUser_objectProperties(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)/FIRST_NAME_=_STRING!drop-3	CREATE ORGANIZATION USER a FIRST_NAME =
 reject	undocumented	docs	createOrganizationUser_objectProperties(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)/FIRST_NAME_=_STRING!insert	CREATE ORGANIZATION USER a FIRST_NAME = 's' zzz
 reject	undocumented	docs	createOrganizationUser_objectProperties(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)/FIRST_NAME_=_STRING!swap	CREATE ORGANIZATION USER a FLAT = 's'
-reject	accept	docs	createOrganizationUser_objectProperties(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)/MIDDLE_NAME_=_STRING	CREATE ORGANIZATION USER a MIDDLE_NAME = 's'
+accept	accept	docs	createOrganizationUser_objectProperties(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)/MIDDLE_NAME_=_STRING	CREATE ORGANIZATION USER a MIDDLE_NAME = 's'
 reject	undocumented	docs	createOrganizationUser_objectProperties(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)/MIDDLE_NAME_=_STRING!drop-2	CREATE ORGANIZATION USER a MIDDLE_NAME 's'
 reject	undocumented	docs	createOrganizationUser_objectProperties(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)/MIDDLE_NAME_=_STRING!drop-3	CREATE ORGANIZATION USER a MIDDLE_NAME =
 reject	undocumented	docs	createOrganizationUser_objectProperties(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)/MIDDLE_NAME_=_STRING!insert	CREATE ORGANIZATION USER a MIDDLE_NAME = 's' zzz
 reject	undocumented	docs	createOrganizationUser_objectProperties(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)/MIDDLE_NAME_=_STRING!swap	CREATE ORGANIZATION USER a MINIMUM_VERSION = 's'
-reject	accept	docs	createOrganizationUser_objectProperties(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)/LAST_NAME_=_STRING	CREATE ORGANIZATION USER a LAST_NAME = 's'
+accept	accept	docs	createOrganizationUser_objectProperties(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)/LAST_NAME_=_STRING	CREATE ORGANIZATION USER a LAST_NAME = 's'
 reject	undocumented	docs	createOrganizationUser_objectProperties(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)/LAST_NAME_=_STRING!drop-2	CREATE ORGANIZATION USER a LAST_NAME 's'
 reject	undocumented	docs	createOrganizationUser_objectProperties(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)/LAST_NAME_=_STRING!drop-3	CREATE ORGANIZATION USER a LAST_NAME =
 reject	undocumented	docs	createOrganizationUser_objectProperties(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)/LAST_NAME_=_STRING!insert	CREATE ORGANIZATION USER a LAST_NAME = 's' zzz
 reject	undocumented	docs	createOrganizationUser_objectProperties(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)/LAST_NAME_=_STRING!swap	CREATE ORGANIZATION USER a LAST_QUERY_ID = 's'
-reject	accept	docs	createOrganizationUser_objectProperties(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)/TYPE_=_(PERSON|SERVICE)	CREATE ORGANIZATION USER a TYPE = PERSON
+accept	accept	docs	createOrganizationUser_objectProperties(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)/TYPE_=_(PERSON|SERVICE)	CREATE ORGANIZATION USER a TYPE = PERSON
 reject	undocumented	docs	createOrganizationUser_objectProperties(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)/TYPE_=_(PERSON|SERVICE)!drop-1	CREATE ORGANIZATION USER a = PERSON
 reject	undocumented	docs	createOrganizationUser_objectProperties(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)/TYPE_=_(PERSON|SERVICE)!drop-2	CREATE ORGANIZATION USER a TYPE PERSON
 reject	undocumented	docs	createOrganizationUser_objectProperties(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)/TYPE_=_(PERSON|SERVICE)!drop-3	CREATE ORGANIZATION USER a TYPE =
 reject	undocumented	docs	createOrganizationUser_objectProperties(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)/TYPE_=_(PERSON|SERVICE)!insert	CREATE ORGANIZATION USER a TYPE = PERSON zzz
 reject	undocumented	docs	createOrganizationUser_objectProperties(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)/TYPE_=_(PERSON|SERVICE)!swap	CREATE ORGANIZATION USER a TYPES = PERSON
-reject	accept	docs	createOrganizationUser_objectProperties(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)/COMMENT_=_STRING	CREATE ORGANIZATION USER a COMMENT = 's'
+accept	accept	docs	createOrganizationUser_objectProperties(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)/COMMENT_=_STRING	CREATE ORGANIZATION USER a COMMENT = 's'
 reject	undocumented	docs	createOrganizationUser_objectProperties(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)/COMMENT_=_STRING!drop-2	CREATE ORGANIZATION USER a COMMENT 's'
 reject	undocumented	docs	createOrganizationUser_objectProperties(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)/COMMENT_=_STRING!drop-3	CREATE ORGANIZATION USER a COMMENT =
 reject	undocumented	docs	createOrganizationUser_objectProperties(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)/COMMENT_=_STRING!insert	CREATE ORGANIZATION USER a COMMENT = 's' zzz
 reject	undocumented	docs	createOrganizationUser_objectProperties(EMAIL_=_STRING|LOGIN_NAME_=_STRING|D~8f23f751)/COMMENT_=_STRING!swap	CREATE ORGANIZATION USER a COMMENTS = 's'
-reject	accept	docs	createOrganizationUser_objectProperties(PERSON|SERVICE)/PERSON	CREATE ORGANIZATION USER a TYPE = PERSON
+accept	accept	docs	createOrganizationUser_objectProperties(PERSON|SERVICE)/PERSON	CREATE ORGANIZATION USER a TYPE = PERSON
 reject	undocumented	docs	createOrganizationUser_objectProperties(PERSON|SERVICE)/PERSON!swap	CREATE ORGANIZATION USER a TYPE = PERSONAL
-reject	accept	docs	createOrganizationUser_objectProperties(PERSON|SERVICE)/SERVICE	CREATE ORGANIZATION USER a TYPE = SERVICE
+accept	accept	docs	createOrganizationUser_objectProperties(PERSON|SERVICE)/SERVICE	CREATE ORGANIZATION USER a TYPE = SERVICE
 reject	undocumented	docs	createOrganizationUser_objectProperties(PERSON|SERVICE)/SERVICE!insert	CREATE ORGANIZATION USER a TYPE = SERVICE zzz
 reject	undocumented	docs	createOrganizationUser_objectProperties(PERSON|SERVICE)/SERVICE!swap	CREATE ORGANIZATION USER a TYPE = SERVICES
-reject	accept	docs	createOrganizationUserGroup/CREATE_ORGANIZATION_USER_GROUP_(IF_NOT_EXISTS)?_ID_(IS_~ee87330e	CREATE ORGANIZATION USER GROUP a
-reject	accept	docs	createOrganizationUserGroup(IF_NOT_EXISTS)?/%empty	CREATE ORGANIZATION USER GROUP a
+accept	accept	docs	createOrganizationUserGroup/CREATE_ORGANIZATION_USER_GROUP_(IF_NOT_EXISTS)?_ID_(IS_~ee87330e	CREATE ORGANIZATION USER GROUP a
+accept	accept	docs	createOrganizationUserGroup(IF_NOT_EXISTS)?/%empty	CREATE ORGANIZATION USER GROUP a
 reject	undocumented	docs	createOrganizationUserGroup(IF_NOT_EXISTS)?/%empty!insert	CREATE ORGANIZATION USER GROUP zzz a
-reject	accept	docs	createOrganizationUserGroup(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE ORGANIZATION USER GROUP IF NOT EXISTS a
+accept	accept	docs	createOrganizationUserGroup(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE ORGANIZATION USER GROUP IF NOT EXISTS a
 reject	undocumented	docs	createOrganizationUserGroup(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	CREATE ORGANIZATION USER GROUP NOT EXISTS a
 reject	undocumented	docs	createOrganizationUserGroup(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	CREATE ORGANIZATION USER GROUP IF EXISTS a
 reject	undocumented	docs	createOrganizationUserGroup(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE ORGANIZATION USER GROUP IF NOT a
 reject	undocumented	docs	createOrganizationUserGroup(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE ORGANIZATION USER GROUP IF NOT
 reject	undocumented	docs	createOrganizationUserGroup(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE ORGANIZATION USER GROUP IF NOT EXISTS zzz a
 reject	undocumented	docs	createOrganizationUserGroup(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE ORGANIZATION USER GROUP IGNORE NOT EXISTS a
-reject	accept	docs	createOrganizationUserGroup(IS_GRANTABLE_=_(TRUE|FALSE))?/%empty	CREATE ORGANIZATION USER GROUP a
-reject	accept	docs	createOrganizationUserGroup(IS_GRANTABLE_=_(TRUE|FALSE))?/IS_GRANTABLE_=_(TRUE|FALSE)	CREATE ORGANIZATION USER GROUP a IS_GRANTABLE = TRUE
+accept	accept	docs	createOrganizationUserGroup(IS_GRANTABLE_=_(TRUE|FALSE))?/%empty	CREATE ORGANIZATION USER GROUP a
+accept	accept	docs	createOrganizationUserGroup(IS_GRANTABLE_=_(TRUE|FALSE))?/IS_GRANTABLE_=_(TRUE|FALSE)	CREATE ORGANIZATION USER GROUP a IS_GRANTABLE = TRUE
 reject	undocumented	docs	createOrganizationUserGroup(IS_GRANTABLE_=_(TRUE|FALSE))?/IS_GRANTABLE_=_(TRUE|FALSE)!drop-1	CREATE ORGANIZATION USER GROUP a = TRUE
 reject	undocumented	docs	createOrganizationUserGroup(IS_GRANTABLE_=_(TRUE|FALSE))?/IS_GRANTABLE_=_(TRUE|FALSE)!drop-2	CREATE ORGANIZATION USER GROUP a IS_GRANTABLE TRUE
 reject	undocumented	docs	createOrganizationUserGroup(IS_GRANTABLE_=_(TRUE|FALSE))?/IS_GRANTABLE_=_(TRUE|FALSE)!drop-3	CREATE ORGANIZATION USER GROUP a IS_GRANTABLE =
 reject	undocumented	docs	createOrganizationUserGroup(IS_GRANTABLE_=_(TRUE|FALSE))?/IS_GRANTABLE_=_(TRUE|FALSE)!insert	CREATE ORGANIZATION USER GROUP a IS_GRANTABLE = TRUE zzz
 reject	undocumented	docs	createOrganizationUserGroup(IS_GRANTABLE_=_(TRUE|FALSE))?/IS_GRANTABLE_=_(TRUE|FALSE)!swap	CREATE ORGANIZATION USER GROUP a IS_IMPORTED = TRUE
-reject	accept	docs	createOrganizationUserGroup(TRUE|FALSE)/TRUE	CREATE ORGANIZATION USER GROUP a IS_GRANTABLE = TRUE
+accept	accept	docs	createOrganizationUserGroup(TRUE|FALSE)/TRUE	CREATE ORGANIZATION USER GROUP a IS_GRANTABLE = TRUE
 reject	undocumented	docs	createOrganizationUserGroup(TRUE|FALSE)/TRUE!swap	CREATE ORGANIZATION USER GROUP a IS_GRANTABLE = TRUNCATE
-reject	accept	docs	createOrganizationUserGroup(TRUE|FALSE)/FALSE	CREATE ORGANIZATION USER GROUP a IS_GRANTABLE = FALSE
+accept	accept	docs	createOrganizationUserGroup(TRUE|FALSE)/FALSE	CREATE ORGANIZATION USER GROUP a IS_GRANTABLE = FALSE
 reject	undocumented	docs	createOrganizationUserGroup(TRUE|FALSE)/FALSE!insert	CREATE ORGANIZATION USER GROUP a IS_GRANTABLE = FALSE zzz
 reject	undocumented	docs	createOrganizationUserGroup(TRUE|FALSE)/FALSE!swap	CREATE ORGANIZATION USER GROUP a IS_GRANTABLE = FAMILIES
 accept	accept	docs	createPackagesPolicy/CREATE_(OR_REPLACE)?_PACKAGES_POLICY_QNAME_LANGUAGE_PYT~0299ea8e	CREATE PACKAGES POLICY a LANGUAGE PYTHON
@@ -52417,23 +52417,23 @@ accept	accept	docs	dropOpenflowRuntime(CASCADE)?/%empty	DROP OPENFLOW RUNTIME a
 accept	accept	docs	dropOpenflowRuntime(CASCADE)?/CASCADE	DROP OPENFLOW RUNTIME a CASCADE
 reject	undocumented	docs	dropOpenflowRuntime(CASCADE)?/CASCADE!insert	DROP OPENFLOW RUNTIME a CASCADE zzz
 reject	undocumented	docs	dropOpenflowRuntime(CASCADE)?/CASCADE!swap	DROP OPENFLOW RUNTIME a CASES
-reject	accept	docs	dropOrganizationProfile/DROP_ORGANIZATION_PROFILE_ID	DROP ORGANIZATION PROFILE a
-reject	accept	docs	dropOrganizationUser/DROP_ORGANIZATION_USER_(IF_EXISTS)?_ID	DROP ORGANIZATION USER a
-reject	accept	docs	dropOrganizationUser(IF_EXISTS)?/%empty	DROP ORGANIZATION USER a
+accept	accept	docs	dropOrganizationProfile/DROP_ORGANIZATION_PROFILE_ID	DROP ORGANIZATION PROFILE a
+accept	accept	docs	dropOrganizationUser/DROP_ORGANIZATION_USER_(IF_EXISTS)?_ID	DROP ORGANIZATION USER a
+accept	accept	docs	dropOrganizationUser(IF_EXISTS)?/%empty	DROP ORGANIZATION USER a
 reject	undocumented	docs	dropOrganizationUser(IF_EXISTS)?/%empty!insert	DROP ORGANIZATION USER zzz a
-reject	accept	docs	dropOrganizationUser(IF_EXISTS)?/IF_EXISTS	DROP ORGANIZATION USER IF EXISTS a
+accept	accept	docs	dropOrganizationUser(IF_EXISTS)?/IF_EXISTS	DROP ORGANIZATION USER IF EXISTS a
 reject	undocumented	docs	dropOrganizationUser(IF_EXISTS)?/IF_EXISTS!drop-1	DROP ORGANIZATION USER EXISTS a
 reject	undocumented	docs	dropOrganizationUser(IF_EXISTS)?/IF_EXISTS!drop-2	DROP ORGANIZATION USER IF a
-reject	accept	docs	dropOrganizationUser(IF_EXISTS)?/IF_EXISTS!truncate	DROP ORGANIZATION USER IF
+accept	accept	docs	dropOrganizationUser(IF_EXISTS)?/IF_EXISTS!truncate	DROP ORGANIZATION USER IF
 reject	undocumented	docs	dropOrganizationUser(IF_EXISTS)?/IF_EXISTS!insert	DROP ORGANIZATION USER IF EXISTS zzz a
 reject	undocumented	docs	dropOrganizationUser(IF_EXISTS)?/IF_EXISTS!swap	DROP ORGANIZATION USER IGNORE EXISTS a
-reject	accept	docs	dropOrganizationUserGroup/DROP_ORGANIZATION_USER_GROUP_(IF_EXISTS)?_ID	DROP ORGANIZATION USER GROUP a
-reject	accept	docs	dropOrganizationUserGroup(IF_EXISTS)?/%empty	DROP ORGANIZATION USER GROUP a
+accept	accept	docs	dropOrganizationUserGroup/DROP_ORGANIZATION_USER_GROUP_(IF_EXISTS)?_ID	DROP ORGANIZATION USER GROUP a
+accept	accept	docs	dropOrganizationUserGroup(IF_EXISTS)?/%empty	DROP ORGANIZATION USER GROUP a
 reject	undocumented	docs	dropOrganizationUserGroup(IF_EXISTS)?/%empty!insert	DROP ORGANIZATION USER GROUP zzz a
-reject	accept	docs	dropOrganizationUserGroup(IF_EXISTS)?/IF_EXISTS	DROP ORGANIZATION USER GROUP IF EXISTS a
+accept	accept	docs	dropOrganizationUserGroup(IF_EXISTS)?/IF_EXISTS	DROP ORGANIZATION USER GROUP IF EXISTS a
 reject	undocumented	docs	dropOrganizationUserGroup(IF_EXISTS)?/IF_EXISTS!drop-1	DROP ORGANIZATION USER GROUP EXISTS a
 reject	undocumented	docs	dropOrganizationUserGroup(IF_EXISTS)?/IF_EXISTS!drop-2	DROP ORGANIZATION USER GROUP IF a
-reject	accept	docs	dropOrganizationUserGroup(IF_EXISTS)?/IF_EXISTS!truncate	DROP ORGANIZATION USER GROUP IF
+accept	accept	docs	dropOrganizationUserGroup(IF_EXISTS)?/IF_EXISTS!truncate	DROP ORGANIZATION USER GROUP IF
 reject	undocumented	docs	dropOrganizationUserGroup(IF_EXISTS)?/IF_EXISTS!insert	DROP ORGANIZATION USER GROUP IF EXISTS zzz a
 reject	undocumented	docs	dropOrganizationUserGroup(IF_EXISTS)?/IF_EXISTS!swap	DROP ORGANIZATION USER GROUP IGNORE EXISTS a
 accept	accept	docs	dropPackagesPolicy/DROP_PACKAGES_POLICY_(IF_EXISTS)?_QNAME	DROP PACKAGES POLICY a
@@ -69403,7 +69403,7 @@ reject	undocumented	docs	showEntitiesInDcmProject(LIMIT_NUMBER)?/LIMIT_NUMBER!dr
 reject	undocumented	docs	showEntitiesInDcmProject(LIMIT_NUMBER)?/LIMIT_NUMBER!drop-2	SHOW ENTITIES IN DCM PROJECT a LIMIT
 reject	undocumented	docs	showEntitiesInDcmProject(LIMIT_NUMBER)?/LIMIT_NUMBER!insert	SHOW ENTITIES IN DCM PROJECT a LIMIT 1 zzz
 reject	undocumented	docs	showEntitiesInDcmProject(LIMIT_NUMBER)?/LIMIT_NUMBER!swap	SHOW ENTITIES IN DCM PROJECT a LINKED_CATALOG 1
-reject	accept	docs	showEventRoutingTableOnOrganization/SHOW_EVENT_ROUTING_TABLE_ON_ORGANIZATION_FOR_ALL_APPLIC~b98311d8	SHOW EVENT ROUTING TABLE ON ORGANIZATION FOR ALL APPLICATION LISTINGS
+accept	accept	docs	showEventRoutingTableOnOrganization/SHOW_EVENT_ROUTING_TABLE_ON_ORGANIZATION_FOR_ALL_APPLIC~b98311d8	SHOW EVENT ROUTING TABLE ON ORGANIZATION FOR ALL APPLICATION LISTINGS
 accept	accept	docs	showEventRoutingTables/SHOW_EVENT_ROUTING_TABLES	SHOW EVENT ROUTING TABLES
 accept	accept	docs	showEventTables/SHOW_(TERSE)?_EVENT_TABLES_(LIKE_STRING)?_(IN_(ACCOUNT|~b963a2b8	SHOW EVENT TABLES
 accept	accept	docs	showEventTables(TERSE)?/%empty	SHOW EVENT TABLES
@@ -71504,7 +71504,7 @@ accept	accept	docs	showOrganizationProfiles/SHOW_ORGANIZATION_PROFILES	SHOW ORGA
 accept	accept	docs	showOrganizationUserGroups/SHOW_ORGANIZATION_USER_GROUPS	SHOW ORGANIZATION USER GROUPS
 accept	accept	docs	showOrganizationUsers/SHOW_ORGANIZATION_USERS_(IN_ORGANIZATION_USER_GROUP_ID)?	SHOW ORGANIZATION USERS
 accept	accept	docs	showOrganizationUsers(IN_ORGANIZATION_USER_GROUP_ID)?/%empty	SHOW ORGANIZATION USERS
-reject	accept	docs	showOrganizationUsers(IN_ORGANIZATION_USER_GROUP_ID)?/IN_ORGANIZATION_USER_GROUP_ID	SHOW ORGANIZATION USERS IN ORGANIZATION USER GROUP a
+accept	accept	docs	showOrganizationUsers(IN_ORGANIZATION_USER_GROUP_ID)?/IN_ORGANIZATION_USER_GROUP_ID	SHOW ORGANIZATION USERS IN ORGANIZATION USER GROUP a
 accept	undocumented	docs	showOrganizationUsers(IN_ORGANIZATION_USER_GROUP_ID)?/IN_ORGANIZATION_USER_GROUP_ID!drop-1	SHOW ORGANIZATION USERS ORGANIZATION USER GROUP a
 reject	undocumented	docs	showOrganizationUsers(IN_ORGANIZATION_USER_GROUP_ID)?/IN_ORGANIZATION_USER_GROUP_ID!drop-2	SHOW ORGANIZATION USERS IN USER GROUP a
 reject	undocumented	docs	showOrganizationUsers(IN_ORGANIZATION_USER_GROUP_ID)?/IN_ORGANIZATION_USER_GROUP_ID!drop-3	SHOW ORGANIZATION USERS IN ORGANIZATION GROUP a
@@ -73401,7 +73401,7 @@ reject	undocumented	docs	showVersionsInModel(LIKE_STRING)?/LIKE_STRING!drop-2	SH
 reject	undocumented	docs	showVersionsInModel(LIKE_STRING)?/LIKE_STRING!insert	SHOW VERSIONS LIKE 's' zzz IN MODEL a
 reject	undocumented	docs	showVersionsInModel(LIKE_STRING)?/LIKE_STRING!swap	SHOW VERSIONS LIMIT 's' IN MODEL a
 reject	accept	docs	showVersionsInOpenflowConnector/SHOW_VERSIONS_IN_OPENFLOW_CONNECTOR_QNAME	SHOW VERSIONS IN OPENFLOW CONNECTOR a
-reject	accept	docs	showVersionsInOrganizationProfile/SHOW_VERSIONS_IN_ORGANIZATION_PROFILE_QNAME	SHOW VERSIONS IN ORGANIZATION PROFILE a
+accept	accept	docs	showVersionsInOrganizationProfile/SHOW_VERSIONS_IN_ORGANIZATION_PROFILE_QNAME	SHOW VERSIONS IN ORGANIZATION PROFILE a
 accept	accept	docs	showViews/SHOW_(TERSE)?_VIEWS_(LIKE_STRING)?_(IN_(ACCOUNT|DATABAS~429485bb	SHOW VIEWS
 accept	accept	docs	showViews(TERSE)?/%empty	SHOW VIEWS
 accept	undocumented	docs	showViews(TERSE)?/%empty!insert	SHOW zzz VIEWS
