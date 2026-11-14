@@ -787,52 +787,23 @@ func (p *Parser) parseAlterUser(startLoc ast.Loc) (ast.Node, error) {
 		}
 	}
 
-	// Optional password policy / account clauses
-	for {
-		switch p.cur.Kind {
-		case kwFAILED_LOGIN_ATTEMPTS:
-			endLoc = p.cur.Loc
-			p.advance()
-			if p.cur.Kind == tokInt {
-				n := int(p.cur.Ival)
-				stmt.FailedLoginAttempts = n
-				endLoc = p.cur.Loc
-				p.advance()
-			}
-		case kwPASSWORD_LOCK_TIME:
-			endLoc = p.cur.Loc
-			p.advance()
-			if p.cur.Kind == tokInt {
-				n := int(p.cur.Ival)
-				stmt.PasswordLockTime = n
-				endLoc = p.cur.Loc
-				p.advance()
-			}
-			if p.cur.Kind == kwDAY || p.cur.Kind == kwDAYS {
-				endLoc = p.cur.Loc
-				p.advance()
-			}
-		case kwACCOUNT_LOCK:
-			stmt.AccountLock = true
-			endLoc = p.cur.Loc
-			p.advance()
-		case kwACCOUNT_UNLOCK:
-			stmt.AccountUnlock = true
-			endLoc = p.cur.Loc
-			p.advance()
-		case kwCOMMENT:
-			p.advance()
-			if p.cur.Kind != tokString {
-				return nil, p.syntaxErrorAtCur()
-			}
-			stmt.Comment = p.cur.Str
-			endLoc = p.cur.Loc
-			p.advance()
-		default:
-			goto doneAlterUser
-		}
+	// passwordOption (DorisParser.g4:861; DorisLegacyParser.g4
+	// opt_password_option), each option at most once and in this order, then
+	// COMMENT.
+	if err := p.parseAlterUserPasswordOptions(stmt); err != nil {
+		return nil, err
 	}
-doneAlterUser:
+	if p.cur.Kind == kwCOMMENT {
+		p.advance()
+		if p.cur.Kind != tokString {
+			return nil, p.syntaxErrorAtCur()
+		}
+		stmt.Comment = p.cur.Str
+		p.advance()
+	}
+	if p.prev.Loc.End > endLoc.End {
+		endLoc = p.prev.Loc
+	}
 
 	stmt.Loc = startLoc.Merge(endLoc)
 	return stmt, nil
@@ -958,4 +929,104 @@ func (p *Parser) consumeParenGroup() (string, ast.Loc, error) {
 	}
 
 	return "", ast.NoLoc(), p.syntaxErrorAtCur()
+}
+
+// parseAlterUserPasswordOptions reads passwordOption (DorisParser.g4:861),
+// which DorisLegacyParser.g4 opt_password_option matches option for option:
+//
+//	[PASSWORD_HISTORY (DEFAULT | n)]
+//	[PASSWORD_EXPIRE (DEFAULT | NEVER | INTERVAL n (DAY | HOUR | SECOND))]
+//	[PASSWORD_REUSE INTERVAL (DEFAULT | n DAY)]
+//	[FAILED_LOGIN_ATTEMPTS n]
+//	[PASSWORD_LOCK_TIME (UNBOUNDED | n (DAY | HOUR | SECOND))]
+//	[ACCOUNT_LOCK | ACCOUNT_UNLOCK]
+func (p *Parser) parseAlterUserPasswordOptions(stmt *ast.AlterUserStmt) error {
+	timeUnit := func() (string, error) {
+		switch p.cur.Kind {
+		case kwDAY, kwHOUR, kwSECOND:
+			return strings.ToUpper(p.advance().Str), nil
+		}
+		return "", p.syntaxErrorAtCur()
+	}
+	if p.cur.Kind == kwPASSWORD_HISTORY {
+		p.advance()
+		switch p.cur.Kind {
+		case kwDEFAULT, tokInt:
+			stmt.PasswordHistory = strings.ToUpper(p.advance().Str)
+		default:
+			return p.syntaxErrorAtCur()
+		}
+	}
+	if p.cur.Kind == kwPASSWORD_EXPIRE {
+		p.advance()
+		switch p.cur.Kind {
+		case kwDEFAULT, kwNEVER:
+			stmt.PasswordExpire = strings.ToUpper(p.advance().Str)
+		case kwINTERVAL:
+			p.advance()
+			n, err := p.alterExpectInt()
+			if err != nil {
+				return err
+			}
+			unit, err := timeUnit()
+			if err != nil {
+				return err
+			}
+			stmt.PasswordExpire = "INTERVAL " + n.Str + " " + unit
+		default:
+			return p.syntaxErrorAtCur()
+		}
+	}
+	if p.cur.Kind == kwPASSWORD_REUSE {
+		p.advance()
+		if _, err := p.expect(kwINTERVAL); err != nil {
+			return err
+		}
+		switch p.cur.Kind {
+		case kwDEFAULT:
+			stmt.PasswordReuse = "DEFAULT"
+			p.advance()
+		case tokInt:
+			n := p.advance()
+			if _, err := p.expect(kwDAY); err != nil {
+				return err
+			}
+			stmt.PasswordReuse = n.Str + " DAY"
+		default:
+			return p.syntaxErrorAtCur()
+		}
+	}
+	if p.cur.Kind == kwFAILED_LOGIN_ATTEMPTS {
+		p.advance()
+		n, err := p.alterExpectInt()
+		if err != nil {
+			return err
+		}
+		stmt.FailedLoginAttempts = int(n.Ival)
+	}
+	if p.cur.Kind == kwPASSWORD_LOCK_TIME {
+		p.advance()
+		if p.cur.Kind == kwUNBOUNDED {
+			stmt.PasswordLockTimeUnit = "UNBOUNDED"
+			p.advance()
+		} else {
+			n, err := p.alterExpectInt()
+			if err != nil {
+				return err
+			}
+			stmt.PasswordLockTime = int(n.Ival)
+			if stmt.PasswordLockTimeUnit, err = timeUnit(); err != nil {
+				return err
+			}
+		}
+	}
+	switch p.cur.Kind {
+	case kwACCOUNT_LOCK:
+		stmt.AccountLock = true
+		p.advance()
+	case kwACCOUNT_UNLOCK:
+		stmt.AccountUnlock = true
+		p.advance()
+	}
+	return nil
 }

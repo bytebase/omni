@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	"github.com/bytebase/omni/starrocks/ast"
 )
 
@@ -84,6 +86,9 @@ func (p *Parser) parseCreateView(startLoc ast.Loc, orReplace bool) (ast.Node, er
 // Syntax:
 //
 //	ALTER VIEW view_name [(col1 [COMMENT 'text'], ...)] AS query
+//	ALTER VIEW view_name SET SECURITY (NONE | INVOKER)
+//
+// (StarRocks.g4:610 alterViewStatement).
 func (p *Parser) parseAlterView() (ast.Node, error) {
 	startLoc := p.prev.Loc // loc of ALTER token
 
@@ -100,6 +105,19 @@ func (p *Parser) parseAlterView() (ast.Node, error) {
 		return nil, err
 	}
 	stmt.Name = name
+
+	if p.cur.Kind == kwSET {
+		p.advance() // consume SET
+		if _, err := p.alterExpectWord("SECURITY"); err != nil {
+			return nil, err
+		}
+		if !p.alterAt("NONE") && !p.alterAt("INVOKER") {
+			return nil, p.syntaxErrorAtCur()
+		}
+		stmt.Security = strings.ToUpper(p.advance().Str)
+		stmt.Loc = startLoc.Merge(p.prev.Loc)
+		return stmt, nil
+	}
 
 	// Optional column list
 	if p.cur.Kind == int('(') {
@@ -160,9 +178,11 @@ func (p *Parser) parseDropView(startLoc ast.Loc) (ast.Node, error) {
 	return stmt, nil
 }
 
-// parseViewColumns parses the optional column list in CREATE/ALTER VIEW:
-//
-//	( col_name [COMMENT 'text'] [, col_name [COMMENT 'text']] ... )
+// parseViewColumns parses the column list of CREATE / ALTER VIEW
+// (StarRocks.g4:610 alterViewStatement, '(' columnNameWithComment
+// (',' columnNameWithComment)* ')', with columnNameWithComment
+// (StarRocks.g4:619) identifier comment?). The list holds at least one
+// column, and columns are comma-separated.
 //
 // cur must be '(' on entry.
 func (p *Parser) parseViewColumns() ([]*ast.ViewColumn, error) {
@@ -172,7 +192,7 @@ func (p *Parser) parseViewColumns() ([]*ast.ViewColumn, error) {
 
 	var cols []*ast.ViewColumn
 
-	for p.cur.Kind != int(')') && p.cur.Kind != tokEOF {
+	for {
 		colStart := p.cur.Loc
 
 		// Column name — accept any valid identifier (including non-reserved keywords)
@@ -201,10 +221,10 @@ func (p *Parser) parseViewColumns() ([]*ast.ViewColumn, error) {
 
 		cols = append(cols, col)
 
-		// Optional comma
-		if p.cur.Kind == int(',') {
-			p.advance()
+		if p.cur.Kind != int(',') {
+			break
 		}
+		p.advance() // consume ','
 	}
 
 	if _, err := p.expect(int(')')); err != nil {

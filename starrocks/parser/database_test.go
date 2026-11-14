@@ -304,20 +304,35 @@ func TestAlterDatabase_SetProperties(t *testing.T) {
 }
 
 func TestAlterDatabase_SetQuota(t *testing.T) {
-	// SET QUOTA is parsed in a best-effort fashion.
-	file, errs := parseForTest("ALTER DATABASE mydb SET QUOTA 10737418240")
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
+	// StarRocks.g4 alterDbQuotaStatement: SET DATA QUOTA identifier |
+	// SET REPLICA QUOTA INTEGER_VALUE.
+	for _, sql := range []string{
+		"ALTER DATABASE mydb SET DATA QUOTA q10GB",
+		"ALTER DATABASE mydb SET REPLICA QUOTA 3",
+	} {
+		file, errs := parseForTest(sql)
+		if len(errs) != 0 {
+			t.Fatalf("%q: unexpected errors: %v", sql, errs)
+		}
+		stmt, ok := file.Stmts[0].(*ast.AlterDatabaseStmt)
+		if !ok {
+			t.Fatalf("expected *ast.AlterDatabaseStmt, got %T", file.Stmts[0])
+		}
+		if stmt.Name.String() != "mydb" {
+			t.Errorf("Name = %q, want %q", stmt.Name.String(), "mydb")
+		}
+		if stmt.Loc.End != len(sql) {
+			t.Errorf("%q: Loc.End = %d, want %d", sql, stmt.Loc.End, len(sql))
+		}
 	}
-	if len(file.Stmts) != 1 {
-		t.Fatalf("expected 1 stmt, got %d", len(file.Stmts))
-	}
-	stmt, ok := file.Stmts[0].(*ast.AlterDatabaseStmt)
-	if !ok {
-		t.Fatalf("expected *ast.AlterDatabaseStmt, got %T", file.Stmts[0])
-	}
-	if stmt.Name.String() != "mydb" {
-		t.Errorf("Name = %q, want %q", stmt.Name.String(), "mydb")
+	for _, sql := range []string{
+		"ALTER DATABASE mydb SET QUOTA 10737418240",
+		"ALTER DATABASE mydb SET REPLICA QUOTA",
+		"ALTER DATABASE mydb SET DATA 1",
+	} {
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("%q parsed; want a syntax error", sql)
+		}
 	}
 }
 
@@ -489,7 +504,6 @@ func TestPropertyListAtEndOfInput(t *testing.T) {
 	prefixes := []string{
 		`ALTER SYSTEM MODIFY BACKEND 'h:1' SET `,
 		`ADMIN SET REPLICA STATUS PROPERTIES`,
-		`ALTER SYSTEM ADD BACKEND 'h:1' PROPERTIES`,
 		`ALTER SYSTEM SET LOAD ERRORS HUB PROPERTIES`,
 		`CREATE TABLE t (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN ("10") `,
 		`LOAD LABEL l (DATA INFILE("hdfs://h/p") INTO TABLE t) WITH BROKER b `,
@@ -535,7 +549,6 @@ func TestPropertyListEndsStatement(t *testing.T) {
 		{`ADMIN SET FRONTEND CONFIG ("k"="v")`, adminProps},
 		{`ADMIN SET REPLICA STATUS PROPERTIES("k"="v")`, adminProps},
 		{`ADMIN CHECK TABLET (1) PROPERTIES("k"="v")`, adminProps},
-		{`ALTER SYSTEM ADD BACKEND 'h:1' PROPERTIES("k"="v")`, systemProps},
 		{`ALTER SYSTEM SET LOAD ERRORS HUB PROPERTIES("k"="v")`, systemProps},
 		{`ALTER SYSTEM MODIFY BACKEND 'h:1' SET ("k"="v")`, func(n ast.Node) []*ast.Property { return n.(*ast.SystemAlterStmt).SetClause }},
 		{`LOAD LABEL l (DATA INFILE("hdfs://h/p") INTO TABLE t) WITH BROKER b ("k"="v")`, func(n ast.Node) []*ast.Property { return n.(*ast.LoadDataStmt).BrokerProperties }},

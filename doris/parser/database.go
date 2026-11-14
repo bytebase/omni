@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	"github.com/bytebase/omni/doris/ast"
 )
 
@@ -55,7 +57,7 @@ func (p *Parser) parseCreateDatabase() (ast.Node, error) {
 //
 //	ALTER DATABASE db_name RENAME [TO] new_name
 //	ALTER DATABASE db_name SET PROPERTIES ("key"="value", ...)
-//	ALTER DATABASE db_name SET QUOTA ...  (quota value consumed as best-effort)
+//	ALTER DATABASE db_name SET (DATA | REPLICA | TRANSACTION) QUOTA n
 //
 // The ALTER keyword has already been consumed; cur is DATABASE.
 func (p *Parser) parseAlterDatabase() (ast.Node, error) {
@@ -98,16 +100,22 @@ func (p *Parser) parseAlterDatabase() (ast.Node, error) {
 			if len(props) > 0 {
 				endLoc = ast.NodeLoc(props[len(props)-1])
 			}
-		} else if p.cur.Kind == kwQUOTA || p.cur.Kind == kwDATA || p.cur.Kind == kwREPLICA {
-			// Consume the rest of the SET [DATA|REPLICA] QUOTA clause as a
-			// best-effort skip. Quota value can be a number + unit (e.g., 10GB).
-			p.advance() // consume DATA/REPLICA/QUOTA keyword
-			if p.cur.Kind == kwQUOTA {
-				p.advance() // consume QUOTA after DATA/REPLICA
+		} else if p.cur.Kind == kwDATA || p.cur.Kind == kwREPLICA || p.cur.Kind == kwTRANSACTION {
+			// SET (DATA | REPLICA | TRANSACTION) QUOTA INTEGER_VALUE: Doris's
+			// parser allows a unit identifier after it (DorisParser.g4:565
+			// alterDatabaseSetQuota) and its legacy parser, which runs the
+			// statement, an identifier in place of the number for DATA
+			// (DorisLegacyParser.g4:181-183), so only the number is both.
+			stmt.QuotaType = strings.ToUpper(p.advance().Str)
+			if _, err := p.expect(kwQUOTA); err != nil {
+				return nil, err
 			}
-			if p.cur.Kind != tokEOF && p.cur.Kind != int(';') {
-				p.advance() // consume the quota value token
+			tok, err := p.alterExpectInt()
+			if err != nil {
+				return nil, err
 			}
+			stmt.Quota = tok.Str
+			endLoc = tok.Loc
 		} else {
 			return nil, p.syntaxErrorAtCur()
 		}

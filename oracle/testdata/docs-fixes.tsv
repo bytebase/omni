@@ -1,0 +1,3 @@
+# Corrections the converter applies to the notation oracle/parser/cmd/docsgrammar writes;
+# corrections to the quoted BNF are in bnf-fixes.tsv.
+# columns: page, text, replacement, reason

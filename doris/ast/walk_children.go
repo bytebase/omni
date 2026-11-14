@@ -390,6 +390,14 @@ func walkChildren(v Visitor, node Node) {
 		if n.Distribution != nil {
 			Walk(v, n.Distribution)
 		}
+		for _, col := range n.Columns {
+			if col != n.Column {
+				Walk(v, col)
+			}
+		}
+		if n.Index != nil {
+			Walk(v, n.Index)
+		}
 
 	// DDL — VIEW nodes (T2.4).
 	case *ViewColumn:
@@ -596,6 +604,9 @@ func walkChildren(v Visitor, node Node) {
 		}
 		if n.ReplaceTarget != nil {
 			Walk(v, n.ReplaceTarget)
+		}
+		if n.RefreshTrigger != nil {
+			Walk(v, n.RefreshTrigger)
 		}
 		for _, prop := range n.Properties {
 			Walk(v, prop)

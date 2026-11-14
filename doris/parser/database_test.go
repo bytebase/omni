@@ -303,8 +303,12 @@ func TestAlterDatabase_SetProperties(t *testing.T) {
 }
 
 func TestAlterDatabase_SetQuota(t *testing.T) {
-	// SET QUOTA is parsed in a best-effort fashion.
-	file, errs := parseForTest("ALTER DATABASE mydb SET QUOTA 10737418240")
+	// SET QUOTA names DATA, REPLICA or TRANSACTION (compat.tsv: Doris
+	// refuses ALTER DATABASE a SET QUOTA 1).
+	if _, errs := parseForTest("ALTER DATABASE mydb SET QUOTA 10737418240"); len(errs) == 0 {
+		t.Fatal("ALTER DATABASE mydb SET QUOTA 10737418240: expected an error")
+	}
+	file, errs := parseForTest("ALTER DATABASE mydb SET DATA QUOTA 10737418240")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -317,6 +321,9 @@ func TestAlterDatabase_SetQuota(t *testing.T) {
 	}
 	if stmt.Name.String() != "mydb" {
 		t.Errorf("Name = %q, want %q", stmt.Name.String(), "mydb")
+	}
+	if stmt.QuotaType != "DATA" || stmt.Quota != "10737418240" {
+		t.Errorf("quota = %q %q, want DATA 10737418240", stmt.QuotaType, stmt.Quota)
 	}
 }
 

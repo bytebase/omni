@@ -408,9 +408,9 @@ func (p *Parser) parseCreateResource(startLoc ast.Loc, external bool) (ast.Node,
 	return stmt, nil
 }
 
-// parseAlterResource parses:
+// parseAlterResource parses alterResourceStatement (StarRocks.g4:1388):
 //
-//	ALTER RESOURCE name PROPERTIES(...)
+//	ALTER RESOURCE resourceName=identifierOrString SET properties
 //
 // ALTER has already been consumed; cur is RESOURCE. RESOURCE is consumed here.
 func (p *Parser) parseAlterResource(startLoc ast.Loc) (ast.Node, error) {
@@ -426,17 +426,18 @@ func (p *Parser) parseAlterResource(startLoc ast.Loc) (ast.Node, error) {
 	stmt.Name = name
 	endLoc := nameLoc
 
-	// PROPERTIES clause
-	if p.cur.Kind == kwPROPERTIES {
-		props, err := p.parseProperties()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Properties = props
-		if len(props) > 0 {
-			endLoc = ast.NodeLoc(props[len(props)-1])
-		}
+	if _, err := p.expect(kwSET); err != nil {
+		return nil, err
 	}
+	if p.cur.Kind != kwPROPERTIES {
+		return nil, p.syntaxErrorAtCur()
+	}
+	props, err := p.parseProperties()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Properties = props
+	endLoc = p.prev.Loc
 
 	stmt.Loc = startLoc.Merge(endLoc)
 	return stmt, nil

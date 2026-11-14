@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -10,6 +11,8 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/bytebase/omni/oracle/internal/testcontainer"
 )
 
 var update = flag.Bool("update", false, "rewrite the known-gap manifests of the Oracle dictionary tests from the current results")
@@ -129,16 +132,17 @@ func TestOraclePLSQLDictionary(t *testing.T) {
 	}
 }
 
-// loadOracleDictionaryUnits reads the units from the container started by
-// startOracleDB, after checking that it runs the release the manifest was
-// recorded on. It does not honor ORACLE_PARSER_REF_* DSNs: the manifest
-// describes the pinned image's dictionary, not another server's.
+// loadOracleDictionaryUnits reads the units from the pinned server, after
+// checking that it runs the release the manifest was recorded on. The
+// source is Oracle's, which a tape may not hold, so the test runs only in
+// a recording (tape.Live), on a session outside any tape.
 func loadOracleDictionaryUnits(t *testing.T) []dictionaryUnit {
 	t.Helper()
-	o := startOracleDB(t)
+	db := testcontainer.OpenLive(t, "system")
+	ctx := context.Background()
 
 	var version string
-	if err := o.adminDB.QueryRowContext(o.ctx,
+	if err := db.QueryRowContext(ctx,
 		`SELECT version_full FROM product_component_version WHERE product LIKE 'Oracle%'`).Scan(&version); err != nil {
 		t.Fatalf("read Oracle version: %v", err)
 	}
@@ -149,7 +153,7 @@ func loadOracleDictionaryUnits(t *testing.T) []dictionaryUnit {
 
 	// The dba_objects and dba_users filters are semi-joins: a join repeats
 	// rows for objects listed in more than one container.
-	rows, err := o.adminDB.QueryContext(o.ctx, `
+	rows, err := db.QueryContext(ctx, `
 SELECT s.owner, s.name, s.type, s.line, s.text
   FROM dba_source s
  WHERE s.type IN ('PROCEDURE', 'FUNCTION', 'PACKAGE', 'PACKAGE BODY', 'TYPE', 'TYPE BODY', 'TRIGGER')

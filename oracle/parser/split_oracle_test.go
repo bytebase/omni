@@ -1,10 +1,9 @@
 package parser
 
 import (
-	"fmt"
+	"context"
 	"strings"
 	"testing"
-	"time"
 )
 
 // TestSplitSegmentsCompileInOracle executes every segment Split returns, the
@@ -17,8 +16,13 @@ import (
 // gvenzl/oracle-free image has no Java VM (ORA-29538) and no MLE (ORA-00439).
 // TestSplitEmbeddedSource pins their boundaries.
 func TestSplitSegmentsCompileInOracle(t *testing.T) {
-	ctx, db := openOracleReferenceDB(t)
-	run := fmt.Sprintf("S%d", time.Now().UnixNano())
+	ctx := context.Background()
+	db := openOracleUser(t, "omni_split")
+	const run = "S1"
+	// The trigger's table.
+	if _, err := db.ExecContext(ctx, "CREATE TABLE t (id NUMBER)"); err != nil {
+		t.Fatalf("CREATE TABLE t: %v", err)
+	}
 
 	var wrapped string
 	wrapSource := "CREATE OR REPLACE PROCEDURE omni_wrap_" + run + " AS BEGIN NULL; END;"
@@ -99,8 +103,9 @@ SELECT o.object_name, o.object_type, o.status,
 // error only; a segment cut before its ';' would add PLS-00103, and a segment
 // that swallowed the next statement would leave that statement uncreated.
 func TestSplitExternalCallSpecInOracle(t *testing.T) {
-	ctx, db := openOracleReferenceDB(t)
-	run := fmt.Sprintf("X%d", time.Now().UnixNano())
+	ctx := context.Background()
+	db := openOracleUser(t, "omni_split")
+	const run = "X1"
 	script := strings.ReplaceAll(`CREATE OR REPLACE PROCEDURE omni_ext_{run} AS EXTERNAL LANGUAGE C NAME "c_p" LIBRARY omni_nolib_{run};
 CREATE OR REPLACE PROCEDURE omni_after_{run} AS BEGIN NULL; END;
 `, "{run}", run)
