@@ -67,8 +67,16 @@ to `lexerCorpus` and to the statements of `coverage/reference_oracle.tsv` and
   procedures, and nothing else: a statement on the server or on another user
   answers `ORA-01031` after the parse. `PARSE` runs DDL, so after a statement
   that ran the block drops everything the user owns and builds the fixture
-  again: the table `t` a trigger's header stands on, named apart from the `a`
-  every other row writes.
+  again: the table `t` a trigger's header stands on and the materialized view
+  `v` on it, named apart from the `a` every other row writes. It enables table
+  locks before it drops a table, since `ALTER TABLE ... DISABLE TABLE LOCK`
+  leaves one that cannot be dropped.
+- **Lookups before the parse are asked again.** Oracle looks up the object of
+  `ALTER TABLE a` (ORA-00942) and `ALTER MATERIALIZED VIEW a` (ORA-12003)
+  before it reads the rest, so the judge asks again with `t` or `v` in `a`'s
+  place. On a real table `ORA-01735` at byte 0 is an option the table's kind
+  does not take (`OVERFLOW` on a heap table): Oracle reads no further, so it is
+  an acceptance, as a lookup is.
 - **A probe tells syntax from the rest** (`compat.OracleVerdict`): the
   statement again with `\n ~` after it. Oracle reads all of a statement before
   it resolves a name or checks a privilege, so a parser error comes back at the
