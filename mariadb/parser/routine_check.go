@@ -23,6 +23,7 @@ type routineScope struct {
 	noResultSet   bool     // inside a function or a trigger
 	function      bool     // inside a function, the one place RETURN may stand (1313 elsewhere)
 	sp            *spScope // the innermost scope of the stored program's names, nil outside one
+	hasReturn     bool     // a RETURN was read in the function's body
 	// compound is set inside a compound statement's body, at the top level too, which is a
 	// stored program of its own.
 	compound bool
@@ -131,8 +132,14 @@ func (p *Parser) refuseResultSet(stmt nodes.Node, pos int) error {
 	}
 	returns := false
 	switch s := stmt.(type) {
-	case *nodes.ShowStmt, *nodes.ExplainStmt:
+	case *nodes.ShowStmt, *nodes.ExplainStmt, *nodes.AnalyzeTableStmt, *nodes.OptimizeTableStmt,
+		*nodes.RepairTableStmt, *nodes.ChecksumTableStmt, *nodes.CacheIndexStmt,
+		*nodes.LoadIndexIntoCacheStmt:
 		returns = true
+	case *nodes.InsertStmt:
+		returns = len(s.Returning) > 0
+	case *nodes.DeleteStmt:
+		returns = len(s.Returning) > 0
 	case *nodes.SelectStmt:
 		returns = !selectHasInto(s)
 	}

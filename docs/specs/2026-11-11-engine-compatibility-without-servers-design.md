@@ -935,6 +935,18 @@ The docs judged the 8,075 rows in under a second:
 - **A rejection is the parser's own exception:** the ANTLR parser's `ParseException`, for a syntax error and for what its AST builder refuses, or the CUP parser's `Syntax error in line` (`compat.DorisVerdict`). Every other error comes after the parse. `LOAD LABEL` and `CREATE ROW POLICY` reach the CUP parser only when they run, so the judge sends them outside a transaction.
 - **The container test is gone.** Its 339 cases compared `Parse` with a running Doris and are `suite:conformance` rows; all agree. Nothing under `doris/` starts a server outside a recording.
 
+**StarRocks, recorded.** `starrocks/parser/testdata/compat.tsv` at `3.4.10` (2026-11-14): 3,062 alternatives of `StarRocks.g4` and 8,196 near-misses. The pinned server judged them in 45 seconds, each behind a probe in one request: StarRocks parses a request whole before it runs the first statement and stops at the first that fails, so `SELECT omni_compat_probe();` before the statement parses, fails when it runs, and leaves the statement unrun (`starrocks/parser/testdata/README.md`). A second recording on a fresh server wrote the same file.
+
+| Statements | Total | Agree | Only engine accepts | Only omni accepts |
+| --- | --- | --- | --- | --- |
+| One per alternative | 3,062 | 2,184 | 720 | 158 |
+| Near-misses | 8,196 | 5,606 | 152 | 2,438 |
+| Hand rows: eight container tests' cases (`suite:`) | 434 | 434 | 0 | 0 |
+
+- **3,468 generated rows disagree,** untriaged. As in Doris, from which omni's parser was forked, most of the 2,596 omni accepts are statements cut short or missing a word: a bare `SHOW` and `SHOW <anything>` (303 of `statement` and many `show*Statement` rules), `ALTER TABLE` clauses (250 of `alterClause`, with partition and column definitions behind them). Of the 872 StarRocks takes, 96 are a non-reserved keyword as a name (`SELECT ADMIN`), 60 `USE 'a'` and its kin, then `COLLATE` (29), backup objects, `LOAD`, privileges, `CREATE ANALYZE`, `TRACE` and `SUBMIT TASK`.
+- **Every error but the probe's is the parse's:** syntax errors, and what the AST builder refuses or fails on, a `ClassCastException` included (`SELECT FLOOR`).
+- **The container tests are gone.** Eight tests compared `Parse` with a running StarRocks; their 434 cases are `suite:` rows, named after them, and all agree. Nothing under `starrocks/` starts a server outside a recording.
+
 ## Appendix B. Rule changes
 
 The **Compatibility** section below replaces the `AGENTS.md` Tests bullets on testing against the engine, CI servers, Docker and environment gates. It lands with the implementation.

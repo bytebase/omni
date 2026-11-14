@@ -24,6 +24,20 @@ alternatives get no row: `expressionSingleton`, another entry point,
 `hintMap`, which StarRocks reads apart from a hint comment, and `CONCAT`,
 which `||` is only under sql_mode `PIPES_AS_CONCAT`.
 
+## Suites
+
+Eight container tests compared `Parse` with a running StarRocks. Their 434
+cases are `suite:` rows named after them, judged by the same recording; all
+agree: `suite:conformance` (281, `TestStarRocksSyntaxConformance`),
+`suite:explain-modifiers` (18), `suite:no-job-statements` (46), and
+`suite:pr2a`, `pr2b`, `pr3`, `pr4a` and `pr4b` (89, the parity matrices of
+the PRs that added those forms). A statement added to one is a row with `?` in
+both verdict cells, judged by a recording:
+
+```text
+?	?	-	suite:conformance	<statement>
+```
+
 ## What the judge needs
 
 - **A statement is sent behind a probe,** as one request:

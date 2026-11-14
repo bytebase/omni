@@ -1844,7 +1844,7 @@ reject	reject	engine	sp_c_chistics/sp_c_chistics_sp_c_chistic!insert	CREATE PROC
 reject	reject	engine	sp_c_chistics/sp_c_chistics_sp_c_chistic!swap	CREATE PROCEDURE utf8mb4() DIAGNOSTICS COMMIT;
 accept	accept	engine	sp_chistic/COMMENT_SYM_TEXT_STRING_sys	ALTER FUNCTION utf8mb4 COMMENT 's';
 accept	accept	engine	sp_chistic/LANGUAGE_SYM_SQL_SYM	ALTER FUNCTION utf8mb4 LANGUAGE SQL;
-accept	reject	engine	sp_chistic/LANGUAGE_SYM_SQL_SYM!drop-1	ALTER FUNCTION utf8mb4 SQL;
+reject	reject	engine	sp_chistic/LANGUAGE_SYM_SQL_SYM!drop-1	ALTER FUNCTION utf8mb4 SQL;
 reject	reject	engine	sp_chistic/LANGUAGE_SYM_SQL_SYM!drop-2	ALTER FUNCTION utf8mb4 LANGUAGE;
 reject	reject	engine	sp_chistic/LANGUAGE_SYM_SQL_SYM!truncate	ALTER FUNCTION utf8mb4 LANGUAGE
 reject	reject	engine	sp_chistic/LANGUAGE_SYM_SQL_SYM!insert	ALTER FUNCTION utf8mb4 LANGUAGE SQL zzz;
@@ -1855,21 +1855,21 @@ reject	reject	engine	sp_chistic/NO_SYM_SQL_SYM!truncate	ALTER FUNCTION utf8mb4 N
 reject	reject	engine	sp_chistic/NO_SYM_SQL_SYM!insert	ALTER FUNCTION utf8mb4 NO SQL zzz;
 reject	reject	engine	sp_chistic/NO_SYM_SQL_SYM!swap	ALTER FUNCTION utf8mb4 NODEGROUP SQL;
 accept	accept	engine	sp_chistic/CONTAINS_SYM_SQL_SYM	ALTER FUNCTION utf8mb4 CONTAINS SQL;
-accept	reject	engine	sp_chistic/CONTAINS_SYM_SQL_SYM!drop-2	ALTER FUNCTION utf8mb4 CONTAINS;
-accept	reject	engine	sp_chistic/CONTAINS_SYM_SQL_SYM!truncate	ALTER FUNCTION utf8mb4 CONTAINS
+reject	reject	engine	sp_chistic/CONTAINS_SYM_SQL_SYM!drop-2	ALTER FUNCTION utf8mb4 CONTAINS;
+reject	reject	engine	sp_chistic/CONTAINS_SYM_SQL_SYM!truncate	ALTER FUNCTION utf8mb4 CONTAINS
 reject	reject	engine	sp_chistic/CONTAINS_SYM_SQL_SYM!insert	ALTER FUNCTION utf8mb4 CONTAINS SQL zzz;
 reject	reject	engine	sp_chistic/CONTAINS_SYM_SQL_SYM!swap	ALTER FUNCTION utf8mb4 CONTEXT SQL;
 accept	accept	engine	sp_chistic/READS_SYM_SQL_SYM_DATA_SYM	ALTER FUNCTION utf8mb4 READS SQL DATA;
 reject	reject	engine	sp_chistic/READS_SYM_SQL_SYM_DATA_SYM!drop-1	ALTER FUNCTION utf8mb4 SQL DATA;
-accept	reject	engine	sp_chistic/READS_SYM_SQL_SYM_DATA_SYM!drop-2	ALTER FUNCTION utf8mb4 READS DATA;
-accept	reject	engine	sp_chistic/READS_SYM_SQL_SYM_DATA_SYM!drop-3	ALTER FUNCTION utf8mb4 READS SQL;
-accept	reject	engine	sp_chistic/READS_SYM_SQL_SYM_DATA_SYM!truncate	ALTER FUNCTION utf8mb4 READS SQL
+reject	reject	engine	sp_chistic/READS_SYM_SQL_SYM_DATA_SYM!drop-2	ALTER FUNCTION utf8mb4 READS DATA;
+reject	reject	engine	sp_chistic/READS_SYM_SQL_SYM_DATA_SYM!drop-3	ALTER FUNCTION utf8mb4 READS SQL;
+reject	reject	engine	sp_chistic/READS_SYM_SQL_SYM_DATA_SYM!truncate	ALTER FUNCTION utf8mb4 READS SQL
 reject	reject	engine	sp_chistic/READS_SYM_SQL_SYM_DATA_SYM!insert	ALTER FUNCTION utf8mb4 READS SQL DATA zzz;
 reject	reject	engine	sp_chistic/READS_SYM_SQL_SYM_DATA_SYM!swap	ALTER FUNCTION utf8mb4 READ_ONLY SQL DATA;
 accept	accept	engine	sp_chistic/MODIFIES_SYM_SQL_SYM_DATA_SYM	ALTER FUNCTION utf8mb4 MODIFIES SQL DATA;
-accept	reject	engine	sp_chistic/MODIFIES_SYM_SQL_SYM_DATA_SYM!drop-2	ALTER FUNCTION utf8mb4 MODIFIES DATA;
-accept	reject	engine	sp_chistic/MODIFIES_SYM_SQL_SYM_DATA_SYM!drop-3	ALTER FUNCTION utf8mb4 MODIFIES SQL;
-accept	reject	engine	sp_chistic/MODIFIES_SYM_SQL_SYM_DATA_SYM!truncate	ALTER FUNCTION utf8mb4 MODIFIES SQL
+reject	reject	engine	sp_chistic/MODIFIES_SYM_SQL_SYM_DATA_SYM!drop-2	ALTER FUNCTION utf8mb4 MODIFIES DATA;
+reject	reject	engine	sp_chistic/MODIFIES_SYM_SQL_SYM_DATA_SYM!drop-3	ALTER FUNCTION utf8mb4 MODIFIES SQL;
+reject	reject	engine	sp_chistic/MODIFIES_SYM_SQL_SYM_DATA_SYM!truncate	ALTER FUNCTION utf8mb4 MODIFIES SQL
 reject	reject	engine	sp_chistic/MODIFIES_SYM_SQL_SYM_DATA_SYM!insert	ALTER FUNCTION utf8mb4 MODIFIES SQL DATA zzz;
 reject	reject	engine	sp_chistic/MODIFIES_SYM_SQL_SYM_DATA_SYM!swap	ALTER FUNCTION utf8mb4 MODIFY SQL DATA;
 accept	accept	engine	sp_chistic/sp_suid	ALTER FUNCTION utf8mb4 SQL SECURITY DEFINER;
@@ -1904,9 +1904,9 @@ reject	reject	engine	opt_paren_expr_list/(_opt_expr_list_)!drop-1	CALL utf8mb4);
 reject	reject	engine	opt_paren_expr_list/(_opt_expr_list_)!drop-2	CALL utf8mb4(;
 reject	reject	engine	opt_paren_expr_list/(_opt_expr_list_)!truncate	CALL utf8mb4(
 reject	reject	engine	opt_paren_expr_list/(_opt_expr_list_)!insert	CALL utf8mb4() zzz;
-accept	reject	engine	sp_fdparam_list/%empty	CREATE FUNCTION utf8mb4() RETURNS INT COMMIT;
+reject	reject	engine	sp_fdparam_list/%empty	CREATE FUNCTION utf8mb4() RETURNS INT COMMIT;
 reject	reject	engine	sp_fdparam_list/%empty!insert	CREATE FUNCTION utf8mb4(zzz) RETURNS INT COMMIT;
-accept	reject	engine	sp_fdparam_list/sp_fdparams	CREATE FUNCTION utf8mb4(utf8mb4 INT) RETURNS INT COMMIT;
+reject	reject	engine	sp_fdparam_list/sp_fdparams	CREATE FUNCTION utf8mb4(utf8mb4 INT) RETURNS INT COMMIT;
 reject	reject	engine	sp_fdparam_list/sp_fdparams!drop-1	CREATE FUNCTION utf8mb4(INT) RETURNS INT COMMIT;
 reject	reject	engine	sp_fdparam_list/sp_fdparams!drop-2	CREATE FUNCTION utf8mb4(utf8mb4) RETURNS INT COMMIT;
 reject	reject	engine	sp_fdparam_list/sp_fdparams!truncate	CREATE FUNCTION utf8mb4(utf8mb4
@@ -1921,8 +1921,8 @@ reject	reject	engine	sp_fdparams/sp_fdparams_,_sp_fdparam!drop-5	CREATE FUNCTION
 reject	reject	engine	sp_fdparams/sp_fdparams_,_sp_fdparam!truncate	CREATE FUNCTION utf8mb4(utf8mb4 INT, utf8mb4
 reject	reject	engine	sp_fdparams/sp_fdparams_,_sp_fdparam!insert	CREATE FUNCTION utf8mb4(utf8mb4 INT, utf8mb4 INT zzz) RETURNS INT COMMIT;
 reject	reject	engine	sp_fdparams/sp_fdparams_,_sp_fdparam!swap	CREATE FUNCTION utf8mb4(utf8mb4 INTERSECT, utf8mb4 INT) RETURNS INT COMMIT;
-accept	reject	engine	sp_fdparams/sp_fdparam	CREATE FUNCTION utf8mb4(utf8mb4 INT) RETURNS INT COMMIT;
-accept	reject	engine	sp_fdparam/ident_type_opt_collate	CREATE FUNCTION utf8mb4(utf8mb4 INT) RETURNS INT COMMIT;
+reject	reject	engine	sp_fdparams/sp_fdparam	CREATE FUNCTION utf8mb4(utf8mb4 INT) RETURNS INT COMMIT;
+reject	reject	engine	sp_fdparam/ident_type_opt_collate	CREATE FUNCTION utf8mb4(utf8mb4 INT) RETURNS INT COMMIT;
 accept	accept	engine	sp_pdparam_list/%empty	CREATE PROCEDURE utf8mb4() COMMIT;
 reject	reject	engine	sp_pdparam_list/%empty!insert	CREATE PROCEDURE utf8mb4(zzz) COMMIT;
 accept	accept	engine	sp_pdparam_list/sp_pdparams	CREATE PROCEDURE utf8mb4(utf8mb4 INT) COMMIT;
@@ -2483,23 +2483,23 @@ reject	reject	engine	sp_unlabeled_control/REPEAT_SYM_sp_proc_stmts1_UNTIL_SYM_ex
 reject	reject	engine	sp_unlabeled_control/REPEAT_SYM_sp_proc_stmts1_UNTIL_SYM_expr_END_REPEAT_SYM!truncate	ALTER EVENT utf8mb4 DO REPEAT COMMIT; UNTIL utf8mb4 END
 reject	reject	engine	sp_unlabeled_control/REPEAT_SYM_sp_proc_stmts1_UNTIL_SYM_expr_END_REPEAT_SYM!insert	ALTER EVENT utf8mb4 DO REPEAT COMMIT; UNTIL utf8mb4 END REPEAT zzz;
 reject	reject	engine	sp_unlabeled_control/REPEAT_SYM_sp_proc_stmts1_UNTIL_SYM_expr_END_REPEAT_SYM!swap	ALTER EVENT utf8mb4 DO REPEATABLE COMMIT; UNTIL utf8mb4 END REPEAT;
-accept	reject	engine	trg_action_time/BEFORE_SYM	CREATE TRIGGER utf8mb4 BEFORE INSERT ON utf8mb4 FOR EACH ROW COMMIT;
+reject	reject	engine	trg_action_time/BEFORE_SYM	CREATE TRIGGER utf8mb4 BEFORE INSERT ON utf8mb4 FOR EACH ROW COMMIT;
 reject	reject	engine	trg_action_time/BEFORE_SYM!drop-1	CREATE TRIGGER utf8mb4 INSERT ON utf8mb4 FOR EACH ROW COMMIT;
 reject	reject	engine	trg_action_time/BEFORE_SYM!truncate	CREATE TRIGGER utf8mb4
 reject	reject	engine	trg_action_time/BEFORE_SYM!insert	CREATE TRIGGER utf8mb4 BEFORE zzz INSERT ON utf8mb4 FOR EACH ROW COMMIT;
 reject	reject	engine	trg_action_time/BEFORE_SYM!swap	CREATE TRIGGER utf8mb4 BEGIN INSERT ON utf8mb4 FOR EACH ROW COMMIT;
-accept	reject	engine	trg_action_time/AFTER_SYM	CREATE TRIGGER utf8mb4 AFTER INSERT ON utf8mb4 FOR EACH ROW COMMIT;
+reject	reject	engine	trg_action_time/AFTER_SYM	CREATE TRIGGER utf8mb4 AFTER INSERT ON utf8mb4 FOR EACH ROW COMMIT;
 reject	reject	engine	trg_action_time/AFTER_SYM!insert	CREATE TRIGGER utf8mb4 AFTER zzz INSERT ON utf8mb4 FOR EACH ROW COMMIT;
 reject	reject	engine	trg_action_time/AFTER_SYM!swap	CREATE TRIGGER utf8mb4 AGAINST INSERT ON utf8mb4 FOR EACH ROW COMMIT;
-accept	reject	engine	trg_event/INSERT_SYM	CREATE TRIGGER utf8mb4 BEFORE INSERT ON utf8mb4 FOR EACH ROW COMMIT;
+reject	reject	engine	trg_event/INSERT_SYM	CREATE TRIGGER utf8mb4 BEFORE INSERT ON utf8mb4 FOR EACH ROW COMMIT;
 reject	reject	engine	trg_event/INSERT_SYM!drop-1	CREATE TRIGGER utf8mb4 BEFORE ON utf8mb4 FOR EACH ROW COMMIT;
 reject	reject	engine	trg_event/INSERT_SYM!truncate	CREATE TRIGGER utf8mb4 BEFORE
 reject	reject	engine	trg_event/INSERT_SYM!insert	CREATE TRIGGER utf8mb4 BEFORE INSERT zzz ON utf8mb4 FOR EACH ROW COMMIT;
 reject	reject	engine	trg_event/INSERT_SYM!swap	CREATE TRIGGER utf8mb4 BEFORE INSERT_METHOD ON utf8mb4 FOR EACH ROW COMMIT;
-accept	reject	engine	trg_event/UPDATE_SYM	CREATE TRIGGER utf8mb4 BEFORE UPDATE ON utf8mb4 FOR EACH ROW COMMIT;
+reject	reject	engine	trg_event/UPDATE_SYM	CREATE TRIGGER utf8mb4 BEFORE UPDATE ON utf8mb4 FOR EACH ROW COMMIT;
 reject	reject	engine	trg_event/UPDATE_SYM!insert	CREATE TRIGGER utf8mb4 BEFORE UPDATE zzz ON utf8mb4 FOR EACH ROW COMMIT;
 reject	reject	engine	trg_event/UPDATE_SYM!swap	CREATE TRIGGER utf8mb4 BEFORE UPGRADE ON utf8mb4 FOR EACH ROW COMMIT;
-accept	reject	engine	trg_event/DELETE_SYM	CREATE TRIGGER utf8mb4 BEFORE DELETE ON utf8mb4 FOR EACH ROW COMMIT;
+reject	reject	engine	trg_event/DELETE_SYM	CREATE TRIGGER utf8mb4 BEFORE DELETE ON utf8mb4 FOR EACH ROW COMMIT;
 reject	reject	engine	trg_event/DELETE_SYM!insert	CREATE TRIGGER utf8mb4 BEFORE DELETE zzz ON utf8mb4 FOR EACH ROW COMMIT;
 reject	reject	engine	trg_event/DELETE_SYM!swap	CREATE TRIGGER utf8mb4 BEFORE DENSE_RANK ON utf8mb4 FOR EACH ROW COMMIT;
 accept	accept	engine	opt_ts_datafile_name/%empty	CREATE TABLESPACE utf8mb4;
@@ -11857,7 +11857,7 @@ accept	accept	engine	view_or_trigger_or_sp_or_event/view_replace_or_algorithm_de
 reject	reject	engine	view_or_trigger_or_sp_or_event/view_replace_or_algorithm_definer_opt_init_lex_create_info_view_tail!swap	CREATE ORDER REPLACE VIEW utf8mb4 AS SELECT utf8mb4;
 accept	accept	engine	definer_tail/view_tail	CREATE DEFINER = utf8mb4 VIEW utf8mb4 AS SELECT utf8mb4;
 reject	reject	engine	definer_tail/view_tail!swap	CREATE DEFINER = utf8mb4 VIRTUAL utf8mb4 AS SELECT utf8mb4;
-accept	reject	engine	definer_tail/trigger_tail	CREATE DEFINER = utf8mb4 TRIGGER utf8mb4 BEFORE INSERT ON utf8mb4 FOR EACH ROW COMMIT;
+reject	reject	engine	definer_tail/trigger_tail	CREATE DEFINER = utf8mb4 TRIGGER utf8mb4 BEFORE INSERT ON utf8mb4 FOR EACH ROW COMMIT;
 reject	reject	engine	definer_tail/trigger_tail!drop-1	CREATE DEFINER = utf8mb4 utf8mb4 BEFORE INSERT ON utf8mb4 FOR EACH ROW COMMIT;
 reject	reject	engine	definer_tail/trigger_tail!drop-2	CREATE DEFINER = utf8mb4 TRIGGER BEFORE INSERT ON utf8mb4 FOR EACH ROW COMMIT;
 reject	reject	engine	definer_tail/trigger_tail!drop-3	CREATE DEFINER = utf8mb4 TRIGGER utf8mb4 INSERT ON utf8mb4 FOR EACH ROW COMMIT;
@@ -11880,7 +11880,7 @@ reject	reject	engine	definer_tail/sp_tail!drop-5	CREATE DEFINER = utf8mb4 PROCED
 reject	reject	engine	definer_tail/sp_tail!truncate	CREATE DEFINER = utf8mb4 PROCEDURE utf8mb4()
 reject	reject	engine	definer_tail/sp_tail!insert	CREATE DEFINER = utf8mb4 PROCEDURE utf8mb4() COMMIT zzz;
 reject	reject	engine	definer_tail/sp_tail!swap	CREATE DEFINER = utf8mb4 PROCESS utf8mb4() COMMIT;
-accept	reject	engine	definer_tail/sf_tail	CREATE DEFINER = utf8mb4 FUNCTION utf8mb4() RETURNS INT COMMIT;
+reject	reject	engine	definer_tail/sf_tail	CREATE DEFINER = utf8mb4 FUNCTION utf8mb4() RETURNS INT COMMIT;
 reject	reject	engine	definer_tail/sf_tail!drop-1	CREATE DEFINER = utf8mb4 utf8mb4() RETURNS INT COMMIT;
 reject	reject	engine	definer_tail/sf_tail!drop-2	CREATE DEFINER = utf8mb4 FUNCTION() RETURNS INT COMMIT;
 reject	reject	engine	definer_tail/sf_tail!drop-3	CREATE DEFINER = utf8mb4 FUNCTION utf8mb4) RETURNS INT COMMIT;
@@ -11904,7 +11904,7 @@ reject	reject	engine	definer_tail/event_tail!truncate	CREATE DEFINER = utf8mb4 E
 reject	reject	engine	definer_tail/event_tail!insert	CREATE DEFINER = utf8mb4 EVENT utf8mb4 ON SCHEDULE AT utf8mb4 DO COMMIT zzz;
 reject	reject	engine	definer_tail/event_tail!swap	CREATE DEFINER = utf8mb4 EVENTS utf8mb4 ON SCHEDULE AT utf8mb4 DO COMMIT;
 accept	accept	engine	no_definer_tail/view_tail	CREATE VIEW utf8mb4 AS SELECT utf8mb4;
-accept	reject	engine	no_definer_tail/trigger_tail	CREATE TRIGGER utf8mb4 BEFORE INSERT ON utf8mb4 FOR EACH ROW COMMIT;
+reject	reject	engine	no_definer_tail/trigger_tail	CREATE TRIGGER utf8mb4 BEFORE INSERT ON utf8mb4 FOR EACH ROW COMMIT;
 reject	reject	engine	no_definer_tail/trigger_tail!drop-1	CREATE utf8mb4 BEFORE INSERT ON utf8mb4 FOR EACH ROW COMMIT;
 reject	reject	engine	no_definer_tail/trigger_tail!drop-2	CREATE TRIGGER BEFORE INSERT ON utf8mb4 FOR EACH ROW COMMIT;
 reject	reject	engine	no_definer_tail/trigger_tail!drop-5	CREATE TRIGGER utf8mb4 BEFORE INSERT utf8mb4 FOR EACH ROW COMMIT;
@@ -11922,7 +11922,7 @@ reject	reject	engine	no_definer_tail/sp_tail!drop-2	CREATE PROCEDURE() COMMIT;
 reject	reject	engine	no_definer_tail/sp_tail!drop-3	CREATE PROCEDURE utf8mb4) COMMIT;
 reject	reject	engine	no_definer_tail/sp_tail!drop-4	CREATE PROCEDURE utf8mb4(COMMIT;
 reject	reject	engine	no_definer_tail/sp_tail!swap	CREATE PROCESS utf8mb4() COMMIT;
-accept	reject	engine	no_definer_tail/sf_tail	CREATE FUNCTION utf8mb4() RETURNS INT COMMIT;
+reject	reject	engine	no_definer_tail/sf_tail	CREATE FUNCTION utf8mb4() RETURNS INT COMMIT;
 reject	reject	engine	no_definer_tail/sf_tail!drop-1	CREATE utf8mb4() RETURNS INT COMMIT;
 reject	reject	engine	no_definer_tail/sf_tail!drop-2	CREATE FUNCTION() RETURNS INT COMMIT;
 reject	reject	engine	no_definer_tail/sf_tail!drop-3	CREATE FUNCTION utf8mb4) RETURNS INT COMMIT;
@@ -12028,20 +12028,20 @@ reject	reject	engine	view_check_option/WITH_LOCAL_SYM_CHECK_SYM_OPTION!drop-4	AL
 reject	reject	engine	view_check_option/WITH_LOCAL_SYM_CHECK_SYM_OPTION!truncate	ALTER VIEW utf8mb4 AS SELECT utf8mb4 WITH LOCAL CHECK
 reject	reject	engine	view_check_option/WITH_LOCAL_SYM_CHECK_SYM_OPTION!insert	ALTER VIEW utf8mb4 AS SELECT utf8mb4 WITH LOCAL CHECK OPTION zzz;
 reject	reject	engine	view_check_option/WITH_LOCAL_SYM_CHECK_SYM_OPTION!swap	ALTER VIEW utf8mb4 AS SELECT utf8mb4 WITHOUT LOCAL CHECK OPTION;
-accept	reject	engine	trigger_action_order/FOLLOWS_SYM	CREATE TRIGGER utf8mb4 BEFORE INSERT ON utf8mb4 FOR EACH ROW FOLLOWS utf8mb4 COMMIT;
+reject	reject	engine	trigger_action_order/FOLLOWS_SYM	CREATE TRIGGER utf8mb4 BEFORE INSERT ON utf8mb4 FOR EACH ROW FOLLOWS utf8mb4 COMMIT;
 reject	reject	engine	trigger_action_order/FOLLOWS_SYM!drop-1	CREATE TRIGGER utf8mb4 BEFORE INSERT ON utf8mb4 FOR EACH ROW utf8mb4 COMMIT;
 reject	reject	engine	trigger_action_order/FOLLOWS_SYM!insert	CREATE TRIGGER utf8mb4 BEFORE INSERT ON utf8mb4 FOR EACH ROW FOLLOWS zzz utf8mb4 COMMIT;
 reject	reject	engine	trigger_action_order/FOLLOWS_SYM!swap	CREATE TRIGGER utf8mb4 BEFORE INSERT ON utf8mb4 FOR EACH ROW FOR utf8mb4 COMMIT;
-accept	reject	engine	trigger_action_order/PRECEDES_SYM	CREATE TRIGGER utf8mb4 BEFORE INSERT ON utf8mb4 FOR EACH ROW PRECEDES utf8mb4 COMMIT;
+reject	reject	engine	trigger_action_order/PRECEDES_SYM	CREATE TRIGGER utf8mb4 BEFORE INSERT ON utf8mb4 FOR EACH ROW PRECEDES utf8mb4 COMMIT;
 reject	reject	engine	trigger_action_order/PRECEDES_SYM!insert	CREATE TRIGGER utf8mb4 BEFORE INSERT ON utf8mb4 FOR EACH ROW PRECEDES zzz utf8mb4 COMMIT;
 reject	reject	engine	trigger_action_order/PRECEDES_SYM!swap	CREATE TRIGGER utf8mb4 BEFORE INSERT ON utf8mb4 FOR EACH ROW PRECEDING utf8mb4 COMMIT;
-accept	reject	engine	trigger_follows_precedes_clause/%empty	CREATE TRIGGER utf8mb4 BEFORE INSERT ON utf8mb4 FOR EACH ROW COMMIT;
+reject	reject	engine	trigger_follows_precedes_clause/%empty	CREATE TRIGGER utf8mb4 BEFORE INSERT ON utf8mb4 FOR EACH ROW COMMIT;
 reject	reject	engine	trigger_follows_precedes_clause/%empty!insert	CREATE TRIGGER utf8mb4 BEFORE INSERT ON utf8mb4 FOR EACH ROW zzz COMMIT;
-accept	reject	engine	trigger_follows_precedes_clause/trigger_action_order_ident_or_text	CREATE TRIGGER utf8mb4 BEFORE INSERT ON utf8mb4 FOR EACH ROW FOLLOWS utf8mb4 COMMIT;
+reject	reject	engine	trigger_follows_precedes_clause/trigger_action_order_ident_or_text	CREATE TRIGGER utf8mb4 BEFORE INSERT ON utf8mb4 FOR EACH ROW FOLLOWS utf8mb4 COMMIT;
 reject	reject	engine	trigger_follows_precedes_clause/trigger_action_order_ident_or_text!drop-2	CREATE TRIGGER utf8mb4 BEFORE INSERT ON utf8mb4 FOR EACH ROW FOLLOWS COMMIT;
 reject	reject	engine	trigger_follows_precedes_clause/trigger_action_order_ident_or_text!truncate	CREATE TRIGGER utf8mb4 BEFORE INSERT ON utf8mb4 FOR EACH ROW FOLLOWS
 reject	reject	engine	trigger_follows_precedes_clause/trigger_action_order_ident_or_text!insert	CREATE TRIGGER utf8mb4 BEFORE INSERT ON utf8mb4 FOR EACH ROW FOLLOWS utf8mb4 zzz COMMIT;
-accept	reject	engine	trigger_tail/TRIGGER_SYM_opt_if_not_exists_sp_name_trg_action_time_trg_event_ON_SYM_table_ident_FOR_SYM_EACH_SYM_ROW_SYM_trigger_follows_precedes_clause_sp_proc_stmt	CREATE TRIGGER utf8mb4 BEFORE INSERT ON utf8mb4 FOR EACH ROW COMMIT;
+reject	reject	engine	trigger_tail/TRIGGER_SYM_opt_if_not_exists_sp_name_trg_action_time_trg_event_ON_SYM_table_ident_FOR_SYM_EACH_SYM_ROW_SYM_trigger_follows_precedes_clause_sp_proc_stmt	CREATE TRIGGER utf8mb4 BEFORE INSERT ON utf8mb4 FOR EACH ROW COMMIT;
 accept	accept	engine	udf_tail/AGGREGATE_SYM_FUNCTION_SYM_opt_if_not_exists_ident_RETURNS_SYM_udf_type_SONAME_SYM_TEXT_STRING_sys	CREATE AGGREGATE FUNCTION utf8mb4 RETURNS STRING SONAME 's';
 reject	reject	engine	udf_tail/AGGREGATE_SYM_FUNCTION_SYM_opt_if_not_exists_ident_RETURNS_SYM_udf_type_SONAME_SYM_TEXT_STRING_sys!drop-2	CREATE AGGREGATE utf8mb4 RETURNS STRING SONAME 's';
 reject	reject	engine	udf_tail/AGGREGATE_SYM_FUNCTION_SYM_opt_if_not_exists_ident_RETURNS_SYM_udf_type_SONAME_SYM_TEXT_STRING_sys!drop-3	CREATE AGGREGATE FUNCTION RETURNS STRING SONAME 's';
@@ -12053,7 +12053,7 @@ reject	reject	engine	udf_tail/AGGREGATE_SYM_FUNCTION_SYM_opt_if_not_exists_ident
 reject	reject	engine	udf_tail/AGGREGATE_SYM_FUNCTION_SYM_opt_if_not_exists_ident_RETURNS_SYM_udf_type_SONAME_SYM_TEXT_STRING_sys!insert	CREATE AGGREGATE FUNCTION utf8mb4 RETURNS STRING SONAME 's' zzz;
 reject	reject	engine	udf_tail/AGGREGATE_SYM_FUNCTION_SYM_opt_if_not_exists_ident_RETURNS_SYM_udf_type_SONAME_SYM_TEXT_STRING_sys!swap	CREATE ALGORITHM FUNCTION utf8mb4 RETURNS STRING SONAME 's';
 accept	accept	engine	udf_tail/FUNCTION_SYM_opt_if_not_exists_ident_RETURNS_SYM_udf_type_SONAME_SYM_TEXT_STRING_sys	CREATE FUNCTION utf8mb4 RETURNS STRING SONAME 's';
-accept	reject	engine	sf_tail/FUNCTION_SYM_opt_if_not_exists_sp_name_(_sp_fdparam_list_)_RETURNS_SYM_type_opt_collate_sp_c_chistics_sp_proc_stmt	CREATE FUNCTION utf8mb4() RETURNS INT COMMIT;
+reject	reject	engine	sf_tail/FUNCTION_SYM_opt_if_not_exists_sp_name_(_sp_fdparam_list_)_RETURNS_SYM_type_opt_collate_sp_c_chistics_sp_proc_stmt	CREATE FUNCTION utf8mb4() RETURNS INT COMMIT;
 accept	accept	engine	sp_tail/PROCEDURE_SYM_opt_if_not_exists_sp_name_(_sp_pdparam_list_)_sp_c_chistics_sp_proc_stmt	CREATE PROCEDURE utf8mb4() COMMIT;
 accept	accept	engine	xa/XA_SYM_begin_or_start_xid_opt_join_or_resume	XA BEGIN 's';
 reject	reject	engine	xa/XA_SYM_begin_or_start_xid_opt_join_or_resume!drop-1	BEGIN 's';

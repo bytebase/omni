@@ -20,10 +20,26 @@ import (
 // takes after its expression.
 func (p *Parser) startsVcolAttribute() bool {
 	switch p.cur.Type {
-	case kwUNIQUE, kwCOMMENT, kwCHECK, kwCONSTRAINT:
+	case kwUNIQUE, kwCOMMENT:
 		return true
 	}
 	return strings.EqualFold(p.cur.Str, "INVISIBLE") && p.cur.Type != tokSCONST
+}
+
+// startsGeneratedAttribute reports what a generated column takes after its AS clause:
+// vcol_attribute after an expression, and after ROW START or ROW END asrow_attribute,
+// which adds NOT NULL [ENABLE] and [PRIMARY] KEY to it. MariaDB 11.8.8 runs
+// `a INT AS ROW START KEY` and answers 1064 for `a INT AS (1) KEY`.
+func (p *Parser) startsGeneratedAttribute(gen *nodes.GeneratedColumn) bool {
+	if gen.RowBound != nodes.RowBoundNone {
+		switch p.cur.Type {
+		case kwKEY, kwPRIMARY:
+			return true
+		case kwNOT:
+			return p.peekNext().Type == kwNULL
+		}
+	}
+	return p.startsVcolAttribute()
 }
 
 // refuseColumnAttributes holds a column's attributes to its type and to each other.

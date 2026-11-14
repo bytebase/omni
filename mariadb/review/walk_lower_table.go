@@ -140,6 +140,22 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 			cols = append([]*ast.ColumnDef{c.Column}, cols...)
 		}
 		for _, col := range cols {
+			// IF NOT EXISTS makes a column the table has a note and leaves the
+			// table as it was (verified). One the walk does not know is there
+			// afterwards either way, though its keys may not be.
+			if c.IfNotExists {
+				k, ok := b.key(spaceColumn, col.Name)
+				if !ok {
+					return false
+				}
+				ck := colKey(r.db, r.name, k)
+				if f, _ := b.l.Lookup(ck); f != walk.Absent {
+					if f == walk.Unknown {
+						b.Set(ck, walk.Present, "")
+					}
+					continue
+				}
+			}
 			if !b.addColumn(r, col, c.After, rangeOf(col.Loc)) {
 				return false
 			}
@@ -282,8 +298,16 @@ func (b *builder) alterTextFails(v *ast.AlterTableStmt, r tableRef) bool {
 				cols = append([]*ast.ColumnDef{c.Column}, cols...)
 			}
 			for _, col := range cols {
-				if b.tooLong(col.Name, rangeOf(col.Loc)) ||
-					twice("add column", spaceColumn, col.Name, rangeOf(col.Loc), statesTwice("adds", "column", ident(col.Name))) {
+				if b.tooLong(col.Name, rangeOf(col.Loc)) {
+					return true
+				}
+				// IF NOT EXISTS never fails from a repeat, and what it states still
+				// counts against a plain ADD after it (1060, verified).
+				if c.IfNotExists {
+					if k, ok := b.key(spaceColumn, col.Name); ok {
+						seen[[2]string{"add column", k}] = true
+					}
+				} else if twice("add column", spaceColumn, col.Name, rangeOf(col.Loc), statesTwice("adds", "column", ident(col.Name))) {
 					return true
 				}
 				for _, cc := range col.Constraints {
