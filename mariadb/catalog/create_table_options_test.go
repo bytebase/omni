@@ -1,6 +1,9 @@
 package catalog
 
-import "testing"
+import (
+	"errors"
+	"testing"
+)
 
 // What the CREATE TABLE forms this engine newly parses leave in the catalog.
 // A form can start parsing and still misreport forever — a SQL_TSI_YEAR column
@@ -97,6 +100,47 @@ func TestCreateTableOptionsCatalog(t *testing.T) {
 				"  `a` int(11) DEFAULT NULL\n" +
 				") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci",
 		},
+		{
+			// LIKE copies TRANSACTIONAL and the engine-defined options and drops
+			// PAGE_CHECKSUM.
+			name:  "CREATE TABLE LIKE keeps TRANSACTIONAL and engine options",
+			ddl:   "CREATE TABLE lsrc (a int) page_checksum=1 transactional=1 page_compressed=1; CREATE TABLE ldst LIKE lsrc",
+			table: "ldst",
+			want: "CREATE TABLE `ldst` (\n" +
+				"  `a` int(11) DEFAULT NULL\n" +
+				") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci TRANSACTIONAL=1 `page_compressed`=1",
+		},
+		{
+			// PAGE_CHECKSUM survives a rename and nothing else that rebuilds
+			// the table without naming it.
+			name:  "PAGE_CHECKSUM is dropped by an ALTER that does not name it",
+			ddl:   "CREATE TABLE pc (a int) page_checksum=1 transactional=0; ALTER TABLE pc RENAME TO pc2; ALTER TABLE pc2 ADD b int",
+			table: "pc2",
+			want: "CREATE TABLE `pc2` (\n" +
+				"  `a` int(11) DEFAULT NULL,\n" +
+				"  `b` int(11) DEFAULT NULL\n" +
+				") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci TRANSACTIONAL=0",
+		},
+		{
+			// Aria's handler keeps the checksum an ALTER does not name.
+			name:  "Aria keeps PAGE_CHECKSUM through an ALTER",
+			ddl:   "CREATE TABLE ar (a INT) ENGINE=Aria PAGE_CHECKSUM=0; ALTER TABLE ar ADD b INT",
+			table: "ar",
+			want: "CREATE TABLE `ar` (\n" +
+				"  `a` int(11) DEFAULT NULL,\n" +
+				"  `b` int(11) DEFAULT NULL\n" +
+				") ENGINE=Aria DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci PAGE_CHECKSUM=0",
+		},
+		{
+			// A later setting moves an engine-defined option to the end, a hex
+			// value reads as its number, and DEFAULT removes it.
+			name:  "engine-defined options keep MariaDB's order",
+			ddl:   "CREATE TABLE eo (a int) PAGE_COMPRESSED='1' page_compression_level = 0x3; ALTER TABLE eo PAGE_COMPRESSED=yes; ALTER TABLE eo encryption_key_id=2, page_compression_level=default",
+			table: "eo",
+			want: "CREATE TABLE `eo` (\n" +
+				"  `a` int(11) DEFAULT NULL\n" +
+				") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci `PAGE_COMPRESSED`=yes `encryption_key_id`=2",
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			c := wtSetup(t)
@@ -106,4 +150,39 @@ func TestCreateTableOptionsCatalog(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestEngineDefinedOptionRefusals holds the catalog to MariaDB 11.8.8's answers
+// for engine-defined options InnoDB does not define (1911), a quoted name
+// included, and for SEQUENCE=1 on a table that is no sequence (4086).
+func TestEngineDefinedOptionRefusals(t *testing.T) {
+	for _, tc := range []struct {
+		ddl  string
+		code int
+	}{
+		{"CREATE TABLE r1 (a int) foo=1", 1911},
+		{"CREATE TABLE r2 (a int) `PAGE_CHECKSUM`='x'", 1911},
+		{"CREATE TABLE r3 (a int); ALTER TABLE r3 READ_ONLY = 's'", 1911},
+		{"CREATE TABLE r4 (a int); ALTER TABLE r4 SEQUENCE 1", 4086},
+		{"CREATE TABLE r5 (a int) foo=1 ENGINE=MyISAM", 1911},
+		{"CREATE TABLE r6 (a int) ENGINE=Aria page_compressed=1", 1911},
+	} {
+		c := wtSetup(t)
+		results, err := c.Exec(tc.ddl, nil)
+		if err != nil {
+			t.Fatalf("%s: %v", tc.ddl, err)
+		}
+		last := results[len(results)-1].Error
+		var e *Error
+		if !errors.As(last, &e) || e.Code != tc.code {
+			t.Errorf("%s: got %v, want %d", tc.ddl, last, tc.code)
+		}
+	}
+}
+
+// TestEngineDefinedOptionOtherEngine takes an option of an engine the catalog
+// does not know as written: CONNECT's TABLE_TYPE is CONNECT's to check.
+func TestEngineDefinedOptionOtherEngine(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, "CREATE TABLE ct (a INT) ENGINE=CONNECT TABLE_TYPE=CSV")
 }

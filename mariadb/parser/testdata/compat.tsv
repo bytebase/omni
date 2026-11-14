@@ -2329,7 +2329,7 @@ reject	reject	engine	create_database_option/default_charset!drop-2	ALTER DATABAS
 reject	reject	engine	create_database_option/default_charset!truncate	ALTER DATABASE CHARSET
 reject	reject	engine	create_database_option/default_charset!insert	ALTER DATABASE CHARSET utf8mb4 zzz;
 reject	reject	engine	create_database_option/default_charset!swap	ALTER DATABASE CHECK utf8mb4;
-reject	accept	engine	create_database_option/COMMENT_SYM_opt_equal_TEXT_STRING_sys	ALTER DATABASE COMMENT 's';
+accept	accept	engine	create_database_option/COMMENT_SYM_opt_equal_TEXT_STRING_sys	ALTER DATABASE COMMENT 's';
 reject	reject	engine	create_database_option/COMMENT_SYM_opt_equal_TEXT_STRING_sys!drop-1	ALTER DATABASE 's';
 reject	reject	engine	create_database_option/COMMENT_SYM_opt_equal_TEXT_STRING_sys!drop-2	ALTER DATABASE COMMENT;
 reject	reject	engine	create_database_option/COMMENT_SYM_opt_equal_TEXT_STRING_sys!truncate	ALTER DATABASE COMMENT
@@ -2471,7 +2471,7 @@ reject	reject	engine	create_table_option/TABLE_CHECKSUM_SYM_opt_equal_ulong_num!
 reject	reject	engine	create_table_option/TABLE_CHECKSUM_SYM_opt_equal_ulong_num!truncate	ALTER TABLE a TABLE_CHECKSUM
 reject	reject	engine	create_table_option/TABLE_CHECKSUM_SYM_opt_equal_ulong_num!insert	ALTER TABLE a TABLE_CHECKSUM 1 zzz;
 reject	reject	engine	create_table_option/TABLE_CHECKSUM_SYM_opt_equal_ulong_num!swap	ALTER TABLE a TABLE_NAME 1;
-reject	accept	engine	create_table_option/PAGE_CHECKSUM_SYM_opt_equal_choice	ALTER TABLE a PAGE_CHECKSUM 1;
+accept	accept	engine	create_table_option/PAGE_CHECKSUM_SYM_opt_equal_choice	ALTER TABLE a PAGE_CHECKSUM 1;
 reject	reject	engine	create_table_option/PAGE_CHECKSUM_SYM_opt_equal_choice!drop-2	ALTER TABLE a PAGE_CHECKSUM;
 reject	reject	engine	create_table_option/PAGE_CHECKSUM_SYM_opt_equal_choice!truncate	ALTER TABLE a PAGE_CHECKSUM
 reject	reject	engine	create_table_option/PAGE_CHECKSUM_SYM_opt_equal_choice!insert	ALTER TABLE a PAGE_CHECKSUM 1 zzz;
@@ -2549,7 +2549,7 @@ reject	reject	engine	create_table_option/KEY_BLOCK_SIZE_opt_equal_ulong_num!drop
 reject	reject	engine	create_table_option/KEY_BLOCK_SIZE_opt_equal_ulong_num!truncate	ALTER TABLE a KEY_BLOCK_SIZE
 reject	reject	engine	create_table_option/KEY_BLOCK_SIZE_opt_equal_ulong_num!insert	ALTER TABLE a KEY_BLOCK_SIZE 1 zzz;
 reject	reject	engine	create_table_option/KEY_BLOCK_SIZE_opt_equal_ulong_num!swap	ALTER TABLE a KILL 1;
-reject	accept	engine	create_table_option/TRANSACTIONAL_SYM_opt_equal_choice	ALTER TABLE a TRANSACTIONAL 1;
+accept	accept	engine	create_table_option/TRANSACTIONAL_SYM_opt_equal_choice	ALTER TABLE a TRANSACTIONAL 1;
 reject	reject	engine	create_table_option/TRANSACTIONAL_SYM_opt_equal_choice!drop-2	ALTER TABLE a TRANSACTIONAL;
 reject	reject	engine	create_table_option/TRANSACTIONAL_SYM_opt_equal_choice!truncate	ALTER TABLE a TRANSACTIONAL
 reject	reject	engine	create_table_option/TRANSACTIONAL_SYM_opt_equal_choice!insert	ALTER TABLE a TRANSACTIONAL 1 zzz;
@@ -2560,12 +2560,12 @@ reject	reject	engine	create_table_option/engine_defined_option!drop-2	ALTER TABL
 reject	reject	engine	create_table_option/engine_defined_option!drop-3	ALTER TABLE a a =;
 reject	reject	engine	create_table_option/engine_defined_option!truncate	ALTER TABLE a a =
 reject	reject	engine	create_table_option/engine_defined_option!insert	ALTER TABLE a a = 's' zzz;
-reject	accept	engine	create_table_option/SEQUENCE_SYM_opt_equal_choice	ALTER TABLE a SEQUENCE 1;
+accept	accept	engine	create_table_option/SEQUENCE_SYM_opt_equal_choice	ALTER TABLE a SEQUENCE 1;
 reject	reject	engine	create_table_option/SEQUENCE_SYM_opt_equal_choice!drop-2	ALTER TABLE a SEQUENCE;
 reject	reject	engine	create_table_option/SEQUENCE_SYM_opt_equal_choice!truncate	ALTER TABLE a SEQUENCE
 reject	reject	engine	create_table_option/SEQUENCE_SYM_opt_equal_choice!insert	ALTER TABLE a SEQUENCE 1 zzz;
 reject	reject	engine	create_table_option/SEQUENCE_SYM_opt_equal_choice!swap	ALTER TABLE a SERIAL 1;
-reject	accept	engine	create_table_option/versioning_option	ALTER TABLE a WITH SYSTEM VERSIONING;
+accept	accept	engine	create_table_option/versioning_option	ALTER TABLE a WITH SYSTEM VERSIONING;
 reject	reject	engine	create_table_option/versioning_option!drop-1	ALTER TABLE a VERSIONING;
 reject	reject	engine	create_table_option/versioning_option!drop-2	ALTER TABLE a WITH SYSTEM;
 reject	reject	engine	create_table_option/versioning_option!truncate	ALTER TABLE a WITH SYSTEM
@@ -2588,21 +2588,21 @@ accept	accept	engine	engine_defined_option/ident_options_equal_DEFAULT!swap	ALTE
 accept	accept	engine	ident_options/IDENT_sys	ALTER TABLE a a = 's';
 accept	accept	engine	ident_options/IDENT_sys!truncate	ALTER TABLE a
 reject	reject	engine	ident_options/IDENT_sys!insert	ALTER TABLE a a zzz = 's';
-reject	accept	engine	ident_options/keyword_options	ALTER TABLE a READ_ONLY = 's';
+accept	accept	engine	ident_options/keyword_options	ALTER TABLE a READ_ONLY = 's';
 reject	reject	engine	ident_options/keyword_options!insert	ALTER TABLE a READ_ONLY zzz = 's';
 reject	reject	engine	ident_options/keyword_options!swap	ALTER TABLE a READ_WRITE = 's';
-reject	accept	engine	keyword_options/READ_ONLY_SYM	ALTER TABLE a READ_ONLY = 's';
-reject	accept	engine	keyword_options/WRAPPER_SYM	ALTER TABLE a WRAPPER = 's';
+accept	accept	engine	keyword_options/READ_ONLY_SYM	ALTER TABLE a READ_ONLY = 's';
+accept	accept	engine	keyword_options/WRAPPER_SYM	ALTER TABLE a WRAPPER = 's';
 reject	reject	engine	keyword_options/WRAPPER_SYM!insert	ALTER TABLE a WRAPPER zzz = 's';
 reject	reject	engine	keyword_options/WRAPPER_SYM!swap	ALTER TABLE a WRITE = 's';
 accept	accept	engine	opt_versioning_option/%empty	CREATE TABLE a SELECT a;
-reject	accept	engine	opt_versioning_option/versioning_option	CREATE TABLE a SELECT a WITH SYSTEM VERSIONING;
+accept	accept	engine	opt_versioning_option/versioning_option	CREATE TABLE a SELECT a WITH SYSTEM VERSIONING;
 accept	accept	engine	opt_versioning_option/versioning_option!drop-1	CREATE TABLE a SELECT a VERSIONING;
 reject	reject	engine	opt_versioning_option/versioning_option!drop-2	CREATE TABLE a SELECT a WITH SYSTEM;
 reject	reject	engine	opt_versioning_option/versioning_option!truncate	CREATE TABLE a SELECT a WITH SYSTEM
 reject	reject	engine	opt_versioning_option/versioning_option!insert	CREATE TABLE a SELECT a WITH SYSTEM VERSIONING zzz;
 reject	reject	engine	opt_versioning_option/versioning_option!swap	CREATE TABLE a SELECT a WITH SYSTEM VIA;
-reject	accept	engine	versioning_option/WITH_SYSTEM_SYM_VERSIONING_SYM	ALTER TABLE a WITH SYSTEM VERSIONING;
+accept	accept	engine	versioning_option/WITH_SYSTEM_SYM_VERSIONING_SYM	ALTER TABLE a WITH SYSTEM VERSIONING;
 reject	reject	engine	default_charset/opt_default_charset_opt_equal_charset_name_or_default	ALTER DATABASE CHARSET utf8mb4;
 accept	accept	engine	default_collation/opt_default_COLLATE_SYM_opt_equal_collation_name_or_default	ALTER DATABASE COLLATE utf8mb4_bin;
 reject	reject	engine	storage_engines/ident_or_text	PARTITION BY SYSTEM_TIME(a ENGINE a);
@@ -3751,11 +3751,11 @@ accept	accept	engine	alter/ALTER_DATABASE_ident_or_empty_create_database_options
 reject	reject	engine	alter/ALTER_DATABASE_ident_or_empty_create_database_options!drop-1	DATABASE COLLATE utf8mb4_bin;
 reject	reject	engine	alter/ALTER_DATABASE_ident_or_empty_create_database_options!drop-2	ALTER COLLATE utf8mb4_bin;
 reject	reject	engine	alter/ALTER_DATABASE_ident_or_empty_create_database_options!swap	ALWAYS DATABASE COLLATE utf8mb4_bin;
-reject	accept	engine	alter/ALTER_DATABASE_COMMENT_SYM_opt_equal_TEXT_STRING_sys_opt_create_database_options	ALTER DATABASE COMMENT 's';
+accept	accept	engine	alter/ALTER_DATABASE_COMMENT_SYM_opt_equal_TEXT_STRING_sys_opt_create_database_options	ALTER DATABASE COMMENT 's';
 reject	reject	engine	alter/ALTER_DATABASE_COMMENT_SYM_opt_equal_TEXT_STRING_sys_opt_create_database_options!drop-1	DATABASE COMMENT 's';
 reject	reject	engine	alter/ALTER_DATABASE_COMMENT_SYM_opt_equal_TEXT_STRING_sys_opt_create_database_options!drop-2	ALTER COMMENT 's';
 reject	reject	engine	alter/ALTER_DATABASE_COMMENT_SYM_opt_equal_TEXT_STRING_sys_opt_create_database_options!swap	ALWAYS DATABASE COMMENT 's';
-reject	accept	engine	alter/ALTER_DATABASE_ident_UPGRADE_SYM_DATA_SYM_DIRECTORY_SYM_NAME_SYM	ALTER DATABASE a UPGRADE DATA DIRECTORY NAME;
+accept	accept	engine	alter/ALTER_DATABASE_ident_UPGRADE_SYM_DATA_SYM_DIRECTORY_SYM_NAME_SYM	ALTER DATABASE a UPGRADE DATA DIRECTORY NAME;
 reject	reject	engine	alter/ALTER_DATABASE_ident_UPGRADE_SYM_DATA_SYM_DIRECTORY_SYM_NAME_SYM!drop-1	DATABASE a UPGRADE DATA DIRECTORY NAME;
 reject	reject	engine	alter/ALTER_DATABASE_ident_UPGRADE_SYM_DATA_SYM_DIRECTORY_SYM_NAME_SYM!drop-2	ALTER a UPGRADE DATA DIRECTORY NAME;
 reject	reject	engine	alter/ALTER_DATABASE_ident_UPGRADE_SYM_DATA_SYM_DIRECTORY_SYM_NAME_SYM!drop-3	ALTER DATABASE UPGRADE DATA DIRECTORY NAME;
@@ -4329,13 +4329,13 @@ accept	accept	engine	alter_options_part2/alter_option_list	ALTER IGNORE TABLE a;
 reject	reject	engine	alter_options_part2/alter_option_list!truncate	ALTER
 reject	reject	engine	alter_options_part2/alter_option_list!insert	ALTER IGNORE zzz TABLE a;
 reject	reject	engine	alter_options_part2/alter_option_list!swap	ALTER IGNORED TABLE a;
-reject	accept	engine	alter_option_list/alter_option_list_alter_option	ALTER IGNORE IGNORE TABLE a;
+accept	accept	engine	alter_option_list/alter_option_list_alter_option	ALTER IGNORE IGNORE TABLE a;
 reject	reject	engine	alter_option_list/alter_option_list_alter_option!truncate	ALTER IGNORE
 reject	reject	engine	alter_option_list/alter_option_list_alter_option!insert	ALTER IGNORE IGNORE zzz TABLE a;
 reject	reject	engine	alter_option_list/alter_option_list_alter_option!swap	ALTER IGNORED IGNORE TABLE a;
 accept	accept	engine	alter_option_list/alter_option	ALTER IGNORE TABLE a;
 accept	accept	engine	alter_option/IGNORE_SYM	ALTER IGNORE TABLE a;
-reject	accept	engine	alter_option/ONLINE_SYM	ALTER ONLINE TABLE a;
+accept	accept	engine	alter_option/ONLINE_SYM	ALTER ONLINE TABLE a;
 reject	reject	engine	alter_option/ONLINE_SYM!insert	ALTER ONLINE zzz TABLE a;
 reject	reject	engine	alter_option/ONLINE_SYM!swap	ALTER ONLY TABLE a;
 accept	accept	engine	opt_restrict/%empty	DROP TABLE a;
@@ -7876,7 +7876,7 @@ reject	reject	engine	ulonglong_num/opt_plus_FLOAT_NUM!insert	ALTER TABLE a MAX_R
 accept	accept	engine	real_ulonglong_num/NUM	ALTER TABLE a a = 1;
 accept	accept	engine	real_ulonglong_num/ULONGLONG_NUM	ALTER TABLE a a = 9223372036854775808;
 reject	reject	engine	real_ulonglong_num/ULONGLONG_NUM!insert	ALTER TABLE a a = 9223372036854775808 zzz;
-reject	accept	engine	real_ulonglong_num/HEX_NUM	ALTER TABLE a a = 0x41;
+accept	accept	engine	real_ulonglong_num/HEX_NUM	ALTER TABLE a a = 0x41;
 reject	reject	engine	real_ulonglong_num/HEX_NUM!insert	ALTER TABLE a a = 0x41 zzz;
 accept	accept	engine	real_ulonglong_num/LONG_NUM	ALTER TABLE a a = 2147483648;
 reject	reject	engine	real_ulonglong_num/LONG_NUM!insert	ALTER TABLE a a = 2147483648 zzz;
@@ -7886,8 +7886,8 @@ reject	reject	engine	dec_num_error/dec_num	DO CURRENT_TIME(1.5);
 reject	reject	engine	dec_num/DECIMAL_NUM	DO CURRENT_TIME(1.5);
 reject	reject	engine	dec_num/FLOAT_NUM	DO CURRENT_TIME(1e0);
 reject	reject	engine	dec_num/FLOAT_NUM!insert	DO CURRENT_TIME(1e0 zzz);
-reject	accept	engine	choice/ulong_num	ALTER TABLE a PAGE_CHECKSUM 1;
-reject	accept	engine	choice/DEFAULT	ALTER TABLE a PAGE_CHECKSUM DEFAULT;
+accept	accept	engine	choice/ulong_num	ALTER TABLE a PAGE_CHECKSUM 1;
+accept	accept	engine	choice/DEFAULT	ALTER TABLE a PAGE_CHECKSUM DEFAULT;
 reject	reject	engine	choice/DEFAULT!insert	ALTER TABLE a PAGE_CHECKSUM DEFAULT zzz;
 reject	reject	engine	choice/DEFAULT!swap	ALTER TABLE a PAGE_CHECKSUM DEFINER;
 accept	accept	engine	bool/ulong_num	CHANGE MASTER TO MASTER_DEMOTE_TO_SLAVE = 1;
