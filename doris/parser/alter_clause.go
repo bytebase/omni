@@ -781,10 +781,11 @@ func (p *Parser) parseAlterAddPartition(action *ast.AlterTableAction) error {
 	}
 	if p.cur.Kind == int('(') {
 		p.advance()
-		if item.Properties, err = p.parsePropertyItems(p.parseStringProperty); err != nil {
+		// The partition's own property list is the action's PartitionProps,
+		// held once so a walk visits each property once.
+		if action.PartitionProps, err = p.parsePropertyItems(p.parseStringProperty); err != nil {
 			return err
 		}
-		action.PartitionProps = item.Properties
 	}
 	item.Loc.End = p.prev.Loc.End
 	action.Partition = item
@@ -1028,7 +1029,9 @@ func (p *Parser) parseAlterModifyClause(action *ast.AlterTableAction) error {
 			// MODIFY COLUMN ident COMMENT STRING_LITERAL
 			// (DorisLegacyParser.g4:326; DorisParser.g4:660)
 			col := &ast.ColumnDef{Loc: p.cur.Loc}
-			col.Name, _, _ = p.parseIdentifier()
+			if col.Name, _, err = p.parseIdentifier(); err != nil {
+				return err
+			}
 			p.advance() // consume COMMENT
 			tok, err := p.alterExpectString()
 			if err != nil {

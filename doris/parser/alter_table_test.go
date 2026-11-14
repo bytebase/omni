@@ -858,3 +858,28 @@ func TestAlterTableBranchTagOptions(t *testing.T) {
 		},
 	})
 }
+
+func TestAlterTableAddPartitionPropsOnce(t *testing.T) {
+	runAlterTableTests(t, []alterTableTestCase{{
+		sql: `ALTER TABLE t ADD PARTITION p VALUES LESS THAN ("10") ("replication_num"="1")`,
+		check: func(t *testing.T, stmt *ast.AlterTableStmt) {
+			a := stmt.Actions[0]
+			if len(a.PartitionProps) != 1 || a.PartitionProps[0].Key != "replication_num" {
+				t.Fatalf("PartitionProps = %v, want [replication_num]", a.PartitionProps)
+			}
+			if a.Partition == nil || len(a.Partition.Properties) != 0 {
+				t.Errorf("Partition.Properties = %v, want none (held in PartitionProps)", a.Partition.Properties)
+			}
+			n := 0
+			ast.Inspect(stmt, func(node ast.Node) bool {
+				if _, ok := node.(*ast.Property); ok {
+					n++
+				}
+				return true
+			})
+			if n != 1 {
+				t.Errorf("walk visited %d properties, want 1", n)
+			}
+		},
+	}})
+}
