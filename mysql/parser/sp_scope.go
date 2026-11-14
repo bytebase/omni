@@ -3,6 +3,8 @@ package parser
 import (
 	"strings"
 	"unicode/utf8"
+
+	nodes "github.com/bytebase/omni/mysql/ast"
 )
 
 // What MySQL 8.0 refuses of the names inside a stored program while it parses. The grammar
@@ -23,6 +25,16 @@ type spScope struct {
 	labels  []spLabel
 	vars    []string // the parameters in the program's scope, DECLAREd variables in a block's
 	cursors []string
+	conds   []spCondition
+	// handlerConds holds the condition values of the block's handlers, a named condition as
+	// the value it stands for, which sp_pcontext::check_duplicate_handler compares.
+	handlerConds []nodes.HandlerCondValue
+}
+
+// spCondition is a DECLARE ... CONDITION: its name and the error code or SQLSTATE it names.
+type spCondition struct {
+	name  string
+	value nodes.HandlerCondValue
 }
 
 // spLabel is a block's or a loop's label. A block or a loop without one pushes the empty
@@ -95,6 +107,40 @@ func (s *spScope) findCursor(name string) bool {
 		}
 	}
 	return false
+}
+
+// findCondition is sp_pcontext::find_condition. known is false when the name was taken as
+// found only because omni does not fold it as the server does (spNameMayMatch).
+func (s *spScope) findCondition(name string) (value nodes.HandlerCondValue, found, known bool) {
+	for ; s != nil; s = s.parent {
+		for i := len(s.conds) - 1; i >= 0; i-- {
+			if spNameMatch(name, s.conds[i].name) {
+				return s.conds[i].value, true, true
+			}
+			if spNameMayMatch(name, s.conds[i].name) {
+				found = true
+			}
+		}
+	}
+	if !found && spLenientName(name) {
+		found = true
+	}
+	return nodes.HandlerCondValue{}, found, false
+}
+
+// spSameCondition is sp_condition_value::equals: the same kind, and for an error code or a
+// SQLSTATE the same one.
+func spSameCondition(a, b nodes.HandlerCondValue) bool {
+	if a.Kind != b.Kind {
+		return false
+	}
+	switch a.Kind {
+	case nodes.HandlerCondErrorCode:
+		return strings.TrimLeft(a.Value, "0") == strings.TrimLeft(b.Value, "0")
+	case nodes.HandlerCondSQLState:
+		return a.Value == b.Value
+	}
+	return true
 }
 
 func spHasName(names []string, name string) bool {
@@ -244,4 +290,76 @@ func (p *Parser) checkSPVarRef(name string, pos int, outside bool) error {
 		return nil
 	}
 	return &ParseError{Message: "Undeclared variable: " + name, Position: pos}
+}
+
+// declareSPCondition declares a block's condition: one of the same name in the block is
+// 1332, ER_SP_DUP_COND.
+//
+// Ref: the DECLARE ... CONDITION arm of sp_decl in MySQL 8.0 sql/sql_yacc.yy.
+func (p *Parser) declareSPCondition(name string, pos int, value nodes.HandlerCondValue) error {
+	s := p.routine.sp
+	if s == nil {
+		return nil
+	}
+	if p.spChecks() {
+		for _, c := range s.conds {
+			if spNameMatch(name, c.name) {
+				return &ParseError{Message: "Duplicate condition: " + name, Position: pos}
+			}
+		}
+	}
+	s.conds = append(s.conds, spCondition{name: name, value: value})
+	return nil
+}
+
+// declareSPHandlerCond adds a condition value of a handler declared in the current block. A
+// named condition must be in reach (1319, ER_SP_COND_MISMATCH), and a value one of the
+// block's handlers already has, this one's included, is 1413, ER_SP_DUP_HANDLER.
+//
+// Ref: sp_hcond and sp_hcond_element in MySQL 8.0 sql/sql_yacc.yy.
+func (p *Parser) declareSPHandlerCond(c nodes.HandlerCondValue, pos int) error {
+	s := p.routine.sp
+	if !p.spChecks() {
+		return nil
+	}
+	if c.Kind == nodes.HandlerCondName {
+		value, found, known := s.findCondition(c.Value)
+		if !found {
+			return &ParseError{Message: "Undefined CONDITION: " + c.Value, Position: pos}
+		}
+		if !known {
+			return nil
+		}
+		c = value
+	}
+	for _, h := range s.handlerConds {
+		if spSameCondition(c, h) {
+			return &ParseError{Message: "Duplicate handler declared in the same block", Position: pos}
+		}
+	}
+	s.handlerConds = append(s.handlerConds, c)
+	return nil
+}
+
+// checkSPSignalCond holds the condition SIGNAL or RESIGNAL names to the ones in reach, none
+// outside a stored program (1319, ER_SP_COND_MISMATCH), and to one declared for a SQLSTATE
+// (1646, ER_SIGNAL_BAD_CONDITION_TYPE).
+//
+// Ref: signal_value in MySQL 8.0 sql/sql_yacc.yy.
+func (p *Parser) checkSPSignalCond(name string, pos int) error {
+	if p.completing {
+		return nil
+	}
+	var value nodes.HandlerCondValue
+	found, known := false, false
+	if s := p.routine.sp; s != nil {
+		value, found, known = s.findCondition(name)
+	}
+	if !found {
+		return &ParseError{Message: "Undefined CONDITION: " + name, Position: pos}
+	}
+	if known && value.Kind != nodes.HandlerCondSQLState {
+		return &ParseError{Message: "SIGNAL/RESIGNAL can only use a CONDITION defined with SQLSTATE", Position: pos}
+	}
+	return nil
 }

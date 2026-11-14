@@ -515,7 +515,7 @@ reject	reject	engine	simple_statement/reset!truncate	RESET
 reject	reject	engine	simple_statement/reset!insert	RESET SLAVE zzz;
 reject	reject	engine	simple_statement/reset!swap	RESIGNAL SLAVE;
 accept	accept	engine	simple_statement/resignal_stmt	RESIGNAL;
-accept	reject	engine	simple_statement/resignal_stmt!insert	RESIGNAL zzz;
+reject	reject	engine	simple_statement/resignal_stmt!insert	RESIGNAL zzz;
 reject	reject	engine	simple_statement/resignal_stmt!swap	RESOURCE;
 accept	accept	engine	simple_statement/restart_server_stmt	RESTART;
 reject	reject	engine	simple_statement/restart_server_stmt!insert	RESTART zzz;
@@ -810,7 +810,7 @@ reject	reject	engine	simple_statement/show_warnings_stmt!swap	SHUTDOWN WARNINGS;
 accept	accept	engine	simple_statement/shutdown_stmt	SHUTDOWN;
 reject	reject	engine	simple_statement/shutdown_stmt!insert	SHUTDOWN zzz;
 reject	reject	engine	simple_statement/shutdown_stmt!swap	SIGNAL;
-accept	reject	engine	simple_statement/signal_stmt	SIGNAL utf8mb4;
+reject	reject	engine	simple_statement/signal_stmt	SIGNAL utf8mb4;
 reject	reject	engine	simple_statement/signal_stmt!truncate	SIGNAL
 reject	reject	engine	simple_statement/signal_stmt!insert	SIGNAL utf8mb4 zzz;
 reject	reject	engine	simple_statement/signal_stmt!swap	SIGNED utf8mb4;
@@ -2025,7 +2025,7 @@ reject	reject	engine	sp_handler_type/CONTINUE_SYM!swap	ALTER EVENT utf8mb4 DO BE
 accept	accept	engine	sp_hcond_list/sp_hcond_element	ALTER EVENT utf8mb4 DO BEGIN DECLARE EXIT HANDLER FOR 1 COMMIT; END;
 reject	reject	engine	sp_hcond_list/sp_hcond_element!truncate	ALTER EVENT utf8mb4 DO BEGIN DECLARE EXIT HANDLER FOR
 reject	reject	engine	sp_hcond_list/sp_hcond_element!insert	ALTER EVENT utf8mb4 DO BEGIN DECLARE EXIT HANDLER FOR 1 zzz COMMIT; END;
-accept	reject	engine	sp_hcond_list/sp_hcond_list_,_sp_hcond_element	ALTER EVENT utf8mb4 DO BEGIN DECLARE EXIT HANDLER FOR 1, 1 COMMIT; END;
+reject	reject	engine	sp_hcond_list/sp_hcond_list_,_sp_hcond_element	ALTER EVENT utf8mb4 DO BEGIN DECLARE EXIT HANDLER FOR 1, 1 COMMIT; END;
 reject	reject	engine	sp_hcond_list/sp_hcond_list_,_sp_hcond_element!drop-1	ALTER EVENT utf8mb4 DO BEGIN DECLARE EXIT HANDLER FOR, 1 COMMIT; END;
 reject	reject	engine	sp_hcond_list/sp_hcond_list_,_sp_hcond_element!drop-2	ALTER EVENT utf8mb4 DO BEGIN DECLARE EXIT HANDLER FOR 1 1 COMMIT; END;
 reject	reject	engine	sp_hcond_list/sp_hcond_list_,_sp_hcond_element!drop-3	ALTER EVENT utf8mb4 DO BEGIN DECLARE EXIT HANDLER FOR 1, COMMIT; END;
@@ -2051,13 +2051,13 @@ reject	reject	engine	opt_value/VALUE_SYM	RESIGNAL SQLSTATE VALUE 's';
 reject	reject	engine	opt_value/VALUE_SYM!insert	RESIGNAL SQLSTATE VALUE zzz 's';
 reject	reject	engine	opt_value/VALUE_SYM!swap	RESIGNAL SQLSTATE VALUES 's';
 accept	accept	engine	sp_hcond/sp_cond	ALTER EVENT utf8mb4 DO BEGIN DECLARE EXIT HANDLER FOR 1 COMMIT; END;
-accept	reject	engine	sp_hcond/ident	ALTER EVENT utf8mb4 DO BEGIN DECLARE EXIT HANDLER FOR utf8mb4 COMMIT; END;
+reject	reject	engine	sp_hcond/ident	ALTER EVENT utf8mb4 DO BEGIN DECLARE EXIT HANDLER FOR utf8mb4 COMMIT; END;
 reject	reject	engine	sp_hcond/ident!insert	ALTER EVENT utf8mb4 DO BEGIN DECLARE EXIT HANDLER FOR utf8mb4 zzz COMMIT; END;
 accept	accept	engine	sp_hcond/SQLWARNING_SYM	ALTER EVENT utf8mb4 DO BEGIN DECLARE EXIT HANDLER FOR SQLWARNING COMMIT; END;
 reject	reject	engine	sp_hcond/SQLWARNING_SYM!insert	ALTER EVENT utf8mb4 DO BEGIN DECLARE EXIT HANDLER FOR SQLWARNING zzz COMMIT; END;
-accept	reject	engine	sp_hcond/SQLWARNING_SYM!swap	ALTER EVENT utf8mb4 DO BEGIN DECLARE EXIT HANDLER FOR SQL_AFTER_GTIDS COMMIT; END;
+reject	reject	engine	sp_hcond/SQLWARNING_SYM!swap	ALTER EVENT utf8mb4 DO BEGIN DECLARE EXIT HANDLER FOR SQL_AFTER_GTIDS COMMIT; END;
 accept	accept	engine	sp_hcond/not_FOUND_SYM	ALTER EVENT utf8mb4 DO BEGIN DECLARE EXIT HANDLER FOR NOT FOUND COMMIT; END;
-accept	reject	engine	sp_hcond/not_FOUND_SYM!drop-1	ALTER EVENT utf8mb4 DO BEGIN DECLARE EXIT HANDLER FOR FOUND COMMIT; END;
+reject	reject	engine	sp_hcond/not_FOUND_SYM!drop-1	ALTER EVENT utf8mb4 DO BEGIN DECLARE EXIT HANDLER FOR FOUND COMMIT; END;
 reject	reject	engine	sp_hcond/not_FOUND_SYM!drop-2	ALTER EVENT utf8mb4 DO BEGIN DECLARE EXIT HANDLER FOR NOT COMMIT; END;
 reject	reject	engine	sp_hcond/not_FOUND_SYM!truncate	ALTER EVENT utf8mb4 DO BEGIN DECLARE EXIT HANDLER FOR NOT
 reject	reject	engine	sp_hcond/not_FOUND_SYM!insert	ALTER EVENT utf8mb4 DO BEGIN DECLARE EXIT HANDLER FOR NOT FOUND zzz COMMIT; END;
@@ -2065,13 +2065,13 @@ reject	reject	engine	sp_hcond/not_FOUND_SYM!swap	ALTER EVENT utf8mb4 DO BEGIN DE
 accept	accept	engine	sp_hcond/SQLEXCEPTION_SYM	ALTER EVENT utf8mb4 DO BEGIN DECLARE EXIT HANDLER FOR SQLEXCEPTION COMMIT; END;
 reject	reject	engine	sp_hcond/SQLEXCEPTION_SYM!insert	ALTER EVENT utf8mb4 DO BEGIN DECLARE EXIT HANDLER FOR SQLEXCEPTION zzz COMMIT; END;
 reject	reject	engine	sp_hcond/SQLEXCEPTION_SYM!swap	ALTER EVENT utf8mb4 DO BEGIN DECLARE EXIT HANDLER FOR SQLSTATE COMMIT; END;
-accept	reject	engine	signal_stmt/SIGNAL_SYM_signal_value_opt_set_signal_information	SIGNAL utf8mb4;
-accept	reject	engine	signal_value/ident	RESIGNAL utf8mb4;
+reject	reject	engine	signal_stmt/SIGNAL_SYM_signal_value_opt_set_signal_information	SIGNAL utf8mb4;
+reject	reject	engine	signal_value/ident	RESIGNAL utf8mb4;
 accept	accept	engine	signal_value/ident!truncate	RESIGNAL
 reject	reject	engine	signal_value/ident!insert	RESIGNAL utf8mb4 zzz;
 reject	reject	engine	signal_value/sqlstate	RESIGNAL SQLSTATE 's';
 accept	accept	engine	opt_signal_value/%empty	RESIGNAL;
-accept	reject	engine	opt_signal_value/signal_value	RESIGNAL utf8mb4;
+reject	reject	engine	opt_signal_value/signal_value	RESIGNAL utf8mb4;
 accept	accept	engine	opt_set_signal_information/%empty	RESIGNAL;
 accept	accept	engine	opt_set_signal_information/SET_SYM_signal_information_item_list	RESIGNAL SET CLASS_ORIGIN = 's';
 reject	reject	engine	opt_set_signal_information/SET_SYM_signal_information_item_list!drop-1	RESIGNAL CLASS_ORIGIN = 's';
