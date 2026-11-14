@@ -32,9 +32,10 @@ func (p *Parser) parseCreateTableSharing(stmt *nodes.CreateTableStmt) error {
 		p.advance() // consume EXTENDED
 		stmt.Sharing = "EXTENDED DATA"
 		if !p.isKeywordStr("DATA") {
-			// Oracle answers a statement that ends at EXTENDED with no
-			// parser error (compat.tsv records SHARING = EXTENDED as
-			// accepted); anything else there is ORA-00922.
+			// Oracle refuses EXTENDED without DATA. compat.tsv records a
+			// statement that ends at EXTENDED as accepted until the
+			// rejudge of #1106; omni keeps its earlier reading of it
+			// until then.
 			if p.isStatementEnd() {
 				return nil
 			}
@@ -287,12 +288,19 @@ func (p *Parser) isCreateTableInmemoryStart() bool {
 //
 // A table takes one inmemory_table_clause: Oracle 23ai refuses a second
 // with ORA-64350, at the word after its INMEMORY or at its NO INMEMORY.
-func (p *Parser) parseCreateTableInmemory(stmt *nodes.CreateTableStmt, hasColumns bool) error {
+//
+// Each clause is kept as a DDLOption: INMEMORY with the text after the
+// keyword (its attributes, or its compression and columns), or NO INMEMORY
+// with its columns. tableClause tells whether the table has its
+// inmemory_table_clause yet.
+func (p *Parser) parseCreateTableInmemory(stmt *nodes.CreateTableStmt, hasColumns bool, tableClause *bool) error {
 	optStart := p.pos()
+	key := "INMEMORY"
 	columnClause := false
-	var tableClause Token
+	var second Token
 	if p.isKeywordStr("NO") {
-		tableClause = p.cur
+		key = "NO INMEMORY"
+		second = p.cur
 		p.advance() // consume NO
 		p.advance() // consume INMEMORY
 		if p.cur.Type == '(' {
@@ -300,15 +308,10 @@ func (p *Parser) parseCreateTableInmemory(stmt *nodes.CreateTableStmt, hasColumn
 				return err
 			}
 			columnClause = true
-		} else {
-			if createTableHasInmemory(stmt) {
-				return p.syntaxErrorAtTok(tableClause)
-			}
-			appendCreateTableOption(stmt, "NO INMEMORY", "", nodes.Loc{Start: optStart, End: p.prev.End})
 		}
 	} else {
 		p.advance() // consume INMEMORY
-		tableClause = p.cur
+		second = p.cur
 		memcompress := false
 		if p.isCreateTableMemcompressStart() {
 			if err := p.parseCreateTableMemcompress(); err != nil {
@@ -321,34 +324,24 @@ func (p *Parser) parseCreateTableInmemory(stmt *nodes.CreateTableStmt, hasColumn
 				return err
 			}
 			columnClause = true
-		} else {
-			if createTableHasInmemory(stmt) {
-				return p.syntaxErrorAtTok(tableClause)
-			}
+		} else if !*tableClause {
 			if err := p.parseCreateTableInmemoryAttributes(memcompress); err != nil {
 				return err
 			}
-			value := p.createTableOptionValue(optStart)
-			appendCreateTableOption(stmt, "INMEMORY", strings.TrimSpace(strings.TrimPrefix(value, "INMEMORY")), nodes.Loc{Start: optStart, End: p.prev.End})
 		}
 	}
+	if !columnClause {
+		if *tableClause {
+			return p.syntaxErrorAtTok(second)
+		}
+		*tableClause = true
+	}
+	value := strings.TrimSpace(strings.TrimPrefix(p.createTableOptionValue(optStart), key))
+	appendCreateTableOption(stmt, key, value, nodes.Loc{Start: optStart, End: p.prev.End})
 	if columnClause && !hasColumns {
 		return p.syntaxErrorAtCur()
 	}
 	return nil
-}
-
-// createTableHasInmemory reports whether stmt has an inmemory_table_clause.
-func createTableHasInmemory(stmt *nodes.CreateTableStmt) bool {
-	if stmt.Options == nil {
-		return false
-	}
-	for _, item := range stmt.Options.Items {
-		if o, ok := item.(*nodes.DDLOption); ok && (o.Key == "INMEMORY" || o.Key == "NO INMEMORY") {
-			return true
-		}
-	}
-	return false
 }
 
 // ---------------------------------------------------------------------------
@@ -847,8 +840,9 @@ func (p *Parser) parseCreateTableSize() error {
 //	    | DELETE_ALL | ENABLE_ALL | DISABLE_ALL
 //	    }
 //
-// A statement that ends at ADD POLICY is answered with ORA-38339 at its
-// end, outside the parser's codes, and compat.tsv records it as accepted.
+// Oracle refuses a statement that ends at ADD POLICY (ORA-38339), but
+// compat.tsv records it as accepted until the rejudge of #1106; omni keeps
+// its earlier reading of it until then.
 func (p *Parser) parseCreateTableIlmClause() error {
 	p.advance() // consume ILM
 	switch {
@@ -1058,12 +1052,10 @@ func (p *Parser) parseCreateTableIlmFunction() error {
 }
 
 // isCreateTableCutAtProperty reports whether a table without a column
-// list ends here. Oracle answers such a statement, cut off inside some of
-// its properties, with the missing column list: ORA-00906 at the first
-// property, before the end, while the same text followed by more is
-// refused at the end. compat.tsv's judge reads that answer as an
-// acceptance (CREATE TABLE a VARRAY a STORE AS), so omni accepts these
-// ends too.
+// list ends here. Oracle refuses such a statement, cut off inside some of
+// its properties (CREATE TABLE a VARRAY a STORE AS), but compat.tsv
+// records it as accepted until the rejudge of #1085 and #1106; omni keeps
+// its earlier reading of these ends until then.
 func (p *Parser) isCreateTableCutAtProperty(hasColumns bool) bool {
 	return !hasColumns && p.isStatementEnd()
 }

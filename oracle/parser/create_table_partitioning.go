@@ -47,10 +47,11 @@ const (
 //	    [ PARTITIONS quantity | ( PARTITION [ partition ] [ table_partition_description ] [, ...] ) ]
 //
 // Oracle 23ai refuses STORE IN after a range table's INTERVAL (ORA-00922 at
-// STORE), a range or list partition without a name, at the token after its
-// values clause, and a column named twice in a partitioning key, at the
-// second. Reference partitioning names a foreign key of the column list:
-// Oracle refuses its constraint on a table without one.
+// STORE), and a column named twice in a partitioning key, at the second.
+// On a table without a column list, it refuses a range or list partition
+// without a name, at the token after its values clause (it takes one on a
+// table with columns), and reference partitioning, whose constraint is a
+// foreign key of the column list.
 func (p *Parser) parsePartitionClause(stmt *nodes.CreateTableStmt, hasColumns bool) (*nodes.PartitionClause, error) {
 	if err := p.enterNesting(); err != nil {
 		return nil, err
@@ -70,9 +71,10 @@ func (p *Parser) parsePartitionClause(stmt *nodes.CreateTableStmt, hasColumns bo
 		return nil, err
 	}
 	if p.isStatementEnd() {
-		// Oracle answers a missing partitioning method with ORA-14151,
-		// outside the parser's codes: at the end of the statement
-		// compat.tsv records that as accepted.
+		// Oracle refuses a missing partitioning method (ORA-14151), but
+		// compat.tsv records a statement that ends here as accepted
+		// until the rejudge of #1106; omni keeps its earlier reading of
+		// it until then.
 		clause.Loc.End = p.prev.End
 		return clause, nil
 	}
@@ -159,7 +161,7 @@ func (p *Parser) parsePartitionClause(stmt *nodes.CreateTableStmt, hasColumns bo
 		return nil, err
 	}
 	for {
-		def, err := p.parseCreateTablePartitionDesc(bound, clause.Subpartition != nil, sub)
+		def, err := p.parseCreateTablePartitionDesc(bound, clause.Subpartition != nil, sub, !hasColumns)
 		if err != nil {
 			return nil, err
 		}
@@ -269,8 +271,9 @@ func (p *Parser) parseCreateTableHashPartitionsByQuantity(indexOrganized bool) e
 // parseCreateTableSubpartitionBy reads subpartition_by_range,
 // subpartition_by_list or subpartition_by_hash, and returns the kind of
 // bounds its subpartitions hold, and whether the statement ends at its
-// SUBPARTITION TEMPLATE: Oracle answers that outside the parser's codes,
-// and compat.tsv records it as accepted.
+// SUBPARTITION TEMPLATE, which Oracle refuses but compat.tsv records as
+// accepted until the rejudge of #1106 (omni keeps its earlier reading of
+// it until then).
 //
 //	SUBPARTITION BY { RANGE | LIST } ( column [, column ] ... ) [ subpartition_template ]
 //	SUBPARTITION BY HASH ( column [, column ] ... )
@@ -382,7 +385,7 @@ func (p *Parser) parseCreateTableSubpartitionDescs(bound createTablePartitionKin
 }
 
 // parseCreateTablePartitionDesc reads one partition of a range, list or
-// hash partitioned table.
+// hash partitioned table. named requires a range or list partition's name.
 //
 //	PARTITION [ partition ] { range_values_clause | list_values_clause }
 //	[ table_partition_description ]
@@ -390,7 +393,7 @@ func (p *Parser) parseCreateTableSubpartitionDescs(bound createTablePartitionKin
 //
 //	PARTITION [ partition ] [ read_only_clause ] [ indexing_clause ]
 //	[ partitioning_storage_clause ]                      -- hash
-func (p *Parser) parseCreateTablePartitionDesc(bound createTablePartitionKind, composite bool, sub createTablePartitionKind) (*nodes.PartitionDef, error) {
+func (p *Parser) parseCreateTablePartitionDesc(bound createTablePartitionKind, composite bool, sub createTablePartitionKind, named bool) (*nodes.PartitionDef, error) {
 	start := p.pos()
 	if p.cur.Type != kwPARTITION {
 		return nil, p.syntaxErrorAtCur()
@@ -409,7 +412,7 @@ func (p *Parser) parseCreateTablePartitionDesc(bound createTablePartitionKind, c
 		if err := p.parseCreateTablePartitionBound(bound, def); err != nil {
 			return nil, err
 		}
-		if def.Name == "" {
+		if named && def.Name == "" {
 			return nil, p.syntaxErrorAtCur()
 		}
 		if err := p.parseCreateTablePartitionDescription(def); err != nil {

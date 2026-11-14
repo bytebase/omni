@@ -32,6 +32,12 @@ func TestP2CreateTableComplexOptions(t *testing.T) {
 			value: "MEMCOMPRESS FOR QUERY HIGH PRIORITY HIGH",
 		},
 		{
+			name:  "inmemory_column_clause",
+			sql:   "CREATE TABLE hot_t (a NUMBER) INMEMORY MEMCOMPRESS FOR QUERY LOW (a)",
+			key:   "INMEMORY",
+			value: "MEMCOMPRESS FOR QUERY LOW ( A )",
+		},
+		{
 			name:  "ilm_clause",
 			sql:   "CREATE TABLE lifecycle_t (id NUMBER) ILM ADD POLICY ROW STORE COMPRESS ADVANCED ROW AFTER 30 DAYS OF NO MODIFICATION",
 			key:   "ILM",

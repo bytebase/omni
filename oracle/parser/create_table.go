@@ -1783,6 +1783,7 @@ func (p *Parser) parseDeleteAction() (string, error) {
 //	    parallel_clause | ROWDEPENDENCIES | enable_disable_clause |
 //	    row_movement_clause | flashback_archive_clause | AS subquery
 func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt, hasColumns bool) error {
+	inmemoryTable := false
 	for {
 		switch p.cur.Type {
 		case kwTABLESPACE:
@@ -2104,7 +2105,7 @@ func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt, hasColumns bool)
 						return nil
 					}
 				case "INMEMORY":
-					if err := p.parseCreateTableInmemory(stmt, hasColumns); err != nil {
+					if err := p.parseCreateTableInmemory(stmt, hasColumns, &inmemoryTable); err != nil {
 						return err
 					}
 				case "LOB":
@@ -2136,7 +2137,7 @@ func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt, hasColumns bool)
 						}
 						stmt.FlashbackArchive = "NO FLASHBACK ARCHIVE"
 					} else if isCreateTableWordTok(next, "INMEMORY") {
-						if err := p.parseCreateTableInmemory(stmt, hasColumns); err != nil {
+						if err := p.parseCreateTableInmemory(stmt, hasColumns, &inmemoryTable); err != nil {
 							return err
 						}
 					} else {
@@ -2434,9 +2435,9 @@ func (p *Parser) parseEnableDisableClause() error {
 	case kwCONSTRAINT:
 		p.advance()
 		if p.isStatementEnd() {
-			// Oracle answers the missing name at the end of the statement
-			// outside the parser's codes; compat.tsv records ENABLE
-			// CONSTRAINT as accepted.
+			// Oracle refuses ENABLE CONSTRAINT without its name, but
+			// compat.tsv records it as accepted until the rejudge of
+			// #1106; omni keeps its earlier reading of it until then.
 			return nil
 		}
 		if err := p.parseCreateTableName(); err != nil {
