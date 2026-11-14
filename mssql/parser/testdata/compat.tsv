@@ -919,14 +919,14 @@ reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~8
 accept	accept	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createEventStatement_EVENT	CREATE EVENT SESSION a ON DATABASE ADD EVENT a.a
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createEventStatement_EVENT!drop-1	CREATE SESSION a ON DATABASE ADD EVENT a.a
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createEventStatement_EVENT!drop-2	CREATE EVENT a ON DATABASE ADD EVENT a.a
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createEventStatement_EVENT!drop-3	CREATE EVENT SESSION ON DATABASE ADD EVENT a.a
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createEventStatement_EVENT!drop-3	CREATE EVENT SESSION ON DATABASE ADD EVENT a.a
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createEventStatement_EVENT!drop-4	CREATE EVENT SESSION a DATABASE ADD EVENT a.a
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createEventStatement_EVENT!drop-5	CREATE EVENT SESSION a ON ADD EVENT a.a
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createEventStatement_EVENT!drop-5	CREATE EVENT SESSION a ON ADD EVENT a.a
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createEventStatement_EVENT!drop-6	CREATE EVENT SESSION a ON DATABASE EVENT a.a
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createEventStatement_EVENT!drop-7	CREATE EVENT SESSION a ON DATABASE ADD a.a
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createEventStatement_EVENT!drop-8	CREATE EVENT SESSION a ON DATABASE ADD EVENT.a
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createEventStatement_EVENT!drop-8	CREATE EVENT SESSION a ON DATABASE ADD EVENT.a
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createEventStatement_EVENT!drop-9	CREATE EVENT SESSION a ON DATABASE ADD EVENT a a
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createEventStatement_EVENT!drop-10	CREATE EVENT SESSION a ON DATABASE ADD EVENT a.
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createEventStatement_EVENT!drop-10	CREATE EVENT SESSION a ON DATABASE ADD EVENT a.
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createEventStatement_EVENT!insert	CREATE EVENT SESSION a ON DATABASE ADD EVENT a.a zzz
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createEventStatement_EVENT!swap	CREATE EVENT_RETENTION_MODE SESSION a ON DATABASE ADD EVENT a.a
 accept	accept	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createExternalStatements	CREATE EXTERNAL RESOURCE POOL a
@@ -3587,29 +3587,29 @@ reject	reject	engine	soapMethodOption(NONE|STANDARD)/STANDARD!swap	ALTER ENDPOIN
 reject	reject	engine	soapMethodOption(Identifier|stringLiteral)/Identifier	ALTER ENDPOINT a FOR DATA_MIRRORING(WEBMETHOD 'a'(a = a))
 reject	reject	engine	soapMethodOption(Identifier|stringLiteral)/stringLiteral	ALTER ENDPOINT a FOR DATA_MIRRORING(WEBMETHOD 'a'(a = 'a'))
 reject	reject	engine	soapMethodOption(Identifier|stringLiteral)/stringLiteral!insert	ALTER ENDPOINT a FOR DATA_MIRRORING(WEBMETHOD 'a'(a = 'a' zzz))
-accept	reject	engine	eventTypeGroupContainer/Identifier	CREATE EVENT NOTIFICATION a ON DATABASE FOR a TO SERVICE 'a', 'a'
-accept	reject	engine	eventTypeGroupContainer/Identifier!drop-1	CREATE EVENT NOTIFICATION a ON DATABASE FOR TO SERVICE 'a', 'a'
-accept	reject	engine	eventTypeGroupContainer/Identifier!truncate	CREATE EVENT NOTIFICATION a ON DATABASE FOR
-accept	reject	engine	eventTypeGroupContainer/Identifier!insert	CREATE EVENT NOTIFICATION a ON DATABASE FOR a zzz TO SERVICE 'a', 'a'
+reject	reject	engine	eventTypeGroupContainer/Identifier	CREATE EVENT NOTIFICATION a ON DATABASE FOR a TO SERVICE 'a', 'a'
+reject	reject	engine	eventTypeGroupContainer/Identifier!drop-1	CREATE EVENT NOTIFICATION a ON DATABASE FOR TO SERVICE 'a', 'a'
+reject	reject	engine	eventTypeGroupContainer/Identifier!truncate	CREATE EVENT NOTIFICATION a ON DATABASE FOR
+reject	reject	engine	eventTypeGroupContainer/Identifier!insert	CREATE EVENT NOTIFICATION a ON DATABASE FOR a zzz TO SERVICE 'a', 'a'
 accept	accept	engine	eventNotificationObjectScope/On_(Database|QUEUE_schemaObjectThreePart~f28029d9)	DROP EVENT NOTIFICATION a ON DATABASE
-accept	reject	engine	eventNotificationObjectScope/On_(Database|QUEUE_schemaObjectThreePart~f28029d9)!drop-1	DROP EVENT NOTIFICATION a DATABASE
-accept	reject	engine	eventNotificationObjectScope/On_(Database|QUEUE_schemaObjectThreePart~f28029d9)!drop-2	DROP EVENT NOTIFICATION a ON
-accept	reject	engine	eventNotificationObjectScope/On_(Database|QUEUE_schemaObjectThreePart~f28029d9)!insert	DROP EVENT NOTIFICATION a ON DATABASE zzz
-accept	reject	engine	eventNotificationObjectScope/On_(Database|QUEUE_schemaObjectThreePart~f28029d9)!swap	DROP EVENT NOTIFICATION a ONLINE DATABASE
+reject	reject	engine	eventNotificationObjectScope/On_(Database|QUEUE_schemaObjectThreePart~f28029d9)!drop-1	DROP EVENT NOTIFICATION a DATABASE
+reject	reject	engine	eventNotificationObjectScope/On_(Database|QUEUE_schemaObjectThreePart~f28029d9)!drop-2	DROP EVENT NOTIFICATION a ON
+reject	reject	engine	eventNotificationObjectScope/On_(Database|QUEUE_schemaObjectThreePart~f28029d9)!insert	DROP EVENT NOTIFICATION a ON DATABASE zzz
+reject	reject	engine	eventNotificationObjectScope/On_(Database|QUEUE_schemaObjectThreePart~f28029d9)!swap	DROP EVENT NOTIFICATION a ONLINE DATABASE
 accept	accept	engine	eventNotificationObjectScope(Database|QUEUE_schemaObjectThreePart~f28029d9)/Database	DROP EVENT NOTIFICATION a ON DATABASE
-accept	reject	engine	eventNotificationObjectScope(Database|QUEUE_schemaObjectThreePart~f28029d9)/Database!swap	DROP EVENT NOTIFICATION a ON DATA_COMPRESSION
+reject	reject	engine	eventNotificationObjectScope(Database|QUEUE_schemaObjectThreePart~f28029d9)/Database!swap	DROP EVENT NOTIFICATION a ON DATA_COMPRESSION
 accept	accept	engine	eventNotificationObjectScope(Database|QUEUE_schemaObjectThreePart~f28029d9)/QUEUE_schemaObjectThreePartName	DROP EVENT NOTIFICATION a ON QUEUE a
-accept	reject	engine	eventNotificationObjectScope(Database|QUEUE_schemaObjectThreePart~f28029d9)/QUEUE_schemaObjectThreePartName!drop-1	DROP EVENT NOTIFICATION a ON a
-accept	reject	engine	eventNotificationObjectScope(Database|QUEUE_schemaObjectThreePart~f28029d9)/QUEUE_schemaObjectThreePartName!drop-2	DROP EVENT NOTIFICATION a ON QUEUE
-accept	reject	engine	eventNotificationObjectScope(Database|QUEUE_schemaObjectThreePart~f28029d9)/QUEUE_schemaObjectThreePartName!insert	DROP EVENT NOTIFICATION a ON QUEUE a zzz
-accept	reject	engine	eventNotificationObjectScope(Database|QUEUE_schemaObjectThreePart~f28029d9)/QUEUE_schemaObjectThreePartName!swap	DROP EVENT NOTIFICATION a ON RAISERROR a
+reject	reject	engine	eventNotificationObjectScope(Database|QUEUE_schemaObjectThreePart~f28029d9)/QUEUE_schemaObjectThreePartName!drop-1	DROP EVENT NOTIFICATION a ON a
+reject	reject	engine	eventNotificationObjectScope(Database|QUEUE_schemaObjectThreePart~f28029d9)/QUEUE_schemaObjectThreePartName!drop-2	DROP EVENT NOTIFICATION a ON QUEUE
+reject	reject	engine	eventNotificationObjectScope(Database|QUEUE_schemaObjectThreePart~f28029d9)/QUEUE_schemaObjectThreePartName!insert	DROP EVENT NOTIFICATION a ON QUEUE a zzz
+reject	reject	engine	eventNotificationObjectScope(Database|QUEUE_schemaObjectThreePart~f28029d9)/QUEUE_schemaObjectThreePartName!swap	DROP EVENT NOTIFICATION a ON RAISERROR a
 accept	accept	engine	eventNotificationObjectScope(Database|QUEUE_schemaObjectThreePart~f28029d9)/SERVER	DROP EVENT NOTIFICATION a ON SERVER
-accept	reject	engine	eventNotificationObjectScope(Database|QUEUE_schemaObjectThreePart~f28029d9)/SERVER!insert	DROP EVENT NOTIFICATION a ON SERVER zzz
-accept	reject	engine	eventNotificationObjectScope(Database|QUEUE_schemaObjectThreePart~f28029d9)/SERVER!swap	DROP EVENT NOTIFICATION a ON SERVICE
+reject	reject	engine	eventNotificationObjectScope(Database|QUEUE_schemaObjectThreePart~f28029d9)/SERVER!insert	DROP EVENT NOTIFICATION a ON SERVER zzz
+reject	reject	engine	eventNotificationObjectScope(Database|QUEUE_schemaObjectThreePart~f28029d9)/SERVER!swap	DROP EVENT NOTIFICATION a ON SERVICE
 accept	accept	engine	eventSessionScope/On_(Database|SERVER)	ALTER EVENT SESSION a ON DATABASE STATE = START
 reject	reject	engine	eventSessionScope/On_(Database|SERVER)!drop-1	ALTER EVENT SESSION a DATABASE STATE = START
-accept	reject	engine	eventSessionScope/On_(Database|SERVER)!drop-2	ALTER EVENT SESSION a ON STATE = START
-accept	reject	engine	eventSessionScope/On_(Database|SERVER)!truncate	ALTER EVENT SESSION a ON
+reject	reject	engine	eventSessionScope/On_(Database|SERVER)!drop-2	ALTER EVENT SESSION a ON STATE = START
+reject	reject	engine	eventSessionScope/On_(Database|SERVER)!truncate	ALTER EVENT SESSION a ON
 reject	reject	engine	eventSessionScope/On_(Database|SERVER)!insert	ALTER EVENT SESSION a ON DATABASE zzz STATE = START
 reject	reject	engine	eventSessionScope/On_(Database|SERVER)!swap	ALTER EVENT SESSION a ONLINE DATABASE STATE = START
 accept	accept	engine	eventSessionScope(Database|SERVER)/Database	ALTER EVENT SESSION a ON DATABASE STATE = START
@@ -3620,121 +3620,121 @@ reject	reject	engine	eventSessionScope(Database|SERVER)/SERVER!swap	ALTER EVENT 
 accept	accept	engine	eventDeclarationList/Add_EVENT_eventDeclaration_(Comma_Add_EVENT_eventDeclaration)*	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a
 reject	reject	engine	eventDeclarationList/Add_EVENT_eventDeclaration_(Comma_Add_EVENT_eventDeclaration)*!drop-1	ALTER EVENT SESSION a ON DATABASE EVENT a.a
 reject	reject	engine	eventDeclarationList/Add_EVENT_eventDeclaration_(Comma_Add_EVENT_eventDeclaration)*!drop-2	ALTER EVENT SESSION a ON DATABASE ADD a.a
-accept	reject	engine	eventDeclarationList/Add_EVENT_eventDeclaration_(Comma_Add_EVENT_eventDeclaration)*!drop-3	ALTER EVENT SESSION a ON DATABASE ADD EVENT.a
+reject	reject	engine	eventDeclarationList/Add_EVENT_eventDeclaration_(Comma_Add_EVENT_eventDeclaration)*!drop-3	ALTER EVENT SESSION a ON DATABASE ADD EVENT.a
 reject	reject	engine	eventDeclarationList/Add_EVENT_eventDeclaration_(Comma_Add_EVENT_eventDeclaration)*!drop-4	ALTER EVENT SESSION a ON DATABASE ADD EVENT a a
-accept	reject	engine	eventDeclarationList/Add_EVENT_eventDeclaration_(Comma_Add_EVENT_eventDeclaration)*!drop-5	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.
+reject	reject	engine	eventDeclarationList/Add_EVENT_eventDeclaration_(Comma_Add_EVENT_eventDeclaration)*!drop-5	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.
 reject	reject	engine	eventDeclarationList/Add_EVENT_eventDeclaration_(Comma_Add_EVENT_eventDeclaration)*!insert	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a zzz
 reject	reject	engine	eventDeclarationList/Add_EVENT_eventDeclaration_(Comma_Add_EVENT_eventDeclaration)*!swap	ALTER EVENT SESSION a ON DATABASE ADMIN EVENT a.a
 accept	accept	engine	eventDeclarationList(Comma_Add_EVENT_eventDeclaration)*/%empty	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a
 accept	accept	engine	eventDeclarationList(Comma_Add_EVENT_eventDeclaration)*/Comma_Add_EVENT_eventDeclaration_(Comma_Add_EVENT_event~be11667c	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a, ADD EVENT a.a
-accept	reject	engine	eventDeclarationList(Comma_Add_EVENT_eventDeclaration)*/Comma_Add_EVENT_eventDeclaration_(Comma_Add_EVENT_event~be11667c!drop-1	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a ADD EVENT a.a
+reject	reject	engine	eventDeclarationList(Comma_Add_EVENT_eventDeclaration)*/Comma_Add_EVENT_eventDeclaration_(Comma_Add_EVENT_event~be11667c!drop-1	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a ADD EVENT a.a
 reject	reject	engine	eventDeclarationList(Comma_Add_EVENT_eventDeclaration)*/Comma_Add_EVENT_eventDeclaration_(Comma_Add_EVENT_event~be11667c!drop-2	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a, EVENT a.a
 reject	reject	engine	eventDeclarationList(Comma_Add_EVENT_eventDeclaration)*/Comma_Add_EVENT_eventDeclaration_(Comma_Add_EVENT_event~be11667c!drop-3	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a, ADD a.a
-accept	reject	engine	eventDeclarationList(Comma_Add_EVENT_eventDeclaration)*/Comma_Add_EVENT_eventDeclaration_(Comma_Add_EVENT_event~be11667c!drop-4	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a, ADD EVENT.a
+reject	reject	engine	eventDeclarationList(Comma_Add_EVENT_eventDeclaration)*/Comma_Add_EVENT_eventDeclaration_(Comma_Add_EVENT_event~be11667c!drop-4	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a, ADD EVENT.a
 reject	reject	engine	eventDeclarationList(Comma_Add_EVENT_eventDeclaration)*/Comma_Add_EVENT_eventDeclaration_(Comma_Add_EVENT_event~be11667c!drop-5	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a, ADD EVENT a a
-accept	reject	engine	eventDeclarationList(Comma_Add_EVENT_eventDeclaration)*/Comma_Add_EVENT_eventDeclaration_(Comma_Add_EVENT_event~be11667c!drop-6	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a, ADD EVENT a.
+reject	reject	engine	eventDeclarationList(Comma_Add_EVENT_eventDeclaration)*/Comma_Add_EVENT_eventDeclaration_(Comma_Add_EVENT_event~be11667c!drop-6	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a, ADD EVENT a.
 reject	reject	engine	eventDeclarationList(Comma_Add_EVENT_eventDeclaration)*/Comma_Add_EVENT_eventDeclaration_(Comma_Add_EVENT_event~be11667c!insert	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a, ADD EVENT a.a zzz
 reject	reject	engine	eventDeclarationList(Comma_Add_EVENT_eventDeclaration)*/Comma_Add_EVENT_eventDeclaration_(Comma_Add_EVENT_event~be11667c!swap	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a, ADMIN EVENT a.a
 accept	accept	engine	targetDeclarationList/Add_TARGET_targetDeclaration_(Comma_Add_TARGET_targetDe~432196e3	ALTER EVENT SESSION a ON DATABASE ADD TARGET a.a
 reject	reject	engine	targetDeclarationList/Add_TARGET_targetDeclaration_(Comma_Add_TARGET_targetDe~432196e3!drop-1	ALTER EVENT SESSION a ON DATABASE TARGET a.a
-accept	reject	engine	targetDeclarationList/Add_TARGET_targetDeclaration_(Comma_Add_TARGET_targetDe~432196e3!drop-3	ALTER EVENT SESSION a ON DATABASE ADD TARGET.a
+reject	reject	engine	targetDeclarationList/Add_TARGET_targetDeclaration_(Comma_Add_TARGET_targetDe~432196e3!drop-3	ALTER EVENT SESSION a ON DATABASE ADD TARGET.a
 reject	reject	engine	targetDeclarationList/Add_TARGET_targetDeclaration_(Comma_Add_TARGET_targetDe~432196e3!drop-4	ALTER EVENT SESSION a ON DATABASE ADD TARGET a a
-accept	reject	engine	targetDeclarationList/Add_TARGET_targetDeclaration_(Comma_Add_TARGET_targetDe~432196e3!drop-5	ALTER EVENT SESSION a ON DATABASE ADD TARGET a.
+reject	reject	engine	targetDeclarationList/Add_TARGET_targetDeclaration_(Comma_Add_TARGET_targetDe~432196e3!drop-5	ALTER EVENT SESSION a ON DATABASE ADD TARGET a.
 reject	reject	engine	targetDeclarationList/Add_TARGET_targetDeclaration_(Comma_Add_TARGET_targetDe~432196e3!insert	ALTER EVENT SESSION a ON DATABASE ADD TARGET a.a zzz
 reject	reject	engine	targetDeclarationList/Add_TARGET_targetDeclaration_(Comma_Add_TARGET_targetDe~432196e3!swap	ALTER EVENT SESSION a ON DATABASE ADMIN TARGET a.a
 accept	accept	engine	targetDeclarationList(Comma_Add_TARGET_targetDeclaration)*/%empty	ALTER EVENT SESSION a ON DATABASE ADD TARGET a.a
 accept	accept	engine	targetDeclarationList(Comma_Add_TARGET_targetDeclaration)*/Comma_Add_TARGET_targetDeclaration_(Comma_Add_TARGET_ta~14c3d588	ALTER EVENT SESSION a ON DATABASE ADD TARGET a.a, ADD TARGET a.a
-accept	reject	engine	targetDeclarationList(Comma_Add_TARGET_targetDeclaration)*/Comma_Add_TARGET_targetDeclaration_(Comma_Add_TARGET_ta~14c3d588!drop-1	ALTER EVENT SESSION a ON DATABASE ADD TARGET a.a ADD TARGET a.a
+reject	reject	engine	targetDeclarationList(Comma_Add_TARGET_targetDeclaration)*/Comma_Add_TARGET_targetDeclaration_(Comma_Add_TARGET_ta~14c3d588!drop-1	ALTER EVENT SESSION a ON DATABASE ADD TARGET a.a ADD TARGET a.a
 reject	reject	engine	targetDeclarationList(Comma_Add_TARGET_targetDeclaration)*/Comma_Add_TARGET_targetDeclaration_(Comma_Add_TARGET_ta~14c3d588!drop-2	ALTER EVENT SESSION a ON DATABASE ADD TARGET a.a, TARGET a.a
 reject	reject	engine	targetDeclarationList(Comma_Add_TARGET_targetDeclaration)*/Comma_Add_TARGET_targetDeclaration_(Comma_Add_TARGET_ta~14c3d588!drop-3	ALTER EVENT SESSION a ON DATABASE ADD TARGET a.a, ADD a.a
-accept	reject	engine	targetDeclarationList(Comma_Add_TARGET_targetDeclaration)*/Comma_Add_TARGET_targetDeclaration_(Comma_Add_TARGET_ta~14c3d588!drop-4	ALTER EVENT SESSION a ON DATABASE ADD TARGET a.a, ADD TARGET.a
+reject	reject	engine	targetDeclarationList(Comma_Add_TARGET_targetDeclaration)*/Comma_Add_TARGET_targetDeclaration_(Comma_Add_TARGET_ta~14c3d588!drop-4	ALTER EVENT SESSION a ON DATABASE ADD TARGET a.a, ADD TARGET.a
 reject	reject	engine	targetDeclarationList(Comma_Add_TARGET_targetDeclaration)*/Comma_Add_TARGET_targetDeclaration_(Comma_Add_TARGET_ta~14c3d588!drop-5	ALTER EVENT SESSION a ON DATABASE ADD TARGET a.a, ADD TARGET a a
-accept	reject	engine	targetDeclarationList(Comma_Add_TARGET_targetDeclaration)*/Comma_Add_TARGET_targetDeclaration_(Comma_Add_TARGET_ta~14c3d588!drop-6	ALTER EVENT SESSION a ON DATABASE ADD TARGET a.a, ADD TARGET a.
+reject	reject	engine	targetDeclarationList(Comma_Add_TARGET_targetDeclaration)*/Comma_Add_TARGET_targetDeclaration_(Comma_Add_TARGET_ta~14c3d588!drop-6	ALTER EVENT SESSION a ON DATABASE ADD TARGET a.a, ADD TARGET a.
 reject	reject	engine	targetDeclarationList(Comma_Add_TARGET_targetDeclaration)*/Comma_Add_TARGET_targetDeclaration_(Comma_Add_TARGET_ta~14c3d588!insert	ALTER EVENT SESSION a ON DATABASE ADD TARGET a.a, ADD TARGET a.a zzz
 reject	reject	engine	targetDeclarationList(Comma_Add_TARGET_targetDeclaration)*/Comma_Add_TARGET_targetDeclaration_(Comma_Add_TARGET_ta~14c3d588!swap	ALTER EVENT SESSION a ON DATABASE ADD TARGET a.a, ADMIN TARGET a.a
 accept	accept	engine	sessionOptionList/With_LeftParenthesis_sessionOption_(Comma_sessionOption~e8f5a768	ALTER EVENT SESSION a ON DATABASE WITH(TRACK_CAUSALITY = ON)
 reject	reject	engine	sessionOptionList/With_LeftParenthesis_sessionOption_(Comma_sessionOption~e8f5a768!drop-1	ALTER EVENT SESSION a ON DATABASE(TRACK_CAUSALITY = ON)
 reject	reject	engine	sessionOptionList/With_LeftParenthesis_sessionOption_(Comma_sessionOption~e8f5a768!drop-2	ALTER EVENT SESSION a ON DATABASE WITH TRACK_CAUSALITY = ON)
-accept	reject	engine	sessionOptionList/With_LeftParenthesis_sessionOption_(Comma_sessionOption~e8f5a768!drop-3	ALTER EVENT SESSION a ON DATABASE WITH(= ON)
-accept	reject	engine	sessionOptionList/With_LeftParenthesis_sessionOption_(Comma_sessionOption~e8f5a768!drop-4	ALTER EVENT SESSION a ON DATABASE WITH(TRACK_CAUSALITY ON)
-accept	reject	engine	sessionOptionList/With_LeftParenthesis_sessionOption_(Comma_sessionOption~e8f5a768!drop-5	ALTER EVENT SESSION a ON DATABASE WITH(TRACK_CAUSALITY =)
-accept	reject	engine	sessionOptionList/With_LeftParenthesis_sessionOption_(Comma_sessionOption~e8f5a768!drop-6	ALTER EVENT SESSION a ON DATABASE WITH(TRACK_CAUSALITY = ON
+reject	reject	engine	sessionOptionList/With_LeftParenthesis_sessionOption_(Comma_sessionOption~e8f5a768!drop-3	ALTER EVENT SESSION a ON DATABASE WITH(= ON)
+reject	reject	engine	sessionOptionList/With_LeftParenthesis_sessionOption_(Comma_sessionOption~e8f5a768!drop-4	ALTER EVENT SESSION a ON DATABASE WITH(TRACK_CAUSALITY ON)
+reject	reject	engine	sessionOptionList/With_LeftParenthesis_sessionOption_(Comma_sessionOption~e8f5a768!drop-5	ALTER EVENT SESSION a ON DATABASE WITH(TRACK_CAUSALITY =)
+reject	reject	engine	sessionOptionList/With_LeftParenthesis_sessionOption_(Comma_sessionOption~e8f5a768!drop-6	ALTER EVENT SESSION a ON DATABASE WITH(TRACK_CAUSALITY = ON
 reject	reject	engine	sessionOptionList/With_LeftParenthesis_sessionOption_(Comma_sessionOption~e8f5a768!insert	ALTER EVENT SESSION a ON DATABASE WITH(TRACK_CAUSALITY = ON) zzz
 reject	reject	engine	sessionOptionList/With_LeftParenthesis_sessionOption_(Comma_sessionOption~e8f5a768!swap	ALTER EVENT SESSION a ON DATABASE WITHIN(TRACK_CAUSALITY = ON)
 accept	accept	engine	sessionOptionList(Comma_sessionOption)*/%empty	ALTER EVENT SESSION a ON DATABASE WITH(TRACK_CAUSALITY = ON)
-accept	reject	engine	sessionOptionList(Comma_sessionOption)*/%empty!insert	ALTER EVENT SESSION a ON DATABASE WITH(TRACK_CAUSALITY = ON zzz)
+reject	reject	engine	sessionOptionList(Comma_sessionOption)*/%empty!insert	ALTER EVENT SESSION a ON DATABASE WITH(TRACK_CAUSALITY = ON zzz)
 accept	accept	engine	sessionOptionList(Comma_sessionOption)*/Comma_sessionOption_(Comma_sessionOption)*	ALTER EVENT SESSION a ON DATABASE WITH(TRACK_CAUSALITY = ON, TRACK_CAUSALITY = ON)
-accept	reject	engine	sessionOptionList(Comma_sessionOption)*/Comma_sessionOption_(Comma_sessionOption)*!drop-1	ALTER EVENT SESSION a ON DATABASE WITH(TRACK_CAUSALITY = ON TRACK_CAUSALITY = ON)
-accept	reject	engine	sessionOptionList(Comma_sessionOption)*/Comma_sessionOption_(Comma_sessionOption)*!drop-2	ALTER EVENT SESSION a ON DATABASE WITH(TRACK_CAUSALITY = ON, = ON)
-accept	reject	engine	sessionOptionList(Comma_sessionOption)*/Comma_sessionOption_(Comma_sessionOption)*!drop-3	ALTER EVENT SESSION a ON DATABASE WITH(TRACK_CAUSALITY = ON, TRACK_CAUSALITY ON)
-accept	reject	engine	sessionOptionList(Comma_sessionOption)*/Comma_sessionOption_(Comma_sessionOption)*!drop-4	ALTER EVENT SESSION a ON DATABASE WITH(TRACK_CAUSALITY = ON, TRACK_CAUSALITY =)
-accept	reject	engine	sessionOptionList(Comma_sessionOption)*/Comma_sessionOption_(Comma_sessionOption)*!truncate	ALTER EVENT SESSION a ON DATABASE WITH(TRACK_CAUSALITY = ON, TRACK_CAUSALITY =
-accept	reject	engine	sessionOptionList(Comma_sessionOption)*/Comma_sessionOption_(Comma_sessionOption)*!insert	ALTER EVENT SESSION a ON DATABASE WITH(TRACK_CAUSALITY = ON, TRACK_CAUSALITY = ON zzz)
-accept	reject	engine	sessionOptionList(Comma_sessionOption)*/Comma_sessionOption_(Comma_sessionOption)*!swap	ALTER EVENT SESSION a ON DATABASE WITH(TRACK_CAUSALITY = ON, TRACK_COLUMNS_UPDATED = ON)
+reject	reject	engine	sessionOptionList(Comma_sessionOption)*/Comma_sessionOption_(Comma_sessionOption)*!drop-1	ALTER EVENT SESSION a ON DATABASE WITH(TRACK_CAUSALITY = ON TRACK_CAUSALITY = ON)
+reject	reject	engine	sessionOptionList(Comma_sessionOption)*/Comma_sessionOption_(Comma_sessionOption)*!drop-2	ALTER EVENT SESSION a ON DATABASE WITH(TRACK_CAUSALITY = ON, = ON)
+reject	reject	engine	sessionOptionList(Comma_sessionOption)*/Comma_sessionOption_(Comma_sessionOption)*!drop-3	ALTER EVENT SESSION a ON DATABASE WITH(TRACK_CAUSALITY = ON, TRACK_CAUSALITY ON)
+reject	reject	engine	sessionOptionList(Comma_sessionOption)*/Comma_sessionOption_(Comma_sessionOption)*!drop-4	ALTER EVENT SESSION a ON DATABASE WITH(TRACK_CAUSALITY = ON, TRACK_CAUSALITY =)
+reject	reject	engine	sessionOptionList(Comma_sessionOption)*/Comma_sessionOption_(Comma_sessionOption)*!truncate	ALTER EVENT SESSION a ON DATABASE WITH(TRACK_CAUSALITY = ON, TRACK_CAUSALITY =
+reject	reject	engine	sessionOptionList(Comma_sessionOption)*/Comma_sessionOption_(Comma_sessionOption)*!insert	ALTER EVENT SESSION a ON DATABASE WITH(TRACK_CAUSALITY = ON, TRACK_CAUSALITY = ON zzz)
+reject	reject	engine	sessionOptionList(Comma_sessionOption)*/Comma_sessionOption_(Comma_sessionOption)*!swap	ALTER EVENT SESSION a ON DATABASE WITH(TRACK_CAUSALITY = ON, TRACK_COLUMNS_UPDATED = ON)
 accept	accept	engine	optSessionOptionList/(sessionOptionList)?	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a
 accept	accept	engine	optSessionOptionList(sessionOptionList)?/%empty	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a
 accept	accept	engine	optSessionOptionList(sessionOptionList)?/sessionOptionList	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a WITH(TRACK_CAUSALITY = ON)
-accept	reject	engine	optSessionOptionList(sessionOptionList)?/sessionOptionList!drop-1	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(TRACK_CAUSALITY = ON)
+reject	reject	engine	optSessionOptionList(sessionOptionList)?/sessionOptionList!drop-1	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(TRACK_CAUSALITY = ON)
 reject	reject	engine	optSessionOptionList(sessionOptionList)?/sessionOptionList!drop-2	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a WITH TRACK_CAUSALITY = ON)
-accept	reject	engine	optSessionOptionList(sessionOptionList)?/sessionOptionList!drop-3	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a WITH(= ON)
-accept	reject	engine	optSessionOptionList(sessionOptionList)?/sessionOptionList!drop-4	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a WITH(TRACK_CAUSALITY ON)
-accept	reject	engine	optSessionOptionList(sessionOptionList)?/sessionOptionList!drop-5	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a WITH(TRACK_CAUSALITY =)
-accept	reject	engine	optSessionOptionList(sessionOptionList)?/sessionOptionList!drop-6	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a WITH(TRACK_CAUSALITY = ON
+reject	reject	engine	optSessionOptionList(sessionOptionList)?/sessionOptionList!drop-3	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a WITH(= ON)
+reject	reject	engine	optSessionOptionList(sessionOptionList)?/sessionOptionList!drop-4	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a WITH(TRACK_CAUSALITY ON)
+reject	reject	engine	optSessionOptionList(sessionOptionList)?/sessionOptionList!drop-5	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a WITH(TRACK_CAUSALITY =)
+reject	reject	engine	optSessionOptionList(sessionOptionList)?/sessionOptionList!drop-6	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a WITH(TRACK_CAUSALITY = ON
 reject	reject	engine	optSessionOptionList(sessionOptionList)?/sessionOptionList!insert	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a WITH(TRACK_CAUSALITY = ON) zzz
 reject	reject	engine	optSessionOptionList(sessionOptionList)?/sessionOptionList!swap	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a WITHIN(TRACK_CAUSALITY = ON)
 accept	accept	engine	eventDeclaration/eventSessionNonEmptyThreePartObjectName_(LeftParenthesi~174b9d4e	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a
 accept	accept	engine	eventDeclaration(LeftParenthesis_(eventDeclarationSet~039928a1)?/%empty	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a
 accept	accept	engine	eventDeclaration(LeftParenthesis_(eventDeclarationSet~039928a1)?/LeftParenthesis_(eventDeclarationSetParameters)?_(event~c325cd45	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a()
 reject	reject	engine	eventDeclaration(LeftParenthesis_(eventDeclarationSet~039928a1)?/LeftParenthesis_(eventDeclarationSetParameters)?_(event~c325cd45!drop-1	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a)
-accept	reject	engine	eventDeclaration(LeftParenthesis_(eventDeclarationSet~039928a1)?/LeftParenthesis_(eventDeclarationSetParameters)?_(event~c325cd45!drop-2	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(
+reject	reject	engine	eventDeclaration(LeftParenthesis_(eventDeclarationSet~039928a1)?/LeftParenthesis_(eventDeclarationSetParameters)?_(event~c325cd45!drop-2	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(
 reject	reject	engine	eventDeclaration(LeftParenthesis_(eventDeclarationSet~039928a1)?/LeftParenthesis_(eventDeclarationSetParameters)?_(event~c325cd45!insert	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a() zzz
 accept	accept	engine	eventDeclaration(eventDeclarationSetParameters)?/%empty	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a()
-accept	reject	engine	eventDeclaration(eventDeclarationSetParameters)?/%empty!insert	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(zzz)
+reject	reject	engine	eventDeclaration(eventDeclarationSetParameters)?/%empty!insert	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(zzz)
 accept	accept	engine	eventDeclaration(eventDeclarationSetParameters)?/eventDeclarationSetParameters	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(SET a = 1)
-accept	reject	engine	eventDeclaration(eventDeclarationSetParameters)?/eventDeclarationSetParameters!drop-1	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(a = 1)
-accept	reject	engine	eventDeclaration(eventDeclarationSetParameters)?/eventDeclarationSetParameters!drop-2	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(SET = 1)
-accept	reject	engine	eventDeclaration(eventDeclarationSetParameters)?/eventDeclarationSetParameters!drop-3	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(SET a 1)
-accept	reject	engine	eventDeclaration(eventDeclarationSetParameters)?/eventDeclarationSetParameters!drop-4	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(SET a =)
-accept	reject	engine	eventDeclaration(eventDeclarationSetParameters)?/eventDeclarationSetParameters!truncate	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(SET a =
-accept	reject	engine	eventDeclaration(eventDeclarationSetParameters)?/eventDeclarationSetParameters!insert	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(SET a = 1 zzz)
-accept	reject	engine	eventDeclaration(eventDeclarationSetParameters)?/eventDeclarationSetParameters!swap	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(SETS a = 1)
+reject	reject	engine	eventDeclaration(eventDeclarationSetParameters)?/eventDeclarationSetParameters!drop-1	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(a = 1)
+reject	reject	engine	eventDeclaration(eventDeclarationSetParameters)?/eventDeclarationSetParameters!drop-2	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(SET = 1)
+reject	reject	engine	eventDeclaration(eventDeclarationSetParameters)?/eventDeclarationSetParameters!drop-3	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(SET a 1)
+reject	reject	engine	eventDeclaration(eventDeclarationSetParameters)?/eventDeclarationSetParameters!drop-4	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(SET a =)
+reject	reject	engine	eventDeclaration(eventDeclarationSetParameters)?/eventDeclarationSetParameters!truncate	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(SET a =
+reject	reject	engine	eventDeclaration(eventDeclarationSetParameters)?/eventDeclarationSetParameters!insert	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(SET a = 1 zzz)
+reject	reject	engine	eventDeclaration(eventDeclarationSetParameters)?/eventDeclarationSetParameters!swap	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(SETS a = 1)
 accept	accept	engine	eventDeclaration(eventDeclarationActionParameters)?/%empty	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a()
 accept	accept	engine	eventDeclaration(eventDeclarationActionParameters)?/eventDeclarationActionParameters	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(ACTION(a.a))
 reject	reject	engine	eventDeclaration(eventDeclarationActionParameters)?/eventDeclarationActionParameters!drop-1	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a((a.a))
 reject	reject	engine	eventDeclaration(eventDeclarationActionParameters)?/eventDeclarationActionParameters!drop-2	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(ACTION a.a))
-accept	reject	engine	eventDeclaration(eventDeclarationActionParameters)?/eventDeclarationActionParameters!drop-3	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(ACTION(.a))
+reject	reject	engine	eventDeclaration(eventDeclarationActionParameters)?/eventDeclarationActionParameters!drop-3	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(ACTION(.a))
 reject	reject	engine	eventDeclaration(eventDeclarationActionParameters)?/eventDeclarationActionParameters!drop-4	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(ACTION(a a))
-accept	reject	engine	eventDeclaration(eventDeclarationActionParameters)?/eventDeclarationActionParameters!drop-5	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(ACTION(a.))
-accept	reject	engine	eventDeclaration(eventDeclarationActionParameters)?/eventDeclarationActionParameters!drop-6	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(ACTION(a.a)
-accept	reject	engine	eventDeclaration(eventDeclarationActionParameters)?/eventDeclarationActionParameters!truncate	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(ACTION(a.a
-accept	reject	engine	eventDeclaration(eventDeclarationActionParameters)?/eventDeclarationActionParameters!insert	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(ACTION(a.a) zzz)
+reject	reject	engine	eventDeclaration(eventDeclarationActionParameters)?/eventDeclarationActionParameters!drop-5	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(ACTION(a.))
+reject	reject	engine	eventDeclaration(eventDeclarationActionParameters)?/eventDeclarationActionParameters!drop-6	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(ACTION(a.a)
+reject	reject	engine	eventDeclaration(eventDeclarationActionParameters)?/eventDeclarationActionParameters!truncate	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(ACTION(a.a
+reject	reject	engine	eventDeclaration(eventDeclarationActionParameters)?/eventDeclarationActionParameters!insert	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(ACTION(a.a) zzz)
 reject	reject	engine	eventDeclaration(eventDeclarationActionParameters)?/eventDeclarationActionParameters!swap	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(ACTIVATION(a.a))
 accept	accept	engine	eventDeclaration(Where_eventBooleanExpression)?/%empty	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a()
 accept	accept	engine	eventDeclaration(Where_eventBooleanExpression)?/Where_eventBooleanExpression	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(WHERE a = 1)
-accept	reject	engine	eventDeclaration(Where_eventBooleanExpression)?/Where_eventBooleanExpression!drop-2	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(WHERE = 1)
-accept	reject	engine	eventDeclaration(Where_eventBooleanExpression)?/Where_eventBooleanExpression!drop-3	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(WHERE a 1)
-accept	reject	engine	eventDeclaration(Where_eventBooleanExpression)?/Where_eventBooleanExpression!drop-4	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(WHERE a =)
-accept	reject	engine	eventDeclaration(Where_eventBooleanExpression)?/Where_eventBooleanExpression!truncate	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(WHERE a =
-accept	reject	engine	eventDeclaration(Where_eventBooleanExpression)?/Where_eventBooleanExpression!insert	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(WHERE a = 1 zzz)
-accept	reject	engine	eventDeclaration(Where_eventBooleanExpression)?/Where_eventBooleanExpression!swap	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(WHILE a = 1)
+reject	reject	engine	eventDeclaration(Where_eventBooleanExpression)?/Where_eventBooleanExpression!drop-2	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(WHERE = 1)
+reject	reject	engine	eventDeclaration(Where_eventBooleanExpression)?/Where_eventBooleanExpression!drop-3	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(WHERE a 1)
+reject	reject	engine	eventDeclaration(Where_eventBooleanExpression)?/Where_eventBooleanExpression!drop-4	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(WHERE a =)
+reject	reject	engine	eventDeclaration(Where_eventBooleanExpression)?/Where_eventBooleanExpression!truncate	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(WHERE a =
+reject	reject	engine	eventDeclaration(Where_eventBooleanExpression)?/Where_eventBooleanExpression!insert	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(WHERE a = 1 zzz)
+reject	reject	engine	eventDeclaration(Where_eventBooleanExpression)?/Where_eventBooleanExpression!swap	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(WHILE a = 1)
 accept	accept	engine	eventDeclarationSetParameters/Set_eventDeclarationSetParameter_(Comma_eventDeclaratio~42b2a1a2	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(SET a = 1)
 accept	accept	engine	eventDeclarationSetParameters(Comma_eventDeclarationSetParameter)*/%empty	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(SET a = 1)
 accept	accept	engine	eventDeclarationSetParameters(Comma_eventDeclarationSetParameter)*/Comma_eventDeclarationSetParameter_(Comma_eventDeclarat~04530dd2	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(SET a = 1, a = 1)
-accept	reject	engine	eventDeclarationSetParameters(Comma_eventDeclarationSetParameter)*/Comma_eventDeclarationSetParameter_(Comma_eventDeclarat~04530dd2!drop-1	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(SET a = 1 a = 1)
-accept	reject	engine	eventDeclarationSetParameters(Comma_eventDeclarationSetParameter)*/Comma_eventDeclarationSetParameter_(Comma_eventDeclarat~04530dd2!drop-2	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(SET a = 1, = 1)
-accept	reject	engine	eventDeclarationSetParameters(Comma_eventDeclarationSetParameter)*/Comma_eventDeclarationSetParameter_(Comma_eventDeclarat~04530dd2!drop-3	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(SET a = 1, a 1)
-accept	reject	engine	eventDeclarationSetParameters(Comma_eventDeclarationSetParameter)*/Comma_eventDeclarationSetParameter_(Comma_eventDeclarat~04530dd2!drop-4	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(SET a = 1, a =)
-accept	reject	engine	eventDeclarationSetParameters(Comma_eventDeclarationSetParameter)*/Comma_eventDeclarationSetParameter_(Comma_eventDeclarat~04530dd2!truncate	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(SET a = 1, a =
-accept	reject	engine	eventDeclarationSetParameters(Comma_eventDeclarationSetParameter)*/Comma_eventDeclarationSetParameter_(Comma_eventDeclarat~04530dd2!insert	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(SET a = 1, a = 1 zzz)
+reject	reject	engine	eventDeclarationSetParameters(Comma_eventDeclarationSetParameter)*/Comma_eventDeclarationSetParameter_(Comma_eventDeclarat~04530dd2!drop-1	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(SET a = 1 a = 1)
+reject	reject	engine	eventDeclarationSetParameters(Comma_eventDeclarationSetParameter)*/Comma_eventDeclarationSetParameter_(Comma_eventDeclarat~04530dd2!drop-2	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(SET a = 1, = 1)
+reject	reject	engine	eventDeclarationSetParameters(Comma_eventDeclarationSetParameter)*/Comma_eventDeclarationSetParameter_(Comma_eventDeclarat~04530dd2!drop-3	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(SET a = 1, a 1)
+reject	reject	engine	eventDeclarationSetParameters(Comma_eventDeclarationSetParameter)*/Comma_eventDeclarationSetParameter_(Comma_eventDeclarat~04530dd2!drop-4	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(SET a = 1, a =)
+reject	reject	engine	eventDeclarationSetParameters(Comma_eventDeclarationSetParameter)*/Comma_eventDeclarationSetParameter_(Comma_eventDeclarat~04530dd2!truncate	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(SET a = 1, a =
+reject	reject	engine	eventDeclarationSetParameters(Comma_eventDeclarationSetParameter)*/Comma_eventDeclarationSetParameter_(Comma_eventDeclarat~04530dd2!insert	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(SET a = 1, a = 1 zzz)
 accept	accept	engine	eventDeclarationActionParameters/ACTION_LeftParenthesis_eventSessionNonEmptyThreePartObj~e669bb70	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(ACTION(a.a))
 accept	accept	engine	eventDeclarationActionParameters(Comma_eventSessionNonEmptyThreePartObjectName)*/%empty	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(ACTION(a.a))
 reject	reject	engine	eventDeclarationActionParameters(Comma_eventSessionNonEmptyThreePartObjectName)*/%empty!insert	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(ACTION(a.a zzz))
 accept	accept	engine	eventDeclarationActionParameters(Comma_eventSessionNonEmptyThreePartObjectName)*/Comma_eventSessionNonEmptyThreePartObjectName_(Comma_ev~c08791c9	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(ACTION(a.a, a.a))
 reject	reject	engine	eventDeclarationActionParameters(Comma_eventSessionNonEmptyThreePartObjectName)*/Comma_eventSessionNonEmptyThreePartObjectName_(Comma_ev~c08791c9!drop-1	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(ACTION(a.a a.a))
-accept	reject	engine	eventDeclarationActionParameters(Comma_eventSessionNonEmptyThreePartObjectName)*/Comma_eventSessionNonEmptyThreePartObjectName_(Comma_ev~c08791c9!drop-2	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(ACTION(a.a,.a))
+reject	reject	engine	eventDeclarationActionParameters(Comma_eventSessionNonEmptyThreePartObjectName)*/Comma_eventSessionNonEmptyThreePartObjectName_(Comma_ev~c08791c9!drop-2	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(ACTION(a.a,.a))
 reject	reject	engine	eventDeclarationActionParameters(Comma_eventSessionNonEmptyThreePartObjectName)*/Comma_eventSessionNonEmptyThreePartObjectName_(Comma_ev~c08791c9!drop-3	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(ACTION(a.a, a a))
-accept	reject	engine	eventDeclarationActionParameters(Comma_eventSessionNonEmptyThreePartObjectName)*/Comma_eventSessionNonEmptyThreePartObjectName_(Comma_ev~c08791c9!drop-4	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(ACTION(a.a, a.))
-accept	reject	engine	eventDeclarationActionParameters(Comma_eventSessionNonEmptyThreePartObjectName)*/Comma_eventSessionNonEmptyThreePartObjectName_(Comma_ev~c08791c9!truncate	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(ACTION(a.a, a.
+reject	reject	engine	eventDeclarationActionParameters(Comma_eventSessionNonEmptyThreePartObjectName)*/Comma_eventSessionNonEmptyThreePartObjectName_(Comma_ev~c08791c9!drop-4	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(ACTION(a.a, a.))
+reject	reject	engine	eventDeclarationActionParameters(Comma_eventSessionNonEmptyThreePartObjectName)*/Comma_eventSessionNonEmptyThreePartObjectName_(Comma_ev~c08791c9!truncate	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(ACTION(a.a, a.
 reject	reject	engine	eventDeclarationActionParameters(Comma_eventSessionNonEmptyThreePartObjectName)*/Comma_eventSessionNonEmptyThreePartObjectName_(Comma_ev~c08791c9!insert	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(ACTION(a.a, a.a zzz))
 accept	accept	engine	targetDeclaration/eventSessionNonEmptyThreePartObjectName_(LeftParenthesi~48806359	ALTER EVENT SESSION a ON DATABASE ADD TARGET a.a
 accept	accept	engine	targetDeclaration(LeftParenthesis_(Set_eventDeclaratio~d2ea250e)?/%empty	ALTER EVENT SESSION a ON DATABASE ADD TARGET a.a
@@ -3743,8 +3743,8 @@ reject	reject	engine	targetDeclaration(LeftParenthesis_(Set_eventDeclaratio~d2ea
 reject	reject	engine	targetDeclaration(LeftParenthesis_(Set_eventDeclaratio~d2ea250e)?/LeftParenthesis_Set_eventDeclarationSetParameter_(Comma~929df8b0!drop-2	ALTER EVENT SESSION a ON DATABASE ADD TARGET a.a(a = 1)
 reject	reject	engine	targetDeclaration(LeftParenthesis_(Set_eventDeclaratio~d2ea250e)?/LeftParenthesis_Set_eventDeclarationSetParameter_(Comma~929df8b0!drop-3	ALTER EVENT SESSION a ON DATABASE ADD TARGET a.a(SET = 1)
 reject	reject	engine	targetDeclaration(LeftParenthesis_(Set_eventDeclaratio~d2ea250e)?/LeftParenthesis_Set_eventDeclarationSetParameter_(Comma~929df8b0!drop-4	ALTER EVENT SESSION a ON DATABASE ADD TARGET a.a(SET a 1)
-accept	reject	engine	targetDeclaration(LeftParenthesis_(Set_eventDeclaratio~d2ea250e)?/LeftParenthesis_Set_eventDeclarationSetParameter_(Comma~929df8b0!drop-5	ALTER EVENT SESSION a ON DATABASE ADD TARGET a.a(SET a =)
-accept	reject	engine	targetDeclaration(LeftParenthesis_(Set_eventDeclaratio~d2ea250e)?/LeftParenthesis_Set_eventDeclarationSetParameter_(Comma~929df8b0!drop-6	ALTER EVENT SESSION a ON DATABASE ADD TARGET a.a(SET a = 1
+reject	reject	engine	targetDeclaration(LeftParenthesis_(Set_eventDeclaratio~d2ea250e)?/LeftParenthesis_Set_eventDeclarationSetParameter_(Comma~929df8b0!drop-5	ALTER EVENT SESSION a ON DATABASE ADD TARGET a.a(SET a =)
+reject	reject	engine	targetDeclaration(LeftParenthesis_(Set_eventDeclaratio~d2ea250e)?/LeftParenthesis_Set_eventDeclarationSetParameter_(Comma~929df8b0!drop-6	ALTER EVENT SESSION a ON DATABASE ADD TARGET a.a(SET a = 1
 reject	reject	engine	targetDeclaration(LeftParenthesis_(Set_eventDeclaratio~d2ea250e)?/LeftParenthesis_Set_eventDeclarationSetParameter_(Comma~929df8b0!insert	ALTER EVENT SESSION a ON DATABASE ADD TARGET a.a(SET a = 1) zzz
 reject	reject	engine	targetDeclaration(LeftParenthesis_(Set_eventDeclaratio~d2ea250e)?/LeftParenthesis_Set_eventDeclarationSetParameter_(Comma~929df8b0!swap	ALTER EVENT SESSION a ON DATABASE ADD TARGET a.a(SETS a = 1)
 accept	accept	engine	targetDeclaration(Comma_eventDeclarationSetParameter)*/%empty	ALTER EVENT SESSION a ON DATABASE ADD TARGET a.a(SET a = 1)
@@ -3753,56 +3753,56 @@ accept	accept	engine	targetDeclaration(Comma_eventDeclarationSetParameter)*/Comm
 reject	reject	engine	targetDeclaration(Comma_eventDeclarationSetParameter)*/Comma_eventDeclarationSetParameter_(Comma_eventDeclarat~04530dd2!drop-1	ALTER EVENT SESSION a ON DATABASE ADD TARGET a.a(SET a = 1 a = 1)
 reject	reject	engine	targetDeclaration(Comma_eventDeclarationSetParameter)*/Comma_eventDeclarationSetParameter_(Comma_eventDeclarat~04530dd2!drop-2	ALTER EVENT SESSION a ON DATABASE ADD TARGET a.a(SET a = 1, = 1)
 reject	reject	engine	targetDeclaration(Comma_eventDeclarationSetParameter)*/Comma_eventDeclarationSetParameter_(Comma_eventDeclarat~04530dd2!drop-3	ALTER EVENT SESSION a ON DATABASE ADD TARGET a.a(SET a = 1, a 1)
-accept	reject	engine	targetDeclaration(Comma_eventDeclarationSetParameter)*/Comma_eventDeclarationSetParameter_(Comma_eventDeclarat~04530dd2!drop-4	ALTER EVENT SESSION a ON DATABASE ADD TARGET a.a(SET a = 1, a =)
-accept	reject	engine	targetDeclaration(Comma_eventDeclarationSetParameter)*/Comma_eventDeclarationSetParameter_(Comma_eventDeclarat~04530dd2!truncate	ALTER EVENT SESSION a ON DATABASE ADD TARGET a.a(SET a = 1, a =
+reject	reject	engine	targetDeclaration(Comma_eventDeclarationSetParameter)*/Comma_eventDeclarationSetParameter_(Comma_eventDeclarat~04530dd2!drop-4	ALTER EVENT SESSION a ON DATABASE ADD TARGET a.a(SET a = 1, a =)
+reject	reject	engine	targetDeclaration(Comma_eventDeclarationSetParameter)*/Comma_eventDeclarationSetParameter_(Comma_eventDeclarat~04530dd2!truncate	ALTER EVENT SESSION a ON DATABASE ADD TARGET a.a(SET a = 1, a =
 reject	reject	engine	targetDeclaration(Comma_eventDeclarationSetParameter)*/Comma_eventDeclarationSetParameter_(Comma_eventDeclarat~04530dd2!insert	ALTER EVENT SESSION a ON DATABASE ADD TARGET a.a(SET a = 1, a = 1 zzz)
-accept	reject	engine	sessionOption/maxMemorySessionOption_MAX_MEMORY	ALTER EVENT SESSION a ON DATABASE WITH(MAX_MEMORY = 1 a)
-accept	reject	engine	sessionOption/maxMemorySessionOption_MAX_MEMORY!drop-1	ALTER EVENT SESSION a ON DATABASE WITH(= 1 a)
-accept	reject	engine	sessionOption/maxMemorySessionOption_MAX_MEMORY!drop-2	ALTER EVENT SESSION a ON DATABASE WITH(MAX_MEMORY 1 a)
-accept	reject	engine	sessionOption/maxMemorySessionOption_MAX_MEMORY!drop-3	ALTER EVENT SESSION a ON DATABASE WITH(MAX_MEMORY = a)
-accept	reject	engine	sessionOption/maxMemorySessionOption_MAX_MEMORY!drop-4	ALTER EVENT SESSION a ON DATABASE WITH(MAX_MEMORY = 1)
-accept	reject	engine	sessionOption/maxMemorySessionOption_MAX_MEMORY!truncate	ALTER EVENT SESSION a ON DATABASE WITH(MAX_MEMORY = 1
-accept	reject	engine	sessionOption/maxMemorySessionOption_MAX_MEMORY!insert	ALTER EVENT SESSION a ON DATABASE WITH(MAX_MEMORY = 1 a zzz)
-accept	reject	engine	sessionOption/maxMemorySessionOption_MAX_MEMORY!swap	ALTER EVENT SESSION a ON DATABASE WITH(MAX_PLANS_PER_QUERY = 1 a)
-accept	reject	engine	sessionOption/maxEventSizeSessionOption_MAX_EVENT_SIZE	ALTER EVENT SESSION a ON DATABASE WITH(MAX_EVENT_SIZE = 1 a)
-accept	reject	engine	sessionOption/maxEventSizeSessionOption_MAX_EVENT_SIZE!drop-2	ALTER EVENT SESSION a ON DATABASE WITH(MAX_EVENT_SIZE 1 a)
-accept	reject	engine	sessionOption/maxEventSizeSessionOption_MAX_EVENT_SIZE!drop-3	ALTER EVENT SESSION a ON DATABASE WITH(MAX_EVENT_SIZE = a)
-accept	reject	engine	sessionOption/maxEventSizeSessionOption_MAX_EVENT_SIZE!drop-4	ALTER EVENT SESSION a ON DATABASE WITH(MAX_EVENT_SIZE = 1)
-accept	reject	engine	sessionOption/maxEventSizeSessionOption_MAX_EVENT_SIZE!truncate	ALTER EVENT SESSION a ON DATABASE WITH(MAX_EVENT_SIZE = 1
-accept	reject	engine	sessionOption/maxEventSizeSessionOption_MAX_EVENT_SIZE!insert	ALTER EVENT SESSION a ON DATABASE WITH(MAX_EVENT_SIZE = 1 a zzz)
-accept	reject	engine	sessionOption/maxEventSizeSessionOption_MAX_EVENT_SIZE!swap	ALTER EVENT SESSION a ON DATABASE WITH(MAX_FILES = 1 a)
+reject	reject	engine	sessionOption/maxMemorySessionOption_MAX_MEMORY	ALTER EVENT SESSION a ON DATABASE WITH(MAX_MEMORY = 1 a)
+reject	reject	engine	sessionOption/maxMemorySessionOption_MAX_MEMORY!drop-1	ALTER EVENT SESSION a ON DATABASE WITH(= 1 a)
+reject	reject	engine	sessionOption/maxMemorySessionOption_MAX_MEMORY!drop-2	ALTER EVENT SESSION a ON DATABASE WITH(MAX_MEMORY 1 a)
+reject	reject	engine	sessionOption/maxMemorySessionOption_MAX_MEMORY!drop-3	ALTER EVENT SESSION a ON DATABASE WITH(MAX_MEMORY = a)
+reject	reject	engine	sessionOption/maxMemorySessionOption_MAX_MEMORY!drop-4	ALTER EVENT SESSION a ON DATABASE WITH(MAX_MEMORY = 1)
+reject	reject	engine	sessionOption/maxMemorySessionOption_MAX_MEMORY!truncate	ALTER EVENT SESSION a ON DATABASE WITH(MAX_MEMORY = 1
+reject	reject	engine	sessionOption/maxMemorySessionOption_MAX_MEMORY!insert	ALTER EVENT SESSION a ON DATABASE WITH(MAX_MEMORY = 1 a zzz)
+reject	reject	engine	sessionOption/maxMemorySessionOption_MAX_MEMORY!swap	ALTER EVENT SESSION a ON DATABASE WITH(MAX_PLANS_PER_QUERY = 1 a)
+reject	reject	engine	sessionOption/maxEventSizeSessionOption_MAX_EVENT_SIZE	ALTER EVENT SESSION a ON DATABASE WITH(MAX_EVENT_SIZE = 1 a)
+reject	reject	engine	sessionOption/maxEventSizeSessionOption_MAX_EVENT_SIZE!drop-2	ALTER EVENT SESSION a ON DATABASE WITH(MAX_EVENT_SIZE 1 a)
+reject	reject	engine	sessionOption/maxEventSizeSessionOption_MAX_EVENT_SIZE!drop-3	ALTER EVENT SESSION a ON DATABASE WITH(MAX_EVENT_SIZE = a)
+reject	reject	engine	sessionOption/maxEventSizeSessionOption_MAX_EVENT_SIZE!drop-4	ALTER EVENT SESSION a ON DATABASE WITH(MAX_EVENT_SIZE = 1)
+reject	reject	engine	sessionOption/maxEventSizeSessionOption_MAX_EVENT_SIZE!truncate	ALTER EVENT SESSION a ON DATABASE WITH(MAX_EVENT_SIZE = 1
+reject	reject	engine	sessionOption/maxEventSizeSessionOption_MAX_EVENT_SIZE!insert	ALTER EVENT SESSION a ON DATABASE WITH(MAX_EVENT_SIZE = 1 a zzz)
+reject	reject	engine	sessionOption/maxEventSizeSessionOption_MAX_EVENT_SIZE!swap	ALTER EVENT SESSION a ON DATABASE WITH(MAX_FILES = 1 a)
 accept	accept	engine	sessionOption/trackCausalitySessionOption_TRACK_CAUSALITY	ALTER EVENT SESSION a ON DATABASE WITH(TRACK_CAUSALITY = ON)
-accept	reject	engine	sessionOption/trackCausalitySessionOption_TRACK_CAUSALITY!truncate	ALTER EVENT SESSION a ON DATABASE WITH(TRACK_CAUSALITY =
-accept	reject	engine	sessionOption/trackCausalitySessionOption_TRACK_CAUSALITY!swap	ALTER EVENT SESSION a ON DATABASE WITH(TRACK_COLUMNS_UPDATED = ON)
+reject	reject	engine	sessionOption/trackCausalitySessionOption_TRACK_CAUSALITY!truncate	ALTER EVENT SESSION a ON DATABASE WITH(TRACK_CAUSALITY =
+reject	reject	engine	sessionOption/trackCausalitySessionOption_TRACK_CAUSALITY!swap	ALTER EVENT SESSION a ON DATABASE WITH(TRACK_COLUMNS_UPDATED = ON)
 accept	accept	engine	sessionOption/startupStateSessionOption_STARTUP_STATE	ALTER EVENT SESSION a ON DATABASE WITH(STARTUP_STATE = ON)
-accept	reject	engine	sessionOption/startupStateSessionOption_STARTUP_STATE!drop-2	ALTER EVENT SESSION a ON DATABASE WITH(STARTUP_STATE ON)
-accept	reject	engine	sessionOption/startupStateSessionOption_STARTUP_STATE!drop-3	ALTER EVENT SESSION a ON DATABASE WITH(STARTUP_STATE =)
-accept	reject	engine	sessionOption/startupStateSessionOption_STARTUP_STATE!truncate	ALTER EVENT SESSION a ON DATABASE WITH(STARTUP_STATE =
-accept	reject	engine	sessionOption/startupStateSessionOption_STARTUP_STATE!insert	ALTER EVENT SESSION a ON DATABASE WITH(STARTUP_STATE = ON zzz)
-accept	reject	engine	sessionOption/startupStateSessionOption_STARTUP_STATE!swap	ALTER EVENT SESSION a ON DATABASE WITH(START_TIME = ON)
-accept	reject	engine	sessionOption/eventRetentionSessionOption_EVENT_RETENTION_MODE	ALTER EVENT SESSION a ON DATABASE WITH(EVENT_RETENTION_MODE = a)
-accept	reject	engine	sessionOption/eventRetentionSessionOption_EVENT_RETENTION_MODE!drop-1	ALTER EVENT SESSION a ON DATABASE WITH(= a)
-accept	reject	engine	sessionOption/eventRetentionSessionOption_EVENT_RETENTION_MODE!drop-2	ALTER EVENT SESSION a ON DATABASE WITH(EVENT_RETENTION_MODE a)
-accept	reject	engine	sessionOption/eventRetentionSessionOption_EVENT_RETENTION_MODE!drop-3	ALTER EVENT SESSION a ON DATABASE WITH(EVENT_RETENTION_MODE =)
-accept	reject	engine	sessionOption/eventRetentionSessionOption_EVENT_RETENTION_MODE!truncate	ALTER EVENT SESSION a ON DATABASE WITH(EVENT_RETENTION_MODE =
-accept	reject	engine	sessionOption/eventRetentionSessionOption_EVENT_RETENTION_MODE!insert	ALTER EVENT SESSION a ON DATABASE WITH(EVENT_RETENTION_MODE = a zzz)
-accept	reject	engine	sessionOption/eventRetentionSessionOption_EVENT_RETENTION_MODE!swap	ALTER EVENT SESSION a ON DATABASE WITH(EXCEPT = a)
-accept	reject	engine	sessionOption/memoryPartitionSessionOption_MEMORY_PARTITION_MODE	ALTER EVENT SESSION a ON DATABASE WITH(MEMORY_PARTITION_MODE = a)
-accept	reject	engine	sessionOption/memoryPartitionSessionOption_MEMORY_PARTITION_MODE!drop-2	ALTER EVENT SESSION a ON DATABASE WITH(MEMORY_PARTITION_MODE a)
-accept	reject	engine	sessionOption/memoryPartitionSessionOption_MEMORY_PARTITION_MODE!drop-3	ALTER EVENT SESSION a ON DATABASE WITH(MEMORY_PARTITION_MODE =)
-accept	reject	engine	sessionOption/memoryPartitionSessionOption_MEMORY_PARTITION_MODE!truncate	ALTER EVENT SESSION a ON DATABASE WITH(MEMORY_PARTITION_MODE =
-accept	reject	engine	sessionOption/memoryPartitionSessionOption_MEMORY_PARTITION_MODE!insert	ALTER EVENT SESSION a ON DATABASE WITH(MEMORY_PARTITION_MODE = a zzz)
-accept	reject	engine	sessionOption/memoryPartitionSessionOption_MEMORY_PARTITION_MODE!swap	ALTER EVENT SESSION a ON DATABASE WITH(MERGE = a)
+reject	reject	engine	sessionOption/startupStateSessionOption_STARTUP_STATE!drop-2	ALTER EVENT SESSION a ON DATABASE WITH(STARTUP_STATE ON)
+reject	reject	engine	sessionOption/startupStateSessionOption_STARTUP_STATE!drop-3	ALTER EVENT SESSION a ON DATABASE WITH(STARTUP_STATE =)
+reject	reject	engine	sessionOption/startupStateSessionOption_STARTUP_STATE!truncate	ALTER EVENT SESSION a ON DATABASE WITH(STARTUP_STATE =
+reject	reject	engine	sessionOption/startupStateSessionOption_STARTUP_STATE!insert	ALTER EVENT SESSION a ON DATABASE WITH(STARTUP_STATE = ON zzz)
+reject	reject	engine	sessionOption/startupStateSessionOption_STARTUP_STATE!swap	ALTER EVENT SESSION a ON DATABASE WITH(START_TIME = ON)
+reject	reject	engine	sessionOption/eventRetentionSessionOption_EVENT_RETENTION_MODE	ALTER EVENT SESSION a ON DATABASE WITH(EVENT_RETENTION_MODE = a)
+reject	reject	engine	sessionOption/eventRetentionSessionOption_EVENT_RETENTION_MODE!drop-1	ALTER EVENT SESSION a ON DATABASE WITH(= a)
+reject	reject	engine	sessionOption/eventRetentionSessionOption_EVENT_RETENTION_MODE!drop-2	ALTER EVENT SESSION a ON DATABASE WITH(EVENT_RETENTION_MODE a)
+reject	reject	engine	sessionOption/eventRetentionSessionOption_EVENT_RETENTION_MODE!drop-3	ALTER EVENT SESSION a ON DATABASE WITH(EVENT_RETENTION_MODE =)
+reject	reject	engine	sessionOption/eventRetentionSessionOption_EVENT_RETENTION_MODE!truncate	ALTER EVENT SESSION a ON DATABASE WITH(EVENT_RETENTION_MODE =
+reject	reject	engine	sessionOption/eventRetentionSessionOption_EVENT_RETENTION_MODE!insert	ALTER EVENT SESSION a ON DATABASE WITH(EVENT_RETENTION_MODE = a zzz)
+reject	reject	engine	sessionOption/eventRetentionSessionOption_EVENT_RETENTION_MODE!swap	ALTER EVENT SESSION a ON DATABASE WITH(EXCEPT = a)
+reject	reject	engine	sessionOption/memoryPartitionSessionOption_MEMORY_PARTITION_MODE	ALTER EVENT SESSION a ON DATABASE WITH(MEMORY_PARTITION_MODE = a)
+reject	reject	engine	sessionOption/memoryPartitionSessionOption_MEMORY_PARTITION_MODE!drop-2	ALTER EVENT SESSION a ON DATABASE WITH(MEMORY_PARTITION_MODE a)
+reject	reject	engine	sessionOption/memoryPartitionSessionOption_MEMORY_PARTITION_MODE!drop-3	ALTER EVENT SESSION a ON DATABASE WITH(MEMORY_PARTITION_MODE =)
+reject	reject	engine	sessionOption/memoryPartitionSessionOption_MEMORY_PARTITION_MODE!truncate	ALTER EVENT SESSION a ON DATABASE WITH(MEMORY_PARTITION_MODE =
+reject	reject	engine	sessionOption/memoryPartitionSessionOption_MEMORY_PARTITION_MODE!insert	ALTER EVENT SESSION a ON DATABASE WITH(MEMORY_PARTITION_MODE = a zzz)
+reject	reject	engine	sessionOption/memoryPartitionSessionOption_MEMORY_PARTITION_MODE!swap	ALTER EVENT SESSION a ON DATABASE WITH(MERGE = a)
 accept	accept	engine	sessionOption/maxDispatchLatencySessionOption_MAX_DISPATCH_LATENCY	ALTER EVENT SESSION a ON DATABASE WITH(MAX_DISPATCH_LATENCY = INFINITE)
-accept	reject	engine	sessionOption/maxDispatchLatencySessionOption_MAX_DISPATCH_LATENCY!drop-1	ALTER EVENT SESSION a ON DATABASE WITH(= INFINITE)
-accept	reject	engine	sessionOption/maxDispatchLatencySessionOption_MAX_DISPATCH_LATENCY!drop-2	ALTER EVENT SESSION a ON DATABASE WITH(MAX_DISPATCH_LATENCY INFINITE)
-accept	reject	engine	sessionOption/maxDispatchLatencySessionOption_MAX_DISPATCH_LATENCY!drop-3	ALTER EVENT SESSION a ON DATABASE WITH(MAX_DISPATCH_LATENCY =)
-accept	reject	engine	sessionOption/maxDispatchLatencySessionOption_MAX_DISPATCH_LATENCY!truncate	ALTER EVENT SESSION a ON DATABASE WITH(MAX_DISPATCH_LATENCY =
-accept	reject	engine	sessionOption/maxDispatchLatencySessionOption_MAX_DISPATCH_LATENCY!insert	ALTER EVENT SESSION a ON DATABASE WITH(MAX_DISPATCH_LATENCY = INFINITE zzz)
-accept	reject	engine	sessionOption/maxDispatchLatencySessionOption_MAX_DISPATCH_LATENCY!swap	ALTER EVENT SESSION a ON DATABASE WITH(MAX_DURATION = INFINITE)
-accept	reject	engine	integerSessionOptionValue/EqualsSign_integer_Identifier	ALTER EVENT SESSION a ON DATABASE WITH(MAX_MEMORY = 1 a)
+reject	reject	engine	sessionOption/maxDispatchLatencySessionOption_MAX_DISPATCH_LATENCY!drop-1	ALTER EVENT SESSION a ON DATABASE WITH(= INFINITE)
+reject	reject	engine	sessionOption/maxDispatchLatencySessionOption_MAX_DISPATCH_LATENCY!drop-2	ALTER EVENT SESSION a ON DATABASE WITH(MAX_DISPATCH_LATENCY INFINITE)
+reject	reject	engine	sessionOption/maxDispatchLatencySessionOption_MAX_DISPATCH_LATENCY!drop-3	ALTER EVENT SESSION a ON DATABASE WITH(MAX_DISPATCH_LATENCY =)
+reject	reject	engine	sessionOption/maxDispatchLatencySessionOption_MAX_DISPATCH_LATENCY!truncate	ALTER EVENT SESSION a ON DATABASE WITH(MAX_DISPATCH_LATENCY =
+reject	reject	engine	sessionOption/maxDispatchLatencySessionOption_MAX_DISPATCH_LATENCY!insert	ALTER EVENT SESSION a ON DATABASE WITH(MAX_DISPATCH_LATENCY = INFINITE zzz)
+reject	reject	engine	sessionOption/maxDispatchLatencySessionOption_MAX_DISPATCH_LATENCY!swap	ALTER EVENT SESSION a ON DATABASE WITH(MAX_DURATION = INFINITE)
+reject	reject	engine	integerSessionOptionValue/EqualsSign_integer_Identifier	ALTER EVENT SESSION a ON DATABASE WITH(MAX_MEMORY = 1 a)
 accept	accept	engine	onOffSessionOption/EqualsSign_optionOnOff	ALTER EVENT SESSION a ON DATABASE WITH(TRACK_CAUSALITY = ON)
-accept	reject	engine	onOffSessionOption/EqualsSign_optionOnOff!swap	ALTER EVENT SESSION a ON DATABASE WITH(TRACK_CAUSALITY = ONLINE)
+reject	reject	engine	onOffSessionOption/EqualsSign_optionOnOff!swap	ALTER EVENT SESSION a ON DATABASE WITH(TRACK_CAUSALITY = ONLINE)
 accept	accept	engine	eventDeclarationSetParameter/identifier_EqualsSign_eventDeclarationValue	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(SET a = 1)
 accept	accept	engine	eventDeclarationValue/Minus_integerOrRealOrNumeric	ALTER SERVER AUDIT a WHERE a = - 1
 accept	reject	engine	eventDeclarationValue/Minus_integerOrRealOrNumeric!drop-2	ALTER SERVER AUDIT a WHERE a = -
@@ -3877,35 +3877,35 @@ reject	reject	engine	eventDeclarationComparisonPredicate(comparisonOperator|Not_
 reject	reject	engine	eventDeclarationComparisonPredicate(comparisonOperator|Not_Like)/Not_Like!swap	ALTER SERVER AUDIT a WHERE a NOTIFICATION LIKE 1
 accept	accept	engine	dropEventDeclarationList/Drop_EVENT_eventSessionNonEmptyThreePartObjectName_(Com~b01f03b6	ALTER EVENT SESSION a ON DATABASE DROP EVENT a.a
 reject	reject	engine	dropEventDeclarationList/Drop_EVENT_eventSessionNonEmptyThreePartObjectName_(Com~b01f03b6!drop-2	ALTER EVENT SESSION a ON DATABASE DROP a.a
-accept	reject	engine	dropEventDeclarationList/Drop_EVENT_eventSessionNonEmptyThreePartObjectName_(Com~b01f03b6!drop-3	ALTER EVENT SESSION a ON DATABASE DROP EVENT.a
+reject	reject	engine	dropEventDeclarationList/Drop_EVENT_eventSessionNonEmptyThreePartObjectName_(Com~b01f03b6!drop-3	ALTER EVENT SESSION a ON DATABASE DROP EVENT.a
 reject	reject	engine	dropEventDeclarationList/Drop_EVENT_eventSessionNonEmptyThreePartObjectName_(Com~b01f03b6!drop-4	ALTER EVENT SESSION a ON DATABASE DROP EVENT a a
-accept	reject	engine	dropEventDeclarationList/Drop_EVENT_eventSessionNonEmptyThreePartObjectName_(Com~b01f03b6!drop-5	ALTER EVENT SESSION a ON DATABASE DROP EVENT a.
+reject	reject	engine	dropEventDeclarationList/Drop_EVENT_eventSessionNonEmptyThreePartObjectName_(Com~b01f03b6!drop-5	ALTER EVENT SESSION a ON DATABASE DROP EVENT a.
 reject	reject	engine	dropEventDeclarationList/Drop_EVENT_eventSessionNonEmptyThreePartObjectName_(Com~b01f03b6!insert	ALTER EVENT SESSION a ON DATABASE DROP EVENT a.a zzz
 reject	reject	engine	dropEventDeclarationList/Drop_EVENT_eventSessionNonEmptyThreePartObjectName_(Com~b01f03b6!swap	ALTER EVENT SESSION a ON DATABASE DROP_INDEX EVENT a.a
 accept	accept	engine	dropEventDeclarationList(Comma_Drop_EVENT_eventSessionNonEmpt~3cab2c33)*/%empty	ALTER EVENT SESSION a ON DATABASE DROP EVENT a.a
 accept	accept	engine	dropEventDeclarationList(Comma_Drop_EVENT_eventSessionNonEmpt~3cab2c33)*/Comma_Drop_EVENT_eventSessionNonEmptyThreePartObjectNam~d8049b62	ALTER EVENT SESSION a ON DATABASE DROP EVENT a.a, DROP EVENT a.a
-accept	reject	engine	dropEventDeclarationList(Comma_Drop_EVENT_eventSessionNonEmpt~3cab2c33)*/Comma_Drop_EVENT_eventSessionNonEmptyThreePartObjectNam~d8049b62!drop-1	ALTER EVENT SESSION a ON DATABASE DROP EVENT a.a DROP EVENT a.a
+reject	reject	engine	dropEventDeclarationList(Comma_Drop_EVENT_eventSessionNonEmpt~3cab2c33)*/Comma_Drop_EVENT_eventSessionNonEmptyThreePartObjectNam~d8049b62!drop-1	ALTER EVENT SESSION a ON DATABASE DROP EVENT a.a DROP EVENT a.a
 reject	reject	engine	dropEventDeclarationList(Comma_Drop_EVENT_eventSessionNonEmpt~3cab2c33)*/Comma_Drop_EVENT_eventSessionNonEmptyThreePartObjectNam~d8049b62!drop-2	ALTER EVENT SESSION a ON DATABASE DROP EVENT a.a, EVENT a.a
 reject	reject	engine	dropEventDeclarationList(Comma_Drop_EVENT_eventSessionNonEmpt~3cab2c33)*/Comma_Drop_EVENT_eventSessionNonEmptyThreePartObjectNam~d8049b62!drop-3	ALTER EVENT SESSION a ON DATABASE DROP EVENT a.a, DROP a.a
-accept	reject	engine	dropEventDeclarationList(Comma_Drop_EVENT_eventSessionNonEmpt~3cab2c33)*/Comma_Drop_EVENT_eventSessionNonEmptyThreePartObjectNam~d8049b62!drop-4	ALTER EVENT SESSION a ON DATABASE DROP EVENT a.a, DROP EVENT.a
+reject	reject	engine	dropEventDeclarationList(Comma_Drop_EVENT_eventSessionNonEmpt~3cab2c33)*/Comma_Drop_EVENT_eventSessionNonEmptyThreePartObjectNam~d8049b62!drop-4	ALTER EVENT SESSION a ON DATABASE DROP EVENT a.a, DROP EVENT.a
 reject	reject	engine	dropEventDeclarationList(Comma_Drop_EVENT_eventSessionNonEmpt~3cab2c33)*/Comma_Drop_EVENT_eventSessionNonEmptyThreePartObjectNam~d8049b62!drop-5	ALTER EVENT SESSION a ON DATABASE DROP EVENT a.a, DROP EVENT a a
-accept	reject	engine	dropEventDeclarationList(Comma_Drop_EVENT_eventSessionNonEmpt~3cab2c33)*/Comma_Drop_EVENT_eventSessionNonEmptyThreePartObjectNam~d8049b62!drop-6	ALTER EVENT SESSION a ON DATABASE DROP EVENT a.a, DROP EVENT a.
+reject	reject	engine	dropEventDeclarationList(Comma_Drop_EVENT_eventSessionNonEmpt~3cab2c33)*/Comma_Drop_EVENT_eventSessionNonEmptyThreePartObjectNam~d8049b62!drop-6	ALTER EVENT SESSION a ON DATABASE DROP EVENT a.a, DROP EVENT a.
 reject	reject	engine	dropEventDeclarationList(Comma_Drop_EVENT_eventSessionNonEmpt~3cab2c33)*/Comma_Drop_EVENT_eventSessionNonEmptyThreePartObjectNam~d8049b62!insert	ALTER EVENT SESSION a ON DATABASE DROP EVENT a.a, DROP EVENT a.a zzz
 reject	reject	engine	dropEventDeclarationList(Comma_Drop_EVENT_eventSessionNonEmpt~3cab2c33)*/Comma_Drop_EVENT_eventSessionNonEmptyThreePartObjectNam~d8049b62!swap	ALTER EVENT SESSION a ON DATABASE DROP EVENT a.a, DROP_INDEX EVENT a.a
 accept	accept	engine	dropTargetDeclarationList/Drop_TARGET_eventSessionNonEmptyThreePartObjectName_(Co~f8b91373	ALTER EVENT SESSION a ON DATABASE DROP TARGET a.a
-accept	reject	engine	dropTargetDeclarationList/Drop_TARGET_eventSessionNonEmptyThreePartObjectName_(Co~f8b91373!drop-3	ALTER EVENT SESSION a ON DATABASE DROP TARGET.a
+reject	reject	engine	dropTargetDeclarationList/Drop_TARGET_eventSessionNonEmptyThreePartObjectName_(Co~f8b91373!drop-3	ALTER EVENT SESSION a ON DATABASE DROP TARGET.a
 reject	reject	engine	dropTargetDeclarationList/Drop_TARGET_eventSessionNonEmptyThreePartObjectName_(Co~f8b91373!drop-4	ALTER EVENT SESSION a ON DATABASE DROP TARGET a a
-accept	reject	engine	dropTargetDeclarationList/Drop_TARGET_eventSessionNonEmptyThreePartObjectName_(Co~f8b91373!drop-5	ALTER EVENT SESSION a ON DATABASE DROP TARGET a.
+reject	reject	engine	dropTargetDeclarationList/Drop_TARGET_eventSessionNonEmptyThreePartObjectName_(Co~f8b91373!drop-5	ALTER EVENT SESSION a ON DATABASE DROP TARGET a.
 reject	reject	engine	dropTargetDeclarationList/Drop_TARGET_eventSessionNonEmptyThreePartObjectName_(Co~f8b91373!insert	ALTER EVENT SESSION a ON DATABASE DROP TARGET a.a zzz
 reject	reject	engine	dropTargetDeclarationList/Drop_TARGET_eventSessionNonEmptyThreePartObjectName_(Co~f8b91373!swap	ALTER EVENT SESSION a ON DATABASE DROP_INDEX TARGET a.a
 accept	accept	engine	dropTargetDeclarationList(Comma_Drop_TARGET_eventSessionNonEmp~9fa6ae14)*/%empty	ALTER EVENT SESSION a ON DATABASE DROP TARGET a.a
 accept	accept	engine	dropTargetDeclarationList(Comma_Drop_TARGET_eventSessionNonEmp~9fa6ae14)*/Comma_Drop_TARGET_eventSessionNonEmptyThreePartObjectNa~caff96e9	ALTER EVENT SESSION a ON DATABASE DROP TARGET a.a, DROP TARGET a.a
-accept	reject	engine	dropTargetDeclarationList(Comma_Drop_TARGET_eventSessionNonEmp~9fa6ae14)*/Comma_Drop_TARGET_eventSessionNonEmptyThreePartObjectNa~caff96e9!drop-1	ALTER EVENT SESSION a ON DATABASE DROP TARGET a.a DROP TARGET a.a
+reject	reject	engine	dropTargetDeclarationList(Comma_Drop_TARGET_eventSessionNonEmp~9fa6ae14)*/Comma_Drop_TARGET_eventSessionNonEmptyThreePartObjectNa~caff96e9!drop-1	ALTER EVENT SESSION a ON DATABASE DROP TARGET a.a DROP TARGET a.a
 reject	reject	engine	dropTargetDeclarationList(Comma_Drop_TARGET_eventSessionNonEmp~9fa6ae14)*/Comma_Drop_TARGET_eventSessionNonEmptyThreePartObjectNa~caff96e9!drop-2	ALTER EVENT SESSION a ON DATABASE DROP TARGET a.a, TARGET a.a
 reject	reject	engine	dropTargetDeclarationList(Comma_Drop_TARGET_eventSessionNonEmp~9fa6ae14)*/Comma_Drop_TARGET_eventSessionNonEmptyThreePartObjectNa~caff96e9!drop-3	ALTER EVENT SESSION a ON DATABASE DROP TARGET a.a, DROP a.a
-accept	reject	engine	dropTargetDeclarationList(Comma_Drop_TARGET_eventSessionNonEmp~9fa6ae14)*/Comma_Drop_TARGET_eventSessionNonEmptyThreePartObjectNa~caff96e9!drop-4	ALTER EVENT SESSION a ON DATABASE DROP TARGET a.a, DROP TARGET.a
+reject	reject	engine	dropTargetDeclarationList(Comma_Drop_TARGET_eventSessionNonEmp~9fa6ae14)*/Comma_Drop_TARGET_eventSessionNonEmptyThreePartObjectNa~caff96e9!drop-4	ALTER EVENT SESSION a ON DATABASE DROP TARGET a.a, DROP TARGET.a
 reject	reject	engine	dropTargetDeclarationList(Comma_Drop_TARGET_eventSessionNonEmp~9fa6ae14)*/Comma_Drop_TARGET_eventSessionNonEmptyThreePartObjectNa~caff96e9!drop-5	ALTER EVENT SESSION a ON DATABASE DROP TARGET a.a, DROP TARGET a a
-accept	reject	engine	dropTargetDeclarationList(Comma_Drop_TARGET_eventSessionNonEmp~9fa6ae14)*/Comma_Drop_TARGET_eventSessionNonEmptyThreePartObjectNa~caff96e9!drop-6	ALTER EVENT SESSION a ON DATABASE DROP TARGET a.a, DROP TARGET a.
+reject	reject	engine	dropTargetDeclarationList(Comma_Drop_TARGET_eventSessionNonEmp~9fa6ae14)*/Comma_Drop_TARGET_eventSessionNonEmptyThreePartObjectNa~caff96e9!drop-6	ALTER EVENT SESSION a ON DATABASE DROP TARGET a.a, DROP TARGET a.
 reject	reject	engine	dropTargetDeclarationList(Comma_Drop_TARGET_eventSessionNonEmp~9fa6ae14)*/Comma_Drop_TARGET_eventSessionNonEmptyThreePartObjectNa~caff96e9!insert	ALTER EVENT SESSION a ON DATABASE DROP TARGET a.a, DROP TARGET a.a zzz
 reject	reject	engine	dropTargetDeclarationList(Comma_Drop_TARGET_eventSessionNonEmp~9fa6ae14)*/Comma_Drop_TARGET_eventSessionNonEmptyThreePartObjectNa~caff96e9!swap	ALTER EVENT SESSION a ON DATABASE DROP TARGET a.a, DROP_INDEX TARGET a.a
 accept	accept	engine	createFulltextCatalogStatement/CATALOG_identifier_(On_FILEGROUP_identifier)?_(In_PATH_~49fa80c2	CREATE FULLTEXT CATALOG a
@@ -5027,10 +5027,10 @@ reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8
 accept	accept	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterEventSessionStatement_EVENT	ALTER EVENT SESSION a ON DATABASE STATE = START
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterEventSessionStatement_EVENT!drop-1	ALTER SESSION a ON DATABASE STATE = START
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterEventSessionStatement_EVENT!drop-2	ALTER EVENT a ON DATABASE STATE = START
-accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterEventSessionStatement_EVENT!drop-3	ALTER EVENT SESSION ON DATABASE STATE = START
+reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterEventSessionStatement_EVENT!drop-3	ALTER EVENT SESSION ON DATABASE STATE = START
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterEventSessionStatement_EVENT!drop-6	ALTER EVENT SESSION a ON DATABASE = START
-accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterEventSessionStatement_EVENT!drop-7	ALTER EVENT SESSION a ON DATABASE STATE START
-accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterEventSessionStatement_EVENT!drop-8	ALTER EVENT SESSION a ON DATABASE STATE =
+reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterEventSessionStatement_EVENT!drop-7	ALTER EVENT SESSION a ON DATABASE STATE START
+reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterEventSessionStatement_EVENT!drop-8	ALTER EVENT SESSION a ON DATABASE STATE =
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterEventSessionStatement_EVENT!insert	ALTER EVENT SESSION a ON DATABASE STATE = START zzz
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterEventSessionStatement_EVENT!swap	ALTER EVENT_RETENTION_MODE SESSION a ON DATABASE STATE = START
 accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterExternalStatements	ALTER EXTERNAL RESOURCE POOL a
@@ -6744,7 +6744,7 @@ reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e448
 accept	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropEventStatement_EVENT	DROP EVENT NOTIFICATION a ON DATABASE
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropEventStatement_EVENT!drop-1	DROP NOTIFICATION a ON DATABASE
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropEventStatement_EVENT!drop-2	DROP EVENT a ON DATABASE
-accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropEventStatement_EVENT!drop-3	DROP EVENT NOTIFICATION ON DATABASE
+reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropEventStatement_EVENT!drop-3	DROP EVENT NOTIFICATION ON DATABASE
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropEventStatement_EVENT!swap	DROP EVENT_RETENTION_MODE NOTIFICATION a ON DATABASE
 accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSearchPropertyListStatement_SEARCH	DROP SEARCH PROPERTY LIST a
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSearchPropertyListStatement_SEARCH!drop-1	DROP PROPERTY LIST a
@@ -7076,7 +7076,7 @@ reject	reject	engine	dropUserStatement(If_Exists)?/If_Exists!insert	DROP USER IF
 reject	reject	engine	dropUserStatement(If_Exists)?/If_Exists!swap	DROP USER IGNORE EXISTS a
 accept	accept	engine	eventSessionDropScope/On_(Database|SERVER)	DROP EVENT SESSION a ON DATABASE
 reject	reject	engine	eventSessionDropScope/On_(Database|SERVER)!drop-1	DROP EVENT SESSION a DATABASE
-accept	reject	engine	eventSessionDropScope/On_(Database|SERVER)!drop-2	DROP EVENT SESSION a ON
+reject	reject	engine	eventSessionDropScope/On_(Database|SERVER)!drop-2	DROP EVENT SESSION a ON
 reject	reject	engine	eventSessionDropScope/On_(Database|SERVER)!insert	DROP EVENT SESSION a ON DATABASE zzz
 reject	reject	engine	eventSessionDropScope/On_(Database|SERVER)!swap	DROP EVENT SESSION a ONLINE DATABASE
 accept	accept	engine	eventSessionDropScope(Database|SERVER)/Database	DROP EVENT SESSION a ON DATABASE
@@ -13142,7 +13142,7 @@ accept	accept	engine	nonEmptyThreePartObjectName/identifier_Dot_identifier_(Dot_
 accept	accept	engine	nonEmptyThreePartObjectName(Dot_identifier)?/%empty	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a
 accept	accept	engine	nonEmptyThreePartObjectName(Dot_identifier)?/Dot_identifier	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a.a
 reject	reject	engine	nonEmptyThreePartObjectName(Dot_identifier)?/Dot_identifier!drop-1	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a a
-accept	reject	engine	nonEmptyThreePartObjectName(Dot_identifier)?/Dot_identifier!drop-2	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a.
+reject	reject	engine	nonEmptyThreePartObjectName(Dot_identifier)?/Dot_identifier!drop-2	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a.
 reject	reject	engine	nonEmptyThreePartObjectName(Dot_identifier)?/Dot_identifier!insert	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a.a zzz
 accept	accept	engine	schemaObjectThreePartName/identifierList	UPDATE STATISTICS a
 accept	accept	engine	eventSessionOneOrTwoOrThreePartObjectName/oneOrTwoOrThreePartObjectName	ALTER SERVER AUDIT a WHERE a = 1
@@ -15224,18 +15224,18 @@ accept	reject	engine	createEndpointStatement_ENDPOINT(endpointOptions)?/endpoint
 reject	reject	engine	createEndpointStatement_ENDPOINT(endpointOptions)?/endpointOptions!insert	CREATE ENDPOINT a STATE = a zzz AS a(LISTENER_IP = ALL) FOR DATA_MIRRORING()
 reject	reject	engine	createEndpointStatement_ENDPOINT(endpointOptions)?/endpointOptions!swap	CREATE ENDPOINT a STATEMENT = a AS a(LISTENER_IP = ALL) FOR DATA_MIRRORING()
 accept	accept	engine	createEventStatement_EVENT/EVENT_(createEventNotificationStatement_NOT~f09613f9)	CREATE EVENT SESSION a ON DATABASE ADD EVENT a.a
-accept	reject	engine	createEventStatement_EVENT(createEventNotificationStatement_NOT~f09613f9)/createEventNotificationStatement_NOTIFICATION	CREATE EVENT NOTIFICATION a ON DATABASE FOR a TO SERVICE 'a', 'a'
+reject	reject	engine	createEventStatement_EVENT(createEventNotificationStatement_NOT~f09613f9)/createEventNotificationStatement_NOTIFICATION	CREATE EVENT NOTIFICATION a ON DATABASE FOR a TO SERVICE 'a', 'a'
 reject	reject	engine	createEventStatement_EVENT(createEventNotificationStatement_NOT~f09613f9)/createEventNotificationStatement_NOTIFICATION!drop-1	CREATE EVENT a ON DATABASE FOR a TO SERVICE 'a', 'a'
-accept	reject	engine	createEventStatement_EVENT(createEventNotificationStatement_NOT~f09613f9)/createEventNotificationStatement_NOTIFICATION!drop-2	CREATE EVENT NOTIFICATION ON DATABASE FOR a TO SERVICE 'a', 'a'
-accept	reject	engine	createEventStatement_EVENT(createEventNotificationStatement_NOT~f09613f9)/createEventNotificationStatement_NOTIFICATION!drop-3	CREATE EVENT NOTIFICATION a DATABASE FOR a TO SERVICE 'a', 'a'
-accept	reject	engine	createEventStatement_EVENT(createEventNotificationStatement_NOT~f09613f9)/createEventNotificationStatement_NOTIFICATION!drop-4	CREATE EVENT NOTIFICATION a ON FOR a TO SERVICE 'a', 'a'
-accept	reject	engine	createEventStatement_EVENT(createEventNotificationStatement_NOT~f09613f9)/createEventNotificationStatement_NOTIFICATION!drop-5	CREATE EVENT NOTIFICATION a ON DATABASE a TO SERVICE 'a', 'a'
-accept	reject	engine	createEventStatement_EVENT(createEventNotificationStatement_NOT~f09613f9)/createEventNotificationStatement_NOTIFICATION!drop-7	CREATE EVENT NOTIFICATION a ON DATABASE FOR a SERVICE 'a', 'a'
-accept	reject	engine	createEventStatement_EVENT(createEventNotificationStatement_NOT~f09613f9)/createEventNotificationStatement_NOTIFICATION!drop-8	CREATE EVENT NOTIFICATION a ON DATABASE FOR a TO 'a', 'a'
-accept	reject	engine	createEventStatement_EVENT(createEventNotificationStatement_NOT~f09613f9)/createEventNotificationStatement_NOTIFICATION!drop-9	CREATE EVENT NOTIFICATION a ON DATABASE FOR a TO SERVICE, 'a'
-accept	reject	engine	createEventStatement_EVENT(createEventNotificationStatement_NOT~f09613f9)/createEventNotificationStatement_NOTIFICATION!drop-10	CREATE EVENT NOTIFICATION a ON DATABASE FOR a TO SERVICE 'a' 'a'
-accept	reject	engine	createEventStatement_EVENT(createEventNotificationStatement_NOT~f09613f9)/createEventNotificationStatement_NOTIFICATION!drop-11	CREATE EVENT NOTIFICATION a ON DATABASE FOR a TO SERVICE 'a',
-accept	reject	engine	createEventStatement_EVENT(createEventNotificationStatement_NOT~f09613f9)/createEventNotificationStatement_NOTIFICATION!insert	CREATE EVENT NOTIFICATION a ON DATABASE FOR a TO SERVICE 'a', 'a' zzz
+reject	reject	engine	createEventStatement_EVENT(createEventNotificationStatement_NOT~f09613f9)/createEventNotificationStatement_NOTIFICATION!drop-2	CREATE EVENT NOTIFICATION ON DATABASE FOR a TO SERVICE 'a', 'a'
+reject	reject	engine	createEventStatement_EVENT(createEventNotificationStatement_NOT~f09613f9)/createEventNotificationStatement_NOTIFICATION!drop-3	CREATE EVENT NOTIFICATION a DATABASE FOR a TO SERVICE 'a', 'a'
+reject	reject	engine	createEventStatement_EVENT(createEventNotificationStatement_NOT~f09613f9)/createEventNotificationStatement_NOTIFICATION!drop-4	CREATE EVENT NOTIFICATION a ON FOR a TO SERVICE 'a', 'a'
+reject	reject	engine	createEventStatement_EVENT(createEventNotificationStatement_NOT~f09613f9)/createEventNotificationStatement_NOTIFICATION!drop-5	CREATE EVENT NOTIFICATION a ON DATABASE a TO SERVICE 'a', 'a'
+reject	reject	engine	createEventStatement_EVENT(createEventNotificationStatement_NOT~f09613f9)/createEventNotificationStatement_NOTIFICATION!drop-7	CREATE EVENT NOTIFICATION a ON DATABASE FOR a SERVICE 'a', 'a'
+reject	reject	engine	createEventStatement_EVENT(createEventNotificationStatement_NOT~f09613f9)/createEventNotificationStatement_NOTIFICATION!drop-8	CREATE EVENT NOTIFICATION a ON DATABASE FOR a TO 'a', 'a'
+reject	reject	engine	createEventStatement_EVENT(createEventNotificationStatement_NOT~f09613f9)/createEventNotificationStatement_NOTIFICATION!drop-9	CREATE EVENT NOTIFICATION a ON DATABASE FOR a TO SERVICE, 'a'
+reject	reject	engine	createEventStatement_EVENT(createEventNotificationStatement_NOT~f09613f9)/createEventNotificationStatement_NOTIFICATION!drop-10	CREATE EVENT NOTIFICATION a ON DATABASE FOR a TO SERVICE 'a' 'a'
+reject	reject	engine	createEventStatement_EVENT(createEventNotificationStatement_NOT~f09613f9)/createEventNotificationStatement_NOTIFICATION!drop-11	CREATE EVENT NOTIFICATION a ON DATABASE FOR a TO SERVICE 'a',
+reject	reject	engine	createEventStatement_EVENT(createEventNotificationStatement_NOT~f09613f9)/createEventNotificationStatement_NOTIFICATION!insert	CREATE EVENT NOTIFICATION a ON DATABASE FOR a TO SERVICE 'a', 'a' zzz
 reject	reject	engine	createEventStatement_EVENT(createEventNotificationStatement_NOT~f09613f9)/createEventNotificationStatement_NOTIFICATION!swap	CREATE EVENT NOWAIT a ON DATABASE FOR a TO SERVICE 'a', 'a'
 accept	accept	engine	createEventStatement_EVENT(createEventNotificationStatement_NOT~f09613f9)/createEventSessionStatement_SESSION	CREATE EVENT SESSION a ON DATABASE ADD EVENT a.a
 reject	reject	engine	createEventStatement_EVENT(createEventNotificationStatement_NOT~f09613f9)/createEventSessionStatement_SESSION!swap	CREATE EVENT SESSIONS a ON DATABASE ADD EVENT a.a
@@ -16053,46 +16053,46 @@ reject	reject	engine	encryptionPayloadOption_ENCRYPTION(identifier|(identifier_i
 reject	reject	engine	encryptionPayloadOption_ENCRYPTION(identifier|(identifier_identifier))/identifier_identifier!insert	ALTER ENDPOINT a FOR DATA_MIRRORING(ENCRYPTION = a a a a zzz)
 reject	reject	engine	messageForwardingPayloadOption_MESSAGE_FORWARDING/MESSAGE_FORWARDING_EqualsSign_enabledDisabled	ALTER ENDPOINT a FOR DATA_MIRRORING(MESSAGE_FORWARDING = ENABLED)
 reject	reject	engine	messageForwardSizePayloadOption_MESSAGE_FORWARD_SIZE/MESSAGE_FORWARD_SIZE_EqualsSign_integer	ALTER ENDPOINT a FOR DATA_MIRRORING(MESSAGE_FORWARD_SIZE = 1)
-accept	reject	engine	createEventNotificationStatement_NOTIFICATION/NOTIFICATION_identifier_eventNotificationObjectScope_(W~e5580776	CREATE EVENT NOTIFICATION a ON DATABASE FOR a TO SERVICE 'a', 'a'
-accept	reject	engine	createEventNotificationStatement_NOTIFICATION(With_FAN_IN)?/%empty	CREATE EVENT NOTIFICATION a ON DATABASE FOR a TO SERVICE 'a', 'a'
-accept	reject	engine	createEventNotificationStatement_NOTIFICATION(With_FAN_IN)?/%empty!insert	CREATE EVENT NOTIFICATION a ON DATABASE zzz FOR a TO SERVICE 'a', 'a'
-accept	reject	engine	createEventNotificationStatement_NOTIFICATION(With_FAN_IN)?/With_FAN_IN	CREATE EVENT NOTIFICATION a ON DATABASE WITH FAN_IN FOR a TO SERVICE 'a', 'a'
-accept	reject	engine	createEventNotificationStatement_NOTIFICATION(With_FAN_IN)?/With_FAN_IN!drop-1	CREATE EVENT NOTIFICATION a ON DATABASE FAN_IN FOR a TO SERVICE 'a', 'a'
-accept	reject	engine	createEventNotificationStatement_NOTIFICATION(With_FAN_IN)?/With_FAN_IN!drop-2	CREATE EVENT NOTIFICATION a ON DATABASE WITH FOR a TO SERVICE 'a', 'a'
-accept	reject	engine	createEventNotificationStatement_NOTIFICATION(With_FAN_IN)?/With_FAN_IN!truncate	CREATE EVENT NOTIFICATION a ON DATABASE WITH
-accept	reject	engine	createEventNotificationStatement_NOTIFICATION(With_FAN_IN)?/With_FAN_IN!insert	CREATE EVENT NOTIFICATION a ON DATABASE WITH FAN_IN zzz FOR a TO SERVICE 'a', 'a'
-accept	reject	engine	createEventNotificationStatement_NOTIFICATION(With_FAN_IN)?/With_FAN_IN!swap	CREATE EVENT NOTIFICATION a ON DATABASE WITHIN FAN_IN FOR a TO SERVICE 'a', 'a'
-accept	reject	engine	createEventNotificationStatement_NOTIFICATION(Comma_eventTypeGroupContainer)*/%empty	CREATE EVENT NOTIFICATION a ON DATABASE FOR a TO SERVICE 'a', 'a'
-accept	reject	engine	createEventNotificationStatement_NOTIFICATION(Comma_eventTypeGroupContainer)*/Comma_eventTypeGroupContainer_(Comma_eventTypeGroupContainer)*	CREATE EVENT NOTIFICATION a ON DATABASE FOR a, a TO SERVICE 'a', 'a'
-accept	reject	engine	createEventNotificationStatement_NOTIFICATION(Comma_eventTypeGroupContainer)*/Comma_eventTypeGroupContainer_(Comma_eventTypeGroupContainer)*!drop-1	CREATE EVENT NOTIFICATION a ON DATABASE FOR a a TO SERVICE 'a', 'a'
-accept	reject	engine	createEventNotificationStatement_NOTIFICATION(Comma_eventTypeGroupContainer)*/Comma_eventTypeGroupContainer_(Comma_eventTypeGroupContainer)*!drop-2	CREATE EVENT NOTIFICATION a ON DATABASE FOR a, TO SERVICE 'a', 'a'
-accept	reject	engine	createEventNotificationStatement_NOTIFICATION(Comma_eventTypeGroupContainer)*/Comma_eventTypeGroupContainer_(Comma_eventTypeGroupContainer)*!truncate	CREATE EVENT NOTIFICATION a ON DATABASE FOR a,
-accept	reject	engine	createEventNotificationStatement_NOTIFICATION(Comma_eventTypeGroupContainer)*/Comma_eventTypeGroupContainer_(Comma_eventTypeGroupContainer)*!insert	CREATE EVENT NOTIFICATION a ON DATABASE FOR a, a zzz TO SERVICE 'a', 'a'
+reject	reject	engine	createEventNotificationStatement_NOTIFICATION/NOTIFICATION_identifier_eventNotificationObjectScope_(W~e5580776	CREATE EVENT NOTIFICATION a ON DATABASE FOR a TO SERVICE 'a', 'a'
+reject	reject	engine	createEventNotificationStatement_NOTIFICATION(With_FAN_IN)?/%empty	CREATE EVENT NOTIFICATION a ON DATABASE FOR a TO SERVICE 'a', 'a'
+reject	reject	engine	createEventNotificationStatement_NOTIFICATION(With_FAN_IN)?/%empty!insert	CREATE EVENT NOTIFICATION a ON DATABASE zzz FOR a TO SERVICE 'a', 'a'
+reject	reject	engine	createEventNotificationStatement_NOTIFICATION(With_FAN_IN)?/With_FAN_IN	CREATE EVENT NOTIFICATION a ON DATABASE WITH FAN_IN FOR a TO SERVICE 'a', 'a'
+reject	reject	engine	createEventNotificationStatement_NOTIFICATION(With_FAN_IN)?/With_FAN_IN!drop-1	CREATE EVENT NOTIFICATION a ON DATABASE FAN_IN FOR a TO SERVICE 'a', 'a'
+reject	reject	engine	createEventNotificationStatement_NOTIFICATION(With_FAN_IN)?/With_FAN_IN!drop-2	CREATE EVENT NOTIFICATION a ON DATABASE WITH FOR a TO SERVICE 'a', 'a'
+reject	reject	engine	createEventNotificationStatement_NOTIFICATION(With_FAN_IN)?/With_FAN_IN!truncate	CREATE EVENT NOTIFICATION a ON DATABASE WITH
+reject	reject	engine	createEventNotificationStatement_NOTIFICATION(With_FAN_IN)?/With_FAN_IN!insert	CREATE EVENT NOTIFICATION a ON DATABASE WITH FAN_IN zzz FOR a TO SERVICE 'a', 'a'
+reject	reject	engine	createEventNotificationStatement_NOTIFICATION(With_FAN_IN)?/With_FAN_IN!swap	CREATE EVENT NOTIFICATION a ON DATABASE WITHIN FAN_IN FOR a TO SERVICE 'a', 'a'
+reject	reject	engine	createEventNotificationStatement_NOTIFICATION(Comma_eventTypeGroupContainer)*/%empty	CREATE EVENT NOTIFICATION a ON DATABASE FOR a TO SERVICE 'a', 'a'
+reject	reject	engine	createEventNotificationStatement_NOTIFICATION(Comma_eventTypeGroupContainer)*/Comma_eventTypeGroupContainer_(Comma_eventTypeGroupContainer)*	CREATE EVENT NOTIFICATION a ON DATABASE FOR a, a TO SERVICE 'a', 'a'
+reject	reject	engine	createEventNotificationStatement_NOTIFICATION(Comma_eventTypeGroupContainer)*/Comma_eventTypeGroupContainer_(Comma_eventTypeGroupContainer)*!drop-1	CREATE EVENT NOTIFICATION a ON DATABASE FOR a a TO SERVICE 'a', 'a'
+reject	reject	engine	createEventNotificationStatement_NOTIFICATION(Comma_eventTypeGroupContainer)*/Comma_eventTypeGroupContainer_(Comma_eventTypeGroupContainer)*!drop-2	CREATE EVENT NOTIFICATION a ON DATABASE FOR a, TO SERVICE 'a', 'a'
+reject	reject	engine	createEventNotificationStatement_NOTIFICATION(Comma_eventTypeGroupContainer)*/Comma_eventTypeGroupContainer_(Comma_eventTypeGroupContainer)*!truncate	CREATE EVENT NOTIFICATION a ON DATABASE FOR a,
+reject	reject	engine	createEventNotificationStatement_NOTIFICATION(Comma_eventTypeGroupContainer)*/Comma_eventTypeGroupContainer_(Comma_eventTypeGroupContainer)*!insert	CREATE EVENT NOTIFICATION a ON DATABASE FOR a, a zzz TO SERVICE 'a', 'a'
 accept	accept	engine	createEventSessionStatement_SESSION/SESSION_identifier_eventSessionScope_eventDeclarationLi~1fe6929e	CREATE EVENT SESSION a ON DATABASE ADD EVENT a.a
 accept	accept	engine	createEventSessionStatement_SESSION(targetDeclarationList)?/%empty	CREATE EVENT SESSION a ON DATABASE ADD EVENT a.a
 accept	accept	engine	createEventSessionStatement_SESSION(targetDeclarationList)?/targetDeclarationList	CREATE EVENT SESSION a ON DATABASE ADD EVENT a.a ADD TARGET a.a
 reject	reject	engine	createEventSessionStatement_SESSION(targetDeclarationList)?/targetDeclarationList!drop-1	CREATE EVENT SESSION a ON DATABASE ADD EVENT a.a TARGET a.a
 reject	reject	engine	createEventSessionStatement_SESSION(targetDeclarationList)?/targetDeclarationList!drop-2	CREATE EVENT SESSION a ON DATABASE ADD EVENT a.a ADD a.a
-accept	reject	engine	createEventSessionStatement_SESSION(targetDeclarationList)?/targetDeclarationList!drop-3	CREATE EVENT SESSION a ON DATABASE ADD EVENT a.a ADD TARGET.a
+reject	reject	engine	createEventSessionStatement_SESSION(targetDeclarationList)?/targetDeclarationList!drop-3	CREATE EVENT SESSION a ON DATABASE ADD EVENT a.a ADD TARGET.a
 reject	reject	engine	createEventSessionStatement_SESSION(targetDeclarationList)?/targetDeclarationList!drop-4	CREATE EVENT SESSION a ON DATABASE ADD EVENT a.a ADD TARGET a a
-accept	reject	engine	createEventSessionStatement_SESSION(targetDeclarationList)?/targetDeclarationList!drop-5	CREATE EVENT SESSION a ON DATABASE ADD EVENT a.a ADD TARGET a.
+reject	reject	engine	createEventSessionStatement_SESSION(targetDeclarationList)?/targetDeclarationList!drop-5	CREATE EVENT SESSION a ON DATABASE ADD EVENT a.a ADD TARGET a.
 reject	reject	engine	createEventSessionStatement_SESSION(targetDeclarationList)?/targetDeclarationList!insert	CREATE EVENT SESSION a ON DATABASE ADD EVENT a.a ADD TARGET a.a zzz
 reject	reject	engine	createEventSessionStatement_SESSION(targetDeclarationList)?/targetDeclarationList!swap	CREATE EVENT SESSION a ON DATABASE ADD EVENT a.a ADMIN TARGET a.a
-accept	reject	engine	maxMemorySessionOption_MAX_MEMORY/MAX_MEMORY_integerSessionOptionValue	ALTER EVENT SESSION a ON DATABASE WITH(MAX_MEMORY = 1 a)
-accept	reject	engine	maxEventSizeSessionOption_MAX_EVENT_SIZE/MAX_EVENT_SIZE_integerSessionOptionValue	ALTER EVENT SESSION a ON DATABASE WITH(MAX_EVENT_SIZE = 1 a)
+reject	reject	engine	maxMemorySessionOption_MAX_MEMORY/MAX_MEMORY_integerSessionOptionValue	ALTER EVENT SESSION a ON DATABASE WITH(MAX_MEMORY = 1 a)
+reject	reject	engine	maxEventSizeSessionOption_MAX_EVENT_SIZE/MAX_EVENT_SIZE_integerSessionOptionValue	ALTER EVENT SESSION a ON DATABASE WITH(MAX_EVENT_SIZE = 1 a)
 accept	accept	engine	trackCausalitySessionOption_TRACK_CAUSALITY/TRACK_CAUSALITY_onOffSessionOption	ALTER EVENT SESSION a ON DATABASE WITH(TRACK_CAUSALITY = ON)
 accept	accept	engine	startupStateSessionOption_STARTUP_STATE/STARTUP_STATE_onOffSessionOption	ALTER EVENT SESSION a ON DATABASE WITH(STARTUP_STATE = ON)
-accept	reject	engine	eventRetentionSessionOption_EVENT_RETENTION_MODE/EVENT_RETENTION_MODE_EqualsSign_Identifier	ALTER EVENT SESSION a ON DATABASE WITH(EVENT_RETENTION_MODE = a)
-accept	reject	engine	memoryPartitionSessionOption_MEMORY_PARTITION_MODE/MEMORY_PARTITION_MODE_EqualsSign_Identifier	ALTER EVENT SESSION a ON DATABASE WITH(MEMORY_PARTITION_MODE = a)
+reject	reject	engine	eventRetentionSessionOption_EVENT_RETENTION_MODE/EVENT_RETENTION_MODE_EqualsSign_Identifier	ALTER EVENT SESSION a ON DATABASE WITH(EVENT_RETENTION_MODE = a)
+reject	reject	engine	memoryPartitionSessionOption_MEMORY_PARTITION_MODE/MEMORY_PARTITION_MODE_EqualsSign_Identifier	ALTER EVENT SESSION a ON DATABASE WITH(MEMORY_PARTITION_MODE = a)
 accept	accept	engine	maxDispatchLatencySessionOption_MAX_DISPATCH_LATENCY/MAX_DISPATCH_LATENCY_EqualsSign_(INFINITE|integer_SECONDS)	ALTER EVENT SESSION a ON DATABASE WITH(MAX_DISPATCH_LATENCY = INFINITE)
 accept	accept	engine	maxDispatchLatencySessionOption_MAX_DISPATCH_LATENCY(INFINITE|integer_SECONDS)/INFINITE	ALTER EVENT SESSION a ON DATABASE WITH(MAX_DISPATCH_LATENCY = INFINITE)
-accept	reject	engine	maxDispatchLatencySessionOption_MAX_DISPATCH_LATENCY(INFINITE|integer_SECONDS)/INFINITE!swap	ALTER EVENT SESSION a ON DATABASE WITH(MAX_DISPATCH_LATENCY = INHERIT)
+reject	reject	engine	maxDispatchLatencySessionOption_MAX_DISPATCH_LATENCY(INFINITE|integer_SECONDS)/INFINITE!swap	ALTER EVENT SESSION a ON DATABASE WITH(MAX_DISPATCH_LATENCY = INHERIT)
 accept	accept	engine	maxDispatchLatencySessionOption_MAX_DISPATCH_LATENCY(INFINITE|integer_SECONDS)/integer_SECONDS	ALTER EVENT SESSION a ON DATABASE WITH(MAX_DISPATCH_LATENCY = 1 SECONDS)
-accept	reject	engine	maxDispatchLatencySessionOption_MAX_DISPATCH_LATENCY(INFINITE|integer_SECONDS)/integer_SECONDS!drop-1	ALTER EVENT SESSION a ON DATABASE WITH(MAX_DISPATCH_LATENCY = SECONDS)
-accept	reject	engine	maxDispatchLatencySessionOption_MAX_DISPATCH_LATENCY(INFINITE|integer_SECONDS)/integer_SECONDS!drop-2	ALTER EVENT SESSION a ON DATABASE WITH(MAX_DISPATCH_LATENCY = 1)
-accept	reject	engine	maxDispatchLatencySessionOption_MAX_DISPATCH_LATENCY(INFINITE|integer_SECONDS)/integer_SECONDS!truncate	ALTER EVENT SESSION a ON DATABASE WITH(MAX_DISPATCH_LATENCY = 1
-accept	reject	engine	maxDispatchLatencySessionOption_MAX_DISPATCH_LATENCY(INFINITE|integer_SECONDS)/integer_SECONDS!insert	ALTER EVENT SESSION a ON DATABASE WITH(MAX_DISPATCH_LATENCY = 1 SECONDS zzz)
-accept	reject	engine	maxDispatchLatencySessionOption_MAX_DISPATCH_LATENCY(INFINITE|integer_SECONDS)/integer_SECONDS!swap	ALTER EVENT SESSION a ON DATABASE WITH(MAX_DISPATCH_LATENCY = 1 SECRET)
+reject	reject	engine	maxDispatchLatencySessionOption_MAX_DISPATCH_LATENCY(INFINITE|integer_SECONDS)/integer_SECONDS!drop-1	ALTER EVENT SESSION a ON DATABASE WITH(MAX_DISPATCH_LATENCY = SECONDS)
+reject	reject	engine	maxDispatchLatencySessionOption_MAX_DISPATCH_LATENCY(INFINITE|integer_SECONDS)/integer_SECONDS!drop-2	ALTER EVENT SESSION a ON DATABASE WITH(MAX_DISPATCH_LATENCY = 1)
+reject	reject	engine	maxDispatchLatencySessionOption_MAX_DISPATCH_LATENCY(INFINITE|integer_SECONDS)/integer_SECONDS!truncate	ALTER EVENT SESSION a ON DATABASE WITH(MAX_DISPATCH_LATENCY = 1
+reject	reject	engine	maxDispatchLatencySessionOption_MAX_DISPATCH_LATENCY(INFINITE|integer_SECONDS)/integer_SECONDS!insert	ALTER EVENT SESSION a ON DATABASE WITH(MAX_DISPATCH_LATENCY = 1 SECONDS zzz)
+reject	reject	engine	maxDispatchLatencySessionOption_MAX_DISPATCH_LATENCY(INFINITE|integer_SECONDS)/integer_SECONDS!swap	ALTER EVENT SESSION a ON DATABASE WITH(MAX_DISPATCH_LATENCY = 1 SECRET)
 accept	accept	engine	languageTerm_LANGUAGE/LANGUAGE_(stringLiteral|integer|identifier|binary)	ALTER FULLTEXT INDEX ON a ADD(a LANGUAGE 'a')
 accept	accept	engine	languageTerm_LANGUAGE(stringLiteral|integer|identifier|binary)/stringLiteral	ALTER FULLTEXT INDEX ON a ADD(a LANGUAGE 'a')
 accept	accept	engine	languageTerm_LANGUAGE(stringLiteral|integer|identifier|binary)/integer	ALTER FULLTEXT INDEX ON a ADD(a LANGUAGE 1)
@@ -16763,7 +16763,7 @@ accept	accept	engine	dropEventStatement_EVENT/EVENT_(dropEventNotificationStatem
 accept	accept	engine	dropEventStatement_EVENT(dropEventNotificationStatement_NOTIF~c5fe8f0b)/dropEventNotificationStatement_NOTIFICATION	DROP EVENT NOTIFICATION a ON DATABASE
 reject	reject	engine	dropEventStatement_EVENT(dropEventNotificationStatement_NOTIF~c5fe8f0b)/dropEventNotificationStatement_NOTIFICATION!swap	DROP EVENT NOWAIT a ON DATABASE
 accept	accept	engine	dropEventStatement_EVENT(dropEventNotificationStatement_NOTIF~c5fe8f0b)/dropEventSessionStatement_SESSION	DROP EVENT SESSION a ON DATABASE
-accept	reject	engine	dropEventStatement_EVENT(dropEventNotificationStatement_NOTIF~c5fe8f0b)/dropEventSessionStatement_SESSION!drop-2	DROP EVENT SESSION ON DATABASE
+reject	reject	engine	dropEventStatement_EVENT(dropEventNotificationStatement_NOTIF~c5fe8f0b)/dropEventSessionStatement_SESSION!drop-2	DROP EVENT SESSION ON DATABASE
 reject	reject	engine	dropEventStatement_EVENT(dropEventNotificationStatement_NOTIF~c5fe8f0b)/dropEventSessionStatement_SESSION!swap	DROP EVENT SESSIONS a ON DATABASE
 accept	reject	engine	dropSearchPropertyListStatement_SEARCH/SEARCH_PROPERTY_LIST_identifier_requiredSemicolon	DROP SEARCH PROPERTY LIST a
 accept	accept	engine	dropSequenceStatement_SEQUENCE/SEQUENCE_(If_Exists)?_dropObjectList	DROP SEQUENCE a
@@ -16871,12 +16871,12 @@ reject	reject	engine	lowPriorityLockWaitOption_WAIT_AT_LOW_PRIORITY(MINUTES)?/MI
 reject	reject	engine	waitAtLowPriorityOption_WAIT_AT_LOW_PRIORITY/lowPriorityLockWaitOption_WAIT_AT_LOW_PRIORITY	ALTER TABLE a REBUILD WITH(WAIT_AT_LOW_PRIORITY(MAX_DURATION = 1, ABORT_AFTER_WAIT = a))
 accept	accept	engine	dropEventNotificationStatement_NOTIFICATION/NOTIFICATION_identifier_(Comma_identifier)*_eventNotifi~3b9b849f	DROP EVENT NOTIFICATION a ON DATABASE
 accept	accept	engine	dropEventNotificationStatement_NOTIFICATION(Comma_identifier)*/%empty	DROP EVENT NOTIFICATION a ON DATABASE
-accept	reject	engine	dropEventNotificationStatement_NOTIFICATION(Comma_identifier)*/%empty!insert	DROP EVENT NOTIFICATION a zzz ON DATABASE
+reject	reject	engine	dropEventNotificationStatement_NOTIFICATION(Comma_identifier)*/%empty!insert	DROP EVENT NOTIFICATION a zzz ON DATABASE
 accept	accept	engine	dropEventNotificationStatement_NOTIFICATION(Comma_identifier)*/Comma_identifier_(Comma_identifier)*	DROP EVENT NOTIFICATION a, a ON DATABASE
-accept	reject	engine	dropEventNotificationStatement_NOTIFICATION(Comma_identifier)*/Comma_identifier_(Comma_identifier)*!drop-1	DROP EVENT NOTIFICATION a a ON DATABASE
-accept	reject	engine	dropEventNotificationStatement_NOTIFICATION(Comma_identifier)*/Comma_identifier_(Comma_identifier)*!drop-2	DROP EVENT NOTIFICATION a, ON DATABASE
-accept	reject	engine	dropEventNotificationStatement_NOTIFICATION(Comma_identifier)*/Comma_identifier_(Comma_identifier)*!truncate	DROP EVENT NOTIFICATION a,
-accept	reject	engine	dropEventNotificationStatement_NOTIFICATION(Comma_identifier)*/Comma_identifier_(Comma_identifier)*!insert	DROP EVENT NOTIFICATION a, a zzz ON DATABASE
+reject	reject	engine	dropEventNotificationStatement_NOTIFICATION(Comma_identifier)*/Comma_identifier_(Comma_identifier)*!drop-1	DROP EVENT NOTIFICATION a a ON DATABASE
+reject	reject	engine	dropEventNotificationStatement_NOTIFICATION(Comma_identifier)*/Comma_identifier_(Comma_identifier)*!drop-2	DROP EVENT NOTIFICATION a, ON DATABASE
+reject	reject	engine	dropEventNotificationStatement_NOTIFICATION(Comma_identifier)*/Comma_identifier_(Comma_identifier)*!truncate	DROP EVENT NOTIFICATION a,
+reject	reject	engine	dropEventNotificationStatement_NOTIFICATION(Comma_identifier)*/Comma_identifier_(Comma_identifier)*!insert	DROP EVENT NOTIFICATION a, a zzz ON DATABASE
 accept	accept	engine	dropEventSessionStatement_SESSION/SESSION_identifier_eventSessionDropScope	DROP EVENT SESSION a ON DATABASE
 accept	accept	engine	dropExternalDataSourceStatement_DATA/DATA_SOURCE_identifier	DROP EXTERNAL DATA SOURCE a
 accept	accept	engine	dropExternalLibraryStatement_LIBRARY/LIBRARY_identifier_authorizationOpt	DROP EXTERNAL LIBRARY a
