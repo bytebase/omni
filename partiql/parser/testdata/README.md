@@ -9,9 +9,9 @@ the generated rows from the grammar, and asks the judge again on every run.
 
 | Rows | Total | Agree | Only the judge accepts | Only omni accepts |
 | --- | --- | --- | --- | --- |
-| One per alternative of the grammar | 632 | 251 | 380 | 1 |
-| Near-misses: a token dropped, the end cut off, a word inserted, a keyword swapped | 1,217 | 1,200 | 14 | 3 |
-| `suite:dynamodb-docs`: the statements DynamoDB's developer guide prints | 61 | 59 | 2 | 0 |
+| One per alternative of the grammar | 632 | 632 | 0 | 0 |
+| Near-misses: a token dropped, the end cut off, a word inserted, a keyword swapped | 1,217 | 1,217 | 0 | 0 |
+| `suite:dynamodb-docs`: the statements DynamoDB's developer guide prints | 61 | 61 | 0 | 0 |
 
 - **The grammar** is `../../testdata/PartiQLParser.g4` with its lexer grammar
   `PartiQLTokens.g4`: the grammar of the PartiQL reference implementation,
@@ -67,16 +67,12 @@ PartiQL has no server CI can start, so no row is an engine's answer.
 
 ## The work list
 
-396 rows the judge accepts and omni rejects:
-
-- **271 are one gap:** an expression as a statement (`dql : expr`,
-  `PartiQLParser.g4`), which omni's `Parse` refuses and its expression parser
-  takes. Most alternatives of the expression rules are carried by one, so
-  closing it is what shows the rest. The two DynamoDB rows are this gap:
-  `EXISTS(SELECT ...)`, the condition check of a transaction.
-- **125 others:** a graph pattern that begins with an edge (48), tokens after
-  a statement (19), `EXCLUDE` (12), `VALUES` and value lists (11), `OVERLAY`
-  (7), and smaller ones.
+Empty: omni says what the judge says on every row. The last 125 rows were
+omni's to close. It refused a graph pattern that begins with an edge, CREATE
+TABLE's columns and qualified name, `EXCLUDE`, `VALUES` and value lists,
+`OVERLAY`, `POSITION`, label expressions and a SET command alone, and it took
+`EXECUTE`, which no rule begins with, and two forms the visitor refuses: a
+path step `[NULL]` and a word after a FROM-clause `MATCH`.
 
 ## What the judge cannot decide
 

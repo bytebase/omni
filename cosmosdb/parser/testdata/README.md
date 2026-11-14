@@ -12,8 +12,8 @@ every run.
 
 | Rows | Total | Agree | Only the judge accepts | Only omni accepts |
 | --- | --- | --- | --- | --- |
-| One per alternative | 163 | 158 | 5 | 0 |
-| Near-misses | 287 | 273 | 3 | 11 |
+| One per alternative | 163 | 163 | 0 | 0 |
+| Near-misses | 287 | 287 | 0 | 0 |
 
 - **The grammar** is `../../testdata/sql.g4`: Microsoft's grammar of the query
   language, as the .NET SDK publishes it at release `3.64.0`

@@ -157,6 +157,7 @@ type SelectStmt struct {
 	Value      ExprNode         // SELECT VALUE expr (PartiQL-unique)
 	Pivot      *PivotProjection // PIVOT v AT k (PartiQL-unique)
 	Targets    []*TargetEntry   // SELECT items
+	Exclude    []*ExcludePath   // EXCLUDE paths
 	From       TableExpr        // FROM clause
 	Let        []*LetBinding    // LET bindings (PartiQL-unique)
 	Where      ExprNode
@@ -190,6 +191,21 @@ type SetOpStmt struct {
 func (*SetOpStmt) nodeTag()      {}
 func (n *SetOpStmt) GetLoc() Loc { return n.Loc }
 func (*SetOpStmt) stmtNode()     {}
+
+// ExprStmt is an expression standing as a statement: `1 + 1`,
+// `EXISTS(SELECT ...)`. A query is any expression in PartiQL; a SELECT,
+// a set operation or a parenthesised query parses to its own StmtNode
+// instead.
+//
+// Grammar: statement#QueryDql, dql : expr
+type ExprStmt struct {
+	Expr ExprNode
+	Loc  Loc
+}
+
+func (*ExprStmt) nodeTag()      {}
+func (n *ExprStmt) GetLoc() Loc { return n.Loc }
+func (*ExprStmt) stmtNode()     {}
 
 // ExplainStmt wraps any other StmtNode with an EXPLAIN prefix.
 //
@@ -339,13 +355,16 @@ func (*RemoveStmt) nodeTag()      {}
 func (n *RemoveStmt) GetLoc() Loc { return n.Loc }
 func (*RemoveStmt) stmtNode()     {}
 
-// CreateTableStmt represents `CREATE TABLE name`. PartiQL DDL has no
-// column definitions or constraints — just the table name.
+// CreateTableStmt represents `CREATE TABLE [schema.]name [(columns)]`.
+// Qualifier holds the names before the last period of a qualified name,
+// and Columns the column declarations, if any.
 //
 // Grammar: createCommand#CreateTable
 type CreateTableStmt struct {
-	Name *VarRef
-	Loc  Loc
+	Name      *VarRef
+	Qualifier []*VarRef
+	Columns   []*ColumnDef
+	Loc       Loc
 }
 
 func (*CreateTableStmt) nodeTag()      {}
@@ -365,12 +384,14 @@ func (*CreateIndexStmt) nodeTag()      {}
 func (n *CreateIndexStmt) GetLoc() Loc { return n.Loc }
 func (*CreateIndexStmt) stmtNode()     {}
 
-// DropTableStmt represents `DROP TABLE name`.
+// DropTableStmt represents `DROP TABLE [schema.]name`. Qualifier holds the
+// names before the last period of a qualified name.
 //
 // Grammar: dropCommand#DropTable
 type DropTableStmt struct {
-	Name *VarRef
-	Loc  Loc
+	Name      *VarRef
+	Qualifier []*VarRef
+	Loc       Loc
 }
 
 func (*DropTableStmt) nodeTag()      {}
@@ -389,6 +410,19 @@ type DropIndexStmt struct {
 func (*DropIndexStmt) nodeTag()      {}
 func (n *DropIndexStmt) GetLoc() Loc { return n.Loc }
 func (*DropIndexStmt) stmtNode()     {}
+
+// SetStmt represents a SET command standing as a statement,
+// `SET a = 1, b.c = 2`, which the grammar reads as DML with no target.
+//
+// Grammar: dml#DmlBase, dmlBaseCommand, setCommand
+type SetStmt struct {
+	Sets []*SetAssignment
+	Loc  Loc
+}
+
+func (*SetStmt) nodeTag()      {}
+func (n *SetStmt) GetLoc() Loc { return n.Loc }
+func (*SetStmt) stmtNode()     {}
 
 // ExecStmt represents `EXEC name [arg, arg, ...]`. Per the grammar
 // (PartiQLParser.g4 line 65: `EXEC name=expr ...`), the procedure name
@@ -413,6 +447,48 @@ func (*ExecStmt) stmtNode()     {}
 // stand alone in scalar/statement/table-expr position, so they don't need
 // a sub-interface marker.
 // ===========================================================================
+
+// ExcludePath is one path of a SELECT's EXCLUDE clause: a variable and one
+// or more steps, each a DotStep (`.a`), AllFieldsStep (`.*`), IndexStep
+// holding an integer or string literal (`[1]`, `['a']`) or WildcardStep
+// (`[*]`).
+//
+// Grammar: excludeExpr, excludeExprSteps
+type ExcludePath struct {
+	Root  *VarRef
+	Steps []PathStep
+	Loc   Loc
+}
+
+func (*ExcludePath) nodeTag()      {}
+func (n *ExcludePath) GetLoc() Loc { return n.Loc }
+
+// ColumnDef is one column declaration of CREATE TABLE:
+// `name type [constraint ...]`.
+//
+// Grammar: tableDefPart#ColumnDeclaration
+type ColumnDef struct {
+	Name        *VarRef
+	Type        *TypeRef
+	Constraints []*ColumnConstraint
+	Loc         Loc
+}
+
+func (*ColumnDef) nodeTag()      {}
+func (n *ColumnDef) GetLoc() Loc { return n.Loc }
+
+// ColumnConstraint is `[CONSTRAINT name] NULL` or
+// `[CONSTRAINT name] NOT NULL`. Name is nil without CONSTRAINT.
+//
+// Grammar: columnConstraint, columnConstraintDef
+type ColumnConstraint struct {
+	Name    *VarRef
+	NotNull bool
+	Loc     Loc
+}
+
+func (*ColumnConstraint) nodeTag()      {}
+func (n *ColumnConstraint) GetLoc() Loc { return n.Loc }
 
 // TargetEntry represents one item in a SELECT projection list:
 // `expr [AS alias]`.
@@ -518,8 +594,11 @@ func (n *SetAssignment) GetLoc() Loc { return n.Loc }
 type OnConflict struct {
 	Target *OnConflictTarget
 	Action OnConflictAction
-	Where  ExprNode
-	Loc    Loc
+	Where  ExprNode // the WHERE of the legacy `ON CONFLICT WHERE expr DO NOTHING`
+	// Condition is the WHERE of `DO REPLACE EXCLUDED WHERE expr` or
+	// `DO UPDATE EXCLUDED WHERE expr` (doReplace, doUpdate).
+	Condition ExprNode
+	Loc       Loc
 }
 
 func (*OnConflict) nodeTag()      {}

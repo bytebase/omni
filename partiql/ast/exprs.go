@@ -59,6 +59,7 @@ const (
 	BinOpGt
 	BinOpLtEq
 	BinOpGtEq
+	BinOpBitAnd // &
 )
 
 // String returns the canonical operator spelling.
@@ -92,6 +93,8 @@ func (op BinOp) String() string {
 		return "<="
 	case BinOpGtEq:
 		return ">="
+	case BinOpBitAnd:
+		return "&"
 	default:
 		return "INVALID"
 	}
@@ -310,14 +313,18 @@ func (s TrimSpec) String() string {
 // calls (DATE_ADD, SIZE, ...), aggregates (COUNT/SUM/AVG/MIN/MAX with the
 // optional DISTINCT/ALL modifier and COUNT(*) form), and window calls
 // (LAG/LEAD with an OVER clause). The Quantifier, Star, and Over fields
-// determine which flavor a particular instance is.
+// determine which flavor a particular instance is. POSITION and OVERLAY are
+// FuncCalls in both their comma and their keyword forms, with the operands
+// in order, as the reference parser reads the comma form. Qualifier holds
+// the schema path of a qualified name.
 //
 // Grammar: functionCall#FunctionCallReserved, functionCall#FunctionCallIdent,
 //
 //	aggregate#CountAll, aggregate#AggregateBase,
-//	windowFunction#LagLeadFunction
+//	windowFunction#LagLeadFunction, position, overlay
 type FuncCall struct {
 	Name       string
+	Qualifier  []*VarRef // the schema path of a qualified name, `a.b.f(x)`
 	Args       []ExprNode
 	Quantifier QuantifierKind // NONE/DISTINCT/ALL — populated for aggregates
 	Star       bool           // true for COUNT(*)
@@ -503,6 +510,20 @@ func (*ParamRef) nodeTag()      {}
 func (n *ParamRef) GetLoc() Loc { return n.Loc }
 func (*ParamRef) exprNode()     {}
 
+// SessionAttribute represents CURRENT_USER or CURRENT_DATE, the session
+// attributes the grammar reads as expression terms. Name is the keyword,
+// upper-cased.
+//
+// Grammar: exprTerm#ExprTermCurrentUser, exprTerm#ExprTermCurrentDate
+type SessionAttribute struct {
+	Name string
+	Loc  Loc
+}
+
+func (*SessionAttribute) nodeTag()      {}
+func (n *SessionAttribute) GetLoc() Loc { return n.Loc }
+func (*SessionAttribute) exprNode()     {}
+
 // SubLink represents a parenthesized SELECT used as a value expression
 // or as a FROM source. Stmt is the inner statement (a SelectStmt or
 // SetOpStmt).
@@ -521,6 +542,32 @@ func (*SubLink) tableExpr()    {}
 // ===========================================================================
 // Collection literals
 // ===========================================================================
+
+// ValueList represents a parenthesized list of expressions: a value list
+// `(a, b)`, which has two or more items, or a row of VALUES, `(a)` or
+// `(a, b)`. The reference parser reads both as a list.
+//
+// Grammar: valueList, valueRow
+type ValueList struct {
+	Items []ExprNode
+	Loc   Loc
+}
+
+func (*ValueList) nodeTag()      {}
+func (n *ValueList) GetLoc() Loc { return n.Loc }
+func (*ValueList) exprNode()     {}
+
+// ValuesExpr represents `VALUES (a, b), (c, d)`, a bag of rows.
+//
+// Grammar: values
+type ValuesExpr struct {
+	Rows []*ValueList
+	Loc  Loc
+}
+
+func (*ValuesExpr) nodeTag()      {}
+func (n *ValuesExpr) GetLoc() Loc { return n.Loc }
+func (*ValuesExpr) exprNode()     {}
 
 // ListLit represents an ordered list literal: [expr, expr, …].
 //
