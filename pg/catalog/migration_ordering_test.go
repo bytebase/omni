@@ -2834,3 +2834,83 @@ func TestMigrationOrdering(t *testing.T) {
 		}
 	})
 }
+
+func TestMigrationDropsTypesAfterTheirUsersChange(t *testing.T) {
+	tests := []struct {
+		name, from, to, want string
+	}{
+		{
+			name: "column off a composite",
+			from: `CREATE TYPE addr AS (street text); CREATE TABLE t (c addr);`,
+			to:   `CREATE TABLE t (c text);`,
+			want: `ALTER TABLE public.t ALTER COLUMN c TYPE text;
+DROP TYPE "public"."addr"`,
+		},
+		{
+			name: "array column off an enum",
+			from: `CREATE TYPE status AS ENUM ('a'); CREATE TABLE t (c status[]);`,
+			to:   `CREATE TABLE t (c text[]);`,
+			want: `ALTER TABLE public.t ALTER COLUMN c TYPE text[];
+DROP TYPE "public"."status"`,
+		},
+		{
+			name: "attribute off a composite, with what that composite uses",
+			from: `CREATE TYPE base AS (x int); CREATE TYPE child AS (b base); CREATE TYPE parent AS (c child);`,
+			to:   `CREATE TYPE parent AS (c text);`,
+			want: `ALTER TYPE "public"."parent" ALTER ATTRIBUTE "c" TYPE text;
+DROP TYPE "public"."child";
+DROP TYPE "public"."base"`,
+		},
+		{
+			name: "the schema holding the type goes last",
+			from: `CREATE SCHEMA s; CREATE TYPE s.addr AS (street text); CREATE TYPE s.unused AS (x int); CREATE TABLE t (c s.addr);`,
+			to:   `CREATE TABLE t (c text);`,
+			want: `DROP TYPE "s"."unused";
+ALTER TABLE public.t ALTER COLUMN c TYPE text;
+DROP TYPE "s"."addr";
+DROP SCHEMA s CASCADE`,
+		},
+		{
+			// t is rebuilt for its new parent.
+			name: "a rebuilt table needs no wait",
+			from: `CREATE TYPE addr AS ENUM ('a'); CREATE TABLE p (id int); CREATE TABLE t (id int, c addr);`,
+			to:   `CREATE TABLE p (id int); CREATE TABLE t (c text) INHERITS (p);`,
+			want: `DROP TABLE "public"."t" CASCADE;
+DROP TYPE "public"."addr";
+CREATE TABLE "public"."t" (
+    "c" text,
+    "id" integer
+) INHERITS ("public"."p");
+ALTER TABLE public.t ALTER COLUMN c TYPE text`,
+		},
+		{
+			name: "a table taking the name of a type a rebuilt table used",
+			from: `CREATE TYPE addr AS ENUM ('a'); CREATE TABLE p (id int); CREATE TABLE t (id int, c addr);`,
+			to:   `CREATE TABLE p (id int); CREATE TABLE t (c text) INHERITS (p); CREATE TABLE addr (x int);`,
+			want: `DROP TABLE "public"."t" CASCADE;
+DROP TYPE "public"."addr";
+CREATE TABLE "public"."addr" (
+    "x" integer
+);
+CREATE TABLE "public"."t" (
+    "c" text,
+    "id" integer
+) INHERITS ("public"."p");
+ALTER TABLE public.t ALTER COLUMN c TYPE text`,
+		},
+		{
+			name: "a dropped column needs no wait",
+			from: `CREATE TYPE addr AS (street text); CREATE TABLE t (c addr, d int);`,
+			to:   `CREATE TABLE t (d int);`,
+			want: `ALTER TABLE public.t DROP COLUMN c;
+DROP TYPE "public"."addr"`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := generateMigrationSQL(t, tt.from, tt.to); got != tt.want {
+				t.Errorf("got:\n%s\nwant:\n%s", got, tt.want)
+			}
+		})
+	}
+}
