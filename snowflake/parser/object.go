@@ -36,6 +36,9 @@ type objectForm struct {
 	// and an UNSET of a name outside unset (or props, when unset is nil).
 	props objectProps
 	unset []string
+	// alterProps, when set, are the properties ALTER ... SET documents where
+	// they differ from CREATE's props.
+	alterProps objectProps
 }
 
 // objectForms maps an object's first keyword to the objects it starts.
@@ -204,11 +207,15 @@ func propOneOf(words ...string) objectValue { return objectValue{kind: valWord, 
 // checkClauses holds a statement's property runs, SETs and UNSETs to f's
 // documented properties.
 func (f *objectForm) checkClauses(s *ast.ObjectStmt) error {
+	props := f.props
+	if s.Verb == "ALTER" && f.alterProps != nil {
+		props = f.alterProps
+	}
 	for _, c := range s.Clauses {
 		switch c.Keywords {
 		case "", "SET":
 			for _, o := range c.Options {
-				v, ok := f.props[o.Name]
+				v, ok := props[o.Name]
 				if !ok || !v.matches(o) {
 					return &ParseError{
 						Position: o.Loc.Start, End: o.Loc.End,
@@ -316,7 +323,9 @@ func (p *Parser) parseObjectProperties(s *ast.ObjectStmt, keywords string, need 
 	c := &ast.ObjectClause{Keywords: keywords, Loc: ast.Loc{Start: p.cur.Loc.Start}}
 	for {
 		switch {
-		case p.startsWithTags() && (p.cur.Type == kwWITH || p.peekNext().Type == '('):
+		case keywords == "" && p.startsWithTags() && (p.cur.Type == kwWITH || p.peekNext().Type == '('):
+			// [ WITH ] TAG ( ... ) is a CREATE's; an ALTER sets tags with
+			// SET TAG <tag> = '<value>'.
 			tags, err := p.parseWithTags()
 			if err != nil {
 				return nil, err
@@ -516,12 +525,36 @@ func (p *Parser) parseObjectValue(opt *ast.CopyOption) error {
 		opt.Lit = lit
 		return nil
 	}
-	words, _, err := p.parseValueWord()
+	words, err := p.parseObjectWord()
 	if err != nil {
 		return err
 	}
 	opt.Words = words
 	return nil
+}
+
+// parseObjectWord reads a word value: a name, or a qualified name whose parts
+// are joined by '.', each part an identifier or a keyword. Keywords and
+// unquoted names are uppercased; a quoted part keeps its quotes, so "TRUE"
+// never reads as the keyword TRUE.
+func (p *Parser) parseObjectWord() (string, error) {
+	var b strings.Builder
+	for {
+		switch {
+		case p.cur.Type == tokQuotedIdent:
+			tok := p.advance()
+			b.WriteString(p.srcSlice(tok.Loc.Start, tok.Loc.End))
+		case p.cur.Type == tokIdent || p.cur.Type >= 700:
+			b.WriteString(strings.ToUpper(p.advance().Str))
+		default:
+			return "", p.syntaxErrorAtCur()
+		}
+		if p.cur.Type != '.' {
+			return b.String(), nil
+		}
+		p.advance() // consume '.'
+		b.WriteByte('.')
+	}
 }
 
 // parseObjectValueParen reads a parenthesized property value. cur is '('.
@@ -573,7 +606,7 @@ func (p *Parser) parseObjectValueParen(opt *ast.CopyOption) error {
 			}
 		case p.isOptionWord(p.cur.Type) && !p.curIsLiteral():
 			// A bare name in a list of names: ( a [ , ... ] ).
-			words, _, err := p.parseValueWord()
+			words, err := p.parseObjectWord()
 			if err != nil {
 				return err
 			}
