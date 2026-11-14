@@ -637,6 +637,9 @@ func walkChildren(v Visitor, node Node) {
 		if n.PartitionBy != nil {
 			Walk(v, n.PartitionBy)
 		}
+		if n.PartitionExpr != nil {
+			Walk(v, n.PartitionExpr)
+		}
 		if n.DistributedBy != nil {
 			Walk(v, n.DistributedBy)
 		}
@@ -945,6 +948,9 @@ func walkChildren(v Visitor, node Node) {
 	case *SetStmt:
 		for _, item := range n.Items {
 			Walk(v, item)
+		}
+		for _, prop := range n.Properties {
+			Walk(v, prop)
 		}
 	case *SetItem:
 		if n.Value != nil {

@@ -6,34 +6,27 @@ import (
 	"github.com/bytebase/omni/doris/ast"
 )
 
-// parseCreateMTMV parses a CREATE MATERIALIZED VIEW statement.
+// parseCreateMTMV parses #createMTMV (DorisParser.g4:92):
+//
+//	CREATE MATERIALIZED VIEW (IF NOT EXISTS)? multipartIdentifier
+//	    (LEFT_PAREN simpleColumnDefs RIGHT_PAREN)? buildMode?
+//	    (REFRESH refreshMethod? refreshTrigger?)?
+//	    ((DUPLICATE)? KEY identifierList)?
+//	    (COMMENT STRING_LITERAL)?
+//	    (PARTITION BY LEFT_PAREN mvPartition RIGHT_PAREN)?
+//	    (DISTRIBUTED BY (HASH identifierList | RANDOM) (BUCKETS (INTEGER_VALUE | AUTO))?)?
+//	    propertyClause?
+//	    AS? query
+//
 // On entry, CREATE has been consumed and cur is MATERIALIZED.
-//
-// Syntax:
-//
-//	CREATE MATERIALIZED VIEW [IF NOT EXISTS] mv_name
-//	    [BUILD IMMEDIATE | DEFERRED]
-//	    [REFRESH COMPLETE | AUTO | NEVER | INCREMENTAL]
-//	    [(col_name [COMMENT 'text'], ...)]
-//	    [COMMENT 'text']
-//	    [PARTITION BY ...]
-//	    [DISTRIBUTED BY ...]
-//	    [ON SCHEDULE EVERY interval [STARTS ts] | ON COMMIT | ON MANUAL]
-//	    [PROPERTIES (...)]
-//	    AS query
 func (p *Parser) parseCreateMTMV(startLoc ast.Loc) (ast.Node, error) {
-	// Consume MATERIALIZED
 	if _, err := p.expect(kwMATERIALIZED); err != nil {
 		return nil, err
 	}
-	// Consume VIEW
 	if _, err := p.expect(kwVIEW); err != nil {
 		return nil, err
 	}
-
 	stmt := &ast.CreateMTMVStmt{}
-
-	// Optional IF NOT EXISTS
 	if p.cur.Kind == kwIF {
 		p.advance() // consume IF
 		if _, err := p.expect(kwNOT); err != nil {
@@ -44,131 +37,90 @@ func (p *Parser) parseCreateMTMV(startLoc ast.Loc) (ast.Node, error) {
 		}
 		stmt.IfNotExists = true
 	}
-
-	// MV name
 	name, err := p.parseMultipartIdentifier()
 	if err != nil {
 		return nil, err
 	}
 	stmt.Name = name
 
-	// Parse optional clauses in a tolerant loop until we see AS or EOF.
-	// Clauses can appear in any order per Doris docs.
-	for p.cur.Kind != kwAS && p.cur.Kind != tokEOF {
-		switch p.cur.Kind {
-		case kwBUILD:
-			// BUILD IMMEDIATE | DEFERRED
-			p.advance() // consume BUILD
-			switch p.cur.Kind {
-			case kwIMMEDIATE:
-				stmt.BuildMode = "IMMEDIATE"
-				p.advance()
-			case kwDEFERRED:
-				stmt.BuildMode = "DEFERRED"
-				p.advance()
-			default:
-				// tolerate unknown token after BUILD
-				stmt.BuildMode = strings.ToUpper(p.cur.Str)
-				p.advance()
-			}
-
-		case kwREFRESH:
-			// REFRESH COMPLETE | AUTO | NEVER | INCREMENTAL
-			p.advance() // consume REFRESH
-			switch p.cur.Kind {
-			case kwCOMPLETE:
-				stmt.RefreshMethod = "COMPLETE"
-				p.advance()
-			case kwAUTO:
-				stmt.RefreshMethod = "AUTO"
-				p.advance()
-			case kwNEVER:
-				stmt.RefreshMethod = "NEVER"
-				p.advance()
-			case kwINCREMENTAL:
-				stmt.RefreshMethod = "INCREMENTAL"
-				p.advance()
-			default:
-				// tolerate unknown
-				stmt.RefreshMethod = strings.ToUpper(p.cur.Str)
-				p.advance()
-			}
-
-		case kwON:
-			// ON SCHEDULE EVERY interval [STARTS ts]
-			// ON COMMIT
-			// ON MANUAL
-			trigger, err := p.parseMTMVRefreshTrigger()
-			if err != nil {
+	if p.cur.Kind == int('(') {
+		if stmt.Columns, err = p.parseViewColumns(); err != nil {
+			return nil, err
+		}
+	}
+	if p.cur.Kind == kwBUILD {
+		// buildMode (:1009): BUILD (IMMEDIATE | DEFERRED)
+		p.advance() // consume BUILD
+		if p.cur.Kind != kwIMMEDIATE && p.cur.Kind != kwDEFERRED {
+			return nil, p.syntaxErrorAtCur()
+		}
+		stmt.BuildMode = strings.ToUpper(p.advance().Str)
+	}
+	if p.cur.Kind == kwREFRESH {
+		p.advance() // consume REFRESH
+		// refreshMethod (:1023): COMPLETE | AUTO
+		if p.cur.Kind == kwCOMPLETE || p.cur.Kind == kwAUTO {
+			stmt.RefreshMethod = strings.ToUpper(p.advance().Str)
+		}
+		if p.cur.Kind == kwON {
+			if stmt.RefreshTrigger, err = p.parseMTMVRefreshTrigger(); err != nil {
 				return nil, err
 			}
-			stmt.RefreshTrigger = trigger
-
-		case int('('):
-			// Optional column list: (col_name [COMMENT 'text'], ...)
-			cols, err := p.parseViewColumns()
-			if err != nil {
-				return nil, err
-			}
-			stmt.Columns = cols
-
-		case kwCOMMENT:
-			p.advance() // consume COMMENT
-			if p.cur.Kind != tokString {
-				return nil, p.syntaxErrorAtCur()
-			}
-			stmt.Comment = p.cur.Str
-			p.advance()
-
-		case kwPARTITION:
-			partDesc, err := p.parsePartitionBy()
-			if err != nil {
-				return nil, err
-			}
-			stmt.PartitionBy = partDesc
-
-		case kwAUTO:
-			// AUTO PARTITION BY ...
-			partDesc, err := p.parsePartitionBy()
-			if err != nil {
-				return nil, err
-			}
-			stmt.PartitionBy = partDesc
-
-		case kwDISTRIBUTED:
-			distDesc, err := p.parseDistributedBy()
-			if err != nil {
-				return nil, err
-			}
-			stmt.DistributedBy = distDesc
-
-		case kwPROPERTIES:
-			props, err := p.parseProperties()
-			if err != nil {
-				return nil, err
-			}
-			stmt.Properties = props
-
-		default:
-			// Tolerate unknown tokens — advance to avoid infinite loop.
-			p.advance()
+		}
+	}
+	if p.cur.Kind == kwDUPLICATE || p.cur.Kind == kwKEY {
+		stmt.DuplicateKey = p.cur.Kind == kwDUPLICATE
+		if stmt.DuplicateKey {
+			p.advance() // consume DUPLICATE
+		}
+		if _, err := p.expect(kwKEY); err != nil {
+			return nil, err
+		}
+		if stmt.Keys, err = p.parseLoadIdentifierList(); err != nil {
+			return nil, err
+		}
+	}
+	if p.cur.Kind == kwCOMMENT {
+		p.advance() // consume COMMENT
+		if p.cur.Kind != tokString {
+			return nil, p.syntaxErrorAtCur()
+		}
+		stmt.Comment = p.advance().Str
+	}
+	if p.cur.Kind == kwPARTITION {
+		if err := p.parseMTMVPartition(stmt); err != nil {
+			return nil, err
+		}
+	}
+	if p.cur.Kind == kwDISTRIBUTED {
+		if stmt.DistributedBy, err = p.parseDistributedBy(); err != nil {
+			return nil, err
+		}
+	}
+	if p.cur.Kind == kwPROPERTIES {
+		if stmt.Properties, err = p.parseProperties(); err != nil {
+			return nil, err
 		}
 	}
 
-	// AS keyword is required
-	if _, err := p.expect(kwAS); err != nil {
-		return nil, err
+	// AS? query. Doris takes the query without AS only after a column list,
+	// BUILD, a refresh method or trigger, KEY or DISTRIBUTED BY; with none
+	// of them before it, or only a bare REFRESH, COMMENT, PARTITION BY or
+	// PROPERTIES, it refuses CREATE MATERIALIZED VIEW a SELECT ...
+	// (testdata/compat.tsv).
+	if p.cur.Kind == kwAS {
+		p.advance()
+	} else if stmt.Columns == nil && stmt.BuildMode == "" && stmt.RefreshMethod == "" &&
+		stmt.RefreshTrigger == nil && stmt.Keys == nil && stmt.DistributedBy == nil {
+		return nil, p.syntaxErrorAtCur()
 	}
-
-	// Query — SELECT or WITH ... SELECT or set operation
 	var queryNode ast.Node
 	if p.cur.Kind == kwWITH {
 		wq, err := p.parseWithSelect()
 		if err != nil {
 			return nil, err
 		}
-		queryNode, err = p.parseQueryTail(wq)
-		if err != nil {
+		if queryNode, err = p.parseQueryTail(wq); err != nil {
 			return nil, err
 		}
 	} else {
@@ -176,8 +128,7 @@ func (p *Parser) parseCreateMTMV(startLoc ast.Loc) (ast.Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		queryNode, err = p.parseQueryTail(query)
-		if err != nil {
+		if queryNode, err = p.parseQueryTail(query); err != nil {
 			return nil, err
 		}
 	}
@@ -185,6 +136,44 @@ func (p *Parser) parseCreateMTMV(startLoc ast.Loc) (ast.Node, error) {
 
 	stmt.Loc = startLoc.Merge(ast.NodeLoc(stmt.Query))
 	return stmt, nil
+}
+
+// parseMTMVPartition reads PARTITION BY LEFT_PAREN mvPartition RIGHT_PAREN
+// (DorisParser.g4:97), where mvPartition is an identifier or a function
+// call (:1027).
+func (p *Parser) parseMTMVPartition(stmt *ast.CreateMTMVStmt) error {
+	start := p.advance().Loc // consume PARTITION
+	if _, err := p.expect(kwBY); err != nil {
+		return err
+	}
+	if _, err := p.expect(int('(')); err != nil {
+		return err
+	}
+	exprStart := p.cur
+	expr, err := p.parseExpr()
+	if err != nil {
+		return err
+	}
+	switch e := expr.(type) {
+	case *ast.FuncCallExpr:
+		stmt.PartitionExpr = e
+		stmt.PartitionBy = &ast.PartitionDesc{FuncExprs: []string{p.sourceText(e.Loc)}}
+	case *ast.ColumnRef:
+		if len(e.Name.Parts) != 1 {
+			return syntaxErrorAt(exprStart)
+		}
+		stmt.PartitionBy = &ast.PartitionDesc{Columns: []string{e.Name.Parts[0]}}
+	default:
+		return syntaxErrorAt(exprStart)
+	}
+	closeTok, err := p.expect(int(')'))
+	if err != nil {
+		return err
+	}
+	if stmt.PartitionBy != nil {
+		stmt.PartitionBy.Loc = ast.Loc{Start: start.Start, End: closeTok.Loc.End}
+	}
+	return nil
 }
 
 // parseMTMVRefreshTrigger parses the ON clause of CREATE MATERIALIZED VIEW:
@@ -213,20 +202,16 @@ func (p *Parser) parseMTMVRefreshTrigger() (*ast.MTMVRefreshTrigger, error) {
 		// Collect interval: integer + unit keyword (e.g., "1 DAY")
 		// The interval is stored as raw text.
 		intervalStart := p.cur.Loc.Start
-		var parts []string
-		// First token should be an integer
-		if p.cur.Kind == tokInt {
-			parts = append(parts, p.cur.Str)
-			p.advance()
+		// refreshSchedule (DorisParser.g4:1019): EVERY INTEGER_VALUE identifier
+		if p.cur.Kind != tokInt {
+			return nil, p.syntaxErrorAtCur()
 		}
-		// Unit keyword (DAY, HOUR, MINUTE, SECOND, WEEK, MONTH, YEAR, etc.)
-		if p.cur.Kind >= 700 || p.cur.Kind == tokIdent {
-			parts = append(parts, strings.ToUpper(p.cur.Str))
-			p.advance()
+		count := p.advance().Str
+		unit, _, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
 		}
-		if len(parts) > 0 {
-			trigger.Interval = strings.Join(parts, " ")
-		}
+		trigger.Interval = count + " " + strings.ToUpper(unit)
 		_ = intervalStart
 
 		// Optional STARTS timestamp_string
@@ -432,37 +417,19 @@ func (p *Parser) parseRefreshMTMV(startLoc ast.Loc) (ast.Node, error) {
 	stmt.Name = name
 	stmt.Loc = startLoc.Merge(ast.NodeLoc(name))
 
-	// Optional mode or PARTITIONS
+	// (partitionSpec | COMPLETE | AUTO), required (DorisParser.g4:102 #refreshMTMV).
 	switch p.cur.Kind {
 	case kwCOMPLETE:
 		stmt.Mode = "COMPLETE"
-		stmt.Loc.End = p.cur.Loc.End
-		p.advance()
+		stmt.Loc.End = p.advance().Loc.End
 	case kwAUTO:
 		stmt.Mode = "AUTO"
-		stmt.Loc.End = p.cur.Loc.End
-		p.advance()
-	case kwPARTITIONS:
-		p.advance() // consume PARTITIONS
-		if _, err := p.expect(int('(')); err != nil {
+		stmt.Loc.End = p.advance().Loc.End
+	case kwTEMPORARY, kwPARTITION, kwPARTITIONS:
+		if stmt.Partitions, _, err = p.parsePartitionSpec(); err != nil {
 			return nil, err
 		}
-		// Parse comma-separated partition names
-		for p.cur.Kind != int(')') && p.cur.Kind != tokEOF {
-			partName, _, err := p.parseIdentifier()
-			if err != nil {
-				return nil, err
-			}
-			stmt.Partitions = append(stmt.Partitions, partName)
-			if p.cur.Kind == int(',') {
-				p.advance()
-			}
-		}
-		closeTok, err := p.expect(int(')'))
-		if err != nil {
-			return nil, err
-		}
-		stmt.Loc.End = closeTok.Loc.End
+		stmt.Loc.End = p.prev.Loc.End
 	default:
 		return nil, p.syntaxErrorAtCur()
 	}
@@ -530,52 +497,15 @@ func (p *Parser) parseResumeMTMVJob(startLoc ast.Loc) (ast.Node, error) {
 	return stmt, nil
 }
 
-// parseMTMVPropertyList parses a parenthesised key=value list:
-//
-//	( "key" = "val" [, "key" = "val"] ... )
-//
-// cur must be '(' on entry. Used for ALTER MATERIALIZED VIEW ... SET (...).
+// parseMTMVPropertyList parses ALTER MATERIALIZED VIEW ... SET's list,
+// LEFT_PAREN propertyItemList RIGHT_PAREN (DorisParser.g4:106), whose items
+// take an identifier or a constant on either side: SET (a = a) parses.
+// cur must be '(' on entry.
 func (p *Parser) parseMTMVPropertyList() ([]*ast.Property, error) {
 	if _, err := p.expect(int('(')); err != nil {
 		return nil, err
 	}
-
-	return p.parsePropertyItems(p.parseMTMVProperty)
-}
-
-// parseMTMVProperty reads one item of a materialized view's property list,
-// whose key may be written bare as well as quoted.
-func (p *Parser) parseMTMVProperty() (*ast.Property, error) {
-	startLoc := p.cur.Loc
-
-	var key string
-	if p.cur.Kind == tokString {
-		key = p.cur.Str
-		p.advance()
-	} else {
-		var err error
-		key, _, err = p.parseIdentifier()
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if _, err := p.expect(int('=')); err != nil {
-		return nil, err
-	}
-
-	if p.cur.Kind != tokString {
-		return nil, p.syntaxErrorAtCur()
-	}
-	val := p.cur.Str
-	endLoc := p.cur.Loc
-	p.advance()
-
-	return &ast.Property{
-		Key:   key,
-		Value: val,
-		Loc:   ast.Loc{Start: startLoc.Start, End: endLoc.End},
-	}, nil
+	return p.parsePropertyItems(p.parsePropertyItem)
 }
 
 // parseCancelMTMVTask parses a CANCEL MATERIALIZED VIEW TASK task_id ON mv_name statement.

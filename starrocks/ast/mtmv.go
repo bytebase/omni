@@ -48,9 +48,11 @@ type CreateMTMVStmt struct {
 	RefreshMethod  string              // "COMPLETE", "AUTO", "NEVER", "INCREMENTAL", or ""
 	RefreshTrigger *MTMVRefreshTrigger // ON SCHEDULE / ON COMMIT / ON MANUAL
 	Columns        []*ViewColumn       // optional column list
+	Indexes        []string            // the column list's INDEX entries, as written
 	Comment        string
-	PartitionBy    *PartitionDesc
+	PartitionBy    *PartitionDesc // PARTITION BY exprs: FuncExprs holds each, as written
 	DistributedBy  *DistributionDesc
+	OrderBy        []string // ORDER BY (cols)
 	Properties     []*Property
 	Query          Node // *SelectStmt or *SetOpStmt
 	Loc            Loc
@@ -120,8 +122,10 @@ var _ Node = (*DropMTMVStmt)(nil)
 //	REFRESH MATERIALIZED VIEW mv_name [COMPLETE | AUTO | PARTITIONS(p1, p2, ...)]
 type RefreshMTMVStmt struct {
 	Name       *ObjectName
-	Mode       string   // "COMPLETE", "AUTO", or ""
-	Partitions []string // partition names when PARTITIONS(...) specified
+	Mode       string   // WITH SYNC MODE or WITH ASYNC MODE: SYNC or ASYNC, else ""
+	Partitions []string // PARTITION START('s') END('e') or the values, as written
+	Force      bool     // FORCE
+	Priority   int64    // WITH PRIORITY n
 	Loc        Loc
 }
 

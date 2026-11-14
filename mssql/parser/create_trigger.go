@@ -18,7 +18,6 @@ import (
 //	[ WITH <dml_trigger_option> [ , ...n ] ]
 //	{ FOR | AFTER | INSTEAD OF }
 //	{ [ INSERT ] [ , ] [ UPDATE ] [ , ] [ DELETE ] }
-//	[ WITH APPEND ]
 //	[ NOT FOR REPLICATION ]
 //	AS { sql_statement [ ; ] [ , ...n ] | EXTERNAL NAME <method_specifier> [ ; ] }
 //
@@ -66,6 +65,12 @@ import (
 //	<logon_trigger_option> ::=
 //	    [ ENCRYPTION ]
 //	    [ EXECUTE AS Clause ]
+//
+// The grammar is triggerStatementBody (TSql160.g:25231), with
+// dmlTriggerMidSection (TSql160.g:25292) after a table and
+// ddlTriggerMidSection (TSql160.g:25346) after DATABASE or ALL SERVER.
+// SQL Server 2022 refuses WITH APPEND ("'APPEND' is not a recognized
+// option", Msg 195), which the documentation still lists.
 func (p *Parser) parseCreateTriggerStmt(orAlter bool) (*nodes.CreateTriggerStmt, error) {
 	loc := p.pos()
 
@@ -85,16 +90,15 @@ func (p *Parser) parseCreateTriggerStmt(orAlter bool) (*nodes.CreateTriggerStmt,
 	}
 
 	// Trigger name (possibly schema-qualified)
-	name, err := p.parseTableRef()
+	name, err := p.routineParseName("table_ref")
 	if err != nil {
 		return nil, err
 	}
 	stmt.Name = name
 
 	// ON clause
-	if _, ok := p.match(kwON); !ok {
-		stmt.Loc.End = p.prevEnd()
-		return stmt, nil
+	if _, err := p.expect(kwON); err != nil {
+		return nil, err
 	}
 
 	// Completion: after CREATE TRIGGER tr ON → table_ref
@@ -103,23 +107,38 @@ func (p *Parser) parseCreateTriggerStmt(orAlter bool) (*nodes.CreateTriggerStmt,
 		return nil, errCollecting
 	}
 
-	// Determine target: table/view, DATABASE, or ALL SERVER
-	if p.cur.Type == kwDATABASE {
+	// Determine target: table/view, DATABASE, or ALL SERVER (triggerObject,
+	// TSql160.g:25394).
+	switch p.cur.Type {
+	case kwDATABASE:
 		stmt.OnDatabase = true
 		p.advance()
-	} else if p.cur.Type == kwALL {
+	case kwALL:
 		p.advance()
-		// Expect SERVER
-		if p.matchIdentCI("SERVER") {
-			stmt.OnAllServer = true
+		if err := p.routineExpectWord("SERVER"); err != nil {
+			return nil, err
 		}
-	} else {
+		stmt.OnAllServer = true
+	default:
 		// DML trigger: ON table_or_view
 		tbl, err := p.parseTableRef()
 		if err != nil {
 			return nil, err
 		}
+		if tbl == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		// At most database.schema.object (Msg 117).
+		if tbl.Server != "" {
+			return nil, p.newParseError(tbl.Loc.Start, "the object name contains more than the maximum number of prefixes")
+		}
 		stmt.Table = tbl
+	}
+	ddl := stmt.Table == nil
+
+	// A database or server trigger has no schema (Msg 1094).
+	if ddl && stmt.Name.Schema != "" {
+		return nil, p.newParseError(stmt.Name.Loc.Start, "a schema name is not allowed as a prefix to the name of a database or server trigger")
 	}
 
 	// Completion: after CREATE TRIGGER tr ON t → FOR/AFTER/INSTEAD OF
@@ -131,34 +150,34 @@ func (p *Parser) parseCreateTriggerStmt(orAlter bool) (*nodes.CreateTriggerStmt,
 		return nil, errCollecting
 	}
 
-	// Optional WITH clause (trigger options: ENCRYPTION, EXECUTE AS, NATIVE_COMPILATION, SCHEMABINDING)
-	//
-	//  <dml_trigger_option> ::=
-	//      [ ENCRYPTION ]
-	//      [ EXECUTE AS Clause ]
-	//      [ NATIVE_COMPILATION ]
-	//      [ SCHEMABINDING ]
+	// Optional WITH clause (trigger options: ENCRYPTION, EXECUTE AS,
+	// NATIVE_COMPILATION, SCHEMABINDING).
+	var opts routineOptions
 	if p.cur.Type == kwWITH {
-		next := p.peekNext()
-		// Distinguish WITH ENCRYPTION/EXECUTE AS from WITH APPEND
-		if next.Type != kwAPPEND {
-			p.advance() // consume WITH
-			stmt.TriggerOptions = p.parseTriggerWithOptions()
+		p.advance() // consume WITH
+		opts, err = p.routineParseOptions(routineTriggerOptions)
+		if err != nil {
+			return nil, err
 		}
+		stmt.TriggerOptions = opts.list()
 	}
 
-	// Handle case where matchIdentCI in parseTriggerWithOptions already consumed AFTER/INSTEAD
-	// by checking if TriggerType was set during option parsing
-	// { FOR | AFTER | INSTEAD OF }
-	if p.cur.Type == kwFOR {
+	// { FOR | AFTER | INSTEAD OF }; a DDL trigger takes FOR or AFTER only.
+	switch {
+	case p.cur.Type == kwFOR:
 		stmt.TriggerType = "FOR"
 		p.advance()
-	} else if p.matchIdentCI("AFTER") {
+	case p.cur.Type == kwAFTER:
 		stmt.TriggerType = "AFTER"
-	} else if p.matchIdentCI("INSTEAD") {
-		// INSTEAD OF
-		p.match(kwOF)
+		p.advance()
+	case !ddl && p.cur.Type == kwINSTEAD:
+		p.advance()
+		if _, err := p.expect(kwOF); err != nil {
+			return nil, err
+		}
 		stmt.TriggerType = "INSTEAD OF"
+	default:
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	// Completion: after FOR/AFTER/INSTEAD OF → INSERT/UPDATE/DELETE
@@ -169,84 +188,60 @@ func (p *Parser) parseCreateTriggerStmt(orAlter bool) (*nodes.CreateTriggerStmt,
 		return nil, errCollecting
 	}
 
-	// Parse event list
-	var events []nodes.Node
-	for {
-		evtLoc := p.pos()
-		if p.cur.Type == kwINSERT {
-			events = append(events, &nodes.TriggerEvent{Name: "INSERT", Loc: nodes.Loc{Start: evtLoc, End: p.prevEnd()}})
-			p.advance()
-		} else if p.cur.Type == kwUPDATE {
-			events = append(events, &nodes.TriggerEvent{Name: "UPDATE", Loc: nodes.Loc{Start: evtLoc, End: p.prevEnd()}})
-			p.advance()
-		} else if p.cur.Type == kwDELETE {
-			events = append(events, &nodes.TriggerEvent{Name: "DELETE", Loc: nodes.Loc{Start: evtLoc, End: p.prevEnd()}})
-			p.advance()
-		} else if p.matchIdentCI("LOGON") {
-			events = append(events, &nodes.TriggerEvent{Name: "LOGON", Loc: nodes.Loc{Start: evtLoc, End: p.prevEnd()}})
-		} else if p.isIdentLike() {
-			// DDL event type or event group (e.g., CREATE_TABLE, DDL_TABLE_EVENTS)
-			events = append(events, &nodes.TriggerEvent{Name: strings.ToUpper(p.cur.Str), Loc: nodes.Loc{Start: evtLoc, End: p.prevEnd()}})
-			p.advance()
-		} else {
-			break
+	if ddl {
+		events, err := p.triggerParseDDLEvents(stmt.OnAllServer)
+		if err != nil {
+			return nil, err
 		}
-		if _, ok := p.match(','); !ok {
-			break
+		stmt.Events = events
+	} else {
+		events, err := p.triggerParseDMLActions()
+		if err != nil {
+			return nil, err
 		}
-	}
-	if len(events) > 0 {
-		stmt.Events = &nodes.List{Items: events}
-	}
+		stmt.Events = events
 
-	// [ WITH APPEND ] (for DML triggers)
-	if p.cur.Type == kwWITH {
-		next := p.peekNext()
-		if next.Type == kwAPPEND {
-			p.advance() // WITH
-			p.advance() // APPEND
-			stmt.WithAppend = true
-		}
-	}
-
-	// [ NOT FOR REPLICATION ]
-	if p.cur.Type == kwNOT {
-		next := p.peekNext()
-		if next.Type == kwFOR {
+		// [ NOT FOR REPLICATION ]
+		if p.cur.Type == kwNOT {
 			p.advance() // NOT
-			p.advance() // FOR
-			if p.matchIdentCI("REPLICATION") {
-				stmt.NotForReplication = true
+			if _, err := p.expect(kwFOR); err != nil {
+				return nil, err
 			}
+			if _, err := p.expect(kwREPLICATION); err != nil {
+				return nil, err
+			}
+			stmt.NotForReplication = true
 		}
 	}
 
 	// AS
-	p.match(kwAS)
+	if _, err := p.expect(kwAS); err != nil {
+		return nil, err
+	}
 
-	// EXTERNAL NAME assembly_name.class_name.method_name (CLR trigger)
-	if p.cur.Type == kwEXTERNAL {
-		p.advance() // consume EXTERNAL
-		if p.cur.Type == kwNAME {
-			p.advance() // consume NAME
+	// A natively compiled trigger takes neither ENCRYPTION nor NOT FOR
+	// REPLICATION (Msg 10794).
+	if opts.native && (opts.has["ENCRYPTION"] || stmt.NotForReplication) {
+		return nil, p.newParseError(loc, "an option is not supported with natively compiled modules")
+	}
+
+	switch {
+	case opts.native:
+		body, err := p.routineParseAtomicBody()
+		if err != nil {
+			return nil, err
 		}
-		var parts []string
-		for {
-			if p.isIdentLike() || p.cur.Type == tokSCONST {
-				parts = append(parts, p.cur.Str)
-				p.advance()
-			} else {
-				break
-			}
-			if p.cur.Type != '.' {
-				break
-			}
-			p.advance() // consume '.'
+		stmt.Body = body
+	case p.cur.Type == kwEXTERNAL:
+		// EXTERNAL NAME assembly_name.class_name.method_name (CLR trigger)
+		ext, err := p.routineParseMethodSpecifier()
+		if err != nil {
+			return nil, err
 		}
-		stmt.ExternalName = joinDots(parts)
-	} else {
-		// Body: parse statement(s)
-		body, err := p.parseStmt()
+		stmt.ExternalName = ext
+	default:
+		// Body: ( Semicolon )* statementList, which is not empty.
+		body, err := p.routineParseStmtBody(true)
 		if err != nil {
 			return nil, err
 		}
@@ -257,62 +252,74 @@ func (p *Parser) parseCreateTriggerStmt(orAlter bool) (*nodes.CreateTriggerStmt,
 	return stmt, nil
 }
 
-// parseTriggerWithOptions parses comma-separated trigger options after WITH.
-//
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-trigger-transact-sql
-//
-//	<dml_trigger_option> ::=
-//	    ENCRYPTION
-//	  | EXECUTE AS { CALLER | SELF | OWNER | 'user_name' }
-//	  | NATIVE_COMPILATION
-//	  | SCHEMABINDING
-func (p *Parser) parseTriggerWithOptions() *nodes.List {
-	var items []nodes.Node
+// triggerParseDMLActions parses the actions of a DML trigger:
+// { INSERT | UPDATE | DELETE } [ ,...n ] (dmlTriggerAction, TSql160.g:25429),
+// each at most once (Msg 1034).
+func (p *Parser) triggerParseDMLActions() (*nodes.List, error) {
+	var events []nodes.Node
+	seen := map[string]bool{}
 	for {
-		if p.cur.Type == kwFOR || p.cur.Type == tokEOF {
-			break
+		evtLoc := p.pos()
+		var name string
+		switch p.cur.Type {
+		case kwINSERT:
+			name = "INSERT"
+		case kwUPDATE:
+			name = "UPDATE"
+		case kwDELETE:
+			name = "DELETE"
+		default:
+			return nil, p.syntaxErrorAtCur()
 		}
-		// Check for AFTER / INSTEAD which mark end of options
-		if p.cur.Type == kwAFTER || p.cur.Type == kwINSTEAD {
-			break
+		if seen[name] {
+			return nil, p.newParseError(evtLoc, "duplicate specification of the action "+name+" in the trigger declaration")
 		}
-
-		optLoc := p.pos()
-		if p.cur.Type == kwENCRYPTION {
-			items = append(items, &nodes.TriggerOption{Name: "ENCRYPTION", Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
-			p.advance()
-		} else if p.cur.Type == kwEXEC || p.cur.Type == kwEXECUTE {
-			p.advance() // consume EXECUTE/EXEC
-			if p.cur.Type == kwAS {
-				p.advance() // consume AS
-			}
-			// CALLER | SELF | OWNER | 'user_name'
-			var asVal string
-			if p.cur.Type == tokSCONST {
-				asVal = p.cur.Str
-				p.advance()
-			} else if p.isIdentLike() {
-				asVal = strings.ToUpper(p.cur.Str)
-				p.advance()
-			}
-			items = append(items, &nodes.TriggerOption{Name: "EXECUTE AS", Value: asVal, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
-		} else if p.cur.Type == kwNATIVE_COMPILATION {
-			items = append(items, &nodes.TriggerOption{Name: "NATIVE_COMPILATION", Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
-			p.advance()
-		} else if p.cur.Type == kwSCHEMABINDING {
-			items = append(items, &nodes.TriggerOption{Name: "SCHEMABINDING", Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
-			p.advance()
-		} else {
-			// Unknown option — break to avoid infinite loop
-			break
-		}
-
+		seen[name] = true
+		p.advance()
+		events = append(events, &nodes.TriggerEvent{Name: name, Loc: nodes.Loc{Start: evtLoc, End: p.prevEnd()}})
 		if _, ok := p.match(','); !ok {
 			break
 		}
 	}
-	if len(items) == 0 {
-		return nil
+	return &nodes.List{Items: events}, nil
+}
+
+// triggerParseDDLEvents parses the events of a DDL or logon trigger:
+// { event_type | event_group | LOGON } [ ,...n ] (ddlTriggerAction,
+// TSql160.g:25450). ScriptDOM reads an event as any identifier; SQL Server
+// knows the names in sys.trigger_event_types (Msg 1084 "is an invalid event
+// type"), takes the server-level ones and LOGON only ON ALL SERVER
+// (Msg 1098), refuses a delimited name (Msg 102), and refuses an event named
+// twice, by itself or in a group (Msg 1095).
+//
+// Ref: https://learn.microsoft.com/en-us/sql/relational-databases/triggers/ddl-event-groups
+func (p *Parser) triggerParseDDLEvents(onAllServer bool) (*nodes.List, error) {
+	var events []nodes.Node
+	var names []string
+	for {
+		evtLoc := p.pos()
+		if p.cur.Str == "" || !(p.cur.Type == tokIDENT || p.cur.Type >= kwABSENT) || p.isDelimited(p.cur) {
+			return nil, p.syntaxErrorAtCur()
+		}
+		name := strings.ToUpper(p.cur.Str)
+		_, known := triggerEventParents[name]
+		switch {
+		case known && triggerEventIsDatabaseLevel(name):
+		case onAllServer && (known || name == "LOGON"):
+		default:
+			return nil, p.newParseError(evtLoc, "'"+p.cur.Str+"' is an invalid event type for this trigger")
+		}
+		for _, prev := range names {
+			if triggerEventHolds(prev, name) || triggerEventHolds(name, prev) {
+				return nil, p.newParseError(evtLoc, "'"+p.cur.Str+"' has already been specified as an event type")
+			}
+		}
+		names = append(names, name)
+		p.advance()
+		events = append(events, &nodes.TriggerEvent{Name: name, Loc: nodes.Loc{Start: evtLoc, End: p.prevEnd()}})
+		if _, ok := p.match(','); !ok {
+			break
+		}
 	}
-	return &nodes.List{Items: items}
+	return &nodes.List{Items: events}, nil
 }

@@ -107,104 +107,6 @@ func TestCreateMTMV_IfNotExists(t *testing.T) {
 	}
 }
 
-func TestCreateMTMV_BuildImmediate_RefreshAuto(t *testing.T) {
-	stmt := parseCreateMTMVStmt(t,
-		"CREATE MATERIALIZED VIEW IF NOT EXISTS mv BUILD IMMEDIATE REFRESH AUTO AS SELECT id FROM t")
-	if !stmt.IfNotExists {
-		t.Error("IfNotExists should be true")
-	}
-	if stmt.BuildMode != "IMMEDIATE" {
-		t.Errorf("BuildMode = %q, want IMMEDIATE", stmt.BuildMode)
-	}
-	if stmt.RefreshMethod != "AUTO" {
-		t.Errorf("RefreshMethod = %q, want AUTO", stmt.RefreshMethod)
-	}
-	if stmt.Query == nil {
-		t.Fatal("Query is nil")
-	}
-}
-
-func TestCreateMTMV_RefreshComplete_OnSchedule(t *testing.T) {
-	sql := "CREATE MATERIALIZED VIEW mv REFRESH COMPLETE ON SCHEDULE EVERY 1 DAY AS SELECT * FROM t"
-	stmt := parseCreateMTMVStmt(t, sql)
-	if stmt.Name.String() != "mv" {
-		t.Errorf("Name = %q, want %q", stmt.Name.String(), "mv")
-	}
-	if stmt.RefreshMethod != "COMPLETE" {
-		t.Errorf("RefreshMethod = %q, want COMPLETE", stmt.RefreshMethod)
-	}
-	if stmt.RefreshTrigger == nil {
-		t.Fatal("RefreshTrigger is nil")
-	}
-	if !stmt.RefreshTrigger.OnSchedule {
-		t.Error("RefreshTrigger.OnSchedule should be true")
-	}
-	if stmt.RefreshTrigger.Interval != "1 DAY" {
-		t.Errorf("Interval = %q, want %q", stmt.RefreshTrigger.Interval, "1 DAY")
-	}
-}
-
-func TestCreateMTMV_OnSchedule_WithStarts(t *testing.T) {
-	sql := `CREATE MATERIALIZED VIEW mv BUILD IMMEDIATE REFRESH AUTO ON SCHEDULE EVERY 1 DAY STARTS '2024-12-01 20:30:00' DISTRIBUTED BY HASH(orderkey) BUCKETS 2 PROPERTIES("replication_num" = "1") AS SELECT id FROM t`
-	stmt := parseCreateMTMVStmt(t, sql)
-	if stmt.BuildMode != "IMMEDIATE" {
-		t.Errorf("BuildMode = %q, want IMMEDIATE", stmt.BuildMode)
-	}
-	if stmt.RefreshMethod != "AUTO" {
-		t.Errorf("RefreshMethod = %q, want AUTO", stmt.RefreshMethod)
-	}
-	if stmt.RefreshTrigger == nil {
-		t.Fatal("RefreshTrigger is nil")
-	}
-	if stmt.RefreshTrigger.StartsAt != "2024-12-01 20:30:00" {
-		t.Errorf("StartsAt = %q, want %q", stmt.RefreshTrigger.StartsAt, "2024-12-01 20:30:00")
-	}
-	if stmt.DistributedBy == nil {
-		t.Fatal("DistributedBy is nil")
-	}
-	if stmt.DistributedBy.Type != "HASH" {
-		t.Errorf("DistributedBy.Type = %q, want HASH", stmt.DistributedBy.Type)
-	}
-	if stmt.DistributedBy.Buckets != 2 {
-		t.Errorf("DistributedBy.Buckets = %d, want 2", stmt.DistributedBy.Buckets)
-	}
-	if len(stmt.Properties) != 1 {
-		t.Fatalf("Properties: got %d, want 1", len(stmt.Properties))
-	}
-	if stmt.Properties[0].Key != "replication_num" || stmt.Properties[0].Value != "1" {
-		t.Errorf("Properties[0] = {%q: %q}, want {replication_num: 1}",
-			stmt.Properties[0].Key, stmt.Properties[0].Value)
-	}
-}
-
-func TestCreateMTMV_WithColumnList(t *testing.T) {
-	sql := `CREATE MATERIALIZED VIEW complete_mv (orderdate COMMENT 'Order date', orderkey COMMENT 'Order key', partkey COMMENT 'Part key') BUILD IMMEDIATE REFRESH AUTO ON SCHEDULE EVERY 1 DAY STARTS '2024-12-01 20:30:00' DISTRIBUTED BY HASH(orderkey) BUCKETS 2 PROPERTIES("replication_num" = "1") AS SELECT o_orderdate, l_orderkey, l_partkey FROM orders`
-	stmt := parseCreateMTMVStmt(t, sql)
-	if stmt.Name.String() != "complete_mv" {
-		t.Errorf("Name = %q, want complete_mv", stmt.Name.String())
-	}
-	if len(stmt.Columns) != 3 {
-		t.Fatalf("Columns: got %d, want 3", len(stmt.Columns))
-	}
-	if stmt.Columns[0].Name != "orderdate" {
-		t.Errorf("Columns[0].Name = %q, want orderdate", stmt.Columns[0].Name)
-	}
-	if stmt.Columns[0].Comment != "Order date" {
-		t.Errorf("Columns[0].Comment = %q, want 'Order date'", stmt.Columns[0].Comment)
-	}
-}
-
-func TestCreateMTMV_WithPartitionBy(t *testing.T) {
-	sql := `CREATE MATERIALIZED VIEW partition_mv BUILD IMMEDIATE REFRESH AUTO ON SCHEDULE EVERY 1 DAY STARTS '2024-12-01 20:30:00' PARTITION BY (o_orderdate) DISTRIBUTED BY HASH(l_orderkey) BUCKETS 2 PROPERTIES("replication_num" = "3") AS SELECT o_orderdate, l_orderkey FROM orders`
-	stmt := parseCreateMTMVStmt(t, sql)
-	if stmt.Name.String() != "partition_mv" {
-		t.Errorf("Name = %q, want partition_mv", stmt.Name.String())
-	}
-	if stmt.PartitionBy == nil {
-		t.Fatal("PartitionBy is nil")
-	}
-}
-
 func TestCreateMTMV_DistributedByHash_Properties(t *testing.T) {
 	sql := `CREATE MATERIALIZED VIEW mv DISTRIBUTED BY HASH(id) BUCKETS 3 PROPERTIES("replication_num"="3") AS SELECT id FROM t`
 	stmt := parseCreateMTMVStmt(t, sql)
@@ -225,91 +127,10 @@ func TestCreateMTMV_DistributedByHash_Properties(t *testing.T) {
 	}
 }
 
-func TestCreateMTMV_OnManual(t *testing.T) {
-	sql := "CREATE MATERIALIZED VIEW mv REFRESH COMPLETE ON MANUAL AS SELECT * FROM t"
-	stmt := parseCreateMTMVStmt(t, sql)
-	if stmt.RefreshTrigger == nil {
-		t.Fatal("RefreshTrigger is nil")
-	}
-	if !stmt.RefreshTrigger.OnManual {
-		t.Error("RefreshTrigger.OnManual should be true")
-	}
-	if stmt.RefreshTrigger.OnSchedule {
-		t.Error("RefreshTrigger.OnSchedule should be false")
-	}
-}
-
-func TestCreateMTMV_OnCommit(t *testing.T) {
-	sql := "CREATE MATERIALIZED VIEW mv REFRESH AUTO ON COMMIT AS SELECT * FROM t"
-	stmt := parseCreateMTMVStmt(t, sql)
-	if stmt.RefreshTrigger == nil {
-		t.Fatal("RefreshTrigger is nil")
-	}
-	if !stmt.RefreshTrigger.OnCommit {
-		t.Error("RefreshTrigger.OnCommit should be true")
-	}
-}
-
-func TestCreateMTMV_RefreshNever(t *testing.T) {
-	sql := "CREATE MATERIALIZED VIEW mv REFRESH NEVER AS SELECT * FROM t"
-	stmt := parseCreateMTMVStmt(t, sql)
-	if stmt.RefreshMethod != "NEVER" {
-		t.Errorf("RefreshMethod = %q, want NEVER", stmt.RefreshMethod)
-	}
-}
-
 func TestCreateMTMV_QualifiedName(t *testing.T) {
 	stmt := parseCreateMTMVStmt(t, "CREATE MATERIALIZED VIEW db1.mv1 AS SELECT * FROM t")
 	if stmt.Name.String() != "db1.mv1" {
 		t.Errorf("Name = %q, want db1.mv1", stmt.Name.String())
-	}
-}
-
-// Legacy corpus test: complete_mv (from materialized_view.sql line 1)
-func TestCreateMTMV_Legacy_CompleteMV(t *testing.T) {
-	sql := `CREATE MATERIALIZED VIEW complete_mv (orderdate COMMENT 'Order date', orderkey COMMENT 'Order key', partkey COMMENT 'Part key') BUILD IMMEDIATE REFRESH AUTO ON SCHEDULE EVERY 1 DAY STARTS '2024-12-01 20:30:00' DISTRIBUTED BY HASH(orderkey) BUCKETS 2 PROPERTIES("replication_num" = "1") AS SELECT o_orderdate, l_orderkey, l_partkey FROM orders LEFT JOIN lineitem ON l_orderkey = o_orderkey LEFT JOIN partsupp ON ps_partkey = l_partkey AND l_suppkey = ps_suppkey`
-	stmt := parseCreateMTMVStmt(t, sql)
-	if stmt.Name.String() != "complete_mv" {
-		t.Errorf("Name = %q, want complete_mv", stmt.Name.String())
-	}
-	if stmt.BuildMode != "IMMEDIATE" {
-		t.Errorf("BuildMode = %q, want IMMEDIATE", stmt.BuildMode)
-	}
-	if stmt.RefreshMethod != "AUTO" {
-		t.Errorf("RefreshMethod = %q, want AUTO", stmt.RefreshMethod)
-	}
-	if stmt.RefreshTrigger == nil || !stmt.RefreshTrigger.OnSchedule {
-		t.Error("RefreshTrigger.OnSchedule should be true")
-	}
-	if stmt.RefreshTrigger.Interval != "1 DAY" {
-		t.Errorf("Interval = %q, want '1 DAY'", stmt.RefreshTrigger.Interval)
-	}
-	if stmt.RefreshTrigger.StartsAt != "2024-12-01 20:30:00" {
-		t.Errorf("StartsAt = %q, want '2024-12-01 20:30:00'", stmt.RefreshTrigger.StartsAt)
-	}
-	if stmt.DistributedBy == nil || stmt.DistributedBy.Buckets != 2 {
-		t.Errorf("DistributedBy.Buckets = %d, want 2", stmt.DistributedBy.Buckets)
-	}
-	if stmt.Query == nil {
-		t.Fatal("Query is nil")
-	}
-}
-
-// Legacy corpus test: partition_mv (from async_materialized_view.sql line 16)
-func TestCreateMTMV_Legacy_PartitionMV(t *testing.T) {
-	sql := `CREATE MATERIALIZED VIEW partition_mv BUILD IMMEDIATE REFRESH AUTO ON SCHEDULE EVERY 1 DAY STARTS '2024-12-01 20:30:00' PARTITION BY (DATE_TRUNC(o_orderdate, 'MONTH')) DISTRIBUTED BY HASH(l_orderkey) BUCKETS 2 PROPERTIES("replication_num" = "3") AS SELECT o_orderdate, l_orderkey, l_partkey FROM orders LEFT JOIN lineitem ON l_orderkey = o_orderkey LEFT JOIN partsupp ON ps_partkey = l_partkey AND l_suppkey = ps_suppkey`
-	stmt := parseCreateMTMVStmt(t, sql)
-	if stmt.Name.String() != "partition_mv" {
-		t.Errorf("Name = %q, want partition_mv", stmt.Name.String())
-	}
-	if stmt.PartitionBy == nil {
-		t.Fatal("PartitionBy is nil")
-	}
-	if stmt.DistributedBy == nil || stmt.DistributedBy.Buckets != 2 {
-		t.Errorf("DistributedBy.Buckets = %d, want 2", stmt.DistributedBy.Buckets)
-	}
-	if len(stmt.Properties) != 1 || stmt.Properties[0].Key != "replication_num" {
-		t.Error("expected replication_num property")
 	}
 }
 
@@ -464,42 +285,6 @@ func TestRefreshMTMV_NoMode(t *testing.T) {
 	}
 }
 
-func TestRefreshMTMV_Auto(t *testing.T) {
-	// Legacy corpus: REFRESH MATERIALIZED VIEW mv1 AUTO
-	stmt := parseRefreshMTMVStmt(t, "REFRESH MATERIALIZED VIEW mv1 AUTO")
-	if stmt.Name.String() != "mv1" {
-		t.Errorf("Name = %q, want mv1", stmt.Name.String())
-	}
-	if stmt.Mode != "AUTO" {
-		t.Errorf("Mode = %q, want AUTO", stmt.Mode)
-	}
-}
-
-func TestRefreshMTMV_Complete(t *testing.T) {
-	stmt := parseRefreshMTMVStmt(t, "REFRESH MATERIALIZED VIEW mv COMPLETE")
-	if stmt.Mode != "COMPLETE" {
-		t.Errorf("Mode = %q, want COMPLETE", stmt.Mode)
-	}
-}
-
-func TestRefreshMTMV_Partitions(t *testing.T) {
-	// Legacy corpus: REFRESH MATERIALIZED VIEW mv1 PARTITIONS(p_19950801_19950901, p_19950901_19951001)
-	stmt := parseRefreshMTMVStmt(t,
-		"REFRESH MATERIALIZED VIEW mv1 PARTITIONS(p_19950801_19950901, p_19950901_19951001)")
-	if stmt.Name.String() != "mv1" {
-		t.Errorf("Name = %q, want mv1", stmt.Name.String())
-	}
-	if len(stmt.Partitions) != 2 {
-		t.Fatalf("Partitions: got %d, want 2", len(stmt.Partitions))
-	}
-	if stmt.Partitions[0] != "p_19950801_19950901" {
-		t.Errorf("Partitions[0] = %q, want p_19950801_19950901", stmt.Partitions[0])
-	}
-	if stmt.Partitions[1] != "p_19950901_19951001" {
-		t.Errorf("Partitions[1] = %q, want p_19950901_19951001", stmt.Partitions[1])
-	}
-}
-
 // ---------------------------------------------------------------------------
 // Node tags
 // ---------------------------------------------------------------------------
@@ -547,6 +332,38 @@ func TestMTMVNodeTagStrings(t *testing.T) {
 	for _, tt := range tests {
 		if tt.tag.String() != tt.want {
 			t.Errorf("NodeTag(%d).String() = %q, want %q", int(tt.tag), tt.tag.String(), tt.want)
+		}
+	}
+}
+
+// TestMTMVGrammar holds CREATE and REFRESH MATERIALIZED VIEW to StarRocks.g4
+// (:646-686); the rejected forms are Doris's, which this file once pinned.
+func TestMTMVGrammar(t *testing.T) {
+	cases := []struct {
+		sql string
+		ok  bool
+	}{
+		{"CREATE MATERIALIZED VIEW mv (a COMMENT 'c', b, INDEX i (a) USING BITMAP COMMENT 'x') COMMENT 'm' DISTRIBUTED BY HASH(a) BUCKETS 2 ORDER BY (a) REFRESH DEFERRED ASYNC START('2024-12-01 20:30:00') EVERY (INTERVAL 1 DAY) PARTITION BY date_trunc('day', a) PROPERTIES ('k' = 'v') AS SELECT a, b FROM t", true},
+		{"CREATE MATERIALIZED VIEW mv REFRESH MANUAL PARTITION BY (a, b) AS SELECT a, b FROM t", true},
+		{"CREATE MATERIALIZED VIEW mv (INDEX i (a)) AS SELECT a FROM t", false},
+		{"CREATE MATERIALIZED VIEW mv (INDEX i (a), b) AS SELECT a FROM t", false},
+		{"CREATE MATERIALIZED VIEW mv REFRESH ASYNC zzz AS SELECT 1", false},
+		{"CREATE MATERIALIZED VIEW mv ASYNC AS SELECT 1", false},
+		{"CREATE MATERIALIZED VIEW mv PARTITION BY CURRENT_USER AS SELECT 1", false},
+		{"CREATE MATERIALIZED VIEW mv SELECT 1", false},
+		{"CREATE MATERIALIZED VIEW mv BUILD IMMEDIATE REFRESH AUTO AS SELECT id FROM t", false},
+		{"CREATE MATERIALIZED VIEW mv REFRESH COMPLETE ON SCHEDULE EVERY 1 DAY AS SELECT * FROM t", false},
+		{"REFRESH MATERIALIZED VIEW mv PARTITION START('a') END('b') FORCE WITH SYNC MODE WITH PRIORITY 1", true},
+		{"REFRESH MATERIALIZED VIEW mv PARTITION (('a', NULL), ('b'))", true},
+		{"REFRESH MATERIALIZED VIEW mv PARTITION ((('a')))", false},
+		{"REFRESH MATERIALIZED VIEW mv WITH ASYNC MODE", true},
+		{"REFRESH MATERIALIZED VIEW mv1 AUTO", false},
+		{"REFRESH MATERIALIZED VIEW mv1 PARTITIONS(p1, p2)", false},
+	}
+	for _, c := range cases {
+		_, err := Parse(c.sql)
+		if (err == nil) != c.ok {
+			t.Errorf("Parse(%q): err = %v, want accepted=%v", c.sql, err, c.ok)
 		}
 	}
 }

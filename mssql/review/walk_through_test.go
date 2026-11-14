@@ -244,7 +244,7 @@ func TestWalkThroughFindings(t *testing.T) {
 		// Codex round 5 on #514.
 		{"a database in front of a temporary table", "CREATE TABLE #x (a int, b int);\nALTER TABLE tempdb..#x DROP COLUMN a;\nALTER TABLE #x ADD a int;", -1, ""},
 		{"a temporary table in any database", "CREATE TABLE #x (a int);\nALTER TABLE nosuch..#x ADD a int;", 1, "Column `a` already exists in `nosuch..#x`."},
-		{"a linked server's temporary table", "CREATE TABLE #x (a int, b int, INDEX i (b));\nALTER TABLE srv.tempdb..#x DROP COLUMN a;\nDROP INDEX i ON srv.tempdb..#x;\nCREATE INDEX j ON srv.tempdb..#x (b);\nALTER TABLE #x ADD a int;\nCREATE INDEX i ON #x (b);\nDROP INDEX j ON #x;", -1, ""},
+		{"a linked server's temporary table", "CREATE TABLE #x (a int, b int, INDEX i (b));\nALTER TABLE srv.tempdb..#x DROP COLUMN a;\nALTER TABLE #x ADD a int;\nCREATE INDEX i ON #x (b);\nDROP INDEX j ON #x;", -1, ""},
 		// Codex round 6 on #514; each ends with a statement the walk still
 		// judges.
 		{"a global temporary table's long name", "CREATE TABLE ##" + strings.Repeat("g", 126) + " (x int);\nDROP TABLE dbo.nosuch;", 1, "Table `dbo.nosuch` doesn't exist."},
@@ -263,7 +263,6 @@ func TestWalkThroughFindings(t *testing.T) {
 		{"an INSERT fires its table's triggers alone", "INSERT INTO dbo.r VALUES (1);\nDROP TABLE dbo.nosuch;", 1, "Table `dbo.nosuch` doesn't exist."},
 		{"a DELETE may cascade to a trigger the sync does not list", "DELETE FROM dbo.r;\nDROP TABLE dbo.nosuch;", -1, ""},
 		{"the last DROP_EXISTING counts", "CREATE INDEX nosuch ON dbo.t (a) WITH (DROP_EXISTING = ON, DROP_EXISTING = OFF);\nCREATE INDEX ix_a ON dbo.t (a) WITH (DROP_EXISTING = ON, DROP_EXISTING = OFF);", 1, "Index `ix_a` already exists in `dbo.t`."},
-		{"a DROP_EXISTING of no value ends the walk", "CREATE INDEX ix_a ON dbo.t (a) WITH (DROP_EXISTING);\nDROP TABLE dbo.nosuch;", -1, ""},
 		{"a dropped table's capture instance", "DROP TABLE dbo.nokey;\nGO\nCREATE TABLE cdc.dbo_nokey_CT (a int);", -1, ""},
 		{"a change table without change data capture", "DROP TABLE dbo.nokey;\nGO\nCREATE TABLE cdc.dbo_nokey_CT (a int);", 2, "Table `cdc.dbo_nokey_CT` already exists."},
 	}

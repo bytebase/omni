@@ -706,13 +706,29 @@ func parseIntLiteral(s string) (int, error) {
 	return strconv.Atoi(s)
 }
 
+// parseDqlStatement parses `dql : expr` (PartiQLParser.g4:52): any
+// expression is a query. A SELECT or set operation, bare or
+// parenthesised, is returned as its own statement; any other expression is
+// wrapped in an ExprStmt, as DynamoDB's `EXISTS(SELECT ...)` condition
+// check is.
+func (p *Parser) parseDqlStatement() (ast.StmtNode, error) {
+	expr, err := p.parseExprTop()
+	if err != nil {
+		return nil, err
+	}
+	if sub, ok := expr.(*ast.SubLink); ok {
+		return sub.Stmt, nil
+	}
+	if sn, ok := expr.(ast.StmtNode); ok {
+		return sn, nil
+	}
+	return &ast.ExprStmt{Expr: expr, Loc: expr.GetLoc()}, nil
+}
+
 // ParseStatement parses a single top-level statement and asserts that
-// the entire input was consumed. Supports DDL (CREATE/DROP TABLE/INDEX)
-// and DML (INSERT/UPDATE/DELETE/REPLACE/UPSERT/REMOVE) directly; defers
-// EXEC to parse-entry (DAG node 8). DQL (SELECT and set-ops) falls
-// through to parseExprTop; if the result is already a StmtNode it is
-// returned, otherwise the bare-expression form is deferred to
-// parse-entry (DAG node 8).
+// the entire input was consumed. Supports DDL (CREATE/DROP TABLE/INDEX),
+// DML (INSERT/UPDATE/DELETE/REPLACE/UPSERT/REMOVE) and EXEC directly;
+// anything else is DQL, an expression (parseDqlStatement).
 func (p *Parser) ParseStatement() (ast.StmtNode, error) {
 	if err := p.checkLexerErr(); err != nil {
 		return nil, err
@@ -747,21 +763,7 @@ func (p *Parser) ParseStatement() (ast.StmtNode, error) {
 		p.advance() // consume EXEC/EXECUTE
 		stmt, err = p.parseExecCommand()
 	default:
-		// DQL fallback: parse as expression. If the result implements
-		// StmtNode (e.g. SelectStmt after node 5), return it. Otherwise
-		// defer bare-expression-as-statement to parse-entry (node 8).
-		var expr ast.ExprNode
-		expr, err = p.parseExprTop()
-		if err != nil {
-			return nil, err
-		}
-		if sub, ok := expr.(*ast.SubLink); ok {
-			stmt = sub.Stmt
-		} else if sn, ok := expr.(ast.StmtNode); ok {
-			stmt = sn
-		} else {
-			return nil, p.deferredFeature("bare expression as statement", "parse-entry (DAG node 8)")
-		}
+		stmt, err = p.parseDqlStatement()
 	}
 	if err != nil {
 		return nil, err

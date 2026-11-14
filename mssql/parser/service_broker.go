@@ -1,4 +1,8 @@
 // Package parser - service_broker.go implements T-SQL Service Broker statement parsing.
+//
+// Every statement here follows ScriptDOM's TSql160.g (mssql/testdata/TSql160.g4
+// is the conversion; each rule cites its TSql160.g line), checked against the
+// pinned SQL Server 2022, whose verdict wins where the two differ.
 package parser
 
 import (
@@ -15,28 +19,152 @@ var validationValues = newOptionSet(kwNONE).withIdents("EMPTY", "WELL_FORMED_XML
 // used in CREATE CONTRACT (message SENT BY {INITIATOR | TARGET | ANY}).
 var contractSentByValues = newOptionSet(kwANY).withIdents("INITIATOR", "TARGET", "ANY")
 
-// brokerWithOptions is the set of valid WITH option names for service broker statements.
-// Covers CREATE/ALTER ROUTE, REMOTE SERVICE BINDING, and generic broker WITH clauses.
-var brokerWithOptions = newOptionSet(
-	kwENCRYPTION,
-	kwSTATUS,
-).withIdents(
-	"SERVICE_NAME", "BROKER_INSTANCE", "LIFETIME", "ADDRESS",
-	"MIRROR_ADDRESS", "CLASSIFIER_FUNCTION",
-	"USER", "ANONYMOUS",
-)
+// brokerIsWord reports whether the current token is the word `word` (upper
+// case): its keyword token when the lexer has one, else an undelimited
+// identifier with that text.
+func (p *Parser) brokerIsWord(word string) bool {
+	if kw := lookupKeyword(word); kw != tokIDENT {
+		return p.cur.Type == kw
+	}
+	return p.cur.Type == tokIDENT && !p.isDelimited(p.cur) && strings.ToUpper(p.cur.Str) == word
+}
+
+// brokerExpectWord consumes the word `word` or fails at the current token.
+func (p *Parser) brokerExpectWord(word string) error {
+	if !p.brokerIsWord(word) {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance()
+	return nil
+}
+
+// brokerExpectIdent consumes an identifier (ScriptDOM's `identifier`).
+func (p *Parser) brokerExpectIdent() (string, error) {
+	name, ok := p.parseIdentifier()
+	if !ok {
+		return "", p.syntaxErrorAtCur()
+	}
+	return name, nil
+}
+
+// brokerIsString reports whether the current token is a string literal.
+func (p *Parser) brokerIsString() bool {
+	return p.cur.Type == tokSCONST || p.cur.Type == tokNSCONST
+}
+
+// brokerExpectString consumes a string literal (ScriptDOM's `stringLiteral`).
+func (p *Parser) brokerExpectString() (string, error) {
+	if !p.brokerIsString() {
+		return "", p.syntaxErrorAtCur()
+	}
+	return p.advance().Str, nil
+}
+
+// brokerExpectOnOff consumes `= { ON | OFF }` (ScriptDOM's EqualsSign optionOnOff).
+func (p *Parser) brokerExpectOnOff() (string, error) {
+	if _, err := p.expect('='); err != nil {
+		return "", err
+	}
+	if p.cur.Type != kwON && p.cur.Type != kwOFF {
+		return "", p.syntaxErrorAtCur()
+	}
+	return strings.ToUpper(p.advance().Str), nil
+}
+
+// brokerParseAuthorization parses ScriptDOM's authorizationOpt,
+// `( Authorization identifier )?`, returning the owner or "".
+func (p *Parser) brokerParseAuthorization() (string, error) {
+	if p.cur.Type != kwAUTHORIZATION {
+		return "", nil
+	}
+	p.advance()
+	return p.brokerExpectIdent()
+}
+
+// brokerParseObjectName parses a dotted object name of at most maxParts
+// parts. SQL Server refuses a longer one with Msg 117 ("contains more than the
+// maximum number of prefixes").
+func (p *Parser) brokerParseObjectName(maxParts int) (*nodes.TableRef, error) {
+	ref, err := p.parseTableRef()
+	if err != nil {
+		return nil, err
+	}
+	if ref == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	parts := 1
+	switch {
+	case ref.Server != "":
+		parts = 4
+	case ref.Database != "":
+		parts = 3
+	case ref.Schema != "":
+		parts = 2
+	}
+	if parts > maxParts {
+		return nil, &ParseError{Message: "object name contains more than the maximum number of prefixes", Position: ref.Loc.Start, Source: p.source}
+	}
+	return ref, nil
+}
+
+// brokerQualifiedName joins the parts a TableRef holds.
+func brokerQualifiedName(ref *nodes.TableRef) string {
+	name := ref.Object
+	if ref.Schema != "" || ref.Database != "" {
+		name = ref.Schema + "." + name
+	}
+	if ref.Database != "" {
+		name = ref.Database + "." + name
+	}
+	return name
+}
+
+// brokerParseNameOrVariable parses ScriptDOM's identifierOrVariable, which
+// SQL Server also takes as a dotted name (BEGIN DIALOG ... FROM SERVICE a.b,
+// ON CONTRACT a.b, SEND ... MESSAGE TYPE a.b all parse on the pinned server).
+func (p *Parser) brokerParseNameOrVariable() (string, error) {
+	if p.cur.Type == tokVARIABLE {
+		return p.advance().Str, nil
+	}
+	ref, err := p.parseTableRef()
+	if err != nil {
+		return "", err
+	}
+	if ref == nil {
+		return "", p.syntaxErrorAtCur()
+	}
+	if ref.Server != "" {
+		return "", p.syntaxErrorAtCur()
+	}
+	return brokerQualifiedName(ref), nil
+}
+
+// brokerParseStringOrVariable parses ScriptDOM's stringOrVariable.
+func (p *Parser) brokerParseStringOrVariable() (string, error) {
+	if p.brokerIsString() || p.cur.Type == tokVARIABLE {
+		return p.advance().Str, nil
+	}
+	return "", p.syntaxErrorAtCur()
+}
+
+// brokerParseExprText parses an expression and returns its source text.
+func (p *Parser) brokerParseExprText() (nodes.ExprNode, string, error) {
+	start := p.pos()
+	expr, err := p.parseExpr()
+	if err != nil {
+		return nil, "", err
+	}
+	if expr == nil {
+		return nil, "", p.syntaxErrorAtCur()
+	}
+	return expr, p.source[start:p.prevEnd()], nil
+}
 
 // parseCreateMessageTypeStmt parses CREATE MESSAGE TYPE.
 //
-// BNF: mssql/parser/bnf/create-message-type-transact-sql.bnf
+// TSql160.g:9511 createMessageTypeStatement:
 //
-//	CREATE MESSAGE TYPE message_type_name
-//	    [ AUTHORIZATION owner_name ]
-//	    [ VALIDATION = {  NONE
-//	                    | EMPTY
-//	                    | WELL_FORMED_XML
-//	                    | VALID_XML WITH SCHEMA COLLECTION schema_collection_name
-//	                   } ]
+//	MESSAGE TYPE identifier authorizationOpt ( messageTypeValidation )?
 func (p *Parser) parseCreateMessageTypeStmt() (*nodes.ServiceBrokerStmt, error) {
 	loc := p.pos()
 	// TYPE keyword already consumed by caller
@@ -47,73 +175,78 @@ func (p *Parser) parseCreateMessageTypeStmt() (*nodes.ServiceBrokerStmt, error) 
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	if p.isIdentLike() || p.cur.Type == tokSCONST {
-		stmt.Name = p.cur.Str
-		p.advance()
+	name, err := p.brokerExpectIdent()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Name = name
+	if _, err := p.brokerParseAuthorization(); err != nil {
+		return nil, err
 	}
 
-	// Optional: AUTHORIZATION owner
-	if p.cur.Type == kwAUTHORIZATION {
-		p.advance()
-		if p.isIdentLike() {
-			p.advance()
+	if p.brokerIsWord("VALIDATION") {
+		opt, err := p.brokerParseMessageTypeValidation()
+		if err != nil {
+			return nil, err
 		}
-	}
-
-	// Optional: VALIDATION = { NONE | EMPTY | WELL_FORMED_XML | VALID_XML WITH SCHEMA COLLECTION ... }
-	if p.cur.Type == kwVALIDATION {
-		valLoc := p.pos()
-		p.advance()
-		if p.cur.Type == '=' {
-			p.advance()
-		}
-		var opts []nodes.Node
-		if p.isValidOption(validationValues) {
-			valType := strings.ToUpper(p.cur.Str)
-			p.advance()
-			if valType == "VALID_XML" && p.cur.Type == kwWITH {
-				p.advance() // consume WITH
-				if p.cur.Type == kwSCHEMA {
-					p.advance()
-				}
-				if p.cur.Type == kwCOLLECTION {
-					p.advance()
-				}
-				// schema collection name (possibly dot-qualified)
-				ref, _ := p.parseTableRef()
-				schemaName := ""
-				if ref != nil {
-					if ref.Schema != "" {
-						schemaName = ref.Schema + "." + ref.Object
-					} else {
-						schemaName = ref.Object
-					}
-				}
-				opts = append(opts, &nodes.ServiceBrokerOption{Name: "VALIDATION", Value: "VALID_XML WITH SCHEMA COLLECTION " + schemaName, Loc: nodes.Loc{Start: valLoc, End: p.prevEnd()}})
-			} else {
-				opts = append(opts, &nodes.ServiceBrokerOption{Name: "VALIDATION", Value: valType, Loc: nodes.Loc{Start: valLoc, End: p.prevEnd()}})
-			}
-		} else {
-			return nil, p.syntaxErrorAtCur()
-		}
-		if len(opts) > 0 {
-			stmt.Options = &nodes.List{Items: opts}
-		}
+		stmt.Options = &nodes.List{Items: []nodes.Node{opt}}
 	}
 
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
+// brokerParseMessageTypeValidation parses messageTypeValidation.
+//
+// TSql160.g:9539 and 9548: VALIDATION = { NONE | EMPTY | WELL_FORMED_XML |
+// VALID_XML WITH SCHEMA COLLECTION name }; WITH follows VALID_XML only, and
+// VALID_XML requires it. The collection name has at most two parts.
+func (p *Parser) brokerParseMessageTypeValidation() (*nodes.ServiceBrokerOption, error) {
+	valLoc := p.pos()
+	if err := p.brokerExpectWord("VALIDATION"); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect('='); err != nil {
+		return nil, err
+	}
+	valType, err := p.expectOption(validationValues)
+	if err != nil {
+		return nil, err
+	}
+	if valType != "VALID_XML" {
+		if p.cur.Type == kwWITH {
+			return nil, p.syntaxErrorAtCur()
+		}
+		return &nodes.ServiceBrokerOption{Name: "VALIDATION", Value: valType, Loc: nodes.Loc{Start: valLoc, End: p.prevEnd()}}, nil
+	}
+	if _, err := p.expect(kwWITH); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(kwSCHEMA); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(kwCOLLECTION); err != nil {
+		return nil, err
+	}
+	ref, err := p.brokerParseObjectName(2)
+	if err != nil {
+		return nil, err
+	}
+	schemaName := ref.Object
+	if ref.Schema != "" {
+		schemaName = ref.Schema + "." + ref.Object
+	}
+	return &nodes.ServiceBrokerOption{Name: "VALIDATION", Value: "VALID_XML WITH SCHEMA COLLECTION " + schemaName, Loc: nodes.Loc{Start: valLoc, End: p.prevEnd()}}, nil
+}
+
 // parseCreateContractStmt parses CREATE CONTRACT.
 //
-// BNF: mssql/parser/bnf/create-contract-transact-sql.bnf
+// TSql160.g:1559 createContractStatement and TSql160.g:1586 contractMessage:
 //
-//	CREATE CONTRACT contract_name
-//	   [ AUTHORIZATION owner_name ]
-//	      (  {   { message_type_name | [ DEFAULT ] }
-//	          SENT BY { INITIATOR | TARGET | ANY }
-//	       } [ ,...n] )
+//	CONTRACT identifier authorizationOpt
+//	    ( identifier SENT BY { ANY | INITIATOR | TARGET } [ ,...n ] )
+//
+// [DEFAULT] is a delimited identifier; the bare keyword DEFAULT is refused.
 func (p *Parser) parseCreateContractStmt() (*nodes.ServiceBrokerStmt, error) {
 	loc := p.pos()
 	// CONTRACT keyword already consumed by caller
@@ -124,59 +257,44 @@ func (p *Parser) parseCreateContractStmt() (*nodes.ServiceBrokerStmt, error) {
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	if p.isIdentLike() {
-		stmt.Name = p.cur.Str
-		p.advance()
+	name, err := p.brokerExpectIdent()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Name = name
+	if _, err := p.brokerParseAuthorization(); err != nil {
+		return nil, err
 	}
 
-	// Optional: AUTHORIZATION owner
-	if p.cur.Type == kwAUTHORIZATION {
-		p.advance()
-		if p.isIdentLike() {
-			p.advance()
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	var opts []nodes.Node
+	for {
+		entryLoc := p.pos()
+		msgTypeName, err := p.brokerExpectIdent()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(kwSENT); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(kwBY); err != nil {
+			return nil, err
+		}
+		sentBy, err := p.expectOption(contractSentByValues)
+		if err != nil {
+			return nil, err
+		}
+		opts = append(opts, &nodes.ServiceBrokerOption{Name: msgTypeName, Value: "SENT BY " + sentBy, Loc: nodes.Loc{Start: entryLoc, End: p.prevEnd()}})
+		if _, ok := p.match(','); !ok {
+			break
 		}
 	}
-
-	// Parse message type definitions: ( message_type_name SENT BY { INITIATOR | TARGET | ANY } [,...n] )
-	if p.cur.Type == '(' {
-		p.advance()
-		var opts []nodes.Node
-		for p.cur.Type != ')' && p.cur.Type != tokEOF {
-			entryLoc := p.pos()
-			// message_type_name or [DEFAULT]
-			var msgTypeName string
-			if p.cur.Type == kwDEFAULT {
-				msgTypeName = "DEFAULT"
-				p.advance()
-			} else if p.isIdentLike() || p.cur.Type == tokSCONST {
-				msgTypeName = p.cur.Str
-				p.advance()
-			}
-			// SENT BY { INITIATOR | TARGET | ANY }
-			sentBy := ""
-			if p.cur.Type == kwSENT {
-				p.advance()
-				if p.cur.Type == kwBY {
-					p.advance()
-				}
-				// SENT BY { INITIATOR | TARGET | ANY } — closed enum.
-				if p.isValidOption(contractSentByValues) {
-					sentBy = strings.ToUpper(p.cur.Str)
-					p.advance()
-				}
-			}
-			if msgTypeName != "" {
-				opts = append(opts, &nodes.ServiceBrokerOption{Name: msgTypeName, Value: "SENT BY " + sentBy, Loc: nodes.Loc{Start: entryLoc, End: p.prevEnd()}})
-			}
-			if _, ok := p.match(','); !ok {
-				break
-			}
-		}
-		p.match(')')
-		if len(opts) > 0 {
-			stmt.Options = &nodes.List{Items: opts}
-		}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
 	}
+	stmt.Options = &nodes.List{Items: opts}
 
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
@@ -184,28 +302,9 @@ func (p *Parser) parseCreateContractStmt() (*nodes.ServiceBrokerStmt, error) {
 
 // parseCreateQueueStmt parses CREATE QUEUE.
 //
-// BNF: mssql/parser/bnf/create-queue-transact-sql.bnf
+// TSql160.g:10189 createQueueStatement:
 //
-//	CREATE QUEUE <object>
-//	   [ WITH
-//	     [ STATUS = { ON | OFF } [ , ] ]
-//	     [ RETENTION = { ON | OFF } [ , ] ]
-//	     [ ACTIVATION (
-//	         [ STATUS = { ON | OFF } , ]
-//	           PROCEDURE_NAME = <procedure> ,
-//	           MAX_QUEUE_READERS = max_readers ,
-//	           EXECUTE AS { SELF | 'user_name' | OWNER }
-//	            ) [ , ] ]
-//	     [ POISON_MESSAGE_HANDLING (
-//	         [ STATUS = { ON | OFF } ] ) ]
-//	    ]
-//	     [ ON { filegroup | [ DEFAULT ] } ]
-//
-//	<object> ::=
-//	{ database_name.schema_name.queue_name | schema_name.queue_name | queue_name }
-//
-//	<procedure> ::=
-//	{ database_name.schema_name.stored_procedure_name | schema_name.stored_procedure_name | stored_procedure_name }
+//	QUEUE schemaObjectThreePartName ( queueOptionList )? ( On stringOrIdentifier )?
 func (p *Parser) parseCreateQueueStmt() (*nodes.ServiceBrokerStmt, error) {
 	loc := p.pos()
 	// QUEUE keyword already consumed by caller
@@ -216,27 +315,38 @@ func (p *Parser) parseCreateQueueStmt() (*nodes.ServiceBrokerStmt, error) {
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	// Parse possibly schema-qualified queue name
-	ref, _ := p.parseTableRef()
-	if ref != nil {
-		if ref.Schema != "" {
-			stmt.Name = ref.Schema + "." + ref.Object
-		} else {
-			stmt.Name = ref.Object
-		}
+	ref, err := p.brokerParseObjectName(3)
+	if err != nil {
+		return nil, err
+	}
+	stmt.Name = ref.Object
+	if ref.Schema != "" {
+		stmt.Name = ref.Schema + "." + ref.Object
 	}
 
 	var opts []nodes.Node
-	opts = p.parseQueueWithClause(opts)
+	if p.cur.Type == kwWITH {
+		opts, err = p.brokerParseQueueOptions(opts, true)
+		if err != nil {
+			return nil, err
+		}
+	}
 
-	// ON { filegroup | [DEFAULT] }
+	// ON { filegroup | 'filegroup' | [DEFAULT] }: stringOrIdentifier, so the
+	// bare keyword DEFAULT is refused.
 	if p.cur.Type == kwON {
 		onLoc := p.pos()
 		p.advance()
-		if p.isIdentLike() || p.cur.Type == kwDEFAULT {
-			opts = append(opts, &nodes.ServiceBrokerOption{Name: "ON", Value: strings.ToUpper(p.cur.Str), Loc: nodes.Loc{Start: onLoc, End: -1}})
-			p.advance()
+		var val string
+		switch {
+		case p.brokerIsString():
+			val = p.advance().Str
+		case p.isIdentLike():
+			val = strings.ToUpper(p.advance().Str)
+		default:
+			return nil, p.syntaxErrorAtCur()
 		}
+		opts = append(opts, &nodes.ServiceBrokerOption{Name: "ON", Value: val, Loc: nodes.Loc{Start: onLoc, End: p.prevEnd()}})
 	}
 
 	if len(opts) > 0 {
@@ -246,145 +356,188 @@ func (p *Parser) parseCreateQueueStmt() (*nodes.ServiceBrokerStmt, error) {
 	return stmt, nil
 }
 
-// parseQueueWithClause parses the WITH clause options for CREATE/ALTER QUEUE.
-func (p *Parser) parseQueueWithClause(opts []nodes.Node) []nodes.Node {
-	if p.cur.Type != kwWITH {
-		return opts
+// brokerParseQueueOptions parses queueOptionList.
+//
+// TSql160.g:12324 queueOptionList and TSql160.g:12332 queueOption:
+//
+//	WITH queueOption [ ,...n ]
+//	queueOption ::= { STATUS | RETENTION } = { ON | OFF }
+//	              | ACTIVATION ( ... )
+//	              | POISON_MESSAGE_HANDLING ( STATUS = { ON | OFF } )
+//
+// SQL Server refuses an option given twice.
+func (p *Parser) brokerParseQueueOptions(opts []nodes.Node, create bool) ([]nodes.Node, error) {
+	if _, err := p.expect(kwWITH); err != nil {
+		return nil, err
 	}
-	p.advance()
-
+	seen := map[string]bool{}
 	for {
-		if p.cur.Type == kwSTATUS {
-			optLoc := p.pos()
-			p.advance()
-			if p.cur.Type == '=' {
-				p.advance()
+		optLoc := p.pos()
+		var name string
+		for _, w := range []string{"STATUS", "RETENTION", "ACTIVATION", "POISON_MESSAGE_HANDLING"} {
+			if p.brokerIsWord(w) {
+				name = w
+				break
 			}
-			if p.cur.Type == kwON || p.cur.Type == kwOFF {
-				opts = append(opts, &nodes.ServiceBrokerOption{Name: "STATUS", Value: strings.ToUpper(p.cur.Str), Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
-				p.advance()
+		}
+		if name == "" || seen[name] {
+			return nil, p.syntaxErrorAtCur()
+		}
+		seen[name] = true
+		p.advance()
+		switch name {
+		case "STATUS", "RETENTION":
+			val, err := p.brokerExpectOnOff()
+			if err != nil {
+				return nil, err
 			}
-		} else if p.cur.Type == kwRETENTION {
-			optLoc := p.pos()
-			p.advance()
-			if p.cur.Type == '=' {
-				p.advance()
+			opts = append(opts, &nodes.ServiceBrokerOption{Name: name, Value: val, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
+		case "ACTIVATION":
+			var err error
+			opts, err = p.brokerParseQueueActivation(opts, create)
+			if err != nil {
+				return nil, err
 			}
-			if p.cur.Type == kwON || p.cur.Type == kwOFF {
-				opts = append(opts, &nodes.ServiceBrokerOption{Name: "RETENTION", Value: strings.ToUpper(p.cur.Str), Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
-				p.advance()
+		default: // POISON_MESSAGE_HANDLING, TSql160.g:12488
+			if _, err := p.expect('('); err != nil {
+				return nil, err
 			}
-		} else if p.cur.Type == kwACTIVATION {
-			p.advance()
-			opts = p.parseQueueActivationClause(opts)
-		} else if p.cur.Type == kwPOISON_MESSAGE_HANDLING {
-			optLoc := p.pos()
-			p.advance()
-			if p.cur.Type == '(' {
-				p.advance()
-				if p.cur.Type == kwSTATUS {
-					p.advance()
-					if p.cur.Type == '=' {
-						p.advance()
-					}
-					if p.cur.Type == kwON || p.cur.Type == kwOFF {
-						opts = append(opts, &nodes.ServiceBrokerOption{Name: "POISON_MESSAGE_HANDLING", Value: strings.ToUpper(p.cur.Str), Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
-						p.advance()
-					}
-				}
-				p.match(')')
+			if err := p.brokerExpectWord("STATUS"); err != nil {
+				return nil, err
 			}
-		} else {
-			break
+			val, err := p.brokerExpectOnOff()
+			if err != nil {
+				return nil, err
+			}
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
+			opts = append(opts, &nodes.ServiceBrokerOption{Name: "POISON_MESSAGE_HANDLING", Value: val, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 		}
 		if _, ok := p.match(','); !ok {
 			break
 		}
 	}
-	return opts
+	return opts, nil
 }
 
-// parseQueueActivationClause parses ACTIVATION ( ... ) options.
-func (p *Parser) parseQueueActivationClause(opts []nodes.Node) []nodes.Node {
-	if p.cur.Type != '(' {
-		return opts
+// brokerParseQueueActivation parses the parenthesized ACTIVATION arguments.
+//
+// TSql160.g:12369 queueActivationOption and TSql160.g:12401
+// activationQueueOptionArgument:
+//
+//	ACTIVATION ( { STATUS = { ON | OFF }
+//	             | PROCEDURE_NAME = schemaObjectThreePartName
+//	             | MAX_QUEUE_READERS = integer
+//	             | EXECUTE AS { SELF | OWNER | 'user_name' }
+//	             | DROP } [ ,...n ] )
+//
+// DROP stands alone and only in ALTER QUEUE (TSql160.g:12469). CREATE QUEUE
+// needs PROCEDURE_NAME, MAX_QUEUE_READERS and EXECUTE AS together, and SQL
+// Server refuses an argument given twice and EXECUTE AS CALLER.
+func (p *Parser) brokerParseQueueActivation(opts []nodes.Node, create bool) ([]nodes.Node, error) {
+	if _, err := p.expect('('); err != nil {
+		return nil, err
 	}
-	p.advance()
-
-	// Collect activation options
-	for p.cur.Type != ')' && p.cur.Type != tokEOF {
+	seen := map[string]bool{}
+	drop := false
+	for {
 		optLoc := p.pos()
-		if p.cur.Type == kwSTATUS {
+		if drop {
+			return nil, p.syntaxErrorAtCur()
+		}
+		switch {
+		case p.cur.Type == kwDROP:
+			if create || len(seen) > 0 {
+				return nil, p.syntaxErrorAtCur()
+			}
+			drop = true
 			p.advance()
-			if p.cur.Type == '=' {
-				p.advance()
-			}
-			if p.cur.Type == kwON || p.cur.Type == kwOFF {
-				opts = append(opts, &nodes.ServiceBrokerOption{Name: "ACTIVATION:STATUS", Value: strings.ToUpper(p.cur.Str), Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
-				p.advance()
-			}
-		} else if p.cur.Type == kwPROCEDURE_NAME {
-			p.advance()
-			if p.cur.Type == '=' {
-				p.advance()
-			}
-			// Parse possibly schema-qualified procedure name
-			ref, _ := p.parseTableRef()
-			if ref != nil {
-				name := ref.Object
-				if ref.Schema != "" {
-					name = ref.Schema + "." + name
-				}
-				if ref.Database != "" {
-					name = ref.Database + "." + name
-				}
-				opts = append(opts, &nodes.ServiceBrokerOption{Name: "ACTIVATION:PROCEDURE_NAME", Value: name, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
-			}
-		} else if p.cur.Type == kwMAX_QUEUE_READERS {
-			p.advance()
-			if p.cur.Type == '=' {
-				p.advance()
-			}
-			if p.cur.Type == tokICONST {
-				opts = append(opts, &nodes.ServiceBrokerOption{Name: "ACTIVATION:MAX_QUEUE_READERS", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
-				p.advance()
-			}
-		} else if p.cur.Type == kwEXECUTE {
-			p.advance()
-			if p.cur.Type == kwAS {
-				p.advance()
-			}
-			if p.cur.Type == kwSELF {
-				opts = append(opts, &nodes.ServiceBrokerOption{Name: "ACTIVATION:EXECUTE AS", Value: "SELF", Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
-				p.advance()
-			} else if p.cur.Type == kwOWNER {
-				opts = append(opts, &nodes.ServiceBrokerOption{Name: "ACTIVATION:EXECUTE AS", Value: "OWNER", Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
-				p.advance()
-			} else if p.cur.Type == tokSCONST {
-				opts = append(opts, &nodes.ServiceBrokerOption{Name: "ACTIVATION:EXECUTE AS", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
-				p.advance()
-			}
-		} else if p.cur.Type == kwDROP {
 			opts = append(opts, &nodes.ServiceBrokerOption{Name: "ACTIVATION:DROP", Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
+		case p.cur.Type == kwEXEC || p.cur.Type == kwEXECUTE:
+			if seen["EXECUTE AS"] {
+				return nil, p.syntaxErrorAtCur()
+			}
+			seen["EXECUTE AS"] = true
 			p.advance()
-		} else {
+			if _, err := p.expect(kwAS); err != nil {
+				return nil, err
+			}
+			var val string
+			switch {
+			case p.cur.Type == kwSELF:
+				val = "SELF"
+			case p.cur.Type == kwOWNER:
+				val = "OWNER"
+			case p.brokerIsString():
+				val = p.cur.Str
+			default:
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance()
+			opts = append(opts, &nodes.ServiceBrokerOption{Name: "ACTIVATION:EXECUTE AS", Value: val, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
+		default:
+			var name string
+			for _, w := range []string{"STATUS", "PROCEDURE_NAME", "MAX_QUEUE_READERS"} {
+				if p.brokerIsWord(w) {
+					name = w
+					break
+				}
+			}
+			if name == "" || seen[name] {
+				return nil, p.syntaxErrorAtCur()
+			}
+			seen[name] = true
+			p.advance()
+			var val string
+			switch name {
+			case "STATUS":
+				v, err := p.brokerExpectOnOff()
+				if err != nil {
+					return nil, err
+				}
+				val = v
+			case "PROCEDURE_NAME":
+				if _, err := p.expect('='); err != nil {
+					return nil, err
+				}
+				ref, err := p.brokerParseObjectName(3)
+				if err != nil {
+					return nil, err
+				}
+				val = brokerQualifiedName(ref)
+			default: // MAX_QUEUE_READERS
+				if _, err := p.expect('='); err != nil {
+					return nil, err
+				}
+				if p.cur.Type != tokICONST {
+					return nil, p.syntaxErrorAtCur()
+				}
+				val = p.advance().Str
+			}
+			opts = append(opts, &nodes.ServiceBrokerOption{Name: "ACTIVATION:" + name, Value: val, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
+		}
+		if _, ok := p.match(','); !ok {
 			break
 		}
-		p.match(',')
 	}
-	p.match(')')
-
-	return opts
+	if create && !(seen["PROCEDURE_NAME"] && seen["MAX_QUEUE_READERS"] && seen["EXECUTE AS"]) {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return opts, nil
 }
 
 // parseCreateServiceStmt parses CREATE SERVICE.
 //
-// BNF: mssql/parser/bnf/create-service-transact-sql.bnf
+// TSql160.g:10327 createServiceStatement and TSql160.g:10357 onQueueClause:
 //
-//	CREATE SERVICE service_name
-//	   [ AUTHORIZATION owner_name ]
-//	   ON QUEUE [ schema_name. ]queue_name
-//	   [ ( contract_name | [DEFAULT][ ,...n ] ) ]
+//	SERVICE identifier authorizationOpt ON QUEUE queue_name
+//	    ( ( identifier [ ,...n ] ) )?
+//
+// SQL Server takes a queue name of at most two parts here (Msg 117).
 func (p *Parser) parseCreateServiceStmt() (*nodes.ServiceBrokerStmt, error) {
 	loc := p.pos()
 	// SERVICE keyword already consumed by caller
@@ -395,24 +548,75 @@ func (p *Parser) parseCreateServiceStmt() (*nodes.ServiceBrokerStmt, error) {
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	if p.isIdentLike() || p.cur.Type == tokSCONST {
-		stmt.Name = p.cur.Str
-		p.advance()
+	name, err := p.brokerExpectIdent()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Name = name
+
+	var opts []nodes.Node
+	authLoc := p.pos()
+	owner, err := p.brokerParseAuthorization()
+	if err != nil {
+		return nil, err
+	}
+	if owner != "" {
+		opts = append(opts, &nodes.ServiceBrokerOption{Name: "AUTHORIZATION", Value: owner, Loc: nodes.Loc{Start: authLoc, End: p.prevEnd()}})
 	}
 
-	stmt.Options = p.parseServiceBrokerOptions()
+	queue, err := p.brokerParseOnQueue()
+	if err != nil {
+		return nil, err
+	}
+	opts = append(opts, queue)
+
+	if p.cur.Type == '(' {
+		p.advance()
+		for {
+			optLoc := p.pos()
+			contract, err := p.brokerExpectIdent()
+			if err != nil {
+				return nil, err
+			}
+			opts = append(opts, &nodes.ServiceBrokerOption{Name: strings.ToUpper(contract), Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
+			if _, ok := p.match(','); !ok {
+				break
+			}
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+	}
+
+	stmt.Options = &nodes.List{Items: opts}
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
+// brokerParseOnQueue parses onQueueClause (TSql160.g:10357), ON QUEUE name,
+// with a queue name of at most two parts, as SQL Server takes it.
+func (p *Parser) brokerParseOnQueue() (*nodes.ServiceBrokerOption, error) {
+	if _, err := p.expect(kwON); err != nil {
+		return nil, err
+	}
+	qLoc := p.pos()
+	if _, err := p.expect(kwQUEUE); err != nil {
+		return nil, err
+	}
+	ref, err := p.brokerParseObjectName(2)
+	if err != nil {
+		return nil, err
+	}
+	return &nodes.ServiceBrokerOption{Name: "QUEUE", Value: ref.Object, Loc: nodes.Loc{Start: qLoc, End: p.prevEnd()}}, nil
+}
+
 // parseSendStmt parses SEND ON CONVERSATION.
 //
-// BNF: mssql/parser/bnf/send-transact-sql.bnf
+// TSql160.g:25611 sendStatement:
 //
-//	SEND
-//	   ON CONVERSATION [(]conversation_handle [,.. @conversation_handle_n][)]
-//	   [ MESSAGE TYPE message_type_name ]
-//	   [ ( message_body_expression ) ]
+//	SEND ON CONVERSATION { ( expression [ ,...n ] ) | expression }
+//	    ( MESSAGE TYPE identifierOrVariable )?
+//	    ( ( expression ) )?
 func (p *Parser) parseSendStmt() (*nodes.ServiceBrokerStmt, error) {
 	loc := p.pos()
 	p.advance() // consume SEND
@@ -423,52 +627,55 @@ func (p *Parser) parseSendStmt() (*nodes.ServiceBrokerStmt, error) {
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	// ON CONVERSATION [(]handle [,...n][)]
-	if p.cur.Type == kwON {
-		p.advance()
-		if p.cur.Type == kwCONVERSATION {
-			p.advance()
-		}
-		// Multiple handles may be wrapped in parentheses
-		if p.cur.Type == '(' {
-			p.advance()
-			// First handle
-			if p.cur.Type == tokVARIABLE || p.isIdentLike() {
-				stmt.Name = p.cur.Str
-				p.advance()
-			}
-			// Additional handles
-			for {
-				if _, ok := p.match(','); !ok {
-					break
-				}
-				if p.cur.Type == tokVARIABLE || p.isIdentLike() {
-					p.advance()
-				}
-			}
-			p.match(')')
-		} else if p.cur.Type == tokVARIABLE || p.isIdentLike() {
-			stmt.Name = p.cur.Str
-			p.advance()
-		}
+	if _, err := p.expect(kwON); err != nil {
+		return nil, err
 	}
-
-	// MESSAGE TYPE message_type_name
-	if p.cur.Type == kwMESSAGE {
-		p.advance()
-		if p.cur.Type == kwTYPE {
-			p.advance()
-		}
-		if p.isIdentLike() || p.cur.Type == tokVARIABLE {
-			p.advance()
-		}
+	if _, err := p.expect(kwCONVERSATION); err != nil {
+		return nil, err
 	}
-
-	// ( message_body_expression )
 	if p.cur.Type == '(' {
 		p.advance()
-		p.parseExpr()
-		p.match(')')
+		for i := 0; ; i++ {
+			_, text, err := p.brokerParseExprText()
+			if err != nil {
+				return nil, err
+			}
+			if i == 0 {
+				stmt.Name = text
+			}
+			if _, ok := p.match(','); !ok {
+				break
+			}
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+	} else {
+		_, text, err := p.brokerParseExprText()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Name = text
+	}
+
+	if p.cur.Type == kwMESSAGE {
+		p.advance()
+		if _, err := p.expect(kwTYPE); err != nil {
+			return nil, err
+		}
+		if _, err := p.brokerParseNameOrVariable(); err != nil {
+			return nil, err
+		}
+	}
+
+	if p.cur.Type == '(' {
+		p.advance()
+		if _, _, err := p.brokerParseExprText(); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
 	}
 
 	stmt.Loc.End = p.prevEnd()
@@ -477,23 +684,17 @@ func (p *Parser) parseSendStmt() (*nodes.ServiceBrokerStmt, error) {
 
 // parseReceiveStmt parses RECEIVE.
 //
-// BNF: mssql/parser/bnf/receive-transact-sql.bnf
+// TSql160.g:25536 receiveStatement, TSql160.g:25586 receiveSelectExpression
+// and TSql160.g:25595 receiveColumnSelectExpression:
 //
-//	[ WAITFOR ( ]
-//	RECEIVE [ TOP ( n ) ]
-//	    <column_specifier> [ ,...n ]
-//	    FROM <queue>
-//	    [ INTO table_variable ]
-//	    [ WHERE { conversation_handle = @conversation_handle | conversation_group_id = @conversation_group_id } ]
-//	[ ) ] [ , TIMEOUT timeout ]
+//	RECEIVE ( TOP ( expression ) )? receiveSelectExpression [ ,...n ]
+//	    FROM schemaObjectThreePartName
+//	    ( INTO variable )?
+//	    ( WHERE { CONVERSATION_GROUP_ID | CONVERSATION_HANDLE } = stringOrVariable )?
 //
-//	<column_specifier> ::=
-//	{    *
-//	  |  { column_name | [ ] expression } [ [ AS ] column_alias ]
-//	}     [ ,...n ]
-//
-//	<queue> ::=
-//	{ database_name.schema_name.queue_name | schema_name.queue_name | queue_name }
+//	receiveSelectExpression ::= @variable = expression
+//	                          | *
+//	                          | expression ( [ AS ] stringOrIdentifier )?
 func (p *Parser) parseReceiveStmt() (*nodes.ReceiveStmt, error) {
 	loc := p.pos()
 	p.advance() // consume RECEIVE
@@ -502,115 +703,141 @@ func (p *Parser) parseReceiveStmt() (*nodes.ReceiveStmt, error) {
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
 
-	// TOP (n)
 	if p.cur.Type == kwTOP {
 		p.advance()
-		if p.cur.Type == '(' {
-			p.advance()
-			var err error
-			stmt.Top, err = p.parseExpr()
-			if err != nil {
-				return nil, err
-			}
-			if _, err := p.expect(')'); err != nil {
-				return nil, err
-			}
+		if _, err := p.expect('('); err != nil {
+			return nil, err
+		}
+		top, _, err := p.brokerParseExprText()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Top = top
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
 		}
 	}
 
-	// column list: * or column_name [AS alias] [,...n]
-	if p.cur.Type == '*' {
-		stmt.AllColumns = true
-		p.advance()
-	} else {
-		// RECEIVE column list is terminated by a DML/statement boundary
-		// (FROM / INTO / WHERE / ; / EOF), so parseCommaList's single-end
-		// contract does not fit. Keep open-coded but enforce trailing-comma
-		// rejection to match SqlScriptDOM strictness.
-		var cols []nodes.Node
-		for p.cur.Type != kwFROM && p.cur.Type != tokEOF && p.cur.Type != ';' {
-			col := &nodes.ReceiveColumn{
-				Loc: nodes.Loc{Start: p.pos(), End: -1},
-			}
-			if p.isIdentLike() || p.cur.Type == tokVARIABLE {
-				col.Expr = &nodes.ColumnRef{Column: p.cur.Str, Loc: nodes.Loc{Start: p.pos(), End: p.prevEnd() + len(p.cur.Str)}}
-				p.advance()
-			} else {
-				col.Expr, _ = p.parseExpr()
-			}
-			if p.cur.Type == kwAS {
-				p.advance()
-				if p.isIdentLike() {
-					col.Alias = p.cur.Str
-					p.advance()
-				}
-			} else if p.isIdentLike() && p.cur.Type != kwFROM && p.cur.Type != kwINTO && p.cur.Type != kwWHERE {
-				col.Alias = p.cur.Str
-				p.advance()
-			}
-			col.Loc.End = p.prevEnd()
-			if col.Expr != nil {
-				cols = append(cols, col)
-			}
-			if _, ok := p.match(','); !ok {
-				break
-			}
-			// After consuming ',' there must be another column before the
-			// statement terminator — reject trailing comma.
-			if p.cur.Type == kwFROM || p.cur.Type == tokEOF || p.cur.Type == ';' {
-				return nil, p.unexpectedToken()
-			}
+	var cols []nodes.Node
+	for {
+		col, err := p.brokerParseReceiveColumn()
+		if err != nil {
+			return nil, err
 		}
-		if len(cols) > 0 {
-			stmt.Columns = &nodes.List{Items: cols}
+		cols = append(cols, col)
+		if _, ok := p.match(','); !ok {
+			break
 		}
 	}
-
-	// FROM queue
-	if _, ok := p.match(kwFROM); ok {
-		stmt.Queue, _ = p.parseTableRef()
+	if len(cols) == 1 {
+		if _, ok := cols[0].(*nodes.ReceiveColumn).Expr.(*nodes.StarExpr); ok {
+			stmt.AllColumns = true
+			cols = nil
+		}
+	}
+	if len(cols) > 0 {
+		stmt.Columns = &nodes.List{Items: cols}
 	}
 
-	// INTO table_variable
+	if _, err := p.expect(kwFROM); err != nil {
+		return nil, err
+	}
+	queue, err := p.brokerParseObjectName(3)
+	if err != nil {
+		return nil, err
+	}
+	stmt.Queue = queue
+
 	if p.cur.Type == kwINTO {
 		p.advance()
-		if p.cur.Type == tokVARIABLE {
-			stmt.IntoVar = p.cur.Str
-			p.advance()
-		} else if p.isIdentLike() {
-			stmt.IntoVar = p.cur.Str
-			p.advance()
+		if p.cur.Type != tokVARIABLE {
+			return nil, p.syntaxErrorAtCur()
 		}
+		stmt.IntoVar = p.advance().Str
 	}
 
-	// WHERE clause
 	if p.cur.Type == kwWHERE {
 		p.advance()
-		stmt.WhereClause, _ = p.parseExpr()
+		whereLoc := p.pos()
+		if !p.brokerIsWord("CONVERSATION_GROUP_ID") && !p.brokerIsWord("CONVERSATION_HANDLE") {
+			return nil, p.syntaxErrorAtCur()
+		}
+		colTok := p.advance()
+		left := &nodes.ColumnRef{Column: colTok.Str, Loc: nodes.Loc{Start: colTok.Loc, End: p.prevEnd()}}
+		if _, err := p.expect('='); err != nil {
+			return nil, err
+		}
+		if !p.brokerIsString() && p.cur.Type != tokVARIABLE {
+			return nil, p.syntaxErrorAtCur()
+		}
+		right, err := p.parsePrimary()
+		if err != nil {
+			return nil, err
+		}
+		stmt.WhereClause = &nodes.BinaryExpr{Op: nodes.BinOpEq, Left: left, Right: right, Loc: nodes.Loc{Start: whereLoc, End: p.prevEnd()}}
 	}
 
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
+// brokerParseReceiveColumn parses one receiveSelectExpression (TSql160.g:25586).
+func (p *Parser) brokerParseReceiveColumn() (*nodes.ReceiveColumn, error) {
+	col := &nodes.ReceiveColumn{Loc: nodes.Loc{Start: p.pos(), End: -1}}
+	switch {
+	case p.cur.Type == '*':
+		tok := p.advance()
+		col.Expr = &nodes.StarExpr{Loc: nodes.Loc{Start: tok.Loc, End: p.prevEnd()}}
+	case p.cur.Type == tokVARIABLE && p.peekNext().Type == '=':
+		// selectSetVariable: @variable = expression
+		v := p.advance()
+		p.advance() // consume '='
+		val, _, err := p.brokerParseExprText()
+		if err != nil {
+			return nil, err
+		}
+		col.Expr = &nodes.SelectAssign{Variable: v.Str, Value: val, Loc: nodes.Loc{Start: v.Loc, End: p.prevEnd()}}
+	default:
+		expr, _, err := p.brokerParseExprText()
+		if err != nil {
+			return nil, err
+		}
+		col.Expr = expr
+		// ( [ AS ] stringOrIdentifier )?
+		hasAs := false
+		if p.cur.Type == kwAS {
+			p.advance()
+			hasAs = true
+		}
+		switch {
+		case p.brokerIsString() || p.isIdentLike():
+			col.Alias = p.advance().Str
+		case hasAs:
+			return nil, p.syntaxErrorAtCur()
+		}
+	}
+	col.Loc.End = p.prevEnd()
+	return col, nil
+}
+
 // parseBeginConversationStmt parses BEGIN DIALOG CONVERSATION.
 //
-// BNF: mssql/parser/bnf/begin-dialog-conversation-transact-sql.bnf
+// TSql160.g:25678 beginDialogStatement and TSql160.g:25731 beginConversationArgument:
 //
 //	BEGIN DIALOG [ CONVERSATION ] @dialog_handle
-//	    FROM SERVICE initiator_service_name
-//	    TO SERVICE 'target_service_name'
-//	        [ , { 'service_broker_guid' | 'CURRENT DATABASE' }]
-//	    [ ON CONTRACT contract_name ]
-//	    [ WITH
-//	        [ { RELATED_CONVERSATION = related_conversation_handle
-//	          | RELATED_CONVERSATION_GROUP = related_conversation_group_id } ]
-//	        [ [ , ] LIFETIME = dialog_lifetime ]
-//	        [ [ , ] ENCRYPTION = { ON | OFF } ]
-//	    ]
+//	    FROM SERVICE identifierOrVariable
+//	    TO SERVICE stringOrVariable ( , stringOrVariable )?
+//	    ( ON CONTRACT identifierOrVariable )?
+//	    ( WITH beginConversationArgument [ ,...n ] )?
+//
+//	beginConversationArgument ::= { RELATED_CONVERSATION | RELATED_CONVERSATION_GROUP } = expression
+//	                            | LIFETIME = expression
+//	                            | ENCRYPTION = { ON | OFF }
+//
+// SQL Server refuses an argument given twice, and both RELATED_ arguments together.
 func (p *Parser) parseBeginConversationStmt() (*nodes.ServiceBrokerStmt, error) {
 	loc := p.pos()
-	// already consumed BEGIN, and DIALOG has been consumed by caller
+	// BEGIN DIALOG [CONVERSATION] already consumed by caller
 
 	stmt := &nodes.ServiceBrokerStmt{
 		Action:     "BEGIN",
@@ -618,137 +845,121 @@ func (p *Parser) parseBeginConversationStmt() (*nodes.ServiceBrokerStmt, error) 
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	// optional CONVERSATION keyword
-	if p.cur.Type == kwCONVERSATION {
-		p.advance()
+	if p.cur.Type != tokVARIABLE {
+		return nil, p.syntaxErrorAtCur()
 	}
-
-	// @dialog_handle
-	if p.cur.Type == tokVARIABLE {
-		stmt.Name = p.cur.Str
-		p.advance()
-	}
+	stmt.Name = p.advance().Str
 
 	var opts []nodes.Node
 
-	// FROM SERVICE initiator_service_name
-	if p.cur.Type == kwFROM {
-		optLoc := p.pos()
-		p.advance()
-		if p.cur.Type == kwSERVICE {
-			p.advance()
+	optLoc := p.pos()
+	if _, err := p.expect(kwFROM); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(kwSERVICE); err != nil {
+		return nil, err
+	}
+	from, err := p.brokerParseNameOrVariable()
+	if err != nil {
+		return nil, err
+	}
+	opts = append(opts, &nodes.ServiceBrokerOption{Name: "FROM SERVICE", Value: from, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
+
+	optLoc = p.pos()
+	if _, err := p.expect(kwTO); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(kwSERVICE); err != nil {
+		return nil, err
+	}
+	to, err := p.brokerParseStringOrVariable()
+	if err != nil {
+		return nil, err
+	}
+	opts = append(opts, &nodes.ServiceBrokerOption{Name: "TO SERVICE", Value: to, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
+	if _, ok := p.match(','); ok {
+		biLoc := p.pos()
+		instance, err := p.brokerParseStringOrVariable()
+		if err != nil {
+			return nil, err
 		}
-		if p.isIdentLike() || p.cur.Type == tokSCONST {
-			opts = append(opts, &nodes.ServiceBrokerOption{Name: "FROM SERVICE", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
-			p.advance()
-		}
+		opts = append(opts, &nodes.ServiceBrokerOption{Name: "BROKER_INSTANCE", Value: instance, Loc: nodes.Loc{Start: biLoc, End: p.prevEnd()}})
 	}
 
-	// TO SERVICE 'target_service_name' [, { 'service_broker_guid' | 'CURRENT DATABASE' }]
-	if p.cur.Type == kwTO {
-		optLoc := p.pos()
-		p.advance()
-		if p.cur.Type == kwSERVICE {
-			p.advance()
-		}
-		if p.cur.Type == tokSCONST || p.isIdentLike() {
-			opts = append(opts, &nodes.ServiceBrokerOption{Name: "TO SERVICE", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
-			p.advance()
-		}
-		// optional broker guid
-		if _, ok := p.match(','); ok {
-			biLoc := p.pos()
-			if p.cur.Type == tokSCONST || p.isIdentLike() {
-				opts = append(opts, &nodes.ServiceBrokerOption{Name: "BROKER_INSTANCE", Value: p.cur.Str, Loc: nodes.Loc{Start: biLoc, End: p.prevEnd()}})
-				p.advance()
-			}
-		}
-	}
-
-	// ON CONTRACT contract_name
 	if p.cur.Type == kwON {
 		optLoc := p.pos()
 		p.advance()
-		if p.cur.Type == kwCONTRACT {
-			p.advance()
+		if _, err := p.expect(kwCONTRACT); err != nil {
+			return nil, err
 		}
-		if p.isIdentLike() || p.cur.Type == tokSCONST {
-			opts = append(opts, &nodes.ServiceBrokerOption{Name: "ON CONTRACT", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
-			p.advance()
+		contract, err := p.brokerParseNameOrVariable()
+		if err != nil {
+			return nil, err
 		}
+		opts = append(opts, &nodes.ServiceBrokerOption{Name: "ON CONTRACT", Value: contract, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 	}
 
-	// WITH options
 	if p.cur.Type == kwWITH {
 		p.advance()
+		seen := map[string]bool{}
 		for {
 			optLoc := p.pos()
-			if p.cur.Type == kwRELATED_CONVERSATION_GROUP {
-				p.advance()
-				if p.cur.Type == '=' {
-					p.advance()
+			var name string
+			for _, w := range []string{"RELATED_CONVERSATION", "RELATED_CONVERSATION_GROUP", "LIFETIME", "ENCRYPTION"} {
+				if p.brokerIsWord(w) {
+					name = w
+					break
 				}
-				if p.cur.Type == tokVARIABLE || p.isIdentLike() || p.cur.Type == tokSCONST {
-					opts = append(opts, &nodes.ServiceBrokerOption{Name: "RELATED_CONVERSATION_GROUP", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
-					p.advance()
-				}
-			} else if p.cur.Type == kwRELATED_CONVERSATION {
-				p.advance()
-				if p.cur.Type == '=' {
-					p.advance()
-				}
-				if p.cur.Type == tokVARIABLE || p.isIdentLike() || p.cur.Type == tokSCONST {
-					opts = append(opts, &nodes.ServiceBrokerOption{Name: "RELATED_CONVERSATION", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
-					p.advance()
-				}
-			} else if p.cur.Type == kwLIFETIME {
-				p.advance()
-				if p.cur.Type == '=' {
-					p.advance()
-				}
-				if p.cur.Type == tokICONST || p.cur.Type == tokVARIABLE || p.isIdentLike() {
-					opts = append(opts, &nodes.ServiceBrokerOption{Name: "LIFETIME", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
-					p.advance()
-				}
-			} else if p.cur.Type == kwENCRYPTION {
-				p.advance()
-				if p.cur.Type == '=' {
-					p.advance()
-				}
-				if p.cur.Type == kwON || p.cur.Type == kwOFF {
-					opts = append(opts, &nodes.ServiceBrokerOption{Name: "ENCRYPTION", Value: strings.ToUpper(p.cur.Str), Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
-					p.advance()
-				}
-			} else {
-				break
 			}
+			key := name
+			if strings.HasPrefix(name, "RELATED_") {
+				key = "RELATED"
+			}
+			if name == "" || seen[key] {
+				return nil, p.syntaxErrorAtCur()
+			}
+			seen[key] = true
+			p.advance()
+			var val string
+			if name == "ENCRYPTION" {
+				v, err := p.brokerExpectOnOff()
+				if err != nil {
+					return nil, err
+				}
+				val = v
+			} else {
+				if _, err := p.expect('='); err != nil {
+					return nil, err
+				}
+				_, text, err := p.brokerParseExprText()
+				if err != nil {
+					return nil, err
+				}
+				val = text
+			}
+			opts = append(opts, &nodes.ServiceBrokerOption{Name: name, Value: val, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 			if _, ok := p.match(','); !ok {
 				break
 			}
 		}
 	}
 
-	if len(opts) > 0 {
-		stmt.Options = &nodes.List{Items: opts}
-	}
+	stmt.Options = &nodes.List{Items: opts}
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
 // parseEndConversationStmt parses END CONVERSATION.
 //
-// BNF: mssql/parser/bnf/end-conversation-transact-sql.bnf
+// TSql160.g:25471 endConversationStatement and TSql160.g:25483 endConversationArgumentsOpt:
 //
-//	END CONVERSATION conversation_handle
-//	    [   [ WITH ERROR = failure_code DESCRIPTION = 'failure_text' ]
-//	      | [ WITH CLEANUP ]
-//	    ]
+//	END CONVERSATION expression
+//	    ( WITH { CLEANUP | ERROR = integerOrVariable DESCRIPTION = stringOrVariable } )?
 func (p *Parser) parseEndConversationStmt() (*nodes.ServiceBrokerStmt, error) {
 	loc := p.pos()
 	p.advance() // consume END
-	// consume CONVERSATION
-	if p.cur.Type == kwCONVERSATION {
-		p.advance()
+	if _, err := p.expect(kwCONVERSATION); err != nil {
+		return nil, err
 	}
 
 	stmt := &nodes.ServiceBrokerStmt{
@@ -757,71 +968,116 @@ func (p *Parser) parseEndConversationStmt() (*nodes.ServiceBrokerStmt, error) {
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	// conversation handle
-	if p.cur.Type == tokVARIABLE || p.isIdentLike() {
-		stmt.Name = p.cur.Str
-		p.advance()
+	_, handle, err := p.brokerParseExprText()
+	if err != nil {
+		return nil, err
 	}
+	stmt.Name = handle
 
-	// WITH ERROR = failure_code DESCRIPTION = 'failure_text'
-	// WITH CLEANUP
 	if p.cur.Type == kwWITH {
 		p.advance()
 		var opts []nodes.Node
-		if p.cur.Type == kwERROR {
+		switch p.cur.Type {
+		case kwERROR:
 			errLoc := p.pos()
 			p.advance()
-			if p.cur.Type == '=' {
-				p.advance()
+			if _, err := p.expect('='); err != nil {
+				return nil, err
 			}
-			// failure_code: integer or variable
-			errorCode := ""
-			if p.cur.Type == tokICONST || p.cur.Type == tokVARIABLE || p.isIdentLike() {
-				errorCode = p.cur.Str
-				p.advance()
+			if p.cur.Type != tokICONST && p.cur.Type != tokVARIABLE {
+				return nil, p.syntaxErrorAtCur()
 			}
+			errorCode := p.advance().Str
 			opts = append(opts, &nodes.ServiceBrokerOption{Name: "ERROR", Value: errorCode, Loc: nodes.Loc{Start: errLoc, End: p.prevEnd()}})
 
-			// DESCRIPTION = 'failure_text'
-			if p.cur.Type == kwDESCRIPTION {
-				descLoc := p.pos()
-				p.advance()
-				if p.cur.Type == '=' {
-					p.advance()
-				}
-				descVal := ""
-				if p.cur.Type == tokSCONST || p.cur.Type == tokVARIABLE || p.isIdentLike() {
-					descVal = p.cur.Str
-					p.advance()
-				}
-				opts = append(opts, &nodes.ServiceBrokerOption{Name: "DESCRIPTION", Value: descVal, Loc: nodes.Loc{Start: descLoc, End: p.prevEnd()}})
+			descLoc := p.pos()
+			if _, err := p.expect(kwDESCRIPTION); err != nil {
+				return nil, err
 			}
-		} else if p.cur.Type == kwCLEANUP {
+			if _, err := p.expect('='); err != nil {
+				return nil, err
+			}
+			descVal, err := p.brokerParseStringOrVariable()
+			if err != nil {
+				return nil, err
+			}
+			opts = append(opts, &nodes.ServiceBrokerOption{Name: "DESCRIPTION", Value: descVal, Loc: nodes.Loc{Start: descLoc, End: p.prevEnd()}})
+		case kwCLEANUP:
 			cleanLoc := p.pos()
-			opts = append(opts, &nodes.ServiceBrokerOption{Name: "CLEANUP", Loc: nodes.Loc{Start: cleanLoc, End: p.prevEnd()}})
 			p.advance()
+			opts = append(opts, &nodes.ServiceBrokerOption{Name: "CLEANUP", Loc: nodes.Loc{Start: cleanLoc, End: p.prevEnd()}})
+		default:
+			return nil, p.syntaxErrorAtCur()
 		}
-		if len(opts) > 0 {
-			stmt.Options = &nodes.List{Items: opts}
-		}
+		stmt.Options = &nodes.List{Items: opts}
 	}
 
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
+// brokerRouteOptions are the route options of CREATE/ALTER ROUTE.
+//
+// TSql160.g:12615 routeOption: LIFETIME = integer | Identifier = stringLiteral,
+// the identifier one of RouteOptionKind's words (CodeGenerationSupporter.cs).
+var brokerRouteOptions = []string{"SERVICE_NAME", "BROKER_INSTANCE", "LIFETIME", "ADDRESS", "MIRROR_ADDRESS"}
+
+// brokerParseRouteOptions parses routeOptionList (TSql160.g:12596): WITH
+// routeOption [ ,...n ]. SQL Server refuses an option given twice, and CREATE
+// ROUTE without ADDRESS.
+func (p *Parser) brokerParseRouteOptions(create bool) (*nodes.List, error) {
+	if _, err := p.expect(kwWITH); err != nil {
+		return nil, err
+	}
+	withLoc := p.prevEnd()
+	seen := map[string]bool{}
+	var opts []nodes.Node
+	for {
+		optLoc := p.pos()
+		var name string
+		for _, w := range brokerRouteOptions {
+			if p.brokerIsWord(w) {
+				name = w
+				break
+			}
+		}
+		if name == "" || seen[name] {
+			return nil, p.syntaxErrorAtCur()
+		}
+		seen[name] = true
+		p.advance()
+		if _, err := p.expect('='); err != nil {
+			return nil, err
+		}
+		var val string
+		if name == "LIFETIME" {
+			if p.cur.Type != tokICONST {
+				return nil, p.syntaxErrorAtCur()
+			}
+			val = p.advance().Str
+		} else {
+			v, err := p.brokerExpectString()
+			if err != nil {
+				return nil, err
+			}
+			val = v
+		}
+		opts = append(opts, &nodes.ServiceBrokerOption{Name: name, Value: val, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
+		if _, ok := p.match(','); !ok {
+			break
+		}
+	}
+	if create && !seen["ADDRESS"] {
+		return nil, &ParseError{Message: "CREATE ROUTE requires ADDRESS", Position: withLoc, Source: p.source}
+	}
+	return &nodes.List{Items: opts}, nil
+}
+
 // parseCreateRouteStmt parses CREATE ROUTE.
 //
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-route-transact-sql
+// TSql160.g:10313 createRouteStatement:
 //
-//	CREATE ROUTE route_name
-//	    [ AUTHORIZATION owner_name ]
-//	    WITH
-//	    [ SERVICE_NAME = 'service_name' , ]
-//	    [ BROKER_INSTANCE = 'broker_instance_identifier' , ]
-//	    [ LIFETIME = route_lifetime , ]
-//	    ADDRESS = 'next_hop_address'
-//	    [ , MIRROR_ADDRESS = 'next_hop_mirror_address' ]
+//	ROUTE identifier authorizationOpt routeOptionList
 func (p *Parser) parseCreateRouteStmt() (*nodes.ServiceBrokerStmt, error) {
 	loc := p.pos()
 	// ROUTE keyword already consumed by caller
@@ -832,69 +1088,85 @@ func (p *Parser) parseCreateRouteStmt() (*nodes.ServiceBrokerStmt, error) {
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	// route_name
-	if p.isIdentLike() || p.cur.Type == tokSCONST {
-		stmt.Name = p.cur.Str
-		p.advance()
+	name, err := p.brokerExpectIdent()
+	if err != nil {
+		return nil, err
 	}
-
-	// Optional: AUTHORIZATION owner
-	if p.cur.Type == kwAUTHORIZATION {
-		p.advance()
-		if p.isIdentLike() {
-			p.advance()
-		}
+	stmt.Name = name
+	if _, err := p.brokerParseAuthorization(); err != nil {
+		return nil, err
 	}
-
-	// WITH clause (required for CREATE ROUTE)
-	if p.cur.Type == kwWITH {
-		p.advance()
-		var opts []nodes.Node
-		for {
-			if !p.isIdentLike() && p.cur.Type != tokSCONST {
-				break
-			}
-			optLoc := p.pos()
-			optName := strings.ToUpper(p.cur.Str)
-			p.advance()
-			if p.cur.Type == '=' {
-				p.advance()
-				var val string
-				if p.cur.Type == tokSCONST {
-					val = p.cur.Str
-					p.advance()
-				} else if p.cur.Type == tokICONST {
-					val = p.cur.Str
-					p.advance()
-				} else if p.isIdentLike() {
-					val = p.cur.Str
-					p.advance()
-				}
-				opts = append(opts, &nodes.ServiceBrokerOption{Name: optName, Value: val, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
-			} else {
-				opts = append(opts, &nodes.ServiceBrokerOption{Name: optName, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
-			}
-			if _, ok := p.match(','); !ok {
-				break
-			}
-		}
-		if len(opts) > 0 {
-			stmt.Options = &nodes.List{Items: opts}
-		}
+	stmt.Options, err = p.brokerParseRouteOptions(true)
+	if err != nil {
+		return nil, err
 	}
 
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
+// brokerParseBindingOptions parses the WITH clause of CREATE/ALTER REMOTE
+// SERVICE BINDING (TSql160.g:10214, 10264 bindingUserOption, 10275
+// bindingAnonymousOption):
+//
+//	WITH { USER = identifier [ , ANONYMOUS = { ON | OFF } ]
+//	     | ANONYMOUS = { ON | OFF } [ , USER = identifier ] }
+//
+// SQL Server refuses CREATE without USER.
+func (p *Parser) brokerParseBindingOptions(create bool) (*nodes.List, error) {
+	if _, err := p.expect(kwWITH); err != nil {
+		return nil, err
+	}
+	withLoc := p.prevEnd()
+	seen := map[string]bool{}
+	var opts []nodes.Node
+	for {
+		optLoc := p.pos()
+		var name, val string
+		switch {
+		case p.cur.Type == kwUSER && !seen["USER"]:
+			name = "USER"
+			p.advance()
+			if _, err := p.expect('='); err != nil {
+				return nil, err
+			}
+			v, err := p.brokerExpectIdent()
+			if err != nil {
+				return nil, err
+			}
+			val = v
+		case p.brokerIsWord("ANONYMOUS") && !seen["ANONYMOUS"]:
+			name = "ANONYMOUS"
+			p.advance()
+			v, err := p.brokerExpectOnOff()
+			if err != nil {
+				return nil, err
+			}
+			val = v
+		default:
+			return nil, p.syntaxErrorAtCur()
+		}
+		seen[name] = true
+		opts = append(opts, &nodes.ServiceBrokerOption{Name: name, Value: val, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
+		if len(seen) == 2 {
+			break
+		}
+		if _, ok := p.match(','); !ok {
+			break
+		}
+	}
+	if create && !seen["USER"] {
+		return nil, &ParseError{Message: "CREATE REMOTE SERVICE BINDING requires USER", Position: withLoc, Source: p.source}
+	}
+	return &nodes.List{Items: opts}, nil
+}
+
 // parseCreateRemoteServiceBindingStmt parses CREATE REMOTE SERVICE BINDING.
 //
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-remote-service-binding-transact-sql
+// TSql160.g:10214 createRemoteServiceBindingStatement:
 //
-//	CREATE REMOTE SERVICE BINDING binding_name
-//	    [ AUTHORIZATION owner_name ]
-//	    TO SERVICE 'service_name'
-//	    WITH USER = user_name [ , ANONYMOUS = { ON | OFF } ]
+//	REMOTE SERVICE BINDING identifier authorizationOpt TO SERVICE stringLiteral
+//	    WITH { USER = identifier [ , ANONYMOUS = { ON | OFF } ] | ANONYMOUS = ... [ , USER = ... ] }
 func (p *Parser) parseCreateRemoteServiceBindingStmt() (*nodes.ServiceBrokerStmt, error) {
 	loc := p.pos()
 	// REMOTE SERVICE BINDING keywords already consumed by caller
@@ -905,72 +1177,34 @@ func (p *Parser) parseCreateRemoteServiceBindingStmt() (*nodes.ServiceBrokerStmt
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	// binding_name
-	if p.isIdentLike() || p.cur.Type == tokSCONST {
-		stmt.Name = p.cur.Str
-		p.advance()
+	name, err := p.brokerExpectIdent()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Name = name
+	if _, err := p.brokerParseAuthorization(); err != nil {
+		return nil, err
 	}
 
-	// Optional: AUTHORIZATION owner
-	if p.cur.Type == kwAUTHORIZATION {
-		p.advance()
-		if p.isIdentLike() {
-			p.advance()
-		}
+	optLoc := p.pos()
+	if _, err := p.expect(kwTO); err != nil {
+		return nil, err
 	}
-
-	var opts []nodes.Node
-
-	// TO SERVICE 'service_name'
-	if p.cur.Type == kwTO {
-		optLoc := p.pos()
-		p.advance()
-		if p.cur.Type == kwSERVICE {
-			p.advance()
-		}
-		if p.cur.Type == tokSCONST {
-			opts = append(opts, &nodes.ServiceBrokerOption{Name: "SERVICE", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
-			p.advance()
-		}
+	if _, err := p.expect(kwSERVICE); err != nil {
+		return nil, err
 	}
-
-	// WITH USER = user_name [, ANONYMOUS = { ON | OFF }]
-	if p.cur.Type == kwWITH {
-		p.advance()
-		for {
-			if !p.isIdentLike() && p.cur.Type != kwUSER {
-				break
-			}
-			optLoc := p.pos()
-			optName := strings.ToUpper(p.cur.Str)
-			p.advance()
-			if p.cur.Type == '=' {
-				p.advance()
-				var val string
-				if p.cur.Type == kwON {
-					val = "ON"
-					p.advance()
-				} else if p.cur.Type == kwOFF {
-					val = "OFF"
-					p.advance()
-				} else if p.isIdentLike() {
-					val = p.cur.Str
-					p.advance()
-				} else if p.cur.Type == tokSCONST {
-					val = p.cur.Str
-					p.advance()
-				}
-				opts = append(opts, &nodes.ServiceBrokerOption{Name: optName, Value: val, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
-			}
-			if _, ok := p.match(','); !ok {
-				break
-			}
-		}
+	service, err := p.brokerExpectString()
+	if err != nil {
+		return nil, err
 	}
+	opts := []nodes.Node{&nodes.ServiceBrokerOption{Name: "SERVICE", Value: service, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}}}
 
-	if len(opts) > 0 {
-		stmt.Options = &nodes.List{Items: opts}
+	with, err := p.brokerParseBindingOptions(true)
+	if err != nil {
+		return nil, err
 	}
+	opts = append(opts, with.Items...)
+	stmt.Options = &nodes.List{Items: opts}
 
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
@@ -978,12 +1212,9 @@ func (p *Parser) parseCreateRemoteServiceBindingStmt() (*nodes.ServiceBrokerStmt
 
 // parseGetConversationGroupStmt parses GET CONVERSATION GROUP.
 //
-// BNF: mssql/parser/bnf/get-conversation-group-transact-sql.bnf
+// TSql160.g:25521 getConversationGroupStatement:
 //
-//	[ WAITFOR ( ]
-//	    GET CONVERSATION GROUP @conversation_group_id
-//	        FROM <queue>
-//	[ ) ] [ , TIMEOUT timeout ]
+//	GET CONVERSATION GROUP variable FROM schemaObjectThreePartName
 func (p *Parser) parseGetConversationGroupStmt() (*nodes.ServiceBrokerStmt, error) {
 	loc := p.pos()
 	p.advance() // consume GET
@@ -994,187 +1225,41 @@ func (p *Parser) parseGetConversationGroupStmt() (*nodes.ServiceBrokerStmt, erro
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	// CONVERSATION GROUP
-	if p.cur.Type == kwCONVERSATION {
-		p.advance()
+	if _, err := p.expect(kwCONVERSATION); err != nil {
+		return nil, err
 	}
-	if p.cur.Type == kwGROUP {
-		p.advance()
+	if _, err := p.expect(kwGROUP); err != nil {
+		return nil, err
 	}
+	if p.cur.Type != tokVARIABLE {
+		return nil, p.syntaxErrorAtCur()
+	}
+	stmt.Name = p.advance().Str
 
-	// @conversation_group_id
-	if p.cur.Type == tokVARIABLE {
-		stmt.Name = p.cur.Str
-		p.advance()
+	if _, err := p.expect(kwFROM); err != nil {
+		return nil, err
 	}
-
-	// FROM queue
-	if _, ok := p.match(kwFROM); ok {
-		qLoc := p.pos()
-		ref, _ := p.parseTableRef()
-		if ref != nil {
-			var opts []nodes.Node
-			opts = append(opts, &nodes.ServiceBrokerOption{Name: "QUEUE", Value: ref.Object, Loc: nodes.Loc{Start: qLoc, End: p.prevEnd()}})
-			stmt.Options = &nodes.List{Items: opts}
-		}
+	qLoc := p.pos()
+	ref, err := p.brokerParseObjectName(3)
+	if err != nil {
+		return nil, err
 	}
+	stmt.Options = &nodes.List{Items: []nodes.Node{&nodes.ServiceBrokerOption{Name: "QUEUE", Value: ref.Object, Loc: nodes.Loc{Start: qLoc, End: p.prevEnd()}}}}
 
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
-// parseServiceBrokerOptions consumes a generic WITH options clause.
-func (p *Parser) parseServiceBrokerOptions() *nodes.List {
-	// Skip any options
-	if p.cur.Type != kwWITH && p.cur.Type != kwON &&
-		p.cur.Type != kwAUTHORIZATION {
-		return nil
-	}
-
-	var opts []nodes.Node
-	if p.cur.Type == kwAUTHORIZATION {
-		optLoc := p.pos()
-		p.advance()
-		if p.isIdentLike() {
-			opts = append(opts, &nodes.ServiceBrokerOption{Name: "AUTHORIZATION", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
-			p.advance()
-		}
-	}
-
-	if p.cur.Type == kwON {
-		p.advance()
-		if p.cur.Type == kwQUEUE {
-			qLoc := p.pos()
-			p.advance()
-			ref, _ := p.parseTableRef()
-			if ref != nil {
-				opts = append(opts, &nodes.ServiceBrokerOption{Name: "QUEUE", Value: ref.Object, Loc: nodes.Loc{Start: qLoc, End: p.prevEnd()}})
-			}
-		}
-	}
-
-	if p.cur.Type == kwWITH {
-		p.advance()
-		if p.cur.Type == '(' {
-			p.advance()
-			// Structured parsing of parenthesized key=value options
-			for p.cur.Type != ')' && p.cur.Type != tokEOF {
-				if p.isIdentLike() || p.cur.Type == kwUSER {
-					optLoc := p.pos()
-					opt := strings.ToUpper(p.cur.Str)
-					p.advance()
-					if p.cur.Type == '=' {
-						p.advance()
-						var val string
-						if p.cur.Type == tokSCONST {
-							val = p.cur.Str
-							p.advance()
-						} else if p.cur.Type == tokICONST {
-							val = p.cur.Str
-							p.advance()
-						} else if p.cur.Type == kwON {
-							val = "ON"
-							p.advance()
-						} else if p.cur.Type == kwOFF {
-							val = "OFF"
-							p.advance()
-						} else if p.isIdentLike() {
-							val = p.cur.Str
-							p.advance()
-						}
-						opts = append(opts, &nodes.ServiceBrokerOption{Name: opt, Value: val, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
-					} else {
-						opts = append(opts, &nodes.ServiceBrokerOption{Name: opt, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
-					}
-				} else {
-					// Skip unexpected tokens
-					break
-				}
-				if _, ok := p.match(','); !ok {
-					if p.cur.Type != ')' {
-						break
-					}
-				}
-			}
-			p.match(')')
-		} else {
-			for p.isIdentLike() {
-				optLoc := p.pos()
-				opt := strings.ToUpper(p.cur.Str)
-				p.advance()
-				val := ""
-				if p.cur.Type == '=' {
-					p.advance()
-					if p.isIdentLike() || p.cur.Type == kwON || p.cur.Type == kwOFF {
-						val = strings.ToUpper(p.cur.Str)
-						p.advance()
-					}
-				}
-				opts = append(opts, &nodes.ServiceBrokerOption{Name: opt, Value: val, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
-				if _, ok := p.match(','); !ok {
-					break
-				}
-			}
-		}
-	}
-
-	// Contract list for CREATE SERVICE
-	if p.cur.Type == '(' {
-		p.advance()
-		for p.cur.Type != ')' && p.cur.Type != tokEOF {
-			if p.isIdentLike() || p.cur.Type == kwDEFAULT {
-				optLoc := p.pos()
-				opts = append(opts, &nodes.ServiceBrokerOption{Name: strings.ToUpper(p.cur.Str), Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
-				p.advance()
-			}
-			if _, ok := p.match(','); !ok {
-				break
-			}
-		}
-		p.match(')')
-	}
-
-	if len(opts) == 0 {
-		return nil
-	}
-	return &nodes.List{Items: opts}
-}
-
 // parseAlterQueueStmt parses ALTER QUEUE.
 //
-// BNF: mssql/parser/bnf/alter-queue-transact-sql.bnf
+// TSql160.g:12506 alterQueueStatement: QUEUE schemaObjectThreePartName
+// queueOptionList. SQL Server also takes the queue actions of
+// https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-queue-transact-sql,
+// which ScriptDOM lacks:
 //
-//	ALTER QUEUE <object>
-//	    queue_settings
-//	    | queue_action
-//
-//	<object> ::=
-//	{ database_name.schema_name.queue_name | schema_name.queue_name | queue_name }
-//
-//	<queue_settings> ::=
-//	WITH
-//	   [ STATUS = { ON | OFF } [ , ] ]
-//	   [ RETENTION = { ON | OFF } [ , ] ]
-//	   [ ACTIVATION (
-//	       { [ STATUS = { ON | OFF } [ , ] ]
-//	         [ PROCEDURE_NAME = <procedure> [ , ] ]
-//	         [ MAX_QUEUE_READERS = max_readers [ , ] ]
-//	         [ EXECUTE AS { SELF | 'user_name'  | OWNER } ]
-//	       |  DROP }
-//	          ) [ , ]]
-//	         [ POISON_MESSAGE_HANDLING (
-//	          STATUS = { ON | OFF } )
-//	         ]
-//
-//	<queue_action> ::=
-//	   REBUILD [ WITH <query_rebuild_options> ]
-//	   | REORGANIZE [ WITH (LOB_COMPACTION = { ON | OFF } ) ]
-//	   | MOVE TO { file_group | "default" }
-//
-//	<queue_rebuild_options> ::=
-//	{
-//	   ( MAXDOP = max_degree_of_parallelism )
-//	}
+//	REBUILD [ WITH ( MAXDOP = n ) ]
+//	| REORGANIZE [ WITH ( LOB_COMPACTION = { ON | OFF } ) ]
+//	| MOVE TO { file_group | [default] }
 func (p *Parser) parseAlterQueueStmt() (*nodes.ServiceBrokerStmt, error) {
 	loc := p.pos()
 	// QUEUE keyword already consumed by caller
@@ -1185,101 +1270,80 @@ func (p *Parser) parseAlterQueueStmt() (*nodes.ServiceBrokerStmt, error) {
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	// Parse possibly schema-qualified queue name
-	ref, _ := p.parseTableRef()
-	if ref != nil {
-		if ref.Schema != "" {
-			stmt.Name = ref.Schema + "." + ref.Object
-		} else {
-			stmt.Name = ref.Object
-		}
+	ref, err := p.brokerParseObjectName(3)
+	if err != nil {
+		return nil, err
+	}
+	stmt.Name = ref.Object
+	if ref.Schema != "" {
+		stmt.Name = ref.Schema + "." + ref.Object
 	}
 
 	var opts []nodes.Node
-
-	// queue_action: REBUILD | REORGANIZE | MOVE TO
-	if p.cur.Type == kwREBUILD {
-		optLoc := p.pos()
-		p.advance()
+	optLoc := p.pos()
+	switch p.cur.Type {
+	case kwREBUILD, kwREORGANIZE:
+		action := strings.ToUpper(p.advance().Str)
 		val := ""
-		// [ WITH ( MAXDOP = n ) ]
 		if p.cur.Type == kwWITH {
 			p.advance()
-			if p.cur.Type == '(' {
-				p.advance()
-				if p.cur.Type == kwMAXDOP {
-					p.advance()
-					if p.cur.Type == '=' {
-						p.advance()
-					}
-					if p.cur.Type == tokICONST {
-						val = "MAXDOP=" + p.cur.Str
-						p.advance()
-					}
+			if _, err := p.expect('('); err != nil {
+				return nil, err
+			}
+			if action == "REBUILD" {
+				if _, err := p.expect(kwMAXDOP); err != nil {
+					return nil, err
 				}
-				p.match(')')
+				if _, err := p.expect('='); err != nil {
+					return nil, err
+				}
+				if p.cur.Type != tokICONST {
+					return nil, p.syntaxErrorAtCur()
+				}
+				val = "MAXDOP=" + p.advance().Str
+			} else {
+				if _, err := p.expect(kwLOB_COMPACTION); err != nil {
+					return nil, err
+				}
+				v, err := p.brokerExpectOnOff()
+				if err != nil {
+					return nil, err
+				}
+				val = "LOB_COMPACTION=" + v
+			}
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
 			}
 		}
-		opts = append(opts, &nodes.ServiceBrokerOption{Name: "REBUILD", Value: val, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
-	} else if p.cur.Type == kwREORGANIZE {
-		optLoc := p.pos()
+		opts = append(opts, &nodes.ServiceBrokerOption{Name: action, Value: val, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
+	case kwMOVE:
 		p.advance()
-		val := ""
-		// [ WITH ( LOB_COMPACTION = { ON | OFF } ) ]
-		if p.cur.Type == kwWITH {
-			p.advance()
-			if p.cur.Type == '(' {
-				p.advance()
-				if p.cur.Type == kwLOB_COMPACTION {
-					p.advance()
-					if p.cur.Type == '=' {
-						p.advance()
-					}
-					if p.cur.Type == kwON || p.cur.Type == kwOFF {
-						val = "LOB_COMPACTION=" + strings.ToUpper(p.cur.Str)
-						p.advance()
-					}
-				}
-				p.match(')')
-			}
+		if _, err := p.expect(kwTO); err != nil {
+			return nil, err
 		}
-		opts = append(opts, &nodes.ServiceBrokerOption{Name: "REORGANIZE", Value: val, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
-	} else if p.cur.Type == kwMOVE {
-		optLoc := p.pos()
-		p.advance()
-		// TO { file_group | "default" }
-		if p.cur.Type == kwTO {
-			p.advance()
+		fg, err := p.brokerExpectIdent()
+		if err != nil {
+			return nil, err
 		}
-		val := ""
-		if p.isIdentLike() || p.cur.Type == kwDEFAULT || p.cur.Type == tokSCONST {
-			val = p.cur.Str
-			p.advance()
+		opts = append(opts, &nodes.ServiceBrokerOption{Name: "MOVE TO", Value: fg, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
+	default:
+		opts, err = p.brokerParseQueueOptions(opts, false)
+		if err != nil {
+			return nil, err
 		}
-		opts = append(opts, &nodes.ServiceBrokerOption{Name: "MOVE TO", Value: val, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
-	} else {
-		// queue_settings: WITH clause
-		opts = p.parseQueueWithClause(opts)
 	}
 
-	if len(opts) > 0 {
-		stmt.Options = &nodes.List{Items: opts}
-	}
-
+	stmt.Options = &nodes.List{Items: opts}
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
 // parseAlterServiceStmt parses ALTER SERVICE.
 //
-// BNF: mssql/parser/bnf/alter-service-transact-sql.bnf
+// TSql160.g:10379 alterServiceStatement and TSql160.g:10417 addDropServiceContract:
 //
-//	ALTER SERVICE service_name
-//	   [ ON QUEUE [ schema_name . ]queue_name ]
-//	   [ ( < opt_arg > [ , ...n ] ) ]
-//
-//	<opt_arg> ::=
-//	   ADD CONTRACT contract_name | DROP CONTRACT contract_name
+//	SERVICE identifier { ON QUEUE queue_name [ ( alter_list ) ] | ( alter_list ) }
+//	alter_list ::= { ADD | DROP } CONTRACT identifier [ ,...n ]
 func (p *Parser) parseAlterServiceStmt() (*nodes.ServiceBrokerStmt, error) {
 	loc := p.pos()
 	// SERVICE keyword already consumed by caller
@@ -1290,77 +1354,62 @@ func (p *Parser) parseAlterServiceStmt() (*nodes.ServiceBrokerStmt, error) {
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	if p.isIdentLike() || p.cur.Type == tokSCONST {
-		stmt.Name = p.cur.Str
-		p.advance()
+	name, err := p.brokerExpectIdent()
+	if err != nil {
+		return nil, err
 	}
+	stmt.Name = name
 
 	var opts []nodes.Node
-
-	// [ ON QUEUE [ schema_name . ] queue_name ]
 	if p.cur.Type == kwON {
-		p.advance()
-		if p.cur.Type == kwQUEUE {
-			qLoc := p.pos()
-			p.advance()
-			ref, _ := p.parseTableRef()
-			if ref != nil {
-				opts = append(opts, &nodes.ServiceBrokerOption{Name: "QUEUE", Value: ref.Object, Loc: nodes.Loc{Start: qLoc, End: p.prevEnd()}})
-			}
+		queue, err := p.brokerParseOnQueue()
+		if err != nil {
+			return nil, err
 		}
+		opts = append(opts, queue)
+	} else if p.cur.Type != '(' {
+		return nil, p.syntaxErrorAtCur()
 	}
 
-	// [ ( ADD CONTRACT name | DROP CONTRACT name [,...n] ) ]
 	if p.cur.Type == '(' {
 		p.advance()
-		for p.cur.Type != ')' && p.cur.Type != tokEOF {
+		for {
 			optLoc := p.pos()
-			if p.cur.Type == kwADD {
-				p.advance()
-				if p.cur.Type == kwCONTRACT {
-					p.advance()
-				}
-				if p.isIdentLike() || p.cur.Type == tokSCONST {
-					opts = append(opts, &nodes.ServiceBrokerOption{Name: "ADD CONTRACT", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
-					p.advance()
-				}
-			} else if p.cur.Type == kwDROP {
-				p.advance()
-				if p.cur.Type == kwCONTRACT {
-					p.advance()
-				}
-				if p.isIdentLike() || p.cur.Type == tokSCONST {
-					opts = append(opts, &nodes.ServiceBrokerOption{Name: "DROP CONTRACT", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
-					p.advance()
-				}
-			} else {
-				break
+			var action string
+			switch p.cur.Type {
+			case kwADD:
+				action = "ADD CONTRACT"
+			case kwDROP:
+				action = "DROP CONTRACT"
+			default:
+				return nil, p.syntaxErrorAtCur()
 			}
+			p.advance()
+			if _, err := p.expect(kwCONTRACT); err != nil {
+				return nil, err
+			}
+			contract, err := p.brokerExpectIdent()
+			if err != nil {
+				return nil, err
+			}
+			opts = append(opts, &nodes.ServiceBrokerOption{Name: action, Value: contract, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 			if _, ok := p.match(','); !ok {
 				break
 			}
 		}
-		p.match(')')
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
 	}
 
-	if len(opts) > 0 {
-		stmt.Options = &nodes.List{Items: opts}
-	}
+	stmt.Options = &nodes.List{Items: opts}
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
 // parseAlterRouteStmt parses ALTER ROUTE.
 //
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-route-transact-sql
-//
-//	ALTER ROUTE route_name
-//	    WITH
-//	    [ SERVICE_NAME = 'service_name' , ]
-//	    [ BROKER_INSTANCE = 'broker_instance_identifier' , ]
-//	    [ LIFETIME = route_lifetime , ]
-//	    ADDRESS = 'next_hop_address'
-//	    [ , MIRROR_ADDRESS = 'next_hop_mirror_address' ]
+// TSql160.g:12636 alterRouteStatement: ROUTE identifier routeOptionList
 func (p *Parser) parseAlterRouteStmt() (*nodes.ServiceBrokerStmt, error) {
 	loc := p.pos()
 	// ROUTE keyword already consumed by caller
@@ -1371,46 +1420,14 @@ func (p *Parser) parseAlterRouteStmt() (*nodes.ServiceBrokerStmt, error) {
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	if p.isIdentLike() || p.cur.Type == tokSCONST {
-		stmt.Name = p.cur.Str
-		p.advance()
+	name, err := p.brokerExpectIdent()
+	if err != nil {
+		return nil, err
 	}
-
-	// WITH clause (same as CREATE ROUTE)
-	if p.cur.Type == kwWITH {
-		p.advance()
-		var opts []nodes.Node
-		for {
-			if !p.isIdentLike() && p.cur.Type != tokSCONST {
-				break
-			}
-			optLoc := p.pos()
-			optName := strings.ToUpper(p.cur.Str)
-			p.advance()
-			if p.cur.Type == '=' {
-				p.advance()
-				var val string
-				if p.cur.Type == tokSCONST {
-					val = p.cur.Str
-					p.advance()
-				} else if p.cur.Type == tokICONST {
-					val = p.cur.Str
-					p.advance()
-				} else if p.isIdentLike() {
-					val = p.cur.Str
-					p.advance()
-				}
-				opts = append(opts, &nodes.ServiceBrokerOption{Name: optName, Value: val, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
-			} else {
-				opts = append(opts, &nodes.ServiceBrokerOption{Name: optName, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
-			}
-			if _, ok := p.match(','); !ok {
-				break
-			}
-		}
-		if len(opts) > 0 {
-			stmt.Options = &nodes.List{Items: opts}
-		}
+	stmt.Name = name
+	stmt.Options, err = p.brokerParseRouteOptions(false)
+	if err != nil {
+		return nil, err
 	}
 
 	stmt.Loc.End = p.prevEnd()
@@ -1419,10 +1436,10 @@ func (p *Parser) parseAlterRouteStmt() (*nodes.ServiceBrokerStmt, error) {
 
 // parseAlterRemoteServiceBindingStmt parses ALTER REMOTE SERVICE BINDING.
 //
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-remote-service-binding-transact-sql
+// TSql160.g:11372 alterRemoteServiceBindingStatement:
 //
-//	ALTER REMOTE SERVICE BINDING binding_name
-//	    WITH USER = user_name [ , ANONYMOUS = { ON | OFF } ]
+//	REMOTE SERVICE BINDING identifier
+//	    WITH { USER = identifier [ , ANONYMOUS = { ON | OFF } ] | ANONYMOUS = ... [ , USER = ... ] }
 func (p *Parser) parseAlterRemoteServiceBindingStmt() (*nodes.ServiceBrokerStmt, error) {
 	loc := p.pos()
 	// REMOTE SERVICE BINDING keywords already consumed by caller
@@ -1433,44 +1450,14 @@ func (p *Parser) parseAlterRemoteServiceBindingStmt() (*nodes.ServiceBrokerStmt,
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	if p.isIdentLike() || p.cur.Type == tokSCONST {
-		stmt.Name = p.cur.Str
-		p.advance()
+	name, err := p.brokerExpectIdent()
+	if err != nil {
+		return nil, err
 	}
-
-	// WITH USER = user_name [, ANONYMOUS = { ON | OFF }]
-	var opts []nodes.Node
-	if p.cur.Type == kwWITH {
-		p.advance()
-		for {
-			if !p.isIdentLike() && p.cur.Type != kwUSER {
-				break
-			}
-			optLoc := p.pos()
-			optName := strings.ToUpper(p.cur.Str)
-			p.advance()
-			if p.cur.Type == '=' {
-				p.advance()
-				var val string
-				if p.cur.Type == kwON {
-					val = "ON"
-					p.advance()
-				} else if p.cur.Type == kwOFF {
-					val = "OFF"
-					p.advance()
-				} else if p.isIdentLike() {
-					val = p.cur.Str
-					p.advance()
-				}
-				opts = append(opts, &nodes.ServiceBrokerOption{Name: optName, Value: val, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
-			}
-			if _, ok := p.match(','); !ok {
-				break
-			}
-		}
-	}
-	if len(opts) > 0 {
-		stmt.Options = &nodes.List{Items: opts}
+	stmt.Name = name
+	stmt.Options, err = p.brokerParseBindingOptions(false)
+	if err != nil {
+		return nil, err
 	}
 
 	stmt.Loc.End = p.prevEnd()
@@ -1479,14 +1466,7 @@ func (p *Parser) parseAlterRemoteServiceBindingStmt() (*nodes.ServiceBrokerStmt,
 
 // parseAlterMessageTypeStmt parses ALTER MESSAGE TYPE.
 //
-// BNF: mssql/parser/bnf/alter-message-type-transact-sql.bnf
-//
-//	ALTER MESSAGE TYPE message_type_name
-//	    VALIDATION =
-//	    {  NONE
-//	     | EMPTY
-//	     | WELL_FORMED_XML
-//	     | VALID_XML WITH SCHEMA COLLECTION schema_collection_name }
+// TSql160.g:12152 alterMessageTypeStatement: MESSAGE TYPE identifier messageTypeValidation
 func (p *Parser) parseAlterMessageTypeStmt() (*nodes.ServiceBrokerStmt, error) {
 	loc := p.pos()
 	// MESSAGE TYPE keywords already consumed by caller
@@ -1497,153 +1477,34 @@ func (p *Parser) parseAlterMessageTypeStmt() (*nodes.ServiceBrokerStmt, error) {
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	if p.isIdentLike() || p.cur.Type == tokSCONST {
-		stmt.Name = p.cur.Str
-		p.advance()
+	name, err := p.brokerExpectIdent()
+	if err != nil {
+		return nil, err
 	}
+	stmt.Name = name
 
-	// Optional: VALIDATION = { NONE | EMPTY | WELL_FORMED_XML | VALID_XML WITH SCHEMA COLLECTION name }
-	if p.cur.Type == kwVALIDATION {
-		valLoc := p.pos()
-		p.advance()
-		if p.cur.Type == '=' {
-			p.advance()
-		}
-		var opts []nodes.Node
-		// Consume the validation value (NONE, EMPTY, WELL_FORMED_XML, or VALID_XML)
-		if p.isValidOption(validationValues) {
-			valType := strings.ToUpper(p.cur.Str)
-			p.advance()
-			// Check for VALID_XML WITH SCHEMA COLLECTION name
-			if valType == "VALID_XML" && p.cur.Type == kwWITH {
-				p.advance() // consume WITH
-				if p.cur.Type == kwSCHEMA {
-					p.advance() // consume SCHEMA
-				}
-				if p.cur.Type == kwCOLLECTION {
-					p.advance() // consume COLLECTION
-				}
-				// schema collection name (possibly dot-qualified)
-				ref, _ := p.parseTableRef()
-				schemaName := ""
-				if ref != nil {
-					if ref.Schema != "" {
-						schemaName = ref.Schema + "." + ref.Object
-					} else {
-						schemaName = ref.Object
-					}
-				}
-				opts = append(opts, &nodes.ServiceBrokerOption{Name: "VALIDATION", Value: "VALID_XML WITH SCHEMA COLLECTION " + schemaName, Loc: nodes.Loc{Start: valLoc, End: p.prevEnd()}})
-			} else {
-				opts = append(opts, &nodes.ServiceBrokerOption{Name: "VALIDATION", Value: valType, Loc: nodes.Loc{Start: valLoc, End: p.prevEnd()}})
-			}
-		} else {
-			return nil, p.syntaxErrorAtCur()
-		}
-		if len(opts) > 0 {
-			stmt.Options = &nodes.List{Items: opts}
-		}
+	opt, err := p.brokerParseMessageTypeValidation()
+	if err != nil {
+		return nil, err
 	}
+	stmt.Options = &nodes.List{Items: []nodes.Node{opt}}
 
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
-// parseAlterContractStmt parses ALTER CONTRACT.
-//
-// ALTER CONTRACT is limited in T-SQL. The message types and directions in a contract
-// cannot be changed. To change AUTHORIZATION, use ALTER AUTHORIZATION.
-// We support ADD/DROP MESSAGE TYPE as extensions that some tools may emit.
-//
-//	ALTER CONTRACT contract_name
-//	    [ ADD MESSAGE TYPE message_type_name SENT BY { INITIATOR | TARGET | ANY } ]
-//	    [ DROP MESSAGE TYPE message_type_name ]
+// parseAlterContractStmt refuses ALTER CONTRACT: neither TSql160.g's
+// alter2005Statements nor SQL Server 2022 has it (a contract's message types
+// cannot change; ownership moves with ALTER AUTHORIZATION).
 func (p *Parser) parseAlterContractStmt() (*nodes.ServiceBrokerStmt, error) {
-	loc := p.pos()
-	// CONTRACT keyword already consumed by caller
-
-	stmt := &nodes.ServiceBrokerStmt{
-		Action:     "ALTER",
-		ObjectType: "CONTRACT",
-		Loc:        nodes.Loc{Start: loc, End: -1},
-	}
-
-	if p.isIdentLike() || p.cur.Type == tokSCONST {
-		stmt.Name = p.cur.Str
-		p.advance()
-	}
-
-	var opts []nodes.Node
-
-	// ADD MESSAGE TYPE name SENT BY { INITIATOR | TARGET | ANY }
-	if p.cur.Type == kwADD {
-		addLoc := p.pos()
-		p.advance() // consume ADD
-		if p.cur.Type == kwMESSAGE {
-			p.advance() // consume MESSAGE
-			if p.cur.Type == kwTYPE {
-				p.advance() // consume TYPE
-			}
-		}
-		var msgTypeName string
-		if p.isIdentLike() || p.cur.Type == tokSCONST {
-			msgTypeName = p.cur.Str
-			p.advance()
-		}
-		sentBy := ""
-		if p.cur.Type == kwSENT {
-			p.advance() // consume SENT
-			if p.cur.Type == kwBY {
-				p.advance() // consume BY
-			}
-			// ALTER CONTRACT SENT BY — same enum as CREATE CONTRACT.
-			if p.isValidOption(contractSentByValues) {
-				sentBy = strings.ToUpper(p.cur.Str)
-				p.advance()
-			}
-		}
-		if msgTypeName != "" {
-			val := msgTypeName
-			if sentBy != "" {
-				val += " SENT BY " + sentBy
-			}
-			opts = append(opts, &nodes.ServiceBrokerOption{Name: "ADD", Value: val, Loc: nodes.Loc{Start: addLoc, End: p.prevEnd()}})
-		}
-	}
-
-	// DROP MESSAGE TYPE name
-	if p.cur.Type == kwDROP {
-		dropLoc := p.pos()
-		p.advance() // consume DROP
-		if p.cur.Type == kwMESSAGE {
-			p.advance() // consume MESSAGE
-			if p.cur.Type == kwTYPE {
-				p.advance() // consume TYPE
-			}
-		}
-		if p.isIdentLike() || p.cur.Type == tokSCONST {
-			opts = append(opts, &nodes.ServiceBrokerOption{Name: "DROP", Value: p.cur.Str, Loc: nodes.Loc{Start: dropLoc, End: p.prevEnd()}})
-			p.advance()
-		}
-	}
-
-	if len(opts) > 0 {
-		stmt.Options = &nodes.List{Items: opts}
-	}
-
-	stmt.Loc.End = p.prevEnd()
-	return stmt, nil
+	return nil, p.syntaxErrorAtCur()
 }
 
 // parseDropServiceBrokerStmt parses DROP for Service Broker objects.
 //
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/drop-message-type-transact-sql
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/drop-contract-transact-sql
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/drop-queue-transact-sql
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/drop-service-transact-sql
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/drop-route-transact-sql
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/drop-remote-service-binding-transact-sql
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/drop-broker-priority-transact-sql
+// TSql160.g:15499-15555 and 22821: a queue takes schemaObjectThreePartName,
+// every other object a one-part identifier (SQL Server: Msg 117, "maximum
+// number of prefixes ... is 0").
 //
 //	DROP { MESSAGE TYPE | CONTRACT | QUEUE | SERVICE | ROUTE | REMOTE SERVICE BINDING | BROKER PRIORITY } name
 func (p *Parser) parseDropServiceBrokerStmt(objectType string) (*nodes.ServiceBrokerStmt, error) {
@@ -1655,14 +1516,17 @@ func (p *Parser) parseDropServiceBrokerStmt(objectType string) (*nodes.ServiceBr
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	// Parse possibly qualified name
-	ref, _ := p.parseTableRef()
-	if ref != nil {
-		if ref.Schema != "" {
-			stmt.Name = ref.Schema + "." + ref.Object
-		} else {
-			stmt.Name = ref.Object
-		}
+	maxParts := 1
+	if objectType == "QUEUE" {
+		maxParts = 3
+	}
+	ref, err := p.brokerParseObjectName(maxParts)
+	if err != nil {
+		return nil, err
+	}
+	stmt.Name = ref.Object
+	if ref.Schema != "" {
+		stmt.Name = ref.Schema + "." + ref.Object
 	}
 
 	stmt.Loc.End = p.prevEnd()
@@ -1671,135 +1535,123 @@ func (p *Parser) parseDropServiceBrokerStmt(objectType string) (*nodes.ServiceBr
 
 // parseCreateBrokerPriorityStmt parses CREATE BROKER PRIORITY.
 //
-// BNF: mssql/parser/bnf/create-broker-priority-transact-sql.bnf
+// TSql160.g:22834 brokerPriorityStatementBody:
 //
-//	CREATE BROKER PRIORITY ConversationPriorityName
-//	    FOR CONVERSATION
-//	    [ SET (
-//	        [ CONTRACT_NAME = { ContractName | ANY } ]
-//	        [ [ , ] LOCAL_SERVICE_NAME = { LocalServiceName | ANY } ]
-//	        [ [ , ] REMOTE_SERVICE_NAME = { 'RemoteServiceName' | ANY } ]
-//	        [ [ , ] PRIORITY_LEVEL = { PriorityValue | DEFAULT } ]
-//	    ) ]
+//	BROKER PRIORITY identifier FOR CONVERSATION
+//	    ( SET ( brokerPriorityParameter [ ,...n ] ) )?
 func (p *Parser) parseCreateBrokerPriorityStmt() (*nodes.ServiceBrokerStmt, error) {
-	loc := p.pos()
-	// BROKER PRIORITY keywords already consumed by caller
-
-	stmt := &nodes.ServiceBrokerStmt{
-		Action:     "CREATE",
-		ObjectType: "BROKER PRIORITY",
-		Loc:        nodes.Loc{Start: loc, End: -1},
-	}
-
-	if p.isIdentLike() || p.cur.Type == tokSCONST {
-		stmt.Name = p.cur.Str
-		p.advance()
-	}
-
-	// FOR CONVERSATION
-	if p.cur.Type == kwFOR {
-		p.advance()
-		if p.cur.Type == kwCONVERSATION {
-			p.advance()
-		}
-	}
-
-	stmt.Options = p.parseBrokerPrioritySetOptions()
-
-	stmt.Loc.End = p.prevEnd()
-	return stmt, nil
+	return p.brokerParsePriority("CREATE", false)
 }
 
-// parseAlterBrokerPriorityStmt parses ALTER BROKER PRIORITY.
-//
-// BNF: mssql/parser/bnf/alter-broker-priority-transact-sql.bnf
-//
-//	ALTER BROKER PRIORITY ConversationPriorityName
-//	    FOR CONVERSATION
-//	    SET (
-//	        [ CONTRACT_NAME = { ContractName | ANY } ]
-//	        [ [ , ] LOCAL_SERVICE_NAME = { LocalServiceName | ANY } ]
-//	        [ [ , ] REMOTE_SERVICE_NAME = { 'RemoteServiceName' | ANY } ]
-//	        [ [ , ] PRIORITY_LEVEL = { PriorityValue | DEFAULT } ]
-//	    )
+// parseAlterBrokerPriorityStmt parses ALTER BROKER PRIORITY, whose SET clause
+// SQL Server requires (TSql160.g:22814 shares the CREATE body; the server
+// refuses ALTER without SET).
 func (p *Parser) parseAlterBrokerPriorityStmt() (*nodes.ServiceBrokerStmt, error) {
+	return p.brokerParsePriority("ALTER", true)
+}
+
+func (p *Parser) brokerParsePriority(action string, needSet bool) (*nodes.ServiceBrokerStmt, error) {
 	loc := p.pos()
 	// BROKER PRIORITY keywords already consumed by caller
 
 	stmt := &nodes.ServiceBrokerStmt{
-		Action:     "ALTER",
+		Action:     action,
 		ObjectType: "BROKER PRIORITY",
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	if p.isIdentLike() || p.cur.Type == tokSCONST {
-		stmt.Name = p.cur.Str
-		p.advance()
+	name, err := p.brokerExpectIdent()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Name = name
+	if _, err := p.expect(kwFOR); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(kwCONVERSATION); err != nil {
+		return nil, err
 	}
 
-	// FOR CONVERSATION
-	if p.cur.Type == kwFOR {
-		p.advance()
-		if p.cur.Type == kwCONVERSATION {
-			p.advance()
+	if p.cur.Type == kwSET {
+		stmt.Options, err = p.brokerParsePrioritySet()
+		if err != nil {
+			return nil, err
 		}
+	} else if needSet {
+		return nil, p.syntaxErrorAtCur()
 	}
-
-	stmt.Options = p.parseBrokerPrioritySetOptions()
 
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
-// parseBrokerPrioritySetOptions parses SET ( key=value, ... ) for BROKER PRIORITY statements.
-func (p *Parser) parseBrokerPrioritySetOptions() *nodes.List {
-	if p.cur.Type != kwSET {
-		return nil
+// brokerParsePrioritySet parses SET ( brokerPriorityParameter [ ,...n ] ).
+//
+// TSql160.g:22927 and 22937 brokerPriorityParameter (BrokerPriorityParameterType):
+//
+//	CONTRACT_NAME = { identifier | ANY }
+//	LOCAL_SERVICE_NAME = { identifier | ANY }
+//	REMOTE_SERVICE_NAME = { 'string' | ANY }
+//	PRIORITY_LEVEL = { integer | DEFAULT }
+//
+// SQL Server refuses a parameter given twice.
+func (p *Parser) brokerParsePrioritySet() (*nodes.List, error) {
+	if _, err := p.expect(kwSET); err != nil {
+		return nil, err
 	}
-	p.advance()
-	if p.cur.Type != '(' {
-		return nil
+	if _, err := p.expect('('); err != nil {
+		return nil, err
 	}
-	p.advance()
+	seen := map[string]bool{}
 	var opts []nodes.Node
-	for p.cur.Type != ')' && p.cur.Type != tokEOF {
-		if p.isIdentLike() {
-			optLoc := p.pos()
-			optName := strings.ToUpper(p.cur.Str)
-			p.advance()
-			if p.cur.Type == '=' {
-				p.advance()
-				var val string
-				if p.cur.Type == tokSCONST {
-					val = p.cur.Str
-					p.advance()
-				} else if p.isIdentLike() || p.cur.Type == kwDEFAULT || p.cur.Type == kwANY {
-					val = strings.ToUpper(p.cur.Str)
-					p.advance()
-				} else if p.cur.Type == tokICONST {
-					val = p.cur.Str
-					p.advance()
-				}
-				opts = append(opts, &nodes.ServiceBrokerOption{Name: optName, Value: val, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
+	for {
+		optLoc := p.pos()
+		var name string
+		for _, w := range []string{"CONTRACT_NAME", "LOCAL_SERVICE_NAME", "REMOTE_SERVICE_NAME", "PRIORITY_LEVEL"} {
+			if p.brokerIsWord(w) {
+				name = w
+				break
 			}
-		} else {
-			p.advance()
 		}
-		p.match(',')
+		if name == "" || seen[name] {
+			return nil, p.syntaxErrorAtCur()
+		}
+		seen[name] = true
+		p.advance()
+		if _, err := p.expect('='); err != nil {
+			return nil, err
+		}
+		var val string
+		switch {
+		case name == "PRIORITY_LEVEL" && p.cur.Type == tokICONST:
+			val = p.advance().Str
+		case name == "PRIORITY_LEVEL" && p.cur.Type == kwDEFAULT:
+			p.advance()
+			val = "DEFAULT"
+		case name != "PRIORITY_LEVEL" && p.cur.Type == kwANY:
+			p.advance()
+			val = "ANY"
+		case name == "REMOTE_SERVICE_NAME" && p.brokerIsString():
+			val = p.advance().Str
+		case (name == "CONTRACT_NAME" || name == "LOCAL_SERVICE_NAME") && p.isIdentLike():
+			val = strings.ToUpper(p.advance().Str)
+		default:
+			return nil, p.syntaxErrorAtCur()
+		}
+		opts = append(opts, &nodes.ServiceBrokerOption{Name: name, Value: val, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
+		if _, ok := p.match(','); !ok {
+			break
+		}
 	}
-	p.match(')')
-	if len(opts) > 0 {
-		return &nodes.List{Items: opts}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
 	}
-	return nil
+	return &nodes.List{Items: opts}, nil
 }
 
 // parseMoveConversationStmt parses MOVE CONVERSATION.
 //
-// BNF: mssql/parser/bnf/move-conversation-transact-sql.bnf
-//
-//	MOVE CONVERSATION conversation_handle
-//	    TO conversation_group_id
+// TSql160.g:25507 moveConversationStatement: MOVE CONVERSATION expression TO expression
 func (p *Parser) parseMoveConversationStmt() (*nodes.ServiceBrokerStmt, error) {
 	loc := p.pos()
 	p.advance() // consume MOVE
@@ -1810,28 +1662,24 @@ func (p *Parser) parseMoveConversationStmt() (*nodes.ServiceBrokerStmt, error) {
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	// CONVERSATION
-	if p.cur.Type == kwCONVERSATION {
-		p.advance()
+	if _, err := p.expect(kwCONVERSATION); err != nil {
+		return nil, err
 	}
+	_, handle, err := p.brokerParseExprText()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Name = handle
 
-	// conversation_handle
-	if p.cur.Type == tokVARIABLE || p.isIdentLike() {
-		stmt.Name = p.cur.Str
-		p.advance()
+	toLoc := p.pos()
+	if _, err := p.expect(kwTO); err != nil {
+		return nil, err
 	}
-
-	// TO conversation_group_id
-	if p.cur.Type == kwTO {
-		toLoc := p.pos()
-		p.advance()
-		if p.cur.Type == tokVARIABLE || p.isIdentLike() || p.cur.Type == tokSCONST {
-			var opts []nodes.Node
-			opts = append(opts, &nodes.ServiceBrokerOption{Name: "TO", Value: p.cur.Str, Loc: nodes.Loc{Start: toLoc, End: p.prevEnd()}})
-			stmt.Options = &nodes.List{Items: opts}
-			p.advance()
-		}
+	_, group, err := p.brokerParseExprText()
+	if err != nil {
+		return nil, err
 	}
+	stmt.Options = &nodes.List{Items: []nodes.Node{&nodes.ServiceBrokerOption{Name: "TO", Value: group, Loc: nodes.Loc{Start: toLoc, End: p.prevEnd()}}}}
 
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
@@ -1839,11 +1687,9 @@ func (p *Parser) parseMoveConversationStmt() (*nodes.ServiceBrokerStmt, error) {
 
 // parseBeginConversationTimerStmt parses a BEGIN CONVERSATION TIMER statement.
 //
-// BNF: mssql/parser/bnf/begin-conversation-timer-transact-sql.bnf
+// TSql160.g:25660 beginConversationTimerStatement:
 //
-//	BEGIN CONVERSATION TIMER ( conversation_handle )
-//	   TIMEOUT = timeout
-//	[ ; ]
+//	BEGIN CONVERSATION TIMER ( expression ) TIMEOUT = expression
 func (p *Parser) parseBeginConversationTimerStmt() (*nodes.ServiceBrokerStmt, error) {
 	// BEGIN and CONVERSATION TIMER already consumed by caller
 
@@ -1852,33 +1698,33 @@ func (p *Parser) parseBeginConversationTimerStmt() (*nodes.ServiceBrokerStmt, er
 		ObjectType: "CONVERSATION TIMER",
 	}
 
-	var opts []nodes.Node
-
-	// ( conversation_handle )
-	if p.cur.Type == '(' {
-		hLoc := p.pos()
-		p.advance()
-		handle, _ := p.parseExpr()
-		if handle != nil {
-			opts = append(opts, &nodes.ServiceBrokerOption{Name: "HANDLE", Value: nodes.NodeToString(handle), Loc: nodes.Loc{Start: hLoc, End: p.prevEnd()}})
-		}
-		p.match(')')
+	hLoc := p.pos()
+	if _, err := p.expect('('); err != nil {
+		return nil, err
 	}
-
-	// TIMEOUT = timeout
-	if p.matchIdentCI("TIMEOUT") {
-		tLoc := p.pos()
-		p.match('=')
-		timeout, _ := p.parseExpr()
-		if timeout != nil {
-			opts = append(opts, &nodes.ServiceBrokerOption{Name: "TIMEOUT", Value: nodes.NodeToString(timeout), Loc: nodes.Loc{Start: tLoc, End: p.prevEnd()}})
-		}
+	_, handle, err := p.brokerParseExprText()
+	if err != nil {
+		return nil, err
 	}
-
-	if len(opts) > 0 {
-		stmt.Options = &nodes.List{Items: opts}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
 	}
+	opts := []nodes.Node{&nodes.ServiceBrokerOption{Name: "HANDLE", Value: handle, Loc: nodes.Loc{Start: hLoc, End: p.prevEnd()}}}
 
+	tLoc := p.pos()
+	if _, err := p.expect(kwTIMEOUT); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect('='); err != nil {
+		return nil, err
+	}
+	_, timeout, err := p.brokerParseExprText()
+	if err != nil {
+		return nil, err
+	}
+	opts = append(opts, &nodes.ServiceBrokerOption{Name: "TIMEOUT", Value: timeout, Loc: nodes.Loc{Start: tLoc, End: p.prevEnd()}})
+
+	stmt.Options = &nodes.List{Items: opts}
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }

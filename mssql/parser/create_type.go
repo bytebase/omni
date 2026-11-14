@@ -23,6 +23,13 @@ import (
 //	        [ WITH ( BUCKET_COUNT = count ) ]
 //	        ( column_name [ ASC | DESC ] [ ,...n ] )
 //	        [ INCLUDE ( column_name [ ,...n ] ) ]
+//
+// The grammar is createTypeStatement (TSql160.g:10727): FROM takes a type,
+// EXTERNAL NAME an assembly with an optional class (assemblyName,
+// TSql160.g:33181), and AS TABLE a table definition that is not empty, with
+// no named or FOREIGN KEY constraint (Msg 156), and WITH
+// ( MEMORY_OPTIMIZED = { ON | OFF } ) (withTypeTableOptions,
+// TSql160.g:10815).
 func (p *Parser) parseCreateTypeStmt() (*nodes.CreateTypeStmt, error) {
 	stmt := &nodes.CreateTypeStmt{}
 
@@ -31,6 +38,9 @@ func (p *Parser) parseCreateTypeStmt() (*nodes.CreateTypeStmt, error) {
 	if err != nil {
 		return nil, err
 	}
+	if stmt.Name == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	switch {
 	case p.cur.Type == kwFROM:
@@ -38,6 +48,9 @@ func (p *Parser) parseCreateTypeStmt() (*nodes.CreateTypeStmt, error) {
 		stmt.BaseType, err = p.parseDataType()
 		if err != nil {
 			return nil, err
+		}
+		if stmt.BaseType == nil {
+			return nil, p.syntaxErrorAtCur()
 		}
 		if p.cur.Type == kwNULL {
 			b := true
@@ -55,74 +68,95 @@ func (p *Parser) parseCreateTypeStmt() (*nodes.CreateTypeStmt, error) {
 
 	case p.cur.Type == kwEXTERNAL:
 		p.advance()
-		p.matchIdentCI("NAME")
-		name, _ := p.parseIdentifier()
+		if _, err := p.expect(kwNAME); err != nil {
+			return nil, err
+		}
+		name, ok := p.parseIdentifier()
+		if !ok {
+			return nil, p.syntaxErrorAtCur()
+		}
 		extName := name
 		if p.cur.Type == '.' {
 			p.advance()
-			className, _ := p.parseIdentifier()
+			className, ok := p.parseIdentifier()
+			if !ok {
+				return nil, p.syntaxErrorAtCur()
+			}
 			extName += "." + className
 		}
 		stmt.ExternalName = extName
 
 	case p.cur.Type == kwAS:
 		p.advance()
-		p.match(kwTABLE)
-		if _, err := p.expect('('); err == nil {
-			var elements []nodes.Node
-			for p.cur.Type != ')' && p.cur.Type != tokEOF {
-				if p.cur.Type == kwCONSTRAINT || p.cur.Type == kwPRIMARY ||
-					p.cur.Type == kwUNIQUE || p.cur.Type == kwCHECK ||
-					p.cur.Type == kwFOREIGN {
-					constraint, err := p.parseTableConstraint()
-					if err != nil {
-						return nil, err
-					}
-					if constraint != nil {
-						elements = append(elements, constraint)
-					}
-				} else if p.cur.Type == kwINDEX {
-					idx, err := p.parseTableTypeIndex()
-					if err != nil {
-						return nil, err
-					}
-					if idx != nil {
-						elements = append(elements, idx)
-					}
-				} else {
-					col, err := p.parseTypedColumnDef()
-					if err != nil {
-						return nil, err
-					}
-					if col != nil {
-						elements = append(elements, col)
-					}
+		if _, err := p.expect(kwTABLE); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect('('); err != nil {
+			return nil, err
+		}
+		var elements []nodes.Node
+		for {
+			switch p.cur.Type {
+			case kwPRIMARY, kwUNIQUE, kwCHECK:
+				constraint, err := p.parseTableConstraint()
+				if err != nil {
+					return nil, err
 				}
-				if _, ok := p.match(','); !ok {
-					break
+				if constraint == nil {
+					return nil, p.syntaxErrorAtCur()
 				}
+				elements = append(elements, constraint)
+			case kwINDEX:
+				idx, err := p.parseTableTypeIndex()
+				if err != nil {
+					return nil, err
+				}
+				elements = append(elements, idx)
+			default:
+				col, err := p.parseTypedColumnDef()
+				if err != nil {
+					return nil, err
+				}
+				if col == nil {
+					return nil, p.syntaxErrorAtCur()
+				}
+				elements = append(elements, col)
 			}
-			p.match(')')
-			if len(elements) > 0 {
-				stmt.TableDef = &nodes.List{Items: elements}
+			if _, ok := p.match(','); !ok {
+				break
 			}
 		}
-		// [ WITH ( MEMORY_OPTIMIZED = ON ) ]
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		stmt.TableDef = &nodes.List{Items: elements}
+		// [ WITH ( MEMORY_OPTIMIZED = { ON | OFF } ) ]
 		if p.cur.Type == kwWITH {
 			p.advance()
-			if _, err := p.expect('('); err == nil {
-				if p.matchIdentCI("MEMORY_OPTIMIZED") {
-					p.match('=')
-					if p.cur.Type == kwON {
-						stmt.MemoryOptimized = true
-						p.advance()
-					} else {
-						p.advance() // OFF or other
-					}
-				}
-				p.match(')')
+			if _, err := p.expect('('); err != nil {
+				return nil, err
+			}
+			if err := p.ddlExpectWord("MEMORY_OPTIMIZED"); err != nil {
+				return nil, err
+			}
+			if _, err := p.expect('='); err != nil {
+				return nil, err
+			}
+			switch p.cur.Type {
+			case kwON:
+				stmt.MemoryOptimized = true
+			case kwOFF:
+			default:
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance()
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
 			}
 		}
+
+	default:
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	stmt.Loc.End = p.prevEnd()
@@ -133,17 +167,31 @@ func (p *Parser) parseCreateTypeStmt() (*nodes.CreateTypeStmt, error) {
 //
 // BNF:
 //
-//	INDEX index_name [ CLUSTERED | NONCLUSTERED ] [ HASH ]
-//	    [ WITH ( BUCKET_COUNT = count ) ]
-//	    ( column_name [ ASC | DESC ] [ ,...n ] )
+//	INDEX index_name [ UNIQUE ] [ CLUSTERED | NONCLUSTERED ] [ HASH ]
+//	    [ ( column_name [ ASC | DESC ] [ ,...n ] ) ]
 //	    [ INCLUDE ( column_name [ ,...n ] ) ]
+//	    [ WITH ( BUCKET_COUNT = count ) ]
+//
+// The grammar is inlineIndexTableDefinition (TSql160.g, the rule under
+// tableElement): the column list is optional and comes before WITH; SQL
+// Server refuses WITH before it (Msg 102).
 func (p *Parser) parseTableTypeIndex() (*nodes.TableTypeIndex, error) {
 	idx := &nodes.TableTypeIndex{Loc: nodes.Loc{Start: p.pos(), End: -1}}
 
 	p.match(kwINDEX) // consume INDEX keyword
 
 	// index_name
-	idx.Name, _ = p.parseIdentifier()
+	name, ok := p.parseIdentifier()
+	if !ok {
+		return nil, p.syntaxErrorAtCur()
+	}
+	idx.Name = name
+
+	// [ UNIQUE ]
+	if p.cur.Type == kwUNIQUE {
+		idx.Unique = true
+		p.advance()
+	}
 
 	// [ CLUSTERED | NONCLUSTERED ]
 	if p.cur.Type == kwCLUSTERED {
@@ -157,31 +205,22 @@ func (p *Parser) parseTableTypeIndex() (*nodes.TableTypeIndex, error) {
 	}
 
 	// [ HASH ]
-	if p.matchIdentCI("HASH") {
+	if p.ddlIsWord("HASH") {
+		p.advance()
 		idx.Hash = true
 	}
 
-	// [ WITH ( BUCKET_COUNT = count ) ]
-	if p.cur.Type == kwWITH {
+	// [ ( column_name [ ASC | DESC ] [ ,...n ] ) ]
+	if p.cur.Type == '(' {
 		p.advance()
-		if _, err := p.expect('('); err == nil {
-			if p.matchIdentCI("BUCKET_COUNT") {
-				p.match('=')
-				idx.BucketCount, err = p.parseExpr()
-				if err != nil {
-					return nil, err
-				}
-			}
-			p.match(')')
-		}
-	}
-
-	// ( column_name [ ASC | DESC ] [ ,...n ] )
-	if _, err := p.expect('('); err == nil {
 		var cols []nodes.Node
-		for p.cur.Type != ')' && p.cur.Type != tokEOF {
+		for {
 			col := &nodes.IndexColumn{Loc: nodes.Loc{Start: p.pos(), End: -1}}
-			col.Name, _ = p.parseIdentifier()
+			var ok bool
+			col.Name, ok = p.parseIdentifier()
+			if !ok {
+				return nil, p.syntaxErrorAtCur()
+			}
 			if p.cur.Type == kwASC {
 				col.SortDir = nodes.SortAsc
 				p.advance()
@@ -195,28 +234,57 @@ func (p *Parser) parseTableTypeIndex() (*nodes.TableTypeIndex, error) {
 				break
 			}
 		}
-		p.match(')')
-		if len(cols) > 0 {
-			idx.Columns = &nodes.List{Items: cols}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
 		}
+		idx.Columns = &nodes.List{Items: cols}
 	}
 
 	// [ INCLUDE ( column_name [ ,...n ] ) ]
 	if p.cur.Type == kwINCLUDE {
 		p.advance()
-		if _, err := p.expect('('); err == nil {
-			var incCols []nodes.Node
-			for p.cur.Type != ')' && p.cur.Type != tokEOF {
-				name, _ := p.parseIdentifier()
-				incCols = append(incCols, &nodes.String{Str: name})
-				if _, ok := p.match(','); !ok {
-					break
-				}
+		if _, err := p.expect('('); err != nil {
+			return nil, err
+		}
+		var incCols []nodes.Node
+		for {
+			name, ok := p.parseIdentifier()
+			if !ok {
+				return nil, p.syntaxErrorAtCur()
 			}
-			p.match(')')
-			if len(incCols) > 0 {
-				idx.IncludeCols = &nodes.List{Items: incCols}
+			incCols = append(incCols, &nodes.String{Str: name})
+			if _, ok := p.match(','); !ok {
+				break
 			}
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		idx.IncludeCols = &nodes.List{Items: incCols}
+	}
+
+	// [ WITH ( BUCKET_COUNT = count ) ]
+	if p.cur.Type == kwWITH {
+		p.advance()
+		if _, err := p.expect('('); err != nil {
+			return nil, err
+		}
+		if err := p.ddlExpectWord("BUCKET_COUNT"); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect('='); err != nil {
+			return nil, err
+		}
+		if p.cur.Type != tokICONST {
+			return nil, p.syntaxErrorAtCur()
+		}
+		count, err := p.parsePrimary()
+		if err != nil {
+			return nil, err
+		}
+		idx.BucketCount = count
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
 		}
 	}
 

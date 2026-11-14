@@ -1330,6 +1330,7 @@ const (
 	ConstrPrimaryKey ConstraintType = iota
 	ConstrForeignKey
 	ConstrUnique
+	ConstrCheck
 )
 
 // String returns the constraint type name.
@@ -1341,6 +1342,8 @@ func (c ConstraintType) String() string {
 		return "FOREIGN KEY"
 	case ConstrUnique:
 		return "UNIQUE"
+	case ConstrCheck:
+		return "CHECK"
 	default:
 		return "UNKNOWN"
 	}
@@ -1367,6 +1370,7 @@ type InlineConstraint struct {
 	Type       ConstraintType
 	Name       Ident          // CONSTRAINT name; zero if unnamed
 	References *ForeignKeyRef // for FK; nil otherwise
+	Check      Node           // CHECK ( expr ); nil otherwise
 	Loc        Loc
 }
 
@@ -1440,7 +1444,8 @@ type ColumnDef struct {
 	Identity         *IdentitySpec     // IDENTITY/AUTOINCREMENT; nil if absent
 	Collate          string            // COLLATE 'name'; empty if absent
 	MaskingPolicy    *ObjectName       // WITH MASKING POLICY name; nil if absent
-	InlineConstraint *InlineConstraint // inline PK/FK/UNIQUE; nil if absent
+	ProjectionPolicy *ObjectName       // WITH PROJECTION POLICY name; nil if absent
+	InlineConstraint *InlineConstraint // inline PK/FK/UNIQUE/CHECK; nil if absent
 	Comment          *string           // COMMENT 'text'; nil if absent
 	Tags             []*TagAssignment  // WITH TAG (...); nil if absent
 	VirtualExpr      Node              // AS (expr); nil if absent
@@ -1451,10 +1456,11 @@ func (n *ColumnDef) Tag() NodeTag { return T_ColumnDef }
 
 // TableConstraint represents a table-level constraint (out-of-line).
 type TableConstraint struct {
-	Type       ConstraintType // ConstrPrimaryKey/ConstrForeignKey/ConstrUnique
+	Type       ConstraintType // ConstrPrimaryKey/ConstrForeignKey/ConstrUnique/ConstrCheck
 	Name       Ident          // CONSTRAINT name; zero if unnamed
 	Columns    []Ident        // constrained column names
 	References *ForeignKeyRef // FK only; nil otherwise
+	Check      Node           // CHECK ( expr ); nil otherwise
 	Comment    *string        // inline COMMENT 'text'; nil if absent
 	Loc        Loc
 }
@@ -1467,6 +1473,7 @@ func (n *TableConstraint) Tag() NodeTag { return T_TableConstraint }
 type TableIndex struct {
 	Name    Ident   // index name
 	Columns []Ident // indexed column names (one or more)
+	Include []Ident // INCLUDE ( <col> [, <col>...] ); nil if absent
 	Loc     Loc
 }
 

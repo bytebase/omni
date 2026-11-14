@@ -45,6 +45,9 @@ func (p *Parser) parseCreateViewStmt(orAlter bool) (*nodes.CreateViewStmt, error
 	if err != nil {
 		return nil, err
 	}
+	if name == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
 	stmt.Name = name
 
 	// Optional column list
@@ -111,9 +114,9 @@ func (p *Parser) parseCreateViewStmt(orAlter bool) (*nodes.CreateViewStmt, error
 		if next.Type == kwCHECK {
 			p.advance() // WITH
 			p.advance() // CHECK
-			// OPTION
-			if p.cur.Type == kwOPTION {
-				p.advance()
+			// OPTION (viewStatementBody, TSql160.g: With Check Option)
+			if _, err := p.expect(kwOPTION); err != nil {
+				return nil, err
 			}
 			stmt.WithCheck = true
 		}
@@ -123,105 +126,15 @@ func (p *Parser) parseCreateViewStmt(orAlter bool) (*nodes.CreateViewStmt, error
 	return stmt, nil
 }
 
-// parseCreateMaterializedViewStmt parses a CREATE MATERIALIZED VIEW AS SELECT statement.
+// parseCreateMaterializedViewStmt refuses CREATE MATERIALIZED VIEW AS SELECT,
+// with CREATE MATERIALIZED VIEW consumed: it is Azure Synapse Analytics
+// syntax, which ScriptDOM reads (createMaterializedViewStatement, TSql160.g)
+// and SQL Server 2022 refuses (Msg 102 "Incorrect syntax near
+// 'CREATE MATERIALIZED VIEW'").
 //
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-materialized-view-as-select-transact-sql
-//
-//	CREATE MATERIALIZED VIEW [ schema_name. ] materialized_view_name
-//	    WITH (
-//	      <distribution_option>
-//	      [, FOR_APPEND ]
-//	    )
-//	    AS <select_statement>
-//
-//	<distribution_option> ::=
-//	    {
-//	        DISTRIBUTION = HASH ( distribution_column_name [, ...n] )
-//	      | DISTRIBUTION = ROUND_ROBIN
-//	    }
 func (p *Parser) parseCreateMaterializedViewStmt() (*nodes.CreateMaterializedViewStmt, error) {
-	loc := p.pos()
-
-	stmt := &nodes.CreateMaterializedViewStmt{
-		Loc: nodes.Loc{Start: loc, End: -1},
-	}
-
-	// View name
-	name, err := p.parseTableRef()
-	if err != nil {
-		return nil, err
-	}
-	stmt.Name = name
-
-	// WITH ( <distribution_option> [, FOR_APPEND] )
-	if p.cur.Type == kwWITH {
-		p.advance() // consume WITH
-		if _, err := p.expect('('); err != nil {
-			return nil, err
-		}
-
-		for p.cur.Type != ')' && p.cur.Type != tokEOF {
-			switch p.cur.Type {
-			case kwDISTRIBUTION:
-				p.advance() // consume DISTRIBUTION
-				if _, err := p.expect('='); err != nil {
-					return nil, err
-				}
-				switch p.cur.Type {
-				case kwHASH:
-					p.advance() // consume HASH
-					stmt.Distribution = "HASH"
-					if _, err := p.expect('('); err != nil {
-						return nil, err
-					}
-					var cols []nodes.Node
-					for p.cur.Type != ')' && p.cur.Type != tokEOF {
-						colName, ok := p.parseIdentifier()
-						if !ok {
-							break
-						}
-						cols = append(cols, &nodes.String{Str: colName})
-						if _, ok := p.match(','); !ok {
-							break
-						}
-					}
-					if _, err := p.expect(')'); err != nil {
-						return nil, err
-					}
-					stmt.HashColumns = &nodes.List{Items: cols}
-				case kwROUND_ROBIN:
-					p.advance() // consume ROUND_ROBIN
-					stmt.Distribution = "ROUND_ROBIN"
-				default:
-					p.parseIdentifier() // consume unknown distribution type
-				}
-			case kwFOR_APPEND:
-				p.advance() // consume FOR_APPEND
-				stmt.ForAppend = true
-			default:
-				p.parseIdentifier() // consume unknown option
-			}
-			if _, ok := p.match(','); !ok {
-				break
-			}
-		}
-		if _, err := p.expect(')'); err != nil {
-			return nil, err
-		}
-	}
-
-	// AS
-	p.match(kwAS)
-
-	// SELECT query
-	query, err := p.parseSelectStmtWithCTE()
-	if err != nil {
-		return nil, err
-	}
-	stmt.Query = query
-
-	stmt.Loc.End = p.prevEnd()
-	return stmt, nil
+	return nil, p.newParseError(p.prev.Loc, "CREATE MATERIALIZED VIEW is Azure Synapse Analytics syntax, which SQL Server refuses")
 }
 
 // isViewOption checks if a token is a valid CREATE VIEW option.
@@ -244,14 +157,21 @@ func (p *Parser) isViewOption(tok Token) bool {
 }
 
 // parseViewOptionList parses a comma-separated list of view options.
-// Only ENCRYPTION, SCHEMABINDING, and VIEW_METADATA are valid.
+// Only ENCRYPTION, SCHEMABINDING, and VIEW_METADATA are valid, each at most
+// once (Msg 1039), and a comma is followed by another option.
 func (p *Parser) parseViewOptionList() (*nodes.List, error) {
 	var items []nodes.Node
+	seen := map[string]bool{}
 	for {
+		optLoc := p.pos()
 		opt := p.parseViewOption()
 		if opt == nil {
-			break
+			return nil, p.syntaxErrorAtCur()
 		}
+		if seen[opt.Str] {
+			return nil, p.newParseError(optLoc, "option "+opt.Str+" is specified more than once")
+		}
+		seen[opt.Str] = true
 		items = append(items, opt)
 		if _, ok := p.match(','); !ok {
 			break
@@ -272,46 +192,19 @@ func (p *Parser) parseViewOption() *nodes.String {
 		p.advance()
 		return &nodes.String{Str: "ENCRYPTION"}
 	}
-	// VIEW_METADATA as identifier
-	if p.cur.Type == tokIDENT {
-		s := strings.ToUpper(p.cur.Str)
-		switch s {
-		case "VIEW_METADATA":
-			p.advance()
-			return &nodes.String{Str: s}
-		}
+	// VIEW_METADATA as an identifier that is not delimited
+	if p.ddlIsWord("VIEW_METADATA") {
+		p.advance()
+		return &nodes.String{Str: "VIEW_METADATA"}
 	}
 	return nil
 }
 
-// parseAlterMaterializedViewStmt parses an ALTER MATERIALIZED VIEW statement.
+// parseAlterMaterializedViewStmt refuses ALTER MATERIALIZED VIEW, with ALTER
+// MATERIALIZED VIEW consumed: it is Azure Synapse Analytics syntax, which SQL
+// Server 2022 refuses (Msg 102).
 //
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-materialized-view-transact-sql
-//
-//	ALTER MATERIALIZED VIEW [ schema_name. ] view_name
-//	{
-//	    REBUILD | DISABLE
-//	}
 func (p *Parser) parseAlterMaterializedViewStmt() (*nodes.AlterMaterializedViewStmt, error) {
-	loc := p.pos()
-
-	stmt := &nodes.AlterMaterializedViewStmt{
-		Loc: nodes.Loc{Start: loc, End: -1},
-	}
-
-	// View name
-	name, err := p.parseTableRef()
-	if err != nil {
-		return nil, err
-	}
-	stmt.Name = name
-
-	// REBUILD | DISABLE
-	action, ok := p.parseIdentifier()
-	if ok {
-		stmt.Action = action
-	}
-
-	stmt.Loc.End = p.prevEnd()
-	return stmt, nil
+	return nil, p.newParseError(p.prev.Loc, "ALTER MATERIALIZED VIEW is Azure Synapse Analytics syntax, which SQL Server refuses")
 }

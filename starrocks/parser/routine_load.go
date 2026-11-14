@@ -10,173 +10,190 @@ import (
 // CREATE ROUTINE LOAD (T6.2)
 // ---------------------------------------------------------------------------
 
-// parseCreateRoutineLoad parses a CREATE ROUTINE LOAD statement.
+// parseCreateRoutineLoad parses createRoutineLoadStatement (StarRocks.g4:1209):
+//
+//	CREATE ROUTINE LOAD (db=qualifiedName '.')? name=identifier ON table=qualifiedName
+//	    (loadProperties (',' loadProperties)*)?
+//	    jobProperties?
+//	    FROM source=identifier
+//	    dataSourceProperties?
+//
 // On entry, CREATE has been consumed and cur is ROUTINE.
-//
-// Syntax:
-//
-//	CREATE ROUTINE LOAD [db.]job_name ON table_name
-//	    [load_properties]
-//	    [PROPERTIES (...)]
-//	    FROM {KAFKA | S3 | HDFS} (data_source_properties)
-//	    [COMMENT 'text']
 func (p *Parser) parseCreateRoutineLoad(startLoc ast.Loc) (ast.Node, error) {
-	// Consume ROUTINE
 	if _, err := p.expect(kwROUTINE); err != nil {
 		return nil, err
 	}
-	// Consume LOAD
 	if _, err := p.expect(kwLOAD); err != nil {
 		return nil, err
 	}
-
 	stmt := &ast.CreateRoutineLoadStmt{}
-
-	// Job name: [db.]job_name
-	name, err := p.parseMultipartIdentifier()
-	if err != nil {
+	var err error
+	if stmt.Name, err = p.parseMultipartIdentifier(); err != nil {
 		return nil, err
 	}
-	stmt.Name = name
-
-	// ON table_name
 	if _, err := p.expect(kwON); err != nil {
 		return nil, err
 	}
-	tableName, err := p.parseMultipartIdentifier()
+	if stmt.OnTable, err = p.parseMultipartIdentifier(); err != nil {
+		return nil, err
+	}
+	if stmt.LoadProps, err = p.parseRoutineLoadProperties(); err != nil {
+		return nil, err
+	}
+	if p.cur.Kind == kwPROPERTIES {
+		if stmt.JobProperties, err = p.parseProperties(); err != nil {
+			return nil, err
+		}
+	}
+	if _, err := p.expect(kwFROM); err != nil {
+		return nil, err
+	}
+	srcType, _, err := p.parseIdentifier()
 	if err != nil {
 		return nil, err
 	}
-	stmt.OnTable = tableName
-
-	// Parse optional clauses until FROM (which introduces the data source).
-	// load_properties can include COLUMNS, WHERE, PARTITION, etc. We collect
-	// them as raw text (best-effort) since their syntax is complex.
-	var loadPropParts []string
-	for p.cur.Kind != kwFROM && p.cur.Kind != tokEOF {
-		switch p.cur.Kind {
-		case kwPROPERTIES:
-			// PROPERTIES (...) — job properties
-			props, err := p.parseProperties()
-			if err != nil {
-				return nil, err
-			}
-			stmt.JobProperties = props
-		case kwCOMMENT:
-			p.advance() // consume COMMENT
-			if p.cur.Kind == tokString {
-				stmt.Comment = p.cur.Str
-				p.advance()
-			}
-		default:
-			// Capture as raw load properties text (COLUMNS, WHERE, SET, etc.)
-			loadPropParts = append(loadPropParts, p.cur.Str)
-			p.advance()
-		}
-	}
-	if len(loadPropParts) > 0 {
-		stmt.LoadProps = strings.Join(loadPropParts, " ")
-	}
-
-	// FROM data_source_type (data_source_properties)
-	if p.cur.Kind == kwFROM {
-		p.advance() // consume FROM
-
-		// Data source type: KAFKA, S3, HDFS (treated as non-reserved identifiers)
-		srcType, _, err := p.parseIdentifier()
-		if err != nil {
+	stmt.DataSourceType = strings.ToUpper(srcType)
+	if p.cur.Kind == int('(') {
+		if stmt.DataSourceProperties, err = p.parseParenthesisedProperties(); err != nil {
 			return nil, err
 		}
-		stmt.DataSourceType = strings.ToUpper(srcType)
-
-		// (data_source_properties)
-		if p.cur.Kind == int('(') {
-			props, err := p.parseParenthesisedProperties()
-			if err != nil {
-				return nil, err
-			}
-			stmt.DataSourceProperties = props
-		}
 	}
-
-	// Optional trailing COMMENT
-	if p.cur.Kind == kwCOMMENT && stmt.Comment == "" {
-		p.advance() // consume COMMENT
-		if p.cur.Kind == tokString {
-			stmt.Comment = p.cur.Str
-			p.advance()
-		}
-	}
-
-	stmt.Loc = startLoc.Merge(p.prev.Loc)
+	stmt.Loc = ast.Loc{Start: startLoc.Start, End: p.prev.Loc.End}
 	return stmt, nil
+}
+
+// parseRoutineLoadProperties reads an optional
+// loadProperties (',' loadProperties)* (StarRocks.g4:1228) and returns its
+// source text:
+//
+//	COLUMNS TERMINATED BY string | ROWS TERMINATED BY string
+//	| COLUMNS '(' (qualifiedName | assignment) (',' (qualifiedName | assignment))* ')'
+//	| WHERE expression | partitionNames
+//	assignment : identifier EQ expressionOrDefault
+func (p *Parser) parseRoutineLoadProperties() (string, error) {
+	switch p.cur.Kind {
+	case kwCOLUMNS, kwROWS, kwWHERE, kwTEMPORARY, kwPARTITION, kwPARTITIONS:
+	default:
+		return "", nil
+	}
+	start := p.cur.Loc
+	for {
+		if err := p.parseRoutineLoadProperty(); err != nil {
+			return "", err
+		}
+		if p.cur.Kind != int(',') {
+			break
+		}
+		p.advance() // consume ','
+	}
+	return p.input[start.Start-p.baseOffset : p.prev.Loc.End-p.baseOffset], nil
+}
+
+// parseRoutineLoadProperty reads one loadProperties.
+func (p *Parser) parseRoutineLoadProperty() error {
+	switch p.cur.Kind {
+	case kwCOLUMNS, kwROWS:
+		kw := p.cur.Kind
+		p.advance() // consume COLUMNS / ROWS
+		if p.cur.Kind == kwTERMINATED {
+			p.advance() // consume TERMINATED
+			if _, err := p.expect(kwBY); err != nil {
+				return err
+			}
+			if p.cur.Kind != tokString {
+				return p.syntaxErrorAtCur()
+			}
+			p.advance()
+			return nil
+		}
+		if kw == kwROWS {
+			return p.syntaxErrorAtCur()
+		}
+		if _, err := p.expect(int('(')); err != nil {
+			return err
+		}
+		for {
+			name, err := p.parseMultipartIdentifier()
+			if err != nil {
+				return err
+			}
+			if p.cur.Kind == int('=') {
+				// assignment: identifier EQ expressionOrDefault
+				if len(name.Parts) != 1 {
+					return p.syntaxErrorAtCur()
+				}
+				p.advance() // consume '='
+				if p.cur.Kind == kwDEFAULT {
+					p.advance()
+				} else if _, err := p.parseExpr(); err != nil {
+					return err
+				}
+			}
+			if p.cur.Kind != int(',') {
+				break
+			}
+			p.advance() // consume ','
+		}
+		_, err := p.expect(int(')'))
+		return err
+	case kwWHERE:
+		p.advance() // consume WHERE
+		_, err := p.parseExpr()
+		return err
+	case kwTEMPORARY, kwPARTITION, kwPARTITIONS:
+		var names ast.AlterTableAction
+		return p.parseAlterPartitionNames(&names)
+	}
+	return p.syntaxErrorAtCur()
 }
 
 // ---------------------------------------------------------------------------
 // ALTER ROUTINE LOAD (T6.2)
 // ---------------------------------------------------------------------------
 
-// parseAlterRoutineLoad parses an ALTER ROUTINE LOAD statement.
+// parseAlterRoutineLoad parses alterRoutineLoadStatement (StarRocks.g4:1217):
+//
+//	ALTER ROUTINE LOAD FOR (db=qualifiedName '.')? name=identifier
+//	    (loadProperties (',' loadProperties)*)?
+//	    jobProperties?
+//	    (FROM source=identifier dataSourceProperties)?
+//
 // On entry, ALTER has been consumed and cur is ROUTINE.
-//
-// Syntax:
-//
-//	ALTER ROUTINE LOAD FOR [db.]job_name
-//	    [PROPERTIES (...)]
-//	    [FROM KAFKA (...)]
 func (p *Parser) parseAlterRoutineLoad(startLoc ast.Loc) (ast.Node, error) {
-	// Consume ROUTINE
 	if _, err := p.expect(kwROUTINE); err != nil {
 		return nil, err
 	}
-	// Consume LOAD
 	if _, err := p.expect(kwLOAD); err != nil {
 		return nil, err
 	}
-	// Consume FOR
 	if _, err := p.expect(kwFOR); err != nil {
 		return nil, err
 	}
-
 	stmt := &ast.AlterRoutineLoadStmt{}
-
-	// Job name
-	name, err := p.parseMultipartIdentifier()
-	if err != nil {
+	var err error
+	if stmt.Name, err = p.parseMultipartIdentifier(); err != nil {
 		return nil, err
 	}
-	stmt.Name = name
-
-	// Optional PROPERTIES and FROM clauses
-	for p.cur.Kind != tokEOF {
-		switch p.cur.Kind {
-		case kwPROPERTIES:
-			props, err := p.parseProperties()
-			if err != nil {
-				return nil, err
-			}
-			stmt.Properties = props
-		case kwFROM:
-			p.advance() // consume FROM
-			srcType, _, err := p.parseIdentifier()
-			if err != nil {
-				return nil, err
-			}
-			stmt.DataSourceType = strings.ToUpper(srcType)
-			if p.cur.Kind == int('(') {
-				props, err := p.parseParenthesisedProperties()
-				if err != nil {
-					return nil, err
-				}
-				stmt.DataSourceProperties = props
-			}
-		default:
-			// No more recognised clauses
-			goto done
+	if stmt.LoadProps, err = p.parseRoutineLoadProperties(); err != nil {
+		return nil, err
+	}
+	if p.cur.Kind == kwPROPERTIES {
+		if stmt.Properties, err = p.parseProperties(); err != nil {
+			return nil, err
 		}
 	}
-done:
-	stmt.Loc = startLoc.Merge(p.prev.Loc)
+	if p.cur.Kind == kwFROM {
+		p.advance() // consume FROM
+		srcType, _, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		stmt.DataSourceType = strings.ToUpper(srcType)
+		if stmt.DataSourceProperties, err = p.parseParenthesisedProperties(); err != nil {
+			return nil, err
+		}
+	}
+	stmt.Loc = ast.Loc{Start: startLoc.Start, End: p.prev.Loc.End}
 	return stmt, nil
 }
 
@@ -339,67 +356,76 @@ func (p *Parser) parseStopRoutineLoad(startLoc ast.Loc) (ast.Node, error) {
 // SHOW ROUTINE LOAD (T6.2)
 // ---------------------------------------------------------------------------
 
-// parseShowRoutineLoad parses SHOW [ALL] ROUTINE LOAD ... statements.
-// On entry, SHOW has been consumed and cur is ROUTINE (or ALL for SHOW ALL).
+// parseShowRoutineLoad parses showRoutineLoadStatement, the task form, and
+// showCreateRoutineLoadStatement (StarRocks.g4:1274-1288):
 //
-// Syntax:
+//	SHOW ALL? ROUTINE LOAD (FOR name)? (FROM db)? (WHERE expression)?
+//	    (ORDER BY sortItem (',' sortItem)*)? limitElement?
+//	SHOW ROUTINE LOAD TASK (FROM db)? WHERE expression
+//	SHOW CREATE ROUTINE LOAD name
 //
-//	SHOW [ALL] ROUTINE LOAD [FOR [db.]name | LIKE 'pattern' | FROM db]
-//	SHOW ROUTINE LOAD TASK FROM db [WHERE condition]
-func (p *Parser) parseShowRoutineLoad(startLoc ast.Loc) (ast.Node, error) {
-	var all bool
-
-	// Check for SHOW ALL ROUTINE LOAD
-	if p.cur.Kind == kwALL {
+// SHOW (and CREATE, when create) has been consumed; cur is ALL or ROUTINE.
+func (p *Parser) parseShowRoutineLoad(startLoc ast.Loc, create bool) (ast.Node, error) {
+	all := false
+	if !create && p.cur.Kind == kwALL {
 		all = true
 		p.advance() // consume ALL
 	}
-
-	// Consume ROUTINE
 	if _, err := p.expect(kwROUTINE); err != nil {
 		return nil, err
 	}
-	// Consume LOAD
 	if _, err := p.expect(kwLOAD); err != nil {
 		return nil, err
 	}
-
-	// Check for SHOW ROUTINE LOAD TASK
-	if p.cur.Kind == kwTASK {
+	stmt := &ast.ShowRoutineLoadStmt{All: all, Create: create}
+	var err error
+	if create {
+		if stmt.Name, err = p.parseMultipartIdentifier(); err != nil {
+			return nil, err
+		}
+		stmt.Loc = ast.Loc{Start: startLoc.Start, End: p.prev.Loc.End}
+		return stmt, nil
+	}
+	if !all && p.cur.Kind == kwTASK {
 		p.advance() // consume TASK
 		return p.parseShowRoutineLoadTask(startLoc)
 	}
 
-	stmt := &ast.ShowRoutineLoadStmt{All: all}
-
-	// Optional qualifiers: FOR [db.]name | LIKE 'pattern' | FROM db
-	switch p.cur.Kind {
-	case kwFOR:
+	if p.cur.Kind == kwFOR {
 		p.advance() // consume FOR
-		name, err := p.parseMultipartIdentifier()
-		if err != nil {
+		if stmt.Name, err = p.parseMultipartIdentifier(); err != nil {
 			return nil, err
 		}
-		stmt.Name = name
-
-	case kwLIKE:
-		p.advance() // consume LIKE
-		if p.cur.Kind != tokString {
-			return nil, p.syntaxErrorAtCur()
-		}
-		stmt.Like = p.cur.Str
-		p.advance()
-
-	case kwFROM:
-		p.advance() // consume FROM
-		dbName, _, err := p.parseIdentifier()
-		if err != nil {
-			return nil, err
-		}
-		stmt.From = dbName
 	}
-
-	stmt.Loc = startLoc.Merge(p.prev.Loc)
+	if p.cur.Kind == kwFROM {
+		p.advance() // consume FROM
+		db, err := p.parseMultipartIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		stmt.From = strings.Join(db.Parts, ".")
+	}
+	if p.cur.Kind == kwWHERE {
+		p.advance() // consume WHERE
+		if stmt.Where, err = p.parseExpr(); err != nil {
+			return nil, err
+		}
+	}
+	if p.cur.Kind == kwORDER {
+		p.advance() // consume ORDER
+		if _, err := p.expect(kwBY); err != nil {
+			return nil, err
+		}
+		if stmt.OrderBy, err = p.parseOrderByList(); err != nil {
+			return nil, err
+		}
+	}
+	if p.cur.Kind == kwLIMIT {
+		if stmt.Limit, stmt.Offset, err = p.parseLimitClause(); err != nil {
+			return nil, err
+		}
+	}
+	stmt.Loc = ast.Loc{Start: startLoc.Start, End: p.prev.Loc.End}
 	return stmt, nil
 }
 

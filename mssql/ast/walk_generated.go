@@ -96,6 +96,7 @@ func walkChildren(v Visitor, node Node) {
 		walkList(v, n.Options)
 	case *BeginEndStmt:
 		walkList(v, n.Stmts)
+		walkList(v, n.AtomicOptions)
 	case *BetweenExpr:
 		Walk(v, n.Expr)
 		Walk(v, n.Low)
