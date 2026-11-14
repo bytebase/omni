@@ -146,6 +146,56 @@ func isExplainAnalyzeStmt(n *ast.ExplainStmt) bool {
 	return analyze
 }
 
+// UnwrapExplainAnalyze returns the statement that an EXPLAIN ANALYZE executes and that statement's text
+// within text, the text of the EXPLAIN. It returns any other node and text unchanged.
+func UnwrapExplainAnalyze(node ast.Node, text string) (ast.Node, string) {
+	explain, ok := node.(*ast.ExplainStmt)
+	if !ok || !isExplainAnalyzeStmt(explain) {
+		return node, text
+	}
+	inner, ok := explainedText(explain, text)
+	if !ok {
+		return explain.Query, text
+	}
+	return explain.Query, inner
+}
+
+// explainedText returns the text within text of the statement explain plans, and
+// whether it could be located.
+func explainedText(explain *ast.ExplainStmt, text string) (string, bool) {
+	// The statement runs from its WITH clause, which the location of a SELECT leaves out, to the end
+	// of the EXPLAIN, which its location can also leave out, as for ORDER BY.
+	start := ast.NodeLoc(explain.Query).Start
+	if with := getWithClause(explain.Query); with != nil && with.Loc.Start >= 0 && with.Loc.Start < start {
+		start = with.Loc.Start
+	}
+	if start < 0 || start >= explain.Loc.End || explain.Loc.End > len(text) {
+		return "", false
+	}
+	return text[start:explain.Loc.End], true
+}
+
+// getWithClause returns the WITH clause of a statement, the only one where PostgreSQL allows
+// data-modifying statements.
+func getWithClause(node ast.Node) *ast.WithClause {
+	switch n := node.(type) {
+	case *ast.SelectStmt:
+		return n.WithClause
+	case *ast.InsertStmt:
+		return n.WithClause
+	case *ast.UpdateStmt:
+		return n.WithClause
+	case *ast.DeleteStmt:
+		return n.WithClause
+	case *ast.MergeStmt:
+		return n.WithClause
+	case *ast.CreateTableAsStmt:
+		return getWithClause(n.Query)
+	default:
+		return nil
+	}
+}
+
 // classifyExplainedQuery returns the QueryType for the query inside EXPLAIN
 // ANALYZE, which actually runs it — so unlike classifyQueryType's own default,
 // an unrecognized node type here must fail closed rather than pass as Select.
