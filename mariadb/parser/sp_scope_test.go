@@ -337,3 +337,118 @@ func TestStoredProgramFunctionBodies(t *testing.T) {
 		})
 	}
 }
+
+// TestStoredProgramFieldNames holds a name in an expression no query is around to a stored
+// program's variables (1327), and outside a program to no column at all (1054). code is what
+// mariadb:11.8.8 answers to PREPARE of the statement, 0 when the compat judge reads that as
+// parsed (compat.PrepareVerdict).
+func TestStoredProgramFieldNames(t *testing.T) {
+	cases := []struct {
+		sql  string
+		code int
+	}{
+		{sql: "CALL p(a)", code: 1054},
+		{sql: "CALL p(a.b)", code: 1054},
+		{sql: "CALL p(1 + a)", code: 1054},
+		{sql: "CALL p((SELECT a FROM t))"},
+		{sql: "CALL p(@a)"},
+		{sql: "EXECUTE s USING a", code: 1054},
+		{sql: "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = a", code: 1054},
+		{sql: "RESIGNAL SET MESSAGE_TEXT = a", code: 1054},
+		{sql: "DO a"},
+		{sql: "DO a.b"},
+		{sql: "SET @x = a"},
+		{sql: "SET @x = (SELECT a)"},
+		{sql: "SET sql_mode = a"},
+		{sql: "SELECT a"},
+		{sql: "KILL a", code: 1054},
+		{sql: "GET DIAGNOSTICS CONDITION a @x = MESSAGE_TEXT", code: 1054},
+		{sql: "PREPARE s FROM a", code: 1054},
+		{sql: "SET STATEMENT max_statement_time = a FOR SELECT 1"},
+		{sql: "SHOW TABLES WHERE a"},
+		{sql: "HELP a"},
+		{sql: "CREATE PROCEDURE p() RETURN a", code: 1327},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN a", code: 1327},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN a.b"},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN (SELECT a FROM t)"},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN 1 + a", code: 1327},
+		{sql: "CREATE FUNCTION f(a INT) RETURNS INT RETURN a"},
+		{sql: "CREATE FUNCTION f() RETURNS INT BEGIN IF a THEN RETURN 1; END IF; RETURN 2; END", code: 1327},
+		{sql: "CREATE FUNCTION f() RETURNS INT BEGIN IF 1 THEN RETURN 1; ELSEIF a THEN RETURN 3; END IF; RETURN 2; END", code: 1327},
+		{sql: "CREATE FUNCTION f() RETURNS INT BEGIN WHILE a DO RETURN 1; END WHILE; RETURN 2; END", code: 1327},
+		{sql: "CREATE FUNCTION f() RETURNS INT BEGIN REPEAT RETURN 1; UNTIL a END REPEAT; RETURN 2; END", code: 1327},
+		{sql: "CREATE FUNCTION f() RETURNS INT BEGIN CASE a WHEN 1 THEN RETURN 1; END CASE; RETURN 2; END", code: 1327},
+		{sql: "CREATE FUNCTION f() RETURNS INT BEGIN CASE WHEN a THEN RETURN 1; END CASE; RETURN 2; END", code: 1327},
+		{sql: "CREATE FUNCTION f() RETURNS INT BEGIN CASE 1 WHEN a THEN RETURN 1; END CASE; RETURN 2; END", code: 1327},
+		{sql: "CREATE PROCEDURE p() BEGIN DECLARE x INT; SET x = a; END", code: 1327},
+		{sql: "CREATE PROCEDURE p() BEGIN DECLARE x INT DEFAULT a; END", code: 1327},
+		{sql: "CREATE PROCEDURE p() SET @x = a"},
+		{sql: "CREATE PROCEDURE p() SET sql_mode = a"},
+		{sql: "CREATE PROCEDURE p() CALL q(a)", code: 1327},
+		{sql: "CREATE PROCEDURE p() SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = a", code: 1327},
+		{sql: "CREATE PROCEDURE p() DO a", code: 1327},
+		{sql: "CREATE PROCEDURE p() SELECT a"},
+		{sql: "CREATE PROCEDURE p() SELECT 1 FROM t WHERE a"},
+		{sql: "CREATE PROCEDURE p() INSERT INTO t VALUES (a)"},
+		{sql: "CREATE PROCEDURE p() UPDATE t SET b = a"},
+		{sql: "CREATE PROCEDURE p() DELETE FROM t WHERE a"},
+		{sql: "CREATE PROCEDURE p() EXECUTE s USING a", code: 1327},
+		{sql: "CREATE PROCEDURE p() GET DIAGNOSTICS CONDITION a @x = MESSAGE_TEXT", code: 1327},
+		{sql: "CREATE PROCEDURE p() BEGIN DECLARE c CURSOR FOR SELECT a; END"},
+		{sql: "CREATE PROCEDURE p(x INT) BEGIN SET x = x + 1; END"},
+		{sql: "CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW SET NEW.b = a"},
+		{sql: "CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW SET NEW.b = NEW.a"},
+		{sql: "CREATE EVENT e ON SCHEDULE EVERY 1 DAY DO SET @x = a"},
+		{sql: "CREATE EVENT e ON SCHEDULE EVERY 1 DAY DO IF a THEN SET @x = 1; END IF", code: 1327},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN f2(a)", code: 1327},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN COALESCE(a, 1)", code: 1327},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN EXISTS (SELECT a FROM t)"},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN a IN (SELECT 1)", code: 1327},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN `a`", code: 1327},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN CURRENT_USER"},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN NULL"},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN TIMESTAMPDIFF(DAY, NOW(), NOW())"},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN DATE_ADD(NOW(), INTERVAL 1 DAY) > 0"},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN EXTRACT(DAY FROM NOW())"},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN CAST('1' AS SIGNED)"},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN LENGTH(CONVERT('a' USING utf8mb4))"},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN NEXTVAL(s)"},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN NEXT VALUE FOR s"},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN LASTVAL(s)"},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN GET_FORMAT(DATE, 'EUR') IS NULL"},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN TRIM(LEADING 'a' FROM 'ab') = 'b'"},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN CHAR(65 USING utf8mb4) = 'A'"},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN WEIGHT_STRING('a') IS NULL"},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN CURRENT_TIMESTAMP > 0"},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN TRUE"},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN VALUES(a)", code: 1064},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN ROW_COUNT()"},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN JSON_VALUE('{}', '$.a') IS NULL"},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN 1 COLLATE utf8mb4_bin"},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN @a"},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN @@sql_mode = ''"},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN d.f2()"},
+		{sql: "CREATE PROCEDURE p() CALL q(DAY)", code: 1327},
+		{sql: "CALL q(NOW())"},
+		{sql: "KILL CONNECTION_ID()"},
+		{sql: "EXECUTE s USING DEFAULT"},
+		{sql: "EXECUTE s USING IGNORE"},
+		{sql: "CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW BEGIN DECLARE x INT DEFAULT NEW.a; END"},
+		{sql: "CREATE PROCEDURE p() BEGIN DECLARE x INT; SET x = (SELECT a FROM t); END"},
+		{sql: "CREATE PROCEDURE p() BEGIN DECLARE x INT; SET x = 1, @y = a; END"},
+		{sql: "CREATE PROCEDURE p() BEGIN DECLARE x INT; SET @y = a, x = 1; END"},
+		{sql: "CREATE PROCEDURE p() BEGIN DECLARE x INT; SET x = 1, sql_mode = a; END"},
+		{sql: "CREATE PROCEDURE p(x INT) SET x = DAY", code: 1327},
+	}
+	for _, c := range cases {
+		t.Run(c.sql, func(t *testing.T) {
+			_, err := Parse(c.sql)
+			if c.code == 0 && err != nil {
+				t.Fatalf("Parse refused what MariaDB takes: %v", err)
+			}
+			if c.code != 0 && err == nil {
+				t.Fatalf("Parse took what MariaDB refuses with %d", c.code)
+			}
+		})
+	}
+}

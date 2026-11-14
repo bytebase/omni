@@ -460,6 +460,10 @@ func (p *Parser) parseSetValue(col *nodes.ColumnRef) (nodes.ExprNode, error) {
 			return p.parseDefaultExpr()
 		}
 	}
+	// A SET of a stored program's variable reads no table (sp_fields.go).
+	if col.Table == "" && !strings.HasPrefix(col.Column, "@") && p.routine.sp != nil && p.routine.sp.hasVar(col.Column) {
+		defer p.enterNoFields("SET", false)()
+	}
 	// An expr holds no bare DEFAULT, so `SET a = (DEFAULT)` and `SET a = 1 + DEFAULT` are 1064s.
 	outer := p.noBareDefault
 	p.noBareDefault = true

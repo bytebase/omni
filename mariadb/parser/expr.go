@@ -769,6 +769,9 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 			if err != nil {
 				return nil, err
 			}
+			if err := p.refuseNoFieldsName(name3, true, start); err != nil {
+				return nil, err
+			}
 			return &nodes.ColumnRef{
 				Loc:    nodes.Loc{Start: start, End: p.prev.End},
 				Schema: name,
@@ -782,12 +785,20 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 			return nil, err
 		}
 
+		if err := p.refuseNoFieldsName(name2, true, start); err != nil {
+			return nil, err
+		}
+
 		// table.col
 		return &nodes.ColumnRef{
 			Loc:    nodes.Loc{Start: start, End: p.prev.End},
 			Table:  name,
 			Column: name2,
 		}, nil
+	}
+
+	if err := p.refuseNoFieldsName(name, false, start); err != nil {
+		return nil, err
 	}
 
 	// Plain column ref
@@ -823,6 +834,14 @@ func (p *Parser) atNationalString() bool {
 
 // parseFuncCall parses a function call after the name has been consumed.
 func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, error) {
+	// NEXTVAL, LASTVAL and SETVAL name a sequence, a table, which no expression context holds
+	// to a variable (sp_fields.go).
+	if schema == "" {
+		switch strings.ToUpper(name) {
+		case "NEXTVAL", "LASTVAL", "SETVAL":
+			defer p.enterQuery()()
+		}
+	}
 	// The builtins below take their special argument syntax (COUNT(*),
 	// DISTINCT, TRIM's FROM, SUBSTRING's FROM and FOR, GROUP_CONCAT's ORDER BY
 	// and SEPARATOR, the keyword arguments, OVER) from the grammar's keyword for

@@ -689,7 +689,9 @@ func (p *Parser) parseKillStmt() (*nodes.KillStmt, error) {
 	}
 
 	// Process ID
+	leave := p.enterNoFields("KILL", true)
 	expr, err := p.parseExpr()
+	leave()
 	if err != nil {
 		return nil, err
 	}
@@ -732,6 +734,7 @@ func (p *Parser) parseCallStmt() (*nodes.CallStmt, error) {
 	// Optional argument list in parentheses
 	if p.cur.Type == '(' {
 		p.advance() // consume '('
+		defer p.enterNoFields("CALL", true)()
 		if p.cur.Type != ')' {
 			for {
 				arg, err := p.parseExpr()
@@ -943,6 +946,7 @@ func (p *Parser) parseDoStmt() (*nodes.DoStmt, error) {
 	p.advance() // consume DO
 
 	stmt := &nodes.DoStmt{Loc: nodes.Loc{Start: start}}
+	defer p.enterNoFields("DO", false)()
 
 	for {
 		expr, err := p.parseExpr()

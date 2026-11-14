@@ -528,6 +528,7 @@ func (p *Parser) parseSelectWithParens() (*nodes.SelectStmt, error) {
 //	    [ORDER BY ...] [LIMIT {[offset,] row_count | row_count OFFSET offset}]
 //	    [FOR {UPDATE | SHARE} ...] [INTO OUTFILE 'file_name']
 func (p *Parser) parseSimpleSelect() (*nodes.SelectStmt, error) {
+	defer p.enterQuery()()
 	start := p.pos()
 
 	p.advance() // consume SELECT
@@ -2668,6 +2669,7 @@ func (p *Parser) parseNamedWindowList() ([]*nodes.WindowDef, error) {
 // parseValuesPrimary parses a table value constructor as a query primary,
 // with the ORDER BY, LIMIT, and locking clauses after it.
 func (p *Parser) parseValuesPrimary() (*nodes.SelectStmt, error) {
+	defer p.enterQuery()()
 	values, err := p.parseValuesConstructor()
 	if err != nil {
 		return nil, err

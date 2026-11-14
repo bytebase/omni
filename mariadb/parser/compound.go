@@ -368,7 +368,9 @@ func (p *Parser) parseDeclareVarStmt(start int, firstName string, firstPos int) 
 	// Optional DEFAULT value
 	if p.cur.Type == kwDEFAULT {
 		p.advance()
+		leaveNoFields := p.enterNoFields("DECLARE", false)
 		val, err := p.parseExpr()
+		leaveNoFields()
 		if err != nil {
 			return nil, err
 		}
@@ -619,7 +621,9 @@ func (p *Parser) parseIfStmt() (*nodes.IfStmt, error) {
 	p.advance() // consume IF
 
 	// Parse condition
+	leaveNoFields := p.enterNoFields("IF", false)
 	cond, err := p.parseExpr()
+	leaveNoFields()
 	if err != nil {
 		return nil, err
 	}
@@ -649,7 +653,9 @@ func (p *Parser) parseIfStmt() (*nodes.IfStmt, error) {
 		eiStart := p.pos()
 		p.advance() // consume ELSEIF
 
+		leaveNoFields := p.enterNoFields("IF", false)
 		eiCond, err := p.parseExpr()
+		leaveNoFields()
 		if err != nil {
 			return nil, err
 		}
@@ -719,7 +725,9 @@ func (p *Parser) parseCaseStmt() (*nodes.CaseStmtNode, error) {
 
 	// Simple CASE: if next token is not WHEN, parse operand
 	if p.cur.Type != kwWHEN {
+		leaveNoFields := p.enterNoFields("CASE", false)
 		operand, err := p.parseExpr()
+		leaveNoFields()
 		if err != nil {
 			return nil, err
 		}
@@ -734,7 +742,9 @@ func (p *Parser) parseCaseStmt() (*nodes.CaseStmtNode, error) {
 		whenStart := p.pos()
 		p.advance() // consume WHEN
 
+		leaveNoFields := p.enterNoFields("CASE", false)
 		whenCond, err := p.parseExpr()
+		leaveNoFields()
 		if err != nil {
 			return nil, err
 		}
@@ -799,7 +809,9 @@ func (p *Parser) parseWhileStmt(labelName string, labelStart int) (*nodes.WhileS
 	p.advance() // consume WHILE
 
 	// Parse condition
+	leaveNoFields := p.enterNoFields("WHILE", false)
 	cond, err := p.parseExpr()
+	leaveNoFields()
 	if err != nil {
 		return nil, err
 	}
@@ -876,7 +888,9 @@ func (p *Parser) parseRepeatStmt(labelName string, labelStart int) (*nodes.Repea
 	}
 
 	// Parse condition
+	leaveNoFields := p.enterNoFields("REPEAT", false)
 	cond, err := p.parseExpr()
+	leaveNoFields()
 	if err != nil {
 		return nil, err
 	}
@@ -1008,7 +1022,9 @@ func (p *Parser) parseReturnStmt() (*nodes.ReturnStmt, error) {
 	start := p.pos()
 	p.advance() // consume RETURN
 
+	leaveNoFields := p.enterNoFields("RETURN", false)
 	expr, err := p.parseExpr()
+	leaveNoFields()
 	if err != nil {
 		return nil, err
 	}
