@@ -48,10 +48,24 @@ func walkChildren(v Visitor, node Node) {
 	case *DropTableStmt:
 		Walk(v, n.Name)
 	case *CreateFunctionStmt:
-		// leaf-ish node, signature stored as raw text
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, a := range n.Args {
+			Walk(v, a)
+		}
+		if n.Returns != nil {
+			Walk(v, n.Returns)
+		}
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
 	case *DropFunctionStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
+		}
+		for _, a := range n.Args {
+			Walk(v, a)
 		}
 	case *Property:
 		// leaf node, no children
@@ -229,6 +243,14 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Subquery)
 		} else if n.Name != nil {
 			Walk(v, n.Name)
+		}
+		if n.Period != nil {
+			if n.Period.Start != nil {
+				Walk(v, n.Period.Start)
+			}
+			if n.Period.End != nil {
+				Walk(v, n.Period.End)
+			}
 		}
 	case *InlineTable:
 		for _, row := range n.Rows {
@@ -550,6 +572,18 @@ func walkChildren(v Visitor, node Node) {
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
+		if n.Where != nil {
+			Walk(v, n.Where)
+		}
+		for _, item := range n.OrderBy {
+			Walk(v, item)
+		}
+		if n.Limit != nil {
+			Walk(v, n.Limit)
+		}
+		if n.Offset != nil {
+			Walk(v, n.Offset)
+		}
 	case *ShowRoutineLoadTaskStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -847,12 +881,22 @@ func walkChildren(v Visitor, node Node) {
 		}
 	// DCL nodes (T7.1).
 	case *GrantStmt:
-		if n.Object != nil {
-			Walk(v, n.Object)
+		for _, o := range n.Objects {
+			Walk(v, o)
+		}
+		for _, args := range n.FunctionArgs {
+			for _, a := range args {
+				Walk(v, a)
+			}
 		}
 	case *RevokeStmt:
-		if n.Object != nil {
-			Walk(v, n.Object)
+		for _, o := range n.Objects {
+			Walk(v, o)
+		}
+		for _, args := range n.FunctionArgs {
+			for _, a := range args {
+				Walk(v, a)
+			}
 		}
 
 	// TCL — Transaction Control Language nodes (T7.2).

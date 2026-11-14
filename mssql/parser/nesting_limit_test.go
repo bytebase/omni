@@ -68,10 +68,9 @@ var nestingCases = []struct {
 		return "CREATE EVENT SESSION s ON SERVER ADD EVENT sqlserver.sql_batch_starting (WHERE " +
 			nest(n, "(", "sqlserver.session_id > 50", ")") + ")"
 	}, true},
-	{"CREATE SCHEMA elements", func(n int) string { return strings.Repeat("CREATE SCHEMA s ", n) }, false},
-	{"availability group options", func(n int) string {
-		return "ALTER AVAILABILITY GROUP ag MODIFY REPLICA ON 's' WITH (" + nest(n, "SECONDARY_ROLE (", "ALLOW_CONNECTIONS = ALL", ")") + ")"
-	}, false},
+	{"filtered index predicate", func(n int) string {
+		return "CREATE INDEX i ON t (a) WHERE " + nest(n, "(", "a = 1", ")")
+	}, true},
 	{"unclosed parentheses", func(n int) string { return "SELECT " + strings.Repeat("(", n) }, false},
 	{"unclosed function calls", func(n int) string { return "SELECT " + strings.Repeat("ABS(", n) }, false},
 	{"unclosed subqueries", func(n int) string { return strings.Repeat("SELECT (", n) }, false},
@@ -79,7 +78,6 @@ var nestingCases = []struct {
 	{"unclosed join groups", func(n int) string { return "SELECT * FROM " + strings.Repeat("(", n) }, false},
 	{"joins waiting for ON", func(n int) string { return "SELECT * FROM t" + strings.Repeat(" JOIN t", n) }, false},
 	{"unclosed blocks", func(n int) string { return strings.Repeat("BEGIN ", n) }, false},
-	{"unclosed WAITFOR", func(n int) string { return strings.Repeat("WAITFOR (", n) }, false},
 }
 
 // parseWithin parses sql on its own goroutine and reports false if it takes

@@ -34,5 +34,6 @@ type Statement struct {
 | `pg/ast` | 210+ AST node types matching PostgreSQL internals |
 | `pg/parser` | Recursive descent parser (~29,000 lines, 39 files) |
 | `pg/catalog` | In-memory catalog simulation, DDL semantic analysis, type resolution |
+| `pg/analysis` | Bytebase's query analysis: query span (column lineage, predicate columns, accessed tables) and the system object lists |
 | `pg/parsertest` | 746 test cases organized by SQL feature |
 | `pg/pgregress` | PostgreSQL official regression test compatibility |

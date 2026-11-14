@@ -319,8 +319,9 @@ var _ Node = (*ExportStmt)(nil)
 //	    [COMMENT 'text']
 type CreateRoutineLoadStmt struct {
 	Name                 *ObjectName // job name, optionally qualified with db
-	OnTable              *ObjectName // ON table name
-	LoadProps            string      // raw load_properties text (best-effort capture)
+	OnTable              *ObjectName // ON table name, or nil
+	MergeType            string      // WITH APPEND | DELETE | MERGE: the word, or ""
+	LoadProps            string      // the load properties' source text, as written
 	JobProperties        []*Property // PROPERTIES (...) key=value pairs
 	DataSourceType       string      // "KAFKA", "S3", "HDFS", etc.
 	DataSourceProperties []*Property // FROM ... (...) key=value pairs

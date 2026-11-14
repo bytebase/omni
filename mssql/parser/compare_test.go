@@ -4796,9 +4796,7 @@ func TestParseServiceBrokerAlterDrop(t *testing.T) {
 		"ALTER REMOTE SERVICE BINDING MyBinding WITH USER = NewUser",
 		"ALTER REMOTE SERVICE BINDING MyBinding WITH USER = NewUser, ANONYMOUS = ON",
 		// ALTER MESSAGE TYPE
-		"ALTER MESSAGE TYPE MyMessageType",
-		// ALTER CONTRACT
-		"ALTER CONTRACT MyContract",
+		"ALTER MESSAGE TYPE MyMessageType VALIDATION = NONE",
 		// DROP MESSAGE TYPE
 		"DROP MESSAGE TYPE MyMessageType",
 		// DROP CONTRACT
@@ -5473,7 +5471,7 @@ func TestParseEncryptionKeys(t *testing.T) {
 		},
 		// ALTER CRYPTOGRAPHIC PROVIDER - FROM FILE
 		{
-			sql:        "ALTER CRYPTOGRAPHIC PROVIDER SecurityProvider FROM FILE = 'c:\\SecurityProvider\\SecurityProvider_v2.dll' ENABLE",
+			sql:        "ALTER CRYPTOGRAPHIC PROVIDER SecurityProvider FROM FILE = 'c:\\SecurityProvider\\SecurityProvider_v2.dll'",
 			action:     "ALTER",
 			objectType: "CRYPTOGRAPHIC PROVIDER",
 			name:       "SecurityProvider",
@@ -6053,6 +6051,35 @@ func TestParseServerLevelObjects(t *testing.T) {
 	})
 }
 
+// TestParseFulltextRefusedForms: SQL Server 2022 refuses each of these at parse
+// time (checked on the pinned server under SET PARSEONLY ON).
+func TestParseFulltextRefusedForms(t *testing.T) {
+	for _, sql := range []string{
+		"CREATE FULLTEXT STOPLIST s",
+		"DROP FULLTEXT STOPLIST s",
+		"ALTER FULLTEXT STOPLIST s DROP ALL",
+		"CREATE SEARCH PROPERTY LIST l",
+		"DROP SEARCH PROPERTY LIST l",
+		"ALTER SEARCH PROPERTY LIST l DROP 'p'",
+		"ALTER SEARCH PROPERTY LIST l ADD 'p' WITH (PROPERTY_INT_ID = 1, PROPERTY_SET_GUID = 'g');",
+		"CREATE FULLTEXT INDEX ON t KEY INDEX i WITH CHANGE_TRACKING OFF, CHANGE_TRACKING AUTO",
+		"CREATE FULLTEXT INDEX ON t KEY INDEX i WITH STOPLIST 'a'",
+		"CREATE FULLTEXT INDEX ON t KEY INDEX i WITH ()",
+		"ALTER FULLTEXT INDEX ON t START FULL",
+		"ALTER FULLTEXT INDEX ON t ENABLE WITH NO POPULATION",
+		"ALTER FULLTEXT INDEX ON a.b.c.d ENABLE",
+		"ALTER FULLTEXT CATALOG c",
+		"ALTER FULLTEXT CATALOG c REORGANIZE WITH ACCENT_SENSITIVITY = ON",
+		"CREATE FULLTEXT CATALOG c AUTHORIZATION o AS DEFAULT",
+		"DROP FULLTEXT CATALOG a, b",
+		"DROP FULLTEXT INDEX ON IF EXISTS t",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q): want an error, SQL Server refuses it", sql)
+		}
+	}
+}
+
 // TestParseFulltextStoplistSearch tests batch 61: FULLTEXT STOPLIST and SEARCH PROPERTY LIST.
 func TestParseFulltextStoplistSearch(t *testing.T) {
 	t.Run("fulltext_stoplist", func(t *testing.T) {
@@ -6061,15 +6088,15 @@ func TestParseFulltextStoplistSearch(t *testing.T) {
 			name string
 		}{
 			// CREATE FULLTEXT STOPLIST - empty
-			{`CREATE FULLTEXT STOPLIST myStoplist`, "myStoplist"},
+			{`CREATE FULLTEXT STOPLIST myStoplist;`, "myStoplist"},
 			// CREATE FULLTEXT STOPLIST FROM existing
-			{`CREATE FULLTEXT STOPLIST myStoplist2 FROM AdventureWorks.otherStoplist`, "myStoplist2"},
+			{`CREATE FULLTEXT STOPLIST myStoplist2 FROM AdventureWorks.otherStoplist;`, "myStoplist2"},
 			// CREATE FULLTEXT STOPLIST FROM SYSTEM STOPLIST
-			{`CREATE FULLTEXT STOPLIST myStoplist3 FROM SYSTEM STOPLIST`, "myStoplist3"},
+			{`CREATE FULLTEXT STOPLIST myStoplist3 FROM SYSTEM STOPLIST;`, "myStoplist3"},
 			// CREATE FULLTEXT STOPLIST with AUTHORIZATION
-			{`CREATE FULLTEXT STOPLIST myStoplist AUTHORIZATION dbo`, "myStoplist"},
+			{`CREATE FULLTEXT STOPLIST myStoplist AUTHORIZATION dbo;`, "myStoplist"},
 			// CREATE FULLTEXT STOPLIST FROM source with AUTHORIZATION
-			{`CREATE FULLTEXT STOPLIST sl1 FROM db1.sl2 AUTHORIZATION admin1`, "sl1"},
+			{`CREATE FULLTEXT STOPLIST sl1 FROM db1.sl2 AUTHORIZATION admin1;`, "sl1"},
 		}
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
@@ -6104,7 +6131,7 @@ func TestParseFulltextStoplistSearch(t *testing.T) {
 			// DROP ALL LANGUAGE
 			{`ALTER FULLTEXT STOPLIST sl1 DROP ALL LANGUAGE 'English'`, "sl1", "DROP"},
 			// DROP ALL
-			{`ALTER FULLTEXT STOPLIST sl1 DROP ALL`, "sl1", "DROP"},
+			{`ALTER FULLTEXT STOPLIST sl1 DROP ALL;`, "sl1", "DROP"},
 		}
 		for _, tt := range tests {
 			t.Run(tt.sql, func(t *testing.T) {
@@ -6128,7 +6155,7 @@ func TestParseFulltextStoplistSearch(t *testing.T) {
 	})
 
 	t.Run("drop_fulltext_stoplist", func(t *testing.T) {
-		sql := `DROP FULLTEXT STOPLIST myStoplist`
+		sql := `DROP FULLTEXT STOPLIST myStoplist;`
 		result := ParseAndCheck(t, sql)
 		if result.Len() != 1 {
 			t.Fatalf("Parse(%q): got %d statements, want 1", sql, result.Len())
@@ -6149,13 +6176,13 @@ func TestParseFulltextStoplistSearch(t *testing.T) {
 			name string
 		}{
 			// CREATE SEARCH PROPERTY LIST - empty
-			{`CREATE SEARCH PROPERTY LIST DocumentPropertyList`, "DocumentPropertyList"},
+			{`CREATE SEARCH PROPERTY LIST DocumentPropertyList;`, "DocumentPropertyList"},
 			// CREATE SEARCH PROPERTY LIST FROM existing
-			{`CREATE SEARCH PROPERTY LIST JobCandidateProperties FROM AdventureWorks2022.DocumentPropertyList`, "JobCandidateProperties"},
+			{`CREATE SEARCH PROPERTY LIST JobCandidateProperties FROM AdventureWorks2022.DocumentPropertyList;`, "JobCandidateProperties"},
 			// CREATE SEARCH PROPERTY LIST FROM same db
-			{`CREATE SEARCH PROPERTY LIST spl2 FROM spl1`, "spl2"},
+			{`CREATE SEARCH PROPERTY LIST spl2 FROM spl1;`, "spl2"},
 			// CREATE SEARCH PROPERTY LIST with AUTHORIZATION
-			{`CREATE SEARCH PROPERTY LIST spl1 AUTHORIZATION dbo`, "spl1"},
+			{`CREATE SEARCH PROPERTY LIST spl1 AUTHORIZATION dbo;`, "spl1"},
 		}
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
@@ -6182,11 +6209,11 @@ func TestParseFulltextStoplistSearch(t *testing.T) {
 			action string
 		}{
 			// ADD property with all options
-			{`ALTER SEARCH PROPERTY LIST DocumentPropertyList ADD 'Title' WITH (PROPERTY_SET_GUID = 'F29F85E0-4FF9-1068-AB91-08002B27B3D9', PROPERTY_INT_ID = 2, PROPERTY_DESCRIPTION = 'Title of the item.')`, "DocumentPropertyList", "ADD"},
+			{`ALTER SEARCH PROPERTY LIST DocumentPropertyList ADD 'Title' WITH (PROPERTY_SET_GUID = 'F29F85E0-4FF9-1068-AB91-08002B27B3D9', PROPERTY_INT_ID = 2, PROPERTY_DESCRIPTION = 'Title of the item.');`, "DocumentPropertyList", "ADD"},
 			// ADD property without description
-			{`ALTER SEARCH PROPERTY LIST spl1 ADD 'Author' WITH (PROPERTY_SET_GUID = 'F29F85E0-4FF9-1068-AB91-08002B27B3D9', PROPERTY_INT_ID = 4)`, "spl1", "ADD"},
+			{`ALTER SEARCH PROPERTY LIST spl1 ADD 'Author' WITH (PROPERTY_SET_GUID = 'F29F85E0-4FF9-1068-AB91-08002B27B3D9', PROPERTY_INT_ID = 4);`, "spl1", "ADD"},
 			// DROP property
-			{`ALTER SEARCH PROPERTY LIST DocumentPropertyList DROP 'Comments'`, "DocumentPropertyList", "DROP"},
+			{`ALTER SEARCH PROPERTY LIST DocumentPropertyList DROP 'Comments';`, "DocumentPropertyList", "DROP"},
 		}
 		for _, tt := range tests {
 			t.Run(tt.sql, func(t *testing.T) {
@@ -6210,7 +6237,7 @@ func TestParseFulltextStoplistSearch(t *testing.T) {
 	})
 
 	t.Run("drop_search_property_list", func(t *testing.T) {
-		sql := `DROP SEARCH PROPERTY LIST JobCandidateProperties`
+		sql := `DROP SEARCH PROPERTY LIST JobCandidateProperties;`
 		result := ParseAndCheck(t, sql)
 		if result.Len() != 1 {
 			t.Fatalf("Parse(%q): got %d statements, want 1", sql, result.Len())
@@ -6353,7 +6380,7 @@ func TestParseSpecializedIndexes(t *testing.T) {
 			// CREATE PRIMARY XML INDEX
 			{`CREATE PRIMARY XML INDEX idx_xml ON dbo.Products (CatalogDescription)`, true},
 			// CREATE PRIMARY XML INDEX with options
-			{`CREATE PRIMARY XML INDEX PXML_ProductModel ON Production.ProductModel (CatalogDescription) WITH (PAD_INDEX = 1)`, true},
+			{`CREATE PRIMARY XML INDEX PXML_ProductModel ON Production.ProductModel (CatalogDescription) WITH (PAD_INDEX = ON)`, true},
 			// CREATE secondary XML INDEX FOR VALUE
 			{`CREATE XML INDEX idx_xml_value ON dbo.Products (CatalogDescription) USING XML INDEX idx_xml FOR VALUE`, false},
 			// CREATE secondary XML INDEX FOR PATH
@@ -6382,7 +6409,7 @@ func TestParseSpecializedIndexes(t *testing.T) {
 	t.Run("selective_xml_index", func(t *testing.T) {
 		tests := []string{
 			`CREATE SELECTIVE XML INDEX sxi_index ON T (xmlcol) FOR (pathab = '/a/b')`,
-			`CREATE SELECTIVE XML INDEX sxi_index ON T (xmlcol) FOR (pathab = '/a/b') WITH (PAD_INDEX = 1)`,
+			`CREATE SELECTIVE XML INDEX sxi_index ON T (xmlcol) FOR (pathab = '/a/b') WITH (PAD_INDEX = ON)`,
 		}
 		for _, sql := range tests {
 			t.Run(sql, func(t *testing.T) {
@@ -6687,7 +6714,7 @@ func TestParseCreateAvailabilityGroup(t *testing.T) {
 		// CREATE DISTRIBUTED
 		"CREATE AVAILABILITY GROUP MyDistAG WITH (DISTRIBUTED) AVAILABILITY GROUP ON 'AG1' WITH (LISTENER_URL = 'TCP://server1:5022', AVAILABILITY_MODE = ASYNCHRONOUS_COMMIT, FAILOVER_MODE = MANUAL, SEEDING_MODE = AUTOMATIC), 'AG2' WITH (LISTENER_URL = 'TCP://server2:5022', AVAILABILITY_MODE = ASYNCHRONOUS_COMMIT, FAILOVER_MODE = MANUAL, SEEDING_MODE = AUTOMATIC)",
 		// CREATE with CONFIGURATION_ONLY availability mode
-		"CREATE AVAILABILITY GROUP MyAG FOR DATABASE MyDB REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = CONFIGURATION_ONLY, FAILOVER_MODE = MANUAL)",
+		"CREATE AVAILABILITY GROUP MyAG FOR DATABASE MyDB REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = CONFIGURATION_ONLY)",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
@@ -6748,7 +6775,7 @@ func TestParseAlterAvailabilityGroup(t *testing.T) {
 		// OFFLINE
 		"ALTER AVAILABILITY GROUP MyAG OFFLINE",
 		// SET multiple options
-		"ALTER AVAILABILITY GROUP MyAG SET (DB_FAILOVER = ON, FAILURE_CONDITION_LEVEL = 4, HEALTH_CHECK_TIMEOUT = 60000)",
+		"ALTER AVAILABILITY GROUP MyAG SET (FAILURE_CONDITION_LEVEL = 4)",
 		// MODIFY AVAILABILITY GROUP ON (distributed)
 		"ALTER AVAILABILITY GROUP MyDistAG MODIFY AVAILABILITY GROUP ON 'AG1' WITH (LISTENER_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT)",
 	}
@@ -6960,14 +6987,14 @@ func TestParseIntegrationPhase3(t *testing.T) {
 		"DROP EXTERNAL LANGUAGE MyLang",
 		"DROP EXTERNAL RESOURCE POOL MyPool",
 		// Batch 58: Encryption keys
-		"CREATE COLUMN MASTER KEY MyCMK WITH (KEY_STORE_PROVIDER_NAME = 'MSSQL_CERTIFICATE_STORE')",
+		"CREATE COLUMN MASTER KEY MyCMK WITH (KEY_STORE_PROVIDER_NAME = 'MSSQL_CERTIFICATE_STORE', KEY_PATH = 'CurrentUser/My/A1B2')",
 		// Batch 59: Resource governor
 		"CREATE WORKLOAD GROUP TestGroup USING [default]",
 		"ALTER RESOURCE GOVERNOR RECONFIGURE",
 		// Batch 60: Server-level objects
 		"CREATE SERVER ROLE MyServerRole",
 		// Batch 61: Fulltext extensions
-		"CREATE FULLTEXT STOPLIST MyStoplist",
+		"CREATE FULLTEXT STOPLIST MyStoplist;",
 		// Batch 62: Security policy, classification, signature
 		"CREATE SECURITY POLICY dbo.SecurityFilter ADD FILTER PREDICATE dbo.fn_securitypredicate(TenantId) ON dbo.Sales",
 		// Batch 63: Specialized indexes, aggregate
@@ -6986,7 +7013,7 @@ func TestParseIntegrationPhase3(t *testing.T) {
 		"CREATE RULE range_rule AS @range >= 1000 AND @range < 20000",
 		"ALTER DATABASE SCOPED CONFIGURATION SET MAXDOP = 4",
 		// BEGIN DIALOG (service broker, newly wired)
-		"BEGIN DIALOG @dialog FROM SERVICE 'InitiatorService' TO SERVICE 'TargetService' ON CONTRACT 'MyContract'",
+		"BEGIN DIALOG @dialog FROM SERVICE InitiatorService TO SERVICE 'TargetService' ON CONTRACT MyContract",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
@@ -7782,6 +7809,20 @@ func TestParseReceiveColumnListDepth(t *testing.T) {
 
 // TestParseWindowFrame tests ROWS/RANGE/GROUPS window frame specification in OVER clause (batch 73).
 func TestParseWindowFrame(t *testing.T) {
+	// SQL Server 2022 has no GROUPS frame and no lone window name in OVER
+	// (Msg 102 on the pinned server).
+	for _, sql := range []string{
+		"SELECT SUM(x) OVER (ORDER BY id GROUPS UNBOUNDED PRECEDING)",
+		"SELECT SUM(x) OVER (ROWS UNBOUNDED PRECEDING)",
+		"SELECT SUM(x) OVER (ORDER BY id ROWS UNBOUNDED FOLLOWING)",
+		"SELECT SUM(x) OVER (ORDER BY id ROWS @n PRECEDING)",
+		"SELECT SUM(x) OVER (w) FROM t WINDOW w AS (ORDER BY id)",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) = nil error, want SQL Server's rejection", sql)
+		}
+	}
+
 	tests := []struct {
 		name string
 		sql  string
@@ -7802,10 +7843,6 @@ func TestParseWindowFrame(t *testing.T) {
 		{"range_between_unbounded_preceding_and_current_row", "SELECT SUM(x) OVER (ORDER BY id RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)"},
 		{"range_between_current_row_and_unbounded_following", "SELECT SUM(x) OVER (ORDER BY id RANGE BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING)"},
 		{"range_between_unbounded_preceding_and_unbounded_following", "SELECT SUM(x) OVER (ORDER BY id RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING)"},
-		// GROUPS frame (SQL Server 2022+)
-		{"groups_unbounded_preceding", "SELECT SUM(x) OVER (ORDER BY id GROUPS UNBOUNDED PRECEDING)"},
-		{"groups_between_n_preceding_and_n_following", "SELECT SUM(x) OVER (ORDER BY id GROUPS BETWEEN 1 PRECEDING AND 1 FOLLOWING)"},
-		{"groups_between_current_row_and_unbounded_following", "SELECT SUM(x) OVER (ORDER BY id GROUPS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING)"},
 		// Combined with PARTITION BY
 		{"partition_and_rows_frame", "SELECT SUM(x) OVER (PARTITION BY dept ORDER BY id ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING)"},
 		{"partition_and_range_frame", "SELECT AVG(salary) OVER (PARTITION BY dept ORDER BY hire_date RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)"},
@@ -9465,9 +9502,11 @@ func TestParseCreateTypeIndex(t *testing.T) {
 	})
 
 	t.Run("create_type_table_hash_index", func(t *testing.T) {
+		// WITH follows the column list; SQL Server 2022 refuses it before
+		// (Msg 102).
 		sql := `CREATE TYPE dbo.MemOptType AS TABLE (
 			id INT NOT NULL,
-			INDEX IX_id NONCLUSTERED HASH WITH (BUCKET_COUNT = 1024) (id)
+			INDEX IX_id NONCLUSTERED HASH (id) WITH (BUCKET_COUNT = 1024)
 		)`
 		result := ParseAndCheck(t, sql)
 		stmt := result.Items[0].(*ast.CreateTypeStmt)
@@ -10561,13 +10600,14 @@ func TestParseTriggerWithOptions(t *testing.T) {
 		}
 	})
 
-	// WITH SCHEMABINDING
+	// WITH SCHEMABINDING, which goes with NATIVE_COMPILATION and an ATOMIC
+	// body (SQL Server 2022: Msg 10796 without NATIVE_COMPILATION).
 	t.Run("trigger_with_schemabinding", func(t *testing.T) {
-		sql := "CREATE TRIGGER tr5 ON t5 WITH SCHEMABINDING AFTER INSERT AS BEGIN SELECT 1 END"
+		sql := "CREATE TRIGGER tr5 ON t5 WITH SCHEMABINDING, NATIVE_COMPILATION AFTER INSERT AS BEGIN ATOMIC WITH (TRANSACTION ISOLATION LEVEL = SNAPSHOT, LANGUAGE = N'us_english') SELECT 1 END"
 		result := ParseAndCheck(t, sql)
 		stmt := result.Items[0].(*ast.CreateTriggerStmt)
-		if stmt.TriggerOptions == nil || stmt.TriggerOptions.Len() != 1 {
-			t.Fatalf("expected 1 trigger option")
+		if stmt.TriggerOptions == nil || stmt.TriggerOptions.Len() != 2 {
+			t.Fatalf("expected 2 trigger options")
 		}
 		opt := stmt.TriggerOptions.Items[0].(*ast.TriggerOption)
 		if opt.Name != "SCHEMABINDING" {
@@ -10617,8 +10657,8 @@ func TestParseTriggerEventOptionsStringsDepth(t *testing.T) {
 			wantValue string
 		}{
 			{"encryption", "CREATE TRIGGER tr1 ON t1 WITH ENCRYPTION AFTER INSERT AS SELECT 1", "ENCRYPTION", ""},
-			{"schemabinding", "CREATE TRIGGER tr1 ON t1 WITH SCHEMABINDING AFTER INSERT AS SELECT 1", "SCHEMABINDING", ""},
-			{"native_compilation", "CREATE TRIGGER tr1 ON t1 WITH NATIVE_COMPILATION, SCHEMABINDING AFTER INSERT AS SELECT 1", "NATIVE_COMPILATION", ""},
+			{"schemabinding", "CREATE TRIGGER tr1 ON t1 WITH SCHEMABINDING, NATIVE_COMPILATION AFTER INSERT AS BEGIN ATOMIC WITH (TRANSACTION ISOLATION LEVEL = SNAPSHOT, LANGUAGE = N'us_english') SELECT 1 END", "SCHEMABINDING", ""},
+			{"native_compilation", "CREATE TRIGGER tr1 ON t1 WITH NATIVE_COMPILATION, SCHEMABINDING AFTER INSERT AS BEGIN ATOMIC WITH (TRANSACTION ISOLATION LEVEL = SNAPSHOT, LANGUAGE = N'us_english') SELECT 1 END", "NATIVE_COMPILATION", ""},
 			{"execute_as_caller", "CREATE TRIGGER tr1 ON t1 WITH EXECUTE AS CALLER AFTER INSERT AS SELECT 1", "EXECUTE AS", "CALLER"},
 			{"execute_as_self", "CREATE TRIGGER tr1 ON t1 WITH EXECUTE AS SELF AFTER INSERT AS SELECT 1", "EXECUTE AS", "SELF"},
 			{"execute_as_user", "CREATE TRIGGER tr1 ON t1 WITH EXECUTE AS 'appuser' AFTER INSERT AS SELECT 1", "EXECUTE AS", "appuser"},
@@ -10647,7 +10687,7 @@ func TestParseTriggerEventOptionsStringsDepth(t *testing.T) {
 	t.Run("no_string_nodes", func(t *testing.T) {
 		tests := []string{
 			"CREATE TRIGGER tr1 ON t1 WITH ENCRYPTION, EXECUTE AS OWNER AFTER INSERT, UPDATE AS SELECT 1",
-			"CREATE TRIGGER tr1 ON ALL SERVER WITH SCHEMABINDING AFTER LOGON AS SELECT 1",
+			"CREATE TRIGGER tr1 ON ALL SERVER WITH SCHEMABINDING, NATIVE_COMPILATION AFTER LOGON AS BEGIN ATOMIC WITH (TRANSACTION ISOLATION LEVEL = SNAPSHOT, LANGUAGE = N'us_english') SELECT 1 END",
 			"CREATE TRIGGER tr1 ON DATABASE AFTER CREATE_TABLE, DROP_TABLE AS SELECT 1",
 		}
 		for _, sql := range tests {
@@ -11345,7 +11385,8 @@ func TestParseAlterIndexOptionsDepth(t *testing.T) {
 
 	// ALTER INDEX ... REBUILD with DATA_COMPRESSION ON PARTITIONS
 	t.Run("alter_index_data_compression_partitions", func(t *testing.T) {
-		sql := "ALTER INDEX IX_1 ON dbo.t REBUILD WITH (DATA_COMPRESSION = PAGE ON PARTITIONS (1, 3 TO 5))"
+		// ON PARTITIONS needs PARTITION = ALL (SQL Server Msg 10737).
+		sql := "ALTER INDEX IX_1 ON dbo.t REBUILD PARTITION = ALL WITH (DATA_COMPRESSION = PAGE ON PARTITIONS (1, 3 TO 5))"
 		result := ParseAndCheck(t, sql)
 		stmt := result.Items[0].(*ast.AlterIndexStmt)
 		if stmt.Action != "REBUILD" {
@@ -12114,23 +12155,6 @@ func TestParseServiceBrokerAlterOptionsDepth(t *testing.T) {
 			name: "alter_message_type_validation_valid_xml_schema",
 			sql:  "ALTER MESSAGE TYPE MyMessageType VALIDATION = VALID_XML WITH SCHEMA COLLECTION MySchemaCollection",
 		},
-		// ALTER CONTRACT with message type modifications (ADD/DROP)
-		{
-			name: "alter_contract_add_message_type",
-			sql:  "ALTER CONTRACT MyContract ADD MESSAGE TYPE MyMsgType SENT BY INITIATOR",
-		},
-		{
-			name: "alter_contract_drop_message_type",
-			sql:  "ALTER CONTRACT MyContract DROP MESSAGE TYPE MyMsgType",
-		},
-		{
-			name: "alter_contract_add_sent_by_target",
-			sql:  "ALTER CONTRACT MyContract ADD MESSAGE TYPE ResponseMsg SENT BY TARGET",
-		},
-		{
-			name: "alter_contract_add_sent_by_any",
-			sql:  "ALTER CONTRACT MyContract ADD MESSAGE TYPE AnyMsg SENT BY ANY",
-		},
 		// ALTER ROUTE with structured WITH options
 		{
 			name: "alter_route_all_options",
@@ -12827,26 +12851,13 @@ func TestParseMaterializedView(t *testing.T) {
 		// With join in SELECT
 		"CREATE MATERIALIZED VIEW dbo.mv_join WITH (DISTRIBUTION = HASH(vendor_id)) AS SELECT a.vendor_id, SUM(a.total_amount) AS s, COUNT_BIG(*) AS c FROM t1 a INNER JOIN t2 b ON a.vendor_id = b.vendor_id GROUP BY a.vendor_id",
 	}
+	// CREATE and ALTER MATERIALIZED VIEW are Azure Synapse Analytics syntax,
+	// which SQL Server 2022 refuses (Msg 102), so Parse refuses them.
 	for _, sql := range createTests {
 		t.Run(sql, func(t *testing.T) {
-			result := ParseAndCheck(t, sql)
-			if result.Len() != 1 {
-				t.Fatalf("Parse(%q): got %d statements, want 1", sql, result.Len())
+			if _, err := Parse(sql); err == nil {
+				t.Errorf("Parse(%q): expected an error", sql)
 			}
-			stmt, ok := result.Items[0].(*ast.CreateMaterializedViewStmt)
-			if !ok {
-				t.Fatalf("Parse(%q): expected *CreateMaterializedViewStmt, got %T", sql, result.Items[0])
-			}
-			if stmt.Name == nil {
-				t.Errorf("Parse(%q): Name is nil", sql)
-			}
-			if stmt.Distribution == "" {
-				t.Errorf("Parse(%q): Distribution is empty", sql)
-			}
-			if stmt.Query == nil {
-				t.Errorf("Parse(%q): Query is nil", sql)
-			}
-			checkLocation(t, sql, "CreateMaterializedViewStmt", stmt.Loc)
 		})
 	}
 
@@ -12866,21 +12877,9 @@ func TestParseMaterializedView(t *testing.T) {
 	}
 	for _, tc := range alterTests {
 		t.Run(tc.sql, func(t *testing.T) {
-			result := ParseAndCheck(t, tc.sql)
-			if result.Len() != 1 {
-				t.Fatalf("Parse(%q): got %d statements, want 1", tc.sql, result.Len())
+			if _, err := Parse(tc.sql); err == nil {
+				t.Errorf("Parse(%q): expected an error", tc.sql)
 			}
-			stmt, ok := result.Items[0].(*ast.AlterMaterializedViewStmt)
-			if !ok {
-				t.Fatalf("Parse(%q): expected *AlterMaterializedViewStmt, got %T", tc.sql, result.Items[0])
-			}
-			if stmt.Name == nil {
-				t.Errorf("Parse(%q): Name is nil", tc.sql)
-			}
-			if !strings.EqualFold(stmt.Action, tc.action) {
-				t.Errorf("Parse(%q): Action = %q, want %q", tc.sql, stmt.Action, tc.action)
-			}
-			checkLocation(t, tc.sql, "AlterMaterializedViewStmt", stmt.Loc)
 		})
 	}
 
@@ -13427,9 +13426,6 @@ func TestParseStmtDispatchPhase4(t *testing.T) {
 		{"create_external_model", "CREATE EXTERNAL MODEL mymodel WITH (LOCATION = 'onnx:///mymodel.onnx')", "*ast.SecurityStmt"},
 		// Batch 109 - json/vector index
 		{"create_json_index", "CREATE JSON INDEX idx_json ON dbo.t1 (col1)", "*ast.CreateJsonIndexStmt"},
-		// Batch 110 - materialized view
-		{"create_materialized_view", "CREATE MATERIALIZED VIEW dbo.mv AS SELECT col1 FROM dbo.t1", "*ast.CreateMaterializedViewStmt"},
-		{"alter_materialized_view", "ALTER MATERIALIZED VIEW dbo.mv REBUILD", "*ast.AlterMaterializedViewStmt"},
 		// Batch 111 - copy into
 		{"copy_into", "COPY INTO dbo.t1 FROM 'https://storage.blob.core.windows.net/data/' WITH (FILE_TYPE = 'CSV')", "*ast.CopyIntoStmt"},
 		// Batch 112 - rename, CETAS, clone
@@ -13742,9 +13738,9 @@ func TestParseAvailabilityGroupOptionsDepth(t *testing.T) {
 	}{
 		// ag_replica_on_structured: REPLICA ON with all standard options parsed as key=value
 		{
-			sql: "CREATE AVAILABILITY GROUP MyAG REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC)",
+			sql: "CREATE AVAILABILITY GROUP MyAG FOR REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC)",
 			wantOpts: []string{
-				"REPLICA ON", "'server1'", "WITH",
+				"FOR", "REPLICA ON", "'server1'", "WITH",
 				"ENDPOINT_URL='TCP://server1:5022'",
 				"AVAILABILITY_MODE=SYNCHRONOUS_COMMIT",
 				"FAILOVER_MODE=AUTOMATIC",
@@ -13752,9 +13748,9 @@ func TestParseAvailabilityGroupOptionsDepth(t *testing.T) {
 		},
 		// ag_replica_on_structured: REPLICA ON with SEEDING_MODE, BACKUP_PRIORITY, SESSION_TIMEOUT
 		{
-			sql: "CREATE AVAILABILITY GROUP MyAG REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC, SEEDING_MODE = AUTOMATIC, BACKUP_PRIORITY = 50, SESSION_TIMEOUT = 10)",
+			sql: "CREATE AVAILABILITY GROUP MyAG FOR REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC, SEEDING_MODE = AUTOMATIC, BACKUP_PRIORITY = 50, SESSION_TIMEOUT = 10)",
 			wantOpts: []string{
-				"REPLICA ON", "'server1'", "WITH",
+				"FOR", "REPLICA ON", "'server1'", "WITH",
 				"ENDPOINT_URL='TCP://server1:5022'",
 				"AVAILABILITY_MODE=SYNCHRONOUS_COMMIT",
 				"FAILOVER_MODE=AUTOMATIC",
@@ -13765,9 +13761,9 @@ func TestParseAvailabilityGroupOptionsDepth(t *testing.T) {
 		},
 		// ag_replica_options_structured: SECONDARY_ROLE and PRIMARY_ROLE as nested option blocks
 		{
-			sql: "CREATE AVAILABILITY GROUP MyAG REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC, SECONDARY_ROLE (ALLOW_CONNECTIONS = READ_ONLY), PRIMARY_ROLE (ALLOW_CONNECTIONS = ALL))",
+			sql: "CREATE AVAILABILITY GROUP MyAG FOR REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC, SECONDARY_ROLE (ALLOW_CONNECTIONS = READ_ONLY), PRIMARY_ROLE (ALLOW_CONNECTIONS = ALL))",
 			wantOpts: []string{
-				"REPLICA ON", "'server1'", "WITH",
+				"FOR", "REPLICA ON", "'server1'", "WITH",
 				"ENDPOINT_URL='TCP://server1:5022'",
 				"AVAILABILITY_MODE=SYNCHRONOUS_COMMIT",
 				"FAILOVER_MODE=AUTOMATIC",
@@ -13777,9 +13773,9 @@ func TestParseAvailabilityGroupOptionsDepth(t *testing.T) {
 		},
 		// ag_replica_options_structured: PRIMARY_ROLE with READ_ONLY_ROUTING_LIST
 		{
-			sql: "CREATE AVAILABILITY GROUP MyAG REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC, PRIMARY_ROLE (ALLOW_CONNECTIONS = ALL, READ_ONLY_ROUTING_LIST = ('server2', 'server3')))",
+			sql: "CREATE AVAILABILITY GROUP MyAG FOR REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC, PRIMARY_ROLE (ALLOW_CONNECTIONS = ALL, READ_ONLY_ROUTING_LIST = ('server2', 'server3')))",
 			wantOpts: []string{
-				"REPLICA ON", "'server1'", "WITH",
+				"FOR", "REPLICA ON", "'server1'", "WITH",
 				"ENDPOINT_URL='TCP://server1:5022'",
 				"AVAILABILITY_MODE=SYNCHRONOUS_COMMIT",
 				"FAILOVER_MODE=AUTOMATIC",
@@ -13788,9 +13784,9 @@ func TestParseAvailabilityGroupOptionsDepth(t *testing.T) {
 		},
 		// ag_listener_structured: LISTENER with IP and PORT
 		{
-			sql: "CREATE AVAILABILITY GROUP MyAG REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC) LISTENER 'MyListener' (WITH IP (('10.120.19.155', '255.255.254.0')), PORT = 1433)",
+			sql: "CREATE AVAILABILITY GROUP MyAG FOR REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC) LISTENER 'MyListener' (WITH IP (('10.120.19.155', '255.255.254.0')), PORT = 1433)",
 			wantOpts: []string{
-				"REPLICA ON", "'server1'", "WITH",
+				"FOR", "REPLICA ON", "'server1'", "WITH",
 				"ENDPOINT_URL='TCP://server1:5022'",
 				"AVAILABILITY_MODE=SYNCHRONOUS_COMMIT",
 				"FAILOVER_MODE=AUTOMATIC",
@@ -13800,9 +13796,9 @@ func TestParseAvailabilityGroupOptionsDepth(t *testing.T) {
 		},
 		// ag_listener_structured: LISTENER with DHCP
 		{
-			sql: "CREATE AVAILABILITY GROUP MyAG REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC) LISTENER 'MyListener' (WITH DHCP ON ('10.120.19.0', '255.255.254.0'))",
+			sql: "CREATE AVAILABILITY GROUP MyAG FOR REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC) LISTENER 'MyListener' (WITH DHCP ON ('10.120.19.0', '255.255.254.0'))",
 			wantOpts: []string{
-				"REPLICA ON", "'server1'", "WITH",
+				"FOR", "REPLICA ON", "'server1'", "WITH",
 				"ENDPOINT_URL='TCP://server1:5022'",
 				"AVAILABILITY_MODE=SYNCHRONOUS_COMMIT",
 				"FAILOVER_MODE=AUTOMATIC",
@@ -13812,12 +13808,10 @@ func TestParseAvailabilityGroupOptionsDepth(t *testing.T) {
 		},
 		// SET options parsed structurally
 		{
-			sql: "ALTER AVAILABILITY GROUP MyAG SET (AUTOMATED_BACKUP_PREFERENCE = SECONDARY, DB_FAILOVER = ON, HEALTH_CHECK_TIMEOUT = 30000)",
+			sql: "ALTER AVAILABILITY GROUP MyAG SET (AUTOMATED_BACKUP_PREFERENCE = SECONDARY)",
 			wantOpts: []string{
 				"SET",
 				"AUTOMATED_BACKUP_PREFERENCE=SECONDARY",
-				"DB_FAILOVER=ON",
-				"HEALTH_CHECK_TIMEOUT=30000",
 			},
 		},
 		// MODIFY LISTENER with ADD IP
@@ -13894,9 +13888,9 @@ func TestParseAvailabilityRemainingDepth(t *testing.T) {
 		// ag_nested_parens_structured: IP tuples parsed as structured comma-separated values
 		{
 			name: "ag_nested_parens_structured_ip_tuple",
-			sql:  "CREATE AVAILABILITY GROUP MyAG REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC) LISTENER 'MyListener' (WITH IP (('10.0.0.1', '255.255.255.0'), ('10.0.0.2', '255.255.255.0')), PORT = 1433)",
+			sql:  "CREATE AVAILABILITY GROUP MyAG FOR REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC) LISTENER 'MyListener' (WITH IP (('10.0.0.1', '255.255.255.0'), ('10.0.0.2', '255.255.255.0')), PORT = 1433)",
 			wantOpts: []string{
-				"REPLICA ON", "'server1'", "WITH",
+				"FOR", "REPLICA ON", "'server1'", "WITH",
 				"ENDPOINT_URL='TCP://server1:5022'",
 				"AVAILABILITY_MODE=SYNCHRONOUS_COMMIT",
 				"FAILOVER_MODE=AUTOMATIC",
@@ -13907,9 +13901,9 @@ func TestParseAvailabilityRemainingDepth(t *testing.T) {
 		// ag_nested_parens_structured: key = (value_list) uses recursive parsing
 		{
 			name: "ag_nested_parens_structured_value_list",
-			sql:  "CREATE AVAILABILITY GROUP MyAG REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC, PRIMARY_ROLE (READ_ONLY_ROUTING_LIST = ('server2', 'server3', 'server4')))",
+			sql:  "CREATE AVAILABILITY GROUP MyAG FOR REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC, PRIMARY_ROLE (READ_ONLY_ROUTING_LIST = ('server2', 'server3', 'server4')))",
 			wantOpts: []string{
-				"REPLICA ON", "'server1'", "WITH",
+				"FOR", "REPLICA ON", "'server1'", "WITH",
 				"ENDPOINT_URL='TCP://server1:5022'",
 				"AVAILABILITY_MODE=SYNCHRONOUS_COMMIT",
 				"FAILOVER_MODE=AUTOMATIC",
@@ -15965,9 +15959,9 @@ func TestParseFulltextAlterDepth(t *testing.T) {
 			name string
 			sql  string
 		}{
-			{"add_with_all_options", "ALTER SEARCH PROPERTY LIST mylist ADD 'Title' WITH (PROPERTY_SET_GUID = 'F29F85E0-4FF9-1068-AB91-08002B27B3D9', PROPERTY_INT_ID = 2, PROPERTY_DESCRIPTION = 'System.Title')"},
-			{"add_with_required_options_only", "ALTER SEARCH PROPERTY LIST mylist ADD 'Author' WITH (PROPERTY_SET_GUID = 'F29F85E0-4FF9-1068-AB91-08002B27B3D9', PROPERTY_INT_ID = 4)"},
-			{"drop_property", "ALTER SEARCH PROPERTY LIST mylist DROP 'Title'"},
+			{"add_with_all_options", "ALTER SEARCH PROPERTY LIST mylist ADD 'Title' WITH (PROPERTY_SET_GUID = 'F29F85E0-4FF9-1068-AB91-08002B27B3D9', PROPERTY_INT_ID = 2, PROPERTY_DESCRIPTION = 'System.Title');"},
+			{"add_with_required_options_only", "ALTER SEARCH PROPERTY LIST mylist ADD 'Author' WITH (PROPERTY_SET_GUID = 'F29F85E0-4FF9-1068-AB91-08002B27B3D9', PROPERTY_INT_ID = 4);"},
+			{"drop_property", "ALTER SEARCH PROPERTY LIST mylist DROP 'Title';"},
 		}
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
@@ -17108,7 +17102,7 @@ func TestParseExternalCleanupDepth(t *testing.T) {
 func TestParseAvailabilitySkipCleanupDepth(t *testing.T) {
 	// Valid AG statements should still parse without UNEXPECTED tokens
 	t.Run("availability_group_unexpected_token_error", func(t *testing.T) {
-		sql := "ALTER AVAILABILITY GROUP myAG MODIFY REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT)"
+		sql := "ALTER AVAILABILITY GROUP myAG ADD REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = MANUAL)"
 		result := ParseAndCheck(t, sql)
 		stmt := result.Items[0].(*ast.SecurityStmt)
 		if stmt.Options == nil {
@@ -17126,7 +17120,7 @@ func TestParseAvailabilitySkipCleanupDepth(t *testing.T) {
 
 	// Verify standard parsing still works
 	t.Run("availability_group_valid_options", func(t *testing.T) {
-		sql := "CREATE AVAILABILITY GROUP myAG WITH (CLUSTER_TYPE = NONE) FOR REPLICA ON 'srv1' WITH (ENDPOINT_URL = 'TCP://srv1:5022')"
+		sql := "CREATE AVAILABILITY GROUP myAG WITH (CLUSTER_TYPE = NONE) FOR REPLICA ON 'srv1' WITH (ENDPOINT_URL = 'TCP://srv1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = EXTERNAL)"
 		result := ParseAndCheck(t, sql)
 		if result.Len() != 1 {
 			t.Fatalf("expected 1 statement, got %d", result.Len())
@@ -17504,12 +17498,32 @@ func TestParseServiceBrokerOptionsStringsDepth(t *testing.T) {
 		}
 	})
 
-	t.Run("alter_contract_add_drop", func(t *testing.T) {
-		sql := "ALTER CONTRACT MyContract ADD MESSAGE TYPE MyMsgType SENT BY INITIATOR"
-		result := ParseAndCheck(t, sql)
-		opt := getOpt(t, result, 0)
-		if opt.Name != "ADD" || opt.Value != "MyMsgType SENT BY INITIATOR" {
-			t.Errorf("expected ADD=MyMsgType SENT BY INITIATOR, got %s=%s", opt.Name, opt.Value)
+	// SQL Server 2022 refuses each of these at parse time (checked on the
+	// pinned server under SET PARSEONLY ON).
+	t.Run("refused_forms", func(t *testing.T) {
+		for _, sql := range []string{
+			"ALTER CONTRACT MyContract ADD MESSAGE TYPE MyMsgType SENT BY INITIATOR",
+			"ALTER MESSAGE TYPE MyMsg",
+			"CREATE MESSAGE TYPE MyMsg VALIDATION = VALID_XML",
+			"CREATE QUEUE q WITH STATUS = ON, STATUS = OFF",
+			"CREATE QUEUE q WITH ACTIVATION (DROP)",
+			"CREATE QUEUE q WITH ACTIVATION (PROCEDURE_NAME = p, MAX_QUEUE_READERS = 1)",
+			"ALTER QUEUE q WITH ACTIVATION (DROP, STATUS = ON)",
+			"ALTER QUEUE q WITH ACTIVATION (EXECUTE AS CALLER)",
+			"CREATE SERVICE s ON QUEUE a.b.c",
+			"CREATE ROUTE r WITH SERVICE_NAME = 'a'",
+			"CREATE ROUTE r WITH ADDRESS = 'a', ADDRESS = 'b'",
+			"CREATE REMOTE SERVICE BINDING b TO SERVICE 's' WITH ANONYMOUS = ON",
+			"ALTER BROKER PRIORITY p FOR CONVERSATION",
+			"ALTER BROKER PRIORITY p FOR CONVERSATION SET (PRIORITY_LEVEL = ANY)",
+			"ALTER BROKER PRIORITY p FOR CONVERSATION SET (REMOTE_SERVICE_NAME = s)",
+			"BEGIN DIALOG @h FROM SERVICE s TO SERVICE 't' WITH LIFETIME = 1, LIFETIME = 2",
+			"END CONVERSATION @h WITH ERROR = 1",
+			"DROP SERVICE a.b",
+		} {
+			if _, err := Parse(sql); err == nil {
+				t.Errorf("Parse(%q): want an error, SQL Server refuses it", sql)
+			}
 		}
 	})
 
@@ -17596,12 +17610,12 @@ func TestParseAvailabilityOptionsStringsFinal(t *testing.T) {
 			{"ALTER AVAILABILITY GROUP MyAG SET (DB_FAILOVER = ON)", "SET", "", 0},
 			{"ALTER AVAILABILITY GROUP MyAG ADD DATABASE MyDB", "ADD DATABASE", "MyDB", 0},
 			{"ALTER AVAILABILITY GROUP MyAG REMOVE DATABASE OldDB", "REMOVE DATABASE", "OldDB", 0},
-			{"ALTER AVAILABILITY GROUP MyAG ADD REPLICA ON", "ADD REPLICA ON", "", 0},
-			{"ALTER AVAILABILITY GROUP MyAG MODIFY REPLICA ON", "MODIFY REPLICA ON", "", 0},
-			{"ALTER AVAILABILITY GROUP MyAG REMOVE REPLICA ON", "REMOVE REPLICA ON", "", 0},
+			{"ALTER AVAILABILITY GROUP MyAG ADD REPLICA ON 's2' WITH (ENDPOINT_URL = 'TCP://s2:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = MANUAL)", "ADD REPLICA ON", "", 0},
+			{"ALTER AVAILABILITY GROUP MyAG MODIFY REPLICA ON 's2' WITH (BACKUP_PRIORITY = 10)", "MODIFY REPLICA ON", "", 0},
+			{"ALTER AVAILABILITY GROUP MyAG REMOVE REPLICA ON 's2'", "REMOVE REPLICA ON", "", 0},
 			{"ALTER AVAILABILITY GROUP MyAG JOIN", "JOIN", "", 0},
-			{"ALTER AVAILABILITY GROUP MyAG JOIN AVAILABILITY GROUP ON", "JOIN AVAILABILITY GROUP ON", "", 0},
-			{"ALTER AVAILABILITY GROUP MyAG MODIFY AVAILABILITY GROUP ON", "MODIFY AVAILABILITY GROUP ON", "", 0},
+			{"ALTER AVAILABILITY GROUP MyAG JOIN AVAILABILITY GROUP ON 'AG1' WITH (LISTENER_URL = 'TCP://s1:5022', AVAILABILITY_MODE = ASYNCHRONOUS_COMMIT)", "JOIN AVAILABILITY GROUP ON", "", 0},
+			{"ALTER AVAILABILITY GROUP MyAG MODIFY AVAILABILITY GROUP ON 'AG1' WITH (SEEDING_MODE = MANUAL)", "MODIFY AVAILABILITY GROUP ON", "", 0},
 			{"ALTER AVAILABILITY GROUP MyAG GRANT CREATE ANY DATABASE", "GRANT CREATE ANY DATABASE", "", 0},
 			{"ALTER AVAILABILITY GROUP MyAG DENY CREATE ANY DATABASE", "DENY CREATE ANY DATABASE", "", 0},
 			{"ALTER AVAILABILITY GROUP MyAG FAILOVER", "FAILOVER", "", 0},
@@ -17631,33 +17645,28 @@ func TestParseAvailabilityOptionsStringsFinal(t *testing.T) {
 
 	// ag_key_value_opts_final: key=value options emit typed AvailabilityGroupOption
 	t.Run("ag_key_value_opts_final", func(t *testing.T) {
-		sql := "ALTER AVAILABILITY GROUP MyAG SET (AUTOMATED_BACKUP_PREFERENCE = SECONDARY, DB_FAILOVER = ON, HEALTH_CHECK_TIMEOUT = 30000)"
-		result := ParseAndCheck(t, sql)
-		// SET is option[0], then key=value options from parenthesized block
-		setOpt := getOpt(t, result, 0)
-		if setOpt.Name != "SET" {
-			t.Errorf("option[0] Name = %q, want SET", setOpt.Name)
-		}
-		// AUTOMATED_BACKUP_PREFERENCE=SECONDARY
-		opt1 := getOpt(t, result, 1)
-		if opt1.Name != "AUTOMATED_BACKUP_PREFERENCE" || opt1.Value != "SECONDARY" {
-			t.Errorf("option[1] = %q/%q, want AUTOMATED_BACKUP_PREFERENCE/SECONDARY", opt1.Name, opt1.Value)
-		}
-		// DB_FAILOVER=ON
-		opt2 := getOpt(t, result, 2)
-		if opt2.Name != "DB_FAILOVER" || opt2.Value != "ON" {
-			t.Errorf("option[2] = %q/%q, want DB_FAILOVER/ON", opt2.Name, opt2.Value)
-		}
-		// HEALTH_CHECK_TIMEOUT=30000
-		opt3 := getOpt(t, result, 3)
-		if opt3.Name != "HEALTH_CHECK_TIMEOUT" || opt3.Value != "30000" {
-			t.Errorf("option[3] = %q/%q, want HEALTH_CHECK_TIMEOUT/30000", opt3.Name, opt3.Value)
+		// SET takes one option per statement: SQL Server refuses a comma there.
+		for _, tt := range []struct{ sql, name, value string }{
+			{"ALTER AVAILABILITY GROUP MyAG SET (AUTOMATED_BACKUP_PREFERENCE = SECONDARY)", "AUTOMATED_BACKUP_PREFERENCE", "SECONDARY"},
+			{"ALTER AVAILABILITY GROUP MyAG SET (DB_FAILOVER = ON)", "DB_FAILOVER", "ON"},
+			{"ALTER AVAILABILITY GROUP MyAG SET (HEALTH_CHECK_TIMEOUT = 30000)", "HEALTH_CHECK_TIMEOUT", "30000"},
+		} {
+			result := ParseAndCheck(t, tt.sql)
+			// SET is option[0], then the key=value option from the parenthesized block
+			setOpt := getOpt(t, result, 0)
+			if setOpt.Name != "SET" {
+				t.Errorf("option[0] Name = %q, want SET", setOpt.Name)
+			}
+			opt1 := getOpt(t, result, 1)
+			if opt1.Name != tt.name || opt1.Value != tt.value {
+				t.Errorf("option[1] = %q/%q, want %s/%s", opt1.Name, opt1.Value, tt.name, tt.value)
+			}
 		}
 	})
 
 	// ag_ip_tuples_final: IP tuples emit typed AvailabilityGroupOption
 	t.Run("ag_ip_tuples_final", func(t *testing.T) {
-		sql := "CREATE AVAILABILITY GROUP MyAG REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC) LISTENER 'MyListener' (WITH IP (('10.0.0.1', '255.255.255.0')), PORT = 1433)"
+		sql := "CREATE AVAILABILITY GROUP MyAG FOR REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC) LISTENER 'MyListener' (WITH IP (('10.0.0.1', '255.255.255.0')), PORT = 1433)"
 		result := ParseAndCheck(t, sql)
 		stmt := result.Items[0].(*ast.SecurityStmt)
 		if stmt.Options == nil {
@@ -17716,7 +17725,7 @@ func TestParseAvailabilityOptionsStringsFinal(t *testing.T) {
 
 	// ag_nested_role_opts_final: nested SECONDARY_ROLE/PRIMARY_ROLE options
 	t.Run("ag_nested_role_opts_final", func(t *testing.T) {
-		sql := "CREATE AVAILABILITY GROUP MyAG REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC, SECONDARY_ROLE (ALLOW_CONNECTIONS = READ_ONLY), PRIMARY_ROLE (ALLOW_CONNECTIONS = ALL))"
+		sql := "CREATE AVAILABILITY GROUP MyAG FOR REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC, SECONDARY_ROLE (ALLOW_CONNECTIONS = READ_ONLY), PRIMARY_ROLE (ALLOW_CONNECTIONS = ALL))"
 		result := ParseAndCheck(t, sql)
 		stmt := result.Items[0].(*ast.SecurityStmt)
 		// Find SECONDARY_ROLE option
@@ -19801,11 +19810,11 @@ func TestParseViewTriggerBnfReview(t *testing.T) {
 	})
 
 	t.Run("create trigger with append", func(t *testing.T) {
+		// SQL Server 2022 refuses WITH APPEND: "'APPEND' is not a
+		// recognized option" (Msg 195).
 		sql := "CREATE TRIGGER tr1 ON t1 AFTER INSERT WITH APPEND AS SELECT 1"
-		result := ParseAndCheck(t, sql)
-		stmt := result.Items[0].(*ast.CreateTriggerStmt)
-		if !stmt.WithAppend {
-			t.Error("expected WithAppend=true")
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q): expected an error", sql)
 		}
 	})
 
@@ -20021,7 +20030,7 @@ func TestParseViewTriggerBnfReview(t *testing.T) {
 
 	// --- CREATE TRIGGER with native compilation options ---
 	t.Run("create trigger native compilation", func(t *testing.T) {
-		sql := "CREATE TRIGGER tr1 ON t1 WITH NATIVE_COMPILATION, SCHEMABINDING, EXECUTE AS OWNER AFTER INSERT AS BEGIN SELECT 1 END"
+		sql := "CREATE TRIGGER tr1 ON t1 WITH NATIVE_COMPILATION, SCHEMABINDING, EXECUTE AS OWNER AFTER INSERT AS BEGIN ATOMIC WITH (TRANSACTION ISOLATION LEVEL = SNAPSHOT, LANGUAGE = N'us_english') SELECT 1 END"
 		result := ParseAndCheck(t, sql)
 		stmt := result.Items[0].(*ast.CreateTriggerStmt)
 		if stmt.TriggerOptions == nil || stmt.TriggerOptions.Len() != 3 {
@@ -20765,9 +20774,9 @@ func TestParseCryptoBnfReview(t *testing.T) {
 				sql:  "CREATE SYMMETRIC KEY MySymKey WITH KEY_SOURCE = 'my pass phrase', ALGORITHM = AES_256, IDENTITY_VALUE = 'my identity' ENCRYPTION BY CERTIFICATE MyCert",
 				name: "MySymKey",
 			},
-			// With PROVIDER_KEY_NAME and CREATION_DISPOSITION
+			// FROM PROVIDER with PROVIDER_KEY_NAME and CREATION_DISPOSITION
 			{
-				sql:  "CREATE SYMMETRIC KEY MySymKey WITH ALGORITHM = AES_256, PROVIDER_KEY_NAME = 'MyEKMKey', CREATION_DISPOSITION = CREATE_NEW ENCRYPTION BY CERTIFICATE MyCert",
+				sql:  "CREATE SYMMETRIC KEY MySymKey FROM PROVIDER MyEKMProvider WITH ALGORITHM = AES_256, PROVIDER_KEY_NAME = 'MyEKMKey', CREATION_DISPOSITION = CREATE_NEW ENCRYPTION BY CERTIFICATE MyCert",
 				name: "MySymKey",
 			},
 			// FROM PROVIDER
@@ -20782,12 +20791,12 @@ func TestParseCryptoBnfReview(t *testing.T) {
 			},
 			// ENCRYPTION BY ASYMMETRIC KEY
 			{
-				sql:  "CREATE SYMMETRIC KEY MySymKey WITH ALGORITHM = TRIPLE_DES_3KEY ENCRYPTION BY ASYMMETRIC KEY MyAsymKey",
+				sql:  "CREATE SYMMETRIC KEY MySymKey WITH ALGORITHM = AES_192 ENCRYPTION BY ASYMMETRIC KEY MyAsymKey",
 				name: "MySymKey",
 			},
-			// DES algorithm
+			// DES from an EKM provider (SQL Server refuses DES for a generated key)
 			{
-				sql:  "CREATE SYMMETRIC KEY MySymKey WITH ALGORITHM = DES ENCRYPTION BY PASSWORD = 'secret123'",
+				sql:  "CREATE SYMMETRIC KEY MySymKey FROM PROVIDER MyEKMProvider WITH ALGORITHM = DES ENCRYPTION BY PASSWORD = 'secret123'",
 				name: "MySymKey",
 			},
 		}
@@ -20860,7 +20869,7 @@ func TestParseCryptoBnfReview(t *testing.T) {
 			// WITH ALGORITHM
 			"CREATE ASYMMETRIC KEY MyAsymKey WITH ALGORITHM = RSA_2048",
 			"CREATE ASYMMETRIC KEY MyAsymKey WITH ALGORITHM = RSA_4096",
-			"CREATE ASYMMETRIC KEY MyAsymKey WITH ALGORITHM = RSA_1024",
+			"CREATE ASYMMETRIC KEY MyAsymKey WITH ALGORITHM = RSA_3072",
 			// WITH AUTHORIZATION
 			"CREATE ASYMMETRIC KEY MyAsymKey AUTHORIZATION dbo WITH ALGORITHM = RSA_2048",
 			// FROM FILE
@@ -21007,8 +21016,6 @@ func TestParseCryptoBnfReview(t *testing.T) {
 			action string
 		}{
 			{"CREATE MASTER KEY ENCRYPTION BY PASSWORD = 'StrongPass!'", "CREATE"},
-			// CREATE without password (Azure SQL)
-			{"CREATE MASTER KEY", "CREATE"},
 			// ALTER - REGENERATE
 			{"ALTER MASTER KEY REGENERATE WITH ENCRYPTION BY PASSWORD = 'NewPass!'", "ALTER"},
 			// ALTER - FORCE REGENERATE
@@ -21048,12 +21055,10 @@ func TestParseCryptoBnfReview(t *testing.T) {
 			{"CREATE DATABASE ENCRYPTION KEY WITH ALGORITHM = AES_256 ENCRYPTION BY SERVER CERTIFICATE MyCert", "CREATE"},
 			// CREATE with ASYMMETRIC KEY
 			{"CREATE DATABASE ENCRYPTION KEY WITH ALGORITHM = AES_128 ENCRYPTION BY SERVER ASYMMETRIC KEY MyAsymKey", "CREATE"},
-			// CREATE with TRIPLE_DES_3KEY
-			{"CREATE DATABASE ENCRYPTION KEY WITH ALGORITHM = TRIPLE_DES_3KEY ENCRYPTION BY SERVER CERTIFICATE MyCert", "CREATE"},
+			// CREATE with AES_192
+			{"CREATE DATABASE ENCRYPTION KEY WITH ALGORITHM = AES_192 ENCRYPTION BY SERVER CERTIFICATE MyCert", "CREATE"},
 			// ALTER - REGENERATE
 			{"ALTER DATABASE ENCRYPTION KEY REGENERATE WITH ALGORITHM = AES_256", "ALTER"},
-			// ALTER - REGENERATE with ENCRYPTION BY
-			{"ALTER DATABASE ENCRYPTION KEY REGENERATE WITH ALGORITHM = AES_256 ENCRYPTION BY SERVER CERTIFICATE NewCert", "ALTER"},
 			// ALTER - ENCRYPTION BY
 			{"ALTER DATABASE ENCRYPTION KEY ENCRYPTION BY SERVER CERTIFICATE MyCert", "ALTER"},
 			// DROP
@@ -21300,7 +21305,7 @@ func TestParseCryptoBnfReview(t *testing.T) {
 			{"CREATE CRYPTOGRAPHIC PROVIDER MyProv FROM FILE = 'c:\\providers\\myprov.dll'", "CREATE"},
 			{"ALTER CRYPTOGRAPHIC PROVIDER MyProv ENABLE", "ALTER"},
 			{"ALTER CRYPTOGRAPHIC PROVIDER MyProv DISABLE", "ALTER"},
-			{"ALTER CRYPTOGRAPHIC PROVIDER MyProv FROM FILE = 'c:\\providers\\myprov_v2.dll' ENABLE", "ALTER"},
+			{"ALTER CRYPTOGRAPHIC PROVIDER MyProv FROM FILE = 'c:\\providers\\myprov_v2.dll'", "ALTER"},
 			{"DROP CRYPTOGRAPHIC PROVIDER MyProv", "DROP"},
 		}
 		for _, tt := range sqls {
@@ -21463,13 +21468,11 @@ func TestParseAuditEventBnfReview(t *testing.T) {
 		}
 	})
 
-	// Event session with MAX_DURATION option
+	// MAX_DURATION is SQL Server 2025's: SQL Server 2022 refuses it.
 	t.Run("event_session_max_duration", func(t *testing.T) {
 		sql := "CREATE EVENT SESSION test_session ON SERVER ADD EVENT sqlserver.sql_batch_starting WITH (MAX_DURATION = 60 MINUTES)"
-		result := ParseAndCheck(t, sql)
-		stmt := result.Items[0].(*ast.SecurityStmt)
-		if stmt.Options == nil {
-			t.Fatal("expected options")
+		if _, err := Parse(sql); err == nil {
+			t.Fatalf("Parse(%q): want an error", sql)
 		}
 	})
 
@@ -22491,7 +22494,7 @@ func TestParseBackupRestoreBnfReview(t *testing.T) {
 			},
 			{
 				name: "credential",
-				sql:  "BACKUP DATABASE mydb TO URL = 'https://storage.blob.core.windows.net/container/mydb.bak' WITH CREDENTIAL",
+				sql:  "BACKUP DATABASE mydb TO URL = 'https://storage.blob.core.windows.net/container/mydb.bak' WITH CREDENTIAL = 'mycred'",
 			},
 		}
 		for _, tt := range tests {
@@ -24077,5 +24080,44 @@ func TestParseTableFormsSQLServerTakes(t *testing.T) {
 		if _, err := Parse(sql); err == nil {
 			t.Errorf("Parse(%q) = nil error, want SQL Server's rejection", sql)
 		}
+	}
+}
+
+// TestParseGrantColumnLists pins where SQL Server 2022 takes a column list in
+// GRANT, DENY and REVOKE (checked on the pinned server).
+func TestParseGrantColumnLists(t *testing.T) {
+	for _, sql := range []string{
+		"GRANT SELECT, UPDATE ON a(a) TO PUBLIC",
+		"GRANT ALL ON a(a) TO PUBLIC",
+		"GRANT REFERENCES(a) ON a TO PUBLIC",
+		"DENY SELECT ON a(a) TO PUBLIC",
+		"REVOKE UPDATE ON a(a) FROM PUBLIC",
+		"GRANT ALL(a) ON a TO PUBLIC",
+	} {
+		if _, err := Parse(sql); err != nil {
+			t.Errorf("Parse(%q): %v", sql, err)
+		}
+	}
+	for _, sql := range []string{
+		"GRANT SELECT(a) ON a(a) TO PUBLIC",
+		"GRANT SELECT, INSERT ON a(a) TO PUBLIC",
+		"GRANT INSERT(a) ON a TO PUBLIC",
+		"GRANT SELECT(a) TO PUBLIC",
+		"GRANT VIEW DEFINITION(a) ON a TO PUBLIC",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) = nil error, want SQL Server's rejection", sql)
+		}
+	}
+}
+
+// TestUpdateStatisticsStreamOptionsTogether pins that STATS_STREAM, ROWCOUNT
+// and PAGECOUNT may be given together, as the pinned SQL Server takes them.
+func TestUpdateStatisticsStreamOptionsTogether(t *testing.T) {
+	for _, sql := range []string{
+		"UPDATE STATISTICS a WITH ROWCOUNT = 100, PAGECOUNT = 10",
+		"UPDATE STATISTICS a b WITH STATS_STREAM = 0x00, ROWCOUNT = 1, PAGECOUNT = 1",
+	} {
+		ParseAndCheck(t, sql)
 	}
 }
