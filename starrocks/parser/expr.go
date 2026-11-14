@@ -207,6 +207,15 @@ func (p *Parser) infixBindingPower() (int, ast.BinaryOp, string, bool) {
 		if strings.EqualFold(p.cur.Str, "MOD") {
 			return bpMul, ast.BinMod, "", true
 		}
+		// The shift words of StarRocks.g4:2392-2394, reserved there too.
+		switch strings.ToUpper(p.cur.Str) {
+		case "BITSHIFTLEFT":
+			return bpShift, ast.BinShiftLeft, "", true
+		case "BITSHIFTRIGHT":
+			return bpShift, ast.BinShiftRight, "", true
+		case "BITSHIFTRIGHTLOGICAL":
+			return bpShift, ast.BinShiftRightLogical, "", true
+		}
 
 	// Bitwise XOR
 	case int('^'):
@@ -1739,7 +1748,7 @@ func (p *Parser) parseIntervalExpr() (ast.Node, error) {
 // parseIntervalUnit parses and returns the interval unit keyword as a string.
 func (p *Parser) parseIntervalUnit() (string, error) {
 	switch p.cur.Kind {
-	case kwYEAR, kwMONTH, kwWEEK, kwDAY, kwHOUR, kwMINUTE, kwSECOND:
+	case kwYEAR, kwMONTH, kwWEEK, kwDAY, kwHOUR, kwMINUTE, kwSECOND, kwQUARTER: // unitIdentifier, StarRocks.g4:2776
 		tok := p.advance()
 		return strings.ToUpper(tok.Str), nil
 	default:

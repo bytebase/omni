@@ -42,6 +42,8 @@ const (
 	// JSON path operator. Unlike Doris, which has no `->` at all, StarRocks
 	// extracts a JSON path with it: j->'$.a'.
 	BinJSONArrow // ->
+
+	BinShiftRightLogical // BITSHIFTRIGHTLOGICAL
 )
 
 // String returns the SQL text form of the operator.
@@ -91,6 +93,8 @@ func (op BinaryOp) String() string {
 		return ">>"
 	case BinJSONArrow:
 		return "->"
+	case BinShiftRightLogical:
+		return "BITSHIFTRIGHTLOGICAL"
 	default:
 		return "?"
 	}

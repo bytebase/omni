@@ -8727,24 +8727,24 @@ reject	reject	engine	valueExpression/valueExpression_BITOR_valueExpression!drop-
 reject	reject	engine	valueExpression/valueExpression_BITOR_valueExpression!truncate	SELECT CURRENT_USER |
 accept	accept	engine	valueExpression/valueExpression_BITOR_valueExpression!insert	SELECT CURRENT_USER | CURRENT_USER zzz;
 accept	accept	engine	valueExpression/valueExpression_BITOR_valueExpression!swap	SELECT DATA | CURRENT_USER;
-reject	accept	engine	valueExpression/valueExpression_BIT_SHIFT_LEFT_valueExpression	SELECT CURRENT_USER BITSHIFTLEFT CURRENT_USER;
+accept	accept	engine	valueExpression/valueExpression_BIT_SHIFT_LEFT_valueExpression	SELECT CURRENT_USER BITSHIFTLEFT CURRENT_USER;
 reject	reject	engine	valueExpression/valueExpression_BIT_SHIFT_LEFT_valueExpression!drop-1	SELECT BITSHIFTLEFT CURRENT_USER;
-accept	reject	engine	valueExpression/valueExpression_BIT_SHIFT_LEFT_valueExpression!drop-3	SELECT CURRENT_USER BITSHIFTLEFT;
-accept	reject	engine	valueExpression/valueExpression_BIT_SHIFT_LEFT_valueExpression!truncate	SELECT CURRENT_USER BITSHIFTLEFT
-reject	accept	engine	valueExpression/valueExpression_BIT_SHIFT_LEFT_valueExpression!insert	SELECT CURRENT_USER BITSHIFTLEFT CURRENT_USER zzz;
-reject	accept	engine	valueExpression/valueExpression_BIT_SHIFT_LEFT_valueExpression!swap	SELECT DATA BITSHIFTLEFT CURRENT_USER;
-reject	accept	engine	valueExpression/valueExpression_BIT_SHIFT_RIGHT_valueExpression	SELECT CURRENT_USER BITSHIFTRIGHT CURRENT_USER;
+reject	reject	engine	valueExpression/valueExpression_BIT_SHIFT_LEFT_valueExpression!drop-3	SELECT CURRENT_USER BITSHIFTLEFT;
+reject	reject	engine	valueExpression/valueExpression_BIT_SHIFT_LEFT_valueExpression!truncate	SELECT CURRENT_USER BITSHIFTLEFT
+accept	accept	engine	valueExpression/valueExpression_BIT_SHIFT_LEFT_valueExpression!insert	SELECT CURRENT_USER BITSHIFTLEFT CURRENT_USER zzz;
+accept	accept	engine	valueExpression/valueExpression_BIT_SHIFT_LEFT_valueExpression!swap	SELECT DATA BITSHIFTLEFT CURRENT_USER;
+accept	accept	engine	valueExpression/valueExpression_BIT_SHIFT_RIGHT_valueExpression	SELECT CURRENT_USER BITSHIFTRIGHT CURRENT_USER;
 reject	reject	engine	valueExpression/valueExpression_BIT_SHIFT_RIGHT_valueExpression!drop-1	SELECT BITSHIFTRIGHT CURRENT_USER;
-accept	reject	engine	valueExpression/valueExpression_BIT_SHIFT_RIGHT_valueExpression!drop-3	SELECT CURRENT_USER BITSHIFTRIGHT;
-accept	reject	engine	valueExpression/valueExpression_BIT_SHIFT_RIGHT_valueExpression!truncate	SELECT CURRENT_USER BITSHIFTRIGHT
-reject	accept	engine	valueExpression/valueExpression_BIT_SHIFT_RIGHT_valueExpression!insert	SELECT CURRENT_USER BITSHIFTRIGHT CURRENT_USER zzz;
-reject	accept	engine	valueExpression/valueExpression_BIT_SHIFT_RIGHT_valueExpression!swap	SELECT DATA BITSHIFTRIGHT CURRENT_USER;
-reject	accept	engine	valueExpression/valueExpression_BIT_SHIFT_RIGHT_LOGICAL_valueExpression	SELECT CURRENT_USER BITSHIFTRIGHTLOGICAL CURRENT_USER;
+reject	reject	engine	valueExpression/valueExpression_BIT_SHIFT_RIGHT_valueExpression!drop-3	SELECT CURRENT_USER BITSHIFTRIGHT;
+reject	reject	engine	valueExpression/valueExpression_BIT_SHIFT_RIGHT_valueExpression!truncate	SELECT CURRENT_USER BITSHIFTRIGHT
+accept	accept	engine	valueExpression/valueExpression_BIT_SHIFT_RIGHT_valueExpression!insert	SELECT CURRENT_USER BITSHIFTRIGHT CURRENT_USER zzz;
+accept	accept	engine	valueExpression/valueExpression_BIT_SHIFT_RIGHT_valueExpression!swap	SELECT DATA BITSHIFTRIGHT CURRENT_USER;
+accept	accept	engine	valueExpression/valueExpression_BIT_SHIFT_RIGHT_LOGICAL_valueExpression	SELECT CURRENT_USER BITSHIFTRIGHTLOGICAL CURRENT_USER;
 reject	reject	engine	valueExpression/valueExpression_BIT_SHIFT_RIGHT_LOGICAL_valueExpression!drop-1	SELECT BITSHIFTRIGHTLOGICAL CURRENT_USER;
-accept	reject	engine	valueExpression/valueExpression_BIT_SHIFT_RIGHT_LOGICAL_valueExpression!drop-3	SELECT CURRENT_USER BITSHIFTRIGHTLOGICAL;
-accept	reject	engine	valueExpression/valueExpression_BIT_SHIFT_RIGHT_LOGICAL_valueExpression!truncate	SELECT CURRENT_USER BITSHIFTRIGHTLOGICAL
-reject	accept	engine	valueExpression/valueExpression_BIT_SHIFT_RIGHT_LOGICAL_valueExpression!insert	SELECT CURRENT_USER BITSHIFTRIGHTLOGICAL CURRENT_USER zzz;
-reject	accept	engine	valueExpression/valueExpression_BIT_SHIFT_RIGHT_LOGICAL_valueExpression!swap	SELECT DATA BITSHIFTRIGHTLOGICAL CURRENT_USER;
+reject	reject	engine	valueExpression/valueExpression_BIT_SHIFT_RIGHT_LOGICAL_valueExpression!drop-3	SELECT CURRENT_USER BITSHIFTRIGHTLOGICAL;
+reject	reject	engine	valueExpression/valueExpression_BIT_SHIFT_RIGHT_LOGICAL_valueExpression!truncate	SELECT CURRENT_USER BITSHIFTRIGHTLOGICAL
+accept	accept	engine	valueExpression/valueExpression_BIT_SHIFT_RIGHT_LOGICAL_valueExpression!insert	SELECT CURRENT_USER BITSHIFTRIGHTLOGICAL CURRENT_USER zzz;
+accept	accept	engine	valueExpression/valueExpression_BIT_SHIFT_RIGHT_LOGICAL_valueExpression!swap	SELECT DATA BITSHIFTRIGHTLOGICAL CURRENT_USER;
 accept	accept	engine	valueExpression(ASTERISK_SYMBOL|SLASH_SYMBOL|PERCENT~a063f6a1)/ASTERISK_SYMBOL	SELECT CURRENT_USER * CURRENT_USER;
 reject	reject	engine	valueExpression(ASTERISK_SYMBOL|SLASH_SYMBOL|PERCENT~a063f6a1)/ASTERISK_SYMBOL!insert	SELECT CURRENT_USER * zzz CURRENT_USER;
 accept	accept	engine	valueExpression(ASTERISK_SYMBOL|SLASH_SYMBOL|PERCENT~a063f6a1)/SLASH_SYMBOL	SELECT CURRENT_USER / CURRENT_USER;
@@ -10217,8 +10217,8 @@ accept	accept	engine	string/SINGLE_QUOTED_TEXT	SELECT 'a';
 accept	accept	engine	string/DOUBLE_QUOTED_TEXT	SELECT "a";
 accept	accept	engine	string/DOUBLE_QUOTED_TEXT!insert	SELECT "a" zzz;
 accept	accept	engine	binary/BINARY_SINGLE_QUOTED_TEXT	SELECT X'00';
-reject	accept	engine	binary/BINARY_DOUBLE_QUOTED_TEXT	SELECT X"00";
-reject	accept	engine	binary/BINARY_DOUBLE_QUOTED_TEXT!insert	SELECT X"00" zzz;
+accept	accept	engine	binary/BINARY_DOUBLE_QUOTED_TEXT	SELECT X"00";
+accept	accept	engine	binary/BINARY_DOUBLE_QUOTED_TEXT!insert	SELECT X"00" zzz;
 accept	accept	engine	comparisonOperator/EQ	SELECT CURRENT_USER = CURRENT_USER;
 reject	reject	engine	comparisonOperator/EQ!insert	SELECT CURRENT_USER = zzz CURRENT_USER;
 accept	accept	engine	comparisonOperator/NEQ	SELECT CURRENT_USER <> CURRENT_USER;
@@ -10272,8 +10272,8 @@ reject	reject	engine	unitIdentifier/MINUTE!swap	SELECT INTERVAL CURRENT_USER MIN
 accept	accept	engine	unitIdentifier/SECOND	SELECT INTERVAL CURRENT_USER SECOND;
 accept	accept	engine	unitIdentifier/SECOND!insert	SELECT INTERVAL CURRENT_USER SECOND zzz;
 accept	reject	engine	unitIdentifier/SECOND!swap	SELECT INTERVAL CURRENT_USER SECURITY;
-reject	accept	engine	unitIdentifier/QUARTER	SELECT INTERVAL CURRENT_USER QUARTER;
-reject	accept	engine	unitIdentifier/QUARTER!insert	SELECT INTERVAL CURRENT_USER QUARTER zzz;
+accept	accept	engine	unitIdentifier/QUARTER	SELECT INTERVAL CURRENT_USER QUARTER;
+accept	accept	engine	unitIdentifier/QUARTER!insert	SELECT INTERVAL CURRENT_USER QUARTER zzz;
 accept	reject	engine	unitIdentifier/QUARTER!swap	SELECT INTERVAL CURRENT_USER QUERIES;
 accept	accept	engine	unitIdentifier/MILLISECOND	SELECT INTERVAL CURRENT_USER MILLISECOND;
 accept	accept	engine	unitIdentifier/MILLISECOND!insert	SELECT INTERVAL CURRENT_USER MILLISECOND zzz;

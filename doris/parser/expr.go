@@ -639,13 +639,21 @@ func (p *Parser) parseFuncCall(name *ast.ObjectName) (*ast.FuncCallExpr, error) 
 		return fc, nil
 	}
 
-	// DISTINCT handling for aggregates like COUNT(DISTINCT x)
-	if p.cur.Kind == kwDISTINCT {
+	// DISTINCT handling for aggregates like COUNT(DISTINCT x); ALL, the
+	// default, is the other (DISTINCT|ALL) of DorisParser.g4:1602, and either
+	// needs an argument after it.
+	quantified := false
+	switch p.cur.Kind {
+	case kwDISTINCT:
 		p.advance()
 		fc.Distinct = true
+		quantified = true
+	case kwALL:
+		p.advance()
+		quantified = true
 	}
 
-	if p.cur.Kind != int(')') {
+	if p.cur.Kind != int(')') || quantified {
 		args, err := p.parseFuncArgList()
 		if err != nil {
 			return nil, err
@@ -1258,7 +1266,7 @@ func (p *Parser) parseCastExpr(tryCast bool) (*ast.CastExpr, error) {
 	if _, err := p.expect(kwAS); err != nil {
 		return nil, err
 	}
-	typeName, err := p.parseDataType()
+	typeName, err := p.parseCastDataType()
 	if err != nil {
 		return nil, err
 	}
@@ -1935,4 +1943,18 @@ func (p *Parser) parseMatchExpr(left ast.Node, notFlag bool) (ast.Node, error) {
 		Not:     notFlag,
 		Loc:     ast.Loc{Start: ast.NodeLoc(left).Start, End: ast.NodeLoc(pattern).End},
 	}, nil
+}
+
+// parseCastDataType reads castDataType (DorisParser.g4:1594): a dataType, or
+// (SIGNED | UNSIGNED) (INT | INTEGER)?.
+func (p *Parser) parseCastDataType() (*ast.TypeName, error) {
+	if p.cur.Kind != kwSIGNED && p.cur.Kind != kwUNSIGNED {
+		return p.parseDataType()
+	}
+	start := p.cur.Loc
+	name := strings.ToUpper(p.advance().Str)
+	if p.cur.Kind == kwINT || p.cur.Kind == kwINTEGER {
+		name += " " + strings.ToUpper(p.advance().Str)
+	}
+	return &ast.TypeName{Name: name, Loc: ast.Loc{Start: start.Start, End: p.prev.Loc.End}}, nil
 }
