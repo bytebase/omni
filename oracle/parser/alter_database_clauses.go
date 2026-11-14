@@ -99,6 +99,36 @@ func (p *Parser) adbStringList() ([]string, error) {
 	}
 }
 
+// adbItem returns the option the caller read from start: a target or an
+// operand of a clause, spanning its tokens.
+func (p *Parser) adbItem(key, value string, start int) *nodes.DDLOption {
+	return &nodes.DDLOption{Key: key, Value: value, Loc: nodes.Loc{Start: start, End: p.prev.End}}
+}
+
+// adbFileItems reads { 'filename' [, 'filename' ]... | integer [, integer ]... }
+// as options under key, each spanning its file.
+func (p *Parser) adbFileItems(key string, numbers bool) (*nodes.List, error) {
+	items := &nodes.List{}
+	for {
+		start := p.pos()
+		var f string
+		var err error
+		if numbers {
+			f, err = p.adbInteger()
+		} else {
+			f, err = p.adbString()
+		}
+		if err != nil {
+			return nil, err
+		}
+		items.Items = append(items.Items, p.adbItem(key, f, start))
+		if p.cur.Type != ',' {
+			return items, nil
+		}
+		p.advance()
+	}
+}
+
 // adbFileOrNumber reads { 'filename' | integer }.
 func (p *Parser) adbFileOrNumber() (string, error) {
 	if p.cur.Type == tokICONST {
@@ -500,11 +530,12 @@ func (p *Parser) parseAlterDatabaseRecover(opt *nodes.DDLOption) error {
 		opt.Key = "RECOVER_TABLESPACE"
 		full = false
 		for {
+			start := p.pos()
 			name, err := p.adbName()
 			if err != nil {
 				return err
 			}
-			targets.Items = append(targets.Items, &nodes.DDLOption{Key: "TABLESPACE", Value: name})
+			targets.Items = append(targets.Items, p.adbItem("TABLESPACE", name, start))
 			if p.cur.Type != ',' {
 				break
 			}
@@ -517,13 +548,11 @@ func (p *Parser) parseAlterDatabaseRecover(opt *nodes.DDLOption) error {
 		if p.adbEnd() {
 			return nil
 		}
-		files, err := p.adbFileOrNumberList()
+		files, err := p.adbFileItems("DATAFILE", p.cur.Type == tokICONST)
 		if err != nil {
 			return err
 		}
-		for _, f := range files {
-			targets.Items = append(targets.Items, &nodes.DDLOption{Key: "DATAFILE", Value: f})
-		}
+		targets = files
 	case p.adbWord("LOGFILE"):
 		p.advance()
 		opt.Key = "RECOVER_LOGFILE"
@@ -531,11 +560,12 @@ func (p *Parser) parseAlterDatabaseRecover(opt *nodes.DDLOption) error {
 		if p.adbEnd() {
 			return nil
 		}
+		start := p.pos()
 		f, err := p.adbString()
 		if err != nil {
 			return err
 		}
-		targets.Items = append(targets.Items, &nodes.DDLOption{Key: "LOGFILE", Value: f})
+		targets.Items = append(targets.Items, p.adbItem("LOGFILE", f, start))
 	}
 	if len(targets.Items) > 0 {
 		opt.Items = targets
@@ -808,10 +838,11 @@ func (p *Parser) parseAlterDatabaseRename(opt *nodes.DDLOption) error {
 		if p.adbEnd() {
 			return nil
 		}
-		from, err := p.adbStringList()
+		from, err := p.adbFileItems("FROM", false)
 		if err != nil {
 			return err
 		}
+		opt.Items = from
 		if p.cur.Type != kwTO {
 			return p.syntaxErrorAtCur()
 		}
@@ -819,18 +850,11 @@ func (p *Parser) parseAlterDatabaseRename(opt *nodes.DDLOption) error {
 		if p.adbEnd() {
 			return nil
 		}
-		to, err := p.adbStringList()
+		to, err := p.adbFileItems("TO", false)
 		if err != nil {
 			return err
 		}
-		items := &nodes.List{}
-		for _, f := range from {
-			items.Items = append(items.Items, &nodes.DDLOption{Key: "FROM", Value: f})
-		}
-		for _, f := range to {
-			items.Items = append(items.Items, &nodes.DDLOption{Key: "TO", Value: f})
-		}
-		opt.Items = items
+		opt.Items.Items = append(opt.Items.Items, to.Items...)
 		return nil
 	case p.adbWord("GLOBAL_NAME"):
 		p.advance()
@@ -914,11 +938,12 @@ func (p *Parser) parseAlterDatabaseCreate(opt *nodes.DDLOption) error {
 			}
 			opt.Items = &nodes.List{}
 			for {
+				start := p.pos()
 				as, err := p.parseAlterDatabaseDatafileSpec()
 				if err != nil {
 					return err
 				}
-				opt.Items.Items = append(opt.Items.Items, &nodes.DDLOption{Key: "AS", Value: as})
+				opt.Items.Items = append(opt.Items.Items, p.adbItem("AS", as, start))
 				if p.cur.Type != ',' {
 					break
 				}
@@ -956,11 +981,12 @@ func (p *Parser) parseAlterDatabaseCreate(opt *nodes.DDLOption) error {
 	if p.adbEnd() {
 		return nil
 	}
+	start := p.pos()
 	f, err := p.adbString()
 	if err != nil {
 		return err
 	}
-	opt.Items = &nodes.List{Items: []nodes.Node{&nodes.DDLOption{Key: "AS", Value: f}}}
+	opt.Items = &nodes.List{Items: []nodes.Node{p.adbItem("AS", f, start)}}
 	if p.adbWord("REUSE") {
 		p.advance()
 	}
@@ -1082,11 +1108,12 @@ func (p *Parser) parseAlterDatabaseMove(opt *nodes.DDLOption) error {
 		if p.adbEnd() {
 			return nil
 		}
+		start := p.pos()
 		to, err := p.adbString()
 		if err != nil {
 			return err
 		}
-		opt.Items = &nodes.List{Items: []nodes.Node{&nodes.DDLOption{Key: "TO", Value: to}}}
+		opt.Items = &nodes.List{Items: []nodes.Node{p.adbItem("TO", to, start)}}
 	}
 	reuse, keep := false, false
 	for {
@@ -1473,11 +1500,12 @@ func (p *Parser) parseAlterDatabaseAddDrop(opt *nodes.DDLOption, verb string) er
 		if p.adbEnd() {
 			return nil
 		}
+		start := p.pos()
 		d, err := p.parseAlterDatabaseLogfileDescriptor()
 		if err != nil {
 			return err
 		}
-		opt.Items = &nodes.List{Items: []nodes.Node{&nodes.DDLOption{Key: "TO", Value: d}}}
+		opt.Items = &nodes.List{Items: []nodes.Node{p.adbItem("TO", d, start)}}
 		return nil
 	}
 	if verb == "DROP" {

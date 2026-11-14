@@ -540,15 +540,19 @@ func TestParseDatabaseStmts(t *testing.T) {
 	}
 }
 
-// TestAlterDatabaseRecoverTargets checks that RECOVER keeps what it recovers.
+// TestAlterDatabaseRecoverTargets checks that RECOVER keeps what it
+// recovers, each target spanning its text.
 func TestAlterDatabaseRecoverTargets(t *testing.T) {
 	tests := []struct {
 		sql, key string
 		targets  []string
+		texts    []string
 	}{
-		{"ALTER DATABASE RECOVER TABLESPACE users, tools", "RECOVER_TABLESPACE", []string{"USERS", "TOOLS"}},
-		{"ALTER DATABASE RECOVER DATAFILE '/u01/a.dbf', '/u01/b.dbf'", "RECOVER_DATAFILE", []string{"/u01/a.dbf", "/u01/b.dbf"}},
-		{"ALTER DATABASE RECOVER LOGFILE '/u01/a.log'", "RECOVER_LOGFILE", []string{"/u01/a.log"}},
+		{"ALTER DATABASE RECOVER TABLESPACE users, tools", "RECOVER_TABLESPACE", []string{"USERS", "TOOLS"}, []string{"users", "tools"}},
+		{"ALTER DATABASE RECOVER DATAFILE '/u01/a.dbf', '/u01/b.dbf'", "RECOVER_DATAFILE", []string{"/u01/a.dbf", "/u01/b.dbf"}, []string{"'/u01/a.dbf'", "'/u01/b.dbf'"}},
+		{"ALTER DATABASE RECOVER LOGFILE '/u01/a.log'", "RECOVER_LOGFILE", []string{"/u01/a.log"}, []string{"'/u01/a.log'"}},
+		{"ALTER DATABASE RENAME FILE 'a', 'b' TO 'c', 'd'", "RENAME_FILE", []string{"a", "b", "c", "d"}, []string{"'a'", "'b'", "'c'", "'d'"}},
+		{"ALTER DATABASE MOVE DATAFILE 1 TO 'x'", "MOVE_DATAFILE", []string{"x"}, []string{"'x'"}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.sql, func(t *testing.T) {
@@ -562,8 +566,12 @@ func TestAlterDatabaseRecoverTargets(t *testing.T) {
 				t.Fatalf("targets %v, want %v", opt.Items, tc.targets)
 			}
 			for i, item := range opt.Items.Items {
-				if got := item.(*ast.DDLOption).Value; got != tc.targets[i] {
-					t.Errorf("target %d = %q, want %q", i, got, tc.targets[i])
+				target := item.(*ast.DDLOption)
+				if target.Value != tc.targets[i] {
+					t.Errorf("target %d = %q, want %q", i, target.Value, tc.targets[i])
+				}
+				if got := tc.sql[target.Loc.Start:target.Loc.End]; got != tc.texts[i] {
+					t.Errorf("target %d spans %q, want %q", i, got, tc.texts[i])
 				}
 			}
 		})
