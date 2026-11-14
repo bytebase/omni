@@ -236,6 +236,13 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 	case kwDATASET:
 		// CREATE [OR REPLACE] DATASET ... (T4.9).
 		return p.parseCreateDatasetStmt(start, orReplace, orAlter)
+	case kwIF:
+		// CREATE [ OR REPLACE ] [ IF NOT EXISTS ] DATASET <name>, as the
+		// dataset page writes it.
+		if p.startsIfNotExistsDataset() {
+			return p.parseCreateDatasetStmt(start, orReplace, orAlter)
+		}
+		return p.unsupported("CREATE")
 	case kwFAILOVER, kwREPLICATION:
 		// CREATE [OR REPLACE] { FAILOVER | REPLICATION } GROUP ... (T4.8).
 		// parseCreateReplicationGroupStmt consumes the kind keyword + GROUP.
@@ -274,6 +281,10 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 		// that form is dispatched here (T4.6).
 		if p.curIsWord("AUTHENTICATION") && p.peekNext().Type == kwPOLICY {
 			return p.parseCreatePolicyDispatch(start, orReplace, orAlter)
+		}
+		// CREATE [ OR REPLACE ] AI FUNCTION ... (ai_function.go).
+		if p.atWords("AI", "FUNCTION") && !orAlter && !transient && !temporary && !volatile && !hybrid {
+			return p.parseCreateAiFunctionStmt(start, orReplace)
 		}
 		return p.unsupported("CREATE")
 	}

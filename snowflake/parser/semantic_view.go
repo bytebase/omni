@@ -515,17 +515,35 @@ func (p *Parser) parseAlterSemanticViewStmt() (ast.Node, error) {
 // it *after* the object keyword. The post-keyword spelling is accepted here for
 // consistency with the rest of the engine; the docs' pre-keyword spelling is a
 // flagged divergence (likely a docs rendering quirk).
+//
+// The docs' spelling, CREATE [ OR REPLACE ] [ IF NOT EXISTS ] DATASET <name>
+// (https://docs.snowflake.com/en/sql-reference/sql/create-dataset), is read
+// too: then cur is IF, and startsIfNotExistsDataset has seen DATASET after
+// IF NOT EXISTS. IF NOT EXISTS excludes OR REPLACE there, as the docs grammar
+// writes the two forms apart.
 func (p *Parser) parseCreateDatasetStmt(start ast.Loc, orReplace, orAlter bool) (ast.Node, error) {
-	p.advance() // consume DATASET
-
 	stmt := &ast.CreateDatasetStmt{
 		OrReplace: orReplace,
 		OrAlter:   orAlter,
 		Loc:       ast.Loc{Start: start.Start},
 	}
 
-	if err := p.parseOptionalIfNotExists(&stmt.IfNotExists); err != nil {
+	if p.cur.Type == kwIF {
+		if orReplace || orAlter {
+			return nil, p.syntaxErrorAtCur()
+		}
+		if err := p.parseIfNotExists(&stmt.IfNotExists); err != nil {
+			return nil, err
+		}
+	}
+	if _, err := p.expect(kwDATASET); err != nil {
 		return nil, err
+	}
+
+	if !stmt.IfNotExists {
+		if err := p.parseOptionalIfNotExists(&stmt.IfNotExists); err != nil {
+			return nil, err
+		}
 	}
 
 	name, err := p.parseObjectName()
@@ -534,6 +552,114 @@ func (p *Parser) parseCreateDatasetStmt(start ast.Loc, orReplace, orAlter bool) 
 	}
 	stmt.Name = name
 
+	stmt.Loc.End = p.prev.Loc.End
+	return stmt, nil
+}
+
+// startsIfNotExistsDataset reports whether cur begins IF NOT EXISTS DATASET.
+// It consumes nothing.
+func (p *Parser) startsIfNotExistsDataset() bool {
+	if p.cur.Type != kwIF || p.peekNext().Type != kwNOT {
+		return false
+	}
+	snap := p.snapshot()
+	defer p.restore(snap)
+	p.advance() // IF
+	p.advance() // NOT
+	if p.cur.Type != kwEXISTS {
+		return false
+	}
+	p.advance() // EXISTS
+	return p.cur.Type == kwDATASET
+}
+
+// ---------------------------------------------------------------------------
+// ALTER DATASET
+// ---------------------------------------------------------------------------
+
+// parseAlterDatasetStmt parses
+//
+//	ALTER DATASET <name> ADD VERSION <version_name>
+//	  FROM <select_statement>
+//	  [ PARTITION BY <string_expr> ]
+//	  [ COMMENT = '<comment>' ]
+//	  [ METADATA = '<metadata>' ]
+//
+// https://docs.snowflake.com/en/sql-reference/sql/alter-dataset-add-version
+//
+//	ALTER DATASET [ IF EXISTS ] <name> DROP VERSION <version_name>
+//
+// https://docs.snowflake.com/en/sql-reference/sql/alter-dataset-drop-version
+//
+// A version's name is an identifier or, as the ADD VERSION example writes it,
+// a string; the example also parenthesizes the query. cur is DATASET; start is
+// the ALTER token's Loc.
+func (p *Parser) parseAlterDatasetStmt(start ast.Loc) (ast.Node, error) {
+	p.advance() // consume DATASET
+	stmt := &ast.AlterDatasetStmt{Loc: ast.Loc{Start: start.Start}}
+	if err := p.parseIfExists(&stmt.IfExists); err != nil {
+		return nil, err
+	}
+	name, err := p.parseObjectName()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Name = name
+
+	switch {
+	case p.acceptWords("DROP", "VERSION"):
+		stmt.Drop = true
+	case !stmt.IfExists && p.acceptWords("ADD", "VERSION"):
+	default:
+		return nil, p.syntaxErrorAtCur()
+	}
+	if p.cur.Type == tokString {
+		tok := p.advance()
+		stmt.Version = ast.Ident{Name: tok.Str, Quoted: true, Loc: tok.Loc}
+	} else {
+		stmt.Version, err = p.parseIdent()
+		if err != nil {
+			return nil, err
+		}
+	}
+	if stmt.Drop {
+		stmt.Loc.End = p.prev.Loc.End
+		return stmt, nil
+	}
+
+	if _, err := p.expect(kwFROM); err != nil {
+		return nil, err
+	}
+	if p.cur.Type == kwWITH {
+		stmt.Query, err = p.parseWithQueryExpr()
+	} else {
+		stmt.Query, err = p.parseQueryExpr()
+	}
+	if err != nil {
+		return nil, err
+	}
+	if p.cur.Type == kwPARTITION {
+		p.advance() // consume PARTITION
+		if _, err := p.expect(kwBY); err != nil {
+			return nil, err
+		}
+		if stmt.PartitionBy, err = p.parseExpr(); err != nil {
+			return nil, err
+		}
+	}
+	for _, key := range []string{"COMMENT", "METADATA"} {
+		if !p.curIsWord(key) || !p.startsObjectProperty() {
+			continue
+		}
+		opt, err := p.parseObjectProperty()
+		if err != nil {
+			return nil, err
+		}
+		if opt.Lit == nil || opt.Lit.Kind != ast.LitString {
+			return nil, &ParseError{Position: opt.Loc.Start, End: opt.Loc.End, Message: "syntax error: " + key + " is a string"}
+		}
+		stmt.Options = append(stmt.Options, opt)
+	}
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
 }

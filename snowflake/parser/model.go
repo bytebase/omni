@@ -18,6 +18,8 @@ func init() {
 		// https://docs.snowflake.com/en/sql-reference/sql/drop-model writes
 		// DROP MODEL <name> with no IF EXISTS, which the registry's DROP always
 		// takes, so DROP MODEL is not registered.
+		props: objectProps{"COMMENT": propString, "DEFAULT_VERSION": propString},
+		unset: []string{},
 	})
 	registerObject(&objectForm{
 		words:     []string{"MODEL", "MONITOR"},
@@ -26,7 +28,46 @@ func init() {
 		orReplace: true,
 		// https://docs.snowflake.com/en/sql-reference/sql/drop-model-monitor
 		drop: true,
+		// ALTER ... SET's properties; CREATE's WITH run is held to
+		// modelMonitorCreateProps.
+		props: objectProps{
+			"REFRESH_INTERVAL": propString,
+			"WAREHOUSE":        propName,
+			"COMMENT":          propString,
+			"BASELINE":         propString,
+		},
+		unset: []string{"COMMENT", "BASELINE"},
 	})
+}
+
+// The properties a model version's SET takes: ALIAS after VERSION, COMMENT
+// and METADATA after MODIFY VERSION.
+var (
+	modelVersionAliasProps  = objectProps{"ALIAS": propName}
+	modelVersionModifyProps = objectProps{"COMMENT": propString, "METADATA": propString}
+)
+
+// modelMonitorCreateProps are the properties of CREATE MODEL MONITOR's WITH.
+var modelMonitorCreateProps = objectProps{
+	"MODEL":                    propName,
+	"VERSION":                  propString,
+	"GATEWAY":                  propName,
+	"FUNCTION":                 propString,
+	"SOURCE":                   propName,
+	"WAREHOUSE":                propName,
+	"REFRESH_INTERVAL":         propString,
+	"AGGREGATION_WINDOW":       propString,
+	"TIMESTAMP_COLUMN":         propName,
+	"BASELINE":                 propName,
+	"GROUND_TRUTH":             propName,
+	"ID_COLUMNS":               propStrings,
+	"PREDICTION_CLASS_COLUMNS": propStrings,
+	"PREDICTION_SCORE_COLUMNS": propStrings,
+	"ACTUAL_CLASS_COLUMNS":     propStrings,
+	"ACTUAL_SCORE_COLUMNS":     propStrings,
+	"SEGMENT_COLUMNS":          propStrings,
+	"CUSTOM_METRIC_COLUMNS":    propStrings,
+	"COMMENT":                  propString,
 }
 
 // parseCreateModel reads what follows the name of
@@ -94,11 +135,30 @@ func parseAlterModel(p *Parser, s *ast.ObjectStmt) error {
 	start := p.cur.Loc.Start
 	switch {
 	case p.acceptWords("VERSION"):
-		if err := p.parseAiNameClause(s, "VERSION", start); err != nil {
+		// VERSION <v> { SET ALIAS = <alias> | UNSET ALIAS }, one clause.
+		version, err := p.parseAiSingleName()
+		if err != nil {
 			return err
 		}
-		if ok, err := p.parseObjectAlterCommon(s, actSet|actUnset); ok || err != nil {
-			return err
+		switch {
+		case p.acceptWords("SET"):
+			if !p.curIsWord("ALIAS") || !p.startsObjectProperty() {
+				return p.syntaxErrorAtCur()
+			}
+			alias, err := p.parseObjectProperty()
+			if err != nil {
+				return err
+			}
+			if err := aiCheckOptions([]*ast.CopyOption{alias}, modelVersionAliasProps); err != nil {
+				return err
+			}
+			c := p.addObjectKeywordsClause(s, "VERSION SET", start)
+			c.Names, c.Options = []*ast.ObjectName{version}, []*ast.CopyOption{alias}
+			return nil
+		case p.acceptWords("UNSET", "ALIAS"):
+			c := p.addObjectKeywordsClause(s, "VERSION UNSET", start)
+			c.Names, c.Keys = []*ast.ObjectName{version}, []string{"ALIAS"}
+			return nil
 		}
 	case p.acceptWords("ADD", "VERSION"):
 		if err := p.parseAiNameClause(s, "ADD VERSION", start); err != nil {
@@ -108,12 +168,31 @@ func parseAlterModel(p *Parser, s *ast.ObjectStmt) error {
 	case p.acceptWords("DROP", "VERSION"):
 		return p.parseAiNameClause(s, "DROP VERSION", start)
 	case p.acceptWords("MODIFY", "VERSION"):
-		if err := p.parseAiNameClause(s, "MODIFY VERSION", start); err != nil {
+		// MODIFY VERSION <v> SET <property> [ ... ], one clause.
+		version, err := p.parseAiSingleName()
+		if err != nil {
 			return err
 		}
-		if ok, err := p.parseObjectAlterCommon(s, actSet); ok || err != nil {
+		if _, err := p.expect(kwSET); err != nil {
 			return err
 		}
+		var opts []*ast.CopyOption
+		for p.startsObjectProperty() {
+			opt, err := p.parseObjectProperty()
+			if err != nil {
+				return err
+			}
+			opts = append(opts, opt)
+		}
+		if len(opts) == 0 {
+			return p.syntaxErrorAtCur()
+		}
+		if err := aiCheckOptions(opts, modelVersionModifyProps); err != nil {
+			return err
+		}
+		c := p.addObjectKeywordsClause(s, "MODIFY VERSION SET", start)
+		c.Names, c.Options = []*ast.ObjectName{version}, opts
+		return nil
 	default:
 		allow := actSet | actTags
 		if !s.IfExists {
@@ -164,6 +243,9 @@ func parseCreateModelMonitor(p *Parser, s *ast.ObjectStmt) error {
 		return err
 	}
 	props.Loc.Start = start
+	if err := aiCheckOptions(props.Options, modelMonitorCreateProps); err != nil {
+		return err
+	}
 	if err := p.requireObjectProperties(props, "MODEL", "FUNCTION", "WAREHOUSE", "REFRESH_INTERVAL", "AGGREGATION_WINDOW"); err != nil {
 		return err
 	}
@@ -220,4 +302,52 @@ func parseAlterModelMonitor(p *Parser, s *ast.ObjectStmt) error {
 		return err
 	}
 	return p.syntaxErrorAtCur()
+}
+
+// startsShowModelScope reports the ML scope word at cur (after SHOW's IN),
+// MODEL, DATASET, EXPERIMENT or GATEWAY, when a name follows it, or "". A
+// scope word with no name after it is still a schema's name. It consumes
+// nothing. The scopes come from
+//
+//	SHOW VERSIONS [ LIKE '<pattern>' ] IN MODEL <model_name>
+//	SHOW FUNCTIONS [ LIKE '<pattern>' ] IN MODEL <model_name>
+//	SHOW VERSIONS [ LIKE '<pattern>' ] IN DATASET <dataset_name> [ LIMIT <rows> ]
+//	SHOW RUNS [ LIKE '<pattern>' ] IN EXPERIMENT <experiment_name>
+//	SHOW RUN { METRICS | PARAMETERS } [ LIKE '<pattern>' ] IN EXPERIMENT <experiment_name>
+//	SHOW MODEL MONITORS IN GATEWAY <gateway_name>
+//
+// https://docs.snowflake.com/en/sql-reference/sql/show-versions-in-model
+// https://docs.snowflake.com/en/sql-reference/sql/show-functions-in-model
+// https://docs.snowflake.com/en/sql-reference/sql/show-versions-in-dataset
+// https://docs.snowflake.com/en/sql-reference/sql/show-runs-in-experiment
+// https://docs.snowflake.com/en/sql-reference/sql/show-run-in-experiment
+func (p *Parser) startsShowModelScope() string {
+	for _, w := range []string{"MODEL", "DATASET", "EXPERIMENT", "GATEWAY"} {
+		if !p.atWords(w) {
+			continue
+		}
+		switch next := p.peekNext().Type; next {
+		case kwSTARTS, kwLIMIT, kwWITH, kwLIKE, kwFOR, tokFlow, tokEOF, ';':
+			return ""
+		default:
+			if p.isObjectTypeWord(next) {
+				return w
+			}
+		}
+		return ""
+	}
+	return ""
+}
+
+// parseShowModelScope reads <word> <name> as SHOW's scope. cur is word.
+func (p *Parser) parseShowModelScope(stmt *ast.ShowStmt, word string) error {
+	p.advance() // consume the scope word
+	name, err := p.parseObjectName()
+	if err != nil {
+		return err
+	}
+	stmt.Scope = ast.ShowScopeOther
+	stmt.ScopeText = word
+	stmt.ScopeName = name
+	return nil
 }

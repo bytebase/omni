@@ -14,6 +14,14 @@ func init() {
 		orReplace: true,
 		// https://docs.snowflake.com/en/sql-reference/sql/drop-online-feature-table
 		drop: true,
+		props: objectProps{
+			"TARGET_LAG":       propString,
+			"WAREHOUSE":        propName,
+			"REFRESH_MODE":     propOneOf("AUTO", "FULL", "INCREMENTAL"),
+			"TIMESTAMP_COLUMN": propName,
+			"COMMENT":          propString,
+		},
+		unset: []string{}, // UNSET takes only TAG
 	})
 }
 

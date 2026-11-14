@@ -16,7 +16,9 @@ func init() {
 		alter:     parseAlterAgent,
 		orReplace: true,
 		// https://docs.snowflake.com/en/sql-reference/sql/drop-agent
-		drop: true,
+		drop:  true,
+		props: objectProps{"SECURE": propBool, "COMMENT": propString, "PROFILE": propString},
+		unset: []string{},
 	})
 	registerObject(&objectForm{
 		words:     []string{"EXTERNAL", "AGENT"},
@@ -24,7 +26,9 @@ func init() {
 		alter:     parseAlterExternalAgent,
 		orReplace: true,
 		// https://docs.snowflake.com/en/sql-reference/sql/drop-external-agent
-		drop: true,
+		drop:  true,
+		props: objectProps{"COMMENT": propString},
+		unset: []string{},
 	})
 }
 
@@ -94,12 +98,7 @@ func parseAlterAgent(p *Parser, s *ast.ObjectStmt) error {
 		return &ParseError{Position: s.Name.Loc.Start, End: s.Name.Loc.End, Message: "syntax error: ALTER AGENT takes no IF EXISTS"}
 	}
 	start := p.cur.Loc.Start
-	if p.acceptWords("MODIFY", "LIVE", "VERSION") {
-		p.addObjectKeywordsClause(s, "MODIFY LIVE VERSION", start)
-		setStart := p.cur.Loc.Start
-		if _, err := p.expect(kwSET); err != nil {
-			return err
-		}
+	if p.acceptWords("MODIFY", "LIVE", "VERSION", "SET") {
 		if !p.curIsWord("SPECIFICATION") || !p.startsObjectProperty() {
 			return p.syntaxErrorAtCur()
 		}
@@ -107,10 +106,10 @@ func parseAlterAgent(p *Parser, s *ast.ObjectStmt) error {
 		if err != nil {
 			return err
 		}
-		if spec.Lit == nil || spec.Lit.Kind != ast.LitString {
-			return &ParseError{Position: spec.Loc.Start, End: spec.Loc.End, Message: "syntax error: a specification is a string"}
+		if err := aiCheckOptions([]*ast.CopyOption{spec}, objectProps{"SPECIFICATION": propString}); err != nil {
+			return err
 		}
-		p.addObjectKeywordsClause(s, "SET", setStart).Options = []*ast.CopyOption{spec}
+		p.addObjectKeywordsClause(s, "MODIFY LIVE VERSION SET", start).Options = []*ast.CopyOption{spec}
 		return nil
 	}
 	if ok, err := p.parseObjectAlterCommon(s, actSet|actTags); ok || err != nil {

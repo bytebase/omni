@@ -58,6 +58,17 @@ func walkChildren(v Visitor, node Node) {
 				Walk(v, item)
 			}
 		}
+	case *AlterDatasetStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		Walk(v, n.Query)
+		Walk(v, n.PartitionBy)
+		for _, item := range n.Options {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 	case *AlterDynamicTableStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -607,6 +618,24 @@ func walkChildren(v Visitor, node Node) {
 			if item != nil {
 				Walk(v, item)
 			}
+		}
+	case *CreateAiFunctionStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, item := range n.Args {
+			walkRoutineArg(v, item)
+		}
+		if n.ReturnType != nil {
+			Walk(v, n.ReturnType)
+		}
+		for _, item := range n.Options {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		if n.Experiment != nil {
+			Walk(v, n.Experiment)
 		}
 	case *CreateAlertStmt:
 		if n.Name != nil {

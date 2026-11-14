@@ -22,7 +22,41 @@ func init() {
 		// https://docs.snowflake.com/en/sql-reference/sql/drop-cortex-search
 		// writes DROP CORTEX SEARCH SERVICE <name> with no IF EXISTS, which the
 		// registry's DROP always takes, so DROP is not registered.
+		props: cortexSearchProps,
+		unset: []string{}, // UNSET takes only PRIMARY KEY, ATTRIBUTES and TAG
 	})
+}
+
+// cortexSearchProps are the properties CREATE CORTEX SEARCH SERVICE and
+// ALTER ... SET document; EMBEDDING_MODEL, REFRESH_MODE and INITIALIZE are
+// CREATE's alone, PRIMARY KEY = ( ... ) SET's alone. ALTER's
+// AUTO_SUSPEND = NULL has no shape here yet.
+var cortexSearchProps = objectProps{
+	"WAREHOUSE":                      propName,
+	"TARGET_LAG":                     propString,
+	"EMBEDDING_MODEL":                propString,
+	"REFRESH_MODE":                   propOneOf("FULL", "INCREMENTAL"),
+	"INITIALIZE":                     propOneOf("ON_CREATE", "ON_SCHEDULE"),
+	"FULL_INDEX_BUILD_INTERVAL_DAYS": propNumber,
+	"REQUEST_LOGGING":                propBool,
+	"AUTO_SUSPEND":                   propNumber,
+	"COMMENT":                        propString,
+	"PRIMARY KEY":                    propNames,
+}
+
+// aiCheckOptions holds opts to props, as objectForm.checkClauses holds a
+// CREATE's run and a SET, for the ML/AI clauses that it does not see (a WITH
+// run, a version's SET).
+func aiCheckOptions(opts []*ast.CopyOption, props objectProps) error {
+	for _, o := range opts {
+		if v, ok := props[o.Name]; !ok || !v.matches(o) {
+			return &ParseError{
+				Position: o.Loc.Start, End: o.Loc.End,
+				Message: "syntax error at or near " + o.Name,
+			}
+		}
+	}
+	return nil
 }
 
 // parseCreateCortexSearch reads what follows the name of

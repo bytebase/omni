@@ -15,6 +15,9 @@ func init() {
 		// https://docs.snowflake.com/en/sql-reference/sql/drop-experiment
 		// writes DROP EXPERIMENT <name> with no IF EXISTS, which the registry's
 		// DROP always takes, so DROP is not registered.
+		// MODIFY RUN <run> SET STATUS = '<status>' is the one SET.
+		props: objectProps{"STATUS": propString},
+		unset: []string{},
 	})
 }
 

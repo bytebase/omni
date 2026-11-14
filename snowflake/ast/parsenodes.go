@@ -4107,6 +4107,29 @@ type CreateDatasetStmt struct {
 // Tag implements Node.
 func (n *CreateDatasetStmt) Tag() NodeTag { return T_CreateDatasetStmt }
 
+// AlterDatasetStmt represents
+//
+//	ALTER DATASET <name> ADD VERSION <version_name> FROM <select_statement>
+//	  [ PARTITION BY <string_expr> ] [ COMMENT = '<comment>' ] [ METADATA = '<metadata>' ]
+//	ALTER DATASET [ IF EXISTS ] <name> DROP VERSION <version_name>
+//
+// A version's name may be written as a string ('v1'), as the ADD VERSION
+// page's example does; Version then holds its text with Quoted set, since a
+// string keeps its case as a quoted identifier does.
+type AlterDatasetStmt struct {
+	IfExists    bool
+	Name        *ObjectName
+	Drop        bool          // DROP VERSION; ADD VERSION otherwise
+	Version     Ident         // the version's name
+	Query       Node          // ADD VERSION's FROM <select_statement>
+	PartitionBy Node          // ADD VERSION's PARTITION BY expression, or nil
+	Options     []*CopyOption // ADD VERSION's COMMENT and METADATA, in order
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *AlterDatasetStmt) Tag() NodeTag { return T_AlterDatasetStmt }
+
 // Compile-time assertions for tag / semantic-view / dataset DDL nodes.
 var (
 	_ Node = (*CreateTagStmt)(nil)
@@ -4115,6 +4138,7 @@ var (
 	_ Node = (*CreateSemanticViewStmt)(nil)
 	_ Node = (*AlterSemanticViewStmt)(nil)
 	_ Node = (*CreateDatasetStmt)(nil)
+	_ Node = (*AlterDatasetStmt)(nil)
 )
 
 // ---------------------------------------------------------------------------
@@ -4909,6 +4933,33 @@ type CreateRoutineStmt struct {
 // Tag implements Node.
 func (n *CreateRoutineStmt) Tag() NodeTag { return T_CreateRoutineStmt }
 
+// CreateAiFunctionStmt represents
+//
+//	CREATE [ OR REPLACE ] AI FUNCTION [ IF NOT EXISTS ] <name> (
+//	    [ <arg_name> <arg_data_type> [ , ... ] ] )
+//	  RETURNS <result_data_type>
+//	  { [ COMMENT = '<string_literal>' ] AS <body>
+//	  | FROM EXPERIMENT <experiment_name> RUN <run_name> }
+//
+// Exactly one of Body and Experiment is set. Body holds the body verbatim with
+// its delimiters, as CreateRoutineStmt's does.
+type CreateAiFunctionStmt struct {
+	OrReplace   bool
+	IfNotExists bool
+	Name        *ObjectName
+	Args        []*RoutineArg // nil for an empty argument list
+	ReturnType  *TypeName
+	Options     []*CopyOption // COMMENT
+	Body        string        // AS <body>, incl. delimiters ('...' or $$...$$)
+	BodyDollar  bool          // true when the $$...$$ form was used
+	Experiment  *ObjectName   // FROM EXPERIMENT <experiment_name>
+	Run         Ident         // ... RUN <run_name>
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *CreateAiFunctionStmt) Tag() NodeTag { return T_CreateAiFunctionStmt }
+
 // AlterRoutineAction discriminates the action variants of ALTER FUNCTION /
 // PROCEDURE.
 type AlterRoutineAction int
@@ -4950,6 +5001,7 @@ func (n *AlterRoutineStmt) Tag() NodeTag { return T_AlterRoutineStmt }
 // Compile-time assertions for routine DDL nodes.
 var (
 	_ Node = (*CreateRoutineStmt)(nil)
+	_ Node = (*CreateAiFunctionStmt)(nil)
 	_ Node = (*AlterRoutineStmt)(nil)
 )
 
