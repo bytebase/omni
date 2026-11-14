@@ -8427,10 +8427,10 @@ reject	reject	engine	show_param/keys_or_index_from_or_in_table_ident_opt_db_opt_
 accept	accept	engine	show_param/opt_storage_ENGINES_SYM	SHOW ENGINES;
 reject	reject	engine	show_param/opt_storage_ENGINES_SYM!insert	SHOW ENGINES zzz;
 reject	reject	engine	show_param/opt_storage_ENGINES_SYM!swap	SHOW ENUM;
-reject	accept	engine	show_param/AUTHORS_SYM	SHOW AUTHORS;
+accept	accept	engine	show_param/AUTHORS_SYM	SHOW AUTHORS;
 reject	reject	engine	show_param/AUTHORS_SYM!insert	SHOW AUTHORS zzz;
 reject	reject	engine	show_param/AUTHORS_SYM!swap	SHOW AUTO;
-reject	accept	engine	show_param/CONTRIBUTORS_SYM	SHOW CONTRIBUTORS;
+accept	accept	engine	show_param/CONTRIBUTORS_SYM	SHOW CONTRIBUTORS;
 reject	reject	engine	show_param/CONTRIBUTORS_SYM!insert	SHOW CONTRIBUTORS zzz;
 reject	reject	engine	show_param/CONTRIBUTORS_SYM!swap	SHOW CONVERT;
 accept	accept	engine	show_param/PRIVILEGES	SHOW PRIVILEGES;
@@ -8514,7 +8514,7 @@ reject	reject	engine	show_param/BINLOG_SYM_STATUS_SYM!swap	SHOW BIT STATUS;
 accept	accept	engine	show_param/MASTER_SYM_STATUS_SYM	SHOW MASTER STATUS;
 reject	reject	engine	show_param/MASTER_SYM_STATUS_SYM!insert	SHOW MASTER STATUS zzz;
 reject	reject	engine	show_param/MASTER_SYM_STATUS_SYM!swap	SHOW MASTER_CONNECT_RETRY STATUS;
-reject	accept	engine	show_param/ALL_SLAVES_STATUS_SYM	SHOW ALL SLAVES STATUS;
+accept	accept	engine	show_param/ALL_SLAVES_STATUS_SYM	SHOW ALL SLAVES STATUS;
 reject	reject	engine	show_param/ALL_SLAVES_STATUS_SYM!drop-1	SHOW SLAVES STATUS;
 reject	reject	engine	show_param/ALL_SLAVES_STATUS_SYM!drop-3	SHOW ALL SLAVES;
 reject	reject	engine	show_param/ALL_SLAVES_STATUS_SYM!truncate	SHOW ALL SLAVES
@@ -8614,13 +8614,13 @@ reject	reject	engine	show_param/CREATE_EVENT_SYM_sp_name!drop-3	SHOW CREATE EVEN
 reject	reject	engine	show_param/CREATE_EVENT_SYM_sp_name!truncate	SHOW CREATE EVENT
 reject	reject	engine	show_param/CREATE_EVENT_SYM_sp_name!insert	SHOW CREATE EVENT a zzz;
 reject	reject	engine	show_param/CREATE_EVENT_SYM_sp_name!swap	SHOW CROSS EVENT a;
-reject	accept	engine	show_param/describe_command_opt_format_json_FOR_SYM_expr	SHOW DESC FOR a;
+accept	accept	engine	show_param/describe_command_opt_format_json_FOR_SYM_expr	SHOW DESC FOR a;
 reject	reject	engine	show_param/describe_command_opt_format_json_FOR_SYM_expr!drop-2	SHOW DESC a;
 reject	reject	engine	show_param/describe_command_opt_format_json_FOR_SYM_expr!drop-3	SHOW DESC FOR;
 reject	reject	engine	show_param/describe_command_opt_format_json_FOR_SYM_expr!truncate	SHOW DESC FOR
 reject	reject	engine	show_param/describe_command_opt_format_json_FOR_SYM_expr!insert	SHOW DESC FOR a zzz;
-reject	accept	engine	show_param/describe_command_opt_format_json_FOR_SYM_expr!swap	SHOW DESCRIBE FOR a;
-reject	accept	engine	show_param/ANALYZE_SYM_opt_format_json_FOR_SYM_expr	SHOW ANALYZE FOR a;
+accept	accept	engine	show_param/describe_command_opt_format_json_FOR_SYM_expr!swap	SHOW DESCRIBE FOR a;
+accept	accept	engine	show_param/ANALYZE_SYM_opt_format_json_FOR_SYM_expr	SHOW ANALYZE FOR a;
 reject	reject	engine	show_param/ANALYZE_SYM_opt_format_json_FOR_SYM_expr!drop-2	SHOW ANALYZE a;
 reject	reject	engine	show_param/ANALYZE_SYM_opt_format_json_FOR_SYM_expr!drop-3	SHOW ANALYZE FOR;
 reject	reject	engine	show_param/ANALYZE_SYM_opt_format_json_FOR_SYM_expr!truncate	SHOW ANALYZE FOR
