@@ -79,7 +79,7 @@ func (p *Parser) parseCreateIntegrationStmt(start ast.Loc, orReplace, orAlter bo
 		return nil, err
 	}
 
-	name, err := p.parseObjectName()
+	name, err := p.parseIntegrationObjectName(kind)
 	if err != nil {
 		return nil, err
 	}
@@ -239,7 +239,7 @@ func (p *Parser) parseAlterIntegrationStmt() (ast.Node, error) {
 
 	p.parseOptionalIfExists(&stmt.IfExists)
 
-	name, err := p.parseObjectName()
+	name, err := p.parseIntegrationObjectName(kind)
 	if err != nil {
 		return nil, err
 	}
@@ -854,12 +854,41 @@ func (p *Parser) startsCatalogOrAccessIntegration() bool {
 // https://docs.snowflake.com/en/sql-reference/sql/drop-integration
 // https://docs.snowflake.com/en/sql-reference/sql/drop-catalog-integration
 func (p *Parser) acceptDropIntegrationKind() bool {
-	for _, q := range [][]string{{"API"}, {"CATALOG"}, {"EXTERNAL", "ACCESS"}, {"NOTIFICATION"}, {"SECURITY"}, {"STORAGE"}} {
+	for _, q := range [][]string{{}, {"API"}, {"CATALOG"}, {"EXTERNAL", "ACCESS"}, {"NOTIFICATION"}, {"SECURITY"}, {"STORAGE"}} {
 		if p.acceptWords(append(q, "INTEGRATION")...) {
 			return true
 		}
 	}
 	return false
+}
+
+// parseDropIntegrationStmt reads [ IF EXISTS ] <name> once
+// acceptDropIntegrationKind has consumed the object words. An integration is
+// an account-level object, so its name takes no qualifier.
+func (p *Parser) parseDropIntegrationStmt(start ast.Loc) (ast.Node, error) {
+	node, err := p.parseDropObject(ast.DropIntegration, start, true, false)
+	if err != nil {
+		return nil, err
+	}
+	if name := node.(*ast.DropStmt).Name; !name.Schema.IsEmpty() || !name.Database.IsEmpty() {
+		return nil, &ParseError{
+			Position: name.Loc.Start, End: name.Loc.End,
+			Message: "syntax error: " + name.String() + " takes no qualifier here",
+		}
+	}
+	return node, nil
+}
+
+// parseIntegrationObjectName reads the name of an object of kind: one part
+// for an integration, which is an account-level object (the pages write
+// <name>, never a qualified one), and a qualified name for the other kinds.
+func (p *Parser) parseIntegrationObjectName(kind ast.IntegrationObjectKind) (*ast.ObjectName, error) {
+	switch kind {
+	case ast.StorageIntegration, ast.APIIntegration, ast.NotificationIntegration, ast.SecurityIntegration,
+		ast.CatalogIntegration, ast.ExternalAccessIntegration:
+		return p.parseObjectSimpleName()
+	}
+	return p.parseObjectName()
 }
 
 // parseIntegrationOptions parses a run of zero or more open-ended `KEY = value`
@@ -1267,7 +1296,8 @@ func (p *Parser) parseIntegrationGroupList(opt *ast.CopyOption, keys integration
 }
 
 // parseIntegrationStringPairs reads ( '<key>' = '<value>' [ , ... ] ), as a
-// webhook integration's WEBHOOK_HEADERS. cur is '('.
+// webhook integration's WEBHOOK_HEADERS, each entry named by its quoted key.
+// cur is '('.
 func (p *Parser) parseIntegrationStringPairs(opt *ast.CopyOption) error {
 	if _, err := p.expect('('); err != nil {
 		return err
@@ -1287,7 +1317,9 @@ func (p *Parser) parseIntegrationStringPairs(opt *ast.CopyOption) error {
 		if val.Kind != ast.LitString {
 			return &ParseError{Position: val.Loc.Start, End: val.Loc.End, Message: "syntax error: expected a string"}
 		}
-		opt.Group = append(opt.Group, &ast.CopyOption{Name: key.Str, Lit: val, Loc: ast.Loc{Start: key.Loc.Start, End: val.Loc.End}})
+		// The key keeps its quotes, as written, so that it reads apart from a
+		// word key.
+		opt.Group = append(opt.Group, &ast.CopyOption{Name: p.srcSlice(key.Loc.Start, key.Loc.End), Lit: val, Loc: ast.Loc{Start: key.Loc.Start, End: val.Loc.End}})
 		if p.cur.Type != ',' {
 			break
 		}
@@ -1327,11 +1359,11 @@ func (p *Parser) parseIntegrationLeaf(opt *ast.CopyOption, shapes []objectValue)
 		case p.isOptionWord(p.cur.Type):
 			for {
 				nameStart := p.cur.Loc.Start
-				name, end, err := p.parseValueWord()
+				name, err := p.parseObjectWord()
 				if err != nil {
 					return err
 				}
-				opt.Group = append(opt.Group, &ast.CopyOption{Name: name, Bare: true, Loc: ast.Loc{Start: nameStart, End: end}})
+				opt.Group = append(opt.Group, &ast.CopyOption{Name: name, Bare: true, Loc: ast.Loc{Start: nameStart, End: p.prev.Loc.End}})
 				if p.cur.Type != ',' {
 					break
 				}

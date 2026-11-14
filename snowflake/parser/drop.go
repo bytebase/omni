@@ -30,7 +30,7 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 	}
 	// DROP [ <integration kind> ] INTEGRATION (integration.go).
 	if p.acceptDropIntegrationKind() {
-		return p.parseDropObject(ast.DropIntegration, start, true, false)
+		return p.parseDropIntegrationStmt(start)
 	}
 
 	switch p.cur.Type {
@@ -158,10 +158,6 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 			return nil, err
 		}
 		return p.parseDropObject(ast.DropFailoverGroup, start, true, false)
-
-	case kwINTEGRATION:
-		p.advance() // consume INTEGRATION
-		return p.parseDropObject(ast.DropIntegration, start, true, false)
 
 	case kwMANAGED:
 		// MANAGED ACCOUNT
