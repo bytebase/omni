@@ -83,7 +83,13 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 		return p.parseExplainStmt()
 
 	case kwBEGIN:
+		if p.peekNext().Type == kwNOT {
+			return p.parseCompoundStatement()
+		}
 		return p.parseBeginStmt()
+
+	case kwLOOP, kwFOR:
+		return p.parseCompoundStatement()
 
 	case kwSTART:
 		return p.parseStartDispatch()
@@ -205,6 +211,9 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 
 	case kwSHUTDOWN:
 		return p.parseShutdownStmt()
+
+	case kwBACKUP:
+		return p.parseBackupStmt()
 
 	case kwCLONE:
 		return p.parseCloneStmt()
@@ -329,53 +338,56 @@ func (p *Parser) parseResetDispatch() (nodes.Node, error) {
 	start := p.pos()
 	p.advance() // consume RESET
 
-	if p.cur.Type == kwREPLICA || p.cur.Type == kwSLAVE {
-		return p.parseResetReplicaStmt(start)
-	}
-	if p.cur.Type == kwMASTER {
-		return p.parseResetMasterStmt(start)
-	}
 	if p.cur.Type == kwPERSIST {
 		return p.parseResetPersistStmt(start)
 	}
 
-	// reset_option's last arm is QUERY CACHE, both words, and reset_options
-	// is a comma list of reset_option (reset in MariaDB 11.8 sql/sql_yacc.yy).
-	// A list after QUERY CACHE keeps each later option's text.
-	if p.cur.Type != kwQUERY {
-		return nil, p.syntaxErrorAtCur()
-	}
-	p.advance()
-	if _, err := p.expect(kwCACHE); err != nil {
-		return nil, err
-	}
-	stmt := &nodes.FlushStmt{Loc: nodes.Loc{Start: start}, Options: []string{"QUERY CACHE"}}
+	// reset_options is a comma list of reset_option: SLAVE, MASTER or QUERY CACHE,
+	// in any order and repeated. One SLAVE or MASTER is its own statement; a list,
+	// or QUERY CACHE, is a FlushStmt that keeps each option's text.
+	// mariadb:11.8.8 runs `RESET SLAVE, SLAVE` and `RESET SLAVE ALL, MASTER`.
+	//
+	// Ref: reset, reset_options and reset_option in MariaDB 11.8 sql/sql_yacc.yy.
+	var first nodes.Node
+	var options []string
 	for {
-		if _, ok := p.match(','); !ok {
-			break
-		}
 		optStart := p.pos()
+		nodeStart := optStart
+		if len(options) == 0 {
+			nodeStart = start
+		}
+		var node nodes.Node
+		var err error
 		switch p.cur.Type {
+		case kwREPLICA, kwSLAVE:
+			node, err = p.parseResetReplicaStmt(nodeStart)
+		case kwMASTER:
+			node, err = p.parseResetMasterStmt(nodeStart)
 		case kwQUERY:
 			p.advance()
-			if _, err := p.expect(kwCACHE); err != nil {
-				return nil, err
-			}
-		case kwMASTER:
-			if _, err := p.parseResetMasterStmt(optStart); err != nil {
-				return nil, err
-			}
-		case kwREPLICA, kwSLAVE:
-			if _, err := p.parseResetReplicaStmt(optStart); err != nil {
-				return nil, err
-			}
+			_, err = p.expect(kwCACHE)
 		default:
 			return nil, p.syntaxErrorAtCur()
 		}
-		stmt.Options = append(stmt.Options, p.inputText(optStart, p.prev.End))
+		if err != nil {
+			return nil, err
+		}
+		if len(options) == 0 {
+			first = node
+		}
+		if node == nil {
+			options = append(options, "QUERY CACHE")
+		} else {
+			options = append(options, p.inputText(optStart, p.prev.End))
+		}
+		if _, ok := p.match(','); !ok {
+			break
+		}
 	}
-	stmt.Loc.End = p.prev.End
-	return stmt, nil
+	if len(options) == 1 && first != nil {
+		return first, nil
+	}
+	return &nodes.FlushStmt{Loc: nodes.Loc{Start: start, End: p.prev.End}, Options: options}, nil
 }
 
 // parseStopDispatch dispatches STOP statements.

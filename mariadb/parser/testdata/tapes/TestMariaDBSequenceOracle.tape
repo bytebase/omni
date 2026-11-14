@@ -86,6 +86,87 @@
 | CREATE OR REPLACE SEQUENCE cs22 AS TINYINT START WITH 1
 < ok 0 0
 > exec
+| CREATE OR REPLACE SEQUENCE cs23 AS INT ZEROFILL
+< error
+| 1912 HY000 Incorrect value 'ZEROFILL' for option 'AS'
+> exec
+| PREPARE omni_parses_stmt FROM ?
+: string
+| CREATE OR REPLACE SEQUENCE cs23 AS INT ZEROFILL
+< error
+| 1912 HY000 Incorrect value 'ZEROFILL' for option 'AS'
+> exec ^
+: string
+| CREATE OR REPLACE SEQUENCE cs23 AS INT ZEROFILL
+| ; SELECT FROM
+< error
+| 1912 HY000 Incorrect value 'ZEROFILL' for option 'AS'
+> exec
+| CREATE OR REPLACE SEQUENCE cs24 AS INT UNSIGNED ZEROFILL
+< error
+| 1912 HY000 Incorrect value 'ZEROFILL' for option 'AS'
+> exec
+| PREPARE omni_parses_stmt FROM ?
+: string
+| CREATE OR REPLACE SEQUENCE cs24 AS INT UNSIGNED ZEROFILL
+< error
+| 1912 HY000 Incorrect value 'ZEROFILL' for option 'AS'
+> exec ^
+: string
+| CREATE OR REPLACE SEQUENCE cs24 AS INT UNSIGNED ZEROFILL
+| ; SELECT FROM
+< error
+| 1912 HY000 Incorrect value 'ZEROFILL' for option 'AS'
+> exec
+| CREATE OR REPLACE SEQUENCE cs25 MAXVALUE 1.5
+< ok 0 0
+> exec
+| CREATE OR REPLACE SEQUENCE cs26 MINVALUE - 1.5
+< ok 0 0
+> exec
+| CREATE OR REPLACE SEQUENCE cs27 MINVALUE 1.5
+< error
+| 4085 HY000 Sequence 'test.cs27' has out of range value for options
+> exec
+| PREPARE omni_parses_stmt FROM ?
+: string
+| CREATE OR REPLACE SEQUENCE cs27 MINVALUE 1.5
+< error
+| 4085 HY000 Sequence 'test.cs27' has out of range value for options
+> exec ^
+: string
+| CREATE OR REPLACE SEQUENCE cs27 MINVALUE 1.5
+| ; SELECT FROM
+< error
+| 4085 HY000 Sequence 'test.cs27' has out of range value for options
+> exec
+| CREATE OR REPLACE SEQUENCE cs28 MAXVALUE -1.5
+< error
+| 4085 HY000 Sequence 'test.cs28' has out of range value for options
+> exec
+| PREPARE omni_parses_stmt FROM ?
+: string
+| CREATE OR REPLACE SEQUENCE cs28 MAXVALUE -1.5
+< error
+| 4085 HY000 Sequence 'test.cs28' has out of range value for options
+> exec ^
+: string
+| CREATE OR REPLACE SEQUENCE cs28 MAXVALUE -1.5
+| ; SELECT FROM
+< error
+| 4085 HY000 Sequence 'test.cs28' has out of range value for options
+> exec
+| CREATE OR REPLACE SEQUENCE cs29 MAXVALUE 99999999999999999999999
+< ok 0 0
+> exec
+| CREATE OR REPLACE SEQUENCE cs30 MINVALUE 1e5
+< error
+| 1064 42000 …near '1e5' at line 1
+> exec
+| CREATE OR REPLACE SEQUENCE cs31 START WITH 1.5
+< error
+| 1064 42000 …near '1.5' at line 1
+> exec
 | CREATE SEQUENCE cr1 RESTART
 < error
 | 1064 42000 …near 'RESTART' at line 1
