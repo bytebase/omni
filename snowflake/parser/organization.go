@@ -245,8 +245,17 @@ func parseCreateOrganizationAccount(p *Parser, s *ast.ObjectStmt) error {
 	if err := rejectObjectTags(s); err != nil {
 		return err
 	}
-	if err := (&objectForm{props: organizationAccountProps}).checkClauses(s); err != nil {
-		return err
+	for _, o := range props.Options {
+		v, ok := organizationAccountProps[o.Name]
+		// ADMIN_NAME is a '<string>' on the reference page, and an unquoted
+		// name in the guide's example (ADMIN_NAME = admin).
+		// https://docs.snowflake.com/en/user-guide/organization-accounts
+		if o.Name == "ADMIN_NAME" && propName.matches(o) {
+			continue
+		}
+		if !ok || !v.matches(o) {
+			return &ParseError{Position: o.Loc.Start, End: o.Loc.End, Message: "syntax error at or near " + o.Name}
+		}
 	}
 	if err := p.requireObjectProperties(props, "ADMIN_NAME", "EMAIL", "EDITION"); err != nil {
 		return err
@@ -304,19 +313,49 @@ func parseAlterOrganizationAccount(p *Parser, s *ast.ObjectStmt) error {
 		// A parameter named PASSWORD or SESSION.
 		p.restore(snap)
 	}
-	ok, err := p.parseObjectAlterCommon(s, actSet|actUnset|actTags)
+	if p.cur.Type == kwSET && p.peekNext().Type != kwTAG {
+		return p.parseOrganizationAccountParams(s)
+	}
+	ok, err := p.parseObjectAlterCommon(s, actUnset|actTags)
 	if err != nil {
 		return err
 	}
 	if !ok {
 		return p.syntaxErrorAtCur()
 	}
-	for _, c := range s.Clauses {
-		if c.Keywords == "SET" && c.Tags != nil {
-			// SET TAG is a form of its own, not a parameter of a SET run.
-			return &ParseError{Position: c.Loc.Start, End: c.Loc.End, Message: "syntax error: TAG in a SET of parameters"}
+	return nil
+}
+
+// parseOrganizationAccountParams reads SET <param> = <value> [ ... ], whose
+// parameters the page lets blank spaces, commas or new lines separate. cur
+// is SET.
+func (p *Parser) parseOrganizationAccountParams(s *ast.ObjectStmt) error {
+	c := &ast.ObjectClause{Keywords: "SET", Loc: ast.Loc{Start: p.cur.Loc.Start}}
+	p.advance() // consume SET
+	seen := map[string]bool{}
+	for {
+		if !p.startsObjectProperty() {
+			return p.syntaxErrorAtCur()
+		}
+		opt, err := p.parseObjectProperty()
+		if err != nil {
+			return err
+		}
+		if seen[opt.Name] {
+			return &ParseError{Position: opt.Loc.Start, End: opt.Loc.End, Message: "syntax error: " + opt.Name + " is set twice"}
+		}
+		seen[opt.Name] = true
+		c.Options = append(c.Options, opt)
+		if p.cur.Type == ',' {
+			p.advance() // consume ','; a parameter must follow
+			continue
+		}
+		if !p.startsObjectProperty() {
+			break
 		}
 	}
+	c.Loc.End = p.prev.Loc.End
+	s.Clauses = append(s.Clauses, c)
 	return nil
 }
 
