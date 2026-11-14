@@ -14,12 +14,14 @@ import (
 )
 
 func TestOracleVReservedWordsKeywordAudit(t *testing.T) {
-	ctx, db := openOracleReservedWordsDB(t)
+	ctx := context.Background()
+	db := openOracleSystem(t)
 
 	rows, err := db.QueryContext(ctx, `
 SELECT keyword, reserved, res_type, res_attr, res_semi
 FROM v$reserved_words
-WHERE duplicate = 'N' OR duplicate IS NULL`)
+WHERE duplicate = 'N' OR duplicate IS NULL
+ORDER BY keyword`)
 	if err != nil {
 		t.Fatalf("query v$reserved_words: %v", err)
 	}
@@ -58,49 +60,6 @@ WHERE duplicate = 'N' OR duplicate IS NULL`)
 		t.Fatalf("Oracle V$RESERVED_WORDS reserved entries missing from local manifest: %v", missing)
 	}
 	t.Logf("Oracle V$RESERVED_WORDS reserved/context audit checked=%d", checked)
-}
-
-func openOracleReferenceDB(t *testing.T) (context.Context, *sql.DB) {
-	t.Helper()
-	if dsn := os.Getenv("ORACLE_PARSER_REF_DSN"); dsn != "" {
-		db, err := sql.Open("oracle", dsn)
-		if err != nil {
-			t.Fatalf("open Oracle reference connection: %v", err)
-		}
-		t.Cleanup(func() { _ = db.Close() })
-
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		t.Cleanup(cancel)
-		if err := db.PingContext(ctx); err != nil {
-			t.Fatalf("ping Oracle reference connection: %v", err)
-		}
-		return ctx, db
-	}
-	oracle := startOracleDB(t)
-	return oracle.ctx, oracle.db
-}
-
-func openOracleReservedWordsDB(t *testing.T) (context.Context, *sql.DB) {
-	t.Helper()
-	if dsn := os.Getenv("ORACLE_PARSER_REF_ADMIN_DSN"); dsn != "" {
-		db, err := sql.Open("oracle", dsn)
-		if err != nil {
-			t.Fatalf("open Oracle admin reference connection: %v", err)
-		}
-		t.Cleanup(func() { _ = db.Close() })
-
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		t.Cleanup(cancel)
-		if err := db.PingContext(ctx); err != nil {
-			t.Fatalf("ping Oracle admin reference connection: %v", err)
-		}
-		return ctx, db
-	}
-	if os.Getenv("ORACLE_PARSER_REF_DSN") != "" {
-		return openOracleReferenceDB(t)
-	}
-	oracle := startOracleDB(t)
-	return oracle.ctx, oracle.adminDB
 }
 
 func isOracleReferenceWordKeyword(keyword string) bool {
