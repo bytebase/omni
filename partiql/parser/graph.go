@@ -32,7 +32,7 @@ import (
 //	                     | SHORTEST k=LITERAL_INTEGER GROUP? # SelectorShortest ;        (330-334)
 //	patternPathVariable  : symbolPrimitive EQ ;                                          (336-337)
 //	patternRestrictor    : restrictor=IDENTIFIER ;  // TRAIL / ACYCLIC / SIMPLE          (339-340)
-//	node                 : PAREN_LEFT symbolPrimitive? patternPartLabel? whereClause? PAREN_RIGHT; (342-343)
+//	node                 : PAREN_LEFT symbolPrimitive? ( COLON labelSpec )? whereClause? PAREN_RIGHT; (402-403)
 //	edge                 : edgeWSpec quantifier=patternQuantifier?   # EdgeWithSpec
 //	                     | edgeAbbrev quantifier=patternQuantifier?  # EdgeAbbreviated ; (345-348)
 //	pattern              : PAREN_LEFT  restrictor? variable? graphPart+ where=whereClause? PAREN_RIGHT  quantifier?
@@ -46,8 +46,8 @@ import (
 //	                     | ANGLE_LEFT TILDE edgeSpec TILDE            # EdgeSpecUndirectedLeft
 //	                     | ANGLE_LEFT MINUS edgeSpec MINUS ANGLE_RIGHT # EdgeSpecBidirectional
 //	                     | MINUS edgeSpec MINUS                       # EdgeSpecUndirectedBidirectional ; (360-368)
-//	edgeSpec            : BRACKET_LEFT symbolPrimitive? patternPartLabel? whereClause? BRACKET_RIGHT; (370-371)
-//	patternPartLabel   : COLON symbolPrimitive ;                                         (373-374)
+//	edgeSpec            : BRACKET_LEFT symbolPrimitive? ( COLON labelSpec )? whereClause? BRACKET_RIGHT; (430-431)
+//	labelSpec           : the label expression, parsed by parseLabelSpec                (433-452)
 //	edgeAbbrev         : TILDE | TILDE ANGLE_RIGHT | ANGLE_LEFT TILDE | ANGLE_LEFT? MINUS ANGLE_RIGHT? ; (376-381)
 //
 // NOTE on `<`/`>`: the lexer scans `->`, `<-`, `~>`, `<~`, `<->` as separate
@@ -360,13 +360,10 @@ func (p *Parser) parseGraphParts(requireOne bool) ([]ast.PatternNode, error) {
 			}
 			parts = append(parts, part)
 		case p.isEdgeStart():
-			// An edge must be preceded by a node/group; reject a leading edge.
-			if len(parts) == 0 {
-				return nil, &ParseError{
-					Message:  "graph pattern cannot begin with an edge",
-					Position: p.cur.Loc.Start, End: p.cur.Loc.End,
-				}
-			}
+			// graphPart is node | edge | pattern in any order
+			// (PartiQLParser.g4:384-388), so a pattern may begin with an
+			// edge, `(g MATCH -[e]->)`, and the reference parser's
+			// visitMatchPattern and visitPattern take one.
 			edge, err := p.parseEdge()
 			if err != nil {
 				return nil, err
@@ -388,7 +385,7 @@ func (p *Parser) parseGraphParts(requireOne bool) ([]ast.PatternNode, error) {
 // parseParenGraphPart disambiguates a `(` between a node pattern and a
 // parenthesised sub-pattern group, then parses the chosen form.
 //
-// A node body is `symbolPrimitive? patternPartLabel? whereClause?` followed by
+// A node body is `symbolPrimitive? ( COLON labelSpec )? whereClause?` followed by
 // `)`. A group body is `restrictor? variable? graphPart+ where?` — its first
 // significant token is `(`/`[` (a nested node/group), or an IDENT that is a
 // restrictor / path-variable name preceding such a nested part. The two are
@@ -404,7 +401,7 @@ func (p *Parser) parseParenGraphPart() (ast.PatternNode, error) {
 // a sub-pattern group). It does not consume input. The decision uses the two
 // tokens after `(`.
 //
-// node     : ( symbolPrimitive? patternPartLabel? whereClause? )
+// node     : ( symbolPrimitive? ( COLON labelSpec )? whereClause? )
 // pattern  : ( restrictor? variable? graphPart+ ... )   // graphPart starts with ( or [
 func (p *Parser) parenStartsNode() bool {
 	inner := p.peekNext() // token after '('
@@ -450,7 +447,7 @@ func (p *Parser) peekAfterParenIdent() int {
 
 // parseNode parses a node pattern.
 //
-//	node : PAREN_LEFT symbolPrimitive? patternPartLabel? whereClause? PAREN_RIGHT
+//	node : PAREN_LEFT symbolPrimitive? ( COLON labelSpec )? whereClause? PAREN_RIGHT
 //
 // Grammar: node (PartiQLParser.g4:342-343).
 func (p *Parser) parseNode() (*ast.NodePattern, error) {
@@ -469,13 +466,14 @@ func (p *Parser) parseNode() (*ast.NodePattern, error) {
 		n.Variable = &ast.VarRef{Name: name, CaseSensitive: caseSensitive, Loc: nameLoc}
 	}
 
-	// patternPartLabel?
+	// ( COLON labelSpec )?
 	if p.cur.Type == tokCOLON {
 		label, err := p.parsePatternPartLabel()
 		if err != nil {
 			return nil, err
 		}
-		n.Labels = []string{label}
+		n.Label = label
+		n.Labels = labelNames(label)
 	}
 
 	// whereClause?
@@ -555,19 +553,109 @@ func (p *Parser) parsePatternGroup(open, closeTok int) (*ast.GraphPattern, error
 	return gp, nil
 }
 
-// parsePatternPartLabel parses `COLON symbolPrimitive` and returns the label
-// name.
-//
-// Grammar: patternPartLabel (PartiQLParser.g4:373-374).
-func (p *Parser) parsePatternPartLabel() (string, error) {
+// parsePatternPartLabel parses `COLON labelSpec`, the label of a node or an
+// edge (PartiQLParser.g4:403, 431).
+func (p *Parser) parsePatternPartLabel() (ast.LabelExpr, error) {
 	if _, err := p.expect(tokCOLON); err != nil {
-		return "", err
+		return nil, err
 	}
-	name, _, _, err := p.parseSymbolPrimitive()
+	return p.parseLabelSpec()
+}
+
+// labelNames returns the name of a label that is a single name, for the
+// Labels field, and nil for any other label expression.
+func labelNames(label ast.LabelExpr) []string {
+	if n, ok := label.(*ast.LabelName); ok {
+		return []string{n.Name}
+	}
+	return nil
+}
+
+// parseLabelSpec parses a label expression, `|` binding loosest, then `&`,
+// then `!`:
+//
+//	labelSpec    : labelSpec VERTBAR labelTerm | labelTerm
+//	labelTerm    : labelTerm AMPERSAND labelFactor | labelFactor
+//	labelFactor  : BANG labelPrimary | labelPrimary
+//	labelPrimary : symbolPrimitive | PERCENT | PAREN_LEFT labelSpec PAREN_RIGHT
+//
+// Grammar: PartiQLParser.g4:433-452. The reference parser's visitor takes
+// every form (visitLabelSpecOr .. visitLabelPrimaryParen).
+func (p *Parser) parseLabelSpec() (ast.LabelExpr, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
+	left, err := p.parseLabelTerm()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return name, nil
+	for p.cur.Type == tokVERTBAR {
+		p.advance() // consume |
+		right, err := p.parseLabelTerm()
+		if err != nil {
+			return nil, err
+		}
+		left = &ast.LabelOr{Left: left, Right: right, Loc: ast.Loc{Start: left.GetLoc().Start, End: right.GetLoc().End}}
+	}
+	return left, nil
+}
+
+// parseLabelTerm parses `labelFactor (AMPERSAND labelFactor)*`.
+func (p *Parser) parseLabelTerm() (ast.LabelExpr, error) {
+	left, err := p.parseLabelFactor()
+	if err != nil {
+		return nil, err
+	}
+	for p.cur.Type == tokAMPERSAND {
+		p.advance() // consume &
+		right, err := p.parseLabelFactor()
+		if err != nil {
+			return nil, err
+		}
+		left = &ast.LabelAnd{Left: left, Right: right, Loc: ast.Loc{Start: left.GetLoc().Start, End: right.GetLoc().End}}
+	}
+	return left, nil
+}
+
+// parseLabelFactor parses `BANG? labelPrimary`.
+func (p *Parser) parseLabelFactor() (ast.LabelExpr, error) {
+	if p.cur.Type != tokBANG {
+		return p.parseLabelPrimary()
+	}
+	start := p.cur.Loc.Start
+	p.advance() // consume !
+	operand, err := p.parseLabelPrimary()
+	if err != nil {
+		return nil, err
+	}
+	return &ast.LabelNot{Operand: operand, Loc: ast.Loc{Start: start, End: operand.GetLoc().End}}, nil
+}
+
+// parseLabelPrimary parses a label name, `%`, or a parenthesized labelSpec.
+// The parentheses group and add no node.
+func (p *Parser) parseLabelPrimary() (ast.LabelExpr, error) {
+	switch p.cur.Type {
+	case tokPERCENT:
+		loc := p.cur.Loc
+		p.advance()
+		return &ast.LabelWildcard{Loc: loc}, nil
+	case tokPAREN_LEFT:
+		p.advance() // consume (
+		inner, err := p.parseLabelSpec()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(tokPAREN_RIGHT); err != nil {
+			return nil, err
+		}
+		return inner, nil
+	}
+	name, caseSensitive, loc, err := p.parseSymbolPrimitive()
+	if err != nil {
+		return nil, err
+	}
+	return &ast.LabelName{Name: name, CaseSensitive: caseSensitive, Loc: loc}, nil
 }
 
 // parseGraphWhere parses `WHERE expr` (the whereClause used inside node and edge
@@ -787,7 +875,7 @@ func (p *Parser) parseEdgeWSpecAfterLeftTilde() (*ast.EdgePattern, error) {
 
 // parseEdgeSpec parses the bracketed body of an edge:
 //
-//	edgeSpec : BRACKET_LEFT symbolPrimitive? patternPartLabel? whereClause? BRACKET_RIGHT
+//	edgeSpec : BRACKET_LEFT symbolPrimitive? ( COLON labelSpec )? whereClause? BRACKET_RIGHT
 //
 // It returns an EdgePattern with Variable/Labels/Where populated (Direction and
 // Loc are filled by the caller). On entry p.cur is BRACKET_LEFT.
@@ -811,7 +899,8 @@ func (p *Parser) parseEdgeSpec() (*ast.EdgePattern, error) {
 		if err != nil {
 			return nil, err
 		}
-		edge.Labels = []string{label}
+		edge.Label = label
+		edge.Labels = labelNames(label)
 	}
 	if p.cur.Type == tokWHERE {
 		where, err := p.parseGraphWhere()

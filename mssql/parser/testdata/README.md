@@ -12,9 +12,9 @@ a minute; a second recording on a fresh server wrote the same file.
 
 | Rows | Total | Agree | Only SQL Server accepts | Only omni accepts |
 | --- | --- | --- | --- | --- |
-| One per alternative | 5,510 | 3,757 | 484 | 1,269 |
-| Near-misses | 11,960 | 8,396 | 70 | 3,494 |
-| `suite:lexer` | 67 | 59 | 4 | 4 |
+| One per alternative | 5,510 | 5,149 | 188 | 173 |
+| Near-misses | 11,960 | 11,721 | 59 | 180 |
+| `suite:lexer` | 67 | 62 | 2 | 3 |
 
 SQL Server accepts 3,034 of the 5,510 alternatives. Five more alternatives get
 no row: they name a token neither keyword table gives a text
@@ -92,15 +92,29 @@ go test ./mssql/parser/ -run '^TestCompatibility$' -update-compat
 
 ## The work list
 
-- **Only omni accepts (4,767):** omni reads an option list by its shape and
-  SQL Server by its words, so `WITH (a = 1)` and `SET a = ON` are refused by
-  SQL Server and taken by omni in most DDL: `CREATE EXTERNAL` (305 rows),
-  `ALTER TABLE` (303), `ALTER DATABASE` (275), `ALTER SERVER` (269),
-  `ALTER ENDPOINT` (217), availability groups (195), event sessions (129),
-  `CREATE DATABASE` (123), certificates and keys (279). The parser's other
-  checks are the rest: an unknown built-in function (`SELECT a()`, 53), a
-  trigger's event, a `GOTO` to no label, `ORDER BY` in a subquery.
-- **Only SQL Server accepts (558):** `ALTER TABLE` (80), `ALTER DATABASE`
-  (47), `BACKUP` and `RESTORE` (44), full-text (32), ODBC escapes
-  (`SELECT {fn NOW()}`, 16), a procedure called without `EXEC` (`a 1`, 30),
-  `SEND`, `BEGIN DIALOG`, `<<`.
+16,932 rows agree: 12,212 when the file was recorded, the rest closed family
+by family (#1034 to #1070), each reading its option lists and clauses by the
+grammar and the server's checks. What is left, and why:
+
+- **Only omni accepts (356):**
+  - The judge has no PolyBase (`IsPolyBaseInstalled` is 0), so it refuses
+    every `CREATE EXTERNAL TABLE`, `FILE FORMAT` and `STREAM`, `COPY INTO`
+    and Synapse's `CREATE TABLE ... AS SELECT` (98). omni reads them by the
+    grammar and the docs rather than refuse a kind of statement outright.
+  - Statements omni still reads by their shape: federations (36, Azure SQL
+    Database's), security policies (32), sensitivity classifications (29),
+    `ALTER AUTHORIZATION` (12), `CREATE RULE`, `CREATE SYNONYM`.
+  - Table sources and their arguments in `SELECT` (50): `OPENROWSET`,
+    `OPENQUERY`, `CONTAINSTABLE` arguments, a trailing comma after a table.
+  - Graph `MATCH` patterns (22): omni does not read the arrows.
+- **Only SQL Server accepts (249):**
+  - A procedure called without `EXEC` as a batch's first statement (`a 1`,
+    65).
+  - `ALTER TABLE` (61): `ADD INDEX`, `ADD CONNECTION` and the rest of what an
+    AST field would be needed for.
+  - Split comparison operators (`! =`, `< =`), `IS DISTINCT FROM` and graph
+    arrows in `IF` (32), ODBC escapes (`{fn NOW()}`, 18), `FOR PATH`.
+  - Full-text `LANGUAGE x zzz` (10): the judge has no full-text search, so it
+    stops at the language lookup, which counts as an acceptance.
+  - `DELETE` from `OPENQUERY`, `OPENDATASOURCE` or a function (11), `USE
+    FEDERATION` (8), `WITH CHANGE_TRACKING_CONTEXT`.

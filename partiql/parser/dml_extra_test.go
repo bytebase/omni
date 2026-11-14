@@ -182,18 +182,58 @@ func TestParser_FromLedDML_Explain(t *testing.T) {
 	}
 }
 
-// TestParser_UpdateParenSource_KnownGap documents a PRE-EXISTING limitation
-// unrelated to this fix: the UPDATE source parser (parseUpdateSource) only
-// accepts a bare/quoted identifier, not a full tableBaseReference, so a
-// parenthesised source `UPDATE (t) SET ...` is rejected even though the
-// ANTLR oracle accepts it. This is out of scope for the multi-command fix
-// (B7/B8 concern the dmlBaseCommand+ loop, not the source production) and is
-// flagged in the migration divergence ledger. The test pins the current
-// behavior so a future source-parser node can flip it deliberately.
-func TestParser_UpdateParenSource_KnownGap(t *testing.T) {
-	p := NewParser("UPDATE (t) SET a = 1")
-	if _, err := p.ParseStatement(); err == nil {
-		t.Fatal("expected error for parenthesised UPDATE source (known gap), got nil")
+// TestParser_UpdateSource covers UPDATE's source, a tableBaseReference
+// (updateClause, PartiQLParser.g4:223-224): any exprSelect, with a bare
+// alias or AS/AT/BY aliases, as in a FROM clause.
+func TestParser_UpdateSource(t *testing.T) {
+	cases := []struct {
+		input string
+		want  string
+	}{
+		{"UPDATE (t) SET a = 1", "UpdateStmt{Source:VarRef{Name:t} Sets:[SetAssignment{Target:PathExpr{Root:VarRef{Name:a} Steps:[]} Value:NumberLit{Val:1}}]}"},
+		{"UPDATE a.b SET c = 1", "UpdateStmt{Source:PathExpr{Root:VarRef{Name:a} Steps:[DotStep{Field:b}]} Sets:[SetAssignment{Target:PathExpr{Root:VarRef{Name:c} Steps:[]} Value:NumberLit{Val:1}}]}"},
+		{"UPDATE t x REMOVE x.a", "UpdateStmt{Source:AliasedSource{Source:VarRef{Name:t} As:x} Sets:[] Commands:[RemoveStmt{Path:PathExpr{Root:VarRef{Name:x} Steps:[DotStep{Field:a}]}}]}"},
+	}
+	for _, tc := range cases {
+		stmt, err := NewParser(tc.input).ParseStatement()
+		if err != nil {
+			t.Errorf("ParseStatement(%q): %v", tc.input, err)
+			continue
+		}
+		if got := ast.NodeToString(stmt); got != tc.want {
+			t.Errorf("ParseStatement(%q)\ngot:  %s\nwant: %s", tc.input, got, tc.want)
+		}
+	}
+	// A bare alias takes no AT or BY after it (TableBaseRefSymbol).
+	if _, err := NewParser("UPDATE t x AT y SET a = 1").ParseStatement(); err == nil {
+		t.Error("UPDATE t x AT y SET a = 1: want an error")
+	}
+}
+
+// TestParser_SetStatement covers a SET command standing as a statement,
+// dml#DmlBase (PartiQLParser.g4:125-131), which the reference parser takes
+// as an update with no target (visitSetCommand).
+func TestParser_SetStatement(t *testing.T) {
+	const input = "SET a = 1, b.c = 2"
+	list, err := Parse(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stmt, ok := list.Items[0].(*ast.SetStmt)
+	if !ok {
+		t.Fatalf("Parse(%q) = %T, want *ast.SetStmt", input, list.Items[0])
+	}
+	want := "SetStmt{Sets:[SetAssignment{Target:PathExpr{Root:VarRef{Name:a} Steps:[]} Value:NumberLit{Val:1}} SetAssignment{Target:PathExpr{Root:VarRef{Name:b} Steps:[DotStep{Field:c}]} Value:NumberLit{Val:2}}]}"
+	if got := ast.NodeToString(stmt); got != want {
+		t.Errorf("got:  %s\nwant: %s", got, want)
+	}
+	if stmt.Loc != (ast.Loc{Start: 0, End: len(input)}) {
+		t.Errorf("Loc = %+v, want 0..%d", stmt.Loc, len(input))
+	}
+	for _, bad := range []string{"SET", "SET a", "SET a = 1,", "SET a = 1 WHERE b"} {
+		if _, err := Parse(bad); err == nil {
+			t.Errorf("Parse(%q): want an error", bad)
+		}
 	}
 }
 

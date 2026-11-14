@@ -132,9 +132,9 @@ func TestDateTimeLiteral_Reject(t *testing.T) {
 		{"time_precision_unclosed", "TIME (3 '12:00:00'", "expected"},
 		// WITH must be followed by TIME ZONE.
 		{"time_with_no_zone", "TIME WITH TIME '12:00:00'", "expected ZONE"},
-		// TIMESTAMP literal form is NOT part of PartiQL (oracle-confirmed:
-		// canonical grammar + AWS DynamoDB). It must be rejected.
-		{"timestamp_literal", "TIMESTAMP '2026-01-01 00:00:00'", "TIMESTAMP literal"},
+		// TIMESTAMP with no string body.
+		{"timestamp_no_string", "TIMESTAMP", "expected string literal"},
+		{"timestamp_precision_non_int", "TIMESTAMP ('x') '2026-01-01 00:00:00'", "expected integer"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -303,6 +303,66 @@ func TestDateTimeLiteral_InvalidBody(t *testing.T) {
 		_, err := NewParser(input).ParseExpr()
 		if want := input != "TIME(9) '12:00'"; (err == nil) != want {
 			t.Errorf("ParseExpr(%q) error = %v, want ok = %v", input, err, want)
+		}
+	}
+}
+
+// TestDateTimeLiteral_Timestamp covers the TIMESTAMP literal
+// (literal#LiteralTimestamp, PartiQLParser.g4:786), with the string checks
+// of the reference parser's visitor (PartiQLParserDefault.kt:2033-2042,
+// util/DateTimeUtils.kt:58-66): a date, a space or T, and a time.
+func TestDateTimeLiteral_Timestamp(t *testing.T) {
+	three := 3
+	cases := []struct {
+		input     string
+		precision *int
+		withZone  bool
+	}{
+		{"TIMESTAMP '2026-01-01 00:00:00'", nil, false},
+		{"TIMESTAMP '2026-01-01T12:30:59.123'", nil, false},
+		{"TIMESTAMP '2024-02-29 23:59:59Z'", nil, false},
+		{"TIMESTAMP '2026-01-01  12:00:00 -08:00'", nil, false},
+		{"TIMESTAMP (3) '2026-01-01 12:00:00'", &three, false},
+		{"TIMESTAMP WITH TIME ZONE '2026-01-01 12:00:00+05:30'", nil, true},
+		{"TIMESTAMP(3) WITH TIME ZONE '2026-01-01t12:00:00.5'", &three, true},
+	}
+	for _, tc := range cases {
+		expr, err := NewParser(tc.input).ParseExpr()
+		if err != nil {
+			t.Errorf("ParseExpr(%q): %v", tc.input, err)
+			continue
+		}
+		lit, ok := expr.(*ast.TimestampLit)
+		if !ok {
+			t.Errorf("ParseExpr(%q) = %T, want *ast.TimestampLit", tc.input, expr)
+			continue
+		}
+		if (lit.Precision == nil) != (tc.precision == nil) || lit.Precision != nil && *lit.Precision != *tc.precision {
+			t.Errorf("ParseExpr(%q).Precision = %v, want %v", tc.input, lit.Precision, tc.precision)
+		}
+		if lit.WithTimeZone != tc.withZone {
+			t.Errorf("ParseExpr(%q).WithTimeZone = %v, want %v", tc.input, lit.WithTimeZone, tc.withZone)
+		}
+		if lit.Loc != (ast.Loc{Start: 0, End: len(tc.input)}) {
+			t.Errorf("ParseExpr(%q).Loc = %+v, want 0..%d", tc.input, lit.Loc, len(tc.input))
+		}
+	}
+	for _, input := range []string{
+		"TIMESTAMP ''",
+		"TIMESTAMP 's'",
+		"TIMESTAMP '2026-01-01'",          // no time
+		"TIMESTAMP '12:00:00'",            // no date
+		"TIMESTAMP '2026-01-0112:00:00'",  // no delimiter
+		"TIMESTAMP '2023-02-29 12:00:00'", // no such day
+		"TIMESTAMP '2026-13-01 12:00:00'",
+		"TIMESTAMP '2026-01-01 24:00:00'",
+		"TIMESTAMP '2026-01-01 12:00:00+24:00'",
+		"TIMESTAMP(10) '2026-01-01 12:00:00'",
+		"TIMESTAMP(1) '2026-01-01'",
+		"TIMESTAMP '26-01-01 12:00:00'",
+	} {
+		if _, err := NewParser(input).ParseExpr(); err == nil {
+			t.Errorf("ParseExpr(%q) = nil error, want one", input)
 		}
 	}
 }

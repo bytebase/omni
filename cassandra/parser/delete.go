@@ -89,7 +89,8 @@ func (p *Parser) parseDeleteColumnList() ([]ast.ExprNode, error) {
 	return cols, nil
 }
 
-// parseDeleteColumnItem parses: IDENT | IDENT '.' IDENT | IDENT '[' expression ']'
+// parseDeleteColumnItem parses a deleteOp (Parser.g:606): cident,
+// cident '[' term ']', or cident '.' fident.
 func (p *Parser) parseDeleteColumnItem() (ast.ExprNode, error) {
 	start := p.curLoc()
 
@@ -113,7 +114,7 @@ func (p *Parser) parseDeleteColumnItem() (ast.ExprNode, error) {
 
 	if p.cur.Type == tokLBRACK {
 		p.advance() // [
-		idx, err := p.parseExpression()
+		idx, err := p.parseTerm()
 		if err != nil {
 			return nil, err
 		}

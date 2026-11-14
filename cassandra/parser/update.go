@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	"github.com/bytebase/omni/cassandra/ast"
 )
 
@@ -64,136 +66,248 @@ func (p *Parser) parseUpdate() (*ast.UpdateStmt, error) {
 	return stmt, nil
 }
 
-// parseAssignments parses: assignmentElement (',' assignmentElement)*
+// parseAssignments parses columnOperation (',' columnOperation)*
+// (Parser.g:552). Setting a column twice in ways that do not combine is
+// refused as Parser.g:144 addRawUpdate refuses it: a column set with = may
+// not be updated again, nor a field set twice.
 func (p *Parser) parseAssignments() ([]*ast.AssignmentElement, error) {
 	var assignments []*ast.AssignmentElement
-	first, err := p.parseAssignmentElement()
-	if err != nil {
-		return nil, err
-	}
-	assignments = append(assignments, first)
-	for p.match(tokCOMMA) {
+	seen := map[string]*columnUpdates{}
+	for {
+		startTok := p.cur
 		elem, err := p.parseAssignmentElement()
 		if err != nil {
 			return nil, err
 		}
+		u := rawUpdateOf(elem)
+		prev := seen[u.column]
+		if prev == nil {
+			prev = &columnUpdates{fields: map[string]bool{}}
+			seen[u.column] = prev
+		}
+		if !prev.admits(u) {
+			return nil, p.errorAt(startTok, "multiple incompatible setting of column %s", u.column)
+		}
+		prev.add(u)
 		assignments = append(assignments, elem)
+		if !p.match(tokCOMMA) {
+			return assignments, nil
+		}
 	}
-	return assignments, nil
 }
 
-// parseAssignmentElement parses a single assignment in the SET clause.
+// rawUpdate is the kind of update an assignment makes to a column, as
+// src/java/org/apache/cassandra/cql3/Operation.java tells them apart.
+type rawUpdate struct {
+	column string
+	kind   int    // updateSetValue, updateSetElement, updateSetField, updateOther
+	field  string // for updateSetField
+}
+
+const (
+	updateSetValue = iota
+	updateSetElement
+	updateSetField
+	updateOther // addition, subtraction, prepend
+)
+
+func rawUpdateOf(a *ast.AssignmentElement) rawUpdate {
+	switch t := a.Target.(type) {
+	case *ast.IndexAccess:
+		return rawUpdate{column: columnKey(t.Collection.(*ast.Identifier)), kind: updateSetElement}
+	case *ast.DotAccess:
+		return rawUpdate{column: columnKey(t.Object.(*ast.Identifier)), kind: updateSetField, field: columnKey(t.Field)}
+	}
+	kind := updateOther
+	if a.Operator == "=" {
+		kind = updateSetValue
+	}
+	return rawUpdate{column: columnKey(a.Target.(*ast.Identifier)), kind: kind}
+}
+
+// columnUpdates sums up the updates made so far to one column, so that a
+// later one is checked against all of them at once.
+type columnUpdates struct {
+	any      bool            // some update was made
+	setValue bool            // one of them set the whole column
+	fields   map[string]bool // the fields set
+}
+
+// admits reports whether o is compatible with every earlier update of the
+// column, as Operation.java's isCompatibleWith decides for each pair: a
+// column set whole takes no other update, and a field is set at most once.
+func (c *columnUpdates) admits(o rawUpdate) bool {
+	switch {
+	case c.setValue:
+		return false
+	case o.kind == updateSetValue:
+		return !c.any
+	case o.kind == updateSetField:
+		return !c.fields[o.field]
+	}
+	return true
+}
+
+func (c *columnUpdates) add(o rawUpdate) {
+	c.any = true
+	switch o.kind {
+	case updateSetValue:
+		c.setValue = true
+	case updateSetField:
+		c.fields[o.field] = true
+	}
+}
+
+// columnKey is the name Cassandra knows a column by: an unquoted name in
+// lower case, a quoted one as written.
+func columnKey(id *ast.Identifier) string {
+	if id.Quoted {
+		return id.Name
+	}
+	return strings.ToLower(id.Name)
+}
+
+// parseAssignmentElement parses a columnOperation (Parser.g:1668):
 //
-// Forms:
+//	cident '=' term                     set the column
+//	cident '=' term '+' cident          prepend: X = <value> + X
+//	cident '=' cident ('+' | '-') term  X = X + <value>, X = X - <value>
+//	cident '=' cident INTEGER           X = X 3, as Cassandra lexes X = X -3
+//	cident ('+=' | '-=') term
+//	cident '[' term ']' '=' term
+//	cident '.' fident '=' term
 //
-//	IDENT '=' expression
-//	IDENT '=' IDENT ('+' | '-') expression
-//	IDENT '=' expression ('+' | '-') IDENT
-//	IDENT '[' expression ']' '=' expression
+// The column on both sides must be the same one (Parser.g:1675-1700).
 func (p *Parser) parseAssignmentElement() (*ast.AssignmentElement, error) {
 	start := p.curLoc()
 
+	if !isNameToken(p.cur) {
+		return nil, p.errorf("expected column name, got %s", p.tokenDesc())
+	}
 	target, err := p.parseIdentifier()
 	if err != nil {
 		return nil, err
 	}
 
-	// Check for field access (col.field) or index access (col[idx])
-	var assignTarget ast.ExprNode = target
-	if p.cur.Type == tokDOT {
+	elem := &ast.AssignmentElement{Target: target, Operator: "="}
+	switch p.cur.Type {
+	case tokPLUSEQ, tokMINUSEQ:
+		elem.Operator = p.cur.Str[:1]
 		p.advance()
-		field, err := p.parseIdentifier()
-		if err != nil {
+		if elem.Value, err = p.parseTerm(); err != nil {
 			return nil, err
 		}
-		assignTarget = &ast.DotAccess{
-			Object: target,
-			Field:  field,
-			Loc:    p.makeLoc(start),
-		}
-	} else if p.cur.Type == tokLBRACK {
-		p.advance() // [
-		idx, err := p.parseExpression()
+		elem.Loc = p.makeLoc(start)
+		return elem, nil
+
+	case tokLBRACK:
+		p.advance()
+		idx, err := p.parseTerm()
 		if err != nil {
 			return nil, err
 		}
 		if _, err := p.expect(tokRBRACK); err != nil {
 			return nil, err
 		}
-		assignTarget = &ast.IndexAccess{
-			Collection: target,
-			Index:      idx,
-			Loc:        p.makeLoc(start),
+		elem.Target = &ast.IndexAccess{Collection: target, Index: idx, Loc: p.makeLoc(start)}
+
+	case tokDOT:
+		p.advance()
+		if !isNameToken(p.cur) {
+			return nil, p.errorf("expected field name, got %s", p.tokenDesc())
 		}
+		field, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		elem.Target = &ast.DotAccess{Object: target, Field: field, Loc: p.makeLoc(start)}
 	}
 
 	if _, err := p.expect(tokEQ); err != nil {
 		return nil, err
 	}
 
-	// Parse the right-hand side. We need to detect patterns like:
-	//   IDENT (+|-) expression   => counter/collection increment
-	//   expression (+|-) IDENT   => collection prepend
-	//   plain expression         => simple assignment
-	rhs, err := p.parseExpression()
-	if err != nil {
-		return nil, err
+	if elem.Target != ast.ExprNode(target) {
+		// col[key] = term, col.field = term (Parser.g:1714, 1721).
+		if elem.Value, err = p.parseTerm(); err != nil {
+			return nil, err
+		}
+		elem.Loc = p.makeLoc(start)
+		return elem, nil
 	}
 
-	// Check for arithmetic operator after the first RHS expression.
-	if p.cur.Type == tokPLUS || p.cur.Type == tokMINUS {
-		op := p.cur.Str
+	// A name not followed by '(' or '.' is no term: it is the column again.
+	if isNameToken(p.cur) {
+		if next := p.peekNext(); next.Type != tokLPAREN && next.Type != tokDOT {
+			colTok := p.cur
+			col, err := p.parseIdentifier()
+			if err != nil {
+				return nil, err
+			}
+			switch {
+			case isSignedConstant(p.cur, p.peekNext()):
+				// X = X -3 is [X, '=', X, INTEGER] to Cassandra's lexer
+				// (Parser.g:1694, Lexer.g:337): an addition of the
+				// integer -3, which no operator may follow.
+				if p.peekNext().Type != tokINTEGER {
+					return nil, p.errorf("expected '+' or '-' after column %s, got %s", col.Name, p.tokenDesc())
+				}
+				elem.Operator = "+"
+				minus := p.curLoc()
+				p.advance() // -
+				lit, err := p.parseConstant()
+				if err != nil {
+					return nil, err
+				}
+				elem.Value = negate(lit, minus, p.prevEnd())
+			case p.cur.Type == tokPLUS, p.cur.Type == tokMINUS:
+				elem.Operator = p.cur.Str
+				p.advance()
+				if elem.Value, err = p.parseTerm(); err != nil {
+					return nil, err
+				}
+			case p.cur.Type == tokINTEGER:
+				elem.Operator = "+"
+				if elem.Value, err = p.parseConstant(); err != nil {
+					return nil, err
+				}
+			default:
+				return nil, p.errorf("expected '+' or '-' after column %s, got %s", col.Name, p.tokenDesc())
+			}
+			if columnKey(col) != columnKey(target) {
+				return nil, p.errorAt(colTok, "only expressions of the form X = X %s <value> are supported", elem.Operator)
+			}
+			elem.Loc = p.makeLoc(start)
+			return elem, nil
+		}
+	}
+
+	if elem.Value, err = p.parseTerm(); err != nil {
+		return nil, err
+	}
+	if p.cur.Type == tokPLUS {
+		// X = <value> + X: parseTerm stopped before this '+', as no term
+		// follows it.
 		p.advance()
-		right, err := p.parseExpression()
+		colTok := p.cur
+		if !isNameToken(p.cur) {
+			return nil, p.errorf("expected column name, got %s", p.tokenDesc())
+		}
+		col, err := p.parseIdentifier()
 		if err != nil {
 			return nil, err
 		}
-
-		// Determine if this is col = col + val or col = val + col.
-		// If lhs is an identifier matching the target, it's col = col + val (operator is += or -=).
-		// If rhs is an identifier matching the target, it's col = val + col (also += but collection prepend).
-		// In either case, we represent it using the Operator field and the non-target side as Value.
-		if ident, ok := rhs.(*ast.Identifier); ok && matchesTarget(ident, target) {
-			// col = col + val  =>  Operator: "+"
-			return &ast.AssignmentElement{
-				Target:   assignTarget,
-				Value:    right,
-				Operator: op,
-				Loc:      p.makeLoc(start),
-			}, nil
+		if columnKey(col) != columnKey(target) {
+			return nil, p.errorAt(colTok, "only expressions of the form X = <value> + X are supported")
 		}
-		if ident, ok := right.(*ast.Identifier); ok && matchesTarget(ident, target) {
-			// col = val + col  =>  Operator: "+"
-			return &ast.AssignmentElement{
-				Target:   assignTarget,
-				Value:    rhs,
-				Operator: op,
-				Loc:      p.makeLoc(start),
-			}, nil
-		}
-		// General arithmetic expression; wrap as binary expression value with simple "=".
-		return &ast.AssignmentElement{
-			Target:   assignTarget,
-			Value:    &ast.BinaryExpr{Left: rhs, Op: op, Right: right, Loc: p.makeLoc(rhs.GetLoc().Start)},
-			Operator: "=",
-			Loc:      p.makeLoc(start),
-		}, nil
+		elem.Operator = "+"
 	}
-
-	return &ast.AssignmentElement{
-		Target:   assignTarget,
-		Value:    rhs,
-		Operator: "=",
-		Loc:      p.makeLoc(start),
-	}, nil
+	elem.Loc = p.makeLoc(start)
+	return elem, nil
 }
 
-// matchesTarget checks if an identifier matches the assignment target name.
-func matchesTarget(ident *ast.Identifier, target *ast.Identifier) bool {
-	return ident.Name == target.Name && ident.Quoted == target.Quoted
-}
-
-// parseIfConditions parses IF col op val [AND col op val ...].
+// parseIfConditions parses IF columnCondition (AND columnCondition)*
+// (Parser.g:566).
 func (p *Parser) parseIfConditions() ([]*ast.IfCondition, error) {
 	if err := p.expectKeyword(tokIF); err != nil {
 		return nil, err
@@ -213,76 +327,71 @@ func (p *Parser) parseIfConditions() ([]*ast.IfCondition, error) {
 	return conditions, nil
 }
 
-// parseIfCondition parses a single LWT condition:
+// parseIfCondition parses a columnCondition (Parser.g:1728):
 //
-//	col op value | col IN (values) | col CONTAINS [KEY] value
+//	cident relationType term
+//	cident CONTAINS KEY? term
+//	cident IN (singleColumnInValues | inMarker)
+//	cident '[' term ']' (relationType term | IN ...)
+//	cident '.' fident (relationType term | IN ...)
 func (p *Parser) parseIfCondition() (*ast.IfCondition, error) {
 	start := p.curLoc()
 
+	if !isNameToken(p.cur) {
+		return nil, p.errorf("expected column name in IF condition, got %s", p.tokenDesc())
+	}
 	col, err := p.parseIdentifier()
 	if err != nil {
 		return nil, err
 	}
+	cond := &ast.IfCondition{Column: col}
 
-	// IN condition
-	if p.cur.Type == tokIN {
+	switch p.cur.Type {
+	case tokCONTAINS:
 		p.advance()
-		if _, err := p.expect(tokLPAREN); err != nil {
+		cond.Op = "CONTAINS"
+		if p.match(tokKEY) {
+			cond.Op = "CONTAINS KEY"
+		}
+		if cond.Value, err = p.parseTerm(); err != nil {
 			return nil, err
 		}
-		var values []ast.ExprNode
-		if p.cur.Type != tokRPAREN {
-			values, err = p.parseExpressionList()
-			if err != nil {
-				return nil, err
-			}
-		}
-		if _, err := p.expect(tokRPAREN); err != nil {
+		cond.Loc = p.makeLoc(start)
+		return cond, nil
+	case tokLBRACK:
+		p.advance()
+		if cond.Element, err = p.parseTerm(); err != nil {
 			return nil, err
 		}
-		return &ast.IfCondition{
-			Column:   col,
-			Op:       "IN",
-			InValues: values,
-			Loc:      p.makeLoc(start),
-		}, nil
+		if _, err := p.expect(tokRBRACK); err != nil {
+			return nil, err
+		}
+	case tokDOT:
+		p.advance()
+		if !isNameToken(p.cur) {
+			return nil, p.errorf("expected field name, got %s", p.tokenDesc())
+		}
+		if cond.Field, err = p.parseIdentifier(); err != nil {
+			return nil, err
+		}
 	}
 
-	// CONTAINS [KEY] condition
-	if p.cur.Type == tokCONTAINS {
+	switch {
+	case p.cur.Type == tokIN:
 		p.advance()
-		op := "CONTAINS"
-		if p.cur.Type == tokKEY {
-			op = "CONTAINS KEY"
-			p.advance()
-		}
-		val, err := p.parseExpression()
-		if err != nil {
+		cond.Op = "IN"
+		if cond.InValues, cond.InMarker, err = p.parseInValues(); err != nil {
 			return nil, err
 		}
-		return &ast.IfCondition{
-			Column: col,
-			Op:     op,
-			Value:  val,
-			Loc:    p.makeLoc(start),
-		}, nil
-	}
-
-	// Comparison operator
-	op := p.cur.Str
-	if !p.match(tokEQ, tokLT, tokGT, tokLTE, tokGTE, tokNE) {
+	case isRelationType(p.cur.Type):
+		cond.Op = p.cur.Str
+		p.advance()
+		if cond.Value, err = p.parseTerm(); err != nil {
+			return nil, err
+		}
+	default:
 		return nil, p.errorf("expected comparison operator, IN, or CONTAINS in IF condition, got %s", p.tokenDesc())
 	}
-
-	val, err := p.parseExpression()
-	if err != nil {
-		return nil, err
-	}
-
-	return &ast.IfCondition{
-		Column: col,
-		Op:     op,
-		Value:  val,
-		Loc:    p.makeLoc(start),
-	}, nil
+	cond.Loc = p.makeLoc(start)
+	return cond, nil
 }

@@ -42,29 +42,34 @@ func TestParser_DDLNameStructureReject(t *testing.T) {
 		input     string
 		wantErrIn string
 	}{
-		// --- CREATE TABLE name contracts: symbolPrimitive is a SINGLE
-		//     IDENTIFIER / IDENTIFIER_QUOTED. A dotted/qualified name is not a
-		//     symbolPrimitive; the trailing `.b` cannot extend the statement,
-		//     so Script() (and ParseStatement, which asserts EOF) rejects. ---
+		// --- CREATE TABLE name contracts: a qualifiedName is symbols joined
+		//     by periods (PartiQLParser.g4:75), so a period must be followed
+		//     by a symbol, and a column declaration needs a name and a type
+		//     (g4:101-112). ---
 		{
-			// CREATE TABLE a.b — qualified name not allowed: `a` is the table
-			// name, then `.b` is unconsumed input after a complete statement.
-			name:      "create_table_qualified_dotted",
-			input:     "CREATE TABLE a.b",
-			wantErrIn: "unexpected token",
+			name:      "create_table_trailing_period",
+			input:     "CREATE TABLE a.",
+			wantErrIn: "expected identifier",
 		},
 		{
-			// CREATE TABLE a.b.c — three-part qualified name, same contract.
-			name:      "create_table_qualified_three_part",
-			input:     "CREATE TABLE a.b.c",
-			wantErrIn: "unexpected token",
+			name:      "create_table_empty_columns",
+			input:     "CREATE TABLE a()",
+			wantErrIn: "expected identifier",
 		},
 		{
-			// CREATE TABLE "a"."b" — even quoted identifiers cannot be dotted
-			// in a symbolPrimitive; the `.` after `"a"` is trailing garbage.
-			name:      "create_table_qualified_quoted",
-			input:     `CREATE TABLE "a"."b"`,
-			wantErrIn: "unexpected token",
+			name:      "create_table_column_no_type",
+			input:     "CREATE TABLE a(b)",
+			wantErrIn: "expected type",
+		},
+		{
+			name:      "create_table_not_without_null",
+			input:     "CREATE TABLE a(b INT NOT)",
+			wantErrIn: "expected NULL",
+		},
+		{
+			name:      "create_table_constraint_without_name",
+			input:     "CREATE TABLE a(b INT CONSTRAINT NULL)",
+			wantErrIn: "expected identifier",
 		},
 		{
 			// CREATE TABLE 'foo' — a string literal is not an IDENTIFIER /

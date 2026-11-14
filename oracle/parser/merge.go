@@ -187,11 +187,11 @@ func (p *Parser) parseMergeClause() (*nodes.MergeClause, error) {
 		p.advance()
 		var parseErr809 error
 		mc.Condition, parseErr809 = p.parseExpr()
-		if parseErr809 !=
-
-			// THEN
-			nil {
+		if parseErr809 != nil {
 			return nil, parseErr809
+		}
+		if mc.Condition == nil {
+			return nil, p.syntaxErrorAtCur()
 		}
 	}
 
@@ -200,9 +200,10 @@ func (p *Parser) parseMergeClause() (*nodes.MergeClause, error) {
 	}
 	p.advance()
 
-	// UPDATE SET ... | INSERT ... | DELETE
-	switch p.cur.Type {
-	case kwUPDATE:
+	// WHEN MATCHED THEN UPDATE | WHEN NOT MATCHED THEN INSERT: Oracle 23ai
+	// refuses the other pairings and a lone DELETE (ORA-02000).
+	switch {
+	case mc.Matched && p.cur.Type == kwUPDATE:
 		p.advance() // consume UPDATE
 		if p.cur.Type != kwSET {
 			return nil, p.syntaxErrorAtCur()
@@ -224,31 +225,35 @@ func (p *Parser) parseMergeClause() (*nodes.MergeClause, error) {
 			p.advance()
 			var parseErr811 error
 			mc.UpdateWhere, parseErr811 = p.parseExpr()
-			if parseErr811 !=
-
-				// [ DELETE WHERE condition ]
-				nil {
+			if parseErr811 != nil {
 				return nil, parseErr811
+			}
+			if mc.UpdateWhere == nil {
+				return nil, p.syntaxErrorAtCur()
 			}
 		}
 
+		// [ DELETE WHERE condition ] (ORA-00967 without WHERE)
 		if p.cur.Type == kwDELETE {
 			p.advance()
-			if p.cur.Type == kwWHERE {
-				p.advance()
+			if p.cur.Type != kwWHERE {
+				return nil, p.syntaxErrorAtCur()
 			}
+			p.advance()
 			var parseErr812 error
 			mc.DeleteWhere, parseErr812 = p.parseExpr()
 			if parseErr812 != nil {
 				return nil, parseErr812
-
-				// consume INSERT
+			}
+			if mc.DeleteWhere == nil {
+				return nil, p.syntaxErrorAtCur()
 			}
 		}
 
-	case kwINSERT:
+	case !mc.Matched && p.cur.Type == kwINSERT:
 		p.advance()
-		// Optional column list
+		// Optional column list, of at least one column (ORA-00947 at the
+		// ')' of INSERT ()).
 		if p.cur.Type == '(' {
 			p.advance()
 			var parseErr813 error
@@ -256,9 +261,10 @@ func (p *Parser) parseMergeClause() (*nodes.MergeClause, error) {
 			if parseErr813 != nil {
 				return nil, parseErr813
 			}
-			if p.cur.Type == ')' {
-				p.advance()
+			if p.cur.Type != ')' {
+				return nil, p.syntaxErrorAtCur()
 			}
+			p.advance()
 		}
 		// VALUES ( ... )
 		if p.cur.Type != kwVALUES {
@@ -289,14 +295,12 @@ func (p *Parser) parseMergeClause() (*nodes.MergeClause, error) {
 			mc.InsertWhere, parseErr815 = p.parseExpr()
 			if parseErr815 != nil {
 				return nil, parseErr815
-
-				// consume DELETE
+			}
+			if mc.InsertWhere == nil {
+				return nil, p.syntaxErrorAtCur()
 			}
 		}
 
-	case kwDELETE:
-		p.advance()
-		mc.IsDelete = true
 	default:
 		return nil, p.syntaxErrorAtCur()
 	}
@@ -368,12 +372,17 @@ func (p *Parser) parseMergeSetClause() (*nodes.SetClause, error) {
 	return sc, nil
 }
 
-// parseColumnList parses a comma-separated list of column references.
+// parseColumnList parses a comma-separated list of one or more column
+// references, failing where a column is missing: at the ')' of an empty
+// list or after a trailing ','.
 func (p *Parser) parseColumnList() (*nodes.List, error) {
 	list := &nodes.List{}
 	for {
 		if !p.isIdentLike() {
-			break
+			return nil, p.syntaxErrorAtCur()
+		}
+		if err := p.syntaxErrorIfReservedIdentifier(); err != nil {
+			return nil, err
 		}
 		col, parseErr819 := p.parseColumnRef()
 		if parseErr819 != nil {

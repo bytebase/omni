@@ -32,10 +32,16 @@ func TestP2CreateTableComplexOptions(t *testing.T) {
 			value: "MEMCOMPRESS FOR QUERY HIGH PRIORITY HIGH",
 		},
 		{
+			name:  "inmemory_column_clause",
+			sql:   "CREATE TABLE hot_t (a NUMBER) INMEMORY MEMCOMPRESS FOR QUERY LOW (a)",
+			key:   "INMEMORY",
+			value: "MEMCOMPRESS FOR QUERY LOW ( A )",
+		},
+		{
 			name:  "ilm_clause",
-			sql:   "CREATE TABLE lifecycle_t (id NUMBER) ILM ADD POLICY ROW STORE COMPRESS ADVANCED",
+			sql:   "CREATE TABLE lifecycle_t (id NUMBER) ILM ADD POLICY ROW STORE COMPRESS ADVANCED ROW AFTER 30 DAYS OF NO MODIFICATION",
 			key:   "ILM",
-			value: "ADD POLICY ROW STORE COMPRESS ADVANCED",
+			value: "ADD POLICY ROW STORE COMPRESS ADVANCED ROW AFTER 30 DAYS OF NO MODIFICATION",
 		},
 	}
 
@@ -759,7 +765,7 @@ func TestParseCreateTableColumnConstraintState(t *testing.T) {
 		b NUMBER NOT NULL ENABLE,
 		c NUMBER PRIMARY KEY USING INDEX LOCAL,
 		d NUMBER CONSTRAINT nn_d NOT NULL ENABLE NOVALIDATE,
-		e NUMBER NULL ENABLE
+		e NUMBER NULL
 	)`
 	result := ParseAndCheck(t, sql)
 	raw := result.Items[0].(*ast.RawStmt)
@@ -767,6 +773,9 @@ func TestParseCreateTableColumnConstraintState(t *testing.T) {
 	if ct.Columns.Len() != 5 {
 		t.Fatalf("expected 5 columns, got %d", ct.Columns.Len())
 	}
+	// A NULL constraint takes no constraint_state (ORA-03099 on Oracle
+	// 23ai at the ENABLE).
+	ParseShouldFail(t, "CREATE TABLE t (e NUMBER NULL ENABLE)")
 
 	colA := ct.Columns.Items[0].(*ast.ColumnDef)
 	ccA := colA.Constraints.Items[0].(*ast.ColumnConstraint)

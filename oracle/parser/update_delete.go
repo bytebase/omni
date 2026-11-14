@@ -130,12 +130,12 @@ func (p *Parser) parseUpdateStmt() (*nodes.UpdateStmt, error) {
 	if p.cur.Type == kwFROM {
 		p.advance()
 		var parseErr1133 error
-		stmt.FromClause, parseErr1133 = p.parseFromList()
-		if parseErr1133 !=
-
-			// WHERE
-			nil {
+		stmt.FromClause, parseErr1133 = p.parseFromClause()
+		if parseErr1133 != nil {
 			return nil, parseErr1133
+		}
+		if stmt.FromClause.Len() == 0 {
+			return nil, p.syntaxErrorAtCur()
 		}
 	}
 
@@ -175,26 +175,6 @@ func (p *Parser) parseUpdateStmt() (*nodes.UpdateStmt, error) {
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
-}
-
-// parseFromList parses a comma-separated list of table references for FROM clause.
-func (p *Parser) parseFromList() (*nodes.List, error) {
-	list := &nodes.List{}
-	for {
-		tr, parseErr1137 := p.parseTableRef()
-		if parseErr1137 != nil {
-			return nil, parseErr1137
-		}
-		if tr == nil {
-			break
-		}
-		list.Items = append(list.Items, tr)
-		if p.cur.Type != ',' {
-			break
-		}
-		p.advance()
-	}
-	return list, nil
 }
 
 // parseSetClauses parses comma-separated SET clauses.
@@ -260,6 +240,10 @@ func (p *Parser) parseSetClause() (*nodes.SetClause, error) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		p.advance()
+		if p.cur.Type == '(' && p.peekNext().Type == ')' {
+			p.advance()
+			return nil, p.syntaxErrorAtCur()
+		}
 		var parseErr1140 error
 		sc.Value, parseErr1140 = p.parseExpr()
 		if parseErr1140 != nil {
@@ -294,7 +278,12 @@ func (p *Parser) parseSetClause() (*nodes.SetClause, error) {
 	}
 	p.advance()
 
-	// DEFAULT keyword or expression
+	// DEFAULT keyword or expression, not an empty pair of parentheses
+	// (ORA-00936 at the ')').
+	if p.cur.Type == '(' && p.peekNext().Type == ')' {
+		p.advance()
+		return nil, p.syntaxErrorAtCur()
+	}
 	if p.cur.Type == kwDEFAULT {
 		sc.Value = &nodes.ColumnRef{
 			Column: "DEFAULT",
@@ -321,6 +310,11 @@ func (p *Parser) parseDMLTarget(mode dmlTargetMode) (nodes.TableExpr, error) {
 		return p.parseDMLSubqueryTarget(start)
 	}
 	if p.cur.Type == kwTABLE && p.peekNext().Type == '(' {
+		// The collection a DML statement changes is a subquery's
+		// (ORA-00903 at TABLE for TABLE(1) or TABLE(t.c)).
+		if !p.isDMLCollectionSubqueryAhead() {
+			return nil, p.syntaxErrorAtCur()
+		}
 		return p.parseTableCollectionExpr(start)
 	}
 	if !p.isIdentLike() {
@@ -335,13 +329,13 @@ func (p *Parser) parseDMLTarget(mode dmlTargetMode) (nodes.TableExpr, error) {
 	if target.Name == nil || target.Name.Name == "" {
 		return nil, p.syntaxErrorAtCur()
 	}
-	if mode == dmlTargetUpdate {
-		if parseErr1151 = p.parseDMLTargetAlias(target); parseErr1151 != nil {
-			return nil, parseErr1151
-		}
-	}
+	// Oracle 23ai takes the alias of either target after the partition
+	// extension and the database link: UPDATE t PARTITION (p) x SET parses,
+	// and UPDATE t x PARTITION (p) SET is ORA-00971 at PARTITION. UPDATE
+	// names its partition (ORA-00971 for PARTITION ()); DELETE parses an
+	// empty one.
 	if p.cur.Type == kwPARTITION || p.cur.Type == kwSUBPARTITION {
-		target.PartitionExt, parseErr1151 = p.parsePartitionExtClause()
+		target.PartitionExt, parseErr1151 = p.parsePartitionExtClause(mode == dmlTargetDelete)
 		if parseErr1151 != nil {
 			return nil, parseErr1151
 		}
@@ -356,13 +350,24 @@ func (p *Parser) parseDMLTarget(mode dmlTargetMode) (nodes.TableExpr, error) {
 			return nil, p.syntaxErrorAtCur()
 		}
 	}
-	if mode == dmlTargetDelete {
-		if parseErr1151 = p.parseDMLTargetAlias(target); parseErr1151 != nil {
-			return nil, parseErr1151
-		}
+	if parseErr1151 = p.parseDMLTargetAlias(target); parseErr1151 != nil {
+		return nil, parseErr1151
 	}
 	target.Loc.End = p.prev.End
 	return target, nil
+}
+
+// isDMLCollectionSubqueryAhead reports whether the TABLE at the current
+// token opens a subquery: TABLE ( SELECT, WITH, or a parenthesized query.
+func (p *Parser) isDMLCollectionSubqueryAhead() bool {
+	tok := p.peekAhead(2)[1]
+	switch tok.Type {
+	case kwSELECT, kwWITH:
+		return true
+	case '(':
+		return p.parenQueryAt(tok.Loc).leads
+	}
+	return false
 }
 
 func (p *Parser) parseDMLTargetAlias(target *nodes.TableRef) error {
@@ -469,17 +474,8 @@ func (p *Parser) parseDMLSubqueryRestriction() (*nodes.SubqueryRestrictionClause
 		}
 		p.advance()
 		restriction.CheckOption = true
-		if p.cur.Type == kwCONSTRAINT {
-			p.advance()
-			constraintName, err := p.parseObjectName()
-			if err != nil {
-				return nil, err
-			}
-			if constraintName == nil || constraintName.Name == "" {
-				return nil, p.syntaxErrorAtCur()
-			}
-			restriction.ConstraintName = constraintName
-		}
+		// The documented CONSTRAINT name is ORA-00907 at CONSTRAINT on
+		// Oracle 23ai, in a DML statement's subquery as in a query's.
 	default:
 		return nil, p.syntaxErrorAtCur()
 	}
