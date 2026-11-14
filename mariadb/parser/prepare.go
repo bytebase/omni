@@ -67,6 +67,7 @@ func (p *Parser) parseExecuteStmt() (*nodes.ExecuteStmt, error) {
 	// Optional USING
 	if p.cur.Type == kwUSING {
 		p.advance()
+		defer p.enterNoFields("EXECUTE", true)()
 		for {
 			// execute_params is a list of expr_or_ignore_or_default.
 			expr, ok := p.parseIgnoreValue()
