@@ -383,6 +383,49 @@ func TestLoadMetadataInstallsSyncedIndexKeyParts(t *testing.T) {
 	}
 }
 
+func TestLoadMetadataKeepsFunctionalKeyCharsetIntroducers(t *testing.T) {
+	// _binary makes CONCAT return a binary string, so CHAR_LENGTH counts bytes.
+	c, report := loadMySQLSnapshot(t, snapshotWithTables(&metadata.TableMetadata{
+		Name:    "t",
+		Columns: []*metadata.ColumnMetadata{{Name: "name", Type: "varchar(64)"}},
+		Indexes: []*metadata.IndexMetadata{
+			{Name: "idx_len", Type: "BTREE", Expressions: []string{"(char_length(concat(`name`,_binary\\'a\\')))"}, Visible: true},
+		},
+	}))
+	requireReport(t, report, nil, nil)
+	requireIncomplete(t, report, nil)
+	idx := requireTable(t, c, "t").Indexes[0]
+	if len(idx.Columns) != 1 || !strings.Contains(idx.Columns[0].Expr, "_binary") {
+		t.Errorf("idx_len key parts = %+v, want the _binary introducer kept", idx.Columns)
+	}
+}
+
+func TestLoadMetadataIntoRebasesSameDatabaseForeignKeys(t *testing.T) {
+	meta := snapshotWithTables(
+		&metadata.TableMetadata{Name: "parent", Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int"}},
+			Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Type: "BTREE", Primary: true, Unique: true, Expressions: []string{"id"}}}},
+		&metadata.TableMetadata{Name: "child", Columns: []*metadata.ColumnMetadata{{Name: "pid", Type: "int"}, {Name: "oid", Type: "int"}},
+			ForeignKeys: []*metadata.ForeignKeyMetadata{
+				{Name: "fk_same", Columns: []string{"pid"}, ReferencedSchema: snapshotDB, ReferencedTable: "parent", ReferencedColumns: []string{"id"}},
+				{Name: "fk_other", Columns: []string{"oid"}, ReferencedSchema: "elsewhere", ReferencedTable: "parent", ReferencedColumns: []string{"id"}},
+			}},
+	)
+	c := New()
+	if _, err := c.LoadMetadataInto(context.Background(), meta, "other"); err != nil {
+		t.Fatal(err)
+	}
+	refs := map[string]string{}
+	for _, con := range c.GetDatabase("other").Tables["child"].Constraints {
+		if con.Type == ConForeignKey {
+			refs[con.Name] = con.RefDatabase
+		}
+	}
+	// An unqualified reference is to the table's own database.
+	if refs["fk_same"] != "" || refs["fk_other"] != "elsewhere" {
+		t.Errorf("referenced databases = %v, want fk_same unqualified and fk_other in elsewhere", refs)
+	}
+}
+
 func TestLoadMetadataInstallsPartitioning(t *testing.T) {
 	c, report := loadMySQLSnapshot(t, snapshotWithTables(&metadata.TableMetadata{
 		Name:    "sales",

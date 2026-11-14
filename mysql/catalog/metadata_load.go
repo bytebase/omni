@@ -224,8 +224,8 @@ type metadataObject struct {
 	name string
 	// parent is a trigger's table.
 	parent string
-	// snapshotDatabase is the database a view's synced body qualifies its
-	// references with.
+	// snapshotDatabase is the database the snapshot's references qualify
+	// with: a view's body, and a table's foreign keys.
 	snapshotDatabase string
 
 	table     *metadata.TableMetadata
@@ -268,7 +268,7 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata) []*metadataOb
 			if t.GetName() == "" {
 				continue
 			}
-			out = append(out, &metadataObject{kind: metadataTable, name: t.GetName(), table: t})
+			out = append(out, &metadataObject{kind: metadataTable, name: t.GetName(), table: t, snapshotDatabase: meta.GetName()})
 			for _, trg := range t.GetTriggers() {
 				if trg.GetName() != "" {
 					out = append(out, &metadataObject{kind: metadataTrigger, name: trg.GetName(), parent: t.GetName(), trigger: trg})
@@ -307,7 +307,7 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata) []*metadataOb
 func (c *Catalog) installMetadataObject(o *metadataObject) error {
 	switch o.kind {
 	case metadataTable:
-		stmt, omitted, err := metadataTableStmt(o.table)
+		stmt, omitted, err := metadataTableStmt(o.table, o.snapshotDatabase)
 		if err != nil {
 			return err
 		}
@@ -377,7 +377,7 @@ func metadataDatabaseStmt(meta *metadata.DatabaseSchemaMetadata, name string) *n
 // generation, or CHECK expression, or a partitioning that does not parse is
 // left out instead, and an index key expression stays a column so the index
 // still installs; omitted is the first such error.
-func metadataTableStmt(t *metadata.TableMetadata) (stmt *nodes.CreateTableStmt, omitted error, err error) {
+func metadataTableStmt(t *metadata.TableMetadata, snapshotDatabase string) (stmt *nodes.CreateTableStmt, omitted error, err error) {
 	omit := func(e error) {
 		if omitted == nil {
 			omitted = e
@@ -408,7 +408,7 @@ func metadataTableStmt(t *metadata.TableMetadata) (stmt *nodes.CreateTableStmt, 
 		stmt.Constraints = append(stmt.Constraints, con)
 	}
 	for _, fk := range t.GetForeignKeys() {
-		stmt.Constraints = append(stmt.Constraints, metadataForeignKey(fk))
+		stmt.Constraints = append(stmt.Constraints, metadataForeignKey(fk, snapshotDatabase))
 	}
 	for _, check := range t.GetCheckConstraints() {
 		expr, err := parseExpr(check.GetExpression())
@@ -617,9 +617,10 @@ func indexKeyParts(idx *metadata.IndexMetadata, spatial bool) ([]string, []*node
 		}
 		if isExpressionKey(expr) {
 			// Sync reports the expression as information_schema stores it,
-			// with its quotes escaped. On a parse failure the key stays a
-			// column, so the index still installs.
-			if parsed, err := parseExpr(normalizeFunctionalIndexExpr(expr)); err == nil {
+			// with its quotes escaped. Charset introducers stay: they can
+			// change what the expression computes. On a parse failure the key
+			// stays a column, so the index still installs.
+			if parsed, err := parseExpr(unescapeFunctionalIndexQuotes(expr)); err == nil {
 				key.Expr = parsed
 			} else if firstErr == nil {
 				firstErr = err
@@ -644,12 +645,18 @@ func isExpressionKey(s string) bool {
 	return strings.Contains(s, "(")
 }
 
-func metadataForeignKey(fk *metadata.ForeignKeyMetadata) *nodes.Constraint {
+// metadataForeignKey leaves a reference to the snapshot's own database
+// unqualified, so it follows the snapshot into the database it installs into.
+func metadataForeignKey(fk *metadata.ForeignKeyMetadata, snapshotDatabase string) *nodes.Constraint {
+	refSchema := fk.GetReferencedSchema()
+	if refSchema == snapshotDatabase {
+		refSchema = ""
+	}
 	return &nodes.Constraint{
 		Type:       nodes.ConstrForeignKey,
 		Name:       fk.GetName(),
 		Columns:    fk.GetColumns(),
-		RefTable:   &nodes.TableRef{Schema: fk.GetReferencedSchema(), Name: fk.GetReferencedTable()},
+		RefTable:   &nodes.TableRef{Schema: refSchema, Name: fk.GetReferencedTable()},
 		RefColumns: fk.GetReferencedColumns(),
 		OnUpdate:   referenceAction(fk.GetOnUpdate()),
 		OnDelete:   referenceAction(fk.GetOnDelete()),
