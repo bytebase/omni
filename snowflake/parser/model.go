@@ -61,9 +61,9 @@ var (
 
 // modelMonitorCreateProps are the properties of CREATE MODEL MONITOR's WITH.
 var modelMonitorCreateProps = objectProps{
-	"MODEL":                    propName,
+	"MODEL":                    propQName,
 	"VERSION":                  propString,
-	"GATEWAY":                  propName,
+	"GATEWAY":                  propQName,
 	"FUNCTION":                 propString,
 	"SOURCE":                   propName,
 	"WAREHOUSE":                propName,
@@ -71,7 +71,7 @@ var modelMonitorCreateProps = objectProps{
 	"AGGREGATION_WINDOW":       propString,
 	"TIMESTAMP_COLUMN":         propName,
 	"BASELINE":                 propName,
-	"GROUND_TRUTH":             propName,
+	"GROUND_TRUTH":             propQName,
 	"ID_COLUMNS":               propStrings,
 	"PREDICTION_CLASS_COLUMNS": propStrings,
 	"PREDICTION_SCORE_COLUMNS": propStrings,
