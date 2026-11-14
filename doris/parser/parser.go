@@ -636,9 +636,14 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	// Set / Unset
 	case kwSET:
 		setTok := p.advance() // consume SET
-		// SET DEFAULT STORAGE VAULT name
-		if p.cur.Kind == kwDEFAULT && p.peekNext().Kind == kwSTORAGE {
+		// SET identifier AS DEFAULT STORAGE VAULT (DorisParser.g4:884)
+		if isIdentifierToken(p.cur.Kind) && p.peekNext().Kind == kwAS {
 			return p.parseSetDefaultStorageVault(setTok.Loc)
+		}
+		// SET PROPERTY [FOR user] 'k' = 'v', ... (DorisParser.g4:885)
+		// (PROPERTY is nonReserved: SET PROPERTY = 1 sets a variable.)
+		if p.cur.Kind == kwPROPERTY && p.peekNext().Kind != int('=') {
+			return p.parseSetProperty(setTok.Loc)
 		}
 		// SET PASSWORD = '...'
 		if p.cur.Kind == kwPASSWORD {
