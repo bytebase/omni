@@ -334,188 +334,6 @@ func (p *Parser) parseRelationElements() ([]ast.ExprNode, error) {
 	return relations, nil
 }
 
-// parseRelationElement parses a single WHERE condition.
-func (p *Parser) parseRelationElement() (ast.ExprNode, error) {
-	start := p.curLoc()
-
-	// Handle tuple comparison: (col1, col2, ...) op/IN (...)
-	if p.cur.Type == tokLPAREN {
-		return p.parseTupleRelation(start)
-	}
-
-	// Could be: identifier op constant, identifier IN (...), identifier CONTAINS [KEY] constant,
-	// or function op constant/function.
-	left, err := p.parseRelationLeft()
-	if err != nil {
-		return nil, err
-	}
-
-	switch p.cur.Type {
-	case tokEQ, tokLT, tokGT, tokLTE, tokGTE, tokNE:
-		op := p.cur.Str
-		p.advance()
-		right, err := p.parseRelationRight()
-		if err != nil {
-			return nil, err
-		}
-		return &ast.BinaryExpr{Left: left, Op: op, Right: right, Loc: p.makeLoc(start)}, nil
-
-	case tokIN:
-		p.advance()
-		if _, err := p.expect(tokLPAREN); err != nil {
-			return nil, err
-		}
-		var values []ast.ExprNode
-		if p.cur.Type != tokRPAREN {
-			values, err = p.parseExpressionList()
-			if err != nil {
-				return nil, err
-			}
-		}
-		if _, err := p.expect(tokRPAREN); err != nil {
-			return nil, err
-		}
-		return &ast.InExpr{Column: left, Values: values, Loc: p.makeLoc(start)}, nil
-
-	case tokCONTAINS:
-		p.advance()
-		isKey := false
-		if p.cur.Type == tokKEY {
-			isKey = true
-			p.advance()
-		}
-		val, err := p.parseConstant()
-		if err != nil {
-			return nil, err
-		}
-		return &ast.ContainsExpr{Column: left, Value: val, IsKey: isKey, Loc: p.makeLoc(start)}, nil
-
-	default:
-		return nil, p.errorf("expected operator after expression in WHERE clause, got %s", p.tokenDesc())
-	}
-}
-
-func (p *Parser) parseRelationLeft() (ast.ExprNode, error) {
-	if isIdentLike(p.cur.Type) {
-		name, err := p.parseIdentifier()
-		if err != nil {
-			return nil, err
-		}
-		// Check for function call: name(...)
-		if p.cur.Type == tokLPAREN {
-			return p.parseFunctionCallWithName(name)
-		}
-		// Check for dotted name: name.field
-		if p.cur.Type == tokDOT {
-			start := name.Loc.Start
-			p.advance()
-			field, err := p.parseIdentifier()
-			if err != nil {
-				return nil, err
-			}
-			return &ast.DotAccess{Object: name, Field: field, Loc: p.makeLoc(start)}, nil
-		}
-		return name, nil
-	}
-	return nil, p.errorf("expected identifier or function call in relation, got %s", p.tokenDesc())
-}
-
-func (p *Parser) parseRelationRight() (ast.ExprNode, error) {
-	// Bind markers
-	if p.cur.Type == tokQMARK {
-		m := &ast.BindMarker{Loc: ast.Loc{Start: p.cur.Loc, End: p.cur.End}}
-		p.advance()
-		return m, nil
-	}
-	if p.cur.Type == tokCOLON {
-		start := p.curLoc()
-		p.advance()
-		name, err := p.parseIdentifier()
-		if err != nil {
-			return nil, err
-		}
-		return &ast.BindMarker{Name: name.Name, Loc: p.makeLoc(start)}, nil
-	}
-	// Could be a constant or a function call.
-	if isIdentLike(p.cur.Type) && p.peekNext().Type == tokLPAREN {
-		name, err := p.parseIdentifier()
-		if err != nil {
-			return nil, err
-		}
-		return p.parseFunctionCallWithName(name)
-	}
-	return p.parseConstant()
-}
-
-func (p *Parser) parseTupleRelation(start int) (ast.ExprNode, error) {
-	p.advance() // (
-	var cols []ast.ExprNode
-	for {
-		col, err := p.parseIdentifier()
-		if err != nil {
-			return nil, err
-		}
-		cols = append(cols, col)
-		if !p.match(tokCOMMA) {
-			break
-		}
-	}
-	if _, err := p.expect(tokRPAREN); err != nil {
-		return nil, err
-	}
-
-	if p.cur.Type == tokIN {
-		p.advance()
-		if _, err := p.expect(tokLPAREN); err != nil {
-			return nil, err
-		}
-		var tuples []*ast.TupleLit
-		for {
-			t, err := p.parseTupleLit()
-			if err != nil {
-				return nil, err
-			}
-			tuples = append(tuples, t)
-			if !p.match(tokCOMMA) {
-				break
-			}
-		}
-		if _, err := p.expect(tokRPAREN); err != nil {
-			return nil, err
-		}
-		return &ast.TupleInExpr{Columns: cols, Tuples: tuples, Loc: p.makeLoc(start)}, nil
-	}
-
-	// Tuple comparison: (col1, col2) op (val1, val2)
-	op := p.cur.Str
-	if !p.match(tokEQ, tokLT, tokGT, tokLTE, tokGTE, tokNE) {
-		return nil, p.errorf("expected operator or IN after tuple columns")
-	}
-	var values []ast.ExprNode
-	// Could be a single tuple or multiple tuples
-	t, err := p.parseTupleLit()
-	if err != nil {
-		return nil, err
-	}
-	values = t.Elements
-	return &ast.TupleCompareExpr{Columns: cols, Op: op, Values: values, Loc: p.makeLoc(start)}, nil
-}
-
-func (p *Parser) parseTupleLit() (*ast.TupleLit, error) {
-	start := p.curLoc()
-	if _, err := p.expect(tokLPAREN); err != nil {
-		return nil, err
-	}
-	elems, err := p.parseExpressionList()
-	if err != nil {
-		return nil, err
-	}
-	if _, err := p.expect(tokRPAREN); err != nil {
-		return nil, err
-	}
-	return &ast.TupleLit{Elements: elems, Loc: p.makeLoc(start)}, nil
-}
-
 // tokenName returns a human-readable name for a token type.
 func tokenName(typ int) string {
 	switch {
@@ -569,6 +387,14 @@ func tokenName(typ int) string {
 		return "'!='"
 	case typ == tokQMARK:
 		return "'?'"
+	case typ == tokRANGE:
+		return "'..'"
+	case typ == tokPLUSEQ:
+		return "'+='"
+	case typ == tokMINUSEQ:
+		return "'-='"
+	case typ == tokDURATIONLIT:
+		return "duration"
 	default:
 		// For keywords, reverse lookup
 		for name, t := range keywords {

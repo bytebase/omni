@@ -4,10 +4,11 @@ import (
 	"github.com/bytebase/omni/cassandra/ast"
 )
 
-// parseInsert parses an INSERT statement:
+// parseInsert parses an INSERT statement (Parser.g:485):
 //
-//	INSERT INTO [keyspace.]table [(columnList)] insertValuesSpec [IF NOT EXISTS] [USING TTL n [AND TIMESTAMP m]]
-//	insertValuesSpec: VALUES '(' expressionList ')' | JSON constant [DEFAULT UNSET]
+//	INSERT INTO [keyspace.]table insertValuesSpec [IF NOT EXISTS] [USING TTL n [AND TIMESTAMP m]]
+//	insertValuesSpec: '(' columnList ')' VALUES '(' term (',' term)* ')'
+//	                | JSON (string | bind marker) [DEFAULT (NULL | UNSET)]
 func (p *Parser) parseInsert() (*ast.InsertStmt, error) {
 	start := p.curLoc()
 	if err := p.expectKeyword(tokINSERT); err != nil {
@@ -24,9 +25,12 @@ func (p *Parser) parseInsert() (*ast.InsertStmt, error) {
 
 	stmt := &ast.InsertStmt{Table: table}
 
-	// Parse optional column list: '(' identifier (',' identifier)* ')'
-	if p.cur.Type == tokLPAREN {
-		p.advance() // (
+	// The column list, '(' cident (',' cident)* ')', comes with VALUES and
+	// only with VALUES (Parser.g:498).
+	if p.cur.Type != tokJSON {
+		if _, err := p.expect(tokLPAREN); err != nil {
+			return nil, err
+		}
 		for {
 			col, err := p.parseIdentifier()
 			if err != nil {
@@ -43,13 +47,13 @@ func (p *Parser) parseInsert() (*ast.InsertStmt, error) {
 	}
 
 	// Parse insert values spec: VALUES (...) or JSON constant
-	switch p.cur.Type {
-	case tokVALUES:
+	switch {
+	case p.cur.Type == tokVALUES && stmt.Columns != nil:
 		p.advance() // VALUES
 		if _, err := p.expect(tokLPAREN); err != nil {
 			return nil, err
 		}
-		values, err := p.parseExpressionList()
+		values, err := p.parseTermList()
 		if err != nil {
 			return nil, err
 		}
@@ -57,10 +61,19 @@ func (p *Parser) parseInsert() (*ast.InsertStmt, error) {
 		if _, err := p.expect(tokRPAREN); err != nil {
 			return nil, err
 		}
-	case tokJSON:
+	case p.cur.Type == tokJSON && stmt.Columns == nil:
 		p.advance() // JSON
 		stmt.IsJSON = true
-		jsonVal, err := p.parseConstant()
+		// jsonValue (Parser.g:523): a string or a bind marker.
+		var jsonVal ast.ExprNode
+		var err error
+		if p.cur.Type == tokSTRING {
+			jsonVal, err = p.parseConstant()
+		} else if p.cur.Type == tokQMARK || p.cur.Type == tokCOLON {
+			jsonVal, err = p.parseBindMarker()
+		} else {
+			err = p.errorf("expected string or bind marker after JSON, got %s", p.tokenDesc())
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -78,7 +91,7 @@ func (p *Parser) parseInsert() (*ast.InsertStmt, error) {
 			}
 		}
 	default:
-		return nil, p.errorf("expected VALUES or JSON, got %s", p.tokenDesc())
+		return nil, p.errorf("expected VALUES, got %s", p.tokenDesc())
 	}
 
 	// Optional IF NOT EXISTS

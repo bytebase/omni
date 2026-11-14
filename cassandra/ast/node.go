@@ -152,6 +152,16 @@ func (*CodeBlock) nodeTag()      {}
 func (n *CodeBlock) GetLoc() Loc { return n.Loc }
 func (*CodeBlock) exprNode()     {}
 
+// DurationLit is a duration constant such as 1h30m, or -1d after a minus.
+type DurationLit struct {
+	Val string
+	Loc Loc
+}
+
+func (*DurationLit) nodeTag()      {}
+func (n *DurationLit) GetLoc() Loc { return n.Loc }
+func (*DurationLit) exprNode()     {}
+
 // ---------------------------------------------------------------------------
 // Collection literals
 // ---------------------------------------------------------------------------
@@ -230,10 +240,11 @@ func (*BinaryExpr) nodeTag()      {}
 func (n *BinaryExpr) GetLoc() Loc { return n.Loc }
 func (*BinaryExpr) exprNode()     {}
 
-// InExpr represents col IN (val1, val2, ...).
+// InExpr represents col IN (val1, val2, ...), or col IN ? with Marker set.
 type InExpr struct {
 	Column ExprNode
 	Values []ExprNode
+	Marker *BindMarker // IN ? or IN :name; Values is then empty
 	Loc    Loc
 }
 
@@ -253,11 +264,13 @@ func (*ContainsExpr) nodeTag()      {}
 func (n *ContainsExpr) GetLoc() Loc { return n.Loc }
 func (*ContainsExpr) exprNode()     {}
 
-// TupleCompareExpr represents (col1, col2) op (val1, val2).
+// TupleCompareExpr represents (col1, col2) op (val1, val2), or
+// (col1, col2) op ? with Marker set.
 type TupleCompareExpr struct {
 	Columns []ExprNode
 	Op      string
 	Values  []ExprNode
+	Marker  *BindMarker // a marker for the whole tuple; Values is then empty
 	Loc     Loc
 }
 
@@ -265,10 +278,14 @@ func (*TupleCompareExpr) nodeTag()      {}
 func (n *TupleCompareExpr) GetLoc() Loc { return n.Loc }
 func (*TupleCompareExpr) exprNode()     {}
 
-// TupleInExpr represents (col1, col2) IN ((v1, v2), (v3, v4)).
+// TupleInExpr represents (col1, col2) IN ((v1, v2), (v3, v4)), or
+// (col1, col2) IN (?, ?) with Markers set, or (col1, col2) IN ? with Marker
+// set. (col1, col2) IN () sets none of them.
 type TupleInExpr struct {
 	Columns []ExprNode
 	Tuples  []*TupleLit
+	Marker  *BindMarker   // IN ? or IN :name
+	Markers []*BindMarker // IN (?, :name, ...): one marker per tuple
 	Loc     Loc
 }
 
@@ -286,6 +303,65 @@ type IndexAccess struct {
 func (*IndexAccess) nodeTag()      {}
 func (n *IndexAccess) GetLoc() Loc { return n.Loc }
 func (*IndexAccess) exprNode()     {}
+
+// SliceAccess represents a slice of a collection in a selector:
+// col[from..to], col[from..] or col[..to]. From or To is nil when omitted.
+type SliceAccess struct {
+	Collection ExprNode
+	From       ExprNode
+	To         ExprNode
+	Loc        Loc
+}
+
+func (*SliceAccess) nodeTag()      {}
+func (n *SliceAccess) GetLoc() Loc { return n.Loc }
+func (*SliceAccess) exprNode()     {}
+
+// UnaryExpr represents a negation, - expr, of something other than a number
+// literal: a minus before a number is folded into the literal.
+type UnaryExpr struct {
+	Op      string // "-"
+	Operand ExprNode
+	Loc     Loc
+}
+
+func (*UnaryExpr) nodeTag()      {}
+func (n *UnaryExpr) GetLoc() Loc { return n.Loc }
+func (*UnaryExpr) exprNode()     {}
+
+// TypeHintExpr represents (type) expr, which tells Cassandra the type of a
+// term or selector, as in (int) ? or (text) 'a'.
+type TypeHintExpr struct {
+	Type *DataType
+	Expr ExprNode
+	Loc  Loc
+}
+
+func (*TypeHintExpr) nodeTag()      {}
+func (n *TypeHintExpr) GetLoc() Loc { return n.Loc }
+func (*TypeHintExpr) exprNode()     {}
+
+// IsNotNullExpr represents the relation col IS NOT NULL.
+type IsNotNullExpr struct {
+	Column ExprNode
+	Loc    Loc
+}
+
+func (*IsNotNullExpr) nodeTag()      {}
+func (n *IsNotNullExpr) GetLoc() Loc { return n.Loc }
+func (*IsNotNullExpr) exprNode()     {}
+
+// CustomIndexExpr represents expr(index_name, term) in WHERE, a query on a
+// custom index.
+type CustomIndexExpr struct {
+	Index *Identifier
+	Value ExprNode
+	Loc   Loc
+}
+
+func (*CustomIndexExpr) nodeTag()      {}
+func (n *CustomIndexExpr) GetLoc() Loc { return n.Loc }
+func (*CustomIndexExpr) exprNode()     {}
 
 // DotAccess represents keyspace.table or similar dotted access in FROM.
 type DotAccess struct {
@@ -422,19 +498,23 @@ func (n *SelectElement) GetLoc() Loc { return n.Loc }
 type AssignmentElement struct {
 	Target   ExprNode
 	Value    ExprNode
-	Operator string // "=", "+=", "-=" (desugared from col = col + val)
+	Operator string // "=", or "+" / "-" for col = col + val, col = val + col, col += val and col -= val
 	Loc      Loc
 }
 
 func (*AssignmentElement) nodeTag()      {}
 func (n *AssignmentElement) GetLoc() Loc { return n.Loc }
 
-// IfCondition represents a LWT condition: col op value, col IN (...), col CONTAINS [KEY] value.
+// IfCondition represents a LWT condition: col op value, col IN (...), col CONTAINS [KEY] value,
+// on a column, an element of one (col[elem]) or a field of one (col.field).
 type IfCondition struct {
 	Column   *Identifier
 	Op       string // comparison operator, "IN", "CONTAINS", "CONTAINS KEY"
 	Value    ExprNode
-	InValues []ExprNode // for IN conditions
+	InValues []ExprNode  // for IN conditions
+	InMarker *BindMarker // for IN ? and IN :name
+	Element  ExprNode    // the element of col[elem] op value
+	Field    *Identifier // the field of col.field op value
 	Loc      Loc
 }
 
@@ -457,9 +537,11 @@ type OrderByElement struct {
 	Direction string // "ASC", "DESC", or ""
 	// ANN OF support
 	IsANN     bool
-	AnnVector ExprNode
-	AnnLimit  ExprNode
-	Loc       Loc
+	AnnVector ExprNode // the term after ANN OF; a list literal is a VectorLit
+	// AnnLimit is never set: a LIMIT after ANN OF is the statement's LIMIT
+	// (Parser.g:466).
+	AnnLimit ExprNode
+	Loc      Loc
 }
 
 func (*OrderByElement) nodeTag()      {}

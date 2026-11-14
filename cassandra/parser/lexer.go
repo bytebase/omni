@@ -186,6 +186,12 @@ func (l *Lexer) scanNumber(start int) Token {
 		l.pos = savedPos
 	}
 
+	// A duration: digits and a unit, repeated (Lexer.g DURATION), as 1d or
+	// 1h30m.
+	if durationUnitLen(l.input[l.pos:]) > 0 {
+		return l.scanDuration(start)
+	}
+
 	if l.pos < len(l.input) && l.input[l.pos] == '.' {
 		next := l.pos + 1
 		if next < len(l.input) && isDigit(l.input[next]) {
@@ -223,6 +229,48 @@ func (l *Lexer) scanNumber(start int) Token {
 		tok = tokFLOAT
 	}
 	return Token{Type: tok, Str: str, Loc: start, End: l.pos}
+}
+
+// scanDuration scans the rest of a duration whose first digits are behind
+// l.pos: a unit, then digits and a unit as many times as they follow.
+func (l *Lexer) scanDuration(start int) Token {
+	for {
+		l.pos += durationUnitLen(l.input[l.pos:])
+		end := l.pos
+		for end < len(l.input) && isDigit(l.input[end]) {
+			end++
+		}
+		if end == l.pos || durationUnitLen(l.input[end:]) == 0 {
+			break
+		}
+		l.pos = end
+	}
+	return Token{Type: tokDURATIONLIT, Str: l.input[start:l.pos], Loc: start, End: l.pos}
+}
+
+// durationUnitLen returns the length of the duration unit s starts with
+// (Lexer.g DURATION_UNIT: y, mo, w, d, h, m, s, ms, us, µs, ns, in any
+// case), or 0.
+func durationUnitLen(s string) int {
+	if strings.HasPrefix(s, "\u00b5") {
+		if len(s) > 2 && (s[2] == 's' || s[2] == 'S') {
+			return 3
+		}
+		return 0
+	}
+	if len(s) >= 2 {
+		switch strings.ToLower(s[:2]) {
+		case "mo", "ms", "us", "ns":
+			return 2
+		}
+	}
+	if len(s) >= 1 {
+		switch s[0] {
+		case 'y', 'Y', 'w', 'W', 'd', 'D', 'h', 'H', 'm', 'M', 's', 'S':
+			return 1
+		}
+	}
+	return 0
 }
 
 func (l *Lexer) scanIdentOrKeyword(start int) Token {
@@ -308,6 +356,10 @@ func (l *Lexer) scanOperator(start int) Token {
 	l.pos++
 	switch ch {
 	case '.':
+		if l.pos < len(l.input) && l.input[l.pos] == '.' {
+			l.pos++
+			return Token{Type: tokRANGE, Str: "..", Loc: start, End: l.pos}
+		}
 		return Token{Type: tokDOT, Str: ".", Loc: start, End: l.pos}
 	case ',':
 		return Token{Type: tokCOMMA, Str: ",", Loc: start, End: l.pos}
@@ -330,9 +382,21 @@ func (l *Lexer) scanOperator(start int) Token {
 	case '*':
 		return Token{Type: tokSTAR, Str: "*", Loc: start, End: l.pos}
 	case '+':
+		if l.pos < len(l.input) && l.input[l.pos] == '=' {
+			l.pos++
+			return Token{Type: tokPLUSEQ, Str: "+=", Loc: start, End: l.pos}
+		}
 		return Token{Type: tokPLUS, Str: "+", Loc: start, End: l.pos}
 	case '-':
+		if l.pos < len(l.input) && l.input[l.pos] == '=' {
+			l.pos++
+			return Token{Type: tokMINUSEQ, Str: "-=", Loc: start, End: l.pos}
+		}
 		return Token{Type: tokMINUS, Str: "-", Loc: start, End: l.pos}
+	case '/':
+		return Token{Type: tokSLASH, Str: "/", Loc: start, End: l.pos}
+	case '%':
+		return Token{Type: tokPERCENT, Str: "%", Loc: start, End: l.pos}
 	case '!':
 		if l.pos < len(l.input) && l.input[l.pos] == '=' {
 			l.pos++

@@ -25,6 +25,7 @@ func walkChildren(v Visitor, node Node) {
 	case *UUIDLit:
 	case *HexLit:
 	case *CodeBlock:
+	case *DurationLit:
 	case *StarExpr:
 	case *CastExpr:
 		Walk(v, n.Expr)
@@ -70,6 +71,9 @@ func walkChildren(v Visitor, node Node) {
 		for _, val := range n.Values {
 			Walk(v, val)
 		}
+		if n.Marker != nil {
+			Walk(v, n.Marker)
+		}
 	case *ContainsExpr:
 		Walk(v, n.Column)
 		Walk(v, n.Value)
@@ -80,6 +84,9 @@ func walkChildren(v Visitor, node Node) {
 		for _, val := range n.Values {
 			Walk(v, val)
 		}
+		if n.Marker != nil {
+			Walk(v, n.Marker)
+		}
 	case *TupleInExpr:
 		for _, c := range n.Columns {
 			Walk(v, c)
@@ -87,9 +94,33 @@ func walkChildren(v Visitor, node Node) {
 		for _, t := range n.Tuples {
 			Walk(v, t)
 		}
+		if n.Marker != nil {
+			Walk(v, n.Marker)
+		}
+		for _, m := range n.Markers {
+			Walk(v, m)
+		}
 	case *IndexAccess:
 		Walk(v, n.Collection)
 		Walk(v, n.Index)
+	case *SliceAccess:
+		Walk(v, n.Collection)
+		if n.From != nil {
+			Walk(v, n.From)
+		}
+		if n.To != nil {
+			Walk(v, n.To)
+		}
+	case *UnaryExpr:
+		Walk(v, n.Operand)
+	case *TypeHintExpr:
+		Walk(v, n.Type)
+		Walk(v, n.Expr)
+	case *IsNotNullExpr:
+		Walk(v, n.Column)
+	case *CustomIndexExpr:
+		Walk(v, n.Index)
+		Walk(v, n.Value)
 	case *DotAccess:
 		Walk(v, n.Object)
 		Walk(v, n.Field)
@@ -137,11 +168,20 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Value)
 	case *IfCondition:
 		Walk(v, n.Column)
+		if n.Element != nil {
+			Walk(v, n.Element)
+		}
+		if n.Field != nil {
+			Walk(v, n.Field)
+		}
 		if n.Value != nil {
 			Walk(v, n.Value)
 		}
 		for _, val := range n.InValues {
 			Walk(v, val)
+		}
+		if n.InMarker != nil {
+			Walk(v, n.InMarker)
 		}
 	case *UsingClause:
 		if n.TTL != nil {
