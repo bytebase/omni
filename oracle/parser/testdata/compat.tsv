@@ -40299,7 +40299,7 @@ reject@22	reject@22	engine	grant_grant_roles_to_programs(,_grant_program_unit)*/
 reject@24	accept	engine	grant_grant_roles_to_programs(,_grant_program_unit)*/,_grant_program_unit_(,_grant_program_unit)*!drop-2	GRANT a TO FUNCTION a, a
 reject@31	reject@31	engine	grant_grant_roles_to_programs(,_grant_program_unit)*/,_grant_program_unit_(,_grant_program_unit)*!drop-3	GRANT a TO FUNCTION a, FUNCTION
 reject@34	reject@34	engine	grant_grant_roles_to_programs(,_grant_program_unit)*/,_grant_program_unit_(,_grant_program_unit)*!insert	GRANT a TO FUNCTION a, FUNCTION a zzz
-reject@34	accept	engine	grant_grant_roles_to_programs(,_grant_program_unit)*/,_grant_program_unit_(,_grant_program_unit)*!swap	GRANT a TO FUNCTION a, FUNCTIONS a
+reject@33	accept	engine	grant_grant_roles_to_programs(,_grant_program_unit)*/,_grant_program_unit_(,_grant_program_unit)*!swap	GRANT a TO FUNCTION a, FUNCTIONS a
 accept	accept	engine	grant_grant_roles_to_programs(WITH_(ADMIN|DELEGATE)_OPTION)?/%empty	GRANT a TO FUNCTION a
 reject@22	reject@22	engine	grant_grant_roles_to_programs(WITH_(ADMIN|DELEGATE)_OPTION)?/WITH_(ADMIN|DELEGATE)_OPTION	GRANT a TO FUNCTION a WITH ADMIN OPTION
 reject@22	reject@22	engine	grant_grant_roles_to_programs(WITH_(ADMIN|DELEGATE)_OPTION)?/WITH_(ADMIN|DELEGATE)_OPTION!drop-1	GRANT a TO FUNCTION a ADMIN OPTION

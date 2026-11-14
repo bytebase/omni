@@ -267,6 +267,11 @@ func TestParseGrantGrammar(t *testing.T) {
 		"NOAUDIT SELECT, UPDATE ON t WHENEVER NOT SUCCESSFUL",
 		"NOAUDIT TABLE, CREATE SESSION BY u, v CONTAINER = ALL",
 		"NOAUDIT CONTEXT",
+		`GRANT "app role" TO u`,
+		`REVOKE "app role" FROM u`,
+		// Oracle 23ai parses a REVOKE of columns and refuses it after the
+		// parse (ORA-01750).
+		"REVOKE UPDATE (a) ON t FROM u",
 	} {
 		ParseAndCheck(t, sql)
 	}
@@ -284,6 +289,8 @@ func TestParseGrantGrammar(t *testing.T) {
 		"NOAUDIT TABLE ON t",
 		"NOAUDIT SELECT ON t BY u",
 		"NOAUDIT TABLE BY ACCESS",
+		"GRANT r TO FUNCTION f, s garbage PROCEDURE p",
+		"REVOKE r FROM FUNCTION f, s garbage PROCEDURE p",
 	} {
 		ParseShouldFail(t, sql)
 	}

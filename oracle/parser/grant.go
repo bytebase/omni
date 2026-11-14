@@ -354,7 +354,9 @@ func (g *grantPrivileges) checkWithoutOn(p *Parser) error {
 		if item.hasCols {
 			return p.syntaxErrorAtTok(item.columns)
 		}
-		if strings.Contains(item.name, " ") && !auditSystemPrivileges.names[item.name] {
+		// A quoted role name may hold blanks; words that run on name a
+		// system privilege.
+		if item.start.Type != tokQIDENT && strings.Contains(item.name, " ") && !auditSystemPrivileges.names[item.name] {
 			return p.syntaxErrorAtTok(item.start)
 		}
 	}
@@ -535,9 +537,15 @@ func (p *Parser) parseGrantees(programs bool) (*nodes.List, error) {
 		if programs {
 			prefix := ""
 			if !isGrantProgramUnitKind(p.cur) {
+				if !p.isIdentLike() {
+					return nil, p.syntaxErrorAtCur()
+				}
 				schema, err := p.parseIdentifier()
 				if err != nil {
 					return nil, err
+				}
+				if p.cur.Type != '.' {
+					return nil, p.syntaxErrorAtCur()
 				}
 				p.advance() // consume '.'
 				prefix = schema + "."
