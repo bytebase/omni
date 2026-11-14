@@ -96,6 +96,10 @@ func (p *Parser) parseStatement() (ast.StmtNode, error) {
 		return p.parseRevoke()
 	case tokLIST:
 		return p.parseList()
+	case tokDESCRIBE, tokDESC:
+		return p.parseDescribe()
+	case tokADD:
+		return p.parseAddIdentity()
 	case tokAPPLY:
 		// APPLY BATCH is handled within parseBatch; standalone APPLY is an error
 		return nil, p.errorf("unexpected APPLY without matching BEGIN BATCH")
@@ -180,6 +184,26 @@ func (p *Parser) errorf(format string, args ...any) *ParseError {
 	}
 }
 
+// errorAt is errorf for an earlier token: a refusal the parser decides only
+// after reading past what it refuses, such as a column declared twice.
+func (p *Parser) errorAt(tok Token, format string, args ...any) *ParseError {
+	if pe, ok := p.lexer.Err.(*ParseError); ok {
+		return pe
+	}
+	line, col := offsetToLineCol(p.lexer.lineIdx, tok.Loc)
+	near := tok.Str
+	if near == "" && tok.Type != tokEOF {
+		near = p.extractNear(tok.Loc)
+	}
+	return &ParseError{
+		Message:  fmt.Sprintf(format, args...),
+		Position: tok.Loc, End: tok.End,
+		Line:   line,
+		Column: col,
+		Near:   near,
+	}
+}
+
 func (p *Parser) extractNear(offset int) string {
 	if offset >= len(p.source) {
 		return ""
@@ -224,6 +248,55 @@ func (p *Parser) parseIdentifier() (*ast.Identifier, error) {
 		return &ast.Identifier{Name: tok.Str, Loc: ast.Loc{Start: tok.Loc, End: tok.End}}, nil
 	default:
 		return nil, p.errorf("expected identifier, got %s", p.tokenDesc())
+	}
+}
+
+// isWord reports whether tok is the unquoted word w, read as an identifier
+// or as a keyword, in any case. CQL's unreserved keywords that omni's lexer
+// reads as identifiers (CLUSTER, MASKED, USERS, IDENTITY, ...) are matched by
+// their text, so they stay names everywhere else.
+func isWord(tok Token, w string) bool {
+	return (tok.Type == tokIDENT || isKeyword(tok.Type)) && strings.EqualFold(tok.Str, w)
+}
+
+// curIs reports whether the current token is the word w (see isWord).
+func (p *Parser) curIs(w string) bool { return isWord(p.cur, w) }
+
+// identKey is the name Cassandra compares an identifier by: an unquoted name
+// folds to lower case, a quoted one is kept as written (ColumnIdentifier).
+func identKey(id *ast.Identifier) string {
+	if id.Quoted {
+		return id.Name
+	}
+	return strings.ToLower(id.Name)
+}
+
+// parseRoleName parses roleName (Parser.g:1519): an identifier, a quoted
+// name, an unreserved keyword or a string literal. A string comes back as a
+// quoted Identifier, since Cassandra keeps its case.
+func (p *Parser) parseRoleName() (*ast.Identifier, error) {
+	if p.cur.Type == tokSTRING {
+		tok := p.cur
+		p.advance()
+		return &ast.Identifier{Name: tok.Str, Quoted: true, Loc: ast.Loc{Start: tok.Loc, End: tok.End}}, nil
+	}
+	return p.parseIdentifier()
+}
+
+// parseUsername parses username (Parser.g:1921) and identity (Parser.g:1927):
+// an identifier or a string literal. A quoted name is refused by the
+// grammar's own action, and no keyword is a user name.
+func (p *Parser) parseUsername(what string) (*ast.Identifier, error) {
+	tok := p.cur
+	switch tok.Type {
+	case tokIDENT:
+		p.advance()
+		return &ast.Identifier{Name: tok.Str, Loc: ast.Loc{Start: tok.Loc, End: tok.End}}, nil
+	case tokSTRING:
+		p.advance()
+		return &ast.Identifier{Name: tok.Str, Quoted: true, Loc: ast.Loc{Start: tok.Loc, End: tok.End}}, nil
+	default:
+		return nil, p.errorf("expected %s (identifier or string), got %s", what, p.tokenDesc())
 	}
 }
 
