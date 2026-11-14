@@ -127,16 +127,16 @@ reject@0	reject@0	engine	statement/alterInmemoryJoinGroup!swap	ALTERNATE INMEMOR
 accept	accept	engine	statement/alterJava	ALTER JAVA SOURCE a RESOLVE
 reject@0	reject@0	engine	statement/alterJava!drop-1	JAVA SOURCE a RESOLVE
 reject@6	reject@6	engine	statement/alterJava!drop-2	ALTER SOURCE a RESOLVE
-accept	reject@11	engine	statement/alterJava!drop-3	ALTER JAVA a RESOLVE
-accept	reject@25	engine	statement/alterJava!drop-4	ALTER JAVA SOURCE RESOLVE
-accept	reject@19	engine	statement/alterJava!drop-5	ALTER JAVA SOURCE a
-accept	reject@28	engine	statement/alterJava!insert	ALTER JAVA SOURCE a RESOLVE zzz
+reject@11	reject@11	engine	statement/alterJava!drop-3	ALTER JAVA a RESOLVE
+reject@25	reject@25	engine	statement/alterJava!drop-4	ALTER JAVA SOURCE RESOLVE
+reject@19	reject@19	engine	statement/alterJava!drop-5	ALTER JAVA SOURCE a
+reject@28	reject@28	engine	statement/alterJava!insert	ALTER JAVA SOURCE a RESOLVE zzz
 reject@0	reject@0	engine	statement/alterJava!swap	ALTERNATE JAVA SOURCE a RESOLVE
 accept	accept	engine	statement/alterLibrary	ALTER LIBRARY a COMPILE
 reject@0	reject@0	engine	statement/alterLibrary!drop-1	LIBRARY a COMPILE
-accept	reject@21	engine	statement/alterLibrary!drop-3	ALTER LIBRARY COMPILE
-accept	reject@15	engine	statement/alterLibrary!drop-4	ALTER LIBRARY a
-accept	reject@24	engine	statement/alterLibrary!insert	ALTER LIBRARY a COMPILE zzz
+reject@21	reject@21	engine	statement/alterLibrary!drop-3	ALTER LIBRARY COMPILE
+reject@15	reject@15	engine	statement/alterLibrary!drop-4	ALTER LIBRARY a
+reject@24	reject@24	engine	statement/alterLibrary!insert	ALTER LIBRARY a COMPILE zzz
 reject@0	reject@0	engine	statement/alterLibrary!swap	ALTERNATE LIBRARY a COMPILE
 accept	reject@43	engine	statement/alterLockdownProfile	ALTER LOCKDOWN PROFILE a DISABLE FEATURE =(a)
 reject@0	reject@0	engine	statement/alterLockdownProfile!drop-1	LOCKDOWN PROFILE a DISABLE FEATURE =(a)
@@ -531,18 +531,18 @@ accept	reject@31	engine	statement/createInmemoryJoinGroup!drop-9	CREATE INMEMORY
 reject@33	reject@29	engine	statement/createInmemoryJoinGroup!drop-10	CREATE INMEMORY JOIN GROUP a(a(a)
 reject@35	reject@35	engine	statement/createInmemoryJoinGroup!insert	CREATE INMEMORY JOIN GROUP a(a(a)) zzz
 reject@0	reject@0	engine	statement/createInmemoryJoinGroup!swap	CREATE_FILE_DEST INMEMORY JOIN GROUP a(a(a))
-reject@19	reject@25	engine	statement/createJava	CREATE JAVA SOURCE USING a
+reject@25	reject@25	engine	statement/createJava	CREATE JAVA SOURCE USING a
 reject@0	reject@0	engine	statement/createJava!drop-1	JAVA SOURCE USING a
 reject@7	reject@7	engine	statement/createJava!drop-2	CREATE SOURCE USING a
 reject@12	reject@12	engine	statement/createJava!drop-3	CREATE JAVA USING a
 reject@19	reject@19	engine	statement/createJava!drop-4	CREATE JAVA SOURCE a
-reject@19	reject	engine	statement/createJava!drop-5	CREATE JAVA SOURCE USING
-reject@19	reject@25	engine	statement/createJava!insert	CREATE JAVA SOURCE USING a zzz
+reject@24	reject	engine	statement/createJava!drop-5	CREATE JAVA SOURCE USING
+reject@25	reject@25	engine	statement/createJava!insert	CREATE JAVA SOURCE USING a zzz
 reject@0	reject@0	engine	statement/createJava!swap	CREATE_FILE_DEST JAVA SOURCE USING a
 accept	accept	engine	statement/createLibrary	CREATE LIBRARY a IS 's'
 reject@0	reject@0	engine	statement/createLibrary!drop-1	LIBRARY a IS 's'
 reject@7	reject@7	engine	statement/createLibrary!drop-2	CREATE a IS 's'
-accept	reject@15	engine	statement/createLibrary!drop-3	CREATE LIBRARY IS 's'
+reject@15	reject@15	engine	statement/createLibrary!drop-3	CREATE LIBRARY IS 's'
 accept	accept	engine	statement/createLibrary!drop-4	CREATE LIBRARY a 's'
 accept	accept	engine	statement/createLibrary!drop-5	CREATE LIBRARY a IS
 accept	accept	engine	statement/createLibrary!insert	CREATE LIBRARY a IS 's' zzz
@@ -1159,59 +1159,59 @@ reject@0	reject@0	engine	statement/createJsonRelationalDualityView!swap	CREATE_F
 accept	accept	engine	statement/createLogicalPartitionTracking	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN(1))
 reject@0	reject@0	engine	statement/createLogicalPartitionTracking!drop-1	LOGICAL PARTITION TRACKING ON a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN(1))
 reject@7	reject@7	engine	statement/createLogicalPartitionTracking!drop-2	CREATE PARTITION TRACKING ON a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN(1))
-accept	reject@15	engine	statement/createLogicalPartitionTracking!drop-3	CREATE LOGICAL TRACKING ON a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN(1))
-accept	reject@25	engine	statement/createLogicalPartitionTracking!drop-4	CREATE LOGICAL PARTITION ON a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN(1))
-accept	reject@34	engine	statement/createLogicalPartitionTracking!drop-5	CREATE LOGICAL PARTITION TRACKING a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN(1))
-accept	reject@47	engine	statement/createLogicalPartitionTracking!drop-6	CREATE LOGICAL PARTITION TRACKING ON PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN(1))
-accept	reject@39	engine	statement/createLogicalPartitionTracking!drop-7	CREATE LOGICAL PARTITION TRACKING ON a BY RANGE(a)(PARTITION a VALUES LESS THAN(1))
-accept	reject@49	engine	statement/createLogicalPartitionTracking!drop-8	CREATE LOGICAL PARTITION TRACKING ON a PARTITION RANGE(a)(PARTITION a VALUES LESS THAN(1))
-accept	reject@51	engine	statement/createLogicalPartitionTracking!drop-9	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY(a)(PARTITION a VALUES LESS THAN(1))
+reject@15	reject@15	engine	statement/createLogicalPartitionTracking!drop-3	CREATE LOGICAL TRACKING ON a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN(1))
+reject@25	reject@25	engine	statement/createLogicalPartitionTracking!drop-4	CREATE LOGICAL PARTITION ON a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN(1))
+reject@34	reject@34	engine	statement/createLogicalPartitionTracking!drop-5	CREATE LOGICAL PARTITION TRACKING a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN(1))
+reject@47	reject@47	engine	statement/createLogicalPartitionTracking!drop-6	CREATE LOGICAL PARTITION TRACKING ON PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN(1))
+reject@39	reject@39	engine	statement/createLogicalPartitionTracking!drop-7	CREATE LOGICAL PARTITION TRACKING ON a BY RANGE(a)(PARTITION a VALUES LESS THAN(1))
+reject@49	reject@49	engine	statement/createLogicalPartitionTracking!drop-8	CREATE LOGICAL PARTITION TRACKING ON a PARTITION RANGE(a)(PARTITION a VALUES LESS THAN(1))
+reject@51	reject@51	engine	statement/createLogicalPartitionTracking!drop-9	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY(a)(PARTITION a VALUES LESS THAN(1))
 reject@59	reject@58	engine	statement/createLogicalPartitionTracking!drop-10	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY RANGE a)(PARTITION a VALUES LESS THAN(1))
-accept	reject@58	engine	statement/createLogicalPartitionTracking!drop-11	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY RANGE()(PARTITION a VALUES LESS THAN(1))
+reject@58	reject@58	engine	statement/createLogicalPartitionTracking!drop-11	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY RANGE()(PARTITION a VALUES LESS THAN(1))
 reject@92	reject@70	engine	statement/createLogicalPartitionTracking!drop-12	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY RANGE(a(PARTITION a VALUES LESS THAN(1))
 reject@92	reject@61	engine	statement/createLogicalPartitionTracking!drop-13	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY RANGE(a) PARTITION a VALUES LESS THAN(1))
-accept	reject@61	engine	statement/createLogicalPartitionTracking!drop-14	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY RANGE(a)(a VALUES LESS THAN(1))
+reject@61	reject@61	engine	statement/createLogicalPartitionTracking!drop-14	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY RANGE(a)(a VALUES LESS THAN(1))
 accept	accept	engine	statement/createLogicalPartitionTracking!drop-15	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1))
-accept	reject@73	engine	statement/createLogicalPartitionTracking!drop-16	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY RANGE(a)(PARTITION a LESS THAN(1))
-accept	reject@80	engine	statement/createLogicalPartitionTracking!drop-17	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY RANGE(a)(PARTITION a VALUES THAN(1))
-accept	reject@84	engine	statement/createLogicalPartitionTracking!drop-18	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY RANGE(a)(PARTITION a VALUES LESS(1))
+reject@73	reject@73	engine	statement/createLogicalPartitionTracking!drop-16	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY RANGE(a)(PARTITION a LESS THAN(1))
+reject@80	reject@80	engine	statement/createLogicalPartitionTracking!drop-17	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY RANGE(a)(PARTITION a VALUES THAN(1))
+reject@84	reject@84	engine	statement/createLogicalPartitionTracking!drop-18	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY RANGE(a)(PARTITION a VALUES LESS(1))
 reject@92	reject@90	engine	statement/createLogicalPartitionTracking!drop-19	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN 1))
-accept	reject@90	engine	statement/createLogicalPartitionTracking!drop-20	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN())
+reject@90	reject@90	engine	statement/createLogicalPartitionTracking!drop-20	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN())
 reject@92	reject@92	engine	statement/createLogicalPartitionTracking!drop-21	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN(1)
-accept	reject@94	engine	statement/createLogicalPartitionTracking!insert	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN(1)) zzz
+reject@94	reject@94	engine	statement/createLogicalPartitionTracking!insert	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN(1)) zzz
 reject@0	reject@0	engine	statement/createLogicalPartitionTracking!swap	CREATE_FILE_DEST LOGICAL PARTITION TRACKING ON a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN(1))
 accept	accept	engine	statement/createMleEnv	CREATE MLE ENV a
 reject@0	reject@0	engine	statement/createMleEnv!drop-1	MLE ENV a
 reject@7	reject@7	engine	statement/createMleEnv!drop-2	CREATE ENV a
-accept	reject@11	engine	statement/createMleEnv!drop-3	CREATE MLE a
-accept	reject@14	engine	statement/createMleEnv!drop-4	CREATE MLE ENV
-accept	reject@17	engine	statement/createMleEnv!insert	CREATE MLE ENV a zzz
+reject@11	reject@11	engine	statement/createMleEnv!drop-3	CREATE MLE a
+reject@14	reject@14	engine	statement/createMleEnv!drop-4	CREATE MLE ENV
+reject@17	reject@17	engine	statement/createMleEnv!insert	CREATE MLE ENV a zzz
 reject@0	reject@0	engine	statement/createMleEnv!swap	CREATE_FILE_DEST MLE ENV a
 accept	accept	engine	statement/createMleModule	CREATE MLE MODULE a LANGUAGE JAVASCRIPT AS a
 reject@0	reject@0	engine	statement/createMleModule!drop-1	MLE MODULE a LANGUAGE JAVASCRIPT AS a
 reject@7	reject@7	engine	statement/createMleModule!drop-2	CREATE MODULE a LANGUAGE JAVASCRIPT AS a
-accept	reject@11	engine	statement/createMleModule!drop-3	CREATE MLE a LANGUAGE JAVASCRIPT AS a
-accept	reject@27	engine	statement/createMleModule!drop-4	CREATE MLE MODULE LANGUAGE JAVASCRIPT AS a
-accept	reject@20	engine	statement/createMleModule!drop-5	CREATE MLE MODULE a JAVASCRIPT AS a
-accept	reject@29	engine	statement/createMleModule!drop-6	CREATE MLE MODULE a LANGUAGE AS a
-accept	reject@40	engine	statement/createMleModule!drop-7	CREATE MLE MODULE a LANGUAGE JAVASCRIPT a
+reject@11	reject@11	engine	statement/createMleModule!drop-3	CREATE MLE a LANGUAGE JAVASCRIPT AS a
+reject@27	reject@27	engine	statement/createMleModule!drop-4	CREATE MLE MODULE LANGUAGE JAVASCRIPT AS a
+reject@20	reject@20	engine	statement/createMleModule!drop-5	CREATE MLE MODULE a JAVASCRIPT AS a
+reject@29	reject@29	engine	statement/createMleModule!drop-6	CREATE MLE MODULE a LANGUAGE AS a
+reject@40	reject@40	engine	statement/createMleModule!drop-7	CREATE MLE MODULE a LANGUAGE JAVASCRIPT a
 reject@42	accept	engine	statement/createMleModule!drop-8	CREATE MLE MODULE a LANGUAGE JAVASCRIPT AS
 accept	accept	engine	statement/createMleModule!insert	CREATE MLE MODULE a LANGUAGE JAVASCRIPT AS a zzz
 reject@0	reject@0	engine	statement/createMleModule!swap	CREATE_FILE_DEST MLE MODULE a LANGUAGE JAVASCRIPT AS a
-accept	reject@22	engine	statement/createPmemFilestore	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1
+reject@22	reject@22	engine	statement/createPmemFilestore	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1
 reject@0	reject@0	engine	statement/createPmemFilestore!drop-1	PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1
 reject@7	reject@7	engine	statement/createPmemFilestore!drop-2	CREATE FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1
-accept	reject@12	engine	statement/createPmemFilestore!drop-3	CREATE PMEM a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1
-accept	reject@22	engine	statement/createPmemFilestore!drop-4	CREATE PMEM FILESTORE MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1
-accept	reject@22	engine	statement/createPmemFilestore!drop-5	CREATE PMEM FILESTORE a 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1
-accept	reject@22	engine	statement/createPmemFilestore!drop-6	CREATE PMEM FILESTORE a MOUNTPOINT BACKINGFILE 's' SIZE 1 BLOCKSIZE 1
-accept	reject@22	engine	statement/createPmemFilestore!drop-7	CREATE PMEM FILESTORE a MOUNTPOINT 's' 's' SIZE 1 BLOCKSIZE 1
-accept	reject@22	engine	statement/createPmemFilestore!drop-8	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE SIZE 1 BLOCKSIZE 1
-accept	reject@22	engine	statement/createPmemFilestore!drop-9	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' 1 BLOCKSIZE 1
-accept	reject@22	engine	statement/createPmemFilestore!drop-10	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE BLOCKSIZE 1
-accept	reject@22	engine	statement/createPmemFilestore!drop-11	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 1
-accept	reject@22	engine	statement/createPmemFilestore!drop-12	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE
-accept	reject@22	engine	statement/createPmemFilestore!insert	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1 zzz
+reject@12	reject@12	engine	statement/createPmemFilestore!drop-3	CREATE PMEM a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1
+reject@22	reject@22	engine	statement/createPmemFilestore!drop-4	CREATE PMEM FILESTORE MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1
+reject@22	reject@22	engine	statement/createPmemFilestore!drop-5	CREATE PMEM FILESTORE a 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1
+reject@22	reject@22	engine	statement/createPmemFilestore!drop-6	CREATE PMEM FILESTORE a MOUNTPOINT BACKINGFILE 's' SIZE 1 BLOCKSIZE 1
+reject@22	reject@22	engine	statement/createPmemFilestore!drop-7	CREATE PMEM FILESTORE a MOUNTPOINT 's' 's' SIZE 1 BLOCKSIZE 1
+reject@22	reject@22	engine	statement/createPmemFilestore!drop-8	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE SIZE 1 BLOCKSIZE 1
+reject@22	reject@22	engine	statement/createPmemFilestore!drop-9	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' 1 BLOCKSIZE 1
+reject@22	reject@22	engine	statement/createPmemFilestore!drop-10	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE BLOCKSIZE 1
+reject@22	reject@22	engine	statement/createPmemFilestore!drop-11	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 1
+reject@22	reject@22	engine	statement/createPmemFilestore!drop-12	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE
+reject@22	reject@22	engine	statement/createPmemFilestore!insert	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1 zzz
 reject@0	reject@0	engine	statement/createPmemFilestore!swap	CREATE_FILE_DEST PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1
 accept	accept	engine	statement/createPropertyGraph	CREATE PROPERTY GRAPH a VERTEX TABLES(a)
 reject@0	reject@0	engine	statement/createPropertyGraph!drop-1	PROPERTY GRAPH a VERTEX TABLES(a)
@@ -5660,104 +5660,104 @@ reject@35	reject@35	engine	alterInmemoryJoinGroup(ADD|REMOVE)/REMOVE!insert	ALTE
 reject@28	reject@28	engine	alterInmemoryJoinGroup(ADD|REMOVE)/REMOVE!swap	ALTER INMEMORY JOIN GROUP a RENAME(a(a))
 accept	accept	engine	alterJava/ALTER_JAVA_(IF_EXISTS)?_(SOURCE|CLASS)_(ID_.)?_ID_(RESO~c5fb0ca9	ALTER JAVA SOURCE a RESOLVE
 accept	accept	engine	alterJava(IF_EXISTS)?/%empty	ALTER JAVA SOURCE a RESOLVE
-accept	reject@11	engine	alterJava(IF_EXISTS)?/%empty!insert	ALTER JAVA zzz SOURCE a RESOLVE
-accept	reject@11	engine	alterJava(IF_EXISTS)?/IF_EXISTS	ALTER JAVA IF EXISTS SOURCE a RESOLVE
-accept	reject@11	engine	alterJava(IF_EXISTS)?/IF_EXISTS!drop-1	ALTER JAVA EXISTS SOURCE a RESOLVE
-accept	reject@11	engine	alterJava(IF_EXISTS)?/IF_EXISTS!drop-2	ALTER JAVA IF SOURCE a RESOLVE
-accept	reject@11	engine	alterJava(IF_EXISTS)?/IF_EXISTS!truncate	ALTER JAVA IF
-accept	reject@11	engine	alterJava(IF_EXISTS)?/IF_EXISTS!insert	ALTER JAVA IF EXISTS zzz SOURCE a RESOLVE
-accept	reject@11	engine	alterJava(IF_EXISTS)?/IF_EXISTS!swap	ALTER JAVA IGNORE EXISTS SOURCE a RESOLVE
+reject@11	reject@11	engine	alterJava(IF_EXISTS)?/%empty!insert	ALTER JAVA zzz SOURCE a RESOLVE
+reject@11	reject@11	engine	alterJava(IF_EXISTS)?/IF_EXISTS	ALTER JAVA IF EXISTS SOURCE a RESOLVE
+reject@11	reject@11	engine	alterJava(IF_EXISTS)?/IF_EXISTS!drop-1	ALTER JAVA EXISTS SOURCE a RESOLVE
+reject@11	reject@11	engine	alterJava(IF_EXISTS)?/IF_EXISTS!drop-2	ALTER JAVA IF SOURCE a RESOLVE
+reject@11	reject@11	engine	alterJava(IF_EXISTS)?/IF_EXISTS!truncate	ALTER JAVA IF
+reject@11	reject@11	engine	alterJava(IF_EXISTS)?/IF_EXISTS!insert	ALTER JAVA IF EXISTS zzz SOURCE a RESOLVE
+reject@11	reject@11	engine	alterJava(IF_EXISTS)?/IF_EXISTS!swap	ALTER JAVA IGNORE EXISTS SOURCE a RESOLVE
 accept	accept	engine	alterJava(SOURCE|CLASS)/SOURCE	ALTER JAVA SOURCE a RESOLVE
-accept	reject@10	engine	alterJava(SOURCE|CLASS)/SOURCE!truncate	ALTER JAVA
-accept	reject@22	engine	alterJava(SOURCE|CLASS)/SOURCE!insert	ALTER JAVA SOURCE zzz a RESOLVE
-accept	reject@11	engine	alterJava(SOURCE|CLASS)/SOURCE!swap	ALTER JAVA SOURCE_FILE_DIRECTORY a RESOLVE
+reject@10	reject@10	engine	alterJava(SOURCE|CLASS)/SOURCE!truncate	ALTER JAVA
+reject@22	reject@22	engine	alterJava(SOURCE|CLASS)/SOURCE!insert	ALTER JAVA SOURCE zzz a RESOLVE
+reject@11	reject@11	engine	alterJava(SOURCE|CLASS)/SOURCE!swap	ALTER JAVA SOURCE_FILE_DIRECTORY a RESOLVE
 accept	accept	engine	alterJava(SOURCE|CLASS)/CLASS	ALTER JAVA CLASS a RESOLVE
-accept	reject@21	engine	alterJava(SOURCE|CLASS)/CLASS!insert	ALTER JAVA CLASS zzz a RESOLVE
-accept	reject@11	engine	alterJava(SOURCE|CLASS)/CLASS!swap	ALTER JAVA CLASSIFICATION a RESOLVE
+reject@21	reject@21	engine	alterJava(SOURCE|CLASS)/CLASS!insert	ALTER JAVA CLASS zzz a RESOLVE
+reject@11	reject@11	engine	alterJava(SOURCE|CLASS)/CLASS!swap	ALTER JAVA CLASSIFICATION a RESOLVE
 accept	accept	engine	alterJava(ID_.)?/%empty	ALTER JAVA SOURCE a RESOLVE
 accept	accept	engine	alterJava(ID_.)?/ID_.	ALTER JAVA SOURCE a.a RESOLVE
-accept	reject@17	engine	alterJava(ID_.)?/ID_.!drop-1	ALTER JAVA SOURCE.a RESOLVE
-accept	reject@20	engine	alterJava(ID_.)?/ID_.!drop-2	ALTER JAVA SOURCE a a RESOLVE
-accept	reject@24	engine	alterJava(ID_.)?/ID_.!insert	ALTER JAVA SOURCE a.zzz a RESOLVE
+reject@17	reject@17	engine	alterJava(ID_.)?/ID_.!drop-1	ALTER JAVA SOURCE.a RESOLVE
+reject@20	reject@20	engine	alterJava(ID_.)?/ID_.!drop-2	ALTER JAVA SOURCE a a RESOLVE
+reject@24	reject@24	engine	alterJava(ID_.)?/ID_.!insert	ALTER JAVA SOURCE a.zzz a RESOLVE
 accept	accept	engine	alterJava(RESOLVER_(_(_STRING_ID_)_(,_(_STRING_ID_))*_))?/%empty	ALTER JAVA SOURCE a RESOLVE
-accept	reject@20	engine	alterJava(RESOLVER_(_(_STRING_ID_)_(,_(_STRING_ID_))*_))?/%empty!insert	ALTER JAVA SOURCE a zzz RESOLVE
-accept	reject@30	engine	alterJava(RESOLVER_(_(_STRING_ID_)_(,_(_STRING_ID_))*_))?/RESOLVER_(_(_STRING_ID_)_(,_(_STRING_ID_))*_)	ALTER JAVA SOURCE a RESOLVER(('s' a)) RESOLVE
-accept	reject@19	engine	alterJava(RESOLVER_(_(_STRING_ID_)_(,_(_STRING_ID_))*_))?/RESOLVER_(_(_STRING_ID_)_(,_(_STRING_ID_))*_)!drop-1	ALTER JAVA SOURCE a(('s' a)) RESOLVE
+reject@20	reject@20	engine	alterJava(RESOLVER_(_(_STRING_ID_)_(,_(_STRING_ID_))*_))?/%empty!insert	ALTER JAVA SOURCE a zzz RESOLVE
+reject@30	reject@30	engine	alterJava(RESOLVER_(_(_STRING_ID_)_(,_(_STRING_ID_))*_))?/RESOLVER_(_(_STRING_ID_)_(,_(_STRING_ID_))*_)	ALTER JAVA SOURCE a RESOLVER(('s' a)) RESOLVE
+reject@19	reject@19	engine	alterJava(RESOLVER_(_(_STRING_ID_)_(,_(_STRING_ID_))*_))?/RESOLVER_(_(_STRING_ID_)_(,_(_STRING_ID_))*_)!drop-1	ALTER JAVA SOURCE a(('s' a)) RESOLVE
 reject@35	reject@29	engine	alterJava(RESOLVER_(_(_STRING_ID_)_(,_(_STRING_ID_))*_))?/RESOLVER_(_(_STRING_ID_)_(,_(_STRING_ID_))*_)!drop-2	ALTER JAVA SOURCE a RESOLVER('s' a)) RESOLVE
-accept	reject@31	engine	alterJava(RESOLVER_(_(_STRING_ID_)_(,_(_STRING_ID_))*_))?/RESOLVER_(_(_STRING_ID_)_(,_(_STRING_ID_))*_)!drop-4	ALTER JAVA SOURCE a RESOLVER((a)) RESOLVE
-accept	reject@30	engine	alterJava(RESOLVER_(_(_STRING_ID_)_(,_(_STRING_ID_))*_))?/RESOLVER_(_(_STRING_ID_)_(,_(_STRING_ID_))*_)!drop-5	ALTER JAVA SOURCE a RESOLVER(('s')) RESOLVE
+reject@31	reject@31	engine	alterJava(RESOLVER_(_(_STRING_ID_)_(,_(_STRING_ID_))*_))?/RESOLVER_(_(_STRING_ID_)_(,_(_STRING_ID_))*_)!drop-4	ALTER JAVA SOURCE a RESOLVER((a)) RESOLVE
+reject@30	reject@30	engine	alterJava(RESOLVER_(_(_STRING_ID_)_(,_(_STRING_ID_))*_))?/RESOLVER_(_(_STRING_ID_)_(,_(_STRING_ID_))*_)!drop-5	ALTER JAVA SOURCE a RESOLVER(('s')) RESOLVE
 reject@44	reject@30	engine	alterJava(RESOLVER_(_(_STRING_ID_)_(,_(_STRING_ID_))*_))?/RESOLVER_(_(_STRING_ID_)_(,_(_STRING_ID_))*_)!drop-6	ALTER JAVA SOURCE a RESOLVER(('s' a) RESOLVE
 reject@36	reject@30	engine	alterJava(RESOLVER_(_(_STRING_ID_)_(,_(_STRING_ID_))*_))?/RESOLVER_(_(_STRING_ID_)_(,_(_STRING_ID_))*_)!truncate	ALTER JAVA SOURCE a RESOLVER(('s' a)
-accept	reject@30	engine	alterJava(RESOLVER_(_(_STRING_ID_)_(,_(_STRING_ID_))*_))?/RESOLVER_(_(_STRING_ID_)_(,_(_STRING_ID_))*_)!insert	ALTER JAVA SOURCE a RESOLVER(('s' a)) zzz RESOLVE
-accept	reject@20	engine	alterJava(RESOLVER_(_(_STRING_ID_)_(,_(_STRING_ID_))*_))?/RESOLVER_(_(_STRING_ID_)_(,_(_STRING_ID_))*_)!swap	ALTER JAVA SOURCE a RESOURCE(('s' a)) RESOLVE
-accept	reject@30	engine	alterJava(,_(_STRING_ID_))*/%empty	ALTER JAVA SOURCE a RESOLVER(('s' a)) RESOLVE
-accept	reject@30	engine	alterJava(,_(_STRING_ID_))*/%empty!insert	ALTER JAVA SOURCE a RESOLVER(('s' a) zzz) RESOLVE
-accept	reject@30	engine	alterJava(,_(_STRING_ID_))*/,_(_STRING_ID_)_(,_(_STRING_ID_))*	ALTER JAVA SOURCE a RESOLVER(('s' a),('s' a)) RESOLVE
-accept	reject@30	engine	alterJava(,_(_STRING_ID_))*/,_(_STRING_ID_)_(,_(_STRING_ID_))*!drop-1	ALTER JAVA SOURCE a RESOLVER(('s' a)('s' a)) RESOLVE
+reject@30	reject@30	engine	alterJava(RESOLVER_(_(_STRING_ID_)_(,_(_STRING_ID_))*_))?/RESOLVER_(_(_STRING_ID_)_(,_(_STRING_ID_))*_)!insert	ALTER JAVA SOURCE a RESOLVER(('s' a)) zzz RESOLVE
+reject@20	reject@20	engine	alterJava(RESOLVER_(_(_STRING_ID_)_(,_(_STRING_ID_))*_))?/RESOLVER_(_(_STRING_ID_)_(,_(_STRING_ID_))*_)!swap	ALTER JAVA SOURCE a RESOURCE(('s' a)) RESOLVE
+reject@30	reject@30	engine	alterJava(,_(_STRING_ID_))*/%empty	ALTER JAVA SOURCE a RESOLVER(('s' a)) RESOLVE
+reject@30	reject@30	engine	alterJava(,_(_STRING_ID_))*/%empty!insert	ALTER JAVA SOURCE a RESOLVER(('s' a) zzz) RESOLVE
+reject@30	reject@30	engine	alterJava(,_(_STRING_ID_))*/,_(_STRING_ID_)_(,_(_STRING_ID_))*	ALTER JAVA SOURCE a RESOLVER(('s' a),('s' a)) RESOLVE
+reject@30	reject@30	engine	alterJava(,_(_STRING_ID_))*/,_(_STRING_ID_)_(,_(_STRING_ID_))*!drop-1	ALTER JAVA SOURCE a RESOLVER(('s' a)('s' a)) RESOLVE
 reject@44	reject@30	engine	alterJava(,_(_STRING_ID_))*/,_(_STRING_ID_)_(,_(_STRING_ID_))*!drop-2	ALTER JAVA SOURCE a RESOLVER(('s' a), 's' a)) RESOLVE
-accept	reject@30	engine	alterJava(,_(_STRING_ID_))*/,_(_STRING_ID_)_(,_(_STRING_ID_))*!drop-3	ALTER JAVA SOURCE a RESOLVER(('s' a),(a)) RESOLVE
-accept	reject@30	engine	alterJava(,_(_STRING_ID_))*/,_(_STRING_ID_)_(,_(_STRING_ID_))*!drop-4	ALTER JAVA SOURCE a RESOLVER(('s' a),('s')) RESOLVE
+reject@30	reject@30	engine	alterJava(,_(_STRING_ID_))*/,_(_STRING_ID_)_(,_(_STRING_ID_))*!drop-3	ALTER JAVA SOURCE a RESOLVER(('s' a),(a)) RESOLVE
+reject@30	reject@30	engine	alterJava(,_(_STRING_ID_))*/,_(_STRING_ID_)_(,_(_STRING_ID_))*!drop-4	ALTER JAVA SOURCE a RESOLVER(('s' a),('s')) RESOLVE
 reject@52	reject@30	engine	alterJava(,_(_STRING_ID_))*/,_(_STRING_ID_)_(,_(_STRING_ID_))*!drop-5	ALTER JAVA SOURCE a RESOLVER(('s' a),('s' a) RESOLVE
 reject@43	reject@30	engine	alterJava(,_(_STRING_ID_))*/,_(_STRING_ID_)_(,_(_STRING_ID_))*!truncate	ALTER JAVA SOURCE a RESOLVER(('s' a),('s' a
-accept	reject@30	engine	alterJava(,_(_STRING_ID_))*/,_(_STRING_ID_)_(,_(_STRING_ID_))*!insert	ALTER JAVA SOURCE a RESOLVER(('s' a),('s' a) zzz) RESOLVE
+reject@30	reject@30	engine	alterJava(,_(_STRING_ID_))*/,_(_STRING_ID_)_(,_(_STRING_ID_))*!insert	ALTER JAVA SOURCE a RESOLVER(('s' a),('s' a) zzz) RESOLVE
 accept	accept	engine	alterJava(alterJava_invoker_rights_clause)?/%empty	ALTER JAVA SOURCE a RESOLVE
-accept	reject@40	engine	alterJava(alterJava_invoker_rights_clause)?/alterJava_invoker_rights_clause	ALTER JAVA SOURCE a AUTHID CURRENT_USER RESOLVE
-accept	reject@20	engine	alterJava(alterJava_invoker_rights_clause)?/alterJava_invoker_rights_clause!drop-1	ALTER JAVA SOURCE a CURRENT_USER RESOLVE
-accept	reject@27	engine	alterJava(alterJava_invoker_rights_clause)?/alterJava_invoker_rights_clause!drop-2	ALTER JAVA SOURCE a AUTHID RESOLVE
-accept	reject@26	engine	alterJava(alterJava_invoker_rights_clause)?/alterJava_invoker_rights_clause!truncate	ALTER JAVA SOURCE a AUTHID
-accept	reject@40	engine	alterJava(alterJava_invoker_rights_clause)?/alterJava_invoker_rights_clause!insert	ALTER JAVA SOURCE a AUTHID CURRENT_USER zzz RESOLVE
-accept	reject@20	engine	alterJava(alterJava_invoker_rights_clause)?/alterJava_invoker_rights_clause!swap	ALTER JAVA SOURCE a AUTHORIZATION CURRENT_USER RESOLVE
+reject@40	reject@40	engine	alterJava(alterJava_invoker_rights_clause)?/alterJava_invoker_rights_clause	ALTER JAVA SOURCE a AUTHID CURRENT_USER RESOLVE
+reject@20	reject@20	engine	alterJava(alterJava_invoker_rights_clause)?/alterJava_invoker_rights_clause!drop-1	ALTER JAVA SOURCE a CURRENT_USER RESOLVE
+reject@27	reject@27	engine	alterJava(alterJava_invoker_rights_clause)?/alterJava_invoker_rights_clause!drop-2	ALTER JAVA SOURCE a AUTHID RESOLVE
+reject@26	reject@26	engine	alterJava(alterJava_invoker_rights_clause)?/alterJava_invoker_rights_clause!truncate	ALTER JAVA SOURCE a AUTHID
+reject@40	reject@40	engine	alterJava(alterJava_invoker_rights_clause)?/alterJava_invoker_rights_clause!insert	ALTER JAVA SOURCE a AUTHID CURRENT_USER zzz RESOLVE
+reject@20	reject@20	engine	alterJava(alterJava_invoker_rights_clause)?/alterJava_invoker_rights_clause!swap	ALTER JAVA SOURCE a AUTHORIZATION CURRENT_USER RESOLVE
 accept	accept	engine	alterJava(RESOLVE|COMPILE)/RESOLVE	ALTER JAVA SOURCE a RESOLVE
-accept	reject@28	engine	alterJava(RESOLVE|COMPILE)/RESOLVE!swap	ALTER JAVA SOURCE a RESOLVER
+reject@28	reject@28	engine	alterJava(RESOLVE|COMPILE)/RESOLVE!swap	ALTER JAVA SOURCE a RESOLVER
 accept	accept	engine	alterJava(RESOLVE|COMPILE)/COMPILE	ALTER JAVA SOURCE a COMPILE
-accept	reject@28	engine	alterJava(RESOLVE|COMPILE)/COMPILE!insert	ALTER JAVA SOURCE a COMPILE zzz
-accept	reject@20	engine	alterJava(RESOLVE|COMPILE)/COMPILE!swap	ALTER JAVA SOURCE a COMPLETE
-accept	reject@40	engine	alterJava_invoker_rights_clause/AUTHID_(CURRENT_USER|DEFINER)	ALTER JAVA SOURCE a AUTHID CURRENT_USER RESOLVE
-accept	reject@40	engine	alterJava_invoker_rights_clause(CURRENT_USER|DEFINER)/CURRENT_USER	ALTER JAVA SOURCE a AUTHID CURRENT_USER RESOLVE
-accept	reject@27	engine	alterJava_invoker_rights_clause(CURRENT_USER|DEFINER)/CURRENT_USER!swap	ALTER JAVA SOURCE a AUTHID CYCLE RESOLVE
-accept	reject@35	engine	alterJava_invoker_rights_clause(CURRENT_USER|DEFINER)/DEFINER	ALTER JAVA SOURCE a AUTHID DEFINER RESOLVE
-accept	reject@35	engine	alterJava_invoker_rights_clause(CURRENT_USER|DEFINER)/DEFINER!insert	ALTER JAVA SOURCE a AUTHID DEFINER zzz RESOLVE
-accept	reject@27	engine	alterJava_invoker_rights_clause(CURRENT_USER|DEFINER)/DEFINER!swap	ALTER JAVA SOURCE a AUTHID DELEGATE RESOLVE
+reject@28	reject@28	engine	alterJava(RESOLVE|COMPILE)/COMPILE!insert	ALTER JAVA SOURCE a COMPILE zzz
+reject@20	reject@20	engine	alterJava(RESOLVE|COMPILE)/COMPILE!swap	ALTER JAVA SOURCE a COMPLETE
+reject@40	reject@40	engine	alterJava_invoker_rights_clause/AUTHID_(CURRENT_USER|DEFINER)	ALTER JAVA SOURCE a AUTHID CURRENT_USER RESOLVE
+reject@40	reject@40	engine	alterJava_invoker_rights_clause(CURRENT_USER|DEFINER)/CURRENT_USER	ALTER JAVA SOURCE a AUTHID CURRENT_USER RESOLVE
+reject@27	reject@27	engine	alterJava_invoker_rights_clause(CURRENT_USER|DEFINER)/CURRENT_USER!swap	ALTER JAVA SOURCE a AUTHID CYCLE RESOLVE
+reject@35	reject@35	engine	alterJava_invoker_rights_clause(CURRENT_USER|DEFINER)/DEFINER	ALTER JAVA SOURCE a AUTHID DEFINER RESOLVE
+reject@35	reject@35	engine	alterJava_invoker_rights_clause(CURRENT_USER|DEFINER)/DEFINER!insert	ALTER JAVA SOURCE a AUTHID DEFINER zzz RESOLVE
+reject@27	reject@27	engine	alterJava_invoker_rights_clause(CURRENT_USER|DEFINER)/DEFINER!swap	ALTER JAVA SOURCE a AUTHID DELEGATE RESOLVE
 accept	accept	engine	alterLibrary/ALTER_LIBRARY_(IF_EXISTS)?_(ID_.)?_ID_alterLibrary_libr~5b26fed8	ALTER LIBRARY a COMPILE
 accept	accept	engine	alterLibrary(IF_EXISTS)?/%empty	ALTER LIBRARY a COMPILE
-accept	reject@18	engine	alterLibrary(IF_EXISTS)?/%empty!insert	ALTER LIBRARY zzz a COMPILE
+reject@18	reject@18	engine	alterLibrary(IF_EXISTS)?/%empty!insert	ALTER LIBRARY zzz a COMPILE
 accept	accept	engine	alterLibrary(IF_EXISTS)?/IF_EXISTS	ALTER LIBRARY IF EXISTS a COMPILE
-accept	reject@14	engine	alterLibrary(IF_EXISTS)?/IF_EXISTS!drop-1	ALTER LIBRARY EXISTS a COMPILE
-accept	reject@17	engine	alterLibrary(IF_EXISTS)?/IF_EXISTS!drop-2	ALTER LIBRARY IF a COMPILE
-accept	reject@16	engine	alterLibrary(IF_EXISTS)?/IF_EXISTS!truncate	ALTER LIBRARY IF
-accept	reject@28	engine	alterLibrary(IF_EXISTS)?/IF_EXISTS!insert	ALTER LIBRARY IF EXISTS zzz a COMPILE
-accept	reject@21	engine	alterLibrary(IF_EXISTS)?/IF_EXISTS!swap	ALTER LIBRARY IGNORE EXISTS a COMPILE
+reject@14	reject@14	engine	alterLibrary(IF_EXISTS)?/IF_EXISTS!drop-1	ALTER LIBRARY EXISTS a COMPILE
+reject@17	reject@17	engine	alterLibrary(IF_EXISTS)?/IF_EXISTS!drop-2	ALTER LIBRARY IF a COMPILE
+reject@16	reject@16	engine	alterLibrary(IF_EXISTS)?/IF_EXISTS!truncate	ALTER LIBRARY IF
+reject@28	reject@28	engine	alterLibrary(IF_EXISTS)?/IF_EXISTS!insert	ALTER LIBRARY IF EXISTS zzz a COMPILE
+reject@21	reject@21	engine	alterLibrary(IF_EXISTS)?/IF_EXISTS!swap	ALTER LIBRARY IGNORE EXISTS a COMPILE
 accept	accept	engine	alterLibrary(ID_.)?/%empty	ALTER LIBRARY a COMPILE
 accept	accept	engine	alterLibrary(ID_.)?/ID_.	ALTER LIBRARY a.a COMPILE
-accept	reject@13	engine	alterLibrary(ID_.)?/ID_.!drop-1	ALTER LIBRARY.a COMPILE
-accept	reject@16	engine	alterLibrary(ID_.)?/ID_.!drop-2	ALTER LIBRARY a a COMPILE
-accept	reject@20	engine	alterLibrary(ID_.)?/ID_.!insert	ALTER LIBRARY a.zzz a COMPILE
+reject@13	reject@13	engine	alterLibrary(ID_.)?/ID_.!drop-1	ALTER LIBRARY.a COMPILE
+reject@16	reject@16	engine	alterLibrary(ID_.)?/ID_.!drop-2	ALTER LIBRARY a a COMPILE
+reject@20	reject@20	engine	alterLibrary(ID_.)?/ID_.!insert	ALTER LIBRARY a.zzz a COMPILE
 accept	accept	engine	alterLibrary(EDITIONABLE|NONEDITIONABLE)?/%empty	ALTER LIBRARY a COMPILE
-accept	reject@24	engine	alterLibrary(EDITIONABLE|NONEDITIONABLE)?/EDITIONABLE	ALTER LIBRARY a COMPILE EDITIONABLE
-accept	reject@24	engine	alterLibrary(EDITIONABLE|NONEDITIONABLE)?/EDITIONABLE!insert	ALTER LIBRARY a COMPILE EDITIONABLE zzz
-accept	reject@24	engine	alterLibrary(EDITIONABLE|NONEDITIONABLE)?/EDITIONABLE!swap	ALTER LIBRARY a COMPILE EDITIONING
-accept	reject@24	engine	alterLibrary(EDITIONABLE|NONEDITIONABLE)?/NONEDITIONABLE	ALTER LIBRARY a COMPILE NONEDITIONABLE
-accept	reject@24	engine	alterLibrary(EDITIONABLE|NONEDITIONABLE)?/NONEDITIONABLE!insert	ALTER LIBRARY a COMPILE NONEDITIONABLE zzz
-accept	reject@24	engine	alterLibrary(EDITIONABLE|NONEDITIONABLE)?/NONEDITIONABLE!swap	ALTER LIBRARY a COMPILE NONSCHEMA
+reject@24	reject@24	engine	alterLibrary(EDITIONABLE|NONEDITIONABLE)?/EDITIONABLE	ALTER LIBRARY a COMPILE EDITIONABLE
+reject@24	reject@24	engine	alterLibrary(EDITIONABLE|NONEDITIONABLE)?/EDITIONABLE!insert	ALTER LIBRARY a COMPILE EDITIONABLE zzz
+reject@24	reject@24	engine	alterLibrary(EDITIONABLE|NONEDITIONABLE)?/EDITIONABLE!swap	ALTER LIBRARY a COMPILE EDITIONING
+reject@24	reject@24	engine	alterLibrary(EDITIONABLE|NONEDITIONABLE)?/NONEDITIONABLE	ALTER LIBRARY a COMPILE NONEDITIONABLE
+reject@24	reject@24	engine	alterLibrary(EDITIONABLE|NONEDITIONABLE)?/NONEDITIONABLE!insert	ALTER LIBRARY a COMPILE NONEDITIONABLE zzz
+reject@24	reject@24	engine	alterLibrary(EDITIONABLE|NONEDITIONABLE)?/NONEDITIONABLE!swap	ALTER LIBRARY a COMPILE NONSCHEMA
 accept	accept	engine	alterLibrary_library_compile_clause/COMPILE_(DEBUG)?_(alterLibrary_compiler_parameters_clau~8eac16bf	ALTER LIBRARY a COMPILE
-accept	reject@16	engine	alterLibrary_library_compile_clause/COMPILE_(DEBUG)?_(alterLibrary_compiler_parameters_clau~8eac16bf!swap	ALTER LIBRARY a COMPLETE
+reject@16	reject@16	engine	alterLibrary_library_compile_clause/COMPILE_(DEBUG)?_(alterLibrary_compiler_parameters_clau~8eac16bf!swap	ALTER LIBRARY a COMPLETE
 accept	accept	engine	alterLibrary_library_compile_clause(DEBUG)?/%empty	ALTER LIBRARY a COMPILE
 accept	accept	engine	alterLibrary_library_compile_clause(DEBUG)?/DEBUG	ALTER LIBRARY a COMPILE DEBUG
-accept	reject@30	engine	alterLibrary_library_compile_clause(DEBUG)?/DEBUG!insert	ALTER LIBRARY a COMPILE DEBUG zzz
-accept	reject@24	engine	alterLibrary_library_compile_clause(DEBUG)?/DEBUG!swap	ALTER LIBRARY a COMPILE DECODE
+reject@30	reject@30	engine	alterLibrary_library_compile_clause(DEBUG)?/DEBUG!insert	ALTER LIBRARY a COMPILE DEBUG zzz
+reject@24	reject@24	engine	alterLibrary_library_compile_clause(DEBUG)?/DEBUG!swap	ALTER LIBRARY a COMPILE DECODE
 accept	accept	engine	alterLibrary_library_compile_clause(alterLibrary_compiler_parameters_clause)?/%empty	ALTER LIBRARY a COMPILE
-accept	reject@24	engine	alterLibrary_library_compile_clause(alterLibrary_compiler_parameters_clause)?/alterLibrary_compiler_parameters_clause	ALTER LIBRARY a COMPILE a = 1
-accept	reject@24	engine	alterLibrary_library_compile_clause(alterLibrary_compiler_parameters_clause)?/alterLibrary_compiler_parameters_clause!drop-1	ALTER LIBRARY a COMPILE = 1
-accept	reject@24	engine	alterLibrary_library_compile_clause(alterLibrary_compiler_parameters_clause)?/alterLibrary_compiler_parameters_clause!drop-2	ALTER LIBRARY a COMPILE a 1
-reject@27	reject@24	engine	alterLibrary_library_compile_clause(alterLibrary_compiler_parameters_clause)?/alterLibrary_compiler_parameters_clause!drop-3	ALTER LIBRARY a COMPILE a =
-accept	reject@24	engine	alterLibrary_library_compile_clause(alterLibrary_compiler_parameters_clause)?/alterLibrary_compiler_parameters_clause!insert	ALTER LIBRARY a COMPILE a = 1 zzz
+reject@24	reject@24	engine	alterLibrary_library_compile_clause(alterLibrary_compiler_parameters_clause)?/alterLibrary_compiler_parameters_clause	ALTER LIBRARY a COMPILE a = 1
+reject@24	reject@24	engine	alterLibrary_library_compile_clause(alterLibrary_compiler_parameters_clause)?/alterLibrary_compiler_parameters_clause!drop-1	ALTER LIBRARY a COMPILE = 1
+reject@24	reject@24	engine	alterLibrary_library_compile_clause(alterLibrary_compiler_parameters_clause)?/alterLibrary_compiler_parameters_clause!drop-2	ALTER LIBRARY a COMPILE a 1
+reject@24	reject@24	engine	alterLibrary_library_compile_clause(alterLibrary_compiler_parameters_clause)?/alterLibrary_compiler_parameters_clause!drop-3	ALTER LIBRARY a COMPILE a =
+reject@24	reject@24	engine	alterLibrary_library_compile_clause(alterLibrary_compiler_parameters_clause)?/alterLibrary_compiler_parameters_clause!insert	ALTER LIBRARY a COMPILE a = 1 zzz
 accept	accept	engine	alterLibrary_library_compile_clause(REUSE_SETTINGS)?/%empty	ALTER LIBRARY a COMPILE
 accept	accept	engine	alterLibrary_library_compile_clause(REUSE_SETTINGS)?/REUSE_SETTINGS	ALTER LIBRARY a COMPILE REUSE SETTINGS
-accept	reject@24	engine	alterLibrary_library_compile_clause(REUSE_SETTINGS)?/REUSE_SETTINGS!drop-1	ALTER LIBRARY a COMPILE SETTINGS
-accept	reject@29	engine	alterLibrary_library_compile_clause(REUSE_SETTINGS)?/REUSE_SETTINGS!drop-2	ALTER LIBRARY a COMPILE REUSE
-accept	reject@39	engine	alterLibrary_library_compile_clause(REUSE_SETTINGS)?/REUSE_SETTINGS!insert	ALTER LIBRARY a COMPILE REUSE SETTINGS zzz
-accept	reject@24	engine	alterLibrary_library_compile_clause(REUSE_SETTINGS)?/REUSE_SETTINGS!swap	ALTER LIBRARY a COMPILE REVERSE SETTINGS
-accept	reject@24	engine	alterLibrary_compiler_parameters_clause/ID_=_EXPR	ALTER LIBRARY a COMPILE a = 1
+reject@24	reject@24	engine	alterLibrary_library_compile_clause(REUSE_SETTINGS)?/REUSE_SETTINGS!drop-1	ALTER LIBRARY a COMPILE SETTINGS
+reject@29	reject@29	engine	alterLibrary_library_compile_clause(REUSE_SETTINGS)?/REUSE_SETTINGS!drop-2	ALTER LIBRARY a COMPILE REUSE
+reject@39	reject@39	engine	alterLibrary_library_compile_clause(REUSE_SETTINGS)?/REUSE_SETTINGS!insert	ALTER LIBRARY a COMPILE REUSE SETTINGS zzz
+reject@24	reject@24	engine	alterLibrary_library_compile_clause(REUSE_SETTINGS)?/REUSE_SETTINGS!swap	ALTER LIBRARY a COMPILE REVERSE SETTINGS
+reject@24	reject@24	engine	alterLibrary_compiler_parameters_clause/ID_=_EXPR	ALTER LIBRARY a COMPILE a = 1
 accept	reject@43	engine	alterLockdownProfile/ALTER_LOCKDOWN_PROFILE_ID_(alterLockdownProfile_lockdow~844608a1	ALTER LOCKDOWN PROFILE a DISABLE FEATURE =(a)
 accept	reject@43	engine	alterLockdownProfile(alterLockdownProfile_lockdown_featur~bb0fc1fe)/alterLockdownProfile_lockdown_features	ALTER LOCKDOWN PROFILE a DISABLE FEATURE =(a)
 reject@25	reject@25	engine	alterLockdownProfile(alterLockdownProfile_lockdown_featur~bb0fc1fe)/alterLockdownProfile_lockdown_features!swap	ALTER LOCKDOWN PROFILE a DISABLE_ALL FEATURE =(a)
@@ -23356,7 +23356,7 @@ reject@7	reject@7	engine	createDatabaseLink(SHARED)?/SHARED!swap	CREATE SHARED_P
 accept	accept	engine	createDatabaseLink(PUBLIC)?/%empty	CREATE DATABASE LINK a USING 's'
 accept	accept	engine	createDatabaseLink(PUBLIC)?/PUBLIC	CREATE PUBLIC DATABASE LINK a USING 's'
 reject@14	reject@14	engine	createDatabaseLink(PUBLIC)?/PUBLIC!insert	CREATE PUBLIC zzz DATABASE LINK a USING 's'
-reject@12	reject@7	engine	createDatabaseLink(PUBLIC)?/PUBLIC!swap	CREATE PURE DATABASE LINK a USING 's'
+reject@7	reject@7	engine	createDatabaseLink(PUBLIC)?/PUBLIC!swap	CREATE PURE DATABASE LINK a USING 's'
 accept	accept	engine	createDatabaseLink(IF_NOT_EXISTS)?/%empty	CREATE DATABASE LINK a USING 's'
 reject@25	reject@25	engine	createDatabaseLink(IF_NOT_EXISTS)?/%empty!insert	CREATE DATABASE LINK zzz a USING 's'
 reject@24	accept	engine	createDatabaseLink(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE DATABASE LINK IF NOT EXISTS a USING 's'
@@ -24865,37 +24865,37 @@ accept	reject@37	engine	createInmemoryJoinGroup(,_(ID_.)?_ID_(_ID_))*/,_(ID_.)?_
 reject@39	reject@29	engine	createInmemoryJoinGroup(,_(ID_.)?_ID_(_ID_))*/,_(ID_.)?_ID_(_ID_)_(,_(ID_.)?_ID_(_ID_))*!drop-5	CREATE INMEMORY JOIN GROUP a(a(a), a(a)
 reject@38	reject@38	engine	createInmemoryJoinGroup(,_(ID_.)?_ID_(_ID_))*/,_(ID_.)?_ID_(_ID_)_(,_(ID_.)?_ID_(_ID_))*!truncate	CREATE INMEMORY JOIN GROUP a(a(a), a(a
 accept	reject@43	engine	createInmemoryJoinGroup(,_(ID_.)?_ID_(_ID_))*/,_(ID_.)?_ID_(_ID_)_(,_(ID_.)?_ID_(_ID_))*!insert	CREATE INMEMORY JOIN GROUP a(a(a), a(a) zzz)
-reject@19	reject@25	engine	createJava/CREATE_(OR_REPLACE|IF_NOT_EXISTS)?_(AND_(RESOLVE|COMPIL~4292c46c	CREATE JAVA SOURCE USING a
-reject@19	reject@25	engine	createJava(OR_REPLACE|IF_NOT_EXISTS)?/%empty	CREATE JAVA SOURCE USING a
+reject@25	reject@25	engine	createJava/CREATE_(OR_REPLACE|IF_NOT_EXISTS)?_(AND_(RESOLVE|COMPIL~4292c46c	CREATE JAVA SOURCE USING a
+reject@25	reject@25	engine	createJava(OR_REPLACE|IF_NOT_EXISTS)?/%empty	CREATE JAVA SOURCE USING a
 reject@7	reject@7	engine	createJava(OR_REPLACE|IF_NOT_EXISTS)?/%empty!insert	CREATE zzz JAVA SOURCE USING a
-reject@30	reject@36	engine	createJava(OR_REPLACE|IF_NOT_EXISTS)?/OR_REPLACE	CREATE OR REPLACE JAVA SOURCE USING a
+reject@36	reject@36	engine	createJava(OR_REPLACE|IF_NOT_EXISTS)?/OR_REPLACE	CREATE OR REPLACE JAVA SOURCE USING a
 reject@7	reject@7	engine	createJava(OR_REPLACE|IF_NOT_EXISTS)?/OR_REPLACE!drop-1	CREATE REPLACE JAVA SOURCE USING a
 reject@10	reject@10	engine	createJava(OR_REPLACE|IF_NOT_EXISTS)?/OR_REPLACE!drop-2	CREATE OR JAVA SOURCE USING a
 reject@18	reject@18	engine	createJava(OR_REPLACE|IF_NOT_EXISTS)?/OR_REPLACE!insert	CREATE OR REPLACE zzz JAVA SOURCE USING a
 reject@7	reject@7	engine	createJava(OR_REPLACE|IF_NOT_EXISTS)?/OR_REPLACE!swap	CREATE ORDER REPLACE JAVA SOURCE USING a
-reject@21	reject@7	engine	createJava(OR_REPLACE|IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE IF NOT EXISTS JAVA SOURCE USING a
+reject@7	reject@7	engine	createJava(OR_REPLACE|IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE IF NOT EXISTS JAVA SOURCE USING a
 reject@7	reject@7	engine	createJava(OR_REPLACE|IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	CREATE NOT EXISTS JAVA SOURCE USING a
 reject@7	reject@7	engine	createJava(OR_REPLACE|IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	CREATE IF EXISTS JAVA SOURCE USING a
-reject@26	reject@7	engine	createJava(OR_REPLACE|IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE IF NOT JAVA SOURCE USING a
+reject@32	reject@7	engine	createJava(OR_REPLACE|IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE IF NOT JAVA SOURCE USING a
 reject@21	reject@7	engine	createJava(OR_REPLACE|IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE IF NOT EXISTS zzz JAVA SOURCE USING a
 reject@7	reject@7	engine	createJava(OR_REPLACE|IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE IGNORE NOT EXISTS JAVA SOURCE USING a
-reject@19	reject@25	engine	createJava(AND_(RESOLVE|COMPILE))?/%empty	CREATE JAVA SOURCE USING a
-reject@31	reject@37	engine	createJava(AND_(RESOLVE|COMPILE))?/AND_(RESOLVE|COMPILE)	CREATE AND RESOLVE JAVA SOURCE USING a
+reject@25	reject@25	engine	createJava(AND_(RESOLVE|COMPILE))?/%empty	CREATE JAVA SOURCE USING a
+reject@37	reject@37	engine	createJava(AND_(RESOLVE|COMPILE))?/AND_(RESOLVE|COMPILE)	CREATE AND RESOLVE JAVA SOURCE USING a
 reject@7	reject@7	engine	createJava(AND_(RESOLVE|COMPILE))?/AND_(RESOLVE|COMPILE)!drop-1	CREATE RESOLVE JAVA SOURCE USING a
 reject@11	reject@11	engine	createJava(AND_(RESOLVE|COMPILE))?/AND_(RESOLVE|COMPILE)!drop-2	CREATE AND JAVA SOURCE USING a
 reject@10	reject@10	engine	createJava(AND_(RESOLVE|COMPILE))?/AND_(RESOLVE|COMPILE)!truncate	CREATE AND
 reject@19	reject@19	engine	createJava(AND_(RESOLVE|COMPILE))?/AND_(RESOLVE|COMPILE)!insert	CREATE AND RESOLVE zzz JAVA SOURCE USING a
 reject@7	reject@7	engine	createJava(AND_(RESOLVE|COMPILE))?/AND_(RESOLVE|COMPILE)!swap	CREATE ANNOTATIONS RESOLVE JAVA SOURCE USING a
-reject@31	reject@37	engine	createJava(RESOLVE|COMPILE)/RESOLVE	CREATE AND RESOLVE JAVA SOURCE USING a
+reject@37	reject@37	engine	createJava(RESOLVE|COMPILE)/RESOLVE	CREATE AND RESOLVE JAVA SOURCE USING a
 reject@11	reject@11	engine	createJava(RESOLVE|COMPILE)/RESOLVE!swap	CREATE AND RESOLVER JAVA SOURCE USING a
-reject@31	reject@37	engine	createJava(RESOLVE|COMPILE)/COMPILE	CREATE AND COMPILE JAVA SOURCE USING a
+reject@37	reject@37	engine	createJava(RESOLVE|COMPILE)/COMPILE	CREATE AND COMPILE JAVA SOURCE USING a
 reject@19	reject@19	engine	createJava(RESOLVE|COMPILE)/COMPILE!insert	CREATE AND COMPILE zzz JAVA SOURCE USING a
 reject@11	reject@11	engine	createJava(RESOLVE|COMPILE)/COMPILE!swap	CREATE AND COMPLETE JAVA SOURCE USING a
-reject@19	reject@25	engine	createJava(NOFORCE)?/%empty	CREATE JAVA SOURCE USING a
-reject@27	reject@33	engine	createJava(NOFORCE)?/NOFORCE	CREATE NOFORCE JAVA SOURCE USING a
+reject@25	reject@25	engine	createJava(NOFORCE)?/%empty	CREATE JAVA SOURCE USING a
+reject@33	reject@33	engine	createJava(NOFORCE)?/NOFORCE	CREATE NOFORCE JAVA SOURCE USING a
 reject@7	reject@15	engine	createJava(NOFORCE)?/NOFORCE!insert	CREATE NOFORCE zzz JAVA SOURCE USING a
 reject@7	reject@7	engine	createJava(NOFORCE)?/NOFORCE!swap	CREATE NOGUARANTEE JAVA SOURCE USING a
-reject@19	reject@25	engine	createJava(SOURCE|CLASS|RESOURCE)/SOURCE	CREATE JAVA SOURCE USING a
+reject@25	reject@25	engine	createJava(SOURCE|CLASS|RESOURCE)/SOURCE	CREATE JAVA SOURCE USING a
 reject@11	reject@11	engine	createJava(SOURCE|CLASS|RESOURCE)/SOURCE!truncate	CREATE JAVA
 reject@19	reject@19	engine	createJava(SOURCE|CLASS|RESOURCE)/SOURCE!insert	CREATE JAVA SOURCE zzz USING a
 reject@12	reject@12	engine	createJava(SOURCE|CLASS|RESOURCE)/SOURCE!swap	CREATE JAVA SOURCE_FILE_DIRECTORY USING a
@@ -24905,7 +24905,7 @@ reject@12	reject@12	engine	createJava(SOURCE|CLASS|RESOURCE)/CLASS!swap	CREATE J
 reject@21	reject@21	engine	createJava(SOURCE|CLASS|RESOURCE)/RESOURCE	CREATE JAVA RESOURCE USING a
 reject@21	reject@21	engine	createJava(SOURCE|CLASS|RESOURCE)/RESOURCE!insert	CREATE JAVA RESOURCE zzz USING a
 reject@12	reject@12	engine	createJava(SOURCE|CLASS|RESOURCE)/RESOURCE!swap	CREATE JAVA RESTART USING a
-reject@19	reject@25	engine	createJava(NAMED_(ID_.)?_ID)?/%empty	CREATE JAVA SOURCE USING a
+reject@25	reject@25	engine	createJava(NAMED_(ID_.)?_ID)?/%empty	CREATE JAVA SOURCE USING a
 reject@33	reject@33	engine	createJava(NAMED_(ID_.)?_ID)?/NAMED_(ID_.)?_ID	CREATE JAVA SOURCE NAMED a USING a
 reject@19	reject@19	engine	createJava(NAMED_(ID_.)?_ID)?/NAMED_(ID_.)?_ID!drop-1	CREATE JAVA SOURCE a USING a
 reject@31	reject@31	engine	createJava(NAMED_(ID_.)?_ID)?/NAMED_(ID_.)?_ID!drop-2	CREATE JAVA SOURCE NAMED USING a
@@ -24919,87 +24919,87 @@ reject@24	reject@24	engine	createJava(ID_.)?/ID_.!drop-1	CREATE JAVA SOURCE NAME
 reject@27	reject@27	engine	createJava(ID_.)?/ID_.!drop-2	CREATE JAVA SOURCE NAMED a a USING a
 reject@26	reject@26	engine	createJava(ID_.)?/ID_.!truncate	CREATE JAVA SOURCE NAMED a
 reject@31	reject@31	engine	createJava(ID_.)?/ID_.!insert	CREATE JAVA SOURCE NAMED a.zzz a USING a
-reject@19	reject@25	engine	createJava(SHARING_=_(METADATA|NONE))?/%empty	CREATE JAVA SOURCE USING a
-reject@19	reject@29	engine	createJava(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)	CREATE JAVA SOURCE SHARING = METADATA USING a
+reject@25	reject@25	engine	createJava(SHARING_=_(METADATA|NONE))?/%empty	CREATE JAVA SOURCE USING a
+reject@44	reject@29	engine	createJava(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)	CREATE JAVA SOURCE SHARING = METADATA USING a
 reject@19	reject@19	engine	createJava(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)!drop-1	CREATE JAVA SOURCE = METADATA USING a
-reject@19	reject@27	engine	createJava(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)!drop-2	CREATE JAVA SOURCE SHARING METADATA USING a
-reject@19	reject@29	engine	createJava(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)!drop-3	CREATE JAVA SOURCE SHARING = USING a
-reject@19	reject@28	engine	createJava(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)!truncate	CREATE JAVA SOURCE SHARING =
-reject@19	reject@29	engine	createJava(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)!insert	CREATE JAVA SOURCE SHARING = METADATA zzz USING a
+reject@27	reject@27	engine	createJava(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)!drop-2	CREATE JAVA SOURCE SHARING METADATA USING a
+reject@29	reject@29	engine	createJava(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)!drop-3	CREATE JAVA SOURCE SHARING = USING a
+reject@28	reject@28	engine	createJava(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)!truncate	CREATE JAVA SOURCE SHARING =
+reject@38	reject@29	engine	createJava(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)!insert	CREATE JAVA SOURCE SHARING = METADATA zzz USING a
 reject@19	reject@19	engine	createJava(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)!swap	CREATE JAVA SOURCE SHOW = METADATA USING a
-reject@19	reject@29	engine	createJava(METADATA|NONE)/METADATA	CREATE JAVA SOURCE SHARING = METADATA USING a
-reject@19	reject@29	engine	createJava(METADATA|NONE)/METADATA!swap	CREATE JAVA SOURCE SHARING = MIGRATE USING a
-reject@19	reject@40	engine	createJava(METADATA|NONE)/NONE	CREATE JAVA SOURCE SHARING = NONE USING a
-reject@19	reject@34	engine	createJava(METADATA|NONE)/NONE!insert	CREATE JAVA SOURCE SHARING = NONE zzz USING a
-reject@19	reject@29	engine	createJava(METADATA|NONE)/NONE!swap	CREATE JAVA SOURCE SHARING = NONEDITIONABLE USING a
-reject@19	reject@25	engine	createJava(createJava_invoker_rights_clause)?/%empty	CREATE JAVA SOURCE USING a
-reject@19	reject@45	engine	createJava(createJava_invoker_rights_clause)?/createJava_invoker_rights_clause	CREATE JAVA SOURCE AUTHID CURRENT_USER USING a
+reject@44	reject@29	engine	createJava(METADATA|NONE)/METADATA	CREATE JAVA SOURCE SHARING = METADATA USING a
+reject@29	reject@29	engine	createJava(METADATA|NONE)/METADATA!swap	CREATE JAVA SOURCE SHARING = MIGRATE USING a
+reject@40	reject@40	engine	createJava(METADATA|NONE)/NONE	CREATE JAVA SOURCE SHARING = NONE USING a
+reject@34	reject@34	engine	createJava(METADATA|NONE)/NONE!insert	CREATE JAVA SOURCE SHARING = NONE zzz USING a
+reject@29	reject@29	engine	createJava(METADATA|NONE)/NONE!swap	CREATE JAVA SOURCE SHARING = NONEDITIONABLE USING a
+reject@25	reject@25	engine	createJava(createJava_invoker_rights_clause)?/%empty	CREATE JAVA SOURCE USING a
+reject@45	reject@45	engine	createJava(createJava_invoker_rights_clause)?/createJava_invoker_rights_clause	CREATE JAVA SOURCE AUTHID CURRENT_USER USING a
 reject@19	reject@19	engine	createJava(createJava_invoker_rights_clause)?/createJava_invoker_rights_clause!drop-1	CREATE JAVA SOURCE CURRENT_USER USING a
-reject@19	reject@26	engine	createJava(createJava_invoker_rights_clause)?/createJava_invoker_rights_clause!drop-2	CREATE JAVA SOURCE AUTHID USING a
-reject@19	reject@25	engine	createJava(createJava_invoker_rights_clause)?/createJava_invoker_rights_clause!truncate	CREATE JAVA SOURCE AUTHID
-reject@19	reject@39	engine	createJava(createJava_invoker_rights_clause)?/createJava_invoker_rights_clause!insert	CREATE JAVA SOURCE AUTHID CURRENT_USER zzz USING a
+reject@26	reject@26	engine	createJava(createJava_invoker_rights_clause)?/createJava_invoker_rights_clause!drop-2	CREATE JAVA SOURCE AUTHID USING a
+reject@25	reject@25	engine	createJava(createJava_invoker_rights_clause)?/createJava_invoker_rights_clause!truncate	CREATE JAVA SOURCE AUTHID
+reject@39	reject@39	engine	createJava(createJava_invoker_rights_clause)?/createJava_invoker_rights_clause!insert	CREATE JAVA SOURCE AUTHID CURRENT_USER zzz USING a
 reject@19	reject@19	engine	createJava(createJava_invoker_rights_clause)?/createJava_invoker_rights_clause!swap	CREATE JAVA SOURCE AUTHORIZATION CURRENT_USER USING a
-reject@19	reject@25	engine	createJava(createJava_resolver_clause)?/%empty	CREATE JAVA SOURCE USING a
-reject@19	reject@29	engine	createJava(createJava_resolver_clause)?/createJava_resolver_clause	CREATE JAVA SOURCE RESOLVER(('s' a)) USING a
+reject@25	reject@25	engine	createJava(createJava_resolver_clause)?/%empty	CREATE JAVA SOURCE USING a
+reject@29	reject@29	engine	createJava(createJava_resolver_clause)?/createJava_resolver_clause	CREATE JAVA SOURCE RESOLVER(('s' a)) USING a
 reject@18	reject@18	engine	createJava(createJava_resolver_clause)?/createJava_resolver_clause!drop-1	CREATE JAVA SOURCE(('s' a)) USING a
 reject@34	reject@28	engine	createJava(createJava_resolver_clause)?/createJava_resolver_clause!drop-2	CREATE JAVA SOURCE RESOLVER('s' a)) USING a
-reject@19	reject@30	engine	createJava(createJava_resolver_clause)?/createJava_resolver_clause!drop-4	CREATE JAVA SOURCE RESOLVER((a)) USING a
-reject@19	reject@29	engine	createJava(createJava_resolver_clause)?/createJava_resolver_clause!drop-5	CREATE JAVA SOURCE RESOLVER(('s')) USING a
+reject@30	reject@30	engine	createJava(createJava_resolver_clause)?/createJava_resolver_clause!drop-4	CREATE JAVA SOURCE RESOLVER((a)) USING a
+reject@29	reject@29	engine	createJava(createJava_resolver_clause)?/createJava_resolver_clause!drop-5	CREATE JAVA SOURCE RESOLVER(('s')) USING a
 reject@43	reject@29	engine	createJava(createJava_resolver_clause)?/createJava_resolver_clause!drop-6	CREATE JAVA SOURCE RESOLVER(('s' a) USING a
 reject@35	reject@29	engine	createJava(createJava_resolver_clause)?/createJava_resolver_clause!truncate	CREATE JAVA SOURCE RESOLVER(('s' a)
-reject@19	reject@29	engine	createJava(createJava_resolver_clause)?/createJava_resolver_clause!insert	CREATE JAVA SOURCE RESOLVER(('s' a)) zzz USING a
+reject@29	reject@29	engine	createJava(createJava_resolver_clause)?/createJava_resolver_clause!insert	CREATE JAVA SOURCE RESOLVER(('s' a)) zzz USING a
 reject@19	reject@19	engine	createJava(createJava_resolver_clause)?/createJava_resolver_clause!swap	CREATE JAVA SOURCE RESOURCE(('s' a)) USING a
-reject@19	reject@25	engine	createJava(USING_(BFILE_(_ID_,_STRING_)|(CLOB|B~f442a220)/USING_(BFILE_(_ID_,_STRING_)|(CLOB|BLOB|BFI~90826844)	CREATE JAVA SOURCE USING a
+reject@25	reject@25	engine	createJava(USING_(BFILE_(_ID_,_STRING_)|(CLOB|B~f442a220)/USING_(BFILE_(_ID_,_STRING_)|(CLOB|BLOB|BFI~90826844)	CREATE JAVA SOURCE USING a
 reject@19	reject@19	engine	createJava(USING_(BFILE_(_ID_,_STRING_)|(CLOB|B~f442a220)/USING_(BFILE_(_ID_,_STRING_)|(CLOB|BLOB|BFI~90826844)!swap	CREATE JAVA SOURCE VALIDATE a
-reject@19	reject@0	engine	createJava(USING_(BFILE_(_ID_,_STRING_)|(CLOB|B~f442a220)/AS_STRING	CREATE JAVA SOURCE AS 's'
+accept	reject@0	engine	createJava(USING_(BFILE_(_ID_,_STRING_)|(CLOB|B~f442a220)/AS_STRING	CREATE JAVA SOURCE AS 's'
 reject@19	reject@19	engine	createJava(USING_(BFILE_(_ID_,_STRING_)|(CLOB|B~f442a220)/AS_STRING!drop-1	CREATE JAVA SOURCE 's'
-reject@19	accept	engine	createJava(USING_(BFILE_(_ID_,_STRING_)|(CLOB|B~f442a220)/AS_STRING!drop-2	CREATE JAVA SOURCE AS
-reject@19	reject@0	engine	createJava(USING_(BFILE_(_ID_,_STRING_)|(CLOB|B~f442a220)/AS_STRING!insert	CREATE JAVA SOURCE AS 's' zzz
+reject@21	accept	engine	createJava(USING_(BFILE_(_ID_,_STRING_)|(CLOB|B~f442a220)/AS_STRING!drop-2	CREATE JAVA SOURCE AS
+accept	reject@0	engine	createJava(USING_(BFILE_(_ID_,_STRING_)|(CLOB|B~f442a220)/AS_STRING!insert	CREATE JAVA SOURCE AS 's' zzz
 reject@19	reject@19	engine	createJava(USING_(BFILE_(_ID_,_STRING_)|(CLOB|B~f442a220)/AS_STRING!swap	CREATE JAVA SOURCE ASC 's'
-reject@19	accept	engine	createJava(BFILE_(_ID_,_STRING_)|(CLOB|BLOB|BFI~90826844)/BFILE_(_ID_,_STRING_)	CREATE JAVA SOURCE USING BFILE(a, 's')
-reject@19	reject@24	engine	createJava(BFILE_(_ID_,_STRING_)|(CLOB|BLOB|BFI~90826844)/BFILE_(_ID_,_STRING_)!drop-1	CREATE JAVA SOURCE USING(a, 's')
+accept	accept	engine	createJava(BFILE_(_ID_,_STRING_)|(CLOB|BLOB|BFI~90826844)/BFILE_(_ID_,_STRING_)	CREATE JAVA SOURCE USING BFILE(a, 's')
+reject@24	reject@24	engine	createJava(BFILE_(_ID_,_STRING_)|(CLOB|BLOB|BFI~90826844)/BFILE_(_ID_,_STRING_)!drop-1	CREATE JAVA SOURCE USING(a, 's')
 reject@37	accept	engine	createJava(BFILE_(_ID_,_STRING_)|(CLOB|BLOB|BFI~90826844)/BFILE_(_ID_,_STRING_)!drop-2	CREATE JAVA SOURCE USING BFILE a, 's')
-reject@19	accept	engine	createJava(BFILE_(_ID_,_STRING_)|(CLOB|BLOB|BFI~90826844)/BFILE_(_ID_,_STRING_)!drop-3	CREATE JAVA SOURCE USING BFILE(, 's')
-reject@19	reject@33	engine	createJava(BFILE_(_ID_,_STRING_)|(CLOB|BLOB|BFI~90826844)/BFILE_(_ID_,_STRING_)!drop-4	CREATE JAVA SOURCE USING BFILE(a 's')
-reject@19	reject@33	engine	createJava(BFILE_(_ID_,_STRING_)|(CLOB|BLOB|BFI~90826844)/BFILE_(_ID_,_STRING_)!drop-5	CREATE JAVA SOURCE USING BFILE(a,)
+reject@31	accept	engine	createJava(BFILE_(_ID_,_STRING_)|(CLOB|BLOB|BFI~90826844)/BFILE_(_ID_,_STRING_)!drop-3	CREATE JAVA SOURCE USING BFILE(, 's')
+reject@33	reject@33	engine	createJava(BFILE_(_ID_,_STRING_)|(CLOB|BLOB|BFI~90826844)/BFILE_(_ID_,_STRING_)!drop-4	CREATE JAVA SOURCE USING BFILE(a 's')
+reject@33	reject@33	engine	createJava(BFILE_(_ID_,_STRING_)|(CLOB|BLOB|BFI~90826844)/BFILE_(_ID_,_STRING_)!drop-5	CREATE JAVA SOURCE USING BFILE(a,)
 reject@37	reject@37	engine	createJava(BFILE_(_ID_,_STRING_)|(CLOB|BLOB|BFI~90826844)/BFILE_(_ID_,_STRING_)!drop-6	CREATE JAVA SOURCE USING BFILE(a, 's'
-reject@19	reject@39	engine	createJava(BFILE_(_ID_,_STRING_)|(CLOB|BLOB|BFI~90826844)/BFILE_(_ID_,_STRING_)!insert	CREATE JAVA SOURCE USING BFILE(a, 's') zzz
-reject@19	reject@25	engine	createJava(BFILE_(_ID_,_STRING_)|(CLOB|BLOB|BFI~90826844)/BFILE_(_ID_,_STRING_)!swap	CREATE JAVA SOURCE USING BIGFILE(a, 's')
-reject@19	accept	engine	createJava(BFILE_(_ID_,_STRING_)|(CLOB|BLOB|BFI~90826844)/(CLOB|BLOB|BFILE)_QUERY	CREATE JAVA SOURCE USING CLOB SELECT 1 FROM dual
-reject@19	reject@25	engine	createJava(BFILE_(_ID_,_STRING_)|(CLOB|BLOB|BFI~90826844)/(CLOB|BLOB|BFILE)_QUERY!drop-1	CREATE JAVA SOURCE USING SELECT 1 FROM dual
-reject@19	accept	engine	createJava(BFILE_(_ID_,_STRING_)|(CLOB|BLOB|BFI~90826844)/(CLOB|BLOB|BFILE)_QUERY!drop-2	CREATE JAVA SOURCE USING CLOB
-reject@19	accept	engine	createJava(BFILE_(_ID_,_STRING_)|(CLOB|BLOB|BFI~90826844)/(CLOB|BLOB|BFILE)_QUERY!insert	CREATE JAVA SOURCE USING CLOB SELECT 1 FROM dual zzz
-reject@19	reject@25	engine	createJava(BFILE_(_ID_,_STRING_)|(CLOB|BLOB|BFI~90826844)/(CLOB|BLOB|BFILE)_QUERY!swap	CREATE JAVA SOURCE USING CLONE SELECT 1 FROM dual
-reject@19	reject@25	engine	createJava(BFILE_(_ID_,_STRING_)|(CLOB|BLOB|BFI~90826844)/ID	CREATE JAVA SOURCE USING a
-reject@19	accept	engine	createJava(CLOB|BLOB|BFILE)/CLOB	CREATE JAVA SOURCE USING CLOB SELECT 1 FROM dual
-reject@19	accept	engine	createJava(CLOB|BLOB|BFILE)/CLOB!insert	CREATE JAVA SOURCE USING CLOB zzz SELECT 1 FROM dual
-reject@19	accept	engine	createJava(CLOB|BLOB|BFILE)/BLOB	CREATE JAVA SOURCE USING BLOB SELECT 1 FROM dual
-reject@19	accept	engine	createJava(CLOB|BLOB|BFILE)/BLOB!insert	CREATE JAVA SOURCE USING BLOB zzz SELECT 1 FROM dual
-reject@19	reject@25	engine	createJava(CLOB|BLOB|BFILE)/BLOB!swap	CREATE JAVA SOURCE USING BLOCK SELECT 1 FROM dual
-reject@19	accept	engine	createJava(CLOB|BLOB|BFILE)/BFILE	CREATE JAVA SOURCE USING BFILE SELECT 1 FROM dual
-reject@19	accept	engine	createJava(CLOB|BLOB|BFILE)/BFILE!insert	CREATE JAVA SOURCE USING BFILE zzz SELECT 1 FROM dual
-reject@19	reject@25	engine	createJava(CLOB|BLOB|BFILE)/BFILE!swap	CREATE JAVA SOURCE USING BIGFILE SELECT 1 FROM dual
-reject@19	reject@45	engine	createJava_invoker_rights_clause/AUTHID_(CURRENT_USER|DEFINER)	CREATE JAVA SOURCE AUTHID CURRENT_USER USING a
-reject@19	reject@45	engine	createJava_invoker_rights_clause(CURRENT_USER|DEFINER)/CURRENT_USER	CREATE JAVA SOURCE AUTHID CURRENT_USER USING a
-reject@19	reject@26	engine	createJava_invoker_rights_clause(CURRENT_USER|DEFINER)/CURRENT_USER!swap	CREATE JAVA SOURCE AUTHID CYCLE USING a
-reject@19	reject@40	engine	createJava_invoker_rights_clause(CURRENT_USER|DEFINER)/DEFINER	CREATE JAVA SOURCE AUTHID DEFINER USING a
-reject@19	reject@34	engine	createJava_invoker_rights_clause(CURRENT_USER|DEFINER)/DEFINER!insert	CREATE JAVA SOURCE AUTHID DEFINER zzz USING a
-reject@19	reject@26	engine	createJava_invoker_rights_clause(CURRENT_USER|DEFINER)/DEFINER!swap	CREATE JAVA SOURCE AUTHID DELEGATE USING a
-reject@19	reject@29	engine	createJava_resolver_clause/RESOLVER_(_(_STRING_(ID|-)_)_((_STRING_(ID|-)_))*_)	CREATE JAVA SOURCE RESOLVER(('s' a)) USING a
-reject@19	reject@29	engine	createJava_resolver_clause(ID|-)/ID	CREATE JAVA SOURCE RESOLVER(('s' a)) USING a
+reject@39	reject@39	engine	createJava(BFILE_(_ID_,_STRING_)|(CLOB|BLOB|BFI~90826844)/BFILE_(_ID_,_STRING_)!insert	CREATE JAVA SOURCE USING BFILE(a, 's') zzz
+reject@25	reject@25	engine	createJava(BFILE_(_ID_,_STRING_)|(CLOB|BLOB|BFI~90826844)/BFILE_(_ID_,_STRING_)!swap	CREATE JAVA SOURCE USING BIGFILE(a, 's')
+accept	accept	engine	createJava(BFILE_(_ID_,_STRING_)|(CLOB|BLOB|BFI~90826844)/(CLOB|BLOB|BFILE)_QUERY	CREATE JAVA SOURCE USING CLOB SELECT 1 FROM dual
+reject@25	reject@25	engine	createJava(BFILE_(_ID_,_STRING_)|(CLOB|BLOB|BFI~90826844)/(CLOB|BLOB|BFILE)_QUERY!drop-1	CREATE JAVA SOURCE USING SELECT 1 FROM dual
+reject@29	accept	engine	createJava(BFILE_(_ID_,_STRING_)|(CLOB|BLOB|BFI~90826844)/(CLOB|BLOB|BFILE)_QUERY!drop-2	CREATE JAVA SOURCE USING CLOB
+accept	accept	engine	createJava(BFILE_(_ID_,_STRING_)|(CLOB|BLOB|BFI~90826844)/(CLOB|BLOB|BFILE)_QUERY!insert	CREATE JAVA SOURCE USING CLOB SELECT 1 FROM dual zzz
+reject@25	reject@25	engine	createJava(BFILE_(_ID_,_STRING_)|(CLOB|BLOB|BFI~90826844)/(CLOB|BLOB|BFILE)_QUERY!swap	CREATE JAVA SOURCE USING CLONE SELECT 1 FROM dual
+reject@25	reject@25	engine	createJava(BFILE_(_ID_,_STRING_)|(CLOB|BLOB|BFI~90826844)/ID	CREATE JAVA SOURCE USING a
+accept	accept	engine	createJava(CLOB|BLOB|BFILE)/CLOB	CREATE JAVA SOURCE USING CLOB SELECT 1 FROM dual
+reject@34	accept	engine	createJava(CLOB|BLOB|BFILE)/CLOB!insert	CREATE JAVA SOURCE USING CLOB zzz SELECT 1 FROM dual
+accept	accept	engine	createJava(CLOB|BLOB|BFILE)/BLOB	CREATE JAVA SOURCE USING BLOB SELECT 1 FROM dual
+reject@34	accept	engine	createJava(CLOB|BLOB|BFILE)/BLOB!insert	CREATE JAVA SOURCE USING BLOB zzz SELECT 1 FROM dual
+reject@25	reject@25	engine	createJava(CLOB|BLOB|BFILE)/BLOB!swap	CREATE JAVA SOURCE USING BLOCK SELECT 1 FROM dual
+accept	accept	engine	createJava(CLOB|BLOB|BFILE)/BFILE	CREATE JAVA SOURCE USING BFILE SELECT 1 FROM dual
+reject@35	accept	engine	createJava(CLOB|BLOB|BFILE)/BFILE!insert	CREATE JAVA SOURCE USING BFILE zzz SELECT 1 FROM dual
+reject@25	reject@25	engine	createJava(CLOB|BLOB|BFILE)/BFILE!swap	CREATE JAVA SOURCE USING BIGFILE SELECT 1 FROM dual
+reject@45	reject@45	engine	createJava_invoker_rights_clause/AUTHID_(CURRENT_USER|DEFINER)	CREATE JAVA SOURCE AUTHID CURRENT_USER USING a
+reject@45	reject@45	engine	createJava_invoker_rights_clause(CURRENT_USER|DEFINER)/CURRENT_USER	CREATE JAVA SOURCE AUTHID CURRENT_USER USING a
+reject@26	reject@26	engine	createJava_invoker_rights_clause(CURRENT_USER|DEFINER)/CURRENT_USER!swap	CREATE JAVA SOURCE AUTHID CYCLE USING a
+reject@40	reject@40	engine	createJava_invoker_rights_clause(CURRENT_USER|DEFINER)/DEFINER	CREATE JAVA SOURCE AUTHID DEFINER USING a
+reject@34	reject@34	engine	createJava_invoker_rights_clause(CURRENT_USER|DEFINER)/DEFINER!insert	CREATE JAVA SOURCE AUTHID DEFINER zzz USING a
+reject@26	reject@26	engine	createJava_invoker_rights_clause(CURRENT_USER|DEFINER)/DEFINER!swap	CREATE JAVA SOURCE AUTHID DELEGATE USING a
+reject@29	reject@29	engine	createJava_resolver_clause/RESOLVER_(_(_STRING_(ID|-)_)_((_STRING_(ID|-)_))*_)	CREATE JAVA SOURCE RESOLVER(('s' a)) USING a
+reject@29	reject@29	engine	createJava_resolver_clause(ID|-)/ID	CREATE JAVA SOURCE RESOLVER(('s' a)) USING a
 reject@32	reject@29	engine	createJava_resolver_clause(ID|-)/ID!truncate	CREATE JAVA SOURCE RESOLVER(('s'
-reject@19	reject@29	engine	createJava_resolver_clause(ID|-)/ID!insert	CREATE JAVA SOURCE RESOLVER(('s' a zzz)) USING a
-reject@19	reject@29	engine	createJava_resolver_clause(ID|-)/-	CREATE JAVA SOURCE RESOLVER(('s' -)) USING a
-reject@19	reject@29	engine	createJava_resolver_clause(ID|-)/-!insert	CREATE JAVA SOURCE RESOLVER(('s' - zzz)) USING a
-reject@19	reject@29	engine	createJava_resolver_clause((_STRING_(ID|-)_))*/%empty	CREATE JAVA SOURCE RESOLVER(('s' a)) USING a
-reject@19	reject@29	engine	createJava_resolver_clause((_STRING_(ID|-)_))*/%empty!insert	CREATE JAVA SOURCE RESOLVER(('s' a) zzz) USING a
-reject@19	reject@29	engine	createJava_resolver_clause((_STRING_(ID|-)_))*/(_STRING_(ID|-)_)_((_STRING_(ID|-)_))*	CREATE JAVA SOURCE RESOLVER(('s' a)('s' a)) USING a
+reject@29	reject@29	engine	createJava_resolver_clause(ID|-)/ID!insert	CREATE JAVA SOURCE RESOLVER(('s' a zzz)) USING a
+reject@29	reject@29	engine	createJava_resolver_clause(ID|-)/-	CREATE JAVA SOURCE RESOLVER(('s' -)) USING a
+reject@29	reject@29	engine	createJava_resolver_clause(ID|-)/-!insert	CREATE JAVA SOURCE RESOLVER(('s' - zzz)) USING a
+reject@29	reject@29	engine	createJava_resolver_clause((_STRING_(ID|-)_))*/%empty	CREATE JAVA SOURCE RESOLVER(('s' a)) USING a
+reject@29	reject@29	engine	createJava_resolver_clause((_STRING_(ID|-)_))*/%empty!insert	CREATE JAVA SOURCE RESOLVER(('s' a) zzz) USING a
+reject@29	reject@29	engine	createJava_resolver_clause((_STRING_(ID|-)_))*/(_STRING_(ID|-)_)_((_STRING_(ID|-)_))*	CREATE JAVA SOURCE RESOLVER(('s' a)('s' a)) USING a
 reject@42	reject@29	engine	createJava_resolver_clause((_STRING_(ID|-)_))*/(_STRING_(ID|-)_)_((_STRING_(ID|-)_))*!drop-1	CREATE JAVA SOURCE RESOLVER(('s' a) 's' a)) USING a
-reject@19	reject@29	engine	createJava_resolver_clause((_STRING_(ID|-)_))*/(_STRING_(ID|-)_)_((_STRING_(ID|-)_))*!drop-2	CREATE JAVA SOURCE RESOLVER(('s' a)(a)) USING a
-reject@19	reject@29	engine	createJava_resolver_clause((_STRING_(ID|-)_))*/(_STRING_(ID|-)_)_((_STRING_(ID|-)_))*!drop-3	CREATE JAVA SOURCE RESOLVER(('s' a)('s')) USING a
+reject@29	reject@29	engine	createJava_resolver_clause((_STRING_(ID|-)_))*/(_STRING_(ID|-)_)_((_STRING_(ID|-)_))*!drop-2	CREATE JAVA SOURCE RESOLVER(('s' a)(a)) USING a
+reject@29	reject@29	engine	createJava_resolver_clause((_STRING_(ID|-)_))*/(_STRING_(ID|-)_)_((_STRING_(ID|-)_))*!drop-3	CREATE JAVA SOURCE RESOLVER(('s' a)('s')) USING a
 reject@50	reject@29	engine	createJava_resolver_clause((_STRING_(ID|-)_))*/(_STRING_(ID|-)_)_((_STRING_(ID|-)_))*!drop-4	CREATE JAVA SOURCE RESOLVER(('s' a)('s' a) USING a
 reject@41	reject@29	engine	createJava_resolver_clause((_STRING_(ID|-)_))*/(_STRING_(ID|-)_)_((_STRING_(ID|-)_))*!truncate	CREATE JAVA SOURCE RESOLVER(('s' a)('s' a
-reject@19	reject@29	engine	createJava_resolver_clause((_STRING_(ID|-)_))*/(_STRING_(ID|-)_)_((_STRING_(ID|-)_))*!insert	CREATE JAVA SOURCE RESOLVER(('s' a)('s' a) zzz) USING a
+reject@29	reject@29	engine	createJava_resolver_clause((_STRING_(ID|-)_))*/(_STRING_(ID|-)_)_((_STRING_(ID|-)_))*!insert	CREATE JAVA SOURCE RESOLVER(('s' a)('s' a) zzz) USING a
 accept	accept	engine	createLibrary/CREATE_(OR_REPLACE|IF_NOT_EXISTS)?_(EDITIONABLE|NONEDIT~87d4f760	CREATE LIBRARY a IS 's'
 accept	accept	engine	createLibrary(OR_REPLACE|IF_NOT_EXISTS)?/%empty	CREATE LIBRARY a IS 's'
 reject@7	reject@7	engine	createLibrary(OR_REPLACE|IF_NOT_EXISTS)?/%empty!insert	CREATE zzz LIBRARY a IS 's'
@@ -25008,23 +25008,23 @@ reject@7	reject@7	engine	createLibrary(OR_REPLACE|IF_NOT_EXISTS)?/OR_REPLACE!dro
 reject@10	reject@10	engine	createLibrary(OR_REPLACE|IF_NOT_EXISTS)?/OR_REPLACE!drop-2	CREATE OR LIBRARY a IS 's'
 reject@18	reject@18	engine	createLibrary(OR_REPLACE|IF_NOT_EXISTS)?/OR_REPLACE!insert	CREATE OR REPLACE zzz LIBRARY a IS 's'
 reject@7	reject@7	engine	createLibrary(OR_REPLACE|IF_NOT_EXISTS)?/OR_REPLACE!swap	CREATE ORDER REPLACE LIBRARY a IS 's'
-accept	reject@7	engine	createLibrary(OR_REPLACE|IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE IF NOT EXISTS LIBRARY a IS 's'
+reject@7	reject@7	engine	createLibrary(OR_REPLACE|IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE IF NOT EXISTS LIBRARY a IS 's'
 reject@7	reject@7	engine	createLibrary(OR_REPLACE|IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	CREATE NOT EXISTS LIBRARY a IS 's'
 reject@7	reject@7	engine	createLibrary(OR_REPLACE|IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	CREATE IF EXISTS LIBRARY a IS 's'
 accept	reject@7	engine	createLibrary(OR_REPLACE|IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE IF NOT LIBRARY a IS 's'
 reject@21	reject@7	engine	createLibrary(OR_REPLACE|IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE IF NOT EXISTS zzz LIBRARY a IS 's'
 reject@7	reject@7	engine	createLibrary(OR_REPLACE|IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE IGNORE NOT EXISTS LIBRARY a IS 's'
 accept	accept	engine	createLibrary(EDITIONABLE|NONEDITIONABLE)?/%empty	CREATE LIBRARY a IS 's'
-reject@19	accept	engine	createLibrary(EDITIONABLE|NONEDITIONABLE)?/EDITIONABLE	CREATE EDITIONABLE LIBRARY a IS 's'
+accept	accept	engine	createLibrary(EDITIONABLE|NONEDITIONABLE)?/EDITIONABLE	CREATE EDITIONABLE LIBRARY a IS 's'
 reject@19	reject@19	engine	createLibrary(EDITIONABLE|NONEDITIONABLE)?/EDITIONABLE!insert	CREATE EDITIONABLE zzz LIBRARY a IS 's'
 reject@18	reject@18	engine	createLibrary(EDITIONABLE|NONEDITIONABLE)?/EDITIONABLE!swap	CREATE EDITIONING LIBRARY a IS 's'
-reject@22	accept	engine	createLibrary(EDITIONABLE|NONEDITIONABLE)?/NONEDITIONABLE	CREATE NONEDITIONABLE LIBRARY a IS 's'
+accept	accept	engine	createLibrary(EDITIONABLE|NONEDITIONABLE)?/NONEDITIONABLE	CREATE NONEDITIONABLE LIBRARY a IS 's'
 reject@22	reject@22	engine	createLibrary(EDITIONABLE|NONEDITIONABLE)?/NONEDITIONABLE!insert	CREATE NONEDITIONABLE zzz LIBRARY a IS 's'
 reject@7	reject@7	engine	createLibrary(EDITIONABLE|NONEDITIONABLE)?/NONEDITIONABLE!swap	CREATE NONSCHEMA LIBRARY a IS 's'
 accept	accept	engine	createLibrary(ID_.)?/%empty	CREATE LIBRARY a IS 's'
 accept	accept	engine	createLibrary(ID_.)?/%empty!insert	CREATE LIBRARY zzz a IS 's'
 accept	accept	engine	createLibrary(ID_.)?/ID_.	CREATE LIBRARY a.a IS 's'
-accept	reject@14	engine	createLibrary(ID_.)?/ID_.!drop-1	CREATE LIBRARY.a IS 's'
+reject@14	reject@14	engine	createLibrary(ID_.)?/ID_.!drop-1	CREATE LIBRARY.a IS 's'
 accept	accept	engine	createLibrary(ID_.)?/ID_.!drop-2	CREATE LIBRARY a a IS 's'
 accept	accept	engine	createLibrary(ID_.)?/ID_.!truncate	CREATE LIBRARY a
 accept	accept	engine	createLibrary(ID_.)?/ID_.!insert	CREATE LIBRARY a.zzz a IS 's'
@@ -30191,7 +30191,7 @@ reject@7	reject@7	engine	createOutline(OR_REPLACE)?/OR_REPLACE!swap	CREATE ORDER
 accept	accept	engine	createOutline(PUBLIC|PRIVATE)?/%empty	CREATE OUTLINE FROM a
 accept	accept	engine	createOutline(PUBLIC|PRIVATE)?/PUBLIC	CREATE PUBLIC OUTLINE FROM a
 reject@14	reject@14	engine	createOutline(PUBLIC|PRIVATE)?/PUBLIC!insert	CREATE PUBLIC zzz OUTLINE FROM a
-accept	reject@7	engine	createOutline(PUBLIC|PRIVATE)?/PUBLIC!swap	CREATE PURE OUTLINE FROM a
+reject@7	reject@7	engine	createOutline(PUBLIC|PRIVATE)?/PUBLIC!swap	CREATE PURE OUTLINE FROM a
 accept	accept	engine	createOutline(PUBLIC|PRIVATE)?/PRIVATE	CREATE PRIVATE OUTLINE FROM a
 reject@15	reject@7	engine	createOutline(PUBLIC|PRIVATE)?/PRIVATE!insert	CREATE PRIVATE zzz OUTLINE FROM a
 reject@7	reject@7	engine	createOutline(PUBLIC|PRIVATE)?/PRIVATE!swap	CREATE PRIVATE_SGA OUTLINE FROM a
@@ -31472,7 +31472,7 @@ accept	accept	engine	createRollbackSegment(PUBLIC)?/%empty	CREATE ROLLBACK SEGME
 reject@7	reject@7	engine	createRollbackSegment(PUBLIC)?/%empty!insert	CREATE zzz ROLLBACK SEGMENT a
 accept	accept	engine	createRollbackSegment(PUBLIC)?/PUBLIC	CREATE PUBLIC ROLLBACK SEGMENT a
 reject@14	reject@14	engine	createRollbackSegment(PUBLIC)?/PUBLIC!insert	CREATE PUBLIC zzz ROLLBACK SEGMENT a
-accept	reject@7	engine	createRollbackSegment(PUBLIC)?/PUBLIC!swap	CREATE PURE ROLLBACK SEGMENT a
+reject@7	reject@7	engine	createRollbackSegment(PUBLIC)?/PUBLIC!swap	CREATE PURE ROLLBACK SEGMENT a
 accept	accept	engine	createRollbackSegment(TABLESPACE_ID)?/%empty	CREATE ROLLBACK SEGMENT a
 accept	accept	engine	createRollbackSegment(TABLESPACE_ID)?/TABLESPACE_ID	CREATE ROLLBACK SEGMENT a TABLESPACE a
 accept	reject@26	engine	createRollbackSegment(TABLESPACE_ID)?/TABLESPACE_ID!drop-1	CREATE ROLLBACK SEGMENT a a
@@ -31652,7 +31652,7 @@ reject@7	reject@7	engine	createSynonym(EDITIONABLE|NONEDITIONABLE)?/NONEDITIONAB
 accept	accept	engine	createSynonym(PUBLIC)?/%empty	CREATE SYNONYM a FOR a
 accept	accept	engine	createSynonym(PUBLIC)?/PUBLIC	CREATE PUBLIC SYNONYM a FOR a
 reject@14	reject@14	engine	createSynonym(PUBLIC)?/PUBLIC!insert	CREATE PUBLIC zzz SYNONYM a FOR a
-reject@12	reject@7	engine	createSynonym(PUBLIC)?/PUBLIC!swap	CREATE PURE SYNONYM a FOR a
+reject@7	reject@7	engine	createSynonym(PUBLIC)?/PUBLIC!swap	CREATE PURE SYNONYM a FOR a
 accept	accept	engine	createSynonym(ID_.)?/%empty	CREATE SYNONYM a FOR a
 reject@19	reject@19	engine	createSynonym(ID_.)?/%empty!insert	CREATE SYNONYM zzz a FOR a
 accept	accept	engine	createSynonym(ID_.)?/ID_.	CREATE SYNONYM a.a FOR a
@@ -45047,37 +45047,37 @@ reject@55	reject@55	engine	createJsonRelationalDualityView_column_tags_clause(CH
 reject@55	reject@55	engine	createJsonRelationalDualityView_column_tags_clause(CHECK|NOCHECK)/NOCHECK!swap	CREATE JSON RELATIONAL DUALITY VIEW a AS SELECT JSON a : a WITH NOCOMPRESS ETAG FROM a
 accept	accept	engine	createLogicalPartitionTracking/CREATE_LOGICAL_PARTITION_TRACKING_ON_(ID_.)?_ID_PARTITI~2bdbcdf6	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN(1))
 accept	accept	engine	createLogicalPartitionTracking(ID_.)?/%empty	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN(1))
-accept	reject@41	engine	createLogicalPartitionTracking(ID_.)?/%empty!insert	CREATE LOGICAL PARTITION TRACKING ON zzz a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN(1))
+reject@41	reject@41	engine	createLogicalPartitionTracking(ID_.)?/%empty!insert	CREATE LOGICAL PARTITION TRACKING ON zzz a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN(1))
 accept	accept	engine	createLogicalPartitionTracking(ID_.)?/ID_.	CREATE LOGICAL PARTITION TRACKING ON a.a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN(1))
-accept	reject@36	engine	createLogicalPartitionTracking(ID_.)?/ID_.!drop-1	CREATE LOGICAL PARTITION TRACKING ON.a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN(1))
-accept	reject@39	engine	createLogicalPartitionTracking(ID_.)?/ID_.!drop-2	CREATE LOGICAL PARTITION TRACKING ON a a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN(1))
-accept	reject@38	engine	createLogicalPartitionTracking(ID_.)?/ID_.!truncate	CREATE LOGICAL PARTITION TRACKING ON a
-accept	reject@43	engine	createLogicalPartitionTracking(ID_.)?/ID_.!insert	CREATE LOGICAL PARTITION TRACKING ON a.zzz a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN(1))
+reject@36	reject@36	engine	createLogicalPartitionTracking(ID_.)?/ID_.!drop-1	CREATE LOGICAL PARTITION TRACKING ON.a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN(1))
+reject@39	reject@39	engine	createLogicalPartitionTracking(ID_.)?/ID_.!drop-2	CREATE LOGICAL PARTITION TRACKING ON a a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN(1))
+reject@38	reject@38	engine	createLogicalPartitionTracking(ID_.)?/ID_.!truncate	CREATE LOGICAL PARTITION TRACKING ON a
+reject@43	reject@43	engine	createLogicalPartitionTracking(ID_.)?/ID_.!insert	CREATE LOGICAL PARTITION TRACKING ON a.zzz a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN(1))
 accept	accept	engine	createLogicalPartitionTracking(RANGE|INTERVAL)/RANGE	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN(1))
-accept	reject@51	engine	createLogicalPartitionTracking(RANGE|INTERVAL)/RANGE!truncate	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY
-accept	reject@58	engine	createLogicalPartitionTracking(RANGE|INTERVAL)/RANGE!insert	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY RANGE zzz(a)(PARTITION a VALUES LESS THAN(1))
-accept	reject@52	engine	createLogicalPartitionTracking(RANGE|INTERVAL)/RANGE!swap	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY READ(a)(PARTITION a VALUES LESS THAN(1))
-accept	reject@52	engine	createLogicalPartitionTracking(RANGE|INTERVAL)/INTERVAL	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY INTERVAL(a)(PARTITION a VALUES LESS THAN(1))
-accept	reject@52	engine	createLogicalPartitionTracking(RANGE|INTERVAL)/INTERVAL!insert	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY INTERVAL zzz(a)(PARTITION a VALUES LESS THAN(1))
-accept	reject@52	engine	createLogicalPartitionTracking(RANGE|INTERVAL)/INTERVAL!swap	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY INTO(a)(PARTITION a VALUES LESS THAN(1))
+reject@51	reject@51	engine	createLogicalPartitionTracking(RANGE|INTERVAL)/RANGE!truncate	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY
+reject@58	reject@58	engine	createLogicalPartitionTracking(RANGE|INTERVAL)/RANGE!insert	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY RANGE zzz(a)(PARTITION a VALUES LESS THAN(1))
+reject@52	reject@52	engine	createLogicalPartitionTracking(RANGE|INTERVAL)/RANGE!swap	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY READ(a)(PARTITION a VALUES LESS THAN(1))
+reject@52	reject@52	engine	createLogicalPartitionTracking(RANGE|INTERVAL)/INTERVAL	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY INTERVAL(a)(PARTITION a VALUES LESS THAN(1))
+reject@52	reject@52	engine	createLogicalPartitionTracking(RANGE|INTERVAL)/INTERVAL!insert	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY INTERVAL zzz(a)(PARTITION a VALUES LESS THAN(1))
+reject@52	reject@52	engine	createLogicalPartitionTracking(RANGE|INTERVAL)/INTERVAL!swap	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY INTO(a)(PARTITION a VALUES LESS THAN(1))
 accept	accept	engine	createLogicalPartitionTracking(,_createLogicalPartitionTracking_par~b92dcc49)*/%empty	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN(1))
-accept	reject@93	engine	createLogicalPartitionTracking(,_createLogicalPartitionTracking_par~b92dcc49)*/%empty!insert	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN(1) zzz)
+reject@93	reject@93	engine	createLogicalPartitionTracking(,_createLogicalPartitionTracking_par~b92dcc49)*/%empty!insert	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN(1) zzz)
 accept	accept	engine	createLogicalPartitionTracking(,_createLogicalPartitionTracking_par~b92dcc49)*/,_createLogicalPartitionTracking_partition_definition_(~4e28e47e	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN(1), PARTITION a VALUES LESS THAN(1))
-accept	reject@93	engine	createLogicalPartitionTracking(,_createLogicalPartitionTracking_par~b92dcc49)*/,_createLogicalPartitionTracking_partition_definition_(~4e28e47e!drop-1	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN(1) PARTITION a VALUES LESS THAN(1))
-accept	reject@94	engine	createLogicalPartitionTracking(,_createLogicalPartitionTracking_par~b92dcc49)*/,_createLogicalPartitionTracking_partition_definition_(~4e28e47e!drop-2	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN(1), a VALUES LESS THAN(1))
+reject@93	reject@93	engine	createLogicalPartitionTracking(,_createLogicalPartitionTracking_par~b92dcc49)*/,_createLogicalPartitionTracking_partition_definition_(~4e28e47e!drop-1	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN(1) PARTITION a VALUES LESS THAN(1))
+reject@94	reject@94	engine	createLogicalPartitionTracking(,_createLogicalPartitionTracking_par~b92dcc49)*/,_createLogicalPartitionTracking_partition_definition_(~4e28e47e!drop-2	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN(1), a VALUES LESS THAN(1))
 accept	accept	engine	createLogicalPartitionTracking(,_createLogicalPartitionTracking_par~b92dcc49)*/,_createLogicalPartitionTracking_partition_definition_(~4e28e47e!drop-3	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN(1), PARTITION VALUES LESS THAN(1))
-accept	reject@106	engine	createLogicalPartitionTracking(,_createLogicalPartitionTracking_par~b92dcc49)*/,_createLogicalPartitionTracking_partition_definition_(~4e28e47e!drop-4	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN(1), PARTITION a LESS THAN(1))
-accept	reject@113	engine	createLogicalPartitionTracking(,_createLogicalPartitionTracking_par~b92dcc49)*/,_createLogicalPartitionTracking_partition_definition_(~4e28e47e!drop-5	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN(1), PARTITION a VALUES THAN(1))
-accept	reject@117	engine	createLogicalPartitionTracking(,_createLogicalPartitionTracking_par~b92dcc49)*/,_createLogicalPartitionTracking_partition_definition_(~4e28e47e!drop-6	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN(1), PARTITION a VALUES LESS(1))
+reject@106	reject@106	engine	createLogicalPartitionTracking(,_createLogicalPartitionTracking_par~b92dcc49)*/,_createLogicalPartitionTracking_partition_definition_(~4e28e47e!drop-4	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN(1), PARTITION a LESS THAN(1))
+reject@113	reject@113	engine	createLogicalPartitionTracking(,_createLogicalPartitionTracking_par~b92dcc49)*/,_createLogicalPartitionTracking_partition_definition_(~4e28e47e!drop-5	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN(1), PARTITION a VALUES THAN(1))
+reject@117	reject@117	engine	createLogicalPartitionTracking(,_createLogicalPartitionTracking_par~b92dcc49)*/,_createLogicalPartitionTracking_partition_definition_(~4e28e47e!drop-6	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN(1), PARTITION a VALUES LESS(1))
 reject@125	reject@123	engine	createLogicalPartitionTracking(,_createLogicalPartitionTracking_par~b92dcc49)*/,_createLogicalPartitionTracking_partition_definition_(~4e28e47e!drop-7	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN(1), PARTITION a VALUES LESS THAN 1))
-accept	reject@123	engine	createLogicalPartitionTracking(,_createLogicalPartitionTracking_par~b92dcc49)*/,_createLogicalPartitionTracking_partition_definition_(~4e28e47e!drop-8	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN(1), PARTITION a VALUES LESS THAN())
+reject@123	reject@123	engine	createLogicalPartitionTracking(,_createLogicalPartitionTracking_par~b92dcc49)*/,_createLogicalPartitionTracking_partition_definition_(~4e28e47e!drop-8	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN(1), PARTITION a VALUES LESS THAN())
 reject@125	reject@125	engine	createLogicalPartitionTracking(,_createLogicalPartitionTracking_par~b92dcc49)*/,_createLogicalPartitionTracking_partition_definition_(~4e28e47e!drop-9	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN(1), PARTITION a VALUES LESS THAN(1)
 reject@124	reject@124	engine	createLogicalPartitionTracking(,_createLogicalPartitionTracking_par~b92dcc49)*/,_createLogicalPartitionTracking_partition_definition_(~4e28e47e!truncate	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN(1), PARTITION a VALUES LESS THAN(1
-accept	reject@126	engine	createLogicalPartitionTracking(,_createLogicalPartitionTracking_par~b92dcc49)*/,_createLogicalPartitionTracking_partition_definition_(~4e28e47e!insert	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN(1), PARTITION a VALUES LESS THAN(1) zzz)
-accept	reject@94	engine	createLogicalPartitionTracking(,_createLogicalPartitionTracking_par~b92dcc49)*/,_createLogicalPartitionTracking_partition_definition_(~4e28e47e!swap	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN(1), PARTITIONING a VALUES LESS THAN(1))
+reject@126	reject@126	engine	createLogicalPartitionTracking(,_createLogicalPartitionTracking_par~b92dcc49)*/,_createLogicalPartitionTracking_partition_definition_(~4e28e47e!insert	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN(1), PARTITION a VALUES LESS THAN(1) zzz)
+reject@94	reject@94	engine	createLogicalPartitionTracking(,_createLogicalPartitionTracking_par~b92dcc49)*/,_createLogicalPartitionTracking_partition_definition_(~4e28e47e!swap	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN(1), PARTITIONING a VALUES LESS THAN(1))
 accept	accept	engine	createLogicalPartitionTracking_partition_definition/PARTITION_ID_VALUES_LESS_THAN_(_EXPR_)	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN(1))
 reject@91	reject@91	engine	createLogicalPartitionTracking_partition_definition/PARTITION_ID_VALUES_LESS_THAN_(_EXPR_)!truncate	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN(1
-accept	reject@61	engine	createLogicalPartitionTracking_partition_definition/PARTITION_ID_VALUES_LESS_THAN_(_EXPR_)!swap	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY RANGE(a)(PARTITIONING a VALUES LESS THAN(1))
+reject@61	reject@61	engine	createLogicalPartitionTracking_partition_definition/PARTITION_ID_VALUES_LESS_THAN_(_EXPR_)!swap	CREATE LOGICAL PARTITION TRACKING ON a PARTITION BY RANGE(a)(PARTITIONING a VALUES LESS THAN(1))
 accept	accept	engine	createMleEnv/CREATE_(OR_REPLACE|IF_NOT_EXISTS)?_(PURE)?_MLE_ENV_(ID_~8e3a8760	CREATE MLE ENV a
 accept	accept	engine	createMleEnv(OR_REPLACE|IF_NOT_EXISTS)?/%empty	CREATE MLE ENV a
 reject@7	reject@7	engine	createMleEnv(OR_REPLACE|IF_NOT_EXISTS)?/%empty!insert	CREATE zzz MLE ENV a
@@ -45086,65 +45086,65 @@ reject@7	reject@7	engine	createMleEnv(OR_REPLACE|IF_NOT_EXISTS)?/OR_REPLACE!drop
 reject@10	reject@10	engine	createMleEnv(OR_REPLACE|IF_NOT_EXISTS)?/OR_REPLACE!drop-2	CREATE OR MLE ENV a
 reject@18	reject@18	engine	createMleEnv(OR_REPLACE|IF_NOT_EXISTS)?/OR_REPLACE!insert	CREATE OR REPLACE zzz MLE ENV a
 reject@7	reject@7	engine	createMleEnv(OR_REPLACE|IF_NOT_EXISTS)?/OR_REPLACE!swap	CREATE ORDER REPLACE MLE ENV a
-accept	reject@7	engine	createMleEnv(OR_REPLACE|IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE IF NOT EXISTS MLE ENV a
+reject@7	reject@7	engine	createMleEnv(OR_REPLACE|IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE IF NOT EXISTS MLE ENV a
 reject@7	reject@7	engine	createMleEnv(OR_REPLACE|IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	CREATE NOT EXISTS MLE ENV a
 reject@7	reject@7	engine	createMleEnv(OR_REPLACE|IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	CREATE IF EXISTS MLE ENV a
 accept	reject@7	engine	createMleEnv(OR_REPLACE|IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE IF NOT MLE ENV a
 reject@21	reject@7	engine	createMleEnv(OR_REPLACE|IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE IF NOT EXISTS zzz MLE ENV a
 reject@7	reject@7	engine	createMleEnv(OR_REPLACE|IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE IGNORE NOT EXISTS MLE ENV a
 accept	accept	engine	createMleEnv(PURE)?/%empty	CREATE MLE ENV a
-accept	reject@7	engine	createMleEnv(PURE)?/PURE	CREATE PURE MLE ENV a
-reject@12	reject@7	engine	createMleEnv(PURE)?/PURE!insert	CREATE PURE zzz MLE ENV a
+reject@7	reject@7	engine	createMleEnv(PURE)?/PURE	CREATE PURE MLE ENV a
+reject@7	reject@7	engine	createMleEnv(PURE)?/PURE!insert	CREATE PURE zzz MLE ENV a
 reject@7	reject@7	engine	createMleEnv(PURE)?/PURE!swap	CREATE PURGE MLE ENV a
 accept	accept	engine	createMleEnv(ID_.)?/%empty	CREATE MLE ENV a
-accept	reject@19	engine	createMleEnv(ID_.)?/%empty!insert	CREATE MLE ENV zzz a
+reject@19	reject@19	engine	createMleEnv(ID_.)?/%empty!insert	CREATE MLE ENV zzz a
 accept	accept	engine	createMleEnv(ID_.)?/ID_.	CREATE MLE ENV a.a
-accept	reject@14	engine	createMleEnv(ID_.)?/ID_.!drop-1	CREATE MLE ENV.a
-accept	reject@17	engine	createMleEnv(ID_.)?/ID_.!drop-2	CREATE MLE ENV a a
-accept	reject@21	engine	createMleEnv(ID_.)?/ID_.!insert	CREATE MLE ENV a.zzz a
+reject@14	reject@14	engine	createMleEnv(ID_.)?/ID_.!drop-1	CREATE MLE ENV.a
+reject@17	reject@17	engine	createMleEnv(ID_.)?/ID_.!drop-2	CREATE MLE ENV a a
+reject@21	reject@21	engine	createMleEnv(ID_.)?/ID_.!insert	CREATE MLE ENV a.zzz a
 accept	accept	engine	createMleEnv(CLONE_(ID_.)?_ID)?/%empty	CREATE MLE ENV a
 accept	accept	engine	createMleEnv(CLONE_(ID_.)?_ID)?/CLONE_(ID_.)?_ID	CREATE MLE ENV a CLONE a
-accept	reject@22	engine	createMleEnv(CLONE_(ID_.)?_ID)?/CLONE_(ID_.)?_ID!drop-2	CREATE MLE ENV a CLONE
-accept	reject@25	engine	createMleEnv(CLONE_(ID_.)?_ID)?/CLONE_(ID_.)?_ID!insert	CREATE MLE ENV a CLONE a zzz
-accept	reject@17	engine	createMleEnv(CLONE_(ID_.)?_ID)?/CLONE_(ID_.)?_ID!swap	CREATE MLE ENV a CLOSE a
+reject@22	reject@22	engine	createMleEnv(CLONE_(ID_.)?_ID)?/CLONE_(ID_.)?_ID!drop-2	CREATE MLE ENV a CLONE
+reject@25	reject@25	engine	createMleEnv(CLONE_(ID_.)?_ID)?/CLONE_(ID_.)?_ID!insert	CREATE MLE ENV a CLONE a zzz
+reject@17	reject@17	engine	createMleEnv(CLONE_(ID_.)?_ID)?/CLONE_(ID_.)?_ID!swap	CREATE MLE ENV a CLOSE a
 accept	accept	engine	createMleEnv(createMleEnv_imports_clause)?/%empty	CREATE MLE ENV a
-accept	reject@25	engine	createMleEnv(createMleEnv_imports_clause)?/createMleEnv_imports_clause	CREATE MLE ENV a IMPORTS(a MODULE a)
-accept	reject@16	engine	createMleEnv(createMleEnv_imports_clause)?/createMleEnv_imports_clause!drop-1	CREATE MLE ENV a(a MODULE a)
+reject@25	reject@25	engine	createMleEnv(createMleEnv_imports_clause)?/createMleEnv_imports_clause	CREATE MLE ENV a IMPORTS(a MODULE a)
+reject@16	reject@16	engine	createMleEnv(createMleEnv_imports_clause)?/createMleEnv_imports_clause!drop-1	CREATE MLE ENV a(a MODULE a)
 reject@35	reject@25	engine	createMleEnv(createMleEnv_imports_clause)?/createMleEnv_imports_clause!drop-2	CREATE MLE ENV a IMPORTS a MODULE a)
-accept	reject@25	engine	createMleEnv(createMleEnv_imports_clause)?/createMleEnv_imports_clause!drop-3	CREATE MLE ENV a IMPORTS(MODULE a)
-accept	reject@25	engine	createMleEnv(createMleEnv_imports_clause)?/createMleEnv_imports_clause!drop-4	CREATE MLE ENV a IMPORTS(a a)
-accept	reject@25	engine	createMleEnv(createMleEnv_imports_clause)?/createMleEnv_imports_clause!drop-5	CREATE MLE ENV a IMPORTS(a MODULE)
+reject@25	reject@25	engine	createMleEnv(createMleEnv_imports_clause)?/createMleEnv_imports_clause!drop-3	CREATE MLE ENV a IMPORTS(MODULE a)
+reject@25	reject@25	engine	createMleEnv(createMleEnv_imports_clause)?/createMleEnv_imports_clause!drop-4	CREATE MLE ENV a IMPORTS(a a)
+reject@25	reject@25	engine	createMleEnv(createMleEnv_imports_clause)?/createMleEnv_imports_clause!drop-5	CREATE MLE ENV a IMPORTS(a MODULE)
 reject@35	reject@25	engine	createMleEnv(createMleEnv_imports_clause)?/createMleEnv_imports_clause!drop-6	CREATE MLE ENV a IMPORTS(a MODULE a
-accept	reject@25	engine	createMleEnv(createMleEnv_imports_clause)?/createMleEnv_imports_clause!insert	CREATE MLE ENV a IMPORTS(a MODULE a) zzz
-accept	reject@17	engine	createMleEnv(createMleEnv_imports_clause)?/createMleEnv_imports_clause!swap	CREATE MLE ENV a IN(a MODULE a)
+reject@25	reject@25	engine	createMleEnv(createMleEnv_imports_clause)?/createMleEnv_imports_clause!insert	CREATE MLE ENV a IMPORTS(a MODULE a) zzz
+reject@17	reject@17	engine	createMleEnv(createMleEnv_imports_clause)?/createMleEnv_imports_clause!swap	CREATE MLE ENV a IN(a MODULE a)
 accept	accept	engine	createMleEnv(createMleEnv_language_options_clause)?/%empty	CREATE MLE ENV a
 accept	accept	engine	createMleEnv(createMleEnv_language_options_clause)?/createMleEnv_language_options_clause	CREATE MLE ENV a LANGUAGE OPTIONS 's'
-accept	reject@17	engine	createMleEnv(createMleEnv_language_options_clause)?/createMleEnv_language_options_clause!drop-1	CREATE MLE ENV a OPTIONS 's'
-accept	reject@26	engine	createMleEnv(createMleEnv_language_options_clause)?/createMleEnv_language_options_clause!drop-2	CREATE MLE ENV a LANGUAGE 's'
-accept	reject@33	engine	createMleEnv(createMleEnv_language_options_clause)?/createMleEnv_language_options_clause!drop-3	CREATE MLE ENV a LANGUAGE OPTIONS
-accept	reject@38	engine	createMleEnv(createMleEnv_language_options_clause)?/createMleEnv_language_options_clause!insert	CREATE MLE ENV a LANGUAGE OPTIONS 's' zzz
-accept	reject@17	engine	createMleEnv(createMleEnv_language_options_clause)?/createMleEnv_language_options_clause!swap	CREATE MLE ENV a LAST OPTIONS 's'
-accept	reject@25	engine	createMleEnv_imports_clause/IMPORTS_(_createMleEnv_import_item_(,_createMleEnv_impo~9bc34e7f	CREATE MLE ENV a IMPORTS(a MODULE a)
-accept	reject@25	engine	createMleEnv_imports_clause(,_createMleEnv_import_item)*/%empty	CREATE MLE ENV a IMPORTS(a MODULE a)
-accept	reject@25	engine	createMleEnv_imports_clause(,_createMleEnv_import_item)*/%empty!insert	CREATE MLE ENV a IMPORTS(a MODULE a zzz)
-accept	reject@25	engine	createMleEnv_imports_clause(,_createMleEnv_import_item)*/,_createMleEnv_import_item_(,_createMleEnv_import_item)*	CREATE MLE ENV a IMPORTS(a MODULE a, a MODULE a)
-accept	reject@25	engine	createMleEnv_imports_clause(,_createMleEnv_import_item)*/,_createMleEnv_import_item_(,_createMleEnv_import_item)*!drop-1	CREATE MLE ENV a IMPORTS(a MODULE a a MODULE a)
-accept	reject@25	engine	createMleEnv_imports_clause(,_createMleEnv_import_item)*/,_createMleEnv_import_item_(,_createMleEnv_import_item)*!drop-2	CREATE MLE ENV a IMPORTS(a MODULE a, MODULE a)
-accept	reject@25	engine	createMleEnv_imports_clause(,_createMleEnv_import_item)*/,_createMleEnv_import_item_(,_createMleEnv_import_item)*!drop-3	CREATE MLE ENV a IMPORTS(a MODULE a, a a)
-accept	reject@25	engine	createMleEnv_imports_clause(,_createMleEnv_import_item)*/,_createMleEnv_import_item_(,_createMleEnv_import_item)*!drop-4	CREATE MLE ENV a IMPORTS(a MODULE a, a MODULE)
+reject@17	reject@17	engine	createMleEnv(createMleEnv_language_options_clause)?/createMleEnv_language_options_clause!drop-1	CREATE MLE ENV a OPTIONS 's'
+reject@26	reject@26	engine	createMleEnv(createMleEnv_language_options_clause)?/createMleEnv_language_options_clause!drop-2	CREATE MLE ENV a LANGUAGE 's'
+reject@33	reject@33	engine	createMleEnv(createMleEnv_language_options_clause)?/createMleEnv_language_options_clause!drop-3	CREATE MLE ENV a LANGUAGE OPTIONS
+reject@38	reject@38	engine	createMleEnv(createMleEnv_language_options_clause)?/createMleEnv_language_options_clause!insert	CREATE MLE ENV a LANGUAGE OPTIONS 's' zzz
+reject@17	reject@17	engine	createMleEnv(createMleEnv_language_options_clause)?/createMleEnv_language_options_clause!swap	CREATE MLE ENV a LAST OPTIONS 's'
+reject@25	reject@25	engine	createMleEnv_imports_clause/IMPORTS_(_createMleEnv_import_item_(,_createMleEnv_impo~9bc34e7f	CREATE MLE ENV a IMPORTS(a MODULE a)
+reject@25	reject@25	engine	createMleEnv_imports_clause(,_createMleEnv_import_item)*/%empty	CREATE MLE ENV a IMPORTS(a MODULE a)
+reject@25	reject@25	engine	createMleEnv_imports_clause(,_createMleEnv_import_item)*/%empty!insert	CREATE MLE ENV a IMPORTS(a MODULE a zzz)
+reject@25	reject@25	engine	createMleEnv_imports_clause(,_createMleEnv_import_item)*/,_createMleEnv_import_item_(,_createMleEnv_import_item)*	CREATE MLE ENV a IMPORTS(a MODULE a, a MODULE a)
+reject@25	reject@25	engine	createMleEnv_imports_clause(,_createMleEnv_import_item)*/,_createMleEnv_import_item_(,_createMleEnv_import_item)*!drop-1	CREATE MLE ENV a IMPORTS(a MODULE a a MODULE a)
+reject@25	reject@25	engine	createMleEnv_imports_clause(,_createMleEnv_import_item)*/,_createMleEnv_import_item_(,_createMleEnv_import_item)*!drop-2	CREATE MLE ENV a IMPORTS(a MODULE a, MODULE a)
+reject@25	reject@25	engine	createMleEnv_imports_clause(,_createMleEnv_import_item)*/,_createMleEnv_import_item_(,_createMleEnv_import_item)*!drop-3	CREATE MLE ENV a IMPORTS(a MODULE a, a a)
+reject@25	reject@25	engine	createMleEnv_imports_clause(,_createMleEnv_import_item)*/,_createMleEnv_import_item_(,_createMleEnv_import_item)*!drop-4	CREATE MLE ENV a IMPORTS(a MODULE a, a MODULE)
 reject@45	reject@25	engine	createMleEnv_imports_clause(,_createMleEnv_import_item)*/,_createMleEnv_import_item_(,_createMleEnv_import_item)*!truncate	CREATE MLE ENV a IMPORTS(a MODULE a, a MODULE
-accept	reject@25	engine	createMleEnv_imports_clause(,_createMleEnv_import_item)*/,_createMleEnv_import_item_(,_createMleEnv_import_item)*!insert	CREATE MLE ENV a IMPORTS(a MODULE a, a MODULE a zzz)
-accept	reject@25	engine	createMleEnv_imports_clause(,_createMleEnv_import_item)*/,_createMleEnv_import_item_(,_createMleEnv_import_item)*!swap	CREATE MLE ENV a IMPORTS(a MODULE a, a MONITORING a)
+reject@25	reject@25	engine	createMleEnv_imports_clause(,_createMleEnv_import_item)*/,_createMleEnv_import_item_(,_createMleEnv_import_item)*!insert	CREATE MLE ENV a IMPORTS(a MODULE a, a MODULE a zzz)
+reject@25	reject@25	engine	createMleEnv_imports_clause(,_createMleEnv_import_item)*/,_createMleEnv_import_item_(,_createMleEnv_import_item)*!swap	CREATE MLE ENV a IMPORTS(a MODULE a, a MONITORING a)
 accept	accept	engine	createMleEnv_language_options_clause/LANGUAGE_OPTIONS_STRING	CREATE MLE ENV a LANGUAGE OPTIONS 's'
-accept	reject@25	engine	createMleEnv_import_item/ID_MODULE_(ID_.)?_ID	CREATE MLE ENV a IMPORTS(a MODULE a)
+reject@25	reject@25	engine	createMleEnv_import_item/ID_MODULE_(ID_.)?_ID	CREATE MLE ENV a IMPORTS(a MODULE a)
 reject@33	reject@25	engine	createMleEnv_import_item/ID_MODULE_(ID_.)?_ID!truncate	CREATE MLE ENV a IMPORTS(a MODULE
-accept	reject@25	engine	createMleEnv_import_item/ID_MODULE_(ID_.)?_ID!swap	CREATE MLE ENV a IMPORTS(a MONITORING a)
-accept	reject@25	engine	createMleEnv_import_item(ID_.)?/%empty	CREATE MLE ENV a IMPORTS(a MODULE a)
-accept	reject@25	engine	createMleEnv_import_item(ID_.)?/%empty!insert	CREATE MLE ENV a IMPORTS(a MODULE zzz a)
-accept	reject@25	engine	createMleEnv_import_item(ID_.)?/ID_.	CREATE MLE ENV a IMPORTS(a MODULE a.a)
-accept	reject@25	engine	createMleEnv_import_item(ID_.)?/ID_.!drop-1	CREATE MLE ENV a IMPORTS(a MODULE.a)
-accept	reject@25	engine	createMleEnv_import_item(ID_.)?/ID_.!drop-2	CREATE MLE ENV a IMPORTS(a MODULE a a)
-accept	reject@25	engine	createMleEnv_import_item(ID_.)?/ID_.!insert	CREATE MLE ENV a IMPORTS(a MODULE a.zzz a)
+reject@25	reject@25	engine	createMleEnv_import_item/ID_MODULE_(ID_.)?_ID!swap	CREATE MLE ENV a IMPORTS(a MONITORING a)
+reject@25	reject@25	engine	createMleEnv_import_item(ID_.)?/%empty	CREATE MLE ENV a IMPORTS(a MODULE a)
+reject@25	reject@25	engine	createMleEnv_import_item(ID_.)?/%empty!insert	CREATE MLE ENV a IMPORTS(a MODULE zzz a)
+reject@25	reject@25	engine	createMleEnv_import_item(ID_.)?/ID_.	CREATE MLE ENV a IMPORTS(a MODULE a.a)
+reject@25	reject@25	engine	createMleEnv_import_item(ID_.)?/ID_.!drop-1	CREATE MLE ENV a IMPORTS(a MODULE.a)
+reject@25	reject@25	engine	createMleEnv_import_item(ID_.)?/ID_.!drop-2	CREATE MLE ENV a IMPORTS(a MODULE a a)
+reject@25	reject@25	engine	createMleEnv_import_item(ID_.)?/ID_.!insert	CREATE MLE ENV a IMPORTS(a MODULE a.zzz a)
 accept	accept	engine	createMleModule/CREATE_(OR_REPLACE|IF_NOT_EXISTS)?_MLE_MODULE_(ID_.)?_I~effef979	CREATE MLE MODULE a LANGUAGE JAVASCRIPT AS a
 accept	accept	engine	createMleModule(OR_REPLACE|IF_NOT_EXISTS)?/%empty	CREATE MLE MODULE a LANGUAGE JAVASCRIPT AS a
 reject@7	reject@7	engine	createMleModule(OR_REPLACE|IF_NOT_EXISTS)?/%empty!insert	CREATE zzz MLE MODULE a LANGUAGE JAVASCRIPT AS a
@@ -45153,88 +45153,88 @@ reject@7	reject@7	engine	createMleModule(OR_REPLACE|IF_NOT_EXISTS)?/OR_REPLACE!d
 reject@10	reject@10	engine	createMleModule(OR_REPLACE|IF_NOT_EXISTS)?/OR_REPLACE!drop-2	CREATE OR MLE MODULE a LANGUAGE JAVASCRIPT AS a
 reject@18	reject@18	engine	createMleModule(OR_REPLACE|IF_NOT_EXISTS)?/OR_REPLACE!insert	CREATE OR REPLACE zzz MLE MODULE a LANGUAGE JAVASCRIPT AS a
 reject@7	reject@7	engine	createMleModule(OR_REPLACE|IF_NOT_EXISTS)?/OR_REPLACE!swap	CREATE ORDER REPLACE MLE MODULE a LANGUAGE JAVASCRIPT AS a
-accept	reject@7	engine	createMleModule(OR_REPLACE|IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE IF NOT EXISTS MLE MODULE a LANGUAGE JAVASCRIPT AS a
+reject@7	reject@7	engine	createMleModule(OR_REPLACE|IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE IF NOT EXISTS MLE MODULE a LANGUAGE JAVASCRIPT AS a
 reject@7	reject@7	engine	createMleModule(OR_REPLACE|IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	CREATE NOT EXISTS MLE MODULE a LANGUAGE JAVASCRIPT AS a
 reject@7	reject@7	engine	createMleModule(OR_REPLACE|IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	CREATE IF EXISTS MLE MODULE a LANGUAGE JAVASCRIPT AS a
 accept	reject@7	engine	createMleModule(OR_REPLACE|IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE IF NOT MLE MODULE a LANGUAGE JAVASCRIPT AS a
 reject@21	reject@7	engine	createMleModule(OR_REPLACE|IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE IF NOT EXISTS zzz MLE MODULE a LANGUAGE JAVASCRIPT AS a
 reject@7	reject@7	engine	createMleModule(OR_REPLACE|IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE IGNORE NOT EXISTS MLE MODULE a LANGUAGE JAVASCRIPT AS a
 accept	accept	engine	createMleModule(ID_.)?/%empty	CREATE MLE MODULE a LANGUAGE JAVASCRIPT AS a
-accept	reject@22	engine	createMleModule(ID_.)?/%empty!insert	CREATE MLE MODULE zzz a LANGUAGE JAVASCRIPT AS a
+reject@22	reject@22	engine	createMleModule(ID_.)?/%empty!insert	CREATE MLE MODULE zzz a LANGUAGE JAVASCRIPT AS a
 accept	accept	engine	createMleModule(ID_.)?/ID_.	CREATE MLE MODULE a.a LANGUAGE JAVASCRIPT AS a
-accept	reject@17	engine	createMleModule(ID_.)?/ID_.!drop-1	CREATE MLE MODULE.a LANGUAGE JAVASCRIPT AS a
-accept	reject@20	engine	createMleModule(ID_.)?/ID_.!drop-2	CREATE MLE MODULE a a LANGUAGE JAVASCRIPT AS a
-accept	reject@19	engine	createMleModule(ID_.)?/ID_.!truncate	CREATE MLE MODULE a
-accept	reject@24	engine	createMleModule(ID_.)?/ID_.!insert	CREATE MLE MODULE a.zzz a LANGUAGE JAVASCRIPT AS a
+reject@17	reject@17	engine	createMleModule(ID_.)?/ID_.!drop-1	CREATE MLE MODULE.a LANGUAGE JAVASCRIPT AS a
+reject@20	reject@20	engine	createMleModule(ID_.)?/ID_.!drop-2	CREATE MLE MODULE a a LANGUAGE JAVASCRIPT AS a
+reject@19	reject@19	engine	createMleModule(ID_.)?/ID_.!truncate	CREATE MLE MODULE a
+reject@24	reject@24	engine	createMleModule(ID_.)?/ID_.!insert	CREATE MLE MODULE a.zzz a LANGUAGE JAVASCRIPT AS a
 accept	accept	engine	createMleModule(VERSION_STRING)?/%empty	CREATE MLE MODULE a LANGUAGE JAVASCRIPT AS a
-accept	reject@40	engine	createMleModule(VERSION_STRING)?/%empty!insert	CREATE MLE MODULE a LANGUAGE JAVASCRIPT zzz AS a
+reject@40	reject@40	engine	createMleModule(VERSION_STRING)?/%empty!insert	CREATE MLE MODULE a LANGUAGE JAVASCRIPT zzz AS a
 accept	accept	engine	createMleModule(VERSION_STRING)?/VERSION_STRING	CREATE MLE MODULE a LANGUAGE JAVASCRIPT VERSION 's' AS a
-accept	reject@40	engine	createMleModule(VERSION_STRING)?/VERSION_STRING!drop-1	CREATE MLE MODULE a LANGUAGE JAVASCRIPT 's' AS a
-accept	reject@48	engine	createMleModule(VERSION_STRING)?/VERSION_STRING!drop-2	CREATE MLE MODULE a LANGUAGE JAVASCRIPT VERSION AS a
-accept	reject@47	engine	createMleModule(VERSION_STRING)?/VERSION_STRING!truncate	CREATE MLE MODULE a LANGUAGE JAVASCRIPT VERSION
-accept	reject@52	engine	createMleModule(VERSION_STRING)?/VERSION_STRING!insert	CREATE MLE MODULE a LANGUAGE JAVASCRIPT VERSION 's' zzz AS a
-accept	reject@40	engine	createMleModule(VERSION_STRING)?/VERSION_STRING!swap	CREATE MLE MODULE a LANGUAGE JAVASCRIPT VERSIONS 's' AS a
+reject@40	reject@40	engine	createMleModule(VERSION_STRING)?/VERSION_STRING!drop-1	CREATE MLE MODULE a LANGUAGE JAVASCRIPT 's' AS a
+reject@48	reject@48	engine	createMleModule(VERSION_STRING)?/VERSION_STRING!drop-2	CREATE MLE MODULE a LANGUAGE JAVASCRIPT VERSION AS a
+reject@47	reject@47	engine	createMleModule(VERSION_STRING)?/VERSION_STRING!truncate	CREATE MLE MODULE a LANGUAGE JAVASCRIPT VERSION
+reject@52	reject@52	engine	createMleModule(VERSION_STRING)?/VERSION_STRING!insert	CREATE MLE MODULE a LANGUAGE JAVASCRIPT VERSION 's' zzz AS a
+reject@40	reject@40	engine	createMleModule(VERSION_STRING)?/VERSION_STRING!swap	CREATE MLE MODULE a LANGUAGE JAVASCRIPT VERSIONS 's' AS a
 accept	accept	engine	createMleModule(USING_(CLOB_(_QUERY_)|BLOB_(_QUERY_)~08528df1)/USING_(CLOB_(_QUERY_)|BLOB_(_QUERY_)|BFILE_~0af40f9c)	CREATE MLE MODULE a LANGUAGE JAVASCRIPT USING CLOB(SELECT 1 FROM dual)
-accept	reject@40	engine	createMleModule(USING_(CLOB_(_QUERY_)|BLOB_(_QUERY_)~08528df1)/USING_(CLOB_(_QUERY_)|BLOB_(_QUERY_)|BFILE_~0af40f9c)!drop-1	CREATE MLE MODULE a LANGUAGE JAVASCRIPT CLOB(SELECT 1 FROM dual)
-accept	reject@45	engine	createMleModule(USING_(CLOB_(_QUERY_)|BLOB_(_QUERY_)~08528df1)/USING_(CLOB_(_QUERY_)|BLOB_(_QUERY_)|BFILE_~0af40f9c)!drop-2	CREATE MLE MODULE a LANGUAGE JAVASCRIPT USING(SELECT 1 FROM dual)
+reject@40	reject@40	engine	createMleModule(USING_(CLOB_(_QUERY_)|BLOB_(_QUERY_)~08528df1)/USING_(CLOB_(_QUERY_)|BLOB_(_QUERY_)|BFILE_~0af40f9c)!drop-1	CREATE MLE MODULE a LANGUAGE JAVASCRIPT CLOB(SELECT 1 FROM dual)
+reject@45	reject@45	engine	createMleModule(USING_(CLOB_(_QUERY_)|BLOB_(_QUERY_)~08528df1)/USING_(CLOB_(_QUERY_)|BLOB_(_QUERY_)|BFILE_~0af40f9c)!drop-2	CREATE MLE MODULE a LANGUAGE JAVASCRIPT USING(SELECT 1 FROM dual)
 reject@69	reject@46	engine	createMleModule(USING_(CLOB_(_QUERY_)|BLOB_(_QUERY_)~08528df1)/USING_(CLOB_(_QUERY_)|BLOB_(_QUERY_)|BFILE_~0af40f9c)!drop-3	CREATE MLE MODULE a LANGUAGE JAVASCRIPT USING CLOB SELECT 1 FROM dual)
-accept	reject@46	engine	createMleModule(USING_(CLOB_(_QUERY_)|BLOB_(_QUERY_)~08528df1)/USING_(CLOB_(_QUERY_)|BLOB_(_QUERY_)|BFILE_~0af40f9c)!drop-4	CREATE MLE MODULE a LANGUAGE JAVASCRIPT USING CLOB()
+reject@46	reject@46	engine	createMleModule(USING_(CLOB_(_QUERY_)|BLOB_(_QUERY_)~08528df1)/USING_(CLOB_(_QUERY_)|BLOB_(_QUERY_)|BFILE_~0af40f9c)!drop-4	CREATE MLE MODULE a LANGUAGE JAVASCRIPT USING CLOB()
 reject@69	reject@46	engine	createMleModule(USING_(CLOB_(_QUERY_)|BLOB_(_QUERY_)~08528df1)/USING_(CLOB_(_QUERY_)|BLOB_(_QUERY_)|BFILE_~0af40f9c)!drop-5	CREATE MLE MODULE a LANGUAGE JAVASCRIPT USING CLOB(SELECT 1 FROM dual
-accept	reject@46	engine	createMleModule(USING_(CLOB_(_QUERY_)|BLOB_(_QUERY_)~08528df1)/USING_(CLOB_(_QUERY_)|BLOB_(_QUERY_)|BFILE_~0af40f9c)!insert	CREATE MLE MODULE a LANGUAGE JAVASCRIPT USING CLOB(SELECT 1 FROM dual) zzz
-accept	reject@40	engine	createMleModule(USING_(CLOB_(_QUERY_)|BLOB_(_QUERY_)~08528df1)/USING_(CLOB_(_QUERY_)|BLOB_(_QUERY_)|BFILE_~0af40f9c)!swap	CREATE MLE MODULE a LANGUAGE JAVASCRIPT VALIDATE CLOB(SELECT 1 FROM dual)
+reject@46	reject@46	engine	createMleModule(USING_(CLOB_(_QUERY_)|BLOB_(_QUERY_)~08528df1)/USING_(CLOB_(_QUERY_)|BLOB_(_QUERY_)|BFILE_~0af40f9c)!insert	CREATE MLE MODULE a LANGUAGE JAVASCRIPT USING CLOB(SELECT 1 FROM dual) zzz
+reject@40	reject@40	engine	createMleModule(USING_(CLOB_(_QUERY_)|BLOB_(_QUERY_)~08528df1)/USING_(CLOB_(_QUERY_)|BLOB_(_QUERY_)|BFILE_~0af40f9c)!swap	CREATE MLE MODULE a LANGUAGE JAVASCRIPT VALIDATE CLOB(SELECT 1 FROM dual)
 accept	accept	engine	createMleModule(USING_(CLOB_(_QUERY_)|BLOB_(_QUERY_)~08528df1)/AS_ID	CREATE MLE MODULE a LANGUAGE JAVASCRIPT AS a
-accept	reject@40	engine	createMleModule(USING_(CLOB_(_QUERY_)|BLOB_(_QUERY_)~08528df1)/AS_ID!swap	CREATE MLE MODULE a LANGUAGE JAVASCRIPT ASC a
+reject@40	reject@40	engine	createMleModule(USING_(CLOB_(_QUERY_)|BLOB_(_QUERY_)~08528df1)/AS_ID!swap	CREATE MLE MODULE a LANGUAGE JAVASCRIPT ASC a
 accept	accept	engine	createMleModule(CLOB_(_QUERY_)|BLOB_(_QUERY_)|BFILE_~0af40f9c)/CLOB_(_QUERY_)	CREATE MLE MODULE a LANGUAGE JAVASCRIPT USING CLOB(SELECT 1 FROM dual)
-accept	reject@46	engine	createMleModule(CLOB_(_QUERY_)|BLOB_(_QUERY_)|BFILE_~0af40f9c)/CLOB_(_QUERY_)!swap	CREATE MLE MODULE a LANGUAGE JAVASCRIPT USING CLONE(SELECT 1 FROM dual)
+reject@46	reject@46	engine	createMleModule(CLOB_(_QUERY_)|BLOB_(_QUERY_)|BFILE_~0af40f9c)/CLOB_(_QUERY_)!swap	CREATE MLE MODULE a LANGUAGE JAVASCRIPT USING CLONE(SELECT 1 FROM dual)
 accept	accept	engine	createMleModule(CLOB_(_QUERY_)|BLOB_(_QUERY_)|BFILE_~0af40f9c)/BLOB_(_QUERY_)	CREATE MLE MODULE a LANGUAGE JAVASCRIPT USING BLOB(SELECT 1 FROM dual)
 reject@69	reject@46	engine	createMleModule(CLOB_(_QUERY_)|BLOB_(_QUERY_)|BFILE_~0af40f9c)/BLOB_(_QUERY_)!drop-2	CREATE MLE MODULE a LANGUAGE JAVASCRIPT USING BLOB SELECT 1 FROM dual)
-accept	reject@46	engine	createMleModule(CLOB_(_QUERY_)|BLOB_(_QUERY_)|BFILE_~0af40f9c)/BLOB_(_QUERY_)!drop-3	CREATE MLE MODULE a LANGUAGE JAVASCRIPT USING BLOB()
+reject@46	reject@46	engine	createMleModule(CLOB_(_QUERY_)|BLOB_(_QUERY_)|BFILE_~0af40f9c)/BLOB_(_QUERY_)!drop-3	CREATE MLE MODULE a LANGUAGE JAVASCRIPT USING BLOB()
 reject@69	reject@46	engine	createMleModule(CLOB_(_QUERY_)|BLOB_(_QUERY_)|BFILE_~0af40f9c)/BLOB_(_QUERY_)!drop-4	CREATE MLE MODULE a LANGUAGE JAVASCRIPT USING BLOB(SELECT 1 FROM dual
-accept	reject@46	engine	createMleModule(CLOB_(_QUERY_)|BLOB_(_QUERY_)|BFILE_~0af40f9c)/BLOB_(_QUERY_)!insert	CREATE MLE MODULE a LANGUAGE JAVASCRIPT USING BLOB(SELECT 1 FROM dual) zzz
-accept	reject@46	engine	createMleModule(CLOB_(_QUERY_)|BLOB_(_QUERY_)|BFILE_~0af40f9c)/BLOB_(_QUERY_)!swap	CREATE MLE MODULE a LANGUAGE JAVASCRIPT USING BLOCK(SELECT 1 FROM dual)
-accept	reject@52	engine	createMleModule(CLOB_(_QUERY_)|BLOB_(_QUERY_)|BFILE_~0af40f9c)/BFILE_(_QUERY_)	CREATE MLE MODULE a LANGUAGE JAVASCRIPT USING BFILE(SELECT 1 FROM dual)
+reject@46	reject@46	engine	createMleModule(CLOB_(_QUERY_)|BLOB_(_QUERY_)|BFILE_~0af40f9c)/BLOB_(_QUERY_)!insert	CREATE MLE MODULE a LANGUAGE JAVASCRIPT USING BLOB(SELECT 1 FROM dual) zzz
+reject@46	reject@46	engine	createMleModule(CLOB_(_QUERY_)|BLOB_(_QUERY_)|BFILE_~0af40f9c)/BLOB_(_QUERY_)!swap	CREATE MLE MODULE a LANGUAGE JAVASCRIPT USING BLOCK(SELECT 1 FROM dual)
+reject@52	reject@52	engine	createMleModule(CLOB_(_QUERY_)|BLOB_(_QUERY_)|BFILE_~0af40f9c)/BFILE_(_QUERY_)	CREATE MLE MODULE a LANGUAGE JAVASCRIPT USING BFILE(SELECT 1 FROM dual)
 reject@70	reject@46	engine	createMleModule(CLOB_(_QUERY_)|BLOB_(_QUERY_)|BFILE_~0af40f9c)/BFILE_(_QUERY_)!drop-2	CREATE MLE MODULE a LANGUAGE JAVASCRIPT USING BFILE SELECT 1 FROM dual)
-accept	reject@52	engine	createMleModule(CLOB_(_QUERY_)|BLOB_(_QUERY_)|BFILE_~0af40f9c)/BFILE_(_QUERY_)!drop-3	CREATE MLE MODULE a LANGUAGE JAVASCRIPT USING BFILE()
+reject@52	reject@52	engine	createMleModule(CLOB_(_QUERY_)|BLOB_(_QUERY_)|BFILE_~0af40f9c)/BFILE_(_QUERY_)!drop-3	CREATE MLE MODULE a LANGUAGE JAVASCRIPT USING BFILE()
 reject@70	reject@52	engine	createMleModule(CLOB_(_QUERY_)|BLOB_(_QUERY_)|BFILE_~0af40f9c)/BFILE_(_QUERY_)!drop-4	CREATE MLE MODULE a LANGUAGE JAVASCRIPT USING BFILE(SELECT 1 FROM dual
-accept	reject@52	engine	createMleModule(CLOB_(_QUERY_)|BLOB_(_QUERY_)|BFILE_~0af40f9c)/BFILE_(_QUERY_)!insert	CREATE MLE MODULE a LANGUAGE JAVASCRIPT USING BFILE(SELECT 1 FROM dual) zzz
-accept	reject@46	engine	createMleModule(CLOB_(_QUERY_)|BLOB_(_QUERY_)|BFILE_~0af40f9c)/BFILE_(_QUERY_)!swap	CREATE MLE MODULE a LANGUAGE JAVASCRIPT USING BIGFILE(SELECT 1 FROM dual)
+reject@52	reject@52	engine	createMleModule(CLOB_(_QUERY_)|BLOB_(_QUERY_)|BFILE_~0af40f9c)/BFILE_(_QUERY_)!insert	CREATE MLE MODULE a LANGUAGE JAVASCRIPT USING BFILE(SELECT 1 FROM dual) zzz
+reject@46	reject@46	engine	createMleModule(CLOB_(_QUERY_)|BLOB_(_QUERY_)|BFILE_~0af40f9c)/BFILE_(_QUERY_)!swap	CREATE MLE MODULE a LANGUAGE JAVASCRIPT USING BIGFILE(SELECT 1 FROM dual)
 accept	accept	engine	createMleModule(CLOB_(_QUERY_)|BLOB_(_QUERY_)|BFILE_~0af40f9c)/BFILE_(_ID_,_STRING_)	CREATE MLE MODULE a LANGUAGE JAVASCRIPT USING BFILE(a, 's')
-accept	reject@45	engine	createMleModule(CLOB_(_QUERY_)|BLOB_(_QUERY_)|BFILE_~0af40f9c)/BFILE_(_ID_,_STRING_)!drop-1	CREATE MLE MODULE a LANGUAGE JAVASCRIPT USING(a, 's')
+reject@45	reject@45	engine	createMleModule(CLOB_(_QUERY_)|BLOB_(_QUERY_)|BFILE_~0af40f9c)/BFILE_(_ID_,_STRING_)!drop-1	CREATE MLE MODULE a LANGUAGE JAVASCRIPT USING(a, 's')
 reject@58	reject@46	engine	createMleModule(CLOB_(_QUERY_)|BLOB_(_QUERY_)|BFILE_~0af40f9c)/BFILE_(_ID_,_STRING_)!drop-2	CREATE MLE MODULE a LANGUAGE JAVASCRIPT USING BFILE a, 's')
-accept	reject@52	engine	createMleModule(CLOB_(_QUERY_)|BLOB_(_QUERY_)|BFILE_~0af40f9c)/BFILE_(_ID_,_STRING_)!drop-3	CREATE MLE MODULE a LANGUAGE JAVASCRIPT USING BFILE(, 's')
-accept	reject@54	engine	createMleModule(CLOB_(_QUERY_)|BLOB_(_QUERY_)|BFILE_~0af40f9c)/BFILE_(_ID_,_STRING_)!drop-4	CREATE MLE MODULE a LANGUAGE JAVASCRIPT USING BFILE(a 's')
-accept	reject@54	engine	createMleModule(CLOB_(_QUERY_)|BLOB_(_QUERY_)|BFILE_~0af40f9c)/BFILE_(_ID_,_STRING_)!drop-5	CREATE MLE MODULE a LANGUAGE JAVASCRIPT USING BFILE(a,)
+reject@52	reject@52	engine	createMleModule(CLOB_(_QUERY_)|BLOB_(_QUERY_)|BFILE_~0af40f9c)/BFILE_(_ID_,_STRING_)!drop-3	CREATE MLE MODULE a LANGUAGE JAVASCRIPT USING BFILE(, 's')
+reject@54	reject@54	engine	createMleModule(CLOB_(_QUERY_)|BLOB_(_QUERY_)|BFILE_~0af40f9c)/BFILE_(_ID_,_STRING_)!drop-4	CREATE MLE MODULE a LANGUAGE JAVASCRIPT USING BFILE(a 's')
+reject@54	reject@54	engine	createMleModule(CLOB_(_QUERY_)|BLOB_(_QUERY_)|BFILE_~0af40f9c)/BFILE_(_ID_,_STRING_)!drop-5	CREATE MLE MODULE a LANGUAGE JAVASCRIPT USING BFILE(a,)
 reject@58	reject@58	engine	createMleModule(CLOB_(_QUERY_)|BLOB_(_QUERY_)|BFILE_~0af40f9c)/BFILE_(_ID_,_STRING_)!drop-6	CREATE MLE MODULE a LANGUAGE JAVASCRIPT USING BFILE(a, 's'
-accept	reject@60	engine	createMleModule(CLOB_(_QUERY_)|BLOB_(_QUERY_)|BFILE_~0af40f9c)/BFILE_(_ID_,_STRING_)!insert	CREATE MLE MODULE a LANGUAGE JAVASCRIPT USING BFILE(a, 's') zzz
-accept	reject@46	engine	createMleModule(CLOB_(_QUERY_)|BLOB_(_QUERY_)|BFILE_~0af40f9c)/BFILE_(_ID_,_STRING_)!swap	CREATE MLE MODULE a LANGUAGE JAVASCRIPT USING BIGFILE(a, 's')
-accept	reject@22	engine	createPmemFilestore/CREATE_PMEM_FILESTORE_ID_MOUNTPOINT_STRING_BACKINGFILE_~cde04db7	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1
-accept	reject@22	engine	createPmemFilestore(AUTOEXTEND_(ON|OFF)_(NEXT_NUMBER)?_(~b54ce4aa)?/%empty	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1
-accept	reject@22	engine	createPmemFilestore(AUTOEXTEND_(ON|OFF)_(NEXT_NUMBER)?_(~b54ce4aa)?/AUTOEXTEND_(ON|OFF)_(NEXT_NUMBER)?_(MAXSIZE_(UNLIMITED|NUMBER))?	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1 AUTOEXTEND ON
-accept	reject@22	engine	createPmemFilestore(AUTOEXTEND_(ON|OFF)_(NEXT_NUMBER)?_(~b54ce4aa)?/AUTOEXTEND_(ON|OFF)_(NEXT_NUMBER)?_(MAXSIZE_(UNLIMITED|NUMBER))?!drop-1	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1 ON
-accept	reject@22	engine	createPmemFilestore(AUTOEXTEND_(ON|OFF)_(NEXT_NUMBER)?_(~b54ce4aa)?/AUTOEXTEND_(ON|OFF)_(NEXT_NUMBER)?_(MAXSIZE_(UNLIMITED|NUMBER))?!drop-2	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1 AUTOEXTEND
-accept	reject@22	engine	createPmemFilestore(AUTOEXTEND_(ON|OFF)_(NEXT_NUMBER)?_(~b54ce4aa)?/AUTOEXTEND_(ON|OFF)_(NEXT_NUMBER)?_(MAXSIZE_(UNLIMITED|NUMBER))?!insert	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1 AUTOEXTEND ON zzz
-accept	reject@22	engine	createPmemFilestore(AUTOEXTEND_(ON|OFF)_(NEXT_NUMBER)?_(~b54ce4aa)?/AUTOEXTEND_(ON|OFF)_(NEXT_NUMBER)?_(MAXSIZE_(UNLIMITED|NUMBER))?!swap	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1 AUTOMATIC ON
-accept	reject@22	engine	createPmemFilestore(ON|OFF)/ON	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1 AUTOEXTEND ON
-accept	reject@22	engine	createPmemFilestore(ON|OFF)/ON!swap	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1 AUTOEXTEND ONE
-accept	reject@22	engine	createPmemFilestore(ON|OFF)/OFF	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1 AUTOEXTEND OFF
-accept	reject@22	engine	createPmemFilestore(ON|OFF)/OFF!insert	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1 AUTOEXTEND OFF zzz
-accept	reject@22	engine	createPmemFilestore(ON|OFF)/OFF!swap	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1 AUTOEXTEND OFFLINE
-accept	reject@22	engine	createPmemFilestore(NEXT_NUMBER)?/%empty	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1 AUTOEXTEND ON
-accept	reject@22	engine	createPmemFilestore(NEXT_NUMBER)?/NEXT_NUMBER	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1 AUTOEXTEND ON NEXT 1
-accept	reject@22	engine	createPmemFilestore(NEXT_NUMBER)?/NEXT_NUMBER!drop-1	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1 AUTOEXTEND ON 1
-accept	reject@22	engine	createPmemFilestore(NEXT_NUMBER)?/NEXT_NUMBER!drop-2	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1 AUTOEXTEND ON NEXT
-accept	reject@22	engine	createPmemFilestore(NEXT_NUMBER)?/NEXT_NUMBER!insert	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1 AUTOEXTEND ON NEXT 1 zzz
-accept	reject@22	engine	createPmemFilestore(NEXT_NUMBER)?/NEXT_NUMBER!swap	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1 AUTOEXTEND ON NO 1
-accept	reject@22	engine	createPmemFilestore(MAXSIZE_(UNLIMITED|NUMBER))?/%empty	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1 AUTOEXTEND ON
-accept	reject@22	engine	createPmemFilestore(MAXSIZE_(UNLIMITED|NUMBER))?/MAXSIZE_(UNLIMITED|NUMBER)	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1 AUTOEXTEND ON MAXSIZE UNLIMITED
-accept	reject@22	engine	createPmemFilestore(MAXSIZE_(UNLIMITED|NUMBER))?/MAXSIZE_(UNLIMITED|NUMBER)!drop-1	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1 AUTOEXTEND ON UNLIMITED
-accept	reject@22	engine	createPmemFilestore(MAXSIZE_(UNLIMITED|NUMBER))?/MAXSIZE_(UNLIMITED|NUMBER)!drop-2	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1 AUTOEXTEND ON MAXSIZE
-accept	reject@22	engine	createPmemFilestore(MAXSIZE_(UNLIMITED|NUMBER))?/MAXSIZE_(UNLIMITED|NUMBER)!insert	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1 AUTOEXTEND ON MAXSIZE UNLIMITED zzz
-accept	reject@22	engine	createPmemFilestore(MAXSIZE_(UNLIMITED|NUMBER))?/MAXSIZE_(UNLIMITED|NUMBER)!swap	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1 AUTOEXTEND ON MAXTRANS UNLIMITED
-accept	reject@22	engine	createPmemFilestore(UNLIMITED|NUMBER)/UNLIMITED	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1 AUTOEXTEND ON MAXSIZE UNLIMITED
-accept	reject@22	engine	createPmemFilestore(UNLIMITED|NUMBER)/UNLIMITED!swap	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1 AUTOEXTEND ON MAXSIZE UNLOCK
-accept	reject@22	engine	createPmemFilestore(UNLIMITED|NUMBER)/NUMBER	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1 AUTOEXTEND ON MAXSIZE 1
-accept	reject@22	engine	createPmemFilestore(UNLIMITED|NUMBER)/NUMBER!insert	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1 AUTOEXTEND ON MAXSIZE 1 zzz
+reject@60	reject@60	engine	createMleModule(CLOB_(_QUERY_)|BLOB_(_QUERY_)|BFILE_~0af40f9c)/BFILE_(_ID_,_STRING_)!insert	CREATE MLE MODULE a LANGUAGE JAVASCRIPT USING BFILE(a, 's') zzz
+reject@46	reject@46	engine	createMleModule(CLOB_(_QUERY_)|BLOB_(_QUERY_)|BFILE_~0af40f9c)/BFILE_(_ID_,_STRING_)!swap	CREATE MLE MODULE a LANGUAGE JAVASCRIPT USING BIGFILE(a, 's')
+reject@22	reject@22	engine	createPmemFilestore/CREATE_PMEM_FILESTORE_ID_MOUNTPOINT_STRING_BACKINGFILE_~cde04db7	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1
+reject@22	reject@22	engine	createPmemFilestore(AUTOEXTEND_(ON|OFF)_(NEXT_NUMBER)?_(~b54ce4aa)?/%empty	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1
+reject@22	reject@22	engine	createPmemFilestore(AUTOEXTEND_(ON|OFF)_(NEXT_NUMBER)?_(~b54ce4aa)?/AUTOEXTEND_(ON|OFF)_(NEXT_NUMBER)?_(MAXSIZE_(UNLIMITED|NUMBER))?	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1 AUTOEXTEND ON
+reject@22	reject@22	engine	createPmemFilestore(AUTOEXTEND_(ON|OFF)_(NEXT_NUMBER)?_(~b54ce4aa)?/AUTOEXTEND_(ON|OFF)_(NEXT_NUMBER)?_(MAXSIZE_(UNLIMITED|NUMBER))?!drop-1	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1 ON
+reject@22	reject@22	engine	createPmemFilestore(AUTOEXTEND_(ON|OFF)_(NEXT_NUMBER)?_(~b54ce4aa)?/AUTOEXTEND_(ON|OFF)_(NEXT_NUMBER)?_(MAXSIZE_(UNLIMITED|NUMBER))?!drop-2	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1 AUTOEXTEND
+reject@22	reject@22	engine	createPmemFilestore(AUTOEXTEND_(ON|OFF)_(NEXT_NUMBER)?_(~b54ce4aa)?/AUTOEXTEND_(ON|OFF)_(NEXT_NUMBER)?_(MAXSIZE_(UNLIMITED|NUMBER))?!insert	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1 AUTOEXTEND ON zzz
+reject@22	reject@22	engine	createPmemFilestore(AUTOEXTEND_(ON|OFF)_(NEXT_NUMBER)?_(~b54ce4aa)?/AUTOEXTEND_(ON|OFF)_(NEXT_NUMBER)?_(MAXSIZE_(UNLIMITED|NUMBER))?!swap	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1 AUTOMATIC ON
+reject@22	reject@22	engine	createPmemFilestore(ON|OFF)/ON	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1 AUTOEXTEND ON
+reject@22	reject@22	engine	createPmemFilestore(ON|OFF)/ON!swap	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1 AUTOEXTEND ONE
+reject@22	reject@22	engine	createPmemFilestore(ON|OFF)/OFF	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1 AUTOEXTEND OFF
+reject@22	reject@22	engine	createPmemFilestore(ON|OFF)/OFF!insert	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1 AUTOEXTEND OFF zzz
+reject@22	reject@22	engine	createPmemFilestore(ON|OFF)/OFF!swap	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1 AUTOEXTEND OFFLINE
+reject@22	reject@22	engine	createPmemFilestore(NEXT_NUMBER)?/%empty	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1 AUTOEXTEND ON
+reject@22	reject@22	engine	createPmemFilestore(NEXT_NUMBER)?/NEXT_NUMBER	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1 AUTOEXTEND ON NEXT 1
+reject@22	reject@22	engine	createPmemFilestore(NEXT_NUMBER)?/NEXT_NUMBER!drop-1	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1 AUTOEXTEND ON 1
+reject@22	reject@22	engine	createPmemFilestore(NEXT_NUMBER)?/NEXT_NUMBER!drop-2	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1 AUTOEXTEND ON NEXT
+reject@22	reject@22	engine	createPmemFilestore(NEXT_NUMBER)?/NEXT_NUMBER!insert	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1 AUTOEXTEND ON NEXT 1 zzz
+reject@22	reject@22	engine	createPmemFilestore(NEXT_NUMBER)?/NEXT_NUMBER!swap	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1 AUTOEXTEND ON NO 1
+reject@22	reject@22	engine	createPmemFilestore(MAXSIZE_(UNLIMITED|NUMBER))?/%empty	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1 AUTOEXTEND ON
+reject@22	reject@22	engine	createPmemFilestore(MAXSIZE_(UNLIMITED|NUMBER))?/MAXSIZE_(UNLIMITED|NUMBER)	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1 AUTOEXTEND ON MAXSIZE UNLIMITED
+reject@22	reject@22	engine	createPmemFilestore(MAXSIZE_(UNLIMITED|NUMBER))?/MAXSIZE_(UNLIMITED|NUMBER)!drop-1	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1 AUTOEXTEND ON UNLIMITED
+reject@22	reject@22	engine	createPmemFilestore(MAXSIZE_(UNLIMITED|NUMBER))?/MAXSIZE_(UNLIMITED|NUMBER)!drop-2	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1 AUTOEXTEND ON MAXSIZE
+reject@22	reject@22	engine	createPmemFilestore(MAXSIZE_(UNLIMITED|NUMBER))?/MAXSIZE_(UNLIMITED|NUMBER)!insert	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1 AUTOEXTEND ON MAXSIZE UNLIMITED zzz
+reject@22	reject@22	engine	createPmemFilestore(MAXSIZE_(UNLIMITED|NUMBER))?/MAXSIZE_(UNLIMITED|NUMBER)!swap	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1 AUTOEXTEND ON MAXTRANS UNLIMITED
+reject@22	reject@22	engine	createPmemFilestore(UNLIMITED|NUMBER)/UNLIMITED	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1 AUTOEXTEND ON MAXSIZE UNLIMITED
+reject@22	reject@22	engine	createPmemFilestore(UNLIMITED|NUMBER)/UNLIMITED!swap	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1 AUTOEXTEND ON MAXSIZE UNLOCK
+reject@22	reject@22	engine	createPmemFilestore(UNLIMITED|NUMBER)/NUMBER	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1 AUTOEXTEND ON MAXSIZE 1
+reject@22	reject@22	engine	createPmemFilestore(UNLIMITED|NUMBER)/NUMBER!insert	CREATE PMEM FILESTORE a MOUNTPOINT 's' BACKINGFILE 's' SIZE 1 BLOCKSIZE 1 AUTOEXTEND ON MAXSIZE 1 zzz
 accept	accept	engine	createPropertyGraph/CREATE_(OR_REPLACE)?_PROPERTY_GRAPH_(ID_.)?_ID_createPr~c4446549	CREATE PROPERTY GRAPH a VERTEX TABLES(a)
 accept	accept	engine	createPropertyGraph/CREATE_PROPERTY_GRAPH_(IF_NOT_EXISTS)?_(ID_.)?_ID_creat~7a176217	CREATE PROPERTY GRAPH a VERTEX TABLES(a)
 accept	accept	engine	createPropertyGraph(OR_REPLACE)?/%empty	CREATE PROPERTY GRAPH a VERTEX TABLES(a)
@@ -45888,7 +45888,7 @@ reject@95	reject	engine	suite:reference	CREATE OR REPLACE TYPE omni_bad_tse_R1 A
 reject@77	reject	engine	suite:reference	CREATE OR REPLACE TYPE omni_bad_tsr_R1 AS OBJECT (a NUMBER, MEMBER FUNCTION f)
 reject@76	reject	engine	suite:reference	CREATE OR REPLACE TYPE omni_bad_tsp_R1 AS OBJECT (a NUMBER, MEMBER PROCEDURE)
 reject@12	reject@12	engine	suite:reference	CREATE JAVA IF NOT EXISTS SOURCE NAMED omni_jine_R1 AS class X {}
-reject@21	reject@7	engine	suite:reference	CREATE IF NOT EXISTS JAVA SOURCE NAMED omni_jinb_R1 AS class X {}
+reject@7	reject@7	engine	suite:reference	CREATE IF NOT EXISTS JAVA SOURCE NAMED omni_jinb_R1 AS class X {}
 reject@32	reject@32	engine	suite:reference	CREATE JAVA CLASS SCHEMA omni_s IF NOT EXISTS USING BFILE (omni_d, 'x.class')
 reject@22	reject@19	engine	suite:reference	CREATE JAVA SOURCE IF EXISTS NAMED omni_jie_R1 AS class X {}
 reject@37	reject@44	engine	suite:reference	CREATE OR REPLACE JAVA SOURCE IF NOT EXISTS NAMED omni_jor_R1 AS class X {}
