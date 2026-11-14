@@ -30,10 +30,12 @@ type objectForm struct {
 	// ALTER are documented for the object.
 	orReplace, orAlter bool
 	// drop reports whether DROP <kind> [ IF EXISTS ] <name> is documented,
-	// and dropCascade whether a CASCADE may follow the name.
-	drop, dropCascade bool
-	// undrop reports whether UNDROP <kind> <name> is documented.
-	undrop bool
+	// dropCascade whether a CASCADE may follow the name, and dropForce
+	// whether a FORCE may.
+	drop, dropCascade, dropForce bool
+	// undrop reports whether UNDROP <kind> <name> is documented, and
+	// undropRename whether a RENAME TO <new_name> (one part) may follow.
+	undrop, undropRename bool
 	// nameParts is how many parts the object's name may have: 1 for an
 	// account-level object (a compute pool), 2 for one a database qualifies,
 	// 0 for a schema object, which db.schema.name may qualify.

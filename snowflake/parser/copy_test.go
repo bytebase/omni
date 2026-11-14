@@ -582,3 +582,54 @@ func dmlCopyStmtKind(upper string) (string, func(ast.Node) bool) {
 	}
 	return "", nil
 }
+
+func TestParseCopyIntoLocation_ExternalLocationParams(t *testing.T) {
+	for in, want := range map[string]int{
+		"COPY INTO 's3://b/p/' STORAGE_INTEGRATION = myint FROM t":                                                                                 1,
+		"COPY INTO 's3://b/p/' CREDENTIALS = (AWS_KEY_ID = 'k' AWS_SECRET_KEY = 's' AWS_TOKEN = 't') FROM t":                                       1,
+		"COPY INTO 's3://b/p/' CREDENTIALS = (AWS_KEY_ID = 'k', AWS_SECRET_KEY = 's') ENCRYPTION = (TYPE = 'AWS_SSE_KMS' KMS_KEY_ID = 'x') FROM t": 2,
+		"COPY INTO 's3://b/p/' ENCRYPTION = (MASTER_KEY = 'k') FROM t":                                                                             1,
+		"COPY INTO 's3://b/p/' ENCRYPTION = (TYPE = 'AWS_CSE' MASTER_KEY = 'k') FROM (SELECT 1)":                                                   1,
+		"COPY INTO 's3gov://b/p/' ENCRYPTION = (TYPE = 'NONE') FROM t":                                                                             1,
+		"COPY INTO 's3://b/p/' ENCRYPTION = () FROM t":                                                                                             1,
+		"COPY INTO 'gcs://b/p/' STORAGE_INTEGRATION = i ENCRYPTION = (KMS_KEY_ID = 'k') FROM t":                                                    2,
+		"COPY INTO 'gcs://b/p/' ENCRYPTION = (TYPE = 'GCS_SSE_KMS') FROM t":                                                                        1,
+		"COPY INTO 'azure://a.blob.core.windows.net/c/p/' CREDENTIALS = (AZURE_SAS_TOKEN = 't') FROM t":                                            1,
+		"COPY INTO 'azure://a.blob.core.windows.net/c/p/' CREDENTIALS = () ENCRYPTION = (TYPE = 'NONE') FROM t":                                    2,
+		"COPY INTO 'azure://a.blob.core.windows.net/c/p/' ENCRYPTION = (TYPE = 'AZURE_CSE' MASTER_KEY = 'k') FROM t":                               1,
+		// The page's examples write the parameters after FROM, as copy options.
+		"COPY INTO 's3://b/p/' FROM t STORAGE_INTEGRATION = myint FILE_FORMAT = (FORMAT_NAME = f)": 0,
+	} {
+		s := mustCopyLocation(t, in)
+		if len(s.IntoOptions) != want {
+			t.Errorf("%q: IntoOptions = %+v, want %d", in, s.IntoOptions, want)
+		}
+	}
+
+	for _, in := range []string{
+		"COPY INTO 's3://b/p/' STORAGE_INTEGRATION = 'i' FROM t",
+		"COPY INTO 's3://b/p/' STORAGE_INTEGRATION = db.i FROM t",
+		"COPY INTO 's3://b/p/' CREDENTIALS = (AWS_KEY_ID = 'k') FROM t",      // both keys
+		"COPY INTO 's3://b/p/' CREDENTIALS = () FROM t",                      // both keys
+		"COPY INTO 's3://b/p/' CREDENTIALS = (AZURE_SAS_TOKEN = 't') FROM t", // Azure's
+		"COPY INTO 's3://b/p/' STORAGE_INTEGRATION = i CREDENTIALS = (AWS_KEY_ID = 'k' AWS_SECRET_KEY = 's') FROM t",
+		"COPY INTO 's3://b/p/' ENCRYPTION = (TYPE = 'GCS_SSE_KMS') FROM t",
+		"COPY INTO 's3://b/p/' ENCRYPTION = (TYPE = 'AWS_SSE_S3' MASTER_KEY = 'k') FROM t",
+		"COPY INTO 's3://b/p/' ENCRYPTION = (KMS_KEY_ID = 'k') FROM t", // KMS_KEY_ID goes with AWS_SSE_KMS
+		"COPY INTO 's3://b/p/' ENCRYPTION = (TYPE = 'NONE' TYPE = 'NONE') FROM t",
+		"COPY INTO 's3://b/p/' ENCRYPTION = (TYPE = AWS_CSE) FROM t",
+		"COPY INTO 's3://b/p/' ENCRYPTION = (\"TYPE\" = 'NONE') FROM t",
+		"COPY INTO 's3://b/p/' ENCRYPTION = (TYPE = 'NONE',) FROM t",
+		"COPY INTO 's3://b/p/' ENCRYPTION = (TYPE = 'NONE') STORAGE_INTEGRATION = i FROM t", // order
+		"COPY INTO 'gcs://b/p/' CREDENTIALS = (AWS_KEY_ID = 'k' AWS_SECRET_KEY = 's') FROM t",
+		"COPY INTO 'gcs://b/p/' ENCRYPTION = (MASTER_KEY = 'k') FROM t",
+		"COPY INTO 'azure://a.blob.core.windows.net/c/' ENCRYPTION = (TYPE = 'AWS_CSE') FROM t",
+		"COPY INTO 'azure://a.blob.core.windows.net/c/' ENCRYPTION = (KMS_KEY_ID = 'k') FROM t",
+		"COPY INTO 'other://b/p/' STORAGE_INTEGRATION = i FROM t",
+		"COPY INTO @st STORAGE_INTEGRATION = i FROM t", // a stage takes none
+	} {
+		if _, err := Parse(in); err == nil {
+			t.Errorf("Parse(%q) succeeded, want an error", in)
+		}
+	}
+}

@@ -700,7 +700,11 @@ func (p *Parser) parseRemoveDelegatedAuthorization() error {
 //	  | SET { COMMENT = '...' | <options> }
 //	  | UNSET { COMMENT | <property> } [ , ... ]
 //	  | SET TAG <tag> = '<value>' [ , ... ]
-//	  | UNSET TAG <tag> [ , ... ] }
+//	  | UNSET TAG <tag> [ , ... ]
+//	  | { ADD | REMOVE } { ALLOWED_NETWORK_RULE_LIST | BLOCKED_NETWORK_RULE_LIST }
+//	      = ( '<network_rule>' [ , ... ] ) }      -- NETWORK only, without IF EXISTS
+//
+// https://docs.snowflake.com/en/sql-reference/sql/alter-network-policy
 func (p *Parser) parseAlterPolicyStmt(startLoc ast.Loc, kind ast.PolicyKind) (ast.Node, error) {
 	stmt := &ast.AlterPolicyStmt{Kind: kind, Loc: ast.Loc{Start: startLoc.Start}}
 
@@ -776,6 +780,29 @@ func (p *Parser) parseAlterPolicyStmt(startLoc ast.Loc, kind ast.PolicyKind) (as
 			stmt.Action = ast.AlterPolicyUnset
 			stmt.UnsetProps = props
 		}
+
+	case kwADD, kwREMOVE:
+		if kind != ast.PolicyNetwork || stmt.IfExists {
+			return nil, p.syntaxErrorAtCur()
+		}
+		stmt.Action = ast.AlterPolicyAdd
+		if p.advance().Type == kwREMOVE {
+			stmt.Action = ast.AlterPolicyRemove
+		}
+		if !(p.atWords("ALLOWED_NETWORK_RULE_LIST") || p.atWords("BLOCKED_NETWORK_RULE_LIST")) || p.peekNext().Type != '=' {
+			return nil, p.syntaxErrorAtCur()
+		}
+		opt, err := p.parseObjectProperty()
+		if err != nil {
+			return nil, err
+		}
+		if !propStrings.matches(opt) {
+			return nil, &ParseError{
+				Position: opt.Loc.Start, End: opt.Loc.End,
+				Message: "syntax error: " + opt.Name + " takes ( '<network_rule>' [ , ... ] )",
+			}
+		}
+		stmt.Options = []*ast.CopyOption{opt}
 
 	default:
 		return nil, p.syntaxErrorAtCur()

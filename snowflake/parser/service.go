@@ -15,9 +15,10 @@ import (
 // ObjectStmt too: Verb "EXECUTE", Kind "JOB SERVICE" or "INFERENCE JOB
 // SERVICE", and no Name (the job's name, when given, is its NAME property).
 //
-// The docs also give `FROM @<stage> SPECIFICATION_FILE = ...` (and, for an
-// inference job, `FROM @<stage>`). ObjectClause has no field for a stage
-// location yet, so those forms are not read.
+// A stage a FROM names (`FROM @<stage> SPECIFICATION_FILE = ...`, an
+// inference job's `FROM @<stage>`) is the clause's first option, nameless,
+// whose Words keep the reference verbatim, as CREATE STREAMLIT's FROM keeps
+// one (streamlit.go).
 
 func init() {
 	registerObject(&objectForm{
@@ -25,8 +26,9 @@ func init() {
 		create: parseCreateService,
 		alter:  parseAlterService,
 		// https://docs.snowflake.com/en/sql-reference/sql/drop-service
-		// documents a trailing FORCE, which DropStmt cannot record yet.
-		drop:  true,
+		//
+		//	DROP SERVICE [ IF EXISTS ] <name> [ FORCE ]
+		drop: true, dropForce: true,
 		props: serviceProps,
 	})
 }
@@ -96,10 +98,8 @@ func parseCreateService(p *Parser, s *ast.ObjectStmt) error {
 //	ALTER SERVICE [ IF EXISTS ] <name> SET <property> [ ... ]
 //	ALTER SERVICE [ IF EXISTS ] <name> UNSET <property> [ , ... ]
 //	ALTER SERVICE [ IF EXISTS ] <name> SET [ TAG <tag_name> = '<tag_value>' [ , ... ] ]
-//
-// RESTORE VOLUME <volume_name> INSTANCES <comma_separated_instance_ids>
-// FROM SNAPSHOT <snapshot_name> is documented too, but its instance ids are
-// numbers no ObjectClause field holds, so it is not read yet.
+//	ALTER SERVICE [ IF EXISTS ] <name> RESTORE VOLUME <volume_name>
+//	  INSTANCES <comma_separated_instance_ids> FROM SNAPSHOT <snapshot_name>
 //
 // https://docs.snowflake.com/en/sql-reference/sql/alter-service
 func parseAlterService(p *Parser, s *ast.ObjectStmt) error {
@@ -113,6 +113,8 @@ func parseAlterService(p *Parser, s *ast.ObjectStmt) error {
 		return nil
 	case p.cur.Type == kwFROM:
 		return p.parseServiceSpecification(s, true)
+	case p.atWords("RESTORE", "VOLUME"):
+		return p.parseServiceRestoreVolume(s)
 	}
 	ok, err := p.parseObjectAlterCommon(s, actSet|actSetTag|actUnset)
 	if err != nil {
@@ -122,6 +124,60 @@ func parseAlterService(p *Parser, s *ast.ObjectStmt) error {
 		return p.syntaxErrorAtCur()
 	}
 	return checkServiceSet(s)
+}
+
+// parseServiceRestoreVolume reads
+//
+//	RESTORE VOLUME <volume_name> INSTANCES <comma_separated_instance_ids>
+//	  FROM SNAPSHOT <snapshot_name>
+//
+// into three clauses: RESTORE VOLUME naming the volume, INSTANCES holding each
+// instance id (an integer, as the page's example writes INSTANCES 0,2) as a
+// nameless option, and FROM SNAPSHOT naming the snapshot. cur is RESTORE.
+func (p *Parser) parseServiceRestoreVolume(s *ast.ObjectStmt) error {
+	start := p.cur.Loc.Start
+	p.advance() // consume RESTORE
+	p.advance() // consume VOLUME
+	volume, err := p.parseObjectSimpleName()
+	if err != nil {
+		return err
+	}
+	p.addObjectKeywordsClause(s, "RESTORE VOLUME", start).Names = []*ast.ObjectName{volume}
+
+	start = p.cur.Loc.Start
+	if err := p.expectWords("INSTANCES"); err != nil {
+		return err
+	}
+	var ids []*ast.CopyOption
+	for {
+		tok, err := p.expect(tokInt)
+		if err != nil {
+			return err
+		}
+		ids = append(ids, &ast.CopyOption{
+			Lit: &ast.Literal{Kind: ast.LitInt, Value: tok.Str, Ival: tok.Ival, Loc: tok.Loc},
+			Loc: tok.Loc,
+		})
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance() // consume ','
+	}
+	p.addObjectKeywordsClause(s, "INSTANCES", start).Options = ids
+
+	start = p.cur.Loc.Start
+	if _, err := p.expect(kwFROM); err != nil {
+		return err
+	}
+	if err := p.expectWords("SNAPSHOT"); err != nil {
+		return err
+	}
+	snapshot, err := p.parseObjectSimpleName()
+	if err != nil {
+		return err
+	}
+	p.addObjectKeywordsClause(s, "FROM SNAPSHOT", start).Names = []*ast.ObjectName{snapshot}
+	return nil
 }
 
 // checkServiceSet holds an ALTER's SET clause to its page: tags are set by a
@@ -194,27 +250,35 @@ func (p *Parser) parseExecuteJobService(start ast.Loc) (ast.Node, error) {
 	}
 	p.addObjectKeywordsClause(s, "WITH SPECIFICATION", withStart).Options = []*ast.CopyOption{spec}
 
-	// FROM ( <query> )
+	// FROM { ( <query> ) | @[<namespace>.]<stage_name>[/<path>] }
 	fromStart := p.cur.Loc.Start
 	if _, err := p.expect(kwFROM); err != nil {
 		return nil, err
 	}
-	if _, err := p.expect('('); err != nil {
-		return nil, err
-	}
-	var q ast.Node
-	if p.cur.Type == kwWITH {
-		q, err = p.parseWithQueryExpr()
+	if p.cur.Type == '@' {
+		stage, err := p.parseServiceStage()
+		if err != nil {
+			return nil, err
+		}
+		p.addObjectKeywordsClause(s, "FROM", fromStart).Options = []*ast.CopyOption{stage}
 	} else {
-		q, err = p.parseQueryExpr()
+		if _, err := p.expect('('); err != nil {
+			return nil, err
+		}
+		var q ast.Node
+		if p.cur.Type == kwWITH {
+			q, err = p.parseWithQueryExpr()
+		} else {
+			q, err = p.parseQueryExpr()
+		}
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		p.addObjectKeywordsClause(s, "FROM", fromStart).Query = q
 	}
-	if err != nil {
-		return nil, err
-	}
-	if _, err := p.expect(')'); err != nil {
-		return nil, err
-	}
-	p.addObjectKeywordsClause(s, "FROM", fromStart).Query = q
 
 	props, err := p.parseObjectProperties(s, "", true)
 	if err != nil {
@@ -298,47 +362,78 @@ func (p *Parser) parseServiceComputePool(s *ast.ObjectStmt) error {
 //	  USING ( <key> => <value> [ , ... ] )
 //
 // A *_FILE form is a FROM clause holding the property (SPECIFICATION_FILE =
-// '<path>'); an inline form is a FROM SPECIFICATION or FROM
-// SPECIFICATION_TEMPLATE clause holding the text as a nameless option. USING
-// is a clause of its own. bareFile says whether
-// the page documents a *_FILE without a stage (CREATE and ALTER SERVICE do, for
-// a Native App's service; EXECUTE JOB SERVICE does not). The @<stage> forms are
-// not read yet (see the top of this file).
+// '<path>'), after the stage when one is named; an inline form is a FROM
+// SPECIFICATION or FROM SPECIFICATION_TEMPLATE clause holding the text as a
+// nameless option. USING is a clause of its own. bareFile says whether the page
+// documents a *_FILE without a stage (CREATE and ALTER SERVICE do, for a Native
+// App's service; EXECUTE JOB SERVICE does not).
 func (p *Parser) parseServiceSpecification(s *ast.ObjectStmt, bareFile bool) error {
 	start := p.cur.Loc.Start
 	if _, err := p.expect(kwFROM); err != nil {
 		return err
 	}
-	var spec *ast.CopyOption
+	var opts []*ast.CopyOption
 	keywords := "FROM"
 	switch {
-	case bareFile && (p.curIsWord("SPECIFICATION_FILE") || p.curIsWord("SPECIFICATION_TEMPLATE_FILE")) &&
-		p.peekNext().Type == '=':
+	case p.cur.Type == '@' || (bareFile && p.startsServiceSpecFile()):
+		if p.cur.Type == '@' {
+			stage, err := p.parseServiceStage()
+			if err != nil {
+				return err
+			}
+			opts = append(opts, stage)
+			if !p.startsServiceSpecFile() {
+				return p.syntaxErrorAtCur()
+			}
+		}
 		key := p.advance()
 		p.advance() // consume '='
 		path, err := p.expect(tokString)
 		if err != nil {
 			return err
 		}
-		spec = &ast.CopyOption{
+		opts = append(opts, &ast.CopyOption{
 			Name: strings.ToUpper(key.Str),
 			Lit:  &ast.Literal{Kind: ast.LitString, Value: path.Str, Loc: path.Loc},
 			Loc:  ast.Loc{Start: key.Loc.Start, End: path.Loc.End},
-		}
+		})
 	case p.curIsWord("SPECIFICATION") || p.curIsWord("SPECIFICATION_TEMPLATE"):
 		keywords += " " + strings.ToUpper(p.advance().Str)
-		var err error
-		if spec, err = p.parseServiceSpecText(); err != nil {
+		spec, err := p.parseServiceSpecText()
+		if err != nil {
 			return err
 		}
+		opts = append(opts, spec)
 	default:
 		return p.syntaxErrorAtCur()
 	}
-	p.addObjectKeywordsClause(s, keywords, start).Options = []*ast.CopyOption{spec}
-	if keywords == "FROM SPECIFICATION_TEMPLATE" || spec.Name == "SPECIFICATION_TEMPLATE_FILE" {
+	p.addObjectKeywordsClause(s, keywords, start).Options = opts
+	if keywords == "FROM SPECIFICATION_TEMPLATE" || opts[len(opts)-1].Name == "SPECIFICATION_TEMPLATE_FILE" {
 		return p.parseServiceUsing(s)
 	}
 	return nil
+}
+
+// startsServiceSpecFile reports whether cur begins SPECIFICATION_FILE = or
+// SPECIFICATION_TEMPLATE_FILE =. It consumes nothing.
+func (p *Parser) startsServiceSpecFile() bool {
+	return (isWordToken(p.cur, "SPECIFICATION_FILE") || isWordToken(p.cur, "SPECIFICATION_TEMPLATE_FILE")) &&
+		p.peekNext().Type == '='
+}
+
+// parseServiceStage reads @[<namespace>.]<stage_name>[/<path>] into a
+// nameless option whose Words keep the reference verbatim. cur is '@'; a '@'
+// with no stage after it is a syntax error.
+func (p *Parser) parseServiceStage() (*ast.CopyOption, error) {
+	at := p.cur
+	ref, err := p.parseStageOperand()
+	if err != nil {
+		return nil, err
+	}
+	if ref.Loc.End == at.Loc.End {
+		return nil, syntaxErrorAtTok(at)
+	}
+	return &ast.CopyOption{Words: ref.Raw, Loc: ref.Loc}, nil
 }
 
 // parseServiceSpecText reads '<specification_text>' (the text may be a $$

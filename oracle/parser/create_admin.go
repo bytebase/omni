@@ -10,7 +10,7 @@ import (
 // - CREATE MATERIALIZED VIEW LOG ON ... (mview log)
 // - CREATE MATERIALIZED VIEW ... (regular mview)
 func (p *Parser) parseCreateMaterializedOrView(start int, orReplace bool) (nodes.StmtNode, error) {
-	p.advance() // consume MATERIALIZED
+	materialized := p.advance() // consume MATERIALIZED
 	// Check for MATERIALIZED ZONEMAP
 	if p.isIdentLike() && p.cur.Str == "ZONEMAP" {
 		p.advance() // consume ZONEMAP
@@ -24,19 +24,18 @@ func (p *Parser) parseCreateMaterializedOrView(start int, orReplace bool) (nodes
 			return p.parseCreateMviewLogStmt(start)
 		}
 	}
-	// It's a regular MATERIALIZED VIEW — but we already consumed MATERIALIZED.
-	// parseCreateViewStmt expects to see kwMATERIALIZED. Since we consumed it,
-	// we need to handle VIEW directly.
-	stmt := &nodes.CreateViewStmt{
-		OrReplace:    orReplace,
+	// A materialized view is created, not replaced: Oracle refuses OR
+	// REPLACE at MATERIALIZED (ORA-00922).
+	if orReplace {
+		return nil, p.syntaxErrorAtTok(materialized)
+	}
+	if err := p.expectCreateTableToken(kwVIEW); err != nil {
+		return nil, err
+	}
+	return p.parseCreateMaterializedViewStmt(&nodes.CreateViewStmt{
 		Materialized: true,
 		Loc:          nodes.Loc{Start: start},
-	}
-	if p.cur.Type == kwVIEW {
-		p.advance()
-	}
-	// Delegate the rest to the existing view parsing logic.
-	return p.finishCreateViewStmt(stmt)
+	})
 }
 
 // parseAdminDDLWithOptions parses generic administrative DDL statements by consuming
@@ -167,18 +166,12 @@ func (p *Parser) parseCreateAdminObject(start int, orReplace bool) (nodes.StmtNo
 	case kwDIRECTORY:
 		p.advance()
 		return p.parseCreateDirectoryStmt(start, orReplace)
-	case kwCONTEXT:
-		p.advance()
-		return p.parseCreateContextStmt(start, orReplace)
 	case kwCLUSTER:
 		p.advance()
 		return p.parseCreateClusterStmt(start)
 	case kwJAVA:
 		p.advance()
 		return p.parseCreateJavaStmt(start, orReplace, nil)
-	case kwLIBRARY:
-		p.advance()
-		return p.parseCreateLibraryStmt(start, orReplace)
 	case kwSCHEMA:
 		p.advance()
 		return p.parseCreateSchemaStmt(start)
@@ -250,35 +243,9 @@ func (p *Parser) parseCreateAdminObject(start int, orReplace bool) (nodes.StmtNo
 			case "OUTLINE":
 				p.advance()
 				return p.parseCreateOutlineStmt(start, false, false)
-			case "INMEMORY":
-				p.advance() // consume INMEMORY
-				if p.cur.Type == kwJOIN {
-					p.advance() // consume JOIN
-				}
-				if p.cur.Type == kwGROUP || (p.isIdentLike() && p.cur.Str == "GROUP") {
-					p.advance() // consume GROUP
-				}
-				return p.parseCreateInmemoryJoinGroupStmt(start)
-			case "ROLLBACK":
-				p.advance() // consume ROLLBACK
-				if p.isIdentLike() && p.cur.Str == "SEGMENT" {
-					p.advance() // consume SEGMENT
-				}
-				return p.parseCreateRollbackSegmentStmt(start, false)
 			case "EDITION":
 				p.advance()
 				return p.parseCreateEditionStmt(start)
-			case "MLE":
-				p.advance() // consume MLE
-				if p.isIdentLike() && p.cur.Str == "ENV" {
-					p.advance() // consume ENV
-					return p.parseCreateMLEEnvStmt(start, orReplace)
-				}
-				if p.isIdentLike() && p.cur.Str == "MODULE" {
-					p.advance() // consume MODULE
-					return p.parseCreateMLEModuleStmt(start, orReplace)
-				}
-				return p.parseCreateMLEEnvStmt(start, orReplace)
 			case "PFILE":
 				p.advance()
 				return p.parseCreatePfileStmt(start)
@@ -293,38 +260,25 @@ func (p *Parser) parseCreateAdminObject(start int, orReplace bool) (nodes.StmtNo
 				return p.parseCreatePropertyGraphStmt(start, false, false)
 			case "VECTOR":
 				p.advance() // consume VECTOR
-				if p.cur.Type == kwINDEX {
-					p.advance() // consume INDEX
+				if p.cur.Type != kwINDEX {
+					return nil, p.syntaxErrorAtCur()
 				}
+				p.advance() // consume INDEX
 				return p.parseCreateVectorIndexStmt(start, false)
-			case "RESTORE":
-				p.advance() // consume RESTORE
-				if p.isIdentLike() && p.cur.Str == "POINT" {
-					p.advance() // consume POINT
-				}
-				return p.parseCreateRestorePointStmt(start, false)
-			case "CLEAN":
-				p.advance() // consume CLEAN
-				if p.isIdentLike() && p.cur.Str == "RESTORE" {
-					p.advance() // consume RESTORE
-				}
-				if p.isIdentLike() && p.cur.Str == "POINT" {
-					p.advance() // consume POINT
-				}
-				return p.parseCreateRestorePointStmt(start, true)
 			case "LOGICAL":
 				p.advance() // consume LOGICAL
-				if p.cur.Type == kwPARTITION || (p.isIdentLike() && p.cur.Str == "PARTITION") {
-					p.advance() // consume PARTITION
+				if p.cur.Type != kwPARTITION {
+					return nil, p.syntaxErrorAtCur()
 				}
-				if p.isIdentLike() && p.cur.Str == "TRACKING" {
-					p.advance() // consume TRACKING
+				p.advance() // consume PARTITION
+				if err := p.expectCreateTableWord("TRACKING"); err != nil {
+					return nil, err
 				}
 				return p.parseCreateLogicalPartitionTrackingStmt(start)
 			case "PMEM":
 				p.advance() // consume PMEM
-				if p.isIdentLike() && p.cur.Str == "FILESTORE" {
-					p.advance() // consume FILESTORE
+				if err := p.expectCreateTableWord("FILESTORE"); err != nil {
+					return nil, err
 				}
 				return p.parseCreatePmemFilestoreStmt(start)
 			}
@@ -671,560 +625,12 @@ func (p *Parser) parseIntValue() (int, error) {
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
-// CREATE MATERIALIZED ZONEMAP
-// ---------------------------------------------------------------------------
-
-// parseCreateMaterializedZonemapStmt parses a CREATE MATERIALIZED ZONEMAP statement.
-//
-// BNF: oracle/parser/bnf/CREATE-MATERIALIZED-ZONEMAP.bnf
-//
-//	CREATE MATERIALIZED ZONEMAP [ IF NOT EXISTS ]
-//	    [ schema. ] zonemap_name
-//	    [ zonemap_attributes ]
-//	    [ zonemap_refresh_clause ]
-//	    [ { ENABLE | DISABLE } PRUNING ]
-//	    { create_zonemap_on_table | create_zonemap_as_subquery }
-//
-//	create_zonemap_on_table:
-//	    ON [ schema. ] table ( column [, column ]... )
-//
-//	create_zonemap_as_subquery:
-//	    [ ( column_alias [, column_alias ]... ) ]
-//	    AS query_block
-//
-//	zonemap_attributes:
-//	    [ TABLESPACE tablespace_name ]
-//	    [ SCALE integer ]
-//	    [ PCTFREE integer ]
-//	    [ PCTUSED integer ]
-//	    [ { CACHE | NOCACHE } ]
-//
-//	zonemap_refresh_clause:
-//	    REFRESH
-//	    [ { FAST | COMPLETE | FORCE } ]
-//	    [ { ON DEMAND
-//	      | ON COMMIT
-//	      | ON LOAD
-//	      | ON DATA MOVEMENT
-//	      | ON LOAD DATA MOVEMENT
-//	      }
-//	    ]
-func (p *Parser) parseCreateMaterializedZonemapStmt(start int) (*nodes.CreateMaterializedZonemapStmt, error) {
-	stmt := &nodes.CreateMaterializedZonemapStmt{
-		Loc: nodes.Loc{Start: start},
-	}
-
-	// Optional IF NOT EXISTS
-	if p.cur.Type == kwIF {
-		next := p.peekNext()
-		if next.Type == kwNOT {
-			p.advance() // IF
-			p.advance() // NOT
-			if p.cur.Type == kwEXISTS {
-				p.advance() // EXISTS
-			}
-			stmt.IfNotExists = true
-		}
-	}
-	var parseErr263 error
-
-	stmt.Name, parseErr263 = p.parseObjectName()
-	if parseErr263 !=
-
-		// Parse options until ON, AS, (, or ; / EOF
-		nil {
-		return nil, parseErr263
-	}
-
-	for p.cur.Type != ';' && p.cur.Type != tokEOF {
-		switch {
-		// zonemap_attributes
-		case p.cur.Type == kwTABLESPACE:
-			p.advance()
-			var parseErr264 error
-			stmt.Tablespace, parseErr264 = p.parseIdentifier()
-			if parseErr264 != nil {
-				return nil, parseErr264
-			}
-
-		case p.isIdentLike() && p.cur.Str == "SCALE":
-			p.advance()
-			if p.cur.Type == tokICONST {
-				v, parseErr265 := p.parseIntValue()
-				if parseErr265 != nil {
-					return nil, parseErr265
-				}
-				stmt.Scale = &v
-			}
-
-		case p.cur.Type == kwPCTFREE:
-			p.advance()
-			if p.cur.Type == tokICONST {
-				v, parseErr266 := p.parseIntValue()
-				if parseErr266 != nil {
-					return nil, parseErr266
-				}
-				stmt.PctFree = &v
-			}
-
-		case p.isIdentLike() && p.cur.Str == "PCTUSED":
-			p.advance()
-			if p.cur.Type == tokICONST {
-				v, parseErr267 := p.parseIntValue()
-				if parseErr267 != nil {
-					return nil, parseErr267
-				}
-				stmt.PctUsed = &v
-			}
-
-		case p.cur.Type == kwCACHE:
-			p.advance()
-			stmt.Cache = true
-
-		case p.cur.Type == kwNOCACHE:
-			p.advance()
-			stmt.NoCache = true
-
-		// zonemap_refresh_clause
-		case p.isIdentLike() && p.cur.Str == "REFRESH":
-			p.advance()
-			parseErr268 := // REFRESH
-				p.parseZonemapRefresh(stmt, nil)
-			if parseErr268 !=
-
-				// ENABLE/DISABLE PRUNING
-				nil {
-				return nil, parseErr268
-			}
-
-		case p.cur.Type == kwENABLE:
-			p.advance()
-			if p.isIdentLike() && p.cur.Str == "PRUNING" {
-				p.advance()
-				stmt.EnablePruning = true
-			}
-
-		case p.cur.Type == kwDISABLE:
-			p.advance()
-			if p.isIdentLike() && p.cur.Str == "PRUNING" {
-				p.advance()
-				stmt.DisablePruning = true
-			}
-
-		// create_zonemap_on_table
-		case p.cur.Type == kwON:
-			p.advance()
-			var // ON
-			parseErr269 error
-			stmt.OnTable, parseErr269 = p.parseObjectName()
-			if parseErr269 != nil {
-				return nil, parseErr269
-			}
-			if p.cur.Type == '(' {
-				p.advance()
-				for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
-					// An item that consumes nothing would come round again.
-					if p.pos() == progress {
-						return nil, p.syntaxErrorAtCur()
-					}
-					progress = p.pos()
-					parseValue45, parseErr46 := p.parseIdentifier()
-					if parseErr46 != nil {
-						return nil, parseErr46
-					}
-					stmt.OnColumns = append(stmt.OnColumns, parseValue45)
-					if p.cur.Type == ',' {
-						p.advance()
-					}
-				}
-				if p.cur.Type == ')' {
-					p.advance()
-				}
-			}
-
-		// create_zonemap_as_subquery: ( column_alias, ... ) AS query_block
-		case p.cur.Type == '(' && stmt.OnTable == nil && stmt.AsQuery == nil:
-			// column aliases before AS
-			p.advance()
-			for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
-				// An item that consumes nothing would come round again.
-				if p.pos() == progress {
-					return nil, p.syntaxErrorAtCur()
-				}
-				progress = p.pos()
-				parseValue47, parseErr48 := p.parseIdentifier()
-				if parseErr48 != nil {
-					return nil, parseErr48
-				}
-				stmt.ColumnAliases = append(stmt.ColumnAliases, parseValue47)
-				if p.cur.Type == ',' {
-					p.advance()
-				}
-			}
-			if p.cur.Type == ')' {
-				p.advance()
-			}
-
-		case p.cur.Type == kwAS:
-			p.advance()
-			var // AS
-			parseErr270 error
-			stmt.AsQuery, parseErr270 = p.parseSelectStmt()
-			if parseErr270 != nil {
-				return nil, parseErr270
-			}
-
-		default:
-			p.advance()
-		}
-	}
-
-	stmt.Loc.End = p.prev.End
-	return stmt, nil
-}
-
-// parseZonemapRefresh parses the refresh clause for a zonemap.
-// It sets refresh fields on either a CreateMaterializedZonemapStmt or AlterMaterializedZonemapStmt.
-func (p *Parser) parseZonemapRefresh(create *nodes.CreateMaterializedZonemapStmt, alter *nodes.AlterMaterializedZonemapStmt) error {
-	// Optional method: FAST | COMPLETE | FORCE
-	method := ""
-	if p.isIdentLike() {
-		switch p.cur.Str {
-		case "FAST", "COMPLETE", "FORCE":
-			method = p.cur.Str
-			p.advance()
-		}
-	}
-
-	// Optional ON ...
-	refreshOn := ""
-	if p.cur.Type == kwON {
-		p.advance() // ON
-		if p.isIdentLike() {
-			switch p.cur.Str {
-			case "DEMAND":
-				refreshOn = "ON DEMAND"
-				p.advance()
-			case "COMMIT":
-				refreshOn = "ON COMMIT"
-				p.advance()
-			case "LOAD":
-				p.advance()
-				if p.isIdentLike() && p.cur.Str == "DATA" {
-					p.advance() // DATA
-					if p.isIdentLike() && p.cur.Str == "MOVEMENT" {
-						p.advance() // MOVEMENT
-					}
-					refreshOn = "ON LOAD DATA MOVEMENT"
-				} else {
-					refreshOn = "ON LOAD"
-				}
-			case "DATA":
-				p.advance() // DATA
-				if p.isIdentLike() && p.cur.Str == "MOVEMENT" {
-					p.advance() // MOVEMENT
-				}
-				refreshOn = "ON DATA MOVEMENT"
-			case "STATEMENT":
-				refreshOn = "ON STATEMENT"
-				p.advance()
-			}
-		}
-	}
-
-	if create != nil {
-		create.RefreshMethod = method
-		create.RefreshOn = refreshOn
-	}
-	if alter != nil {
-		alter.RefreshMethod = method
-		alter.RefreshOn = refreshOn
-	}
-	return nil
-}
-
-// ---------------------------------------------------------------------------
-// ALTER MATERIALIZED ZONEMAP
-// ---------------------------------------------------------------------------
-
-// parseAlterMaterializedZonemapStmt parses an ALTER MATERIALIZED ZONEMAP statement.
-//
-// BNF: oracle/parser/bnf/ALTER-MATERIALIZED-ZONEMAP.bnf
-//
-//	ALTER MATERIALIZED ZONEMAP [ IF EXISTS ] [ schema. ] zonemap_name
-//	    { alter_zonemap_attributes
-//	    | zonemap_refresh_clause
-//	    | { ENABLE | DISABLE } PRUNING
-//	    | COMPILE
-//	    | REBUILD
-//	    | UNUSABLE
-//	    } ;
-//
-//	alter_zonemap_attributes:
-//	    [ PCTFREE integer ]
-//	    [ PCTUSED integer ]
-//	    [ { CACHE | NOCACHE } ]
-//
-//	zonemap_refresh_clause:
-//	    REFRESH
-//	    [ { FAST | COMPLETE | FORCE } ]
-//	    [ { ON COMMIT | ON DEMAND | ON LOAD | ON DATA MOVEMENT | ON STATEMENT } ]
-func (p *Parser) parseAlterMaterializedZonemapStmt(start int) (*nodes.AlterMaterializedZonemapStmt, error) {
-	stmt := &nodes.AlterMaterializedZonemapStmt{
-		Loc: nodes.Loc{Start: start},
-	}
-
-	// Optional IF EXISTS
-	if p.cur.Type == kwIF {
-		next := p.peekNext()
-		if next.Type == kwEXISTS {
-			p.advance() // IF
-			p.advance() // EXISTS
-			stmt.IfExists = true
-		}
-	}
-	var parseErr271 error
-
-	stmt.Name, parseErr271 = p.parseObjectName()
-	if parseErr271 !=
-
-		// Parse action
-		nil {
-		return nil, parseErr271
-	}
-
-	for p.cur.Type != ';' && p.cur.Type != tokEOF {
-		switch {
-		case p.cur.Type == kwPCTFREE:
-			p.advance()
-			if p.cur.Type == tokICONST {
-				v, parseErr272 := p.parseIntValue()
-				if parseErr272 != nil {
-					return nil, parseErr272
-				}
-				stmt.PctFree = &v
-			}
-			if stmt.Action == "" {
-				stmt.Action = "ATTRS"
-			}
-
-		case p.isIdentLike() && p.cur.Str == "PCTUSED":
-			p.advance()
-			if p.cur.Type == tokICONST {
-				v, parseErr273 := p.parseIntValue()
-				if parseErr273 != nil {
-					return nil, parseErr273
-				}
-				stmt.PctUsed = &v
-			}
-			if stmt.Action == "" {
-				stmt.Action = "ATTRS"
-			}
-
-		case p.cur.Type == kwCACHE:
-			p.advance()
-			stmt.Cache = true
-			if stmt.Action == "" {
-				stmt.Action = "ATTRS"
-			}
-
-		case p.cur.Type == kwNOCACHE:
-			p.advance()
-			stmt.NoCache = true
-			if stmt.Action == "" {
-				stmt.Action = "ATTRS"
-			}
-
-		case p.isIdentLike() && p.cur.Str == "REFRESH":
-			p.advance()
-			stmt.Action = "REFRESH"
-			parseErr274 := p.parseZonemapRefresh(nil, stmt)
-			if parseErr274 != nil {
-				return nil, parseErr274
-			}
-
-		case p.cur.Type == kwENABLE:
-			p.advance()
-			if p.isIdentLike() && p.cur.Str == "PRUNING" {
-				p.advance()
-			}
-			stmt.Action = "ENABLE_PRUNING"
-
-		case p.cur.Type == kwDISABLE:
-			p.advance()
-			if p.isIdentLike() && p.cur.Str == "PRUNING" {
-				p.advance()
-			}
-			stmt.Action = "DISABLE_PRUNING"
-
-		case p.isIdentLike() && p.cur.Str == "COMPILE":
-			p.advance()
-			stmt.Action = "COMPILE"
-
-		case p.isIdentLike() && p.cur.Str == "REBUILD":
-			p.advance()
-			stmt.Action = "REBUILD"
-
-		case p.isIdentLike() && p.cur.Str == "UNUSABLE":
-			p.advance()
-			stmt.Action = "UNUSABLE"
-
-		default:
-			p.advance()
-		}
-	}
-
-	stmt.Loc.End = p.prev.End
-	return stmt, nil
-}
-
-// ---------------------------------------------------------------------------
 // CREATE INMEMORY JOIN GROUP
 // ---------------------------------------------------------------------------
-
-// parseCreateInmemoryJoinGroupStmt parses a CREATE INMEMORY JOIN GROUP statement.
-//
-// BNF: oracle/parser/bnf/CREATE-INMEMORY-JOIN-GROUP.bnf
-//
-//	CREATE INMEMORY JOIN GROUP [ IF NOT EXISTS ] [ schema. ] join_group
-//	    ( [ schema. ] table ( column )
-//	      [, [ schema. ] table ( column ) ]... ) ;
-func (p *Parser) parseCreateInmemoryJoinGroupStmt(start int) (*nodes.CreateInmemoryJoinGroupStmt, error) {
-	stmt := &nodes.CreateInmemoryJoinGroupStmt{
-		Loc: nodes.Loc{Start: start},
-	}
-
-	// Optional IF NOT EXISTS
-	if p.cur.Type == kwIF {
-		next := p.peekNext()
-		if next.Type == kwNOT {
-			p.advance() // IF
-			p.advance() // NOT
-			if p.cur.Type == kwEXISTS {
-				p.advance() // EXISTS
-			}
-			stmt.IfNotExists = true
-		}
-	}
-	var parseErr275 error
-
-	stmt.Name, parseErr275 = p.parseObjectName()
-	if parseErr275 !=
-
-		// Parse member list: ( table(col) [, table(col) ]... )
-		nil {
-		return nil, parseErr275
-	}
-
-	if p.cur.Type == '(' {
-		p.advance()
-		for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
-			// An item that consumes nothing would come round again.
-			if p.pos() == progress {
-				return nil, p.syntaxErrorAtCur()
-			}
-			progress = p.pos()
-			member, parseErr276 := p.parseJoinGroupMember()
-			if parseErr276 != nil {
-				return nil, parseErr276
-			}
-			stmt.Members = append(stmt.Members, member)
-			if p.cur.Type == ',' {
-				p.advance()
-			}
-		}
-		if p.cur.Type == ')' {
-			p.advance()
-		}
-	}
-
-	stmt.Loc.End = p.prev.End
-	return stmt, nil
-}
-
-// parseJoinGroupMember parses a table(column) member of a join group.
-func (p *Parser) parseJoinGroupMember() (*nodes.JoinGroupMember, error) {
-	m := &nodes.JoinGroupMember{
-		Loc: nodes.Loc{Start: p.pos()},
-	}
-	var parseErr277 error
-	m.Table, parseErr277 = p.parseObjectName()
-	if parseErr277 != nil {
-		return nil, parseErr277
-	}
-	if p.cur.Type == '(' {
-		p.advance()
-		var parseErr278 error
-		m.Column, parseErr278 = p.parseIdentifier()
-		if parseErr278 != nil {
-			return nil, parseErr278
-		}
-		if p.cur.Type == ')' {
-			p.advance()
-		}
-	}
-	m.Loc.End = p.prev.End
-	return m, nil
-}
 
 // ---------------------------------------------------------------------------
 // ALTER INMEMORY JOIN GROUP
 // ---------------------------------------------------------------------------
-
-// parseAlterInmemoryJoinGroupStmt parses an ALTER INMEMORY JOIN GROUP statement.
-//
-// BNF: oracle/parser/bnf/ALTER-INMEMORY-JOIN-GROUP.bnf
-//
-//	ALTER INMEMORY JOIN GROUP [ IF EXISTS ] [ schema. ] join_group
-//	    { ADD | REMOVE } ( [ schema. ] table ( column ) ) ;
-func (p *Parser) parseAlterInmemoryJoinGroupStmt(start int) (*nodes.AlterInmemoryJoinGroupStmt, error) {
-	stmt := &nodes.AlterInmemoryJoinGroupStmt{
-		Loc: nodes.Loc{Start: start},
-	}
-
-	// Optional IF EXISTS
-	if p.cur.Type == kwIF {
-		next := p.peekNext()
-		if next.Type == kwEXISTS {
-			p.advance() // IF
-			p.advance() // EXISTS
-			stmt.IfExists = true
-		}
-	}
-	var parseErr279 error
-
-	stmt.Name, parseErr279 = p.parseObjectName()
-	if parseErr279 !=
-
-		// ADD or REMOVE
-		nil {
-		return nil, parseErr279
-	}
-
-	if p.cur.Type == kwADD {
-		p.advance()
-		stmt.Action = "ADD"
-	} else if p.isIdentLike() && p.cur.Str == "REMOVE" {
-		p.advance()
-		stmt.Action = "REMOVE"
-	}
-
-	// ( table(column) )
-	if p.cur.Type == '(' {
-		p.advance()
-		var parseErr280 error
-		stmt.Member, parseErr280 = p.parseJoinGroupMember()
-		if parseErr280 != nil {
-			return nil, parseErr280
-		}
-		if p.cur.Type == ')' {
-			p.advance()
-		}
-	}
-
-	stmt.Loc.End = p.prev.End
-	return stmt, nil
-}
 
 // ---------------------------------------------------------------------------
 // DROP CLUSTER (with INCLUDING TABLES / CASCADE CONSTRAINTS)
@@ -1360,11 +766,11 @@ func (p *Parser) parseAlterAdminObject(start int) (nodes.StmtNode, error) {
 				return p.parseAlterOutlineStmt(start)
 			case "INMEMORY":
 				p.advance() // consume INMEMORY
-				if p.cur.Type == kwJOIN {
-					p.advance() // consume JOIN
+				if err := p.expectCreateTableWord("JOIN"); err != nil {
+					return nil, err
 				}
-				if p.cur.Type == kwGROUP || (p.isIdentLike() && p.cur.Str == "GROUP") {
-					p.advance() // consume GROUP
+				if err := p.expectCreateTableWord("GROUP"); err != nil {
+					return nil, err
 				}
 				return p.parseAlterInmemoryJoinGroupStmt(start)
 			case "FLASHBACK":
@@ -1381,8 +787,8 @@ func (p *Parser) parseAlterAdminObject(start int) (nodes.StmtNode, error) {
 				return p.parseAlterResourceCostStmt(start)
 			case "ROLLBACK":
 				p.advance() // consume ROLLBACK
-				if p.isIdentLike() && p.cur.Str == "SEGMENT" {
-					p.advance() // consume SEGMENT
+				if err := p.expectCreateTableWord("SEGMENT"); err != nil {
+					return nil, err
 				}
 				return p.parseAlterRollbackSegmentStmt(start)
 			case "MATERIALIZED":
@@ -1401,1009 +807,6 @@ func (p *Parser) parseAlterAdminObject(start int) (nodes.StmtNode, error) {
 // ---------------------------------------------------------------------------
 // CREATE DOMAIN
 // ---------------------------------------------------------------------------
-
-// parseCreateDomainStmt parses a CREATE DOMAIN statement.
-//
-// BNF: oracle/parser/bnf/create-domain.bnf
-//
-//	CREATE [ OR REPLACE ] [ USECASE ] DOMAIN [ IF NOT EXISTS ] [ schema. ] domain_name
-//	    AS { create_single_column_domain
-//	       | create_multi_column_domain
-//	       | create_flexible_domain } ;
-//
-//	create_single_column_domain:
-//	    datatype [ STRICT ]
-//	    [ DEFAULT [ ON NULL ] default_expression ]
-//	    [ { constraint_clause }... ]
-//	    [ COLLATE collation_name ]
-//	    [ DISPLAY display_expression ]
-//	    [ ORDER order_expression ]
-//	    [ annotations_clause ]
-//
-//	create_single_column_domain:  -- ENUM variant
-//	    ENUM ( enum_list ) [ STRICT ]
-//	    [ DEFAULT [ ON NULL ] default_expression ]
-//	    [ { constraint_clause }... ]
-//	    [ COLLATE collation_name ]
-//	    [ DISPLAY display_expression ]
-//	    [ ORDER order_expression ]
-//	    [ annotations_clause ]
-//
-//	enum_list:
-//	    enum_item_list [, enum_item_list ]...
-//
-//	enum_item_list:
-//	    name [ = enum_alias_list ] [ = value ]
-//
-//	enum_alias_list:
-//	    alias [ = alias ]...
-//
-//	column_properties_clause:
-//	    [ DEFAULT [ ON NULL ] default_expression ]
-//	    [ { constraint_clause }... ]
-//	    [ COLLATE collation_name ]
-//	    [ DISPLAY display_expression ]
-//	    [ ORDER order_expression ]
-//
-//	create_multi_column_domain:
-//	    ( column_name AS datatype [ annotations_clause ]
-//	      [, column_name AS datatype [ annotations_clause ] ]... )
-//	    [ { constraint_clause }... ]
-//	    [ COLLATE collation_name ]
-//	    [ DISPLAY display_expression ]
-//	    [ ORDER order_expression ]
-//	    [ annotations_clause ]
-//
-//	create_flexible_domain:
-//	    FLEXIBLE DOMAIN [ schema. ] domain_name
-//	        ( column_name [, column_name ]... )
-//	    CHOOSE DOMAIN USING ( domain_discriminant_column datatype
-//	        [, domain_discriminant_column datatype ]... )
-//	    FROM { DECODE ( expr , comparison_expr , result_expr
-//	                    [, comparison_expr , result_expr ]... )
-//	         | CASE { WHEN condition THEN result_expr }... END }
-//
-//	result_expr:
-//	    [ schema. ] domain_name ( column_name [, column_name ]... )
-//
-//	default_clause:
-//	    DEFAULT [ ON NULL ] default_expression
-//
-//	constraint_clause:
-//	    [ CONSTRAINT constraint_name ]
-//	    { NOT NULL | NULL | CHECK ( condition ) }
-//	    [ constraint_state ]
-//
-//	annotations_clause:
-//	    ANNOTATIONS ( annotation [, annotation ]... )
-func (p *Parser) parseCreateDomainStmt(start int, orReplace, usecase bool) (*nodes.CreateDomainStmt, error) {
-	stmt := &nodes.CreateDomainStmt{
-		OrReplace: orReplace,
-		Usecase:   usecase,
-		Loc:       nodes.Loc{Start: start},
-	}
-
-	// IF NOT EXISTS
-	if p.cur.Type == kwIF && p.peekNext().Type == kwNOT {
-		p.advance()
-		p.advance()
-		if p.cur.Type == kwEXISTS {
-			p.advance()
-		}
-		stmt.IfNotExists = true
-	}
-	var parseErr321 error
-
-	stmt.Name, parseErr321 = p.parseRequiredObjectName()
-	if parseErr321 !=
-
-		// AS
-		nil {
-		return nil, parseErr321
-	}
-
-	if p.cur.Type == kwAS {
-		p.advance()
-	}
-
-	// Determine variant: flexible (FLEXIBLE), enum (ENUM), multi-column '(', or single-column (datatype)
-	switch {
-	case p.isIdentLikeStr("FLEXIBLE"):
-		stmt.DomainType = "FLEXIBLE"
-		p.advance() // consume FLEXIBLE
-		// DOMAIN [schema.]domain_name (column_name, ...)
-		if p.isIdentLike() && p.cur.Str == "DOMAIN" {
-			p.advance()
-		}
-		var parseErr322 error
-		stmt.FlexDomainName, parseErr322 = p.parseObjectName()
-		if parseErr322 != nil {
-			return nil, parseErr322
-		}
-		if p.cur.Type == '(' {
-			p.advance()
-			stmt.FlexColumns = &nodes.List{}
-			for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
-				// An item that consumes nothing would come round again.
-				if p.pos() == progress {
-					return nil, p.syntaxErrorAtCur()
-				}
-				progress = p.pos()
-				parseValue59, parseErr60 := p.parseIdentifier()
-				if parseErr60 != nil {
-					return nil, parseErr60
-				}
-				stmt.FlexColumns.Items = append(stmt.FlexColumns.Items, &nodes.String{Str: parseValue59})
-				if p.cur.Type == ',' {
-					p.advance()
-				}
-			}
-			if p.cur.Type == ')' {
-				p.advance()
-			}
-		}
-		// CHOOSE DOMAIN USING ( ... )
-		if p.isIdentLikeStr("CHOOSE") {
-			p.advance()
-			if p.isIdentLike() && p.cur.Str == "DOMAIN" {
-				p.advance()
-			}
-			if p.cur.Type == kwUSING {
-				p.advance()
-			}
-			if p.cur.Type == '(' {
-				p.advance()
-				stmt.ChooseUsing = &nodes.List{}
-				for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
-					// An item that consumes nothing would come round again.
-					if p.pos() == progress {
-						return nil, p.syntaxErrorAtCur()
-					}
-					progress = p.pos()
-					col := &nodes.DomainColumn{Loc: nodes.Loc{Start: p.pos()}}
-					var parseErr323 error
-					col.Name, parseErr323 = p.parseIdentifier()
-					if parseErr323 != nil {
-						return nil, parseErr323
-					}
-					var parseErr324 error
-					col.DataType, parseErr324 = p.parseTypeName()
-					if parseErr324 != nil {
-						return nil, parseErr324
-					}
-					col.Loc.End = p.prev.End
-					stmt.ChooseUsing.Items = append(stmt.ChooseUsing.Items, col)
-					if p.cur.Type == ',' {
-						p.advance()
-					}
-				}
-				if p.cur.Type == ')' {
-					p.advance()
-				}
-			}
-		}
-		// FROM { DECODE(...) | CASE ... END }
-		if p.cur.Type == kwFROM {
-			p.advance()
-			var parseErr325 error
-			stmt.ChooseExpr, parseErr325 = p.parseExpr()
-			if parseErr325 != nil {
-				return nil, parseErr325
-			}
-		}
-
-	case p.isIdentLikeStr("ENUM"):
-		stmt.DomainType = "ENUM"
-		p.advance() // consume ENUM
-		// ( enum_list )
-		if p.cur.Type == '(' {
-			p.advance()
-			stmt.EnumItems = &nodes.List{}
-			for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
-				// An item that consumes nothing would come round again.
-				if p.pos() == progress {
-					return nil, p.syntaxErrorAtCur()
-				}
-				progress = p.pos()
-				item := &nodes.DomainEnumItem{Loc: nodes.Loc{Start: p.pos()}}
-				var parseErr326 error
-				item.Name, parseErr326 = p.parseIdentifier()
-				if parseErr326 !=
-					// [ = alias [= alias]... ] [ = value ]
-					nil {
-					return nil, parseErr326
-				}
-
-				for p.cur.Type == '=' {
-					p.advance()
-					if p.cur.Type == tokICONST || p.cur.Type == tokFCONST || p.cur.Type == tokSCONST {
-						var parseErr327 error
-						item.Value, parseErr327 = p.parseExpr()
-						if parseErr327 != nil {
-							return nil, parseErr327
-						}
-					} else if p.isIdentLike() || p.cur.Type == tokIDENT {
-						parseValue61, parseErr62 := p.parseIdentifier()
-						if parseErr62 != nil {
-							return nil, parseErr62
-						}
-						item.Aliases = append(item.Aliases, parseValue61)
-					} else {
-						var parseErr328 error
-						item.Value, parseErr328 = p.parseExpr()
-						if parseErr328 != nil {
-							return nil, parseErr328
-						}
-					}
-				}
-				item.Loc.End = p.prev.End
-				stmt.EnumItems.Items = append(stmt.EnumItems.Items, item)
-				if p.cur.Type == ',' {
-					p.advance()
-				}
-			}
-			if p.cur.Type == ')' {
-				p.advance()
-			}
-		}
-		// STRICT
-		if p.isIdentLikeStr("STRICT") {
-			stmt.Strict = true
-			p.advance()
-		}
-		parseErr329 := p.parseDomainProperties(stmt)
-		if parseErr329 != nil {
-			return nil, parseErr329
-
-			// Multi-column domain: ( column_name AS datatype [, ...] )
-		}
-
-	case p.cur.Type == '(':
-
-		stmt.DomainType = "MULTI"
-		p.advance() // consume (
-		stmt.Columns = &nodes.List{}
-		for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
-			// An item that consumes nothing would come round again.
-			if p.pos() == progress {
-				return nil, p.syntaxErrorAtCur()
-			}
-			progress = p.pos()
-			col := &nodes.DomainColumn{Loc: nodes.Loc{Start: p.pos()}}
-			var parseErr330 error
-			col.Name, parseErr330 = p.parseIdentifier()
-			if parseErr330 != nil {
-				return nil, parseErr330
-			}
-			if p.cur.Type == kwAS {
-				p.advance()
-			}
-			var parseErr331 error
-			col.DataType, parseErr331 = p.parseTypeName()
-			if parseErr331 !=
-				// annotations_clause per column
-				nil {
-				return nil, parseErr331
-			}
-
-			if p.isIdentLikeStr("ANNOTATIONS") {
-				var parseErr332 error
-				col.Annotations, parseErr332 = p.parseDomainAnnotations()
-				if parseErr332 != nil {
-					return nil, parseErr332
-				}
-			}
-			col.Loc.End = p.prev.End
-			stmt.Columns.Items = append(stmt.Columns.Items, col)
-			if p.cur.Type == ',' {
-				p.advance()
-			}
-		}
-		if p.cur.Type == ')' {
-			p.advance()
-		}
-		parseErr333 := p.parseDomainProperties(stmt)
-		if parseErr333 !=
-
-			// Single-column domain: datatype [STRICT] [properties...]
-			nil {
-			return nil, parseErr333
-		}
-
-	default:
-
-		stmt.DomainType = "SINGLE"
-		var parseErr334 error
-		stmt.DataType, parseErr334 = p.parseTypeName()
-		if parseErr334 != nil {
-			return nil, parseErr334
-		}
-		if p.isIdentLikeStr("STRICT") {
-			stmt.Strict = true
-			p.advance()
-		}
-		parseErr335 := p.parseDomainProperties(stmt)
-		if parseErr335 != nil {
-			return nil, parseErr335
-		}
-	}
-
-	stmt.Loc.End = p.prev.End
-	return stmt, nil
-}
-
-// parseDomainProperties parses the common properties after a domain type definition.
-func (p *Parser) parseDomainProperties(stmt *nodes.CreateDomainStmt) error {
-	// DEFAULT [ON NULL] expr
-	if p.cur.Type == kwDEFAULT {
-		p.advance()
-		if p.cur.Type == kwON && p.peekNext().Type == kwNULL {
-			stmt.DefaultOnNull = true
-			p.advance()
-			p.advance()
-		}
-		var parseErr336 error
-		stmt.Default, parseErr336 = p.parseExpr()
-		if parseErr336 !=
-
-			// constraint_clause(s)
-			nil {
-			return parseErr336
-		}
-	}
-	var parseErr337 error
-
-	stmt.Constraints, parseErr337 = p.parseDomainConstraints()
-	if parseErr337 !=
-
-		// COLLATE collation_name
-		nil {
-		return parseErr337
-	}
-
-	if p.isIdentLikeStr("COLLATE") {
-		p.advance()
-		if p.isIdentLike() || p.cur.Type == tokSCONST {
-			stmt.Collation = p.cur.Str
-			p.advance()
-		}
-	}
-
-	// DISPLAY display_expression
-	if p.isIdentLikeStr("DISPLAY") {
-		p.advance()
-		var parseErr338 error
-		stmt.Display, parseErr338 = p.parseExpr()
-		if parseErr338 !=
-
-			// ORDER order_expression
-			nil {
-			return parseErr338
-		}
-	}
-
-	if p.cur.Type == kwORDER {
-		p.advance()
-		var parseErr339 error
-		stmt.Order, parseErr339 = p.parseExpr()
-		if parseErr339 !=
-
-			// ANNOTATIONS ( ... )
-			nil {
-			return parseErr339
-		}
-	}
-
-	if p.isIdentLikeStr("ANNOTATIONS") {
-		var parseErr340 error
-		stmt.Annotations, parseErr340 = p.parseDomainAnnotations()
-		if parseErr340 !=
-
-			// parseDomainConstraints parses zero or more constraint_clause items.
-			nil {
-			return parseErr340
-		}
-	}
-	return nil
-}
-
-func (p *Parser) parseDomainConstraints() (*nodes.List, error) {
-	var items []nodes.Node
-	for {
-		var c *nodes.DomainConstraint
-		if p.cur.Type == kwCONSTRAINT {
-			c = &nodes.DomainConstraint{Loc: nodes.Loc{Start: p.pos()}}
-			p.advance()
-			var parseErr341 error
-			c.Name, parseErr341 = p.parseIdentifier()
-			if parseErr341 != nil {
-				return nil, parseErr341
-			}
-		}
-		if p.cur.Type == kwNOT && p.peekNext().Type == kwNULL {
-			if c == nil {
-				c = &nodes.DomainConstraint{Loc: nodes.Loc{Start: p.pos()}}
-			}
-			c.Type = "NOT_NULL"
-			p.advance()
-			p.advance()
-		} else if p.cur.Type == kwNULL {
-			if c == nil {
-				c = &nodes.DomainConstraint{Loc: nodes.Loc{Start: p.pos()}}
-			}
-			c.Type = "NULL"
-			p.advance()
-		} else if p.cur.Type == kwCHECK {
-			if c == nil {
-				c = &nodes.DomainConstraint{Loc: nodes.Loc{Start: p.pos()}}
-			}
-			c.Type = "CHECK"
-			p.advance()
-			if p.cur.Type == '(' {
-				p.advance()
-				var parseErr342 error
-				c.CheckExpr, parseErr342 = p.parseExpr()
-				if parseErr342 != nil {
-					return nil, parseErr342
-				}
-				if p.cur.Type == ')' {
-					p.advance()
-				}
-			}
-		} else if c != nil {
-			// CONSTRAINT name without a recognized type — shouldn't happen, keep going
-			c.Type = "UNKNOWN"
-		} else {
-			break
-		}
-		c.Loc.End = p.prev.End
-		items = append(items, c)
-	}
-	if len(items) == 0 {
-		return nil, nil
-	}
-	return &nodes.List{Items: items}, nil
-}
-
-// parseDomainAnnotations parses ANNOTATIONS ( ... ) for domains.
-func (p *Parser) parseDomainAnnotations() (*nodes.List, error) {
-	p.advance() // consume ANNOTATIONS
-	result := &nodes.List{}
-	if p.cur.Type == '(' {
-		p.advance()
-		for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
-			// An item that consumes nothing would come round again.
-			if p.pos() == progress {
-				return nil, p.syntaxErrorAtCur()
-			}
-			progress = p.pos()
-			key, parseErr343 := p.parseIdentifier()
-			if parseErr343 != nil {
-				return nil, parseErr343
-			}
-			var val string
-			if p.cur.Type == tokSCONST {
-				val = p.cur.Str
-				p.advance()
-			}
-			result.Items = append(result.Items, &nodes.DDLOption{Key: key, Value: val})
-			if p.cur.Type == ',' {
-				p.advance()
-			}
-		}
-		if p.cur.Type == ')' {
-			p.advance()
-		}
-	}
-	return result, nil
-}
-
-// ---------------------------------------------------------------------------
-// ALTER DOMAIN
-// ---------------------------------------------------------------------------
-
-// parseAlterDomainStmt parses an ALTER DOMAIN statement.
-//
-// BNF: oracle/parser/bnf/alter-domain.bnf
-//
-//	ALTER [ USECASE ] DOMAIN [ IF EXISTS ] [ schema. ] domain_name
-//	    { ADD DISPLAY display_expression
-//	    | MODIFY DISPLAY display_expression
-//	    | DROP DISPLAY
-//	    | ADD ORDER order_expression
-//	    | MODIFY ORDER order_expression
-//	    | DROP ORDER
-//	    | annotations_clause
-//	    } ;
-func (p *Parser) parseAlterDomainStmt(start int, usecase bool) (*nodes.AlterDomainStmt, error) {
-	stmt := &nodes.AlterDomainStmt{
-		Usecase: usecase,
-		Loc:     nodes.Loc{Start: start},
-	}
-
-	// IF EXISTS
-	if p.cur.Type == kwIF && p.peekNext().Type == kwEXISTS {
-		stmt.IfExists = true
-		p.advance()
-		p.advance()
-	}
-	var parseErr344 error
-
-	stmt.Name, parseErr344 = p.parseObjectName()
-	if parseErr344 !=
-
-		// Action
-		nil {
-		return nil, parseErr344
-	}
-
-	switch {
-	case p.isIdentLikeStr("ADD"):
-		p.advance()
-		if p.isIdentLikeStr("DISPLAY") {
-			stmt.Action = "ADD_DISPLAY"
-			p.advance()
-			var parseErr345 error
-			stmt.Display, parseErr345 = p.parseExpr()
-			if parseErr345 != nil {
-				return nil, parseErr345
-			}
-		} else if p.cur.Type == kwORDER {
-			stmt.Action = "ADD_ORDER"
-			p.advance()
-			var parseErr346 error
-			stmt.Order, parseErr346 = p.parseExpr()
-			if parseErr346 != nil {
-				return nil, parseErr346
-			}
-		}
-	case p.isIdentLikeStr("MODIFY"):
-		p.advance()
-		if p.isIdentLikeStr("DISPLAY") {
-			stmt.Action = "MODIFY_DISPLAY"
-			p.advance()
-			var parseErr347 error
-			stmt.Display, parseErr347 = p.parseExpr()
-			if parseErr347 != nil {
-				return nil, parseErr347
-			}
-		} else if p.cur.Type == kwORDER {
-			stmt.Action = "MODIFY_ORDER"
-			p.advance()
-			var parseErr348 error
-			stmt.Order, parseErr348 = p.parseExpr()
-			if parseErr348 != nil {
-				return nil, parseErr348
-			}
-		}
-	case p.isIdentLikeStr("DROP"):
-		p.advance()
-		if p.isIdentLikeStr("DISPLAY") {
-			stmt.Action = "DROP_DISPLAY"
-			p.advance()
-		} else if p.cur.Type == kwORDER {
-			stmt.Action = "DROP_ORDER"
-			p.advance()
-		}
-	case p.cur.Type == kwRENAME:
-		stmt.Action = "RENAME"
-		p.advance()
-		if p.cur.Type == kwTO {
-			p.advance()
-		}
-		parseDiscard350, parseErr349 := p.parseObjectName()
-		_ = parseDiscard350
-		if parseErr349 != nil {
-			return nil, parseErr349
-		}
-	case p.isIdentLikeStr("ANNOTATIONS"):
-		stmt.Action = "ANNOTATIONS"
-		var parseErr351 error
-		stmt.Annotations, parseErr351 = p.parseDomainAnnotations()
-		if parseErr351 != nil {
-			return nil, parseErr351
-		}
-	}
-
-	stmt.Loc.End = p.prev.End
-	return stmt, nil
-}
-
-// ---------------------------------------------------------------------------
-// CREATE PROPERTY GRAPH
-// ---------------------------------------------------------------------------
-
-// parseCreatePropertyGraphStmt parses a CREATE PROPERTY GRAPH statement.
-// Called after CREATE [OR REPLACE] [IF NOT EXISTS] PROPERTY GRAPH has been consumed.
-//
-// BNF:
-//
-//	CREATE [ OR REPLACE ] PROPERTY GRAPH [ IF NOT EXISTS ]
-//	    [ schema. ] graph_name
-//	    vertex_tables_clause
-//	    [ edge_tables_clause ]
-//	    [ graph_options ] ;
-func (p *Parser) parseCreatePropertyGraphStmt(start int, orReplace, ifNotExists bool) (*nodes.CreatePropertyGraphStmt, error) {
-	stmt := &nodes.CreatePropertyGraphStmt{
-		OrReplace:   orReplace,
-		IfNotExists: ifNotExists,
-		Loc:         nodes.Loc{Start: start},
-	}
-
-	// IF NOT EXISTS (may also be parsed here if not consumed by caller)
-	if !ifNotExists && p.cur.Type == kwIF {
-		next := p.peekNext()
-		if next.Type == kwNOT {
-			p.advance() // consume IF
-			p.advance() // consume NOT
-			if p.cur.Type == kwEXISTS {
-				p.advance() // consume EXISTS
-				stmt.IfNotExists = true
-			}
-		}
-	}
-	var parseErr352 error
-
-	// Graph name
-	stmt.Name, parseErr352 = p.parseObjectName()
-	if parseErr352 !=
-
-		// VERTEX TABLES ( ... )
-		nil {
-		return nil, parseErr352
-	}
-
-	if p.isIdentLikeStr("VERTEX") {
-		p.advance() // consume VERTEX
-		if p.isIdentLikeStr("TABLES") {
-			p.advance() // consume TABLES
-		}
-		if p.cur.Type == '(' {
-			p.advance() // consume (
-			for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
-				// An item that consumes nothing would come round again.
-				if p.pos() == progress {
-					return nil, p.syntaxErrorAtCur()
-				}
-				progress = p.pos()
-				vtd, parseErr353 := p.parseGraphTableDef()
-				if parseErr353 != nil {
-					return nil, parseErr353
-				}
-				stmt.VertexTables = append(stmt.VertexTables, vtd)
-				if p.cur.Type == ',' {
-					p.advance()
-				}
-			}
-			if p.cur.Type == ')' {
-				p.advance()
-			}
-		}
-	}
-
-	// EDGE TABLES ( ... )
-	if p.isIdentLikeStr("EDGE") {
-		p.advance() // consume EDGE
-		if p.isIdentLikeStr("TABLES") {
-			p.advance() // consume TABLES
-		}
-		if p.cur.Type == '(' {
-			p.advance() // consume (
-			for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
-				// An item that consumes nothing would come round again.
-				if p.pos() == progress {
-					return nil, p.syntaxErrorAtCur()
-				}
-				progress = p.pos()
-				etd, parseErr354 := p.parseGraphEdgeDef()
-				if parseErr354 != nil {
-					return nil, parseErr354
-				}
-				stmt.EdgeTables = append(stmt.EdgeTables, etd)
-				if p.cur.Type == ',' {
-					p.advance()
-				}
-			}
-			if p.cur.Type == ')' {
-				p.advance()
-			}
-		}
-	}
-
-	// OPTIONS ( ... )
-	if p.isIdentLikeStr("OPTIONS") {
-		p.advance() // consume OPTIONS
-		if p.cur.Type == '(' {
-			p.advance() // consume (
-			opts := &nodes.GraphOptions{}
-			for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
-				// An item that consumes nothing would come round again.
-				if p.pos() == progress {
-					return nil, p.syntaxErrorAtCur()
-				}
-				progress = p.pos()
-				if p.isIdentLikeStr("ENFORCED") {
-					opts.Mode = "ENFORCED"
-					p.advance()
-					if p.isIdentLikeStr("MODE") {
-						p.advance()
-					}
-				} else if p.isIdentLikeStr("TRUSTED") {
-					opts.Mode = "TRUSTED"
-					p.advance()
-					if p.isIdentLikeStr("MODE") {
-						p.advance()
-					}
-				} else if p.isIdentLikeStr("ALLOW") {
-					p.advance()
-					opts.MixedPropTypes = "ALLOW"
-					// skip MIXED PROPERTY TYPES
-					for p.isIdentLike() && p.cur.Type != ')' {
-						p.advance()
-					}
-				} else if p.isIdentLikeStr("DISALLOW") {
-					p.advance()
-					opts.MixedPropTypes = "DISALLOW"
-					// skip MIXED PROPERTY TYPES
-					for p.isIdentLike() && p.cur.Type != ')' {
-						p.advance()
-					}
-				} else {
-					p.advance()
-				}
-				if p.cur.Type == ',' {
-					p.advance()
-				}
-			}
-			if p.cur.Type == ')' {
-				p.advance()
-			}
-			stmt.Options = opts
-		}
-	}
-
-	stmt.Loc.End = p.prev.End
-	return stmt, nil
-}
-
-// parseGraphTableDef parses a vertex table definition.
-func (p *Parser) parseGraphTableDef() (*nodes.GraphTableDef, error) {
-	def := &nodes.GraphTableDef{
-		Loc: nodes.Loc{Start: p.pos()},
-	}
-	var parseErr355 error
-
-	// [schema.]table_name
-	def.Name, parseErr355 = p.parseObjectName()
-	if parseErr355 !=
-
-		// AS graph_element_name
-		nil {
-		return nil, parseErr355
-	}
-
-	if p.cur.Type == kwAS {
-		p.advance()
-		if p.isIdentLike() || p.cur.Type == tokIDENT || p.cur.Type == tokQIDENT {
-			def.Alias = p.cur.Str
-			p.advance()
-		}
-	}
-
-	// KEY ( col, ... )
-	if p.cur.Type == kwKEY {
-		p.advance()
-		var parseErr356 error
-		def.KeyColumns, parseErr356 = p.parseParenIdentList()
-		if parseErr356 !=
-
-			// Label and properties
-			nil {
-			return nil, parseErr356
-		}
-	}
-	parseErr357 := p.parseGraphLabelAndProperties(def)
-	if parseErr357 != nil {
-		return nil, parseErr357
-	}
-
-	def.Loc.End = p.prev.End
-	return def, nil
-}
-
-// parseGraphEdgeDef parses an edge table definition.
-func (p *Parser) parseGraphEdgeDef() (*nodes.GraphEdgeDef, error) {
-	def := &nodes.GraphEdgeDef{
-		Loc: nodes.Loc{Start: p.pos()},
-	}
-	var parseErr358 error
-
-	// [schema.]table_name
-	def.Name, parseErr358 = p.parseObjectName()
-	if parseErr358 !=
-
-		// AS graph_element_name
-		nil {
-		return nil, parseErr358
-	}
-
-	if p.cur.Type == kwAS {
-		p.advance()
-		if p.isIdentLike() || p.cur.Type == tokIDENT || p.cur.Type == tokQIDENT {
-			def.Alias = p.cur.Str
-			p.advance()
-		}
-	}
-
-	// KEY ( col, ... )
-	if p.cur.Type == kwKEY {
-		p.advance()
-		var parseErr359 error
-		def.KeyColumns, parseErr359 = p.parseParenIdentList()
-		if parseErr359 !=
-
-			// SOURCE [ KEY ( col, ... ) REFERENCES ] vertex_table_ref
-			nil {
-			return nil, parseErr359
-		}
-	}
-
-	if p.isIdentLikeStr("SOURCE") {
-		p.advance()
-		if p.cur.Type == kwKEY {
-			p.advance()
-			var parseErr360 error
-			def.SourceKeyColumns, parseErr360 = p.parseParenIdentList()
-			if parseErr360 != nil {
-				return nil, parseErr360
-			}
-			if p.cur.Type == kwREFERENCES {
-				p.advance()
-			}
-		}
-		// vertex_table_reference: name ( col, ... )
-		if p.isIdentLike() || p.cur.Type == tokIDENT || p.cur.Type == tokQIDENT {
-			def.SourceRef = p.cur.Str
-			p.advance()
-			if p.cur.Type == '(' {
-				var parseErr361 error
-				def.SourceRefColumns, parseErr361 = p.parseParenIdentList()
-				if parseErr361 != nil {
-
-					// DESTINATION [ KEY ( col, ... ) REFERENCES ] vertex_table_ref
-					return nil, parseErr361
-				}
-			}
-		}
-	}
-
-	if p.isIdentLikeStr("DESTINATION") {
-		p.advance()
-		if p.cur.Type == kwKEY {
-			p.advance()
-			var parseErr362 error
-			def.DestKeyColumns, parseErr362 = p.parseParenIdentList()
-			if parseErr362 != nil {
-				return nil, parseErr362
-			}
-			if p.cur.Type == kwREFERENCES {
-				p.advance()
-			}
-		}
-		// vertex_table_reference: name ( col, ... )
-		if p.isIdentLike() || p.cur.Type == tokIDENT || p.cur.Type == tokQIDENT {
-			def.DestRef = p.cur.Str
-			p.advance()
-			if p.cur.Type == '(' {
-				var parseErr363 error
-				def.DestRefColumns, parseErr363 = p.parseParenIdentList()
-				if parseErr363 != nil {
-
-					// Label and properties (reuse vertex table logic for label/properties part)
-					return nil, parseErr363
-				}
-			}
-		}
-	}
-
-	vtd := &nodes.GraphTableDef{}
-	parseErr364 := p.parseGraphLabelAndProperties(vtd)
-	if parseErr364 != nil {
-		return nil, parseErr364
-	}
-	def.Labels = vtd.Labels
-	def.Properties = vtd.Properties
-	def.PropColumns = vtd.PropColumns
-	def.PropAliases = vtd.PropAliases
-	def.DefaultLabel = vtd.DefaultLabel
-
-	def.Loc.End = p.prev.End
-	return def, nil
-}
-
-// parseGraphLabelAndProperties parses the label and properties clauses for graph tables.
-func (p *Parser) parseGraphLabelAndProperties(def *nodes.GraphTableDef) error {
-	// LABEL label_name [ LABEL label_name ]...
-	for p.isIdentLikeStr("LABEL") {
-		p.advance()
-		if p.isIdentLike() || p.cur.Type == tokIDENT || p.cur.Type == tokQIDENT {
-			def.Labels = append(def.Labels, p.cur.Str)
-			p.advance()
-		}
-	}
-
-	// PROPERTIES clause
-	if p.isIdentLikeStr("PROPERTIES") {
-		p.advance()
-		// ARE ALL COLUMNS [EXCEPT ...]
-		if p.isIdentLikeStr("ARE") {
-			p.advance()
-		}
-		if p.cur.Type == kwALL {
-			p.advance()
-			// ALL COLUMNS EXCEPT (...)
-			if p.isIdentLikeStr("COLUMNS") {
-				p.advance()
-			}
-			if p.cur.Type == kwEXCEPT || p.isIdentLikeStr("EXCEPT") {
-				p.advance()
-				def.Properties = "ALL_EXCEPT"
-				if p.cur.Type == '(' {
-					var parseErr365 error
-					def.PropColumns, parseErr365 = p.parseParenIdentList()
-					if parseErr365 != nil {
-						return parseErr365
-					}
-				}
-			} else {
-				def.Properties = "ALL"
-			}
-		} else if p.cur.Type == '(' {
-			def.Properties = "LIST"
-			p.advance()
-			for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
-				// An item that consumes nothing would come round again.
-				if p.pos() == progress {
-					return p.syntaxErrorAtCur()
-				}
-				progress = p.pos()
-				if p.isIdentLike() || p.cur.Type == tokIDENT || p.cur.Type == tokQIDENT {
-					def.PropColumns = append(def.PropColumns, p.cur.Str)
-					p.advance()
-				}
-				if p.cur.Type == kwAS {
-					p.advance()
-					if p.isIdentLike() || p.cur.Type == tokIDENT || p.cur.Type == tokQIDENT {
-						def.PropAliases = append(def.PropAliases, p.cur.Str)
-						p.advance()
-					}
-				}
-				if p.cur.Type == ',' {
-					p.advance()
-				}
-			}
-			if p.cur.Type == ')' {
-				p.advance()
-			}
-		}
-	} else if p.isIdentLikeStr("NO") {
-		p.advance()
-		if p.isIdentLikeStr("PROPERTIES") {
-			p.advance()
-			def.Properties = "NO"
-		}
-	}
-
-	// DEFAULT LABEL
-	if p.cur.Type == kwDEFAULT {
-		p.advance()
-		if p.isIdentLikeStr("LABEL") {
-			p.advance()
-			def.DefaultLabel = true
-		}
-	}
-	return nil
-}
 
 // parseParenIdentList parses ( ident, ident, ... ) and returns the list of identifiers.
 func (p *Parser) parseParenIdentList() ([]string, error) {
@@ -2441,278 +844,305 @@ func (p *Parser) parseParenIdentList() ([]string, error) {
 // parseCreateVectorIndexStmt parses a CREATE VECTOR INDEX statement.
 // Called after CREATE VECTOR INDEX has been consumed.
 //
-// BNF:
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/create-vector-index.html
 //
 //	CREATE VECTOR INDEX [ IF NOT EXISTS ] [ schema. ] index_name
 //	    ON [ schema. ] table_name ( column_name )
 //	    [ INCLUDE ( column_name [, column_name ]... ) ]
 //	    [ vector_index_organization_clause ]
 //	    [ DISTANCE metric_name ]
-//	    [ WITH TARGET ACCURACY integer [ PARAMETERS ( ... ) ] ]
+//	    [ WITH TARGET ACCURACY integer [ PARAMETERS ( vector_index_parameters_clause ) ] ]
 //	    [ vector_index_hnsw_replication_clause ]
 //	    [ ONLINE ]
 //	    [ PARALLEL integer ] ;
+//
+// Where Oracle answers otherwise than the page: it takes DISTANCE and WITH
+// TARGET ACCURACY in either order, but neither after PARAMETERS
+// (ORA-02158); ONLINE,
+// PARALLEL and LOCAL in any order; each clause and each parameter once
+// (ORA-51918). Of the parameters it takes NEIGHBORS, M and EFCONSTRUCTION
+// for HNSW and NEIGHBOR PARTITIONS, SAMPLES_PER_PARTITION and
+// MIN_VECTORS_PER_PARTITION for IVF; RESCORE_FACTOR and QUANTIZATION are
+// ORA-00922, a parameter of the other type ORA-51916.
+//
+// Oracle requires the organization clause the page shows as optional:
+// without it the statement is ORA-51914 (ORGANIZATION clause required).
 func (p *Parser) parseCreateVectorIndexStmt(start int, ifNotExists bool) (*nodes.CreateVectorIndexStmt, error) {
 	stmt := &nodes.CreateVectorIndexStmt{
 		IfNotExists: ifNotExists,
 		Loc:         nodes.Loc{Start: start},
 	}
 
-	// IF NOT EXISTS
-	if !ifNotExists && p.cur.Type == kwIF {
-		next := p.peekNext()
-		if next.Type == kwNOT {
-			p.advance() // consume IF
-			p.advance() // consume NOT
-			if p.cur.Type == kwEXISTS {
-				p.advance() // consume EXISTS
-				stmt.IfNotExists = true
-			}
+	// IF NOT EXISTS: IF NOT without EXISTS is ORA-11543 at IF.
+	if !ifNotExists && p.cur.Type == kwIF && p.peekNext().Type == kwNOT {
+		ifTok := p.advance()
+		p.advance() // NOT
+		if p.cur.Type != kwEXISTS {
+			return nil, p.syntaxErrorAtTok(ifTok)
 		}
-	}
-	var parseErr366 error
-
-	// Index name
-	stmt.Name, parseErr366 = p.parseObjectName()
-	if parseErr366 !=
-
-		// ON [schema.]table_name (column_name)
-		nil {
-		return nil, parseErr366
-	}
-
-	if p.cur.Type == kwON {
 		p.advance()
-		var parseErr367 error
-		stmt.TableName, parseErr367 = p.parseObjectName()
-		if parseErr367 != nil {
-			return nil, parseErr367
-		}
-		if p.cur.Type == '(' {
-			p.advance()
-			if p.isIdentLike() || p.cur.Type == tokIDENT || p.cur.Type == tokQIDENT {
-				stmt.Column = p.cur.Str
-				p.advance()
-			}
-			if p.cur.Type == ')' {
-				p.advance()
-			}
-		}
+		stmt.IfNotExists = true
 	}
 
-	// INCLUDE ( col, ... )
+	var err error
+	if stmt.Name, err = p.parseRequiredObjectName(); err != nil {
+		return nil, err
+	}
+	if p.cur.Type != kwON {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+	if stmt.TableName, err = p.parseRequiredObjectName(); err != nil {
+		return nil, err
+	}
+	if p.cur.Type != '(' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+	if stmt.Column, err = p.ixName(); err != nil {
+		return nil, err
+	}
+	if p.cur.Type != ')' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+
+	// INCLUDE ( column_name [, column_name ]... )
 	if p.cur.Type == kwINCLUDE {
 		p.advance()
-		var parseErr368 error
-		stmt.IncludeColumns, parseErr368 = p.parseParenIdentList()
-		if parseErr368 !=
-
-			// ORGANIZATION { INMEMORY NEIGHBOR GRAPH | NEIGHBOR PARTITIONS }
-			nil {
-			return nil, parseErr368
+		if p.cur.Type != '(' {
+			return nil, p.syntaxErrorAtCur()
 		}
+		p.advance()
+		for {
+			col, err := p.ixName()
+			if err != nil {
+				return nil, err
+			}
+			stmt.IncludeColumns = append(stmt.IncludeColumns, col)
+			if p.cur.Type != ',' {
+				break
+			}
+			p.advance()
+		}
+		if p.cur.Type != ')' {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
 	}
 
-	if p.isIdentLikeStr("ORGANIZATION") {
+	// ORGANIZATION { INMEMORY [ NEIGHBOR ] GRAPH | NEIGHBOR PARTITIONS }:
+	// Oracle takes INMEMORY GRAPH without NEIGHBOR.
+	if err := p.ixWord("ORGANIZATION"); err != nil {
+		return nil, err
+	}
+	switch {
+	case p.isKeywordStr("INMEMORY"):
 		p.advance()
-		if p.isIdentLikeStr("INMEMORY") {
+		if p.isKeywordStr("NEIGHBOR") {
 			p.advance()
-			stmt.Organization = "INMEMORY_NEIGHBOR_GRAPH"
-			// consume NEIGHBOR GRAPH
-			if p.isIdentLikeStr("NEIGHBOR") {
-				p.advance()
-			}
-			if p.isIdentLikeStr("GRAPH") {
-				p.advance()
-			}
-		} else if p.isIdentLikeStr("NEIGHBOR") {
-			p.advance()
-			stmt.Organization = "NEIGHBOR_PARTITIONS"
-			if p.isIdentLikeStr("PARTITIONS") {
-				p.advance()
-			}
 		}
+		if err := p.ixWord("GRAPH"); err != nil {
+			return nil, err
+		}
+		stmt.Organization = "INMEMORY_NEIGHBOR_GRAPH"
+	case p.isKeywordStr("NEIGHBOR"):
+		p.advance()
+		if err := p.ixWord("PARTITIONS"); err != nil {
+			return nil, err
+		}
+		stmt.Organization = "NEIGHBOR_PARTITIONS"
+	default:
+		return nil, p.syntaxErrorAtCur()
 	}
 
-	// DISTANCE metric_name
-	if p.isIdentLikeStr("DISTANCE") {
-		p.advance()
-		if p.isIdentLike() || p.cur.Type == tokIDENT || p.cur.Type == tokQIDENT {
-			stmt.Distance = p.cur.Str
-			p.advance()
-		}
-	}
-
-	// WITH TARGET ACCURACY integer [ PARAMETERS (...) ]
-	if p.cur.Type == kwWITH {
-		p.advance()
-		if p.isIdentLikeStr("TARGET") {
-			p.advance()
-		}
-		if p.isIdentLikeStr("ACCURACY") {
-			p.advance()
-		}
-		if p.cur.Type == tokICONST {
-			var parseErr369 error
-			stmt.TargetAccuracy, parseErr369 = p.parseIntValue()
-			if parseErr369 !=
-
-				// PARAMETERS ( ... )
-				nil {
-				return nil, parseErr369
+	seen := map[string]bool{}
+	for {
+		if p.isKeywordStr("DISTANCE") {
+			if err := p.ixOnce(seen, "DISTANCE"); err != nil {
+				return nil, err
 			}
-		}
-
-		if p.isIdentLikeStr("PARAMETERS") {
 			p.advance()
-			if p.cur.Type == '(' {
-				p.advance()
-				// TYPE HNSW | IVF
-				if p.cur.Type == kwTYPE || p.isIdentLikeStr("TYPE") {
-					p.advance()
-					if p.isIdentLikeStr("HNSW") {
-						stmt.ParameterType = "HNSW"
-						p.advance()
-					} else if p.isIdentLikeStr("IVF") {
-						stmt.ParameterType = "IVF"
-						p.advance()
-					}
+			if p.cur.Type == tokQIDENT || !p.isIxName() {
+				return nil, p.syntaxErrorAtCur()
+			}
+			stmt.Distance = p.advance().Str
+			continue
+		}
+		if p.cur.Type == kwWITH {
+			if err := p.ixOnce(seen, "ACCURACY"); err != nil {
+				return nil, err
+			}
+			p.advance()
+			if err := p.ixWord("TARGET"); err != nil {
+				return nil, err
+			}
+			if err := p.ixWord("ACCURACY"); err != nil {
+				return nil, err
+			}
+			if p.cur.Type == tokICONST {
+				v, err := p.parseIntValue()
+				if err != nil {
+					return nil, err
 				}
-				// Parse remaining HNSW/IVF parameters
-				for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
-					// An item that consumes nothing would come round again.
-					if p.pos() == progress {
-						return nil, p.syntaxErrorAtCur()
-					}
-					progress = p.pos()
-					if p.cur.Type == ',' {
-						p.advance()
-					}
-					if p.isIdentLikeStr("NEIGHBORS") || p.isIdentLikeStr("M") {
-						p.advance()
-						if p.cur.Type == tokICONST {
-							var parseErr370 error
-							stmt.Neighbors, parseErr370 = p.parseIntValue()
-							if parseErr370 != nil {
-								return nil, parseErr370
-							}
-						}
-					} else if p.isIdentLikeStr("EFCONSTRUCTION") {
-						p.advance()
-						if p.cur.Type == tokICONST {
-							var parseErr371 error
-							stmt.EfConstruction, parseErr371 = p.parseIntValue()
-							if parseErr371 != nil {
-								return nil, parseErr371
-							}
-						}
-					} else if p.isIdentLikeStr("RESCORE_FACTOR") {
-						p.advance()
-						if p.cur.Type == tokICONST {
-							var parseErr372 error
-							stmt.RescoreFactor, parseErr372 = p.parseIntValue()
-							if parseErr372 != nil {
-								return nil, parseErr372
-							}
-						}
-					} else if p.isIdentLikeStr("QUANTIZATION") {
-						p.advance()
-						if p.isIdentLike() || p.cur.Type == tokIDENT {
-							stmt.Quantization = p.cur.Str
-							p.advance()
-						}
-					} else if p.isIdentLikeStr("NEIGHBOR") {
-						p.advance()
-						if p.isIdentLikeStr("PARTITIONS") {
-							p.advance()
-						}
-						if p.cur.Type == tokICONST {
-							var parseErr373 error
-							stmt.NeighborParts, parseErr373 = p.parseIntValue()
-							if parseErr373 != nil {
-								return nil, parseErr373
-							}
-						}
-					} else if p.isIdentLikeStr("SAMPLES_PER_PARTITION") {
-						p.advance()
-						if p.cur.Type == tokICONST {
-							var parseErr374 error
-							stmt.SamplesPerPart, parseErr374 = p.parseIntValue()
-							if parseErr374 != nil {
-								return nil, parseErr374
-							}
-						}
-					} else if p.isIdentLikeStr("MIN_VECTORS_PER_PARTITION") {
-						p.advance()
-						if p.cur.Type == tokICONST {
-							var parseErr375 error
-							stmt.MinVecsPerPart, parseErr375 = p.parseIntValue()
-							if parseErr375 != nil {
-								return nil, parseErr375
-							}
-						}
-					} else {
-						p.advance()
-					}
-				}
-				if p.cur.Type == ')' {
-					p.advance()
-				}
+				stmt.TargetAccuracy = v
+			} else {
+				return nil, p.syntaxErrorAtCur()
 			}
+			if p.isKeywordStr("PARAMETERS") {
+				if err := p.parseVectorIndexParameters(stmt); err != nil {
+					return nil, err
+				}
+				break
+			}
+			continue
 		}
+		break
 	}
 
-	// Replication clause: DUPLICATE ALL | DISTRIBUTE [AUTO | BY ...]
-	if p.isIdentLikeStr("DUPLICATE") {
-		p.advance()
-		if p.cur.Type == kwALL {
+	for !p.ixEnd() {
+		switch {
+		case p.isKeywordStr("DUPLICATE"):
+			if err := p.ixOnce(seen, "REPLICATION"); err != nil {
+				return nil, err
+			}
+			p.advance()
+			if p.cur.Type != kwALL {
+				return nil, p.syntaxErrorAtCur()
+			}
 			p.advance()
 			stmt.Replication = "DUPLICATE_ALL"
-		}
-	} else if p.isIdentLikeStr("DISTRIBUTE") {
-		p.advance()
-		stmt.Replication = "DISTRIBUTE"
-		if p.isIdentLikeStr("AUTO") {
+		case p.isKeywordStr("DISTRIBUTE"):
+			if err := p.ixOnce(seen, "REPLICATION"); err != nil {
+				return nil, err
+			}
 			p.advance()
-			stmt.Replication = "DISTRIBUTE_AUTO"
-		} else if p.cur.Type == kwBY {
-			p.advance()
-			if p.isIdentLikeStr("ROWID") {
+			stmt.Replication = "DISTRIBUTE"
+			if p.isKeywordStr("AUTO") {
 				p.advance()
-				if p.isIdentLikeStr("RANGE") {
+				stmt.Replication = "DISTRIBUTE_AUTO"
+			} else if p.cur.Type == kwBY {
+				p.advance()
+				switch {
+				case p.isKeywordStr("ROWID"):
 					p.advance()
+					if err := p.ixWord("RANGE"); err != nil {
+						return nil, err
+					}
+					stmt.Replication = "DISTRIBUTE_BY_ROWID_RANGE"
+				case p.cur.Type == kwPARTITION:
+					p.advance()
+					stmt.Replication = "DISTRIBUTE_BY_PARTITION"
+				case p.cur.Type == kwSUBPARTITION:
+					p.advance()
+					stmt.Replication = "DISTRIBUTE_BY_SUBPARTITION"
+				default:
+					return nil, p.syntaxErrorAtCur()
 				}
-				stmt.Replication = "DISTRIBUTE_BY_ROWID_RANGE"
-			} else if p.cur.Type == kwPARTITION {
-				p.advance()
-				stmt.Replication = "DISTRIBUTE_BY_PARTITION"
-			} else if p.isIdentLikeStr("SUBPARTITION") {
-				p.advance()
-				stmt.Replication = "DISTRIBUTE_BY_SUBPARTITION"
 			}
-		}
-	}
-
-	// ONLINE
-	if p.cur.Type == kwONLINE {
-		p.advance()
-		stmt.Online = true
-	}
-
-	// PARALLEL integer
-	if p.cur.Type == kwPARALLEL {
-		p.advance()
-		if p.cur.Type == tokICONST {
-			var parseErr376 error
-			stmt.Parallel, parseErr376 = p.parseIntValue()
-			if parseErr376 != nil {
-				return nil, parseErr376
+		case p.cur.Type == kwONLINE:
+			if err := p.ixOnce(seen, "ONLINE"); err != nil {
+				return nil, err
 			}
+			p.advance()
+			stmt.Online = true
+		case p.cur.Type == kwPARALLEL:
+			if err := p.ixOnce(seen, "PARALLEL"); err != nil {
+				return nil, err
+			}
+			p.advance()
+			if p.cur.Type == tokICONST {
+				v, err := p.parseIntValue()
+				if err != nil {
+					return nil, err
+				}
+				stmt.Parallel = v
+			} else {
+				return nil, p.syntaxErrorAtCur()
+			}
+		case p.cur.Type == kwLOCAL:
+			if err := p.ixOnce(seen, "LOCAL"); err != nil {
+				return nil, err
+			}
+			p.advance()
+		default:
+			return nil, p.syntaxErrorAtCur()
 		}
 	}
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// parseVectorIndexParameters reads PARAMETERS ( vector_index_parameters_clause ):
+//
+//	TYPE HNSW [, { NEIGHBORS | M } integer ] [, EFCONSTRUCTION integer ]
+//	TYPE IVF [, NEIGHBOR PARTITIONS integer ] [, SAMPLES_PER_PARTITION integer ]
+//	         [, MIN_VECTORS_PER_PARTITION integer ]
+//
+// See parseCreateVectorIndexStmt for the parameters Oracle refuses.
+func (p *Parser) parseVectorIndexParameters(stmt *nodes.CreateVectorIndexStmt) error {
+	p.advance() // PARAMETERS
+	if p.cur.Type != '(' {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance()
+	if p.cur.Type != kwTYPE {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance()
+	switch {
+	case p.isKeywordStr("HNSW"), p.isKeywordStr("IVF"):
+		stmt.ParameterType = p.advance().Str
+	default:
+		return p.syntaxErrorAtCur()
+	}
+	hnsw := stmt.ParameterType == "HNSW"
+	seen := map[string]bool{}
+	for p.cur.Type == ',' {
+		p.advance()
+		var key string
+		var target *int
+		switch {
+		case hnsw && (p.isKeywordStr("NEIGHBORS") || p.isKeywordStr("M")):
+			key, target = "NEIGHBORS", &stmt.Neighbors
+			p.advance()
+		case hnsw && p.isKeywordStr("EFCONSTRUCTION"):
+			key, target = "EFCONSTRUCTION", &stmt.EfConstruction
+			p.advance()
+		case !hnsw && p.isKeywordStr("NEIGHBOR"):
+			p.advance()
+			if err := p.ixWord("PARTITIONS"); err != nil {
+				return err
+			}
+			key, target = "NEIGHBOR PARTITIONS", &stmt.NeighborParts
+		case !hnsw && p.isKeywordStr("SAMPLES_PER_PARTITION"):
+			key, target = "SAMPLES_PER_PARTITION", &stmt.SamplesPerPart
+			p.advance()
+		case !hnsw && p.isKeywordStr("MIN_VECTORS_PER_PARTITION"):
+			key, target = "MIN_VECTORS_PER_PARTITION", &stmt.MinVecsPerPart
+			p.advance()
+		default:
+			return p.syntaxErrorAtCur()
+		}
+		if seen[key] {
+			return p.syntaxErrorAtTok(p.prev)
+		}
+		seen[key] = true
+		if p.cur.Type != tokICONST {
+			return p.syntaxErrorAtCur()
+		}
+		v, err := p.parseIntValue()
+		if err != nil {
+			return err
+		}
+		*target = v
+	}
+	if p.cur.Type != ')' {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance()
+	return nil
 }
 
 // ---------------------------------------------------------------------------
@@ -3119,253 +1549,6 @@ func (p *Parser) parseAlterOutlineStmt(start int) (*nodes.AlterOutlineStmt, erro
 // Batch 105 — small objects bundle
 // ---------------------------------------------------------------------------
 
-// parseCreateJavaStmt parses a CREATE JAVA statement. It is called after
-// JAVA; mods holds the AND { RESOLVE | COMPILE } and NOFORCE options the CREATE
-// dispatcher consumed before JAVA.
-//
-// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/19/sqlrf/CREATE-JAVA.html
-//
-//	CREATE [ OR REPLACE ] [ AND { RESOLVE | COMPILE } ] [ NOFORCE ]
-//	    JAVA { { SOURCE | RESOURCE } [ IF NOT EXISTS ] NAMED [ schema. ] primary_name
-//	         | CLASS [ IF NOT EXISTS ] [ SCHEMA schema ] }
-//	    [ SHARING = { METADATA | NONE } ]
-//	    [ AUTHID { CURRENT_USER | DEFINER } ]
-//	    [ RESOLVER ( ( match_string [,] { schema_name | - } )... ) ]
-//	    { USING { BFILE ( directory_object_name , server_file_name )
-//	            | { CLOB | BLOB | BFILE } subquery
-//	            | 'key_for_BLOB' }
-//	    | AS source_char }
-//
-// Oracle 23ai takes IF NOT EXISTS only where shown: after the kind, not after
-// JAVA (ORA-00905), before it (ORA-00901, refused by the CREATE dispatcher),
-// or after SCHEMA (ORA-00922).
-//
-// Oracle 23ai checks this head before it looks for a Java VM (ORA-29538). It
-// rejects a missing kind (ORA-00905); NAMED missing after SOURCE or RESOURCE,
-// or given after CLASS (ORA-00922, ORA-29500); SHARING, AUTHID, and RESOLVER
-// out of the order above, or any other word (ORA-00922); and a statement with
-// neither USING nor AS (ORA-00922). BFILE followed by '(' takes the directory
-// and file name (ORA-22929 for a subquery there).
-func (p *Parser) parseCreateJavaStmt(start int, orReplace bool, mods []*nodes.DDLOption) (nodes.StmtNode, error) {
-	stmt := &nodes.AdminDDLStmt{
-		Action:     "CREATE",
-		ObjectType: nodes.OBJECT_JAVA,
-		OrReplace:  orReplace,
-		Loc:        nodes.Loc{Start: start},
-	}
-	opts := &nodes.List{}
-	for _, mod := range mods {
-		opts.Items = append(opts.Items, mod)
-	}
-	// addOption records an option that started at optStart and ends at the
-	// last consumed token.
-	addOption := func(key, value string, optStart int, items *nodes.List) {
-		opts.Items = append(opts.Items, &nodes.DDLOption{
-			Key:   key,
-			Value: value,
-			Items: items,
-			Loc:   nodes.Loc{Start: optStart, End: p.prev.End},
-		})
-	}
-
-	// { SOURCE | RESOURCE } NAMED [ schema. ] primary_name | CLASS [ SCHEMA schema ]
-	optStart := p.pos()
-	switch {
-	case p.isKeywordStr("SOURCE"), p.isKeywordStr("RESOURCE"):
-		value := p.cur.Str
-		p.advance()
-		addOption("JAVA_TYPE", value, optStart, nil)
-		if err := p.parseJavaIfNotExists(stmt); err != nil {
-			return nil, err
-		}
-		if !p.isKeywordStr("NAMED") {
-			return nil, p.syntaxErrorAtCur()
-		}
-		p.advance() // consume NAMED
-		var err error
-		stmt.Name, err = p.parseObjectName()
-		if err != nil {
-			return nil, err
-		}
-		if stmt.Name == nil || stmt.Name.Name == "" {
-			return nil, p.syntaxErrorAtCur()
-		}
-	case p.isKeywordStr("CLASS"):
-		p.advance()
-		addOption("JAVA_TYPE", "CLASS", optStart, nil)
-		if err := p.parseJavaIfNotExists(stmt); err != nil {
-			return nil, err
-		}
-		if p.isKeywordStr("SCHEMA") {
-			schemaStart := p.pos()
-			p.advance() // consume SCHEMA
-			schema, err := p.parseIdentifier()
-			if err != nil {
-				return nil, err
-			}
-			if schema == "" {
-				return nil, p.syntaxErrorAtCur()
-			}
-			addOption("SCHEMA", schema, schemaStart, nil)
-		}
-	default:
-		return nil, p.syntaxErrorAtCur()
-	}
-
-	// [ SHARING = { METADATA | NONE } ]
-	if p.isKeywordStr("SHARING") {
-		optStart := p.pos()
-		p.advance() // consume SHARING
-		if p.cur.Type != '=' {
-			return nil, p.syntaxErrorAtCur()
-		}
-		p.advance() // consume =
-		if !p.isKeywordStr("METADATA") && !p.isKeywordStr("NONE") {
-			return nil, p.syntaxErrorAtCur()
-		}
-		value := p.cur.Str
-		p.advance()
-		addOption("SHARING", value, optStart, nil)
-	}
-
-	// [ AUTHID { CURRENT_USER | DEFINER } ]
-	if p.isKeywordStr("AUTHID") {
-		optStart := p.pos()
-		p.advance() // consume AUTHID
-		if !p.isKeywordStr("CURRENT_USER") && !p.isKeywordStr("DEFINER") {
-			return nil, p.syntaxErrorAtCur()
-		}
-		value := p.cur.Str
-		p.advance()
-		addOption("AUTHID", value, optStart, nil)
-	}
-
-	// [ RESOLVER ( ... ) ]
-	if p.isKeywordStr("RESOLVER") {
-		optStart := p.pos()
-		p.advance() // consume RESOLVER
-		if p.cur.Type != '(' {
-			return nil, p.syntaxErrorAtCur()
-		}
-		p.skipParenthesized()
-		addOption("RESOLVER", "", optStart, nil)
-	}
-
-	switch {
-	case p.cur.Type == kwUSING:
-		if err := p.parseJavaUsingClause(addOption); err != nil {
-			return nil, err
-		}
-	case p.cur.Type == kwAS:
-		// source_char is Java source, not SQL, and runs to the end of the
-		// parsed range; see javaSourceHead. Take it verbatim.
-		if err := p.parseSourceText(opts); err != nil {
-			return nil, err
-		}
-	default:
-		return nil, p.syntaxErrorAtCur()
-	}
-
-	stmt.Options = opts
-	stmt.Loc.End = p.prev.End
-	return stmt, nil
-}
-
-// parseJavaIfNotExists parses the optional IF NOT EXISTS that follows SOURCE,
-// RESOURCE, or CLASS in CREATE JAVA. Oracle 23ai rejects any other spelling,
-// IF EXISTS or a quoted "EXISTS" included (ORA-11543), and OR REPLACE beside
-// it (ORA-11541).
-func (p *Parser) parseJavaIfNotExists(stmt *nodes.AdminDDLStmt) error {
-	if p.cur.Type != kwIF {
-		return nil
-	}
-	p.advance() // consume IF
-	if p.cur.Type != kwNOT {
-		return p.syntaxErrorAtCur()
-	}
-	p.advance() // consume NOT
-	if p.cur.Type != kwEXISTS || stmt.OrReplace {
-		return p.syntaxErrorAtCur()
-	}
-	p.advance() // consume EXISTS
-	stmt.IfNotExists = true
-	return nil
-}
-
-// parseJavaUsingClause parses the USING clause of CREATE JAVA:
-//
-//	USING { BFILE ( directory_object_name , server_file_name )
-//	      | { CLOB | BLOB | BFILE } subquery
-//	      | 'key_for_BLOB' }
-//
-// The subquery may stand bare or in parentheses, and may omit the SELECT
-// keyword for backward compatibility (USING CLOB text FROM t, accepted by
-// Oracle 23ai). addOption records the clause as a USING option: its value is
-// BFILE, CLOB, or BLOB, or the key string, and its items hold the directory
-// and file names or the subquery.
-func (p *Parser) parseJavaUsingClause(addOption func(key, value string, optStart int, items *nodes.List)) error {
-	optStart := p.pos()
-	p.advance() // consume USING
-	switch {
-	case p.cur.Type == tokSCONST:
-		key := p.cur.Str
-		p.advance()
-		addOption("USING", key, optStart, nil)
-	case p.isKeywordStr("BFILE") && p.peekNext().Type == '(':
-		p.advance() // consume BFILE
-		p.advance() // consume (
-		dir, err := p.parseIdentifier()
-		if err != nil {
-			return err
-		}
-		if dir == "" || p.cur.Type != ',' {
-			return p.syntaxErrorAtCur()
-		}
-		p.advance() // consume ,
-		if p.cur.Type != tokSCONST {
-			return p.syntaxErrorAtCur()
-		}
-		file := p.cur.Str
-		p.advance()
-		if p.cur.Type != ')' {
-			return p.syntaxErrorAtCur()
-		}
-		p.advance() // consume )
-		addOption("USING", "BFILE", optStart, &nodes.List{Items: []nodes.Node{&nodes.String{Str: dir}, &nodes.String{Str: file}}})
-	case p.isKeywordStr("CLOB"), p.isKeywordStr("BLOB"), p.isKeywordStr("BFILE"):
-		kind := p.cur.Str
-		p.advance()
-		parens := p.cur.Type == '('
-		if parens {
-			p.advance() // consume (
-		}
-		var sub *nodes.SelectStmt
-		var err error
-		if p.cur.Type == kwSELECT || p.cur.Type == kwWITH {
-			sub, err = p.parseSelectStmt()
-		} else {
-			// The legacy subquery without the SELECT keyword.
-			sub, err = p.parseSelectAfterKeyword(&nodes.SelectStmt{
-				TargetList: &nodes.List{},
-				Loc:        nodes.Loc{Start: p.pos()},
-			})
-		}
-		if err != nil {
-			return err
-		}
-		if parens {
-			if p.cur.Type != ')' {
-				return p.syntaxErrorAtCur()
-			}
-			p.advance() // consume )
-		}
-		addOption("USING", kind, optStart, &nodes.List{Items: []nodes.Node{sub}})
-	default:
-		return p.syntaxErrorAtCur()
-	}
-	return nil
-}
-
 // parseSourceText records the source text after the current AS of a CREATE
 // JAVA or CREATE MLE MODULE statement and moves the parser to the end of the
 // parsed range, without lexing the Java or JavaScript text. The text runs from
@@ -3404,236 +1587,6 @@ func skipSpace(source string, pos, end int) int {
 		}
 	}
 	return pos
-}
-
-// parseAlterJavaStmt parses an ALTER JAVA statement.
-// Called after ALTER JAVA has been consumed.
-//
-// BNF:
-//
-//	ALTER JAVA [ IF EXISTS ] { SOURCE | CLASS } [ schema. ] object_name
-//	    [ RESOLVER ( ( match_string schema_name ) [, ...] ) ]
-//	    [ invoker_rights_clause ]
-//	    { RESOLVE | COMPILE } ;
-func (p *Parser) parseAlterJavaStmt(start int) (nodes.StmtNode, error) {
-	stmt := &nodes.AdminDDLStmt{
-		Action:     "ALTER",
-		ObjectType: nodes.OBJECT_JAVA,
-		Loc:        nodes.Loc{Start: start},
-	}
-	opts := &nodes.List{}
-
-	// [ IF EXISTS ]
-	if p.cur.Type == kwIF {
-		next := p.peekNext()
-		if next.Type == kwEXISTS {
-			p.advance()
-			p.advance()
-			stmt.IfExists = true
-		}
-	}
-
-	// { SOURCE | CLASS }
-	if p.isIdentLike() && (p.cur.Str == "SOURCE" || p.cur.Str == "CLASS") {
-		opts.Items = append(opts.Items, &nodes.DDLOption{Key: "JAVA_TYPE", Value: p.cur.Str})
-		p.advance()
-	}
-	var parseErr384 error
-
-	stmt.Name, parseErr384 = p.parseObjectName()
-	if parseErr384 !=
-
-		// Parse remaining clauses
-		nil {
-		return nil, parseErr384
-	}
-
-	for p.cur.Type != ';' && p.cur.Type != tokEOF {
-		if p.isIdentLike() && p.cur.Str == "RESOLVER" {
-			p.advance()
-			if p.cur.Type == '(' {
-				p.skipParenthesized()
-			}
-			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "RESOLVER"})
-		} else if p.isIdentLike() && p.cur.Str == "AUTHID" {
-			p.advance()
-			if p.isIdentLike() || p.cur.Type == tokIDENT {
-				opts.Items = append(opts.Items, &nodes.DDLOption{Key: "AUTHID", Value: p.cur.Str})
-				p.advance()
-			}
-		} else if p.isIdentLike() && (p.cur.Str == "RESOLVE" || p.cur.Str == "COMPILE") {
-			opts.Items = append(opts.Items, &nodes.DDLOption{Key: p.cur.Str})
-			p.advance()
-		} else {
-			p.advance()
-		}
-	}
-
-	if len(opts.Items) > 0 {
-		stmt.Options = opts
-	}
-	stmt.Loc.End = p.prev.End
-	return stmt, nil
-}
-
-// parseCreateLibraryStmt parses a CREATE LIBRARY statement.
-// Called after CREATE [OR REPLACE] [IF NOT EXISTS] [EDITIONABLE|NONEDITIONABLE] LIBRARY has been consumed.
-//
-// BNF:
-//
-//	CREATE [ OR REPLACE | IF NOT EXISTS ] [ EDITIONABLE | NONEDITIONABLE ]
-//	    LIBRARY [ schema. ] library_name
-//	    { IS | AS } library_path
-//	    [ AGENT agent_dblink ]
-//	    [ CREDENTIAL credential_name ]
-//	    [ SHARING = { METADATA | NONE } ]
-func (p *Parser) parseCreateLibraryStmt(start int, orReplace bool) (nodes.StmtNode, error) {
-	stmt := &nodes.AdminDDLStmt{
-		Action:     "CREATE",
-		ObjectType: nodes.OBJECT_LIBRARY,
-		OrReplace:  orReplace,
-		Loc:        nodes.Loc{Start: start},
-	}
-	opts := &nodes.List{}
-	var parseErr385 error
-
-	stmt.Name, parseErr385 = p.parseObjectName()
-	if parseErr385 !=
-
-		// { IS | AS } library_path
-		nil {
-		return nil, parseErr385
-	}
-
-	if p.cur.Type == kwIS || p.cur.Type == kwAS {
-		p.advance()
-	}
-	if p.cur.Type == tokSCONST {
-		opts.Items = append(opts.Items, &nodes.DDLOption{Key: "PATH", Value: p.cur.Str})
-		p.advance()
-	}
-
-	// Parse optional clauses
-	for p.cur.Type != ';' && p.cur.Type != tokEOF {
-		if p.isIdentLike() && p.cur.Str == "AGENT" {
-			p.advance()
-			if p.isIdentLike() || p.cur.Type == tokIDENT || p.cur.Type == tokSCONST {
-				opts.Items = append(opts.Items, &nodes.DDLOption{Key: "AGENT", Value: p.cur.Str})
-				p.advance()
-			}
-		} else if p.isIdentLike() && p.cur.Str == "CREDENTIAL" {
-			p.advance()
-			if p.isIdentLike() || p.cur.Type == tokIDENT {
-				opts.Items = append(opts.Items, &nodes.DDLOption{Key: "CREDENTIAL", Value: p.cur.Str})
-				p.advance()
-			}
-		} else if p.isIdentLike() && p.cur.Str == "SHARING" {
-			p.advance()
-			if p.cur.Type == '=' {
-				p.advance()
-			}
-			if p.isIdentLike() || p.cur.Type == tokIDENT {
-				opts.Items = append(opts.Items, &nodes.DDLOption{Key: "SHARING", Value: p.cur.Str})
-				p.advance()
-			}
-		} else {
-			p.advance()
-		}
-	}
-
-	if len(opts.Items) > 0 {
-		stmt.Options = opts
-	}
-	stmt.Loc.End = p.prev.End
-	return stmt, nil
-}
-
-// parseAlterLibraryStmt parses an ALTER LIBRARY statement.
-// Called after ALTER LIBRARY has been consumed.
-//
-// BNF:
-//
-//	ALTER LIBRARY [ IF EXISTS ] [ schema. ] library_name
-//	    { library_compile_clause }
-//	    [ EDITIONABLE | NONEDITIONABLE ] ;
-//
-//	library_compile_clause:
-//	    COMPILE [ DEBUG ] [ compiler_parameters_clause ] [ REUSE SETTINGS ]
-func (p *Parser) parseAlterLibraryStmt(start int) (nodes.StmtNode, error) {
-	stmt := &nodes.AdminDDLStmt{
-		Action:     "ALTER",
-		ObjectType: nodes.OBJECT_LIBRARY,
-		Loc:        nodes.Loc{Start: start},
-	}
-	opts := &nodes.List{}
-
-	// [ IF EXISTS ]
-	if p.cur.Type == kwIF {
-		next := p.peekNext()
-		if next.Type == kwEXISTS {
-			p.advance()
-			p.advance()
-			stmt.IfExists = true
-		}
-	}
-	var parseErr386 error
-
-	stmt.Name, parseErr386 = p.parseObjectName()
-	if parseErr386 !=
-
-		// Parse remaining clauses
-		nil {
-		return nil, parseErr386
-	}
-
-	for p.cur.Type != ';' && p.cur.Type != tokEOF {
-		if p.isIdentLike() && p.cur.Str == "COMPILE" {
-			p.advance()
-			opt := &nodes.DDLOption{Key: "COMPILE"}
-			if p.isIdentLike() && p.cur.Str == "DEBUG" {
-				opt.Value = "DEBUG"
-				p.advance()
-			}
-			opts.Items = append(opts.Items, opt)
-			// compiler_parameters_clause: name = value [, ...]
-			for p.isIdentLike() && p.cur.Str != "REUSE" &&
-				p.cur.Type != ';' && p.cur.Type != tokEOF {
-				if p.cur.Str == "EDITIONABLE" || p.cur.Str == "NONEDITIONABLE" {
-					break
-				}
-				paramName := p.cur.Str
-				p.advance()
-				if p.cur.Type == '=' {
-					p.advance()
-					paramVal := ""
-					if p.isIdentLike() || p.cur.Type == tokIDENT || p.cur.Type == tokICONST || p.cur.Type == tokSCONST {
-						paramVal = p.cur.Str
-						p.advance()
-					}
-					opts.Items = append(opts.Items, &nodes.DDLOption{Key: paramName, Value: paramVal})
-				}
-			}
-			// [ REUSE SETTINGS ]
-			if p.isIdentLike() && p.cur.Str == "REUSE" {
-				p.advance()
-				if p.isIdentLike() && p.cur.Str == "SETTINGS" {
-					p.advance()
-				}
-				opts.Items = append(opts.Items, &nodes.DDLOption{Key: "REUSE SETTINGS"})
-			}
-		} else if p.isIdentLike() && (p.cur.Str == "EDITIONABLE" || p.cur.Str == "NONEDITIONABLE") {
-			opts.Items = append(opts.Items, &nodes.DDLOption{Key: p.cur.Str})
-			p.advance()
-		} else {
-			p.advance()
-		}
-	}
-
-	if len(opts.Items) > 0 {
-		stmt.Options = opts
-	}
-	stmt.Loc.End = p.prev.End
-	return stmt, nil
 }
 
 // parseCreateDirectoryStmt parses a CREATE DIRECTORY statement.
@@ -3678,236 +1631,6 @@ func (p *Parser) parseCreateDirectoryStmt(start int, orReplace bool) (nodes.Stmt
 		p.advance()
 		if p.cur.Type == tokSCONST {
 			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "AS", Value: p.cur.Str})
-			p.advance()
-		}
-	}
-
-	if len(opts.Items) > 0 {
-		stmt.Options = opts
-	}
-	stmt.Loc.End = p.prev.End
-	return stmt, nil
-}
-
-// parseCreateContextStmt parses a CREATE CONTEXT statement.
-// Called after CREATE [OR REPLACE] CONTEXT has been consumed.
-//
-// BNF:
-//
-//	CREATE [ OR REPLACE ] CONTEXT namespace
-//	    USING [ schema. ] package
-//	    [ SHARING = { METADATA | NONE } ]
-//	    [ INITIALIZED { EXTERNALLY | GLOBALLY } ]
-//	    [ ACCESSED GLOBALLY ] ;
-func (p *Parser) parseCreateContextStmt(start int, orReplace bool) (nodes.StmtNode, error) {
-	stmt := &nodes.AdminDDLStmt{
-		Action:     "CREATE",
-		ObjectType: nodes.OBJECT_CONTEXT,
-		OrReplace:  orReplace,
-		Loc:        nodes.Loc{Start: start},
-	}
-	opts := &nodes.List{}
-	var parseErr388 error
-
-	stmt.Name, parseErr388 = p.parseObjectName()
-	if parseErr388 !=
-
-		// USING [ schema. ] package
-		nil {
-		return nil, parseErr388
-	}
-
-	if p.isIdentLike() && p.cur.Str == "USING" {
-		p.advance()
-		usingName, parseErr389 := p.parseObjectName()
-		if parseErr389 != nil {
-			return nil, parseErr389
-		}
-		if usingName != nil {
-			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "USING", Value: usingName.Name})
-		}
-	}
-
-	// Parse remaining clauses
-	for p.cur.Type != ';' && p.cur.Type != tokEOF {
-		if p.isIdentLike() && p.cur.Str == "SHARING" {
-			p.advance()
-			if p.cur.Type == '=' {
-				p.advance()
-			}
-			if p.isIdentLike() || p.cur.Type == tokIDENT {
-				opts.Items = append(opts.Items, &nodes.DDLOption{Key: "SHARING", Value: p.cur.Str})
-				p.advance()
-			}
-		} else if p.isIdentLike() && p.cur.Str == "INITIALIZED" {
-			p.advance()
-			if p.isIdentLike() && (p.cur.Str == "EXTERNALLY" || p.cur.Str == "GLOBALLY") {
-				opts.Items = append(opts.Items, &nodes.DDLOption{Key: "INITIALIZED", Value: p.cur.Str})
-				p.advance()
-			}
-		} else if p.isIdentLike() && p.cur.Str == "ACCESSED" {
-			p.advance()
-			if p.isIdentLike() && p.cur.Str == "GLOBALLY" {
-				p.advance()
-			}
-			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "ACCESSED GLOBALLY"})
-		} else {
-			p.advance()
-		}
-	}
-
-	if len(opts.Items) > 0 {
-		stmt.Options = opts
-	}
-	stmt.Loc.End = p.prev.End
-	return stmt, nil
-}
-
-// parseCreateMLEEnvStmt parses a CREATE MLE ENV statement.
-// Called after CREATE [OR REPLACE] [IF NOT EXISTS] [PURE] MLE ENV has been consumed.
-//
-// BNF:
-//
-//	CREATE [ OR REPLACE | IF NOT EXISTS ] [ PURE ] MLE ENV
-//	    [ schema. ] environment_name
-//	    [ CLONE [ schema. ] existing_environment ]
-//	    [ imports_clause ]
-//	    [ language_options_clause ]
-//
-//	imports_clause: IMPORTS ( import_item [, import_item ]... )
-//	import_item: import_name MODULE [ schema. ] module_name
-//	language_options_clause: LANGUAGE OPTIONS language_options_string
-func (p *Parser) parseCreateMLEEnvStmt(start int, orReplace bool) (nodes.StmtNode, error) {
-	stmt := &nodes.AdminDDLStmt{
-		Action:     "CREATE",
-		ObjectType: nodes.OBJECT_MLE_ENV,
-		OrReplace:  orReplace,
-		Loc:        nodes.Loc{Start: start},
-	}
-	opts := &nodes.List{}
-	var parseErr390 error
-
-	stmt.Name, parseErr390 = p.parseObjectName()
-	if parseErr390 !=
-
-		// [ CLONE [ schema. ] existing_environment ]
-		nil {
-		return nil, parseErr390
-	}
-
-	if p.isIdentLike() && p.cur.Str == "CLONE" {
-		p.advance()
-		cloneName, parseErr391 := p.parseObjectName()
-		if parseErr391 != nil {
-			return nil, parseErr391
-		}
-		if cloneName != nil {
-			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "CLONE", Value: cloneName.Name})
-		}
-	}
-
-	// Parse remaining clauses
-	for p.cur.Type != ';' && p.cur.Type != tokEOF {
-		if p.isIdentLike() && p.cur.Str == "IMPORTS" {
-			p.advance()
-			if p.cur.Type == '(' {
-				p.skipParenthesized()
-			}
-			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "IMPORTS"})
-		} else if p.isIdentLike() && p.cur.Str == "LANGUAGE" {
-			p.advance()
-			if p.isIdentLike() && p.cur.Str == "OPTIONS" {
-				p.advance()
-			}
-			val := ""
-			if p.cur.Type == tokSCONST {
-				val = p.cur.Str
-				p.advance()
-			}
-			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "LANGUAGE OPTIONS", Value: val})
-		} else {
-			p.advance()
-		}
-	}
-
-	if len(opts.Items) > 0 {
-		stmt.Options = opts
-	}
-	stmt.Loc.End = p.prev.End
-	return stmt, nil
-}
-
-// parseCreateMLEModuleStmt parses a CREATE MLE MODULE statement.
-// Called after CREATE [OR REPLACE] [IF NOT EXISTS] MLE MODULE has been consumed.
-//
-// BNF:
-//
-//	CREATE [ OR REPLACE | IF NOT EXISTS ] MLE MODULE
-//	    [ schema. ] module_name
-//	    LANGUAGE JAVASCRIPT
-//	    [ VERSION version_string ]
-//	    { USING { CLOB ( subquery ) | BLOB ( subquery ) | BFILE ( subquery )
-//	            | BFILE ( directory_object_name , server_file_name ) }
-//	    | AS source_code }
-func (p *Parser) parseCreateMLEModuleStmt(start int, orReplace bool) (nodes.StmtNode, error) {
-	stmt := &nodes.AdminDDLStmt{
-		Action:     "CREATE",
-		ObjectType: nodes.OBJECT_MLE_MODULE,
-		OrReplace:  orReplace,
-		Loc:        nodes.Loc{Start: start},
-	}
-	opts := &nodes.List{}
-	var parseErr392 error
-
-	stmt.Name, parseErr392 = p.parseObjectName()
-	if parseErr392 !=
-
-		// LANGUAGE JAVASCRIPT
-		nil {
-		return nil, parseErr392
-	}
-
-	if p.isKeywordStr("LANGUAGE") {
-		optStart := p.pos()
-		p.advance()
-		if p.isKeywordStr("JAVASCRIPT") {
-			p.advance()
-			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "LANGUAGE", Value: "JAVASCRIPT", Loc: nodes.Loc{Start: optStart, End: p.prev.End}})
-		}
-	}
-
-	// [ VERSION version_string ]
-	if p.isKeywordStr("VERSION") {
-		optStart := p.pos()
-		p.advance()
-		if p.cur.Type == tokSCONST {
-			value := p.cur.Str
-			p.advance()
-			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "VERSION", Value: value, Loc: nodes.Loc{Start: optStart, End: p.prev.End}})
-		}
-	}
-
-	// USING or AS
-	for p.cur.Type != ';' && p.cur.Type != tokEOF {
-		if p.cur.Type == kwUSING {
-			optStart := p.pos()
-			p.advance()
-			val := ""
-			if p.isIdentLike() || p.cur.Type == tokIDENT {
-				val = p.cur.Str
-				p.advance()
-			}
-			if p.cur.Type == '(' {
-				p.skipParenthesized()
-			}
-			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "USING", Value: val, Loc: nodes.Loc{Start: optStart, End: p.prev.End}})
-		} else if p.cur.Type == kwAS {
-			// module_text is JavaScript source, not SQL; see
-			// embeddedSourceHead. Take it verbatim.
-			if err := p.parseSourceText(opts); err != nil {
-				return nil, err
-			}
-		} else {
 			p.advance()
 		}
 	}
@@ -4264,124 +1987,6 @@ func (p *Parser) parseAlterFlashbackArchiveStmt(start int) (nodes.StmtNode, erro
 	return stmt, nil
 }
 
-// parseCreateRollbackSegmentStmt parses a CREATE ROLLBACK SEGMENT statement.
-// Called after CREATE [PUBLIC] ROLLBACK SEGMENT has been consumed.
-//
-// BNF:
-//
-//	CREATE [ PUBLIC ] ROLLBACK SEGMENT rollback_segment
-//	    [ TABLESPACE tablespace ]
-//	    [ storage_clause ] ;
-func (p *Parser) parseCreateRollbackSegmentStmt(start int, public bool) (nodes.StmtNode, error) {
-	stmt := &nodes.AdminDDLStmt{
-		Action:     "CREATE",
-		ObjectType: nodes.OBJECT_ROLLBACK_SEGMENT,
-		Loc:        nodes.Loc{Start: start},
-	}
-	opts := &nodes.List{}
-
-	if public {
-		opts.Items = append(opts.Items, &nodes.DDLOption{Key: "PUBLIC"})
-	}
-	var parseErr397 error
-
-	stmt.Name, parseErr397 = p.parseObjectName()
-	if parseErr397 !=
-
-		// [ TABLESPACE tablespace ]
-		nil {
-		return nil, parseErr397
-	}
-
-	if p.cur.Type == kwTABLESPACE {
-		p.advance()
-		if p.isIdentLike() || p.cur.Type == tokIDENT || p.cur.Type == tokQIDENT {
-			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "TABLESPACE", Value: p.cur.Str})
-			p.advance()
-		}
-	}
-
-	// [ storage_clause ] and remaining
-	for p.cur.Type != ';' && p.cur.Type != tokEOF {
-		if p.isIdentLike() && p.cur.Str == "STORAGE" {
-			p.advance()
-			if p.cur.Type == '(' {
-				p.skipParenthesized()
-			}
-			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "STORAGE"})
-		} else {
-			p.advance()
-		}
-	}
-
-	if len(opts.Items) > 0 {
-		stmt.Options = opts
-	}
-	stmt.Loc.End = p.prev.End
-	return stmt, nil
-}
-
-// parseAlterRollbackSegmentStmt parses an ALTER ROLLBACK SEGMENT statement.
-// Called after ALTER ROLLBACK SEGMENT has been consumed.
-//
-// BNF:
-//
-//	ALTER ROLLBACK SEGMENT rollback_segment
-//	    { ONLINE | OFFLINE | storage_clause | SHRINK [ TO size_clause ] }
-func (p *Parser) parseAlterRollbackSegmentStmt(start int) (nodes.StmtNode, error) {
-	stmt := &nodes.AdminDDLStmt{
-		Action:     "ALTER",
-		ObjectType: nodes.OBJECT_ROLLBACK_SEGMENT,
-		Loc:        nodes.Loc{Start: start},
-	}
-	opts := &nodes.List{}
-	var parseErr398 error
-
-	stmt.Name, parseErr398 = p.parseObjectName()
-	if parseErr398 !=
-
-		// Parse action
-		nil {
-		return nil, parseErr398
-	}
-
-	for p.cur.Type != ';' && p.cur.Type != tokEOF {
-		if p.isIdentLike() && p.cur.Str == "ONLINE" {
-			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "ONLINE"})
-			p.advance()
-		} else if p.isIdentLike() && p.cur.Str == "OFFLINE" {
-			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "OFFLINE"})
-			p.advance()
-		} else if p.isIdentLike() && p.cur.Str == "SHRINK" {
-			p.advance()
-			val := ""
-			if p.cur.Type == kwTO {
-				p.advance()
-				var parseErr399 error
-				val, parseErr399 = p.parseSizeClause()
-				if parseErr399 != nil {
-					return nil, parseErr399
-				}
-			}
-			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "SHRINK", Value: val})
-		} else if p.isIdentLike() && p.cur.Str == "STORAGE" {
-			p.advance()
-			if p.cur.Type == '(' {
-				p.skipParenthesized()
-			}
-			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "STORAGE"})
-		} else {
-			p.advance()
-		}
-	}
-
-	if len(opts.Items) > 0 {
-		stmt.Options = opts
-	}
-	stmt.Loc.End = p.prev.End
-	return stmt, nil
-}
-
 // parseCreateEditionStmt parses a CREATE EDITION statement.
 // Called after CREATE [IF NOT EXISTS] EDITION has been consumed.
 //
@@ -4477,253 +2082,6 @@ func (p *Parser) parseDropEditionStmt(start int) (*nodes.DropStmt, error) {
 		p.advance()
 	}
 
-	stmt.Loc.End = p.prev.End
-	return stmt, nil
-}
-
-// parseCreateRestorePointStmt parses a CREATE RESTORE POINT statement.
-// Called after CREATE [CLEAN] RESTORE POINT has been consumed.
-//
-// BNF:
-//
-//	CREATE [ CLEAN ] RESTORE POINT restore_point
-//	    [ FOR PLUGGABLE DATABASE pdb_name ]
-//	    [ AS OF { TIMESTAMP | SCN } expr ]
-//	    [ PRESERVE ]
-//	    [ GUARANTEE FLASHBACK DATABASE ] ;
-func (p *Parser) parseCreateRestorePointStmt(start int, clean bool) (nodes.StmtNode, error) {
-	stmt := &nodes.AdminDDLStmt{
-		Action:     "CREATE",
-		ObjectType: nodes.OBJECT_RESTORE_POINT,
-		Loc:        nodes.Loc{Start: start},
-	}
-	opts := &nodes.List{}
-
-	if clean {
-		opts.Items = append(opts.Items, &nodes.DDLOption{Key: "CLEAN"})
-	}
-	var parseErr402 error
-
-	stmt.Name, parseErr402 = p.parseObjectName()
-	if parseErr402 !=
-
-		// Parse remaining clauses
-		nil {
-		return nil, parseErr402
-	}
-
-	for p.cur.Type != ';' && p.cur.Type != tokEOF {
-		if p.isIdentLike() && p.cur.Str == "FOR" {
-			p.advance()
-			if p.isIdentLike() && p.cur.Str == "PLUGGABLE" {
-				p.advance()
-			}
-			if p.cur.Type == kwDATABASE {
-				p.advance()
-			}
-			if p.isIdentLike() || p.cur.Type == tokIDENT || p.cur.Type == tokQIDENT {
-				opts.Items = append(opts.Items, &nodes.DDLOption{Key: "FOR PLUGGABLE DATABASE", Value: p.cur.Str})
-				p.advance()
-			}
-		} else if p.cur.Type == kwAS {
-			p.advance()
-			if p.isIdentLike() && p.cur.Str == "OF" {
-				p.advance()
-			}
-			if p.isIdentLike() && (p.cur.Str == "TIMESTAMP" || p.cur.Str == "SCN") {
-				asOfType := p.cur.Str
-				p.advance()
-				opts.Items = append(opts.Items, &nodes.DDLOption{Key: "AS OF", Value: asOfType})
-				// Skip the expression
-				for p.cur.Type != ';' && p.cur.Type != tokEOF &&
-					!(p.isIdentLike() && (p.cur.Str == "PRESERVE" || p.cur.Str == "GUARANTEE")) {
-					p.advance()
-				}
-			}
-		} else if p.isIdentLike() && p.cur.Str == "PRESERVE" {
-			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "PRESERVE"})
-			p.advance()
-		} else if p.isIdentLike() && p.cur.Str == "GUARANTEE" {
-			p.advance()
-			if p.cur.Type == kwFLASHBACK {
-				p.advance()
-			}
-			if p.cur.Type == kwDATABASE {
-				p.advance()
-			}
-			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "GUARANTEE FLASHBACK DATABASE"})
-		} else {
-			p.advance()
-		}
-	}
-
-	if len(opts.Items) > 0 {
-		stmt.Options = opts
-	}
-	stmt.Loc.End = p.prev.End
-	return stmt, nil
-}
-
-// parseCreateLogicalPartitionTrackingStmt parses a CREATE LOGICAL PARTITION TRACKING statement.
-// Called after CREATE LOGICAL PARTITION TRACKING has been consumed.
-//
-// BNF:
-//
-//	CREATE LOGICAL PARTITION TRACKING ON [ schema. ] table_name
-//	    PARTITION BY { RANGE | INTERVAL } ( column_name )
-//	    ( partition_definition [, partition_definition ]... )
-//
-//	partition_definition: PARTITION partition_name VALUES LESS THAN ( value )
-func (p *Parser) parseCreateLogicalPartitionTrackingStmt(start int) (nodes.StmtNode, error) {
-	stmt := &nodes.AdminDDLStmt{
-		Action:     "CREATE",
-		ObjectType: nodes.OBJECT_LOGICAL_PARTITION_TRACKING,
-		Loc:        nodes.Loc{Start: start},
-	}
-	opts := &nodes.List{}
-
-	// ON [ schema. ] table_name
-	if p.cur.Type == kwON {
-		p.advance()
-	}
-	var parseErr403 error
-	stmt.Name, parseErr403 = p.parseObjectName()
-	if parseErr403 !=
-
-		// PARTITION BY { RANGE | INTERVAL } ( column_name )
-		nil {
-		return nil, parseErr403
-	}
-
-	if p.cur.Type == kwPARTITION || (p.isIdentLike() && p.cur.Str == "PARTITION") {
-		p.advance()
-	}
-	if p.cur.Type == kwBY {
-		p.advance()
-	}
-	if p.cur.Type == kwRANGE || (p.isIdentLike() && (p.cur.Str == "RANGE" || p.cur.Str == "INTERVAL")) {
-		opts.Items = append(opts.Items, &nodes.DDLOption{Key: "PARTITION BY", Value: p.cur.Str})
-		p.advance()
-	}
-	if p.cur.Type == '(' {
-		p.skipParenthesized()
-	}
-
-	// ( partition_definition [, ...] )
-	if p.cur.Type == '(' {
-		p.skipParenthesized()
-		opts.Items = append(opts.Items, &nodes.DDLOption{Key: "PARTITIONS"})
-	}
-
-	// Preserve any remaining option tokens.
-	for p.cur.Type != ';' && p.cur.Type != tokEOF {
-		p.advance()
-	}
-
-	if len(opts.Items) > 0 {
-		stmt.Options = opts
-	}
-	stmt.Loc.End = p.prev.End
-	return stmt, nil
-}
-
-// parseCreatePmemFilestoreStmt parses a CREATE PMEM FILESTORE statement.
-// Called after CREATE PMEM FILESTORE has been consumed.
-//
-// BNF:
-//
-//	CREATE PMEM FILESTORE filestore_name
-//	    MOUNTPOINT 'file_path'
-//	    BACKINGFILE 'backing_file_path' SIZE size_value BLOCKSIZE blocksize_value
-//	    [ AUTOEXTEND { ON | OFF } [ NEXT size_value ] [ MAXSIZE { UNLIMITED | size_value } ] ] ;
-func (p *Parser) parseCreatePmemFilestoreStmt(start int) (nodes.StmtNode, error) {
-	stmt := &nodes.AdminDDLStmt{
-		Action:     "CREATE",
-		ObjectType: nodes.OBJECT_PMEM_FILESTORE,
-		Loc:        nodes.Loc{Start: start},
-	}
-	opts := &nodes.List{}
-	var parseErr404 error
-
-	stmt.Name, parseErr404 = p.parseObjectName()
-	if parseErr404 !=
-
-		// Parse clauses
-		nil {
-		return nil, parseErr404
-	}
-
-	for p.cur.Type != ';' && p.cur.Type != tokEOF {
-		if p.isIdentLike() && p.cur.Str == "MOUNTPOINT" {
-			p.advance()
-			if p.cur.Type == tokSCONST {
-				opts.Items = append(opts.Items, &nodes.DDLOption{Key: "MOUNTPOINT", Value: p.cur.Str})
-				p.advance()
-			}
-		} else if p.isIdentLike() && p.cur.Str == "BACKINGFILE" {
-			p.advance()
-			if p.cur.Type == tokSCONST {
-				opts.Items = append(opts.Items, &nodes.DDLOption{Key: "BACKINGFILE", Value: p.cur.Str})
-				p.advance()
-			}
-		} else if p.isIdentLike() && p.cur.Str == "SIZE" {
-			p.advance()
-			size, parseErr405 := p.parseSizeClause()
-			if parseErr405 != nil {
-				return nil, parseErr405
-			}
-			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "SIZE", Value: size})
-		} else if p.isIdentLike() && p.cur.Str == "BLOCKSIZE" {
-			p.advance()
-			size, parseErr406 := p.parseSizeClause()
-			if parseErr406 != nil {
-				return nil, parseErr406
-			}
-			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "BLOCKSIZE", Value: size})
-		} else if p.isIdentLike() && p.cur.Str == "AUTOEXTEND" {
-			p.advance()
-			val := ""
-			if p.cur.Type == kwON || (p.isIdentLike() && p.cur.Str == "ON") {
-				val = "ON"
-				p.advance()
-			} else if p.isIdentLike() && p.cur.Str == "OFF" {
-				val = "OFF"
-				p.advance()
-			}
-			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "AUTOEXTEND", Value: val})
-			// [ NEXT size_value ]
-			if p.isIdentLike() && p.cur.Str == "NEXT" {
-				p.advance()
-				nextSize, parseErr407 := p.parseSizeClause()
-				if parseErr407 != nil {
-					return nil, parseErr407
-				}
-				opts.Items = append(opts.Items, &nodes.DDLOption{Key: "NEXT", Value: nextSize})
-			}
-			// [ MAXSIZE { UNLIMITED | size_value } ]
-			if p.isIdentLike() && p.cur.Str == "MAXSIZE" {
-				p.advance()
-				maxVal := ""
-				if p.isIdentLike() && p.cur.Str == "UNLIMITED" {
-					maxVal = "UNLIMITED"
-					p.advance()
-				} else {
-					var parseErr408 error
-					maxVal, parseErr408 = p.parseSizeClause()
-					if parseErr408 != nil {
-						return nil, parseErr408
-					}
-				}
-				opts.Items = append(opts.Items, &nodes.DDLOption{Key: "MAXSIZE", Value: maxVal})
-			}
-		} else {
-			p.advance()
-		}
-	}
-
-	if len(opts.Items) > 0 {
-		stmt.Options = opts
-	}
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }

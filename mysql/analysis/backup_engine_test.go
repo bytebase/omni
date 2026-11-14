@@ -364,6 +364,27 @@ var roundTrips = []roundTrip{
 		tables:       []string{"use_target", "other.use_target"},
 		transformErr: "prior backup cannot handle a statement after USE " + otherDatabase + " changes the database",
 	},
+	{
+		// Deleting a parent in the second database deletes its children in
+		// the first, which no backup holds.
+		name: "cross_database_cascade",
+		setup: "CREATE DATABASE IF NOT EXISTS " + otherDatabase + ";CREATE TABLE " + otherDatabase + ".xdb_parent (id INT PRIMARY KEY);" +
+			"CREATE TABLE xdb_child (id INT PRIMARY KEY, parent_id INT, CONSTRAINT fk_xdb_child FOREIGN KEY (parent_id) REFERENCES " + otherDatabase + ".xdb_parent (id) ON DELETE CASCADE);" +
+			"INSERT INTO " + otherDatabase + ".xdb_parent VALUES (1), (2);INSERT INTO xdb_child VALUES (1, 1), (2, 2)",
+		script:       "DELETE FROM " + otherDatabase + ".xdb_parent WHERE id = 1",
+		tables:       []string{"other.xdb_parent", "xdb_child"},
+		transformErr: ".xdb_child is ON DELETE CASCADE",
+	},
+	{
+		// The second database's xdb_twin_child cascades from its own
+		// xdb_twin, not from the first database's.
+		name: "same_name_in_other_database",
+		setup: "CREATE DATABASE IF NOT EXISTS " + otherDatabase + ";CREATE TABLE xdb_twin (id INT PRIMARY KEY);CREATE TABLE " + otherDatabase + ".xdb_twin (id INT PRIMARY KEY);" +
+			"CREATE TABLE " + otherDatabase + ".xdb_twin_child (id INT PRIMARY KEY, twin_id INT, CONSTRAINT fk_xdb_twin_child FOREIGN KEY (twin_id) REFERENCES " + otherDatabase + ".xdb_twin (id) ON DELETE CASCADE);" +
+			"INSERT INTO xdb_twin VALUES (1), (2);INSERT INTO " + otherDatabase + ".xdb_twin VALUES (1), (2);INSERT INTO " + otherDatabase + ".xdb_twin_child VALUES (1, 1), (2, 2)",
+		script: "DELETE FROM xdb_twin WHERE id = 1",
+		tables: []string{"xdb_twin", "other.xdb_twin", "other.xdb_twin_child"},
+	},
 }
 
 // TestBackupRestoreRoundTrip runs each backup, its statements and their
@@ -559,15 +580,19 @@ func engineCatalog(t *testing.T, db *sql.DB, databases ...string) analysis.Catal
 			index.Expressions = append(index.Expressions, part)
 		}
 		require.NoError(t, rows.Close())
-		rows, err = db.Query("SELECT k.TABLE_NAME, k.CONSTRAINT_NAME, k.COLUMN_NAME, k.REFERENCED_TABLE_NAME, k.REFERENCED_COLUMN_NAME, r.UPDATE_RULE, r.DELETE_RULE FROM information_schema.KEY_COLUMN_USAGE k JOIN information_schema.REFERENTIAL_CONSTRAINTS r ON r.CONSTRAINT_SCHEMA = k.CONSTRAINT_SCHEMA AND r.CONSTRAINT_NAME = k.CONSTRAINT_NAME WHERE k.TABLE_SCHEMA = ? AND k.REFERENCED_TABLE_NAME IS NOT NULL ORDER BY k.TABLE_NAME, k.CONSTRAINT_NAME, k.ORDINAL_POSITION", database)
+		rows, err = db.Query("SELECT k.TABLE_NAME, k.CONSTRAINT_NAME, k.COLUMN_NAME, k.REFERENCED_TABLE_SCHEMA, k.REFERENCED_TABLE_NAME, k.REFERENCED_COLUMN_NAME, r.UPDATE_RULE, r.DELETE_RULE FROM information_schema.KEY_COLUMN_USAGE k JOIN information_schema.REFERENTIAL_CONSTRAINTS r ON r.CONSTRAINT_SCHEMA = k.CONSTRAINT_SCHEMA AND r.CONSTRAINT_NAME = k.CONSTRAINT_NAME WHERE k.TABLE_SCHEMA = ? AND k.REFERENCED_TABLE_NAME IS NOT NULL ORDER BY k.TABLE_NAME, k.CONSTRAINT_NAME, k.ORDINAL_POSITION", database)
 		require.NoError(t, err)
 		keys := map[string]*metadata.ForeignKeyMetadata{}
 		for rows.Next() {
-			var tableName, name, column, referencedTable, referencedColumn, onUpdate, onDelete string
-			require.NoError(t, rows.Scan(&tableName, &name, &column, &referencedTable, &referencedColumn, &onUpdate, &onDelete))
+			var tableName, name, column, referencedDatabase, referencedTable, referencedColumn, onUpdate, onDelete string
+			require.NoError(t, rows.Scan(&tableName, &name, &column, &referencedDatabase, &referencedTable, &referencedColumn, &onUpdate, &onDelete))
 			fk := keys[tableName+"."+name]
 			if fk == nil {
-				fk = &metadata.ForeignKeyMetadata{Name: name, ReferencedTable: referencedTable, OnUpdate: onUpdate, OnDelete: onDelete}
+				// Bytebase's sync names only another database.
+				if referencedDatabase == database {
+					referencedDatabase = ""
+				}
+				fk = &metadata.ForeignKeyMetadata{Name: name, ReferencedSchema: referencedDatabase, ReferencedTable: referencedTable, OnUpdate: onUpdate, OnDelete: onDelete}
 				keys[tableName+"."+name] = fk
 				table(tableName).ForeignKeys = append(table(tableName).ForeignKeys, fk)
 			}

@@ -75,17 +75,22 @@ func init() {
 		// https://docs.snowflake.com/en/sql-reference/sql/create-snapshot
 		orReplace: true,
 		// https://docs.snowflake.com/en/sql-reference/sql/drop-snapshot
-		drop:  true,
-		props: dataProtectionCommentProps,
-		unset: []string{}, // ALTER SNAPSHOT documents no UNSET
+		drop: true,
+		// https://docs.snowflake.com/en/sql-reference/sql/undrop-snapshot
+		// also writes RENAME TO <new_snapshot_name>.
+		undrop:       true,
+		undropRename: true,
+		props:        dataProtectionCommentProps,
+		unset:        []string{}, // ALTER SNAPSHOT documents no UNSET
 	})
-	// CREATE STORAGE LIFECYCLE POLICY's body (AS ( <arg> <type> ... ) RETURNS
-	// BOOLEAN -> <expr>) and ALTER's SET BODY -> <expr> hold a signature and an
-	// expression, which an ObjectClause does not carry yet; both are left
-	// unsupported.
+	// A STORAGE LIFECYCLE POLICY's and a DATA MOVEMENT RULE's body is read
+	// by data_protection_body.go.
 	registerObject(&objectForm{
-		words: []string{"STORAGE", "LIFECYCLE", "POLICY"},
-		alter: parseAlterStorageLifecyclePolicy,
+		words:  []string{"STORAGE", "LIFECYCLE", "POLICY"},
+		create: parseCreateStorageLifecyclePolicy,
+		alter:  parseAlterStorageLifecyclePolicy,
+		// https://docs.snowflake.com/en/sql-reference/sql/create-storage-lifecycle-policy
+		orReplace: true,
 		// https://docs.snowflake.com/en/sql-reference/sql/drop-storage-lifecycle-policy
 		drop: true,
 		// https://docs.snowflake.com/en/sql-reference/sql/alter-storage-lifecycle-policy
@@ -108,21 +113,26 @@ func init() {
 		// https://docs.snowflake.com/en/sql-reference/sql/alter-data-movement-policy
 		unset: []string{"COMMENT"},
 	})
-	// CREATE DATA MOVEMENT RULE's MAX_ROWS AS ( ) RETURNS INTEGER -> ( <expr> )
-	// and ALTER's SET MAX_ROWS ... hold an expression too; both are left
-	// unsupported.
 	registerObject(&objectForm{
-		words: []string{"DATA", "MOVEMENT", "RULE"},
-		alter: parseAlterDataMovementRule,
+		words:  []string{"DATA", "MOVEMENT", "RULE"},
+		create: parseCreateDataMovementRule,
+		alter:  parseAlterDataMovementRule,
+		// https://docs.snowflake.com/en/sql-reference/sql/create-data-movement-rule
+		orReplace: true,
 		// https://docs.snowflake.com/en/sql-reference/sql/drop-data-movement-rule
-		drop:  true,
-		props: dataProtectionCommentProps,
+		drop: true,
+		// CREATE takes TYPE = '<movement_type>' and COMMENT; ALTER SETs and
+		// UNSETs COMMENT alone.
+		props:      objectProps{"TYPE": propString, "COMMENT": propString},
+		alterProps: dataProtectionCommentProps,
+		unset:      []string{"COMMENT"},
 	})
 }
 
-// dataProtectionCommentProps is the one property of BACKUP SET, SNAPSHOT SET,
-// SNAPSHOT and DATA MOVEMENT RULE: CREATE takes COMMENT, and ALTER SETs and
-// UNSETs it (on MODIFY <word> IDENTIFIER too).
+// dataProtectionCommentProps is the one property of BACKUP SET, SNAPSHOT SET
+// and SNAPSHOT: CREATE takes COMMENT, and ALTER SETs and UNSETs it (on MODIFY
+// <word> IDENTIFIER too). It is also the one property ALTER DATA MOVEMENT RULE
+// SETs.
 var dataProtectionCommentProps = objectProps{"COMMENT": propString}
 
 // dataProtectionPolicyProps are BACKUP POLICY's and SNAPSHOT POLICY's
@@ -541,11 +551,20 @@ func parseAlterSnapshot(p *Parser, s *ast.ObjectStmt) error {
 //	ALTER STORAGE LIFECYCLE POLICY [ IF EXISTS ] <name> SET TAG <tag_name> = '<tag_value>' [ , ... ]
 //	ALTER STORAGE LIFECYCLE POLICY [ IF EXISTS ] <name> UNSET { ARCHIVE_FOR_DAYS | COMMENT }
 //	ALTER STORAGE LIFECYCLE POLICY [ IF EXISTS ] <name> UNSET TAG <tag_name> [ , ... ]
+//	ALTER STORAGE LIFECYCLE POLICY [ IF EXISTS ] <name> SET BODY -> <expression_on_arg_name>
 //
-// SET BODY -> <expression> is not read yet (see init).
+// SET BODY is a clause whose Body holds the expression.
 //
 // https://docs.snowflake.com/en/sql-reference/sql/alter-storage-lifecycle-policy
 func parseAlterStorageLifecyclePolicy(p *Parser, s *ast.ObjectStmt) error {
+	if start := p.cur.Loc.Start; p.acceptWords("SET", "BODY") {
+		body, err := p.parseArrowBody(false)
+		if err != nil {
+			return err
+		}
+		p.addObjectKeywordsClause(s, "SET BODY", start).Body = body
+		return nil
+	}
 	return p.parseAlterObjectActions(s, actSet|actUnset|actTags|actRename)
 }
 
@@ -611,10 +630,13 @@ func parseAlterDataMovementPolicy(p *Parser, s *ast.ObjectStmt) error {
 //	ALTER DATA MOVEMENT RULE [ IF EXISTS ] <name> SET COMMENT = '<string_literal>'
 //	ALTER DATA MOVEMENT RULE [ IF EXISTS ] <name> UNSET COMMENT
 //	ALTER DATA MOVEMENT RULE [ IF EXISTS ] <name> RENAME TO <new_name>
-//
-// SET MAX_ROWS AS ( ) RETURNS INTEGER -> ( <expr> ) is not read yet (see init).
+//	ALTER DATA MOVEMENT RULE [ IF EXISTS ] <name> SET MAX_ROWS AS () RETURNS INTEGER -> ( <expression> )
 //
 // https://docs.snowflake.com/en/sql-reference/sql/alter-data-movement-rule
 func parseAlterDataMovementRule(p *Parser, s *ast.ObjectStmt) error {
+	if p.cur.Type == kwSET && isWordToken(p.peekNext(), "MAX_ROWS") {
+		start := p.advance().Loc.Start // consume SET
+		return p.parseMaxRowsBody(s, "SET MAX_ROWS AS", start)
+	}
 	return p.parseAlterObjectActions(s, actSet|actUnset|actRename)
 }

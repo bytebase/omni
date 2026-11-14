@@ -17,9 +17,11 @@ func init() {
 		alter:     parseAlterStreamlit,
 		orReplace: true,
 		// https://docs.snowflake.com/en/sql-reference/sql/drop-streamlit
-		drop:  true,
-		props: streamlitProps,
-		unset: []string{"SECRETS", "EXTERNAL_ACCESS_INTEGRATIONS", "QUERY_WAREHOUSE", "TITLE", "COMMENT"},
+		drop: true,
+		// https://docs.snowflake.com/en/sql-reference/sql/undrop-streamlit
+		undrop: true,
+		props:  streamlitProps,
+		unset:  []string{"SECRETS", "EXTERNAL_ACCESS_INTEGRATIONS", "QUERY_WAREHOUSE", "TITLE", "COMMENT"},
 	})
 }
 

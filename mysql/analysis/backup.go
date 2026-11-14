@@ -71,6 +71,11 @@ type BackupOptions struct {
 	// Columns returns what the backup needs of a table's columns and keys.
 	// Nil means ClassifyColumns over Catalog.
 	Columns func(database, table string) (TableColumns, error)
+	// ReferencingDatabases lists the databases, besides the one given, that
+	// may hold a foreign key into it; backup reads their foreign keys. It may
+	// list more than those that do. Nil means every database Catalog lists,
+	// which reads each one's metadata.
+	ReferencingDatabases func(database string) ([]string, error)
 }
 
 // TableColumns is what a backup and its restore need of a table.
@@ -1235,9 +1240,9 @@ func onNullableSide(exprs []ast.TableExpr, name string, nullable bool) bool {
 	return false
 }
 
-// checkForeignKeys refuses a backup when a foreign key of another table in
-// the database cascades the change to rows the backup leaves out: ON DELETE
-// for a DELETE, and ON UPDATE for an UPDATE that sets a column the key
+// checkForeignKeys refuses a backup when a foreign key, in the table's own
+// database or another, cascades the change to rows the backup leaves out: ON
+// DELETE for a DELETE, and ON UPDATE for an UPDATE that sets a column the key
 // references. A catalog without GetDatabase has no foreign keys to read.
 func checkForeignKeys(opts BackupOptions, table *TableReference, targets []DMLTarget) error {
 	if opts.Catalog.GetDatabase == nil {
@@ -1271,34 +1276,74 @@ func checkForeignKeys(opts BackupOptions, table *TableReference, targets []DMLTa
 			}
 		}
 	}
-	for _, name := range db.ListTableNames() {
-		child := db.GetTable(name)
-		for _, fk := range child.GetForeignKeys() {
-			if !equalIdentifier(fk.GetReferencedTable(), table.Table, opts.CaseSensitive) {
-				continue
-			}
-			if fk.GetReferencedSchema() != "" && !equalIdentifier(fk.GetReferencedSchema(), table.Database, opts.CaseSensitive) {
-				continue
-			}
-			action, event := fk.GetOnDelete(), "DELETE"
-			if table.StatementType == DMLTypeUpdate {
-				action, event = fk.GetOnUpdate(), "UPDATE"
-				referenced := false
-				for _, column := range fk.GetReferencedColumns() {
-					referenced = referenced || setColumns[strings.ToLower(column)]
+	others, err := referencingDatabases(opts, table.Database)
+	if err != nil {
+		return fmt.Errorf("prior backup cannot read the foreign keys into %s.%s: %w", table.Database, table.Table, err)
+	}
+	for i, holder := range append([]Database{db}, others...) {
+		for _, name := range holder.ListTableNames() {
+			child := holder.GetTable(name)
+			for _, fk := range child.GetForeignKeys() {
+				// An empty referenced database is the key's own.
+				referencedDatabase := fk.GetReferencedSchema()
+				if referencedDatabase == "" {
+					referencedDatabase = holder.Name()
 				}
-				if !referenced {
+				if !equalIdentifier(referencedDatabase, table.Database, opts.CaseSensitive) || !equalIdentifier(fk.GetReferencedTable(), table.Table, opts.CaseSensitive) {
 					continue
 				}
-			}
-			switch strings.ToUpper(action) {
-			case "CASCADE", "SET NULL", "SET DEFAULT":
-				return fmt.Errorf("prior backup cannot back up %s.%s: foreign key %s of %s is ON %s %s, and the rows it changes are not backed up", table.Database, table.Table, fk.GetName(), child.GetName(), event, strings.ToUpper(action))
-			default:
+				action, event := fk.GetOnDelete(), "DELETE"
+				if table.StatementType == DMLTypeUpdate {
+					action, event = fk.GetOnUpdate(), "UPDATE"
+					referenced := false
+					for _, column := range fk.GetReferencedColumns() {
+						referenced = referenced || setColumns[strings.ToLower(column)]
+					}
+					if !referenced {
+						continue
+					}
+				}
+				switch strings.ToUpper(action) {
+				case "CASCADE", "SET NULL", "SET DEFAULT":
+					childName := child.GetName()
+					if i > 0 {
+						childName = holder.Name() + "." + childName
+					}
+					return fmt.Errorf("prior backup cannot back up %s.%s: foreign key %s of %s is ON %s %s, and the rows it changes are not backed up", table.Database, table.Table, fk.GetName(), childName, event, strings.ToUpper(action))
+				default:
+				}
 			}
 		}
 	}
 	return nil
+}
+
+// referencingDatabases returns the synced databases besides database whose
+// foreign keys may reference it. A database without metadata is skipped: its
+// foreign keys are unknown.
+func referencingDatabases(opts BackupOptions, database string) ([]Database, error) {
+	list := opts.Catalog.ListDatabaseNames
+	if opts.ReferencingDatabases != nil {
+		list = func() ([]string, error) { return opts.ReferencingDatabases(database) }
+	}
+	names, err := list()
+	if err != nil {
+		return nil, err
+	}
+	var result []Database
+	for _, name := range names {
+		if equalIdentifier(name, database, opts.CaseSensitive) {
+			continue
+		}
+		db, err := opts.Catalog.GetDatabase(name)
+		if err != nil {
+			return nil, err
+		}
+		if db != nil && db.HasSchema() {
+			result = append(result, db)
+		}
+	}
+	return result, nil
 }
 
 // checkTriggers refuses a backup of a table with a trigger on the statement's

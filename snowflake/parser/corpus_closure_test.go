@@ -186,7 +186,6 @@ var corpusSkips = map[string]string{
 	// + a `:`-bind argument). Both are owned by the EXECUTE IMMEDIATE node.
 	"official/execute-immediate/example_01.sql": "RESIDUAL GAP: EXECUTE IMMEDIATE <var> || '...' string-expression argument (block body now parses; EXECUTE IMMEDIATE expr-arg not yet supported)",
 	"official/execute-immediate/example_04.sql": "RESIDUAL GAP: rs := (EXECUTE IMMEDIATE :bind USING (...)) parenthesized-statement assignment + :bind arg (block body now parses; this EXECUTE IMMEDIATE form not yet supported)",
-	"official/call/example_07.sql":              "RESIDUAL GAP: DECLARE ... BEGIN CALL p(...) INTO :var ... END scripting block not parsed",
 
 	// --- RESIDUAL GAP / MALFORMED: legacy select.sql expression corpus ---
 	// LEFT(...)/ILIKE(...) used as function names, lowercase `union` inside a

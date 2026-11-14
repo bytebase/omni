@@ -655,11 +655,11 @@ func TestDropObjectVariants_DropStmtString(t *testing.T) {
 
 func TestDropUnsupported_TargetedError(t *testing.T) {
 	// DROP <unrecognized object> should produce a targeted error naming the
-	// object type rather than a generic "DROP not supported" error. SECRET is a
-	// recognized keyword whose DROP form is not yet implemented.
-	result := ParseBestEffort("DROP SECRET foo")
+	// object type rather than a generic "DROP not supported" error. SECRETS is a
+	// recognized keyword that names no DROP form.
+	result := ParseBestEffort("DROP SECRETS foo")
 	if len(result.Errors) == 0 {
-		t.Fatal("expected an error for DROP SECRET, got none")
+		t.Fatal("expected an error for DROP SECRETS, got none")
 	}
 	msg := result.Errors[0].Message
 	if msg == "DROP statement parsing is not yet supported" {

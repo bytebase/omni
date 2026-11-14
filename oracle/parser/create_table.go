@@ -21,6 +21,7 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 	// OR REPLACE | IF NOT EXISTS
 	orReplace := false
 	ifNotExists := false
+	ifTok := p.cur
 	if p.cur.Type == kwOR {
 		p.advance() // consume OR
 		if p.cur.Type != kwREPLACE {
@@ -32,29 +33,36 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 		if p.peekNext().Type == kwNOT {
 			p.advance() // consume IF
 			p.advance() // consume NOT
-			if p.cur.Type == kwEXISTS {
-				p.advance() // consume EXISTS
-				ifNotExists = true
+			// CREATE IF NOT without EXISTS is ORA-00901 at IF.
+			if p.cur.Type != kwEXISTS {
+				return nil, p.syntaxErrorAtTok(ifTok)
+			}
+			p.advance() // consume EXISTS
+			ifNotExists = true
+			// IF NOT EXISTS follows OPERATOR (ORA-00901 at IF before it).
+			if p.isKeywordStr("OPERATOR") {
+				return nil, p.syntaxErrorAtTok(ifTok)
 			}
 		}
 	}
 
-	// EDITIONABLE | NONEDITIONABLE (only for PL/SQL objects: PROCEDURE, FUNCTION, PACKAGE, TRIGGER, TYPE)
+	// EDITIONABLE | NONEDITIONABLE (only for PL/SQL objects: PROCEDURE, FUNCTION, PACKAGE, TRIGGER, TYPE, LIBRARY)
 	// Note: Views handle EDITIONABLE internally in parseCreateViewStmt.
 	editionable := false
 	nonEditionable := false
+	editionTok := p.cur // the EDITIONABLE or NONEDITIONABLE, when consumed
 	if p.isIdentLikeStr("EDITIONABLE") {
 		// Peek to see if the next token is a PL/SQL object keyword
 		next := p.peekNext()
 		if next.Type == kwPROCEDURE || next.Type == kwFUNCTION || next.Type == kwPACKAGE ||
-			next.Type == kwTRIGGER || next.Type == kwTYPE {
+			next.Type == kwTRIGGER || next.Type == kwTYPE || next.Type == kwLIBRARY {
 			editionable = true
 			p.advance()
 		}
 	} else if p.isIdentLikeStr("NONEDITIONABLE") {
 		next := p.peekNext()
 		if next.Type == kwPROCEDURE || next.Type == kwFUNCTION || next.Type == kwPACKAGE ||
-			next.Type == kwTRIGGER || next.Type == kwTYPE {
+			next.Type == kwTRIGGER || next.Type == kwTYPE || next.Type == kwLIBRARY {
 			nonEditionable = true
 			p.advance()
 		}
@@ -110,8 +118,11 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 
 	// PUBLIC (for CREATE PUBLIC SYNONYM / DATABASE LINK)
 	public := false
+	var publicTok *Token
 	if p.cur.Type == kwPUBLIC {
 		public = true
+		tok := p.cur
+		publicTok = &tok
 		p.advance()
 	}
 
@@ -134,8 +145,8 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 	}
 	if ifNotExists && (len(javaMods) > 0 || p.cur.Type == kwJAVA) {
 		// CREATE JAVA takes IF NOT EXISTS after its kind, not before JAVA
-		// (ORA-00901 on Oracle 23ai).
-		return nil, p.syntaxErrorAtCur()
+		// (ORA-00901 on Oracle 23ai, at the IF).
+		return nil, p.syntaxErrorAtTok(ifTok)
 	}
 	if len(javaMods) > 0 {
 		if p.cur.Type != kwJAVA {
@@ -143,6 +154,25 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 		}
 		p.advance() // consume JAVA
 		return p.parseCreateJavaStmt(start, orReplace, javaMods)
+	}
+
+	if p.cur.Type == kwLIBRARY {
+		// CREATE LIBRARY takes no IF NOT EXISTS (ORA-00901 on Oracle 23ai,
+		// at the IF).
+		if ifNotExists {
+			return nil, p.syntaxErrorAtTok(ifTok)
+		}
+		p.advance() // consume LIBRARY
+		var edition *Token
+		if editionable || nonEditionable {
+			edition = &editionTok
+		}
+		return p.parseCreateLibraryStmt(start, orReplace, edition)
+	}
+
+	// CONTEXT, RESTORE POINT, ROLLBACK SEGMENT, INMEMORY JOIN GROUP
+	if stmt, ok, err := p.parseCreateAdminTail(start, orReplace, ifNotExists, ifTok, publicTok); ok {
+		return stmt, err
 	}
 
 	switch p.cur.Type {
@@ -200,8 +230,8 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 		}
 		return p.parseCreateJsonDualityViewStmt(start, orReplace, false)
 	case kwUSER, kwROLE, kwPROFILE,
-		kwTABLESPACE, kwDIRECTORY, kwCONTEXT,
-		kwCLUSTER, kwJAVA, kwLIBRARY, kwSCHEMA:
+		kwTABLESPACE, kwDIRECTORY,
+		kwCLUSTER, kwJAVA, kwSCHEMA:
 		return p.parseCreateAdminObject(start, orReplace)
 	case kwTEMPORARY:
 		// CREATE TEMPORARY TABLESPACE (standalone, not GLOBAL TEMPORARY TABLE)
@@ -284,27 +314,27 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 				return p.parseCreatePropertyGraphStmt(start, orReplace, ifNotExists)
 			case "VECTOR":
 				p.advance() // consume VECTOR
-				if p.cur.Type == kwINDEX {
-					p.advance() // consume INDEX
+				if p.cur.Type != kwINDEX {
+					return nil, p.syntaxErrorAtCur()
 				}
+				p.advance() // consume INDEX
 				return p.parseCreateVectorIndexStmt(start, ifNotExists)
-			case "ROLLBACK":
-				// CREATE [PUBLIC] ROLLBACK SEGMENT
-				p.advance() // consume ROLLBACK
-				if p.isIdentLike() && p.cur.Str == "SEGMENT" {
-					p.advance() // consume SEGMENT
+			case "MLE":
+				// CREATE MLE { ENV | MODULE } takes IF NOT EXISTS after its
+				// kind, not before MLE (ORA-00901 on Oracle 23ai, at the IF).
+				if ifNotExists {
+					return nil, p.syntaxErrorAtTok(ifTok)
 				}
-				return p.parseCreateRollbackSegmentStmt(start, public)
-			case "PURE":
-				// CREATE [PURE] MLE ENV
-				p.advance() // consume PURE
-				if p.isIdentLike() && p.cur.Str == "MLE" {
-					p.advance() // consume MLE
-					if p.isIdentLike() && p.cur.Str == "ENV" {
-						p.advance() // consume ENV
-						return p.parseCreateMLEEnvStmt(start, orReplace)
-					}
+				p.advance() // consume MLE
+				switch {
+				case p.isKeywordStr("ENV"):
+					p.advance() // consume ENV
+					return p.parseCreateMLEEnvStmt(start, orReplace)
+				case p.isKeywordStr("MODULE"):
+					p.advance() // consume MODULE
+					return p.parseCreateMLEModuleStmt(start, orReplace)
 				}
+				return nil, p.syntaxErrorAtCur()
 			}
 		}
 		// Check for DIMENSION, FLASHBACK ARCHIVE
