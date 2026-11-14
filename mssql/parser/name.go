@@ -237,6 +237,7 @@ func (p *Parser) parseVariableDmlTarget() *nodes.TableVarRef {
 func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 	loc := p.pos()
 	name := p.cur.Str
+	delimited := p.isDelimited(p.cur)
 	p.advance()
 	if p.collectMode() && p.cursorOff <= p.prev.End {
 		p.addRuleCandidate("columnref")
@@ -244,10 +245,29 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 		return nil, errCollecting
 	}
 
-	// Function call: ident(...)
+	// Function call: ident(...). Without a schema it names a built-in, which
+	// SQL Server's parser checks (Msg 195; see builtinFunctions).
 	if p.cur.Type == '(' {
+		// MATCH ( graph pattern ) is a predicate of a search condition, read
+		// here as a call (graphMatchPredicate, TSql160.g).
+		upper := strings.ToUpper(name)
+		graphMatch := !delimited && p.inSearchCondition() && upper == "MATCH"
+		// Inside it, LAST_NODE ( node ) = LAST_NODE ( node ) is graph syntax
+		// (graphMatchLastNodePattern, TSql160.g), refused anywhere else
+		// (Msg 195).
+		graphSyntax := !delimited && p.graphMatchDepth > 0 && upper == "LAST_NODE"
+		if !graphMatch && !graphSyntax && (delimited || !builtinFunctions[upper]) {
+			return nil, &ParseError{Message: fmt.Sprintf("%q is not a recognized built-in function name", name), Position: loc}
+		}
 		if strings.EqualFold(name, "PARSE") || strings.EqualFold(name, "TRY_PARSE") {
 			return p.parseParseExpr(name, loc)
+		}
+		if graphSyntax {
+			return p.parseGraphLastNodePattern(name, loc)
+		}
+		if graphMatch {
+			p.graphMatchDepth++
+			defer func() { p.graphMatchDepth-- }()
 		}
 		return p.parseFuncCall(name, loc)
 	}
@@ -692,4 +712,47 @@ func (p *Parser) parseFuncCallWithSchema(schema, funcName string, loc int) (node
 	}
 
 	return fc, nil
+}
+
+// parseGraphLastNodePattern parses LAST_NODE ( node ) = LAST_NODE ( node )
+// inside a graph MATCH, the current token being the first open parenthesis
+// (graphMatchLastNodePattern, TSql160.g). SQL Server takes LAST_NODE only so.
+func (p *Parser) parseGraphLastNodePattern(name string, loc int) (nodes.ExprNode, error) {
+	lastNode := func(start int, fname string) (nodes.ExprNode, error) {
+		if _, err := p.expect('('); err != nil {
+			return nil, err
+		}
+		argLoc := p.pos()
+		node, ok := p.parseIdentifier()
+		if !ok {
+			return nil, p.syntaxErrorAtCur()
+		}
+		argEnd := p.prevEnd()
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		return &nodes.FuncCallExpr{
+			Name: &nodes.TableRef{Object: fname, Loc: nodes.Loc{Start: start, End: start + len(fname)}},
+			Args: &nodes.List{Items: []nodes.Node{&nodes.ColumnRef{Column: node, Loc: nodes.Loc{Start: argLoc, End: argEnd}}}},
+			Loc:  nodes.Loc{Start: start, End: p.prevEnd()},
+		}, nil
+	}
+	left, err := lastNode(loc, name)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect('='); err != nil {
+		return nil, err
+	}
+	rloc := p.pos()
+	if p.isDelimited(p.cur) || strings.ToUpper(p.cur.Str) != "LAST_NODE" {
+		return nil, p.syntaxErrorAtCur()
+	}
+	rname := p.cur.Str
+	p.advance()
+	right, err := lastNode(rloc, rname)
+	if err != nil {
+		return nil, err
+	}
+	return &nodes.BinaryExpr{Op: nodes.BinOpEq, Left: left, Right: right, Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 }
