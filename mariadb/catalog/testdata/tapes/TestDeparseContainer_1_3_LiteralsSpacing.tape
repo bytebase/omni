@@ -159,6 +159,28 @@
 : bytes
 | utf8mb4_uca1400_ai_ci
 > exec
+| DROP VIEW IF EXISTS v_intro_bytes
+< ok 0 0
+> exec
+| CREATE VIEW v_intro_bytes AS SELECT _utf8mb4 0x41 AS c1, _latin1 X'61' AS c2, _utf8mb4 b'1000001' AS c3, _binary 0x41 + 1 AS c4 FROM t
+< ok 0 0
+> query
+| SHOW CREATE VIEW v_intro_bytes
+< result
+< column "View" "VARCHAR"
+< column "Create View" "VARCHAR"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< row
+: bytes
+| v_intro_bytes
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_intro_bytes` AS select _utf8mb4'A' AS `c1`,_latin1'a' AS `c2`,_utf8mb4'A' AS `c3`,_binary'A' + 1 AS `c4` from `t`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_uca1400_ai_ci
+> exec
 | DROP VIEW IF EXISTS v_func_args
 < ok 0 0
 > exec

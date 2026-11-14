@@ -458,6 +458,7 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Select)
 		}
 	case *ExplainStmt:
+		Walk(v, n.Connection)
 		Walk(v, n.Stmt)
 	case *ExtractExpr:
 		Walk(v, n.Expr)
@@ -479,6 +480,11 @@ func walkChildren(v Visitor, node Node) {
 	case *FuncCallExpr:
 		for _, item := range n.Args {
 			Walk(v, item)
+		}
+		for _, item := range n.ArgTypes {
+			if item != nil {
+				Walk(v, item)
+			}
 		}
 		for _, item := range n.OrderBy {
 			if item != nil {
@@ -726,6 +732,10 @@ func walkChildren(v Visitor, node Node) {
 		if n.Sequence != nil {
 			Walk(v, n.Sequence)
 		}
+	case *ProcedureClause:
+		for _, item := range n.Args {
+			Walk(v, item)
+		}
 	case *PurgeBinaryLogsStmt:
 		Walk(v, n.BeforeExpr)
 	case *RawStmt:
@@ -815,6 +825,9 @@ func walkChildren(v Visitor, node Node) {
 		}
 		if n.Into != nil {
 			Walk(v, n.Into)
+		}
+		if n.Procedure != nil {
+			Walk(v, n.Procedure)
 		}
 		if n.Left != nil {
 			Walk(v, n.Left)

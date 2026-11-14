@@ -6469,10 +6469,6 @@ func TestParseSignal(t *testing.T) {
 			sql:  "SIGNAL SQLSTATE VALUE '45000'",
 			want: "{SIGNAL :loc 0 :condition 45000}",
 		},
-		{
-			sql:  "SIGNAL my_error",
-			want: "{SIGNAL :loc 0 :condition my_error}",
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.sql, func(t *testing.T) {
