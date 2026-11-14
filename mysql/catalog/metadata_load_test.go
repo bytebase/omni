@@ -905,9 +905,8 @@ func TestMetadataMigration(t *testing.T) {
 	}
 }
 
-// loadMetadataFixture installs a snapshot written as YAML-shaped protojson and
-// fails on anything LoadMetadata could not install as defined.
-func loadMetadataFixture(t *testing.T, m map[string]any) *Catalog {
+// metadataFixture reads a snapshot written as YAML-shaped protojson.
+func metadataFixture(t *testing.T, m map[string]any) *metadata.DatabaseSchemaMetadata {
 	t.Helper()
 	raw, err := json.Marshal(m)
 	if err != nil {
@@ -917,8 +916,15 @@ func loadMetadataFixture(t *testing.T, m map[string]any) *Catalog {
 	if err := protojson.Unmarshal(raw, meta); err != nil {
 		t.Fatal(err)
 	}
+	return meta
+}
+
+// loadMetadataFixture installs a snapshot written as YAML-shaped protojson and
+// fails on anything LoadMetadata could not install as defined.
+func loadMetadataFixture(t *testing.T, m map[string]any) *Catalog {
+	t.Helper()
 	c := New()
-	report, err := c.LoadMetadata(context.Background(), meta)
+	report, err := c.LoadMetadata(context.Background(), metadataFixture(t, m))
 	if err != nil {
 		t.Fatal(err)
 	}
