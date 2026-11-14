@@ -81,6 +81,13 @@ var explainFormCases = []explainFormCase{
 	{"EXPLAIN FOR connection 42", true},
 	{"EXPLAIN FOR CONNECTION 0", true},
 	{"EXPLAIN FOR CONNECTION 18446744073709551615", true},
+	// real_ulong_num takes HEX_NUM, which is both spellings, held to the
+	// literal's own digits.
+	{"EXPLAIN FOR CONNECTION 0x1", true},
+	{"EXPLAIN FOR CONNECTION X'01'", true},
+	{"EXPLAIN FOR CONNECTION X'GG'", false},
+	{"EXPLAIN FOR CONNECTION X'4'", false},
+	{"EXPLAIN FOR CONNECTION b'1'", false},
 	{"EXPLAIN FORMAT = 'traditional' FOR CONNECTION 1", true},
 	{"EXPLAIN FORMAT = TREE FOR CONNECTION 1", true},
 	// MySQL parses EXPLAIN ANALYZE FOR CONNECTION and answers 1235, where

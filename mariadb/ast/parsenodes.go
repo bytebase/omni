@@ -28,6 +28,7 @@ type SelectStmt struct {
 	ForUpdate         *ForUpdate         // FOR UPDATE / SHARE
 	WindowClause      []*WindowDef       // WINDOW clause
 	Into              *IntoClause        // INTO clause
+	Procedure         *ProcedureClause   // PROCEDURE name(args), in INTO's place (opt_procedure_or_into)
 	SetOp             SetOperation       // UNION / INTERSECT / EXCEPT
 	SetAll            bool               // ALL modifier for set operations
 	Left              *SelectStmt        // left side of set operation
@@ -1236,6 +1237,15 @@ type Limit struct {
 	// opposite positions, so deparse must reproduce the original form to keep
 	// the positional binding order. False when there is no offset.
 	OffsetKeyword bool
+	// Fetch marks the SQL standard spelling MariaDB takes in LIMIT's place
+	// (fetch_first_clause): [OFFSET offset {ROW | ROWS}] FETCH {FIRST | NEXT}
+	// [count] {ROW | ROWS} {ONLY | WITH TIES}, or the OFFSET part alone.
+	// Count is an IntLit 1 at Loc -1 when FETCH leaves the count out, and nil
+	// when there is no FETCH.
+	Fetch bool
+	// WithTies is FETCH's WITH TIES, which keeps the rows that tie with the
+	// last one in the ORDER BY.
+	WithTies bool
 }
 
 func (l *Limit) nodeTag() {}
@@ -1354,6 +1364,16 @@ const (
 	BoundFollowing
 	BoundUnboundedFollowing
 )
+
+// ProcedureClause is a SELECT statement's PROCEDURE name(args), which hands
+// the result to a server procedure such as ANALYSE (MariaDB's procedure_clause).
+type ProcedureClause struct {
+	Loc  Loc
+	Name string
+	Args []ExprNode
+}
+
+func (c *ProcedureClause) nodeTag() {}
 
 // IntoClause represents a SELECT ... INTO clause.
 type IntoClause struct {
@@ -1497,9 +1517,14 @@ type ExplainStmt struct {
 	Format        string // any ident_or_text: JSON, TRADITIONAL, quoted or not
 	Analyze       bool   // EXPLAIN ANALYZE: no MariaDB syntax sets this
 	Extended      bool   // EXPLAIN EXTENDED
+	ExtendedAll   bool   // EXPLAIN EXTENDED ALL, which sets Extended too
 	Partitions    bool   // EXPLAIN PARTITIONS
 	ForConnection int64  // EXPLAIN FOR CONNECTION connection_id
-	Stmt          StmtNode
+	// Connection is the expression FOR CONNECTION reads, which MariaDB takes
+	// whole (explain_for_connection: FOR_SYM CONNECTION_SYM expr). ForConnection
+	// holds its value when it is an integer literal.
+	Connection ExprNode
+	Stmt       StmtNode
 }
 
 func (s *ExplainStmt) nodeTag()  {}

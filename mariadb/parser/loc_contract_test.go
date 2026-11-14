@@ -249,6 +249,7 @@ var locSpanCases = []struct {
 	{"PositionExpr", "SELECT POSITION('b' IN 'abc')", "POSITION('b' IN 'abc')", 0},
 	{"PrepareStmt", "PREPARE stmt FROM 'SELECT ?'", "PREPARE stmt FROM 'SELECT ?'", 0},
 	{"PreviousValueForExpr", "SELECT PREVIOUS VALUE FOR sq", "PREVIOUS VALUE FOR sq", 0},
+	{"ProcedureClause", "SELECT a FROM t PROCEDURE ANALYSE(10, 2) FOR UPDATE", "PROCEDURE ANALYSE(10, 2)", 0},
 	{"PurgeBinaryLogsStmt", "PURGE BINARY LOGS TO 'mysql-bin.010'", "PURGE BINARY LOGS TO 'mysql-bin.010'", 0},
 	{"RegistrationOp", "ALTER USER USER() 2 FACTOR UNREGISTER", "2 FACTOR UNREGISTER", 0},
 	{"RenameTablePair", "RENAME TABLE t1 TO t2", "t1 TO t2", 0},

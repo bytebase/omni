@@ -285,6 +285,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeForUpdate(sb, n)
 	case *IntoClause:
 		writeIntoClause(sb, n)
+	case *ProcedureClause:
+		writeProcedureClause(sb, n)
 	case *RenameTablePair:
 		writeRenameTablePair(sb, n)
 	case *LockTable:
@@ -595,6 +597,10 @@ func writeSelectStmt(sb *strings.Builder, n *SelectStmt) {
 	if n.Into != nil {
 		sb.WriteString(" :into ")
 		writeNode(sb, n.Into)
+	}
+	if n.Procedure != nil {
+		sb.WriteString(" :procedure ")
+		writeNode(sb, n.Procedure)
 	}
 	if n.SetOp != SetOpNone {
 		sb.WriteString(" :set_op ")
@@ -1216,6 +1222,9 @@ func writeExplainStmt(sb *strings.Builder, n *ExplainStmt) {
 	if n.Extended {
 		sb.WriteString(" :extended true")
 	}
+	if n.ExtendedAll {
+		sb.WriteString(" :extended_all true")
+	}
 	if n.Partitions {
 		sb.WriteString(" :partitions true")
 	}
@@ -1224,6 +1233,10 @@ func writeExplainStmt(sb *strings.Builder, n *ExplainStmt) {
 	}
 	if n.ForConnection != 0 {
 		fmt.Fprintf(sb, " :for_connection %d", n.ForConnection)
+	}
+	if n.Connection != nil {
+		sb.WriteString(" :connection ")
+		writeNode(sb, n.Connection)
 	}
 	if n.Stmt != nil {
 		sb.WriteString(" :stmt ")
@@ -2740,6 +2753,12 @@ func writeLimit(sb *strings.Builder, n *Limit) {
 		sb.WriteString(" :offset ")
 		writeNode(sb, n.Offset)
 	}
+	if n.Fetch {
+		sb.WriteString(" :fetch true")
+	}
+	if n.WithTies {
+		sb.WriteString(" :with_ties true")
+	}
 	sb.WriteString("}")
 }
 
@@ -3307,6 +3326,16 @@ func writeForUpdate(sb *strings.Builder, n *ForUpdate) {
 	}
 	if n.SkipLocked {
 		sb.WriteString(" :skip_locked true")
+	}
+	sb.WriteString("}")
+}
+
+func writeProcedureClause(sb *strings.Builder, n *ProcedureClause) {
+	sb.WriteString("{PROCEDURE")
+	fmt.Fprintf(sb, " :name %s :loc %d", n.Name, n.Loc.Start)
+	if len(n.Args) > 0 {
+		sb.WriteString(" :args ")
+		writeExprNodeList(sb, n.Args)
 	}
 	sb.WriteString("}")
 }

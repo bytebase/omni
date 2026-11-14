@@ -110,6 +110,30 @@ var explainFormCases = []explainFormCase{
 	{"EXPLAIN FOR CONNECTION", false},
 	{"EXPLAIN FOR 1", false},
 	{"EXPLAIN FORMAT = JSON FOR CONNECTION", false},
+	// The id is an expression (explain_for_connection), where MySQL 8.0.46 and
+	// TiDB v8.5.5 take an unsigned integer alone.
+	{"EXPLAIN FOR CONNECTION 'x'", true},
+	{"EXPLAIN FOR CONNECTION 1.5", true},
+	{"EXPLAIN FOR CONNECTION @a", true},
+	{"EXPLAIN FOR CONNECTION -1", true},
+	{"EXPLAIN FOR CONNECTION 1+1", true},
+	{"EXPLAIN FOR CONNECTION (1)", true},
+	{"EXPLAIN FOR CONNECTION a", true},
+	{"EXPLAIN FOR CONNECTION t.a", true},
+	{"EXPLAIN FORMAT = JSON FOR CONNECTION 'x'", true},
+	{"DESCRIBE FOR CONNECTION 0x1", true},
+	{"EXPLAIN FOR CONNECTION 1 2", false},
+	// EXTENDED ALL, opt_extended_describe's other arm, takes a statement only.
+	{"EXPLAIN EXTENDED ALL SELECT 1", true},
+	{"DESC EXTENDED ALL DELETE FROM t1", true},
+	{"EXPLAIN EXTENDED ALL t1", false},
+	{"EXPLAIN EXTENDED ALL FOR CONNECTION 1", false},
+	// The column of the table form is text_string or an identifier, and
+	// text_string takes the hex and bit literals.
+	{"DESC t1 0x41", true},
+	{"DESC t1 x'41'", true},
+	{"DESC t1 b'1'", true},
+	{"DESC t1 X'4'", false},
 
 	// The explainable statement.
 	{"EXPLAIN SELECT 1", true},
@@ -181,31 +205,6 @@ var explainFormCases = []explainFormCase{
 	{"EXPLAIN 'sqldigest'", false},
 }
 
-// explainFormConnectionIDDivergences are the FOR CONNECTION ids MariaDB 11.8.8
-// parses and this parser turns away. MariaDB reads a whole expression there --
-// a signed number, a string literal, a user variable, a sum, a parenthesized
-// value and a column reference all reach the server, where MySQL 8.0.46 and
-// TiDB v8.5.5 answer 1064 for every one of them -- while ExplainStmt holds a
-// connection id, which is the documented form. Reading the rest would mean an
-// expression field beside that id, for input no layer above the parser could
-// use, so the id stays an unsigned integer here.
-//
-// The divergence is pinned in both directions by
-// TestExplainFormConnectionIDDivergences: MariaDB must still accept each one
-// and this parser must still reject it, so the day either side changes, this
-// list is what fails.
-var explainFormConnectionIDDivergences = []string{
-	"EXPLAIN FOR CONNECTION 'x'",
-	"EXPLAIN FOR CONNECTION 1.5",
-	"EXPLAIN FOR CONNECTION @a",
-	"EXPLAIN FOR CONNECTION -1",
-	"EXPLAIN FOR CONNECTION 1+1",
-	"EXPLAIN FOR CONNECTION (1)",
-	"EXPLAIN FOR CONNECTION a",
-	"EXPLAIN FOR CONNECTION t.a",
-	"EXPLAIN FORMAT = JSON FOR CONNECTION 'x'",
-}
-
 // explainFormEmptyFormatTableForm are statements where an empty format name
 // stands in front of the table form. A modifier rules that form out, so each
 // is a syntax error, and the guard that says so has to track whether FORMAT
@@ -254,16 +253,6 @@ func TestExplainFormsRejected(t *testing.T) {
 		t.Run(c.sql, func(t *testing.T) {
 			if _, err := Parse(c.sql); err == nil {
 				t.Fatalf("Parse(%q) was accepted, but MariaDB 11.8 rejects it", c.sql)
-			}
-		})
-	}
-}
-
-func TestExplainFormConnectionIDDivergencesRejected(t *testing.T) {
-	for _, sql := range explainFormConnectionIDDivergences {
-		t.Run(sql, func(t *testing.T) {
-			if _, err := Parse(sql); err == nil {
-				t.Fatalf("Parse(%q) was accepted; this parser reads an unsigned integer connection id", sql)
 			}
 		})
 	}

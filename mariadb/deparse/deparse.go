@@ -58,6 +58,7 @@ func writeSelectStmt(b *strings.Builder, stmt *ast.SelectStmt, suppressAlias boo
 	// silently loses the inner query.
 	if stmt.ParenSource != nil {
 		writeParenSource(b, stmt)
+		writeProcedure(b, stmt.Procedure)
 		return
 	}
 
@@ -68,6 +69,7 @@ func writeSelectStmt(b *strings.Builder, stmt *ast.SelectStmt, suppressAlias boo
 
 	if stmt.ValuesSource != nil {
 		b.WriteString(deparseValuesQueryPrimary(stmt))
+		writeProcedure(b, stmt.Procedure)
 		return
 	}
 
@@ -179,6 +181,8 @@ func writeSelectStmt(b *strings.Builder, stmt *ast.SelectStmt, suppressAlias boo
 		writeLimit(b, stmt.Limit)
 	}
 
+	writeProcedure(b, stmt.Procedure)
+
 	// FOR UPDATE / FOR SHARE / LOCK IN SHARE MODE
 	if stmt.ForUpdate != nil {
 		b.WriteString(" ")
@@ -220,6 +224,26 @@ func deparseForUpdate(fu *ast.ForUpdate) string {
 // '(' inner ')', and the OUTER trailing ORDER BY / LIMIT held on the wrapper.
 // The inner query keeps its own clauses, so both scopes round-trip (e.g.
 // "(select 1 limit 5) limit 2").
+// writeProcedure writes a statement's PROCEDURE name(args). No view holds one
+// (mariadb:11.8.8 answers 1064 for it in CREATE VIEW), so this is the statement
+// as written. It follows a SELECT's LIMIT, a VALUES list and a parenthesized
+// query alike: (SELECT 1) PROCEDURE ANALYSE() parses.
+func writeProcedure(b *strings.Builder, pc *ast.ProcedureClause) {
+	if pc == nil {
+		return
+	}
+	b.WriteString(" procedure ")
+	b.WriteString(quoteIdent(pc.Name))
+	b.WriteString("(")
+	for i, arg := range pc.Args {
+		if i > 0 {
+			b.WriteString(",")
+		}
+		writeExpr(b, arg)
+	}
+	b.WriteString(")")
+}
+
 func writeParenSource(b *strings.Builder, stmt *ast.SelectStmt) {
 	if len(stmt.CTEs) > 0 {
 		writeCTEs(b, stmt.CTEs)
@@ -319,7 +343,36 @@ func limitHasParamMarker(limit *ast.Limit) bool {
 // but reorders the positional bindings of `?` parameter markers; when a marker
 // is present and the source used the OFFSET keyword, the original
 // `limit count offset offset` form is reproduced so the binding order is kept.
+//
+// FETCH FIRST is stored as the LIMIT it means, unless it keeps its ties.
+// Measured on mariadb:11.8.8 through SHOW CREATE VIEW:
+//
+//	FETCH FIRST ROW ONLY                         limit 1
+//	OFFSET 1 ROWS FETCH NEXT 3 ROWS ONLY         limit 1,3
+//	FETCH FIRST 2 ROWS WITH TIES                 fetch first 2 rows with ties
+//	OFFSET 1 ROWS FETCH NEXT 3 ROWS WITH TIES    offset 1 rows  fetch first 3 rows with ties
+//	OFFSET 2 ROWS                                (nothing: the server drops it)
+//
+// A bare OFFSET whose value is a `?` parameter marker is kept as written,
+// since dropping it would drop a positional binding: no view holds a marker.
 func writeLimit(b *strings.Builder, limit *ast.Limit) {
+	if limit.Count == nil {
+		if _, ok := limit.Offset.(*ast.ParamMarkerExpr); ok {
+			b.WriteString(" offset ? rows")
+		}
+		return
+	}
+	if limit.WithTies {
+		if limit.Offset != nil {
+			b.WriteString(" offset ")
+			writeExpr(b, limit.Offset)
+			b.WriteString(" rows ")
+		}
+		b.WriteString(" fetch first ")
+		writeExpr(b, limit.Count)
+		b.WriteString(" rows with ties")
+		return
+	}
 	b.WriteString(" limit ")
 	if limit.Offset != nil {
 		if limit.OffsetKeyword && limitHasParamMarker(limit) {
@@ -348,18 +401,7 @@ func appendOrderByLimit(b *strings.Builder, orderBy []*ast.OrderByItem, limit *a
 		}
 	}
 	if limit != nil {
-		b.WriteString(" limit ")
-		if limit.Offset != nil {
-			if limit.OffsetKeyword && limitHasParamMarker(limit) {
-				b.WriteString(deparseExpr(limit.Count))
-				b.WriteString(" offset ")
-				b.WriteString(deparseExpr(limit.Offset))
-				return
-			}
-			b.WriteString(deparseExpr(limit.Offset))
-			b.WriteString(",")
-		}
-		b.WriteString(deparseExpr(limit.Count))
+		writeLimit(b, limit)
 	}
 }
 
@@ -1112,6 +1154,34 @@ func writeOrderByLimitAlias(b *strings.Builder, orderBy []*ast.OrderByItem, limi
 				b.WriteString(" DESC")
 			}
 		}
+	}
+	if limit != nil && limit.Fetch {
+		// The name is the text as written, and FETCH is written in its own
+		// words: OFFSET 2 ROWS, FETCH FIRST ROW ONLY, FETCH FIRST 3 ROWS WITH TIES.
+		// FIRST and NEXT, and ROW and ROWS, are one choice each; the AST keeps
+		// neither, so the name takes FIRST and ROW for an implied count of one
+		// and ROWS otherwise.
+		if limit.Offset != nil {
+			b.WriteString(" OFFSET ")
+			writeExprAlias(b, limit.Offset)
+			b.WriteString(" ROWS")
+		}
+		if limit.Count == nil {
+			return
+		}
+		b.WriteString(" FETCH FIRST ")
+		if lit, ok := limit.Count.(*ast.IntLit); ok && lit.Loc.Start < 0 {
+			b.WriteString("ROW")
+		} else {
+			writeExprAlias(b, limit.Count)
+			b.WriteString(" ROWS")
+		}
+		if limit.WithTies {
+			b.WriteString(" WITH TIES")
+		} else {
+			b.WriteString(" ONLY")
+		}
+		return
 	}
 	if limit != nil {
 		b.WriteString(" LIMIT ")
