@@ -646,7 +646,7 @@ reject	reject	engine	statement/showComputeNodesStatement!truncate	SHOW COMPUTE
 reject	reject	engine	statement/showComputeNodesStatement!insert	SHOW COMPUTE NODES zzz;
 reject	reject	engine	statement/showComputeNodesStatement!swap	SIGNED COMPUTE NODES;
 accept	accept	engine	statement/analyzeStatement	ANALYZE TABLE a;
-accept	reject	engine	statement/analyzeStatement!drop-2	ANALYZE a;
+reject	reject	engine	statement/analyzeStatement!drop-2	ANALYZE a;
 reject	reject	engine	statement/analyzeStatement!drop-3	ANALYZE TABLE;
 reject	reject	engine	statement/analyzeStatement!truncate	ANALYZE TABLE
 reject	reject	engine	statement/analyzeStatement!insert	ANALYZE TABLE a zzz;
@@ -657,21 +657,21 @@ reject	reject	engine	statement/dropStatsStatement!drop-3	DROP STATS;
 reject	reject	engine	statement/dropStatsStatement!truncate	DROP STATS
 reject	reject	engine	statement/dropStatsStatement!insert	DROP STATS a zzz;
 reject	reject	engine	statement/dropStatsStatement!swap	DUAL STATS a;
-reject	accept	engine	statement/createAnalyzeStatement	CREATE ANALYZE ALL;
+accept	accept	engine	statement/createAnalyzeStatement	CREATE ANALYZE ALL;
 reject	reject	engine	statement/createAnalyzeStatement!drop-1	ANALYZE ALL;
 reject	reject	engine	statement/createAnalyzeStatement!drop-2	CREATE ALL;
 reject	reject	engine	statement/createAnalyzeStatement!drop-3	CREATE ANALYZE;
 reject	reject	engine	statement/createAnalyzeStatement!truncate	CREATE ANALYZE
 reject	reject	engine	statement/createAnalyzeStatement!insert	CREATE ANALYZE ALL zzz;
 reject	reject	engine	statement/createAnalyzeStatement!swap	CROSS ANALYZE ALL;
-reject	accept	engine	statement/dropAnalyzeJobStatement	DROP ANALYZE 1;
+accept	accept	engine	statement/dropAnalyzeJobStatement	DROP ANALYZE 1;
 reject	reject	engine	statement/dropAnalyzeJobStatement!drop-1	ANALYZE 1;
 reject	reject	engine	statement/dropAnalyzeJobStatement!drop-2	DROP 1;
 reject	reject	engine	statement/dropAnalyzeJobStatement!drop-3	DROP ANALYZE;
 reject	reject	engine	statement/dropAnalyzeJobStatement!truncate	DROP ANALYZE
 reject	reject	engine	statement/dropAnalyzeJobStatement!insert	DROP ANALYZE 1 zzz;
 reject	reject	engine	statement/dropAnalyzeJobStatement!swap	DUAL ANALYZE 1;
-reject	accept	engine	statement/analyzeHistogramStatement	ANALYZE TABLE a UPDATE HISTOGRAM ON a;
+accept	accept	engine	statement/analyzeHistogramStatement	ANALYZE TABLE a UPDATE HISTOGRAM ON a;
 reject	reject	engine	statement/analyzeHistogramStatement!drop-1	TABLE a UPDATE HISTOGRAM ON a;
 reject	reject	engine	statement/analyzeHistogramStatement!drop-2	ANALYZE a UPDATE HISTOGRAM ON a;
 reject	reject	engine	statement/analyzeHistogramStatement!drop-3	ANALYZE TABLE UPDATE HISTOGRAM ON a;
@@ -682,7 +682,7 @@ reject	reject	engine	statement/analyzeHistogramStatement!drop-7	ANALYZE TABLE a 
 reject	reject	engine	statement/analyzeHistogramStatement!truncate	ANALYZE TABLE a UPDATE HISTOGRAM ON
 reject	reject	engine	statement/analyzeHistogramStatement!insert	ANALYZE TABLE a UPDATE HISTOGRAM ON a zzz;
 reject	reject	engine	statement/analyzeHistogramStatement!swap	AND TABLE a UPDATE HISTOGRAM ON a;
-reject	accept	engine	statement/dropHistogramStatement	ANALYZE TABLE a DROP HISTOGRAM ON a;
+accept	accept	engine	statement/dropHistogramStatement	ANALYZE TABLE a DROP HISTOGRAM ON a;
 reject	reject	engine	statement/dropHistogramStatement!drop-1	TABLE a DROP HISTOGRAM ON a;
 reject	reject	engine	statement/dropHistogramStatement!drop-2	ANALYZE a DROP HISTOGRAM ON a;
 reject	reject	engine	statement/dropHistogramStatement!drop-3	ANALYZE TABLE DROP HISTOGRAM ON a;
@@ -693,7 +693,7 @@ reject	reject	engine	statement/dropHistogramStatement!truncate	ANALYZE TABLE a D
 reject	reject	engine	statement/dropHistogramStatement!insert	ANALYZE TABLE a DROP HISTOGRAM ON a zzz;
 reject	reject	engine	statement/dropHistogramStatement!swap	AND TABLE a DROP HISTOGRAM ON a;
 accept	accept	engine	statement/showAnalyzeStatement	SHOW ANALYZE;
-accept	reject	engine	statement/showAnalyzeStatement!drop-1	ANALYZE;
+reject	reject	engine	statement/showAnalyzeStatement!drop-1	ANALYZE;
 reject	reject	engine	statement/showAnalyzeStatement!insert	SHOW ANALYZE zzz;
 reject	reject	engine	statement/showAnalyzeStatement!swap	SIGNED ANALYZE;
 accept	accept	engine	statement/showStatsMetaStatement	SHOW STATS META;
@@ -714,7 +714,7 @@ reject	reject	engine	statement/killAnalyzeStatement!drop-3	KILL ANALYZE;
 reject	reject	engine	statement/killAnalyzeStatement!truncate	KILL ANALYZE
 reject	reject	engine	statement/killAnalyzeStatement!insert	KILL ANALYZE 1 zzz;
 reject	reject	engine	statement/killAnalyzeStatement!swap	LABEL ANALYZE 1;
-reject	accept	engine	statement/analyzeProfileStatement	ANALYZE PROFILE FROM 'a';
+accept	accept	engine	statement/analyzeProfileStatement	ANALYZE PROFILE FROM 'a';
 reject	reject	engine	statement/analyzeProfileStatement!drop-1	PROFILE FROM 'a';
 reject	reject	engine	statement/analyzeProfileStatement!drop-2	ANALYZE FROM 'a';
 reject	reject	engine	statement/analyzeProfileStatement!drop-3	ANALYZE PROFILE 'a';
@@ -4954,40 +4954,40 @@ reject	reject	engine	showStreamLoadStatement(limitElement)?/limitElement!swap	SH
 accept	accept	engine	analyzeStatement/ANALYZE_(FULL|SAMPLE)?_TABLE_qualifiedName_((_qualified~5ec05cf9	ANALYZE TABLE a;
 accept	accept	engine	analyzeStatement(FULL|SAMPLE)?/%empty	ANALYZE TABLE a;
 reject	reject	engine	analyzeStatement(FULL|SAMPLE)?/%empty!insert	ANALYZE zzz TABLE a;
-reject	accept	engine	analyzeStatement(FULL|SAMPLE)?/FULL	ANALYZE FULL TABLE a;
-accept	reject	engine	analyzeStatement(FULL|SAMPLE)?/FULL!truncate	ANALYZE
+accept	accept	engine	analyzeStatement(FULL|SAMPLE)?/FULL	ANALYZE FULL TABLE a;
+reject	reject	engine	analyzeStatement(FULL|SAMPLE)?/FULL!truncate	ANALYZE
 reject	reject	engine	analyzeStatement(FULL|SAMPLE)?/FULL!insert	ANALYZE FULL zzz TABLE a;
 reject	reject	engine	analyzeStatement(FULL|SAMPLE)?/FULL!swap	ANALYZE FUNCTION TABLE a;
-reject	accept	engine	analyzeStatement(FULL|SAMPLE)?/SAMPLE	ANALYZE SAMPLE TABLE a;
+accept	accept	engine	analyzeStatement(FULL|SAMPLE)?/SAMPLE	ANALYZE SAMPLE TABLE a;
 reject	reject	engine	analyzeStatement(FULL|SAMPLE)?/SAMPLE!insert	ANALYZE SAMPLE zzz TABLE a;
 reject	reject	engine	analyzeStatement(FULL|SAMPLE)?/SAMPLE!swap	ANALYZE SCHEDULE TABLE a;
 accept	accept	engine	analyzeStatement((_qualifiedName_(,_qualifiedName)*_))?/%empty	ANALYZE TABLE a;
 accept	accept	engine	analyzeStatement((_qualifiedName_(,_qualifiedName)*_))?/(_qualifiedName_(,_qualifiedName)*_)	ANALYZE TABLE a(a);
 reject	reject	engine	analyzeStatement((_qualifiedName_(,_qualifiedName)*_))?/(_qualifiedName_(,_qualifiedName)*_)!drop-1	ANALYZE TABLE a a);
-accept	reject	engine	analyzeStatement((_qualifiedName_(,_qualifiedName)*_))?/(_qualifiedName_(,_qualifiedName)*_)!drop-2	ANALYZE TABLE a();
+reject	reject	engine	analyzeStatement((_qualifiedName_(,_qualifiedName)*_))?/(_qualifiedName_(,_qualifiedName)*_)!drop-2	ANALYZE TABLE a();
 reject	reject	engine	analyzeStatement((_qualifiedName_(,_qualifiedName)*_))?/(_qualifiedName_(,_qualifiedName)*_)!drop-3	ANALYZE TABLE a(a;
 reject	reject	engine	analyzeStatement((_qualifiedName_(,_qualifiedName)*_))?/(_qualifiedName_(,_qualifiedName)*_)!truncate	ANALYZE TABLE a(a
 reject	reject	engine	analyzeStatement((_qualifiedName_(,_qualifiedName)*_))?/(_qualifiedName_(,_qualifiedName)*_)!insert	ANALYZE TABLE a(a) zzz;
 accept	accept	engine	analyzeStatement(,_qualifiedName)*/%empty	ANALYZE TABLE a(a);
-accept	reject	engine	analyzeStatement(,_qualifiedName)*/%empty!insert	ANALYZE TABLE a(a zzz);
+reject	reject	engine	analyzeStatement(,_qualifiedName)*/%empty!insert	ANALYZE TABLE a(a zzz);
 accept	accept	engine	analyzeStatement(,_qualifiedName)*/,_qualifiedName_(,_qualifiedName)*	ANALYZE TABLE a(a, a);
-accept	reject	engine	analyzeStatement(,_qualifiedName)*/,_qualifiedName_(,_qualifiedName)*!drop-1	ANALYZE TABLE a(a a);
-accept	reject	engine	analyzeStatement(,_qualifiedName)*/,_qualifiedName_(,_qualifiedName)*!drop-2	ANALYZE TABLE a(a,);
+reject	reject	engine	analyzeStatement(,_qualifiedName)*/,_qualifiedName_(,_qualifiedName)*!drop-1	ANALYZE TABLE a(a a);
+reject	reject	engine	analyzeStatement(,_qualifiedName)*/,_qualifiedName_(,_qualifiedName)*!drop-2	ANALYZE TABLE a(a,);
 reject	reject	engine	analyzeStatement(,_qualifiedName)*/,_qualifiedName_(,_qualifiedName)*!truncate	ANALYZE TABLE a(a,
-accept	reject	engine	analyzeStatement(,_qualifiedName)*/,_qualifiedName_(,_qualifiedName)*!insert	ANALYZE TABLE a(a, a zzz);
+reject	reject	engine	analyzeStatement(,_qualifiedName)*/,_qualifiedName_(,_qualifiedName)*!insert	ANALYZE TABLE a(a, a zzz);
 accept	accept	engine	analyzeStatement(WITH_(SYNC|ASYNC)_MODE)?/%empty	ANALYZE TABLE a;
-reject	accept	engine	analyzeStatement(WITH_(SYNC|ASYNC)_MODE)?/WITH_(SYNC|ASYNC)_MODE	ANALYZE TABLE a WITH SYNC MODE;
+accept	accept	engine	analyzeStatement(WITH_(SYNC|ASYNC)_MODE)?/WITH_(SYNC|ASYNC)_MODE	ANALYZE TABLE a WITH SYNC MODE;
 reject	reject	engine	analyzeStatement(WITH_(SYNC|ASYNC)_MODE)?/WITH_(SYNC|ASYNC)_MODE!drop-1	ANALYZE TABLE a SYNC MODE;
-accept	reject	engine	analyzeStatement(WITH_(SYNC|ASYNC)_MODE)?/WITH_(SYNC|ASYNC)_MODE!drop-2	ANALYZE TABLE a WITH MODE;
-accept	reject	engine	analyzeStatement(WITH_(SYNC|ASYNC)_MODE)?/WITH_(SYNC|ASYNC)_MODE!drop-3	ANALYZE TABLE a WITH SYNC;
-accept	reject	engine	analyzeStatement(WITH_(SYNC|ASYNC)_MODE)?/WITH_(SYNC|ASYNC)_MODE!truncate	ANALYZE TABLE a WITH SYNC
+reject	reject	engine	analyzeStatement(WITH_(SYNC|ASYNC)_MODE)?/WITH_(SYNC|ASYNC)_MODE!drop-2	ANALYZE TABLE a WITH MODE;
+reject	reject	engine	analyzeStatement(WITH_(SYNC|ASYNC)_MODE)?/WITH_(SYNC|ASYNC)_MODE!drop-3	ANALYZE TABLE a WITH SYNC;
+reject	reject	engine	analyzeStatement(WITH_(SYNC|ASYNC)_MODE)?/WITH_(SYNC|ASYNC)_MODE!truncate	ANALYZE TABLE a WITH SYNC
 reject	reject	engine	analyzeStatement(WITH_(SYNC|ASYNC)_MODE)?/WITH_(SYNC|ASYNC)_MODE!insert	ANALYZE TABLE a WITH SYNC MODE zzz;
 reject	reject	engine	analyzeStatement(WITH_(SYNC|ASYNC)_MODE)?/WITH_(SYNC|ASYNC)_MODE!swap	ANALYZE TABLE a WORK SYNC MODE;
-reject	accept	engine	analyzeStatement(SYNC|ASYNC)/SYNC	ANALYZE TABLE a WITH SYNC MODE;
+accept	accept	engine	analyzeStatement(SYNC|ASYNC)/SYNC	ANALYZE TABLE a WITH SYNC MODE;
 reject	reject	engine	analyzeStatement(SYNC|ASYNC)/SYNC!truncate	ANALYZE TABLE a WITH
 reject	reject	engine	analyzeStatement(SYNC|ASYNC)/SYNC!insert	ANALYZE TABLE a WITH SYNC zzz MODE;
 reject	reject	engine	analyzeStatement(SYNC|ASYNC)/SYNC!swap	ANALYZE TABLE a WITH SYSTEM MODE;
-reject	accept	engine	analyzeStatement(SYNC|ASYNC)/ASYNC	ANALYZE TABLE a WITH ASYNC MODE;
+accept	accept	engine	analyzeStatement(SYNC|ASYNC)/ASYNC	ANALYZE TABLE a WITH ASYNC MODE;
 reject	reject	engine	analyzeStatement(SYNC|ASYNC)/ASYNC!insert	ANALYZE TABLE a WITH ASYNC zzz MODE;
 reject	reject	engine	analyzeStatement(SYNC|ASYNC)/ASYNC!swap	ANALYZE TABLE a WITH AUTHENTICATION MODE;
 accept	accept	engine	analyzeStatement(properties)?/%empty	ANALYZE TABLE a;
@@ -5002,23 +5002,23 @@ reject	reject	engine	analyzeStatement(properties)?/properties!truncate	ANALYZE T
 reject	reject	engine	analyzeStatement(properties)?/properties!insert	ANALYZE TABLE a PROPERTIES('a' = 'a') zzz;
 reject	reject	engine	analyzeStatement(properties)?/properties!swap	ANALYZE TABLE a PROPERTY('a' = 'a');
 accept	accept	engine	dropStatsStatement/DROP_STATS_qualifiedName	DROP STATS a;
-reject	accept	engine	histogramStatement/ANALYZE_TABLE_qualifiedName_UPDATE_HISTOGRAM_ON_qualifi~a1d790b0	ANALYZE TABLE a UPDATE HISTOGRAM ON a;
-reject	accept	engine	histogramStatement(,_qualifiedName)*/%empty	ANALYZE TABLE a UPDATE HISTOGRAM ON a;
-reject	accept	engine	histogramStatement(,_qualifiedName)*/,_qualifiedName_(,_qualifiedName)*	ANALYZE TABLE a UPDATE HISTOGRAM ON a, a;
+accept	accept	engine	histogramStatement/ANALYZE_TABLE_qualifiedName_UPDATE_HISTOGRAM_ON_qualifi~a1d790b0	ANALYZE TABLE a UPDATE HISTOGRAM ON a;
+accept	accept	engine	histogramStatement(,_qualifiedName)*/%empty	ANALYZE TABLE a UPDATE HISTOGRAM ON a;
+accept	accept	engine	histogramStatement(,_qualifiedName)*/,_qualifiedName_(,_qualifiedName)*	ANALYZE TABLE a UPDATE HISTOGRAM ON a, a;
 reject	reject	engine	histogramStatement(,_qualifiedName)*/,_qualifiedName_(,_qualifiedName)*!drop-1	ANALYZE TABLE a UPDATE HISTOGRAM ON a a;
 reject	reject	engine	histogramStatement(,_qualifiedName)*/,_qualifiedName_(,_qualifiedName)*!drop-2	ANALYZE TABLE a UPDATE HISTOGRAM ON a,;
 reject	reject	engine	histogramStatement(,_qualifiedName)*/,_qualifiedName_(,_qualifiedName)*!truncate	ANALYZE TABLE a UPDATE HISTOGRAM ON a,
 reject	reject	engine	histogramStatement(,_qualifiedName)*/,_qualifiedName_(,_qualifiedName)*!insert	ANALYZE TABLE a UPDATE HISTOGRAM ON a, a zzz;
-reject	accept	engine	histogramStatement(WITH_INTEGER_VALUE_BUCKETS)?/%empty	ANALYZE TABLE a UPDATE HISTOGRAM ON a;
-reject	accept	engine	histogramStatement(WITH_INTEGER_VALUE_BUCKETS)?/WITH_INTEGER_VALUE_BUCKETS	ANALYZE TABLE a UPDATE HISTOGRAM ON a WITH 1 BUCKETS;
+accept	accept	engine	histogramStatement(WITH_INTEGER_VALUE_BUCKETS)?/%empty	ANALYZE TABLE a UPDATE HISTOGRAM ON a;
+accept	accept	engine	histogramStatement(WITH_INTEGER_VALUE_BUCKETS)?/WITH_INTEGER_VALUE_BUCKETS	ANALYZE TABLE a UPDATE HISTOGRAM ON a WITH 1 BUCKETS;
 reject	reject	engine	histogramStatement(WITH_INTEGER_VALUE_BUCKETS)?/WITH_INTEGER_VALUE_BUCKETS!drop-1	ANALYZE TABLE a UPDATE HISTOGRAM ON a 1 BUCKETS;
 reject	reject	engine	histogramStatement(WITH_INTEGER_VALUE_BUCKETS)?/WITH_INTEGER_VALUE_BUCKETS!drop-2	ANALYZE TABLE a UPDATE HISTOGRAM ON a WITH BUCKETS;
 reject	reject	engine	histogramStatement(WITH_INTEGER_VALUE_BUCKETS)?/WITH_INTEGER_VALUE_BUCKETS!drop-3	ANALYZE TABLE a UPDATE HISTOGRAM ON a WITH 1;
 reject	reject	engine	histogramStatement(WITH_INTEGER_VALUE_BUCKETS)?/WITH_INTEGER_VALUE_BUCKETS!truncate	ANALYZE TABLE a UPDATE HISTOGRAM ON a WITH 1
 reject	reject	engine	histogramStatement(WITH_INTEGER_VALUE_BUCKETS)?/WITH_INTEGER_VALUE_BUCKETS!insert	ANALYZE TABLE a UPDATE HISTOGRAM ON a WITH 1 BUCKETS zzz;
 reject	reject	engine	histogramStatement(WITH_INTEGER_VALUE_BUCKETS)?/WITH_INTEGER_VALUE_BUCKETS!swap	ANALYZE TABLE a UPDATE HISTOGRAM ON a WORK 1 BUCKETS;
-reject	accept	engine	histogramStatement(properties)?/%empty	ANALYZE TABLE a UPDATE HISTOGRAM ON a;
-reject	accept	engine	histogramStatement(properties)?/properties	ANALYZE TABLE a UPDATE HISTOGRAM ON a PROPERTIES('a' = 'a');
+accept	accept	engine	histogramStatement(properties)?/%empty	ANALYZE TABLE a UPDATE HISTOGRAM ON a;
+accept	accept	engine	histogramStatement(properties)?/properties	ANALYZE TABLE a UPDATE HISTOGRAM ON a PROPERTIES('a' = 'a');
 reject	reject	engine	histogramStatement(properties)?/properties!drop-1	ANALYZE TABLE a UPDATE HISTOGRAM ON a('a' = 'a');
 reject	reject	engine	histogramStatement(properties)?/properties!drop-2	ANALYZE TABLE a UPDATE HISTOGRAM ON a PROPERTIES 'a' = 'a');
 reject	reject	engine	histogramStatement(properties)?/properties!drop-3	ANALYZE TABLE a UPDATE HISTOGRAM ON a PROPERTIES(= 'a');
@@ -5028,43 +5028,43 @@ reject	reject	engine	histogramStatement(properties)?/properties!drop-6	ANALYZE T
 reject	reject	engine	histogramStatement(properties)?/properties!truncate	ANALYZE TABLE a UPDATE HISTOGRAM ON a PROPERTIES('a' = 'a'
 reject	reject	engine	histogramStatement(properties)?/properties!insert	ANALYZE TABLE a UPDATE HISTOGRAM ON a PROPERTIES('a' = 'a') zzz;
 reject	reject	engine	histogramStatement(properties)?/properties!swap	ANALYZE TABLE a UPDATE HISTOGRAM ON a PROPERTY('a' = 'a');
-reject	accept	engine	analyzeHistogramStatement/histogramStatement_(WITH_(SYNC|ASYNC)_MODE)?	ANALYZE TABLE a UPDATE HISTOGRAM ON a;
-reject	accept	engine	analyzeHistogramStatement(WITH_(SYNC|ASYNC)_MODE)?/%empty	ANALYZE TABLE a UPDATE HISTOGRAM ON a;
-reject	accept	engine	analyzeHistogramStatement(WITH_(SYNC|ASYNC)_MODE)?/WITH_(SYNC|ASYNC)_MODE	ANALYZE TABLE a UPDATE HISTOGRAM ON a WITH SYNC MODE;
+accept	accept	engine	analyzeHistogramStatement/histogramStatement_(WITH_(SYNC|ASYNC)_MODE)?	ANALYZE TABLE a UPDATE HISTOGRAM ON a;
+accept	accept	engine	analyzeHistogramStatement(WITH_(SYNC|ASYNC)_MODE)?/%empty	ANALYZE TABLE a UPDATE HISTOGRAM ON a;
+accept	accept	engine	analyzeHistogramStatement(WITH_(SYNC|ASYNC)_MODE)?/WITH_(SYNC|ASYNC)_MODE	ANALYZE TABLE a UPDATE HISTOGRAM ON a WITH SYNC MODE;
 reject	reject	engine	analyzeHistogramStatement(WITH_(SYNC|ASYNC)_MODE)?/WITH_(SYNC|ASYNC)_MODE!drop-1	ANALYZE TABLE a UPDATE HISTOGRAM ON a SYNC MODE;
 reject	reject	engine	analyzeHistogramStatement(WITH_(SYNC|ASYNC)_MODE)?/WITH_(SYNC|ASYNC)_MODE!drop-2	ANALYZE TABLE a UPDATE HISTOGRAM ON a WITH MODE;
 reject	reject	engine	analyzeHistogramStatement(WITH_(SYNC|ASYNC)_MODE)?/WITH_(SYNC|ASYNC)_MODE!drop-3	ANALYZE TABLE a UPDATE HISTOGRAM ON a WITH SYNC;
 reject	reject	engine	analyzeHistogramStatement(WITH_(SYNC|ASYNC)_MODE)?/WITH_(SYNC|ASYNC)_MODE!truncate	ANALYZE TABLE a UPDATE HISTOGRAM ON a WITH SYNC
 reject	reject	engine	analyzeHistogramStatement(WITH_(SYNC|ASYNC)_MODE)?/WITH_(SYNC|ASYNC)_MODE!insert	ANALYZE TABLE a UPDATE HISTOGRAM ON a WITH SYNC MODE zzz;
 reject	reject	engine	analyzeHistogramStatement(WITH_(SYNC|ASYNC)_MODE)?/WITH_(SYNC|ASYNC)_MODE!swap	ANALYZE TABLE a UPDATE HISTOGRAM ON a WORK SYNC MODE;
-reject	accept	engine	analyzeHistogramStatement(SYNC|ASYNC)/SYNC	ANALYZE TABLE a UPDATE HISTOGRAM ON a WITH SYNC MODE;
+accept	accept	engine	analyzeHistogramStatement(SYNC|ASYNC)/SYNC	ANALYZE TABLE a UPDATE HISTOGRAM ON a WITH SYNC MODE;
 reject	reject	engine	analyzeHistogramStatement(SYNC|ASYNC)/SYNC!truncate	ANALYZE TABLE a UPDATE HISTOGRAM ON a WITH
 reject	reject	engine	analyzeHistogramStatement(SYNC|ASYNC)/SYNC!insert	ANALYZE TABLE a UPDATE HISTOGRAM ON a WITH SYNC zzz MODE;
 reject	reject	engine	analyzeHistogramStatement(SYNC|ASYNC)/SYNC!swap	ANALYZE TABLE a UPDATE HISTOGRAM ON a WITH SYSTEM MODE;
-reject	accept	engine	analyzeHistogramStatement(SYNC|ASYNC)/ASYNC	ANALYZE TABLE a UPDATE HISTOGRAM ON a WITH ASYNC MODE;
+accept	accept	engine	analyzeHistogramStatement(SYNC|ASYNC)/ASYNC	ANALYZE TABLE a UPDATE HISTOGRAM ON a WITH ASYNC MODE;
 reject	reject	engine	analyzeHistogramStatement(SYNC|ASYNC)/ASYNC!insert	ANALYZE TABLE a UPDATE HISTOGRAM ON a WITH ASYNC zzz MODE;
 reject	reject	engine	analyzeHistogramStatement(SYNC|ASYNC)/ASYNC!swap	ANALYZE TABLE a UPDATE HISTOGRAM ON a WITH AUTHENTICATION MODE;
-reject	accept	engine	dropHistogramStatement/ANALYZE_TABLE_qualifiedName_DROP_HISTOGRAM_ON_qualified~a20b5dac	ANALYZE TABLE a DROP HISTOGRAM ON a;
-reject	accept	engine	dropHistogramStatement(,_qualifiedName)*/%empty	ANALYZE TABLE a DROP HISTOGRAM ON a;
-reject	accept	engine	dropHistogramStatement(,_qualifiedName)*/,_qualifiedName_(,_qualifiedName)*	ANALYZE TABLE a DROP HISTOGRAM ON a, a;
+accept	accept	engine	dropHistogramStatement/ANALYZE_TABLE_qualifiedName_DROP_HISTOGRAM_ON_qualified~a20b5dac	ANALYZE TABLE a DROP HISTOGRAM ON a;
+accept	accept	engine	dropHistogramStatement(,_qualifiedName)*/%empty	ANALYZE TABLE a DROP HISTOGRAM ON a;
+accept	accept	engine	dropHistogramStatement(,_qualifiedName)*/,_qualifiedName_(,_qualifiedName)*	ANALYZE TABLE a DROP HISTOGRAM ON a, a;
 reject	reject	engine	dropHistogramStatement(,_qualifiedName)*/,_qualifiedName_(,_qualifiedName)*!drop-1	ANALYZE TABLE a DROP HISTOGRAM ON a a;
 reject	reject	engine	dropHistogramStatement(,_qualifiedName)*/,_qualifiedName_(,_qualifiedName)*!drop-2	ANALYZE TABLE a DROP HISTOGRAM ON a,;
 reject	reject	engine	dropHistogramStatement(,_qualifiedName)*/,_qualifiedName_(,_qualifiedName)*!truncate	ANALYZE TABLE a DROP HISTOGRAM ON a,
 reject	reject	engine	dropHistogramStatement(,_qualifiedName)*/,_qualifiedName_(,_qualifiedName)*!insert	ANALYZE TABLE a DROP HISTOGRAM ON a, a zzz;
-reject	accept	engine	createAnalyzeStatement/CREATE_ANALYZE_(FULL|SAMPLE)?_ALL_(properties)?	CREATE ANALYZE ALL;
-reject	accept	engine	createAnalyzeStatement/CREATE_ANALYZE_(FULL|SAMPLE)?_DATABASE_identifier_(properties)?	CREATE ANALYZE DATABASE a;
-accept	reject	engine	createAnalyzeStatement/CREATE_ANALYZE_(FULL|SAMPLE)?_DATABASE_identifier_(properties)?!drop-1	ANALYZE DATABASE a;
+accept	accept	engine	createAnalyzeStatement/CREATE_ANALYZE_(FULL|SAMPLE)?_ALL_(properties)?	CREATE ANALYZE ALL;
+accept	accept	engine	createAnalyzeStatement/CREATE_ANALYZE_(FULL|SAMPLE)?_DATABASE_identifier_(properties)?	CREATE ANALYZE DATABASE a;
+reject	reject	engine	createAnalyzeStatement/CREATE_ANALYZE_(FULL|SAMPLE)?_DATABASE_identifier_(properties)?!drop-1	ANALYZE DATABASE a;
 reject	reject	engine	createAnalyzeStatement/CREATE_ANALYZE_(FULL|SAMPLE)?_DATABASE_identifier_(properties)?!drop-3	CREATE ANALYZE a;
 reject	reject	engine	createAnalyzeStatement/CREATE_ANALYZE_(FULL|SAMPLE)?_DATABASE_identifier_(properties)?!drop-4	CREATE ANALYZE DATABASE;
 reject	reject	engine	createAnalyzeStatement/CREATE_ANALYZE_(FULL|SAMPLE)?_DATABASE_identifier_(properties)?!truncate	CREATE ANALYZE DATABASE
 reject	reject	engine	createAnalyzeStatement/CREATE_ANALYZE_(FULL|SAMPLE)?_DATABASE_identifier_(properties)?!insert	CREATE ANALYZE DATABASE a zzz;
 reject	reject	engine	createAnalyzeStatement/CREATE_ANALYZE_(FULL|SAMPLE)?_DATABASE_identifier_(properties)?!swap	CROSS ANALYZE DATABASE a;
-reject	accept	engine	createAnalyzeStatement/CREATE_ANALYZE_(FULL|SAMPLE)?_TABLE_qualifiedName_((_qu~e7ba4253	CREATE ANALYZE TABLE a;
+accept	accept	engine	createAnalyzeStatement/CREATE_ANALYZE_(FULL|SAMPLE)?_TABLE_qualifiedName_((_qu~e7ba4253	CREATE ANALYZE TABLE a;
 reject	reject	engine	createAnalyzeStatement/CREATE_ANALYZE_(FULL|SAMPLE)?_TABLE_qualifiedName_((_qu~e7ba4253!drop-4	CREATE ANALYZE TABLE;
 reject	reject	engine	createAnalyzeStatement/CREATE_ANALYZE_(FULL|SAMPLE)?_TABLE_qualifiedName_((_qu~e7ba4253!truncate	CREATE ANALYZE TABLE
 reject	reject	engine	createAnalyzeStatement/CREATE_ANALYZE_(FULL|SAMPLE)?_TABLE_qualifiedName_((_qu~e7ba4253!insert	CREATE ANALYZE TABLE a zzz;
 reject	reject	engine	createAnalyzeStatement/CREATE_ANALYZE_(FULL|SAMPLE)?_TABLE_qualifiedName_((_qu~e7ba4253!swap	CROSS ANALYZE TABLE a;
-reject	accept	engine	createAnalyzeStatement/CREATE_histogramStatement	CREATE ANALYZE TABLE a UPDATE HISTOGRAM ON a;
+accept	accept	engine	createAnalyzeStatement/CREATE_histogramStatement	CREATE ANALYZE TABLE a UPDATE HISTOGRAM ON a;
 reject	reject	engine	createAnalyzeStatement/CREATE_histogramStatement!drop-2	CREATE TABLE a UPDATE HISTOGRAM ON a;
 reject	reject	engine	createAnalyzeStatement/CREATE_histogramStatement!drop-3	CREATE ANALYZE a UPDATE HISTOGRAM ON a;
 reject	reject	engine	createAnalyzeStatement/CREATE_histogramStatement!drop-4	CREATE ANALYZE TABLE UPDATE HISTOGRAM ON a;
@@ -5075,16 +5075,16 @@ reject	reject	engine	createAnalyzeStatement/CREATE_histogramStatement!drop-8	CRE
 reject	reject	engine	createAnalyzeStatement/CREATE_histogramStatement!truncate	CREATE ANALYZE TABLE a UPDATE HISTOGRAM ON
 reject	reject	engine	createAnalyzeStatement/CREATE_histogramStatement!insert	CREATE ANALYZE TABLE a UPDATE HISTOGRAM ON a zzz;
 reject	reject	engine	createAnalyzeStatement/CREATE_histogramStatement!swap	CROSS ANALYZE TABLE a UPDATE HISTOGRAM ON a;
-reject	accept	engine	createAnalyzeStatement(FULL|SAMPLE)?/%empty	CREATE ANALYZE ALL;
+accept	accept	engine	createAnalyzeStatement(FULL|SAMPLE)?/%empty	CREATE ANALYZE ALL;
 reject	reject	engine	createAnalyzeStatement(FULL|SAMPLE)?/%empty!insert	CREATE ANALYZE zzz ALL;
-reject	accept	engine	createAnalyzeStatement(FULL|SAMPLE)?/FULL	CREATE ANALYZE FULL ALL;
+accept	accept	engine	createAnalyzeStatement(FULL|SAMPLE)?/FULL	CREATE ANALYZE FULL ALL;
 reject	reject	engine	createAnalyzeStatement(FULL|SAMPLE)?/FULL!insert	CREATE ANALYZE FULL zzz ALL;
 reject	reject	engine	createAnalyzeStatement(FULL|SAMPLE)?/FULL!swap	CREATE ANALYZE FUNCTION ALL;
-reject	accept	engine	createAnalyzeStatement(FULL|SAMPLE)?/SAMPLE	CREATE ANALYZE SAMPLE ALL;
+accept	accept	engine	createAnalyzeStatement(FULL|SAMPLE)?/SAMPLE	CREATE ANALYZE SAMPLE ALL;
 reject	reject	engine	createAnalyzeStatement(FULL|SAMPLE)?/SAMPLE!insert	CREATE ANALYZE SAMPLE zzz ALL;
 reject	reject	engine	createAnalyzeStatement(FULL|SAMPLE)?/SAMPLE!swap	CREATE ANALYZE SCHEDULE ALL;
-reject	accept	engine	createAnalyzeStatement(properties)?/%empty	CREATE ANALYZE ALL;
-reject	accept	engine	createAnalyzeStatement(properties)?/properties	CREATE ANALYZE ALL PROPERTIES('a' = 'a');
+accept	accept	engine	createAnalyzeStatement(properties)?/%empty	CREATE ANALYZE ALL;
+accept	accept	engine	createAnalyzeStatement(properties)?/properties	CREATE ANALYZE ALL PROPERTIES('a' = 'a');
 reject	reject	engine	createAnalyzeStatement(properties)?/properties!drop-1	CREATE ANALYZE ALL('a' = 'a');
 reject	reject	engine	createAnalyzeStatement(properties)?/properties!drop-2	CREATE ANALYZE ALL PROPERTIES 'a' = 'a');
 reject	reject	engine	createAnalyzeStatement(properties)?/properties!drop-3	CREATE ANALYZE ALL PROPERTIES(= 'a');
@@ -5094,21 +5094,21 @@ reject	reject	engine	createAnalyzeStatement(properties)?/properties!drop-6	CREAT
 reject	reject	engine	createAnalyzeStatement(properties)?/properties!truncate	CREATE ANALYZE ALL PROPERTIES('a' = 'a'
 reject	reject	engine	createAnalyzeStatement(properties)?/properties!insert	CREATE ANALYZE ALL PROPERTIES('a' = 'a') zzz;
 reject	reject	engine	createAnalyzeStatement(properties)?/properties!swap	CREATE ANALYZE ALL PROPERTY('a' = 'a');
-reject	accept	engine	createAnalyzeStatement((_qualifiedName_(,_qualifiedName)*_))?/%empty	CREATE ANALYZE TABLE a;
-reject	accept	engine	createAnalyzeStatement((_qualifiedName_(,_qualifiedName)*_))?/(_qualifiedName_(,_qualifiedName)*_)	CREATE ANALYZE TABLE a(a);
+accept	accept	engine	createAnalyzeStatement((_qualifiedName_(,_qualifiedName)*_))?/%empty	CREATE ANALYZE TABLE a;
+accept	accept	engine	createAnalyzeStatement((_qualifiedName_(,_qualifiedName)*_))?/(_qualifiedName_(,_qualifiedName)*_)	CREATE ANALYZE TABLE a(a);
 reject	reject	engine	createAnalyzeStatement((_qualifiedName_(,_qualifiedName)*_))?/(_qualifiedName_(,_qualifiedName)*_)!drop-1	CREATE ANALYZE TABLE a a);
 reject	reject	engine	createAnalyzeStatement((_qualifiedName_(,_qualifiedName)*_))?/(_qualifiedName_(,_qualifiedName)*_)!drop-2	CREATE ANALYZE TABLE a();
 reject	reject	engine	createAnalyzeStatement((_qualifiedName_(,_qualifiedName)*_))?/(_qualifiedName_(,_qualifiedName)*_)!drop-3	CREATE ANALYZE TABLE a(a;
 reject	reject	engine	createAnalyzeStatement((_qualifiedName_(,_qualifiedName)*_))?/(_qualifiedName_(,_qualifiedName)*_)!truncate	CREATE ANALYZE TABLE a(a
 reject	reject	engine	createAnalyzeStatement((_qualifiedName_(,_qualifiedName)*_))?/(_qualifiedName_(,_qualifiedName)*_)!insert	CREATE ANALYZE TABLE a(a) zzz;
-reject	accept	engine	createAnalyzeStatement(,_qualifiedName)*/%empty	CREATE ANALYZE TABLE a(a);
+accept	accept	engine	createAnalyzeStatement(,_qualifiedName)*/%empty	CREATE ANALYZE TABLE a(a);
 reject	reject	engine	createAnalyzeStatement(,_qualifiedName)*/%empty!insert	CREATE ANALYZE TABLE a(a zzz);
-reject	accept	engine	createAnalyzeStatement(,_qualifiedName)*/,_qualifiedName_(,_qualifiedName)*	CREATE ANALYZE TABLE a(a, a);
+accept	accept	engine	createAnalyzeStatement(,_qualifiedName)*/,_qualifiedName_(,_qualifiedName)*	CREATE ANALYZE TABLE a(a, a);
 reject	reject	engine	createAnalyzeStatement(,_qualifiedName)*/,_qualifiedName_(,_qualifiedName)*!drop-1	CREATE ANALYZE TABLE a(a a);
 reject	reject	engine	createAnalyzeStatement(,_qualifiedName)*/,_qualifiedName_(,_qualifiedName)*!drop-2	CREATE ANALYZE TABLE a(a,);
 reject	reject	engine	createAnalyzeStatement(,_qualifiedName)*/,_qualifiedName_(,_qualifiedName)*!truncate	CREATE ANALYZE TABLE a(a,
 reject	reject	engine	createAnalyzeStatement(,_qualifiedName)*/,_qualifiedName_(,_qualifiedName)*!insert	CREATE ANALYZE TABLE a(a, a zzz);
-reject	accept	engine	dropAnalyzeJobStatement/DROP_ANALYZE_INTEGER_VALUE	DROP ANALYZE 1;
+accept	accept	engine	dropAnalyzeJobStatement/DROP_ANALYZE_INTEGER_VALUE	DROP ANALYZE 1;
 accept	accept	engine	showAnalyzeStatement/SHOW_ANALYZE_(JOB|STATUS)?_(WHERE_expression)?	SHOW ANALYZE;
 accept	accept	engine	showAnalyzeStatement(JOB|STATUS)?/%empty	SHOW ANALYZE;
 accept	accept	engine	showAnalyzeStatement(JOB|STATUS)?/JOB	SHOW ANALYZE JOB;
@@ -5142,8 +5142,8 @@ reject	reject	engine	showHistogramMetaStatement(WHERE_expression)?/WHERE_express
 reject	reject	engine	showHistogramMetaStatement(WHERE_expression)?/WHERE_expression!insert	SHOW HISTOGRAM META WHERE CURRENT_USER zzz;
 reject	reject	engine	showHistogramMetaStatement(WHERE_expression)?/WHERE_expression!swap	SHOW HISTOGRAM META WHITELIST CURRENT_USER;
 accept	accept	engine	killAnalyzeStatement/KILL_ANALYZE_INTEGER_VALUE	KILL ANALYZE 1;
-reject	accept	engine	analyzeProfileStatement/ANALYZE_PROFILE_FROM_string	ANALYZE PROFILE FROM 'a';
-reject	accept	engine	analyzeProfileStatement/ANALYZE_PROFILE_FROM_string_,_INTEGER_VALUE_(,_INTEGER_VALUE)*	ANALYZE PROFILE FROM 'a', 1;
+accept	accept	engine	analyzeProfileStatement/ANALYZE_PROFILE_FROM_string	ANALYZE PROFILE FROM 'a';
+accept	accept	engine	analyzeProfileStatement/ANALYZE_PROFILE_FROM_string_,_INTEGER_VALUE_(,_INTEGER_VALUE)*	ANALYZE PROFILE FROM 'a', 1;
 reject	reject	engine	analyzeProfileStatement/ANALYZE_PROFILE_FROM_string_,_INTEGER_VALUE_(,_INTEGER_VALUE)*!drop-1	PROFILE FROM 'a', 1;
 reject	reject	engine	analyzeProfileStatement/ANALYZE_PROFILE_FROM_string_,_INTEGER_VALUE_(,_INTEGER_VALUE)*!drop-2	ANALYZE FROM 'a', 1;
 reject	reject	engine	analyzeProfileStatement/ANALYZE_PROFILE_FROM_string_,_INTEGER_VALUE_(,_INTEGER_VALUE)*!drop-3	ANALYZE PROFILE 'a', 1;
@@ -5153,8 +5153,8 @@ reject	reject	engine	analyzeProfileStatement/ANALYZE_PROFILE_FROM_string_,_INTEG
 reject	reject	engine	analyzeProfileStatement/ANALYZE_PROFILE_FROM_string_,_INTEGER_VALUE_(,_INTEGER_VALUE)*!truncate	ANALYZE PROFILE FROM 'a',
 reject	reject	engine	analyzeProfileStatement/ANALYZE_PROFILE_FROM_string_,_INTEGER_VALUE_(,_INTEGER_VALUE)*!insert	ANALYZE PROFILE FROM 'a', 1 zzz;
 reject	reject	engine	analyzeProfileStatement/ANALYZE_PROFILE_FROM_string_,_INTEGER_VALUE_(,_INTEGER_VALUE)*!swap	AND PROFILE FROM 'a', 1;
-reject	accept	engine	analyzeProfileStatement(,_INTEGER_VALUE)*/%empty	ANALYZE PROFILE FROM 'a', 1;
-reject	accept	engine	analyzeProfileStatement(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*	ANALYZE PROFILE FROM 'a', 1, 1;
+accept	accept	engine	analyzeProfileStatement(,_INTEGER_VALUE)*/%empty	ANALYZE PROFILE FROM 'a', 1;
+accept	accept	engine	analyzeProfileStatement(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*	ANALYZE PROFILE FROM 'a', 1, 1;
 reject	reject	engine	analyzeProfileStatement(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*!drop-1	ANALYZE PROFILE FROM 'a', 1 1;
 reject	reject	engine	analyzeProfileStatement(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*!drop-2	ANALYZE PROFILE FROM 'a', 1,;
 reject	reject	engine	analyzeProfileStatement(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*!truncate	ANALYZE PROFILE FROM 'a', 1,
