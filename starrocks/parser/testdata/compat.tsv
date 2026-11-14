@@ -97,7 +97,7 @@ reject	reject	engine	statement/createTableStatement!drop-1	TABLE a(a);
 reject	reject	engine	statement/createTableStatement!drop-2	CREATE a(a);
 reject	reject	engine	statement/createTableStatement!drop-3	CREATE TABLE(a);
 reject	reject	engine	statement/createTableStatement!drop-4	CREATE TABLE a a);
-accept	reject	engine	statement/createTableStatement!drop-5	CREATE TABLE a();
+reject	reject	engine	statement/createTableStatement!drop-5	CREATE TABLE a();
 reject	reject	engine	statement/createTableStatement!drop-6	CREATE TABLE a(a;
 reject	reject	engine	statement/createTableStatement!truncate	CREATE TABLE a(a
 reject	reject	engine	statement/createTableStatement!insert	CREATE TABLE a(a) zzz;
@@ -106,7 +106,7 @@ accept	accept	engine	statement/createTableAsSelectStatement	CREATE TABLE a AS SE
 reject	reject	engine	statement/createTableAsSelectStatement!drop-1	TABLE a AS SELECT CURRENT_USER;
 reject	reject	engine	statement/createTableAsSelectStatement!drop-2	CREATE a AS SELECT CURRENT_USER;
 reject	reject	engine	statement/createTableAsSelectStatement!drop-3	CREATE TABLE AS SELECT CURRENT_USER;
-accept	reject	engine	statement/createTableAsSelectStatement!drop-4	CREATE TABLE a SELECT CURRENT_USER;
+reject	reject	engine	statement/createTableAsSelectStatement!drop-4	CREATE TABLE a SELECT CURRENT_USER;
 reject	reject	engine	statement/createTableAsSelectStatement!drop-5	CREATE TABLE a AS CURRENT_USER;
 reject	reject	engine	statement/createTableAsSelectStatement!drop-6	CREATE TABLE a AS SELECT;
 reject	reject	engine	statement/createTableAsSelectStatement!truncate	CREATE TABLE a AS SELECT
@@ -122,7 +122,7 @@ reject	reject	engine	statement/createTableLikeStatement!truncate	CREATE TABLE a 
 reject	reject	engine	statement/createTableLikeStatement!insert	CREATE TABLE a LIKE a zzz;
 reject	reject	engine	statement/createTableLikeStatement!swap	CROSS TABLE a LIKE a;
 accept	accept	engine	statement/showCreateTableStatement	SHOW CREATE TABLE a;
-accept	reject	engine	statement/showCreateTableStatement!drop-1	CREATE TABLE a;
+reject	reject	engine	statement/showCreateTableStatement!drop-1	CREATE TABLE a;
 reject	reject	engine	statement/showCreateTableStatement!drop-2	SHOW TABLE a;
 reject	reject	engine	statement/showCreateTableStatement!drop-4	SHOW CREATE TABLE;
 reject	reject	engine	statement/showCreateTableStatement!truncate	SHOW CREATE TABLE
@@ -2141,7 +2141,7 @@ accept	accept	engine	createTableAsSelectStatement((_(identifier_(,_identifier)*_
 reject	reject	engine	createTableAsSelectStatement((_(identifier_(,_identifier)*_(,_ind~a46cbfe5)?/%empty!insert	CREATE TABLE a zzz AS SELECT CURRENT_USER;
 accept	accept	engine	createTableAsSelectStatement((_(identifier_(,_identifier)*_(,_ind~a46cbfe5)?/(_(identifier_(,_identifier)*_(,_indexD~e85b79bb)_)	CREATE TABLE a(a) AS SELECT CURRENT_USER;
 reject	reject	engine	createTableAsSelectStatement((_(identifier_(,_identifier)*_(,_ind~a46cbfe5)?/(_(identifier_(,_identifier)*_(,_indexD~e85b79bb)_)!drop-1	CREATE TABLE a a) AS SELECT CURRENT_USER;
-accept	reject	engine	createTableAsSelectStatement((_(identifier_(,_identifier)*_(,_ind~a46cbfe5)?/(_(identifier_(,_identifier)*_(,_indexD~e85b79bb)_)!drop-2	CREATE TABLE a() AS SELECT CURRENT_USER;
+reject	reject	engine	createTableAsSelectStatement((_(identifier_(,_identifier)*_(,_ind~a46cbfe5)?/(_(identifier_(,_identifier)*_(,_indexD~e85b79bb)_)!drop-2	CREATE TABLE a() AS SELECT CURRENT_USER;
 reject	reject	engine	createTableAsSelectStatement((_(identifier_(,_identifier)*_(,_ind~a46cbfe5)?/(_(identifier_(,_identifier)*_(,_indexD~e85b79bb)_)!drop-3	CREATE TABLE a(a AS SELECT CURRENT_USER;
 reject	reject	engine	createTableAsSelectStatement((_(identifier_(,_identifier)*_(,_ind~a46cbfe5)?/(_(identifier_(,_identifier)*_(,_indexD~e85b79bb)_)!insert	CREATE TABLE a(a) zzz AS SELECT CURRENT_USER;
 accept	accept	engine	createTableAsSelectStatement(identifier_(,_identifier)*_(,_indexD~e85b79bb)/identifier_(,_identifier)*_(,_indexDesc)*	CREATE TABLE a(a) AS SELECT CURRENT_USER;
@@ -2159,8 +2159,8 @@ reject	reject	engine	createTableAsSelectStatement(identifier_(,_identifier)*_(,_
 accept	accept	engine	createTableAsSelectStatement(,_identifier)*/%empty	CREATE TABLE a(a) AS SELECT CURRENT_USER;
 accept	accept	engine	createTableAsSelectStatement(,_identifier)*/,_identifier_(,_identifier)*	CREATE TABLE a(a, a) AS SELECT CURRENT_USER;
 reject	reject	engine	createTableAsSelectStatement(,_identifier)*/,_identifier_(,_identifier)*!drop-1	CREATE TABLE a(a a) AS SELECT CURRENT_USER;
-accept	reject	engine	createTableAsSelectStatement(,_identifier)*/,_identifier_(,_identifier)*!drop-2	CREATE TABLE a(a,) AS SELECT CURRENT_USER;
-accept	reject	engine	createTableAsSelectStatement(,_identifier)*/,_identifier_(,_identifier)*!insert	CREATE TABLE a(a, a zzz) AS SELECT CURRENT_USER;
+reject	reject	engine	createTableAsSelectStatement(,_identifier)*/,_identifier_(,_identifier)*!drop-2	CREATE TABLE a(a,) AS SELECT CURRENT_USER;
+reject	reject	engine	createTableAsSelectStatement(,_identifier)*/,_identifier_(,_identifier)*!insert	CREATE TABLE a(a, a zzz) AS SELECT CURRENT_USER;
 accept	accept	engine	createTableAsSelectStatement(,_indexDesc)*/%empty	CREATE TABLE a(a) AS SELECT CURRENT_USER;
 accept	accept	engine	createTableAsSelectStatement(,_indexDesc)*/,_indexDesc_(,_indexDesc)*	CREATE TABLE a(a, INDEX a(a)) AS SELECT CURRENT_USER;
 reject	reject	engine	createTableAsSelectStatement(,_indexDesc)*/,_indexDesc_(,_indexDesc)*!drop-1	CREATE TABLE a(a INDEX a(a)) AS SELECT CURRENT_USER;
@@ -2169,7 +2169,7 @@ reject	reject	engine	createTableAsSelectStatement(,_indexDesc)*/,_indexDesc_(,_i
 reject	reject	engine	createTableAsSelectStatement(,_indexDesc)*/,_indexDesc_(,_indexDesc)*!drop-4	CREATE TABLE a(a, INDEX a a)) AS SELECT CURRENT_USER;
 reject	reject	engine	createTableAsSelectStatement(,_indexDesc)*/,_indexDesc_(,_indexDesc)*!drop-5	CREATE TABLE a(a, INDEX a()) AS SELECT CURRENT_USER;
 reject	reject	engine	createTableAsSelectStatement(,_indexDesc)*/,_indexDesc_(,_indexDesc)*!drop-6	CREATE TABLE a(a, INDEX a(a) AS SELECT CURRENT_USER;
-accept	reject	engine	createTableAsSelectStatement(,_indexDesc)*/,_indexDesc_(,_indexDesc)*!insert	CREATE TABLE a(a, INDEX a(a) zzz) AS SELECT CURRENT_USER;
+reject	reject	engine	createTableAsSelectStatement(,_indexDesc)*/,_indexDesc_(,_indexDesc)*!insert	CREATE TABLE a(a, INDEX a(a) zzz) AS SELECT CURRENT_USER;
 reject	reject	engine	createTableAsSelectStatement(,_indexDesc)*/,_indexDesc_(,_indexDesc)*!swap	CREATE TABLE a(a, INDEXES a(a)) AS SELECT CURRENT_USER;
 accept	accept	engine	createTableAsSelectStatement(keyDesc)?/%empty	CREATE TABLE a AS SELECT CURRENT_USER;
 accept	accept	engine	createTableAsSelectStatement(keyDesc)?/keyDesc	CREATE TABLE a AGGREGATE KEY(a) AS SELECT CURRENT_USER;
@@ -2192,8 +2192,8 @@ accept	accept	engine	createTableAsSelectStatement(partitionDesc)?/%empty	CREATE 
 reject	reject	engine	createTableAsSelectStatement(partitionDesc)?/partitionDesc	CREATE TABLE a PARTITION BY CURRENT_USER AS SELECT CURRENT_USER;
 reject	reject	engine	createTableAsSelectStatement(partitionDesc)?/partitionDesc!drop-1	CREATE TABLE a BY CURRENT_USER AS SELECT CURRENT_USER;
 reject	reject	engine	createTableAsSelectStatement(partitionDesc)?/partitionDesc!drop-2	CREATE TABLE a PARTITION CURRENT_USER AS SELECT CURRENT_USER;
-accept	reject	engine	createTableAsSelectStatement(partitionDesc)?/partitionDesc!drop-3	CREATE TABLE a PARTITION BY AS SELECT CURRENT_USER;
-accept	reject	engine	createTableAsSelectStatement(partitionDesc)?/partitionDesc!truncate	CREATE TABLE a PARTITION BY
+reject	reject	engine	createTableAsSelectStatement(partitionDesc)?/partitionDesc!drop-3	CREATE TABLE a PARTITION BY AS SELECT CURRENT_USER;
+reject	reject	engine	createTableAsSelectStatement(partitionDesc)?/partitionDesc!truncate	CREATE TABLE a PARTITION BY
 reject	reject	engine	createTableAsSelectStatement(partitionDesc)?/partitionDesc!insert	CREATE TABLE a PARTITION BY CURRENT_USER zzz AS SELECT CURRENT_USER;
 reject	reject	engine	createTableAsSelectStatement(partitionDesc)?/partitionDesc!swap	CREATE TABLE a PARTITIONS BY CURRENT_USER AS SELECT CURRENT_USER;
 accept	accept	engine	createTableAsSelectStatement(distributionDesc)?/%empty	CREATE TABLE a AS SELECT CURRENT_USER;
@@ -2205,7 +2205,7 @@ reject	reject	engine	createTableAsSelectStatement(distributionDesc)?/distributio
 reject	reject	engine	createTableAsSelectStatement(distributionDesc)?/distributionDesc!insert	CREATE TABLE a DISTRIBUTED BY RANDOM zzz AS SELECT CURRENT_USER;
 reject	reject	engine	createTableAsSelectStatement(distributionDesc)?/distributionDesc!swap	CREATE TABLE a DISTRIBUTION BY RANDOM AS SELECT CURRENT_USER;
 accept	accept	engine	createTableAsSelectStatement(orderByDesc)?/%empty	CREATE TABLE a AS SELECT CURRENT_USER;
-reject	accept	engine	createTableAsSelectStatement(orderByDesc)?/orderByDesc	CREATE TABLE a ORDER BY(a) AS SELECT CURRENT_USER;
+accept	accept	engine	createTableAsSelectStatement(orderByDesc)?/orderByDesc	CREATE TABLE a ORDER BY(a) AS SELECT CURRENT_USER;
 reject	reject	engine	createTableAsSelectStatement(orderByDesc)?/orderByDesc!drop-1	CREATE TABLE a BY(a) AS SELECT CURRENT_USER;
 reject	reject	engine	createTableAsSelectStatement(orderByDesc)?/orderByDesc!drop-2	CREATE TABLE a ORDER(a) AS SELECT CURRENT_USER;
 reject	reject	engine	createTableAsSelectStatement(orderByDesc)?/orderByDesc!drop-3	CREATE TABLE a ORDER BY a) AS SELECT CURRENT_USER;
@@ -2578,14 +2578,14 @@ reject	reject	engine	createTableLikeStatement(partitionDesc)?/partitionDesc!drop
 reject	reject	engine	createTableLikeStatement(partitionDesc)?/partitionDesc!insert	CREATE TABLE a PARTITION BY CURRENT_USER zzz LIKE a;
 reject	reject	engine	createTableLikeStatement(partitionDesc)?/partitionDesc!swap	CREATE TABLE a PARTITIONS BY CURRENT_USER LIKE a;
 accept	accept	engine	createTableLikeStatement(distributionDesc)?/%empty	CREATE TABLE a LIKE a;
-reject	accept	engine	createTableLikeStatement(distributionDesc)?/distributionDesc	CREATE TABLE a DISTRIBUTED BY RANDOM LIKE a;
+accept	accept	engine	createTableLikeStatement(distributionDesc)?/distributionDesc	CREATE TABLE a DISTRIBUTED BY RANDOM LIKE a;
 reject	reject	engine	createTableLikeStatement(distributionDesc)?/distributionDesc!drop-1	CREATE TABLE a BY RANDOM LIKE a;
 reject	reject	engine	createTableLikeStatement(distributionDesc)?/distributionDesc!drop-2	CREATE TABLE a DISTRIBUTED RANDOM LIKE a;
 reject	reject	engine	createTableLikeStatement(distributionDesc)?/distributionDesc!drop-3	CREATE TABLE a DISTRIBUTED BY LIKE a;
 reject	reject	engine	createTableLikeStatement(distributionDesc)?/distributionDesc!insert	CREATE TABLE a DISTRIBUTED BY RANDOM zzz LIKE a;
 reject	reject	engine	createTableLikeStatement(distributionDesc)?/distributionDesc!swap	CREATE TABLE a DISTRIBUTION BY RANDOM LIKE a;
 accept	accept	engine	createTableLikeStatement(properties)?/%empty	CREATE TABLE a LIKE a;
-reject	accept	engine	createTableLikeStatement(properties)?/properties	CREATE TABLE a PROPERTIES('a' = 'a') LIKE a;
+accept	accept	engine	createTableLikeStatement(properties)?/properties	CREATE TABLE a PROPERTIES('a' = 'a') LIKE a;
 reject	reject	engine	createTableLikeStatement(properties)?/properties!drop-1	CREATE TABLE a('a' = 'a') LIKE a;
 reject	reject	engine	createTableLikeStatement(properties)?/properties!drop-2	CREATE TABLE a PROPERTIES 'a' = 'a') LIKE a;
 reject	reject	engine	createTableLikeStatement(properties)?/properties!drop-3	CREATE TABLE a PROPERTIES(= 'a') LIKE a;
