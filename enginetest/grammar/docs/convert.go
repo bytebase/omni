@@ -888,6 +888,11 @@ func (c *converter) token(t ntok) (string, error) {
 		}
 		return cls, nil
 	case nFragment:
+		if def, ok := c.defs[t.text]; ok && !def {
+			// A fragment the page defines, written by name, whose
+			// definition did not convert.
+			return "", fmt.Errorf("%w fragment %q: it did not convert", errUndefined, t.text)
+		}
 		if c.defs[t.text] {
 			return c.fragName(t.text), nil
 		}
