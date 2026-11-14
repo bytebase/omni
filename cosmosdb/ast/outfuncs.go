@@ -233,9 +233,6 @@ func writeNode(sb *strings.Builder, node Node, level int) {
 		sb.WriteString("}")
 	case *FuncCall:
 		fmt.Fprintf(sb, "{FUNCCALL :name %q", n.Name)
-		if n.Star {
-			sb.WriteString(" :star true")
-		}
 		if len(n.Args) > 0 {
 			sb.WriteString(" :args (")
 			for i, arg := range n.Args {
@@ -264,6 +261,13 @@ func writeNode(sb *strings.Builder, node Node, level int) {
 		sb.WriteString("}")
 	case *ExistsExpr:
 		sb.WriteString("{EXISTS\n")
+		indent(sb, level+1)
+		sb.WriteString(":select ")
+		writeNode(sb, n.Select, level+1)
+		writeLoc(sb, n.Loc)
+		sb.WriteString("}")
+	case *SubqueryFuncExpr:
+		fmt.Fprintf(sb, "{%s\n", n.Func)
 		indent(sb, level+1)
 		sb.WriteString(":select ")
 		writeNode(sb, n.Select, level+1)
@@ -324,6 +328,10 @@ func writeSelectStmt(sb *strings.Builder, n *SelectStmt, level int) {
 	sb.WriteString("{SELECT")
 	if n.Top != nil {
 		fmt.Fprintf(sb, " :top %d", *n.Top)
+	}
+	if n.TopParam != nil {
+		sb.WriteString(" :top ")
+		writeNode(sb, n.TopParam, level)
 	}
 	if n.Distinct {
 		sb.WriteString(" :distinct true")
