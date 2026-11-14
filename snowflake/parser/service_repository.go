@@ -13,7 +13,9 @@ func init() {
 		alter:     parseAlterImageRepository,
 		orReplace: true,
 		// https://docs.snowflake.com/en/sql-reference/sql/drop-image-repository
-		drop: true,
+		drop:  true,
+		props: imageRepositoryProps,
+		unset: []string{"COMMENT"},
 	})
 	registerObject(&objectForm{
 		words:     []string{"ARTIFACT", "REPOSITORY"},
@@ -21,8 +23,30 @@ func init() {
 		alter:     parseAlterArtifactRepository,
 		orReplace: true,
 		// https://docs.snowflake.com/en/sql-reference/sql/drop-artifact-repository
-		drop: true,
+		drop:  true,
+		props: artifactRepositoryProps,
+		unset: []string{"COMMENT", "AUTHENTICATION_SECRET", "PACKAGE_RETENTION"},
 	})
+}
+
+// imageRepositoryProps are the properties CREATE IMAGE REPOSITORY documents;
+// ALTER ... SET takes COMMENT alone.
+var imageRepositoryProps = objectProps{
+	"ENCRYPTION": propGroup,
+	"COMMENT":    propString,
+}
+
+// artifactRepositoryProps are the properties CREATE ARTIFACT REPOSITORY
+// documents; ALTER ... SET takes all but TYPE and API_INTEGRATION.
+// API_INTEGRATION is a string as the Syntax block writes it (one example on
+// the page writes a bare name).
+var artifactRepositoryProps = objectProps{
+	"TYPE":                  propOneOf("APPLICATION", "PYPI"),
+	"API_INTEGRATION":       propString,
+	"INDEX_URL":             propString,
+	"AUTHENTICATION_SECRET": propName,
+	"PACKAGE_RETENTION":     propOneOf("ON_OBJECT_CREATION"),
+	"COMMENT":               propString,
 }
 
 // parseCreateImageRepository reads what follows the name of
@@ -34,8 +58,22 @@ func init() {
 //
 // https://docs.snowflake.com/en/sql-reference/sql/create-image-repository
 func parseCreateImageRepository(p *Parser, s *ast.ObjectStmt) error {
-	_, err := p.parseObjectProperties(s, "", false)
-	return err
+	props, err := p.parseObjectProperties(s, "", false)
+	if err != nil || props == nil {
+		return err
+	}
+	// ENCRYPTION = ( TYPE = 'SNOWFLAKE_FULL' | TYPE = 'SNOWFLAKE_SSE' )
+	for _, o := range props.Options {
+		if o.Name != "ENCRYPTION" {
+			continue
+		}
+		if len(o.Group) != 1 || o.Group[0].Name != "TYPE" || o.Group[0].Lit == nil ||
+			o.Group[0].Lit.Kind != ast.LitString ||
+			(o.Group[0].Lit.Value != "SNOWFLAKE_FULL" && o.Group[0].Lit.Value != "SNOWFLAKE_SSE") {
+			return &ParseError{Position: o.Loc.Start, End: o.Loc.End, Message: "syntax error at or near ENCRYPTION"}
+		}
+	}
+	return nil
 }
 
 // parseAlterImageRepository reads what follows the name of
@@ -48,10 +86,13 @@ func parseCreateImageRepository(p *Parser, s *ast.ObjectStmt) error {
 // https://docs.snowflake.com/en/sql-reference/sql/alter-image-repository
 func parseAlterImageRepository(p *Parser, s *ast.ObjectStmt) error {
 	ok, err := p.parseObjectAlterCommon(s, actSet|actTags|actUnset)
-	if err != nil || ok {
+	if err != nil {
 		return err
 	}
-	return p.syntaxErrorAtCur()
+	if !ok {
+		return p.syntaxErrorAtCur()
+	}
+	return checkServiceSet(s, "COMMENT")
 }
 
 // parseCreateArtifactRepository reads what follows the name of
@@ -87,8 +128,15 @@ func parseCreateArtifactRepository(p *Parser, s *ast.ObjectStmt) error {
 // https://docs.snowflake.com/en/sql-reference/sql/alter-artifact-repository
 func parseAlterArtifactRepository(p *Parser, s *ast.ObjectStmt) error {
 	ok, err := p.parseObjectAlterCommon(s, actSet|actTags|actUnset)
-	if err != nil || ok {
+	if err != nil {
 		return err
 	}
-	return p.syntaxErrorAtCur()
+	if !ok {
+		return p.syntaxErrorAtCur()
+	}
+	// UNSET names one property.
+	if c := s.Clauses[len(s.Clauses)-1]; c.Keywords == "UNSET" && len(c.Keys) != 1 {
+		return &ParseError{Position: c.Loc.Start, End: c.Loc.End, Message: "syntax error: UNSET takes one property"}
+	}
+	return checkServiceSet(s, "COMMENT", "INDEX_URL", "AUTHENTICATION_SECRET", "PACKAGE_RETENTION")
 }

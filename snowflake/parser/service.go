@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/bytebase/omni/snowflake/ast"
@@ -26,9 +27,46 @@ func init() {
 		alter:  parseAlterService,
 		// https://docs.snowflake.com/en/sql-reference/sql/drop-service
 		// documents a trailing FORCE, which DropStmt cannot record yet.
-		drop: true,
+		drop:  true,
+		props: serviceProps,
 	})
 }
+
+// serviceProps are the properties CREATE SERVICE and ALTER SERVICE ... SET
+// document; ALTER SERVICE ... UNSET takes the same names.
+var serviceProps = objectProps{
+	"AUTO_SUSPEND_SECS":            propNumber,
+	"EXTERNAL_ACCESS_INTEGRATIONS": propNames,
+	"AUTO_RESUME":                  propBool,
+	"MIN_INSTANCES":                propNumber,
+	"MIN_READY_INSTANCES":          propNumber,
+	"MAX_INSTANCES":                propNumber,
+	"LOG_LEVEL":                    propString,
+	"QUERY_WAREHOUSE":              propName,
+	"COMMENT":                      propString,
+}
+
+// executeJobServiceForm and executeInferenceJobServiceForm hold the
+// properties EXECUTE JOB SERVICE and EXECUTE INFERENCE JOB SERVICE document.
+// They are not registered: EXECUTE is dispatched by parseExecuteStmt.
+var (
+	executeJobServiceForm = &objectForm{props: objectProps{
+		"NAME":                         propName,
+		"ASYNC":                        propBool,
+		"REPLICAS":                     propNumber,
+		"QUERY_WAREHOUSE":              propName,
+		"COMMENT":                      propString,
+		"EXTERNAL_ACCESS_INTEGRATIONS": propNames,
+	}}
+	executeInferenceJobServiceForm = &objectForm{props: objectProps{
+		"MODEL":    propName,
+		"VERSION":  propName,
+		"FUNCTION": propString,
+		"NAME":     propName,
+		"ASYNC":    propBool,
+		"REPLICAS": propNumber,
+	}}
+)
 
 // parseCreateService reads what follows the name of
 //
@@ -81,10 +119,33 @@ func parseAlterService(p *Parser, s *ast.ObjectStmt) error {
 		return p.parseServiceSpecification(s, true)
 	}
 	ok, err := p.parseObjectAlterCommon(s, actSet|actSetTag|actUnset)
-	if err != nil || ok {
+	if err != nil {
 		return err
 	}
-	return p.syntaxErrorAtCur()
+	if !ok {
+		return p.syntaxErrorAtCur()
+	}
+	return checkServiceSet(s)
+}
+
+// checkServiceSet holds an ALTER's SET clause to its page: tags are set by a
+// SET TAG of their own, and when names is given, SET takes only those
+// properties (the subset of the CREATE's the ALTER page documents).
+func checkServiceSet(s *ast.ObjectStmt, names ...string) error {
+	for _, c := range s.Clauses {
+		if c.Keywords != "SET" {
+			continue
+		}
+		if len(c.Tags) > 0 {
+			return &ParseError{Position: c.Loc.Start, End: c.Loc.End, Message: "syntax error at or near TAG"}
+		}
+		for _, o := range c.Options {
+			if names != nil && !slices.Contains(names, o.Name) {
+				return &ParseError{Position: o.Loc.Start, End: o.Loc.End, Message: "syntax error at or near " + o.Name}
+			}
+		}
+	}
+	return nil
 }
 
 // parseExecuteJobService reads
@@ -125,6 +186,9 @@ func (p *Parser) parseExecuteJobService(start ast.Loc) (ast.Node, error) {
 			return nil, err
 		}
 		if _, err := p.parseObjectProperties(s, "", false); err != nil {
+			return nil, err
+		}
+		if err := executeJobServiceForm.checkClauses(s); err != nil {
 			return nil, err
 		}
 		s.Loc.End = p.prev.Loc.End
@@ -169,6 +233,9 @@ func (p *Parser) parseExecuteJobService(start ast.Loc) (ast.Node, error) {
 		return nil, err
 	}
 	if err := p.requireObjectProperties(props, "MODEL"); err != nil {
+		return nil, err
+	}
+	if err := executeInferenceJobServiceForm.checkClauses(s); err != nil {
 		return nil, err
 	}
 	s.Loc.End = p.prev.Loc.End
