@@ -48,6 +48,8 @@ var grantFormCases = []grantFormCase{
 	{"CREATE USER current_role@localhost", false},
 	{"CREATE DEFINER = current_role VIEW v AS SELECT 1", true},
 	{"CREATE DEFINER = current_role() PROCEDURE p() SELECT 1", true},
+	{"CREATE DEFINER = current_role( VIEW v AS SELECT 1", false},
+	{"CREATE DEFINER = current_user( PROCEDURE p() SELECT 1", false},
 	{"CREATE USER `current_role`@localhost", true},
 
 	// --- user@host: which half may be written how ---
