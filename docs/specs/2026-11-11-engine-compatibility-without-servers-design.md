@@ -951,5 +951,6 @@ What the harness handles:
 - **`tape.Main(m)`** runs the package's tests. After a passing run of every test, a replay fails on a tape or stream no test opened, and a recording deletes such tapes. A run that failed, selected tests (`-run`, `-skip`) or ran none (`-list`, a fuzz worker) settles nothing: it neither fails on those tapes nor deletes them.
 - **Filters.** A stream replays in order, so a `-run` pattern that skips some subtests sharing their parent's connection fails replay. Select whole top-level tests, as `-run '^TestName$'` does. A recording rewrites the whole tape of each test it runs, including one that no longer parses, such as a tape left with merge conflict markers.
 - **Compact requests.** A request's text or text argument over 64 KB is written as its SHA-256 and length, since a replay only compares it. A request that repeats the text of the one before it writes `^` for it.
-- **Not built yet:** `tape.Live(t)` for tests with nothing to replay, and package setup recorded once in `_setup.tape`. No package on tapes has needed them.
+- **`tape.Live(t)`** skips a test with nothing to replay outside a recording (§4.5).
+- **Not built yet:** package setup recorded once in `_setup.tape`. No package on tapes has needed it.
 - **Other boundaries.** Trino's HTTP API and the programs tests run (ScriptDOM, the Spanner oracle) record at their own boundary, in the same format.
