@@ -176,18 +176,29 @@ func userIndexNameSet(t *Table) map[string]bool {
 // index name `idx_pid` is neither the constraint name nor a first-column-derived name, so it is
 // NOT FK-implicit — it is a user index this node must emit (else, when the FK is added, the FK
 // node would auto-create a differently-named backing index and the user's chosen name `idx_pid`
-// would be lost). When the user's index name DOES match the auto-derived form (the constraint
-// name, or the column-default name MySQL would pick anyway), excluding it is correct — the FK
-// node recreates an identically-named index, and it could not be independently dropped while the
-// FK exists (errno 1553). The structural part still keeps a UNIQUE/prefixed/wider index visible.
+// would be lost). When the user's index name DOES match the auto-derived form, excluding it from
+// the diff is correct: it could not be independently dropped while the FK exists (errno 1553),
+// and the FK node reproduces its name (fkBackingIndexOp). The structural part still keeps a
+// UNIQUE/prefixed/wider index visible.
 //
 // Each FK claims at most one index (the first match not already claimed by another FK), mirroring
 // the one-backing-index-per-FK the engine maintains.
 func fkImplicitIndexNames(t *Table) map[string]bool {
 	skip := make(map[string]bool)
-	if t == nil {
-		return skip
+	for _, idx := range fkImplicitBackingIndexes(t) {
+		skip[toLower(idx.Name)] = true
 	}
+	return skip
+}
+
+// fkImplicitBackingIndexes maps each foreign key of t to the FK-implicit index it claims (see
+// fkImplicitIndexNames). A foreign key that claims none is absent.
+func fkImplicitBackingIndexes(t *Table) map[*Constraint]*Index {
+	claims := make(map[*Constraint]*Index)
+	if t == nil {
+		return claims
+	}
+	claimed := make(map[string]bool)
 	for _, con := range t.Constraints {
 		if con == nil || con.Type != ConForeignKey || len(con.Columns) == 0 {
 			continue
@@ -197,16 +208,17 @@ func fkImplicitIndexNames(t *Table) map[string]bool {
 				continue
 			}
 			key := toLower(idx.Name)
-			if skip[key] {
+			if claimed[key] {
 				continue
 			}
 			if isPlainBackingIndexFor(idx, con.Columns) && isAutoBackingIndexName(idx.Name, con) {
-				skip[key] = true
+				claimed[key] = true
+				claims[con] = idx
 				break
 			}
 		}
 	}
-	return skip
+	return claims
 }
 
 // isAutoBackingIndexName reports whether idxName is the name MySQL/ensureFKBackingIndex would
