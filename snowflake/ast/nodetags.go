@@ -29,6 +29,7 @@ const (
 	T_ColumnRef
 	T_StarExpr
 	T_DollarRef
+	T_BindVariable
 	T_BinaryExpr
 	T_UnaryExpr
 	T_ParenExpr
@@ -273,6 +274,8 @@ func (t NodeTag) String() string {
 		return "StarExpr"
 	case T_DollarRef:
 		return "DollarRef"
+	case T_BindVariable:
+		return "BindVariable"
 	case T_BinaryExpr:
 		return "BinaryExpr"
 	case T_UnaryExpr:

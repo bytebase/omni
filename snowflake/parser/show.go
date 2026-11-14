@@ -101,11 +101,17 @@ func (p *Parser) parseShowStmt() (ast.Node, error) {
 		stmt.HasLike = true
 	}
 
-	// Optional IN/FOR <scope>.
+	// Optional IN/FOR <scope>, then the clause a class writes after it.
+	bareScope := false
 	if p.cur.Type == kwIN || p.cur.Type == kwFOR {
+		afterIn := p.peekNext().Loc.Start
 		if err := p.parseShowScope(stmt); err != nil {
 			return nil, err
 		}
+		bareScope = stmt.Scope == ast.ShowScopeSchema && stmt.ScopeName != nil && stmt.ScopeName.Loc.Start == afterIn
+	}
+	if err := p.parseShowClassClause(stmt, bareScope); err != nil {
+		return nil, err
 	}
 
 	// SHOW NODES IN COMPUTE POOL <name> [ LIKE '<pattern>' ] writes LIKE after
@@ -152,6 +158,9 @@ func (p *Parser) parseShowStmt() (ast.Node, error) {
 			stmt.LimitFrom = from.Str
 		}
 	}
+	if err := p.parseShowOfType(stmt); err != nil {
+		return nil, err
+	}
 
 	// SHOW AVAILABLE LISTINGS' IS_<x> = TRUE filters (listing.go).
 	if stmt.ObjectClass == "AVAILABLE LISTINGS" {
@@ -177,6 +186,9 @@ func (p *Parser) parseShowStmt() (ast.Node, error) {
 	}
 
 	stmt.Loc.End = p.prev.Loc.End
+	if err := checkShowProjectScope(stmt); err != nil {
+		return nil, err
+	}
 	return stmt, nil
 }
 
@@ -201,7 +213,7 @@ func (p *Parser) parseShowObjectClass() (string, error) {
 // terminate the class.
 func (p *Parser) startsShowClassWord() bool {
 	switch p.cur.Type {
-	case kwHISTORY, kwLIKE, kwIN, kwFOR, kwSTARTS, kwLIMIT, kwWITH, tokFlow, tokEOF:
+	case kwHISTORY, kwLIKE, kwIN, kwFOR, kwSTARTS, kwLIMIT, kwWITH, kwOF, tokFlow, tokEOF:
 		return false
 	}
 	if p.peekNext().Type == '=' {
@@ -229,6 +241,9 @@ func (p *Parser) parseShowScope(stmt *ast.ShowStmt) error {
 	p.advance() // consume IN/FOR
 
 	if ok, err := p.parseShowOrganizationScope(stmt); ok {
+		return err
+	}
+	if ok, err := p.parseShowClassScope(stmt); ok {
 		return err
 	}
 
@@ -311,6 +326,11 @@ func (p *Parser) parseShowScope(stmt *ast.ShowStmt) error {
 		stmt.Scope = ast.ShowScopeOther
 		stmt.ScopeText = strings.ToUpper(tok.Str) + " GROUP"
 		return p.parseOptionalScopeName(stmt)
+	}
+
+	// IN { DBT | DCM } PROJECT <name> (project.go).
+	if words := p.startsShowProjectScope(stmt.ObjectClass); words != nil {
+		return p.parseShowProjectScope(stmt, words)
 	}
 
 	// SHOW COMMITTED TASKS ... IN GRAPH <graph_name>
@@ -510,7 +530,7 @@ func (p *Parser) parseShowGrantsOpts(stmt *ast.ShowStmt) error {
 			return err
 		}
 		stmt.GrantsTo = grantee
-		return nil
+		return p.parseShowGrantsToShareIn(stmt)
 	case kwOF:
 		p.advance() // consume OF
 		grantee, err := p.parseGrantee()
@@ -519,6 +539,14 @@ func (p *Parser) parseShowGrantsOpts(stmt *ast.ShowStmt) error {
 		}
 		stmt.GrantsTo = grantee
 		return nil
+	case kwIN:
+		// IN DCM PROJECT <name> (project.go).
+		p.advance() // consume IN
+		words := p.startsShowProjectScope("GRANTS")
+		if words == nil {
+			return p.syntaxErrorAtCur()
+		}
+		return p.parseShowProjectScope(stmt, words)
 	}
 	// Bare SHOW GRANTS — no options.
 	return nil
@@ -537,6 +565,10 @@ func (p *Parser) parseShowFutureGrants(stmt *ast.ShowStmt) error {
 	switch p.cur.Type {
 	case kwIN:
 		p.advance() // consume IN
+		// IN DCM PROJECT <name> (project.go).
+		if words := p.startsShowProjectScope("GRANTS"); words != nil {
+			return p.parseShowProjectScope(stmt, words)
+		}
 		target := &ast.GrantTarget{Kind: ast.GrantTargetAllIn}
 		switch p.cur.Type {
 		case kwDATABASE:

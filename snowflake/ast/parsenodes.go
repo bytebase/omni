@@ -474,6 +474,21 @@ type DollarRef struct {
 
 func (n *DollarRef) Tag() NodeTag { return T_DollarRef }
 
+// BindVariable is a Snowflake Scripting variable read in a SQL statement as
+// :<name>, as a template value of EXECUTE IMMEDIATE FROM ... USING
+// ( <key> => :<arg> ) is
+// (https://docs.snowflake.com/en/sql-reference/sql/execute-immediate-from).
+// It is read only where such a value is documented, not as an expression in
+// general. Placeholder marks a client's positional ? placeholder instead
+// (EXECUTE DBT PROJECT's ENV_VARS = ( '<key>' = ? )), whose Name is empty.
+type BindVariable struct {
+	Name        Ident // the variable, after the colon
+	Placeholder bool  // a ? placeholder
+	Loc         Loc   // from the colon to the name's end, or the ?
+}
+
+func (n *BindVariable) Tag() NodeTag { return T_BindVariable }
+
 // BinaryExpr represents a binary operation: left op right.
 type BinaryExpr struct {
 	Op    BinaryOp
@@ -2692,6 +2707,8 @@ const (
 	GrantedDatabaseRole
 	// GrantedApplicationRole is GRANT APPLICATION ROLE <name> ...
 	GrantedApplicationRole
+	// GrantedServiceRole is GRANT SERVICE ROLE <service>!<role> ...
+	GrantedServiceRole
 )
 
 // String returns a human-readable name for the kind.
@@ -2703,6 +2720,8 @@ func (k GrantedRoleKind) String() string {
 		return "DatabaseRole"
 	case GrantedApplicationRole:
 		return "ApplicationRole"
+	case GrantedServiceRole:
+		return "ServiceRole"
 	default:
 		return "Unknown"
 	}
@@ -2852,6 +2871,10 @@ const (
 	GrantContainerNone     GrantContainerKind = iota // not an ALL/FUTURE form
 	GrantContainerDatabase                           // IN DATABASE <db>
 	GrantContainerSchema                             // IN SCHEMA <schema>
+	// The containers below are written only by INHERITED CALLER grants.
+	GrantContainerAccount            // IN ACCOUNT (no ContainerName)
+	GrantContainerApplication        // IN APPLICATION <app>
+	GrantContainerApplicationPackage // IN APPLICATION PACKAGE <pkg>
 )
 
 // GrantTarget is the object the privileges/ownership apply to (the ON clause).
@@ -2878,8 +2901,8 @@ type GrantTarget struct {
 
 	// GrantTargetAllIn / GrantTargetFutureIn:
 	ObjectTypePlural string             // e.g. "TABLES", "VIEWS", "SCHEMAS"
-	Container        GrantContainerKind // DATABASE or SCHEMA
-	ContainerName    *ObjectName        // the database/schema name
+	Container        GrantContainerKind // DATABASE, SCHEMA, or (INHERITED CALLER) ACCOUNT / APPLICATION / APPLICATION PACKAGE
+	ContainerName    *ObjectName        // the container's name; nil for IN ACCOUNT
 
 	Loc Loc
 }
@@ -2915,7 +2938,9 @@ func (a CurrentGrantsAction) String() string {
 // (privileges, role, ownership). See GrantKind.
 //
 //	GRANT { <privileges> | ALL [PRIVILEGES] } ON <target> TO <grantee> [WITH GRANT OPTION]
-//	GRANT [DATABASE | APPLICATION] ROLE <name> TO <grantee>
+//	GRANT [DATABASE | APPLICATION] ROLE <name> TO <grantee> [WITH GRANT OPTION]
+//	GRANT ROLE <name> TO USER <user> [{FOR INTERVAL '<interval>' | UNTIL '<timestamp>'} [RESET EXPIRATION]]
+//	GRANT SERVICE ROLE <service>!<role> TO <grantee>
 //	GRANT OWNERSHIP ON <target> TO <grantee> [{REVOKE|COPY} CURRENT GRANTS]
 type GrantStmt struct {
 	Kind GrantKind
@@ -2926,8 +2951,12 @@ type GrantStmt struct {
 	GrantOption   bool         // WITH GRANT OPTION (also on an application role granted to an account role)
 
 	// --- GrantRole ---
-	Role     *ObjectName     // the role being granted (GrantRole)
-	RoleKind GrantedRoleKind // account / database / application role
+	Role            *ObjectName     // the role being granted (GrantRole); the service for a service role
+	RoleKind        GrantedRoleKind // account / database / application / service role
+	ServiceRole     Ident           // the role after `!` in SERVICE ROLE <service>!<role>; zero otherwise
+	ExpireInterval  string          // FOR INTERVAL '<n> <unit>' on a role granted to a user; "" when absent
+	ExpireUntil     string          // UNTIL '<timestamp>' on a role granted to a user; "" when absent
+	ResetExpiration bool            // RESET EXPIRATION after FOR INTERVAL / UNTIL
 
 	// --- GrantOwnership ---
 	CurrentGrants CurrentGrantsAction // trailing CURRENT GRANTS option
@@ -2949,10 +2978,11 @@ func (n *GrantStmt) Tag() NodeTag { return T_GrantStmt }
 //
 //	REVOKE [GRANT OPTION FOR] { <privileges> | ALL [PRIVILEGES] } ON <target> FROM <grantee> [CASCADE|RESTRICT]
 //	REVOKE [DATABASE | APPLICATION] ROLE <name> FROM <grantee>
-//	REVOKE [GRANT OPTION FOR] APPLICATION ROLE <name> FROM ROLE <name> [CASCADE|RESTRICT]
+//	REVOKE [GRANT OPTION FOR] [DATABASE | APPLICATION] ROLE <name> FROM ROLE <name> [CASCADE|RESTRICT]
+//	REVOKE SERVICE ROLE <service>!<role> FROM <grantee>
 //
-// GrantOptionFor, Cascade and Restrict are also set on the RevokeRole of an
-// application role from an account role.
+// GrantOptionFor, Cascade and Restrict are also set on the RevokeRole of a
+// role from an account role (or, for a database role, from a database role).
 type RevokeStmt struct {
 	Kind RevokeKind
 
@@ -2965,8 +2995,9 @@ type RevokeStmt struct {
 	Restrict       bool         // trailing RESTRICT
 
 	// --- RevokeRole ---
-	Role     *ObjectName     // the role being revoked (RevokeRole)
-	RoleKind GrantedRoleKind // account / database / application role
+	Role        *ObjectName     // the role being revoked (RevokeRole); the service for a service role
+	RoleKind    GrantedRoleKind // account / database / application / service role
+	ServiceRole Ident           // the role after `!` in SERVICE ROLE <service>!<role>; zero otherwise
 
 	// --- all kinds ---
 	Grantee *Grantee // the FROM subject
@@ -3088,6 +3119,14 @@ type ShowStmt struct {
 	// TrueFilters are SHOW AVAILABLE LISTINGS' IS_<x> = TRUE filters
 	// (IS_IMPORTED, IS_ORGANIZATION, IS_SHARED_WITH_ME), in order.
 	TrueFilters []string
+	// Qualifier is the clause one class's page writes after the scope, its
+	// keywords uppercased ("FOR METRIC", "FOR PACKAGE", "FOR RELEASE
+	// CHANNEL", "FOR VERSION", "VERSION", "RUN", "WITH PRIMARY"), and
+	// QualifierName the name it takes; "" and nil if absent.
+	Qualifier     string
+	QualifierName *ObjectName
+	// OfTypes is SHOW SERVICES' OF TYPE <workload_type> [, ...]; nil if absent.
+	OfTypes []Ident
 
 	// SHOW GRANTS specifics.
 	IsGrants bool         // SHOW GRANTS ...
@@ -3365,6 +3404,11 @@ type CopyOption struct {
 	Lit   *Literal      // a string/number literal value (e.g. 'RETURN_ROWS', 32000000)
 	Group []*CopyOption // a nested ( k = v, ... ) group (e.g. FILE_FORMAT, CREDENTIALS, INCLUDE_METADATA)
 	List  []*Literal    // a ( 'a', 'b', ... ) literal list (e.g. FILES = ('f1', 'f2'))
+	Expr  Node          // an element written as an expression: IMPORTS = ( SYSTEM$DBT_GET_LAST_RUN_TARGET('p') )
+
+	// Alias is the AS '<alias>' an element of a list may carry (EXECUTE DBT
+	// PROJECT's IMPORTS = ( '<source>' AS '<alias>' )); nil when absent.
+	Alias *Literal
 
 	Loc Loc
 }
@@ -6012,6 +6056,7 @@ func (n *CallStmt) Tag() NodeTag { return T_CallStmt }
 //	EXECUTE IMMEDIATE $$<dollar_body>$$    -> ExecImmDollar
 //	EXECUTE IMMEDIATE <variable>           -> ExecImmVariable  (Snowflake Scripting local var, no $)
 //	EXECUTE IMMEDIATE $<session_variable>  -> ExecImmSessionVar ($-prefixed session variable)
+//	EXECUTE IMMEDIATE FROM <file>          -> ExecImmFrom      (a SQL file on a stage)
 type ExecImmSource int
 
 const (
@@ -6023,6 +6068,8 @@ const (
 	ExecImmVariable
 	// ExecImmSessionVar is a $-prefixed session variable.
 	ExecImmSessionVar
+	// ExecImmFrom runs a SQL file on a stage: EXECUTE IMMEDIATE FROM <file>.
+	ExecImmFrom
 )
 
 // String returns a human-readable name for the source kind.
@@ -6036,6 +6083,8 @@ func (k ExecImmSource) String() string {
 		return "VARIABLE"
 	case ExecImmSessionVar:
 		return "SESSION_VARIABLE"
+	case ExecImmFrom:
+		return "FROM"
 	default:
 		return "UNKNOWN"
 	}
@@ -6057,11 +6106,24 @@ func (k ExecImmSource) String() string {
 // (for $<session_variable>, Var.Name excludes the leading $). Using holds the
 // optional bind-variable list (bare identifiers per the legacy grammar and the
 // official corpus).
+//
+// The FROM form (https://docs.snowflake.com/en/sql-reference/sql/execute-immediate-from)
+// runs a SQL file on a stage:
+//
+//	EXECUTE IMMEDIATE FROM { @<stage>/<path>/<file> | '<relative_path>' }
+//	  [ USING ( <key> => <value> [ , ... ] ) ] [ DRY_RUN = { TRUE | FALSE } ]
+//
+// File holds the path verbatim, Vars the template variables and DryRun the
+// DRY_RUN value.
 type ExecuteImmediateStmt struct {
 	Source ExecImmSource
 	Body   string  // verbatim body for ExecImmString / ExecImmDollar (incl. delimiters); "" otherwise
 	Var    Ident   // variable name for ExecImmVariable / ExecImmSessionVar; zero Ident otherwise
 	Using  []Ident // optional USING ( <bind_variable> , ... ) list
+	// ExecImmFrom only:
+	File   string     // the file, verbatim: an @stage path or a quoted relative path
+	Vars   []*CallArg // USING ( <key> => <value> [ , ... ] ) template variables; nil if absent
+	DryRun string     // "TRUE" or "FALSE" when DRY_RUN = is written; "" otherwise
 	Loc    Loc
 }
 
@@ -6525,6 +6587,7 @@ var (
 //	ALTER <kind> [ IF EXISTS ] <name> <clause>...
 //	EXECUTE <kind> [ <name> ] <clause>...   (EXECUTE [ INFERENCE ] JOB SERVICE, whose Name is nil;
 //	                                         EXECUTE NOTEBOOK [ PROJECT ])
+//	EXECUTE <kind> [ IF EXISTS ] [ <name> ] <clause>...   (EXECUTE DBT PROJECT, DCM PROJECT, CODE BUNDLE)
 //
 // Loc spans the whole statement, from CREATE, ALTER or EXECUTE.
 type ObjectStmt struct {
@@ -6550,6 +6613,7 @@ type ObjectClause struct {
 	Keywords string           // the clause's keywords; "" for a CREATE's property run
 	Names    []*ObjectName    // the names the clause takes, in order
 	Options  []*CopyOption    // its `KEY = value` properties, in order
+	Args     []*CallArg       // a ( <name> => <value> [ , ... ] ) list after the names; nil if absent
 	Keys     []string         // the property names an UNSET clears, uppercased
 	Tags     []*TagAssignment // its tag assignments (SET TAG, [ WITH ] TAG ( ... ))
 	Query    Node             // the query an AS clause holds
