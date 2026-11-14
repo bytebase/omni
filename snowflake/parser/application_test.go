@@ -7,8 +7,8 @@ import (
 	"github.com/bytebase/omni/snowflake/ast"
 )
 
-// wantClauses checks an ObjectStmt's Verb, Kind and clause keywords.
-func wantClauses(t *testing.T, in, verb, kind string, keywords ...string) *ast.ObjectStmt {
+// wantApplicationClauses checks an ObjectStmt's Verb, Kind and clause keywords.
+func wantApplicationClauses(t *testing.T, in, verb, kind string, keywords ...string) *ast.ObjectStmt {
 	t.Helper()
 	s := mustObjectStmt(t, in)
 	if s.Verb != verb || s.Kind != kind {
@@ -21,7 +21,7 @@ func wantClauses(t *testing.T, in, verb, kind string, keywords ...string) *ast.O
 }
 
 func TestParseCreateApplication(t *testing.T) {
-	s := wantClauses(t, "CREATE APPLICATION app FROM APPLICATION PACKAGE pkg USING VERSION v1 PATCH 2 "+
+	s := wantApplicationClauses(t, "CREATE APPLICATION app FROM APPLICATION PACKAGE pkg USING VERSION v1 PATCH 2 "+
 		"DEBUG_MODE = TRUE COMMENT = 'c' WITH TAG (t = 'v') WITH FEATURE POLICY = db.s.fp",
 		"CREATE", "APPLICATION", "FROM APPLICATION PACKAGE", "USING VERSION", "PATCH", "", "WITH")
 	if c := s.Clauses[1]; c.Names[0].String() != "v1" {
@@ -37,16 +37,16 @@ func TestParseCreateApplication(t *testing.T) {
 		t.Errorf("WITH FEATURE POLICY = %+v", o)
 	}
 
-	s = wantClauses(t, "CREATE APPLICATION app FROM APPLICATION PACKAGE pkg USING '@stage/v1'",
+	s = wantApplicationClauses(t, "CREATE APPLICATION app FROM APPLICATION PACKAGE pkg USING '@stage/v1'",
 		"CREATE", "APPLICATION", "FROM APPLICATION PACKAGE", "USING")
 	if v, ok := optLitString(s.Clauses[1].Options, ""); !ok || v != "@stage/v1" {
 		t.Errorf("USING = %q", v)
 	}
-	wantClauses(t, "CREATE APPLICATION app FROM APPLICATION PACKAGE pkg USING RELEASE CHANNEL QA",
+	wantApplicationClauses(t, "CREATE APPLICATION app FROM APPLICATION PACKAGE pkg USING RELEASE CHANNEL QA",
 		"CREATE", "APPLICATION", "FROM APPLICATION PACKAGE", "USING RELEASE CHANNEL QA")
-	wantClauses(t, "CREATE APPLICATION app FROM LISTING l USING RELEASE CHANNEL DEFAULT BACKGROUND_INSTALL = TRUE",
+	wantApplicationClauses(t, "CREATE APPLICATION app FROM LISTING l USING RELEASE CHANNEL DEFAULT BACKGROUND_INSTALL = TRUE",
 		"CREATE", "APPLICATION", "FROM LISTING", "USING RELEASE CHANNEL DEFAULT", "")
-	wantClauses(t, "CREATE APPLICATION app FROM LISTING l", "CREATE", "APPLICATION", "FROM LISTING")
+	wantApplicationClauses(t, "CREATE APPLICATION app FROM LISTING l", "CREATE", "APPLICATION", "FROM LISTING")
 }
 
 func TestParseAlterApplication(t *testing.T) {
@@ -72,7 +72,7 @@ func TestParseAlterApplication(t *testing.T) {
 		"ALTER APPLICATION a SET CONFIGURATION cfg VALUE = 'x'":                                        {"SET CONFIGURATION"},
 		"ALTER APPLICATION a UNSET CONFIGURATION cfg":                                                  {"UNSET CONFIGURATION"},
 	} {
-		wantClauses(t, in, "ALTER", "APPLICATION", want...)
+		wantApplicationClauses(t, in, "ALTER", "APPLICATION", want...)
 	}
 	s := mustObjectStmt(t, "ALTER APPLICATION a SET SHARED TELEMETRY EVENTS ('e1', 'e2')")
 	if opt := s.Clauses[0].Options[0]; len(opt.List) != 2 || opt.List[1].Value != "e2" {
@@ -85,13 +85,13 @@ func TestParseAlterApplication(t *testing.T) {
 }
 
 func TestParseAlterApplicationSubcommandsWithoutName(t *testing.T) {
-	s := wantClauses(t, "ALTER APPLICATION SET SPECIFICATION eai TYPE = EXTERNAL_ACCESS LABEL = 'l' "+
+	s := wantApplicationClauses(t, "ALTER APPLICATION SET SPECIFICATION eai TYPE = EXTERNAL_ACCESS LABEL = 'l' "+
 		"DESCRIPTION = 'd' HOST_PORTS = ('h:443', 'i')",
 		"ALTER", "APPLICATION SET SPECIFICATION", "")
 	if s.Name.String() != "eai" || len(s.Clauses[0].Options) != 4 {
 		t.Errorf("got %+v", s)
 	}
-	wantClauses(t, "ALTER APPLICATION SET SPECIFICATION si TYPE = SECURITY_INTEGRATION LABEL = 'l' DESCRIPTION = 'd' "+
+	wantApplicationClauses(t, "ALTER APPLICATION SET SPECIFICATION si TYPE = SECURITY_INTEGRATION LABEL = 'l' DESCRIPTION = 'd' "+
 		"OAUTH_TYPE = 'CLIENT_CREDENTIALS' OAUTH_TOKEN_ENDPOINT = 'e' OAUTH_ALLOWED_SCOPES = ('s')",
 		"ALTER", "APPLICATION SET SPECIFICATION", "")
 	for _, in := range []string{
@@ -109,39 +109,39 @@ func TestParseAlterApplicationSubcommandsWithoutName(t *testing.T) {
 	} {
 		mustObjectStmt(t, in)
 	}
-	wantClauses(t, "ALTER APPLICATION DROP SPECIFICATION eai", "ALTER", "APPLICATION DROP SPECIFICATION")
-	wantClauses(t, "ALTER APPLICATION SET CONFIGURATION DEFINITION c TYPE = SECRET_AUTHORIZATION SECRET = db.sec "+
+	wantApplicationClauses(t, "ALTER APPLICATION DROP SPECIFICATION eai", "ALTER", "APPLICATION DROP SPECIFICATION")
+	wantApplicationClauses(t, "ALTER APPLICATION SET CONFIGURATION DEFINITION c TYPE = SECRET_AUTHORIZATION SECRET = db.sec "+
 		"LABEL = 'l' DESCRIPTION = 'd' APPLICATION_ROLES = (r1, r2)",
 		"ALTER", "APPLICATION SET CONFIGURATION DEFINITION", "")
-	wantClauses(t, "ALTER APPLICATION DROP CONFIGURATION DEFINITION c", "ALTER", "APPLICATION DROP CONFIGURATION DEFINITION")
+	wantApplicationClauses(t, "ALTER APPLICATION DROP CONFIGURATION DEFINITION c", "ALTER", "APPLICATION DROP CONFIGURATION DEFINITION")
 }
 
 func TestParseApplicationRole(t *testing.T) {
-	s := wantClauses(t, "CREATE OR REPLACE APPLICATION ROLE app_admin COMMENT = 'c'", "CREATE", "APPLICATION ROLE", "")
+	s := wantApplicationClauses(t, "CREATE OR REPLACE APPLICATION ROLE app_admin COMMENT = 'c'", "CREATE", "APPLICATION ROLE", "")
 	if !s.OrReplace {
 		t.Error("OrReplace not set")
 	}
-	s = wantClauses(t, "CREATE OR ALTER APPLICATION ROLE r", "CREATE", "APPLICATION ROLE")
+	s = wantApplicationClauses(t, "CREATE OR ALTER APPLICATION ROLE r", "CREATE", "APPLICATION ROLE")
 	if !s.OrAlter {
 		t.Error("OrAlter not set")
 	}
-	s = wantClauses(t, "CREATE APPLICATION ROLE IF NOT EXISTS r", "CREATE", "APPLICATION ROLE")
+	s = wantApplicationClauses(t, "CREATE APPLICATION ROLE IF NOT EXISTS r", "CREATE", "APPLICATION ROLE")
 	if !s.IfNotExists {
 		t.Error("IfNotExists not set")
 	}
-	wantClauses(t, "ALTER APPLICATION ROLE IF EXISTS app.r RENAME TO app.s", "ALTER", "APPLICATION ROLE", "RENAME TO")
-	wantClauses(t, "ALTER APPLICATION ROLE r SET COMMENT = 'c'", "ALTER", "APPLICATION ROLE", "SET")
-	wantClauses(t, "ALTER APPLICATION ROLE r UNSET COMMENT", "ALTER", "APPLICATION ROLE", "UNSET")
+	wantApplicationClauses(t, "ALTER APPLICATION ROLE IF EXISTS app.r RENAME TO app.s", "ALTER", "APPLICATION ROLE", "RENAME TO")
+	wantApplicationClauses(t, "ALTER APPLICATION ROLE r SET COMMENT = 'c'", "ALTER", "APPLICATION ROLE", "SET")
+	wantApplicationClauses(t, "ALTER APPLICATION ROLE r UNSET COMMENT", "ALTER", "APPLICATION ROLE", "UNSET")
 }
 
 func TestParseApplicationPackage(t *testing.T) {
-	s := wantClauses(t, "CREATE APPLICATION PACKAGE IF NOT EXISTS pkg DATA_RETENTION_TIME_IN_DAYS = 1 "+
+	s := wantApplicationClauses(t, "CREATE APPLICATION PACKAGE IF NOT EXISTS pkg DATA_RETENTION_TIME_IN_DAYS = 1 "+
 		"DISTRIBUTION = EXTERNAL MULTIPLE_INSTANCES = TRUE WITH TAG (t = 'v')",
 		"CREATE", "APPLICATION PACKAGE", "")
 	if !s.IfNotExists || len(s.Clauses[0].Options) != 3 || len(s.Clauses[0].Tags) != 1 {
 		t.Errorf("got %+v", s.Clauses[0])
 	}
-	wantClauses(t, "CREATE APPLICATION PACKAGE pkg", "CREATE", "APPLICATION PACKAGE")
+	wantApplicationClauses(t, "CREATE APPLICATION PACKAGE pkg", "CREATE", "APPLICATION PACKAGE")
 
 	for in, want := range map[string][]string{
 		"ALTER APPLICATION PACKAGE IF EXISTS p SET DATA_RETENTION_TIME_IN_DAYS = 1 COMMENT = 'c'": {"SET"},
@@ -181,7 +181,7 @@ func TestParseApplicationPackage(t *testing.T) {
 		"ALTER APPLICATION PACKAGE p SET RELEASE DIRECTIVE d ACCOUNTS = (o.a) VERSION = v1 PATCH = 0 FORCE": {"SET RELEASE DIRECTIVE", "FORCE"},
 		"ALTER APPLICATION PACKAGE p UNSET RELEASE DIRECTIVE d":                                             {"UNSET RELEASE DIRECTIVE"},
 	} {
-		wantClauses(t, in, "ALTER", "APPLICATION PACKAGE", want...)
+		wantApplicationClauses(t, in, "ALTER", "APPLICATION PACKAGE", want...)
 	}
 
 	s = mustObjectStmt(t, "ALTER APPLICATION PACKAGE p ADD PATCH 3 FOR VERSION v1 USING '@s/v1' LABEL = 'l'")
@@ -201,15 +201,15 @@ func TestParseApplicationPackage(t *testing.T) {
 }
 
 func TestParseApplicationService(t *testing.T) {
-	s := wantClauses(t, "CREATE APPLICATION SERVICE IF NOT EXISTS db.s.svc FROM ARTIFACT REPOSITORY db.s.repo "+
+	s := wantApplicationClauses(t, "CREATE APPLICATION SERVICE IF NOT EXISTS db.s.svc FROM ARTIFACT REPOSITORY db.s.repo "+
 		"PACKAGE pkg VERSION v1 EXTERNAL_ACCESS_INTEGRATIONS = (i1, i2) QUERY_WAREHOUSE = wh MIN_INSTANCES = 1",
 		"CREATE", "APPLICATION SERVICE", "FROM ARTIFACT REPOSITORY", "PACKAGE", "VERSION", "")
 	if s.Clauses[0].Names[0].String() != "db.s.repo" || s.Clauses[2].Names[0].String() != "v1" {
 		t.Errorf("got %+v", s.Clauses)
 	}
-	wantClauses(t, "CREATE OR ALTER APPLICATION SERVICE svc FROM ARTIFACT REPOSITORY r PACKAGE p VERSION v COMMENT = 'c' SPECIFICATION = 's'",
+	wantApplicationClauses(t, "CREATE OR ALTER APPLICATION SERVICE svc FROM ARTIFACT REPOSITORY r PACKAGE p VERSION v COMMENT = 'c' SPECIFICATION = 's'",
 		"CREATE", "APPLICATION SERVICE", "FROM ARTIFACT REPOSITORY", "PACKAGE", "VERSION", "")
-	s = wantClauses(t, "CREATE OR ALTER APPLICATION SERVICE svc FROM ARTIFACT REPOSITORY r PACKAGE p SPECIFICATION = 's'",
+	s = wantApplicationClauses(t, "CREATE OR ALTER APPLICATION SERVICE svc FROM ARTIFACT REPOSITORY r PACKAGE p SPECIFICATION = 's'",
 		"CREATE", "APPLICATION SERVICE", "FROM ARTIFACT REPOSITORY", "PACKAGE", "")
 	if !s.OrAlter {
 		t.Error("OrAlter not set")
@@ -222,7 +222,7 @@ func TestParseApplicationService(t *testing.T) {
 		"ALTER APPLICATION SERVICE s SET AUTO_RESUME = TRUE COMMENT = 'c'": "SET",
 		"ALTER APPLICATION SERVICE s UNSET AUTO_RESUME, QUERY_WAREHOUSE":   "UNSET",
 	} {
-		wantClauses(t, in, "ALTER", "APPLICATION SERVICE", want)
+		wantApplicationClauses(t, in, "ALTER", "APPLICATION SERVICE", want)
 	}
 }
 
