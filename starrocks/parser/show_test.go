@@ -469,6 +469,11 @@ func TestShowStrictRejects(t *testing.T) {
 	}
 	for _, sql := range []string{
 		"SHOW FULL TABLES FROM db LIKE 'a%'",
+		"SHOW LOAD WHERE Label MATCH 'job' AND 5 MOD 2 = 1",
+		"SHOW LOAD WHERE Label COLLATE utf8_general_ci = 'job'",
+		"SHOW RESOURCE GROUP role",
+		"SHOW FILE FROM role",
+		"SHOW GRANTS FOR ROLE role",
 		"SHOW TABLETS FROM t PARTITION (p1, p2) WHERE a = 1 ORDER BY a LIMIT 1, 2",
 		"SHOW GRANTS FOR ROLE r",
 		"SHOW GRANTS FOR ROLE",

@@ -157,6 +157,20 @@ func (n *BinaryExpr) Tag() NodeTag { return T_BinaryExpr }
 
 var _ Node = (*BinaryExpr)(nil)
 
+// MatchExpr is expr [NOT] MATCH pattern, Op naming the MATCH kind
+// (MATCH, MATCH_ANY, MATCH_PHRASE, ...).
+type MatchExpr struct {
+	Expr    Node
+	Op      string
+	Pattern Node
+	Not     bool
+	Loc     Loc
+}
+
+func (n *MatchExpr) Tag() NodeTag { return T_MatchExpr }
+
+var _ Node = (*MatchExpr)(nil)
+
 // CollateExpr is expr COLLATE collation.
 type CollateExpr struct {
 	Expr      Node

@@ -527,6 +527,11 @@ func TestShowStrictRejects(t *testing.T) {
 	}
 	for _, sql := range []string{
 		"SHOW FULL TABLES FROM db LIKE 'a%'",
+		"SHOW LOAD WHERE Label MATCH_ANY 'job' AND 5 MOD 2 = 1",
+		"SHOW LOAD WHERE Label COLLATE utf8_general_ci = 'job'",
+		"SHOW DATA SKEW FROM t FOR VERSION AS OF 1",
+		"SHOW REPLICA STATUS FROM t TABLESAMPLE (10 PERCENT)",
+		"SELECT 1 MATCH_ANY",
 		"SHOW DATA ALL FROM db.t ORDER BY a",
 		"SHOW DATA PROPERTIES('a' = 'b')",
 		"SHOW TABLETS FROM t PARTITION (p1, p2) WHERE a = 1 ORDER BY a LIMIT 1, 2",
