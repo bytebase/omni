@@ -28,6 +28,7 @@ type SelectStmt struct {
 	OrderByWithRollup bool               // ORDER BY ... WITH ROLLUP
 	Limit             *Limit             // LIMIT / OFFSET
 	ForUpdate         *ForUpdate         // FOR UPDATE / SHARE
+	MoreLocking       []*ForUpdate       // locking clauses after ForUpdate, in order (locking_clause_list)
 	WindowClause      []*WindowDef       // WINDOW clause
 	Into              *IntoClause        // INTO clause
 	SetOp             SetOperation       // UNION / INTERSECT / EXCEPT

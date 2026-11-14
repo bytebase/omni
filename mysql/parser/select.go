@@ -244,20 +244,7 @@ func (p *Parser) parseOuterOrderByLimit(stmt *nodes.SelectStmt) error {
 			return &ParseError{Message: "duplicate LIMIT clause", Position: p.cur.Loc}
 		}
 	}
-	if p.cur.Type == kwFOR {
-		fu, err := p.parseForUpdateClause()
-		if err != nil {
-			return err
-		}
-		stmt.ForUpdate = fu
-	} else if p.cur.Type == kwLOCK {
-		fu, err := p.parseLockInShareMode()
-		if err != nil {
-			return err
-		}
-		stmt.ForUpdate = fu
-	}
-	return nil
+	return p.parseLockingClauses(stmt)
 }
 
 // parseSelectClause parses a select_clause: a query primary optionally combined
@@ -908,18 +895,8 @@ func (p *Parser) parseSimpleSelect() (*nodes.SelectStmt, error) {
 	}
 
 	// FOR UPDATE / FOR SHARE / LOCK IN SHARE MODE
-	if p.cur.Type == kwFOR {
-		fu, err := p.parseForUpdateClause()
-		if err != nil {
-			return nil, err
-		}
-		stmt.ForUpdate = fu
-	} else if p.cur.Type == kwLOCK {
-		fu, err := p.parseLockInShareMode()
-		if err != nil {
-			return nil, err
-		}
-		stmt.ForUpdate = fu
+	if err := p.parseLockingClauses(stmt); err != nil {
+		return nil, err
 	}
 
 	// INTO clause (position 3: after the locking clause)
@@ -1539,6 +1516,9 @@ func (p *Parser) matchJoinType() (nodes.JoinType, bool, error) {
 			}
 			return nodes.JoinNaturalRight, true, nil
 		}
+		// NATURAL opt_inner JOIN: mysql:8.0.46 runs NATURAL INNER JOIN.
+		// Ref: natural_join_type in MySQL 8.0 sql/sql_yacc.yy.
+		p.match(kwINNER)
 		if _, err := p.expect(kwJOIN); err != nil {
 			return 0, false, err
 		}
@@ -2236,6 +2216,35 @@ func (p *Parser) parseLimitClause() (*nodes.Limit, error) {
 	return limit, nil
 }
 
+// parseLockingClauses reads locking_clause_list, one locking clause or more, into
+// stmt: the first is ForUpdate and the rest MoreLocking. mysql:8.0.46 runs `SELECT
+// 1 FOR UPDATE FOR UPDATE` and `... FOR UPDATE LOCK IN SHARE MODE`; a clause that
+// names a table another clause locks is the action's 3569 at execution.
+//
+// Ref: locking_clause_list and locking_clause in MySQL 8.0 sql/sql_yacc.yy.
+func (p *Parser) parseLockingClauses(stmt *nodes.SelectStmt) error {
+	for {
+		var fu *nodes.ForUpdate
+		var err error
+		switch {
+		case p.cur.Type == kwFOR:
+			fu, err = p.parseForUpdateClause()
+		case p.cur.Type == kwLOCK && (stmt.ForUpdate == nil || p.peekNext().Type == kwIN):
+			fu, err = p.parseLockInShareMode()
+		default:
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		if stmt.ForUpdate == nil {
+			stmt.ForUpdate = fu
+		} else {
+			stmt.MoreLocking = append(stmt.MoreLocking, fu)
+		}
+	}
+}
+
 // parseForUpdateClause parses FOR UPDATE / FOR SHARE.
 func (p *Parser) parseForUpdateClause() (*nodes.ForUpdate, error) {
 	start := p.pos()
@@ -2549,6 +2558,10 @@ func (p *Parser) parseIntoClause() (*nodes.IntoClause, error) {
 				break
 			}
 			p.advance()
+			// A comma is followed by another select_var_ident: `SELECT a INTO @a,` is a 1064.
+			if !p.isVariableRef() && p.cur.Type != tokIDENT && (p.cur.Type < 700 || !isLvalueKeyword(p.cur.Type)) {
+				return nil, p.syntaxErrorAtCur()
+			}
 		}
 		// select_var_list takes at least one, so `SELECT a INTO FROM t` is a 1064.
 		if len(into.Vars) == 0 {
@@ -2781,19 +2794,8 @@ func (p *Parser) parseQueryPrimaryTail(stmt *nodes.SelectStmt) error {
 		stmt.Into = i
 	}
 
-	switch p.cur.Type {
-	case kwFOR:
-		fu, err := p.parseForUpdateClause()
-		if err != nil {
-			return err
-		}
-		stmt.ForUpdate = fu
-	case kwLOCK:
-		fu, err := p.parseLockInShareMode()
-		if err != nil {
-			return err
-		}
-		stmt.ForUpdate = fu
+	if err := p.parseLockingClauses(stmt); err != nil {
+		return err
 	}
 
 	if p.cur.Type == kwINTO && stmt.Into == nil {
@@ -2973,14 +2975,27 @@ func (p *Parser) parseIndexHint() (*nodes.IndexHint, error) {
 		return nil, &ParseError{Message: "collecting"}
 	}
 
+	// Only USE takes an empty list (opt_key_usage_list); FORCE and IGNORE take
+	// key_usage_list, and an element is a name or PRIMARY: mysql:8.0.46 answers 1064
+	// for FORCE KEY () and runs FORCE KEY (PRIMARY).
+	//
+	// Ref: index_hint_definition and key_usage_element in MySQL 8.0 sql/sql_yacc.yy.
+	if p.cur.Type == ')' && hint.Type != nodes.HintUse {
+		return nil, p.syntaxErrorAtCur()
+	}
 	if p.cur.Type != ')' {
 		// Parse comma-separated index names
 		for {
-			name, _, err := p.parseIdent()
-			if err != nil {
-				return nil, err
+			if p.cur.Type == kwPRIMARY {
+				hint.Indexes = append(hint.Indexes, "PRIMARY")
+				p.advance()
+			} else {
+				name, _, err := p.parseIdent()
+				if err != nil {
+					return nil, err
+				}
+				hint.Indexes = append(hint.Indexes, name)
 			}
-			hint.Indexes = append(hint.Indexes, name)
 			if p.cur.Type != ',' {
 				break
 			}

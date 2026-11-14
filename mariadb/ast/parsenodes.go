@@ -235,6 +235,8 @@ type AlterTableStmt struct {
 	// Online and Ignore record ALTER [ONLINE] [IGNORE] TABLE's alter_option_list.
 	Online bool
 	Ignore bool
+	// IfExists is ALTER TABLE IF EXISTS: a missing table is a note, not an error.
+	IfExists bool
 }
 
 func (s *AlterTableStmt) nodeTag()  {}
@@ -458,6 +460,11 @@ func (o *DatabaseOption) nodeTag() {}
 type TruncateStmt struct {
 	Loc    Loc
 	Tables []*TableRef
+	// NoWait, HasWait and WaitSeconds are the [WAIT n | NOWAIT] after the table, of
+	// which there is at most one. WaitSeconds keeps the literal as written.
+	NoWait      bool
+	HasWait     bool
+	WaitSeconds string
 }
 
 func (s *TruncateStmt) nodeTag()  {}

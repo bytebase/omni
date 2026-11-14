@@ -604,6 +604,11 @@ func (p *Parser) parsePrivilegeName() (string, privWord, error) {
 		name = strings.ToUpper(tok.Str)
 		word.keyword = true
 	case tokIDENT:
+		// A user variable or a character set introducer is no role name: mysql:8.0.46
+		// answers 1064 for `GRANT @a TO u`, the '@' of a role's host with no role.
+		if p.curIsVariableOrIntroducer() {
+			return "", word, p.syntaxErrorAtCur()
+		}
 		tok := p.advance()
 		name = strings.ToUpper(tok.Str)
 	default:

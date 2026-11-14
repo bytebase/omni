@@ -5645,7 +5645,7 @@ accept	accept	engine	select_option_list/select_option	SELECT STRAIGHT_JOIN utf8m
 accept	accept	engine	select_option/query_spec_option	SELECT STRAIGHT_JOIN utf8mb4;
 accept	accept	engine	select_option/SQL_NO_CACHE_SYM	SELECT SQL_NO_CACHE utf8mb4;
 accept	accept	engine	select_option/SQL_NO_CACHE_SYM!insert	SELECT SQL_NO_CACHE zzz utf8mb4;
-reject	accept	engine	locking_clause_list/locking_clause_list_locking_clause	SELECT utf8mb4 FOR UPDATE FOR UPDATE;
+accept	accept	engine	locking_clause_list/locking_clause_list_locking_clause	SELECT utf8mb4 FOR UPDATE FOR UPDATE;
 reject	reject	engine	locking_clause_list/locking_clause_list_locking_clause!drop-1	SELECT utf8mb4 UPDATE FOR UPDATE;
 reject	reject	engine	locking_clause_list/locking_clause_list_locking_clause!drop-2	SELECT utf8mb4 FOR FOR UPDATE;
 reject	reject	engine	locking_clause_list/locking_clause_list_locking_clause!drop-3	SELECT utf8mb4 FOR UPDATE UPDATE;
@@ -7686,7 +7686,7 @@ accept	accept	engine	outer_join_type/RIGHT_opt_outer_JOIN_SYM!insert	DELETE utf8
 accept	accept	engine	outer_join_type/RIGHT_opt_outer_JOIN_SYM!swap	DELETE utf8mb4 FROM utf8mb4 ROLE JOIN utf8mb4 ON utf8mb4;
 accept	accept	engine	opt_inner/%empty	DELETE utf8mb4 FROM utf8mb4 NATURAL JOIN utf8mb4;
 reject	reject	engine	opt_inner/%empty!insert	DELETE utf8mb4 FROM utf8mb4 NATURAL zzz JOIN utf8mb4;
-reject	accept	engine	opt_inner/INNER_SYM	DELETE utf8mb4 FROM utf8mb4 NATURAL INNER JOIN utf8mb4;
+accept	accept	engine	opt_inner/INNER_SYM	DELETE utf8mb4 FROM utf8mb4 NATURAL INNER JOIN utf8mb4;
 reject	reject	engine	opt_inner/INNER_SYM!insert	DELETE utf8mb4 FROM utf8mb4 NATURAL INNER zzz JOIN utf8mb4;
 reject	reject	engine	opt_inner/INNER_SYM!swap	DELETE utf8mb4 FROM utf8mb4 NATURAL INOUT JOIN utf8mb4;
 accept	accept	engine	opt_outer/%empty	DELETE utf8mb4 FROM utf8mb4 NATURAL RIGHT JOIN utf8mb4;
@@ -7909,7 +7909,7 @@ reject	reject	engine	index_hint_type/IGNORE_SYM!swap	DELETE utf8mb4 FROM utf8mb4
 accept	accept	engine	index_hint_definition/index_hint_type_key_or_index_index_hint_clause_(_key_usage_list_)	DELETE utf8mb4 FROM utf8mb4 FORCE KEY(utf8mb4);
 reject	reject	engine	index_hint_definition/index_hint_type_key_or_index_index_hint_clause_(_key_usage_list_)!drop-2	DELETE utf8mb4 FROM utf8mb4 FORCE(utf8mb4);
 reject	reject	engine	index_hint_definition/index_hint_type_key_or_index_index_hint_clause_(_key_usage_list_)!drop-3	DELETE utf8mb4 FROM utf8mb4 FORCE KEY utf8mb4);
-accept	reject	engine	index_hint_definition/index_hint_type_key_or_index_index_hint_clause_(_key_usage_list_)!drop-4	DELETE utf8mb4 FROM utf8mb4 FORCE KEY();
+reject	reject	engine	index_hint_definition/index_hint_type_key_or_index_index_hint_clause_(_key_usage_list_)!drop-4	DELETE utf8mb4 FROM utf8mb4 FORCE KEY();
 reject	reject	engine	index_hint_definition/index_hint_type_key_or_index_index_hint_clause_(_key_usage_list_)!drop-5	DELETE utf8mb4 FROM utf8mb4 FORCE KEY(utf8mb4;
 reject	reject	engine	index_hint_definition/index_hint_type_key_or_index_index_hint_clause_(_key_usage_list_)!truncate	DELETE utf8mb4 FROM utf8mb4 FORCE KEY(utf8mb4
 reject	reject	engine	index_hint_definition/index_hint_type_key_or_index_index_hint_clause_(_key_usage_list_)!insert	DELETE utf8mb4 FROM utf8mb4 FORCE KEY(utf8mb4) zzz;
@@ -7944,7 +7944,7 @@ reject	reject	engine	opt_key_usage_list/key_usage_list!insert	DELETE utf8mb4 FRO
 accept	accept	engine	key_usage_element/ident	DELETE utf8mb4 FROM utf8mb4 FORCE KEY(utf8mb4);
 reject	reject	engine	key_usage_element/ident!truncate	DELETE utf8mb4 FROM utf8mb4 FORCE KEY(
 reject	reject	engine	key_usage_element/ident!insert	DELETE utf8mb4 FROM utf8mb4 FORCE KEY(utf8mb4 zzz);
-reject	accept	engine	key_usage_element/PRIMARY_SYM	DELETE utf8mb4 FROM utf8mb4 FORCE KEY(PRIMARY);
+accept	accept	engine	key_usage_element/PRIMARY_SYM	DELETE utf8mb4 FROM utf8mb4 FORCE KEY(PRIMARY);
 reject	reject	engine	key_usage_element/PRIMARY_SYM!insert	DELETE utf8mb4 FROM utf8mb4 FORCE KEY(PRIMARY zzz);
 accept	accept	engine	key_usage_element/PRIMARY_SYM!swap	DELETE utf8mb4 FROM utf8mb4 FORCE KEY(PRIVILEGES);
 accept	accept	engine	key_usage_list/key_usage_element	DELETE utf8mb4 FROM utf8mb4 FORCE KEY(utf8mb4);
@@ -8266,8 +8266,8 @@ reject	reject	engine	dec_num/FLOAT_NUM!insert	DESC FOR CONNECTION 1e0 zzz;
 accept	accept	engine	select_var_list/select_var_list_,_select_var_ident	SELECT utf8mb4 INTO utf8mb4, utf8mb4;
 reject	reject	engine	select_var_list/select_var_list_,_select_var_ident!drop-1	SELECT utf8mb4 INTO, utf8mb4;
 reject	reject	engine	select_var_list/select_var_list_,_select_var_ident!drop-2	SELECT utf8mb4 INTO utf8mb4 utf8mb4;
-accept	reject	engine	select_var_list/select_var_list_,_select_var_ident!drop-3	SELECT utf8mb4 INTO utf8mb4,;
-accept	reject	engine	select_var_list/select_var_list_,_select_var_ident!truncate	SELECT utf8mb4 INTO utf8mb4,
+reject	reject	engine	select_var_list/select_var_list_,_select_var_ident!drop-3	SELECT utf8mb4 INTO utf8mb4,;
+reject	reject	engine	select_var_list/select_var_list_,_select_var_ident!truncate	SELECT utf8mb4 INTO utf8mb4,
 reject	reject	engine	select_var_list/select_var_list_,_select_var_ident!insert	SELECT utf8mb4 INTO utf8mb4, utf8mb4 zzz;
 accept	accept	engine	select_var_list/select_var_ident	SELECT utf8mb4 INTO utf8mb4;
 accept	accept	engine	select_var_ident/@_ident_or_text	SELECT utf8mb4 INTO@utf8mb4;
@@ -11152,7 +11152,7 @@ reject	reject	engine	role_or_privilege_list/role_or_privilege_list_,_role_or_pri
 reject	reject	engine	role_or_privilege_list/role_or_privilege_list_,_role_or_privilege!insert	GRANT utf8mb4, utf8mb4 zzz TO utf8mb4;
 accept	accept	engine	role_or_privilege/role_ident_or_text_opt_column_list	GRANT utf8mb4 TO utf8mb4;
 accept	accept	engine	role_or_privilege/role_ident_or_text_@_ident_or_text	GRANT utf8mb4@utf8mb4 TO utf8mb4;
-accept	reject	engine	role_or_privilege/role_ident_or_text_@_ident_or_text!drop-1	GRANT@utf8mb4 TO utf8mb4;
+reject	reject	engine	role_or_privilege/role_ident_or_text_@_ident_or_text!drop-1	GRANT@utf8mb4 TO utf8mb4;
 reject	reject	engine	role_or_privilege/role_ident_or_text_@_ident_or_text!drop-3	GRANT utf8mb4@TO utf8mb4;
 reject	reject	engine	role_or_privilege/role_ident_or_text_@_ident_or_text!truncate	GRANT utf8mb4@
 reject	reject	engine	role_or_privilege/role_ident_or_text_@_ident_or_text!insert	GRANT utf8mb4@utf8mb4 zzz TO utf8mb4;
