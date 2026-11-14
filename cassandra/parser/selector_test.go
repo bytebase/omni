@@ -58,6 +58,12 @@ func TestGrammarForms(t *testing.T) {
 		"SELECT * FROM t WHERE a = (int) ? AND b = [1, 2] + [3] AND c = {f: 1}",
 		"SELECT * FROM t ORDER BY v ANN OF [1, 2] LIMIT 5",
 		"SELECT * FROM t ORDER BY v ANN OF ? DESC",
+		// ISO 8601 durations (Lexer.g:366-371) and $$ strings (Lexer.g:258).
+		"INSERT INTO t (a, b, c, d) VALUES (P1D, PT1H, P2W, P0001-02-03T04:05:06)",
+		"INSERT INTO t (a) VALUES (-P1D)",
+		"INSERT INTO t JSON $${\"id\": 1}$$",
+		"UPDATE t SET a = a -1, b = b - 1, c = c + 1 WHERE k = 1",
+		"SELECT a - 1, P1Dx FROM t",
 		// A sign written against a number is part of it (Lexer.g:337).
 		"INSERT INTO t (a, b, c) VALUES (CAST(-1 AS int), CAST(-1.5 AS double), (int) -1)",
 		"UPDATE t SET a = CAST(-1 AS int), b = CAST(-NaN AS double) WHERE k = 1",
@@ -78,6 +84,8 @@ func TestGrammarForms(t *testing.T) {
 	}
 
 	reject := []string{
+		"INSERT INTO t (a) VALUES (1-2)",              // -2 is one constant
+		"SELECT a-1 FROM t",                           // a column, then the constant -1
 		"SELECT ks.* FROM t",                          // no qualified star
 		"INSERT INTO t (a) VALUES (CAST(- 1 AS int))", // a sign apart from its number is no constant
 		"SELECT counter(*) FROM t",                    // only COUNT takes *

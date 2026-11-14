@@ -55,6 +55,11 @@ func (p *Parser) parseUnaliasedSelector() (ast.ExprNode, error) {
 		return nil, err
 	}
 	for p.cur.Type == tokPLUS || p.cur.Type == tokMINUS {
+		// A minus written against a number is its sign (Lexer.g:337), not
+		// an operator: a-1 is a column and a constant.
+		if isSignedConstant(p.cur, p.peekNext()) {
+			break
+		}
 		op := p.cur.Str
 		p.advance()
 		right, err := p.parseSelectionMultiplication()

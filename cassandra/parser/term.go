@@ -131,6 +131,12 @@ func (p *Parser) parseTerm() (ast.ExprNode, error) {
 		return nil, err
 	}
 	for p.cur.Type == tokPLUS || p.cur.Type == tokMINUS {
+		// A minus written against a number is that number's sign to
+		// Cassandra's lexer (Lexer.g:337), never an operator: 1-2 is two
+		// constants, which no term takes.
+		if isSignedConstant(p.cur, p.peekNext()) {
+			break
+		}
 		// X = <value> + X (Parser.g:1675) puts a column after a term's +;
 		// that + is not the term's, since no term follows it.
 		if !p.termFollowsOperator() {

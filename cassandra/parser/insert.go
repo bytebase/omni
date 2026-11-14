@@ -64,10 +64,11 @@ func (p *Parser) parseInsert() (*ast.InsertStmt, error) {
 	case p.cur.Type == tokJSON && stmt.Columns == nil:
 		p.advance() // JSON
 		stmt.IsJSON = true
-		// jsonValue (Parser.g:523): a string or a bind marker.
+		// jsonValue (Parser.g:523): a string, quoted with ' or $$
+		// (Lexer.g:258), or a bind marker.
 		var jsonVal ast.ExprNode
 		var err error
-		if p.cur.Type == tokSTRING {
+		if p.cur.Type == tokSTRING || p.cur.Type == tokCODEBLOCK {
 			jsonVal, err = p.parseConstant()
 		} else if p.cur.Type == tokQMARK || p.cur.Type == tokCOLON {
 			jsonVal, err = p.parseBindMarker()
