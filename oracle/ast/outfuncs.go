@@ -6488,9 +6488,15 @@ func writeAlterInmemoryJoinGroupStmt(sb *strings.Builder, n *AlterInmemoryJoinGr
 	if n.Action != "" {
 		sb.WriteString(fmt.Sprintf(" :action %q", n.Action))
 	}
-	if n.Member != nil {
-		sb.WriteString(" :member ")
-		writeNode(sb, n.Member)
+	if len(n.Members) > 0 {
+		sb.WriteString(" :members (")
+		for i, m := range n.Members {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, m)
+		}
+		sb.WriteString(")")
 	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
@@ -6502,8 +6508,8 @@ func writeJoinGroupMember(sb *strings.Builder, n *JoinGroupMember) {
 		sb.WriteString(" :table ")
 		writeNode(sb, n.Table)
 	}
-	if n.Column != "" {
-		sb.WriteString(fmt.Sprintf(" :column %q", n.Column))
+	if len(n.Columns) > 0 {
+		sb.WriteString(fmt.Sprintf(" :columns %q", n.Columns))
 	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
