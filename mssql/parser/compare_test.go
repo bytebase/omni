@@ -10591,13 +10591,14 @@ func TestParseTriggerWithOptions(t *testing.T) {
 		}
 	})
 
-	// WITH SCHEMABINDING
+	// WITH SCHEMABINDING, which goes with NATIVE_COMPILATION and an ATOMIC
+	// body (SQL Server 2022: Msg 10796 without NATIVE_COMPILATION).
 	t.Run("trigger_with_schemabinding", func(t *testing.T) {
-		sql := "CREATE TRIGGER tr5 ON t5 WITH SCHEMABINDING AFTER INSERT AS BEGIN SELECT 1 END"
+		sql := "CREATE TRIGGER tr5 ON t5 WITH SCHEMABINDING, NATIVE_COMPILATION AFTER INSERT AS BEGIN ATOMIC WITH (TRANSACTION ISOLATION LEVEL = SNAPSHOT, LANGUAGE = N'us_english') SELECT 1 END"
 		result := ParseAndCheck(t, sql)
 		stmt := result.Items[0].(*ast.CreateTriggerStmt)
-		if stmt.TriggerOptions == nil || stmt.TriggerOptions.Len() != 1 {
-			t.Fatalf("expected 1 trigger option")
+		if stmt.TriggerOptions == nil || stmt.TriggerOptions.Len() != 2 {
+			t.Fatalf("expected 2 trigger options")
 		}
 		opt := stmt.TriggerOptions.Items[0].(*ast.TriggerOption)
 		if opt.Name != "SCHEMABINDING" {
@@ -10647,8 +10648,8 @@ func TestParseTriggerEventOptionsStringsDepth(t *testing.T) {
 			wantValue string
 		}{
 			{"encryption", "CREATE TRIGGER tr1 ON t1 WITH ENCRYPTION AFTER INSERT AS SELECT 1", "ENCRYPTION", ""},
-			{"schemabinding", "CREATE TRIGGER tr1 ON t1 WITH SCHEMABINDING AFTER INSERT AS SELECT 1", "SCHEMABINDING", ""},
-			{"native_compilation", "CREATE TRIGGER tr1 ON t1 WITH NATIVE_COMPILATION, SCHEMABINDING AFTER INSERT AS SELECT 1", "NATIVE_COMPILATION", ""},
+			{"schemabinding", "CREATE TRIGGER tr1 ON t1 WITH SCHEMABINDING, NATIVE_COMPILATION AFTER INSERT AS BEGIN ATOMIC WITH (TRANSACTION ISOLATION LEVEL = SNAPSHOT, LANGUAGE = N'us_english') SELECT 1 END", "SCHEMABINDING", ""},
+			{"native_compilation", "CREATE TRIGGER tr1 ON t1 WITH NATIVE_COMPILATION, SCHEMABINDING AFTER INSERT AS BEGIN ATOMIC WITH (TRANSACTION ISOLATION LEVEL = SNAPSHOT, LANGUAGE = N'us_english') SELECT 1 END", "NATIVE_COMPILATION", ""},
 			{"execute_as_caller", "CREATE TRIGGER tr1 ON t1 WITH EXECUTE AS CALLER AFTER INSERT AS SELECT 1", "EXECUTE AS", "CALLER"},
 			{"execute_as_self", "CREATE TRIGGER tr1 ON t1 WITH EXECUTE AS SELF AFTER INSERT AS SELECT 1", "EXECUTE AS", "SELF"},
 			{"execute_as_user", "CREATE TRIGGER tr1 ON t1 WITH EXECUTE AS 'appuser' AFTER INSERT AS SELECT 1", "EXECUTE AS", "appuser"},
@@ -10677,7 +10678,7 @@ func TestParseTriggerEventOptionsStringsDepth(t *testing.T) {
 	t.Run("no_string_nodes", func(t *testing.T) {
 		tests := []string{
 			"CREATE TRIGGER tr1 ON t1 WITH ENCRYPTION, EXECUTE AS OWNER AFTER INSERT, UPDATE AS SELECT 1",
-			"CREATE TRIGGER tr1 ON ALL SERVER WITH SCHEMABINDING AFTER LOGON AS SELECT 1",
+			"CREATE TRIGGER tr1 ON ALL SERVER WITH SCHEMABINDING, NATIVE_COMPILATION AFTER LOGON AS BEGIN ATOMIC WITH (TRANSACTION ISOLATION LEVEL = SNAPSHOT, LANGUAGE = N'us_english') SELECT 1 END",
 			"CREATE TRIGGER tr1 ON DATABASE AFTER CREATE_TABLE, DROP_TABLE AS SELECT 1",
 		}
 		for _, sql := range tests {
@@ -19824,11 +19825,11 @@ func TestParseViewTriggerBnfReview(t *testing.T) {
 	})
 
 	t.Run("create trigger with append", func(t *testing.T) {
+		// SQL Server 2022 refuses WITH APPEND: "'APPEND' is not a
+		// recognized option" (Msg 195).
 		sql := "CREATE TRIGGER tr1 ON t1 AFTER INSERT WITH APPEND AS SELECT 1"
-		result := ParseAndCheck(t, sql)
-		stmt := result.Items[0].(*ast.CreateTriggerStmt)
-		if !stmt.WithAppend {
-			t.Error("expected WithAppend=true")
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q): expected an error", sql)
 		}
 	})
 
@@ -20044,7 +20045,7 @@ func TestParseViewTriggerBnfReview(t *testing.T) {
 
 	// --- CREATE TRIGGER with native compilation options ---
 	t.Run("create trigger native compilation", func(t *testing.T) {
-		sql := "CREATE TRIGGER tr1 ON t1 WITH NATIVE_COMPILATION, SCHEMABINDING, EXECUTE AS OWNER AFTER INSERT AS BEGIN SELECT 1 END"
+		sql := "CREATE TRIGGER tr1 ON t1 WITH NATIVE_COMPILATION, SCHEMABINDING, EXECUTE AS OWNER AFTER INSERT AS BEGIN ATOMIC WITH (TRANSACTION ISOLATION LEVEL = SNAPSHOT, LANGUAGE = N'us_english') SELECT 1 END"
 		result := ParseAndCheck(t, sql)
 		stmt := result.Items[0].(*ast.CreateTriggerStmt)
 		if stmt.TriggerOptions == nil || stmt.TriggerOptions.Len() != 3 {
