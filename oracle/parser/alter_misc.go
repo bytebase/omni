@@ -54,11 +54,11 @@ func (p *Parser) parseAlterStmt() (nodes.StmtNode, error) {
 		// MATERIALIZED VIEW - consume VIEW and check if LOG follows
 		if p.cur.Type == kwVIEW {
 			p.advance() // consume VIEW
-		}
-		// Check for MATERIALIZED VIEW LOG
-		if p.cur.Type == kwLOG {
-			p.advance() // consume LOG
-			return p.parseAlterMviewLogStmt(start)
+			// MATERIALIZED VIEW LOG
+			if p.cur.Type == kwLOG {
+				p.advance() // consume LOG
+				return p.parseAlterMviewLogStmt(start)
+			}
 		}
 		return p.parseAlterMaterializedViewStmt(start)
 	case kwDATABASE:

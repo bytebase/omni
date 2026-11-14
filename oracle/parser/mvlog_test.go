@@ -1,0 +1,65 @@
+package parser
+
+import (
+	"testing"
+
+	"github.com/bytebase/omni/oracle/ast"
+)
+
+// TestMviewLogClauses checks CREATE and ALTER MATERIALIZED VIEW LOG forms
+// beyond compat.tsv's rows against what the pinned Oracle 23ai answered:
+// each accepted form failed only on the missing table, and each rejected
+// one with a syntax error.
+func TestMviewLogClauses(t *testing.T) {
+	for sql, want := range map[string]string{
+		"ALTER MATERIALIZED VIEW LOG ON t PCTFREE 1 STORAGE (NEXT 1) LOGGING PARALLEL 2":                            "PCTFREE",
+		"ALTER MATERIALIZED VIEW LOG ON t LOGGING ADD ROWID":                                                        "LOGGING",
+		"ALTER MATERIALIZED VIEW LOG ON t ADD ROWID INCLUDING NEW VALUES PURGE IMMEDIATE":                           "ADD_ROWID",
+		"ALTER MATERIALIZED VIEW LOG ON t ADD SEQUENCE, ROWID, PRIMARY KEY (a, b)":                                  "ADD_SEQUENCE",
+		"ALTER MATERIALIZED VIEW LOG ON t PURGE IMMEDIATE FOR FAST REFRESH":                                         "PURGE",
+		"ALTER MATERIALIZED VIEW LOG ON t SHRINK SPACE CASCADE COMPACT":                                             "SHRINK",
+		"ALTER MATERIALIZED VIEW LOG ON t MOVE TABLESPACE a NOLOGGING":                                              "MOVE",
+		"ALTER MATERIALIZED VIEW LOG ON t MODIFY (a NUMBER, b DATE)":                                                "MODIFY_COLUMN",
+		"ALTER MATERIALIZED VIEW LOG ON t MODIFY DEFAULT ATTRIBUTES TABLESPACE a PCTFREE 1":                         "MODIFY_DEFAULT_ATTRIBUTES",
+		"ALTER MATERIALIZED VIEW LOG ON t MODIFY PARTITION p LOGGING SHRINK SPACE":                                  "MODIFY_PARTITION",
+		"ALTER MATERIALIZED VIEW LOG ON t MODIFY SUBPARTITION s NOLOGGING ALLOCATE EXTENT":                          "MODIFY_SUBPARTITION",
+		"ALTER MATERIALIZED VIEW LOG ON t MOVE PARTITION p TABLESPACE a PARALLEL 2":                                 "MOVE_PARTITION",
+		"ALTER MATERIALIZED VIEW LOG ON t MERGE PARTITIONS a, b INTO PARTITION c TABLESPACE a NOLOGGING PARALLEL 2": "MERGE_PARTITIONS",
+		"ALTER MATERIALIZED VIEW LOG ON t SPLIT PARTITION a AT (1) INTO (PARTITION b TABLESPACE a, PARTITION c)":    "SPLIT_PARTITION",
+		"ALTER MATERIALIZED VIEW LOG ON t SET SUBPARTITION TEMPLATE (SUBPARTITION a VALUES (1) TABLESPACE a)":       "SET_SUBPARTITION_TEMPLATE",
+		"ALTER MATERIALIZED VIEW LOG ON t SET INTERVAL (NUMTOYMINTERVAL(1, 'MONTH'))":                               "SET_INTERVAL",
+	} {
+		stmt := ParseAndCheck(t, sql).Items[0].(*ast.RawStmt).Stmt.(*ast.AlterMviewLogStmt)
+		if stmt.Action != want {
+			t.Errorf("Parse(%q) Action = %q, want %q", sql, stmt.Action, want)
+		}
+	}
+
+	for _, ok := range []string{
+		"CREATE MATERIALIZED VIEW LOG ON t TABLESPACE a PCTFREE 1 PARALLEL 2 NOCACHE NOLOGGING",
+		"CREATE MATERIALIZED VIEW LOG ON t WITH ROWID (a), SEQUENCE",
+		"CREATE MATERIALIZED VIEW LOG ON t WITH COMMIT SCN, ROWID",
+		"CREATE MATERIALIZED VIEW LOG ON t PURGE START WITH 1 REPEAT INTERVAL 1",
+	} {
+		ParseAndCheck(t, ok)
+	}
+
+	for _, bad := range []string{
+		"ALTER MATERIALIZED VIEW LOG ON t ADD ROWID LOGGING",                                      // ORA-02000
+		"ALTER MATERIALIZED VIEW LOG ON t ADD ROWID (a), SEQUENCE",                                // ORA-03048
+		"ALTER MATERIALIZED VIEW LOG ON t FOR FAST REFRESH PURGE IMMEDIATE",                       // ORA-00922
+		"ALTER MATERIALIZED VIEW LOG ON t SHRINK SPACE LOGGING",                                   // ORA-10630
+		"ALTER MATERIALIZED VIEW LOG ON t LOGGING MOVE",                                           // ORA-14133
+		"ALTER MATERIALIZED VIEW LOG ON t PURGE START WITH 1 NEXT 1 REPEAT INTERVAL 1",            // ORA-03049
+		"ALTER MATERIALIZED VIEW LOG ON t MODIFY PARTITION p TABLESPACE a",                        // ORA-14049
+		"ALTER MATERIALIZED VIEW LOG ON t MODIFY SUBPARTITION s PCTFREE 1",                        // ORA-14169
+		"ALTER MATERIALIZED VIEW LOG ON t MOVE PARTITION p UPDATE GLOBAL INDEXES",                 // ORA-30566
+		"ALTER MATERIALIZED VIEW LOG ON t MERGE SUBPARTITIONS a, b INTO SUBPARTITION c PCTFREE 1", // ORA-14160
+		"ALTER MATERIALIZED VIEW LOG ON t SET PARTITIONING MANUAL STORE IN (a)",                   // ORA-03049
+		"ALTER MATERIALIZED VIEW LOG ON t COALESCE PARTITION",                                     // ORA-12045
+		"CREATE MATERIALIZED VIEW LOG ON t WITH ROWID COMMIT SCN",                                 // ORA-03049
+		"CREATE MATERIALIZED VIEW LOG ON t PCTFREE 1 WITH ROWID TABLESPACE a",                     // ORA-03049
+	} {
+		ParseShouldFail(t, bad)
+	}
+}
