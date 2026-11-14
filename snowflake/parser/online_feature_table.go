@@ -21,6 +21,11 @@ func init() {
 			"TIMESTAMP_COLUMN": propName,
 			"COMMENT":          propString,
 		},
+		alterProps: objectProps{
+			"COMMENT":    propString,
+			"TARGET_LAG": propString,
+			"WAREHOUSE":  propName,
+		},
 		unset: []string{}, // UNSET takes only TAG
 	})
 }
