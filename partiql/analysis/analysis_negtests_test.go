@@ -35,8 +35,9 @@ import (
 // --- ValidateQuery: remaining non-DQL DML kinds rejected ---
 
 // TestValidateQuery_DMLExtraRejected covers the PartiQL-specific DML kinds
-// not exercised by analysis_test.go's DML test: UPSERT, REPLACE, REMOVE.
-// Each parses to *ast.UpsertStmt / *ast.ReplaceStmt / *ast.RemoveStmt, which
+// not exercised by analysis_test.go's DML test: UPSERT, REPLACE, REMOVE, SET.
+// Each parses to *ast.UpsertStmt / *ast.ReplaceStmt / *ast.RemoveStmt /
+// *ast.SetStmt, which
 // validateStatement classifies as DML and rejects.
 func TestValidateQuery_DMLExtraRejected(t *testing.T) {
 	cases := []struct {
@@ -51,6 +52,8 @@ func TestValidateQuery_DMLExtraRejected(t *testing.T) {
 		{"remove", "REMOVE t"},
 		// REMOVE with a path step still classifies as DML.
 		{"remove_path_step", "REMOVE t.a"},
+		// setCommand alone: dml#DmlBase -> dmlBaseCommand -> setCommand.
+		{"set", "SET a = 1"},
 	}
 	for _, tc := range cases {
 		tc := tc

@@ -24,7 +24,7 @@ package ast
 //   patternQuantifier    (lines 355–358)
 //   edgeWSpec            (lines 360–368)
 //   edgeSpec             (lines 370–371)
-//   patternPartLabel     (lines 373–374)
+//   labelSpec .. labelPrimary (lines 433–452)
 //   edgeAbbrev           (lines 376–381)
 //   exprGraphMatchOne    (lines 628–629)
 //   exprGraphMatchMany   (lines 625–626)
@@ -172,13 +172,15 @@ func (*GraphPattern) nodeTag()      {}
 func (n *GraphPattern) GetLoc() Loc { return n.Loc }
 func (*GraphPattern) patternNode()  {}
 
-// NodePattern represents `(var:Label WHERE …)`. Variable, Labels, and
-// Where are all optional.
+// NodePattern represents `(var:Label WHERE …)`. Variable, Label, and
+// Where are all optional. Label is the label expression after the colon;
+// Labels holds its name when it is a single name.
 //
 // Grammar: node
 type NodePattern struct {
 	Variable *VarRef
 	Labels   []string
+	Label    LabelExpr
 	Where    ExprNode
 	Loc      Loc
 }
@@ -196,7 +198,8 @@ func (*NodePattern) patternNode()  {}
 type EdgePattern struct {
 	Direction  EdgeDirection
 	Variable   *VarRef
-	Labels     []string
+	Labels     []string  // the name of Label when it is a single name
+	Label      LabelExpr // the label expression after the colon
 	Where      ExprNode
 	Quantifier *PatternQuantifier
 	Loc        Loc
@@ -232,3 +235,75 @@ type PatternSelector struct {
 
 func (*PatternSelector) nodeTag()      {}
 func (n *PatternSelector) GetLoc() Loc { return n.Loc }
+
+// LabelExpr is a label expression of a node or edge pattern: a name, the
+// wildcard `%`, or their combination with `!`, `&` and `|`. Parentheses
+// group and add no node.
+//
+// Grammar: labelSpec, labelTerm, labelFactor, labelPrimary
+type LabelExpr interface {
+	Node
+	labelExpr()
+}
+
+// LabelName is a label named by a symbol.
+//
+// Grammar: labelPrimary#LabelPrimaryName
+type LabelName struct {
+	Name          string
+	CaseSensitive bool
+	Loc           Loc
+}
+
+func (*LabelName) nodeTag()      {}
+func (n *LabelName) GetLoc() Loc { return n.Loc }
+func (*LabelName) labelExpr()    {}
+
+// LabelWildcard is `%`, any label.
+//
+// Grammar: labelPrimary#LabelPrimaryWild
+type LabelWildcard struct {
+	Loc Loc
+}
+
+func (*LabelWildcard) nodeTag()      {}
+func (n *LabelWildcard) GetLoc() Loc { return n.Loc }
+func (*LabelWildcard) labelExpr()    {}
+
+// LabelNot is `!label`.
+//
+// Grammar: labelFactor#LabelFactorNot
+type LabelNot struct {
+	Operand LabelExpr
+	Loc     Loc
+}
+
+func (*LabelNot) nodeTag()      {}
+func (n *LabelNot) GetLoc() Loc { return n.Loc }
+func (*LabelNot) labelExpr()    {}
+
+// LabelAnd is `label & label`.
+//
+// Grammar: labelTerm#LabelTermAnd
+type LabelAnd struct {
+	Left  LabelExpr
+	Right LabelExpr
+	Loc   Loc
+}
+
+func (*LabelAnd) nodeTag()      {}
+func (n *LabelAnd) GetLoc() Loc { return n.Loc }
+func (*LabelAnd) labelExpr()    {}
+
+// LabelOr is `label | label`.
+//
+// Grammar: labelSpec#LabelSpecOr
+type LabelOr struct {
+	Left  LabelExpr
+	Right LabelExpr
+	Loc   Loc
+}
+
+func (*LabelOr) nodeTag()      {}
+func (n *LabelOr) GetLoc() Loc { return n.Loc }
+func (*LabelOr) labelExpr()    {}

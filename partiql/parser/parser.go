@@ -15,6 +15,7 @@ package parser
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/bytebase/omni/partiql/ast"
 )
@@ -72,6 +73,17 @@ type Parser struct {
 	// (trimHasTopLevelFrom) for the TRIMs it has read, by the offset of the
 	// TRIM's '('.
 	trimFroms map[int]bool
+
+	// positionCommas records the results of the POSITION lookahead, which
+	// looks for a top-level comma (parsePositionExpr), as trimFroms does.
+	positionCommas map[int]bool
+
+	// exprLevel counts the parseExprTop calls in progress. While the first
+	// operand of POSITION(a IN b) is parsed, inStopLevel is the level of
+	// that operand, and its predicates end at an IN of that level rather
+	// than read it (parsePredicate). Zero means no POSITION is waiting.
+	exprLevel   int
+	inStopLevel int
 }
 
 // NewParser creates a Parser that reads from the given input string.
@@ -306,7 +318,10 @@ func (p *Parser) ParseExpr() (ast.ExprNode, error) {
 // handling) only need to touch the bodies of those functions;
 // parseExprTop's single-line dispatch stays the same.
 func (p *Parser) parseExprTop() (ast.ExprNode, error) {
-	return p.parseBagOp()
+	p.exprLevel++
+	expr, err := p.parseBagOp()
+	p.exprLevel--
+	return expr, err
 }
 
 // parseVarRef handles optional @-prefix plus symbolPrimitive, and
@@ -324,6 +339,23 @@ func (p *Parser) parseVarRef() (ast.ExprNode, error) {
 	if p.cur.Type == tokAT_SIGN {
 		atPrefixed = true
 		p.advance()
+	}
+	// EXCLUDED is the one nonReservedKeywords word, a variable
+	// (varRefExpr#VariableKeyword, PartiQLParser.g4:745-750) and never a
+	// function name, which is a symbolPrimitive.
+	if p.cur.Type == tokEXCLUDED {
+		tok := p.cur
+		p.advance()
+		return &ast.VarRef{
+			Name:       tok.Str,
+			AtPrefixed: atPrefixed,
+			Loc:        ast.Loc{Start: start, End: tok.Loc.End},
+		}, nil
+	}
+	if !atPrefixed {
+		if call, ok, err := p.tryQualifiedCall(); ok || err != nil {
+			return call, err
+		}
 	}
 	name, caseSensitive, nameLoc, err := p.parseSymbolPrimitive()
 	if err != nil {
@@ -727,44 +759,14 @@ func (p *Parser) parseDqlStatement() (ast.StmtNode, error) {
 
 // ParseStatement parses a single top-level statement and asserts that
 // the entire input was consumed. Supports DDL (CREATE/DROP TABLE/INDEX),
-// DML (INSERT/UPDATE/DELETE/REPLACE/UPSERT/REMOVE) and EXEC directly;
+// DML (INSERT/UPDATE/DELETE/REPLACE/UPSERT/REMOVE/SET) and EXEC directly;
 // anything else is DQL, an expression (parseDqlStatement).
 func (p *Parser) ParseStatement() (ast.StmtNode, error) {
 	if err := p.checkLexerErr(); err != nil {
 		return nil, err
 	}
 	first := p.cur
-	var stmt ast.StmtNode
-	var err error
-	switch p.cur.Type {
-	case tokCREATE:
-		stmt, err = p.parseCreateCommand()
-	case tokDROP:
-		stmt, err = p.parseDropCommand()
-	case tokINSERT:
-		stmt, err = p.parseInsertStmt()
-	case tokUPDATE:
-		stmt, err = p.parseUpdateStmt()
-	case tokDELETE:
-		stmt, err = p.parseDeleteStmt()
-	case tokREPLACE:
-		stmt, err = p.parseReplaceStmt()
-	case tokUPSERT:
-		stmt, err = p.parseUpsertStmt()
-	case tokREMOVE:
-		stmt, err = p.parseRemoveStmt()
-	case tokFROM:
-		// FROM-led DML: `FROM fromClause whereClause? dmlBaseCommand+
-		// returningClause?` (dml#DmlBaseWrapper 2nd alt). A leading FROM at
-		// statement position is always DML — SELECT begins with SELECT, and
-		// a bare expression cannot start with FROM.
-		stmt, err = p.parseFromLedDml()
-	case tokEXEC, tokEXECUTE:
-		p.advance() // consume EXEC/EXECUTE
-		stmt, err = p.parseExecCommand()
-	default:
-		stmt, err = p.parseDqlStatement()
-	}
+	stmt, err := p.parseRootStatement()
 	if err != nil {
 		return nil, err
 	}
@@ -786,4 +788,59 @@ func (p *Parser) ParseStatement() (ast.StmtNode, error) {
 		return nil, nestedTooDeeply(first)
 	}
 	return stmt, nil
+}
+
+// reservedFunctionNames are the keywords functionName takes as the name of
+// a call (functionName#FunctionNameReserved, PartiQLParser.g4:722).
+var reservedFunctionNames = map[int]bool{
+	tokCHAR_LENGTH: true, tokCHARACTER_LENGTH: true, tokOCTET_LENGTH: true,
+	tokBIT_LENGTH: true, tokUPPER: true, tokLOWER: true, tokSIZE: true,
+	tokEXISTS: true, tokCOUNT: true,
+}
+
+// tryQualifiedCall parses a call whose name is qualified,
+//
+//	functionName : (qualifier+=symbolPrimitive PERIOD)* name=( reserved | symbolPrimitive )
+//
+// (PartiQLParser.g4:721-724), as `a.b.f(x)` or `a.CHAR_LENGTH(x)`, when p.cur
+// begins one: symbols joined by periods, the last followed by '('. Otherwise
+// it consumes nothing and returns false, and the symbols are a path. The
+// scan reads each period-joined symbol once, so it is linear in the path.
+func (p *Parser) tryQualifiedCall() (ast.ExprNode, bool, error) {
+	if p.peekNext().Type != tokPERIOD {
+		return nil, false, nil
+	}
+	st := p.save()
+	start := p.cur.Loc.Start
+	var qualifier []*ast.VarRef
+	for (p.cur.Type == tokIDENT || p.cur.Type == tokIDENT_QUOTED) && p.peekNext().Type == tokPERIOD {
+		qualifier = append(qualifier, &ast.VarRef{
+			Name:          p.cur.Str,
+			CaseSensitive: p.cur.Type == tokIDENT_QUOTED,
+			Loc:           p.cur.Loc,
+		})
+		p.advance() // consume the symbol
+		p.advance() // consume .
+	}
+	nameTok := p.cur
+	if (nameTok.Type == tokIDENT || nameTok.Type == tokIDENT_QUOTED || reservedFunctionNames[nameTok.Type]) &&
+		p.peekNext().Type == tokPAREN_LEFT {
+		p.advance() // consume the name
+		args, end, err := p.parseFuncCallArgs()
+		if err != nil {
+			return nil, true, err
+		}
+		name := nameTok.Str
+		if reservedFunctionNames[nameTok.Type] {
+			name = strings.ToUpper(name)
+		}
+		return &ast.FuncCall{
+			Name:      name,
+			Qualifier: qualifier,
+			Args:      args,
+			Loc:       ast.Loc{Start: start, End: end},
+		}, true, nil
+	}
+	p.restore(st)
+	return nil, false, nil
 }
