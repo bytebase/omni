@@ -309,12 +309,25 @@ func Split(sql string) []Segment {
 				atStmtStart = false
 			}
 			i = endOfWord
+			// BEGIN NOT ATOMIC: the block's first statement follows ATOMIC.
+			if next == "NOT" {
+				j := skipToEndOfWord(sql, skipWhitespace(sql, i))
+				if nextWordAfter(sql, j) == "ATOMIC" {
+					i = skipToEndOfWord(sql, skipWhitespace(sql, j))
+				}
+			}
 
 		// FOR — SET STATEMENT ... FOR takes a whole statement, so what follows it is at
 		// stmt-start: `SET STATEMENT a = 1 FOR IF b THEN c; END IF`. Elsewhere the next word
-		// is no IF: FOR EACH ROW, FOR UPDATE, FOR i IN.
+		// is no IF: FOR EACH ROW, FOR UPDATE. At stmt-start FOR opens MariaDB's FOR loop,
+		// which END FOR closes, and the record variable follows it.
 		case (b == 'f' || b == 'F') && matchWord(sql, i, "FOR"):
-			atStmtStart = true
+			if atStmtStart && prevWord(sql, i) != "END" {
+				depth++
+				atStmtStart = false
+			} else {
+				atStmtStart = true
+			}
 			i = skipToEndOfWord(sql, i)
 
 		// PROCEDURE after CREATE — enter the routine header so the body position

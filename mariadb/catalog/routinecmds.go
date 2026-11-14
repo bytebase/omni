@@ -37,7 +37,7 @@ func (c *Catalog) createRoutine(stmt *nodes.CreateFunctionStmt) error {
 		params = append(params, &RoutineParam{
 			Direction: p.Direction,
 			Name:      p.Name,
-			TypeName:  formatParamType(p.TypeName),
+			TypeName:  formatRoutineParamType(p),
 		})
 	}
 
@@ -193,6 +193,26 @@ func formatDataType(dt *nodes.DataType) string {
 	}
 
 	return b.String()
+}
+
+// formatRoutineParamType formats a parameter's type for display in a routine parameter
+// list, MariaDB's ROW(...), TYPE OF and ROW TYPE OF among them.
+func formatRoutineParamType(p *nodes.FuncParam) string {
+	switch {
+	case p.Anchor != nil:
+		prefix := "TYPE OF "
+		if p.Anchor.Row {
+			prefix = "ROW TYPE OF "
+		}
+		return prefix + strings.Join(p.Anchor.Names, ".")
+	case len(p.RowFields) > 0:
+		fields := make([]string, len(p.RowFields))
+		for i, f := range p.RowFields {
+			fields[i] = f.Name + " " + formatParamType(f.TypeName)
+		}
+		return "ROW(" + strings.Join(fields, ", ") + ")"
+	}
+	return formatParamType(p.TypeName)
 }
 
 // formatParamType formats a DataType for display in a routine parameter list.

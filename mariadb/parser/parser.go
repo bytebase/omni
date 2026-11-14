@@ -19,6 +19,9 @@ type Parser struct {
 	// routineDepth counts the stored programs around the current token, which is what a
 	// name in LIMIT needs to be a local variable and not 1327.
 	routineDepth int
+	// spScope is the block of the stored program around the current token, with what its
+	// declarations named; nil outside a stored program.
+	spScope *spScope
 	// storedExpr is the stored expression around the current token, which holds what it reads.
 	storedExpr storedExprKind
 

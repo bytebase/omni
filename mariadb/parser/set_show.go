@@ -290,7 +290,7 @@ func (p *Parser) parseSetStatementStmt(start int) (*nodes.SetStatementStmt, erro
 }
 
 // parseSetStatementTarget reads directly_executable_statement: a statement, or a compound
-// statement with no label. omni reads no BEGIN NOT ATOMIC and no FOR loop anywhere.
+// statement with no label. parseStmt reads BEGIN NOT ATOMIC, LOOP and FOR.
 func (p *Parser) parseSetStatementTarget() (nodes.Node, error) {
 	var inner nodes.Node
 	var err error
@@ -303,8 +303,6 @@ func (p *Parser) parseSetStatementTarget() (nodes.Node, error) {
 		inner, err = p.parseWhileStmt("", 0)
 	case kwREPEAT:
 		inner, err = p.parseRepeatStmt("", 0)
-	case kwLOOP:
-		inner, err = p.parseLoopStmt("", 0)
 	default:
 		inner, err = p.parseStmt()
 	}

@@ -16,6 +16,12 @@ import (
 //	END [end_label]
 //
 // The label, if any, must already be consumed by the caller and passed as labelName.
+//
+// An unlabeled block may be MariaDB's BEGIN NOT ATOMIC, which holds what any block holds
+// and is also a statement of its own; a labeled one may not.
+//
+// Ref: sp_labeled_block, sp_unlabeled_block and sp_unlabeled_block_not_atomic in MariaDB
+// 11.8 sql/sql_yacc.yy.
 func (p *Parser) parseBeginEndBlock(labelName string, labelStart int) (*nodes.BeginEndBlock, error) {
 	p.routineDepth++
 	defer func() { p.routineDepth-- }()
@@ -30,6 +36,16 @@ func (p *Parser) parseBeginEndBlock(labelName string, labelStart int) (*nodes.Be
 		Loc:   nodes.Loc{Start: start},
 		Label: labelName,
 	}
+	// not is NOT_SYM, or NOT2_SYM, which `!` is only under HIGH_NOT_PRECEDENCE.
+	if labelName == "" && p.cur.Type == kwNOT {
+		p.advance()
+		if !p.atWord("ATOMIC") {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		stmt.NotAtomic = true
+	}
+	defer p.pushSpScope()()
 
 	// Parse statements until END, enforcing MySQL's declaration-ordering rule:
 	//   DECLARE var/condition  →  DECLARE cursor  →  DECLARE handler  →  stmts
@@ -189,8 +205,12 @@ func (p *Parser) parseCompoundStmtOrStmt() (nodes.Node, error) {
 			if p.cur.Type == kwLOOP {
 				return p.parseLoopStmt(name, nameStart)
 			}
+			// Labeled FOR
+			if p.cur.Type == kwFOR {
+				return p.parseForStmt(name, nameStart)
+			}
 			return nil, &ParseError{
-				Message:  "expected BEGIN, WHILE, REPEAT, or LOOP after label",
+				Message:  "expected BEGIN, WHILE, REPEAT, LOOP, or FOR after label",
 				Position: p.cur.Loc,
 			}
 		}
@@ -229,6 +249,11 @@ func (p *Parser) parseCompoundStmtOrStmt() (nodes.Node, error) {
 	// LOOP (without label)
 	if p.cur.Type == kwLOOP {
 		return p.parseLoopStmt("", 0)
+	}
+
+	// FOR (without label)
+	if p.cur.Type == kwFOR {
+		return p.parseForStmt("", 0)
 	}
 
 	// LEAVE
@@ -283,7 +308,7 @@ func (p *Parser) parseCompoundStmtOrStmt() (nodes.Node, error) {
 // DECLARE var [, var] ... type [DEFAULT value]
 // DECLARE condition_name CONDITION FOR condition_value
 // DECLARE handler_action HANDLER FOR condition_value [, ...] stmt
-// DECLARE cursor_name CURSOR FOR select_stmt
+// DECLARE cursor_name CURSOR [(param, ...)] FOR select_stmt
 func (p *Parser) parseDeclareStmt() (nodes.Node, error) {
 	start := p.pos()
 	p.advance() // consume DECLARE
@@ -295,51 +320,60 @@ func (p *Parser) parseDeclareStmt() (nodes.Node, error) {
 
 	// We need to look ahead to determine if it's CONDITION, CURSOR, or variable.
 	// Parse the first identifier name.
-	name, _, err := p.parseIdentifier()
+	name, namePos, err := p.parseIdentifier()
 	if err != nil {
 		return nil, err
 	}
 
 	// DECLARE name CONDITION FOR ...
 	if p.cur.Type == kwCONDITION {
-		return p.parseDeclareConditionStmt(start, name)
+		return p.parseDeclareConditionStmt(start, name, namePos)
 	}
 
 	// DECLARE name CURSOR FOR ...
 	if p.cur.Type == kwCURSOR {
-		return p.parseDeclareCursorStmt(start, name)
+		return p.parseDeclareCursorStmt(start, name, namePos)
 	}
 
 	// DECLARE var [, var] ... type [DEFAULT value]
-	return p.parseDeclareVarStmt(start, name)
+	return p.parseDeclareVarStmt(start, name, namePos)
 }
 
 // parseDeclareVarStmt parses a DECLARE variable statement.
 // The first variable name has already been consumed.
 //
 //	DECLARE var_name [, var_name] ... type [DEFAULT value]
-func (p *Parser) parseDeclareVarStmt(start int, firstName string) (*nodes.DeclareVarStmt, error) {
+//
+// MariaDB's type may also be ROW(name type, ...), TYPE OF a variable or a column, or ROW TYPE
+// OF a table or a cursor. A block declares a name once, and the names are declared after the
+// declaration, so its TYPE OF or DEFAULT does not see them.
+//
+// Ref: sp_decl_variable_list and sp_decl_variable_list_anchored in MariaDB 11.8
+// sql/sql_yacc.yy.
+func (p *Parser) parseDeclareVarStmt(start int, firstName string, firstPos int) (*nodes.DeclareVarStmt, error) {
 	stmt := &nodes.DeclareVarStmt{
 		Loc:   nodes.Loc{Start: start},
 		Names: []string{firstName},
 	}
+	positions := []int{firstPos}
 
 	// Additional variable names separated by commas
 	for p.cur.Type == ',' {
 		p.advance()
-		name, _, err := p.parseIdentifier()
+		name, pos, err := p.parseIdentifier()
 		if err != nil {
 			return nil, err
 		}
 		stmt.Names = append(stmt.Names, name)
+		positions = append(positions, pos)
 	}
 
 	// Data type
-	dt, err := p.parseDataType()
+	dt, row, anchor, err := p.parseSpVarType(true)
 	if err != nil {
 		return nil, err
 	}
-	stmt.TypeName = dt
+	stmt.TypeName, stmt.RowFields, stmt.Anchor = dt, row, anchor
 
 	// Optional DEFAULT value
 	if p.cur.Type == kwDEFAULT {
@@ -354,8 +388,109 @@ func (p *Parser) parseDeclareVarStmt(start int, firstName string) (*nodes.Declar
 		stmt.Default = val
 	}
 
+	for i, name := range stmt.Names {
+		if err := p.declareSpVar(name, positions[i]); err != nil {
+			return nil, err
+		}
+	}
+
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// parseSpVarType reads the type of a stored program variable or parameter: a data type, or
+// one of MariaDB's ROW(name type, ...), TYPE OF and ROW TYPE OF.
+//
+// A variable's TYPE OF and ROW TYPE OF name one to three parts, and TYPE OF one part is a
+// variable, which must be declared. A parameter's TYPE OF names a column, two or three
+// parts, and its ROW TYPE OF a table, one or two.
+//
+// Ref: sp_decl_variable_list, sp_decl_variable_list_anchored,
+// optionally_qualified_column_ident, sp_param_init_vars and sp_param_anchored in MariaDB 11.8
+// sql/sql_yacc.yy.
+func (p *Parser) parseSpVarType(variable bool) (*nodes.DataType, []*nodes.RowField, *nodes.TypeAnchor, error) {
+	switch {
+	case p.cur.Type == kwROW && p.peekNext().Type == '(':
+		row, err := p.parseRowTypeBody()
+		return nil, row, nil, err
+	case p.cur.Type == kwROW && p.peekNext().Type == kwTYPE,
+		p.cur.Type == kwTYPE && p.peekNext().Type == kwOF:
+		anchor := &nodes.TypeAnchor{Loc: nodes.Loc{Start: p.pos()}}
+		if _, ok := p.match(kwROW); ok {
+			anchor.Row = true
+		}
+		p.advance() // TYPE
+		if _, err := p.expect(kwOF); err != nil {
+			return nil, nil, nil, err
+		}
+		minParts, maxParts := 1, 3
+		if !variable {
+			minParts, maxParts = 2, 3
+			if anchor.Row {
+				minParts, maxParts = 1, 2
+			}
+		}
+		firstPos := p.cur.Loc
+		for {
+			name, _, err := p.parseIdentifier()
+			if err != nil {
+				return nil, nil, nil, err
+			}
+			anchor.Names = append(anchor.Names, name)
+			if len(anchor.Names) == maxParts || p.cur.Type != '.' {
+				break
+			}
+			p.advance()
+		}
+		if len(anchor.Names) < minParts {
+			return nil, nil, nil, p.syntaxErrorAtCur()
+		}
+		anchor.Loc.End = p.prev.End
+		if !anchor.Row && len(anchor.Names) == 1 {
+			if err := p.checkSpVarDeclared(anchor.Names[0], firstPos); err != nil {
+				return nil, nil, nil, err
+			}
+		}
+		return nil, nil, anchor, nil
+	}
+	dt, err := p.parseDataType()
+	return dt, nil, nil, err
+}
+
+// parseRowTypeBody reads ROW(name type, ...), a field named once each (1060).
+//
+// Ref: row_type_body and row_field_definition_list in MariaDB 11.8 sql/sql_yacc.yy.
+func (p *Parser) parseRowTypeBody() ([]*nodes.RowField, error) {
+	p.advance() // ROW
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	var fields []*nodes.RowField
+	seen := map[string]bool{}
+	for {
+		start := p.pos()
+		name, _, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		dt, err := p.parseDataType()
+		if err != nil {
+			return nil, err
+		}
+		key := strings.ToLower(name)
+		if seen[key] {
+			return nil, &ParseError{Message: "Duplicate column name '" + name + "'", Position: start}
+		}
+		seen[key] = true
+		fields = append(fields, &nodes.RowField{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: name, TypeName: dt})
+		if _, ok := p.match(','); !ok {
+			break
+		}
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return fields, nil
 }
 
 // parseDeclareConditionStmt parses DECLARE condition_name CONDITION FOR condition_value.
@@ -363,7 +498,9 @@ func (p *Parser) parseDeclareVarStmt(start int, firstName string) (*nodes.Declar
 //
 //	DECLARE condition_name CONDITION FOR condition_value
 //	condition_value: SQLSTATE [VALUE] sqlstate_value | mysql_error_code
-func (p *Parser) parseDeclareConditionStmt(start int, name string) (*nodes.DeclareConditionStmt, error) {
+//
+// Ref: sp_decl_body and sp_cond in MariaDB 11.8 sql/sql_yacc.yy.
+func (p *Parser) parseDeclareConditionStmt(start int, name string, namePos int) (*nodes.DeclareConditionStmt, error) {
 	p.advance() // consume CONDITION
 
 	// FOR
@@ -376,12 +513,18 @@ func (p *Parser) parseDeclareConditionStmt(start int, name string) (*nodes.Decla
 		Name: name,
 	}
 
-	// condition_value
+	// condition_value: a number or an SQLSTATE, not a class or another condition's name.
+	if p.cur.Type != kwSQLSTATE && p.cur.Type != tokICONST && p.cur.Type != tokFCONST {
+		return nil, p.syntaxErrorAtCur()
+	}
 	condVal, err := p.parseHandlerConditionValue()
 	if err != nil {
 		return nil, err
 	}
 	stmt.ConditionValue = condVal
+	if err := p.declareSpCondition(name, condVal, namePos); err != nil {
+		return nil, err
+	}
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
@@ -418,8 +561,12 @@ func (p *Parser) parseDeclareHandlerStmt(start int) (*nodes.DeclareHandlerStmt, 
 
 	// condition_value [, condition_value] ...
 	for {
+		condPos := p.pos()
 		condVal, err := p.parseHandlerConditionValue()
 		if err != nil {
+			return nil, err
+		}
+		if err := p.declareSpHandlerCondition(condVal, condPos); err != nil {
 			return nil, err
 		}
 		stmt.Conditions = append(stmt.Conditions, condVal)
@@ -442,27 +589,118 @@ func (p *Parser) parseDeclareHandlerStmt(start int) (*nodes.DeclareHandlerStmt, 
 // parseDeclareCursorStmt parses DECLARE cursor_name CURSOR FOR select_statement.
 // The cursor name has already been consumed.
 //
-//	DECLARE cursor_name CURSOR FOR select_statement
-func (p *Parser) parseDeclareCursorStmt(start int, name string) (*nodes.DeclareCursorStmt, error) {
+//	DECLARE cursor_name CURSOR [(param [, param] ...)] FOR select_statement
+//
+// MariaDB's cursor takes parameters, each [IN] name type with no DEFAULT, named once each
+// (1330); OUT and INOUT parse and are refused with 1235. They are visible to the cursor's
+// query alone.
+//
+// Ref: sp_decl_body, opt_parenthesized_cursor_formal_parameters and sp_fdparams_no_default in
+// MariaDB 11.8 sql/sql_yacc.yy.
+func (p *Parser) parseDeclareCursorStmt(start int, name string, namePos int) (*nodes.DeclareCursorStmt, error) {
 	p.advance() // consume CURSOR
+
+	stmt := &nodes.DeclareCursorStmt{
+		Loc:  nodes.Loc{Start: start},
+		Name: name,
+	}
+
+	if p.cur.Type == '(' {
+		params, err := p.parseCursorParams()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Params = params
+	}
 
 	// FOR
 	if _, err := p.expect(kwFOR); err != nil {
 		return nil, err
 	}
 
-	// select_statement
+	// select_statement, which takes no INTO (1323)
+	queryStart := p.pos()
 	sel, err := p.parseSelectStmt()
 	if err != nil {
 		return nil, err
 	}
-
-	stmt := &nodes.DeclareCursorStmt{
-		Loc:    nodes.Loc{Start: start, End: p.prev.End},
-		Name:   name,
-		Select: sel,
+	if selectHasInto(sel) {
+		return nil, &ParseError{Message: "Cursor SELECT must not have INTO", Position: queryStart}
 	}
+	stmt.Select = sel
+	if err := p.declareSpCursor(name, namePos); err != nil {
+		return nil, err
+	}
+
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// parseCursorParams reads a cursor's parenthesized parameters in a scope of their own.
+func (p *Parser) parseCursorParams() ([]*nodes.FuncParam, error) {
+	p.advance() // (
+	defer p.pushSpScope()()
+	var params []*nodes.FuncParam
+	for {
+		param, err := p.parseSpParam(true)
+		if err != nil {
+			return nil, err
+		}
+		if param.Direction == "OUT" || param.Direction == "INOUT" {
+			return nil, &ParseError{Message: "This version of MariaDB doesn't yet support 'OUT/INOUT cursor parameter'", Position: param.Loc.Start}
+		}
+		params = append(params, param)
+		if _, ok := p.match(','); !ok {
+			break
+		}
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return params, nil
+}
+
+// parseSpParam reads one parameter of a routine or a cursor, [IN | OUT | INOUT] name type,
+// and declares it in the current scope. MariaDB's type may be ROW(...), TYPE OF a column or
+// ROW TYPE OF a table.
+//
+// Ref: sp_param_name_and_mode, sp_param_init_vars and sp_param_anchored in MariaDB 11.8
+// sql/sql_yacc.yy.
+func (p *Parser) parseSpParam(withDirection bool) (*nodes.FuncParam, error) {
+	start := p.pos()
+	param := &nodes.FuncParam{Loc: nodes.Loc{Start: start}}
+
+	if withDirection {
+		switch p.cur.Type {
+		case kwIN:
+			param.Direction = "IN"
+			p.advance()
+		case kwOUT:
+			param.Direction = "OUT"
+			p.advance()
+		case kwINOUT:
+			param.Direction = "INOUT"
+			p.advance()
+		}
+	}
+
+	name, namePos, err := p.parseIdentifier()
+	if err != nil {
+		return nil, err
+	}
+	param.Name = name
+
+	dt, row, anchor, err := p.parseSpVarType(false)
+	if err != nil {
+		return nil, err
+	}
+	param.TypeName, param.RowFields, param.Anchor = dt, row, anchor
+	if err := p.declareSpParam(name, namePos); err != nil {
+		return nil, err
+	}
+
+	param.Loc.End = p.prev.End
+	return param, nil
 }
 
 // parseHandlerConditionValue parses a handler condition value, returning
@@ -540,9 +778,15 @@ func (p *Parser) isCompoundTerminator() bool {
 }
 
 // parseCompoundStmtList parses a list of statements inside a compound block,
-// stopping at any compound terminator keyword.
+// stopping at any compound terminator keyword. The list holds one statement at least.
+//
+// Ref: sp_proc_stmts1, which MariaDB 11.8 sql/sql_yacc.yy reads for the statements of IF,
+// CASE, LOOP, WHILE, REPEAT and FOR.
 func (p *Parser) parseCompoundStmtList() ([]nodes.Node, error) {
 	var stmts []nodes.Node
+	if p.isCompoundTerminator() && !p.completing {
+		return nil, p.syntaxErrorAtCur()
+	}
 	for !p.isCompoundTerminator() {
 		s, err := p.parseCompoundStmtOrStmt()
 		if err != nil {
@@ -899,6 +1143,123 @@ func (p *Parser) parseLoopStmt(labelName string, labelStart int) (*nodes.LoopStm
 	return stmt, nil
 }
 
+// parseForStmt parses MariaDB's FOR loop over the rows of a query.
+//
+//	[begin_label:] FOR record IN [REVERSE] (query) DO
+//	  statement_list
+//	END FOR [end_label]
+//
+// The record is a variable of the loop's body. The query takes no INTO (1323). The loop
+// body holds one statement at least.
+//
+// omni reads no integer range (IN low..high) and no cursor (IN cursor_name): a name in
+// their bounds is a variable or a cursor the blocks around must declare, and omni does not
+// check a name an expression reads.
+//
+// Ref: sp_unlabeled_control, sp_labeled_control, sp_for_loop_bounds and
+// for_loop_statements in MariaDB 11.8 sql/sql_yacc.yy.
+func (p *Parser) parseForStmt(labelName string, labelStart int) (*nodes.ForStmt, error) {
+	start := labelStart
+	if labelName == "" {
+		start = p.pos()
+	}
+	p.advance() // consume FOR
+
+	stmt := &nodes.ForStmt{Loc: nodes.Loc{Start: start}, Label: labelName}
+	name, namePos, err := p.parseIdentifier()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Var = name
+	if _, err := p.expect(kwIN); err != nil {
+		return nil, err
+	}
+	if _, ok := p.match(kwREVERSE); ok {
+		stmt.Reverse = true
+	}
+	if p.cur.Type != '(' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+	queryStart := p.pos()
+	sel, err := p.parseSelectStmt()
+	if err != nil {
+		return nil, err
+	}
+	if selectHasInto(sel) {
+		return nil, &ParseError{Message: "Cursor SELECT must not have INTO", Position: queryStart}
+	}
+	stmt.Select = sel
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(kwDO); err != nil {
+		return nil, err
+	}
+
+	closeScope := p.pushSpScope()
+	if err := p.declareSpVar(name, namePos); err != nil {
+		closeScope()
+		return nil, err
+	}
+	stmts, err := p.parseCompoundStmtList()
+	closeScope()
+	if err != nil {
+		return nil, err
+	}
+
+	// END FOR
+	if _, err := p.expect(kwEND); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(kwFOR); err != nil {
+		return nil, err
+	}
+
+	// Optional end_label
+	if p.isLabelIdentToken() && p.cur.Type != tokEOF && p.cur.Type != ';' {
+		endLabelTok := p.advance()
+		stmt.EndLabel = endLabelTok.Str
+		if err := checkLabelMatch(labelName, stmt.EndLabel, endLabelTok.Loc); err != nil {
+			return nil, err
+		}
+	}
+
+	stmt.Stmts = stmts
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
+}
+
+// parseCompoundStatement parses compound_statement, a compound statement standing as a
+// statement of its own: BEGIN NOT ATOMIC ... END, an unlabeled LOOP, or a FOR loop. It is a
+// stored program of its own, which MariaDB runs as an anonymous block.
+//
+// IF, CASE, WHILE and REPEAT stand there too, but omni leaves them to a stored program: the
+// name in their condition is a variable the server holds to a declaration (1327 for `IF a
+// THEN`), and omni does not check a name an expression reads.
+//
+// Ref: directly_executable_statement, compound_statement and sp_proc_stmt_compound_ok in
+// MariaDB 11.8 sql/sql_yacc.yy.
+func (p *Parser) parseCompoundStatement() (nodes.Node, error) {
+	p.routineDepth++
+	defer func() { p.routineDepth-- }()
+	defer p.enterStoredProgram()()
+	outerRoutine := p.routine
+	p.routine = routineScope{}
+	defer func() { p.routine = outerRoutine }()
+	defer p.pushSpScope()()
+
+	switch p.cur.Type {
+	case kwBEGIN:
+		return p.parseBeginEndBlock("", 0)
+	case kwLOOP:
+		return p.parseLoopStmt("", 0)
+	case kwFOR:
+		return p.parseForStmt("", 0)
+	}
+	return nil, p.syntaxErrorAtCur()
+}
+
 // parseLeaveStmt parses a LEAVE label statement.
 //
 //	LEAVE label
@@ -960,6 +1321,9 @@ func (p *Parser) parseReturnStmt() (*nodes.ReturnStmt, error) {
 // parseOpenCursorStmt parses an OPEN cursor_name statement.
 //
 //	OPEN cursor_name
+//
+// omni reads no arguments for MariaDB's cursor parameters (OPEN name(expr, ...)): the server
+// holds the name to a cursor the blocks around declare, which omni does not check.
 func (p *Parser) parseOpenCursorStmt() (*nodes.OpenCursorStmt, error) {
 	start := p.pos()
 	p.advance() // consume OPEN

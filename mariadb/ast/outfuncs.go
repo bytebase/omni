@@ -359,6 +359,12 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeRepeatStmt(sb, n)
 	case *LoopStmt:
 		writeLoopStmt(sb, n)
+	case *ForStmt:
+		writeForStmt(sb, n)
+	case *RowField:
+		writeRowField(sb, n)
+	case *TypeAnchor:
+		writeTypeAnchor(sb, n)
 	case *LeaveStmt:
 		writeLeaveStmt(sb, n)
 	case *IterateStmt:
@@ -3459,6 +3465,11 @@ func writeFuncParam(sb *strings.Builder, n *FuncParam) {
 		sb.WriteString(" :type ")
 		writeNode(sb, n.TypeName)
 	}
+	writeRowFields(sb, n.RowFields)
+	if n.Anchor != nil {
+		sb.WriteString(" :anchor ")
+		writeNode(sb, n.Anchor)
+	}
 	sb.WriteString("}")
 }
 
@@ -3857,6 +3868,9 @@ func writeBeginEndBlock(sb *strings.Builder, n *BeginEndBlock) {
 	if n.EndLabel != "" {
 		fmt.Fprintf(sb, " :end_label %s", n.EndLabel)
 	}
+	if n.NotAtomic {
+		sb.WriteString(" :not_atomic true")
+	}
 	if len(n.Stmts) > 0 {
 		sb.WriteString(" :stmts")
 		for _, s := range n.Stmts {
@@ -3880,10 +3894,49 @@ func writeDeclareVarStmt(sb *strings.Builder, n *DeclareVarStmt) {
 		sb.WriteString(" :type ")
 		writeNode(sb, n.TypeName)
 	}
+	writeRowFields(sb, n.RowFields)
+	if n.Anchor != nil {
+		sb.WriteString(" :anchor ")
+		writeNode(sb, n.Anchor)
+	}
 	if n.Default != nil {
 		sb.WriteString(" :default ")
 		writeNode(sb, n.Default)
 	}
+	sb.WriteString("}")
+}
+
+func writeRowFields(sb *strings.Builder, fields []*RowField) {
+	if len(fields) == 0 {
+		return
+	}
+	sb.WriteString(" :row (")
+	for i, f := range fields {
+		if i > 0 {
+			sb.WriteString(" ")
+		}
+		writeNode(sb, f)
+	}
+	sb.WriteString(")")
+}
+
+func writeRowField(sb *strings.Builder, n *RowField) {
+	sb.WriteString("{ROW_FIELD")
+	fmt.Fprintf(sb, " :loc %d :name %s", n.Loc.Start, n.Name)
+	if n.TypeName != nil {
+		sb.WriteString(" :type ")
+		writeNode(sb, n.TypeName)
+	}
+	sb.WriteString("}")
+}
+
+func writeTypeAnchor(sb *strings.Builder, n *TypeAnchor) {
+	sb.WriteString("{TYPE_ANCHOR")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Row {
+		sb.WriteString(" :row true")
+	}
+	fmt.Fprintf(sb, " :names %s", strings.Join(n.Names, "."))
 	sb.WriteString("}")
 }
 
@@ -3935,6 +3988,16 @@ func writeDeclareCursorStmt(sb *strings.Builder, n *DeclareCursorStmt) {
 	sb.WriteString("{DECLARE_CURSOR")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
 	fmt.Fprintf(sb, " :name %s", n.Name)
+	if len(n.Params) > 0 {
+		sb.WriteString(" :params (")
+		for i, prm := range n.Params {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, prm)
+		}
+		sb.WriteString(")")
+	}
 	if n.Select != nil {
 		sb.WriteString(" :select ")
 		writeNode(sb, n.Select)
@@ -4112,6 +4175,36 @@ func writeLoopStmt(sb *strings.Builder, n *LoopStmt) {
 	}
 	if n.EndLabel != "" {
 		fmt.Fprintf(sb, " :end_label %s", n.EndLabel)
+	}
+	if len(n.Stmts) > 0 {
+		sb.WriteString(" :stmts (")
+		for i, s := range n.Stmts {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, s)
+		}
+		sb.WriteString(")")
+	}
+	sb.WriteString("}")
+}
+
+func writeForStmt(sb *strings.Builder, n *ForStmt) {
+	sb.WriteString("{FOR")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Label != "" {
+		fmt.Fprintf(sb, " :label %s", n.Label)
+	}
+	if n.EndLabel != "" {
+		fmt.Fprintf(sb, " :end_label %s", n.EndLabel)
+	}
+	fmt.Fprintf(sb, " :var %s", n.Var)
+	if n.Reverse {
+		sb.WriteString(" :reverse true")
+	}
+	if n.Select != nil {
+		sb.WriteString(" :select ")
+		writeNode(sb, n.Select)
 	}
 	if len(n.Stmts) > 0 {
 		sb.WriteString(" :stmts (")

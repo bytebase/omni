@@ -132,9 +132,13 @@ func (p *Parser) parseCreateFunctionStmt(start int, orReplace, isProcedure bool)
 		return nil, &ParseError{Message: "collecting"}
 	}
 
+	// The parameters are a scope around the body's blocks: named once each (1330), and a
+	// variable the body's TYPE OF may name.
+	defer p.enterStoredProgram()()
+	defer p.pushSpScope()()
 	if p.cur.Type != ')' {
 		for {
-			param, err := p.parseFuncParam(isProcedure)
+			param, err := p.parseSpParam(isProcedure)
 			if err != nil {
 				return nil, err
 			}
@@ -209,45 +213,6 @@ func (p *Parser) parseCreateFunctionStmt(start int, orReplace, isProcedure bool)
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
-}
-
-// parseFuncParam parses a function/procedure parameter.
-//
-//	[IN | OUT | INOUT] param_name type
-func (p *Parser) parseFuncParam(isProcedure bool) (*nodes.FuncParam, error) {
-	start := p.pos()
-	param := &nodes.FuncParam{Loc: nodes.Loc{Start: start}}
-
-	// Optional direction for procedures
-	if isProcedure {
-		if p.cur.Type == kwIN {
-			param.Direction = "IN"
-			p.advance()
-		} else if p.cur.Type == kwOUT {
-			param.Direction = "OUT"
-			p.advance()
-		} else if p.cur.Type == kwINOUT {
-			param.Direction = "INOUT"
-			p.advance()
-		}
-	}
-
-	// Parameter name
-	name, _, err := p.parseIdentifier()
-	if err != nil {
-		return nil, err
-	}
-	param.Name = name
-
-	// Data type
-	dt, err := p.parseDataType()
-	if err != nil {
-		return nil, err
-	}
-	param.TypeName = dt
-
-	param.Loc.End = p.prev.End
-	return param, nil
 }
 
 // parseRoutineCharacteristic parses a routine characteristic.

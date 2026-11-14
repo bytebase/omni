@@ -172,7 +172,8 @@ BEGIN
     DECLARE EXIT HANDLER FOR nope SET @e = 1;
     SELECT 1;
 END`,
-			wantCode: "undeclared_condition",
+			wantCode:     "undeclared_condition",
+			parseRefused: true,
 		},
 		{
 			name: "HANDLER for SQLSTATE literal does not need declaration",
@@ -192,7 +193,8 @@ BEGIN
     DECLARE x INT;
     SELECT 1;
 END`,
-			wantCode: "duplicate_variable",
+			wantCode:     "duplicate_variable",
+			parseRefused: true,
 		},
 		{
 			name: "DECLARE VAR shadowed in nested block is OK",
@@ -224,7 +226,8 @@ BEGIN
     DECLARE c CURSOR FOR SELECT 2;
     SELECT 1;
 END`,
-			wantCode: "duplicate_cursor",
+			wantCode:     "duplicate_cursor",
+			parseRefused: true,
 		},
 		{
 			name: "duplicate DECLARE CONDITION same scope",
@@ -234,7 +237,8 @@ BEGIN
     DECLARE dk CONDITION FOR SQLSTATE '23001';
     SELECT 1;
 END`,
-			wantCode: "duplicate_condition",
+			wantCode:     "duplicate_condition",
+			parseRefused: true,
 		},
 		{
 			name: "duplicate label nested",
@@ -264,7 +268,8 @@ BEGIN
     DECLARE EXIT HANDLER FOR SQLSTATE '23000', SQLSTATE '23000' SET @e = 1;
     SELECT 1;
 END`,
-			wantCode: "duplicate_handler_condition",
+			wantCode:     "duplicate_handler_condition",
+			parseRefused: true,
 		},
 		{
 			name: "HANDLER different conditions same kind OK",
@@ -281,7 +286,8 @@ BEGIN
     DECLARE CONTINUE HANDLER FOR NOT FOUND, NOT FOUND SET @d = 1;
     SELECT 1;
 END`,
-			wantCode: "duplicate_handler_condition",
+			wantCode:     "duplicate_handler_condition",
+			parseRefused: true,
 		},
 
 		// ---------- Function RETURN coverage ----------
