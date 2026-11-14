@@ -63,65 +63,18 @@ func (p *Parser) parseAnalyzeTableStmt() (*nodes.AnalyzeTableStmt, error) {
 		p.advance()
 	}
 
-	// UPDATE HISTOGRAM ON col [, col] [WITH N BUCKETS] | [USING DATA 'json_data']
-	if p.cur.Type == kwUPDATE {
-		p.advance()
-		if p.cur.Type == kwHISTOGRAM {
-			p.advance()
-		}
+	// opt_histogram: UPDATE HISTOGRAM ON ident_string_list opt_histogram_update_param
+	// | DROP HISTOGRAM ON ident_string_list, one of the two, every word required.
+	if p.cur.Type == kwUPDATE || p.cur.Type == kwDROP {
 		stmt.HistogramOp = "UPDATE"
-		if _, err := p.expect(kwON); err != nil {
-			return nil, err
+		if p.cur.Type == kwDROP {
+			stmt.HistogramOp = "DROP"
 		}
-		for {
-			col, _, err := p.parseIdentifier()
-			if err != nil {
-				return nil, err
-			}
-			stmt.HistogramColumns = append(stmt.HistogramColumns, col)
-			if p.cur.Type != ',' {
-				break
-			}
-			p.advance()
-		}
-		// WITH N BUCKETS
-		if p.cur.Type == kwWITH {
-			p.advance()
-			if p.cur.Type == tokICONST {
-				// The count is NUM, held to 1..1024 while the statement parses (1690).
-				if p.cur.Ival < 1 || p.cur.Ival > 1024 {
-					return nil, &ParseError{Message: "Number of buckets value is out of range in 'ANALYZE TABLE'", Position: p.cur.Loc}
-				}
-				stmt.Buckets = int(p.cur.Ival)
-				p.advance()
-			}
-			// BUCKETS keyword
-			if p.cur.Type == kwBUCKETS {
-				p.advance()
-			}
-		}
-		// USING DATA 'json_data'
-		if p.cur.Type == kwUSING {
-			p.advance() // consume USING
-			if p.cur.Type == kwDATA {
-				p.advance() // consume DATA
-			}
-			if p.cur.Type == tokSCONST {
-				stmt.UsingData = p.cur.Str
-				p.advance()
-			}
-		}
-	}
-
-	// DROP HISTOGRAM ON col [, col]
-	if p.cur.Type == kwDROP {
 		p.advance()
-		if p.cur.Type == kwHISTOGRAM {
-			p.advance()
-		}
-		stmt.HistogramOp = "DROP"
-		if _, err := p.expect(kwON); err != nil {
-			return nil, err
+		for _, kw := range []int{kwHISTOGRAM, kwON} {
+			if _, err := p.expect(kw); err != nil {
+				return nil, err
+			}
 		}
 		for {
 			col, _, err := p.parseIdentifier()
@@ -133,11 +86,50 @@ func (p *Parser) parseAnalyzeTableStmt() (*nodes.AnalyzeTableStmt, error) {
 				break
 			}
 			p.advance()
+		}
+		if stmt.HistogramOp == "UPDATE" {
+			if err := p.parseHistogramUpdateParam(stmt); err != nil {
+				return nil, err
+			}
 		}
 	}
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// parseHistogramUpdateParam parses what may follow UPDATE HISTOGRAM's columns: nothing,
+// WITH n BUCKETS, or USING DATA 'json'.
+//
+// Ref: opt_histogram_update_param in MySQL 8.0 sql/sql_yacc.yy.
+func (p *Parser) parseHistogramUpdateParam(stmt *nodes.AnalyzeTableStmt) error {
+	switch p.cur.Type {
+	case kwWITH:
+		p.advance()
+		if p.cur.Type != tokICONST {
+			return p.syntaxErrorAtCur()
+		}
+		// The count is NUM, held to 1..1024 while the statement parses (1690).
+		if p.cur.Ival < 1 || p.cur.Ival > 1024 {
+			return &ParseError{Message: "Number of buckets value is out of range in 'ANALYZE TABLE'", Position: p.cur.Loc}
+		}
+		stmt.Buckets = int(p.cur.Ival)
+		p.advance()
+		if _, err := p.expect(kwBUCKETS); err != nil {
+			return err
+		}
+	case kwUSING:
+		p.advance()
+		if _, err := p.expect(kwDATA); err != nil {
+			return err
+		}
+		if p.cur.Type != tokSCONST {
+			return p.syntaxErrorAtCur()
+		}
+		stmt.UsingData = p.cur.Str
+		p.advance()
+	}
+	return nil
 }
 
 // parseOptimizeTableStmt parses an OPTIMIZE TABLE statement.
