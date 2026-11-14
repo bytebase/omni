@@ -290,8 +290,11 @@ func (p *Parser) parseRoutineCharacteristic() (*nodes.RoutineCharacteristic, boo
 				Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "SQL SECURITY", Value: name,
 			}, true, nil
 		}
+		// SQL starts only SQL SECURITY here.
 		return nil, false, p.syntaxErrorAtCur()
 
+	// CONTAINS SQL, READS SQL DATA and MODIFIES SQL DATA are read whole.
+	// Ref: sp_chistic in MariaDB 11.8 sql/sql_yacc.yy.
 	case p.cur.Type == kwCONTAINS:
 		p.advance()
 		if _, err := p.expect(kwSQL); err != nil {
@@ -313,10 +316,7 @@ func (p *Parser) parseRoutineCharacteristic() (*nodes.RoutineCharacteristic, boo
 
 	case p.cur.Type == kwREADS:
 		p.advance()
-		if _, err := p.expect(kwSQL); err != nil {
-			return nil, false, err
-		}
-		if _, err := p.expect(kwDATA); err != nil {
+		if err := p.expectSQLData(); err != nil {
 			return nil, false, err
 		}
 		return &nodes.RoutineCharacteristic{
@@ -325,10 +325,7 @@ func (p *Parser) parseRoutineCharacteristic() (*nodes.RoutineCharacteristic, boo
 
 	case p.cur.Type == kwMODIFIES:
 		p.advance()
-		if _, err := p.expect(kwSQL); err != nil {
-			return nil, false, err
-		}
-		if _, err := p.expect(kwDATA); err != nil {
+		if err := p.expectSQLData(); err != nil {
 			return nil, false, err
 		}
 		return &nodes.RoutineCharacteristic{
@@ -337,4 +334,13 @@ func (p *Parser) parseRoutineCharacteristic() (*nodes.RoutineCharacteristic, boo
 	}
 
 	return nil, false, nil
+}
+
+// expectSQLData reads the SQL DATA after READS or MODIFIES.
+func (p *Parser) expectSQLData() error {
+	if _, err := p.expect(kwSQL); err != nil {
+		return err
+	}
+	_, err := p.expect(kwDATA)
+	return err
 }

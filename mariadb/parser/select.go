@@ -184,6 +184,7 @@ func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 // level, which is what gives a parenthesized inner query and an outer clause
 // distinct scopes.
 func (p *Parser) parseSelectNoParens() (*nodes.SelectStmt, error) {
+	defer p.enterQuery()()
 	start := p.pos()
 
 	// Optional WITH clause (applies to the whole query expression).
@@ -204,6 +205,7 @@ func (p *Parser) parseSelectNoParens() (*nodes.SelectStmt, error) {
 // result. ctes (already parsed by the caller) and start (the position of the
 // leading WITH / '(' / SELECT) are attached to the resulting node.
 func (p *Parser) parseSelectClauseAndTrailing(start int, ctes []*nodes.CommonTableExpr) (*nodes.SelectStmt, error) {
+	defer p.enterQuery()()
 	body, err := p.parseSelectClause(0)
 	if err != nil {
 		return nil, err
@@ -504,6 +506,7 @@ func (p *Parser) firstTokenPastParens() Token {
 // parseSelectNoParens left-factors the grammar so a nested "((...))" and a
 // parenthesized set-op operand are parsed by the same path.
 func (p *Parser) parseSelectWithParens() (*nodes.SelectStmt, error) {
+	defer p.enterQuery()()
 	start := p.pos()
 	if _, err := p.expect('('); err != nil {
 		return nil, err

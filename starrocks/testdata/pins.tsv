@@ -1,0 +1,7 @@
+# The server this engine's committed answers come from. default judges
+# compat.tsv: StarRocks 3.4.10, the release StarRocks.g4 and StarRocksLex.g4
+# are read from (fe/fe-core/src/main/java/com/starrocks/sql/parser/ at the
+# source tag, beside this file byte for byte, Apache-2.0). The server
+# reports 3.4.10-965be75. The image is amd64 only.
+# columns: role, image, digest, source tag
+default	starrocks/allin1-ubuntu:3.4.10	sha256:8bc803ea7a5bb490c77117a456b32b792ccae698b1f0e47dfcafdac41542566d	3.4.10

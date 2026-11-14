@@ -445,6 +445,14 @@ func TestStoredProgramFieldNames(t *testing.T) {
 		{sql: "CREATE PROCEDURE p() BEGIN DECLARE x INT; SET @y = a, x = 1; END"},
 		{sql: "CREATE PROCEDURE p() BEGIN DECLARE x INT; SET x = 1, sql_mode = a; END"},
 		{sql: "CREATE PROCEDURE p(x INT) SET x = DAY", code: 1327},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN ((SELECT 1 AS a) ORDER BY a)"},
+		{sql: "CALL p(((SELECT 1 AS a) ORDER BY a))"},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN ((SELECT 1 AS a) UNION (SELECT 2) ORDER BY a LIMIT 1)"},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN (SELECT 1 AS a UNION SELECT 2 ORDER BY a LIMIT 1)"},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN (WITH c AS (SELECT 1 AS a) SELECT a FROM c ORDER BY a)"},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN 1 + (SELECT 1 AS a ORDER BY a) + a", code: 1327},
+		{sql: "CALL p((SELECT 1 AS a) + a)", code: 1054},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN EXISTS ((SELECT 1 AS a) ORDER BY a)"},
 	}
 	for _, c := range cases {
 		t.Run(c.sql, func(t *testing.T) {
