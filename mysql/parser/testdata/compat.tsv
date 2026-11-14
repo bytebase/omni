@@ -130,8 +130,8 @@ reject	reject	engine	simple_statement/analyze_table_stmt!insert	ANALYZE TABLE ut
 reject	reject	engine	simple_statement/analyze_table_stmt!swap	AND TABLE utf8mb4;
 accept	accept	engine	simple_statement/binlog_base64_event	BINLOG 's';
 reject	reject	engine	simple_statement/binlog_base64_event!drop-1	's';
-accept	reject	engine	simple_statement/binlog_base64_event!drop-2	BINLOG;
-accept	reject	engine	simple_statement/binlog_base64_event!truncate	BINLOG
+reject	reject	engine	simple_statement/binlog_base64_event!drop-2	BINLOG;
+reject	reject	engine	simple_statement/binlog_base64_event!truncate	BINLOG
 reject	reject	engine	simple_statement/binlog_base64_event!insert	BINLOG 's' zzz;
 reject	reject	engine	simple_statement/binlog_base64_event!swap	BIT 's';
 accept	accept	engine	simple_statement/call_stmt	CALL utf8mb4;
@@ -151,12 +151,12 @@ reject	reject	engine	simple_statement/change!truncate	CHANGE MASTER TO MASTER_HO
 reject	reject	engine	simple_statement/change!insert	CHANGE MASTER TO MASTER_HOST = 's' zzz;
 reject	reject	engine	simple_statement/change!swap	CHANGED MASTER TO MASTER_HOST = 's';
 accept	accept	engine	simple_statement/check_table_stmt	CHECK TABLE utf8mb4;
-accept	reject	engine	simple_statement/check_table_stmt!drop-2	CHECK utf8mb4;
+reject	reject	engine	simple_statement/check_table_stmt!drop-2	CHECK utf8mb4;
 reject	reject	engine	simple_statement/check_table_stmt!drop-3	CHECK TABLE;
 reject	reject	engine	simple_statement/check_table_stmt!truncate	CHECK TABLE
 reject	reject	engine	simple_statement/check_table_stmt!insert	CHECK TABLE utf8mb4 zzz;
 accept	accept	engine	simple_statement/checksum	CHECKSUM TABLE utf8mb4;
-accept	reject	engine	simple_statement/checksum!drop-2	CHECKSUM utf8mb4;
+reject	reject	engine	simple_statement/checksum!drop-2	CHECKSUM utf8mb4;
 reject	reject	engine	simple_statement/checksum!drop-3	CHECKSUM TABLE;
 reject	reject	engine	simple_statement/checksum!truncate	CHECKSUM TABLE
 reject	reject	engine	simple_statement/checksum!insert	CHECKSUM TABLE utf8mb4 zzz;
@@ -164,8 +164,8 @@ reject	reject	engine	simple_statement/checksum!swap	CIPHER TABLE utf8mb4;
 accept	accept	engine	simple_statement/clone_stmt	CLONE LOCAL DATA DIRECTORY 's';
 reject	reject	engine	simple_statement/clone_stmt!drop-1	LOCAL DATA DIRECTORY 's';
 reject	reject	engine	simple_statement/clone_stmt!drop-2	CLONE DATA DIRECTORY 's';
-accept	reject	engine	simple_statement/clone_stmt!drop-3	CLONE LOCAL DIRECTORY 's';
-accept	reject	engine	simple_statement/clone_stmt!drop-4	CLONE LOCAL DATA 's';
+reject	reject	engine	simple_statement/clone_stmt!drop-3	CLONE LOCAL DIRECTORY 's';
+reject	reject	engine	simple_statement/clone_stmt!drop-4	CLONE LOCAL DATA 's';
 reject	reject	engine	simple_statement/clone_stmt!drop-5	CLONE LOCAL DATA DIRECTORY;
 reject	reject	engine	simple_statement/clone_stmt!truncate	CLONE LOCAL DATA DIRECTORY
 reject	reject	engine	simple_statement/clone_stmt!insert	CLONE LOCAL DATA DIRECTORY 's' zzz;
@@ -222,7 +222,7 @@ reject	reject	engine	simple_statement/create_table_stmt!insert	CREATE TABLE utf8
 reject	reject	engine	simple_statement/create_table_stmt!swap	CROSS TABLE utf8mb4;
 accept	accept	engine	simple_statement/deallocate	DEALLOCATE PREPARE utf8mb4;
 reject	reject	engine	simple_statement/deallocate!drop-1	PREPARE utf8mb4;
-accept	reject	engine	simple_statement/deallocate!drop-2	DEALLOCATE utf8mb4;
+reject	reject	engine	simple_statement/deallocate!drop-2	DEALLOCATE utf8mb4;
 reject	reject	engine	simple_statement/deallocate!drop-3	DEALLOCATE PREPARE;
 reject	reject	engine	simple_statement/deallocate!truncate	DEALLOCATE PREPARE
 reject	reject	engine	simple_statement/deallocate!insert	DEALLOCATE PREPARE utf8mb4 zzz;
@@ -368,8 +368,8 @@ reject	reject	engine	simple_statement/get_diagnostics!insert	GET DIAGNOSTICS utf
 reject	reject	engine	simple_statement/get_diagnostics!swap	GET_FORMAT DIAGNOSTICS utf8mb4 = NUMBER;
 accept	accept	engine	simple_statement/group_replication	START GROUP_REPLICATION;
 reject	reject	engine	simple_statement/group_replication!drop-1	GROUP_REPLICATION;
-accept	reject	engine	simple_statement/group_replication!drop-2	START;
-accept	reject	engine	simple_statement/group_replication!truncate	START
+reject	reject	engine	simple_statement/group_replication!drop-2	START;
+reject	reject	engine	simple_statement/group_replication!truncate	START
 reject	reject	engine	simple_statement/group_replication!insert	START GROUP_REPLICATION zzz;
 reject	reject	engine	simple_statement/group_replication!swap	STARTING GROUP_REPLICATION;
 accept	accept	engine	simple_statement/grant	GRANT utf8mb4 TO utf8mb4;
@@ -394,10 +394,10 @@ reject	reject	engine	simple_statement/help!insert	HELP utf8mb4 zzz;
 reject	reject	engine	simple_statement/help!swap	HIGH_PRIORITY utf8mb4;
 accept	accept	engine	simple_statement/import_stmt	IMPORT TABLE FROM 's';
 reject	reject	engine	simple_statement/import_stmt!drop-1	TABLE FROM 's';
-accept	reject	engine	simple_statement/import_stmt!drop-2	IMPORT FROM 's';
-accept	reject	engine	simple_statement/import_stmt!drop-3	IMPORT TABLE 's';
-accept	reject	engine	simple_statement/import_stmt!drop-4	IMPORT TABLE FROM;
-accept	reject	engine	simple_statement/import_stmt!truncate	IMPORT TABLE FROM
+reject	reject	engine	simple_statement/import_stmt!drop-2	IMPORT FROM 's';
+reject	reject	engine	simple_statement/import_stmt!drop-3	IMPORT TABLE 's';
+reject	reject	engine	simple_statement/import_stmt!drop-4	IMPORT TABLE FROM;
+reject	reject	engine	simple_statement/import_stmt!truncate	IMPORT TABLE FROM
 reject	reject	engine	simple_statement/import_stmt!insert	IMPORT TABLE FROM 's' zzz;
 reject	reject	engine	simple_statement/import_stmt!swap	IN TABLE FROM 's';
 accept	accept	engine	simple_statement/insert_stmt	INSERT utf8mb4 SELECT utf8mb4;
@@ -467,8 +467,8 @@ accept	accept	engine	simple_statement/prepare	PREPARE utf8mb4 FROM 's';
 reject	reject	engine	simple_statement/prepare!drop-1	utf8mb4 FROM 's';
 reject	reject	engine	simple_statement/prepare!drop-2	PREPARE FROM 's';
 reject	reject	engine	simple_statement/prepare!drop-3	PREPARE utf8mb4 's';
-accept	reject	engine	simple_statement/prepare!drop-4	PREPARE utf8mb4 FROM;
-accept	reject	engine	simple_statement/prepare!truncate	PREPARE utf8mb4 FROM
+reject	reject	engine	simple_statement/prepare!drop-4	PREPARE utf8mb4 FROM;
+reject	reject	engine	simple_statement/prepare!truncate	PREPARE utf8mb4 FROM
 reject	reject	engine	simple_statement/prepare!insert	PREPARE utf8mb4 FROM 's' zzz;
 reject	reject	engine	simple_statement/prepare!swap	PRESERVE utf8mb4 FROM 's';
 accept	accept	engine	simple_statement/purge	PURGE MASTER LOGS TO 's';
@@ -488,7 +488,7 @@ reject	reject	engine	simple_statement/release!insert	RELEASE SAVEPOINT utf8mb4 z
 reject	reject	engine	simple_statement/release!swap	RELOAD SAVEPOINT utf8mb4;
 accept	accept	engine	simple_statement/rename	RENAME TABLE utf8mb4 TO utf8mb4;
 reject	reject	engine	simple_statement/rename!drop-1	TABLE utf8mb4 TO utf8mb4;
-accept	reject	engine	simple_statement/rename!drop-2	RENAME utf8mb4 TO utf8mb4;
+reject	reject	engine	simple_statement/rename!drop-2	RENAME utf8mb4 TO utf8mb4;
 reject	reject	engine	simple_statement/rename!drop-3	RENAME TABLE TO utf8mb4;
 reject	reject	engine	simple_statement/rename!drop-4	RENAME TABLE utf8mb4 utf8mb4;
 reject	reject	engine	simple_statement/rename!drop-5	RENAME TABLE utf8mb4 TO;
@@ -496,7 +496,7 @@ reject	reject	engine	simple_statement/rename!truncate	RENAME TABLE utf8mb4 TO
 reject	reject	engine	simple_statement/rename!insert	RENAME TABLE utf8mb4 TO utf8mb4 zzz;
 reject	reject	engine	simple_statement/rename!swap	REORGANIZE TABLE utf8mb4 TO utf8mb4;
 accept	accept	engine	simple_statement/repair_table_stmt	REPAIR TABLE utf8mb4;
-accept	reject	engine	simple_statement/repair_table_stmt!drop-2	REPAIR utf8mb4;
+reject	reject	engine	simple_statement/repair_table_stmt!drop-2	REPAIR utf8mb4;
 reject	reject	engine	simple_statement/repair_table_stmt!drop-3	REPAIR TABLE;
 reject	reject	engine	simple_statement/repair_table_stmt!truncate	REPAIR TABLE
 reject	reject	engine	simple_statement/repair_table_stmt!insert	REPAIR TABLE utf8mb4 zzz;
@@ -1553,8 +1553,8 @@ reject	reject	engine	srs_attributes/srs_attributes_DEFINITION_SYM_TEXT_STRING_sy
 accept	accept	engine	srs_attributes/srs_attributes_ORGANIZATION_SYM_TEXT_STRING_sys_nonewline_IDENTIFIED_SYM_BY_real_ulonglong_num	CREATE SPATIAL REFERENCE SYSTEM 1 ORGANIZATION 's' IDENTIFIED BY 1;
 reject	reject	engine	srs_attributes/srs_attributes_ORGANIZATION_SYM_TEXT_STRING_sys_nonewline_IDENTIFIED_SYM_BY_real_ulonglong_num!drop-1	CREATE SPATIAL REFERENCE SYSTEM 1 's' IDENTIFIED BY 1;
 reject	reject	engine	srs_attributes/srs_attributes_ORGANIZATION_SYM_TEXT_STRING_sys_nonewline_IDENTIFIED_SYM_BY_real_ulonglong_num!drop-2	CREATE SPATIAL REFERENCE SYSTEM 1 ORGANIZATION IDENTIFIED BY 1;
-accept	reject	engine	srs_attributes/srs_attributes_ORGANIZATION_SYM_TEXT_STRING_sys_nonewline_IDENTIFIED_SYM_BY_real_ulonglong_num!drop-3	CREATE SPATIAL REFERENCE SYSTEM 1 ORGANIZATION 's' BY 1;
-accept	reject	engine	srs_attributes/srs_attributes_ORGANIZATION_SYM_TEXT_STRING_sys_nonewline_IDENTIFIED_SYM_BY_real_ulonglong_num!drop-4	CREATE SPATIAL REFERENCE SYSTEM 1 ORGANIZATION 's' IDENTIFIED 1;
+reject	reject	engine	srs_attributes/srs_attributes_ORGANIZATION_SYM_TEXT_STRING_sys_nonewline_IDENTIFIED_SYM_BY_real_ulonglong_num!drop-3	CREATE SPATIAL REFERENCE SYSTEM 1 ORGANIZATION 's' BY 1;
+reject	reject	engine	srs_attributes/srs_attributes_ORGANIZATION_SYM_TEXT_STRING_sys_nonewline_IDENTIFIED_SYM_BY_real_ulonglong_num!drop-4	CREATE SPATIAL REFERENCE SYSTEM 1 ORGANIZATION 's' IDENTIFIED 1;
 reject	reject	engine	srs_attributes/srs_attributes_ORGANIZATION_SYM_TEXT_STRING_sys_nonewline_IDENTIFIED_SYM_BY_real_ulonglong_num!drop-5	CREATE SPATIAL REFERENCE SYSTEM 1 ORGANIZATION 's' IDENTIFIED BY;
 reject	reject	engine	srs_attributes/srs_attributes_ORGANIZATION_SYM_TEXT_STRING_sys_nonewline_IDENTIFIED_SYM_BY_real_ulonglong_num!truncate	CREATE SPATIAL REFERENCE SYSTEM 1 ORGANIZATION 's' IDENTIFIED BY
 reject	reject	engine	srs_attributes/srs_attributes_ORGANIZATION_SYM_TEXT_STRING_sys_nonewline_IDENTIFIED_SYM_BY_real_ulonglong_num!insert	CREATE SPATIAL REFERENCE SYSTEM 1 ORGANIZATION 's' IDENTIFIED BY 1 zzz;
@@ -5370,8 +5370,8 @@ reject	reject	engine	mi_check_type/CHANGED!insert	CHECK TABLE utf8mb4 CHANGED zz
 reject	reject	engine	mi_check_type/CHANGED!swap	CHECK TABLE utf8mb4 CHANNEL;
 accept	accept	engine	mi_check_type/FOR_SYM_UPGRADE_SYM	CHECK TABLE utf8mb4 FOR UPGRADE;
 reject	reject	engine	mi_check_type/FOR_SYM_UPGRADE_SYM!drop-1	CHECK TABLE utf8mb4 UPGRADE;
-accept	reject	engine	mi_check_type/FOR_SYM_UPGRADE_SYM!drop-2	CHECK TABLE utf8mb4 FOR;
-accept	reject	engine	mi_check_type/FOR_SYM_UPGRADE_SYM!truncate	CHECK TABLE utf8mb4 FOR
+reject	reject	engine	mi_check_type/FOR_SYM_UPGRADE_SYM!drop-2	CHECK TABLE utf8mb4 FOR;
+reject	reject	engine	mi_check_type/FOR_SYM_UPGRADE_SYM!truncate	CHECK TABLE utf8mb4 FOR
 reject	reject	engine	mi_check_type/FOR_SYM_UPGRADE_SYM!insert	CHECK TABLE utf8mb4 FOR UPGRADE zzz;
 reject	reject	engine	mi_check_type/FOR_SYM_UPGRADE_SYM!swap	CHECK TABLE utf8mb4 FORCE UPGRADE;
 accept	accept	engine	optimize_table_stmt/OPTIMIZE_opt_no_write_to_binlog_table_or_tables_table_list	OPTIMIZE TABLE utf8mb4;

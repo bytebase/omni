@@ -2089,14 +2089,6 @@ type ShutdownStmt struct {
 func (s *ShutdownStmt) nodeTag()  {}
 func (s *ShutdownStmt) stmtNode() {}
 
-// RestartStmt represents a RESTART statement.
-type RestartStmt struct {
-	Loc Loc
-}
-
-func (s *RestartStmt) nodeTag()  {}
-func (s *RestartStmt) stmtNode() {}
-
 // AlterDatabaseStmt represents an ALTER DATABASE statement.
 type AlterDatabaseStmt struct {
 	Loc     Loc
@@ -3202,8 +3194,9 @@ func (s *ImportTableStmt) stmtNode() {}
 
 // BinlogStmt represents a BINLOG 'str' statement.
 type BinlogStmt struct {
-	Loc Loc
-	Str string // base64-encoded string
+	Loc       Loc
+	Str       string   // base64-encoded string
+	Fragments []string // BINLOG @a, @b: the two user variables the event is split across
 }
 
 func (s *BinlogStmt) nodeTag()  {}

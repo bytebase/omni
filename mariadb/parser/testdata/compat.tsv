@@ -50,8 +50,8 @@ reject	reject	engine	verb_clause/backup!insert	BACKUP UNLOCK zzz;
 reject	reject	engine	verb_clause/backup!swap	BEFORE UNLOCK;
 accept	accept	engine	verb_clause/binlog_base64_event	BINLOG 's';
 reject	reject	engine	verb_clause/binlog_base64_event!drop-1	's';
-accept	reject	engine	verb_clause/binlog_base64_event!drop-2	BINLOG;
-accept	reject	engine	verb_clause/binlog_base64_event!truncate	BINLOG
+reject	reject	engine	verb_clause/binlog_base64_event!drop-2	BINLOG;
+reject	reject	engine	verb_clause/binlog_base64_event!truncate	BINLOG
 reject	reject	engine	verb_clause/binlog_base64_event!insert	BINLOG 's' zzz;
 reject	reject	engine	verb_clause/binlog_base64_event!swap	BIT 's';
 accept	accept	engine	verb_clause/call	CALL a;
@@ -91,7 +91,7 @@ reject	reject	engine	verb_clause/create!insert	CREATE TABLE a zzz;
 reject	reject	engine	verb_clause/create!swap	CROSS TABLE a;
 accept	accept	engine	verb_clause/deallocate	DEALLOCATE PREPARE a;
 reject	reject	engine	verb_clause/deallocate!drop-1	PREPARE a;
-accept	reject	engine	verb_clause/deallocate!drop-2	DEALLOCATE a;
+reject	reject	engine	verb_clause/deallocate!drop-2	DEALLOCATE a;
 reject	reject	engine	verb_clause/deallocate!drop-3	DEALLOCATE PREPARE;
 reject	reject	engine	verb_clause/deallocate!truncate	DEALLOCATE PREPARE
 reject	reject	engine	verb_clause/deallocate!insert	DEALLOCATE PREPARE a zzz;
@@ -245,8 +245,8 @@ reject	reject	engine	verb_clause/prepare	PREPARE a FROM a;
 reject	reject	engine	verb_clause/prepare!drop-1	a FROM a;
 reject	reject	engine	verb_clause/prepare!drop-2	PREPARE FROM a;
 reject	reject	engine	verb_clause/prepare!drop-3	PREPARE a a;
-accept	reject	engine	verb_clause/prepare!drop-4	PREPARE a FROM;
-accept	reject	engine	verb_clause/prepare!truncate	PREPARE a FROM
+reject	reject	engine	verb_clause/prepare!drop-4	PREPARE a FROM;
+reject	reject	engine	verb_clause/prepare!truncate	PREPARE a FROM
 reject	reject	engine	verb_clause/prepare!insert	PREPARE a FROM a zzz;
 reject	reject	engine	verb_clause/prepare!swap	PRESERVE a FROM a;
 accept	accept	engine	verb_clause/purge	PURGE MASTER LOGS TO 's';
@@ -266,7 +266,7 @@ reject	reject	engine	verb_clause/release!insert	RELEASE SAVEPOINT a zzz;
 reject	reject	engine	verb_clause/release!swap	RELOAD SAVEPOINT a;
 accept	accept	engine	verb_clause/rename	RENAME TABLE a TO a;
 reject	reject	engine	verb_clause/rename!drop-1	TABLE a TO a;
-accept	reject	engine	verb_clause/rename!drop-2	RENAME a TO a;
+reject	reject	engine	verb_clause/rename!drop-2	RENAME a TO a;
 reject	reject	engine	verb_clause/rename!drop-3	RENAME TABLE TO a;
 reject	reject	engine	verb_clause/rename!drop-4	RENAME TABLE a a;
 reject	reject	engine	verb_clause/rename!drop-5	RENAME TABLE a TO;
@@ -294,7 +294,7 @@ reject	reject	engine	verb_clause/reset!insert	RESET SLAVE zzz;
 reject	reject	engine	verb_clause/reset!swap	RESIGNAL SLAVE;
 accept	accept	engine	verb_clause/resignal_stmt	RESIGNAL;
 accept	reject	engine	verb_clause/resignal_stmt!insert	RESIGNAL zzz;
-accept	reject	engine	verb_clause/resignal_stmt!swap	RESTART;
+reject	reject	engine	verb_clause/resignal_stmt!swap	RESTART;
 accept	accept	engine	verb_clause/revoke	REVOKE a FROM a;
 reject	reject	engine	verb_clause/revoke!drop-2	REVOKE FROM a;
 reject	reject	engine	verb_clause/revoke!drop-3	REVOKE a a;
@@ -344,8 +344,8 @@ reject	reject	engine	verb_clause/show!swap	SHUTDOWN DATABASES;
 accept	accept	engine	verb_clause/shutdown	SHUTDOWN;
 reject	reject	engine	verb_clause/shutdown!insert	SHUTDOWN zzz;
 accept	accept	engine	verb_clause/slave	START SLAVE;
-accept	reject	engine	verb_clause/slave!drop-2	START;
-accept	reject	engine	verb_clause/slave!truncate	START
+reject	reject	engine	verb_clause/slave!drop-2	START;
+reject	reject	engine	verb_clause/slave!truncate	START
 reject	reject	engine	verb_clause/slave!insert	START SLAVE zzz;
 reject	reject	engine	verb_clause/slave!swap	STARTING SLAVE;
 accept	accept	engine	verb_clause/start	START TRANSACTION;
@@ -4583,7 +4583,7 @@ accept	accept	engine	table_index_name/PRIMARY_SYM	ANALYZE TABLE a PERSISTENT FOR
 reject	reject	engine	table_index_name/PRIMARY_SYM!insert	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES(PRIMARY zzz);
 accept	accept	engine	table_index_name/PRIMARY_SYM!swap	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES(PRIVILEGES);
 accept	accept	engine	binlog_base64_event/BINLOG_SYM_TEXT_STRING_sys	BINLOG 's';
-reject	accept	engine	binlog_base64_event/BINLOG_SYM_@_ident_or_text_,_@_ident_or_text	BINLOG@a,@a;
+accept	accept	engine	binlog_base64_event/BINLOG_SYM_@_ident_or_text_,_@_ident_or_text	BINLOG@a,@a;
 reject	reject	engine	binlog_base64_event/BINLOG_SYM_@_ident_or_text_,_@_ident_or_text!drop-1	@a,@a;
 reject	reject	engine	binlog_base64_event/BINLOG_SYM_@_ident_or_text_,_@_ident_or_text!drop-2	BINLOG a,@a;
 reject	accept	engine	binlog_base64_event/BINLOG_SYM_@_ident_or_text_,_@_ident_or_text!drop-3	BINLOG@,@a;
@@ -12206,8 +12206,8 @@ accept	accept	engine	rollback/ROLLBACK_SYM_opt_work_opt_chain_opt_release	ROLLBA
 accept	accept	engine	rollback/ROLLBACK_SYM_opt_work_TO_SYM_SAVEPOINT_SYM_ident	ROLLBACK TO SAVEPOINT a;
 reject	reject	engine	rollback/ROLLBACK_SYM_opt_work_TO_SYM_SAVEPOINT_SYM_ident!drop-1	TO SAVEPOINT a;
 reject	reject	engine	rollback/ROLLBACK_SYM_opt_work_TO_SYM_SAVEPOINT_SYM_ident!drop-2	ROLLBACK SAVEPOINT a;
-reject	accept	engine	rollback/ROLLBACK_SYM_opt_work_TO_SYM_SAVEPOINT_SYM_ident!drop-4	ROLLBACK TO SAVEPOINT;
-reject	accept	engine	rollback/ROLLBACK_SYM_opt_work_TO_SYM_SAVEPOINT_SYM_ident!truncate	ROLLBACK TO SAVEPOINT
+accept	accept	engine	rollback/ROLLBACK_SYM_opt_work_TO_SYM_SAVEPOINT_SYM_ident!drop-4	ROLLBACK TO SAVEPOINT;
+accept	accept	engine	rollback/ROLLBACK_SYM_opt_work_TO_SYM_SAVEPOINT_SYM_ident!truncate	ROLLBACK TO SAVEPOINT
 reject	reject	engine	rollback/ROLLBACK_SYM_opt_work_TO_SYM_SAVEPOINT_SYM_ident!insert	ROLLBACK TO SAVEPOINT a zzz;
 reject	reject	engine	rollback/ROLLBACK_SYM_opt_work_TO_SYM_SAVEPOINT_SYM_ident!swap	ROLLUP TO SAVEPOINT a;
 accept	accept	engine	rollback/ROLLBACK_SYM_opt_work_TO_SYM_ident	ROLLBACK TO a;
