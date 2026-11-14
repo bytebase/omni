@@ -4,8 +4,14 @@ import "fmt"
 
 // ResolveType resolves a TypeName to an OID and typmod.
 func (c *Catalog) ResolveType(tn TypeName) (oid uint32, typmod int32, err error) {
-	name := resolveAlias(tn.Name)
+	return c.lookupType(tn.Schema, resolveAlias(tn.Name), tn.Name, tn.IsArray, tn.TypeMod)
+}
 
+// lookupType finds the type named name, in schema or on the search path,
+// as written: no alias is applied and an explicit schema is kept. shown is
+// the name messages give.
+func (c *Catalog) lookupType(schema, name, shown string, isArray bool, typmod int32) (uint32, int32, error) {
+	tn := TypeName{Schema: schema, Name: shown, IsArray: isArray, TypeMod: typmod}
 	var typ *BuiltinType
 
 	if tn.Schema != "" {

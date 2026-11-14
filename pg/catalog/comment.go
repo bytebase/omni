@@ -336,12 +336,20 @@ func (c *Catalog) CommentObject(stmt *nodes.CommentStmt) error {
 // bound names the array type.
 func (c *Catalog) commentTypeOID(obj nodes.Node) (uint32, string, error) {
 	if tn, ok := obj.(*nodes.TypeName); ok {
-		oid, _, err := c.resolveTypeName(tn)
-		name := typeNameString(tn)
-		if err != nil {
-			return 0, name, err
+		// The parser gives the names as written (and a keyword type as
+		// pg_catalog's name): look them up exactly, with no alias and the
+		// schema kept, as LookupTypeName does.
+		schemaName, name := typeNameParts(tn)
+		typmod := int32(-1)
+		if tn.Typmods != nil && len(tn.Typmods.Items) > 0 {
+			typmod = 0
 		}
-		return oid, name, nil
+		isArray := tn.ArrayBounds != nil && len(tn.ArrayBounds.Items) > 0
+		oid, _, err := c.lookupType(schemaName, name, name, isArray, typmod)
+		if err != nil {
+			return 0, typeNameString(tn), err
+		}
+		return oid, typeNameString(tn), nil
 	}
 	schemaName, name := extractCommentObjectName(obj)
 	schema, err := c.resolveTargetSchema(schemaName)
