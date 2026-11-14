@@ -47,6 +47,8 @@ func TestOracleVerdictReadsParseErrors(t *testing.T) {
 		{"a unit with a PL/SQL syntax error", "CREATE PROCEDURE a IS BEGIN NULL END;", &answer{24344, 0, "103"}, nil, Reject},
 		{"a unit with a name it cannot resolve", "CREATE PROCEDURE a IS BEGIN zz; END;", &answer{24344, 0, "201,0"}, nil, Accept},
 		{"a type with a PL/SQL syntax error", "CREATE TYPE a AS OBJECT (a INT", &answer{24344, 0, "103"}, nil, Reject},
+		{"a block with a PL/SQL syntax error", "BEGIN NULL END;", &answer{6550, 11, "103"}, nil, "reject@11"},
+		{"a block with a name it cannot resolve", "BEGIN zz; END;", &answer{6550, 6, "201"}, nil, Accept},
 	} {
 		var asked []string
 		parse := func(text string) error {
@@ -93,7 +95,8 @@ func TestOracleVerdictRefusesWhatIsNoVerdict(t *testing.T) {
 		{"a probe answered so", oracleRaised(904, 7, ""), lost, "ORA-03113"},
 		{"a probe the server took", oracleRaised(904, 7, ""), nil, "took the probe's tail"},
 		{"a probe that stopped elsewhere", oracleRaised(904, 7, ""), oracleRaised(936, 3, ""), "neither where"},
-		{"a unit with no errors listed", oracleRaised(24344, 0, ""), nil, "lists none"},
+		{"a unit with no errors listed", oracleRaised(24344, 0, ""), nil, "lists no PL/SQL error"},
+		{"a block with no errors listed", oracleRaised(6550, 0, ""), nil, "lists no PL/SQL error"},
 	} {
 		calls := 0
 		_, err := OracleVerdict("SELECT zz FROM dual", func(string) error {
