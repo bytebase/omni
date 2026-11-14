@@ -9,7 +9,7 @@ CREATE CUSTOM INDEX product_name_idx ON products (name) USING 'StorageAttachedIn
 -- Vector index for similarity search
 CREATE CUSTOM INDEX embedding_idx ON products (embedding) 
     USING 'StorageAttachedIndex' 
-    WITH {'similarity_function': 'cosine'};
+    WITH OPTIONS = {'similarity_function': 'cosine'};
 
 -- Collection indexes with SAI (entire collection)
 CREATE INDEX ON mytable (mymap) USING 'sai';

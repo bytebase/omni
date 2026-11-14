@@ -26,6 +26,18 @@ func TestWalkCoversAllChildren(t *testing.T) {
 		{"CREATE INDEX", "CREATE INDEX idx ON users (name)"},
 		{"CREATE TYPE", "CREATE TYPE address (street text, city text, zip int)"},
 		{"ALTER TYPE RENAME", "ALTER TYPE address RENAME street TO road AND city TO town"},
+		{"DESCRIBE", "DESCRIBE ONLY KEYSPACE ks WITH INTERNALS"},
+		{"ADD IDENTITY", "ADD IDENTITY 'id' TO ROLE r"},
+		{"DROP IDENTITY", "DROP IDENTITY 'id'"},
+		{"LIST USERS", "LIST USERS"},
+		{"LIST permissions", "LIST CREATE, SELECT ON ALL TABLES IN KEYSPACE ks OF r NORECURSIVE"},
+		{"CREATE KEYSPACE options", "CREATE KEYSPACE ks WITH replication = {'class': 'x'} AND durable_writes = true AND x = KEYS"},
+		{"CREATE INDEX targets", "CREATE INDEX ON t(a, KEYS(m)) USING 'sai' WITH OPTIONS = {'k': 'v'}"},
+		{"CREATE AGGREGATE types", "CREATE AGGREGATE a(int, text) SFUNC f STYPE int INITCOND 0"},
+		{"CREATE TABLE masks", "CREATE TABLE t(a int PRIMARY KEY, b text MASKED WITH mask_inner(1, null), c ks.addr)"},
+		{"ALTER TABLE ALTER TYPE", "ALTER TABLE t ALTER a TYPE text"},
+		{"ALTER TABLE MASKED", "ALTER TABLE t ALTER a MASKED WITH mask_null()"},
+		{"ALTER TABLE DROP TIMESTAMP", "ALTER TABLE t DROP (a, b) USING TIMESTAMP 10"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

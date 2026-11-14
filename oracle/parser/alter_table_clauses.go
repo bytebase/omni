@@ -56,8 +56,10 @@ func (p *Parser) atExpect(t int) error {
 // refuses such a statement with the clause's own error (ORA-02211 for
 // PCTFREE, ORA-14004 or ORA-14020 in a partition clause, ORA-10630 for
 // SHRINK), none of which is its parser's, so the judge of compat.tsv records
-// the statement as accepted; omni keeps agreeing with that verdict where it
-// did. A clause cut off before its end anywhere else is refused.
+// the statement as accepted (the judge bug enginetest #1106 fixes). It keeps
+// only the cut-off forms the soup this file replaced accepted, so their rows
+// do not regress before compat.tsv is rejudged; once it is, remove atCutOff
+// and its callers. A clause cut off anywhere else is refused.
 func (p *Parser) atCutOff() bool {
 	return p.isStatementEnd()
 }
