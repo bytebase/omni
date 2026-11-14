@@ -3946,7 +3946,7 @@ accept	accept	engine	optimizeClause(keyDesc)?/keyDesc	ALTER SYSTEM AGGREGATE KEY
 accept	accept	engine	optimizeClause(partitionDesc)?/%empty	ALTER SYSTEM;
 reject	reject	engine	optimizeClause(partitionDesc)?/partitionDesc	ALTER SYSTEM PARTITION BY CURRENT_USER;
 reject	reject	engine	optimizeClause(partitionDesc)?/partitionDesc!drop-1	ALTER SYSTEM BY CURRENT_USER;
-accept	reject	engine	optimizeClause(partitionDesc)?/partitionDesc!drop-2	ALTER SYSTEM PARTITION CURRENT_USER;
+reject	reject	engine	optimizeClause(partitionDesc)?/partitionDesc!drop-2	ALTER SYSTEM PARTITION CURRENT_USER;
 reject	reject	engine	optimizeClause(partitionDesc)?/partitionDesc!drop-3	ALTER SYSTEM PARTITION BY;
 reject	reject	engine	optimizeClause(partitionDesc)?/partitionDesc!truncate	ALTER SYSTEM PARTITION BY
 reject	reject	engine	optimizeClause(partitionDesc)?/partitionDesc!insert	ALTER SYSTEM PARTITION BY CURRENT_USER zzz;
