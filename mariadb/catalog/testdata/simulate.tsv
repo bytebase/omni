@@ -344,15 +344,15 @@ ok	1054	engine	one_table@missing	opt_versioning_option/versioning_option!drop-1	
 1146	1146	engine	one_table@missing	drop/DROP_INDEX_SYM_opt_if_exists_table_element_ident_ON_table_ident_opt_lock_wait_timeout	DROP INDEX a ON a;
 1051	4092	engine	one_table@missing	drop/DROP_VIEW_SYM_opt_if_exists_table_list_opt_restrict	DROP VIEW a;
 1146	1146	engine	one_table@missing	opt_if_exists_table_element/IF_SYM_EXISTS	ALTER TABLE a DROP IF EXISTS a;
-1064	ok:ddcba5e24503	engine	one_table@missing	opt_if_exists/IF_SYM_EXISTS	ALTER TABLE IF EXISTS a;
+ok:ddcba5e24503	ok:ddcba5e24503	engine	one_table@missing	opt_if_exists/IF_SYM_EXISTS	ALTER TABLE IF EXISTS a;
 1146	1146	engine	one_table@missing	opt_table_sym/TABLE_SYM	TRUNCATE TABLE a;
 ok	1054	engine	one_table@missing	opt_duplicate/REPLACE	CREATE TABLE a REPLACE SELECT a;
 ok	1054	engine	one_table@missing	opt_duplicate/IGNORE_SYM	CREATE TABLE a IGNORE SELECT a;
 1146	1146	engine	one_table@missing	signed_literal/-_NUM_literal	ALTER TABLE a ADD a INT DEFAULT - 1;
 1064	1146	engine	one_table@missing	field_ident/ident_._ident	ALTER TABLE a DROP a.a;
 1146	1146	engine	one_table@missing	reserved_keyword_udt_not_param_type/BETWEEN_SYM!swap	ALTER TABLE a ADD a BIGINT;
-1064	1146	engine	one_table@missing	opt_lock_wait_timeout/WAIT_SYM_ulong_num	TRUNCATE a WAIT 1;
-1064	1146	engine	one_table@missing	opt_lock_wait_timeout/NOWAIT_SYM	TRUNCATE a NOWAIT;
+1146	1146	engine	one_table@missing	opt_lock_wait_timeout/WAIT_SYM_ulong_num	TRUNCATE a WAIT 1;
+1146	1146	engine	one_table@missing	opt_lock_wait_timeout/NOWAIT_SYM	TRUNCATE a NOWAIT;
 1146	1146	engine	one_table@missing	opt_lock_wait_timeout/NOWAIT_SYM!truncate	TRUNCATE a
 1051	1146	engine	one_table@missing	view_algorithm/ALGORITHM_SYM_=_MERGE_SYM	ALTER ALGORITHM = MERGE VIEW a AS SELECT a;
 1051	1146	engine	one_table@missing	view_algorithm/ALGORITHM_SYM_=_TEMPTABLE_SYM	ALTER ALGORITHM = TEMPTABLE VIEW a AS SELECT a;
@@ -707,15 +707,15 @@ ok:089d5b6fb5b4	ok:089d5b6fb5b4	engine	one_table@table	choice/DEFAULT	ALTER TABL
 1091	1091	engine	one_table@table	drop/DROP_INDEX_SYM_opt_if_exists_table_element_ident_ON_table_ident_opt_lock_wait_timeout	DROP INDEX a ON a;
 1051	4092	engine	one_table@table	drop/DROP_VIEW_SYM_opt_if_exists_table_list_opt_restrict	DROP VIEW a;
 ok:089d5b6fb5b4	ok:089d5b6fb5b4	engine	one_table@table	opt_if_exists_table_element/IF_SYM_EXISTS	ALTER TABLE a DROP IF EXISTS a;
-1064	ok:089d5b6fb5b4	engine	one_table@table	opt_if_exists/IF_SYM_EXISTS	ALTER TABLE IF EXISTS a;
+ok:089d5b6fb5b4	ok:089d5b6fb5b4	engine	one_table@table	opt_if_exists/IF_SYM_EXISTS	ALTER TABLE IF EXISTS a;
 ok:089d5b6fb5b4	ok:089d5b6fb5b4	engine	one_table@table	opt_table_sym/TABLE_SYM	TRUNCATE TABLE a;
 1050	1050	engine	one_table@table	opt_duplicate/REPLACE	CREATE TABLE a REPLACE SELECT a;
 1050	1050	engine	one_table@table	opt_duplicate/IGNORE_SYM	CREATE TABLE a IGNORE SELECT a;
 ok:f988031a1679	ok:f988031a1679	engine	one_table@table	signed_literal/-_NUM_literal	ALTER TABLE a ADD a INT DEFAULT - 1;
 1064	1091	engine	one_table@table	field_ident/ident_._ident	ALTER TABLE a DROP a.a;
 ok:f71f3a78a417	ok:f71f3a78a417	engine	one_table@table	reserved_keyword_udt_not_param_type/BETWEEN_SYM!swap	ALTER TABLE a ADD a BIGINT;
-1064	ok:089d5b6fb5b4	engine	one_table@table	opt_lock_wait_timeout/WAIT_SYM_ulong_num	TRUNCATE a WAIT 1;
-1064	ok:089d5b6fb5b4	engine	one_table@table	opt_lock_wait_timeout/NOWAIT_SYM	TRUNCATE a NOWAIT;
+ok:089d5b6fb5b4	ok:089d5b6fb5b4	engine	one_table@table	opt_lock_wait_timeout/WAIT_SYM_ulong_num	TRUNCATE a WAIT 1;
+ok:089d5b6fb5b4	ok:089d5b6fb5b4	engine	one_table@table	opt_lock_wait_timeout/NOWAIT_SYM	TRUNCATE a NOWAIT;
 ok:089d5b6fb5b4	ok:089d5b6fb5b4	engine	one_table@table	opt_lock_wait_timeout/NOWAIT_SYM!truncate	TRUNCATE a
 1051	1347	engine	one_table@table	view_algorithm/ALGORITHM_SYM_=_MERGE_SYM	ALTER ALGORITHM = MERGE VIEW a AS SELECT a;
 1051	1347	engine	one_table@table	view_algorithm/ALGORITHM_SYM_=_TEMPTABLE_SYM	ALTER ALGORITHM = TEMPTABLE VIEW a AS SELECT a;
@@ -1070,15 +1070,15 @@ ok:25f17229f33b	ok:25f17229f33b	engine	one_table@column	choice/DEFAULT	ALTER TAB
 1091	1091	engine	one_table@column	drop/DROP_INDEX_SYM_opt_if_exists_table_element_ident_ON_table_ident_opt_lock_wait_timeout	DROP INDEX a ON a;
 1051	4092	engine	one_table@column	drop/DROP_VIEW_SYM_opt_if_exists_table_list_opt_restrict	DROP VIEW a;
 ok:5ad1839727d0	ok:5ad1839727d0	engine	one_table@column	opt_if_exists_table_element/IF_SYM_EXISTS	ALTER TABLE a DROP IF EXISTS a;
-1064	ok:25f17229f33b	engine	one_table@column	opt_if_exists/IF_SYM_EXISTS	ALTER TABLE IF EXISTS a;
+ok:25f17229f33b	ok:25f17229f33b	engine	one_table@column	opt_if_exists/IF_SYM_EXISTS	ALTER TABLE IF EXISTS a;
 ok:25f17229f33b	ok:25f17229f33b	engine	one_table@column	opt_table_sym/TABLE_SYM	TRUNCATE TABLE a;
 1050	1050	engine	one_table@column	opt_duplicate/REPLACE	CREATE TABLE a REPLACE SELECT a;
 1050	1050	engine	one_table@column	opt_duplicate/IGNORE_SYM	CREATE TABLE a IGNORE SELECT a;
 1060	1060	engine	one_table@column	signed_literal/-_NUM_literal	ALTER TABLE a ADD a INT DEFAULT - 1;
 1064	ok:5ad1839727d0	engine	one_table@column	field_ident/ident_._ident	ALTER TABLE a DROP a.a;
 1060	1060	engine	one_table@column	reserved_keyword_udt_not_param_type/BETWEEN_SYM!swap	ALTER TABLE a ADD a BIGINT;
-1064	ok:25f17229f33b	engine	one_table@column	opt_lock_wait_timeout/WAIT_SYM_ulong_num	TRUNCATE a WAIT 1;
-1064	ok:25f17229f33b	engine	one_table@column	opt_lock_wait_timeout/NOWAIT_SYM	TRUNCATE a NOWAIT;
+ok:25f17229f33b	ok:25f17229f33b	engine	one_table@column	opt_lock_wait_timeout/WAIT_SYM_ulong_num	TRUNCATE a WAIT 1;
+ok:25f17229f33b	ok:25f17229f33b	engine	one_table@column	opt_lock_wait_timeout/NOWAIT_SYM	TRUNCATE a NOWAIT;
 ok:25f17229f33b	ok:25f17229f33b	engine	one_table@column	opt_lock_wait_timeout/NOWAIT_SYM!truncate	TRUNCATE a
 1051	1347	engine	one_table@column	view_algorithm/ALGORITHM_SYM_=_MERGE_SYM	ALTER ALGORITHM = MERGE VIEW a AS SELECT a;
 1051	1347	engine	one_table@column	view_algorithm/ALGORITHM_SYM_=_TEMPTABLE_SYM	ALTER ALGORITHM = TEMPTABLE VIEW a AS SELECT a;
@@ -1433,15 +1433,15 @@ ok:8eb6e8823936	ok:8eb6e8823936	engine	one_table@index	choice/DEFAULT	ALTER TABL
 ok:e6f744d4a4d4	ok:e6f744d4a4d4	engine	one_table@index	drop/DROP_INDEX_SYM_opt_if_exists_table_element_ident_ON_table_ident_opt_lock_wait_timeout	DROP INDEX a ON a;
 1051	4092	engine	one_table@index	drop/DROP_VIEW_SYM_opt_if_exists_table_list_opt_restrict	DROP VIEW a;
 ok:db2f8726731c	ok:db2f8726731c	engine	one_table@index	opt_if_exists_table_element/IF_SYM_EXISTS	ALTER TABLE a DROP IF EXISTS a;
-1064	ok:8eb6e8823936	engine	one_table@index	opt_if_exists/IF_SYM_EXISTS	ALTER TABLE IF EXISTS a;
+ok:8eb6e8823936	ok:8eb6e8823936	engine	one_table@index	opt_if_exists/IF_SYM_EXISTS	ALTER TABLE IF EXISTS a;
 ok:8eb6e8823936	ok:8eb6e8823936	engine	one_table@index	opt_table_sym/TABLE_SYM	TRUNCATE TABLE a;
 1050	1050	engine	one_table@index	opt_duplicate/REPLACE	CREATE TABLE a REPLACE SELECT a;
 1050	1050	engine	one_table@index	opt_duplicate/IGNORE_SYM	CREATE TABLE a IGNORE SELECT a;
 1060	1060	engine	one_table@index	signed_literal/-_NUM_literal	ALTER TABLE a ADD a INT DEFAULT - 1;
 1064	ok:db2f8726731c	engine	one_table@index	field_ident/ident_._ident	ALTER TABLE a DROP a.a;
 1060	1060	engine	one_table@index	reserved_keyword_udt_not_param_type/BETWEEN_SYM!swap	ALTER TABLE a ADD a BIGINT;
-1064	ok:8eb6e8823936	engine	one_table@index	opt_lock_wait_timeout/WAIT_SYM_ulong_num	TRUNCATE a WAIT 1;
-1064	ok:8eb6e8823936	engine	one_table@index	opt_lock_wait_timeout/NOWAIT_SYM	TRUNCATE a NOWAIT;
+ok:8eb6e8823936	ok:8eb6e8823936	engine	one_table@index	opt_lock_wait_timeout/WAIT_SYM_ulong_num	TRUNCATE a WAIT 1;
+ok:8eb6e8823936	ok:8eb6e8823936	engine	one_table@index	opt_lock_wait_timeout/NOWAIT_SYM	TRUNCATE a NOWAIT;
 ok:8eb6e8823936	ok:8eb6e8823936	engine	one_table@index	opt_lock_wait_timeout/NOWAIT_SYM!truncate	TRUNCATE a
 1051	1347	engine	one_table@index	view_algorithm/ALGORITHM_SYM_=_MERGE_SYM	ALTER ALGORITHM = MERGE VIEW a AS SELECT a;
 1051	1347	engine	one_table@index	view_algorithm/ALGORITHM_SYM_=_TEMPTABLE_SYM	ALTER ALGORITHM = TEMPTABLE VIEW a AS SELECT a;

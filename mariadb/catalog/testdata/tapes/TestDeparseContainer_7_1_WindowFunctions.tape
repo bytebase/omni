@@ -158,3 +158,69 @@
 | utf8mb4
 : bytes
 | utf8mb4_uca1400_ai_ci
+> exec
+| DROP VIEW IF EXISTS v_wf_empty
+< ok 0 0
+> exec
+| CREATE VIEW v_wf_empty AS SELECT a, ROW_NUMBER() OVER () AS r FROM t
+< ok 0 0
+> query
+| SHOW CREATE VIEW v_wf_empty
+< result
+< column "View" "VARCHAR"
+< column "Create View" "VARCHAR"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< row
+: bytes
+| v_wf_empty
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_wf_empty` AS select `t`.`a` AS `a`,row_number() over () AS `r` from `t`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_uca1400_ai_ci
+> exec
+| DROP VIEW IF EXISTS v_wf_pct
+< ok 0 0
+> exec
+| CREATE VIEW v_wf_pct AS SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY a) OVER () AS p1, PERCENTILE_DISC(0.5) WITHIN GROUP (ORDER BY b DESC) OVER (PARTITION BY a, c) AS p2, PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY b ASC) OVER (PARTITION BY a) AS p3 FROM t
+< ok 0 0
+> query
+| SHOW CREATE VIEW v_wf_pct
+< result
+< column "View" "VARCHAR"
+< column "Create View" "VARCHAR"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< row
+: bytes
+| v_wf_pct
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_wf_pct` AS select percentile_cont(0.5) within group ( order by `t`.`a`) over () AS `p1`,percentile_disc(0.5) within group ( order by `t`.`b` desc) over ( partition by `t`.`a`,`t`.`c`) AS `p2`,percentile_cont(0.5) within group ( order by `t`.`b`) over ( partition by `t`.`a`) AS `p3` from `t`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_uca1400_ai_ci
+> exec
+| DROP VIEW IF EXISTS v_wf_median
+< ok 0 0
+> exec
+| CREATE VIEW v_wf_median AS SELECT MEDIAN(b) OVER (PARTITION BY a) AS m1, MEDIAN(a + 1) OVER () AS m2 FROM t
+< ok 0 0
+> query
+| SHOW CREATE VIEW v_wf_median
+< result
+< column "View" "VARCHAR"
+< column "Create View" "VARCHAR"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< row
+: bytes
+| v_wf_median
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_wf_median` AS select percentile_cont(0.5) within group ( order by `t`.`b` desc) over ( partition by `t`.`a`) AS `m1`,percentile_cont(0.5) within group ( order by `t`.`a` + 1 desc) over () AS `m2` from `t`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_uca1400_ai_ci

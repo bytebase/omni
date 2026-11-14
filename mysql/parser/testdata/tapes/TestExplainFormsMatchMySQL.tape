@@ -201,6 +201,43 @@
 | 1064 42000 …near 'SELECT FROM' at line 2
 > exec ^
 : string
+| EXPLAIN FOR CONNECTION 0x1
+< error
+| 1295 HY000 This command is not supported in the prepared statement protocol yet
+> exec ^
+: string
+| EXPLAIN FOR CONNECTION 0x1
+| ; SELECT FROM
+< error
+| 1064 42000 …near 'SELECT FROM' at line 2
+> exec ^
+: string
+| EXPLAIN FOR CONNECTION X'01'
+< error
+| 1295 HY000 This command is not supported in the prepared statement protocol yet
+> exec ^
+: string
+| EXPLAIN FOR CONNECTION X'01'
+| ; SELECT FROM
+< error
+| 1064 42000 …near 'SELECT FROM' at line 2
+> exec ^
+: string
+| EXPLAIN FOR CONNECTION X'GG'
+< error
+| 1064 42000 …near 'X'GG'' at line 1
+> exec ^
+: string
+| EXPLAIN FOR CONNECTION X'4'
+< error
+| 1064 42000 …near 'X'4'' at line 1
+> exec ^
+: string
+| EXPLAIN FOR CONNECTION b'1'
+< error
+| 1064 42000 …near 'b'1'' at line 1
+> exec ^
+: string
 | EXPLAIN FORMAT = 'traditional' FOR CONNECTION 1
 < error
 | 1295 HY000 This command is not supported in the prepared statement protocol yet

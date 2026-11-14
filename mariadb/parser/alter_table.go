@@ -52,6 +52,15 @@ func (p *Parser) parseAlterTableStmt(start int) (*nodes.AlterTableStmt, error) {
 		Loc: nodes.Loc{Start: start},
 	}
 
+	// TABLE opt_if_exists: mariadb:11.8.8 runs `ALTER TABLE IF EXISTS t`, and answers a
+	// note for a table it does not have.
+	// Ref: alter in MariaDB 11.8 sql/sql_yacc.yy.
+	ifExists, err := p.parseOptIfExists()
+	if err != nil {
+		return nil, err
+	}
+	stmt.IfExists = ifExists
+
 	// Table name
 	ref, err := p.parseTableRef()
 	if err != nil {
