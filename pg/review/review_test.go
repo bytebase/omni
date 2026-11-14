@@ -96,7 +96,9 @@ func TestReview(t *testing.T) {
 			sql:     "DELETE FROM t WHERE a = 1; CREATE TABLE n (id int, PRIMARY KEY (id) NOT VALID);",
 			targets: 1,
 			want: func(t *testing.T, sql string) []finding {
-				at := strings.Index(sql, "NOT VALID")
+				// PostgreSQL reports no position for it: the finding starts
+				// at the statement.
+				at := strings.Index(sql, "CREATE TABLE")
 				return []finding{{review.SyntaxError, 1, review.Range{Start: at, End: at}, "PRIMARY KEY constraints cannot be marked NOT VALID"}}
 			},
 		},

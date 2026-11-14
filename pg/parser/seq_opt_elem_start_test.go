@@ -1,0 +1,52 @@
+package parser
+
+import (
+	"slices"
+	"testing"
+)
+
+// TestIsSeqOptElemStartMatchesSlice checks isSeqOptElemStart against every
+// keyword: it accepts exactly seqOptElemLeadTokens, NO only before CYCLE,
+// MAXVALUE or MINVALUE.
+func TestIsSeqOptElemStartMatchesSlice(t *testing.T) {
+	for _, kw := range Keywords {
+		if kw.Token == NO {
+			continue
+		}
+		p := &Parser{cur: Token{Type: kw.Token, Str: kw.Name}}
+		if got, want := p.isSeqOptElemStart(), slices.Contains(seqOptElemLeadTokens, kw.Token); got != want {
+			t.Errorf("isSeqOptElemStart(%q) = %v, want %v", kw.Name, got, want)
+		}
+	}
+	for _, kw := range Keywords {
+		p := &Parser{cur: Token{Type: kw.Token, Str: kw.Name}}
+		if got, want := p.isSeqOptElemLead(), slices.Contains(seqOptElemLeadTokens, kw.Token); got != want {
+			t.Errorf("isSeqOptElemLead(%q) = %v, want %v", kw.Name, got, want)
+		}
+	}
+	for sql, want := range map[string]bool{"NO CYCLE": true, "NO MAXVALUE": true, "NO MINVALUE": true, "NO INHERIT": false, "NO FORCE": false} {
+		p := &Parser{lexer: NewLexer(sql)}
+		p.advance()
+		if got := p.isSeqOptElemStart(); got != want {
+			t.Errorf("isSeqOptElemStart(%q) = %v, want %v", sql, got, want)
+		}
+	}
+}
+
+// TestIsNumericOnlyStartMatchesSlice checks isNumericOnlyStart against every
+// keyword, none of which starts a NumericOnly, and the tokens that do.
+func TestIsNumericOnlyStartMatchesSlice(t *testing.T) {
+	for _, kw := range Keywords {
+		p := &Parser{cur: Token{Type: kw.Token, Str: kw.Name}}
+		if p.isNumericOnlyStart() {
+			t.Errorf("isNumericOnlyStart(%q) = true", kw.Name)
+		}
+	}
+	for sql, want := range map[string]bool{"1": true, "1.5": true, "+1": true, "-1.5": true, "'1'": false, "x": false, "(": false} {
+		p := &Parser{lexer: NewLexer(sql)}
+		p.advance()
+		if got := p.isNumericOnlyStart(); got != want {
+			t.Errorf("isNumericOnlyStart(%q) = %v, want %v", sql, got, want)
+		}
+	}
+}

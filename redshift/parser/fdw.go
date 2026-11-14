@@ -13,9 +13,18 @@ func (p *Parser) parseCreateFdwStmt() (nodes.Node, error) {
 	if _, err := p.expect(WRAPPER); err != nil {
 		return nil, err
 	}
-	name, _ := p.parseName()
-	funcOptions := p.parseOptFdwOptions()
-	options := p.parseCreateGenericOptions()
+	name, err := p.parseName()
+	if err != nil {
+		return nil, err
+	}
+	funcOptions, err := p.parseOptFdwOptions()
+	if err != nil {
+		return nil, err
+	}
+	options, err := p.parseCreateGenericOptions()
+	if err != nil {
+		return nil, err
+	}
 	return &nodes.CreateFdwStmt{
 		Fdwname:     name,
 		FuncOptions: funcOptions,
@@ -33,7 +42,10 @@ func (p *Parser) parseAlterFdwStmt() (nodes.Node, error) {
 	if _, err := p.expect(WRAPPER); err != nil {
 		return nil, err
 	}
-	name, _ := p.parseName()
+	name, err := p.parseName()
+	if err != nil {
+		return nil, err
+	}
 
 	// Check for OWNER TO and RENAME TO before FDW options
 	switch p.cur.Type {
@@ -42,7 +54,10 @@ func (p *Parser) parseAlterFdwStmt() (nodes.Node, error) {
 		if _, err := p.expect(TO); err != nil {
 			return nil, err
 		}
-		roleSpec := p.parseRoleSpec()
+		roleSpec, err := p.parseRoleSpec()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterOwnerStmt{
 			ObjectType: nodes.OBJECT_FDW,
 			Object:     &nodes.String{Str: name},
@@ -53,7 +68,10 @@ func (p *Parser) parseAlterFdwStmt() (nodes.Node, error) {
 		if _, err := p.expect(TO); err != nil {
 			return nil, err
 		}
-		newname, _ := p.parseName()
+		newname, err := p.parseName()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.RenameStmt{
 			RenameType: nodes.OBJECT_FDW,
 			Object:     &nodes.String{Str: name},
@@ -61,15 +79,31 @@ func (p *Parser) parseAlterFdwStmt() (nodes.Node, error) {
 		}, nil
 	}
 
-	funcOptions := p.parseOptFdwOptions()
+	funcOptions, err := p.parseOptFdwOptions()
+	if err != nil {
+		return nil, err
+	}
 	if p.cur.Type == OPTIONS {
-		options := p.parseAlterGenericOptions()
+		options, err := p.parseAlterGenericOptions()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterFdwStmt{
 			Fdwname:     name,
 			FuncOptions: funcOptions,
 			Options:     options,
 			Loc:         nodes.Loc{Start: p.stmtStart, End: p.prev.End},
 		}, nil
+	}
+	// AlterFdwStmt: ... name opt_fdw_options alter_generic_options | ... name fdw_options
+	if funcOptions == nil {
+		if p.collectMode() {
+			for _, t := range []int{HANDLER, NO, VALIDATOR, OPTIONS, OWNER, RENAME} {
+				p.addTokenCandidate(t)
+			}
+			return nil, errCollecting
+		}
+		return nil, p.syntaxErrorAtCur()
 	}
 	return &nodes.AlterFdwStmt{
 		Fdwname:     name,
@@ -78,87 +112,112 @@ func (p *Parser) parseAlterFdwStmt() (nodes.Node, error) {
 	}, nil
 }
 
-func (p *Parser) parseFdwOption() *nodes.DefElem {
+// parseFdwOption parses fdw_option. The caller has seen HANDLER, VALIDATOR
+// or NO HANDLER|VALIDATOR.
+//
+//	fdw_option: HANDLER handler_name | NO HANDLER | VALIDATOR handler_name | NO VALIDATOR
+func (p *Parser) parseFdwOption() (*nodes.DefElem, error) {
 	switch p.cur.Type {
-	case HANDLER:
+	case HANDLER, VALIDATOR:
+		defname := "handler"
+		if p.cur.Type == VALIDATOR {
+			defname = "validator"
+		}
 		p.advance()
-		name := p.parseHandlerName()
-		return makeDefElem("handler", name)
-	case VALIDATOR:
-		p.advance()
-		name := p.parseHandlerName()
-		return makeDefElem("validator", name)
+		name, err := p.parseHandlerName()
+		if err != nil {
+			return nil, err
+		}
+		return makeDefElem(defname, name), nil
 	case NO:
 		p.advance()
 		switch p.cur.Type {
 		case HANDLER:
 			p.advance()
-			return makeDefElem("handler", nil)
+			return makeDefElem("handler", nil), nil
 		case VALIDATOR:
 			p.advance()
-			return makeDefElem("validator", nil)
+			return makeDefElem("validator", nil), nil
 		}
 	}
-	return nil
+	return nil, p.syntaxErrorAtCur()
 }
 
-func (p *Parser) parseOptFdwOptions() *nodes.List {
+// parseOptFdwOptions parses opt_fdw_options: a run of fdw_option, or
+// nothing. NO starts nothing else after a wrapper's name or its options, so
+// it is read as NO HANDLER or NO VALIDATOR.
+func (p *Parser) parseOptFdwOptions() (*nodes.List, error) {
 	var items []nodes.Node
 	for {
 		if p.cur.Type != HANDLER && p.cur.Type != VALIDATOR && p.cur.Type != NO {
 			break
 		}
-		if p.cur.Type == NO {
-			next := p.peekNext()
-			if next.Type != HANDLER && next.Type != VALIDATOR {
-				break
-			}
-		}
-		opt := p.parseFdwOption()
-		if opt == nil {
-			break
+		opt, err := p.parseFdwOption()
+		if err != nil {
+			return nil, err
 		}
 		items = append(items, opt)
 	}
 	if len(items) == 0 {
-		return nil
+		return nil, nil
 	}
-	return &nodes.List{Items: items}
+	return &nodes.List{Items: items}, nil
 }
 
-func (p *Parser) parseCreateGenericOptions() *nodes.List {
+// parseCreateGenericOptions parses create_generic_options.
+//
+//	create_generic_options: OPTIONS '(' generic_option_list ')' | /* EMPTY */
+func (p *Parser) parseCreateGenericOptions() (*nodes.List, error) {
 	if p.cur.Type != OPTIONS {
-		return nil
+		return nil, nil
 	}
 	p.advance()
-	p.expect('(')
-	list := p.parseGenericOptionList()
-	p.expect(')')
-	return list
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	list, err := p.parseGenericOptionList()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return list, nil
 }
 
-func (p *Parser) parseGenericOptionList() *nodes.List {
-	elem := p.parseGenericOptionElem()
-	items := []nodes.Node{elem}
-	for p.cur.Type == ',' {
-		p.advance()
-		elem = p.parseGenericOptionElem()
+// parseGenericOptionList parses generic_option_list.
+//
+//	generic_option_list: generic_option_elem | generic_option_list ',' generic_option_elem
+func (p *Parser) parseGenericOptionList() (*nodes.List, error) {
+	var items []nodes.Node
+	for {
+		elem, err := p.parseGenericOptionElem()
+		if err != nil {
+			return nil, err
+		}
 		items = append(items, elem)
+		if p.cur.Type != ',' {
+			return &nodes.List{Items: items}, nil
+		}
+		p.advance()
 	}
-	return &nodes.List{Items: items}
 }
 
 // parseHandlerName parses handler_name: name | name attrs
-func (p *Parser) parseHandlerName() *nodes.List {
-	name, _ := p.parseName()
+func (p *Parser) parseHandlerName() (*nodes.List, error) {
+	name, err := p.parseName()
+	if err != nil {
+		return nil, err
+	}
 	items := []nodes.Node{&nodes.String{Str: name}}
 	if p.cur.Type == '.' {
 		attrs, err := p.parseAttrs()
-		if err == nil && attrs != nil {
-			items = append(items, attrs.Items...)
+		if err != nil {
+			return nil, err
 		}
+		items = append(items, attrs.Items...)
 	}
-	return &nodes.List{Items: items}
+	return &nodes.List{Items: items}, nil
 }
 
 func (p *Parser) parseCreateForeignServerStmt() (nodes.Node, error) {
@@ -174,9 +233,18 @@ func (p *Parser) parseCreateForeignServerStmt() (nodes.Node, error) {
 		}
 		ifNotExists = true
 	}
-	name, _ := p.parseName()
-	servertype := p.parseOptType()
-	version := p.parseOptForeignServerVersion()
+	name, err := p.parseName()
+	if err != nil {
+		return nil, err
+	}
+	servertype, err := p.parseOptType()
+	if err != nil {
+		return nil, err
+	}
+	version, err := p.parseOptForeignServerVersion()
+	if err != nil {
+		return nil, err
+	}
 	if _, err := p.expect(FOREIGN); err != nil {
 		return nil, err
 	}
@@ -186,8 +254,14 @@ func (p *Parser) parseCreateForeignServerStmt() (nodes.Node, error) {
 	if _, err := p.expect(WRAPPER); err != nil {
 		return nil, err
 	}
-	fdwname, _ := p.parseName()
-	options := p.parseCreateGenericOptions()
+	fdwname, err := p.parseName()
+	if err != nil {
+		return nil, err
+	}
+	options, err := p.parseCreateGenericOptions()
+	if err != nil {
+		return nil, err
+	}
 	return &nodes.CreateForeignServerStmt{
 		Servername:  name,
 		Servertype:  servertype,
@@ -201,7 +275,10 @@ func (p *Parser) parseCreateForeignServerStmt() (nodes.Node, error) {
 
 func (p *Parser) parseAlterForeignServerStmt() (nodes.Node, error) {
 	p.advance() // consume SERVER
-	name, _ := p.parseName()
+	name, err := p.parseName()
+	if err != nil {
+		return nil, err
+	}
 
 	// Check for OWNER TO and RENAME TO before VERSION/OPTIONS
 	switch p.cur.Type {
@@ -210,7 +287,10 @@ func (p *Parser) parseAlterForeignServerStmt() (nodes.Node, error) {
 		if _, err := p.expect(TO); err != nil {
 			return nil, err
 		}
-		roleSpec := p.parseRoleSpec()
+		roleSpec, err := p.parseRoleSpec()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterOwnerStmt{
 			ObjectType: nodes.OBJECT_FOREIGN_SERVER,
 			Object:     &nodes.String{Str: name},
@@ -221,7 +301,10 @@ func (p *Parser) parseAlterForeignServerStmt() (nodes.Node, error) {
 		if _, err := p.expect(TO); err != nil {
 			return nil, err
 		}
-		newname, _ := p.parseName()
+		newname, err := p.parseName()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.RenameStmt{
 			RenameType: nodes.OBJECT_FOREIGN_SERVER,
 			Object:     &nodes.String{Str: name},
@@ -232,12 +315,26 @@ func (p *Parser) parseAlterForeignServerStmt() (nodes.Node, error) {
 	hasVersion := false
 	version := ""
 	if p.cur.Type == VERSION_P {
-		version = p.parseForeignServerVersion()
+		if version, err = p.parseForeignServerVersion(); err != nil {
+			return nil, err
+		}
 		hasVersion = true
 	}
 	var options *nodes.List
 	if p.cur.Type == OPTIONS {
-		options = p.parseAlterGenericOptions()
+		if options, err = p.parseAlterGenericOptions(); err != nil {
+			return nil, err
+		}
+	} else if !hasVersion {
+		// AlterForeignServerStmt needs foreign_server_version,
+		// alter_generic_options, or both.
+		if p.collectMode() {
+			for _, t := range []int{VERSION_P, OPTIONS, OWNER, RENAME} {
+				p.addTokenCandidate(t)
+			}
+			return nil, errCollecting
+		}
+		return nil, p.syntaxErrorAtCur()
 	}
 	return &nodes.AlterForeignServerStmt{
 		Servername: name,
@@ -248,32 +345,41 @@ func (p *Parser) parseAlterForeignServerStmt() (nodes.Node, error) {
 	}, nil
 }
 
-func (p *Parser) parseOptType() string {
-	if p.cur.Type == TYPE_P {
-		p.advance()
-		val := p.cur.Str
-		p.expect(SCONST)
-		return val
+// parseOptType parses opt_type: TYPE_P Sconst | /*EMPTY*/.
+func (p *Parser) parseOptType() (string, error) {
+	if p.cur.Type != TYPE_P {
+		return "", nil
 	}
-	return ""
+	p.advance()
+	tok, err := p.expect(SCONST)
+	if err != nil {
+		return "", err
+	}
+	return tok.Str, nil
 }
 
-func (p *Parser) parseForeignServerVersion() string {
-	p.expect(VERSION_P)
+// parseForeignServerVersion parses foreign_server_version:
+// VERSION_P Sconst | VERSION_P NULL_P.
+func (p *Parser) parseForeignServerVersion() (string, error) {
+	if _, err := p.expect(VERSION_P); err != nil {
+		return "", err
+	}
 	if p.cur.Type == NULL_P {
 		p.advance()
-		return ""
+		return "", nil
 	}
-	val := p.cur.Str
-	p.expect(SCONST)
-	return val
+	tok, err := p.expect(SCONST)
+	if err != nil {
+		return "", err
+	}
+	return tok.Str, nil
 }
 
-func (p *Parser) parseOptForeignServerVersion() string {
+func (p *Parser) parseOptForeignServerVersion() (string, error) {
 	if p.cur.Type == VERSION_P {
 		return p.parseForeignServerVersion()
 	}
-	return ""
+	return "", nil
 }
 
 func (p *Parser) parseCreateForeignTableStmt() (nodes.Node, error) {
@@ -324,12 +430,21 @@ func (p *Parser) parseCreateForeignTableStmt() (nodes.Node, error) {
 				return nil, err
 			}
 		}
-		partbound := p.parseForValues()
+		partbound, err := p.parseForValues()
+		if err != nil {
+			return nil, err
+		}
 		if _, err := p.expect(SERVER); err != nil {
 			return nil, err
 		}
-		servername, _ := p.parseName()
-		options := p.parseCreateGenericOptions()
+		servername, err := p.parseName()
+		if err != nil {
+			return nil, err
+		}
+		options, err := p.parseCreateGenericOptions()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.CreateForeignTableStmt{
 			Base: nodes.CreateStmt{
 				Relation:     rv,
@@ -358,12 +473,21 @@ func (p *Parser) parseCreateForeignTableStmt() (nodes.Node, error) {
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
-	inhRelations := p.parseOptInherit()
+	inhRelations, err := p.parseOptInherit()
+	if err != nil {
+		return nil, err
+	}
 	if _, err := p.expect(SERVER); err != nil {
 		return nil, err
 	}
-	servername, _ := p.parseName()
-	options := p.parseCreateGenericOptions()
+	servername, err := p.parseName()
+	if err != nil {
+		return nil, err
+	}
+	options, err := p.parseCreateGenericOptions()
+	if err != nil {
+		return nil, err
+	}
 	return &nodes.CreateForeignTableStmt{
 		Base: nodes.CreateStmt{
 			Relation:     rv,
@@ -384,7 +508,10 @@ func (p *Parser) parseImportForeignSchemaStmt() (nodes.Node, error) {
 	if _, err := p.expect(SCHEMA); err != nil {
 		return nil, err
 	}
-	remoteSchema, _ := p.parseName()
+	remoteSchema, err := p.parseName()
+	if err != nil {
+		return nil, err
+	}
 	listType := nodes.FDW_IMPORT_SCHEMA_ALL
 	var tableList *nodes.List
 	if p.cur.Type == LIMIT {
@@ -396,7 +523,6 @@ func (p *Parser) parseImportForeignSchemaStmt() (nodes.Node, error) {
 		if _, err := p.expect('('); err != nil {
 			return nil, err
 		}
-		var err error
 		if tableList, err = p.parseRelationExprList(); err != nil {
 			return nil, err
 		}
@@ -409,7 +535,6 @@ func (p *Parser) parseImportForeignSchemaStmt() (nodes.Node, error) {
 		if _, err := p.expect('('); err != nil {
 			return nil, err
 		}
-		var err error
 		if tableList, err = p.parseRelationExprList(); err != nil {
 			return nil, err
 		}
@@ -423,12 +548,21 @@ func (p *Parser) parseImportForeignSchemaStmt() (nodes.Node, error) {
 	if _, err := p.expect(SERVER); err != nil {
 		return nil, err
 	}
-	serverName, _ := p.parseName()
+	serverName, err := p.parseName()
+	if err != nil {
+		return nil, err
+	}
 	if _, err := p.expect(INTO); err != nil {
 		return nil, err
 	}
-	localSchema, _ := p.parseName()
-	options := p.parseCreateGenericOptions()
+	localSchema, err := p.parseName()
+	if err != nil {
+		return nil, err
+	}
+	options, err := p.parseCreateGenericOptions()
+	if err != nil {
+		return nil, err
+	}
 	return &nodes.ImportForeignSchemaStmt{
 		ServerName:   serverName,
 		RemoteSchema: remoteSchema,
@@ -459,15 +593,21 @@ func (p *Parser) parseCreateUserMappingIfNotExistsStmt() (nodes.Node, error) {
 	if _, err := p.expect(FOR); err != nil {
 		return nil, err
 	}
-	user := p.parseAuthIdent()
-	if user == nil {
-		return nil, p.syntaxErrorAtCur()
+	user, err := p.parseAuthIdent()
+	if err != nil {
+		return nil, err
 	}
 	if _, err := p.expect(SERVER); err != nil {
 		return nil, err
 	}
-	servername, _ := p.parseName()
-	options := p.parseCreateGenericOptions()
+	servername, err := p.parseName()
+	if err != nil {
+		return nil, err
+	}
+	options, err := p.parseCreateGenericOptions()
+	if err != nil {
+		return nil, err
+	}
 	return &nodes.CreateUserMappingStmt{
 		User:        user,
 		Servername:  servername,
@@ -485,15 +625,21 @@ func (p *Parser) parseAlterUserMappingStmt() (nodes.Node, error) {
 	if _, err := p.expect(FOR); err != nil {
 		return nil, err
 	}
-	user := p.parseAuthIdent()
-	if user == nil {
-		return nil, p.syntaxErrorAtCur()
+	user, err := p.parseAuthIdent()
+	if err != nil {
+		return nil, err
 	}
 	if _, err := p.expect(SERVER); err != nil {
 		return nil, err
 	}
-	servername, _ := p.parseName()
-	options := p.parseAlterGenericOptions()
+	servername, err := p.parseName()
+	if err != nil {
+		return nil, err
+	}
+	options, err := p.parseAlterGenericOptions()
+	if err != nil {
+		return nil, err
+	}
 	return &nodes.AlterUserMappingStmt{
 		User:       user,
 		Servername: servername,
@@ -518,14 +664,17 @@ func (p *Parser) parseDropUserMappingStmt() (nodes.Node, error) {
 	if _, err := p.expect(FOR); err != nil {
 		return nil, err
 	}
-	user := p.parseAuthIdent()
-	if user == nil {
-		return nil, p.syntaxErrorAtCur()
+	user, err := p.parseAuthIdent()
+	if err != nil {
+		return nil, err
 	}
 	if _, err := p.expect(SERVER); err != nil {
 		return nil, err
 	}
-	servername, _ := p.parseName()
+	servername, err := p.parseName()
+	if err != nil {
+		return nil, err
+	}
 	return &nodes.DropUserMappingStmt{
 		User:       user,
 		Servername: servername,
@@ -534,12 +683,12 @@ func (p *Parser) parseDropUserMappingStmt() (nodes.Node, error) {
 	}, nil
 }
 
-func (p *Parser) parseAuthIdent() *nodes.RoleSpec {
+func (p *Parser) parseAuthIdent() (*nodes.RoleSpec, error) {
 	if p.cur.Type == USER {
 		p.advance()
 		return &nodes.RoleSpec{
 			Roletype: int(nodes.ROLESPEC_CURRENT_USER),
-		}
+		}, nil
 	}
 	return p.parseRoleSpec()
 }
@@ -556,7 +705,10 @@ func (p *Parser) parseCreatePLangStmt(replace bool) (nodes.Node, error) {
 	if _, err := p.expect(LANGUAGE); err != nil {
 		return nil, err
 	}
-	name, _ := p.parseName()
+	name, err := p.parseName()
+	if err != nil {
+		return nil, err
+	}
 	stmt := &nodes.CreatePLangStmt{
 		Replace:   replace,
 		Plname:    name,
@@ -564,19 +716,25 @@ func (p *Parser) parseCreatePLangStmt(replace bool) (nodes.Node, error) {
 	}
 	if p.cur.Type == HANDLER {
 		p.advance()
-		stmt.Plhandler = p.parseHandlerName()
+		if stmt.Plhandler, err = p.parseHandlerName(); err != nil {
+			return nil, err
+		}
 		if p.cur.Type == INLINE_P {
 			p.advance()
-			stmt.Plinline = p.parseHandlerName()
+			if stmt.Plinline, err = p.parseHandlerName(); err != nil {
+				return nil, err
+			}
 		}
 		if p.cur.Type == VALIDATOR {
 			p.advance()
-			stmt.Plvalidator = p.parseHandlerName()
+			if stmt.Plvalidator, err = p.parseHandlerName(); err != nil {
+				return nil, err
+			}
 		} else if p.cur.Type == NO {
-			next := p.peekNext()
-			if next.Type == VALIDATOR {
-				p.advance()
-				p.advance()
+			// opt_validator: NO starts nothing else here.
+			p.advance()
+			if _, err := p.expect(VALIDATOR); err != nil {
+				return nil, err
 			}
 		}
 	}

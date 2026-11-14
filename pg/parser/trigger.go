@@ -12,8 +12,14 @@ func (p *Parser) parseCreateTrigStmt(replace bool) (*nodes.CreateTrigStmt, error
 	if _, err := p.expect(TRIGGER); err != nil {
 		return nil, err
 	}
-	trigname, _ := p.parseName()
-	timing := p.parseTriggerActionTime()
+	trigname, err := p.parseName()
+	if err != nil {
+		return nil, err
+	}
+	timing, err := p.parseTriggerActionTime()
+	if err != nil {
+		return nil, err
+	}
 	events, columns, err := p.parseTriggerEvents()
 	if err != nil {
 		return nil, err
@@ -22,10 +28,19 @@ func (p *Parser) parseCreateTrigStmt(replace bool) (*nodes.CreateTrigStmt, error
 		return nil, err
 	}
 	relStart := p.pos()
-	relNames, _ := p.parseQualifiedName()
+	relNames, err := p.parseQualifiedName()
+	if err != nil {
+		return nil, err
+	}
 	relation := makeRangeVarFromAnyName(relNames, nodes.Loc{Start: relStart, End: p.prev.End})
-	transitionRels := p.parseTriggerReferencing()
-	row := p.parseTriggerForSpec()
+	transitionRels, err := p.parseTriggerReferencing()
+	if err != nil {
+		return nil, err
+	}
+	row, err := p.parseTriggerForSpec()
+	if err != nil {
+		return nil, err
+	}
 	whenClause, err := p.parseTriggerWhen()
 	if err != nil {
 		return nil, err
@@ -33,10 +48,13 @@ func (p *Parser) parseCreateTrigStmt(replace bool) (*nodes.CreateTrigStmt, error
 	if _, err := p.expect(EXECUTE); err != nil {
 		return nil, err
 	}
-	if p.cur.Type == FUNCTION || p.cur.Type == PROCEDURE {
-		p.advance()
+	if err := p.parseFunctionOrProcedure(); err != nil {
+		return nil, err
 	}
-	funcname, _ := p.parseFuncName()
+	funcname, err := p.parseFuncName()
+	if err != nil {
+		return nil, err
+	}
 	if _, err := p.expect('('); err != nil {
 		return nil, err
 	}
@@ -63,7 +81,10 @@ func (p *Parser) parseCreateConstraintTrigger(replace bool) (*nodes.CreateTrigSt
 	if _, err := p.expect(TRIGGER); err != nil {
 		return nil, err
 	}
-	trigname, _ := p.parseName()
+	trigname, err := p.parseName()
+	if err != nil {
+		return nil, err
+	}
 	if _, err := p.expect(AFTER); err != nil {
 		return nil, err
 	}
@@ -75,13 +96,19 @@ func (p *Parser) parseCreateConstraintTrigger(replace bool) (*nodes.CreateTrigSt
 		return nil, err
 	}
 	relStart := p.pos()
-	relNames, _ := p.parseQualifiedName()
+	relNames, err := p.parseQualifiedName()
+	if err != nil {
+		return nil, err
+	}
 	relation := makeRangeVarFromAnyName(relNames, nodes.Loc{Start: relStart, End: p.prev.End})
 	var constrrel *nodes.RangeVar
 	if p.cur.Type == FROM {
 		p.advance()
 		fromStart := p.pos()
-		fromNames, _ := p.parseQualifiedName()
+		fromNames, err := p.parseQualifiedName()
+		if err != nil {
+			return nil, err
+		}
 		constrrel = makeRangeVarFromAnyName(fromNames, nodes.Loc{Start: fromStart, End: p.prev.End})
 	}
 	casBits, err := p.parseKindAttributes("TRIGGER", true, false, false)
@@ -93,8 +120,8 @@ func (p *Parser) parseCreateConstraintTrigger(replace bool) (*nodes.CreateTrigSt
 	if _, err := p.expect(FOR); err != nil {
 		return nil, err
 	}
-	if p.cur.Type == EACH {
-		p.advance()
+	if _, err := p.expect(EACH); err != nil {
+		return nil, err
 	}
 	if _, err := p.expect(ROW); err != nil {
 		return nil, err
@@ -106,10 +133,13 @@ func (p *Parser) parseCreateConstraintTrigger(replace bool) (*nodes.CreateTrigSt
 	if _, err := p.expect(EXECUTE); err != nil {
 		return nil, err
 	}
-	if p.cur.Type == FUNCTION || p.cur.Type == PROCEDURE {
-		p.advance()
+	if err := p.parseFunctionOrProcedure(); err != nil {
+		return nil, err
 	}
-	funcname, _ := p.parseFuncName()
+	funcname, err := p.parseFuncName()
+	if err != nil {
+		return nil, err
+	}
 	if _, err := p.expect('('); err != nil {
 		return nil, err
 	}
@@ -129,20 +159,44 @@ func (p *Parser) parseCreateConstraintTrigger(replace bool) (*nodes.CreateTrigSt
 	}, nil
 }
 
-func (p *Parser) parseTriggerActionTime() int64 {
+// parseTriggerActionTime parses TriggerActionTime: BEFORE | AFTER | INSTEAD OF.
+func (p *Parser) parseTriggerActionTime() (int64, error) {
+	if p.collectMode() {
+		for _, t := range []int{BEFORE, AFTER, INSTEAD} {
+			p.addTokenCandidate(t)
+		}
+		return 0, errCollecting
+	}
 	switch p.cur.Type {
 	case BEFORE:
 		p.advance()
-		return int64(nodes.TRIGGER_TYPE_BEFORE)
+		return int64(nodes.TRIGGER_TYPE_BEFORE), nil
 	case AFTER:
 		p.advance()
-		return int64(nodes.TRIGGER_TYPE_AFTER)
+		return int64(nodes.TRIGGER_TYPE_AFTER), nil
 	case INSTEAD:
 		p.advance()
-		p.expect(OF)
-		return int64(nodes.TRIGGER_TYPE_INSTEAD)
+		if _, err := p.expect(OF); err != nil {
+			return 0, err
+		}
+		return int64(nodes.TRIGGER_TYPE_INSTEAD), nil
 	}
-	return int64(nodes.TRIGGER_TYPE_AFTER)
+	return 0, p.syntaxErrorAtCur()
+}
+
+// parseFunctionOrProcedure consumes FUNCTION_or_PROCEDURE, which
+// CreateTrigStmt and CreateEventTrigStmt require after EXECUTE.
+func (p *Parser) parseFunctionOrProcedure() error {
+	if p.collectMode() {
+		p.addTokenCandidate(FUNCTION)
+		p.addTokenCandidate(PROCEDURE)
+		return errCollecting
+	}
+	if p.cur.Type != FUNCTION && p.cur.Type != PROCEDURE {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance()
+	return nil
 }
 
 func (p *Parser) parseTriggerEvents() (int64, *nodes.List, error) {
@@ -155,6 +209,17 @@ func (p *Parser) parseTriggerEvents() (int64, *nodes.List, error) {
 		ev2, cols2, err := p.parseTriggerOneEvent()
 		if err != nil {
 			return 0, nil, err
+		}
+		if events&ev2 != 0 {
+			// gram.y's TriggerEvents action raises parser_yyerror, which
+			// reports the last token the parser read: the event keyword
+			// itself for INSERT, DELETE and TRUNCATE, and the token after
+			// an UPDATE, which bison reads to look for OF or a column.
+			pos := p.cur.Loc
+			if ev2 != int64(nodes.TRIGGER_TYPE_UPDATE) {
+				pos = p.prev.Loc
+			}
+			return 0, nil, &ParseError{Message: "duplicate trigger events specified", Position: pos}
 		}
 		events |= ev2
 		cols = concatColumnLists(cols, cols2)
@@ -185,7 +250,13 @@ func (p *Parser) parseTriggerOneEvent() (int64, *nodes.List, error) {
 		p.advance()
 		return int64(nodes.TRIGGER_TYPE_TRUNCATE), nil, nil
 	}
-	return 0, nil, nil
+	if p.collectMode() {
+		for _, t := range []int{INSERT, DELETE_P, UPDATE, TRUNCATE} {
+			p.addTokenCandidate(t)
+		}
+		return 0, nil, errCollecting
+	}
+	return 0, nil, p.syntaxErrorAtCur()
 }
 
 func concatColumnLists(a, b *nodes.List) *nodes.List {
@@ -205,23 +276,33 @@ func concatColumnLists(a, b *nodes.List) *nodes.List {
 	return &nodes.List{Items: items}
 }
 
-func (p *Parser) parseTriggerReferencing() *nodes.List {
+// parseTriggerReferencing parses TriggerReferencing: REFERENCING
+// TriggerTransitions, a list of one or more TriggerTransition.
+func (p *Parser) parseTriggerReferencing() (*nodes.List, error) {
 	if p.cur.Type != REFERENCING {
-		return nil
+		return nil, nil
 	}
 	p.advance()
 	var items []nodes.Node
 	for {
 		tt, err := p.parseTriggerTransition()
-		if err != nil || tt == nil {
+		if err != nil {
+			return nil, err
+		}
+		if tt == nil {
 			break
 		}
 		items = append(items, tt)
 	}
 	if len(items) == 0 {
-		return nil
+		if p.collectMode() {
+			p.addTokenCandidate(NEW)
+			p.addTokenCandidate(OLD)
+			return nil, errCollecting
+		}
+		return nil, p.syntaxErrorAtCur()
 	}
-	return &nodes.List{Items: items}
+	return &nodes.List{Items: items}, nil
 }
 
 func (p *Parser) parseTriggerTransition() (*nodes.TriggerTransition, error) {
@@ -238,37 +319,59 @@ func (p *Parser) parseTriggerTransition() (*nodes.TriggerTransition, error) {
 	default:
 		return nil, nil
 	}
+	// TransitionRowOrTable: TABLE | ROW, required (gram.y TransitionRowOrTable).
 	isTable := false
-	if p.cur.Type == TABLE {
+	switch p.cur.Type {
+	case TABLE:
 		isTable = true
 		p.advance()
-	} else if p.cur.Type == ROW {
+	case ROW:
 		p.advance()
+	default:
+		if p.collectMode() {
+			p.addTokenCandidate(TABLE)
+			p.addTokenCandidate(ROW)
+			return nil, errCollecting
+		}
+		return nil, p.syntaxErrorAtCur()
 	}
 	if p.cur.Type == AS {
 		p.advance()
 	}
-	name, _ := p.parseColId()
+	name, err := p.parseColId()
+	if err != nil {
+		return nil, err
+	}
 	return &nodes.TriggerTransition{Name: name, IsNew: isNew, IsTable: isTable, Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
 }
 
-func (p *Parser) parseTriggerForSpec() bool {
+// parseTriggerForSpec parses TriggerForSpec: FOR [EACH] ROW | STATEMENT,
+// or nothing.
+func (p *Parser) parseTriggerForSpec() (bool, error) {
 	if p.cur.Type != FOR {
-		return false
+		return false, nil
 	}
 	p.advance()
 	if p.cur.Type == EACH {
 		p.advance()
 	}
-	if p.cur.Type == ROW {
+	switch p.cur.Type {
+	case ROW:
 		p.advance()
-		return true
-	}
-	if p.cur.Type == STATEMENT {
+		return true, nil
+	case STATEMENT:
 		p.advance()
-		return false
+		return false, nil
 	}
-	return false
+	if p.collectMode() {
+		if p.prev.Type == FOR {
+			p.addTokenCandidate(EACH)
+		}
+		p.addTokenCandidate(ROW)
+		p.addTokenCandidate(STATEMENT)
+		return false, errCollecting
+	}
+	return false, p.syntaxErrorAtCur()
 }
 
 func (p *Parser) parseTriggerWhen() (nodes.Node, error) {
@@ -279,23 +382,37 @@ func (p *Parser) parseTriggerWhen() (nodes.Node, error) {
 	if _, err := p.expect('('); err != nil {
 		return nil, err
 	}
-	expr, _ := p.parseAExpr(0)
+	expr, err := p.parseAExpr(0)
+	if err != nil {
+		return nil, err
+	}
+	if expr == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
 	return expr, nil
 }
 
+// parseTriggerFuncArgs parses TriggerFuncArgs:
+//
+//	TriggerFuncArg | TriggerFuncArgs ',' TriggerFuncArg | /*EMPTY*/
+//
+// The empty alternative heads the left recursion, so a list may start with
+// a comma: a(, 1) passes one argument, while a(,) is rejected at ')'.
 func (p *Parser) parseTriggerFuncArgs() (*nodes.List, error) {
 	if p.cur.Type == ')' {
 		return nil, nil
 	}
 	var items []nodes.Node
-	arg, err := p.parseTriggerFuncArg()
-	if err != nil {
-		return nil, err
+	if p.cur.Type != ',' {
+		arg, err := p.parseTriggerFuncArg()
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, arg)
 	}
-	items = append(items, arg)
 	for p.cur.Type == ',' {
 		p.advance()
 		arg, err := p.parseTriggerFuncArg()
@@ -319,7 +436,10 @@ func (p *Parser) parseTriggerFuncArg() (nodes.Node, error) {
 		tok := p.advance()
 		return &nodes.String{Str: tok.Str}, nil
 	default:
-		label, _ := p.parseColLabel()
+		label, err := p.parseColLabel()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.String{Str: label}, nil
 	}
 }
@@ -328,11 +448,17 @@ func (p *Parser) parseCreateEventTrigStmt() (*nodes.CreateEventTrigStmt, error) 
 	if _, err := p.expect(TRIGGER); err != nil {
 		return nil, err
 	}
-	trigname, _ := p.parseName()
+	trigname, err := p.parseName()
+	if err != nil {
+		return nil, err
+	}
 	if _, err := p.expect(ON); err != nil {
 		return nil, err
 	}
-	eventname, _ := p.parseColLabel()
+	eventname, err := p.parseColLabel()
+	if err != nil {
+		return nil, err
+	}
 	var whenclause *nodes.List
 	if p.cur.Type == WHEN {
 		p.advance()
@@ -355,10 +481,13 @@ func (p *Parser) parseCreateEventTrigStmt() (*nodes.CreateEventTrigStmt, error) 
 	if _, err := p.expect(EXECUTE); err != nil {
 		return nil, err
 	}
-	if p.cur.Type == FUNCTION || p.cur.Type == PROCEDURE {
-		p.advance()
+	if err := p.parseFunctionOrProcedure(); err != nil {
+		return nil, err
 	}
-	funcname, _ := p.parseFuncName()
+	funcname, err := p.parseFuncName()
+	if err != nil {
+		return nil, err
+	}
 	if _, err := p.expect('('); err != nil {
 		return nil, err
 	}
@@ -369,18 +498,28 @@ func (p *Parser) parseCreateEventTrigStmt() (*nodes.CreateEventTrigStmt, error) 
 }
 
 func (p *Parser) parseEventTriggerWhenItem() (*nodes.DefElem, error) {
-	name, _ := p.parseColId()
+	name, err := p.parseColId()
+	if err != nil {
+		return nil, err
+	}
 	if _, err := p.expect(IN_P); err != nil {
 		return nil, err
 	}
 	if _, err := p.expect('('); err != nil {
 		return nil, err
 	}
-	tok := p.advance()
+	// event_trigger_value_list: SCONST [, SCONST ...]
+	tok, err := p.expect(SCONST)
+	if err != nil {
+		return nil, err
+	}
 	items := []nodes.Node{&nodes.String{Str: tok.Str}}
 	for p.cur.Type == ',' {
 		p.advance()
-		tok = p.advance()
+		tok, err = p.expect(SCONST)
+		if err != nil {
+			return nil, err
+		}
 		items = append(items, &nodes.String{Str: tok.Str})
 	}
 	if _, err := p.expect(')'); err != nil {
@@ -393,7 +532,10 @@ func (p *Parser) parseAlterEventTrigStmt() (*nodes.AlterEventTrigStmt, error) {
 	if _, err := p.expect(TRIGGER); err != nil {
 		return nil, err
 	}
-	trigname, _ := p.parseName()
+	trigname, err := p.parseName()
+	if err != nil {
+		return nil, err
+	}
 	tgenabled, err := p.parseEnableTrigger()
 	if err != nil {
 		return nil, err

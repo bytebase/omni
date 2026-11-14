@@ -1,6 +1,10 @@
 package parser
 
-import "testing"
+import (
+	"errors"
+	"strings"
+	"testing"
+)
 
 // parseOK is a test helper that verifies SQL parses without error.
 func parseOK(t *testing.T, sql string) {
@@ -11,10 +15,35 @@ func parseOK(t *testing.T, sql string) {
 	}
 }
 
+// TestSetCatalog: gram.y's CATALOG_P Sconst action refuses SET CATALOG
+// with "current database cannot be changed" (0A000) at the string.
 func TestSetCatalog(t *testing.T) {
+	parseFailsAt(t, "SET CATALOG 'test'", 12)
+	parseFailsAt(t, "ALTER ROLE r SET CATALOG 'mydb'", 25)
+}
+
+// parseFailsAt is a test helper that verifies Parse rejects sql with a
+// ParseError at byte offset pos.
+func parseFailsAt(t *testing.T, sql string, pos int) {
+	t.Helper()
+	_, err := Parse(sql)
+	var pe *ParseError
+	if !errors.As(err, &pe) {
+		t.Fatalf("Parse(%q) = %v, want a ParseError at %d", sql, err, pos)
+	}
+	if pe.Position != pos {
+		t.Fatalf("Parse(%q) error at %d (%v), want %d", sql, pe.Position, err, pos)
+	}
+}
+
+// TestDropOperatorUnary pins oper_argtypes: a unary operator names NONE
+// for its missing side, and '(' Typename ')' is gram.y's "missing argument"
+// error at the ')'.
+func TestDropOperatorUnary(t *testing.T) {
 	tests := []string{
-		"SET CATALOG 'test'",
-		"SET CATALOG 'mydb'",
+		"DROP OPERATOR + (NONE, integer)",
+		"DROP OPERATOR + (integer, NONE)",
+		"DROP OPERATOR IF EXISTS + (NONE, integer) CASCADE",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
@@ -22,28 +51,19 @@ func TestSetCatalog(t *testing.T) {
 			CheckLocations(t, sql)
 		})
 	}
-}
-
-func TestDropOperatorUnary(t *testing.T) {
-	tests := []string{
+	for _, sql := range []string{
 		"DROP OPERATOR + (integer)",
-		"DROP OPERATOR + (NONE, integer)",
-		"DROP OPERATOR + (integer, NONE)",
 		"DROP OPERATOR IF EXISTS + (integer)",
 		"DROP OPERATOR + (integer) CASCADE",
-	}
-	for _, sql := range tests {
+	} {
 		t.Run(sql, func(t *testing.T) {
-			parseOK(t, sql)
-			CheckLocations(t, sql)
+			parseFailsAt(t, sql, strings.Index(sql, ")"))
 		})
 	}
 }
 
 func TestAlterOperatorUnary(t *testing.T) {
 	tests := []string{
-		"ALTER EXTENSION myext ADD OPERATOR + (integer)",
-		"ALTER EXTENSION myext DROP OPERATOR + (integer)",
 		"ALTER EXTENSION myext ADD OPERATOR + (NONE, integer)",
 		"ALTER EXTENSION myext ADD OPERATOR + (integer, NONE)",
 	}
@@ -51,6 +71,14 @@ func TestAlterOperatorUnary(t *testing.T) {
 		t.Run(sql, func(t *testing.T) {
 			parseOK(t, sql)
 			CheckLocations(t, sql)
+		})
+	}
+	for _, sql := range []string{
+		"ALTER EXTENSION myext ADD OPERATOR + (integer)",
+		"ALTER EXTENSION myext DROP OPERATOR + (integer)",
+	} {
+		t.Run(sql, func(t *testing.T) {
+			parseFailsAt(t, sql, strings.Index(sql, ")"))
 		})
 	}
 }

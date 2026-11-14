@@ -121,6 +121,11 @@ func walkChildren(v Visitor, node Node) {
 				Walk(v, item)
 			}
 		}
+		for _, item := range n.Persistent {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 	case *Assignment:
 		if n.Column != nil {
 			Walk(v, n.Column)
@@ -393,6 +398,7 @@ func walkChildren(v Visitor, node Node) {
 		for _, item := range n.Returning {
 			Walk(v, item)
 		}
+		Walk(v, n.HistoryBefore)
 	case *DiagnosticsItem:
 		Walk(v, n.Target)
 	case *DoStmt:
@@ -517,6 +523,9 @@ func walkChildren(v Visitor, node Node) {
 	case *HandlerReadStmt:
 		if n.Table != nil {
 			Walk(v, n.Table)
+		}
+		for _, item := range n.KeyValues {
+			Walk(v, item)
 		}
 		Walk(v, n.Where)
 		if n.Limit != nil {

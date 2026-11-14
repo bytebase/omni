@@ -18,42 +18,44 @@ func (p *Parser) parseDefineStmtAggregate(replace bool, stmtLoc int) (nodes.Node
 		return nil, err
 	}
 
-	// Save state to try new-style first (aggr_args definition).
-	savedCur := p.cur
-	savedPrev := p.prev
-	savedNext := p.nextBuf
-	savedHasNext := p.hasNext
-	savedLexerErr := p.lexer.Err
-	savedLexerPos := p.lexer.pos
-	savedLexerStart := p.lexer.start
-	savedLexerState := p.lexer.state
-
-	args, _ := p.parseAggrArgs()
-	if args != nil && p.cur.Type == '(' {
-		def, err := p.parseDefinition()
-		if err != nil {
+	// Both forms start with '('. The old form's elements are IDENT '='
+	// def_arg, and in aggr_args an IDENT is never followed by '=', so that
+	// pair after the '(' is the old form and anything else the new one
+	// (aggr_args definition), whose errors are then the statement's. While
+	// completing, a new form that does not parse falls back to the old one
+	// as well, for its candidates.
+	snap := p.snapshotTokenStream()
+	oldStyle := false
+	if p.cur.Type == '(' {
+		p.advance()
+		oldStyle = p.cur.Type == IDENT && p.peekNext().Type == '='
+		p.restoreTokenStream(snap)
+	}
+	if !oldStyle {
+		args, err := p.parseAggrArgs()
+		if err == nil && args == nil {
+			err = p.syntaxErrorAtCur()
+		}
+		var def *nodes.List
+		if err == nil {
+			def, err = p.parseDefinition()
+		}
+		if err == nil {
+			return &nodes.DefineStmt{
+				Kind:       nodes.OBJECT_AGGREGATE,
+				Oldstyle:   false,
+				Replace:    replace,
+				Defnames:   defnames,
+				Args:       args,
+				Definition: def,
+				Loc:        nodes.Loc{Start: stmtLoc, End: p.prev.End},
+			}, nil
+		}
+		if !p.collectMode() {
 			return nil, err
 		}
-		return &nodes.DefineStmt{
-			Kind:       nodes.OBJECT_AGGREGATE,
-			Oldstyle:   false,
-			Replace:    replace,
-			Defnames:   defnames,
-			Args:       args,
-			Definition: def,
-			Loc:        nodes.Loc{Start: stmtLoc, End: p.prev.End},
-		}, nil
+		p.restoreTokenStream(snap)
 	}
-
-	// Restore and try old-style
-	p.cur = savedCur
-	p.prev = savedPrev
-	p.nextBuf = savedNext
-	p.hasNext = savedHasNext
-	p.lexer.Err = savedLexerErr
-	p.lexer.pos = savedLexerPos
-	p.lexer.start = savedLexerStart
-	p.lexer.state = savedLexerState
 
 	def, err := p.parseOldAggrDefinition()
 	if err != nil {
@@ -117,7 +119,10 @@ func (p *Parser) parseDefineStmtType(stmtLoc int) (nodes.Node, error) {
 			if _, err := p.expect('('); err != nil {
 				return nil, err
 			}
-			vals := p.parseOptEnumValList()
+			vals, err := p.parseOptEnumValList()
+			if err != nil {
+				return nil, err
+			}
 			if _, err := p.expect(')'); err != nil {
 				return nil, err
 			}
@@ -426,19 +431,13 @@ func (p *Parser) parseOldAggrElem() (*nodes.DefElem, error) {
 // parseAggrArgsList parses aggr_args_list: aggr_arg (',' aggr_arg)*.
 //
 // gram.y requires at least one aggr_arg, so "DROP AGGREGATE b()" is a syntax
-// error at the ")" token; "b(*)" is the no-argument form. parseFuncArg swallows
-// the parseFuncType error and returns a parameter with a nil ArgType when the
-// current token cannot start a type, so report the syntax error here and never
-// hand a typed-nil *TypeName to a caller.
+// error at the ")" token; "b(*)" is the no-argument form.
 func (p *Parser) parseAggrArgsList() (*nodes.List, error) {
 	var items []nodes.Node
 	for {
-		arg := p.parseFuncArg()
-		if arg == nil || arg.ArgType == nil {
-			if p.collectMode() {
-				return nil, errCollecting
-			}
-			return nil, p.syntaxErrorAtCur()
+		arg, err := p.parseFuncArg()
+		if err != nil {
+			return nil, err
 		}
 		items = append(items, arg)
 		if p.cur.Type != ',' {
@@ -568,8 +567,11 @@ func (p *Parser) parseOpclassItem() (nodes.Node, error) {
 	switch p.cur.Type {
 	case OPERATOR:
 		p.advance()
-		number := int(p.cur.Ival)
-		p.advance()
+		numTok, err := p.expect(ICONST)
+		if err != nil {
+			return nil, err
+		}
+		number := int(numTok.Ival)
 		opname, err := p.parseAnyOperator()
 		if err != nil {
 			return nil, err
@@ -600,8 +602,11 @@ func (p *Parser) parseOpclassItem() (nodes.Node, error) {
 		}, nil
 	case FUNCTION:
 		p.advance()
-		number := int(p.cur.Ival)
-		p.advance()
+		numTok, err := p.expect(ICONST)
+		if err != nil {
+			return nil, err
+		}
+		number := int(numTok.Ival)
 		// If '(' immediately after Iconst, it's '(' type_list ')' function_with_argtypes
 		var classArgs *nodes.List
 		if p.cur.Type == '(' {
@@ -758,8 +763,11 @@ func (p *Parser) parseOpclassDrop() (nodes.Node, error) {
 		return nil, p.syntaxErrorAtCur()
 	}
 	p.advance()
-	number := int(p.cur.Ival)
-	p.advance()
+	numTok, err := p.expect(ICONST)
+	if err != nil {
+		return nil, err
+	}
+	number := int(numTok.Ival)
 	if _, err := p.expect('('); err != nil {
 		return nil, err
 	}
@@ -810,7 +818,7 @@ func (p *Parser) parseCreateStatsStmt(stmtLoc int) (nodes.Node, error) {
 		if _, err := p.expect(FROM); err != nil {
 			return nil, err
 		}
-		relations, err := p.parseFromList()
+		relations, err := p.parseStatsFromList()
 		if err != nil {
 			return nil, err
 		}
@@ -842,7 +850,7 @@ func (p *Parser) parseCreateStatsStmt(stmtLoc int) (nodes.Node, error) {
 	if _, err := p.expect(FROM); err != nil {
 		return nil, err
 	}
-	relations, err := p.parseFromList()
+	relations, err := p.parseStatsFromList()
 	if err != nil {
 		return nil, err
 	}
@@ -851,6 +859,19 @@ func (p *Parser) parseCreateStatsStmt(stmtLoc int) (nodes.Node, error) {
 		Exprs: exprs, Relations: relations, IfNotExists: false,
 		Loc: nodes.Loc{Start: stmtLoc, End: p.prev.End},
 	}, nil
+}
+
+// parseStatsFromList parses CreateStatsStmt's from_list, which needs at
+// least one table_ref.
+func (p *Parser) parseStatsFromList() (*nodes.List, error) {
+	relations, err := p.parseFromList()
+	if err != nil {
+		return nil, err
+	}
+	if relations == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	return relations, nil
 }
 
 func (p *Parser) parseOptStatNameList() (*nodes.List, error) {
@@ -893,6 +914,9 @@ func (p *Parser) parseStatsParam() (nodes.Node, error) {
 		if err != nil {
 			return nil, err
 		}
+		if expr == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
@@ -908,6 +932,9 @@ func (p *Parser) parseStatsParam() (nodes.Node, error) {
 	expr, err := p.parseFuncExprWindowless()
 	if err != nil {
 		return nil, err
+	}
+	if expr == nil {
+		return nil, p.syntaxErrorAtCur()
 	}
 	return &nodes.StatsElem{Expr: expr, Loc: nodes.Loc{Start: elemLoc, End: p.prev.End}}, nil
 }
@@ -1022,9 +1049,10 @@ func (p *Parser) parseOperArgtypes() (*nodes.List, error) {
 	if err != nil {
 		return nil, err
 	}
-	if p.cur.Type == ')' {
-		p.advance()
-		return &nodes.List{Items: []nodes.Node{left}}, nil
+	if p.cur.Type == ')' && !p.collectMode() {
+		// gram.y's '(' Typename ')' alternative raises "missing argument"
+		// at the ')': a unary operator names NONE for its missing side.
+		return nil, &ParseError{Message: "missing argument", Position: p.cur.Loc}
 	}
 	if _, err := p.expect(','); err != nil {
 		return nil, err
@@ -1058,7 +1086,10 @@ func (p *Parser) parseFunctionWithArgtypes() (*nodes.ObjectWithArgs, error) {
 			p.advance()
 			return &nodes.ObjectWithArgs{Objname: funcname, Objargs: nil}, nil
 		}
-		args := p.parseFuncArgsList()
+		args, err := p.parseFuncArgsList()
+		if err != nil {
+			return nil, err
+		}
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
@@ -1068,15 +1099,22 @@ func (p *Parser) parseFunctionWithArgtypes() (*nodes.ObjectWithArgs, error) {
 	return &nodes.ObjectWithArgs{Objname: funcname, ArgsUnspecified: true}, nil
 }
 
-// parseFuncArgsList parses: func_arg (',' func_arg)*
-func (p *Parser) parseFuncArgsList() *nodes.List {
-	arg := p.parseFuncArg()
-	items := []nodes.Node{arg}
-	for p.cur.Type == ',' {
+// parseFuncArgsList parses func_args_list.
+//
+//	func_args_list: func_arg | func_args_list ',' func_arg
+func (p *Parser) parseFuncArgsList() (*nodes.List, error) {
+	var items []nodes.Node
+	for {
+		arg, err := p.parseFuncArg()
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, arg)
+		if p.cur.Type != ',' {
+			return &nodes.List{Items: items}, nil
+		}
 		p.advance()
-		items = append(items, p.parseFuncArg())
 	}
-	return &nodes.List{Items: items}
 }
 
 // extractArgTypes extracts TypeName nodes from a list of FunctionParameter.
@@ -1120,11 +1158,21 @@ func (p *Parser) parseAlterDefaultPrivilegesStmt(stmtLoc int) (nodes.Node, error
 			}
 			optItems = append(optItems, &nodes.DefElem{Defname: "schemas", Arg: names, Loc: nodes.NoLoc()})
 		} else if p.cur.Type == FOR {
+			// DefACLOption: FOR ROLE role_list | FOR USER role_list
 			p.advance()
-			if p.cur.Type == ROLE || p.cur.Type == USER {
-				p.advance()
+			if p.collectMode() {
+				p.addTokenCandidate(ROLE)
+				p.addTokenCandidate(USER)
+				return nil, errCollecting
 			}
-			roles := p.parseRoleList()
+			if p.cur.Type != ROLE && p.cur.Type != USER {
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance()
+			roles, err := p.parseRoleList()
+			if err != nil {
+				return nil, err
+			}
 			optItems = append(optItems, &nodes.DefElem{Defname: "roles", Arg: roles, Loc: nodes.NoLoc()})
 		} else {
 			break
@@ -1134,21 +1182,27 @@ func (p *Parser) parseAlterDefaultPrivilegesStmt(stmtLoc int) (nodes.Node, error
 	if len(optItems) > 0 {
 		options = &nodes.List{Items: optItems}
 	}
+	// DefACLAction: GRANT ... | REVOKE ...
 	var action *nodes.GrantStmt
-	if p.cur.Type == GRANT {
+	var err error
+	switch p.cur.Type {
+	case GRANT:
 		p.advance()
-		var err error
 		action, err = p.parseDefACLGrantAction()
-		if err != nil {
-			return nil, err
-		}
-	} else if p.cur.Type == REVOKE {
+	case REVOKE:
 		p.advance()
-		var err error
 		action, err = p.parseDefACLRevokeAction()
-		if err != nil {
-			return nil, err
+	default:
+		if p.collectMode() {
+			for _, t := range []int{IN_P, FOR, GRANT, REVOKE} {
+				p.addTokenCandidate(t)
+			}
+			return nil, errCollecting
 		}
+		err = p.syntaxErrorAtCur()
+	}
+	if err != nil {
+		return nil, err
 	}
 	return &nodes.AlterDefaultPrivilegesStmt{Options: options, Action: action, Loc: nodes.Loc{Start: stmtLoc, End: p.prev.End}}, nil
 }
@@ -1161,11 +1215,17 @@ func (p *Parser) parseDefACLGrantAction() (*nodes.GrantStmt, error) {
 	if _, err := p.expect(ON); err != nil {
 		return nil, err
 	}
-	objtype := p.parseDefACLPrivilegeTarget()
+	objtype, err := p.parseDefACLPrivilegeTarget()
+	if err != nil {
+		return nil, err
+	}
 	if _, err := p.expect(TO); err != nil {
 		return nil, err
 	}
-	grantees := p.parseGranteeList()
+	grantees, err := p.parseGranteeList()
+	if err != nil {
+		return nil, err
+	}
 	grantOption := false
 	if p.cur.Type == WITH {
 		p.advance()
@@ -1177,7 +1237,10 @@ func (p *Parser) parseDefACLGrantAction() (*nodes.GrantStmt, error) {
 		}
 		grantOption = true
 	}
-	grantor := p.parseOptGrantedBy()
+	grantor, err := p.parseOptGrantedBy()
+	if err != nil {
+		return nil, err
+	}
 	return &nodes.GrantStmt{
 		IsGrant: true, Privileges: privs, Targtype: nodes.ACL_TARGET_DEFAULTS,
 		Objtype: nodes.ObjectType(objtype), Grantees: grantees,
@@ -1204,12 +1267,21 @@ func (p *Parser) parseDefACLRevokeAction() (*nodes.GrantStmt, error) {
 	if _, err := p.expect(ON); err != nil {
 		return nil, err
 	}
-	objtype := p.parseDefACLPrivilegeTarget()
+	objtype, err := p.parseDefACLPrivilegeTarget()
+	if err != nil {
+		return nil, err
+	}
 	if _, err := p.expect(FROM); err != nil {
 		return nil, err
 	}
-	grantees := p.parseGranteeList()
-	grantor := p.parseOptGrantedBy()
+	grantees, err := p.parseGranteeList()
+	if err != nil {
+		return nil, err
+	}
+	grantor, err := p.parseOptGrantedBy()
+	if err != nil {
+		return nil, err
+	}
 	behavior := p.parseOptDropBehavior()
 	return &nodes.GrantStmt{
 		IsGrant: false, GrantOption: grantOption, Privileges: privs,
@@ -1218,29 +1290,25 @@ func (p *Parser) parseDefACLRevokeAction() (*nodes.GrantStmt, error) {
 	}, nil
 }
 
-func (p *Parser) parseDefACLPrivilegeTarget() int {
-	switch p.cur.Type {
-	case TABLES:
-		p.advance()
-		return int(nodes.OBJECT_TABLE)
-	case FUNCTIONS:
-		p.advance()
-		return int(nodes.OBJECT_FUNCTION)
-	case ROUTINES:
-		p.advance()
-		return int(nodes.OBJECT_FUNCTION)
-	case SEQUENCES:
-		p.advance()
-		return int(nodes.OBJECT_SEQUENCE)
-	case TYPES_P:
-		p.advance()
-		return int(nodes.OBJECT_TYPE)
-	case SCHEMAS:
-		p.advance()
-		return int(nodes.OBJECT_SCHEMA)
-	default:
-		return int(nodes.OBJECT_TABLE)
+// parseDefACLPrivilegeTarget parses defacl_privilege_target.
+func (p *Parser) parseDefACLPrivilegeTarget() (int, error) {
+	targets := map[int]nodes.ObjectType{
+		TABLES: nodes.OBJECT_TABLE, FUNCTIONS: nodes.OBJECT_FUNCTION,
+		ROUTINES: nodes.OBJECT_FUNCTION, SEQUENCES: nodes.OBJECT_SEQUENCE,
+		TYPES_P: nodes.OBJECT_TYPE, SCHEMAS: nodes.OBJECT_SCHEMA,
 	}
+	if p.collectMode() {
+		for _, t := range []int{TABLES, FUNCTIONS, ROUTINES, SEQUENCES, TYPES_P, SCHEMAS} {
+			p.addTokenCandidate(t)
+		}
+		return 0, errCollecting
+	}
+	objtype, ok := targets[p.cur.Type]
+	if !ok {
+		return 0, p.syntaxErrorAtCur()
+	}
+	p.advance()
+	return int(objtype), nil
 }
 
 // parseAlterStatisticsStmt parses ALTER STATISTICS ...
@@ -1291,7 +1359,10 @@ func (p *Parser) parseAlterStatisticsStmt(stmtLoc int) (nodes.Node, error) {
 		if _, err := p.expect(TO); err != nil {
 			return nil, err
 		}
-		roleSpec := p.parseRoleSpec()
+		roleSpec, err := p.parseRoleSpec()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterOwnerStmt{
 			ObjectType: nodes.OBJECT_STATISTIC_EXT,
 			Object:     defnames,
@@ -1321,11 +1392,23 @@ func (p *Parser) parseAlterStatisticsStmt(stmtLoc int) (nodes.Node, error) {
 		return nil, err
 	}
 	stmt := &nodes.AlterStatsStmt{Defnames: defnames, MissingOk: missingOk}
+	// set_statistics_value: SignedIconst | DEFAULT
 	if p.cur.Type == DEFAULT {
 		p.advance()
 	} else {
-		val := p.parseSignedIconst()
-		stmt.Stxstattarget = int(val)
+		neg := false
+		if p.cur.Type == '+' || p.cur.Type == '-' {
+			neg = p.cur.Type == '-'
+			p.advance()
+		}
+		tok, err := p.expect(ICONST)
+		if err != nil {
+			return nil, err
+		}
+		stmt.Stxstattarget = int(tok.Ival)
+		if neg {
+			stmt.Stxstattarget = -stmt.Stxstattarget
+		}
 	}
 	stmt.Loc = nodes.Loc{Start: stmtLoc, End: p.prev.End}
 	return stmt, nil
@@ -1363,23 +1446,26 @@ func (p *Parser) parseAlterOperatorStmt(stmtLoc int) (nodes.Node, error) {
 		}
 		object := &nodes.List{Items: append([]nodes.Node{&nodes.String{Str: amName}}, names.Items...)}
 		if p.cur.Type == SET {
-			next := p.peekNext()
-			if next.Type == SCHEMA {
-				p.advance()
-				p.advance()
-				newschema, err := p.parseName()
-				if err != nil {
-					return nil, err
-				}
-				return &nodes.AlterObjectSchemaStmt{ObjectType: objtype, Object: object, Newschema: newschema}, nil
+			// SET leads only SET SCHEMA here.
+			p.advance()
+			if _, err := p.expect(SCHEMA); err != nil {
+				return nil, err
 			}
+			newschema, err := p.parseName()
+			if err != nil {
+				return nil, err
+			}
+			return &nodes.AlterObjectSchemaStmt{ObjectType: objtype, Object: object, Newschema: newschema}, nil
 		}
 		if p.cur.Type == OWNER {
 			p.advance()
 			if _, err := p.expect(TO); err != nil {
 				return nil, err
 			}
-			roleSpec := p.parseRoleSpec()
+			roleSpec, err := p.parseRoleSpec()
+			if err != nil {
+				return nil, err
+			}
 			return &nodes.AlterOwnerStmt{ObjectType: objtype, Object: object, Newowner: roleSpec}, nil
 		}
 		if p.cur.Type == RENAME {
@@ -1393,7 +1479,12 @@ func (p *Parser) parseAlterOperatorStmt(stmtLoc int) (nodes.Node, error) {
 			}
 			return &nodes.RenameStmt{RenameType: objtype, Object: object, Newname: newname}, nil
 		}
-		return nil, nil
+		if p.collectMode() {
+			p.addTokenCandidate(OWNER)
+			p.addTokenCandidate(RENAME)
+			return nil, errCollecting
+		}
+		return nil, p.syntaxErrorAtCur()
 	}
 	// Plain ALTER OPERATOR op_with_argtypes ...
 	opname, err := p.parseAnyOperator()
@@ -1444,15 +1535,22 @@ func (p *Parser) parseAlterOperatorStmt(stmtLoc int) (nodes.Node, error) {
 		if _, err := p.expect(TO); err != nil {
 			return nil, err
 		}
-		roleSpec := p.parseRoleSpec()
+		roleSpec, err := p.parseRoleSpec()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterOwnerStmt{
 			ObjectType: nodes.OBJECT_OPERATOR,
 			Object:     owa,
 			Newowner:   roleSpec,
 		}, nil
-	// exhaustive: gram.y:10233 — caller handles nil via outer error
 	default:
-		return nil, nil
+		if p.collectMode() {
+			p.addTokenCandidate(SET)
+			p.addTokenCandidate(OWNER)
+			return nil, errCollecting
+		}
+		return nil, p.syntaxErrorAtCur()
 	}
 }
 
@@ -1502,7 +1600,9 @@ func (p *Parser) parseOperatorDefElem() (*nodes.DefElem, error) {
 //	CREATE [ DEFAULT ] CONVERSION name
 //	    FOR source_encoding TO dest_encoding FROM function_name
 func (p *Parser) parseCreateConversionStmt(isDef bool, stmtLoc int) (nodes.Node, error) {
-	p.advance() // consume CONVERSION_P
+	if _, err := p.expect(CONVERSION_P); err != nil {
+		return nil, err
+	}
 
 	convName, err := p.parseAnyName()
 	if err != nil {

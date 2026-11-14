@@ -291,8 +291,11 @@ func (p *Parser) parseStartDispatch() (nodes.Node, error) {
 	for {
 		if p.cur.Type == kwWITH {
 			p.advance()
-			p.match(kwCONSISTENT)
-			p.match(kwSNAPSHOT)
+			for _, kw := range []int{kwCONSISTENT, kwSNAPSHOT} {
+				if _, err := p.expect(kw); err != nil {
+					return nil, err
+				}
+			}
 			stmt.WithConsistentSnapshot = true
 		} else if p.cur.Type == kwREAD {
 			p.advance()
@@ -300,6 +303,12 @@ func (p *Parser) parseStartDispatch() (nodes.Node, error) {
 				stmt.ReadOnly = true
 			} else if _, ok := p.match(kwWRITE); ok {
 				stmt.ReadWrite = true
+			} else {
+				return nil, p.syntaxErrorAtCur()
+			}
+			// READ ONLY with READ WRITE is the action's syntax error (start, MySQL 8.0 sql/sql_yacc.yy).
+			if stmt.ReadOnly && stmt.ReadWrite {
+				return nil, p.syntaxErrorAtTok(p.prev)
 			}
 		} else {
 			break
@@ -329,34 +338,9 @@ func (p *Parser) parseResetDispatch() (nodes.Node, error) {
 		return p.parseResetPersistStmt(start)
 	}
 
-	// Fall through to generic RESET (re-assemble the FlushStmt from utility.go)
-	// Options may be multi-word (e.g. RESET QUERY CACHE) or comma-separated.
-	// Require at least one reset option.
-	if p.cur.Type == tokEOF || p.cur.Type == ';' {
-		return nil, p.syntaxErrorAtCur()
-	}
-	stmt := &nodes.FlushStmt{Loc: nodes.Loc{Start: start}}
-	for {
-		if p.cur.Type == tokEOF || p.cur.Type == ';' {
-			break
-		}
-		// Reset option words must accept any keyword (e.g., QUERY CACHE).
-		if p.cur.Type == tokIDENT || p.cur.Type >= 700 {
-			name, _, err := p.parseKeywordOrIdent()
-			if err != nil {
-				return nil, err
-			}
-			stmt.Options = append(stmt.Options, name)
-		} else {
-			break
-		}
-		// Consume optional comma separator between options
-		if p.cur.Type == ',' {
-			p.advance()
-		}
-	}
-	stmt.Loc.End = p.prev.End
-	return stmt, nil
+	// reset_option is SLAVE, REPLICA or MASTER, read above, and PERSIST; MySQL
+	// 8.0 has no other (reset in sql/sql_yacc.yy).
+	return nil, p.syntaxErrorAtCur()
 }
 
 // parseStopDispatch dispatches STOP statements.
@@ -389,7 +373,10 @@ func (p *Parser) parseLoadDispatch() (nodes.Node, error) {
 		return p.parseLoadIndexIntoCacheStmt(start)
 	}
 
-	// Fall through to LOAD DATA / LOAD XML
+	// LOAD DATA or LOAD XML (data_or_xml); any other word is a 1064.
+	if p.cur.Type != kwDATA && p.cur.Type != kwXML {
+		return nil, p.syntaxErrorAtCur()
+	}
 	return p.parseLoadDataStmt(start)
 }
 

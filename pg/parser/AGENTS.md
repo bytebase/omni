@@ -38,6 +38,16 @@ All defined in `first_sets.go` and documented inline. Read the doc comment on ea
 | `isAExprStart` | `aExprLeadTokens` (32) | set + `isConstTypenameStart` + `isColId` | Yes — `TestAExprLeadTokensMatchPG` via `SELECT X` |
 | `isTableConstraintStart` | `tableConstraintLeadTokens` (6) | set only | No — TableConstraint is only reachable via CREATE/ALTER TABLE; in-Go positive/negative test instead |
 | `isSelectLimitStart` | `selectLimitLeadTokens` (3) | set only | No — LIMIT, OFFSET, and FETCH are reserved and start nothing else after a sort or locking clause; `TestIsSelectLimitStartMatchesSlice` checks the whole `Keywords` table |
+| `startsColNameKeywordColumnRef` | the col_name_keyword category | category + the token after it (not `(`, not an Sconst after a typed constant) | No — a keyword category; `TestStartsColNameKeywordColumnRef` checks the whole `Keywords` table |
+| `isSeqOptElemStart` | `seqOptElemLeadTokens` (13) | set; NO only before CYCLE, MAXVALUE or MINVALUE | Yes — `TestSeqOptElemLeadTokensMatchPG` via `CREATE SEQUENCE s X`, plus the ALTER-only NO split |
+| `isSeqOptElemLead` | reuses `seqOptElemLeadTokens` | set only (NO leads whatever follows) | Yes — through `TestSeqOptElemLeadTokensMatchPG`, as `seqOptElemLeadTokens` |
+| `isNumericOnlyStart` | `numericOnlyLeadTokens` (4) | set only | No — no keyword starts a NumericOnly; `TestIsNumericOnlyStartMatchesSlice` checks the whole `Keywords` table |
+| `isOptTableQualifiedNameStart`, `isTempStart`, `isDeallocateTargetStart` | TABLE or a ColId; `tempLeadTokens` (2); ALL or a ColId | take a `Token` (the one after the current), for `keywordLeads` | No — each is a category or a short list; `TestKeywordLeadPredicates` checks the whole `Keywords` table |
+| `isFrameDirectionStart`, `isFetchOptionStart` | PRECEDING or FOLLOWING; ONLY or WITH | take a `Token`, for `keywordLeads` after UNBOUNDED and after FETCH's ROW/ROWS | No — two tokens each; `TestFrameAndFetchLeadPredicates` checks the whole `Keywords` table |
+| `isJsonFormatStart`, `isRowsFromStart`, `isBareAliasStart` | FORMAT before JSON; ROWS before FROM; a ColId that leads no clause or join after a table_ref | `keywordLeads` and the ColId category | No — each is one keyword or a category; `TestClauseLeadPredicates` checks them on the statements that decide |
+| `isXmlRootNoValueStart`, `isJsonNestedColumnStart`, `isFrameCurrentRowStart` | NO before VALUE; NESTED before PATH or a string; CURRENT before ROW | `keywordLeads` | No — one keyword each; `TestClauseLeadPredicates` checks them on the statements that decide |
+| `isCreateStmtTailStart` | `createStmtTailLeadTokens` (3) | set only | No — `(`, OF and PARTITION start nothing else after CREATE TABLE's name; `TestIsCreateStmtTailStartMatchesSlice` checks the whole `Keywords` table |
+| `isBareColLabelStart` | `asLabelOnlyKeywords` (39, the complement) | IDENT, or a keyword not in the set | Yes — `TestBareColumnLabelsMatchPG` via `SELECT 1 X` |
 
 `startsTableConstraint` is the call-site form of `isTableConstraintStart`. EXCLUDE is the one unreserved lead, so it starts a constraint only when `USING` or `(` follows it, and names a column otherwise (`CREATE TABLE t (exclude int)`).
 
@@ -52,11 +62,13 @@ The point is to ask "does PG's parser get past the lead token?", not "does the s
 
 | Production | Probe template | Grammar position |
 |---|---|---|
+| SeqOptElem | `CREATE SEQUENCE omni_probe_seq %s` (with each continuation) | gram.y SeqOptElem; subtracts SEQUENCE, refused by init_params on execution |
 | SimpleTypename | `SELECT CAST(NULL AS %s)` | gram.y:14130 (CAST → Typename) |
 | ConstTypename | (none — ambiguous with `func_name Sconst`) | n/a |
 | Typename | `CREATE FUNCTION __omni_probe() RETURNS %s AS $$ SELECT 1 $$ LANGUAGE sql` | gram.y:8488 (RETURNS func_type, FIRST sets coincide with Typename) |
 | func_type | `CREATE FUNCTION __omni_probe(dummy_name %s) RETURNS int AS $$ SELECT 1 $$ LANGUAGE sql` | gram.y:8405 (func_arg → param_name func_type) |
 | a_expr | `SELECT %s` | gram.y:14780 (target_el) |
+| BareColLabel | `SELECT 1 %s` | gram.y target_el: a_expr BareColLabel |
 
 ### Subtraction lists
 
@@ -64,6 +76,7 @@ Some probes need to subtract tokens that PG accepts via a SURROUNDING grammar ru
 
 - **SimpleTypename via CAST** subtracts `SETOF` — CAST exercises `Typename`, which has SETOF in its FIRST set, but `SimpleTypename` proper does not.
 - **func_type via func arg** subtracts `IN_P, OUT_P, INOUT, VARIADIC, DEFAULT, ARRAY` — the surrounding `func_arg` grammar absorbs `arg_class`, the default-value clause, and the array-bounds suffix before they reach `func_type`.
+- **BareColLabel via `SELECT 1`** subtracts `ISNULL, NOTNULL`: AS_LABEL keywords that PostgreSQL takes there as postfix operators, so the statement is valid without a label.
 - **a_expr via SELECT** subtracts `ALL` — `SELECT ALL` parses as the duplicate-elimination quantifier from `select_clause`, not as an `a_expr` lead. (DISTINCT is NOT subtracted: bare `SELECT distinct` returns 42601 and is already correctly classified.)
 
 When adding a new probe template, expect to discover a similar list. The procedure is: run the test without subtractions, observe "PG accepts but predicate rejects" drift, verify each token is genuinely absorbed by surrounding grammar (not a real bug), then add it to the subtraction map with an inline comment explaining why.
@@ -178,7 +191,8 @@ PRs that introduce hand-written multi-token clusters in probe positions without 
 - `create_table.go` — `parseTableElement` and `parseTypedTableElement` use `startsTableConstraint`
 - `alter_table.go` — `parseAlterTableAdd` uses `startsTableConstraint`
 - `parser.go` — `isCreateTableElement` delegates to `startsTableConstraint`
-- `select.go` — `parseSelectOptions` uses `isSelectLimitStart`
+- `select.go` — `parseSelectOptions` uses `isSelectLimitStart`; `parseOptTempTableName` uses `isOptTableQualifiedNameStart` and `isTempStart` through `keywordLeads`
+- `parser.go` — `startsCreateAsTail` (CREATE TABLE vs CREATE TABLE ... AS) uses `isCreateStmtTailStart`
 - `copy.go` — `parsePreparableStmt` uses `isSelectStart`
 - `publication.go` — `parseRuleActionStmt` uses `isSelectStart` with WITH preserved
 - `expr.go` — `isAExprConstTypeCast` is a one-line wrapper around `isConstTypenameStart`; also defines `isSelectStart`

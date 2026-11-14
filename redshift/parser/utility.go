@@ -10,7 +10,10 @@ func (p *Parser) parseExplainStmt() (nodes.Node, error) {
 	loc := p.prev.Loc // EXPLAIN already consumed
 	if p.cur.Type == '(' {
 		p.advance()
-		opts := p.parseUtilityOptionList()
+		opts, err := p.parseUtilityOptionList()
+		if err != nil {
+			return nil, err
+		}
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
@@ -84,7 +87,18 @@ func (p *Parser) parseExplainableStmt() (nodes.Node, error) {
 	case EXECUTE:
 		return p.parseExecuteStmt()
 	case CREATE:
-		return p.parseCreateDispatch()
+		// Only CreateAsStmt and CreateMatViewStmt are explainable; the
+		// CREATE dispatch reads any CREATE, so refuse the others at the
+		// token after CREATE.
+		after := p.peekNext()
+		stmt, err := p.parseCreateDispatch()
+		if err != nil {
+			return nil, err
+		}
+		if _, ok := stmt.(*nodes.CreateTableAsStmt); !ok && !p.collectMode() {
+			return nil, p.syntaxErrorAtTok(after)
+		}
+		return stmt, nil
 	case DECLARE:
 		return p.parseDeclareCursorStmt()
 	case REFRESH:
@@ -106,26 +120,49 @@ func (p *Parser) parseExplainableStmt() (nodes.Node, error) {
 }
 
 // parseDoStmt parses a DO statement. The DO keyword has already been consumed.
+//
+//	DoStmt: DO dostmt_opt_list
+//	dostmt_opt_list: dostmt_opt_item | dostmt_opt_list dostmt_opt_item
 func (p *Parser) parseDoStmt() (nodes.Node, error) {
 	loc := p.prev.Loc // DO already consumed
-	items := []nodes.Node{p.parseDostmtOptItem()}
-	for p.cur.Type == SCONST || p.cur.Type == LANGUAGE {
-		items = append(items, p.parseDostmtOptItem())
+	var items []nodes.Node
+	for {
+		item, err := p.parseDostmtOptItem()
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+		if p.cur.Type != SCONST && p.cur.Type != LANGUAGE {
+			break
+		}
 	}
 	return &nodes.DoStmt{Args: &nodes.List{Items: items}, Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
 }
 
 // parseDostmtOptItem parses dostmt_opt_item.
-func (p *Parser) parseDostmtOptItem() *nodes.DefElem {
+//
+//	dostmt_opt_item: Sconst | LANGUAGE NonReservedWord_or_Sconst
+func (p *Parser) parseDostmtOptItem() (*nodes.DefElem, error) {
 	loc := p.pos()
 	if p.cur.Type == LANGUAGE {
 		p.advance()
-		lang := p.parseNonReservedWordOrSconst()
-		return &nodes.DefElem{Defname: "language", Arg: &nodes.String{Str: lang}, Loc: nodes.Loc{Start: loc, End: p.pos()}}
+		var lang string
+		if p.cur.Type == SCONST {
+			lang = p.cur.Str
+			p.advance()
+		} else {
+			var err error
+			if lang, err = p.parseNonReservedWord(); err != nil {
+				return nil, err
+			}
+		}
+		return &nodes.DefElem{Defname: "language", Arg: &nodes.String{Str: lang}, Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
 	}
 	s := p.cur.Str
-	p.expect(SCONST)
-	return &nodes.DefElem{Defname: "as", Arg: &nodes.String{Str: s}, Loc: nodes.Loc{Start: loc, End: p.pos()}}
+	if _, err := p.expect(SCONST); err != nil {
+		return nil, err
+	}
+	return &nodes.DefElem{Defname: "as", Arg: &nodes.String{Str: s}, Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
 }
 
 // parseCheckPointStmt parses a CHECKPOINT statement.
@@ -152,9 +189,15 @@ func (p *Parser) parseDiscardStmt() (nodes.Node, error) {
 	case SEQUENCES:
 		p.advance()
 		return &nodes.DiscardStmt{Target: nodes.DISCARD_SEQUENCES, Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
-	// exhaustive: gram.y:2033 — caller handles nil via outer error
+	// exhaustive: gram.y DiscardStmt names one of these targets.
 	default:
-		return nil, nil
+		if p.collectMode() {
+			for _, t := range []int{ALL, TEMP, TEMPORARY, PLANS, SEQUENCES} {
+				p.addTokenCandidate(t)
+			}
+			return nil, errCollecting
+		}
+		return nil, p.syntaxErrorAtCur()
 	}
 }
 
@@ -251,10 +294,16 @@ func (p *Parser) parseReassignOwnedStmt() (nodes.Node, error) {
 	if _, err := p.expect(BY); err != nil {
 		return nil, err
 	}
-	roles := p.parseRoleList()
+	roles, err := p.parseRoleList()
+	if err != nil {
+		return nil, err
+	}
 	if _, err := p.expect(TO); err != nil {
 		return nil, err
 	}
-	newrole := p.parseRoleSpec()
+	newrole, err := p.parseRoleSpec()
+	if err != nil {
+		return nil, err
+	}
 	return &nodes.ReassignOwnedStmt{Roles: roles, Newrole: newrole, Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
 }

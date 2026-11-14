@@ -1,5 +1,7 @@
 package parser
 
+import "slices"
+
 // simpleTypenameLeadTokens is the single source of truth for tokens that
 // unambiguously start a SimpleTypename production (excluding GenericType
 // which is covered by the type_function_name category check).
@@ -238,6 +240,29 @@ func (p *Parser) startsTableConstraint() bool {
 	return true
 }
 
+// startsColNameKeywordColumnRef reports whether the current token, a
+// col_name_keyword where a c_expr starts, is the ColId of a columnref
+// rather than the lead of a form of its own. Each such form goes on with
+// '(' (row, EXISTS select_with_parens, and func_expr_common_subexpr's
+// COALESCE, NULLIF, XMLROOT, JSON_OBJECT and the rest) or is a typed
+// constant (ConstTypename Sconst, ConstInterval Sconst); and func_name,
+// which an Sconst may follow, takes no col_name_keyword. Before any other
+// token the keyword names a column: SELECT nullif, OFFSET row.
+//
+// Grammar reference: c_expr, columnref and func_expr_common_subexpr in
+// postgres/src/backend/parser/gram.y. No PG oracle test: the set is a
+// keyword category, which TestStartsColNameKeywordColumnRef checks against
+// the whole Keywords table.
+func (p *Parser) startsColNameKeywordColumnRef() bool {
+	if !p.isColNameKeyword() {
+		return false
+	}
+	if next := p.peekNext().Type; next == '(' || next == SCONST {
+		return false
+	}
+	return !p.isAExprConstTypeCast()
+}
+
 // selectLimitLeadTokens is the FIRST set of select_limit: a limit_clause
 // starts with LIMIT or FETCH, an offset_clause with OFFSET.
 //
@@ -267,6 +292,183 @@ func (p *Parser) isSelectLimitStart() bool {
 	return selectLimitLeadSet[p.cur.Type]
 }
 
+// isOptTableQualifiedNameStart reports whether tok, the token after TEMP,
+// TEMPORARY or UNLOGGED in OptTempTableName, starts opt_table
+// qualified_name: TABLE or a ColId. Otherwise the keyword is the table's
+// name (SELECT INTO temp).
+//
+// Grammar reference: OptTempTableName and opt_table in
+// postgres/src/backend/parser/gram.y. No PG oracle test: the set is TABLE
+// and isColIdToken's categories, which TestKeywordLeadPredicates checks
+// against the whole Keywords table.
+func isOptTableQualifiedNameStart(tok Token) bool {
+	return tok.Type == TABLE || isColIdToken(tok)
+}
+
+// tempLeadTokens is what makes LOCAL or GLOBAL lead OptTempTableName's
+// LOCAL TEMP and GLOBAL TEMP forms; before anything else LOCAL or GLOBAL is
+// the table's name.
+//
+// DO NOT extend this list without also extending parseOptTempTableName.
+var tempLeadTokens = []int{TEMPORARY, TEMP}
+
+// isTempStart reports whether tok is one of tempLeadTokens.
+func isTempStart(tok Token) bool {
+	return slices.Contains(tempLeadTokens, tok.Type)
+}
+
+// isDeallocateTargetStart reports whether tok, the token after PREPARE in
+// DeallocateStmt, starts its target: ALL or a name. Otherwise PREPARE is the
+// name (DEALLOCATE prepare).
+//
+// Grammar reference: DeallocateStmt in postgres/src/backend/parser/gram.y.
+func isDeallocateTargetStart(tok Token) bool {
+	return tok.Type == ALL || isColIdToken(tok)
+}
+
+// createStmtTailLeadTokens is the FIRST set of what follows CREATE TABLE's
+// name in CreateStmt: '(' OptTableElementList, OF any_name, PARTITION OF.
+// Any other token goes on with create_as_target, whose table_access_method_clause,
+// OptWith, OnCommitOption and OptTableSpace come before AS.
+//
+// Grammar reference: CreateStmt and create_as_target in
+// postgres/src/backend/parser/gram.y.
+//
+// DO NOT extend this list without also extending finishCreateStmt's
+// dispatch in parser.go, and vice versa.
+var createStmtTailLeadTokens = []int{'(', OF, PARTITION}
+
+var createStmtTailLeadSet = func() map[int]bool {
+	m := make(map[int]bool, len(createStmtTailLeadTokens))
+	for _, t := range createStmtTailLeadTokens {
+		m[t] = true
+	}
+	return m
+}()
+
+// isCreateStmtTailStart reports whether the token after CREATE TABLE's name
+// goes on with CreateStmt rather than create_as_target.
+//
+// No PG oracle test: '(' and the reserved OF and PARTITION start nothing
+// else there, so TestIsCreateStmtTailStartMatchesSlice checks the predicate
+// against the whole Keywords table instead.
+func (p *Parser) isCreateStmtTailStart() bool {
+	return createStmtTailLeadSet[p.cur.Type]
+}
+
+// seqOptElemLeadTokens is the FIRST set of SeqOptElem, what ALTER SEQUENCE
+// name takes as AlterSeqStmt's SeqOptList; any other token after the name
+// goes on with alter_table_cmds (AlterTableStmt: ALTER SEQUENCE
+// qualified_name alter_table_cmds). NO also starts NO INHERIT and NO FORCE
+// there, so isSeqOptElemStart asks the token after it.
+//
+// Grammar reference: AlterSeqStmt, SeqOptElem and AlterTableStmt in
+// postgres/src/backend/parser/gram.y.
+//
+// DO NOT extend this list without also extending parseSeqOptElem in
+// sequence.go, and vice versa.
+var seqOptElemLeadTokens = []int{AS, CACHE, CYCLE, NO, INCREMENT, LOGGED, MAXVALUE, MINVALUE, OWNED, SEQUENCE, START, RESTART, UNLOGGED}
+
+// isSeqOptElemStart reports whether the current token starts a SeqOptElem
+// after ALTER SEQUENCE name.
+//
+// No PG oracle test: TestIsSeqOptElemStartMatchesSlice checks the predicate
+// against the whole Keywords table.
+func (p *Parser) isSeqOptElemStart() bool {
+	if !slices.Contains(seqOptElemLeadTokens, p.cur.Type) {
+		return false
+	}
+	if p.cur.Type == NO {
+		switch p.peekNext().Type {
+		case CYCLE, MAXVALUE, MINVALUE:
+			return true
+		}
+		return false
+	}
+	return true
+}
+
+// isSeqOptElemLead reports whether the current token starts a SeqOptElem
+// where nothing else can start with it: after a SeqOptList's first element,
+// and in CREATE SEQUENCE's OptSeqOptList. NO leads there whatever follows
+// it, so NO INHERIT fails at INHERIT, as in gram.y.
+//
+// Its set is seqOptElemLeadTokens, which TestSeqOptElemLeadTokensMatchPG
+// holds to PostgreSQL.
+func (p *Parser) isSeqOptElemLead() bool {
+	return slices.Contains(seqOptElemLeadTokens, p.cur.Type)
+}
+
+// isFetchOptionStart reports whether tok starts what follows row_or_rows in
+// limit_clause's FETCH forms: ONLY or WITH TIES.
+func isFetchOptionStart(tok Token) bool {
+	return tok.Type == ONLY || tok.Type == WITH
+}
+
+// isFrameDirectionStart reports whether tok is PRECEDING or FOLLOWING, which
+// follow UNBOUNDED or the a_expr in a frame_bound.
+func isFrameDirectionStart(tok Token) bool {
+	return tok.Type == PRECEDING || tok.Type == FOLLOWING
+}
+
+// isJsonFormatStart reports whether a json_format_clause starts at the
+// current token. PostgreSQL's lexer makes FORMAT before JSON a FORMAT_LA,
+// the token json_format_clause starts with; any other FORMAT is the
+// unreserved keyword, a name.
+func (p *Parser) isJsonFormatStart() bool {
+	return p.cur.Type == FORMAT && p.keywordLeads(func(t Token) bool { return t.Type == JSON })
+}
+
+// isRowsFromStart reports whether func_table's ROWS FROM '(' rowsfrom_list
+// ')' starts at the current token. ROWS is an unreserved keyword: before
+// any token but FROM it is a relation or function name, as in
+// FROM rows(1).
+func (p *Parser) isRowsFromStart() bool {
+	return p.cur.Type == ROWS && p.keywordLeads(func(t Token) bool { return t.Type == FROM })
+}
+
+// isBareAliasStart reports whether the current token is the ColId of an
+// alias_clause without AS: a ColId that does not lead the clause or join
+// that may follow a table_ref.
+func (p *Parser) isBareAliasStart() bool {
+	return p.isColId() && !p.isReservedForClause() && !p.isJoinKeyword()
+}
+
+// isXmlRootNoValueStart reports whether xml_root_version's NO VALUE starts at
+// the current token. NO is unreserved: before anything but VALUE it is an
+// a_expr, the version (XMLROOT(a, VERSION no)).
+func (p *Parser) isXmlRootNoValueStart() bool {
+	return p.cur.Type == NO && p.keywordLeads(func(t Token) bool { return t.Type == VALUE_P })
+}
+
+// isJsonNestedColumnStart reports whether json_table_column_definition's
+// NESTED [PATH] Sconst starts at the current token. NESTED is unreserved:
+// before anything but PATH or a string it is a column name.
+func (p *Parser) isJsonNestedColumnStart() bool {
+	return p.cur.Type == NESTED && p.keywordLeads(func(t Token) bool { return t.Type == PATH || t.Type == SCONST })
+}
+
+// isFrameCurrentRowStart reports whether frame_bound's CURRENT_P ROW starts
+// at the current token. CURRENT is unreserved: before anything but ROW it
+// is a column name in the bound's a_expr (frame_bound: a_expr PRECEDING).
+func (p *Parser) isFrameCurrentRowStart() bool {
+	return p.cur.Type == CURRENT_P && p.keywordLeads(func(t Token) bool { return t.Type == ROW })
+}
+
+// isAlterIdentityOptionStart reports whether tok, the token after SET in
+// ALTER [COLUMN] name SET, starts alter_identity_column_option's SET
+// GENERATED or SET SeqOptElem. None of these tokens goes on with any other
+// SET of alter_table_cmd (DEFAULT, NOT NULL, DATA TYPE, STATISTICS, STORAGE,
+// COMPRESSION, EXPRESSION, reloptions). The grammar takes SET AS, SET
+// RESTART and SET OWNED BY too and refuses them in its action.
+//
+// Grammar reference: alter_identity_column_option in
+// postgres/src/backend/parser/gram.y. No PG oracle test:
+// TestKeywordLeadPredicates checks it against the whole Keywords table.
+func isAlterIdentityOptionStart(tok Token) bool {
+	return tok.Type == GENERATED || slices.Contains(seqOptElemLeadTokens, tok.Type)
+}
+
 // isFuncTypeStart reports whether the current token starts a func_type
 // production.
 //
@@ -292,4 +494,87 @@ func (p *Parser) isSelectLimitStart() bool {
 // and confirms the predicate matches PG's accept set keyword-for-keyword.
 func (p *Parser) isFuncTypeStart() bool {
 	return p.isTypenameStart()
+}
+
+// asLabelOnlyKeywords are the keywords kwlist.h marks AS_LABEL: a target
+// list takes them as a column label only after AS. Every other keyword is a
+// bare_label_keyword, which BareColLabel takes without AS (gram.y:
+// target_el: a_expr BareColLabel), reserved ones included: SELECT 1 ALL
+// labels the column all.
+//
+// Source: src/include/parser/kwlist.h at REL_17_12, the entries ending in
+// AS_LABEL. DO NOT edit without that file: TestBareColumnLabelsMatchPG holds
+// the set to PostgreSQL.
+var asLabelOnlyKeywords = []int{
+	ARRAY, AS, CHAR_P, CHARACTER, CREATE, DAY_P, EXCEPT, FETCH, FILTER, FOR,
+	FROM, GRANT, GROUP_P, HAVING, HOUR_P, INTERSECT, INTO, ISNULL, LIMIT,
+	MINUTE_P, MONTH_P, NOTNULL, OFFSET, ON, ORDER, OVER, OVERLAPS, PRECISION,
+	RETURNING, SECOND_P, TO, UNION, VARYING, WHERE, WINDOW, WITH, WITHIN,
+	WITHOUT, YEAR_P,
+}
+
+var asLabelOnlySet = func() map[int]bool {
+	m := make(map[int]bool, len(asLabelOnlyKeywords))
+	for _, t := range asLabelOnlyKeywords {
+		m[t] = true
+	}
+	return m
+}()
+
+// isBareColLabelStart reports whether the current token is a BareColLabel:
+// IDENT or a bare_label_keyword (gram.y), the label a target takes without
+// AS.
+func (p *Parser) isBareColLabelStart() bool {
+	if p.cur.Type == IDENT {
+		return true
+	}
+	kw := LookupKeyword(p.cur.Str)
+	return kw != nil && kw.Token == p.cur.Type && !asLabelOnlySet[p.cur.Type]
+}
+
+// targetEndTokens are the tokens that can follow a target_el: the comma of
+// the next one, and what follows a target_list (gram.y: simple_select, the
+// select clauses after it, a RETURNING list's end, and CREATE TABLE AS and
+// CREATE VIEW's WITH). The end of input is token 0.
+var targetEndTokens = []int{
+	0, ',', ')', ';',
+	FROM, INTO, WHERE, GROUP_P, HAVING, WINDOW, UNION, INTERSECT, EXCEPT,
+	ORDER, LIMIT, OFFSET, FETCH, FOR, WITH,
+}
+
+var targetEndSet = func() map[int]bool {
+	m := make(map[int]bool, len(targetEndTokens))
+	for _, t := range targetEndTokens {
+		m[t] = true
+	}
+	return m
+}()
+
+// isTargetLabelBeforeEnd reports whether the current token, a keyword that
+// could continue the target's expression (SELECT 1 AND ...), is its bare
+// label instead: it is a BareColLabel and the token after it ends the
+// target. PostgreSQL decides the same on that lookahead: SELECT 1 AND FROM t
+// labels the column and, and SELECT 1 AND true is an expression.
+func (p *Parser) isTargetLabelBeforeEnd() bool {
+	return p.cur.Type != IDENT && p.isBareColLabelStart() && targetEndSet[p.peekNext().Type]
+}
+
+// numericOnlyLeadTokens is the FIRST set of NumericOnly: FCONST,
+// SignedIconst's ICONST, and the sign either takes.
+//
+// Grammar reference: NumericOnly and SignedIconst in
+// postgres/src/backend/parser/gram.y.
+//
+// DO NOT extend this list without also extending parseNumericOnlyRequired
+// in sequence.go, and vice versa.
+var numericOnlyLeadTokens = []int{ICONST, FCONST, '+', '-'}
+
+// isNumericOnlyStart reports whether the current token starts a NumericOnly,
+// as after RESTART, whose number is optional.
+//
+// No PG oracle test: no keyword starts a NumericOnly, and every position
+// with an optional one takes other keywords after it, so
+// TestIsNumericOnlyStartMatchesSlice checks the whole Keywords table.
+func (p *Parser) isNumericOnlyStart() bool {
+	return slices.Contains(numericOnlyLeadTokens, p.cur.Type)
 }

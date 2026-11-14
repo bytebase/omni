@@ -1,6 +1,6 @@
 # Engine compatibility without servers in CI
 
-Status: draft, 2026-11-13. Step 0 is built: `enginetest/compat`, `enginetest/grammar` and TiDB's `compat.tsv` (11,058 rows, recorded on the pinned server in 9 seconds), and `enginetest/tape` with `tidb/catalog` on tapes (131 tapes, 3.1 MB, recorded in 90 seconds; replay takes 1.6 seconds and starts no server), and `tidb/catalog/testdata/simulate.tsv` on one fixture: 1,724 rows, recorded in 83 seconds at 0.05 seconds a row, 1,151 agreeing (Appendix A). OceanBase has step 1: 20,407 rows, judged on the pinned server in three minutes, 19,732 agreeing once #872 to #884 land (Appendix A). Its step 2 is done: `oceanbase/parser`, `oceanbase/validate`, 162 tests of `oceanbase/catalog` and the four oracle tests of `oceanbase/review` replay tapes (253 tapes, 9.7 MB), nothing under `oceanbase/` starts a server outside a recording, and `oceanbase/catalog/testdata/simulate.tsv` holds one fixture: 2,276 rows, recorded in ten minutes at 0.25 seconds a row, 1,842 agreeing once the catalog fixes of Appendix A land (§3). The 162 are the tests that always asked OceanBase, every oracle test written against MySQL, moved with the fixes they needed and with what still fails recorded (Appendix A), and 77 of the 107 container tests: each asserts OceanBase's answer and, under an `omni gap:` comment, what the catalog still answers as MySQL does. The other 30 container tests and 210 subtests compared MySQL's `SHOW CREATE` text and were deleted (D3). `review`'s walk lists the server's objects (§4.4), and its MySQL oracles were pointed at OceanBase or, where they held what only MySQL has, deleted (Appendix A). MySQL has step 1: 12,282 rows of `sql_yacc.yy` at `mysql-8.0.46`, judged on `mysql:8.0.46` in 13 seconds, 11,159 agreeing (Appendix A). Its step 2 is done: `mysql/parser`, `mysql/validate`, `mysql/catalog` and `mysql/review` replay tapes (269 tapes, 16.8 MB) and start no server, and `mysql/catalog/testdata/simulate.tsv` holds one fixture: 1,648 rows, recorded in 45 seconds, 1,047 agreeing (Appendix A). MariaDB has step 1: 12,960 rows from `sql_yacc.yy` at `mariadb-11.8.8`, judged on the pinned server in 20 seconds, 12,082 agreeing (Appendix A). Its step 2 is done: `mariadb/parser`, `mariadb/validate`, `mariadb/catalog` and `mariadb/review` replay tapes (310 tapes, 16 MB), nothing under `mariadb/` starts a server outside a recording or holds a `t.Skip`, and `mariadb/catalog/testdata/simulate.tsv` holds one fixture: 1,452 rows, recorded in under three minutes at 0.1 seconds a row, 986 agreeing (Appendix A). PartiQL has step 1, judged by its reference grammar with no server: 1,910 rows from `PartiQLParser.g4` at `v0.14.9` and DynamoDB's documented statements, 1,510 agreeing (Appendix A). Cosmos DB has step 1, judged by its grammar with no server: 450 rows from `sql.g4` at `3.64.0`, 431 agreeing (Appendix A). PostgreSQL has step 1: 13,700 rows of `gram.y` at `REL_17_12` and 3,092 hand rows, judged on `postgres:17.12-alpine` in 6 seconds, rejections to the byte, 14,576 agreeing (Appendix A). Its step 2 is done for tapes: `pg/parser`, `pg/splittest`, `pg/catalog` and `pg/review` replay them (79 tapes, 24 MB, 104,856 requests) and nothing under `pg/` starts a server outside a recording, and `pg/catalog/testdata/simulate.tsv` holds one fixture: 1,084 rows, recorded in 15 seconds, 497 agreeing (Appendix A). Cassandra has step 1, judged by its own ANTLR 3 grammar converted once to a committed `.g4`: 2,941 rows at `cassandra-5.0.9`, 2,544 agreeing (Appendix A). Snowflake has step 1, judged by its docs: 759 command pages converted to a `.g4`, 58,430 rows, and 9,911 of the 15,677 alternatives agree (Appendix A). Redshift has step 1, judged by its docs: 123 command pages converted to a `.g4` by the converter Snowflake's comes from, 8,075 rows, and 1,939 of the 2,245 alternatives agree. No test under `redshift/` asks a server: the ones that held it to a PostgreSQL 17 or 18 stand-in were deleted or kept as omni's own expectations (D3, Appendix A). A spike measured OceanBase and Snowflake first. Its code was lost. The other engines' grammars were located, not run.
+Status: draft, 2026-11-13. Step 0 is built: `enginetest/compat`, `enginetest/grammar` and TiDB's `compat.tsv` (11,058 rows, recorded on the pinned server in 9 seconds), and `enginetest/tape` with `tidb/catalog` on tapes (131 tapes, 3.1 MB, recorded in 90 seconds; replay takes 1.6 seconds and starts no server), and `tidb/catalog/testdata/simulate.tsv` on one fixture: 1,724 rows, recorded in 83 seconds at 0.05 seconds a row, 1,151 agreeing (Appendix A). OceanBase has step 1: 20,407 rows, judged on the pinned server in three minutes, 19,732 agreeing once #872 to #884 land (Appendix A). Its step 2 is done: `oceanbase/parser`, `oceanbase/validate`, 162 tests of `oceanbase/catalog` and the four oracle tests of `oceanbase/review` replay tapes (253 tapes, 9.7 MB), nothing under `oceanbase/` starts a server outside a recording, and `oceanbase/catalog/testdata/simulate.tsv` holds one fixture: 2,276 rows, recorded in ten minutes at 0.25 seconds a row, 1,842 agreeing once the catalog fixes of Appendix A land (§3). The 162 are the tests that always asked OceanBase, every oracle test written against MySQL, moved with the fixes they needed and with what still fails recorded (Appendix A), and 77 of the 107 container tests: each asserts OceanBase's answer and, under an `omni gap:` comment, what the catalog still answers as MySQL does. The other 30 container tests and 210 subtests compared MySQL's `SHOW CREATE` text and were deleted (D3). `review`'s walk lists the server's objects (§4.4), and its MySQL oracles were pointed at OceanBase or, where they held what only MySQL has, deleted (Appendix A). MySQL has step 1: 12,282 rows of `sql_yacc.yy` at `mysql-8.0.46`, judged on `mysql:8.0.46` in 13 seconds, 12,038 agreeing once #947 and #948 land (Appendix A). Its step 2 is done: `mysql/parser`, `mysql/validate`, `mysql/catalog` and `mysql/review` replay tapes (269 tapes, 16.8 MB) and start no server, and `mysql/catalog/testdata/simulate.tsv` holds one fixture: 1,648 rows, recorded in 45 seconds, 1,047 agreeing (Appendix A). MariaDB has step 1: 12,960 rows from `sql_yacc.yy` at `mariadb-11.8.8`, judged on the pinned server in 20 seconds, 12,494 agreeing once #947 and #948 land (Appendix A). Its step 2 is done: `mariadb/parser`, `mariadb/validate`, `mariadb/catalog` and `mariadb/review` replay tapes (310 tapes, 16 MB), nothing under `mariadb/` starts a server outside a recording or holds a `t.Skip`, and `mariadb/catalog/testdata/simulate.tsv` holds one fixture: 1,452 rows, recorded in under three minutes at 0.1 seconds a row, 986 agreeing (Appendix A). PartiQL has step 1, judged by its reference grammar with no server: 1,910 rows from `PartiQLParser.g4` at `v0.14.9` and DynamoDB's documented statements, 1,510 agreeing (Appendix A). Cosmos DB has step 1, judged by its grammar with no server: 450 rows from `sql.g4` at `3.64.0`, 431 agreeing (Appendix A). PostgreSQL has step 1: 13,700 rows of `gram.y` at `REL_17_12` and 3,092 hand rows, judged on `postgres:17.12-alpine` in 6 seconds, rejections to the byte, 16,780 agreeing (Appendix A). Its step 2 is done for tapes: `pg/parser`, `pg/splittest`, `pg/catalog` and `pg/review` replay them (79 tapes, 24 MB, 104,856 requests) and nothing under `pg/` starts a server outside a recording, and `pg/catalog/testdata/simulate.tsv` holds one fixture: 1,084 rows, recorded in 15 seconds, 516 agreeing (Appendix A). Redshift starts no server: its tests that held it to a PostgreSQL 17 or 18 stand-in were deleted or kept as omni's own expectations (D3, Appendix A). Trino has steps 1 to 3: 4,840 rows of `SqlBase.g4` at `482` and 980 hand rows, judged on `trinodb/trino:482` in three minutes, 4,106 generated rows agreeing to the byte; `trino/parser`, `trino/analysis`, `trino/completion` and `trino/deparse` replay 25 tapes and start no server, and CI has no Trino lane (Appendix A). A spike measured OceanBase and Snowflake first. Its code was lost. The other engines' grammars were located, not run.
 
 ## 1. Summary
 
@@ -159,7 +159,8 @@ Each engine with a server has one function that reads the server's answer as a v
 | pg, redshift | The `SELECT 1/0` probe, read by `compat.RawParseVerdict`: the server parses the whole text first, so any error but the probe's own division by zero is the parser's, at the position it reports |
 | mssql | `SET PARSEONLY ON` |
 | oracle | `DBMS_SQL.PARSE` |
-| trino, doris, starrocks, googlesql | The engine's error name or message |
+| trino | `SYNTAX_ERROR` by name, at its line and column, read by `compat.TrinoVerdict` |
+| doris, starrocks, googlesql | The engine's error name or message |
 
 An answer the function can't read fails the recording. It is never guessed.
 
@@ -537,10 +538,23 @@ After step 0 the engines are independent. Order:
 
 | Statements | Total | Agree | Only engine accepts | Only omni accepts |
 | --- | --- | --- | --- | --- |
-| One per alternative | 3,471 | 3,025 | 312 | 134 |
-| Near-misses | 9,489 | 9,057 | 92 | 340 |
+| One per alternative | 3,471 | 3,153 | 212 | 106 |
+| Near-misses | 9,489 | 9,341 | 81 | 67 |
 
-- **878 disagreements,** untriaged. By statement: expressions carried by `DO` (115), `CHANGE MASTER` (57), `ALTER EVENT`, which carries the routine statements (51), `ALTER SERVER` (48), compound statements at the top level (`BEGIN NOT ATOMIC`, 39), `ALTER TABLE` (37), `DELETE` (34), `GET DIAGNOSTICS` (25), `START` (22), `RESIGNAL` (21), `CREATE PACKAGE` (21).
+- **466 disagreements once #947 and #948 land,** down from 878 first recorded (2026-11-13). Closed, one rule family each (#916 to #948): replication statements (70), `CREATE`/`ALTER SERVER` options and `SHOW CREATE SERVER` (55), transactions, locks, `HANDLER` and `XA` (44), `SIGNAL` and `GET DIAGNOSTICS` item names (41), `ANALYZE`, `CHECK`, `REPAIR` and `CHECKSUM` (37), single-table `DELETE`, `DELETE HISTORY` and `{ident table_ref}` (32), `CACHE INDEX`, `INSTALL`, `PURGE` and `RESET` (28), `ALTER EVENT`'s required clause and words (20), keyword functions' argument counts (20), `LOAD DATA`, `LOAD XML` and `LOAD INDEX` (17), `SHOW PROFILE`, `SHOW LOCAL`, `SHOW ENGINE ALL` and `SHOW PLUGINS SONAME` (13), account statements (11), `MATCH`'s bare columns and `{ident expr}` (11), window frames (8), and 5 by `DO`'s items.
+- **What is left,** by what the statement is:
+
+  | Rows | Omni rejects | Omni accepts | What | Why it is left |
+  | --- | --- | --- | --- | --- |
+  | 137 | 44 | 93 | Stored-program bodies (`ALTER EVENT ... DO`, routines, triggers), `GET DIAGNOSTICS`, `SIGNAL`, `RESIGNAL`, `CALL`, `EXECUTE` | Needs a design decision: omni keeps no stored-program scope, so it cannot refuse an undeclared label, cursor, condition or variable, a duplicate declaration, `COMMIT` in a function or trigger, `RESIGNAL` outside a handler (1327, 1308, 1319, 1422). Doing it means `Parse` tracking declarations per block, which completion and the catalog's routine bodies also go through |
+  | 79 | 64 | 15 | Expressions (`DO`, `SELECT`, `DESC`) | Smaller families, each its own change: `WEIGHT_STRING`'s `LEVEL` lists and four numbers and `COLUMN_CREATE`/`COLUMN_GET` types (the deparser has no checked stored form for them), `PERCENTILE_CONT ... WITHIN GROUP`, `FETCH FIRST`, `SELECT ... PROCEDURE`, `DESC FOR CONNECTION`, three-part function names, a temporal literal the server refuses as a value (`DATE 's'`) |
+  | 50 | 49 | 1 | A name the judge looks up (`DO@@a zzz`, `SET GLOBAL a = a`) | The judge reads a lookup of an unknown name as accepted and it hides what follows (README); not omni's |
+  | 49 | 37 | 12 | `ALTER TABLE`, `CREATE TABLE`, database options | MariaDB's own options: `PAGE_CHECKSUM`, `TRANSACTIONAL`, `SEQUENCE`, engine-defined options (`a = 's'`), `WITH SYSTEM VERSIONING`, `CONVERT PARTITION`, `AS ROW START` attributes, `ADD ... IF NOT EXISTS`. Each moves what the catalog stores, so `simulate.tsv` is regenerated with them |
+  | 48 | 47 | 1 | `BEGIN NOT ATOMIC`, top-level `LOOP`/`WHILE`/`IF`/`CASE`, `FOR` loops, `ROW` and `TYPE OF` variables, cursor parameters, packages | MariaDB's procedural extensions, which omni does not read at all: new AST for `FOR` loops, anchored types and packages |
+  | 27 | 16 | 11 | Accounts | `IDENTIFIED VIA ... USING`, `MAX_STATEMENT_TIME`, `ADMIN OPTION`, column privileges on `*` (1144) |
+  | 23 | 9 | 14 | `KILL`, `BACKUP`, `RESET`'s list, `FLUSH ... DELETE_DOMAIN_ID` | `KILL a` and `PURGE ... BEFORE a` are refused for the column, not the syntax; `BACKUP LOCK` and `RESET SLAVE, SLAVE` need nodes of their own |
+  | 10 | 10 | 0 | `SHOW` | `SHOW AUTHORS`, `CONTRIBUTORS`, `ALL SLAVES STATUS`, `SHOW EXPLAIN`/`ANALYZE FOR`, and two near-misses a lookup hides |
+  | 43 | 17 | 26 | Everything else | Views (6), sequences, a table named twice (1066) |
 - **`PREPARE` carries every statement kind but its own** (`PREPARE`, `EXECUTE`, `DEALLOCATE`: 1295), which the probe decides (`mariadb/parser/testdata/README.md`).
 - **The grammar's actions refuse and look up while the parser runs.** A refusal is a rejection: an identifier as a data type (4161, 731 rows), a routine variable outside a routine (1327, 315), a table named twice (1066, 115). A lookup of a name the server does not have (a character set, collation, system variable, engine or plugin: nine codes) counts as read, as in the package's hand-written cases, and answers before a later syntax error, so `tokens.tsv` gives nine rules a name that exists; 163 rows are still answered that way, most of them `SET GLOBAL a = a` and its near-misses.
 
@@ -669,11 +683,19 @@ After step 0 the engines are independent. Order:
 
 | Statements | Total | Agree | Only engine accepts | Only omni accepts |
 | --- | --- | --- | --- | --- |
-| One per alternative | 3,163 | 2,960 | 77 | 126 |
-| Near-misses | 9,119 | 8,199 | 322 | 598 |
+| One per alternative | 3,163 | 3,053 | 19 | 91 |
+| Near-misses | 9,119 | 8,985 | 53 | 81 |
 
-- **1,123 disagreements,** untriaged. omni rejects 399 statements MySQL takes; 286 are `DO`, and 257 of those are one gap, an alias after a `DO` item (`DO a + a b`), which `select_item_list` allows. The rest are expressions: `MATCH ... AGAINST`, `CAST(... AT TIME ZONE ...)`, `WEIGHT_STRING`'s four arguments, `ST_COLLECT(DISTINCT ...)`, `{ident expr}`.
-- **omni accepts 724 statements MySQL refuses:** replication (`CHANGE MASTER` and `CHANGE REPLICATION`, 129; `START`, 45), `ALTER INSTANCE` (56), `GET DIAGNOSTICS` (53), `ALTER EVENT` (49), `ALTER SERVER` (41), `ALTER USER` (26), `RESIGNAL` (19). Many are refused by a grammar action, not by a rule: `GET DIAGNOSTICS` outside a routine, `COMMIT` in a function, `ALTER EVENT` with no clause.
+- **244 disagreements once #947 and #948 land,** down from 1,123 first recorded (2026-11-13). Closed, one rule family each (#916 to #948): `DO`'s items as select items (270), replication statements (168), account statements (62), `ALTER INSTANCE` and `LOCK INSTANCE` (59), `CREATE`/`ALTER SERVER` options (49), tablespaces and logfile groups (43), transactions, locks, `HANDLER` and `XA` (43), `SIGNAL` and `GET DIAGNOSTICS` item names (40), `CACHE INDEX`, `INSTALL`, `PURGE` and `RESET` (32), keyword functions' argument counts (26), `ALTER EVENT`'s required clause and words (23), `LOAD DATA`, `LOAD XML` and `LOAD INDEX` (23), `MATCH`'s bare columns and `{ident expr}` (13), window frames and null treatment (12), `SHOW PROFILE`, `SHOW LOCAL` and `SHOW ENGINE ALL` (10), `{OJ table_reference}` (6).
+- **What is left,** by what the statement is:
+
+  | Rows | Omni rejects | Omni accepts | What | Why it is left |
+  | --- | --- | --- | --- | --- |
+  | 114 | 8 | 106 | Stored-program bodies (`ALTER EVENT ... DO`, routines, triggers), `GET DIAGNOSTICS`, `SIGNAL`, `RESIGNAL`, `EXECUTE` | Needs a design decision: omni keeps no stored-program scope, so it cannot refuse an undeclared label, cursor, condition or variable, a duplicate declaration or handler, `COMMIT` in a function or trigger, `RESIGNAL` or `GET STACKED DIAGNOSTICS` outside a handler. Doing it means `Parse` tracking declarations per block, which completion and the catalog's routine bodies also go through |
+  | 31 | 11 | 20 | `ALTER TABLE`, `CREATE TABLE`, database options | Mostly near-misses a collation lookup hides (`COLLATE utf8mb4 zzz`, below), and `ALTER TABLE` partition and option words, which move what the catalog stores |
+  | 26 | 20 | 6 | Expressions (`DO`, `SELECT`) | `CAST(... AT TIME ZONE ...)` and `WEIGHT_STRING`'s four numbers (the deparser has no checked stored form for them), a UDF argument's alias (`f(a b)`, which a native function refuses: needs the native function list), a bare `@` (`DO @`), unary `-` before `INTERVAL` |
+  | 23 | 23 | 0 | A name the judge looks up (`SET utf8mb4 = ... zzz`, `COLLATE utf8mb4 zzz`) | The judge reads a lookup as accepted and it hides what follows (README); not omni's |
+  | 50 | 10 | 40 | Everything else | `ANALYZE ... HISTOGRAM` words (8), views (7), resource groups, `IMPORT TABLE`, `CLONE`, `BINLOG`, `PREPARE ... FROM`, `CREATE SPATIAL REFERENCE SYSTEM`, `DELETE`'s `NATURAL INNER JOIN` |
 - **Names are `utf8mb4`,** a character set, since MySQL looks one up while it parses. 114 rows still answered a lookup (71 a system variable, 40 a collation, 3 a keyword written as a character set), which reads as accepted; 29 are near-misses whose break the lookup may hide. Written `a`, 34 more near-misses hid behind `CHARSET a`.
 
 **MySQL, moved.** Every test of `mysql/` that asked a server replays (2026-11-13): `mysql/parser` 70 tapes, 6.8 MB; `mysql/validate` one; `mysql/catalog` 182, 4.6 MB, 27,353 requests, recorded in 140 to 200 seconds and replayed in 8; `mysql/review` 7, 5.3 MB, 21,135 requests, recorded in four minutes and replayed in 2. Two recordings on fresh servers left the same tapes, and every package passes with `TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE` pointing nowhere.
@@ -699,11 +721,11 @@ After step 0 the engines are independent. Order:
 
 | Statements | Total | Same verdict | Same byte | Only engine accepts | Only omni accepts |
 | --- | --- | --- | --- | --- | --- |
-| One per alternative | 3,394 | 3,138 | 3,124 | 187 | 69 |
-| Near-misses | 10,306 | 9,160 | 8,390 | 49 | 1,097 |
-| Hand rows | 3,092 | 3,067 | 3,062 | 1 | 24 |
+| One per alternative | 3,394 | 3,394 | 3,394 | 0 | 0 |
+| Near-misses | 10,306 | 10,306 | 10,302 | 0 | 0 |
+| Hand rows | 3,092 | 3,084 | 3,084 | 0 | 8 |
 
-- **2,216 disagreements,** untriaged. omni rejects 237 statements PostgreSQL takes: a keyword as a bare column label (`SELECT a ALL`, 78), a type or function name keyword as a role (`ALTER ROLE AUTHORIZATION`, 23), `INTERVAL`'s fields in a type name (13), `GRANT ... ON SEQUENCE` (11), `FETCH`'s forms. omni accepts 1,190 PostgreSQL refuses: near-misses that drop a required name or clause (`ALTER TABLE a ADD IF EXISTS a a`, `COMMENT ON COLUMN a IS`, `COLLATION FOR()`), and 69 alternatives a grammar action refuses (an operator with one argument type, a `JSON_TABLE` path with no name, a publication object with no `TABLE`). 787 are rejected by both at different bytes: omni stops earlier on 571.
+- **12 disagreements,** down from 2,216 recorded, closed cause by cause in #917 and #929 to #958: keywords read as names or labels where gram.y does (bare column labels, `RoleSpec` as a `NonReservedWord`, `FETCH next`, `SELECT nullif`, `OFFSET row`), forms omni lacked (`GRANT ... ON PARAMETER`, `ALTER EXTENSION ... ADD CAST`, `SET TIME ZONE INTERVAL`, `DROP TYPE` of a `Typename`, `func(args) 'string'`, prefix `OPERATOR(op)`), errors the parsers dropped (`ALTER TABLE`, the DML, utility and DDL statements, the special function syntax, `CREATE TABLE ... AS` options), the scanner's token checks, and the bytes PostgreSQL rejects at. Left: the 8 psql metacommand rows below, and 4 rows both reject at different bytes, `COMMENT ON` and `SECURITY LABEL ON TYPE|DOMAIN IS 's'`: gram.y reads a `Typename` there, where `IS` names a type, and omni an `any_name`; matching it means storing the object as a `TypeName`, which the catalog and review read, so it waits on that decision.
 - **The verdict is the raw parser's.** `SELECT 1/0;` runs only if the statement after it parsed (`compat.RawParseVerdict`); 33 rows refused by an action that reports no position are a bare `reject`.
 - **psql's metacommands** are 8 rows omni takes and the server does not, by design: `Parse` reads them as comments.
 - **The generated rows found ten statements that crashed the parser** (four panics, six hangs in a `BEGIN ATOMIC` body), fixed in pg and redshift before the recording (#900).
@@ -726,16 +748,16 @@ After step 0 the engines are independent. Order:
 
 | Fixture | Rows | PostgreSQL takes | Agree | Only PostgreSQL takes | Only omni takes | Both take, another schema | Both refuse, another code |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| `one_table@missing` | 271 | 36 | 199 | 15 | 13 | 2 | 42 |
-| `one_table@table` | 271 | 37 | 145 | 4 | 45 | 1 | 76 |
-| `one_table@column` | 271 | 58 | 131 | 3 | 50 | 6 | 81 |
-| `one_table@index` | 271 | 12 | 22 | 4 | 28 | 3 | 214 |
-| All | 1,084 | 143 | 497 | 26 | 136 | 12 | 413 |
+| `one_table@missing` | 271 | 36 | 202 | 13 | 18 | 3 | 35 |
+| `one_table@table` | 271 | 37 | 152 | 4 | 47 | 1 | 67 |
+| `one_table@column` | 271 | 58 | 140 | 3 | 50 | 6 | 72 |
+| `one_table@index` | 271 | 12 | 22 | 4 | 34 | 3 | 208 |
+| All | 1,084 | 143 | 516 | 24 | 149 | 13 | 382 |
 
 - **An outcome is a SQLSTATE,** or `ok:` and a hash of the stored schema as DDL that rebuilds it: sequences, tables with their columns, local constraints, own indexes, comments and owned sequences, partitions, views and materialized views, read from the catalogs in one query. Replica identity and row security are written, since `Diff` compares them; storage, statistics and privileges, which it does not, are not. `Diff` also compares an owner, which no row reaches with a schema to compare. The same schema is a catalog loaded from that DDL with nothing between it and omni's in `Diff`.
 - **`one_table@index` names an index `a` on a table `t`:** PostgreSQL keeps indexes in their table's namespace, so a table and its index cannot both be `a`.
-- **587 rows disagree,** untriaged. Most are codes: on `@index`, omni answers 42P01 where PostgreSQL finds the index `a` and answers 42809, it is not a table (149); omni's 42704 for PostgreSQL's 42809 or 42P01 (104); omni taking an `ALTER` PostgreSQL refuses for a missing constraint or column (42704, 42703, 56). 45 rows are 12 statements omni's parser rejects.
-- **PostgreSQL takes 90 of the 271 statements on some naming,** 143 rows, and omni stores its schema on 105.
+- **568 rows disagree,** untriaged. Most are codes: on `@index`, omni answers 42P01 where PostgreSQL finds the index `a` and answers 42809, it is not a table (149); omni's 42704 for PostgreSQL's 42809 or 42P01 (104); omni taking an `ALTER` PostgreSQL refuses for a missing constraint or column (42704, 42703, 56). One row is a statement omni's parser rejects; the parser fixes of #933 and #951 moved the others to agreement or to a catalog difference.
+- **PostgreSQL takes 90 of the 271 statements on some naming,** 143 rows, and omni stores its schema on 106.
 
 **Redshift, off PostgreSQL.** Its tests asked `postgres:17-alpine` and `postgres:18-alpine` as stand-ins (2026-11-13). Redshift runs neither, and CI can start no Redshift, so nothing was taped (D3):
 
@@ -812,10 +834,10 @@ The docs judged the 8,075 rows in under a second:
 
 | Statements | Total | Agree | Only docs accept | Undocumented |
 | --- | --- | --- | --- | --- |
-| One per alternative | 2,245 | 1,939 | 306 | 0 |
-| Near-misses | 5,830 | 105 | 40 | 5,685 |
+| One per alternative | 2,245 | 1,932 | 313 | 0 |
+| Near-misses | 5,830 | 93 | 52 | 5,685 |
 
-- **346 disagreements,** all one way: `GRANT` and `REVOKE` (102: `ASSUMEROLE`, `DEBUG`, templates, datashares), `SHOW` (81), templates (47), `CREATE` and `ALTER DATABASE` (42), `COPY` (18), `CREATE MATERIALIZED VIEW` (16), `SELECT` (12: `EXCLUDE`, `CONNECT BY`), `UNLOAD` (9). None was fixed (`redshift/parser/testdata/README.md`).
+- **365 disagreements,** all one way: `GRANT` and `REVOKE` (111: `ASSUMEROLE`, `DEBUG`, templates, datashares), `SHOW` (81), templates (47), `CREATE` and `ALTER DATABASE` (42), `COPY` (18), `CREATE MATERIALIZED VIEW` (16), `SELECT` (12: `EXCLUDE`, `CONNECT BY`), `UNLOAD` (9), `MERGE` (8). 19 are statements omni took until pg's parser fixes were ported (#938 to #958): a `MERGE` with no `WHEN` clause, which the MERGE page brackets as optional, and `ROLE` as a name. None was fixed (`redshift/parser/testdata/README.md`).
 - **What the docs cannot decide** is Snowflake's list, and where the docs are wrong as written (`ALTER USER`'s options with commas, `REVOKE [ GRANT OPTION ]` without `FOR`) the grammar keeps them. `REDSHIFT_COMPAT_DSN` would let a recording ask a dedicated cluster through `compat.RawParseVerdict`; that judge is not built.
 
 **PartiQL, recorded.** `partiql/parser/testdata/compat.tsv` (2026-11-13): 632 alternatives and 1,217 near-misses of `PartiQLParser.g4`, the grammar of the reference implementation (partiql-lang-kotlin, Apache-2.0, committed), and the 61 statements DynamoDB's developer guide prints. No server: a recognizer over the grammar judges, in 0.1 seconds.
@@ -854,6 +876,25 @@ The docs judged the 8,075 rows in under a second:
 - **The conversion keeps what a rule derives.** Actions, predicates and arguments go, and an alternative whose action refuses every input goes with it (8, such as a bind marker as a table name); every other action that may refuse is noted beside its rule.
 - **13 statements the grammar derives are refused by a `Parser.g` action** while it parses: a column, property, role option or clustering order given twice, `FROZEN<>` on a native type, a JMX name with no domain. Each is a cited `grammar` row of `grammar-overrides.tsv`, read off the Java the action calls. A Cassandra image would judge them, and the actions no row reaches yet.
 - **Two token choices hid alternatives:** `cident` lists `""` first, and `COLUMNFAMILY | TABLE` is sampled by its first spelling, which omni does not read; together they made every column and every table statement disagree. `tokens.tsv` picks `a` and `TABLE` (§2.2).
+
+**Trino, recorded.** `trino/parser/testdata/compat.tsv` at `482` (2026-11-13): 1,353 alternatives of `SqlBase.g4` and 3,487 near-misses; its five `standalone*` entry points are not statements and get no row. The pinned server judged them in three minutes by running each statement and reading `SYNTAX_ERROR` by name (`trino/parser/testdata/README.md`), and three recordings wrote the same file. A rejection carries the byte of Trino's line and column.
+
+| Statements | Total | Same verdict | Same byte | Only engine accepts | Only omni accepts |
+| --- | --- | --- | --- | --- | --- |
+| One per alternative | 1,353 | 1,202 | 1,195 | 128 | 23 |
+| Near-misses | 3,487 | 3,427 | 2,911 | 55 | 5 |
+| Hand rows: ten parser corpora (`suite:`) | 980 | 980 | 953 | 0 | 0 |
+
+- **734 generated rows disagree,** untriaged. omni rejects 183 Trino takes: `JSON_TABLE` (67), `INTERVAL` forms, `SHOW GRANTS ON`, `::` method calls, `WITH SESSION`, `NEAREST`, `CORRESPONDING` and branches. It accepts 28 Trino refuses, 19 of them a control statement other than `RETURN` or `BEGIN` as a function's body. 523 are rejected by both at different bytes.
+- **`SYNTAX_ERROR` is read by name, not by the parser's exception.** Trino raises it after the parse for checks that read only the text, such as a name with too many parts, and omni's parser makes them on purpose. No generated row reaches one.
+- **The grammar reader learnt two things** of the generated parser that carry no symbol: a rule's arguments, `predicate[$valueExpression.ctx]`, and the wildcard of `methodName : {isKeyword()}? .`, which `tokens.tsv` writes as a keyword.
+
+**Trino, tapes.** Every Trino test replays (2026-11-13): 25 tapes, 1,057 requests, 160 KB, recorded in about three minutes, a server per package. Two recordings on fresh servers left the same tapes, and a test recorded alone reproduces its tape.
+
+- **The tape is the statement endpoint's.** `testcontainer.Open(t)` is a `database/sql` connector over `/v1/statement`: a request is one statement, an answer `ok` or Trino's error name, code, location and message. A statement with an `updateType` runs to the end, so the next one finds its change made; a query is cancelled once planned.
+- **Each top-level test starts on an empty `memory` catalog** in a recording.
+- **The ten corpora that compared `Parse` with Trino are `suite:` rows,** and their tests are gone; `TestCompatibilitySuitesAreTheCorpora` keeps the rows equal to the corpora, which other tests still read. The tests that compare something else with Trino's verdict (an expression, a type or a name parsed alone, the lexer, `Split`, SQL the deparser and completer write) replay tapes.
+- **27 skips are gone,** each taken when Trino gave no answer, which is a failure now. CI's Trino lane, which ran its packages one at a time beside the rest for memory, is gone.
 
 ## Appendix B. Rule changes
 

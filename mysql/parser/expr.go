@@ -413,6 +413,8 @@ func (p *Parser) parsePrefixExpr() (nodes.ExprNode, error) {
 		return p.parseCaseExpr()
 	case kwINTERVAL:
 		return p.parseIntervalExpr()
+	case '{':
+		return p.parseODBCEscape()
 	case kwMATCH:
 		return p.parseMatchExpr()
 	case kwBINARY:
@@ -1033,6 +1035,15 @@ func (p *Parser) finishFuncCall(fc *nodes.FuncCallExpr, builtin bool) (nodes.Exp
 	//     | expr PRECEDING
 	//     | expr FOLLOWING
 	//   }
+	// A function the grammar spells with its own keyword takes the argument
+	// counts its productions list (keywordFuncArity).
+	if builtin && !fc.SpacedParen {
+		if bounds, ok := keywordFuncArity[fc.Name]; ok {
+			if len(fc.Args) < bounds[0] || (bounds[1] >= 0 && len(fc.Args) > bounds[1]) {
+				return nil, p.syntaxErrorAtCur()
+			}
+		}
+	}
 	// A dedicated window function takes a fixed argument count in its
 	// WindowFuncCall arm (sql_yacc.yy window_func_call), so a call outside
 	// those bounds is a 1064 before OVER is even reached: NTILE(), NTILE(a, b),
@@ -1044,6 +1055,30 @@ func (p *Parser) finishFuncCall(fc *nodes.FuncCallExpr, builtin bool) (nodes.Exp
 		if bounds, ok := windowFuncArity[fc.Name]; ok {
 			if len(fc.Args) < bounds[0] || len(fc.Args) > bounds[1] {
 				return nil, p.syntaxErrorAtCur()
+			}
+			// NTH_VALUE's opt_from_first_last, then the opt_null_treatment of
+			// LEAD, LAG, FIRST_VALUE, LAST_VALUE and NTH_VALUE.
+			if fc.Name == "NTH_VALUE" && p.cur.Type == kwFROM {
+				p.advance()
+				switch p.cur.Type {
+				case kwFIRST:
+					fc.FromFirstLast = "FROM FIRST"
+				case kwLAST:
+					fc.FromFirstLast = "FROM LAST"
+				default:
+					return nil, p.syntaxErrorAtCur()
+				}
+				p.advance()
+			}
+			switch fc.Name {
+			case "LEAD", "LAG", "FIRST_VALUE", "LAST_VALUE", "NTH_VALUE":
+				if p.cur.Type == kwRESPECT || p.cur.Type == kwIGNORE {
+					word := strings.ToUpper(p.advance().Str)
+					if _, err := p.expect(kwNULLS); err != nil {
+						return nil, err
+					}
+					fc.NullTreatment = word + " NULLS"
+				}
 			}
 			if p.cur.Type != kwOVER {
 				return nil, p.syntaxErrorAtCur()
@@ -1068,6 +1103,27 @@ func (p *Parser) finishFuncCall(fc *nodes.FuncCallExpr, builtin bool) (nodes.Exp
 
 	fc.Loc.End = p.prev.End
 	return fc, nil
+}
+
+// keywordFuncArity is the inclusive [min, max] argument count (-1: no max) of
+// each function whose name is a keyword the grammar gives its own productions,
+// so no other call of that name parses: `SELECT DATE()` and `SELECT POINT(1)`
+// are 1064s.
+//
+// Ref: function_call_keyword, function_call_conflict, geometry_function and
+// grouping_operation in MySQL 8.0 sql/sql_yacc.yy.
+var keywordFuncArity = map[string][2]int{
+	"DATE": {1, 1}, "DAY": {1, 1}, "HOUR": {1, 1}, "INSERT": {4, 4},
+	"LEFT": {2, 2}, "MINUTE": {1, 1}, "MONTH": {1, 1}, "RIGHT": {2, 2},
+	"SECOND": {1, 1}, "TIME": {1, 1}, "TIMESTAMP": {1, 2}, "USER": {0, 0},
+	"YEAR":  {1, 1},
+	"ASCII": {1, 1}, "CHARSET": {1, 1}, "COALESCE": {1, -1}, "COLLATION": {1, 1},
+	"DATABASE": {0, 0}, "IF": {3, 3}, "FORMAT": {2, 3}, "MICROSECOND": {1, 1},
+	"MOD": {2, 2}, "QUARTER": {1, 1}, "REPEAT": {2, 2}, "REPLACE": {3, 3},
+	"REVERSE": {1, 1}, "ROW_COUNT": {0, 0}, "TRUNCATE": {2, 2}, "WEEK": {1, 2},
+	"GEOMETRYCOLLECTION": {0, -1}, "LINESTRING": {1, -1}, "MULTILINESTRING": {1, -1},
+	"MULTIPOINT": {1, -1}, "MULTIPOLYGON": {1, -1}, "POINT": {2, 2}, "POLYGON": {1, -1},
+	"GROUPING": {1, -1},
 }
 
 // windowFuncArity is the inclusive [min, max] argument count each dedicated
@@ -1247,9 +1303,10 @@ func (p *Parser) parseFrameClause() (*nodes.WindowFrame, error) {
 		return nil, &ParseError{Message: "collecting"}
 	}
 
-	// frame_extent: frame_start | BETWEEN frame_start AND frame_end
+	// frame_extent: frame_start | BETWEEN frame_bound AND frame_bound. A lone
+	// bound is a window_frame_start, which never FOLLOWING.
 	if _, ok := p.match(kwBETWEEN); ok {
-		startBound, err := p.parseFrameBound()
+		startBound, err := p.parseFrameBound(false)
 		if err != nil {
 			return nil, err
 		}
@@ -1257,65 +1314,111 @@ func (p *Parser) parseFrameClause() (*nodes.WindowFrame, error) {
 		if _, err := p.expect(kwAND); err != nil {
 			return nil, err
 		}
-		endBound, err := p.parseFrameBound()
+		endBound, err := p.parseFrameBound(false)
 		if err != nil {
 			return nil, err
 		}
 		frame.End = endBound
 	} else {
-		// Single frame_start
-		startBound, err := p.parseFrameBound()
+		startBound, err := p.parseFrameBound(true)
 		if err != nil {
 			return nil, err
 		}
 		frame.Start = startBound
 	}
 
+	// opt_window_frame_exclusion.
+	if _, ok := p.match(kwEXCLUDE); ok {
+		switch p.cur.Type {
+		case kwCURRENT:
+			p.advance()
+			if _, err := p.expect(kwROW); err != nil {
+				return nil, err
+			}
+			frame.Exclude = "CURRENT ROW"
+		case kwGROUP:
+			p.advance()
+			frame.Exclude = "GROUP"
+		case kwTIES:
+			p.advance()
+			frame.Exclude = "TIES"
+		case kwNO:
+			p.advance()
+			if _, err := p.expect(kwOTHERS); err != nil {
+				return nil, err
+			}
+			frame.Exclude = "NO OTHERS"
+		default:
+			return nil, p.syntaxErrorAtCur()
+		}
+	}
+
 	frame.Loc.End = p.prev.End
 	return frame, nil
 }
 
-// parseFrameBound parses a window frame bound.
-func (p *Parser) parseFrameBound() (*nodes.WindowFrameBound, error) {
+// parseFrameBound parses a window frame bound: window_frame_start, or with
+// between window_frame_bound, which may also be FOLLOWING.
+//
+// Ref: window_frame_start and window_frame_bound in MySQL 8.0 sql/sql_yacc.yy: UNBOUNDED, CURRENT ROW, NUM_literal, param_marker
+// or INTERVAL expr interval, and PRECEDING, or with BETWEEN FOLLOWING.
+func (p *Parser) parseFrameBound(single bool) (*nodes.WindowFrameBound, error) {
 	start := p.pos()
+	at := p.cur
 	bound := &nodes.WindowFrameBound{Loc: nodes.Loc{Start: start}}
 
 	if p.cur.Type == kwCURRENT {
 		p.advance()
-		p.match(kwROW)
-		bound.Type = nodes.BoundCurrentRow
-	} else if p.cur.Type == kwUNBOUNDED {
-		p.advance()
-		if _, ok := p.match(kwPRECEDING); ok {
-			bound.Type = nodes.BoundUnboundedPreceding
-		} else if _, ok := p.match(kwFOLLOWING); ok {
-			bound.Type = nodes.BoundUnboundedFollowing
-		} else {
-			return nil, &ParseError{
-				Message:  "expected PRECEDING or FOLLOWING after UNBOUNDED",
-				Position: p.cur.Loc,
-			}
+		if _, err := p.expect(kwROW); err != nil {
+			return nil, err
 		}
+		bound.Type = nodes.BoundCurrentRow
+		bound.Loc.End = p.prev.End
+		return bound, nil
+	}
+	if p.cur.Type == kwUNBOUNDED {
+		p.advance()
+	} else if p.cur.Type == kwINTERVAL {
+		// INTERVAL expr interval: the literal, not the INTERVAL(a, b) function.
+		expr, err := p.parseIntervalExpr()
+		if err != nil {
+			return nil, err
+		}
+		if _, ok := expr.(*nodes.IntervalExpr); !ok {
+			return nil, p.syntaxErrorAtCur()
+		}
+		bound.Offset = expr
 	} else {
-		// expr PRECEDING | expr FOLLOWING
+		// NUM_literal or param_marker, a token of its own: `1 + 1 PRECEDING`
+		// and `a PRECEDING` are 1064s.
 		expr, err := p.parseExpr()
 		if err != nil {
 			return nil, err
 		}
-		if expr == nil {
-			return nil, p.syntaxErrorAtCur()
+		switch expr.(type) {
+		case *nodes.IntLit, *nodes.FloatLit, *nodes.ParamMarkerExpr:
+		default:
+			return nil, p.syntaxErrorAtTok(at)
 		}
 		bound.Offset = expr
-		if _, ok := p.match(kwPRECEDING); ok {
-			bound.Type = nodes.BoundPreceding
-		} else if _, ok := p.match(kwFOLLOWING); ok {
-			bound.Type = nodes.BoundFollowing
-		} else {
-			return nil, &ParseError{
-				Message:  "expected PRECEDING or FOLLOWING",
-				Position: p.cur.Loc,
-			}
-		}
+	}
+	following := false
+	if _, ok := p.match(kwPRECEDING); ok {
+		following = false
+	} else if _, ok := p.match(kwFOLLOWING); ok && !single {
+		following = true
+	} else {
+		return nil, p.syntaxErrorAtCur()
+	}
+	switch {
+	case bound.Offset == nil && following:
+		bound.Type = nodes.BoundUnboundedFollowing
+	case bound.Offset == nil:
+		bound.Type = nodes.BoundUnboundedPreceding
+	case following:
+		bound.Type = nodes.BoundFollowing
+	default:
+		bound.Type = nodes.BoundPreceding
 	}
 
 	bound.Loc.End = p.prev.End
@@ -2564,9 +2667,11 @@ func (p *Parser) parseMatchExpr() (nodes.ExprNode, error) {
 	start := p.pos()
 	p.advance() // consume MATCH
 
-	if _, err := p.expect('('); err != nil {
-		return nil, err
-	}
+	// ident_list_arg: the column list, in parentheses or not.
+	//
+	// Ref: simple_expr's `MATCH ident_list_arg AGAINST` and ident_list_arg in
+	// MySQL 8.0 sql/sql_yacc.yy.
+	_, parenthesized := p.match('(')
 
 	me := &nodes.MatchExpr{Loc: nodes.Loc{Start: start}}
 
@@ -2583,8 +2688,10 @@ func (p *Parser) parseMatchExpr() (nodes.ExprNode, error) {
 		p.advance()
 	}
 
-	if _, err := p.expect(')'); err != nil {
-		return nil, err
+	if parenthesized {
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
 	}
 
 	if _, err := p.expect(kwAGAINST); err != nil {
@@ -2848,4 +2955,166 @@ func (p *Parser) parseExprList() ([]nodes.ExprNode, error) {
 // and no built-in's where a partition clause is concerned.
 func nameQuotedFunction(p *Parser, schema string) bool {
 	return schema == "" && p.backtickQuotedAt(p.prev.Loc)
+}
+
+// parseODBCEscape reads `{ident expr}`, ODBC's escape. With d, t or ts and a
+// string the server makes it that DATE, TIME or TIMESTAMP literal, and keeps
+// the string when the conversion fails. omni converts only a string in the
+// canonical form with its fields in range (odbcTemporalValid) and keeps every
+// other one as the string, so it never writes a literal the server refuses.
+//
+// Ref: `'{' ident expr '}'` and PTI_odbc_date in MySQL 8.0 sql/sql_yacc.yy.
+func (p *Parser) parseODBCEscape() (nodes.ExprNode, error) {
+	start := p.pos()
+	p.advance() // consume '{'
+	word, _, err := p.parseIdent()
+	if err != nil {
+		return nil, err
+	}
+	expr, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	if expr == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if _, err := p.expect('}'); err != nil {
+		return nil, err
+	}
+	// Parentheses are transparent here, as `'(' expr ')'` is in the grammar:
+	// `{d ('2020-01-01')}` is the DATE too.
+	inner := expr
+	for {
+		pe, ok := inner.(*nodes.ParenExpr)
+		if !ok {
+			break
+		}
+		inner = pe.Expr
+	}
+	if lit, ok := inner.(*nodes.StringLit); ok {
+		// The word is compared as written: `{D '...'}` is the string.
+		kind := map[string]string{"d": "DATE", "t": "TIME", "ts": "TIMESTAMP"}[word]
+		if kind != "" && odbcTemporalValid(kind, lit.Value) {
+			return &nodes.TemporalLit{Loc: nodes.Loc{Start: start, End: p.prev.End}, Type: kind, Value: lit.Value}, nil
+		}
+	}
+	return expr, nil
+}
+
+// odbcTemporalValid reports whether v reads as kind the way the server's
+// str_to_datetime and str_to_time mostly do, fields in range:
+//   - a date: digits alone (YYMMDD or YYYYMMDD), or three numbers split by
+//     punctuation, month and day one or two digits (`2020-1-1`, `2020/01/01`);
+//   - a TIME: [-]H:M[:S][.fraction], hours up to 838, or digits alone (HHMMSS);
+//   - a TIMESTAMP: digits alone (YYYYMMDDhhmmss or YYMMDDhhmmss), or a date, a
+//     space or T, and a clock time of two or three numbers, hours up to 23.
+//
+// A rarer spelling the server also takes keeps the string, which writes back
+// as the same value; a string that is no temporal value never becomes one.
+func odbcTemporalValid(kind, v string) bool {
+	v = strings.TrimSpace(v)
+	fields := func(part string, seps string) ([]int, []int, bool) {
+		var vals, widths []int
+		cur, w := 0, 0
+		for i := 0; i < len(part); i++ {
+			c := part[i]
+			switch {
+			case c >= '0' && c <= '9':
+				cur, w = cur*10+int(c-'0'), w+1
+				if w > 4 {
+					return nil, nil, false
+				}
+			case w > 0 && strings.IndexByte(seps, c) >= 0:
+				vals, widths = append(vals, cur), append(widths, w)
+				cur, w = 0, 0
+			default:
+				return nil, nil, false
+			}
+		}
+		if w == 0 {
+			return nil, nil, false
+		}
+		return append(vals, cur), append(widths, w), true
+	}
+	digits := func(s string) bool { _, ok := atoiDigits(s); return ok }
+	num := func(s string) int { n, _ := atoiDigits(s); return n }
+	dateOK := func(y, m, d int) bool {
+		if m < 1 || m > 12 || d < 1 {
+			return false
+		}
+		days := [13]int{0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}[m]
+		if m == 2 && y%4 == 0 && (y%100 != 0 || y%400 == 0) {
+			days = 29
+		}
+		return d <= days
+	}
+	date := func(d string) bool {
+		if digits(d) {
+			switch len(d) {
+			case 6:
+				return dateOK(2000+num(d[:2]), num(d[2:4]), num(d[4:]))
+			case 8:
+				return dateOK(num(d[:4]), num(d[4:6]), num(d[6:]))
+			}
+			return false
+		}
+		f, w, ok := fields(d, "-/.:_")
+		return ok && len(f) == 3 && w[1] <= 2 && w[2] <= 2 && dateOK(f[0], f[1], f[2])
+	}
+	frac := func(t string) (string, bool) {
+		if i := strings.IndexByte(t, '.'); i >= 0 {
+			if !digits(t[i+1:]) {
+				return "", false
+			}
+			return t[:i], true
+		}
+		return t, true
+	}
+	clock := func(t string, maxHour int) bool {
+		t, ok := frac(t)
+		if !ok {
+			return false
+		}
+		f, w, ok := fields(t, ":")
+		if !ok || len(f) < 2 || len(f) > 3 || w[1] > 2 || (len(f) == 3 && w[2] > 2) {
+			return false
+		}
+		sec := 0
+		if len(f) == 3 {
+			sec = f[2]
+		}
+		return f[0] <= maxHour && f[1] <= 59 && sec <= 59
+	}
+	switch kind {
+	case "DATE":
+		return date(v)
+	case "TIME":
+		t := strings.TrimPrefix(v, "-")
+		if d, ok := frac(t); ok && digits(d) && len(d) == 6 {
+			return num(d[:2]) <= 23 && num(d[2:4]) <= 59 && num(d[4:]) <= 59
+		}
+		return clock(t, 838)
+	default:
+		if digits(v) && (len(v) == 12 || len(v) == 14) {
+			d, t := v[:len(v)-6], v[len(v)-6:]
+			return date(d) && num(t[:2]) <= 23 && num(t[2:4]) <= 59 && num(t[4:]) <= 59
+		}
+		i := strings.IndexAny(v, " T")
+		return i > 0 && date(v[:i]) && clock(strings.TrimSpace(v[i+1:]), 23)
+	}
+}
+
+// atoiDigits reads s as a run of decimal digits.
+func atoiDigits(s string) (int, bool) {
+	if s == "" {
+		return 0, false
+	}
+	n := 0
+	for i := 0; i < len(s); i++ {
+		if s[i] < '0' || s[i] > '9' {
+			return 0, false
+		}
+		n = n*10 + int(s[i]-'0')
+	}
+	return n, true
 }

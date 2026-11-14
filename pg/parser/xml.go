@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"fmt"
+
 	nodes "github.com/bytebase/omni/pg/ast"
 )
 
@@ -94,7 +96,7 @@ func (p *Parser) parseXmlExists() (nodes.Node, error) {
 	if _, err := p.expect('('); err != nil {
 		return nil, err
 	}
-	xpath, err := p.parseAExpr(0)
+	xpath, err := p.parseRequiredAExpr(0)
 	if err != nil {
 		return nil, err
 	}
@@ -151,7 +153,10 @@ func (p *Parser) parseXmlParse() (nodes.Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	expr, err := p.parseAExpr(0)
+	expr, err := p.parseRequiredAExpr(0)
+	if err != nil {
+		return nil, err
+	}
 	ws, err := p.parseXmlWhitespaceOption()
 	if err != nil {
 		return nil, err
@@ -193,7 +198,7 @@ func (p *Parser) parseXmlPI() (nodes.Node, error) {
 
 	if p.cur.Type == ',' {
 		p.advance()
-		expr, err := p.parseAExpr(0)
+		expr, err := p.parseRequiredAExpr(0)
 		if err != nil {
 			return nil, err
 		}
@@ -216,7 +221,10 @@ func (p *Parser) parseXmlRoot() (nodes.Node, error) {
 	if _, err := p.expect('('); err != nil {
 		return nil, err
 	}
-	xmlExpr, err := p.parseAExpr(0)
+	xmlExpr, err := p.parseRequiredAExpr(0)
+	if err != nil {
+		return nil, err
+	}
 	if _, err := p.expect(','); err != nil {
 		return nil, err
 	}
@@ -252,7 +260,10 @@ func (p *Parser) parseXmlSerialize() (nodes.Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	expr, err := p.parseAExpr(0)
+	expr, err := p.parseRequiredAExpr(0)
+	if err != nil {
+		return nil, err
+	}
 	if _, err := p.expect(AS); err != nil {
 		return nil, err
 	}
@@ -260,7 +271,10 @@ func (p *Parser) parseXmlSerialize() (nodes.Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	indent := p.parseXmlIndentOption()
+	indent, err := p.parseXmlIndentOption()
+	if err != nil {
+		return nil, err
+	}
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
@@ -278,14 +292,16 @@ func (p *Parser) parseXmlRootVersion() (nodes.Node, error) {
 	if _, err := p.expect(VERSION_P); err != nil {
 		return nil, err
 	}
-	if p.cur.Type == NO {
+	// NO is an unreserved keyword: before any token but VALUE it is a
+	// column name, starting the a_expr (VERSION no).
+	if p.isXmlRootNoValueStart() {
 		p.advance()
 		if _, err := p.expect(VALUE_P); err != nil {
 			return nil, err
 		}
 		return &nodes.A_Const{Isnull: true}, nil
 	}
-	return p.parseAExpr(0)
+	return p.parseRequiredAExpr(0)
 }
 
 // parseOptXmlRootStandalone parses optional STANDALONE YES|NO|NO VALUE.
@@ -309,7 +325,7 @@ func (p *Parser) parseOptXmlRootStandalone() (nodes.Node, error) {
 		}
 		return makeIntConst(int64(nodes.XML_STANDALONE_NO)), nil
 	default:
-		return makeIntConst(int64(nodes.XML_STANDALONE_OMITTED)), nil
+		return nil, p.syntaxErrorAtCur()
 	}
 }
 
@@ -350,7 +366,7 @@ func (p *Parser) parseXmlAttributeList() (*nodes.List, error) {
 
 // parseXmlAttributeEl parses a_expr [AS ColLabel].
 func (p *Parser) parseXmlAttributeEl() (nodes.Node, error) {
-	expr, err := p.parseAExpr(0)
+	expr, err := p.parseRequiredAExpr(0)
 	if err != nil {
 		return nil, err
 	}
@@ -382,20 +398,20 @@ func (p *Parser) parseDocumentOrContent() (int64, error) {
 }
 
 // parseXmlIndentOption parses optional INDENT | NO INDENT.
-func (p *Parser) parseXmlIndentOption() int64 {
+//
+//	xml_indent_option: INDENT | NO INDENT | /*EMPTY*/
+func (p *Parser) parseXmlIndentOption() (int64, error) {
 	if p.cur.Type == INDENT {
 		p.advance()
-		return 1
+		return 1, nil
 	}
 	if p.cur.Type == NO {
-		next := p.peekNext()
-		if next.Type == INDENT {
-			p.advance() // consume NO
-			p.advance() // consume INDENT
-			return 0
+		p.advance() // consume NO
+		if _, err := p.expect(INDENT); err != nil {
+			return 0, err
 		}
 	}
-	return 0
+	return 0, nil
 }
 
 // parseXmlWhitespaceOption parses optional PRESERVE WHITESPACE | STRIP WHITESPACE.
@@ -424,25 +440,33 @@ func (p *Parser) parseXmlExistsArgument() (nodes.Node, error) {
 	}
 	// Check for optional leading BY REF/VALUE
 	if p.cur.Type == BY {
-		p.parseXmlPassingMech()
+		if err := p.parseXmlPassingMech(); err != nil {
+			return nil, err
+		}
 	}
-	expr, err := p.parseAExpr(0)
+	expr, err := p.parseRequiredAExpr(0)
 	if err != nil {
 		return nil, err
 	}
 	// Check for optional trailing BY REF/VALUE
 	if p.cur.Type == BY {
-		p.parseXmlPassingMech()
+		if err := p.parseXmlPassingMech(); err != nil {
+			return nil, err
+		}
 	}
 	return expr, nil
 }
 
 // parseXmlPassingMech consumes BY REF or BY VALUE (ignored semantically).
-func (p *Parser) parseXmlPassingMech() {
+//
+//	xml_passing_mech: BY REF_P | BY VALUE_P
+func (p *Parser) parseXmlPassingMech() error {
 	p.advance() // consume BY
 	if p.cur.Type == REF_P || p.cur.Type == VALUE_P {
 		p.advance()
+		return nil
 	}
+	return p.syntaxErrorAtCur()
 }
 
 // parseXmlTable parses XMLTABLE(...).
@@ -477,7 +501,7 @@ func (p *Parser) parseXmlTable() (nodes.Node, error) {
 		}
 	}
 
-	rowExpr, err := p.parseAExpr(0)
+	rowExpr, err := p.parseRequiredAExpr(0)
 	if err != nil {
 		return nil, err
 	}
@@ -558,8 +582,11 @@ func (p *Parser) parseXmlTableColumnEl() (nodes.Node, error) {
 		Loc:      nodes.NoLoc(),
 	}
 
-	// Parse optional column options (PATH, DEFAULT, NOT NULL, NULL)
+	// Parse optional column options (PATH, DEFAULT, NOT NULL, NULL).
+	var opts []*nodes.DefElem
+	var optLocs []int
 	for {
+		optLoc := p.pos()
 		opt, err := p.parseXmlTableColumnOptionEl()
 		if err != nil {
 			return nil, err
@@ -567,18 +594,35 @@ func (p *Parser) parseXmlTableColumnEl() (nodes.Node, error) {
 		if opt == nil {
 			break
 		}
-		defel := opt.(*nodes.DefElem)
+		opts = append(opts, opt.(*nodes.DefElem))
+		optLocs = append(optLocs, optLoc)
+	}
+
+	// gram.y's xmltable_column_el action checks the list once it is whole,
+	// so a syntax error inside the list is reported first.
+	nullabilitySeen := false
+	for i, defel := range opts {
 		switch defel.Defname {
 		case "default":
+			if fc.Coldefexpr != nil {
+				return nil, &ParseError{Message: "only one DEFAULT value is allowed", Position: optLocs[i]}
+			}
 			fc.Coldefexpr = defel.Arg
 		case "path":
+			if fc.Colexpr != nil {
+				return nil, &ParseError{Message: "only one PATH value per column is allowed", Position: optLocs[i]}
+			}
 			fc.Colexpr = defel.Arg
 		case "__pg__is_not_null":
-			if defel.Arg != nil {
-				if b, ok := defel.Arg.(*nodes.Boolean); ok && b.Boolval {
-					fc.IsNotNull = true
-				}
+			if nullabilitySeen {
+				return nil, &ParseError{Message: fmt.Sprintf("conflicting or redundant NULL / NOT NULL declarations for column \"%s\"", colname), Position: optLocs[i]}
 			}
+			if b, ok := defel.Arg.(*nodes.Boolean); ok && b.Boolval {
+				fc.IsNotNull = true
+			}
+			nullabilitySeen = true
+		default:
+			return nil, &ParseError{Message: fmt.Sprintf("unrecognized column option \"%s\"", defel.Defname), Position: optLocs[i]}
 		}
 	}
 
@@ -591,7 +635,7 @@ func (p *Parser) parseXmlTableColumnOptionEl() (nodes.Node, error) {
 	switch p.cur.Type {
 	case DEFAULT:
 		p.advance()
-		expr, err := p.parseBExpr(0)
+		expr, err := p.parseRequiredBExpr(0)
 		if err != nil {
 			return nil, err
 		}
@@ -607,16 +651,20 @@ func (p *Parser) parseXmlTableColumnOptionEl() (nodes.Node, error) {
 		return &nodes.DefElem{Defname: "__pg__is_not_null", Arg: &nodes.Boolean{Boolval: false}, Loc: nodes.NoLoc()}, nil
 	case PATH:
 		p.advance()
-		expr, err := p.parseBExpr(0)
+		expr, err := p.parseRequiredBExpr(0)
 		if err != nil {
 			return nil, err
 		}
 		return &nodes.DefElem{Defname: "path", Arg: expr, Loc: nodes.NoLoc()}, nil
 	case IDENT:
-		// Generic IDENT option (rare, but grammar supports it)
+		// IDENT b_expr: the grammar takes any name, and its action rejects
+		// __pg__is_not_null here; parseXmlTableColumnEl rejects the rest.
 		name := p.cur.Str
+		if name == "__pg__is_not_null" {
+			return nil, &ParseError{Message: fmt.Sprintf("option name \"%s\" cannot be used in XMLTABLE", name), Position: p.pos()}
+		}
 		p.advance()
-		expr, err := p.parseBExpr(0)
+		expr, err := p.parseRequiredBExpr(0)
 		if err != nil {
 			return nil, err
 		}
@@ -650,7 +698,7 @@ func (p *Parser) parseXmlNamespaceList() (*nodes.List, error) {
 func (p *Parser) parseXmlNamespaceEl() (nodes.Node, error) {
 	if p.cur.Type == DEFAULT {
 		p.advance()
-		expr, err := p.parseBExpr(0)
+		expr, err := p.parseRequiredBExpr(0)
 		if err != nil {
 			return nil, err
 		}
@@ -659,7 +707,10 @@ func (p *Parser) parseXmlNamespaceEl() (nodes.Node, error) {
 			Loc: nodes.NoLoc(),
 		}, nil
 	}
-	expr, err := p.parseBExpr(0)
+	expr, err := p.parseRequiredBExpr(0)
+	if err != nil {
+		return nil, err
+	}
 	if _, err := p.expect(AS); err != nil {
 		return nil, err
 	}

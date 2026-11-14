@@ -481,6 +481,9 @@ func walkChildren(v Visitor, node Node) {
 		if n.Table != nil {
 			Walk(v, n.Table)
 		}
+		for _, item := range n.KeyValues {
+			Walk(v, item)
+		}
 		Walk(v, n.Where)
 		if n.Limit != nil {
 			Walk(v, n.Limit)

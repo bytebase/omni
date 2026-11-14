@@ -54,7 +54,7 @@ func (p *Parser) parseAlterTable(alterLoc int) (nodes.Node, error) {
 
 	// ALTER TABLE ALL IN TABLESPACE ...
 	if p.cur.Type == ALL {
-		return p.parseAlterTableMoveAll(int(nodes.OBJECT_TABLE), alterLoc), nil
+		return p.parseAlterTableMoveAll(int(nodes.OBJECT_TABLE), alterLoc)
 	}
 
 	// IF EXISTS
@@ -115,7 +115,7 @@ func (p *Parser) parseAlterIndex(alterLoc int) (nodes.Node, error) {
 
 	// ALTER INDEX ALL IN TABLESPACE ...
 	if p.cur.Type == ALL {
-		return p.parseAlterTableMoveAll(int(nodes.OBJECT_INDEX), alterLoc), nil
+		return p.parseAlterTableMoveAll(int(nodes.OBJECT_INDEX), alterLoc)
 	}
 
 	// IF EXISTS
@@ -130,7 +130,10 @@ func (p *Parser) parseAlterIndex(alterLoc int) (nodes.Node, error) {
 
 	// qualified_name
 	nameStart := p.pos()
-	names, _ := p.parseQualifiedName()
+	names, err := p.parseQualifiedName()
+	if err != nil {
+		return nil, err
+	}
 	rv := makeRangeVarFromAnyName(names, nodes.Loc{Start: nameStart, End: p.prev.End})
 
 	// Check for RENAME
@@ -139,7 +142,10 @@ func (p *Parser) parseAlterIndex(alterLoc int) (nodes.Node, error) {
 		if _, err := p.expect(TO); err != nil {
 			return nil, err
 		}
-		newname, _ := p.parseName()
+		newname, err := p.parseName()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.RenameStmt{
 			RenameType: nodes.OBJECT_INDEX,
 			Relation:   rv,
@@ -192,7 +198,10 @@ func (p *Parser) parseAlterIndex(alterLoc int) (nodes.Node, error) {
 		if _, err := p.expect(EXTENSION); err != nil {
 			return nil, err
 		}
-		extname, _ := p.parseName()
+		extname, err := p.parseName()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterObjectDependsStmt{
 			ObjectType: nodes.OBJECT_INDEX,
 			Relation:   rv,
@@ -228,7 +237,10 @@ func (p *Parser) parseAlterSequence(alterLoc int) (nodes.Node, error) {
 	}
 
 	nameStart := p.pos()
-	names, _ := p.parseQualifiedName()
+	names, err := p.parseQualifiedName()
+	if err != nil {
+		return nil, err
+	}
 	nameLoc := nodes.Loc{Start: nameStart, End: p.prev.End}
 
 	// Check for RENAME (produces RenameStmt, uses makeRangeVarFromAnyName)
@@ -238,7 +250,10 @@ func (p *Parser) parseAlterSequence(alterLoc int) (nodes.Node, error) {
 		if _, err := p.expect(TO); err != nil {
 			return nil, err
 		}
-		newname, _ := p.parseName()
+		newname, err := p.parseName()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.RenameStmt{
 			RenameType: nodes.OBJECT_SEQUENCE,
 			Relation:   rv,
@@ -253,7 +268,10 @@ func (p *Parser) parseAlterSequence(alterLoc int) (nodes.Node, error) {
 		rv := makeRangeVarFromAnyName(names, nameLoc)
 		p.advance() // consume SET
 		p.advance() // consume SCHEMA
-		newschema, _ := p.parseName()
+		newschema, err := p.parseName()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterObjectSchemaStmt{
 			ObjectType: nodes.OBJECT_SEQUENCE,
 			Relation:   rv,
@@ -281,8 +299,21 @@ func (p *Parser) parseAlterSequence(alterLoc int) (nodes.Node, error) {
 		}, nil
 	}
 
-	// OWNER TO goes through alter_table_cmds in the yacc grammar
-	if p.cur.Type == OWNER {
+	if p.collectMode() {
+		// Offer both alternatives at the cursor: alter_table_cmds and the
+		// SeqOptList.
+		if _, err := p.parseAlterTableCmds(); err != nil && err != errCollecting {
+			return nil, err
+		}
+		for _, t := range seqOptElemLeadTokens {
+			p.addTokenCandidate(t)
+		}
+		return nil, errCollecting
+	}
+
+	// Anything but a SeqOptElem goes through alter_table_cmds in the yacc
+	// grammar (OWNER TO, DROP, ...).
+	if !p.isSeqOptElemStart() {
 		rv := makeRangeVarFromAnyName(names, nameLoc)
 		cmds, err := p.parseAlterTableCmds()
 		if err != nil {
@@ -325,7 +356,10 @@ func (p *Parser) parseAlterView(alterLoc int) (nodes.Node, error) {
 	}
 
 	nameStart := p.pos()
-	names, _ := p.parseQualifiedName()
+	names, err := p.parseQualifiedName()
+	if err != nil {
+		return nil, err
+	}
 	rv := makeRangeVarFromAnyName(names, nodes.Loc{Start: nameStart, End: p.prev.End})
 
 	// Check for RENAME
@@ -337,7 +371,10 @@ func (p *Parser) parseAlterView(alterLoc int) (nodes.Node, error) {
 	if p.cur.Type == SET && p.peekNext().Type == SCHEMA {
 		p.advance() // consume SET
 		p.advance() // consume SCHEMA
-		newschema, _ := p.parseName()
+		newschema, err := p.parseName()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterObjectSchemaStmt{
 			ObjectType: nodes.OBJECT_VIEW,
 			Relation:   rv,
@@ -368,7 +405,7 @@ func (p *Parser) parseAlterMaterializedView(alterLoc int) (nodes.Node, error) {
 
 	// ALTER MATERIALIZED VIEW ALL IN TABLESPACE ...
 	if p.cur.Type == ALL {
-		return p.parseAlterTableMoveAll(int(nodes.OBJECT_MATVIEW), alterLoc), nil
+		return p.parseAlterTableMoveAll(int(nodes.OBJECT_MATVIEW), alterLoc)
 	}
 
 	missingOk := false
@@ -381,7 +418,10 @@ func (p *Parser) parseAlterMaterializedView(alterLoc int) (nodes.Node, error) {
 	}
 
 	nameStart := p.pos()
-	names, _ := p.parseQualifiedName()
+	names, err := p.parseQualifiedName()
+	if err != nil {
+		return nil, err
+	}
 	rv := makeRangeVarFromAnyName(names, nodes.Loc{Start: nameStart, End: p.prev.End})
 
 	// Check for RENAME
@@ -393,7 +433,10 @@ func (p *Parser) parseAlterMaterializedView(alterLoc int) (nodes.Node, error) {
 	if p.cur.Type == SET && p.peekNext().Type == SCHEMA {
 		p.advance() // consume SET
 		p.advance() // consume SCHEMA
-		newschema, _ := p.parseName()
+		newschema, err := p.parseName()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterObjectSchemaStmt{
 			ObjectType: nodes.OBJECT_MATVIEW,
 			Relation:   rv,
@@ -412,7 +455,10 @@ func (p *Parser) parseAlterMaterializedView(alterLoc int) (nodes.Node, error) {
 		if _, err := p.expect(EXTENSION); err != nil {
 			return nil, err
 		}
-		extname, _ := p.parseName()
+		extname, err := p.parseName()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterObjectDependsStmt{
 			ObjectType: nodes.OBJECT_MATVIEW,
 			Relation:   rv,
@@ -567,22 +613,41 @@ func (p *Parser) parseAlterForeignTable(alterLoc int) (nodes.Node, error) {
 // parseAlterTableMoveAll parses ALTER TABLE/INDEX/MATERIALIZED VIEW ALL IN TABLESPACE ...
 //
 //	ALTER TABLE ALL IN TABLESPACE name [OWNED BY role_list] SET TABLESPACE name [NOWAIT]
-func (p *Parser) parseAlterTableMoveAll(objType int, alterLoc int) *nodes.AlterTableMoveAllStmt {
+func (p *Parser) parseAlterTableMoveAll(objType int, alterLoc int) (*nodes.AlterTableMoveAllStmt, error) {
 	p.advance() // consume ALL
-	p.expect(IN_P)
-	p.expect(TABLESPACE)
-	origTs, _ := p.parseName()
+	if _, err := p.expect(IN_P); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(TABLESPACE); err != nil {
+		return nil, err
+	}
+	origTs, err := p.parseName()
+	if err != nil {
+		return nil, err
+	}
 
 	var roles *nodes.List
 	if p.cur.Type == OWNED {
 		p.advance() // OWNED
-		p.expect(BY)
-		roles = p.parseRoleList()
+		if _, err := p.expect(BY); err != nil {
+			return nil, err
+		}
+		roles, err = p.parseRoleList()
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	p.expect(SET)
-	p.expect(TABLESPACE)
-	newTs, _ := p.parseName()
+	if _, err := p.expect(SET); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(TABLESPACE); err != nil {
+		return nil, err
+	}
+	newTs, err := p.parseName()
+	if err != nil {
+		return nil, err
+	}
 
 	nowait := false
 	if p.cur.Type == NOWAIT {
@@ -597,7 +662,7 @@ func (p *Parser) parseAlterTableMoveAll(objType int, alterLoc int) *nodes.AlterT
 		NewTablespacename:  newTs,
 		Nowait:             nowait,
 		Loc:                nodes.Loc{Start: alterLoc, End: p.prev.End},
-	}
+	}, nil
 }
 
 // parseAlterTableRename parses the RENAME forms of ALTER TABLE and ALTER
@@ -751,37 +816,37 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 	case ALTER:
 		cmd, err = p.parseAlterTableAlter()
 	case OWNER:
-		cmd, err = p.parseAlterTableOwner(), nil
+		cmd, err = p.parseAlterTableOwner()
 	case VALIDATE:
-		cmd, err = p.parseAlterTableValidate(), nil
+		cmd, err = p.parseAlterTableValidate()
 	case INHERIT:
 		cmd, err = p.parseAlterTableInherit()
 	case NO:
-		cmd, err = p.parseAlterTableNo(), nil
+		cmd, err = p.parseAlterTableNo()
 	case ATTACH:
-		cmd, err = p.parseAlterTableAttach(), nil
+		cmd, err = p.parseAlterTableAttach()
 	case DETACH:
-		cmd, err = p.parseAlterTableDetach(), nil
+		cmd, err = p.parseAlterTableDetach()
 	case ENABLE_P:
-		cmd, err = p.parseAlterTableEnable(), nil
+		cmd, err = p.parseAlterTableEnable()
 	case DISABLE_P:
-		cmd, err = p.parseAlterTableDisable(), nil
+		cmd, err = p.parseAlterTableDisable()
 	case FORCE:
-		cmd, err = p.parseAlterTableForce(), nil
+		cmd, err = p.parseAlterTableForce()
 	case CLUSTER:
-		cmd, err = p.parseAlterTableCluster(), nil
+		cmd, err = p.parseAlterTableCluster()
 	case SET:
 		cmd, err = p.parseAlterTableSet()
 	case RESET:
-		cmd, err = p.parseAlterTableReset(), nil
+		cmd, err = p.parseAlterTableReset()
 	case REPLICA:
-		cmd, err = p.parseAlterTableReplica(), nil
+		cmd, err = p.parseAlterTableReplica()
 	case OF:
 		cmd, err = p.parseAlterTableOf()
 	case NOT:
-		cmd, err = p.parseAlterTableNot(), nil
+		cmd, err = p.parseAlterTableNot()
 	case OPTIONS:
-		cmd, err = p.parseAlterTableOptions(), nil
+		cmd, err = p.parseAlterTableOptions()
 	default:
 		if p.redshiftWordEqual("append") {
 			cmd, err = p.parseRedshiftAlterTableAppend()
@@ -1069,8 +1134,9 @@ func (p *Parser) parseAlterTableAdd() (*nodes.AlterTableCmd, error) {
 		missingOk := false
 		if p.cur.Type == IF_P {
 			p.advance()
-			p.expect(NOT)
-			p.expect(EXISTS)
+			if err := p.expectNotExists(); err != nil {
+				return nil, err
+			}
 			missingOk = true
 		}
 		coldef, err := p.parseColumnDef()
@@ -1084,8 +1150,9 @@ func (p *Parser) parseAlterTableAdd() (*nodes.AlterTableCmd, error) {
 		}, nil
 	case IF_P:
 		p.advance()
-		p.expect(NOT)
-		p.expect(EXISTS)
+		if err := p.expectNotExists(); err != nil {
+			return nil, err
+		}
 		if p.cur.Type == PARTITION {
 			return p.parseRedshiftAlterTableAddPartition(true)
 		}
@@ -1115,6 +1182,11 @@ func (p *Parser) parseAlterTableAdd() (*nodes.AlterTableCmd, error) {
 }
 
 // parseAlterTableDrop handles DROP ... subcommands.
+//
+//	DROP opt_column IF_P EXISTS ColId opt_drop_behavior
+//	DROP opt_column ColId opt_drop_behavior
+//	DROP CONSTRAINT IF_P EXISTS name opt_drop_behavior
+//	DROP CONSTRAINT name opt_drop_behavior
 func (p *Parser) parseAlterTableDrop() (*nodes.AlterTableCmd, error) {
 	p.advance() // consume DROP
 
@@ -1133,6 +1205,7 @@ func (p *Parser) parseAlterTableDrop() (*nodes.AlterTableCmd, error) {
 		return p.parseRedshiftAlterTableDropPartition()
 	}
 
+	subtype := nodes.AT_DropColumn
 	switch p.cur.Type {
 	case COLUMN:
 		p.advance() // consume COLUMN
@@ -1141,21 +1214,6 @@ func (p *Parser) parseAlterTableDrop() (*nodes.AlterTableCmd, error) {
 			p.addTokenCandidate(IF_P)
 			return nil, nil
 		}
-		// IF EXISTS
-		missingOk := false
-		if p.cur.Type == IF_P {
-			p.advance()
-			p.expect(EXISTS)
-			missingOk = true
-		}
-		name, _ := p.parseColId()
-		behavior := p.parseOptDropBehavior()
-		return &nodes.AlterTableCmd{
-			Subtype:    int(nodes.AT_DropColumn),
-			Name:       name,
-			Behavior:   behavior,
-			Missing_ok: missingOk,
-		}, nil
 	case CONSTRAINT:
 		p.advance() // consume CONSTRAINT
 		if p.collectMode() {
@@ -1163,42 +1221,28 @@ func (p *Parser) parseAlterTableDrop() (*nodes.AlterTableCmd, error) {
 			p.addTokenCandidate(IF_P)
 			return nil, nil
 		}
-		missingOk := false
-		if p.cur.Type == IF_P {
-			p.advance()
-			p.expect(EXISTS)
-			missingOk = true
-		}
-		name, _ := p.parseName()
-		behavior := p.parseOptDropBehavior()
-		return &nodes.AlterTableCmd{
-			Subtype:    int(nodes.AT_DropConstraint),
-			Name:       name,
-			Behavior:   behavior,
-			Missing_ok: missingOk,
-		}, nil
-	case IF_P:
-		// DROP IF EXISTS colid opt_drop_behavior (without COLUMN keyword)
-		p.advance()
-		p.expect(EXISTS)
-		name, _ := p.parseColId()
-		behavior := p.parseOptDropBehavior()
-		return &nodes.AlterTableCmd{
-			Subtype:    int(nodes.AT_DropColumn),
-			Name:       name,
-			Behavior:   behavior,
-			Missing_ok: true,
-		}, nil
-	default:
-		// DROP colid opt_drop_behavior (without COLUMN keyword)
-		name, _ := p.parseColId()
-		behavior := p.parseOptDropBehavior()
-		return &nodes.AlterTableCmd{
-			Subtype:  int(nodes.AT_DropColumn),
-			Name:     name,
-			Behavior: behavior,
-		}, nil
+		subtype = nodes.AT_DropConstraint
 	}
+
+	missingOk := false
+	if p.cur.Type == IF_P {
+		p.advance()
+		if _, err := p.expect(EXISTS); err != nil {
+			return nil, err
+		}
+		missingOk = true
+	}
+	// ColId and name are the same production.
+	name, err := p.parseColId()
+	if err != nil {
+		return nil, err
+	}
+	return &nodes.AlterTableCmd{
+		Subtype:    int(subtype),
+		Name:       name,
+		Behavior:   p.parseOptDropBehavior(),
+		Missing_ok: missingOk,
+	}, nil
 }
 
 // parseAlterTableAlter handles ALTER [COLUMN] ... subcommands.
@@ -1234,7 +1278,10 @@ func (p *Parser) parseAlterTableAlter() (*nodes.AlterTableCmd, error) {
 			p.addRuleCandidate("qualified_name")
 			return nil, nil
 		}
-		name, _ := p.parseName()
+		name, err := p.parseName()
+		if err != nil {
+			return nil, err
+		}
 		// ConstraintAttributeSpec (we consume but don't store — matches
 		// yacc behavior). Only a foreign key's deferrability changes.
 		if _, err := p.parseKindAttributes("FOREIGN KEY", true, false, false); err != nil {
@@ -1246,35 +1293,32 @@ func (p *Parser) parseAlterTableAlter() (*nodes.AlterTableCmd, error) {
 		}, nil
 	}
 
-	// Check for ALTER COLUMN Iconst (numeric column reference) SET STATISTICS
-	if hasColumnKeyword && p.cur.Type == ICONST {
+	// ALTER opt_column Iconst SET STATISTICS set_statistics_value
+	if p.cur.Type == ICONST {
 		num := int16(p.cur.Ival)
 		p.advance()
-		p.expect(SET)
-		p.expect(STATISTICS)
-		val := p.parseSignedIconst()
+		if _, err := p.expect(SET); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(STATISTICS); err != nil {
+			return nil, err
+		}
+		val, err := p.parseSetStatisticsValue()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterTableCmd{
 			Subtype: int(nodes.AT_SetStatistics),
 			Num:     num,
-			Def:     makeIntConst(val),
-		}, nil
-	}
-	// ALTER Iconst (without COLUMN keyword) SET STATISTICS
-	if !hasColumnKeyword && p.cur.Type == ICONST {
-		num := int16(p.cur.Ival)
-		p.advance()
-		p.expect(SET)
-		p.expect(STATISTICS)
-		val := p.parseSignedIconst()
-		return &nodes.AlterTableCmd{
-			Subtype: int(nodes.AT_SetStatistics),
-			Num:     num,
-			Def:     makeIntConst(val),
+			Def:     val,
 		}, nil
 	}
 
 	// Regular column name
-	colname, _ := p.parseColId()
+	colname, err := p.parseColId()
+	if err != nil {
+		return nil, err
+	}
 
 	return p.parseAlterColumnAction(colname)
 }
@@ -1373,18 +1417,19 @@ func (p *Parser) parseAlterColumnAction(colname string) (*nodes.AlterTableCmd, e
 		return p.parseAlterColumnSet(colname)
 	case DROP:
 		p.advance() // consume DROP
-		return p.parseAlterColumnDrop(colname), nil
+		return p.parseAlterColumnDrop(colname)
 	case TYPE_P:
 		return p.parseAlterColumnType(colname, false)
 	case ADD_P:
 		p.advance() // consume ADD
 		return p.parseAlterColumnAddGenerated(colname)
 	case RESET:
-		// ALTER COLUMN ColId RESET '(' def_list ')'
+		// ALTER opt_column ColId RESET reloptions
 		p.advance() // consume RESET
-		p.expect('(')
-		defs, _ := p.parseDefList()
-		p.expect(')')
+		defs, err := p.parseReloptions()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterTableCmd{
 			Subtype: int(nodes.AT_ResetOptions),
 			Name:    colname,
@@ -1392,7 +1437,10 @@ func (p *Parser) parseAlterColumnAction(colname string) (*nodes.AlterTableCmd, e
 		}, nil
 	case OPTIONS:
 		// alter_generic_options
-		opts := p.parseAlterGenericOptions()
+		opts, err := p.parseAlterGenericOptions()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterTableCmd{
 			Subtype: int(nodes.AT_AlterColumnGenericOptions),
 			Name:    colname,
@@ -1429,15 +1477,11 @@ func (p *Parser) parseAlterColumnAction(colname string) (*nodes.AlterTableCmd, e
 	}
 }
 
-// isAlterIdentityOption checks if the current SET is the start of an identity column option
-// (SET GENERATED ...) rather than other SET subcommands. We peek ahead.
+// isAlterIdentityOption reports whether the current SET starts an
+// alter_identity_column_option (SET GENERATED or SET SeqOptElem) rather than
+// another SET subcommand.
 func (p *Parser) isAlterIdentityOption() bool {
-	next := p.peekNext()
-	switch next.Type {
-	case GENERATED, CACHE, CYCLE, NO, INCREMENT, MAXVALUE, MINVALUE, START:
-		return true
-	}
-	return false
+	return isAlterIdentityOptionStart(p.peekNext())
 }
 
 // parseAlterColumnSet handles ALTER COLUMN colname SET ...
@@ -1446,7 +1490,13 @@ func (p *Parser) parseAlterColumnSet(colname string) (*nodes.AlterTableCmd, erro
 	case DEFAULT:
 		// SET DEFAULT a_expr
 		p.advance()
-		expr, _ := p.parseAExpr(0)
+		expr, err := p.parseAExpr(0)
+		if err != nil {
+			return nil, err
+		}
+		if expr == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 		return &nodes.AlterTableCmd{
 			Subtype: int(nodes.AT_ColumnDefault),
 			Name:    colname,
@@ -1455,7 +1505,9 @@ func (p *Parser) parseAlterColumnSet(colname string) (*nodes.AlterTableCmd, erro
 	case NOT:
 		// SET NOT NULL
 		p.advance() // NOT
-		p.expect(NULL_P)
+		if _, err := p.expect(NULL_P); err != nil {
+			return nil, err
+		}
 		return &nodes.AlterTableCmd{
 			Subtype: int(nodes.AT_SetNotNull),
 			Name:    colname,
@@ -1463,26 +1515,28 @@ func (p *Parser) parseAlterColumnSet(colname string) (*nodes.AlterTableCmd, erro
 	case DATA_P:
 		// SET DATA TYPE Typename ...
 		p.advance() // DATA
-		p.expect(TYPE_P)
+		if _, err := p.expect(TYPE_P); err != nil {
+			return nil, err
+		}
 		return p.parseAlterColumnTypeInner(colname)
 	case STATISTICS:
-		// SET STATISTICS SignedIconst
+		// SET STATISTICS set_statistics_value
 		p.advance()
-		val := p.parseSignedIconst()
+		val, err := p.parseSetStatisticsValue()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterTableCmd{
 			Subtype: int(nodes.AT_SetStatistics),
 			Name:    colname,
-			Def:     makeIntConst(val),
+			Def:     val,
 		}, nil
 	case STORAGE:
-		// SET STORAGE ColId | SET STORAGE DEFAULT
+		// SET column_storage: STORAGE ColId | STORAGE DEFAULT
 		p.advance()
-		var storageVal string
-		if p.cur.Type == DEFAULT {
-			p.advance()
-			storageVal = "default"
-		} else {
-			storageVal, _ = p.parseColId()
+		storageVal, err := p.parseColIdOrDefault()
+		if err != nil {
+			return nil, err
 		}
 		return &nodes.AlterTableCmd{
 			Subtype: int(nodes.AT_SetStorage),
@@ -1490,14 +1544,11 @@ func (p *Parser) parseAlterColumnSet(colname string) (*nodes.AlterTableCmd, erro
 			Def:     &nodes.String{Str: storageVal},
 		}, nil
 	case COMPRESSION:
-		// SET COMPRESSION ColId | SET COMPRESSION DEFAULT
+		// SET column_compression: COMPRESSION ColId | COMPRESSION DEFAULT
 		p.advance()
-		var compVal string
-		if p.cur.Type == DEFAULT {
-			p.advance()
-			compVal = "default"
-		} else {
-			compVal, _ = p.parseColId()
+		compVal, err := p.parseColIdOrDefault()
+		if err != nil {
+			return nil, err
 		}
 		return &nodes.AlterTableCmd{
 			Subtype: int(nodes.AT_SetCompression),
@@ -1507,10 +1558,22 @@ func (p *Parser) parseAlterColumnSet(colname string) (*nodes.AlterTableCmd, erro
 	case EXPRESSION:
 		// SET EXPRESSION AS '(' a_expr ')'
 		p.advance()
-		p.expect(AS)
-		p.expect('(')
-		expr, _ := p.parseAExpr(0)
-		p.expect(')')
+		if _, err := p.expect(AS); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect('('); err != nil {
+			return nil, err
+		}
+		expr, err := p.parseAExpr(0)
+		if err != nil {
+			return nil, err
+		}
+		if expr == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
 		return &nodes.AlterTableCmd{
 			Subtype: int(nodes.AT_SetExpression),
 			Name:    colname,
@@ -1519,7 +1582,10 @@ func (p *Parser) parseAlterColumnSet(colname string) (*nodes.AlterTableCmd, erro
 	case GENERATED:
 		// SET GENERATED generated_when
 		p.advance()
-		gw := p.parseGeneratedWhen()
+		gw, err := p.parseGeneratedWhen()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterTableCmd{
 			Subtype: int(nodes.AT_SetIdentity),
 			Name:    colname,
@@ -1528,10 +1594,11 @@ func (p *Parser) parseAlterColumnSet(colname string) (*nodes.AlterTableCmd, erro
 			}},
 		}, nil
 	case '(':
-		// SET (def_list)
-		p.advance()
-		defs, _ := p.parseDefList()
-		p.expect(')')
+		// SET reloptions
+		defs, err := p.parseReloptions()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterTableCmd{
 			Subtype: int(nodes.AT_SetOptions),
 			Name:    colname,
@@ -1545,49 +1612,49 @@ func (p *Parser) parseAlterColumnSet(colname string) (*nodes.AlterTableCmd, erro
 }
 
 // parseAlterColumnDrop handles ALTER COLUMN colname DROP ...
-func (p *Parser) parseAlterColumnDrop(colname string) *nodes.AlterTableCmd {
+//
+//	ALTER opt_column ColId DROP DEFAULT
+//	ALTER opt_column ColId DROP NOT NULL_P
+//	ALTER opt_column ColId DROP EXPRESSION [IF_P EXISTS]
+//	ALTER opt_column ColId DROP IDENTITY_P [IF_P EXISTS]
+func (p *Parser) parseAlterColumnDrop(colname string) (*nodes.AlterTableCmd, error) {
 	switch p.cur.Type {
 	case DEFAULT:
 		p.advance()
 		return &nodes.AlterTableCmd{
 			Subtype: int(nodes.AT_ColumnDefault),
 			Name:    colname,
-		}
+		}, nil
 	case NOT:
 		p.advance() // NOT
-		p.expect(NULL_P)
+		if _, err := p.expect(NULL_P); err != nil {
+			return nil, err
+		}
 		return &nodes.AlterTableCmd{
 			Subtype: int(nodes.AT_DropNotNull),
 			Name:    colname,
+		}, nil
+	case EXPRESSION, IDENTITY_P:
+		subtype := nodes.AT_DropExpression
+		if p.cur.Type == IDENTITY_P {
+			subtype = nodes.AT_DropIdentity
 		}
-	case EXPRESSION:
 		p.advance()
 		missingOk := false
 		if p.cur.Type == IF_P {
 			p.advance()
-			p.expect(EXISTS)
+			if _, err := p.expect(EXISTS); err != nil {
+				return nil, err
+			}
 			missingOk = true
 		}
 		return &nodes.AlterTableCmd{
-			Subtype:    int(nodes.AT_DropExpression),
+			Subtype:    int(subtype),
 			Name:       colname,
 			Missing_ok: missingOk,
-		}
-	case IDENTITY_P:
-		p.advance()
-		missingOk := false
-		if p.cur.Type == IF_P {
-			p.advance()
-			p.expect(EXISTS)
-			missingOk = true
-		}
-		return &nodes.AlterTableCmd{
-			Subtype:    int(nodes.AT_DropIdentity),
-			Name:       colname,
-			Missing_ok: missingOk,
-		}
+		}, nil
 	default:
-		return &nodes.AlterTableCmd{}
+		return nil, p.syntaxErrorAtCur()
 	}
 }
 
@@ -1627,8 +1694,7 @@ func (p *Parser) parseAlterColumnTypeInner(colname string) (*nodes.AlterTableCmd
 	// transform analysis, not the raw parse tree)
 	if p.cur.Type == USING {
 		p.advance()
-		_, err = p.parseAExpr(0)
-		if err != nil {
+		if _, err = p.parseRequiredAExpr(0); err != nil {
 			return nil, err
 		}
 	}
@@ -1642,10 +1708,19 @@ func (p *Parser) parseAlterColumnTypeInner(colname string) (*nodes.AlterTableCmd
 
 // parseAlterColumnAddGenerated handles ALTER COLUMN colname ADD GENERATED ...
 func (p *Parser) parseAlterColumnAddGenerated(colname string) (*nodes.AlterTableCmd, error) {
-	p.expect(GENERATED)
-	gw := p.parseGeneratedWhen()
-	p.expect(AS)
-	p.expect(IDENTITY_P)
+	if _, err := p.expect(GENERATED); err != nil {
+		return nil, err
+	}
+	gw, err := p.parseGeneratedWhen()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(AS); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(IDENTITY_P); err != nil {
+		return nil, err
+	}
 	opts, err := p.parseOptParenthesizedSeqOptList()
 	if err != nil {
 		return nil, err
@@ -1664,25 +1739,35 @@ func (p *Parser) parseAlterColumnAddGenerated(colname string) (*nodes.AlterTable
 }
 
 // parseAlterTableOwner handles OWNER TO RoleSpec.
-func (p *Parser) parseAlterTableOwner() *nodes.AlterTableCmd {
+func (p *Parser) parseAlterTableOwner() (*nodes.AlterTableCmd, error) {
 	p.advance() // consume OWNER
-	p.expect(TO)
-	roleSpec := p.parseRoleSpec()
+	if _, err := p.expect(TO); err != nil {
+		return nil, err
+	}
+	roleSpec, err := p.parseRoleSpec()
+	if err != nil {
+		return nil, err
+	}
 	return &nodes.AlterTableCmd{
 		Subtype:  int(nodes.AT_ChangeOwner),
 		Newowner: roleSpec,
-	}
+	}, nil
 }
 
 // parseAlterTableValidate handles VALIDATE CONSTRAINT name.
-func (p *Parser) parseAlterTableValidate() *nodes.AlterTableCmd {
+func (p *Parser) parseAlterTableValidate() (*nodes.AlterTableCmd, error) {
 	p.advance() // consume VALIDATE
-	p.expect(CONSTRAINT)
-	name, _ := p.parseName()
+	if _, err := p.expect(CONSTRAINT); err != nil {
+		return nil, err
+	}
+	name, err := p.parseName()
+	if err != nil {
+		return nil, err
+	}
 	return &nodes.AlterTableCmd{
 		Subtype: int(nodes.AT_ValidateConstraint),
 		Name:    name,
-	}
+	}, nil
 }
 
 // parseAlterTableInherit handles INHERIT qualified_name.
@@ -1704,218 +1789,235 @@ func (p *Parser) parseAlterTableInherit() (*nodes.AlterTableCmd, error) {
 }
 
 // parseAlterTableNo handles NO INHERIT and NO FORCE ROW LEVEL SECURITY.
-func (p *Parser) parseAlterTableNo() *nodes.AlterTableCmd {
+//
+//	NO INHERIT qualified_name
+//	NO FORCE ROW LEVEL SECURITY
+func (p *Parser) parseAlterTableNo() (*nodes.AlterTableCmd, error) {
 	p.advance() // consume NO
 
 	switch p.cur.Type {
 	case INHERIT:
 		p.advance()
-		nameStart := p.pos()
-		names, _ := p.parseQualifiedName()
-		rv := makeRangeVarFromAnyName(names, nodes.Loc{Start: nameStart, End: p.prev.End})
+		rv, err := p.parseAlterTableQualifiedName()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterTableCmd{
 			Subtype: int(nodes.AT_DropInherit),
 			Def:     rv,
-		}
+		}, nil
 	case FORCE:
 		p.advance() // FORCE
-		p.expect(ROW)
-		p.expect(LEVEL)
-		p.expect(SECURITY)
+		if err := p.expectRowLevelSecurity(); err != nil {
+			return nil, err
+		}
 		return &nodes.AlterTableCmd{
 			Subtype: int(nodes.AT_NoForceRowSecurity),
-		}
+		}, nil
 	default:
-		return &nodes.AlterTableCmd{}
+		return nil, p.syntaxErrorAtCur()
 	}
 }
 
 // parseAlterTableAttach handles ATTACH PARTITION qualified_name ForValues.
-func (p *Parser) parseAlterTableAttach() *nodes.AlterTableCmd {
+func (p *Parser) parseAlterTableAttach() (*nodes.AlterTableCmd, error) {
 	partLoc := p.pos()
 	p.advance() // consume ATTACH
-	p.expect(PARTITION)
-	nameStart := p.pos()
-	names, _ := p.parseQualifiedName()
-	rv := makeRangeVarFromAnyName(names, nodes.Loc{Start: nameStart, End: p.prev.End})
-	bound := p.parseForValues()
+	if _, err := p.expect(PARTITION); err != nil {
+		return nil, err
+	}
+	rv, err := p.parseAlterTableQualifiedName()
+	if err != nil {
+		return nil, err
+	}
+	bound, err := p.parseForValues()
+	if err != nil {
+		return nil, err
+	}
 	return &nodes.AlterTableCmd{
 		Subtype: int(nodes.AT_AttachPartition),
 		Def: &nodes.PartitionCmd{
 			Name:  rv,
-			Bound: bound.(*nodes.PartitionBoundSpec),
+			Bound: bound,
 			Loc:   nodes.Loc{Start: partLoc, End: p.prev.End},
 		},
-	}
+	}, nil
 }
 
 // parseAlterTableDetach handles DETACH PARTITION ...
-func (p *Parser) parseAlterTableDetach() *nodes.AlterTableCmd {
+//
+//	DETACH PARTITION qualified_name opt_concurrently
+//	DETACH PARTITION qualified_name FINALIZE
+func (p *Parser) parseAlterTableDetach() (*nodes.AlterTableCmd, error) {
 	partLoc := p.pos()
 	p.advance() // consume DETACH
-	p.expect(PARTITION)
-	nameStart := p.pos()
-	names, _ := p.parseQualifiedName()
-	rv := makeRangeVarFromAnyName(names, nodes.Loc{Start: nameStart, End: p.prev.End})
-
-	if p.cur.Type == CONCURRENTLY {
-		p.advance()
-		return &nodes.AlterTableCmd{
-			Subtype: int(nodes.AT_DetachPartition),
-			Def: &nodes.PartitionCmd{
-				Name:       rv,
-				Concurrent: true,
-				Loc:        nodes.Loc{Start: partLoc, End: p.prev.End},
-			},
-		}
+	if _, err := p.expect(PARTITION); err != nil {
+		return nil, err
 	}
-	if p.cur.Type == FINALIZE {
+	rv, err := p.parseAlterTableQualifiedName()
+	if err != nil {
+		return nil, err
+	}
+
+	subtype := nodes.AT_DetachPartition
+	concurrent := false
+	switch p.cur.Type {
+	case CONCURRENTLY:
 		p.advance()
-		return &nodes.AlterTableCmd{
-			Subtype: int(nodes.AT_DetachPartitionFinalize),
-			Def: &nodes.PartitionCmd{
-				Name: rv,
-				Loc:  nodes.Loc{Start: partLoc, End: p.prev.End},
-			},
-		}
+		concurrent = true
+	case FINALIZE:
+		p.advance()
+		subtype = nodes.AT_DetachPartitionFinalize
 	}
 	return &nodes.AlterTableCmd{
-		Subtype: int(nodes.AT_DetachPartition),
+		Subtype: int(subtype),
 		Def: &nodes.PartitionCmd{
-			Name: rv,
-			Loc:  nodes.Loc{Start: partLoc, End: p.prev.End},
+			Name:       rv,
+			Concurrent: concurrent,
+			Loc:        nodes.Loc{Start: partLoc, End: p.prev.End},
 		},
+	}, nil
+}
+
+// parseAlterTableQualifiedName parses the qualified_name of INHERIT, NO
+// INHERIT, ATTACH PARTITION and DETACH PARTITION into a RangeVar.
+func (p *Parser) parseAlterTableQualifiedName() (*nodes.RangeVar, error) {
+	nameStart := p.pos()
+	names, err := p.parseQualifiedName()
+	if err != nil {
+		return nil, err
 	}
+	return makeRangeVarFromAnyName(names, nodes.Loc{Start: nameStart, End: p.prev.End}), nil
 }
 
 // parseAlterTableEnable handles ENABLE TRIGGER/RULE/ROW LEVEL SECURITY.
-func (p *Parser) parseAlterTableEnable() *nodes.AlterTableCmd {
+//
+//	ENABLE_P TRIGGER name | ENABLE_P TRIGGER ALL | ENABLE_P TRIGGER USER
+//	ENABLE_P ALWAYS TRIGGER name | ENABLE_P REPLICA TRIGGER name
+//	ENABLE_P RULE name | ENABLE_P ALWAYS RULE name | ENABLE_P REPLICA RULE name
+//	ENABLE_P ROW LEVEL SECURITY
+func (p *Parser) parseAlterTableEnable() (*nodes.AlterTableCmd, error) {
 	p.advance() // consume ENABLE
 
 	switch p.cur.Type {
 	case TRIGGER:
 		p.advance()
-		switch p.cur.Type {
-		case ALL:
-			p.advance()
-			return &nodes.AlterTableCmd{Subtype: int(nodes.AT_EnableTrigAll)}
-		case USER:
-			p.advance()
-			return &nodes.AlterTableCmd{Subtype: int(nodes.AT_EnableTrigUser)}
-		default:
-			name, _ := p.parseName()
-			return &nodes.AlterTableCmd{
-				Subtype: int(nodes.AT_EnableTrig),
-				Name:    name,
-			}
+		return p.parseAlterTableTriggerTarget(nodes.AT_EnableTrig, nodes.AT_EnableTrigAll, nodes.AT_EnableTrigUser)
+	case ALWAYS, REPLICA:
+		trig, rule := nodes.AT_EnableAlwaysTrig, nodes.AT_EnableAlwaysRule
+		if p.cur.Type == REPLICA {
+			trig, rule = nodes.AT_EnableReplicaTrig, nodes.AT_EnableReplicaRule
 		}
-	case ALWAYS:
-		p.advance() // consume ALWAYS
+		p.advance() // consume ALWAYS or REPLICA
+		subtype := rule
 		if p.cur.Type == TRIGGER {
+			subtype = trig
 			p.advance()
-			name, _ := p.parseName()
-			return &nodes.AlterTableCmd{
-				Subtype: int(nodes.AT_EnableAlwaysTrig),
-				Name:    name,
-			}
+		} else if _, err := p.expect(RULE); err != nil {
+			return nil, err
 		}
-		// ALWAYS RULE
-		p.expect(RULE)
-		name, _ := p.parseName()
-		return &nodes.AlterTableCmd{
-			Subtype: int(nodes.AT_EnableAlwaysRule),
-			Name:    name,
-		}
-	case REPLICA:
-		p.advance() // consume REPLICA
-		if p.cur.Type == TRIGGER {
-			p.advance()
-			name, _ := p.parseName()
-			return &nodes.AlterTableCmd{
-				Subtype: int(nodes.AT_EnableReplicaTrig),
-				Name:    name,
-			}
-		}
-		// REPLICA RULE
-		p.expect(RULE)
-		name, _ := p.parseName()
-		return &nodes.AlterTableCmd{
-			Subtype: int(nodes.AT_EnableReplicaRule),
-			Name:    name,
-		}
+		return p.parseAlterTableNamedCmd(subtype)
 	case RULE:
 		p.advance()
-		name, _ := p.parseName()
-		return &nodes.AlterTableCmd{
-			Subtype: int(nodes.AT_EnableRule),
-			Name:    name,
-		}
+		return p.parseAlterTableNamedCmd(nodes.AT_EnableRule)
 	case ROW:
 		p.advance() // ROW
-		p.expect(LEVEL)
-		p.expect(SECURITY)
-		return &nodes.AlterTableCmd{Subtype: int(nodes.AT_EnableRowSecurity)}
+		if err := p.expectLevelSecurity(); err != nil {
+			return nil, err
+		}
+		return &nodes.AlterTableCmd{Subtype: int(nodes.AT_EnableRowSecurity)}, nil
 	default:
-		return &nodes.AlterTableCmd{}
+		return nil, p.syntaxErrorAtCur()
 	}
 }
 
 // parseAlterTableDisable handles DISABLE TRIGGER/RULE/ROW LEVEL SECURITY.
-func (p *Parser) parseAlterTableDisable() *nodes.AlterTableCmd {
+//
+//	DISABLE_P TRIGGER name | DISABLE_P TRIGGER ALL | DISABLE_P TRIGGER USER
+//	DISABLE_P RULE name
+//	DISABLE_P ROW LEVEL SECURITY
+func (p *Parser) parseAlterTableDisable() (*nodes.AlterTableCmd, error) {
 	p.advance() // consume DISABLE
 
 	switch p.cur.Type {
 	case TRIGGER:
 		p.advance()
-		switch p.cur.Type {
-		case ALL:
-			p.advance()
-			return &nodes.AlterTableCmd{Subtype: int(nodes.AT_DisableTrigAll)}
-		case USER:
-			p.advance()
-			return &nodes.AlterTableCmd{Subtype: int(nodes.AT_DisableTrigUser)}
-		default:
-			name, _ := p.parseName()
-			return &nodes.AlterTableCmd{
-				Subtype: int(nodes.AT_DisableTrig),
-				Name:    name,
-			}
-		}
+		return p.parseAlterTableTriggerTarget(nodes.AT_DisableTrig, nodes.AT_DisableTrigAll, nodes.AT_DisableTrigUser)
 	case RULE:
 		p.advance()
-		name, _ := p.parseName()
-		return &nodes.AlterTableCmd{
-			Subtype: int(nodes.AT_DisableRule),
-			Name:    name,
-		}
+		return p.parseAlterTableNamedCmd(nodes.AT_DisableRule)
 	case ROW:
 		p.advance() // ROW
-		p.expect(LEVEL)
-		p.expect(SECURITY)
-		return &nodes.AlterTableCmd{Subtype: int(nodes.AT_DisableRowSecurity)}
+		if err := p.expectLevelSecurity(); err != nil {
+			return nil, err
+		}
+		return &nodes.AlterTableCmd{Subtype: int(nodes.AT_DisableRowSecurity)}, nil
 	default:
-		return &nodes.AlterTableCmd{}
+		return nil, p.syntaxErrorAtCur()
 	}
+}
+
+// parseAlterTableTriggerTarget parses what follows ENABLE_P TRIGGER or
+// DISABLE_P TRIGGER: ALL, USER, or a trigger name.
+func (p *Parser) parseAlterTableTriggerTarget(named, all, user nodes.AlterTableType) (*nodes.AlterTableCmd, error) {
+	switch p.cur.Type {
+	case ALL:
+		p.advance()
+		return &nodes.AlterTableCmd{Subtype: int(all)}, nil
+	case USER:
+		p.advance()
+		return &nodes.AlterTableCmd{Subtype: int(user)}, nil
+	default:
+		return p.parseAlterTableNamedCmd(named)
+	}
+}
+
+// parseAlterTableNamedCmd parses the name that ends a trigger, rule or
+// constraint command and returns the command of the given subtype.
+func (p *Parser) parseAlterTableNamedCmd(subtype nodes.AlterTableType) (*nodes.AlterTableCmd, error) {
+	name, err := p.parseName()
+	if err != nil {
+		return nil, err
+	}
+	return &nodes.AlterTableCmd{
+		Subtype: int(subtype),
+		Name:    name,
+	}, nil
 }
 
 // parseAlterTableForce handles FORCE ROW LEVEL SECURITY.
-func (p *Parser) parseAlterTableForce() *nodes.AlterTableCmd {
+func (p *Parser) parseAlterTableForce() (*nodes.AlterTableCmd, error) {
 	p.advance() // consume FORCE
-	p.expect(ROW)
-	p.expect(LEVEL)
-	p.expect(SECURITY)
-	return &nodes.AlterTableCmd{Subtype: int(nodes.AT_ForceRowSecurity)}
+	if err := p.expectRowLevelSecurity(); err != nil {
+		return nil, err
+	}
+	return &nodes.AlterTableCmd{Subtype: int(nodes.AT_ForceRowSecurity)}, nil
+}
+
+// expectRowLevelSecurity consumes ROW LEVEL SECURITY.
+func (p *Parser) expectRowLevelSecurity() error {
+	if _, err := p.expect(ROW); err != nil {
+		return err
+	}
+	return p.expectLevelSecurity()
+}
+
+// expectLevelSecurity consumes LEVEL SECURITY, the rest of ROW LEVEL SECURITY.
+func (p *Parser) expectLevelSecurity() error {
+	if _, err := p.expect(LEVEL); err != nil {
+		return err
+	}
+	_, err := p.expect(SECURITY)
+	return err
 }
 
 // parseAlterTableCluster handles CLUSTER ON name.
-func (p *Parser) parseAlterTableCluster() *nodes.AlterTableCmd {
+func (p *Parser) parseAlterTableCluster() (*nodes.AlterTableCmd, error) {
 	p.advance() // consume CLUSTER
-	p.expect(ON)
-	name, _ := p.parseName()
-	return &nodes.AlterTableCmd{
-		Subtype: int(nodes.AT_ClusterOn),
-		Name:    name,
+	if _, err := p.expect(ON); err != nil {
+		return nil, err
 	}
+	return p.parseAlterTableNamedCmd(nodes.AT_ClusterOn)
 }
 
 // parseAlterTableSet handles SET ... subcommands at the table level.
@@ -1964,8 +2066,11 @@ func (p *Parser) parseAlterTableSet() (*nodes.AlterTableCmd, error) {
 		p.advance()
 		return &nodes.AlterTableCmd{Subtype: int(nodes.AT_SetUnLogged)}, nil
 	case ACCESS:
+		// SET ACCESS METHOD set_access_method_name: ColId | DEFAULT
 		p.advance() // consume ACCESS
-		p.expect(METHOD)
+		if _, err := p.expect(METHOD); err != nil {
+			return nil, err
+		}
 		if p.cur.Type == DEFAULT {
 			p.advance()
 			return &nodes.AlterTableCmd{
@@ -1973,14 +2078,20 @@ func (p *Parser) parseAlterTableSet() (*nodes.AlterTableCmd, error) {
 				Name:    "",
 			}, nil
 		}
-		name, _ := p.parseName()
+		name, err := p.parseColId()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterTableCmd{
 			Subtype: int(nodes.AT_SetAccessMethod),
 			Name:    name,
 		}, nil
 	case '(':
 		// SET reloptions (starts with '(' because reloptions = '(' reloption_list ')')
-		opts := p.parseReloptions()
+		opts, err := p.parseReloptions()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterTableCmd{
 			Subtype: int(nodes.AT_SetRelOptions),
 			Def:     opts,
@@ -1995,11 +2106,7 @@ func (p *Parser) parseAlterTableSet() (*nodes.AlterTableCmd, error) {
 		return nil, p.syntaxErrorAtCur()
 	case TABLESPACE:
 		p.advance()
-		name, _ := p.parseName()
-		return &nodes.AlterTableCmd{
-			Subtype: int(nodes.AT_SetTableSpace),
-			Name:    name,
-		}, nil
+		return p.parseAlterTableNamedCmd(nodes.AT_SetTableSpace)
 	default:
 		if p.consumeRedshiftWord("file") {
 			if _, err := p.expect(FORMAT); err != nil {
@@ -2019,40 +2126,39 @@ func (p *Parser) parseAlterTableSet() (*nodes.AlterTableCmd, error) {
 }
 
 // parseAlterTableReset handles RESET reloptions.
-func (p *Parser) parseAlterTableReset() *nodes.AlterTableCmd {
+func (p *Parser) parseAlterTableReset() (*nodes.AlterTableCmd, error) {
 	p.advance() // consume RESET
-	opts := p.parseReloptions()
+	opts, err := p.parseReloptions()
+	if err != nil {
+		return nil, err
+	}
 	return &nodes.AlterTableCmd{
 		Subtype: int(nodes.AT_ResetRelOptions),
 		Def:     opts,
-	}
+	}, nil
 }
 
-// parseAlterTableReplica handles REPLICA IDENTITY ...
-func (p *Parser) parseAlterTableReplica() *nodes.AlterTableCmd {
+// parseAlterTableReplica handles REPLICA IDENTITY_P replica_identity.
+//
+//	replica_identity: NOTHING | FULL | DEFAULT | USING INDEX name
+func (p *Parser) parseAlterTableReplica() (*nodes.AlterTableCmd, error) {
 	p.advance() // consume REPLICA
-	p.expect(IDENTITY_P)
+	if _, err := p.expect(IDENTITY_P); err != nil {
+		return nil, err
+	}
 
 	switch p.cur.Type {
-	case DEFAULT:
+	case DEFAULT, FULL, NOTHING:
 		p.advance()
-		return &nodes.AlterTableCmd{Subtype: int(nodes.AT_ReplicaIdentity)}
-	case FULL:
-		p.advance()
-		return &nodes.AlterTableCmd{Subtype: int(nodes.AT_ReplicaIdentity)}
-	case NOTHING:
-		p.advance()
-		return &nodes.AlterTableCmd{Subtype: int(nodes.AT_ReplicaIdentity)}
+		return &nodes.AlterTableCmd{Subtype: int(nodes.AT_ReplicaIdentity)}, nil
 	case USING:
 		p.advance() // USING
-		p.expect(INDEX)
-		name, _ := p.parseName()
-		return &nodes.AlterTableCmd{
-			Subtype: int(nodes.AT_ReplicaIdentity),
-			Name:    name,
+		if _, err := p.expect(INDEX); err != nil {
+			return nil, err
 		}
+		return p.parseAlterTableNamedCmd(nodes.AT_ReplicaIdentity)
 	default:
-		return &nodes.AlterTableCmd{Subtype: int(nodes.AT_ReplicaIdentity)}
+		return nil, p.syntaxErrorAtCur()
 	}
 }
 
@@ -2074,19 +2180,24 @@ func (p *Parser) parseAlterTableOf() (*nodes.AlterTableCmd, error) {
 }
 
 // parseAlterTableNot handles NOT OF.
-func (p *Parser) parseAlterTableNot() *nodes.AlterTableCmd {
+func (p *Parser) parseAlterTableNot() (*nodes.AlterTableCmd, error) {
 	p.advance() // consume NOT
-	p.expect(OF)
-	return &nodes.AlterTableCmd{Subtype: int(nodes.AT_DropOf)}
+	if _, err := p.expect(OF); err != nil {
+		return nil, err
+	}
+	return &nodes.AlterTableCmd{Subtype: int(nodes.AT_DropOf)}, nil
 }
 
 // parseAlterTableOptions handles bare alter_generic_options (for foreign tables).
-func (p *Parser) parseAlterTableOptions() *nodes.AlterTableCmd {
-	opts := p.parseAlterGenericOptions()
+func (p *Parser) parseAlterTableOptions() (*nodes.AlterTableCmd, error) {
+	opts, err := p.parseAlterGenericOptions()
+	if err != nil {
+		return nil, err
+	}
 	return &nodes.AlterTableCmd{
 		Subtype: int(nodes.AT_GenericOptions),
 		Def:     opts,
-	}
+	}, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -2111,8 +2222,8 @@ func (p *Parser) parseOptDropBehavior() int {
 
 // parseRoleSpec parses a RoleSpec.
 //
-//	RoleSpec: ColId | CURRENT_ROLE | CURRENT_USER | SESSION_USER
-func (p *Parser) parseRoleSpec() *nodes.RoleSpec {
+//	RoleSpec: NonReservedWord | CURRENT_ROLE | CURRENT_USER | SESSION_USER
+func (p *Parser) parseRoleSpec() (*nodes.RoleSpec, error) {
 	loc := p.pos()
 	var rs *nodes.RoleSpec
 	switch p.cur.Type {
@@ -2126,26 +2237,35 @@ func (p *Parser) parseRoleSpec() *nodes.RoleSpec {
 		p.advance()
 		rs = &nodes.RoleSpec{Roletype: int(nodes.ROLESPEC_SESSION_USER)}
 	default:
-		name, _ := p.parseColId()
+		name, err := p.parseNonReservedWord()
+		if err != nil {
+			return nil, err
+		}
 		rs = &nodes.RoleSpec{
 			Roletype: int(nodes.ROLESPEC_CSTRING),
 			Rolename: name,
 		}
 	}
-	rs.Loc = nodes.Loc{Start: loc, End: p.pos()}
-	return rs
+	rs.Loc = nodes.Loc{Start: loc, End: p.prev.End}
+	return rs, nil
 }
 
 // parseRoleList parses role_list: RoleSpec [, RoleSpec ...]
-func (p *Parser) parseRoleList() *nodes.List {
-	rs := p.parseRoleSpec()
+func (p *Parser) parseRoleList() (*nodes.List, error) {
+	rs, err := p.parseRoleSpec()
+	if err != nil {
+		return nil, err
+	}
 	items := []nodes.Node{rs}
 	for p.cur.Type == ',' {
 		p.advance()
-		rs = p.parseRoleSpec()
+		rs, err = p.parseRoleSpec()
+		if err != nil {
+			return nil, err
+		}
 		items = append(items, rs)
 	}
-	return &nodes.List{Items: items}
+	return &nodes.List{Items: items}, nil
 }
 
 // parseSignedIconst parses SignedIconst: Iconst | '+' Iconst | '-' Iconst
@@ -2166,15 +2286,61 @@ func (p *Parser) parseSignedIconst() int64 {
 }
 
 // parseGeneratedWhen parses generated_when: ALWAYS | BY DEFAULT
-func (p *Parser) parseGeneratedWhen() byte {
+func (p *Parser) parseGeneratedWhen() (byte, error) {
 	if p.cur.Type == ALWAYS {
 		p.advance()
-		return 'a'
+		return 'a', nil
 	}
-	// BY DEFAULT
-	p.expect(BY)
-	p.expect(DEFAULT)
-	return 'd'
+	if _, err := p.expect(BY); err != nil {
+		return 0, err
+	}
+	if _, err := p.expect(DEFAULT); err != nil {
+		return 0, err
+	}
+	return 'd', nil
+}
+
+// parseSetStatisticsValue parses set_statistics_value. DEFAULT yields a nil
+// node, as in gram.y.
+//
+//	set_statistics_value: SignedIconst | DEFAULT
+func (p *Parser) parseSetStatisticsValue() (nodes.Node, error) {
+	if p.cur.Type == DEFAULT {
+		p.advance()
+		return nil, nil
+	}
+	// SignedIconst: Iconst | '+' Iconst | '-' Iconst
+	sign := p.cur.Type
+	if sign == '+' || sign == '-' {
+		p.advance()
+	}
+	num, err := p.expect(ICONST)
+	if err != nil {
+		return nil, err
+	}
+	if sign == '-' {
+		return makeIntConst(-num.Ival), nil
+	}
+	return makeIntConst(num.Ival), nil
+}
+
+// parseColIdOrDefault parses the argument of column_storage and
+// column_compression: ColId, or DEFAULT read as "default".
+func (p *Parser) parseColIdOrDefault() (string, error) {
+	if p.cur.Type == DEFAULT {
+		p.advance()
+		return "default", nil
+	}
+	return p.parseColId()
+}
+
+// expectNotExists consumes NOT EXISTS, the rest of IF NOT EXISTS after IF.
+func (p *Parser) expectNotExists() error {
+	if _, err := p.expect(NOT); err != nil {
+		return err
+	}
+	_, err := p.expect(EXISTS)
+	return err
 }
 
 // parseAlterIdentityColumnOptionList parses alter_identity_column_option_list.
@@ -2191,7 +2357,7 @@ func (p *Parser) parseAlterIdentityColumnOptionList() (*nodes.List, error) {
 		items = append(items, opt)
 	}
 	if len(items) == 0 {
-		return nil, nil
+		return nil, p.syntaxErrorAtCur()
 	}
 	return &nodes.List{Items: items}, nil
 }
@@ -2203,24 +2369,44 @@ func (p *Parser) parseAlterIdentityColumnOption() (nodes.Node, error) {
 	switch p.cur.Type {
 	case RESTART:
 		p.advance()
-		// optional: WITH NumericOnly or just NumericOnly
-		if p.cur.Type == WITH_LA || p.cur.Type == WITH {
+		// opt_with NumericOnly: after WITH the number is required.
+		hasWith := p.cur.Type == WITH_LA || p.cur.Type == WITH
+		if hasWith {
 			p.advance()
 		}
-		if p.cur.Type == ICONST || p.cur.Type == FCONST || p.cur.Type == '+' || p.cur.Type == '-' {
-			val := p.parseNumericOnly()
+		if p.isNumericOnlyStart() {
+			val, err := p.parseNumericOnlyRequired()
+			if err != nil {
+				return nil, err
+			}
 			return makeDefElem("restart", val), nil
+		}
+		if hasWith {
+			return nil, p.syntaxErrorAtCur()
 		}
 		return makeDefElem("restart", nil), nil
 	case SET:
 		p.advance()
 		if p.cur.Type == GENERATED {
 			p.advance()
-			gw := p.parseGeneratedWhen()
+			gw, err := p.parseGeneratedWhen()
+			if err != nil {
+				return nil, err
+			}
 			return makeDefElem("generated", makeIntConst(int64(gw))), nil
 		}
-		// SET SeqOptElem
-		return p.parseOneSeqOptElem()
+		// SET SeqOptElem. gram.y rejects AS, RESTART and OWNED BY here
+		// after reading them, as not supported here, at the option.
+		optTok := p.cur
+		elem, err := p.parseOneSeqOptElem()
+		if err != nil {
+			return nil, err
+		}
+		switch elem.Defname {
+		case "as", "restart", "owned_by":
+			return nil, &ParseError{Message: "sequence option \"" + elem.Defname + "\" not supported here", Position: optTok.Loc}
+		}
+		return elem, nil
 	// optional-probe: alter_identity_column_option list — list caller breaks on nil after first match
 	default:
 		return nil, nil
@@ -2230,24 +2416,37 @@ func (p *Parser) parseAlterIdentityColumnOption() (nodes.Node, error) {
 // parseAlterGenericOptions parses alter_generic_options:
 //
 //	OPTIONS '(' alter_generic_option_list ')'
-func (p *Parser) parseAlterGenericOptions() *nodes.List {
-	p.expect(OPTIONS)
-	p.expect('(')
-	list := p.parseAlterGenericOptionList()
-	p.expect(')')
-	return list
+func (p *Parser) parseAlterGenericOptions() (*nodes.List, error) {
+	if _, err := p.expect(OPTIONS); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	list, err := p.parseAlterGenericOptionList()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return list, nil
 }
 
 // parseAlterGenericOptionList parses alter_generic_option_list.
-func (p *Parser) parseAlterGenericOptionList() *nodes.List {
-	elem := p.parseAlterGenericOptionElem()
-	items := []nodes.Node{elem}
-	for p.cur.Type == ',' {
-		p.advance()
-		elem = p.parseAlterGenericOptionElem()
+func (p *Parser) parseAlterGenericOptionList() (*nodes.List, error) {
+	var items []nodes.Node
+	for {
+		elem, err := p.parseAlterGenericOptionElem()
+		if err != nil {
+			return nil, err
+		}
 		items = append(items, elem)
+		if p.cur.Type != ',' {
+			return &nodes.List{Items: items}, nil
+		}
+		p.advance()
 	}
-	return &nodes.List{Items: items}
 }
 
 // parseAlterGenericOptionElem parses alter_generic_option_elem.
@@ -2256,56 +2455,72 @@ func (p *Parser) parseAlterGenericOptionList() *nodes.List {
 //	| SET generic_option_elem
 //	| ADD_P generic_option_elem
 //	| DROP generic_option_name
-func (p *Parser) parseAlterGenericOptionElem() *nodes.DefElem {
+func (p *Parser) parseAlterGenericOptionElem() (*nodes.DefElem, error) {
+	// SET, ADD and DROP are also ColLabels: followed by the Sconst of
+	// generic_option_arg, the keyword is the option's name.
+	if p.peekNext().Type == SCONST {
+		return p.parseGenericOptionElem()
+	}
 	switch p.cur.Type {
-	case SET:
+	case SET, ADD_P:
+		action := nodes.DEFELEM_SET
+		if p.cur.Type == ADD_P {
+			action = nodes.DEFELEM_ADD
+		}
 		p.advance()
-		n := p.parseGenericOptionElem()
-		n.Defaction = int(nodes.DEFELEM_SET)
-		return n
-	case ADD_P:
-		p.advance()
-		n := p.parseGenericOptionElem()
-		n.Defaction = int(nodes.DEFELEM_ADD)
-		return n
+		n, err := p.parseGenericOptionElem()
+		if err != nil {
+			return nil, err
+		}
+		n.Defaction = int(action)
+		return n, nil
 	case DROP:
 		p.advance()
-		name, _ := p.parseColLabel()
+		name, err := p.parseColLabel()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.DefElem{
 			Defname:   name,
 			Defaction: int(nodes.DEFELEM_DROP),
 			Loc:       nodes.NoLoc(),
-		}
+		}, nil
 	default:
 		return p.parseGenericOptionElem()
 	}
 }
 
-// parseGenericOptionElem parses generic_option_elem: generic_option_name generic_option_arg
-func (p *Parser) parseGenericOptionElem() *nodes.DefElem {
-	name, _ := p.parseColLabel()
-	// generic_option_arg is Sconst
-	arg := p.cur.Str
-	p.advance()
-	return &nodes.DefElem{
-		Defname: name,
-		Arg:     &nodes.String{Str: arg},
-		Loc:     nodes.NoLoc(),
-	}
-}
-
-// parseOneSeqOptElem parses a single SeqOptElem using the existing parseSeqOptList.
-func (p *Parser) parseOneSeqOptElem() (*nodes.DefElem, error) {
-	list, err := p.parseSeqOptList()
+// parseGenericOptionElem parses generic_option_elem.
+//
+//	generic_option_elem: generic_option_name generic_option_arg
+//	generic_option_name: ColLabel
+//	generic_option_arg: Sconst
+func (p *Parser) parseGenericOptionElem() (*nodes.DefElem, error) {
+	name, err := p.parseColLabel()
 	if err != nil {
 		return nil, err
 	}
-	if list != nil && len(list.Items) > 0 {
-		if de, ok := list.Items[0].(*nodes.DefElem); ok {
-			return de, nil
-		}
+	arg, err := p.expect(SCONST)
+	if err != nil {
+		return nil, err
 	}
-	// exhaustive-gap fix: no SeqOptElem matched. Previously returned an empty
-	// DefElem which downstream treated as an un-named sequence option.
-	return nil, p.syntaxErrorAtCur()
+	return &nodes.DefElem{
+		Defname: name,
+		Arg:     &nodes.String{Str: arg.Str},
+		Loc:     nodes.NoLoc(),
+	}, nil
+}
+
+// parseOneSeqOptElem parses the single SeqOptElem after SET in
+// alter_identity_column_option. A following option is the next
+// alter_identity_column_option, so it is not read here.
+func (p *Parser) parseOneSeqOptElem() (*nodes.DefElem, error) {
+	elem, err := p.parseSeqOptElem()
+	if err != nil {
+		return nil, err
+	}
+	if elem == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	return elem, nil
 }

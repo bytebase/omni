@@ -89,6 +89,7 @@ var locSpanCases = []struct {
 	{"AlterTableStmt", "ALTER TABLE t ADD COLUMN c INT, DROP COLUMN d", "ALTER TABLE t ADD COLUMN c INT, DROP COLUMN d", 0},
 	{"AlterUserStmt", "ALTER USER USER() 2 FACTOR UNREGISTER", "ALTER USER USER() 2 FACTOR UNREGISTER", 0},
 	{"AlterViewStmt", "ALTER VIEW v AS SELECT 1", "ALTER VIEW v AS SELECT 1", 0},
+	{"AnalyzePersistent", "ANALYZE TABLE t1 PERSISTENT FOR COLUMNS (a) INDEXES ALL", "PERSISTENT FOR COLUMNS (a) INDEXES ALL", 0},
 	{"AnalyzeTableStmt", "ANALYZE TABLE t1", "ANALYZE TABLE t1", 0},
 	{"Assignment", "SET x = 1", "x = 1", 0},
 	{"Assignment", "UPDATE t SET a = 1 WHERE id = 2", "a = 1", 0},

@@ -265,7 +265,10 @@ func (p *Parser) parseStartDispatch() (nodes.Node, error) {
 
 	if p.cur.Type == kwREPLICA || p.cur.Type == kwSLAVE {
 		p.advance() // consume REPLICA or SLAVE
-		return p.parseStartReplicaStmt(start)
+		return p.parseStartReplicaStmt(start, false)
+	}
+	if p.atAllSlaves() {
+		return p.parseStartReplicaStmt(start, true)
 	}
 
 	if p.cur.Type == kwGROUP_REPLICATION {
@@ -289,8 +292,11 @@ func (p *Parser) parseStartDispatch() (nodes.Node, error) {
 	for {
 		if p.cur.Type == kwWITH {
 			p.advance()
-			p.match(kwCONSISTENT)
-			p.match(kwSNAPSHOT)
+			for _, kw := range []int{kwCONSISTENT, kwSNAPSHOT} {
+				if _, err := p.expect(kw); err != nil {
+					return nil, err
+				}
+			}
 			stmt.WithConsistentSnapshot = true
 		} else if p.cur.Type == kwREAD {
 			p.advance()
@@ -298,6 +304,12 @@ func (p *Parser) parseStartDispatch() (nodes.Node, error) {
 				stmt.ReadOnly = true
 			} else if _, ok := p.match(kwWRITE); ok {
 				stmt.ReadWrite = true
+			} else {
+				return nil, p.syntaxErrorAtCur()
+			}
+			// READ ONLY with READ WRITE is the action's syntax error (start, MariaDB 11.8 sql/sql_yacc.yy).
+			if stmt.ReadOnly && stmt.ReadWrite {
+				return nil, p.syntaxErrorAtTok(p.prev)
 			}
 		} else {
 			break
@@ -327,31 +339,40 @@ func (p *Parser) parseResetDispatch() (nodes.Node, error) {
 		return p.parseResetPersistStmt(start)
 	}
 
-	// Fall through to generic RESET (re-assemble the FlushStmt from utility.go)
-	// Options may be multi-word (e.g. RESET QUERY CACHE) or comma-separated.
-	// Require at least one reset option.
-	if p.cur.Type == tokEOF || p.cur.Type == ';' {
+	// reset_option's last arm is QUERY CACHE, both words, and reset_options
+	// is a comma list of reset_option (reset in MariaDB 11.8 sql/sql_yacc.yy).
+	// A list after QUERY CACHE keeps each later option's text.
+	if p.cur.Type != kwQUERY {
 		return nil, p.syntaxErrorAtCur()
 	}
-	stmt := &nodes.FlushStmt{Loc: nodes.Loc{Start: start}}
+	p.advance()
+	if _, err := p.expect(kwCACHE); err != nil {
+		return nil, err
+	}
+	stmt := &nodes.FlushStmt{Loc: nodes.Loc{Start: start}, Options: []string{"QUERY CACHE"}}
 	for {
-		if p.cur.Type == tokEOF || p.cur.Type == ';' {
+		if _, ok := p.match(','); !ok {
 			break
 		}
-		// Reset option words must accept any keyword (e.g., QUERY CACHE).
-		if p.cur.Type == tokIDENT || p.cur.Type >= 700 {
-			name, _, err := p.parseKeywordOrIdent()
-			if err != nil {
+		optStart := p.pos()
+		switch p.cur.Type {
+		case kwQUERY:
+			p.advance()
+			if _, err := p.expect(kwCACHE); err != nil {
 				return nil, err
 			}
-			stmt.Options = append(stmt.Options, name)
-		} else {
-			break
+		case kwMASTER:
+			if _, err := p.parseResetMasterStmt(optStart); err != nil {
+				return nil, err
+			}
+		case kwREPLICA, kwSLAVE:
+			if _, err := p.parseResetReplicaStmt(optStart); err != nil {
+				return nil, err
+			}
+		default:
+			return nil, p.syntaxErrorAtCur()
 		}
-		// Consume optional comma separator between options
-		if p.cur.Type == ',' {
-			p.advance()
-		}
+		stmt.Options = append(stmt.Options, p.inputText(optStart, p.prev.End))
 	}
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
@@ -365,7 +386,10 @@ func (p *Parser) parseStopDispatch() (nodes.Node, error) {
 
 	if p.cur.Type == kwREPLICA || p.cur.Type == kwSLAVE {
 		p.advance() // consume REPLICA or SLAVE
-		return p.parseStopReplicaStmt(start)
+		return p.parseStopReplicaStmt(start, false)
+	}
+	if p.atAllSlaves() {
+		return p.parseStopReplicaStmt(start, true)
 	}
 
 	if p.cur.Type == kwGROUP_REPLICATION {
@@ -387,7 +411,10 @@ func (p *Parser) parseLoadDispatch() (nodes.Node, error) {
 		return p.parseLoadIndexIntoCacheStmt(start)
 	}
 
-	// Fall through to LOAD DATA / LOAD XML
+	// LOAD DATA or LOAD XML (data_or_xml); any other word is a 1064.
+	if p.cur.Type != kwDATA && p.cur.Type != kwXML {
+		return nil, p.syntaxErrorAtCur()
+	}
 	return p.parseLoadDataStmt(start)
 }
 

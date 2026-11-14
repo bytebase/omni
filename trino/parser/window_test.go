@@ -61,28 +61,6 @@ func TestWindow_RejectCorpusRejected(t *testing.T) {
 	}
 }
 
-func TestWindow_OracleDifferential(t *testing.T) {
-	o := connectOracle(t)
-	check := func(t *testing.T, sql string) {
-		_, errs := parseForTest(sql)
-		omniAccepts := len(errs) == 0
-		trinoAccepts, ok := oracleAccepts(t, o, sql)
-		if !ok {
-			t.Skip("oracle unreachable for this case")
-		}
-		if omniAccepts != trinoAccepts {
-			t.Errorf("MISMATCH sql=%q: omni accepts=%v (errs=%v), Trino accepts=%v",
-				sql, omniAccepts, errs, trinoAccepts)
-		}
-	}
-	for _, sql := range windowAcceptCorpus {
-		t.Run("accept/"+truncateName(sql), func(t *testing.T) { check(t, sql) })
-	}
-	for _, sql := range windowRejectCorpus {
-		t.Run("reject/"+truncateName(sql), func(t *testing.T) { check(t, sql) })
-	}
-}
-
 func TestWindow_StructureDefinitions(t *testing.T) {
 	spec := querySpec(t, parseOneQuery(t,
 		"SELECT 1 FROM t WINDOW w1 AS (PARTITION BY a), w2 AS (ORDER BY b ROWS UNBOUNDED PRECEDING)"))
@@ -164,7 +142,7 @@ func TestSelect_DivergenceFlaggedRejected(t *testing.T) {
 
 // TestSelect_DivergenceFlaggedOracleAccepts documents that Trino 481 ACCEPTS each
 // flagged form — confirming the divergence is real (omni rejects, 481 accepts).
-// This is the evidence half of the divergence packet; skipped without an oracle.
+// This is the evidence half of the divergence packet.
 func TestSelect_DivergenceFlaggedOracleAccepts(t *testing.T) {
 	o := connectOracle(t)
 	for _, d := range divergenceFlaggedForms {
@@ -173,7 +151,7 @@ func TestSelect_DivergenceFlaggedOracleAccepts(t *testing.T) {
 			defer cancel()
 			res, err := o.CheckSyntax(ctx, d.sql)
 			if err != nil {
-				t.Skip("oracle unreachable for this case")
+				t.Fatalf("Trino gave no answer for %q: %v", d.sql, err)
 			}
 			if !res.Accepted {
 				t.Errorf("Trino 481 REJECTED %q (errorName=%s); the divergence assumes 481 accepts it — re-check the ledger",

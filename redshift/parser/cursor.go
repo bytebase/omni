@@ -19,19 +19,25 @@ func (p *Parser) parseDeclareCursorStmt() (*nodes.DeclareCursorStmt, error) {
 		return nil, err
 	}
 
-	options := p.parseCursorOptions()
+	options, err := p.parseCursorOptions()
+	if err != nil {
+		return nil, err
+	}
 
 	if _, err := p.expect(CURSOR); err != nil {
 		return nil, err
 	}
 
-	hold := p.parseOptHold()
+	hold, err := p.parseOptHold()
+	if err != nil {
+		return nil, err
+	}
 
 	if _, err := p.expect(FOR); err != nil {
 		return nil, err
 	}
 
-	query, err := p.parseSelectNoParens()
+	query, err := p.parseRequiredSelectNoParens()
 	if err != nil {
 		return nil, err
 	}
@@ -53,13 +59,15 @@ func (p *Parser) parseDeclareCursorStmt() (*nodes.DeclareCursorStmt, error) {
 //	    | cursor_options BINARY
 //	    | cursor_options ASENSITIVE
 //	    | cursor_options INSENSITIVE
-func (p *Parser) parseCursorOptions() int {
+func (p *Parser) parseCursorOptions() (int, error) {
 	opts := 0
 	for {
 		switch p.cur.Type {
 		case NO:
 			p.advance() // consume NO
-			p.expect(SCROLL)
+			if _, err := p.expect(SCROLL); err != nil {
+				return 0, err
+			}
 			opts |= nodes.CURSOR_OPT_NO_SCROLL
 		case SCROLL:
 			p.advance()
@@ -74,7 +82,7 @@ func (p *Parser) parseCursorOptions() int {
 			p.advance()
 			opts |= nodes.CURSOR_OPT_INSENSITIVE
 		default:
-			return opts
+			return opts, nil
 		}
 	}
 }
@@ -85,18 +93,21 @@ func (p *Parser) parseCursorOptions() int {
 //	    /* EMPTY */
 //	    | WITH HOLD
 //	    | WITHOUT HOLD
-func (p *Parser) parseOptHold() int {
-	if p.cur.Type == WITH {
+func (p *Parser) parseOptHold() (int, error) {
+	switch p.cur.Type {
+	case WITH:
 		p.advance() // consume WITH
-		p.expect(HOLD)
-		return nodes.CURSOR_OPT_HOLD
-	}
-	if p.cur.Type == WITHOUT {
+		if _, err := p.expect(HOLD); err != nil {
+			return 0, err
+		}
+		return nodes.CURSOR_OPT_HOLD, nil
+	case WITHOUT:
 		p.advance() // consume WITHOUT
-		p.expect(HOLD)
-		return 0
+		if _, err := p.expect(HOLD); err != nil {
+			return 0, err
+		}
 	}
-	return 0
+	return 0, nil
 }
 
 // parseFetchStmt parses a FETCH or MOVE statement.
@@ -126,6 +137,14 @@ func (p *Parser) parseFetchStmt() (*nodes.FetchStmt, error) {
 //
 // Ref: gram.y fetch_args
 func (p *Parser) parseFetchArgs() (*nodes.FetchStmt, error) {
+	// A direction keyword with nothing after it names the cursor: fetch_args: cursor_name.
+	if p.cur.Type != IDENT && !p.collectMode() && p.isColId() && !p.keywordLeads(func(t Token) bool { return !isStmtEndToken(t) }) {
+		name, err := p.parseCursorName()
+		if err != nil {
+			return nil, err
+		}
+		return &nodes.FetchStmt{Direction: nodes.FETCH_FORWARD, HowMany: 1, Portalname: name}, nil
+	}
 	switch p.cur.Type {
 	case NEXT:
 		p.advance() // consume NEXT
@@ -181,7 +200,10 @@ func (p *Parser) parseFetchArgs() (*nodes.FetchStmt, error) {
 
 	case ABSOLUTE_P:
 		p.advance() // consume ABSOLUTE
-		howMany := p.parseSignedIconst()
+		howMany, err := p.parseFetchSignedIconst()
+		if err != nil {
+			return nil, err
+		}
 		p.parseOptFromIn()
 		name, err := p.parseCursorName()
 		if err != nil {
@@ -195,7 +217,10 @@ func (p *Parser) parseFetchArgs() (*nodes.FetchStmt, error) {
 
 	case RELATIVE_P:
 		p.advance() // consume RELATIVE
-		howMany := p.parseSignedIconst()
+		howMany, err := p.parseFetchSignedIconst()
+		if err != nil {
+			return nil, err
+		}
 		p.parseOptFromIn()
 		name, err := p.parseCursorName()
 		if err != nil {
@@ -237,7 +262,10 @@ func (p *Parser) parseFetchArgs() (*nodes.FetchStmt, error) {
 			}, nil
 		}
 		if p.cur.Type == ICONST || p.cur.Type == '+' || p.cur.Type == '-' {
-			howMany := p.parseSignedIconst()
+			howMany, err := p.parseFetchSignedIconst()
+			if err != nil {
+				return nil, err
+			}
 			p.parseOptFromIn()
 			name, err := p.parseCursorName()
 			if err != nil {
@@ -278,7 +306,10 @@ func (p *Parser) parseFetchArgs() (*nodes.FetchStmt, error) {
 			}, nil
 		}
 		if p.cur.Type == ICONST || p.cur.Type == '+' || p.cur.Type == '-' {
-			howMany := p.parseSignedIconst()
+			howMany, err := p.parseFetchSignedIconst()
+			if err != nil {
+				return nil, err
+			}
 			p.parseOptFromIn()
 			name, err := p.parseCursorName()
 			if err != nil {
@@ -317,7 +348,10 @@ func (p *Parser) parseFetchArgs() (*nodes.FetchStmt, error) {
 
 	case ICONST, '+', '-':
 		// SignedIconst opt_from_in cursor_name
-		howMany := p.parseSignedIconst()
+		howMany, err := p.parseFetchSignedIconst()
+		if err != nil {
+			return nil, err
+		}
 		p.parseOptFromIn()
 		name, err := p.parseCursorName()
 		if err != nil {
@@ -341,6 +375,23 @@ func (p *Parser) parseFetchArgs() (*nodes.FetchStmt, error) {
 			Portalname: name,
 		}, nil
 	}
+}
+
+// parseFetchSignedIconst parses the SignedIconst that ABSOLUTE and RELATIVE
+// require, failing where none is.
+//
+//	SignedIconst: Iconst | '+' Iconst | '-' Iconst
+func (p *Parser) parseFetchSignedIconst() (int64, error) {
+	if !p.collectMode() {
+		tok := p.cur
+		if tok.Type == '+' || tok.Type == '-' {
+			tok = p.peekNext()
+		}
+		if tok.Type != ICONST {
+			return 0, p.syntaxErrorAtTok(tok)
+		}
+	}
+	return p.parseSignedIconst(), nil
 }
 
 // parseOptFromIn parses opt_from_in (optional FROM or IN).

@@ -43,6 +43,14 @@ func (p *Parser) parseAExpr(minPrec int) (nodes.Node, error) {
 	if left == nil {
 		return nil, nil
 	}
+	return p.parseAExprTail(left, loc, minPrec)
+}
+
+// parseAExprTail applies to left, an a_expr operand that starts at loc,
+// the infix and postfix operators of precedence minPrec or higher that
+// follow it, as parseAExpr does after its operand.
+func (p *Parser) parseAExprTail(left nodes.Node, loc, minPrec int) (nodes.Node, error) {
+	var err error
 	for {
 		if p.collectMode() {
 			// Emit all infix operators with precedence >= minPrec.
@@ -65,6 +73,21 @@ func (p *Parser) parseAExpr(minPrec int) (nodes.Node, error) {
 	return left, nil
 }
 
+// parseRequiredAExpr parses an a_expr at a position where gram.y requires
+// one. parseAExpr answers (nil, nil) when no expression starts at the current
+// token; here that is a syntax error at that token. In collect mode it
+// returns what parseAExpr gave, so completion goes on past the position.
+func (p *Parser) parseRequiredAExpr(minPrec int) (nodes.Node, error) {
+	n, err := p.parseAExpr(minPrec)
+	if err != nil {
+		return nil, err
+	}
+	if n == nil && !p.collectMode() {
+		return nil, p.syntaxErrorAtCur()
+	}
+	return n, nil
+}
+
 // aExprInfixPrec returns the infix/postfix precedence of the current token
 // in an a_expr context. Returns precNone if the token is not an infix operator.
 func (p *Parser) aExprInfixPrec() int {
@@ -81,8 +104,6 @@ func (p *Parser) aExprInfixPrec() int {
 		return precComparison
 	case BETWEEN, IN_P, LIKE, ILIKE, SIMILAR:
 		return precIn
-	case OVERLAPS:
-		return precComparison
 	case NOT_LA:
 		return precIn
 	case Op, OPERATOR:
@@ -111,7 +132,9 @@ func (p *Parser) aExprInfixPrec() int {
 func (p *Parser) parseAExprAtom() (nodes.Node, error) {
 	loc := p.pos()
 	switch p.cur.Type {
-	case NOT:
+	case NOT, NOT_LA:
+		// a_expr: NOT a_expr | NOT_LA a_expr %prec NOT. The lexer makes
+		// NOT before BETWEEN, IN, LIKE, ILIKE or SIMILAR a NOT_LA.
 		p.advance()
 		arg, err := p.parseAExpr(precNot)
 		if err != nil {
@@ -129,7 +152,7 @@ func (p *Parser) parseAExprAtom() (nodes.Node, error) {
 	case '+':
 		// Unary plus: just return the operand (yacc does the same)
 		p.advance()
-		return p.parseAExpr(precUnary)
+		return p.parseRequiredAExpr(precUnary)
 	case '-':
 		// Unary minus
 		p.advance()
@@ -163,9 +186,140 @@ func (p *Parser) parseAExprAtom() (nodes.Node, error) {
 		}
 		setNodeLoc(n, loc, p.prev.End)
 		return n, nil
+	case UNIQUE:
+		return p.parseUniquePredicate()
+	case OPERATOR:
+		// OPERATOR is an unreserved keyword: before any token but '('
+		// it is a column name.
+		if p.peekNext().Type != '(' {
+			return p.parseCExpr()
+		}
+		return p.parseQualOpPrefix(p.parseAExpr)
 	default:
-		return p.parseCExpr()
+		n, err := p.parseCExpr()
+		if err != nil || n == nil {
+			return n, err
+		}
+		if p.cur.Type == OVERLAPS && p.isRowHere(n) {
+			return p.parseOverlaps(n, loc)
+		}
+		return n, nil
 	}
+}
+
+// isRowHere reports whether n, the c_expr that ends at the previous token,
+// is a row production (gram.y row: explicit_row or implicit_row) rather than
+// a parenthesized expression or anything else.
+func (p *Parser) isRowHere(n nodes.Node) bool {
+	return n == p.lastRow && p.prev.End == p.lastRowEnd
+}
+
+// markRow records row, a row production that ends at the previous token,
+// for isRowHere.
+func (p *Parser) markRow(row nodes.Node) nodes.Node {
+	p.lastRow, p.lastRowEnd = row, p.prev.End
+	return row
+}
+
+// parseOverlaps parses the OVERLAPS that follows left, a row starting at
+// loc, and the row after it. Both rows are rows, not a_exprs, so OVERLAPS
+// applies before any operator around them.
+//
+//	a_expr: row OVERLAPS row
+//
+// gram.y's action takes only rows of two elements.
+func (p *Parser) parseOverlaps(left nodes.Node, loc int) (nodes.Node, error) {
+	p.advance() // OVERLAPS
+	rloc := p.pos()
+	switch {
+	case p.cur.Type == ROW && p.peekNext().Type != '(':
+		p.advance()
+		return nil, p.syntaxErrorAtCur()
+	case p.cur.Type != ROW && p.cur.Type != '(' && !p.collectMode():
+		return nil, p.syntaxErrorAtCur()
+	}
+	right, err := p.parseCExpr()
+	if err != nil {
+		return nil, err
+	}
+	if !p.isRowHere(right) {
+		if right == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		return nil, p.syntaxErrorAtTok(p.prev)
+	}
+	if args := left.(*nodes.RowExpr).Args; args == nil || len(args.Items) != 2 {
+		return nil, &ParseError{Message: "wrong number of parameters on left side of OVERLAPS expression", Position: loc}
+	}
+	if args := right.(*nodes.RowExpr).Args; args == nil || len(args.Items) != 2 {
+		return nil, &ParseError{Message: "wrong number of parameters on right side of OVERLAPS expression", Position: rloc}
+	}
+	n := &nodes.A_Expr{
+		Kind:  nodes.AEXPR_OVERLAPS,
+		Name:  &nodes.List{Items: []nodes.Node{&nodes.String{Str: "OVERLAPS"}}},
+		Lexpr: left,
+		Rexpr: right,
+	}
+	setNodeLoc(n, loc, p.prev.End)
+	return n, nil
+}
+
+// parseUniquePredicate parses the UNIQUE predicate, which gram.y reads and
+// then refuses, as PostgreSQL does not implement it (SQLSTATE 0A000, at
+// UNIQUE):
+//
+//	a_expr: UNIQUE opt_unique_null_treatment select_with_parens
+//	opt_unique_null_treatment: NULLS_P DISTINCT | NULLS_P NOT DISTINCT | /*EMPTY*/
+func (p *Parser) parseUniquePredicate() (nodes.Node, error) {
+	loc := p.pos()
+	p.advance() // UNIQUE
+	if p.cur.Type == NULLS_P {
+		p.advance()
+		if p.cur.Type == NOT {
+			p.advance()
+		}
+		if _, err := p.expect(DISTINCT); err != nil {
+			return nil, err
+		}
+	}
+	stmt, err := p.parseSelectWithParens()
+	if err != nil {
+		return nil, err
+	}
+	if stmt == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	return nil, &ParseError{Code: "0A000", Message: "UNIQUE predicate is not yet implemented", Position: loc}
+}
+
+// parseQualOpPrefix parses a prefix operator in qual_Op's
+// OPERATOR '(' any_operator ')' form and its operand, read by operand:
+//
+//	a_expr: qual_Op a_expr %prec Op
+//	b_expr: qual_Op b_expr %prec Op
+func (p *Parser) parseQualOpPrefix(operand func(int) (nodes.Node, error)) (nodes.Node, error) {
+	loc := p.pos()
+	p.advance() // OPERATOR
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	opName, err := p.parseAnyOperator()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	arg, err := operand(precOp + 1)
+	if err != nil {
+		return nil, err
+	}
+	if arg == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	n := &nodes.A_Expr{Kind: nodes.AEXPR_OP, Name: opName, Rexpr: arg}
+	setNodeLoc(n, loc, p.prev.End)
+	return n, nil
 }
 
 // parseAExprInfix handles an infix or postfix operator in a_expr.
@@ -272,22 +426,6 @@ func (p *Parser) parseAExprInfix(left nodes.Node, prec int) (nodes.Node, error) 
 		return p.parseIlikeExpr(left, false)
 	case SIMILAR:
 		return p.parseSimilarExpr(left, false)
-	case OVERLAPS:
-		// pg: src/backend/parser/gram.y — a_expr OVERLAPS a_expr
-		p.advance()
-		right, err := p.parseAExpr(prec + 1)
-		if err != nil {
-			return nil, err
-		}
-		if right == nil {
-			return nil, p.syntaxErrorAtCur()
-		}
-		return &nodes.A_Expr{
-			Kind:  nodes.AEXPR_OVERLAPS,
-			Name:  &nodes.List{Items: []nodes.Node{&nodes.String{Str: "OVERLAPS"}}},
-			Lexpr: left,
-			Rexpr: right,
-		}, nil
 	case NOT_LA:
 		// NOT_LA means NOT followed by BETWEEN/IN/LIKE/ILIKE/SIMILAR
 		p.advance() // consume NOT
@@ -490,7 +628,7 @@ func (p *Parser) parseIsPostfix(left nodes.Node) (nodes.Node, error) {
 		return xmlExpr, nil
 	case JSON:
 		// IS [NOT] JSON [VALUE|ARRAY|OBJECT|SCALAR] [WITH UNIQUE [KEYS]]
-		return p.parseJsonIsPredicate(left, negated), nil
+		return p.parseJsonIsPredicate(left, negated)
 	case NORMALIZED:
 		// IS [NOT] NORMALIZED (default NFC form)
 		p.advance()
@@ -510,7 +648,10 @@ func (p *Parser) parseIsPostfix(left nodes.Node) (nodes.Node, error) {
 		return fc, nil
 	case NFC, NFD, NFKC, NFKD:
 		// IS [NOT] NFC/NFD/NFKC/NFKD NORMALIZED
-		form := p.parseUnicodeNormalForm()
+		form, err := p.parseUnicodeNormalForm()
+		if err != nil {
+			return nil, err
+		}
 		if _, err := p.expect(NORMALIZED); err != nil {
 			return nil, err
 		}
@@ -529,7 +670,11 @@ func (p *Parser) parseIsPostfix(left nodes.Node) (nodes.Node, error) {
 		}
 		return fc, nil
 	default:
-		return left, nil
+		if p.collectMode() {
+			return left, nil
+		}
+		// gram.y has no other a_expr IS form.
+		return nil, p.syntaxErrorAtCur()
 	}
 }
 
@@ -1087,7 +1232,7 @@ func (p *Parser) parseSubqueryOp(left nodes.Node, opName *nodes.List) (nodes.Nod
 	}
 
 	// ANY/ALL (expr) -- array form
-	expr, err := p.parseAExpr(0)
+	expr, err := p.parseRequiredAExpr(0)
 	if err != nil {
 		return nil, err
 	}
@@ -1170,7 +1315,7 @@ func (p *Parser) parseSubscript(left nodes.Node) (nodes.Node, error) {
 		}, nil
 	}
 
-	idx, err := p.parseAExpr(0)
+	idx, err := p.parseRequiredAExpr(0)
 	if err != nil {
 		return nil, err
 	}
@@ -1240,13 +1385,25 @@ func (p *Parser) parseBExpr(minPrec int) (nodes.Node, error) {
 	return left, nil
 }
 
+// parseRequiredBExpr is parseRequiredAExpr for a b_expr.
+func (p *Parser) parseRequiredBExpr(minPrec int) (nodes.Node, error) {
+	n, err := p.parseBExpr(minPrec)
+	if err != nil {
+		return nil, err
+	}
+	if n == nil && !p.collectMode() {
+		return nil, p.syntaxErrorAtCur()
+	}
+	return n, nil
+}
+
 // parseBExprAtom handles prefix operators for b_expr.
 func (p *Parser) parseBExprAtom() (nodes.Node, error) {
 	loc := p.pos()
 	switch p.cur.Type {
 	case '+':
 		p.advance()
-		return p.parseBExpr(precUnary)
+		return p.parseRequiredBExpr(precUnary)
 	case '-':
 		p.advance()
 		arg, err := p.parseBExpr(precUnary)
@@ -1274,6 +1431,11 @@ func (p *Parser) parseBExprAtom() (nodes.Node, error) {
 		}
 		setNodeLoc(n, loc, p.prev.End)
 		return n, nil
+	case OPERATOR:
+		if p.peekNext().Type != '(' {
+			return p.parseCExpr()
+		}
+		return p.parseQualOpPrefix(p.parseBExpr)
 	default:
 		return p.parseCExpr()
 	}
@@ -1346,7 +1508,16 @@ func (p *Parser) parseBExprInfix(left nodes.Node, prec int) (nodes.Node, error) 
 			}
 			return xmlExpr, nil
 		}
-		return left, nil
+		// b_expr takes IS [NOT] DISTINCT FROM and IS [NOT] DOCUMENT only.
+		if p.collectMode() {
+			p.addTokenCandidate(DISTINCT)
+			p.addTokenCandidate(DOCUMENT_P)
+			if !negated {
+				p.addTokenCandidate(NOT)
+			}
+			return nil, errCollecting
+		}
+		return nil, p.syntaxErrorAtCur()
 	case '<', '>', '=':
 		tok := p.advance()
 		right, err := p.parseBExpr(prec + 1)
@@ -1521,6 +1692,9 @@ func (p *Parser) parseCExprInner() (nodes.Node, error) {
 		})
 		return nil, errCollecting
 	}
+	if p.startsColNameKeywordColumnRef() {
+		return p.parseColumnRefOrFuncCall()
+	}
 	switch p.cur.Type {
 	// --- Constants ---
 	case ICONST:
@@ -1613,6 +1787,11 @@ func (p *Parser) parseCExprInner() (nodes.Node, error) {
 	case GROUPING:
 		return p.parseGroupingExpr()
 	case COLLATION:
+		// COLLATION FOR '(' a_expr ')'; before '(' COLLATION, a
+		// type_func_name_keyword, is a func_name (gram.y func_name).
+		if p.peekNext().Type == '(' {
+			return p.parseTypeFuncNameCall()
+		}
 		return p.parseCollationForExpr()
 	case TREAT:
 		return p.parseTreatExpr()
@@ -1713,18 +1892,29 @@ func (p *Parser) parseCExprInner() (nodes.Node, error) {
 		if p.isColId() {
 			return p.parseColumnRefOrFuncCall()
 		}
-		if p.isTypeFunctionName() && p.peekNext().Type == '(' {
-			loc := p.pos()
-			name, err := p.parseTypeFunctionName()
-			if err != nil {
-				return nil, err
-			}
-			funcName := &nodes.List{Items: []nodes.Node{&nodes.String{Str: name}}}
-			return p.parseFuncApplication(funcName, loc)
-		}
+		return p.parseTypeFuncNameCall()
 	}
+}
 
-	return nil, nil
+// parseTypeFuncNameCall parses the func_application or AexprConst a
+// type_func_name_keyword leads as a func_name (gram.y func_name:
+// type_function_name), as in SELECT collation(a). A c_expr starts at no
+// such keyword but as a func_name, so '(' must follow it: SELECT is is a
+// syntax error at the token after IS.
+func (p *Parser) parseTypeFuncNameCall() (nodes.Node, error) {
+	if !p.isTypeFunctionName() {
+		return nil, nil
+	}
+	loc := p.pos()
+	name, err := p.parseTypeFunctionName()
+	if err != nil {
+		return nil, err
+	}
+	if p.cur.Type != '(' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	funcName := &nodes.List{Items: []nodes.Node{&nodes.String{Str: name}}}
+	return p.parseFuncApplicationOrConst(funcName, loc)
 }
 
 // parseParenExprOrRow handles '(' ... ')' which could be:
@@ -1755,7 +1945,10 @@ func (p *Parser) parseParenExprOrRow() (nodes.Node, error) {
 		if p.cur.Type == '.' || p.cur.Type == '[' {
 			indirStart := p.pos()
 			indir, err := p.parseIndirection()
-			if err == nil && indir != nil && len(indir.Items) > 0 {
+			if err != nil {
+				return nil, err
+			}
+			if indir != nil && len(indir.Items) > 0 {
 				sub := &nodes.SubLink{
 					SubLinkType: int(nodes.EXPR_SUBLINK),
 					Subselect:   subquery,
@@ -1796,15 +1989,11 @@ func (p *Parser) parseParenExprOrRow() (nodes.Node, error) {
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
-		if len(items) < 2 {
-			// Single element + trailing comma should not happen but handle gracefully
-			return first, nil
-		}
-		return &nodes.RowExpr{
+		return p.markRow(&nodes.RowExpr{
 			Args:      &nodes.List{Items: items},
 			RowFormat: nodes.COERCE_IMPLICIT_CAST,
 			Loc:       nodes.NoLoc(),
-		}, nil
+		}), nil
 	}
 
 	// Parenthesized expression
@@ -1979,24 +2168,29 @@ func (p *Parser) parseCaseExpr() (nodes.Node, error) {
 	var caseArg nodes.Node
 	if p.cur.Type != WHEN {
 		var err error
-		caseArg, err = p.parseAExpr(0)
+		caseArg, err = p.parseRequiredAExpr(0)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	// Parse WHEN clauses
+	// Parse WHEN clauses: when_clause_list holds one at least.
 	var whens []nodes.Node
+	if p.cur.Type != WHEN {
+		if _, err := p.expect(WHEN); err != nil {
+			return nil, err
+		}
+	}
 	for p.cur.Type == WHEN {
 		p.advance() // consume WHEN
-		expr, err := p.parseAExpr(0)
+		expr, err := p.parseRequiredAExpr(0)
 		if err != nil {
 			return nil, err
 		}
 		if _, err := p.expect(THEN); err != nil {
 			return nil, err
 		}
-		result, err := p.parseAExpr(0)
+		result, err := p.parseRequiredAExpr(0)
 		if err != nil {
 			return nil, err
 		}
@@ -2012,7 +2206,7 @@ func (p *Parser) parseCaseExpr() (nodes.Node, error) {
 	if p.cur.Type == ELSE {
 		p.advance()
 		var err error
-		defResult, err = p.parseAExpr(0)
+		defResult, err = p.parseRequiredAExpr(0)
 		if err != nil {
 			return nil, err
 		}
@@ -2041,10 +2235,10 @@ func (p *Parser) parseExplicitRow() (nodes.Node, error) {
 
 	if p.cur.Type == ')' {
 		p.advance()
-		return &nodes.RowExpr{
+		return p.markRow(&nodes.RowExpr{
 			RowFormat: nodes.COERCE_EXPLICIT_CALL,
 			Loc:       nodes.NoLoc(),
-		}, nil
+		}), nil
 	}
 
 	exprs, err := p.parseExprListFull()
@@ -2054,11 +2248,11 @@ func (p *Parser) parseExplicitRow() (nodes.Node, error) {
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
-	return &nodes.RowExpr{
+	return p.markRow(&nodes.RowExpr{
 		Args:      exprs,
 		RowFormat: nodes.COERCE_EXPLICIT_CALL,
 		Loc:       nodes.NoLoc(),
-	}, nil
+	}), nil
 }
 
 // ---------------------------------------------------------------------------
@@ -2070,7 +2264,7 @@ func (p *Parser) parseCastExpr() (nodes.Node, error) {
 	if _, err := p.expect('('); err != nil {
 		return nil, err
 	}
-	arg, err := p.parseAExpr(0)
+	arg, err := p.parseRequiredAExpr(0)
 	if err != nil {
 		return nil, err
 	}
@@ -2125,14 +2319,14 @@ func (p *Parser) parseNullIfExpr() (nodes.Node, error) {
 	if _, err := p.expect('('); err != nil {
 		return nil, err
 	}
-	left, err := p.parseAExpr(0)
+	left, err := p.parseRequiredAExpr(0)
 	if err != nil {
 		return nil, err
 	}
 	if _, err := p.expect(','); err != nil {
 		return nil, err
 	}
-	right, err := p.parseAExpr(0)
+	right, err := p.parseRequiredAExpr(0)
 	if err != nil {
 		return nil, err
 	}
@@ -2154,21 +2348,14 @@ func (p *Parser) parseExtractExpr() (nodes.Node, error) {
 		return nil, err
 	}
 
-	if p.cur.Type == ')' {
-		// EXTRACT() with no args
-		p.advance()
-		return &nodes.FuncCall{
-			Funcname:   makeFuncName("pg_catalog", "extract"),
-			FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-			Loc:        nodes.NoLoc(),
-		}, nil
+	field, err := p.parseExtractArg()
+	if err != nil {
+		return nil, err
 	}
-
-	field := p.parseExtractArg()
 	if _, err := p.expect(FROM); err != nil {
 		return nil, err
 	}
-	expr, err := p.parseAExpr(0)
+	expr, err := p.parseRequiredAExpr(0)
 	if err != nil {
 		return nil, err
 	}
@@ -2185,33 +2372,33 @@ func (p *Parser) parseExtractExpr() (nodes.Node, error) {
 }
 
 // parseExtractArg parses extract field names.
-func (p *Parser) parseExtractArg() string {
+//
+//	extract_arg: IDENT | YEAR_P | MONTH_P | DAY_P | HOUR_P | MINUTE_P | SECOND_P | Sconst
+func (p *Parser) parseExtractArg() (string, error) {
 	switch p.cur.Type {
 	case YEAR_P:
 		p.advance()
-		return "year"
+		return "year", nil
 	case MONTH_P:
 		p.advance()
-		return "month"
+		return "month", nil
 	case DAY_P:
 		p.advance()
-		return "day"
+		return "day", nil
 	case HOUR_P:
 		p.advance()
-		return "hour"
+		return "hour", nil
 	case MINUTE_P:
 		p.advance()
-		return "minute"
+		return "minute", nil
 	case SECOND_P:
 		p.advance()
-		return "second"
-	case SCONST:
+		return "second", nil
+	case SCONST, IDENT:
 		tok := p.advance()
-		return tok.Str
+		return tok.Str, nil
 	default:
-		// IDENT
-		tok := p.advance()
-		return tok.Str
+		return "", p.syntaxErrorAtCur()
 	}
 }
 
@@ -2221,14 +2408,17 @@ func (p *Parser) parseNormalizeExpr() (nodes.Node, error) {
 	if _, err := p.expect('('); err != nil {
 		return nil, err
 	}
-	expr, err := p.parseAExpr(0)
+	expr, err := p.parseRequiredAExpr(0)
 	if err != nil {
 		return nil, err
 	}
 
 	if p.cur.Type == ',' {
 		p.advance()
-		form := p.parseUnicodeNormalForm()
+		form, err := p.parseUnicodeNormalForm()
+		if err != nil {
+			return nil, err
+		}
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
@@ -2252,23 +2442,22 @@ func (p *Parser) parseNormalizeExpr() (nodes.Node, error) {
 }
 
 // parseUnicodeNormalForm parses NFC | NFD | NFKC | NFKD.
-func (p *Parser) parseUnicodeNormalForm() string {
+func (p *Parser) parseUnicodeNormalForm() (string, error) {
 	switch p.cur.Type {
 	case NFC:
 		p.advance()
-		return "NFC"
+		return "NFC", nil
 	case NFD:
 		p.advance()
-		return "NFD"
+		return "NFD", nil
 	case NFKC:
 		p.advance()
-		return "NFKC"
+		return "NFKC", nil
 	case NFKD:
 		p.advance()
-		return "NFKD"
+		return "NFKD", nil
 	default:
-		tok := p.advance()
-		return tok.Str
+		return "", p.syntaxErrorAtCur()
 	}
 }
 
@@ -2279,28 +2468,44 @@ func (p *Parser) parseOverlayExpr() (nodes.Node, error) {
 		return nil, err
 	}
 
+	// OVERLAY '(' func_arg_list_opt ')' with an empty list.
+	if p.cur.Type == ')' {
+		p.advance()
+		return &nodes.FuncCall{
+			Funcname:   makeFuncName("overlay"),
+			FuncFormat: int(nodes.COERCE_EXPLICIT_CALL),
+			Loc:        nodes.NoLoc(),
+		}, nil
+	}
+
+	// OVERLAY '(' func_arg_list_opt ')' with a named argument first: the
+	// SQL-standard form starts with an a_expr.
+	if p.startsNamedFuncArg() {
+		return p.parseSpecialFuncArgCall("overlay")
+	}
+
 	// Try SQL-standard syntax: a_expr PLACING a_expr FROM a_expr [FOR a_expr]
-	first, err := p.parseAExpr(0)
+	first, err := p.parseRequiredAExpr(0)
 	if err != nil {
 		return nil, err
 	}
 	if p.cur.Type == PLACING {
 		p.advance()
-		second, err := p.parseAExpr(0)
+		second, err := p.parseRequiredAExpr(0)
 		if err != nil {
 			return nil, err
 		}
 		if _, err := p.expect(FROM); err != nil {
 			return nil, err
 		}
-		third, err := p.parseAExpr(0)
+		third, err := p.parseRequiredAExpr(0)
 		if err != nil {
 			return nil, err
 		}
 		args := []nodes.Node{first, second, third}
 		if p.cur.Type == FOR {
 			p.advance()
-			fourth, err := p.parseAExpr(0)
+			fourth, err := p.parseRequiredAExpr(0)
 			if err != nil {
 				return nil, err
 			}
@@ -2344,55 +2549,27 @@ func (p *Parser) parsePositionExpr() (nodes.Node, error) {
 	if _, err := p.expect('('); err != nil {
 		return nil, err
 	}
-
-	if p.cur.Type == ')' {
-		p.advance()
-		return &nodes.FuncCall{
-			Funcname:   makeFuncName("pg_catalog", "position"),
-			FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-			Loc:        nodes.NoLoc(),
-		}, nil
-	}
-
-	first, err := p.parseBExpr(0)
+	// position_list: b_expr IN_P b_expr. POSITION is a col_name_keyword,
+	// so it takes no other argument list.
+	first, err := p.parseRequiredBExpr(0)
 	if err != nil {
 		return nil, err
 	}
-	if p.cur.Type == IN_P {
-		p.advance()
-		second, err := p.parseBExpr(0)
-		if err != nil {
-			return nil, err
-		}
-		if _, err := p.expect(')'); err != nil {
-			return nil, err
-		}
-		// Note: PG reverses the arguments
-		return &nodes.FuncCall{
-			Funcname:   makeFuncName("pg_catalog", "position"),
-			Args:       &nodes.List{Items: []nodes.Node{second, first}},
-			FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-			Loc:        nodes.NoLoc(),
-		}, nil
+	if _, err := p.expect(IN_P); err != nil {
+		return nil, err
 	}
-
-	// Function-call syntax
-	args := []nodes.Node{first}
-	for p.cur.Type == ',' {
-		p.advance()
-		arg, err := p.parseFuncArgExpr()
-		if err != nil {
-			return nil, err
-		}
-		args = append(args, arg)
+	second, err := p.parseRequiredBExpr(0)
+	if err != nil {
+		return nil, err
 	}
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
+	// Note: PG reverses the arguments
 	return &nodes.FuncCall{
-		Funcname:   makeFuncName("position"),
-		Args:       &nodes.List{Items: args},
-		FuncFormat: int(nodes.COERCE_EXPLICIT_CALL),
+		Funcname:   makeFuncName("pg_catalog", "position"),
+		Args:       &nodes.List{Items: []nodes.Node{second, first}},
+		FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
 		Loc:        nodes.NoLoc(),
 	}, nil
 }
@@ -2404,34 +2581,52 @@ func (p *Parser) parseSubstringExpr() (nodes.Node, error) {
 		return nil, err
 	}
 
+	// SUBSTRING '(' func_arg_list_opt ')' with an empty list: a plain call.
 	if p.cur.Type == ')' {
 		p.advance()
 		return &nodes.FuncCall{
-			Funcname:   makeFuncName("pg_catalog", "substring"),
-			FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
+			Funcname:   makeFuncName("substring"),
+			FuncFormat: int(nodes.COERCE_EXPLICIT_CALL),
 			Loc:        nodes.NoLoc(),
 		}, nil
+	}
+
+	// SUBSTRING '(' func_arg_list_opt ')' with a named argument first.
+	if p.startsNamedFuncArg() {
+		return p.parseSpecialFuncArgCall("substring")
 	}
 
 	// substr_list has a special `a_expr SIMILAR a_expr ESCAPE a_expr`
 	// alternative. In the general expression grammar SIMILAR also starts the
 	// `SIMILAR TO` operator, so stop before precIn operators here and let the
 	// substring-specific branch below consume SIMILAR as a delimiter.
-	first, err := p.parseAExpr(precIn + 1)
+	firstLoc := p.pos()
+	first, err := p.parseRequiredAExpr(precIn + 1)
 	if err != nil {
 		return nil, err
+	}
+	// Anything but substr_list's delimiters continues the first argument as
+	// a full a_expr: SUBSTRING '(' func_arg_list_opt ')' takes one
+	// (substring(true OR false) calls a user function).
+	switch {
+	case p.cur.Type == FROM, p.cur.Type == FOR, p.cur.Type == ',', p.cur.Type == ')':
+	case p.cur.Type == SIMILAR && p.peekNext().Type != TO:
+	default:
+		if first, err = p.parseAExprTail(first, firstLoc, 0); err != nil {
+			return nil, err
+		}
 	}
 
 	// Check for SQL-standard syntax with FROM/FOR/SIMILAR
 	if p.cur.Type == FROM {
 		p.advance()
-		second, err := p.parseAExpr(0)
+		second, err := p.parseRequiredAExpr(0)
 		if err != nil {
 			return nil, err
 		}
 		if p.cur.Type == FOR {
 			p.advance()
-			third, err := p.parseAExpr(0)
+			third, err := p.parseRequiredAExpr(0)
 			if err != nil {
 				return nil, err
 			}
@@ -2458,13 +2653,13 @@ func (p *Parser) parseSubstringExpr() (nodes.Node, error) {
 
 	if p.cur.Type == FOR {
 		p.advance()
-		second, err := p.parseAExpr(0)
+		second, err := p.parseRequiredAExpr(0)
 		if err != nil {
 			return nil, err
 		}
 		if p.cur.Type == FROM {
 			p.advance()
-			third, err := p.parseAExpr(0)
+			third, err := p.parseRequiredAExpr(0)
 			if err != nil {
 				return nil, err
 			}
@@ -2491,14 +2686,14 @@ func (p *Parser) parseSubstringExpr() (nodes.Node, error) {
 
 	if p.cur.Type == SIMILAR {
 		p.advance()
-		second, err := p.parseAExpr(0)
+		second, err := p.parseRequiredAExpr(0)
 		if err != nil {
 			return nil, err
 		}
 		if _, err := p.expect(ESCAPE); err != nil {
 			return nil, err
 		}
-		third, err := p.parseAExpr(0)
+		third, err := p.parseRequiredAExpr(0)
 		if err != nil {
 			return nil, err
 		}
@@ -2527,19 +2722,12 @@ func (p *Parser) parseSubstringExpr() (nodes.Node, error) {
 		return nil, err
 	}
 
-	if len(args) > 1 {
-		// Regular function call form: substring(str, start, len)
-		return &nodes.FuncCall{
-			Funcname:   makeFuncName("substring"),
-			Args:       &nodes.List{Items: args},
-			FuncFormat: int(nodes.COERCE_EXPLICIT_CALL),
-			Loc:        nodes.NoLoc(),
-		}, nil
-	}
+	// SUBSTRING '(' func_arg_list_opt ')': a plain call, whatever the
+	// number of arguments (substr_list always has a delimiter).
 	return &nodes.FuncCall{
-		Funcname:   makeFuncName("pg_catalog", "substring"),
+		Funcname:   makeFuncName("substring"),
 		Args:       &nodes.List{Items: args},
-		FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
+		FuncFormat: int(nodes.COERCE_EXPLICIT_CALL),
 		Loc:        nodes.NoLoc(),
 	}, nil
 }
@@ -2593,7 +2781,7 @@ func (p *Parser) parseTrimList() (*nodes.List, error) {
 		return p.parseExprListFull()
 	}
 
-	first, err := p.parseAExpr(0)
+	first, err := p.parseRequiredAExpr(0)
 	if err != nil {
 		return nil, err
 	}
@@ -2614,7 +2802,7 @@ func (p *Parser) parseTrimList() (*nodes.List, error) {
 	items := []nodes.Node{first}
 	for p.cur.Type == ',' {
 		p.advance()
-		expr, err := p.parseAExpr(0)
+		expr, err := p.parseRequiredAExpr(0)
 		if err != nil {
 			return nil, err
 		}
@@ -2648,7 +2836,7 @@ func (p *Parser) parseCollationForExpr() (nodes.Node, error) {
 	if _, err := p.expect('('); err != nil {
 		return nil, err
 	}
-	expr, err := p.parseAExpr(0)
+	expr, err := p.parseRequiredAExpr(0)
 	if err != nil {
 		return nil, err
 	}
@@ -2669,7 +2857,7 @@ func (p *Parser) parseTreatExpr() (nodes.Node, error) {
 	if _, err := p.expect('('); err != nil {
 		return nil, err
 	}
-	expr, err := p.parseAExpr(0)
+	expr, err := p.parseRequiredAExpr(0)
 	if err != nil {
 		return nil, err
 	}
@@ -2698,23 +2886,22 @@ func (p *Parser) parseTreatExpr() (nodes.Node, error) {
 }
 
 // parseSVFWithOptionalPrecision parses SQL value functions that take optional (int) precision.
+//
+//	CURRENT_TIME | CURRENT_TIME '(' Iconst ')' (and CURRENT_TIMESTAMP, LOCALTIME, LOCALTIMESTAMP)
 func (p *Parser) parseSVFWithOptionalPrecision(noArgOp, withArgOp nodes.SVFOp) (nodes.Node, error) {
 	p.advance() // consume keyword
-	if p.cur.Type == '(' {
-		p.advance()
-		if p.cur.Type == ICONST {
-			prec := p.cur.Ival
-			p.advance()
-			if _, err := p.expect(')'); err != nil {
-				return nil, err
-			}
-			return &nodes.SQLValueFunction{Op: withArgOp, Typmod: int32(prec), Loc: nodes.NoLoc()}, nil
-		}
-		if _, err := p.expect(')'); err != nil {
-			return nil, err
-		}
+	if p.cur.Type != '(' {
+		return &nodes.SQLValueFunction{Op: noArgOp, Typmod: -1, Loc: nodes.NoLoc()}, nil
 	}
-	return &nodes.SQLValueFunction{Op: noArgOp, Typmod: -1, Loc: nodes.NoLoc()}, nil
+	p.advance()
+	tok, err := p.expect(ICONST)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return &nodes.SQLValueFunction{Op: withArgOp, Typmod: int32(tok.Ival), Loc: nodes.NoLoc()}, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -2725,6 +2912,10 @@ func (p *Parser) parseSVFWithOptionalPrecision(noArgOp, withArgOp nodes.SVFOp) (
 func (p *Parser) parseColumnRefOrFuncCall() (nodes.Node, error) {
 	// Check for AexprConst: func_name Sconst (type-casted literal)
 	// This is handled by isAExprConstTypeCast / parseTypeCastedConst above.
+
+	if p.peekNext().Type == '(' && p.isColNameKeyword() {
+		return p.parseColNameKeywordCall()
+	}
 
 	loc := p.pos()
 	name, err := p.parseColId()
@@ -2750,7 +2941,7 @@ func (p *Parser) parseColumnRefOrFuncCall() (nodes.Node, error) {
 	// Check for function call
 	if p.cur.Type == '(' {
 		funcName := &nodes.List{Items: []nodes.Node{&nodes.String{Str: name}}}
-		return p.parseFuncApplication(funcName, loc)
+		return p.parseFuncApplicationOrConst(funcName, loc)
 	}
 
 	// Check for qualified name: schema.func(...) or schema.table.column
@@ -2792,7 +2983,7 @@ func (p *Parser) parseColumnRefOrFuncCall() (nodes.Node, error) {
 		// schema.func(...)
 		if p.cur.Type == '(' {
 			funcName := &nodes.List{Items: []nodes.Node{&nodes.String{Str: name}, &nodes.String{Str: attr}}}
-			return p.parseFuncApplication(funcName, loc)
+			return p.parseFuncApplicationOrConst(funcName, loc)
 		}
 
 		// schema.table.column or schema.column
@@ -2849,6 +3040,27 @@ func (p *Parser) parseColumnRefOrFuncCall() (nodes.Node, error) {
 	}, nil
 }
 
+// parseColNameKeywordCall parses a c_expr that a col_name_keyword followed
+// by '(' starts, where no rule of its own has taken it. func_name takes no
+// col_name_keyword (gram.y func_name: type_function_name | ColId
+// indirection), so the keyword is the type of a typed constant (CHAR(1)
+// 'a', INTERVAL(1) '1'), MERGE_ACTION '(' ')', or a syntax error at '('.
+func (p *Parser) parseColNameKeywordCall() (nodes.Node, error) {
+	if p.isConstTypenameStart() {
+		return p.parseTypeCastedConst()
+	}
+	loc := p.pos()
+	tok := p.advance()
+	if tok.Type != MERGE_ACTION {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance() // '('
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return &nodes.FuncCall{Funcname: makeFuncName(tok.Str), Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
+}
+
 // parseFuncApplication parses a function call after the name has been read.
 //
 // Ref: gram.y func_application rule
@@ -2859,6 +3071,22 @@ func (p *Parser) parseColumnRefOrFuncCall() (nodes.Node, error) {
 //	| func_name '(' '*' ')' | func_name '(' DISTINCT func_arg_list opt_sort_clause ')'
 //	| func_name '(' ALL func_arg_list opt_sort_clause ')'
 func (p *Parser) parseFuncApplication(funcName *nodes.List, loc int) (nodes.Node, error) {
+	return p.parseFuncCall(funcName, loc, false)
+}
+
+// parseFuncApplicationOrConst parses, after a func_name where a c_expr
+// starts, a func_expr or the AexprConst whose type modifiers are the
+// arguments:
+//
+//	AexprConst: func_name '(' func_arg_list opt_sort_clause ')' Sconst
+//
+// gram.y reads the arguments as a func_arg_list to share the prefix with
+// func_application, and rejects a named argument or an ORDER BY there.
+func (p *Parser) parseFuncApplicationOrConst(funcName *nodes.List, loc int) (nodes.Node, error) {
+	return p.parseFuncCall(funcName, loc, true)
+}
+
+func (p *Parser) parseFuncCall(funcName *nodes.List, loc int, typmodConst bool) (nodes.Node, error) {
 	p.advance() // consume '('
 
 	fc := &nodes.FuncCall{
@@ -2953,12 +3181,16 @@ func (p *Parser) parseFuncApplication(funcName *nodes.List, loc int) (nodes.Node
 		}
 
 		fc.Args = args
+		orderLoc := p.pos()
 		fc.AggOrder, err = p.parseOptSortClause()
 		if err != nil {
 			return nil, err
 		}
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
+		}
+		if typmodConst && !fc.FuncVariadic && p.cur.Type == SCONST && p.funcOnlyAt != loc+1 {
+			return p.typmodConst(fc, loc, orderLoc)
 		}
 	}
 
@@ -3009,7 +3241,7 @@ func (p *Parser) parseFuncApplication(funcName *nodes.List, loc int) (nodes.Node
 			return nil, err
 		}
 		var err error
-		fc.AggFilter, err = p.parseAExpr(0)
+		fc.AggFilter, err = p.parseRequiredAExpr(0)
 		if err != nil {
 			return nil, err
 		}
@@ -3028,6 +3260,28 @@ func (p *Parser) parseFuncApplication(funcName *nodes.List, loc int) (nodes.Node
 	}
 
 	return fc, nil
+}
+
+// typmodConst finishes the AexprConst func_name '(' func_arg_list
+// opt_sort_clause ')' Sconst after the arguments read into fc, the
+// opt_sort_clause at orderLoc: the Sconst cast to the type func_name names,
+// with the arguments as its type modifiers.
+func (p *Parser) typmodConst(fc *nodes.FuncCall, loc, orderLoc int) (nodes.Node, error) {
+	for _, arg := range fc.Args.Items {
+		if named, ok := arg.(*nodes.NamedArgExpr); ok {
+			return nil, &ParseError{Message: "type modifier cannot have parameter name", Position: named.Loc.Start}
+		}
+	}
+	if fc.AggOrder != nil {
+		return nil, &ParseError{Message: "type modifier cannot have ORDER BY", Position: orderLoc}
+	}
+	tn := &nodes.TypeName{Names: fc.Funcname, Typmods: fc.Args, Loc: nodes.Loc{Start: loc, End: p.prev.End}}
+	tok := p.advance()
+	return &nodes.TypeCast{
+		Arg:      &nodes.A_Const{Val: &nodes.String{Str: tok.Str}, Loc: nodes.Loc{Start: tok.Loc, End: tok.End}},
+		TypeName: tn,
+		Loc:      nodes.NoLoc(),
+	}, nil
 }
 
 // parseOptSortClause parses optional ORDER BY sort clause (used in aggregates).
@@ -3140,7 +3394,9 @@ func (p *Parser) parseOverClause() (nodes.Node, error) {
 // parseWindowSpecification parses a window specification: ( [name] [PARTITION BY ...] [ORDER BY ...] [frame] ).
 func (p *Parser) parseWindowSpecification() (nodes.Node, error) {
 	loc := p.pos()
-	p.advance() // consume '('
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
 	wd := &nodes.WindowDef{Loc: nodes.Loc{Start: loc, End: -1}}
 
 	// Optional existing window name
@@ -3194,50 +3450,85 @@ func (p *Parser) parseWindowSpecification() (nodes.Node, error) {
 	return wd, nil
 }
 
-// parseFrameClause parses window frame specification.
+// parseFrameClause parses the opt_frame_clause of a window_specification,
+// at RANGE, ROWS or GROUPS.
+//
+//	opt_frame_clause: RANGE frame_extent opt_window_exclusion_clause
+//	    | ROWS frame_extent opt_window_exclusion_clause
+//	    | GROUPS frame_extent opt_window_exclusion_clause
+//	frame_extent: frame_bound | BETWEEN frame_bound AND frame_bound
+//	opt_window_exclusion_clause: EXCLUDE CURRENT_P ROW | EXCLUDE GROUP_P
+//	    | EXCLUDE TIES | EXCLUDE NO OTHERS | /*EMPTY*/
+//
+// frame_extent's actions reject the bounds no frame can have, with
+// SQLSTATE 42P20 (windowing_error) at the bound.
 func (p *Parser) parseFrameClause(wd *nodes.WindowDef) error {
 	frameOptions := nodes.FRAMEOPTION_NONDEFAULT
 
 	switch p.cur.Type {
 	case RANGE:
-		p.advance()
 		frameOptions |= nodes.FRAMEOPTION_RANGE
 	case ROWS:
-		p.advance()
 		frameOptions |= nodes.FRAMEOPTION_ROWS
 	case GROUPS:
-		p.advance()
 		frameOptions |= nodes.FRAMEOPTION_GROUPS
 	}
+	p.advance()
 
 	if p.cur.Type == BETWEEN {
 		p.advance()
-		frameOptions |= nodes.FRAMEOPTION_BETWEEN
-		var err error
-		frameOptions, wd.StartOffset, err = p.parseFrameBound(frameOptions, true)
+		startLoc := p.pos()
+		start, startOffset, err := p.parseFrameBound()
 		if err != nil {
 			return err
 		}
 		if _, err := p.expect(AND); err != nil {
 			return err
 		}
-		frameOptions, wd.EndOffset, err = p.parseFrameBound(frameOptions, false)
+		endLoc := p.pos()
+		end, endOffset, err := p.parseFrameBound()
 		if err != nil {
 			return err
 		}
+		// A bound reads as a frame start; shifting converts its START_
+		// options to END_ ones.
+		opts := start | end<<1 | nodes.FRAMEOPTION_BETWEEN
+		switch {
+		case opts&nodes.FRAMEOPTION_START_UNBOUNDED_FOLLOWING != 0:
+			return windowingError("frame start cannot be UNBOUNDED FOLLOWING", startLoc)
+		case opts&nodes.FRAMEOPTION_END_UNBOUNDED_PRECEDING != 0:
+			return windowingError("frame end cannot be UNBOUNDED PRECEDING", endLoc)
+		case opts&nodes.FRAMEOPTION_START_CURRENT_ROW != 0 && opts&nodes.FRAMEOPTION_END_OFFSET_PRECEDING != 0:
+			return windowingError("frame starting from current row cannot have preceding rows", endLoc)
+		case opts&nodes.FRAMEOPTION_START_OFFSET_FOLLOWING != 0 && opts&(nodes.FRAMEOPTION_END_OFFSET_PRECEDING|nodes.FRAMEOPTION_END_CURRENT_ROW) != 0:
+			return windowingError("frame starting from following row cannot have preceding rows", endLoc)
+		}
+		frameOptions |= opts
+		wd.StartOffset, wd.EndOffset = startOffset, endOffset
 	} else {
-		var err error
-		frameOptions, wd.StartOffset, err = p.parseFrameBound(frameOptions, true)
+		startLoc := p.pos()
+		start, startOffset, err := p.parseFrameBound()
 		if err != nil {
 			return err
 		}
-		// Default end bound: CURRENT ROW
-		frameOptions |= nodes.FRAMEOPTION_END_CURRENT_ROW
+		switch {
+		case start&nodes.FRAMEOPTION_START_UNBOUNDED_FOLLOWING != 0:
+			return windowingError("frame start cannot be UNBOUNDED FOLLOWING", startLoc)
+		case start&nodes.FRAMEOPTION_START_OFFSET_FOLLOWING != 0:
+			return windowingError("frame starting from following row cannot end with current row", startLoc)
+		}
+		frameOptions |= start | nodes.FRAMEOPTION_END_CURRENT_ROW
+		wd.StartOffset = startOffset
 	}
 
-	// EXCLUDE clause
 	if p.cur.Type == EXCLUDE {
 		p.advance()
+		if p.collectMode() {
+			for _, t := range []int{CURRENT_P, GROUP_P, TIES, NO} {
+				p.addTokenCandidate(t)
+			}
+			return errCollecting
+		}
 		switch p.cur.Type {
 		case CURRENT_P:
 			p.advance()
@@ -3256,7 +3547,8 @@ func (p *Parser) parseFrameClause(wd *nodes.WindowDef) error {
 			if _, err := p.expect(OTHERS); err != nil {
 				return err
 			}
-			// No exclusion - default
+		default:
+			return p.syntaxErrorAtCur()
 		}
 	}
 
@@ -3264,62 +3556,67 @@ func (p *Parser) parseFrameClause(wd *nodes.WindowDef) error {
 	return nil
 }
 
-// parseFrameBound parses a single frame bound (start or end).
-func (p *Parser) parseFrameBound(opts int, isStart bool) (int, nodes.Node, error) {
-	if p.cur.Type == UNBOUNDED {
-		p.advance()
-		if p.cur.Type == PRECEDING {
-			p.advance()
-			if isStart {
-				opts |= nodes.FRAMEOPTION_START_UNBOUNDED_PRECEDING
-			} else {
-				opts |= nodes.FRAMEOPTION_END_UNBOUNDED_PRECEDING
-			}
-		} else if p.cur.Type == FOLLOWING {
-			p.advance()
-			if isStart {
-				opts |= nodes.FRAMEOPTION_START_UNBOUNDED_FOLLOWING
-			} else {
-				opts |= nodes.FRAMEOPTION_END_UNBOUNDED_FOLLOWING
-			}
-		}
-		return opts, nil, nil
-	}
+// windowingError is the error frame_extent's actions raise, SQLSTATE 42P20.
+func windowingError(msg string, pos int) *ParseError {
+	return &ParseError{Code: "42P20", Message: msg, Position: pos}
+}
 
-	if p.cur.Type == CURRENT_P {
+// parseFrameBound parses a frame_bound and returns its options as a frame
+// start's, as gram.y does, and its offset expression.
+//
+//	frame_bound: UNBOUNDED PRECEDING | UNBOUNDED FOLLOWING | CURRENT_P ROW
+//	    | a_expr PRECEDING | a_expr FOLLOWING
+//
+// UNBOUNDED and CURRENT are unreserved keywords: before any token but
+// PRECEDING or FOLLOWING, or ROW, they are column names starting the a_expr.
+func (p *Parser) parseFrameBound() (int, nodes.Node, error) {
+	if p.collectMode() {
+		p.addTokenCandidate(UNBOUNDED)
+		p.addTokenCandidate(CURRENT_P)
+	}
+	switch {
+	case p.cur.Type == UNBOUNDED && p.keywordLeads(isFrameDirectionStart):
+		p.advance()
+		switch p.cur.Type {
+		case PRECEDING:
+			p.advance()
+			return nodes.FRAMEOPTION_START_UNBOUNDED_PRECEDING, nil, nil
+		case FOLLOWING:
+			p.advance()
+			return nodes.FRAMEOPTION_START_UNBOUNDED_FOLLOWING, nil, nil
+		}
+		if p.collectMode() {
+			p.addTokenCandidate(PRECEDING)
+			p.addTokenCandidate(FOLLOWING)
+			return 0, nil, errCollecting
+		}
+		return 0, nil, p.syntaxErrorAtCur()
+	case p.isFrameCurrentRowStart():
 		p.advance()
 		if _, err := p.expect(ROW); err != nil {
 			return 0, nil, err
 		}
-		if isStart {
-			opts |= nodes.FRAMEOPTION_START_CURRENT_ROW
-		} else {
-			opts |= nodes.FRAMEOPTION_END_CURRENT_ROW
-		}
-		return opts, nil, nil
+		return nodes.FRAMEOPTION_START_CURRENT_ROW, nil, nil
 	}
 
-	// expression PRECEDING/FOLLOWING
-	expr, err := p.parseAExpr(0)
+	expr, err := p.parseRequiredAExpr(0)
 	if err != nil {
 		return 0, nil, err
 	}
-	if p.cur.Type == PRECEDING {
+	switch p.cur.Type {
+	case PRECEDING:
 		p.advance()
-		if isStart {
-			opts |= nodes.FRAMEOPTION_START_OFFSET_PRECEDING
-		} else {
-			opts |= nodes.FRAMEOPTION_END_OFFSET_PRECEDING
-		}
-	} else if p.cur.Type == FOLLOWING {
+		return nodes.FRAMEOPTION_START_OFFSET_PRECEDING, expr, nil
+	case FOLLOWING:
 		p.advance()
-		if isStart {
-			opts |= nodes.FRAMEOPTION_START_OFFSET_FOLLOWING
-		} else {
-			opts |= nodes.FRAMEOPTION_END_OFFSET_FOLLOWING
-		}
+		return nodes.FRAMEOPTION_START_OFFSET_FOLLOWING, expr, nil
 	}
-	return opts, expr, nil
+	if p.collectMode() {
+		p.addTokenCandidate(PRECEDING)
+		p.addTokenCandidate(FOLLOWING)
+		return 0, nil, errCollecting
+	}
+	return 0, nil, p.syntaxErrorAtCur()
 }
 
 // ---------------------------------------------------------------------------
@@ -3445,8 +3742,7 @@ func (p *Parser) parseExprListFull() (*nodes.List, error) {
 func (p *Parser) parseFuncArgExpr() (nodes.Node, error) {
 	// Check for named argument: name := expr or name => expr
 	if p.isColId() {
-		next := p.peekNext()
-		if next.Type == COLON_EQUALS || next.Type == EQUALS_GREATER {
+		if p.startsNamedFuncArg() {
 			nameTok := p.advance() // consume name
 			p.advance()            // consume := or =>
 			arg, err := p.parseAExpr(0)
@@ -3464,7 +3760,36 @@ func (p *Parser) parseFuncArgExpr() (nodes.Node, error) {
 			}, nil
 		}
 	}
-	return p.parseAExpr(0)
+	return p.parseRequiredAExpr(0)
+}
+
+// startsNamedFuncArg reports whether a named argument, name := expr or
+// name => expr, starts at the current token.
+func (p *Parser) startsNamedFuncArg() bool {
+	if p.collectMode() || !p.isColId() {
+		return false
+	}
+	next := p.peekNext()
+	return next.Type == COLON_EQUALS || next.Type == EQUALS_GREATER
+}
+
+// parseSpecialFuncArgCall finishes OVERLAY '(' func_arg_list_opt ')',
+// SUBSTRING '(' func_arg_list_opt ')' or JSON_OBJECT '(' func_arg_list ')',
+// a plain call of the function named, after its '('.
+func (p *Parser) parseSpecialFuncArgCall(name ...string) (nodes.Node, error) {
+	args, err := p.parseFuncArgListFull()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return &nodes.FuncCall{
+		Funcname:   makeFuncName(name...),
+		Args:       args,
+		FuncFormat: int(nodes.COERCE_EXPLICIT_CALL),
+		Loc:        nodes.NoLoc(),
+	}, nil
 }
 
 // parseFuncArgListFull parses a comma-separated list of func_arg_expr.
@@ -3580,11 +3905,12 @@ func (p *Parser) parseTargetEl() (nodes.Node, error) {
 		aliasLoc := p.pos()
 		p.advance()
 		label, err := p.parseColLabel()
-		if err == nil {
-			rt.Name = label
-			if p.completing {
-				p.addSelectAliasPosition(aliasLoc)
-			}
+		if err != nil {
+			return nil, err
+		}
+		rt.Name = label
+		if p.completing {
+			p.addSelectAliasPosition(aliasLoc)
 		}
 	} else if p.isColId() && !p.isReservedForClause() {
 		aliasLoc := p.pos()

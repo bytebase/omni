@@ -464,8 +464,8 @@
     "suspicion_notes": null
   },
   {
-    "site": "expr.go:2577",
-    "function": "parseFuncApplication",
+    "site": "expr.go:3104",
+    "function": "parseFuncCall",
     "nonterminals": [
       "func_application"
     ],
@@ -707,6 +707,22 @@
     "suspicion_notes": null
   },
   {
+    "site": "expr.go:2312",
+    "function": "parseOverlayExpr",
+    "nonterminals": [
+      "func_expr_common_subexpr"
+    ],
+    "ambiguity_present": false,
+    "current_technique": null,
+    "pg_reference": "gram.y:15744-15758",
+    "aligned": "yes",
+    "blocked_by": null,
+    "cluster": "C2",
+    "priority": "low",
+    "proof_notes": "After OVERLAY '(': ')' is the empty func_arg_list_opt of OVERLAY '(' func_arg_list_opt ')'; anything else starts overlay_list or func_arg_list, whose first a_expr is required. pg/parser/testdata/compat.tsv rows SELECT OVERLAY() (accept) and SELECT OVERLAY(PLACING a FROM a) (reject@15).",
+    "suspicion_notes": null
+  },
+  {
     "site": "type.go:313",
     "function": "parseOptFloat",
     "nonterminals": [
@@ -816,6 +832,22 @@
     "cluster": "C3",
     "priority": "low",
     "proof_notes": "After INTERVAL; optional parens for precision. Exercised by pgregress `interval.sql`, `horology.sql` \u2014 INTERVAL(p) precision and field qualifiers.",
+    "suspicion_notes": null
+  },
+  {
+    "site": "set.go:538",
+    "function": "parseZoneInterval",
+    "nonterminals": [
+      "zone_value"
+    ],
+    "ambiguity_present": false,
+    "current_technique": "T1",
+    "pg_reference": "gram.y zone_value: ConstInterval '(' Iconst ')' Sconst",
+    "aligned": "yes",
+    "blocked_by": null,
+    "cluster": "C3",
+    "priority": "low",
+    "proof_notes": "After SET TIME ZONE INTERVAL; optional parens for precision, then the string. Exercised by TestSetZoneInterval.",
     "suspicion_notes": null
   },
   {

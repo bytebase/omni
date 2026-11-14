@@ -32,7 +32,10 @@ func (p *Parser) parseCreateFunctionStmt(startLoc int, isReplace bool) (*nodes.C
 	}
 
 	// func_name
-	funcname := p.parseFuncNameForCreate()
+	funcname, err := p.parseFuncName()
+	if err != nil {
+		return nil, err
+	}
 
 	// func_args_with_defaults
 	params, err := p.parseFuncArgsWithDefaults()
@@ -81,7 +84,10 @@ func (p *Parser) parseCreateFunctionStmt(startLoc int, isReplace bool) (*nodes.C
 			if _, err := p.expect('('); err != nil {
 				return nil, err
 			}
-			tableCols := p.parseTableFuncColumnList()
+			tableCols, err := p.parseTableFuncColumnList()
+			if err != nil {
+				return nil, err
+			}
 			if _, err := p.expect(')'); err != nil {
 				return nil, err
 			}
@@ -123,21 +129,15 @@ func (p *Parser) parseCreateFunctionStmt(startLoc int, isReplace bool) (*nodes.C
 	return stmt, nil
 }
 
-// parseFuncNameForCreate parses a function name for CREATE FUNCTION.
-// Uses the existing parseFuncName from name.go.
-func (p *Parser) parseFuncNameForCreate() *nodes.List {
-	// parseFuncName in name.go returns (*List, error)
-	result, _ := p.parseFuncName()
-	return result
-}
-
 // parseFuncArgsWithDefaults parses function arguments with defaults.
 //
 //	func_args_with_defaults:
 //	    '(' func_args_with_defaults_list ')'
 //	    | '(' ')'
 func (p *Parser) parseFuncArgsWithDefaults() (*nodes.List, error) {
-	p.expect('(')
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
 	if p.cur.Type == ')' {
 		p.advance()
 		return nil, nil
@@ -147,7 +147,9 @@ func (p *Parser) parseFuncArgsWithDefaults() (*nodes.List, error) {
 	if err != nil {
 		return nil, err
 	}
-	p.expect(')')
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
 	return args, nil
 }
 
@@ -180,7 +182,10 @@ func (p *Parser) parseFuncArgsWithDefaultsList() (*nodes.List, error) {
 //	    | func_arg DEFAULT a_expr
 //	    | func_arg '=' a_expr
 func (p *Parser) parseFuncArgWithDefault() (*nodes.FunctionParameter, error) {
-	fp := p.parseFuncArg()
+	fp, err := p.parseFuncArg()
+	if err != nil {
+		return nil, err
+	}
 	if p.cur.Type == DEFAULT {
 		p.advance()
 		expr, err := p.parseAExpr(0)
@@ -242,7 +247,7 @@ func (p *Parser) parseFuncArgWithDefault() (*nodes.FunctionParameter, error) {
 // f(double precision)' and every `arg_class double precision` variant
 // failed at parse time. snapshotTokenStream / restoreTokenStream
 // preserves all token state on rollback.
-func (p *Parser) parseFuncArg() *nodes.FunctionParameter {
+func (p *Parser) parseFuncArg() (*nodes.FunctionParameter, error) {
 	paramLoc := p.pos()
 
 	mode := nodes.FUNC_PARAM_IN // default
@@ -255,7 +260,7 @@ func (p *Parser) parseFuncArg() *nodes.FunctionParameter {
 		mode = argClass
 		if p.isTypeFunctionName() {
 			snap := p.snapshotTokenStream()
-			savedName, _ := p.parseTypeFunctionName()
+			savedName := p.advance().Str // a type_function_name, as checked
 			if p.isFuncTypeStart() {
 				// Case 1: arg_class param_name func_type
 				name = savedName
@@ -272,7 +277,7 @@ func (p *Parser) parseFuncArg() *nodes.FunctionParameter {
 	} else if p.isTypeFunctionName() {
 		// Cases 2, 3, or 5: cur could be a param_name or the type.
 		snap := p.snapshotTokenStream()
-		savedName, _ := p.parseTypeFunctionName()
+		savedName := p.advance().Str // a type_function_name, as checked
 		argClass2, isArgClass2 := p.tryParseArgClass()
 		switch {
 		case isArgClass2:
@@ -296,14 +301,17 @@ func (p *Parser) parseFuncArg() *nodes.FunctionParameter {
 	// Parse func_type. cur is now positioned at the start of the type
 	// (whether we consumed a param_name above, restored a rollback, or
 	// never entered the speculative branch at all).
-	argType, _ := p.parseFuncType()
+	argType, err := p.parseFuncType()
+	if err != nil {
+		return nil, err
+	}
 
 	return &nodes.FunctionParameter{
 		Name:    name,
 		ArgType: argType,
 		Mode:    mode,
 		Loc:     nodes.Loc{Start: paramLoc, End: p.prev.End},
-	}
+	}, nil
 }
 
 // tryParseArgClass tries to parse an arg_class (IN, OUT, INOUT, IN OUT, VARIADIC).
@@ -335,30 +343,41 @@ func (p *Parser) tryParseArgClass() (nodes.FunctionParameterMode, bool) {
 //	table_func_column_list:
 //	    table_func_column
 //	    | table_func_column_list ',' table_func_column
-func (p *Parser) parseTableFuncColumnList() *nodes.List {
-	col := p.parseTableFuncColumn()
-	items := []nodes.Node{col}
-	for p.cur.Type == ',' {
+func (p *Parser) parseTableFuncColumnList() (*nodes.List, error) {
+	var items []nodes.Node
+	for {
+		col, err := p.parseTableFuncColumn()
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, col)
+		if p.cur.Type != ',' {
+			return &nodes.List{Items: items}, nil
+		}
 		p.advance()
-		items = append(items, p.parseTableFuncColumn())
 	}
-	return &nodes.List{Items: items}
 }
 
 // parseTableFuncColumn parses a single table function column.
 //
 //	table_func_column:
 //	    param_name func_type
-func (p *Parser) parseTableFuncColumn() *nodes.FunctionParameter {
+func (p *Parser) parseTableFuncColumn() (*nodes.FunctionParameter, error) {
 	colLoc := p.pos()
-	name, _ := p.parseTypeFunctionName()
-	argType, _ := p.parseFuncType()
+	name, err := p.parseTypeFunctionName()
+	if err != nil {
+		return nil, err
+	}
+	argType, err := p.parseFuncType()
+	if err != nil {
+		return nil, err
+	}
 	return &nodes.FunctionParameter{
 		Name:    name,
 		ArgType: argType,
 		Mode:    nodes.FUNC_PARAM_TABLE,
 		Loc:     nodes.Loc{Start: colLoc, End: p.prev.End},
-	}
+	}, nil
 }
 
 // parseOptCreatefuncOptList parses an optional list of function options.
@@ -590,7 +609,14 @@ func (p *Parser) parseCommonFuncOptItem() (*nodes.DefElem, error) {
 			return nil, err
 		}
 		return &nodes.DefElem{Defname: "strict", Arg: &nodes.Integer{Ival: 1}}, nil
-	case SECURITY:
+	case EXTERNAL, SECURITY:
+		// [EXTERNAL] SECURITY DEFINER | [EXTERNAL] SECURITY INVOKER
+		if p.cur.Type == EXTERNAL {
+			p.advance()
+			if p.cur.Type != SECURITY {
+				return nil, p.syntaxErrorAtCur()
+			}
+		}
 		p.advance()
 		if p.cur.Type == DEFINER {
 			p.advance()
@@ -611,16 +637,16 @@ func (p *Parser) parseCommonFuncOptItem() (*nodes.DefElem, error) {
 		return &nodes.DefElem{Defname: "leakproof", Arg: &nodes.Integer{Ival: 0}}, nil
 	case COST:
 		p.advance()
-		val := p.parseNumericOnly()
-		if val == nil {
-			return nil, p.syntaxErrorAtCur()
+		val, err := p.parseNumericOnlyRequired()
+		if err != nil {
+			return nil, err
 		}
 		return &nodes.DefElem{Defname: "cost", Arg: val}, nil
 	case ROWS:
 		p.advance()
-		val := p.parseNumericOnly()
-		if val == nil {
-			return nil, p.syntaxErrorAtCur()
+		val, err := p.parseNumericOnlyRequired()
+		if err != nil {
+			return nil, err
 		}
 		return &nodes.DefElem{Defname: "rows", Arg: val}, nil
 	case PARALLEL:

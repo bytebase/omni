@@ -36,7 +36,11 @@ func (p *Parser) parseCreateSchemaStmt(stmtLoc int) (nodes.Node, error) {
 
 	if p.cur.Type == AUTHORIZATION {
 		p.advance() // consume AUTHORIZATION
-		stmt.Authrole = p.parseRoleSpec()
+		rs, err := p.parseRoleSpec()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Authrole = rs
 		options, err := p.parseRedshiftSchemaQuota()
 		if err != nil {
 			return nil, err
@@ -59,7 +63,11 @@ func (p *Parser) parseCreateSchemaStmt(stmtLoc int) (nodes.Node, error) {
 
 	if p.cur.Type == AUTHORIZATION {
 		p.advance() // consume AUTHORIZATION
-		stmt.Authrole = p.parseRoleSpec()
+		rs, err := p.parseRoleSpec()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Authrole = rs
 	}
 
 	options, err := p.parseRedshiftSchemaQuota()
@@ -224,9 +232,11 @@ func (p *Parser) parseSchemaStmt() (nodes.Node, error) {
 				}
 				return stmt, err
 			}
-		// exhaustive: gram.y:1598 schema_stmt CREATE sub-kind — caller handles nil via outer error (post-KB-2c)
+		// exhaustive: gram.y:1598 schema_stmt CREATE sub-kind. Only a
+		// schema_stmt can follow CREATE SCHEMA's name, so a CREATE there
+		// starts one and the error is at the token after it.
 		default:
-			return nil, nil
+			return nil, p.syntaxErrorAtTok(next)
 		}
 	case GRANT:
 		p.advance() // consume GRANT
@@ -250,7 +260,10 @@ func (p *Parser) parseSchemaStmtCreateOptTemp(orReplaceConsumed bool) (nodes.Nod
 	if !orReplaceConsumed {
 		p.advance() // consume CREATE
 	}
-	relpersistence := p.parseOptTemp()
+	relpersistence, err := p.parseOptTemp()
+	if err != nil {
+		return nil, err
+	}
 
 	switch p.cur.Type {
 	case VIEW, RECURSIVE:
@@ -321,7 +334,10 @@ func (p *Parser) parseSchemaStmtCreateOptTemp(orReplaceConsumed bool) (nodes.Nod
 // inside a schema_element. CREATE and OR REPLACE have already been consumed
 // by the caller; the current token is the OptTemp lead keyword.
 func (p *Parser) parseViewStmtWithOptTemp(replace bool) (*nodes.ViewStmt, error) {
-	relpersistence := p.parseOptTemp()
+	relpersistence, err := p.parseOptTemp()
+	if err != nil {
+		return nil, err
+	}
 	stmt, err := p.parseViewStmt(replace)
 	if err != nil {
 		return nil, err
@@ -351,7 +367,11 @@ func (p *Parser) parseCreateTableSpaceStmt(stmtLoc int) (nodes.Node, error) {
 	var owner *nodes.RoleSpec
 	if p.cur.Type == OWNER {
 		p.advance()
-		owner = p.parseRoleSpec()
+		rs, err := p.parseRoleSpec()
+		if err != nil {
+			return nil, err
+		}
+		owner = rs
 	}
 
 	if _, err := p.expect(LOCATION); err != nil {
@@ -365,7 +385,9 @@ func (p *Parser) parseCreateTableSpaceStmt(stmtLoc int) (nodes.Node, error) {
 	var options *nodes.List
 	if p.cur.Type == WITH {
 		p.advance()
-		options = p.parseReloptions()
+		if options, err = p.parseReloptions(); err != nil {
+			return nil, err
+		}
 	}
 
 	return &nodes.CreateTableSpaceStmt{
@@ -412,7 +434,11 @@ func (p *Parser) parseCommentStmt() (nodes.Node, error) {
 		if _, err := p.expect(IS); err != nil {
 			return nil, err
 		}
-		stmt.Comment = p.parseCommentText()
+		text, err := p.parseCommentText()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Comment = text
 		return stmt, nil
 
 	case TYPE_P:
@@ -426,7 +452,11 @@ func (p *Parser) parseCommentStmt() (nodes.Node, error) {
 		if _, err := p.expect(IS); err != nil {
 			return nil, err
 		}
-		stmt.Comment = p.parseCommentText()
+		text, err := p.parseCommentText()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Comment = text
 		return stmt, nil
 
 	case DOMAIN_P:
@@ -440,7 +470,11 @@ func (p *Parser) parseCommentStmt() (nodes.Node, error) {
 		if _, err := p.expect(IS); err != nil {
 			return nil, err
 		}
-		stmt.Comment = p.parseCommentText()
+		text, err := p.parseCommentText()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Comment = text
 		return stmt, nil
 
 	case CONSTRAINT:
@@ -452,7 +486,8 @@ func (p *Parser) parseCommentStmt() (nodes.Node, error) {
 		if _, err := p.expect(ON); err != nil {
 			return nil, err
 		}
-		if p.cur.Type == DOMAIN_P {
+		// DOMAIN is unreserved: with no name after it, it is the table's name.
+		if p.cur.Type == DOMAIN_P && p.keywordLeads(isColIdToken) {
 			p.advance()
 			stmt.Objtype = nodes.OBJECT_DOMCONSTRAINT
 			anyName, err := p.parseAnyName()
@@ -463,7 +498,11 @@ func (p *Parser) parseCommentStmt() (nodes.Node, error) {
 			if _, err := p.expect(IS); err != nil {
 				return nil, err
 			}
-			stmt.Comment = p.parseCommentText()
+			text, err := p.parseCommentText()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Comment = text
 			return stmt, nil
 		}
 		stmt.Objtype = nodes.OBJECT_TABCONSTRAINT
@@ -475,7 +514,11 @@ func (p *Parser) parseCommentStmt() (nodes.Node, error) {
 		if _, err := p.expect(IS); err != nil {
 			return nil, err
 		}
-		stmt.Comment = p.parseCommentText()
+		text, err := p.parseCommentText()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Comment = text
 		return stmt, nil
 
 	case LARGE_P:
@@ -484,11 +527,19 @@ func (p *Parser) parseCommentStmt() (nodes.Node, error) {
 			return nil, err
 		}
 		stmt.Objtype = nodes.OBJECT_LARGEOBJECT
-		stmt.Object = p.parseNumericOnly()
+		obj, err := p.parseNumericOnlyRequired()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Object = obj
 		if _, err := p.expect(IS); err != nil {
 			return nil, err
 		}
-		stmt.Comment = p.parseCommentText()
+		text, err := p.parseCommentText()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Comment = text
 		return stmt, nil
 
 	case CAST:
@@ -515,7 +566,11 @@ func (p *Parser) parseCommentStmt() (nodes.Node, error) {
 		if _, err := p.expect(IS); err != nil {
 			return nil, err
 		}
-		stmt.Comment = p.parseCommentText()
+		text, err := p.parseCommentText()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Comment = text
 		return stmt, nil
 
 	case EVENT:
@@ -532,7 +587,11 @@ func (p *Parser) parseCommentStmt() (nodes.Node, error) {
 		if _, err := p.expect(IS); err != nil {
 			return nil, err
 		}
-		stmt.Comment = p.parseCommentText()
+		text, err := p.parseCommentText()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Comment = text
 		return stmt, nil
 
 	case TRANSFORM:
@@ -556,7 +615,11 @@ func (p *Parser) parseCommentStmt() (nodes.Node, error) {
 		if _, err := p.expect(IS); err != nil {
 			return nil, err
 		}
-		stmt.Comment = p.parseCommentText()
+		text, err := p.parseCommentText()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Comment = text
 		return stmt, nil
 
 	case OPERATOR:
@@ -579,7 +642,11 @@ func (p *Parser) parseCommentStmt() (nodes.Node, error) {
 			if _, err := p.expect(IS); err != nil {
 				return nil, err
 			}
-			stmt.Comment = p.parseCommentText()
+			text, err := p.parseCommentText()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Comment = text
 			return stmt, nil
 		}
 		if p.cur.Type == FAMILY {
@@ -600,21 +667,33 @@ func (p *Parser) parseCommentStmt() (nodes.Node, error) {
 			if _, err := p.expect(IS); err != nil {
 				return nil, err
 			}
-			stmt.Comment = p.parseCommentText()
+			text, err := p.parseCommentText()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Comment = text
 			return stmt, nil
 		}
 		stmt.Objtype = nodes.OBJECT_OPERATOR
-		stmt.Object = p.parseOperatorWithArgtypesForComment()
+		obj, err := p.parseOperatorWithArgtypes()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Object = obj
 		if _, err := p.expect(IS); err != nil {
 			return nil, err
 		}
-		stmt.Comment = p.parseCommentText()
+		text, err := p.parseCommentText()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Comment = text
 		return stmt, nil
 
 	case AGGREGATE:
 		p.advance()
 		stmt.Objtype = nodes.OBJECT_AGGREGATE
-		obj, err := p.parseAggregateWithArgtypesForComment()
+		obj, err := p.parseAggregateWithArgtypesLocal()
 		if err != nil {
 			return nil, err
 		}
@@ -622,13 +701,17 @@ func (p *Parser) parseCommentStmt() (nodes.Node, error) {
 		if _, err := p.expect(IS); err != nil {
 			return nil, err
 		}
-		stmt.Comment = p.parseCommentText()
+		text, err := p.parseCommentText()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Comment = text
 		return stmt, nil
 
 	case FUNCTION:
 		p.advance()
 		stmt.Objtype = nodes.OBJECT_FUNCTION
-		obj, err := p.parseFunctionWithArgtypesForComment()
+		obj, err := p.parseFunctionWithArgtypes()
 		if err != nil {
 			return nil, err
 		}
@@ -636,13 +719,17 @@ func (p *Parser) parseCommentStmt() (nodes.Node, error) {
 		if _, err := p.expect(IS); err != nil {
 			return nil, err
 		}
-		stmt.Comment = p.parseCommentText()
+		text, err := p.parseCommentText()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Comment = text
 		return stmt, nil
 
 	case PROCEDURE:
 		p.advance()
 		stmt.Objtype = nodes.OBJECT_PROCEDURE
-		obj, err := p.parseFunctionWithArgtypesForComment()
+		obj, err := p.parseFunctionWithArgtypes()
 		if err != nil {
 			return nil, err
 		}
@@ -650,13 +737,17 @@ func (p *Parser) parseCommentStmt() (nodes.Node, error) {
 		if _, err := p.expect(IS); err != nil {
 			return nil, err
 		}
-		stmt.Comment = p.parseCommentText()
+		text, err := p.parseCommentText()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Comment = text
 		return stmt, nil
 
 	case ROUTINE:
 		p.advance()
 		stmt.Objtype = nodes.OBJECT_ROUTINE
-		obj, err := p.parseFunctionWithArgtypesForComment()
+		obj, err := p.parseFunctionWithArgtypes()
 		if err != nil {
 			return nil, err
 		}
@@ -664,7 +755,11 @@ func (p *Parser) parseCommentStmt() (nodes.Node, error) {
 		if _, err := p.expect(IS); err != nil {
 			return nil, err
 		}
-		stmt.Comment = p.parseCommentText()
+		text, err := p.parseCommentText()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Comment = text
 		return stmt, nil
 
 	case FOREIGN:
@@ -683,7 +778,11 @@ func (p *Parser) parseCommentStmt() (nodes.Node, error) {
 			if _, err := p.expect(IS); err != nil {
 				return nil, err
 			}
-			stmt.Comment = p.parseCommentText()
+			text, err := p.parseCommentText()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Comment = text
 			return stmt, nil
 		}
 		if _, err := p.expect(TABLE); err != nil {
@@ -698,7 +797,11 @@ func (p *Parser) parseCommentStmt() (nodes.Node, error) {
 		if _, err := p.expect(IS); err != nil {
 			return nil, err
 		}
-		stmt.Comment = p.parseCommentText()
+		text, err := p.parseCommentText()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Comment = text
 		return stmt, nil
 
 	case MATERIALIZED:
@@ -715,7 +818,11 @@ func (p *Parser) parseCommentStmt() (nodes.Node, error) {
 		if _, err := p.expect(IS); err != nil {
 			return nil, err
 		}
-		stmt.Comment = p.parseCommentText()
+		text, err := p.parseCommentText()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Comment = text
 		return stmt, nil
 
 	default:
@@ -737,7 +844,11 @@ func (p *Parser) parseCommentStmt() (nodes.Node, error) {
 			if _, err := p.expect(IS); err != nil {
 				return nil, err
 			}
-			stmt.Comment = p.parseCommentText()
+			text, err := p.parseCommentText()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Comment = text
 			return stmt, nil
 		}
 
@@ -752,12 +863,20 @@ func (p *Parser) parseCommentStmt() (nodes.Node, error) {
 			if _, err := p.expect(IS); err != nil {
 				return nil, err
 			}
-			stmt.Comment = p.parseCommentText()
+			text, err := p.parseCommentText()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Comment = text
 			return stmt, nil
 		}
 
 		// Remaining object_type_any_name
-		stmt.Objtype = p.parseObjectTypeAnyName()
+		objtype, err := p.parseObjectTypeAnyName()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Objtype = objtype
 		name, err := p.parseAnyName()
 		if err != nil {
 			return nil, err
@@ -766,22 +885,25 @@ func (p *Parser) parseCommentStmt() (nodes.Node, error) {
 		if _, err := p.expect(IS); err != nil {
 			return nil, err
 		}
-		stmt.Comment = p.parseCommentText()
+		text, err := p.parseCommentText()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Comment = text
 		return stmt, nil
 	}
 }
 
-// parseCommentText parses comment_text: Sconst | NULL_P
-func (p *Parser) parseCommentText() string {
-	if p.cur.Type == NULL_P {
+// parseCommentText parses comment_text: Sconst | NULL_P.
+func (p *Parser) parseCommentText() (string, error) {
+	switch p.cur.Type {
+	case NULL_P:
 		p.advance()
-		return ""
+		return "", nil
+	case SCONST:
+		return p.advance().Str, nil
 	}
-	if p.cur.Type == SCONST {
-		tok := p.advance()
-		return tok.Str
-	}
-	return ""
+	return "", p.syntaxErrorAtCur()
 }
 
 // tryParseObjectTypeName tries to parse object_type_name.
@@ -856,101 +978,6 @@ func appendNodeToList(list *nodes.List, n nodes.Node) *nodes.List {
 	return list
 }
 
-// parseFunctionWithArgtypesForComment parses function_with_argtypes for COMMENT ON.
-func (p *Parser) parseFunctionWithArgtypesForComment() (nodes.Node, error) {
-	funcName, err := p.parseFuncName()
-	if err != nil {
-		return nil, err
-	}
-	owa := &nodes.ObjectWithArgs{Objname: funcName}
-	if p.cur.Type == '(' {
-		p.advance()
-		if p.cur.Type == ')' {
-			p.advance()
-		} else {
-			owa.Objargs = p.parseCommentFuncArgsList()
-			if _, err := p.expect(')'); err != nil {
-				return nil, err
-			}
-		}
-	} else {
-		owa.ArgsUnspecified = true
-	}
-	return owa, nil
-}
-
-// parseCommentFuncArgsList parses a comma-separated list of function argument types.
-func (p *Parser) parseCommentFuncArgsList() *nodes.List {
-	var items []nodes.Node
-	for {
-		arg := p.parseFuncArg()
-		if arg != nil && arg.ArgType != nil {
-			items = append(items, arg.ArgType)
-		}
-		if p.cur.Type != ',' {
-			break
-		}
-		p.advance()
-	}
-	if len(items) == 0 {
-		return nil
-	}
-	return &nodes.List{Items: items}
-}
-
-// parseAggregateWithArgtypesForComment parses aggregate_with_argtypes.
-//
-// aggr_args in gram.y is '(' '*' ')' or a non-empty aggr_args_list, so an empty
-// "()" is a syntax error at the ")" token.
-func (p *Parser) parseAggregateWithArgtypesForComment() (nodes.Node, error) {
-	funcName, _ := p.parseFuncName()
-	owa := &nodes.ObjectWithArgs{Objname: funcName}
-	if p.cur.Type == '(' {
-		p.advance()
-		if p.cur.Type == '*' {
-			p.advance()
-			p.expect(')')
-			owa.Objargs = &nodes.List{Items: []nodes.Node{&nodes.String{Str: "*"}}}
-		} else if p.cur.Type == ')' {
-			return nil, p.syntaxErrorAtCur()
-		} else {
-			owa.Objargs = p.parseCommentFuncArgsList()
-			p.expect(')')
-		}
-	} else {
-		owa.ArgsUnspecified = true
-	}
-	return owa, nil
-}
-
-// parseOperatorWithArgtypesForComment parses operator_with_argtypes.
-func (p *Parser) parseOperatorWithArgtypesForComment() nodes.Node {
-	opName, _ := p.parseAnyOperator()
-	owa := &nodes.ObjectWithArgs{Objname: opName}
-	if p.cur.Type == '(' {
-		p.advance()
-		var left, right nodes.Node
-		if p.cur.Type == NONE {
-			p.advance()
-			p.expect(',')
-			right, _ = p.parseTypename()
-		} else {
-			left, _ = p.parseTypename()
-			if p.cur.Type == ',' {
-				p.advance()
-				if p.cur.Type == NONE {
-					p.advance()
-				} else {
-					right, _ = p.parseTypename()
-				}
-			}
-		}
-		owa.Objargs = &nodes.List{Items: []nodes.Node{left, right}}
-		p.expect(')')
-	}
-	return owa
-}
-
 // parseSecLabelStmt parses a SECURITY LABEL statement.
 // SECURITY has already been consumed. Current token is LABEL.
 func (p *Parser) parseSecLabelStmt() (nodes.Node, error) {
@@ -961,7 +988,10 @@ func (p *Parser) parseSecLabelStmt() (nodes.Node, error) {
 	provider := ""
 	if p.cur.Type == FOR {
 		p.advance()
-		provider = p.parseNonReservedWordOrSconst()
+		var err error
+		if provider, err = p.parseNonReservedWordOrSconstStrict(); err != nil {
+			return nil, err
+		}
 	}
 
 	if _, err := p.expect(ON); err != nil {
@@ -987,7 +1017,32 @@ func (p *Parser) parseSecLabelStmt() (nodes.Node, error) {
 		if _, err := p.expect(IS); err != nil {
 			return nil, err
 		}
-		stmt.Label = p.parseSecurityLabel()
+		label, err := p.parseSecurityLabel()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Label = label
+		return stmt, nil
+
+	case LARGE_P:
+		p.advance()
+		if _, err := p.expect(OBJECT_P); err != nil {
+			return nil, err
+		}
+		stmt.Objtype = nodes.OBJECT_LARGEOBJECT
+		obj, err := p.parseNumericOnlyRequired()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Object = obj
+		if _, err := p.expect(IS); err != nil {
+			return nil, err
+		}
+		label, err := p.parseSecurityLabel()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Label = label
 		return stmt, nil
 
 	case TYPE_P:
@@ -1001,7 +1056,11 @@ func (p *Parser) parseSecLabelStmt() (nodes.Node, error) {
 		if _, err := p.expect(IS); err != nil {
 			return nil, err
 		}
-		stmt.Label = p.parseSecurityLabel()
+		label, err := p.parseSecurityLabel()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Label = label
 		return stmt, nil
 
 	case DOMAIN_P:
@@ -1015,13 +1074,17 @@ func (p *Parser) parseSecLabelStmt() (nodes.Node, error) {
 		if _, err := p.expect(IS); err != nil {
 			return nil, err
 		}
-		stmt.Label = p.parseSecurityLabel()
+		label, err := p.parseSecurityLabel()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Label = label
 		return stmt, nil
 
 	case AGGREGATE:
 		p.advance()
 		stmt.Objtype = nodes.OBJECT_AGGREGATE
-		obj, err := p.parseAggregateWithArgtypesForComment()
+		obj, err := p.parseAggregateWithArgtypesLocal()
 		if err != nil {
 			return nil, err
 		}
@@ -1029,13 +1092,17 @@ func (p *Parser) parseSecLabelStmt() (nodes.Node, error) {
 		if _, err := p.expect(IS); err != nil {
 			return nil, err
 		}
-		stmt.Label = p.parseSecurityLabel()
+		label, err := p.parseSecurityLabel()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Label = label
 		return stmt, nil
 
 	case FUNCTION:
 		p.advance()
 		stmt.Objtype = nodes.OBJECT_FUNCTION
-		obj, err := p.parseFunctionWithArgtypesForComment()
+		obj, err := p.parseFunctionWithArgtypes()
 		if err != nil {
 			return nil, err
 		}
@@ -1043,13 +1110,17 @@ func (p *Parser) parseSecLabelStmt() (nodes.Node, error) {
 		if _, err := p.expect(IS); err != nil {
 			return nil, err
 		}
-		stmt.Label = p.parseSecurityLabel()
+		label, err := p.parseSecurityLabel()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Label = label
 		return stmt, nil
 
 	case PROCEDURE:
 		p.advance()
 		stmt.Objtype = nodes.OBJECT_PROCEDURE
-		obj, err := p.parseFunctionWithArgtypesForComment()
+		obj, err := p.parseFunctionWithArgtypes()
 		if err != nil {
 			return nil, err
 		}
@@ -1057,13 +1128,17 @@ func (p *Parser) parseSecLabelStmt() (nodes.Node, error) {
 		if _, err := p.expect(IS); err != nil {
 			return nil, err
 		}
-		stmt.Label = p.parseSecurityLabel()
+		label, err := p.parseSecurityLabel()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Label = label
 		return stmt, nil
 
 	case ROUTINE:
 		p.advance()
 		stmt.Objtype = nodes.OBJECT_ROUTINE
-		obj, err := p.parseFunctionWithArgtypesForComment()
+		obj, err := p.parseFunctionWithArgtypes()
 		if err != nil {
 			return nil, err
 		}
@@ -1071,7 +1146,11 @@ func (p *Parser) parseSecLabelStmt() (nodes.Node, error) {
 		if _, err := p.expect(IS); err != nil {
 			return nil, err
 		}
-		stmt.Label = p.parseSecurityLabel()
+		label, err := p.parseSecurityLabel()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Label = label
 		return stmt, nil
 
 	default:
@@ -1085,11 +1164,19 @@ func (p *Parser) parseSecLabelStmt() (nodes.Node, error) {
 			if _, err := p.expect(IS); err != nil {
 				return nil, err
 			}
-			stmt.Label = p.parseSecurityLabel()
+			label, err := p.parseSecurityLabel()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Label = label
 			return stmt, nil
 		}
 
-		stmt.Objtype = p.parseObjectTypeAnyName()
+		objtype, err := p.parseObjectTypeAnyName()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Objtype = objtype
 		name, err := p.parseAnyName()
 		if err != nil {
 			return nil, err
@@ -1098,20 +1185,23 @@ func (p *Parser) parseSecLabelStmt() (nodes.Node, error) {
 		if _, err := p.expect(IS); err != nil {
 			return nil, err
 		}
-		stmt.Label = p.parseSecurityLabel()
+		label, err := p.parseSecurityLabel()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Label = label
 		return stmt, nil
 	}
 }
 
 // parseSecurityLabel parses security_label: Sconst | NULL_P
-func (p *Parser) parseSecurityLabel() string {
-	if p.cur.Type == NULL_P {
+func (p *Parser) parseSecurityLabel() (string, error) {
+	switch p.cur.Type {
+	case NULL_P:
 		p.advance()
-		return ""
+		return "", nil
+	case SCONST:
+		return p.advance().Str, nil
 	}
-	if p.cur.Type == SCONST {
-		tok := p.advance()
-		return tok.Str
-	}
-	return ""
+	return "", p.syntaxErrorAtCur()
 }

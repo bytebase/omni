@@ -80,8 +80,7 @@ func (p *Parser) parseOptArrayBounds() (*nodes.List, error) {
 			p.advance()
 			items = append(items, &nodes.Integer{Ival: -1})
 		} else {
-			// Not an array bound; caller will handle
-			return nil, nil
+			return nil, p.syntaxErrorAtCur()
 		}
 	}
 	if len(items) == 0 {
@@ -126,6 +125,11 @@ func (p *Parser) parseSimpleTypename() (*nodes.TypeName, error) {
 		p.advance()
 		return p.parseOptFloat()
 	case DOUBLE_P:
+		// DOUBLE_P PRECISION, or the unreserved word double as a GenericType.
+		// With completion's cursor after DOUBLE, PRECISION is offered.
+		if p.peekNext().Type != PRECISION && !p.completingAtNext() {
+			return p.parseGenericType()
+		}
 		p.advance()
 		if _, err := p.expect(PRECISION); err != nil {
 			return nil, err
@@ -482,7 +486,10 @@ func (p *Parser) parseTimestampType() (*nodes.TypeName, error) {
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
-		tz := p.parseOptTimezone()
+		tz, err := p.parseOptTimezone()
+		if err != nil {
+			return nil, err
+		}
 		if tz {
 			tn := makeTypeName("timestamptz")
 			tn.Typmods = &nodes.List{Items: []nodes.Node{makeIntConst(ival)}}
@@ -492,7 +499,10 @@ func (p *Parser) parseTimestampType() (*nodes.TypeName, error) {
 		tn.Typmods = &nodes.List{Items: []nodes.Node{makeIntConst(ival)}}
 		return tn, nil
 	}
-	tz := p.parseOptTimezone()
+	tz, err := p.parseOptTimezone()
+	if err != nil {
+		return nil, err
+	}
 	if tz {
 		return makeTypeName("timestamptz"), nil
 	}
@@ -515,7 +525,10 @@ func (p *Parser) parseTimeType() (*nodes.TypeName, error) {
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
-		tz := p.parseOptTimezone()
+		tz, err := p.parseOptTimezone()
+		if err != nil {
+			return nil, err
+		}
 		if tz {
 			tn := makeTypeName("timetz")
 			tn.Typmods = &nodes.List{Items: []nodes.Node{makeIntConst(ival)}}
@@ -525,7 +538,10 @@ func (p *Parser) parseTimeType() (*nodes.TypeName, error) {
 		tn.Typmods = &nodes.List{Items: []nodes.Node{makeIntConst(ival)}}
 		return tn, nil
 	}
-	tz := p.parseOptTimezone()
+	tz, err := p.parseOptTimezone()
+	if err != nil {
+		return nil, err
+	}
 	if tz {
 		return makeTypeName("timetz"), nil
 	}
@@ -538,20 +554,19 @@ func (p *Parser) parseTimeType() (*nodes.TypeName, error) {
 //	    WITH_LA TIME ZONE
 //	    | WITHOUT_LA TIME ZONE
 //	    | /* EMPTY */
-func (p *Parser) parseOptTimezone() bool {
-	if p.cur.Type == WITH_LA {
-		p.advance()
-		p.expect(TIME)
-		p.expect(ZONE)
-		return true
+func (p *Parser) parseOptTimezone() (bool, error) {
+	if p.cur.Type != WITH_LA && p.cur.Type != WITHOUT_LA {
+		return false, nil
 	}
-	if p.cur.Type == WITHOUT_LA {
-		p.advance()
-		p.expect(TIME)
-		p.expect(ZONE)
-		return false
+	with := p.cur.Type == WITH_LA
+	p.advance()
+	if _, err := p.expect(TIME); err != nil {
+		return false, err
 	}
-	return false
+	if _, err := p.expect(ZONE); err != nil {
+		return false, err
+	}
+	return with, nil
 }
 
 // parseIntervalType parses INTERVAL type with optional qualifiers.
@@ -641,6 +656,8 @@ func (p *Parser) parseOptInterval() (*nodes.List, error) {
 				}
 				secs.Items[0] = makeIntConst(int64(nodes.INTERVAL_MASK_DAY | nodes.INTERVAL_MASK_HOUR | nodes.INTERVAL_MASK_MINUTE | nodes.INTERVAL_MASK_SECOND))
 				return secs, nil
+			default:
+				return nil, p.syntaxErrorAtCur()
 			}
 		}
 		return &nodes.List{Items: []nodes.Node{
@@ -662,6 +679,8 @@ func (p *Parser) parseOptInterval() (*nodes.List, error) {
 				}
 				secs.Items[0] = makeIntConst(int64(nodes.INTERVAL_MASK_HOUR | nodes.INTERVAL_MASK_MINUTE | nodes.INTERVAL_MASK_SECOND))
 				return secs, nil
+			default:
+				return nil, p.syntaxErrorAtCur()
 			}
 		}
 		return &nodes.List{Items: []nodes.Node{
@@ -670,14 +689,15 @@ func (p *Parser) parseOptInterval() (*nodes.List, error) {
 	case MINUTE_P:
 		p.advance()
 		if _, ok := p.match(TO); ok {
-			if p.cur.Type == SECOND_P {
-				secs, err := p.parseIntervalSecond()
-				if err != nil {
-					return nil, err
-				}
-				secs.Items[0] = makeIntConst(int64(nodes.INTERVAL_MASK_MINUTE | nodes.INTERVAL_MASK_SECOND))
-				return secs, nil
+			if p.cur.Type != SECOND_P {
+				return nil, p.syntaxErrorAtCur()
 			}
+			secs, err := p.parseIntervalSecond()
+			if err != nil {
+				return nil, err
+			}
+			secs.Items[0] = makeIntConst(int64(nodes.INTERVAL_MASK_MINUTE | nodes.INTERVAL_MASK_SECOND))
+			return secs, nil
 		}
 		return &nodes.List{Items: []nodes.Node{
 			makeIntConst(int64(nodes.INTERVAL_MASK_MINUTE)),
@@ -699,6 +719,9 @@ func (p *Parser) parseIntervalSecond() (*nodes.List, error) {
 	p.advance() // consume SECOND_P
 	if p.cur.Type == '(' {
 		p.advance()
+		if p.cur.Type != ICONST {
+			return nil, p.syntaxErrorAtCur()
+		}
 		ival := p.cur.Ival
 		p.advance() // consume ICONST
 		if _, err := p.expect(')'); err != nil {
@@ -743,76 +766,69 @@ func (p *Parser) parseTypeList() (*nodes.List, error) {
 //	    | type_function_name attrs '%' TYPE_P
 //	    | SETOF type_function_name attrs '%' TYPE_P
 func (p *Parser) parseFuncType() (*nodes.TypeName, error) {
-	if p.cur.Type == SETOF {
-		// SETOF can be:
-		// 1. SETOF type_function_name attrs '%' TYPE_P  (pct_type with SETOF)
-		// 2. SETOF Typename (regular SETOF type)
-		//
-		// We check for the %TYPE pattern: SETOF name '.' ... '%' TYPE_P
-		// If the token after SETOF is followed by '.', it might be case 1.
-		// Otherwise, delegate to parseTypename which handles SETOF.
-
-		// Check if this is the %TYPE pattern: need at least name '.' ... '%'
-		next := p.peekNext()
-		if p.isTypeFunctionNameToken(next) {
-			// Could be either case. We can't easily distinguish without
-			// more lookahead. Use heuristic: delegate to parseTypename
-			// which handles SETOF Typename correctly.
-			// The %TYPE case is very rare in practice.
-		}
-
-		// Delegate to parseTypename which handles SETOF
-		return p.parseTypename()
+	if p.collectMode() && p.cur.Type != SETOF {
+		// Offer the type names at the cursor, as the %TYPE form's name does.
+		p.isTypeFunctionName()
 	}
-
-	// Non-SETOF: could be type_function_name attrs '%' TYPE_P or Typename.
-	// The %TYPE case requires name '.' name '%' TYPE_P pattern.
-	// Check if we see name '.' which could indicate qualified name with %TYPE.
-	if p.isTypeFunctionName() {
-		// Check if this looks like a %TYPE reference (name.name...%TYPE)
-		next := p.peekNext()
-		if next.Type == '.' {
-			// Could be qualified type or %TYPE. Speculatively parse the
-			// %TYPE form; if it doesn't match, roll the token stream back
-			// and let parseTypename handle it as a normal qualified type.
-			//
-			// Use snapshotTokenStream/restoreTokenStream for the rollback —
-			// the previous hand-rolled save here only captured cur/prev/
-			// nextBuf/hasNext/lexer.Err and missed lexer.pos/start/state,
-			// causing every qualified type at any parseFuncType call site
-			// (parseFuncArg, RETURNS, parseTableFuncColumn, parseDefArg /
-			// CREATE OPERATOR LEFTARG/RIGHTARG, etc.) to corrupt the lexer
-			// position when parseAttrs read fresh tokens during the
-			// speculative parse.
+	// The %TYPE forms need name '.' ...: try them speculatively, and roll the
+	// token stream back to parse a Typename when they do not match.
+	if !p.collectMode() {
+		setof := p.cur.Type == SETOF
+		var first Token
+		if setof {
+			first = p.peekNext()
+		}
+		if (setof && p.isTypeFunctionNameToken(first)) || (!setof && p.isTypeFunctionName() && p.peekNext().Type == '.') {
 			snap := p.snapshotTokenStream()
-
-			name, _ := p.parseTypeFunctionName()
-			if p.cur.Type == '.' {
-				// A failed attrs is no %TYPE form: fall through to the
-				// rollback, and parseTypename reports the error.
-				attrs, err := p.parseAttrs()
-				if err == nil && p.cur.Type == '%' {
-					p.advance()
-					if p.cur.Type == TYPE_P {
-						p.advance()
-						nameItems := make([]nodes.Node, 0, 1+len(attrs.Items))
-						nameItems = append(nameItems, &nodes.String{Str: name})
-						nameItems = append(nameItems, attrs.Items...)
-						return &nodes.TypeName{
-							Names:   &nodes.List{Items: nameItems},
-							PctType: true,
-							Loc:     nodes.NoLoc(),
-						}, nil
-					}
+			if setof {
+				p.advance() // consume SETOF
+			}
+			if p.peekNext().Type == '.' {
+				tn, err := p.tryParsePctTypeTail()
+				if err != nil {
+					return nil, err
+				}
+				if tn != nil {
+					tn.Setof = setof
+					return tn, nil
 				}
 			}
-
-			// Not %TYPE pattern - restore and parse as Typename
 			p.restoreTokenStream(snap)
 		}
 	}
-
 	return p.parseTypename()
+}
+
+// tryParsePctTypeTail parses type_function_name attrs '%' TYPE_P at the
+// current token, or returns nil where the tokens are not that form; the
+// caller restores the token stream then. A '%' after the name starts
+// nothing else where a func_type stands, so TYPE_P must follow it, and the
+// error is at the token that does instead.
+//
+// Use snapshotTokenStream/restoreTokenStream for the rollback: a hand-rolled
+// save of cur/prev/nextBuf missed the lexer's position and corrupted every
+// qualified type after it.
+func (p *Parser) tryParsePctTypeTail() (*nodes.TypeName, error) {
+	name, err := p.parseTypeFunctionName()
+	if err != nil || p.cur.Type != '.' {
+		return nil, nil
+	}
+	attrs, err := p.parseAttrs()
+	if err != nil || p.cur.Type != '%' {
+		return nil, nil
+	}
+	p.advance()
+	if _, err := p.expect(TYPE_P); err != nil {
+		return nil, err
+	}
+	nameItems := make([]nodes.Node, 0, 1+len(attrs.Items))
+	nameItems = append(nameItems, &nodes.String{Str: name})
+	nameItems = append(nameItems, attrs.Items...)
+	return &nodes.TypeName{
+		Names:   &nodes.List{Items: nameItems},
+		PctType: true,
+		Loc:     nodes.NoLoc(),
+	}, nil
 }
 
 // isTypeFunctionNameToken checks if a token could be a type_function_name.

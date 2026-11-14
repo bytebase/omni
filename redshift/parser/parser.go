@@ -5,6 +5,7 @@
 package parser
 
 import (
+	"errors"
 	"fmt"
 
 	nodes "github.com/bytebase/omni/redshift/ast"
@@ -30,6 +31,15 @@ type Parser struct {
 	parenRunPast    Token         // first token past that run
 
 	depth int // nesting depth of the productions being parsed (see enterNesting)
+	// funcOnlyAt is 1 + the byte offset of the func_expr_windowless being
+	// parsed, where gram.y takes a function call but no AexprConst, so
+	// func_name(args) 'string' is no typed constant there; 0 outside one.
+	funcOnlyAt int
+	// lastRow is the node the row production parsed last made, and
+	// lastRowEnd the end of its ')': a c_expr that is that node and ends
+	// there is the row itself, not a parenthesized expression holding it.
+	lastRow    nodes.Node
+	lastRowEnd int
 
 	// Completion mode fields.
 	completing   bool          // true when collecting completion candidates
@@ -100,7 +110,10 @@ func ParseRange(source string, start, end int) (*nodes.List, error) {
 			return nil, err
 		}
 		if stmt == nil {
-			if p.cur.Type != 0 {
+			// A statement parser that consumed tokens and built nothing
+			// stopped short of a production gram.y requires; at the end of
+			// input that is still a syntax error.
+			if p.cur.Type != 0 || p.prev.End > stmtStart {
 				return nil, p.syntaxErrorAtCur()
 			}
 			break
@@ -473,7 +486,9 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		p.advance()          // consume CREATE
 		p.advance()          // consume OR
 
-		p.expect(REPLACE)
+		if _, err := p.expect(REPLACE); err != nil {
+			return nil, err
+		}
 		if objectType := p.redshiftCreateObjectType(); objectType != "" {
 			return p.parseRedshiftObjectStmt("create or replace", objectType, createLoc)
 		}
@@ -729,9 +744,13 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		// CREATE SCHEMA ...
 		p.advance() // consume CREATE
 		return p.parseCreateSchemaStmt(createLoc)
-	// exhaustive: gram.y:6780 CreateStmt-family — unknown post-CREATE keyword bubbles to Parse error
+	case ASSERTION:
+		p.advance() // consume CREATE
+		return nil, p.parseCreateAssertionStmt()
+	// exhaustive: gram.y:6780 CreateStmt-family — no CREATE statement goes
+	// on with this token, so the syntax error is at it.
 	default:
-		return nil, nil
+		return nil, p.syntaxErrorAtTok(next)
 	}
 }
 
@@ -742,7 +761,10 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 func (p *Parser) parseCreateTempDispatch() (nodes.Node, error) {
 	loc := p.pos()
 	p.advance() // consume CREATE
-	relpersistence := p.parseOptTemp()
+	relpersistence, err := p.parseOptTemp()
+	if err != nil {
+		return nil, err
+	}
 
 	if p.cur.Type == VIEW || p.cur.Type == RECURSIVE {
 		// CREATE TEMP VIEW ... or CREATE TEMP RECURSIVE VIEW ...
@@ -763,13 +785,19 @@ func (p *Parser) parseCreateTempDispatch() (nodes.Node, error) {
 	}
 
 	// CREATE TEMP TABLE ...
-	p.expect(TABLE)
+	if _, err := p.expect(TABLE); err != nil {
+		return nil, err
+	}
 
 	ifNotExists := false
 	if p.cur.Type == IF_P {
 		p.advance()
-		p.expect(NOT)
-		p.expect(EXISTS)
+		if _, err := p.expect(NOT); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(EXISTS); err != nil {
+			return nil, err
+		}
 		ifNotExists = true
 	}
 
@@ -801,7 +829,7 @@ func (p *Parser) parseCreateTempDispatch() (nodes.Node, error) {
 	}
 
 	// No '(' - check for AS (CTAS with no column list), PARTITION, OF
-	if p.cur.Type == AS || p.cur.Type == USING || p.isRedshiftCreateTableAttributeStart() {
+	if p.startsCreateAsTail() {
 		stmt, err := p.finishCTAS(names, nameLoc, nil, relpersistence, ifNotExists)
 		if stmt != nil {
 			stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
@@ -847,14 +875,25 @@ func (p *Parser) parseCreateUnloggedDispatch() (nodes.Node, error) {
 		return stmt, nil
 	}
 
+	if p.cur.Type == SEQUENCE {
+		// CREATE UNLOGGED SEQUENCE ...
+		return p.parseCreateSeqStmt(loc, relpersistence)
+	}
+
 	// CREATE UNLOGGED TABLE ...
-	p.expect(TABLE)
+	if _, err := p.expect(TABLE); err != nil {
+		return nil, err
+	}
 
 	ifNotExists := false
 	if p.cur.Type == IF_P {
 		p.advance()
-		p.expect(NOT)
-		p.expect(EXISTS)
+		if _, err := p.expect(NOT); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(EXISTS); err != nil {
+			return nil, err
+		}
 		ifNotExists = true
 	}
 
@@ -884,7 +923,7 @@ func (p *Parser) parseCreateUnloggedDispatch() (nodes.Node, error) {
 		return node, nil
 	}
 
-	if p.cur.Type == AS || p.cur.Type == USING || p.isRedshiftCreateTableAttributeStart() {
+	if p.startsCreateAsTail() {
 		stmt, err := p.finishCTAS(names, nameLoc, nil, relpersistence, ifNotExists)
 		if stmt != nil {
 			stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
@@ -906,13 +945,19 @@ func (p *Parser) parseCreateOrCTAS() (nodes.Node, error) {
 	loc := p.pos()
 	p.advance() // consume CREATE
 	relpersistence := byte(nodes.RELPERSISTENCE_PERMANENT)
-	p.expect(TABLE)
+	if _, err := p.expect(TABLE); err != nil {
+		return nil, err
+	}
 
 	ifNotExists := false
 	if p.cur.Type == IF_P {
 		p.advance()
-		p.expect(NOT)
-		p.expect(EXISTS)
+		if _, err := p.expect(NOT); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(EXISTS); err != nil {
+			return nil, err
+		}
 		ifNotExists = true
 	}
 
@@ -944,7 +989,7 @@ func (p *Parser) parseCreateOrCTAS() (nodes.Node, error) {
 	}
 
 	// No '(' - check for AS or USING (CTAS with no column list)
-	if p.cur.Type == AS || p.cur.Type == USING || p.isRedshiftCreateTableAttributeStart() {
+	if p.startsCreateAsTail() {
 		stmt, err := p.finishCTAS(names, nameLoc, nil, relpersistence, ifNotExists)
 		if stmt != nil {
 			stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
@@ -1012,26 +1057,14 @@ func (p *Parser) parseCreateTableOrCTASAfterParen(names *nodes.List, nameLoc nod
 	}
 
 	// '(' OptTableElementList ')'
-	p.expect('(')
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
 
 	// Check for immediate ')' (empty table)
 	if p.cur.Type == ')' {
 		p.advance()
-		stmt.InhRelations = p.parseOptInherit()
-		partspec, err := p.parseOptPartitionSpec()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Partspec = partspec
-		stmt.AccessMethod = p.parseOptAccessMethod()
-		stmt.Options = p.parseOptWith()
-		stmt.OnCommit = p.parseOnCommitOption()
-		stmt.Tablespacename = p.parseOptTableSpace()
-		stmt.Options, err = p.parseRedshiftCreateTableAttributesInto(stmt.Options)
-		if err != nil {
-			return nil, err
-		}
-		return stmt, nil
+		return p.finishCreateStmtTail(stmt)
 	}
 
 	// Check if this is a CTAS column list by looking at what the first identifier
@@ -1046,22 +1079,10 @@ func (p *Parser) parseCreateTableOrCTASAfterParen(names *nodes.List, nameLoc nod
 			return nil, err
 		}
 		stmt.TableElts = tableElts
-		p.expect(')')
-		stmt.InhRelations = p.parseOptInherit()
-		partspec, err := p.parseOptPartitionSpec()
-		if err != nil {
+		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
-		stmt.Partspec = partspec
-		stmt.AccessMethod = p.parseOptAccessMethod()
-		stmt.Options = p.parseOptWith()
-		stmt.OnCommit = p.parseOnCommitOption()
-		stmt.Tablespacename = p.parseOptTableSpace()
-		stmt.Options, err = p.parseRedshiftCreateTableAttributesInto(stmt.Options)
-		if err != nil {
-			return nil, err
-		}
-		return stmt, nil
+		return p.finishCreateStmtTail(stmt)
 	}
 
 	// Might be CTAS with column list, but we need to verify.
@@ -1088,11 +1109,13 @@ func (p *Parser) parseCreateTableOrCTASAfterParen(names *nodes.List, nameLoc nod
 				p.advance()
 				name, err := p.parseName()
 				if err != nil {
-					break
+					return nil, err
 				}
 				colNames = append(colNames, &nodes.String{Str: name})
 			}
-			p.expect(')')
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
 			colList := &nodes.List{Items: colNames}
 			return p.finishCTAS(names, nameLoc, colList, relpersistence, ifNotExists)
 		}
@@ -1109,22 +1132,10 @@ func (p *Parser) parseCreateTableOrCTASAfterParen(names *nodes.List, nameLoc nod
 			return nil, err
 		}
 		stmt.TableElts = tableElts
-		p.expect(')')
-		stmt.InhRelations = p.parseOptInherit()
-		partspec, err := p.parseOptPartitionSpec()
-		if err != nil {
+		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
-		stmt.Partspec = partspec
-		stmt.AccessMethod = p.parseOptAccessMethod()
-		stmt.Options = p.parseOptWith()
-		stmt.OnCommit = p.parseOnCommitOption()
-		stmt.Tablespacename = p.parseOptTableSpace()
-		stmt.Options, err = p.parseRedshiftCreateTableAttributesInto(stmt.Options)
-		if err != nil {
-			return nil, err
-		}
-		return stmt, nil
+		return p.finishCreateStmtTail(stmt)
 	}
 
 	// Fallback: parse as CREATE TABLE
@@ -1133,28 +1144,25 @@ func (p *Parser) parseCreateTableOrCTASAfterParen(names *nodes.List, nameLoc nod
 		return nil, err
 	}
 	stmt.TableElts = tableElts
-	p.expect(')')
-	stmt.InhRelations = p.parseOptInherit()
-	partspec, err := p.parseOptPartitionSpec()
-	if err != nil {
+	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
-	stmt.Partspec = partspec
-	stmt.AccessMethod = p.parseOptAccessMethod()
-	stmt.Options = p.parseOptWith()
-	stmt.OnCommit = p.parseOnCommitOption()
-	stmt.Tablespacename = p.parseOptTableSpace()
-	stmt.Options, err = p.parseRedshiftCreateTableAttributesInto(stmt.Options)
-	if err != nil {
-		return nil, err
-	}
-	return stmt, nil
+	return p.finishCreateStmtTail(stmt)
 }
 
 // isCreateTableElement returns true if the current token starts a table element
 // that is NOT a simple column name (i.e., a table constraint or LIKE).
 func (p *Parser) isCreateTableElement() bool {
 	return p.cur.Type == LIKE || p.startsTableConstraint()
+}
+
+// startsCreateAsTail reports whether the token after CREATE TABLE's name
+// goes on with create_as_target (gram.y: qualified_name opt_column_list
+// table_access_method_clause OptWith OnCommitOption OptTableSpace AS ...).
+// CreateStmt goes on only with isCreateStmtTailStart's tokens. Redshift's table
+// attributes (DISTSTYLE, SORTKEY, ...) belong to the CTAS tail here.
+func (p *Parser) startsCreateAsTail() bool {
+	return !p.collectMode() && !p.isCreateStmtTailStart()
 }
 
 // finishCTAS completes parsing a CTAS statement after names and optional column
@@ -1164,19 +1172,32 @@ func (p *Parser) finishCTAS(names *nodes.List, nameLoc nodes.Loc, colNames *node
 	rv := makeRangeVarFromAnyName(names, nameLoc)
 	rv.Relpersistence = relpersistence
 
-	accessMethod := p.parseOptAccessMethod()
-	options := p.parseOptWith()
-	onCommit := p.parseOnCommitOption()
-	tableSpace := p.parseOptTableSpace()
-	options, err := p.parseRedshiftCreateTableAttributesInto(options)
+	accessMethod, err := p.parseOptAccessMethod()
+	if err != nil {
+		return nil, err
+	}
+	options, err := p.parseOptWith()
+	if err != nil {
+		return nil, err
+	}
+	onCommit, err := p.parseOnCommitOption()
+	if err != nil {
+		return nil, err
+	}
+	tableSpace, err := p.parseOptTableSpace()
+	if err != nil {
+		return nil, err
+	}
+	options, err = p.parseRedshiftCreateTableAttributesInto(options)
 	if err != nil {
 		return nil, err
 	}
 	// create_as_target ends here, before AS.
 	intoLoc := nodes.Loc{Start: nameLoc.Start, End: p.prev.End}
 
-	// AS
-	p.expect(AS)
+	if _, err := p.expect(AS); err != nil {
+		return nil, err
+	}
 
 	var query nodes.Node
 	if p.cur.Type == EXECUTE {
@@ -1194,14 +1215,17 @@ func (p *Parser) finishCTAS(names *nodes.List, nameLoc nodes.Loc, colNames *node
 			Params: params,
 		}
 	} else {
-		var err error
-		query, err = p.parseSelectNoParens()
+		sel, err := p.parseRequiredSelectNoParens()
 		if err != nil {
 			return nil, err
 		}
+		query = sel
 	}
 
-	withData := p.parseOptWithData()
+	withData, err := p.parseOptWithData()
+	if err != nil {
+		return nil, err
+	}
 
 	into := &nodes.IntoClause{
 		Rel:            rv,
@@ -1236,7 +1260,9 @@ func (p *Parser) finishCreateStmt(names *nodes.List, nameLoc nodes.Loc, relpersi
 	switch p.cur.Type {
 	case PARTITION:
 		p.advance()
-		p.expect(OF)
+		if _, err := p.expect(OF); err != nil {
+			return nil, err
+		}
 		return p.parseCreateStmtPartitionOf(stmt, relpersistence)
 	case OF:
 		p.advance()
@@ -1244,28 +1270,18 @@ func (p *Parser) finishCreateStmt(names *nodes.List, nameLoc nodes.Loc, relpersi
 	}
 
 	// Should have '(' but we already handled that case
-	p.expect('(')
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
 	tableElts, err := p.parseOptTableElementList()
 	if err != nil {
 		return nil, err
 	}
 	stmt.TableElts = tableElts
-	p.expect(')')
-	stmt.InhRelations = p.parseOptInherit()
-	partspec, err := p.parseOptPartitionSpec()
-	if err != nil {
+	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
-	stmt.Partspec = partspec
-	stmt.AccessMethod = p.parseOptAccessMethod()
-	stmt.Options = p.parseOptWith()
-	stmt.OnCommit = p.parseOnCommitOption()
-	stmt.Tablespacename = p.parseOptTableSpace()
-	stmt.Options, err = p.parseRedshiftCreateTableAttributesInto(stmt.Options)
-	if err != nil {
-		return nil, err
-	}
-	return stmt, nil
+	return p.finishCreateStmtTail(stmt)
 }
 
 // parseWithStmt parses a WITH clause followed by SELECT, INSERT, UPDATE, DELETE, or MERGE.
@@ -1520,6 +1536,14 @@ func (p *Parser) lexerError() *ParseError {
 	tok := p.cur
 	if tok.Type != 0 && p.hasNext && p.nextBuf.Type == 0 {
 		tok = p.nextBuf
+	}
+	var se *scanError
+	if errors.As(p.lexer.Err, &se) {
+		pos := tok.Loc
+		if se.noPos {
+			pos = -1
+		}
+		return &ParseError{Code: se.code, Message: se.msg, Position: pos}
 	}
 	text := p.tokenText(tok)
 	if tok.Type == 0 && tok.Loc >= 0 && tok.End > tok.Loc && tok.End <= len(p.source) {

@@ -1778,6 +1778,18 @@ func writeLoadDataStmt(sb *strings.Builder, n *LoadDataStmt) {
 	if n.IgnoreRows > 0 {
 		fmt.Fprintf(sb, " :ignore_rows %d", n.IgnoreRows)
 	}
+	if n.SourceURL {
+		sb.WriteString(" :url true")
+	}
+	if n.SourceCount != 0 {
+		fmt.Fprintf(sb, " :count %d", n.SourceCount)
+	}
+	if n.InPrimaryKeyOrder {
+		sb.WriteString(" :in_primary_key_order true")
+	}
+	if n.AlgorithmBulk {
+		sb.WriteString(" :algorithm_bulk true")
+	}
 	sb.WriteString("}")
 }
 
@@ -2187,6 +2199,12 @@ func writeFuncCallExpr(sb *strings.Builder, n *FuncCallExpr) {
 	}
 	if n.Using != "" {
 		fmt.Fprintf(sb, " :using %s", n.Using)
+	}
+	if n.FromFirstLast != "" {
+		fmt.Fprintf(sb, " :from %s", n.FromFirstLast)
+	}
+	if n.NullTreatment != "" {
+		fmt.Fprintf(sb, " :nulls %s", n.NullTreatment)
 	}
 	if len(n.Args) > 0 {
 		sb.WriteString(" :args ")
@@ -2666,6 +2684,9 @@ func writeWindowFrame(sb *strings.Builder, n *WindowFrame) {
 	if n.End != nil {
 		sb.WriteString(" :end ")
 		writeNode(sb, n.End)
+	}
+	if n.Exclude != "" {
+		fmt.Fprintf(sb, " :exclude %s", n.Exclude)
 	}
 	sb.WriteString("}")
 }
@@ -3631,6 +3652,16 @@ func writeHandlerReadStmt(sb *strings.Builder, n *HandlerReadStmt) {
 		sb.WriteString(" :limit ")
 		writeNode(sb, n.Limit)
 	}
+	if n.KeyMode != "" {
+		fmt.Fprintf(sb, " :key_mode %s :key_values (", n.KeyMode)
+		for i, v := range n.KeyValues {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, v)
+		}
+		sb.WriteString(")")
+	}
 	sb.WriteString("}")
 }
 
@@ -4080,7 +4111,10 @@ func writeInstallComponentStmt(sb *strings.Builder, n *InstallComponentStmt) {
 	}
 	if len(n.SetVars) > 0 {
 		sb.WriteString(" :set_vars")
-		for _, v := range n.SetVars {
+		for i, v := range n.SetVars {
+			if i < len(n.SetScopes) && n.SetScopes[i] != "" {
+				sb.WriteString(" " + n.SetScopes[i])
+			}
 			sb.WriteString(" ")
 			writeNode(sb, v)
 		}
@@ -4208,6 +4242,9 @@ func writeCreateTablespaceStmt(sb *strings.Builder, n *CreateTablespaceStmt) {
 	if n.EngineAttribute != "" {
 		fmt.Fprintf(sb, " :engine_attribute %q", n.EngineAttribute)
 	}
+	if n.NoWait {
+		sb.WriteString(" :no_wait true")
+	}
 	sb.WriteString("}")
 }
 
@@ -4251,6 +4288,12 @@ func writeAlterTablespaceStmt(sb *strings.Builder, n *AlterTablespaceStmt) {
 	if n.SetInactive {
 		sb.WriteString(" :set_inactive true")
 	}
+	if n.NoWait {
+		sb.WriteString(" :no_wait true")
+	}
+	if n.MaxSize != "" {
+		fmt.Fprintf(sb, " :max_size %s", n.MaxSize)
+	}
 	sb.WriteString("}")
 }
 
@@ -4263,6 +4306,12 @@ func writeDropTablespaceStmt(sb *strings.Builder, n *DropTablespaceStmt) {
 	fmt.Fprintf(sb, " :name %s", n.Name)
 	if n.Engine != "" {
 		fmt.Fprintf(sb, " :engine %s", n.Engine)
+	}
+	if n.Wait {
+		sb.WriteString(" :wait true")
+	}
+	if n.NoWait {
+		sb.WriteString(" :no_wait true")
 	}
 	sb.WriteString("}")
 }

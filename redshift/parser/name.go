@@ -1,6 +1,9 @@
 package parser
 
 import (
+	"fmt"
+	"strings"
+
 	nodes "github.com/bytebase/omni/redshift/ast"
 )
 
@@ -42,6 +45,12 @@ func (p *Parser) isColLabel() bool {
 	return false
 }
 
+// isColNameKeyword reports whether the current token is a col_name_keyword.
+func (p *Parser) isColNameKeyword() bool {
+	kw := LookupKeyword(p.cur.Str)
+	return kw != nil && kw.Token == p.cur.Type && kw.Category == ColNameKeyword
+}
+
 // isTypeFunctionName returns true if the current token can be used as a type_function_name.
 //
 //	type_function_name: IDENT | unreserved_keyword | type_func_name_keyword
@@ -60,6 +69,72 @@ func (p *Parser) isTypeFunctionName() bool {
 	return false
 }
 
+// isNonReservedWord returns true if the current token can be used as a NonReservedWord.
+//
+//	NonReservedWord: IDENT | unreserved_keyword | col_name_keyword | type_func_name_keyword
+func (p *Parser) isNonReservedWord() bool {
+	if p.collectMode() {
+		p.addTokenCandidate(IDENT)
+		p.addKeywordsByCategory(UnreservedKeyword, ColNameKeyword, TypeFuncNameKeyword)
+		return true
+	}
+	if p.cur.Type == IDENT {
+		return true
+	}
+	if kw := LookupKeyword(p.cur.Str); kw != nil && kw.Token == p.cur.Type {
+		return kw.Category == UnreservedKeyword || kw.Category == ColNameKeyword || kw.Category == TypeFuncNameKeyword
+	}
+	return false
+}
+
+// isColIdToken reports whether tok, the token after the current one, can be
+// a ColId: IDENT, an unreserved keyword or a column name keyword.
+func isColIdToken(tok Token) bool {
+	if tok.Type == IDENT {
+		return true
+	}
+	if kw := LookupKeyword(tok.Str); kw != nil && kw.Token == tok.Type {
+		return kw.Category == UnreservedKeyword || kw.Category == ColNameKeyword
+	}
+	return false
+}
+
+// isNameToken reports whether tok is IDENT or a keyword no category
+// reserves: an unreserved, column name, or type or function name keyword.
+func isNameToken(tok Token) bool {
+	if tok.Type == IDENT {
+		return true
+	}
+	if kw := LookupKeyword(tok.Str); kw != nil && kw.Token == tok.Type {
+		return kw.Category != ReservedKeyword
+	}
+	return false
+}
+
+// isStmtEndToken reports whether tok ends the statement.
+func isStmtEndToken(tok Token) bool {
+	return tok.Type == ';' || tok.Type == 0
+}
+
+// completingAtNext reports whether completion's cursor is at the token after
+// the current one. A keyword that may be a name or lead a clause then leads
+// the clause, so the candidates after it are offered.
+func (p *Parser) completingAtNext() bool {
+	if !p.completing || p.collecting {
+		return false
+	}
+	next := p.peekNext()
+	return next.Loc >= p.cursorOff || next.Type == 0
+}
+
+// keywordLeads reports whether the current unreserved keyword leads its
+// optional clause rather than being the name after it. gram.y reads it as
+// the name when the token after it cannot go on with the clause: RELEASE
+// savepoint, FETCH next, SELECT INTO temp.
+func (p *Parser) keywordLeads(goesOn func(Token) bool) bool {
+	return p.collectMode() || p.completingAtNext() || goesOn(p.peekNext())
+}
+
 // parseColId parses a ColId (identifier or unreserved/col_name keyword).
 //
 //	ColId: IDENT | unreserved_keyword | col_name_keyword
@@ -69,6 +144,29 @@ func (p *Parser) parseColId() (string, error) {
 		return tok.Str, nil
 	}
 	return "", p.syntaxErrorAtCur()
+}
+
+// parseNonReservedWord parses a NonReservedWord, the name of a role among others.
+//
+//	NonReservedWord: IDENT | unreserved_keyword | col_name_keyword | type_func_name_keyword
+func (p *Parser) parseNonReservedWord() (string, error) {
+	if p.isNonReservedWord() {
+		tok := p.advance()
+		return tok.Str, nil
+	}
+	return "", p.syntaxErrorAtCur()
+}
+
+// parseNonReservedWordOrSconstStrict parses NonReservedWord_or_Sconst and
+// fails on anything else, unlike parseNonReservedWordOrSconst, which takes
+// whatever token comes.
+//
+//	NonReservedWord_or_Sconst: NonReservedWord | Sconst
+func (p *Parser) parseNonReservedWordOrSconstStrict() (string, error) {
+	if p.cur.Type == SCONST && !p.collectMode() {
+		return p.advance().Str, nil
+	}
+	return p.parseNonReservedWord()
 }
 
 // parseColLabel parses a ColLabel (any identifier or keyword).
@@ -113,54 +211,73 @@ func (p *Parser) parseTypeFunctionName() (string, error) {
 //
 //	qualified_name:
 //	    ColId
-//	    | ColId '.' attr_name
-//	    | ColId '.' attr_name '.' attr_name
+//	    | ColId indirection
+//
+// The grammar reads any indirection, as func_name does, and
+// makeRangeVarFromQualifiedName then refuses what a relation name cannot
+// hold: a subscript or '*' as a syntax error at the token after the name
+// (check_qualified_name's parser_yyerror), and more than three parts as an
+// improper qualified name at the first.
 func (p *Parser) parseQualifiedName() (*nodes.List, error) {
 	if p.collectMode() {
 		p.addRuleCandidate("qualified_name")
 		return nil, errCollecting
 	}
+	loc := p.pos()
 	id, err := p.parseColId()
 	if err != nil {
 		return nil, err
 	}
 	items := []nodes.Node{&nodes.String{Str: id}}
 
-	if p.cur.Type == '.' {
+	subscripted := false
+	for p.cur.Type == '.' || p.cur.Type == '[' {
+		if p.cur.Type == '[' {
+			if _, err := p.parseIndirectionEl(); err != nil {
+				return nil, err
+			}
+			subscripted = true
+			continue
+		}
 		p.advance()
 		// After "name.", we may have reached the cursor position.
 		// Emit rule candidates so callers (relation_expr, etc.) are recognized.
 		if p.collectMode() {
 			p.addRuleCandidate("qualified_name")
 		}
+		if p.cur.Type == '*' {
+			p.advance()
+			subscripted = true
+			continue
+		}
 		attr, err := p.parseAttrName()
 		if err != nil {
 			return nil, err
 		}
 		items = append(items, &nodes.String{Str: attr})
-
-		if p.cur.Type == '.' {
-			p.advance()
-			// Same for second dot in 3-part names.
-			if p.collectMode() {
-				p.addRuleCandidate("qualified_name")
-			}
-			attr2, err := p.parseAttrName()
-			if err != nil {
-				return nil, err
-			}
-			items = append(items, &nodes.String{Str: attr2})
+	}
+	if subscripted {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if len(items) > 3 {
+		parts := make([]string, len(items))
+		for i, item := range items {
+			parts[i] = item.(*nodes.String).Str
+		}
+		return nil, &ParseError{
+			Message:  fmt.Sprintf("improper qualified name (too many dotted names): %s", strings.Join(parts, ".")),
+			Position: loc,
 		}
 	}
 
 	return &nodes.List{Items: items}, nil
 }
 
-// parseAnyName parses an any_name (dot-separated list of ColId).
+// parseAnyName parses an any_name: a ColId and then any number of
+// '.' attr_name.
 //
-//	any_name:
-//	    ColId
-//	    | ColId '.' any_name
+//	any_name: ColId | ColId attrs
+//	attrs: '.' attr_name | attrs '.' attr_name
 func (p *Parser) parseAnyName() (*nodes.List, error) {
 	if p.collectMode() {
 		p.addRuleCandidate("any_name")
@@ -184,16 +301,7 @@ func (p *Parser) parseAnyName() (*nodes.List, error) {
 			p.addRuleCandidate("qualified_name")
 			return &nodes.List{Items: items}, errCollecting
 		}
-		// The recursive any_name starts with ColId, but we need to handle
-		// the case where the next token after '.' is '*' which could be
-		// part of a different rule. Only continue if we see a ColId.
-		if !p.isColId() {
-			// Put back: this dot is not part of any_name.
-			// Since we can't unread, this shouldn't happen in practice
-			// as callers of any_name expect well-formed input.
-			break
-		}
-		id2, err := p.parseColId()
+		id2, err := p.parseAttrName()
 		if err != nil {
 			return nil, err
 		}
@@ -406,7 +514,7 @@ func (p *Parser) parseIndirectionEl() (nodes.Node, error) {
 		}
 
 		// Parse first expression
-		expr, err := p.parseAExpr(0)
+		expr, err := p.parseRequiredAExpr(0)
 		if err != nil {
 			return nil, err
 		}

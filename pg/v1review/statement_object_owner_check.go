@@ -109,8 +109,8 @@ func (c *ownerCheck) check(node ast.Node) {
 			return
 		}
 		for _, item := range n.Objects.Items {
-			list, ok := item.(*ast.List)
-			if !ok {
+			list := dropObjectNames(item)
+			if list == nil {
 				continue
 			}
 			if parts := stringItems(list); len(parts) > 0 {
@@ -197,4 +197,16 @@ func qualifier(parts []string) string {
 		return parts[0]
 	}
 	return ""
+}
+
+// dropObjectNames returns the name of a DROP's object given by a name list:
+// the list itself, or a type name's (DROP TYPE SETOF s.t, DROP TYPE s.t[]).
+func dropObjectNames(item ast.Node) *ast.List {
+	switch o := item.(type) {
+	case *ast.List:
+		return o
+	case *ast.TypeName:
+		return o.Names
+	}
+	return nil
 }

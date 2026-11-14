@@ -64,7 +64,10 @@ func (p *Parser) parseExecuteStmt() (nodes.Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	params, _ := p.parseExecuteParamClause()
+	params, err := p.parseExecuteParamClause()
+	if err != nil {
+		return nil, err
+	}
 
 	return &nodes.ExecuteStmt{
 		Name:   name,
@@ -85,8 +88,8 @@ func (p *Parser) parseExecuteStmt() (nodes.Node, error) {
 func (p *Parser) parseDeallocateStmt() (nodes.Node, error) {
 	p.advance() // consume DEALLOCATE
 
-	// Optional PREPARE keyword
-	if p.cur.Type == PREPARE {
+	// Optional PREPARE keyword, or the name prepare
+	if p.cur.Type == PREPARE && p.keywordLeads(isDeallocateTargetStart) {
 		p.advance()
 	}
 

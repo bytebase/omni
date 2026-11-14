@@ -21,13 +21,19 @@ func (p *Parser) parseCreateExtensionStmt() (nodes.Node, error) {
 		ifNotExists = true
 	}
 
-	name, _ := p.parseName()
+	name, err := p.parseName()
+	if err != nil {
+		return nil, err
+	}
 
 	if p.cur.Type == WITH {
 		p.advance()
 	}
 
-	opts := p.parseCreateExtensionOptList()
+	opts, err := p.parseCreateExtensionOptList()
+	if err != nil {
+		return nil, err
+	}
 
 	return &nodes.CreateExtensionStmt{
 		Extname:     name,
@@ -37,36 +43,62 @@ func (p *Parser) parseCreateExtensionStmt() (nodes.Node, error) {
 	}, nil
 }
 
-func (p *Parser) parseCreateExtensionOptList() *nodes.List {
+func (p *Parser) parseCreateExtensionOptList() (*nodes.List, error) {
 	var items []nodes.Node
 	for {
-		item := p.parseCreateExtensionOptItem()
+		item, err := p.parseCreateExtensionOptItem()
+		if err != nil {
+			return nil, err
+		}
 		if item == nil {
 			break
 		}
 		items = append(items, item)
 	}
 	if len(items) == 0 {
-		return nil
+		return nil, nil
 	}
-	return &nodes.List{Items: items}
+	return &nodes.List{Items: items}, nil
 }
 
-func (p *Parser) parseCreateExtensionOptItem() *nodes.DefElem {
+// parseCreateExtensionOptItem parses create_extension_opt_item, or returns
+// nil when none starts here.
+//
+//	create_extension_opt_item: SCHEMA name | VERSION_P NonReservedWord_or_Sconst | FROM NonReservedWord_or_Sconst | CASCADE
+func (p *Parser) parseCreateExtensionOptItem() (*nodes.DefElem, error) {
 	switch p.cur.Type {
 	case SCHEMA:
 		p.advance()
-		name, _ := p.parseName()
-		return makeDefElem("schema", &nodes.String{Str: name})
+		name, err := p.parseName()
+		if err != nil {
+			return nil, err
+		}
+		return makeDefElem("schema", &nodes.String{Str: name}), nil
 	case VERSION_P:
 		p.advance()
-		ver := p.parseNonReservedWordOrSconst()
-		return makeDefElem("new_version", &nodes.String{Str: ver})
+		ver, err := p.parseNonReservedWordOrSconstStrict()
+		if err != nil {
+			return nil, err
+		}
+		return makeDefElem("new_version", &nodes.String{Str: ver}), nil
 	case CASCADE:
 		p.advance()
-		return makeDefElem("cascade", &nodes.Boolean{Boolval: true})
+		return makeDefElem("cascade", &nodes.Boolean{Boolval: true}), nil
+	case FROM:
+		// FROM NonReservedWord_or_Sconst: the grammar reads it and its
+		// action refuses it at FROM.
+		from := p.cur.Loc
+		p.advance()
+		if _, err := p.parseNonReservedWordOrSconstStrict(); err != nil {
+			return nil, err
+		}
+		if p.collectMode() {
+			return nil, errCollecting
+		}
+		return nil, &ParseError{Code: "0A000", Message: "CREATE EXTENSION ... FROM is no longer supported", Position: from}
+	// optional-probe: create_extension_opt_list ends at any other token
 	default:
-		return nil
+		return nil, nil
 	}
 }
 
@@ -75,12 +107,18 @@ func (p *Parser) parseAlterExtensionStmt() (nodes.Node, error) {
 	loc := p.prev.Loc // start of ALTER
 	p.advance()       // consume EXTENSION
 
-	name, _ := p.parseName()
+	name, err := p.parseName()
+	if err != nil {
+		return nil, err
+	}
 
 	switch p.cur.Type {
 	case UPDATE:
 		p.advance()
-		opts := p.parseAlterExtensionOptList()
+		opts, err := p.parseAlterExtensionOptList()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterExtensionStmt{
 			Extname: name,
 			Options: opts,
@@ -97,11 +135,15 @@ func (p *Parser) parseAlterExtensionStmt() (nodes.Node, error) {
 		if _, err := p.expect(SCHEMA); err != nil {
 			return nil, err
 		}
-		newschema, _ := p.parseName()
+		newschema, err := p.parseName()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterObjectSchemaStmt{
 			ObjectType: nodes.OBJECT_EXTENSION,
 			Object:     &nodes.String{Str: name},
 			Newschema:  newschema,
+			Loc:        nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 	// exhaustive: gram.y:5166 — AlterExtensionStmt enumerates UPDATE / ADD /
 	// DROP / SET SCHEMA only. Unknown action after `ALTER EXTENSION name`
@@ -111,263 +153,211 @@ func (p *Parser) parseAlterExtensionStmt() (nodes.Node, error) {
 	}
 }
 
-func (p *Parser) parseAlterExtensionOptList() *nodes.List {
+func (p *Parser) parseAlterExtensionOptList() (*nodes.List, error) {
 	var items []nodes.Node
 	for {
-		item := p.parseAlterExtensionOptItem()
+		item, err := p.parseAlterExtensionOptItem()
+		if err != nil {
+			return nil, err
+		}
 		if item == nil {
 			break
 		}
 		items = append(items, item)
 	}
 	if len(items) == 0 {
-		return nil
+		return nil, nil
 	}
-	return &nodes.List{Items: items}
+	return &nodes.List{Items: items}, nil
 }
 
-func (p *Parser) parseAlterExtensionOptItem() *nodes.DefElem {
-	if p.cur.Type == TO {
-		p.advance()
-		ver := p.parseNonReservedWordOrSconst()
-		return makeDefElem("new_version", &nodes.String{Str: ver})
+// parseAlterExtensionOptItem parses alter_extension_opt_item: TO
+// NonReservedWord_or_Sconst, or returns nil when TO does not follow.
+func (p *Parser) parseAlterExtensionOptItem() (*nodes.DefElem, error) {
+	if p.cur.Type != TO {
+		return nil, nil
 	}
-	return nil
+	p.advance()
+	ver, err := p.parseNonReservedWordOrSconstStrict()
+	if err != nil {
+		return nil, err
+	}
+	return makeDefElem("new_version", &nodes.String{Str: ver}), nil
 }
 
+// parseAlterExtensionContents parses what ALTER EXTENSION name ADD|DROP adds
+// or drops.
+//
+//	AlterExtensionContentsStmt: ALTER EXTENSION name add_drop
+//	    object_type_name name | object_type_any_name any_name
+//	    | AGGREGATE aggregate_with_argtypes | CAST '(' Typename AS Typename ')'
+//	    | DOMAIN_P Typename | FUNCTION function_with_argtypes
+//	    | OPERATOR operator_with_argtypes | OPERATOR CLASS any_name USING name
+//	    | OPERATOR FAMILY any_name USING name | PROCEDURE function_with_argtypes
+//	    | ROUTINE function_with_argtypes | TRANSFORM FOR Typename LANGUAGE name
+//	    | TYPE_P Typename
 func (p *Parser) parseAlterExtensionContents(loc int, extname string, action int) (nodes.Node, error) {
+	objtype, obj, err := p.parseAlterExtensionObject()
+	if err != nil {
+		return nil, err
+	}
+	return &nodes.AlterExtensionContentsStmt{
+		Extname: extname, Action: action,
+		Objtype: objtype, Object: obj,
+		Loc: nodes.Loc{Start: loc, End: p.prev.End},
+	}, nil
+}
+
+func (p *Parser) parseAlterExtensionObject() (nodes.ObjectType, nodes.Node, error) {
 	switch p.cur.Type {
 	case AGGREGATE:
 		p.advance()
-		// gram.y: ALTER EXTENSION name add_drop AGGREGATE aggregate_with_argtypes,
-		// which takes aggr_args rather than func_args, so "agg()" is rejected.
+		// aggregate_with_argtypes takes aggr_args rather than func_args, so "agg()" is rejected.
 		obj, err := p.parseAggregateWithArgtypesLocal()
-		if err != nil {
-			return nil, err
+		return nodes.OBJECT_AGGREGATE, obj, err
+	case CAST:
+		p.advance()
+		if _, err := p.expect('('); err != nil {
+			return 0, nil, err
 		}
-		return &nodes.AlterExtensionContentsStmt{
-			Extname: extname, Action: action,
-			Objtype: nodes.OBJECT_AGGREGATE, Object: obj,
-			Loc: nodes.Loc{Start: loc, End: p.prev.End},
-		}, nil
-	case FUNCTION:
+		source, err := p.parseTypename()
+		if err != nil {
+			return 0, nil, err
+		}
+		if _, err := p.expect(AS); err != nil {
+			return 0, nil, err
+		}
+		target, err := p.parseTypename()
+		if err != nil {
+			return 0, nil, err
+		}
+		if _, err := p.expect(')'); err != nil {
+			return 0, nil, err
+		}
+		return nodes.OBJECT_CAST, &nodes.List{Items: []nodes.Node{source, target}}, nil
+	case DOMAIN_P, TYPE_P:
+		objtype := nodes.OBJECT_TYPE
+		if p.cur.Type == DOMAIN_P {
+			objtype = nodes.OBJECT_DOMAIN
+		}
 		p.advance()
-		obj := p.parseExtFuncWithArgtypes()
-		return &nodes.AlterExtensionContentsStmt{
-			Extname: extname, Action: action,
-			Objtype: nodes.OBJECT_FUNCTION, Object: obj,
-			Loc: nodes.Loc{Start: loc, End: p.prev.End},
-		}, nil
-	case PROCEDURE:
+		tn, err := p.parseTypename()
+		return objtype, tn, err
+	case FUNCTION, PROCEDURE, ROUTINE:
+		objtype := map[int]nodes.ObjectType{FUNCTION: nodes.OBJECT_FUNCTION, PROCEDURE: nodes.OBJECT_PROCEDURE, ROUTINE: nodes.OBJECT_ROUTINE}[p.cur.Type]
 		p.advance()
-		obj := p.parseExtFuncWithArgtypes()
-		return &nodes.AlterExtensionContentsStmt{
-			Extname: extname, Action: action,
-			Objtype: nodes.OBJECT_PROCEDURE, Object: obj,
-			Loc: nodes.Loc{Start: loc, End: p.prev.End},
-		}, nil
-	case ROUTINE:
-		p.advance()
-		obj := p.parseExtFuncWithArgtypes()
-		return &nodes.AlterExtensionContentsStmt{
-			Extname: extname, Action: action,
-			Objtype: nodes.OBJECT_ROUTINE, Object: obj,
-			Loc: nodes.Loc{Start: loc, End: p.prev.End},
-		}, nil
+		obj, err := p.parseFunctionWithArgtypes()
+		return objtype, obj, err
 	case OPERATOR:
 		p.advance()
-		if p.cur.Type == CLASS {
+		if p.cur.Type == CLASS || p.cur.Type == FAMILY {
+			objtype := nodes.OBJECT_OPCLASS
+			if p.cur.Type == FAMILY {
+				objtype = nodes.OBJECT_OPFAMILY
+			}
 			p.advance()
 			anyName, err := p.parseAnyName()
 			if err != nil {
-				return nil, err
+				return 0, nil, err
 			}
 			if _, err := p.expect(USING); err != nil {
-				return nil, err
+				return 0, nil, err
 			}
 			usingName, err := p.parseName()
 			if err != nil {
-				return nil, err
+				return 0, nil, err
 			}
-			obj := &nodes.List{Items: append([]nodes.Node{&nodes.String{Str: usingName}}, anyName.Items...)}
-			return &nodes.AlterExtensionContentsStmt{
-				Extname: extname, Action: action,
-				Objtype: nodes.OBJECT_OPCLASS, Object: obj,
-				Loc: nodes.Loc{Start: loc, End: p.prev.End},
-			}, nil
+			return objtype, &nodes.List{Items: append([]nodes.Node{&nodes.String{Str: usingName}}, anyName.Items...)}, nil
 		}
-		if p.cur.Type == FAMILY {
-			p.advance()
-			anyName, err := p.parseAnyName()
-			if err != nil {
-				return nil, err
-			}
-			if _, err := p.expect(USING); err != nil {
-				return nil, err
-			}
-			usingName, err := p.parseName()
-			if err != nil {
-				return nil, err
-			}
-			obj := &nodes.List{Items: append([]nodes.Node{&nodes.String{Str: usingName}}, anyName.Items...)}
-			return &nodes.AlterExtensionContentsStmt{
-				Extname: extname, Action: action,
-				Objtype: nodes.OBJECT_OPFAMILY, Object: obj,
-				Loc: nodes.Loc{Start: loc, End: p.prev.End},
-			}, nil
+		opname, err := p.parseAnyOperator()
+		if err != nil {
+			return 0, nil, err
 		}
-		obj := p.parseExtOperWithArgtypes()
-		return &nodes.AlterExtensionContentsStmt{
-			Extname: extname, Action: action,
-			Objtype: nodes.OBJECT_OPERATOR, Object: obj,
-			Loc: nodes.Loc{Start: loc, End: p.prev.End},
-		}, nil
-	case DOMAIN_P:
+		args, err := p.parseOperArgtypes()
+		if err != nil {
+			return 0, nil, err
+		}
+		return nodes.OBJECT_OPERATOR, &nodes.ObjectWithArgs{Objname: opname, Objargs: args}, nil
+	case TRANSFORM:
 		p.advance()
+		if _, err := p.expect(FOR); err != nil {
+			return 0, nil, err
+		}
 		tn, err := p.parseTypename()
 		if err != nil {
-			return nil, err
+			return 0, nil, err
 		}
-		return &nodes.AlterExtensionContentsStmt{
-			Extname: extname, Action: action,
-			Objtype: nodes.OBJECT_DOMAIN, Object: tn,
-			Loc: nodes.Loc{Start: loc, End: p.prev.End},
-		}, nil
-	case TYPE_P:
-		p.advance()
-		tn, err := p.parseTypename()
+		if _, err := p.expect(LANGUAGE); err != nil {
+			return 0, nil, err
+		}
+		lang, err := p.parseName()
 		if err != nil {
-			return nil, err
+			return 0, nil, err
 		}
-		return &nodes.AlterExtensionContentsStmt{
-			Extname: extname, Action: action,
-			Objtype: nodes.OBJECT_TYPE, Object: tn,
-			Loc: nodes.Loc{Start: loc, End: p.prev.End},
-		}, nil
-	default:
-		objType, ok := p.tryParseExtObjTypeName()
-		if ok {
-			objName, _ := p.parseName()
-			return &nodes.AlterExtensionContentsStmt{
-				Extname: extname, Action: action,
-				Objtype: objType, Object: &nodes.String{Str: objName},
-				Loc: nodes.Loc{Start: loc, End: p.prev.End},
-			}, nil
-		}
-		objType = p.parseObjectTypeAnyName()
-		anyName, _ := p.parseAnyName()
-		return &nodes.AlterExtensionContentsStmt{
-			Extname: extname, Action: action,
-			Objtype: objType, Object: anyName,
-			Loc: nodes.Loc{Start: loc, End: p.prev.End},
-		}, nil
+		return nodes.OBJECT_TRANSFORM, &nodes.List{Items: []nodes.Node{tn, &nodes.String{Str: lang}}}, nil
 	}
+	if objtype, ok, err := p.parseExtObjectTypeName(); ok || err != nil {
+		if err != nil {
+			return 0, nil, err
+		}
+		name, err := p.parseName()
+		if err != nil {
+			return 0, nil, err
+		}
+		return objtype, &nodes.String{Str: name}, nil
+	}
+	objtype, err := p.parseObjectTypeAnyName()
+	if err != nil {
+		return 0, nil, err
+	}
+	anyName, err := p.parseAnyName()
+	if err != nil {
+		return 0, nil, err
+	}
+	return objtype, anyName, nil
 }
 
-func (p *Parser) tryParseExtObjTypeName() (nodes.ObjectType, bool) {
+// parseExtObjectTypeName parses object_type_name, the object types
+// ALTER EXTENSION names by a plain name, and reports whether one was there.
+//
+//	object_type_name: drop_type_name | DATABASE | ROLE | SUBSCRIPTION | TABLESPACE
+//	drop_type_name: ACCESS METHOD | EVENT TRIGGER | EXTENSION | FOREIGN DATA_P WRAPPER
+//	    | opt_procedural LANGUAGE | PUBLICATION | SCHEMA | SERVER
+func (p *Parser) parseExtObjectTypeName() (nodes.ObjectType, bool, error) {
+	two := func(tok int, t nodes.ObjectType) (nodes.ObjectType, bool, error) {
+		p.advance()
+		if _, err := p.expect(tok); err != nil {
+			return 0, true, err
+		}
+		return t, true, nil
+	}
 	switch p.cur.Type {
-	case SCHEMA:
-		p.advance()
-		return nodes.OBJECT_SCHEMA, true
-	case DATABASE:
-		p.advance()
-		return nodes.OBJECT_DATABASE, true
-	case ROLE:
-		p.advance()
-		return nodes.OBJECT_ROLE, true
-	case TABLESPACE:
-		p.advance()
-		return nodes.OBJECT_TABLESPACE, true
-	case SUBSCRIPTION:
-		p.advance()
-		return nodes.OBJECT_SUBSCRIPTION, true
-	case PUBLICATION:
-		p.advance()
-		return nodes.OBJECT_PUBLICATION, true
-	case SERVER:
-		p.advance()
-		return nodes.OBJECT_FOREIGN_SERVER, true
-	default:
-		return 0, false
-	}
-}
-
-// parseExtFuncWithArgtypes parses function_with_argtypes for extension statements.
-func (p *Parser) parseExtFuncWithArgtypes() *nodes.ObjectWithArgs {
-	funcname, _ := p.parseFuncName()
-	if p.cur.Type == '(' {
-		p.advance()
-		if p.cur.Type == ')' {
-			p.advance()
-			return &nodes.ObjectWithArgs{Objname: funcname, Objargs: nil}
+	case ACCESS:
+		return two(METHOD, nodes.OBJECT_ACCESS_METHOD)
+	case EVENT:
+		return two(TRIGGER, nodes.OBJECT_EVENT_TRIGGER)
+	case PROCEDURAL:
+		return two(LANGUAGE, nodes.OBJECT_LANGUAGE)
+	case FOREIGN:
+		// FOREIGN TABLE is object_type_any_name's.
+		if p.peekNext().Type != DATA_P {
+			return 0, false, nil
 		}
-		args := p.parseExtFuncArgsList()
-		p.expect(')')
-		argtypes := extExtractArgTypes(args)
-		return &nodes.ObjectWithArgs{Objname: funcname, Objargs: argtypes}
-	}
-	return &nodes.ObjectWithArgs{Objname: funcname, ArgsUnspecified: true}
-}
-
-func (p *Parser) parseExtFuncArgsList() *nodes.List {
-	arg := p.parseFuncArg()
-	items := []nodes.Node{arg}
-	for p.cur.Type == ',' {
 		p.advance()
-		items = append(items, p.parseFuncArg())
+		return two(WRAPPER, nodes.OBJECT_FDW)
 	}
-	return &nodes.List{Items: items}
-}
-
-func extExtractArgTypes(args *nodes.List) *nodes.List {
-	if args == nil {
-		return nil
+	objtype, ok := map[int]nodes.ObjectType{
+		EXTENSION: nodes.OBJECT_EXTENSION, LANGUAGE: nodes.OBJECT_LANGUAGE,
+		PUBLICATION: nodes.OBJECT_PUBLICATION, SCHEMA: nodes.OBJECT_SCHEMA,
+		SERVER: nodes.OBJECT_FOREIGN_SERVER, DATABASE: nodes.OBJECT_DATABASE,
+		ROLE: nodes.OBJECT_ROLE, SUBSCRIPTION: nodes.OBJECT_SUBSCRIPTION,
+		TABLESPACE: nodes.OBJECT_TABLESPACE,
+	}[p.cur.Type]
+	if !ok {
+		return 0, false, nil
 	}
-	var types []nodes.Node
-	for _, item := range args.Items {
-		if fp, ok := item.(*nodes.FunctionParameter); ok {
-			if fp.Mode == nodes.FUNC_PARAM_OUT || fp.Mode == nodes.FUNC_PARAM_TABLE {
-				continue
-			}
-			types = append(types, fp.ArgType)
-		}
-	}
-	if len(types) == 0 {
-		return nil
-	}
-	return &nodes.List{Items: types}
-}
-
-// parseExtOperWithArgtypes parses operator_with_argtypes for extension statements.
-func (p *Parser) parseExtOperWithArgtypes() *nodes.ObjectWithArgs {
-	opname, _ := p.parseAnyOperator()
-	operArgs := p.parseExtOperArgtypes()
-	return &nodes.ObjectWithArgs{Objname: opname, Objargs: operArgs}
-}
-
-func (p *Parser) parseExtOperArgtypes() *nodes.List {
-	p.expect('(')
-	if p.cur.Type == NONE {
-		p.advance()
-		p.expect(',')
-		typ, _ := p.parseTypename()
-		p.expect(')')
-		return &nodes.List{Items: []nodes.Node{nil, typ}}
-	}
-	typ1, _ := p.parseTypename()
-	if p.cur.Type == ')' {
-		p.advance()
-		return &nodes.List{Items: []nodes.Node{typ1}}
-	}
-	p.expect(',')
-	if p.cur.Type == NONE {
-		p.advance()
-		p.expect(')')
-		return &nodes.List{Items: []nodes.Node{typ1, nil}}
-	}
-	typ2, _ := p.parseTypename()
-	p.expect(')')
-	return &nodes.List{Items: []nodes.Node{typ1, typ2}}
+	p.advance()
+	return objtype, true, nil
 }
 
 // parseCreateAmStmt parses CREATE ACCESS METHOD statement.
@@ -377,45 +367,46 @@ func (p *Parser) parseCreateAmStmt() (nodes.Node, error) {
 	if _, err := p.expect(METHOD); err != nil {
 		return nil, err
 	}
-	name, _ := p.parseName()
+	name, err := p.parseName()
+	if err != nil {
+		return nil, err
+	}
 	if _, err := p.expect(TYPE_P); err != nil {
 		return nil, err
 	}
-	amtype := p.parseAmType()
+	amtype, err := p.parseAmType()
+	if err != nil {
+		return nil, err
+	}
 	if _, err := p.expect(HANDLER); err != nil {
 		return nil, err
 	}
-	handlerName := p.parseExtHandlerName()
+	handlerName, err := p.parseHandlerName()
+	if err != nil {
+		return nil, err
+	}
 	return &nodes.CreateAmStmt{
 		Amname: name, HandlerName: handlerName, Amtype: amtype,
 		Loc: nodes.Loc{Start: loc, End: p.prev.End},
 	}, nil
 }
 
-func (p *Parser) parseAmType() byte {
+// parseAmType parses am_type: INDEX | TABLE.
+func (p *Parser) parseAmType() (byte, error) {
+	if p.collectMode() {
+		p.addTokenCandidate(INDEX)
+		p.addTokenCandidate(TABLE)
+		return 0, errCollecting
+	}
 	switch p.cur.Type {
 	case INDEX:
 		p.advance()
-		return nodes.AMTYPE_INDEX
+		return nodes.AMTYPE_INDEX, nil
 	case TABLE:
 		p.advance()
-		return nodes.AMTYPE_TABLE
-	default:
-		p.advance()
-		return nodes.AMTYPE_INDEX
+		return nodes.AMTYPE_TABLE, nil
 	}
-}
-
-func (p *Parser) parseExtHandlerName() *nodes.List {
-	name, _ := p.parseName()
-	items := []nodes.Node{&nodes.String{Str: name}}
-	if p.cur.Type == '.' {
-		attrs, err := p.parseAttrs()
-		if err == nil && attrs != nil {
-			items = append(items, attrs.Items...)
-		}
-	}
-	return &nodes.List{Items: items}
+	return 0, p.syntaxErrorAtCur()
 }
 
 // parseCreateCastStmt parses CREATE CAST statement.
@@ -425,11 +416,17 @@ func (p *Parser) parseCreateCastStmt() (nodes.Node, error) {
 	if _, err := p.expect('('); err != nil {
 		return nil, err
 	}
-	srcType, _ := p.parseTypename()
+	srcType, err := p.parseTypename()
+	if err != nil {
+		return nil, err
+	}
 	if _, err := p.expect(AS); err != nil {
 		return nil, err
 	}
-	tgtType, _ := p.parseTypename()
+	tgtType, err := p.parseTypename()
+	if err != nil {
+		return nil, err
+	}
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
@@ -441,7 +438,9 @@ func (p *Parser) parseCreateCastStmt() (nodes.Node, error) {
 		if _, err := p.expect(FUNCTION); err != nil {
 			return nil, err
 		}
-		stmt.Context = p.parseCastContext()
+		if stmt.Context, err = p.parseCastContext(); err != nil {
+			return nil, err
+		}
 		stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
 		return stmt, nil
 	}
@@ -450,7 +449,9 @@ func (p *Parser) parseCreateCastStmt() (nodes.Node, error) {
 	}
 	if p.cur.Type == INOUT {
 		p.advance()
-		stmt.Context = p.parseCastContext()
+		if stmt.Context, err = p.parseCastContext(); err != nil {
+			return nil, err
+		}
 		stmt.Inout = true
 		stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
 		return stmt, nil
@@ -458,41 +459,64 @@ func (p *Parser) parseCreateCastStmt() (nodes.Node, error) {
 	if _, err := p.expect(FUNCTION); err != nil {
 		return nil, err
 	}
-	stmt.Func = p.parseExtFuncWithArgtypes()
-	stmt.Context = p.parseCastContext()
+	fn, err := p.parseFunctionWithArgtypes()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Func = fn
+	if stmt.Context, err = p.parseCastContext(); err != nil {
+		return nil, err
+	}
 	stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
 	return stmt, nil
 }
 
-func (p *Parser) parseCastContext() nodes.CoercionContext {
-	if p.cur.Type == AS {
-		next := p.peekNext()
-		if next.Type == IMPLICIT_P {
-			p.advance()
-			p.advance()
-			return nodes.COERCION_IMPLICIT
-		}
-		if next.Type == ASSIGNMENT {
-			p.advance()
-			p.advance()
-			return nodes.COERCION_ASSIGNMENT
-		}
+// parseCastContext parses cast_context, which ends CREATE CAST: AS starts
+// nothing else there.
+//
+//	cast_context: AS IMPLICIT_P | AS ASSIGNMENT | /* EMPTY */
+func (p *Parser) parseCastContext() (nodes.CoercionContext, error) {
+	if p.cur.Type != AS {
+		return nodes.COERCION_EXPLICIT, nil
 	}
-	return nodes.COERCION_EXPLICIT
+	p.advance() // AS
+	switch p.cur.Type {
+	case IMPLICIT_P:
+		p.advance()
+		return nodes.COERCION_IMPLICIT, nil
+	case ASSIGNMENT:
+		p.advance()
+		return nodes.COERCION_ASSIGNMENT, nil
+	}
+	if p.collectMode() {
+		p.addTokenCandidate(IMPLICIT_P)
+		p.addTokenCandidate(ASSIGNMENT)
+		return nodes.COERCION_EXPLICIT, errCollecting
+	}
+	return nodes.COERCION_EXPLICIT, p.syntaxErrorAtCur()
 }
 
 // parseDropCastStmt parses DROP CAST statement.
 func (p *Parser) parseDropCastStmt() (nodes.Node, error) {
 	p.advance() // consume CAST
-	missingOk := p.parseOptIfExists()
+	missingOk, err := p.parseIfExistsBeforeKeyword()
+	if err != nil {
+		return nil, err
+	}
 	if _, err := p.expect('('); err != nil {
 		return nil, err
 	}
-	srcType, _ := p.parseTypename()
+	srcType, err := p.parseTypename()
+	if err != nil {
+		return nil, err
+	}
 	if _, err := p.expect(AS); err != nil {
 		return nil, err
 	}
-	tgtType, _ := p.parseTypename()
+	tgtType, err := p.parseTypename()
+	if err != nil {
+		return nil, err
+	}
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
@@ -510,15 +534,24 @@ func (p *Parser) parseCreateTransformStmt(replace bool, loc int) (nodes.Node, er
 	if _, err := p.expect(FOR); err != nil {
 		return nil, err
 	}
-	typeName, _ := p.parseTypename()
+	typeName, err := p.parseTypename()
+	if err != nil {
+		return nil, err
+	}
 	if _, err := p.expect(LANGUAGE); err != nil {
 		return nil, err
 	}
-	lang, _ := p.parseName()
+	lang, err := p.parseName()
+	if err != nil {
+		return nil, err
+	}
 	if _, err := p.expect('('); err != nil {
 		return nil, err
 	}
-	fromsql, tosql := p.parseTransformElementList()
+	fromsql, tosql, err := p.parseTransformElementList()
+	if err != nil {
+		return nil, err
+	}
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
@@ -529,51 +562,84 @@ func (p *Parser) parseCreateTransformStmt(replace bool, loc int) (nodes.Node, er
 	}, nil
 }
 
-func (p *Parser) parseTransformElementList() (fromsql *nodes.ObjectWithArgs, tosql *nodes.ObjectWithArgs) {
-	if p.cur.Type == FROM {
-		p.advance()
-		p.expect(SQL_P)
-		p.expect(WITH)
-		p.expect(FUNCTION)
-		fromsql = p.parseExtFuncWithArgtypes()
-		if p.cur.Type == ',' {
-			p.advance()
-			p.expect(TO)
-			p.expect(SQL_P)
-			p.expect(WITH)
-			p.expect(FUNCTION)
-			tosql = p.parseExtFuncWithArgtypes()
+// parseTransformElementList parses transform_element_list: a FROM SQL
+// element, a TO SQL element, or both in either order.
+//
+//	transform_element_list: FROM SQL_P WITH FUNCTION function_with_argtypes ',' TO SQL_P WITH FUNCTION function_with_argtypes
+//	    | TO SQL_P WITH FUNCTION function_with_argtypes ',' FROM SQL_P WITH FUNCTION function_with_argtypes
+//	    | FROM SQL_P WITH FUNCTION function_with_argtypes
+//	    | TO SQL_P WITH FUNCTION function_with_argtypes
+func (p *Parser) parseTransformElementList() (fromsql, tosql *nodes.ObjectWithArgs, err error) {
+	if p.collectMode() {
+		p.addTokenCandidate(FROM)
+		p.addTokenCandidate(TO)
+		return nil, nil, errCollecting
+	}
+	first := p.cur.Type
+	if first != FROM && first != TO {
+		return nil, nil, p.syntaxErrorAtCur()
+	}
+	fn, err := p.parseTransformElement(first)
+	if err != nil {
+		return nil, nil, err
+	}
+	if first == FROM {
+		fromsql = fn
+	} else {
+		tosql = fn
+	}
+	if p.cur.Type != ',' {
+		return fromsql, tosql, nil
+	}
+	p.advance()
+	second := TO
+	if first == TO {
+		second = FROM
+	}
+	fn, err = p.parseTransformElement(second)
+	if err != nil {
+		return nil, nil, err
+	}
+	if second == FROM {
+		fromsql = fn
+	} else {
+		tosql = fn
+	}
+	return fromsql, tosql, nil
+}
+
+// parseTransformElement parses one element of transform_element_list:
+// lead SQL_P WITH FUNCTION function_with_argtypes, lead being FROM or TO.
+func (p *Parser) parseTransformElement(lead int) (*nodes.ObjectWithArgs, error) {
+	for _, tok := range []int{lead, SQL_P, WITH, FUNCTION} {
+		if _, err := p.expect(tok); err != nil {
+			return nil, err
 		}
-		return
 	}
-	p.expect(TO)
-	p.expect(SQL_P)
-	p.expect(WITH)
-	p.expect(FUNCTION)
-	tosql = p.parseExtFuncWithArgtypes()
-	if p.cur.Type == ',' {
-		p.advance()
-		p.expect(FROM)
-		p.expect(SQL_P)
-		p.expect(WITH)
-		p.expect(FUNCTION)
-		fromsql = p.parseExtFuncWithArgtypes()
-	}
-	return
+	return p.parseFunctionWithArgtypes()
 }
 
 // parseDropTransformStmt parses DROP TRANSFORM statement.
 func (p *Parser) parseDropTransformStmt() (nodes.Node, error) {
 	p.advance() // consume TRANSFORM
-	missingOk := p.parseOptIfExists()
+	missingOk, err := p.parseIfExistsBeforeKeyword()
+	if err != nil {
+		return nil, err
+	}
 	if _, err := p.expect(FOR); err != nil {
 		return nil, err
 	}
-	typeName, _ := p.parseTypename()
+	typeName, err := p.parseTypename()
+	if err != nil {
+		return nil, err
+	}
 	if _, err := p.expect(LANGUAGE); err != nil {
 		return nil, err
 	}
-	lang, _ := p.parseName()
+	lang, err := p.parseName()
+	if err != nil {
+		return nil, err
+	}
 	behavior := p.parseOptDropBehavior()
 	return &nodes.DropStmt{
 		RemoveType: int(nodes.OBJECT_TRANSFORM),

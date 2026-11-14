@@ -5,11 +5,13 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"slices"
 	"testing"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
 
+	nodes "github.com/bytebase/omni/pg/ast"
 	"github.com/bytebase/omni/pg/internal/testcontainer"
 )
 
@@ -655,6 +657,102 @@ func TestIsTableConstraintStartCoverage(t *testing.T) {
 		p := &Parser{cur: Token{Type: r.tok, Str: r.name}}
 		if p.isTableConstraintStart() {
 			t.Errorf("isTableConstraintStart must reject %q", r.name)
+		}
+	}
+}
+
+// TestBareColumnLabelsMatchPG holds isBareColLabelStart, and with it
+// asLabelOnlyKeywords, to PostgreSQL over every keyword and IDENT, probed as
+// a target's label without AS (gram.y: target_el: a_expr BareColLabel).
+//
+// The template is SELECT 1 <token>: PostgreSQL takes it exactly when the
+// token is a BareColLabel, since the token ends the statement and so can
+// continue no expression. Literals and punctuation are left out: they would
+// continue the expression (SELECT 1 +1) and probe nothing about labels.
+func TestBareColumnLabelsMatchPG(t *testing.T) {
+	o := startFirstSetOracle(t)
+	outcomes := runFirstSetProbe(t, o,
+		"SELECT 1 %s",
+		renderBare,
+		func(c candidateToken) bool { return c.kind == kindKeyword || c.kind == kindIdent },
+	)
+
+	// ISNULL and NOTNULL are AS_LABEL keywords, but PostgreSQL takes
+	// SELECT 1 ISNULL as the postfix operator: the expression, not a label.
+	postfixOperators := map[int]bool{ISNULL: true, NOTNULL: true}
+	for i := range outcomes {
+		if postfixOperators[outcomes[i].candidate.token] {
+			outcomes[i].accepted = false
+		}
+	}
+
+	label := func(c candidateToken) bool {
+		p := &Parser{cur: Token{Type: c.token, Str: c.name}}
+		return p.isBareColLabelStart()
+	}
+	assertPredicateMatchesPG(t, "BareColLabel via SELECT 1", outcomes, predicateProbe{onKeyword: label, onNonKeyword: label})
+}
+
+// TestSeqOptElemLeadTokensMatchPG holds seqOptElemLeadTokens, the lead set
+// isSeqOptElemStart reads after ALTER SEQUENCE name, to PostgreSQL's
+// SeqOptElem (gram.y: SeqOptElem).
+//
+// The template is CREATE SEQUENCE name <token> ...: there the name is
+// followed only by OptSeqOptList, so PostgreSQL takes the statement exactly
+// when the token starts a SeqOptElem, with none of alter_table_cmds'
+// alternatives competing. Each token is tried with every continuation a
+// SeqOptElem can need (a number, a type, BY NONE, NAME name, CYCLE).
+//
+// After ALTER SEQUENCE name, NO also starts alter_table_cmds' NO INHERIT and
+// NO FORCE; the second half holds isSeqOptElemStart's split there to
+// PostgreSQL and to the statement omni builds.
+func TestSeqOptElemLeadTokensMatchPG(t *testing.T) {
+	o := startFirstSetOracle(t)
+	continuations := []string{"", " 1", " int", " BY NONE", " NAME omni_probe_name", " CYCLE"}
+	outcomes := runFirstSetProbe(t, o,
+		"CREATE SEQUENCE omni_probe_seq %s",
+		func(c candidateToken) []string {
+			forms := make([]string, 0, len(continuations))
+			for _, cont := range continuations {
+				forms = append(forms, c.probeSQL+cont)
+			}
+			return forms
+		},
+		filterKeywordsOnly,
+	)
+	// SEQUENCE NAME parses, but init_params (sequence.c) refuses it on
+	// execution with 42601, which the probe classifies as a syntax error.
+	for i := range outcomes {
+		if outcomes[i].candidate.token == SEQUENCE {
+			outcomes[i].accepted = true
+		}
+	}
+	lead := func(c candidateToken) bool { return slices.Contains(seqOptElemLeadTokens, c.token) }
+	assertPredicateMatchesPG(t, "SeqOptElem via CREATE SEQUENCE", outcomes, predicateProbe{onKeyword: lead})
+
+	// A slice, not a map: the tape replays the requests in order.
+	for _, tc := range []struct {
+		sql    string
+		seqOpt bool
+	}{
+		{"ALTER SEQUENCE omni_probe_seq NO CYCLE", true},
+		{"ALTER SEQUENCE omni_probe_seq NO MAXVALUE", true},
+		{"ALTER SEQUENCE omni_probe_seq NO MINVALUE", true},
+		{"ALTER SEQUENCE omni_probe_seq NO INHERIT omni_probe_table", false},
+		{"ALTER SEQUENCE omni_probe_seq NO FORCE ROW LEVEL SECURITY", false},
+	} {
+		sql, seqOpt := tc.sql, tc.seqOpt
+		if o.probe(t, sql) != probeAccept {
+			t.Errorf("PostgreSQL rejects %q", sql)
+		}
+		stmts, err := Parse(sql)
+		if err != nil {
+			t.Errorf("Parse(%q): %v", sql, err)
+			continue
+		}
+		_, isSeq := stmts.Items[0].(*nodes.RawStmt).Stmt.(*nodes.AlterSeqStmt)
+		if isSeq != seqOpt {
+			t.Errorf("Parse(%q) built %T, want AlterSeqStmt %v", sql, stmts.Items[0].(*nodes.RawStmt).Stmt, seqOpt)
 		}
 	}
 }

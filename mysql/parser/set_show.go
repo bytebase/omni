@@ -161,10 +161,10 @@ func (p *Parser) parseSetPasswordStmt(start int) (*nodes.SetPasswordStmt, error)
 	// auth_option: = 'auth_string' | TO RANDOM
 	if p.cur.Type == kwTO {
 		p.advance() // consume TO
-		if p.cur.Type == kwRANDOM {
-			p.advance() // consume RANDOM
-			stmt.ToRandom = true
+		if _, err := p.expect(kwRANDOM); err != nil {
+			return nil, err
 		}
+		stmt.ToRandom = true
 	} else {
 		// The = or := is required here: PASSWORD equal, and a bare string is a 1064
 		// (measured).
@@ -193,17 +193,22 @@ func (p *Parser) parseSetPasswordStmt(start int) (*nodes.SetPasswordStmt, error)
 	// [REPLACE 'current_auth_string']
 	if p.cur.Type == kwREPLACE {
 		p.advance()
-		if p.cur.Type == tokSCONST {
-			stmt.Replace = p.cur.Str
-			p.advance()
+		if p.cur.Type != tokSCONST {
+			return nil, p.syntaxErrorAtCur()
 		}
+		stmt.Replace = p.cur.Str
+		p.advance()
 	}
 
 	// [RETAIN CURRENT PASSWORD]
 	if p.cur.Type == kwRETAIN {
 		p.advance() // consume RETAIN
-		p.advance() // consume CURRENT
-		p.advance() // consume PASSWORD
+		if _, err := p.expect(kwCURRENT); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(kwPASSWORD); err != nil {
+			return nil, err
+		}
 		stmt.RetainCurrentPassword = true
 	}
 
@@ -1034,9 +1039,10 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 			return nil, err
 		}
 
-	case kwGLOBAL, kwSESSION:
+	case kwGLOBAL, kwSESSION, kwLOCAL:
+		// opt_var_type: LOCAL is SESSION's other spelling.
 		scope := "GLOBAL"
-		if p.cur.Type == kwSESSION {
+		if p.cur.Type != kwGLOBAL {
 			scope = "SESSION"
 		}
 		p.advance()
@@ -1100,8 +1106,14 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 		// sql_yacc.yy (SHOW ENGINE_SYM engine_or_all LOGS_SYM) though the
 		// manual documents only the other two, and MySQL 8.0 parses it.
 		p.advance() // consume ENGINE
-		engineName, nameLoc, err := p.parseIdentifier()
-		if err != nil {
+		// engine_or_all: ALL, or a name written as an ident or a string.
+		var engineName string
+		var nameLoc int
+		var err error
+		if p.cur.Type == kwALL {
+			nameLoc = p.pos()
+			engineName = strings.ToUpper(p.advance().Str)
+		} else if engineName, nameLoc, err = p.parseIdentOrText(); err != nil {
 			return nil, err
 		}
 		stmt.From = &nodes.TableRef{
@@ -1571,9 +1583,16 @@ func (p *Parser) parseShowFromLikeOrWhere(stmt *nodes.ShowStmt) error {
 //	}
 func (p *Parser) parseShowProfileOptions(stmt *nodes.ShowStmt) error {
 	// Parse optional profile type list
+	// profile_defs: a type follows each comma.
 	for {
-		pt := p.parseShowProfileType()
+		pt, err := p.parseShowProfileType()
+		if err != nil {
+			return err
+		}
 		if pt == "" {
+			if len(stmt.ProfileTypes) > 0 {
+				return p.syntaxErrorAtCur()
+			}
 			break
 		}
 		stmt.ProfileTypes = append(stmt.ProfileTypes, pt)
@@ -1613,54 +1632,25 @@ func (p *Parser) parseShowProfileOptions(stmt *nodes.ShowStmt) error {
 
 // parseShowProfileType tries to parse a single SHOW PROFILE type keyword.
 // Returns "" if the current token is not a valid profile type.
-func (p *Parser) parseShowProfileType() string {
-	if p.cur.Type == kwALL {
-		p.advance()
-		return "ALL"
+func (p *Parser) parseShowProfileType() (string, error) {
+	switch p.cur.Type {
+	case kwALL, kwCPU, kwIPC, kwMEMORY, kwSOURCE, kwSWAPS:
+		return strings.ToUpper(p.advance().Str), nil
 	}
-	// Handle profile types (now registered as keyword tokens)
-	if p.cur.Type == kwCPU {
-		p.advance()
-		return "CPU"
-	}
-	if p.cur.Type == kwIPC {
-		p.advance()
-		return "IPC"
-	}
-	if p.cur.Type == kwMEMORY {
-		p.advance()
-		return "MEMORY"
-	}
-	if p.cur.Type == kwSOURCE {
-		p.advance()
-		return "SOURCE"
-	}
-	if p.cur.Type == kwSWAPS {
-		p.advance()
-		return "SWAPS"
-	}
-	if p.cur.Type == kwBLOCK {
-		p.advance() // consume BLOCK
-		if p.cur.Type == kwIO {
+	// The two-word types, each whole (profile_def in MySQL 8.0 sql/sql_yacc.yy).
+	for _, two := range []struct {
+		first, second int
+		name          string
+	}{{kwBLOCK, kwIO, "BLOCK_IO"}, {kwCONTEXT, kwSWITCHES, "CONTEXT_SWITCHES"}, {kwPAGE, kwFAULTS, "PAGE_FAULTS"}} {
+		if p.cur.Type == two.first {
 			p.advance()
+			if _, err := p.expect(two.second); err != nil {
+				return "", err
+			}
+			return two.name, nil
 		}
-		return "BLOCK_IO"
 	}
-	if p.cur.Type == kwCONTEXT {
-		p.advance() // consume CONTEXT
-		if p.cur.Type == kwSWITCHES {
-			p.advance()
-		}
-		return "CONTEXT_SWITCHES"
-	}
-	if p.cur.Type == kwPAGE {
-		p.advance() // consume PAGE
-		if p.cur.Type == kwFAULTS {
-			p.advance()
-		}
-		return "PAGE_FAULTS"
-	}
-	return ""
+	return "", nil
 }
 
 // isIdentLike checks if the current token is an identifier (or unreserved keyword)

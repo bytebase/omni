@@ -67,8 +67,19 @@ func (p *Parser) parseVariableSetStmt() (nodes.Node, error) {
 func (p *Parser) parseSetRest() (nodes.Node, error) {
 	switch p.cur.Type {
 	case TRANSACTION:
+		// TRANSACTION SNAPSHOT Sconst is set_rest_more's.
+		if p.peekNext().Type == SNAPSHOT {
+			return p.parseSetRestMore()
+		}
 		p.advance() // consume TRANSACTION
-		modes, _ := p.parseTransactionModeListOrEmpty()
+		modes, err := p.parseTransactionModeListOrEmpty()
+		if err != nil {
+			return nil, err
+		}
+		if modes == nil && !p.collectMode() {
+			// set_rest: TRANSACTION transaction_mode_list, which is not empty.
+			return nil, p.syntaxErrorAtCur()
+		}
 		return &nodes.VariableSetStmt{
 			Kind: nodes.VAR_SET_MULTI,
 			Name: "TRANSACTION",
@@ -87,7 +98,14 @@ func (p *Parser) parseSetRest() (nodes.Node, error) {
 			if _, err := p.expect(TRANSACTION); err != nil {
 				return nil, err
 			}
-			modes, _ := p.parseTransactionModeListOrEmpty()
+			modes, err := p.parseTransactionModeListOrEmpty()
+			if err != nil {
+				return nil, err
+			}
+			if modes == nil && !p.collectMode() {
+				// transaction_mode_list is not empty.
+				return nil, p.syntaxErrorAtCur()
+			}
 			return &nodes.VariableSetStmt{
 				Kind: nodes.VAR_SET_MULTI,
 				Name: "SESSION CHARACTERISTICS",
@@ -125,7 +143,10 @@ func (p *Parser) parseSetRestMore() (nodes.Node, error) {
 			return nil, err
 		}
 		zoneType := p.cur.Type
-		val := p.parseZoneValue()
+		val, err := p.parseZoneValue()
+		if err != nil {
+			return nil, err
+		}
 		if val == nil && zoneType != DEFAULT && zoneType != LOCAL {
 			return nil, p.syntaxErrorAtCur()
 		}
@@ -141,18 +162,14 @@ func (p *Parser) parseSetRestMore() (nodes.Node, error) {
 		return n, nil
 
 	case CATALOG_P:
-		// SET CATALOG Sconst — SQL-standard syntax to change the current database.
-		// PostgreSQL parses this but rejects it at execution time.
+		// SET CATALOG Sconst, the SQL-standard way to change the current
+		// database: gram.y refuses it in the action, at the string.
 		p.advance() // consume CATALOG
-		s := p.cur.Str
-		if _, err := p.expect(SCONST); err != nil {
+		tok, err := p.expect(SCONST)
+		if err != nil {
 			return nil, err
 		}
-		return &nodes.VariableSetStmt{
-			Kind: nodes.VAR_SET_VALUE,
-			Name: "catalog",
-			Args: &nodes.List{Items: []nodes.Node{makeStringConst(s)}},
-		}, nil
+		return nil, &ParseError{Code: "0A000", Message: "current database cannot be changed", Position: tok.Loc}
 
 	case SCHEMA:
 		p.advance() // consume SCHEMA
@@ -276,9 +293,9 @@ func (p *Parser) parseSetRestMore() (nodes.Node, error) {
 //
 //	var_name FROM CURRENT_P
 func (p *Parser) parseGenericSetOrFromCurrent() (nodes.Node, error) {
-	varName := p.parseVarName()
-	if varName == "" {
-		return nil, nil
+	varName, err := p.parseVarName()
+	if err != nil {
+		return nil, err
 	}
 
 	switch p.cur.Type {
@@ -336,20 +353,20 @@ func (p *Parser) parseSetNonReservedWordOrSconst() (string, error) {
 //
 //	ColId
 //	| var_name '.' ColId
-func (p *Parser) parseVarName() string {
+func (p *Parser) parseVarName() (string, error) {
 	name, err := p.parseColId()
 	if err != nil {
-		return ""
+		return "", err
 	}
 	for p.cur.Type == '.' {
 		p.advance() // consume '.'
 		part, err := p.parseColId()
 		if err != nil {
-			break
+			return "", err
 		}
 		name = name + "." + part
 	}
-	return name
+	return name, nil
 }
 
 // parseVarList parses a comma-separated list of var_value.
@@ -362,14 +379,20 @@ func (p *Parser) parseVarName() string {
 // Every element is a var_value, so the list is never empty and a comma
 // with no value after it is a syntax error at the token after the comma.
 func (p *Parser) parseVarList() (*nodes.List, error) {
-	val := p.parseVarValue()
+	val, err := p.parseVarValue()
+	if err != nil {
+		return nil, err
+	}
 	if val == nil {
 		return nil, p.syntaxErrorAtCur()
 	}
 	items := []nodes.Node{val}
 	for p.cur.Type == ',' {
 		p.advance()
-		v := p.parseVarValue()
+		v, err := p.parseVarValue()
+		if err != nil {
+			return nil, err
+		}
 		if v == nil {
 			return nil, p.syntaxErrorAtCur()
 		}
@@ -378,30 +401,35 @@ func (p *Parser) parseVarList() (*nodes.List, error) {
 	return &nodes.List{Items: items}, nil
 }
 
-// parseVarValue parses a single variable value.
+// parseVarValue parses a single variable value, and returns nil where none
+// starts.
 //
 // var_value:
 //
 //	opt_boolean_or_string   -> A_Const{String{...}}
 //	| NumericOnly           -> A_Const{Integer/Float}
-func (p *Parser) parseVarValue() nodes.Node {
+func (p *Parser) parseVarValue() (nodes.Node, error) {
 	loc := p.pos()
-	// Try NumericOnly first (numbers and signed numbers).
-	if num := p.tryParseNumericOnly(); num != nil {
-		return &nodes.A_Const{Val: num, Loc: nodes.Loc{Start: loc, End: p.pos()}}
+	num, err := p.tryParseNumericOnly()
+	if err != nil {
+		return nil, err
+	}
+	if num != nil {
+		return &nodes.A_Const{Val: num, Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
 	}
 
 	// opt_boolean_or_string
 	s, ok := p.tryOptBooleanOrString()
 	if ok {
-		return &nodes.A_Const{Val: &nodes.String{Str: s}, Loc: nodes.Loc{Start: loc, End: p.pos()}}
+		return &nodes.A_Const{Val: &nodes.String{Str: s}, Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
 	}
 
-	return nil
+	return nil, nil
 }
 
-// tryParseNumericOnly tries to parse a NumericOnly value.
-// Returns nil if the current token is not a numeric value.
+// tryParseNumericOnly parses a NumericOnly where one starts, and returns
+// nil where none does. A sign starts nothing else, so the number after it
+// is required.
 //
 // NumericOnly:
 //
@@ -409,60 +437,11 @@ func (p *Parser) parseVarValue() nodes.Node {
 //	| '+' FCONST
 //	| '-' FCONST
 //	| SignedIconst
-func (p *Parser) tryParseNumericOnly() nodes.Node {
-	switch p.cur.Type {
-	case ICONST:
-		val := p.cur.Ival
-		p.advance()
-		return &nodes.Integer{Ival: val}
-	case FCONST:
-		val := p.cur.Str
-		p.advance()
-		return &nodes.Float{Fval: val}
-	case '+':
-		next := p.peekNext()
-		if next.Type == ICONST {
-			p.advance() // consume '+'
-			val := p.cur.Ival
-			p.advance()
-			return &nodes.Integer{Ival: val}
-		}
-		if next.Type == FCONST {
-			p.advance() // consume '+'
-			val := p.cur.Str
-			p.advance()
-			return &nodes.Float{Fval: val}
-		}
-		return nil
-	case '-':
-		next := p.peekNext()
-		if next.Type == ICONST {
-			p.advance() // consume '-'
-			val := p.cur.Ival
-			p.advance()
-			return &nodes.Integer{Ival: -val}
-		}
-		if next.Type == FCONST {
-			p.advance() // consume '-'
-			val := p.cur.Str
-			p.advance()
-			f := &nodes.Float{Fval: val}
-			doNegateFloat(f)
-			return f
-		}
-		return nil
-	default:
-		return nil
+func (p *Parser) tryParseNumericOnly() (nodes.Node, error) {
+	if !p.isNumericOnlyStart() {
+		return nil, nil
 	}
-}
-
-// doNegateFloat negates a Float value by prepending or removing a '-'.
-func doNegateFloat(f *nodes.Float) {
-	if len(f.Fval) > 0 && f.Fval[0] == '-' {
-		f.Fval = f.Fval[1:]
-	} else {
-		f.Fval = "-" + f.Fval
-	}
+	return p.parseNumericOnlyRequired()
 }
 
 // tryOptBooleanOrString tries to parse an opt_boolean_or_string value.
@@ -500,19 +479,6 @@ func (p *Parser) tryOptBooleanOrString() (string, bool) {
 	}
 }
 
-// isNonReservedWord returns true if the current token is a NonReservedWord.
-//
-// NonReservedWord: IDENT | unreserved_keyword | col_name_keyword | type_func_name_keyword
-func (p *Parser) isNonReservedWord() bool {
-	if p.cur.Type == IDENT {
-		return true
-	}
-	if kw := LookupKeyword(p.cur.Str); kw != nil && kw.Token == p.cur.Type {
-		return kw.Category == UnreservedKeyword || kw.Category == ColNameKeyword || kw.Category == TypeFuncNameKeyword
-	}
-	return false
-}
-
 // parseZoneValue parses a zone_value.
 //
 // zone_value:
@@ -522,31 +488,74 @@ func (p *Parser) isNonReservedWord() bool {
 //	| NumericOnly   -> A_Const{Integer/Float}
 //	| DEFAULT       -> nil (signals SET DEFAULT)
 //	| LOCAL         -> nil (signals SET DEFAULT)
-func (p *Parser) parseZoneValue() nodes.Node {
+func (p *Parser) parseZoneValue() (nodes.Node, error) {
 	loc := p.pos()
 	switch p.cur.Type {
-	case SCONST:
-		s := p.cur.Str
+	case SCONST, IDENT:
+		s := p.advance().Str
+		return &nodes.A_Const{Val: &nodes.String{Str: s}, Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
+	case DEFAULT, LOCAL:
 		p.advance()
-		return &nodes.A_Const{Val: &nodes.String{Str: s}, Loc: nodes.Loc{Start: loc, End: p.pos()}}
-	case IDENT:
-		s := p.cur.Str
-		p.advance()
-		return &nodes.A_Const{Val: &nodes.String{Str: s}, Loc: nodes.Loc{Start: loc, End: p.pos()}}
-	case DEFAULT:
-		p.advance()
-		return nil
-	case LOCAL:
-		p.advance()
-		return nil
+		return nil, nil
+	case INTERVAL:
+		return p.parseZoneInterval()
 	default:
-		// Try NumericOnly
-		if num := p.tryParseNumericOnly(); num != nil {
-			return &nodes.A_Const{Val: num, Loc: nodes.Loc{Start: loc, End: p.pos()}}
+		num, err := p.tryParseNumericOnly()
+		if err != nil {
+			return nil, err
 		}
-		// Interval handling etc. would go here, but for now this covers the tests.
-		return nil
+		if num != nil {
+			return &nodes.A_Const{Val: num, Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
+		}
+		return nil, nil
 	}
+}
+
+// parseZoneInterval parses zone_value's interval forms, a string cast to
+// interval.
+//
+//	ConstInterval Sconst opt_interval
+//	| ConstInterval '(' Iconst ')' Sconst
+//
+// gram.y refuses an opt_interval other than HOUR, MINUTE or HOUR TO MINUTE,
+// at the field.
+func (p *Parser) parseZoneInterval() (nodes.Node, error) {
+	start := p.pos()
+	p.advance() // consume INTERVAL
+	tn := makeTypeName("interval")
+	if p.cur.Type == '(' {
+		p.advance()
+		if p.cur.Type != ICONST {
+			return nil, p.syntaxErrorAtCur()
+		}
+		prec := p.advance().Ival
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		tn.Typmods = &nodes.List{Items: []nodes.Node{makeIntConst(int64(nodes.INTERVAL_FULL_RANGE)), makeIntConst(prec)}}
+	}
+	tn.Loc = nodes.Loc{Start: start, End: p.prev.End}
+	strLoc := p.pos()
+	if p.cur.Type != SCONST {
+		return nil, p.syntaxErrorAtCur()
+	}
+	str := p.advance().Str
+	arg := &nodes.A_Const{Val: &nodes.String{Str: str}, Loc: nodes.Loc{Start: strLoc, End: p.prev.End}}
+	if tn.Typmods == nil {
+		fieldLoc := p.pos()
+		typmods, err := p.parseOptInterval()
+		if err != nil {
+			return nil, err
+		}
+		if typmods != nil {
+			mask := typmods.Items[0].(*nodes.A_Const).Val.(*nodes.Integer).Ival
+			if mask&^int64(nodes.INTERVAL_MASK_HOUR|nodes.INTERVAL_MASK_MINUTE) != 0 {
+				return nil, &ParseError{Message: "time zone interval must be HOUR or HOUR TO MINUTE", Position: fieldLoc}
+			}
+			tn.Typmods = typmods
+		}
+	}
+	return &nodes.TypeCast{Arg: arg, TypeName: tn, Loc: nodes.Loc{Start: start, End: p.prev.End}}, nil
 }
 
 // parseOptEncoding parses opt_encoding.
@@ -570,6 +579,27 @@ func (p *Parser) parseOptEncoding() string {
 	}
 }
 
+// varNameFormKind returns the token SHOW and RESET dispatch on. TIME,
+// TRANSACTION and SESSION lead their own forms only before ZONE, ISOLATION
+// and AUTHORIZATION; otherwise each is a var_name, and IDENT stands for it.
+func (p *Parser) varNameFormKind() int {
+	var follow int
+	switch p.cur.Type {
+	case TIME:
+		follow = ZONE
+	case TRANSACTION:
+		follow = ISOLATION
+	case SESSION:
+		follow = AUTHORIZATION
+	default:
+		return p.cur.Type
+	}
+	if !p.keywordLeads(func(t Token) bool { return t.Type == follow }) {
+		return IDENT
+	}
+	return p.cur.Type
+}
+
 // parseVariableShowStmt parses a SHOW statement. The SHOW keyword has already
 // been consumed by the caller.
 //
@@ -582,7 +612,7 @@ func (p *Parser) parseOptEncoding() string {
 //	| SHOW ALL
 func (p *Parser) parseVariableShowStmt() (nodes.Node, error) {
 	loc := p.prev.Loc // SHOW was already consumed
-	switch p.cur.Type {
+	switch p.varNameFormKind() {
 	case TIME:
 		p.advance() // consume TIME
 		if _, err := p.expect(ZONE); err != nil {
@@ -612,7 +642,10 @@ func (p *Parser) parseVariableShowStmt() (nodes.Node, error) {
 		return &nodes.VariableShowStmt{Name: "all", Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
 
 	default:
-		name := p.parseVarName()
+		name, err := p.parseVarName()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.VariableShowStmt{Name: name, Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
 	}
 }
@@ -632,7 +665,7 @@ func (p *Parser) parseVariableShowStmt() (nodes.Node, error) {
 //	| SESSION AUTHORIZATION
 func (p *Parser) parseVariableResetStmt() (nodes.Node, error) {
 	loc := p.prev.Loc // RESET was already consumed
-	switch p.cur.Type {
+	switch p.varNameFormKind() {
 	case TIME:
 		p.advance() // consume TIME
 		if _, err := p.expect(ZONE); err != nil {
@@ -678,7 +711,10 @@ func (p *Parser) parseVariableResetStmt() (nodes.Node, error) {
 
 	default:
 		// generic_reset: var_name
-		name := p.parseVarName()
+		name, err := p.parseVarName()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.VariableSetStmt{
 			Kind: nodes.VAR_RESET,
 			Name: name,
@@ -791,7 +827,10 @@ func (p *Parser) parseAlterSystemStmt() (nodes.Node, error) {
 				Kind: nodes.VAR_RESET_ALL,
 			}
 		} else {
-			name := p.parseVarName()
+			name, err := p.parseVarName()
+			if err != nil {
+				return nil, err
+			}
 			setstmt = &nodes.VariableSetStmt{
 				Kind: nodes.VAR_RESET,
 				Name: name,

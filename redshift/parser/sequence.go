@@ -55,20 +55,10 @@ func (p *Parser) parseCreateSeqStmt(startLoc int, relpersistence byte) (nodes.No
 //	    SeqOptList
 //	    | /* EMPTY */
 func (p *Parser) parseOptSeqOptList() (*nodes.List, error) {
-	if p.isSeqOptStart() {
+	if p.collectMode() || p.isSeqOptElemLead() {
 		return p.parseSeqOptList()
 	}
 	return nil, nil
-}
-
-// isSeqOptStart returns true if the current token can start a SeqOptElem.
-func (p *Parser) isSeqOptStart() bool {
-	switch p.cur.Type {
-	case AS, CACHE, CYCLE, NO, INCREMENT, MAXVALUE, MINVALUE,
-		OWNED, SEQUENCE, START, RESTART, LOGGED, UNLOGGED:
-		return true
-	}
-	return false
 }
 
 // parseCreateDomainStmt parses a CREATE DOMAIN statement.
@@ -130,7 +120,10 @@ func (p *Parser) parseCreateTypeEnumStmt() (nodes.Node, error) {
 		return nil, err
 	}
 
-	vals := p.parseOptEnumValList()
+	vals, err := p.parseOptEnumValList()
+	if err != nil {
+		return nil, err
+	}
 
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
@@ -154,15 +147,11 @@ func (p *Parser) parseSeqOptList() (*nodes.List, error) {
 		if err != nil {
 			return nil, err
 		}
-		if opt == nil {
-			break
-		}
 		items = append(items, opt)
+		if !p.collectMode() && !p.isSeqOptElemLead() {
+			return &nodes.List{Items: items}, nil
+		}
 	}
-	if len(items) == 0 {
-		return nil, nil
-	}
-	return &nodes.List{Items: items}, nil
 }
 
 // parseSeqOptElem parses a single sequence option.
@@ -177,9 +166,23 @@ func (p *Parser) parseSeqOptList() (*nodes.List, error) {
 //	    | OWNED BY any_name
 //	    | SEQUENCE NAME_P any_name
 //	    | START opt_with NumericOnly
-//	    | RESTART [opt_with NumericOnly]
+//	    | RESTART | RESTART opt_with NumericOnly
 //	    | LOGGED | UNLOGGED
 func (p *Parser) parseSeqOptElem() (*nodes.DefElem, error) {
+	if p.collectMode() {
+		for _, t := range seqOptElemLeadTokens {
+			p.addTokenCandidate(t)
+		}
+		return nil, errCollecting
+	}
+	// numeric reads the NumericOnly of the option named name.
+	numeric := func(name string) (*nodes.DefElem, error) {
+		val, err := p.parseNumericOnlyRequired()
+		if err != nil {
+			return nil, err
+		}
+		return makeDefElem(name, val), nil
+	}
 	switch p.cur.Type {
 	case AS:
 		p.advance()
@@ -190,8 +193,7 @@ func (p *Parser) parseSeqOptElem() (*nodes.DefElem, error) {
 		return makeDefElem("as", tn), nil
 	case CACHE:
 		p.advance()
-		val := p.parseNumericOnly()
-		return makeDefElem("cache", val), nil
+		return numeric("cache")
 	case CYCLE:
 		p.advance()
 		return makeDefElem("cycle", &nodes.Boolean{Boolval: true}), nil
@@ -208,32 +210,39 @@ func (p *Parser) parseSeqOptElem() (*nodes.DefElem, error) {
 			p.advance()
 			return makeDefElem("minvalue", nil), nil
 		}
-		return nil, nil
+		return nil, p.syntaxErrorAtCur()
 	case INCREMENT:
 		p.advance()
 		// opt_by: BY | EMPTY
 		if p.cur.Type == BY {
 			p.advance()
 		}
-		val := p.parseNumericOnly()
-		return makeDefElem("increment", val), nil
+		return numeric("increment")
 	case MAXVALUE:
 		p.advance()
-		val := p.parseNumericOnly()
-		return makeDefElem("maxvalue", val), nil
+		return numeric("maxvalue")
 	case MINVALUE:
 		p.advance()
-		val := p.parseNumericOnly()
-		return makeDefElem("minvalue", val), nil
+		return numeric("minvalue")
 	case OWNED:
 		p.advance()
-		p.expect(BY)
-		name, _ := p.parseAnyName()
+		if _, err := p.expect(BY); err != nil {
+			return nil, err
+		}
+		name, err := p.parseAnyName()
+		if err != nil {
+			return nil, err
+		}
 		return makeDefElem("owned_by", name), nil
 	case SEQUENCE:
 		p.advance()
-		p.expect(NAME_P)
-		name, _ := p.parseAnyName()
+		if _, err := p.expect(NAME_P); err != nil {
+			return nil, err
+		}
+		name, err := p.parseAnyName()
+		if err != nil {
+			return nil, err
+		}
 		return makeDefElem("sequence_name", name), nil
 	case START:
 		p.advance()
@@ -241,19 +250,16 @@ func (p *Parser) parseSeqOptElem() (*nodes.DefElem, error) {
 		if p.cur.Type == WITH {
 			p.advance()
 		}
-		val := p.parseNumericOnly()
-		return makeDefElem("start", val), nil
+		return numeric("start")
 	case RESTART:
 		p.advance()
-		// opt_with NumericOnly or empty
+		// After WITH the number is required; bare RESTART takes none.
 		if p.cur.Type == WITH {
 			p.advance()
-			val := p.parseNumericOnly()
-			return makeDefElem("restart", val), nil
+			return numeric("restart")
 		}
-		if p.cur.Type == ICONST || p.cur.Type == FCONST || p.cur.Type == '+' || p.cur.Type == '-' {
-			val := p.parseNumericOnly()
-			return makeDefElem("restart", val), nil
+		if p.isNumericOnlyStart() {
+			return numeric("restart")
 		}
 		return makeDefElem("restart", nil), nil
 	case LOGGED:
@@ -263,7 +269,7 @@ func (p *Parser) parseSeqOptElem() (*nodes.DefElem, error) {
 		p.advance()
 		return makeDefElem("logged", &nodes.Boolean{Boolval: false}), nil
 	}
-	return nil, nil
+	return nil, p.syntaxErrorAtCur()
 }
 
 // parseNumericOnly parses a numeric constant (integer or float, optionally signed).
@@ -272,30 +278,38 @@ func (p *Parser) parseSeqOptElem() (*nodes.DefElem, error) {
 //	    FCONST | '+' FCONST | '-' FCONST
 //	    | SignedIconst
 func (p *Parser) parseNumericOnly() nodes.Node {
-	negative := false
-	if p.cur.Type == '+' {
-		p.advance()
-	} else if p.cur.Type == '-' {
-		p.advance()
-		negative = true
+	n, err := p.parseNumericOnlyRequired()
+	if err != nil {
+		// Callers that predate parseNumericOnlyRequired read a missing number as 0.
+		return &nodes.Integer{Ival: 0}
 	}
-	if p.cur.Type == ICONST {
+	return n
+}
+
+// parseNumericOnlyRequired parses a NumericOnly and fails where none is.
+func (p *Parser) parseNumericOnlyRequired() (nodes.Node, error) {
+	negative := false
+	if p.cur.Type == '+' || p.cur.Type == '-' {
+		negative = p.cur.Type == '-'
+		p.advance()
+	}
+	switch p.cur.Type {
+	case ICONST:
 		val := p.cur.Ival
 		p.advance()
 		if negative {
 			val = -val
 		}
-		return &nodes.Integer{Ival: val}
-	}
-	if p.cur.Type == FCONST {
+		return &nodes.Integer{Ival: val}, nil
+	case FCONST:
 		str := p.cur.Str
 		p.advance()
 		if negative {
 			str = "-" + str
 		}
-		return &nodes.Float{Fval: str}
+		return &nodes.Float{Fval: str}, nil
 	}
-	return &nodes.Integer{Ival: 0}
+	return nil, p.syntaxErrorAtCur()
 }
 
 // parseOptEnumValList parses an optional enum value list.
@@ -303,11 +317,11 @@ func (p *Parser) parseNumericOnly() nodes.Node {
 //	opt_enum_val_list:
 //	    enum_val_list
 //	    | /* EMPTY */
-func (p *Parser) parseOptEnumValList() *nodes.List {
+func (p *Parser) parseOptEnumValList() (*nodes.List, error) {
 	if p.cur.Type == SCONST {
 		return p.parseEnumValList()
 	}
-	return nil
+	return nil, nil
 }
 
 // parseEnumValList parses a comma-separated list of string constants for enum values.
@@ -315,15 +329,18 @@ func (p *Parser) parseOptEnumValList() *nodes.List {
 //	enum_val_list:
 //	    Sconst
 //	    | enum_val_list ',' Sconst
-func (p *Parser) parseEnumValList() *nodes.List {
+func (p *Parser) parseEnumValList() (*nodes.List, error) {
 	tok := p.advance() // consume first Sconst
 	items := []nodes.Node{&nodes.String{Str: tok.Str}}
 
 	for p.cur.Type == ',' {
 		p.advance()
-		tok = p.advance() // consume Sconst
+		tok, err := p.expect(SCONST)
+		if err != nil {
+			return nil, err
+		}
 		items = append(items, &nodes.String{Str: tok.Str})
 	}
 
-	return &nodes.List{Items: items}
+	return &nodes.List{Items: items}, nil
 }
