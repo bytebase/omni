@@ -100,11 +100,12 @@ var (
 	preBlock   = regexp.MustCompile(`(?s)<pre[^>]*>(.*?)</pre>`)
 	anyTag     = regexp.MustCompile(`(?s)<[^>]+>`)
 	nextH2     = regexp.MustCompile(`<h2[ >]`)
-	syntaxSecs = regexp.MustCompile(`data-section="syntax[a-z0-9-]*"`)
+	syntaxSecs = regexp.MustCompile(`data-section="(?:variant-)?syntax[a-z0-9-]*"`)
 )
 
 // syntaxBlocks returns the text of every code block in a page's Syntax
-// sections: Syntax, or Syntax for ... where a page has several, each from
+// sections: Syntax, or Syntax for ... where a page has several, and Variant
+// syntax, as CREATE OR ALTER TABLE has, each from
 // its heading to the next second-level heading, so the subsections some
 // pages split their syntax into are included. A page with none, such as an
 // overview, returns none.
@@ -112,7 +113,7 @@ func syntaxBlocks(doc string) []string {
 	var out []string
 	end := 0
 	for _, loc := range syntaxSecs.FindAllStringIndex(doc, -1) {
-		if loc[0] < end {
+		if loc[0] < end && !strings.HasPrefix(doc[loc[1]:], "><h2") {
 			continue // a subsection of the section just read
 		}
 		sec := doc[loc[0]:]
