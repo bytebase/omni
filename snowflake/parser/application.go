@@ -115,7 +115,7 @@ var applicationSpecProps = objectProps{
 // CONFIGURATION DEFINITION.
 var applicationConfigurationProps = objectProps{
 	"TYPE":              propOneOf("APPLICATION_NAME", "STRING", "SECRET_AUTHORIZATION"),
-	"SECRET":            propName,
+	"SECRET":            propQName, // <db>.<secret>
 	"LABEL":             propString,
 	"DESCRIPTION":       propString,
 	"APPLICATION_ROLES": propNames,
