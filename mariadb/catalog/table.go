@@ -367,17 +367,27 @@ type EngineOption struct {
 	Quoted bool
 }
 
-// innodbTableOptions are the engine-defined table options InnoDB defines; any
-// other name is 1911 (ha_innodb.cc's innodb_table_option_list).
-var innodbTableOptions = map[string]bool{
-	"page_compressed": true, "page_compression_level": true,
-	"encrypted": true, "encryption_key_id": true,
+// engineTableOptions are the engine-defined table options each engine the pinned
+// server carries defines (ha_innodb.cc's innodb_table_option_list; MyISAM, Aria
+// and MEMORY define none). Any other name is 1911 on these engines; an engine
+// not listed here keeps its own list, which the catalog does not know, so its
+// options are taken as written.
+var engineTableOptions = map[string]map[string]bool{
+	"innodb": {
+		"page_compressed": true, "page_compression_level": true,
+		"encrypted": true, "encryption_key_id": true,
+	},
+	"myisam": {}, "aria": {}, "memory": {},
 }
 
 // setEngineOption applies one engine-defined option: DEFAULT removes it, any
 // other value replaces it and moves it to the end, as MariaDB 11.8.8 prints it.
 func (t *Table) setEngineOption(name, value string, quoted bool) error {
-	if !innodbTableOptions[toLower(name)] {
+	engine := toLower(t.Engine)
+	if engine == "" {
+		engine = "innodb"
+	}
+	if known, ok := engineTableOptions[engine]; ok && !known[toLower(name)] {
 		return errUnknownOption(name)
 	}
 	var kept []EngineOption

@@ -29,8 +29,9 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 }
 
 // alterTableKeepingOptions runs the ALTER and then drops PAGE_CHECKSUM unless the
-// statement set it or only renamed the table: MariaDB 11.8.8 keeps it through a
-// RENAME and through nothing else that rewrites the table.
+// statement set it or only renamed the table, or the table is Aria's: MariaDB
+// 11.8.8 keeps it through a RENAME and through nothing else that rewrites an
+// InnoDB or MyISAM table, and Aria's handler carries it over.
 func (c *Catalog) alterTableKeepingOptions(db *Database, tbl *Table, key string, stmt *nodes.AlterTableStmt) error {
 	if err := c.alterTableRun(db, tbl, key, stmt); err != nil {
 		return err
@@ -44,7 +45,8 @@ func (c *Catalog) alterTableKeepingOptions(db *Database, tbl *Table, key string,
 			setsPageChecksum = true
 		}
 	}
-	if rebuilt && !setsPageChecksum {
+	// Aria recovers the checksum it has when the ALTER names none.
+	if rebuilt && !setsPageChecksum && !eqFoldStr(tbl.Engine, "Aria") {
 		tbl.PageChecksum = ""
 	}
 	return nil

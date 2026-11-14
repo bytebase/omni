@@ -122,6 +122,16 @@ func TestCreateTableOptionsCatalog(t *testing.T) {
 				") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci TRANSACTIONAL=0",
 		},
 		{
+			// Aria's handler keeps the checksum an ALTER does not name.
+			name:  "Aria keeps PAGE_CHECKSUM through an ALTER",
+			ddl:   "CREATE TABLE ar (a INT) ENGINE=Aria PAGE_CHECKSUM=0; ALTER TABLE ar ADD b INT",
+			table: "ar",
+			want: "CREATE TABLE `ar` (\n" +
+				"  `a` int(11) DEFAULT NULL,\n" +
+				"  `b` int(11) DEFAULT NULL\n" +
+				") ENGINE=Aria DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci PAGE_CHECKSUM=0",
+		},
+		{
 			// A later setting moves an engine-defined option to the end, a hex
 			// value reads as its number, and DEFAULT removes it.
 			name:  "engine-defined options keep MariaDB's order",
@@ -154,6 +164,8 @@ func TestEngineDefinedOptionRefusals(t *testing.T) {
 		{"CREATE TABLE r2 (a int) `PAGE_CHECKSUM`='x'", 1911},
 		{"CREATE TABLE r3 (a int); ALTER TABLE r3 READ_ONLY = 's'", 1911},
 		{"CREATE TABLE r4 (a int); ALTER TABLE r4 SEQUENCE 1", 4086},
+		{"CREATE TABLE r5 (a int) foo=1 ENGINE=MyISAM", 1911},
+		{"CREATE TABLE r6 (a int) ENGINE=Aria page_compressed=1", 1911},
 	} {
 		c := wtSetup(t)
 		results, err := c.Exec(tc.ddl, nil)
@@ -166,4 +178,11 @@ func TestEngineDefinedOptionRefusals(t *testing.T) {
 			t.Errorf("%s: got %v, want %d", tc.ddl, last, tc.code)
 		}
 	}
+}
+
+// TestEngineDefinedOptionOtherEngine takes an option of an engine the catalog
+// does not know as written: CONNECT's TABLE_TYPE is CONNECT's to check.
+func TestEngineDefinedOptionOtherEngine(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, "CREATE TABLE ct (a INT) ENGINE=CONNECT TABLE_TYPE=CSV")
 }

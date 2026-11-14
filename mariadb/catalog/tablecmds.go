@@ -91,13 +91,12 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	tblCollationExplicit := false
 	tableOptionVersioned := false
 	sawExplicitColumnWith := false // an explicit column-level WITH appeared (even if a later WITHOUT overrode it)
+	var engineOptions []*nodes.TableOption
 	for _, opt := range stmt.Options {
 		// An engine-defined option is the engine's by its form, whatever its
 		// name: `PAGE_CHECKSUM` = 1, quoted, is one, and InnoDB answers 1911.
 		if opt.EngineDefined {
-			if err := tbl.setEngineOption(opt.Name, opt.Value, opt.StringValue); err != nil {
-				return err
-			}
+			engineOptions = append(engineOptions, opt)
 			continue
 		}
 		switch toLower(opt.Name) {
@@ -152,6 +151,13 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			if opt.Value == "1" {
 				return errSequenceInvalidTableStructure(db.Name, stmt.Table.Name)
 			}
+		}
+	}
+	// Engine-defined options are checked against the engine the statement leaves,
+	// which an ENGINE option after them still sets.
+	for _, opt := range engineOptions {
+		if err := tbl.setEngineOption(opt.Name, opt.Value, opt.StringValue); err != nil {
+			return err
 		}
 	}
 	// When charset is specified without explicit collation, derive the default collation.
