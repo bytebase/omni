@@ -563,7 +563,7 @@ func adminProps(n ast.Node) []*ast.Property { return n.(*ast.AdminStmt).Properti
 // list was never held to its grammar and its branch never ran.
 func TestAdminTabletPropertiesParsed(t *testing.T) {
 	stmt := parseOne(t, `ADMIN CHECK TABLET (10000, 10001) PROPERTIES("type"="consistency")`).(*ast.AdminStmt)
-	if stmt.Args != "( 10000 , 10001 )" {
+	if stmt.Args != "(10000, 10001)" {
 		t.Errorf("Args = %q, want the tablet list only", stmt.Args)
 	}
 	if len(stmt.Properties) != 1 || stmt.Properties[0].Key != "type" || stmt.Properties[0].Value != "consistency" {

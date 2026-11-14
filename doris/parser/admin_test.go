@@ -300,8 +300,8 @@ func TestAdminShowReplicaDistribution(t *testing.T) {
 	if stmt.Verb != "SHOW" {
 		t.Errorf("Verb=%q, want SHOW", stmt.Verb)
 	}
-	if stmt.Object != "REPLICA" {
-		t.Errorf("Object=%q, want REPLICA", stmt.Object)
+	if stmt.Object != "REPLICA DISTRIBUTION" {
+		t.Errorf("Object=%q, want REPLICA DISTRIBUTION", stmt.Object)
 	}
 	if stmt.Target == nil {
 		t.Fatal("Target should not be nil")
@@ -314,8 +314,8 @@ func TestAdminShowReplicaDistribution(t *testing.T) {
 func TestAdminShowReplicaStatus(t *testing.T) {
 	node := parseOne(t, `ADMIN SHOW REPLICA STATUS FROM my_table`)
 	stmt := node.(*ast.AdminStmt)
-	if stmt.Verb != "SHOW" || stmt.Object != "REPLICA" {
-		t.Errorf("Verb=%q Object=%q, want SHOW REPLICA", stmt.Verb, stmt.Object)
+	if stmt.Verb != "SHOW" || stmt.Object != "REPLICA STATUS" {
+		t.Errorf("Verb=%q Object=%q, want SHOW REPLICA STATUS", stmt.Verb, stmt.Object)
 	}
 	if stmt.Target == nil || stmt.Target.String() != "my_table" {
 		t.Errorf("Target=%v, want my_table", stmt.Target)
@@ -327,10 +327,18 @@ func TestAdminShowReplicaStatus(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestAdminShowConfig(t *testing.T) {
-	node := parseOne(t, `ADMIN SHOW CONFIG`)
+	node := parseOne(t, `ADMIN SHOW BACKEND CONFIG LIKE 'a%' FROM 10001`)
 	stmt := node.(*ast.AdminStmt)
-	if stmt.Verb != "SHOW" || stmt.Object != "CONFIG" {
-		t.Errorf("Verb=%q Object=%q, want SHOW CONFIG", stmt.Verb, stmt.Object)
+	if stmt.Verb != "SHOW" || stmt.Object != "BACKEND CONFIG" {
+		t.Errorf("Verb=%q Object=%q, want SHOW BACKEND CONFIG", stmt.Verb, stmt.Object)
+	}
+	if stmt.Args != "LIKE 'a%' FROM 10001" {
+		t.Errorf("Args=%q, want LIKE 'a%%' FROM 10001", stmt.Args)
+	}
+	// The grammar names FRONTEND or BACKEND (DorisParser.g4:48); Doris
+	// refuses ADMIN SHOW CONFIG (compat.tsv).
+	if _, errs := parseForTest(`ADMIN SHOW CONFIG`); len(errs) == 0 {
+		t.Error("ADMIN SHOW CONFIG parsed, want a syntax error")
 	}
 }
 
@@ -493,11 +501,11 @@ func TestAdminCopyTablet(t *testing.T) {
 // ADMIN DECOMMISSION BACKEND BY HOSTNAME
 // ---------------------------------------------------------------------------
 
+// Neither of Doris's grammars has an ADMIN DECOMMISSION form: a backend is
+// decommissioned by ALTER SYSTEM DECOMMISSION BACKEND.
 func TestAdminDecommissionBackend(t *testing.T) {
-	node := parseOne(t, `ADMIN DECOMMISSION BACKEND BY HOSTNAME 'host:port'`)
-	stmt := node.(*ast.AdminStmt)
-	if stmt.Verb != "DECOMMISSION" || stmt.Object != "BACKEND" {
-		t.Errorf("Verb=%q Object=%q, want DECOMMISSION BACKEND", stmt.Verb, stmt.Object)
+	if _, errs := parseForTest(`ADMIN DECOMMISSION BACKEND BY HOSTNAME 'host:port'`); len(errs) == 0 {
+		t.Error("ADMIN DECOMMISSION BACKEND parsed, want a syntax error")
 	}
 }
 
@@ -506,7 +514,7 @@ func TestAdminDecommissionBackend(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestAdminStmt_Tag(t *testing.T) {
-	node := parseOne(t, `ADMIN SHOW CONFIG`)
+	node := parseOne(t, `ADMIN SHOW FRONTEND CONFIG`)
 	if node.Tag() != ast.T_AdminStmt {
 		t.Errorf("Tag=%v, want T_AdminStmt", node.Tag())
 	}
@@ -603,8 +611,8 @@ func TestAdminVariants(t *testing.T) {
 	cases := []string{
 		`ADMIN SHOW REPLICA DISTRIBUTION FROM tbl`,
 		`ADMIN SHOW REPLICA STATUS FROM tbl`,
-		`ADMIN SHOW CONFIG`,
 		`ADMIN SHOW FRONTEND CONFIG`,
+		`ADMIN SHOW BACKEND CONFIG FROM 10001`,
 		`ADMIN REBALANCE DISK`,
 		`ADMIN CANCEL REBALANCE DISK`,
 		`ADMIN DIAGNOSE TABLET 12345`,
@@ -615,7 +623,15 @@ func TestAdminVariants(t *testing.T) {
 		`ADMIN SET FRONTEND CONFIG ("disable_balance"="true")`,
 		`ADMIN CLEAN TRASH`,
 		`ADMIN COPY TABLET 10007 PROPERTIES("backend_id"="10001","version"="1")`,
-		`ADMIN DECOMMISSION BACKEND BY HOSTNAME 'host:9050'`,
+		`ADMIN REPAIR TABLE db.tbl TEMPORARY PARTITION (p1, p2) TABLET(1, 2) t`,
+		`ADMIN COMPACT TABLE tbl WHERE type = 'BASE'`,
+		`ADMIN REBALANCE DISK ON ("be1:9050", "be2:9050")`,
+		`ADMIN SET ALL FRONTENDS CONFIG ("k"="v")`,
+		`ADMIN SET FRONTEND CONFIG ("k"="v") ALL`,
+		`ADMIN SET REPLICA VERSION PROPERTIES("tablet_id"="1", "backend_id"="1", "version"="2")`,
+		`ADMIN SET TABLE tbl PARTITION VERSION PROPERTIES("partition_id"="1", "visible_version"="2")`,
+		`ADMIN SHOW TABLET STORAGE FORMAT VERBOSE`,
+		`ADMIN ROTATE TDE ROOT KEY PROPERTIES(k = v)`,
 	}
 	for i, sql := range cases {
 		file, errs := parseForTest(sql)
