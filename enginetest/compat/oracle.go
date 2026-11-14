@@ -50,14 +50,14 @@ BEGIN
   fn := DBMS_SQL.LAST_SQL_FUNCTION_CODE;
   DBMS_SQL.CLOSE_CURSOR(c);
   IF code = 24344 THEN
-    SELECT LISTAGG(CASE WHEN text LIKE 'PL/SQL: ORA-%' THEN REGEXP_SUBSTR(text, 'ORA-[0-9]{5}')
+    SELECT LISTAGG(CASE WHEN text LIKE 'PL/SQL: ORA-%' THEN REGEXP_SUBSTR(text, '^PL/SQL: (ORA-[0-9]{5})', 1, 1, NULL, 1)
                         ELSE 'PLS-' || TO_CHAR(message_number, 'FM00000') END, ',')
              WITHIN GROUP (ORDER BY name, type, sequence)
       INTO compile FROM user_errors WHERE attribute = 'ERROR';
   ELSIF code = 6550 THEN
-    FOR i IN 1 .. REGEXP_COUNT(stack, '(PLS|PL/SQL: ORA)-[0-9]{5}') LOOP
+    FOR i IN 1 .. REGEXP_COUNT(stack, '^(PLS|PL/SQL: ORA)-[0-9]{5}', 1, 'm') LOOP
       compile := compile || CASE WHEN i > 1 THEN ',' END ||
-        REPLACE(REGEXP_SUBSTR(stack, '(PLS|PL/SQL: ORA)-[0-9]{5}', 1, i), 'PL/SQL: ', '');
+        REPLACE(REGEXP_SUBSTR(stack, '^(PLS|PL/SQL: ORA)-[0-9]{5}', 1, i, 'm'), 'PL/SQL: ', '');
     END LOOP;
   END IF;
   IF code IN (0, 24344) AND fn NOT IN (` + oracleParsedOnly + `) THEN
@@ -127,17 +127,26 @@ var oracleAfterParse = map[int]bool{
 
 // oracleParserCode reports whether a code is one Oracle's SQL parser
 // raises: ORA-00900 to 00999 (invalid SQL statement, missing keyword,
-// missing expression, ...), 01700 to 01799 (the lexer's: an unterminated
-// string or comment, a zero-length identifier), 02000 to 02099 (missing
-// keyword and option errors) and 03048 to 03050 (23ai's errors naming the
-// word that is not valid where it stands), less the codes of that range
-// raised after the parse, in oracleResolved. It decides an error at the end
-// of the statement, where the probe cannot, and one whose probe says
-// nothing.
+// missing expression, ...), the lexer's and the parser's of 01700 to 01799
+// (oracleLexer), 02000 to 02099 (missing keyword and option errors) and
+// 03048 to 03050 (23ai's errors naming the word that is not valid where it
+// stands), less the codes of those ranges raised after the parse, in
+// oracleResolved. It decides an error at the end of the statement, where
+// the probe cannot, one whose probe says nothing, and a SQL statement's
+// error inside PL/SQL.
 func oracleParserCode(code int) bool {
-	return (code >= 900 && code <= 999 || code >= 1700 && code <= 1799 ||
+	return (code >= 900 && code <= 999 || oracleLexer[code] ||
 		code >= 2000 && code <= 2099 || code >= 3048 && code <= 3050) && !oracleResolved[code]
 }
+
+// oracleLexer are the codes of 01700 to 01799 the lexer and the parser
+// raise: an invalid ALTER TABLE option (01735), a missing double quote
+// (01740), a zero-length identifier (01741), a comment not terminated
+// (01742), an invalid bind variable name (01745), an invalid column
+// specification (01747), a quoted string not terminated (01756). The rest
+// of the range is checked after the parse, as 01790, a set operation's
+// columns of different types.
+var oracleLexer = map[int]bool{1735: true, 1740: true, 1741: true, 1742: true, 1745: true, 1747: true, 1756: true}
 
 // oracleResolved are codes among the parser's that Oracle raises after the
 // parse, resolving names and types: an invalid identifier (00904, a column
