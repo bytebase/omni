@@ -1897,11 +1897,14 @@ func (s *CreateFunctionStmt) nodeTag()  {}
 func (s *CreateFunctionStmt) stmtNode() {}
 
 // FuncParam represents a function/procedure parameter.
+// Exactly one of TypeName, RowFields and Anchor is set.
 type FuncParam struct {
 	Loc       Loc
 	Direction string // IN, OUT, INOUT
 	Name      string
 	TypeName  *DataType
+	RowFields []*RowField // MariaDB's ROW(name type, ...)
+	Anchor    *TypeAnchor // MariaDB's TYPE OF / ROW TYPE OF
 }
 
 func (p *FuncParam) nodeTag() {}
@@ -2488,27 +2491,51 @@ type DiagnosticsItem struct {
 
 func (d *DiagnosticsItem) nodeTag() {}
 
-// BeginEndBlock represents a BEGIN...END compound statement block.
+// BeginEndBlock represents a BEGIN...END compound statement block, or MariaDB's
+// BEGIN NOT ATOMIC ... END, which also stands as a statement of its own.
 type BeginEndBlock struct {
-	Loc      Loc
-	Label    string // optional begin label name
-	EndLabel string // optional end label name
-	Stmts    []Node // statements inside the block
+	Loc       Loc
+	Label     string // optional begin label name
+	EndLabel  string // optional end label name
+	NotAtomic bool   // BEGIN NOT ATOMIC
+	Stmts     []Node // statements inside the block
 }
 
 func (s *BeginEndBlock) nodeTag()  {}
 func (s *BeginEndBlock) stmtNode() {}
 
 // DeclareVarStmt represents a DECLARE variable statement inside a compound block.
+// Exactly one of TypeName, RowFields and Anchor is set.
 type DeclareVarStmt struct {
-	Loc      Loc
-	Names    []string  // variable names
-	TypeName *DataType // data type
-	Default  ExprNode  // DEFAULT value (may be nil)
+	Loc       Loc
+	Names     []string    // variable names
+	TypeName  *DataType   // data type
+	RowFields []*RowField // MariaDB's ROW(name type, ...)
+	Anchor    *TypeAnchor // MariaDB's TYPE OF / ROW TYPE OF
+	Default   ExprNode    // DEFAULT value (may be nil)
 }
 
 func (s *DeclareVarStmt) nodeTag()  {}
 func (s *DeclareVarStmt) stmtNode() {}
+
+// RowField is one field of MariaDB's ROW(name type, ...) variable or parameter type.
+type RowField struct {
+	Loc      Loc
+	Name     string
+	TypeName *DataType
+}
+
+func (f *RowField) nodeTag() {}
+
+// TypeAnchor is MariaDB's anchored type of a stored program variable or parameter: TYPE OF
+// a variable or a [db.]table.column, or ROW TYPE OF a [db.]table or a cursor.
+type TypeAnchor struct {
+	Loc   Loc
+	Row   bool     // ROW TYPE OF
+	Names []string // the dotted name, one to three parts
+}
+
+func (a *TypeAnchor) nodeTag() {}
 
 // HandlerCondKind classifies a handler condition value so that semantic
 // analysis can distinguish SQLSTATE literals, error-code literals, built-in
@@ -2564,8 +2591,9 @@ func (s *DeclareHandlerStmt) stmtNode() {}
 // DeclareCursorStmt represents a DECLARE ... CURSOR FOR statement.
 type DeclareCursorStmt struct {
 	Loc    Loc
-	Name   string      // cursor name
-	Select *SelectStmt // select statement
+	Name   string       // cursor name
+	Params []*FuncParam // MariaDB's cursor parameters, CURSOR (name type, ...)
+	Select *SelectStmt  // select statement
 }
 
 func (s *DeclareCursorStmt) nodeTag()  {}
@@ -2677,6 +2705,21 @@ type LoopStmt struct {
 
 func (s *LoopStmt) nodeTag()  {}
 func (s *LoopStmt) stmtNode() {}
+
+// ForStmt represents MariaDB's FOR loop over the rows of a query:
+// [label:] FOR rec IN [REVERSE] (query) DO statement_list END FOR [label].
+type ForStmt struct {
+	Loc      Loc
+	Label    string      // optional begin label
+	EndLabel string      // optional end label
+	Var      string      // the record variable each row is read into
+	Reverse  bool        // REVERSE
+	Select   *SelectStmt // the query
+	Stmts    []Node      // statement list
+}
+
+func (s *ForStmt) nodeTag()  {}
+func (s *ForStmt) stmtNode() {}
 
 // LeaveStmt represents a LEAVE statement.
 type LeaveStmt struct {
