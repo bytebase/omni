@@ -1,5 +1,7 @@
 package catalog
 
+import nodes "github.com/bytebase/omni/mariadb/ast"
+
 type Table struct {
 	Name             string
 	Database         *Database
@@ -94,6 +96,9 @@ type PartitionDefInfo struct {
 	Engine        string // ENGINE option for this partition
 	Comment       string // COMMENT option for this partition
 	SubPartitions []*SubPartitionDefInfo
+	// bound is the VALUES bound as the statement wrote it, which a partition
+	// added later is ordered against (checkAddedRangeBounds). Nil when not known.
+	bound nodes.Node
 }
 
 // SubPartitionDefInfo holds a single subpartition definition.
@@ -132,6 +137,11 @@ type Column struct {
 	// what DataType and ColumnType hold; this says what it was written as, for
 	// a caller that needs to tell such a column from a plain longtext.
 	IsJSON bool
+	// EngineOptions are the column's engine-defined options as SHOW CREATE
+	// TABLE writes them, `x`=1, in the order it writes them. InnoDB knows
+	// none, so a column carries any only when sql_mode had
+	// IGNORE_BAD_TABLE_OPTIONS as the statement ran.
+	EngineOptions []string
 }
 
 type ColumnDefaultKind int

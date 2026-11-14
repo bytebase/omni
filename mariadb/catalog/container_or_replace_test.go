@@ -10,6 +10,8 @@ import (
 	"testing"
 
 	gomysql "github.com/go-sql-driver/mysql"
+
+	"github.com/bytebase/omni/mariadb/parser"
 )
 
 // orReplaceCase is a script run statement by statement on MariaDB and on the
@@ -476,7 +478,12 @@ func catalogErr(t *testing.T, c *Catalog, stmt string) (int, string) {
 	t.Helper()
 	results, err := c.Exec(stmt, nil)
 	if err != nil {
-		// The parser refused it, as the server's own does for what it checks while it parses.
+		// The parser refused it, as the server's own does for what it checks while it parses,
+		// and its message is the server's then.
+		var perr *parser.ParseError
+		if errors.As(err, &perr) {
+			return catalogParseRefused, perr.Message
+		}
 		return catalogParseRefused, err.Error()
 	}
 	if len(results) != 1 {
