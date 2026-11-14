@@ -44,7 +44,7 @@ func registerObject(f *objectForm) {
 // matchObjectForm reports the registered object whose keywords start at cur,
 // preferring the longest. It consumes nothing.
 func (p *Parser) matchObjectForm() *objectForm {
-	if p.cur.Str == "" {
+	if p.cur.Type != tokIdent && p.cur.Type < 700 {
 		return nil
 	}
 	var best *objectForm
@@ -56,17 +56,23 @@ func (p *Parser) matchObjectForm() *objectForm {
 	return best
 }
 
-// atWords reports whether the tokens from cur on spell words, matched by
-// their uppercased text whether they lex as keywords or identifiers. It
-// consumes nothing.
+// isWordToken reports whether t is the word upper as SQL spells it: an
+// unquoted identifier or a keyword whose uppercased text is upper. A string or
+// a quoted identifier never stands for a keyword.
+func isWordToken(t Token, upper string) bool {
+	return (t.Type == tokIdent || t.Type >= 700) && strings.ToUpper(t.Str) == upper
+}
+
+// atWords reports whether the tokens from cur on spell words, each an
+// unquoted identifier or a keyword (isWordToken). It consumes nothing.
 func (p *Parser) atWords(words ...string) bool {
-	if !p.curIsWord(words[0]) {
+	if !isWordToken(p.cur, words[0]) {
 		return false
 	}
 	if len(words) == 1 {
 		return true
 	}
-	if !p.peekIsWord(words[1]) {
+	if !isWordToken(p.peekNext(), words[1]) {
 		return false
 	}
 	if len(words) == 2 {
@@ -77,7 +83,7 @@ func (p *Parser) atWords(words ...string) bool {
 	p.advance()
 	p.advance()
 	for _, w := range words[2:] {
-		if !p.curIsWord(w) {
+		if !isWordToken(p.cur, w) {
 			return false
 		}
 		p.advance()
@@ -100,7 +106,7 @@ func (p *Parser) acceptWords(words ...string) bool {
 // expectWords consumes words, or fails at the first token that differs.
 func (p *Parser) expectWords(words ...string) error {
 	for _, w := range words {
-		if !p.curIsWord(w) {
+		if !isWordToken(p.cur, w) {
 			return p.syntaxErrorAtCur()
 		}
 		p.advance()
@@ -248,7 +254,7 @@ func (p *Parser) parseObjectAlterCommon(s *ast.ObjectStmt, allow objectActions) 
 		return true, nil
 	case p.cur.Type == kwUNSET && allow&actUnset != 0:
 		p.advance() // consume UNSET
-		keys, err := p.parseUnsetPropertyNames()
+		keys, err := p.parseObjectUnsetKeys()
 		if err != nil {
 			return true, err
 		}
@@ -457,4 +463,20 @@ func (p *Parser) parseObjectAsQuery(s *ast.ObjectStmt) error {
 	}
 	s.Clauses = append(s.Clauses, &ast.ObjectClause{Keywords: "AS", Query: q, Loc: ast.Loc{Start: start, End: p.prev.Loc.End}})
 	return nil
+}
+
+// parseObjectUnsetKeys reads UNSET's <property> [ , ... ]: each an unquoted
+// identifier or a keyword, never a number, string or quoted name.
+func (p *Parser) parseObjectUnsetKeys() ([]string, error) {
+	var keys []string
+	for {
+		if p.cur.Type != tokIdent && p.cur.Type < 700 {
+			return nil, p.syntaxErrorAtCur()
+		}
+		keys = append(keys, strings.ToUpper(p.advance().Str))
+		if p.cur.Type != ',' {
+			return keys, nil
+		}
+		p.advance() // consume ','
+	}
 }

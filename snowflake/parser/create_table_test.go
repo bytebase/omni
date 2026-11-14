@@ -855,3 +855,97 @@ COPY GRANTS`
 		t.Errorf("constraint[1] OnDelete = %v, want RefActCascade", con1.References)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Constraint forms from the constraint page
+// (https://docs.snowflake.com/en/sql-reference/sql/create-table-constraint)
+// ---------------------------------------------------------------------------
+
+func TestCreateTable_InlineReferencesWithoutForeignKey(t *testing.T) {
+	stmt, errs := testParseCreateTable("CREATE TABLE t (a INT CONSTRAINT fk REFERENCES p (id) MATCH FULL ON UPDATE CASCADE DELETE SET NULL NOT ENFORCED RELY)")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	ic := stmt.Columns[0].InlineConstraint
+	if ic == nil || ic.Type != ast.ConstrForeignKey {
+		t.Fatalf("inline constraint = %+v, want a foreign key", ic)
+	}
+	if ic.Name.Normalize() != "FK" || ic.References.Table.Normalize() != "P" || ic.References.Match != "FULL" {
+		t.Errorf("reference = %+v", ic.References)
+	}
+	if ic.References.OnUpdate != ast.RefActCascade || ic.References.OnDelete != ast.RefActSetNull {
+		t.Errorf("actions = update %v delete %v, want CASCADE / SET NULL", ic.References.OnUpdate, ic.References.OnDelete)
+	}
+}
+
+func TestCreateTable_CheckConstraints(t *testing.T) {
+	stmt, errs := testParseCreateTable("CREATE TABLE t (q INT CHECK (q > 0) ENABLE VALIDATE, r INT, CONSTRAINT c CHECK (r < q) ENABLE NOVALIDATE)")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	ic := stmt.Columns[0].InlineConstraint
+	if ic == nil || ic.Type != ast.ConstrCheck || ic.Check == nil {
+		t.Fatalf("inline constraint = %+v, want a CHECK", ic)
+	}
+	if len(stmt.Constraints) != 1 {
+		t.Fatalf("constraints = %d, want 1", len(stmt.Constraints))
+	}
+	tc := stmt.Constraints[0]
+	if tc.Type != ast.ConstrCheck || tc.Check == nil || tc.Name.Normalize() != "C" {
+		t.Errorf("table constraint = %+v, want CHECK named C", tc)
+	}
+}
+
+func TestAlterTable_AddCheckConstraint(t *testing.T) {
+	stmt, errs := testParseAlterTable("ALTER TABLE t ADD CONSTRAINT c CHECK (a > 0)")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	con := stmt.Actions[0].Constraint
+	if con == nil || con.Type != ast.ConstrCheck || con.Check == nil {
+		t.Fatalf("constraint = %+v, want CHECK", con)
+	}
+}
+
+func TestCreateTable_GeneratedVirtualAndProjectionPolicy(t *testing.T) {
+	stmt, errs := testParseCreateTable("CREATE TABLE t (a INT GENERATED ALWAYS AS (1) VIRTUAL WITH PROJECTION POLICY p1, b INT PROJECTION POLICY s.p2)")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	if stmt.Columns[0].VirtualExpr == nil {
+		t.Error("col a: VirtualExpr is nil")
+	}
+	if pp := stmt.Columns[0].ProjectionPolicy; pp == nil || pp.Normalize() != "P1" {
+		t.Errorf("col a projection policy = %v, want P1", pp)
+	}
+	if pp := stmt.Columns[1].ProjectionPolicy; pp == nil || pp.Normalize() != "S.P2" {
+		t.Errorf("col b projection policy = %v, want S.P2", pp)
+	}
+}
+
+func TestCreateHybridTable_IndexInclude(t *testing.T) {
+	stmt, errs := testParseCreateTable("CREATE HYBRID TABLE t (a INT PRIMARY KEY, b INT, c INT, INDEX i (b) INCLUDE (c, a))")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	if len(stmt.Indexes) != 1 || len(stmt.Indexes[0].Include) != 2 {
+		t.Fatalf("indexes = %+v, want one with two INCLUDE columns", stmt.Indexes)
+	}
+}
+
+func TestCreateTable_ConstraintFormsRejected(t *testing.T) {
+	for _, sql := range []string{
+		// Out-of-line foreign keys need FOREIGN KEY: the constraint page writes it unbracketed.
+		"CREATE TABLE t (a INT, (a) REFERENCES p)",
+		// ON names an action.
+		"CREATE TABLE t (a INT REFERENCES p ON)",
+		// GENERATED needs ALWAYS AS.
+		"CREATE TABLE t (a INT GENERATED ALWAYS (1))",
+		// The external table page lists no CHECK constraint.
+		"CREATE EXTERNAL TABLE t (a INT AS (1) CHECK (a > 0)) LOCATION = @s FILE_FORMAT = (TYPE = CSV)",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) accepted, want an error", sql)
+		}
+	}
+}

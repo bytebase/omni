@@ -692,6 +692,16 @@ func TestDeparse_CreateTable_HybridIndexWithConstraint(t *testing.T) {
 	assertRoundTrip(t, `CREATE OR REPLACE HYBRID TABLE ht2 (c1 INT PRIMARY KEY, c2 VARCHAR(10), INDEX idx_c2 (c2))`)
 }
 
+// CHECK constraints, projection policies and INDEX ... INCLUDE round-trip.
+func TestDeparse_CreateTable_CheckProjectionInclude(t *testing.T) {
+	out := assertRoundTrip(t, `CREATE HYBRID TABLE t (a INT CHECK (a > 0) WITH PROJECTION POLICY p, b INT, CONSTRAINT c CHECK (b < a), INDEX i (b) INCLUDE (a))`)
+	for _, want := range []string{"CHECK (a > 0)", "WITH PROJECTION POLICY p", "CONSTRAINT c CHECK (b < a)", "INDEX i (b) INCLUDE (a)"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("deparsed SQL missing %q: %q", want, out)
+		}
+	}
+}
+
 func TestDeparse_CreateTable_Temporary(t *testing.T) {
 	assertRoundTrip(t, `CREATE TEMPORARY TABLE t (id INT)`)
 }

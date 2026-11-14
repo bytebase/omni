@@ -92,7 +92,7 @@ func appendFieldPaths(dst []FieldPath, expr ast.ExprNode, aliases aliasMap) []Fi
 		*ast.NanLit, *ast.ParamRef:
 		return dst
 
-	case *ast.SubLink, *ast.ExistsExpr, *ast.ArrayExpr:
+	case *ast.SubLink, *ast.ExistsExpr, *ast.ArrayExpr, *ast.SubqueryFuncExpr:
 		return dst
 
 	default:

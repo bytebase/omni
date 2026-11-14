@@ -24945,14 +24945,14 @@ reject	undocumented	docs	alterTable_tableColumnAction((GENERATED_ALWAYS)?_AS_(_E
 reject	undocumented	docs	alterTable_tableColumnAction((GENERATED_ALWAYS)?_AS_(_EXPR_)_VIRTUAL?)?/(GENERATED_ALWAYS)?_AS_(_EXPR_)_(VIRTUAL)?!swap	ALTER TABLE a ADD a INT ASC(1)
 accept	accept	docs	alterTable_tableColumnAction(GENERATED_ALWAYS)?/%empty	ALTER TABLE a ADD a INT AS(1)
 reject	undocumented	docs	alterTable_tableColumnAction(GENERATED_ALWAYS)?/%empty!insert	ALTER TABLE a ADD a INT zzz AS(1)
-reject	accept	docs	alterTable_tableColumnAction(GENERATED_ALWAYS)?/GENERATED_ALWAYS	ALTER TABLE a ADD a INT GENERATED ALWAYS AS(1)
+accept	accept	docs	alterTable_tableColumnAction(GENERATED_ALWAYS)?/GENERATED_ALWAYS	ALTER TABLE a ADD a INT GENERATED ALWAYS AS(1)
 reject	undocumented	docs	alterTable_tableColumnAction(GENERATED_ALWAYS)?/GENERATED_ALWAYS!drop-1	ALTER TABLE a ADD a INT ALWAYS AS(1)
 reject	undocumented	docs	alterTable_tableColumnAction(GENERATED_ALWAYS)?/GENERATED_ALWAYS!drop-2	ALTER TABLE a ADD a INT GENERATED AS(1)
 reject	undocumented	docs	alterTable_tableColumnAction(GENERATED_ALWAYS)?/GENERATED_ALWAYS!truncate	ALTER TABLE a ADD a INT GENERATED
 reject	undocumented	docs	alterTable_tableColumnAction(GENERATED_ALWAYS)?/GENERATED_ALWAYS!insert	ALTER TABLE a ADD a INT GENERATED ALWAYS zzz AS(1)
 reject	undocumented	docs	alterTable_tableColumnAction(GENERATED_ALWAYS)?/GENERATED_ALWAYS!swap	ALTER TABLE a ADD a INT GENERATION ALWAYS AS(1)
 accept	accept	docs	alterTable_tableColumnAction(VIRTUAL)?/%empty	ALTER TABLE a ADD a INT AS(1)
-reject	accept	docs	alterTable_tableColumnAction(VIRTUAL)?/VIRTUAL	ALTER TABLE a ADD a INT AS(1) VIRTUAL
+accept	accept	docs	alterTable_tableColumnAction(VIRTUAL)?/VIRTUAL	ALTER TABLE a ADD a INT AS(1) VIRTUAL
 reject	undocumented	docs	alterTable_tableColumnAction(VIRTUAL)?/VIRTUAL!insert	ALTER TABLE a ADD a INT AS(1) VIRTUAL zzz
 reject	undocumented	docs	alterTable_tableColumnAction(VIRTUAL)?/VIRTUAL!swap	ALTER TABLE a ADD a INT AS(1) VISIBILITY
 accept	accept	docs	alterTable_tableColumnAction((DEFAULT_EXPR|(AUTOINCREMENT|IDENTIT~12c5aa0f)?/%empty	ALTER TABLE a ADD a INT
@@ -25110,18 +25110,18 @@ reject	undocumented	docs	alterTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN
 reject	undocumented	docs	alterTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~3b4ef491)/PRIMARY_KEY!drop-2	ALTER TABLE a ADD a INT PRIMARY
 reject	undocumented	docs	alterTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~3b4ef491)/PRIMARY_KEY!insert	ALTER TABLE a ADD a INT PRIMARY KEY zzz
 reject	undocumented	docs	alterTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~3b4ef491)/PRIMARY_KEY!swap	ALTER TABLE a ADD a INT PRIVACY KEY
-reject	accept	docs	alterTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~3b4ef491)/(FOREIGN_KEY)?_REFERENCES_QNAME_((_ID_))?_(MATCH_(FULL|~40d52696	ALTER TABLE a ADD a INT REFERENCES a
+accept	accept	docs	alterTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~3b4ef491)/(FOREIGN_KEY)?_REFERENCES_QNAME_((_ID_))?_(MATCH_(FULL|~40d52696	ALTER TABLE a ADD a INT REFERENCES a
 reject	undocumented	docs	alterTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~3b4ef491)/(FOREIGN_KEY)?_REFERENCES_QNAME_((_ID_))?_(MATCH_(FULL|~40d52696!drop-1	ALTER TABLE a ADD a INT a
 reject	undocumented	docs	alterTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~3b4ef491)/(FOREIGN_KEY)?_REFERENCES_QNAME_((_ID_))?_(MATCH_(FULL|~40d52696!drop-2	ALTER TABLE a ADD a INT REFERENCES
 reject	undocumented	docs	alterTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~3b4ef491)/(FOREIGN_KEY)?_REFERENCES_QNAME_((_ID_))?_(MATCH_(FULL|~40d52696!insert	ALTER TABLE a ADD a INT REFERENCES a zzz
 reject	undocumented	docs	alterTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~3b4ef491)/(FOREIGN_KEY)?_REFERENCES_QNAME_((_ID_))?_(MATCH_(FULL|~40d52696!swap	ALTER TABLE a ADD a INT REFERENCE_USAGE a
-reject	accept	docs	alterTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~3b4ef491)/CHECK_(_EXPR_)	ALTER TABLE a ADD a INT CHECK(1)
+accept	accept	docs	alterTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~3b4ef491)/CHECK_(_EXPR_)	ALTER TABLE a ADD a INT CHECK(1)
 reject	undocumented	docs	alterTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~3b4ef491)/CHECK_(_EXPR_)!drop-2	ALTER TABLE a ADD a INT CHECK 1)
 reject	undocumented	docs	alterTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~3b4ef491)/CHECK_(_EXPR_)!drop-3	ALTER TABLE a ADD a INT CHECK()
 reject	undocumented	docs	alterTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~3b4ef491)/CHECK_(_EXPR_)!drop-4	ALTER TABLE a ADD a INT CHECK(1
 reject	undocumented	docs	alterTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~3b4ef491)/CHECK_(_EXPR_)!insert	ALTER TABLE a ADD a INT CHECK(1) zzz
 reject	undocumented	docs	alterTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~3b4ef491)/CHECK_(_EXPR_)!swap	ALTER TABLE a ADD a INT CLASS(1)
-reject	accept	docs	alterTable_inlineConstraint(FOREIGN_KEY)?/%empty	ALTER TABLE a ADD a INT REFERENCES a
+accept	accept	docs	alterTable_inlineConstraint(FOREIGN_KEY)?/%empty	ALTER TABLE a ADD a INT REFERENCES a
 reject	undocumented	docs	alterTable_inlineConstraint(FOREIGN_KEY)?/%empty!insert	ALTER TABLE a ADD a INT zzz REFERENCES a
 accept	accept	docs	alterTable_inlineConstraint(FOREIGN_KEY)?/FOREIGN_KEY	ALTER TABLE a ADD a INT FOREIGN KEY REFERENCES a
 reject	undocumented	docs	alterTable_inlineConstraint(FOREIGN_KEY)?/FOREIGN_KEY!drop-1	ALTER TABLE a ADD a INT KEY REFERENCES a
@@ -25129,57 +25129,57 @@ reject	undocumented	docs	alterTable_inlineConstraint(FOREIGN_KEY)?/FOREIGN_KEY!d
 reject	undocumented	docs	alterTable_inlineConstraint(FOREIGN_KEY)?/FOREIGN_KEY!truncate	ALTER TABLE a ADD a INT FOREIGN
 reject	undocumented	docs	alterTable_inlineConstraint(FOREIGN_KEY)?/FOREIGN_KEY!insert	ALTER TABLE a ADD a INT FOREIGN KEY zzz REFERENCES a
 reject	undocumented	docs	alterTable_inlineConstraint(FOREIGN_KEY)?/FOREIGN_KEY!swap	ALTER TABLE a ADD a INT FORK KEY REFERENCES a
-reject	accept	docs	alterTable_inlineConstraint((_ID_))?/%empty	ALTER TABLE a ADD a INT REFERENCES a
-reject	accept	docs	alterTable_inlineConstraint((_ID_))?/(_ID_)	ALTER TABLE a ADD a INT REFERENCES a(a)
+accept	accept	docs	alterTable_inlineConstraint((_ID_))?/%empty	ALTER TABLE a ADD a INT REFERENCES a
+accept	accept	docs	alterTable_inlineConstraint((_ID_))?/(_ID_)	ALTER TABLE a ADD a INT REFERENCES a(a)
 reject	undocumented	docs	alterTable_inlineConstraint((_ID_))?/(_ID_)!drop-1	ALTER TABLE a ADD a INT REFERENCES a a)
 reject	undocumented	docs	alterTable_inlineConstraint((_ID_))?/(_ID_)!drop-2	ALTER TABLE a ADD a INT REFERENCES a()
 reject	undocumented	docs	alterTable_inlineConstraint((_ID_))?/(_ID_)!drop-3	ALTER TABLE a ADD a INT REFERENCES a(a
 reject	undocumented	docs	alterTable_inlineConstraint((_ID_))?/(_ID_)!insert	ALTER TABLE a ADD a INT REFERENCES a(a) zzz
-reject	accept	docs	alterTable_inlineConstraint(MATCH_(FULL|SIMPLE|PARTIAL))?/%empty	ALTER TABLE a ADD a INT REFERENCES a
-reject	accept	docs	alterTable_inlineConstraint(MATCH_(FULL|SIMPLE|PARTIAL))?/MATCH_(FULL|SIMPLE|PARTIAL)	ALTER TABLE a ADD a INT REFERENCES a MATCH FULL
+accept	accept	docs	alterTable_inlineConstraint(MATCH_(FULL|SIMPLE|PARTIAL))?/%empty	ALTER TABLE a ADD a INT REFERENCES a
+accept	accept	docs	alterTable_inlineConstraint(MATCH_(FULL|SIMPLE|PARTIAL))?/MATCH_(FULL|SIMPLE|PARTIAL)	ALTER TABLE a ADD a INT REFERENCES a MATCH FULL
 reject	undocumented	docs	alterTable_inlineConstraint(MATCH_(FULL|SIMPLE|PARTIAL))?/MATCH_(FULL|SIMPLE|PARTIAL)!drop-1	ALTER TABLE a ADD a INT REFERENCES a FULL
 reject	undocumented	docs	alterTable_inlineConstraint(MATCH_(FULL|SIMPLE|PARTIAL))?/MATCH_(FULL|SIMPLE|PARTIAL)!drop-2	ALTER TABLE a ADD a INT REFERENCES a MATCH
 reject	undocumented	docs	alterTable_inlineConstraint(MATCH_(FULL|SIMPLE|PARTIAL))?/MATCH_(FULL|SIMPLE|PARTIAL)!insert	ALTER TABLE a ADD a INT REFERENCES a MATCH FULL zzz
 reject	undocumented	docs	alterTable_inlineConstraint(MATCH_(FULL|SIMPLE|PARTIAL))?/MATCH_(FULL|SIMPLE|PARTIAL)!swap	ALTER TABLE a ADD a INT REFERENCES a MATCHED FULL
-reject	accept	docs	alterTable_inlineConstraint(FULL|SIMPLE|PARTIAL)/FULL	ALTER TABLE a ADD a INT REFERENCES a MATCH FULL
+accept	accept	docs	alterTable_inlineConstraint(FULL|SIMPLE|PARTIAL)/FULL	ALTER TABLE a ADD a INT REFERENCES a MATCH FULL
 reject	undocumented	docs	alterTable_inlineConstraint(FULL|SIMPLE|PARTIAL)/FULL!swap	ALTER TABLE a ADD a INT REFERENCES a MATCH FULL_INDEX_BUILD_INTERVAL_DAYS
-reject	accept	docs	alterTable_inlineConstraint(FULL|SIMPLE|PARTIAL)/SIMPLE	ALTER TABLE a ADD a INT REFERENCES a MATCH SIMPLE
+accept	accept	docs	alterTable_inlineConstraint(FULL|SIMPLE|PARTIAL)/SIMPLE	ALTER TABLE a ADD a INT REFERENCES a MATCH SIMPLE
 reject	undocumented	docs	alterTable_inlineConstraint(FULL|SIMPLE|PARTIAL)/SIMPLE!insert	ALTER TABLE a ADD a INT REFERENCES a MATCH SIMPLE zzz
 reject	undocumented	docs	alterTable_inlineConstraint(FULL|SIMPLE|PARTIAL)/SIMPLE!swap	ALTER TABLE a ADD a INT REFERENCES a MATCH SIMULATED_DATA_SHARING_CONSUMER
-reject	accept	docs	alterTable_inlineConstraint(FULL|SIMPLE|PARTIAL)/PARTIAL	ALTER TABLE a ADD a INT REFERENCES a MATCH PARTIAL
+accept	accept	docs	alterTable_inlineConstraint(FULL|SIMPLE|PARTIAL)/PARTIAL	ALTER TABLE a ADD a INT REFERENCES a MATCH PARTIAL
 reject	undocumented	docs	alterTable_inlineConstraint(FULL|SIMPLE|PARTIAL)/PARTIAL!insert	ALTER TABLE a ADD a INT REFERENCES a MATCH PARTIAL zzz
 reject	undocumented	docs	alterTable_inlineConstraint(FULL|SIMPLE|PARTIAL)/PARTIAL!swap	ALTER TABLE a ADD a INT REFERENCES a MATCH PARTITION
-reject	accept	docs	alterTable_inlineConstraint(ON_(UPDATE_(CASCADE|SET_NULL|SET_DEF~25b12049)?/%empty	ALTER TABLE a ADD a INT REFERENCES a
+accept	accept	docs	alterTable_inlineConstraint(ON_(UPDATE_(CASCADE|SET_NULL|SET_DEF~25b12049)?/%empty	ALTER TABLE a ADD a INT REFERENCES a
 reject	accept	docs	alterTable_inlineConstraint(ON_(UPDATE_(CASCADE|SET_NULL|SET_DEF~25b12049)?/ON_(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?_(DE~a5729fae	ALTER TABLE a ADD a INT REFERENCES a ON
 reject	undocumented	docs	alterTable_inlineConstraint(ON_(UPDATE_(CASCADE|SET_NULL|SET_DEF~25b12049)?/ON_(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?_(DE~a5729fae!insert	ALTER TABLE a ADD a INT REFERENCES a ON zzz
 reject	undocumented	docs	alterTable_inlineConstraint(ON_(UPDATE_(CASCADE|SET_NULL|SET_DEF~25b12049)?/ON_(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?_(DE~a5729fae!swap	ALTER TABLE a ADD a INT REFERENCES a ONBOARDING_QUESTION
 reject	accept	docs	alterTable_inlineConstraint(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?/%empty	ALTER TABLE a ADD a INT REFERENCES a ON
-reject	accept	docs	alterTable_inlineConstraint(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?/UPDATE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)	ALTER TABLE a ADD a INT REFERENCES a ON UPDATE CASCADE
+accept	accept	docs	alterTable_inlineConstraint(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?/UPDATE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)	ALTER TABLE a ADD a INT REFERENCES a ON UPDATE CASCADE
 reject	undocumented	docs	alterTable_inlineConstraint(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?/UPDATE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)!drop-1	ALTER TABLE a ADD a INT REFERENCES a ON CASCADE
 reject	undocumented	docs	alterTable_inlineConstraint(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?/UPDATE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)!drop-2	ALTER TABLE a ADD a INT REFERENCES a ON UPDATE
 reject	undocumented	docs	alterTable_inlineConstraint(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?/UPDATE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)!insert	ALTER TABLE a ADD a INT REFERENCES a ON UPDATE CASCADE zzz
 reject	undocumented	docs	alterTable_inlineConstraint(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?/UPDATE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)!swap	ALTER TABLE a ADD a INT REFERENCES a ON UPGRADE CASCADE
-reject	accept	docs	alterTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/CASCADE	ALTER TABLE a ADD a INT REFERENCES a ON UPDATE CASCADE
+accept	accept	docs	alterTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/CASCADE	ALTER TABLE a ADD a INT REFERENCES a ON UPDATE CASCADE
 reject	undocumented	docs	alterTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/CASCADE!swap	ALTER TABLE a ADD a INT REFERENCES a ON UPDATE CASES
-reject	accept	docs	alterTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_NULL	ALTER TABLE a ADD a INT REFERENCES a ON UPDATE SET NULL
+accept	accept	docs	alterTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_NULL	ALTER TABLE a ADD a INT REFERENCES a ON UPDATE SET NULL
 reject	undocumented	docs	alterTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_NULL!drop-1	ALTER TABLE a ADD a INT REFERENCES a ON UPDATE NULL
 reject	undocumented	docs	alterTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_NULL!drop-2	ALTER TABLE a ADD a INT REFERENCES a ON UPDATE SET
 reject	undocumented	docs	alterTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_NULL!insert	ALTER TABLE a ADD a INT REFERENCES a ON UPDATE SET NULL zzz
 reject	undocumented	docs	alterTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_NULL!swap	ALTER TABLE a ADD a INT REFERENCES a ON UPDATE SETS NULL
-reject	accept	docs	alterTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_DEFAULT	ALTER TABLE a ADD a INT REFERENCES a ON UPDATE SET DEFAULT
+accept	accept	docs	alterTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_DEFAULT	ALTER TABLE a ADD a INT REFERENCES a ON UPDATE SET DEFAULT
 reject	undocumented	docs	alterTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_DEFAULT!drop-1	ALTER TABLE a ADD a INT REFERENCES a ON UPDATE DEFAULT
 reject	undocumented	docs	alterTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_DEFAULT!insert	ALTER TABLE a ADD a INT REFERENCES a ON UPDATE SET DEFAULT zzz
 reject	undocumented	docs	alterTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_DEFAULT!swap	ALTER TABLE a ADD a INT REFERENCES a ON UPDATE SETS DEFAULT
-reject	accept	docs	alterTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/RESTRICT	ALTER TABLE a ADD a INT REFERENCES a ON UPDATE RESTRICT
+accept	accept	docs	alterTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/RESTRICT	ALTER TABLE a ADD a INT REFERENCES a ON UPDATE RESTRICT
 reject	undocumented	docs	alterTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/RESTRICT!insert	ALTER TABLE a ADD a INT REFERENCES a ON UPDATE RESTRICT zzz
 reject	undocumented	docs	alterTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/RESTRICT!swap	ALTER TABLE a ADD a INT REFERENCES a ON UPDATE RESTRICTED
-reject	accept	docs	alterTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/NO_ACTION	ALTER TABLE a ADD a INT REFERENCES a ON UPDATE NO ACTION
+accept	accept	docs	alterTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/NO_ACTION	ALTER TABLE a ADD a INT REFERENCES a ON UPDATE NO ACTION
 reject	undocumented	docs	alterTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/NO_ACTION!drop-1	ALTER TABLE a ADD a INT REFERENCES a ON UPDATE ACTION
 reject	undocumented	docs	alterTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/NO_ACTION!drop-2	ALTER TABLE a ADD a INT REFERENCES a ON UPDATE NO
 reject	undocumented	docs	alterTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/NO_ACTION!insert	ALTER TABLE a ADD a INT REFERENCES a ON UPDATE NO ACTION zzz
 reject	undocumented	docs	alterTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/NO_ACTION!swap	ALTER TABLE a ADD a INT REFERENCES a ON UPDATE NODES ACTION
 reject	accept	docs	alterTable_inlineConstraint(DELETE_(CASCADE|SET_NULL|SET_DEFAULT~73828552)?/%empty	ALTER TABLE a ADD a INT REFERENCES a ON
-reject	accept	docs	alterTable_inlineConstraint(DELETE_(CASCADE|SET_NULL|SET_DEFAULT~73828552)?/DELETE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)	ALTER TABLE a ADD a INT REFERENCES a ON DELETE CASCADE
+accept	accept	docs	alterTable_inlineConstraint(DELETE_(CASCADE|SET_NULL|SET_DEFAULT~73828552)?/DELETE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)	ALTER TABLE a ADD a INT REFERENCES a ON DELETE CASCADE
 reject	undocumented	docs	alterTable_inlineConstraint(DELETE_(CASCADE|SET_NULL|SET_DEFAULT~73828552)?/DELETE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)!drop-2	ALTER TABLE a ADD a INT REFERENCES a ON DELETE
 reject	undocumented	docs	alterTable_inlineConstraint(DELETE_(CASCADE|SET_NULL|SET_DEFAULT~73828552)?/DELETE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)!insert	ALTER TABLE a ADD a INT REFERENCES a ON DELETE CASCADE zzz
 reject	undocumented	docs	alterTable_inlineConstraint(DELETE_(CASCADE|SET_NULL|SET_DEFAULT~73828552)?/DELETE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)!swap	ALTER TABLE a ADD a INT REFERENCES a ON DELTA CASCADE
@@ -25692,7 +25692,7 @@ reject	undocumented	docs	alterTable_dataGovnPolicyTagAction(USING_(_ID_,_ID_(,_I
 reject	undocumented	docs	alterTable_dataGovnPolicyTagAction(USING_(_ID_,_ID_(,_ID)*_))?/USING_(_ID_,_ID_(,_ID)*_)!insert	ALTER TABLE a ADD a INT MASKING POLICY a USING(a, a) zzz
 reject	undocumented	docs	alterTable_dataGovnPolicyTagAction(USING_(_ID_,_ID_(,_ID)*_))?/USING_(_ID_,_ID_(,_ID)*_)!swap	ALTER TABLE a ADD a INT MASKING POLICY a UTF8(a, a)
 accept	accept	docs	alterTable_dataGovnPolicyTagAction(WITH?_PROJECTION_POLICY_QNAME)?/%empty	ALTER TABLE a ADD a INT
-reject	accept	docs	alterTable_dataGovnPolicyTagAction(WITH?_PROJECTION_POLICY_QNAME)?/(WITH)?_PROJECTION_POLICY_QNAME	ALTER TABLE a ADD a INT PROJECTION POLICY a
+accept	accept	docs	alterTable_dataGovnPolicyTagAction(WITH?_PROJECTION_POLICY_QNAME)?/(WITH)?_PROJECTION_POLICY_QNAME	ALTER TABLE a ADD a INT PROJECTION POLICY a
 reject	undocumented	docs	alterTable_dataGovnPolicyTagAction(WITH?_PROJECTION_POLICY_QNAME)?/(WITH)?_PROJECTION_POLICY_QNAME!drop-2	ALTER TABLE a ADD a INT PROJECTION a
 reject	undocumented	docs	alterTable_dataGovnPolicyTagAction(WITH?_PROJECTION_POLICY_QNAME)?/(WITH)?_PROJECTION_POLICY_QNAME!drop-3	ALTER TABLE a ADD a INT PROJECTION POLICY
 reject	undocumented	docs	alterTable_dataGovnPolicyTagAction(WITH?_PROJECTION_POLICY_QNAME)?/(WITH)?_PROJECTION_POLICY_QNAME!insert	ALTER TABLE a ADD a INT PROJECTION POLICY a zzz
@@ -25865,7 +25865,7 @@ reject	undocumented	docs	alterTable_outoflineConstraint(UNIQUE_(_ID_(,_ID)*_)|PR
 reject	undocumented	docs	alterTable_outoflineConstraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~7cff6b81)/(FOREIGN_KEY)?_(_ID_(,_ID)*_)_REFERENCES_QNAME_((_ID_(,~ce060e46!drop-5	ALTER TABLE a ADD(a) REFERENCES
 reject	undocumented	docs	alterTable_outoflineConstraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~7cff6b81)/(FOREIGN_KEY)?_(_ID_(,_ID)*_)_REFERENCES_QNAME_((_ID_(,~ce060e46!insert	ALTER TABLE a ADD(a) REFERENCES a zzz
 reject	undocumented	docs	alterTable_outoflineConstraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~7cff6b81)/(FOREIGN_KEY)?_(_ID_(,_ID)*_)_REFERENCES_QNAME_((_ID_(,~ce060e46!swap	ALTER TABLE a ADD(a) REFERENCE_USAGE a
-reject	accept	docs	alterTable_outoflineConstraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~7cff6b81)/CHECK_(_EXPR_)	ALTER TABLE a ADD CHECK(1)
+accept	accept	docs	alterTable_outoflineConstraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~7cff6b81)/CHECK_(_EXPR_)	ALTER TABLE a ADD CHECK(1)
 reject	undocumented	docs	alterTable_outoflineConstraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~7cff6b81)/CHECK_(_EXPR_)!drop-1	ALTER TABLE a ADD(1)
 reject	undocumented	docs	alterTable_outoflineConstraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~7cff6b81)/CHECK_(_EXPR_)!drop-2	ALTER TABLE a ADD CHECK 1)
 reject	undocumented	docs	alterTable_outoflineConstraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~7cff6b81)/CHECK_(_EXPR_)!drop-3	ALTER TABLE a ADD CHECK()
@@ -34677,7 +34677,7 @@ reject	undocumented	docs	createDynamicTable(,_ID)*/,_ID_(,_ID)*!drop-1	CREATE DY
 reject	undocumented	docs	createDynamicTable(,_ID)*/,_ID_(,_ID)*!drop-2	CREATE DYNAMIC TABLE a CLONE a EXECUTE AS USER a USE SECONDARY ROLES a,
 reject	undocumented	docs	createDynamicTable(,_ID)*/,_ID_(,_ID)*!insert	CREATE DYNAMIC TABLE a CLONE a EXECUTE AS USER a USE SECONDARY ROLES a, a zzz
 accept	accept	docs	createDynamicTable(WITH?_PROJECTION_POLICY_QNAME)?/%empty	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a AS SELECT 1
-reject	accept	docs	createDynamicTable(WITH?_PROJECTION_POLICY_QNAME)?/(WITH)?_PROJECTION_POLICY_QNAME	CREATE DYNAMIC TABLE a(a INT PROJECTION POLICY a) TARGET_LAG = 's' WAREHOUSE = a AS SELECT 1
+accept	accept	docs	createDynamicTable(WITH?_PROJECTION_POLICY_QNAME)?/(WITH)?_PROJECTION_POLICY_QNAME	CREATE DYNAMIC TABLE a(a INT PROJECTION POLICY a) TARGET_LAG = 's' WAREHOUSE = a AS SELECT 1
 reject	undocumented	docs	createDynamicTable(WITH?_PROJECTION_POLICY_QNAME)?/(WITH)?_PROJECTION_POLICY_QNAME!drop-2	CREATE DYNAMIC TABLE a(a INT PROJECTION a) TARGET_LAG = 's' WAREHOUSE = a AS SELECT 1
 reject	undocumented	docs	createDynamicTable(WITH?_PROJECTION_POLICY_QNAME)?/(WITH)?_PROJECTION_POLICY_QNAME!drop-3	CREATE DYNAMIC TABLE a(a INT PROJECTION POLICY) TARGET_LAG = 's' WAREHOUSE = a AS SELECT 1
 reject	undocumented	docs	createDynamicTable(WITH?_PROJECTION_POLICY_QNAME)?/(WITH)?_PROJECTION_POLICY_QNAME!truncate	CREATE DYNAMIC TABLE a(a INT PROJECTION POLICY
@@ -36021,13 +36021,13 @@ reject	undocumented	docs	createExternalTable_inlineConstraint(UNIQUE|PRIMARY_KEY
 reject	undocumented	docs	createExternalTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~bc870693)/PRIMARY_KEY!truncate	CREATE EXTERNAL TABLE a(a INT AS 1 PRIMARY
 reject	undocumented	docs	createExternalTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~bc870693)/PRIMARY_KEY!insert	CREATE EXTERNAL TABLE a(a INT AS 1 PRIMARY KEY zzz) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~bc870693)/PRIMARY_KEY!swap	CREATE EXTERNAL TABLE a(a INT AS 1 PRIVACY KEY) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-reject	accept	docs	createExternalTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~bc870693)/(FOREIGN_KEY)?_REFERENCES_QNAME_((_ID_(,_ID)?_))?_(MATC~c9e7f7c8	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
+accept	accept	docs	createExternalTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~bc870693)/(FOREIGN_KEY)?_REFERENCES_QNAME_((_ID_(,_ID)?_))?_(MATC~c9e7f7c8	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~bc870693)/(FOREIGN_KEY)?_REFERENCES_QNAME_((_ID_(,_ID)?_))?_(MATC~c9e7f7c8!drop-1	CREATE EXTERNAL TABLE a(a INT AS 1 a) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~bc870693)/(FOREIGN_KEY)?_REFERENCES_QNAME_((_ID_(,_ID)?_))?_(MATC~c9e7f7c8!drop-2	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~bc870693)/(FOREIGN_KEY)?_REFERENCES_QNAME_((_ID_(,_ID)?_))?_(MATC~c9e7f7c8!truncate	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES
 reject	undocumented	docs	createExternalTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~bc870693)/(FOREIGN_KEY)?_REFERENCES_QNAME_((_ID_(,_ID)?_))?_(MATC~c9e7f7c8!insert	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a zzz) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~bc870693)/(FOREIGN_KEY)?_REFERENCES_QNAME_((_ID_(,_ID)?_))?_(MATC~c9e7f7c8!swap	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCE_USAGE a) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-reject	accept	docs	createExternalTable_inlineConstraint(FOREIGN_KEY)?/%empty	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
+accept	accept	docs	createExternalTable_inlineConstraint(FOREIGN_KEY)?/%empty	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable_inlineConstraint(FOREIGN_KEY)?/%empty!insert	CREATE EXTERNAL TABLE a(a INT AS 1 zzz REFERENCES a) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 accept	accept	docs	createExternalTable_inlineConstraint(FOREIGN_KEY)?/FOREIGN_KEY	CREATE EXTERNAL TABLE a(a INT AS 1 FOREIGN KEY REFERENCES a) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable_inlineConstraint(FOREIGN_KEY)?/FOREIGN_KEY!drop-1	CREATE EXTERNAL TABLE a(a INT AS 1 KEY REFERENCES a) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
@@ -36035,70 +36035,70 @@ reject	undocumented	docs	createExternalTable_inlineConstraint(FOREIGN_KEY)?/FORE
 reject	undocumented	docs	createExternalTable_inlineConstraint(FOREIGN_KEY)?/FOREIGN_KEY!truncate	CREATE EXTERNAL TABLE a(a INT AS 1 FOREIGN
 reject	undocumented	docs	createExternalTable_inlineConstraint(FOREIGN_KEY)?/FOREIGN_KEY!insert	CREATE EXTERNAL TABLE a(a INT AS 1 FOREIGN KEY zzz REFERENCES a) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable_inlineConstraint(FOREIGN_KEY)?/FOREIGN_KEY!swap	CREATE EXTERNAL TABLE a(a INT AS 1 FORK KEY REFERENCES a) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-reject	accept	docs	createExternalTable_inlineConstraint((_ID_(,_ID)?_))?/%empty	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-reject	accept	docs	createExternalTable_inlineConstraint((_ID_(,_ID)?_))?/(_ID_(,_ID)?_)	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a(a)) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
+accept	accept	docs	createExternalTable_inlineConstraint((_ID_(,_ID)?_))?/%empty	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
+accept	accept	docs	createExternalTable_inlineConstraint((_ID_(,_ID)?_))?/(_ID_(,_ID)?_)	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a(a)) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable_inlineConstraint((_ID_(,_ID)?_))?/(_ID_(,_ID)?_)!drop-1	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a a)) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable_inlineConstraint((_ID_(,_ID)?_))?/(_ID_(,_ID)?_)!drop-2	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a()) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable_inlineConstraint((_ID_(,_ID)?_))?/(_ID_(,_ID)?_)!drop-3	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a(a) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable_inlineConstraint((_ID_(,_ID)?_))?/(_ID_(,_ID)?_)!truncate	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a(a
 reject	undocumented	docs	createExternalTable_inlineConstraint((_ID_(,_ID)?_))?/(_ID_(,_ID)?_)!insert	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a(a) zzz) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-reject	accept	docs	createExternalTable_inlineConstraint(,_ID)?/%empty	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a(a)) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
+accept	accept	docs	createExternalTable_inlineConstraint(,_ID)?/%empty	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a(a)) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable_inlineConstraint(,_ID)?/%empty!insert	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a(a zzz)) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-reject	accept	docs	createExternalTable_inlineConstraint(,_ID)?/,_ID	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a(a, a)) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
+accept	accept	docs	createExternalTable_inlineConstraint(,_ID)?/,_ID	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a(a, a)) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable_inlineConstraint(,_ID)?/,_ID!drop-1	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a(a a)) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable_inlineConstraint(,_ID)?/,_ID!drop-2	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a(a,)) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable_inlineConstraint(,_ID)?/,_ID!truncate	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a(a,
 reject	undocumented	docs	createExternalTable_inlineConstraint(,_ID)?/,_ID!insert	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a(a, a zzz)) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-reject	accept	docs	createExternalTable_inlineConstraint(MATCH_(FULL|SIMPLE|PARTIAL))?/%empty	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-reject	accept	docs	createExternalTable_inlineConstraint(MATCH_(FULL|SIMPLE|PARTIAL))?/MATCH_(FULL|SIMPLE|PARTIAL)	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a MATCH FULL) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
+accept	accept	docs	createExternalTable_inlineConstraint(MATCH_(FULL|SIMPLE|PARTIAL))?/%empty	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
+accept	accept	docs	createExternalTable_inlineConstraint(MATCH_(FULL|SIMPLE|PARTIAL))?/MATCH_(FULL|SIMPLE|PARTIAL)	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a MATCH FULL) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable_inlineConstraint(MATCH_(FULL|SIMPLE|PARTIAL))?/MATCH_(FULL|SIMPLE|PARTIAL)!drop-1	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a FULL) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable_inlineConstraint(MATCH_(FULL|SIMPLE|PARTIAL))?/MATCH_(FULL|SIMPLE|PARTIAL)!drop-2	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a MATCH) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable_inlineConstraint(MATCH_(FULL|SIMPLE|PARTIAL))?/MATCH_(FULL|SIMPLE|PARTIAL)!truncate	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a MATCH
 reject	undocumented	docs	createExternalTable_inlineConstraint(MATCH_(FULL|SIMPLE|PARTIAL))?/MATCH_(FULL|SIMPLE|PARTIAL)!insert	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a MATCH FULL zzz) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable_inlineConstraint(MATCH_(FULL|SIMPLE|PARTIAL))?/MATCH_(FULL|SIMPLE|PARTIAL)!swap	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a MATCHED FULL) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-reject	accept	docs	createExternalTable_inlineConstraint(FULL|SIMPLE|PARTIAL)/FULL	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a MATCH FULL) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
+accept	accept	docs	createExternalTable_inlineConstraint(FULL|SIMPLE|PARTIAL)/FULL	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a MATCH FULL) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable_inlineConstraint(FULL|SIMPLE|PARTIAL)/FULL!swap	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a MATCH FULL_INDEX_BUILD_INTERVAL_DAYS) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-reject	accept	docs	createExternalTable_inlineConstraint(FULL|SIMPLE|PARTIAL)/SIMPLE	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a MATCH SIMPLE) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
+accept	accept	docs	createExternalTable_inlineConstraint(FULL|SIMPLE|PARTIAL)/SIMPLE	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a MATCH SIMPLE) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable_inlineConstraint(FULL|SIMPLE|PARTIAL)/SIMPLE!insert	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a MATCH SIMPLE zzz) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable_inlineConstraint(FULL|SIMPLE|PARTIAL)/SIMPLE!swap	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a MATCH SIMULATED_DATA_SHARING_CONSUMER) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-reject	accept	docs	createExternalTable_inlineConstraint(FULL|SIMPLE|PARTIAL)/PARTIAL	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a MATCH PARTIAL) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
+accept	accept	docs	createExternalTable_inlineConstraint(FULL|SIMPLE|PARTIAL)/PARTIAL	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a MATCH PARTIAL) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable_inlineConstraint(FULL|SIMPLE|PARTIAL)/PARTIAL!insert	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a MATCH PARTIAL zzz) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable_inlineConstraint(FULL|SIMPLE|PARTIAL)/PARTIAL!swap	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a MATCH PARTITION) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-reject	accept	docs	createExternalTable_inlineConstraint(ON_(UPDATE_(CASCADE|SET_NULL|SET_DEF~25b12049)?/%empty	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
+accept	accept	docs	createExternalTable_inlineConstraint(ON_(UPDATE_(CASCADE|SET_NULL|SET_DEF~25b12049)?/%empty	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	accept	docs	createExternalTable_inlineConstraint(ON_(UPDATE_(CASCADE|SET_NULL|SET_DEF~25b12049)?/ON_(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?_(DE~a5729fae	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a ON) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable_inlineConstraint(ON_(UPDATE_(CASCADE|SET_NULL|SET_DEF~25b12049)?/ON_(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?_(DE~a5729fae!truncate	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a
 reject	undocumented	docs	createExternalTable_inlineConstraint(ON_(UPDATE_(CASCADE|SET_NULL|SET_DEF~25b12049)?/ON_(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?_(DE~a5729fae!insert	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a ON zzz) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable_inlineConstraint(ON_(UPDATE_(CASCADE|SET_NULL|SET_DEF~25b12049)?/ON_(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?_(DE~a5729fae!swap	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a ONBOARDING_QUESTION) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	accept	docs	createExternalTable_inlineConstraint(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?/%empty	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a ON) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-reject	accept	docs	createExternalTable_inlineConstraint(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?/UPDATE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a ON UPDATE CASCADE) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
+accept	accept	docs	createExternalTable_inlineConstraint(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?/UPDATE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a ON UPDATE CASCADE) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable_inlineConstraint(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?/UPDATE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)!drop-1	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a ON CASCADE) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable_inlineConstraint(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?/UPDATE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)!drop-2	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a ON UPDATE) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable_inlineConstraint(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?/UPDATE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)!truncate	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a ON UPDATE
 reject	undocumented	docs	createExternalTable_inlineConstraint(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?/UPDATE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)!insert	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a ON UPDATE CASCADE zzz) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable_inlineConstraint(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?/UPDATE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)!swap	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a ON UPGRADE CASCADE) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-reject	accept	docs	createExternalTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/CASCADE	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a ON UPDATE CASCADE) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
+accept	accept	docs	createExternalTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/CASCADE	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a ON UPDATE CASCADE) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/CASCADE!swap	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a ON UPDATE CASES) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-reject	accept	docs	createExternalTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_NULL	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a ON UPDATE SET NULL) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
+accept	accept	docs	createExternalTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_NULL	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a ON UPDATE SET NULL) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_NULL!drop-1	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a ON UPDATE NULL) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_NULL!drop-2	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a ON UPDATE SET) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_NULL!truncate	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a ON UPDATE SET
 reject	undocumented	docs	createExternalTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_NULL!insert	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a ON UPDATE SET NULL zzz) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_NULL!swap	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a ON UPDATE SETS NULL) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-reject	accept	docs	createExternalTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_DEFAULT	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a ON UPDATE SET DEFAULT) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
+accept	accept	docs	createExternalTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_DEFAULT	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a ON UPDATE SET DEFAULT) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_DEFAULT!drop-1	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a ON UPDATE DEFAULT) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_DEFAULT!insert	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a ON UPDATE SET DEFAULT zzz) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_DEFAULT!swap	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a ON UPDATE SETS DEFAULT) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-reject	accept	docs	createExternalTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/RESTRICT	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a ON UPDATE RESTRICT) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
+accept	accept	docs	createExternalTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/RESTRICT	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a ON UPDATE RESTRICT) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/RESTRICT!insert	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a ON UPDATE RESTRICT zzz) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/RESTRICT!swap	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a ON UPDATE RESTRICTED) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-reject	accept	docs	createExternalTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/NO_ACTION	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a ON UPDATE NO ACTION) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
+accept	accept	docs	createExternalTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/NO_ACTION	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a ON UPDATE NO ACTION) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/NO_ACTION!drop-1	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a ON UPDATE ACTION) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/NO_ACTION!drop-2	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a ON UPDATE NO) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/NO_ACTION!truncate	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a ON UPDATE NO
 reject	undocumented	docs	createExternalTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/NO_ACTION!insert	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a ON UPDATE NO ACTION zzz) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/NO_ACTION!swap	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a ON UPDATE NODES ACTION) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	accept	docs	createExternalTable_inlineConstraint(DELETE_(CASCADE|SET_NULL|SET_DEFAULT~73828552)?/%empty	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a ON) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-reject	accept	docs	createExternalTable_inlineConstraint(DELETE_(CASCADE|SET_NULL|SET_DEFAULT~73828552)?/DELETE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a ON DELETE CASCADE) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
+accept	accept	docs	createExternalTable_inlineConstraint(DELETE_(CASCADE|SET_NULL|SET_DEFAULT~73828552)?/DELETE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a ON DELETE CASCADE) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable_inlineConstraint(DELETE_(CASCADE|SET_NULL|SET_DEFAULT~73828552)?/DELETE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)!drop-2	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a ON DELETE) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable_inlineConstraint(DELETE_(CASCADE|SET_NULL|SET_DEFAULT~73828552)?/DELETE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)!truncate	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a ON DELETE
 reject	undocumented	docs	createExternalTable_inlineConstraint(DELETE_(CASCADE|SET_NULL|SET_DEFAULT~73828552)?/DELETE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)!insert	CREATE EXTERNAL TABLE a(a INT AS 1 REFERENCES a ON DELETE CASCADE zzz) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
@@ -38154,13 +38154,13 @@ reject	undocumented	docs	createHybridTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(
 reject	undocumented	docs	createHybridTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~3b4ef491)/PRIMARY_KEY!truncate	CREATE HYBRID TABLE a(a INT PRIMARY
 reject	undocumented	docs	createHybridTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~3b4ef491)/PRIMARY_KEY!insert	CREATE HYBRID TABLE a(a INT PRIMARY KEY zzz)
 reject	undocumented	docs	createHybridTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~3b4ef491)/PRIMARY_KEY!swap	CREATE HYBRID TABLE a(a INT PRIVACY KEY)
-reject	accept	docs	createHybridTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~3b4ef491)/(FOREIGN_KEY)?_REFERENCES_QNAME_((_ID_))?_(MATCH_(FULL|~40d52696	CREATE HYBRID TABLE a(a INT REFERENCES a)
+accept	accept	docs	createHybridTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~3b4ef491)/(FOREIGN_KEY)?_REFERENCES_QNAME_((_ID_))?_(MATCH_(FULL|~40d52696	CREATE HYBRID TABLE a(a INT REFERENCES a)
 reject	undocumented	docs	createHybridTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~3b4ef491)/(FOREIGN_KEY)?_REFERENCES_QNAME_((_ID_))?_(MATCH_(FULL|~40d52696!drop-1	CREATE HYBRID TABLE a(a INT a)
 reject	undocumented	docs	createHybridTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~3b4ef491)/(FOREIGN_KEY)?_REFERENCES_QNAME_((_ID_))?_(MATCH_(FULL|~40d52696!drop-2	CREATE HYBRID TABLE a(a INT REFERENCES)
 reject	undocumented	docs	createHybridTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~3b4ef491)/(FOREIGN_KEY)?_REFERENCES_QNAME_((_ID_))?_(MATCH_(FULL|~40d52696!truncate	CREATE HYBRID TABLE a(a INT REFERENCES
 reject	undocumented	docs	createHybridTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~3b4ef491)/(FOREIGN_KEY)?_REFERENCES_QNAME_((_ID_))?_(MATCH_(FULL|~40d52696!insert	CREATE HYBRID TABLE a(a INT REFERENCES a zzz)
 reject	undocumented	docs	createHybridTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~3b4ef491)/(FOREIGN_KEY)?_REFERENCES_QNAME_((_ID_))?_(MATCH_(FULL|~40d52696!swap	CREATE HYBRID TABLE a(a INT REFERENCE_USAGE a)
-reject	accept	docs	createHybridTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~3b4ef491)/CHECK_(_EXPR_)	CREATE HYBRID TABLE a(a INT CHECK(1))
+accept	accept	docs	createHybridTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~3b4ef491)/CHECK_(_EXPR_)	CREATE HYBRID TABLE a(a INT CHECK(1))
 reject	undocumented	docs	createHybridTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~3b4ef491)/CHECK_(_EXPR_)!drop-1	CREATE HYBRID TABLE a(a INT(1))
 reject	undocumented	docs	createHybridTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~3b4ef491)/CHECK_(_EXPR_)!drop-2	CREATE HYBRID TABLE a(a INT CHECK 1))
 reject	undocumented	docs	createHybridTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~3b4ef491)/CHECK_(_EXPR_)!drop-3	CREATE HYBRID TABLE a(a INT CHECK())
@@ -38168,7 +38168,7 @@ reject	undocumented	docs	createHybridTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(
 reject	undocumented	docs	createHybridTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~3b4ef491)/CHECK_(_EXPR_)!truncate	CREATE HYBRID TABLE a(a INT CHECK(1
 reject	undocumented	docs	createHybridTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~3b4ef491)/CHECK_(_EXPR_)!insert	CREATE HYBRID TABLE a(a INT CHECK(1) zzz)
 reject	undocumented	docs	createHybridTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~3b4ef491)/CHECK_(_EXPR_)!swap	CREATE HYBRID TABLE a(a INT CLASS(1))
-reject	accept	docs	createHybridTable_inlineConstraint(FOREIGN_KEY)?/%empty	CREATE HYBRID TABLE a(a INT REFERENCES a)
+accept	accept	docs	createHybridTable_inlineConstraint(FOREIGN_KEY)?/%empty	CREATE HYBRID TABLE a(a INT REFERENCES a)
 reject	undocumented	docs	createHybridTable_inlineConstraint(FOREIGN_KEY)?/%empty!insert	CREATE HYBRID TABLE a(a INT zzz REFERENCES a)
 accept	accept	docs	createHybridTable_inlineConstraint(FOREIGN_KEY)?/FOREIGN_KEY	CREATE HYBRID TABLE a(a INT FOREIGN KEY REFERENCES a)
 reject	undocumented	docs	createHybridTable_inlineConstraint(FOREIGN_KEY)?/FOREIGN_KEY!drop-1	CREATE HYBRID TABLE a(a INT KEY REFERENCES a)
@@ -38176,63 +38176,63 @@ reject	undocumented	docs	createHybridTable_inlineConstraint(FOREIGN_KEY)?/FOREIG
 reject	undocumented	docs	createHybridTable_inlineConstraint(FOREIGN_KEY)?/FOREIGN_KEY!truncate	CREATE HYBRID TABLE a(a INT FOREIGN
 reject	undocumented	docs	createHybridTable_inlineConstraint(FOREIGN_KEY)?/FOREIGN_KEY!insert	CREATE HYBRID TABLE a(a INT FOREIGN KEY zzz REFERENCES a)
 reject	undocumented	docs	createHybridTable_inlineConstraint(FOREIGN_KEY)?/FOREIGN_KEY!swap	CREATE HYBRID TABLE a(a INT FORK KEY REFERENCES a)
-reject	accept	docs	createHybridTable_inlineConstraint((_ID_))?/%empty	CREATE HYBRID TABLE a(a INT REFERENCES a)
-reject	accept	docs	createHybridTable_inlineConstraint((_ID_))?/(_ID_)	CREATE HYBRID TABLE a(a INT REFERENCES a(a))
+accept	accept	docs	createHybridTable_inlineConstraint((_ID_))?/%empty	CREATE HYBRID TABLE a(a INT REFERENCES a)
+accept	accept	docs	createHybridTable_inlineConstraint((_ID_))?/(_ID_)	CREATE HYBRID TABLE a(a INT REFERENCES a(a))
 reject	undocumented	docs	createHybridTable_inlineConstraint((_ID_))?/(_ID_)!drop-1	CREATE HYBRID TABLE a(a INT REFERENCES a a))
 reject	undocumented	docs	createHybridTable_inlineConstraint((_ID_))?/(_ID_)!drop-2	CREATE HYBRID TABLE a(a INT REFERENCES a())
 reject	undocumented	docs	createHybridTable_inlineConstraint((_ID_))?/(_ID_)!drop-3	CREATE HYBRID TABLE a(a INT REFERENCES a(a)
 reject	undocumented	docs	createHybridTable_inlineConstraint((_ID_))?/(_ID_)!truncate	CREATE HYBRID TABLE a(a INT REFERENCES a(a
 reject	undocumented	docs	createHybridTable_inlineConstraint((_ID_))?/(_ID_)!insert	CREATE HYBRID TABLE a(a INT REFERENCES a(a) zzz)
-reject	accept	docs	createHybridTable_inlineConstraint(MATCH_(FULL|SIMPLE|PARTIAL))?/%empty	CREATE HYBRID TABLE a(a INT REFERENCES a)
-reject	accept	docs	createHybridTable_inlineConstraint(MATCH_(FULL|SIMPLE|PARTIAL))?/MATCH_(FULL|SIMPLE|PARTIAL)	CREATE HYBRID TABLE a(a INT REFERENCES a MATCH FULL)
+accept	accept	docs	createHybridTable_inlineConstraint(MATCH_(FULL|SIMPLE|PARTIAL))?/%empty	CREATE HYBRID TABLE a(a INT REFERENCES a)
+accept	accept	docs	createHybridTable_inlineConstraint(MATCH_(FULL|SIMPLE|PARTIAL))?/MATCH_(FULL|SIMPLE|PARTIAL)	CREATE HYBRID TABLE a(a INT REFERENCES a MATCH FULL)
 reject	undocumented	docs	createHybridTable_inlineConstraint(MATCH_(FULL|SIMPLE|PARTIAL))?/MATCH_(FULL|SIMPLE|PARTIAL)!drop-1	CREATE HYBRID TABLE a(a INT REFERENCES a FULL)
 reject	undocumented	docs	createHybridTable_inlineConstraint(MATCH_(FULL|SIMPLE|PARTIAL))?/MATCH_(FULL|SIMPLE|PARTIAL)!drop-2	CREATE HYBRID TABLE a(a INT REFERENCES a MATCH)
 reject	undocumented	docs	createHybridTable_inlineConstraint(MATCH_(FULL|SIMPLE|PARTIAL))?/MATCH_(FULL|SIMPLE|PARTIAL)!truncate	CREATE HYBRID TABLE a(a INT REFERENCES a MATCH
 reject	undocumented	docs	createHybridTable_inlineConstraint(MATCH_(FULL|SIMPLE|PARTIAL))?/MATCH_(FULL|SIMPLE|PARTIAL)!insert	CREATE HYBRID TABLE a(a INT REFERENCES a MATCH FULL zzz)
 reject	undocumented	docs	createHybridTable_inlineConstraint(MATCH_(FULL|SIMPLE|PARTIAL))?/MATCH_(FULL|SIMPLE|PARTIAL)!swap	CREATE HYBRID TABLE a(a INT REFERENCES a MATCHED FULL)
-reject	accept	docs	createHybridTable_inlineConstraint(FULL|SIMPLE|PARTIAL)/FULL	CREATE HYBRID TABLE a(a INT REFERENCES a MATCH FULL)
+accept	accept	docs	createHybridTable_inlineConstraint(FULL|SIMPLE|PARTIAL)/FULL	CREATE HYBRID TABLE a(a INT REFERENCES a MATCH FULL)
 reject	undocumented	docs	createHybridTable_inlineConstraint(FULL|SIMPLE|PARTIAL)/FULL!swap	CREATE HYBRID TABLE a(a INT REFERENCES a MATCH FULL_INDEX_BUILD_INTERVAL_DAYS)
-reject	accept	docs	createHybridTable_inlineConstraint(FULL|SIMPLE|PARTIAL)/SIMPLE	CREATE HYBRID TABLE a(a INT REFERENCES a MATCH SIMPLE)
+accept	accept	docs	createHybridTable_inlineConstraint(FULL|SIMPLE|PARTIAL)/SIMPLE	CREATE HYBRID TABLE a(a INT REFERENCES a MATCH SIMPLE)
 reject	undocumented	docs	createHybridTable_inlineConstraint(FULL|SIMPLE|PARTIAL)/SIMPLE!insert	CREATE HYBRID TABLE a(a INT REFERENCES a MATCH SIMPLE zzz)
 reject	undocumented	docs	createHybridTable_inlineConstraint(FULL|SIMPLE|PARTIAL)/SIMPLE!swap	CREATE HYBRID TABLE a(a INT REFERENCES a MATCH SIMULATED_DATA_SHARING_CONSUMER)
-reject	accept	docs	createHybridTable_inlineConstraint(FULL|SIMPLE|PARTIAL)/PARTIAL	CREATE HYBRID TABLE a(a INT REFERENCES a MATCH PARTIAL)
+accept	accept	docs	createHybridTable_inlineConstraint(FULL|SIMPLE|PARTIAL)/PARTIAL	CREATE HYBRID TABLE a(a INT REFERENCES a MATCH PARTIAL)
 reject	undocumented	docs	createHybridTable_inlineConstraint(FULL|SIMPLE|PARTIAL)/PARTIAL!insert	CREATE HYBRID TABLE a(a INT REFERENCES a MATCH PARTIAL zzz)
 reject	undocumented	docs	createHybridTable_inlineConstraint(FULL|SIMPLE|PARTIAL)/PARTIAL!swap	CREATE HYBRID TABLE a(a INT REFERENCES a MATCH PARTITION)
-reject	accept	docs	createHybridTable_inlineConstraint(ON_(UPDATE_(CASCADE|SET_NULL|SET_DEF~25b12049)?/%empty	CREATE HYBRID TABLE a(a INT REFERENCES a)
+accept	accept	docs	createHybridTable_inlineConstraint(ON_(UPDATE_(CASCADE|SET_NULL|SET_DEF~25b12049)?/%empty	CREATE HYBRID TABLE a(a INT REFERENCES a)
 reject	accept	docs	createHybridTable_inlineConstraint(ON_(UPDATE_(CASCADE|SET_NULL|SET_DEF~25b12049)?/ON_(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?_(DE~a5729fae	CREATE HYBRID TABLE a(a INT REFERENCES a ON)
 reject	undocumented	docs	createHybridTable_inlineConstraint(ON_(UPDATE_(CASCADE|SET_NULL|SET_DEF~25b12049)?/ON_(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?_(DE~a5729fae!truncate	CREATE HYBRID TABLE a(a INT REFERENCES a
 reject	undocumented	docs	createHybridTable_inlineConstraint(ON_(UPDATE_(CASCADE|SET_NULL|SET_DEF~25b12049)?/ON_(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?_(DE~a5729fae!insert	CREATE HYBRID TABLE a(a INT REFERENCES a ON zzz)
 reject	undocumented	docs	createHybridTable_inlineConstraint(ON_(UPDATE_(CASCADE|SET_NULL|SET_DEF~25b12049)?/ON_(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?_(DE~a5729fae!swap	CREATE HYBRID TABLE a(a INT REFERENCES a ONBOARDING_QUESTION)
 reject	accept	docs	createHybridTable_inlineConstraint(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?/%empty	CREATE HYBRID TABLE a(a INT REFERENCES a ON)
-reject	accept	docs	createHybridTable_inlineConstraint(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?/UPDATE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)	CREATE HYBRID TABLE a(a INT REFERENCES a ON UPDATE CASCADE)
+accept	accept	docs	createHybridTable_inlineConstraint(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?/UPDATE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)	CREATE HYBRID TABLE a(a INT REFERENCES a ON UPDATE CASCADE)
 reject	undocumented	docs	createHybridTable_inlineConstraint(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?/UPDATE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)!drop-1	CREATE HYBRID TABLE a(a INT REFERENCES a ON CASCADE)
 reject	undocumented	docs	createHybridTable_inlineConstraint(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?/UPDATE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)!drop-2	CREATE HYBRID TABLE a(a INT REFERENCES a ON UPDATE)
 reject	undocumented	docs	createHybridTable_inlineConstraint(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?/UPDATE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)!truncate	CREATE HYBRID TABLE a(a INT REFERENCES a ON UPDATE
 reject	undocumented	docs	createHybridTable_inlineConstraint(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?/UPDATE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)!insert	CREATE HYBRID TABLE a(a INT REFERENCES a ON UPDATE CASCADE zzz)
 reject	undocumented	docs	createHybridTable_inlineConstraint(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?/UPDATE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)!swap	CREATE HYBRID TABLE a(a INT REFERENCES a ON UPGRADE CASCADE)
-reject	accept	docs	createHybridTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/CASCADE	CREATE HYBRID TABLE a(a INT REFERENCES a ON UPDATE CASCADE)
+accept	accept	docs	createHybridTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/CASCADE	CREATE HYBRID TABLE a(a INT REFERENCES a ON UPDATE CASCADE)
 reject	undocumented	docs	createHybridTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/CASCADE!swap	CREATE HYBRID TABLE a(a INT REFERENCES a ON UPDATE CASES)
-reject	accept	docs	createHybridTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_NULL	CREATE HYBRID TABLE a(a INT REFERENCES a ON UPDATE SET NULL)
+accept	accept	docs	createHybridTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_NULL	CREATE HYBRID TABLE a(a INT REFERENCES a ON UPDATE SET NULL)
 reject	undocumented	docs	createHybridTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_NULL!drop-1	CREATE HYBRID TABLE a(a INT REFERENCES a ON UPDATE NULL)
 reject	undocumented	docs	createHybridTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_NULL!drop-2	CREATE HYBRID TABLE a(a INT REFERENCES a ON UPDATE SET)
 reject	undocumented	docs	createHybridTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_NULL!truncate	CREATE HYBRID TABLE a(a INT REFERENCES a ON UPDATE SET
 reject	undocumented	docs	createHybridTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_NULL!insert	CREATE HYBRID TABLE a(a INT REFERENCES a ON UPDATE SET NULL zzz)
 reject	undocumented	docs	createHybridTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_NULL!swap	CREATE HYBRID TABLE a(a INT REFERENCES a ON UPDATE SETS NULL)
-reject	accept	docs	createHybridTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_DEFAULT	CREATE HYBRID TABLE a(a INT REFERENCES a ON UPDATE SET DEFAULT)
+accept	accept	docs	createHybridTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_DEFAULT	CREATE HYBRID TABLE a(a INT REFERENCES a ON UPDATE SET DEFAULT)
 reject	undocumented	docs	createHybridTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_DEFAULT!drop-1	CREATE HYBRID TABLE a(a INT REFERENCES a ON UPDATE DEFAULT)
 reject	undocumented	docs	createHybridTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_DEFAULT!insert	CREATE HYBRID TABLE a(a INT REFERENCES a ON UPDATE SET DEFAULT zzz)
 reject	undocumented	docs	createHybridTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_DEFAULT!swap	CREATE HYBRID TABLE a(a INT REFERENCES a ON UPDATE SETS DEFAULT)
-reject	accept	docs	createHybridTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/RESTRICT	CREATE HYBRID TABLE a(a INT REFERENCES a ON UPDATE RESTRICT)
+accept	accept	docs	createHybridTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/RESTRICT	CREATE HYBRID TABLE a(a INT REFERENCES a ON UPDATE RESTRICT)
 reject	undocumented	docs	createHybridTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/RESTRICT!insert	CREATE HYBRID TABLE a(a INT REFERENCES a ON UPDATE RESTRICT zzz)
 reject	undocumented	docs	createHybridTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/RESTRICT!swap	CREATE HYBRID TABLE a(a INT REFERENCES a ON UPDATE RESTRICTED)
-reject	accept	docs	createHybridTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/NO_ACTION	CREATE HYBRID TABLE a(a INT REFERENCES a ON UPDATE NO ACTION)
+accept	accept	docs	createHybridTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/NO_ACTION	CREATE HYBRID TABLE a(a INT REFERENCES a ON UPDATE NO ACTION)
 reject	undocumented	docs	createHybridTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/NO_ACTION!drop-1	CREATE HYBRID TABLE a(a INT REFERENCES a ON UPDATE ACTION)
 reject	undocumented	docs	createHybridTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/NO_ACTION!drop-2	CREATE HYBRID TABLE a(a INT REFERENCES a ON UPDATE NO)
 reject	undocumented	docs	createHybridTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/NO_ACTION!truncate	CREATE HYBRID TABLE a(a INT REFERENCES a ON UPDATE NO
 reject	undocumented	docs	createHybridTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/NO_ACTION!insert	CREATE HYBRID TABLE a(a INT REFERENCES a ON UPDATE NO ACTION zzz)
 reject	undocumented	docs	createHybridTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/NO_ACTION!swap	CREATE HYBRID TABLE a(a INT REFERENCES a ON UPDATE NODES ACTION)
 reject	accept	docs	createHybridTable_inlineConstraint(DELETE_(CASCADE|SET_NULL|SET_DEFAULT~73828552)?/%empty	CREATE HYBRID TABLE a(a INT REFERENCES a ON)
-reject	accept	docs	createHybridTable_inlineConstraint(DELETE_(CASCADE|SET_NULL|SET_DEFAULT~73828552)?/DELETE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)	CREATE HYBRID TABLE a(a INT REFERENCES a ON DELETE CASCADE)
+accept	accept	docs	createHybridTable_inlineConstraint(DELETE_(CASCADE|SET_NULL|SET_DEFAULT~73828552)?/DELETE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)	CREATE HYBRID TABLE a(a INT REFERENCES a ON DELETE CASCADE)
 reject	undocumented	docs	createHybridTable_inlineConstraint(DELETE_(CASCADE|SET_NULL|SET_DEFAULT~73828552)?/DELETE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)!drop-2	CREATE HYBRID TABLE a(a INT REFERENCES a ON DELETE)
 reject	undocumented	docs	createHybridTable_inlineConstraint(DELETE_(CASCADE|SET_NULL|SET_DEFAULT~73828552)?/DELETE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)!truncate	CREATE HYBRID TABLE a(a INT REFERENCES a ON DELETE
 reject	undocumented	docs	createHybridTable_inlineConstraint(DELETE_(CASCADE|SET_NULL|SET_DEFAULT~73828552)?/DELETE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)!insert	CREATE HYBRID TABLE a(a INT REFERENCES a ON DELETE CASCADE zzz)
@@ -38315,7 +38315,7 @@ reject	undocumented	docs	createHybridTable_outoflineConstraint(UNIQUE_(_ID_(,_ID
 reject	undocumented	docs	createHybridTable_outoflineConstraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~7cff6b81)/(FOREIGN_KEY)?_(_ID_(,_ID)*_)_REFERENCES_QNAME_((_ID_(,~ce060e46!truncate	CREATE HYBRID TABLE a(a INT,(a) REFERENCES
 reject	undocumented	docs	createHybridTable_outoflineConstraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~7cff6b81)/(FOREIGN_KEY)?_(_ID_(,_ID)*_)_REFERENCES_QNAME_((_ID_(,~ce060e46!insert	CREATE HYBRID TABLE a(a INT,(a) REFERENCES a zzz)
 reject	undocumented	docs	createHybridTable_outoflineConstraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~7cff6b81)/(FOREIGN_KEY)?_(_ID_(,_ID)*_)_REFERENCES_QNAME_((_ID_(,~ce060e46!swap	CREATE HYBRID TABLE a(a INT,(a) REFERENCE_USAGE a)
-reject	accept	docs	createHybridTable_outoflineConstraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~7cff6b81)/CHECK_(_EXPR_)	CREATE HYBRID TABLE a(a INT, CHECK(1))
+accept	accept	docs	createHybridTable_outoflineConstraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~7cff6b81)/CHECK_(_EXPR_)	CREATE HYBRID TABLE a(a INT, CHECK(1))
 reject	undocumented	docs	createHybridTable_outoflineConstraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~7cff6b81)/CHECK_(_EXPR_)!drop-1	CREATE HYBRID TABLE a(a INT,(1))
 reject	undocumented	docs	createHybridTable_outoflineConstraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~7cff6b81)/CHECK_(_EXPR_)!drop-2	CREATE HYBRID TABLE a(a INT, CHECK 1))
 reject	undocumented	docs	createHybridTable_outoflineConstraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~7cff6b81)/CHECK_(_EXPR_)!drop-3	CREATE HYBRID TABLE a(a INT, CHECK())
@@ -38464,7 +38464,7 @@ reject	undocumented	docs	createHybridTable_outoflineIndex(,_ID)*/,_ID_(,_ID)*!dr
 reject	undocumented	docs	createHybridTable_outoflineIndex(,_ID)*/,_ID_(,_ID)*!truncate	CREATE HYBRID TABLE a(a INT, INDEX a(a,
 reject	undocumented	docs	createHybridTable_outoflineIndex(,_ID)*/,_ID_(,_ID)*!insert	CREATE HYBRID TABLE a(a INT, INDEX a(a, a zzz))
 accept	accept	docs	createHybridTable_outoflineIndex(INCLUDE_(_ID_(,_ID)*_))?/%empty	CREATE HYBRID TABLE a(a INT, INDEX a(a))
-reject	accept	docs	createHybridTable_outoflineIndex(INCLUDE_(_ID_(,_ID)*_))?/INCLUDE_(_ID_(,_ID)*_)	CREATE HYBRID TABLE a(a INT, INDEX a(a) INCLUDE(a))
+accept	accept	docs	createHybridTable_outoflineIndex(INCLUDE_(_ID_(,_ID)*_))?/INCLUDE_(_ID_(,_ID)*_)	CREATE HYBRID TABLE a(a INT, INDEX a(a) INCLUDE(a))
 reject	undocumented	docs	createHybridTable_outoflineIndex(INCLUDE_(_ID_(,_ID)*_))?/INCLUDE_(_ID_(,_ID)*_)!drop-1	CREATE HYBRID TABLE a(a INT, INDEX a(a)(a))
 reject	undocumented	docs	createHybridTable_outoflineIndex(INCLUDE_(_ID_(,_ID)*_))?/INCLUDE_(_ID_(,_ID)*_)!drop-2	CREATE HYBRID TABLE a(a INT, INDEX a(a) INCLUDE a))
 reject	undocumented	docs	createHybridTable_outoflineIndex(INCLUDE_(_ID_(,_ID)*_))?/INCLUDE_(_ID_(,_ID)*_)!drop-3	CREATE HYBRID TABLE a(a INT, INDEX a(a) INCLUDE())
@@ -48452,14 +48452,14 @@ reject	undocumented	docs	createTable((GENERATED_ALWAYS)?_AS_(_EXPR_)_VIRTUAL?)?/
 reject	undocumented	docs	createTable((GENERATED_ALWAYS)?_AS_(_EXPR_)_VIRTUAL?)?/(GENERATED_ALWAYS)?_AS_(_EXPR_)_(VIRTUAL)?!swap	CREATE TABLE a(a INT ASC(1))
 accept	accept	docs	createTable(GENERATED_ALWAYS)?/%empty	CREATE TABLE a(a INT AS(1))
 reject	undocumented	docs	createTable(GENERATED_ALWAYS)?/%empty!insert	CREATE TABLE a(a INT zzz AS(1))
-reject	accept	docs	createTable(GENERATED_ALWAYS)?/GENERATED_ALWAYS	CREATE TABLE a(a INT GENERATED ALWAYS AS(1))
+accept	accept	docs	createTable(GENERATED_ALWAYS)?/GENERATED_ALWAYS	CREATE TABLE a(a INT GENERATED ALWAYS AS(1))
 reject	undocumented	docs	createTable(GENERATED_ALWAYS)?/GENERATED_ALWAYS!drop-1	CREATE TABLE a(a INT ALWAYS AS(1))
 reject	undocumented	docs	createTable(GENERATED_ALWAYS)?/GENERATED_ALWAYS!drop-2	CREATE TABLE a(a INT GENERATED AS(1))
 reject	undocumented	docs	createTable(GENERATED_ALWAYS)?/GENERATED_ALWAYS!truncate	CREATE TABLE a(a INT GENERATED
 reject	undocumented	docs	createTable(GENERATED_ALWAYS)?/GENERATED_ALWAYS!insert	CREATE TABLE a(a INT GENERATED ALWAYS zzz AS(1))
 reject	undocumented	docs	createTable(GENERATED_ALWAYS)?/GENERATED_ALWAYS!swap	CREATE TABLE a(a INT GENERATION ALWAYS AS(1))
 accept	accept	docs	createTable(VIRTUAL)?/%empty	CREATE TABLE a(a INT AS(1))
-reject	accept	docs	createTable(VIRTUAL)?/VIRTUAL	CREATE TABLE a(a INT AS(1) VIRTUAL)
+accept	accept	docs	createTable(VIRTUAL)?/VIRTUAL	CREATE TABLE a(a INT AS(1) VIRTUAL)
 reject	undocumented	docs	createTable(VIRTUAL)?/VIRTUAL!insert	CREATE TABLE a(a INT AS(1) VIRTUAL zzz)
 reject	undocumented	docs	createTable(VIRTUAL)?/VIRTUAL!swap	CREATE TABLE a(a INT AS(1) VISIBILITY)
 accept	accept	docs	createTable(createTable_inlineConstraint)?/%empty	CREATE TABLE a(a INT)
@@ -48554,7 +48554,7 @@ reject	undocumented	docs	createTable(,_ID)*/,_ID_(,_ID)*!drop-2	CREATE TABLE a(a
 reject	undocumented	docs	createTable(,_ID)*/,_ID_(,_ID)*!truncate	CREATE TABLE a(a INT) ROW ACCESS POLICY a ON(a,
 reject	undocumented	docs	createTable(,_ID)*/,_ID_(,_ID)*!insert	CREATE TABLE a(a INT) ROW ACCESS POLICY a ON(a, a zzz)
 accept	accept	docs	createTable(WITH?_PROJECTION_POLICY_QNAME)?/%empty	CREATE TABLE a(a INT)
-reject	accept	docs	createTable(WITH?_PROJECTION_POLICY_QNAME)?/(WITH)?_PROJECTION_POLICY_QNAME	CREATE TABLE a(a INT PROJECTION POLICY a)
+accept	accept	docs	createTable(WITH?_PROJECTION_POLICY_QNAME)?/(WITH)?_PROJECTION_POLICY_QNAME	CREATE TABLE a(a INT PROJECTION POLICY a)
 reject	undocumented	docs	createTable(WITH?_PROJECTION_POLICY_QNAME)?/(WITH)?_PROJECTION_POLICY_QNAME!drop-2	CREATE TABLE a(a INT PROJECTION a)
 reject	undocumented	docs	createTable(WITH?_PROJECTION_POLICY_QNAME)?/(WITH)?_PROJECTION_POLICY_QNAME!drop-3	CREATE TABLE a(a INT PROJECTION POLICY)
 reject	undocumented	docs	createTable(WITH?_PROJECTION_POLICY_QNAME)?/(WITH)?_PROJECTION_POLICY_QNAME!truncate	CREATE TABLE a(a INT PROJECTION POLICY
@@ -48940,20 +48940,20 @@ reject	undocumented	docs	createTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIG
 reject	undocumented	docs	createTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~3b4ef491)/PRIMARY_KEY!truncate	CREATE TABLE a(a INT PRIMARY
 reject	undocumented	docs	createTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~3b4ef491)/PRIMARY_KEY!insert	CREATE TABLE a(a INT PRIMARY KEY zzz)
 reject	undocumented	docs	createTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~3b4ef491)/PRIMARY_KEY!swap	CREATE TABLE a(a INT PRIVACY KEY)
-reject	accept	docs	createTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~3b4ef491)/(FOREIGN_KEY)?_REFERENCES_QNAME_((_ID_))?_(MATCH_(FULL|~40d52696	CREATE TABLE a(a INT REFERENCES a)
+accept	accept	docs	createTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~3b4ef491)/(FOREIGN_KEY)?_REFERENCES_QNAME_((_ID_))?_(MATCH_(FULL|~40d52696	CREATE TABLE a(a INT REFERENCES a)
 reject	undocumented	docs	createTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~3b4ef491)/(FOREIGN_KEY)?_REFERENCES_QNAME_((_ID_))?_(MATCH_(FULL|~40d52696!drop-1	CREATE TABLE a(a INT a)
 reject	undocumented	docs	createTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~3b4ef491)/(FOREIGN_KEY)?_REFERENCES_QNAME_((_ID_))?_(MATCH_(FULL|~40d52696!drop-2	CREATE TABLE a(a INT REFERENCES)
 reject	undocumented	docs	createTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~3b4ef491)/(FOREIGN_KEY)?_REFERENCES_QNAME_((_ID_))?_(MATCH_(FULL|~40d52696!truncate	CREATE TABLE a(a INT REFERENCES
 reject	undocumented	docs	createTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~3b4ef491)/(FOREIGN_KEY)?_REFERENCES_QNAME_((_ID_))?_(MATCH_(FULL|~40d52696!insert	CREATE TABLE a(a INT REFERENCES a zzz)
 reject	undocumented	docs	createTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~3b4ef491)/(FOREIGN_KEY)?_REFERENCES_QNAME_((_ID_))?_(MATCH_(FULL|~40d52696!swap	CREATE TABLE a(a INT REFERENCE_USAGE a)
-reject	accept	docs	createTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~3b4ef491)/CHECK_(_EXPR_)	CREATE TABLE a(a INT CHECK(1))
+accept	accept	docs	createTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~3b4ef491)/CHECK_(_EXPR_)	CREATE TABLE a(a INT CHECK(1))
 reject	undocumented	docs	createTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~3b4ef491)/CHECK_(_EXPR_)!drop-2	CREATE TABLE a(a INT CHECK 1))
 reject	undocumented	docs	createTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~3b4ef491)/CHECK_(_EXPR_)!drop-3	CREATE TABLE a(a INT CHECK())
 reject	undocumented	docs	createTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~3b4ef491)/CHECK_(_EXPR_)!drop-4	CREATE TABLE a(a INT CHECK(1)
 reject	undocumented	docs	createTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~3b4ef491)/CHECK_(_EXPR_)!truncate	CREATE TABLE a(a INT CHECK(1
 reject	undocumented	docs	createTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~3b4ef491)/CHECK_(_EXPR_)!insert	CREATE TABLE a(a INT CHECK(1) zzz)
 reject	undocumented	docs	createTable_inlineConstraint(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~3b4ef491)/CHECK_(_EXPR_)!swap	CREATE TABLE a(a INT CLASS(1))
-reject	accept	docs	createTable_inlineConstraint(FOREIGN_KEY)?/%empty	CREATE TABLE a(a INT REFERENCES a)
+accept	accept	docs	createTable_inlineConstraint(FOREIGN_KEY)?/%empty	CREATE TABLE a(a INT REFERENCES a)
 reject	undocumented	docs	createTable_inlineConstraint(FOREIGN_KEY)?/%empty!insert	CREATE TABLE a(a INT zzz REFERENCES a)
 accept	accept	docs	createTable_inlineConstraint(FOREIGN_KEY)?/FOREIGN_KEY	CREATE TABLE a(a INT FOREIGN KEY REFERENCES a)
 reject	undocumented	docs	createTable_inlineConstraint(FOREIGN_KEY)?/FOREIGN_KEY!drop-1	CREATE TABLE a(a INT KEY REFERENCES a)
@@ -48961,63 +48961,63 @@ reject	undocumented	docs	createTable_inlineConstraint(FOREIGN_KEY)?/FOREIGN_KEY!
 reject	undocumented	docs	createTable_inlineConstraint(FOREIGN_KEY)?/FOREIGN_KEY!truncate	CREATE TABLE a(a INT FOREIGN
 reject	undocumented	docs	createTable_inlineConstraint(FOREIGN_KEY)?/FOREIGN_KEY!insert	CREATE TABLE a(a INT FOREIGN KEY zzz REFERENCES a)
 reject	undocumented	docs	createTable_inlineConstraint(FOREIGN_KEY)?/FOREIGN_KEY!swap	CREATE TABLE a(a INT FORK KEY REFERENCES a)
-reject	accept	docs	createTable_inlineConstraint((_ID_))?/%empty	CREATE TABLE a(a INT REFERENCES a)
-reject	accept	docs	createTable_inlineConstraint((_ID_))?/(_ID_)	CREATE TABLE a(a INT REFERENCES a(a))
+accept	accept	docs	createTable_inlineConstraint((_ID_))?/%empty	CREATE TABLE a(a INT REFERENCES a)
+accept	accept	docs	createTable_inlineConstraint((_ID_))?/(_ID_)	CREATE TABLE a(a INT REFERENCES a(a))
 reject	undocumented	docs	createTable_inlineConstraint((_ID_))?/(_ID_)!drop-1	CREATE TABLE a(a INT REFERENCES a a))
 reject	undocumented	docs	createTable_inlineConstraint((_ID_))?/(_ID_)!drop-2	CREATE TABLE a(a INT REFERENCES a())
 reject	undocumented	docs	createTable_inlineConstraint((_ID_))?/(_ID_)!drop-3	CREATE TABLE a(a INT REFERENCES a(a)
 reject	undocumented	docs	createTable_inlineConstraint((_ID_))?/(_ID_)!truncate	CREATE TABLE a(a INT REFERENCES a(a
 reject	undocumented	docs	createTable_inlineConstraint((_ID_))?/(_ID_)!insert	CREATE TABLE a(a INT REFERENCES a(a) zzz)
-reject	accept	docs	createTable_inlineConstraint(MATCH_(FULL|SIMPLE|PARTIAL))?/%empty	CREATE TABLE a(a INT REFERENCES a)
-reject	accept	docs	createTable_inlineConstraint(MATCH_(FULL|SIMPLE|PARTIAL))?/MATCH_(FULL|SIMPLE|PARTIAL)	CREATE TABLE a(a INT REFERENCES a MATCH FULL)
+accept	accept	docs	createTable_inlineConstraint(MATCH_(FULL|SIMPLE|PARTIAL))?/%empty	CREATE TABLE a(a INT REFERENCES a)
+accept	accept	docs	createTable_inlineConstraint(MATCH_(FULL|SIMPLE|PARTIAL))?/MATCH_(FULL|SIMPLE|PARTIAL)	CREATE TABLE a(a INT REFERENCES a MATCH FULL)
 reject	undocumented	docs	createTable_inlineConstraint(MATCH_(FULL|SIMPLE|PARTIAL))?/MATCH_(FULL|SIMPLE|PARTIAL)!drop-1	CREATE TABLE a(a INT REFERENCES a FULL)
 reject	undocumented	docs	createTable_inlineConstraint(MATCH_(FULL|SIMPLE|PARTIAL))?/MATCH_(FULL|SIMPLE|PARTIAL)!drop-2	CREATE TABLE a(a INT REFERENCES a MATCH)
 reject	undocumented	docs	createTable_inlineConstraint(MATCH_(FULL|SIMPLE|PARTIAL))?/MATCH_(FULL|SIMPLE|PARTIAL)!truncate	CREATE TABLE a(a INT REFERENCES a MATCH
 reject	undocumented	docs	createTable_inlineConstraint(MATCH_(FULL|SIMPLE|PARTIAL))?/MATCH_(FULL|SIMPLE|PARTIAL)!insert	CREATE TABLE a(a INT REFERENCES a MATCH FULL zzz)
 reject	undocumented	docs	createTable_inlineConstraint(MATCH_(FULL|SIMPLE|PARTIAL))?/MATCH_(FULL|SIMPLE|PARTIAL)!swap	CREATE TABLE a(a INT REFERENCES a MATCHED FULL)
-reject	accept	docs	createTable_inlineConstraint(FULL|SIMPLE|PARTIAL)/FULL	CREATE TABLE a(a INT REFERENCES a MATCH FULL)
+accept	accept	docs	createTable_inlineConstraint(FULL|SIMPLE|PARTIAL)/FULL	CREATE TABLE a(a INT REFERENCES a MATCH FULL)
 reject	undocumented	docs	createTable_inlineConstraint(FULL|SIMPLE|PARTIAL)/FULL!swap	CREATE TABLE a(a INT REFERENCES a MATCH FULL_INDEX_BUILD_INTERVAL_DAYS)
-reject	accept	docs	createTable_inlineConstraint(FULL|SIMPLE|PARTIAL)/SIMPLE	CREATE TABLE a(a INT REFERENCES a MATCH SIMPLE)
+accept	accept	docs	createTable_inlineConstraint(FULL|SIMPLE|PARTIAL)/SIMPLE	CREATE TABLE a(a INT REFERENCES a MATCH SIMPLE)
 reject	undocumented	docs	createTable_inlineConstraint(FULL|SIMPLE|PARTIAL)/SIMPLE!insert	CREATE TABLE a(a INT REFERENCES a MATCH SIMPLE zzz)
 reject	undocumented	docs	createTable_inlineConstraint(FULL|SIMPLE|PARTIAL)/SIMPLE!swap	CREATE TABLE a(a INT REFERENCES a MATCH SIMULATED_DATA_SHARING_CONSUMER)
-reject	accept	docs	createTable_inlineConstraint(FULL|SIMPLE|PARTIAL)/PARTIAL	CREATE TABLE a(a INT REFERENCES a MATCH PARTIAL)
+accept	accept	docs	createTable_inlineConstraint(FULL|SIMPLE|PARTIAL)/PARTIAL	CREATE TABLE a(a INT REFERENCES a MATCH PARTIAL)
 reject	undocumented	docs	createTable_inlineConstraint(FULL|SIMPLE|PARTIAL)/PARTIAL!insert	CREATE TABLE a(a INT REFERENCES a MATCH PARTIAL zzz)
 reject	undocumented	docs	createTable_inlineConstraint(FULL|SIMPLE|PARTIAL)/PARTIAL!swap	CREATE TABLE a(a INT REFERENCES a MATCH PARTITION)
-reject	accept	docs	createTable_inlineConstraint(ON_(UPDATE_(CASCADE|SET_NULL|SET_DEF~25b12049)?/%empty	CREATE TABLE a(a INT REFERENCES a)
+accept	accept	docs	createTable_inlineConstraint(ON_(UPDATE_(CASCADE|SET_NULL|SET_DEF~25b12049)?/%empty	CREATE TABLE a(a INT REFERENCES a)
 reject	accept	docs	createTable_inlineConstraint(ON_(UPDATE_(CASCADE|SET_NULL|SET_DEF~25b12049)?/ON_(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?_(DE~a5729fae	CREATE TABLE a(a INT REFERENCES a ON)
 reject	undocumented	docs	createTable_inlineConstraint(ON_(UPDATE_(CASCADE|SET_NULL|SET_DEF~25b12049)?/ON_(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?_(DE~a5729fae!truncate	CREATE TABLE a(a INT REFERENCES a
 reject	undocumented	docs	createTable_inlineConstraint(ON_(UPDATE_(CASCADE|SET_NULL|SET_DEF~25b12049)?/ON_(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?_(DE~a5729fae!insert	CREATE TABLE a(a INT REFERENCES a ON zzz)
 reject	undocumented	docs	createTable_inlineConstraint(ON_(UPDATE_(CASCADE|SET_NULL|SET_DEF~25b12049)?/ON_(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?_(DE~a5729fae!swap	CREATE TABLE a(a INT REFERENCES a ONBOARDING_QUESTION)
 reject	accept	docs	createTable_inlineConstraint(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?/%empty	CREATE TABLE a(a INT REFERENCES a ON)
-reject	accept	docs	createTable_inlineConstraint(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?/UPDATE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)	CREATE TABLE a(a INT REFERENCES a ON UPDATE CASCADE)
+accept	accept	docs	createTable_inlineConstraint(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?/UPDATE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)	CREATE TABLE a(a INT REFERENCES a ON UPDATE CASCADE)
 reject	undocumented	docs	createTable_inlineConstraint(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?/UPDATE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)!drop-1	CREATE TABLE a(a INT REFERENCES a ON CASCADE)
 reject	undocumented	docs	createTable_inlineConstraint(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?/UPDATE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)!drop-2	CREATE TABLE a(a INT REFERENCES a ON UPDATE)
 reject	undocumented	docs	createTable_inlineConstraint(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?/UPDATE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)!truncate	CREATE TABLE a(a INT REFERENCES a ON UPDATE
 reject	undocumented	docs	createTable_inlineConstraint(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?/UPDATE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)!insert	CREATE TABLE a(a INT REFERENCES a ON UPDATE CASCADE zzz)
 reject	undocumented	docs	createTable_inlineConstraint(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?/UPDATE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)!swap	CREATE TABLE a(a INT REFERENCES a ON UPGRADE CASCADE)
-reject	accept	docs	createTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/CASCADE	CREATE TABLE a(a INT REFERENCES a ON UPDATE CASCADE)
+accept	accept	docs	createTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/CASCADE	CREATE TABLE a(a INT REFERENCES a ON UPDATE CASCADE)
 reject	undocumented	docs	createTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/CASCADE!swap	CREATE TABLE a(a INT REFERENCES a ON UPDATE CASES)
-reject	accept	docs	createTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_NULL	CREATE TABLE a(a INT REFERENCES a ON UPDATE SET NULL)
+accept	accept	docs	createTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_NULL	CREATE TABLE a(a INT REFERENCES a ON UPDATE SET NULL)
 reject	undocumented	docs	createTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_NULL!drop-1	CREATE TABLE a(a INT REFERENCES a ON UPDATE NULL)
 reject	undocumented	docs	createTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_NULL!drop-2	CREATE TABLE a(a INT REFERENCES a ON UPDATE SET)
 reject	undocumented	docs	createTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_NULL!truncate	CREATE TABLE a(a INT REFERENCES a ON UPDATE SET
 reject	undocumented	docs	createTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_NULL!insert	CREATE TABLE a(a INT REFERENCES a ON UPDATE SET NULL zzz)
 reject	undocumented	docs	createTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_NULL!swap	CREATE TABLE a(a INT REFERENCES a ON UPDATE SETS NULL)
-reject	accept	docs	createTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_DEFAULT	CREATE TABLE a(a INT REFERENCES a ON UPDATE SET DEFAULT)
+accept	accept	docs	createTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_DEFAULT	CREATE TABLE a(a INT REFERENCES a ON UPDATE SET DEFAULT)
 reject	undocumented	docs	createTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_DEFAULT!drop-1	CREATE TABLE a(a INT REFERENCES a ON UPDATE DEFAULT)
 reject	undocumented	docs	createTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_DEFAULT!insert	CREATE TABLE a(a INT REFERENCES a ON UPDATE SET DEFAULT zzz)
 reject	undocumented	docs	createTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_DEFAULT!swap	CREATE TABLE a(a INT REFERENCES a ON UPDATE SETS DEFAULT)
-reject	accept	docs	createTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/RESTRICT	CREATE TABLE a(a INT REFERENCES a ON UPDATE RESTRICT)
+accept	accept	docs	createTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/RESTRICT	CREATE TABLE a(a INT REFERENCES a ON UPDATE RESTRICT)
 reject	undocumented	docs	createTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/RESTRICT!insert	CREATE TABLE a(a INT REFERENCES a ON UPDATE RESTRICT zzz)
 reject	undocumented	docs	createTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/RESTRICT!swap	CREATE TABLE a(a INT REFERENCES a ON UPDATE RESTRICTED)
-reject	accept	docs	createTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/NO_ACTION	CREATE TABLE a(a INT REFERENCES a ON UPDATE NO ACTION)
+accept	accept	docs	createTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/NO_ACTION	CREATE TABLE a(a INT REFERENCES a ON UPDATE NO ACTION)
 reject	undocumented	docs	createTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/NO_ACTION!drop-1	CREATE TABLE a(a INT REFERENCES a ON UPDATE ACTION)
 reject	undocumented	docs	createTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/NO_ACTION!drop-2	CREATE TABLE a(a INT REFERENCES a ON UPDATE NO)
 reject	undocumented	docs	createTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/NO_ACTION!truncate	CREATE TABLE a(a INT REFERENCES a ON UPDATE NO
 reject	undocumented	docs	createTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/NO_ACTION!insert	CREATE TABLE a(a INT REFERENCES a ON UPDATE NO ACTION zzz)
 reject	undocumented	docs	createTable_inlineConstraint(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/NO_ACTION!swap	CREATE TABLE a(a INT REFERENCES a ON UPDATE NODES ACTION)
 reject	accept	docs	createTable_inlineConstraint(DELETE_(CASCADE|SET_NULL|SET_DEFAULT~73828552)?/%empty	CREATE TABLE a(a INT REFERENCES a ON)
-reject	accept	docs	createTable_inlineConstraint(DELETE_(CASCADE|SET_NULL|SET_DEFAULT~73828552)?/DELETE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)	CREATE TABLE a(a INT REFERENCES a ON DELETE CASCADE)
+accept	accept	docs	createTable_inlineConstraint(DELETE_(CASCADE|SET_NULL|SET_DEFAULT~73828552)?/DELETE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)	CREATE TABLE a(a INT REFERENCES a ON DELETE CASCADE)
 reject	undocumented	docs	createTable_inlineConstraint(DELETE_(CASCADE|SET_NULL|SET_DEFAULT~73828552)?/DELETE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)!drop-2	CREATE TABLE a(a INT REFERENCES a ON DELETE)
 reject	undocumented	docs	createTable_inlineConstraint(DELETE_(CASCADE|SET_NULL|SET_DEFAULT~73828552)?/DELETE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)!truncate	CREATE TABLE a(a INT REFERENCES a ON DELETE
 reject	undocumented	docs	createTable_inlineConstraint(DELETE_(CASCADE|SET_NULL|SET_DEFAULT~73828552)?/DELETE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)!insert	CREATE TABLE a(a INT REFERENCES a ON DELETE CASCADE zzz)
@@ -49100,7 +49100,7 @@ reject	undocumented	docs	createTable_outoflineConstraint(UNIQUE_(_ID_(,_ID)*_)|P
 reject	undocumented	docs	createTable_outoflineConstraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~7cff6b81)/(FOREIGN_KEY)?_(_ID_(,_ID)*_)_REFERENCES_QNAME_((_ID_(,~ce060e46!truncate	CREATE TABLE a(a INT,(a) REFERENCES
 reject	undocumented	docs	createTable_outoflineConstraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~7cff6b81)/(FOREIGN_KEY)?_(_ID_(,_ID)*_)_REFERENCES_QNAME_((_ID_(,~ce060e46!insert	CREATE TABLE a(a INT,(a) REFERENCES a zzz)
 reject	undocumented	docs	createTable_outoflineConstraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~7cff6b81)/(FOREIGN_KEY)?_(_ID_(,_ID)*_)_REFERENCES_QNAME_((_ID_(,~ce060e46!swap	CREATE TABLE a(a INT,(a) REFERENCE_USAGE a)
-reject	accept	docs	createTable_outoflineConstraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~7cff6b81)/CHECK_(_EXPR_)	CREATE TABLE a(a INT, CHECK(1))
+accept	accept	docs	createTable_outoflineConstraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~7cff6b81)/CHECK_(_EXPR_)	CREATE TABLE a(a INT, CHECK(1))
 reject	undocumented	docs	createTable_outoflineConstraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~7cff6b81)/CHECK_(_EXPR_)!drop-1	CREATE TABLE a(a INT,(1))
 reject	undocumented	docs	createTable_outoflineConstraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~7cff6b81)/CHECK_(_EXPR_)!drop-2	CREATE TABLE a(a INT, CHECK 1))
 reject	undocumented	docs	createTable_outoflineConstraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~7cff6b81)/CHECK_(_EXPR_)!drop-3	CREATE TABLE a(a INT, CHECK())
@@ -49271,8 +49271,8 @@ reject	undocumented	docs	createTableConstraint(NOT_NULL)?/NOT_NULL!drop-2	CREATE
 reject	undocumented	docs	createTableConstraint(NOT_NULL)?/NOT_NULL!insert	CREATE TABLE a(a INT NOT NULL zzz UNIQUE)
 reject	undocumented	docs	createTableConstraint(NOT_NULL)?/NOT_NULL!swap	CREATE TABLE a(a INT NOTEBOOK NULL UNIQUE)
 accept	accept	docs	createTableConstraint(createTableConstraint_inlineUniquePK~187bb269)/createTableConstraint_inlineUniquePK	CREATE TABLE a(a INT UNIQUE)
-reject	accept	docs	createTableConstraint(createTableConstraint_inlineUniquePK~187bb269)/createTableConstraint_inlineFK	CREATE TABLE a(a INT REFERENCES a)
-reject	accept	docs	createTableConstraint(createTableConstraint_inlineUniquePK~187bb269)/createTableConstraint_inlineCH	CREATE TABLE a(a INT CHECK(1))
+accept	accept	docs	createTableConstraint(createTableConstraint_inlineUniquePK~187bb269)/createTableConstraint_inlineFK	CREATE TABLE a(a INT REFERENCES a)
+accept	accept	docs	createTableConstraint(createTableConstraint_inlineUniquePK~187bb269)/createTableConstraint_inlineCH	CREATE TABLE a(a INT CHECK(1))
 accept	accept	docs	createTableConstraint(,_ID_DATA_TYPE_(NOT_NULL)?_(createTa~e933539d)*/%empty	CREATE TABLE a(a INT UNIQUE)
 accept	accept	docs	createTableConstraint(,_ID_DATA_TYPE_(NOT_NULL)?_(createTa~e933539d)*/,_ID_DATA_TYPE_(NOT_NULL)?_(createTableConstraint_inlin~5df2c8c3	CREATE TABLE a(a INT UNIQUE, a INT UNIQUE)
 reject	undocumented	docs	createTableConstraint(,_ID_DATA_TYPE_(NOT_NULL)?_(createTa~e933539d)*/,_ID_DATA_TYPE_(NOT_NULL)?_(createTableConstraint_inlin~5df2c8c3!drop-1	CREATE TABLE a(a INT UNIQUE a INT UNIQUE)
@@ -49294,7 +49294,7 @@ reject	undocumented	docs	createTableConstraint(createTableConstraint_outoflineUn
 reject	undocumented	docs	createTableConstraint(createTableConstraint_outoflineUniqu~8a512ac9)/createTableConstraint_outoflineFK!drop-6	ALTER TABLE a ADD FOREIGN KEY(a) a
 reject	undocumented	docs	createTableConstraint(createTableConstraint_outoflineUniqu~8a512ac9)/createTableConstraint_outoflineFK!drop-7	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES
 reject	undocumented	docs	createTableConstraint(createTableConstraint_outoflineUniqu~8a512ac9)/createTableConstraint_outoflineFK!insert	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a zzz
-reject	accept	docs	createTableConstraint(createTableConstraint_outoflineUniqu~8a512ac9)/createTableConstraint_outoflineCH	ALTER TABLE a ADD CHECK(1)
+accept	accept	docs	createTableConstraint(createTableConstraint_outoflineUniqu~8a512ac9)/createTableConstraint_outoflineCH	ALTER TABLE a ADD CHECK(1)
 accept	accept	docs	createTableConstraint(,_(createTableConstraint_outoflineUn~691252be)*/%empty	CREATE TABLE a(a INT)
 accept	accept	docs	createTableConstraint(,_(createTableConstraint_outoflineUn~691252be)*/,_(createTableConstraint_outoflineUniqu~8a512ac9)_(,_(c~4f912b61	CREATE TABLE a(a INT, UNIQUE(a))
 accept	accept	docs	createTableConstraint_inlineUniquePK/(CONSTRAINT_ID)?_(UNIQUE|PRIMARY_KEY)_((NOT?_ENFORCED|N~566df64c	CREATE TABLE a(a INT UNIQUE)
@@ -49322,100 +49322,100 @@ accept	accept	docs	createTableConstraint_inlineUniquePK(VALIDATE|NOVALIDATE)/VAL
 accept	accept	docs	createTableConstraint_inlineUniquePK(VALIDATE|NOVALIDATE)/NOVALIDATE	CREATE TABLE a(a INT UNIQUE NOVALIDATE)
 accept	accept	docs	createTableConstraint_inlineUniquePK(RELY|NORELY)/RELY	CREATE TABLE a(a INT UNIQUE RELY)
 accept	accept	docs	createTableConstraint_inlineUniquePK(RELY|NORELY)/NORELY	CREATE TABLE a(a INT UNIQUE NORELY)
-reject	accept	docs	createTableConstraint_inlineFK/(CONSTRAINT_ID)?_(FOREIGN_KEY)?_REFERENCES_QNAME_((_ID_~b917e33e	CREATE TABLE a(a INT REFERENCES a)
-reject	accept	docs	createTableConstraint_inlineFK(CONSTRAINT_ID)?/%empty	CREATE TABLE a(a INT REFERENCES a)
-reject	accept	docs	createTableConstraint_inlineFK(CONSTRAINT_ID)?/CONSTRAINT_ID	CREATE TABLE a(a INT CONSTRAINT a REFERENCES a)
+accept	accept	docs	createTableConstraint_inlineFK/(CONSTRAINT_ID)?_(FOREIGN_KEY)?_REFERENCES_QNAME_((_ID_~b917e33e	CREATE TABLE a(a INT REFERENCES a)
+accept	accept	docs	createTableConstraint_inlineFK(CONSTRAINT_ID)?/%empty	CREATE TABLE a(a INT REFERENCES a)
+accept	accept	docs	createTableConstraint_inlineFK(CONSTRAINT_ID)?/CONSTRAINT_ID	CREATE TABLE a(a INT CONSTRAINT a REFERENCES a)
 reject	undocumented	docs	createTableConstraint_inlineFK(CONSTRAINT_ID)?/CONSTRAINT_ID!drop-1	CREATE TABLE a(a INT a REFERENCES a)
 reject	undocumented	docs	createTableConstraint_inlineFK(CONSTRAINT_ID)?/CONSTRAINT_ID!drop-2	CREATE TABLE a(a INT CONSTRAINT REFERENCES a)
 reject	undocumented	docs	createTableConstraint_inlineFK(CONSTRAINT_ID)?/CONSTRAINT_ID!insert	CREATE TABLE a(a INT CONSTRAINT a zzz REFERENCES a)
 reject	undocumented	docs	createTableConstraint_inlineFK(CONSTRAINT_ID)?/CONSTRAINT_ID!swap	CREATE TABLE a(a INT CONSUMER a REFERENCES a)
-reject	accept	docs	createTableConstraint_inlineFK(FOREIGN_KEY)?/%empty	CREATE TABLE a(a INT REFERENCES a)
+accept	accept	docs	createTableConstraint_inlineFK(FOREIGN_KEY)?/%empty	CREATE TABLE a(a INT REFERENCES a)
 accept	accept	docs	createTableConstraint_inlineFK(FOREIGN_KEY)?/FOREIGN_KEY	CREATE TABLE a(a INT FOREIGN KEY REFERENCES a)
-reject	accept	docs	createTableConstraint_inlineFK((_ID_))?/%empty	CREATE TABLE a(a INT REFERENCES a)
-reject	accept	docs	createTableConstraint_inlineFK((_ID_))?/(_ID_)	CREATE TABLE a(a INT REFERENCES a(a))
-reject	accept	docs	createTableConstraint_inlineFK(MATCH_(FULL|SIMPLE|PARTIAL))?/%empty	CREATE TABLE a(a INT REFERENCES a)
-reject	accept	docs	createTableConstraint_inlineFK(MATCH_(FULL|SIMPLE|PARTIAL))?/MATCH_(FULL|SIMPLE|PARTIAL)	CREATE TABLE a(a INT REFERENCES a MATCH FULL)
-reject	accept	docs	createTableConstraint_inlineFK(FULL|SIMPLE|PARTIAL)/FULL	CREATE TABLE a(a INT REFERENCES a MATCH FULL)
-reject	accept	docs	createTableConstraint_inlineFK(FULL|SIMPLE|PARTIAL)/SIMPLE	CREATE TABLE a(a INT REFERENCES a MATCH SIMPLE)
-reject	accept	docs	createTableConstraint_inlineFK(FULL|SIMPLE|PARTIAL)/PARTIAL	CREATE TABLE a(a INT REFERENCES a MATCH PARTIAL)
-reject	accept	docs	createTableConstraint_inlineFK(ON_(UPDATE_(CASCADE|SET_NULL|SET_DEF~25b12049)?/%empty	CREATE TABLE a(a INT REFERENCES a)
+accept	accept	docs	createTableConstraint_inlineFK((_ID_))?/%empty	CREATE TABLE a(a INT REFERENCES a)
+accept	accept	docs	createTableConstraint_inlineFK((_ID_))?/(_ID_)	CREATE TABLE a(a INT REFERENCES a(a))
+accept	accept	docs	createTableConstraint_inlineFK(MATCH_(FULL|SIMPLE|PARTIAL))?/%empty	CREATE TABLE a(a INT REFERENCES a)
+accept	accept	docs	createTableConstraint_inlineFK(MATCH_(FULL|SIMPLE|PARTIAL))?/MATCH_(FULL|SIMPLE|PARTIAL)	CREATE TABLE a(a INT REFERENCES a MATCH FULL)
+accept	accept	docs	createTableConstraint_inlineFK(FULL|SIMPLE|PARTIAL)/FULL	CREATE TABLE a(a INT REFERENCES a MATCH FULL)
+accept	accept	docs	createTableConstraint_inlineFK(FULL|SIMPLE|PARTIAL)/SIMPLE	CREATE TABLE a(a INT REFERENCES a MATCH SIMPLE)
+accept	accept	docs	createTableConstraint_inlineFK(FULL|SIMPLE|PARTIAL)/PARTIAL	CREATE TABLE a(a INT REFERENCES a MATCH PARTIAL)
+accept	accept	docs	createTableConstraint_inlineFK(ON_(UPDATE_(CASCADE|SET_NULL|SET_DEF~25b12049)?/%empty	CREATE TABLE a(a INT REFERENCES a)
 reject	accept	docs	createTableConstraint_inlineFK(ON_(UPDATE_(CASCADE|SET_NULL|SET_DEF~25b12049)?/ON_(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?_(DE~a5729fae	CREATE TABLE a(a INT REFERENCES a ON)
 reject	accept	docs	createTableConstraint_inlineFK(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?/%empty	CREATE TABLE a(a INT REFERENCES a ON)
-reject	accept	docs	createTableConstraint_inlineFK(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?/UPDATE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)	CREATE TABLE a(a INT REFERENCES a ON UPDATE CASCADE)
-reject	accept	docs	createTableConstraint_inlineFK(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/CASCADE	CREATE TABLE a(a INT REFERENCES a ON UPDATE CASCADE)
-reject	accept	docs	createTableConstraint_inlineFK(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_NULL	CREATE TABLE a(a INT REFERENCES a ON UPDATE SET NULL)
-reject	accept	docs	createTableConstraint_inlineFK(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_DEFAULT	CREATE TABLE a(a INT REFERENCES a ON UPDATE SET DEFAULT)
-reject	accept	docs	createTableConstraint_inlineFK(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/RESTRICT	CREATE TABLE a(a INT REFERENCES a ON UPDATE RESTRICT)
-reject	accept	docs	createTableConstraint_inlineFK(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/NO_ACTION	CREATE TABLE a(a INT REFERENCES a ON UPDATE NO ACTION)
+accept	accept	docs	createTableConstraint_inlineFK(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?/UPDATE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)	CREATE TABLE a(a INT REFERENCES a ON UPDATE CASCADE)
+accept	accept	docs	createTableConstraint_inlineFK(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/CASCADE	CREATE TABLE a(a INT REFERENCES a ON UPDATE CASCADE)
+accept	accept	docs	createTableConstraint_inlineFK(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_NULL	CREATE TABLE a(a INT REFERENCES a ON UPDATE SET NULL)
+accept	accept	docs	createTableConstraint_inlineFK(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_DEFAULT	CREATE TABLE a(a INT REFERENCES a ON UPDATE SET DEFAULT)
+accept	accept	docs	createTableConstraint_inlineFK(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/RESTRICT	CREATE TABLE a(a INT REFERENCES a ON UPDATE RESTRICT)
+accept	accept	docs	createTableConstraint_inlineFK(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/NO_ACTION	CREATE TABLE a(a INT REFERENCES a ON UPDATE NO ACTION)
 reject	accept	docs	createTableConstraint_inlineFK(DELETE_(CASCADE|SET_NULL|SET_DEFAULT~73828552)?/%empty	CREATE TABLE a(a INT REFERENCES a ON)
-reject	accept	docs	createTableConstraint_inlineFK(DELETE_(CASCADE|SET_NULL|SET_DEFAULT~73828552)?/DELETE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)	CREATE TABLE a(a INT REFERENCES a ON DELETE CASCADE)
-reject	accept	docs	createTableConstraint_inlineFK((NOT?_ENFORCED|NOT?_DEFERRABLE|INITI~50926851)?/%empty	CREATE TABLE a(a INT REFERENCES a)
-reject	accept	docs	createTableConstraint_inlineFK((NOT?_ENFORCED|NOT?_DEFERRABLE|INITI~50926851)?/(NOT?_ENFORCED|NOT?_DEFERRABLE|INITIA~139ef3d9)+	CREATE TABLE a(a INT REFERENCES a ENFORCED)
+accept	accept	docs	createTableConstraint_inlineFK(DELETE_(CASCADE|SET_NULL|SET_DEFAULT~73828552)?/DELETE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)	CREATE TABLE a(a INT REFERENCES a ON DELETE CASCADE)
+accept	accept	docs	createTableConstraint_inlineFK((NOT?_ENFORCED|NOT?_DEFERRABLE|INITI~50926851)?/%empty	CREATE TABLE a(a INT REFERENCES a)
+accept	accept	docs	createTableConstraint_inlineFK((NOT?_ENFORCED|NOT?_DEFERRABLE|INITI~50926851)?/(NOT?_ENFORCED|NOT?_DEFERRABLE|INITIA~139ef3d9)+	CREATE TABLE a(a INT REFERENCES a ENFORCED)
 reject	undocumented	docs	createTableConstraint_inlineFK((NOT?_ENFORCED|NOT?_DEFERRABLE|INITI~50926851)?/(NOT?_ENFORCED|NOT?_DEFERRABLE|INITIA~139ef3d9)+!insert	CREATE TABLE a(a INT REFERENCES a ENFORCED zzz)
 reject	undocumented	docs	createTableConstraint_inlineFK((NOT?_ENFORCED|NOT?_DEFERRABLE|INITI~50926851)?/(NOT?_ENFORCED|NOT?_DEFERRABLE|INITIA~139ef3d9)+!swap	CREATE TABLE a(a INT REFERENCES a ENFORCED_NOT_REQUIRED)
-reject	accept	docs	createTableConstraint_inlineFK(NOT?_ENFORCED|NOT?_DEFERRABLE|INITIA~139ef3d9)+/(NOT?_ENFORCED|NOT?_DEFERRABLE|INITIA~139ef3d9)	CREATE TABLE a(a INT REFERENCES a ENFORCED)
-reject	accept	docs	createTableConstraint_inlineFK(NOT?_ENFORCED|NOT?_DEFERRABLE|INITIA~139ef3d9)+/(NOT?_ENFORCED|NOT?_DEFERRABLE|INITIA~139ef3d9)_(NOT?_E~8b2f1ab0	CREATE TABLE a(a INT REFERENCES a ENFORCED ENFORCED)
+accept	accept	docs	createTableConstraint_inlineFK(NOT?_ENFORCED|NOT?_DEFERRABLE|INITIA~139ef3d9)+/(NOT?_ENFORCED|NOT?_DEFERRABLE|INITIA~139ef3d9)	CREATE TABLE a(a INT REFERENCES a ENFORCED)
+accept	accept	docs	createTableConstraint_inlineFK(NOT?_ENFORCED|NOT?_DEFERRABLE|INITIA~139ef3d9)+/(NOT?_ENFORCED|NOT?_DEFERRABLE|INITIA~139ef3d9)_(NOT?_E~8b2f1ab0	CREATE TABLE a(a INT REFERENCES a ENFORCED ENFORCED)
 reject	undocumented	docs	createTableConstraint_inlineFK(NOT?_ENFORCED|NOT?_DEFERRABLE|INITIA~139ef3d9)+/(NOT?_ENFORCED|NOT?_DEFERRABLE|INITIA~139ef3d9)_(NOT?_E~8b2f1ab0!truncate	CREATE TABLE a(a INT REFERENCES a ENFORCED
 reject	undocumented	docs	createTableConstraint_inlineFK(NOT?_ENFORCED|NOT?_DEFERRABLE|INITIA~139ef3d9)+/(NOT?_ENFORCED|NOT?_DEFERRABLE|INITIA~139ef3d9)_(NOT?_E~8b2f1ab0!insert	CREATE TABLE a(a INT REFERENCES a ENFORCED ENFORCED zzz)
 reject	undocumented	docs	createTableConstraint_inlineFK(NOT?_ENFORCED|NOT?_DEFERRABLE|INITIA~139ef3d9)+/(NOT?_ENFORCED|NOT?_DEFERRABLE|INITIA~139ef3d9)_(NOT?_E~8b2f1ab0!swap	CREATE TABLE a(a INT REFERENCES a ENFORCED_NOT_REQUIRED ENFORCED)
-reject	accept	docs	createTableConstraint_inlineFK(NOT?_ENFORCED|NOT?_DEFERRABLE|INITIA~139ef3d9)/(NOT)?_ENFORCED	CREATE TABLE a(a INT REFERENCES a ENFORCED)
-reject	accept	docs	createTableConstraint_inlineFK(NOT?_ENFORCED|NOT?_DEFERRABLE|INITIA~139ef3d9)/(NOT)?_DEFERRABLE	CREATE TABLE a(a INT REFERENCES a DEFERRABLE)
+accept	accept	docs	createTableConstraint_inlineFK(NOT?_ENFORCED|NOT?_DEFERRABLE|INITIA~139ef3d9)/(NOT)?_ENFORCED	CREATE TABLE a(a INT REFERENCES a ENFORCED)
+accept	accept	docs	createTableConstraint_inlineFK(NOT?_ENFORCED|NOT?_DEFERRABLE|INITIA~139ef3d9)/(NOT)?_DEFERRABLE	CREATE TABLE a(a INT REFERENCES a DEFERRABLE)
 reject	undocumented	docs	createTableConstraint_inlineFK(NOT?_ENFORCED|NOT?_DEFERRABLE|INITIA~139ef3d9)/(NOT)?_DEFERRABLE!insert	CREATE TABLE a(a INT REFERENCES a DEFERRABLE zzz)
 reject	undocumented	docs	createTableConstraint_inlineFK(NOT?_ENFORCED|NOT?_DEFERRABLE|INITIA~139ef3d9)/(NOT)?_DEFERRABLE!swap	CREATE TABLE a(a INT REFERENCES a DEFERRED)
-reject	accept	docs	createTableConstraint_inlineFK(NOT?_ENFORCED|NOT?_DEFERRABLE|INITIA~139ef3d9)/INITIALLY_(DEFERRED|IMMEDIATE)	CREATE TABLE a(a INT REFERENCES a INITIALLY DEFERRED)
+accept	accept	docs	createTableConstraint_inlineFK(NOT?_ENFORCED|NOT?_DEFERRABLE|INITIA~139ef3d9)/INITIALLY_(DEFERRED|IMMEDIATE)	CREATE TABLE a(a INT REFERENCES a INITIALLY DEFERRED)
 reject	undocumented	docs	createTableConstraint_inlineFK(NOT?_ENFORCED|NOT?_DEFERRABLE|INITIA~139ef3d9)/INITIALLY_(DEFERRED|IMMEDIATE)!drop-2	CREATE TABLE a(a INT REFERENCES a INITIALLY)
 reject	undocumented	docs	createTableConstraint_inlineFK(NOT?_ENFORCED|NOT?_DEFERRABLE|INITIA~139ef3d9)/INITIALLY_(DEFERRED|IMMEDIATE)!truncate	CREATE TABLE a(a INT REFERENCES a INITIALLY
 reject	undocumented	docs	createTableConstraint_inlineFK(NOT?_ENFORCED|NOT?_DEFERRABLE|INITIA~139ef3d9)/INITIALLY_(DEFERRED|IMMEDIATE)!insert	CREATE TABLE a(a INT REFERENCES a INITIALLY DEFERRED zzz)
 reject	undocumented	docs	createTableConstraint_inlineFK(NOT?_ENFORCED|NOT?_DEFERRABLE|INITIA~139ef3d9)/INITIALLY_(DEFERRED|IMMEDIATE)!swap	CREATE TABLE a(a INT REFERENCES a INITIALLY_SUSPENDED DEFERRED)
-reject	accept	docs	createTableConstraint_inlineFK(NOT?_ENFORCED|NOT?_DEFERRABLE|INITIA~139ef3d9)/(ENABLE|DISABLE)	CREATE TABLE a(a INT REFERENCES a ENABLE)
+accept	accept	docs	createTableConstraint_inlineFK(NOT?_ENFORCED|NOT?_DEFERRABLE|INITIA~139ef3d9)/(ENABLE|DISABLE)	CREATE TABLE a(a INT REFERENCES a ENABLE)
 reject	undocumented	docs	createTableConstraint_inlineFK(NOT?_ENFORCED|NOT?_DEFERRABLE|INITIA~139ef3d9)/(ENABLE|DISABLE)!insert	CREATE TABLE a(a INT REFERENCES a ENABLE zzz)
 reject	undocumented	docs	createTableConstraint_inlineFK(NOT?_ENFORCED|NOT?_DEFERRABLE|INITIA~139ef3d9)/(ENABLE|DISABLE)!swap	CREATE TABLE a(a INT REFERENCES a ENABLED)
-reject	accept	docs	createTableConstraint_inlineFK(NOT?_ENFORCED|NOT?_DEFERRABLE|INITIA~139ef3d9)/(VALIDATE|NOVALIDATE)	CREATE TABLE a(a INT REFERENCES a VALIDATE)
+accept	accept	docs	createTableConstraint_inlineFK(NOT?_ENFORCED|NOT?_DEFERRABLE|INITIA~139ef3d9)/(VALIDATE|NOVALIDATE)	CREATE TABLE a(a INT REFERENCES a VALIDATE)
 reject	undocumented	docs	createTableConstraint_inlineFK(NOT?_ENFORCED|NOT?_DEFERRABLE|INITIA~139ef3d9)/(VALIDATE|NOVALIDATE)!insert	CREATE TABLE a(a INT REFERENCES a VALIDATE zzz)
 reject	undocumented	docs	createTableConstraint_inlineFK(NOT?_ENFORCED|NOT?_DEFERRABLE|INITIA~139ef3d9)/(VALIDATE|NOVALIDATE)!swap	CREATE TABLE a(a INT REFERENCES a VALIDATION_MODE)
-reject	accept	docs	createTableConstraint_inlineFK(NOT?_ENFORCED|NOT?_DEFERRABLE|INITIA~139ef3d9)/(RELY|NORELY)	CREATE TABLE a(a INT REFERENCES a RELY)
+accept	accept	docs	createTableConstraint_inlineFK(NOT?_ENFORCED|NOT?_DEFERRABLE|INITIA~139ef3d9)/(RELY|NORELY)	CREATE TABLE a(a INT REFERENCES a RELY)
 reject	undocumented	docs	createTableConstraint_inlineFK(NOT?_ENFORCED|NOT?_DEFERRABLE|INITIA~139ef3d9)/(RELY|NORELY)!insert	CREATE TABLE a(a INT REFERENCES a RELY zzz)
 reject	undocumented	docs	createTableConstraint_inlineFK(NOT?_ENFORCED|NOT?_DEFERRABLE|INITIA~139ef3d9)/(RELY|NORELY)!swap	CREATE TABLE a(a INT REFERENCES a REMOVE)
-reject	accept	docs	createTableConstraint_inlineFK(NOT)?/%empty	CREATE TABLE a(a INT REFERENCES a ENFORCED)
+accept	accept	docs	createTableConstraint_inlineFK(NOT)?/%empty	CREATE TABLE a(a INT REFERENCES a ENFORCED)
 reject	undocumented	docs	createTableConstraint_inlineFK(NOT)?/%empty!insert	CREATE TABLE a(a INT REFERENCES a zzz ENFORCED)
-reject	accept	docs	createTableConstraint_inlineFK(NOT)?/NOT	CREATE TABLE a(a INT REFERENCES a NOT ENFORCED)
+accept	accept	docs	createTableConstraint_inlineFK(NOT)?/NOT	CREATE TABLE a(a INT REFERENCES a NOT ENFORCED)
 reject	undocumented	docs	createTableConstraint_inlineFK(NOT)?/NOT!insert	CREATE TABLE a(a INT REFERENCES a NOT zzz ENFORCED)
 reject	undocumented	docs	createTableConstraint_inlineFK(NOT)?/NOT!swap	CREATE TABLE a(a INT REFERENCES a NOTEBOOK ENFORCED)
-reject	accept	docs	createTableConstraint_inlineFK(DEFERRED|IMMEDIATE)/DEFERRED	CREATE TABLE a(a INT REFERENCES a INITIALLY DEFERRED)
+accept	accept	docs	createTableConstraint_inlineFK(DEFERRED|IMMEDIATE)/DEFERRED	CREATE TABLE a(a INT REFERENCES a INITIALLY DEFERRED)
 reject	undocumented	docs	createTableConstraint_inlineFK(DEFERRED|IMMEDIATE)/DEFERRED!swap	CREATE TABLE a(a INT REFERENCES a INITIALLY DEFINITION)
-reject	accept	docs	createTableConstraint_inlineFK(DEFERRED|IMMEDIATE)/IMMEDIATE	CREATE TABLE a(a INT REFERENCES a INITIALLY IMMEDIATE)
+accept	accept	docs	createTableConstraint_inlineFK(DEFERRED|IMMEDIATE)/IMMEDIATE	CREATE TABLE a(a INT REFERENCES a INITIALLY IMMEDIATE)
 reject	undocumented	docs	createTableConstraint_inlineFK(DEFERRED|IMMEDIATE)/IMMEDIATE!insert	CREATE TABLE a(a INT REFERENCES a INITIALLY IMMEDIATE zzz)
 reject	undocumented	docs	createTableConstraint_inlineFK(DEFERRED|IMMEDIATE)/IMMEDIATE!swap	CREATE TABLE a(a INT REFERENCES a INITIALLY IMMEDIATELY)
-reject	accept	docs	createTableConstraint_inlineFK(ENABLE|DISABLE)/ENABLE	CREATE TABLE a(a INT REFERENCES a ENABLE)
-reject	accept	docs	createTableConstraint_inlineFK(ENABLE|DISABLE)/DISABLE	CREATE TABLE a(a INT REFERENCES a DISABLE)
+accept	accept	docs	createTableConstraint_inlineFK(ENABLE|DISABLE)/ENABLE	CREATE TABLE a(a INT REFERENCES a ENABLE)
+accept	accept	docs	createTableConstraint_inlineFK(ENABLE|DISABLE)/DISABLE	CREATE TABLE a(a INT REFERENCES a DISABLE)
 reject	undocumented	docs	createTableConstraint_inlineFK(ENABLE|DISABLE)/DISABLE!insert	CREATE TABLE a(a INT REFERENCES a DISABLE zzz)
 reject	undocumented	docs	createTableConstraint_inlineFK(ENABLE|DISABLE)/DISABLE!swap	CREATE TABLE a(a INT REFERENCES a DISABLED)
-reject	accept	docs	createTableConstraint_inlineFK(VALIDATE|NOVALIDATE)/VALIDATE	CREATE TABLE a(a INT REFERENCES a VALIDATE)
-reject	accept	docs	createTableConstraint_inlineFK(VALIDATE|NOVALIDATE)/NOVALIDATE	CREATE TABLE a(a INT REFERENCES a NOVALIDATE)
+accept	accept	docs	createTableConstraint_inlineFK(VALIDATE|NOVALIDATE)/VALIDATE	CREATE TABLE a(a INT REFERENCES a VALIDATE)
+accept	accept	docs	createTableConstraint_inlineFK(VALIDATE|NOVALIDATE)/NOVALIDATE	CREATE TABLE a(a INT REFERENCES a NOVALIDATE)
 reject	undocumented	docs	createTableConstraint_inlineFK(VALIDATE|NOVALIDATE)/NOVALIDATE!insert	CREATE TABLE a(a INT REFERENCES a NOVALIDATE zzz)
 reject	undocumented	docs	createTableConstraint_inlineFK(VALIDATE|NOVALIDATE)/NOVALIDATE!swap	CREATE TABLE a(a INT REFERENCES a NO_OVERLAP)
-reject	accept	docs	createTableConstraint_inlineFK(RELY|NORELY)/RELY	CREATE TABLE a(a INT REFERENCES a RELY)
-reject	accept	docs	createTableConstraint_inlineFK(RELY|NORELY)/NORELY	CREATE TABLE a(a INT REFERENCES a NORELY)
+accept	accept	docs	createTableConstraint_inlineFK(RELY|NORELY)/RELY	CREATE TABLE a(a INT REFERENCES a RELY)
+accept	accept	docs	createTableConstraint_inlineFK(RELY|NORELY)/NORELY	CREATE TABLE a(a INT REFERENCES a NORELY)
 reject	undocumented	docs	createTableConstraint_inlineFK(RELY|NORELY)/NORELY!insert	CREATE TABLE a(a INT REFERENCES a NORELY zzz)
 reject	undocumented	docs	createTableConstraint_inlineFK(RELY|NORELY)/NORELY!swap	CREATE TABLE a(a INT REFERENCES a NOT)
-reject	accept	docs	createTableConstraint_inlineCH/(CONSTRAINT_ID)?_CHECK_(_EXPR_)_(ENABLE_(VALIDATE|NOVALIDATE))?	CREATE TABLE a(a INT CHECK(1))
-reject	accept	docs	createTableConstraint_inlineCH(CONSTRAINT_ID)?/%empty	CREATE TABLE a(a INT CHECK(1))
+accept	accept	docs	createTableConstraint_inlineCH/(CONSTRAINT_ID)?_CHECK_(_EXPR_)_(ENABLE_(VALIDATE|NOVALIDATE))?	CREATE TABLE a(a INT CHECK(1))
+accept	accept	docs	createTableConstraint_inlineCH(CONSTRAINT_ID)?/%empty	CREATE TABLE a(a INT CHECK(1))
 reject	undocumented	docs	createTableConstraint_inlineCH(CONSTRAINT_ID)?/%empty!insert	CREATE TABLE a(a INT zzz CHECK(1))
-reject	accept	docs	createTableConstraint_inlineCH(CONSTRAINT_ID)?/CONSTRAINT_ID	CREATE TABLE a(a INT CONSTRAINT a CHECK(1))
+accept	accept	docs	createTableConstraint_inlineCH(CONSTRAINT_ID)?/CONSTRAINT_ID	CREATE TABLE a(a INT CONSTRAINT a CHECK(1))
 reject	undocumented	docs	createTableConstraint_inlineCH(CONSTRAINT_ID)?/CONSTRAINT_ID!drop-1	CREATE TABLE a(a INT a CHECK(1))
 reject	undocumented	docs	createTableConstraint_inlineCH(CONSTRAINT_ID)?/CONSTRAINT_ID!drop-2	CREATE TABLE a(a INT CONSTRAINT CHECK(1))
 reject	undocumented	docs	createTableConstraint_inlineCH(CONSTRAINT_ID)?/CONSTRAINT_ID!insert	CREATE TABLE a(a INT CONSTRAINT a zzz CHECK(1))
 reject	undocumented	docs	createTableConstraint_inlineCH(CONSTRAINT_ID)?/CONSTRAINT_ID!swap	CREATE TABLE a(a INT CONSUMER a CHECK(1))
-reject	accept	docs	createTableConstraint_inlineCH(ENABLE_(VALIDATE|NOVALIDATE))?/%empty	CREATE TABLE a(a INT CHECK(1))
-reject	accept	docs	createTableConstraint_inlineCH(ENABLE_(VALIDATE|NOVALIDATE))?/ENABLE_(VALIDATE|NOVALIDATE)	CREATE TABLE a(a INT CHECK(1) ENABLE VALIDATE)
-reject	accept	docs	createTableConstraint_inlineCH(ENABLE_(VALIDATE|NOVALIDATE))?/ENABLE_(VALIDATE|NOVALIDATE)!drop-1	CREATE TABLE a(a INT CHECK(1) VALIDATE)
-reject	accept	docs	createTableConstraint_inlineCH(ENABLE_(VALIDATE|NOVALIDATE))?/ENABLE_(VALIDATE|NOVALIDATE)!drop-2	CREATE TABLE a(a INT CHECK(1) ENABLE)
+accept	accept	docs	createTableConstraint_inlineCH(ENABLE_(VALIDATE|NOVALIDATE))?/%empty	CREATE TABLE a(a INT CHECK(1))
+accept	accept	docs	createTableConstraint_inlineCH(ENABLE_(VALIDATE|NOVALIDATE))?/ENABLE_(VALIDATE|NOVALIDATE)	CREATE TABLE a(a INT CHECK(1) ENABLE VALIDATE)
+accept	accept	docs	createTableConstraint_inlineCH(ENABLE_(VALIDATE|NOVALIDATE))?/ENABLE_(VALIDATE|NOVALIDATE)!drop-1	CREATE TABLE a(a INT CHECK(1) VALIDATE)
+accept	accept	docs	createTableConstraint_inlineCH(ENABLE_(VALIDATE|NOVALIDATE))?/ENABLE_(VALIDATE|NOVALIDATE)!drop-2	CREATE TABLE a(a INT CHECK(1) ENABLE)
 reject	undocumented	docs	createTableConstraint_inlineCH(ENABLE_(VALIDATE|NOVALIDATE))?/ENABLE_(VALIDATE|NOVALIDATE)!truncate	CREATE TABLE a(a INT CHECK(1) ENABLE
 reject	undocumented	docs	createTableConstraint_inlineCH(ENABLE_(VALIDATE|NOVALIDATE))?/ENABLE_(VALIDATE|NOVALIDATE)!insert	CREATE TABLE a(a INT CHECK(1) ENABLE VALIDATE zzz)
 reject	undocumented	docs	createTableConstraint_inlineCH(ENABLE_(VALIDATE|NOVALIDATE))?/ENABLE_(VALIDATE|NOVALIDATE)!swap	CREATE TABLE a(a INT CHECK(1) ENABLED VALIDATE)
-reject	accept	docs	createTableConstraint_inlineCH(VALIDATE|NOVALIDATE)/VALIDATE	CREATE TABLE a(a INT CHECK(1) ENABLE VALIDATE)
+accept	accept	docs	createTableConstraint_inlineCH(VALIDATE|NOVALIDATE)/VALIDATE	CREATE TABLE a(a INT CHECK(1) ENABLE VALIDATE)
 reject	undocumented	docs	createTableConstraint_inlineCH(VALIDATE|NOVALIDATE)/VALIDATE!swap	CREATE TABLE a(a INT CHECK(1) ENABLE VALIDATION_MODE)
-reject	accept	docs	createTableConstraint_inlineCH(VALIDATE|NOVALIDATE)/NOVALIDATE	CREATE TABLE a(a INT CHECK(1) ENABLE NOVALIDATE)
+accept	accept	docs	createTableConstraint_inlineCH(VALIDATE|NOVALIDATE)/NOVALIDATE	CREATE TABLE a(a INT CHECK(1) ENABLE NOVALIDATE)
 reject	undocumented	docs	createTableConstraint_inlineCH(VALIDATE|NOVALIDATE)/NOVALIDATE!insert	CREATE TABLE a(a INT CHECK(1) ENABLE NOVALIDATE zzz)
 reject	undocumented	docs	createTableConstraint_inlineCH(VALIDATE|NOVALIDATE)/NOVALIDATE!swap	CREATE TABLE a(a INT CHECK(1) ENABLE NO_OVERLAP)
 accept	accept	docs	createTableConstraint_outoflineUniquePK/(CONSTRAINT_ID)?_(UNIQUE|PRIMARY_KEY)_(_ID_(,_ID)*_)_((~daf70999	ALTER TABLE a ADD UNIQUE(a)
@@ -49576,23 +49576,23 @@ reject	undocumented	docs	createTableConstraint_outoflineFK(COMMENT_STRING)?/COMM
 reject	undocumented	docs	createTableConstraint_outoflineFK(COMMENT_STRING)?/COMMENT_STRING!drop-2	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a COMMENT
 reject	undocumented	docs	createTableConstraint_outoflineFK(COMMENT_STRING)?/COMMENT_STRING!insert	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a COMMENT 's' zzz
 reject	undocumented	docs	createTableConstraint_outoflineFK(COMMENT_STRING)?/COMMENT_STRING!swap	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a COMMENTS 's'
-reject	accept	docs	createTableConstraint_outoflineCH/(CONSTRAINT_ID)?_CHECK_(_EXPR_)_(ENABLE_(VALIDATE|NOVALIDATE))?	ALTER TABLE a ADD CHECK(1)
-reject	accept	docs	createTableConstraint_outoflineCH(CONSTRAINT_ID)?/%empty	ALTER TABLE a ADD CHECK(1)
+accept	accept	docs	createTableConstraint_outoflineCH/(CONSTRAINT_ID)?_CHECK_(_EXPR_)_(ENABLE_(VALIDATE|NOVALIDATE))?	ALTER TABLE a ADD CHECK(1)
+accept	accept	docs	createTableConstraint_outoflineCH(CONSTRAINT_ID)?/%empty	ALTER TABLE a ADD CHECK(1)
 reject	undocumented	docs	createTableConstraint_outoflineCH(CONSTRAINT_ID)?/%empty!insert	ALTER TABLE a ADD zzz CHECK(1)
-reject	accept	docs	createTableConstraint_outoflineCH(CONSTRAINT_ID)?/CONSTRAINT_ID	ALTER TABLE a ADD CONSTRAINT a CHECK(1)
+accept	accept	docs	createTableConstraint_outoflineCH(CONSTRAINT_ID)?/CONSTRAINT_ID	ALTER TABLE a ADD CONSTRAINT a CHECK(1)
 reject	undocumented	docs	createTableConstraint_outoflineCH(CONSTRAINT_ID)?/CONSTRAINT_ID!drop-1	ALTER TABLE a ADD a CHECK(1)
 reject	undocumented	docs	createTableConstraint_outoflineCH(CONSTRAINT_ID)?/CONSTRAINT_ID!drop-2	ALTER TABLE a ADD CONSTRAINT CHECK(1)
 reject	undocumented	docs	createTableConstraint_outoflineCH(CONSTRAINT_ID)?/CONSTRAINT_ID!insert	ALTER TABLE a ADD CONSTRAINT a zzz CHECK(1)
 reject	undocumented	docs	createTableConstraint_outoflineCH(CONSTRAINT_ID)?/CONSTRAINT_ID!swap	ALTER TABLE a ADD CONSUMER a CHECK(1)
-reject	accept	docs	createTableConstraint_outoflineCH(ENABLE_(VALIDATE|NOVALIDATE))?/%empty	ALTER TABLE a ADD CHECK(1)
-reject	accept	docs	createTableConstraint_outoflineCH(ENABLE_(VALIDATE|NOVALIDATE))?/ENABLE_(VALIDATE|NOVALIDATE)	ALTER TABLE a ADD CHECK(1) ENABLE VALIDATE
-reject	accept	docs	createTableConstraint_outoflineCH(ENABLE_(VALIDATE|NOVALIDATE))?/ENABLE_(VALIDATE|NOVALIDATE)!drop-1	ALTER TABLE a ADD CHECK(1) VALIDATE
-reject	accept	docs	createTableConstraint_outoflineCH(ENABLE_(VALIDATE|NOVALIDATE))?/ENABLE_(VALIDATE|NOVALIDATE)!drop-2	ALTER TABLE a ADD CHECK(1) ENABLE
+accept	accept	docs	createTableConstraint_outoflineCH(ENABLE_(VALIDATE|NOVALIDATE))?/%empty	ALTER TABLE a ADD CHECK(1)
+accept	accept	docs	createTableConstraint_outoflineCH(ENABLE_(VALIDATE|NOVALIDATE))?/ENABLE_(VALIDATE|NOVALIDATE)	ALTER TABLE a ADD CHECK(1) ENABLE VALIDATE
+accept	accept	docs	createTableConstraint_outoflineCH(ENABLE_(VALIDATE|NOVALIDATE))?/ENABLE_(VALIDATE|NOVALIDATE)!drop-1	ALTER TABLE a ADD CHECK(1) VALIDATE
+accept	accept	docs	createTableConstraint_outoflineCH(ENABLE_(VALIDATE|NOVALIDATE))?/ENABLE_(VALIDATE|NOVALIDATE)!drop-2	ALTER TABLE a ADD CHECK(1) ENABLE
 reject	undocumented	docs	createTableConstraint_outoflineCH(ENABLE_(VALIDATE|NOVALIDATE))?/ENABLE_(VALIDATE|NOVALIDATE)!insert	ALTER TABLE a ADD CHECK(1) ENABLE VALIDATE zzz
 reject	undocumented	docs	createTableConstraint_outoflineCH(ENABLE_(VALIDATE|NOVALIDATE))?/ENABLE_(VALIDATE|NOVALIDATE)!swap	ALTER TABLE a ADD CHECK(1) ENABLED VALIDATE
-reject	accept	docs	createTableConstraint_outoflineCH(VALIDATE|NOVALIDATE)/VALIDATE	ALTER TABLE a ADD CHECK(1) ENABLE VALIDATE
+accept	accept	docs	createTableConstraint_outoflineCH(VALIDATE|NOVALIDATE)/VALIDATE	ALTER TABLE a ADD CHECK(1) ENABLE VALIDATE
 reject	undocumented	docs	createTableConstraint_outoflineCH(VALIDATE|NOVALIDATE)/VALIDATE!swap	ALTER TABLE a ADD CHECK(1) ENABLE VALIDATION_MODE
-reject	accept	docs	createTableConstraint_outoflineCH(VALIDATE|NOVALIDATE)/NOVALIDATE	ALTER TABLE a ADD CHECK(1) ENABLE NOVALIDATE
+accept	accept	docs	createTableConstraint_outoflineCH(VALIDATE|NOVALIDATE)/NOVALIDATE	ALTER TABLE a ADD CHECK(1) ENABLE NOVALIDATE
 reject	undocumented	docs	createTableConstraint_outoflineCH(VALIDATE|NOVALIDATE)/NOVALIDATE!insert	ALTER TABLE a ADD CHECK(1) ENABLE NOVALIDATE zzz
 reject	undocumented	docs	createTableConstraint_outoflineCH(VALIDATE|NOVALIDATE)/NOVALIDATE!swap	ALTER TABLE a ADD CHECK(1) ENABLE NO_OVERLAP
 accept	accept	docs	createTag/CREATE_(OR_REPLACE)?_TAG_QNAME_(ALLOWED_VALUES_STRING_(~8d308921	CREATE TAG a

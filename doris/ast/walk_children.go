@@ -949,6 +949,9 @@ func walkChildren(v Visitor, node Node) {
 		for _, item := range n.Items {
 			Walk(v, item)
 		}
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
 	case *SetItem:
 		if n.Value != nil {
 			Walk(v, n.Value)

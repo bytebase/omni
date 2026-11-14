@@ -302,8 +302,8 @@ func (p *Parser) parseAlterTableAddAction(action *ast.AlterTableAction) error {
 		action.Kind = ast.AlterTableAddColumn
 		return p.parseAddColumnList(action)
 
-	case kwCONSTRAINT, kwPRIMARY, kwUNIQUE, kwFOREIGN:
-		// ADD [CONSTRAINT name] PK/UK/FK
+	case kwCONSTRAINT, kwPRIMARY, kwUNIQUE, kwFOREIGN, kwCHECK:
+		// ADD [CONSTRAINT name] PK/UK/FK/CHECK
 		con, err := p.parseOutOfLineConstraint()
 		if err != nil {
 			return err
