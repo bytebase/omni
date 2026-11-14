@@ -279,10 +279,21 @@ func walkChildren(v Visitor, node Node) {
 				Walk(v, item)
 			}
 		}
+		for _, item := range n.TableArgs {
+			walkRoutineTableArgType(v, item)
+		}
 		if n.NewName != nil {
 			Walk(v, n.NewName)
 		}
 		for _, item := range n.Options {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		for _, item := range n.Tags {
+			walkTagAssignment(v, item)
+		}
+		for _, item := range n.UnsetTags {
 			if item != nil {
 				Walk(v, item)
 			}
@@ -595,6 +606,19 @@ func walkChildren(v Visitor, node Node) {
 	case *ConnectionReplica:
 		if n.Source != nil {
 			Walk(v, n.Source)
+		}
+	case *CopyFilesStmt:
+		if n.Into != nil {
+			Walk(v, n.Into)
+		}
+		if n.From != nil {
+			Walk(v, n.From)
+		}
+		Walk(v, n.FromQuery)
+		for _, item := range n.Options {
+			if item != nil {
+				Walk(v, item)
+			}
 		}
 	case *CopyIntoLocationStmt:
 		if n.Into != nil {
@@ -1847,6 +1871,23 @@ func walkRoutineArg(v Visitor, n *RoutineArg) {
 		Walk(v, n.Type)
 	}
 	Walk(v, n.Default)
+	for _, item := range n.Table {
+		walkRoutineTableColumn(v, item)
+	}
+}
+
+// walkRoutineTableArgType walks the node-bearing fields of the non-Node helper struct
+// RoutineTableArgType. The helper itself is not visited (it is not a Node); its child
+// nodes are walked in field order.
+func walkRoutineTableArgType(v Visitor, n *RoutineTableArgType) {
+	if n == nil {
+		return
+	}
+	for _, item := range n.Types {
+		if item != nil {
+			Walk(v, item)
+		}
+	}
 }
 
 // walkRoutineTableColumn walks the node-bearing fields of the non-Node helper struct
