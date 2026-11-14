@@ -880,16 +880,16 @@ accept	accept	engine	execute/EXECUTE_SYM_ident_execute_using	EXECUTE utf8mb4;
 accept	accept	engine	execute_using/%empty	EXECUTE utf8mb4;
 accept	accept	engine	execute_using/USING_execute_var_list	EXECUTE utf8mb4 USING@utf8mb4;
 reject	reject	engine	execute_using/USING_execute_var_list!drop-1	EXECUTE utf8mb4@utf8mb4;
-accept	reject	engine	execute_using/USING_execute_var_list!drop-2	EXECUTE utf8mb4 USING utf8mb4;
+reject	reject	engine	execute_using/USING_execute_var_list!drop-2	EXECUTE utf8mb4 USING utf8mb4;
 accept	accept	engine	execute_using/USING_execute_var_list!drop-3	EXECUTE utf8mb4 USING@;
 accept	accept	engine	execute_using/USING_execute_var_list!truncate	EXECUTE utf8mb4 USING@
 reject	reject	engine	execute_using/USING_execute_var_list!insert	EXECUTE utf8mb4 USING@utf8mb4 zzz;
 reject	reject	engine	execute_using/USING_execute_var_list!swap	EXECUTE utf8mb4 UTC_DATE@utf8mb4;
 accept	accept	engine	execute_var_list/execute_var_list_,_execute_var_ident	EXECUTE utf8mb4 USING@utf8mb4,@utf8mb4;
-accept	reject	engine	execute_var_list/execute_var_list_,_execute_var_ident!drop-1	EXECUTE utf8mb4 USING utf8mb4,@utf8mb4;
+reject	reject	engine	execute_var_list/execute_var_list_,_execute_var_ident!drop-1	EXECUTE utf8mb4 USING utf8mb4,@utf8mb4;
 accept	accept	engine	execute_var_list/execute_var_list_,_execute_var_ident!drop-2	EXECUTE utf8mb4 USING@,@utf8mb4;
 reject	reject	engine	execute_var_list/execute_var_list_,_execute_var_ident!drop-3	EXECUTE utf8mb4 USING@utf8mb4@utf8mb4;
-accept	reject	engine	execute_var_list/execute_var_list_,_execute_var_ident!drop-4	EXECUTE utf8mb4 USING@utf8mb4, utf8mb4;
+reject	reject	engine	execute_var_list/execute_var_list_,_execute_var_ident!drop-4	EXECUTE utf8mb4 USING@utf8mb4, utf8mb4;
 accept	accept	engine	execute_var_list/execute_var_list_,_execute_var_ident!drop-5	EXECUTE utf8mb4 USING@utf8mb4,@;
 accept	accept	engine	execute_var_list/execute_var_list_,_execute_var_ident!truncate	EXECUTE utf8mb4 USING@utf8mb4,@
 reject	reject	engine	execute_var_list/execute_var_list_,_execute_var_ident!insert	EXECUTE utf8mb4 USING@utf8mb4,@utf8mb4 zzz;
@@ -1844,7 +1844,7 @@ reject	reject	engine	sp_c_chistics/sp_c_chistics_sp_c_chistic!insert	CREATE PROC
 reject	reject	engine	sp_c_chistics/sp_c_chistics_sp_c_chistic!swap	CREATE PROCEDURE utf8mb4() DIAGNOSTICS COMMIT;
 accept	accept	engine	sp_chistic/COMMENT_SYM_TEXT_STRING_sys	ALTER FUNCTION utf8mb4 COMMENT 's';
 accept	accept	engine	sp_chistic/LANGUAGE_SYM_SQL_SYM	ALTER FUNCTION utf8mb4 LANGUAGE SQL;
-accept	reject	engine	sp_chistic/LANGUAGE_SYM_SQL_SYM!drop-1	ALTER FUNCTION utf8mb4 SQL;
+reject	reject	engine	sp_chistic/LANGUAGE_SYM_SQL_SYM!drop-1	ALTER FUNCTION utf8mb4 SQL;
 reject	reject	engine	sp_chistic/LANGUAGE_SYM_SQL_SYM!drop-2	ALTER FUNCTION utf8mb4 LANGUAGE;
 reject	reject	engine	sp_chistic/LANGUAGE_SYM_SQL_SYM!truncate	ALTER FUNCTION utf8mb4 LANGUAGE
 reject	reject	engine	sp_chistic/LANGUAGE_SYM_SQL_SYM!insert	ALTER FUNCTION utf8mb4 LANGUAGE SQL zzz;
@@ -1855,21 +1855,21 @@ reject	reject	engine	sp_chistic/NO_SYM_SQL_SYM!truncate	ALTER FUNCTION utf8mb4 N
 reject	reject	engine	sp_chistic/NO_SYM_SQL_SYM!insert	ALTER FUNCTION utf8mb4 NO SQL zzz;
 reject	reject	engine	sp_chistic/NO_SYM_SQL_SYM!swap	ALTER FUNCTION utf8mb4 NODEGROUP SQL;
 accept	accept	engine	sp_chistic/CONTAINS_SYM_SQL_SYM	ALTER FUNCTION utf8mb4 CONTAINS SQL;
-accept	reject	engine	sp_chistic/CONTAINS_SYM_SQL_SYM!drop-2	ALTER FUNCTION utf8mb4 CONTAINS;
-accept	reject	engine	sp_chistic/CONTAINS_SYM_SQL_SYM!truncate	ALTER FUNCTION utf8mb4 CONTAINS
+reject	reject	engine	sp_chistic/CONTAINS_SYM_SQL_SYM!drop-2	ALTER FUNCTION utf8mb4 CONTAINS;
+reject	reject	engine	sp_chistic/CONTAINS_SYM_SQL_SYM!truncate	ALTER FUNCTION utf8mb4 CONTAINS
 reject	reject	engine	sp_chistic/CONTAINS_SYM_SQL_SYM!insert	ALTER FUNCTION utf8mb4 CONTAINS SQL zzz;
 reject	reject	engine	sp_chistic/CONTAINS_SYM_SQL_SYM!swap	ALTER FUNCTION utf8mb4 CONTEXT SQL;
 accept	accept	engine	sp_chistic/READS_SYM_SQL_SYM_DATA_SYM	ALTER FUNCTION utf8mb4 READS SQL DATA;
 reject	reject	engine	sp_chistic/READS_SYM_SQL_SYM_DATA_SYM!drop-1	ALTER FUNCTION utf8mb4 SQL DATA;
-accept	reject	engine	sp_chistic/READS_SYM_SQL_SYM_DATA_SYM!drop-2	ALTER FUNCTION utf8mb4 READS DATA;
-accept	reject	engine	sp_chistic/READS_SYM_SQL_SYM_DATA_SYM!drop-3	ALTER FUNCTION utf8mb4 READS SQL;
-accept	reject	engine	sp_chistic/READS_SYM_SQL_SYM_DATA_SYM!truncate	ALTER FUNCTION utf8mb4 READS SQL
+reject	reject	engine	sp_chistic/READS_SYM_SQL_SYM_DATA_SYM!drop-2	ALTER FUNCTION utf8mb4 READS DATA;
+reject	reject	engine	sp_chistic/READS_SYM_SQL_SYM_DATA_SYM!drop-3	ALTER FUNCTION utf8mb4 READS SQL;
+reject	reject	engine	sp_chistic/READS_SYM_SQL_SYM_DATA_SYM!truncate	ALTER FUNCTION utf8mb4 READS SQL
 reject	reject	engine	sp_chistic/READS_SYM_SQL_SYM_DATA_SYM!insert	ALTER FUNCTION utf8mb4 READS SQL DATA zzz;
 reject	reject	engine	sp_chistic/READS_SYM_SQL_SYM_DATA_SYM!swap	ALTER FUNCTION utf8mb4 READ_ONLY SQL DATA;
 accept	accept	engine	sp_chistic/MODIFIES_SYM_SQL_SYM_DATA_SYM	ALTER FUNCTION utf8mb4 MODIFIES SQL DATA;
-accept	reject	engine	sp_chistic/MODIFIES_SYM_SQL_SYM_DATA_SYM!drop-2	ALTER FUNCTION utf8mb4 MODIFIES DATA;
-accept	reject	engine	sp_chistic/MODIFIES_SYM_SQL_SYM_DATA_SYM!drop-3	ALTER FUNCTION utf8mb4 MODIFIES SQL;
-accept	reject	engine	sp_chistic/MODIFIES_SYM_SQL_SYM_DATA_SYM!truncate	ALTER FUNCTION utf8mb4 MODIFIES SQL
+reject	reject	engine	sp_chistic/MODIFIES_SYM_SQL_SYM_DATA_SYM!drop-2	ALTER FUNCTION utf8mb4 MODIFIES DATA;
+reject	reject	engine	sp_chistic/MODIFIES_SYM_SQL_SYM_DATA_SYM!drop-3	ALTER FUNCTION utf8mb4 MODIFIES SQL;
+reject	reject	engine	sp_chistic/MODIFIES_SYM_SQL_SYM_DATA_SYM!truncate	ALTER FUNCTION utf8mb4 MODIFIES SQL
 reject	reject	engine	sp_chistic/MODIFIES_SYM_SQL_SYM_DATA_SYM!insert	ALTER FUNCTION utf8mb4 MODIFIES SQL DATA zzz;
 reject	reject	engine	sp_chistic/MODIFIES_SYM_SQL_SYM_DATA_SYM!swap	ALTER FUNCTION utf8mb4 MODIFY SQL DATA;
 accept	accept	engine	sp_chistic/sp_suid	ALTER FUNCTION utf8mb4 SQL SECURITY DEFINER;
@@ -3348,16 +3348,16 @@ accept	accept	engine	udf_type/STRING_SYM	CREATE FUNCTION utf8mb4 RETURNS STRING 
 reject	reject	engine	udf_type/STRING_SYM!drop-1	CREATE FUNCTION utf8mb4 RETURNS SONAME 's';
 reject	reject	engine	udf_type/STRING_SYM!truncate	CREATE FUNCTION utf8mb4 RETURNS
 reject	reject	engine	udf_type/STRING_SYM!insert	CREATE FUNCTION utf8mb4 RETURNS STRING zzz SONAME 's';
-accept	reject	engine	udf_type/STRING_SYM!swap	CREATE FUNCTION utf8mb4 RETURNS ST_COLLECT SONAME 's';
+reject	reject	engine	udf_type/STRING_SYM!swap	CREATE FUNCTION utf8mb4 RETURNS ST_COLLECT SONAME 's';
 accept	accept	engine	udf_type/REAL_SYM	CREATE FUNCTION utf8mb4 RETURNS REAL SONAME 's';
 reject	reject	engine	udf_type/REAL_SYM!insert	CREATE FUNCTION utf8mb4 RETURNS REAL zzz SONAME 's';
-accept	reject	engine	udf_type/REAL_SYM!swap	CREATE FUNCTION utf8mb4 RETURNS REBUILD SONAME 's';
+reject	reject	engine	udf_type/REAL_SYM!swap	CREATE FUNCTION utf8mb4 RETURNS REBUILD SONAME 's';
 accept	accept	engine	udf_type/DECIMAL_SYM	CREATE FUNCTION utf8mb4 RETURNS DECIMAL SONAME 's';
 reject	reject	engine	udf_type/DECIMAL_SYM!insert	CREATE FUNCTION utf8mb4 RETURNS DECIMAL zzz SONAME 's';
-accept	reject	engine	udf_type/DECIMAL_SYM!swap	CREATE FUNCTION utf8mb4 RETURNS DECLARE SONAME 's';
+reject	reject	engine	udf_type/DECIMAL_SYM!swap	CREATE FUNCTION utf8mb4 RETURNS DECLARE SONAME 's';
 accept	accept	engine	udf_type/INT_SYM	CREATE FUNCTION utf8mb4 RETURNS INT SONAME 's';
 reject	reject	engine	udf_type/INT_SYM!insert	CREATE FUNCTION utf8mb4 RETURNS INT zzz SONAME 's';
-accept	reject	engine	udf_type/INT_SYM!swap	CREATE FUNCTION utf8mb4 RETURNS INTERSECT SONAME 's';
+reject	reject	engine	udf_type/INT_SYM!swap	CREATE FUNCTION utf8mb4 RETURNS INTERSECT SONAME 's';
 accept	accept	engine	table_element_list/table_element	CREATE TABLE utf8mb4(utf8mb4 INT);
 reject	reject	engine	table_element_list/table_element!truncate	CREATE TABLE utf8mb4(utf8mb4
 reject	reject	engine	table_element_list/table_element!insert	CREATE TABLE utf8mb4(utf8mb4 INT zzz);

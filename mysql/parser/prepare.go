@@ -61,18 +61,24 @@ func (p *Parser) parseExecuteStmt() (*nodes.ExecuteStmt, error) {
 	}
 	stmt.Name = name
 
-	// Optional USING
+	// Optional USING: execute_var_ident is '@' ident_or_text, a user variable and nothing
+	// else.
+	//
+	// Ref: execute_var_list and execute_var_ident in MySQL 8.0 sql/sql_yacc.yy.
 	if p.cur.Type == kwUSING {
 		p.advance()
 		for {
-			expr, err := p.parseExpr()
+			if !p.isVariableRef() {
+				return nil, p.syntaxErrorAtCur()
+			}
+			v, err := p.parseVariableRef()
 			if err != nil {
 				return nil, err
 			}
-			if expr == nil {
-				return nil, p.syntaxErrorAtCur()
+			if v.System {
+				return nil, &ParseError{Message: "syntax error at or near \"@@\"", Position: v.Loc.Start}
 			}
-			stmt.Params = append(stmt.Params, expr)
+			stmt.Params = append(stmt.Params, v)
 			if p.cur.Type != ',' {
 				break
 			}

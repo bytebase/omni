@@ -47,11 +47,17 @@ func (p *Parser) finishLoadableFunction(stmt *nodes.CreateFunctionStmt) (*nodes.
 	if _, err := p.expect(kwRETURNS); err != nil {
 		return nil, err
 	}
+	// udf_type: STRING, REAL, DECIMAL or INT, as the lexer spells them (DEC, INTEGER and INT4
+	// too), and no other word.
+	//
+	// Ref: udf_type in MySQL 8.0 sql/sql_yacc.yy, and sql/lex.h.
 	retStart := p.pos()
-	retType, _, err := p.parseKeywordOrIdent()
-	if err != nil {
-		return nil, err
+	switch p.cur.Type {
+	case kwSTRING, kwREAL, kwDECIMAL, kwDEC, kwINT, kwINTEGER, kwINT4:
+	default:
+		return nil, p.syntaxErrorAtCur()
 	}
+	retType := strings.ToUpper(p.advance().Str)
 	stmt.Returns = &nodes.DataType{
 		Loc:  nodes.Loc{Start: retStart, End: p.prev.End},
 		Name: retType,
@@ -282,12 +288,16 @@ func (p *Parser) parseRoutineCharacteristic() (*nodes.RoutineCharacteristic, boo
 		// COMMENT already consumed, let the body or the end of the statement follow.
 		return nil, false, p.syntaxErrorAtCur()
 
+	// sp_chistic spells each characteristic whole: LANGUAGE SQL, NO SQL, CONTAINS SQL, READS
+	// SQL DATA, MODIFIES SQL DATA, SQL SECURITY. A word missing from one is a 1064.
+	//
+	// Ref: sp_chistic and sp_suid in MySQL 8.0 sql/sql_yacc.yy.
 	case p.cur.Type == kwLANGUAGE:
 		p.advance()
-		name, _, err := p.parseKeywordOrIdent()
-		if err != nil {
-			return nil, false, err
+		if p.cur.Type != kwSQL {
+			return nil, false, p.syntaxErrorAtCur()
 		}
+		name := strings.ToUpper(p.advance().Str)
 		return &nodes.RoutineCharacteristic{
 			Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "LANGUAGE", Value: name,
 		}, true, nil
@@ -322,11 +332,13 @@ func (p *Parser) parseRoutineCharacteristic() (*nodes.RoutineCharacteristic, boo
 				Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "SQL SECURITY", Value: name,
 			}, true, nil
 		}
-		return nil, false, nil
+		return nil, false, p.syntaxErrorAtCur()
 
 	case p.cur.Type == kwCONTAINS:
 		p.advance()
-		p.match(kwSQL)
+		if _, err := p.expect(kwSQL); err != nil {
+			return nil, false, err
+		}
 		return &nodes.RoutineCharacteristic{
 			Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "DATA ACCESS", Value: "CONTAINS SQL",
 		}, true, nil
@@ -343,9 +355,11 @@ func (p *Parser) parseRoutineCharacteristic() (*nodes.RoutineCharacteristic, boo
 
 	case p.cur.Type == kwREADS:
 		p.advance()
-		p.match(kwSQL)
-		if p.cur.Type == kwDATA {
-			p.advance()
+		if _, err := p.expect(kwSQL); err != nil {
+			return nil, false, err
+		}
+		if _, err := p.expect(kwDATA); err != nil {
+			return nil, false, err
 		}
 		return &nodes.RoutineCharacteristic{
 			Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "DATA ACCESS", Value: "READS SQL DATA",
@@ -353,9 +367,11 @@ func (p *Parser) parseRoutineCharacteristic() (*nodes.RoutineCharacteristic, boo
 
 	case p.cur.Type == kwMODIFIES:
 		p.advance()
-		p.match(kwSQL)
-		if p.cur.Type == kwDATA {
-			p.advance()
+		if _, err := p.expect(kwSQL); err != nil {
+			return nil, false, err
+		}
+		if _, err := p.expect(kwDATA); err != nil {
+			return nil, false, err
 		}
 		return &nodes.RoutineCharacteristic{
 			Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "DATA ACCESS", Value: "MODIFIES SQL DATA",
