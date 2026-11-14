@@ -24262,3 +24262,17 @@ func TestParseUpdatetextWithoutDataBeforeGo(t *testing.T) {
 		t.Errorf("got %d statements, want UPDATETEXT and GO", res.Len())
 	}
 }
+
+// TestParseTextStatementBulk pins that the AST keeps BULK on WRITETEXT and
+// UPDATETEXT.
+func TestParseTextStatementBulk(t *testing.T) {
+	if !ParseAndCheck(t, "WRITETEXT BULK t.c @ptr 'x'").Items[0].(*ast.WritetextStmt).Bulk {
+		t.Error("WRITETEXT BULK: Bulk = false")
+	}
+	if !ParseAndCheck(t, "UPDATETEXT BULK t.c @ptr 0 0 'x'").Items[0].(*ast.UpdatetextStmt).Bulk {
+		t.Error("UPDATETEXT BULK: Bulk = false")
+	}
+	if ParseAndCheck(t, "WRITETEXT t.c @ptr 'x'").Items[0].(*ast.WritetextStmt).Bulk {
+		t.Error("WRITETEXT: Bulk = true")
+	}
+}

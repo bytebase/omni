@@ -3043,6 +3043,7 @@ type WritetextStmt struct {
 	Column    *ColumnRef
 	TextPtr   ExprNode
 	Timestamp ExprNode // TIMESTAMP = binary after the text pointer; nil when absent
+	Bulk      bool     // WRITETEXT BULK
 	WithLog   bool
 	Data      ExprNode
 	Loc       Loc
@@ -3058,6 +3059,7 @@ type UpdatetextStmt struct {
 	DestColumn   *ColumnRef
 	DestTextPtr  ExprNode
 	Timestamp    ExprNode // TIMESTAMP = binary after the text pointer; nil when absent
+	Bulk         bool     // UPDATETEXT BULK
 	InsertOffset ExprNode
 	DeleteLength ExprNode
 	WithLog      bool

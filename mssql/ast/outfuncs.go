@@ -3920,7 +3920,7 @@ func writeWritetextStmt(sb *strings.Builder, n *WritetextStmt) {
 		sb.WriteString(" :data ")
 		writeNode(sb, n.Data)
 	}
-	fmt.Fprintf(sb, " :withLog %v :loc %d %d}", n.WithLog, n.Loc.Start, n.Loc.End)
+	fmt.Fprintf(sb, " :bulk %v :withLog %v :loc %d %d}", n.Bulk, n.WithLog, n.Loc.Start, n.Loc.End)
 }
 
 func writeUpdatetextStmt(sb *strings.Builder, n *UpdatetextStmt) {
@@ -3953,7 +3953,7 @@ func writeUpdatetextStmt(sb *strings.Builder, n *UpdatetextStmt) {
 		sb.WriteString(" :insertedTextPtr ")
 		writeNode(sb, n.InsertedTextPtr)
 	}
-	fmt.Fprintf(sb, " :withLog %v :loc %d %d}", n.WithLog, n.Loc.Start, n.Loc.End)
+	fmt.Fprintf(sb, " :bulk %v :withLog %v :loc %d %d}", n.Bulk, n.WithLog, n.Loc.Start, n.Loc.End)
 }
 
 func writePivotExpr(sb *strings.Builder, n *PivotExpr) {
