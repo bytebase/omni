@@ -69,6 +69,8 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Pattern)
 	case *DereferenceExpr:
 		Walk(v, n.Expr)
+	case *RowExpr:
+		walkNodes(v, n.Items)
 	case *IsExpr:
 		Walk(v, n.Expr)
 	case *BetweenExpr:

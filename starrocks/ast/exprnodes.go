@@ -167,6 +167,17 @@ func (n *BinaryExpr) Tag() NodeTag { return T_BinaryExpr }
 
 var _ Node = (*BinaryExpr)(nil)
 
+// RowExpr is a parenthesized list of two or more expressions, the left of a
+// tuple IN subquery ((a, b) IN (SELECT ...)).
+type RowExpr struct {
+	Items []Node
+	Loc   Loc
+}
+
+func (n *RowExpr) Tag() NodeTag { return T_RowExpr }
+
+var _ Node = (*RowExpr)(nil)
+
 // DereferenceExpr is expr.field, a field of a struct-valued expression
 // other than a column name (named_struct('a', 1).a).
 type DereferenceExpr struct {

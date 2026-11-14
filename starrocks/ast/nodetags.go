@@ -644,6 +644,9 @@ const (
 
 	// T_DereferenceExpr is the tag for *DereferenceExpr (expr.field).
 	T_DereferenceExpr
+
+	// T_RowExpr is the tag for *RowExpr ((a, b)).
+	T_RowExpr
 )
 
 // String returns a human-readable representation of the tag.
@@ -687,6 +690,8 @@ func (t NodeTag) String() string {
 		return "MatchExpr"
 	case T_DereferenceExpr:
 		return "DereferenceExpr"
+	case T_RowExpr:
+		return "RowExpr"
 	case T_IsExpr:
 		return "IsExpr"
 	case T_BetweenExpr:

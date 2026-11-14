@@ -8621,7 +8621,7 @@ accept	accept	engine	booleanExpression(NOT)?/NOT	SELECT CURRENT_USER IS NOT NULL
 reject	reject	engine	booleanExpression(NOT)?/NOT!insert	SELECT CURRENT_USER IS NOT zzz NULL;
 reject	reject	engine	booleanExpression(NOT)?/NOT!swap	SELECT CURRENT_USER IS NTILE NULL;
 accept	accept	engine	predicate/valueExpression_(predicateOperations)?	SELECT CURRENT_USER;
-reject	accept	engine	predicate/tupleInSubquery	SELECT(CURRENT_USER, CURRENT_USER) IN(SELECT CURRENT_USER);
+accept	accept	engine	predicate/tupleInSubquery	SELECT(CURRENT_USER, CURRENT_USER) IN(SELECT CURRENT_USER);
 reject	reject	engine	predicate/tupleInSubquery!drop-1	SELECT CURRENT_USER, CURRENT_USER) IN(SELECT CURRENT_USER);
 reject	reject	engine	predicate/tupleInSubquery!drop-2	SELECT(, CURRENT_USER) IN(SELECT CURRENT_USER);
 reject	reject	engine	predicate/tupleInSubquery!drop-3	SELECT(CURRENT_USER CURRENT_USER) IN(SELECT CURRENT_USER);
@@ -8633,30 +8633,30 @@ reject	reject	engine	predicate/tupleInSubquery!drop-8	SELECT(CURRENT_USER, CURRE
 reject	reject	engine	predicate/tupleInSubquery!drop-9	SELECT(CURRENT_USER, CURRENT_USER) IN(SELECT);
 reject	reject	engine	predicate/tupleInSubquery!drop-10	SELECT(CURRENT_USER, CURRENT_USER) IN(SELECT CURRENT_USER;
 reject	reject	engine	predicate/tupleInSubquery!truncate	SELECT(CURRENT_USER, CURRENT_USER) IN(SELECT CURRENT_USER
-reject	accept	engine	predicate/tupleInSubquery!insert	SELECT(CURRENT_USER, CURRENT_USER) IN(SELECT CURRENT_USER) zzz;
-reject	accept	engine	predicate/tupleInSubquery!swap	SELECT(DATA, CURRENT_USER) IN(SELECT CURRENT_USER);
+accept	accept	engine	predicate/tupleInSubquery!insert	SELECT(CURRENT_USER, CURRENT_USER) IN(SELECT CURRENT_USER) zzz;
+accept	accept	engine	predicate/tupleInSubquery!swap	SELECT(DATA, CURRENT_USER) IN(SELECT CURRENT_USER);
 accept	accept	engine	predicate(predicateOperations)?/%empty	SELECT CURRENT_USER;
 accept	accept	engine	predicate(predicateOperations)?/predicateOperations	SELECT CURRENT_USER LIKE CURRENT_USER;
 reject	reject	engine	predicate(predicateOperations)?/predicateOperations!drop-2	SELECT CURRENT_USER LIKE;
 reject	reject	engine	predicate(predicateOperations)?/predicateOperations!truncate	SELECT CURRENT_USER LIKE
 accept	accept	engine	predicate(predicateOperations)?/predicateOperations!insert	SELECT CURRENT_USER LIKE CURRENT_USER zzz;
 accept	reject	engine	predicate(predicateOperations)?/predicateOperations!swap	SELECT CURRENT_USER LIMIT CURRENT_USER;
-reject	accept	engine	tupleInSubquery/(_expression_(,_expression)+_)_(NOT)?_IN_(_queryRelation_)	SELECT(CURRENT_USER, CURRENT_USER) IN(SELECT CURRENT_USER);
-reject	accept	engine	tupleInSubquery(,_expression)+/,_expression	SELECT(CURRENT_USER, CURRENT_USER) IN(SELECT CURRENT_USER);
+accept	accept	engine	tupleInSubquery/(_expression_(,_expression)+_)_(NOT)?_IN_(_queryRelation_)	SELECT(CURRENT_USER, CURRENT_USER) IN(SELECT CURRENT_USER);
+accept	accept	engine	tupleInSubquery(,_expression)+/,_expression	SELECT(CURRENT_USER, CURRENT_USER) IN(SELECT CURRENT_USER);
 reject	reject	engine	tupleInSubquery(,_expression)+/,_expression!truncate	SELECT(CURRENT_USER,
 reject	reject	engine	tupleInSubquery(,_expression)+/,_expression!insert	SELECT(CURRENT_USER, CURRENT_USER zzz) IN(SELECT CURRENT_USER);
-reject	accept	engine	tupleInSubquery(,_expression)+/,_expression!swap	SELECT(CURRENT_USER, DATA) IN(SELECT CURRENT_USER);
-reject	accept	engine	tupleInSubquery(,_expression)+/,_expression_(,_expression)+	SELECT(CURRENT_USER, CURRENT_USER, CURRENT_USER) IN(SELECT CURRENT_USER);
+accept	accept	engine	tupleInSubquery(,_expression)+/,_expression!swap	SELECT(CURRENT_USER, DATA) IN(SELECT CURRENT_USER);
+accept	accept	engine	tupleInSubquery(,_expression)+/,_expression_(,_expression)+	SELECT(CURRENT_USER, CURRENT_USER, CURRENT_USER) IN(SELECT CURRENT_USER);
 reject	reject	engine	tupleInSubquery(,_expression)+/,_expression_(,_expression)+!drop-1	SELECT(CURRENT_USER CURRENT_USER, CURRENT_USER) IN(SELECT CURRENT_USER);
 reject	reject	engine	tupleInSubquery(,_expression)+/,_expression_(,_expression)+!drop-2	SELECT(CURRENT_USER,, CURRENT_USER) IN(SELECT CURRENT_USER);
 reject	reject	engine	tupleInSubquery(,_expression)+/,_expression_(,_expression)+!drop-3	SELECT(CURRENT_USER, CURRENT_USER CURRENT_USER) IN(SELECT CURRENT_USER);
 reject	reject	engine	tupleInSubquery(,_expression)+/,_expression_(,_expression)+!drop-4	SELECT(CURRENT_USER, CURRENT_USER,) IN(SELECT CURRENT_USER);
 reject	reject	engine	tupleInSubquery(,_expression)+/,_expression_(,_expression)+!truncate	SELECT(CURRENT_USER, CURRENT_USER,
 reject	reject	engine	tupleInSubquery(,_expression)+/,_expression_(,_expression)+!insert	SELECT(CURRENT_USER, CURRENT_USER, CURRENT_USER zzz) IN(SELECT CURRENT_USER);
-reject	accept	engine	tupleInSubquery(,_expression)+/,_expression_(,_expression)+!swap	SELECT(CURRENT_USER, DATA, CURRENT_USER) IN(SELECT CURRENT_USER);
-reject	accept	engine	tupleInSubquery(NOT)?/%empty	SELECT(CURRENT_USER, CURRENT_USER) IN(SELECT CURRENT_USER);
+accept	accept	engine	tupleInSubquery(,_expression)+/,_expression_(,_expression)+!swap	SELECT(CURRENT_USER, DATA, CURRENT_USER) IN(SELECT CURRENT_USER);
+accept	accept	engine	tupleInSubquery(NOT)?/%empty	SELECT(CURRENT_USER, CURRENT_USER) IN(SELECT CURRENT_USER);
 reject	reject	engine	tupleInSubquery(NOT)?/%empty!insert	SELECT(CURRENT_USER, CURRENT_USER) zzz IN(SELECT CURRENT_USER);
-reject	accept	engine	tupleInSubquery(NOT)?/NOT	SELECT(CURRENT_USER, CURRENT_USER) NOT IN(SELECT CURRENT_USER);
+accept	accept	engine	tupleInSubquery(NOT)?/NOT	SELECT(CURRENT_USER, CURRENT_USER) NOT IN(SELECT CURRENT_USER);
 reject	reject	engine	tupleInSubquery(NOT)?/NOT!truncate	SELECT(CURRENT_USER, CURRENT_USER)
 reject	reject	engine	tupleInSubquery(NOT)?/NOT!insert	SELECT(CURRENT_USER, CURRENT_USER) NOT zzz IN(SELECT CURRENT_USER);
 reject	reject	engine	tupleInSubquery(NOT)?/NOT!swap	SELECT(CURRENT_USER, CURRENT_USER) NTILE IN(SELECT CURRENT_USER);

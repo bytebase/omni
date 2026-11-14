@@ -1265,6 +1265,9 @@ func (p *Parser) parseParenExprOrSubquery() (ast.Node, error) {
 	if err != nil {
 		return nil, err
 	}
+	if p.cur.Kind == int(',') {
+		return p.parseTupleInSubquery(openTok.Loc.Start, expr)
+	}
 
 	closeTok, err := p.expect(int(')'))
 	if err != nil {
@@ -2068,4 +2071,51 @@ func (p *Parser) parseMatchPrimary() (ast.Node, error) {
 		}
 	}
 	return node, nil
+}
+
+// parseTupleInSubquery reads the rest of tupleInSubquery (StarRocks.g4:2367),
+// '(' expression (',' expression)+ ')' NOT? IN '(' queryRelation ')', after its
+// first expression; cur is the ','. A tuple is only the left of this
+// predicate, so it is read whole here.
+func (p *Parser) parseTupleInSubquery(start int, first ast.Node) (ast.Node, error) {
+	row := &ast.RowExpr{Items: []ast.Node{first}}
+	for p.cur.Kind == int(',') {
+		p.advance() // consume ','
+		item, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		row.Items = append(row.Items, item)
+	}
+	closeTok, err := p.expect(int(')'))
+	if err != nil {
+		return nil, err
+	}
+	row.Loc = ast.Loc{Start: start, End: closeTok.Loc.End}
+
+	not := false
+	if p.cur.Kind == kwNOT {
+		p.advance() // consume NOT
+		not = true
+	}
+	if _, err := p.expect(kwIN); err != nil {
+		return nil, err
+	}
+	open, err := p.expect(int('('))
+	if err != nil {
+		return nil, err
+	}
+	if p.cur.Kind != kwSELECT && p.cur.Kind != kwWITH {
+		return nil, p.syntaxErrorAtCur()
+	}
+	sub, err := p.parseSubqueryPlaceholder(open.Loc.Start)
+	if err != nil {
+		return nil, err
+	}
+	return &ast.InExpr{
+		Expr:   row,
+		Values: []ast.Node{sub},
+		Not:    not,
+		Loc:    ast.Loc{Start: start, End: sub.Loc.End},
+	}, nil
 }
