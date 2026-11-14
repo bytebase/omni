@@ -824,6 +824,22 @@ The docs judged the 73,613 rows in about a minute, and a replay asks the recogni
 - **What the docs cannot decide:** an `EXPR` is a constant and a `QUERY` is `SELECT 1`, since the command pages hold no expression or query grammar; a `DATA_TYPE` is `INT`; a class takes any token of its kind, so a value the engine restricts is not checked; a form whose every part is optional (`ALTER STAGE a SET`, `CREATE ICEBERG TABLE a`) is accepted, as written; and clause order is the docs', where Snowflake often takes any.
 - **Size.** The file is 12.1 MB. The undocumented near-misses are 9.1 MB of it and decide nothing; generating only the near-misses the docs derive would leave about 3.0 MB.
 
+**Redshift, converted.** `redshift/parser/cmd/docsgrammar` read the Syntax sections of the 125 pages AWS's command index lists on 2026-11-13 and wrote `redshift/testdata/RedshiftDocs.g4`: 123 pages have syntax and all give a rule, with 215 statement forms and 14 fragment rules. START TRANSACTION's and SET SESSION CHARACTERISTICS's pages point at others and hold none. The converter is Snowflake's, moved to `enginetest/grammar/docs` behind a `Dialect` (where the pages are, what a value stands for), and writes Snowflake's grammar byte for byte as before.
+
+- **AWS writes the notation its own way.** A value is in italics, or in lower case without them, and a fragment is defined by a "where *option* is:" line, its variants a blank line apart. Redshift's front end rewrites these into the shared notation (`<option>`, `option ::=`, `--`). Keywords written in lower case (`default`, `none`, `plpgsql`) stay keywords.
+- **The converter gained five readings,** none of which moves Snowflake's grammar: `{ TO | = }` is a choice of the sign; a value naming a definition that did not convert fails its form rather than reading as a name; a variant between `--` lines that starts a statement runs to the next `--`; an optional repeat is `(X+)?`, since ANTLR reads `X+?` as non-greedy; and a list element takes the optional values before it (`[ <argname> ] [ <argmode> ] <argtype> [, ...]`).
+- **73 hand fixes** in `redshift/testdata/docs-fixes.tsv`: choices not braced or written with `/` or parentheses (22), brackets left open, closed twice or swapped (18), examples and prose inside a Syntax section (14), and 19 readings a page's Parameters section or a linked page settles, such as `SELECT`'s list, which the synopsis brackets as optional.
+
+The docs judged the 8,075 rows in under a second:
+
+| Statements | Total | Agree | Only docs accept | Undocumented |
+| --- | --- | --- | --- | --- |
+| One per alternative | 2,245 | 1,932 | 313 | 0 |
+| Near-misses | 5,830 | 93 | 52 | 5,685 |
+
+- **365 disagreements,** all one way: `GRANT` and `REVOKE` (111: `ASSUMEROLE`, `DEBUG`, templates, datashares), `SHOW` (81), templates (47), `CREATE` and `ALTER DATABASE` (42), `COPY` (18), `CREATE MATERIALIZED VIEW` (16), `SELECT` (12: `EXCLUDE`, `CONNECT BY`), `UNLOAD` (9), `MERGE` (8). 19 are statements omni took until pg's parser fixes were ported (#938 to #958): a `MERGE` with no `WHEN` clause, which the MERGE page brackets as optional, and `ROLE` as a name. None was fixed (`redshift/parser/testdata/README.md`).
+- **What the docs cannot decide** is Snowflake's list, and where the docs are wrong as written (`ALTER USER`'s options with commas, `REVOKE [ GRANT OPTION ]` without `FOR`) the grammar keeps them. `REDSHIFT_COMPAT_DSN` would let a recording ask a dedicated cluster through `compat.RawParseVerdict`; that judge is not built.
+
 **PartiQL, recorded.** `partiql/parser/testdata/compat.tsv` (2026-11-13): 632 alternatives and 1,217 near-misses of `PartiQLParser.g4`, the grammar of the reference implementation (partiql-lang-kotlin, Apache-2.0, committed), and the 61 statements DynamoDB's developer guide prints. No server: a recognizer over the grammar judges, in 0.1 seconds.
 
 | Statements | Total | Agree | Only the judge accepts | Only omni accepts |
