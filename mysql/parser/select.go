@@ -2433,10 +2433,13 @@ func (p *Parser) parseIntoClause() (*nodes.IntoClause, error) {
 				return nil, p.syntaxErrorAtCur()
 			}
 		}
-		if p.cur.Type == tokSCONST {
-			into.Outfile = p.cur.Str
-			p.advance()
+		// OUTFILE TEXT_STRING_filesystem: the name is no option, and mysql:8.0.46
+		// answers 1064 for INTO OUTFILE with nothing after it.
+		if p.cur.Type != tokSCONST {
+			return nil, p.syntaxErrorAtCur()
 		}
+		into.Outfile = p.cur.Str
+		p.advance()
 
 		// [CHARACTER SET charset_name]
 		if p.cur.Type == kwCHARACTER {
@@ -2527,6 +2530,15 @@ func (p *Parser) parseIntoClause() (*nodes.IntoClause, error) {
 				into.Vars = append(into.Vars, &nodes.VariableRef{
 					Loc:  nodes.Loc{Start: nameStart, End: p.prev.End},
 					Name: name,
+				})
+			} else if p.cur.Type == tokSCONST {
+				// select_var_ident is ident_or_text, so a string names a local
+				// variable too: mysql:8.0.46 parses SELECT 1 INTO 's' and answers
+				// 1327 for the variable afterwards.
+				tok := p.advance()
+				into.Vars = append(into.Vars, &nodes.VariableRef{
+					Loc:  nodes.Loc{Start: tok.Loc, End: tok.End},
+					Name: tok.Str,
 				})
 			} else {
 				break

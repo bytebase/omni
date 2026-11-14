@@ -179,6 +179,21 @@ func writeSelectStmt(b *strings.Builder, stmt *ast.SelectStmt, suppressAlias boo
 		writeLimit(b, stmt.Limit)
 	}
 
+	// PROCEDURE name(args). No view holds one (mariadb:11.8.8 answers 1064 for it
+	// in CREATE VIEW), so this is the statement as written.
+	if pc := stmt.Procedure; pc != nil {
+		b.WriteString(" procedure ")
+		b.WriteString(quoteIdent(pc.Name))
+		b.WriteString("(")
+		for i, arg := range pc.Args {
+			if i > 0 {
+				b.WriteString(",")
+			}
+			writeExpr(b, arg)
+		}
+		b.WriteString(")")
+	}
+
 	// FOR UPDATE / FOR SHARE / LOCK IN SHARE MODE
 	if stmt.ForUpdate != nil {
 		b.WriteString(" ")
@@ -319,7 +334,30 @@ func limitHasParamMarker(limit *ast.Limit) bool {
 // but reorders the positional bindings of `?` parameter markers; when a marker
 // is present and the source used the OFFSET keyword, the original
 // `limit count offset offset` form is reproduced so the binding order is kept.
+//
+// FETCH FIRST is stored as the LIMIT it means, unless it keeps its ties.
+// Measured on mariadb:11.8.8 through SHOW CREATE VIEW:
+//
+//	FETCH FIRST ROW ONLY                         limit 1
+//	OFFSET 1 ROWS FETCH NEXT 3 ROWS ONLY         limit 1,3
+//	FETCH FIRST 2 ROWS WITH TIES                 fetch first 2 rows with ties
+//	OFFSET 1 ROWS FETCH NEXT 3 ROWS WITH TIES    offset 1 rows  fetch first 3 rows with ties
+//	OFFSET 2 ROWS                                (nothing: the server drops it)
 func writeLimit(b *strings.Builder, limit *ast.Limit) {
+	if limit.Count == nil {
+		return
+	}
+	if limit.WithTies {
+		if limit.Offset != nil {
+			b.WriteString(" offset ")
+			writeExpr(b, limit.Offset)
+			b.WriteString(" rows ")
+		}
+		b.WriteString(" fetch first ")
+		writeExpr(b, limit.Count)
+		b.WriteString(" rows with ties")
+		return
+	}
 	b.WriteString(" limit ")
 	if limit.Offset != nil {
 		if limit.OffsetKeyword && limitHasParamMarker(limit) {
@@ -348,18 +386,7 @@ func appendOrderByLimit(b *strings.Builder, orderBy []*ast.OrderByItem, limit *a
 		}
 	}
 	if limit != nil {
-		b.WriteString(" limit ")
-		if limit.Offset != nil {
-			if limit.OffsetKeyword && limitHasParamMarker(limit) {
-				b.WriteString(deparseExpr(limit.Count))
-				b.WriteString(" offset ")
-				b.WriteString(deparseExpr(limit.Offset))
-				return
-			}
-			b.WriteString(deparseExpr(limit.Offset))
-			b.WriteString(",")
-		}
-		b.WriteString(deparseExpr(limit.Count))
+		writeLimit(b, limit)
 	}
 }
 

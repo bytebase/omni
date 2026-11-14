@@ -8230,7 +8230,7 @@ accept	accept	engine	real_ulong_num/NUM	DESC FOR CONNECTION 1;
 reject	reject	engine	real_ulong_num/NUM!drop-1	DESC FOR CONNECTION;
 reject	reject	engine	real_ulong_num/NUM!truncate	DESC FOR CONNECTION
 reject	reject	engine	real_ulong_num/NUM!insert	DESC FOR CONNECTION 1 zzz;
-reject	accept	engine	real_ulong_num/HEX_NUM	DESC FOR CONNECTION 0x1;
+accept	accept	engine	real_ulong_num/HEX_NUM	DESC FOR CONNECTION 0x1;
 reject	reject	engine	real_ulong_num/HEX_NUM!insert	DESC FOR CONNECTION 0x1 zzz;
 accept	accept	engine	real_ulong_num/LONG_NUM	DESC FOR CONNECTION 4294967296;
 reject	reject	engine	real_ulong_num/LONG_NUM!insert	DESC FOR CONNECTION 4294967296 zzz;
@@ -8278,9 +8278,9 @@ accept	accept	engine	select_var_ident/ident_or_text	SELECT utf8mb4 INTO utf8mb4;
 accept	accept	engine	into_clause/INTO_into_destination	SELECT utf8mb4 INTO utf8mb4;
 reject	reject	engine	into_clause/INTO_into_destination!swap	SELECT utf8mb4 INVISIBLE utf8mb4;
 accept	accept	engine	into_destination/OUTFILE_TEXT_STRING_filesystem_opt_load_data_charset_opt_field_term_opt_line_term	SELECT utf8mb4 INTO OUTFILE 's';
-reject	accept	engine	into_destination/OUTFILE_TEXT_STRING_filesystem_opt_load_data_charset_opt_field_term_opt_line_term!drop-1	SELECT utf8mb4 INTO 's';
-accept	reject	engine	into_destination/OUTFILE_TEXT_STRING_filesystem_opt_load_data_charset_opt_field_term_opt_line_term!drop-2	SELECT utf8mb4 INTO OUTFILE;
-accept	reject	engine	into_destination/OUTFILE_TEXT_STRING_filesystem_opt_load_data_charset_opt_field_term_opt_line_term!truncate	SELECT utf8mb4 INTO OUTFILE
+accept	accept	engine	into_destination/OUTFILE_TEXT_STRING_filesystem_opt_load_data_charset_opt_field_term_opt_line_term!drop-1	SELECT utf8mb4 INTO 's';
+reject	reject	engine	into_destination/OUTFILE_TEXT_STRING_filesystem_opt_load_data_charset_opt_field_term_opt_line_term!drop-2	SELECT utf8mb4 INTO OUTFILE;
+reject	reject	engine	into_destination/OUTFILE_TEXT_STRING_filesystem_opt_load_data_charset_opt_field_term_opt_line_term!truncate	SELECT utf8mb4 INTO OUTFILE
 reject	reject	engine	into_destination/OUTFILE_TEXT_STRING_filesystem_opt_load_data_charset_opt_field_term_opt_line_term!swap	SELECT utf8mb4 INTO OVER 's';
 accept	accept	engine	into_destination/DUMPFILE_TEXT_STRING_filesystem	SELECT utf8mb4 INTO DUMPFILE 's';
 accept	accept	engine	into_destination/DUMPFILE_TEXT_STRING_filesystem!drop-2	SELECT utf8mb4 INTO DUMPFILE;
@@ -9245,9 +9245,9 @@ accept	accept	engine	text_literal/text_literal_TEXT_STRING_literal	DO 's' 's';
 accept	accept	engine	text_literal/text_literal_TEXT_STRING_literal!truncate	DO 's'
 accept	accept	engine	text_literal/text_literal_TEXT_STRING_literal!insert	DO 's' 's' zzz;
 accept	accept	engine	text_string/TEXT_STRING_literal	DESC utf8mb4 's';
-reject	accept	engine	text_string/HEX_NUM	DESC utf8mb4 0x1;
+accept	accept	engine	text_string/HEX_NUM	DESC utf8mb4 0x1;
 reject	reject	engine	text_string/HEX_NUM!insert	DESC utf8mb4 0x1 zzz;
-reject	accept	engine	text_string/BIN_NUM	DESC utf8mb4 b'1';
+accept	accept	engine	text_string/BIN_NUM	DESC utf8mb4 b'1';
 reject	reject	engine	text_string/BIN_NUM!insert	DESC utf8mb4 b'1' zzz;
 accept	accept	engine	param_marker/PARAM_MARKER	DO ?;
 accept	accept	engine	signed_literal/literal	ALTER TABLE utf8mb4 ADD utf8mb4 INT DEFAULT 's';

@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"strconv"
 	"strings"
 
 	nodes "github.com/bytebase/omni/mysql/ast"
@@ -1821,6 +1822,20 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 		if _, err := p.expect(kwCONNECTION); err != nil {
 			return nil, err
 		}
+		// real_ulong_num takes HEX_NUM too, which is both 0x01 and X'01' here:
+		// mysql:8.0.46 parses FOR CONNECTION 0x1 and X'01'.
+		if p.cur.Type == tokXCONST {
+			tok := p.advance()
+			digits := tok.Str
+			if p.inputText(tok.Loc, tok.Loc+1) == "0" {
+				digits = digits[2:]
+			}
+			if v, err := strconv.ParseUint(digits, 16, 64); err == nil {
+				stmt.ForConnection = int64(v)
+			}
+			stmt.Loc.End = p.prev.End
+			return stmt, nil
+		}
 		tok, err := p.expect(tokICONST)
 		if err != nil {
 			return nil, err
@@ -1937,6 +1952,18 @@ func (p *Parser) parseExplainColumn(showStmt *nodes.ShowStmt) error {
 	if p.cur.Type == tokSCONST {
 		tok := p.advance()
 		showStmt.Like = &nodes.StringLit{Loc: nodes.Loc{Start: tok.Loc, End: tok.End}, Value: tok.Str}
+		return nil
+	}
+	// The string is text_string, which is TEXT_STRING_literal, HEX_NUM or BIN_NUM:
+	// mysql:8.0.46 parses DESC t 0x41, x'41', b'1' and 0b1, each the string its
+	// bytes spell.
+	if p.cur.Type == tokXCONST || p.cur.Type == tokBCONST {
+		tok := p.advance()
+		value, err := p.decodeByteLiteral(tok)
+		if err != nil {
+			return err
+		}
+		showStmt.Like = &nodes.StringLit{Loc: nodes.Loc{Start: tok.Loc, End: tok.End}, Value: value}
 		return nil
 	}
 	start := p.pos()
