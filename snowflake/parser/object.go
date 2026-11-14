@@ -30,8 +30,9 @@ type objectForm struct {
 	// ALTER are documented for the object.
 	orReplace, orAlter bool
 	// drop reports whether DROP <kind> [ IF EXISTS ] <name> is documented,
-	// and dropCascade whether a CASCADE may follow the name.
-	drop, dropCascade bool
+	// dropCascade whether a CASCADE may follow the name, and dropForce
+	// whether a FORCE may.
+	drop, dropCascade, dropForce bool
 	// undrop reports whether UNDROP <kind> <name> is documented, and
 	// undropRename whether a RENAME TO <new_name> (one part) may follow.
 	undrop, undropRename bool

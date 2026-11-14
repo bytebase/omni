@@ -1892,7 +1892,11 @@ type DropStmt struct {
 	Iceberg   bool // DROP ICEBERG TABLE (Kind is DropTable)
 	Purge     bool // PURGE (DROP [ICEBERG] TABLE only; mutually exclusive with NoPurge)
 	NoPurge   bool // NOPURGE (DROP [ICEBERG] TABLE only; mutually exclusive with Purge)
-	Loc       Loc
+	Force     bool // FORCE (DROP SERVICE only)
+	// GracePeriodInDays is DROP ACCOUNT's GRACE_PERIOD_IN_DAYS = <integer>;
+	// nil for every other DROP.
+	GracePeriodInDays *Literal
+	Loc               Loc
 }
 
 // Tag implements Node.
@@ -3478,12 +3482,16 @@ func (n *CopyIntoTableStmt) Tag() NodeTag { return T_CopyIntoTableStmt }
 // PARTITION BY expression (nil if absent). Options holds FILE_FORMAT /
 // copyOptions / VALIDATION_MODE / HEADER, preserving source order.
 type CopyIntoLocationStmt struct {
-	Into      *StageLocation
-	FromTable *ObjectName   // FROM <table>; nil when FromQuery is set
-	FromQuery Node          // FROM ( query ); nil when FromTable is set
-	Partition Node          // PARTITION BY <expr>; nil if absent
-	Options   []*CopyOption // FILE_FORMAT / copyOptions / VALIDATION_MODE / HEADER
-	Loc       Loc
+	Into *StageLocation
+	// IntoOptions are an external location's parameters, written between the
+	// location and FROM: STORAGE_INTEGRATION = <name> or CREDENTIALS = ( ... ),
+	// then ENCRYPTION = ( ... ).
+	IntoOptions []*CopyOption
+	FromTable   *ObjectName   // FROM <table>; nil when FromQuery is set
+	FromQuery   Node          // FROM ( query ); nil when FromTable is set
+	Partition   Node          // PARTITION BY <expr>; nil if absent
+	Options     []*CopyOption // FILE_FORMAT / copyOptions / VALIDATION_MODE / HEADER
+	Loc         Loc
 }
 
 // Tag implements Node.
