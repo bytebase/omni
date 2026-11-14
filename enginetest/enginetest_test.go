@@ -22,6 +22,22 @@ func TestLoadPin(t *testing.T) {
 	if _, err := LoadPin(path, "nosuch"); err == nil {
 		t.Errorf("a missing role loaded")
 	}
+	if err := os.WriteFile(path, []byte("default\timg:1\tsha256:abc\tv1\t2\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	p, err = LoadPin(path, "default")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := p.String(), "default img:1 sha256:abc v1 judge:2"; got != want {
+		t.Errorf("with a judge revision: got %q, want %q", got, want)
+	}
+	if err := os.WriteFile(path, []byte("default\timg:1\tsha256:abc\tv1\t\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LoadPin(path, "default"); err == nil {
+		t.Errorf("an empty judge revision loaded")
+	}
 	if err := os.WriteFile(path, []byte("default\timg:1\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}

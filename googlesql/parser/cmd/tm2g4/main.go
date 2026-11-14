@@ -2,13 +2,16 @@
 // googlesql.tm (googlesql/testdata, as the release the pinned Spanner
 // emulator builds against publishes it), into the ANTLR 4 grammar the
 // compatibility rows are generated from: googlesql/testdata/GoogleSQL.g4.
-// See convert for what the conversion keeps and drops.
+// See convert for what the conversion keeps and drops. It also writes the
+// messages googlesql.tm's actions refuse input with, which the Spanner
+// harness reads as rejections: googlesql/spanner-oracle/grammar_refusals.go
+// (see refusals).
 //
 // After a pin bump replaces googlesql.tm, from the repo root:
 //
 //	go run ./googlesql/parser/cmd/tm2g4
 //
-// TestGoogleSQLG4IsTheConversion fails while the .g4 is anything else.
+// TestGoogleSQLG4IsTheConversion fails while either file is anything else.
 package main
 
 import (
@@ -23,6 +26,8 @@ const testdata = "googlesql/testdata"
 const (
 	tmFile = "googlesql.tm"
 	output = "GoogleSQL.g4"
+	// refusalsOutput is from the repo root.
+	refusalsOutput = "googlesql/spanner-oracle/grammar_refusals.go"
 	// start is the rule the rows are generated from: one statement of a
 	// script, a SQL statement or a scripting one, without the ; or end of
 	// input next_script_statement reads after it.
@@ -39,6 +44,28 @@ func main() {
 		fmt.Fprintln(os.Stderr, "tm2g4:", err)
 		os.Exit(1)
 	}
+	refused, err := refusalsDir(testdata)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "tm2g4:", err)
+		os.Exit(1)
+	}
+	if err := os.WriteFile(refusalsOutput, []byte(refused), 0o644); err != nil {
+		fmt.Fprintln(os.Stderr, "tm2g4:", err)
+		os.Exit(1)
+	}
+}
+
+// refusalsDir writes the refusals of the vendor file in dir as Go.
+func refusalsDir(dir string) (string, error) {
+	tm, err := os.ReadFile(filepath.Join(dir, tmFile))
+	if err != nil {
+		return "", err
+	}
+	rs, err := refusals(string(tm))
+	if err != nil {
+		return "", err
+	}
+	return refusalsGo(rs), nil
 }
 
 // convertDir converts the vendor file in dir.

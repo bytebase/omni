@@ -23,15 +23,27 @@ type Pin struct {
 	Image  string // the image reference tests start, e.g. pingcap/tidb:v8.5.5
 	Digest string // the image's repository digest, sha256:...
 	Tag    string // the source tag the release and its grammar were built from
+	// Judge is the revision of how the engine's tests read the server's
+	// answers, "" for the first. The reading is part of what an answer
+	// means: a harness that comes to read an error as a rejection where it
+	// read an acceptance answers differently at the same server, so a new
+	// reading is a pin bump, like a new image, and its recording may move
+	// expected cells.
+	Judge string
 }
 
 // String renders the pin as committed files name it in their header.
 func (p Pin) String() string {
-	return strings.Join([]string{p.Role, p.Image, p.Digest, p.Tag}, " ")
+	s := strings.Join([]string{p.Role, p.Image, p.Digest, p.Tag}, " ")
+	if p.Judge != "" {
+		s += " judge:" + p.Judge
+	}
+	return s
 }
 
 // LoadPin reads the row for role from a pins.tsv. The file holds one
-// tab-separated row per role: role, image, digest, source tag.
+// tab-separated row per role: role, image, digest, source tag, and, once
+// the engine's reading of the server has changed, the judge revision.
 func LoadPin(path, role string) (Pin, error) {
 	b, err := os.ReadFile(path)
 	if err != nil {
@@ -42,11 +54,18 @@ func LoadPin(path, role string) (Pin, error) {
 			continue
 		}
 		f := strings.Split(line, "\t")
-		if len(f) != 4 {
-			return Pin{}, fmt.Errorf("%s:%d: want 4 tab-separated fields (role, image, digest, source tag), got %d", path, i+1, len(f))
+		if len(f) != 4 && len(f) != 5 {
+			return Pin{}, fmt.Errorf("%s:%d: want 4 or 5 tab-separated fields (role, image, digest, source tag, judge revision), got %d", path, i+1, len(f))
 		}
 		if f[0] == role {
-			return Pin{Role: f[0], Image: f[1], Digest: f[2], Tag: f[3]}, nil
+			p := Pin{Role: f[0], Image: f[1], Digest: f[2], Tag: f[3]}
+			if len(f) == 5 {
+				if f[4] == "" {
+					return Pin{}, fmt.Errorf("%s:%d: an empty judge revision; leave the field out for the first", path, i+1)
+				}
+				p.Judge = f[4]
+			}
+			return p, nil
 		}
 	}
 	return Pin{}, fmt.Errorf("%s has no %q row", path, role)
