@@ -10,7 +10,7 @@
 // form a page writes with ... for text it leaves out, or with a word it
 // never defines, is not converted and is listed under its page.
 //
-// pin: default https://docs.snowflake.com/en/sql-reference/sql-all sha256:9a4436b37c364696db1f7ec3c58bfb343a8602b5ff0505e9ef474b8c4a92b6b7 2026-11-14
+// pin: default https://docs.snowflake.com/en/sql-reference/sql-all sha256:334be655f4130196272f45c96ed77fd2bc1399b40ce5c958c53bea02f6ad9177 2026-11-13
 
 grammar SnowflakeDocs;
 
@@ -5571,7 +5571,7 @@ grantPrivilege_schemaObjectPrivileges_11
     : ('USAGE' | 'MONITOR') (',' ('USAGE' | 'MONITOR'))*
     ;
 grantPrivilege_schemaObjectPrivileges_12
-    : ('READ' | 'MONITOR' | 'PLAN') (',' ('READ' | 'MONITOR' | 'PLAN'))*
+    : ('READ' | 'MONITOR') (',' ('READ' | 'MONITOR'))*
     ;
 grantPrivilege_schemaObjectPrivileges_13
     : ('MONITOR' | 'OPERATE' | 'SELECT') (',' ('MONITOR' | 'OPERATE' | 'SELECT'))*
@@ -6129,7 +6129,7 @@ revokePrivilege_schemaObjectPrivileges_11
     : ('USAGE' | 'MONITOR') (',' ('USAGE' | 'MONITOR'))*
     ;
 revokePrivilege_schemaObjectPrivileges_12
-    : ('READ' | 'MONITOR' | 'PLAN') (',' ('READ' | 'MONITOR' | 'PLAN'))*
+    : ('READ' | 'MONITOR') (',' ('READ' | 'MONITOR'))*
     ;
 revokePrivilege_schemaObjectPrivileges_13
     : ('MONITOR' | 'OPERATE' | 'SELECT') (',' ('MONITOR' | 'OPERATE' | 'SELECT'))*

@@ -1,4 +1,4 @@
-# pin: default https://docs.snowflake.com/en/sql-reference/sql-all sha256:9a4436b37c364696db1f7ec3c58bfb343a8602b5ff0505e9ef474b8c4a92b6b7 2026-11-14
+# pin: default https://docs.snowflake.com/en/sql-reference/sql-all sha256:334be655f4130196272f45c96ed77fd2bc1399b40ce5c958c53bea02f6ad9177 2026-11-13
 # columns: omni, expected, source, rule, statement
 accept	accept	docs	statement/alterAccount	ALTER ACCOUNT UNSET a
 reject	undocumented	docs	statement/alterAccount!drop-1	ACCOUNT UNSET a
@@ -57253,20 +57253,17 @@ accept	undocumented	docs	grantPrivilege_schemaObjectPrivileges_11(,_(USAGE|MONIT
 reject	undocumented	docs	grantPrivilege_schemaObjectPrivileges_11(,_(USAGE|MONITOR))*/,_(USAGE|MONITOR)_(,_(USAGE|MONITOR))*!drop-2	GRANT USAGE, ON DBT PROJECT a TO a
 accept	undocumented	docs	grantPrivilege_schemaObjectPrivileges_11(,_(USAGE|MONITOR))*/,_(USAGE|MONITOR)_(,_(USAGE|MONITOR))*!insert	GRANT USAGE, USAGE zzz ON DBT PROJECT a TO a
 accept	undocumented	docs	grantPrivilege_schemaObjectPrivileges_11(,_(USAGE|MONITOR))*/,_(USAGE|MONITOR)_(,_(USAGE|MONITOR))*!swap	GRANT USAGE, USE ON DBT PROJECT a TO a
-accept	accept	docs	grantPrivilege_schemaObjectPrivileges_12/(READ|MONITOR|PLAN)_(,_(READ|MONITOR|PLAN))*	GRANT READ ON DCM PROJECT a TO a
-accept	accept	docs	grantPrivilege_schemaObjectPrivileges_12(READ|MONITOR|PLAN)/READ	GRANT READ ON DCM PROJECT a TO a
-accept	accept	docs	grantPrivilege_schemaObjectPrivileges_12(READ|MONITOR|PLAN)/MONITOR	GRANT MONITOR ON DCM PROJECT a TO a
-accept	undocumented	docs	grantPrivilege_schemaObjectPrivileges_12(READ|MONITOR|PLAN)/MONITOR!insert	GRANT MONITOR zzz ON DCM PROJECT a TO a
-accept	undocumented	docs	grantPrivilege_schemaObjectPrivileges_12(READ|MONITOR|PLAN)/MONITOR!swap	GRANT MONITORS ON DCM PROJECT a TO a
-accept	accept	docs	grantPrivilege_schemaObjectPrivileges_12(READ|MONITOR|PLAN)/PLAN	GRANT PLAN ON DCM PROJECT a TO a
-accept	undocumented	docs	grantPrivilege_schemaObjectPrivileges_12(READ|MONITOR|PLAN)/PLAN!insert	GRANT PLAN zzz ON DCM PROJECT a TO a
-accept	undocumented	docs	grantPrivilege_schemaObjectPrivileges_12(READ|MONITOR|PLAN)/PLAN!swap	GRANT PLANE ON DCM PROJECT a TO a
-accept	accept	docs	grantPrivilege_schemaObjectPrivileges_12(,_(READ|MONITOR|PLAN))*/%empty	GRANT READ ON DCM PROJECT a TO a
-accept	accept	docs	grantPrivilege_schemaObjectPrivileges_12(,_(READ|MONITOR|PLAN))*/,_(READ|MONITOR|PLAN)_(,_(READ|MONITOR|PLAN))*	GRANT READ, READ ON DCM PROJECT a TO a
-accept	undocumented	docs	grantPrivilege_schemaObjectPrivileges_12(,_(READ|MONITOR|PLAN))*/,_(READ|MONITOR|PLAN)_(,_(READ|MONITOR|PLAN))*!drop-1	GRANT READ READ ON DCM PROJECT a TO a
-reject	undocumented	docs	grantPrivilege_schemaObjectPrivileges_12(,_(READ|MONITOR|PLAN))*/,_(READ|MONITOR|PLAN)_(,_(READ|MONITOR|PLAN))*!drop-2	GRANT READ, ON DCM PROJECT a TO a
-accept	undocumented	docs	grantPrivilege_schemaObjectPrivileges_12(,_(READ|MONITOR|PLAN))*/,_(READ|MONITOR|PLAN)_(,_(READ|MONITOR|PLAN))*!insert	GRANT READ, READ zzz ON DCM PROJECT a TO a
-accept	undocumented	docs	grantPrivilege_schemaObjectPrivileges_12(,_(READ|MONITOR|PLAN))*/,_(READ|MONITOR|PLAN)_(,_(READ|MONITOR|PLAN))*!swap	GRANT READ, READER ON DCM PROJECT a TO a
+accept	accept	docs	grantPrivilege_schemaObjectPrivileges_12/(READ|MONITOR)_(,_(READ|MONITOR))*	GRANT READ ON DCM PROJECT a TO a
+accept	accept	docs	grantPrivilege_schemaObjectPrivileges_12(READ|MONITOR)/READ	GRANT READ ON DCM PROJECT a TO a
+accept	accept	docs	grantPrivilege_schemaObjectPrivileges_12(READ|MONITOR)/MONITOR	GRANT MONITOR ON DCM PROJECT a TO a
+accept	undocumented	docs	grantPrivilege_schemaObjectPrivileges_12(READ|MONITOR)/MONITOR!insert	GRANT MONITOR zzz ON DCM PROJECT a TO a
+accept	undocumented	docs	grantPrivilege_schemaObjectPrivileges_12(READ|MONITOR)/MONITOR!swap	GRANT MONITORS ON DCM PROJECT a TO a
+accept	accept	docs	grantPrivilege_schemaObjectPrivileges_12(,_(READ|MONITOR))*/%empty	GRANT READ ON DCM PROJECT a TO a
+accept	accept	docs	grantPrivilege_schemaObjectPrivileges_12(,_(READ|MONITOR))*/,_(READ|MONITOR)_(,_(READ|MONITOR))*	GRANT READ, READ ON DCM PROJECT a TO a
+accept	undocumented	docs	grantPrivilege_schemaObjectPrivileges_12(,_(READ|MONITOR))*/,_(READ|MONITOR)_(,_(READ|MONITOR))*!drop-1	GRANT READ READ ON DCM PROJECT a TO a
+reject	undocumented	docs	grantPrivilege_schemaObjectPrivileges_12(,_(READ|MONITOR))*/,_(READ|MONITOR)_(,_(READ|MONITOR))*!drop-2	GRANT READ, ON DCM PROJECT a TO a
+accept	undocumented	docs	grantPrivilege_schemaObjectPrivileges_12(,_(READ|MONITOR))*/,_(READ|MONITOR)_(,_(READ|MONITOR))*!insert	GRANT READ, READ zzz ON DCM PROJECT a TO a
+accept	undocumented	docs	grantPrivilege_schemaObjectPrivileges_12(,_(READ|MONITOR))*/,_(READ|MONITOR)_(,_(READ|MONITOR))*!swap	GRANT READ, READER ON DCM PROJECT a TO a
 accept	accept	docs	grantPrivilege_schemaObjectPrivileges_13/(MONITOR|OPERATE|SELECT)_(,_(MONITOR|OPERATE|SELECT))*	GRANT MONITOR ON DYNAMIC TABLE a TO a
 accept	accept	docs	grantPrivilege_schemaObjectPrivileges_13(MONITOR|OPERATE|SELECT)/MONITOR	GRANT MONITOR ON DYNAMIC TABLE a TO a
 accept	accept	docs	grantPrivilege_schemaObjectPrivileges_13(MONITOR|OPERATE|SELECT)/OPERATE	GRANT OPERATE ON DYNAMIC TABLE a TO a
@@ -64397,20 +64394,17 @@ accept	undocumented	docs	revokePrivilege_schemaObjectPrivileges_11(,_(USAGE|MONI
 reject	undocumented	docs	revokePrivilege_schemaObjectPrivileges_11(,_(USAGE|MONITOR))*/,_(USAGE|MONITOR)_(,_(USAGE|MONITOR))*!drop-2	REVOKE USAGE, ON DBT PROJECT a FROM a
 accept	undocumented	docs	revokePrivilege_schemaObjectPrivileges_11(,_(USAGE|MONITOR))*/,_(USAGE|MONITOR)_(,_(USAGE|MONITOR))*!insert	REVOKE USAGE, USAGE zzz ON DBT PROJECT a FROM a
 accept	undocumented	docs	revokePrivilege_schemaObjectPrivileges_11(,_(USAGE|MONITOR))*/,_(USAGE|MONITOR)_(,_(USAGE|MONITOR))*!swap	REVOKE USAGE, USE ON DBT PROJECT a FROM a
-accept	accept	docs	revokePrivilege_schemaObjectPrivileges_12/(READ|MONITOR|PLAN)_(,_(READ|MONITOR|PLAN))*	REVOKE READ ON DCM PROJECT a FROM a
-accept	accept	docs	revokePrivilege_schemaObjectPrivileges_12(READ|MONITOR|PLAN)/READ	REVOKE READ ON DCM PROJECT a FROM a
-accept	accept	docs	revokePrivilege_schemaObjectPrivileges_12(READ|MONITOR|PLAN)/MONITOR	REVOKE MONITOR ON DCM PROJECT a FROM a
-accept	undocumented	docs	revokePrivilege_schemaObjectPrivileges_12(READ|MONITOR|PLAN)/MONITOR!insert	REVOKE MONITOR zzz ON DCM PROJECT a FROM a
-accept	undocumented	docs	revokePrivilege_schemaObjectPrivileges_12(READ|MONITOR|PLAN)/MONITOR!swap	REVOKE MONITORS ON DCM PROJECT a FROM a
-accept	accept	docs	revokePrivilege_schemaObjectPrivileges_12(READ|MONITOR|PLAN)/PLAN	REVOKE PLAN ON DCM PROJECT a FROM a
-accept	undocumented	docs	revokePrivilege_schemaObjectPrivileges_12(READ|MONITOR|PLAN)/PLAN!insert	REVOKE PLAN zzz ON DCM PROJECT a FROM a
-accept	undocumented	docs	revokePrivilege_schemaObjectPrivileges_12(READ|MONITOR|PLAN)/PLAN!swap	REVOKE PLANE ON DCM PROJECT a FROM a
-accept	accept	docs	revokePrivilege_schemaObjectPrivileges_12(,_(READ|MONITOR|PLAN))*/%empty	REVOKE READ ON DCM PROJECT a FROM a
-accept	accept	docs	revokePrivilege_schemaObjectPrivileges_12(,_(READ|MONITOR|PLAN))*/,_(READ|MONITOR|PLAN)_(,_(READ|MONITOR|PLAN))*	REVOKE READ, READ ON DCM PROJECT a FROM a
-accept	undocumented	docs	revokePrivilege_schemaObjectPrivileges_12(,_(READ|MONITOR|PLAN))*/,_(READ|MONITOR|PLAN)_(,_(READ|MONITOR|PLAN))*!drop-1	REVOKE READ READ ON DCM PROJECT a FROM a
-reject	undocumented	docs	revokePrivilege_schemaObjectPrivileges_12(,_(READ|MONITOR|PLAN))*/,_(READ|MONITOR|PLAN)_(,_(READ|MONITOR|PLAN))*!drop-2	REVOKE READ, ON DCM PROJECT a FROM a
-accept	undocumented	docs	revokePrivilege_schemaObjectPrivileges_12(,_(READ|MONITOR|PLAN))*/,_(READ|MONITOR|PLAN)_(,_(READ|MONITOR|PLAN))*!insert	REVOKE READ, READ zzz ON DCM PROJECT a FROM a
-accept	undocumented	docs	revokePrivilege_schemaObjectPrivileges_12(,_(READ|MONITOR|PLAN))*/,_(READ|MONITOR|PLAN)_(,_(READ|MONITOR|PLAN))*!swap	REVOKE READ, READER ON DCM PROJECT a FROM a
+accept	accept	docs	revokePrivilege_schemaObjectPrivileges_12/(READ|MONITOR)_(,_(READ|MONITOR))*	REVOKE READ ON DCM PROJECT a FROM a
+accept	accept	docs	revokePrivilege_schemaObjectPrivileges_12(READ|MONITOR)/READ	REVOKE READ ON DCM PROJECT a FROM a
+accept	accept	docs	revokePrivilege_schemaObjectPrivileges_12(READ|MONITOR)/MONITOR	REVOKE MONITOR ON DCM PROJECT a FROM a
+accept	undocumented	docs	revokePrivilege_schemaObjectPrivileges_12(READ|MONITOR)/MONITOR!insert	REVOKE MONITOR zzz ON DCM PROJECT a FROM a
+accept	undocumented	docs	revokePrivilege_schemaObjectPrivileges_12(READ|MONITOR)/MONITOR!swap	REVOKE MONITORS ON DCM PROJECT a FROM a
+accept	accept	docs	revokePrivilege_schemaObjectPrivileges_12(,_(READ|MONITOR))*/%empty	REVOKE READ ON DCM PROJECT a FROM a
+accept	accept	docs	revokePrivilege_schemaObjectPrivileges_12(,_(READ|MONITOR))*/,_(READ|MONITOR)_(,_(READ|MONITOR))*	REVOKE READ, READ ON DCM PROJECT a FROM a
+accept	undocumented	docs	revokePrivilege_schemaObjectPrivileges_12(,_(READ|MONITOR))*/,_(READ|MONITOR)_(,_(READ|MONITOR))*!drop-1	REVOKE READ READ ON DCM PROJECT a FROM a
+reject	undocumented	docs	revokePrivilege_schemaObjectPrivileges_12(,_(READ|MONITOR))*/,_(READ|MONITOR)_(,_(READ|MONITOR))*!drop-2	REVOKE READ, ON DCM PROJECT a FROM a
+accept	undocumented	docs	revokePrivilege_schemaObjectPrivileges_12(,_(READ|MONITOR))*/,_(READ|MONITOR)_(,_(READ|MONITOR))*!insert	REVOKE READ, READ zzz ON DCM PROJECT a FROM a
+accept	undocumented	docs	revokePrivilege_schemaObjectPrivileges_12(,_(READ|MONITOR))*/,_(READ|MONITOR)_(,_(READ|MONITOR))*!swap	REVOKE READ, READER ON DCM PROJECT a FROM a
 accept	accept	docs	revokePrivilege_schemaObjectPrivileges_13/(MONITOR|OPERATE|SELECT)_(,_(MONITOR|OPERATE|SELECT))*	REVOKE MONITOR ON DYNAMIC TABLE a FROM a
 accept	accept	docs	revokePrivilege_schemaObjectPrivileges_13(MONITOR|OPERATE|SELECT)/MONITOR	REVOKE MONITOR ON DYNAMIC TABLE a FROM a
 accept	accept	docs	revokePrivilege_schemaObjectPrivileges_13(MONITOR|OPERATE|SELECT)/OPERATE	REVOKE OPERATE ON DYNAMIC TABLE a FROM a
