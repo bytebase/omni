@@ -4,6 +4,15 @@ import (
 	"github.com/bytebase/omni/cassandra/ast"
 )
 
+// parseCreateTable parses createTableStatement (Parser.g:779) and
+// tableDefinition (Parser.g:786):
+//
+//	CREATE TABLE [IF NOT EXISTS] t '(' tableColumns (',' tableColumns?)* ')'
+//	[WITH tableProperty (AND tableProperty)*]
+//
+// A trailing ',' is allowed, and PRIMARY KEY (...) may stand among the
+// columns. The actions refuse a column declared twice and a second primary
+// key (CreateTableStatement.Raw.addColumn, setPartitionKeyColumns).
 func (p *Parser) parseCreateTable() (*ast.CreateTableStmt, error) {
 	start := p.curLoc()
 	p.advance() // TABLE
@@ -27,21 +36,40 @@ func (p *Parser) parseCreateTable() (*ast.CreateTableStmt, error) {
 		Name:        name,
 	}
 
-	// Parse column definitions and optional trailing PRIMARY KEY.
-	for {
-		if p.cur.Type == tokPRIMARY {
+	columns := map[string]bool{}
+	hasPK := false
+	for first := true; ; first = false {
+		if !first && (p.cur.Type == tokCOMMA || p.cur.Type == tokRPAREN) {
+			// ',' tableColumns? : an empty element.
+		} else if p.cur.Type == tokPRIMARY {
+			pkTok := p.cur
 			pk, err := p.parsePrimaryKeyElement()
 			if err != nil {
 				return nil, err
 			}
+			if hasPK {
+				return nil, p.errorAt(pkTok, "Multiple PRIMARY KEY specified for table '%s' (exactly one required)", name.Parts[len(name.Parts)-1].Name)
+			}
+			hasPK = true
 			stmt.PrimaryKey = pk
-			break
+		} else {
+			colTok := p.cur
+			col, err := p.parseColumnDefinition(true)
+			if err != nil {
+				return nil, err
+			}
+			if columns[identKey(col.Name)] {
+				return nil, p.errorAt(colTok, "Duplicate column '%s' declaration for table '%s'", identKey(col.Name), name.Parts[len(name.Parts)-1].Name)
+			}
+			columns[identKey(col.Name)] = true
+			if col.PrimaryKey {
+				if hasPK {
+					return nil, p.errorAt(colTok, "Multiple PRIMARY KEY specified for table '%s' (exactly one required)", name.Parts[len(name.Parts)-1].Name)
+				}
+				hasPK = true
+			}
+			stmt.Columns = append(stmt.Columns, col)
 		}
-		col, err := p.parseColumnDefinition()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Columns = append(stmt.Columns, col)
 		if !p.match(tokCOMMA) {
 			break
 		}
@@ -62,7 +90,9 @@ func (p *Parser) parseCreateTable() (*ast.CreateTableStmt, error) {
 	return stmt, nil
 }
 
-func (p *Parser) parseColumnDefinition() (*ast.ColumnDef, error) {
+// parseColumnDefinition parses ident comparatorType [STATIC] [columnMask],
+// then [PRIMARY KEY] where a CREATE TABLE column takes one (Parser.g:791).
+func (p *Parser) parseColumnDefinition(primaryKey bool) (*ast.ColumnDef, error) {
 	start := p.curLoc()
 	name, err := p.parseIdentifier()
 	if err != nil {
@@ -78,7 +108,14 @@ func (p *Parser) parseColumnDefinition() (*ast.ColumnDef, error) {
 		col.Static = true
 		p.advance()
 	}
-	if p.cur.Type == tokPRIMARY && p.peekNext().Type == tokKEY {
+	if p.curIs("masked") {
+		mask, err := p.parseColumnMask()
+		if err != nil {
+			return nil, err
+		}
+		col.Mask = mask
+	}
+	if primaryKey && p.cur.Type == tokPRIMARY && p.peekNext().Type == tokKEY {
 		col.PrimaryKey = true
 		p.advance() // PRIMARY
 		p.advance() // KEY
@@ -86,6 +123,51 @@ func (p *Parser) parseColumnDefinition() (*ast.ColumnDef, error) {
 
 	col.Loc = p.makeLoc(start)
 	return col, nil
+}
+
+// parseColumnMask parses columnMask (Parser.g:798):
+//
+//	MASKED WITH DEFAULT | MASKED WITH functionName '(' [term (',' term)*] ')'
+func (p *Parser) parseColumnMask() (*ast.ColumnMask, error) {
+	start := p.curLoc()
+	p.advance() // MASKED
+	if err := p.expectKeyword(tokWITH); err != nil {
+		return nil, err
+	}
+	mask := &ast.ColumnMask{}
+	// DEFAULT is an unreserved keyword: DEFAULT(...) calls a function of
+	// that name.
+	if p.cur.Type == tokDEFAULT && p.peekNext().Type != tokLPAREN && p.peekNext().Type != tokDOT {
+		p.advance()
+		mask.Default = true
+		mask.Loc = p.makeLoc(start)
+		return mask, nil
+	}
+	fn, err := p.parseQualifiedName()
+	if err != nil {
+		return nil, err
+	}
+	mask.Function = fn
+	if _, err := p.expect(tokLPAREN); err != nil {
+		return nil, err
+	}
+	if p.cur.Type != tokRPAREN {
+		for {
+			arg, err := p.parseExpression()
+			if err != nil {
+				return nil, err
+			}
+			mask.Args = append(mask.Args, arg)
+			if !p.match(tokCOMMA) {
+				break
+			}
+		}
+	}
+	if _, err := p.expect(tokRPAREN); err != nil {
+		return nil, err
+	}
+	mask.Loc = p.makeLoc(start)
+	return mask, nil
 }
 
 func (p *Parser) parsePrimaryKeyElement() (*ast.PrimaryKeyDef, error) {
@@ -142,23 +224,27 @@ func (p *Parser) parsePrimaryKeyElement() (*ast.PrimaryKeyDef, error) {
 	return pk, nil
 }
 
+// parseTableOptions parses tableProperty (AND tableProperty)* (Parser.g:815):
+// a property, COMPACT STORAGE, or CLUSTERING ORDER BY (...). CLUSTERING and
+// COMPACT are unreserved keywords, so each is a property name unless ORDER
+// or STORAGE follows it.
 func (p *Parser) parseTableOptions(stmt *ast.CreateTableStmt) error {
+	props := map[string]bool{}
+	orders := map[string]bool{}
 	for {
-		// Check for COMPACT STORAGE
-		if p.cur.Type == tokCOMPACT {
-			p.advance()
-			if err := p.expectKeyword(tokSTORAGE); err != nil {
-				return err
-			}
+		switch {
+		case p.cur.Type == tokCOMPACT && p.peekNext().Type == tokSTORAGE:
+			p.advance() // COMPACT
+			p.advance() // STORAGE
 			stmt.CompactStorage = true
-		} else if p.cur.Type == tokCLUSTERING {
-			co, err := p.parseClusteringOrderClause()
+		case p.cur.Type == tokCLUSTERING && p.peekNext().Type == tokORDER:
+			co, err := p.parseClusteringOrderClause(orders)
 			if err != nil {
 				return err
 			}
-			stmt.ClusteringOrders = co
-		} else {
-			opt, err := p.parseTableOption()
+			stmt.ClusteringOrders = append(stmt.ClusteringOrders, co...)
+		default:
+			opt, err := p.parseProperty(props)
 			if err != nil {
 				return err
 			}
@@ -171,33 +257,11 @@ func (p *Parser) parseTableOptions(stmt *ast.CreateTableStmt) error {
 	return nil
 }
 
-func (p *Parser) parseTableOption() (*ast.TableOption, error) {
-	start := p.curLoc()
-	name, err := p.parseIdentifier()
-	if err != nil {
-		return nil, err
-	}
-	if _, err := p.expect(tokEQ); err != nil {
-		return nil, err
-	}
-	var value ast.ExprNode
-	if p.cur.Type == tokLBRACE {
-		hash, err := p.parseOptionHash()
-		if err != nil {
-			return nil, err
-		}
-		value = hash
-	} else {
-		val, err := p.parseConstant()
-		if err != nil {
-			return nil, err
-		}
-		value = val
-	}
-	return &ast.TableOption{Name: name, Value: value, Loc: p.makeLoc(start)}, nil
-}
-
-func (p *Parser) parseClusteringOrderClause() ([]*ast.ClusteringOrder, error) {
+// parseClusteringOrderClause parses CLUSTERING ORDER BY '(' ident (ASC |
+// DESC) (',' ident (ASC | DESC))* ')' (Parser.g:818, Parser.g:821). seen
+// holds the columns ordered so far in the same WITH; one given twice is
+// refused (CreateTableStatement.Raw.extendClusteringOrder).
+func (p *Parser) parseClusteringOrderClause(seen map[string]bool) ([]*ast.ClusteringOrder, error) {
 	p.advance() // CLUSTERING
 	if err := p.expectKeyword(tokORDER); err != nil {
 		return nil, err
@@ -212,18 +276,25 @@ func (p *Parser) parseClusteringOrderClause() ([]*ast.ClusteringOrder, error) {
 	var orders []*ast.ClusteringOrder
 	for {
 		start := p.curLoc()
+		colTok := p.cur
 		col, err := p.parseIdentifier()
 		if err != nil {
 			return nil, err
 		}
-		dir := ""
-		if p.cur.Type == tokASC {
+		var dir string
+		switch p.cur.Type {
+		case tokASC:
 			dir = "ASC"
-			p.advance()
-		} else if p.cur.Type == tokDESC {
+		case tokDESC:
 			dir = "DESC"
-			p.advance()
+		default:
+			return nil, p.errorf("expected ASC or DESC, got %s", p.tokenDesc())
 		}
+		p.advance()
+		if seen[identKey(col)] {
+			return nil, p.errorAt(colTok, "Duplicate column '%s' in CLUSTERING ORDER BY clause", identKey(col))
+		}
+		seen[identKey(col)] = true
 		orders = append(orders, &ast.ClusteringOrder{Column: col, Direction: dir, Loc: p.makeLoc(start)})
 		if !p.match(tokCOMMA) {
 			break
@@ -236,6 +307,7 @@ func (p *Parser) parseClusteringOrderClause() ([]*ast.ClusteringOrder, error) {
 	return orders, nil
 }
 
+// parseAlterTable parses alterTableStatement (Parser.g:957).
 func (p *Parser) parseAlterTable() (*ast.AlterTableStmt, error) {
 	start := p.curLoc()
 	p.advance() // TABLE
@@ -250,7 +322,44 @@ func (p *Parser) parseAlterTable() (*ast.AlterTableStmt, error) {
 	stmt := &ast.AlterTableStmt{IfExists: ifExists, Name: name}
 
 	switch p.cur.Type {
+	case tokALTER:
+		// ALTER col TYPE type | ALTER [IF EXISTS] col (columnMask | DROP MASKED)
+		p.advance()
+		stmt.MaskIfExists = p.parseIfExists()
+		col, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		stmt.AlterColumn = col
+		switch {
+		case p.cur.Type == tokTYPE && !stmt.MaskIfExists:
+			p.advance()
+			stmt.Op = ast.AlterTableAlterType
+			dt, err := p.parseDataType()
+			if err != nil {
+				return nil, err
+			}
+			stmt.AlterType = dt
+		case p.curIs("masked"):
+			stmt.Op = ast.AlterTableMask
+			mask, err := p.parseColumnMask()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Mask = mask
+		case p.cur.Type == tokDROP:
+			p.advance()
+			if !p.curIs("masked") {
+				return nil, p.errorf("expected MASKED, got %s", p.tokenDesc())
+			}
+			p.advance()
+			stmt.Op = ast.AlterTableMask
+			stmt.DropMask = true
+		default:
+			return nil, p.errorf("expected TYPE, MASKED or DROP MASKED, got %s", p.tokenDesc())
+		}
 	case tokADD:
+		// ADD [IF NOT EXISTS] (column | '(' column (',' column)* ')')
 		stmt.Op = ast.AlterTableAdd
 		p.advance()
 		ine, err := p.parseIfNotExists()
@@ -258,37 +367,64 @@ func (p *Parser) parseAlterTable() (*ast.AlterTableStmt, error) {
 			return nil, err
 		}
 		stmt.AddIfNotExists = ine
+		paren := p.match(tokLPAREN)
 		for {
-			col, err := p.parseColumnDefinition()
+			col, err := p.parseColumnDefinition(false)
 			if err != nil {
 				return nil, err
 			}
 			stmt.AddColumns = append(stmt.AddColumns, col)
-			if !p.match(tokCOMMA) {
+			if !paren || !p.match(tokCOMMA) {
 				break
+			}
+		}
+		if paren {
+			if _, err := p.expect(tokRPAREN); err != nil {
+				return nil, err
 			}
 		}
 	case tokDROP:
 		p.advance()
-		if p.cur.Type == tokCOMPACT {
+		if p.cur.Type == tokCOMPACT && p.peekNext().Type == tokSTORAGE {
 			stmt.Op = ast.AlterTableDropCompactStorage
 			p.advance() // COMPACT
-			if err := p.expectKeyword(tokSTORAGE); err != nil {
+			p.advance() // STORAGE
+			break
+		}
+		// DROP [IF EXISTS] (col | '(' col (',' col)* ')') [USING TIMESTAMP n]
+		stmt.Op = ast.AlterTableDrop
+		stmt.DropIfExists = p.parseIfExists()
+		paren := p.match(tokLPAREN)
+		for {
+			col, err := p.parseIdentifier()
+			if err != nil {
 				return nil, err
 			}
-		} else {
-			stmt.Op = ast.AlterTableDrop
-			stmt.DropIfExists = p.parseIfExists()
-			for {
-				col, err := p.parseIdentifier()
-				if err != nil {
-					return nil, err
-				}
-				stmt.DropColumns = append(stmt.DropColumns, col)
-				if !p.match(tokCOMMA) {
-					break
-				}
+			stmt.DropColumns = append(stmt.DropColumns, col)
+			if !paren || !p.match(tokCOMMA) {
+				break
 			}
+		}
+		if paren {
+			if _, err := p.expect(tokRPAREN); err != nil {
+				return nil, err
+			}
+		}
+		if p.match(tokUSING) {
+			if err := p.expectKeyword(tokTIMESTAMP); err != nil {
+				return nil, err
+			}
+			// An INTEGER takes a sign written against it (Lexer.g:337).
+			start, sign := p.curLoc(), ""
+			if p.cur.Type == tokMINUS && p.peekNext().Type == tokINTEGER && p.peekNext().Loc == p.cur.End {
+				sign = "-"
+				p.advance()
+			}
+			if p.cur.Type != tokINTEGER {
+				return nil, p.errorf("expected integer, got %s", p.tokenDesc())
+			}
+			stmt.DropTimestamp = &ast.IntegerLit{Val: sign + p.cur.Str, Loc: ast.Loc{Start: start, End: p.cur.End}}
+			p.advance()
 		}
 	case tokRENAME:
 		stmt.Op = ast.AlterTableRename
@@ -319,18 +455,13 @@ func (p *Parser) parseAlterTable() (*ast.AlterTableStmt, error) {
 	case tokWITH:
 		stmt.Op = ast.AlterTableWith
 		p.advance()
-		for {
-			opt, err := p.parseTableOption()
-			if err != nil {
-				return nil, err
-			}
-			stmt.Options = append(stmt.Options, opt)
-			if !p.match(tokAND) {
-				break
-			}
+		opts, err := p.parseProperties()
+		if err != nil {
+			return nil, err
 		}
+		stmt.Options = opts
 	default:
-		return nil, p.errorf("expected ADD, DROP, RENAME, or WITH after ALTER TABLE, got %s", p.tokenDesc())
+		return nil, p.errorf("expected ALTER, ADD, DROP, RENAME, or WITH after ALTER TABLE, got %s", p.tokenDesc())
 	}
 
 	stmt.Loc = p.makeLoc(start)
