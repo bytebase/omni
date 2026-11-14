@@ -321,3 +321,14 @@ ALTER TABLE public.t ADD COLUMN c text COLLATE "C"`
 		t.Errorf("got:\n%s\nwant:\n%s", got, want)
 	}
 }
+
+func TestMigrationCollationRebuildsViews(t *testing.T) {
+	got := generateMigrationSQL(t,
+		`CREATE TABLE t (x text COLLATE "C"); CREATE VIEW v AS SELECT x FROM t;`,
+		`CREATE TABLE t (x text COLLATE "POSIX"); CREATE VIEW v AS SELECT x FROM t;`)
+	if !strings.HasPrefix(got, `DROP VIEW IF EXISTS "public"."v";
+ALTER TABLE public.t ALTER COLUMN x TYPE text COLLATE "POSIX";
+CREATE VIEW "public"."v"`) {
+		t.Errorf("got:\n%s", got)
+	}
+}

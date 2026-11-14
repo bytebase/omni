@@ -5,24 +5,37 @@ import "sort"
 // diffIndexes compares indexes between two versions of a relation.
 // Identity key is the index Name.
 // Indexes with ConstraintOID != 0 (PK/UNIQUE backing indexes) are skipped
-// because they are managed by constraints, not as standalone indexes, and so
-// are a partition's indexes attached to its parent's, which PostgreSQL creates
-// and drops with the parent's index or the partition.
+// because they are managed by constraints, not as standalone indexes. So is a
+// partition's index attached to its parent's, which PostgreSQL creates and
+// drops with the parent's index or the partition, unless from has it
+// unattached: then it is modified, to be attached.
 func diffIndexes(from, to *Catalog, fromRelOID, toRelOID uint32) []IndexDiffEntry {
 	// Build name→*Index maps, filtering out constraint-backing indexes.
 	fromMap := make(map[string]*Index)
 	for _, idx := range from.IndexesOf(fromRelOID) {
-		if idx.ConstraintOID != 0 || idx.ParentIndexOID != 0 {
+		if idx.ConstraintOID != 0 {
 			continue
 		}
 		fromMap[idx.Name] = idx
 	}
 	toMap := make(map[string]*Index)
 	for _, idx := range to.IndexesOf(toRelOID) {
-		if idx.ConstraintOID != 0 || idx.ParentIndexOID != 0 {
+		if idx.ConstraintOID != 0 {
 			continue
 		}
 		toMap[idx.Name] = idx
+	}
+	for name, fromIdx := range fromMap {
+		toIdx := toMap[name]
+		if fromIdx.ParentIndexOID != 0 && (toIdx == nil || toIdx.ParentIndexOID != 0) {
+			delete(fromMap, name)
+			delete(toMap, name)
+		}
+	}
+	for name, toIdx := range toMap {
+		if toIdx.ParentIndexOID != 0 && fromMap[name] == nil {
+			delete(toMap, name)
+		}
 	}
 
 	var result []IndexDiffEntry
@@ -51,7 +64,7 @@ func diffIndexes(from, to *Catalog, fromRelOID, toRelOID uint32) []IndexDiffEntr
 		}
 
 		// Both exist — compare fields.
-		if indexesChanged(from, to, fromIdx, toIdx) {
+		if toIdx.ParentIndexOID != 0 || indexesChanged(from, to, fromIdx, toIdx) {
 			result = append(result, IndexDiffEntry{
 				Action: DiffModify,
 				Name:   name,

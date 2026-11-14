@@ -295,3 +295,37 @@ ORDER BY 1`)
 	}
 	return strings.Join(lines, "\n")
 }
+
+// TestContainerMigrationFromSQL checks plans between catalogs loaded from SQL
+// on PostgreSQL, for what the metadata snapshots above do not reach.
+func TestContainerMigrationFromSQL(t *testing.T) {
+	ctr := startPGContainer(t)
+	partitioned := `CREATE TABLE p (id int) PARTITION BY RANGE (id);
+CREATE TABLE child PARTITION OF p FOR VALUES FROM (0) TO (10);
+CREATE INDEX pi ON ONLY p (id);
+CREATE INDEX ci ON child (id);`
+	tests := []struct {
+		name, before, after string
+	}{
+		{
+			name:   "attach_partition_index",
+			before: partitioned,
+			after:  partitioned + "\nALTER INDEX pi ATTACH PARTITION ci;",
+		},
+		{
+			name:   "collation_under_view",
+			before: `CREATE TABLE t (x text COLLATE "C"); CREATE VIEW v AS SELECT x FROM t;`,
+			after:  `CREATE TABLE t (x text COLLATE "POSIX"); CREATE VIEW v AS SELECT x FROM t;`,
+		},
+		{
+			name:   "owner_takes_its_sequence",
+			before: `CREATE SEQUENCE s; CREATE TABLE t (id int DEFAULT nextval('s')); ALTER SEQUENCE s OWNED BY t.id;`,
+			after:  ``,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assertOracleRoundtrip(t, ctr, tt.before, tt.after)
+		})
+	}
+}

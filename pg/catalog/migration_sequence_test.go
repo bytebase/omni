@@ -210,11 +210,11 @@ ALTER SEQUENCE "public"."s3" OWNED BY "public"."u"."id"`,
 DROP TABLE "public"."t" CASCADE`,
 		},
 		{
-			name: "an owned sequence drops before its owner",
-			from: `CREATE TABLE t (id bigint); CREATE SEQUENCE s1 OWNED BY t.id;`,
+			// The owner's default still draws from s1, so only the owner's drop can take it.
+			name: "an owned sequence goes with its owner",
+			from: `CREATE SEQUENCE s1; CREATE TABLE t (id int DEFAULT nextval('s1')); ALTER SEQUENCE s1 OWNED BY t.id;`,
 			to:   ``,
-			want: `DROP SEQUENCE "public"."s1";
-DROP TABLE "public"."t" CASCADE`,
+			want: `DROP TABLE "public"."t" CASCADE`,
 		},
 	}
 	for _, tt := range tests {

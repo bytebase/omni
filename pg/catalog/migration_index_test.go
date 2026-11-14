@@ -266,3 +266,14 @@ CREATE INDEX i ON t ((p ->> 'k'), lower(p::text), (a + b), a DESC NULLS LAST, b 
 		t.Errorf("got:\n%s\nwant:\n%s", got, want)
 	}
 }
+
+func TestMigrationAttachesPartitionIndex(t *testing.T) {
+	base := `CREATE TABLE p (id int) PARTITION BY RANGE (id);
+CREATE TABLE child PARTITION OF p FOR VALUES FROM (0) TO (10);
+CREATE INDEX pi ON ONLY p (id);
+CREATE INDEX ci ON child (id);`
+	got := generateMigrationSQL(t, base, base+"\nALTER INDEX pi ATTACH PARTITION ci;")
+	if want := `ALTER INDEX public.pi ATTACH PARTITION public.ci`; got != want {
+		t.Errorf("got:\n%s\nwant:\n%s", got, want)
+	}
+}

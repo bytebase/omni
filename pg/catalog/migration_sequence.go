@@ -47,6 +47,11 @@ func generateSequenceDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 			if isIdentitySequence(from, entry.SchemaName, entry.Name) {
 				continue
 			}
+			// Dropping the owning table or column drops the sequence, and must:
+			// the owner's default may still draw from it.
+			if ownerDropped(from, to, entry.From) {
+				continue
+			}
 			qn := migrationQualifiedName(entry.SchemaName, entry.Name)
 			ops = append(ops, MigrationOp{
 				Type:          OpDropSequence,
@@ -101,6 +106,20 @@ func generateSequenceDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 	})
 
 	return ops
+}
+
+// ownerDropped reports whether the column that owns seq in from is gone in to.
+func ownerDropped(from, to *Catalog, seq *Sequence) bool {
+	rel := from.GetRelationByOID(seq.OwnerRelOID)
+	if rel == nil || rel.Schema == nil {
+		return false
+	}
+	toRel := to.GetRelation(rel.Schema.Name, rel.Name)
+	if toRel == nil {
+		return true
+	}
+	_, kept := toRel.colByName[resolveAttNum(rel, seq.OwnerAttNum)]
+	return !kept
 }
 
 // preSequenceObjType is the ObjType of a sequence op among the drops: 's',

@@ -10,7 +10,7 @@ import (
 
 // generateIndexDDL produces CREATE INDEX / DROP INDEX operations from the diff.
 func generateIndexDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
-	var ops []MigrationOp
+	var ops, attachOps []MigrationOp
 
 	for _, relEntry := range diff.Relations {
 		switch relEntry.Action {
@@ -82,6 +82,12 @@ func generateIndexDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 					if idxFrom.ConstraintOID != 0 || idxTo.ConstraintOID != 0 {
 						continue
 					}
+					if idxTo.ParentIndexOID != 0 {
+						attachOps = append(attachOps, attachIndexOp(to, relEntry.SchemaName, idxTo))
+						if !indexesChanged(from, to, idxFrom, idxTo) {
+							continue
+						}
+					}
 					// Indexes cannot be ALTERed — DROP + CREATE.
 					dropSQL := fmt.Sprintf("DROP INDEX %s.%s",
 						quoteIdentifier(relEntry.SchemaName),
@@ -128,7 +134,24 @@ func generateIndexDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 		return ops[i].ObjectName < ops[j].ObjectName
 	})
 
-	return ops
+	// An index attaches once its parent's index and its own exist.
+	return append(ops, attachOps...)
+}
+
+// attachIndexOp attaches a partition's index to its parent's.
+func attachIndexOp(to *Catalog, schemaName string, idx *Index) MigrationOp {
+	parent := to.indexes[idx.ParentIndexOID]
+	return MigrationOp{
+		Type:          OpAlterTable,
+		SchemaName:    schemaName,
+		ObjectName:    idx.Name,
+		SQL:           fmt.Sprintf("ALTER INDEX %s.%s ATTACH PARTITION %s.%s", quoteIdentifier(parent.Schema.Name), quoteIdentifier(parent.Name), quoteIdentifier(schemaName), quoteIdentifier(idx.Name)),
+		Transactional: true,
+		Phase:         PhaseMain,
+		ObjType:       'i',
+		ObjOID:        idx.OID,
+		Priority:      PriorityIndex,
+	}
 }
 
 // buildCreateIndexSQL builds a CREATE [UNIQUE] INDEX statement.
