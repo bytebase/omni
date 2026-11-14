@@ -76,11 +76,18 @@ func (p *Parser) parseGrantRole(start ast.Loc, roleKind ast.GrantedRoleKind) (as
 	if _, err := p.expect(kwTO); err != nil {
 		return nil, err
 	}
+	toRole := p.cur.Type == kwROLE
 	grantee, err := p.parseGrantee()
 	if err != nil {
 		return nil, err
 	}
 	stmt.Grantee = grantee
+
+	// An application role granted TO ROLE <name> may carry WITH GRANT OPTION.
+	// https://docs.snowflake.com/en/sql-reference/sql/grant-application-role
+	if roleKind == ast.GrantedApplicationRole && toRole && p.acceptWords("WITH", "GRANT", "OPTION") {
+		stmt.GrantOption = true
+	}
 
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
@@ -200,24 +207,35 @@ func (p *Parser) parseRevokeStmt() (ast.Node, error) {
 	revokeTok := p.advance() // consume REVOKE
 	start := revokeTok.Loc
 
-	// REVOKE [DATABASE | APPLICATION] ROLE ... — GRANT OPTION FOR applies only
-	// to privilege revocation, so a leading ROLE/DATABASE ROLE/APPLICATION ROLE
-	// is unambiguously a role revoke.
+	// REVOKE [DATABASE | APPLICATION] ROLE ... — a leading ROLE/DATABASE
+	// ROLE/APPLICATION ROLE is unambiguously a role revoke. GRANT OPTION FOR
+	// precedes privileges, or an APPLICATION ROLE (below).
 	if p.cur.Type == kwROLE {
-		return p.parseRevokeRole(start, ast.GrantedAccountRole)
+		return p.parseRevokeRole(start, ast.GrantedAccountRole, false)
 	}
 	if p.cur.Type == kwDATABASE && p.peekNext().Type == kwROLE {
-		return p.parseRevokeRole(start, ast.GrantedDatabaseRole)
+		return p.parseRevokeRole(start, ast.GrantedDatabaseRole, false)
 	}
 	if p.cur.Type == kwAPPLICATION && p.peekNext().Type == kwROLE {
-		return p.parseRevokeRole(start, ast.GrantedApplicationRole)
+		return p.parseRevokeRole(start, ast.GrantedApplicationRole, false)
+	}
+	// REVOKE GRANT OPTION FOR APPLICATION ROLE <name> FROM ROLE <name>
+	// https://docs.snowflake.com/en/sql-reference/sql/revoke-application-role
+	if p.atWords("GRANT", "OPTION", "FOR", "APPLICATION", "ROLE") {
+		p.advance() // consume GRANT
+		p.advance() // consume OPTION
+		p.advance() // consume FOR
+		return p.parseRevokeRole(start, ast.GrantedApplicationRole, true)
 	}
 	return p.parseRevokePrivileges(start)
 }
 
 // parseRevokeRole parses REVOKE [DATABASE | APPLICATION] ROLE <name> FROM <grantee>.
 // On entry cur is ROLE (account) or the DATABASE/APPLICATION qualifier.
-func (p *Parser) parseRevokeRole(start ast.Loc, roleKind ast.GrantedRoleKind) (ast.Node, error) {
+// grantOptionFor reports that REVOKE GRANT OPTION FOR preceded an
+// APPLICATION ROLE, whose revoke from an account role the page documents with
+// GRANT OPTION FOR and a trailing RESTRICT or CASCADE.
+func (p *Parser) parseRevokeRole(start ast.Loc, roleKind ast.GrantedRoleKind, grantOptionFor bool) (ast.Node, error) {
 	if roleKind != ast.GrantedAccountRole {
 		p.advance() // consume DATABASE / APPLICATION qualifier
 	}
@@ -226,9 +244,10 @@ func (p *Parser) parseRevokeRole(start ast.Loc, roleKind ast.GrantedRoleKind) (a
 	}
 
 	stmt := &ast.RevokeStmt{
-		Kind:     ast.RevokeRole,
-		RoleKind: roleKind,
-		Loc:      ast.Loc{Start: start.Start},
+		Kind:           ast.RevokeRole,
+		RoleKind:       roleKind,
+		GrantOptionFor: grantOptionFor,
+		Loc:            ast.Loc{Start: start.Start},
 	}
 
 	name, err := p.parseObjectName()
@@ -240,11 +259,30 @@ func (p *Parser) parseRevokeRole(start ast.Loc, roleKind ast.GrantedRoleKind) (a
 	if _, err := p.expect(kwFROM); err != nil {
 		return nil, err
 	}
+	fromRole := p.cur.Type == kwROLE
 	grantee, err := p.parseGrantee()
 	if err != nil {
 		return nil, err
 	}
 	stmt.Grantee = grantee
+
+	// The page writes GRANT OPTION FOR and RESTRICT | CASCADE for an
+	// application role revoked FROM ROLE <name>.
+	if roleKind == ast.GrantedApplicationRole && fromRole {
+		switch p.cur.Type {
+		case kwCASCADE:
+			p.advance()
+			stmt.Cascade = true
+		case kwRESTRICT:
+			p.advance()
+			stmt.Restrict = true
+		}
+	} else if grantOptionFor {
+		return nil, &ParseError{
+			Position: grantee.Loc.Start, End: grantee.Loc.End,
+			Message: "syntax error: GRANT OPTION FOR revokes an application role from an account role only",
+		}
+	}
 
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil

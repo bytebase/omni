@@ -25,8 +25,14 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		node.(*ast.DropStmt).Object = f.kind
-		return node, nil
+		ds := node.(*ast.DropStmt)
+		ds.Object = f.kind
+		if f.dropCascade && p.cur.Type == kwCASCADE {
+			p.advance() // consume CASCADE
+			ds.Cascade = true
+			ds.Loc.End = p.prev.Loc.End
+		}
+		return ds, nil
 	}
 	// Policies read by their docs pages (policy.go).
 	if d := p.startsDocPolicy(); d != nil {
