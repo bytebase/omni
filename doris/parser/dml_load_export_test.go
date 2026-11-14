@@ -277,24 +277,75 @@ func TestLoadWithPartition(t *testing.T) {
 	}
 }
 
+// TestLoadNegative: DorisParser.g4's dataDesc (:983) has no NEGATIVE.
 func TestLoadNegative(t *testing.T) {
-	sql := `LOAD LABEL load3
-	(NEGATIVE DATA INFILE('file1') INTO TABLE t)`
-
-	stmt := mustParseLoadData(t, sql)
-	if !stmt.DataDescs[0].Negative {
-		t.Errorf("negative = false, want true")
+	for _, sql := range []string{
+		"LOAD LABEL load3 (NEGATIVE DATA INFILE('file1') INTO TABLE t)",
+		"LOAD LABEL load3 (DATA INFILE('file1') NEGATIVE INTO TABLE t)",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) succeeded; dataDesc has no NEGATIVE", sql)
+		}
 	}
 }
 
 func TestLoadWithColumns(t *testing.T) {
 	sql := `LOAD LABEL load4
-	(DATA INFILE('file1') INTO TABLE t COLUMNS (c1, c2, c3))`
+	(DATA INFILE('file1') INTO TABLE t (c1, c2, c3) COLUMNS FROM PATH AS (p)
+	 SET (c1 = c2 + 1) PRECEDING FILTER c1 > 0 WHERE c2 = 1 DELETE ON c3 = 0 ORDER BY c1)`
 
 	stmt := mustParseLoadData(t, sql)
 	desc := stmt.DataDescs[0]
-	if len(desc.ColumnList) != 3 {
-		t.Fatalf("column list = %v, want [c1 c2 c3]", desc.ColumnList)
+	if len(desc.ColumnList) != 3 || len(desc.ColumnsFromPath) != 1 || len(desc.ColumnMappings) != 1 ||
+		desc.PrecedingFilter == nil || desc.Where == nil || desc.DeleteOn == nil || desc.SequenceColumn != "c1" {
+		t.Errorf("desc = %+v", desc)
+	}
+}
+
+func TestLoadFromTableAndMysql(t *testing.T) {
+	stmt := mustParseLoadData(t, "LOAD LABEL l (WITH MERGE DATA FROM TABLE s INTO TABLE t PARTITION (p1) PROPERTIES (k = v)) WITH RESOURCE 'r' ('k' = 'v')")
+	desc := stmt.DataDescs[0]
+	if desc.MergeType != "MERGE" || desc.SourceTable == nil || len(desc.Partition) != 1 ||
+		stmt.StorageType != "RESOURCE" || stmt.BrokerName != "r" {
+		t.Errorf("stmt = %+v, desc = %+v", stmt, desc)
+	}
+	stmt = mustParseLoadData(t, "LOAD DATA LOCAL INFILE 'f' INTO TABLE db.t PARTITION (p) COLUMNS TERMINATED BY ',' IGNORE 1 LINES (a, b) SET (a = b) PROPERTIES ('k' = 'v') COMMENT 'c'")
+	desc = stmt.DataDescs[0]
+	if !desc.Local || desc.SkipLines != 1 || desc.ColumnSeparator != "," || len(desc.ColumnMappings) != 1 ||
+		len(desc.Properties) != 1 || stmt.Comment != "c" || stmt.Label != "" {
+		t.Errorf("stmt = %+v, desc = %+v", stmt, desc)
+	}
+}
+
+// TestLoadGrammar holds LOAD to DorisParser.g4 (and, for LOAD DATA, the CUP
+// parser's load_stmt); testdata/compat.tsv has Doris's verdicts.
+func TestLoadGrammar(t *testing.T) {
+	cases := []struct {
+		sql string
+		ok  bool
+	}{
+		{"LOAD LABEL a(DATA INFILE('a', 'a') INTO TABLE a)", true},
+		{"LOAD LABEL a(DATA INFILE('a' 'a') INTO TABLE a)", false},
+		{"LOAD LABEL a(DATA INFILE('a',) INTO TABLE a)", false},
+		{"LOAD LABEL a(DATA INFILE() INTO TABLE a)", false},
+		{"LOAD LABEL a(DATA INFILE('a') INTO TABLE a PARTITIONS a)", false},
+		{"LOAD LABEL a(DATA INFILE('a') INTO TABLE a PARTITION a)", true},
+		{"LOAD LABEL a(DATA INFILE('a') INTO TABLE a COLUMNS FROM PATH AS())", false},
+		{"LOAD LABEL a(DATA INFILE('a') INTO TABLE a FORMAT AS a COMPRESS_TYPE AS a)", true},
+		{"LOAD LABEL a(DATA INFILE('a') INTO TABLE a COMPRESS_TYPE AS a FORMAT AS a)", false},
+		{"LOAD LABEL a(DATA FROM TABLE a INTO TABLE a) WITH S3 ('k' = 'v')", true},
+		{"LOAD LABEL a(DATA FROM TABLE a INTO TABLE a) WITH S3", false},
+		{"LOAD LABEL a(DATA FROM TABLE a INTO TABLE a ORDER BY a)", false},
+		{"LOAD LABEL a(WITH DATA FROM TABLE a INTO TABLE a)", false},
+		{"LOAD DATA INFILE 'a' INTO TABLE a IGNORE 1 ROWS", true},
+		{"LOAD DATA INFILE 'a' INTO TABLE a PROPERTIES (a = a)", false},
+		{"LOAD DATA INFILE ('a') INTO TABLE a", false},
+	}
+	for _, c := range cases {
+		_, err := Parse(c.sql)
+		if (err == nil) != c.ok {
+			t.Errorf("Parse(%q): err = %v, want accepted=%v", c.sql, err, c.ok)
+		}
 	}
 }
 
