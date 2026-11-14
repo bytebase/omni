@@ -439,9 +439,9 @@ func execNames(p *Parser, opt *ast.CopyOption) error {
 }
 
 // execEnvVars reads ENV_VARS' ( '<key>' = <value> [ , ... ] ), where a value
-// is a string, a session variable, or SQL that resolves to one VARCHAR, as
-// the page's parameters say: a string alone is kept as Lit, anything else as
-// Expr.
+// is a string, a session or bind variable, a client's ? placeholder, or SQL
+// that resolves to one VARCHAR, as the page's parameters say: a string alone
+// is kept as Lit, anything else as Expr.
 func execEnvVars(p *Parser, opt *ast.CopyOption) error {
 	return p.parseExecList(opt, func(e *ast.CopyOption) error {
 		if p.cur.Type != tokString {
@@ -461,9 +461,13 @@ func execEnvVars(p *Parser, opt *ast.CopyOption) error {
 			return nil
 		}
 		var err error
-		if p.cur.Type == ':' {
+		switch p.cur.Type {
+		case '?':
+			tok := p.advance()
+			e.Expr = &ast.BindVariable{Placeholder: true, Loc: tok.Loc}
+		case ':':
 			e.Expr, err = p.parseBindVariable()
-		} else {
+		default:
 			e.Expr, err = p.parseExpr()
 		}
 		return err

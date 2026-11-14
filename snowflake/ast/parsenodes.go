@@ -479,10 +479,12 @@ func (n *DollarRef) Tag() NodeTag { return T_DollarRef }
 // ( <key> => :<arg> ) is
 // (https://docs.snowflake.com/en/sql-reference/sql/execute-immediate-from).
 // It is read only where such a value is documented, not as an expression in
-// general.
+// general. Placeholder marks a client's positional ? placeholder instead
+// (EXECUTE DBT PROJECT's ENV_VARS = ( '<key>' = ? )), whose Name is empty.
 type BindVariable struct {
-	Name Ident // the variable, after the colon
-	Loc  Loc   // from the colon to the name's end
+	Name        Ident // the variable, after the colon
+	Placeholder bool  // a ? placeholder
+	Loc         Loc   // from the colon to the name's end, or the ?
 }
 
 func (n *BindVariable) Tag() NodeTag { return T_BindVariable }

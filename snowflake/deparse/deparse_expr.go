@@ -24,6 +24,10 @@ func (w *writer) writeExpr(node ast.Node) error {
 		return w.writeDollarRef(n)
 	case *ast.BindVariable:
 		w.ensureSpace()
+		if n.Placeholder {
+			w.buf.WriteByte('?')
+			return nil
+		}
 		w.buf.WriteByte(':')
 		w.writeIdentNoSpace(n.Name)
 		return nil

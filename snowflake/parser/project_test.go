@@ -131,9 +131,12 @@ func TestParseExecuteDbtProject(t *testing.T) {
 	}
 	// An ENV_VARS value may be a session variable or SQL resolving to a VARCHAR.
 	env := findOption(mustExecuteStmt(t, "EXECUTE DBT PROJECT p ENV_VARS = ('A' = $region, 'B' = UPPER('prod'), "+
-		"'C' = :v, 'D' = 'x' || 'y', 'E' = 'z')", "DBT PROJECT").Clauses[0].Options, "ENV_VARS")
-	if len(env.Group) != 5 || env.Group[0].Expr == nil || env.Group[2].Expr == nil || env.Group[3].Expr == nil || env.Group[4].Lit == nil {
+		"'C' = :v, 'D' = 'x' || 'y', 'E' = 'z', 'F' = ?)", "DBT PROJECT").Clauses[0].Options, "ENV_VARS")
+	if len(env.Group) != 6 || env.Group[0].Expr == nil || env.Group[2].Expr == nil || env.Group[3].Expr == nil || env.Group[4].Lit == nil {
 		t.Fatalf("ENV_VARS = %+v", env.Group)
+	}
+	if v, ok := env.Group[5].Expr.(*ast.BindVariable); !ok || !v.Placeholder {
+		t.Fatalf("ENV_VARS F = %+v", env.Group[5].Expr)
 	}
 	imports := findOption(s.Clauses[0].Options, "IMPORTS")
 	if len(imports.Group) != 3 || imports.Group[0].Alias == nil || imports.Group[1].Expr == nil || imports.Group[2].Alias != nil {
@@ -167,6 +170,7 @@ func TestParseExecuteDbtProject(t *testing.T) {
 		"EXECUTE DBT PROJECT p ENV_VARS = (K = 'v')",
 		"EXECUTE DBT PROJECT p ENV_VARS = ('K' = )",
 		"EXECUTE DBT PROJECT p ENV_VARS = ('K' = : v)",
+		"EXECUTE DBT PROJECT p ENV_VARS = ('K' = ? || 'x')",
 		"EXECUTE DBT PROJECT p ENV_VARS = ('K' = 'v',)",
 		"EXECUTE DBT PROJECT p EXTERNAL_ACCESS_INTEGRATIONS = (db.i)",
 		"EXECUTE DBT PROJECT p WRITEBACK = 'TRUE'",

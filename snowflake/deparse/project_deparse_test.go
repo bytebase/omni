@@ -21,7 +21,7 @@ func TestDeparse_Projects(t *testing.T) {
 		"CREATE CODE BUNDLE IF NOT EXISTS db.sch.b FROM '@db.sch.st' COMMENT = 'c'",
 		"EXECUTE DBT PROJECT IF EXISTS db.sch.p ARGS = 'run' EXTERNAL_ACCESS_INTEGRATIONS = (i) ENV_VARS = ('K' = 'v', 'L' = 'w') IMPORTS = ('@st/t/' AS 'state', SYSTEM$DBT_GET_LAST_RUN_TARGET('db.sch.p') AS 'prev', '@s/x') WRITEBACK = TRUE",
 		"EXECUTE DBT PROJECT",
-		"EXECUTE DBT PROJECT p ENV_VARS = ('A' = $region, 'B' = UPPER('prod'), 'C' = :v, 'D' = 'x' || 'y')",
+		"EXECUTE DBT PROJECT p ENV_VARS = ('A' = $region, 'B' = UPPER('prod'), 'C' = :v, 'D' = 'x' || 'y', 'F' = ?)",
 		"EXECUTE DCM PROJECT p PLAN ENVIRONMENT (?) FROM 's'",
 		"EXECUTE DBT PROJECT IF EXISTS FROM WORKSPACE \"USER$\".PUBLIC.\"ws\" PROJECT_ROOT = 'sub'",
 		"EXECUTE DCM PROJECT p PLAN DELTA USING CONFIGURATION PROD (desc => 'x', regions => ['a', 'b']) ENVIRONMENT (:env) FROM '@s/defs' OUTPUT_PATH '@s/out'",
