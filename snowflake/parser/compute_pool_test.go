@@ -125,6 +125,8 @@ func TestParseComputePoolRejects(t *testing.T) {
 		"ALTER COMPUTE POOL p SET TAG (t = 'x')",
 		"ALTER COMPUTE POOL p SET INSTANCE_FAMILY = foo.",
 		"ALTER COMPUTE POOL p SET INSTANCE_FAMILY = foo..bar",
+		"ALTER COMPUTE POOL p SET INSTANCE_FAMILY = db.family", // a one-part name
+		"CREATE COMPUTE POOL p MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = db.family",
 		"ALTER COMPUTE POOL p SET AUTO_RESUME = \"TRUE\"",
 		"ALTER COMPUTE POOL p SET AUTO_RESUME = \"true\"",
 		"CREATE COMPUTE POOL p \"MIN_NODES\" = 1 MAX_NODES = 1 INSTANCE_FAMILY = a",
@@ -193,6 +195,12 @@ func TestObjectValueMatches(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := []objectValue{propNumber, propString, propName, propBool, propStrings, propNames, propGroup}
+	if nameParts(`a."b.c".d`) != 3 || nameParts(`"x.y"`) != 1 {
+		t.Fatal("nameParts")
+	}
+	if c, err := readObjectProperties(`Q = db.s.n`); err != nil || !propQName.matches(c.Options[0]) || propName.matches(c.Options[0]) {
+		t.Fatalf("propQName: %v", err)
+	}
 	for i, o := range c.Options {
 		for j, v := range want {
 			// propName takes any word, so TRUE matches it too.

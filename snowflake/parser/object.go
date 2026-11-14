@@ -251,7 +251,8 @@ type objectValueKind int
 const (
 	valNumber  objectValueKind = iota + 1 // <num>, optionally signed
 	valString                             // '<string>'
-	valWord                               // a name, or one of words
+	valWord                               // a one-part name, or one of words
+	valQName                              // a name db.schema.name may qualify
 	valStrings                            // ( '<string>' [ , ... ] )
 	valNames                              // ( <name> [ , ... ] )
 	valGroup                              // ( <key> = <value> [ , ... ] ), as the page spells it
@@ -264,6 +265,7 @@ var (
 	propNumber  = objectValue{kind: valNumber}
 	propString  = objectValue{kind: valString}
 	propName    = objectValue{kind: valWord}
+	propQName   = objectValue{kind: valQName}
 	propBool    = objectValue{kind: valWord, words: []string{"TRUE", "FALSE"}}
 	propStrings = objectValue{kind: valStrings}
 	propNames   = objectValue{kind: valNames}
@@ -327,8 +329,10 @@ func (v objectValue) matches(o *ast.CopyOption) bool {
 		return o.Lit != nil && (o.Lit.Kind == ast.LitInt || o.Lit.Kind == ast.LitFloat)
 	case valString:
 		return o.Lit != nil && o.Lit.Kind == ast.LitString
+	case valQName:
+		return o.Words != "" && nameParts(o.Words) <= 3
 	case valWord:
-		if o.Words == "" {
+		if o.Words == "" || nameParts(o.Words) != 1 {
 			return false
 		}
 		if v.words == nil {
@@ -735,4 +739,19 @@ func (p *Parser) parseObjectUnsetKeys() ([]string, error) {
 		}
 		p.advance() // consume ','
 	}
+}
+
+// nameParts counts the '.'-joined parts of a word value parseObjectWord read,
+// leaving out dots inside a quoted part.
+func nameParts(words string) int {
+	n, quoted := 1, false
+	for _, r := range words {
+		switch {
+		case r == '"':
+			quoted = !quoted
+		case r == '.' && !quoted:
+			n++
+		}
+	}
+	return n
 }
