@@ -5344,7 +5344,7 @@ reject	reject	engine	bit_expr/bit_expr_-_bit_expr!drop-3	DO a -;
 reject	reject	engine	bit_expr/bit_expr_-_bit_expr!truncate	DO a -
 reject	reject	engine	bit_expr/bit_expr_-_bit_expr!insert	DO a - a zzz;
 accept	accept	engine	bit_expr/bit_expr_+_INTERVAL_SYM_expr_interval	DO a + INTERVAL a DAY;
-accept	reject	engine	bit_expr/bit_expr_+_INTERVAL_SYM_expr_interval!drop-1	DO + INTERVAL a DAY;
+reject	reject	engine	bit_expr/bit_expr_+_INTERVAL_SYM_expr_interval!drop-1	DO + INTERVAL a DAY;
 reject	reject	engine	bit_expr/bit_expr_+_INTERVAL_SYM_expr_interval!drop-2	DO a INTERVAL a DAY;
 reject	reject	engine	bit_expr/bit_expr_+_INTERVAL_SYM_expr_interval!drop-3	DO a + a DAY;
 reject	reject	engine	bit_expr/bit_expr_+_INTERVAL_SYM_expr_interval!drop-4	DO a + INTERVAL DAY;
@@ -5353,7 +5353,7 @@ reject	reject	engine	bit_expr/bit_expr_+_INTERVAL_SYM_expr_interval!truncate	DO 
 reject	reject	engine	bit_expr/bit_expr_+_INTERVAL_SYM_expr_interval!insert	DO a + INTERVAL a DAY zzz;
 reject	reject	engine	bit_expr/bit_expr_+_INTERVAL_SYM_expr_interval!swap	DO a + INTO a DAY;
 accept	accept	engine	bit_expr/bit_expr_-_INTERVAL_SYM_expr_interval	DO a - INTERVAL a DAY;
-accept	reject	engine	bit_expr/bit_expr_-_INTERVAL_SYM_expr_interval!drop-1	DO - INTERVAL a DAY;
+reject	reject	engine	bit_expr/bit_expr_-_INTERVAL_SYM_expr_interval!drop-1	DO - INTERVAL a DAY;
 reject	reject	engine	bit_expr/bit_expr_-_INTERVAL_SYM_expr_interval!drop-3	DO a - a DAY;
 reject	reject	engine	bit_expr/bit_expr_-_INTERVAL_SYM_expr_interval!drop-4	DO a - INTERVAL DAY;
 reject	reject	engine	bit_expr/bit_expr_-_INTERVAL_SYM_expr_interval!drop-5	DO a - INTERVAL a;
@@ -6011,7 +6011,7 @@ reject	reject	engine	function_call_nonkeyword/ADDDATE_SYM_(_expr_,_expr_)!trunca
 reject	reject	engine	function_call_nonkeyword/ADDDATE_SYM_(_expr_,_expr_)!insert	DO ADDDATE(a, a) zzz;
 accept	accept	engine	function_call_nonkeyword/ADDDATE_SYM_(_expr_,_expr_)!swap	DO ADMIN(a, a);
 accept	accept	engine	function_call_nonkeyword/ADDDATE_SYM_(_expr_,_INTERVAL_SYM_expr_interval_)	DO ADDDATE(a, INTERVAL a DAY);
-accept	reject	engine	function_call_nonkeyword/ADDDATE_SYM_(_expr_,_INTERVAL_SYM_expr_interval_)!drop-1	DO(a, INTERVAL a DAY);
+reject	reject	engine	function_call_nonkeyword/ADDDATE_SYM_(_expr_,_INTERVAL_SYM_expr_interval_)!drop-1	DO(a, INTERVAL a DAY);
 reject	reject	engine	function_call_nonkeyword/ADDDATE_SYM_(_expr_,_INTERVAL_SYM_expr_interval_)!drop-2	DO ADDDATE a, INTERVAL a DAY);
 reject	reject	engine	function_call_nonkeyword/ADDDATE_SYM_(_expr_,_INTERVAL_SYM_expr_interval_)!drop-3	DO ADDDATE(, INTERVAL a DAY);
 reject	reject	engine	function_call_nonkeyword/ADDDATE_SYM_(_expr_,_INTERVAL_SYM_expr_interval_)!drop-4	DO ADDDATE(a INTERVAL a DAY);

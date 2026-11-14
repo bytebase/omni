@@ -1,6 +1,9 @@
 package catalog
 
 import (
+	"context"
+	"database/sql"
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -8,6 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/bytebase/omni/metadata"
+	"github.com/bytebase/omni/mysql/internal/testcontainer"
+	mysqlparser "github.com/bytebase/omni/mysql/parser"
 )
 
 func TestTableDefinitionWithCheckConstraint(t *testing.T) {
@@ -113,6 +118,7 @@ func TestFunctionDefinitionWithMultilineParameters(t *testing.T) {
 		"SET character_set_results = utf8mb4;\n" +
 		"SET collation_connection = utf8mb4_unicode_ci;\n" +
 		"SET sql_mode = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES';\n" +
+		"DELIMITER ;;\n" +
 		"CREATE FUNCTION `f1`(\n" +
 		"    p_a BIGINT,\n" +
 		"    p_b VARCHAR(36)\n" +
@@ -237,7 +243,7 @@ func TestPrintIndexClauseFunctionalExprNormalized(t *testing.T) {
 		Visible:     true,
 		Expressions: []string{"(cast(json_extract(`tags`,_utf8mb4\\'$.ids\\') as unsigned array))"},
 	}
-	require.NoError(t, printIndexClause(&buf, index))
+	require.NoError(t, printIndexClause(&buf, index, "InnoDB"))
 	require.Equal(t, ",\n  KEY `idx_tags` ((cast(json_extract(`tags`,'$.ids') as unsigned array)))", buf.String())
 	require.NotContains(t, buf.String(), "_utf8mb4")
 	require.NotContains(t, buf.String(), `\'`)
@@ -317,6 +323,36 @@ func TestStripViewBodyDatabaseQualifier(t *testing.T) {
 			body:   "select `mydb`.* from `mydb`.`t`",
 			dbName: "mydb",
 			want:   "select `mydb`.* from `t`",
+		},
+		{
+			name:   "alias_spelled_like_database_kept",
+			body:   "select `db`.`id` AS `id` from (`t` `db` join `u` on((`db`.`id` = `u`.`id`)))",
+			dbName: "db",
+			want:   "select `db`.`id` AS `id` from (`t` `db` join `u` on((`db`.`id` = `u`.`id`)))",
+		},
+		{
+			name:   "alias_spelled_like_database_with_qualified_tables",
+			body:   "select `db`.`id` AS `id` from (`db`.`t` `db` join `db`.`u` on((`db`.`id` = `db`.`u`.`id`)))",
+			dbName: "db",
+			want:   "select `db`.`id` AS `id` from (`t` `db` join `u` on((`db`.`id` = `u`.`id`)))",
+		},
+		{
+			name:   "function_qualifier_stripped",
+			body:   "select `mydb`.`f`(`mydb`.`t`.`a`) AS `x` from `mydb`.`t`",
+			dbName: "mydb",
+			want:   "select `f`(`t`.`a`) AS `x` from `t`",
+		},
+		{
+			name:   "check_option_suffix",
+			body:   "select `mydb`.`t`.`a` AS `a` from `mydb`.`t` WITH CASCADED CHECK OPTION",
+			dbName: "mydb",
+			want:   "select `t`.`a` AS `a` from `t` WITH CASCADED CHECK OPTION",
+		},
+		{
+			name:   "unparsable_body_unchanged",
+			body:   "select `mydb`.`t`.`a` from `mydb`.`t` where",
+			dbName: "mydb",
+			want:   "select `mydb`.`t`.`a` from `mydb`.`t` where",
 		},
 		{
 			name:   "empty_db_name_no_op",
@@ -458,4 +494,307 @@ func TestPrintColumnClauseInvisibleCommentOrder(t *testing.T) {
 			Type:       metadata.GenerationMetadata_TYPE_STORED,
 			Expression: "st_srid(point(`lng`,`lat`),4326)",
 		}}))
+}
+
+// TestDatabaseDefinitionRestoresSnapshot restores a synced snapshot into empty
+// databases twice, from the restore script as the mysql client runs it and from the
+// SDL, and compares every restored object with the source.
+func TestDatabaseDefinitionRestoresSnapshot(t *testing.T) {
+	ctx := context.Background()
+	conn := testcontainer.OpenEmpty(t)
+	exec := func(t *testing.T, stmts ...string) {
+		t.Helper()
+		for _, stmt := range stmts {
+			_, err := conn.ExecContext(ctx, stmt)
+			require.NoError(t, err, stmt)
+		}
+	}
+	const function = "CREATE FUNCTION `f``n`(x int) RETURNS int\n" +
+		"    DETERMINISTIC\n" +
+		"BEGIN\n" +
+		"  DECLARE y int;\n" +
+		"  SET y = x + 1;\n" +
+		"  RETURN y;\n" +
+		"END"
+	exec(t,
+		"CREATE DATABASE shared",
+		"CREATE TABLE shared.parent (id int PRIMARY KEY)",
+		"CREATE DATABASE src",
+		"USE src",
+		"CREATE TABLE `a``b` ("+
+			"id int NOT NULL, "+
+			"`c``d` varchar(20) COMMENT 'it''s a \\\\ path', "+
+			"parent_id int, "+
+			"PRIMARY KEY (id), "+
+			"KEY `k``1` (`c``d`), "+
+			"KEY parent_id (parent_id), "+
+			"CONSTRAINT `fk``x` FOREIGN KEY (parent_id) REFERENCES shared.parent (id), "+
+			"CONSTRAINT `ck``1` CHECK (id > 0)"+
+			") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8 COMMENT 'table''s \\\\ comment'",
+		"CREATE TABLE u (id int PRIMARY KEY)",
+		"CREATE TABLE mem (a int NOT NULL, b int, PRIMARY KEY (a) USING BTREE, KEY k_hash (b), KEY k_btree (a, b) USING BTREE) ENGINE=MEMORY",
+		"CREATE TRIGGER `tr``1` BEFORE INSERT ON `a``b` FOR EACH ROW SET NEW.`c``d` = 'x'",
+		function,
+		"CREATE VIEW v_fn AS SELECT `f``n`(1) AS n",
+		// The alias is spelled like the database.
+		"CREATE VIEW v_alias AS SELECT src.id AS id FROM `a``b` AS src JOIN u ON src.id = u.id",
+	)
+
+	// The sync reads comments through QUOTE() and strips the outer quotes.
+	queryString := func(t *testing.T, query string, args ...any) string {
+		t.Helper()
+		var value string
+		require.NoError(t, conn.QueryRowContext(ctx, query, args...).Scan(&value), query)
+		return value
+	}
+	unquote := func(s string) string { return s[1 : len(s)-1] }
+	columnComment := unquote(queryString(t, "SELECT QUOTE(COLUMN_COMMENT) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = 'src' AND TABLE_NAME = 'a`b' AND COLUMN_NAME = 'c`d'"))
+	tableComment := unquote(queryString(t, "SELECT QUOTE(TABLE_COMMENT) FROM information_schema.TABLES WHERE TABLE_SCHEMA = 'src' AND TABLE_NAME = 'a`b'"))
+	viewDefinition := func(t *testing.T, view string) string {
+		return queryString(t, "SELECT VIEW_DEFINITION FROM information_schema.VIEWS WHERE TABLE_SCHEMA = 'src' AND TABLE_NAME = ?", view)
+	}
+	const sqlMode = "ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION"
+	intColumn := func(name string, nullable bool) *metadata.ColumnMetadata {
+		column := &metadata.ColumnMetadata{Name: name, Type: "int", Nullable: nullable}
+		if nullable {
+			column.Default = "NULL"
+		}
+		return column
+	}
+	meta := &metadata.DatabaseSchemaMetadata{
+		Name: "src",
+		Schemas: []*metadata.SchemaMetadata{{
+			Tables: []*metadata.TableMetadata{
+				{
+					Name: "a`b",
+					Columns: []*metadata.ColumnMetadata{
+						intColumn("id", false),
+						{Name: "c`d", Type: "varchar(20)", Nullable: true, Default: "NULL", CharacterSet: "utf8mb4", Collation: "utf8mb4_0900_ai_ci", Comment: columnComment},
+						intColumn("parent_id", true),
+					},
+					Indexes: []*metadata.IndexMetadata{
+						{Name: "PRIMARY", Type: "BTREE", Primary: true, Unique: true, Visible: true, Expressions: []string{"id"}},
+						{Name: "k`1", Type: "BTREE", Visible: true, Expressions: []string{"c`d"}},
+						{Name: "parent_id", Type: "BTREE", Visible: true, Expressions: []string{"parent_id"}},
+					},
+					ForeignKeys: []*metadata.ForeignKeyMetadata{{
+						Name: "fk`x", Columns: []string{"parent_id"},
+						ReferencedSchema: "shared", ReferencedTable: "parent", ReferencedColumns: []string{"id"},
+						OnDelete: "NO ACTION", OnUpdate: "NO ACTION", MatchType: "NONE",
+					}},
+					CheckConstraints: []*metadata.CheckConstraintMetadata{{Name: "ck`1", Expression: "(`id` > 0)"}},
+					Triggers: []*metadata.TriggerMetadata{{
+						Name: "tr`1", Timing: "BEFORE", Event: "INSERT", Body: "SET NEW.`c``d` = 'x'",
+						CharacterSetClient: "utf8mb4", CollationConnection: "utf8mb4_0900_ai_ci", SqlMode: sqlMode,
+					}},
+					Engine:        "InnoDB",
+					Charset:       "utf8mb4",
+					Collation:     "utf8mb4_0900_ai_ci",
+					CreateOptions: "row_format=COMPRESSED key_block_size=8",
+					Comment:       tableComment,
+				},
+				{
+					Name:      "u",
+					Columns:   []*metadata.ColumnMetadata{intColumn("id", false)},
+					Indexes:   []*metadata.IndexMetadata{{Name: "PRIMARY", Type: "BTREE", Primary: true, Unique: true, Visible: true, Expressions: []string{"id"}}},
+					Engine:    "InnoDB",
+					Charset:   "utf8mb4",
+					Collation: "utf8mb4_0900_ai_ci",
+				},
+				{
+					Name:    "mem",
+					Columns: []*metadata.ColumnMetadata{intColumn("a", false), intColumn("b", true)},
+					Indexes: []*metadata.IndexMetadata{
+						{Name: "PRIMARY", Type: "BTREE", Primary: true, Unique: true, Visible: true, Expressions: []string{"a"}},
+						{Name: "k_hash", Type: "HASH", Visible: true, Expressions: []string{"b"}},
+						{Name: "k_btree", Type: "BTREE", Visible: true, Expressions: []string{"a", "b"}},
+					},
+					Engine:    "MEMORY",
+					Charset:   "utf8mb4",
+					Collation: "utf8mb4_0900_ai_ci",
+				},
+			},
+			Views: []*metadata.ViewMetadata{
+				{Name: "v_alias", Definition: viewDefinition(t, "v_alias"), Columns: []*metadata.ColumnMetadata{intColumn("id", false)}},
+				{Name: "v_fn", Definition: viewDefinition(t, "v_fn"), Columns: []*metadata.ColumnMetadata{intColumn("n", true)}},
+			},
+			Functions: []*metadata.FunctionMetadata{{
+				Name: "f`n", Definition: function,
+				CharacterSetClient: "utf8mb4", CollationConnection: "utf8mb4_0900_ai_ci", SqlMode: sqlMode,
+			}},
+		}},
+	}
+
+	script, err := DatabaseDefinition(meta, DefinitionOptions{PrintHeader: true})
+	require.NoError(t, err)
+	exec(t, "CREATE DATABASE dump", "USE dump")
+	exec(t, splitLikeMySQLClient(script)...)
+
+	sdl, err := DatabaseDefinition(meta, DefinitionOptions{SDLFormat: true})
+	require.NoError(t, err)
+	exec(t, "CREATE DATABASE `sdl`", "USE `sdl`")
+	for _, segment := range mysqlparser.Split(sdl) {
+		if !segment.Empty() {
+			exec(t, segment.Text)
+		}
+	}
+
+	showCreate := func(t *testing.T, kind, db, name string, column int) string {
+		t.Helper()
+		rows, err := conn.QueryContext(ctx, fmt.Sprintf("SHOW CREATE %s %s.%s", kind, quoteIdent(db), quoteIdent(name)))
+		require.NoError(t, err)
+		defer rows.Close()
+		columns, err := rows.Columns()
+		require.NoError(t, err)
+		values := make([]sql.RawBytes, len(columns))
+		dest := make([]any, len(values))
+		for i := range values {
+			dest[i] = &values[i]
+		}
+		require.True(t, rows.Next(), "SHOW CREATE %s %s.%s", kind, db, name)
+		require.NoError(t, rows.Scan(dest...))
+		return string(values[column])
+	}
+	triggers := func(t *testing.T, db string) string {
+		return queryString(t, "SELECT GROUP_CONCAT(CONCAT_WS(' ', TRIGGER_NAME, ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_STATEMENT) ORDER BY TRIGGER_NAME) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = ?", db)
+	}
+	// The SDL orders keys by name, so its tables are compared line by line.
+	keyLines := func(create string) []string {
+		lines := strings.Split(create, "\n")
+		for i, line := range lines {
+			lines[i] = strings.TrimSuffix(line, ",")
+		}
+		slices.Sort(lines)
+		return lines
+	}
+	for _, db := range []string{"dump", "sdl"} {
+		t.Run(db, func(t *testing.T) {
+			for _, table := range []string{"a`b", "u", "mem"} {
+				want, got := showCreate(t, "TABLE", "src", table, 1), showCreate(t, "TABLE", db, table, 1)
+				if db == "sdl" {
+					require.Equal(t, keyLines(want), keyLines(got), "table %s", table)
+				} else {
+					require.Equal(t, want, got, "table %s", table)
+				}
+			}
+			// information_schema qualifies view bodies with their database, and the
+			// restore script keeps the source's qualifiers, so both are removed.
+			for _, view := range []string{"v_alias", "v_fn"} {
+				got := queryString(t, "SELECT VIEW_DEFINITION FROM information_schema.VIEWS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?", db, view)
+				want := stripViewBodyDatabaseQualifier(viewDefinition(t, view), "src")
+				require.Equal(t, want, stripViewBodyDatabaseQualifier(stripViewBodyDatabaseQualifier(got, "src"), db), "view %s", view)
+			}
+			require.Equal(t, "2", queryString(t, fmt.Sprintf("SELECT n FROM %s.v_fn", quoteIdent(db))))
+			require.Equal(t, showCreate(t, "FUNCTION", "src", "f`n", 2), showCreate(t, "FUNCTION", db, "f`n", 2))
+			require.Equal(t, triggers(t, "src"), triggers(t, db))
+		})
+	}
+
+	// A diff loads the SDL into a database of its own and must read it as equal to
+	// itself.
+	const sdlDatabase = "CREATE DATABASE `bbcatalog`;\nUSE `bbcatalog`;\n"
+	from, err := LoadSDL(sdlDatabase + sdl)
+	require.NoError(t, err)
+	to, err := LoadSDL(sdlDatabase + sdl)
+	require.NoError(t, err)
+	require.True(t, Diff(from, to).IsEmpty())
+}
+
+// splitLikeMySQLClient splits a restore script into the statements the mysql client
+// sends: it ends one at the active delimiter outside strings and comments, and a
+// DELIMITER line changes the delimiter. Unlike mysqlparser.Split it does not know
+// BEGIN ... END, so a routine body needs a delimiter its semicolons do not match.
+func splitLikeMySQLClient(script string) []string {
+	const directive = "DELIMITER "
+	var stmts []string
+	var cur strings.Builder
+	flush := func() {
+		if stmt := strings.TrimSpace(cur.String()); stmt != "" {
+			stmts = append(stmts, stmt)
+		}
+		cur.Reset()
+	}
+	delimiter := ";"
+	var quote byte
+	for i := 0; i < len(script); {
+		c := script[i]
+		if quote != 0 {
+			cur.WriteByte(c)
+			switch {
+			case c == '\\' && quote != '`' && i+1 < len(script):
+				cur.WriteByte(script[i+1])
+				i += 2
+				continue
+			case c == quote:
+				quote = 0
+			}
+			i++
+			continue
+		}
+		lineEnd := strings.IndexByte(script[i:], '\n')
+		if lineEnd < 0 {
+			lineEnd = len(script) - i
+		}
+		switch {
+		case strings.TrimSpace(cur.String()) == "" && len(script)-i >= len(directive) && strings.EqualFold(script[i:i+len(directive)], directive):
+			delimiter = strings.TrimSpace(script[i+len(directive) : i+lineEnd])
+			cur.Reset()
+			i += lineEnd
+		case strings.HasPrefix(script[i:], delimiter):
+			flush()
+			i += len(delimiter)
+		case c == '#' || strings.HasPrefix(script[i:], "--") && (i+2 == len(script) || script[i+2] <= ' '):
+			i += lineEnd
+		case strings.HasPrefix(script[i:], "/*") && !strings.HasPrefix(script[i:], "/*!"):
+			end := strings.Index(script[i+2:], "*/")
+			if end < 0 {
+				i = len(script)
+			} else {
+				i += end + 4
+			}
+		default:
+			if c == '\'' || c == '"' || c == '`' {
+				quote = c
+			}
+			cur.WriteByte(c)
+			i++
+		}
+	}
+	flush()
+	return stmts
+}
+
+func TestTableDefinitionQualifiesOnlyForeignDatabases(t *testing.T) {
+	table := &metadata.TableMetadata{
+		Name:    "child",
+		Columns: []*metadata.ColumnMetadata{{Name: "a", Type: "int"}, {Name: "b", Type: "int"}},
+		ForeignKeys: []*metadata.ForeignKeyMetadata{
+			{Name: "fk_local", Columns: []string{"a"}, ReferencedSchema: "db", ReferencedTable: "p", ReferencedColumns: []string{"id"}},
+			{Name: "fk_other", Columns: []string{"b"}, ReferencedSchema: "other", ReferencedTable: "p", ReferencedColumns: []string{"id"}},
+		},
+	}
+	meta := &metadata.DatabaseSchemaMetadata{Name: "db", Schemas: []*metadata.SchemaMetadata{{Tables: []*metadata.TableMetadata{table}}}}
+	for _, sdl := range []bool{false, true} {
+		got, err := DatabaseDefinition(meta, DefinitionOptions{SDLFormat: sdl})
+		require.NoError(t, err)
+		require.Contains(t, got, "FOREIGN KEY (`a`) REFERENCES `p` (`id`)", "SDLFormat=%t", sdl)
+		require.Contains(t, got, "FOREIGN KEY (`b`) REFERENCES `other`.`p` (`id`)", "SDLFormat=%t", sdl)
+	}
+}
+
+func TestIndexUsingClause(t *testing.T) {
+	for _, tc := range []struct {
+		indexType, engine, want string
+	}{
+		{"BTREE", "InnoDB", ""},
+		{"BTREE", "", ""},
+		{"HASH", "InnoDB", " USING HASH"},
+		{"HASH", "MEMORY", ""},
+		{"BTREE", "MEMORY", " USING BTREE"},
+		{"btree", "heap", " USING BTREE"},
+		{"FULLTEXT", "InnoDB", ""},
+		{"SPATIAL", "MEMORY", ""},
+	} {
+		require.Equal(t, tc.want, indexUsingClause(tc.indexType, tc.engine), "%s on %s", tc.indexType, tc.engine)
+	}
 }
