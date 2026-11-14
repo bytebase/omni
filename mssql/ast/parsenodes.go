@@ -1026,9 +1026,11 @@ func (n *VariableDecl) nodeTag() {}
 // SetStmt represents a SET statement.
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/language-elements/set-local-variable-transact-sql
 type SetStmt struct {
-	Variable string   // @variable or SET option name
-	Operator string   // "=" (default), "+=", "-=", "*=", "/=", "%=", "&=", "^=", "|="
-	Value    ExprNode // expression
+	Variable string             // @variable or SET option name
+	Property string             // SET @variable.property = ... or SET @variable.method(...): the property or method
+	Operator string             // "=" (default), "+=", "-=", "*=", "/=", "%=", "&=", "^=", "|="
+	Value    ExprNode           // expression; for a method call, a FuncCallExpr naming the method
+	Cursor   *DeclareCursorStmt // SET @variable = CURSOR ...: the cursor definition (no name)
 	Loc      Loc
 }
 
@@ -2500,8 +2502,9 @@ func (n *DbccStmt) stmtNode() {}
 //	EXTENDED_LOGICAL_CHECKS, DATA_PURITY, TABLOCK,
 //	ESTIMATEONLY, COUNT_ROWS, TABLERESULTS
 type DbccOption struct {
-	Name string // option name (always uppercase)
-	Loc  Loc
+	Name  string   // option name (always uppercase)
+	Value ExprNode // MAXDOP's integer; nil for the other options
+	Loc   Loc
 }
 
 func (n *DbccOption) nodeTag() {}
@@ -2682,7 +2685,8 @@ func (n *DropStatisticsStmt) stmtNode() {}
 type SetOptionStmt struct {
 	Option  string   // option name (e.g., "NOCOUNT", "ANSI_NULLS", "TRANSACTION ISOLATION LEVEL READ COMMITTED"); the first of Options
 	Options []string // every option name the statement sets, in written order (e.g., ["ANSI_NULLS", "QUOTED_IDENTIFIER"], ["STATISTICS IO", "STATISTICS TIME"])
-	Value   ExprNode // ON/OFF or other value; may be a ColumnRef("ON"/"OFF") or literal
+	Value   ExprNode // ON/OFF or other value; may be a ColumnRef("ON"/"OFF") or literal; the first of Values
+	Values  *List    // one value per option for a command list (SET DATEFIRST 1, LANGUAGE French), whose options do not share one; nil otherwise
 	Loc     Loc
 }
 
@@ -3036,11 +3040,13 @@ func (n *ReadtextStmt) stmtNode() {}
 //
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/queries/writetext-transact-sql
 type WritetextStmt struct {
-	Column  *ColumnRef
-	TextPtr ExprNode
-	WithLog bool
-	Data    ExprNode
-	Loc     Loc
+	Column    *ColumnRef
+	TextPtr   ExprNode
+	Timestamp ExprNode // TIMESTAMP = binary after the text pointer; nil when absent
+	Bulk      bool     // WRITETEXT BULK
+	WithLog   bool
+	Data      ExprNode
+	Loc       Loc
 }
 
 func (n *WritetextStmt) nodeTag()  {}
@@ -3052,11 +3058,16 @@ func (n *WritetextStmt) stmtNode() {}
 type UpdatetextStmt struct {
 	DestColumn   *ColumnRef
 	DestTextPtr  ExprNode
+	Timestamp    ExprNode // TIMESTAMP = binary after the text pointer; nil when absent
+	Bulk         bool     // UPDATETEXT BULK
 	InsertOffset ExprNode
 	DeleteLength ExprNode
 	WithLog      bool
 	InsertedData ExprNode
-	Loc          Loc
+	// InsertedTextPtr is the source text pointer after a source column
+	// (table_name.src_column_name src_text_ptr); nil for literal data.
+	InsertedTextPtr ExprNode
+	Loc             Loc
 }
 
 func (n *UpdatetextStmt) nodeTag()  {}

@@ -2665,6 +2665,12 @@ func writeCreateTableStmt(sb *strings.Builder, n *CreateTableStmt) {
 	if n.Duplicated {
 		sb.WriteString(" :duplicated true")
 	}
+	if n.Immutable {
+		sb.WriteString(" :immutable true")
+	}
+	if n.Blockchain {
+		sb.WriteString(" :blockchain true")
+	}
 	if n.Name != nil {
 		sb.WriteString(" :name ")
 		writeNode(sb, n.Name)

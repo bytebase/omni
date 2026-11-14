@@ -1575,6 +1575,8 @@ type CreateTableStmt struct {
 	Private          bool             // PRIVATE TEMPORARY
 	Sharded          bool             // SHARDED
 	Duplicated       bool             // DUPLICATED
+	Immutable        bool             // IMMUTABLE
+	Blockchain       bool             // BLOCKCHAIN
 	Name             *ObjectName      // table name
 	Sharing          string           // SHARING = { METADATA | DATA | EXTENDED DATA | NONE }
 	Columns          *List            // column definitions (list of *ColumnDef)

@@ -386,7 +386,7 @@ reject	reject	grammar	selectStatement(K_ALLOW_K_FILTERING)?/K_ALLOW_K_FILTERING!
 reject	reject	grammar	selectStatement(K_ALLOW_K_FILTERING)?/K_ALLOW_K_FILTERING!insert	SELECT a FROM a ALLOW FILTERING zzz
 reject	reject	grammar	selectStatement(K_ALLOW_K_FILTERING)?/K_ALLOW_K_FILTERING!swap	SELECT a FROM a ALTER FILTERING
 accept	accept	grammar	selectClause/K_DISTINCT_selectors	SELECT DISTINCT a FROM a
-reject	accept	grammar	selectClause/K_DISTINCT_selectors!drop-2	SELECT DISTINCT FROM a
+accept	accept	grammar	selectClause/K_DISTINCT_selectors!drop-2	SELECT DISTINCT FROM a
 reject	reject	grammar	selectClause/K_DISTINCT_selectors!truncate	SELECT DISTINCT
 reject	reject	grammar	selectClause/K_DISTINCT_selectors!insert	SELECT DISTINCT a zzz FROM a
 reject	reject	grammar	selectClause/K_DISTINCT_selectors!swap	SELECT DOUBLE a FROM a
@@ -411,139 +411,139 @@ reject	reject	grammar	selector(K_AS_noncol_ident)?/K_AS_noncol_ident!swap	SELECT
 accept	accept	grammar	unaliasedSelector/selectionAddition	SELECT a FROM a
 accept	accept	grammar	selectionAddition/selectionMultiplication_(+_selectionMultiplication|-_se~91e585db	SELECT a FROM a
 accept	accept	grammar	selectionAddition(+_selectionMultiplication|-_selectio~02b085ec)*/%empty	SELECT a FROM a
-reject	accept	grammar	selectionAddition(+_selectionMultiplication|-_selectio~02b085ec)*/(+_selectionMultiplication|-_selectio~02b085ec)_(+_sele~ba608a68	SELECT a + a FROM a
+accept	accept	grammar	selectionAddition(+_selectionMultiplication|-_selectio~02b085ec)*/(+_selectionMultiplication|-_selectio~02b085ec)_(+_sele~ba608a68	SELECT a + a FROM a
 reject	reject	grammar	selectionAddition(+_selectionMultiplication|-_selectio~02b085ec)*/(+_selectionMultiplication|-_selectio~02b085ec)_(+_sele~ba608a68!drop-2	SELECT a + FROM a
 reject	reject	grammar	selectionAddition(+_selectionMultiplication|-_selectio~02b085ec)*/(+_selectionMultiplication|-_selectio~02b085ec)_(+_sele~ba608a68!truncate	SELECT a +
 reject	reject	grammar	selectionAddition(+_selectionMultiplication|-_selectio~02b085ec)*/(+_selectionMultiplication|-_selectio~02b085ec)_(+_sele~ba608a68!insert	SELECT a + a zzz FROM a
-reject	accept	grammar	selectionAddition(+_selectionMultiplication|-_selectio~02b085ec)/+_selectionMultiplication	SELECT a + a FROM a
-reject	accept	grammar	selectionAddition(+_selectionMultiplication|-_selectio~02b085ec)/-_selectionMultiplication	SELECT a - a FROM a
+accept	accept	grammar	selectionAddition(+_selectionMultiplication|-_selectio~02b085ec)/+_selectionMultiplication	SELECT a + a FROM a
+accept	accept	grammar	selectionAddition(+_selectionMultiplication|-_selectio~02b085ec)/-_selectionMultiplication	SELECT a - a FROM a
 reject	reject	grammar	selectionAddition(+_selectionMultiplication|-_selectio~02b085ec)/-_selectionMultiplication!drop-2	SELECT a - FROM a
 reject	reject	grammar	selectionAddition(+_selectionMultiplication|-_selectio~02b085ec)/-_selectionMultiplication!truncate	SELECT a -
 reject	reject	grammar	selectionAddition(+_selectionMultiplication|-_selectio~02b085ec)/-_selectionMultiplication!insert	SELECT a - a zzz FROM a
 accept	accept	grammar	selectionMultiplication/selectionGroup_(*_selectionGroup|SLASH_selectionGrou~7b84297b)*	SELECT a FROM a
 accept	accept	grammar	selectionMultiplication(*_selectionGroup|SLASH_selectionGrou~7b84297b)*/%empty	SELECT a FROM a
-reject	accept	grammar	selectionMultiplication(*_selectionGroup|SLASH_selectionGrou~7b84297b)*/(*_selectionGroup|SLASH_selectionGrou~7b84297b)_(*_sele~94d7db02	SELECT a * a FROM a
+accept	accept	grammar	selectionMultiplication(*_selectionGroup|SLASH_selectionGrou~7b84297b)*/(*_selectionGroup|SLASH_selectionGrou~7b84297b)_(*_sele~94d7db02	SELECT a * a FROM a
 reject	reject	grammar	selectionMultiplication(*_selectionGroup|SLASH_selectionGrou~7b84297b)*/(*_selectionGroup|SLASH_selectionGrou~7b84297b)_(*_sele~94d7db02!drop-2	SELECT a * FROM a
 reject	reject	grammar	selectionMultiplication(*_selectionGroup|SLASH_selectionGrou~7b84297b)*/(*_selectionGroup|SLASH_selectionGrou~7b84297b)_(*_sele~94d7db02!truncate	SELECT a *
 reject	reject	grammar	selectionMultiplication(*_selectionGroup|SLASH_selectionGrou~7b84297b)*/(*_selectionGroup|SLASH_selectionGrou~7b84297b)_(*_sele~94d7db02!insert	SELECT a * a zzz FROM a
-reject	accept	grammar	selectionMultiplication(*_selectionGroup|SLASH_selectionGrou~7b84297b)/*_selectionGroup	SELECT a * a FROM a
-reject	accept	grammar	selectionMultiplication(*_selectionGroup|SLASH_selectionGrou~7b84297b)/SLASH_selectionGroup	SELECT a / a FROM a
+accept	accept	grammar	selectionMultiplication(*_selectionGroup|SLASH_selectionGrou~7b84297b)/*_selectionGroup	SELECT a * a FROM a
+accept	accept	grammar	selectionMultiplication(*_selectionGroup|SLASH_selectionGrou~7b84297b)/SLASH_selectionGroup	SELECT a / a FROM a
 reject	reject	grammar	selectionMultiplication(*_selectionGroup|SLASH_selectionGrou~7b84297b)/SLASH_selectionGroup!drop-2	SELECT a / FROM a
 reject	reject	grammar	selectionMultiplication(*_selectionGroup|SLASH_selectionGrou~7b84297b)/SLASH_selectionGroup!truncate	SELECT a /
 reject	reject	grammar	selectionMultiplication(*_selectionGroup|SLASH_selectionGrou~7b84297b)/SLASH_selectionGroup!insert	SELECT a / a zzz FROM a
-reject	accept	grammar	selectionMultiplication(*_selectionGroup|SLASH_selectionGrou~7b84297b)/%_selectionGroup	SELECT a % a FROM a
+accept	accept	grammar	selectionMultiplication(*_selectionGroup|SLASH_selectionGrou~7b84297b)/%_selectionGroup	SELECT a % a FROM a
 reject	reject	grammar	selectionMultiplication(*_selectionGroup|SLASH_selectionGrou~7b84297b)/%_selectionGroup!drop-2	SELECT a % FROM a
 reject	reject	grammar	selectionMultiplication(*_selectionGroup|SLASH_selectionGrou~7b84297b)/%_selectionGroup!truncate	SELECT a %
 reject	reject	grammar	selectionMultiplication(*_selectionGroup|SLASH_selectionGrou~7b84297b)/%_selectionGroup!insert	SELECT a % a zzz FROM a
 accept	accept	grammar	selectionGroup/selectionGroupWithField	SELECT a FROM a
 accept	accept	grammar	selectionGroup/selectionGroupWithoutField	SELECT a FROM a
-reject	accept	grammar	selectionGroup/-_selectionGroup	SELECT - a FROM a
+accept	accept	grammar	selectionGroup/-_selectionGroup	SELECT - a FROM a
 reject	reject	grammar	selectionGroup/-_selectionGroup!drop-2	SELECT - FROM a
 reject	reject	grammar	selectionGroup/-_selectionGroup!truncate	SELECT -
 reject	reject	grammar	selectionGroup/-_selectionGroup!insert	SELECT - a zzz FROM a
 accept	accept	grammar	selectionGroupWithField/selectionGroupWithoutField_selectorModifier	SELECT a FROM a
-reject	accept	grammar	selectorModifier/fieldSelectorModifier_selectorModifier	SELECT a.a FROM a
+accept	accept	grammar	selectorModifier/fieldSelectorModifier_selectorModifier	SELECT a.a FROM a
 reject	reject	grammar	selectorModifier/fieldSelectorModifier_selectorModifier!drop-2	SELECT a.FROM a
 reject	reject	grammar	selectorModifier/fieldSelectorModifier_selectorModifier!truncate	SELECT a.
 reject	reject	grammar	selectorModifier/fieldSelectorModifier_selectorModifier!insert	SELECT a.a zzz FROM a
-reject	accept	grammar	selectorModifier/[_collectionSubSelection_]_selectorModifier	SELECT a [ 'a' ] FROM a
+accept	accept	grammar	selectorModifier/[_collectionSubSelection_]_selectorModifier	SELECT a [ 'a' ] FROM a
 reject	reject	grammar	selectorModifier/[_collectionSubSelection_]_selectorModifier!drop-1	SELECT a 'a' ] FROM a
 reject	reject	grammar	selectorModifier/[_collectionSubSelection_]_selectorModifier!drop-2	SELECT a [ ] FROM a
 reject	reject	grammar	selectorModifier/[_collectionSubSelection_]_selectorModifier!drop-3	SELECT a [ 'a' FROM a
 reject	reject	grammar	selectorModifier/[_collectionSubSelection_]_selectorModifier!truncate	SELECT a [ 'a'
 reject	reject	grammar	selectorModifier/[_collectionSubSelection_]_selectorModifier!insert	SELECT a [ 'a' ] zzz FROM a
 accept	accept	grammar	selectorModifier/%empty	SELECT a FROM a
-reject	accept	grammar	fieldSelectorModifier/._fident	SELECT a.a FROM a
-reject	accept	grammar	collectionSubSelection/(term_(RANGE_(term)?)?|RANGE_term)	SELECT a [ 'a' ] FROM a
+accept	accept	grammar	fieldSelectorModifier/._fident	SELECT a.a FROM a
+accept	accept	grammar	collectionSubSelection/(term_(RANGE_(term)?)?|RANGE_term)	SELECT a [ 'a' ] FROM a
 reject	reject	grammar	collectionSubSelection/(term_(RANGE_(term)?)?|RANGE_term)!truncate	SELECT a [
 reject	reject	grammar	collectionSubSelection/(term_(RANGE_(term)?)?|RANGE_term)!insert	SELECT a [ 'a' zzz ] FROM a
-reject	accept	grammar	collectionSubSelection(term_(RANGE_(term)?)?|RANGE_term)/term_(RANGE_(term)?)?	SELECT a [ 'a' ] FROM a
-reject	accept	grammar	collectionSubSelection(term_(RANGE_(term)?)?|RANGE_term)/RANGE_term	SELECT a [..'a' ] FROM a
+accept	accept	grammar	collectionSubSelection(term_(RANGE_(term)?)?|RANGE_term)/term_(RANGE_(term)?)?	SELECT a [ 'a' ] FROM a
+accept	accept	grammar	collectionSubSelection(term_(RANGE_(term)?)?|RANGE_term)/RANGE_term	SELECT a [..'a' ] FROM a
 reject	reject	grammar	collectionSubSelection(term_(RANGE_(term)?)?|RANGE_term)/RANGE_term!drop-2	SELECT a [..] FROM a
 reject	reject	grammar	collectionSubSelection(term_(RANGE_(term)?)?|RANGE_term)/RANGE_term!truncate	SELECT a [..
 reject	reject	grammar	collectionSubSelection(term_(RANGE_(term)?)?|RANGE_term)/RANGE_term!insert	SELECT a [..'a' zzz ] FROM a
-reject	accept	grammar	collectionSubSelection(RANGE_(term)?)?/%empty	SELECT a [ 'a' ] FROM a
-reject	accept	grammar	collectionSubSelection(RANGE_(term)?)?/RANGE_(term)?	SELECT a [ 'a'..] FROM a
+accept	accept	grammar	collectionSubSelection(RANGE_(term)?)?/%empty	SELECT a [ 'a' ] FROM a
+accept	accept	grammar	collectionSubSelection(RANGE_(term)?)?/RANGE_(term)?	SELECT a [ 'a'..] FROM a
 reject	reject	grammar	collectionSubSelection(RANGE_(term)?)?/RANGE_(term)?!insert	SELECT a [ 'a'..zzz ] FROM a
-reject	accept	grammar	collectionSubSelection(term)?/%empty	SELECT a [ 'a'..] FROM a
-reject	accept	grammar	collectionSubSelection(term)?/term	SELECT a [ 'a'..'a' ] FROM a
+accept	accept	grammar	collectionSubSelection(term)?/%empty	SELECT a [ 'a'..] FROM a
+accept	accept	grammar	collectionSubSelection(term)?/term	SELECT a [ 'a'..'a' ] FROM a
 reject	reject	grammar	collectionSubSelection(term)?/term!truncate	SELECT a [ 'a'..
 reject	reject	grammar	collectionSubSelection(term)?/term!insert	SELECT a [ 'a'..'a' zzz ] FROM a
 accept	accept	grammar	selectionGroupWithoutField/simpleUnaliasedSelector	SELECT a FROM a
-reject	accept	grammar	selectionGroupWithoutField/selectionTypeHint	SELECT(ASCII) a FROM a
+accept	accept	grammar	selectionGroupWithoutField/selectionTypeHint	SELECT(ASCII) a FROM a
 reject	reject	grammar	selectionGroupWithoutField/selectionTypeHint!drop-1	SELECT ASCII) a FROM a
 reject	reject	grammar	selectionGroupWithoutField/selectionTypeHint!drop-2	SELECT() a FROM a
 reject	reject	grammar	selectionGroupWithoutField/selectionTypeHint!drop-3	SELECT(ASCII a FROM a
-reject	accept	grammar	selectionGroupWithoutField/selectionTypeHint!drop-4	SELECT(ASCII) FROM a
+accept	accept	grammar	selectionGroupWithoutField/selectionTypeHint!drop-4	SELECT(ASCII) FROM a
 reject	reject	grammar	selectionGroupWithoutField/selectionTypeHint!truncate	SELECT(ASCII)
 reject	reject	grammar	selectionGroupWithoutField/selectionTypeHint!insert	SELECT(ASCII) a zzz FROM a
 reject	reject	grammar	selectionGroupWithoutField/selectionTypeHint!swap	SELECT(AUTHORIZE) a FROM a
-reject	accept	grammar	selectionGroupWithoutField/selectionTupleOrNestedSelector	SELECT(a) FROM a
+accept	accept	grammar	selectionGroupWithoutField/selectionTupleOrNestedSelector	SELECT(a) FROM a
 reject	reject	grammar	selectionGroupWithoutField/selectionTupleOrNestedSelector!drop-1	SELECT a) FROM a
 reject	reject	grammar	selectionGroupWithoutField/selectionTupleOrNestedSelector!drop-2	SELECT() FROM a
 reject	reject	grammar	selectionGroupWithoutField/selectionTupleOrNestedSelector!drop-3	SELECT(a FROM a
 reject	reject	grammar	selectionGroupWithoutField/selectionTupleOrNestedSelector!truncate	SELECT(a
-reject	accept	grammar	selectionGroupWithoutField/selectionTupleOrNestedSelector!insert	SELECT(a) zzz FROM a
-reject	accept	grammar	selectionGroupWithoutField/selectionList	SELECT [ ] FROM a
+accept	accept	grammar	selectionGroupWithoutField/selectionTupleOrNestedSelector!insert	SELECT(a) zzz FROM a
+accept	accept	grammar	selectionGroupWithoutField/selectionList	SELECT [ ] FROM a
 reject	reject	grammar	selectionGroupWithoutField/selectionList!drop-1	SELECT ] FROM a
 reject	reject	grammar	selectionGroupWithoutField/selectionList!drop-2	SELECT [ FROM a
 reject	reject	grammar	selectionGroupWithoutField/selectionList!truncate	SELECT [
 reject	reject	grammar	selectionGroupWithoutField/selectionList!insert	SELECT [ ] zzz FROM a
-reject	accept	grammar	selectionGroupWithoutField/selectionMapOrSet	SELECT { } FROM a
+accept	accept	grammar	selectionGroupWithoutField/selectionMapOrSet	SELECT { } FROM a
 reject	reject	grammar	selectionGroupWithoutField/selectionMapOrSet!drop-1	SELECT } FROM a
 reject	reject	grammar	selectionGroupWithoutField/selectionMapOrSet!drop-2	SELECT { FROM a
 reject	reject	grammar	selectionGroupWithoutField/selectionMapOrSet!truncate	SELECT {
 reject	reject	grammar	selectionGroupWithoutField/selectionMapOrSet!insert	SELECT { } zzz FROM a
-reject	accept	grammar	selectionTypeHint/(_comparatorType_)_selectionGroupWithoutField	SELECT(ASCII) a FROM a
-reject	accept	grammar	selectionList/[_(unaliasedSelector_(,_unaliasedSelector)*)?_]	SELECT [ ] FROM a
-reject	accept	grammar	selectionList(unaliasedSelector_(,_unaliasedSelector)*)?/%empty	SELECT [ ] FROM a
-reject	accept	grammar	selectionList(unaliasedSelector_(,_unaliasedSelector)*)?/%empty!insert	SELECT [ zzz ] FROM a
-reject	accept	grammar	selectionList(unaliasedSelector_(,_unaliasedSelector)*)?/unaliasedSelector_(,_unaliasedSelector)*	SELECT [ a ] FROM a
+accept	accept	grammar	selectionTypeHint/(_comparatorType_)_selectionGroupWithoutField	SELECT(ASCII) a FROM a
+accept	accept	grammar	selectionList/[_(unaliasedSelector_(,_unaliasedSelector)*)?_]	SELECT [ ] FROM a
+accept	accept	grammar	selectionList(unaliasedSelector_(,_unaliasedSelector)*)?/%empty	SELECT [ ] FROM a
+accept	accept	grammar	selectionList(unaliasedSelector_(,_unaliasedSelector)*)?/%empty!insert	SELECT [ zzz ] FROM a
+accept	accept	grammar	selectionList(unaliasedSelector_(,_unaliasedSelector)*)?/unaliasedSelector_(,_unaliasedSelector)*	SELECT [ a ] FROM a
 reject	reject	grammar	selectionList(unaliasedSelector_(,_unaliasedSelector)*)?/unaliasedSelector_(,_unaliasedSelector)*!insert	SELECT [ a zzz ] FROM a
-reject	accept	grammar	selectionList(,_unaliasedSelector)*/%empty	SELECT [ a ] FROM a
-reject	accept	grammar	selectionList(,_unaliasedSelector)*/,_unaliasedSelector_(,_unaliasedSelector)*	SELECT [ a, a ] FROM a
+accept	accept	grammar	selectionList(,_unaliasedSelector)*/%empty	SELECT [ a ] FROM a
+accept	accept	grammar	selectionList(,_unaliasedSelector)*/,_unaliasedSelector_(,_unaliasedSelector)*	SELECT [ a, a ] FROM a
 reject	reject	grammar	selectionList(,_unaliasedSelector)*/,_unaliasedSelector_(,_unaliasedSelector)*!drop-1	SELECT [ a a ] FROM a
 reject	reject	grammar	selectionList(,_unaliasedSelector)*/,_unaliasedSelector_(,_unaliasedSelector)*!drop-2	SELECT [ a, ] FROM a
 reject	reject	grammar	selectionList(,_unaliasedSelector)*/,_unaliasedSelector_(,_unaliasedSelector)*!truncate	SELECT [ a,
 reject	reject	grammar	selectionList(,_unaliasedSelector)*/,_unaliasedSelector_(,_unaliasedSelector)*!insert	SELECT [ a, a zzz ] FROM a
-reject	accept	grammar	selectionMapOrSet/{_unaliasedSelector_(selectionMap|selectionSet)_}	SELECT { a } FROM a
+accept	accept	grammar	selectionMapOrSet/{_unaliasedSelector_(selectionMap|selectionSet)_}	SELECT { a } FROM a
 reject	reject	grammar	selectionMapOrSet/{_unaliasedSelector_(selectionMap|selectionSet)_}!drop-1	SELECT a } FROM a
 reject	reject	grammar	selectionMapOrSet/{_unaliasedSelector_(selectionMap|selectionSet)_}!drop-3	SELECT { a FROM a
 reject	reject	grammar	selectionMapOrSet/{_unaliasedSelector_(selectionMap|selectionSet)_}!truncate	SELECT { a
 reject	reject	grammar	selectionMapOrSet/{_unaliasedSelector_(selectionMap|selectionSet)_}!insert	SELECT { a } zzz FROM a
-reject	accept	grammar	selectionMapOrSet/{_}	SELECT { } FROM a
-reject	accept	grammar	selectionMapOrSet(selectionMap|selectionSet)/selectionMap	SELECT { a : a } FROM a
+accept	accept	grammar	selectionMapOrSet/{_}	SELECT { } FROM a
+accept	accept	grammar	selectionMapOrSet(selectionMap|selectionSet)/selectionMap	SELECT { a : a } FROM a
 reject	reject	grammar	selectionMapOrSet(selectionMap|selectionSet)/selectionMap!drop-1	SELECT { a a } FROM a
 reject	reject	grammar	selectionMapOrSet(selectionMap|selectionSet)/selectionMap!drop-2	SELECT { a : } FROM a
 reject	reject	grammar	selectionMapOrSet(selectionMap|selectionSet)/selectionMap!truncate	SELECT { a :
 reject	reject	grammar	selectionMapOrSet(selectionMap|selectionSet)/selectionMap!insert	SELECT { a : a zzz } FROM a
-reject	accept	grammar	selectionMapOrSet(selectionMap|selectionSet)/selectionSet	SELECT { a } FROM a
+accept	accept	grammar	selectionMapOrSet(selectionMap|selectionSet)/selectionSet	SELECT { a } FROM a
 reject	reject	grammar	selectionMapOrSet(selectionMap|selectionSet)/selectionSet!insert	SELECT { a zzz } FROM a
-reject	accept	grammar	selectionMap/COLON_unaliasedSelector_(,_unaliasedSelector_COLON_unal~00f29470	SELECT { a : a } FROM a
-reject	accept	grammar	selectionMap(,_unaliasedSelector_COLON_unaliasedSelector)*/%empty	SELECT { a : a } FROM a
-reject	accept	grammar	selectionMap(,_unaliasedSelector_COLON_unaliasedSelector)*/,_unaliasedSelector_COLON_unaliasedSelector_(,_unaliase~950a0fe7	SELECT { a : a, a : a } FROM a
+accept	accept	grammar	selectionMap/COLON_unaliasedSelector_(,_unaliasedSelector_COLON_unal~00f29470	SELECT { a : a } FROM a
+accept	accept	grammar	selectionMap(,_unaliasedSelector_COLON_unaliasedSelector)*/%empty	SELECT { a : a } FROM a
+accept	accept	grammar	selectionMap(,_unaliasedSelector_COLON_unaliasedSelector)*/,_unaliasedSelector_COLON_unaliasedSelector_(,_unaliase~950a0fe7	SELECT { a : a, a : a } FROM a
 reject	reject	grammar	selectionMap(,_unaliasedSelector_COLON_unaliasedSelector)*/,_unaliasedSelector_COLON_unaliasedSelector_(,_unaliase~950a0fe7!drop-1	SELECT { a : a a : a } FROM a
 reject	reject	grammar	selectionMap(,_unaliasedSelector_COLON_unaliasedSelector)*/,_unaliasedSelector_COLON_unaliasedSelector_(,_unaliase~950a0fe7!drop-2	SELECT { a : a, : a } FROM a
 reject	reject	grammar	selectionMap(,_unaliasedSelector_COLON_unaliasedSelector)*/,_unaliasedSelector_COLON_unaliasedSelector_(,_unaliase~950a0fe7!drop-3	SELECT { a : a, a a } FROM a
 reject	reject	grammar	selectionMap(,_unaliasedSelector_COLON_unaliasedSelector)*/,_unaliasedSelector_COLON_unaliasedSelector_(,_unaliase~950a0fe7!drop-4	SELECT { a : a, a : } FROM a
 reject	reject	grammar	selectionMap(,_unaliasedSelector_COLON_unaliasedSelector)*/,_unaliasedSelector_COLON_unaliasedSelector_(,_unaliase~950a0fe7!truncate	SELECT { a : a, a :
 reject	reject	grammar	selectionMap(,_unaliasedSelector_COLON_unaliasedSelector)*/,_unaliasedSelector_COLON_unaliasedSelector_(,_unaliase~950a0fe7!insert	SELECT { a : a, a : a zzz } FROM a
-reject	accept	grammar	selectionSet/(,_unaliasedSelector)*	SELECT { a } FROM a
-reject	accept	grammar	selectionSet(,_unaliasedSelector)*/%empty	SELECT { a } FROM a
-reject	accept	grammar	selectionSet(,_unaliasedSelector)*/,_unaliasedSelector_(,_unaliasedSelector)*	SELECT { a, a } FROM a
+accept	accept	grammar	selectionSet/(,_unaliasedSelector)*	SELECT { a } FROM a
+accept	accept	grammar	selectionSet(,_unaliasedSelector)*/%empty	SELECT { a } FROM a
+accept	accept	grammar	selectionSet(,_unaliasedSelector)*/,_unaliasedSelector_(,_unaliasedSelector)*	SELECT { a, a } FROM a
 reject	reject	grammar	selectionSet(,_unaliasedSelector)*/,_unaliasedSelector_(,_unaliasedSelector)*!drop-2	SELECT { a, } FROM a
 reject	reject	grammar	selectionSet(,_unaliasedSelector)*/,_unaliasedSelector_(,_unaliasedSelector)*!truncate	SELECT { a,
 reject	reject	grammar	selectionSet(,_unaliasedSelector)*/,_unaliasedSelector_(,_unaliasedSelector)*!insert	SELECT { a, a zzz } FROM a
-reject	accept	grammar	selectionTupleOrNestedSelector/(_unaliasedSelector_(,_unaliasedSelector)*_)	SELECT(a) FROM a
-reject	accept	grammar	selectionTupleOrNestedSelector(,_unaliasedSelector)*/%empty	SELECT(a) FROM a
+accept	accept	grammar	selectionTupleOrNestedSelector/(_unaliasedSelector_(,_unaliasedSelector)*_)	SELECT(a) FROM a
+accept	accept	grammar	selectionTupleOrNestedSelector(,_unaliasedSelector)*/%empty	SELECT(a) FROM a
 reject	reject	grammar	selectionTupleOrNestedSelector(,_unaliasedSelector)*/%empty!insert	SELECT(a zzz) FROM a
-reject	accept	grammar	selectionTupleOrNestedSelector(,_unaliasedSelector)*/,_unaliasedSelector_(,_unaliasedSelector)*	SELECT(a, a) FROM a
+accept	accept	grammar	selectionTupleOrNestedSelector(,_unaliasedSelector)*/,_unaliasedSelector_(,_unaliasedSelector)*	SELECT(a, a) FROM a
 reject	reject	grammar	selectionTupleOrNestedSelector(,_unaliasedSelector)*/,_unaliasedSelector_(,_unaliasedSelector)*!drop-1	SELECT(a a) FROM a
 reject	reject	grammar	selectionTupleOrNestedSelector(,_unaliasedSelector)*/,_unaliasedSelector_(,_unaliasedSelector)*!drop-2	SELECT(a,) FROM a
 reject	reject	grammar	selectionTupleOrNestedSelector(,_unaliasedSelector)*/,_unaliasedSelector_(,_unaliasedSelector)*!truncate	SELECT(a,
 reject	reject	grammar	selectionTupleOrNestedSelector(,_unaliasedSelector)*/,_unaliasedSelector_(,_unaliasedSelector)*!insert	SELECT(a, a zzz) FROM a
 accept	accept	grammar	simpleUnaliasedSelector/sident	SELECT a FROM a
-reject	accept	grammar	simpleUnaliasedSelector/selectionLiteral	SELECT 'a' FROM a
+accept	accept	grammar	simpleUnaliasedSelector/selectionLiteral	SELECT 'a' FROM a
 reject	reject	grammar	simpleUnaliasedSelector/selectionLiteral!insert	SELECT 'a' zzz FROM a
 accept	accept	grammar	simpleUnaliasedSelector/selectionFunction	SELECT a() FROM a
 reject	reject	grammar	simpleUnaliasedSelector/selectionFunction!drop-3	SELECT a(FROM a
@@ -556,24 +556,24 @@ accept	accept	grammar	selectionFunction/K_COUNT_(_*_)!drop-3	SELECT COUNT() FROM
 reject	reject	grammar	selectionFunction/K_COUNT_(_*_)!drop-4	SELECT COUNT(* FROM a
 reject	reject	grammar	selectionFunction/K_COUNT_(_*_)!truncate	SELECT COUNT(*
 reject	reject	grammar	selectionFunction/K_COUNT_(_*_)!insert	SELECT COUNT(*) zzz FROM a
-accept	reject	grammar	selectionFunction/K_COUNT_(_*_)!swap	SELECT COUNTER(*) FROM a
+reject	reject	grammar	selectionFunction/K_COUNT_(_*_)!swap	SELECT COUNTER(*) FROM a
 accept	accept	grammar	selectionFunction/K_MAXWRITETIME_(_sident_selectorModifier_)	SELECT MAXWRITETIME(a) FROM a
 reject	reject	grammar	selectionFunction/K_MAXWRITETIME_(_sident_selectorModifier_)!drop-2	SELECT MAXWRITETIME a) FROM a
-accept	reject	grammar	selectionFunction/K_MAXWRITETIME_(_sident_selectorModifier_)!drop-3	SELECT MAXWRITETIME() FROM a
+reject	reject	grammar	selectionFunction/K_MAXWRITETIME_(_sident_selectorModifier_)!drop-3	SELECT MAXWRITETIME() FROM a
 reject	reject	grammar	selectionFunction/K_MAXWRITETIME_(_sident_selectorModifier_)!drop-4	SELECT MAXWRITETIME(a FROM a
 reject	reject	grammar	selectionFunction/K_MAXWRITETIME_(_sident_selectorModifier_)!truncate	SELECT MAXWRITETIME(a
 reject	reject	grammar	selectionFunction/K_MAXWRITETIME_(_sident_selectorModifier_)!insert	SELECT MAXWRITETIME(a) zzz FROM a
 accept	accept	grammar	selectionFunction/K_MAXWRITETIME_(_sident_selectorModifier_)!swap	SELECT MBEAN(a) FROM a
 accept	accept	grammar	selectionFunction/K_WRITETIME_(_sident_selectorModifier_)	SELECT WRITETIME(a) FROM a
 reject	reject	grammar	selectionFunction/K_WRITETIME_(_sident_selectorModifier_)!drop-2	SELECT WRITETIME a) FROM a
-accept	reject	grammar	selectionFunction/K_WRITETIME_(_sident_selectorModifier_)!drop-3	SELECT WRITETIME() FROM a
+reject	reject	grammar	selectionFunction/K_WRITETIME_(_sident_selectorModifier_)!drop-3	SELECT WRITETIME() FROM a
 reject	reject	grammar	selectionFunction/K_WRITETIME_(_sident_selectorModifier_)!drop-4	SELECT WRITETIME(a FROM a
 reject	reject	grammar	selectionFunction/K_WRITETIME_(_sident_selectorModifier_)!truncate	SELECT WRITETIME(a
 reject	reject	grammar	selectionFunction/K_WRITETIME_(_sident_selectorModifier_)!insert	SELECT WRITETIME(a) zzz FROM a
 accept	accept	grammar	selectionFunction/K_WRITETIME_(_sident_selectorModifier_)!swap	SELECT ACCESS(a) FROM a
 accept	accept	grammar	selectionFunction/K_TTL_(_sident_selectorModifier_)	SELECT TTL(a) FROM a
 reject	reject	grammar	selectionFunction/K_TTL_(_sident_selectorModifier_)!drop-2	SELECT TTL a) FROM a
-accept	reject	grammar	selectionFunction/K_TTL_(_sident_selectorModifier_)!drop-3	SELECT TTL() FROM a
+reject	reject	grammar	selectionFunction/K_TTL_(_sident_selectorModifier_)!drop-3	SELECT TTL() FROM a
 reject	reject	grammar	selectionFunction/K_TTL_(_sident_selectorModifier_)!drop-4	SELECT TTL(a FROM a
 reject	reject	grammar	selectionFunction/K_TTL_(_sident_selectorModifier_)!truncate	SELECT TTL(a
 reject	reject	grammar	selectionFunction/K_TTL_(_sident_selectorModifier_)!insert	SELECT TTL(a) zzz FROM a
@@ -589,15 +589,15 @@ reject	reject	grammar	selectionFunction/K_CAST_(_unaliasedSelector_K_AS_native_t
 reject	reject	grammar	selectionFunction/K_CAST_(_unaliasedSelector_K_AS_native_type_)!insert	SELECT CAST(a AS ASCII) zzz FROM a
 reject	reject	grammar	selectionFunction/K_CAST_(_unaliasedSelector_K_AS_native_type_)!swap	SELECT CIDRS(a AS ASCII) FROM a
 accept	accept	grammar	selectionFunction/functionName_selectionFunctionArgs	SELECT a() FROM a
-reject	accept	grammar	selectionLiteral/constant	SELECT 'a' FROM a
+accept	accept	grammar	selectionLiteral/constant	SELECT 'a' FROM a
 accept	accept	grammar	selectionLiteral/K_NULL	SELECT NULL FROM a
 reject	reject	grammar	selectionLiteral/K_NULL!insert	SELECT NULL zzz FROM a
-accept	reject	grammar	selectionLiteral/K_NULL!swap	SELECT OF FROM a
-reject	accept	grammar	selectionLiteral/COLON_noncol_ident	SELECT : a FROM a
+reject	reject	grammar	selectionLiteral/K_NULL!swap	SELECT OF FROM a
+accept	accept	grammar	selectionLiteral/COLON_noncol_ident	SELECT : a FROM a
 reject	reject	grammar	selectionLiteral/COLON_noncol_ident!drop-2	SELECT : FROM a
 reject	reject	grammar	selectionLiteral/COLON_noncol_ident!truncate	SELECT :
 reject	reject	grammar	selectionLiteral/COLON_noncol_ident!insert	SELECT : a zzz FROM a
-reject	accept	grammar	selectionLiteral/QMARK	SELECT ? FROM a
+accept	accept	grammar	selectionLiteral/QMARK	SELECT ? FROM a
 reject	reject	grammar	selectionLiteral/QMARK!insert	SELECT ? zzz FROM a
 accept	accept	grammar	selectionFunctionArgs/(_(unaliasedSelector_(,_unaliasedSelector)*)?_)	SELECT a() FROM a
 accept	accept	grammar	selectionFunctionArgs(unaliasedSelector_(,_unaliasedSelector)*)?/%empty	SELECT a() FROM a
@@ -615,7 +615,7 @@ accept	accept	grammar	sident/QUOTED_NAME	SELECT "a" FROM a
 reject	reject	grammar	sident/QUOTED_NAME!insert	SELECT "a" zzz FROM a
 accept	accept	grammar	sident/unreserved_keyword	SELECT KEYS FROM a
 reject	reject	grammar	sident/unreserved_keyword!insert	SELECT KEYS zzz FROM a
-accept	reject	grammar	sident/unreserved_keyword!swap	SELECT KEYSPACE FROM a
+reject	reject	grammar	sident/unreserved_keyword!swap	SELECT KEYSPACE FROM a
 accept	accept	grammar	whereClause/relationOrExpression_(K_AND_relationOrExpression)*	DELETE FROM a WHERE a = 'a'
 accept	accept	grammar	whereClause(K_AND_relationOrExpression)*/%empty	DELETE FROM a WHERE a = 'a'
 accept	accept	grammar	whereClause(K_AND_relationOrExpression)*/K_AND_relationOrExpression_(K_AND_relationOrExpression)*	DELETE FROM a WHERE a = 'a' AND a = 'a'
@@ -626,17 +626,17 @@ reject	reject	grammar	whereClause(K_AND_relationOrExpression)*/K_AND_relationOrE
 reject	reject	grammar	whereClause(K_AND_relationOrExpression)*/K_AND_relationOrExpression_(K_AND_relationOrExpression)*!insert	DELETE FROM a WHERE a = 'a' AND a = 'a' zzz
 reject	reject	grammar	whereClause(K_AND_relationOrExpression)*/K_AND_relationOrExpression_(K_AND_relationOrExpression)*!swap	DELETE FROM a WHERE a = 'a' ANN a = 'a'
 accept	accept	grammar	relationOrExpression/relation	DELETE FROM a WHERE a = 'a'
-reject	accept	grammar	relationOrExpression/customIndexExpression	DELETE FROM a WHERE expr(a, 'a')
+accept	accept	grammar	relationOrExpression/customIndexExpression	DELETE FROM a WHERE expr(a, 'a')
 reject	reject	grammar	relationOrExpression/customIndexExpression!drop-1	DELETE FROM a WHERE a, 'a')
 reject	reject	grammar	relationOrExpression/customIndexExpression!drop-2	DELETE FROM a WHERE expr(, 'a')
 reject	reject	grammar	relationOrExpression/customIndexExpression!drop-3	DELETE FROM a WHERE expr(a 'a')
 reject	reject	grammar	relationOrExpression/customIndexExpression!drop-4	DELETE FROM a WHERE expr(a,)
 reject	reject	grammar	relationOrExpression/customIndexExpression!drop-5	DELETE FROM a WHERE expr(a, 'a'
 reject	reject	grammar	relationOrExpression/customIndexExpression!insert	DELETE FROM a WHERE expr(a, 'a') zzz
-reject	accept	grammar	customIndexExpression/expr(_idxName_,_term_)	DELETE FROM a WHERE expr(a, 'a')
+accept	accept	grammar	customIndexExpression/expr(_idxName_,_term_)	DELETE FROM a WHERE expr(a, 'a')
 accept	accept	grammar	orderByClause/cident_(K_ANN_K_OF_term)?_(K_ASC|K_DESC)?	SELECT a FROM a ORDER BY a
 accept	accept	grammar	orderByClause(K_ANN_K_OF_term)?/%empty	SELECT a FROM a ORDER BY a
-reject	accept	grammar	orderByClause(K_ANN_K_OF_term)?/K_ANN_K_OF_term	SELECT a FROM a ORDER BY a ANN OF 'a'
+accept	accept	grammar	orderByClause(K_ANN_K_OF_term)?/K_ANN_K_OF_term	SELECT a FROM a ORDER BY a ANN OF 'a'
 reject	reject	grammar	orderByClause(K_ANN_K_OF_term)?/K_ANN_K_OF_term!drop-1	SELECT a FROM a ORDER BY a OF 'a'
 reject	reject	grammar	orderByClause(K_ANN_K_OF_term)?/K_ANN_K_OF_term!drop-2	SELECT a FROM a ORDER BY a ANN 'a'
 reject	reject	grammar	orderByClause(K_ANN_K_OF_term)?/K_ANN_K_OF_term!drop-3	SELECT a FROM a ORDER BY a ANN OF
@@ -719,11 +719,11 @@ reject	reject	grammar	jsonInsertStatement(usingClause)?/usingClause!drop-3	INSER
 reject	reject	grammar	jsonInsertStatement(usingClause)?/usingClause!insert	INSERT INTO a JSON 'a' USING TIMESTAMP 1 zzz
 reject	reject	grammar	jsonInsertStatement(usingClause)?/usingClause!swap	INSERT INTO a JSON 'a' UUID TIMESTAMP 1
 accept	accept	grammar	jsonValue/STRING_LITERAL	INSERT INTO a JSON 'a'
-reject	accept	grammar	jsonValue/COLON_noncol_ident	INSERT INTO a JSON : a
+accept	accept	grammar	jsonValue/COLON_noncol_ident	INSERT INTO a JSON : a
 reject	reject	grammar	jsonValue/COLON_noncol_ident!drop-1	INSERT INTO a JSON a
 reject	reject	grammar	jsonValue/COLON_noncol_ident!drop-2	INSERT INTO a JSON :
 reject	reject	grammar	jsonValue/COLON_noncol_ident!insert	INSERT INTO a JSON : a zzz
-reject	accept	grammar	jsonValue/QMARK	INSERT INTO a JSON ?
+accept	accept	grammar	jsonValue/QMARK	INSERT INTO a JSON ?
 reject	reject	grammar	jsonValue/QMARK!insert	INSERT INTO a JSON ? zzz
 accept	accept	grammar	usingClause/K_USING_usingClauseObjective_(K_AND_usingClauseObjective)*	BEGIN BATCH USING TIMESTAMP 1 APPLY BATCH
 reject	reject	grammar	usingClause/K_USING_usingClauseObjective_(K_AND_usingClauseObjective)*!drop-1	BEGIN BATCH TIMESTAMP 1 APPLY BATCH
@@ -759,7 +759,7 @@ reject	reject	grammar	updateStatement(usingClause)?/usingClause!insert	UPDATE a 
 reject	reject	grammar	updateStatement(usingClause)?/usingClause!swap	UPDATE a UUID TIMESTAMP 1 SET a = 'a' WHERE a = 'a'
 accept	accept	grammar	updateStatement(,_columnOperation)*/%empty	UPDATE a SET a = 'a' WHERE a = 'a'
 reject	reject	grammar	updateStatement(,_columnOperation)*/%empty!insert	UPDATE a SET a = 'a' zzz WHERE a = 'a'
-accept	reject	grammar	updateStatement(,_columnOperation)*/,_columnOperation_(,_columnOperation)*	UPDATE a SET a = 'a', a = 'a' WHERE a = 'a'
+reject	reject	grammar	updateStatement(,_columnOperation)*/,_columnOperation_(,_columnOperation)*	UPDATE a SET a = 'a', a = 'a' WHERE a = 'a'
 reject	reject	grammar	updateStatement(,_columnOperation)*/,_columnOperation_(,_columnOperation)*!drop-1	UPDATE a SET a = 'a' a = 'a' WHERE a = 'a'
 reject	reject	grammar	updateStatement(,_columnOperation)*/,_columnOperation_(,_columnOperation)*!drop-2	UPDATE a SET a = 'a', = 'a' WHERE a = 'a'
 reject	reject	grammar	updateStatement(,_columnOperation)*/,_columnOperation_(,_columnOperation)*!drop-3	UPDATE a SET a = 'a', a 'a' WHERE a = 'a'
@@ -939,7 +939,7 @@ reject	reject	grammar	dropAggregateStatement(K_IF_K_EXISTS)?/%empty!insert	DROP 
 accept	accept	grammar	dropAggregateStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS	DROP AGGREGATE IF EXISTS a
 reject	reject	grammar	dropAggregateStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!drop-1	DROP AGGREGATE EXISTS a
 reject	reject	grammar	dropAggregateStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!drop-2	DROP AGGREGATE IF a
-accept	reject	grammar	dropAggregateStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!truncate	DROP AGGREGATE IF
+reject	reject	grammar	dropAggregateStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!truncate	DROP AGGREGATE IF
 reject	reject	grammar	dropAggregateStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!insert	DROP AGGREGATE IF EXISTS zzz a
 reject	reject	grammar	dropAggregateStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!swap	DROP AGGREGATE IN EXISTS a
 accept	accept	grammar	dropAggregateStatement((_(comparatorType_(,_comparatorType)*)?_))?/%empty	DROP AGGREGATE a
@@ -1008,7 +1008,7 @@ reject	reject	grammar	dropFunctionStatement(K_IF_K_EXISTS)?/%empty!insert	DROP F
 accept	accept	grammar	dropFunctionStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS	DROP FUNCTION IF EXISTS a
 reject	reject	grammar	dropFunctionStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!drop-1	DROP FUNCTION EXISTS a
 reject	reject	grammar	dropFunctionStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!drop-2	DROP FUNCTION IF a
-accept	reject	grammar	dropFunctionStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!truncate	DROP FUNCTION IF
+reject	reject	grammar	dropFunctionStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!truncate	DROP FUNCTION IF
 reject	reject	grammar	dropFunctionStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!insert	DROP FUNCTION IF EXISTS zzz a
 reject	reject	grammar	dropFunctionStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!swap	DROP FUNCTION IN EXISTS a
 accept	accept	grammar	dropFunctionStatement((_(comparatorType_(,_comparatorType)*)?_))?/%empty	DROP FUNCTION a
@@ -1577,7 +1577,7 @@ reject	reject	grammar	dropKeyspaceStatement(K_IF_K_EXISTS)?/%empty!insert	DROP K
 accept	accept	grammar	dropKeyspaceStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS	DROP KEYSPACE IF EXISTS a
 reject	reject	grammar	dropKeyspaceStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!drop-1	DROP KEYSPACE EXISTS a
 reject	reject	grammar	dropKeyspaceStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!drop-2	DROP KEYSPACE IF a
-accept	reject	grammar	dropKeyspaceStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!truncate	DROP KEYSPACE IF
+reject	reject	grammar	dropKeyspaceStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!truncate	DROP KEYSPACE IF
 reject	reject	grammar	dropKeyspaceStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!insert	DROP KEYSPACE IF EXISTS zzz a
 reject	reject	grammar	dropKeyspaceStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!swap	DROP KEYSPACE IN EXISTS a
 accept	accept	grammar	dropTableStatement/K_DROP_K_COLUMNFAMILY_(K_IF_K_EXISTS)?_columnFamilyName	DROP TABLE a
@@ -1586,7 +1586,7 @@ reject	reject	grammar	dropTableStatement(K_IF_K_EXISTS)?/%empty!insert	DROP TABL
 accept	accept	grammar	dropTableStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS	DROP TABLE IF EXISTS a
 reject	reject	grammar	dropTableStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!drop-1	DROP TABLE EXISTS a
 reject	reject	grammar	dropTableStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!drop-2	DROP TABLE IF a
-accept	reject	grammar	dropTableStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!truncate	DROP TABLE IF
+reject	reject	grammar	dropTableStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!truncate	DROP TABLE IF
 reject	reject	grammar	dropTableStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!insert	DROP TABLE IF EXISTS zzz a
 reject	reject	grammar	dropTableStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!swap	DROP TABLE IN EXISTS a
 accept	accept	grammar	dropTypeStatement/K_DROP_K_TYPE_(K_IF_K_EXISTS)?_userTypeName	DROP TYPE a
@@ -1604,7 +1604,7 @@ reject	reject	grammar	dropIndexStatement(K_IF_K_EXISTS)?/%empty!insert	DROP INDE
 accept	accept	grammar	dropIndexStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS	DROP INDEX IF EXISTS a
 reject	reject	grammar	dropIndexStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!drop-1	DROP INDEX EXISTS a
 reject	reject	grammar	dropIndexStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!drop-2	DROP INDEX IF a
-accept	reject	grammar	dropIndexStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!truncate	DROP INDEX IF
+reject	reject	grammar	dropIndexStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!truncate	DROP INDEX IF
 reject	reject	grammar	dropIndexStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!insert	DROP INDEX IF EXISTS zzz a
 reject	reject	grammar	dropIndexStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!swap	DROP INDEX IN EXISTS a
 accept	accept	grammar	dropMaterializedViewStatement/K_DROP_K_MATERIALIZED_K_VIEW_(K_IF_K_EXISTS)?_columnFamilyName	DROP MATERIALIZED VIEW a
@@ -1613,7 +1613,7 @@ reject	reject	grammar	dropMaterializedViewStatement(K_IF_K_EXISTS)?/%empty!inser
 accept	accept	grammar	dropMaterializedViewStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS	DROP MATERIALIZED VIEW IF EXISTS a
 reject	reject	grammar	dropMaterializedViewStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!drop-1	DROP MATERIALIZED VIEW EXISTS a
 reject	reject	grammar	dropMaterializedViewStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!drop-2	DROP MATERIALIZED VIEW IF a
-accept	reject	grammar	dropMaterializedViewStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!truncate	DROP MATERIALIZED VIEW IF
+reject	reject	grammar	dropMaterializedViewStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!truncate	DROP MATERIALIZED VIEW IF
 reject	reject	grammar	dropMaterializedViewStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!insert	DROP MATERIALIZED VIEW IF EXISTS zzz a
 reject	reject	grammar	dropMaterializedViewStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!swap	DROP MATERIALIZED VIEW IN EXISTS a
 accept	accept	grammar	truncateStatement/K_TRUNCATE_(K_COLUMNFAMILY)?_columnFamilyName	TRUNCATE a
@@ -1864,7 +1864,7 @@ reject	reject	grammar	alterRoleStatement(K_IF_K_EXISTS)?/%empty!insert	ALTER ROL
 accept	accept	grammar	alterRoleStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS	ALTER ROLE IF EXISTS a
 reject	reject	grammar	alterRoleStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!drop-1	ALTER ROLE EXISTS a
 reject	reject	grammar	alterRoleStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!drop-2	ALTER ROLE IF a
-accept	reject	grammar	alterRoleStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!truncate	ALTER ROLE IF
+reject	reject	grammar	alterRoleStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!truncate	ALTER ROLE IF
 reject	reject	grammar	alterRoleStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!insert	ALTER ROLE IF EXISTS zzz a
 reject	reject	grammar	alterRoleStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!swap	ALTER ROLE IN EXISTS a
 accept	accept	grammar	alterRoleStatement(K_WITH_roleOptions)?/%empty	ALTER ROLE a
@@ -1881,7 +1881,7 @@ reject	reject	grammar	dropRoleStatement(K_IF_K_EXISTS)?/%empty!insert	DROP ROLE 
 accept	accept	grammar	dropRoleStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS	DROP ROLE IF EXISTS a
 reject	reject	grammar	dropRoleStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!drop-1	DROP ROLE EXISTS a
 reject	reject	grammar	dropRoleStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!drop-2	DROP ROLE IF a
-accept	reject	grammar	dropRoleStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!truncate	DROP ROLE IF
+reject	reject	grammar	dropRoleStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!truncate	DROP ROLE IF
 reject	reject	grammar	dropRoleStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!insert	DROP ROLE IF EXISTS zzz a
 reject	reject	grammar	dropRoleStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!swap	DROP ROLE IN EXISTS a
 accept	accept	grammar	listRolesStatement/K_LIST_K_ROLES_(K_OF_roleName)?_(K_NORECURSIVE)?	LIST ROLES
@@ -2080,17 +2080,17 @@ accept	accept	grammar	ident/QUOTED_NAME	ALTER TABLE a DROP "a"
 reject	reject	grammar	ident/QUOTED_NAME!insert	ALTER TABLE a DROP "a" zzz
 accept	accept	grammar	ident/unreserved_keyword	ALTER TABLE a DROP KEYS
 reject	reject	grammar	ident/unreserved_keyword!insert	ALTER TABLE a DROP KEYS zzz
-accept	reject	grammar	ident/unreserved_keyword!swap	ALTER TABLE a DROP KEYSPACE
-reject	accept	grammar	fident/IDENT	SELECT a.a FROM a
-reject	accept	grammar	fident/QUOTED_NAME	SELECT a."a" FROM a
+reject	reject	grammar	ident/unreserved_keyword!swap	ALTER TABLE a DROP KEYSPACE
+accept	accept	grammar	fident/IDENT	SELECT a.a FROM a
+accept	accept	grammar	fident/QUOTED_NAME	SELECT a."a" FROM a
 reject	reject	grammar	fident/QUOTED_NAME!insert	SELECT a."a" zzz FROM a
-reject	accept	grammar	fident/unreserved_keyword	SELECT a.KEYS FROM a
+accept	accept	grammar	fident/unreserved_keyword	SELECT a.KEYS FROM a
 reject	reject	grammar	fident/unreserved_keyword!insert	SELECT a.KEYS zzz FROM a
 reject	reject	grammar	fident/unreserved_keyword!swap	SELECT a.KEYSPACE FROM a
-reject	accept	grammar	noncol_ident/IDENT	SELECT : a FROM a
-reject	accept	grammar	noncol_ident/QUOTED_NAME	SELECT : "a" FROM a
+accept	accept	grammar	noncol_ident/IDENT	SELECT : a FROM a
+accept	accept	grammar	noncol_ident/QUOTED_NAME	SELECT : "a" FROM a
 reject	reject	grammar	noncol_ident/QUOTED_NAME!insert	SELECT : "a" zzz FROM a
-reject	accept	grammar	noncol_ident/unreserved_keyword	SELECT : KEYS FROM a
+accept	accept	grammar	noncol_ident/unreserved_keyword	SELECT : KEYS FROM a
 reject	reject	grammar	noncol_ident/unreserved_keyword!insert	SELECT : KEYS zzz FROM a
 reject	reject	grammar	noncol_ident/unreserved_keyword!swap	SELECT : KEYSPACE FROM a
 accept	accept	grammar	keyspaceName/ksName	USE a
@@ -2118,19 +2118,19 @@ accept	accept	grammar	ksName/QUOTED_NAME	USE "a"
 reject	reject	grammar	ksName/QUOTED_NAME!insert	USE "a" zzz
 accept	accept	grammar	ksName/unreserved_keyword	USE KEYS
 reject	reject	grammar	ksName/unreserved_keyword!insert	USE KEYS zzz
-accept	reject	grammar	ksName/unreserved_keyword!swap	USE KEYSPACE
+reject	reject	grammar	ksName/unreserved_keyword!swap	USE KEYSPACE
 accept	accept	grammar	cfName/IDENT	TRUNCATE a
 accept	accept	grammar	cfName/QUOTED_NAME	TRUNCATE "a"
 reject	reject	grammar	cfName/QUOTED_NAME!insert	TRUNCATE "a" zzz
 accept	accept	grammar	cfName/unreserved_keyword	TRUNCATE KEYS
 reject	reject	grammar	cfName/unreserved_keyword!insert	TRUNCATE KEYS zzz
-accept	reject	grammar	cfName/unreserved_keyword!swap	TRUNCATE KEYSPACE
+reject	reject	grammar	cfName/unreserved_keyword!swap	TRUNCATE KEYSPACE
 accept	accept	grammar	idxName/IDENT	DROP INDEX a
 accept	accept	grammar	idxName/QUOTED_NAME	DROP INDEX "a"
 reject	reject	grammar	idxName/QUOTED_NAME!insert	DROP INDEX "a" zzz
 accept	accept	grammar	idxName/unreserved_keyword	DROP INDEX KEYS
 reject	reject	grammar	idxName/unreserved_keyword!insert	DROP INDEX KEYS zzz
-accept	reject	grammar	idxName/unreserved_keyword!swap	DROP INDEX KEYSPACE
+reject	reject	grammar	idxName/unreserved_keyword!swap	DROP INDEX KEYSPACE
 accept	accept	grammar	roleName/IDENT	CREATE ROLE a
 accept	accept	grammar	roleName/STRING_LITERAL	CREATE ROLE 'a'
 reject	reject	grammar	roleName/STRING_LITERAL!insert	CREATE ROLE 'a' zzz
@@ -2138,20 +2138,20 @@ accept	accept	grammar	roleName/QUOTED_NAME	CREATE ROLE "a"
 reject	reject	grammar	roleName/QUOTED_NAME!insert	CREATE ROLE "a" zzz
 accept	accept	grammar	roleName/unreserved_keyword	CREATE ROLE KEYS
 reject	reject	grammar	roleName/unreserved_keyword!insert	CREATE ROLE KEYS zzz
-accept	reject	grammar	roleName/unreserved_keyword!swap	CREATE ROLE KEYSPACE
-reject	accept	grammar	constant/STRING_LITERAL	SELECT 'a' FROM a
-reject	accept	grammar	constant/INTEGER	SELECT 1 FROM a
+reject	reject	grammar	roleName/unreserved_keyword!swap	CREATE ROLE KEYSPACE
+accept	accept	grammar	constant/STRING_LITERAL	SELECT 'a' FROM a
+accept	accept	grammar	constant/INTEGER	SELECT 1 FROM a
 reject	reject	grammar	constant/INTEGER!insert	SELECT 1 zzz FROM a
-reject	accept	grammar	constant/FLOAT	SELECT 1.5 FROM a
+accept	accept	grammar	constant/FLOAT	SELECT 1.5 FROM a
 reject	reject	grammar	constant/FLOAT!insert	SELECT 1.5 zzz FROM a
 accept	accept	grammar	constant/BOOLEAN	SELECT TRUE FROM a
 reject	reject	grammar	constant/BOOLEAN!insert	SELECT TRUE zzz FROM a
-accept	reject	grammar	constant/BOOLEAN!swap	SELECT TRUNCATE FROM a
-reject	accept	grammar	constant/DURATION	SELECT 1d FROM a
+reject	reject	grammar	constant/BOOLEAN!swap	SELECT TRUNCATE FROM a
+accept	accept	grammar	constant/DURATION	SELECT 1d FROM a
 reject	reject	grammar	constant/DURATION!insert	SELECT 1d zzz FROM a
-reject	accept	grammar	constant/UUID	SELECT 01234567-0123-0123-0123-0123456789ab FROM a
+accept	accept	grammar	constant/UUID	SELECT 01234567-0123-0123-0123-0123456789ab FROM a
 reject	reject	grammar	constant/UUID!insert	SELECT 01234567-0123-0123-0123-0123456789ab zzz FROM a
-reject	accept	grammar	constant/HEXNUMBER	SELECT 0x1 FROM a
+accept	accept	grammar	constant/HEXNUMBER	SELECT 0x1 FROM a
 reject	reject	grammar	constant/HEXNUMBER!insert	SELECT 0x1 zzz FROM a
 accept	accept	grammar	constant/((K_POSITIVE_NAN|K_NEGATIVE_NAN)|K_PO~272febfb)	SELECT NAN FROM a
 reject	reject	grammar	constant/((K_POSITIVE_NAN|K_NEGATIVE_NAN)|K_PO~272febfb)!insert	SELECT NAN zzz FROM a
@@ -2160,10 +2160,10 @@ accept	accept	grammar	constant((K_POSITIVE_NAN|K_NEGATIVE_NAN)|K_PO~272febfb)/(K
 accept	accept	grammar	constant((K_POSITIVE_NAN|K_NEGATIVE_NAN)|K_PO~272febfb)/K_POSITIVE_INFINITY	SELECT INFINITY FROM a
 reject	reject	grammar	constant((K_POSITIVE_NAN|K_NEGATIVE_NAN)|K_PO~272febfb)/K_POSITIVE_INFINITY!insert	SELECT INFINITY zzz FROM a
 accept	accept	grammar	constant((K_POSITIVE_NAN|K_NEGATIVE_NAN)|K_PO~272febfb)/K_POSITIVE_INFINITY!swap	SELECT INITCOND FROM a
-reject	accept	grammar	constant((K_POSITIVE_NAN|K_NEGATIVE_NAN)|K_PO~272febfb)/K_NEGATIVE_INFINITY	SELECT -INFINITY FROM a
+accept	accept	grammar	constant((K_POSITIVE_NAN|K_NEGATIVE_NAN)|K_PO~272febfb)/K_NEGATIVE_INFINITY	SELECT -INFINITY FROM a
 reject	reject	grammar	constant((K_POSITIVE_NAN|K_NEGATIVE_NAN)|K_PO~272febfb)/K_NEGATIVE_INFINITY!insert	SELECT -INFINITY zzz FROM a
 accept	accept	grammar	constant(K_POSITIVE_NAN|K_NEGATIVE_NAN)/K_POSITIVE_NAN	SELECT NAN FROM a
-reject	accept	grammar	constant(K_POSITIVE_NAN|K_NEGATIVE_NAN)/K_NEGATIVE_NAN	SELECT -NAN FROM a
+accept	accept	grammar	constant(K_POSITIVE_NAN|K_NEGATIVE_NAN)/K_NEGATIVE_NAN	SELECT -NAN FROM a
 reject	reject	grammar	constant(K_POSITIVE_NAN|K_NEGATIVE_NAN)/K_NEGATIVE_NAN!insert	SELECT -NAN zzz FROM a
 accept	accept	grammar	fullMapLiteral/{_(term_COLON_term_(,_term_COLON_term)*)?_}	CREATE KEYSPACE a WITH a = { }
 reject	reject	grammar	fullMapLiteral/{_(term_COLON_term_(,_term_COLON_term)*)?_}!drop-1	CREATE KEYSPACE a WITH a = }
@@ -2185,55 +2185,55 @@ reject	reject	grammar	fullMapLiteral(,_term_COLON_term)*/,_term_COLON_term_(,_te
 reject	reject	grammar	fullMapLiteral(,_term_COLON_term)*/,_term_COLON_term_(,_term_COLON_term)*!drop-4	CREATE KEYSPACE a WITH a = { 'a' : 'a', 'a' : }
 reject	reject	grammar	fullMapLiteral(,_term_COLON_term)*/,_term_COLON_term_(,_term_COLON_term)*!truncate	CREATE KEYSPACE a WITH a = { 'a' : 'a', 'a' :
 reject	reject	grammar	fullMapLiteral(,_term_COLON_term)*/,_term_COLON_term_(,_term_COLON_term)*!insert	CREATE KEYSPACE a WITH a = { 'a' : 'a', 'a' : 'a' zzz }
-reject	accept	grammar	setOrMapLiteral/mapLiteral	SELECT a [ { 'a' : 'a' } ] FROM a
+accept	accept	grammar	setOrMapLiteral/mapLiteral	SELECT a [ { 'a' : 'a' } ] FROM a
 reject	reject	grammar	setOrMapLiteral/mapLiteral!drop-1	SELECT a [ { 'a' 'a' } ] FROM a
 reject	reject	grammar	setOrMapLiteral/mapLiteral!drop-2	SELECT a [ { 'a' : } ] FROM a
 reject	reject	grammar	setOrMapLiteral/mapLiteral!truncate	SELECT a [ { 'a' :
 reject	reject	grammar	setOrMapLiteral/mapLiteral!insert	SELECT a [ { 'a' : 'a' zzz } ] FROM a
-reject	accept	grammar	setOrMapLiteral/setLiteral	SELECT a [ { 'a' } ] FROM a
+accept	accept	grammar	setOrMapLiteral/setLiteral	SELECT a [ { 'a' } ] FROM a
 reject	reject	grammar	setOrMapLiteral/setLiteral!insert	SELECT a [ { 'a' zzz } ] FROM a
-reject	accept	grammar	setLiteral/(,_term)*	SELECT a [ { 'a' } ] FROM a
-reject	accept	grammar	setLiteral(,_term)*/%empty	SELECT a [ { 'a' } ] FROM a
-reject	accept	grammar	setLiteral(,_term)*/,_term_(,_term)*	SELECT a [ { 'a', 'a' } ] FROM a
+accept	accept	grammar	setLiteral/(,_term)*	SELECT a [ { 'a' } ] FROM a
+accept	accept	grammar	setLiteral(,_term)*/%empty	SELECT a [ { 'a' } ] FROM a
+accept	accept	grammar	setLiteral(,_term)*/,_term_(,_term)*	SELECT a [ { 'a', 'a' } ] FROM a
 reject	reject	grammar	setLiteral(,_term)*/,_term_(,_term)*!drop-2	SELECT a [ { 'a', } ] FROM a
 reject	reject	grammar	setLiteral(,_term)*/,_term_(,_term)*!truncate	SELECT a [ { 'a',
 reject	reject	grammar	setLiteral(,_term)*/,_term_(,_term)*!insert	SELECT a [ { 'a', 'a' zzz } ] FROM a
-reject	accept	grammar	mapLiteral/COLON_term_(,_term_COLON_term)*	SELECT a [ { 'a' : 'a' } ] FROM a
-reject	accept	grammar	mapLiteral(,_term_COLON_term)*/%empty	SELECT a [ { 'a' : 'a' } ] FROM a
-reject	accept	grammar	mapLiteral(,_term_COLON_term)*/,_term_COLON_term_(,_term_COLON_term)*	SELECT a [ { 'a' : 'a', 'a' : 'a' } ] FROM a
+accept	accept	grammar	mapLiteral/COLON_term_(,_term_COLON_term)*	SELECT a [ { 'a' : 'a' } ] FROM a
+accept	accept	grammar	mapLiteral(,_term_COLON_term)*/%empty	SELECT a [ { 'a' : 'a' } ] FROM a
+accept	accept	grammar	mapLiteral(,_term_COLON_term)*/,_term_COLON_term_(,_term_COLON_term)*	SELECT a [ { 'a' : 'a', 'a' : 'a' } ] FROM a
 reject	reject	grammar	mapLiteral(,_term_COLON_term)*/,_term_COLON_term_(,_term_COLON_term)*!drop-1	SELECT a [ { 'a' : 'a' 'a' : 'a' } ] FROM a
 reject	reject	grammar	mapLiteral(,_term_COLON_term)*/,_term_COLON_term_(,_term_COLON_term)*!drop-2	SELECT a [ { 'a' : 'a', : 'a' } ] FROM a
 reject	reject	grammar	mapLiteral(,_term_COLON_term)*/,_term_COLON_term_(,_term_COLON_term)*!drop-3	SELECT a [ { 'a' : 'a', 'a' 'a' } ] FROM a
 reject	reject	grammar	mapLiteral(,_term_COLON_term)*/,_term_COLON_term_(,_term_COLON_term)*!drop-4	SELECT a [ { 'a' : 'a', 'a' : } ] FROM a
 reject	reject	grammar	mapLiteral(,_term_COLON_term)*/,_term_COLON_term_(,_term_COLON_term)*!truncate	SELECT a [ { 'a' : 'a', 'a' :
 reject	reject	grammar	mapLiteral(,_term_COLON_term)*/,_term_COLON_term_(,_term_COLON_term)*!insert	SELECT a [ { 'a' : 'a', 'a' : 'a' zzz } ] FROM a
-reject	accept	grammar	collectionLiteral/listLiteral	SELECT a [ [ ] ] FROM a
+accept	accept	grammar	collectionLiteral/listLiteral	SELECT a [ [ ] ] FROM a
 reject	reject	grammar	collectionLiteral/listLiteral!drop-1	SELECT a [ ] ] FROM a
 reject	reject	grammar	collectionLiteral/listLiteral!drop-2	SELECT a [ [ ] FROM a
 reject	reject	grammar	collectionLiteral/listLiteral!truncate	SELECT a [ [
 reject	reject	grammar	collectionLiteral/listLiteral!insert	SELECT a [ [ ] zzz ] FROM a
-reject	accept	grammar	collectionLiteral/{_term_setOrMapLiteral_}	SELECT a [ { 'a' } ] FROM a
+accept	accept	grammar	collectionLiteral/{_term_setOrMapLiteral_}	SELECT a [ { 'a' } ] FROM a
 reject	reject	grammar	collectionLiteral/{_term_setOrMapLiteral_}!drop-1	SELECT a [ 'a' } ] FROM a
 reject	reject	grammar	collectionLiteral/{_term_setOrMapLiteral_}!drop-3	SELECT a [ { 'a' ] FROM a
 reject	reject	grammar	collectionLiteral/{_term_setOrMapLiteral_}!truncate	SELECT a [ { 'a'
 reject	reject	grammar	collectionLiteral/{_term_setOrMapLiteral_}!insert	SELECT a [ { 'a' } zzz ] FROM a
-reject	accept	grammar	collectionLiteral/{_}	SELECT a [ { } ] FROM a
+accept	accept	grammar	collectionLiteral/{_}	SELECT a [ { } ] FROM a
 reject	reject	grammar	collectionLiteral/{_}!drop-1	SELECT a [ } ] FROM a
 reject	reject	grammar	collectionLiteral/{_}!drop-2	SELECT a [ { ] FROM a
 reject	reject	grammar	collectionLiteral/{_}!truncate	SELECT a [ {
 reject	reject	grammar	collectionLiteral/{_}!insert	SELECT a [ { } zzz ] FROM a
-reject	accept	grammar	listLiteral/[_(term_(,_term)*)?_]	SELECT a [ [ ] ] FROM a
-reject	accept	grammar	listLiteral(term_(,_term)*)?/%empty	SELECT a [ [ ] ] FROM a
+accept	accept	grammar	listLiteral/[_(term_(,_term)*)?_]	SELECT a [ [ ] ] FROM a
+accept	accept	grammar	listLiteral(term_(,_term)*)?/%empty	SELECT a [ [ ] ] FROM a
 reject	reject	grammar	listLiteral(term_(,_term)*)?/%empty!insert	SELECT a [ [ zzz ] ] FROM a
-reject	accept	grammar	listLiteral(term_(,_term)*)?/term_(,_term)*	SELECT a [ [ 'a' ] ] FROM a
+accept	accept	grammar	listLiteral(term_(,_term)*)?/term_(,_term)*	SELECT a [ [ 'a' ] ] FROM a
 reject	reject	grammar	listLiteral(term_(,_term)*)?/term_(,_term)*!insert	SELECT a [ [ 'a' zzz ] ] FROM a
-reject	accept	grammar	listLiteral(,_term)*/%empty	SELECT a [ [ 'a' ] ] FROM a
-reject	accept	grammar	listLiteral(,_term)*/,_term_(,_term)*	SELECT a [ [ 'a', 'a' ] ] FROM a
+accept	accept	grammar	listLiteral(,_term)*/%empty	SELECT a [ [ 'a' ] ] FROM a
+accept	accept	grammar	listLiteral(,_term)*/,_term_(,_term)*	SELECT a [ [ 'a', 'a' ] ] FROM a
 reject	reject	grammar	listLiteral(,_term)*/,_term_(,_term)*!drop-1	SELECT a [ [ 'a' 'a' ] ] FROM a
 reject	reject	grammar	listLiteral(,_term)*/,_term_(,_term)*!drop-2	SELECT a [ [ 'a', ] ] FROM a
 reject	reject	grammar	listLiteral(,_term)*/,_term_(,_term)*!truncate	SELECT a [ [ 'a',
 reject	reject	grammar	listLiteral(,_term)*/,_term_(,_term)*!insert	SELECT a [ [ 'a', 'a' zzz ] ] FROM a
-reject	accept	grammar	usertypeLiteral/{_fident_COLON_term_(,_fident_COLON_term)*_}	SELECT a [ { a : 'a' } ] FROM a
+accept	accept	grammar	usertypeLiteral/{_fident_COLON_term_(,_fident_COLON_term)*_}	SELECT a [ { a : 'a' } ] FROM a
 reject	reject	grammar	usertypeLiteral/{_fident_COLON_term_(,_fident_COLON_term)*_}!drop-1	SELECT a [ a : 'a' } ] FROM a
 reject	reject	grammar	usertypeLiteral/{_fident_COLON_term_(,_fident_COLON_term)*_}!drop-2	SELECT a [ { : 'a' } ] FROM a
 reject	reject	grammar	usertypeLiteral/{_fident_COLON_term_(,_fident_COLON_term)*_}!drop-3	SELECT a [ { a 'a' } ] FROM a
@@ -2241,41 +2241,41 @@ reject	reject	grammar	usertypeLiteral/{_fident_COLON_term_(,_fident_COLON_term)*
 reject	reject	grammar	usertypeLiteral/{_fident_COLON_term_(,_fident_COLON_term)*_}!drop-5	SELECT a [ { a : 'a' ] FROM a
 reject	reject	grammar	usertypeLiteral/{_fident_COLON_term_(,_fident_COLON_term)*_}!truncate	SELECT a [ { a : 'a'
 reject	reject	grammar	usertypeLiteral/{_fident_COLON_term_(,_fident_COLON_term)*_}!insert	SELECT a [ { a : 'a' } zzz ] FROM a
-reject	accept	grammar	usertypeLiteral(,_fident_COLON_term)*/%empty	SELECT a [ { a : 'a' } ] FROM a
+accept	accept	grammar	usertypeLiteral(,_fident_COLON_term)*/%empty	SELECT a [ { a : 'a' } ] FROM a
 reject	reject	grammar	usertypeLiteral(,_fident_COLON_term)*/%empty!insert	SELECT a [ { a : 'a' zzz } ] FROM a
-reject	accept	grammar	usertypeLiteral(,_fident_COLON_term)*/,_fident_COLON_term_(,_fident_COLON_term)*	SELECT a [ { a : 'a', a : 'a' } ] FROM a
+accept	accept	grammar	usertypeLiteral(,_fident_COLON_term)*/,_fident_COLON_term_(,_fident_COLON_term)*	SELECT a [ { a : 'a', a : 'a' } ] FROM a
 reject	reject	grammar	usertypeLiteral(,_fident_COLON_term)*/,_fident_COLON_term_(,_fident_COLON_term)*!drop-1	SELECT a [ { a : 'a' a : 'a' } ] FROM a
 reject	reject	grammar	usertypeLiteral(,_fident_COLON_term)*/,_fident_COLON_term_(,_fident_COLON_term)*!drop-2	SELECT a [ { a : 'a', : 'a' } ] FROM a
 reject	reject	grammar	usertypeLiteral(,_fident_COLON_term)*/,_fident_COLON_term_(,_fident_COLON_term)*!drop-3	SELECT a [ { a : 'a', a 'a' } ] FROM a
 reject	reject	grammar	usertypeLiteral(,_fident_COLON_term)*/,_fident_COLON_term_(,_fident_COLON_term)*!drop-4	SELECT a [ { a : 'a', a : } ] FROM a
 reject	reject	grammar	usertypeLiteral(,_fident_COLON_term)*/,_fident_COLON_term_(,_fident_COLON_term)*!truncate	SELECT a [ { a : 'a', a :
 reject	reject	grammar	usertypeLiteral(,_fident_COLON_term)*/,_fident_COLON_term_(,_fident_COLON_term)*!insert	SELECT a [ { a : 'a', a : 'a' zzz } ] FROM a
-reject	accept	grammar	tupleLiteral/(_term_(,_term)*_)	SELECT a [('a') ] FROM a
+accept	accept	grammar	tupleLiteral/(_term_(,_term)*_)	SELECT a [('a') ] FROM a
 reject	reject	grammar	tupleLiteral/(_term_(,_term)*_)!drop-1	SELECT a [ 'a') ] FROM a
 reject	reject	grammar	tupleLiteral/(_term_(,_term)*_)!drop-2	SELECT a [() ] FROM a
 reject	reject	grammar	tupleLiteral/(_term_(,_term)*_)!drop-3	SELECT a [('a' ] FROM a
 reject	reject	grammar	tupleLiteral/(_term_(,_term)*_)!truncate	SELECT a [('a'
 reject	reject	grammar	tupleLiteral/(_term_(,_term)*_)!insert	SELECT a [('a') zzz ] FROM a
-reject	accept	grammar	tupleLiteral(,_term)*/%empty	SELECT a [('a') ] FROM a
+accept	accept	grammar	tupleLiteral(,_term)*/%empty	SELECT a [('a') ] FROM a
 reject	reject	grammar	tupleLiteral(,_term)*/%empty!insert	SELECT a [('a' zzz) ] FROM a
-reject	accept	grammar	tupleLiteral(,_term)*/,_term_(,_term)*	SELECT a [('a', 'a') ] FROM a
+accept	accept	grammar	tupleLiteral(,_term)*/,_term_(,_term)*	SELECT a [('a', 'a') ] FROM a
 reject	reject	grammar	tupleLiteral(,_term)*/,_term_(,_term)*!drop-1	SELECT a [('a' 'a') ] FROM a
 reject	reject	grammar	tupleLiteral(,_term)*/,_term_(,_term)*!drop-2	SELECT a [('a',) ] FROM a
 reject	reject	grammar	tupleLiteral(,_term)*/,_term_(,_term)*!truncate	SELECT a [('a',
 reject	reject	grammar	tupleLiteral(,_term)*/,_term_(,_term)*!insert	SELECT a [('a', 'a' zzz) ] FROM a
-reject	accept	grammar	value/constant	SELECT a [ 'a' ] FROM a
-reject	accept	grammar	value/collectionLiteral	SELECT a [ [ ] ] FROM a
-reject	accept	grammar	value/usertypeLiteral	SELECT a [ { a : 'a' } ] FROM a
-reject	accept	grammar	value/tupleLiteral	SELECT a [('a') ] FROM a
-reject	accept	grammar	value/K_NULL	SELECT a [ NULL ] FROM a
+accept	accept	grammar	value/constant	SELECT a [ 'a' ] FROM a
+accept	accept	grammar	value/collectionLiteral	SELECT a [ [ ] ] FROM a
+accept	accept	grammar	value/usertypeLiteral	SELECT a [ { a : 'a' } ] FROM a
+accept	accept	grammar	value/tupleLiteral	SELECT a [('a') ] FROM a
+accept	accept	grammar	value/K_NULL	SELECT a [ NULL ] FROM a
 reject	reject	grammar	value/K_NULL!insert	SELECT a [ NULL zzz ] FROM a
 reject	reject	grammar	value/K_NULL!swap	SELECT a [ OF ] FROM a
-reject	accept	grammar	value/COLON_noncol_ident	SELECT a [ : a ] FROM a
+accept	accept	grammar	value/COLON_noncol_ident	SELECT a [ : a ] FROM a
 reject	reject	grammar	value/COLON_noncol_ident!drop-1	SELECT a [ a ] FROM a
 reject	reject	grammar	value/COLON_noncol_ident!drop-2	SELECT a [ : ] FROM a
 reject	reject	grammar	value/COLON_noncol_ident!truncate	SELECT a [ :
 reject	reject	grammar	value/COLON_noncol_ident!insert	SELECT a [ : a zzz ] FROM a
-reject	accept	grammar	value/QMARK	SELECT a [ ? ] FROM a
+accept	accept	grammar	value/QMARK	SELECT a [ ? ] FROM a
 reject	reject	grammar	value/QMARK!insert	SELECT a [ ? zzz ] FROM a
 accept	accept	grammar	intValue/INTEGER	SELECT a FROM a LIMIT 1
 accept	accept	grammar	intValue/COLON_noncol_ident	SELECT a FROM a LIMIT : a
@@ -2295,67 +2295,67 @@ accept	accept	grammar	allowedFunctionName/QUOTED_NAME	DROP FUNCTION "a"
 reject	reject	grammar	allowedFunctionName/QUOTED_NAME!insert	DROP FUNCTION "a" zzz
 accept	accept	grammar	allowedFunctionName/unreserved_function_keyword	DROP FUNCTION KEYS
 reject	reject	grammar	allowedFunctionName/unreserved_function_keyword!insert	DROP FUNCTION KEYS zzz
-accept	reject	grammar	allowedFunctionName/unreserved_function_keyword!swap	DROP FUNCTION KEYSPACE
+reject	reject	grammar	allowedFunctionName/unreserved_function_keyword!swap	DROP FUNCTION KEYSPACE
 accept	accept	grammar	allowedFunctionName/K_TOKEN	DROP FUNCTION TOKEN
 reject	reject	grammar	allowedFunctionName/K_TOKEN!insert	DROP FUNCTION TOKEN zzz
 accept	accept	grammar	allowedFunctionName/K_TOKEN!swap	DROP FUNCTION TRIGGER
 accept	accept	grammar	allowedFunctionName/K_COUNT	DROP FUNCTION COUNT
 reject	reject	grammar	allowedFunctionName/K_COUNT!insert	DROP FUNCTION COUNT zzz
 accept	accept	grammar	allowedFunctionName/K_COUNT!swap	DROP FUNCTION COUNTER
-reject	accept	grammar	function/functionName_(_)	SELECT a [ a() ] FROM a
+accept	accept	grammar	function/functionName_(_)	SELECT a [ a() ] FROM a
 reject	reject	grammar	function/functionName_(_)!drop-2	SELECT a [ a) ] FROM a
 reject	reject	grammar	function/functionName_(_)!drop-3	SELECT a [ a(] FROM a
 reject	reject	grammar	function/functionName_(_)!truncate	SELECT a [ a(
 reject	reject	grammar	function/functionName_(_)!insert	SELECT a [ a() zzz ] FROM a
-reject	accept	grammar	function/functionName_(_functionArgs_)	SELECT a [ a('a') ] FROM a
+accept	accept	grammar	function/functionName_(_functionArgs_)	SELECT a [ a('a') ] FROM a
 reject	reject	grammar	function/functionName_(_functionArgs_)!drop-2	SELECT a [ a 'a') ] FROM a
 reject	reject	grammar	function/functionName_(_functionArgs_)!drop-4	SELECT a [ a('a' ] FROM a
 reject	reject	grammar	function/functionName_(_functionArgs_)!truncate	SELECT a [ a('a'
 reject	reject	grammar	function/functionName_(_functionArgs_)!insert	SELECT a [ a('a') zzz ] FROM a
-reject	accept	grammar	functionArgs/term_(,_term)*	SELECT a [ a('a') ] FROM a
+accept	accept	grammar	functionArgs/term_(,_term)*	SELECT a [ a('a') ] FROM a
 reject	reject	grammar	functionArgs/term_(,_term)*!insert	SELECT a [ a('a' zzz) ] FROM a
-reject	accept	grammar	functionArgs(,_term)*/%empty	SELECT a [ a('a') ] FROM a
-reject	accept	grammar	functionArgs(,_term)*/,_term_(,_term)*	SELECT a [ a('a', 'a') ] FROM a
+accept	accept	grammar	functionArgs(,_term)*/%empty	SELECT a [ a('a') ] FROM a
+accept	accept	grammar	functionArgs(,_term)*/,_term_(,_term)*	SELECT a [ a('a', 'a') ] FROM a
 reject	reject	grammar	functionArgs(,_term)*/,_term_(,_term)*!drop-1	SELECT a [ a('a' 'a') ] FROM a
 reject	reject	grammar	functionArgs(,_term)*/,_term_(,_term)*!drop-2	SELECT a [ a('a',) ] FROM a
 reject	reject	grammar	functionArgs(,_term)*/,_term_(,_term)*!truncate	SELECT a [ a('a',
 reject	reject	grammar	functionArgs(,_term)*/,_term_(,_term)*!insert	SELECT a [ a('a', 'a' zzz) ] FROM a
-reject	accept	grammar	term/termAddition	SELECT a [ 'a' ] FROM a
-reject	accept	grammar	termAddition/termMultiplication_(+_termMultiplication|-_termMultiplication)*	SELECT a [ 'a' ] FROM a
-reject	accept	grammar	termAddition(+_termMultiplication|-_termMultiplication)*/%empty	SELECT a [ 'a' ] FROM a
-reject	accept	grammar	termAddition(+_termMultiplication|-_termMultiplication)*/(+_termMultiplication|-_termMultiplication)_(+_termMult~b808f702	SELECT a [ 'a' + 'a' ] FROM a
+accept	accept	grammar	term/termAddition	SELECT a [ 'a' ] FROM a
+accept	accept	grammar	termAddition/termMultiplication_(+_termMultiplication|-_termMultiplication)*	SELECT a [ 'a' ] FROM a
+accept	accept	grammar	termAddition(+_termMultiplication|-_termMultiplication)*/%empty	SELECT a [ 'a' ] FROM a
+accept	accept	grammar	termAddition(+_termMultiplication|-_termMultiplication)*/(+_termMultiplication|-_termMultiplication)_(+_termMult~b808f702	SELECT a [ 'a' + 'a' ] FROM a
 reject	reject	grammar	termAddition(+_termMultiplication|-_termMultiplication)*/(+_termMultiplication|-_termMultiplication)_(+_termMult~b808f702!drop-1	SELECT a [ 'a' 'a' ] FROM a
 reject	reject	grammar	termAddition(+_termMultiplication|-_termMultiplication)*/(+_termMultiplication|-_termMultiplication)_(+_termMult~b808f702!drop-2	SELECT a [ 'a' + ] FROM a
 reject	reject	grammar	termAddition(+_termMultiplication|-_termMultiplication)*/(+_termMultiplication|-_termMultiplication)_(+_termMult~b808f702!truncate	SELECT a [ 'a' +
 reject	reject	grammar	termAddition(+_termMultiplication|-_termMultiplication)*/(+_termMultiplication|-_termMultiplication)_(+_termMult~b808f702!insert	SELECT a [ 'a' + 'a' zzz ] FROM a
-reject	accept	grammar	termAddition(+_termMultiplication|-_termMultiplication)/+_termMultiplication	SELECT a [ 'a' + 'a' ] FROM a
-reject	accept	grammar	termAddition(+_termMultiplication|-_termMultiplication)/-_termMultiplication	SELECT a [ 'a' - 'a' ] FROM a
+accept	accept	grammar	termAddition(+_termMultiplication|-_termMultiplication)/+_termMultiplication	SELECT a [ 'a' + 'a' ] FROM a
+accept	accept	grammar	termAddition(+_termMultiplication|-_termMultiplication)/-_termMultiplication	SELECT a [ 'a' - 'a' ] FROM a
 reject	reject	grammar	termAddition(+_termMultiplication|-_termMultiplication)/-_termMultiplication!drop-2	SELECT a [ 'a' - ] FROM a
 reject	reject	grammar	termAddition(+_termMultiplication|-_termMultiplication)/-_termMultiplication!truncate	SELECT a [ 'a' -
 reject	reject	grammar	termAddition(+_termMultiplication|-_termMultiplication)/-_termMultiplication!insert	SELECT a [ 'a' - 'a' zzz ] FROM a
-reject	accept	grammar	termMultiplication/termGroup_(*_termGroup|SLASH_termGroup|%_termGroup)*	SELECT a [ 'a' ] FROM a
-reject	accept	grammar	termMultiplication(*_termGroup|SLASH_termGroup|%_termGroup)*/%empty	SELECT a [ 'a' ] FROM a
-reject	accept	grammar	termMultiplication(*_termGroup|SLASH_termGroup|%_termGroup)*/(*_termGroup|SLASH_termGroup|%_termGroup)_(*_termGroup|~255cec7f	SELECT a [ 'a' * 'a' ] FROM a
+accept	accept	grammar	termMultiplication/termGroup_(*_termGroup|SLASH_termGroup|%_termGroup)*	SELECT a [ 'a' ] FROM a
+accept	accept	grammar	termMultiplication(*_termGroup|SLASH_termGroup|%_termGroup)*/%empty	SELECT a [ 'a' ] FROM a
+accept	accept	grammar	termMultiplication(*_termGroup|SLASH_termGroup|%_termGroup)*/(*_termGroup|SLASH_termGroup|%_termGroup)_(*_termGroup|~255cec7f	SELECT a [ 'a' * 'a' ] FROM a
 reject	reject	grammar	termMultiplication(*_termGroup|SLASH_termGroup|%_termGroup)*/(*_termGroup|SLASH_termGroup|%_termGroup)_(*_termGroup|~255cec7f!drop-2	SELECT a [ 'a' * ] FROM a
 reject	reject	grammar	termMultiplication(*_termGroup|SLASH_termGroup|%_termGroup)*/(*_termGroup|SLASH_termGroup|%_termGroup)_(*_termGroup|~255cec7f!truncate	SELECT a [ 'a' *
 reject	reject	grammar	termMultiplication(*_termGroup|SLASH_termGroup|%_termGroup)*/(*_termGroup|SLASH_termGroup|%_termGroup)_(*_termGroup|~255cec7f!insert	SELECT a [ 'a' * 'a' zzz ] FROM a
-reject	accept	grammar	termMultiplication(*_termGroup|SLASH_termGroup|%_termGroup)/*_termGroup	SELECT a [ 'a' * 'a' ] FROM a
-reject	accept	grammar	termMultiplication(*_termGroup|SLASH_termGroup|%_termGroup)/SLASH_termGroup	SELECT a [ 'a' / 'a' ] FROM a
+accept	accept	grammar	termMultiplication(*_termGroup|SLASH_termGroup|%_termGroup)/*_termGroup	SELECT a [ 'a' * 'a' ] FROM a
+accept	accept	grammar	termMultiplication(*_termGroup|SLASH_termGroup|%_termGroup)/SLASH_termGroup	SELECT a [ 'a' / 'a' ] FROM a
 reject	reject	grammar	termMultiplication(*_termGroup|SLASH_termGroup|%_termGroup)/SLASH_termGroup!drop-2	SELECT a [ 'a' / ] FROM a
 reject	reject	grammar	termMultiplication(*_termGroup|SLASH_termGroup|%_termGroup)/SLASH_termGroup!truncate	SELECT a [ 'a' /
 reject	reject	grammar	termMultiplication(*_termGroup|SLASH_termGroup|%_termGroup)/SLASH_termGroup!insert	SELECT a [ 'a' / 'a' zzz ] FROM a
-reject	accept	grammar	termMultiplication(*_termGroup|SLASH_termGroup|%_termGroup)/%_termGroup	SELECT a [ 'a' % 'a' ] FROM a
+accept	accept	grammar	termMultiplication(*_termGroup|SLASH_termGroup|%_termGroup)/%_termGroup	SELECT a [ 'a' % 'a' ] FROM a
 reject	reject	grammar	termMultiplication(*_termGroup|SLASH_termGroup|%_termGroup)/%_termGroup!drop-2	SELECT a [ 'a' % ] FROM a
 reject	reject	grammar	termMultiplication(*_termGroup|SLASH_termGroup|%_termGroup)/%_termGroup!truncate	SELECT a [ 'a' %
 reject	reject	grammar	termMultiplication(*_termGroup|SLASH_termGroup|%_termGroup)/%_termGroup!insert	SELECT a [ 'a' % 'a' zzz ] FROM a
-reject	accept	grammar	termGroup/simpleTerm	SELECT a [ 'a' ] FROM a
-reject	accept	grammar	termGroup/-_simpleTerm	SELECT a [ - 'a' ] FROM a
+accept	accept	grammar	termGroup/simpleTerm	SELECT a [ 'a' ] FROM a
+accept	accept	grammar	termGroup/-_simpleTerm	SELECT a [ - 'a' ] FROM a
 reject	reject	grammar	termGroup/-_simpleTerm!drop-2	SELECT a [ - ] FROM a
 reject	reject	grammar	termGroup/-_simpleTerm!truncate	SELECT a [ -
 reject	reject	grammar	termGroup/-_simpleTerm!insert	SELECT a [ - 'a' zzz ] FROM a
-reject	accept	grammar	simpleTerm/value	SELECT a [ 'a' ] FROM a
-reject	accept	grammar	simpleTerm/function	SELECT a [ a() ] FROM a
-reject	accept	grammar	simpleTerm/(_comparatorType_)_simpleTerm	SELECT a [(ASCII) 'a' ] FROM a
+accept	accept	grammar	simpleTerm/value	SELECT a [ 'a' ] FROM a
+accept	accept	grammar	simpleTerm/function	SELECT a [ a() ] FROM a
+accept	accept	grammar	simpleTerm/(_comparatorType_)_simpleTerm	SELECT a [(ASCII) 'a' ] FROM a
 reject	reject	grammar	simpleTerm/(_comparatorType_)_simpleTerm!drop-1	SELECT a [ ASCII) 'a' ] FROM a
 reject	reject	grammar	simpleTerm/(_comparatorType_)_simpleTerm!drop-2	SELECT a [() 'a' ] FROM a
 reject	reject	grammar	simpleTerm/(_comparatorType_)_simpleTerm!drop-3	SELECT a [(ASCII 'a' ] FROM a
@@ -2363,7 +2363,7 @@ reject	reject	grammar	simpleTerm/(_comparatorType_)_simpleTerm!drop-4	SELECT a [
 reject	reject	grammar	simpleTerm/(_comparatorType_)_simpleTerm!truncate	SELECT a [(ASCII)
 reject	reject	grammar	simpleTerm/(_comparatorType_)_simpleTerm!insert	SELECT a [(ASCII) 'a' zzz ] FROM a
 reject	reject	grammar	simpleTerm/(_comparatorType_)_simpleTerm!swap	SELECT a [(AUTHORIZE) 'a' ] FROM a
-reject	accept	grammar	simpleTerm/K_CAST_(_simpleTerm_K_AS_native_type_)	SELECT a [ CAST('a' AS ASCII) ] FROM a
+accept	accept	grammar	simpleTerm/K_CAST_(_simpleTerm_K_AS_native_type_)	SELECT a [ CAST('a' AS ASCII) ] FROM a
 reject	reject	grammar	simpleTerm/K_CAST_(_simpleTerm_K_AS_native_type_)!drop-1	SELECT a [('a' AS ASCII) ] FROM a
 reject	reject	grammar	simpleTerm/K_CAST_(_simpleTerm_K_AS_native_type_)!drop-2	SELECT a [ CAST 'a' AS ASCII) ] FROM a
 reject	reject	grammar	simpleTerm/K_CAST_(_simpleTerm_K_AS_native_type_)!drop-3	SELECT a [ CAST(AS ASCII) ] FROM a
@@ -2376,7 +2376,7 @@ reject	reject	grammar	simpleTerm/K_CAST_(_simpleTerm_K_AS_native_type_)!swap	SEL
 accept	accept	grammar	columnOperation/cident_columnOperationDifferentiator	UPDATE a SET a = 'a' WHERE a = 'a'
 reject	reject	grammar	columnOperation/cident_columnOperationDifferentiator!truncate	UPDATE a SET a =
 accept	accept	grammar	columnOperationDifferentiator/=_normalColumnOperation	UPDATE a SET a = 'a' WHERE a = 'a'
-reject	accept	grammar	columnOperationDifferentiator/shorthandColumnOperation	UPDATE a SET a += 'a' WHERE a = 'a'
+accept	accept	grammar	columnOperationDifferentiator/shorthandColumnOperation	UPDATE a SET a += 'a' WHERE a = 'a'
 reject	reject	grammar	columnOperationDifferentiator/shorthandColumnOperation!drop-2	UPDATE a SET a += WHERE a = 'a'
 reject	reject	grammar	columnOperationDifferentiator/shorthandColumnOperation!truncate	UPDATE a SET a +=
 reject	reject	grammar	columnOperationDifferentiator/shorthandColumnOperation!insert	UPDATE a SET a += 'a' zzz WHERE a = 'a'
@@ -2402,9 +2402,9 @@ reject	reject	grammar	normalColumnOperation/cident_(+|-)_term!drop-2	UPDATE a SE
 reject	reject	grammar	normalColumnOperation/cident_(+|-)_term!drop-3	UPDATE a SET a = a + WHERE a = 'a'
 reject	reject	grammar	normalColumnOperation/cident_(+|-)_term!truncate	UPDATE a SET a = a +
 reject	reject	grammar	normalColumnOperation/cident_(+|-)_term!insert	UPDATE a SET a = a + 'a' zzz WHERE a = 'a'
-reject	accept	grammar	normalColumnOperation/cident_INTEGER	UPDATE a SET a = a 1 WHERE a = 'a'
+accept	accept	grammar	normalColumnOperation/cident_INTEGER	UPDATE a SET a = a 1 WHERE a = 'a'
 accept	accept	grammar	normalColumnOperation/cident_INTEGER!drop-1	UPDATE a SET a = 1 WHERE a = 'a'
-accept	reject	grammar	normalColumnOperation/cident_INTEGER!drop-2	UPDATE a SET a = a WHERE a = 'a'
+reject	reject	grammar	normalColumnOperation/cident_INTEGER!drop-2	UPDATE a SET a = a WHERE a = 'a'
 reject	reject	grammar	normalColumnOperation/cident_INTEGER!truncate	UPDATE a SET a = a
 reject	reject	grammar	normalColumnOperation/cident_INTEGER!insert	UPDATE a SET a = a 1 zzz WHERE a = 'a'
 accept	accept	grammar	normalColumnOperation(+_cident)?/%empty	UPDATE a SET a = 'a' WHERE a = 'a'
@@ -2417,11 +2417,11 @@ accept	accept	grammar	normalColumnOperation(+|-)/+	UPDATE a SET a = a + 'a' WHER
 reject	reject	grammar	normalColumnOperation(+|-)/+!insert	UPDATE a SET a = a + zzz 'a' WHERE a = 'a'
 accept	accept	grammar	normalColumnOperation(+|-)/-	UPDATE a SET a = a - 'a' WHERE a = 'a'
 reject	reject	grammar	normalColumnOperation(+|-)/-!insert	UPDATE a SET a = a - zzz 'a' WHERE a = 'a'
-reject	accept	grammar	shorthandColumnOperation/(+=|-=)_term	UPDATE a SET a += 'a' WHERE a = 'a'
-reject	accept	grammar	shorthandColumnOperation(+=|-=)/+=	UPDATE a SET a += 'a' WHERE a = 'a'
+accept	accept	grammar	shorthandColumnOperation/(+=|-=)_term	UPDATE a SET a += 'a' WHERE a = 'a'
+accept	accept	grammar	shorthandColumnOperation(+=|-=)/+=	UPDATE a SET a += 'a' WHERE a = 'a'
 reject	reject	grammar	shorthandColumnOperation(+=|-=)/+=!truncate	UPDATE a SET a
 reject	reject	grammar	shorthandColumnOperation(+=|-=)/+=!insert	UPDATE a SET a += zzz 'a' WHERE a = 'a'
-reject	accept	grammar	shorthandColumnOperation(+=|-=)/-=	UPDATE a SET a -= 'a' WHERE a = 'a'
+accept	accept	grammar	shorthandColumnOperation(+=|-=)/-=	UPDATE a SET a -= 'a' WHERE a = 'a'
 reject	reject	grammar	shorthandColumnOperation(+=|-=)/-=!insert	UPDATE a SET a -= zzz 'a' WHERE a = 'a'
 accept	accept	grammar	collectionColumnOperation/=_term	UPDATE a SET a [ 'a' ] = 'a' WHERE a = 'a'
 accept	accept	grammar	udtColumnOperation/=_term	UPDATE a SET a.a = 'a' WHERE a = 'a'
@@ -2431,19 +2431,19 @@ accept	accept	grammar	columnCondition(relationType_term|containsOperator_t~c5ff7
 reject	reject	grammar	columnCondition(relationType_term|containsOperator_t~c5ff737a)/containsOperator_term!drop-2	DELETE FROM a WHERE a = 'a' IF a CONTAINS
 reject	reject	grammar	columnCondition(relationType_term|containsOperator_t~c5ff737a)/containsOperator_term!insert	DELETE FROM a WHERE a = 'a' IF a CONTAINS 'a' zzz
 reject	reject	grammar	columnCondition(relationType_term|containsOperator_t~c5ff737a)/containsOperator_term!swap	DELETE FROM a WHERE a = 'a' IF a COUNT 'a'
-reject	accept	grammar	columnCondition(relationType_term|containsOperator_t~c5ff737a)/K_IN_(singleColumnInValues|inMarker)	DELETE FROM a WHERE a = 'a' IF a IN ?
+accept	accept	grammar	columnCondition(relationType_term|containsOperator_t~c5ff737a)/K_IN_(singleColumnInValues|inMarker)	DELETE FROM a WHERE a = 'a' IF a IN ?
 reject	reject	grammar	columnCondition(relationType_term|containsOperator_t~c5ff737a)/K_IN_(singleColumnInValues|inMarker)!drop-1	DELETE FROM a WHERE a = 'a' IF a ?
 reject	reject	grammar	columnCondition(relationType_term|containsOperator_t~c5ff737a)/K_IN_(singleColumnInValues|inMarker)!drop-2	DELETE FROM a WHERE a = 'a' IF a IN
 reject	reject	grammar	columnCondition(relationType_term|containsOperator_t~c5ff737a)/K_IN_(singleColumnInValues|inMarker)!insert	DELETE FROM a WHERE a = 'a' IF a IN ? zzz
 reject	reject	grammar	columnCondition(relationType_term|containsOperator_t~c5ff737a)/K_IN_(singleColumnInValues|inMarker)!swap	DELETE FROM a WHERE a = 'a' IF a INDEX ?
-reject	accept	grammar	columnCondition(relationType_term|containsOperator_t~c5ff737a)/[_term_]_(relationType_term|K_IN_(singleColumn~c69ba947)	DELETE FROM a WHERE a = 'a' IF a [ 'a' ] = 'a'
+accept	accept	grammar	columnCondition(relationType_term|containsOperator_t~c5ff737a)/[_term_]_(relationType_term|K_IN_(singleColumn~c69ba947)	DELETE FROM a WHERE a = 'a' IF a [ 'a' ] = 'a'
 reject	reject	grammar	columnCondition(relationType_term|containsOperator_t~c5ff737a)/[_term_]_(relationType_term|K_IN_(singleColumn~c69ba947)!drop-1	DELETE FROM a WHERE a = 'a' IF a 'a' ] = 'a'
 reject	reject	grammar	columnCondition(relationType_term|containsOperator_t~c5ff737a)/[_term_]_(relationType_term|K_IN_(singleColumn~c69ba947)!drop-2	DELETE FROM a WHERE a = 'a' IF a [ ] = 'a'
 reject	reject	grammar	columnCondition(relationType_term|containsOperator_t~c5ff737a)/[_term_]_(relationType_term|K_IN_(singleColumn~c69ba947)!drop-3	DELETE FROM a WHERE a = 'a' IF a [ 'a' = 'a'
 reject	reject	grammar	columnCondition(relationType_term|containsOperator_t~c5ff737a)/[_term_]_(relationType_term|K_IN_(singleColumn~c69ba947)!drop-4	DELETE FROM a WHERE a = 'a' IF a [ 'a' ] 'a'
 reject	reject	grammar	columnCondition(relationType_term|containsOperator_t~c5ff737a)/[_term_]_(relationType_term|K_IN_(singleColumn~c69ba947)!drop-5	DELETE FROM a WHERE a = 'a' IF a [ 'a' ] =
 reject	reject	grammar	columnCondition(relationType_term|containsOperator_t~c5ff737a)/[_term_]_(relationType_term|K_IN_(singleColumn~c69ba947)!insert	DELETE FROM a WHERE a = 'a' IF a [ 'a' ] = 'a' zzz
-reject	accept	grammar	columnCondition(relationType_term|containsOperator_t~c5ff737a)/._fident_(relationType_term|K_IN_(singleColumn~c69ba947)	DELETE FROM a WHERE a = 'a' IF a.a = 'a'
+accept	accept	grammar	columnCondition(relationType_term|containsOperator_t~c5ff737a)/._fident_(relationType_term|K_IN_(singleColumn~c69ba947)	DELETE FROM a WHERE a = 'a' IF a.a = 'a'
 reject	reject	grammar	columnCondition(relationType_term|containsOperator_t~c5ff737a)/._fident_(relationType_term|K_IN_(singleColumn~c69ba947)!drop-1	DELETE FROM a WHERE a = 'a' IF a a = 'a'
 reject	reject	grammar	columnCondition(relationType_term|containsOperator_t~c5ff737a)/._fident_(relationType_term|K_IN_(singleColumn~c69ba947)!drop-2	DELETE FROM a WHERE a = 'a' IF a.= 'a'
 reject	reject	grammar	columnCondition(relationType_term|containsOperator_t~c5ff737a)/._fident_(relationType_term|K_IN_(singleColumn~c69ba947)!drop-3	DELETE FROM a WHERE a = 'a' IF a.a 'a'
@@ -2453,9 +2453,9 @@ accept	accept	grammar	columnCondition(singleColumnInValues|inMarker)/singleColum
 reject	reject	grammar	columnCondition(singleColumnInValues|inMarker)/singleColumnInValues!drop-1	DELETE FROM a WHERE a = 'a' IF a IN)
 reject	reject	grammar	columnCondition(singleColumnInValues|inMarker)/singleColumnInValues!drop-2	DELETE FROM a WHERE a = 'a' IF a IN(
 reject	reject	grammar	columnCondition(singleColumnInValues|inMarker)/singleColumnInValues!insert	DELETE FROM a WHERE a = 'a' IF a IN() zzz
-reject	accept	grammar	columnCondition(singleColumnInValues|inMarker)/inMarker	DELETE FROM a WHERE a = 'a' IF a IN ?
-reject	accept	grammar	columnCondition(relationType_term|K_IN_(singleColumn~c69ba947)/relationType_term	DELETE FROM a WHERE a = 'a' IF a.a = 'a'
-reject	accept	grammar	columnCondition(relationType_term|K_IN_(singleColumn~c69ba947)/K_IN_(singleColumnInValues|inMarker)	DELETE FROM a WHERE a = 'a' IF a.a IN ?
+accept	accept	grammar	columnCondition(singleColumnInValues|inMarker)/inMarker	DELETE FROM a WHERE a = 'a' IF a IN ?
+accept	accept	grammar	columnCondition(relationType_term|K_IN_(singleColumn~c69ba947)/relationType_term	DELETE FROM a WHERE a = 'a' IF a.a = 'a'
+accept	accept	grammar	columnCondition(relationType_term|K_IN_(singleColumn~c69ba947)/K_IN_(singleColumnInValues|inMarker)	DELETE FROM a WHERE a = 'a' IF a.a IN ?
 reject	reject	grammar	columnCondition(relationType_term|K_IN_(singleColumn~c69ba947)/K_IN_(singleColumnInValues|inMarker)!drop-1	DELETE FROM a WHERE a = 'a' IF a.a ?
 reject	reject	grammar	columnCondition(relationType_term|K_IN_(singleColumn~c69ba947)/K_IN_(singleColumnInValues|inMarker)!drop-2	DELETE FROM a WHERE a = 'a' IF a.a IN
 reject	reject	grammar	columnCondition(relationType_term|K_IN_(singleColumn~c69ba947)/K_IN_(singleColumnInValues|inMarker)!insert	DELETE FROM a WHERE a = 'a' IF a.a IN ? zzz
@@ -2491,12 +2491,12 @@ reject	reject	grammar	relationType/>=!insert	DELETE FROM a WHERE a >= zzz 'a'
 accept	accept	grammar	relationType/!=	DELETE FROM a WHERE a != 'a'
 reject	reject	grammar	relationType/!=!insert	DELETE FROM a WHERE a != zzz 'a'
 accept	accept	grammar	relation/cident_relationType_term	DELETE FROM a WHERE a = 'a'
-reject	accept	grammar	relation/cident_K_LIKE_term	DELETE FROM a WHERE a LIKE 'a'
+accept	accept	grammar	relation/cident_K_LIKE_term	DELETE FROM a WHERE a LIKE 'a'
 reject	reject	grammar	relation/cident_K_LIKE_term!drop-1	DELETE FROM a WHERE LIKE 'a'
 reject	reject	grammar	relation/cident_K_LIKE_term!drop-3	DELETE FROM a WHERE a LIKE
 reject	reject	grammar	relation/cident_K_LIKE_term!insert	DELETE FROM a WHERE a LIKE 'a' zzz
 reject	reject	grammar	relation/cident_K_LIKE_term!swap	DELETE FROM a WHERE a LIMIT 'a'
-reject	accept	grammar	relation/cident_K_IS_K_NOT_K_NULL	DELETE FROM a WHERE a IS NOT NULL
+accept	accept	grammar	relation/cident_K_IS_K_NOT_K_NULL	DELETE FROM a WHERE a IS NOT NULL
 reject	reject	grammar	relation/cident_K_IS_K_NOT_K_NULL!drop-1	DELETE FROM a WHERE IS NOT NULL
 reject	reject	grammar	relation/cident_K_IS_K_NOT_K_NULL!drop-2	DELETE FROM a WHERE a NOT NULL
 reject	reject	grammar	relation/cident_K_IS_K_NOT_K_NULL!drop-3	DELETE FROM a WHERE a IS NULL
@@ -2506,13 +2506,13 @@ reject	reject	grammar	relation/cident_K_IS_K_NOT_K_NULL!swap	DELETE FROM a WHERE
 accept	accept	grammar	relation/K_TOKEN_tupleOfIdentifiers_relationType_term	DELETE FROM a WHERE TOKEN(a) = 'a'
 reject	reject	grammar	relation/K_TOKEN_tupleOfIdentifiers_relationType_term!drop-1	DELETE FROM a WHERE(a) = 'a'
 reject	reject	grammar	relation/K_TOKEN_tupleOfIdentifiers_relationType_term!drop-2	DELETE FROM a WHERE TOKEN a) = 'a'
-accept	reject	grammar	relation/K_TOKEN_tupleOfIdentifiers_relationType_term!drop-3	DELETE FROM a WHERE TOKEN() = 'a'
+reject	reject	grammar	relation/K_TOKEN_tupleOfIdentifiers_relationType_term!drop-3	DELETE FROM a WHERE TOKEN() = 'a'
 reject	reject	grammar	relation/K_TOKEN_tupleOfIdentifiers_relationType_term!drop-4	DELETE FROM a WHERE TOKEN(a = 'a'
 reject	reject	grammar	relation/K_TOKEN_tupleOfIdentifiers_relationType_term!drop-5	DELETE FROM a WHERE TOKEN(a) 'a'
 reject	reject	grammar	relation/K_TOKEN_tupleOfIdentifiers_relationType_term!drop-6	DELETE FROM a WHERE TOKEN(a) =
 reject	reject	grammar	relation/K_TOKEN_tupleOfIdentifiers_relationType_term!insert	DELETE FROM a WHERE TOKEN(a) = 'a' zzz
-accept	reject	grammar	relation/K_TOKEN_tupleOfIdentifiers_relationType_term!swap	DELETE FROM a WHERE TRIGGER(a) = 'a'
-reject	accept	grammar	relation/cident_K_IN_inMarker	DELETE FROM a WHERE a IN ?
+reject	reject	grammar	relation/K_TOKEN_tupleOfIdentifiers_relationType_term!swap	DELETE FROM a WHERE TRIGGER(a) = 'a'
+accept	accept	grammar	relation/cident_K_IN_inMarker	DELETE FROM a WHERE a IN ?
 reject	reject	grammar	relation/cident_K_IN_inMarker!drop-1	DELETE FROM a WHERE IN ?
 reject	reject	grammar	relation/cident_K_IN_inMarker!drop-2	DELETE FROM a WHERE a ?
 reject	reject	grammar	relation/cident_K_IN_inMarker!drop-3	DELETE FROM a WHERE a IN
@@ -2530,7 +2530,7 @@ reject	reject	grammar	relation/cident_containsOperator_term!drop-1	DELETE FROM a
 reject	reject	grammar	relation/cident_containsOperator_term!drop-3	DELETE FROM a WHERE a CONTAINS
 reject	reject	grammar	relation/cident_containsOperator_term!insert	DELETE FROM a WHERE a CONTAINS 'a' zzz
 reject	reject	grammar	relation/cident_containsOperator_term!swap	DELETE FROM a WHERE a COUNT 'a'
-reject	accept	grammar	relation/cident_[_term_]_relationType_term	DELETE FROM a WHERE a [ 'a' ] = 'a'
+accept	accept	grammar	relation/cident_[_term_]_relationType_term	DELETE FROM a WHERE a [ 'a' ] = 'a'
 reject	reject	grammar	relation/cident_[_term_]_relationType_term!drop-1	DELETE FROM a WHERE [ 'a' ] = 'a'
 reject	reject	grammar	relation/cident_[_term_]_relationType_term!drop-2	DELETE FROM a WHERE a 'a' ] = 'a'
 reject	reject	grammar	relation/cident_[_term_]_relationType_term!drop-3	DELETE FROM a WHERE a [ ] = 'a'
@@ -2538,7 +2538,7 @@ reject	reject	grammar	relation/cident_[_term_]_relationType_term!drop-4	DELETE F
 reject	reject	grammar	relation/cident_[_term_]_relationType_term!drop-5	DELETE FROM a WHERE a [ 'a' ] 'a'
 reject	reject	grammar	relation/cident_[_term_]_relationType_term!drop-6	DELETE FROM a WHERE a [ 'a' ] =
 reject	reject	grammar	relation/cident_[_term_]_relationType_term!insert	DELETE FROM a WHERE a [ 'a' ] = 'a' zzz
-reject	accept	grammar	relation/tupleOfIdentifiers_(K_IN_((_)|inMarkerForTuple|tupleOfT~2655f96d	DELETE FROM a WHERE(a) IN ?
+accept	accept	grammar	relation/tupleOfIdentifiers_(K_IN_((_)|inMarkerForTuple|tupleOfT~2655f96d	DELETE FROM a WHERE(a) IN ?
 reject	reject	grammar	relation/tupleOfIdentifiers_(K_IN_((_)|inMarkerForTuple|tupleOfT~2655f96d!drop-1	DELETE FROM a WHERE a) IN ?
 reject	reject	grammar	relation/tupleOfIdentifiers_(K_IN_((_)|inMarkerForTuple|tupleOfT~2655f96d!drop-2	DELETE FROM a WHERE() IN ?
 reject	reject	grammar	relation/tupleOfIdentifiers_(K_IN_((_)|inMarkerForTuple|tupleOfT~2655f96d!drop-3	DELETE FROM a WHERE(a IN ?
@@ -2546,34 +2546,34 @@ reject	reject	grammar	relation/tupleOfIdentifiers_(K_IN_((_)|inMarkerForTuple|tu
 reject	reject	grammar	relation/tupleOfIdentifiers_(K_IN_((_)|inMarkerForTuple|tupleOfT~2655f96d!drop-5	DELETE FROM a WHERE(a) IN
 reject	reject	grammar	relation/tupleOfIdentifiers_(K_IN_((_)|inMarkerForTuple|tupleOfT~2655f96d!insert	DELETE FROM a WHERE(a) IN ? zzz
 reject	reject	grammar	relation/tupleOfIdentifiers_(K_IN_((_)|inMarkerForTuple|tupleOfT~2655f96d!swap	DELETE FROM a WHERE(a) INDEX ?
-reject	accept	grammar	relation/(_relation_)	DELETE FROM a WHERE(a = 'a')
+accept	accept	grammar	relation/(_relation_)	DELETE FROM a WHERE(a = 'a')
 reject	reject	grammar	relation/(_relation_)!drop-1	DELETE FROM a WHERE a = 'a')
 reject	reject	grammar	relation/(_relation_)!drop-2	DELETE FROM a WHERE(= 'a')
 reject	reject	grammar	relation/(_relation_)!drop-3	DELETE FROM a WHERE(a 'a')
 reject	reject	grammar	relation/(_relation_)!drop-4	DELETE FROM a WHERE(a =)
 reject	reject	grammar	relation/(_relation_)!drop-5	DELETE FROM a WHERE(a = 'a'
 reject	reject	grammar	relation/(_relation_)!insert	DELETE FROM a WHERE(a = 'a') zzz
-reject	accept	grammar	relation(K_IN_((_)|inMarkerForTuple|tupleOfTu~5f1246c4)/K_IN_((_)|inMarkerForTuple|tupleOfTupleLit~80747aa2)	DELETE FROM a WHERE(a) IN ?
+accept	accept	grammar	relation(K_IN_((_)|inMarkerForTuple|tupleOfTu~5f1246c4)/K_IN_((_)|inMarkerForTuple|tupleOfTupleLit~80747aa2)	DELETE FROM a WHERE(a) IN ?
 accept	accept	grammar	relation(K_IN_((_)|inMarkerForTuple|tupleOfTu~5f1246c4)/relationType_tupleLiteral	DELETE FROM a WHERE(a) =('a')
 reject	reject	grammar	relation(K_IN_((_)|inMarkerForTuple|tupleOfTu~5f1246c4)/relationType_tupleLiteral!drop-1	DELETE FROM a WHERE(a)('a')
 reject	reject	grammar	relation(K_IN_((_)|inMarkerForTuple|tupleOfTu~5f1246c4)/relationType_tupleLiteral!drop-2	DELETE FROM a WHERE(a) = 'a')
 reject	reject	grammar	relation(K_IN_((_)|inMarkerForTuple|tupleOfTu~5f1246c4)/relationType_tupleLiteral!drop-3	DELETE FROM a WHERE(a) =()
 reject	reject	grammar	relation(K_IN_((_)|inMarkerForTuple|tupleOfTu~5f1246c4)/relationType_tupleLiteral!drop-4	DELETE FROM a WHERE(a) =('a'
 reject	reject	grammar	relation(K_IN_((_)|inMarkerForTuple|tupleOfTu~5f1246c4)/relationType_tupleLiteral!insert	DELETE FROM a WHERE(a) =('a') zzz
-reject	accept	grammar	relation(K_IN_((_)|inMarkerForTuple|tupleOfTu~5f1246c4)/relationType_markerForTuple	DELETE FROM a WHERE(a) = ?
+accept	accept	grammar	relation(K_IN_((_)|inMarkerForTuple|tupleOfTu~5f1246c4)/relationType_markerForTuple	DELETE FROM a WHERE(a) = ?
 reject	reject	grammar	relation(K_IN_((_)|inMarkerForTuple|tupleOfTu~5f1246c4)/relationType_markerForTuple!drop-2	DELETE FROM a WHERE(a) =
 reject	reject	grammar	relation(K_IN_((_)|inMarkerForTuple|tupleOfTu~5f1246c4)/relationType_markerForTuple!insert	DELETE FROM a WHERE(a) = ? zzz
-reject	accept	grammar	relation((_)|inMarkerForTuple|tupleOfTupleLit~80747aa2)/(_)	DELETE FROM a WHERE(a) IN()
+accept	accept	grammar	relation((_)|inMarkerForTuple|tupleOfTupleLit~80747aa2)/(_)	DELETE FROM a WHERE(a) IN()
 reject	reject	grammar	relation((_)|inMarkerForTuple|tupleOfTupleLit~80747aa2)/(_)!drop-1	DELETE FROM a WHERE(a) IN)
 reject	reject	grammar	relation((_)|inMarkerForTuple|tupleOfTupleLit~80747aa2)/(_)!drop-2	DELETE FROM a WHERE(a) IN(
 reject	reject	grammar	relation((_)|inMarkerForTuple|tupleOfTupleLit~80747aa2)/(_)!insert	DELETE FROM a WHERE(a) IN() zzz
-reject	accept	grammar	relation((_)|inMarkerForTuple|tupleOfTupleLit~80747aa2)/inMarkerForTuple	DELETE FROM a WHERE(a) IN ?
+accept	accept	grammar	relation((_)|inMarkerForTuple|tupleOfTupleLit~80747aa2)/inMarkerForTuple	DELETE FROM a WHERE(a) IN ?
 accept	accept	grammar	relation((_)|inMarkerForTuple|tupleOfTupleLit~80747aa2)/tupleOfTupleLiterals	DELETE FROM a WHERE(a) IN(('a'))
 reject	reject	grammar	relation((_)|inMarkerForTuple|tupleOfTupleLit~80747aa2)/tupleOfTupleLiterals!drop-1	DELETE FROM a WHERE(a) IN('a'))
 reject	reject	grammar	relation((_)|inMarkerForTuple|tupleOfTupleLit~80747aa2)/tupleOfTupleLiterals!drop-3	DELETE FROM a WHERE(a) IN(())
 reject	reject	grammar	relation((_)|inMarkerForTuple|tupleOfTupleLit~80747aa2)/tupleOfTupleLiterals!drop-4	DELETE FROM a WHERE(a) IN(('a')
 reject	reject	grammar	relation((_)|inMarkerForTuple|tupleOfTupleLit~80747aa2)/tupleOfTupleLiterals!insert	DELETE FROM a WHERE(a) IN(('a')) zzz
-reject	accept	grammar	relation((_)|inMarkerForTuple|tupleOfTupleLit~80747aa2)/tupleOfMarkersForTuples	DELETE FROM a WHERE(a) IN(?)
+accept	accept	grammar	relation((_)|inMarkerForTuple|tupleOfTupleLit~80747aa2)/tupleOfMarkersForTuples	DELETE FROM a WHERE(a) IN(?)
 reject	reject	grammar	relation((_)|inMarkerForTuple|tupleOfTupleLit~80747aa2)/tupleOfMarkersForTuples!drop-1	DELETE FROM a WHERE(a) IN ?)
 reject	reject	grammar	relation((_)|inMarkerForTuple|tupleOfTupleLit~80747aa2)/tupleOfMarkersForTuples!drop-3	DELETE FROM a WHERE(a) IN(?
 reject	reject	grammar	relation((_)|inMarkerForTuple|tupleOfTupleLit~80747aa2)/tupleOfMarkersForTuples!insert	DELETE FROM a WHERE(a) IN(?) zzz
@@ -2583,24 +2583,24 @@ accept	accept	grammar	containsOperator(K_KEY)?/%empty	DELETE FROM a WHERE a CONT
 accept	accept	grammar	containsOperator(K_KEY)?/K_KEY	DELETE FROM a WHERE a CONTAINS KEY 'a'
 reject	reject	grammar	containsOperator(K_KEY)?/K_KEY!insert	DELETE FROM a WHERE a CONTAINS KEY zzz 'a'
 reject	reject	grammar	containsOperator(K_KEY)?/K_KEY!swap	DELETE FROM a WHERE a CONTAINS KEYS 'a'
-reject	accept	grammar	inMarker/QMARK	DELETE FROM a WHERE a IN ?
-reject	accept	grammar	inMarker/COLON_noncol_ident	DELETE FROM a WHERE a IN : a
+accept	accept	grammar	inMarker/QMARK	DELETE FROM a WHERE a IN ?
+accept	accept	grammar	inMarker/COLON_noncol_ident	DELETE FROM a WHERE a IN : a
 reject	reject	grammar	inMarker/COLON_noncol_ident!drop-1	DELETE FROM a WHERE a IN a
 reject	reject	grammar	inMarker/COLON_noncol_ident!drop-2	DELETE FROM a WHERE a IN :
 reject	reject	grammar	inMarker/COLON_noncol_ident!insert	DELETE FROM a WHERE a IN : a zzz
-reject	accept	grammar	tupleOfIdentifiers/(_cident_(,_cident)*_)	DELETE FROM a WHERE(a) IN ?
+accept	accept	grammar	tupleOfIdentifiers/(_cident_(,_cident)*_)	DELETE FROM a WHERE(a) IN ?
 reject	reject	grammar	tupleOfIdentifiers/(_cident_(,_cident)*_)!truncate	DELETE FROM a WHERE(a
 reject	reject	grammar	tupleOfIdentifiers/(_cident_(,_cident)*_)!insert	DELETE FROM a WHERE(a) zzz IN ?
-reject	accept	grammar	tupleOfIdentifiers(,_cident)*/%empty	DELETE FROM a WHERE(a) IN ?
+accept	accept	grammar	tupleOfIdentifiers(,_cident)*/%empty	DELETE FROM a WHERE(a) IN ?
 reject	reject	grammar	tupleOfIdentifiers(,_cident)*/%empty!insert	DELETE FROM a WHERE(a zzz) IN ?
-reject	accept	grammar	tupleOfIdentifiers(,_cident)*/,_cident_(,_cident)*	DELETE FROM a WHERE(a, a) IN ?
+accept	accept	grammar	tupleOfIdentifiers(,_cident)*/,_cident_(,_cident)*	DELETE FROM a WHERE(a, a) IN ?
 reject	reject	grammar	tupleOfIdentifiers(,_cident)*/,_cident_(,_cident)*!drop-1	DELETE FROM a WHERE(a a) IN ?
 reject	reject	grammar	tupleOfIdentifiers(,_cident)*/,_cident_(,_cident)*!drop-2	DELETE FROM a WHERE(a,) IN ?
 reject	reject	grammar	tupleOfIdentifiers(,_cident)*/,_cident_(,_cident)*!truncate	DELETE FROM a WHERE(a,
 reject	reject	grammar	tupleOfIdentifiers(,_cident)*/,_cident_(,_cident)*!insert	DELETE FROM a WHERE(a, a zzz) IN ?
 accept	accept	grammar	singleColumnInValues/(_(term_(,_term)*)?_)	DELETE FROM a WHERE a IN()
 accept	accept	grammar	singleColumnInValues(term_(,_term)*)?/%empty	DELETE FROM a WHERE a IN()
-accept	reject	grammar	singleColumnInValues(term_(,_term)*)?/%empty!insert	DELETE FROM a WHERE a IN(zzz)
+reject	reject	grammar	singleColumnInValues(term_(,_term)*)?/%empty!insert	DELETE FROM a WHERE a IN(zzz)
 accept	accept	grammar	singleColumnInValues(term_(,_term)*)?/term_(,_term)*	DELETE FROM a WHERE a IN('a')
 reject	reject	grammar	singleColumnInValues(term_(,_term)*)?/term_(,_term)*!insert	DELETE FROM a WHERE a IN('a' zzz)
 accept	accept	grammar	singleColumnInValues(,_term)*/%empty	DELETE FROM a WHERE a IN('a')
@@ -2619,21 +2619,21 @@ reject	reject	grammar	tupleOfTupleLiterals(,_tupleLiteral)*/,_tupleLiteral_(,_tu
 reject	reject	grammar	tupleOfTupleLiterals(,_tupleLiteral)*/,_tupleLiteral_(,_tupleLiteral)*!drop-4	DELETE FROM a WHERE(a) IN(('a'),('a')
 reject	reject	grammar	tupleOfTupleLiterals(,_tupleLiteral)*/,_tupleLiteral_(,_tupleLiteral)*!truncate	DELETE FROM a WHERE(a) IN(('a'),('a'
 reject	reject	grammar	tupleOfTupleLiterals(,_tupleLiteral)*/,_tupleLiteral_(,_tupleLiteral)*!insert	DELETE FROM a WHERE(a) IN(('a'),('a') zzz)
-reject	accept	grammar	markerForTuple/QMARK	DELETE FROM a WHERE(a) = ?
-reject	accept	grammar	markerForTuple/COLON_noncol_ident	DELETE FROM a WHERE(a) = : a
+accept	accept	grammar	markerForTuple/QMARK	DELETE FROM a WHERE(a) = ?
+accept	accept	grammar	markerForTuple/COLON_noncol_ident	DELETE FROM a WHERE(a) = : a
 reject	reject	grammar	markerForTuple/COLON_noncol_ident!drop-1	DELETE FROM a WHERE(a) = a
 reject	reject	grammar	markerForTuple/COLON_noncol_ident!drop-2	DELETE FROM a WHERE(a) = :
 reject	reject	grammar	markerForTuple/COLON_noncol_ident!insert	DELETE FROM a WHERE(a) = : a zzz
-reject	accept	grammar	tupleOfMarkersForTuples/(_markerForTuple_(,_markerForTuple)*_)	DELETE FROM a WHERE(a) IN(?)
-reject	accept	grammar	tupleOfMarkersForTuples(,_markerForTuple)*/%empty	DELETE FROM a WHERE(a) IN(?)
+accept	accept	grammar	tupleOfMarkersForTuples/(_markerForTuple_(,_markerForTuple)*_)	DELETE FROM a WHERE(a) IN(?)
+accept	accept	grammar	tupleOfMarkersForTuples(,_markerForTuple)*/%empty	DELETE FROM a WHERE(a) IN(?)
 reject	reject	grammar	tupleOfMarkersForTuples(,_markerForTuple)*/%empty!insert	DELETE FROM a WHERE(a) IN(? zzz)
-reject	accept	grammar	tupleOfMarkersForTuples(,_markerForTuple)*/,_markerForTuple_(,_markerForTuple)*	DELETE FROM a WHERE(a) IN(?, ?)
+accept	accept	grammar	tupleOfMarkersForTuples(,_markerForTuple)*/,_markerForTuple_(,_markerForTuple)*	DELETE FROM a WHERE(a) IN(?, ?)
 reject	reject	grammar	tupleOfMarkersForTuples(,_markerForTuple)*/,_markerForTuple_(,_markerForTuple)*!drop-1	DELETE FROM a WHERE(a) IN(? ?)
 reject	reject	grammar	tupleOfMarkersForTuples(,_markerForTuple)*/,_markerForTuple_(,_markerForTuple)*!drop-2	DELETE FROM a WHERE(a) IN(?,)
 reject	reject	grammar	tupleOfMarkersForTuples(,_markerForTuple)*/,_markerForTuple_(,_markerForTuple)*!truncate	DELETE FROM a WHERE(a) IN(?,
 reject	reject	grammar	tupleOfMarkersForTuples(,_markerForTuple)*/,_markerForTuple_(,_markerForTuple)*!insert	DELETE FROM a WHERE(a) IN(?, ? zzz)
-reject	accept	grammar	inMarkerForTuple/QMARK	DELETE FROM a WHERE(a) IN ?
-reject	accept	grammar	inMarkerForTuple/COLON_noncol_ident	DELETE FROM a WHERE(a) IN : a
+accept	accept	grammar	inMarkerForTuple/QMARK	DELETE FROM a WHERE(a) IN ?
+accept	accept	grammar	inMarkerForTuple/COLON_noncol_ident	DELETE FROM a WHERE(a) IN : a
 reject	reject	grammar	inMarkerForTuple/COLON_noncol_ident!drop-1	DELETE FROM a WHERE(a) IN a
 reject	reject	grammar	inMarkerForTuple/COLON_noncol_ident!drop-2	DELETE FROM a WHERE(a) IN :
 reject	reject	grammar	inMarkerForTuple/COLON_noncol_ident!insert	DELETE FROM a WHERE(a) IN : a zzz
@@ -2672,31 +2672,31 @@ reject	reject	grammar	comparatorType/STRING_LITERAL	ALTER TABLE a ADD a 'a'
 reject	reject	grammar	comparatorType/STRING_LITERAL!insert	ALTER TABLE a ADD a 'a' zzz
 accept	accept	grammar	native_type/K_ASCII	USE ASCII
 reject	reject	grammar	native_type/K_ASCII!insert	USE ASCII zzz
-accept	reject	grammar	native_type/K_ASCII!swap	USE AUTHORIZE
+reject	reject	grammar	native_type/K_ASCII!swap	USE AUTHORIZE
 accept	accept	grammar	native_type/K_BIGINT	USE BIGINT
 reject	reject	grammar	native_type/K_BIGINT!insert	USE BIGINT zzz
 accept	accept	grammar	native_type/K_BLOB	USE BLOB
 reject	reject	grammar	native_type/K_BLOB!insert	USE BLOB zzz
 accept	accept	grammar	native_type/K_BOOLEAN	USE BOOLEAN
 reject	reject	grammar	native_type/K_BOOLEAN!insert	USE BOOLEAN zzz
-accept	reject	grammar	native_type/K_BOOLEAN!swap	USE BY
+reject	reject	grammar	native_type/K_BOOLEAN!swap	USE BY
 accept	accept	grammar	native_type/K_COUNTER	USE COUNTER
 reject	reject	grammar	native_type/K_COUNTER!insert	USE COUNTER zzz
-accept	reject	grammar	native_type/K_COUNTER!swap	USE CREATE
+reject	reject	grammar	native_type/K_COUNTER!swap	USE CREATE
 accept	accept	grammar	native_type/K_DECIMAL	USE DECIMAL
 reject	reject	grammar	native_type/K_DECIMAL!insert	USE DECIMAL zzz
 accept	accept	grammar	native_type/K_DOUBLE	USE DOUBLE
 reject	reject	grammar	native_type/K_DOUBLE!insert	USE DOUBLE zzz
-accept	reject	grammar	native_type/K_DOUBLE!swap	USE DROP
+reject	reject	grammar	native_type/K_DOUBLE!swap	USE DROP
 accept	accept	grammar	native_type/K_DURATION	USE DURATION
 reject	reject	grammar	native_type/K_DURATION!insert	USE DURATION zzz
-accept	reject	grammar	native_type/K_DURATION!swap	USE ENTRIES
+reject	reject	grammar	native_type/K_DURATION!swap	USE ENTRIES
 accept	accept	grammar	native_type/K_FLOAT	USE FLOAT
 reject	reject	grammar	native_type/K_FLOAT!insert	USE FLOAT zzz
-accept	reject	grammar	native_type/K_FLOAT!swap	USE FROM
+reject	reject	grammar	native_type/K_FLOAT!swap	USE FROM
 accept	accept	grammar	native_type/K_INET	USE INET
 reject	reject	grammar	native_type/K_INET!insert	USE INET zzz
-accept	reject	grammar	native_type/K_INET!swap	USE INFINITY
+reject	reject	grammar	native_type/K_INET!swap	USE INFINITY
 accept	accept	grammar	native_type/K_INT	USE INT
 reject	reject	grammar	native_type/K_INT!insert	USE INT zzz
 accept	accept	grammar	native_type/K_SMALLINT	USE SMALLINT
@@ -2707,7 +2707,7 @@ accept	accept	grammar	native_type/K_TIMESTAMP	USE TIMESTAMP
 reject	reject	grammar	native_type/K_TIMESTAMP!insert	USE TIMESTAMP zzz
 accept	accept	grammar	native_type/K_TINYINT	USE TINYINT
 reject	reject	grammar	native_type/K_TINYINT!insert	USE TINYINT zzz
-accept	reject	grammar	native_type/K_TINYINT!swap	USE TO
+reject	reject	grammar	native_type/K_TINYINT!swap	USE TO
 accept	accept	grammar	native_type/K_UUID	USE UUID
 reject	reject	grammar	native_type/K_UUID!insert	USE UUID zzz
 accept	accept	grammar	native_type/K_VARCHAR	USE VARCHAR
@@ -2785,7 +2785,7 @@ accept	accept	grammar	basic_unreserved_keyword/(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERI
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_KEYS	USE KEYS
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_AS	USE AS
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_AS!insert	USE AS zzz
-accept	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_AS!swap	USE ASC
+reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_AS!swap	USE ASC
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_CLUSTER	USE CLUSTER
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_CLUSTER!insert	USE CLUSTER zzz
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_CLUSTERING	USE CLUSTERING
@@ -2800,7 +2800,7 @@ accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERIN
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_TYPE!insert	USE TYPE zzz
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_TYPES	USE TYPES
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_TYPES!insert	USE TYPES zzz
-accept	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_TYPES!swap	USE UNLOGGED
+reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_TYPES!swap	USE UNLOGGED
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_VALUES	USE VALUES
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_VALUES!insert	USE VALUES zzz
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_MAP	USE MAP
@@ -2813,39 +2813,39 @@ accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERIN
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_PERMISSION!insert	USE PERMISSION zzz
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_PERMISSIONS	USE PERMISSIONS
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_PERMISSIONS!insert	USE PERMISSIONS zzz
-accept	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_PERMISSIONS!swap	USE PRIMARY
+reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_PERMISSIONS!swap	USE PRIMARY
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_KEYSPACES	USE KEYSPACES
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_KEYSPACES!insert	USE KEYSPACES zzz
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_ALL	USE ALL
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_ALL!insert	USE ALL zzz
-accept	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_ALL!swap	USE ALLOW
+reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_ALL!swap	USE ALLOW
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_USER	USE USER
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_USER!insert	USE USER zzz
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_USERS	USE USERS
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_USERS!insert	USE USERS zzz
-accept	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_USERS!swap	USE USING
+reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_USERS!swap	USE USING
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_ROLE	USE ROLE
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_ROLE!insert	USE ROLE zzz
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_ROLES	USE ROLES
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_ROLES!insert	USE ROLES zzz
-accept	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_ROLES!swap	USE SCHEMA
+reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_ROLES!swap	USE SCHEMA
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_IDENTITY	USE IDENTITY
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_IDENTITY!insert	USE IDENTITY zzz
-accept	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_IDENTITY!swap	USE IF
+reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_IDENTITY!swap	USE IF
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_SUPERUSER	USE SUPERUSER
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_SUPERUSER!insert	USE SUPERUSER zzz
-accept	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_SUPERUSER!swap	USE TABLE
+reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_SUPERUSER!swap	USE TABLE
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_NOSUPERUSER	USE NOSUPERUSER
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_NOSUPERUSER!insert	USE NOSUPERUSER zzz
-accept	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_NOSUPERUSER!swap	USE NOT
+reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_NOSUPERUSER!swap	USE NOT
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_LOGIN	USE LOGIN
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_LOGIN!insert	USE LOGIN zzz
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_NOLOGIN	USE NOLOGIN
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_NOLOGIN!insert	USE NOLOGIN zzz
-accept	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_NOLOGIN!swap	USE NORECURSIVE
+reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_NOLOGIN!swap	USE NORECURSIVE
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_OPTIONS	USE OPTIONS
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_OPTIONS!insert	USE OPTIONS zzz
-accept	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_OPTIONS!swap	USE OR
+reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_OPTIONS!swap	USE OR
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_PASSWORD	USE PASSWORD
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_PASSWORD!insert	USE PASSWORD zzz
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_HASHED	USE HASHED
@@ -2856,26 +2856,26 @@ accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERIN
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_CUSTOM!insert	USE CUSTOM zzz
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_TRIGGER	USE TRIGGER
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_TRIGGER!insert	USE TRIGGER zzz
-accept	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_TRIGGER!swap	USE TRUE
+reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_TRIGGER!swap	USE TRUE
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_CONTAINS	USE CONTAINS
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_CONTAINS!insert	USE CONTAINS zzz
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_INTERNALS	USE INTERNALS
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_INTERNALS!insert	USE INTERNALS zzz
-accept	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_INTERNALS!swap	USE INTO
+reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_INTERNALS!swap	USE INTO
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_ONLY	USE ONLY
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_ONLY!insert	USE ONLY zzz
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_STATIC	USE STATIC
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_STATIC!insert	USE STATIC zzz
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_FROZEN	USE FROZEN
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_FROZEN!insert	USE FROZEN zzz
-accept	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_FROZEN!swap	USE FULL
+reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_FROZEN!swap	USE FULL
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_TUPLE	USE TUPLE
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_TUPLE!insert	USE TUPLE zzz
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_FUNCTION	USE FUNCTION
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_FUNCTION!insert	USE FUNCTION zzz
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_FUNCTIONS	USE FUNCTIONS
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_FUNCTIONS!insert	USE FUNCTIONS zzz
-accept	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_FUNCTIONS!swap	USE GRANT
+reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_FUNCTIONS!swap	USE GRANT
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_AGGREGATE	USE AGGREGATE
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_AGGREGATE!insert	USE AGGREGATE zzz
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_AGGREGATES	USE AGGREGATES
@@ -2890,17 +2890,17 @@ accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERIN
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_INITCOND!insert	USE INITCOND zzz
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_RETURNS	USE RETURNS
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_RETURNS!insert	USE RETURNS zzz
-accept	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_RETURNS!swap	USE REVOKE
+reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_RETURNS!swap	USE REVOKE
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_LANGUAGE	USE LANGUAGE
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_LANGUAGE!insert	USE LANGUAGE zzz
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_CALLED	USE CALLED
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_CALLED!insert	USE CALLED zzz
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_INPUT	USE INPUT
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_INPUT!insert	USE INPUT zzz
-accept	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_INPUT!swap	USE INSERT
+reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_INPUT!swap	USE INSERT
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_LIKE	USE LIKE
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_LIKE!insert	USE LIKE zzz
-accept	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_LIKE!swap	USE LIMIT
+reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_LIKE!swap	USE LIMIT
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_PER	USE PER
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_PER!insert	USE PER zzz
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_PARTITION	USE PARTITION
@@ -2913,31 +2913,31 @@ accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERIN
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_CIDRS!insert	USE CIDRS zzz
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_ACCESS	USE ACCESS
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_ACCESS!insert	USE ACCESS zzz
-accept	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_ACCESS!swap	USE ADD
+reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_ACCESS!swap	USE ADD
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_DEFAULT	USE DEFAULT
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_DEFAULT!insert	USE DEFAULT zzz
-accept	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_DEFAULT!swap	USE DELETE
+reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_DEFAULT!swap	USE DELETE
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_MBEAN	USE MBEAN
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_MBEAN!insert	USE MBEAN zzz
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_MBEANS	USE MBEANS
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_MBEANS!insert	USE MBEANS zzz
-accept	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_MBEANS!swap	USE MODIFY
+reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_MBEANS!swap	USE MODIFY
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_REPLACE	USE REPLACE
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_REPLACE!insert	USE REPLACE zzz
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_UNSET	USE UNSET
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_UNSET!insert	USE UNSET zzz
-accept	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_UNSET!swap	USE UPDATE
+reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_UNSET!swap	USE UPDATE
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_MASKED	USE MASKED
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_MASKED!insert	USE MASKED zzz
-accept	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_MASKED!swap	USE MATERIALIZED
+reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_MASKED!swap	USE MATERIALIZED
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_UNMASK	USE UNMASK
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_UNMASK!insert	USE UNMASK zzz
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_SELECT_MASKED	USE SELECT_MASKED
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_SELECT_MASKED!insert	USE SELECT_MASKED zzz
-accept	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_SELECT_MASKED!swap	USE SET
+reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_SELECT_MASKED!swap	USE SET
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_VECTOR	USE VECTOR
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_VECTOR!insert	USE VECTOR zzz
-accept	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_VECTOR!swap	USE VIEW
+reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_VECTOR!swap	USE VIEW
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_ANN	USE ANN
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_ANN!insert	USE ANN zzz
-accept	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_ANN!swap	USE APPLY
+reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_ANN!swap	USE APPLY
