@@ -8,25 +8,34 @@
 | INSERT INTO limits (id, a, b) VALUES (1, 1, 10), (2, 2, 20), (3, 3, 30), (4, 4, 40)
 < ok 4 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | limits
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 < row
 : bytes
 | b
+: bytes
+|
 < row
 : bytes
 | g
+: bytes
+| VIRTUAL GENERATED
 > query
 | SELECT `id`, `a`, `b`, `g` FROM `omni_t_mysql_analysis_backup`.`limits` ORDER BY 1, 2, 3, 4
 < result
@@ -212,25 +221,34 @@
 |  DELETE FROM limits WHERE id = 1
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | limits
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 < row
 : bytes
 | b
+: bytes
+|
 < row
 : bytes
 | g
+: bytes
+| VIRTUAL GENERATED
 > query
 | SELECT `id`, `a`, `b`, `g` FROM `omni_t_mysql_analysis_backup`.`limits` ORDER BY 1, 2, 3, 4
 < result
@@ -257,25 +275,34 @@
 | INSERT INTO `omni_t_mysql_analysis_backup`.`limits` (`id`, `a`, `b`) SELECT `id`, `a`, `b` FROM `omni_t_mysql_analysis_backup`.`bak_limits_omni_t_mysql_analysis_backup`
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | limits
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 < row
 : bytes
 | b
+: bytes
+|
 < row
 : bytes
 | g
+: bytes
+| VIRTUAL GENERATED
 > query
 | SELECT `id`, `a`, `b`, `g` FROM `omni_t_mysql_analysis_backup`.`limits` ORDER BY 1, 2, 3, 4
 < result
@@ -310,16 +337,19 @@
 | INSERT INTO overlapping_limits VALUES (1), (2)
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | overlapping_limits
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 > query
 | SELECT `id` FROM `omni_t_mysql_analysis_backup`.`overlapping_limits` ORDER BY 1
 < result
@@ -556,25 +586,34 @@
 | INSERT INTO updates (id, a, b) VALUES (1, 1, 1), (2, 2, 2), (3, 3, 3)
 < ok 3 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | updates
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 < row
 : bytes
 | b
+: bytes
+|
 < row
 : bytes
 | g
+: bytes
+| STORED GENERATED
 > query
 | SELECT `id`, `a`, `b`, `g` FROM `omni_t_mysql_analysis_backup`.`updates` ORDER BY 1, 2, 3, 4
 < result
@@ -886,25 +925,34 @@
 |  UPDATE updates SET b = 20 WHERE id = 2
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | updates
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 < row
 : bytes
 | b
+: bytes
+|
 < row
 : bytes
 | g
+: bytes
+| STORED GENERATED
 > query
 | SELECT `id`, `a`, `b`, `g` FROM `omni_t_mysql_analysis_backup`.`updates` ORDER BY 1, 2, 3, 4
 < result
@@ -936,25 +984,34 @@
 | INSERT INTO `omni_t_mysql_analysis_backup`.`updates` (`id`, `a`, `b`) SELECT `id`, `a`, `b` FROM `omni_t_mysql_analysis_backup`.`bak_updates_omni_t_mysql_analysis_backup` ON DUPLICATE KEY UPDATE `a` = VALUES(`a`), `b` = VALUES(`b`)
 < ok 4 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | updates
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 < row
 : bytes
 | b
+: bytes
+|
 < row
 : bytes
 | g
+: bytes
+| STORED GENERATED
 > query
 | SELECT `id`, `a`, `b`, `g` FROM `omni_t_mysql_analysis_backup`.`updates` ORDER BY 1, 2, 3, 4
 < result
@@ -984,22 +1041,29 @@
 | INSERT INTO self_join VALUES (1, 1, 1), (2, 2, 2), (3, 3, 3)
 < ok 3 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | self_join
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 < row
 : bytes
 | b
+: bytes
+|
 > query
 | SELECT `id`, `a`, `b` FROM `omni_t_mysql_analysis_backup`.`self_join` ORDER BY 1, 2, 3
 < result
@@ -1397,22 +1461,29 @@
 | UPDATE self_join x JOIN self_join y ON x.id = y.id + 1 SET x.a = 10, y.b = 20
 < ok 4 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | self_join
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 < row
 : bytes
 | b
+: bytes
+|
 > query
 | SELECT `id`, `a`, `b` FROM `omni_t_mysql_analysis_backup`.`self_join` ORDER BY 1, 2, 3
 < result
@@ -1439,22 +1510,29 @@
 | INSERT INTO `omni_t_mysql_analysis_backup`.`self_join` (`id`, `a`, `b`) SELECT `id`, `a`, `b` FROM `omni_t_mysql_analysis_backup`.`bak_self_join_omni_t_mysql_analysis_backup` ON DUPLICATE KEY UPDATE `a` = VALUES(`a`), `b` = VALUES(`b`)
 < ok 6 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | self_join
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 < row
 : bytes
 | b
+: bytes
+|
 > query
 | SELECT `id`, `a`, `b` FROM `omni_t_mysql_analysis_backup`.`self_join` ORDER BY 1, 2, 3
 < result
@@ -1486,19 +1564,24 @@
 | INSERT INTO children VALUES (1, 1), (2, 1), (3, 2)
 < ok 3 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | one_to_many
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 > query
 | SELECT `id`, `a` FROM `omni_t_mysql_analysis_backup`.`one_to_many` ORDER BY 1, 2
 < result
@@ -1511,19 +1594,24 @@
 : int64 2
 : int64 2
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | children
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | parent
+: bytes
+|
 > query
 | SELECT `id`, `parent` FROM `omni_t_mysql_analysis_backup`.`children` ORDER BY 1, 2
 < result
@@ -2016,19 +2104,24 @@
 | DELETE p FROM one_to_many p JOIN children c ON c.parent = p.id WHERE p.id = 1
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | one_to_many
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 > query
 | SELECT `id`, `a` FROM `omni_t_mysql_analysis_backup`.`one_to_many` ORDER BY 1, 2
 < result
@@ -2045,19 +2138,24 @@
 | INSERT INTO `omni_t_mysql_analysis_backup`.`one_to_many` (`id`, `a`) SELECT `id`, `a` FROM `omni_t_mysql_analysis_backup`.`bak_one_to_many_omni_t_mysql_analysis_backup`
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | one_to_many
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 > query
 | SELECT `id`, `a` FROM `omni_t_mysql_analysis_backup`.`one_to_many` ORDER BY 1, 2
 < result
@@ -2070,19 +2168,24 @@
 : int64 2
 : int64 2
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | children
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | parent
+: bytes
+|
 > query
 | SELECT `id`, `parent` FROM `omni_t_mysql_analysis_backup`.`children` ORDER BY 1, 2
 < result
@@ -2110,19 +2213,24 @@
 | INSERT INTO keyless_children VALUES (1, 1), (2, 1)
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | keyless_join
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 > query
 | SELECT `id`, `a` FROM `omni_t_mysql_analysis_backup`.`keyless_join` ORDER BY 1, 2
 < result
@@ -2690,19 +2798,24 @@
 | INSERT INTO keyless_rows VALUES (1, 1), (1, 1), (2, 2)
 < ok 3 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | keyless_rows
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 > query
 | SELECT `id`, `a` FROM `omni_t_mysql_analysis_backup`.`keyless_rows` ORDER BY 1, 2
 < result
@@ -3299,19 +3412,24 @@
 | DELETE FROM keyless_rows WHERE id = 1
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | keyless_rows
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 > query
 | SELECT `id`, `a` FROM `omni_t_mysql_analysis_backup`.`keyless_rows` ORDER BY 1, 2
 < result
@@ -3328,19 +3446,24 @@
 | INSERT INTO `omni_t_mysql_analysis_backup`.`keyless_rows` (`id`, `a`) SELECT `id`, `a` FROM `omni_t_mysql_analysis_backup`.`bak_keyless_rows_omni_t_mysql_analysis_backup`
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | keyless_rows
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 > query
 | SELECT `id`, `a` FROM `omni_t_mysql_analysis_backup`.`keyless_rows` ORDER BY 1, 2
 < result
@@ -3362,19 +3485,24 @@
 | INSERT INTO invisible (id, secret) VALUES (1, 42), (2, 43)
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | invisible
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | secret
+: bytes
+| INVISIBLE
 > query
 | SELECT `id`, `secret` FROM `omni_t_mysql_analysis_backup`.`invisible` ORDER BY 1, 2
 < result
@@ -4020,19 +4148,24 @@
 | DELETE FROM invisible WHERE id = 1
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | invisible
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | secret
+: bytes
+| INVISIBLE
 > query
 | SELECT `id`, `secret` FROM `omni_t_mysql_analysis_backup`.`invisible` ORDER BY 1, 2
 < result
@@ -4049,19 +4182,24 @@
 | INSERT INTO `omni_t_mysql_analysis_backup`.`invisible` (`id`, `secret`) SELECT `id`, `secret` FROM `omni_t_mysql_analysis_backup`.`bak_invisible_omni_t_mysql_analysis_backup`
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | invisible
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | secret
+: bytes
+| INVISIBLE
 > query
 | SELECT `id`, `secret` FROM `omni_t_mysql_analysis_backup`.`invisible` ORDER BY 1, 2
 < result
@@ -4086,19 +4224,24 @@
 | INSERT INTO paren_peers VALUES (1), (2)
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | parens
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 > query
 | SELECT `id`, `a` FROM `omni_t_mysql_analysis_backup`.`parens` ORDER BY 1, 2
 < result
@@ -4823,19 +4966,24 @@
 | UPDATE (parens JOIN paren_peers ON parens.id = paren_peers.id) JOIN paren_peers AS p ON p.id = parens.id SET parens.a = 9 WHERE parens.id = 1
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | parens
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 > query
 | SELECT `id`, `a` FROM `omni_t_mysql_analysis_backup`.`parens` ORDER BY 1, 2
 < result
@@ -4855,19 +5003,24 @@
 | INSERT INTO `omni_t_mysql_analysis_backup`.`parens` (`id`, `a`) SELECT `id`, `a` FROM `omni_t_mysql_analysis_backup`.`bak_parens_omni_t_mysql_analysis_backup` ON DUPLICATE KEY UPDATE `a` = VALUES(`a`)
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | parens
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 > query
 | SELECT `id`, `a` FROM `omni_t_mysql_analysis_backup`.`parens` ORDER BY 1, 2
 < result
@@ -4886,19 +5039,24 @@
 | INSERT INTO `back``tick` VALUES (1, 1), (2, 2)
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | back`tick
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | c`ol
+: bytes
+|
 > query
 | SELECT `id`, `c``ol` FROM `omni_t_mysql_analysis_backup`.`back``tick` ORDER BY 1, 2
 < result
@@ -5683,19 +5841,24 @@
 | DELETE FROM `back``tick` WHERE `c``ol` = 1
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | back`tick
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | c`ol
+: bytes
+|
 > query
 | SELECT `id`, `c``ol` FROM `omni_t_mysql_analysis_backup`.`back``tick` ORDER BY 1, 2
 < result
@@ -5712,19 +5875,24 @@
 | INSERT INTO `omni_t_mysql_analysis_backup`.`back``tick` (`id`, `c``ol`) SELECT `id`, `c``ol` FROM `omni_t_mysql_analysis_backup`.`bak_back``tick_omni_t_mysql_analysis_backup`
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | back`tick
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | c`ol
+: bytes
+|
 > query
 | SELECT `id`, `c``ol` FROM `omni_t_mysql_analysis_backup`.`back``tick` ORDER BY 1, 2
 < result
@@ -5761,19 +5929,24 @@
 | INSERT INTO omni_t_mysql_analysis_backup_other.u VALUES (1, 1)
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup_other
 : string
 | u
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 > query
 | SELECT `id`, `a` FROM `omni_t_mysql_analysis_backup_other`.`u` ORDER BY 1, 2
 < result
@@ -5783,19 +5956,24 @@
 : int64 1
 : int64 1
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup_other
 : string
 | t
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | b
+: bytes
+|
 > query
 | SELECT `id`, `b` FROM `omni_t_mysql_analysis_backup_other`.`t` ORDER BY 1, 2
 < result
@@ -6727,19 +6905,24 @@
 | UPDATE omni_t_mysql_analysis_backup_other.t JOIN omni_t_mysql_analysis_backup_other.u ON omni_t_mysql_analysis_backup_other.t.id = omni_t_mysql_analysis_backup_other.u.id SET a = 7
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup_other
 : string
 | u
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 > query
 | SELECT `id`, `a` FROM `omni_t_mysql_analysis_backup_other`.`u` ORDER BY 1, 2
 < result
@@ -6756,19 +6939,24 @@
 | INSERT INTO `omni_t_mysql_analysis_backup_other`.`u` (`id`, `a`) SELECT `id`, `a` FROM `omni_t_mysql_analysis_backup`.`bak_u_omni_t_mysql_analysis_backup_other` ON DUPLICATE KEY UPDATE `a` = VALUES(`a`)
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup_other
 : string
 | u
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 > query
 | SELECT `id`, `a` FROM `omni_t_mysql_analysis_backup_other`.`u` ORDER BY 1, 2
 < result
@@ -6778,19 +6966,24 @@
 : int64 1
 : int64 1
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup_other
 : string
 | t
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | b
+: bytes
+|
 > query
 | SELECT `id`, `b` FROM `omni_t_mysql_analysis_backup_other`.`t` ORDER BY 1, 2
 < result
@@ -6806,16 +6999,19 @@
 | CREATE TABLE nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn_two (id INT PRIMARY KEY)
 < ok 0 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn_one
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 > query
 | SELECT `id` FROM `omni_t_mysql_analysis_backup`.`nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn_one` ORDER BY 1
 < result
@@ -7807,22 +8003,29 @@
 | INSERT INTO stamped VALUES (1, 1, '2000-01-01 00:00:00'), (2, 2, '2000-01-01 00:00:00')
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | stamped
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | v
+: bytes
+|
 < row
 : bytes
 | ts
+: bytes
+| on update CURRENT_TIMESTAMP
 > query
 | SELECT `id`, `v`, `ts` FROM `omni_t_mysql_analysis_backup`.`stamped` ORDER BY 1, 2, 3
 < result
@@ -8869,36 +9072,45 @@
 | UPDATE stamped SET v = 5 WHERE id = 1
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | stamped
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | v
+: bytes
+|
 < row
 : bytes
 | ts
+: bytes
+| on update CURRENT_TIMESTAMP
 > query
-| SELECT `id`, `v`, `ts` FROM `omni_t_mysql_analysis_backup`.`stamped` ORDER BY 1, 2, 3
+| SELECT `id`, `v`, '-' FROM `omni_t_mysql_analysis_backup`.`stamped` ORDER BY 1, 2, 3
 < result
 < column "id" "INT"
 < column "v" "INT"
-< column "ts" "TIMESTAMP"
+< column "-" "VARCHAR"
 < row
 : int64 1
 : int64 5
-: time 2026-01-01T00:00:00Z
+: bytes
+| -
 < row
 : int64 2
 : int64 2
-: time 2000-01-01T00:00:00Z
+: bytes
+| -
 > exec
 | /*
 | Original SQL:
@@ -8907,22 +9119,29 @@
 | INSERT INTO `omni_t_mysql_analysis_backup`.`stamped` (`id`, `v`, `ts`) SELECT `id`, `v`, `ts` FROM `omni_t_mysql_analysis_backup`.`bak_stamped_omni_t_mysql_analysis_backup` ON DUPLICATE KEY UPDATE `v` = VALUES(`v`), `ts` = VALUES(`ts`)
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | stamped
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | v
+: bytes
+|
 < row
 : bytes
 | ts
+: bytes
+| on update CURRENT_TIMESTAMP
 > query
 | SELECT `id`, `v`, `ts` FROM `omni_t_mysql_analysis_backup`.`stamped` ORDER BY 1, 2, 3
 < result
@@ -8944,19 +9163,24 @@
 | INSERT INTO swapped_key VALUES (1, 10), (2, 20)
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | swapped_key
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | u
+: bytes
+|
 > query
 | SELECT `id`, `u` FROM `omni_t_mysql_analysis_backup`.`swapped_key` ORDER BY 1, 2
 < result
@@ -10089,19 +10313,24 @@
 |  UPDATE swapped_key SET u = 20 WHERE id = 1
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | swapped_key
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | u
+: bytes
+|
 > query
 | SELECT `id`, `u` FROM `omni_t_mysql_analysis_backup`.`swapped_key` ORDER BY 1, 2
 < result
@@ -10126,16 +10355,19 @@
 | INSERT INTO flagged VALUES (1)
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | flagged
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 > query
 | SELECT `id` FROM `omni_t_mysql_analysis_backup`.`flagged` ORDER BY 1
 < result
@@ -11342,16 +11574,19 @@
 | INSERT INTO fk_child VALUES (1, 1)
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | fk_parent
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 > query
 | SELECT `id` FROM `omni_t_mysql_analysis_backup`.`fk_parent` ORDER BY 1
 < result
@@ -12632,19 +12867,24 @@
 | INSERT INTO outer_gone VALUES (1, 1)
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | outer_gone
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 > query
 | SELECT `id`, `a` FROM `omni_t_mysql_analysis_backup`.`outer_gone` ORDER BY 1, 2
 < result
@@ -13974,19 +14214,24 @@
 | DELETE t FROM outer_keep u LEFT JOIN outer_gone t ON t.id = u.id
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | outer_gone
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 > query
 | SELECT `id`, `a` FROM `omni_t_mysql_analysis_backup`.`outer_gone` ORDER BY 1, 2
 < result
@@ -14000,19 +14245,24 @@
 | INSERT INTO `omni_t_mysql_analysis_backup`.`outer_gone` (`id`, `a`) SELECT `id`, `a` FROM `omni_t_mysql_analysis_backup`.`bak_outer_gone_omni_t_mysql_analysis_backup`
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | outer_gone
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 > query
 | SELECT `id`, `a` FROM `omni_t_mysql_analysis_backup`.`outer_gone` ORDER BY 1, 2
 < result
@@ -14028,19 +14278,24 @@
 | INSERT INTO single_key VALUES (1, 10), (2, 20)
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | single_key
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | u
+: bytes
+|
 > query
 | SELECT `id`, `u` FROM `omni_t_mysql_analysis_backup`.`single_key` ORDER BY 1, 2
 < result
@@ -15441,19 +15696,24 @@
 | UPDATE single_key SET u = 30 WHERE id = 1
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | single_key
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | u
+: bytes
+|
 > query
 | SELECT `id`, `u` FROM `omni_t_mysql_analysis_backup`.`single_key` ORDER BY 1, 2
 < result
@@ -15473,19 +15733,24 @@
 | INSERT INTO `omni_t_mysql_analysis_backup`.`single_key` (`id`, `u`) SELECT `id`, `u` FROM `omni_t_mysql_analysis_backup`.`bak_single_key_omni_t_mysql_analysis_backup` ON DUPLICATE KEY UPDATE `u` = VALUES(`u`)
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | single_key
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | u
+: bytes
+|
 > query
 | SELECT `id`, `u` FROM `omni_t_mysql_analysis_backup`.`single_key` ORDER BY 1, 2
 < result
@@ -15504,19 +15769,24 @@
 | INSERT INTO comments VALUES (1, '*/'), (2, 'x')
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | comments
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | note
+: bytes
+|
 > query
 | SELECT `id`, `note` FROM `omni_t_mysql_analysis_backup`.`comments` ORDER BY 1, 2
 < result
@@ -16987,19 +17257,24 @@
 | DELETE /* note */ FROM comments WHERE note = '*/'
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | comments
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | note
+: bytes
+|
 > query
 | SELECT `id`, `note` FROM `omni_t_mysql_analysis_backup`.`comments` ORDER BY 1, 2
 < result
@@ -17017,19 +17292,24 @@
 | INSERT INTO `omni_t_mysql_analysis_backup`.`comments` (`id`, `note`) SELECT `id`, `note` FROM `omni_t_mysql_analysis_backup`.`bak_comments_omni_t_mysql_analysis_backup`
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | comments
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | note
+: bytes
+|
 > query
 | SELECT `id`, `note` FROM `omni_t_mysql_analysis_backup`.`comments` ORDER BY 1, 2
 < result
@@ -17050,19 +17330,24 @@
 | INSERT INTO cte_arms VALUES (1, 1), (2, 2), (3, 3)
 < ok 3 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | cte_arms
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 > query
 | SELECT `id`, `a` FROM `omni_t_mysql_analysis_backup`.`cte_arms` ORDER BY 1, 2
 < result
@@ -18599,19 +18884,24 @@
 |  WITH c AS (SELECT 3 AS id) DELETE t FROM cte_arms t JOIN c ON t.id = c.id
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | cte_arms
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 > query
 | SELECT `id`, `a` FROM `omni_t_mysql_analysis_backup`.`cte_arms` ORDER BY 1, 2
 < result
@@ -18629,19 +18919,24 @@
 | INSERT INTO `omni_t_mysql_analysis_backup`.`cte_arms` (`id`, `a`) SELECT `id`, `a` FROM `omni_t_mysql_analysis_backup`.`bak_cte_arms_omni_t_mysql_analysis_backup`
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | cte_arms
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 > query
 | SELECT `id`, `a` FROM `omni_t_mysql_analysis_backup`.`cte_arms` ORDER BY 1, 2
 < result
@@ -18663,19 +18958,24 @@
 | INSERT INTO cte_alias VALUES (1, 1), (2, 2)
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | cte_alias
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 > query
 | SELECT `id`, `a` FROM `omni_t_mysql_analysis_backup`.`cte_alias` ORDER BY 1, 2
 < result
@@ -20264,19 +20564,24 @@
 | WITH c AS (SELECT 1 AS id) DELETE c FROM cte_alias AS c WHERE c.id = 1
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | cte_alias
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 > query
 | SELECT `id`, `a` FROM `omni_t_mysql_analysis_backup`.`cte_alias` ORDER BY 1, 2
 < result
@@ -20293,19 +20598,24 @@
 | INSERT INTO `omni_t_mysql_analysis_backup`.`cte_alias` (`id`, `a`) SELECT `id`, `a` FROM `omni_t_mysql_analysis_backup`.`bak_cte_alias_omni_t_mysql_analysis_backup`
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | cte_alias
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 > query
 | SELECT `id`, `a` FROM `omni_t_mysql_analysis_backup`.`cte_alias` ORDER BY 1, 2
 < result
@@ -20324,22 +20634,29 @@
 | INSERT INTO generated_key (id, a) VALUES (1, 1), (2, 2)
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | generated_key
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 < row
 : bytes
 | g
+: bytes
+| VIRTUAL GENERATED
 > query
 | SELECT `id`, `a`, `g` FROM `omni_t_mysql_analysis_backup`.`generated_key` ORDER BY 1, 2, 3
 < result
@@ -22002,22 +22319,29 @@
 | UPDATE generated_key SET a = a + 10 WHERE id = 1
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | generated_key
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 < row
 : bytes
 | g
+: bytes
+| VIRTUAL GENERATED
 > query
 | SELECT `id`, `a`, `g` FROM `omni_t_mysql_analysis_backup`.`generated_key` ORDER BY 1, 2, 3
 < result
@@ -22039,19 +22363,24 @@
 | INSERT INTO expression_key VALUES (1, 1), (2, 2)
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | expression_key
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 > query
 | SELECT `id`, `a` FROM `omni_t_mysql_analysis_backup`.`expression_key` ORDER BY 1, 2
 < result
@@ -23782,19 +24111,24 @@
 | UPDATE expression_key SET a = a + 10 WHERE id = 1
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | expression_key
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 > query
 | SELECT `id`, `a` FROM `omni_t_mysql_analysis_backup`.`expression_key` ORDER BY 1, 2
 < result
@@ -23813,19 +24147,24 @@
 | INSERT INTO nullable_key VALUES (NULL, 1), (2, 2)
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | nullable_key
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | u
+: bytes
+|
 < row
 : bytes
 | v
+: bytes
+|
 > query
 | SELECT `u`, `v` FROM `omni_t_mysql_analysis_backup`.`nullable_key` ORDER BY 1, 2
 < result
@@ -25616,19 +25955,24 @@
 | UPDATE nullable_key SET v = 3 WHERE u IS NULL
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | nullable_key
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | u
+: bytes
+|
 < row
 : bytes
 | v
+: bytes
+|
 > query
 | SELECT `u`, `v` FROM `omni_t_mysql_analysis_backup`.`nullable_key` ORDER BY 1, 2
 < result
@@ -25647,22 +25991,29 @@
 | INSERT INTO generated_default (id, a) VALUES (1, 1), (2, 2)
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | generated_default
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 < row
 : bytes
 | g
+: bytes
+| VIRTUAL GENERATED
 > query
 | SELECT `id`, `a`, `g` FROM `omni_t_mysql_analysis_backup`.`generated_default` ORDER BY 1, 2, 3
 < result
@@ -27527,22 +27878,29 @@
 | UPDATE generated_default SET generated_default.a = 5, generated_default.g = DEFAULT WHERE id = 1
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | generated_default
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 < row
 : bytes
 | g
+: bytes
+| VIRTUAL GENERATED
 > query
 | SELECT `id`, `a`, `g` FROM `omni_t_mysql_analysis_backup`.`generated_default` ORDER BY 1, 2, 3
 < result
@@ -27565,22 +27923,29 @@
 | INSERT INTO `omni_t_mysql_analysis_backup`.`generated_default` (`id`, `a`) SELECT `id`, `a` FROM `omni_t_mysql_analysis_backup`.`bak_generated_default_omni_t_mysql_analysis_backup` ON DUPLICATE KEY UPDATE `a` = VALUES(`a`)
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | generated_default
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 < row
 : bytes
 | g
+: bytes
+| VIRTUAL GENERATED
 > query
 | SELECT `id`, `a`, `g` FROM `omni_t_mysql_analysis_backup`.`generated_default` ORDER BY 1, 2, 3
 < result
@@ -27602,16 +27967,19 @@
 | INSERT INTO user_variable VALUES (1), (2)
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | user_variable
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 > query
 | SELECT `id` FROM `omni_t_mysql_analysis_backup`.`user_variable` ORDER BY 1
 < result
@@ -29526,16 +29894,19 @@
 | INSERT INTO random_rows VALUES (1), (2), (3), (4)
 < ok 4 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | random_rows
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 > query
 | SELECT `id` FROM `omni_t_mysql_analysis_backup`.`random_rows` ORDER BY 1
 < result
@@ -31476,19 +31847,24 @@
 | INSERT INTO bumped VALUES (1, 1), (2, 2)
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | bumped
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | v
+: bytes
+|
 > query
 | SELECT `id`, `v` FROM `omni_t_mysql_analysis_backup`.`bumped` ORDER BY 1, 2
 < result
@@ -33464,19 +33840,24 @@
 | INSERT INTO replaced VALUES (1, 1)
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | replaced
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | v
+: bytes
+|
 > query
 | SELECT `id`, `v` FROM `omni_t_mysql_analysis_backup`.`replaced` ORDER BY 1, 2
 < result
@@ -35479,16 +35860,19 @@
 | INSERT INTO self_assignment VALUES (1)
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | self_assignment
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 > query
 | SELECT `id` FROM `omni_t_mysql_analysis_backup`.`self_assignment` ORDER BY 1
 < result
@@ -37508,25 +37892,34 @@
 | INSERT INTO chained_key (id, a) VALUES (1, 10), (2, 20)
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | chained_key
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 < row
 : bytes
 | g1
+: bytes
+| VIRTUAL GENERATED
 < row
 : bytes
 | g2
+: bytes
+| VIRTUAL GENERATED
 > query
 | SELECT `id`, `a`, `g1`, `g2` FROM `omni_t_mysql_analysis_backup`.`chained_key` ORDER BY 1, 2, 3, 4
 < result
@@ -39631,25 +40024,34 @@
 |  UPDATE chained_key SET a = 20 WHERE id = 1
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | chained_key
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 < row
 : bytes
 | g1
+: bytes
+| VIRTUAL GENERATED
 < row
 : bytes
 | g2
+: bytes
+| VIRTUAL GENERATED
 > query
 | SELECT `id`, `a`, `g1`, `g2` FROM `omni_t_mysql_analysis_backup`.`chained_key` ORDER BY 1, 2, 3, 4
 < result
@@ -39674,16 +40076,19 @@
 | INSERT INTO executable_comment VALUES (1), (2)
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | executable_comment
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 > query
 | SELECT `id` FROM `omni_t_mysql_analysis_backup`.`executable_comment` ORDER BY 1
 < result
@@ -41850,19 +42255,24 @@
 | INSERT INTO flag_target VALUES (1, 0)
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | flag_target
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | v
+: bytes
+|
 > query
 | SELECT `id`, `v` FROM `omni_t_mysql_analysis_backup`.`flag_target` ORDER BY 1, 2
 < result
@@ -41872,19 +42282,24 @@
 : int64 1
 : int64 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | flag_source
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | flag
+: bytes
+|
 > query
 | SELECT `id`, `flag` FROM `omni_t_mysql_analysis_backup`.`flag_source` ORDER BY 1, 2
 < result
@@ -44105,25 +44520,34 @@
 | INSERT INTO summed_key (id, a, b) VALUES (1, 10, 1), (2, 20, 11)
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | summed_key
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 < row
 : bytes
 | b
+: bytes
+|
 < row
 : bytes
 | g
+: bytes
+| STORED GENERATED
 > query
 | SELECT `id`, `a`, `b`, `g` FROM `omni_t_mysql_analysis_backup`.`summed_key` ORDER BY 1, 2, 3, 4
 < result
@@ -46417,25 +46841,34 @@
 | UPDATE summed_key SET a = 0 ORDER BY id
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | summed_key
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 < row
 : bytes
 | b
+: bytes
+|
 < row
 : bytes
 | g
+: bytes
+| STORED GENERATED
 > query
 | SELECT `id`, `a`, `b`, `g` FROM `omni_t_mysql_analysis_backup`.`summed_key` ORDER BY 1, 2, 3, 4
 < result
@@ -46460,16 +46893,19 @@
 | INSERT INTO sysvar_rows VALUES (1), (2)
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | sysvar_rows
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 > query
 | SELECT `id` FROM `omni_t_mysql_analysis_backup`.`sysvar_rows` ORDER BY 1
 < result
@@ -48835,22 +49271,29 @@
 | INSERT INTO fk_stamped_child VALUES (1, '2000-01-01 00:00:00')
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | fk_stamped_parent
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | v
+: bytes
+|
 < row
 : bytes
 | ts
+: bytes
+| DEFAULT_GENERATED on update CURRENT_TIMESTAMP(6)
 > query
 | SELECT `id`, `v`, `ts` FROM `omni_t_mysql_analysis_backup`.`fk_stamped_parent` ORDER BY 1, 2, 3
 < result
@@ -48862,19 +49305,24 @@
 : int64 1
 : time 2000-01-01T00:00:00Z
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | fk_stamped_child
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | parent_ts
+: bytes
+|
 > query
 | SELECT `id`, `parent_ts` FROM `omni_t_mysql_analysis_backup`.`fk_stamped_child` ORDER BY 1, 2
 < result
@@ -51347,16 +51795,19 @@
 | INSERT INTO omni_t_mysql_analysis_backup_other.use_target VALUES (1), (2)
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | use_target
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 > query
 | SELECT `id` FROM `omni_t_mysql_analysis_backup`.`use_target` ORDER BY 1
 < result
@@ -51366,16 +51817,19 @@
 < row
 : int64 2
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup_other
 : string
 | use_target
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 > query
 | SELECT `id` FROM `omni_t_mysql_analysis_backup_other`.`use_target` ORDER BY 1
 < result
@@ -53886,16 +54340,19 @@
 | INSERT INTO xdb_child VALUES (1, 1), (2, 2)
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup_other
 : string
 | xdb_parent
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 > query
 | SELECT `id` FROM `omni_t_mysql_analysis_backup_other`.`xdb_parent` ORDER BY 1
 < result
@@ -53905,19 +54362,24 @@
 < row
 : int64 2
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | xdb_child
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | parent_id
+: bytes
+|
 > query
 | SELECT `id`, `parent_id` FROM `omni_t_mysql_analysis_backup`.`xdb_child` ORDER BY 1, 2
 < result
@@ -56511,16 +56973,19 @@
 | INSERT INTO omni_t_mysql_analysis_backup_other.xdb_twin_child VALUES (1, 1), (2, 2)
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | xdb_twin
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 > query
 | SELECT `id` FROM `omni_t_mysql_analysis_backup`.`xdb_twin` ORDER BY 1
 < result
@@ -56530,16 +56995,19 @@
 < row
 : int64 2
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup_other
 : string
 | xdb_twin
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 > query
 | SELECT `id` FROM `omni_t_mysql_analysis_backup_other`.`xdb_twin` ORDER BY 1
 < result
@@ -56549,19 +57017,24 @@
 < row
 : int64 2
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup_other
 : string
 | xdb_twin_child
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | twin_id
+: bytes
+|
 > query
 | SELECT `id`, `twin_id` FROM `omni_t_mysql_analysis_backup_other`.`xdb_twin_child` ORDER BY 1, 2
 < result
@@ -59237,16 +59710,19 @@
 | DELETE FROM xdb_twin WHERE id = 1
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | xdb_twin
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 > query
 | SELECT `id` FROM `omni_t_mysql_analysis_backup`.`xdb_twin` ORDER BY 1
 < result
@@ -59261,16 +59737,19 @@
 | INSERT INTO `omni_t_mysql_analysis_backup`.`xdb_twin` (`id`) SELECT `id` FROM `omni_t_mysql_analysis_backup`.`bak_xdb_twin_omni_t_mysql_analysis_backup`
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup
 : string
 | xdb_twin
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 > query
 | SELECT `id` FROM `omni_t_mysql_analysis_backup`.`xdb_twin` ORDER BY 1
 < result
@@ -59280,16 +59759,19 @@
 < row
 : int64 2
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup_other
 : string
 | xdb_twin
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 > query
 | SELECT `id` FROM `omni_t_mysql_analysis_backup_other`.`xdb_twin` ORDER BY 1
 < result
@@ -59299,19 +59781,24 @@
 < row
 : int64 2
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_t_mysql_analysis_backup_other
 : string
 | xdb_twin_child
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | twin_id
+: bytes
+|
 > query
 | SELECT `id`, `twin_id` FROM `omni_t_mysql_analysis_backup_other`.`xdb_twin_child` ORDER BY 1, 2
 < result

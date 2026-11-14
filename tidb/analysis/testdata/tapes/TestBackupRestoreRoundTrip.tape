@@ -8,25 +8,34 @@
 | INSERT INTO limits (id, a, b) VALUES (1, 1, 10), (2, 2, 20), (3, 3, 30), (4, 4, 40), (5, 5, 50), (6, 6, 60), (7, 7, 70), (8, 8, 80)
 < ok 8 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | limits
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 < row
 : bytes
 | b
+: bytes
+|
 < row
 : bytes
 | g
+: bytes
+| VIRTUAL GENERATED
 > query
 | SELECT `id`, `a`, `b`, `g` FROM `test`.`limits` ORDER BY 1, 2, 3, 4
 < result
@@ -241,25 +250,34 @@
 | DELETE FROM limits WHERE id = 5
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | limits
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 < row
 : bytes
 | b
+: bytes
+|
 < row
 : bytes
 | g
+: bytes
+| VIRTUAL GENERATED
 > query
 | SELECT `id`, `a`, `b`, `g` FROM `test`.`limits` ORDER BY 1, 2, 3, 4
 < result
@@ -295,25 +313,34 @@
 | INSERT INTO `test`.`limits` (`id`, `a`, `b`) SELECT `id`, `a`, `b` FROM `test`.`bak_limits_test`
 < ok 6 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | limits
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 < row
 : bytes
 | b
+: bytes
+|
 < row
 : bytes
 | g
+: bytes
+| VIRTUAL GENERATED
 > query
 | SELECT `id`, `a`, `b`, `g` FROM `test`.`limits` ORDER BY 1, 2, 3, 4
 < result
@@ -368,16 +395,19 @@
 | INSERT INTO overlapping_limits VALUES (1), (2)
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | overlapping_limits
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 > query
 | SELECT `id` FROM `test`.`overlapping_limits` ORDER BY 1
 < result
@@ -601,19 +631,24 @@
 | INSERT INTO overlapping_rows VALUES (1, 1), (2, 2), (3, 3), (4, 4), (5, 5), (6, 6), (7, 7), (8, 8)
 < ok 8 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | overlapping_rows
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 > query
 | SELECT `id`, `a` FROM `test`.`overlapping_rows` ORDER BY 1, 2
 < result
@@ -923,19 +958,24 @@
 | DELETE FROM overlapping_rows WHERE id IN (6, 7)
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | overlapping_rows
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 > query
 | SELECT `id`, `a` FROM `test`.`overlapping_rows` ORDER BY 1, 2
 < result
@@ -962,19 +1002,24 @@
 | INSERT INTO `test`.`overlapping_rows` (`id`, `a`) SELECT `id`, `a` FROM `test`.`bak_overlapping_rows_test`
 < ok 7 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | overlapping_rows
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 > query
 | SELECT `id`, `a` FROM `test`.`overlapping_rows` ORDER BY 1, 2
 < result
@@ -1011,25 +1056,34 @@
 | INSERT INTO updates (id, a, b) VALUES (1, 1, 1), (2, 2, 2), (3, 3, 3), (4, 4, 4), (5, 5, 5), (6, 6, 6)
 < ok 6 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | updates
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 < row
 : bytes
 | b
+: bytes
+|
 < row
 : bytes
 | g
+: bytes
+| STORED GENERATED
 > query
 | SELECT `id`, `a`, `b`, `g` FROM `test`.`updates` ORDER BY 1, 2, 3, 4
 < result
@@ -1431,25 +1485,34 @@
 | UPDATE updates SET a = a + 100 WHERE id = 6
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | updates
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 < row
 : bytes
 | b
+: bytes
+|
 < row
 : bytes
 | g
+: bytes
+| STORED GENERATED
 > query
 | SELECT `id`, `a`, `b`, `g` FROM `test`.`updates` ORDER BY 1, 2, 3, 4
 < result
@@ -1505,25 +1568,34 @@
 | INSERT INTO `test`.`updates` (`id`, `a`, `b`) SELECT `id`, `a`, `b` FROM `test`.`bak_updates_test` ON DUPLICATE KEY UPDATE `a` = VALUES(`a`), `b` = VALUES(`b`)
 < ok 12 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | updates
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 < row
 : bytes
 | b
+: bytes
+|
 < row
 : bytes
 | g
+: bytes
+| STORED GENERATED
 > query
 | SELECT `id`, `a`, `b`, `g` FROM `test`.`updates` ORDER BY 1, 2, 3, 4
 < result
@@ -1574,19 +1646,24 @@
 | INSERT INTO children VALUES (1, 1), (2, 1), (3, 2)
 < ok 3 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | one_to_many
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 > query
 | SELECT `id`, `a` FROM `test`.`one_to_many` ORDER BY 1, 2
 < result
@@ -1599,19 +1676,24 @@
 : int64 2
 : int64 2
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | children
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | parent
+: bytes
+|
 > query
 | SELECT `id`, `parent` FROM `test`.`children` ORDER BY 1, 2
 < result
@@ -2075,19 +2157,24 @@
 | DELETE p FROM one_to_many p JOIN children c ON c.parent = p.id WHERE p.id = 1
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | one_to_many
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 > query
 | SELECT `id`, `a` FROM `test`.`one_to_many` ORDER BY 1, 2
 < result
@@ -2104,19 +2191,24 @@
 | INSERT INTO `test`.`one_to_many` (`id`, `a`) SELECT `id`, `a` FROM `test`.`bak_0_one_to_many`
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | one_to_many
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 > query
 | SELECT `id`, `a` FROM `test`.`one_to_many` ORDER BY 1, 2
 < result
@@ -2129,19 +2221,24 @@
 : int64 2
 : int64 2
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | children
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | parent
+: bytes
+|
 > query
 | SELECT `id`, `parent` FROM `test`.`children` ORDER BY 1, 2
 < result
@@ -2169,19 +2266,24 @@
 | INSERT INTO keyless_children VALUES (1, 1), (2, 1)
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | keyless_join
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 > query
 | SELECT `id`, `a` FROM `test`.`keyless_join` ORDER BY 1, 2
 < result
@@ -2722,19 +2824,24 @@
 | INSERT INTO keyless_rows VALUES (1, 1), (1, 1), (2, 2)
 < ok 3 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | keyless_rows
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 > query
 | SELECT `id`, `a` FROM `test`.`keyless_rows` ORDER BY 1, 2
 < result
@@ -3304,19 +3411,24 @@
 | DELETE FROM keyless_rows WHERE id = 1
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | keyless_rows
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 > query
 | SELECT `id`, `a` FROM `test`.`keyless_rows` ORDER BY 1, 2
 < result
@@ -3333,19 +3445,24 @@
 | INSERT INTO `test`.`keyless_rows` (`id`, `a`) SELECT `id`, `a` FROM `test`.`bak_0_keyless_rows`
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | keyless_rows
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 > query
 | SELECT `id`, `a` FROM `test`.`keyless_rows` ORDER BY 1, 2
 < result
@@ -3373,19 +3490,24 @@
 | INSERT INTO paren_peers VALUES (1), (2)
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | parens
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 > query
 | SELECT `id`, `a` FROM `test`.`parens` ORDER BY 1, 2
 < result
@@ -4025,19 +4147,24 @@
 | UPDATE (parens JOIN paren_peers ON parens.id = paren_peers.id) JOIN paren_peers AS p ON p.id = parens.id SET parens.a = 9 WHERE parens.id = 1
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | parens
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 > query
 | SELECT `id`, `a` FROM `test`.`parens` ORDER BY 1, 2
 < result
@@ -4057,19 +4184,24 @@
 | INSERT INTO `test`.`parens` (`id`, `a`) SELECT `id`, `a` FROM `test`.`bak_0_parens` ON DUPLICATE KEY UPDATE `a` = VALUES(`a`)
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | parens
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 > query
 | SELECT `id`, `a` FROM `test`.`parens` ORDER BY 1, 2
 < result
@@ -4088,19 +4220,24 @@
 | INSERT INTO `back``tick` VALUES (1, 1), (2, 2)
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | back`tick
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | c`ol
+: bytes
+|
 > query
 | SELECT `id`, `c``ol` FROM `test`.`back``tick` ORDER BY 1, 2
 < result
@@ -4802,19 +4939,24 @@
 | DELETE FROM `back``tick` WHERE `c``ol` = 1
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | back`tick
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | c`ol
+: bytes
+|
 > query
 | SELECT `id`, `c``ol` FROM `test`.`back``tick` ORDER BY 1, 2
 < result
@@ -4831,19 +4973,24 @@
 | INSERT INTO `test`.`back``tick` (`id`, `c``ol`) SELECT `id`, `c``ol` FROM `test`.`bak_0_back``tick`
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | back`tick
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | c`ol
+: bytes
+|
 > query
 | SELECT `id`, `c``ol` FROM `test`.`back``tick` ORDER BY 1, 2
 < result
@@ -4862,19 +5009,24 @@
 | INSERT INTO single_key VALUES (1, 10), (2, 20)
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | single_key
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | u
+: bytes
+|
 > query
 | SELECT `id`, `u` FROM `test`.`single_key` ORDER BY 1, 2
 < result
@@ -5647,19 +5799,24 @@
 | UPDATE single_key SET u = 30 WHERE id = 1
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | single_key
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | u
+: bytes
+|
 > query
 | SELECT `id`, `u` FROM `test`.`single_key` ORDER BY 1, 2
 < result
@@ -5679,19 +5836,24 @@
 | INSERT INTO `test`.`single_key` (`id`, `u`) SELECT `id`, `u` FROM `test`.`bak_0_single_key` ON DUPLICATE KEY UPDATE `u` = VALUES(`u`)
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | single_key
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | u
+: bytes
+|
 > query
 | SELECT `id`, `u` FROM `test`.`single_key` ORDER BY 1, 2
 < result
@@ -5710,19 +5872,24 @@
 | INSERT INTO comments VALUES (1, '*/'), (2, 'x')
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | comments
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | note
+: bytes
+|
 > query
 | SELECT `id`, `note` FROM `test`.`comments` ORDER BY 1, 2
 < result
@@ -6568,19 +6735,24 @@
 | DELETE /* note */ FROM comments WHERE note = '*/'
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | comments
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | note
+: bytes
+|
 > query
 | SELECT `id`, `note` FROM `test`.`comments` ORDER BY 1, 2
 < result
@@ -6598,19 +6770,24 @@
 | INSERT INTO `test`.`comments` (`id`, `note`) SELECT `id`, `note` FROM `test`.`bak_0_comments`
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | comments
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | note
+: bytes
+|
 > query
 | SELECT `id`, `note` FROM `test`.`comments` ORDER BY 1, 2
 < result
@@ -6631,19 +6808,24 @@
 | INSERT INTO cte_alias VALUES (1, 1), (2, 2)
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | cte_alias
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 > query
 | SELECT `id`, `a` FROM `test`.`cte_alias` ORDER BY 1, 2
 < result
@@ -7549,19 +7731,24 @@
 | WITH c AS (SELECT 1 AS id) DELETE c FROM cte_alias AS c WHERE c.id = 1
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | cte_alias
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 > query
 | SELECT `id`, `a` FROM `test`.`cte_alias` ORDER BY 1, 2
 < result
@@ -7578,19 +7765,24 @@
 | INSERT INTO `test`.`cte_alias` (`id`, `a`) SELECT `id`, `a` FROM `test`.`bak_0_cte_alias`
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | cte_alias
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 > query
 | SELECT `id`, `a` FROM `test`.`cte_alias` ORDER BY 1, 2
 < result
@@ -7609,22 +7801,29 @@
 | INSERT INTO generated_key (id, a) VALUES (1, 1), (2, 2)
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | generated_key
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 < row
 : bytes
 | g
+: bytes
+| VIRTUAL GENERATED
 > query
 | SELECT `id`, `a`, `g` FROM `test`.`generated_key` ORDER BY 1, 2, 3
 < result
@@ -8606,22 +8805,29 @@
 | UPDATE generated_key SET a = a + 10 WHERE id = 1
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | generated_key
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 < row
 : bytes
 | g
+: bytes
+| VIRTUAL GENERATED
 > query
 | SELECT `id`, `a`, `g` FROM `test`.`generated_key` ORDER BY 1, 2, 3
 < result
@@ -8643,19 +8849,24 @@
 | INSERT INTO expression_key VALUES (1, 1), (2, 2)
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | expression_key
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 > query
 | SELECT `id`, `a` FROM `test`.`expression_key` ORDER BY 1, 2
 < result
@@ -9707,19 +9918,24 @@
 | UPDATE expression_key SET a = a + 10 WHERE id = 1
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | expression_key
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 > query
 | SELECT `id`, `a` FROM `test`.`expression_key` ORDER BY 1, 2
 < result
@@ -9738,19 +9954,24 @@
 | INSERT INTO nullable_key VALUES (NULL, 1), (2, 2)
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | nullable_key
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | u
+: bytes
+|
 < row
 : bytes
 | v
+: bytes
+|
 > query
 | SELECT `u`, `v` FROM `test`.`nullable_key` ORDER BY 1, 2
 < result
@@ -10864,19 +11085,24 @@
 | UPDATE nullable_key SET v = 3 WHERE u IS NULL
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | nullable_key
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | u
+: bytes
+|
 < row
 : bytes
 | v
+: bytes
+|
 > query
 | SELECT `u`, `v` FROM `test`.`nullable_key` ORDER BY 1, 2
 < result
@@ -10895,22 +11121,29 @@
 | INSERT INTO stamped VALUES (1, 1, '2000-01-01 00:00:00'), (2, 2, '2000-01-01 00:00:00')
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | stamped
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | v
+: bytes
+|
 < row
 : bytes
 | ts
+: bytes
+| DEFAULT_GENERATED on update CURRENT_TIMESTAMP
 > query
 | SELECT `id`, `v`, `ts` FROM `test`.`stamped` ORDER BY 1, 2, 3
 < result
@@ -12102,38 +12335,45 @@
 | UPDATE stamped SET v = 5 WHERE id = 1
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | stamped
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | v
+: bytes
+|
 < row
 : bytes
 | ts
+: bytes
+| DEFAULT_GENERATED on update CURRENT_TIMESTAMP
 > query
-| SELECT `id`, `v`, `ts` FROM `test`.`stamped` ORDER BY 1, 2, 3
+| SELECT `id`, `v`, '-' FROM `test`.`stamped` ORDER BY 1, 2, 3
 < result
 < column "id" "INT"
 < column "v" "INT"
-< column "ts" "TIMESTAMP"
+< column "-" "VARCHAR"
 < row
 : int64 1
 : int64 5
 : bytes
-| 2026-11-14 17:12:26
+| -
 < row
 : int64 2
 : int64 2
 : bytes
-| 2000-01-01 00:00:00
+| -
 > exec
 | /*
 | Original SQL:
@@ -12142,22 +12382,29 @@
 | INSERT INTO `test`.`stamped` (`id`, `v`, `ts`) SELECT `id`, `v`, `ts` FROM `test`.`bak_0_stamped` ON DUPLICATE KEY UPDATE `v` = VALUES(`v`), `ts` = VALUES(`ts`)
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | stamped
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | v
+: bytes
+|
 < row
 : bytes
 | ts
+: bytes
+| DEFAULT_GENERATED on update CURRENT_TIMESTAMP
 > query
 | SELECT `id`, `v`, `ts` FROM `test`.`stamped` ORDER BY 1, 2, 3
 < result
@@ -12187,16 +12434,19 @@
 | INSERT INTO flagged VALUES (1)
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | flagged
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 > query
 | SELECT `id` FROM `test`.`flagged` ORDER BY 1
 < result
@@ -13473,16 +13723,19 @@
 | INSERT INTO fk_child VALUES (1, 1)
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | fk_parent
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 > query
 | SELECT `id` FROM `test`.`fk_parent` ORDER BY 1
 < result
@@ -14836,19 +15089,24 @@
 | INSERT INTO outer_gone VALUES (1, 1)
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | outer_gone
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 > query
 | SELECT `id`, `a` FROM `test`.`outer_gone` ORDER BY 1, 2
 < result
@@ -16253,19 +16511,24 @@
 | DELETE t FROM outer_keep u LEFT JOIN outer_gone t ON t.id = u.id
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | outer_gone
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 > query
 | SELECT `id`, `a` FROM `test`.`outer_gone` ORDER BY 1, 2
 < result
@@ -16279,19 +16542,24 @@
 | INSERT INTO `test`.`outer_gone` (`id`, `a`) SELECT `id`, `a` FROM `test`.`bak_0_outer_gone`
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | outer_gone
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 > query
 | SELECT `id`, `a` FROM `test`.`outer_gone` ORDER BY 1, 2
 < result
@@ -16307,16 +16575,19 @@
 | CREATE TABLE nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn_two (id INT PRIMARY KEY)
 < ok 0 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn_one
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 > query
 | SELECT `id` FROM `test`.`nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn_one` ORDER BY 1
 < result
@@ -17784,19 +18055,24 @@
 | INSERT INTO swapped_key VALUES (1, 10), (2, 20)
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | swapped_key
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | u
+: bytes
+|
 > query
 | SELECT `id`, `u` FROM `test`.`swapped_key` ORDER BY 1, 2
 < result
@@ -19315,19 +19591,24 @@
 | UPDATE swapped_key SET u = u + 10 ORDER BY u DESC
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | swapped_key
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | u
+: bytes
+|
 > query
 | SELECT `id`, `u` FROM `test`.`swapped_key` ORDER BY 1, 2
 < result
@@ -19346,19 +19627,24 @@
 | INSERT INTO separate_overlap VALUES (1, 1)
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | separate_overlap
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 > query
 | SELECT `id`, `a` FROM `test`.`separate_overlap` ORDER BY 1, 2
 < result
@@ -20941,22 +21227,29 @@
 | INSERT INTO generated_default (id, a) VALUES (1, 1), (2, 2)
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | generated_default
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 < row
 : bytes
 | g
+: bytes
+| VIRTUAL GENERATED
 > query
 | SELECT `id`, `a`, `g` FROM `test`.`generated_default` ORDER BY 1, 2, 3
 < result
@@ -22591,22 +22884,29 @@
 | UPDATE generated_default SET generated_default.a = 5, generated_default.g = DEFAULT WHERE id = 1
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | generated_default
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 < row
 : bytes
 | g
+: bytes
+| VIRTUAL GENERATED
 > query
 | SELECT `id`, `a`, `g` FROM `test`.`generated_default` ORDER BY 1, 2, 3
 < result
@@ -22629,22 +22929,29 @@
 | INSERT INTO `test`.`generated_default` (`id`, `a`) SELECT `id`, `a` FROM `test`.`bak_0_generated_default` ON DUPLICATE KEY UPDATE `a` = VALUES(`a`)
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | generated_default
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 < row
 : bytes
 | g
+: bytes
+| VIRTUAL GENERATED
 > query
 | SELECT `id`, `a`, `g` FROM `test`.`generated_default` ORDER BY 1, 2, 3
 < result
@@ -22666,16 +22973,19 @@
 | INSERT INTO user_variable VALUES (1), (2)
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | user_variable
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 > query
 | SELECT `id` FROM `test`.`user_variable` ORDER BY 1
 < result
@@ -24362,22 +24672,29 @@
 | INSERT INTO dependent_updates VALUES (1, 1, 0)
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | dependent_updates
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 < row
 : bytes
 | b
+: bytes
+|
 > query
 | SELECT `id`, `a`, `b` FROM `test`.`dependent_updates` ORDER BY 1, 2, 3
 < result
@@ -26108,22 +26425,29 @@
 | INSERT INTO covered_updates VALUES (1, 1, 0), (2, 2, 0)
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | covered_updates
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 < row
 : bytes
 | b
+: bytes
+|
 > query
 | SELECT `id`, `a`, `b` FROM `test`.`covered_updates` ORDER BY 1, 2, 3
 < result
@@ -27914,22 +28238,29 @@
 |  UPDATE covered_updates SET a = 3 WHERE a = 2
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | covered_updates
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 < row
 : bytes
 | b
+: bytes
+|
 > query
 | SELECT `id`, `a`, `b` FROM `test`.`covered_updates` ORDER BY 1, 2, 3
 < result
@@ -27959,22 +28290,29 @@
 | INSERT INTO `test`.`covered_updates` (`id`, `a`, `b`) SELECT `id`, `a`, `b` FROM `test`.`bak_0_covered_updates` ON DUPLICATE KEY UPDATE `a` = VALUES(`a`)
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | covered_updates
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 < row
 : bytes
 | b
+: bytes
+|
 > query
 | SELECT `id`, `a`, `b` FROM `test`.`covered_updates` ORDER BY 1, 2, 3
 < result
@@ -27996,16 +28334,19 @@
 | INSERT INTO random_rows VALUES (1), (2), (3), (4)
 < ok 4 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | random_rows
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 > query
 | SELECT `id` FROM `test`.`random_rows` ORDER BY 1
 < result
@@ -29884,16 +30225,19 @@
 | INSERT INTO use_target VALUES (1), (2)
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | use_target
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 > query
 | SELECT `id` FROM `test`.`use_target` ORDER BY 1
 < result
@@ -31788,19 +32132,24 @@
 | INSERT INTO replaced VALUES (1, 1)
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | replaced
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | v
+: bytes
+|
 > query
 | SELECT `id`, `v` FROM `test`.`replaced` ORDER BY 1, 2
 < result
@@ -33726,16 +34075,19 @@
 | INSERT INTO self_assignment VALUES (1)
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | self_assignment
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 > query
 | SELECT `id` FROM `test`.`self_assignment` ORDER BY 1
 < result
@@ -35679,25 +36031,34 @@
 | INSERT INTO chained_key (id, a) VALUES (1, 10), (2, 20)
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | chained_key
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 < row
 : bytes
 | g1
+: bytes
+| VIRTUAL GENERATED
 < row
 : bytes
 | g2
+: bytes
+| VIRTUAL GENERATED
 > query
 | SELECT `id`, `a`, `g1`, `g2` FROM `test`.`chained_key` ORDER BY 1, 2, 3, 4
 < result
@@ -37718,25 +38079,34 @@
 | UPDATE chained_key SET a = a + 5 WHERE id = 1
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | chained_key
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 < row
 : bytes
 | g1
+: bytes
+| VIRTUAL GENERATED
 < row
 : bytes
 | g2
+: bytes
+| VIRTUAL GENERATED
 > query
 | SELECT `id`, `a`, `g1`, `g2` FROM `test`.`chained_key` ORDER BY 1, 2, 3, 4
 < result
@@ -37761,16 +38131,19 @@
 | INSERT INTO executable_comment VALUES (1), (2)
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | executable_comment
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 > query
 | SELECT `id` FROM `test`.`executable_comment` ORDER BY 1
 < result
@@ -39864,16 +40237,19 @@
 | DELETE FROM executable_comment /*!80000 WHERE id = 1 */
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | executable_comment
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 > query
 | SELECT `id` FROM `test`.`executable_comment` ORDER BY 1
 < result
@@ -39888,16 +40264,19 @@
 | INSERT INTO `test`.`executable_comment` (`id`) SELECT `id` FROM `test`.`bak_0_executable_comment`
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | executable_comment
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 > query
 | SELECT `id` FROM `test`.`executable_comment` ORDER BY 1
 < result
@@ -39913,19 +40292,24 @@
 | INSERT INTO separate_swap VALUES (1, 10), (2, 20)
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | separate_swap
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | u
+: bytes
+|
 > query
 | SELECT `id`, `u` FROM `test`.`separate_swap` ORDER BY 1, 2
 < result
@@ -42084,19 +42468,24 @@
 | INSERT INTO flag_target VALUES (1, 0)
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | flag_target
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | v
+: bytes
+|
 > query
 | SELECT `id`, `v` FROM `test`.`flag_target` ORDER BY 1, 2
 < result
@@ -42106,19 +42495,24 @@
 : int64 1
 : int64 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | flag_source
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | flag
+: bytes
+|
 > query
 | SELECT `id`, `flag` FROM `test`.`flag_source` ORDER BY 1, 2
 < result
@@ -44330,25 +44724,34 @@
 | INSERT INTO summed_key (id, a, b) VALUES (1, 10, 1), (2, 20, 11)
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | summed_key
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 < row
 : bytes
 | b
+: bytes
+|
 < row
 : bytes
 | g
+: bytes
+| STORED GENERATED
 > query
 | SELECT `id`, `a`, `b`, `g` FROM `test`.`summed_key` ORDER BY 1, 2, 3, 4
 < result
@@ -46635,25 +47038,34 @@
 | UPDATE summed_key SET a = 0 ORDER BY id
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | summed_key
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 < row
 : bytes
 | b
+: bytes
+|
 < row
 : bytes
 | g
+: bytes
+| STORED GENERATED
 > query
 | SELECT `id`, `a`, `b`, `g` FROM `test`.`summed_key` ORDER BY 1, 2, 3, 4
 < result
@@ -46678,16 +47090,19 @@
 | INSERT INTO sysvar_rows VALUES (1), (2)
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | sysvar_rows
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 > query
 | SELECT `id` FROM `test`.`sysvar_rows` ORDER BY 1
 < result
@@ -49049,22 +49464,29 @@
 | INSERT INTO fk_stamped_child VALUES (1, '2000-01-01 00:00:00')
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | fk_stamped_parent
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | v
+: bytes
+|
 < row
 : bytes
 | ts
+: bytes
+| DEFAULT_GENERATED on update CURRENT_TIMESTAMP(6)
 > query
 | SELECT `id`, `v`, `ts` FROM `test`.`fk_stamped_parent` ORDER BY 1, 2, 3
 < result
@@ -49077,19 +49499,24 @@
 : bytes
 | 2000-01-01 00:00:00.000000
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | fk_stamped_child
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | parent_ts
+: bytes
+|
 > query
 | SELECT `id`, `parent_ts` FROM `test`.`fk_stamped_child` ORDER BY 1, 2
 < result
@@ -51560,19 +51987,24 @@
 | INSERT INTO outer_update_target VALUES (1, 1)
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | outer_update_target
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 > query
 | SELECT `id`, `a` FROM `test`.`outer_update_target` ORDER BY 1, 2
 < result
@@ -54091,19 +54523,24 @@
 | UPDATE outer_update_keep u LEFT JOIN outer_update_target t ON t.id = u.id SET t.a = 5
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | outer_update_target
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 > query
 | SELECT `id`, `a` FROM `test`.`outer_update_target` ORDER BY 1, 2
 < result
@@ -54120,19 +54557,24 @@
 | INSERT INTO `test`.`outer_update_target` (`id`, `a`) SELECT `id`, `a` FROM `test`.`bak_0_outer_update_target` ON DUPLICATE KEY UPDATE `a` = VALUES(`a`)
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | outer_update_target
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | a
+: bytes
+|
 > query
 | SELECT `id`, `a` FROM `test`.`outer_update_target` ORDER BY 1, 2
 < result
@@ -54151,16 +54593,19 @@
 | INSERT INTO ai_target VALUES (1)
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | ai_target
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 > query
 | SELECT `id` FROM `test`.`ai_target` ORDER BY 1
 < result
@@ -56753,16 +57198,19 @@
 | INSERT INTO omni_tidb_analysis_backup_other.xdb_child VALUES (1, 1), (2, 2)
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | xdb_parent
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 > query
 | SELECT `id` FROM `test`.`xdb_parent` ORDER BY 1
 < result
@@ -56772,19 +57220,24 @@
 < row
 : int64 2
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_tidb_analysis_backup_other
 : string
 | xdb_child
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | parent_id
+: bytes
+|
 > query
 | SELECT `id`, `parent_id` FROM `omni_tidb_analysis_backup_other`.`xdb_child` ORDER BY 1, 2
 < result
@@ -59465,16 +59918,19 @@
 | INSERT INTO omni_tidb_analysis_backup_other.xdb_twin_child VALUES (1, 1), (2, 2)
 < ok 2 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | xdb_twin
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 > query
 | SELECT `id` FROM `test`.`xdb_twin` ORDER BY 1
 < result
@@ -59484,16 +59940,19 @@
 < row
 : int64 2
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_tidb_analysis_backup_other
 : string
 | xdb_twin
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 > query
 | SELECT `id` FROM `omni_tidb_analysis_backup_other`.`xdb_twin` ORDER BY 1
 < result
@@ -59503,19 +59962,24 @@
 < row
 : int64 2
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_tidb_analysis_backup_other
 : string
 | xdb_twin_child
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | twin_id
+: bytes
+|
 > query
 | SELECT `id`, `twin_id` FROM `omni_tidb_analysis_backup_other`.`xdb_twin_child` ORDER BY 1, 2
 < result
@@ -62282,16 +62746,19 @@
 | DELETE FROM xdb_twin WHERE id = 1
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | xdb_twin
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 > query
 | SELECT `id` FROM `test`.`xdb_twin` ORDER BY 1
 < result
@@ -62306,16 +62773,19 @@
 | INSERT INTO `test`.`xdb_twin` (`id`) SELECT `id` FROM `test`.`bak_0_xdb_twin`
 < ok 1 0
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | test
 : string
 | xdb_twin
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 > query
 | SELECT `id` FROM `test`.`xdb_twin` ORDER BY 1
 < result
@@ -62325,16 +62795,19 @@
 < row
 : int64 2
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_tidb_analysis_backup_other
 : string
 | xdb_twin
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 > query
 | SELECT `id` FROM `omni_tidb_analysis_backup_other`.`xdb_twin` ORDER BY 1
 < result
@@ -62344,19 +62817,24 @@
 < row
 : int64 2
 > query
-| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+| SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | omni_tidb_analysis_backup_other
 : string
 | xdb_twin_child
 < result
 < column "COLUMN_NAME" "VARCHAR"
+< column "EXTRA" "VARCHAR"
 < row
 : bytes
 | id
+: bytes
+|
 < row
 : bytes
 | twin_id
+: bytes
+|
 > query
 | SELECT `id`, `twin_id` FROM `omni_tidb_analysis_backup_other`.`xdb_twin_child` ORDER BY 1, 2
 < result
