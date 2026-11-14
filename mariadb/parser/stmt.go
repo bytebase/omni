@@ -206,9 +206,6 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 	case kwSHUTDOWN:
 		return p.parseShutdownStmt()
 
-	case kwRESTART:
-		return p.parseRestartStmt()
-
 	case kwCLONE:
 		return p.parseCloneStmt()
 
@@ -277,8 +274,11 @@ func (p *Parser) parseStartDispatch() (nodes.Node, error) {
 	}
 
 	// Fall through to START TRANSACTION (parseBeginStmt expects p.cur is START or BEGIN)
-	// We already consumed START, so we need to handle TRANSACTION here
-	p.match(kwTRANSACTION)
+	// We already consumed START, so we need to handle TRANSACTION here. start:
+	// START_SYM TRANSACTION_SYM opt_start_transaction_option_list, TRANSACTION required.
+	if _, err := p.expect(kwTRANSACTION); err != nil {
+		return nil, err
+	}
 
 	// Completion: after START TRANSACTION, offer transaction characteristic keywords.
 	p.checkCursor()

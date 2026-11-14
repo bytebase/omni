@@ -160,7 +160,13 @@ func (p *Parser) parseRollbackStmt() (*nodes.RollbackStmt, error) {
 			return nil, &ParseError{Message: "collecting"}
 		}
 
-		p.match(kwSAVEPOINT)
+		// TO_SYM SAVEPOINT_SYM ident | TO_SYM ident: SAVEPOINT is a keyword_verb_clause word,
+		// so with the statement ending after it, it is the name (`ROLLBACK TO SAVEPOINT`).
+		if p.cur.Type == kwSAVEPOINT {
+			if next := p.peekNext(); next.Type != ';' && next.Type != tokEOF {
+				p.advance()
+			}
+		}
 		name, _, err := p.parseIdent()
 		if err != nil {
 			return nil, err

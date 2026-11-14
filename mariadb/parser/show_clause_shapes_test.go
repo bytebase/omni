@@ -213,3 +213,29 @@ func TestShowMariaDBOnlyShapes(t *testing.T) {
 		}
 	})
 }
+
+// TestShowMariaDBFormsShape pins SHOW AUTHORS, CONTRIBUTORS, ALL SLAVES STATUS
+// and SHOW {EXPLAIN | ANALYZE} FOR: the type, the format, and the connection
+// expression on ForQuery.
+func TestShowMariaDBFormsShape(t *testing.T) {
+	for _, tc := range []struct {
+		sql, typ, format string
+		forQuery         bool
+	}{
+		{"SHOW AUTHORS", "AUTHORS", "", false},
+		{"SHOW contributors", "CONTRIBUTORS", "", false},
+		{"SHOW ALL SLAVES STATUS", "ALL SLAVES STATUS", "", false},
+		{"SHOW ALL REPLICAS STATUS", "ALL SLAVES STATUS", "", false},
+		{"SHOW DESC FOR 1", "EXPLAIN", "", true},
+		{"SHOW EXPLAIN FORMAT=JSON FOR 1", "EXPLAIN", "JSON", true},
+		{"SHOW ANALYZE FORMAT = 'traditional' FOR 1", "ANALYZE", "traditional", true},
+	} {
+		t.Run(tc.sql, func(t *testing.T) {
+			stmt := parseOneShow(t, tc.sql)
+			if stmt.Type != tc.typ || stmt.Format != tc.format || (stmt.ForQuery != nil) != tc.forQuery {
+				t.Errorf("got Type %q Format %q ForQuery %v, want %q %q %v",
+					stmt.Type, stmt.Format, stmt.ForQuery, tc.typ, tc.format, tc.forQuery)
+			}
+		})
+	}
+}

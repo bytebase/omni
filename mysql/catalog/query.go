@@ -1025,6 +1025,11 @@ type CastExprQ struct {
 	// Collation applies when the cast target is a string type with an
 	// explicit COLLATE clause: `CAST(x AS CHAR CHARACTER SET utf8mb4 COLLATE utf8mb4_bin)`.
 	Collation string
+
+	// AtTimeZone is the zone of CAST(x AT TIME ZONE [INTERVAL] 'tz' AS DATETIME), ""
+	// when there is none; AtTimeZoneInterval records the INTERVAL word.
+	AtTimeZone         string
+	AtTimeZoneInterval bool
 }
 
 func (*CastExprQ) analyzedExprTag()          {}

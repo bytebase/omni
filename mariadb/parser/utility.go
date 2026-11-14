@@ -1019,20 +1019,6 @@ func (p *Parser) parseShutdownStmt() (*nodes.ShutdownStmt, error) {
 	return stmt, nil
 }
 
-// parseRestartStmt parses a RESTART statement.
-//
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/restart.html
-//
-//	RESTART
-func (p *Parser) parseRestartStmt() (*nodes.RestartStmt, error) {
-	start := p.pos()
-	p.advance() // consume RESTART
-
-	stmt := &nodes.RestartStmt{Loc: nodes.Loc{Start: start}}
-	stmt.Loc.End = p.prev.End
-	return stmt, nil
-}
-
 // parseCloneStmt parses a CLONE statement (MySQL 8.0.17+).
 //
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/clone.html
@@ -1833,8 +1819,13 @@ func (p *Parser) parseImportTableStmt() (*nodes.ImportTableStmt, error) {
 	return stmt, nil
 }
 
-// parseBinlogStmt parses BINLOG 'str'.
+// parseBinlogStmt parses BINLOG 'str' and BINLOG @a, @b, an event in two user variables.
 // p.cur is BINLOG.
+//
+// Ref: binlog_base64_event in MariaDB 11.8 sql/sql_yacc.yy:
+//
+//	BINLOG_SYM TEXT_STRING_sys
+//	| BINLOG_SYM '@' ident_or_text ',' '@' ident_or_text
 func (p *Parser) parseBinlogStmt() (*nodes.BinlogStmt, error) {
 	start := p.pos()
 	p.advance() // consume BINLOG
@@ -1846,6 +1837,24 @@ func (p *Parser) parseBinlogStmt() (*nodes.BinlogStmt, error) {
 	if p.cur.Type == tokSCONST {
 		stmt.Str = p.cur.Str
 		p.advance()
+		stmt.Loc.End = p.prev.End
+		return stmt, nil
+	}
+
+	for i := 0; i < 2; i++ {
+		if i == 1 {
+			if _, err := p.expect(','); err != nil {
+				return nil, err
+			}
+		}
+		if !p.atUserVar() {
+			return nil, p.syntaxErrorAtCur()
+		}
+		ref, err := p.parseVariableRef()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Fragments = append(stmt.Fragments, ref.Name)
 	}
 
 	stmt.Loc.End = p.prev.End

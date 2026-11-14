@@ -671,3 +671,32 @@ func TestParseBareIntervalAndUserVariable(t *testing.T) {
 		t.Errorf("a bare @ read as %T, want a variable", cols[1])
 	}
 }
+
+// TestParseWeightStringNumbersAndCastAtTimeZone holds WEIGHT_STRING's four
+// numbers and CAST ... AT TIME ZONE to function_call_conflict and simple_expr.
+func TestParseWeightStringNumbersAndCastAtTimeZone(t *testing.T) {
+	for _, sql := range []string{
+		"DO WEIGHT_STRING(a, 1, 2, 3)",
+		"DO WEIGHT_STRING(a, 0x1, 1.5, 1e0)",
+		"DO CAST(a AT TIME ZONE 'UTC' AS DATETIME)",
+		"DO CAST(a AT TIME ZONE INTERVAL '+00:00' AS DATETIME(6))",
+	} {
+		if _, err := Parse(sql); err != nil {
+			t.Errorf("Parse(%q): %v", sql, err)
+		}
+	}
+	for _, sql := range []string{
+		"DO WEIGHT_STRING(a, 1, 2)",
+		"DO WEIGHT_STRING(a, 1, 2, 3, 4)",
+		"DO WEIGHT_STRING(a, 'x', 2, 3)",
+		"DO WEIGHT_STRING(a LEVEL 1)",
+		"DO CAST(a AT TIME ZONE 'UTC' AS DATE)",
+		"DO CAST(a AT TIME ZONE INTERVAL 'UTC' AS DATETIME(7))",
+		"DO CAST(a AT TIME ZONE UTC AS DATETIME)",
+		"DO CAST(a AT LOCAL AS DATETIME)",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q): want an error", sql)
+		}
+	}
+}

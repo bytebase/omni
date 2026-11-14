@@ -770,6 +770,9 @@ func writeExprAlias(b *strings.Builder, node ast.ExprNode) {
 		if n.WeightAs != "" {
 			fmt.Fprintf(b, " AS %s(%d)", n.WeightAs, n.WeightAsLen)
 		}
+		if n.WeightLevels != "" {
+			b.WriteString(" LEVEL " + n.WeightLevels)
+		}
 		b.WriteString(")")
 		if n.Over != nil {
 			b.WriteString(" ")
@@ -2385,6 +2388,9 @@ func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 		writeCharUsing(b, n.Using)
 		if n.WeightAs != "" {
 			fmt.Fprintf(b, " as %s(%d)", strings.ToLower(n.WeightAs), n.WeightAsLen)
+		}
+		if n.WeightLevels != "" {
+			b.WriteString(" level " + strings.ToLower(n.WeightLevels))
 		}
 		b.WriteString(")")
 	}
