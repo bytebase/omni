@@ -14,8 +14,9 @@ func init() {
 		// https://docs.snowflake.com/en/sql-reference/sql/create-application-service
 		orAlter: true,
 		// https://docs.snowflake.com/en/sql-reference/sql/drop-application-service
-		drop:  true,
-		props: applicationServiceProps,
+		drop:       true,
+		props:      applicationServiceProps,
+		alterProps: applicationServiceAlterProps,
 		unset: []string{"AUTO_RESUME", "AUTO_SUSPEND_SECS", "EXTERNAL_ACCESS_INTEGRATIONS",
 			"QUERY_WAREHOUSE", "MIN_INSTANCES", "MAX_INSTANCES", "COMMENT"},
 	})
@@ -35,6 +36,18 @@ var applicationServiceProps = objectProps{
 	"COMMENT":                      propString,
 	"SPECIFICATION":                propString,
 }
+
+// applicationServiceAlterProps are ALTER APPLICATION SERVICE ... SET's:
+// CREATE's but EXECUTE_AS_ROLE and SPECIFICATION.
+var applicationServiceAlterProps = func() objectProps {
+	m := objectProps{}
+	for k, v := range applicationServiceProps {
+		if k != "EXECUTE_AS_ROLE" && k != "SPECIFICATION" {
+			m[k] = v
+		}
+	}
+	return m
+}()
 
 // parseCreateApplicationService reads what follows the name of
 //

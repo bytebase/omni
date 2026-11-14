@@ -1,6 +1,10 @@
 package parser
 
-import "github.com/bytebase/omni/snowflake/ast"
+import (
+	"strings"
+
+	"github.com/bytebase/omni/snowflake/ast"
+)
 
 // ---------------------------------------------------------------------------
 // Native Apps: APPLICATION, APPLICATION ROLE and the ALTER APPLICATION
@@ -22,6 +26,7 @@ func init() {
 		nameParts:     1, // an account-level object
 		noIfNotExists: true,
 		props:         applicationProps,
+		alterProps:    applicationAlterProps,
 		unset: []string{"COMMENT", "SHARE_EVENTS_WITH_PROVIDER", "DEBUG_MODE",
 			"AUTHORIZE_RESTRICTED_PROVIDER_REMOTE_OPERATIONS_UNTIL"},
 	})
@@ -71,17 +76,25 @@ func init() {
 	})
 }
 
-// applicationProps are the properties CREATE APPLICATION and ALTER
-// APPLICATION ... SET document. DEBUG_MODE is CREATE's from a package's
-// version or path and ALTER's; BACKGROUND_INSTALL is CREATE's from a listing;
-// SHARE_EVENTS_WITH_PROVIDER is ALTER's.
+// applicationProps are the properties CREATE APPLICATION documents.
+// DEBUG_MODE is its form's from a package's version or path alone, and
+// BACKGROUND_INSTALL its form's from a listing (parseCreateApplication).
 var applicationProps = objectProps{
 	"COMMENT":                           propString,
 	"DEBUG_MODE":                        propBool,
-	"SHARE_EVENTS_WITH_PROVIDER":        propBool,
 	"BACKGROUND_INSTALL":                propBool,
 	"AUTHORIZE_TELEMETRY_EVENT_SHARING": propBool,
 	// '<timestamp>', 'INDEFINITE' or 'NEVER'
+	"AUTHORIZE_RESTRICTED_PROVIDER_REMOTE_OPERATIONS_UNTIL": propString,
+}
+
+// applicationAlterProps are the properties ALTER APPLICATION ... SET
+// documents.
+var applicationAlterProps = objectProps{
+	"COMMENT":                           propString,
+	"SHARE_EVENTS_WITH_PROVIDER":        propBool,
+	"DEBUG_MODE":                        propBool,
+	"AUTHORIZE_TELEMETRY_EVENT_SHARING": propBool,
 	"AUTHORIZE_RESTRICTED_PROVIDER_REMOTE_OPERATIONS_UNTIL": propString,
 }
 
@@ -174,7 +187,11 @@ func parseCreateApplication(p *Parser, s *ast.ObjectStmt) error {
 			}
 		}
 	}
-	if _, err := p.parseObjectProperties(s, "", false); err != nil {
+	props, err := p.parseObjectProperties(s, "", false)
+	if err != nil {
+		return err
+	}
+	if err := checkCreateApplicationProperties(s, props); err != nil {
 		return err
 	}
 	// WITH FEATURE POLICY = <policy_name> is a WITH clause holding a
@@ -194,6 +211,30 @@ func parseCreateApplication(p *Parser, s *ast.ObjectStmt) error {
 		opt.Words = policy
 		opt.Loc.End = p.prev.Loc.End
 		p.addObjectKeywordsClause(s, "WITH", start).Options = []*ast.CopyOption{opt}
+	}
+	return nil
+}
+
+// checkCreateApplicationProperties fails a property CREATE APPLICATION's
+// form does not take: DEBUG_MODE outside USING '<path>' or USING VERSION, and
+// BACKGROUND_INSTALL outside FROM LISTING.
+func checkCreateApplicationProperties(s *ast.ObjectStmt, props *ast.ObjectClause) error {
+	if props == nil {
+		return nil
+	}
+	listing, debug := false, false
+	for _, c := range s.Clauses {
+		switch c.Keywords {
+		case "FROM LISTING":
+			listing = true
+		case "USING", "USING VERSION":
+			debug = true
+		}
+	}
+	for _, o := range props.Options {
+		if (o.Name == "DEBUG_MODE" && !debug) || (o.Name == "BACKGROUND_INSTALL" && !listing) {
+			return applicationOptionError(o)
+		}
 	}
 	return nil
 }
@@ -457,7 +498,123 @@ func parseAlterApplicationSetAppSpec(p *Parser, s *ast.ObjectStmt) error {
 	if err != nil {
 		return err
 	}
-	return p.requireObjectProperties(props, "TYPE", "LABEL", "DESCRIPTION")
+	if err := p.requireObjectProperties(props, "TYPE", "LABEL", "DESCRIPTION"); err != nil {
+		return err
+	}
+	return p.checkApplicationTypedProperties(props, applicationSpecTypes)
+}
+
+// applicationTypedForm is what one TYPE of a typed definition takes beyond
+// TYPE, LABEL and DESCRIPTION: the properties it requires, the ones it may
+// add, and sets of which exactly one must appear.
+type applicationTypedForm struct {
+	required, optional []string
+	oneOf              [][]string
+}
+
+// applicationSpecTypes are the forms of ALTER APPLICATION SET SPECIFICATION
+// by TYPE.
+var applicationSpecTypes = map[string]func(map[string]*ast.CopyOption) applicationTypedForm{
+	"EXTERNAL_ACCESS": func(map[string]*ast.CopyOption) applicationTypedForm {
+		return applicationTypedForm{oneOf: [][]string{{"HOST_PORTS", "PRIVATE_HOST_PORTS"}}}
+	},
+	// OAUTH_TYPE = 'CLIENT_CREDENTIALS' requires OAUTH_ALLOWED_SCOPES and
+	// takes no OAUTH_AUTHORIZATION_ENDPOINT; 'AUTHORIZATION_CODE' and
+	// 'JWT_BEARER' take both as options.
+	"SECURITY_INTEGRATION": func(props map[string]*ast.CopyOption) applicationTypedForm {
+		f := applicationTypedForm{required: []string{"OAUTH_TYPE", "OAUTH_TOKEN_ENDPOINT"}}
+		switch applicationLitValue(props["OAUTH_TYPE"]) {
+		case "CLIENT_CREDENTIALS":
+			f.required = append(f.required, "OAUTH_ALLOWED_SCOPES")
+		case "AUTHORIZATION_CODE", "JWT_BEARER":
+			f.optional = []string{"OAUTH_AUTHORIZATION_ENDPOINT", "OAUTH_ALLOWED_SCOPES"}
+		default:
+			f.required = append(f.required, "a documented OAUTH_TYPE")
+		}
+		return f
+	},
+	"LISTING": func(map[string]*ast.CopyOption) applicationTypedForm {
+		return applicationTypedForm{required: []string{"TARGET_ACCOUNTS", "LISTING"}, optional: []string{"AUTO_FULFILLMENT_REFRESH_SCHEDULE"}}
+	},
+	"CONNECTION": func(map[string]*ast.CopyOption) applicationTypedForm {
+		return applicationTypedForm{required: []string{"SERVER_APPLICATION", "SERVER_APPLICATION_ROLES"}}
+	},
+	"SETTING": func(map[string]*ast.CopyOption) applicationTypedForm {
+		return applicationTypedForm{required: []string{"SETTING"}, optional: []string{"VALUE"}}
+	},
+}
+
+// applicationConfigurationTypes are the forms of ALTER APPLICATION SET
+// CONFIGURATION DEFINITION by TYPE.
+var applicationConfigurationTypes = map[string]func(map[string]*ast.CopyOption) applicationTypedForm{
+	"APPLICATION_NAME": func(map[string]*ast.CopyOption) applicationTypedForm {
+		return applicationTypedForm{required: []string{"APPLICATION_ROLES"}}
+	},
+	"STRING": func(map[string]*ast.CopyOption) applicationTypedForm {
+		return applicationTypedForm{required: []string{"APPLICATION_ROLES", "SENSITIVE"}}
+	},
+	"SECRET_AUTHORIZATION": func(map[string]*ast.CopyOption) applicationTypedForm {
+		return applicationTypedForm{required: []string{"SECRET", "APPLICATION_ROLES"}}
+	},
+}
+
+// applicationLitValue is a string option's value, or "" for another option.
+func applicationLitValue(o *ast.CopyOption) string {
+	if o == nil || o.Lit == nil || o.Lit.Kind != ast.LitString {
+		return ""
+	}
+	return o.Lit.Value
+}
+
+// checkApplicationTypedProperties holds a typed definition's properties (c
+// holds TYPE, LABEL and DESCRIPTION) to the form its TYPE selects: every
+// required property and one of each oneOf set present, and nothing the form
+// does not take.
+func (p *Parser) checkApplicationTypedProperties(c *ast.ObjectClause, types map[string]func(map[string]*ast.CopyOption) applicationTypedForm) error {
+	props := map[string]*ast.CopyOption{}
+	for _, o := range c.Options {
+		props[o.Name] = o
+	}
+	typ := props["TYPE"]
+	formOf, ok := types[typ.Words]
+	if !ok {
+		return applicationOptionError(typ)
+	}
+	f := formOf(props)
+	allowed := map[string]bool{"TYPE": true, "LABEL": true, "DESCRIPTION": true}
+	for _, k := range f.required {
+		if props[k] == nil {
+			return &ParseError{
+				Position: c.Loc.Start, End: c.Loc.End,
+				Message: "syntax error: TYPE = " + typ.Words + " requires " + k,
+			}
+		}
+		allowed[k] = true
+	}
+	for _, k := range f.optional {
+		allowed[k] = true
+	}
+	for _, set := range f.oneOf {
+		n := 0
+		for _, k := range set {
+			if props[k] != nil {
+				n++
+				allowed[k] = true
+			}
+		}
+		if n != 1 {
+			return &ParseError{
+				Position: c.Loc.Start, End: c.Loc.End,
+				Message: "syntax error: TYPE = " + typ.Words + " takes one of " + strings.Join(set, ", "),
+			}
+		}
+	}
+	for _, o := range c.Options {
+		if !allowed[o.Name] {
+			return applicationOptionError(o)
+		}
+	}
+	return nil
 }
 
 // parseAlterApplicationSetConfigurationDefinition reads what follows the
@@ -474,7 +631,10 @@ func parseAlterApplicationSetConfigurationDefinition(p *Parser, s *ast.ObjectStm
 	if err != nil {
 		return err
 	}
-	return p.requireObjectProperties(props, "TYPE", "LABEL", "DESCRIPTION", "APPLICATION_ROLES")
+	if err := p.requireObjectProperties(props, "TYPE", "LABEL", "DESCRIPTION"); err != nil {
+		return err
+	}
+	return p.checkApplicationTypedProperties(props, applicationConfigurationTypes)
 }
 
 // parseAlterApplicationDropNamed reads the end of

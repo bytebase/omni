@@ -41,13 +41,15 @@ var applicationPackageProps = objectProps{
 	"AUTOMATIC_APPLICATION_MAINTENANCE": propBool,
 }
 
-// applicationPackageAlterProps are applicationPackageProps and the ACCOUNTS a
-// release channel's SET ACCOUNTS = ( ... ) takes.
+// applicationPackageAlterProps are ALTER APPLICATION PACKAGE ... SET's:
+// CREATE's, with ENABLE_RELEASE_CHANNELS only ever set TRUE, and the ACCOUNTS
+// a release channel's SET ACCOUNTS = ( ... ) takes.
 var applicationPackageAlterProps = func() objectProps {
 	m := objectProps{"ACCOUNTS": propNames}
 	for k, v := range applicationPackageProps {
 		m[k] = v
 	}
+	m["ENABLE_RELEASE_CHANNELS"] = propOneOf("TRUE")
 	return m
 }()
 
