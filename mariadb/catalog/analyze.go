@@ -770,6 +770,7 @@ func (c *Catalog) analyzeLimitOffset(limit *nodes.Limit, q *Query, scope *analyz
 		}
 		q.LimitOffset = analyzed
 	}
+	q.LimitWithTies = limit.WithTies
 	return nil
 }
 

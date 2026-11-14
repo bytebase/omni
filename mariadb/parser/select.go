@@ -2836,10 +2836,12 @@ func (p *Parser) parseQueryAfterValues(values *nodes.ValuesStmt) (*nodes.SelectS
 // applies to the whole expression.
 func (p *Parser) atQueryExpressionTail() bool {
 	switch p.cur.Type {
-	case kwORDER, kwLIMIT, kwFOR, kwLOCK:
+	case kwORDER, kwFOR, kwLOCK:
 		return true
 	}
-	return setOpPrecedence(p.cur.Type) > 0
+	// FETCH FIRST and OFFSET ROWS stand where LIMIT does: mariadb:11.8.8 parses
+	// INSERT INTO t VALUES (1) FETCH FIRST ROW ONLY and ... OFFSET 1 ROWS.
+	return p.atSelectLimit() || setOpPrecedence(p.cur.Type) > 0
 }
 
 // parseQueryStatement parses a query expression that stands as a statement or
