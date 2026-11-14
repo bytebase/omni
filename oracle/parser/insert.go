@@ -131,12 +131,16 @@ func (p *Parser) parseInsertStmt() (*nodes.InsertStmt, error) {
 	// Single-table INSERT INTO ...
 	stmt.InsertType = nodes.INSERT_SINGLE
 
-	// INTO
-	if p.cur.Type == kwINTO {
-		p.advance()
+	// INTO (ORA-00925)
+	if p.cur.Type != kwINTO {
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance()
 
 	// Table name
+	if !p.isIdentLike() && p.cur.Type != '(' {
+		return nil, p.syntaxErrorAtCur()
+	}
 	if p.isIdentLike() {
 		var parseErr775 error
 		stmt.Table, parseErr775 = p.parseObjectName()
@@ -150,7 +154,7 @@ func (p *Parser) parseInsertStmt() (*nodes.InsertStmt, error) {
 
 	if p.cur.Type == kwPARTITION || p.cur.Type == kwSUBPARTITION {
 		var parseErr776 error
-		stmt.PartitionExt, parseErr776 = p.parsePartitionExtClause()
+		stmt.PartitionExt, parseErr776 = p.parsePartitionExtClause(false)
 		if parseErr776 !=
 
 			// @dblink
@@ -195,8 +199,13 @@ func (p *Parser) parseInsertStmt() (*nodes.InsertStmt, error) {
 		}
 	}
 
+	// A returning clause follows the VALUES and SET forms alone: after a
+	// subquery Oracle 23ai reads RETURNING as the query's last table alias
+	// and fails at what follows it (ORA-03049).
+	returns := false
 	switch {
 	case p.cur.Type == kwVALUES:
+		returns = true
 		p.advance()
 		if p.cur.Type != '(' {
 			// INSERT ... VALUES record — the PL/SQL record form (engine-
@@ -226,6 +235,7 @@ func (p *Parser) parseInsertStmt() (*nodes.InsertStmt, error) {
 		p.advance()
 	case p.cur.Type == kwSET:
 		// INSERT ... SET col = expr, ...
+		returns = true
 		p.advance()
 		var parseErr781 error
 		stmt.SetClauses, parseErr781 = p.parseSetClauses()
@@ -237,19 +247,22 @@ func (p *Parser) parseInsertStmt() (*nodes.InsertStmt, error) {
 	case p.cur.Type == kwBY:
 
 		p.advance()
-		if p.cur.Type == kwNAME {
+		switch {
+		case p.isKeywordStr("NAME"):
 			stmt.ByName = true
-			p.advance()
-		} else if p.isIdentLike() && p.cur.Str == "POSITION" {
+		case p.isKeywordStr("POSITION"):
 			stmt.ByPosition = true
-			p.advance()
+		default:
+			return nil, p.syntaxErrorAtCur()
 		}
-		if p.cur.Type == kwSELECT || p.cur.Type == kwWITH || p.cur.Type == '(' {
-			var parseErr782 error
-			stmt.Select, parseErr782 = p.parseSelectStmt()
-			if parseErr782 != nil {
-				return nil, parseErr782
-			}
+		p.advance()
+		if !p.atQuery() {
+			return nil, p.syntaxErrorAtCur()
+		}
+		var parseErr782 error
+		stmt.Select, parseErr782 = p.parseSelectStmt()
+		if parseErr782 != nil {
+			return nil, parseErr782
 		}
 	case p.cur.Type == kwSELECT || p.cur.Type == kwWITH || p.cur.Type == '(':
 		var parseErr783 error
@@ -262,7 +275,7 @@ func (p *Parser) parseInsertStmt() (*nodes.InsertStmt, error) {
 		}
 	}
 
-	if p.cur.Type == kwRETURNING || p.cur.Type == kwRETURN {
+	if returns && (p.cur.Type == kwRETURNING || p.cur.Type == kwRETURN) {
 		var parseErr784 error
 		stmt.Returning, stmt.ReturningBulk, parseErr784 = p.parseReturningClause()
 		if parseErr784 !=
@@ -492,13 +505,38 @@ func (p *Parser) parseParenColumnList() (*nodes.List, error) {
 //	returning_clause::=
 //	    { RETURNING | RETURN } expr [, expr ]...
 //	    INTO data_item [, data_item ]...
+//
+// UPDATE's returning clause, and on Oracle 23ai DELETE's and INSERT's too,
+// takes OLD column and NEW column as items: the value before or after the
+// change. OLD and NEW then name a column (ORA-03050 at INTO in RETURNING
+// OLD INTO, ORA-00921 at the end), and the expression goes on after it, as
+// in RETURNING OLD a + 1. The AST keeps the expression; OLD.a is a column of
+// a table named OLD.
 func (p *Parser) parseReturningClause() (*nodes.List, bool, error) {
 	p.advance() // consume RETURNING or RETURN
-	list, parseErr796 := p.parseExprList()
-	if parseErr796 !=
-		// INTO bind variables
-		nil {
-		return nil, false, parseErr796
+	list := &nodes.List{}
+	for {
+		if p.isReturningOldNewStart() {
+			p.advance() // consume OLD or NEW
+			if !p.isIdentLike() {
+				return nil, false, p.syntaxErrorAtCur()
+			}
+			if err := p.syntaxErrorIfReservedIdentifier(); err != nil {
+				return nil, false, err
+			}
+		}
+		item, err := p.parseExpr()
+		if err != nil {
+			return nil, false, err
+		}
+		if item == nil {
+			return nil, false, p.syntaxErrorAtCur()
+		}
+		list.Items = append(list.Items, item)
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
 	}
 
 	// { INTO | BULK COLLECT INTO } targets, appended to the returned list;
@@ -524,61 +562,78 @@ func (p *Parser) parseReturningClause() (*nodes.List, bool, error) {
 	return list, bulk, nil
 }
 
+// isReturningOldNewStart reports whether the current token is the OLD or
+// NEW of a returning item, not a column or table of that name: OLD.a is a
+// column of a table named OLD.
+func (p *Parser) isReturningOldNewStart() bool {
+	return (p.isKeywordStr("OLD") || p.isKeywordStr("NEW")) && p.peekNext().Type != '.'
+}
+
 // parseErrorLogClause parses LOG ERRORS [INTO table] [(tag)] [REJECT LIMIT {n|UNLIMITED}].
 //
 //	error_logging_clause::=
 //	    LOG ERRORS [ INTO [ schema. ] table ]
 //	    [ ( simple_expression ) ]
 //	    [ REJECT LIMIT { integer | UNLIMITED } ]
+//
+// LOG takes ERRORS (ORA-02000), INTO a table (ORA-00903), the parentheses
+// an expression (ORA-00936), and REJECT LIMIT (ORA-30652) an integer or
+// UNLIMITED: Oracle 23ai refuses 1+1, -1, 1.5, a bind or a name there
+// (ORA-30645, ORA-02017, ORA-03048).
 func (p *Parser) parseErrorLogClause() (*nodes.ErrorLogClause, error) {
 	start := p.pos()
 	p.advance() // consume LOG
 
-	if p.cur.Type == kwERRORS {
-		p.advance()
+	if p.cur.Type != kwERRORS {
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance()
 
 	elc := &nodes.ErrorLogClause{
 		Loc: nodes.Loc{Start: start},
 	}
 
-	// INTO table
+	var err error
 	if p.cur.Type == kwINTO {
 		p.advance()
-		if p.isIdentLike() {
-			var parseErr798 error
-			elc.Into, parseErr798 = p.parseObjectName()
-			if parseErr798 !=
-
-				// ( tag )
-				nil {
-				return nil, parseErr798
-			}
+		if !p.isIdentLike() {
+			return nil, p.syntaxErrorAtCur()
+		}
+		if elc.Into, err = p.parseObjectName(); err != nil {
+			return nil, err
 		}
 	}
 
 	if p.cur.Type == '(' {
 		p.advance()
-		var parseErr799 error
-		elc.Tag, parseErr799 = p.parseExpr()
-		if parseErr799 != nil {
-			return nil, parseErr799
+		if elc.Tag, err = p.parseExpr(); err != nil {
+			return nil, err
 		}
-		if p.cur.Type == ')' {
-			p.advance()
+		if elc.Tag == nil || p.cur.Type != ')' {
+			return nil, p.syntaxErrorAtCur()
 		}
+		p.advance()
 	}
 
-	// REJECT LIMIT { n | UNLIMITED }
 	if p.cur.Type == kwREJECT {
 		p.advance()
-		if p.cur.Type == kwLIMIT {
-			p.advance()
+		if p.cur.Type != kwLIMIT {
+			return nil, p.syntaxErrorAtCur()
 		}
-		var parseErr800 error
-		elc.Reject, parseErr800 = p.parseExpr()
-		if parseErr800 != nil {
-			return nil, parseErr800
+		p.advance()
+		// Oracle 23ai answers REJECT LIMIT at the end of the text with
+		// ORA-30645 at the end, which compat.OracleVerdict, deciding an
+		// answer at the end by its code, records as an acceptance; omni
+		// keeps accepting it until that row is judged again.
+		if p.cur.Type == tokEOF {
+			elc.Loc.End = p.prev.End
+			return elc, nil
+		}
+		if p.cur.Type != tokICONST && !p.isKeywordStr("UNLIMITED") {
+			return nil, p.syntaxErrorAtCur()
+		}
+		if elc.Reject, err = p.parsePrimary(); err != nil {
+			return nil, err
 		}
 	}
 

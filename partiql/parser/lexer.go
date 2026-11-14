@@ -432,6 +432,12 @@ func (l *Lexer) scanOperator() Token {
 		return Token{Type: tokPERIOD, Str: ".", Loc: l.loc()}
 	case '?':
 		return Token{Type: tokQUESTION_MARK, Str: "?", Loc: l.loc()}
+	case '|':
+		return Token{Type: tokVERTBAR, Str: "|", Loc: l.loc()}
+	case '&':
+		return Token{Type: tokAMPERSAND, Str: "&", Loc: l.loc()}
+	case '!':
+		return Token{Type: tokBANG, Str: "!", Loc: l.loc()}
 	}
 
 	l.Err = fmt.Errorf("unexpected character %q at position %d", ch, l.start)

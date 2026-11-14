@@ -25,6 +25,16 @@ type Parser struct {
 	nextBuf Token  // buffered next token for 2-token lookahead
 	hasNext bool   // whether nextBuf is valid
 
+	// createTableColumns is set while the column list of CREATE TABLE is
+	// parsed, where an identity column starts with an integer, not LIMIT
+	// VALUE, which only ALTER TABLE MODIFY takes.
+	createTableColumns bool
+
+	// createTableIndexOrganized is set while the compression of an
+	// index-organized table, or of its partitions, is parsed: only there
+	// does Oracle take an index_compression (COMPRESS n, COMPRESS ADVANCED).
+	createTableIndexOrganized bool
+
 	// caseKinds tells, for each CASE token from the first one parsePrimary
 	// met to the end of the range, whether it opens a CASE expression (true)
 	// or names a column (false). decideCaseTokens fills it in one pass.
@@ -50,6 +60,13 @@ type Parser struct {
 	queryIterand bool
 	iterandQuery *nodes.SubqueryExpr
 	iterandAfter Token
+
+	// scalarParen is set while a value that is one expression, not a list,
+	// is parsed where it may open with '(': a PIVOT IN value for one FOR
+	// column. parseParenExpr takes it for its own parentheses alone and
+	// fails at the ',' of a list or the ')' of an empty pair, where Oracle
+	// 23ai does (ORA-00907, ORA-00936).
+	scalarParen bool
 
 	// typeMods says what the parenthesized modifiers of the datatype being
 	// parsed may hold; parsePLSQLDatatype sets it for PL/SQL datatypes.

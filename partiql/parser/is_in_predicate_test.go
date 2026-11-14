@@ -276,6 +276,13 @@ func TestInPredicate_Accept(t *testing.T) {
 			input: "a IN (b IN (1) + 1) + 1",
 			want:  "InExpr{Expr:VarRef{Name:a} List:[BinaryExpr{Op:+ Left:InExpr{Expr:VarRef{Name:b} List:[BinaryExpr{Op:+ Left:NumberLit{Val:1} Right:NumberLit{Val:1}}] Not:false} Right:NumberLit{Val:1}}] Not:false}",
 		},
+		// A list followed by an operator makes a valueList the operand of
+		// the rhs (g4:488, 651-652).
+		{
+			name:  "in_list_operand",
+			input: "a IN (1, 2) + 1",
+			want:  "InExpr{Expr:VarRef{Name:a} List:[BinaryExpr{Op:+ Left:ValueList{Items:[NumberLit{Val:1} NumberLit{Val:2}]} Right:NumberLit{Val:1}}] Not:false}",
+		},
 		// A graph match in the parentheses is exprGraphMatchMany
 		// (g4:625-626), which only g4:488 reads.
 		{
@@ -325,9 +332,6 @@ func TestInPredicate_Reject(t *testing.T) {
 		{name: "in_incomplete_comparison", input: "a IN (b =)", wantErrIn: "unexpected token"},
 		{name: "in_parenthesized_operand_incomplete", input: "a IN (1) +", wantErrIn: "unexpected token"},
 		{name: "in_parenthesized_operand_unclosed_index", input: "a IN (x)[0", wantErrIn: "expected BRACKET_RIGHT"},
-		// A list followed by an operator makes a valueList the operand of
-		// the rhs (g4:488, 566-567), which omni has no node for.
-		{name: "in_list_operand", input: "a IN (1, 2) + 1", wantErrIn: "unexpected token"},
 		{name: "in_graph_match_in_list", input: "a IN (1, g MATCH (n))", wantErrIn: "expected PAREN_RIGHT"},
 		{name: "in_graph_match_unclosed", input: "a IN (g MATCH (n), x)", wantErrIn: "expected ')' to close graph MATCH expression"},
 	}

@@ -4,16 +4,21 @@ import (
 	"github.com/bytebase/omni/cassandra/ast"
 )
 
+// parseMVOptions parses viewProperty (AND viewProperty)* (Parser.g:904): a
+// property or CLUSTERING ORDER BY (...). COMPACT STORAGE, which the grammar
+// lists, its action always refuses.
 func (p *Parser) parseMVOptions(stmt *ast.CreateMVStmt) error {
+	props := map[string]bool{}
+	orders := map[string]bool{}
 	for {
-		if p.cur.Type == tokCLUSTERING {
-			co, err := p.parseClusteringOrderClause()
+		if p.cur.Type == tokCLUSTERING && p.peekNext().Type == tokORDER {
+			co, err := p.parseClusteringOrderClause(orders)
 			if err != nil {
 				return err
 			}
-			stmt.ClusteringOrders = co
+			stmt.ClusteringOrders = append(stmt.ClusteringOrders, co...)
 		} else {
-			opt, err := p.parseTableOption()
+			opt, err := p.parseProperty(props)
 			if err != nil {
 				return err
 			}
@@ -36,11 +41,8 @@ func (p *Parser) isColumnNotNull() bool {
 	return next.Type == tokIS
 }
 
-func (p *Parser) isNextColumnNotNull(next Token) bool {
-	// After AND, check if the next token starts ident IS NOT NULL
-	return isIdentLike(next.Type)
-}
-
+// parseAlterMV parses alterMaterializedViewStatement (Parser.g:994):
+// ALTER MATERIALIZED VIEW [IF EXISTS] v WITH properties.
 func (p *Parser) parseAlterMV() (*ast.AlterMVStmt, error) {
 	start := p.curLoc()
 
@@ -53,18 +55,14 @@ func (p *Parser) parseAlterMV() (*ast.AlterMVStmt, error) {
 
 	stmt := &ast.AlterMVStmt{IfExists: ifExists, Name: name}
 
-	if p.match(tokWITH) {
-		for {
-			opt, err := p.parseTableOption()
-			if err != nil {
-				return nil, err
-			}
-			stmt.Options = append(stmt.Options, opt)
-			if !p.match(tokAND) {
-				break
-			}
-		}
+	if err := p.expectKeyword(tokWITH); err != nil {
+		return nil, err
 	}
+	opts, err := p.parseProperties()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Options = opts
 
 	stmt.Loc = p.makeLoc(start)
 	return stmt, nil

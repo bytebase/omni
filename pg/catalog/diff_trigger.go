@@ -3,16 +3,21 @@ package catalog
 import "sort"
 
 // diffTriggers compares triggers between two versions of a relation.
-// Identity key is the trigger Name.
+// Identity key is the trigger Name. A partition's clone of its parent's
+// trigger is left out: PostgreSQL creates and drops it with the parent's.
 func diffTriggers(from, to *Catalog, fromRelOID, toRelOID uint32) []TriggerDiffEntry {
 	// Build name→*Trigger maps.
 	fromMap := make(map[string]*Trigger)
 	for _, trig := range from.TriggersOf(fromRelOID) {
-		fromMap[trig.Name] = trig
+		if trig.ParentTriggerOID == 0 {
+			fromMap[trig.Name] = trig
+		}
 	}
 	toMap := make(map[string]*Trigger)
 	for _, trig := range to.TriggersOf(toRelOID) {
-		toMap[trig.Name] = trig
+		if trig.ParentTriggerOID == 0 {
+			toMap[trig.Name] = trig
+		}
 	}
 
 	var result []TriggerDiffEntry
@@ -94,7 +99,7 @@ func triggersChanged(fromCat, toCat *Catalog, a, b *Trigger) bool {
 	}
 
 	// Compare UPDATE OF columns.
-	if !int16SliceEqual(a.Columns, b.Columns) {
+	if !sameColumns(fromCat, a.RelOID, a.Columns, toCat, b.RelOID, b.Columns) {
 		return true
 	}
 

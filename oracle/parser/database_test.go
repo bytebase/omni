@@ -2,6 +2,8 @@ package parser
 
 import (
 	"testing"
+
+	"github.com/bytebase/omni/oracle/ast"
 )
 
 // TestParseDatabaseStmts tests parsing of CREATE/ALTER DATABASE,
@@ -121,9 +123,11 @@ func TestParseDatabaseStmts(t *testing.T) {
 		`ALTER DATABASE RECOVER MANAGED STANDBY DATABASE FINISH`,
 		`ALTER DATABASE RECOVER TABLESPACE users`,
 		`ALTER DATABASE RECOVER DATAFILE '/u01/data/users01.dbf'`,
+		`ALTER DATABASE RECOVER AUTOMATIC UNTIL TIME '2001-10-27:14:00:00'`,
+		`ALTER DATABASE RECOVER UNTIL CANCEL USING BACKUP CONTROLFILE TEST`,
 		// Database file clauses
 		`ALTER DATABASE RENAME FILE '/old/path.dbf' TO '/new/path.dbf'`,
-		`ALTER DATABASE CREATE DATAFILE '/u01/data/file1.dbf' AS NEW`,
+		`ALTER DATABASE CREATE DATAFILE '/u01/data/file1.dbf' AS '/u02/data/file1.dbf'`,
 		`ALTER DATABASE DATAFILE '/u01/data/file1.dbf' ONLINE`,
 		`ALTER DATABASE DATAFILE '/u01/data/file1.dbf' OFFLINE`,
 		`ALTER DATABASE DATAFILE '/u01/data/file1.dbf' OFFLINE FOR DROP`,
@@ -154,12 +158,12 @@ func TestParseDatabaseStmts(t *testing.T) {
 		// Standby clauses
 		`ALTER DATABASE ACTIVATE STANDBY DATABASE`,
 		`ALTER DATABASE ACTIVATE PHYSICAL STANDBY DATABASE`,
-		`ALTER DATABASE ACTIVATE PHYSICAL STANDBY DATABASE FINISH APPLY`,
+		`ALTER DATABASE ACTIVATE PHYSICAL STANDBY DATABASE`,
 		`ALTER DATABASE SET STANDBY DATABASE TO MAXIMIZE PROTECTION`,
 		`ALTER DATABASE SET STANDBY DATABASE TO MAXIMIZE AVAILABILITY`,
 		`ALTER DATABASE SET STANDBY DATABASE TO MAXIMIZE PERFORMANCE`,
 		`ALTER DATABASE COMMIT TO SWITCHOVER TO PHYSICAL STANDBY`,
-		`ALTER DATABASE COMMIT TO SWITCHOVER TO PRIMARY DATABASE`,
+		`ALTER DATABASE COMMIT TO SWITCHOVER TO PRIMARY`,
 		`ALTER DATABASE START LOGICAL STANDBY APPLY IMMEDIATE`,
 		`ALTER DATABASE STOP LOGICAL STANDBY APPLY`,
 		`ALTER DATABASE CONVERT TO PHYSICAL STANDBY`,
@@ -173,8 +177,8 @@ func TestParseDatabaseStmts(t *testing.T) {
 		`ALTER DATABASE FLASHBACK OFF`,
 		`ALTER DATABASE SET TIME_ZONE = '+05:30'`,
 		// Instance clauses
-		`ALTER DATABASE ENABLE RESTRICTED SESSION`,
-		`ALTER DATABASE DISABLE RESTRICTED SESSION`,
+		`ALTER DATABASE ENABLE THREAD 2`,
+		`ALTER DATABASE DISABLE THREAD 2`,
 		// Block change tracking
 		`ALTER DATABASE ENABLE BLOCK CHANGE TRACKING`,
 		`ALTER DATABASE ENABLE BLOCK CHANGE TRACKING USING FILE '/u01/bct/bct.chg'`,
@@ -188,7 +192,7 @@ func TestParseDatabaseStmts(t *testing.T) {
 		`ALTER DATABASE ADD SUPPLEMENTAL LOG DATA`,
 		`ALTER DATABASE DROP SUPPLEMENTAL LOG DATA`,
 		// CDB fleet
-		`ALTER DATABASE SET LEAD_CDB = NONE`,
+		`ALTER DATABASE SET LEAD_CDB = FALSE`,
 		// Replay upgrade
 		`ALTER DATABASE SET STANDBY NOLOGGING FOR DATA AVAILABILITY`,
 		`ALTER DATABASE SET STANDBY NOLOGGING FOR LOAD PERFORMANCE`,
@@ -533,5 +537,58 @@ func TestParseDatabaseStmts(t *testing.T) {
 				t.Fatalf("expected at least 1 statement, got %d", result.Len())
 			}
 		})
+	}
+}
+
+// TestAlterDatabaseRecoverTargets checks that RECOVER keeps what it
+// recovers, each target spanning its text.
+func TestAlterDatabaseRecoverTargets(t *testing.T) {
+	tests := []struct {
+		sql, key string
+		targets  []string
+		texts    []string
+	}{
+		{"ALTER DATABASE RECOVER TABLESPACE users, tools", "RECOVER_TABLESPACE", []string{"USERS", "TOOLS"}, []string{"users", "tools"}},
+		{"ALTER DATABASE RECOVER DATAFILE '/u01/a.dbf', '/u01/b.dbf'", "RECOVER_DATAFILE", []string{"/u01/a.dbf", "/u01/b.dbf"}, []string{"'/u01/a.dbf'", "'/u01/b.dbf'"}},
+		{"ALTER DATABASE RECOVER LOGFILE '/u01/a.log'", "RECOVER_LOGFILE", []string{"/u01/a.log"}, []string{"'/u01/a.log'"}},
+		{"ALTER DATABASE RENAME FILE 'a', 'b' TO 'c', 'd'", "RENAME_FILE", []string{"a", "b", "c", "d"}, []string{"'a'", "'b'", "'c'", "'d'"}},
+		{"ALTER DATABASE MOVE DATAFILE 1 TO 'x'", "MOVE_DATAFILE", []string{"x"}, []string{"'x'"}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.sql, func(t *testing.T) {
+			result := ParseAndCheck(t, tc.sql)
+			stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.AdminDDLStmt)
+			opt := stmt.Options.Items[0].(*ast.DDLOption)
+			if opt.Key != tc.key {
+				t.Fatalf("key %q, want %q", opt.Key, tc.key)
+			}
+			if opt.Items == nil || len(opt.Items.Items) != len(tc.targets) {
+				t.Fatalf("targets %v, want %v", opt.Items, tc.targets)
+			}
+			for i, item := range opt.Items.Items {
+				target := item.(*ast.DDLOption)
+				if target.Value != tc.targets[i] {
+					t.Errorf("target %d = %q, want %q", i, target.Value, tc.targets[i])
+				}
+				if got := tc.sql[target.Loc.Start:target.Loc.End]; got != tc.texts[i] {
+					t.Errorf("target %d spans %q, want %q", i, got, tc.texts[i])
+				}
+			}
+		})
+	}
+}
+
+// TestAlterDatabaseManagedRecoveryQuotedOption checks that a quoted word or a
+// literal where a managed recovery option stands fails to parse.
+func TestAlterDatabaseManagedRecoveryQuotedOption(t *testing.T) {
+	for _, sql := range []string{
+		`ALTER DATABASE RECOVER MANAGED STANDBY DATABASE "PARALLEL"`,
+		`ALTER DATABASE RECOVER MANAGED STANDBY DATABASE "NODELAY"`,
+		`ALTER DATABASE RECOVER MANAGED STANDBY DATABASE 'x'`,
+		`ALTER DATABASE RECOVER MANAGED STANDBY DATABASE 1`,
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) succeeded", sql)
+		}
 	}
 }

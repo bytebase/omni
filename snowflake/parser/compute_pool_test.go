@@ -41,11 +41,11 @@ func clauseKeywords(s *ast.ObjectStmt) []string {
 }
 
 func TestParseCreateComputePool(t *testing.T) {
-	in := "CREATE COMPUTE POOL IF NOT EXISTS db.pool1 FOR APPLICATION app MIN_NODES = 1 MAX_NODES = 2 " +
+	in := "CREATE COMPUTE POOL IF NOT EXISTS pool1 FOR APPLICATION app MIN_NODES = 1 MAX_NODES = 2 " +
 		"INSTANCE_FAMILY = CPU_X64_XS AUTO_RESUME = TRUE WITH TAG (t = 'v') COMMENT = 'c' " +
 		"BACKUP_INSTANCE_FAMILIES = ('a', 'b')"
 	s := mustObjectStmt(t, in)
-	if s.Verb != "CREATE" || s.Kind != "COMPUTE POOL" || !s.IfNotExists || s.Name.String() != "db.pool1" {
+	if s.Verb != "CREATE" || s.Kind != "COMPUTE POOL" || !s.IfNotExists || s.Name.String() != "pool1" {
 		t.Fatalf("got %+v", s)
 	}
 	if got := clauseKeywords(s); len(got) != 2 || got[0] != "FOR APPLICATION" || got[1] != "" {
@@ -114,6 +114,19 @@ func TestParseComputePoolRejects(t *testing.T) {
 		"ALTER COMPUTE POOL p SET BACKUP_INSTANCE_FAMILIES = (a)",
 		"ALTER COMPUTE POOL p UNSET MIN_NODES",
 		"ALTER COMPUTE POOL p SET INITIALLY_SUSPENDED = TRUE", // CREATE's alone
+		"ALTER COMPUTE POOL p SET WITH TAG (t = 'x')",
+		"ALTER COMPUTE POOL db.p SUSPEND", // an account-level object
+		"CREATE COMPUTE POOL db.p MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a",
+		"DROP COMPUTE POOL db.p",
+		"CREATE COMPUTE POOL p FOR APPLICATION db.a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a",
+		"ALTER COMPUTE POOL p STOP ALL OF TYPE db.a",
+		"ALTER COMPUTE POOL p SET AUTO_RESUME = TRUE AUTO_RESUME = FALSE",
+		"CREATE COMPUTE POOL p MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a MIN_NODES = 2",
+		"ALTER COMPUTE POOL p SET TAG (t = 'x')",
+		"ALTER COMPUTE POOL p SET INSTANCE_FAMILY = foo.",
+		"ALTER COMPUTE POOL p SET INSTANCE_FAMILY = foo..bar",
+		"ALTER COMPUTE POOL p SET INSTANCE_FAMILY = db.family", // a one-part name
+		"CREATE COMPUTE POOL p MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = db.family",
 		"ALTER COMPUTE POOL p SET AUTO_RESUME = \"TRUE\"",
 		"ALTER COMPUTE POOL p SET AUTO_RESUME = \"true\"",
 		"CREATE COMPUTE POOL p \"MIN_NODES\" = 1 MAX_NODES = 1 INSTANCE_FAMILY = a",
@@ -182,6 +195,12 @@ func TestObjectValueMatches(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := []objectValue{propNumber, propString, propName, propBool, propStrings, propNames, propGroup}
+	if nameParts(`a."b.c".d`) != 3 || nameParts(`"x.y"`) != 1 {
+		t.Fatal("nameParts")
+	}
+	if c, err := readObjectProperties(`Q = db.s.n`); err != nil || !propQName.matches(c.Options[0]) || propName.matches(c.Options[0]) {
+		t.Fatalf("propQName: %v", err)
+	}
 	for i, o := range c.Options {
 		for j, v := range want {
 			// propName takes any word, so TRUE matches it too.
@@ -201,5 +220,19 @@ func TestParseObjectAsQuery(t *testing.T) {
 	}
 	if c := s.Clauses[0]; c.Keywords != "AS" || c.Query == nil || c.Loc.End != len("AS SELECT a FROM t") {
 		t.Fatalf("clause = %+v", c)
+	}
+}
+
+func TestObjectFormIfExistsFlags(t *testing.T) {
+	f := &objectForm{words: []string{"ZZ", "THING"}, noIfNotExists: true, noIfExists: true, dropNoIfExists: true, drop: true,
+		create: func(*Parser, *ast.ObjectStmt) error { return nil },
+		alter:  func(*Parser, *ast.ObjectStmt) error { return nil }}
+	registerObject(f)
+	defer delete(objectForms, "ZZ")
+	for _, in := range []string{"CREATE ZZ THING t", "ALTER ZZ THING t", "DROP ZZ THING t"} {
+		mustParseOne(t, in)
+	}
+	for _, in := range []string{"CREATE ZZ THING IF NOT EXISTS t", "ALTER ZZ THING IF EXISTS t", "DROP ZZ THING IF EXISTS t"} {
+		mustRejectObject(t, in)
 	}
 }
