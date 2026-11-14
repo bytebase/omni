@@ -3605,7 +3605,7 @@ func (n *RenameStmt) stmtNode() {}
 //	    AS <select_statement>
 type CreateExternalTableAsSelectStmt struct {
 	Name    *TableRef // table name
-	Columns *List     // optional column list (String nodes)
+	Columns *List     // optional column name list (*ColumnDef nodes holding a name only)
 	Options *List     // WITH options
 	Query   Node      // the SELECT statement
 	Loc     Loc

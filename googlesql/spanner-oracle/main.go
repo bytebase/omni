@@ -62,6 +62,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -480,7 +481,12 @@ func isResourceLevel(msg string) bool {
 	return false
 }
 
+var typeAddress = regexp.MustCompile(`of type 0x[0-9a-f]+`)
+
 func oneLine(s string) string {
+	// The emulator names a type by its address in some messages ("of type
+	// 0x5a1a5d27da00"), which differs on every run.
+	s = typeAddress.ReplaceAllString(s, "of type 0x…")
 	s = strings.ReplaceAll(s, "\n", " ")
 	s = strings.ReplaceAll(s, "\t", " ")
 	if len(s) > 200 {

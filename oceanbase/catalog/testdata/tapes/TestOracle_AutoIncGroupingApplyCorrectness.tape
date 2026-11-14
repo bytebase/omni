@@ -575,10 +575,10 @@
 |   PRIMARY KEY (`id`)
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
-| ALTER TABLE `pa_aig_add_col_composite_backing_49d278b6`.`t` ADD COLUMN `d` int NOT NULL
+| ALTER TABLE `pa_aig_add_col_composite_backing_49d278b6`.`t` ADD COLUMN `seq` bigint unsigned NOT NULL AUTO_INCREMENT
 < ok 0 0
 > exec
-| ALTER TABLE `pa_aig_add_col_composite_backing_49d278b6`.`t` ADD COLUMN `seq` bigint unsigned NOT NULL AUTO_INCREMENT
+| ALTER TABLE `pa_aig_add_col_composite_backing_49d278b6`.`t` ADD COLUMN `d` int NOT NULL
 < ok 0 0
 > exec
 | ALTER TABLE `pa_aig_add_col_composite_backing_49d278b6`.`t` ADD UNIQUE KEY `uk_sd` (`seq`,`d`) LOCAL
@@ -594,8 +594,8 @@
 : bytes
 | CREATE TABLE `t` (
 |   `id` int(11) NOT NULL,
-|   `d` int(11) NOT NULL,
 |   `seq` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+|   `d` int(11) NOT NULL,
 |   PRIMARY KEY (`id`),
 |   UNIQUE KEY `uk_sd` (`seq`, `d`) BLOCK_SIZE 16384 LOCAL
 | ) ORGANIZATION INDEX AUTO_INCREMENT = 1 AUTO_INCREMENT_MODE = 'ORDER' DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
@@ -808,13 +808,13 @@
 |   PRIMARY KEY (`id`)
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
-| ALTER TABLE `pa_aig_add_col_with_other_changes_7dc04c8c`.`t` MODIFY COLUMN `e` varchar(20) DEFAULT NULL
-< ok 0 0
-> exec
 | ALTER TABLE `pa_aig_add_col_with_other_changes_7dc04c8c`.`t` ADD COLUMN `f` int DEFAULT NULL
 < ok 0 0
 > exec
 | ALTER TABLE `pa_aig_add_col_with_other_changes_7dc04c8c`.`t` ADD COLUMN `seq` bigint unsigned NOT NULL AUTO_INCREMENT
+< ok 0 0
+> exec
+| ALTER TABLE `pa_aig_add_col_with_other_changes_7dc04c8c`.`t` MODIFY COLUMN `e` varchar(20) DEFAULT NULL
 < ok 0 0
 > exec
 | ALTER TABLE `pa_aig_add_col_with_other_changes_7dc04c8c`.`t` ADD UNIQUE KEY `uk_seq` (`seq`) LOCAL
@@ -2311,10 +2311,10 @@
 |   PRIMARY KEY (`id`)
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
-| ALTER TABLE `pa_aig_generated_keypart_pullin_e9c71dcd`.`t` ADD COLUMN `d` int NOT NULL
+| ALTER TABLE `pa_aig_generated_keypart_pullin_e9c71dcd`.`t` ADD COLUMN `seq` int NOT NULL AUTO_INCREMENT
 < ok 0 0
 > exec
-| ALTER TABLE `pa_aig_generated_keypart_pullin_e9c71dcd`.`t` ADD COLUMN `seq` int NOT NULL AUTO_INCREMENT
+| ALTER TABLE `pa_aig_generated_keypart_pullin_e9c71dcd`.`t` ADD COLUMN `d` int NOT NULL
 < ok 0 0
 > exec
 | ALTER TABLE `pa_aig_generated_keypart_pullin_e9c71dcd`.`t` ADD COLUMN `g` int GENERATED ALWAYS AS ((`d` + 1)) VIRTUAL
@@ -2333,8 +2333,8 @@
 : bytes
 | CREATE TABLE `t` (
 |   `id` int(11) NOT NULL,
-|   `d` int(11) NOT NULL,
 |   `seq` int(11) NOT NULL AUTO_INCREMENT,
+|   `d` int(11) NOT NULL,
 |   `g` int(11) GENERATED ALWAYS AS ((`d` + 1)) VIRTUAL,
 |   PRIMARY KEY (`id`),
 |   UNIQUE KEY `uk_sg` (`seq`, `g`) BLOCK_SIZE 16384 LOCAL
