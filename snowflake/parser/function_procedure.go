@@ -525,6 +525,12 @@ func (p *Parser) parseAlterRoutineBody(procedure bool) (ast.Node, error) {
 	}
 	stmt.Name = name
 
+	// A data metric function's ( TABLE ( ... ) [ , TABLE ( ... ) ] ) signature
+	// (data_metric_function.go).
+	if !procedure && p.startsDataMetricSignature() {
+		return p.parseAlterDataMetricFunction(stmt)
+	}
+
 	// ( [ <argtype> [ , ... ] ] ) signature.
 	argTypes, err := p.parseRoutineArgTypeList()
 	if err != nil {
@@ -548,6 +554,18 @@ func (p *Parser) parseAlterRoutineBody(procedure bool) (ast.Node, error) {
 
 	case kwSET:
 		p.advance() // consume SET
+		if p.cur.Type == kwTAG {
+			// SET TAG <tag> = '<value>' [ , ... ]
+			// https://docs.snowflake.com/en/sql-reference/sql/alter-function
+			p.advance() // consume TAG
+			tags, err := p.parseObjectTagList()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Action = ast.AlterRoutineSetTag
+			stmt.Tags = tags
+			break
+		}
 		opts, err := p.parseRequiredOptions()
 		if err != nil {
 			return nil, err
@@ -557,6 +575,17 @@ func (p *Parser) parseAlterRoutineBody(procedure bool) (ast.Node, error) {
 
 	case kwUNSET:
 		p.advance() // consume UNSET
+		if p.cur.Type == kwTAG {
+			// UNSET TAG <tag> [ , ... ]
+			p.advance() // consume TAG
+			names, err := p.parseObjectNameList()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Action = ast.AlterRoutineUnsetTag
+			stmt.UnsetTags = names
+			break
+		}
 		props, err := p.parseUnsetPropertyList()
 		if err != nil {
 			return nil, err
