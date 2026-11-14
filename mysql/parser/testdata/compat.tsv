@@ -1794,12 +1794,12 @@ reject	reject	engine	ev_sql_stmt_inner/sp_proc_stmt_unlabeled!drop-5	ALTER EVENT
 reject	reject	engine	ev_sql_stmt_inner/sp_proc_stmt_unlabeled!truncate	ALTER EVENT utf8mb4 DO LOOP COMMIT; END
 reject	reject	engine	ev_sql_stmt_inner/sp_proc_stmt_unlabeled!insert	ALTER EVENT utf8mb4 DO LOOP COMMIT; END LOOP zzz;
 reject	reject	engine	ev_sql_stmt_inner/sp_proc_stmt_unlabeled!swap	ALTER EVENT utf8mb4 DO LOW_PRIORITY COMMIT; END LOOP;
-accept	reject	engine	ev_sql_stmt_inner/sp_proc_stmt_leave	ALTER EVENT utf8mb4 DO LEAVE utf8mb4;
+reject	reject	engine	ev_sql_stmt_inner/sp_proc_stmt_leave	ALTER EVENT utf8mb4 DO LEAVE utf8mb4;
 reject	reject	engine	ev_sql_stmt_inner/sp_proc_stmt_leave!drop-2	ALTER EVENT utf8mb4 DO LEAVE;
 reject	reject	engine	ev_sql_stmt_inner/sp_proc_stmt_leave!truncate	ALTER EVENT utf8mb4 DO LEAVE
 reject	reject	engine	ev_sql_stmt_inner/sp_proc_stmt_leave!insert	ALTER EVENT utf8mb4 DO LEAVE utf8mb4 zzz;
 reject	reject	engine	ev_sql_stmt_inner/sp_proc_stmt_leave!swap	ALTER EVENT utf8mb4 DO LEAVES utf8mb4;
-accept	reject	engine	ev_sql_stmt_inner/sp_proc_stmt_iterate	ALTER EVENT utf8mb4 DO ITERATE utf8mb4;
+reject	reject	engine	ev_sql_stmt_inner/sp_proc_stmt_iterate	ALTER EVENT utf8mb4 DO ITERATE utf8mb4;
 reject	reject	engine	ev_sql_stmt_inner/sp_proc_stmt_iterate!drop-2	ALTER EVENT utf8mb4 DO ITERATE;
 reject	reject	engine	ev_sql_stmt_inner/sp_proc_stmt_iterate!truncate	ALTER EVENT utf8mb4 DO ITERATE
 reject	reject	engine	ev_sql_stmt_inner/sp_proc_stmt_iterate!insert	ALTER EVENT utf8mb4 DO ITERATE utf8mb4 zzz;
@@ -2315,12 +2315,12 @@ reject	reject	engine	sp_proc_stmt/sp_proc_stmt_unlabeled!drop-5	CREATE PROCEDURE
 reject	reject	engine	sp_proc_stmt/sp_proc_stmt_unlabeled!truncate	CREATE PROCEDURE utf8mb4() LOOP COMMIT; END
 reject	reject	engine	sp_proc_stmt/sp_proc_stmt_unlabeled!insert	CREATE PROCEDURE utf8mb4() LOOP COMMIT; END LOOP zzz;
 reject	reject	engine	sp_proc_stmt/sp_proc_stmt_unlabeled!swap	CREATE PROCEDURE utf8mb4() LOW_PRIORITY COMMIT; END LOOP;
-accept	reject	engine	sp_proc_stmt/sp_proc_stmt_leave	CREATE PROCEDURE utf8mb4() LEAVE utf8mb4;
+reject	reject	engine	sp_proc_stmt/sp_proc_stmt_leave	CREATE PROCEDURE utf8mb4() LEAVE utf8mb4;
 reject	reject	engine	sp_proc_stmt/sp_proc_stmt_leave!drop-2	CREATE PROCEDURE utf8mb4() LEAVE;
 reject	reject	engine	sp_proc_stmt/sp_proc_stmt_leave!truncate	CREATE PROCEDURE utf8mb4() LEAVE
 reject	reject	engine	sp_proc_stmt/sp_proc_stmt_leave!insert	CREATE PROCEDURE utf8mb4() LEAVE utf8mb4 zzz;
 reject	reject	engine	sp_proc_stmt/sp_proc_stmt_leave!swap	CREATE PROCEDURE utf8mb4() LEAVES utf8mb4;
-accept	reject	engine	sp_proc_stmt/sp_proc_stmt_iterate	CREATE PROCEDURE utf8mb4() ITERATE utf8mb4;
+reject	reject	engine	sp_proc_stmt/sp_proc_stmt_iterate	CREATE PROCEDURE utf8mb4() ITERATE utf8mb4;
 reject	reject	engine	sp_proc_stmt/sp_proc_stmt_iterate!drop-2	CREATE PROCEDURE utf8mb4() ITERATE;
 reject	reject	engine	sp_proc_stmt/sp_proc_stmt_iterate!truncate	CREATE PROCEDURE utf8mb4() ITERATE
 reject	reject	engine	sp_proc_stmt/sp_proc_stmt_iterate!insert	CREATE PROCEDURE utf8mb4() ITERATE utf8mb4 zzz;
@@ -2347,8 +2347,8 @@ accept	accept	engine	sp_proc_stmt_if/IF_sp_if_END_IF	ALTER EVENT utf8mb4 DO IF u
 accept	accept	engine	sp_proc_stmt_statement/simple_statement	ALTER EVENT utf8mb4 DO COMMIT;
 reject	reject	engine	sp_proc_stmt_return/RETURN_SYM_expr	ALTER EVENT utf8mb4 DO RETURN utf8mb4;
 accept	accept	engine	sp_proc_stmt_unlabeled/sp_unlabeled_control	ALTER EVENT utf8mb4 DO LOOP COMMIT; END LOOP;
-accept	reject	engine	sp_proc_stmt_leave/LEAVE_SYM_label_ident	ALTER EVENT utf8mb4 DO LEAVE utf8mb4;
-accept	reject	engine	sp_proc_stmt_iterate/ITERATE_SYM_label_ident	ALTER EVENT utf8mb4 DO ITERATE utf8mb4;
+reject	reject	engine	sp_proc_stmt_leave/LEAVE_SYM_label_ident	ALTER EVENT utf8mb4 DO LEAVE utf8mb4;
+reject	reject	engine	sp_proc_stmt_iterate/ITERATE_SYM_label_ident	ALTER EVENT utf8mb4 DO ITERATE utf8mb4;
 accept	reject	engine	sp_proc_stmt_open/OPEN_SYM_ident	ALTER EVENT utf8mb4 DO OPEN utf8mb4;
 accept	reject	engine	sp_proc_stmt_fetch/FETCH_SYM_sp_opt_fetch_noise_ident_INTO_sp_fetch_list	ALTER EVENT utf8mb4 DO FETCH utf8mb4 INTO utf8mb4;
 accept	reject	engine	sp_proc_stmt_close/CLOSE_SYM_ident	ALTER EVENT utf8mb4 DO CLOSE utf8mb4;
@@ -9384,10 +9384,10 @@ accept	accept	engine	role_ident/IDENT_sys	CREATE ROLE utf8mb4;
 accept	accept	engine	role_ident/role_keyword	CREATE ROLE ACTION;
 reject	reject	engine	role_ident/role_keyword!insert	CREATE ROLE ACTION zzz;
 accept	accept	engine	role_ident/role_keyword!swap	CREATE ROLE ACTIVE;
-accept	reject	engine	label_ident/IDENT_sys	ALTER EVENT utf8mb4 DO LEAVE utf8mb4;
-accept	reject	engine	label_ident/label_keyword	ALTER EVENT utf8mb4 DO LEAVE ACTION;
+reject	reject	engine	label_ident/IDENT_sys	ALTER EVENT utf8mb4 DO LEAVE utf8mb4;
+reject	reject	engine	label_ident/label_keyword	ALTER EVENT utf8mb4 DO LEAVE ACTION;
 reject	reject	engine	label_ident/label_keyword!insert	ALTER EVENT utf8mb4 DO LEAVE ACTION zzz;
-accept	reject	engine	label_ident/label_keyword!swap	ALTER EVENT utf8mb4 DO LEAVE ACTIVE;
+reject	reject	engine	label_ident/label_keyword!swap	ALTER EVENT utf8mb4 DO LEAVE ACTIVE;
 accept	accept	engine	lvalue_ident/IDENT_sys	SET utf8mb4 = utf8mb4;
 reject	reject	engine	lvalue_ident/IDENT_sys!drop-1	SET = utf8mb4;
 reject	reject	engine	lvalue_ident/IDENT_sys!truncate	SET
@@ -9522,11 +9522,11 @@ reject	reject	engine	ident_keywords_ambiguous_2_labels/UNINSTALL_SYM!insert	CALL
 reject	reject	engine	ident_keywords_ambiguous_2_labels/UNINSTALL_SYM!swap	CALL UNION;
 accept	accept	engine	ident_keywords_ambiguous_2_labels/XA_SYM	CALL XA;
 reject	reject	engine	ident_keywords_ambiguous_2_labels/XA_SYM!insert	CALL XA zzz;
-accept	reject	engine	label_keyword/ident_keywords_unambiguous	ALTER EVENT utf8mb4 DO LEAVE ACTION;
-accept	reject	engine	label_keyword/ident_keywords_ambiguous_3_roles	ALTER EVENT utf8mb4 DO LEAVE EVENT;
+reject	reject	engine	label_keyword/ident_keywords_unambiguous	ALTER EVENT utf8mb4 DO LEAVE ACTION;
+reject	reject	engine	label_keyword/ident_keywords_ambiguous_3_roles	ALTER EVENT utf8mb4 DO LEAVE EVENT;
 reject	reject	engine	label_keyword/ident_keywords_ambiguous_3_roles!insert	ALTER EVENT utf8mb4 DO LEAVE EVENT zzz;
-accept	reject	engine	label_keyword/ident_keywords_ambiguous_3_roles!swap	ALTER EVENT utf8mb4 DO LEAVE EVENTS;
-accept	reject	engine	label_keyword/ident_keywords_ambiguous_4_system_variables	ALTER EVENT utf8mb4 DO LEAVE GLOBAL;
+reject	reject	engine	label_keyword/ident_keywords_ambiguous_3_roles!swap	ALTER EVENT utf8mb4 DO LEAVE EVENTS;
+reject	reject	engine	label_keyword/ident_keywords_ambiguous_4_system_variables	ALTER EVENT utf8mb4 DO LEAVE GLOBAL;
 reject	reject	engine	label_keyword/ident_keywords_ambiguous_4_system_variables!insert	ALTER EVENT utf8mb4 DO LEAVE GLOBAL zzz;
 reject	reject	engine	label_keyword/ident_keywords_ambiguous_4_system_variables!swap	ALTER EVENT utf8mb4 DO LEAVE GRANT;
 accept	accept	engine	ident_keywords_ambiguous_3_roles/EVENT_SYM	CALL EVENT;
