@@ -74,6 +74,8 @@ var backupDB = &backupDatabase{
 		{Name: "stamped_insert", Columns: backupColumns("id", "v"), Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Expressions: []string{"id"}}}, Triggers: []*metadata.TriggerMetadata{{Name: "tr_insert", Event: "INSERT", Timing: "BEFORE"}}},
 		{Name: "cased", Columns: backupColumns("a"), Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Expressions: []string{"a"}}}},
 		{Name: "CASED", Columns: backupColumns("a"), Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Expressions: []string{"a"}}}},
+		{Name: "stamped_parent", Columns: []*metadata.ColumnMetadata{{Name: "id"}, {Name: "v"}, {Name: "ts", OnUpdate: "CURRENT_TIMESTAMP"}}, Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Expressions: []string{"id"}}, {Name: "uk_ts", Unique: true, Expressions: []string{"ts"}}}},
+		{Name: "stamped_child", Columns: backupColumns("id", "parent_ts"), Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Expressions: []string{"id"}}}, ForeignKeys: []*metadata.ForeignKeyMetadata{{Name: "fk_ts", Columns: []string{"parent_ts"}, ReferencedTable: "stamped_parent", ReferencedColumns: []string{"ts"}, OnDelete: "RESTRICT", OnUpdate: "CASCADE"}}},
 		{Name: "summed", Columns: []*metadata.ColumnMetadata{{Name: "id"}, {Name: "a"}, {Name: "b"}, {Name: "g", Generation: &metadata.GenerationMetadata{Expression: "`a` + `b`"}}}, Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Expressions: []string{"id"}}, {Name: "uk_g", Unique: true, Expressions: []string{"g"}}}},
 		{Name: "chained", Columns: []*metadata.ColumnMetadata{{Name: "id"}, {Name: "a"}, {Name: "g1", Generation: &metadata.GenerationMetadata{Expression: "`a` + 1"}}, {Name: "g2", Generation: &metadata.GenerationMetadata{Expression: "`g1` + 1"}}}, Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Expressions: []string{"id"}}, {Name: "uk_g2", Unique: true, Expressions: []string{"g2"}}}},
 		{Name: "nokey", Columns: []*metadata.ColumnMetadata{{Name: "a", Nullable: true}, {Name: "b"}}, Indexes: []*metadata.IndexMetadata{{Name: "uk", Unique: true, Expressions: []string{"a"}}}},
@@ -403,6 +405,11 @@ func TestTransformDMLToSelectRefusesUnsafeScripts(t *testing.T) {
 		{"UPDATE t SET b = 1 WHERE a < SETVAL(s, 5)", "failed to prepare transformation: prior backup cannot back up a statement whose rows depend on SETVAL(), whose value can differ when the backup runs"},
 		{"DELETE FROM t WHERE (NEXT VALUE FOR s) = 2", "failed to prepare transformation: prior backup cannot back up a statement whose rows depend on NEXT VALUE FOR, whose value can differ when the backup runs"},
 		{"DELETE FROM t WHERE a = PREVIOUS VALUE FOR s", "failed to prepare transformation: prior backup cannot back up a statement whose rows depend on PREVIOUS VALUE FOR, whose value can differ when the backup runs"},
+		// The server's ON UPDATE stamp cascades through a foreign key.
+		{"UPDATE stamped_parent SET v = 1 WHERE id = 1", "failed to generate SQL for table db.stamped_parent: prior backup cannot back up db.stamped_parent: foreign key fk_ts of stamped_child is ON UPDATE CASCADE, and the rows it changes are not backed up"},
+		{"UPDATE STAMPED_PARENT SET v = 1 WHERE id = 1", "failed to generate SQL for table db.STAMPED_PARENT: prior backup cannot back up db.STAMPED_PARENT: foreign key fk_ts of stamped_child is ON UPDATE CASCADE, and the rows it changes are not backed up"},
+		// ANALYZE runs its INSERT, which the DELETE then reads.
+		{"ANALYZE INSERT INTO t1 VALUES (1, 1); DELETE FROM t WHERE a IN (SELECT a FROM t1)", "failed to prepare transformation: prior backup cannot handle a statement that reads db.t1 after an earlier statement changes it"},
 		// The backup runs the row selection's := too.
 		{"DELETE FROM t WHERE (@n := COALESCE(@n, 0) + 1) = 2", "failed to prepare transformation: prior backup cannot back up a statement whose row selection sets @n, as the backup sets it too"},
 		// FOR PORTION OF can split a row, and DELETE HISTORY removes history.

@@ -231,3 +231,10 @@ func TestRestoreSQLFindsTablesInAnotherCase(t *testing.T) {
 	_, err = analysis.RestoreSQL(nodes, opts)
 	require.EqualError(t, err, "table metadata is nil for db.Cased")
 }
+
+func TestRestoreSQLReadsQualifiersByAlias(t *testing.T) {
+	// t names t1 here; t itself is x.
+	got, err := restore(t, "UPDATE t AS x JOIN t1 AS t ON x.a = t.a SET x.b = 1, t.a = 2", "t")
+	require.NoError(t, err)
+	require.True(t, strings.HasSuffix(got, "ON DUPLICATE KEY UPDATE `b` = VALUES(`b`);"), got)
+}

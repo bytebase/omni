@@ -520,6 +520,10 @@ func statementWrites(databaseName string, node ast.Node, targets []DMLTarget) []
 	for _, t := range targets {
 		result = append(result, ColumnResource{Database: t.Table.Database, Table: t.Table.Table})
 	}
+	// ANALYZE runs the INSERT it carries.
+	if explain, ok := node.(*ast.ExplainStmt); ok && explain.Analyze {
+		node = explain.Stmt
+	}
 	if insert, ok := node.(*ast.InsertStmt); ok && insert.Table != nil {
 		database := insert.Table.Schema
 		if database == "" {
@@ -1293,12 +1297,23 @@ func checkForeignKeys(opts BackupOptions, table *TableReference, targets []DMLTa
 	if db == nil || !db.HasSchema() {
 		return fmt.Errorf("prior backup cannot read the foreign keys of %s.%s: the database has no metadata", table.Database, table.Table)
 	}
+	// setColumns holds the columns the UPDATEs set, and those the server
+	// sets ON UPDATE.
 	setColumns := make(map[string]bool)
 	for _, item := range targets {
 		if update, ok := item.Node.(*ast.UpdateStmt); ok {
 			for _, assign := range update.SetList {
 				if assign.Column != nil {
 					setColumns[strings.ToLower(assign.Column.Column)] = true
+				}
+			}
+			tableMetadata := db.GetTable(table.Table)
+			if tableMetadata == nil && !opts.CaseSensitive {
+				tableMetadata = tableFoldingCase(db, table.Table)
+			}
+			for _, column := range tableMetadata.GetColumns() {
+				if column.GetOnUpdate() != "" {
+					setColumns[strings.ToLower(column.GetName())] = true
 				}
 			}
 		}

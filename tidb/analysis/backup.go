@@ -477,6 +477,10 @@ func statementWrites(databaseName string, node ast.Node, targets []statementInfo
 	for _, t := range targets {
 		result = append(result, ColumnResource{Database: t.table.Database, Table: t.table.Table})
 	}
+	// EXPLAIN ANALYZE runs the INSERT it carries.
+	if explain, ok := node.(*ast.ExplainStmt); ok && explain.Analyze {
+		node = explain.Stmt
+	}
 	if insert, ok := node.(*ast.InsertStmt); ok && insert.Table != nil {
 		database := insert.Table.Schema
 		if database == "" {
@@ -1430,6 +1434,12 @@ func checkForeignKeys(opts BackupOptions, table *tableReference, nodes []ast.Nod
 					setColumns[strings.ToLower(assign.Column.Column)] = true
 				}
 			}
+			// The server sets the ON UPDATE columns too.
+			for _, column := range db.GetTable(table.Table).GetColumns() {
+				if column.GetOnUpdate() != "" {
+					setColumns[strings.ToLower(column.GetName())] = true
+				}
+			}
 		default:
 		}
 	}
@@ -1547,7 +1557,9 @@ func writeUpdateSuffix(buf *strings.Builder, n *ast.UpdateStmt, sql string, filt
 		if stmtEnd <= 0 || stmtEnd > len(sql) {
 			stmtEnd = len(sql)
 		}
-		if afterSet >= 0 && afterSet < stmtEnd {
+		// With no WHERE, ORDER BY or LIMIT, the suffix is empty but for the
+		// filter.
+		if afterSet >= 0 && afterSet <= stmtEnd {
 			suffix := strings.TrimSpace(withFilter(sql, afterSet, stmtEnd, n.Where, filter))
 			if suffix != "" {
 				fmt.Fprintf(buf, " %s", suffix)

@@ -344,6 +344,17 @@ var roundTrips = []roundTrip{
 		transformErr: "reads @@auto_increment_increment after an earlier statement sets it",
 	},
 	{
+		// The server's ON UPDATE stamp on fk_stamped_parent.ts cascades to
+		// fk_stamped_child, which no backup holds.
+		name: "fk_on_update",
+		setup: "CREATE TABLE fk_stamped_parent (id INT PRIMARY KEY, v INT, ts TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6), UNIQUE KEY uk_ts (ts));" +
+			"CREATE TABLE fk_stamped_child (id INT PRIMARY KEY, parent_ts TIMESTAMP(6) NULL, CONSTRAINT fk_ts FOREIGN KEY (parent_ts) REFERENCES fk_stamped_parent (ts) ON UPDATE CASCADE);" +
+			"INSERT INTO fk_stamped_parent (id, v, ts) VALUES (1, 1, '2000-01-01 00:00:00');INSERT INTO fk_stamped_child VALUES (1, '2000-01-01 00:00:00')",
+		script:       "UPDATE fk_stamped_parent SET v = 2 WHERE id = 1",
+		tables:       []string{"fk_stamped_parent", "fk_stamped_child"},
+		transformErr: "foreign key fk_ts of fk_stamped_child is ON UPDATE CASCADE",
+	},
+	{
 		// After the USE the unqualified table is the second database's; the
 		// backup would read the first's.
 		name: "use_database",

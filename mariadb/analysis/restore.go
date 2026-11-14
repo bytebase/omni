@@ -243,8 +243,9 @@ func targetAssignments(setList []*ast.Assignment, database string, targets []*Ta
 			continue
 		}
 
+		// A table with an alias is known only by its alias.
 		for _, target := range targets {
-			if col.Table == target.Alias || strings.EqualFold(col.Table, target.Table) {
+			if target.Alias != "" && col.Table == target.Alias || target.Alias == "" && strings.EqualFold(col.Table, target.Table) {
 				result = append(result, assignment)
 				break
 			}

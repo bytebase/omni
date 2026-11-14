@@ -71,6 +71,9 @@ var backupDB = &backupDatabase{
 		}},
 		{Name: "parent", Columns: backupColumns("id", "v"), Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Expressions: []string{"id"}}}},
 		{Name: "child", Columns: backupColumns("id", "parent_id"), Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Expressions: []string{"id"}}}, ForeignKeys: []*metadata.ForeignKeyMetadata{{Name: "fk_cascade", Columns: []string{"parent_id"}, ReferencedTable: "parent", ReferencedColumns: []string{"id"}, OnDelete: "SET NULL", OnUpdate: "CASCADE"}}},
+		{Name: "stamped_parent", Columns: []*metadata.ColumnMetadata{{Name: "id"}, {Name: "v"}, {Name: "ts", OnUpdate: "CURRENT_TIMESTAMP"}}, Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Expressions: []string{"id"}}, {Name: "uk_ts", Unique: true, Expressions: []string{"ts"}}}},
+		{Name: "stamped_child", Columns: backupColumns("id", "parent_ts"), Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Expressions: []string{"id"}}}, ForeignKeys: []*metadata.ForeignKeyMetadata{{Name: "fk_ts", Columns: []string{"parent_ts"}, ReferencedTable: "stamped_parent", ReferencedColumns: []string{"ts"}, OnDelete: "RESTRICT", OnUpdate: "CASCADE"}}},
+		{Name: "swapped2", Columns: backupColumns("id", "u"), Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Expressions: []string{"id"}}}},
 		{Name: "summed", Columns: []*metadata.ColumnMetadata{{Name: "id"}, {Name: "a"}, {Name: "b"}, {Name: "g", Generation: &metadata.GenerationMetadata{Expression: "`a` + `b`"}}}, Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Expressions: []string{"id"}}, {Name: "uk_g", Unique: true, Expressions: []string{"g"}}}},
 		{Name: "chained", Columns: []*metadata.ColumnMetadata{{Name: "id"}, {Name: "a"}, {Name: "g1", Generation: &metadata.GenerationMetadata{Expression: "`a` + 1"}}, {Name: "g2", Generation: &metadata.GenerationMetadata{Expression: "`g1` + 1"}}}, Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Expressions: []string{"id"}}, {Name: "uk_g2", Unique: true, Expressions: []string{"g2"}}}},
 		{Name: "nokey", Columns: []*metadata.ColumnMetadata{{Name: "a", Nullable: true}, {Name: "b"}}, Indexes: []*metadata.IndexMetadata{uniqueKey("a")}},
@@ -324,6 +327,10 @@ func TestTransformDMLToSelectRefusesUnsafeScripts(t *testing.T) {
 		{"DELETE FROM t WHERE a = LASTVAL(s)", "failed to prepare transformation: prior backup cannot back up a statement whose rows depend on LASTVAL(), whose value can differ when the backup runs"},
 		{"UPDATE t SET b = 1 WHERE a < SETVAL(s, 5)", "failed to prepare transformation: prior backup cannot back up a statement whose rows depend on SETVAL(), whose value can differ when the backup runs"},
 		{"DELETE FROM t WHERE a = NEXT VALUE FOR s", "failed to prepare transformation: prior backup cannot back up a statement whose rows depend on NEXTVAL(), whose value can differ when the backup runs"},
+		// The server's ON UPDATE stamp cascades through a foreign key.
+		{"UPDATE stamped_parent SET v = 1 WHERE id = 1", "prior backup cannot back up db.stamped_parent: foreign key fk_ts of stamped_child is ON UPDATE CASCADE, and the rows it changes are not backed up"},
+		// EXPLAIN ANALYZE runs its INSERT, which the DELETE then reads.
+		{"EXPLAIN ANALYZE INSERT INTO t1 VALUES (1, 1); DELETE FROM t WHERE a IN (SELECT a FROM t1)", "failed to prepare transformation: prior backup cannot handle a statement that reads db.t1 after an earlier statement changes it"},
 		// The backup runs the row selection's := too.
 		{"DELETE FROM t WHERE (@n := COALESCE(@n, 0) + 1) = 2", "failed to prepare transformation: prior backup cannot back up a statement whose row selection sets @n, as the backup sets it too"},
 		// A USE before the statement moves its unqualified tables.
@@ -405,7 +412,10 @@ func TestTransformDMLToSelectKeepsSafeScripts(t *testing.T) {
 }
 
 func TestTransformDMLToSelectSkipsOuterJoinRows(t *testing.T) {
-	got, err := transform(t, "DELETE t FROM t1 LEFT JOIN t ON t.a = t1.a WHERE t1.b = 1 OR t1.b = 2")
+	got, err := transform(t, "UPDATE t1 LEFT JOIN t ON t.a = t1.a SET t.b = 1")
+	require.NoError(t, err)
+	require.True(t, strings.HasSuffix(got[0].Statement, "FROM t1 LEFT JOIN t ON t.a = t1.a WHERE `t`.`a` IS NOT NULL;"), got[0].Statement)
+	got, err = transform(t, "DELETE t FROM t1 LEFT JOIN t ON t.a = t1.a WHERE t1.b = 1 OR t1.b = 2")
 	require.NoError(t, err)
 	require.True(t, strings.HasSuffix(got[0].Statement, "FROM t1 LEFT JOIN t ON t.a = t1.a WHERE (t1.b = 1 OR t1.b = 2) AND `t`.`a` IS NOT NULL;"), got[0].Statement)
 	got, err = transform(t, "DELETE t1 FROM t1 LEFT JOIN t ON t.a = t1.a")

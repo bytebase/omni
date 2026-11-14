@@ -1250,12 +1250,23 @@ func checkForeignKeys(opts BackupOptions, table *TableReference, targets []DMLTa
 	if db == nil || !db.HasSchema() {
 		return fmt.Errorf("prior backup cannot read the foreign keys of %s.%s: the database has no metadata", table.Database, table.Table)
 	}
+	// setColumns holds the columns the UPDATEs set, and those the server
+	// sets ON UPDATE.
 	setColumns := make(map[string]bool)
 	for _, item := range targets {
 		if update, ok := item.Node.(*ast.UpdateStmt); ok {
 			for _, assign := range update.SetList {
 				if assign.Column != nil {
 					setColumns[strings.ToLower(assign.Column.Column)] = true
+				}
+			}
+			tableMetadata := db.GetTable(table.Table)
+			if tableMetadata == nil && !opts.CaseSensitive {
+				tableMetadata = tableFoldingCase(db, table.Table)
+			}
+			for _, column := range tableMetadata.GetColumns() {
+				if column.GetOnUpdate() != "" {
+					setColumns[strings.ToLower(column.GetName())] = true
 				}
 			}
 		}

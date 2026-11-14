@@ -82,6 +82,7 @@ func TestMutatesTable(t *testing.T) {
 		{"DELETE x FROM t2 JOIN t AS x ON t2.c = x.a", true},
 		{"DELETE FROM t", true},
 		{"SELECT * FROM t", false},
+		{"UPDATE t AS x JOIN t2 AS t ON x.a = t.c SET t.d = 1", false},
 	}
 	for _, tc := range tests {
 		got, err := analysis.MutatesTable(tc.statement, "db", "t", columns)
@@ -192,5 +193,15 @@ func TestRestoreSQLRefusesLiteralsIntoMixedKeys(t *testing.T) {
 	require.EqualError(t, err, "prior backup cannot restore db.summed: the UPDATE changes unique key uk_g, so the restore could match another row")
 	// Setting every column g reads pins it.
 	_, err = restore(t, "UPDATE summed SET a = 0, b = 0 WHERE id = 1", "summed")
+	require.NoError(t, err)
+}
+
+func TestRestoreSQLReadsQualifiersByAlias(t *testing.T) {
+	// t names t1 here; t itself is x.
+	got, err := restore(t, "UPDATE t AS x JOIN t1 AS t ON x.a = t.a SET x.b = 1, t.a = 2", "t")
+	require.NoError(t, err)
+	require.True(t, strings.HasSuffix(got, "ON DUPLICATE KEY UPDATE `b` = VALUES(`b`);"), got)
+	// swapped names swapped2, so its u is not the u of uk_u.
+	_, err = restore(t, "UPDATE swapped AS x JOIN swapped2 AS swapped ON x.id = swapped.id SET x.u = 30, swapped.u = swapped.u + 1", "swapped")
 	require.NoError(t, err)
 }

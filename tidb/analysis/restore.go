@@ -297,8 +297,12 @@ func extractUpdateColumns(setList []*ast.Assignment, database, originalTable str
 		// homonymous tables (e.g. `UPDATE db1.test t1 JOIN db2.test t2
 		// SET t2.a = ...`) would incorrectly include the joined-DB
 		// SET column in the target-DB's rollback.
-		if entry, ok := singleTables[strings.ToLower(col.Table)]; ok && strings.EqualFold(entry.Database, database) && strings.EqualFold(entry.Table, originalTable) {
-			result = append(result, col.Column)
+		if entry, ok := singleTables[strings.ToLower(col.Table)]; ok {
+			// The qualifier names this reference, even when another table
+			// has its name.
+			if strings.EqualFold(entry.Database, database) && strings.EqualFold(entry.Table, originalTable) {
+				result = append(result, col.Column)
+			}
 			continue
 		}
 		// Fallback: qualifier IS the bare table name (no alias used).
@@ -339,8 +343,12 @@ func targetAssignments(setList []*ast.Assignment, database, originalTable string
 		// homonymous tables (e.g. `UPDATE db1.test t1 JOIN db2.test t2
 		// SET t2.a = ...`) would incorrectly include the joined-DB
 		// SET column in the target-DB's rollback.
-		if entry, ok := singleTables[strings.ToLower(col.Table)]; ok && strings.EqualFold(entry.Database, database) && strings.EqualFold(entry.Table, originalTable) {
-			result = append(result, assignment)
+		if entry, ok := singleTables[strings.ToLower(col.Table)]; ok {
+			// The qualifier names this reference, even when another table
+			// has its name.
+			if strings.EqualFold(entry.Database, database) && strings.EqualFold(entry.Table, originalTable) {
+				result = append(result, assignment)
+			}
 			continue
 		}
 		// Fallback: qualifier IS the bare table name (no alias used).
@@ -524,8 +532,11 @@ func updateMutatesTable(stmt *ast.UpdateStmt, database, table string, targetCols
 		// SET t2.a = ...`), the alias t2 resolves to db2.test; without
 		// the Database check, a backup item targeting db1.test would
 		// incorrectly match db2.test's SET assignments.
-		if entry, ok := singleTables[strings.ToLower(col.Table)]; ok && strings.EqualFold(entry.Database, database) && strings.EqualFold(entry.Table, table) {
-			return true
+		if entry, ok := singleTables[strings.ToLower(col.Table)]; ok {
+			if strings.EqualFold(entry.Database, database) && strings.EqualFold(entry.Table, table) {
+				return true
+			}
+			continue
 		}
 		// Fallback: qualifier IS the bare table name (no alias used).
 		// The col.Schema check at the top of the loop already filtered
