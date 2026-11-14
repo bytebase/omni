@@ -11,6 +11,8 @@ import (
 	_ "github.com/microsoft/go-mssqldb"
 	"github.com/testcontainers/testcontainers-go"
 	tcmssql "github.com/testcontainers/testcontainers-go/modules/mssql"
+
+	"github.com/bytebase/omni/mssql/internal/testcontainer"
 )
 
 type parserOracle struct {
@@ -113,6 +115,7 @@ func TestMain(m *testing.M) {
 	if sharedMSSQL.container != nil {
 		_ = testcontainers.TerminateContainer(sharedMSSQL.container)
 	}
+	testcontainer.Terminate()
 	os.Exit(code)
 }
 

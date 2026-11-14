@@ -289,11 +289,6 @@ var subtractiveDivergences = []divergence{
 		omniSide: true, // ->> shares the -> divergence.
 		reason:   "JSON ->> column-path unquote operator: MySQL-only; same divergence as -> (omni over-accepts, MariaDB rejects 1064). Deferred with the -> prune.",
 	},
-	{
-		sql:      "SELECT WEIGHT_STRING(name LEVEL 1) FROM t",
-		omniSide: false, // the LEVEL form of WEIGHT_STRING, which mariadb's parseWeightStringFunc does not read yet.
-		reason:   "WEIGHT_STRING(x LEVEL n): MariaDB accepts the 5.7-style LEVEL clause; mariadb's parseWeightStringFunc reads only the AS CHAR(n)/BINARY(n) clause (the collate/convert/weight_string cluster), not LEVEL, so omni rejects at parse. Candidate: port the LEVEL clause from oceanbase/parser, which still reads it (mysql/parser dropped it with MySQL 5.7).",
-	},
 }
 
 func TestMariaDBDivergenceInventory(t *testing.T) {

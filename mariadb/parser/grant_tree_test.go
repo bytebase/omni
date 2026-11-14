@@ -252,3 +252,52 @@ func TestGrantOptionListFolds(t *testing.T) {
 		t.Errorf("statement spans %q, want all of it", got)
 	}
 }
+
+// TestMariaDBAccountFormsTree pins what MariaDB's own account clauses leave in the
+// tree: IDENTIFIED VIA's OR list, MAX_STATEMENT_TIME, a signed MAX_USER_CONNECTIONS,
+// CREATE ROLE's WITH ADMIN and REVOKE ADMIN OPTION FOR.
+func TestMariaDBAccountFormsTree(t *testing.T) {
+	sql := "ALTER USER a IDENTIFIED VIA p1 OR p2 USING 'h' OR p3 AS PASSWORD('x') WITH MAX_STATEMENT_TIME 1.5 MAX_USER_CONNECTIONS - 2"
+	alter, ok := parseOneUserStmt(t, sql).(*ast.AlterUserStmt)
+	if !ok {
+		t.Fatalf("Parse(%q) gave a statement of another kind", sql)
+	}
+	spec := alter.Users[0]
+	if spec.AuthPlugin != "p1" || len(spec.AuthAlternatives) != 2 {
+		t.Fatalf("plugin %q with %d alternatives, want p1 with 2", spec.AuthPlugin, len(spec.AuthAlternatives))
+	}
+	if alt := spec.AuthAlternatives[0]; alt.AuthPlugin != "p2" || alt.AuthHash != "h" || sql[alt.Loc.Start:alt.Loc.End] != "p2 USING 'h'" {
+		t.Errorf("second plugin = %+v, want p2 USING 'h'", *alt)
+	}
+	if alt := spec.AuthAlternatives[1]; alt.AuthPlugin != "p3" || alt.Password != "x" {
+		t.Errorf("third plugin = %+v, want p3 with password x", *alt)
+	}
+	res := alter.Resource
+	if res == nil || !res.HasMaxStatementTime || res.MaxStatementTime != "1.5" || res.MaxUserConnections != -2 {
+		t.Errorf("Resource = %+v, want MAX_STATEMENT_TIME 1.5 and MAX_USER_CONNECTIONS -2", res)
+	}
+
+	role, ok := parseOneUserStmt(t, "CREATE ROLE r WITH ADMIN 'u'@'h'").(*ast.CreateRoleStmt)
+	if !ok || role.Admin != "u@h" {
+		t.Errorf("CREATE ROLE = %+v, want admin u@h", role)
+	}
+
+	revoke, ok := parseOneUserStmt(t, "REVOKE ADMIN OPTION FOR r FROM u").(*ast.RevokeRoleStmt)
+	if !ok || !revoke.AdminOption || len(revoke.Roles) != 1 || revoke.Roles[0] != "r" {
+		t.Errorf("REVOKE ADMIN OPTION FOR = %+v, want role r with the admin option", revoke)
+	}
+
+	// current_role takes optional empty parentheses in both clauses.
+	if role, ok := parseOneUserStmt(t, "CREATE ROLE r WITH ADMIN CURRENT_ROLE()").(*ast.CreateRoleStmt); !ok || role.Admin != "CURRENT_ROLE" {
+		t.Errorf("CREATE ROLE ... CURRENT_ROLE() = %+v, want admin CURRENT_ROLE", role)
+	}
+	if revoke, ok := parseOneUserStmt(t, "REVOKE ADMIN OPTION FOR CURRENT_ROLE() FROM u").(*ast.RevokeRoleStmt); !ok || revoke.Roles[0] != "CURRENT_ROLE" {
+		t.Errorf("REVOKE ADMIN OPTION FOR CURRENT_ROLE() = %+v, want role CURRENT_ROLE", revoke)
+	}
+	// A backquoted `*` is a table, which takes column privileges; a bare one is a
+	// wildcard, which is 1144.
+	parseOneUserStmt(t, "GRANT SELECT(a) ON d.`*` TO u")
+	if _, err := Parse("GRANT SELECT(a) ON d.* TO u"); err == nil {
+		t.Error("GRANT SELECT(a) ON d.* parsed, want 1144")
+	}
+}
