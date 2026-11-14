@@ -55,7 +55,9 @@ echo 'CREATE TABL x' | SPANNER_EMULATOR_HOST=localhost:9010 GOOGLESQL_HARNESS_LI
   oracle could not decide).
 - `kind` — how the statement was routed (by leading keyword): query → executed
   (first row only); dml → run in an aborted read-write txn (no mutation);
-  ddl → submitted to `UpdateDatabaseDdl` on the scratch db.
+  ddl → submitted to `UpdateDatabaseDdl` on a scratch db of its own, replaced
+  by an empty one after each DDL statement that applies, so no verdict depends
+  on what an earlier statement made.
 - `reason` — `ok` (clean parse), `syntax` (grammar reject), `semantic` (parsed
   fine, failed later: unknown table/column, "X is not supported", etc.), or for
   `error`: `infra` (emulator down/slow/crashed, timeout, cancellation), `empty`
@@ -74,7 +76,7 @@ aren't a parser/semantic result become `error`:
 
 | outcome | verdict |
 |---|---|
-| `InvalidArgument` + msg `Syntax error:` (query/DML) | **reject** |
+| `InvalidArgument` + msg `Syntax error:`, or `…: Syntax error:` inside a definition (`Error analyzing the definition of function`) | **reject** |
 | `InvalidArgument` + msg `Error parsing Spanner DDL statement:` (DDL) | **reject** |
 | `InvalidArgument` / `FailedPrecondition` / `NotFound` / `AlreadyExists` (other msgs: `Table not found`, `Unrecognized name`, `… is not supported`, `Duplicate name`) | **accept** (grammar parsed) |
 | `Internal` + msg contains `GOOGLESQL_RET_CHECK` (emulator quirk on unknown type) | **accept** (parsed) |

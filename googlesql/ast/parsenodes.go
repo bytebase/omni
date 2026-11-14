@@ -3679,7 +3679,7 @@ var (
 // not disagree with the legacy .g4; the authoritative reference for the GQL
 // grammar shape is the pinned legacy GoogleSQLParser.g4 itself (the truth1
 // BigQuery corpus explicitly scopes GQL out — INDEX.md). See
-// graph_query_oracle_test.go.
+// the suite:graph-query rows of googlesql/parser/testdata/compat.tsv.
 
 // GQLStmt is a top-level GQL graph query (gql_statement):
 //

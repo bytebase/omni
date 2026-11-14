@@ -10,7 +10,7 @@ import (
 // Unit tests for the parser-query-clauses node: PIVOT / UNPIVOT / TABLESAMPLE
 // table-source operators, the AT SYSTEM TIME (FOR SYSTEM_TIME AS OF) suffix, and
 // the SELECT-level differential-privacy clause. Accept/reject is also proven
-// against the live Cloud Spanner emulator in pivot_unpivot_oracle_test.go (build
+// against the live Cloud Spanner emulator in the suite:pivot-unpivot rows of testdata/compat.tsv (build
 // tag googlesql_oracle) for the oracle-authoritative forms; these hand-written
 // tests assert the AST STRUCTURE and cover the BigQuery-only differential-
 // privacy clause that is non-authoritative against that emulator.
