@@ -29,7 +29,8 @@ import (
 //	    ON [ schema. ] table
 //	    [ SHARING = { METADATA | NONE } ]
 //	    [ { physical_attributes_clause | TABLESPACE tablespace
-//	      | logging_clause | { CACHE | NOCACHE } | parallel_clause }... ]
+//	      | logging_clause | { CACHE | NOCACHE } | parallel_clause
+//	      | table_partitioning_clauses }... ]
 //	    [ WITH with_item [, with_item ]... ]
 //	    [ new_values_clause ]
 //	    [ mv_log_purge_clause ]
@@ -39,8 +40,9 @@ import (
 //	               [ ( column [, column ]... ) ]
 //	         | ( column [, column ]... )
 //
-// Oracle takes the attributes in any order, and a column list after any
-// item of WITH (WITH ROWID (a), SEQUENCE).
+// Oracle takes the attributes in any order, table_partitioning_clauses
+// among them, and a column list after any item of WITH (WITH ROWID (a),
+// SEQUENCE).
 func (p *Parser) parseCreateMviewLogStmt(start int) (*nodes.CreateMviewLogStmt, error) {
 	stmt := &nodes.CreateMviewLogStmt{
 		Loc: nodes.Loc{Start: start},
@@ -78,10 +80,22 @@ func (p *Parser) parseCreateMviewLogStmt(start int) (*nodes.CreateMviewLogStmt, 
 		}
 	}
 
-	for p.isMVLogCreateAttrStart() {
-		if err := p.parseMVLogCreateAttr(); err != nil {
+	partitioned := false
+	for {
+		if p.isMVLogCreateAttrStart() {
+			if err := p.parseMVLogCreateAttr(); err != nil {
+				return nil, err
+			}
+			continue
+		}
+		// table_partitioning_clauses, once (ORA-14027 at a second).
+		if partitioned || p.cur.Type != kwPARTITION {
+			break
+		}
+		if err := p.parseMVLogPartitioning(); err != nil {
 			return nil, err
 		}
+		partitioned = true
 	}
 
 	if p.cur.Type == kwWITH {
@@ -116,6 +130,67 @@ func (p *Parser) parseCreateMviewLogStmt(start int) (*nodes.CreateMviewLogStmt, 
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// parseMVLogPartitioning reads table_partitioning_clauses with CREATE
+// TABLE's reader, as for a heap table with a column list, narrowed to what
+// Oracle takes on a log (createTablePartitionsOfLog). The AST keeps no
+// partitioning of a log.
+//
+// Oracle takes PARTITION BY REFERENCE ( constraint ) with no partition
+// list after it, and fails at the constraint where something else follows
+// (ORA-14655). It reads CONSISTENT HASH only to refuse it (ORA-14151 at
+// what follows).
+func (p *Parser) parseMVLogPartitioning() error {
+	ahead := p.peekAhead(3)
+	switch {
+	case ahead[0].Type == kwBY && ahead[1].Type == kwREFERENCE:
+		p.advance() // PARTITION
+		p.advance() // BY
+		p.advance() // REFERENCE
+		if err := p.atExpect('('); err != nil {
+			return err
+		}
+		constraint := p.cur
+		if err := p.parseATName(); err != nil {
+			return err
+		}
+		if err := p.atExpect(')'); err != nil {
+			return err
+		}
+		if !p.isMVLogCreateAttrStart() && !p.isMVLogCreateTailStart() {
+			return p.syntaxErrorAtTok(constraint)
+		}
+		return nil
+	case ahead[0].Type == kwBY && isCreateTableWordTok(ahead[1], "CONSISTENT") && isCreateTableWordTok(ahead[2], "HASH"):
+		p.advance() // PARTITION
+		p.advance() // BY
+		p.advance() // CONSISTENT
+		p.advance() // HASH
+		return p.mvLogRefusal("consistent hash partitioning")
+	}
+	defer func(saved bool) { p.createTablePartitionsOfLog = saved }(p.createTablePartitionsOfLog)
+	p.createTablePartitionsOfLog = true
+	table := &nodes.CreateTableStmt{}
+	partition, err := p.parsePartitionClause(table, true)
+	if err != nil {
+		return err
+	}
+	if partition == nil {
+		return p.syntaxErrorAtCur()
+	}
+	return nil
+}
+
+// isMVLogCreateTailStart reports what may follow CREATE MATERIALIZED VIEW
+// LOG's attributes: WITH, new_values_clause, mv_log_purge_clause,
+// for_refresh_clause or the end of the statement.
+func (p *Parser) isMVLogCreateTailStart() bool {
+	switch p.cur.Type {
+	case kwWITH, kwPURGE, kwFOR, ';', tokEOF:
+		return true
+	}
+	return p.isMVLogNewValuesStart()
 }
 
 // parseMVLogOnTable reads ON [ schema. ] table.

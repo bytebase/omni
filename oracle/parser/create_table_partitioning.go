@@ -111,7 +111,7 @@ func (p *Parser) parsePartitionClause(stmt *nodes.CreateTableStmt, hasColumns bo
 	case nodes.PARTITION_LIST:
 		if p.cur.Type == kwAUTOMATIC {
 			p.advance()
-			if p.isKeywordStr("STORE") {
+			if p.isKeywordStr("STORE") && !p.createTablePartitionsOfLog {
 				if err := p.parseCreateTableStoreIn(); err != nil {
 					return nil, err
 				}
@@ -236,7 +236,7 @@ func (p *Parser) parseCreateTableHashPartitionsByQuantity(indexOrganized bool) e
 			return err
 		}
 	}
-	if p.isCreateTablePartitionCompressionStart() {
+	if p.isCreateTablePartitionCompressionStart() && !p.createTablePartitionsOfLog {
 		if err := p.parseCreateTablePartitionCompression(); err != nil {
 			return err
 		}
@@ -568,6 +568,14 @@ func (p *Parser) isCreateTableHashPartitionAttributeStart() bool {
 // followed by anything but TABLESPACE (ORA-14020).
 func (p *Parser) parseCreateTableHashPartitionAttributes(def *nodes.PartitionDef) error {
 	for {
+		if p.createTablePartitionsOfLog && p.cur.Type != kwTABLESPACE && !p.isKeywordStr("OVERFLOW") {
+			// A log's hash partition or subpartition takes TABLESPACE and
+			// OVERFLOW only.
+			if p.cur.Type != ',' && p.cur.Type != ')' {
+				return p.syntaxErrorAtCur()
+			}
+			return nil
+		}
 		switch {
 		case p.cur.Type == kwREAD:
 			p.advance() // consume READ
@@ -740,6 +748,9 @@ func (p *Parser) parseCreateTablePartitionVarray() error {
 //	[ { LOB_storage_clause | varray_col_properties | nested_table_col_properties } ... ]
 func (p *Parser) parseCreateTablePartitionDescription(def *nodes.PartitionDef) error {
 	for {
+		if p.createTablePartitionsOfLog && !p.isCreateTableLogPartitionAttributeStart() {
+			return nil
+		}
 		switch {
 		case p.isKeywordStr("SEGMENT"):
 			p.advance() // consume SEGMENT
@@ -809,6 +820,16 @@ func (p *Parser) parseCreateTablePartitionDescription(def *nodes.PartitionDef) e
 			return nil
 		}
 	}
+}
+
+// isCreateTableLogPartitionAttributeStart reports a segment attribute, the
+// only description a materialized view log's range or list partition takes:
+// TABLESPACE, PCTFREE, PCTUSED, INITRANS, MAXTRANS, STORAGE or
+// logging_clause.
+func (p *Parser) isCreateTableLogPartitionAttributeStart() bool {
+	return p.cur.Type == kwTABLESPACE || p.cur.Type == kwPCTFREE || p.isKeywordStr("PCTUSED") ||
+		p.isKeywordStr("INITRANS") || p.isKeywordStr("MAXTRANS") || p.isKeywordStr("STORAGE") ||
+		p.isCreateTableLoggingStart()
 }
 
 // parseCreateTableReferencePartitioning reads reference_partitioning after

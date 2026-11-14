@@ -35,6 +35,14 @@ type Parser struct {
 	// does Oracle take an index_compression (COMPRESS n, COMPRESS ADVANCED).
 	createTableIndexOrganized bool
 
+	// createTablePartitionsOfLog is set while CREATE MATERIALIZED VIEW LOG's
+	// table_partitioning_clauses are read with CREATE TABLE's reader: a
+	// log's range and list partitions take segment attributes only, its
+	// hash partitions and subpartitions TABLESPACE and OVERFLOW only
+	// (ORA-14020, 14160, 14006 at the rest), and it takes neither STORE IN
+	// after AUTOMATIC nor compression after PARTITIONS (ORA-12044).
+	createTablePartitionsOfLog bool
+
 	// createTableEngineCheck is set while CREATE TABLE is parsed once a
 	// clause Oracle checks against the table before it asks for a missing
 	// column list has been read: enable_disable_clause (ORA-02432),
