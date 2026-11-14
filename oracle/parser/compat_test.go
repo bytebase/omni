@@ -269,7 +269,7 @@ func corpusSuites(t *testing.T) []struct {
 
 // TestCompatibilitySuitesAreTheCorpora fails while the suite: rows of
 // compat.tsv are not the corpora of corpusSuites: each statement once,
-// under the first suite that holds it, and none a generated row holds. A
+// under the first suite that holds it. A
 // statement added to a corpus is added as a row with ? in both verdict
 // cells, and judged by a recording.
 func TestCompatibilitySuitesAreTheCorpora(t *testing.T) {
@@ -278,11 +278,6 @@ func TestCompatibilitySuitesAreTheCorpora(t *testing.T) {
 		t.Fatal(err)
 	}
 	seen := map[string]bool{}
-	for _, r := range f.Rows {
-		if !strings.HasPrefix(r.Rule, "suite:") && !strings.HasPrefix(r.Rule, "issue:") {
-			seen[r.Statement] = true
-		}
-	}
 	var want, got []string
 	for _, s := range corpusSuites(t) {
 		for _, stmt := range s.corpus {
