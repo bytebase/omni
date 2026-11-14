@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/bytebase/omni/snowflake/ast"
@@ -31,12 +32,23 @@ type objectForm struct {
 	// drop reports whether DROP <kind> [ IF EXISTS ] <name> is documented,
 	// and dropCascade whether a CASCADE may follow the name.
 	drop, dropCascade bool
+	// nameParts is how many parts the object's name may have: 1 for an
+	// account-level object (a compute pool), 2 for one a database qualifies,
+	// 0 for a schema object, which db.schema.name may qualify.
+	nameParts int
+	// noIfNotExists and noIfExists are set where the page writes no
+	// CREATE ... IF NOT EXISTS or ALTER ... IF EXISTS, and dropNoIfExists where
+	// its DROP page writes no IF EXISTS.
+	noIfNotExists, noIfExists, dropNoIfExists bool
 	// props, when set, are the properties the page documents and the value
 	// each takes. parseObjectStmt then rejects a property of a CREATE's run
 	// or a SET that props does not name or whose value has another shape,
 	// and an UNSET of a name outside unset (or props, when unset is nil).
 	props objectProps
 	unset []string
+	// alterProps, when set, are the properties ALTER ... SET documents where
+	// they differ from CREATE's props.
+	alterProps objectProps
 }
 
 // objectForms maps an object's first keyword to the objects it starts.
@@ -142,17 +154,17 @@ func (p *Parser) parseObjectStmt(verb string, f *objectForm, start ast.Loc, orRe
 		Loc:       ast.Loc{Start: start.Start},
 	}
 	// IF NOT EXISTS excludes OR REPLACE (the docs write the two forms apart).
-	if verb == "CREATE" && !orReplace {
+	if verb == "CREATE" && !orReplace && !f.noIfNotExists {
 		if err := p.parseIfNotExists(&s.IfNotExists); err != nil {
 			return nil, err
 		}
 	}
-	if verb == "ALTER" {
+	if verb == "ALTER" && !f.noIfExists {
 		if err := p.parseIfExists(&s.IfExists); err != nil {
 			return nil, err
 		}
 	}
-	name, err := p.parseObjectName()
+	name, err := p.parseFormName(f)
 	if err != nil {
 		return nil, err
 	}
@@ -167,6 +179,66 @@ func (p *Parser) parseObjectStmt(verb string, f *objectForm, start ast.Loc, orRe
 	}
 	s.Loc.End = p.prev.Loc.End
 	return s, nil
+}
+
+// parseObjectSimpleName reads a name a clause takes where the page writes a
+// single <name>: one identifier part, with no database or schema.
+func (p *Parser) parseObjectSimpleName() (*ast.ObjectName, error) {
+	name, err := p.parseObjectName()
+	if err != nil {
+		return nil, err
+	}
+	if !name.Schema.IsEmpty() || !name.Database.IsEmpty() {
+		return nil, &ParseError{
+			Position: name.Loc.Start, End: name.Loc.End,
+			Message: "syntax error: " + name.String() + " takes no qualifier here",
+		}
+	}
+	return name, nil
+}
+
+// parseObjectSimpleNameList reads <name> [ , ... ] of single-part names.
+func (p *Parser) parseObjectSimpleNameList() ([]*ast.ObjectName, error) {
+	var names []*ast.ObjectName
+	for {
+		name, err := p.parseObjectSimpleName()
+		if err != nil {
+			return nil, err
+		}
+		names = append(names, name)
+		if p.cur.Type != ',' {
+			return names, nil
+		}
+		p.advance() // consume ','
+	}
+}
+
+// parseFormName reads the name of an object of form f, holding it to the
+// number of parts f.nameParts allows.
+func (p *Parser) parseFormName(f *objectForm) (*ast.ObjectName, error) {
+	name, err := p.parseObjectName()
+	if err != nil {
+		return nil, err
+	}
+	return p.checkFormNameParts(f, name)
+}
+
+// checkFormNameParts fails when name has more parts than f.nameParts.
+func (p *Parser) checkFormNameParts(f *objectForm, name *ast.ObjectName) (*ast.ObjectName, error) {
+	parts := 1
+	if !name.Schema.IsEmpty() {
+		parts++
+	}
+	if !name.Database.IsEmpty() {
+		parts++
+	}
+	if f.nameParts > 0 && parts > f.nameParts {
+		return nil, &ParseError{
+			Position: name.Loc.Start, End: name.Loc.End,
+			Message: fmt.Sprintf("syntax error: a %s's name has at most %d part(s)", strings.ToLower(f.kind), f.nameParts),
+		}
+	}
+	return name, nil
 }
 
 // objectValue is the shape of value a documented property takes.
@@ -210,11 +282,15 @@ func propStringOr(words ...string) objectValue { return objectValue{kind: valStr
 // checkClauses holds a statement's property runs, SETs and UNSETs to f's
 // documented properties.
 func (f *objectForm) checkClauses(s *ast.ObjectStmt) error {
+	props := f.props
+	if s.Verb == "ALTER" && f.alterProps != nil {
+		props = f.alterProps
+	}
 	for _, c := range s.Clauses {
 		switch c.Keywords {
 		case "", "SET":
 			for _, o := range c.Options {
-				v, ok := f.props[o.Name]
+				v, ok := props[o.Name]
 				if !ok || !v.matches(o) {
 					return &ParseError{
 						Position: o.Loc.Start, End: o.Loc.End,
@@ -332,7 +408,9 @@ func (p *Parser) parseObjectProperties(s *ast.ObjectStmt, keywords string, need 
 	c := &ast.ObjectClause{Keywords: keywords, Loc: ast.Loc{Start: p.cur.Loc.Start}}
 	for {
 		switch {
-		case p.startsWithTags() && (p.cur.Type == kwWITH || p.peekNext().Type == '('):
+		case keywords == "" && p.startsWithTags() && (p.cur.Type == kwWITH || p.peekNext().Type == '('):
+			// [ WITH ] TAG ( ... ) is a CREATE's; an ALTER sets tags with
+			// SET TAG <tag> = '<value>'.
 			tags, err := p.parseWithTags()
 			if err != nil {
 				return nil, err
@@ -351,6 +429,15 @@ func (p *Parser) parseObjectProperties(s *ast.ObjectStmt, keywords string, need 
 			opt, err := p.parseObjectProperty()
 			if err != nil {
 				return nil, err
+			}
+			for _, prev := range c.Options {
+				if prev.Name == opt.Name {
+					// A property is set once a run.
+					return nil, &ParseError{
+						Position: opt.Loc.Start, End: opt.Loc.End,
+						Message: "syntax error: " + opt.Name + " is set twice",
+					}
+				}
 			}
 			c.Options = append(c.Options, opt)
 		default:
@@ -532,12 +619,36 @@ func (p *Parser) parseObjectValue(opt *ast.CopyOption) error {
 		opt.Lit = lit
 		return nil
 	}
-	words, _, err := p.parseValueWord()
+	words, err := p.parseObjectWord()
 	if err != nil {
 		return err
 	}
 	opt.Words = words
 	return nil
+}
+
+// parseObjectWord reads a word value: a name, or a qualified name whose parts
+// are joined by '.', each part an identifier or a keyword. Keywords and
+// unquoted names are uppercased; a quoted part keeps its quotes, so "TRUE"
+// never reads as the keyword TRUE.
+func (p *Parser) parseObjectWord() (string, error) {
+	var b strings.Builder
+	for {
+		switch {
+		case p.cur.Type == tokQuotedIdent:
+			tok := p.advance()
+			b.WriteString(p.srcSlice(tok.Loc.Start, tok.Loc.End))
+		case p.cur.Type == tokIdent || p.cur.Type >= 700:
+			b.WriteString(strings.ToUpper(p.advance().Str))
+		default:
+			return "", p.syntaxErrorAtCur()
+		}
+		if p.cur.Type != '.' {
+			return b.String(), nil
+		}
+		p.advance() // consume '.'
+		b.WriteByte('.')
+	}
 }
 
 // parseObjectValueParen reads a parenthesized property value. cur is '('.
@@ -581,7 +692,9 @@ func (p *Parser) parseObjectValueParen(opt *ast.CopyOption) error {
 			key := p.advance()
 			entry.Name = strings.ToUpper(key.Str)
 			if key.Type == tokString {
-				entry.Name = key.Str
+				// A string key (SECRETS = ( '<name>' = <secret> )) keeps its
+				// quotes, so it stays apart from a word key.
+				entry.Name = p.srcSlice(key.Loc.Start, key.Loc.End)
 			}
 			p.advance() // consume '='
 			if err := p.parseObjectValue(entry); err != nil {
@@ -589,7 +702,7 @@ func (p *Parser) parseObjectValueParen(opt *ast.CopyOption) error {
 			}
 		case p.isOptionWord(p.cur.Type) && !p.curIsLiteral():
 			// A bare name in a list of names: ( a [ , ... ] ).
-			words, _, err := p.parseValueWord()
+			words, err := p.parseObjectWord()
 			if err != nil {
 				return err
 			}
