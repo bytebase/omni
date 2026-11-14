@@ -571,3 +571,84 @@ func TestOracle_BigintUnsignedExactValue(t *testing.T) {
 		}
 	}
 }
+
+// storedFormProbe is a schema transition whose generated plan must leave every table in `to`
+// with exactly the SHOW CREATE TABLE text OceanBase gives `to` itself. The canonical diff the
+// other apply suites compare ignores column order and RESTRICT versus NO ACTION, which
+// OceanBase stores and echoes all the same.
+type storedFormProbe struct {
+	id      string
+	fromSQL string // statements after USE
+	toSQL   string
+	tables  []string
+}
+
+func storedFormProbes() []storedFormProbe {
+	const city = "CREATE TABLE city (city_id int NOT NULL, city varchar(50) NOT NULL, PRIMARY KEY (city_id))"
+	return []storedFormProbe{
+		{"column-first",
+			"CREATE TABLE category (category_id int, name varchar(25))",
+			"CREATE TABLE category (is_featured tinyint(1) NOT NULL DEFAULT '0', category_id int, name varchar(25))",
+			[]string{"category"}},
+		{"generated-columns-in-target-order",
+			"CREATE TABLE p (id int, price decimal(10,2), name varchar(100))",
+			"CREATE TABLE p (id int, price decimal(10,2), name varchar(100), " +
+				"price_with_tax decimal(10,2) GENERATED ALWAYS AS (price*1.1) STORED, " +
+				"name_upper varchar(100) GENERATED ALWAYS AS (upper(name)) VIRTUAL)",
+			[]string{"p"}},
+		{"columns-mid-table",
+			"CREATE TABLE t (a int, d int)",
+			"CREATE TABLE t (a int, b int, g int GENERATED ALWAYS AS (b+1) VIRTUAL, c int, d int)",
+			[]string{"t"}},
+		{"column-readded-in-place",
+			"CREATE TABLE t (a int, g int GENERATED ALWAYS AS (a+1) VIRTUAL)",
+			"CREATE TABLE t (a int, g int GENERATED ALWAYS AS (z+1) VIRTUAL, z int)",
+			[]string{"t"}},
+		{"fk-no-action",
+			city,
+			city + "; CREATE TABLE address (address_id int NOT NULL, city_id int NOT NULL, " +
+				"PRIMARY KEY (address_id), KEY idx_fk_city_id (city_id), " +
+				"CONSTRAINT fk_address_city FOREIGN KEY (city_id) REFERENCES city (city_id) ON DELETE NO ACTION ON UPDATE CASCADE, " +
+				"CONSTRAINT fk_address_city_2 FOREIGN KEY (city_id) REFERENCES city (city_id) ON UPDATE NO ACTION)",
+			[]string{"address"}},
+	}
+}
+
+func TestOracle_MigrationReproducesStoredForm(t *testing.T) {
+	o := oceanBaseOracle(t)
+	n := NormalizerFor(MySQL80)
+	sc := serverCharsetFor(o.version)
+	ctx := context.Background()
+	for _, p := range storedFormProbes() {
+		t.Run(p.id, func(t *testing.T) {
+			slug := strings.ReplaceAll(p.id, "-", "_")
+			const logicalDB = "storedform"
+			toDB := "storedform_t_" + slug
+			toCat := loadMultiSchema(t, o, logicalDB, toDB, sc, p.toSQL)
+			// loadMultiSchema leaves the apply database selected, in state `from`.
+			fromCat := loadMultiSchema(t, o, logicalDB, logicalDB, sc, p.fromSQL)
+			plan := GenerateMigrationWithNormalizer(fromCat, toCat, DiffWithNormalizer(fromCat, toCat, n), n)
+
+			conn, err := o.session(ctx)
+			if err != nil {
+				t.Fatalf("session: %v", err)
+			}
+			defer func() { _ = conn.Close() }()
+			if !o.applyPlan(t, conn, plan) {
+				return
+			}
+			for _, table := range p.tables {
+				var name, got, want string
+				if err := conn.QueryRowContext(ctx, fmt.Sprintf("SHOW CREATE TABLE %s.%s", logicalDB, table)).Scan(&name, &got); err != nil {
+					t.Fatalf("SHOW CREATE result %s: %v", table, err)
+				}
+				if err := conn.QueryRowContext(ctx, fmt.Sprintf("SHOW CREATE TABLE %s.%s", toDB, table)).Scan(&name, &want); err != nil {
+					t.Fatalf("SHOW CREATE target %s: %v", table, err)
+				}
+				if want = rehomed(want, toDB, logicalDB); got != want {
+					t.Errorf("%s after the plan:\n%s\nwant:\n%s\nplan:\n%s", table, got, want, plan.SQL())
+				}
+			}
+		})
+	}
+}

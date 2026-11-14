@@ -1781,27 +1781,41 @@ func (p *Parser) parseSignatureStmt(action string) (*nodes.SignatureStmt, error)
 	return stmt, nil
 }
 
-// keysThreePartName reads [ [ db . ] schema . ] name (schemaObjectThreePartName).
+// keysThreePartName reads the signed module's name (schemaObjectThreePartName,
+// TSql160.g:30325, whose identifierList lets a prefix be empty: `db..p`,
+// `.p`). SQL Server 2022 takes up to three prefixes (`a.b.c.p`) and refuses a
+// fourth with Msg 117; the last part must be a name.
 func (p *Parser) keysThreePartName() (*nodes.TableRef, error) {
 	loc := p.pos()
 	parts := []string{}
 	for {
-		name, err := p.keysName()
-		if err != nil {
-			return nil, err
+		if p.cur.Type == '.' {
+			parts = append(parts, "") // an omitted prefix
+		} else {
+			name, err := p.keysName()
+			if err != nil {
+				return nil, err
+			}
+			parts = append(parts, name)
+			if p.cur.Type != '.' {
+				break
+			}
 		}
-		parts = append(parts, name)
-		if len(parts) == 3 || p.cur.Type != '.' {
-			break
+		if len(parts) == 4 {
+			return nil, p.syntaxErrorAtCur()
 		}
-		p.advance()
+		p.advance() // consume '.'
 	}
-	ref := &nodes.TableRef{Object: parts[len(parts)-1], Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}
-	if len(parts) > 1 {
-		ref.Schema = parts[len(parts)-2]
+	n := len(parts)
+	ref := &nodes.TableRef{Object: parts[n-1], Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}
+	if n > 1 {
+		ref.Schema = parts[n-2]
 	}
-	if len(parts) > 2 {
-		ref.Database = parts[0]
+	if n > 2 {
+		ref.Database = parts[n-3]
+	}
+	if n > 3 {
+		ref.Server = parts[0]
 	}
 	return ref, nil
 }

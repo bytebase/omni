@@ -26,7 +26,7 @@ package parser
 //
 // CORRECTNESS (correctness-protocol.md). Scripting is BigQuery-ONLY at the
 // GoogleSQL union level, with two oracle-authoritative exceptions confirmed on
-// the live Cloud Spanner emulator (scripting_oracle_test.go):
+// the live Cloud Spanner emulator (the suite:scripting rows of testdata/compat.tsv):
 //   - the BEGIN…END envelope (verdict accept, "Statement not supported:
 //     BeginStmt"), SET (SingleAssignment / AssignmentFromStruct /
 //     ParameterAssignment / SystemVariableAssignment / SetTransactionStatement),

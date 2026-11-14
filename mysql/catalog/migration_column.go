@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -23,8 +24,10 @@ import (
 // readback of the ALTER canonicalizes equal to `to`.
 //
 // Determinism: drops are emitted before adds/modifies (so a drop-then-add of the same name
-// never collides), each sorted by lower-cased column name; sortMigrationOps re-imposes the
-// global order.
+// never collides). Drops and modifies sort by lower-cased column name, adds by the column's
+// position in `to` (columnAddSortName); sortMigrationOps re-imposes the global order. An ADD
+// COLUMN carries no placement here: positionColumnAdds gives it FIRST / AFTER once the final
+// statement order is known.
 func generateColumnDDL(_, to *Catalog, diff *SchemaDiff, n *Normalizer) []MigrationOp {
 	var ops []MigrationOp
 
@@ -78,6 +81,7 @@ func generateColumnDDL(_, to *Catalog, diff *SchemaDiff, n *Normalizer) []Migrat
 					Priority:     priorityColumn,
 					sortName:     columnSortName(entry.Database, entry.Name, col.Name),
 					alterClause:  clause,
+					column:       toLower(col.Name),
 				})
 			}
 		}
@@ -115,8 +119,9 @@ func addColumnOp(entry *TableDiffEntry, table string, to *Column, n *Normalizer)
 		SQL:          fmt.Sprintf("ALTER TABLE %s %s", table, clause),
 		Phase:        PhaseMain,
 		Priority:     columnAddPriority(to),
-		sortName:     columnSortName(entry.Database, entry.Name, to.Name),
+		sortName:     columnAddSortName(entry, to),
 		alterClause:  clause,
+		column:       toLower(to.Name),
 	}
 }
 
@@ -145,6 +150,7 @@ func dropColumnOp(entry *TableDiffEntry, table, colName string, from *Column) Mi
 		Priority:     columnDropPriority(from),
 		sortName:     columnSortName(entry.Database, entry.Name, colName),
 		alterClause:  clause,
+		column:       toLower(colName),
 	}
 }
 
@@ -188,6 +194,103 @@ func columnOpRank(t MigrationOpType) int {
 // database.table.column.
 func columnSortName(database, table, column string) string {
 	return strings.ToLower(database) + "." + strings.ToLower(table) + "." + strings.ToLower(column)
+}
+
+// columnAddSortName is the sort key of an ADD COLUMN: the table's key, a NUL, and the column's
+// zero-padded position in `to` (MySQL allows at most 4096 columns). An identifier cannot contain
+// U+0000, so a table's plain adds sort before its modifies, which may read them (a generated
+// column's new expression).
+func columnAddSortName(entry *TableDiffEntry, c *Column) string {
+	return columnSortName(entry.Database, entry.Name, fmt.Sprintf("\x00%04d", columnPosition(entry.To, c.Name)))
+}
+
+// positionColumnAdds appends FIRST or AFTER to every ADD COLUMN clause of the sorted plan so the
+// column lands where `to` places it; MySQL otherwise appends it. It runs after
+// mergeAutoIncrementKeyOps, which can move an ADD COLUMN into another statement of its table, and
+// walks the clauses in execution order, so an AFTER only names a column that exists by then: one
+// that survives from `from`, or one an earlier clause added. A column that no existing column
+// follows in `to` gets no clause.
+func positionColumnAdds(ops []MigrationOp, diff *SchemaDiff) []MigrationOp {
+	parts := make([][]alterPart, len(ops))
+	added := make(map[string]map[string]bool)
+	for i, op := range ops {
+		parts[i] = op.alterParts
+		if parts[i] == nil && op.Type == OpAddColumn {
+			parts[i] = []alterPart{{clause: op.alterClause, addsColumn: op.column}}
+		}
+		for _, part := range parts[i] {
+			if part.addsColumn == "" {
+				continue
+			}
+			key := aiTableKey(op.Database, op.ObjectName)
+			if added[key] == nil {
+				added[key] = make(map[string]bool)
+			}
+			added[key][part.addsColumn] = true
+		}
+	}
+	layouts := make(map[string]*columnLayout)
+	for i := range diff.Tables {
+		entry := &diff.Tables[i]
+		key := aiTableKey(entry.Database, entry.Name)
+		if added[key] != nil && entry.Action == DiffModify && entry.From != nil && entry.To != nil {
+			layouts[key] = newColumnLayout(entry, added[key])
+		}
+	}
+	for i := range ops {
+		op := &ops[i]
+		l := layouts[aiTableKey(op.Database, op.ObjectName)]
+		joined := joinAlterParts(parts[i])
+		if l == nil || parts[i] == nil || !strings.HasSuffix(op.SQL, joined) {
+			continue
+		}
+		placed := make([]alterPart, len(parts[i]))
+		for j, part := range parts[i] {
+			placed[j] = part
+			if part.addsColumn != "" {
+				placed[j].clause += l.place(part.addsColumn)
+			}
+		}
+		op.SQL = strings.TrimSuffix(op.SQL, joined) + joinAlterParts(placed)
+	}
+	return ops
+}
+
+// columnLayout tracks, for one modified table, which of the target's columns exist as the plan's
+// ADD COLUMN clauses run.
+type columnLayout struct {
+	columns []*Column       // the target's columns in order, hidden ones excluded
+	exists  map[string]bool // lower-cased name → the column exists at this point of the plan
+}
+
+// newColumnLayout returns the layout of a modified table whose plan adds the named columns. A
+// column the plan drops and adds again does not exist until its ADD runs.
+func newColumnLayout(entry *TableDiffEntry, added map[string]bool) *columnLayout {
+	l := &columnLayout{exists: make(map[string]bool)}
+	for _, c := range entry.To.Columns {
+		if c == nil || c.Hidden != ColumnHiddenNone {
+			continue
+		}
+		l.columns = append(l.columns, c)
+		name := toLower(c.Name)
+		l.exists[name] = !added[name] && entry.From.GetColumn(c.Name) != nil
+	}
+	return l
+}
+
+// place returns the placement clause for adding the named column and records that it exists.
+func (l *columnLayout) place(name string) string {
+	defer func() { l.exists[name] = true }()
+	pos := slices.IndexFunc(l.columns, func(c *Column) bool { return toLower(c.Name) == name })
+	if pos < 0 || !slices.ContainsFunc(l.columns[pos+1:], func(c *Column) bool { return l.exists[toLower(c.Name)] }) {
+		return ""
+	}
+	for k := pos - 1; k >= 0; k-- {
+		if l.exists[toLower(l.columns[k].Name)] {
+			return " AFTER " + migrationQuoteIdent(l.columns[k].Name)
+		}
+	}
+	return " FIRST"
 }
 
 // formatColumnDefinition renders a single column in MySQL's canonical stored form for the
