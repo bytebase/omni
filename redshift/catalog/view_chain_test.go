@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/bytebase/omni/enginetest/cputime"
 )
 
 // TestViewChainsStayLinear: CREATE VIEW over a long left-deep chain, and the
@@ -102,16 +104,18 @@ func defineViewWithin(t *testing.T, body string, budget time.Duration, deparse b
 	if _, err := c.Exec("CREATE TABLE t (a int)", nil); err != nil {
 		t.Fatal(err)
 	}
-	type outcome struct {
-		cost viewCost
-		err  error
+	what := "CREATE VIEW"
+	if deparse {
+		what = "CREATE VIEW and its definition"
 	}
-	done := make(chan outcome, 1)
-	go func() {
+	var cost viewCost
+	var err error
+	cputime.Within(t, budget, what, func() {
 		var m0, m1, m2 runtime.MemStats
 		runtime.GC()
 		runtime.ReadMemStats(&m0)
-		results, err := c.Exec("CREATE VIEW v AS "+body, nil)
+		var results []ExecResult
+		results, err = c.Exec("CREATE VIEW v AS "+body, nil)
 		for _, r := range results {
 			if err == nil {
 				err = r.Error
@@ -122,19 +126,10 @@ func defineViewWithin(t *testing.T, body string, budget time.Duration, deparse b
 			_, err = c.GetViewDefinition("public", "v")
 		}
 		runtime.ReadMemStats(&m2)
-		done <- outcome{viewCost{exec: m1.TotalAlloc - m0.TotalAlloc, deparse: m2.TotalAlloc - m1.TotalAlloc}, err}
-	}()
-	select {
-	case o := <-done:
-		if o.err != nil {
-			t.Fatal(o.err)
-		}
-		return o.cost
-	case <-time.After(budget):
-		if deparse {
-			t.Fatalf("CREATE VIEW and its definition took over %v", budget)
-		}
-		t.Fatalf("CREATE VIEW took over %v", budget)
+		cost = viewCost{exec: m1.TotalAlloc - m0.TotalAlloc, deparse: m2.TotalAlloc - m1.TotalAlloc}
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
-	return viewCost{}
+	return cost
 }

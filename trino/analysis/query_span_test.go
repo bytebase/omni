@@ -1,12 +1,14 @@
 package analysis
 
 import (
+	"fmt"
 	"reflect"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/bytebase/omni/enginetest/cputime"
 	"github.com/bytebase/omni/trino/parser"
 )
 
@@ -874,18 +876,12 @@ func TestGetQuerySpanChainsStayLinear(t *testing.T) {
 			" FROM " + list(40000, func(i int) string { return "(SELECT 1 AS x) d" + strconv.Itoa(i) }, ", ")},
 		{"stars that do not expand", "SELECT " + list(10000, func(int) string { return "*" }, ", ") + " FROM (SELECT " + list(10000, col, ", ") + " FROM t) d, t"},
 	} {
-		done := make(chan error, 1)
-		go func() {
-			_, err := GetQuerySpan(tc.sql)
-			done <- err
-		}()
-		select {
-		case err := <-done:
-			if err != nil {
-				t.Fatalf("%s: GetQuerySpan error = %v", tc.name, err)
-			}
-		case <-time.After(2 * time.Second):
-			t.Fatalf("%s: GetQuerySpan of %d bytes took over 2s", tc.name, len(tc.sql))
+		var err error
+		cputime.Within(t, 2*time.Second, fmt.Sprintf("%s: GetQuerySpan of %d bytes", tc.name, len(tc.sql)), func() {
+			_, err = GetQuerySpan(tc.sql)
+		})
+		if err != nil {
+			t.Fatalf("%s: GetQuerySpan error = %v", tc.name, err)
 		}
 	}
 }
@@ -907,18 +903,12 @@ func TestGetQuerySpanNestedSubqueriesStayLinear(t *testing.T) {
 		{"IN", nest("SELECT a FROM t", "SELECT a FROM t WHERE a IN (?)")},
 		{"WITH", "SELECT * FROM (" + nest("SELECT * FROM t", "WITH c AS (?) SELECT * FROM c, t") + ") x"},
 	} {
-		done := make(chan error, 1)
-		go func() {
-			_, err := GetQuerySpan(tc.sql)
-			done <- err
-		}()
-		select {
-		case err := <-done:
-			if err != nil {
-				t.Fatalf("%s: GetQuerySpan error = %v", tc.name, err)
-			}
-		case <-time.After(2 * time.Second):
-			t.Fatalf("%s: GetQuerySpan through %d nested subqueries took over 2s", tc.name, depth)
+		var err error
+		cputime.Within(t, 2*time.Second, fmt.Sprintf("%s: GetQuerySpan through %d nested subqueries", tc.name, depth), func() {
+			_, err = GetQuerySpan(tc.sql)
+		})
+		if err != nil {
+			t.Fatalf("%s: GetQuerySpan error = %v", tc.name, err)
 		}
 	}
 }
@@ -947,25 +937,16 @@ func TestGetQuerySpanScalarChainsStayLinear(t *testing.T) {
 			b.WriteString(from + ")")
 		}
 		sql := strings.TrimSuffix(b.String(), ")")
-		type result struct {
-			span *QuerySpan
-			err  error
+		var span *QuerySpan
+		var err error
+		cputime.Within(t, 2*time.Second, fmt.Sprintf("FROM %q: GetQuerySpan through %d scalar subqueries of %d columns", from, depth, width), func() {
+			span, err = GetQuerySpan(sql)
+		})
+		if err != nil {
+			t.Fatalf("FROM %q: GetQuerySpan error = %v", from, err)
 		}
-		done := make(chan result, 1)
-		go func() {
-			span, err := GetQuerySpan(sql)
-			done <- result{span, err}
-		}()
-		select {
-		case r := <-done:
-			if r.err != nil {
-				t.Fatalf("FROM %q: GetQuerySpan error = %v", from, r.err)
-			}
-			if len(r.span.Results) != 1 || !reflect.DeepEqual(r.span.Results[0].SourceColumns, want) {
-				t.Errorf("FROM %q: the result's lineage is not every column in order", from)
-			}
-		case <-time.After(2 * time.Second):
-			t.Fatalf("FROM %q: GetQuerySpan through %d scalar subqueries of %d columns took over 2s", from, depth, width)
+		if len(span.Results) != 1 || !reflect.DeepEqual(span.Results[0].SourceColumns, want) {
+			t.Errorf("FROM %q: the result's lineage is not every column in order", from)
 		}
 	}
 }

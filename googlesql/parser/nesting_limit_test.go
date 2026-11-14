@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bytebase/omni/enginetest/cputime"
 	"github.com/bytebase/omni/googlesql/ast"
 )
 
@@ -32,21 +33,18 @@ func hasNestingError(err error) bool {
 	return false
 }
 
-// parseWithin runs Parse on sql and reports whether it returned within limit,
-// so a parse that retries exponentially at the nesting limit fails the test
-// instead of hanging the run.
+// parseWithin runs Parse on sql and reports whether it returned within limit
+// of CPU time, so a parse that retries exponentially at the nesting limit
+// fails the test instead of hanging the run.
 func parseWithin(sql string, limit time.Duration) (finished bool, err error) {
-	done := make(chan error, 1)
-	go func() {
-		_, err := Parse(sql)
-		done <- err
-	}()
-	select {
-	case err := <-done:
-		return true, err
-	case <-time.After(limit):
+	var parseErr error
+	used, done := cputime.Run(cputime.Hang(limit), func() {
+		_, parseErr = Parse(sql)
+	})
+	if !done {
 		return false, nil
 	}
+	return used <= limit, parseErr
 }
 
 func nest(n int, open, mid, closing string) string {
@@ -115,7 +113,7 @@ func TestNestingLimit(t *testing.T) {
 		for _, n := range []int{maxNestingDepth + 1, 200000} {
 			finished, err := parseWithin(tc.sql(n), 10*time.Second)
 			if !finished {
-				t.Errorf("%s: %d levels: Parse did not return within 10s", tc.name, n)
+				t.Errorf("%s: %d levels: Parse went over its 10s CPU budget or did not return", tc.name, n)
 			} else if !hasNestingError(err) {
 				t.Errorf("%s: %d levels: err = %v, want the nesting error", tc.name, n, err)
 			}
@@ -135,7 +133,7 @@ func TestRawSubqueryScanLoops(t *testing.T) {
 	} {
 		finished, err := parseWithin(sql, 10*time.Second)
 		if !finished {
-			t.Errorf("%s: Parse did not return within 10s", name)
+			t.Errorf("%s: Parse went over its 10s CPU budget or did not return", name)
 		} else if len(AllErrors(err)) == 0 || hasNestingError(err) {
 			t.Errorf("%s: err = %v, want a syntax error", name, err)
 		}

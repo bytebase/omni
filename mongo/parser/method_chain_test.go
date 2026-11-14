@@ -1,10 +1,12 @@
 package parser
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/bytebase/omni/enginetest/cputime"
 	"github.com/bytebase/omni/mongo/ast"
 )
 
@@ -32,33 +34,24 @@ func TestMethodChainsStayLinear(t *testing.T) {
 			return s.Args[0]
 		}},
 	} {
-		type result struct {
-			nodes []ast.Node
-			err   error
+		var nodes []ast.Node
+		var err error
+		cputime.Within(t, 2*time.Second, fmt.Sprintf("%s: Parse through %d chained calls", tc.name, steps), func() {
+			nodes, err = Parse(tc.input)
+		})
+		if err != nil {
+			t.Fatalf("%s: %v", tc.name, err)
 		}
-		done := make(chan result, 1)
-		go func() {
-			nodes, err := Parse(tc.input)
-			done <- result{nodes, err}
-		}()
-		select {
-		case r := <-done:
-			if r.err != nil {
-				t.Fatalf("%s: %v", tc.name, r.err)
-			}
-			call, ok := tc.value(r.nodes[0].(*ast.CollectionStatement)).(*ast.HelperCall)
-			if !ok {
-				t.Fatalf("%s: value is not a HelperCall", tc.name)
-			}
-			wantName := tc.root + strings.Repeat(".f", steps-1) + ".g"
-			if call.Name != wantName || len(call.Args) != 2 {
-				t.Errorf("%s: name of %d bytes with %d args, want %d bytes with 2", tc.name, len(call.Name), len(call.Args), len(wantName))
-			}
-			if got := tc.input[call.Loc.Start:call.Loc.End]; !strings.HasPrefix(got, tc.root) || !strings.HasSuffix(got, ".g(1, 2)") {
-				t.Errorf("%s: call spans %q...%q", tc.name, got[:10], got[len(got)-10:])
-			}
-		case <-time.After(2 * time.Second):
-			t.Fatalf("%s: Parse through %d chained calls took over 2s", tc.name, steps)
+		call, ok := tc.value(nodes[0].(*ast.CollectionStatement)).(*ast.HelperCall)
+		if !ok {
+			t.Fatalf("%s: value is not a HelperCall", tc.name)
+		}
+		wantName := tc.root + strings.Repeat(".f", steps-1) + ".g"
+		if call.Name != wantName || len(call.Args) != 2 {
+			t.Errorf("%s: name of %d bytes with %d args, want %d bytes with 2", tc.name, len(call.Name), len(call.Args), len(wantName))
+		}
+		if got := tc.input[call.Loc.Start:call.Loc.End]; !strings.HasPrefix(got, tc.root) || !strings.HasSuffix(got, ".g(1, 2)") {
+			t.Errorf("%s: call spans %q...%q", tc.name, got[:10], got[len(got)-10:])
 		}
 	}
 }

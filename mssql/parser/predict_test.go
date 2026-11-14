@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bytebase/omni/enginetest/cputime"
 	"github.com/bytebase/omni/mssql/ast"
 )
 
@@ -20,16 +21,7 @@ import (
 func TestPredictWithListMakesProgress(t *testing.T) {
 	within := func(what string, fn func()) {
 		t.Helper()
-		done := make(chan struct{})
-		go func() {
-			defer close(done)
-			fn()
-		}()
-		select {
-		case <-done:
-		case <-time.After(10 * time.Second):
-			t.Fatalf("%s: no result within 10s", what)
-		}
+		cputime.Within(t, 10*time.Second, what, fn)
 	}
 	for _, sql := range []string{
 		"SELECT * FROM PREDICT (MODEL = @model, DATA = dbo.mytable AS d) WITH (Score FLOAT, Label NVARCHAR(10)) AS p",

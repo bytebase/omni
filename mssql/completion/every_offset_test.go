@@ -1,9 +1,11 @@
 package completion
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
+	"github.com/bytebase/omni/enginetest/cputime"
 	"github.com/bytebase/omni/mssql/parser"
 )
 
@@ -40,18 +42,11 @@ var tableSourceForms = []string{
 func TestCompletionFinishesAtEveryOffset(t *testing.T) {
 	for _, sql := range tableSourceForms {
 		for off := 0; off <= len(sql); off++ {
-			done := make(chan struct{})
-			go func() {
-				defer close(done)
+			cputime.Within(t, 10*time.Second, fmt.Sprintf("completion at %q|%q", sql[:off], sql[off:]), func() {
 				Complete(sql, off, nil)
 				Complete(sql[:off], off, nil)
 				parser.CollectCompletion(sql, off)
-			}()
-			select {
-			case <-done:
-			case <-time.After(10 * time.Second):
-				t.Fatalf("completion at %q|%q: no result within 10s", sql[:off], sql[off:])
-			}
+			})
 		}
 	}
 }

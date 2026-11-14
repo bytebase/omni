@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/bytebase/omni/enginetest/cputime"
 )
 
 // numberedList joins format for i = 1..n with sep, every verb given i.
@@ -26,25 +28,15 @@ func numberedList(n int, format, sep string) string {
 // longer than limit.
 func querySpanWithin(t *testing.T, sql string, limit time.Duration) *QuerySpan {
 	t.Helper()
-	type result struct {
-		span *QuerySpan
-		err  error
+	var span *QuerySpan
+	var err error
+	cputime.Within(t, limit, "GetQuerySpan", func() {
+		span, err = GetQuerySpan(sql, DialectBigQuery)
+	})
+	if err != nil {
+		t.Fatalf("GetQuerySpan: %v", err)
 	}
-	done := make(chan result, 1)
-	go func() {
-		span, err := GetQuerySpan(sql, DialectBigQuery)
-		done <- result{span, err}
-	}()
-	select {
-	case r := <-done:
-		if r.err != nil {
-			t.Fatalf("GetQuerySpan: %v", r.err)
-		}
-		return r.span
-	case <-time.After(limit):
-		t.Fatalf("GetQuerySpan took over %v", limit)
-	}
-	return nil
+	return span
 }
 
 // TestQuerySpanWideListsStayLinear guards the wide lists GetQuerySpan

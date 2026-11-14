@@ -2,10 +2,12 @@ package parser
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/bytebase/omni/enginetest/cputime"
 	nodes "github.com/bytebase/omni/oracle/ast"
 )
 
@@ -22,21 +24,22 @@ func setNestingLimit(t *testing.T, limit int) {
 	t.Cleanup(func() { maxNestingDepth = saved })
 }
 
-// parseWithin parses sql and fails when that takes over ten seconds, so a
-// speculative parse that retried at every level past the limit fails the
-// test instead of hanging it.
+// parseWithin parses sql and fails when that uses over ten seconds of CPU
+// time, so a speculative parse that retried at every level past the limit
+// fails the test instead of hanging it.
 func parseWithin(sql string) error {
-	parsed := make(chan error, 1)
-	go func() {
-		_, err := Parse(sql)
-		parsed <- err
-	}()
-	select {
-	case err := <-parsed:
-		return err
-	case <-time.After(10 * time.Second):
-		return errors.New("Parse took over 10s")
+	const budget = 10 * time.Second
+	var err error
+	used, done := cputime.Run(cputime.Hang(budget), func() {
+		_, err = Parse(sql)
+	})
+	if !done {
+		return fmt.Errorf("Parse had not returned after %v", cputime.Hang(budget))
 	}
+	if used > budget {
+		return fmt.Errorf("Parse used %v of CPU time, over its %v budget", used, budget)
+	}
+	return err
 }
 
 // isNestingError reports whether err is the nesting error, which a lexical

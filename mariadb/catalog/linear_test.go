@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bytebase/omni/enginetest/cputime"
 	nodes "github.com/bytebase/omni/mariadb/ast"
 	mysqlparser "github.com/bytebase/omni/mariadb/parser"
 )
@@ -41,41 +42,35 @@ func TestLongChainViewsStayLinear(t *testing.T) {
 		if _, err := c.Exec("CREATE DATABASE db; USE db; CREATE TABLE t (a INT)", nil); err != nil {
 			t.Fatal(err)
 		}
-		type result struct {
+		var (
 			view     *View
 			deparsed string
 			err      error
-		}
-		done := make(chan result, 1)
-		go func() {
-			results, err := c.Exec("CREATE VIEW v AS "+tc.sql, nil)
+		)
+		cputime.Within(t, 10*time.Second, fmt.Sprintf("%s: CREATE VIEW and DeparseQuery over a %d-term chain", tc.name, n), func() {
+			var results []ExecResult
+			results, err = c.Exec("CREATE VIEW v AS "+tc.sql, nil)
 			if err == nil && len(results) == 1 {
 				err = results[0].Error
 			}
 			if err != nil {
-				done <- result{err: err}
 				return
 			}
 			v := c.GetDatabase("db").Views["v"]
 			if v.AnalyzedQuery == nil {
-				done <- result{err: fmt.Errorf("view has no analyzed query")}
+				err = fmt.Errorf("view has no analyzed query")
 				return
 			}
-			done <- result{view: v, deparsed: DeparseQuery(v.AnalyzedQuery)}
-		}()
-		select {
-		case r := <-done:
-			if r.err != nil {
-				t.Fatalf("%s: %v", tc.name, r.err)
-			}
-			if got := strings.Count(r.view.Definition, tc.defMarker); got != n-1 {
-				t.Errorf("%s: view definition holds %q %d times, want %d", tc.name, tc.defMarker, got, n-1)
-			}
-			if got := strings.Count(r.deparsed, tc.queryMarker); got != n-1 {
-				t.Errorf("%s: DeparseQuery holds %q %d times, want %d", tc.name, tc.queryMarker, got, n-1)
-			}
-		case <-time.After(10 * time.Second):
-			t.Fatalf("%s: CREATE VIEW and DeparseQuery over a %d-term chain took over 10s", tc.name, n)
+			view, deparsed = v, DeparseQuery(v.AnalyzedQuery)
+		})
+		if err != nil {
+			t.Fatalf("%s: %v", tc.name, err)
+		}
+		if got := strings.Count(view.Definition, tc.defMarker); got != n-1 {
+			t.Errorf("%s: view definition holds %q %d times, want %d", tc.name, tc.defMarker, got, n-1)
+		}
+		if got := strings.Count(deparsed, tc.queryMarker); got != n-1 {
+			t.Errorf("%s: DeparseQuery holds %q %d times, want %d", tc.name, tc.queryMarker, got, n-1)
 		}
 	}
 }
@@ -183,15 +178,12 @@ func TestGeneratedColumnChecksStayLinear(t *testing.T) {
 		tbl.colByName[toLower(col.Name)] = len(tbl.Columns)
 		tbl.Columns = append(tbl.Columns, col)
 	}
-	done := make(chan error, 1)
-	go func() { done <- validateMaterializedGeneratedColumns(tbl, nil) }()
-	select {
-	case err := <-done:
-		if err != nil {
-			t.Fatalf("a chain of %d generated columns: %v", n, err)
-		}
-	case <-time.After(5 * time.Second):
-		t.Fatalf("checking a chain of %d generated columns took over 5s", n)
+	var err error
+	cputime.Within(t, 5*time.Second, fmt.Sprintf("checking a chain of %d generated columns", n), func() {
+		err = validateMaterializedGeneratedColumns(tbl, nil)
+	})
+	if err != nil {
+		t.Fatalf("a chain of %d generated columns: %v", n, err)
 	}
 }
 
@@ -236,15 +228,12 @@ func TestShowCreateTableStaysLinear(t *testing.T) {
 			}
 		}
 		db.Tables["t"] = tbl
-		done := make(chan string, 1)
-		go func() { done <- c.ShowCreateTable("d", "t") }()
-		select {
-		case out := <-done:
-			if got := strings.Count(out, "int(11)"); got != n {
-				t.Errorf("%s: wrote %d columns, want %d", tc.name, got, n)
-			}
-		case <-time.After(5 * time.Second):
-			t.Fatalf("%s: writing a table of %d columns took over 5s", tc.name, n)
+		var out string
+		cputime.Within(t, 5*time.Second, fmt.Sprintf("%s: writing a table of %d columns", tc.name, n), func() {
+			out = c.ShowCreateTable("d", "t")
+		})
+		if got := strings.Count(out, "int(11)"); got != n {
+			t.Errorf("%s: wrote %d columns, want %d", tc.name, got, n)
 		}
 	}
 }
@@ -266,32 +255,26 @@ func TestUnnamedCheckNamesStayLinear(t *testing.T) {
 		if _, err := c.Exec("CREATE DATABASE d; USE d;", nil); err != nil {
 			t.Fatalf("%s: setup: %v", tc.name, err)
 		}
-		done := make(chan error, 1)
-		go func() {
-			results, err := c.Exec(tc.ddl, nil)
+		var err error
+		cputime.Within(t, 5*time.Second, fmt.Sprintf("%s: a table of %d unnamed checks", tc.name, n), func() {
+			var results []ExecResult
+			results, err = c.Exec(tc.ddl, nil)
 			if err != nil {
-				done <- err
 				return
 			}
 			for _, r := range results {
 				if r.Error != nil {
-					done <- r.Error
+					err = r.Error
 					return
 				}
 			}
-			done <- nil
-		}()
-		select {
-		case err := <-done:
-			if err != nil {
-				t.Fatalf("%s: %v", tc.name, err)
-			}
-			tbl := c.GetDatabase("d").GetTable("t")
-			if got := len(tbl.Constraints); got != n {
-				t.Errorf("%s: table holds %d constraints, want %d", tc.name, got, n)
-			}
-		case <-time.After(5 * time.Second):
-			t.Fatalf("%s: a table of %d unnamed checks took over 5s", tc.name, n)
+		})
+		if err != nil {
+			t.Fatalf("%s: %v", tc.name, err)
+		}
+		tbl := c.GetDatabase("d").GetTable("t")
+		if got := len(tbl.Constraints); got != n {
+			t.Errorf("%s: table holds %d constraints, want %d", tc.name, got, n)
 		}
 		if _, err := c.Exec("DROP TABLE t;", nil); err != nil {
 			t.Fatalf("%s: drop: %v", tc.name, err)

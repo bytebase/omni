@@ -2,10 +2,13 @@ package parser
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/bytebase/omni/enginetest/cputime"
 )
 
 // raiseNestingLimit lifts maxNestingDepth, and maxTreeHeight with it, for a
@@ -36,19 +39,12 @@ func isNestingError(err error) bool {
 // return instead of failing.
 func parseWithin(t *testing.T, name string, sql string) error {
 	t.Helper()
-	done := make(chan error, 1)
-	go func() {
-		_, err := Parse(sql)
+	var err error
+	cputime.Within(t, 10*time.Second, fmt.Sprintf("%s: Parse and ParseBestEffort of %d bytes", name, len(sql)), func() {
+		_, err = Parse(sql)
 		ParseBestEffort(sql)
-		done <- err
-	}()
-	select {
-	case err := <-done:
-		return err
-	case <-time.After(10 * time.Second):
-		t.Fatalf("%s: Parse and ParseBestEffort of %d bytes took over 10s", name, len(sql))
-		return nil
-	}
+	})
+	return err
 }
 
 func nest(n int, open, mid, closing string) string {

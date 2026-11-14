@@ -7,6 +7,7 @@ import (
 	"time"
 
 	es "github.com/bytebase/omni/elasticsearch"
+	"github.com/bytebase/omni/enginetest/cputime"
 )
 
 // entryPoint is one public function of the package that parses a script.
@@ -32,38 +33,28 @@ func countRequests(r *es.ParseResult) int {
 }
 
 // runWithin calls each entry point on text in a goroutine and fails the test
-// when they take longer than limit together, so that a regression fails the
+// when they use more than limit of CPU time together, so that a regression fails the
 // test instead of hanging it. It returns what each entry point counted: the
 // requests, statements, diagnostics or ranges it returned.
 func runWithin(t *testing.T, name, text string, limit time.Duration, entries ...entryPoint) map[string]int {
 	t.Helper()
-	type result struct {
-		counts map[string]int
-		err    error
-	}
-	done := make(chan result, 1)
-	go func() {
-		counts := map[string]int{}
+	var counts map[string]int
+	var err error
+	cputime.Within(t, limit, fmt.Sprintf("%s: the entry points on %d bytes", name, len(text)), func() {
+		counts = map[string]int{}
 		for _, e := range entries {
-			n, err := e.call(text)
-			if err != nil {
-				done <- result{err: fmt.Errorf("%s: %w", e.name, err)}
+			n, callErr := e.call(text)
+			if callErr != nil {
+				err = fmt.Errorf("%s: %w", e.name, callErr)
 				return
 			}
 			counts[e.name] = n
 		}
-		done <- result{counts: counts}
-	}()
-	select {
-	case r := <-done:
-		if r.err != nil {
-			t.Fatalf("%s: %v", name, r.err)
-		}
-		return r.counts
-	case <-time.After(limit):
-		t.Fatalf("%s: the entry points took over %v on %d bytes", name, limit, len(text))
-		return nil
+	})
+	if err != nil {
+		t.Fatalf("%s: %v", name, err)
 	}
+	return counts
 }
 
 // TestRequestBodiesStayLinear guards the strings built while a request is

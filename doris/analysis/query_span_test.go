@@ -1,12 +1,14 @@
 package analysis
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/bytebase/omni/doris/parser"
+	"github.com/bytebase/omni/enginetest/cputime"
 )
 
 // tableSig is a compact form of TableAccess used for order-insensitive
@@ -858,18 +860,12 @@ func TestGetQuerySpanNestedSubqueriesStayLinear(t *testing.T) {
 		{"IN", nest("SELECT a FROM t", "SELECT a FROM t WHERE a IN (?)")},
 		{"WITH", "SELECT * FROM (" + nest("SELECT * FROM t", "WITH c AS (?) SELECT * FROM c, t") + ") x"},
 	} {
-		done := make(chan error, 1)
-		go func() {
-			_, err := GetQuerySpan(tc.sql)
-			done <- err
-		}()
-		select {
-		case err := <-done:
-			if err != nil {
-				t.Fatalf("%s: GetQuerySpan error = %v", tc.name, err)
-			}
-		case <-time.After(2 * time.Second):
-			t.Fatalf("%s: GetQuerySpan through %d nested subqueries took over 2s", tc.name, depth)
+		var err error
+		cputime.Within(t, 2*time.Second, fmt.Sprintf("%s: GetQuerySpan through %d nested subqueries", tc.name, depth), func() {
+			_, err = GetQuerySpan(tc.sql)
+		})
+		if err != nil {
+			t.Fatalf("%s: GetQuerySpan error = %v", tc.name, err)
 		}
 	}
 }
@@ -878,25 +874,15 @@ func TestGetQuerySpanNestedSubqueriesStayLinear(t *testing.T) {
 // fails the test instead of hanging it.
 func spanWithin(t *testing.T, name, sql string) *QuerySpan {
 	t.Helper()
-	type result struct {
-		span *QuerySpan
-		err  error
+	var span *QuerySpan
+	var err error
+	cputime.Within(t, 5*time.Second, fmt.Sprintf("%s: GetQuerySpan", name), func() {
+		span, err = GetQuerySpan(sql)
+	})
+	if err != nil {
+		t.Fatalf("%s: GetQuerySpan error = %v", name, err)
 	}
-	done := make(chan result, 1)
-	go func() {
-		span, err := GetQuerySpan(sql)
-		done <- result{span, err}
-	}()
-	select {
-	case r := <-done:
-		if r.err != nil {
-			t.Fatalf("%s: GetQuerySpan error = %v", name, r.err)
-		}
-		return r.span
-	case <-time.After(5 * time.Second):
-		t.Fatalf("%s: GetQuerySpan took over 5s", name)
-		return nil
-	}
+	return span
 }
 
 // TestGetQuerySpanSetOpChainsStayLinear: a set operation installs the WITH

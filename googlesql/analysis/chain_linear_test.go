@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/bytebase/omni/enginetest/cputime"
 )
 
 // TestAnalysisChainsStayLinear guards the left-deep chains the parser builds
@@ -52,26 +54,19 @@ func TestAnalysisChainsStayLinear(t *testing.T) {
 		{name: "UNION ALL BY NAME", sql: "SELECT a FROM t0" + numbered(arms, " UNION ALL BY NAME SELECT a FROM t%d")},
 		{name: "sum", sql: "SELECT a0" + numbered(arms, " + a%d") + " FROM t"},
 	} {
-		done := make(chan error, 1)
-		go func() {
+		var err error
+		cputime.Within(t, 2*time.Second, fmt.Sprintf("%s: ClassifySQL and GetQuerySpan", tc.name), func() {
 			if got := ClassifySQL(tc.sql, DialectBigQuery); got != Select {
-				done <- fmt.Errorf("ClassifySQL = %v, want %v", got, Select)
+				err = fmt.Errorf("ClassifySQL = %v, want %v", got, Select)
 				return
 			}
 			if tc.classifyOnly {
-				done <- nil
 				return
 			}
-			_, err := GetQuerySpan(tc.sql, DialectBigQuery)
-			done <- err
-		}()
-		select {
-		case err := <-done:
-			if err != nil {
-				t.Fatalf("%s: %v", tc.name, err)
-			}
-		case <-time.After(2 * time.Second):
-			t.Fatalf("%s: ClassifySQL and GetQuerySpan took over 2s", tc.name)
+			_, err = GetQuerySpan(tc.sql, DialectBigQuery)
+		})
+		if err != nil {
+			t.Fatalf("%s: %v", tc.name, err)
 		}
 	}
 }

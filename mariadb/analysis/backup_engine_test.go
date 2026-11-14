@@ -434,7 +434,7 @@ func TestBackupRestoreRoundTrip(t *testing.T) {
 	}
 	rowsOf := func(table string) []string {
 		database, table := name(table)
-		return tableRows(t, db, database, table)
+		return tableRows(t, db, database, table, false)
 	}
 	for _, rt := range roundTrips {
 		runScript(t, db, rt.setup)
@@ -460,7 +460,7 @@ func TestBackupRestoreRoundTrip(t *testing.T) {
 		runScript(t, db, rt.script)
 		sourceDatabase, sourceTable := name(rt.tables[0])
 		require.Equal(t, sourceTable, backups[0].SourceTable, rt.name)
-		require.NotEqual(t, before[0], tableRows(t, db, sourceDatabase, sourceTable), rt.name)
+		require.NotEqual(t, before[0], tableRows(t, db, sourceDatabase, sourceTable, true), rt.name)
 
 		restored, err := restoreSQL(t, rt.script, sourceDatabase, database, backups[0], catalog)
 		if rt.restoreErr != "" {
@@ -535,15 +535,21 @@ func quote(name string) string { return "`" + strings.ReplaceAll(name, "`", "``"
 
 // tableRows returns every row of database.table, ordered, as text. It names
 // every column, as SELECT * leaves invisible ones out.
-func tableRows(t *testing.T, db *sql.DB, database, table string) []string {
+// With skipStamps, a column the server sets ON UPDATE reads as "-": its
+// value is the clock's, which no recording repeats.
+func tableRows(t *testing.T, db *sql.DB, database, table string, skipStamps bool) []string {
 	t.Helper()
 	var columns, positions []string
-	rows, err := db.Query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION", database, table)
+	rows, err := db.Query("SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION", database, table)
 	require.NoError(t, err)
 	for rows.Next() {
-		var column string
-		require.NoError(t, rows.Scan(&column))
-		columns = append(columns, quote(column))
+		var column, extra string
+		require.NoError(t, rows.Scan(&column, &extra))
+		if skipStamps && strings.Contains(strings.ToLower(extra), "on update") {
+			columns = append(columns, "'-'")
+		} else {
+			columns = append(columns, quote(column))
+		}
 		positions = append(positions, fmt.Sprint(len(columns)))
 	}
 	require.NoError(t, rows.Close())

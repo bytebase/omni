@@ -1,12 +1,15 @@
 package analysis
 
 import (
+	"fmt"
 	"reflect"
 	"slices"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/bytebase/omni/enginetest/cputime"
 )
 
 // TestScopeIndexMatchesScan: a scope large enough looks its relations and
@@ -553,29 +556,20 @@ func TestGetQuerySpanValuesStayLinear(t *testing.T) {
 		{"set operation arm", "SELECT x FROM t UNION ALL VALUES " + a, [][]ColumnRef{refs("x", "a")}},
 		{"scalar subquery", "SELECT (SELECT max(x) FROM (VALUES " + a + ") v(x)) AS m", [][]ColumnRef{refs("x", "a")}},
 	} {
-		type result struct {
-			span *QuerySpan
-			err  error
+		var span *QuerySpan
+		var err error
+		cputime.Within(t, 2*time.Second, fmt.Sprintf("%s: GetQuerySpan of %d VALUES rows", tc.name, n), func() {
+			span, err = GetQuerySpan(tc.sql)
+		})
+		if err != nil {
+			t.Fatalf("%s: GetQuerySpan error = %v", tc.name, err)
 		}
-		done := make(chan result, 1)
-		go func() {
-			span, err := GetQuerySpan(tc.sql)
-			done <- result{span, err}
-		}()
-		select {
-		case r := <-done:
-			if r.err != nil {
-				t.Fatalf("%s: GetQuerySpan error = %v", tc.name, r.err)
-			}
-			var got [][]ColumnRef
-			for _, c := range r.span.Results {
-				got = append(got, c.SourceColumns)
-			}
-			if !reflect.DeepEqual(got, tc.want) {
-				t.Errorf("%s: the lineage of the result columns is not every row's refs in order", tc.name)
-			}
-		case <-time.After(2 * time.Second):
-			t.Fatalf("%s: GetQuerySpan of %d VALUES rows took over 2s", tc.name, n)
+		var got [][]ColumnRef
+		for _, c := range span.Results {
+			got = append(got, c.SourceColumns)
+		}
+		if !reflect.DeepEqual(got, tc.want) {
+			t.Errorf("%s: the lineage of the result columns is not every row's refs in order", tc.name)
 		}
 	}
 }
