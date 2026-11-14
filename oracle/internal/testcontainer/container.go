@@ -408,7 +408,8 @@ func Terminate() {
 // Codec renders go-ora's *network.OracleError as "<code> <message>": the
 // ORA- number, and the error's text without the position go-ora appends.
 // It is also the Renamer of the names Oracle makes up, which differ on
-// every run: a constraint's or an index's SYS_C, a LOB segment's and its
+// every run: a constraint's or an index's SYS_C, a materialized view's
+// constraint's SYS_C_SNAP$_, a LOB segment's and its
 // index's SYS_LOB and SYS_IL, an identity column's sequence ISEQ$$_.
 type Codec struct{}
 
@@ -431,7 +432,7 @@ func (Codec) DecodeError(text string) error {
 	return oe
 }
 
-var madeUp = regexp.MustCompile(`SYS_C\d{6,}|SYS_(?:LOB|IL)\d{10}C\d{5}\$\$|ISEQ\$\$_\d+`)
+var madeUp = regexp.MustCompile(`SYS_C\d{6,}|SYS_C_SNAP\$_\d+|SYS_(?:LOB|IL)\d{10}C\d{5}\$\$|ISEQ\$\$_\d+`)
 
 // MadeUp matches a name Oracle made up.
 func (Codec) MadeUp() *regexp.Regexp { return madeUp }
@@ -440,6 +441,8 @@ func (Codec) MadeUp() *regexp.Regexp { return madeUp }
 // from 9 million, which Oracle reaches on no server a test starts.
 func (Codec) StandIn(name string, n int) string {
 	switch {
+	case strings.HasPrefix(name, "SYS_C_SNAP$_"):
+		return fmt.Sprintf("SYS_C_SNAP$_9%06d", n)
 	case strings.HasPrefix(name, "SYS_C"):
 		return fmt.Sprintf("SYS_C9%06d", n)
 	case strings.HasPrefix(name, "ISEQ$$_"):

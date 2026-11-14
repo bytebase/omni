@@ -535,7 +535,9 @@ func leads(text, keywords string) bool {
 // indexes and triggers by their name, with the table they are on. Public
 // synonyms are listed by the names in :3, those the change holds, since
 // Oracle ships tens of thousands. A name Oracle generates is left out:
-// the walk never claims one (generated), and it differs on every run. An
+// the walk never claims one (generated), and it differs on every run, and
+// so is what a table of such a name holds, as a dropped table's columns in
+// the recycle bin. An
 // object of type 10 (NON-EXISTENT) is a placeholder for a name a
 // dependency missed. :1, :2 and :3 are written in as literals: SQL binds a
 // placeholder by its position, each time it stands.
@@ -557,7 +559,8 @@ UNION ALL SELECT 'constraint', owner, table_name, constraint_name, owner FROM db
 UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN (:1, :2)
 UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN (:1, :2)
 UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN (:1, :2)
-) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+  AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 ORDER BY s, o, tbl, n, k`
 
 // identifierWord is a word of a change that may be a name, quoted or not.
