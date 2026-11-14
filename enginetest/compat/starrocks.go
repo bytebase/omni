@@ -1,9 +1,6 @@
 package compat
 
-import (
-	"fmt"
-	"strings"
-)
+import "fmt"
 
 // StarRocksProbe is the statement a StarRocks judge sends first, in the
 // same request as the statement it asks about: StarRocksProbe + ";\n" +
@@ -18,8 +15,9 @@ const StarRocksProbe = "SELECT omni_compat_probe()"
 //
 // StarRocks parses a request whole, building every statement's AST, before
 // it runs the first, and stops at the first that fails. So the probe's own
-// error ("No matching function with signature: omni_compat_probe()") is an
-// acceptance, and nothing of the statement runs. Every other error the
+// error, word for word, is an acceptance, and nothing of the statement runs.
+// The whole message is matched, not the probe's name, which a statement may
+// hold and a syntax error quote. Every other error the
 // server sends came from the parse, and is a rejection: a syntax error
 // ("Getting syntax error at line 2, column 10"), and what the AST builder
 // refuses or fails on ("not support.", a ClassCastException's message).
@@ -35,11 +33,12 @@ func StarRocksVerdict(err error, message func(error) (string, bool)) (string, er
 	if !ok {
 		return "", err
 	}
-	if strings.Contains(msg, starRocksProbeName) {
+	if msg == starRocksProbeError {
 		return Accept, nil
 	}
 	return Reject, nil
 }
 
-// starRocksProbeName is what the probe's error names.
-const starRocksProbeName = "omni_compat_probe"
+// starRocksProbeError is StarRocks's answer to StarRocksProbe, at the start
+// of a request.
+const starRocksProbeError = "Getting analyzing error from line 1, column 7 to line 1, column 25. Detail message: No matching function with signature: omni_compat_probe()."
