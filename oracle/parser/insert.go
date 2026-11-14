@@ -267,12 +267,12 @@ func (p *Parser) parseInsertStmt() (*nodes.InsertStmt, error) {
 	case p.cur.Type == kwSELECT || p.cur.Type == kwWITH || p.cur.Type == '(':
 		var parseErr783 error
 		stmt.Select, parseErr783 = p.parseSelectStmt()
-		if parseErr783 !=
-
-			// RETURNING / RETURN clause
-			nil {
+		if parseErr783 != nil {
 			return nil, parseErr783
 		}
+	default:
+		// The rows to insert: VALUES, a subquery, SET or BY (ORA-00926).
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	if returns && (p.cur.Type == kwRETURNING || p.cur.Type == kwRETURN) {
@@ -621,14 +621,6 @@ func (p *Parser) parseErrorLogClause() (*nodes.ErrorLogClause, error) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		p.advance()
-		// Oracle 23ai answers REJECT LIMIT at the end of the text with
-		// ORA-30645 at the end, which compat.OracleVerdict, deciding an
-		// answer at the end by its code, records as an acceptance; omni
-		// keeps accepting it until that row is judged again.
-		if p.cur.Type == tokEOF {
-			elc.Loc.End = p.prev.End
-			return elc, nil
-		}
 		if p.cur.Type != tokICONST && !p.isKeywordStr("UNLIMITED") {
 			return nil, p.syntaxErrorAtCur()
 		}

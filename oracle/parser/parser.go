@@ -35,6 +35,14 @@ type Parser struct {
 	// does Oracle take an index_compression (COMPRESS n, COMPRESS ADVANCED).
 	createTableIndexOrganized bool
 
+	// createTableEngineCheck is set while CREATE TABLE is parsed once a
+	// clause Oracle checks against the table before it asks for a missing
+	// column list has been read: enable_disable_clause (ORA-02432),
+	// ILM DELETE_ALL, ENABLE_ALL or DISABLE_ALL (ORA-38346), DEFAULT
+	// COLLATION (ORA-43929) and PARENT (ORA-02523). Those are the engine's
+	// answers, not syntax, and omni leaves them to it.
+	createTableEngineCheck bool
+
 	// caseKinds tells, for each CASE token from the first one parsePrimary
 	// met to the end of the range, whether it opens a CASE expression (true)
 	// or names a column (false). decideCaseTokens fills it in one pass.
@@ -62,8 +70,8 @@ type Parser struct {
 	iterandAfter Token
 
 	// scalarParen is set while a value that is one expression, not a list,
-	// is parsed where it may open with '(': a PIVOT IN value for one FOR
-	// column. parseParenExpr takes it for its own parentheses alone and
+	// is parsed where it may open with '(': a PIVOT IN value or an UNPIVOT
+	// label for one FOR column. parseParenExpr takes it for its own parentheses alone and
 	// fails at the ',' of a list or the ')' of an empty pair, where Oracle
 	// 23ai does (ORA-00907, ORA-00936).
 	scalarParen bool

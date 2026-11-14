@@ -29,8 +29,9 @@ type objectForm struct {
 	// orReplace and orAlter report whether CREATE OR REPLACE and CREATE OR
 	// ALTER are documented for the object.
 	orReplace, orAlter bool
-	// drop reports whether DROP <kind> [ IF EXISTS ] <name> is documented.
-	drop bool
+	// drop reports whether DROP <kind> [ IF EXISTS ] <name> is documented,
+	// and dropCascade whether a CASCADE may follow the name.
+	drop, dropCascade bool
 	// nameParts is how many parts the object's name may have: 1 for an
 	// account-level object (a compute pool), 2 for one a database qualifies,
 	// 0 for a schema object, which db.schema.name may qualify.
@@ -39,6 +40,9 @@ type objectForm struct {
 	// CREATE ... IF NOT EXISTS or ALTER ... IF EXISTS, and dropNoIfExists where
 	// its DROP page writes no IF EXISTS.
 	noIfNotExists, noIfExists, dropNoIfExists bool
+	// alterNoName is set where ALTER <kind> names no object (ALTER
+	// ORGANIZATION, ALTER ORGANIZATION ACCOUNT); the statement's Name is nil.
+	alterNoName bool
 	// props, when set, are the properties the page documents and the value
 	// each takes. parseObjectStmt then rejects a property of a CREATE's run
 	// or a SET that props does not name or whose value has another shape,
@@ -163,11 +167,13 @@ func (p *Parser) parseObjectStmt(verb string, f *objectForm, start ast.Loc, orRe
 			return nil, err
 		}
 	}
-	name, err := p.parseFormName(f)
-	if err != nil {
-		return nil, err
+	if verb != "ALTER" || !f.alterNoName {
+		name, err := p.parseFormName(f)
+		if err != nil {
+			return nil, err
+		}
+		s.Name = name
 	}
-	s.Name = name
 	if err := read(p, s); err != nil {
 		return nil, err
 	}
@@ -243,19 +249,20 @@ func (p *Parser) checkFormNameParts(f *objectForm, name *ast.ObjectName) (*ast.O
 // objectValue is the shape of value a documented property takes.
 type objectValue struct {
 	kind  objectValueKind
-	words []string // for valWord: the keywords it may be, uppercased; nil takes any name
+	words []string // valWord: the keywords it may be, uppercased (nil takes any name); valStringOr: those besides a string
 }
 
 type objectValueKind int
 
 const (
-	valNumber  objectValueKind = iota + 1 // <num>, optionally signed
-	valString                             // '<string>'
-	valWord                               // a one-part name, or one of words
-	valQName                              // a name db.schema.name may qualify
-	valStrings                            // ( '<string>' [ , ... ] )
-	valNames                              // ( <name> [ , ... ] )
-	valGroup                              // ( <key> = <value> [ , ... ] ), as the page spells it
+	valNumber   objectValueKind = iota + 1 // <num>, optionally signed
+	valString                              // '<string>'
+	valWord                                // a one-part name, or one of words
+	valQName                               // a name db.schema.name may qualify
+	valStrings                             // ( '<string>' [ , ... ] )
+	valNames                               // ( <name> [ , ... ] )
+	valGroup                               // ( <key> = <value> [ , ... ] ), as the page spells it
+	valStringOr                            // '<string>', or one of words
 )
 
 // objectProps maps a documented property's name to its value's shape.
@@ -274,6 +281,10 @@ var (
 
 // propOneOf is a property whose value is one of words.
 func propOneOf(words ...string) objectValue { return objectValue{kind: valWord, words: words} }
+
+// propStringOr is a property whose value is a '<string>' or one of words, as
+// EVENT_TABLE = { '<name>' | NONE }.
+func propStringOr(words ...string) objectValue { return objectValue{kind: valStringOr, words: words} }
 
 // checkClauses holds a statement's property runs, SETs and UNSETs to f's
 // documented properties.
@@ -336,6 +347,16 @@ func (v objectValue) matches(o *ast.CopyOption) bool {
 			return false
 		}
 		if v.words == nil {
+			return true
+		}
+		for _, w := range v.words {
+			if o.Words == w {
+				return true
+			}
+		}
+		return false
+	case valStringOr:
+		if o.Lit != nil && o.Lit.Kind == ast.LitString {
 			return true
 		}
 		for _, w := range v.words {

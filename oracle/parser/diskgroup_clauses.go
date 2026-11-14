@@ -107,13 +107,11 @@ func (p *Parser) parseAlterDiskgroupStmt(start int) (nodes.StmtNode, error) {
 			})
 		}
 	}
-	if !(stmt.Name != nil && len(opts.Items) == 0 && p.adbEndKept()) {
-		clauses, err := p.parseAlterDiskgroupClause()
-		if err != nil {
-			return nil, err
-		}
-		opts.Items = append(opts.Items, clauses...)
+	clauses, err := p.parseAlterDiskgroupClause()
+	if err != nil {
+		return nil, err
 	}
+	opts.Items = append(opts.Items, clauses...)
 	if len(opts.Items) > 0 {
 		stmt.Options = opts
 	}
@@ -198,18 +196,12 @@ func (p *Parser) parseDiskgroupAddDisk() error {
 		p.dgOptionalWord("QUORUM", "REGULAR")
 		if p.adbWord("FAILGROUP") {
 			p.advance()
-			if p.adbEndKept() {
-				return nil
-			}
 			if err := p.dgName(); err != nil {
 				return err
 			}
 		}
 		if err := p.adbExpect("DISK"); err != nil {
 			return err
-		}
-		if p.adbEndKept() {
-			return nil
 		}
 		err := p.dgList(func() error {
 			if err := p.dgString(); err != nil {
@@ -253,9 +245,6 @@ func (p *Parser) parseDiskgroupDropDisk() error {
 		p.dgOptionalWord("QUORUM", "REGULAR")
 		if err := p.adbExpect("FAILGROUP"); err != nil {
 			return err
-		}
-		if p.adbEndKept() {
-			return nil
 		}
 	} else if err := p.adbExpect("DISK"); err != nil {
 		return err
@@ -312,30 +301,20 @@ func (p *Parser) parseDiskgroupResize() error {
 
 // parseDiskgroupRebalance reads
 //
-//	REBALANCE [ { WITH | WITHOUT } phase [ [,] phase ]... ] [ [ MODIFY ] POWER [ integer ] ] [ WAIT | NOWAIT ]
+//	REBALANCE [ { WITH | WITHOUT } phase_list ] [ [ MODIFY ] POWER integer ] [ WAIT | NOWAIT ]
 //
-// WITH takes RESTORE, BALANCE, PREPARE and COMPACT; WITHOUT all but RESTORE.
+// Oracle reads the phase list (RESTORE, BALANCE, PREPARE, COMPACT) as the
+// text up to POWER, WAIT or NOWAIT and checks it after the parse: WITH BASIC
+// and WITH ( zzz pass its parser, failing only on the disk group (ORA-15260
+// here), while WITH BALANCE POWER zzz fails at zzz (ORA-15102).
 func (p *Parser) parseDiskgroupRebalance() error {
 	p.advance()
 	if p.cur.Type == kwWITH || p.adbWord("WITHOUT") {
-		with := p.cur.Type == kwWITH
 		p.advance()
-		isPhase := func() bool {
-			return with && p.adbWord("RESTORE") || p.adbWord("BALANCE") || p.adbWord("PREPARE") || p.adbWord("COMPACT")
-		}
-		if !isPhase() {
+		if p.adbEnd() {
 			return p.syntaxErrorAtCur()
 		}
-		p.advance()
-		for {
-			if p.cur.Type == ',' {
-				p.advance()
-				if !isPhase() {
-					return p.syntaxErrorAtCur()
-				}
-			} else if !isPhase() {
-				break
-			}
+		for !p.adbEnd() && !p.isDiskgroupRebalanceOptionStart() {
 			p.advance()
 		}
 	}
@@ -349,14 +328,20 @@ func (p *Parser) parseDiskgroupRebalance() error {
 		}
 	} else if p.adbWord("POWER") {
 		p.advance()
-		if p.cur.Type == tokICONST {
-			p.advance()
+		if _, err := p.adbInteger(); err != nil {
+			return err
 		}
 	}
 	if p.cur.Type == kwWAIT || p.cur.Type == kwNOWAIT {
 		p.advance()
 	}
 	return nil
+}
+
+// isDiskgroupRebalanceOptionStart reports whether the current token opens
+// what follows a rebalance's phase list: [ MODIFY ] POWER, WAIT or NOWAIT.
+func (p *Parser) isDiskgroupRebalanceOptionStart() bool {
+	return p.cur.Type == kwMODIFY || p.adbWord("POWER") || p.cur.Type == kwWAIT || p.cur.Type == kwNOWAIT
 }
 
 // parseDiskgroupOtherClause reads a clause of ALTER DISKGROUP other than
@@ -467,9 +452,6 @@ func (p *Parser) parseDiskgroupAdd() (string, error) {
 		return "ADD_TEMPLATE", p.parseDiskgroupTemplateAttributes("ATTRIBUTES")
 	case "DIRECTORY":
 		p.advance()
-		if p.adbEndKept() {
-			return "ADD_DIRECTORY", nil
-		}
 		return "ADD_DIRECTORY", p.dgList(p.dgString)
 	case "ALIAS":
 		p.advance()
@@ -481,9 +463,6 @@ func (p *Parser) parseDiskgroupAdd() (string, error) {
 				return p.syntaxErrorAtCur()
 			}
 			p.advance()
-			if p.adbEndKept() {
-				return nil
-			}
 			return p.dgString()
 		})
 	case "VOLUME":
@@ -514,9 +493,6 @@ func (p *Parser) parseDiskgroupAdd() (string, error) {
 		return "ADD_VOLUME", nil
 	case "USERGROUP":
 		p.advance()
-		if p.adbEndKept() {
-			return "ADD_USERGROUP", nil
-		}
 		if err := p.dgString(); err != nil {
 			return "", err
 		}
@@ -530,9 +506,6 @@ func (p *Parser) parseDiskgroupAdd() (string, error) {
 		return "ADD_USERGROUP", nil
 	case "USER":
 		p.advance()
-		if p.adbEndKept() {
-			return "ADD_USER", nil
-		}
 		return "ADD_USER", p.dgList(p.dgString)
 	case "QUOTAGROUP":
 		p.advance()
@@ -547,9 +520,6 @@ func (p *Parser) parseDiskgroupAdd() (string, error) {
 		p.advance()
 		if err := p.dgName(); err != nil {
 			return "", err
-		}
-		if p.adbEndKept() {
-			return "ADD_FILEGROUP", nil
 		}
 		switch {
 		case p.cur.Type == kwDATABASE, p.adbWord("CLUSTER"), p.adbWord("VOLUME"):
@@ -669,15 +639,9 @@ func (p *Parser) parseDiskgroupDrop() (string, error) {
 	switch word {
 	case "TEMPLATE":
 		p.advance()
-		if p.adbEndKept() {
-			return key, nil
-		}
 		return key, p.dgList(p.dgName)
 	case "DIRECTORY":
 		p.advance()
-		if p.adbEndKept() {
-			return key, nil
-		}
 		return key, p.dgList(func() error {
 			if err := p.dgString(); err != nil {
 				return err
@@ -687,24 +651,15 @@ func (p *Parser) parseDiskgroupDrop() (string, error) {
 		})
 	case "ALIAS", "FILE":
 		p.advance()
-		if p.adbEndKept() {
-			return key, nil
-		}
 		return key, p.dgList(p.dgString)
 	case "VOLUME", "QUOTAGROUP":
 		p.advance()
 		return key, p.dgName()
 	case "USERGROUP":
 		p.advance()
-		if p.adbEndKept() {
-			return key, nil
-		}
 		return key, p.dgString()
 	case "USER":
 		p.advance()
-		if p.adbEndKept() {
-			return key, nil
-		}
 		return key, p.dgList(func() error {
 			if err := p.dgString(); err != nil {
 				return err
@@ -723,9 +678,6 @@ func (p *Parser) parseDiskgroupDrop() (string, error) {
 				return "", p.syntaxErrorAtCur()
 			}
 			p.advance()
-			if p.adbEndKept() {
-				return key, nil
-			}
 			return key, p.dgName()
 		}
 		return key, nil
@@ -749,18 +701,12 @@ func (p *Parser) parseDiskgroupReplace() (string, error) {
 			return "", p.syntaxErrorAtCur()
 		}
 		p.advance()
-		if p.adbEndKept() {
-			return "REPLACE_DISK", nil
-		}
 		if err := p.dgString(); err != nil {
 			return "", err
 		}
 		p.dgOptionalWord("FORCE", "NOFORCE")
 		if p.adbWord("POWER") {
 			p.advance()
-			if p.adbEndKept() {
-				return "REPLACE_DISK", nil
-			}
 			if _, err := p.adbInteger(); err != nil {
 				return "", err
 			}
@@ -813,9 +759,6 @@ func (p *Parser) parseDiskgroupRename() (string, error) {
 			return p.syntaxErrorAtCur()
 		}
 		p.advance()
-		if p.adbEndKept() {
-			return nil
-		}
 		return p.dgString()
 	})
 }
@@ -824,7 +767,7 @@ func (p *Parser) parseDiskgroupRename() (string, error) {
 //
 //	ONLINE { { [ QUORUM | REGULAR ] DISK disk_name [, disk_name ]...
 //	         | DISKS IN [ QUORUM | REGULAR ] FAILGROUP failgroup_name [, ... ]... }...
-//	       | ALL } [ POWER [ integer ] ] [ WAIT | NOWAIT ]
+//	       | ALL } [ POWER integer ] [ WAIT | NOWAIT ]
 //	OFFLINE { [ QUORUM | REGULAR ] DISK disk_name [, disk_name ]...
 //	        | DISKS IN [ QUORUM | REGULAR ] FAILGROUP failgroup_name [, ... ]... }...
 //	        [ DROP AFTER integer { M | H } ] [ WAIT | NOWAIT ]
@@ -845,9 +788,6 @@ func (p *Parser) parseDiskgroupOnlineOffline(verb string) error {
 				if err := p.adbExpect("FAILGROUP"); err != nil {
 					return err
 				}
-				if p.adbEndKept() {
-					return nil
-				}
 			} else if err := p.adbExpect("DISK"); err != nil {
 				return err
 			}
@@ -858,8 +798,8 @@ func (p *Parser) parseDiskgroupOnlineOffline(verb string) error {
 	}
 	if verb == "ONLINE" && p.adbWord("POWER") {
 		p.advance()
-		if p.cur.Type == tokICONST {
-			p.advance()
+		if _, err := p.adbInteger(); err != nil {
+			return err
 		}
 	}
 	if verb == "OFFLINE" && p.cur.Type == kwDROP {
@@ -880,9 +820,12 @@ func (p *Parser) parseDiskgroupOnlineOffline(verb string) error {
 	return nil
 }
 
-// parseDiskgroupCheck reads CHECK [ ALL | FILE 'file' [, 'file' ]... ] [ REPAIR | NOREPAIR ].
-// Oracle does not take the page's CHECK DISK and CHECK DISKS IN FAILGROUP
-// (ORA-00905).
+// parseDiskgroupCheck reads
+//
+//	CHECK [ ALL | DISK | FILE [ 'file' [, 'file' ]... ] ] [ REPAIR | NOREPAIR ]
+//
+// Oracle takes DISK and FILE without the names the page gives them; it does
+// not take disk names or CHECK DISKS IN FAILGROUP (ORA-00905).
 func (p *Parser) parseDiskgroupCheck() error {
 	p.advance()
 	switch {
@@ -890,18 +833,13 @@ func (p *Parser) parseDiskgroupCheck() error {
 		p.advance()
 	case p.cur.Type == kwFILE:
 		p.advance()
-		if p.adbEndKept() {
-			return nil
-		}
-		if err := p.dgList(p.dgString); err != nil {
-			return err
+		if p.cur.Type == tokSCONST {
+			if err := p.dgList(p.dgString); err != nil {
+				return err
+			}
 		}
 	case p.adbWord("DISK"):
 		p.advance()
-		if p.adbEndKept() {
-			return nil
-		}
-		return p.syntaxErrorAtCur()
 	}
 	p.dgOptionalWord("REPAIR", "NOREPAIR")
 	return nil
@@ -939,9 +877,6 @@ func (p *Parser) parseDiskgroupModify(verb string) (string, error) {
 		for _, w := range []string{"MOUNTPATH", "USAGE"} {
 			if p.adbWord(w) {
 				p.advance()
-				if p.adbEndKept() {
-					return "MODIFY_VOLUME", nil
-				}
 				if err := p.dgString(); err != nil {
 					return "", err
 				}
@@ -950,9 +885,6 @@ func (p *Parser) parseDiskgroupModify(verb string) (string, error) {
 		return "MODIFY_VOLUME", nil
 	case p.cur.Type == kwFILE:
 		p.advance()
-		if p.adbEndKept() {
-			return "MODIFY_FILE", nil
-		}
 		return "MODIFY_FILE", p.dgList(func() error {
 			if err := p.dgString(); err != nil {
 				return err
@@ -1085,9 +1017,6 @@ func (p *Parser) parseDiskgroupScrub() error {
 	switch {
 	case p.cur.Type == kwFILE:
 		p.advance()
-		if p.adbEndKept() {
-			return nil
-		}
 		if err := p.dgString(); err != nil {
 			return err
 		}
@@ -1100,9 +1029,6 @@ func (p *Parser) parseDiskgroupScrub() error {
 	p.dgOptionalWord("REPAIR", "NOREPAIR")
 	if p.adbWord("POWER") {
 		p.advance()
-		if p.adbEndKept() {
-			return nil
-		}
 		if !p.dgOptionalWord("AUTO", "LOW", "HIGH", "MAX") {
 			return p.syntaxErrorAtCur()
 		}

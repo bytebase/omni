@@ -331,11 +331,9 @@ func (p *Parser) parseDMLTarget(mode dmlTargetMode) (nodes.TableExpr, error) {
 	}
 	// Oracle 23ai takes the alias of either target after the partition
 	// extension and the database link: UPDATE t PARTITION (p) x SET parses,
-	// and UPDATE t x PARTITION (p) SET is ORA-00971 at PARTITION. UPDATE
-	// names its partition (ORA-00971 for PARTITION ()); DELETE parses an
-	// empty one.
+	// and UPDATE t x PARTITION (p) SET is ORA-00971 at PARTITION.
 	if p.cur.Type == kwPARTITION || p.cur.Type == kwSUBPARTITION {
-		target.PartitionExt, parseErr1151 = p.parsePartitionExtClause(mode == dmlTargetDelete)
+		target.PartitionExt, parseErr1151 = p.parsePartitionExtClause(true)
 		if parseErr1151 != nil {
 			return nil, parseErr1151
 		}

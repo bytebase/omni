@@ -41,6 +41,18 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 	if f := p.matchObjectForm(); f != nil {
 		return p.parseObjectStmt("CREATE", f, start, orReplace, orAlter)
 	}
+	// CATALOG / EXTERNAL ACCESS INTEGRATION (integration.go).
+	if p.startsCatalogOrAccessIntegration() {
+		return p.parseCreateIntegrationStmt(start, orReplace, orAlter)
+	}
+	// Policies and data metric functions read by their docs pages (policy.go,
+	// data_metric_function.go).
+	if d := p.startsDocPolicy(); d != nil {
+		return p.parseCreateDocPolicy(start, orReplace, orAlter, d)
+	}
+	if p.startsCreateDataMetricFunction() {
+		return p.parseCreateDataMetricFunction(start, orReplace, orAlter)
+	}
 
 	// Optional SECURE modifier. SECURE applies to VIEW / MATERIALIZED VIEW
 	// (T2.4) and to FUNCTION / EXTERNAL FUNCTION / PROCEDURE (T4.5). It is
@@ -222,8 +234,14 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 		// CREATE [OR REPLACE] STREAM ... (T4.3).
 		return p.parseCreateStreamStmt(start, orReplace, orAlter)
 	case kwTASK:
-		// CREATE [OR REPLACE] TASK ... (T4.3).
-		return p.parseCreateTaskStmt(start, orReplace, orAlter)
+		// CREATE [OR REPLACE] TASK ... (T4.3), or TASK GRAPH (task_graph.go).
+		task := func() (ast.Node, error) { return p.parseCreateTaskStmt(start, orReplace, orAlter) }
+		if p.startsTaskGraph() {
+			return p.parseTaskOrGraph(func() (ast.Node, error) {
+				return p.parseObjectStmt("CREATE", taskGraphForm, start, orReplace, orAlter)
+			}, task)
+		}
+		return task()
 	case kwALERT:
 		// CREATE [OR REPLACE] ALERT ... (T4.3).
 		return p.parseCreateAlertStmt(start, orReplace, orAlter)
@@ -280,6 +298,13 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 	case kwDATASET:
 		// CREATE [OR REPLACE] DATASET ... (T4.9).
 		return p.parseCreateDatasetStmt(start, orReplace, orAlter)
+	case kwIF:
+		// CREATE [ OR REPLACE ] [ IF NOT EXISTS ] DATASET <name>, as the
+		// dataset page writes it.
+		if p.startsIfNotExistsDataset() {
+			return p.parseCreateDatasetStmt(start, orReplace, orAlter)
+		}
+		return p.unsupported("CREATE")
 	case kwFAILOVER, kwREPLICATION:
 		// CREATE [OR REPLACE] { FAILOVER | REPLICATION } GROUP ... (T4.8).
 		// parseCreateReplicationGroupStmt consumes the kind keyword + GROUP.
@@ -318,6 +343,10 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 		// that form is dispatched here (T4.6).
 		if p.curIsWord("AUTHENTICATION") && p.peekNext().Type == kwPOLICY {
 			return p.parseCreatePolicyDispatch(start, orReplace, orAlter)
+		}
+		// CREATE [ OR REPLACE ] AI FUNCTION ... (ai_function.go).
+		if p.atWords("AI", "FUNCTION") && !orAlter && !transient && !temporary && !volatile && !hybrid {
+			return p.parseCreateAiFunctionStmt(start, orReplace)
 		}
 		return p.unsupported("CREATE")
 	}

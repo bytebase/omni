@@ -35,9 +35,11 @@ type ResolveOptions struct {
 // A parse error is the parser's error, unwrapped. A statement that reads user
 // and system tables together returns ErrMixUserSystemTables. A table missing
 // from the catalog is not an error: the span carries it in NotFoundError. A
-// column the query's tables do not have is an error. A table source whose
-// lineage is not modeled returns a *TypeNotSupportedError, possibly wrapped. Statements that are not queries
-// return their QueryType and the tables they access, with no Results.
+// column the query's tables do not have is an error, as it is to SQL Server, so
+// a caller refuses the statement before running it. A table source or
+// expression whose lineage is not modeled returns a *TypeNotSupportedError,
+// possibly wrapped. Statements that are not queries return their QueryType and
+// the tables they access, with no Results.
 func ResolveQuerySpan(statement string, opts ResolveOptions) (*ResolvedSpan, error) {
 	q := newQuerySpanExtractor(opts.DefaultDatabase, opts.DefaultSchema, opts.Catalog, opts.TempTables, opts.IgnoreCaseSensitive)
 	span, err := q.getQuerySpan(statement)

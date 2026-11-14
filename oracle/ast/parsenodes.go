@@ -1577,6 +1577,7 @@ type CreateTableStmt struct {
 	Duplicated       bool             // DUPLICATED
 	Immutable        bool             // IMMUTABLE
 	Blockchain       bool             // BLOCKCHAIN
+	OfType           *ObjectName      // OF [schema.]object_type: an object or XMLType table
 	Name             *ObjectName      // table name
 	Sharing          string           // SHARING = { METADATA | DATA | EXTENDED DATA | NONE }
 	Columns          *List            // column definitions (list of *ColumnDef)
@@ -2890,8 +2891,9 @@ func (n *LockTableStmt) stmtNode() {}
 //
 //	CALL [schema.]routine_name ( [args] ) [INTO :bind_variable]
 type CallStmt struct {
-	Name    *ObjectName // routine name, with its schema
+	Name    *ObjectName // routine name, with its schema; the method of an object access
 	Package string      // package or type of the routine, for schema.package.routine; "" otherwise
+	Object  ExprNode    // the object of CALL ( expr ).method(...); nil for a routine
 	Args    *List       // argument list
 	Into    ExprNode    // INTO bind variable
 	Loc     Loc

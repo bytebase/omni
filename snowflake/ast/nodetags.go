@@ -29,6 +29,7 @@ const (
 	T_ColumnRef
 	T_StarExpr
 	T_DollarRef
+	T_BindVariable
 	T_BinaryExpr
 	T_UnaryExpr
 	T_ParenExpr
@@ -104,6 +105,7 @@ const (
 	T_CopyOption
 	T_CopyIntoTableStmt
 	T_CopyIntoLocationStmt
+	T_CopyFilesStmt
 	T_PutStmt
 	T_GetStmt
 	T_ListStmt
@@ -139,6 +141,7 @@ const (
 	T_CreateSemanticViewStmt
 	T_AlterSemanticViewStmt
 	T_CreateDatasetStmt
+	T_AlterDatasetStmt
 
 	// Data-pipeline DDL tags (T4.3)
 	T_CreatePipeStmt
@@ -152,6 +155,7 @@ const (
 
 	// Routine DDL tags (T4.5)
 	T_CreateRoutineStmt
+	T_CreateAiFunctionStmt
 	T_AlterRoutineStmt
 
 	// TCL (transaction control) tags (T6.2)
@@ -194,6 +198,7 @@ const (
 	T_CallStmt
 	T_ExecuteImmediateStmt
 	T_ExecuteTaskStmt
+	T_ExecuteAlertStmt
 	T_ExplainStmt
 
 	// Table-attached query clause tags (T5.3)
@@ -269,6 +274,8 @@ func (t NodeTag) String() string {
 		return "StarExpr"
 	case T_DollarRef:
 		return "DollarRef"
+	case T_BindVariable:
+		return "BindVariable"
 	case T_BinaryExpr:
 		return "BinaryExpr"
 	case T_UnaryExpr:
@@ -395,6 +402,8 @@ func (t NodeTag) String() string {
 		return "CopyIntoTableStmt"
 	case T_CopyIntoLocationStmt:
 		return "CopyIntoLocationStmt"
+	case T_CopyFilesStmt:
+		return "CopyFilesStmt"
 	case T_PutStmt:
 		return "PutStmt"
 	case T_GetStmt:
@@ -451,6 +460,8 @@ func (t NodeTag) String() string {
 		return "AlterShareStmt"
 	case T_CreateRoutineStmt:
 		return "CreateRoutineStmt"
+	case T_CreateAiFunctionStmt:
+		return "CreateAiFunctionStmt"
 	case T_AlterRoutineStmt:
 		return "AlterRoutineStmt"
 	case T_BeginStmt:
@@ -511,6 +522,8 @@ func (t NodeTag) String() string {
 		return "AlterSemanticViewStmt"
 	case T_CreateDatasetStmt:
 		return "CreateDatasetStmt"
+	case T_AlterDatasetStmt:
+		return "AlterDatasetStmt"
 	case T_CallArg:
 		return "CallArg"
 	case T_CallStmt:
@@ -519,6 +532,8 @@ func (t NodeTag) String() string {
 		return "ExecuteImmediateStmt"
 	case T_ExecuteTaskStmt:
 		return "ExecuteTaskStmt"
+	case T_ExecuteAlertStmt:
+		return "ExecuteAlertStmt"
 	case T_ExplainStmt:
 		return "ExplainStmt"
 	case T_PivotClause:
