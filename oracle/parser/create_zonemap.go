@@ -162,7 +162,9 @@ func (p *Parser) parseZonemapRefresh(alter bool) (string, string, error) {
 		method = p.cur.Str
 		p.advance()
 	}
-	if p.cur.Type != kwON {
+	// After a method, an ON that starts no refresh time is CREATE's
+	// create_zonemap_on_table (REFRESH FAST ON t (c)).
+	if p.cur.Type != kwON || method != "" && !alter && !p.isZonemapRefreshTimingNext() {
 		if method == "" {
 			return "", "", p.syntaxErrorAtCur()
 		}
@@ -280,4 +282,18 @@ func (p *Parser) parseAlterMaterializedZonemapStmt(start int) (*nodes.AlterMater
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// isZonemapRefreshTimingNext reports whether the ON at cur starts a
+// refresh time of CREATE MATERIALIZED ZONEMAP rather than its
+// create_zonemap_on_table: ON DEMAND, ON COMMIT, ON LOAD or ON DATA, not
+// followed by the column list or the dot of a table named so.
+func (p *Parser) isZonemapRefreshTimingNext() bool {
+	toks := p.peekAhead(2)
+	next := toks[0]
+	if next.Type != kwCOMMIT && !isCreateTableWordTok(next, "DEMAND") &&
+		!isCreateTableWordTok(next, "LOAD") && !isCreateTableWordTok(next, "DATA") {
+		return false
+	}
+	return toks[1].Type != '(' && toks[1].Type != '.'
 }
