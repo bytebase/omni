@@ -35,16 +35,23 @@ type DefinitionOptions struct {
 	// PrintHeader prefixes the restore script with pg_dump's session settings
 	// and sets the default tablespace before the first table.
 	PrintHeader bool
+	// SDLFormat renders the declarative form instead of the restore script.
+	// It ignores PrintHeader.
+	SDLFormat bool
 }
 
 // DatabaseDefinition renders a synced database snapshot as a pg_dump-style
-// restore script.
+// restore script, or with opts.SDLFormat as SDL.
 func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts DefinitionOptions) (string, error) {
 	if len(metadata.Schemas) == 0 {
 		return "", nil
 	}
 
 	var buf strings.Builder
+
+	if opts.SDLFormat {
+		return databaseSDL(metadata)
+	}
 
 	if opts.PrintHeader {
 		if _, err := buf.WriteString(header); err != nil {
