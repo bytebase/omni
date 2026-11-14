@@ -1,0 +1,320 @@
+package parser
+
+import (
+	"strings"
+	"testing"
+
+	"github.com/bytebase/omni/snowflake/ast"
+)
+
+// wantClauses checks an ObjectStmt's Verb, Kind and clause keywords.
+func wantClauses(t *testing.T, in, verb, kind string, keywords ...string) *ast.ObjectStmt {
+	t.Helper()
+	s := mustObjectStmt(t, in)
+	if s.Verb != verb || s.Kind != kind {
+		t.Errorf("%q: got %s %s, want %s %s", in, s.Verb, s.Kind, verb, kind)
+	}
+	if got := clauseKeywords(s); strings.Join(got, "|") != strings.Join(keywords, "|") {
+		t.Errorf("%q: clauses = %q, want %q", in, got, keywords)
+	}
+	return s
+}
+
+func TestParseCreateApplication(t *testing.T) {
+	s := wantClauses(t, "CREATE APPLICATION app FROM APPLICATION PACKAGE pkg USING VERSION v1 PATCH 2 "+
+		"DEBUG_MODE = TRUE COMMENT = 'c' WITH TAG (t = 'v') WITH FEATURE POLICY = db.s.fp",
+		"CREATE", "APPLICATION", "FROM APPLICATION PACKAGE", "USING VERSION", "", "WITH FEATURE POLICY")
+	if c := s.Clauses[1]; c.Names[0].String() != "v1" || len(c.Options) != 1 || c.Options[0].Name != "PATCH" || c.Options[0].Lit.Ival != 2 {
+		t.Errorf("USING VERSION = %+v", c)
+	}
+	if c := s.Clauses[2]; len(c.Options) != 2 || len(c.Tags) != 1 {
+		t.Errorf("properties = %+v", c)
+	}
+	if c := s.Clauses[3]; c.Names[0].String() != "db.s.fp" {
+		t.Errorf("WITH FEATURE POLICY = %+v", c)
+	}
+
+	s = wantClauses(t, "CREATE APPLICATION app FROM APPLICATION PACKAGE pkg USING '@stage/v1'",
+		"CREATE", "APPLICATION", "FROM APPLICATION PACKAGE", "USING")
+	if v, ok := optLitString(s.Clauses[1].Options, "USING"); !ok || v != "@stage/v1" {
+		t.Errorf("USING = %q", v)
+	}
+	wantClauses(t, "CREATE APPLICATION app FROM APPLICATION PACKAGE pkg USING RELEASE CHANNEL QA",
+		"CREATE", "APPLICATION", "FROM APPLICATION PACKAGE", "USING RELEASE CHANNEL QA")
+	wantClauses(t, "CREATE APPLICATION app FROM LISTING l USING RELEASE CHANNEL DEFAULT BACKGROUND_INSTALL = TRUE",
+		"CREATE", "APPLICATION", "FROM LISTING", "USING RELEASE CHANNEL DEFAULT", "")
+	wantClauses(t, "CREATE APPLICATION app FROM LISTING l", "CREATE", "APPLICATION", "FROM LISTING")
+}
+
+func TestParseAlterApplication(t *testing.T) {
+	for in, want := range map[string][]string{
+		"ALTER APPLICATION IF EXISTS a SET COMMENT = 's' DEBUG_MODE = TRUE":                            {"SET"},
+		"ALTER APPLICATION a SET AUTHORIZE_RESTRICTED_PROVIDER_REMOTE_OPERATIONS_UNTIL = 'INDEFINITE'": {"SET"},
+		"ALTER APPLICATION a UNSET COMMENT, DEBUG_MODE":                                                {"UNSET"},
+		"ALTER APPLICATION a RENAME TO b":                                                              {"RENAME TO"},
+		"ALTER APPLICATION a SET FEATURE POLICY p FORCE":                                               {"SET FEATURE POLICY", "FORCE"},
+		"ALTER APPLICATION a SET MAINTENANCE POLICY p":                                                 {"SET MAINTENANCE POLICY"},
+		"ALTER APPLICATION a UNSET FEATURE POLICY":                                                     {"UNSET FEATURE POLICY"},
+		"ALTER APPLICATION a UNSET MAINTENANCE POLICY":                                                 {"UNSET MAINTENANCE POLICY"},
+		"ALTER APPLICATION a SET TAG t = 'v', u = 'w'":                                                 {"SET TAG"},
+		"ALTER APPLICATION a UNSET TAG t, u":                                                           {"UNSET TAG"},
+		"ALTER APPLICATION a SET SHARED TELEMETRY EVENTS ('SNOWFLAKE$ALL', 'SNOWFLAKE$TRACES')":        {"SET SHARED TELEMETRY EVENTS"},
+		"ALTER APPLICATION a UNSET REFERENCES":                                                         {"UNSET REFERENCES"},
+		"ALTER APPLICATION a UNSET REFERENCES ('r', 'alias')":                                          {"UNSET REFERENCES"},
+		"ALTER APPLICATION a UPGRADE":                                                                  {"UPGRADE"},
+		"ALTER APPLICATION a UPGRADE USING '@s/v2'":                                                    {"UPGRADE"},
+		"ALTER APPLICATION a UPGRADE USING VERSION v2 PATCH 1":                                         {"UPGRADE USING VERSION"},
+		"ALTER APPLICATION a APPROVE SPECIFICATION spec SEQUENCE_NUMBER = 3":                           {"APPROVE SPECIFICATION"},
+		"ALTER APPLICATION a DECLINE SPECIFICATION spec SEQUENCE_NUMBER = 3":                           {"DECLINE SPECIFICATION"},
+		"ALTER APPLICATION a SET CONFIGURATION cfg VALUE = 'x'":                                        {"SET CONFIGURATION"},
+		"ALTER APPLICATION a UNSET CONFIGURATION cfg":                                                  {"UNSET CONFIGURATION"},
+	} {
+		wantClauses(t, in, "ALTER", "APPLICATION", want...)
+	}
+	s := mustObjectStmt(t, "ALTER APPLICATION a SET SHARED TELEMETRY EVENTS ('e1', 'e2')")
+	if opt := s.Clauses[0].Options[0]; len(opt.List) != 2 || opt.List[1].Value != "e2" {
+		t.Errorf("EVENTS = %+v", opt)
+	}
+	s = mustObjectStmt(t, "ALTER APPLICATION a APPROVE SPECIFICATION spec SEQUENCE_NUMBER = 3")
+	if c := s.Clauses[0]; c.Names[0].String() != "spec" || c.Options[0].Name != "SEQUENCE_NUMBER" {
+		t.Errorf("APPROVE SPECIFICATION = %+v", c)
+	}
+}
+
+func TestParseAlterApplicationSubcommandsWithoutName(t *testing.T) {
+	s := wantClauses(t, "ALTER APPLICATION SET SPECIFICATION eai TYPE = EXTERNAL_ACCESS LABEL = 'l' "+
+		"DESCRIPTION = 'd' HOST_PORTS = ('h:443', 'i')",
+		"ALTER", "APPLICATION SET SPECIFICATION", "")
+	if s.Name.String() != "eai" || len(s.Clauses[0].Options) != 4 {
+		t.Errorf("got %+v", s)
+	}
+	wantClauses(t, "ALTER APPLICATION SET SPECIFICATION si TYPE = SECURITY_INTEGRATION LABEL = 'l' DESCRIPTION = 'd' "+
+		"OAUTH_TYPE = 'CLIENT_CREDENTIALS' OAUTH_TOKEN_ENDPOINT = 'e' OAUTH_ALLOWED_SCOPES = ('s')",
+		"ALTER", "APPLICATION SET SPECIFICATION", "")
+	wantClauses(t, "ALTER APPLICATION DROP SPECIFICATION eai", "ALTER", "APPLICATION DROP SPECIFICATION")
+	wantClauses(t, "ALTER APPLICATION SET CONFIGURATION DEFINITION c TYPE = SECRET_AUTHORIZATION SECRET = db.sec "+
+		"LABEL = 'l' DESCRIPTION = 'd' APPLICATION_ROLES = (r1, r2)",
+		"ALTER", "APPLICATION SET CONFIGURATION DEFINITION", "")
+	wantClauses(t, "ALTER APPLICATION DROP CONFIGURATION DEFINITION c", "ALTER", "APPLICATION DROP CONFIGURATION DEFINITION")
+}
+
+func TestParseApplicationRole(t *testing.T) {
+	s := wantClauses(t, "CREATE OR REPLACE APPLICATION ROLE app_admin COMMENT = 'c'", "CREATE", "APPLICATION ROLE", "")
+	if !s.OrReplace {
+		t.Error("OrReplace not set")
+	}
+	s = wantClauses(t, "CREATE OR ALTER APPLICATION ROLE r", "CREATE", "APPLICATION ROLE")
+	if !s.OrAlter {
+		t.Error("OrAlter not set")
+	}
+	s = wantClauses(t, "CREATE APPLICATION ROLE IF NOT EXISTS r", "CREATE", "APPLICATION ROLE")
+	if !s.IfNotExists {
+		t.Error("IfNotExists not set")
+	}
+	wantClauses(t, "ALTER APPLICATION ROLE IF EXISTS app.r RENAME TO app.s", "ALTER", "APPLICATION ROLE", "RENAME TO")
+	wantClauses(t, "ALTER APPLICATION ROLE r SET COMMENT = 'c'", "ALTER", "APPLICATION ROLE", "SET")
+	wantClauses(t, "ALTER APPLICATION ROLE r UNSET COMMENT", "ALTER", "APPLICATION ROLE", "UNSET")
+}
+
+func TestParseApplicationPackage(t *testing.T) {
+	s := wantClauses(t, "CREATE APPLICATION PACKAGE IF NOT EXISTS pkg DATA_RETENTION_TIME_IN_DAYS = 1 "+
+		"DISTRIBUTION = EXTERNAL MULTIPLE_INSTANCES = TRUE WITH TAG (t = 'v')",
+		"CREATE", "APPLICATION PACKAGE", "")
+	if !s.IfNotExists || len(s.Clauses[0].Options) != 3 || len(s.Clauses[0].Tags) != 1 {
+		t.Errorf("got %+v", s.Clauses[0])
+	}
+	wantClauses(t, "CREATE APPLICATION PACKAGE pkg", "CREATE", "APPLICATION PACKAGE")
+
+	for in, want := range map[string][]string{
+		"ALTER APPLICATION PACKAGE IF EXISTS p SET DATA_RETENTION_TIME_IN_DAYS = 1 COMMENT = 'c'": {"SET"},
+		"ALTER APPLICATION PACKAGE p UNSET DEFAULT_DDL_COLLATION, DISTRIBUTION":                   {"UNSET"},
+		"ALTER APPLICATION PACKAGE p RENAME TO q":                                                 {"RENAME TO"},
+		"ALTER APPLICATION PACKAGE p SET TAG t = 'v'":                                             {"SET TAG"},
+		"ALTER APPLICATION PACKAGE p UNSET TAG t":                                                 {"UNSET TAG"},
+		// alter-application-package-version
+		"ALTER APPLICATION PACKAGE p ADD VERSION v1 USING '@s/v1' LABEL = 'l'": {"ADD VERSION"},
+		"ALTER APPLICATION PACKAGE p ADD VERSION USING '@s/v1'":                {"ADD VERSION"},
+		"ALTER APPLICATION PACKAGE p DROP VERSION v1":                          {"DROP VERSION"},
+		"ALTER APPLICATION PACKAGE p DROP VERSION v1 ASYNC":                    {"DROP VERSION ASYNC"},
+		"ALTER APPLICATION PACKAGE p ADD PATCH 3 FOR VERSION v1 USING '@s/v1'": {"ADD PATCH FOR VERSION"},
+		"ALTER APPLICATION PACKAGE p ADD PATCH FOR VERSION USING '@s/v1'":      {"ADD PATCH FOR VERSION"},
+		// alter-application-package-release-channel
+		"ALTER APPLICATION PACKAGE p REGISTER VERSION v1 USING '@s/v1' LABEL = 'l'":       {"REGISTER VERSION"},
+		"ALTER APPLICATION PACKAGE p DEREGISTER VERSION v1":                               {"DEREGISTER VERSION"},
+		"ALTER APPLICATION PACKAGE p MODIFY RELEASE CHANNEL QA ADD VERSION v1":            {"MODIFY RELEASE CHANNEL", "ADD VERSION"},
+		"ALTER APPLICATION PACKAGE p MODIFY RELEASE CHANNEL QA DROP VERSION v1":           {"MODIFY RELEASE CHANNEL", "DROP VERSION"},
+		"ALTER APPLICATION PACKAGE p MODIFY RELEASE CHANNEL QA ADD ACCOUNTS = (o.a, o.b)": {"MODIFY RELEASE CHANNEL", "ADD"},
+		"ALTER APPLICATION PACKAGE p MODIFY RELEASE CHANNEL QA REMOVE ACCOUNTS = (o.a)":   {"MODIFY RELEASE CHANNEL", "REMOVE"},
+		"ALTER APPLICATION PACKAGE p MODIFY RELEASE CHANNEL QA SET ACCOUNTS = (o.a)":      {"MODIFY RELEASE CHANNEL", "SET"},
+		"ALTER APPLICATION PACKAGE p MODIFY RELEASE CHANNEL QA UNSET RELEASE DIRECTIVE d": {"MODIFY RELEASE CHANNEL", "UNSET RELEASE DIRECTIVE"},
+		"ALTER APPLICATION PACKAGE p MODIFY RELEASE CHANNEL QA SET DEFAULT RELEASE DIRECTIVE VERSION = v1 PATCH = 0 UPGRADE_AFTER = 't'": {
+			"MODIFY RELEASE CHANNEL", "SET DEFAULT RELEASE DIRECTIVE"},
+		"ALTER APPLICATION PACKAGE p MODIFY RELEASE CHANNEL QA SET RELEASE DIRECTIVE d ACCOUNTS = (o.a) VERSION = v1 PATCH = 0": {
+			"MODIFY RELEASE CHANNEL", "SET RELEASE DIRECTIVE"},
+		"ALTER APPLICATION PACKAGE p MODIFY RELEASE CHANNEL QA MODIFY RELEASE DIRECTIVE d VERSION = v1 PATCH = 0": {
+			"MODIFY RELEASE CHANNEL", "MODIFY RELEASE DIRECTIVE"},
+		// alter-application-package-release-directive
+		"ALTER APPLICATION PACKAGE p MODIFY RELEASE DIRECTIVE d VERSION = v1 PATCH = 0 UPGRADE_IN_MAINTENANCE_WINDOW = TRUE": {
+			"MODIFY RELEASE DIRECTIVE"},
+		"ALTER APPLICATION PACKAGE p MODIFY RELEASE DIRECTIVE d ADD ACCOUNTS = (o.a) VERSION = v1 PATCH = 0 FORCE": {
+			"MODIFY RELEASE DIRECTIVE", "ADD", "FORCE"},
+		"ALTER APPLICATION PACKAGE p MODIFY RELEASE DIRECTIVE d REMOVE ACCOUNTS = (o.a)":                    {"MODIFY RELEASE DIRECTIVE", "REMOVE"},
+		"ALTER APPLICATION PACKAGE p SET DEFAULT RELEASE DIRECTIVE VERSION = v1 PATCH = 0":                  {"SET DEFAULT RELEASE DIRECTIVE"},
+		"ALTER APPLICATION PACKAGE p SET RELEASE DIRECTIVE d ACCOUNTS = (o.a) VERSION = v1 PATCH = 0 FORCE": {"SET RELEASE DIRECTIVE", "FORCE"},
+		"ALTER APPLICATION PACKAGE p UNSET RELEASE DIRECTIVE d":                                             {"UNSET RELEASE DIRECTIVE"},
+	} {
+		wantClauses(t, in, "ALTER", "APPLICATION PACKAGE", want...)
+	}
+
+	s = mustObjectStmt(t, "ALTER APPLICATION PACKAGE p ADD PATCH 3 FOR VERSION v1 USING '@s/v1' LABEL = 'l'")
+	c := s.Clauses[0]
+	if len(c.Names) != 1 || c.Names[0].String() != "v1" || len(c.Options) != 3 || c.Options[0].Lit.Ival != 3 {
+		t.Errorf("ADD PATCH = %+v", c)
+	}
+	s = mustObjectStmt(t, "ALTER APPLICATION PACKAGE p MODIFY RELEASE CHANNEL QA ADD ACCOUNTS = (o.a, o.b)")
+	if acc := s.Clauses[1].Options[0]; acc.Name != "ACCOUNTS" || len(acc.Group) != 2 || acc.Group[1].Name != "O.B" {
+		t.Errorf("ACCOUNTS = %+v", acc)
+	}
+}
+
+func TestParseApplicationService(t *testing.T) {
+	s := wantClauses(t, "CREATE APPLICATION SERVICE IF NOT EXISTS db.s.svc FROM ARTIFACT REPOSITORY db.s.repo "+
+		"PACKAGE pkg VERSION v1 EXTERNAL_ACCESS_INTEGRATIONS = (i1, i2) QUERY_WAREHOUSE = wh MIN_INSTANCES = 1",
+		"CREATE", "APPLICATION SERVICE", "FROM ARTIFACT REPOSITORY", "PACKAGE", "VERSION", "")
+	if s.Clauses[0].Names[0].String() != "db.s.repo" || s.Clauses[2].Names[0].String() != "v1" {
+		t.Errorf("got %+v", s.Clauses)
+	}
+	s = wantClauses(t, "CREATE OR ALTER APPLICATION SERVICE svc FROM ARTIFACT REPOSITORY r PACKAGE p SPECIFICATION = 's'",
+		"CREATE", "APPLICATION SERVICE", "FROM ARTIFACT REPOSITORY", "PACKAGE", "")
+	if !s.OrAlter {
+		t.Error("OrAlter not set")
+	}
+	for in, want := range map[string]string{
+		"ALTER APPLICATION SERVICE IF EXISTS s SUSPEND":                    "SUSPEND",
+		"ALTER APPLICATION SERVICE s RESUME":                               "RESUME",
+		"ALTER APPLICATION SERVICE s UPGRADE":                              "UPGRADE",
+		"ALTER APPLICATION SERVICE s UPGRADE TO VERSION v2":                "UPGRADE TO VERSION",
+		"ALTER APPLICATION SERVICE s SET AUTO_RESUME = TRUE COMMENT = 'c'": "SET",
+		"ALTER APPLICATION SERVICE s UNSET AUTO_RESUME, QUERY_WAREHOUSE":   "UNSET",
+	} {
+		wantClauses(t, in, "ALTER", "APPLICATION SERVICE", want)
+	}
+}
+
+func TestParseDropApplicationObjects(t *testing.T) {
+	for in, kind := range map[string]string{
+		"DROP APPLICATION IF EXISTS a":    "APPLICATION",
+		"DROP APPLICATION PACKAGE p":      "APPLICATION PACKAGE",
+		"DROP APPLICATION ROLE app.r":     "APPLICATION ROLE",
+		"DROP APPLICATION SERVICE db.s.x": "APPLICATION SERVICE",
+	} {
+		d, ok := mustParseOne(t, in).(*ast.DropStmt)
+		if !ok || d.Kind != ast.DropObject || d.Object != kind {
+			t.Errorf("%q: got %+v", in, d)
+		}
+	}
+}
+
+func TestParseShowApplicationScopes(t *testing.T) {
+	for in, scope := range map[string]string{
+		"SHOW VERSIONS IN APPLICATION PACKAGE p":              "APPLICATION PACKAGE",
+		"SHOW VERSIONS LIKE 'v%' IN APPLICATION PACKAGE db.p": "APPLICATION PACKAGE",
+		"SHOW RELEASE DIRECTIVES IN APPLICATION PACKAGE p":    "APPLICATION PACKAGE",
+		"SHOW RELEASE CHANNELS IN APPLICATION PACKAGE p":      "APPLICATION PACKAGE",
+		"SHOW RELEASE CHANNELS IN LISTING l":                  "LISTING",
+		"SHOW APPLICATION ROLES IN APPLICATION package":       "APPLICATION",
+		"SHOW TABLES IN listing":                              "",
+	} {
+		st, ok := mustParseOne(t, in).(*ast.ShowStmt)
+		if !ok || st.ScopeText != scope || st.ScopeName == nil {
+			t.Errorf("%q: got %+v", in, st)
+		}
+	}
+}
+
+func TestStartsShowApplicationScopes(t *testing.T) {
+	for in, want := range map[string][2]bool{
+		"PACKAGE p": {true, false},
+		"PACKAGE":   {false, false},
+		"LISTING l": {false, true},
+		"LISTING":   {false, false},
+		"p":         {false, false},
+	} {
+		p := &Parser{lexer: NewLexer(in), input: in}
+		p.advance()
+		got := [2]bool{p.startsShowApplicationPackageScope(), p.startsShowListingScope()}
+		if got != want || p.cur.Loc.Start != 0 {
+			t.Errorf("%q: got %v, want %v", in, got, want)
+		}
+	}
+}
+
+func TestParseApplicationRoleGrantOptions(t *testing.T) {
+	g, ok := mustParseOne(t, "GRANT APPLICATION ROLE app.r TO ROLE parent WITH GRANT OPTION").(*ast.GrantStmt)
+	if !ok || !g.GrantOption || g.RoleKind != ast.GrantedApplicationRole {
+		t.Errorf("GRANT: got %+v", g)
+	}
+	r, ok := mustParseOne(t, "REVOKE GRANT OPTION FOR APPLICATION ROLE app.r FROM ROLE parent CASCADE").(*ast.RevokeStmt)
+	if !ok || !r.GrantOptionFor || !r.Cascade || r.Kind != ast.RevokeRole || r.RoleKind != ast.GrantedApplicationRole {
+		t.Errorf("REVOKE: got %+v", r)
+	}
+	r, ok = mustParseOne(t, "REVOKE APPLICATION ROLE app.r FROM ROLE parent RESTRICT").(*ast.RevokeStmt)
+	if !ok || !r.Restrict {
+		t.Errorf("REVOKE RESTRICT: got %+v", r)
+	}
+}
+
+func TestParseApplicationRejects(t *testing.T) {
+	for _, in := range []string{
+		"CREATE APPLICATION a",
+		"CREATE APPLICATION a FROM PACKAGE p",
+		"CREATE OR REPLACE APPLICATION a FROM LISTING l", // not documented
+		"CREATE APPLICATION a FROM LISTING l USING VERSION v",
+		"CREATE APPLICATION a FROM LISTING l USING 'x'",
+		"CREATE APPLICATION a FROM APPLICATION PACKAGE p USING RELEASE CHANNEL BETA",
+		"CREATE APPLICATION a FROM APPLICATION PACKAGE p USING VERSION v PATCH 'x'",
+		"CREATE APPLICATION a FROM APPLICATION PACKAGE p USING v",
+		"CREATE APPLICATION a FROM APPLICATION PACKAGE p WITH FEATURE POLICY fp",
+		"ALTER APPLICATION a",
+		"ALTER APPLICATION a SUSPEND",
+		"ALTER APPLICATION a SET FEATURE POLICY",
+		"ALTER APPLICATION a SET SHARED TELEMETRY EVENTS ()",
+		"ALTER APPLICATION a SET SHARED TELEMETRY EVENTS ('e', x)", // event definitions are strings
+		"ALTER APPLICATION a UNSET REFERENCES ('a', 'b', 'c')",
+		"ALTER APPLICATION a UPGRADE USING v",
+		"ALTER APPLICATION a APPROVE SPECIFICATION s",
+		"ALTER APPLICATION a SET CONFIGURATION c",
+		"ALTER APPLICATION a SET CONFIGURATION c LABEL = 'x'",
+		"ALTER APPLICATION SET SPECIFICATION s TYPE = SETTING LABEL = 'l'", // DESCRIPTION is required
+		"ALTER APPLICATION SET SPECIFICATION IF EXISTS s TYPE = SETTING LABEL = 'l' DESCRIPTION = 'd'",
+		"ALTER APPLICATION DROP SPECIFICATION s CASCADE",
+		"ALTER APPLICATION DROP SPECIFICATION IF EXISTS s",
+		"ALTER APPLICATION SET CONFIGURATION DEFINITION c TYPE = STRING LABEL = 'l' DESCRIPTION = 'd'",
+		"CREATE APPLICATION SET SPECIFICATION s",
+		"ALTER APPLICATION ROLE r SUSPEND",
+		"ALTER APPLICATION PACKAGE p ADD VERSION v",
+		"ALTER APPLICATION PACKAGE p ADD PATCH FOR v USING 'x'",
+		"ALTER APPLICATION PACKAGE p DEREGISTER VERSION",
+		"ALTER APPLICATION PACKAGE p MODIFY RELEASE CHANNEL QA",
+		"ALTER APPLICATION PACKAGE p MODIFY RELEASE CHANNEL QA ADD ACCOUNTS (o.a)",
+		"ALTER APPLICATION PACKAGE p MODIFY RELEASE CHANNEL QA SET RELEASE DIRECTIVE d ACCOUNTS = (o.a) VERSION = v PATCH = 0 FORCE",
+		"ALTER APPLICATION PACKAGE p MODIFY RELEASE DIRECTIVE d",
+		"ALTER APPLICATION PACKAGE p MODIFY RELEASE DIRECTIVE d VERSION = v",
+		"ALTER APPLICATION PACKAGE p MODIFY RELEASE DIRECTIVE d REMOVE ACCOUNTS = (o.a) FORCE",
+		"ALTER APPLICATION PACKAGE p SET DEFAULT RELEASE DIRECTIVE PATCH = 0",
+		"ALTER APPLICATION PACKAGE p SET RELEASE DIRECTIVE d VERSION = v PATCH = 0",
+		"CREATE APPLICATION SERVICE s FROM ARTIFACT REPOSITORY r",
+		"CREATE APPLICATION SERVICE s PACKAGE p",
+		"CREATE OR ALTER APPLICATION SERVICE s FROM ARTIFACT REPOSITORY r PACKAGE p", // SPECIFICATION is required
+		"CREATE OR REPLACE APPLICATION SERVICE s FROM ARTIFACT REPOSITORY r PACKAGE p",
+		"ALTER APPLICATION SERVICE s UPGRADE TO v",
+		"ALTER APPLICATION SERVICE s RENAME TO t",
+		"DROP APPLICATION PACKAGE p CASCADE",
+		"GRANT APPLICATION ROLE r TO USER u WITH GRANT OPTION",
+		"REVOKE GRANT OPTION FOR APPLICATION ROLE r FROM USER u",
+		"REVOKE APPLICATION ROLE r FROM USER u CASCADE",
+		"SHOW RELEASE CHANNELS IN LISTING l m",
+	} {
+		mustRejectObject(t, in)
+	}
+}

@@ -231,6 +231,14 @@ func (p *Parser) parseShowScope(stmt *ast.ShowStmt) error {
 		tok := p.advance()
 		stmt.Scope = ast.ShowScopeOther
 		stmt.ScopeText = strings.ToUpper(tok.Str)
+		// IN APPLICATION PACKAGE <name> (SHOW VERSIONS, SHOW RELEASE
+		// DIRECTIVES, SHOW RELEASE CHANNELS), where PACKAGE is followed by
+		// the package's name rather than being the application's.
+		// https://docs.snowflake.com/en/sql-reference/sql/show-versions
+		if tok.Type == kwAPPLICATION && p.startsShowApplicationPackageScope() {
+			p.advance() // consume PACKAGE
+			stmt.ScopeText = "APPLICATION PACKAGE"
+		}
 		// SESSION takes no name; the others take an optional name.
 		if tok.Type != kwSESSION {
 			return p.parseOptionalScopeName(stmt)
@@ -248,6 +256,15 @@ func (p *Parser) parseShowScope(stmt *ast.ShowStmt) error {
 		}
 		stmt.Scope = ast.ShowScopeOther
 		stmt.ScopeText = strings.ToUpper(tok.Str) + " GROUP"
+		return p.parseOptionalScopeName(stmt)
+	}
+
+	// IN LISTING <name> (SHOW RELEASE CHANNELS); a bare LISTING is a schema.
+	// https://docs.snowflake.com/en/sql-reference/sql/show-release-channels
+	if p.startsShowListingScope() {
+		p.advance() // consume LISTING
+		stmt.Scope = ast.ShowScopeOther
+		stmt.ScopeText = "LISTING"
 		return p.parseOptionalScopeName(stmt)
 	}
 
