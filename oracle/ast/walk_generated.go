@@ -387,6 +387,7 @@ func walkChildren(v Visitor, node Node) {
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
+		Walk(v, n.Object)
 		walkList(v, n.Args)
 		Walk(v, n.Into)
 	case *CaseExpr:

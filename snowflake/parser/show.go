@@ -108,6 +108,18 @@ func (p *Parser) parseShowStmt() (ast.Node, error) {
 		}
 	}
 
+	// SHOW NODES IN COMPUTE POOL <name> [ LIKE '<pattern>' ] writes LIKE after
+	// its scope (https://docs.snowflake.com/en/sql-reference/sql/show-nodes-compute-pool).
+	if stmt.ObjectClass == "NODES" && !stmt.HasLike && p.cur.Type == kwLIKE {
+		p.advance() // consume LIKE
+		pat, err := p.expect(tokString)
+		if err != nil {
+			return nil, err
+		}
+		stmt.Like = pat.Str
+		stmt.HasLike = true
+	}
+
 	// Optional STARTS WITH '<s>'.
 	if p.cur.Type == kwSTARTS {
 		p.advance() // consume STARTS
@@ -205,6 +217,27 @@ func (p *Parser) startsShowClassWord() bool {
 func (p *Parser) parseShowScope(stmt *ast.ShowStmt) error {
 	p.advance() // consume IN/FOR
 
+	// SHOW BACKUPS IN BACKUP SET <name> and SHOW SNAPSHOTS IN SNAPSHOT SET
+	// <name> (https://docs.snowflake.com/en/sql-reference/sql/show-backups-in-backup-set,
+	// https://docs.snowflake.com/en/sql-reference/sql/show-snapshots-in-snapshot-set).
+	if (stmt.ObjectClass == "BACKUPS" && p.atWords("BACKUP", "SET")) ||
+		(stmt.ObjectClass == "SNAPSHOTS" && p.atWords("SNAPSHOT", "SET")) {
+		stmt.Scope = ast.ShowScopeOther
+		stmt.ScopeText = strings.ToUpper(p.advance().Str) + " SET"
+		p.advance() // consume SET
+		name, err := p.parseObjectName()
+		if err != nil {
+			return err
+		}
+		stmt.ScopeName = name
+		return nil
+	}
+
+	// IN { MODEL | DATASET | EXPERIMENT | GATEWAY } <name> (model.go).
+	if word := p.startsShowModelScope(); word != "" {
+		return p.parseShowModelScope(stmt, word)
+	}
+
 	switch p.cur.Type {
 	case kwACCOUNT:
 		p.advance()
@@ -231,6 +264,14 @@ func (p *Parser) parseShowScope(stmt *ast.ShowStmt) error {
 		tok := p.advance()
 		stmt.Scope = ast.ShowScopeOther
 		stmt.ScopeText = strings.ToUpper(tok.Str)
+		// IN APPLICATION PACKAGE <name> (SHOW VERSIONS, SHOW RELEASE
+		// DIRECTIVES, SHOW RELEASE CHANNELS), where PACKAGE is followed by
+		// the package's name rather than being the application's.
+		// https://docs.snowflake.com/en/sql-reference/sql/show-versions
+		if tok.Type == kwAPPLICATION && p.startsShowApplicationPackageScope() {
+			p.advance() // consume PACKAGE
+			stmt.ScopeText = "APPLICATION PACKAGE"
+		}
 		// SESSION takes no name; the others take an optional name.
 		if tok.Type != kwSESSION {
 			return p.parseOptionalScopeName(stmt)
@@ -251,6 +292,30 @@ func (p *Parser) parseShowScope(stmt *ast.ShowStmt) error {
 		return p.parseOptionalScopeName(stmt)
 	}
 
+	// IN LISTING <name> (SHOW RELEASE CHANNELS); a bare LISTING is a schema.
+	// https://docs.snowflake.com/en/sql-reference/sql/show-release-channels
+	if p.startsShowListingScope() {
+		p.advance() // consume LISTING
+		stmt.Scope = ast.ShowScopeOther
+		stmt.ScopeText = "LISTING"
+		return p.parseOptionalScopeName(stmt)
+	}
+
+	// IN SERVICE | COMPUTE POOL | IMAGE REPOSITORY | ARTIFACT REPOSITORY <name>
+	// (SHOW ENDPOINTS / ROLES / SERVICE CONTAINERS IN SERVICE, SHOW NODES /
+	// SERVICES IN COMPUTE POOL, SHOW IMAGES, SHOW FILES / PACKAGES).
+	if words := p.startsShowServiceScope(); words != nil {
+		p.acceptWords(words...)
+		stmt.Scope = ast.ShowScopeOther
+		stmt.ScopeText = strings.Join(words, " ")
+		name, err := p.parseObjectName()
+		if err != nil {
+			return err
+		}
+		stmt.ScopeName = name
+		return nil
+	}
+
 	// Bare name → schema scope (e.g. SHOW TABLES IN tpch_sf1).
 	if p.startsScopeName() {
 		name, err := p.parseObjectName()
@@ -263,6 +328,28 @@ func (p *Parser) parseShowScope(stmt *ast.ShowStmt) error {
 	}
 
 	return p.syntaxErrorAtCur()
+}
+
+// startsShowServiceScope reports the Snowpark Container Services scope
+// keywords at cur (after IN), or nil. SERVICE counts only when a name word
+// follows, so SHOW ... IN service still reads a schema named SERVICE. It
+// consumes nothing.
+func (p *Parser) startsShowServiceScope() []string {
+	for _, words := range [][]string{{"COMPUTE", "POOL"}, {"IMAGE", "REPOSITORY"}, {"ARTIFACT", "REPOSITORY"}} {
+		if p.atWords(words...) {
+			return words
+		}
+	}
+	if p.curIsWord("SERVICE") {
+		switch next := p.peekNext().Type; next {
+		case kwSTARTS, kwLIMIT, kwWITH, kwLIKE, kwFOR, tokFlow, tokEOF, ';':
+		default:
+			if p.isObjectTypeWord(next) {
+				return []string{"SERVICE"}
+			}
+		}
+	}
+	return nil
 }
 
 // parseOptionalScopeName reads an optional object name following a scope keyword

@@ -4107,6 +4107,10 @@ func writeCallStmt(sb *strings.Builder, n *CallStmt) {
 	if n.Package != "" {
 		sb.WriteString(fmt.Sprintf(" :package %q", n.Package))
 	}
+	if n.Object != nil {
+		sb.WriteString(" :object ")
+		writeNode(sb, n.Object)
+	}
 	if n.Args != nil {
 		sb.WriteString(" :args ")
 		writeNode(sb, n.Args)
