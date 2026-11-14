@@ -276,6 +276,8 @@ func TestParseExecuteImmediateFrom(t *testing.T) {
 	for _, in := range []string{
 		"EXECUTE IMMEDIATE FROM",
 		"EXECUTE IMMEDIATE FROM st/t.sql",
+		"EXECUTE IMMEDIATE FROM @",
+		"EXECUTE IMMEDIATE FROM @ DRY_RUN = TRUE",
 		"EXECUTE IMMEDIATE FROM @st/t.sql USING (env)", // template values are named
 		"EXECUTE IMMEDIATE FROM @st/t.sql USING ()",
 		"EXECUTE IMMEDIATE FROM @st/t.sql DRY_RUN = 'TRUE'",

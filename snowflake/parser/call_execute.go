@@ -251,6 +251,10 @@ func (p *Parser) parseExecuteImmediateFrom(stmt *ast.ExecuteImmediateStmt) (ast.
 		if err != nil {
 			return nil, err
 		}
+		if loc.Raw == "@" {
+			// A lone '@' names no stage.
+			return nil, p.syntaxErrorAtCur()
+		}
 		stmt.File = loc.Raw
 	case tokString:
 		// A path relative to the file that runs this statement.
