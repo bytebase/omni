@@ -17,8 +17,8 @@ type grantKey struct {
 
 // diffGrants compares grants between two catalogs and returns diff entries.
 func diffGrants(from, to *Catalog) []GrantDiffEntry {
-	fromMap := buildGrantMap(from)
-	toMap := buildGrantMap(to)
+	fromMap := buildGrantMap(from, to, true)
+	toMap := buildGrantMap(to, from, false)
 
 	var entries []GrantDiffEntry
 
@@ -80,9 +80,12 @@ func grantSortKey(e GrantDiffEntry) string {
 }
 
 // buildGrantMap builds a map from identity key to Grant for all grants in a catalog.
-func buildGrantMap(c *Catalog) map[grantKey]Grant {
+func buildGrantMap(c, other *Catalog, isFrom bool) map[grantKey]Grant {
 	m := make(map[grantKey]Grant, len(c.grants))
 	for _, g := range c.grants {
+		if !c.diffsMemberSetting(g.ObjOID, other, isFrom, g.FromExtension) {
+			continue
+		}
 		k := makeGrantKey(c, g)
 		m[k] = g
 	}
