@@ -128,6 +128,10 @@ func (p *Parser) parseObjectNameWith(parseComponent func() (string, error)) (*no
 		if parseErr823 != nil {
 			return nil, parseErr823
 		}
+		// An '@' names its database link (ORA-01729 at the end of t@).
+		if obj.DBLink == "" {
+			return nil, p.syntaxErrorAtCur()
+		}
 	}
 
 	obj.Loc.End = p.prev.End

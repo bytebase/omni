@@ -8,8 +8,9 @@ import (
 )
 
 // TestGetQueryType_CallExecuteAreDML locks the classification of
-// CALL / EXECUTE IMMEDIATE / EXECUTE TASK as DML (procedures can mutate data;
-// the DDL fallback would map them to the wrong ACL bucket).
+// CALL / EXECUTE IMMEDIATE / EXECUTE TASK / EXECUTE [ INFERENCE ] JOB SERVICE
+// as DML (procedures, tasks and jobs can mutate data; the DDL fallback would map
+// them to the wrong ACL bucket).
 func TestGetQueryType_CallExecuteAreDML(t *testing.T) {
 	for _, sql := range []string{
 		"CALL P(1);",
@@ -19,6 +20,8 @@ func TestGetQueryType_CallExecuteAreDML(t *testing.T) {
 		"EXECUTE DBT PROJECT P ARGS = 'run';",
 		"EXECUTE DCM PROJECT P DEPLOY FROM '@S/DEFS';",
 		"EXECUTE CODE BUNDLE D.S.B ENTRYPOINT = 'main.py';",
+		"EXECUTE JOB SERVICE IN COMPUTE POOL P FROM SPECIFICATION 'spec' NAME = J;",
+		"EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL P WITH SPECIFICATION 'spec' FROM (SELECT 1) MODEL = M;",
 	} {
 		file, err := parser.Parse(sql)
 		if err != nil {
@@ -49,6 +52,8 @@ func TestGetQueryType_UnmappedStaysUnknown(t *testing.T) {
 		{"CREATE DBT PROJECT P FROM '@S/P';", analysis.DDL},
 		{"ALTER DCM PROJECT P UNSET COMMENT;", analysis.DDL},
 		{"DROP DBT PROJECT P;", analysis.DDL},
+		{"CREATE SERVICE S IN COMPUTE POOL P FROM SPECIFICATION 'spec';", analysis.DDL},
+		{"ALTER SERVICE S SUSPEND;", analysis.DDL},
 	} {
 		file, err := parser.Parse(tc.sql)
 		if err != nil {
