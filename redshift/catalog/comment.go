@@ -2,7 +2,6 @@ package catalog
 
 import (
 	"fmt"
-	"strings"
 
 	nodes "github.com/bytebase/omni/redshift/ast"
 )
@@ -130,18 +129,17 @@ func (c *Catalog) CommentObject(stmt *nodes.CommentStmt) error {
 		}
 		key = commentKey{ObjType: 'n', ObjOID: s.OID}
 
-	case nodes.OBJECT_TYPE, nodes.OBJECT_DOMAIN:
-		// pg: src/backend/catalog/objectaddress.c — get_object_address_type
-		oid, name, err := c.commentTypeOID(stmt.Object)
+	case nodes.OBJECT_TYPE:
+		schemaName, name := extractCommentObjectName(stmt.Object)
+		schema, err := c.resolveTargetSchema(schemaName)
 		if err != nil {
 			return err
 		}
-		if nodes.ObjectType(stmt.Objtype) == nodes.OBJECT_DOMAIN {
-			if bt := c.typeByOID[oid]; bt == nil || bt.Type != 'd' {
-				return errWrongObjectType(name, "a domain")
-			}
+		bt := c.typeByName[typeKey{ns: schema.OID, name: name}]
+		if bt == nil {
+			return errUndefinedType(name)
 		}
-		key = commentKey{ObjType: 't', ObjOID: oid}
+		key = commentKey{ObjType: 't', ObjOID: bt.OID}
 
 	case nodes.OBJECT_SEQUENCE:
 		schemaName, name := extractCommentObjectName(stmt.Object)
@@ -328,46 +326,6 @@ func (c *Catalog) CommentObject(stmt *nodes.CommentStmt) error {
 		c.comments[key] = stmt.Comment
 	}
 	return nil
-}
-
-// commentTypeOID resolves the type COMMENT ON TYPE or DOMAIN names, and
-// gives its name as written for messages. The parser gives a TypeName, as
-// gram.y does; a modifier is checked as for any type name, and an array
-// bound names the array type.
-func (c *Catalog) commentTypeOID(obj nodes.Node) (uint32, string, error) {
-	if tn, ok := obj.(*nodes.TypeName); ok {
-		oid, _, err := c.resolveTypeName(tn)
-		name := typeNameString(tn)
-		if err != nil {
-			return 0, name, err
-		}
-		return oid, name, nil
-	}
-	schemaName, name := extractCommentObjectName(obj)
-	schema, err := c.resolveTargetSchema(schemaName)
-	if err != nil {
-		return 0, name, err
-	}
-	bt := c.typeByName[typeKey{ns: schema.OID, name: name}]
-	if bt == nil {
-		return 0, name, errUndefinedType(name)
-	}
-	return bt.OID, name, nil
-}
-
-// typeNameString writes a TypeName's qualified name, with [] for an array.
-func typeNameString(tn *nodes.TypeName) string {
-	var parts []string
-	if tn.Names != nil {
-		for _, item := range tn.Names.Items {
-			parts = append(parts, stringVal(item))
-		}
-	}
-	name := strings.Join(parts, ".")
-	if tn.ArrayBounds != nil && len(tn.ArrayBounds.Items) > 0 {
-		name += "[]"
-	}
-	return name
 }
 
 // extractCommentObjectName extracts schema and name from a comment Object node.

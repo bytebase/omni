@@ -1,7 +1,5 @@
 package catalog
 
-import "fmt"
-
 // ResolveType resolves a TypeName to an OID and typmod.
 func (c *Catalog) ResolveType(tn TypeName) (oid uint32, typmod int32, err error) {
 	name := resolveAlias(tn.Name)
@@ -44,8 +42,7 @@ func (c *Catalog) ResolveType(tn TypeName) (oid uint32, typmod int32, err error)
 	// Validate typmod.
 	typmod = tn.TypeMod
 	if typmod != -1 && typ.ModIn == 0 {
-		// pg: src/backend/parser/parse_type.c — typenameTypeMod
-		return 0, -1, &Error{Code: CodeSyntaxError, Message: fmt.Sprintf("type modifier is not allowed for type %q", typ.TypeName)}
+		return 0, -1, errInvalidParameterValue("type " + typ.TypeName + " does not support type modifiers")
 	}
 
 	return typ.OID, typmod, nil
