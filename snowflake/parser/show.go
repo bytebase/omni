@@ -101,11 +101,17 @@ func (p *Parser) parseShowStmt() (ast.Node, error) {
 		stmt.HasLike = true
 	}
 
-	// Optional IN/FOR <scope>.
+	// Optional IN/FOR <scope>, then the clause a class writes after it.
+	bareScope := false
 	if p.cur.Type == kwIN || p.cur.Type == kwFOR {
+		afterIn := p.peekNext().Loc.Start
 		if err := p.parseShowScope(stmt); err != nil {
 			return nil, err
 		}
+		bareScope = stmt.Scope == ast.ShowScopeSchema && stmt.ScopeName != nil && stmt.ScopeName.Loc.Start == afterIn
+	}
+	if err := p.parseShowClassClause(stmt, bareScope); err != nil {
+		return nil, err
 	}
 
 	// SHOW NODES IN COMPUTE POOL <name> [ LIKE '<pattern>' ] writes LIKE after
@@ -152,6 +158,16 @@ func (p *Parser) parseShowStmt() (ast.Node, error) {
 			stmt.LimitFrom = from.Str
 		}
 	}
+	if err := p.parseShowOfType(stmt); err != nil {
+		return nil, err
+	}
+
+	// SHOW AVAILABLE LISTINGS' IS_<x> = TRUE filters (listing.go).
+	if stmt.ObjectClass == "AVAILABLE LISTINGS" {
+		if err := p.parseShowAvailableListingsFilters(stmt); err != nil {
+			return nil, err
+		}
+	}
 
 	// Optional WITH PRIVILEGES <priv> [, ...].
 	if p.cur.Type == kwWITH && p.peekNext().Type == kwPRIVILEGES {
@@ -170,6 +186,12 @@ func (p *Parser) parseShowStmt() (ast.Node, error) {
 	}
 
 	stmt.Loc.End = p.prev.Loc.End
+	if err := checkShowProjectScope(stmt); err != nil {
+		return nil, err
+	}
+	if err := checkShowConnectorOrRoutingScope(stmt); err != nil {
+		return nil, err
+	}
 	return stmt, nil
 }
 
@@ -194,7 +216,11 @@ func (p *Parser) parseShowObjectClass() (string, error) {
 // terminate the class.
 func (p *Parser) startsShowClassWord() bool {
 	switch p.cur.Type {
-	case kwHISTORY, kwLIKE, kwIN, kwFOR, kwSTARTS, kwLIMIT, kwWITH, tokFlow, tokEOF:
+	case kwHISTORY, kwLIKE, kwIN, kwFOR, kwSTARTS, kwLIMIT, kwWITH, kwOF, tokFlow, tokEOF:
+		return false
+	}
+	if p.peekNext().Type == '=' {
+		// A filter's name (SHOW AVAILABLE LISTINGS IS_IMPORTED = TRUE).
 		return false
 	}
 	return p.isObjectTypeWord(p.cur.Type)
@@ -217,6 +243,13 @@ func (p *Parser) startsShowClassWord() bool {
 func (p *Parser) parseShowScope(stmt *ast.ShowStmt) error {
 	p.advance() // consume IN/FOR
 
+	if ok, err := p.parseShowOrganizationScope(stmt); ok {
+		return err
+	}
+	if ok, err := p.parseShowClassScope(stmt); ok {
+		return err
+	}
+
 	// SHOW BACKUPS IN BACKUP SET <name> and SHOW SNAPSHOTS IN SNAPSHOT SET
 	// <name> (https://docs.snowflake.com/en/sql-reference/sql/show-backups-in-backup-set,
 	// https://docs.snowflake.com/en/sql-reference/sql/show-snapshots-in-snapshot-set).
@@ -231,6 +264,12 @@ func (p *Parser) parseShowScope(stmt *ast.ShowStmt) error {
 		}
 		stmt.ScopeName = name
 		return nil
+	}
+
+	// SHOW VERSIONS IN OPENFLOW CONNECTOR <name> and SHOW RULES IN EVENT
+	// ROUTING TABLE ( <name> ) (openflow_connector.go).
+	if ok, err := p.parseShowConnectorOrRoutingScope(stmt); ok {
+		return err
 	}
 
 	// IN { MODEL | DATASET | EXPERIMENT | GATEWAY } <name> (model.go).
@@ -259,11 +298,25 @@ func (p *Parser) parseShowScope(stmt *ast.ShowStmt) error {
 		p.advance()
 		stmt.Scope = ast.ShowScopeView
 		return p.parseOptionalScopeName(stmt)
+	case kwEXTERNAL:
+		// FOR EXTERNAL CONSUMER <name> (sharing.go); otherwise a schema
+		// named EXTERNAL.
+		if isWordToken(p.peekNext(), "CONSUMER") {
+			return p.parseShowExternalConsumerScope(stmt)
+		}
 	case kwSESSION, kwUSER, kwWAREHOUSE, kwTASK, kwAPPLICATION, kwCONNECTION:
 		// Non-container scope keyword (SHOW PARAMETERS / SHOW ... contexts).
 		tok := p.advance()
 		stmt.Scope = ast.ShowScopeOther
 		stmt.ScopeText = strings.ToUpper(tok.Str)
+		// IN APPLICATION PACKAGE <name> (SHOW VERSIONS, SHOW RELEASE
+		// DIRECTIVES, SHOW RELEASE CHANNELS), where PACKAGE is followed by
+		// the package's name rather than being the application's.
+		// https://docs.snowflake.com/en/sql-reference/sql/show-versions
+		if tok.Type == kwAPPLICATION && p.startsShowApplicationPackageScope() {
+			p.advance() // consume PACKAGE
+			stmt.ScopeText = "APPLICATION PACKAGE"
+		}
 		// SESSION takes no name; the others take an optional name.
 		if tok.Type != kwSESSION {
 			return p.parseOptionalScopeName(stmt)
@@ -281,6 +334,37 @@ func (p *Parser) parseShowScope(stmt *ast.ShowStmt) error {
 		}
 		stmt.Scope = ast.ShowScopeOther
 		stmt.ScopeText = strings.ToUpper(tok.Str) + " GROUP"
+		return p.parseOptionalScopeName(stmt)
+	}
+
+	// IN { DBT | DCM } PROJECT <name> (project.go).
+	if words := p.startsShowProjectScope(stmt.ObjectClass); words != nil {
+		return p.parseShowProjectScope(stmt, words)
+	}
+
+	// SHOW COMMITTED TASKS ... IN GRAPH <graph_name>
+	// https://docs.snowflake.com/en/sql-reference/sql/show-committed-tasks
+	// (IN GRAPH alone, or before STARTS WITH or LIMIT, is the schema GRAPH.)
+	if next := p.peekNext(); stmt.ObjectClass == "COMMITTED TASKS" && isWordToken(p.cur, "GRAPH") &&
+		(isNameWordTok(next) || next.Type == tokQuotedIdent) &&
+		next.Type != kwSTARTS && next.Type != kwLIMIT && next.Type != kwWITH {
+		p.advance() // consume GRAPH
+		name, err := p.parseObjectSimpleName()
+		if err != nil {
+			return err
+		}
+		stmt.Scope = ast.ShowScopeOther
+		stmt.ScopeText = "GRAPH"
+		stmt.ScopeName = name
+		return nil
+	}
+
+	// IN LISTING <name> (SHOW RELEASE CHANNELS); a bare LISTING is a schema.
+	// https://docs.snowflake.com/en/sql-reference/sql/show-release-channels
+	if p.startsShowListingScope() {
+		p.advance() // consume LISTING
+		stmt.Scope = ast.ShowScopeOther
+		stmt.ScopeText = "LISTING"
 		return p.parseOptionalScopeName(stmt)
 	}
 
@@ -455,7 +539,7 @@ func (p *Parser) parseShowGrantsOpts(stmt *ast.ShowStmt) error {
 			return err
 		}
 		stmt.GrantsTo = grantee
-		return nil
+		return p.parseShowGrantsToShareIn(stmt)
 	case kwOF:
 		p.advance() // consume OF
 		grantee, err := p.parseGrantee()
@@ -464,6 +548,14 @@ func (p *Parser) parseShowGrantsOpts(stmt *ast.ShowStmt) error {
 		}
 		stmt.GrantsTo = grantee
 		return nil
+	case kwIN:
+		// IN DCM PROJECT <name> (project.go).
+		p.advance() // consume IN
+		words := p.startsShowProjectScope("GRANTS")
+		if words == nil {
+			return p.syntaxErrorAtCur()
+		}
+		return p.parseShowProjectScope(stmt, words)
 	}
 	// Bare SHOW GRANTS — no options.
 	return nil
@@ -482,6 +574,10 @@ func (p *Parser) parseShowFutureGrants(stmt *ast.ShowStmt) error {
 	switch p.cur.Type {
 	case kwIN:
 		p.advance() // consume IN
+		// IN DCM PROJECT <name> (project.go).
+		if words := p.startsShowProjectScope("GRANTS"); words != nil {
+			return p.parseShowProjectScope(stmt, words)
+		}
 		target := &ast.GrantTarget{Kind: ast.GrantTargetAllIn}
 		switch p.cur.Type {
 		case kwDATABASE:
@@ -613,13 +709,30 @@ func (p *Parser) parseDescribeStmt(short bool) (ast.Node, error) {
 	stmt.ObjectType = strings.Join(typeWords, " ")
 	stmt.Name = unit
 
+	// A data metric function's signature, ( TABLE ( ... ) [ , TABLE ( ... ) ] )
+	// (data_metric_function.go); the page writes DESC FUNCTION [ IF EXISTS ].
+	if (stmt.ObjectType == "FUNCTION" || stmt.ObjectType == "FUNCTION IF EXISTS") && p.startsDataMetricTableArgs() {
+		args, err := p.parseDataMetricTableArgs()
+		if err != nil {
+			return nil, err
+		}
+		stmt.TableArgs = args
+	}
+
 	// Optional FUNCTION/PROCEDURE argument-type signature.
-	if p.cur.Type == '(' {
+	if stmt.TableArgs == nil && p.cur.Type == '(' {
 		sig, err := p.parseGrantSignature()
 		if err != nil {
 			return nil, err
 		}
 		stmt.Signature = sig
+	}
+
+	// DESC LISTING <name> REVISION = { DRAFT | PUBLISHED } (listing.go).
+	if stmt.ObjectType == "LISTING" && p.startsListingRevision() {
+		if err := p.parseDescribeListingRevision(stmt); err != nil {
+			return nil, err
+		}
 	}
 
 	// Optional TYPE = <kw>.
@@ -646,6 +759,9 @@ func (p *Parser) parseDescribeStmt(short bool) (ast.Node, error) {
 func (p *Parser) startsDescribeNameUnit() bool {
 	switch p.cur.Type {
 	case '(', kwTYPE, kwON, tokString, tokInt, tokFloat, tokEOF, ';':
+		return false
+	}
+	if p.startsListingRevision() {
 		return false
 	}
 	return p.isObjectTypeWord(p.cur.Type)

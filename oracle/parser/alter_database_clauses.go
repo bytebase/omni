@@ -11,20 +11,17 @@ import (
 // (bnf/ALTER-DATABASE.bnf), corrected where the pinned Oracle reads it
 // otherwise: the compat rows and the probe decide. ALTER DATABASE takes one
 // clause, after an optional database name.
-//
+
 // adbEnd reports whether the statement ends at the current token.
 func (p *Parser) adbEnd() bool {
 	return p.cur.Type == ';' || p.cur.Type == tokEOF
 }
 
-// adbEndKept reports whether the statement ends at the current token, at a
-// place where the grammar wants more. Oracle refuses such a statement, but
-// with a code of the statement (ORA-02231, ORA-02236, ORA-01916, ...) that
-// compat.tsv's judge read as accepted at the end (bytebase/omni#1106). Omni
-// accepted these forms before this rewrite, and keeps accepting them only so
-// the recorded verdicts hold until compat.tsv is rejudged; then each such
-// stop is to read the operand as required.
-func (p *Parser) adbEndKept() bool {
+// adbRecoverEnd reports whether a RECOVER clause stops at the current
+// token. Oracle's parser takes such a RECOVER and its recovery refuses it at
+// byte 0 (ORA-00274, ORA-00277), which compat records as accepted; the
+// RECOVER rows Oracle answers at byte 0 are a judge problem handled apart.
+func (p *Parser) adbRecoverEnd() bool {
 	return p.adbEnd()
 }
 
@@ -193,9 +190,6 @@ func (p *Parser) parseAlterDatabaseSize() (string, error) {
 //	autoextend_clause ::= AUTOEXTEND { OFF | ON [ NEXT size_clause ] [ maxsize_clause ] }
 //	maxsize_clause ::= MAXSIZE { size_clause | UNLIMITED }
 func (p *Parser) parseAlterDatabaseAutoextend() (string, error) {
-	if p.adbEndKept() {
-		return "", nil
-	}
 	switch {
 	case p.adbWord("OFF"):
 		p.advance()
@@ -208,9 +202,6 @@ func (p *Parser) parseAlterDatabaseAutoextend() (string, error) {
 	val := "ON"
 	if p.adbWord("NEXT") {
 		p.advance()
-		if p.adbEndKept() {
-			return val + " NEXT", nil
-		}
 		n, err := p.parseAlterDatabaseSize()
 		if err != nil {
 			return "", err
@@ -219,9 +210,6 @@ func (p *Parser) parseAlterDatabaseAutoextend() (string, error) {
 	}
 	if p.adbWord("MAXSIZE") {
 		p.advance()
-		if p.adbEndKept() {
-			return val + " MAXSIZE", nil
-		}
 		if p.adbWord("UNLIMITED") {
 			p.advance()
 			return val + " MAXSIZE UNLIMITED", nil
@@ -282,13 +270,11 @@ func (p *Parser) parseAlterDatabaseStmt(start int) (nodes.StmtNode, error) {
 		}
 		stmt.Name = &nodes.ObjectName{Name: name, Loc: nodes.Loc{Start: nameStart, End: p.prev.End}}
 	}
-	if !p.adbEndKept() {
-		opt, err := p.parseAlterDatabaseClause()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Options = &nodes.List{Items: []nodes.Node{opt}}
+	opt, err := p.parseAlterDatabaseClause()
+	if err != nil {
+		return nil, err
 	}
+	stmt.Options = &nodes.List{Items: []nodes.Node{opt}}
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
@@ -313,9 +299,7 @@ func (p *Parser) parseAlterDatabaseClause() (*nodes.DDLOption, error) {
 	case "BEGIN", "END":
 		p.advance()
 		opt.Key = word + "_BACKUP"
-		if !p.adbEndKept() {
-			err = p.adbExpect("BACKUP")
-		}
+		err = p.adbExpect("BACKUP")
 	case "RECOVER":
 		err = p.parseAlterDatabaseRecover(opt)
 	case "RENAME":
@@ -326,7 +310,19 @@ func (p *Parser) parseAlterDatabaseClause() (*nodes.DDLOption, error) {
 		err = p.parseAlterDatabaseFile(opt, word)
 	case "MOVE":
 		err = p.parseAlterDatabaseMove(opt)
-	case "ARCHIVELOG", "MANUAL", "NOARCHIVELOG":
+	case "ARCHIVELOG", "MANUAL":
+		// ARCHIVELOG [ MANUAL ], or MANUAL ARCHIVELOG: Oracle takes MANUAL
+		// only with ARCHIVELOG, as the page did before 12c.
+		p.advance()
+		opt.Key = "ARCHIVELOG"
+		if word == "MANUAL" {
+			err = p.adbExpect("ARCHIVELOG")
+			opt.Value = "MANUAL"
+		} else if p.adbWord("MANUAL") {
+			p.advance()
+			opt.Value = "MANUAL"
+		}
+	case "NOARCHIVELOG":
 		p.advance()
 		opt.Key = word
 	case "NO", "FORCE":
@@ -338,9 +334,7 @@ func (p *Parser) parseAlterDatabaseClause() (*nodes.DDLOption, error) {
 				return nil, err
 			}
 		}
-		if !p.adbEndKept() {
-			err = p.adbExpect("LOGGING")
-		}
+		err = p.adbExpect("LOGGING")
 	case "SET":
 		err = p.parseAlterDatabaseSet(opt)
 	case "CLEAR":
@@ -378,7 +372,6 @@ func (p *Parser) parseAlterDatabaseClause() (*nodes.DDLOption, error) {
 		p.advance()
 		opt.Key = "FLASHBACK"
 		switch {
-		case p.adbEndKept():
 		case p.cur.Type == kwON || p.adbWord("OFF"):
 			opt.Value = p.advance().Str
 		default:
@@ -422,10 +415,6 @@ func (p *Parser) parseAlterDatabaseOpen(opt *nodes.DDLOption) error {
 	var parts []string
 	if p.cur.Type == kwREAD {
 		p.advance()
-		if p.adbEndKept() {
-			opt.Value = "READ"
-			return nil
-		}
 		if p.cur.Type == kwONLY {
 			p.advance()
 			opt.Value = "READ ONLY"
@@ -498,9 +487,6 @@ func (p *Parser) parseAlterDatabaseRecover(opt *nodes.DDLOption) error {
 	}
 	if p.cur.Type == kwFROM {
 		p.advance()
-		if p.adbEndKept() {
-			return nil
-		}
 		loc, err := p.adbString()
 		if err != nil {
 			return err
@@ -516,7 +502,7 @@ func (p *Parser) parseAlterDatabaseRecover(opt *nodes.DDLOption) error {
 		if p.adbWord("STANDBY") {
 			p.advance()
 			opt.Key = "RECOVER_STANDBY_DATABASE"
-			if p.adbEndKept() {
+			if p.adbRecoverEnd() {
 				return nil
 			}
 		}
@@ -544,9 +530,6 @@ func (p *Parser) parseAlterDatabaseRecover(opt *nodes.DDLOption) error {
 		p.advance()
 		opt.Key = "RECOVER_DATAFILE"
 		full = false
-		if p.adbEndKept() {
-			return nil
-		}
 		files, err := p.adbFileItems("DATAFILE", p.cur.Type == tokICONST)
 		if err != nil {
 			return err
@@ -569,13 +552,13 @@ func (p *Parser) parseAlterDatabaseRecover(opt *nodes.DDLOption) error {
 	if full && p.adbWord("UNTIL") {
 		p.advance()
 		switch {
-		case p.adbEndKept():
+		case p.adbRecoverEnd():
 			return nil
 		case p.adbWord("CANCEL"), p.adbWord("CONSISTENT"):
 			p.advance()
 		case p.adbWord("TIME"):
 			p.advance()
-			if p.adbEndKept() {
+			if p.adbRecoverEnd() {
 				return nil
 			}
 			if _, err := p.adbString(); err != nil {
@@ -583,7 +566,7 @@ func (p *Parser) parseAlterDatabaseRecover(opt *nodes.DDLOption) error {
 			}
 		case p.adbWord("CHANGE"):
 			p.advance()
-			if p.adbEndKept() {
+			if p.adbRecoverEnd() {
 				return nil
 			}
 			if _, err := p.adbInteger(); err != nil {
@@ -610,7 +593,7 @@ func (p *Parser) parseAlterDatabaseRecover(opt *nodes.DDLOption) error {
 		if _, err := p.adbInteger(); err != nil {
 			return err
 		}
-		if p.adbEndKept() {
+		if p.adbRecoverEnd() {
 			return nil
 		}
 		if err := p.adbExpect("CORRUPTION"); err != nil {
@@ -693,7 +676,7 @@ func (p *Parser) parseAlterDatabaseManagedRecovery(opt *nodes.DDLOption) error {
 			p.advance()
 			if p.cur.Type == kwFROM {
 				p.advance()
-				if p.adbEndKept() {
+				if p.adbRecoverEnd() {
 					return nil
 				}
 				if p.cur.Type != kwSESSION {
@@ -706,13 +689,13 @@ func (p *Parser) parseAlterDatabaseManagedRecovery(opt *nodes.DDLOption) error {
 		case p.adbWord("UNTIL"):
 			p.advance()
 			switch {
-			case p.adbEndKept():
+			case p.adbRecoverEnd():
 				return nil
 			case p.adbWord("CONSISTENT"):
 				p.advance()
 			case p.adbWord("CHANGE"):
 				p.advance()
-				if p.adbEndKept() {
+				if p.adbRecoverEnd() {
 					return nil
 				}
 				if _, err := p.adbInteger(); err != nil {
@@ -843,9 +826,6 @@ func (p *Parser) parseAlterDatabaseRename(opt *nodes.DDLOption) error {
 			return p.syntaxErrorAtCur()
 		}
 		p.advance()
-		if p.adbEndKept() {
-			return nil
-		}
 		to, err := p.adbFileItems("TO", false)
 		if err != nil {
 			return err
@@ -859,9 +839,6 @@ func (p *Parser) parseAlterDatabaseRename(opt *nodes.DDLOption) error {
 			return p.syntaxErrorAtCur()
 		}
 		p.advance()
-		if p.adbEndKept() {
-			return nil
-		}
 		name, err := p.adbDottedName()
 		if err != nil {
 			return err
@@ -945,9 +922,6 @@ func (p *Parser) parseAlterDatabaseCreate(opt *nodes.DDLOption) error {
 		return p.syntaxErrorAtCur()
 	}
 	p.advance()
-	if p.adbEndKept() {
-		return nil
-	}
 	start := p.pos()
 	f, err := p.adbString()
 	if err != nil {
@@ -976,9 +950,6 @@ func (p *Parser) parseAlterDatabaseCreateDatafile(opt *nodes.DDLOption) error {
 		return nil
 	}
 	p.advance()
-	if p.adbEndKept() {
-		return nil
-	}
 	opt.Items = &nodes.List{}
 	for {
 		start := p.pos()
@@ -1007,29 +978,21 @@ func (p *Parser) parseAlterDatabaseCreateDatafile(opt *nodes.DDLOption) error {
 func (p *Parser) parseAlterDatabaseFile(opt *nodes.DDLOption, kind string) error {
 	p.advance()
 	opt.Key = kind
-	if p.adbEndKept() {
-		return nil
-	}
 	files, err := p.adbFileOrNumberList()
 	if err != nil {
 		return err
 	}
 	opt.Value = strings.Join(files, ", ")
-	if p.adbEndKept() {
-		return nil
-	}
 	actionStart := p.pos()
 	action := p.cur.Str
 	switch {
 	case p.adbWord("RESIZE"):
 		p.advance()
-		if !p.adbEndKept() {
-			n, err := p.parseAlterDatabaseSize()
-			if err != nil {
-				return err
-			}
-			action += " " + n
+		n, err := p.parseAlterDatabaseSize()
+		if err != nil {
+			return err
 		}
+		action += " " + n
 	case p.adbWord("AUTOEXTEND"):
 		p.advance()
 		v, err := p.parseAlterDatabaseAutoextend()
@@ -1057,12 +1020,10 @@ func (p *Parser) parseAlterDatabaseFile(opt *nodes.DDLOption, kind string) error
 		}
 	case kind == "DATAFILE" && p.cur.Type == kwEND:
 		p.advance()
-		if !p.adbEndKept() {
-			if err := p.adbExpect("BACKUP"); err != nil {
-				return err
-			}
-			action += " BACKUP"
+		if err := p.adbExpect("BACKUP"); err != nil {
+			return err
 		}
+		action += " BACKUP"
 	case kind == "TEMPFILE" && p.cur.Type == kwDROP:
 		p.advance()
 		if p.adbWord("INCLUDING") {
@@ -1100,9 +1061,6 @@ func (p *Parser) parseAlterDatabaseMove(opt *nodes.DDLOption) error {
 	opt.Value = f
 	if p.cur.Type == kwTO {
 		p.advance()
-		if p.adbEndKept() {
-			return nil
-		}
 		start := p.pos()
 		to, err := p.adbString()
 		if err != nil {
@@ -1148,15 +1106,11 @@ func (p *Parser) parseAlterDatabaseSet(opt *nodes.DDLOption) error {
 			case p.adbWord("LOAD"):
 				p.advance()
 				opt.Value = "LOAD PERFORMANCE"
-				if !p.adbEndKept() {
-					return p.adbExpect("PERFORMANCE")
-				}
+				return p.adbExpect("PERFORMANCE")
 			case p.adbWord("DATA"):
 				p.advance()
 				opt.Value = "DATA AVAILABILITY"
-				if !p.adbEndKept() {
-					return p.adbExpect("AVAILABILITY")
-				}
+				return p.adbExpect("AVAILABILITY")
 			default:
 				return p.syntaxErrorAtCur()
 			}
@@ -1173,9 +1127,6 @@ func (p *Parser) parseAlterDatabaseSet(opt *nodes.DDLOption) error {
 		if err := p.adbExpect("MAXIMIZE"); err != nil {
 			return err
 		}
-		if p.adbEndKept() {
-			return nil
-		}
 		if !p.adbWord("PROTECTION") && !p.adbWord("AVAILABILITY") && !p.adbWord("PERFORMANCE") {
 			return p.syntaxErrorAtCur()
 		}
@@ -1184,16 +1135,10 @@ func (p *Parser) parseAlterDatabaseSet(opt *nodes.DDLOption) error {
 	case p.cur.Type == kwDEFAULT:
 		p.advance()
 		opt.Key = "SET_DEFAULT_TABLESPACE_TYPE"
-		if p.adbEndKept() {
-			return nil
-		}
 		if !p.adbWord("BIGFILE") && !p.adbWord("SMALLFILE") {
 			return p.syntaxErrorAtCur()
 		}
 		opt.Value = p.advance().Str
-		if p.adbEndKept() {
-			return nil
-		}
 		return p.adbExpect("TABLESPACE")
 	case p.adbWord("TIME_ZONE"):
 		p.advance()
@@ -1273,9 +1218,6 @@ func (p *Parser) parseAlterDatabaseLogfileDescriptor() (string, error) {
 	switch {
 	case p.cur.Type == kwGROUP:
 		p.advance()
-		if p.adbEndKept() {
-			return "GROUP", nil
-		}
 		n, err := p.adbInteger()
 		if err != nil {
 			return "", err
@@ -1327,9 +1269,7 @@ func (p *Parser) parseAlterDatabaseClear(opt *nodes.DDLOption) error {
 	opt.Value = strings.Join(descs, ", ")
 	if p.adbWord("UNRECOVERABLE") {
 		p.advance()
-		if !p.adbEndKept() {
-			return p.adbExpect("DATAFILE")
-		}
+		return p.adbExpect("DATAFILE")
 	}
 	return nil
 }
@@ -1428,21 +1368,12 @@ func (p *Parser) parseAlterDatabaseAddDrop(opt *nodes.DDLOption, verb string) er
 		p.advance()
 		opt.Key = verb + "_STANDBY_LOGFILE"
 	}
-	if p.adbEndKept() {
-		return nil
-	}
 	if err := p.adbExpect("LOGFILE"); err != nil {
 		return err
-	}
-	if p.adbEndKept() {
-		return nil
 	}
 	if p.adbWord("MEMBER") {
 		p.advance()
 		opt.Key += "_MEMBER"
-		if p.adbEndKept() {
-			return nil
-		}
 		var files []string
 		for {
 			f, err := p.adbString()
@@ -1494,9 +1425,6 @@ func (p *Parser) parseAlterDatabaseAddDrop(opt *nodes.DDLOption, verb string) er
 	var parts []string
 	if p.adbWord("INSTANCE") {
 		p.advance()
-		if p.adbEndKept() {
-			return nil
-		}
 		inst, err := p.adbString()
 		if err != nil {
 			return err
@@ -1504,9 +1432,6 @@ func (p *Parser) parseAlterDatabaseAddDrop(opt *nodes.DDLOption, verb string) er
 		parts = append(parts, "INSTANCE "+inst)
 	} else if p.adbWord("THREAD") {
 		p.advance()
-		if p.adbEndKept() {
-			return nil
-		}
 		n, err := p.adbInteger()
 		if err != nil {
 			return err
@@ -1514,14 +1439,8 @@ func (p *Parser) parseAlterDatabaseAddDrop(opt *nodes.DDLOption, verb string) er
 		parts = append(parts, "THREAD "+n)
 	}
 	for {
-		if p.adbEndKept() && len(parts) > 0 && p.prev.Type != ',' {
-			break
-		}
 		if p.cur.Type == kwGROUP {
 			p.advance()
-			if p.adbEndKept() {
-				break
-			}
 			n, err := p.adbInteger()
 			if err != nil {
 				return err
@@ -1653,9 +1572,6 @@ func (p *Parser) parseAlterDatabaseBackup(opt *nodes.DDLOption) error {
 		return p.syntaxErrorAtCur()
 	}
 	p.advance()
-	if p.adbEndKept() {
-		return nil
-	}
 	if p.cur.Type == tokSCONST {
 		opt.Value = p.advance().Str
 		if p.adbWord("REUSE") {
@@ -1669,9 +1585,6 @@ func (p *Parser) parseAlterDatabaseBackup(opt *nodes.DDLOption) error {
 	opt.Key = "BACKUP_CONTROLFILE_TO_TRACE"
 	if p.cur.Type == kwAS {
 		p.advance()
-		if p.adbEndKept() {
-			return nil
-		}
 		f, err := p.adbString()
 		if err != nil {
 			return err
@@ -1724,9 +1637,6 @@ func (p *Parser) parseAlterDatabaseRegister(opt *nodes.DDLOption) error {
 	}
 	if p.adbWord("PHYSICAL") || p.adbWord("LOGICAL") {
 		p.advance()
-	}
-	if p.adbEndKept() {
-		return nil
 	}
 	if err := p.adbExpect("LOGFILE"); err != nil {
 		return err
@@ -1883,13 +1793,11 @@ func (p *Parser) parseAlterDatabaseStartStop(opt *nodes.DDLOption, verb string) 
 		if err := p.adbExpect("PRIMARY"); err != nil {
 			return err
 		}
-		if !p.adbEndKept() {
-			link, err := p.adbDottedName()
-			if err != nil {
-				return err
-			}
-			parts = append(parts, "NEW PRIMARY "+link)
+		link, err := p.adbDottedName()
+		if err != nil {
+			return err
 		}
+		parts = append(parts, "NEW PRIMARY "+link)
 	case p.adbWord("SKIP"):
 		p.advance()
 		if err := p.adbExpect("FAILED"); err != nil {
@@ -1956,10 +1864,6 @@ func (p *Parser) parseAlterDatabaseRoleChange(opt *nodes.DDLOption, verb string)
 //	DEFAULT [ LOCAL ] TEMPORARY TABLESPACE tablespace_name
 func (p *Parser) parseAlterDatabaseDefault(opt *nodes.DDLOption) error {
 	p.advance()
-	if p.adbEndKept() {
-		opt.Key = "DEFAULT"
-		return nil
-	}
 	switch {
 	case p.adbWord("EDITION"):
 		p.advance()
@@ -1985,9 +1889,6 @@ func (p *Parser) parseAlterDatabaseDefault(opt *nodes.DDLOption) error {
 		}
 	default:
 		return p.syntaxErrorAtCur()
-	}
-	if p.adbEndKept() && opt.Key != "DEFAULT_EDITION" {
-		return nil
 	}
 	name, err := p.adbName()
 	if err != nil {
@@ -2032,9 +1933,6 @@ func (p *Parser) parseAlterDatabaseEnableDisable(opt *nodes.DDLOption, verb stri
 		if err := p.adbExpect("CHANGE"); err != nil {
 			return err
 		}
-		if p.adbEndKept() {
-			return nil
-		}
 		if err := p.adbExpect("TRACKING"); err != nil {
 			return err
 		}
@@ -2044,9 +1942,6 @@ func (p *Parser) parseAlterDatabaseEnableDisable(opt *nodes.DDLOption, verb stri
 				return p.syntaxErrorAtCur()
 			}
 			p.advance()
-			if p.adbEndKept() {
-				return nil
-			}
 			f, err := p.adbString()
 			if err != nil {
 				return err
@@ -2071,9 +1966,6 @@ func (p *Parser) parseAlterDatabaseEnableDisable(opt *nodes.DDLOption, verb stri
 		opt.Key = verb + "_LOST_WRITE_PROTECTION"
 		if err := p.adbExpect("WRITE"); err != nil {
 			return err
-		}
-		if p.adbEndKept() {
-			return nil
 		}
 		return p.adbExpect("PROTECTION")
 	}

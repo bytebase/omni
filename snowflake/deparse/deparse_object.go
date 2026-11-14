@@ -34,16 +34,16 @@ func (w *writer) writeObjectStmt(n *ast.ObjectStmt) error {
 			}
 			continue
 		}
-		if err := w.writeObjectClause(c); err != nil {
+		if err := w.writeObjectClause(n.Kind, c); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-// writeObjectClause writes one clause: its keywords, then the names, keys,
-// properties, tags and query it holds.
-func (w *writer) writeObjectClause(c *ast.ObjectClause) error {
+// writeObjectClause writes one clause of an object of kind: its keywords, then
+// the names, keys, properties, tags and query it holds.
+func (w *writer) writeObjectClause(kind string, c *ast.ObjectClause) error {
 	if c.Keywords != "" {
 		w.buf.WriteByte(' ')
 		w.buf.WriteString(c.Keywords)
@@ -56,13 +56,70 @@ func (w *writer) writeObjectClause(c *ast.ObjectClause) error {
 		}
 		w.writeObjectNameNoSpace(name)
 	}
+	if c.Params != nil {
+		// A body's signature and type: ( <arg> <type> [ , ... ] ) RETURNS <type>.
+		w.buf.WriteString(" (")
+		for i, a := range c.Params {
+			if i > 0 {
+				w.buf.WriteString(", ")
+			}
+			w.writeIdentNoSpace(a.Name)
+			w.buf.WriteByte(' ')
+			w.writeTypeName(a.DataType)
+		}
+		w.buf.WriteByte(')')
+		if c.Type != nil {
+			w.buf.WriteString(" RETURNS ")
+			w.writeTypeName(c.Type)
+		}
+	} else if c.Type != nil {
+		// A data type: VARIABLE's <data_type>, TYPE's AS <type>.
+		w.buf.WriteByte(' ')
+		w.writeTypeName(c.Type)
+	}
+	if c.Body != nil {
+		// -> <expression>
+		w.buf.WriteString(" -> ")
+		if err := w.writeExpr(c.Body); err != nil {
+			return err
+		}
+	}
+	if c.Args != nil {
+		// ( <name> => <value> [ , ... ] ): USING ( ... ) of EXECUTE DCM PROJECT.
+		w.buf.WriteString(" (")
+		for i, a := range c.Args {
+			if i > 0 {
+				w.buf.WriteString(", ")
+			}
+			if err := w.writeCallArg(a); err != nil {
+				return err
+			}
+		}
+		w.buf.WriteByte(')')
+	}
 	if len(c.Keys) > 0 {
 		w.buf.WriteByte(' ')
 		w.buf.WriteString(strings.Join(c.Keys, ", "))
 	}
+	if tt := c.TimeTravel; tt != nil {
+		// A point in time: { AT | BEFORE } ( <anchor> => <expr> ), as a
+		// POSTGRES INSTANCE's FORK writes it. Keywords already wrote AT or
+		// BEFORE.
+		w.buf.WriteString(" (")
+		w.buf.WriteString(timeTravelAnchorName(tt.Anchor))
+		w.buf.WriteString(" => ")
+		if err := w.writeExpr(tt.Expr); err != nil {
+			return err
+		}
+		w.buf.WriteByte(')')
+		return nil
+	}
+	commas := objectOptionCommas(kind, c.Keywords)
 	for i, o := range c.Options {
-		if i > 0 && o.Bare && c.Options[i-1].Bare {
-			// A clause's bare entries are a list (VECTOR INDEXES).
+		// A clause's bare entries and nameless options are lists
+		// (listsWith); some pages separate a clause's properties with
+		// commas (objectOptionCommas).
+		if i > 0 && (commas || listsWith(c.Options[i-1], o)) {
 			w.buf.WriteByte(',')
 		}
 		w.buf.WriteByte(' ')
@@ -91,11 +148,49 @@ func (w *writer) writeObjectClause(c *ast.ObjectClause) error {
 	return nil
 }
 
+// listsWith reports whether option o continues a comma list after prev: a
+// clause's bare entries (VECTOR INDEXES a, b) or its nameless options
+// (REGION GROUPS 'a', 'b').
+func listsWith(prev, o *ast.CopyOption) bool {
+	return (o.Bare && prev.Bare) || (o.Name == "" && prev.Name == "")
+}
+
+// objectOptionCommas reports whether a clause of an object of kind separates
+// its properties with commas, as the object's page writes them.
+func objectOptionCommas(kind, keywords string) bool {
+	switch keywords {
+	case "SET CONTACT", "SET RULES":
+		return true
+	case "SET":
+		return kind == "TASK GRAPH"
+	}
+	return false
+}
+
 // writeObjectOption writes a property as `NAME = value`, or its value alone
 // when it has no name (an element of a list of groups). A bare entry is its
 // name alone, followed by its Group in parentheses when it has one
-// (VECTOR INDEXES' <column> ( model = '<model>' )).
+// (VECTOR INDEXES' <column> ( model = '<model>' )). An element with an alias
+// is followed by AS '<alias>'.
 func (w *writer) writeObjectOption(o *ast.CopyOption) error {
+	if err := w.writeObjectOptionValue(o); err != nil {
+		return err
+	}
+	if o.Alias != nil {
+		w.buf.WriteString(" AS ")
+		return w.writeCopyOptionLiteral(o.Alias)
+	}
+	return nil
+}
+
+// writeObjectOptionValue writes writeObjectOption's `NAME = value`.
+func (w *writer) writeObjectOptionValue(o *ast.CopyOption) error {
+	if o.Name == "EXECUTE AS USER" && !o.Bare {
+		// TASK GRAPH's TASK_DEFAULTS ( EXECUTE AS USER <user_name> ): no '='.
+		w.buf.WriteString("EXECUTE AS USER ")
+		w.buf.WriteString(o.Words)
+		return nil
+	}
 	if o.Name != "" {
 		w.buf.WriteString(o.Name)
 		if o.Bare {
@@ -120,6 +215,8 @@ func (w *writer) writeObjectOption(o *ast.CopyOption) error {
 		return w.writeCopyOptionLiteral(o.Lit)
 	case o.Words != "":
 		w.buf.WriteString(o.Words)
+	case o.Expr != nil:
+		return w.writeExpr(o.Expr)
 	case o.List != nil:
 		w.buf.WriteByte('(')
 		for i, lit := range o.List {
@@ -144,4 +241,17 @@ func (w *writer) writeObjectOption(o *ast.CopyOption) error {
 		w.buf.WriteByte(')')
 	}
 	return nil
+}
+
+// timeTravelAnchorName is the keyword a time-travel anchor is written with.
+func timeTravelAnchorName(a ast.TimeTravelAnchor) string {
+	switch a {
+	case ast.TimeTravelOffset:
+		return "OFFSET"
+	case ast.TimeTravelStatement:
+		return "STATEMENT"
+	case ast.TimeTravelStream:
+		return "STREAM"
+	}
+	return "TIMESTAMP"
 }

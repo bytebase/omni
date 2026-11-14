@@ -2666,7 +2666,7 @@ func TestParseDiskgroupBatch96(t *testing.T) {
 		{"alter_modify_quotagroup", "ALTER DISKGROUP dg1 MODIFY QUOTAGROUP qg1 SET QUOTA = UNLIMITED"},
 		{"alter_drop_quotagroup", "ALTER DISKGROUP dg1 DROP QUOTAGROUP qg1"},
 		// filegroup_clauses
-		{"alter_add_filegroup", "ALTER DISKGROUP dg1 ADD FILEGROUP fg1"},
+		{"alter_add_filegroup", "ALTER DISKGROUP dg1 ADD FILEGROUP fg1 DATABASE db1"},
 		{"alter_modify_filegroup", "ALTER DISKGROUP dg1 MODIFY FILEGROUP fg1 SET 'priority' = '1'"},
 		{"alter_drop_filegroup", "ALTER DISKGROUP dg1 DROP FILEGROUP fg1"},
 		{"alter_drop_filegroup_cascade", "ALTER DISKGROUP dg1 DROP FILEGROUP fg1 CASCADE"},
@@ -2935,8 +2935,8 @@ func TestParsePluggableDatabaseBatch95(t *testing.T) {
 		{"alter_recover_until_change", "ALTER PLUGGABLE DATABASE pdb1 RECOVER UNTIL CHANGE 12345"},
 		{"alter_recover_standby", "ALTER PLUGGABLE DATABASE pdb1 RECOVER DATAFILE '/u01/a.dbf'"},
 		{"alter_recover_backup_controlfile", "ALTER PLUGGABLE DATABASE pdb1 RECOVER USING BACKUP CONTROLFILE"},
-		{"alter_backup_begin", "ALTER PLUGGABLE DATABASE pdb1 BACKUP BEGIN"},
-		{"alter_backup_end", "ALTER PLUGGABLE DATABASE pdb1 BACKUP END"},
+		{"alter_backup_begin", "ALTER PLUGGABLE DATABASE pdb1 BEGIN BACKUP"},
+		{"alter_backup_end", "ALTER PLUGGABLE DATABASE pdb1 END BACKUP"},
 		{"alter_enable_recovery", "ALTER PLUGGABLE DATABASE pdb1 ENABLE RECOVERY"},
 		{"alter_disable_recovery", "ALTER PLUGGABLE DATABASE pdb1 DISABLE RECOVERY"},
 		// application_clauses
@@ -3959,7 +3959,7 @@ func TestBatch74_TablespaceSet(t *testing.T) {
 // TestBatch75_MleEnvModule tests CREATE/DROP MLE ENV and MLE MODULE.
 func TestBatch75_MleEnvModule(t *testing.T) {
 	t.Run("create_mle_env", func(t *testing.T) {
-		adminDDLTest(t, "CREATE MLE ENV my_env IMPORTS ('module1')", "CREATE", ast.OBJECT_MLE_ENV)
+		adminDDLTest(t, "CREATE MLE ENV my_env IMPORTS ('module1' MODULE m1)", "CREATE", ast.OBJECT_MLE_ENV)
 	})
 	t.Run("drop_mle_env", func(t *testing.T) {
 		result := ParseAndCheck(t, "DROP MLE ENV my_env")
@@ -4055,7 +4055,7 @@ func TestBatch78_RestorePointMisc(t *testing.T) {
 		adminDDLTest(t, "CREATE LOGICAL PARTITION TRACKING ON my_table PARTITION BY RANGE (col1) (PARTITION p1 VALUES LESS THAN (100))", "CREATE", ast.OBJECT_LOGICAL_PARTITION_TRACKING)
 	})
 	t.Run("create_pmem_filestore", func(t *testing.T) {
-		adminDDLTest(t, "CREATE PMEM FILESTORE my_pmem MOUNTPOINT '/pmem0' SIZE 100G", "CREATE", ast.OBJECT_PMEM_FILESTORE)
+		adminDDLTest(t, `CREATE PMEM FILESTORE "my_pmem" MOUNTPOINT '/pmem0' SIZE 100G`, "CREATE", ast.OBJECT_PMEM_FILESTORE)
 	})
 }
 
@@ -4902,9 +4902,9 @@ func TestParseAlterMaterializedView(t *testing.T) {
 		// DISABLE QUERY REWRITE
 		"ALTER MATERIALIZED VIEW mv1 DISABLE QUERY REWRITE",
 		// ENABLE ON QUERY COMPUTATION
-		"ALTER MATERIALIZED VIEW mv1 REFRESH ENABLE ON QUERY COMPUTATION",
+		"ALTER MATERIALIZED VIEW mv1 REFRESH FAST ENABLE ON QUERY COMPUTATION",
 		// DISABLE ON QUERY COMPUTATION
-		"ALTER MATERIALIZED VIEW mv1 REFRESH DISABLE ON QUERY COMPUTATION",
+		"ALTER MATERIALIZED VIEW mv1 REFRESH FAST DISABLE ON QUERY COMPUTATION",
 		// SHRINK SPACE
 		"ALTER MATERIALIZED VIEW mv1 SHRINK SPACE",
 		// SHRINK SPACE COMPACT
@@ -7164,7 +7164,11 @@ func TestBatch93_ViewsAllTypes(t *testing.T) {
 	})
 
 	t.Run("create_view_container_map", func(t *testing.T) {
-		result := ParseAndCheck(t, "CREATE VIEW emp_v CONTAINER_MAP AS SELECT * FROM employees")
+		// CONTAINER_MAP follows the subquery: Oracle 23ai refuses it before
+		// AS (ORA-02000).
+		ParseShouldFail(t, "CREATE VIEW emp_v CONTAINER_MAP AS SELECT * FROM employees")
+		// After a bare FROM table the word would be its alias.
+		result := ParseAndCheck(t, "CREATE VIEW emp_v AS SELECT * FROM employees WITH READ ONLY CONTAINER_MAP")
 		raw := result.Items[0].(*ast.RawStmt)
 		stmt := raw.Stmt.(*ast.CreateViewStmt)
 		if !stmt.ContainerMap {
@@ -9009,7 +9013,7 @@ func TestBatch105_SmallObjectsBundle(t *testing.T) {
 
 	// CREATE PMEM FILESTORE with AUTOEXTEND
 	t.Run("create_pmem_filestore", func(t *testing.T) {
-		result := ParseAndCheck(t, "CREATE PMEM FILESTORE my_fs MOUNTPOINT '/pmem0' BACKINGFILE '/pmem0/backing' SIZE 100G BLOCKSIZE 8K AUTOEXTEND ON NEXT 10G MAXSIZE UNLIMITED")
+		result := ParseAndCheck(t, `CREATE PMEM FILESTORE "my_fs" MOUNTPOINT '/pmem0' BACKINGFILE '/pmem0/backing' SIZE 100G BLOCKSIZE 8K AUTOEXTEND ON NEXT 10G MAXSIZE UNLIMITED`)
 		raw := result.Items[0].(*ast.RawStmt)
 		stmt, ok := raw.Stmt.(*ast.AdminDDLStmt)
 		if !ok {
@@ -9463,9 +9467,6 @@ func TestAlterMaterializedView(t *testing.T) {
 		"ALTER MATERIALIZED VIEW mv1 INMEMORY MEMCOMPRESS FOR QUERY LOW",
 		"ALTER MATERIALIZED VIEW mv1 INMEMORY PRIORITY HIGH",
 		"ALTER MATERIALIZED VIEW mv1 NO INMEMORY",
-		// QUERY REWRITE (alter_query_rewrite_clause)
-		"ALTER MATERIALIZED VIEW mv1 QUERY REWRITE ENABLE",
-		"ALTER MATERIALIZED VIEW mv1 QUERY REWRITE DISABLE",
 	}
 	for _, sql := range tests {
 		name := sql

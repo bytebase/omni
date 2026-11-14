@@ -180,12 +180,10 @@ func TestParseDataProtectionRejects(t *testing.T) {
 		"ALTER SNAPSHOT s RENAME TO t",
 		"ALTER SNAPSHOT s SET TAG a = 's'",
 		"ALTER SNAPSHOT s SET COMMENT = 'c' TAG a = 's'",
-		"ALTER STORAGE LIFECYCLE POLICY p SET BODY -> 1", // not read yet
 		"ALTER DATA MOVEMENT POLICY p ADD COMMENT = 'c'",
 		"ALTER DATA MOVEMENT POLICY p SET TAG a = 's'",
 		"ALTER DATA MOVEMENT POLICY p SET ENFORCE_RULES = ()",
 		"ALTER DATA MOVEMENT RULE r SET TAG a = 's'",
-		"CREATE STORAGE LIFECYCLE POLICY p AS (a INT) RETURNS BOOLEAN -> a > 1", // not read yet
 		"DROP BACKUP SET s CASCADE",
 		// Name parts and IF [ NOT ] EXISTS as the pages write them.
 		"CREATE BACKUP SET s FOR DATABASE db.sc",

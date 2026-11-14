@@ -70,15 +70,6 @@ func (p *Parser) parsePartitionClause(stmt *nodes.CreateTableStmt, hasColumns bo
 	if err := p.expectCreateTableToken(kwBY); err != nil {
 		return nil, err
 	}
-	if p.isStatementEnd() {
-		// Oracle refuses a missing partitioning method (ORA-14151), but
-		// compat.tsv records a statement that ends here as accepted
-		// until the rejudge of #1106; omni keeps its earlier reading of
-		// it until then.
-		clause.Loc.End = p.prev.End
-		return clause, nil
-	}
-
 	switch {
 	case p.isKeywordStr("RANGE"):
 		clause.Type = nodes.PARTITION_RANGE
@@ -120,7 +111,7 @@ func (p *Parser) parsePartitionClause(stmt *nodes.CreateTableStmt, hasColumns bo
 	case nodes.PARTITION_LIST:
 		if p.cur.Type == kwAUTOMATIC {
 			p.advance()
-			if p.isKeywordStr("STORE") {
+			if p.isKeywordStr("STORE") && !p.createTablePartitionsOfLog {
 				if err := p.parseCreateTableStoreIn(); err != nil {
 					return nil, err
 				}
@@ -131,14 +122,9 @@ func (p *Parser) parsePartitionClause(stmt *nodes.CreateTableStmt, hasColumns bo
 	sub := createTableHashBound
 	if p.isKeywordStr("SUBPARTITION") && p.peekNext().Type == kwBY {
 		var err error
-		var cut bool
-		clause.Subpartition, sub, cut, err = p.parseCreateTableSubpartitionBy()
+		clause.Subpartition, sub, err = p.parseCreateTableSubpartitionBy()
 		if err != nil {
 			return nil, err
-		}
-		if cut {
-			clause.Loc.End = p.prev.End
-			return clause, nil
 		}
 	}
 
@@ -161,7 +147,7 @@ func (p *Parser) parsePartitionClause(stmt *nodes.CreateTableStmt, hasColumns bo
 		return nil, err
 	}
 	for {
-		def, err := p.parseCreateTablePartitionDesc(bound, clause.Subpartition != nil, sub, !hasColumns)
+		def, err := p.parseCreateTablePartitionDesc(bound, clause.Subpartition != nil, sub)
 		if err != nil {
 			return nil, err
 		}
@@ -250,7 +236,7 @@ func (p *Parser) parseCreateTableHashPartitionsByQuantity(indexOrganized bool) e
 			return err
 		}
 	}
-	if p.isCreateTablePartitionCompressionStart() {
+	if p.isCreateTablePartitionCompressionStart() && !p.createTablePartitionsOfLog {
 		if err := p.parseCreateTablePartitionCompression(); err != nil {
 			return err
 		}
@@ -270,10 +256,7 @@ func (p *Parser) parseCreateTableHashPartitionsByQuantity(indexOrganized bool) e
 
 // parseCreateTableSubpartitionBy reads subpartition_by_range,
 // subpartition_by_list or subpartition_by_hash, and returns the kind of
-// bounds its subpartitions hold, and whether the statement ends at its
-// SUBPARTITION TEMPLATE, which Oracle refuses but compat.tsv records as
-// accepted until the rejudge of #1106 (omni keeps its earlier reading of
-// it until then).
+// bounds its subpartitions hold.
 //
 //	SUBPARTITION BY { RANGE | LIST } ( column [, column ] ... ) [ subpartition_template ]
 //	SUBPARTITION BY HASH ( column [, column ] ... )
@@ -283,7 +266,7 @@ func (p *Parser) parseCreateTableHashPartitionsByQuantity(indexOrganized bool) e
 //	subpartition_template:
 //	    SUBPARTITION TEMPLATE ( subpartition_desc [, subpartition_desc ] ... )
 //	  | SUBPARTITION TEMPLATE hash_subpartition_quantity
-func (p *Parser) parseCreateTableSubpartitionBy() (*nodes.PartitionClause, createTablePartitionKind, bool, error) {
+func (p *Parser) parseCreateTableSubpartitionBy() (*nodes.PartitionClause, createTablePartitionKind, error) {
 	sub := &nodes.PartitionClause{
 		Columns:    &nodes.List{},
 		Partitions: &nodes.List{},
@@ -300,37 +283,33 @@ func (p *Parser) parseCreateTableSubpartitionBy() (*nodes.PartitionClause, creat
 	case p.isKeywordStr("HASH"):
 		sub.Type, bound = nodes.PARTITION_HASH, createTableHashBound
 	default:
-		return nil, 0, false, p.syntaxErrorAtCur()
+		return nil, 0, p.syntaxErrorAtCur()
 	}
 	p.advance() // consume RANGE / LIST / HASH
 	if err := p.parseCreateTablePartitionColumns(sub.Columns); err != nil {
-		return nil, 0, false, err
+		return nil, 0, err
 	}
 	switch {
 	case bound == createTableHashBound && p.isKeywordStr("SUBPARTITIONS"):
 		if err := p.parseCreateTableSubpartitionsByQuantity(); err != nil {
-			return nil, 0, false, err
+			return nil, 0, err
 		}
 	case p.isKeywordStr("SUBPARTITION") && isCreateTableWordTok(p.peekNext(), "TEMPLATE"):
 		p.advance() // consume SUBPARTITION
 		p.advance() // consume TEMPLATE
 		if p.cur.Type == tokICONST {
 			if bound != createTableHashBound {
-				return nil, 0, false, p.syntaxErrorAtCur()
+				return nil, 0, p.syntaxErrorAtCur()
 			}
 			p.advance()
 			break
 		}
-		if p.isStatementEnd() {
-			sub.Loc.End = p.prev.End
-			return sub, bound, true, nil
-		}
 		if err := p.parseCreateTableSubpartitionDescs(bound, sub.Partitions); err != nil {
-			return nil, 0, false, err
+			return nil, 0, err
 		}
 	}
 	sub.Loc.End = p.prev.End
-	return sub, bound, false, nil
+	return sub, bound, nil
 }
 
 // parseCreateTableSubpartitionsByQuantity reads hash_subparts_by_quantity.
@@ -385,7 +364,7 @@ func (p *Parser) parseCreateTableSubpartitionDescs(bound createTablePartitionKin
 }
 
 // parseCreateTablePartitionDesc reads one partition of a range, list or
-// hash partitioned table. named requires a range or list partition's name.
+// hash partitioned table.
 //
 //	PARTITION [ partition ] { range_values_clause | list_values_clause }
 //	[ table_partition_description ]
@@ -393,7 +372,7 @@ func (p *Parser) parseCreateTableSubpartitionDescs(bound createTablePartitionKin
 //
 //	PARTITION [ partition ] [ read_only_clause ] [ indexing_clause ]
 //	[ partitioning_storage_clause ]                      -- hash
-func (p *Parser) parseCreateTablePartitionDesc(bound createTablePartitionKind, composite bool, sub createTablePartitionKind, named bool) (*nodes.PartitionDef, error) {
+func (p *Parser) parseCreateTablePartitionDesc(bound createTablePartitionKind, composite bool, sub createTablePartitionKind) (*nodes.PartitionDef, error) {
 	start := p.pos()
 	if p.cur.Type != kwPARTITION {
 		return nil, p.syntaxErrorAtCur()
@@ -411,9 +390,6 @@ func (p *Parser) parseCreateTablePartitionDesc(bound createTablePartitionKind, c
 	} else {
 		if err := p.parseCreateTablePartitionBound(bound, def); err != nil {
 			return nil, err
-		}
-		if named && def.Name == "" {
-			return nil, p.syntaxErrorAtCur()
 		}
 		if err := p.parseCreateTablePartitionDescription(def); err != nil {
 			return nil, err
@@ -592,6 +568,14 @@ func (p *Parser) isCreateTableHashPartitionAttributeStart() bool {
 // followed by anything but TABLESPACE (ORA-14020).
 func (p *Parser) parseCreateTableHashPartitionAttributes(def *nodes.PartitionDef) error {
 	for {
+		if p.createTablePartitionsOfLog && p.cur.Type != kwTABLESPACE && !p.isKeywordStr("OVERFLOW") {
+			// A log's hash partition or subpartition takes TABLESPACE and
+			// OVERFLOW only.
+			if p.cur.Type != ',' && p.cur.Type != ')' {
+				return p.syntaxErrorAtCur()
+			}
+			return nil
+		}
 		switch {
 		case p.cur.Type == kwREAD:
 			p.advance() // consume READ
@@ -764,6 +748,9 @@ func (p *Parser) parseCreateTablePartitionVarray() error {
 //	[ { LOB_storage_clause | varray_col_properties | nested_table_col_properties } ... ]
 func (p *Parser) parseCreateTablePartitionDescription(def *nodes.PartitionDef) error {
 	for {
+		if p.createTablePartitionsOfLog && !p.isCreateTableLogPartitionAttributeStart() {
+			return nil
+		}
 		switch {
 		case p.isKeywordStr("SEGMENT"):
 			p.advance() // consume SEGMENT
@@ -833,6 +820,16 @@ func (p *Parser) parseCreateTablePartitionDescription(def *nodes.PartitionDef) e
 			return nil
 		}
 	}
+}
+
+// isCreateTableLogPartitionAttributeStart reports a segment attribute, the
+// only description a materialized view log's range or list partition takes:
+// TABLESPACE, PCTFREE, PCTUSED, INITRANS, MAXTRANS, STORAGE or
+// logging_clause.
+func (p *Parser) isCreateTableLogPartitionAttributeStart() bool {
+	return p.cur.Type == kwTABLESPACE || p.cur.Type == kwPCTFREE || p.isKeywordStr("PCTUSED") ||
+		p.isKeywordStr("INITRANS") || p.isKeywordStr("MAXTRANS") || p.isKeywordStr("STORAGE") ||
+		p.isCreateTableLoggingStart()
 }
 
 // parseCreateTableReferencePartitioning reads reference_partitioning after

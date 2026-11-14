@@ -951,3 +951,35 @@ func TestParseCreateTableRound6EngineVerified(t *testing.T) {
 	ParseAndCheck(t, `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) USING INDEX GLOBAL PARTITION BY HASH (a))`)
 	ParseShouldFail(t, `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) USING INDEX HASH)`)
 }
+
+func TestCreateTableObjectTable(t *testing.T) {
+	stmt := parseCreateTableForP2(t, "CREATE TABLE emps OF hr.emp_t (id PRIMARY KEY, name DEFAULT 'x') OBJECT IDENTIFIER IS PRIMARY KEY OIDINDEX emps_oid (TABLESPACE users)")
+	if stmt.OfType == nil || stmt.OfType.Schema != "HR" || stmt.OfType.Name != "EMP_T" {
+		t.Fatalf("expected OF HR.EMP_T, got %#v", stmt.OfType)
+	}
+	if stmt.Columns.Len() != 2 {
+		t.Fatalf("expected 2 attributes, got %d", stmt.Columns.Len())
+	}
+	parseCreateTableForP2(t, "CREATE TABLE docs OF XMLTYPE ELEMENT doc")
+	// An attribute takes a default or a constraint (ORA-00922 on Oracle 23ai).
+	ParseShouldFail(t, "CREATE TABLE emps OF emp_t (id)")
+}
+
+func TestCreateTableNeedsColumnsOrQuery(t *testing.T) {
+	parseCreateTableForP2(t, "CREATE TABLE t (a, b) AS SELECT 1, 2 FROM dual")
+	parseCreateTableForP2(t, "CREATE TABLE t TABLESPACE users AS SELECT 1 a FROM dual")
+	// Neither a column list nor AS subquery: ORA-00906 at the word after
+	// the table name.
+	ParseShouldFail(t, "CREATE TABLE t TABLESPACE users")
+}
+
+func TestCreateMaterializedZonemapRefreshThenOnTable(t *testing.T) {
+	result := ParseAndCheck(t, "CREATE MATERIALIZED ZONEMAP z REFRESH FAST ON sales (cust_id)")
+	stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.CreateMaterializedZonemapStmt)
+	if stmt.RefreshMethod != "FAST" || stmt.RefreshOn != "" || stmt.OnTable == nil || stmt.OnTable.Name != "SALES" {
+		t.Fatalf("got method %q on %q table %#v", stmt.RefreshMethod, stmt.RefreshOn, stmt.OnTable)
+	}
+	ParseAndCheck(t, "CREATE MATERIALIZED ZONEMAP z REFRESH FAST ON COMMIT ON sales (cust_id)")
+	// REFRESH alone is refused (ORA-00905 on Oracle 23ai).
+	ParseShouldFail(t, "CREATE MATERIALIZED ZONEMAP z REFRESH ON sales (cust_id)")
+}

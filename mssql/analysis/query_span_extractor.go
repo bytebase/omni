@@ -217,9 +217,11 @@ func (q *querySpanExtractor) getColumnsFromCreateView(definition string, viewDat
 
 	if len(columnAliases) > 0 && len(columnAliases) == len(results) {
 		for i, alias := range columnAliases {
-			results[i].Name = normIdent(alias)
+			results[i].Name = alias
 		}
 	}
+	// The view's own conditions decide which of its rows the caller reads.
+	q.predicateColumns, _ = mergeColumnSet(q.predicateColumns, newQ.predicateColumns)
 	return results, nil
 }
 
@@ -478,7 +480,7 @@ func (q *querySpanExtractor) getQuerySpan(statement string) (*ResolvedSpan, erro
 		populateCreateTempTable(c, q.tempTables)
 	}
 
-	accessTables := collectAccessTables(root, q.defaultDatabase, q.defaultSchema)
+	accessTables := q.collectAccessTables(root)
 	allSystems, mixed := isMixedQuery(accessTables, q.ignoreCaseSensitive)
 	if mixed {
 		return nil, ErrMixUserSystemTables
@@ -752,7 +754,11 @@ func (q *querySpanExtractor) collectPredicatesInScope(expr ast.Node) error {
 		}
 		return q.collectPredicatesInScope(v.TimeZone)
 	default:
-		// Literal, VariableRef, StarExpr, etc. — nothing to collect.
+		r, err := q.resolveExpressionNode(expr)
+		if err != nil {
+			return err
+		}
+		q.predicateColumns, _ = mergeColumnSet(q.predicateColumns, r.SourceColumns)
 		return nil
 	}
 }
@@ -867,31 +873,30 @@ func (q *querySpanExtractor) processWithClause(w *ast.WithClause) error {
 			return unsupportedNodeError("only SELECT CTE bodies are supported", cte.Query)
 		}
 
-		cteName := normIdent(cte.Name)
-		cols, predicates, err := q.extractCTEBody(cteName, body)
-		if err != nil {
-			return err
-		}
-		if cte.Columns != nil && cte.Columns.Len() > 0 {
-			if cte.Columns.Len() != len(cols) {
-				return fmt.Errorf("CTE %q column alias count %d does not match body column count %d", cte.Name, cte.Columns.Len(), len(cols))
-			}
-			for i, it := range cte.Columns.Items {
+		var columnAliases []string
+		if cte.Columns != nil {
+			for _, it := range cte.Columns.Items {
 				if s, ok := it.(*ast.String); ok {
-					cols[i].Name = normIdent(s.Str)
+					columnAliases = append(columnAliases, s.Str)
 				}
 			}
 		}
-		q.ctes = append(q.ctes, &pseudoTable{Name: cteName, Columns: cols})
+		cols, predicates, err := q.extractCTEBody(cte.Name, body, columnAliases)
+		if err != nil {
+			return err
+		}
+		q.ctes = append(q.ctes, &pseudoTable{Name: cte.Name, Columns: cols})
 		q.predicateColumns, _ = mergeColumnSet(q.predicateColumns, predicates)
 	}
 	return nil
 }
 
-// extractCTEBody extracts the column set of a CTE body. For recursive CTEs
-// (body is a set-op SelectStmt whose recursive arm references the CTE name),
-// the extractor iterates until the column sources stabilize.
-func (q *querySpanExtractor) extractCTEBody(cteName string, body *ast.SelectStmt) ([]QuerySpanResult, ColumnSet, error) {
+// extractCTEBody extracts the column set of a CTE body, named by its column
+// list when it has one. For recursive CTEs (body is a set-op SelectStmt whose
+// recursive arm references the CTE name), the extractor iterates until the
+// column sources stabilize; the recursive arm reads the CTE by its column
+// list's names, so the list applies to the anchor first.
+func (q *querySpanExtractor) extractCTEBody(cteName string, body *ast.SelectStmt, columnAliases []string) ([]QuerySpanResult, ColumnSet, error) {
 	newClone := func() *querySpanExtractor {
 		return &querySpanExtractor{
 			defaultDatabase:     q.defaultDatabase,
@@ -914,7 +919,11 @@ func (q *querySpanExtractor) extractCTEBody(cteName string, body *ast.SelectStmt
 		if err != nil {
 			return nil, nil, err
 		}
-		return pseudo.GetQuerySpanResult(), clone.predicateColumns, nil
+		cols := pseudo.GetQuerySpanResult()
+		if err := applyColumnAliases(cols, columnAliases); err != nil {
+			return nil, nil, fmt.Errorf("CTE %q: %w", cteName, err)
+		}
+		return cols, clone.predicateColumns, nil
 	}
 
 	// Set-op CTE: extract anchor (Larg), register placeholder, then iterate Rarg
@@ -925,6 +934,9 @@ func (q *querySpanExtractor) extractCTEBody(cteName string, body *ast.SelectStmt
 		return nil, nil, err
 	}
 	cols := append([]QuerySpanResult{}, anchorPseudo.GetQuerySpanResult()...)
+	if err := applyColumnAliases(cols, columnAliases); err != nil {
+		return nil, nil, fmt.Errorf("CTE %q: %w", cteName, err)
+	}
 	predicates := ColumnSet{}
 	predicates, _ = mergeColumnSet(predicates, anchorClone.predicateColumns)
 
@@ -1057,7 +1069,7 @@ func (q *querySpanExtractor) resolveTableRef(t *ast.TableRef) (tableSource, erro
 	}
 	if t.Alias != "" {
 		ts = &pseudoTable{
-			Name:    normIdent(t.Alias),
+			Name:    t.Alias,
 			Columns: ts.GetQuerySpanResult(),
 		}
 	}
@@ -1108,7 +1120,7 @@ func (q *querySpanExtractor) resolveAliasedTableRef(at *ast.AliasedTableRef) (ta
 		if err := applyColumnAliases(cols, columnAliases); err != nil {
 			return nil, err
 		}
-		return &pseudoTable{Name: normIdent(at.Alias), Columns: cols}, nil
+		return &pseudoTable{Name: at.Alias, Columns: cols}, nil
 	default:
 		return nil, unsupportedNodeError("unsupported aliased table source item", at.Table)
 	}
@@ -1154,7 +1166,7 @@ func (q *querySpanExtractor) resolveTableValuedFunction(fn *ast.FuncCallExpr, al
 	if err := applyColumnAliases(columns, columnAliases); err != nil {
 		return nil, err
 	}
-	return &pseudoTable{Name: normIdent(alias), Columns: columns}, nil
+	return &pseudoTable{Name: alias, Columns: columns}, nil
 }
 
 func stringSplitHasOrdinalColumn(args *ast.List) (bool, error) {
@@ -1205,11 +1217,11 @@ func (q *querySpanExtractor) resolveSubqueryAsTable(sq *ast.SubqueryExpr, alias 
 		return nil, err
 	}
 	q.predicateColumns, _ = mergeColumnSet(q.predicateColumns, clone.predicateColumns)
-	return &pseudoTable{Name: normIdent(alias), Columns: cols}, nil
+	return &pseudoTable{Name: alias, Columns: cols}, nil
 }
 
 func (q *querySpanExtractor) resolveValuesClause(vc *ast.ValuesClause, alias string, columnAliases []string) (tableSource, error) {
-	name := normIdent(alias)
+	name := alias
 	if vc.Rows == nil || vc.Rows.Len() == 0 {
 		return &pseudoTable{Name: name}, nil
 	}
@@ -1362,7 +1374,7 @@ func applyColumnAliases(cols []QuerySpanResult, aliases []string) error {
 		return fmt.Errorf("column alias count %d does not match column count %d", len(aliases), len(cols))
 	}
 	for i, name := range aliases {
-		cols[i].Name = normIdent(name)
+		cols[i].Name = name
 	}
 	return nil
 }
@@ -1406,7 +1418,7 @@ func (q *querySpanExtractor) extractTargetList(list *ast.List) ([]QuerySpanResul
 				return nil, err
 			}
 			if v.Name != "" {
-				r.Name = normIdent(v.Name)
+				r.Name = v.Name
 			}
 			results = append(results, r)
 		case *ast.StarExpr:
@@ -1549,18 +1561,8 @@ func (q *querySpanExtractor) resolveExpressionNode(n ast.Node) (QuerySpanResult,
 		if err != nil {
 			return r, err
 		}
-		// Also merge Over clause partition/order.
-		if v.Over != nil {
-			sub, err := q.mergeListSources(v.Over.PartitionBy)
-			if err != nil {
-				return r, err
-			}
-			r.SourceColumns, _ = mergeColumnSet(r.SourceColumns, sub.SourceColumns)
-			sub, err = q.mergeOrderBySources(v.Over.OrderBy)
-			if err != nil {
-				return r, err
-			}
-			r.SourceColumns, _ = mergeColumnSet(r.SourceColumns, sub.SourceColumns)
+		if err := q.mergeOverSources(&r, v.Over); err != nil {
+			return r, err
 		}
 		if v.Within != nil {
 			sub, err := q.mergeOrderBySources(v.Within)
@@ -1674,11 +1676,44 @@ func (q *querySpanExtractor) resolveExpressionNode(n ast.Node) (QuerySpanResult,
 		return q.resolveExpressionNode(v.Value)
 	case *ast.CaseWhen:
 		return q.mergeExprSources(v.Condition, v.Result)
-	case *ast.CurrentOfExpr:
+	case *ast.ParseExpr:
+		r, err := q.mergeExprSources(v.Expr, v.Culture)
+		r.Name = q.sliceName(n)
+		return r, err
+	case *ast.JsonKeyValueExpr:
+		r, err := q.mergeExprSources(v.Key, v.Value)
+		r.Name = q.sliceName(n)
+		return r, err
+	case *ast.NextValueForExpr:
+		r := QuerySpanResult{Name: q.sliceName(n), SourceColumns: make(ColumnSet)}
+		err := q.mergeOverSources(&r, v.Over)
+		return r, err
+	case *ast.CurrentOfExpr, *ast.DatePart:
 		return QuerySpanResult{Name: q.sliceName(n), SourceColumns: make(ColumnSet)}, nil
 	default:
-		return QuerySpanResult{Name: q.sliceName(n), SourceColumns: make(ColumnSet)}, nil
+		// An expression whose lineage is not modeled would otherwise lose the
+		// columns it reads, and with them their masking.
+		return QuerySpanResult{}, unsupportedNodeError("unsupported expression", n)
 	}
+}
+
+// mergeOverSources adds the columns a window's PARTITION BY and ORDER BY
+// read to r.
+func (q *querySpanExtractor) mergeOverSources(r *QuerySpanResult, over *ast.OverClause) error {
+	if over == nil {
+		return nil
+	}
+	sub, err := q.mergeListSources(over.PartitionBy)
+	if err != nil {
+		return err
+	}
+	r.SourceColumns, _ = mergeColumnSet(r.SourceColumns, sub.SourceColumns)
+	sub, err = q.mergeOrderBySources(over.OrderBy)
+	if err != nil {
+		return err
+	}
+	r.SourceColumns, _ = mergeColumnSet(r.SourceColumns, sub.SourceColumns)
+	return nil
 }
 
 func (q *querySpanExtractor) resolveSimpleExpressionNode(n ast.Node) (QuerySpanResult, bool, error) {
@@ -1811,13 +1846,6 @@ func stripSpaces(s string) string {
 	return b.String()
 }
 
-// normIdent lowercases a SQL-text-sourced identifier (table alias, column
-// alias, CTE name, ResTarget name) unconditionally. Does not apply to identifiers sourced from metadata (physical table/column names);
-// those are compared case-insensitively but stored as-is.
-func normIdent(s string) string {
-	return strings.ToLower(s)
-}
-
 // nodeLoc extracts the Loc field from an ast.Node via type switching.
 // Not every node has a Loc (the Node interface doesn't expose it), so we
 // enumerate the types we care about. Returns zero Loc otherwise.
@@ -1900,6 +1928,16 @@ func expressionNodeLoc(n ast.Node) (ast.Loc, bool) {
 		return v.Loc, true
 	case *ast.AtTimeZoneExpr:
 		return v.Loc, true
+	case *ast.ParseExpr:
+		return v.Loc, true
+	case *ast.JsonKeyValueExpr:
+		return v.Loc, true
+	case *ast.NextValueForExpr:
+		return v.Loc, true
+	case *ast.DatePart:
+		return v.Loc, true
+	case *ast.CurrentOfExpr:
+		return v.Loc, true
 	default:
 		return ast.NoLoc(), false
 	}
@@ -1907,161 +1945,154 @@ func expressionNodeLoc(n ast.Node) (ast.Loc, bool) {
 
 // -------------------- Access tables --------------------
 
-// collectAccessTables walks the AST and records every table-source
-// position reference.
-func collectAccessTables(root ast.Node, currentDatabase, currentSchema string) ColumnSet {
-	out := make(ColumnSet)
-	walkAccessTables(root, currentDatabase, currentSchema, out)
-	return out
+// collectAccessTables records every table the statement reads or writes in a
+// table-source position, including those inside CTE bodies and subqueries. A
+// reference to a CTE in scope names no physical table and is skipped.
+func (q *querySpanExtractor) collectAccessTables(root ast.Node) ColumnSet {
+	w := &accessTableWalker{q: q, lifted: map[*ast.WithClause]bool{}, out: make(ColumnSet)}
+	w.walk(root)
+	return w.out
 }
 
-func walkTableList(list *ast.List, db, schema string, out ColumnSet) {
+type accessTableWalker struct {
+	q *querySpanExtractor
+	// ctes holds the CTE names in scope.
+	ctes []string
+	// lifted holds the WITH clauses already in scope. The parser attaches a
+	// set operation's WITH clause to its leftmost arm, so the clause is
+	// brought into scope at the set operation and skipped at the arm.
+	lifted map[*ast.WithClause]bool
+	out    ColumnSet
+}
+
+func (w *accessTableWalker) walk(n ast.Node) {
+	switch v := n.(type) {
+	case nil:
+	case *ast.SelectStmt:
+		defer w.restoreScope(len(w.ctes))
+		w.with(leadingWithClause(v))
+		w.walkList(v.FromClause)
+		if v.Larg != nil {
+			w.walk(v.Larg)
+		}
+		if v.Rarg != nil {
+			w.walk(v.Rarg)
+		}
+		w.subqueries(v.Top, v.TargetList, v.WhereClause, v.GroupByClause, v.HavingClause, v.WindowClause, v.OrderByClause, v.OffsetClause, v.FetchClause)
+	case *ast.InsertStmt:
+		defer w.restoreScope(len(w.ctes))
+		w.with(v.WithClause)
+		w.walk(v.Relation)
+		w.walk(v.Source)
+		w.subqueries(v.Top)
+	case *ast.UpdateStmt:
+		defer w.restoreScope(len(w.ctes))
+		w.with(v.WithClause)
+		w.walk(v.Relation)
+		w.walkList(v.FromClause)
+		w.subqueries(v.Top, v.SetClause, v.WhereClause)
+	case *ast.DeleteStmt:
+		defer w.restoreScope(len(w.ctes))
+		w.with(v.WithClause)
+		w.walk(v.Relation)
+		w.walkList(v.FromClause)
+		w.subqueries(v.Top, v.WhereClause)
+	case *ast.MergeStmt:
+		defer w.restoreScope(len(w.ctes))
+		w.with(v.WithClause)
+		w.walk(v.Target)
+		w.walk(v.Source)
+		w.subqueries(v.Top, v.OnCondition, v.WhenClauses)
+	case *ast.TableRef:
+		if !w.isCTE(v) {
+			addAccessTable(v, w.q.defaultDatabase, w.q.defaultSchema, w.out)
+		}
+	case *ast.AliasedTableRef:
+		w.walk(v.Table)
+	case *ast.JoinClause:
+		w.walk(v.Left)
+		w.walk(v.Right)
+		w.subqueries(v.Condition)
+	case *ast.PivotExpr:
+		w.walk(v.Source)
+	case *ast.UnpivotExpr:
+		w.walk(v.Source)
+	case *ast.ValuesClause:
+		w.subqueries(v)
+	case *ast.TableVarRef, *ast.TableVarMethodCallRef:
+		// Table variables are not physical tables.
+	case ast.ExprNode:
+		// A derived table, a table-valued function, or an expression.
+		w.subqueries(v)
+	default:
+	}
+}
+
+func (w *accessTableWalker) walkList(list *ast.List) {
 	if list == nil {
 		return
 	}
 	for _, it := range list.Items {
-		walkAccessTables(it, db, schema, out)
+		w.walk(it)
 	}
 }
 
-func walkAccessTables(n ast.Node, db, schema string, out ColumnSet) {
-	if n == nil {
+// subqueries walks the queries nested anywhere in nodes, which are not table
+// sources themselves.
+func (w *accessTableWalker) subqueries(nodes ...ast.Node) {
+	for _, n := range nodes {
+		ast.Inspect(n, func(c ast.Node) bool {
+			if sel, ok := c.(*ast.SelectStmt); ok {
+				w.walk(sel)
+				return false
+			}
+			return true
+		})
+	}
+}
+
+// with brings a WITH clause's CTEs into scope. Each CTE's body sees itself,
+// for recursion, and the CTEs before it.
+func (w *accessTableWalker) with(clause *ast.WithClause) {
+	if clause == nil || w.lifted[clause] || clause.CTEs == nil {
 		return
 	}
-	switch v := n.(type) {
-	case *ast.SelectStmt:
-		if v.WithClause != nil {
-			walkAccessTables(v.WithClause, db, schema, out)
+	w.lifted[clause] = true
+	for _, it := range clause.CTEs.Items {
+		cte, ok := it.(*ast.CommonTableExpr)
+		if !ok {
+			continue
 		}
-		if v.FromClause != nil {
-			for _, it := range v.FromClause.Items {
-				walkAccessTables(it, db, schema, out)
-			}
-		}
-		if v.WhereClause != nil {
-			walkAccessTables(v.WhereClause, db, schema, out)
-		}
-		if v.HavingClause != nil {
-			walkAccessTables(v.HavingClause, db, schema, out)
-		}
-		if v.TargetList != nil {
-			for _, it := range v.TargetList.Items {
-				walkAccessTables(it, db, schema, out)
-			}
-		}
-		if v.Larg != nil {
-			walkAccessTables(v.Larg, db, schema, out)
-		}
-		if v.Rarg != nil {
-			walkAccessTables(v.Rarg, db, schema, out)
-		}
-		if v.OrderByClause != nil {
-			for _, it := range v.OrderByClause.Items {
-				walkAccessTables(it, db, schema, out)
-			}
-		}
-	case *ast.OrderByItem:
-		walkAccessTables(v.Expr, db, schema, out)
-	case *ast.InsertStmt:
-		walkAccessTables(v.Relation, db, schema, out)
-		walkAccessTables(v.Source, db, schema, out)
-	case *ast.UpdateStmt:
-		walkAccessTables(v.Relation, db, schema, out)
-		walkTableList(v.FromClause, db, schema, out)
-		walkAccessTables(v.WhereClause, db, schema, out)
-	case *ast.DeleteStmt:
-		walkAccessTables(v.Relation, db, schema, out)
-		walkTableList(v.FromClause, db, schema, out)
-		walkAccessTables(v.WhereClause, db, schema, out)
-	case *ast.MergeStmt:
-		walkAccessTables(v.Target, db, schema, out)
-		walkAccessTables(v.Source, db, schema, out)
-	case *ast.WithClause:
-		if v.CTEs != nil {
-			for _, it := range v.CTEs.Items {
-				if c, ok := it.(*ast.CommonTableExpr); ok {
-					walkAccessTables(c.Query, db, schema, out)
-				}
-			}
-		}
-	case *ast.TableRef:
-		addAccessTable(v, db, schema, out)
-	case *ast.AliasedTableRef:
-		walkAccessTables(v.Table, db, schema, out)
-	case *ast.JoinClause:
-		walkAccessTables(v.Left, db, schema, out)
-		walkAccessTables(v.Right, db, schema, out)
-		if v.Condition != nil {
-			walkAccessTables(v.Condition, db, schema, out)
-		}
-	case *ast.SubqueryExpr:
-		walkAccessTables(v.Query, db, schema, out)
-	case *ast.PivotExpr:
-		walkAccessTables(v.Source, db, schema, out)
-	case *ast.UnpivotExpr:
-		walkAccessTables(v.Source, db, schema, out)
-	case *ast.ExistsExpr:
-		walkAccessTables(v.Subquery, db, schema, out)
-	case *ast.SubqueryComparisonExpr:
-		walkAccessTables(v.Left, db, schema, out)
-		walkAccessTables(v.Subquery, db, schema, out)
-	case *ast.InExpr:
-		walkAccessTables(v.Expr, db, schema, out)
-		if v.List != nil {
-			for _, it := range v.List.Items {
-				walkAccessTables(it, db, schema, out)
-			}
-		}
-		walkAccessTables(v.Subquery, db, schema, out)
-	case *ast.BinaryExpr:
-		walkAccessTables(v.Left, db, schema, out)
-		walkAccessTables(v.Right, db, schema, out)
-	case *ast.UnaryExpr:
-		walkAccessTables(v.Operand, db, schema, out)
-	case *ast.BetweenExpr:
-		walkAccessTables(v.Expr, db, schema, out)
-		walkAccessTables(v.Low, db, schema, out)
-		walkAccessTables(v.High, db, schema, out)
-	case *ast.LikeExpr:
-		walkAccessTables(v.Expr, db, schema, out)
-		walkAccessTables(v.Pattern, db, schema, out)
-	case *ast.IsExpr:
-		walkAccessTables(v.Expr, db, schema, out)
-	case *ast.CaseExpr:
-		walkAccessTables(v.Arg, db, schema, out)
-		walkAccessTables(v.ElseExpr, db, schema, out)
-		if v.WhenList != nil {
-			for _, it := range v.WhenList.Items {
-				walkAccessTables(it, db, schema, out)
-			}
-		}
-	case *ast.CaseWhen:
-		walkAccessTables(v.Condition, db, schema, out)
-		walkAccessTables(v.Result, db, schema, out)
-	case *ast.ParenExpr:
-		walkAccessTables(v.Expr, db, schema, out)
-	case *ast.CastExpr:
-		walkAccessTables(v.Expr, db, schema, out)
-	case *ast.ConvertExpr:
-		walkAccessTables(v.Expr, db, schema, out)
-	case *ast.TryCastExpr:
-		walkAccessTables(v.Expr, db, schema, out)
-	case *ast.TryConvertExpr:
-		walkAccessTables(v.Expr, db, schema, out)
-	case *ast.FuncCallExpr:
-		if v.Args != nil {
-			for _, it := range v.Args.Items {
-				walkAccessTables(it, db, schema, out)
-			}
-		}
-	case *ast.ResTarget:
-		walkAccessTables(v.Val, db, schema, out)
-	case *ast.ValuesClause:
-		// No table access.
-	case *ast.TableVarRef, *ast.TableVarMethodCallRef:
-		// Temp-table var: no physical access.
-	default:
+		w.ctes = append(w.ctes, cte.Name)
+		w.walk(cte.Query)
 	}
+}
+
+func (w *accessTableWalker) restoreScope(n int) {
+	w.ctes = w.ctes[:n]
+}
+
+// isCTE reports whether t names a CTE in scope. As in name resolution, a CTE
+// shadows a table of the same name only when no schema or database is given.
+func (w *accessTableWalker) isCTE(t *ast.TableRef) bool {
+	if t.Server != "" || t.Database != "" || t.Schema != "" {
+		return false
+	}
+	return slices.ContainsFunc(w.ctes, func(name string) bool {
+		return w.q.isIdentifierEqual(t.Object, name)
+	})
+}
+
+// leadingWithClause returns the WITH clause of sel, which the parser attaches
+// to the leftmost arm when sel is a set operation.
+func leadingWithClause(sel *ast.SelectStmt) *ast.WithClause {
+	for sel != nil {
+		if sel.WithClause != nil || sel.Op == ast.SetOpNone {
+			return sel.WithClause
+		}
+		sel = sel.Larg
+	}
+	return nil
 }
 
 func addAccessTable(t *ast.TableRef, defDB, defSchema string, out ColumnSet) {

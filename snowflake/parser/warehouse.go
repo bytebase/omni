@@ -113,6 +113,140 @@ func (p *Parser) parseCreateWarehouseStmt(start ast.Loc, orReplace, orAlter bool
 }
 
 // ---------------------------------------------------------------------------
+// CREATE INTERACTIVE WAREHOUSE
+// ---------------------------------------------------------------------------
+
+// interactiveWarehouseProps are the objectProperties of CREATE INTERACTIVE
+// WAREHOUSE, and interactiveWarehouseParams its objectParams
+// (https://docs.snowflake.com/en/sql-reference/sql/create-interactive-warehouse).
+// WAREHOUSE_SIZE takes the sizes the page's parameters list, X2LARGE and
+// X3LARGE among them; its examples quote the size (WAREHOUSE_SIZE = 'MEDIUM'),
+// as the hyphenated sizes must be ('2X-LARGE'). AUTO_SUSPEND is
+// { <num> | NULL }, which interactiveWarehouseValueOK checks.
+var (
+	interactiveWarehouseProps = objectProps{
+		"WAREHOUSE_SIZE":      propStringOr("XSMALL", "SMALL", "MEDIUM", "LARGE", "XLARGE", "XXLARGE", "X2LARGE", "XXXLARGE", "X3LARGE", "X4LARGE"),
+		"MAX_CLUSTER_COUNT":   propNumber,
+		"MIN_CLUSTER_COUNT":   propNumber,
+		"AUTO_SUSPEND":        propNumber,
+		"AUTO_RESUME":         propBool,
+		"INITIALLY_SUSPENDED": propBool,
+		"RESOURCE_MONITOR":    propName,
+		"FALLBACK_WAREHOUSE":  propName,
+		"COMMENT":             propString,
+	}
+	interactiveWarehouseParams = objectProps{
+		"MAX_CONCURRENCY_LEVEL":               propNumber,
+		"STATEMENT_QUEUED_TIMEOUT_IN_SECONDS": propNumber,
+		"STATEMENT_TIMEOUT_IN_SECONDS":        propNumber,
+	}
+)
+
+// interactiveWarehouseValueOK reports whether o holds a value of the shape
+// props documents for it.
+func interactiveWarehouseValueOK(props objectProps, o *ast.CopyOption) bool {
+	if o.Name == "AUTO_SUSPEND" && o.Words == "NULL" {
+		return true
+	}
+	return props[o.Name].matches(o)
+}
+
+// parseCreateInteractiveWarehouseStmt parses
+//
+//	CREATE [ OR REPLACE ] INTERACTIVE WAREHOUSE [ IF NOT EXISTS ] <name>
+//	  [ TABLES ( <table_name> [ , <table_name> ... ] ) ]
+//	  [ [ WITH ] objectProperties ]
+//	  [ [ WITH ] TAG ( <tag_name> = '<tag_value>' [ , ... ] ) ]
+//	  [ objectParams ]
+//
+// (https://docs.snowflake.com/en/sql-reference/sql/create-interactive-warehouse).
+// The page writes IF NOT EXISTS only without OR REPLACE, and documents no
+// OR ALTER. cur is INTERACTIVE; start is the CREATE token's Loc.
+func (p *Parser) parseCreateInteractiveWarehouseStmt(start ast.Loc, orReplace bool) (ast.Node, error) {
+	p.advance() // consume INTERACTIVE
+	p.advance() // consume WAREHOUSE
+	stmt := &ast.CreateWarehouseStmt{
+		OrReplace:   orReplace,
+		Interactive: true,
+		Loc:         ast.Loc{Start: start.Start},
+	}
+	if !orReplace {
+		if err := p.parseIfNotExists(&stmt.IfNotExists); err != nil {
+			return nil, err
+		}
+	}
+	name, err := p.parseObjectSimpleName()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Name = name
+
+	if tokIsWord(p.cur, "TABLES") {
+		p.advance() // consume TABLES
+		tables, err := p.parseWarehouseTableList()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Tables = tables
+	}
+
+	// The properties come first, then the tag clause, then the parameters:
+	// phase says which of them may still follow.
+	const (
+		phaseProps = iota
+		phaseParams
+	)
+	phase := phaseProps
+	seen := map[string]bool{}
+	for {
+		switch {
+		case p.startsWarehouseTags():
+			if phase != phaseProps || stmt.Tags != nil {
+				return nil, p.syntaxErrorAtCur()
+			}
+			tags, err := p.parseWarehouseWithTags()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Tags = tags
+			phase = phaseParams
+		case p.cur.Type == kwWITH:
+			// WITH introduces the properties, so it comes before the first.
+			if phase != phaseProps || len(stmt.Options) > 0 {
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance() // consume WITH
+			if _, ok := interactiveWarehouseProps[strings.ToUpper(p.cur.Str)]; !ok || !p.startsObjectProperty() {
+				return nil, p.syntaxErrorAtCur()
+			}
+		case p.startsObjectProperty():
+			opt, err := p.parseObjectProperty()
+			if err != nil {
+				return nil, err
+			}
+			props := interactiveWarehouseProps
+			if _, ok := props[opt.Name]; !ok {
+				props = interactiveWarehouseParams
+				phase = phaseParams
+			} else if phase != phaseProps {
+				props = nil
+			}
+			if seen[opt.Name] || props == nil || !interactiveWarehouseValueOK(props, opt) {
+				return nil, &ParseError{
+					Position: opt.Loc.Start, End: opt.Loc.End,
+					Message: "syntax error at or near " + opt.Name,
+				}
+			}
+			seen[opt.Name] = true
+			stmt.Options = append(stmt.Options, opt)
+		default:
+			stmt.Loc.End = p.prev.Loc.End
+			return stmt, nil
+		}
+	}
+}
+
+// ---------------------------------------------------------------------------
 // ALTER WAREHOUSE
 // ---------------------------------------------------------------------------
 
@@ -138,15 +272,27 @@ func (p *Parser) parseAlterWarehouseStmt() (ast.Node, error) {
 		stmt.IfExists = true
 	}
 
-	// Warehouse name.
-	name, err := p.parseObjectName()
-	if err != nil {
-		return nil, err
+	// Warehouse name, which SUSPEND, RESUME and ABORT ALL QUERIES may leave
+	// out to act on the session's current warehouse.
+	if !p.startsNamelessWarehouseAction() {
+		name, err := p.parseObjectName()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Name = name
 	}
-	stmt.Name = name
 
 	// Action branch.
 	switch p.cur.Type {
+	case kwENABLE, kwDISABLE:
+		if stmt.Name == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		stmt.Action = ast.AlterWarehouseEnable
+		if p.advance().Type == kwDISABLE {
+			stmt.Action = ast.AlterWarehouseDisable
+		}
+
 	case kwSUSPEND:
 		p.advance() // consume SUSPEND
 		stmt.Action = ast.AlterWarehouseSuspend
@@ -262,9 +408,47 @@ func (p *Parser) parseAlterWarehouseStmt() (ast.Node, error) {
 	default:
 		return nil, p.syntaxErrorAtCur()
 	}
+	if stmt.Name == nil && stmt.Action != ast.AlterWarehouseSuspend &&
+		stmt.Action != ast.AlterWarehouseResume && stmt.Action != ast.AlterWarehouseAbort {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
+}
+
+// startsNamelessWarehouseAction reports whether cur begins an ALTER WAREHOUSE
+// action written without a warehouse name
+// (https://docs.snowflake.com/en/sql-reference/sql/alter-warehouse):
+//
+//	ALTER WAREHOUSE [ IF EXISTS ] [ <name> ] { SUSPEND | RESUME [ IF SUSPENDED ] }
+//	ALTER WAREHOUSE [ IF EXISTS ] [ <name> ] ABORT ALL QUERIES
+//
+// SUSPEND, RESUME and ABORT are not reserved, so each also names a warehouse:
+// it is the action only where no action follows it (SUSPEND or RESUME at the
+// statement's end, RESUME IF SUSPENDED, ABORT ALL). It consumes nothing.
+func (p *Parser) startsNamelessWarehouseAction() bool {
+	next := p.peekNext().Type
+	end := next == tokEOF || next == ';' || next == tokFlow
+	switch p.cur.Type {
+	case kwSUSPEND:
+		return end
+	case kwRESUME:
+		if end {
+			return true
+		}
+		if next != kwIF {
+			return false
+		}
+		snap := p.snapshot()
+		defer p.restore(snap)
+		p.advance() // RESUME
+		p.advance() // IF
+		return p.cur.Type == kwSUSPENDED
+	case kwABORT:
+		return next == kwALL
+	}
+	return false
 }
 
 // ---------------------------------------------------------------------------

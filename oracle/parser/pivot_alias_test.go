@@ -230,7 +230,6 @@ func TestIncompletePivotRejected(t *testing.T) {
 	// LATERAL views cannot be pivoted at all (Oracle: ORA-56905).
 	for _, sql := range []string{
 		`SELECT * FROM t1 PIVOT p`,
-		`SELECT * FROM t1 PIVOT`,
 		`SELECT * FROM t1 UNPIVOT u`,
 		`SELECT * FROM t1 PIVOT XML junk`,
 		`SELECT * FROM t1 PIVOT (SUM(b)) p`,

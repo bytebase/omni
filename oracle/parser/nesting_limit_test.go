@@ -121,7 +121,9 @@ var nestingShapes = []struct {
 	}},
 	{"CTE", func(n int) string { return nest(n, "WITH c AS (", "SELECT 1 FROM dual", ") SELECT * FROM c") }},
 	{"GROUP BY grouping sets", func(n int) string {
-		return "SELECT 1 FROM t GROUP BY " + nest(n, "GROUPING SETS (", "a", ")")
+		// GROUPING SETS do not nest (ORA-00907); their elements do, as
+		// parenthesized expressions.
+		return "SELECT 1 FROM t GROUP BY GROUPING SETS (" + nest(n, "(", "a", ")") + ")"
 	}},
 	{"JSON_TABLE nested columns", func(n int) string {
 		return "SELECT * FROM JSON_TABLE('{}', '$' COLUMNS (" +

@@ -329,11 +329,12 @@ func (p *Parser) parseCallStmt() (nodes.StmtNode, error) {
 		}
 	}
 
-	// A routine takes its arguments in parentheses, which it needs even
-	// without any (ORA-06576 on Oracle 23ai for CALL k.p), in positional,
-	// named, or mixed notation. No positional argument follows a named one
+	// A routine takes its arguments in parentheses, in positional, named,
+	// or mixed notation. No positional argument follows a named one
 	// (PLS-00312), and none is left out (ORA-00936 for (1,) and (,1)).
-	if stmt.Name != nil && stmt.Name.Name != "" && p.cur.Type != '(' {
+	// Oracle 23ai parses CALL k.p without them and refuses it after the
+	// parse (ORA-06576); an object's method takes them.
+	if stmt.Object != nil && p.cur.Type != '(' {
 		return nil, p.syntaxErrorAtCur()
 	}
 	if p.cur.Type == '(' {
@@ -381,6 +382,22 @@ func (p *Parser) parseCallStmt() (nodes.StmtNode, error) {
 				return nil, p.syntaxErrorAtCur()
 			}
 			return nil, p.syntaxErrorAtNode(stmt.Into)
+		}
+		// [ [ INDICATOR ] :indicator_variable ]
+		indicator := p.isKeywordStr("INDICATOR")
+		if indicator {
+			p.advance()
+		}
+		if indicator || p.cur.Type == tokBIND || p.cur.Type == ':' {
+			if stmt.Indicator, parseErr1155 = p.parseExpr(); parseErr1155 != nil {
+				return nil, parseErr1155
+			}
+			if _, ok := stmt.Indicator.(*nodes.BindVariable); !ok {
+				if stmt.Indicator == nil {
+					return nil, p.syntaxErrorAtCur()
+				}
+				return nil, p.syntaxErrorAtNode(stmt.Indicator)
+			}
 		}
 	}
 
@@ -1437,7 +1454,8 @@ func (p *Parser) parseNoauditStmt() (nodes.StmtNode, error) {
 		stmt.Loc.End = p.prev.End
 		return stmt, nil
 	}
-	if p.cur.Type == kwCONTEXT {
+	// CONTEXT alone is a statement option of traditional auditing.
+	if p.cur.Type == kwCONTEXT && !isNoauditOptionEndTok(p.peekNext()) {
 		ns, attrs, users, err := p.parseAuditContextNamespace()
 		if err != nil {
 			return nil, err
@@ -1446,65 +1464,8 @@ func (p *Parser) parseNoauditStmt() (nodes.StmtNode, error) {
 		stmt.Loc.End = p.prev.End
 		return stmt, nil
 	}
-	var parseErr1197 error
-
-	// Traditional: parse audit actions
-	stmt.Actions, parseErr1197 = p.parseAuditActions()
-	if parseErr1197 !=
-
-		// ON clause
-		nil {
-		return nil, parseErr1197
-	}
-
-	if p.cur.Type == kwON {
-		p.advance()
-		parseErr1198 := p.parseTraditionalNoauditOnClause(stmt)
-		if parseErr1198 != nil {
-			return nil, parseErr1198
-		}
-	} else if p.isIdentLikeStr("NETWORK") {
-		stmt.OnNetwork = true
-		p.advance()
-	} else if p.isIdentLikeStr("DIRECT_PATH") {
-		stmt.OnDirectPath = true
-		p.advance()
-		if p.isIdentLikeStr("LOAD") {
-			p.advance()
-		}
-	}
-
-	// BY user [, user]...
-	if p.cur.Type == kwBY {
-		p.advance()
-		var parseErr1199 error
-		stmt.ByUsers2, parseErr1199 = p.parseIdentListForAudit()
-		if parseErr1199 !=
-
-			// WHENEVER [NOT] SUCCESSFUL
-			nil {
-			return nil, parseErr1199
-		}
-	}
-
-	if p.cur.Type == kwWHENEVER {
-		var parseErr1200 error
-		stmt.When, parseErr1200 = p.parseWheneverClause()
-		if parseErr1200 !=
-
-			// CONTAINER = { CURRENT | ALL }
-			nil {
-			return nil, parseErr1200
-		}
-	}
-
-	if p.isIdentLikeStr("CONTAINER") {
-		p.advance()
-		var parseErr1201 error
-		stmt.ContainerAll, parseErr1201 = p.parseContainerClause()
-		if parseErr1201 != nil {
-			return nil, parseErr1201
-		}
+	if err := p.parseNoauditTraditional(stmt); err != nil {
+		return nil, err
 	}
 
 	stmt.Loc.End = p.prev.End
@@ -1550,61 +1511,50 @@ func (p *Parser) parseTraditionalAuditOnClause(stmt *nodes.AuditStmt) error {
 	} else {
 		var parseErr1204 error
 		stmt.Object, parseErr1204 = p.parseObjectName()
-		if parseErr1204 !=
-
-			// parseTraditionalNoauditOnClause parses the ON clause for traditional NOAUDIT.
-			// Called after ON has been consumed.
-			nil {
+		if parseErr1204 != nil {
 			return parseErr1204
 		}
 	}
 	return nil
 }
 
+// parseTraditionalNoauditOnClause parses the auditing_on_clause of a
+// traditional NOAUDIT, after ON.
+//
+//	auditing_on_clause::=
+//	    [ schema. ] object
+//	  | DIRECTORY directory_name
+//	  | SQL TRANSLATION PROFILE [ schema. ] profile
+//	  | DEFAULT
+//
+// Each name is there (ORA-00903 otherwise) and an object has no database
+// link (ORA-02021). Oracle 23ai also reads MINING MODEL [ schema. ] model.
 func (p *Parser) parseTraditionalNoauditOnClause(stmt *nodes.NoauditStmt) error {
-	if p.cur.Type == kwDEFAULT {
+	var err error
+	switch {
+	case p.cur.Type == kwDEFAULT:
 		stmt.OnDefault = true
 		p.advance()
-	} else if p.isIdentLikeStr("DIRECTORY") {
+	case p.isKeywordStr("DIRECTORY") && p.peekNext().Type != '.':
 		p.advance()
-		if p.isIdentLike() {
-			stmt.OnDirectory = p.cur.Str
-			p.advance()
+		var dir *nodes.ObjectName
+		if dir, err = p.parseGrantObjectName(false); err != nil {
+			return err
 		}
-	} else if p.isIdentLikeStr("SQL") {
-		// SQL TRANSLATION PROFILE
+		stmt.OnDirectory = dir.Name
+	case p.isKeywordStr("SQL") && p.isGrantTranslationProfileAhead():
 		p.advance()
-		if p.isIdentLikeStr("TRANSLATION") {
-			p.advance()
-		}
-		if p.cur.Type == kwPROFILE {
-			p.advance()
-		}
-		var parseErr1205 error
-		stmt.Object, parseErr1205 = p.parseObjectName()
-		if parseErr1205 != nil {
-			return parseErr1205
-		}
-	} else if p.isIdentLikeStr("NETWORK") {
-		stmt.OnNetwork = true
 		p.advance()
-	} else if p.isIdentLikeStr("DIRECT_PATH") {
-		stmt.OnDirectPath = true
 		p.advance()
-		if p.isIdentLikeStr("LOAD") {
-			p.advance()
-		}
-	} else {
-		var parseErr1206 error
-		stmt.Object, parseErr1206 = p.parseObjectName()
-		if parseErr1206 !=
-
-			// parseAuditActions collects audit action identifiers separated by commas.
-			nil {
-			return parseErr1206
-		}
+		stmt.Object, err = p.parseGrantObjectName(true)
+	case p.isKeywordStr("MINING") && p.peekNext().Type == kwMODEL:
+		p.advance()
+		p.advance()
+		stmt.Object, err = p.parseGrantObjectName(true)
+	default:
+		stmt.Object, err = p.parseGrantObjectName(true)
 	}
-	return nil
+	return err
 }
 
 func (p *Parser) parseAuditActions() ([]string, error) {

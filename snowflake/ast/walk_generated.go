@@ -32,11 +32,30 @@ func walkChildren(v Visitor, node Node) {
 		if n.NewName != nil {
 			Walk(v, n.NewName)
 		}
+		if n.UserGroup != nil {
+			Walk(v, n.UserGroup)
+		}
+		for _, item := range n.Contacts {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 	case *AlterAlertStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
+		if n.Template != nil {
+			Walk(v, n.Template)
+		}
 		for _, item := range n.Options {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		for _, item := range n.Tags {
+			walkTagAssignment(v, item)
+		}
+		for _, item := range n.UnsetTags {
 			if item != nil {
 				Walk(v, item)
 			}
@@ -334,6 +353,24 @@ func walkChildren(v Visitor, node Node) {
 				Walk(v, item)
 			}
 		}
+		if n.Materialization != nil {
+			Walk(v, n.Materialization)
+		}
+		if n.Warehouse != nil {
+			Walk(v, n.Warehouse)
+		}
+		Walk(v, n.ImmutableWhere)
+		for _, item := range n.Dimensions {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		for _, item := range n.Metrics {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		Walk(v, n.Where)
 	case *AlterSequenceStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -624,6 +661,11 @@ func walkChildren(v Visitor, node Node) {
 		if n.Into != nil {
 			Walk(v, n.Into)
 		}
+		for _, item := range n.IntoOptions {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 		if n.FromTable != nil {
 			Walk(v, n.FromTable)
 		}
@@ -663,6 +705,10 @@ func walkChildren(v Visitor, node Node) {
 				Walk(v, item)
 			}
 		}
+		Walk(v, n.Expr)
+		if n.Alias != nil {
+			Walk(v, n.Alias)
+		}
 	case *CreateAccountStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -693,6 +739,12 @@ func walkChildren(v Visitor, node Node) {
 	case *CreateAlertStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
+		}
+		if n.Clone != nil {
+			Walk(v, n.Clone)
+		}
+		if n.Template != nil {
+			Walk(v, n.Template)
 		}
 		for _, item := range n.Tags {
 			walkTagAssignment(v, item)
@@ -1041,6 +1093,11 @@ func walkChildren(v Visitor, node Node) {
 		for _, item := range n.Tags {
 			walkTagAssignment(v, item)
 		}
+		for _, item := range n.Contacts {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 		for _, item := range n.Options {
 			if item != nil {
 				Walk(v, item)
@@ -1087,6 +1144,11 @@ func walkChildren(v Visitor, node Node) {
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
+		for _, item := range n.Tables {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 		for _, item := range n.Options {
 			if item != nil {
 				Walk(v, item)
@@ -1113,6 +1175,9 @@ func walkChildren(v Visitor, node Node) {
 				Walk(v, item)
 			}
 		}
+		for _, item := range n.TableArgs {
+			walkRoutineTableArgType(v, item)
+		}
 	case *DollarRef:
 		if n.Qualifier != nil {
 			Walk(v, n.Qualifier)
@@ -1129,7 +1194,26 @@ func walkChildren(v Visitor, node Node) {
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
+		if n.Table != nil {
+			Walk(v, n.Table)
+		}
 		for _, item := range n.ArgTypes {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		for _, item := range n.TableArgs {
+			walkRoutineTableArgType(v, item)
+		}
+		if n.GracePeriodInDays != nil {
+			Walk(v, n.GracePeriodInDays)
+		}
+	case *ExecuteAlertStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+	case *ExecuteImmediateStmt:
+		for _, item := range n.Vars {
 			if item != nil {
 				Walk(v, item)
 			}
@@ -1201,6 +1285,16 @@ func walkChildren(v Visitor, node Node) {
 	case *GroupOption:
 		if n.Lit != nil {
 			Walk(v, n.Lit)
+		}
+		for _, item := range n.Pairs {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		for _, item := range n.List {
+			if item != nil {
+				Walk(v, item)
+			}
 		}
 	case *IffExpr:
 		Walk(v, n.Cond)
@@ -1296,10 +1390,27 @@ func walkChildren(v Visitor, node Node) {
 				Walk(v, item)
 			}
 		}
+		for _, item := range n.Args {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 		for _, item := range n.Tags {
 			walkTagAssignment(v, item)
 		}
 		Walk(v, n.Query)
+		if n.Type != nil {
+			Walk(v, n.Type)
+		}
+		for _, item := range n.Params {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		Walk(v, n.Body)
+		if n.TimeTravel != nil {
+			Walk(v, n.TimeTravel)
+		}
 	case *ObjectStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -1457,6 +1568,9 @@ func walkChildren(v Visitor, node Node) {
 		if n.ScopeName != nil {
 			Walk(v, n.ScopeName)
 		}
+		if n.QualifierName != nil {
+			Walk(v, n.QualifierName)
+		}
 		if n.GrantsOn != nil {
 			Walk(v, n.GrantsOn)
 		}
@@ -1528,6 +1642,9 @@ func walkChildren(v Visitor, node Node) {
 	case *UndropStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
+		}
+		if n.NewName != nil {
+			Walk(v, n.NewName)
 		}
 	case *UnpivotClause:
 		for _, item := range n.Columns {

@@ -249,3 +249,49 @@ func TestParseRevokeLocSet(t *testing.T) {
 		t.Errorf("expected Loc.End > Loc.Start, got End=%d", stmt.Loc.End)
 	}
 }
+
+// TestParseGrantGrammar tests the forms Oracle 23ai parses and refuses in
+// GRANT, REVOKE and traditional NOAUDIT.
+func TestParseGrantGrammar(t *testing.T) {
+	for _, sql := range []string{
+		"GRANT CONNECT, RESOURCE TO u",
+		"GRANT CREATE SESSION, r TO x, y WITH ADMIN OPTION CONTAINER = CURRENT",
+		"GRANT UPDATE (a, b), INSERT (a) ON t TO x WITH HIERARCHY OPTION",
+		"GRANT ON COMMIT REFRESH, QUERY REWRITE ON s.t TO x",
+		"GRANT INHERIT PRIVILEGES ON USER u TO x",
+		"GRANT READ ON DIRECTORY d TO x",
+		"GRANT SELECT ANY TABLE ON SCHEMA s TO x",
+		"GRANT r TO FUNCTION f, PROCEDURE s.p, app.PACKAGE k",
+		"REVOKE SELECT ON t FROM x CASCADE CONSTRAINTS",
+		"REVOKE r FROM PACKAGE k, FUNCTION s.f",
+		"NOAUDIT SELECT, UPDATE ON t WHENEVER NOT SUCCESSFUL",
+		"NOAUDIT TABLE, CREATE SESSION BY u, v CONTAINER = ALL",
+		"NOAUDIT CONTEXT",
+		`GRANT "app role" TO u`,
+		`REVOKE "app role" FROM u`,
+		// Oracle 23ai parses a REVOKE of columns and refuses it after the
+		// parse (ORA-01750).
+		"REVOKE UPDATE (a) ON t FROM u",
+	} {
+		ParseAndCheck(t, sql)
+	}
+	for _, sql := range []string{
+		"GRANT a ON t TO x",
+		"GRANT a b TO x",
+		"GRANT SELECT (a) ON t TO x",
+		"GRANT SELECT ON TABLE t TO x",
+		"GRANT ALL ON SCHEMA s TO x",
+		"GRANT SELECT ON t TO x WITH ADMIN OPTION",
+		"GRANT r TO FUNCTION f WITH ADMIN OPTION",
+		"REVOKE SELECT ON t FROM x CASCADE CONSTRAINTS FORCE",
+		"NOAUDIT a",
+		"NOAUDIT SELECT",
+		"NOAUDIT TABLE ON t",
+		"NOAUDIT SELECT ON t BY u",
+		"NOAUDIT TABLE BY ACCESS",
+		"GRANT r TO FUNCTION f, s garbage PROCEDURE p",
+		"REVOKE r FROM FUNCTION f, s garbage PROCEDURE p",
+	} {
+		ParseShouldFail(t, sql)
+	}
+}

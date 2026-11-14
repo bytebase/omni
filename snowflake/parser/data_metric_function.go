@@ -23,6 +23,61 @@ import (
 // write one, and an optional second for a referential check.
 const maxDataMetricTables = 2
 
+// startsDataMetricTableArgs reports whether a DMF signature,
+// ( TABLE ( ... ) ... ), starts at cur. It consumes nothing.
+func (p *Parser) startsDataMetricTableArgs() bool {
+	return p.cur.Type == '(' && p.peekNext().Type == kwTABLE
+}
+
+// parseDataMetricTableArgs reads a data metric function's signature, which
+// ALTER, DESC and DROP FUNCTION write as
+//
+//	( TABLE ( <arg_data_type> [ , ... ] ) [ , TABLE ( <arg_data_type> [ , ... ] ) ] )
+//
+// https://docs.snowflake.com/en/sql-reference/sql/alter-function-dmf
+// https://docs.snowflake.com/en/sql-reference/sql/desc-function-dmf
+// https://docs.snowflake.com/en/sql-reference/sql/drop-function-dmf
+//
+// cur is the signature's '('.
+func (p *Parser) parseDataMetricTableArgs() ([]*ast.RoutineTableArgType, error) {
+	p.advance() // consume '('
+	var args []*ast.RoutineTableArgType
+	for {
+		argStart := p.cur.Loc.Start
+		if _, err := p.expect(kwTABLE); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect('('); err != nil {
+			return nil, err
+		}
+		arg := &ast.RoutineTableArgType{}
+		for {
+			typ, err := p.parseDataType()
+			if err != nil {
+				return nil, err
+			}
+			arg.Types = append(arg.Types, typ)
+			if p.cur.Type != ',' {
+				break
+			}
+			p.advance() // consume ','
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		arg.Loc = ast.Loc{Start: argStart, End: p.prev.Loc.End}
+		args = append(args, arg)
+		if p.cur.Type != ',' || len(args) == maxDataMetricTables {
+			break
+		}
+		p.advance() // consume ','
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return args, nil
+}
+
 // startsCreateDataMetricFunction reports whether [ SECURE ] DATA METRIC FUNCTION
 // starts at cur. It consumes nothing.
 func (p *Parser) startsCreateDataMetricFunction() bool {
@@ -184,40 +239,11 @@ func (p *Parser) startsDataMetricSignature() bool {
 //
 // once stmt holds IF EXISTS and the name. cur is the signature's '('.
 func (p *Parser) parseAlterDataMetricFunction(stmt *ast.AlterRoutineStmt) (ast.Node, error) {
-	p.advance() // consume '('
-	for {
-		argStart := p.cur.Loc.Start
-		if _, err := p.expect(kwTABLE); err != nil {
-			return nil, err
-		}
-		if _, err := p.expect('('); err != nil {
-			return nil, err
-		}
-		arg := &ast.RoutineTableArgType{}
-		for {
-			typ, err := p.parseDataType()
-			if err != nil {
-				return nil, err
-			}
-			arg.Types = append(arg.Types, typ)
-			if p.cur.Type != ',' {
-				break
-			}
-			p.advance() // consume ','
-		}
-		if _, err := p.expect(')'); err != nil {
-			return nil, err
-		}
-		arg.Loc = ast.Loc{Start: argStart, End: p.prev.Loc.End}
-		stmt.TableArgs = append(stmt.TableArgs, arg)
-		if p.cur.Type != ',' || len(stmt.TableArgs) == maxDataMetricTables {
-			break
-		}
-		p.advance() // consume ','
-	}
-	if _, err := p.expect(')'); err != nil {
+	args, err := p.parseDataMetricTableArgs()
+	if err != nil {
 		return nil, err
 	}
+	stmt.TableArgs = args
 
 	switch {
 	case p.cur.Type == kwRENAME:
