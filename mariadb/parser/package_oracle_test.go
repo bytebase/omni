@@ -68,6 +68,8 @@ func TestPackageFormsOracle(t *testing.T) {
 		{"CREATE DEFINER=root@ PACKAGE pk PROCEDURE p(); END", true},
 		{"CREATE DEFINER=CURRENT_ROLE() PACKAGE pk PROCEDURE p(); END", true},
 		{"CREATE DEFINER=root@package VIEW v AS SELECT 1", true},
+		{"CREATE DEFINER=root@foo.package VIEW v AS SELECT 1", true},
+		{"CREATE DEFINER=root@foo$package VIEW v AS SELECT 1", true},
 		{"CREATE DEFINER = root@ 'h' VIEW v AS SELECT 1", false},
 		{"CREATE DEFINER = 'root'@ VIEW v AS SELECT 1", true},
 		{"CREATE PACKAGE pk PROCEDURE `p.q`(); END", false},

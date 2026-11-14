@@ -353,8 +353,9 @@ func Split(sql string) []Segment {
 		// package, which its END closes: the ';' after each routine it lists do not end
 		// it. Anywhere else PACKAGE is a word (DROP PACKAGE, a column named package).
 		case (b == 'p' || b == 'P') && matchWord(sql, i, "PACKAGE"):
-			// A PACKAGE that touches an @ is a definer's host, root@package.
-			if depth == 0 && (i == 0 || sql[i-1] != '@') && createsPackage(sql[stmtStart:i]) {
+			// A PACKAGE that touches an @, a dot or another byte of a name is part of a
+			// longer token, a definer's host such as root@package or root@foo.package.
+			if depth == 0 && !packageInLongerToken(sql, i, i+len("PACKAGE")) && createsPackage(sql[stmtStart:i]) {
 				depth++
 			}
 			atStmtStart = false
@@ -648,6 +649,13 @@ func packageHeadTokens(head string) []string {
 		return nil
 	}
 	return toks
+}
+
+// packageInLongerToken reports whether sql[start:end], a PACKAGE, is part of a longer name or
+// account in the lexer's alphabet.
+func packageInLongerToken(sql string, start, end int) bool {
+	return (start > 0 && (sql[start-1] == '@' || isPackageHeadIdentByte(sql[start-1]))) ||
+		(end < len(sql) && isPackageHeadIdentByte(sql[end]))
 }
 
 // isPackageHeadIdentByte reports a byte of an unquoted name or host as the lexer reads one: a
