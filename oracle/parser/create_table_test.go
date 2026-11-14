@@ -972,3 +972,14 @@ func TestCreateTableNeedsColumnsOrQuery(t *testing.T) {
 	// the table name.
 	ParseShouldFail(t, "CREATE TABLE t TABLESPACE users")
 }
+
+func TestCreateMaterializedZonemapRefreshThenOnTable(t *testing.T) {
+	result := ParseAndCheck(t, "CREATE MATERIALIZED ZONEMAP z REFRESH FAST ON sales (cust_id)")
+	stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.CreateMaterializedZonemapStmt)
+	if stmt.RefreshMethod != "FAST" || stmt.RefreshOn != "" || stmt.OnTable == nil || stmt.OnTable.Name != "SALES" {
+		t.Fatalf("got method %q on %q table %#v", stmt.RefreshMethod, stmt.RefreshOn, stmt.OnTable)
+	}
+	ParseAndCheck(t, "CREATE MATERIALIZED ZONEMAP z REFRESH FAST ON COMMIT ON sales (cust_id)")
+	// REFRESH alone is refused (ORA-00905 on Oracle 23ai).
+	ParseShouldFail(t, "CREATE MATERIALIZED ZONEMAP z REFRESH ON sales (cust_id)")
+}

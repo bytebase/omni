@@ -77,9 +77,11 @@ func (p *Parser) parseCreateViewStmt(start int, orReplace bool) (*nodes.CreateVi
 			p.advance()
 		}
 
-		if p.cur.Type == kwVIEW {
-			p.advance()
+		if p.cur.Type != kwVIEW {
+			return nil, p.syntaxErrorAtCur()
 		}
+		p.advance()
+		return p.finishCreatePlainViewStmt(stmt)
 	}
 
 	return p.finishCreateViewStmt(stmt)
