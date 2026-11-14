@@ -19,11 +19,12 @@
 // CAST/EXTRACT, array/struct constructors, access, INTERVAL, AT TIME ZONE,
 // parameters, subqueries), so the Spanner verdict is authoritative. A few
 // fixtures parse on the grammar but are semantically rejected by Spanner
-// ("X is not supported", "Table not found", "Unrecognized name", "IS DISTINCT
-// FROM is not supported", "No matching signature") — those are classified ACCEPT
-// (the grammar accepted) and asserted as accept. BigQuery-only expression forms
-// (e.g. WITH(...) inline expression, REPLACE_FIELDS, NEW proto, braced proto
-// constructors) are NOT authoritative against this emulator; they are covered by
+// ("Table not found", "Unrecognized name", "No matching signature") — those
+// are classified ACCEPT (the grammar accepted) and asserted as accept.
+// BigQuery-only expression forms (e.g. WITH(...) inline expression,
+// REPLACE_FIELDS, NEW proto, braced proto constructors, and IS [NOT] DISTINCT
+// FROM, which GoogleSQL's grammar refuses where Spanner leaves
+// FEATURE_IS_DISTINCT off) are NOT authoritative against this emulator; they are covered by
 // the hand-written unit tests (expr_test.go) and triangulated against the legacy
 // .g4 + docs, and are deliberately excluded from this differential.
 package parser
@@ -103,7 +104,6 @@ var exprFixtures = []exprFixture{
 	{"1 IS TRUE", "SELECT 1 IS TRUE", true},
 	{"1 IS NOT FALSE", "SELECT 1 IS NOT FALSE", true},
 	{"1 IS UNKNOWN", "SELECT 1 IS UNKNOWN", true},
-	{"a IS NOT DISTINCT FROM b", "SELECT a IS NOT DISTINCT FROM b FROM t", true},
 	{"a BETWEEN 1 AND 2", "SELECT a BETWEEN 1 AND 2 FROM t", true},
 	{"a NOT BETWEEN 1 AND 2", "SELECT a NOT BETWEEN 1 AND 2 FROM t", true},
 	{"a IN (1, 2, 3)", "SELECT a IN (1, 2, 3) FROM t", true},

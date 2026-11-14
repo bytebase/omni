@@ -10,11 +10,13 @@ GoogleSQL release the emulator builds against, beside it as published.
 `TestCompatibility` (`../compat_test.go`) reads the file through
 `enginetest/compat` and starts no server. Recorded 2026-11-14 in about a
 minute; a second recording on a fresh emulator wrote the same file.
+Rejudged at judge revision 2 (`../../testdata/pins.tsv`), which reads
+GoogleSQL's grammar refusals as rejections: 90 rows moved to `reject`.
 
 | Rows | Total | Agree | Only Spanner accepts | Only omni accepts |
 | --- | --- | --- | --- | --- |
-| One per alternative | 2,614 | 1,470 | 753 | 391 |
-| Near-misses | 6,223 | 4,954 | 1,195 | 74 |
+| One per alternative | 2,614 | 1,509 | 706 | 399 |
+| Near-misses | 6,223 | 4,986 | 1,162 | 75 |
 
 The rows start from `unterminated_statement`, a statement of a script, so
 they cover GoogleSQL's scripting and BigQuery statements as well as what
@@ -38,7 +40,7 @@ files that compared `Parse` of a statement with the emulator's verdict on it.
 
 | Suite | Rows | Agree | Only Spanner accepts | Only omni accepts |
 | --- | --- | --- | --- | --- |
-| `suite:select` | 95 | 95 | 0 | 0 |
+| `suite:select` | 95 | 94 | 0 | 1 |
 | `suite:pivot-unpivot` | 49 | 49 | 0 | 0 |
 | `suite:dml` | 68 | 68 | 0 | 0 |
 | `suite:ddl` | 91 | 91 | 0 | 0 |
@@ -72,10 +74,13 @@ harness's answer for each statement they send, recorded with `OMNI_RECORD=1`.
   (`spannerVerdict` in `../compat_test.go`).
 - **A rejection is the parser's error:** `Syntax error:` from GoogleSQL's
   parser, also where the emulator parses SQL inside DDL (`CREATE PROPERTY
-  GRAPH`, a function's body), or `Error parsing Spanner DDL statement:` from
-  the emulator's own DDL parser. Every other answer is an acceptance,
-  `Statement not supported` and `Unimplemented` (a query that returns a
-  `STRUCT` column) included.
+  GRAPH`, a function's body); a message GoogleSQL's grammar writes when an
+  action refuses input, as `QUALIFY is not supported` where the emulator
+  leaves the feature off (`grammar_refusals.go` in the harness, generated
+  from `googlesql.tm` by `../cmd/tm2g4`); or `Error parsing Spanner DDL
+  statement:` from the emulator's own DDL parser. Every other answer is an
+  acceptance, `Statement not supported` and `Unimplemented` (a query that
+  returns a `STRUCT` column) included.
 - **Every statement sees an empty schema.** The emulator answers
   `CREATE PROPERTY GRAPH a` by the names the schema holds before it parses the
   rest, so the harness applies DDL to a database it replaces after each DDL
