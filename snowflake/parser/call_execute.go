@@ -1,6 +1,10 @@
 package parser
 
-import "github.com/bytebase/omni/snowflake/ast"
+import (
+	"strings"
+
+	"github.com/bytebase/omni/snowflake/ast"
+)
 
 // ---------------------------------------------------------------------------
 // CALL / EXECUTE IMMEDIATE / EXECUTE TASK / EXPLAIN (T5.4)
@@ -141,20 +145,43 @@ func (p *Parser) parseCallArgValue() (ast.Node, error) {
 // ---------------------------------------------------------------------------
 
 // parseExecuteStmt dispatches an EXECUTE statement on the keyword that follows
-// EXECUTE (IMMEDIATE, TASK, or [ INFERENCE ] JOB SERVICE). The EXECUTE word (a
-// plain identifier, not a keyword) has NOT yet been consumed when this function
-// is called.
+// EXECUTE (IMMEDIATE, TASK, [ INFERENCE ] JOB SERVICE, or a dbt or DCM project
+// or code bundle). The EXECUTE word (a plain identifier, not a keyword) has NOT
+// yet been consumed when this function is called.
 func (p *Parser) parseExecuteStmt() (ast.Node, error) {
 	execTok := p.advance() // consume EXECUTE
 	if p.startsExecuteJobService() {
 		return p.parseExecuteJobService(execTok.Loc) // service.go
 	}
+	if p.startsExecuteProject() {
+		return p.parseExecuteProject(execTok.Loc) // project.go
+	}
 	switch p.cur.Type {
 	case kwIMMEDIATE:
 		return p.parseExecuteImmediateStmt(execTok.Loc)
 	case kwTASK:
-		return p.parseExecuteTaskStmt(execTok.Loc)
+		if p.startsTaskGraph() {
+			// EXECUTE TASK GRAPH <name>, or a task named GRAPH.
+			return p.parseTaskOrGraph(func() (ast.Node, error) {
+				return p.parseExecuteTaskStmt(execTok.Loc, true)
+			}, func() (ast.Node, error) {
+				return p.parseExecuteTaskStmt(execTok.Loc, false)
+			})
+		}
+		return p.parseExecuteTaskStmt(execTok.Loc, false)
+	case kwALERT:
+		// EXECUTE ALERT <name>
+		// https://docs.snowflake.com/en/sql-reference/sql/execute-alert
+		p.advance() // consume ALERT
+		name, err := p.parseObjectName()
+		if err != nil {
+			return nil, err
+		}
+		return &ast.ExecuteAlertStmt{Name: name, Loc: ast.Loc{Start: execTok.Loc.Start, End: p.prev.Loc.End}}, nil
 	default:
+		if p.atWords("NOTEBOOK") {
+			return p.parseExecuteNotebook(execTok.Loc) // notebook.go
+		}
 		return nil, p.syntaxErrorAtCur()
 	}
 }
@@ -178,6 +205,9 @@ func (p *Parser) parseExecuteImmediateStmt(start ast.Loc) (ast.Node, error) {
 	}
 
 	switch {
+	case p.cur.Type == kwFROM:
+		return p.parseExecuteImmediateFrom(stmt)
+
 	case p.cur.Type == tokVariable:
 		// $<session_variable>. The lexer strips the leading $; Str is the name.
 		varTok := p.advance()
@@ -225,6 +255,72 @@ func (p *Parser) parseExecuteImmediateStmt(start ast.Loc) (ast.Node, error) {
 	}
 
 	return stmt, nil
+}
+
+// parseExecuteImmediateFrom parses the rest of
+//
+//	EXECUTE IMMEDIATE FROM { @<stage>/<path>/<file> | '<relative_path>' }
+//	  [ USING ( <key> => <value> [ , ... ] ) ] [ DRY_RUN = { TRUE | FALSE } ]
+//
+// https://docs.snowflake.com/en/sql-reference/sql/execute-immediate-from
+//
+// On entry cur is FROM; stmt holds EXECUTE's start.
+func (p *Parser) parseExecuteImmediateFrom(stmt *ast.ExecuteImmediateStmt) (ast.Node, error) {
+	p.advance() // consume FROM
+	stmt.Source = ast.ExecImmFrom
+	switch p.cur.Type {
+	case '@':
+		// An absolute path: a file on a stage.
+		file, err := p.parseStagedFilePath()
+		if err != nil {
+			return nil, err
+		}
+		stmt.File = file
+	case tokString:
+		// A path relative to the file that runs this statement.
+		tok := p.advance()
+		stmt.File = p.srcSlice(tok.Loc.Start, tok.Loc.End)
+	default:
+		return nil, p.syntaxErrorAtCur()
+	}
+	if p.cur.Type == kwUSING {
+		p.advance() // consume USING
+		vars, err := p.parseNamedArgList()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Vars = vars
+	}
+	if p.atWords("DRY_RUN") {
+		p.advance() // consume DRY_RUN
+		if _, err := p.expect('='); err != nil {
+			return nil, err
+		}
+		if !isWordToken(p.cur, "TRUE") && !isWordToken(p.cur, "FALSE") {
+			return nil, p.syntaxErrorAtCur()
+		}
+		stmt.DryRun = strings.ToUpper(p.advance().Str)
+	}
+	stmt.Loc.End = p.prev.Loc.End
+	return stmt, nil
+}
+
+// parseStagedFilePath reads @<stage>/<path>/<file> verbatim: the tokens
+// written against each other from '@' on that a stage path holds, and '-',
+// which a file's name may hold (create-inventory.sql in the page's example).
+// cur is '@'.
+func (p *Parser) parseStagedFilePath() (string, error) {
+	at := p.advance() // consume '@'
+	end := at.Loc.End
+	for p.cur.Loc.Start == end && (p.cur.Type == '-' || p.isStagePathToken(p.cur.Type)) {
+		end = p.cur.Loc.End
+		p.advance()
+	}
+	if end == at.Loc.End {
+		// A lone '@' names no stage.
+		return "", p.syntaxErrorAtCur()
+	}
+	return p.srcSlice(at.Loc.Start, end), nil
 }
 
 // curIsStringOrDollarBody reports whether the current token begins an EXECUTE
@@ -376,14 +472,23 @@ func (p *Parser) parseExecImmUsing() ([]ast.Ident, int, error) {
 
 // parseExecuteTaskStmt parses
 //
-//	EXECUTE TASK <name> [ USING CONFIG = <config_string> ]
+//	EXECUTE TASK <name> [ USING CONFIG = <config_string> ] [ AWAIT ]
 //	EXECUTE TASK <name> RETRY LAST
+//	EXECUTE TASK <name> RETRY GRAPH RUN GROUP '<group_id>'
 //
+// and, with graph, the same forms of EXECUTE TASK GRAPH, which take no AWAIT.
 // On entry cur is the TASK keyword. start is the Loc of the EXECUTE word.
-func (p *Parser) parseExecuteTaskStmt(start ast.Loc) (ast.Node, error) {
+//
+// https://docs.snowflake.com/en/sql-reference/sql/execute-task
+// https://docs.snowflake.com/en/sql-reference/sql/execute-task-graph
+func (p *Parser) parseExecuteTaskStmt(start ast.Loc, graph bool) (ast.Node, error) {
 	p.advance() // consume TASK
+	if graph {
+		p.advance() // consume GRAPH
+	}
 	stmt := &ast.ExecuteTaskStmt{
-		Loc: ast.Loc{Start: start.Start},
+		Graph: graph,
+		Loc:   ast.Loc{Start: start.Start},
 	}
 
 	name, err := p.parseObjectName()
@@ -395,6 +500,14 @@ func (p *Parser) parseExecuteTaskStmt(start ast.Loc) (ast.Node, error) {
 	switch {
 	case p.cur.Type == kwRETRY:
 		p.advance() // consume RETRY
+		if p.acceptWords("GRAPH", "RUN", "GROUP") {
+			group, err := p.expect(tokString)
+			if err != nil {
+				return nil, err
+			}
+			stmt.RetryGroup = group.Str
+			break
+		}
 		if _, err := p.expect(kwLAST); err != nil {
 			return nil, err
 		}
@@ -414,6 +527,11 @@ func (p *Parser) parseExecuteTaskStmt(start ast.Loc) (ast.Node, error) {
 		}
 		cfgTok := p.advance() // consume the config string literal
 		stmt.UsingConfig = p.srcSlice(cfgTok.Loc.Start, cfgTok.Loc.End)
+	}
+
+	// AWAIT ends EXECUTE TASK's first form; a graph's takes none.
+	if !graph && !stmt.RetryLast && stmt.RetryGroup == "" && p.acceptWords("AWAIT") {
+		stmt.Await = true
 	}
 
 	stmt.Loc.End = p.prev.Loc.End

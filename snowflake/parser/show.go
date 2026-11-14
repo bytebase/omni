@@ -153,6 +153,13 @@ func (p *Parser) parseShowStmt() (ast.Node, error) {
 		}
 	}
 
+	// SHOW AVAILABLE LISTINGS' IS_<x> = TRUE filters (listing.go).
+	if stmt.ObjectClass == "AVAILABLE LISTINGS" {
+		if err := p.parseShowAvailableListingsFilters(stmt); err != nil {
+			return nil, err
+		}
+	}
+
 	// Optional WITH PRIVILEGES <priv> [, ...].
 	if p.cur.Type == kwWITH && p.peekNext().Type == kwPRIVILEGES {
 		p.advance() // consume WITH
@@ -170,6 +177,9 @@ func (p *Parser) parseShowStmt() (ast.Node, error) {
 	}
 
 	stmt.Loc.End = p.prev.Loc.End
+	if err := checkShowProjectScope(stmt); err != nil {
+		return nil, err
+	}
 	return stmt, nil
 }
 
@@ -197,6 +207,10 @@ func (p *Parser) startsShowClassWord() bool {
 	case kwHISTORY, kwLIKE, kwIN, kwFOR, kwSTARTS, kwLIMIT, kwWITH, tokFlow, tokEOF:
 		return false
 	}
+	if p.peekNext().Type == '=' {
+		// A filter's name (SHOW AVAILABLE LISTINGS IS_IMPORTED = TRUE).
+		return false
+	}
 	return p.isObjectTypeWord(p.cur.Type)
 }
 
@@ -216,6 +230,26 @@ func (p *Parser) startsShowClassWord() bool {
 // a bare schema name).
 func (p *Parser) parseShowScope(stmt *ast.ShowStmt) error {
 	p.advance() // consume IN/FOR
+
+	if ok, err := p.parseShowOrganizationScope(stmt); ok {
+		return err
+	}
+
+	// SHOW BACKUPS IN BACKUP SET <name> and SHOW SNAPSHOTS IN SNAPSHOT SET
+	// <name> (https://docs.snowflake.com/en/sql-reference/sql/show-backups-in-backup-set,
+	// https://docs.snowflake.com/en/sql-reference/sql/show-snapshots-in-snapshot-set).
+	if (stmt.ObjectClass == "BACKUPS" && p.atWords("BACKUP", "SET")) ||
+		(stmt.ObjectClass == "SNAPSHOTS" && p.atWords("SNAPSHOT", "SET")) {
+		stmt.Scope = ast.ShowScopeOther
+		stmt.ScopeText = strings.ToUpper(p.advance().Str) + " SET"
+		p.advance() // consume SET
+		name, err := p.parseObjectName()
+		if err != nil {
+			return err
+		}
+		stmt.ScopeName = name
+		return nil
+	}
 
 	// IN { MODEL | DATASET | EXPERIMENT | GATEWAY } <name> (model.go).
 	if word := p.startsShowModelScope(); word != "" {
@@ -243,11 +277,25 @@ func (p *Parser) parseShowScope(stmt *ast.ShowStmt) error {
 		p.advance()
 		stmt.Scope = ast.ShowScopeView
 		return p.parseOptionalScopeName(stmt)
+	case kwEXTERNAL:
+		// FOR EXTERNAL CONSUMER <name> (sharing.go); otherwise a schema
+		// named EXTERNAL.
+		if isWordToken(p.peekNext(), "CONSUMER") {
+			return p.parseShowExternalConsumerScope(stmt)
+		}
 	case kwSESSION, kwUSER, kwWAREHOUSE, kwTASK, kwAPPLICATION, kwCONNECTION:
 		// Non-container scope keyword (SHOW PARAMETERS / SHOW ... contexts).
 		tok := p.advance()
 		stmt.Scope = ast.ShowScopeOther
 		stmt.ScopeText = strings.ToUpper(tok.Str)
+		// IN APPLICATION PACKAGE <name> (SHOW VERSIONS, SHOW RELEASE
+		// DIRECTIVES, SHOW RELEASE CHANNELS), where PACKAGE is followed by
+		// the package's name rather than being the application's.
+		// https://docs.snowflake.com/en/sql-reference/sql/show-versions
+		if tok.Type == kwAPPLICATION && p.startsShowApplicationPackageScope() {
+			p.advance() // consume PACKAGE
+			stmt.ScopeText = "APPLICATION PACKAGE"
+		}
 		// SESSION takes no name; the others take an optional name.
 		if tok.Type != kwSESSION {
 			return p.parseOptionalScopeName(stmt)
@@ -265,6 +313,37 @@ func (p *Parser) parseShowScope(stmt *ast.ShowStmt) error {
 		}
 		stmt.Scope = ast.ShowScopeOther
 		stmt.ScopeText = strings.ToUpper(tok.Str) + " GROUP"
+		return p.parseOptionalScopeName(stmt)
+	}
+
+	// IN { DBT | DCM } PROJECT <name> (project.go).
+	if words := p.startsShowProjectScope(stmt.ObjectClass); words != nil {
+		return p.parseShowProjectScope(stmt, words)
+	}
+
+	// SHOW COMMITTED TASKS ... IN GRAPH <graph_name>
+	// https://docs.snowflake.com/en/sql-reference/sql/show-committed-tasks
+	// (IN GRAPH alone, or before STARTS WITH or LIMIT, is the schema GRAPH.)
+	if next := p.peekNext(); stmt.ObjectClass == "COMMITTED TASKS" && isWordToken(p.cur, "GRAPH") &&
+		(isNameWordTok(next) || next.Type == tokQuotedIdent) &&
+		next.Type != kwSTARTS && next.Type != kwLIMIT && next.Type != kwWITH {
+		p.advance() // consume GRAPH
+		name, err := p.parseObjectSimpleName()
+		if err != nil {
+			return err
+		}
+		stmt.Scope = ast.ShowScopeOther
+		stmt.ScopeText = "GRAPH"
+		stmt.ScopeName = name
+		return nil
+	}
+
+	// IN LISTING <name> (SHOW RELEASE CHANNELS); a bare LISTING is a schema.
+	// https://docs.snowflake.com/en/sql-reference/sql/show-release-channels
+	if p.startsShowListingScope() {
+		p.advance() // consume LISTING
+		stmt.Scope = ast.ShowScopeOther
+		stmt.ScopeText = "LISTING"
 		return p.parseOptionalScopeName(stmt)
 	}
 
@@ -448,6 +527,14 @@ func (p *Parser) parseShowGrantsOpts(stmt *ast.ShowStmt) error {
 		}
 		stmt.GrantsTo = grantee
 		return nil
+	case kwIN:
+		// IN DCM PROJECT <name> (project.go).
+		p.advance() // consume IN
+		words := p.startsShowProjectScope("GRANTS")
+		if words == nil {
+			return p.syntaxErrorAtCur()
+		}
+		return p.parseShowProjectScope(stmt, words)
 	}
 	// Bare SHOW GRANTS — no options.
 	return nil
@@ -466,6 +553,10 @@ func (p *Parser) parseShowFutureGrants(stmt *ast.ShowStmt) error {
 	switch p.cur.Type {
 	case kwIN:
 		p.advance() // consume IN
+		// IN DCM PROJECT <name> (project.go).
+		if words := p.startsShowProjectScope("GRANTS"); words != nil {
+			return p.parseShowProjectScope(stmt, words)
+		}
 		target := &ast.GrantTarget{Kind: ast.GrantTargetAllIn}
 		switch p.cur.Type {
 		case kwDATABASE:
@@ -606,6 +697,13 @@ func (p *Parser) parseDescribeStmt(short bool) (ast.Node, error) {
 		stmt.Signature = sig
 	}
 
+	// DESC LISTING <name> REVISION = { DRAFT | PUBLISHED } (listing.go).
+	if stmt.ObjectType == "LISTING" && p.startsListingRevision() {
+		if err := p.parseDescribeListingRevision(stmt); err != nil {
+			return nil, err
+		}
+	}
+
 	// Optional TYPE = <kw>.
 	if p.cur.Type == kwTYPE {
 		p.advance() // consume TYPE
@@ -630,6 +728,9 @@ func (p *Parser) parseDescribeStmt(short bool) (ast.Node, error) {
 func (p *Parser) startsDescribeNameUnit() bool {
 	switch p.cur.Type {
 	case '(', kwTYPE, kwON, tokString, tokInt, tokFloat, tokEOF, ';':
+		return false
+	}
+	if p.startsListingRevision() {
 		return false
 	}
 	return p.isObjectTypeWord(p.cur.Type)

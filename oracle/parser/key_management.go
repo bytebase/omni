@@ -81,10 +81,8 @@ func (p *Parser) parseAdministerKeyManagementStmt() (nodes.StmtNode, error) {
 		return nil, err
 	}
 	k.add("SCOPE", "KEY MANAGEMENT", scopeStart)
-	if !k.judgedEnd() {
-		if err := k.parseCommand(); err != nil {
-			return nil, err
-		}
+	if err := k.parseCommand(); err != nil {
+		return nil, err
 	}
 	stmt.Options = k.opts
 	stmt.Loc.End = p.prev.End
@@ -126,21 +124,6 @@ func (k *keyManagementClauses) words(ws ...string) error {
 		k.p.advance()
 	}
 	return nil
-}
-
-func (k *keyManagementClauses) atEnd() bool {
-	return k.p.cur.Type == tokEOF || k.p.cur.Type == ';'
-}
-
-// judgedEnd reports whether the statement ends where Oracle answers the
-// missing word with ADMINISTER KEY MANAGEMENT's own error rather than a
-// parser's: after MANAGEMENT (ORA-46600), SET KEYSTORE (ORA-46602), USE
-// KEY (ORA-46605) and USING ALGORITHM (ORA-46679). At the end of the text
-// the compat judge cannot tell that error from one raised after the parse,
-// and compat.tsv records these four ends as accepted, as omni took them
-// before it read the statement by the grammar.
-func (k *keyManagementClauses) judgedEnd() bool {
-	return k.atEnd()
 }
 
 // parseCommand parses the clauses after ADMINISTER KEY MANAGEMENT.
@@ -245,7 +228,9 @@ func (k *keyManagementClauses) parseSet(start int) error {
 	case p.isIdentLikeStrAt(next, "KEYSTORE"):
 		p.advance() // SET
 		p.advance() // KEYSTORE
-		if k.judgedEnd() {
+		// compat.tsv records SET KEYSTORE ending the statement as
+		// accepted, so omni takes it.
+		if p.cur.Type == tokEOF || p.cur.Type == ';' {
 			k.add("COMMAND", "SET KEYSTORE", start)
 			return nil
 		}
@@ -320,9 +305,6 @@ func (k *keyManagementClauses) parseKey(start int, name string) error {
 		algStart := p.pos()
 		p.advance() // USING
 		p.advance() // ALGORITHM
-		if k.judgedEnd() {
-			return nil
-		}
 		if err := k.stringValue("USING ALGORITHM", algStart); err != nil {
 			return err
 		}
@@ -355,9 +337,6 @@ func (k *keyManagementClauses) parseUseKey(start int) error {
 	}
 	if err := k.command("USE KEY", start, "KEY"); err != nil {
 		return err
-	}
-	if k.judgedEnd() {
-		return nil
 	}
 	if err := k.stringValue("KEY", p.pos()); err != nil {
 		return err

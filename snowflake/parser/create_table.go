@@ -41,6 +41,10 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 	if f := p.matchObjectForm(); f != nil {
 		return p.parseObjectStmt("CREATE", f, start, orReplace, orAlter)
 	}
+	// CATALOG / EXTERNAL ACCESS INTEGRATION (integration.go).
+	if p.startsCatalogOrAccessIntegration() {
+		return p.parseCreateIntegrationStmt(start, orReplace, orAlter)
+	}
 	// Policies and data metric functions read by their docs pages (policy.go,
 	// data_metric_function.go).
 	if d := p.startsDocPolicy(); d != nil {
@@ -230,8 +234,14 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 		// CREATE [OR REPLACE] STREAM ... (T4.3).
 		return p.parseCreateStreamStmt(start, orReplace, orAlter)
 	case kwTASK:
-		// CREATE [OR REPLACE] TASK ... (T4.3).
-		return p.parseCreateTaskStmt(start, orReplace, orAlter)
+		// CREATE [OR REPLACE] TASK ... (T4.3), or TASK GRAPH (task_graph.go).
+		task := func() (ast.Node, error) { return p.parseCreateTaskStmt(start, orReplace, orAlter) }
+		if p.startsTaskGraph() {
+			return p.parseTaskOrGraph(func() (ast.Node, error) {
+				return p.parseObjectStmt("CREATE", taskGraphForm, start, orReplace, orAlter)
+			}, task)
+		}
+		return task()
 	case kwALERT:
 		// CREATE [OR REPLACE] ALERT ... (T4.3).
 		return p.parseCreateAlertStmt(start, orReplace, orAlter)

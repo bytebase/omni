@@ -22,6 +22,15 @@ func (w *writer) writeExpr(node ast.Node) error {
 		return w.writeStarExpr(n)
 	case *ast.DollarRef:
 		return w.writeDollarRef(n)
+	case *ast.BindVariable:
+		w.ensureSpace()
+		if n.Placeholder {
+			w.buf.WriteByte('?')
+			return nil
+		}
+		w.buf.WriteByte(':')
+		w.writeIdentNoSpace(n.Name)
+		return nil
 	case *ast.BinaryExpr:
 		return w.writeBinaryExpr(n)
 	case *ast.UnaryExpr:

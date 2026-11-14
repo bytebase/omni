@@ -29,6 +29,7 @@ const (
 	T_ColumnRef
 	T_StarExpr
 	T_DollarRef
+	T_BindVariable
 	T_BinaryExpr
 	T_UnaryExpr
 	T_ParenExpr
@@ -197,6 +198,7 @@ const (
 	T_CallStmt
 	T_ExecuteImmediateStmt
 	T_ExecuteTaskStmt
+	T_ExecuteAlertStmt
 	T_ExplainStmt
 
 	// Table-attached query clause tags (T5.3)
@@ -272,6 +274,8 @@ func (t NodeTag) String() string {
 		return "StarExpr"
 	case T_DollarRef:
 		return "DollarRef"
+	case T_BindVariable:
+		return "BindVariable"
 	case T_BinaryExpr:
 		return "BinaryExpr"
 	case T_UnaryExpr:
@@ -528,6 +532,8 @@ func (t NodeTag) String() string {
 		return "ExecuteImmediateStmt"
 	case T_ExecuteTaskStmt:
 		return "ExecuteTaskStmt"
+	case T_ExecuteAlertStmt:
+		return "ExecuteAlertStmt"
 	case T_ExplainStmt:
 		return "ExplainStmt"
 	case T_PivotClause:

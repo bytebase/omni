@@ -333,7 +333,9 @@ func TestOracleCompatibilityPhaseAAccepts(t *testing.T) {
 func TestStrictOracleCompatibilityPhaseBGaps(t *testing.T) {
 	cases := []string{
 		"CREATE TABLE compat_bad_cols (a NUMBER,)",
-		"CREATE TABLE compat_bad_col (a)",
+		// CREATE TABLE compat_bad_col (a) parses: the datatype is optional
+		// (CREATE TABLE t (a) AS SELECT ...), and compat.tsv records it as
+		// accepted (ORA-02263 is the engine's).
 		"CREATE TABLE compat_bad_ctas AS",
 		"CREATE TABLE compat_bad_part (a NUMBER) PARTITION BY RANGE (a) (PARTITION p1)",
 		"CREATE INDEX compat_bad_idx ON t()",
