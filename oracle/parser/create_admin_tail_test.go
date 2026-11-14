@@ -3,6 +3,8 @@ package parser
 import (
 	"errors"
 	"testing"
+
+	"github.com/bytebase/omni/oracle/ast"
 )
 
 // TestAdminTailOracleAnswers pins CREATE and ALTER JAVA, CREATE and ALTER
@@ -98,6 +100,27 @@ func TestAdminTailOracleAnswers(t *testing.T) {
 		}
 		if pe.Position != tt.pos {
 			t.Errorf("Parse(%q) failed at %d, want %d", tt.sql, pe.Position, tt.pos)
+		}
+	}
+}
+
+// TestCreateLibraryOptionLocs checks that each CREATE LIBRARY option spans
+// its own text, the EDITIONABLE before LIBRARY included.
+func TestCreateLibraryOptionLocs(t *testing.T) {
+	sql := "CREATE OR REPLACE NONEDITIONABLE LIBRARY a IS 's' AGENT x CREDENTIAL c SHARING = NONE"
+	result := ParseAndCheck(t, sql)
+	stmt, ok := result.Items[0].(*ast.RawStmt).Stmt.(*ast.AdminDDLStmt)
+	if !ok {
+		t.Fatalf("got %T, want *ast.AdminDDLStmt", result.Items[0].(*ast.RawStmt).Stmt)
+	}
+	want := []string{"NONEDITIONABLE", "IS 's'", "AGENT x", "CREDENTIAL c", "SHARING = NONE"}
+	if stmt.Options == nil || len(stmt.Options.Items) != len(want) {
+		t.Fatalf("options = %v, want %d", stmt.Options, len(want))
+	}
+	for i, item := range stmt.Options.Items {
+		opt := item.(*ast.DDLOption)
+		if got := sql[opt.Loc.Start:opt.Loc.End]; got != want[i] {
+			t.Errorf("option %s spans %q, want %q", opt.Key, got, want[i])
 		}
 	}
 }

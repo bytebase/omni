@@ -7,8 +7,8 @@ import (
 )
 
 // parseCreateLibraryStmt parses a CREATE LIBRARY statement. It is called
-// after LIBRARY; editionable and nonEditionable report the EDITIONABLE or
-// NONEDITIONABLE the CREATE dispatcher consumed before LIBRARY.
+// after LIBRARY; edition is the EDITIONABLE or NONEDITIONABLE the CREATE
+// dispatcher consumed before LIBRARY, or nil.
 //
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/CREATE-LIBRARY.html
 //
@@ -24,7 +24,7 @@ import (
 // privilege to create a library before it reads past the name (ORA-01031 for
 // the judge's account), so what follows the name is read as before: the
 // options above where they appear, any other token passed over.
-func (p *Parser) parseCreateLibraryStmt(start int, orReplace, editionable, nonEditionable bool) (nodes.StmtNode, error) {
+func (p *Parser) parseCreateLibraryStmt(start int, orReplace bool, edition *Token) (nodes.StmtNode, error) {
 	stmt := &nodes.AdminDDLStmt{
 		Action:     "CREATE",
 		ObjectType: nodes.OBJECT_LIBRARY,
@@ -32,11 +32,13 @@ func (p *Parser) parseCreateLibraryStmt(start int, orReplace, editionable, nonEd
 		Loc:        nodes.Loc{Start: start},
 	}
 	opts := &nodes.List{}
-	switch {
-	case editionable:
-		opts.Items = append(opts.Items, &nodes.DDLOption{Key: "EDITIONABLE"})
-	case nonEditionable:
-		opts.Items = append(opts.Items, &nodes.DDLOption{Key: "NONEDITIONABLE"})
+	// add records an option that started at optStart and ends at the last
+	// consumed token.
+	add := func(key, value string, optStart int) {
+		opts.Items = append(opts.Items, &nodes.DDLOption{Key: key, Value: value, Loc: nodes.Loc{Start: optStart, End: p.prev.End}})
+	}
+	if edition != nil {
+		opts.Items = append(opts.Items, &nodes.DDLOption{Key: edition.Str, Loc: nodes.Loc{Start: edition.Loc, End: edition.End}})
 	}
 
 	var err error
@@ -48,28 +50,33 @@ func (p *Parser) parseCreateLibraryStmt(start int, orReplace, editionable, nonEd
 	}
 
 	// { IS | AS } library_path
+	optStart := p.pos()
 	if p.cur.Type == kwIS || p.cur.Type == kwAS {
 		p.advance()
 	}
 	if p.cur.Type == tokSCONST {
-		opts.Items = append(opts.Items, &nodes.DDLOption{Key: "PATH", Value: p.cur.Str})
+		value := p.cur.Str
 		p.advance()
+		add("PATH", value, optStart)
 	}
 
 	// The options, and any other token passed over.
 	for p.cur.Type != ';' && p.cur.Type != tokEOF {
+		optStart := p.pos()
 		switch {
 		case p.isKeywordStr("AGENT"):
 			p.advance()
 			if p.isIdentLike() || p.cur.Type == tokSCONST {
-				opts.Items = append(opts.Items, &nodes.DDLOption{Key: "AGENT", Value: p.cur.Str})
+				value := p.cur.Str
 				p.advance()
+				add("AGENT", value, optStart)
 			}
 		case p.isKeywordStr("CREDENTIAL"):
 			p.advance()
 			if p.isIdentLike() {
-				opts.Items = append(opts.Items, &nodes.DDLOption{Key: "CREDENTIAL", Value: p.cur.Str})
+				value := p.cur.Str
 				p.advance()
+				add("CREDENTIAL", value, optStart)
 			}
 		case p.isKeywordStr("SHARING"):
 			p.advance()
@@ -77,8 +84,9 @@ func (p *Parser) parseCreateLibraryStmt(start int, orReplace, editionable, nonEd
 				p.advance()
 			}
 			if p.isIdentLike() {
-				opts.Items = append(opts.Items, &nodes.DDLOption{Key: "SHARING", Value: p.cur.Str})
+				value := p.cur.Str
 				p.advance()
+				add("SHARING", value, optStart)
 			}
 		default:
 			p.advance()

@@ -44,6 +44,7 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 	// Note: Views handle EDITIONABLE internally in parseCreateViewStmt.
 	editionable := false
 	nonEditionable := false
+	editionTok := p.cur // the EDITIONABLE or NONEDITIONABLE, when consumed
 	if p.isIdentLikeStr("EDITIONABLE") {
 		// Peek to see if the next token is a PL/SQL object keyword
 		next := p.peekNext()
@@ -153,7 +154,11 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 			return nil, p.syntaxErrorAtTok(ifTok)
 		}
 		p.advance() // consume LIBRARY
-		return p.parseCreateLibraryStmt(start, orReplace, editionable, nonEditionable)
+		var edition *Token
+		if editionable || nonEditionable {
+			edition = &editionTok
+		}
+		return p.parseCreateLibraryStmt(start, orReplace, edition)
 	}
 
 	switch p.cur.Type {
