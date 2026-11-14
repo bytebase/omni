@@ -627,8 +627,14 @@ func (p *Parser) parseATIlmPolicy() error {
 				return err
 			}
 		}
-		if p.atWord("SEGMENT") || p.cur.Type == kwGROUP {
+		switch {
+		case p.atWord("SEGMENT"), p.cur.Type == kwGROUP:
 			p.advance()
+		case p.cur.Type == kwROW:
+			// Oracle reads ROW here and refuses what follows it, the end
+			// of the statement included: a tiering policy has no row scope.
+			p.advance()
+			return p.syntaxErrorAtCur()
 		}
 		if p.cur.Type == kwON {
 			p.advance()
@@ -637,9 +643,11 @@ func (p *Parser) parseATIlmPolicy() error {
 			}
 		}
 		return nil
-	case p.cur.Type == kwSET && p.atNextWord("INMEMORY"):
+	case p.cur.Type == kwSET:
 		p.advance()
-		p.advance()
+		if err := p.atExpectWord("INMEMORY"); err != nil {
+			return err
+		}
 		if err := p.parseATInmemoryAttributes(); err != nil {
 			return err
 		}
@@ -654,9 +662,11 @@ func (p *Parser) parseATIlmPolicy() error {
 			return err
 		}
 		return p.parseATIlmCondition(false, true)
-	case p.atWord("NO") && p.atNextWord("INMEMORY"):
+	case p.atWord("NO"):
 		p.advance()
-		p.advance()
+		if err := p.atExpectWord("INMEMORY"); err != nil {
+			return err
+		}
 		return p.parseATIlmCondition(false, true)
 	case p.cur.Type == kwROW && p.atNextWord("STORE"), p.cur.Type == kwCOLUMN && p.atNextWord("STORE"):
 		column := p.cur.Type == kwCOLUMN
@@ -1343,7 +1353,9 @@ func (p *Parser) atClauseAt(allowed atClauses) atClauses {
 		return atcUpdateIndexes
 	case has(atcParallel) && (p.cur.Type == kwPARALLEL || p.cur.Type == kwNOPARALLEL):
 		return atcParallel
-	case has(atcClustering) && (p.atWord("ALLOW") || p.atWord("DISALLOW")) && p.atNextWord("CLUSTERING"):
+	case has(atcClustering) && (p.atWord("ALLOW") || p.atWord("DISALLOW")):
+		// Oracle reads ALLOW or DISALLOW as the clause and wants CLUSTERING
+		// after it (ORA-02000 at the end of MOVE PARTITION p ALLOW).
 		return atcClustering
 	case has(atcOnline) && p.cur.Type == kwONLINE:
 		return atcOnline
@@ -1445,11 +1457,11 @@ func (p *Parser) parseATClause(allowed atClauses, opts *nodes.List) (bool, error
 		return true, p.parseATUpdateIndexClauses()
 	case atcParallel:
 		return true, p.parseATParallel()
-	case atcClustering, atcOnline, atcCascade:
+	case atcClustering:
+		p.advance() // ALLOW / DISALLOW
+		return true, p.atExpectWord("CLUSTERING")
+	case atcOnline, atcCascade:
 		p.advance()
-		if p.atWord("CLUSTERING") {
-			p.advance()
-		}
 		return true, nil
 	case atcFilter:
 		return true, p.parseATFilterCondition()

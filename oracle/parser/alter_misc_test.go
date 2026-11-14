@@ -150,7 +150,7 @@ func TestParseAlterLocSet(t *testing.T) {
 // TestParseAlterMaterializedViewUsingIndex tests ALTER MATERIALIZED VIEW
 // USING INDEX index_properties.
 func TestParseAlterMaterializedViewUsingIndex(t *testing.T) {
-	result := ParseAndCheck(t, "ALTER MATERIALIZED VIEW mv USING INDEX PCTFREE 10")
+	result := ParseAndCheck(t, "ALTER MATERIALIZED VIEW mv USING INDEX INITRANS 10")
 	raw := result.Items[0].(*ast.RawStmt)
 	stmt, ok := raw.Stmt.(*ast.AlterMaterializedViewStmt)
 	if !ok {
