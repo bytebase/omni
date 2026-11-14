@@ -151,6 +151,9 @@ func (p *Parser) parseExecuteStmt() (ast.Node, error) {
 	case kwTASK:
 		return p.parseExecuteTaskStmt(execTok.Loc)
 	default:
+		if p.atWords("NOTEBOOK") {
+			return p.parseExecuteNotebook(execTok.Loc) // notebook.go
+		}
 		return nil, p.syntaxErrorAtCur()
 	}
 }
