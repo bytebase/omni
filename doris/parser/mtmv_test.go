@@ -620,3 +620,19 @@ func TestMTMVNodeTagStrings(t *testing.T) {
 		}
 	}
 }
+
+// TestCreateMTMV_WalkReachesPartitionExpr: the walker visits PARTITION BY's
+// function call, so the parser's tree-height check reaches it.
+func TestCreateMTMV_WalkReachesPartitionExpr(t *testing.T) {
+	stmt := parseCreateMTMVStmt(t, "CREATE MATERIALIZED VIEW mv PARTITION BY (date_trunc(k, 'month')) AS SELECT 1")
+	found := false
+	ast.Inspect(stmt, func(n ast.Node) bool {
+		if c, ok := n.(*ast.ColumnRef); ok && c.Name.Parts[0] == "k" {
+			found = true
+		}
+		return true
+	})
+	if !found {
+		t.Error("walk did not reach PARTITION BY's argument k")
+	}
+}
