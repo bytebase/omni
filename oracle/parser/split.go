@@ -262,8 +262,10 @@ type splitState struct {
 	endPending      bool
 	closedOutermost bool
 
-	// pendingWith marks the token after a WITH.
+	// pendingWith marks the token after a WITH that may open a query's
+	// declarations; prevTopType is the type of the last top-level token.
 	pendingWith bool
+	prevTopType int
 
 	sourceHead embeddedSourceHead
 
@@ -323,6 +325,8 @@ func (s *splitState) observeTopLevel(tok Token) {
 	if tok.Type == tokHINT {
 		return
 	}
+	prev := s.prevTopType
+	s.prevTopType = tok.Type
 
 	// WITH FUNCTION | PROCEDURE ...: a declaration of the query's, which
 	// may open the statement or stand in it (CREATE TABLE t AS WITH
@@ -336,7 +340,9 @@ func (s *splitState) observeTopLevel(tok Token) {
 	// Any other token after a declaration starts the query, where FUNCTION
 	// and PROCEDURE are names.
 	s.withDecls = false
-	s.pendingWith = tok.Type == kwWITH
+	// The WITH of START WITH opens a condition, which may name a column
+	// FUNCTION.
+	s.pendingWith = tok.Type == kwWITH && prev != kwSTART
 
 	if s.topLevelTokens == 0 {
 		switch tok.Type {

@@ -45,6 +45,11 @@ func TestSplitOrdinarySQL(t *testing.T) {
 			want: []string{"CREATE TABLE t AS WITH FUNCTION f RETURN NUMBER IS BEGIN RETURN 1; END; SELECT f() a FROM dual", " INSERT INTO t WITH FUNCTION g RETURN NUMBER IS BEGIN RETURN 2; END; SELECT g() FROM dual", " SELECT 3 FROM dual"},
 		},
 		{
+			name: "START WITH a column named FUNCTION",
+			sql:  "SELECT 1 FROM t START WITH function = 1 CONNECT BY PRIOR id = parent; SELECT 2 FROM dual;",
+			want: []string{"SELECT 1 FROM t START WITH function = 1 CONNECT BY PRIOR id = parent", " SELECT 2 FROM dual"},
+		},
+		{
 			name: "FUNCTION in the query after WITH declarations is a name",
 			sql:  "WITH FUNCTION f RETURN NUMBER IS BEGIN RETURN 1; END; SELECT function FROM t; SELECT 2 FROM dual;",
 			want: []string{"WITH FUNCTION f RETURN NUMBER IS BEGIN RETURN 1; END; SELECT function FROM t", " SELECT 2 FROM dual"},
