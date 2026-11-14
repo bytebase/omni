@@ -1,0 +1,9 @@
+# Corrections to oracle/parser/bnf/, applied to a file's text as it is read,
+# so a definition another page copies carries them. Each is where the quote
+# does not read as the notation; the docs pages are the reference.
+# columns: page, text, replacement, reason; \n and \t stand for a newline and a tab
+ADMINISTER-KEY-MANAGEMENT	ADMINISTER KEY MANAGEMENT\n    ( keystore_management_clauses	ADMINISTER KEY MANAGEMENT\n    { keystore_management_clauses	the statement's choice of clauses is written in parentheses, which are SQL's own everywhere else
+ADMINISTER-KEY-MANAGEMENT	    | zero_downtime_software_patching_clauses\n    )	    | zero_downtime_software_patching_clauses\n    }	the end of that choice
+CREATE-TABLE	{ element | XMLSchema_URL # element }	{ element | "XMLSchema_URL#element" }	an XML schema URL and an element joined by #, which the page writes as one quoted name
+CREATE-VIEW	{ element_name | XMLSchema_URL # element_name }	{ element_name | "XMLSchema_URL#element_name" }	the same, on CREATE VIEW's page
+ALTER-TABLE	    ( { INMEMORY inmemory_memcompress | NO INMEMORY } ( column [, column ]... ) )...	    { { INMEMORY [ inmemory_memcompress ] | NO INMEMORY } ( column [, column ]... ) }...	the repeated group is written in parentheses, and inmemory_memcompress is optional on the page
