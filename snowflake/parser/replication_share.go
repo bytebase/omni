@@ -614,13 +614,18 @@ func (p *Parser) startsAccountPolicy() bool {
 	case p.curIsWord("AUTHENTICATION"), p.curIsWord("FEATURE"):
 		return p.peekNext().Type == kwPOLICY
 	}
-	return false
+	// DATA MOVEMENT POLICY
+	// (https://docs.snowflake.com/en/sql-reference/sql/alter-account).
+	return p.atWords("DATA", "MOVEMENT", "POLICY")
 }
 
 // parseAccountPolicyKind consumes the policy-kind word(s) and the POLICY keyword
 // and returns the uppercased "<KIND> POLICY" text (e.g. "PACKAGES POLICY"). The
 // caller has confirmed startsAccountPolicy.
 func (p *Parser) parseAccountPolicyKind() (string, error) {
+	if p.acceptWords("DATA", "MOVEMENT", "POLICY") {
+		return "DATA MOVEMENT POLICY", nil
+	}
 	kindTok := p.advance() // consume the policy-kind word
 	if _, err := p.expect(kwPOLICY); err != nil {
 		return "", err
