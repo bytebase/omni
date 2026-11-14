@@ -2026,7 +2026,7 @@ func TestParseTablespaceAll(t *testing.T) {
 		{"alter_autoextend", "ALTER TABLESPACE users AUTOEXTEND ON NEXT 100M MAXSIZE UNLIMITED"},
 		{"alter_flashback_off", "ALTER TABLESPACE users FLASHBACK OFF"},
 		{"alter_retention", "ALTER TABLESPACE undo_ts RETENTION GUARANTEE"},
-		{"alter_encryption_online", "ALTER TABLESPACE secure_ts ENCRYPTION ONLINE"},
+		{"alter_encryption_online", "ALTER TABLESPACE secure_ts ENCRYPTION ONLINE ENCRYPT"},
 		{"alter_lost_write_suspend", "ALTER TABLESPACE users SUSPEND LOST WRITE PROTECTION"},
 		{"alter_permanent", "ALTER TABLESPACE temp_ts PERMANENT"},
 		{"alter_temporary", "ALTER TABLESPACE perm_ts TEMPORARY"},
@@ -2096,6 +2096,13 @@ func TestParseTablespaceRejects(t *testing.T) {
 		"ALTER TABLESPACE ts1 ADD DATAFILE SIZE 200M",
 		// Options are taken once (ORA-25119).
 		"CREATE TABLESPACE ts1 LOGGING NOLOGGING",
+		// A clause's operand is required at the end of the text too
+		// (ORA-02216, ORA-02142, ORA-02237, ORA-02236).
+		"CREATE TABLESPACE",
+		"ALTER TABLESPACE ts1",
+		"ALTER TABLESPACE ts1 RESIZE",
+		"ALTER TABLESPACE ts1 ADD DATAFILE",
+		"CREATE TABLESPACE ts1 DATAFILE",
 	} {
 		t.Run(sql, func(t *testing.T) {
 			ParseShouldFail(t, sql)

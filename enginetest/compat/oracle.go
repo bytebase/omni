@@ -130,14 +130,38 @@ var oracleAfterParse = map[int]bool{
 // raises: ORA-00900 to 00999 (invalid SQL statement, missing keyword,
 // missing expression, ...), the lexer's and the parser's of 01700 to 01799
 // (oracleLexer), 02000 to 02099 (missing keyword and option errors) and
-// 03048 to 03050 (23ai's errors naming the word that is not valid where it
-// stands), less the codes of those ranges raised after the parse, in
-// oracleResolved. It decides an error at the end of the statement, where
-// the probe cannot, one whose probe says nothing, and a SQL statement's
-// error inside PL/SQL.
+// 03046 to 03050 (23ai's errors naming the string, number or word that is
+// not valid where it stands), and the statement parsers' own (oracleStatement),
+// less the codes of those ranges raised after the parse, in oracleResolved.
+// It decides an error whose probe says nothing, and a SQL statement's error
+// inside PL/SQL.
 func oracleParserCode(code int) bool {
-	return (code >= 900 && code <= 999 || oracleLexer[code] ||
-		code >= 2000 && code <= 2099 || code >= 3048 && code <= 3050) && !oracleResolved[code]
+	return (code >= 900 && code <= 999 || oracleLexer[code] || oracleStatement[code] ||
+		code >= 2000 && code <= 2099 || code >= 3046 && code <= 3050) && !oracleResolved[code]
+}
+
+// oracleStatement are the errors of the parsers Oracle keeps for its
+// statements, outside the generic parser's range: each says a keyword is
+// missing or expected, or an option is not valid in the statement or where
+// it stands, and none names an object. Each was measured on the pinned
+// server, as in ALTER MATERIALIZED VIEW a PARAMETERS (14051, invalid ALTER
+// MATERIALIZED VIEW option) or ALTER SESSION SET CONSTRAINT = DEFAULT zzz
+// (02248, invalid option for ALTER SESSION).
+var oracleStatement = map[int]bool{
+	// A keyword missing or expected.
+	1710: true, 1736: true, 1737: true, 1738: true, 1739: true, 1900: true, 1901: true, 1902: true, 1904: true,
+	1905: true, 1906: true, 1907: true, 1910: true, 1911: true, 1912: true, 1916: true, 3055: true, 3079: true,
+	3290: true, 3291: true, 14004: true, 14007: true, 14008: true, 14028: true, 14150: true, 14155: true,
+	14166: true, 19000: true, 19766: true, 19767: true, 19769: true, 25134: true, 28158: true, 28160: true,
+	28161: true, 28162: true, 29811: true, 29814: true, 29826: true, 29852: true, 29935: true, 29963: true,
+	30652: true, 32576: true, 38722: true, 39877: true, 65043: true,
+	// An option not valid in the statement, or a value missing where one stands.
+	1780: true, 2141: true, 2142: true, 2143: true, 2144: true, 2157: true, 2158: true, 2173: true, 2176: true,
+	2180: true, 2183: true, 2210: true, 2216: true, 2230: true, 2231: true, 2242: true, 2243: true, 2244: true,
+	2248: true, 2253: true, 2286: true, 2338: true, 2377: true, 3083: true, 3099: true, 3218: true, 3281: true,
+	3282: true, 10630: true, 11547: true, 11550: true, 11551: true, 12044: true, 12045: true, 14049: true,
+	14050: true, 14051: true, 14054: true, 14094: true, 14126: true, 14151: true, 14169: true, 14174: true,
+	14853: true, 19001: true, 22853: true, 38724: true, 65044: true,
 }
 
 // oracleLexer are the codes of 01700 to 01799 the lexer and the parser

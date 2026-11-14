@@ -43,6 +43,9 @@ import (
 // a table name and therefore a load. The COPY keyword has NOT been consumed.
 func (p *Parser) parseCopyStmt() (ast.Node, error) {
 	copyTok := p.advance() // consume COPY
+	if isWordToken(p.cur, "FILES") && p.peekNext().Type == kwINTO {
+		return p.parseCopyFiles(copyTok.Loc)
+	}
 	if _, err := p.expect(kwINTO); err != nil {
 		return nil, err
 	}
@@ -114,8 +117,9 @@ func (p *Parser) parseCopyIntoTable(start ast.Loc) (ast.Node, error) {
 	}
 
 	// Trailing options: FILES / PATTERN / FILE_FORMAT / copyOptions /
-	// VALIDATION_MODE — all open-ended KEY = value pairs.
-	opts, err := p.parseCopyOptions()
+	// VALIDATION_MODE — all open-ended KEY = value pairs, which the page lets
+	// commas separate.
+	opts, err := p.parseCopyOptionsSep(true)
 	if err != nil {
 		return nil, err
 	}
@@ -257,8 +261,9 @@ func (p *Parser) parseCopyIntoLocation(start ast.Loc) (ast.Node, error) {
 		stmt.Partition = expr
 	}
 
-	// Trailing options: FILE_FORMAT / copyOptions / VALIDATION_MODE / HEADER.
-	opts, err := p.parseCopyOptions()
+	// Trailing options: FILE_FORMAT / copyOptions / VALIDATION_MODE / HEADER,
+	// which commas may separate.
+	opts, err := p.parseCopyOptionsSep(true)
 	if err != nil {
 		return nil, err
 	}
@@ -266,6 +271,88 @@ func (p *Parser) parseCopyIntoLocation(start ast.Loc) (ast.Node, error) {
 
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
+}
+
+// ---------------------------------------------------------------------------
+// COPY FILES
+// ---------------------------------------------------------------------------
+
+// copyFilesProps are COPY FILES' options. A FROM ( SELECT ... ) copy takes
+// DETAILED_OUTPUT alone.
+var copyFilesProps = objectProps{
+	"FILES":           propStrings,
+	"PATTERN":         propString,
+	"DETAILED_OUTPUT": propBool,
+}
+
+// parseCopyFiles parses
+//
+//	COPY FILES INTO @[<namespace>.]<stage_name>[/<path>/]
+//	  FROM @[<namespace>.]<stage_name>[/<path>/]
+//	  [ FILES = ( '<file_name>' [ , ... ] ) ] [ PATTERN = '<regex_pattern>' ]
+//	  [ DETAILED_OUTPUT = { TRUE | FALSE } ]
+//	COPY FILES INTO @[<namespace>.]<stage_name>[/<path>/]
+//	  FROM ( SELECT <existing_url> [ , <new_filename> ] FROM ... )
+//	  [ DETAILED_OUTPUT = { TRUE | FALSE } ]
+//
+// cur is FILES; start is the Loc of the COPY keyword.
+// https://docs.snowflake.com/en/sql-reference/sql/copy-files
+func (p *Parser) parseCopyFiles(start ast.Loc) (ast.Node, error) {
+	p.advance() // consume FILES
+	p.advance() // consume INTO
+	stmt := &ast.CopyFilesStmt{Loc: ast.Loc{Start: start.Start}}
+	into, err := p.parseCopyFilesStage()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Into = into
+	if _, err := p.expect(kwFROM); err != nil {
+		return nil, err
+	}
+	if p.cur.Type == '(' {
+		p.advance() // consume '('
+		if p.cur.Type != kwSELECT {
+			return nil, p.syntaxErrorAtCur()
+		}
+		q, err := p.parseQueryExpr()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		stmt.FromQuery = q
+	} else {
+		from, err := p.parseCopyFilesStage()
+		if err != nil {
+			return nil, err
+		}
+		stmt.From = from
+	}
+	seen := map[string]bool{}
+	for p.startsObjectProperty() {
+		o, err := p.parseObjectProperty()
+		if err != nil {
+			return nil, err
+		}
+		v, ok := copyFilesProps[o.Name]
+		if !ok || !v.matches(o) || seen[o.Name] || (stmt.FromQuery != nil && o.Name != "DETAILED_OUTPUT") {
+			return nil, &ParseError{Position: o.Loc.Start, End: o.Loc.End, Message: "syntax error at or near " + o.Name}
+		}
+		seen[o.Name] = true
+		stmt.Options = append(stmt.Options, o)
+	}
+	stmt.Loc.End = p.prev.Loc.End
+	return stmt, nil
+}
+
+// parseCopyFilesStage reads a COPY FILES stage: '@' and a stage, never an
+// external location.
+func (p *Parser) parseCopyFilesStage() (*ast.StageLocation, error) {
+	if p.cur.Type != '@' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	return p.parseStageLocation()
 }
 
 // ---------------------------------------------------------------------------
@@ -512,6 +599,15 @@ func (p *Parser) srcSlice(startAbs, endAbs int) string {
 // continues while the current token begins another option, and terminates at a
 // statement boundary (';' / EOF) or any token that does not begin an option.
 func (p *Parser) parseCopyOptions() ([]*ast.CopyOption, error) {
+	return p.parseCopyOptionsSep(false)
+}
+
+// parseCopyOptionsSep is parseCopyOptions, and with commas also takes a ','
+// between two options: COPY INTO's pages separate copy options "by blank
+// spaces, commas, or new lines".
+// https://docs.snowflake.com/en/sql-reference/sql/copy-into-table
+// https://docs.snowflake.com/en/sql-reference/sql/copy-into-location
+func (p *Parser) parseCopyOptionsSep(commas bool) ([]*ast.CopyOption, error) {
 	var opts []*ast.CopyOption
 	for p.startsCopyOption() {
 		opt, err := p.parseCopyOption()
@@ -519,8 +615,27 @@ func (p *Parser) parseCopyOptions() ([]*ast.CopyOption, error) {
 			return nil, err
 		}
 		opts = append(opts, opt)
+		if commas {
+			p.acceptOptionComma()
+		}
 	}
 	return opts, nil
+}
+
+// acceptOptionComma consumes a ',' at cur when a `KEY = value` option follows
+// it, and reports whether it did. A ',' before anything else stays, for the
+// caller to reject.
+func (p *Parser) acceptOptionComma() bool {
+	if p.cur.Type != ',' {
+		return false
+	}
+	snap := p.snapshot()
+	p.advance() // consume ','
+	if p.startsCopyOption() && p.peekNext().Type == '=' {
+		return true
+	}
+	p.restore(snap)
+	return false
 }
 
 // startsCopyOption reports whether the current token can begin a COPY option.

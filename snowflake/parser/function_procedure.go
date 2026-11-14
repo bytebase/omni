@@ -427,12 +427,18 @@ func (p *Parser) parseRoutineBody() (body string, dollar bool, end int, err erro
 		dollar = true
 
 	case '\'':
-		// Single-quoted body: ' ... ' where '' is an escaped quote and the body
+		// Single-quoted body: ' ... ' where '' and a backslash escape (\' and
+		// \\, as in any string constant) stand for one character, and the body
 		// may span newlines (unlike a lexer string literal). Scan to the matching
 		// unescaped closing quote.
+		// https://docs.snowflake.com/en/sql-reference/data-types-text#escape-sequences-in-single-quoted-string-constants
 		j := startLocal + 1
 		closed := false
 		for j < len(p.input) {
+			if p.input[j] == '\\' {
+				j += 2 // a backslash escapes the character after it
+				continue
+			}
 			if p.input[j] == '\'' {
 				if j+1 < len(p.input) && p.input[j+1] == '\'' {
 					j += 2 // '' escaped quote
@@ -525,6 +531,12 @@ func (p *Parser) parseAlterRoutineBody(procedure bool) (ast.Node, error) {
 	}
 	stmt.Name = name
 
+	// A data metric function's ( TABLE ( ... ) [ , TABLE ( ... ) ] ) signature
+	// (data_metric_function.go).
+	if !procedure && p.startsDataMetricSignature() {
+		return p.parseAlterDataMetricFunction(stmt)
+	}
+
 	// ( [ <argtype> [ , ... ] ] ) signature.
 	argTypes, err := p.parseRoutineArgTypeList()
 	if err != nil {
@@ -548,6 +560,18 @@ func (p *Parser) parseAlterRoutineBody(procedure bool) (ast.Node, error) {
 
 	case kwSET:
 		p.advance() // consume SET
+		if p.cur.Type == kwTAG {
+			// SET TAG <tag> = '<value>' [ , ... ]
+			// https://docs.snowflake.com/en/sql-reference/sql/alter-function
+			p.advance() // consume TAG
+			tags, err := p.parseObjectTagList()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Action = ast.AlterRoutineSetTag
+			stmt.Tags = tags
+			break
+		}
 		opts, err := p.parseRequiredOptions()
 		if err != nil {
 			return nil, err
@@ -557,6 +581,17 @@ func (p *Parser) parseAlterRoutineBody(procedure bool) (ast.Node, error) {
 
 	case kwUNSET:
 		p.advance() // consume UNSET
+		if p.cur.Type == kwTAG {
+			// UNSET TAG <tag> [ , ... ]
+			p.advance() // consume TAG
+			names, err := p.parseObjectNameList()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Action = ast.AlterRoutineUnsetTag
+			stmt.UnsetTags = names
+			break
+		}
 		props, err := p.parseUnsetPropertyList()
 		if err != nil {
 			return nil, err
