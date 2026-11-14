@@ -196,7 +196,8 @@ func formatDataType(dt *nodes.DataType) string {
 }
 
 // formatRoutineParamType formats a parameter's type for display in a routine parameter
-// list, MariaDB's ROW(...), TYPE OF and ROW TYPE OF among them.
+// list, MariaDB's ROW(...), TYPE OF and ROW TYPE OF among them. The names they hold are
+// quoted, so a name with a dot or a space reads back as one name.
 func formatRoutineParamType(p *nodes.FuncParam) string {
 	switch {
 	case p.Anchor != nil:
@@ -204,11 +205,15 @@ func formatRoutineParamType(p *nodes.FuncParam) string {
 		if p.Anchor.Row {
 			prefix = "ROW TYPE OF "
 		}
-		return prefix + strings.Join(p.Anchor.Names, ".")
+		names := make([]string, len(p.Anchor.Names))
+		for i, n := range p.Anchor.Names {
+			names[i] = backtickIDQ(n)
+		}
+		return prefix + strings.Join(names, ".")
 	case len(p.RowFields) > 0:
 		fields := make([]string, len(p.RowFields))
 		for i, f := range p.RowFields {
-			fields[i] = f.Name + " " + formatParamType(f.TypeName)
+			fields[i] = backtickIDQ(f.Name) + " " + formatParamType(f.TypeName)
 		}
 		return "ROW(" + strings.Join(fields, ", ") + ")"
 	}

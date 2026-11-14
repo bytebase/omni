@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"strings"
 	"testing"
 
 	nodes "github.com/bytebase/omni/mariadb/ast"
@@ -50,6 +51,14 @@ func TestCompoundStatementFormsOracle(t *testing.T) {
 		{"BEGIN NOT ATOMIC x: FOR a IN (SELECT 1) DO LEAVE x; END FOR x; END", true},
 		{"FOR r IN (SELECT 1 AS x) DO BEGIN DECLARE y TYPE OF r; END; END FOR", true},
 		{"CREATE PROCEDURE p() FOR a IN (SELECT 1) DO COMMIT; END FOR", true},
+		{"CREATE FUNCTION f() RETURNS INT FOR r IN (SELECT 1) DO RETURN 1; END FOR", true},
+		{"CREATE PROCEDURE p() DETERMINISTIC FOR r IN (SELECT 1) DO SELECT 1; END FOR", true},
+		{"BEGIN NOT /* c */ ATOMIC IF 1 THEN SET @a=1; END IF; END", true},
+
+		// SET STATEMENT ... FOR a compound statement inside a routine keeps the routine's rules.
+		{"CREATE FUNCTION f() RETURNS INT BEGIN SET STATEMENT max_statement_time=1 FOR LOOP RETURN 1; END LOOP; END", true},
+		{"CREATE FUNCTION f() RETURNS INT BEGIN SET STATEMENT max_statement_time=1 FOR LOOP SELECT 1; END LOOP; RETURN 1; END", false},
+		{"CREATE PROCEDURE p() BEGIN DECLARE a INT; SET STATEMENT max_statement_time=1 FOR BEGIN NOT ATOMIC DECLARE b TYPE OF a; END; END", true},
 
 		{"BEGIN NOT ATOMIC DECLARE a, b INT; END", true},
 		{"BEGIN NOT ATOMIC DECLARE a, b, A INT; END", false},
@@ -166,5 +175,32 @@ func TestCompoundStatementTree(t *testing.T) {
 	}
 	if loop.Loc.Start != 0 || loop.Loc.End != len(sql) {
 		t.Errorf("FOR Loc = %+v, want {0 %d}", loop.Loc, len(sql))
+	}
+}
+
+// TestSplitCompoundStatements pins where Split cuts around BEGIN NOT ATOMIC and FOR: a
+// comment inside BEGIN NOT ATOMIC, and a FOR loop that is a routine's whole body after its
+// RETURNS or its characteristics, keep their statements in one segment.
+func TestSplitCompoundStatements(t *testing.T) {
+	for _, c := range []struct {
+		sql  string
+		want []string
+	}{
+		{"BEGIN NOT /* c */ ATOMIC IF 1 THEN SET @a=1; END IF; END; SELECT 2",
+			[]string{"BEGIN NOT /* c */ ATOMIC IF 1 THEN SET @a=1; END IF; END", " SELECT 2"}},
+		{"CREATE FUNCTION f() RETURNS INT FOR r IN (SELECT 1) DO RETURN 1; END FOR; SELECT 2",
+			[]string{"CREATE FUNCTION f() RETURNS INT FOR r IN (SELECT 1) DO RETURN 1; END FOR", " SELECT 2"}},
+		{"CREATE PROCEDURE p() DETERMINISTIC FOR `r` IN (SELECT 1) DO SELECT 1; END FOR; SELECT 2",
+			[]string{"CREATE PROCEDURE p() DETERMINISTIC FOR `r` IN (SELECT 1) DO SELECT 1; END FOR", " SELECT 2"}},
+		{"SELECT * FROM t FOR UPDATE; SET STATEMENT a=1 FOR SELECT 1; SELECT 2",
+			[]string{"SELECT * FROM t FOR UPDATE", " SET STATEMENT a=1 FOR SELECT 1", " SELECT 2"}},
+	} {
+		var got []string
+		for _, s := range Split(c.sql) {
+			got = append(got, s.Text)
+		}
+		if strings.Join(got, "|") != strings.Join(c.want, "|") {
+			t.Errorf("Split(%q) = %q, want %q", c.sql, got, c.want)
+		}
 	}
 }

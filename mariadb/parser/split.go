@@ -309,20 +309,26 @@ func Split(sql string) []Segment {
 				atStmtStart = false
 			}
 			i = endOfWord
-			// BEGIN NOT ATOMIC: the block's first statement follows ATOMIC.
-			if next == "NOT" {
-				j := skipToEndOfWord(sql, skipWhitespace(sql, i))
-				if nextWordAfter(sql, j) == "ATOMIC" {
-					i = skipToEndOfWord(sql, skipWhitespace(sql, j))
+			// BEGIN NOT ATOMIC: the block's first statement follows ATOMIC, whatever
+			// comments stand between the three words.
+			if isCompound {
+				j := skipSpaceAndComments(sql, i)
+				if matchWord(sql, j, "NOT") {
+					k := skipSpaceAndComments(sql, skipToEndOfWord(sql, j))
+					if matchWord(sql, k, "ATOMIC") {
+						i = skipToEndOfWord(sql, k)
+					}
 				}
 			}
 
 		// FOR — SET STATEMENT ... FOR takes a whole statement, so what follows it is at
 		// stmt-start: `SET STATEMENT a = 1 FOR IF b THEN c; END IF`. Elsewhere the next word
-		// is no IF: FOR EACH ROW, FOR UPDATE. At stmt-start FOR opens MariaDB's FOR loop,
-		// which END FOR closes, and the record variable follows it.
+		// is no IF: FOR EACH ROW, FOR UPDATE. FOR name IN opens MariaDB's FOR loop, which
+		// END FOR closes, wherever it stands: a routine's body after its RETURNS or its
+		// characteristics is no position atStmtStart knows. No other FOR is followed by a
+		// name and IN.
 		case (b == 'f' || b == 'F') && matchWord(sql, i, "FOR"):
-			if atStmtStart && prevWord(sql, i) != "END" {
+			if prevWord(sql, i) != "END" && forLoopFollows(sql, skipToEndOfWord(sql, i)) {
 				depth++
 				atStmtStart = false
 			} else {
@@ -497,6 +503,41 @@ func Split(sql string) []Segment {
 		return nil
 	}
 	return segments
+}
+
+// skipSpaceAndComments skips whitespace and comments from i. An executable comment is
+// text the server reads, so it stops there.
+func skipSpaceAndComments(sql string, i int) int {
+	for i < len(sql) {
+		switch {
+		case sql[i] == ' ' || sql[i] == '\t' || sql[i] == '\n' || sql[i] == '\r':
+			i++
+		case isDashComment(sql, i):
+			i = skipDashComment(sql, i)
+		case sql[i] == '#':
+			i = skipHashComment(sql, i)
+		case sql[i] == '/' && i+1 < len(sql) && sql[i+1] == '*' && !isExecutableCommentStart(sql, i):
+			i = skipBlockCommentMySQL(sql, i)
+		default:
+			return i
+		}
+	}
+	return i
+}
+
+// forLoopFollows reports whether a FOR loop's record and IN follow i, the end of a FOR: a
+// name, bare or quoted, then IN, with comments allowed between.
+func forLoopFollows(sql string, i int) bool {
+	j := skipSpaceAndComments(sql, i)
+	switch {
+	case j < len(sql) && sql[j] == '`':
+		j = skipBacktick(sql, j)
+	case j < len(sql) && isIdentByte(sql[j]):
+		j = skipToEndOfWord(sql, j)
+	default:
+		return false
+	}
+	return matchWord(sql, skipSpaceAndComments(sql, j), "IN")
 }
 
 // skipSingleQuoteMySQL skips a single-quoted string starting at position i.

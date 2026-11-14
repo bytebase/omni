@@ -149,6 +149,37 @@
 < ok 0 0
 > exec ^
 : string
+| CREATE FUNCTION f() RETURNS INT FOR r IN (SELECT 1) DO RETURN 1; END FOR
+< ok 0 0
+> exec ^
+: string
+| CREATE PROCEDURE p() DETERMINISTIC FOR r IN (SELECT 1) DO SELECT 1; END FOR
+< ok 0 0
+> exec ^
+: string
+| BEGIN NOT /* c */ ATOMIC IF 1 THEN SET @a=1; END IF; END
+< ok 0 0
+> exec ^
+: string
+| CREATE FUNCTION f() RETURNS INT BEGIN SET STATEMENT max_statement_time=1 FOR LOOP RETURN 1; END LOOP; END
+< ok 0 0
+> exec ^
+: string
+| CREATE FUNCTION f() RETURNS INT BEGIN SET STATEMENT max_statement_time=1 FOR LOOP SELECT 1; END LOOP; RETURN 1; END
+< error
+| 1415 0A000 Not allowed to return a result set from a function
+> exec ^
+: string
+| CREATE FUNCTION f() RETURNS INT BEGIN SET STATEMENT max_statement_time=1 FOR LOOP SELECT 1; END LOOP; RETURN 1; END
+| ; SELECT FROM
+< error
+| 1415 0A000 Not allowed to return a result set from a function
+> exec ^
+: string
+| CREATE PROCEDURE p() BEGIN DECLARE a INT; SET STATEMENT max_statement_time=1 FOR BEGIN NOT ATOMIC DECLARE b TYPE OF a; END; END
+< ok 0 0
+> exec ^
+: string
 | BEGIN NOT ATOMIC DECLARE a, b INT; END
 < ok 0 0
 > exec ^

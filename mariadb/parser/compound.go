@@ -1268,10 +1268,15 @@ func (p *Parser) parseForStmt(labelName string, labelStart int) (*nodes.ForStmt,
 //
 // Ref: directly_executable_statement, compound_statement and sp_proc_stmt_compound_ok in
 // MariaDB 11.8 sql/sql_yacc.yy.
+//
+// Inside a stored program, which `SET STATEMENT ... FOR LOOP ...` in a routine body is, the
+// statement belongs to that program and keeps its scope and its rules.
 func (p *Parser) parseCompoundStatement() (nodes.Node, error) {
-	p.routineDepth++
-	defer func() { p.routineDepth-- }()
-	defer p.enterStoredProgram(routineScope{})()
+	if p.routine.sp == nil {
+		p.routineDepth++
+		defer func() { p.routineDepth-- }()
+		defer p.enterStoredProgram(routineScope{})()
+	}
 
 	switch p.cur.Type {
 	case kwBEGIN:
