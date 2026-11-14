@@ -290,16 +290,12 @@ func (p *Parser) parseRoutineCharacteristic() (*nodes.RoutineCharacteristic, boo
 		// COMMENT already consumed, let the body or the end of the statement follow.
 		return nil, false, p.syntaxErrorAtCur()
 
-	// sp_chistic spells each characteristic whole: LANGUAGE SQL, NO SQL, CONTAINS SQL, READS
-	// SQL DATA, MODIFIES SQL DATA, SQL SECURITY. A word missing from one is a 1064.
-	//
-	// Ref: sp_chistic and sp_suid in MySQL 8.0 sql/sql_yacc.yy.
 	case p.cur.Type == kwLANGUAGE:
 		p.advance()
-		if p.cur.Type != kwSQL {
-			return nil, false, p.syntaxErrorAtCur()
+		name, _, err := p.parseKeywordOrIdent()
+		if err != nil {
+			return nil, false, err
 		}
-		name := strings.ToUpper(p.advance().Str)
 		return &nodes.RoutineCharacteristic{
 			Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "LANGUAGE", Value: name,
 		}, true, nil

@@ -228,7 +228,9 @@ func (p *Parser) parseCreateFunctionStmt(start int, orReplace, isProcedure bool)
 	return stmt, nil
 }
 
-// parseRoutineCharacteristic parses a routine characteristic.
+// parseRoutineCharacteristic parses a routine characteristic, every word of it required.
+//
+// Ref: sp_chistic, sp_c_chistic and sp_suid in MariaDB 11.8 sql/sql_yacc.yy.
 func (p *Parser) parseRoutineCharacteristic() (*nodes.RoutineCharacteristic, bool, error) {
 	start := p.pos()
 
@@ -246,18 +248,14 @@ func (p *Parser) parseRoutineCharacteristic() (*nodes.RoutineCharacteristic, boo
 		// COMMENT already consumed, let the body or the end of the statement follow.
 		return nil, false, p.syntaxErrorAtCur()
 
-	// sp_chistic spells each characteristic whole: LANGUAGE SQL, NO SQL, CONTAINS SQL, READS
-	// SQL DATA, MODIFIES SQL DATA, SQL SECURITY. A word missing from one is a 1064.
-	//
-	// Ref: sp_chistic and sp_suid in MariaDB 11.8 sql/sql_yacc.yy.
 	case p.cur.Type == kwLANGUAGE:
+		// LANGUAGE SQL, the one language.
 		p.advance()
-		if p.cur.Type != kwSQL {
-			return nil, false, p.syntaxErrorAtCur()
+		if _, err := p.expect(kwSQL); err != nil {
+			return nil, false, err
 		}
-		name := strings.ToUpper(p.advance().Str)
 		return &nodes.RoutineCharacteristic{
-			Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "LANGUAGE", Value: name,
+			Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "LANGUAGE", Value: "SQL",
 		}, true, nil
 
 	case p.cur.Type == kwDETERMINISTIC:
@@ -279,19 +277,24 @@ func (p *Parser) parseRoutineCharacteristic() (*nodes.RoutineCharacteristic, boo
 		return nil, false, nil
 
 	case p.cur.Type == kwSQL:
+		// sp_suid: SQL SECURITY {DEFINER | INVOKER}.
 		p.advance()
-		if p.cur.Type == kwSECURITY {
-			p.advance()
-			name, _, err := p.parseKeywordOrIdent()
-			if err != nil {
-				return nil, false, err
-			}
-			return &nodes.RoutineCharacteristic{
-				Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "SQL SECURITY", Value: name,
-			}, true, nil
+		if _, err := p.expect(kwSECURITY); err != nil {
+			return nil, false, err
 		}
-		// SQL starts only SQL SECURITY here.
-		return nil, false, p.syntaxErrorAtCur()
+		var val string
+		switch p.cur.Type {
+		case kwDEFINER:
+			val = "DEFINER"
+		case kwINVOKER:
+			val = "INVOKER"
+		default:
+			return nil, false, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		return &nodes.RoutineCharacteristic{
+			Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "SQL SECURITY", Value: val,
+		}, true, nil
 
 	// CONTAINS SQL, READS SQL DATA and MODIFIES SQL DATA are read whole.
 	// Ref: sp_chistic in MariaDB 11.8 sql/sql_yacc.yy.

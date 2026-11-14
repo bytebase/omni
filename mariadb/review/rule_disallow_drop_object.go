@@ -50,6 +50,12 @@ func checkDisallowDropObject(sql string, s *statement, r *reporter) {
 				kind = "procedure"
 			}
 			report(v.Loc, kind, table(v.Name))
+		case *ast.DropPackageStmt:
+			kind := "package"
+			if v.Body {
+				kind = "package body"
+			}
+			report(v.Loc, kind, table(v.Name))
 		case *ast.DropTriggerStmt:
 			report(v.Loc, "trigger", table(v.Name))
 		case *ast.DropEventStmt:
