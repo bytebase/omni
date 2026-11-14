@@ -1,7 +1,6 @@
 package parser
 
 import (
-	"errors"
 	"strings"
 
 	nodes "github.com/bytebase/omni/oracle/ast"
@@ -245,44 +244,6 @@ func (p *Parser) isAnalyticClassificationStart() bool {
 //
 // It returns nil when there is none.
 func (p *Parser) parseAnalyticClassifications() (*nodes.List, error) {
-	return p.parseAnalyticClassificationsWith(false)
-}
-
-// errAnalyticTakenAsBefore is what a statement's own classification_clause
-// returns, through parseAnalyticHeaderClassifications, where a CAPTION,
-// DESCRIPTION, VALUE or LANGUAGE has no string after it. The statement
-// entry takes the rest of the text then, as the parser did before it read
-// these statements by the grammar (anTakeRest). It never leaves this file.
-//
-// compat.tsv records CREATE ANALYTIC VIEW a CAPTION and the like as
-// accepted: the judge read Oracle's ORA-01780 at the end of the text as a
-// pass until #1106, and the rows are not judged again yet. Once they are,
-// the string is required here as it is in a measure or an attribute.
-var errAnalyticTakenAsBefore = errors.New("analytic statement taken as before")
-
-// parseAnalyticHeaderClassifications reads the classification_clause of
-// the statement itself (and of an attribute dimension's level), where a
-// missing string is errAnalyticTakenAsBefore.
-func (p *Parser) parseAnalyticHeaderClassifications() (*nodes.List, error) {
-	return p.parseAnalyticClassificationsWith(true)
-}
-
-// anTakeRest consumes the rest of the statement's text.
-func (p *Parser) anTakeRest() {
-	for p.cur.Type != ';' && p.cur.Type != tokEOF {
-		p.advance()
-	}
-}
-
-// parseAnalyticClassificationsWith reads classification_clause; asBefore
-// is set for parseAnalyticHeaderClassifications.
-func (p *Parser) parseAnalyticClassificationsWith(asBefore bool) (*nodes.List, error) {
-	str := func() (string, error) {
-		if asBefore && p.cur.Type != tokSCONST && p.cur.Type != tokNCHARLIT {
-			return "", errAnalyticTakenAsBefore
-		}
-		return p.anParseString()
-	}
 	var items []nodes.Node
 	for _, key := range []string{"CAPTION", "DESCRIPTION"} {
 		if !p.isKeywordStr(key) {
@@ -290,7 +251,7 @@ func (p *Parser) parseAnalyticClassificationsWith(asBefore bool) (*nodes.List, e
 		}
 		start := p.pos()
 		p.advance()
-		value, err := str()
+		value, err := p.anParseString()
 		if err != nil {
 			return nil, err
 		}
@@ -308,7 +269,7 @@ func (p *Parser) parseAnalyticClassificationsWith(asBefore bool) (*nodes.List, e
 				continue
 			}
 			p.advance()
-			s, err := str()
+			s, err := p.anParseString()
 			if err != nil {
 				return nil, err
 			}
@@ -447,12 +408,7 @@ func (p *Parser) parseCreateAnalyticViewStmt(start int, orReplace, force, noForc
 	if stmt.Sharing, err = p.parseAnalyticSharing(); err != nil {
 		return nil, err
 	}
-	classifications, err := p.parseAnalyticHeaderClassifications()
-	if errors.Is(err, errAnalyticTakenAsBefore) {
-		p.anTakeRest()
-		stmt.Loc.End = p.prev.End
-		return stmt, nil
-	}
+	classifications, err := p.parseAnalyticClassifications()
 	if err != nil {
 		return nil, err
 	}
@@ -966,12 +922,7 @@ func (p *Parser) parseCreateAttributeDimensionStmt(start int, orReplace, force, 
 		}
 		stmt.DimensionType = p.advance().Str
 	}
-	stmt.Classifications, err = p.parseAnalyticHeaderClassifications()
-	if errors.Is(err, errAnalyticTakenAsBefore) {
-		p.anTakeRest()
-		stmt.Loc.End = p.prev.End
-		return stmt, nil
-	}
+	stmt.Classifications, err = p.parseAnalyticClassifications()
 	if err != nil {
 		return nil, err
 	}
@@ -1030,11 +981,6 @@ func (p *Parser) parseCreateAttributeDimensionStmt(start int, orReplace, force, 
 	stmt.Levels = &nodes.List{}
 	for p.cur.Type == kwLEVEL {
 		lvl, err := p.parseAttrDimLevel()
-		if errors.Is(err, errAnalyticTakenAsBefore) {
-			p.anTakeRest()
-			stmt.Loc.End = p.prev.End
-			return stmt, nil
-		}
 		if err != nil {
 			return nil, err
 		}
@@ -1182,7 +1128,7 @@ func (p *Parser) parseAttrDimLevel() (*nodes.AttrDimLevel, error) {
 		}
 		lvl.LevelType = p.advance().Str
 	}
-	if lvl.Classifications, err = p.parseAnalyticHeaderClassifications(); err != nil {
+	if lvl.Classifications, err = p.parseAnalyticClassifications(); err != nil {
 		return nil, err
 	}
 	if err := p.anExpectWord("KEY"); err != nil {
@@ -1378,12 +1324,7 @@ func (p *Parser) parseCreateHierarchyStmt(start int, orReplace, force, noForce b
 	if stmt.Sharing, err = p.parseAnalyticSharing(); err != nil {
 		return nil, err
 	}
-	stmt.Classifications, err = p.parseAnalyticHeaderClassifications()
-	if errors.Is(err, errAnalyticTakenAsBefore) {
-		p.anTakeRest()
-		stmt.Loc.End = p.prev.End
-		return stmt, nil
-	}
+	stmt.Classifications, err = p.parseAnalyticClassifications()
 	if err != nil {
 		return nil, err
 	}
@@ -1541,8 +1482,7 @@ func (p *Parser) parseCreateDimensionStmt(start int) (*nodes.CreateDimensionStmt
 }
 
 // parseDimensionColumn reads a column of a dimension clause: name [ . name
-// ]..., with the number of names. A dot that no name follows ends the
-// column, as the parser has read IS (t.) and DETERMINES (t.) so far.
+// ]..., with the number of names.
 func (p *Parser) parseDimensionColumn() (*nodes.ObjectName, int, error) {
 	start := p.pos()
 	first, err := p.anParseName()
@@ -1552,30 +1492,22 @@ func (p *Parser) parseDimensionColumn() (*nodes.ObjectName, int, error) {
 	parts := []string{first}
 	for p.cur.Type == '.' {
 		p.advance()
-		if !p.isAnalyticNameToken() {
-			parts = append(parts, "")
-			break
+		part, err := p.anParseName()
+		if err != nil {
+			return nil, 0, err
 		}
-		parts = append(parts, p.advance().Str)
+		parts = append(parts, part)
 	}
 	obj := &nodes.ObjectName{Name: parts[len(parts)-1], Loc: nodes.Loc{Start: start, End: p.prev.End}}
 	if len(parts) > 1 {
 		obj.Schema = strings.Join(parts[:len(parts)-1], ".")
-		if obj.Name == "" {
-			obj.Schema, obj.Name = "", obj.Schema
-		}
 	}
 	return obj, len(parts), nil
 }
 
 // parseDimensionColumns reads { column | ( column [, column ]... ) }. Where
 // qualified is set, the first column names its table (ORA-30347).
-//
-// Where asBefore is set, for DETERMINES, the parentheses may be empty or
-// end with a comma, as the parser read them before: compat.tsv records
-// ALTER DIMENSION a ADD ATTRIBUTE a DETERMINES() and DETERMINES(a,) as
-// accepted, rows judged before #1085 and #1106 and not judged again yet.
-func (p *Parser) parseDimensionColumns(qualified, asBefore bool) ([]*nodes.ObjectName, error) {
+func (p *Parser) parseDimensionColumns(qualified bool) ([]*nodes.ObjectName, error) {
 	column := func(first bool) (*nodes.ObjectName, error) {
 		col, parts, err := p.parseDimensionColumn()
 		if err != nil {
@@ -1595,7 +1527,7 @@ func (p *Parser) parseDimensionColumns(qualified, asBefore bool) ([]*nodes.Objec
 	}
 	p.advance()
 	var cols []*nodes.ObjectName
-	for !asBefore || p.cur.Type != ')' {
+	for {
 		col, err := column(len(cols) == 0)
 		if err != nil {
 			return nil, err
@@ -1623,7 +1555,7 @@ func (p *Parser) parseDimensionLevelClause() (*nodes.DimensionLevel, error) {
 	if err := p.anExpect(kwIS); err != nil {
 		return nil, err
 	}
-	if lvl.Columns, err = p.parseDimensionColumns(true, false); err != nil {
+	if lvl.Columns, err = p.parseDimensionColumns(true); err != nil {
 		return nil, err
 	}
 	if p.isKeywordStr("SKIP") {
@@ -1675,7 +1607,7 @@ func (p *Parser) parseDimensionHierarchyClause() (*nodes.DimensionHierarchy, err
 		if err := p.anExpectWord("KEY"); err != nil {
 			return nil, err
 		}
-		if jk.ChildKeys, err = p.parseDimensionColumns(false, false); err != nil {
+		if jk.ChildKeys, err = p.parseDimensionColumns(false); err != nil {
 			return nil, err
 		}
 		if err := p.anExpect(kwREFERENCES); err != nil {
@@ -1712,7 +1644,7 @@ func (p *Parser) parseDimensionAttributeClause() (*nodes.DimensionAttribute, err
 	if err := p.anExpectWord("DETERMINES"); err != nil {
 		return nil, err
 	}
-	if attr.Columns, err = p.parseDimensionColumns(false, true); err != nil {
+	if attr.Columns, err = p.parseDimensionColumns(false); err != nil {
 		return nil, err
 	}
 	attr.Loc.End = p.prev.End
@@ -1731,8 +1663,7 @@ func (p *Parser) parseDimensionAttributeClause() (*nodes.DimensionAttribute, err
 //	  | COMPILE
 //
 // COMPILE may stand among the ADD or DROP clauses; ADD and DROP together
-// are ORA-30348. The parser has read an ALTER DIMENSION with no clause so
-// far, and still does.
+// are ORA-30348.
 func (p *Parser) parseAlterDimensionStmt(start int) (*nodes.AlterDimensionStmt, error) {
 	stmt := &nodes.AlterDimensionStmt{Loc: nodes.Loc{Start: start}}
 	var err error
@@ -1764,6 +1695,9 @@ func (p *Parser) parseAlterDimensionStmt(start int) (*nodes.AlterDimensionStmt, 
 				return nil, err
 			}
 		default:
+			if !added && !dropped && !stmt.Compile {
+				return nil, p.syntaxErrorAtCur()
+			}
 			stmt.Loc.End = p.prev.End
 			return stmt, nil
 		}
