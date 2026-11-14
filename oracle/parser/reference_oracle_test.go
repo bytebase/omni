@@ -3,12 +3,10 @@ package parser
 import (
 	"context"
 	"database/sql"
-	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
-	"time"
 
 	_ "github.com/sijms/go-ora/v2"
 )

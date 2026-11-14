@@ -19,6 +19,10 @@ func TestSplitSegmentsCompileInOracle(t *testing.T) {
 	ctx := context.Background()
 	db := openOracleUser(t, "omni_split")
 	const run = "S1"
+	// The trigger's table.
+	if _, err := db.ExecContext(ctx, "CREATE TABLE t (id NUMBER)"); err != nil {
+		t.Fatalf("CREATE TABLE t: %v", err)
+	}
 
 	var wrapped string
 	wrapSource := "CREATE OR REPLACE PROCEDURE omni_wrap_" + run + " AS BEGIN NULL; END;"

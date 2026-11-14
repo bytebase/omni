@@ -7,16 +7,12 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"sync"
 	"testing"
-	"time"
 
-	_ "github.com/sijms/go-ora/v2"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
-
+	"github.com/bytebase/omni/enginetest/tape"
 	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/oracle/ast"
+	"github.com/bytebase/omni/oracle/internal/testcontainer"
 	"github.com/bytebase/omni/review"
 )
 
@@ -42,94 +38,36 @@ var oracleBase = []string{
 	`INSERT INTO "a'b" VALUES (1)`,
 }
 
-const oraclePassword = "testpass"
-
-var oracleOracle struct {
-	once      sync.Once
-	container testcontainers.Container
-	admin     *sql.DB
-	host      string
-	port      string
-	err       error
-}
-
 func TestMain(m *testing.M) {
-	code := m.Run()
-	if oracleOracle.container != nil {
-		if oracleOracle.admin != nil {
-			_ = oracleOracle.admin.Close()
-		}
-		_ = testcontainers.TerminateContainer(oracleOracle.container)
-	}
+	code := tape.Main(m)
+	testcontainer.Terminate()
 	os.Exit(code)
 }
 
-// startOracle returns a SYSTEM connection to the Oracle the oracle tests
-// of this package ask, started once, the image oracle/parser's tests pin.
-// The users SHOP and BBDATAARCHIVE are made per case by resetOracle; the
-// public synonym PUBT, for SYSTEM.PUBT, stays.
+// startOracle returns t's SYSTEM session to the pinned Oracle, on t's tape,
+// with the table SYSTEM.PUBT and its public synonym PUBT made. The users
+// SHOP and BBDATAARCHIVE are made per case by resetOracle. A recording
+// starts each top-level test on a server without what another test made.
 func startOracle(t *testing.T) *sql.DB {
 	t.Helper()
-	o := &oracleOracle
-	o.once.Do(func() {
-		ctx := context.Background()
-		c, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-			ContainerRequest: testcontainers.ContainerRequest{
-				Image:        "gvenzl/oracle-free:23.26.3-slim-faststart",
-				ExposedPorts: []string{"1521/tcp"},
-				Env:          map[string]string{"ORACLE_PASSWORD": oraclePassword},
-				WaitingFor:   wait.ForLog("DATABASE IS READY TO USE!").WithStartupTimeout(5 * time.Minute),
-			},
-			Started: true,
-		})
-		if err != nil {
-			o.err = err
-			return
+	admin := testcontainer.Open(t, "system")
+	for _, stmt := range []string{
+		"CREATE TABLE system.pubt (id NUMBER, a NUMBER)",
+		"GRANT SELECT ON system.pubt TO PUBLIC",
+		"CREATE PUBLIC SYNONYM pubt FOR system.pubt",
+	} {
+		if _, err := admin.ExecContext(context.Background(), stmt); err != nil {
+			t.Fatalf("Oracle: %s: %v", stmt, err)
 		}
-		o.container = c
-		if o.host, err = c.Host(ctx); err != nil {
-			o.err = err
-			return
-		}
-		port, err := c.MappedPort(ctx, "1521")
-		if err != nil {
-			o.err = err
-			return
-		}
-		o.port = port.Port()
-		if o.admin, o.err = openOracle("system"); o.err != nil {
-			return
-		}
-		for _, stmt := range []string{
-			"CREATE TABLE system.pubt (id NUMBER, a NUMBER)",
-			"GRANT SELECT ON system.pubt TO PUBLIC",
-			"CREATE PUBLIC SYNONYM pubt FOR system.pubt",
-		} {
-			if _, err := o.admin.ExecContext(ctx, stmt); err != nil {
-				o.err = fmt.Errorf("%s: %w", stmt, err)
-				return
-			}
-		}
-	})
-	if o.err != nil {
-		t.Fatalf("Oracle oracle unavailable: %v", o.err)
 	}
-	return o.admin
+	return admin
 }
 
-func openOracle(user string) (*sql.DB, error) {
-	db, err := sql.Open("oracle", fmt.Sprintf("oracle://%s:%s@%s:%s/FREEPDB1", user, oraclePassword, oracleOracle.host, oracleOracle.port))
-	if err != nil {
-		return nil, err
-	}
-	// A deadline: the container hung once in CI.
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-	defer cancel()
-	if err := db.PingContext(ctx); err != nil {
-		db.Close()
-		return nil, err
-	}
-	return db, nil
+// openOracle returns t's session as user, which t made with
+// testcontainer.Password.
+func openOracle(t testing.TB, user string) *sql.DB {
+	t.Helper()
+	return testcontainer.Open(t, user)
 }
 
 // resetOracle recreates the users SHOP, from oracleBase, and, unless
@@ -144,30 +82,23 @@ func resetOracle(t *testing.T, admin *sql.DB, noArchive bool) *sql.Conn {
     EXECUTE IMMEDIATE 'DROP USER ' || u.username || ' CASCADE';
   END LOOP;
 END;`,
-		"CREATE USER shop IDENTIFIED BY " + oraclePassword + " QUOTA UNLIMITED ON users",
+		"CREATE USER shop IDENTIFIED BY " + testcontainer.Password + " QUOTA UNLIMITED ON users",
 		"GRANT CREATE SESSION, CREATE TABLE, CREATE VIEW, CREATE MATERIALIZED VIEW, CREATE SEQUENCE, CREATE SYNONYM, CREATE PROCEDURE, CREATE TRIGGER, CREATE ANY TABLE, COMMENT ANY TABLE TO shop",
 	}
 	if !noArchive {
-		stmts = append(stmts, "CREATE USER bbdataarchive IDENTIFIED BY "+oraclePassword+" QUOTA UNLIMITED ON users")
+		stmts = append(stmts, "CREATE USER bbdataarchive IDENTIFIED BY "+testcontainer.Password+" QUOTA UNLIMITED ON users")
 	}
 	for _, stmt := range stmts {
 		if _, err := admin.ExecContext(ctx, stmt); err != nil {
 			t.Fatalf("%s: %v", stmt, err)
 		}
 	}
-	db, err := openOracle("shop")
-	if err != nil {
-		t.Fatal(err)
-	}
+	db := openOracle(t, "shop")
 	conn, err := db.Conn(ctx)
 	if err != nil {
-		db.Close()
 		t.Fatal(err)
 	}
-	t.Cleanup(func() {
-		conn.Close()
-		db.Close()
-	})
+	t.Cleanup(func() { conn.Close() })
 	for _, stmt := range oracleBase {
 		if _, err := conn.ExecContext(ctx, stmt); err != nil {
 			t.Fatalf("%s: %v", stmt, err)
@@ -645,7 +576,7 @@ func TestScanRulesAgainstOracle(t *testing.T) {
 func constraintSet(t *testing.T, conn *sql.Conn) map[string]string {
 	t.Helper()
 	out := make(map[string]string)
-	rows, err := conn.QueryContext(context.Background(), `SELECT c.table_name, c.constraint_type, c.constraint_name FROM user_constraints c JOIN user_tables t ON t.table_name = c.table_name WHERE c.constraint_type IN ('P', 'U', 'R', 'C') AND t.dropped = 'NO'`)
+	rows, err := conn.QueryContext(context.Background(), `SELECT c.table_name, c.constraint_type, c.constraint_name FROM user_constraints c JOIN user_tables t ON t.table_name = c.table_name WHERE c.constraint_type IN ('P', 'U', 'R', 'C') AND t.dropped = 'NO' ORDER BY c.table_name, c.constraint_name`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -665,7 +596,7 @@ func constraintSet(t *testing.T, conn *sql.Conn) map[string]string {
 func primaryKeyed(t *testing.T, conn *sql.Conn) (keyed, all map[string]bool) {
 	t.Helper()
 	keyed, all = make(map[string]bool), make(map[string]bool)
-	rows, err := conn.QueryContext(context.Background(), `SELECT t.table_name, (SELECT COUNT(*) FROM user_constraints c WHERE c.table_name = t.table_name AND c.constraint_type = 'P') FROM user_tables t WHERE t.dropped = 'NO' AND t.temporary = 'N'`)
+	rows, err := conn.QueryContext(context.Background(), `SELECT t.table_name, (SELECT COUNT(*) FROM user_constraints c WHERE c.table_name = t.table_name AND c.constraint_type = 'P') FROM user_tables t WHERE t.dropped = 'NO' AND t.temporary = 'N' ORDER BY t.table_name`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -780,7 +711,7 @@ func TestRenameAgainstOracle(t *testing.T) {
 			for _, s := range stmts {
 				var kinds []string
 				if v, ok := s.node.(*ast.RenameStmt); ok {
-					rows, err := conn.QueryContext(ctx, "SELECT object_type FROM user_objects WHERE object_name = :1", v.OldName.Name)
+					rows, err := conn.QueryContext(ctx, "SELECT object_type FROM user_objects WHERE object_name = :1 ORDER BY object_type", v.OldName.Name)
 					if err != nil {
 						t.Fatal(err)
 					}
@@ -900,16 +831,18 @@ func plsqlTrueCount(t *testing.T, conn *sql.Conn, cond string) int {
 	for _, col := range []string{"n", "s", "c"} {
 		cond = replaceWord(cond, col, "r."+col)
 	}
-	block := `DECLARE k NUMBER := 0;
+	query := `WITH FUNCTION k RETURN NUMBER IS
+  cnt NUMBER := 0;
 BEGIN
   FOR r IN (SELECT * FROM probe) LOOP
-    IF ` + cond + ` THEN k := k + 1; END IF;
+    IF ` + cond + ` THEN cnt := cnt + 1; END IF;
   END LOOP;
-  :1 := k;
-END;`
+  RETURN cnt;
+END;
+SELECT k FROM dual`
 	var n int64
-	if _, err := conn.ExecContext(context.Background(), block, sql.Out{Dest: &n}); err != nil {
-		t.Fatalf("%s: %v", block, err)
+	if err := conn.QueryRowContext(context.Background(), query).Scan(&n); err != nil {
+		t.Fatalf("%s: %v", query, err)
 	}
 	return int(n)
 }
