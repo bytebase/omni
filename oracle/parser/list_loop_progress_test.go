@@ -1,0 +1,69 @@
+package parser
+
+import (
+	"testing"
+	"time"
+)
+
+// listLoopHangs are statements on which Parse looped forever: a list loop
+// that skipped a token it did not recognise came round again without
+// consuming one. Every such loop now refuses an item that consumes nothing.
+// They are from the rows Oracle's syntax pages generate (enginetest/grammar),
+// some valid and some broken; each must return, whatever its verdict.
+var listLoopHangs = []string{
+	"CREATE DIMENSION a LEVEL a IS(.a) JOIN KEY(a) REFERENCES a",
+	"ALTER DIMENSION a ADD LEVEL a IS(.a)",
+	"ALTER DIMENSION a ADD LEVEL a IS(a.a,.a)",
+	"ALTER PLUGGABLE DATABASE OPEN INSTANCES =(ALL EXCEPT(a))",
+	"ALTER PLUGGABLE DATABASE OPEN INSTANCES =(EXCEPT(a))",
+	"ALTER PLUGGABLE DATABASE OPEN INSTANCES =(ALL(a))",
+	"ALTER PLUGGABLE DATABASE OPEN INSTANCES =(ALL EXCEPT())",
+	"ALTER PLUGGABLE DATABASE OPEN INSTANCES =(ALL EXCEPT(a) zzz)",
+	"ALTER PLUGGABLE DATABASE OPEN INSTANCES =(ALLOCATE EXCEPT(a))",
+	"ALTER PLUGGABLE DATABASE OPEN SERVICES =(ALL EXCEPT(a))",
+	"ALTER PLUGGABLE DATABASE OPEN SERVICES =(EXCEPT(a))",
+	"ALTER PLUGGABLE DATABASE OPEN SERVICES =(ALL(a))",
+	"ALTER PLUGGABLE DATABASE OPEN SERVICES =(ALL EXCEPT())",
+	"ALTER PLUGGABLE DATABASE OPEN SERVICES =(ALL EXCEPT(a) zzz)",
+	"ALTER PLUGGABLE DATABASE OPEN SERVICES =(ALLOCATE EXCEPT(a))",
+	"CREATE ATTRIBUTE DIMENSION a USING a ATTRIBUTES(a 's') LEVEL a KEY a",
+	"CREATE ATTRIBUTE DIMENSION a USING a ATTRIBUTES(a CASCADE 's') LEVEL a KEY a",
+	"CREATE DIMENSION a LEVEL a IS(a.a) LEVEL a IS(.a) JOIN KEY(a) REFERENCES a",
+	"CREATE DIMENSION a LEVEL a IS(a.a) ATTRIBUTE a DETERMINES(.a)",
+	"CREATE DIMENSION a LEVEL a IS(a.a) ATTRIBUTE a LEVEL a DETERMINES(.a)",
+	"CREATE DIMENSION a LEVEL a IS(a.a.a) JOIN KEY(a) REFERENCES a",
+	"CREATE DIMENSION a LEVEL a IS(.a.a) JOIN KEY(a) REFERENCES a",
+	"CREATE DIMENSION a LEVEL a IS(a.a,.a) JOIN KEY(a) REFERENCES a",
+	"CREATE DIMENSION a LEVEL a IS(a.a) ATTRIBUTE a DETERMINES(a.a.a)",
+	"CREATE DIMENSION a LEVEL a IS(a.a) ATTRIBUTE a DETERMINES(.a.a)",
+	"CREATE DIMENSION a LEVEL a IS(a.a) ATTRIBUTE a DETERMINES(a.a,.a)",
+	"CREATE DIMENSION a LEVEL a IS(a.a) ATTRIBUTE a LEVEL a DETERMINES(a.a.a)",
+	"CREATE DIMENSION a LEVEL a IS(a.a) ATTRIBUTE a LEVEL a DETERMINES(.a.a)",
+	"CREATE DIMENSION a LEVEL a IS(a.a) ATTRIBUTE a LEVEL a DETERMINES(a.a,.a)",
+	"CREATE HIERARCHY a USING a(a) HIERARCHICAL ATTRIBUTES(HIER_ORDER 's')",
+	"CREATE HIERARCHY a USING a(a) HIERARCHICAL ATTRIBUTES(HIER_ORDER CASCADE 's')",
+	"CREATE DOMAIN a AS(a AS NUMBER ANY(a))",
+	"CREATE DOMAIN a AS(1 = 1)",
+	"CREATE DOMAIN a AS ENUM(a 1)",
+	"CREATE PROPERTY GRAPH a VERTEX TABLES(a) EDGE TABLES(SOURCE a(a) DESTINATION a(a))",
+	"CREATE PROPERTY GRAPH a VERTEX TABLES(a) EDGE TABLES(a a(a) DESTINATION a(a))",
+	"CREATE PROPERTY GRAPH a VERTEX TABLES(a) EDGE TABLES(a SOURCE(a) DESTINATION a(a))",
+	"CREATE PROPERTY GRAPH a VERTEX TABLES(a) EDGE TABLES(a SOURCE a(a) a(a))",
+	"CREATE PROPERTY GRAPH a VERTEX TABLES(a) EDGE TABLES(a SOURCE a(a) DESTINATION(a))",
+	"CREATE PROPERTY GRAPH a VERTEX TABLES(a) EDGE TABLES(a SOURCE a(a) DESTINATION a(a), SOURCE a(a) DESTINATION a(a))",
+}
+
+func TestListLoopsAlwaysProgress(t *testing.T) {
+	for _, sql := range listLoopHangs {
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			_, _ = Parse(sql)
+		}()
+		select {
+		case <-done:
+		case <-time.After(30 * time.Second):
+			t.Fatalf("Parse did not return in 30s: %q", sql)
+		}
+	}
+}

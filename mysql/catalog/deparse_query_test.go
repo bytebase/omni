@@ -245,3 +245,21 @@ func TestDeparseQuery_DeparseOutput(t *testing.T) {
 		})
 	}
 }
+
+// TestDeparseQuery_CastAtTimeZone keeps CAST ... AT TIME ZONE's conversion: the
+// stored `time_zone`(x) is no function a query can call.
+func TestDeparseQuery_CastAtTimeZone(t *testing.T) {
+	c := setupDeparseTestCatalog(t)
+	for sql, want := range map[string]string{
+		"SELECT CAST(name AT TIME ZONE 'UTC' AS DATETIME) FROM employees":                "at time zone 'UTC' as datetime",
+		"SELECT CAST(name AT TIME ZONE INTERVAL '+00:00' AS DATETIME(3)) FROM employees": "at time zone interval '+00:00' as datetime",
+	} {
+		_, sql2, q2 := roundTrip(t, c, sql)
+		if !strings.Contains(sql2, want) {
+			t.Errorf("DeparseQuery(%q) = %q, want it to hold %q", sql, sql2, want)
+		}
+		if cast, ok := q2.TargetList[0].Expr.(*CastExprQ); !ok || cast.AtTimeZone == "" {
+			t.Errorf("%q read back without its zone: %#v", sql2, q2.TargetList[0].Expr)
+		}
+	}
+}

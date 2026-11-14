@@ -335,8 +335,13 @@ func (p *Parser) parseDiagnosticsItem(statement bool) (*nodes.DiagnosticsItem, e
 		}
 		target = t
 	} else if p.isIdentToken() {
-		name, _, err := p.parseIdent()
+		name, namePos, err := p.parseIdent()
 		if err != nil {
+			return nil, err
+		}
+		// simple_target_specification's action refuses a name that is no variable of the
+		// stored program, and any name outside one.
+		if err := p.checkSPVarRef(name, namePos, true); err != nil {
 			return nil, err
 		}
 		target = &nodes.ColumnRef{

@@ -884,3 +884,23 @@ var fakeMadeUp = regexp.MustCompile(`made_\d+`)
 func (renamingCodec) MadeUp() *regexp.Regexp { return fakeMadeUp }
 
 func (renamingCodec) StandIn(_ string, n int) string { return fmt.Sprintf("made_%d", n) }
+
+// TestLiveRunsOnlyInARecording holds tape.Live to skipping a test in a
+// replay and letting it run in a recording.
+func TestLiveRunsOnlyInARecording(t *testing.T) {
+	ran := func(setup func(*testing.T)) bool {
+		var reached bool
+		t.Run("probe", func(t *testing.T) {
+			setup(t)
+			Live(t)
+			reached = true
+		})
+		return reached
+	}
+	if ran(replay) {
+		t.Errorf("Live let a replay run")
+	}
+	if !ran(record) {
+		t.Errorf("Live skipped a recording")
+	}
+}
