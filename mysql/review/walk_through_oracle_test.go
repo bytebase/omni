@@ -759,7 +759,14 @@ func sweepChange(rng *rand.Rand, n int, generated string) string {
 		case 4:
 			stmt = fmt.Sprintf("CREATE TABLE %s AS SELECT 1 AS x", tbl())
 		case 5, 6:
-			stmt = fmt.Sprintf("DROP %sTABLE %s%s%s", maybe("TEMPORARY "), maybe("IF EXISTS "), tbl(), maybe(", "+tbl()))
+			temporary, ifExists, first := maybe("TEMPORARY "), maybe("IF EXISTS "), tbl()
+			second := maybe(", " + tbl())
+			// A list that names one table twice is 1066 while the server parses it,
+			// which the parser refuses as well, so the sweep names it once.
+			if second == ", "+first {
+				second = ""
+			}
+			stmt = fmt.Sprintf("DROP %sTABLE %s%s%s", temporary, ifExists, first, second)
 		case 7:
 			stmt = fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s int%s", tbl(), col(), maybe(" AFTER "+col()))
 		case 8:

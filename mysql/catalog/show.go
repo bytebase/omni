@@ -238,6 +238,9 @@ func showColumnWithTable(col *Column, tbl *Table) string {
 		if !col.Nullable {
 			b.WriteString(" NOT NULL")
 		}
+		if col.NotSecondary {
+			b.WriteString(" NOT SECONDARY")
+		}
 		if col.Comment != "" {
 			b.WriteString(fmt.Sprintf(" COMMENT '%s'", escapeComment(col.Comment)))
 		}
@@ -253,6 +256,11 @@ func showColumnWithTable(col *Column, tbl *Table) string {
 	} else if isTimestampType(col.DataType) {
 		// MySQL 8.0 explicitly shows NULL for TIMESTAMP columns.
 		b.WriteString(" NULL")
+	}
+
+	// NOT SECONDARY follows the nullability (MySQL 8.0.46).
+	if col.NotSecondary {
+		b.WriteString(" NOT SECONDARY")
 	}
 
 	// SRID for spatial types — MySQL 8.0 places it after NOT NULL, before DEFAULT. Emit on
