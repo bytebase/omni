@@ -24,6 +24,12 @@ func (p *Parser) parseCreateTriggerStmt(start int, orReplace, ifNotExists, editi
 		Events:         &nodes.List{},
 		Loc:            nodes.Loc{Start: start},
 	}
+	if !ifNotExists {
+		var err error
+		if stmt.IfNotExists, err = p.parseIfNotExistsAfterKind(orReplace); err != nil {
+			return nil, err
+		}
+	}
 	var parseErr564 error
 
 	// Trigger name

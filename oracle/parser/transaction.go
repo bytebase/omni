@@ -9,9 +9,15 @@ import (
 // BNF: oracle/parser/bnf/COMMIT.bnf
 //
 //	COMMIT [ WORK ]
-//	    [ COMMENT 'text' ]
-//	    [ WRITE [ WAIT | NOWAIT ] [ IMMEDIATE | BATCH ] ]
-//	    [ FORCE 'string' [, integer ] ] ;
+//	    [ [ COMMENT 'text' ]
+//	      [ WRITE [ WAIT | NOWAIT ] [ IMMEDIATE | BATCH ] ]
+//	    | FORCE { 'text' [, integer ] | CORRUPT_XID 'text' | CORRUPT_XID_ALL }
+//	    ] ;
+//
+// Oracle 23ai takes FORCE only right after COMMIT [ WORK ] (ORA-00922 at
+// FORCE after COMMENT or WRITE), WAIT and IMMEDIATE in either order, and
+// after FORCE 'text' a number, a string or a word, with or without a comma
+// before a string or a word but not before a number (ORA-00922).
 func (p *Parser) parseCommitStmt() (nodes.StmtNode, error) {
 	start := p.pos()
 	p.advance() // consume COMMIT
@@ -26,51 +32,73 @@ func (p *Parser) parseCommitStmt() (nodes.StmtNode, error) {
 		p.advance()
 	}
 
+	if p.cur.Type == kwFORCE {
+		p.advance() // consume FORCE
+		switch {
+		case p.isKeywordStr("CORRUPT_XID"):
+			p.advance()
+			if p.cur.Type != tokSCONST {
+				return nil, p.syntaxErrorAtCur()
+			}
+			stmt.Force = p.cur.Str
+			p.advance()
+		case p.isKeywordStr("CORRUPT_XID_ALL"):
+			p.advance()
+		case p.cur.Type == tokSCONST:
+			stmt.Force = p.cur.Str
+			p.advance()
+			switch {
+			case p.cur.Type == ',':
+				p.advance()
+				if p.cur.Type != tokSCONST && !p.isIdentLike() {
+					return nil, p.syntaxErrorAtCur()
+				}
+				p.advance()
+			case p.cur.Type == tokICONST:
+				var err error
+				stmt.ForceInteger, err = p.parseIntValue()
+				if err != nil {
+					return nil, err
+				}
+				stmt.HasForceInt = true
+			case p.cur.Type == tokFCONST || p.cur.Type == tokSCONST || p.isIdentLike():
+				p.advance()
+			}
+		default:
+			return nil, p.syntaxErrorAtCur()
+		}
+		stmt.Loc.End = p.prev.End
+		return stmt, nil
+	}
+
 	// Optional COMMENT 'text'
 	if p.cur.Type == kwCOMMENT {
 		p.advance() // consume COMMENT
-		if p.cur.Type == tokSCONST {
-			stmt.Comment = p.cur.Str
-			p.advance()
+		if p.cur.Type != tokSCONST {
+			return nil, p.syntaxErrorAtCur()
 		}
+		stmt.Comment = p.cur.Str
+		p.advance()
 	}
 
-	// Optional WRITE [WAIT|NOWAIT] [IMMEDIATE|BATCH]
+	// Optional WRITE [WAIT|NOWAIT] [IMMEDIATE|BATCH], in either order
 	if p.isIdentLikeStr("WRITE") {
 		p.advance() // consume WRITE
-		if p.isIdentLikeStr("WAIT") {
-			stmt.WriteWait = "WAIT"
-			p.advance()
-		} else if p.isIdentLikeStr("NOWAIT") {
-			stmt.WriteWait = "NOWAIT"
-			p.advance()
-		}
-		if p.cur.Type == kwIMMEDIATE {
-			stmt.WriteBatch = "IMMEDIATE"
-			p.advance()
-		} else if p.isIdentLikeStr("BATCH") {
-			stmt.WriteBatch = "BATCH"
-			p.advance()
-		}
-	}
-
-	// Optional FORCE 'text' [, integer]
-	if p.cur.Type == kwFORCE {
-		p.advance() // consume FORCE
-		if p.cur.Type == tokSCONST {
-			stmt.Force = p.cur.Str
-			p.advance()
-		}
-		// optional , integer
-		if p.cur.Type == ',' {
-			p.advance()
-			if p.cur.Type == tokICONST {
-				var parseErr1113 error
-				stmt.ForceInteger, parseErr1113 = p.parseIntValue()
-				if parseErr1113 != nil {
-					return nil, parseErr1113
-				}
-				stmt.HasForceInt = true
+		for {
+			if stmt.WriteWait == "" && p.isIdentLikeStr("WAIT") {
+				stmt.WriteWait = "WAIT"
+				p.advance()
+			} else if stmt.WriteWait == "" && p.isIdentLikeStr("NOWAIT") {
+				stmt.WriteWait = "NOWAIT"
+				p.advance()
+			} else if stmt.WriteBatch == "" && p.cur.Type == kwIMMEDIATE {
+				stmt.WriteBatch = "IMMEDIATE"
+				p.advance()
+			} else if stmt.WriteBatch == "" && p.isIdentLikeStr("BATCH") {
+				stmt.WriteBatch = "BATCH"
+				p.advance()
+			} else {
+				break
 			}
 		}
 	}
@@ -101,28 +129,27 @@ func (p *Parser) parseRollbackStmt() (nodes.StmtNode, error) {
 		p.advance()
 	}
 
-	// Optional TO [SAVEPOINT] name
-	if p.cur.Type == kwTO {
+	switch p.cur.Type {
+	case kwTO:
 		p.advance() // consume TO
 		if p.cur.Type == kwSAVEPOINT {
 			p.advance() // consume SAVEPOINT
 		}
-		var parseErr1114 error
-		stmt.ToSavepoint, parseErr1114 = p.parseIdentifier()
-		if parseErr1114 !=
-
-			// Optional FORCE 'text'
-			nil {
-			return nil, parseErr1114
+		var err error
+		stmt.ToSavepoint, err = p.parseIdentifier()
+		if err != nil {
+			return nil, err
 		}
-	}
-
-	if p.cur.Type == kwFORCE {
+		if stmt.ToSavepoint == "" {
+			return nil, p.syntaxErrorAtCur()
+		}
+	case kwFORCE:
 		p.advance() // consume FORCE
-		if p.cur.Type == tokSCONST {
-			stmt.Force = p.cur.Str
-			p.advance()
+		if p.cur.Type != tokSCONST {
+			return nil, p.syntaxErrorAtCur()
 		}
+		stmt.Force = p.cur.Str
+		p.advance()
 	}
 
 	stmt.Loc.End = p.prev.End
@@ -184,64 +211,71 @@ func (p *Parser) parseSetTransactionStmt() (nodes.StmtNode, error) {
 		Loc: nodes.Loc{Start: start},
 	}
 
-	for {
-		switch p.cur.Type {
-		case kwREAD:
-			p.advance() // consume READ
-			if p.cur.Type == kwONLY {
-				stmt.ReadOnly = true
-				p.advance()
-			} else if p.isIdentLike() && p.cur.Str == "WRITE" {
-				stmt.ReadWrite = true
-				p.advance()
-			}
-		case kwISOLATION:
-			p.advance() // consume ISOLATION
-			if p.cur.Type == kwLEVEL {
-				p.advance() // consume LEVEL
-			}
-			// SERIALIZABLE or READ COMMITTED
-			if p.isIdentLike() && p.cur.Str == "SERIALIZABLE" {
-				stmt.IsolLevel = "SERIALIZABLE"
-				p.advance()
-			} else if p.cur.Type == kwREAD {
-				p.advance() // consume READ
-				// "COMMITTED" is not a keyword, it's an ident
-				if p.isIdentLike() && p.cur.Str == "COMMITTED" {
-					stmt.IsolLevel = "READ COMMITTED"
-					p.advance()
-				}
-			}
-		default:
-			if p.isIdentLike() && p.cur.Str == "USE" {
-				p.advance() // consume USE
-				if p.cur.Type == kwROLLBACK {
-					p.advance() // consume ROLLBACK
-					// SEGMENT is not a keyword
-					if p.isIdentLike() && p.cur.Str == "SEGMENT" {
-						p.advance() // consume SEGMENT
-					}
-					var parseErr1115 error
-					// segment_name
-					stmt.UseRollbackSegment, parseErr1115 = p.parseIdentifier()
-					if parseErr1115 != nil {
-						return nil, parseErr1115
-					}
-				}
-			} else if p.isIdentLike() && p.cur.Str == "NAME" {
-				// Check for NAME 'text' (NAME is an identifier, not a keyword)
-				p.advance() // consume NAME
-				if p.cur.Type == tokSCONST {
-					stmt.Name = p.cur.Str
-					p.advance()
-				}
-			} else {
-				goto done
-			}
+	// One clause, then NAME 'text'; or NAME 'text' alone. Oracle 23ai
+	// takes no second clause (ORA-03049) and no clause after NAME
+	// (ORA-00933).
+	switch {
+	case p.cur.Type == kwREAD:
+		p.advance() // consume READ
+		if p.cur.Type == kwONLY {
+			stmt.ReadOnly = true
+			p.advance()
+		} else if p.isKeywordStr("WRITE") {
+			stmt.ReadWrite = true
+			p.advance()
+		} else {
+			return nil, p.syntaxErrorAtCur()
 		}
+	case p.cur.Type == kwISOLATION:
+		p.advance() // consume ISOLATION
+		if p.cur.Type != kwLEVEL {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance() // consume LEVEL
+		// SERIALIZABLE or READ COMMITTED
+		if p.isKeywordStr("SERIALIZABLE") {
+			stmt.IsolLevel = "SERIALIZABLE"
+			p.advance()
+		} else if p.cur.Type == kwREAD {
+			p.advance() // consume READ
+			if err := p.expectWords("COMMITTED"); err != nil {
+				return nil, err
+			}
+			stmt.IsolLevel = "READ COMMITTED"
+		} else {
+			return nil, p.syntaxErrorAtCur()
+		}
+	case p.isKeywordStr("USE"):
+		p.advance() // consume USE
+		if p.cur.Type != kwROLLBACK {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance() // consume ROLLBACK
+		if err := p.expectWords("SEGMENT"); err != nil {
+			return nil, err
+		}
+		var parseErr1115 error
+		// segment_name
+		stmt.UseRollbackSegment, parseErr1115 = p.parseIdentifier()
+		if parseErr1115 != nil {
+			return nil, parseErr1115
+		}
+		if stmt.UseRollbackSegment == "" {
+			return nil, p.syntaxErrorAtCur()
+		}
+	case p.isKeywordStr("NAME"):
+	default:
+		return nil, p.syntaxErrorAtCur()
+	}
+	if p.isKeywordStr("NAME") {
+		p.advance() // consume NAME
+		if p.cur.Type != tokSCONST {
+			return nil, p.syntaxErrorAtCur()
+		}
+		stmt.Name = p.cur.Str
+		p.advance()
 	}
 
-done:
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }

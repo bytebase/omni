@@ -256,8 +256,8 @@ func (p *Parser) parseCreateAdminObject(start int, orReplace bool) (nodes.StmtNo
 				return p.parseCreateSpfileStmt(start)
 			case "PROPERTY":
 				p.advance() // consume PROPERTY
-				if p.isIdentLike() && p.cur.Str == "GRAPH" {
-					p.advance() // consume GRAPH
+				if err := p.expectWords("GRAPH"); err != nil {
+					return nil, err
 				}
 				return p.parseCreatePropertyGraphStmt(start, false, false)
 			case "VECTOR":
@@ -323,7 +323,21 @@ func (p *Parser) parseDropAdminObject(start int) (nodes.StmtNode, error) {
 		return stmt, nil
 	case kwROLE:
 		p.advance()
-		return p.parseAdminDDLWithOptions("DROP", nodes.OBJECT_ROLE, start)
+		stmt := &nodes.AdminDDLStmt{
+			Action:     "DROP",
+			ObjectType: nodes.OBJECT_ROLE,
+			Loc:        nodes.Loc{Start: start},
+		}
+		var err error
+		stmt.Name, err = p.parseObjectName()
+		if err != nil {
+			return nil, err
+		}
+		if stmt.Name == nil || stmt.Name.Name == "" {
+			return nil, p.syntaxErrorAtCur()
+		}
+		stmt.Loc.End = p.prev.End
+		return stmt, nil
 	case kwPROFILE:
 		p.advance()
 		stmt := &nodes.AdminDDLStmt{
@@ -335,6 +349,9 @@ func (p *Parser) parseDropAdminObject(start int) (nodes.StmtNode, error) {
 		stmt.Name, parseErr199 = p.parseObjectName()
 		if parseErr199 != nil {
 			return nil, parseErr199
+		}
+		if stmt.Name == nil || stmt.Name.Name == "" {
+			return nil, p.syntaxErrorAtCur()
 		}
 		if p.cur.Type == kwCASCADE {
 			p.advance()
@@ -381,20 +398,20 @@ func (p *Parser) parseDropAdminObject(start int) (nodes.StmtNode, error) {
 				return p.parseDropDiskgroupStmt(start)
 			case "PLUGGABLE":
 				p.advance() // consume PLUGGABLE
-				if p.cur.Type == kwDATABASE {
-					p.advance() // consume DATABASE
+				if err := p.expectWords("DATABASE"); err != nil {
+					return nil, err
 				}
 				return p.parseDropPluggableDatabaseStmt(start)
 			case "ANALYTIC":
 				p.advance() // consume ANALYTIC
-				if p.cur.Type == kwVIEW {
-					p.advance() // consume VIEW
+				if err := p.expectWords("VIEW"); err != nil {
+					return nil, err
 				}
 				return p.parseDropSimpleStmt(nodes.OBJECT_ANALYTIC_VIEW, start)
 			case "ATTRIBUTE":
 				p.advance() // consume ATTRIBUTE
-				if p.isIdentLike() && p.cur.Str == "DIMENSION" {
-					p.advance() // consume DIMENSION
+				if err := p.expectWords("DIMENSION"); err != nil {
+					return nil, err
 				}
 				return p.parseDropSimpleStmt(nodes.OBJECT_ATTRIBUTE_DIMENSION, start)
 			case "HIERARCHY":
@@ -421,17 +438,14 @@ func (p *Parser) parseDropAdminObject(start int) (nodes.StmtNode, error) {
 				return p.parseDropSimpleStmt(nodes.OBJECT_OUTLINE, start)
 			case "INMEMORY":
 				p.advance() // consume INMEMORY
-				if p.cur.Type == kwJOIN {
-					p.advance() // consume JOIN
-				}
-				if p.cur.Type == kwGROUP || (p.isIdentLike() && p.cur.Str == "GROUP") {
-					p.advance() // consume GROUP
+				if err := p.expectWords("JOIN", "GROUP"); err != nil {
+					return nil, err
 				}
 				return p.parseDropSimpleStmt(nodes.OBJECT_INMEMORY_JOIN_GROUP, start)
 			case "ROLLBACK":
 				p.advance() // consume ROLLBACK
-				if p.isIdentLike() && p.cur.Str == "SEGMENT" {
-					p.advance() // consume SEGMENT
+				if err := p.expectWords("SEGMENT"); err != nil {
+					return nil, err
 				}
 				return p.parseDropSimpleStmt(nodes.OBJECT_ROLLBACK_SEGMENT, start)
 			case "EDITION":
@@ -447,38 +461,35 @@ func (p *Parser) parseDropAdminObject(start int) (nodes.StmtNode, error) {
 					p.advance() // consume MODULE
 					return p.parseDropSimpleStmt(nodes.OBJECT_MLE_MODULE, start)
 				}
-				return p.parseDropSimpleStmt(nodes.OBJECT_MLE_ENV, start)
+				return nil, p.syntaxErrorAtCur()
 			case "PROPERTY":
 				p.advance() // consume PROPERTY
-				if p.isIdentLike() && p.cur.Str == "GRAPH" {
-					p.advance() // consume GRAPH
+				if err := p.expectWords("GRAPH"); err != nil {
+					return nil, err
 				}
 				return p.parseDropSimpleStmt(nodes.OBJECT_PROPERTY_GRAPH, start)
 			case "VECTOR":
 				p.advance() // consume VECTOR
-				if p.cur.Type == kwINDEX {
-					p.advance() // consume INDEX
+				if err := p.expectWords("INDEX"); err != nil {
+					return nil, err
 				}
 				return p.parseDropSimpleStmt(nodes.OBJECT_VECTOR_INDEX, start)
 			case "RESTORE":
 				p.advance() // consume RESTORE
-				if p.isIdentLike() && p.cur.Str == "POINT" {
-					p.advance() // consume POINT
+				if err := p.expectWords("POINT"); err != nil {
+					return nil, err
 				}
 				return p.parseDropSimpleStmt(nodes.OBJECT_RESTORE_POINT, start)
 			case "LOGICAL":
 				p.advance() // consume LOGICAL
-				if p.cur.Type == kwPARTITION || (p.isIdentLike() && p.cur.Str == "PARTITION") {
-					p.advance() // consume PARTITION
-				}
-				if p.isIdentLike() && p.cur.Str == "TRACKING" {
-					p.advance() // consume TRACKING
+				if err := p.expectWords("PARTITION", "TRACKING"); err != nil {
+					return nil, err
 				}
 				return p.parseDropSimpleStmt(nodes.OBJECT_LOGICAL_PARTITION_TRACKING, start)
 			case "PMEM":
 				p.advance() // consume PMEM
-				if p.isIdentLike() && p.cur.Str == "FILESTORE" {
-					p.advance() // consume FILESTORE
+				if err := p.expectWords("FILESTORE"); err != nil {
+					return nil, err
 				}
 				return p.parseDropSimpleStmt(nodes.OBJECT_PMEM_FILESTORE, start)
 			}
@@ -672,14 +683,14 @@ func (p *Parser) parseDropClusterStmt(start int) (*nodes.DropStmt, error) {
 	// Optional INCLUDING TABLES
 	if p.isIdentLike() && p.cur.Str == "INCLUDING" {
 		p.advance() // INCLUDING
-		if p.cur.Type == kwTABLE || (p.isIdentLike() && p.cur.Str == "TABLES") {
-			p.advance() // TABLES
+		if err := p.expectWords("TABLES"); err != nil {
+			return nil, err
 		}
 		// Optional CASCADE CONSTRAINTS
 		if p.cur.Type == kwCASCADE {
 			p.advance() // CASCADE
-			if p.isIdentLike() && p.cur.Str == "CONSTRAINTS" {
-				p.advance() // CONSTRAINTS
+			if err := p.expectWords("CONSTRAINTS"); err != nil {
+				return nil, err
 			}
 			stmt.Cascade = true
 		}
@@ -787,8 +798,8 @@ func (p *Parser) parseAlterAdminObject(start int) (nodes.StmtNode, error) {
 				return p.parseAlterFlashbackArchiveStmt(start)
 			case "RESOURCE":
 				p.advance() // consume RESOURCE
-				if p.isIdentLike() && p.cur.Str == "COST" {
-					p.advance() // consume COST
+				if err := p.expectWords("COST"); err != nil {
+					return nil, err
 				}
 				return p.parseAlterResourceCostStmt(start)
 			case "ROLLBACK":
@@ -1170,52 +1181,68 @@ func (p *Parser) parseCreateOutlineStmt(start int, orReplace, public bool) (*nod
 		Loc:       nodes.Loc{Start: start},
 	}
 
-	// Optional outline name — the name comes before FOR/FROM/ON.
-	// We need to check if the current token is an identifier that is NOT a keyword
-	// like FOR, FROM, ON which start the next clause.
-	if p.cur.Type != kwFOR && p.cur.Type != kwFROM && p.cur.Type != kwON &&
-		p.cur.Type != ';' && p.cur.Type != tokEOF {
-		if p.isIdentLike() || p.cur.Type == tokIDENT || p.cur.Type == tokQIDENT {
-			stmt.Name = p.cur.Str
-			p.advance()
+	// Optional outline name: one name (ORA-00969 at a dot after it).
+	if p.cur.Type != kwFOR && p.cur.Type != kwFROM && p.cur.Type != kwON && p.isIdentLike() {
+		var err error
+		if stmt.Name, err = p.parseIdentifier(); err != nil {
+			return nil, err
 		}
 	}
 
-	// FOR CATEGORY category
-	if p.cur.Type == kwFOR {
-		p.advance()
-		if p.isIdentLikeStr("CATEGORY") {
-			p.advance()
-		}
-		if p.isIdentLike() || p.cur.Type == tokIDENT || p.cur.Type == tokQIDENT {
-			stmt.Category = p.cur.Str
-			p.advance()
-		}
-	}
-
-	// FROM [ PRIVATE ] source_outline
-	if p.cur.Type == kwFROM {
+	switch p.cur.Type {
+	case kwFROM:
+		// FROM [ PRIVATE ] source_outline
 		p.advance()
 		if p.cur.Type == kwPRIVATE {
 			stmt.FromPrivate = true
 			p.advance()
 		}
-		if p.isIdentLike() || p.cur.Type == tokIDENT || p.cur.Type == tokQIDENT {
-			stmt.FromSource = p.cur.Str
-			p.advance()
+		var err error
+		if stmt.FromSource, err = p.parseRequiredIdentifier(); err != nil {
+			return nil, err
 		}
-	}
-
-	// ON statement — skip to semicolon
-	if p.cur.Type == kwON {
+	case kwFOR, kwON:
+		// [ FOR CATEGORY category ] ON statement
+		if p.cur.Type == kwFOR {
+			p.advance()
+			if err := p.expectWords("CATEGORY"); err != nil {
+				return nil, err
+			}
+			var err error
+			if stmt.Category, err = p.parseRequiredIdentifier(); err != nil {
+				return nil, err
+			}
+			if p.cur.Type != kwON {
+				return nil, p.syntaxErrorAtCur()
+			}
+		}
+		// ON statement — skip to semicolon
 		p.advance()
 		for p.cur.Type != ';' && p.cur.Type != tokEOF {
 			p.advance()
 		}
+	default:
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// parseRequiredIdentifier parses one name, failing at the current token when
+// none is there or when it is a reserved word (ORA-00931 at PUBLIC).
+func (p *Parser) parseRequiredIdentifier() (string, error) {
+	if p.cur.Type != tokQIDENT && isOracleSQLReservedKeyword(p.cur) {
+		return "", p.syntaxErrorAtCur()
+	}
+	name, err := p.parseIdentifier()
+	if err != nil {
+		return "", err
+	}
+	if name == "" {
+		return "", p.syntaxErrorAtCur()
+	}
+	return name, nil
 }
 
 // parseAlterOutlineStmt parses an ALTER OUTLINE statement.
@@ -1223,61 +1250,67 @@ func (p *Parser) parseCreateOutlineStmt(start int, orReplace, public bool) (*nod
 //
 // BNF:
 //
-//	ALTER OUTLINE [ PUBLIC | PRIVATE ] outline
-//	    { REBUILD | RENAME TO new_outline_name | CHANGE CATEGORY TO new_category_name | { ENABLE | DISABLE } } ;
+//	ALTER OUTLINE outline
+//	    { REBUILD | RENAME TO new_outline_name | CHANGE CATEGORY TO new_category_name | { ENABLE | DISABLE } }... ;
+//
+// Oracle 23ai takes no PUBLIC or PRIVATE here (ORA-00931 at PUBLIC; it
+// reads PRIVATE as the name), and more than one action (REBUILD ENABLE).
+// Action records the first.
 func (p *Parser) parseAlterOutlineStmt(start int) (*nodes.AlterOutlineStmt, error) {
 	stmt := &nodes.AlterOutlineStmt{
 		Loc: nodes.Loc{Start: start},
 	}
 
-	// PUBLIC | PRIVATE
-	if p.cur.Type == kwPUBLIC {
-		stmt.Public = true
-		p.advance()
-	} else if p.cur.Type == kwPRIVATE {
-		stmt.Private = true
-		p.advance()
+	var err error
+	if stmt.Name, err = p.parseRequiredIdentifier(); err != nil {
+		return nil, err
 	}
 
-	// outline name
-	if p.isIdentLike() || p.cur.Type == tokIDENT || p.cur.Type == tokQIDENT {
-		stmt.Name = p.cur.Str
-		p.advance()
+	for {
+		action := ""
+		switch {
+		case p.isKeywordStr("REBUILD"):
+			action = "REBUILD"
+			p.advance()
+		case p.cur.Type == kwRENAME:
+			action = "RENAME"
+			p.advance()
+			if p.cur.Type != kwTO {
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance()
+			if stmt.NewName, err = p.parseRequiredIdentifier(); err != nil {
+				return nil, err
+			}
+		case p.isKeywordStr("CHANGE"):
+			action = "CHANGE_CATEGORY"
+			p.advance()
+			if err := p.expectWords("CATEGORY"); err != nil {
+				return nil, err
+			}
+			if p.cur.Type != kwTO {
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance()
+			if stmt.Category, err = p.parseRequiredIdentifier(); err != nil {
+				return nil, err
+			}
+		case p.cur.Type == kwENABLE:
+			action = "ENABLE"
+			p.advance()
+		case p.cur.Type == kwDISABLE:
+			action = "DISABLE"
+			p.advance()
+		}
+		if action == "" {
+			break
+		}
+		if stmt.Action == "" {
+			stmt.Action = action
+		}
 	}
-
-	// Action
-	if p.isIdentLikeStr("REBUILD") {
-		stmt.Action = "REBUILD"
-		p.advance()
-	} else if p.cur.Type == kwRENAME {
-		stmt.Action = "RENAME"
-		p.advance()
-		if p.cur.Type == kwTO {
-			p.advance()
-		}
-		if p.isIdentLike() || p.cur.Type == tokIDENT || p.cur.Type == tokQIDENT {
-			stmt.NewName = p.cur.Str
-			p.advance()
-		}
-	} else if p.isIdentLikeStr("CHANGE") {
-		stmt.Action = "CHANGE_CATEGORY"
-		p.advance()
-		if p.isIdentLikeStr("CATEGORY") {
-			p.advance()
-		}
-		if p.cur.Type == kwTO {
-			p.advance()
-		}
-		if p.isIdentLike() || p.cur.Type == tokIDENT || p.cur.Type == tokQIDENT {
-			stmt.Category = p.cur.Str
-			p.advance()
-		}
-	} else if p.cur.Type == kwENABLE {
-		stmt.Action = "ENABLE"
-		p.advance()
-	} else if p.cur.Type == kwDISABLE {
-		stmt.Action = "DISABLE"
-		p.advance()
+	if stmt.Action == "" {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	stmt.Loc.End = p.prev.End
@@ -1344,35 +1377,40 @@ func (p *Parser) parseCreateDirectoryStmt(start int, orReplace bool) (nodes.Stmt
 		Loc:        nodes.Loc{Start: start},
 	}
 	opts := &nodes.List{}
+	ifNotExists, err := p.parseIfNotExistsAfterKind(orReplace)
+	if err != nil {
+		return nil, err
+	}
+	if ifNotExists {
+		stmt.IfNotExists = true
+	}
 	var parseErr387 error
 
 	stmt.Name, parseErr387 = p.parseObjectName()
-	if parseErr387 !=
-
-		// [ SHARING = { METADATA | NONE } ]
-		nil {
+	if parseErr387 != nil {
 		return nil, parseErr387
 	}
 
-	if p.isIdentLike() && p.cur.Str == "SHARING" {
+	// [ SHARING = { METADATA | NONE } ]
+	if p.isKeywordStr("SHARING") {
 		p.advance()
-		if p.cur.Type == '=' {
-			p.advance()
+		value, err := p.parseSharingValue()
+		if err != nil {
+			return nil, err
 		}
-		if p.isIdentLike() || p.cur.Type == tokIDENT {
-			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "SHARING", Value: p.cur.Str})
-			p.advance()
-		}
+		opts.Items = append(opts.Items, &nodes.DDLOption{Key: "SHARING", Value: value})
 	}
 
 	// AS 'path_name'
-	if p.cur.Type == kwAS {
-		p.advance()
-		if p.cur.Type == tokSCONST {
-			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "AS", Value: p.cur.Str})
-			p.advance()
-		}
+	if p.cur.Type != kwAS {
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance()
+	if p.cur.Type != tokSCONST {
+		return nil, p.syntaxErrorAtCur()
+	}
+	opts.Items = append(opts.Items, &nodes.DDLOption{Key: "AS", Value: p.cur.Str})
+	p.advance()
 
 	if len(opts.Items) > 0 {
 		stmt.Options = opts
@@ -1455,19 +1493,21 @@ func (p *Parser) parseCreateSpfileStmt(start int) (nodes.StmtNode, error) {
 	}
 	opts := &nodes.List{}
 
-	// [ = 'spfile_name' ] or [ 'spfile_name' ]
+	// [ = 'spfile_name' ]
 	if p.cur.Type == '=' {
 		p.advance()
-	}
-	if p.cur.Type == tokSCONST {
+		if p.cur.Type != tokSCONST {
+			return nil, p.syntaxErrorAtCur()
+		}
 		opts.Items = append(opts.Items, &nodes.DDLOption{Key: "SPFILE", Value: p.cur.Str})
 		p.advance()
 	}
 
 	// FROM
-	if p.cur.Type == kwFROM {
-		p.advance()
+	if p.cur.Type != kwFROM {
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance()
 
 	// { PFILE [ = 'pfile_name' ] [ AS COPY ] | MEMORY }
 	if p.isIdentLike() && p.cur.Str == "PFILE" {
@@ -1495,6 +1535,8 @@ func (p *Parser) parseCreateSpfileStmt(start int) (nodes.StmtNode, error) {
 	} else if p.isIdentLike() && p.cur.Str == "MEMORY" {
 		opts.Items = append(opts.Items, &nodes.DDLOption{Key: "FROM", Value: "MEMORY"})
 		p.advance()
+	} else {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	if len(opts.Items) > 0 {
@@ -1519,40 +1561,31 @@ func (p *Parser) parseCreateEditionStmt(start int) (nodes.StmtNode, error) {
 	}
 	opts := &nodes.List{}
 
-	// [ IF NOT EXISTS ] — may have been consumed by the caller already,
-	// but check here for cases where EDITION is dispatched through parseCreateAdminObject.
-	if p.cur.Type == kwIF {
-		next := p.peekNext()
-		if next.Type == kwNOT {
-			p.advance() // IF
-			p.advance() // NOT
-			if p.cur.Type == kwEXISTS {
-				p.advance() // EXISTS
-			}
-		}
-	}
-	var parseErr400 error
-
-	stmt.Name, parseErr400 = p.parseObjectName()
-	if parseErr400 !=
-
-		// [ AS CHILD OF parent_edition ]
-		nil {
-		return nil, parseErr400
+	// [ IF NOT EXISTS ]
+	var err error
+	if stmt.IfNotExists, err = p.parseIfNotExistsAfterKind(false); err != nil {
+		return nil, err
 	}
 
+	if stmt.Name, err = p.parseRequiredObjectName(); err != nil {
+		return nil, err
+	}
+
+	// [ AS CHILD OF parent_edition ]
 	if p.cur.Type == kwAS {
 		p.advance()
-		if p.isIdentLike() && p.cur.Str == "CHILD" {
-			p.advance()
+		if err := p.expectWords("CHILD"); err != nil {
+			return nil, err
 		}
-		if p.isIdentLike() && p.cur.Str == "OF" {
-			p.advance()
+		if p.cur.Type != kwOF {
+			return nil, p.syntaxErrorAtCur()
 		}
-		if p.isIdentLike() || p.cur.Type == tokIDENT || p.cur.Type == tokQIDENT {
-			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "AS CHILD OF", Value: p.cur.Str})
-			p.advance()
+		p.advance()
+		parent, err := p.parseRequiredIdentifier()
+		if err != nil {
+			return nil, err
 		}
+		opts.Items = append(opts.Items, &nodes.DDLOption{Key: "AS CHILD OF", Value: parent})
 	}
 
 	if len(opts.Items) > 0 {
@@ -1617,9 +1650,10 @@ func (p *Parser) parseDropJavaStmt(start int) (*nodes.DropStmt, error) {
 	}
 
 	// { SOURCE | CLASS | RESOURCE }
-	if p.isIdentLike() && (p.cur.Str == "SOURCE" || p.cur.Str == "CLASS" || p.cur.Str == "RESOURCE") {
-		p.advance()
+	if !p.isKeywordStr("SOURCE") && !p.isKeywordStr("CLASS") && !p.isKeywordStr("RESOURCE") {
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance()
 
 	// [ IF EXISTS ]
 	if p.cur.Type == kwIF {

@@ -979,11 +979,19 @@ func (l *Lexer) lexInitial() Token {
 		return l.lexBlockCommentOrHint()
 	}
 
-	// National character literal: N'...'
+	// National character literal: N'...', or Nq'[delim]...[delim]'
 	if (ch == 'N' || ch == 'n') && l.pos+1 < l.end && l.input[l.pos+1] == '\'' {
 		l.pos++ // skip N
 		str := l.lexSingleQuotedString()
 		return Token{Type: tokNCHARLIT, Str: str, Loc: l.start}
+	}
+	if (ch == 'N' || ch == 'n') && l.pos+2 < l.end && (l.input[l.pos+1] == 'Q' || l.input[l.pos+1] == 'q') && l.input[l.pos+2] == '\'' {
+		l.pos++ // skip N
+		tok := l.lexQQuote()
+		if tok.Type == tokSCONST {
+			tok.Type = tokNCHARLIT
+		}
+		return tok
 	}
 
 	// Q-quote mechanism: q'[delim]...[delim]'
@@ -1070,8 +1078,9 @@ func (l *Lexer) lexInitial() Token {
 		return l.lexNumber()
 	}
 
-	// Identifiers and keywords
-	if isIdentStart(ch) {
+	// Identifiers and keywords. A name starts with a letter: '_' lexes as
+	// itself, where Oracle reports ORA-00911.
+	if isIdentStart(ch) && ch != '_' {
 		return l.lexIdentOrKeyword()
 	}
 
@@ -1192,6 +1201,13 @@ func (l *Lexer) lexQQuote() Token {
 	}
 
 	openDelim := l.input[l.pos]
+	switch openDelim {
+	case ' ', '\t', '\n', '\r', '\f':
+		// A blank is no delimiter (ORA-00911 at the q).
+		l.Err = fmt.Errorf("invalid q-quote delimiter")
+		l.pos = l.end
+		return Token{Type: tokSCONST, Loc: l.start}
+	}
 	l.pos++
 
 	// Determine close delimiter

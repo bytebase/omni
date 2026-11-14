@@ -18,10 +18,9 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 	start := p.pos()
 	p.advance() // consume CREATE
 
-	// OR REPLACE | IF NOT EXISTS
+	// OR REPLACE. Oracle 23ai takes IF NOT EXISTS after the object's kind,
+	// never before it (ORA-00901 at the IF of CREATE IF NOT EXISTS).
 	orReplace := false
-	ifNotExists := false
-	ifTok := p.cur
 	if p.cur.Type == kwOR {
 		p.advance() // consume OR
 		if p.cur.Type != kwREPLACE {
@@ -30,20 +29,7 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 		p.advance() // consume REPLACE
 		orReplace = true
 	} else if p.cur.Type == kwIF {
-		if p.peekNext().Type == kwNOT {
-			p.advance() // consume IF
-			p.advance() // consume NOT
-			// CREATE IF NOT without EXISTS is ORA-00901 at IF.
-			if p.cur.Type != kwEXISTS {
-				return nil, p.syntaxErrorAtTok(ifTok)
-			}
-			p.advance() // consume EXISTS
-			ifNotExists = true
-			// IF NOT EXISTS follows OPERATOR (ORA-00901 at IF before it).
-			if p.isKeywordStr("OPERATOR") {
-				return nil, p.syntaxErrorAtTok(ifTok)
-			}
-		}
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	// EDITIONABLE | NONEDITIONABLE (only for PL/SQL objects: PROCEDURE, FUNCTION, PACKAGE, TRIGGER, TYPE, LIBRARY)
@@ -95,7 +81,7 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 
 	// IMMUTABLE TABLE | BLOCKCHAIN TABLE
 	if (p.isKeywordStr("IMMUTABLE") || p.isKeywordStr("BLOCKCHAIN")) && p.peekNext().Type == kwTABLE &&
-		!orReplace && !ifNotExists && !global && !private {
+		!orReplace && !global && !private {
 		stmt := &nodes.CreateTableStmt{
 			Immutable:  p.cur.Str == "IMMUTABLE",
 			Blockchain: p.cur.Str == "BLOCKCHAIN",
@@ -143,11 +129,6 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 		javaMods = append(javaMods, &nodes.DDLOption{Key: "NOFORCE", Loc: nodes.Loc{Start: p.cur.Loc, End: p.cur.End}})
 		p.advance() // consume NOFORCE
 	}
-	if ifNotExists && (len(javaMods) > 0 || p.cur.Type == kwJAVA) {
-		// CREATE JAVA takes IF NOT EXISTS after its kind, not before JAVA
-		// (ORA-00901 on Oracle 23ai, at the IF).
-		return nil, p.syntaxErrorAtTok(ifTok)
-	}
 	if len(javaMods) > 0 {
 		if p.cur.Type != kwJAVA {
 			return nil, p.syntaxErrorAtCur()
@@ -157,11 +138,6 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 	}
 
 	if p.cur.Type == kwLIBRARY {
-		// CREATE LIBRARY takes no IF NOT EXISTS (ORA-00901 on Oracle 23ai,
-		// at the IF).
-		if ifNotExists {
-			return nil, p.syntaxErrorAtTok(ifTok)
-		}
 		p.advance() // consume LIBRARY
 		var edition *Token
 		if editionable || nonEditionable {
@@ -171,7 +147,7 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 	}
 
 	// CONTEXT, RESTORE POINT, ROLLBACK SEGMENT, INMEMORY JOIN GROUP
-	if stmt, ok, err := p.parseCreateAdminTail(start, orReplace, ifNotExists, ifTok, publicTok); ok {
+	if stmt, ok, err := p.parseCreateAdminTail(start, orReplace, publicTok); ok {
 		return stmt, err
 	}
 
@@ -199,15 +175,15 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 		}
 		return p.parseCreateDatabaseStmt(start)
 	case kwTYPE:
-		return p.parseCreateTypeStmt(start, orReplace, ifNotExists, editionable, nonEditionable)
+		return p.parseCreateTypeStmt(start, orReplace, false, editionable, nonEditionable)
 	case kwPROCEDURE:
-		return p.parseCreateProcedureStmt(start, orReplace, ifNotExists, editionable, nonEditionable)
+		return p.parseCreateProcedureStmt(start, orReplace, false, editionable, nonEditionable)
 	case kwFUNCTION:
-		return p.parseCreateFunctionStmt(start, orReplace, ifNotExists, editionable, nonEditionable)
+		return p.parseCreateFunctionStmt(start, orReplace, false, editionable, nonEditionable)
 	case kwPACKAGE:
-		return p.parseCreatePackageStmt(start, orReplace, ifNotExists, editionable, nonEditionable)
+		return p.parseCreatePackageStmt(start, orReplace, false, editionable, nonEditionable)
 	case kwTRIGGER:
-		return p.parseCreateTriggerStmt(start, orReplace, ifNotExists, editionable, nonEditionable)
+		return p.parseCreateTriggerStmt(start, orReplace, false, editionable, nonEditionable)
 	case kwAUDIT:
 		// CREATE AUDIT POLICY
 		p.advance() // consume AUDIT
@@ -219,14 +195,8 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 	case kwJSON:
 		// CREATE JSON RELATIONAL DUALITY VIEW
 		p.advance() // consume JSON
-		if p.isIdentLike() && p.cur.Str == "RELATIONAL" {
-			p.advance() // consume RELATIONAL
-		}
-		if p.isIdentLike() && p.cur.Str == "DUALITY" {
-			p.advance() // consume DUALITY
-		}
-		if p.cur.Type == kwVIEW {
-			p.advance() // consume VIEW
+		if err := p.parseJsonDualityViewKind(false); err != nil {
+			return nil, err
 		}
 		return p.parseCreateJsonDualityViewStmt(start, orReplace, false)
 	case kwUSER, kwROLE, kwPROFILE,
@@ -308,23 +278,18 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 				return p.parseCreateOutlineStmt(start, orReplace, public)
 			case "PROPERTY":
 				p.advance() // consume PROPERTY
-				if p.isIdentLike() && p.cur.Str == "GRAPH" {
-					p.advance() // consume GRAPH
+				if err := p.expectWords("GRAPH"); err != nil {
+					return nil, err
 				}
-				return p.parseCreatePropertyGraphStmt(start, orReplace, ifNotExists)
+				return p.parseCreatePropertyGraphStmt(start, orReplace, false)
 			case "VECTOR":
 				p.advance() // consume VECTOR
 				if p.cur.Type != kwINDEX {
 					return nil, p.syntaxErrorAtCur()
 				}
 				p.advance() // consume INDEX
-				return p.parseCreateVectorIndexStmt(start, ifNotExists)
+				return p.parseCreateVectorIndexStmt(start, false)
 			case "MLE":
-				// CREATE MLE { ENV | MODULE } takes IF NOT EXISTS after its
-				// kind, not before MLE (ORA-00901 on Oracle 23ai, at the IF).
-				if ifNotExists {
-					return nil, p.syntaxErrorAtTok(ifTok)
-				}
 				p.advance() // consume MLE
 				switch {
 				case p.isKeywordStr("ENV"):
@@ -1703,6 +1668,10 @@ func (p *Parser) parseIdentifierList() (*nodes.List, error) {
 			return nil, parseErr537
 		}
 		if name == "" {
+			// A name follows each ',' (ORA-00936 at a ')' after one).
+			if len(list.Items) > 0 {
+				return nil, p.syntaxErrorAtCur()
+			}
 			break
 		}
 		list.Items = append(list.Items, &nodes.String{Str: name})

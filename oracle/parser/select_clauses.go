@@ -1647,7 +1647,7 @@ func (p *Parser) parseSelectMatchRowsPerMatch() (string, error) {
 	default:
 		return "", nil
 	}
-	if err := p.expectSelectWords(words...); err != nil {
+	if err := p.expectWords(words...); err != nil {
 		return "", err
 	}
 	if words[0] == "ONE" {
@@ -1657,13 +1657,13 @@ func (p *Parser) parseSelectMatchRowsPerMatch() (string, error) {
 	case p.isKeywordStr("SHOW"), p.isKeywordStr("OMIT"):
 		mode := p.cur.Str
 		p.advance()
-		if err := p.expectSelectWords("EMPTY", "MATCHES"); err != nil {
+		if err := p.expectWords("EMPTY", "MATCHES"); err != nil {
 			return "", err
 		}
 		return "ALL ROWS PER MATCH " + mode + " EMPTY MATCHES", nil
 	case p.cur.Type == kwWITH:
 		p.advance()
-		if err := p.expectSelectWords("UNMATCHED", "ROWS"); err != nil {
+		if err := p.expectWords("UNMATCHED", "ROWS"); err != nil {
 			return "", err
 		}
 		return "ALL ROWS PER MATCH WITH UNMATCHED ROWS", nil
@@ -1679,11 +1679,11 @@ func (p *Parser) parseSelectMatchAfterMatch() (string, error) {
 	if !p.isKeywordStr("AFTER") {
 		return "", nil
 	}
-	if err := p.expectSelectWords("AFTER", "MATCH", "SKIP"); err != nil {
+	if err := p.expectWords("AFTER", "MATCH", "SKIP"); err != nil {
 		return "", err
 	}
 	if p.isKeywordStr("PAST") {
-		if err := p.expectSelectWords("PAST", "LAST", "ROW"); err != nil {
+		if err := p.expectWords("PAST", "LAST", "ROW"); err != nil {
 			return "", err
 		}
 		return "PAST LAST ROW", nil
@@ -1695,7 +1695,7 @@ func (p *Parser) parseSelectMatchAfterMatch() (string, error) {
 	prefix := "TO "
 	switch p.cur.Type {
 	case kwNEXT:
-		if err := p.expectSelectWords("NEXT", "ROW"); err != nil {
+		if err := p.expectWords("NEXT", "ROW"); err != nil {
 			return "", err
 		}
 		return "TO NEXT ROW", nil
@@ -1710,9 +1710,9 @@ func (p *Parser) parseSelectMatchAfterMatch() (string, error) {
 	return prefix + name, nil
 }
 
-// expectSelectWords consumes the unquoted words in order, failing at the
+// expectWords consumes the unquoted words in order, failing at the
 // first token that is not the word expected there.
-func (p *Parser) expectSelectWords(words ...string) error {
+func (p *Parser) expectWords(words ...string) error {
 	for _, w := range words {
 		if !p.isKeywordStr(w) {
 			return p.syntaxErrorAtCur()

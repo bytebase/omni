@@ -776,8 +776,8 @@ func (p *Parser) parseCreateDatabaseStmt(start int) (nodes.StmtNode, error) {
 			opts.Items = append(opts.Items, opt)
 
 		default:
-			// Unknown token, advance to avoid infinite loop
-			p.advance()
+			// No other clause (ORA-02000 at USING).
+			return nil, p.syntaxErrorAtCur()
 		}
 	}
 
@@ -1092,8 +1092,8 @@ func (p *Parser) parseAlterDatabaseDictionaryStmt(start int) (nodes.StmtNode, er
 	// ENCRYPT CREDENTIALS
 	case p.isIdentLike() && p.cur.Str == "ENCRYPT":
 		p.advance()
-		if p.isIdentLike() && p.cur.Str == "CREDENTIALS" {
-			p.advance()
+		if err := p.expectWords("CREDENTIALS"); err != nil {
+			return nil, err
 		}
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: "ENCRYPT_CREDENTIALS",
@@ -1103,8 +1103,8 @@ func (p *Parser) parseAlterDatabaseDictionaryStmt(start int) (nodes.StmtNode, er
 	// REKEY CREDENTIALS
 	case p.isIdentLike() && p.cur.Str == "REKEY":
 		p.advance()
-		if p.isIdentLike() && p.cur.Str == "CREDENTIALS" {
-			p.advance()
+		if err := p.expectWords("CREDENTIALS"); err != nil {
+			return nil, err
 		}
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: "REKEY_CREDENTIALS",
@@ -1114,16 +1114,19 @@ func (p *Parser) parseAlterDatabaseDictionaryStmt(start int) (nodes.StmtNode, er
 	// DELETE CREDENTIALS KEY
 	case p.cur.Type == kwDELETE:
 		p.advance()
-		if p.isIdentLike() && p.cur.Str == "CREDENTIALS" {
-			p.advance()
+		if err := p.expectWords("CREDENTIALS"); err != nil {
+			return nil, err
 		}
-		if p.cur.Type == kwKEY {
-			p.advance()
+		if p.cur.Type != kwKEY {
+			return nil, p.syntaxErrorAtCur()
 		}
+		p.advance()
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: "DELETE_CREDENTIALS_KEY",
 			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
+	default:
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	if len(opts.Items) > 0 {
@@ -1205,8 +1208,8 @@ func (p *Parser) parseDropPluggableDatabaseStmt(start int) (nodes.StmtNode, erro
 			})
 		case p.isIdentLike() && p.cur.Str == "INCLUDING":
 			p.advance() // INCLUDING
-			if p.isIdentLike() && p.cur.Str == "DATAFILES" {
-				p.advance()
+			if err := p.expectWords("DATAFILES"); err != nil {
+				return nil, err
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "INCLUDING_DATAFILES",
@@ -1214,8 +1217,8 @@ func (p *Parser) parseDropPluggableDatabaseStmt(start int) (nodes.StmtNode, erro
 			})
 		case p.isIdentLike() && p.cur.Str == "KEEP":
 			p.advance() // KEEP
-			if p.isIdentLike() && p.cur.Str == "DATAFILES" {
-				p.advance()
+			if err := p.expectWords("DATAFILES"); err != nil {
+				return nil, err
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "KEEP_DATAFILES",
@@ -1261,14 +1264,15 @@ func (p *Parser) parseCreateDiskgroupStmt(start int) (nodes.StmtNode, error) {
 		case "NORMAL", "HIGH", "FLEX", "EXTENDED", "EXTERNAL":
 			red := p.cur.Str
 			p.advance()
-			if p.isIdentLike() && p.cur.Str == "REDUNDANCY" {
-				p.advance()
+			if err := p.expectWords("REDUNDANCY"); err != nil {
+				return nil, err
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "REDUNDANCY", Value: red})
 		}
 	}
 
-	// Parse FAILGROUP/DISK clauses
+	// Parse FAILGROUP/DISK clauses; one DISK at least (ORA-02000).
+	hasDisk := false
 	for p.cur.Type != ';' && p.cur.Type != tokEOF {
 		optStart := p.pos()
 
@@ -1282,10 +1286,9 @@ func (p *Parser) parseCreateDiskgroupStmt(start int) (nodes.StmtNode, error) {
 			}
 			if p.isIdentLike() && p.cur.Str == "FAILGROUP" {
 				p.advance() // FAILGROUP
-				fgName := ""
-				if p.isIdentLike() || p.cur.Type == tokIDENT {
-					fgName = p.cur.Str
-					p.advance()
+				fgName, err := p.parseRequiredIdentifier()
+				if err != nil {
+					return nil, err
 				}
 				val := fgName
 				if qualifier != "" {
@@ -1296,29 +1299,31 @@ func (p *Parser) parseCreateDiskgroupStmt(start int) (nodes.StmtNode, error) {
 					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			}
+			// The disks of the failure group follow.
+			if !p.isKeywordStr("DISK") {
+				return nil, p.syntaxErrorAtCur()
+			}
 
 		// DISK qualified_disk_clause [, qualified_disk_clause]...
 		case p.isIdentLike() && p.cur.Str == "DISK":
 			p.advance() // DISK
+			hasDisk = true
 			for {
 				dStart := p.pos()
-				// path_name (string constant or identifier)
-				path := ""
-				if p.cur.Type == tokSCONST {
-					path = p.cur.Str
-					p.advance()
-				} else if p.isIdentLike() || p.cur.Type == tokIDENT {
-					path = p.cur.Str
-					p.advance()
+				// search_string
+				if p.cur.Type != tokSCONST {
+					return nil, p.syntaxErrorAtCur()
 				}
+				path := p.cur.Str
+				p.advance()
 				name := ""
 				size := ""
 				forceFlag := ""
 				if p.isIdentLike() && p.cur.Str == "NAME" {
 					p.advance()
-					if p.isIdentLike() || p.cur.Type == tokIDENT {
-						name = p.cur.Str
-						p.advance()
+					var err error
+					if name, err = p.parseRequiredIdentifier(); err != nil {
+						return nil, err
 					}
 				}
 				if p.cur.Type == kwSIZE {
@@ -1327,6 +1332,9 @@ func (p *Parser) parseCreateDiskgroupStmt(start int) (nodes.StmtNode, error) {
 					size, parseErr671 = p.parseSizeValue()
 					if parseErr671 != nil {
 						return nil, parseErr671
+					}
+					if size == "" {
+						return nil, p.syntaxErrorAtCur()
 					}
 				}
 				if p.cur.Type == kwFORCE {
@@ -1362,21 +1370,24 @@ func (p *Parser) parseCreateDiskgroupStmt(start int) (nodes.StmtNode, error) {
 			p.advance()
 			attrItems := &nodes.List{}
 			for {
-				if p.cur.Type == tokSCONST {
-					attrName := p.cur.Str
-					p.advance()
-					if p.cur.Type == '=' {
-						p.advance()
-					}
-					attrVal := ""
-					if p.cur.Type == tokSCONST {
-						attrVal = p.cur.Str
-						p.advance()
-					}
-					attrItems.Items = append(attrItems.Items, &nodes.DDLOption{
-						Key: attrName, Value: attrVal,
-					})
+				// 'attribute_name' = 'attribute_value'
+				if p.cur.Type != tokSCONST {
+					return nil, p.syntaxErrorAtCur()
 				}
+				attrName := p.cur.Str
+				p.advance()
+				if p.cur.Type != '=' {
+					return nil, p.syntaxErrorAtCur()
+				}
+				p.advance()
+				if p.cur.Type != tokSCONST {
+					return nil, p.syntaxErrorAtCur()
+				}
+				attrVal := p.cur.Str
+				p.advance()
+				attrItems.Items = append(attrItems.Items, &nodes.DDLOption{
+					Key: attrName, Value: attrVal,
+				})
 				if p.cur.Type == ',' {
 					p.advance()
 					continue
@@ -1393,6 +1404,9 @@ func (p *Parser) parseCreateDiskgroupStmt(start int) (nodes.StmtNode, error) {
 		}
 	}
 createDgDone:
+	if !hasDisk {
+		return nil, p.syntaxErrorAtCur()
+	}
 	if len(opts.Items) > 0 {
 		stmt.Options = opts
 	}
@@ -1427,33 +1441,34 @@ func (p *Parser) parseDropDiskgroupStmt(start int) (nodes.StmtNode, error) {
 		switch {
 		case p.isIdentLike() && p.cur.Str == "INCLUDING":
 			p.advance()
-			if p.isIdentLike() && p.cur.Str == "CONTENTS" {
-				p.advance()
-			}
-			val := "INCLUDING_CONTENTS"
-			if p.cur.Type == kwFORCE {
-				val += ":FORCE"
-				p.advance()
+			if err := p.expectWords("CONTENTS"); err != nil {
+				return nil, err
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
-				Key: val,
+				Key: "INCLUDING_CONTENTS",
 				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
-		case p.isIdentLike() && p.cur.Str == "EXCLUDING":
+			goto dropDgDone
+		case p.isIdentLike() && p.cur.Str == "EXCLUDING" && len(opts.Items) == 0:
 			p.advance()
-			if p.isIdentLike() && p.cur.Str == "CONTENTS" {
-				p.advance()
+			if err := p.expectWords("CONTENTS"); err != nil {
+				return nil, err
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "EXCLUDING_CONTENTS",
 				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
-		case p.cur.Type == kwFORCE:
+			goto dropDgDone
+		case p.cur.Type == kwFORCE && len(opts.Items) == 0:
+			// FORCE INCLUDING CONTENTS
 			p.advance()
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "FORCE",
 				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
+			if !p.isKeywordStr("INCLUDING") {
+				return nil, p.syntaxErrorAtCur()
+			}
 		default:
 			goto dropDgDone
 		}

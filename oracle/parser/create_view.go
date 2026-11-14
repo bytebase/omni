@@ -92,6 +92,31 @@ func (p *Parser) isIdentLikeStrAt(tok Token, s string) bool {
 	return false
 }
 
+// parseJsonDualityViewKind parses [ RELATIONAL ] DUALITY VIEW after JSON.
+// Oracle 23ai takes CREATE JSON [ RELATIONAL ] [ DUALITY ] VIEW, and
+// requires DUALITY after ALTER JSON (ORA-02000 at VIEW).
+func (p *Parser) parseJsonDualityViewKind(dualityRequired bool) error {
+	if p.isKeywordStr("RELATIONAL") {
+		p.advance()
+	}
+	if p.isKeywordStr("DUALITY") {
+		p.advance()
+	} else if dualityRequired {
+		return p.syntaxErrorAtCur()
+	}
+	if p.cur.Type != kwVIEW {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance()
+	return nil
+}
+
+// parseDualityViewReplication parses LOGICAL REPLICATION after ENABLE or
+// DISABLE.
+func (p *Parser) parseDualityViewReplication() error {
+	return p.expectWords("LOGICAL", "REPLICATION")
+}
+
 // parseCreateJsonDualityViewStmt parses a CREATE JSON RELATIONAL DUALITY VIEW statement.
 // Called after CREATE [OR REPLACE | IF NOT EXISTS] JSON RELATIONAL DUALITY VIEW has been consumed.
 //
@@ -107,44 +132,43 @@ func (p *Parser) parseCreateJsonDualityViewStmt(start int, orReplace, ifNotExist
 		IfNotExists: ifNotExists,
 		Loc:         nodes.Loc{Start: start},
 	}
+	if !ifNotExists {
+		var err error
+		if stmt.IfNotExists, err = p.parseIfNotExistsAfterKind(orReplace); err != nil {
+			return nil, err
+		}
+	}
 	var parseErr611 error
 
 	stmt.Name, parseErr611 = p.parseObjectName()
-	if parseErr611 !=
-
-		// duality_view_replication_clause: ENABLE | DISABLE LOGICAL REPLICATION
-		nil {
+	if parseErr611 != nil {
 		return nil, parseErr611
 	}
 
+	// duality_view_replication_clause: { ENABLE | DISABLE } LOGICAL REPLICATION
 	if p.cur.Type == kwENABLE {
 		p.advance()
-		if p.isIdentLike() && p.cur.Str == "LOGICAL" {
-			p.advance()
-			if p.isIdentLike() && p.cur.Str == "REPLICATION" {
-				p.advance()
-			}
+		if err := p.parseDualityViewReplication(); err != nil {
+			return nil, err
 		}
 		stmt.EnableLogicalReplication = true
 	} else if p.cur.Type == kwDISABLE {
 		p.advance()
-		if p.isIdentLike() && p.cur.Str == "LOGICAL" {
-			p.advance()
-			if p.isIdentLike() && p.cur.Str == "REPLICATION" {
-				p.advance()
-			}
+		if err := p.parseDualityViewReplication(); err != nil {
+			return nil, err
 		}
 		stmt.DisableLogicalReplication = true
 	}
 
 	// AS duality_view_subquery
-	if p.cur.Type == kwAS {
-		p.advance()
-		var parseErr612 error
-		stmt.Query, parseErr612 = p.parseSelectStmt()
-		if parseErr612 != nil {
-			return nil, parseErr612
-		}
+	if p.cur.Type != kwAS {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+	var parseErr612 error
+	stmt.Query, parseErr612 = p.parseSelectStmt()
+	if parseErr612 != nil {
+		return nil, parseErr612
 	}
 
 	stmt.Loc.End = p.prev.End
@@ -171,20 +195,14 @@ func (p *Parser) parseAlterJsonDualityViewStmt(start int) (*nodes.AlterJsonDuali
 
 	if p.cur.Type == kwENABLE {
 		p.advance()
-		if p.isIdentLike() && p.cur.Str == "LOGICAL" {
-			p.advance()
-			if p.isIdentLike() && p.cur.Str == "REPLICATION" {
-				p.advance()
-			}
+		if err := p.parseDualityViewReplication(); err != nil {
+			return nil, err
 		}
 		stmt.Action = "ENABLE_LOGICAL_REPLICATION"
 	} else if p.cur.Type == kwDISABLE {
 		p.advance()
-		if p.isIdentLike() && p.cur.Str == "LOGICAL" {
-			p.advance()
-			if p.isIdentLike() && p.cur.Str == "REPLICATION" {
-				p.advance()
-			}
+		if err := p.parseDualityViewReplication(); err != nil {
+			return nil, err
 		}
 		stmt.Action = "DISABLE_LOGICAL_REPLICATION"
 	}

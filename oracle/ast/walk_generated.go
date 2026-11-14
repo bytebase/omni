@@ -51,6 +51,9 @@ func walkChildren(v Visitor, node Node) {
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
+		if n.ConnectWith != nil {
+			Walk(v, n.ConnectWith)
+		}
 	case *AlterDimensionStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -491,6 +494,10 @@ func walkChildren(v Visitor, node Node) {
 			}
 		}
 		Walk(v, n.HashExpr)
+	case *CreateDatabaseLinkStmt:
+		if n.ConnectWith != nil {
+			Walk(v, n.ConnectWith)
+		}
 	case *CreateDimensionStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)

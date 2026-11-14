@@ -133,6 +133,11 @@ func (p *Parser) finishCreatePlainViewStmt(stmt *nodes.CreateViewStmt) (*nodes.C
 	if !selectStmtHasTargets(stmt.Query) {
 		return nil, p.syntaxErrorAtCur()
 	}
+	if stmt.Editioning {
+		if err := p.checkEditioningViewTargets(stmt.Query); err != nil {
+			return nil, err
+		}
+	}
 
 	if p.cur.Type == kwWITH {
 		p.advance() // WITH
@@ -327,6 +332,28 @@ func (p *Parser) parseObjectViewClause() error {
 		_ = superview
 	default:
 		return p.syntaxErrorAtCur()
+	}
+	return nil
+}
+
+// checkEditioningViewTargets reports the first select item of an editioning
+// view that is not a column: Oracle 23ai reads only columns there
+// (ORA-00936 at the item).
+func (p *Parser) checkEditioningViewTargets(query nodes.StmtNode) error {
+	sel, ok := query.(*nodes.SelectStmt)
+	if !ok || sel.TargetList == nil {
+		return nil
+	}
+	for _, item := range sel.TargetList.Items {
+		target, ok := item.(*nodes.ResTarget)
+		if !ok {
+			continue
+		}
+		switch target.Expr.(type) {
+		case *nodes.ColumnRef, *nodes.Star:
+		default:
+			return p.syntaxErrorAtNode(target.Expr)
+		}
 	}
 	return nil
 }
