@@ -2692,6 +2692,8 @@ const (
 	GrantedDatabaseRole
 	// GrantedApplicationRole is GRANT APPLICATION ROLE <name> ...
 	GrantedApplicationRole
+	// GrantedServiceRole is GRANT SERVICE ROLE <service>!<role> ...
+	GrantedServiceRole
 )
 
 // String returns a human-readable name for the kind.
@@ -2703,6 +2705,8 @@ func (k GrantedRoleKind) String() string {
 		return "DatabaseRole"
 	case GrantedApplicationRole:
 		return "ApplicationRole"
+	case GrantedServiceRole:
+		return "ServiceRole"
 	default:
 		return "Unknown"
 	}
@@ -2852,6 +2856,10 @@ const (
 	GrantContainerNone     GrantContainerKind = iota // not an ALL/FUTURE form
 	GrantContainerDatabase                           // IN DATABASE <db>
 	GrantContainerSchema                             // IN SCHEMA <schema>
+	// The containers below are written only by INHERITED CALLER grants.
+	GrantContainerAccount            // IN ACCOUNT (no ContainerName)
+	GrantContainerApplication        // IN APPLICATION <app>
+	GrantContainerApplicationPackage // IN APPLICATION PACKAGE <pkg>
 )
 
 // GrantTarget is the object the privileges/ownership apply to (the ON clause).
@@ -2878,8 +2886,8 @@ type GrantTarget struct {
 
 	// GrantTargetAllIn / GrantTargetFutureIn:
 	ObjectTypePlural string             // e.g. "TABLES", "VIEWS", "SCHEMAS"
-	Container        GrantContainerKind // DATABASE or SCHEMA
-	ContainerName    *ObjectName        // the database/schema name
+	Container        GrantContainerKind // DATABASE, SCHEMA, or (INHERITED CALLER) ACCOUNT / APPLICATION / APPLICATION PACKAGE
+	ContainerName    *ObjectName        // the container's name; nil for IN ACCOUNT
 
 	Loc Loc
 }
@@ -2915,7 +2923,9 @@ func (a CurrentGrantsAction) String() string {
 // (privileges, role, ownership). See GrantKind.
 //
 //	GRANT { <privileges> | ALL [PRIVILEGES] } ON <target> TO <grantee> [WITH GRANT OPTION]
-//	GRANT [DATABASE | APPLICATION] ROLE <name> TO <grantee>
+//	GRANT [DATABASE | APPLICATION] ROLE <name> TO <grantee> [WITH GRANT OPTION]
+//	GRANT ROLE <name> TO USER <user> [{FOR INTERVAL '<interval>' | UNTIL '<timestamp>'} [RESET EXPIRATION]]
+//	GRANT SERVICE ROLE <service>!<role> TO <grantee>
 //	GRANT OWNERSHIP ON <target> TO <grantee> [{REVOKE|COPY} CURRENT GRANTS]
 type GrantStmt struct {
 	Kind GrantKind
@@ -2926,8 +2936,12 @@ type GrantStmt struct {
 	GrantOption   bool         // WITH GRANT OPTION (also on an application role granted to an account role)
 
 	// --- GrantRole ---
-	Role     *ObjectName     // the role being granted (GrantRole)
-	RoleKind GrantedRoleKind // account / database / application role
+	Role            *ObjectName     // the role being granted (GrantRole); the service for a service role
+	RoleKind        GrantedRoleKind // account / database / application / service role
+	ServiceRole     Ident           // the role after `!` in SERVICE ROLE <service>!<role>; zero otherwise
+	ExpireInterval  string          // FOR INTERVAL '<n> <unit>' on a role granted to a user; "" when absent
+	ExpireUntil     string          // UNTIL '<timestamp>' on a role granted to a user; "" when absent
+	ResetExpiration bool            // RESET EXPIRATION after FOR INTERVAL / UNTIL
 
 	// --- GrantOwnership ---
 	CurrentGrants CurrentGrantsAction // trailing CURRENT GRANTS option
@@ -2949,10 +2963,11 @@ func (n *GrantStmt) Tag() NodeTag { return T_GrantStmt }
 //
 //	REVOKE [GRANT OPTION FOR] { <privileges> | ALL [PRIVILEGES] } ON <target> FROM <grantee> [CASCADE|RESTRICT]
 //	REVOKE [DATABASE | APPLICATION] ROLE <name> FROM <grantee>
-//	REVOKE [GRANT OPTION FOR] APPLICATION ROLE <name> FROM ROLE <name> [CASCADE|RESTRICT]
+//	REVOKE [GRANT OPTION FOR] [DATABASE | APPLICATION] ROLE <name> FROM ROLE <name> [CASCADE|RESTRICT]
+//	REVOKE SERVICE ROLE <service>!<role> FROM <grantee>
 //
-// GrantOptionFor, Cascade and Restrict are also set on the RevokeRole of an
-// application role from an account role.
+// GrantOptionFor, Cascade and Restrict are also set on the RevokeRole of a
+// role from an account role (or, for a database role, from a database role).
 type RevokeStmt struct {
 	Kind RevokeKind
 
@@ -2965,8 +2980,9 @@ type RevokeStmt struct {
 	Restrict       bool         // trailing RESTRICT
 
 	// --- RevokeRole ---
-	Role     *ObjectName     // the role being revoked (RevokeRole)
-	RoleKind GrantedRoleKind // account / database / application role
+	Role        *ObjectName     // the role being revoked (RevokeRole); the service for a service role
+	RoleKind    GrantedRoleKind // account / database / application / service role
+	ServiceRole Ident           // the role after `!` in SERVICE ROLE <service>!<role>; zero otherwise
 
 	// --- all kinds ---
 	Grantee *Grantee // the FROM subject
