@@ -2,10 +2,13 @@ package parser
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/bytebase/omni/enginetest/cputime"
 )
 
 // TestNestedParensStayLinear guards the memos behind the paren speculation and
@@ -49,19 +52,13 @@ func TestNestedParensStayLinear(t *testing.T) {
 		// Every subquery body is invalid at its end, after its nested body.
 		{"invalid EXISTS", "SELECT " + nest("EXISTS (SELECT (", "1", ") x y)"), true},
 	} {
-		done := make(chan error, 1)
-		go func() {
-			_, err := Parse(tc.sql)
+		var err error
+		cputime.Within(t, 2*time.Second, fmt.Sprintf("%s: Parse and ParseBestEffort through %d nested parens", tc.name, depth), func() {
+			_, err = Parse(tc.sql)
 			ParseBestEffort(tc.sql)
-			done <- err
-		}()
-		select {
-		case err := <-done:
-			if (err != nil) != tc.wantErr {
-				t.Fatalf("%s: Parse error = %v, want error %v", tc.name, err, tc.wantErr)
-			}
-		case <-time.After(2 * time.Second):
-			t.Fatalf("%s: Parse and ParseBestEffort through %d nested parens took over 2s", tc.name, depth)
+		})
+		if (err != nil) != tc.wantErr {
+			t.Fatalf("%s: Parse error = %v, want error %v", tc.name, err, tc.wantErr)
 		}
 	}
 }
@@ -109,23 +106,17 @@ func TestRawBodyChainsStayLinear(t *testing.T) {
 		{"WITH FUNCTION subqueries in BEGIN blocks over a lex error", inBegin(2000, beginOpen, "!1", beginClose), "!", "expected expression, found INVALID"},
 		{"subqueries in BEGIN blocks", inBegin(2000, beginOpen+"(SELECT ", innermost, ")"+beginClose), "WITH FUNCTION h()", "subquery must contain exactly one query"},
 	} {
-		done := make(chan error, 1)
-		go func() {
-			_, err := Parse(tc.sql)
+		var err error
+		cputime.Within(t, 2*time.Second, fmt.Sprintf("%s: Parse and ParseBestEffort of %d bytes", tc.name, len(tc.sql)), func() {
+			_, err = Parse(tc.sql)
 			ParseBestEffort(tc.sql)
-			done <- err
-		}()
-		select {
-		case err := <-done:
-			var pe *ParseError
-			if !errors.As(err, &pe) {
-				t.Fatalf("%s: Parse error = %v, want a ParseError", tc.name, err)
-			}
-			if want := strings.Index(tc.sql, tc.at); pe.Position != want || pe.Message != tc.msg {
-				t.Errorf("%s: first error %q at %d, want %q at %d", tc.name, pe.Message, pe.Position, tc.msg, want)
-			}
-		case <-time.After(2 * time.Second):
-			t.Fatalf("%s: Parse and ParseBestEffort of %d bytes took over 2s", tc.name, len(tc.sql))
+		})
+		var pe *ParseError
+		if !errors.As(err, &pe) {
+			t.Fatalf("%s: Parse error = %v, want a ParseError", tc.name, err)
+		}
+		if want := strings.Index(tc.sql, tc.at); pe.Position != want || pe.Message != tc.msg {
+			t.Errorf("%s: first error %q at %d, want %q at %d", tc.name, pe.Message, pe.Position, tc.msg, want)
 		}
 	}
 }
@@ -231,19 +222,13 @@ func TestSpeculativeReadingsStayLinear(t *testing.T) {
 		{"failing ROW type", castTo(nest("ROW(", "bigint", ", )")), true},
 		{"routine parameter ROW type", "CREATE FUNCTION f(a " + nest("ROW(", "bigint", ", 1)") + ") RETURNS bigint RETURN 1", false},
 	} {
-		done := make(chan error, 1)
-		go func() {
-			_, err := Parse(tc.sql)
+		var err error
+		cputime.Within(t, 2*time.Second, fmt.Sprintf("%s: Parse and ParseBestEffort through %d nested levels", tc.name, depth), func() {
+			_, err = Parse(tc.sql)
 			ParseBestEffort(tc.sql)
-			done <- err
-		}()
-		select {
-		case err := <-done:
-			if (err != nil) != tc.wantErr {
-				t.Fatalf("%s: Parse error = %v, want error %v", tc.name, err, tc.wantErr)
-			}
-		case <-time.After(2 * time.Second):
-			t.Fatalf("%s: Parse and ParseBestEffort through %d nested levels took over 2s", tc.name, depth)
+		})
+		if (err != nil) != tc.wantErr {
+			t.Fatalf("%s: Parse error = %v, want error %v", tc.name, err, tc.wantErr)
 		}
 	}
 }

@@ -1,12 +1,14 @@
 package mssql_test
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/bytebase/omni/enginetest/cputime"
 	"github.com/bytebase/omni/mssql"
 )
 
@@ -202,20 +204,11 @@ func TestStatementWithResultLimitStaysLinear(t *testing.T) {
 	const n = 20000
 	statement := strings.Repeat("SELECT a FROM t UNION ALL ", n) + "SELECT a FROM t"
 	want := strings.Repeat("SELECT TOP 10 a FROM t UNION ALL ", n) + "SELECT TOP 10 a FROM t;"
-	type result struct {
-		got string
-		err error
-	}
-	done := make(chan result, 1)
-	go func() {
-		got, err := mssql.StatementWithResultLimit(statement, 10)
-		done <- result{got, err}
-	}()
-	select {
-	case r := <-done:
-		require.NoError(t, r.err)
-		require.Equal(t, want, r.got)
-	case <-time.After(10 * time.Second):
-		t.Fatalf("StatementWithResultLimit on %d UNION ALL operands: no result within 10s", n+1)
-	}
+	var got string
+	var err error
+	cputime.Within(t, 10*time.Second, fmt.Sprintf("StatementWithResultLimit on %d UNION ALL operands", n+1), func() {
+		got, err = mssql.StatementWithResultLimit(statement, 10)
+	})
+	require.NoError(t, err)
+	require.Equal(t, want, got)
 }

@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bytebase/omni/enginetest/cputime"
 	nodes "github.com/bytebase/omni/mariadb/ast"
 	"github.com/bytebase/omni/mariadb/deparse"
 	"github.com/bytebase/omni/mariadb/parser"
@@ -76,15 +77,12 @@ func TestNestedSourcesWalkedOnce(t *testing.T) {
 			}},
 		}
 		for _, step := range steps {
-			done := make(chan error, 1)
-			go func() { done <- step.run() }()
-			select {
-			case err := <-done:
-				if err != nil {
-					t.Errorf("%s %s: %v", open, step.name, err)
-				}
-			case <-time.After(10 * time.Second):
-				t.Fatalf("%s %s: still running after 10s", open, step.name)
+			var err error
+			cputime.Within(t, 10*time.Second, fmt.Sprintf("%s %s", open, step.name), func() {
+				err = step.run()
+			})
+			if err != nil {
+				t.Errorf("%s %s: %v", open, step.name, err)
 			}
 		}
 	}

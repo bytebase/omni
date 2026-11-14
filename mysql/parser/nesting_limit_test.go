@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bytebase/omni/enginetest/cputime"
 	nodes "github.com/bytebase/omni/mysql/ast"
 )
 
@@ -134,30 +135,17 @@ func TestNestingLimit(t *testing.T) {
 }
 
 // parseWithin parses sql, then runs completion at its end, and fails when
-// either takes over ten seconds.
+// either uses over ten seconds of CPU time.
 func parseWithin(sql string) error {
-	parsed := make(chan error, 1)
-	go func() {
-		_, err := Parse(sql)
-		parsed <- err
-	}()
+	const limit = 10 * time.Second
 	var err error
-	select {
-	case err = <-parsed:
-	case <-time.After(10 * time.Second):
-		return errors.New("Parse took over 10s")
+	if used, done := cputime.Run(cputime.Hang(limit), func() { _, err = Parse(sql) }); !done || used > limit {
+		return fmt.Errorf("Parse used %v of CPU time (returned: %v), over %v", used, done, limit)
 	}
-	collected := make(chan struct{})
-	go func() {
-		Collect(sql, len(sql))
-		close(collected)
-	}()
-	select {
-	case <-collected:
-		return err
-	case <-time.After(10 * time.Second):
-		return errors.New("Collect took over 10s")
+	if used, done := cputime.Run(cputime.Hang(limit), func() { Collect(sql, len(sql)) }); !done || used > limit {
+		return fmt.Errorf("Collect used %v of CPU time (returned: %v), over %v", used, done, limit)
 	}
+	return err
 }
 
 // briefErr renders err without the source line a ParseError carries, which

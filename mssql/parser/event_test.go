@@ -35,7 +35,7 @@ func TestParseEventSessionLongNotChain(t *testing.T) {
 	sql := "ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(WHERE " + strings.Repeat("NOT ", 200000) + "a = 1)"
 	err, ok := parseWithin(sql, 10*time.Second)
 	if !ok {
-		t.Fatal("no result within 10s")
+		t.Fatal("no result within a 10s CPU budget")
 	}
 	if err != nil {
 		t.Fatalf("Parse: %v", err)

@@ -1,10 +1,13 @@
 package parser
 
 import (
+	"fmt"
 	"math/rand"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/bytebase/omni/enginetest/cputime"
 )
 
 // scanTrimArgs is the lookahead trimHasTopLevelFrom made before it ran the
@@ -169,18 +172,12 @@ func TestNestedTrimStaysLinear(t *testing.T) {
 		{"failing innermost", list(nest(depth, "TRIM(", "x", ")"), nest(depth, "TRIM(", "x +", ")")), true},
 		{"unclosed", "SELECT " + strings.Repeat("TRIM(", depth) + strings.Repeat("x, ", 100000), true},
 	} {
-		done := make(chan error, 1)
-		go func() {
-			_, err := Parse(tc.sql)
-			done <- err
-		}()
-		select {
-		case err := <-done:
-			if (err != nil) != tc.wantErr || isNestingError(err) {
-				t.Fatalf("%s: Parse error = %v, want error %v", tc.name, err, tc.wantErr)
-			}
-		case <-time.After(2 * time.Second):
-			t.Fatalf("%s: Parse took over 2s", tc.name)
+		var err error
+		cputime.Within(t, 2*time.Second, fmt.Sprintf("%s: Parse", tc.name), func() {
+			_, err = Parse(tc.sql)
+		})
+		if (err != nil) != tc.wantErr || isNestingError(err) {
+			t.Fatalf("%s: Parse error = %v, want error %v", tc.name, err, tc.wantErr)
 		}
 	}
 }

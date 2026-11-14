@@ -1,11 +1,14 @@
 package parser
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/bytebase/omni/enginetest/cputime"
 )
 
 func TestSplitOrdinarySQL(t *testing.T) {
@@ -1443,12 +1446,8 @@ func TestSplitLongLineStaysLinear(t *testing.T) {
 		"SELECT " + strings.Repeat("1, ", n) + "1 FROM dual",
 		strings.Repeat("SELECT 1 FROM dual; ", n/10),
 	} {
-		done := make(chan int, 1)
-		go func() { done <- len(Split(sql)) }()
-		select {
-		case <-done:
-		case <-time.After(2 * time.Second):
-			t.Fatalf("Split of a %d-byte line took over 2s", len(sql))
-		}
+		cputime.Within(t, 2*time.Second, fmt.Sprintf("Split of a %d-byte line", len(sql)), func() {
+			_ = len(Split(sql))
+		})
 	}
 }

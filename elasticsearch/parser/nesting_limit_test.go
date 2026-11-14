@@ -1,9 +1,12 @@
 package parser
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/bytebase/omni/enginetest/cputime"
 )
 
 // TestNestingLimit: every value a request body nests recursively stops at
@@ -39,22 +42,13 @@ func TestNestingLimit(t *testing.T) {
 		}
 		for _, n := range []int{maxNestingDepth + 1, 200000} {
 			text := tc.text(n)
-			type outcome struct {
-				res *ParseResult
-				err error
-			}
-			done := make(chan outcome, 1)
-			go func() {
-				res, err := Parse(text)
-				done <- outcome{res, err}
-			}()
-			select {
-			case o := <-done:
-				if o.err != nil || len(o.res.Errors) == 0 || o.res.Errors[0].Message != errNestedTooDeeply.Error() {
-					t.Errorf("%s: %d levels: err = %v, result = %+v, want the nesting error", tc.name, n, o.err, o.res)
-				}
-			case <-time.After(10 * time.Second):
-				t.Fatalf("%s: %d levels took over 10s", tc.name, n)
+			var res *ParseResult
+			var err error
+			cputime.Within(t, 10*time.Second, fmt.Sprintf("%s: %d levels", tc.name, n), func() {
+				res, err = Parse(text)
+			})
+			if err != nil || len(res.Errors) == 0 || res.Errors[0].Message != errNestedTooDeeply.Error() {
+				t.Errorf("%s: %d levels: err = %v, result = %+v, want the nesting error", tc.name, n, err, res)
 			}
 		}
 	}

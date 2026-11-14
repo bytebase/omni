@@ -1,24 +1,23 @@
 package parser
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/bytebase/omni/enginetest/cputime"
 )
 
-// collectWithin runs Collect at cursor and fails the test when it takes over
-// ten seconds.
+// collectWithin runs Collect at cursor and fails the test when it uses over
+// ten seconds of CPU time.
 func collectWithin(t *testing.T, name, sql string, cursor int) *CandidateSet {
 	t.Helper()
-	done := make(chan *CandidateSet, 1)
-	go func() { done <- Collect(sql, cursor) }()
-	select {
-	case cs := <-done:
-		return cs
-	case <-time.After(10 * time.Second):
-		t.Fatalf("%s: Collect at offset %d of %d bytes took over 10s", name, cursor, len(sql))
-		return nil
-	}
+	var cs *CandidateSet
+	cputime.Within(t, 10*time.Second, fmt.Sprintf("%s: Collect at offset %d of %d bytes", name, cursor, len(sql)), func() {
+		cs = Collect(sql, cursor)
+	})
+	return cs
 }
 
 // TestNestedParensCollectStayLinear runs completion over deeply nested

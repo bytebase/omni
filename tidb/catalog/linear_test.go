@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bytebase/omni/enginetest/cputime"
 	nodes "github.com/bytebase/omni/tidb/ast"
 	mysqlparser "github.com/bytebase/omni/tidb/parser"
 )
@@ -41,41 +42,35 @@ func TestLongChainViewsStayLinear(t *testing.T) {
 		if _, err := c.Exec("CREATE DATABASE db; USE db; CREATE TABLE t (a INT)", nil); err != nil {
 			t.Fatal(err)
 		}
-		type result struct {
+		var (
 			view     *View
 			deparsed string
 			err      error
-		}
-		done := make(chan result, 1)
-		go func() {
-			results, err := c.Exec("CREATE VIEW v AS "+tc.sql, nil)
+		)
+		cputime.Within(t, 10*time.Second, fmt.Sprintf("%s: CREATE VIEW and DeparseQuery over a %d-term chain", tc.name, n), func() {
+			var results []ExecResult
+			results, err = c.Exec("CREATE VIEW v AS "+tc.sql, nil)
 			if err == nil && len(results) == 1 {
 				err = results[0].Error
 			}
 			if err != nil {
-				done <- result{err: err}
 				return
 			}
 			v := c.GetDatabase("db").Views["v"]
 			if v.AnalyzedQuery == nil {
-				done <- result{err: fmt.Errorf("view has no analyzed query")}
+				err = fmt.Errorf("view has no analyzed query")
 				return
 			}
-			done <- result{view: v, deparsed: DeparseQuery(v.AnalyzedQuery)}
-		}()
-		select {
-		case r := <-done:
-			if r.err != nil {
-				t.Fatalf("%s: %v", tc.name, r.err)
-			}
-			if got := strings.Count(r.view.Definition, tc.defMarker); got != n-1 {
-				t.Errorf("%s: view definition holds %q %d times, want %d", tc.name, tc.defMarker, got, n-1)
-			}
-			if got := strings.Count(r.deparsed, tc.queryMarker); got != n-1 {
-				t.Errorf("%s: DeparseQuery holds %q %d times, want %d", tc.name, tc.queryMarker, got, n-1)
-			}
-		case <-time.After(10 * time.Second):
-			t.Fatalf("%s: CREATE VIEW and DeparseQuery over a %d-term chain took over 10s", tc.name, n)
+			view, deparsed = v, DeparseQuery(v.AnalyzedQuery)
+		})
+		if err != nil {
+			t.Fatalf("%s: %v", tc.name, err)
+		}
+		if got := strings.Count(view.Definition, tc.defMarker); got != n-1 {
+			t.Errorf("%s: view definition holds %q %d times, want %d", tc.name, tc.defMarker, got, n-1)
+		}
+		if got := strings.Count(deparsed, tc.queryMarker); got != n-1 {
+			t.Errorf("%s: DeparseQuery holds %q %d times, want %d", tc.name, tc.queryMarker, got, n-1)
 		}
 	}
 }

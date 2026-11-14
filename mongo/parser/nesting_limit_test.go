@@ -2,9 +2,12 @@ package parser
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/bytebase/omni/enginetest/cputime"
 )
 
 // TestNestingLimit: every value the parser descends into recursively stops
@@ -38,20 +41,14 @@ func TestNestingLimit(t *testing.T) {
 		}
 		for _, n := range []int{maxNestingDepth + 1, 200000} {
 			input := tc.input(n)
-			done := make(chan error, 1)
-			go func() {
-				_, err := Parse(input)
+			var err error
+			cputime.Within(t, 10*time.Second, fmt.Sprintf("%s: %d levels", tc.name, n), func() {
+				_, err = Parse(input)
 				ParseBestEffort(input)
-				done <- err
-			}()
-			select {
-			case err := <-done:
-				var pe *ParseError
-				if !errors.As(err, &pe) || pe.Message != nestingErrorMessage {
-					t.Errorf("%s: %d levels: err = %v, want the nesting error", tc.name, n, err)
-				}
-			case <-time.After(10 * time.Second):
-				t.Fatalf("%s: %d levels took over 10s", tc.name, n)
+			})
+			var pe *ParseError
+			if !errors.As(err, &pe) || pe.Message != nestingErrorMessage {
+				t.Errorf("%s: %d levels: err = %v, want the nesting error", tc.name, n, err)
 			}
 		}
 	}

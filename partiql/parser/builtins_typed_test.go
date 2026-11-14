@@ -1,12 +1,14 @@
 package parser
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/bytebase/omni/enginetest/cputime"
 	"github.com/bytebase/omni/partiql/ast"
 )
 
@@ -722,36 +724,27 @@ func TestParser_Trim_DeepNestingLinear(t *testing.T) {
 	const depth = 64
 	input := strings.Repeat("TRIM(", depth) + "x" + strings.Repeat(")", depth)
 
-	type result struct {
-		got string
-		err error
-	}
-	ch := make(chan result, 1)
-	go func() {
-		p := NewParser(input)
-		expr, err := p.ParseExpr()
-		if err != nil {
-			ch <- result{err: err}
-			return
-		}
-		ch <- result{got: ast.NodeToString(expr)}
-	}()
-
 	// Generous ceiling: the linear parse finishes in well under a
 	// millisecond; the pre-fix exponential parse blew past seconds by
 	// depth ~30, so any value this small reliably catches a regression.
 	const budget = 2 * time.Second
-	select {
-	case r := <-ch:
-		if r.err != nil {
-			t.Fatalf("parse error at depth %d: %v", depth, r.err)
+	var got string
+	var err error
+	cputime.Within(t, budget, fmt.Sprintf("parsing TRIM nested %d deep", depth), func() {
+		p := NewParser(input)
+		var expr ast.ExprNode
+		expr, err = p.ParseExpr()
+		if err != nil {
+			return
 		}
-		want := strings.Repeat("TrimExpr{From:", depth) + "VarRef{Name:x}" + strings.Repeat("}", depth)
-		if r.got != want {
-			t.Errorf("AST mismatch at depth %d\ngot:  %s\nwant: %s", depth, r.got, want)
-		}
-	case <-time.After(budget):
-		t.Fatalf("TRIM nested %d deep did not parse within %s — exponential-time regression", depth, budget)
+		got = ast.NodeToString(expr)
+	})
+	if err != nil {
+		t.Fatalf("parse error at depth %d: %v", depth, err)
+	}
+	want := strings.Repeat("TrimExpr{From:", depth) + "VarRef{Name:x}" + strings.Repeat("}", depth)
+	if got != want {
+		t.Errorf("AST mismatch at depth %d\ngot:  %s\nwant: %s", depth, got, want)
 	}
 }
 

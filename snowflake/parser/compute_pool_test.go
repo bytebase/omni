@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bytebase/omni/enginetest/cputime"
 	"github.com/bytebase/omni/snowflake/ast"
 )
 
@@ -252,11 +253,11 @@ func TestObjectPropertiesStayLinear(t *testing.T) {
 	for i := 0; i < 40000; i++ {
 		fmt.Fprintf(&b, " X%d = 1", i)
 	}
-	start := time.Now()
-	if _, err := Parse(b.String()); err == nil {
+	var err error
+	cputime.Within(t, 2*time.Second, "Parse of 40000 distinct properties", func() {
+		_, err = Parse(b.String())
+	})
+	if err == nil {
 		t.Fatal("want an error: X0 is not a compute pool property")
-	}
-	if d := time.Since(start); d > 2*time.Second {
-		t.Fatalf("took %v", d)
 	}
 }

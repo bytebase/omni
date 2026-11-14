@@ -2,10 +2,12 @@ package parser
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/bytebase/omni/enginetest/cputime"
 	"github.com/bytebase/omni/snowflake/ast"
 )
 
@@ -15,18 +17,11 @@ const nestingErr = "statement is nested too deeply"
 // so a retry that turns exponential at the limit fails instead of hanging.
 func parseWithin(t *testing.T, name string, n int, sql string) error {
 	t.Helper()
-	done := make(chan error, 1)
-	go func() {
-		_, err := Parse(sql)
-		done <- err
-	}()
-	select {
-	case err := <-done:
-		return err
-	case <-time.After(10 * time.Second):
-		t.Fatalf("%s: %d levels: Parse took over 10s", name, n)
-		return nil
-	}
+	var err error
+	cputime.Within(t, 10*time.Second, fmt.Sprintf("%s: %d levels: Parse", name, n), func() {
+		_, err = Parse(sql)
+	})
+	return err
 }
 
 func nest(n int, open, mid, closing string) string {

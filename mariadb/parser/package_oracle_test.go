@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bytebase/omni/enginetest/cputime"
 	nodes "github.com/bytebase/omni/mariadb/ast"
 )
 
@@ -160,12 +161,12 @@ func TestPackageTree(t *testing.T) {
 // that question reads a few tokens, not the whole statement again.
 func TestSplitPackageWordsStayLinear(t *testing.T) {
 	sql := strings.Repeat("SELECT package UNION ALL ", 16000) + "SELECT package"
-	start := time.Now()
-	if segs := Split(sql); len(segs) != 1 {
+	var segs []Segment
+	cputime.Within(t, 5*time.Second, "Split of 16001 package words", func() {
+		segs = Split(sql)
+	})
+	if len(segs) != 1 {
 		t.Fatalf("Split gave %d segments, want 1", len(segs))
-	}
-	if d := time.Since(start); d > 5*time.Second {
-		t.Fatalf("Split of 16001 package words took %v, over 5s", d)
 	}
 }
 
@@ -173,11 +174,11 @@ func TestSplitPackageWordsStayLinear(t *testing.T) {
 // on executable-comment openers inside one, which the lexer drops rather than nests.
 func TestSplitPackageExecOpenersStayLinear(t *testing.T) {
 	sql := "CREATE " + strings.Repeat("/*! ", 16000) + " DEFINER = root */ PACKAGE pk PROCEDURE p(); END; SELECT 1"
-	start := time.Now()
-	if segs := Split(sql); len(segs) != 2 {
+	var segs []Segment
+	cputime.Within(t, 5*time.Second, "Split of 16000 nested openers", func() {
+		segs = Split(sql)
+	})
+	if len(segs) != 2 {
 		t.Fatalf("Split gave %d segments, want 2", len(segs))
-	}
-	if d := time.Since(start); d > 5*time.Second {
-		t.Fatalf("Split of 16000 nested openers took %v, over 5s", d)
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bytebase/omni/enginetest/cputime"
 	ast "github.com/bytebase/omni/oceanbase/ast"
 	"github.com/bytebase/omni/oceanbase/parser"
 )
@@ -60,15 +61,12 @@ func TestLongChainsDeparseStayLinear(t *testing.T) {
 		{"USING list", "SELECT 1 FROM t AS x JOIN t AS y USING (" + numberedTerms(n, "c0", ", c%d") + ")", " and "},
 	} {
 		stmt := parseSelectOrFatal(t, tc.name, tc.sql)
-		done := make(chan string, 1)
-		go func() { done <- DeparseSelect(stmt) }()
-		select {
-		case out := <-done:
-			if got := strings.Count(out, tc.marker); got != n-1 {
-				t.Errorf("%s: deparsed text holds %q %d times, want %d", tc.name, tc.marker, got, n-1)
-			}
-		case <-time.After(10 * time.Second):
-			t.Fatalf("%s: DeparseSelect of a %d-term chain took over 10s", tc.name, n)
+		var out string
+		cputime.Within(t, 10*time.Second, fmt.Sprintf("%s: DeparseSelect of a %d-term chain", tc.name, n), func() {
+			out = DeparseSelect(stmt)
+		})
+		if got := strings.Count(out, tc.marker); got != n-1 {
+			t.Errorf("%s: deparsed text holds %q %d times, want %d", tc.name, tc.marker, got, n-1)
 		}
 	}
 }
@@ -98,15 +96,12 @@ func TestResolveLongJoinChainStaysLinear(t *testing.T) {
 		{"right-nested USING", "SELECT * FROM " + numberedTerms(9000, "", "t AS t%d JOIN (") + "t AS t0" + strings.Repeat(") USING (a)", 8999), "` AS `b`", 9000},
 	} {
 		stmt := parseSelectOrFatal(t, tc.name, tc.sql)
-		done := make(chan string, 1)
-		go func() { done <- DeparseSelect(r.Resolve(stmt)) }()
-		select {
-		case out := <-done:
-			if got := strings.Count(out, tc.marker); got != tc.want {
-				t.Errorf("%s: resolved text holds %q %d times, want %d", tc.name, tc.marker, got, tc.want)
-			}
-		case <-time.After(10 * time.Second):
-			t.Fatalf("%s: Resolve over a %d-table join chain took over 10s", tc.name, n)
+		var out string
+		cputime.Within(t, 10*time.Second, fmt.Sprintf("%s: Resolve over a %d-table join chain", tc.name, n), func() {
+			out = DeparseSelect(r.Resolve(stmt))
+		})
+		if got := strings.Count(out, tc.marker); got != tc.want {
+			t.Errorf("%s: resolved text holds %q %d times, want %d", tc.name, tc.marker, got, tc.want)
 		}
 	}
 }

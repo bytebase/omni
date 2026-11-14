@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/bytebase/omni/doris/ast"
+	"github.com/bytebase/omni/enginetest/cputime"
 )
 
 // raiseNestingLimit lifts maxNestingDepth for a test that nests deeper on
@@ -23,19 +24,12 @@ func raiseNestingLimit(t *testing.T) {
 // instead of hanging it. It returns Parse's error.
 func parseWithin(t *testing.T, name, sql string) error {
 	t.Helper()
-	done := make(chan error, 1)
-	go func() {
-		_, err := Parse(sql)
+	var err error
+	cputime.Within(t, 10*time.Second, fmt.Sprintf("%s: Parse and ParseBestEffort", name), func() {
+		_, err = Parse(sql)
 		ParseBestEffort(sql)
-		done <- err
-	}()
-	select {
-	case err := <-done:
-		return err
-	case <-time.After(10 * time.Second):
-		t.Fatalf("%s: Parse and ParseBestEffort took over 10s", name)
-		return nil
-	}
+	})
+	return err
 }
 
 const nestingError = "statement is nested too deeply"
@@ -145,25 +139,17 @@ func TestRawScanStaysIterative(t *testing.T) {
 		// them raw too, and the body's validation reports its syntax error.
 		{"invalid before the parens", "SELECT (SELECT 1 x y " + deep + ")", "syntax error at or near y", false},
 	} {
-		type result struct {
-			err        error
-			bestEffort *ParseResult
+		var err error
+		var bestEffort *ParseResult
+		cputime.Within(t, 10*time.Second, fmt.Sprintf("%s: Parse and ParseBestEffort", tc.name), func() {
+			_, err = Parse(tc.sql)
+			bestEffort = ParseBestEffort(tc.sql)
+		})
+		if got := errMessage(err); got != tc.strictErr {
+			t.Errorf("%s: Parse err = %v, want %q", tc.name, err, tc.strictErr)
 		}
-		done := make(chan result, 1)
-		go func() {
-			_, err := Parse(tc.sql)
-			done <- result{err, ParseBestEffort(tc.sql)}
-		}()
-		select {
-		case r := <-done:
-			if got := errMessage(r.err); got != tc.strictErr {
-				t.Errorf("%s: Parse err = %v, want %q", tc.name, r.err, tc.strictErr)
-			}
-			if (len(r.bestEffort.Errors) > 0) != tc.bestEffortErr {
-				t.Errorf("%s: ParseBestEffort errors = %v, want error %v", tc.name, r.bestEffort.Errors, tc.bestEffortErr)
-			}
-		case <-time.After(10 * time.Second):
-			t.Fatalf("%s: Parse and ParseBestEffort took over 10s", tc.name)
+		if (len(bestEffort.Errors) > 0) != tc.bestEffortErr {
+			t.Errorf("%s: ParseBestEffort errors = %v, want error %v", tc.name, bestEffort.Errors, tc.bestEffortErr)
 		}
 	}
 }

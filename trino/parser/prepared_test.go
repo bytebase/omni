@@ -2,9 +2,12 @@ package parser
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/bytebase/omni/enginetest/cputime"
 )
 
 // This file is the parser-dcl-tcl node's structural correctness gate for the
@@ -172,26 +175,20 @@ func TestNestedPreparesStayLinear(t *testing.T) {
 		{"trailing no-break space", prepares(n) + "SELECT 1  ", "unrecognized character"},
 		{"too deep", prepares(maxNestingDepth+1) + "SELECT 1", nestingTooDeep},
 	} {
-		done := make(chan error, 1)
-		go func() {
-			_, err := Parse(tc.sql)
+		var err error
+		cputime.Within(t, 2*time.Second, fmt.Sprintf("%s: Parse and ParseBestEffort of %d bytes", tc.name, len(tc.sql)), func() {
+			_, err = Parse(tc.sql)
 			ParseBestEffort(tc.sql)
-			done <- err
-		}()
-		select {
-		case err := <-done:
-			if tc.msg == "" {
-				if err != nil {
-					t.Errorf("%s: Parse error = %.200v", tc.name, err)
-				}
-				continue
+		})
+		if tc.msg == "" {
+			if err != nil {
+				t.Errorf("%s: Parse error = %.200v", tc.name, err)
 			}
-			var pe *ParseError
-			if !errors.As(err, &pe) || pe.Message != tc.msg {
-				t.Errorf("%s: Parse error = %.200v, want %.200s", tc.name, err, tc.msg)
-			}
-		case <-time.After(2 * time.Second):
-			t.Fatalf("%s: Parse and ParseBestEffort of %d bytes took over 2s", tc.name, len(tc.sql))
+			continue
+		}
+		var pe *ParseError
+		if !errors.As(err, &pe) || pe.Message != tc.msg {
+			t.Errorf("%s: Parse error = %.200v, want %.200s", tc.name, err, tc.msg)
 		}
 	}
 }
