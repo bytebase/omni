@@ -177,6 +177,9 @@ func (p *Parser) parseShowStmt() (ast.Node, error) {
 	}
 
 	stmt.Loc.End = p.prev.Loc.End
+	if err := checkShowProjectScope(stmt); err != nil {
+		return nil, err
+	}
 	return stmt, nil
 }
 
@@ -311,6 +314,11 @@ func (p *Parser) parseShowScope(stmt *ast.ShowStmt) error {
 		stmt.Scope = ast.ShowScopeOther
 		stmt.ScopeText = strings.ToUpper(tok.Str) + " GROUP"
 		return p.parseOptionalScopeName(stmt)
+	}
+
+	// IN { DBT | DCM } PROJECT <name> (project.go).
+	if words := p.startsShowProjectScope(stmt.ObjectClass); words != nil {
+		return p.parseShowProjectScope(stmt, words)
 	}
 
 	// SHOW COMMITTED TASKS ... IN GRAPH <graph_name>
@@ -519,6 +527,14 @@ func (p *Parser) parseShowGrantsOpts(stmt *ast.ShowStmt) error {
 		}
 		stmt.GrantsTo = grantee
 		return nil
+	case kwIN:
+		// IN DCM PROJECT <name> (project.go).
+		p.advance() // consume IN
+		words := p.startsShowProjectScope("GRANTS")
+		if words == nil {
+			return p.syntaxErrorAtCur()
+		}
+		return p.parseShowProjectScope(stmt, words)
 	}
 	// Bare SHOW GRANTS — no options.
 	return nil
@@ -537,6 +553,10 @@ func (p *Parser) parseShowFutureGrants(stmt *ast.ShowStmt) error {
 	switch p.cur.Type {
 	case kwIN:
 		p.advance() // consume IN
+		// IN DCM PROJECT <name> (project.go).
+		if words := p.startsShowProjectScope("GRANTS"); words != nil {
+			return p.parseShowProjectScope(stmt, words)
+		}
 		target := &ast.GrantTarget{Kind: ast.GrantTargetAllIn}
 		switch p.cur.Type {
 		case kwDATABASE:
