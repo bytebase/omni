@@ -461,3 +461,13 @@ func TestCommaKeywordsAreAChoice(t *testing.T) {
 		t.Errorf("got  %s\nwant %s (fragments %v, failed %+v)", got, want, frags, pg.failed)
 	}
 }
+
+// TestConstraintPropertiesAreASet pins the constraint properties as any of
+// them in any order.
+func TestConstraintPropertiesAreASet(t *testing.T) {
+	pg := convertPage("create-table", []string{"CREATE TABLE <name> ( <col_name> <col_type> PRIMARY KEY [ <constraint_properties> ] )", "\"notification_config\": {\n  \"a\": 1\n}"}, nil)
+	want := "'CREATE' 'TABLE' QNAME '(' ID DATA_TYPE 'PRIMARY' 'KEY' (('NOT'? 'ENFORCED' | 'NOT'? 'DEFERRABLE' | 'INITIALLY' ('DEFERRED' | 'IMMEDIATE') | ('ENABLE' | 'DISABLE') | ('VALIDATE' | 'NOVALIDATE') | ('RELY' | 'NORELY'))+)? ')'"
+	if len(pg.forms) != 1 || pg.forms[0] != want || len(pg.failed) > 0 {
+		t.Errorf("forms %q, failed %+v\nwant %s", pg.forms, pg.failed, want)
+	}
+}

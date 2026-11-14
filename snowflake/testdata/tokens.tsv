@@ -28,7 +28,7 @@ POSITION	$1	$<col_position>: a column of a staged file by its position
 VARIABLE	$a	$<session_variable>: a session variable by its name
 OBJECT_TYPE	TABLE	<object_type> in GRANT and SHOW GRANTS: an object type keyword
 OBJECT_TYPES	TABLES	<object_type_plural>: the plural of one
-FILE	file://a/a	file://<path>/<file>: a local file or directory in PUT and GET, written without quotes
+FILE	file:///tmp/a	file://<path>/<file>: a local file or directory in PUT and GET, an absolute path, written without quotes
 
 # Reserved keywords: those the page marks reserved by ANSI or by Snowflake.
 # The ones it reserves only in a context (a SHOW's IN, a column in a scalar

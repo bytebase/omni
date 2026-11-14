@@ -756,6 +756,14 @@ var (
 	temporary = regexp.MustCompile(`\[ \{ LOCAL \| GLOBAL \} \] TEMP \| TEMPORARY`)
 )
 
+// propertyRun is the constraint properties as the pages list them, one
+// optional clause after another; propertySet is what they mean, any of
+// them in any order, as the constraint page says.
+var (
+	propertyRun = regexp.MustCompile(`\[ \[ NOT \] ENFORCED \]\s*\[ \[ NOT \] DEFERRABLE \]\s*\[ INITIALLY \{ DEFERRED \| IMMEDIATE \} \]\s*\[ \{ ENABLE \| DISABLE \} \]\s*\[ \{ VALIDATE \| NOVALIDATE \} \]\s*\[ \{ RELY \| NORELY \} \]`)
+	propertySet = "[ { [ NOT ] ENFORCED | [ NOT ] DEFERRABLE | INITIALLY { DEFERRED | IMMEDIATE } | { ENABLE | DISABLE } | { VALIDATE | NOVALIDATE } | { RELY | NORELY } } [ ... ] ]"
+)
+
 // templateValue is a template argument, USING ( <key> => <value> ).
 var templateValue = regexp.MustCompile(`=> <value>`)
 
@@ -769,6 +777,15 @@ var missingBar = regexp.MustCompile(`(<schema_name>)[ \t]*\n((?:[ \t]*\n)*[ \t]*
 // convertPage converts one page.
 func convertPage(slug string, blocks []string, fixes []*fix) pageGrammar {
 	pg := pageGrammar{slug: slug, url: docsSite + "/sql-reference/sql/" + slug, rule: ruleName(slug)}
+	var sql []string
+	for _, b := range blocks {
+		if strings.HasPrefix(strings.TrimSpace(b), "\"") {
+			// "notification_config": { ... }: a JSON example, not SQL.
+			continue
+		}
+		sql = append(sql, b)
+	}
+	blocks = sql
 	for _, f := range fixes {
 		if f.page != slug {
 			continue
@@ -885,6 +902,9 @@ func convertPage(slug string, blocks []string, fixes []*fix) pageGrammar {
 	}
 	if choices {
 		pg.fixes = append(pg.fixes, "read: keywords written with commas before [ , ... ] are a choice, the list the [ , ... ] makes")
+	}
+	for i, b := range blocks {
+		blocks[i] = propertyRun.ReplaceAllString(b, propertySet)
 	}
 	columns := false
 	for i, b := range blocks {
