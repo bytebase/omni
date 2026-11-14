@@ -285,7 +285,7 @@ func (p *Parser) parseGraphEdgeDef() (*nodes.GraphEdgeDef, error) {
 //
 //	[ LABEL label_name [ LABEL label_name ]... ]
 //	[ PROPERTIES [ ARE ] ALL COLUMNS [ EXCEPT ( column_name [, column_name ]... ) ]
-//	| PROPERTIES ( { column_name | value_expression } [ AS property_name ] [, ...] )
+//	| PROPERTIES ( { column_name [ AS property_name ] | value_expression AS property_name } [, ...] )
 //	| NO PROPERTIES
 //	]
 //	[ DEFAULT LABEL ]
@@ -314,10 +314,16 @@ func (p *Parser) parseGraphLabelAndProperties(def *nodes.GraphTableDef) error {
 					return p.syntaxErrorAtCur()
 				}
 				prop := p.source[start.Loc:p.prev.End]
-				if p.prev.Loc == start.Loc && start.Str != "" {
+				column := p.prev.Loc == start.Loc && start.Str != "" && start.Type != tokSCONST
+				if column {
 					prop = start.Str
 				}
 				def.PropColumns = append(def.PropColumns, prop)
+				// A value expression names its property; only a column may
+				// leave it out.
+				if !column && p.cur.Type != kwAS {
+					return p.syntaxErrorAtCur()
+				}
 				if p.cur.Type == kwAS {
 					p.advance()
 					def.PropAliases = append(def.PropAliases, p.cur.Str)
