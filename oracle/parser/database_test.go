@@ -2,6 +2,8 @@ package parser
 
 import (
 	"testing"
+
+	"github.com/bytebase/omni/oracle/ast"
 )
 
 // TestParseDatabaseStmts tests parsing of CREATE/ALTER DATABASE,
@@ -121,6 +123,8 @@ func TestParseDatabaseStmts(t *testing.T) {
 		`ALTER DATABASE RECOVER MANAGED STANDBY DATABASE FINISH`,
 		`ALTER DATABASE RECOVER TABLESPACE users`,
 		`ALTER DATABASE RECOVER DATAFILE '/u01/data/users01.dbf'`,
+		`ALTER DATABASE RECOVER AUTOMATIC UNTIL TIME '2001-10-27:14:00:00'`,
+		`ALTER DATABASE RECOVER UNTIL CANCEL USING BACKUP CONTROLFILE TEST`,
 		// Database file clauses
 		`ALTER DATABASE RENAME FILE '/old/path.dbf' TO '/new/path.dbf'`,
 		`ALTER DATABASE CREATE DATAFILE '/u01/data/file1.dbf' AS '/u02/data/file1.dbf'`,
@@ -531,6 +535,36 @@ func TestParseDatabaseStmts(t *testing.T) {
 			result := ParseAndCheck(t, sql)
 			if result.Len() < 1 {
 				t.Fatalf("expected at least 1 statement, got %d", result.Len())
+			}
+		})
+	}
+}
+
+// TestAlterDatabaseRecoverTargets checks that RECOVER keeps what it recovers.
+func TestAlterDatabaseRecoverTargets(t *testing.T) {
+	tests := []struct {
+		sql, key string
+		targets  []string
+	}{
+		{"ALTER DATABASE RECOVER TABLESPACE users, tools", "RECOVER_TABLESPACE", []string{"USERS", "TOOLS"}},
+		{"ALTER DATABASE RECOVER DATAFILE '/u01/a.dbf', '/u01/b.dbf'", "RECOVER_DATAFILE", []string{"/u01/a.dbf", "/u01/b.dbf"}},
+		{"ALTER DATABASE RECOVER LOGFILE '/u01/a.log'", "RECOVER_LOGFILE", []string{"/u01/a.log"}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.sql, func(t *testing.T) {
+			result := ParseAndCheck(t, tc.sql)
+			stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.AdminDDLStmt)
+			opt := stmt.Options.Items[0].(*ast.DDLOption)
+			if opt.Key != tc.key {
+				t.Fatalf("key %q, want %q", opt.Key, tc.key)
+			}
+			if opt.Items == nil || len(opt.Items.Items) != len(tc.targets) {
+				t.Fatalf("targets %v, want %v", opt.Items, tc.targets)
+			}
+			for i, item := range opt.Items.Items {
+				if got := item.(*ast.DDLOption).Value; got != tc.targets[i] {
+					t.Errorf("target %d = %q, want %q", i, got, tc.targets[i])
+				}
 			}
 		})
 	}
