@@ -72,11 +72,11 @@ func (w *writer) writeAlterIntegrationStmt(n *ast.AlterIntegrationStmt) error {
 		}
 		if len(n.Tags) > 0 {
 			w.buf.WriteString(" TAG ")
-			w.writeTagAssignments(n.Tags)
+			w.writeIntegrationTags(n.Tags)
 		}
 	case ast.AlterIntegrationSetTag:
 		w.buf.WriteString(" SET TAG ")
-		w.writeTagAssignments(n.Tags)
+		w.writeIntegrationTags(n.Tags)
 	case ast.AlterIntegrationUnset, ast.AlterIntegrationUnsetTag:
 		w.buf.WriteString(" UNSET ")
 		w.buf.WriteString(strings.Join(n.UnsetProps, ", "))
@@ -124,7 +124,7 @@ func (w *writer) writeIntegrationProperty(o *ast.CopyOption) error {
 	}
 	switch {
 	case o.Lit != nil:
-		return w.writeCopyOptionLiteral(o.Lit)
+		return w.writeIntegrationLiteral(o.Lit)
 	case o.Words != "":
 		w.buf.WriteString(o.Words)
 	case o.List != nil:
@@ -133,7 +133,7 @@ func (w *writer) writeIntegrationProperty(o *ast.CopyOption) error {
 			if i > 0 {
 				w.buf.WriteString(", ")
 			}
-			if err := w.writeCopyOptionLiteral(lit); err != nil {
+			if err := w.writeIntegrationLiteral(lit); err != nil {
 				return err
 			}
 		}
@@ -161,4 +161,34 @@ func (w *writer) writeIntegrationProperty(o *ast.CopyOption) error {
 // (a word key), rather than a bare name, a quoted-key pair or an unnamed group.
 func isIntegrationKeyEntry(e *ast.CopyOption) bool {
 	return e.Name != "" && !e.Bare && !strings.HasPrefix(e.Name, "'")
+}
+
+// writeIntegrationLiteral writes a property's literal. A string is written
+// single-quoted with its backslashes and quotes escaped, so that a value read
+// from a $$-quoted string (where a backslash is literal) reads back the same.
+func (w *writer) writeIntegrationLiteral(lit *ast.Literal) error {
+	if lit.Kind == ast.LitString {
+		w.buf.WriteString(quoteIntegrationString(lit.Value))
+		return nil
+	}
+	return w.writeCopyOptionLiteral(lit)
+}
+
+// writeIntegrationTags writes <tag> = '<value>' [ , ... ], each value quoted
+// as writeIntegrationLiteral quotes a string.
+func (w *writer) writeIntegrationTags(tags []*ast.TagAssignment) {
+	for i, tag := range tags {
+		if i > 0 {
+			w.buf.WriteString(", ")
+		}
+		w.writeObjectNameNoSpace(tag.Name)
+		w.buf.WriteString(" = ")
+		w.buf.WriteString(quoteIntegrationString(tag.Value))
+	}
+}
+
+// quoteIntegrationString spells s as a single-quoted string that reads back
+// as s: a backslash and a quote are escaped.
+func quoteIntegrationString(s string) string {
+	return "'" + strings.ReplaceAll(strings.ReplaceAll(s, `\`, `\\`), "'", "''") + "'"
 }

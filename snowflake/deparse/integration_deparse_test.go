@@ -32,6 +32,12 @@ func TestDeparse_Integration(t *testing.T) {
 			"WEBHOOK_HEADERS = ('Content-Type' = 'application/json', 'X' = 'y')",
 		"CREATE NOTIFICATION INTEGRATION n TYPE = WEBHOOK ENABLED = TRUE WEBHOOK_URL = 'u' " +
 			"WEBHOOK_HEADERS = ($$Content-Type$$ = 'application/json', 'it''s' = 'y')",
+		// A backslash in a $$-quoted string is literal, and stays so.
+		"CREATE NOTIFICATION INTEGRATION n TYPE = WEBHOOK ENABLED = TRUE WEBHOOK_URL = 'u' " +
+			`WEBHOOK_BODY_TEMPLATE = $${"text":"\n"}$$ WEBHOOK_HEADERS = ($$a\b$$ = $$c\d$$) COMMENT = 'x\\y'`,
+		`ALTER EXTERNAL ACCESS INTEGRATION e SET COMMENT = $$a\nb$$ TAG t = $$c\d$$`,
+		`ALTER EXTERNAL ACCESS INTEGRATION e SET TAG t = 'a\\b'`,
+		`CREATE NOTIFICATION INTEGRATION n TYPE = EMAIL ENABLED = TRUE ALLOWED_RECIPIENTS = ($$a\b@c.d$$)`,
 		"CREATE NOTIFICATION INTEGRATION n TYPE = EMAIL ENABLED = TRUE ALLOWED_RECIPIENTS = ('a@b.c', 'd@e.f')",
 		"ALTER INTEGRATION i REFRESH",
 		"ALTER SECURITY INTEGRATION IF EXISTS i REFRESH OAUTH_CLIENT_SECRET_2",
