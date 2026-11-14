@@ -79,6 +79,21 @@ func walkChildren(v Visitor, node Node) {
 			}
 		}
 		walkNodes(v, n.ClusterBy)
+		for _, item := range n.MoreNames {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		if n.PolicyName != nil {
+			Walk(v, n.PolicyName)
+		}
+		if n.AddPolicyName != nil {
+			Walk(v, n.AddPolicyName)
+		}
+		for _, item := range n.ColumnActions {
+			walkAlterViewColumnAction(v, item)
+		}
+		Walk(v, n.FrozenWhere)
 	case *AlterExternalTableStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -148,6 +163,7 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.NewName)
 		}
 		walkNodes(v, n.ClusterBy)
+		walkDataMetricAction(v, n.DataMetric)
 	case *AlterNetworkRuleStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -456,6 +472,13 @@ func walkChildren(v Visitor, node Node) {
 		}
 		if n.AddPolicyName != nil {
 			Walk(v, n.AddPolicyName)
+		}
+		walkDataMetricAction(v, n.DataMetric)
+		if n.ColumnType != nil {
+			Walk(v, n.ColumnType)
+		}
+		if n.ProjectionPolicy != nil {
+			Walk(v, n.ProjectionPolicy)
 		}
 	case *AlterWarehouseStmt:
 		if n.Name != nil {
@@ -1464,6 +1487,9 @@ func walkAlterViewColumnAction(v Visitor, n *AlterViewColumnAction) {
 	}
 	if n.MaskingPolicy != nil {
 		Walk(v, n.MaskingPolicy)
+	}
+	if n.ProjectionPolicy != nil {
+		Walk(v, n.ProjectionPolicy)
 	}
 	for _, item := range n.Tags {
 		walkTagAssignment(v, item)

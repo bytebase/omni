@@ -331,16 +331,23 @@ func (p *Parser) parseClusterByInto(exprs *[]ast.Node, linear *bool) error {
 // The ALTER keyword has already been consumed; cur is the DYNAMIC keyword (the
 // TABLE keyword that follows is consumed here).
 //
-//	{ SUSPEND | RESUME }
-//	REFRESH [ COPY SESSION ]
+//	{ SUSPEND | RESUME } [ RECLUSTER ]
+//	<name> [ , <name> ... ] REFRESH [ COPY SESSION ]
 //	RENAME TO <new_name>
 //	SWAP WITH <other_name>
-//	SET <settable params>
+//	SET <property> [ [ , ] <property> ... ]
 //	UNSET <property> [ , ... ]
 //	SET TAG <tag> = '<value>' [ , ... ]
 //	UNSET TAG <tag> [ , ... ]
 //	CLUSTER BY ( <expr> [ , ... ] )
 //	DROP CLUSTERING KEY
+//	ADD ROW ACCESS POLICY ... | DROP [ ALL ] ROW ACCESS POLIC{Y|IES} ...
+//	SET AGGREGATION POLICY ... | UNSET AGGREGATION POLICY
+//	{ ALTER | MODIFY } [ COLUMN ] <col> <masking / projection / tag action> [ , ... ]
+//	{ ADD | DROP | SUSPEND | RESUME } SEARCH OPTIMIZATION [ ON ... ]
+//	ADD STORAGE LIFECYCLE POLICY <p> ON ( <col> [ , ... ] ) | DROP STORAGE LIFECYCLE POLICY
+//
+//	https://docs.snowflake.com/en/sql-reference/sql/alter-dynamic-table
 func (p *Parser) parseAlterDynamicTableStmt() (ast.Node, error) {
 	altTok := p.advance() // consume DYNAMIC
 	if _, err := p.expect(kwTABLE); err != nil {
@@ -358,14 +365,44 @@ func (p *Parser) parseAlterDynamicTableStmt() (ast.Node, error) {
 	}
 	stmt.Name = name
 
-	switch p.cur.Type {
-	case kwSUSPEND:
-		p.advance()
-		stmt.Action = ast.AlterDynamicTableSuspend
+	// REFRESH takes a comma-separated list of tables.
+	for p.cur.Type == ',' {
+		p.advance() // consume ','
+		more, err := p.parseObjectName()
+		if err != nil {
+			return nil, err
+		}
+		stmt.MoreNames = append(stmt.MoreNames, more)
+	}
+	if len(stmt.MoreNames) > 0 && p.cur.Type != kwREFRESH {
+		return nil, p.syntaxErrorAtCur()
+	}
 
-	case kwRESUME:
-		p.advance()
-		stmt.Action = ast.AlterDynamicTableResume
+	switch p.cur.Type {
+	case kwSUSPEND, kwRESUME:
+		verb := p.advance() // consume SUSPEND / RESUME
+		suspend := verb.Type == kwSUSPEND
+		switch {
+		case p.cur.Type == kwRECLUSTER:
+			p.advance() // consume RECLUSTER
+			stmt.Action = ast.AlterDynamicTableResumeRecluster
+			if suspend {
+				stmt.Action = ast.AlterDynamicTableSuspendRecluster
+			}
+		case p.cur.Type == kwSEARCH:
+			if err := p.parseDynamicTableSearchOpt(stmt, true); err != nil {
+				return nil, err
+			}
+			stmt.Action = ast.AlterDynamicTableResumeSearchOpt
+			if suspend {
+				stmt.Action = ast.AlterDynamicTableSuspendSearchOpt
+			}
+		default:
+			stmt.Action = ast.AlterDynamicTableResume
+			if suspend {
+				stmt.Action = ast.AlterDynamicTableSuspend
+			}
+		}
 
 	case kwREFRESH:
 		// REFRESH [ COPY SESSION ].
@@ -405,33 +442,47 @@ func (p *Parser) parseAlterDynamicTableStmt() (ast.Node, error) {
 
 	case kwSET:
 		p.advance() // consume SET
-		if p.cur.Type == kwTAG {
-			tags, err := p.parseTagSetList()
+		switch {
+		case p.cur.Type == kwTAG:
+			tags, err := p.parseSetTagClause()
 			if err != nil {
 				return nil, err
 			}
 			stmt.Action = ast.AlterDynamicTableSetTag
 			stmt.Tags = tags
-		} else {
-			opts, err := p.parseRequiredOptions()
+		case p.startsPolicyWord("AGGREGATION"):
+			name, keys, force, err := p.parseSetAggregationPolicy()
 			if err != nil {
 				return nil, err
 			}
+			stmt.Action = ast.AlterDynamicTableSetAggregationPolicy
+			stmt.PolicyName = name
+			stmt.PolicyKeyCols = keys
+			stmt.PolicyForce = force
+		default:
+			if err := p.parseDynamicTableSetProps(stmt); err != nil {
+				return nil, err
+			}
 			stmt.Action = ast.AlterDynamicTableSet
-			stmt.Options = opts
 		}
 
 	case kwUNSET:
 		p.advance() // consume UNSET
-		if p.cur.Type == kwTAG {
-			names, err := p.parseUnsetTagNameList()
+		switch {
+		case p.cur.Type == kwTAG:
+			names, err := p.parseUnsetTagClause()
 			if err != nil {
 				return nil, err
 			}
 			stmt.Action = ast.AlterDynamicTableUnsetTag
 			stmt.UnsetTags = names
-		} else {
-			props, err := p.parseUnsetPropertyList()
+		case p.startsPolicyWord("AGGREGATION"):
+			if err := p.expectPolicyWord(); err != nil {
+				return nil, err
+			}
+			stmt.Action = ast.AlterDynamicTableUnsetAggregationPolicy
+		default:
+			props, err := p.parseDynamicTableUnsetProps()
 			if err != nil {
 				return nil, err
 			}
@@ -446,16 +497,89 @@ func (p *Parser) parseAlterDynamicTableStmt() (ast.Node, error) {
 		}
 		stmt.Action = ast.AlterDynamicTableClusterBy
 
+	case kwADD:
+		p.advance() // consume ADD
+		switch {
+		case p.cur.Type == kwROW:
+			name, cols, err := p.parseAddRowAccessPolicyTail()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Action = ast.AlterDynamicTableAddRowAccessPolicy
+			stmt.PolicyName = name
+			stmt.PolicyCols = cols
+		case p.cur.Type == kwSEARCH:
+			if err := p.parseDynamicTableSearchOpt(stmt, false); err != nil {
+				return nil, err
+			}
+			stmt.Action = ast.AlterDynamicTableAddSearchOpt
+		case p.cur.Type == kwSTORAGE:
+			if err := p.expectStorageLifecyclePolicy(); err != nil {
+				return nil, err
+			}
+			name, err := p.parseObjectName()
+			if err != nil {
+				return nil, err
+			}
+			if _, err := p.expect(kwON); err != nil {
+				return nil, err
+			}
+			cols, err := p.parseIdentListInParens()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Action = ast.AlterDynamicTableAddStorageLifecyclePolicy
+			stmt.PolicyName = name
+			stmt.PolicyCols = cols
+		default:
+			return nil, p.syntaxErrorAtCur()
+		}
+
 	case kwDROP:
-		// DROP CLUSTERING KEY.
 		p.advance() // consume DROP
-		if _, err := p.expect(kwCLUSTERING); err != nil {
+		switch p.cur.Type {
+		case kwCLUSTERING:
+			// DROP CLUSTERING KEY.
+			p.advance() // consume CLUSTERING
+			if _, err := p.expect(kwKEY); err != nil {
+				return nil, err
+			}
+			stmt.Action = ast.AlterDynamicTableDropClusteringKey
+		case kwROW, kwALL:
+			all, name, addName, addCols, err := p.parseDropRowAccessPolicyTail()
+			if err != nil {
+				return nil, err
+			}
+			if all {
+				stmt.Action = ast.AlterDynamicTableDropAllRowAccessPolicies
+				break
+			}
+			stmt.Action = ast.AlterDynamicTableDropRowAccessPolicy
+			stmt.PolicyName = name
+			stmt.AddPolicyName = addName
+			stmt.AddPolicyCols = addCols
+		case kwSEARCH:
+			if err := p.parseDynamicTableSearchOpt(stmt, true); err != nil {
+				return nil, err
+			}
+			stmt.Action = ast.AlterDynamicTableDropSearchOpt
+		case kwSTORAGE:
+			if err := p.expectStorageLifecyclePolicy(); err != nil {
+				return nil, err
+			}
+			stmt.Action = ast.AlterDynamicTableDropStorageLifecyclePolicy
+		default:
+			return nil, p.syntaxErrorAtCur()
+		}
+
+	case kwALTER, kwMODIFY:
+		p.advance() // consume ALTER / MODIFY
+		actions, err := p.parseColumnPolicyActions()
+		if err != nil {
 			return nil, err
 		}
-		if _, err := p.expect(kwKEY); err != nil {
-			return nil, err
-		}
-		stmt.Action = ast.AlterDynamicTableDropClusteringKey
+		stmt.Action = ast.AlterDynamicTableColumn
+		stmt.ColumnActions = actions
 
 	default:
 		return nil, p.syntaxErrorAtCur()
@@ -463,6 +587,200 @@ func (p *Parser) parseAlterDynamicTableStmt() (ast.Node, error) {
 
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
+}
+
+// expectStorageLifecyclePolicy consumes STORAGE LIFECYCLE POLICY.
+func (p *Parser) expectStorageLifecyclePolicy() error {
+	if _, err := p.expect(kwSTORAGE); err != nil {
+		return err
+	}
+	if !p.curIsWord("LIFECYCLE") {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance() // consume LIFECYCLE
+	_, err := p.expect(kwPOLICY)
+	return err
+}
+
+// parseDynamicTableSearchOpt parses SEARCH OPTIMIZATION [ ON <targets> ]; with
+// bare, a target may also be a column name or expression ID (DROP, SUSPEND and
+// RESUME).
+func (p *Parser) parseDynamicTableSearchOpt(stmt *ast.AlterDynamicTableStmt, bare bool) error {
+	p.advance() // consume SEARCH
+	if _, err := p.expect(kwOPTIMIZATION); err != nil {
+		return err
+	}
+	if p.cur.Type != kwON {
+		return nil
+	}
+	p.advance() // consume ON
+	on, err := p.parseSearchOptTargets(bare)
+	if err != nil {
+		return err
+	}
+	stmt.SearchOptOn = on
+	return nil
+}
+
+// startsDynamicTableSetItem reports whether cur begins one ALTER DYNAMIC TABLE
+// SET property: a KEY = value pair, CONTACT ( ... ), FROZEN WHERE ( ... ), or
+// EXECUTE AS USER ....
+func (p *Parser) startsDynamicTableSetItem() bool {
+	switch {
+	case p.curIsWord("CONTACT"):
+		return p.peekNext().Type == '('
+	case p.curIsWord("FROZEN"):
+		return p.peekNext().Type == kwWHERE
+	case p.curIsWord("EXECUTE"):
+		return p.peekNext().Type == kwAS
+	}
+	return p.startsAssignment()
+}
+
+// commaStartsDynamicTableSetItem reports whether the ',' at cur is followed by
+// another SET property (rather than by another secondary role).
+func (p *Parser) commaStartsDynamicTableSetItem() bool {
+	snap := p.snapshot()
+	defer p.restore(snap)
+	p.advance() // consume ','
+	return p.startsDynamicTableSetItem()
+}
+
+// parseDynamicTableSetProps parses the properties after SET, separated by
+// commas (as the page writes them) or whitespace (as omni has always read
+// them):
+//
+//	<property> = <value>
+//	CONTACT ( <purpose> = <contact> [ , ... ] )
+//	FROZEN WHERE ( <expr> )
+//	EXECUTE AS USER <user> [ USE SECONDARY ROLES { ALL | NONE | <role> [ , ... ] } ]
+func (p *Parser) parseDynamicTableSetProps(stmt *ast.AlterDynamicTableStmt) error {
+	for i := 0; ; i++ {
+		if i >= dataMetricClauseCap || !p.startsDynamicTableSetItem() {
+			return p.syntaxErrorAtCur()
+		}
+		switch {
+		case p.curIsWord("CONTACT"):
+			contact, err := p.parseContactValue()
+			if err != nil {
+				return err
+			}
+			stmt.Contact = contact
+		case p.curIsWord("FROZEN"):
+			p.advance() // consume FROZEN
+			p.advance() // consume WHERE
+			if _, err := p.expect('('); err != nil {
+				return err
+			}
+			expr, err := p.parseExpr()
+			if err != nil {
+				return err
+			}
+			if _, err := p.expect(')'); err != nil {
+				return err
+			}
+			stmt.FrozenWhere = expr
+		case p.curIsWord("EXECUTE"):
+			if err := p.parseDynamicTableExecuteAs(stmt); err != nil {
+				return err
+			}
+		default:
+			opt, err := p.parseCopyOption()
+			if err != nil {
+				return err
+			}
+			stmt.Options = append(stmt.Options, opt)
+		}
+		if p.cur.Type == ',' {
+			p.advance() // consume ','
+			continue
+		}
+		if !p.startsDynamicTableSetItem() {
+			return nil
+		}
+	}
+}
+
+// parseDynamicTableExecuteAs parses
+// EXECUTE AS USER <user> [ USE SECONDARY ROLES { ALL | NONE | <role> [ , ... ] } ].
+func (p *Parser) parseDynamicTableExecuteAs(stmt *ast.AlterDynamicTableStmt) error {
+	p.advance() // consume EXECUTE
+	p.advance() // consume AS
+	if _, err := p.expect(kwUSER); err != nil {
+		return err
+	}
+	user, err := p.parseIdent()
+	if err != nil {
+		return err
+	}
+	stmt.ExecuteAsUser = &user
+	if p.cur.Type != kwUSE {
+		return nil
+	}
+	p.advance() // consume USE
+	if _, err := p.expect(kwSECONDARY); err != nil {
+		return err
+	}
+	if _, err := p.expect(kwROLES); err != nil {
+		return err
+	}
+	if p.cur.Type == kwALL || p.cur.Type == kwNONE {
+		stmt.SecondaryRoles = []string{TokenName(p.advance().Type)}
+		return nil
+	}
+	for i := 0; ; i++ {
+		if i >= dataMetricClauseCap {
+			return p.syntaxErrorAtCur()
+		}
+		role, err := p.parseIdent()
+		if err != nil {
+			return err
+		}
+		stmt.SecondaryRoles = append(stmt.SecondaryRoles, role.String())
+		if p.cur.Type != ',' || p.commaStartsDynamicTableSetItem() {
+			return nil
+		}
+		p.advance() // consume ','
+	}
+}
+
+// parseDynamicTableUnsetProps parses UNSET <property> [ , ... ], where a
+// property is a single name word or one of CONTACT <purpose>, FROZEN WHERE and
+// EXECUTE AS USER.
+func (p *Parser) parseDynamicTableUnsetProps() ([]string, error) {
+	var props []string
+	for i := 0; ; i++ {
+		if i >= dataMetricClauseCap {
+			return nil, p.syntaxErrorAtCur()
+		}
+		switch {
+		case p.curIsWord("CONTACT") && p.peekNext().Type != ',' && p.peekNext().Type != tokEOF && p.peekNext().Type != ';':
+			prop, err := p.parseUnsetContact()
+			if err != nil {
+				return nil, err
+			}
+			props = append(props, prop)
+		case p.curIsWord("FROZEN") && p.peekNext().Type == kwWHERE:
+			p.advance() // consume FROZEN
+			p.advance() // consume WHERE
+			props = append(props, "FROZEN WHERE")
+		case p.curIsWord("EXECUTE") && p.peekNext().Type == kwAS:
+			p.advance() // consume EXECUTE
+			p.advance() // consume AS
+			if _, err := p.expect(kwUSER); err != nil {
+				return nil, err
+			}
+			props = append(props, "EXECUTE AS USER")
+		case p.isOptionWord(p.cur.Type):
+			props = append(props, strings.ToUpper(p.advance().Str))
+		default:
+			return nil, p.syntaxErrorAtCur()
+		}
+		if p.cur.Type != ',' {
+			return props, nil
+		}
+		p.advance() // consume ','
+	}
 }
 
 // ---------------------------------------------------------------------------

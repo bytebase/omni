@@ -557,8 +557,20 @@ func (p *Parser) parseAlterViewStmt() (ast.Node, error) {
 		stmt.NewName = newName
 
 	case kwSET:
-		p.advance() // consume SET
+		setTok := p.advance() // consume SET
 		switch p.cur.Type {
+		case kwCHANGE_TRACKING:
+			// SET CHANGE_TRACKING = { TRUE | FALSE }
+			p.advance() // consume CHANGE_TRACKING
+			if _, err := p.expect('='); err != nil {
+				return nil, err
+			}
+			if p.cur.Type != kwTRUE && p.cur.Type != kwFALSE {
+				return nil, p.syntaxErrorAtCur()
+			}
+			stmt.ChangeTracking = p.advance().Type == kwTRUE
+			stmt.Action = ast.AlterViewSetChangeTracking
+
 		case kwCOMMENT:
 			// SET COMMENT = '...'
 			p.advance() // consume COMMENT
@@ -579,7 +591,8 @@ func (p *Parser) parseAlterViewStmt() (ast.Node, error) {
 			stmt.Secure = true
 
 		case kwTAG:
-			tags, err := p.parseTagAssignments()
+			// SET TAG name = 'val' [, ...] | SET TAG (name = 'val', ...)
+			tags, err := p.parseSetTagClause()
 			if err != nil {
 				return nil, err
 			}
@@ -587,25 +600,46 @@ func (p *Parser) parseAlterViewStmt() (ast.Node, error) {
 			stmt.Tags = tags
 
 		case kwJOIN:
-			// SET JOIN POLICY name [ { ALLOWED | ENFORCED } JOIN KEYS ( col, ... ) ]
+			// SET JOIN POLICY name [ FORCE ] [ { ALLOWED | ENFORCED } JOIN KEYS ( col, ... ) ]
 			if err := p.parseAlterViewSetJoinPolicy(stmt); err != nil {
 				return nil, err
 			}
 
 		default:
-			// SET AGGREGATION POLICY name [ ENTITY KEY ( col, ... ) ] [ FORCE ].
-			// AGGREGATION is not a reserved keyword, so it lexes as an identifier.
-			if p.curIsWord("AGGREGATION") {
-				if err := p.parseAlterViewSetAggregationPolicy(stmt); err != nil {
+			switch {
+			case p.startsPolicyWord("AGGREGATION"):
+				// SET AGGREGATION POLICY name [ ENTITY KEY ( col, ... ) ] [ FORCE ].
+				// AGGREGATION is not a reserved keyword, so it lexes as an identifier.
+				name, keys, force, err := p.parseSetAggregationPolicy()
+				if err != nil {
 					return nil, err
 				}
-				break
+				stmt.Action = ast.AlterViewSetAggregationPolicy
+				stmt.PolicyName = name
+				stmt.PolicyKeyCols = keys
+				stmt.PolicyForce = force
+			case p.curIsWord("CONTACT"):
+				// SET CONTACT purpose = contact [ , ... ]
+				contact, err := p.parseContactValue()
+				if err != nil {
+					return nil, err
+				}
+				stmt.Action = ast.AlterViewSetContact
+				stmt.Contact = contact
+			case p.startsDataMetricSchedule():
+				dm, err := p.parseDataMetricSchedule(true, setTok.Loc.Start)
+				if err != nil {
+					return nil, err
+				}
+				stmt.Action = ast.AlterViewDataMetric
+				stmt.DataMetric = dm
+			default:
+				return nil, p.syntaxErrorAtCur()
 			}
-			return nil, p.syntaxErrorAtCur()
 		}
 
 	case kwUNSET:
-		p.advance() // consume UNSET
+		unsetTok := p.advance() // consume UNSET
 		switch p.cur.Type {
 		case kwCOMMENT:
 			p.advance() // consume COMMENT
@@ -616,7 +650,8 @@ func (p *Parser) parseAlterViewStmt() (ast.Node, error) {
 			stmt.Action = ast.AlterViewUnsetSecure
 
 		case kwTAG:
-			names, err := p.parseUnsetTagList()
+			// UNSET TAG name [, ...] | UNSET TAG (name, ...)
+			names, err := p.parseUnsetTagClause()
 			if err != nil {
 				return nil, err
 			}
@@ -632,140 +667,75 @@ func (p *Parser) parseAlterViewStmt() (ast.Node, error) {
 			stmt.Action = ast.AlterViewUnsetJoinPolicy
 
 		default:
-			// UNSET AGGREGATION POLICY (AGGREGATION lexes as an identifier).
-			if p.curIsWord("AGGREGATION") {
+			switch {
+			case p.curIsWord("AGGREGATION"):
+				// UNSET AGGREGATION POLICY (AGGREGATION lexes as an identifier).
 				p.advance() // consume AGGREGATION
 				if _, err := p.expect(kwPOLICY); err != nil {
 					return nil, err
 				}
 				stmt.Action = ast.AlterViewUnsetAggregationPolicy
-				break
-			}
-			return nil, p.syntaxErrorAtCur()
-		}
-
-	case kwADD:
-		// ADD ROW ACCESS POLICY policy_name ON (cols)
-		p.advance() // consume ADD
-		if _, err := p.expect(kwROW); err != nil {
-			return nil, err
-		}
-		if _, err := p.expect(kwACCESS); err != nil {
-			return nil, err
-		}
-		if _, err := p.expect(kwPOLICY); err != nil {
-			return nil, err
-		}
-		policyName, err := p.parseObjectName()
-		if err != nil {
-			return nil, err
-		}
-		if _, err := p.expect(kwON); err != nil {
-			return nil, err
-		}
-		cols, err := p.parseIdentListInParens()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Action = ast.AlterViewAddRowAccessPolicy
-		stmt.PolicyName = policyName
-		stmt.PolicyCols = cols
-
-	case kwDROP:
-		p.advance() // consume DROP
-		switch p.cur.Type {
-		case kwROW:
-			// DROP ROW ACCESS POLICY policy_name
-			// OR DROP ALL ROW ACCESS POLICIES
-			p.advance() // consume ROW
-			if _, err := p.expect(kwACCESS); err != nil {
-				return nil, err
-			}
-			if p.cur.Type == kwPOLICY {
-				p.advance() // consume POLICY
-				policyName, err := p.parseObjectName()
+			case p.curIsWord("CONTACT"):
+				// UNSET CONTACT purpose
+				p.advance() // consume CONTACT
+				purpose, err := p.parseIdent()
 				if err != nil {
 					return nil, err
 				}
-				stmt.Action = ast.AlterViewDropRowAccessPolicy
-				stmt.PolicyName = policyName
-
-				// Documented drop-and-add combination:
-				// DROP ROW ACCESS POLICY p1, ADD ROW ACCESS POLICY p2 ON (cols)
-				if p.cur.Type == ',' && p.peekNext().Type == kwADD {
-					p.advance() // consume ','
-					p.advance() // consume ADD
-					if _, err := p.expect(kwROW); err != nil {
-						return nil, err
-					}
-					if _, err := p.expect(kwACCESS); err != nil {
-						return nil, err
-					}
-					if _, err := p.expect(kwPOLICY); err != nil {
-						return nil, err
-					}
-					addName, err := p.parseObjectName()
-					if err != nil {
-						return nil, err
-					}
-					if _, err := p.expect(kwON); err != nil {
-						return nil, err
-					}
-					addCols, err := p.parseIdentListInParens()
-					if err != nil {
-						return nil, err
-					}
-					stmt.AddPolicyName = addName
-					stmt.AddPolicyCols = addCols
+				stmt.Action = ast.AlterViewUnsetContact
+				stmt.Contact = purpose.String()
+			case p.startsDataMetricSchedule():
+				dm, err := p.parseDataMetricSchedule(false, unsetTok.Loc.Start)
+				if err != nil {
+					return nil, err
 				}
-			} else if p.cur.Type == kwPOLICIES {
-				p.advance() // consume POLICIES
-				stmt.Action = ast.AlterViewDropAllRowAccessPolicies
-			} else {
+				stmt.Action = ast.AlterViewDataMetric
+				stmt.DataMetric = dm
+			default:
 				return nil, p.syntaxErrorAtCur()
 			}
-		case kwALL:
-			// DROP ALL ROW ACCESS POLICIES
-			p.advance() // consume ALL
-			if _, err := p.expect(kwROW); err != nil {
-				return nil, err
-			}
-			if _, err := p.expect(kwACCESS); err != nil {
-				return nil, err
-			}
-			if _, err := p.expect(kwPOLICIES); err != nil {
-				return nil, err
-			}
-			stmt.Action = ast.AlterViewDropAllRowAccessPolicies
-		default:
-			return nil, p.syntaxErrorAtCur()
 		}
 
-	case kwALTER, kwMODIFY:
-		// ALTER|MODIFY [COLUMN] col SET MASKING POLICY / UNSET MASKING POLICY
-		//                          | SET TAG / UNSET TAG
-		// — comma-separated list form included:
-		// MODIFY COLUMN a SET MASKING POLICY p1, COLUMN b SET MASKING POLICY p2
-		p.advance() // consume ALTER or MODIFY
-		for {
-			action, err := p.parseAlterViewColumnAction()
+	case kwADD, kwDROP, kwMODIFY, kwALTER:
+		verb := p.cur
+		switch {
+		case verb.Type != kwALTER && p.verbStartsDataMetricFunction():
+			// { ADD | DROP | MODIFY } DATA METRIC FUNCTION ...
+			p.advance() // consume the verb
+			kind := ast.DataMetricAdd
+			switch verb.Type {
+			case kwDROP:
+				kind = ast.DataMetricDrop
+			case kwMODIFY:
+				kind = ast.DataMetricModify
+			}
+			dm, err := p.parseDataMetricFunctionAction(kind, verb.Loc.Start)
 			if err != nil {
 				return nil, err
 			}
-			stmt.ColumnActions = append(stmt.ColumnActions, action)
-			if p.cur.Type != ',' {
-				break
+			stmt.Action = ast.AlterViewDataMetric
+			stmt.DataMetric = dm
+		case verb.Type == kwALTER || verb.Type == kwMODIFY:
+			p.advance() // consume ALTER or MODIFY
+			if err := p.parseAlterViewColumnActions(stmt); err != nil {
+				return nil, err
 			}
-			p.advance() // consume ','
+		case verb.Type == kwDROP:
+			p.advance() // consume DROP
+			if err := p.parseAlterViewDropRowAccessPolicy(stmt); err != nil {
+				return nil, err
+			}
+		case p.peekNext().Type == kwROW:
+			p.advance() // consume ADD
+			if err := p.parseAlterViewAddRowAccessPolicy(stmt); err != nil {
+				return nil, err
+			}
+		default:
+			p.advance() // consume ADD
+			if err := p.parseAlterViewAddColumn(stmt); err != nil {
+				return nil, err
+			}
 		}
-		// Mirror the first action into the legacy single-action fields.
-		first := stmt.ColumnActions[0]
-		stmt.Action = first.Action
-		stmt.Column = first.Column
-		stmt.MaskingPolicy = first.MaskingPolicy
-		stmt.MaskingUsing = first.MaskingUsing
-		stmt.Tags = first.Tags
-		stmt.UnsetTags = first.UnsetTags
 
 	default:
 		return nil, p.syntaxErrorAtCur()
@@ -775,16 +745,168 @@ func (p *Parser) parseAlterViewStmt() (ast.Node, error) {
 	return stmt, nil
 }
 
+// verbStartsDataMetricFunction reports whether the ADD / DROP / MODIFY at cur
+// is followed by DATA METRIC FUNCTION.
+func (p *Parser) verbStartsDataMetricFunction() bool {
+	snap := p.snapshot()
+	defer p.restore(snap)
+	p.advance() // consume the verb
+	return p.startsDataMetricFunction()
+}
+
+// parseAlterViewAddRowAccessPolicy parses ROW ACCESS POLICY policy_name ON
+// (cols) after ADD.
+func (p *Parser) parseAlterViewAddRowAccessPolicy(stmt *ast.AlterViewStmt) error {
+	name, cols, err := p.parseAddRowAccessPolicyTail()
+	if err != nil {
+		return err
+	}
+	stmt.Action = ast.AlterViewAddRowAccessPolicy
+	stmt.PolicyName = name
+	stmt.PolicyCols = cols
+	return nil
+}
+
+// parseAlterViewDropRowAccessPolicy parses, after DROP,
+//
+//	ROW ACCESS POLICY <p> [ , ADD ROW ACCESS POLICY <p2> ON ( <col> [ , ... ] ) ]
+//	ALL ROW ACCESS POLICIES
+func (p *Parser) parseAlterViewDropRowAccessPolicy(stmt *ast.AlterViewStmt) error {
+	all, name, addName, addCols, err := p.parseDropRowAccessPolicyTail()
+	if err != nil {
+		return err
+	}
+	if all {
+		stmt.Action = ast.AlterViewDropAllRowAccessPolicies
+		return nil
+	}
+	stmt.Action = ast.AlterViewDropRowAccessPolicy
+	stmt.PolicyName = name
+	stmt.AddPolicyName = addName
+	stmt.AddPolicyCols = addCols
+	return nil
+}
+
+// parseAlterViewColumnActions parses the comma-separated column action list
+// after ALTER / MODIFY:
+//
+//	MODIFY COLUMN a SET MASKING POLICY p1, COLUMN b SET MASKING POLICY p2
+func (p *Parser) parseAlterViewColumnActions(stmt *ast.AlterViewStmt) error {
+	actions, err := p.parseColumnPolicyActions()
+	if err != nil {
+		return err
+	}
+	stmt.ColumnActions = actions
+	// Mirror the first action into the legacy single-action fields.
+	first := actions[0]
+	stmt.Action = first.Action
+	stmt.Column = first.Column
+	stmt.MaskingPolicy = first.MaskingPolicy
+	stmt.MaskingUsing = first.MaskingUsing
+	stmt.ProjectionPolicy = first.ProjectionPolicy
+	stmt.Tags = first.Tags
+	stmt.UnsetTags = first.UnsetTags
+	return nil
+}
+
+// parseAlterViewAddColumn parses, after ADD,
+//
+//	[ COLUMN ] [ IF NOT EXISTS ] <col> <type>
+//	  [ [ WITH ] MASKING POLICY <p> [ USING ( <col> , <col> [ , ... ] ) ] ]
+//	  [ [ WITH ] PROJECTION POLICY <p> ]
+//	  [ [ WITH ] TAG ( <tag> = '<value>' [ , ... ] ) ]
+func (p *Parser) parseAlterViewAddColumn(stmt *ast.AlterViewStmt) error {
+	if p.cur.Type == kwCOLUMN {
+		p.advance() // consume COLUMN
+	}
+	if p.cur.Type == kwIF {
+		p.advance() // consume IF
+		if _, err := p.expect(kwNOT); err != nil {
+			return err
+		}
+		if _, err := p.expect(kwEXISTS); err != nil {
+			return err
+		}
+		stmt.IfNotExists = true
+	}
+	col, err := p.parseIdent()
+	if err != nil {
+		return err
+	}
+	typ, err := p.parseDataType()
+	if err != nil {
+		return err
+	}
+	stmt.Action = ast.AlterViewAddColumn
+	stmt.Column = col
+	stmt.ColumnType = typ
+
+	// [ WITH ] precedes each clause; the clauses come in the documented order.
+	withThen := func(word string) bool {
+		if p.cur.Type == kwWITH {
+			return p.peekIsWord(word)
+		}
+		return p.curIsWord(word)
+	}
+	if withThen("MASKING") {
+		if p.cur.Type == kwWITH {
+			p.advance() // consume WITH
+		}
+		p.advance() // consume MASKING
+		if _, err := p.expect(kwPOLICY); err != nil {
+			return err
+		}
+		if stmt.MaskingPolicy, err = p.parseObjectName(); err != nil {
+			return err
+		}
+		if p.cur.Type == kwUSING {
+			p.advance() // consume USING
+			if stmt.MaskingUsing, err = p.parseIdentListInParens(); err != nil {
+				return err
+			}
+			if len(stmt.MaskingUsing) < 2 {
+				// USING names the masked column and at least one condition column.
+				return p.syntaxErrorAtCur()
+			}
+		}
+	}
+	if withThen("PROJECTION") {
+		if p.cur.Type == kwWITH {
+			p.advance() // consume WITH
+		}
+		if err := p.expectPolicyWord(); err != nil {
+			return err
+		}
+		if stmt.ProjectionPolicy, err = p.parseObjectName(); err != nil {
+			return err
+		}
+	}
+	if withThen("TAG") {
+		if p.cur.Type == kwWITH {
+			p.advance() // consume WITH
+		}
+		if stmt.Tags, err = p.parseTagAssignments(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // parseAlterViewColumnAction parses ONE element of an ALTER VIEW
 // MODIFY/ALTER column action list:
 //
 //	[COLUMN] <col> { SET MASKING POLICY <p> [USING (col, ...)] [FORCE]
 //	               | UNSET MASKING POLICY
+//	               | SET PROJECTION POLICY <p> [FORCE]
+//	               | UNSET PROJECTION POLICY
 //	               | SET TAG <t> = '<v>' [, ...]
 //	               | UNSET TAG <t> [, ...] }
 //
 // The leading ALTER|MODIFY keyword (or the list comma) has already been
-// consumed.
+// consumed. ALTER DYNAMIC TABLE's column actions share this grammar.
+//
+//	https://docs.snowflake.com/en/sql-reference/sql/alter-view
+//	https://docs.snowflake.com/en/sql-reference/sql/alter-dynamic-table
 func (p *Parser) parseAlterViewColumnAction() (*ast.AlterViewColumnAction, error) {
 	action := &ast.AlterViewColumnAction{Loc: ast.Loc{Start: p.cur.Loc.Start}}
 
@@ -845,7 +967,7 @@ func (p *Parser) parseAlterViewColumnAction() (*ast.AlterViewColumnAction, error
 			}
 
 		case kwTAG:
-			tags, err := p.parseTagAssignments()
+			tags, err := p.parseSetTagClause()
 			if err != nil {
 				return nil, err
 			}
@@ -853,7 +975,23 @@ func (p *Parser) parseAlterViewColumnAction() (*ast.AlterViewColumnAction, error
 			action.Tags = tags
 
 		default:
-			return nil, p.syntaxErrorAtCur()
+			if !p.startsPolicyWord("PROJECTION") {
+				return nil, p.syntaxErrorAtCur()
+			}
+			// SET PROJECTION POLICY policy_name [FORCE]
+			if err := p.expectPolicyWord(); err != nil {
+				return nil, err
+			}
+			policyName, err := p.parseObjectName()
+			if err != nil {
+				return nil, err
+			}
+			action.Action = ast.AlterViewColumnSetProjectionPolicy
+			action.ProjectionPolicy = policyName
+			if p.cur.Type == kwFORCE {
+				p.advance() // consume FORCE
+				action.Force = true
+			}
 		}
 
 	case kwUNSET:
@@ -867,7 +1005,7 @@ func (p *Parser) parseAlterViewColumnAction() (*ast.AlterViewColumnAction, error
 			action.Action = ast.AlterViewColumnUnsetMaskingPolicy
 
 		case kwTAG:
-			names, err := p.parseUnsetTagList()
+			names, err := p.parseUnsetTagClause()
 			if err != nil {
 				return nil, err
 			}
@@ -875,7 +1013,13 @@ func (p *Parser) parseAlterViewColumnAction() (*ast.AlterViewColumnAction, error
 			action.UnsetTags = names
 
 		default:
-			return nil, p.syntaxErrorAtCur()
+			if !p.startsPolicyWord("PROJECTION") {
+				return nil, p.syntaxErrorAtCur()
+			}
+			if err := p.expectPolicyWord(); err != nil {
+				return nil, err
+			}
+			action.Action = ast.AlterViewColumnUnsetProjectionPolicy
 		}
 
 	default:
@@ -888,10 +1032,11 @@ func (p *Parser) parseAlterViewColumnAction() (*ast.AlterViewColumnAction, error
 
 // parseAlterViewSetJoinPolicy parses
 //
-//	SET JOIN POLICY <name> [ { ALLOWED | ENFORCED } JOIN KEYS ( col, ... ) ]
+//	SET JOIN POLICY <name> [ FORCE ] [ { ALLOWED | ENFORCED } JOIN KEYS ( col, ... ) ]
 //
 // On entry cur is the JOIN keyword. ALLOWED lexes as an identifier; ENFORCED is
-// a reserved keyword.
+// a reserved keyword. The page writes [ FORCE ]; the JOIN KEYS clause is what
+// omni has always read.
 func (p *Parser) parseAlterViewSetJoinPolicy(stmt *ast.AlterViewStmt) error {
 	p.advance() // consume JOIN
 	if _, err := p.expect(kwPOLICY); err != nil {
@@ -903,6 +1048,10 @@ func (p *Parser) parseAlterViewSetJoinPolicy(stmt *ast.AlterViewStmt) error {
 	}
 	stmt.Action = ast.AlterViewSetJoinPolicy
 	stmt.PolicyName = name
+	if p.cur.Type == kwFORCE {
+		p.advance() // consume FORCE
+		stmt.PolicyForce = true
+	}
 
 	// Optional { ALLOWED | ENFORCED } JOIN KEYS ( col, ... ).
 	var kind string
@@ -926,44 +1075,6 @@ func (p *Parser) parseAlterViewSetJoinPolicy(stmt *ast.AlterViewStmt) error {
 		}
 		stmt.PolicyKeyKind = kind
 		stmt.PolicyKeyCols = cols
-	}
-	return nil
-}
-
-// parseAlterViewSetAggregationPolicy parses
-//
-//	SET AGGREGATION POLICY <name> [ ENTITY KEY ( col, ... ) ] [ FORCE ]
-//
-// On entry cur is the AGGREGATION identifier. ENTITY lexes as an identifier.
-func (p *Parser) parseAlterViewSetAggregationPolicy(stmt *ast.AlterViewStmt) error {
-	p.advance() // consume AGGREGATION
-	if _, err := p.expect(kwPOLICY); err != nil {
-		return err
-	}
-	name, err := p.parseObjectName()
-	if err != nil {
-		return err
-	}
-	stmt.Action = ast.AlterViewSetAggregationPolicy
-	stmt.PolicyName = name
-
-	// Optional ENTITY KEY ( col, ... ).
-	if p.curIsWord("ENTITY") {
-		p.advance() // consume ENTITY
-		if _, err := p.expect(kwKEY); err != nil {
-			return err
-		}
-		cols, err := p.parseIdentListInParens()
-		if err != nil {
-			return err
-		}
-		stmt.PolicyKeyCols = cols
-	}
-
-	// Optional FORCE.
-	if p.cur.Type == kwFORCE {
-		p.advance() // consume FORCE
-		stmt.PolicyForce = true
 	}
 	return nil
 }
@@ -1059,53 +1170,65 @@ func (p *Parser) parseAlterMaterializedViewStmt() (ast.Node, error) {
 		}
 
 	case kwSET:
-		// SET [SECURE] [COMMENT = '...']
-		// Can be SET SECURE, SET COMMENT = '...', or SET SECURE COMMENT = '...'
-		p.advance() // consume SET
-		switch p.cur.Type {
-		case kwSECURE:
+		// SET SECURE [ CONTACT ... ] [ COMMENT = '...' ]
+		// SET CONTACT purpose = contact [ , ... ] [ COMMENT = '...' ]
+		// SET COMMENT = '...'
+		// SET DATA_METRIC_SCHEDULE = '...'
+		setTok := p.advance() // consume SET
+		switch {
+		case p.cur.Type == kwSECURE:
 			p.advance() // consume SECURE
 			stmt.Action = ast.AlterMVSetSecure
 			stmt.Secure = true
-			// Check if COMMENT follows (SET SECURE COMMENT = '...')
-			if p.cur.Type == kwCOMMENT {
-				p.advance() // consume COMMENT
-				if p.cur.Type == '=' {
-					p.advance()
-				}
-				tok, err := p.expect(tokString)
-				if err != nil {
-					return nil, err
-				}
-				s := tok.Str
-				stmt.Comment = &s
+			if err := p.parseAlterMVContactComment(stmt); err != nil {
+				return nil, err
 			}
-		case kwCOMMENT:
-			p.advance() // consume COMMENT
-			if p.cur.Type == '=' {
-				p.advance()
+		case p.curIsWord("CONTACT"):
+			stmt.Action = ast.AlterMVSetContact
+			if err := p.parseAlterMVContactComment(stmt); err != nil {
+				return nil, err
 			}
-			tok, err := p.expect(tokString)
+		case p.cur.Type == kwCOMMENT:
+			stmt.Action = ast.AlterMVSetComment
+			if err := p.parseAlterMVContactComment(stmt); err != nil {
+				return nil, err
+			}
+		case p.startsDataMetricSchedule():
+			dm, err := p.parseDataMetricSchedule(true, setTok.Loc.Start)
 			if err != nil {
 				return nil, err
 			}
-			s := tok.Str
-			stmt.Action = ast.AlterMVSetComment
-			stmt.Comment = &s
+			stmt.Action = ast.AlterMVDataMetric
+			stmt.DataMetric = dm
 		default:
 			return nil, p.syntaxErrorAtCur()
 		}
 
 	case kwUNSET:
-		// UNSET SECURE | UNSET COMMENT
-		p.advance() // consume UNSET
-		switch p.cur.Type {
-		case kwSECURE:
+		// UNSET { SECURE | CONTACT purpose | COMMENT | DATA_METRIC_SCHEDULE }
+		unsetTok := p.advance() // consume UNSET
+		switch {
+		case p.cur.Type == kwSECURE:
 			p.advance() // consume SECURE
 			stmt.Action = ast.AlterMVUnsetSecure
-		case kwCOMMENT:
+		case p.cur.Type == kwCOMMENT:
 			p.advance() // consume COMMENT
 			stmt.Action = ast.AlterMVUnsetComment
+		case p.curIsWord("CONTACT"):
+			p.advance() // consume CONTACT
+			purpose, err := p.parseIdent()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Action = ast.AlterMVUnsetContact
+			stmt.Contact = purpose.String()
+		case p.startsDataMetricSchedule():
+			dm, err := p.parseDataMetricSchedule(false, unsetTok.Loc.Start)
+			if err != nil {
+				return nil, err
+			}
+			stmt.Action = ast.AlterMVDataMetric
+			stmt.DataMetric = dm
 		default:
 			return nil, p.syntaxErrorAtCur()
 		}
@@ -1116,4 +1239,35 @@ func (p *Parser) parseAlterMaterializedViewStmt() (ast.Node, error) {
 
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
+}
+
+// parseAlterMVContactComment parses the optional
+// [ CONTACT purpose = contact [ , ... ] ] [ COMMENT = '...' ] tail of ALTER
+// MATERIALIZED VIEW ... SET. A SET COMMENT or SET CONTACT action requires its
+// clause.
+func (p *Parser) parseAlterMVContactComment(stmt *ast.AlterMaterializedViewStmt) error {
+	if p.curIsWord("CONTACT") {
+		contact, err := p.parseContactValue()
+		if err != nil {
+			return err
+		}
+		stmt.Contact = contact
+	} else if stmt.Action == ast.AlterMVSetContact {
+		return p.syntaxErrorAtCur()
+	}
+	if p.cur.Type == kwCOMMENT {
+		p.advance()            // consume COMMENT
+		if p.cur.Type == '=' { // omni has always read the '=' as optional here
+			p.advance()
+		}
+		tok, err := p.expect(tokString)
+		if err != nil {
+			return err
+		}
+		s := tok.Str
+		stmt.Comment = &s
+	} else if stmt.Action == ast.AlterMVSetComment {
+		return p.syntaxErrorAtCur()
+	}
+	return nil
 }

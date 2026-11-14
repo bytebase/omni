@@ -593,3 +593,93 @@ func (p *Parser) parseUnsetContact() (string, error) {
 	}
 	return "CONTACT " + purpose.String(), nil
 }
+
+// ---------------------------------------------------------------------------
+// Row access policies and column policy actions
+// ---------------------------------------------------------------------------
+
+// parseAddRowAccessPolicyTail parses ROW ACCESS POLICY <p> ON ( <col> [ , ... ] )
+// after ADD.
+func (p *Parser) parseAddRowAccessPolicyTail() (*ast.ObjectName, []ast.Ident, error) {
+	for _, t := range []int{kwROW, kwACCESS, kwPOLICY} {
+		if _, err := p.expect(t); err != nil {
+			return nil, nil, err
+		}
+	}
+	name, err := p.parseObjectName()
+	if err != nil {
+		return nil, nil, err
+	}
+	if _, err := p.expect(kwON); err != nil {
+		return nil, nil, err
+	}
+	cols, err := p.parseIdentListInParens()
+	if err != nil {
+		return nil, nil, err
+	}
+	return name, cols, nil
+}
+
+// parseDropRowAccessPolicyTail parses, after DROP,
+//
+//	ROW ACCESS POLICY <p> [ , ADD ROW ACCESS POLICY <p2> ON ( <col> [ , ... ] ) ]
+//	ALL ROW ACCESS POLICIES
+//
+// and reports all for the second form.
+func (p *Parser) parseDropRowAccessPolicyTail() (all bool, name, addName *ast.ObjectName, addCols []ast.Ident, err error) {
+	if p.cur.Type == kwALL {
+		p.advance() // consume ALL
+		for _, t := range []int{kwROW, kwACCESS, kwPOLICIES} {
+			if _, err := p.expect(t); err != nil {
+				return false, nil, nil, nil, err
+			}
+		}
+		return true, nil, nil, nil, nil
+	}
+	for _, t := range []int{kwROW, kwACCESS} {
+		if _, err := p.expect(t); err != nil {
+			return false, nil, nil, nil, err
+		}
+	}
+	if p.cur.Type == kwPOLICIES {
+		// DROP ROW ACCESS POLICIES, as omni has always read it for views.
+		p.advance()
+		return true, nil, nil, nil, nil
+	}
+	if _, err := p.expect(kwPOLICY); err != nil {
+		return false, nil, nil, nil, err
+	}
+	if name, err = p.parseObjectName(); err != nil {
+		return false, nil, nil, nil, err
+	}
+	// The documented drop-and-add combination.
+	if p.cur.Type == ',' && p.peekNext().Type == kwADD {
+		p.advance() // consume ','
+		p.advance() // consume ADD
+		if addName, addCols, err = p.parseAddRowAccessPolicyTail(); err != nil {
+			return false, nil, nil, nil, err
+		}
+	}
+	return false, name, addName, addCols, nil
+}
+
+// parseColumnPolicyActions parses the comma-separated column action list after
+// ALTER / MODIFY that ALTER VIEW and ALTER DYNAMIC TABLE share (see
+// parseAlterViewColumnAction).
+func (p *Parser) parseColumnPolicyActions() ([]*ast.AlterViewColumnAction, error) {
+	var actions []*ast.AlterViewColumnAction
+	for i := 0; ; i++ {
+		if i >= dataMetricClauseCap {
+			return nil, p.syntaxErrorAtCur()
+		}
+		action, err := p.parseAlterViewColumnAction()
+		if err != nil {
+			return nil, err
+		}
+		actions = append(actions, action)
+		if p.cur.Type != ',' {
+			return actions, nil
+		}
+		p.advance() // consume ','
+	}
+}
