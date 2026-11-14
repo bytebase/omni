@@ -719,15 +719,17 @@ func (p *Parser) parseExternalColumnDef() (*ast.ExternalColumnDef, error) {
 	}
 	col.Expr = expr
 
-	// Optional inline NOT NULL / PRIMARY KEY / UNIQUE / FOREIGN KEY constraint.
+	// Optional inline NOT NULL / PRIMARY KEY / UNIQUE / [FOREIGN KEY] REFERENCES
+	// constraint (https://docs.snowflake.com/en/sql-reference/sql/create-external-table).
 	if p.cur.Type == kwNOT && p.peekNext().Type == kwNULL {
 		p.advance() // consume NOT
 		p.advance() // consume NULL
 		col.NotNull = true
 	}
 	if p.cur.Type == kwCONSTRAINT || p.cur.Type == kwPRIMARY ||
-		p.cur.Type == kwUNIQUE || p.cur.Type == kwFOREIGN {
-		ic, err := p.parseInlineConstraint()
+		p.cur.Type == kwUNIQUE || p.cur.Type == kwFOREIGN || p.cur.Type == kwREFERENCES {
+		// The external table page lists no CHECK constraint.
+		ic, err := p.parseInlineConstraint(false)
 		if err != nil {
 			return nil, err
 		}
