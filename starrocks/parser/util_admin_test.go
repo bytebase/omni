@@ -530,3 +530,32 @@ func TestRecoverLoc(t *testing.T) {
 		t.Error("Loc should be valid")
 	}
 }
+
+// A kind word that is also a non-reserved word (VIEW, TABLES, ...) names a
+// table when the kind reading does not end the entry (StarRocks.g4
+// backupRestoreObjectDesc, backupRestoreTableDesc).
+func TestBackupObjectList(t *testing.T) {
+	accept := []string{
+		"BACKUP SNAPSHOT db.snap TO repo ON (view TEMPORARY PARTITION(p1))",
+		"BACKUP SNAPSHOT db.snap TO repo ON (views PARTITIONS(p1, p2), t)",
+		"BACKUP SNAPSHOT db.snap TO repo ON (VIEW v1, TABLES t1 PARTITION p1, FUNCTION f1)",
+		"BACKUP SNAPSHOT db.snap TO repo ON (MATERIALIZED VIEW mv, ALL FUNCTIONS, view)",
+		"BACKUP SNAPSHOT db.snap TO repo ON (t PARTITION(k = 1, j = 'x'))",
+		"RESTORE SNAPSHOT db.snap FROM repo ON (VIEW v1 AS v2, view TEMPORARY PARTITION(p1) AS t2)",
+	}
+	for _, sql := range accept {
+		if _, err := Parse(sql); err != nil {
+			t.Errorf("Parse(%q): %v", sql, err)
+		}
+	}
+	reject := []string{
+		"BACKUP SNAPSHOT db.snap TO repo ON (t AS t2)",
+		"BACKUP SNAPSHOT db.snap TO repo ON (VIEW v1 PARTITION p1)",
+		"RESTORE SNAPSHOT snap FROM repo ON (t)",
+	}
+	for _, sql := range reject {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q): got nil error, want an error", sql)
+		}
+	}
+}

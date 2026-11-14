@@ -116,9 +116,12 @@ func (p *Parser) parseBackupObjectList(restore bool) ([]*ast.ObjectName, ast.Loc
 }
 
 // parseBackupObjectDesc parses one entry of a BACKUP or RESTORE ON list (see
-// parseBackupObjectList). A kind keyword that can also be a table name (VIEW,
-// TABLES, ...) is the kind only when an object name follows it, as in
-// ANTLR's prediction: `ON (VIEW)` backs up a table named view.
+// parseBackupObjectList). VIEW, VIEWS, TABLES and FUNCTIONS are also
+// non-reserved words, so an entry starting with one may be that kind of object
+// or a table of that name: `ON (VIEW)` and `ON (view TEMPORARY PARTITION(p))`
+// back up a table named view. As ANTLR's prediction does, the entry is read
+// with the kind first and read again as a table when that reading does not
+// end the entry. Each entry is read at most twice, and entries do not nest.
 func (p *Parser) parseBackupObjectDesc(restore bool) (*ast.ObjectName, error) {
 	isKind := func(kind int) bool {
 		switch kind {
@@ -143,24 +146,43 @@ func (p *Parser) parseBackupObjectDesc(restore bool) (*ast.ObjectName, error) {
 		return nil, nil
 	}
 
-	tableDesc := true
-	if isKind(p.cur.Kind) {
-		next := p.peekNext().Kind
-		switch {
-		case p.cur.Kind == kwMATERIALIZED:
-			if next == kwVIEW || next == kwVIEWS {
-				p.advance() // consume MATERIALIZED
-				p.advance() // consume VIEW | VIEWS
-				tableDesc = false
-			}
-		case isIdentifierToken(next) || p.cur.Kind == kwFUNCTION:
-			// FUNCTION is not in StarRocks.g4's nonReserved, so it is never
-			// a table name here.
-			tableDesc = p.cur.Kind == kwTABLE || p.cur.Kind == kwTABLES
-			p.advance() // consume the kind keyword
+	if !isKind(p.cur.Kind) {
+		return p.parseBackupObjectTail(restore, true)
+	}
+	next := p.peekNext().Kind
+	if p.cur.Kind == kwMATERIALIZED {
+		if next != kwVIEW && next != kwVIEWS {
+			return p.parseBackupObjectTail(restore, true)
 		}
+		p.advance() // consume MATERIALIZED
+		p.advance() // consume VIEW | VIEWS
+		return p.parseBackupObjectTail(restore, false)
+	}
+	// FUNCTION and TABLE are not in StarRocks.g4's nonReserved, so they are
+	// never a table name here.
+	if p.cur.Kind == kwFUNCTION || p.cur.Kind == kwTABLE {
+		tableDesc := p.cur.Kind == kwTABLE
+		p.advance() // consume the kind keyword
+		return p.parseBackupObjectTail(restore, tableDesc)
+	}
+	if !isIdentifierToken(next) {
+		return p.parseBackupObjectTail(restore, true)
 	}
 
+	cp := p.save()
+	tableDesc := p.cur.Kind == kwTABLES
+	p.advance() // consume the kind keyword
+	name, err := p.parseBackupObjectTail(restore, tableDesc)
+	if err == nil && (p.cur.Kind == int(',') || p.cur.Kind == int(')')) {
+		return name, nil
+	}
+	p.restore(cp)
+	return p.parseBackupObjectTail(restore, true)
+}
+
+// parseBackupObjectTail parses the name of a BACKUP or RESTORE ON entry, its
+// partitionNames when it is a table (tableDesc), and its alias.
+func (p *Parser) parseBackupObjectTail(restore, tableDesc bool) (*ast.ObjectName, error) {
 	name, err := p.parseMultipartIdentifier()
 	if err != nil {
 		return nil, err
