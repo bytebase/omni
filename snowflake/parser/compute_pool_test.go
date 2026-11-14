@@ -41,11 +41,11 @@ func clauseKeywords(s *ast.ObjectStmt) []string {
 }
 
 func TestParseCreateComputePool(t *testing.T) {
-	in := "CREATE COMPUTE POOL IF NOT EXISTS db.pool1 FOR APPLICATION app MIN_NODES = 1 MAX_NODES = 2 " +
+	in := "CREATE COMPUTE POOL IF NOT EXISTS pool1 FOR APPLICATION app MIN_NODES = 1 MAX_NODES = 2 " +
 		"INSTANCE_FAMILY = CPU_X64_XS AUTO_RESUME = TRUE WITH TAG (t = 'v') COMMENT = 'c' " +
 		"BACKUP_INSTANCE_FAMILIES = ('a', 'b')"
 	s := mustObjectStmt(t, in)
-	if s.Verb != "CREATE" || s.Kind != "COMPUTE POOL" || !s.IfNotExists || s.Name.String() != "db.pool1" {
+	if s.Verb != "CREATE" || s.Kind != "COMPUTE POOL" || !s.IfNotExists || s.Name.String() != "pool1" {
 		t.Fatalf("got %+v", s)
 	}
 	if got := clauseKeywords(s); len(got) != 2 || got[0] != "FOR APPLICATION" || got[1] != "" {
@@ -113,6 +113,20 @@ func TestParseComputePoolRejects(t *testing.T) {
 		"ALTER COMPUTE POOL p SET NOT_A_PROPERTY = 1",
 		"ALTER COMPUTE POOL p SET BACKUP_INSTANCE_FAMILIES = (a)",
 		"ALTER COMPUTE POOL p UNSET MIN_NODES",
+		"ALTER COMPUTE POOL p SET INITIALLY_SUSPENDED = TRUE", // CREATE's alone
+		"ALTER COMPUTE POOL p SET WITH TAG (t = 'x')",
+		"ALTER COMPUTE POOL db.p SUSPEND", // an account-level object
+		"CREATE COMPUTE POOL db.p MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a",
+		"DROP COMPUTE POOL db.p",
+		"CREATE COMPUTE POOL p FOR APPLICATION db.a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a",
+		"ALTER COMPUTE POOL p STOP ALL OF TYPE db.a",
+		"ALTER COMPUTE POOL p SET AUTO_RESUME = TRUE AUTO_RESUME = FALSE",
+		"CREATE COMPUTE POOL p MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a MIN_NODES = 2",
+		"ALTER COMPUTE POOL p SET TAG (t = 'x')",
+		"ALTER COMPUTE POOL p SET INSTANCE_FAMILY = foo.",
+		"ALTER COMPUTE POOL p SET INSTANCE_FAMILY = foo..bar",
+		"ALTER COMPUTE POOL p SET AUTO_RESUME = \"TRUE\"",
+		"ALTER COMPUTE POOL p SET AUTO_RESUME = \"true\"",
 		"CREATE COMPUTE POOL p \"MIN_NODES\" = 1 MAX_NODES = 1 INSTANCE_FAMILY = a",
 		"ALTER COMPUTE POOL p SET C = (\"K\" = 1)",
 		"ALTER COMPUTE POOL p UNSET COMMENT, 1.5",
@@ -198,5 +212,19 @@ func TestParseObjectAsQuery(t *testing.T) {
 	}
 	if c := s.Clauses[0]; c.Keywords != "AS" || c.Query == nil || c.Loc.End != len("AS SELECT a FROM t") {
 		t.Fatalf("clause = %+v", c)
+	}
+}
+
+func TestObjectFormIfExistsFlags(t *testing.T) {
+	f := &objectForm{words: []string{"ZZ", "THING"}, noIfNotExists: true, noIfExists: true, dropNoIfExists: true, drop: true,
+		create: func(*Parser, *ast.ObjectStmt) error { return nil },
+		alter:  func(*Parser, *ast.ObjectStmt) error { return nil }}
+	registerObject(f)
+	defer delete(objectForms, "ZZ")
+	for _, in := range []string{"CREATE ZZ THING t", "ALTER ZZ THING t", "DROP ZZ THING t"} {
+		mustParseOne(t, in)
+	}
+	for _, in := range []string{"CREATE ZZ THING IF NOT EXISTS t", "ALTER ZZ THING IF EXISTS t", "DROP ZZ THING IF EXISTS t"} {
+		mustRejectObject(t, in)
 	}
 }
