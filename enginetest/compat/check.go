@@ -47,6 +47,12 @@ type Suite struct {
 	// from (options { tokenVocab = ...; }), where the vendor publishes the
 	// two apart, as PartiQL's PartiQLTokens.g4 is. It is read with Grammar.
 	Lexer string
+	// More lists further ANTLR parser grammars read with Lexer, each
+	// generating rows from its own first rule, which join Grammar's: a
+	// second parser the engine runs on what the first hands it, as Doris's
+	// legacy CUP parser, converted, reads the statements its ANTLR parser
+	// does not plan. Two grammars that generate the same row fail.
+	More []string
 	// Defined names the conditions Grammar is built with, where one file
 	// holds more than one grammar between %ifdef lines, as MariaDB's does
 	// (grammar.Conditional).
@@ -127,6 +133,16 @@ func check(t testing.TB, s Suite) {
 		if err != nil {
 			t.Fatalf("generate rows from %s: %v", s.Grammar, err)
 		}
+		for _, more := range s.More {
+			_, rows, unc, err := generate(more, s.Lexer, s.Tokens, nil)
+			if err != nil {
+				t.Fatalf("generate rows from %s: %v", more, err)
+			}
+			generated, uncovered = append(generated, rows...), append(uncovered, unc...)
+		}
+		if dup := repeated(generated); len(s.More) > 0 && dup != "" {
+			t.Fatalf("%s and %s generate a row twice: %s", s.Grammar, strings.Join(s.More, ", "), dup)
+		}
 		if len(uncovered) > 0 {
 			t.Logf("%d alternatives have no generated row and need a hand-added one: %s", len(uncovered), strings.Join(uncovered, ", "))
 		}
@@ -158,6 +174,9 @@ func check(t testing.TB, s Suite) {
 
 	var recognize recognizeFunc
 	if recognized(s.Source) {
+		if len(s.More) > 0 {
+			t.Fatalf("a %s suite is judged by a recognizer over its Grammar alone: More is for an engine's judge", s.Source)
+		}
 		if s.Judge != nil || g == nil {
 			t.Fatalf("a %s suite is judged by a recognizer over its Grammar: give the Grammar and no Judge", s.Source)
 		}
@@ -259,6 +278,18 @@ func check(t testing.TB, s Suite) {
 		}
 		t.Logf("wrote %s", s.Path)
 	}
+}
+
+// repeated returns the first rule and statement rows holds twice, or "".
+func repeated(rows []grammar.Row) string {
+	seen := map[grammar.Row]bool{}
+	for _, r := range rows {
+		if seen[r] {
+			return r.Rule + "\t" + r.Statement
+		}
+		seen[r] = true
+	}
+	return ""
 }
 
 // generate reads the grammar, by its extension, and returns its rows.
