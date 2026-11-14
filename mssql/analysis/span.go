@@ -63,8 +63,8 @@ type ResolvedSpan struct {
 	Results       []QuerySpanResult
 	// PredicateColumns holds the columns that decide which rows return.
 	PredicateColumns ColumnSet
-	// NotFoundError is set when a table or column the query names is not in the
-	// catalog. Results is then empty.
+	// NotFoundError is set when a table the query names is not in the catalog.
+	// Results is then empty.
 	NotFoundError *NotFoundError
 }
 
