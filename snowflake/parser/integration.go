@@ -259,6 +259,21 @@ func (p *Parser) parseAlterIntegrationStmt() (ast.Node, error) {
 			return nil, err
 		}
 
+	case kwTRIGGERS:
+		// ALTER RESOURCE MONITOR [ IF EXISTS ] <name> [ SET { ... } ]
+		//   [ TRIGGERS triggerDefinition [ triggerDefinition ... ] ]
+		// (https://docs.snowflake.com/en/sql-reference/sql/alter-resource-monitor):
+		// TRIGGERS without SET is held as a SET that sets nothing else.
+		if kind != ast.ResourceMonitor {
+			return nil, p.syntaxErrorAtCur()
+		}
+		triggers, err := p.parseResourceMonitorTriggers()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Action = ast.AlterIntegrationSet
+		stmt.Triggers = triggers
+
 	case kwFETCH:
 		// GIT REPOSITORY FETCH.
 		p.advance() // consume FETCH

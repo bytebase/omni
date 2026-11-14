@@ -19,6 +19,9 @@ func (w *writer) writeCreateTableStmt(n *ast.CreateTableStmt) error {
 	} else if n.OrAlter {
 		w.buf.WriteString(" OR ALTER")
 	}
+	if n.ProcedureScoped {
+		w.buf.WriteString(" PROCEDURE SCOPED")
+	}
 	if n.Transient {
 		w.buf.WriteString(" TRANSIENT")
 	} else if n.Temporary {

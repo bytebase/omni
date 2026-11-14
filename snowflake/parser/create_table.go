@@ -103,7 +103,7 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 				return p.unsupported("CREATE")
 			}
 			// CREATE [OR REPLACE] SECURE PROCEDURE ... (T4.5).
-			return p.parseCreateProcedureStmt(start, orReplace, orAlter, true)
+			return p.parseCreateProcedureStmt(start, orReplace, orAlter, true, false)
 		case kwEXTERNAL:
 			if recursive {
 				return p.unsupported("CREATE")
@@ -256,7 +256,7 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 		return p.parseCreateFunctionStmt(start, orReplace, orAlter, false, temporary)
 	case kwPROCEDURE:
 		// CREATE [OR REPLACE] PROCEDURE ... (T4.5).
-		return p.parseCreateProcedureStmt(start, orReplace, orAlter, false)
+		return p.parseCreateProcedureStmt(start, orReplace, orAlter, false, transient || temporary || volatile)
 	case kwDYNAMIC:
 		// CREATE [OR REPLACE] [TRANSIENT] DYNAMIC [ICEBERG] TABLE ... (T4.4).
 		return p.parseCreateDynamicTableStmt(start, orReplace, orAlter, transient)
