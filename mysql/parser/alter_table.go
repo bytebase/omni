@@ -888,6 +888,10 @@ func (p *Parser) parseAlterColumn(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 			cmd.Type = nodes.ATAlterIndexVisible
 		} else if _, ok := p.match(kwINVISIBLE); ok {
 			cmd.Type = nodes.ATAlterIndexInvisible
+		} else {
+			// The visibility is required. Ref: `ALTER INDEX_SYM ident visibility`
+			// in MySQL 8.0 sql/sql_yacc.yy.
+			return nil, p.syntaxErrorAtCur()
 		}
 		cmd.Loc.End = p.prev.End
 		return cmd, nil

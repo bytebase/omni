@@ -45,6 +45,14 @@ func (p *Parser) parseWithClause() ([]*nodes.CommonTableExpr, error) {
 		if err != nil {
 			return nil, err
 		}
+		// Two elements of one WITH under one name are 4004, ER_DUP_QUERY_NAME, whatever
+		// their case: With_clause::check_dependencies compares the names with
+		// system_charset_info while the statement parses.
+		for _, prev := range ctes {
+			if strings.EqualFold(prev.Name, name) {
+				return nil, &ParseError{Message: "Duplicate query name `" + name + "` in WITH clause", Position: start}
+			}
+		}
 
 		cte := &nodes.CommonTableExpr{
 			Loc:       nodes.Loc{Start: start},

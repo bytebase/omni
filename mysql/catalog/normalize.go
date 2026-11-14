@@ -1397,6 +1397,7 @@ func (n *Normalizer) canonicalColumn(table *Table, c *Column, stripCastCS bool) 
 		"gen", gen,
 		"stored", stored,
 		"invisible", strconv.FormatBool(c.Invisible),
+		"notsecondary", strconv.FormatBool(c.NotSecondary),
 		"srid", canonicalSRID(c),
 	)
 }

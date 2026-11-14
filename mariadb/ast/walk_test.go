@@ -177,7 +177,7 @@ func allKnownNodes() []Node {
 		&InstallComponentStmt{}, &UninstallComponentStmt{},
 		&LockInstanceStmt{}, &UnlockInstanceStmt{},
 		&TableStmt{}, &ValuesStmt{},
-		&BinlogStmt{}, &CloneStmt{}, &RestartStmt{}, &ShutdownStmt{},
+		&BinlogStmt{}, &CloneStmt{}, &ShutdownStmt{},
 		&HelpStmt{}, &PurgeBinaryLogsStmt{}, &ImportTableStmt{},
 		&RawStmt{},
 		// Sequence statements (BYT-9135)
