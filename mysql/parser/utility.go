@@ -1856,12 +1856,18 @@ func (p *Parser) parseVCPUSpecs() ([]nodes.VCPUSpec, error) {
 
 		specs = append(specs, spec)
 
-		if p.cur.Type != ',' {
+		// opt_comma: a comma between two specs is optional, and one must follow it.
+		//
+		// Ref: vcpu_range_spec_list in MySQL 8.0 sql/sql_yacc.yy.
+		if _, ok := p.match(','); ok {
+			if !p.cur.isNum() {
+				return nil, p.syntaxErrorAtCur()
+			}
+			continue
+		}
+		if !p.cur.isNum() {
 			break
 		}
-		// Peek ahead: if after comma we don't see a number, it's not a VCPU continuation
-		// but could be a comma in some other context. For safety, always continue.
-		p.advance()
 	}
 
 	return specs, nil
