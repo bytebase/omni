@@ -1705,6 +1705,9 @@ func writeTableTypeIndex(sb *strings.Builder, n *TableTypeIndex) {
 	if n.Name != "" {
 		fmt.Fprintf(sb, " :name \"%s\"", escapeString(n.Name))
 	}
+	if n.Unique {
+		sb.WriteString(" :unique true")
+	}
 	if n.Clustered != nil {
 		if *n.Clustered {
 			sb.WriteString(" :clustered true")
@@ -2915,6 +2918,9 @@ func writeParamDef(sb *strings.Builder, n *ParamDef) {
 	if n.Null {
 		sb.WriteString(" :null true")
 	}
+	if n.NotNull {
+		sb.WriteString(" :notNull true")
+	}
 	if n.Default != nil {
 		sb.WriteString(" :default ")
 		writeNode(sb, n.Default)
@@ -3561,6 +3567,9 @@ func writeCreatePartitionFunctionStmt(sb *strings.Builder, n *CreatePartitionFun
 	if n.InputType != nil {
 		sb.WriteString(" :inputType ")
 		writeNode(sb, n.InputType)
+	}
+	if n.Collation != "" {
+		fmt.Fprintf(sb, " :collation \"%s\"", escapeString(n.Collation))
 	}
 	fmt.Fprintf(sb, " :range \"%s\"", escapeString(n.Range))
 	if n.Values != nil {

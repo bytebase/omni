@@ -454,6 +454,12 @@ func (p *Parser) parseCreateSpatialIndexStmt() (*nodes.CreateSpatialIndexStmt, e
 //
 //	<return_sqltype> ::=
 //	        system_scalar_type | { [ udt_schema_name. ] udt_type_name }
+//
+// The grammar is createAggregateStatement and aggregateParameter
+// (TSql160.g:991, TSql160.g:1026): at least one parameter, each
+// @name [ AS ] type [ NULL | NOT NULL ]; RETURNS and EXTERNAL NAME are
+// required, and the name is an assembly with an optional class
+// (assemblyName, TSql160.g:33181).
 func (p *Parser) parseCreateAggregateStmt() (*nodes.CreateAggregateStmt, error) {
 	loc := p.pos()
 	stmt := &nodes.CreateAggregateStmt{
@@ -466,68 +472,81 @@ func (p *Parser) parseCreateAggregateStmt() (*nodes.CreateAggregateStmt, error) 
 	if err != nil {
 		return nil, err
 	}
-
-	// (@param_name type, ...)
-	if p.cur.Type == '(' {
-		p.advance()
-		var params []nodes.Node
-		for p.cur.Type != ')' && p.cur.Type != tokEOF {
-			param := &nodes.ParamDef{Loc: nodes.Loc{Start: p.pos(), End: -1}}
-			// @param_name
-			if p.cur.Type == tokVARIABLE {
-				param.Name = p.cur.Str
-				p.advance()
-			}
-			// data type
-			param.DataType, err = p.parseDataType()
-			if err != nil {
-				return nil, err
-			}
-			params = append(params, param)
-			if _, ok := p.match(','); !ok {
-				break
-			}
-		}
-		p.match(')')
-		stmt.Params = &nodes.List{Items: params}
+	if stmt.Name == nil {
+		return nil, p.syntaxErrorAtCur()
 	}
 
-	// RETURNS return_type
-	if p.cur.Type == kwRETURNS {
+	// (@param_name [AS] type [NULL | NOT NULL], ...)
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	var params []nodes.Node
+	for {
+		if p.cur.Type != tokVARIABLE {
+			return nil, p.syntaxErrorAtCur()
+		}
+		param := &nodes.ParamDef{Name: p.cur.Str, Loc: nodes.Loc{Start: p.pos(), End: -1}}
 		p.advance()
-		stmt.ReturnType, err = p.parseDataType()
+		p.match(kwAS)
+		param.DataType, err = p.parseDataType()
 		if err != nil {
 			return nil, err
 		}
-		if stmt.ReturnType == nil {
+		if param.DataType == nil {
 			return nil, p.syntaxErrorAtCur()
 		}
+		switch {
+		case p.cur.Type == kwNULL:
+			param.Null = true
+			p.advance()
+		case p.cur.Type == kwNOT && p.peekNext().Type == kwNULL:
+			param.NotNull = true
+			p.advance()
+			p.advance()
+		}
+		param.Loc.End = p.prevEnd()
+		params = append(params, param)
+		if _, ok := p.match(','); !ok {
+			break
+		}
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	stmt.Params = &nodes.List{Items: params}
+
+	// RETURNS return_type
+	if _, err := p.expect(kwRETURNS); err != nil {
+		return nil, err
+	}
+	stmt.ReturnType, err = p.parseDataType()
+	if err != nil {
+		return nil, err
+	}
+	if stmt.ReturnType == nil {
+		return nil, p.syntaxErrorAtCur()
 	}
 
-	// EXTERNAL NAME assembly_qualified_name
-	if p.cur.Type == kwEXTERNAL {
-		p.advance()
-		if p.cur.Type == kwNAME {
-			p.advance()
-		}
-		// Read dotted name: assembly.class[.method]
-		var parts []string
-		if p.isIdentLike() {
-			parts = append(parts, p.cur.Str)
-			p.advance()
-		}
-		for {
-			if _, ok := p.match('.'); ok {
-				if p.isIdentLike() {
-					parts = append(parts, p.cur.Str)
-					p.advance()
-				}
-			} else {
-				break
-			}
-		}
-		stmt.ExternalName = joinDots(parts)
+	// EXTERNAL NAME assembly_name [ .class_name ]
+	if _, err := p.expect(kwEXTERNAL); err != nil {
+		return nil, err
 	}
+	if _, err := p.expect(kwNAME); err != nil {
+		return nil, err
+	}
+	asm, ok := p.parseIdentifier()
+	if !ok {
+		return nil, p.syntaxErrorAtCur()
+	}
+	parts := []string{asm}
+	if _, ok := p.match('.'); ok {
+		class, ok := p.parseIdentifier()
+		if !ok {
+			return nil, p.syntaxErrorAtCur()
+		}
+		parts = append(parts, class)
+	}
+	stmt.ExternalName = joinDots(parts)
 
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil

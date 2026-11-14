@@ -815,6 +815,7 @@ type ParamDef struct {
 	DataType *DataType
 	Varying  bool     // VARYING keyword (for cursor parameters)
 	Null     bool     // NULL keyword
+	NotNull  bool     // NOT NULL
 	Default  ExprNode // = default_value
 	Output   bool     // OUTPUT keyword
 	ReadOnly bool     // READONLY keyword
@@ -1473,6 +1474,7 @@ func (n *CreateTypeStmt) stmtNode() {}
 //	    [ INCLUDE ( column_name [ ,...n ] ) ]
 type TableTypeIndex struct {
 	Name        string   // index name
+	Unique      bool     // UNIQUE
 	Clustered   *bool    // true=CLUSTERED, false=NONCLUSTERED, nil=unspecified
 	Hash        bool     // HASH index (memory-optimized)
 	BucketCount ExprNode // BUCKET_COUNT for hash index
@@ -2678,6 +2680,7 @@ func (n *SetOptionStmt) stmtNode() {}
 type CreatePartitionFunctionStmt struct {
 	Name      string    // partition function name
 	InputType *DataType // input parameter type
+	Collation string    // COLLATE collation_name of the input type
 	Range     string    // LEFT or RIGHT
 	Values    *List     // boundary values as expressions
 	Loc       Loc
