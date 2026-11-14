@@ -94,7 +94,7 @@ func (p *Parser) parseShow() (ast.Node, error) {
 		// SHOW ALL ROUTINE LOAD case: the ALL was already consumed and stored in stmt.Args.
 		// parseShowRoutineLoad needs to know about it via a passthrough.
 		all := stmt.Args == "ALL"
-		node, err := p.parseShowRoutineLoad(startLoc)
+		node, err := p.parseShowRoutineLoad(startLoc, false)
 		if err != nil {
 			return nil, err
 		}
@@ -117,7 +117,7 @@ func (p *Parser) parseShow() (ast.Node, error) {
 		// SHOW CREATE ROUTINE LOAD FOR job_name (T6.2)
 		if p.peekNext().Kind == kwROUTINE {
 			p.advance() // consume CREATE
-			return p.parseShowRoutineLoad(startLoc)
+			return p.parseShowRoutineLoad(startLoc, true)
 		}
 		return p.parseShowCreate(stmt)
 	case kwVARIABLES:

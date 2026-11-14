@@ -422,7 +422,7 @@ reject	reject	engine	statement/createRoutineLoadStatement!drop-3	CREATE ROUTINE 
 reject	reject	engine	statement/createRoutineLoadStatement!drop-4	CREATE ROUTINE LOAD ON a FROM a;
 reject	reject	engine	statement/createRoutineLoadStatement!drop-5	CREATE ROUTINE LOAD a a FROM a;
 reject	reject	engine	statement/createRoutineLoadStatement!drop-6	CREATE ROUTINE LOAD a ON FROM a;
-accept	reject	engine	statement/createRoutineLoadStatement!drop-7	CREATE ROUTINE LOAD a ON a a;
+reject	reject	engine	statement/createRoutineLoadStatement!drop-7	CREATE ROUTINE LOAD a ON a a;
 reject	reject	engine	statement/createRoutineLoadStatement!drop-8	CREATE ROUTINE LOAD a ON a FROM;
 reject	reject	engine	statement/createRoutineLoadStatement!truncate	CREATE ROUTINE LOAD a ON a FROM
 reject	reject	engine	statement/createRoutineLoadStatement!insert	CREATE ROUTINE LOAD a ON a FROM a zzz;
@@ -474,7 +474,7 @@ reject	reject	engine	statement/showRoutineLoadTaskStatement!drop-6	SHOW ROUTINE 
 reject	reject	engine	statement/showRoutineLoadTaskStatement!truncate	SHOW ROUTINE LOAD TASK WHERE
 reject	reject	engine	statement/showRoutineLoadTaskStatement!insert	SHOW ROUTINE LOAD TASK WHERE CURRENT_USER zzz;
 reject	reject	engine	statement/showRoutineLoadTaskStatement!swap	SIGNED ROUTINE LOAD TASK WHERE CURRENT_USER;
-reject	accept	engine	statement/showCreateRoutineLoadStatement	SHOW CREATE ROUTINE LOAD a;
+accept	accept	engine	statement/showCreateRoutineLoadStatement	SHOW CREATE ROUTINE LOAD a;
 reject	reject	engine	statement/showCreateRoutineLoadStatement!drop-1	CREATE ROUTINE LOAD a;
 reject	reject	engine	statement/showCreateRoutineLoadStatement!drop-2	SHOW ROUTINE LOAD a;
 reject	reject	engine	statement/showCreateRoutineLoadStatement!drop-3	SHOW CREATE LOAD a;
@@ -4659,32 +4659,32 @@ reject	reject	engine	createRoutineLoadStatement(qualifiedName_.)?/qualifiedName_
 reject	reject	engine	createRoutineLoadStatement(qualifiedName_.)?/qualifiedName_.!truncate	CREATE ROUTINE LOAD a
 reject	reject	engine	createRoutineLoadStatement(qualifiedName_.)?/qualifiedName_.!insert	CREATE ROUTINE LOAD a.zzz a ON a FROM a;
 accept	accept	engine	createRoutineLoadStatement(loadProperties_(,_loadProperties)*)?/%empty	CREATE ROUTINE LOAD a ON a FROM a;
-accept	reject	engine	createRoutineLoadStatement(loadProperties_(,_loadProperties)*)?/%empty!insert	CREATE ROUTINE LOAD a ON a zzz FROM a;
+reject	reject	engine	createRoutineLoadStatement(loadProperties_(,_loadProperties)*)?/%empty!insert	CREATE ROUTINE LOAD a ON a zzz FROM a;
 accept	accept	engine	createRoutineLoadStatement(loadProperties_(,_loadProperties)*)?/loadProperties_(,_loadProperties)*	CREATE ROUTINE LOAD a ON a WHERE CURRENT_USER FROM a;
-accept	reject	engine	createRoutineLoadStatement(loadProperties_(,_loadProperties)*)?/loadProperties_(,_loadProperties)*!drop-1	CREATE ROUTINE LOAD a ON a CURRENT_USER FROM a;
-accept	reject	engine	createRoutineLoadStatement(loadProperties_(,_loadProperties)*)?/loadProperties_(,_loadProperties)*!drop-2	CREATE ROUTINE LOAD a ON a WHERE FROM a;
-accept	reject	engine	createRoutineLoadStatement(loadProperties_(,_loadProperties)*)?/loadProperties_(,_loadProperties)*!truncate	CREATE ROUTINE LOAD a ON a WHERE
-accept	reject	engine	createRoutineLoadStatement(loadProperties_(,_loadProperties)*)?/loadProperties_(,_loadProperties)*!insert	CREATE ROUTINE LOAD a ON a WHERE CURRENT_USER zzz FROM a;
-accept	reject	engine	createRoutineLoadStatement(loadProperties_(,_loadProperties)*)?/loadProperties_(,_loadProperties)*!swap	CREATE ROUTINE LOAD a ON a WHITELIST CURRENT_USER FROM a;
+reject	reject	engine	createRoutineLoadStatement(loadProperties_(,_loadProperties)*)?/loadProperties_(,_loadProperties)*!drop-1	CREATE ROUTINE LOAD a ON a CURRENT_USER FROM a;
+reject	reject	engine	createRoutineLoadStatement(loadProperties_(,_loadProperties)*)?/loadProperties_(,_loadProperties)*!drop-2	CREATE ROUTINE LOAD a ON a WHERE FROM a;
+reject	reject	engine	createRoutineLoadStatement(loadProperties_(,_loadProperties)*)?/loadProperties_(,_loadProperties)*!truncate	CREATE ROUTINE LOAD a ON a WHERE
+reject	reject	engine	createRoutineLoadStatement(loadProperties_(,_loadProperties)*)?/loadProperties_(,_loadProperties)*!insert	CREATE ROUTINE LOAD a ON a WHERE CURRENT_USER zzz FROM a;
+reject	reject	engine	createRoutineLoadStatement(loadProperties_(,_loadProperties)*)?/loadProperties_(,_loadProperties)*!swap	CREATE ROUTINE LOAD a ON a WHITELIST CURRENT_USER FROM a;
 accept	accept	engine	createRoutineLoadStatement(,_loadProperties)*/%empty	CREATE ROUTINE LOAD a ON a WHERE CURRENT_USER FROM a;
 accept	accept	engine	createRoutineLoadStatement(,_loadProperties)*/,_loadProperties_(,_loadProperties)*	CREATE ROUTINE LOAD a ON a WHERE CURRENT_USER, WHERE CURRENT_USER FROM a;
-accept	reject	engine	createRoutineLoadStatement(,_loadProperties)*/,_loadProperties_(,_loadProperties)*!drop-1	CREATE ROUTINE LOAD a ON a WHERE CURRENT_USER WHERE CURRENT_USER FROM a;
-accept	reject	engine	createRoutineLoadStatement(,_loadProperties)*/,_loadProperties_(,_loadProperties)*!drop-2	CREATE ROUTINE LOAD a ON a WHERE CURRENT_USER, CURRENT_USER FROM a;
-accept	reject	engine	createRoutineLoadStatement(,_loadProperties)*/,_loadProperties_(,_loadProperties)*!drop-3	CREATE ROUTINE LOAD a ON a WHERE CURRENT_USER, WHERE FROM a;
-accept	reject	engine	createRoutineLoadStatement(,_loadProperties)*/,_loadProperties_(,_loadProperties)*!truncate	CREATE ROUTINE LOAD a ON a WHERE CURRENT_USER, WHERE
-accept	reject	engine	createRoutineLoadStatement(,_loadProperties)*/,_loadProperties_(,_loadProperties)*!insert	CREATE ROUTINE LOAD a ON a WHERE CURRENT_USER, WHERE CURRENT_USER zzz FROM a;
-accept	reject	engine	createRoutineLoadStatement(,_loadProperties)*/,_loadProperties_(,_loadProperties)*!swap	CREATE ROUTINE LOAD a ON a WHERE CURRENT_USER, WHITELIST CURRENT_USER FROM a;
+reject	reject	engine	createRoutineLoadStatement(,_loadProperties)*/,_loadProperties_(,_loadProperties)*!drop-1	CREATE ROUTINE LOAD a ON a WHERE CURRENT_USER WHERE CURRENT_USER FROM a;
+reject	reject	engine	createRoutineLoadStatement(,_loadProperties)*/,_loadProperties_(,_loadProperties)*!drop-2	CREATE ROUTINE LOAD a ON a WHERE CURRENT_USER, CURRENT_USER FROM a;
+reject	reject	engine	createRoutineLoadStatement(,_loadProperties)*/,_loadProperties_(,_loadProperties)*!drop-3	CREATE ROUTINE LOAD a ON a WHERE CURRENT_USER, WHERE FROM a;
+reject	reject	engine	createRoutineLoadStatement(,_loadProperties)*/,_loadProperties_(,_loadProperties)*!truncate	CREATE ROUTINE LOAD a ON a WHERE CURRENT_USER, WHERE
+reject	reject	engine	createRoutineLoadStatement(,_loadProperties)*/,_loadProperties_(,_loadProperties)*!insert	CREATE ROUTINE LOAD a ON a WHERE CURRENT_USER, WHERE CURRENT_USER zzz FROM a;
+reject	reject	engine	createRoutineLoadStatement(,_loadProperties)*/,_loadProperties_(,_loadProperties)*!swap	CREATE ROUTINE LOAD a ON a WHERE CURRENT_USER, WHITELIST CURRENT_USER FROM a;
 accept	accept	engine	createRoutineLoadStatement(jobProperties)?/%empty	CREATE ROUTINE LOAD a ON a FROM a;
 accept	accept	engine	createRoutineLoadStatement(jobProperties)?/jobProperties	CREATE ROUTINE LOAD a ON a PROPERTIES('a' = 'a') FROM a;
-accept	reject	engine	createRoutineLoadStatement(jobProperties)?/jobProperties!drop-1	CREATE ROUTINE LOAD a ON a('a' = 'a') FROM a;
+reject	reject	engine	createRoutineLoadStatement(jobProperties)?/jobProperties!drop-1	CREATE ROUTINE LOAD a ON a('a' = 'a') FROM a;
 reject	reject	engine	createRoutineLoadStatement(jobProperties)?/jobProperties!drop-2	CREATE ROUTINE LOAD a ON a PROPERTIES 'a' = 'a') FROM a;
 reject	reject	engine	createRoutineLoadStatement(jobProperties)?/jobProperties!drop-3	CREATE ROUTINE LOAD a ON a PROPERTIES(= 'a') FROM a;
 reject	reject	engine	createRoutineLoadStatement(jobProperties)?/jobProperties!drop-4	CREATE ROUTINE LOAD a ON a PROPERTIES('a' 'a') FROM a;
 reject	reject	engine	createRoutineLoadStatement(jobProperties)?/jobProperties!drop-5	CREATE ROUTINE LOAD a ON a PROPERTIES('a' =) FROM a;
 reject	reject	engine	createRoutineLoadStatement(jobProperties)?/jobProperties!drop-6	CREATE ROUTINE LOAD a ON a PROPERTIES('a' = 'a' FROM a;
 reject	reject	engine	createRoutineLoadStatement(jobProperties)?/jobProperties!truncate	CREATE ROUTINE LOAD a ON a PROPERTIES('a' = 'a'
-accept	reject	engine	createRoutineLoadStatement(jobProperties)?/jobProperties!insert	CREATE ROUTINE LOAD a ON a PROPERTIES('a' = 'a') zzz FROM a;
-accept	reject	engine	createRoutineLoadStatement(jobProperties)?/jobProperties!swap	CREATE ROUTINE LOAD a ON a PROPERTY('a' = 'a') FROM a;
+reject	reject	engine	createRoutineLoadStatement(jobProperties)?/jobProperties!insert	CREATE ROUTINE LOAD a ON a PROPERTIES('a' = 'a') zzz FROM a;
+reject	reject	engine	createRoutineLoadStatement(jobProperties)?/jobProperties!swap	CREATE ROUTINE LOAD a ON a PROPERTY('a' = 'a') FROM a;
 accept	accept	engine	createRoutineLoadStatement(dataSourceProperties)?/%empty	CREATE ROUTINE LOAD a ON a FROM a;
 accept	accept	engine	createRoutineLoadStatement(dataSourceProperties)?/dataSourceProperties	CREATE ROUTINE LOAD a ON a FROM a('a' = 'a');
 reject	reject	engine	createRoutineLoadStatement(dataSourceProperties)?/dataSourceProperties!drop-1	CREATE ROUTINE LOAD a ON a FROM a 'a' = 'a');
@@ -4703,14 +4703,14 @@ reject	reject	engine	alterRoutineLoadStatement(qualifiedName_.)?/qualifiedName_.
 accept	accept	engine	alterRoutineLoadStatement(qualifiedName_.)?/qualifiedName_.!truncate	ALTER ROUTINE LOAD FOR a
 reject	reject	engine	alterRoutineLoadStatement(qualifiedName_.)?/qualifiedName_.!insert	ALTER ROUTINE LOAD FOR a.zzz a;
 accept	accept	engine	alterRoutineLoadStatement(loadProperties_(,_loadProperties)*)?/%empty	ALTER ROUTINE LOAD FOR a;
-reject	accept	engine	alterRoutineLoadStatement(loadProperties_(,_loadProperties)*)?/loadProperties_(,_loadProperties)*	ALTER ROUTINE LOAD FOR a WHERE CURRENT_USER;
+accept	accept	engine	alterRoutineLoadStatement(loadProperties_(,_loadProperties)*)?/loadProperties_(,_loadProperties)*	ALTER ROUTINE LOAD FOR a WHERE CURRENT_USER;
 reject	reject	engine	alterRoutineLoadStatement(loadProperties_(,_loadProperties)*)?/loadProperties_(,_loadProperties)*!drop-1	ALTER ROUTINE LOAD FOR a CURRENT_USER;
 reject	reject	engine	alterRoutineLoadStatement(loadProperties_(,_loadProperties)*)?/loadProperties_(,_loadProperties)*!drop-2	ALTER ROUTINE LOAD FOR a WHERE;
 reject	reject	engine	alterRoutineLoadStatement(loadProperties_(,_loadProperties)*)?/loadProperties_(,_loadProperties)*!truncate	ALTER ROUTINE LOAD FOR a WHERE
 reject	reject	engine	alterRoutineLoadStatement(loadProperties_(,_loadProperties)*)?/loadProperties_(,_loadProperties)*!insert	ALTER ROUTINE LOAD FOR a WHERE CURRENT_USER zzz;
 reject	reject	engine	alterRoutineLoadStatement(loadProperties_(,_loadProperties)*)?/loadProperties_(,_loadProperties)*!swap	ALTER ROUTINE LOAD FOR a WHITELIST CURRENT_USER;
-reject	accept	engine	alterRoutineLoadStatement(,_loadProperties)*/%empty	ALTER ROUTINE LOAD FOR a WHERE CURRENT_USER;
-reject	accept	engine	alterRoutineLoadStatement(,_loadProperties)*/,_loadProperties_(,_loadProperties)*	ALTER ROUTINE LOAD FOR a WHERE CURRENT_USER, WHERE CURRENT_USER;
+accept	accept	engine	alterRoutineLoadStatement(,_loadProperties)*/%empty	ALTER ROUTINE LOAD FOR a WHERE CURRENT_USER;
+accept	accept	engine	alterRoutineLoadStatement(,_loadProperties)*/,_loadProperties_(,_loadProperties)*	ALTER ROUTINE LOAD FOR a WHERE CURRENT_USER, WHERE CURRENT_USER;
 reject	reject	engine	alterRoutineLoadStatement(,_loadProperties)*/,_loadProperties_(,_loadProperties)*!drop-1	ALTER ROUTINE LOAD FOR a WHERE CURRENT_USER WHERE CURRENT_USER;
 reject	reject	engine	alterRoutineLoadStatement(,_loadProperties)*/,_loadProperties_(,_loadProperties)*!drop-2	ALTER ROUTINE LOAD FOR a WHERE CURRENT_USER, CURRENT_USER;
 reject	reject	engine	alterRoutineLoadStatement(,_loadProperties)*/,_loadProperties_(,_loadProperties)*!drop-3	ALTER ROUTINE LOAD FOR a WHERE CURRENT_USER, WHERE;
@@ -4741,7 +4741,7 @@ reject	reject	engine	alterRoutineLoadStatement(dataSource)?/dataSource!truncate	
 reject	reject	engine	alterRoutineLoadStatement(dataSource)?/dataSource!insert	ALTER ROUTINE LOAD FOR a FROM a('a' = 'a') zzz;
 reject	reject	engine	alterRoutineLoadStatement(dataSource)?/dataSource!swap	ALTER ROUTINE LOAD FOR a FRONTEND a('a' = 'a');
 accept	accept	engine	dataSource/FROM_identifier_dataSourceProperties	ALTER ROUTINE LOAD FOR a FROM a('a' = 'a');
-reject	accept	engine	loadProperties/colSeparatorProperty	ALTER ROUTINE LOAD FOR a COLUMNS TERMINATED BY 'a';
+accept	accept	engine	loadProperties/colSeparatorProperty	ALTER ROUTINE LOAD FOR a COLUMNS TERMINATED BY 'a';
 reject	reject	engine	loadProperties/colSeparatorProperty!drop-1	ALTER ROUTINE LOAD FOR a TERMINATED BY 'a';
 reject	reject	engine	loadProperties/colSeparatorProperty!drop-2	ALTER ROUTINE LOAD FOR a COLUMNS BY 'a';
 reject	reject	engine	loadProperties/colSeparatorProperty!drop-3	ALTER ROUTINE LOAD FOR a COLUMNS TERMINATED 'a';
@@ -4749,14 +4749,14 @@ reject	reject	engine	loadProperties/colSeparatorProperty!drop-4	ALTER ROUTINE LO
 reject	reject	engine	loadProperties/colSeparatorProperty!truncate	ALTER ROUTINE LOAD FOR a COLUMNS TERMINATED BY
 reject	reject	engine	loadProperties/colSeparatorProperty!insert	ALTER ROUTINE LOAD FOR a COLUMNS TERMINATED BY 'a' zzz;
 reject	reject	engine	loadProperties/colSeparatorProperty!swap	ALTER ROUTINE LOAD FOR a COMMENT TERMINATED BY 'a';
-reject	accept	engine	loadProperties/rowDelimiterProperty	ALTER ROUTINE LOAD FOR a ROWS TERMINATED BY 'a';
+accept	accept	engine	loadProperties/rowDelimiterProperty	ALTER ROUTINE LOAD FOR a ROWS TERMINATED BY 'a';
 reject	reject	engine	loadProperties/rowDelimiterProperty!drop-2	ALTER ROUTINE LOAD FOR a ROWS BY 'a';
 reject	reject	engine	loadProperties/rowDelimiterProperty!drop-3	ALTER ROUTINE LOAD FOR a ROWS TERMINATED 'a';
 reject	reject	engine	loadProperties/rowDelimiterProperty!drop-4	ALTER ROUTINE LOAD FOR a ROWS TERMINATED BY;
 reject	reject	engine	loadProperties/rowDelimiterProperty!truncate	ALTER ROUTINE LOAD FOR a ROWS TERMINATED BY
 reject	reject	engine	loadProperties/rowDelimiterProperty!insert	ALTER ROUTINE LOAD FOR a ROWS TERMINATED BY 'a' zzz;
 reject	reject	engine	loadProperties/rowDelimiterProperty!swap	ALTER ROUTINE LOAD FOR a ROW_NUMBER TERMINATED BY 'a';
-reject	accept	engine	loadProperties/importColumns	ALTER ROUTINE LOAD FOR a COLUMNS(a);
+accept	accept	engine	loadProperties/importColumns	ALTER ROUTINE LOAD FOR a COLUMNS(a);
 reject	reject	engine	loadProperties/importColumns!drop-1	ALTER ROUTINE LOAD FOR a(a);
 reject	reject	engine	loadProperties/importColumns!drop-2	ALTER ROUTINE LOAD FOR a COLUMNS a);
 reject	reject	engine	loadProperties/importColumns!drop-3	ALTER ROUTINE LOAD FOR a COLUMNS();
@@ -4764,28 +4764,28 @@ reject	reject	engine	loadProperties/importColumns!drop-4	ALTER ROUTINE LOAD FOR 
 reject	reject	engine	loadProperties/importColumns!truncate	ALTER ROUTINE LOAD FOR a COLUMNS(a
 reject	reject	engine	loadProperties/importColumns!insert	ALTER ROUTINE LOAD FOR a COLUMNS(a) zzz;
 reject	reject	engine	loadProperties/importColumns!swap	ALTER ROUTINE LOAD FOR a COMMENT(a);
-reject	accept	engine	loadProperties/WHERE_expression	ALTER ROUTINE LOAD FOR a WHERE CURRENT_USER;
-reject	accept	engine	loadProperties/partitionNames	ALTER ROUTINE LOAD FOR a PARTITION a;
+accept	accept	engine	loadProperties/WHERE_expression	ALTER ROUTINE LOAD FOR a WHERE CURRENT_USER;
+accept	accept	engine	loadProperties/partitionNames	ALTER ROUTINE LOAD FOR a PARTITION a;
 reject	reject	engine	loadProperties/partitionNames!drop-2	ALTER ROUTINE LOAD FOR a PARTITION;
 reject	reject	engine	loadProperties/partitionNames!truncate	ALTER ROUTINE LOAD FOR a PARTITION
 reject	reject	engine	loadProperties/partitionNames!insert	ALTER ROUTINE LOAD FOR a PARTITION a zzz;
-reject	accept	engine	loadProperties/partitionNames!swap	ALTER ROUTINE LOAD FOR a PARTITIONS a;
-reject	accept	engine	colSeparatorProperty/COLUMNS_TERMINATED_BY_string	ALTER ROUTINE LOAD FOR a COLUMNS TERMINATED BY 'a';
-reject	accept	engine	rowDelimiterProperty/ROWS_TERMINATED_BY_string	ALTER ROUTINE LOAD FOR a ROWS TERMINATED BY 'a';
-reject	accept	engine	importColumns/COLUMNS_columnProperties	ALTER ROUTINE LOAD FOR a COLUMNS(a);
-reject	accept	engine	columnProperties/(_(qualifiedName|assignment)_(,_(qualifiedName|assignment))*_)	ALTER ROUTINE LOAD FOR a COLUMNS(a);
-reject	accept	engine	columnProperties(qualifiedName|assignment)/qualifiedName	ALTER ROUTINE LOAD FOR a COLUMNS(a);
+accept	accept	engine	loadProperties/partitionNames!swap	ALTER ROUTINE LOAD FOR a PARTITIONS a;
+accept	accept	engine	colSeparatorProperty/COLUMNS_TERMINATED_BY_string	ALTER ROUTINE LOAD FOR a COLUMNS TERMINATED BY 'a';
+accept	accept	engine	rowDelimiterProperty/ROWS_TERMINATED_BY_string	ALTER ROUTINE LOAD FOR a ROWS TERMINATED BY 'a';
+accept	accept	engine	importColumns/COLUMNS_columnProperties	ALTER ROUTINE LOAD FOR a COLUMNS(a);
+accept	accept	engine	columnProperties/(_(qualifiedName|assignment)_(,_(qualifiedName|assignment))*_)	ALTER ROUTINE LOAD FOR a COLUMNS(a);
+accept	accept	engine	columnProperties(qualifiedName|assignment)/qualifiedName	ALTER ROUTINE LOAD FOR a COLUMNS(a);
 reject	reject	engine	columnProperties(qualifiedName|assignment)/qualifiedName!truncate	ALTER ROUTINE LOAD FOR a COLUMNS(
 reject	reject	engine	columnProperties(qualifiedName|assignment)/qualifiedName!insert	ALTER ROUTINE LOAD FOR a COLUMNS(a zzz);
-reject	accept	engine	columnProperties(qualifiedName|assignment)/assignment	ALTER ROUTINE LOAD FOR a COLUMNS(a = CURRENT_USER);
+accept	accept	engine	columnProperties(qualifiedName|assignment)/assignment	ALTER ROUTINE LOAD FOR a COLUMNS(a = CURRENT_USER);
 reject	reject	engine	columnProperties(qualifiedName|assignment)/assignment!drop-1	ALTER ROUTINE LOAD FOR a COLUMNS(= CURRENT_USER);
 reject	reject	engine	columnProperties(qualifiedName|assignment)/assignment!drop-2	ALTER ROUTINE LOAD FOR a COLUMNS(a CURRENT_USER);
 reject	reject	engine	columnProperties(qualifiedName|assignment)/assignment!drop-3	ALTER ROUTINE LOAD FOR a COLUMNS(a =);
 reject	reject	engine	columnProperties(qualifiedName|assignment)/assignment!truncate	ALTER ROUTINE LOAD FOR a COLUMNS(a =
 reject	reject	engine	columnProperties(qualifiedName|assignment)/assignment!insert	ALTER ROUTINE LOAD FOR a COLUMNS(a = CURRENT_USER zzz);
-reject	accept	engine	columnProperties(qualifiedName|assignment)/assignment!swap	ALTER ROUTINE LOAD FOR a COLUMNS(a = DATA);
-reject	accept	engine	columnProperties(,_(qualifiedName|assignment))*/%empty	ALTER ROUTINE LOAD FOR a COLUMNS(a);
-reject	accept	engine	columnProperties(,_(qualifiedName|assignment))*/,_(qualifiedName|assignment)_(,_(qualifiedName|assignment))*	ALTER ROUTINE LOAD FOR a COLUMNS(a, a);
+accept	accept	engine	columnProperties(qualifiedName|assignment)/assignment!swap	ALTER ROUTINE LOAD FOR a COLUMNS(a = DATA);
+accept	accept	engine	columnProperties(,_(qualifiedName|assignment))*/%empty	ALTER ROUTINE LOAD FOR a COLUMNS(a);
+accept	accept	engine	columnProperties(,_(qualifiedName|assignment))*/,_(qualifiedName|assignment)_(,_(qualifiedName|assignment))*	ALTER ROUTINE LOAD FOR a COLUMNS(a, a);
 reject	reject	engine	columnProperties(,_(qualifiedName|assignment))*/,_(qualifiedName|assignment)_(,_(qualifiedName|assignment))*!drop-1	ALTER ROUTINE LOAD FOR a COLUMNS(a a);
 reject	reject	engine	columnProperties(,_(qualifiedName|assignment))*/,_(qualifiedName|assignment)_(,_(qualifiedName|assignment))*!drop-2	ALTER ROUTINE LOAD FOR a COLUMNS(a,);
 reject	reject	engine	columnProperties(,_(qualifiedName|assignment))*/,_(qualifiedName|assignment)_(,_(qualifiedName|assignment))*!truncate	ALTER ROUTINE LOAD FOR a COLUMNS(a,
@@ -4851,29 +4851,29 @@ reject	reject	engine	showRoutineLoadStatement(FROM_qualifiedName)?/FROM_qualifie
 reject	reject	engine	showRoutineLoadStatement(FROM_qualifiedName)?/FROM_qualifiedName!insert	SHOW ROUTINE LOAD FROM a zzz;
 reject	reject	engine	showRoutineLoadStatement(FROM_qualifiedName)?/FROM_qualifiedName!swap	SHOW ROUTINE LOAD FRONTEND a;
 accept	accept	engine	showRoutineLoadStatement(WHERE_expression)?/%empty	SHOW ROUTINE LOAD;
-reject	accept	engine	showRoutineLoadStatement(WHERE_expression)?/WHERE_expression	SHOW ROUTINE LOAD WHERE CURRENT_USER;
+accept	accept	engine	showRoutineLoadStatement(WHERE_expression)?/WHERE_expression	SHOW ROUTINE LOAD WHERE CURRENT_USER;
 reject	reject	engine	showRoutineLoadStatement(WHERE_expression)?/WHERE_expression!drop-1	SHOW ROUTINE LOAD CURRENT_USER;
 reject	reject	engine	showRoutineLoadStatement(WHERE_expression)?/WHERE_expression!drop-2	SHOW ROUTINE LOAD WHERE;
 reject	reject	engine	showRoutineLoadStatement(WHERE_expression)?/WHERE_expression!truncate	SHOW ROUTINE LOAD WHERE
 reject	reject	engine	showRoutineLoadStatement(WHERE_expression)?/WHERE_expression!insert	SHOW ROUTINE LOAD WHERE CURRENT_USER zzz;
 reject	reject	engine	showRoutineLoadStatement(WHERE_expression)?/WHERE_expression!swap	SHOW ROUTINE LOAD WHITELIST CURRENT_USER;
 accept	accept	engine	showRoutineLoadStatement(ORDER_BY_sortItem_(,_sortItem)*)?/%empty	SHOW ROUTINE LOAD;
-reject	accept	engine	showRoutineLoadStatement(ORDER_BY_sortItem_(,_sortItem)*)?/ORDER_BY_sortItem_(,_sortItem)*	SHOW ROUTINE LOAD ORDER BY CURRENT_USER;
+accept	accept	engine	showRoutineLoadStatement(ORDER_BY_sortItem_(,_sortItem)*)?/ORDER_BY_sortItem_(,_sortItem)*	SHOW ROUTINE LOAD ORDER BY CURRENT_USER;
 reject	reject	engine	showRoutineLoadStatement(ORDER_BY_sortItem_(,_sortItem)*)?/ORDER_BY_sortItem_(,_sortItem)*!drop-1	SHOW ROUTINE LOAD BY CURRENT_USER;
 reject	reject	engine	showRoutineLoadStatement(ORDER_BY_sortItem_(,_sortItem)*)?/ORDER_BY_sortItem_(,_sortItem)*!drop-2	SHOW ROUTINE LOAD ORDER CURRENT_USER;
 reject	reject	engine	showRoutineLoadStatement(ORDER_BY_sortItem_(,_sortItem)*)?/ORDER_BY_sortItem_(,_sortItem)*!drop-3	SHOW ROUTINE LOAD ORDER BY;
 reject	reject	engine	showRoutineLoadStatement(ORDER_BY_sortItem_(,_sortItem)*)?/ORDER_BY_sortItem_(,_sortItem)*!truncate	SHOW ROUTINE LOAD ORDER BY
 reject	reject	engine	showRoutineLoadStatement(ORDER_BY_sortItem_(,_sortItem)*)?/ORDER_BY_sortItem_(,_sortItem)*!insert	SHOW ROUTINE LOAD ORDER BY CURRENT_USER zzz;
 reject	reject	engine	showRoutineLoadStatement(ORDER_BY_sortItem_(,_sortItem)*)?/ORDER_BY_sortItem_(,_sortItem)*!swap	SHOW ROUTINE LOAD OUTER BY CURRENT_USER;
-reject	accept	engine	showRoutineLoadStatement(,_sortItem)*/%empty	SHOW ROUTINE LOAD ORDER BY CURRENT_USER;
-reject	accept	engine	showRoutineLoadStatement(,_sortItem)*/,_sortItem_(,_sortItem)*	SHOW ROUTINE LOAD ORDER BY CURRENT_USER, CURRENT_USER;
+accept	accept	engine	showRoutineLoadStatement(,_sortItem)*/%empty	SHOW ROUTINE LOAD ORDER BY CURRENT_USER;
+accept	accept	engine	showRoutineLoadStatement(,_sortItem)*/,_sortItem_(,_sortItem)*	SHOW ROUTINE LOAD ORDER BY CURRENT_USER, CURRENT_USER;
 reject	reject	engine	showRoutineLoadStatement(,_sortItem)*/,_sortItem_(,_sortItem)*!drop-1	SHOW ROUTINE LOAD ORDER BY CURRENT_USER CURRENT_USER;
 reject	reject	engine	showRoutineLoadStatement(,_sortItem)*/,_sortItem_(,_sortItem)*!drop-2	SHOW ROUTINE LOAD ORDER BY CURRENT_USER,;
 reject	reject	engine	showRoutineLoadStatement(,_sortItem)*/,_sortItem_(,_sortItem)*!truncate	SHOW ROUTINE LOAD ORDER BY CURRENT_USER,
 reject	reject	engine	showRoutineLoadStatement(,_sortItem)*/,_sortItem_(,_sortItem)*!insert	SHOW ROUTINE LOAD ORDER BY CURRENT_USER, CURRENT_USER zzz;
-reject	accept	engine	showRoutineLoadStatement(,_sortItem)*/,_sortItem_(,_sortItem)*!swap	SHOW ROUTINE LOAD ORDER BY CURRENT_USER, DATA;
+accept	accept	engine	showRoutineLoadStatement(,_sortItem)*/,_sortItem_(,_sortItem)*!swap	SHOW ROUTINE LOAD ORDER BY CURRENT_USER, DATA;
 accept	accept	engine	showRoutineLoadStatement(limitElement)?/%empty	SHOW ROUTINE LOAD;
-reject	accept	engine	showRoutineLoadStatement(limitElement)?/limitElement	SHOW ROUTINE LOAD LIMIT 1;
+accept	accept	engine	showRoutineLoadStatement(limitElement)?/limitElement	SHOW ROUTINE LOAD LIMIT 1;
 reject	reject	engine	showRoutineLoadStatement(limitElement)?/limitElement!drop-1	SHOW ROUTINE LOAD 1;
 reject	reject	engine	showRoutineLoadStatement(limitElement)?/limitElement!drop-2	SHOW ROUTINE LOAD LIMIT;
 reject	reject	engine	showRoutineLoadStatement(limitElement)?/limitElement!truncate	SHOW ROUTINE LOAD LIMIT
@@ -4888,13 +4888,13 @@ reject	reject	engine	showRoutineLoadTaskStatement(FROM_qualifiedName)?/FROM_qual
 reject	reject	engine	showRoutineLoadTaskStatement(FROM_qualifiedName)?/FROM_qualifiedName!truncate	SHOW ROUTINE LOAD TASK FROM
 reject	reject	engine	showRoutineLoadTaskStatement(FROM_qualifiedName)?/FROM_qualifiedName!insert	SHOW ROUTINE LOAD TASK FROM a zzz WHERE CURRENT_USER;
 reject	reject	engine	showRoutineLoadTaskStatement(FROM_qualifiedName)?/FROM_qualifiedName!swap	SHOW ROUTINE LOAD TASK FRONTEND a WHERE CURRENT_USER;
-reject	accept	engine	showCreateRoutineLoadStatement/SHOW_CREATE_ROUTINE_LOAD_(qualifiedName_.)?_identifier	SHOW CREATE ROUTINE LOAD a;
-reject	accept	engine	showCreateRoutineLoadStatement(qualifiedName_.)?/%empty	SHOW CREATE ROUTINE LOAD a;
+accept	accept	engine	showCreateRoutineLoadStatement/SHOW_CREATE_ROUTINE_LOAD_(qualifiedName_.)?_identifier	SHOW CREATE ROUTINE LOAD a;
+accept	accept	engine	showCreateRoutineLoadStatement(qualifiedName_.)?/%empty	SHOW CREATE ROUTINE LOAD a;
 reject	reject	engine	showCreateRoutineLoadStatement(qualifiedName_.)?/%empty!insert	SHOW CREATE ROUTINE LOAD zzz a;
-reject	accept	engine	showCreateRoutineLoadStatement(qualifiedName_.)?/qualifiedName_.	SHOW CREATE ROUTINE LOAD a.a;
+accept	accept	engine	showCreateRoutineLoadStatement(qualifiedName_.)?/qualifiedName_.	SHOW CREATE ROUTINE LOAD a.a;
 reject	reject	engine	showCreateRoutineLoadStatement(qualifiedName_.)?/qualifiedName_.!drop-1	SHOW CREATE ROUTINE LOAD.a;
 reject	reject	engine	showCreateRoutineLoadStatement(qualifiedName_.)?/qualifiedName_.!drop-2	SHOW CREATE ROUTINE LOAD a a;
-reject	accept	engine	showCreateRoutineLoadStatement(qualifiedName_.)?/qualifiedName_.!truncate	SHOW CREATE ROUTINE LOAD a
+accept	accept	engine	showCreateRoutineLoadStatement(qualifiedName_.)?/qualifiedName_.!truncate	SHOW CREATE ROUTINE LOAD a
 reject	reject	engine	showCreateRoutineLoadStatement(qualifiedName_.)?/qualifiedName_.!insert	SHOW CREATE ROUTINE LOAD a.zzz a;
 accept	accept	engine	showStreamLoadStatement/SHOW_(ALL)?_STREAM_LOAD_(FOR_(qualifiedName_.)?_identif~e550319f	SHOW STREAM LOAD;
 accept	accept	engine	showStreamLoadStatement(ALL)?/%empty	SHOW STREAM LOAD;
