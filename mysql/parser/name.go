@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	nodes "github.com/bytebase/omni/mysql/ast"
 )
 
@@ -997,7 +999,10 @@ func (p *Parser) parseVariableRef() (*nodes.VariableRef, error) {
 			Name: name.Str,
 		}, nil
 	}
-	if p.cur.Type == tokIDENT && len(p.cur.Str) > 1 && p.cur.Str[0] == '@' {
+	// A bare @ is a variable with an empty name: the lexer reads the host-name characters
+	// after it as the name, and there are none, so `DO @` and `SET @ = 1` parse.
+	// Ref: MY_LEX_USER_END and MY_LEX_HOSTNAME in MySQL 8.0 sql/sql_lexer.cc.
+	if p.atUserVarToken() {
 		tok := p.cur
 		p.advance()
 		ref := &nodes.VariableRef{
@@ -1069,11 +1074,15 @@ func (p *Parser) isVariableRef() bool {
 	if p.cur.Type == tokAt2 {
 		return true
 	}
-	// User variable: @name (lexer emits as tokIDENT with "@" prefix)
-	if p.cur.Type != tokIDENT {
-		return false
-	}
-	return len(p.cur.Str) > 0 && p.cur.Str[0] == '@'
+	return p.atUserVarToken()
+}
+
+// atUserVarToken reports whether p.cur is a user variable as the lexer gives it:
+// tokIDENT carrying the '@'. The lexer strips a backquoted name's quotes, so a
+// column named `@v` arrives as the same string, and the source text tells them apart.
+func (p *Parser) atUserVarToken() bool {
+	return p.cur.Type == tokIDENT && strings.HasPrefix(p.cur.Str, "@") &&
+		strings.HasPrefix(p.inputText(p.cur.Loc, p.cur.End), "@")
 }
 
 // indexOf returns the index of the first occurrence of ch in s, or -1.
