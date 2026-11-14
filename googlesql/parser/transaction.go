@@ -22,7 +22,7 @@ import (
 // CORRECTNESS (correctness-protocol.md). The live Cloud Spanner emulator parses
 // every one of these (accepts the leading form, then feature-rejects "Statement
 // not supported: BeginStatement / CommitStatement / …"), so the leading-form
-// ACCEPT is oracle-authoritative (utility_oracle_test.go). The emulator's
+// ACCEPT is oracle-authoritative (the suite:utility rows of testdata/compat.tsv). The emulator's
 // recognizer, however, swallows arbitrary trailing tokens after these keywords
 // (it accepts `COMMIT WORK`, `START BATCH a b`, `COMMIT garbage`), so the precise
 // trailing grammar is NON-authoritative on Spanner and follows the ZetaSQL .g4:

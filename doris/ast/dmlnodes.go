@@ -194,10 +194,10 @@ var _ Node = (*TruncateTableStmt)(nil)
 //	    [PATTERN = 'glob']
 //	    [PROPERTIES(...)]
 type CopyIntoStmt struct {
-	Target     *ObjectName  // destination table
-	Source     string       // FROM stage/path string value
-	Files      []string     // optional FILES = ('f1', 'f2', ...)
-	Pattern    string       // optional PATTERN = '...'
+	Target     *ObjectName // destination table
+	Source     string      // FROM stage/path string value
+	Files      []string    // optional FILES = ('f1', 'f2', ...)
+	Pattern    string      // optional PATTERN = '...'
 	Properties []*Property
 	Loc        Loc
 }
@@ -212,24 +212,38 @@ var _ Node = (*CopyIntoStmt)(nil)
 // LOAD DATA statement (T6.1)
 // ---------------------------------------------------------------------------
 
-// LoadDataDesc describes one data source in a LOAD statement:
+// LoadDataDesc describes one data description of a LOAD statement, a
+// dataDesc of LOAD LABEL or the mysqlDataDesc of LOAD DATA:
 //
-//	DATA INFILE('path') [NEGATIVE] INTO TABLE t
-//	    [PARTITION(p1, p2, ...)]
-//	    [COLUMNS FROM PATH AS (col, ...)]
-//	    [COLUMNS (c1, c2, ...)]
-//	    [SET (...)]
-//	    [WHERE expr]
+//	[[WITH] APPEND | DELETE | MERGE] DATA INFILE ('path', ...) INTO TABLE t
+//	    [PARTITION (p1, ...)] [COLUMNS TERMINATED BY 'c'] [LINES TERMINATED BY 'l']
+//	    [FORMAT AS f] [COMPRESS_TYPE AS c] [(c1, ...)] [COLUMNS FROM PATH AS (c, ...)]
+//	    [SET (c = expr, ...)] [PRECEDING FILTER expr] [WHERE expr] [DELETE ON expr]
+//	    [ORDER BY c] [PROPERTIES (...)]
+//	[[WITH] APPEND | DELETE | MERGE] DATA FROM TABLE src INTO TABLE t ...
+//	DATA [LOCAL] INFILE 'path' INTO TABLE t ... [IGNORE n LINES | ROWS] ...
 type LoadDataDesc struct {
-	Negative        bool        // NEGATIVE modifier
-	Target          *ObjectName // INTO TABLE target
-	Partition       []string    // optional PARTITION(...)
-	ColumnsFromPath []string    // optional COLUMNS FROM PATH AS (...)
-	ColumnList      []string    // optional COLUMNS (c1, c2, ...)
-	SetExpr         string      // raw SET(...) text; best-effort capture
-	Where           string      // raw WHERE expr text; best-effort capture
-	SourceFiles     []string    // DATA INFILE ('f1', 'f2', ...)
-	Format          string      // FORMAT AS csv/parquet/...
+	MergeType       string        // APPEND, DELETE or MERGE, or ""
+	Local           bool          // LOAD DATA LOCAL INFILE
+	SourceFiles     []string      // DATA INFILE ('f1', 'f2', ...)
+	SourceTable     *ObjectName   // DATA FROM TABLE src
+	Negative        bool          // NEGATIVE modifier (StarRocks)
+	Target          *ObjectName   // INTO TABLE target
+	TemporaryPart   bool          // TEMPORARY PARTITION
+	Partition       []string      // optional PARTITION(...); "*" for (*)
+	ColumnSeparator string        // COLUMNS TERMINATED BY
+	LineDelimiter   string        // LINES (ROWS in StarRocks) TERMINATED BY
+	Format          string        // FORMAT AS csv/parquet/...
+	CompressType    string        // COMPRESS_TYPE AS
+	SkipLines       int           // LOAD DATA: IGNORE n LINES | ROWS
+	ColumnList      []string      // optional (c1, c2, ...)
+	ColumnsFromPath []string      // optional COLUMNS FROM PATH AS (...)
+	ColumnMappings  []*Assignment // optional SET (c = expr, ...)
+	PrecedingFilter Node          // optional PRECEDING FILTER expr
+	Where           Node          // optional WHERE expr
+	DeleteOn        Node          // optional DELETE ON expr
+	SequenceColumn  string        // optional ORDER BY c
+	Properties      []*Property   // optional PROPERTIES(...)
 	Loc             Loc
 }
 
@@ -242,18 +256,22 @@ var _ Node = (*LoadDataDesc)(nil)
 // LoadDataStmt represents a LOAD statement:
 //
 //	LOAD LABEL label
-//	    (DATA INFILE(...) INTO TABLE t ...)
-//	    [WITH BROKER name (...)]
+//	    (data_desc, ...)
+//	    [WITH BROKER name (...) | WITH S3 | HDFS | LOCAL (...) | WITH RESOURCE name (...)]
 //	    [PROPERTIES(...)]
 //	    [COMMENT 'text']
+//	LOAD DATA [LOCAL] INFILE 'path' INTO TABLE t ... [PROPERTIES(...)] [COMMENT 'text']
+//
+// A LOAD DATA statement has no Label and one data description.
 type LoadDataStmt struct {
-	Label       string          // load label (db_name.label_name or label_name)
-	DataDescs   []*LoadDataDesc // one or more data descriptions
-	BrokerName  string          // optional WITH BROKER name
-	BrokerProperties []*Property // optional WITH BROKER name (...) list
-	Properties  []*Property     // optional PROPERTIES(...)
-	Comment     string          // optional COMMENT '...'
-	Loc         Loc
+	Label            string          // load label (db_name.label_name or label_name)
+	DataDescs        []*LoadDataDesc // one or more data descriptions
+	StorageType      string          // BROKER, S3, HDFS, LOCAL or RESOURCE, or ""
+	BrokerName       string          // WITH BROKER or WITH RESOURCE name
+	BrokerProperties []*Property     // the storage system's (...) list
+	Properties       []*Property     // optional PROPERTIES(...)
+	Comment          string          // optional COMMENT '...'
+	Loc              Loc
 }
 
 // Tag implements Node.
@@ -273,14 +291,14 @@ var _ Node = (*LoadDataStmt)(nil)
 //	    [PROPERTIES(...)]
 //	    [WITH BROKER name (...)]
 type ExportStmt struct {
-	Target     *ObjectName // table to export
-	Partition  []string    // optional PARTITION(...)
-	Where      Node        // optional WHERE clause
-	Path       string      // TO 'path'
-	Properties []*Property // optional PROPERTIES(...)
-	BrokerName string      // optional WITH BROKER name
+	Target           *ObjectName // table to export
+	Partition        []string    // optional PARTITION(...)
+	Where            Node        // optional WHERE clause
+	Path             string      // TO 'path'
+	Properties       []*Property // optional PROPERTIES(...)
+	BrokerName       string      // optional WITH BROKER name
 	BrokerProperties []*Property // optional WITH BROKER name (...) list
-	Loc        Loc
+	Loc              Loc
 }
 
 // Tag implements Node.
@@ -288,6 +306,7 @@ func (n *ExportStmt) Tag() NodeTag { return T_ExportStmt }
 
 // Compile-time assertion that *ExportStmt satisfies Node.
 var _ Node = (*ExportStmt)(nil)
+
 // ROUTINE LOAD statements (T6.2)
 // ---------------------------------------------------------------------------
 
@@ -299,13 +318,13 @@ var _ Node = (*ExportStmt)(nil)
 //	    FROM {KAFKA | S3 | HDFS} (data_source_properties)
 //	    [COMMENT 'text']
 type CreateRoutineLoadStmt struct {
-	Name                 *ObjectName  // job name, optionally qualified with db
-	OnTable              *ObjectName  // ON table name
-	LoadProps            string       // raw load_properties text (best-effort capture)
-	JobProperties        []*Property  // PROPERTIES (...) key=value pairs
-	DataSourceType       string       // "KAFKA", "S3", "HDFS", etc.
-	DataSourceProperties []*Property  // FROM ... (...) key=value pairs
-	Comment              string       // optional COMMENT 'text'
+	Name                 *ObjectName // job name, optionally qualified with db
+	OnTable              *ObjectName // ON table name
+	LoadProps            string      // raw load_properties text (best-effort capture)
+	JobProperties        []*Property // PROPERTIES (...) key=value pairs
+	DataSourceType       string      // "KAFKA", "S3", "HDFS", etc.
+	DataSourceProperties []*Property // FROM ... (...) key=value pairs
+	Comment              string      // optional COMMENT 'text'
 	Loc                  Loc
 }
 

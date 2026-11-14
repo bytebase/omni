@@ -6,7 +6,7 @@ package parser
 //
 // These assert the AST shape and accept/reject polarity on hand-authored
 // fixtures. The differential against the live Spanner emulator (the PROVE gate
-// per correctness-protocol.md) lives in scripting_oracle_test.go (build tag
+// per correctness-protocol.md) lives in the suite:scripting rows of testdata/compat.tsv (build tag
 // googlesql_oracle); scripting is BigQuery-only except the BEGIN…END envelope /
 // SET / EXECUTE IMMEDIATE, so the control-flow forms are triangulated against the
 // legacy .g4 + the BigQuery truth1 corpus, not the Spanner oracle.

@@ -11,7 +11,7 @@ import (
 //
 // CORRECTNESS BASIS (correctness-protocol.md). Two oracles:
 //   - the live Cloud Spanner emulator (transaction_oracle differential in
-//     utility_oracle_test.go) — it PARSES every one of these (accepts the
+//     the suite:utility rows of testdata/compat.tsv) — it PARSES every one of these (accepts the
 //     leading form, then feature-rejects "Statement not supported: …"), so the
 //     leading-form ACCEPT is authoritative.
 //   - the canonical ZetaSQL corpus (transaction.sql / batch.sql) — the breadth

@@ -10,5 +10,6 @@ import (
 func TestMain(m *testing.M) {
 	code := m.Run()
 	testcontainer.RemoveHarness()
+	testcontainer.Terminate()
 	os.Exit(code)
 }
