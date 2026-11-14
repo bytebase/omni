@@ -15,8 +15,6 @@ type Grant struct {
 	Privilege string // SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, EXECUTE, USAGE, CREATE, ALL
 	Columns   []string
 	WithGrant bool
-	// FromExtension marks a grant an extension's script made.
-	FromExtension bool
 }
 
 // ExecGrantStmt processes GRANT and REVOKE statements.

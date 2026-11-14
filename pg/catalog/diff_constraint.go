@@ -8,14 +8,19 @@ func diffConstraints(from, to *Catalog, fromRelOID, toRelOID uint32) []Constrain
 	fromCons := from.ConstraintsOf(fromRelOID)
 	toCons := to.ConstraintsOf(toRelOID)
 
-	// Build name → *Constraint maps.
+	// Build name → *Constraint maps, leaving out a partition's constraints
+	// that come with its parent's, which PostgreSQL adds and drops along.
 	fromMap := make(map[string]*Constraint, len(fromCons))
 	for _, c := range fromCons {
-		fromMap[c.Name] = c
+		if !from.inheritedFromPartitionedTable(c) {
+			fromMap[c.Name] = c
+		}
 	}
 	toMap := make(map[string]*Constraint, len(toCons))
 	for _, c := range toCons {
-		toMap[c.Name] = c
+		if !to.inheritedFromPartitionedTable(c) {
+			toMap[c.Name] = c
+		}
 	}
 
 	var result []ConstraintDiffEntry
@@ -109,6 +114,29 @@ func constraintsEqual(from, to *Catalog, a, b *Constraint) bool {
 	}
 
 	return true
+}
+
+// inheritedFromPartitionedTable reports whether con, on a partition, is the
+// copy of a constraint of the partitioned table: cloned from it, backed by an
+// index attached to the parent's, the partition's primary key under the
+// parent's, or a CHECK or FK of the parent's name.
+func (c *Catalog) inheritedFromPartitionedTable(con *Constraint) bool {
+	rel := c.GetRelationByOID(con.RelOID)
+	if rel == nil || rel.PartitionOf == 0 {
+		return false
+	}
+	if con.ConParentID != 0 {
+		return true
+	}
+	if idx := c.indexes[con.IndexOID]; idx != nil && idx.ParentIndexOID != 0 {
+		return true
+	}
+	for _, pc := range c.ConstraintsOf(rel.PartitionOf) {
+		if pc.Type == con.Type && (pc.Name == con.Name || con.Type == ConstraintPK) {
+			return true
+		}
+	}
+	return false
 }
 
 // fkRefTableEqual compares the referenced table of two FK constraints

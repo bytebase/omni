@@ -355,3 +355,28 @@ ALTER TABLE public.p ALTER COLUMN a DROP NOT NULL`
 		t.Errorf("got:\n%s\nwant:\n%s", got, want)
 	}
 }
+
+// partitionedSales is a partitioned table with one partition, for the
+// constraints a partition takes from its parent.
+const partitionedSales = `CREATE TABLE p (id int NOT NULL, region text, d date NOT NULL) PARTITION BY RANGE (d);
+CREATE TABLE p1 PARTITION OF p FOR VALUES FROM ('2024-01-01') TO ('2025-01-01');
+`
+
+func TestMigrationLeavesPartitionCopiesToParent(t *testing.T) {
+	tests := []struct {
+		name, from, to, want string
+	}{
+		{"add primary key", partitionedSales, partitionedSales + "ALTER TABLE p ADD PRIMARY KEY (id, d);", `ALTER TABLE public.p ADD CONSTRAINT p_pkey PRIMARY KEY (id, d)`},
+		{"drop primary key", partitionedSales + "ALTER TABLE p ADD PRIMARY KEY (id, d);", partitionedSales, `ALTER TABLE public.p DROP CONSTRAINT p_pkey`},
+		{"add check", partitionedSales, partitionedSales + "ALTER TABLE p ADD CONSTRAINT p_id_check CHECK (id > 0);", `ALTER TABLE public.p ADD CONSTRAINT p_id_check CHECK ((id > 0))`},
+		{"drop check", partitionedSales + "ALTER TABLE p ADD CONSTRAINT p_id_check CHECK (id > 0);", partitionedSales, `ALTER TABLE public.p DROP CONSTRAINT p_id_check`},
+		{"add unique", partitionedSales, partitionedSales + "ALTER TABLE p ADD CONSTRAINT p_uq UNIQUE (region, d);", `ALTER TABLE public.p ADD CONSTRAINT p_uq UNIQUE (region, d)`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := generateMigrationSQL(t, tt.from, tt.to); got != tt.want {
+				t.Errorf("got:\n%s\nwant:\n%s", got, tt.want)
+			}
+		})
+	}
+}

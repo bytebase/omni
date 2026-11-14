@@ -683,7 +683,7 @@ func (c *Catalog) installGroup(ctx context.Context, group []*metadataObject, ful
 			switch {
 			case err == nil:
 				if o.skipDump {
-					c.markExtensionMembers(first, c.oidGen.next)
+					c.markExtensionMembers(first, c.oidGen.next, "")
 				}
 			case o.skipDump && isDuplicateObject(err):
 				// The extension's script made it already.
@@ -697,7 +697,7 @@ func (c *Catalog) installGroup(ctx context.Context, group []*metadataObject, ful
 			first := c.oidGen.next
 			c.replaceWithStandIn(failed[i], errs[i], report)
 			if failed[i].skipDump {
-				c.markExtensionMembers(first, c.oidGen.next)
+				c.markExtensionMembers(first, c.oidGen.next, "")
 			}
 			failed = slices.Delete(failed, i, i+1)
 		}
@@ -769,7 +769,11 @@ func (c *Catalog) installMetadataObject(o *metadataObject, full bool) error {
 		return c.CreateFunctionStmt(o.createStmt)
 	case metadataIndex:
 		if isKeyIndex(o.index) {
-			return c.AddConstraint(o.schema, o.parent, metadataKeyConstraint(o.index))
+			if err := c.AddConstraint(o.schema, o.parent, metadataKeyConstraint(o.index)); err != nil {
+				return err
+			}
+			c.linkParentIndex(o)
+			return nil
 		}
 		if o.parentIndexKey != "" {
 			return c.installAttachedIndex(o)
@@ -790,6 +794,22 @@ func (c *Catalog) installMetadataObject(o *metadataObject, full bool) error {
 		return c.AlterTableStmt(stmt)
 	default:
 		return fmt.Errorf("unknown metadata object kind %d", o.kind)
+	}
+}
+
+// linkParentIndex attaches a partition's key index to the parent's index the
+// snapshot names, when there is one.
+func (c *Catalog) linkParentIndex(o *metadataObject) {
+	if o.parentIndexKey == "" {
+		return
+	}
+	schema := c.schemaByName[o.schema]
+	parentSchema := c.schemaByName[cmp.Or(o.index.GetParentIndexSchema(), o.schema)]
+	if schema == nil || parentSchema == nil {
+		return
+	}
+	if idx, parent := schema.Indexes[o.name], parentSchema.Indexes[o.index.GetParentIndexName()]; idx != nil && parent != nil {
+		idx.ParentIndexOID = parent.OID
 	}
 }
 

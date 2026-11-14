@@ -196,6 +196,18 @@ func TestMigrationExtensionSchemaVersionAndMembers(t *testing.T) {
 			want: `GRANT EXECUTE ON FUNCTION public.crypt(text,text) TO "app"`,
 		},
 		{
+			name: "a comment on an extension's function is the user's",
+			from: `CREATE EXTENSION pg_trgm;`,
+			to:   `CREATE EXTENSION pg_trgm; COMMENT ON FUNCTION similarity(text, text) IS 'mine';`,
+			want: `COMMENT ON FUNCTION public.similarity(text,text) IS 'mine'`,
+		},
+		{
+			name: "a comment on an extension's function goes with the extension",
+			from: `CREATE EXTENSION pg_trgm; COMMENT ON FUNCTION similarity(text, text) IS 'mine';`,
+			to:   ``,
+			want: `DROP EXTENSION "pg_trgm"`,
+		},
+		{
 			name: "an extension without a bundled script is still created",
 			from: ``,
 			to:   `CREATE EXTENSION postgis;`,

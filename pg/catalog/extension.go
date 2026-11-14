@@ -75,7 +75,7 @@ func (c *Catalog) CreateExtension(stmt *nodes.CreateExtensionStmt) error {
 	if err != nil {
 		return fmt.Errorf("extension %q: parse error: %w", stmt.Extname, err)
 	}
-	firstMember, firstGrant := c.oidGen.next, len(c.grants)
+	firstMember := c.oidGen.next
 
 	// Temporarily prepend target schema to search path so unqualified types
 	// and functions land in the extension's schema.
@@ -112,10 +112,7 @@ func (c *Catalog) CreateExtension(stmt *nodes.CreateExtensionStmt) error {
 
 	// Restore original search path.
 	c.searchPath = origSearchPath
-	c.markExtensionMembers(firstMember, c.oidGen.next)
-	for i := firstGrant; i < len(c.grants); i++ {
-		c.grants[i].FromExtension = true
-	}
+	c.markExtensionMembers(firstMember, c.oidGen.next, stmt.Extname)
 
 	// Register extension metadata.
 	ext := &Extension{
@@ -132,11 +129,12 @@ func (c *Catalog) CreateExtension(stmt *nodes.CreateExtensionStmt) error {
 }
 
 // markExtensionMembers records the objects whose OIDs fall in [first, end)
-// as belonging to an extension, as pg_depend's 'e' entries do. Every object
-// an extension script creates takes its OID while the script runs.
-func (c *Catalog) markExtensionMembers(first, end uint32) {
+// as belonging to the extension ext, "" when unknown, as pg_depend's 'e'
+// entries do. Every object an extension script creates takes its OID while
+// the script runs.
+func (c *Catalog) markExtensionMembers(first, end uint32, ext string) {
 	for oid := first; oid < end; oid++ {
-		c.extensionMembers[oid] = true
+		c.extensionMembers[oid] = ext
 	}
 }
 
@@ -144,7 +142,18 @@ func (c *Catalog) markExtensionMembers(first, end uint32) {
 // extension. Such objects come and go with their extension, so Diff leaves
 // them out.
 func (c *Catalog) isExtensionMember(oid uint32) bool {
-	return c.extensionMembers[oid]
+	_, ok := c.extensionMembers[oid]
+	return ok
+}
+
+// diffsMemberSettings reports whether Diff compares a comment or grant on the
+// object with this OID in c against other. One on an extension's object is
+// compared only while other has that extension too; otherwise it comes and
+// goes with the extension. One on an object of an unknown extension, which a
+// snapshot marks skip_dump, is never compared.
+func (c *Catalog) diffsMemberSettings(oid uint32, other *Catalog) bool {
+	ext, ok := c.extensionMembers[oid]
+	return !ok || ext != "" && other.extByName[ext] != nil
 }
 
 // RegisterExtensionSQL allows external code to register extension DDL scripts.

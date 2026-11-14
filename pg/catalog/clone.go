@@ -1,6 +1,9 @@
 package catalog
 
-import "slices"
+import (
+	"maps"
+	"slices"
+)
 
 // Clone creates a deep copy of the Catalog.
 //
@@ -371,10 +374,7 @@ func (c *Catalog) Clone() *Catalog {
 		clone.extensions[oid] = &ce
 		clone.extByName[ce.Name] = &ce
 	}
-	clone.extensionMembers = make(map[uint32]bool, len(c.extensionMembers))
-	for oid := range c.extensionMembers {
-		clone.extensionMembers[oid] = true
-	}
+	clone.extensionMembers = maps.Clone(c.extensionMembers)
 
 	// --- Access methods: share built-in, deep copy user-created ---
 	clone.accessMethods = make(map[uint32]*AccessMethod, len(c.accessMethods))

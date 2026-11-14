@@ -44,6 +44,9 @@ func generateIndexDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 					if idx.ConstraintOID != 0 {
 						continue
 					}
+					if idx.ParentIndexOID != 0 {
+						attachOps = append(attachOps, attachIndexOp(to, relEntry.SchemaName, idx))
+					}
 					rel := relEntry.To
 					sql := buildCreateIndexSQL(idx, rel, relEntry.SchemaName)
 					ops = append(ops, MigrationOp{

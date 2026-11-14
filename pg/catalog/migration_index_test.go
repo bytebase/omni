@@ -276,4 +276,14 @@ CREATE INDEX ci ON child (id);`
 	if want := `ALTER INDEX public.pi ATTACH PARTITION public.ci`; got != want {
 		t.Errorf("got:\n%s\nwant:\n%s", got, want)
 	}
+
+	// pi exists already, so creating ci does not come with it.
+	only := `CREATE TABLE p (id int) PARTITION BY RANGE (id);
+CREATE TABLE child PARTITION OF p FOR VALUES FROM (0) TO (10);
+CREATE INDEX pi ON ONLY p (id);`
+	got = generateMigrationSQL(t, only, only+"\nCREATE INDEX ci ON child (id);\nALTER INDEX pi ATTACH PARTITION ci;")
+	if want := `CREATE INDEX ci ON public.child (id);
+ALTER INDEX public.pi ATTACH PARTITION public.ci`; got != want {
+		t.Errorf("got:\n%s\nwant:\n%s", got, want)
+	}
 }
