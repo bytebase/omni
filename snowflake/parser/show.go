@@ -101,11 +101,17 @@ func (p *Parser) parseShowStmt() (ast.Node, error) {
 		stmt.HasLike = true
 	}
 
-	// Optional IN/FOR <scope>.
+	// Optional IN/FOR <scope>, then the clause a class writes after it.
+	bareScope := false
 	if p.cur.Type == kwIN || p.cur.Type == kwFOR {
+		afterIn := p.peekNext().Loc.Start
 		if err := p.parseShowScope(stmt); err != nil {
 			return nil, err
 		}
+		bareScope = stmt.Scope == ast.ShowScopeSchema && stmt.ScopeName != nil && stmt.ScopeName.Loc.Start == afterIn
+	}
+	if err := p.parseShowClassClause(stmt, bareScope); err != nil {
+		return nil, err
 	}
 
 	// SHOW NODES IN COMPUTE POOL <name> [ LIKE '<pattern>' ] writes LIKE after
@@ -152,6 +158,9 @@ func (p *Parser) parseShowStmt() (ast.Node, error) {
 			stmt.LimitFrom = from.Str
 		}
 	}
+	if err := p.parseShowOfType(stmt); err != nil {
+		return nil, err
+	}
 
 	// SHOW AVAILABLE LISTINGS' IS_<x> = TRUE filters (listing.go).
 	if stmt.ObjectClass == "AVAILABLE LISTINGS" {
@@ -180,6 +189,9 @@ func (p *Parser) parseShowStmt() (ast.Node, error) {
 	if err := checkShowProjectScope(stmt); err != nil {
 		return nil, err
 	}
+	if err := checkShowConnectorOrRoutingScope(stmt); err != nil {
+		return nil, err
+	}
 	return stmt, nil
 }
 
@@ -204,7 +216,7 @@ func (p *Parser) parseShowObjectClass() (string, error) {
 // terminate the class.
 func (p *Parser) startsShowClassWord() bool {
 	switch p.cur.Type {
-	case kwHISTORY, kwLIKE, kwIN, kwFOR, kwSTARTS, kwLIMIT, kwWITH, tokFlow, tokEOF:
+	case kwHISTORY, kwLIKE, kwIN, kwFOR, kwSTARTS, kwLIMIT, kwWITH, kwOF, tokFlow, tokEOF:
 		return false
 	}
 	if p.peekNext().Type == '=' {
@@ -234,6 +246,9 @@ func (p *Parser) parseShowScope(stmt *ast.ShowStmt) error {
 	if ok, err := p.parseShowOrganizationScope(stmt); ok {
 		return err
 	}
+	if ok, err := p.parseShowClassScope(stmt); ok {
+		return err
+	}
 
 	// SHOW BACKUPS IN BACKUP SET <name> and SHOW SNAPSHOTS IN SNAPSHOT SET
 	// <name> (https://docs.snowflake.com/en/sql-reference/sql/show-backups-in-backup-set,
@@ -249,6 +264,12 @@ func (p *Parser) parseShowScope(stmt *ast.ShowStmt) error {
 		}
 		stmt.ScopeName = name
 		return nil
+	}
+
+	// SHOW VERSIONS IN OPENFLOW CONNECTOR <name> and SHOW RULES IN EVENT
+	// ROUTING TABLE ( <name> ) (openflow_connector.go).
+	if ok, err := p.parseShowConnectorOrRoutingScope(stmt); ok {
+		return err
 	}
 
 	// IN { MODEL | DATASET | EXPERIMENT | GATEWAY } <name> (model.go).
@@ -518,7 +539,7 @@ func (p *Parser) parseShowGrantsOpts(stmt *ast.ShowStmt) error {
 			return err
 		}
 		stmt.GrantsTo = grantee
-		return nil
+		return p.parseShowGrantsToShareIn(stmt)
 	case kwOF:
 		p.advance() // consume OF
 		grantee, err := p.parseGrantee()
@@ -688,8 +709,18 @@ func (p *Parser) parseDescribeStmt(short bool) (ast.Node, error) {
 	stmt.ObjectType = strings.Join(typeWords, " ")
 	stmt.Name = unit
 
+	// A data metric function's signature, ( TABLE ( ... ) [ , TABLE ( ... ) ] )
+	// (data_metric_function.go); the page writes DESC FUNCTION [ IF EXISTS ].
+	if (stmt.ObjectType == "FUNCTION" || stmt.ObjectType == "FUNCTION IF EXISTS") && p.startsDataMetricTableArgs() {
+		args, err := p.parseDataMetricTableArgs()
+		if err != nil {
+			return nil, err
+		}
+		stmt.TableArgs = args
+	}
+
 	// Optional FUNCTION/PROCEDURE argument-type signature.
-	if p.cur.Type == '(' {
+	if stmt.TableArgs == nil && p.cur.Type == '(' {
 		sig, err := p.parseGrantSignature()
 		if err != nil {
 			return nil, err

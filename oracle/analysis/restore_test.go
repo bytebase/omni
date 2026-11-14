@@ -62,6 +62,11 @@ func TestRestoreSQL(t *testing.T) {
 	_, err = restore(t, "UPDATE t SET id = 1, b = 2")
 	require.ErrorContains(t, err, "no disjoint unique key found for DB.T")
 
+	// SET VALUE (t) replaces whole rows, whose columns the restore cannot
+	// list.
+	_, err = restore(t, "UPDATE t x SET VALUE(x) = typ(1, 2)")
+	require.ErrorContains(t, err, "cannot restore SET VALUE")
+
 	got, err = restore(t, "DELETE FROM t WHERE a = '"+strings.Repeat("x", 1200)+"'")
 	require.NoError(t, err)
 	require.Contains(t, got, "...\n*/\n")

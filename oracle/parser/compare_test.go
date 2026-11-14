@@ -7164,7 +7164,11 @@ func TestBatch93_ViewsAllTypes(t *testing.T) {
 	})
 
 	t.Run("create_view_container_map", func(t *testing.T) {
-		result := ParseAndCheck(t, "CREATE VIEW emp_v CONTAINER_MAP AS SELECT * FROM employees")
+		// CONTAINER_MAP follows the subquery: Oracle 23ai refuses it before
+		// AS (ORA-02000).
+		ParseShouldFail(t, "CREATE VIEW emp_v CONTAINER_MAP AS SELECT * FROM employees")
+		// After a bare FROM table the word would be its alias.
+		result := ParseAndCheck(t, "CREATE VIEW emp_v AS SELECT * FROM employees WITH READ ONLY CONTAINER_MAP")
 		raw := result.Items[0].(*ast.RawStmt)
 		stmt := raw.Stmt.(*ast.CreateViewStmt)
 		if !stmt.ContainerMap {

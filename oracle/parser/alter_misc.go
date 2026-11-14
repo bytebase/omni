@@ -55,7 +55,7 @@ func (p *Parser) parseAlterStmt() (nodes.StmtNode, error) {
 		if err := p.atExpect(kwVIEW); err != nil {
 			return nil, err
 		}
-		// Check for MATERIALIZED VIEW LOG
+		// MATERIALIZED VIEW LOG
 		if p.cur.Type == kwLOG {
 			p.advance() // consume LOG
 			return p.parseAlterMviewLogStmt(start)
@@ -2503,9 +2503,10 @@ func (p *Parser) parseCompileClause() (bool, bool, []*nodes.SetParam, error) {
 	for p.cur.Type != ';' && p.cur.Type != tokEOF {
 		if p.isIdentLikeStr("REUSE") {
 			p.advance() // consume REUSE
-			if p.isIdentLikeStr("SETTINGS") {
-				p.advance() // consume SETTINGS
+			if !p.isKeywordStr("SETTINGS") {
+				return false, false, nil, p.syntaxErrorAtCur()
 			}
+			p.advance() // consume SETTINGS
 			reuseSettings = true
 			break
 		}
@@ -2940,6 +2941,8 @@ func (p *Parser) parseAlterTypeStmt(start int) (nodes.StmtNode, error) {
 		} else if p.isIdentLikeStr("FINAL") {
 			stmt.Action = "NOT_FINAL"
 			p.advance()
+		} else {
+			return nil, p.syntaxErrorAtCur()
 		}
 		parseErr104 := p.parseAlterTypeDependentHandling(stmt)
 		if parseErr104 != nil {
@@ -2973,6 +2976,9 @@ func (p *Parser) parseAlterTypeStmt(start int) (nodes.StmtNode, error) {
 		if p.isIdentLikeStr("LIMIT") {
 			stmt.Action = "MODIFY_LIMIT"
 			p.advance()
+			if p.cur.Type != tokICONST {
+				return nil, p.syntaxErrorAtCur()
+			}
 			var // consume LIMIT
 			parseErr111 error
 			stmt.LimitValue, parseErr111 = p.parseExpr()
@@ -2986,9 +2992,10 @@ func (p *Parser) parseAlterTypeStmt(start int) (nodes.StmtNode, error) {
 		} else if p.isIdentLikeStr("ELEMENT") {
 			stmt.Action = "MODIFY_ELEMENT_TYPE"
 			p.advance() // consume ELEMENT
-			if p.cur.Type == kwTYPE {
-				p.advance() // consume TYPE
+			if p.cur.Type != kwTYPE {
+				return nil, p.syntaxErrorAtCur()
 			}
+			p.advance() // consume TYPE
 			// The element type of a collection, as in CREATE TYPE AS TABLE OF:
 			// Oracle 23ai takes MODIFY ELEMENT TYPE CHARACTER VARYING. The
 			// clause widens a scalar element, so no REF, and none of the
@@ -3020,6 +3027,8 @@ func (p *Parser) parseAlterTypeStmt(start int) (nodes.StmtNode, error) {
 				} else if p.isIdentLikeStr("FINAL") {
 					stmt.Action = "MODIFY_NOT_FINAL"
 					p.advance()
+				} else {
+					return nil, p.syntaxErrorAtCur()
 				}
 			} else if p.isIdentLikeStr("INSTANTIABLE") {
 				stmt.Action = "MODIFY_INSTANTIABLE"
@@ -3027,6 +3036,8 @@ func (p *Parser) parseAlterTypeStmt(start int) (nodes.StmtNode, error) {
 			} else if p.isIdentLikeStr("FINAL") {
 				stmt.Action = "MODIFY_FINAL"
 				p.advance()
+			} else {
+				return nil, p.syntaxErrorAtCur()
 			}
 			parseErr115 := p.parseAlterTypeDependentHandling(stmt)
 			if parseErr115 != nil {
@@ -3053,10 +3064,15 @@ func (p *Parser) parseAlterTypeStmt(start int) (nodes.StmtNode, error) {
 		stmt.Action = "NONEDITIONABLE"
 		stmt.NonEditionable = true
 		p.advance()
+
+	default:
+		// alter_type_clause is required.
+		return nil, p.syntaxErrorAtCur()
 	}
 
-	// Trailing EDITIONABLE / NONEDITIONABLE (after other clauses)
-	if stmt.Action != "EDITIONABLE" && stmt.Action != "NONEDITIONABLE" {
+	// Trailing EDITIONABLE / NONEDITIONABLE (after other clauses): Oracle
+	// 23ai refuses one after COMPILE (ORA-00922).
+	if stmt.Action != "EDITIONABLE" && stmt.Action != "NONEDITIONABLE" && stmt.Action != "COMPILE" {
 		if p.isIdentLikeStr("EDITIONABLE") {
 			stmt.Editionable = true
 			p.advance()
@@ -3497,48 +3513,60 @@ func (p *Parser) parseAlterTypeDependentHandling(stmt *nodes.AlterTypeStmt) erro
 	return nil
 }
 
+// CASCADE [ [ NOT ] INCLUDING TABLE DATA ] [ FORCE ]
+// [ CONVERT TO SUBSTITUTABLE | NOT SUBSTITUTABLE ] [ EXCEPTIONS INTO [ schema. ] table ]
 func (p *Parser) parseAlterTypeCascade(stmt *nodes.AlterTypeStmt) error {
 	stmt.Cascade = true
 	p.advance() // consume CASCADE
 
-	if p.isIdentLikeStr("INCLUDING") {
+	switch {
+	case p.isKeywordStr("INCLUDING"), p.cur.Type == kwNOT && isCreateTableWordTok(p.peekNext(), "INCLUDING"):
+		include := p.cur.Type != kwNOT
+		if !include {
+			p.advance() // consume NOT
+		}
 		p.advance() // consume INCLUDING
-		if p.cur.Type == kwTABLE {
-			p.advance() // consume TABLE
+		if err := p.expectCreateTableToken(kwTABLE); err != nil {
+			return err
 		}
-		if p.isIdentLikeStr("DATA") {
-			p.advance() // consume DATA
+		if err := p.expectCreateTableWord("DATA"); err != nil {
+			return err
 		}
-		t := true
-		stmt.IncludeData = &t
-	} else if p.cur.Type == kwNOT {
-		p.advance() // consume NOT
-		if p.isIdentLikeStr("INCLUDING") {
-			p.advance() // consume INCLUDING
-		}
-		if p.cur.Type == kwTABLE {
-			p.advance() // consume TABLE
-		}
-		if p.isIdentLikeStr("DATA") {
-			p.advance() // consume DATA
-		}
-		f := false
-		stmt.IncludeData = &f
-	} else if p.isIdentLikeStr("CONVERT") {
-		p.advance() // consume CONVERT
-		if p.cur.Type == kwTO {
-			p.advance() // consume TO
-		}
-		if p.isIdentLikeStr("SUBSTITUTABLE") {
-			p.advance() // consume SUBSTITUTABLE
-		}
-		stmt.ConvertToSubst = true
+		stmt.IncludeData = &include
 	}
-
-	// Optional FORCE
-	if p.isIdentLikeStr("FORCE") {
+	if p.isKeywordStr("FORCE") {
 		stmt.Force = true
 		p.advance()
+	}
+	switch {
+	case p.isKeywordStr("CONVERT"):
+		p.advance() // consume CONVERT
+		if err := p.expectCreateTableToken(kwTO); err != nil {
+			return err
+		}
+		if err := p.expectCreateTableWord("SUBSTITUTABLE"); err != nil {
+			return err
+		}
+		stmt.ConvertToSubst = true
+	case p.cur.Type == kwNOT:
+		p.advance() // consume NOT
+		if err := p.expectCreateTableWord("SUBSTITUTABLE"); err != nil {
+			return err
+		}
+	}
+	if p.isKeywordStr("EXCEPTIONS") {
+		p.advance()
+		if err := p.expectCreateTableToken(kwINTO); err != nil {
+			return err
+		}
+		if !p.isCreateTableNameStart() {
+			return p.syntaxErrorAtCur()
+		}
+		table, err := p.parseObjectName()
+		if err != nil {
+			return err
+		}
+		_ = table
 	}
 	return nil
 }

@@ -63,10 +63,85 @@ func (p *Parser) parseCreateExternalFunctionStmt(start ast.Loc, orReplace, orAlt
 // parseCreateProcedureStmt parses CREATE [OR REPLACE] [SECURE] PROCEDURE ... .
 // The CREATE / OR REPLACE / SECURE modifiers have already been consumed by
 // parseCreateStmt; start is the Loc of the CREATE token and cur is the PROCEDURE
-// keyword.
-func (p *Parser) parseCreateProcedureStmt(start ast.Loc, orReplace, orAlter, secure bool) (ast.Node, error) {
+// keyword. modified says whether a TEMP, TEMPORARY, TRANSIENT or VOLATILE
+// modifier came before PROCEDURE, which PROCEDURE SCOPED takes none of.
+func (p *Parser) parseCreateProcedureStmt(start ast.Loc, orReplace, orAlter, secure, modified bool) (ast.Node, error) {
 	p.advance() // consume PROCEDURE
+	if p.startsProcedureScopedTable() {
+		if orAlter || secure || modified {
+			return nil, p.syntaxErrorAtCur()
+		}
+		return p.parseProcedureScopedTable(start, orReplace)
+	}
 	return p.parseCreateRoutineBody(start, ast.RoutineProcedure, orReplace, orAlter, secure, false)
+}
+
+// startsProcedureScopedTable reports whether cur, after CREATE [ OR REPLACE ]
+// PROCEDURE, begins SCOPED { TEMP | TEMPORARY } TABLE. It consumes nothing.
+func (p *Parser) startsProcedureScopedTable() bool {
+	if !tokIsWord(p.cur, "SCOPED") {
+		return false
+	}
+	switch p.peekNext().Type {
+	case kwTEMP, kwTEMPORARY:
+		return true
+	}
+	return false
+}
+
+// parseProcedureScopedTable parses
+//
+//	CREATE [ OR REPLACE ] PROCEDURE SCOPED { TEMP | TEMPORARY } TABLE <table_name>
+//	  ( <col_name> <col_data_type> [ , ... ] )
+//
+// (https://docs.snowflake.com/en/sql-reference/sql/create-procedure, under
+// "Procedure-scoped temporary tables"): a temporary table a Snowflake
+// Scripting procedure declares for one execution, not a procedure. cur is
+// SCOPED, which startsProcedureScopedTable has seen.
+func (p *Parser) parseProcedureScopedTable(start ast.Loc, orReplace bool) (ast.Node, error) {
+	p.advance() // consume SCOPED
+	p.advance() // consume TEMP / TEMPORARY
+	if _, err := p.expect(kwTABLE); err != nil {
+		return nil, err
+	}
+	stmt := &ast.CreateTableStmt{
+		OrReplace:       orReplace,
+		Temporary:       true,
+		ProcedureScoped: true,
+		Loc:             ast.Loc{Start: start.Start},
+	}
+	name, err := p.parseObjectName()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Name = name
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	for {
+		col, err := p.parseIdent()
+		if err != nil {
+			return nil, err
+		}
+		typ, err := p.parseDataType()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Columns = append(stmt.Columns, &ast.ColumnDef{
+			Name:     col,
+			DataType: typ,
+			Loc:      ast.Loc{Start: col.Loc.Start, End: typ.Loc.End},
+		})
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance() // consume ','
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	stmt.Loc.End = p.prev.Loc.End
+	return stmt, nil
 }
 
 // parseCreateRoutineBody parses the shared tail common to CREATE FUNCTION /
@@ -103,11 +178,22 @@ func (p *Parser) parseCreateRoutineBody(start ast.Loc, kind ast.RoutineKind, orR
 	stmt.Name = name
 
 	// Argument list: ( [ <arg_name> <data_type> [ DEFAULT <expr> ] [, ...] ] ).
-	args, err := p.parseRoutineArgList()
+	// A procedure's argument may give its mode (routineArgModes).
+	args, err := p.parseRoutineArgList(kind == ast.RoutineProcedure)
 	if err != nil {
 		return nil, err
 	}
 	stmt.Args = args
+
+	// [ COPY GRANTS ] between the arguments and RETURNS
+	// (https://docs.snowflake.com/en/sql-reference/sql/create-function,
+	// https://docs.snowflake.com/en/sql-reference/sql/create-procedure).
+	if (kind == ast.RoutineFunction || kind == ast.RoutineProcedure) &&
+		p.cur.Type == kwCOPY && p.peekNext().Type == kwGRANTS {
+		p.advance() // consume COPY
+		p.advance() // consume GRANTS
+		stmt.CopyGrants = true
+	}
 
 	// RETURNS { <data_type> | TABLE ( ... ) } [ [ NOT ] NULL ].
 	if _, err := p.expect(kwRETURNS); err != nil {
@@ -144,6 +230,10 @@ func (p *Parser) parseCreateRoutineBody(start ast.Loc, kind ast.RoutineKind, orR
 		break
 	}
 
+	if err := checkRoutineArgModes(stmt); err != nil {
+		return nil, err
+	}
+
 	// Optional AS <body>. A function may have no body (handler-only); when AS is
 	// present the body is mandatory.
 	if p.cur.Type == kwAS {
@@ -163,10 +253,11 @@ func (p *Parser) parseCreateRoutineBody(start ast.Loc, kind ast.RoutineKind, orR
 
 // parseRoutineArgList parses the parenthesized argument list:
 //
-//	( [ <arg_name> <data_type> [ DEFAULT <expr> ] [ , ... ] ] )
+//	( [ <arg_name> [ <mode> ] <data_type> [ DEFAULT <expr> ] [ , ... ] ] )
 //
+// where modes says whether an argument may give its mode (routineArgModes).
 // An empty list — () — yields nil args. cur must be '('.
-func (p *Parser) parseRoutineArgList() ([]*ast.RoutineArg, error) {
+func (p *Parser) parseRoutineArgList(modes bool) ([]*ast.RoutineArg, error) {
 	if _, err := p.expect('('); err != nil {
 		return nil, err
 	}
@@ -179,7 +270,7 @@ func (p *Parser) parseRoutineArgList() ([]*ast.RoutineArg, error) {
 
 	var args []*ast.RoutineArg
 	for {
-		arg, err := p.parseRoutineArg()
+		arg, err := p.parseRoutineArg(modes)
 		if err != nil {
 			return nil, err
 		}
@@ -198,11 +289,30 @@ func (p *Parser) parseRoutineArgList() ([]*ast.RoutineArg, error) {
 	return args, nil
 }
 
-// parseRoutineArg parses one argument: <arg_name> <data_type> [ DEFAULT <expr> ].
-func (p *Parser) parseRoutineArg() (*ast.RoutineArg, error) {
+// routineArgModes are the modes a Snowflake Scripting procedure's argument
+// may give between its name and its type
+// (https://docs.snowflake.com/en/sql-reference/sql/create-procedure):
+//
+//	<arg_name> [ { IN | INPUT | OUT | OUTPUT } ] <arg_data_type>
+var routineArgModes = []string{"IN", "INPUT", "OUT", "OUTPUT"}
+
+// parseRoutineArg parses one argument: <arg_name> [ <mode> ] <data_type>
+// [ DEFAULT <expr> ], where modes says whether the mode may be given.
+func (p *Parser) parseRoutineArg(modes bool) (*ast.RoutineArg, error) {
 	name, err := p.parseIdent()
 	if err != nil {
 		return nil, err
+	}
+
+	mode := ""
+	if modes {
+		for _, m := range routineArgModes {
+			if isWordToken(p.cur, m) {
+				mode = m
+				p.advance() // consume the mode
+				break
+			}
+		}
 	}
 
 	typ, err := p.parseDataType()
@@ -212,6 +322,7 @@ func (p *Parser) parseRoutineArg() (*ast.RoutineArg, error) {
 
 	arg := &ast.RoutineArg{
 		Name: name,
+		Mode: mode,
 		Type: typ,
 		Loc:  ast.Loc{Start: name.Loc.Start, End: typ.Loc.End},
 	}
@@ -329,13 +440,20 @@ func (p *Parser) parseRoutineExecuteAs(dst *ast.ExecuteAs) error {
 	if _, err := p.expect(kwAS); err != nil {
 		return err
 	}
-	switch p.cur.Type {
-	case kwCALLER:
+	switch {
+	case p.cur.Type == kwCALLER:
 		p.advance()
 		*dst = ast.ExecuteAsCaller
-	case kwOWNER:
+	case p.cur.Type == kwOWNER:
 		p.advance()
 		*dst = ast.ExecuteAsOwner
+	case isWordToken(p.cur, "RESTRICTED") && p.peekNext().Type == kwCALLER:
+		// EXECUTE AS RESTRICTED CALLER
+		// (https://docs.snowflake.com/en/sql-reference/sql/create-procedure,
+		// https://docs.snowflake.com/en/sql-reference/sql/alter-procedure).
+		p.advance() // consume RESTRICTED
+		p.advance() // consume CALLER
+		*dst = ast.ExecuteAsRestrictedCaller
 	default:
 		return p.syntaxErrorAtCur()
 	}
@@ -651,4 +769,26 @@ func (p *Parser) parseRoutineArgTypeList() ([]*ast.TypeName, error) {
 		return nil, err
 	}
 	return types, nil
+}
+
+// checkRoutineArgModes fails a routine whose arguments give a mode
+// (routineArgModes) unless it is a LANGUAGE SQL procedure: the page writes the
+// modes only in its Snowflake Scripting form.
+func checkRoutineArgModes(stmt *ast.CreateRoutineStmt) error {
+	for _, a := range stmt.Args {
+		if a.Mode == "" {
+			continue
+		}
+		for i, o := range stmt.Options {
+			if o.Bare && o.Name == "LANGUAGE" && i+1 < len(stmt.Options) &&
+				stmt.Options[i+1].Bare && stmt.Options[i+1].Name == "SQL" {
+				return nil
+			}
+		}
+		return &ParseError{
+			Position: a.Loc.Start, End: a.Loc.End,
+			Message: "syntax error: an argument's mode is documented for a LANGUAGE SQL procedure only",
+		}
+	}
+	return nil
 }

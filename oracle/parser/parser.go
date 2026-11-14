@@ -76,6 +76,11 @@ type Parser struct {
 	// 23ai does (ORA-00907, ORA-00936).
 	scalarParen bool
 
+	// dmlFromClause is set while the from_using_clause of UPDATE or DELETE
+	// is parsed, whose table references take no SAMPLE or MATCH_RECOGNIZE;
+	// parseSelectStmt clears it for a query inside.
+	dmlFromClause bool
+
 	// typeMods says what the parenthesized modifiers of the datatype being
 	// parsed may hold; parsePLSQLDatatype sets it for PL/SQL datatypes.
 	typeMods typeModMode
@@ -515,7 +520,7 @@ func (p *Parser) parseCheckedStmt(textStart, stmtLoc int) (nodes.StmtNode, error
 	if treeTooHigh(stmt, p.prev.End-stmtLoc) {
 		return nil, nestedTooDeeply(stmtLoc)
 	}
-	if p.cur.Type == tokEOF && (p.isIncompleteStatementEnd(stmt) || p.isIncompleteParsedStmt(stmt)) && !p.failsBeforeEnd(stmt) {
+	if p.cur.Type == tokEOF && (p.isIncompleteStatementEnd(stmt) || p.isIncompleteParsedStmt(stmt)) {
 		return nil, p.syntaxErrorAtCur()
 	}
 	if stmt == nil {
@@ -523,16 +528,6 @@ func (p *Parser) parseCheckedStmt(textStart, stmtLoc int) (nodes.StmtNode, error
 	}
 	if lock := lockedSubquery(stmt); lock != nil {
 		return nil, p.syntaxErrorAtNode(lock)
-	}
-	if sel := sourcelessStar(stmt); sel != nil {
-		// At the block's start, its SELECT or its WITH, past the
-		// parentheses its span takes.
-		lex := p.lexer.lookahead(sel.Loc.Start, sel.Loc.End)
-		tok := lex.NextToken()
-		for tok.Type == '(' {
-			tok = lex.NextToken()
-		}
-		return nil, p.syntaxErrorAtTok(tok)
 	}
 	if err := p.checkConditionalCompilation(stmt, textStart, stmtLoc, p.prev.End); err != nil {
 		return nil, err
@@ -665,7 +660,7 @@ func scanDelimiters(lexer *Lexer, sql string, end int, settled func() bool) erro
 
 func (p *Parser) isIncompleteStatementEnd(stmt nodes.StmtNode) bool {
 	switch p.prev.Type {
-	case '(', ',', '.', '=', '+', '-', '*', '/', tokASSIGN, tokASSOC, tokCONCAT:
+	case '(', ',', '.', '=', '+', '-', '/', tokASSIGN, tokASSOC, tokCONCAT:
 		return true
 	}
 
@@ -715,8 +710,6 @@ func (p *Parser) isIncompleteStatementEnd(stmt nodes.StmtNode) bool {
 
 func (p *Parser) isIncompleteParsedStmt(stmt nodes.StmtNode) bool {
 	switch s := stmt.(type) {
-	case *nodes.SelectStmt:
-		return p.endsAwaitingFrom(s)
 	case *nodes.DropStmt:
 		if s.ObjectType == nodes.OBJECT_DATABASE && (s.Names == nil || s.Names.Len() == 0) {
 			return false
@@ -734,46 +727,6 @@ func (p *Parser) isIncompleteParsedStmt(stmt nodes.StmtNode) bool {
 	default:
 		return false
 	}
-}
-
-// sourcelessStar returns the first query block in stmt that selects *
-// without a FROM clause, which Oracle 23ai rejects with ORA-54058 at the
-// block's start, its SELECT or its WITH, wherever it stands: CREATE TABLE ... AS (SELECT *), a view,
-// an INSERT, a subquery, an inline view, a WITH element, MERGE USING, or a
-// cursor FOR loop. The subquery of EXISTS is the exception when it is one
-// query block with no row-limiting clause, as Oracle does not expand its
-// select list: WHERE EXISTS (SELECT *) runs, and EXISTS (SELECT * UNION
-// SELECT 1 FROM dual) and EXISTS (SELECT * FETCH FIRST 1 ROWS ONLY) fail.
-func sourcelessStar(stmt nodes.Node) *nodes.SelectStmt {
-	exempt := map[*nodes.SelectStmt]bool{}
-	var bad *nodes.SelectStmt
-	nodes.Inspect(stmt, func(n nodes.Node) bool {
-		if bad != nil {
-			return false
-		}
-		switch n := n.(type) {
-		case *nodes.ExistsExpr:
-			sel, ok := n.Subquery.(*nodes.SelectStmt)
-			// A WITH clause before a parenthesized block wraps it, one
-			// block still: Oracle 23ai runs EXISTS (WITH w AS (...)
-			// (SELECT *)).
-			for ok && sel.Larg != nil && sel.Op == nodes.SETOP_NONE && sel.FetchFirst == nil {
-				sel = sel.Larg
-			}
-			if ok && sel.Larg == nil && sel.Op == nodes.SETOP_NONE && sel.FetchFirst == nil {
-				exempt[sel] = true
-			}
-		case *nodes.SelectStmt:
-			// A set operation holds its first block itself, Larg nil, or
-			// wraps a parenthesized one in Larg.
-			if n.Larg == nil && !exempt[n] &&
-				(n.FromClause == nil || n.FromClause.Len() == 0) && selectTargetListContainsStar(n.TargetList) {
-				bad = n
-			}
-		}
-		return true
-	})
-	return bad
 }
 
 // lockedSubquery returns the FOR UPDATE clause that ends a subquery in
@@ -836,48 +789,10 @@ func lockedSubquery(stmt nodes.Node) nodes.Node {
 	return lock
 }
 
-// endsAwaitingFrom reports whether the last query block of query, where
-// the text ends, selects * with no FROM after it yet: SELECT * and SELECT
-// 1 FROM dual UNION SELECT * end unfinished. A parenthesized block is
-// whole, and sourcelessStar reports it: SELECT 1 FROM dual UNION (SELECT
-// *) fails at its SELECT.
-func (p *Parser) endsAwaitingFrom(query *nodes.SelectStmt) bool {
-	for query.Rarg != nil {
-		query = query.Rarg
-	}
-	if query.Larg != nil || p.parenthesizedBlock(query) {
-		return false
-	}
-	return (query.FromClause == nil || query.FromClause.Len() == 0) && selectTargetListContainsStar(query.TargetList)
-}
-
 // parenthesizedBlock reports whether the span of the query block sel opens
 // with its parentheses, as a parenthesized operand's does.
 func (p *Parser) parenthesizedBlock(sel *nodes.SelectStmt) bool {
 	return sel.Loc.Start >= 0 && sel.Loc.Start < len(p.source) && p.source[sel.Loc.Start] == '('
-}
-
-// failsBeforeEnd reports whether stmt holds a query block that selects *
-// without FROM (sourcelessStar) other than one still open where the text
-// ends, which may yet get its FROM: (SELECT *) UNION SELECT * fails at its
-// first block, unfinished or not.
-func (p *Parser) failsBeforeEnd(stmt nodes.StmtNode) bool {
-	if stmt == nil {
-		return false
-	}
-	bad := sourcelessStar(stmt)
-	if bad == nil {
-		return false
-	}
-	open := bad.Op == nodes.SETOP_NONE && bad.Larg == nil && !p.parenthesizedBlock(bad) && bad.Loc.End == p.prev.End
-	return !open
-}
-
-// selectTargetListContainsStar reports whether list selects * or table.*:
-// Oracle 23ai rejects (SELECT x.*) as it does (SELECT *) (ORA-00904), and
-// runs EXISTS (SELECT x.*).
-func selectTargetListContainsStar(list *nodes.List) bool {
-	return list != nil && selectListHasStar(list)
 }
 
 // parseStmt dispatches to statement-specific parsers.

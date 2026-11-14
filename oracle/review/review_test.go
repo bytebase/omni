@@ -631,6 +631,12 @@ func TestPriorBackup(t *testing.T) {
 			want:   []finding{{1, "UPDATE t SET n = 1 FROM p WHERE t.p_id = p.id AND p.memo = 1", "Prior backup runs before the change, when column `MEMO` of `P` doesn't exist yet.\n\nAdd the column in an earlier change, or turn off **Prior backup**.", []int{0}}},
 		},
 		{
+			name:   "a column of a joined table in a DELETE's FROM list",
+			sql:    "ALTER TABLE p ADD (memo NUMBER);\nDELETE t FROM p WHERE t.p_id = p.id AND p.memo = 1;",
+			change: backup,
+			want:   []finding{{1, "DELETE t FROM p WHERE t.p_id = p.id AND p.memo = 1", "Prior backup runs before the change, when column `MEMO` of `P` doesn't exist yet.\n\nAdd the column in an earlier change, or turn off **Prior backup**.", []int{0}}},
+		},
+		{
 			name:   "statements after the session moves to another schema",
 			sql:    "UPDATE t SET n = 1 WHERE id = 1;\nALTER SESSION SET CURRENT_SCHEMA = other;\nALTER TABLE nokey ADD (gone NUMBER);\nDELETE FROM nokey WHERE gone = 1;",
 			change: backup,

@@ -1432,20 +1432,24 @@ type CreateTableStmt struct {
 	Volatile    bool
 	Hybrid      bool // CREATE HYBRID TABLE (Unistore); mutually exclusive with the temp modifiers
 	Interactive bool // CREATE INTERACTIVE TABLE
-	ReadOnly    bool // TEMP[ORARY] READ ONLY, which the page gives only the CLONE form
-	IfNotExists bool
-	Name        *ObjectName
-	Columns     []*ColumnDef
-	Constraints []*TableConstraint
-	Indexes     []*TableIndex // inline INDEX name (cols) elements (HYBRID TABLE only); nil if absent
-	ClusterBy   []Node        // CLUSTER BY expressions; nil if absent
-	Linear      bool          // CLUSTER BY LINEAR modifier
-	Comment     *string       // COMMENT = 'text'; nil if absent
-	CopyGrants  bool
-	Tags        []*TagAssignment // WITH TAG (...); nil if absent
-	AsSelect    Node             // CREATE TABLE ... AS SELECT; nil if absent
-	Like        *ObjectName      // CREATE TABLE ... LIKE source; nil if absent
-	Clone       *CloneSource     // CREATE TABLE ... CLONE source; nil if absent
+	// ProcedureScoped is CREATE [ OR REPLACE ] PROCEDURE SCOPED
+	// { TEMP | TEMPORARY } TABLE, a Snowflake Scripting procedure's temporary
+	// table (Temporary is set too).
+	ProcedureScoped bool
+	ReadOnly        bool // TEMP[ORARY] READ ONLY, which the page gives only the CLONE form
+	IfNotExists     bool
+	Name            *ObjectName
+	Columns         []*ColumnDef
+	Constraints     []*TableConstraint
+	Indexes         []*TableIndex // inline INDEX name (cols) elements (HYBRID TABLE only); nil if absent
+	ClusterBy       []Node        // CLUSTER BY expressions; nil if absent
+	Linear          bool          // CLUSTER BY LINEAR modifier
+	Comment         *string       // COMMENT = 'text'; nil if absent
+	CopyGrants      bool
+	Tags            []*TagAssignment // WITH TAG (...); nil if absent
+	AsSelect        Node             // CREATE TABLE ... AS SELECT; nil if absent
+	Like            *ObjectName      // CREATE TABLE ... LIKE source; nil if absent
+	Clone           *CloneSource     // CREATE TABLE ... CLONE source; nil if absent
 	// UsingTemplate is CREATE TABLE ... USING TEMPLATE ( <query> ); nil if absent.
 	UsingTemplate Node
 	// FromArchive is CREATE TABLE ... FROM ARCHIVE OF <table> [ [ AS ] <alias> ]
@@ -1870,18 +1874,25 @@ type DropStmt struct {
 	Object   string // the object's keywords when Kind is DropObject: "COMPUTE POOL"
 	IfExists bool
 	Name     *ObjectName
+	// Table is the table a DROP INDEX names before the index,
+	// <table_name>.<index_name>; Name is then the index's one-part name.
+	Table *ObjectName
 	// HasArgs / ArgTypes carry the argument-type signature of a DROP
 	// FUNCTION / DROP PROCEDURE — `DROP FUNCTION f(NUMBER, VARCHAR)`.
 	// Snowflake requires the signature to disambiguate overloads; the
 	// empty form `f()` sets HasArgs with an empty ArgTypes.
 	HasArgs  bool
 	ArgTypes []*TypeName
-	Cascade  bool // CASCADE option (mutually exclusive with Restrict)
-	Restrict bool // RESTRICT option (mutually exclusive with Cascade)
-	Iceberg  bool // DROP ICEBERG TABLE (Kind is DropTable)
-	Purge    bool // PURGE (DROP [ICEBERG] TABLE only; mutually exclusive with NoPurge)
-	NoPurge  bool // NOPURGE (DROP [ICEBERG] TABLE only; mutually exclusive with Purge)
-	Loc      Loc
+	// TableArgs is a data metric function's signature,
+	// ( TABLE ( <argtype> [ , ... ] ) [ , TABLE ( ... ) ] ); HasArgs is then
+	// false.
+	TableArgs []*RoutineTableArgType
+	Cascade   bool // CASCADE option (mutually exclusive with Restrict)
+	Restrict  bool // RESTRICT option (mutually exclusive with Cascade)
+	Iceberg   bool // DROP ICEBERG TABLE (Kind is DropTable)
+	Purge     bool // PURGE (DROP [ICEBERG] TABLE only; mutually exclusive with NoPurge)
+	NoPurge   bool // NOPURGE (DROP [ICEBERG] TABLE only; mutually exclusive with Purge)
+	Loc       Loc
 }
 
 // Tag implements Node.
@@ -1904,6 +1915,9 @@ const (
 	UndropTable        UndropObjectKind = iota
 	UndropDynamicTable                  // UNDROP DYNAMIC TABLE
 	UndropTag                           // UNDROP TAG
+	// UndropObject is any other object; UndropStmt.Object names it: an
+	// ObjectStmt's kind, or ACCOUNT / EXTERNAL VOLUME / STAGE.
+	UndropObject
 )
 
 // String returns the SQL object-type keyword for the kind.
@@ -1924,13 +1938,24 @@ func (k UndropObjectKind) String() string {
 // DATABASE and SCHEMA are handled by T2.1.
 type UndropStmt struct {
 	Kind    UndropObjectKind
-	Iceberg bool // UNDROP ICEBERG TABLE (Kind is UndropTable)
+	Object  string // the object's keywords when Kind is UndropObject: "VARIABLE"
+	Iceberg bool   // UNDROP ICEBERG TABLE (Kind is UndropTable)
 	Name    *ObjectName
+	NewName *ObjectName // RENAME TO <new_name> (UNDROP SNAPSHOT); nil if absent
 	Loc     Loc
 }
 
 // Tag implements Node.
 func (n *UndropStmt) Tag() NodeTag { return T_UndropStmt }
+
+// ObjectType returns the keywords naming the undropped object's type:
+// Object for an UndropObject, the kind's keywords otherwise.
+func (n *UndropStmt) ObjectType() string {
+	if n.Kind == UndropObject {
+		return n.Object
+	}
+	return n.Kind.String()
+}
 
 // Compile-time assertions.
 var (
@@ -3119,6 +3144,14 @@ type ShowStmt struct {
 	// TrueFilters are SHOW AVAILABLE LISTINGS' IS_<x> = TRUE filters
 	// (IS_IMPORTED, IS_ORGANIZATION, IS_SHARED_WITH_ME), in order.
 	TrueFilters []string
+	// Qualifier is the clause one class's page writes after the scope, its
+	// keywords uppercased ("FOR METRIC", "FOR PACKAGE", "FOR RELEASE
+	// CHANNEL", "FOR VERSION", "VERSION", "RUN", "WITH PRIMARY"), and
+	// QualifierName the name it takes; "" and nil if absent.
+	Qualifier     string
+	QualifierName *ObjectName
+	// OfTypes is SHOW SERVICES' OF TYPE <workload_type> [, ...]; nil if absent.
+	OfTypes []Ident
 
 	// SHOW GRANTS specifics.
 	IsGrants bool         // SHOW GRANTS ...
@@ -3156,9 +3189,12 @@ type DescribeStmt struct {
 	Name        *ObjectName // the object's qualified name; nil if NameLiteral set
 	NameLiteral *Literal    // literal name (DESCRIBE RESULT '<id>' / TRANSACTION <num>); nil otherwise
 	Signature   []*TypeName // FUNCTION/PROCEDURE arg-type list; nil if no ( ... )
-	TypeOption  string      // trailing TYPE = <kw>, uppercased; "" if absent
-	Revision    string      // DESC LISTING's REVISION = { DRAFT | PUBLISHED }, uppercased; "" if absent
-	Loc         Loc
+	// TableArgs is a data metric function's signature,
+	// ( TABLE ( <argtype> [ , ... ] ) [ , TABLE ( ... ) ] ); Signature is then nil.
+	TableArgs  []*RoutineTableArgType
+	TypeOption string // trailing TYPE = <kw>, uppercased; "" if absent
+	Revision   string // DESC LISTING's REVISION = { DRAFT | PUBLISHED }, uppercased; "" if absent
+	Loc        Loc
 }
 
 // Tag implements Node.
@@ -3969,7 +4005,13 @@ type GroupOption struct {
 	Name   string   // uppercased option name (e.g. "OBJECT_TYPES", "REPLICATION_SCHEDULE")
 	Values []string // unparenthesized comma-list of verbatim uppercased items; nil when Lit is set
 	Lit    *Literal // a string/number literal value; nil when Values is set
-	Loc    Loc
+	// Pairs is a parenthesized ( <name> = <name> [ , ... ] ) value (ALTER
+	// ACCOUNT's LOGIN_IDP_REDIRECT), each pair's value in its Values.
+	Pairs []*GroupOption
+	// List is a parenthesized ( '<s>' [ , ... ] ) value (ALTER ACCOUNT's
+	// DOMAIN_NAMES).
+	List []*Literal
+	Loc  Loc
 }
 
 // Tag implements Node.
@@ -4116,14 +4158,17 @@ func (n *CreateAccountStmt) Tag() NodeTag { return T_CreateAccountStmt }
 type AlterAccountAction int
 
 const (
-	AlterAccountSet         AlterAccountAction = iota // SET <param> = <value> [ , ... ] / SET RESOURCE_MONITOR = <name>
-	AlterAccountUnset                                 // UNSET <param> [ , ... ]
-	AlterAccountSetTag                                // SET TAG <tag> = '<value>' [ , ... ]
-	AlterAccountUnsetTag                              // UNSET TAG <tag> [ , ... ]
-	AlterAccountSetPolicy                             // SET { <policy_kind> } POLICY <name> [ <scope> ] [ FORCE ]
-	AlterAccountUnsetPolicy                           // UNSET { <policy_kind> } POLICY [ <scope> ]
-	AlterAccountRename                                // <name> RENAME TO <new_name> [ SAVE_OLD_URL = ... ]
-	AlterAccountDropURL                               // <name> DROP OLD [ ORGANIZATION ] URL
+	AlterAccountSet                         AlterAccountAction = iota // SET <param> = <value> [ , ... ] / SET RESOURCE_MONITOR = <name>
+	AlterAccountUnset                                                 // UNSET <param> [ , ... ]
+	AlterAccountSetTag                                                // SET TAG <tag> = '<value>' [ , ... ]
+	AlterAccountUnsetTag                                              // UNSET TAG <tag> [ , ... ]
+	AlterAccountSetPolicy                                             // SET { <policy_kind> } POLICY <name> [ <scope> ] [ FORCE ]
+	AlterAccountUnsetPolicy                                           // UNSET { <policy_kind> } POLICY [ <scope> ]
+	AlterAccountRename                                                // <name> RENAME TO <new_name> [ SAVE_OLD_URL = ... ]
+	AlterAccountDropURL                                               // <name> DROP OLD [ ORGANIZATION ] URL
+	AlterAccountAddOrganizationUserGroup                              // ADD ORGANIZATION USER GROUP <group_name>
+	AlterAccountRemoveOrganizationUserGroup                           // REMOVE ORGANIZATION USER GROUP <group_name>
+	AlterAccountSetContact                                            // SET CONTACT <purpose> = <contact_name> [ , ... ]
 )
 
 // AlterAccountStmt represents ALTER ACCOUNT. The current-account forms omit the
@@ -4140,6 +4185,8 @@ const (
 //	ALTER ACCOUNT <name> SET EDITION = ... | SET IS_ORG_ADMIN = ...
 //	ALTER ACCOUNT <name> RENAME TO <new_name> [ SAVE_OLD_URL = { TRUE | FALSE } ]
 //	ALTER ACCOUNT <name> DROP OLD [ ORGANIZATION ] URL
+//	ALTER ACCOUNT { ADD | REMOVE } ORGANIZATION USER GROUP <group_name>
+//	ALTER ACCOUNT SET CONTACT <purpose> = <contact_name> [ , ... ]
 type AlterAccountStmt struct {
 	Name         *ObjectName // nil for the current-account forms; set for the cross-account forms
 	Action       AlterAccountAction
@@ -4154,6 +4201,8 @@ type AlterAccountStmt struct {
 	NewName      *ObjectName      // RENAME TO; for AlterAccountRename
 	SaveOldURL   *bool            // RENAME ... SAVE_OLD_URL = { TRUE | FALSE }; nil if absent
 	Organization bool             // DROP OLD ORGANIZATION URL (vs DROP OLD URL); for AlterAccountDropURL
+	UserGroup    *ObjectName      // the organization user group; for Add/RemoveOrganizationUserGroup
+	Contacts     []*GroupOption   // SET CONTACT pairs, Name the purpose and Values the contact; for AlterAccountSetContact
 	Loc          Loc
 }
 
@@ -4372,11 +4421,16 @@ func (n *CreateSemanticViewStmt) Tag() NodeTag { return T_CreateSemanticViewStmt
 type AlterSemanticViewAction int
 
 const (
-	AlterSemanticViewRename   AlterSemanticViewAction = iota // RENAME TO <new_name>
-	AlterSemanticViewSet                                     // SET COMMENT = '...'
-	AlterSemanticViewUnset                                   // UNSET COMMENT
-	AlterSemanticViewSetTag                                  // SET TAG <tag> = '<value>' [ , ... ]
-	AlterSemanticViewUnsetTag                                // UNSET TAG <tag> [ , ... ]
+	AlterSemanticViewRename                 AlterSemanticViewAction = iota // RENAME TO <new_name>
+	AlterSemanticViewSet                                                   // SET COMMENT = '...'
+	AlterSemanticViewUnset                                                 // UNSET COMMENT
+	AlterSemanticViewSetTag                                                // SET TAG <tag> = '<value>' [ , ... ]
+	AlterSemanticViewUnsetTag                                              // UNSET TAG <tag> [ , ... ]
+	AlterSemanticViewAddMaterialization                                    // ADD MATERIALIZATION <name> WAREHOUSE = <wh> ... AS DIMENSIONS ... METRICS ...
+	AlterSemanticViewDropMaterialization                                   // DROP MATERIALIZATION <name>
+	AlterSemanticViewSuspendMaterialization                                // SUSPEND MATERIALIZATION <name>
+	AlterSemanticViewResumeMaterialization                                 // RESUME MATERIALIZATION <name>
+	AlterSemanticViewRefreshMaterialization                                // REFRESH MATERIALIZATION <name>
 )
 
 // AlterSemanticViewStmt represents ALTER SEMANTIC VIEW [ IF EXISTS ] <name>
@@ -4387,6 +4441,9 @@ const (
 //	UNSET COMMENT
 //	SET TAG <tag> = '<value>' [ , ... ]
 //	UNSET TAG <tag> [ , ... ]
+//	ADD MATERIALIZATION <name> WAREHOUSE = <wh> [ REFRESH_MODE = <mode> ] [ IMMUTABLE WHERE ( <cond> ) ]
+//	  AS DIMENSIONS <dim> [ , ... ] METRICS <metric> [ , ... ] [ WHERE ( <cond> ) ]
+//	{ DROP | SUSPEND | RESUME | REFRESH } MATERIALIZATION <name>
 type AlterSemanticViewStmt struct {
 	IfExists   bool
 	Name       *ObjectName
@@ -4396,7 +4453,17 @@ type AlterSemanticViewStmt struct {
 	Tags       []*TagAssignment // SET TAG assignments; for AlterSemanticViewSetTag
 	UnsetTags  []*ObjectName    // UNSET TAG names; for AlterSemanticViewUnsetTag
 	UnsetProps []string         // UNSET <property> names (COMMENT); for AlterSemanticViewUnset
-	Loc        Loc
+
+	// The materialization actions:
+	Materialization *ObjectName   // the materialization's name
+	Warehouse       *ObjectName   // ADD's WAREHOUSE = <warehouse_name>
+	RefreshMode     string        // ADD's REFRESH_MODE (AUTO / FULL / INCREMENTAL), uppercased; "" if absent
+	ImmutableWhere  Node          // ADD's IMMUTABLE WHERE ( <condition> ); nil if absent
+	Dimensions      []*ObjectName // ADD's AS DIMENSIONS list
+	Metrics         []*ObjectName // ADD's METRICS list
+	Where           Node          // ADD's trailing WHERE ( <condition> ); nil if absent
+
+	Loc Loc
 }
 
 // Tag implements Node.
@@ -5236,7 +5303,11 @@ var (
 // It is a helper struct (not a Node); the walker does not descend into it,
 // mirroring TagAssignment / CloneSource / ForeignKeyRef.
 type RoutineArg struct {
-	Name    Ident
+	Name Ident
+	// Mode is the argument's mode as written, uppercased: IN, INPUT, OUT or
+	// OUTPUT, which a Snowflake Scripting procedure's argument may give; ""
+	// when absent.
+	Mode    string
 	Type    *TypeName
 	Default Node // DEFAULT <expr>; nil if absent
 	// Table holds the columns of a data metric function's
@@ -5278,9 +5349,10 @@ const (
 type ExecuteAs int
 
 const (
-	ExecuteAsUnset  ExecuteAs = iota // no EXECUTE AS clause
-	ExecuteAsCaller                  // EXECUTE AS CALLER
-	ExecuteAsOwner                   // EXECUTE AS OWNER
+	ExecuteAsUnset            ExecuteAs = iota // no EXECUTE AS clause
+	ExecuteAsCaller                            // EXECUTE AS CALLER
+	ExecuteAsOwner                             // EXECUTE AS OWNER
+	ExecuteAsRestrictedCaller                  // EXECUTE AS RESTRICTED CALLER
 )
 
 // CreateRoutineStmt represents CREATE [OR REPLACE] [SECURE] [TEMP|TEMPORARY]
@@ -5319,6 +5391,7 @@ type CreateRoutineStmt struct {
 	IfNotExists   bool
 	Name          *ObjectName
 	Args          []*RoutineArg         // ( <arg> [, ...] ); nil for an empty arg list
+	CopyGrants    bool                  // COPY GRANTS between the arguments and RETURNS
 	ReturnType    *TypeName             // scalar RETURNS type; nil for the TABLE form
 	ReturnTable   []*RoutineTableColumn // RETURNS TABLE ( ... ) columns; non-nil for the TABLE form
 	ReturnNotNull bool                  // RETURNS ... NOT NULL
@@ -5826,11 +5899,18 @@ var (
 // where each <prop> is an open-ended `KEY = value` pair captured in Options,
 // preserving source order. The leading optional WITH (CREATE WAREHOUSE w WITH
 // WAREHOUSE_SIZE=...) is purely cosmetic and not retained.
+//
+// Interactive marks CREATE [ OR REPLACE ] INTERACTIVE WAREHOUSE, which may
+// name its tables first (TABLES ( <table> [ , ... ] ), held in Tables) and
+// takes only the properties its page documents: object properties before the
+// tag clause and object parameters after it, all kept in Options in order.
 type CreateWarehouseStmt struct {
 	OrReplace   bool
 	OrAlter     bool // CREATE OR ALTER (mutually exclusive with OrReplace)
+	Interactive bool // CREATE INTERACTIVE WAREHOUSE
 	IfNotExists bool
 	Name        *ObjectName
+	Tables      []*ObjectName    // INTERACTIVE ... TABLES ( ... ); nil if absent
 	Options     []*CopyOption    // open-ended warehouse properties / object+session params
 	Tags        []*TagAssignment // [WITH] TAG (...); nil if absent
 	Loc         Loc
@@ -5853,13 +5933,16 @@ const (
 	AlterWarehouseUnsetTag                                 // UNSET TAG <tag> [ , ... ]
 	AlterWarehouseAddTables                                // ADD TABLES ( <id> [ , ... ] )
 	AlterWarehouseRemoveTables                             // { REMOVE | DROP } TABLES ( <id> [ , ... ] )
+	AlterWarehouseEnable                                   // ENABLE (an adaptive warehouse)
+	AlterWarehouseDisable                                  // DISABLE (an adaptive warehouse)
 )
 
 // AlterWarehouseStmt represents ALTER WAREHOUSE [ IF EXISTS ] <name> <action>.
 //
-//	SUSPEND
-//	RESUME [ IF SUSPENDED ]
-//	ABORT ALL QUERIES
+//	SUSPEND                                 -- name optional: the current warehouse
+//	RESUME [ IF SUSPENDED ]                 -- name optional
+//	ABORT ALL QUERIES                       -- name optional
+//	{ ENABLE | DISABLE }
 //	RENAME TO <new_name>
 //	SET <prop> [ <prop> ... ]               -- open-ended KEY = value params
 //	UNSET <key> [ , ... ]
@@ -5871,7 +5954,8 @@ const (
 // NewName holds the RENAME target. Options holds the SET properties. UnsetKeys
 // holds the UNSET key names. Tags / UnsetTags hold the SET TAG / UNSET TAG
 // assignments and names. Tables holds the ADD/REMOVE TABLES identifier list.
-// ResumeIfSuspended records the optional IF SUSPENDED on RESUME.
+// ResumeIfSuspended records the optional IF SUSPENDED on RESUME. Name is nil
+// when SUSPEND, RESUME or ABORT ALL QUERIES names no warehouse.
 type AlterWarehouseStmt struct {
 	IfExists          bool
 	Name              *ObjectName
@@ -6598,6 +6682,9 @@ type ObjectClause struct {
 	Keys     []string         // the property names an UNSET clears, uppercased
 	Tags     []*TagAssignment // its tag assignments (SET TAG, [ WITH ] TAG ( ... ))
 	Query    Node             // the query an AS clause holds
+	// Type is the data type a clause names: a VARIABLE's <data_type>, a
+	// TYPE's AS <type>; nil otherwise.
+	Type *TypeName
 	// TimeTravel is the point in time an AT or BEFORE clause names, as a
 	// POSTGRES INSTANCE's FORK writes it.
 	TimeTravel *TimeTravelClause
