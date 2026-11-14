@@ -2722,7 +2722,7 @@ copyFiles
 // fix: HEADER takes TRUE or FALSE, as the page's parameters and examples write it
 // fix: read: each -- If TYPE = X section of formatTypeOptions is the options of TYPE = X alone, and TYPE = { ... } [ formatTypeOptions ] chooses a TYPE with its own options
 copyIntoLocation
-    : 'COPY' 'INTO' (copyIntoLocation_internalStage | copyIntoLocation_externalStage | copyIntoLocation_externalLocation) 'FROM' ((ID '.')? QNAME | '(' QUERY ')') ('PARTITION' 'BY' EXPR)? ('FILE_FORMAT' '=' '(' ('FORMAT_NAME' '=' STRING | ('TYPE' '=' 'CSV' copyIntoLocation_formatTypeOptions_CSV? | 'TYPE' '=' 'JSON' copyIntoLocation_formatTypeOptions_JSON? | 'TYPE' '=' 'PARQUET' copyIntoLocation_formatTypeOptions_PARQUET?)) ')')? copyIntoLocation_copyOptions? ('VALIDATION_MODE' '=' 'RETURN_ROWS')? ('HEADER' '=' ('TRUE' | 'FALSE'))?
+    : 'COPY' 'INTO' (copyIntoLocation_internalStage | copyIntoLocation_externalStage | copyIntoLocation_externalLocation) 'FROM' ((ID '.')? ID | '(' QUERY ')') ('PARTITION' 'BY' EXPR)? ('FILE_FORMAT' '=' '(' ('FORMAT_NAME' '=' STRING | ('TYPE' '=' 'CSV' copyIntoLocation_formatTypeOptions_CSV? | 'TYPE' '=' 'JSON' copyIntoLocation_formatTypeOptions_JSON? | 'TYPE' '=' 'PARQUET' copyIntoLocation_formatTypeOptions_PARQUET?)) ')')? copyIntoLocation_copyOptions? ('VALIDATION_MODE' '=' 'RETURN_ROWS')? ('HEADER' '=' ('TRUE' | 'FALSE'))?
     ;
 copyIntoLocation_internalStage
     : STAGE
@@ -2753,8 +2753,8 @@ copyIntoLocation_copyOptions
 // fix: the parameters list the valid METADATA$ columns
 // fix: read: each -- If TYPE = X section of formatTypeOptions is the options of TYPE = X alone, and TYPE = { ... } [ formatTypeOptions ] chooses a TYPE with its own options
 copyIntoTable
-    : 'COPY' 'INTO' (ID '.')? QNAME 'FROM' (copyIntoTable_internalStage | copyIntoTable_externalStage | copyIntoTable_externalLocation) ('FILES' '=' '(' STRING (',' STRING)* ')')? ('PATTERN' '=' STRING)? ('FILE_FORMAT' '=' '(' ('FORMAT_NAME' '=' STRING | ('TYPE' '=' 'CSV' copyIntoTable_formatTypeOptions_CSV? | 'TYPE' '=' 'JSON' copyIntoTable_formatTypeOptions_JSON? | 'TYPE' '=' 'AVRO' copyIntoTable_formatTypeOptions_AVRO? | 'TYPE' '=' 'ORC' copyIntoTable_formatTypeOptions_ORC? | 'TYPE' '=' 'PARQUET' copyIntoTable_formatTypeOptions_PARQUET? | 'TYPE' '=' 'XML' copyIntoTable_formatTypeOptions_XML?)) ')')? copyIntoTable_copyOptions? ('VALIDATION_MODE' '=' 'RETURN_10_ROWS' | 'VALIDATION_MODE' '=' 'RETURN_ERRORS' | 'VALIDATION_MODE' '=' 'RETURN_ALL_ERRORS')?
-    | 'COPY' 'INTO' (ID '.')? QNAME ('(' ID (',' ID)* ')')? 'FROM' '(' 'SELECT' (ID '.')? POSITION ('.' ID)? (',' (ID '.')? POSITION ('.' ID)?)* 'FROM' (copyIntoTable_internalStage | copyIntoTable_externalStage) ')' ('FILES' '=' '(' STRING (',' STRING)* ')')? ('PATTERN' '=' STRING)? ('FILE_FORMAT' '=' '(' ('FORMAT_NAME' '=' STRING | ('TYPE' '=' 'CSV' copyIntoTable_formatTypeOptions_CSV? | 'TYPE' '=' 'JSON' copyIntoTable_formatTypeOptions_JSON? | 'TYPE' '=' 'AVRO' copyIntoTable_formatTypeOptions_AVRO? | 'TYPE' '=' 'ORC' copyIntoTable_formatTypeOptions_ORC? | 'TYPE' '=' 'PARQUET' copyIntoTable_formatTypeOptions_PARQUET? | 'TYPE' '=' 'XML' copyIntoTable_formatTypeOptions_XML?)) ')')? copyIntoTable_copyOptions?
+    : 'COPY' 'INTO' (ID '.')? ID 'FROM' (copyIntoTable_internalStage | copyIntoTable_externalStage | copyIntoTable_externalLocation) ('FILES' '=' '(' STRING (',' STRING)* ')')? ('PATTERN' '=' STRING)? ('FILE_FORMAT' '=' '(' ('FORMAT_NAME' '=' STRING | ('TYPE' '=' 'CSV' copyIntoTable_formatTypeOptions_CSV? | 'TYPE' '=' 'JSON' copyIntoTable_formatTypeOptions_JSON? | 'TYPE' '=' 'AVRO' copyIntoTable_formatTypeOptions_AVRO? | 'TYPE' '=' 'ORC' copyIntoTable_formatTypeOptions_ORC? | 'TYPE' '=' 'PARQUET' copyIntoTable_formatTypeOptions_PARQUET? | 'TYPE' '=' 'XML' copyIntoTable_formatTypeOptions_XML?)) ')')? copyIntoTable_copyOptions? ('VALIDATION_MODE' '=' 'RETURN_10_ROWS' | 'VALIDATION_MODE' '=' 'RETURN_ERRORS' | 'VALIDATION_MODE' '=' 'RETURN_ALL_ERRORS')?
+    | 'COPY' 'INTO' (ID '.')? ID ('(' ID (',' ID)* ')')? 'FROM' '(' 'SELECT' (ID '.')? POSITION ('.' ID)? (',' (ID '.')? POSITION ('.' ID)?)* 'FROM' (copyIntoTable_internalStage | copyIntoTable_externalStage) ')' ('FILES' '=' '(' STRING (',' STRING)* ')')? ('PATTERN' '=' STRING)? ('FILE_FORMAT' '=' '(' ('FORMAT_NAME' '=' STRING | ('TYPE' '=' 'CSV' copyIntoTable_formatTypeOptions_CSV? | 'TYPE' '=' 'JSON' copyIntoTable_formatTypeOptions_JSON? | 'TYPE' '=' 'AVRO' copyIntoTable_formatTypeOptions_AVRO? | 'TYPE' '=' 'ORC' copyIntoTable_formatTypeOptions_ORC? | 'TYPE' '=' 'PARQUET' copyIntoTable_formatTypeOptions_PARQUET? | 'TYPE' '=' 'XML' copyIntoTable_formatTypeOptions_XML?)) ')')? copyIntoTable_copyOptions?
     ;
 copyIntoTable_internalStage
     : STAGE
@@ -3537,8 +3537,8 @@ createNotebook
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-notebook-project
 createNotebookProject
-    : 'CREATE' 'NOTEBOOK' 'PROJECT' ID '.' QNAME '.' QNAME 'FROM' STRING ('COMMENT' '=' STRING)?
-    | 'CREATE' 'NOTEBOOK' 'PROJECT' ('IF' 'NOT' 'EXISTS')? ID '.' QNAME '.' QNAME 'FROM' STRING ('COMMENT' '=' STRING)?
+    : 'CREATE' 'NOTEBOOK' 'PROJECT' ID '.' ID '.' ID 'FROM' STRING ('COMMENT' '=' STRING)?
+    | 'CREATE' 'NOTEBOOK' 'PROJECT' ('IF' 'NOT' 'EXISTS')? ID '.' ID '.' ID 'FROM' STRING ('COMMENT' '=' STRING)?
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-code-bundle
@@ -3547,7 +3547,7 @@ createNotebookProject
 //     FROM 'asset://my_job'
 //     COMMENT = 'Python job managed by DCM';
 createCodeBundle
-    : 'CREATE' ('OR' 'REPLACE')? 'CODE' 'BUNDLE' ('IF' 'NOT' 'EXISTS')? ID '.' QNAME '.' QNAME 'FROM' STRING ('COMMENT' '=' STRING)?
+    : 'CREATE' ('OR' 'REPLACE')? 'CODE' 'BUNDLE' ('IF' 'NOT' 'EXISTS')? ID '.' ID '.' ID 'FROM' STRING ('COMMENT' '=' STRING)?
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-notification-integration
@@ -3619,7 +3619,7 @@ createOpenflowDeployment
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-openflow-runtime
 createOpenflowRuntime
-    : 'CREATE' 'OPENFLOW' 'RUNTIME' ('IF' 'NOT' 'EXISTS')? (ID '.' ID '.')? QNAME 'IN' 'DEPLOYMENT' ID 'NODE_TYPE' '=' ('SMALL' | 'MEDIUM' | 'LARGE') ('NODE_TYPE_TIER' '=' ('\'S1\'' | '\'S2\'' | '\'S3\'' | '\'M4\'' | '\'M6\'' | '\'L8\''))? 'MIN_NODES' '=' NUMBER 'MAX_NODES' '=' NUMBER 'EXECUTE_AS_ROLE' '=' ID ('EXTERNAL_ACCESS_INTEGRATIONS' '=' '(' ID (',' ID)* ')')? ('DISPLAY_NAME' '=' STRING)? ('COMMENT' '=' STRING)?
+    : 'CREATE' 'OPENFLOW' 'RUNTIME' ('IF' 'NOT' 'EXISTS')? (ID '.' ID '.')? ID 'IN' 'DEPLOYMENT' ID 'NODE_TYPE' '=' ('SMALL' | 'MEDIUM' | 'LARGE') ('NODE_TYPE_TIER' '=' ('\'S1\'' | '\'S2\'' | '\'S3\'' | '\'M4\'' | '\'M6\'' | '\'L8\''))? 'MIN_NODES' '=' NUMBER 'MAX_NODES' '=' NUMBER 'EXECUTE_AS_ROLE' '=' ID ('EXTERNAL_ACCESS_INTEGRATIONS' '=' '(' ID (',' ID)* ')')? ('DISPLAY_NAME' '=' STRING)? ('COMMENT' '=' STRING)?
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-or-alter
@@ -4157,9 +4157,10 @@ createVersionedSchema
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-view
 // fix: the column list holds each column, with an optional comment and its policies, inside its parentheses, as the page's parameters and examples write them
+// fix: CREATE OR ALTER VIEW's column list is CREATE VIEW's: names, each with an optional comment
 createView
     : 'CREATE' ('OR' 'REPLACE')? 'SECURE'? (((('LOCAL' | 'GLOBAL'))? 'TEMP' | 'TEMPORARY' | 'VOLATILE'))? 'RECURSIVE'? 'VIEW' ('IF' 'NOT' 'EXISTS')? QNAME ('(' ID ('COMMENT' STRING)? ('WITH'? 'MASKING' 'POLICY' QNAME ('USING' '(' ID ',' ID (',' ID)* ')')?)? ('WITH'? 'PROJECTION' 'POLICY' QNAME)? ('WITH'? 'TAG' '(' QNAME '=' STRING (',' QNAME '=' STRING)* ')')? (',' ID ('COMMENT' STRING)? ('WITH'? 'MASKING' 'POLICY' QNAME ('USING' '(' ID ',' ID (',' ID)* ')')?)? ('WITH'? 'PROJECTION' 'POLICY' QNAME)? ('WITH'? 'TAG' '(' QNAME '=' STRING (',' QNAME '=' STRING)* ')')?)* ')')? ('WITH'? 'ROW' 'ACCESS' 'POLICY' QNAME 'ON' '(' ID (',' ID)* ')')? ('WITH'? 'TAG' '(' QNAME '=' STRING (',' QNAME '=' STRING)* ')')? ('CHANGE_TRACKING' '=' ('TRUE' | 'FALSE'))? ('COPY' 'GRANTS')? ('COPY' 'TAGS')? ('COPY' '=' '(' ('COMMENTS' | 'TAGS' | 'GRANTS') (',' ('COMMENTS' | 'TAGS' | 'GRANTS'))* ')')? ('COMMENT' '=' STRING)? ('WITH'? 'ROW' 'ACCESS' 'POLICY' QNAME 'ON' '(' ID (',' ID)* ')')? ('WITH'? 'AGGREGATION' 'POLICY' QNAME ('ENTITY' 'KEY' '(' ID (',' ID)* ')')?)? ('WITH'? 'JOIN' 'POLICY' QNAME ('ALLOWED' 'JOIN' 'KEYS' '(' ID (',' ID)* ')')?)? ('WITH'? 'TAG' '(' QNAME '=' STRING (',' QNAME '=' STRING)* ')')? ('WITH' 'CONTACT' '(' ID '=' ID (',' ID '=' ID)* ')')? 'AS' QUERY
-    | 'CREATE' 'OR' 'ALTER' 'SECURE'? (((('LOCAL' | 'GLOBAL'))? 'TEMP' | 'TEMPORARY' | 'VOLATILE'))? 'RECURSIVE'? 'VIEW' QNAME ('(' ID ')')? ('CHANGE_TRACKING' '=' ('TRUE' | 'FALSE'))? ('COMMENT' '=' STRING)? 'AS' QUERY
+    | 'CREATE' 'OR' 'ALTER' 'SECURE'? (((('LOCAL' | 'GLOBAL'))? 'TEMP' | 'TEMPORARY' | 'VOLATILE'))? 'RECURSIVE'? 'VIEW' QNAME ('(' ID ('COMMENT' STRING)? (',' ID ('COMMENT' STRING)?)* ')')? ('CHANGE_TRACKING' '=' ('TRUE' | 'FALSE'))? ('COMMENT' '=' STRING)? 'AS' QUERY
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-warehouse
@@ -5201,14 +5202,14 @@ executeImmediateFrom_relativeFilePath
 
 // https://docs.snowflake.com/en/sql-reference/sql/execute-inference-job-service
 executeInferenceJobService
-    : 'EXECUTE' 'INFERENCE' 'JOB' 'SERVICE' 'IN' 'COMPUTE' 'POOL' ID 'WITH' 'SPECIFICATION' STRING 'FROM' ('(' QUERY ')' | STAGE) 'MODEL' '=' (ID '.' ID '.')? QNAME ('VERSION' '=' ID)? ('FUNCTION' '=' STRING)? ('NAME' '=' (ID '.' ID '.')? QNAME)? ('ASYNC' '=' ('TRUE' | 'FALSE'))? ('REPLICAS' '=' NUMBER)?
+    : 'EXECUTE' 'INFERENCE' 'JOB' 'SERVICE' 'IN' 'COMPUTE' 'POOL' ID 'WITH' 'SPECIFICATION' STRING 'FROM' ('(' QUERY ')' | STAGE) 'MODEL' '=' (ID '.' ID '.')? ID ('VERSION' '=' ID)? ('FUNCTION' '=' STRING)? ('NAME' '=' (ID '.' ID '.')? ID)? ('ASYNC' '=' ('TRUE' | 'FALSE'))? ('REPLICAS' '=' NUMBER)?
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/execute-job-service
 // fix: REPLICAS has its = twice
 // fix: read: a template argument's <value> is a constant, a string or JSON value, as the USING parameters say
 executeJobService
-    : 'EXECUTE' 'JOB' 'SERVICE' 'IN' 'COMPUTE' 'POOL' ID (executeJobService_fromSpecification | executeJobService_fromSpecificationTemplate) ('NAME' '=' (ID '.' ID '.')? QNAME)? ('ASYNC' '=' ('TRUE' | 'FALSE'))? ('REPLICAS' '=' NUMBER)? ('QUERY_WAREHOUSE' '=' ID)? ('COMMENT' '=' STRING)? ('EXTERNAL_ACCESS_INTEGRATIONS' '=' '(' ID (',' ID)* ')')?
+    : 'EXECUTE' 'JOB' 'SERVICE' 'IN' 'COMPUTE' 'POOL' ID (executeJobService_fromSpecification | executeJobService_fromSpecificationTemplate) ('NAME' '=' (ID '.' ID '.')? ID)? ('ASYNC' '=' ('TRUE' | 'FALSE'))? ('REPLICAS' '=' NUMBER)? ('QUERY_WAREHOUSE' '=' ID)? ('COMMENT' '=' STRING)? ('EXTERNAL_ACCESS_INTEGRATIONS' '=' '(' ID (',' ID)* ')')?
     ;
 executeJobService_fromSpecification
     : ('FROM' STAGE 'SPECIFICATION_FILE' '=' STRING | 'FROM' 'SPECIFICATION' STRING)
@@ -5225,7 +5226,7 @@ executeNotebook
 // https://docs.snowflake.com/en/sql-reference/sql/execute-notebook-project
 // fix: notebook.ipynb is an example; the main file is a path to fill in, as the parameters say
 executeNotebookProject
-    : 'EXECUTE' 'NOTEBOOK' 'PROJECT' ID '.' QNAME '.' QNAME 'MAIN_FILE' '=' STRING 'COMPUTE_POOL' '=' STRING 'QUERY_WAREHOUSE' '=' STRING 'RUNTIME' '=' STRING ('ARGUMENTS' '=' STRING)? ('REQUIREMENTS_FILE' '=' STRING)? ('ARTIFACT_REPOSITORIES' '=' '(' QNAME (',' QNAME)* ')')? ('EXTERNAL_ACCESS_INTEGRATIONS' '=' '(' ID (',' ID)* ')')? ('SECRETS' '=' '(' ID '.' QNAME '.' QNAME (',' ID '.' QNAME '.' QNAME)* ')')?
+    : 'EXECUTE' 'NOTEBOOK' 'PROJECT' ID '.' ID '.' ID 'MAIN_FILE' '=' STRING 'COMPUTE_POOL' '=' STRING 'QUERY_WAREHOUSE' '=' STRING 'RUNTIME' '=' STRING ('ARGUMENTS' '=' STRING)? ('REQUIREMENTS_FILE' '=' STRING)? ('ARTIFACT_REPOSITORIES' '=' '(' QNAME (',' QNAME)* ')')? ('EXTERNAL_ACCESS_INTEGRATIONS' '=' '(' ID (',' ID)* ')')? ('SECRETS' '=' '(' ID '.' ID '.' ID (',' ID '.' ID '.' ID)* ')')?
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/execute-code-bundle
@@ -6369,7 +6370,7 @@ showAccounts
 
 // https://docs.snowflake.com/en/sql-reference/sql/show-agents
 showAgents
-    : 'SHOW' 'AGENTS' ('LIKE' STRING)? ('IN' ('ACCOUNT' | 'DATABASE' ID | 'SCHEMA' (ID '.')? QNAME))? ('STARTS' 'WITH' STRING)? ('LIMIT' NUMBER ('FROM' STRING)?)?
+    : 'SHOW' 'AGENTS' ('LIKE' STRING)? ('IN' ('ACCOUNT' | 'DATABASE' ID | 'SCHEMA' (ID '.')? ID))? ('STARTS' 'WITH' STRING)? ('LIMIT' NUMBER ('FROM' STRING)?)?
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/show-aggregation-policies
@@ -6859,7 +6860,7 @@ showNodesComputePool
 // https://docs.snowflake.com/en/sql-reference/sql/show-notebook-projects
 showNotebookProjects
     : 'SHOW' 'NOTEBOOK' 'PROJECTS'
-    | 'SHOW' 'NOTEBOOK' 'PROJECTS' 'IN' 'SCHEMA' ID '.' QNAME
+    | 'SHOW' 'NOTEBOOK' 'PROJECTS' 'IN' 'SCHEMA' ID '.' ID
     | 'SHOW' 'NOTEBOOK' 'PROJECTS' 'IN' 'DATABASE' ID
     | 'SHOW' 'NOTEBOOK' 'PROJECTS' 'IN' 'ACCOUNT'
     ;
@@ -6867,7 +6868,7 @@ showNotebookProjects
 // https://docs.snowflake.com/en/sql-reference/sql/show-code-bundles
 showCodeBundles
     : 'SHOW' 'CODE' 'BUNDLES'
-    | 'SHOW' 'CODE' 'BUNDLES' 'IN' 'SCHEMA' ID '.' QNAME
+    | 'SHOW' 'CODE' 'BUNDLES' 'IN' 'SCHEMA' ID '.' ID
     | 'SHOW' 'CODE' 'BUNDLES' 'IN' 'DATABASE' ID
     | 'SHOW' 'CODE' 'BUNDLES' 'IN' 'ACCOUNT'
     ;
@@ -7095,7 +7096,7 @@ showRunsInExperiment
 
 // https://docs.snowflake.com/en/sql-reference/sql/show-schema-variables
 showSchemaVariables
-    : 'SHOW' 'SCHEMA' 'VARIABLES' ('LIKE' STRING)? 'IN' 'SCHEMA' (QNAME | ID '.' QNAME)
+    : 'SHOW' 'SCHEMA' 'VARIABLES' ('LIKE' STRING)? 'IN' 'SCHEMA' (QNAME | ID '.' ID)
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/show-schemas
@@ -7111,7 +7112,7 @@ showSecrets
 
 // https://docs.snowflake.com/en/sql-reference/sql/show-semantic-dimensions
 showSemanticDimensions
-    : 'SHOW' 'SEMANTIC' 'DIMENSIONS' ('LIKE' STRING)? ('IN' (QNAME | 'ACCOUNT' | 'DATABASE' | 'DATABASE' ID | 'SCHEMA' | 'SCHEMA' ID '.' QNAME))? ('STARTS' 'WITH' STRING)? ('LIMIT' NUMBER)?
+    : 'SHOW' 'SEMANTIC' 'DIMENSIONS' ('LIKE' STRING)? ('IN' (QNAME | 'ACCOUNT' | 'DATABASE' | 'DATABASE' ID | 'SCHEMA' | 'SCHEMA' ID '.' ID))? ('STARTS' 'WITH' STRING)? ('LIMIT' NUMBER)?
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/show-semantic-dimensions-for-metric
@@ -7121,12 +7122,12 @@ showSemanticDimensionsForMetric
 
 // https://docs.snowflake.com/en/sql-reference/sql/show-semantic-facts
 showSemanticFacts
-    : 'SHOW' 'SEMANTIC' 'FACTS' ('LIKE' STRING)? ('IN' (QNAME | 'ACCOUNT' | 'DATABASE' | 'DATABASE' ID | 'SCHEMA' | 'SCHEMA' ID '.' QNAME))? ('STARTS' 'WITH' STRING)? ('LIMIT' NUMBER)?
+    : 'SHOW' 'SEMANTIC' 'FACTS' ('LIKE' STRING)? ('IN' (QNAME | 'ACCOUNT' | 'DATABASE' | 'DATABASE' ID | 'SCHEMA' | 'SCHEMA' ID '.' ID))? ('STARTS' 'WITH' STRING)? ('LIMIT' NUMBER)?
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/show-semantic-metrics
 showSemanticMetrics
-    : 'SHOW' 'SEMANTIC' 'METRICS' ('LIKE' STRING)? ('IN' (QNAME | 'ACCOUNT' | 'DATABASE' | 'DATABASE' ID | 'SCHEMA' | 'SCHEMA' ID '.' QNAME))? ('STARTS' 'WITH' STRING)? ('LIMIT' NUMBER)?
+    : 'SHOW' 'SEMANTIC' 'METRICS' ('LIKE' STRING)? ('IN' (QNAME | 'ACCOUNT' | 'DATABASE' | 'DATABASE' ID | 'SCHEMA' | 'SCHEMA' ID '.' ID))? ('STARTS' 'WITH' STRING)? ('LIMIT' NUMBER)?
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/show-semantic-views
@@ -7464,7 +7465,7 @@ useRole
 
 // https://docs.snowflake.com/en/sql-reference/sql/use-schema
 useSchema
-    : 'USE' 'SCHEMA'? (ID '.')? QNAME
+    : 'USE' 'SCHEMA'? (ID '.')? ID
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/use-secondary-roles

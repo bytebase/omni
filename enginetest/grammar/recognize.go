@@ -652,7 +652,7 @@ func (r *Recognizer) lex(s string) []ltok {
 			if rs[j] == '~' || rs[j] == '%' {
 				j++
 			}
-			for j < n && (isWordPart(rs[j]) || rs[j] == '.' || rs[j] == '/') {
+			for j < n && (isWordPart(rs[j]) || rs[j] == '.' || rs[j] == '/' || rs[j] == '%' && rs[j-1] == '.') {
 				j++
 			}
 			out = append(out, ltok{kind: kVar, text: string(rs[i:j])})

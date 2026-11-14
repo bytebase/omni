@@ -29147,19 +29147,19 @@ reject	undocumented	docs	copyFiles(TRUE|FALSE)/TRUE!swap	COPY FILES INTO @a FROM
 reject	accept	docs	copyFiles(TRUE|FALSE)/FALSE	COPY FILES INTO @a FROM @a DETAILED_OUTPUT = FALSE
 reject	undocumented	docs	copyFiles(TRUE|FALSE)/FALSE!insert	COPY FILES INTO @a FROM @a DETAILED_OUTPUT = FALSE zzz
 reject	undocumented	docs	copyFiles(TRUE|FALSE)/FALSE!swap	COPY FILES INTO @a FROM @a DETAILED_OUTPUT = FAMILIES
-accept	accept	docs	copyIntoLocation/COPY_INTO_(copyIntoLocation_internalStage|copyI~187452c~70047211	COPY INTO @a FROM a
+accept	accept	docs	copyIntoLocation/COPY_INTO_(copyIntoLocation_internalStage|copyI~187452c~6e4ef7d3	COPY INTO @a FROM a
 accept	accept	docs	copyIntoLocation(copyIntoLocation_internalStage|copyI~187452c4)/copyIntoLocation_internalStage	COPY INTO @a FROM a
 reject	undocumented	docs	copyIntoLocation(copyIntoLocation_internalStage|copyI~187452c4)/copyIntoLocation_internalStage!truncate	COPY INTO
 reject	undocumented	docs	copyIntoLocation(copyIntoLocation_internalStage|copyI~187452c4)/copyIntoLocation_internalStage!insert	COPY INTO @a zzz FROM a
 accept	accept	docs	copyIntoLocation(copyIntoLocation_internalStage|copyI~187452c4)/copyIntoLocation_externalStage	COPY INTO @a FROM a
 reject	accept	docs	copyIntoLocation(copyIntoLocation_internalStage|copyI~187452c4)/copyIntoLocation_externalLocation	COPY INTO 's' FROM a
 reject	undocumented	docs	copyIntoLocation(copyIntoLocation_internalStage|copyI~187452c4)/copyIntoLocation_externalLocation!insert	COPY INTO 's' zzz FROM a
-accept	accept	docs	copyIntoLocation((ID_.)?_QNAME|(_QUERY_))/(ID_.)?_QNAME	COPY INTO @a FROM a
-accept	accept	docs	copyIntoLocation((ID_.)?_QNAME|(_QUERY_))/(_QUERY_)	COPY INTO @a FROM(SELECT 1)
-reject	undocumented	docs	copyIntoLocation((ID_.)?_QNAME|(_QUERY_))/(_QUERY_)!drop-1	COPY INTO @a FROM SELECT 1)
-reject	undocumented	docs	copyIntoLocation((ID_.)?_QNAME|(_QUERY_))/(_QUERY_)!drop-2	COPY INTO @a FROM()
-reject	undocumented	docs	copyIntoLocation((ID_.)?_QNAME|(_QUERY_))/(_QUERY_)!drop-3	COPY INTO @a FROM(SELECT 1
-accept	undocumented	docs	copyIntoLocation((ID_.)?_QNAME|(_QUERY_))/(_QUERY_)!insert	COPY INTO @a FROM(SELECT 1) zzz
+accept	accept	docs	copyIntoLocation((ID_.)?_ID|(_QUERY_))/(ID_.)?_ID	COPY INTO @a FROM a
+accept	accept	docs	copyIntoLocation((ID_.)?_ID|(_QUERY_))/(_QUERY_)	COPY INTO @a FROM(SELECT 1)
+reject	undocumented	docs	copyIntoLocation((ID_.)?_ID|(_QUERY_))/(_QUERY_)!drop-1	COPY INTO @a FROM SELECT 1)
+reject	undocumented	docs	copyIntoLocation((ID_.)?_ID|(_QUERY_))/(_QUERY_)!drop-2	COPY INTO @a FROM()
+reject	undocumented	docs	copyIntoLocation((ID_.)?_ID|(_QUERY_))/(_QUERY_)!drop-3	COPY INTO @a FROM(SELECT 1
+accept	undocumented	docs	copyIntoLocation((ID_.)?_ID|(_QUERY_))/(_QUERY_)!insert	COPY INTO @a FROM(SELECT 1) zzz
 accept	accept	docs	copyIntoLocation(ID_.)?/%empty	COPY INTO @a FROM a
 accept	undocumented	docs	copyIntoLocation(ID_.)?/%empty!insert	COPY INTO @a FROM zzz a
 accept	accept	docs	copyIntoLocation(ID_.)?/ID_.	COPY INTO @a FROM a.a
@@ -29650,20 +29650,20 @@ accept	accept	docs	copyIntoLocation_copyOptions(,)?/%empty	COPY INTO @a FROM a O
 accept	undocumented	docs	copyIntoLocation_copyOptions(,)?/%empty!insert	COPY INTO @a FROM a OVERWRITE = TRUE zzz OVERWRITE = TRUE
 reject	accept	docs	copyIntoLocation_copyOptions(,)?/,	COPY INTO @a FROM a OVERWRITE = TRUE, OVERWRITE = TRUE
 reject	undocumented	docs	copyIntoLocation_copyOptions(,)?/,!insert	COPY INTO @a FROM a OVERWRITE = TRUE, zzz OVERWRITE = TRUE
-accept	accept	docs	copyIntoTable/COPY_INTO_(ID_.)?_QNAME_FROM_(copyIntoTable_internalSta~00c41477	COPY INTO a FROM @a
-accept	accept	docs	copyIntoTable/COPY_INTO_(ID_.)?_QNAME_((_ID_(,_ID)*_))?_FROM_(_SELECT~066e0f2a	COPY INTO a FROM(SELECT $1 FROM @a)
-reject	undocumented	docs	copyIntoTable/COPY_INTO_(ID_.)?_QNAME_((_ID_(,_ID)*_))?_FROM_(_SELECT~066e0f2a!drop-1	INTO a FROM(SELECT $1 FROM @a)
-reject	undocumented	docs	copyIntoTable/COPY_INTO_(ID_.)?_QNAME_((_ID_(,_ID)*_))?_FROM_(_SELECT~066e0f2a!drop-2	COPY a FROM(SELECT $1 FROM @a)
-reject	undocumented	docs	copyIntoTable/COPY_INTO_(ID_.)?_QNAME_((_ID_(,_ID)*_))?_FROM_(_SELECT~066e0f2a!drop-3	COPY INTO FROM(SELECT $1 FROM @a)
-reject	undocumented	docs	copyIntoTable/COPY_INTO_(ID_.)?_QNAME_((_ID_(,_ID)*_))?_FROM_(_SELECT~066e0f2a!drop-4	COPY INTO a(SELECT $1 FROM @a)
-reject	undocumented	docs	copyIntoTable/COPY_INTO_(ID_.)?_QNAME_((_ID_(,_ID)*_))?_FROM_(_SELECT~066e0f2a!drop-5	COPY INTO a FROM SELECT $1 FROM @a)
-reject	undocumented	docs	copyIntoTable/COPY_INTO_(ID_.)?_QNAME_((_ID_(,_ID)*_))?_FROM_(_SELECT~066e0f2a!drop-6	COPY INTO a FROM($1 FROM @a)
-reject	undocumented	docs	copyIntoTable/COPY_INTO_(ID_.)?_QNAME_((_ID_(,_ID)*_))?_FROM_(_SELECT~066e0f2a!drop-7	COPY INTO a FROM(SELECT FROM @a)
-reject	undocumented	docs	copyIntoTable/COPY_INTO_(ID_.)?_QNAME_((_ID_(,_ID)*_))?_FROM_(_SELECT~066e0f2a!drop-8	COPY INTO a FROM(SELECT $1 @a)
-reject	undocumented	docs	copyIntoTable/COPY_INTO_(ID_.)?_QNAME_((_ID_(,_ID)*_))?_FROM_(_SELECT~066e0f2a!drop-9	COPY INTO a FROM(SELECT $1 FROM)
-reject	undocumented	docs	copyIntoTable/COPY_INTO_(ID_.)?_QNAME_((_ID_(,_ID)*_))?_FROM_(_SELECT~066e0f2a!drop-10	COPY INTO a FROM(SELECT $1 FROM @a
-accept	undocumented	docs	copyIntoTable/COPY_INTO_(ID_.)?_QNAME_((_ID_(,_ID)*_))?_FROM_(_SELECT~066e0f2a!insert	COPY INTO a FROM(SELECT $1 FROM @a) zzz
-reject	undocumented	docs	copyIntoTable/COPY_INTO_(ID_.)?_QNAME_((_ID_(,_ID)*_))?_FROM_(_SELECT~066e0f2a!swap	CORE INTO a FROM(SELECT $1 FROM @a)
+accept	accept	docs	copyIntoTable/COPY_INTO_(ID_.)?_ID_FROM_(copyIntoTable_internalStage|~36bea394	COPY INTO a FROM @a
+accept	accept	docs	copyIntoTable/COPY_INTO_(ID_.)?_ID_((_ID_(,_ID)*_))?_FROM_(_SELECT_(I~2b5f101e	COPY INTO a FROM(SELECT $1 FROM @a)
+reject	undocumented	docs	copyIntoTable/COPY_INTO_(ID_.)?_ID_((_ID_(,_ID)*_))?_FROM_(_SELECT_(I~2b5f101e!drop-1	INTO a FROM(SELECT $1 FROM @a)
+reject	undocumented	docs	copyIntoTable/COPY_INTO_(ID_.)?_ID_((_ID_(,_ID)*_))?_FROM_(_SELECT_(I~2b5f101e!drop-2	COPY a FROM(SELECT $1 FROM @a)
+reject	undocumented	docs	copyIntoTable/COPY_INTO_(ID_.)?_ID_((_ID_(,_ID)*_))?_FROM_(_SELECT_(I~2b5f101e!drop-3	COPY INTO FROM(SELECT $1 FROM @a)
+reject	undocumented	docs	copyIntoTable/COPY_INTO_(ID_.)?_ID_((_ID_(,_ID)*_))?_FROM_(_SELECT_(I~2b5f101e!drop-4	COPY INTO a(SELECT $1 FROM @a)
+reject	undocumented	docs	copyIntoTable/COPY_INTO_(ID_.)?_ID_((_ID_(,_ID)*_))?_FROM_(_SELECT_(I~2b5f101e!drop-5	COPY INTO a FROM SELECT $1 FROM @a)
+reject	undocumented	docs	copyIntoTable/COPY_INTO_(ID_.)?_ID_((_ID_(,_ID)*_))?_FROM_(_SELECT_(I~2b5f101e!drop-6	COPY INTO a FROM($1 FROM @a)
+reject	undocumented	docs	copyIntoTable/COPY_INTO_(ID_.)?_ID_((_ID_(,_ID)*_))?_FROM_(_SELECT_(I~2b5f101e!drop-7	COPY INTO a FROM(SELECT FROM @a)
+reject	undocumented	docs	copyIntoTable/COPY_INTO_(ID_.)?_ID_((_ID_(,_ID)*_))?_FROM_(_SELECT_(I~2b5f101e!drop-8	COPY INTO a FROM(SELECT $1 @a)
+reject	undocumented	docs	copyIntoTable/COPY_INTO_(ID_.)?_ID_((_ID_(,_ID)*_))?_FROM_(_SELECT_(I~2b5f101e!drop-9	COPY INTO a FROM(SELECT $1 FROM)
+reject	undocumented	docs	copyIntoTable/COPY_INTO_(ID_.)?_ID_((_ID_(,_ID)*_))?_FROM_(_SELECT_(I~2b5f101e!drop-10	COPY INTO a FROM(SELECT $1 FROM @a
+accept	undocumented	docs	copyIntoTable/COPY_INTO_(ID_.)?_ID_((_ID_(,_ID)*_))?_FROM_(_SELECT_(I~2b5f101e!insert	COPY INTO a FROM(SELECT $1 FROM @a) zzz
+reject	undocumented	docs	copyIntoTable/COPY_INTO_(ID_.)?_ID_((_ID_(,_ID)*_))?_FROM_(_SELECT_(I~2b5f101e!swap	CORE INTO a FROM(SELECT $1 FROM @a)
 accept	accept	docs	copyIntoTable(ID_.)?/%empty	COPY INTO a FROM @a
 reject	undocumented	docs	copyIntoTable(ID_.)?/%empty!insert	COPY INTO zzz a FROM @a
 accept	accept	docs	copyIntoTable(ID_.)?/ID_.	COPY INTO a.a FROM @a
@@ -41463,8 +41463,8 @@ reject	undocumented	docs	createNotebook(WAREHOUSE_=_ID)?/WAREHOUSE_=_ID!drop-2	C
 reject	undocumented	docs	createNotebook(WAREHOUSE_=_ID)?/WAREHOUSE_=_ID!drop-3	CREATE NOTEBOOK a WAREHOUSE =
 reject	undocumented	docs	createNotebook(WAREHOUSE_=_ID)?/WAREHOUSE_=_ID!insert	CREATE NOTEBOOK a WAREHOUSE = a zzz
 reject	undocumented	docs	createNotebook(WAREHOUSE_=_ID)?/WAREHOUSE_=_ID!swap	CREATE NOTEBOOK a WAREHOUSES = a
-reject	accept	docs	createNotebookProject/CREATE_NOTEBOOK_PROJECT_ID_._QNAME_._QNAME_FROM_STRING_~88614a51	CREATE NOTEBOOK PROJECT a.a.a FROM 's'
-reject	accept	docs	createNotebookProject/CREATE_NOTEBOOK_PROJECT_(IF_NOT_EXISTS)?_ID_._QNAME_._Q~ffbd4f76	CREATE NOTEBOOK PROJECT a.a.a FROM 's'
+reject	accept	docs	createNotebookProject/CREATE_NOTEBOOK_PROJECT_ID_._ID_._ID_FROM_STRING_(COMME~545e38e1	CREATE NOTEBOOK PROJECT a.a.a FROM 's'
+reject	accept	docs	createNotebookProject/CREATE_NOTEBOOK_PROJECT_(IF_NOT_EXISTS)?_ID_._ID_._ID_F~6bdc4c39	CREATE NOTEBOOK PROJECT a.a.a FROM 's'
 reject	accept	docs	createNotebookProject(COMMENT_=_STRING)?/%empty	CREATE NOTEBOOK PROJECT a.a.a FROM 's'
 reject	accept	docs	createNotebookProject(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE NOTEBOOK PROJECT a.a.a FROM 's' COMMENT = 's'
 reject	undocumented	docs	createNotebookProject(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-1	CREATE NOTEBOOK PROJECT a.a.a FROM 's' = 's'
@@ -41481,7 +41481,7 @@ reject	undocumented	docs	createNotebookProject(IF_NOT_EXISTS)?/IF_NOT_EXISTS!dro
 reject	undocumented	docs	createNotebookProject(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE NOTEBOOK PROJECT IF NOT
 reject	undocumented	docs	createNotebookProject(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE NOTEBOOK PROJECT IF NOT EXISTS zzz a.a.a FROM 's'
 reject	undocumented	docs	createNotebookProject(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE NOTEBOOK PROJECT IGNORE NOT EXISTS a.a.a FROM 's'
-reject	accept	docs	createCodeBundle/CREATE_(OR_REPLACE)?_CODE_BUNDLE_(IF_NOT_EXISTS)?_ID_._~1c6d02e5	CREATE CODE BUNDLE a.a.a FROM 's'
+reject	accept	docs	createCodeBundle/CREATE_(OR_REPLACE)?_CODE_BUNDLE_(IF_NOT_EXISTS)?_ID_._~a78a5ca5	CREATE CODE BUNDLE a.a.a FROM 's'
 reject	accept	docs	createCodeBundle(OR_REPLACE)?/%empty	CREATE CODE BUNDLE a.a.a FROM 's'
 reject	undocumented	docs	createCodeBundle(OR_REPLACE)?/%empty!insert	CREATE zzz CODE BUNDLE a.a.a FROM 's'
 reject	accept	docs	createCodeBundle(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE CODE BUNDLE a.a.a FROM 's'
@@ -41920,7 +41920,7 @@ reject	accept	docs	createOpenflowDeployment(STRING|NONE)/STRING	CREATE OPENFLOW 
 reject	accept	docs	createOpenflowDeployment(STRING|NONE)/NONE	CREATE OPENFLOW DEPLOYMENT a EVENT_TABLE = NONE
 reject	undocumented	docs	createOpenflowDeployment(STRING|NONE)/NONE!insert	CREATE OPENFLOW DEPLOYMENT a EVENT_TABLE = NONE zzz
 reject	undocumented	docs	createOpenflowDeployment(STRING|NONE)/NONE!swap	CREATE OPENFLOW DEPLOYMENT a EVENT_TABLE = NOORDER
-reject	accept	docs	createOpenflowRuntime/CREATE_OPENFLOW_RUNTIME_(IF_NOT_EXISTS)?_(ID_._ID_.)?_Q~5d699a1d	CREATE OPENFLOW RUNTIME a IN DEPLOYMENT a NODE_TYPE = SMALL MIN_NODES = 1 MAX_NODES = 1 EXECUTE_AS_ROLE = a
+reject	accept	docs	createOpenflowRuntime/CREATE_OPENFLOW_RUNTIME_(IF_NOT_EXISTS)?_(ID_._ID_.)?_I~2a140246	CREATE OPENFLOW RUNTIME a IN DEPLOYMENT a NODE_TYPE = SMALL MIN_NODES = 1 MAX_NODES = 1 EXECUTE_AS_ROLE = a
 reject	accept	docs	createOpenflowRuntime(IF_NOT_EXISTS)?/%empty	CREATE OPENFLOW RUNTIME a IN DEPLOYMENT a NODE_TYPE = SMALL MIN_NODES = 1 MAX_NODES = 1 EXECUTE_AS_ROLE = a
 reject	undocumented	docs	createOpenflowRuntime(IF_NOT_EXISTS)?/%empty!insert	CREATE OPENFLOW RUNTIME zzz a IN DEPLOYMENT a NODE_TYPE = SMALL MIN_NODES = 1 MAX_NODES = 1 EXECUTE_AS_ROLE = a
 reject	accept	docs	createOpenflowRuntime(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE OPENFLOW RUNTIME IF NOT EXISTS a IN DEPLOYMENT a NODE_TYPE = SMALL MIN_NODES = 1 MAX_NODES = 1 EXECUTE_AS_ROLE = a
@@ -50205,15 +50205,15 @@ reject	undocumented	docs	createVersionedSchema(COMMENT_=_STRING)?/COMMENT_=_STRI
 reject	undocumented	docs	createVersionedSchema(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	CREATE OR ALTER VERSIONED SCHEMA a COMMENT = 's' zzz
 reject	undocumented	docs	createVersionedSchema(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE OR ALTER VERSIONED SCHEMA a COMMENTS = 's'
 accept	accept	docs	createView/CREATE_(OR_REPLACE)?_(SECURE)?_((((LOCAL|GLOBAL))?_TEMP~efb8fa9d	CREATE VIEW a AS SELECT 1
-accept	accept	docs	createView/CREATE_OR_ALTER_(SECURE)?_((((LOCAL|GLOBAL))?_TEMP|TEMP~32fd0dca	CREATE OR ALTER VIEW a AS SELECT 1
-reject	undocumented	docs	createView/CREATE_OR_ALTER_(SECURE)?_((((LOCAL|GLOBAL))?_TEMP|TEMP~32fd0dca!drop-1	OR ALTER VIEW a AS SELECT 1
-reject	undocumented	docs	createView/CREATE_OR_ALTER_(SECURE)?_((((LOCAL|GLOBAL))?_TEMP|TEMP~32fd0dca!drop-2	CREATE ALTER VIEW a AS SELECT 1
-reject	undocumented	docs	createView/CREATE_OR_ALTER_(SECURE)?_((((LOCAL|GLOBAL))?_TEMP|TEMP~32fd0dca!drop-3	CREATE OR VIEW a AS SELECT 1
-reject	undocumented	docs	createView/CREATE_OR_ALTER_(SECURE)?_((((LOCAL|GLOBAL))?_TEMP|TEMP~32fd0dca!drop-5	CREATE OR ALTER VIEW AS SELECT 1
-reject	undocumented	docs	createView/CREATE_OR_ALTER_(SECURE)?_((((LOCAL|GLOBAL))?_TEMP|TEMP~32fd0dca!drop-6	CREATE OR ALTER VIEW a SELECT 1
-reject	undocumented	docs	createView/CREATE_OR_ALTER_(SECURE)?_((((LOCAL|GLOBAL))?_TEMP|TEMP~32fd0dca!drop-7	CREATE OR ALTER VIEW a AS
-accept	undocumented	docs	createView/CREATE_OR_ALTER_(SECURE)?_((((LOCAL|GLOBAL))?_TEMP|TEMP~32fd0dca!insert	CREATE OR ALTER VIEW a AS SELECT 1 zzz
-reject	undocumented	docs	createView/CREATE_OR_ALTER_(SECURE)?_((((LOCAL|GLOBAL))?_TEMP|TEMP~32fd0dca!swap	CREATION OR ALTER VIEW a AS SELECT 1
+accept	accept	docs	createView/CREATE_OR_ALTER_(SECURE)?_((((LOCAL|GLOBAL))?_TEMP|TEMP~1ac96488	CREATE OR ALTER VIEW a AS SELECT 1
+reject	undocumented	docs	createView/CREATE_OR_ALTER_(SECURE)?_((((LOCAL|GLOBAL))?_TEMP|TEMP~1ac96488!drop-1	OR ALTER VIEW a AS SELECT 1
+reject	undocumented	docs	createView/CREATE_OR_ALTER_(SECURE)?_((((LOCAL|GLOBAL))?_TEMP|TEMP~1ac96488!drop-2	CREATE ALTER VIEW a AS SELECT 1
+reject	undocumented	docs	createView/CREATE_OR_ALTER_(SECURE)?_((((LOCAL|GLOBAL))?_TEMP|TEMP~1ac96488!drop-3	CREATE OR VIEW a AS SELECT 1
+reject	undocumented	docs	createView/CREATE_OR_ALTER_(SECURE)?_((((LOCAL|GLOBAL))?_TEMP|TEMP~1ac96488!drop-5	CREATE OR ALTER VIEW AS SELECT 1
+reject	undocumented	docs	createView/CREATE_OR_ALTER_(SECURE)?_((((LOCAL|GLOBAL))?_TEMP|TEMP~1ac96488!drop-6	CREATE OR ALTER VIEW a SELECT 1
+reject	undocumented	docs	createView/CREATE_OR_ALTER_(SECURE)?_((((LOCAL|GLOBAL))?_TEMP|TEMP~1ac96488!drop-7	CREATE OR ALTER VIEW a AS
+accept	undocumented	docs	createView/CREATE_OR_ALTER_(SECURE)?_((((LOCAL|GLOBAL))?_TEMP|TEMP~1ac96488!insert	CREATE OR ALTER VIEW a AS SELECT 1 zzz
+reject	undocumented	docs	createView/CREATE_OR_ALTER_(SECURE)?_((((LOCAL|GLOBAL))?_TEMP|TEMP~1ac96488!swap	CREATION OR ALTER VIEW a AS SELECT 1
 accept	accept	docs	createView(OR_REPLACE)?/%empty	CREATE VIEW a AS SELECT 1
 reject	undocumented	docs	createView(OR_REPLACE)?/%empty!insert	CREATE zzz VIEW a AS SELECT 1
 accept	accept	docs	createView(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE VIEW a AS SELECT 1
@@ -50468,14 +50468,21 @@ reject	undocumented	docs	createView(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-3	CR
 reject	undocumented	docs	createView(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-4	CREATE VIEW a WITH CONTACT(a = a, a =) AS SELECT 1
 reject	undocumented	docs	createView(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!truncate	CREATE VIEW a WITH CONTACT(a = a, a =
 reject	undocumented	docs	createView(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!insert	CREATE VIEW a WITH CONTACT(a = a, a = a zzz) AS SELECT 1
-accept	accept	docs	createView((_ID_))?/%empty	CREATE OR ALTER VIEW a AS SELECT 1
-reject	undocumented	docs	createView((_ID_))?/%empty!insert	CREATE OR ALTER VIEW a zzz AS SELECT 1
-accept	accept	docs	createView((_ID_))?/(_ID_)	CREATE OR ALTER VIEW a(a) AS SELECT 1
-reject	undocumented	docs	createView((_ID_))?/(_ID_)!drop-1	CREATE OR ALTER VIEW a a) AS SELECT 1
-accept	undocumented	docs	createView((_ID_))?/(_ID_)!drop-2	CREATE OR ALTER VIEW a() AS SELECT 1
-reject	undocumented	docs	createView((_ID_))?/(_ID_)!drop-3	CREATE OR ALTER VIEW a(a AS SELECT 1
-reject	undocumented	docs	createView((_ID_))?/(_ID_)!truncate	CREATE OR ALTER VIEW a(a
-reject	undocumented	docs	createView((_ID_))?/(_ID_)!insert	CREATE OR ALTER VIEW a(a) zzz AS SELECT 1
+accept	accept	docs	createView((_ID_(COMMENT_STRING)?_(,_ID_(COMMEN~36759891)?/%empty	CREATE OR ALTER VIEW a AS SELECT 1
+reject	undocumented	docs	createView((_ID_(COMMENT_STRING)?_(,_ID_(COMMEN~36759891)?/%empty!insert	CREATE OR ALTER VIEW a zzz AS SELECT 1
+accept	accept	docs	createView((_ID_(COMMENT_STRING)?_(,_ID_(COMMEN~36759891)?/(_ID_(COMMENT_STRING)?_(,_ID_(COMMENT_STRING)?)*_)	CREATE OR ALTER VIEW a(a) AS SELECT 1
+reject	undocumented	docs	createView((_ID_(COMMENT_STRING)?_(,_ID_(COMMEN~36759891)?/(_ID_(COMMENT_STRING)?_(,_ID_(COMMENT_STRING)?)*_)!drop-1	CREATE OR ALTER VIEW a a) AS SELECT 1
+accept	undocumented	docs	createView((_ID_(COMMENT_STRING)?_(,_ID_(COMMEN~36759891)?/(_ID_(COMMENT_STRING)?_(,_ID_(COMMENT_STRING)?)*_)!drop-2	CREATE OR ALTER VIEW a() AS SELECT 1
+reject	undocumented	docs	createView((_ID_(COMMENT_STRING)?_(,_ID_(COMMEN~36759891)?/(_ID_(COMMENT_STRING)?_(,_ID_(COMMENT_STRING)?)*_)!drop-3	CREATE OR ALTER VIEW a(a AS SELECT 1
+reject	undocumented	docs	createView((_ID_(COMMENT_STRING)?_(,_ID_(COMMEN~36759891)?/(_ID_(COMMENT_STRING)?_(,_ID_(COMMENT_STRING)?)*_)!truncate	CREATE OR ALTER VIEW a(a
+reject	undocumented	docs	createView((_ID_(COMMENT_STRING)?_(,_ID_(COMMEN~36759891)?/(_ID_(COMMENT_STRING)?_(,_ID_(COMMENT_STRING)?)*_)!insert	CREATE OR ALTER VIEW a(a) zzz AS SELECT 1
+accept	accept	docs	createView(,_ID_(COMMENT_STRING)?)*/%empty	CREATE OR ALTER VIEW a(a) AS SELECT 1
+reject	undocumented	docs	createView(,_ID_(COMMENT_STRING)?)*/%empty!insert	CREATE OR ALTER VIEW a(a zzz) AS SELECT 1
+accept	accept	docs	createView(,_ID_(COMMENT_STRING)?)*/,_ID_(COMMENT_STRING)?_(,_ID_(COMMENT_STRING)?)*	CREATE OR ALTER VIEW a(a, a) AS SELECT 1
+reject	undocumented	docs	createView(,_ID_(COMMENT_STRING)?)*/,_ID_(COMMENT_STRING)?_(,_ID_(COMMENT_STRING)?)*!drop-1	CREATE OR ALTER VIEW a(a a) AS SELECT 1
+accept	undocumented	docs	createView(,_ID_(COMMENT_STRING)?)*/,_ID_(COMMENT_STRING)?_(,_ID_(COMMENT_STRING)?)*!drop-2	CREATE OR ALTER VIEW a(a,) AS SELECT 1
+reject	undocumented	docs	createView(,_ID_(COMMENT_STRING)?)*/,_ID_(COMMENT_STRING)?_(,_ID_(COMMENT_STRING)?)*!truncate	CREATE OR ALTER VIEW a(a,
+reject	undocumented	docs	createView(,_ID_(COMMENT_STRING)?)*/,_ID_(COMMENT_STRING)?_(,_ID_(COMMENT_STRING)?)*!insert	CREATE OR ALTER VIEW a(a, a zzz) AS SELECT 1
 accept	accept	docs	createWarehouse/CREATE_(OR_REPLACE)?_WAREHOUSE_(IF_NOT_EXISTS)?_ID_(WIT~248c9fa5	CREATE WAREHOUSE a
 accept	accept	docs	createWarehouse/CREATE_OR_ALTER_WAREHOUSE_ID_(WITH?_createWarehouse_obj~75e46ca3	CREATE OR ALTER WAREHOUSE a
 reject	undocumented	docs	createWarehouse/CREATE_OR_ALTER_WAREHOUSE_ID_(WITH?_createWarehouse_obj~75e46ca3!drop-1	OR ALTER WAREHOUSE a
@@ -52592,7 +52599,7 @@ reject	undocumented	docs	executeImmediateFrom(TRUE|FALSE)/FALSE!insert	EXECUTE I
 reject	undocumented	docs	executeImmediateFrom(TRUE|FALSE)/FALSE!swap	EXECUTE IMMEDIATE FROM @a DRY_RUN = FAMILIES
 reject	accept	docs	executeImmediateFrom_absoluteFilePath/STAGE	EXECUTE IMMEDIATE FROM @a
 reject	accept	docs	executeImmediateFrom_relativeFilePath/STRING	EXECUTE IMMEDIATE FROM 's'
-reject	accept	docs	executeInferenceJobService/EXECUTE_INFERENCE_JOB_SERVICE_IN_COMPUTE_POOL_ID_WITH_S~8cefdef6	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a
+reject	accept	docs	executeInferenceJobService/EXECUTE_INFERENCE_JOB_SERVICE_IN_COMPUTE_POOL_ID_WITH_S~8ad64ce7	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a
 reject	accept	docs	executeInferenceJobService((_QUERY_)|STAGE)/(_QUERY_)	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM(SELECT 1) MODEL = a
 reject	undocumented	docs	executeInferenceJobService((_QUERY_)|STAGE)/(_QUERY_)!drop-1	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM SELECT 1) MODEL = a
 reject	undocumented	docs	executeInferenceJobService((_QUERY_)|STAGE)/(_QUERY_)!drop-2	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM() MODEL = a
@@ -52609,7 +52616,7 @@ reject	undocumented	docs	executeInferenceJobService(ID_._ID_.)?/ID_._ID_.!drop-1
 reject	undocumented	docs	executeInferenceJobService(ID_._ID_.)?/ID_._ID_.!drop-2	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a a.a
 reject	undocumented	docs	executeInferenceJobService(ID_._ID_.)?/ID_._ID_.!drop-3	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a..a
 reject	undocumented	docs	executeInferenceJobService(ID_._ID_.)?/ID_._ID_.!drop-4	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a.a a
-reject	accept	docs	executeInferenceJobService(ID_._ID_.)?/ID_._ID_.!truncate	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a.a
+reject	undocumented	docs	executeInferenceJobService(ID_._ID_.)?/ID_._ID_.!truncate	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a.a
 reject	undocumented	docs	executeInferenceJobService(ID_._ID_.)?/ID_._ID_.!insert	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a.a.zzz a
 reject	accept	docs	executeInferenceJobService(VERSION_=_ID)?/%empty	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a
 reject	accept	docs	executeInferenceJobService(VERSION_=_ID)?/VERSION_=_ID	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a VERSION = a
@@ -52625,12 +52632,12 @@ reject	undocumented	docs	executeInferenceJobService(FUNCTION_=_STRING)?/FUNCTION
 reject	undocumented	docs	executeInferenceJobService(FUNCTION_=_STRING)?/FUNCTION_=_STRING!drop-3	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a FUNCTION =
 reject	undocumented	docs	executeInferenceJobService(FUNCTION_=_STRING)?/FUNCTION_=_STRING!insert	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a FUNCTION = 's' zzz
 reject	undocumented	docs	executeInferenceJobService(FUNCTION_=_STRING)?/FUNCTION_=_STRING!swap	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a FUNCTIONS = 's'
-reject	accept	docs	executeInferenceJobService(NAME_=_(ID_._ID_.)?_QNAME)?/%empty	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a
-reject	accept	docs	executeInferenceJobService(NAME_=_(ID_._ID_.)?_QNAME)?/NAME_=_(ID_._ID_.)?_QNAME	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a NAME = a
-reject	undocumented	docs	executeInferenceJobService(NAME_=_(ID_._ID_.)?_QNAME)?/NAME_=_(ID_._ID_.)?_QNAME!drop-2	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a NAME a
-reject	undocumented	docs	executeInferenceJobService(NAME_=_(ID_._ID_.)?_QNAME)?/NAME_=_(ID_._ID_.)?_QNAME!drop-3	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a NAME =
-reject	undocumented	docs	executeInferenceJobService(NAME_=_(ID_._ID_.)?_QNAME)?/NAME_=_(ID_._ID_.)?_QNAME!insert	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a NAME = a zzz
-reject	undocumented	docs	executeInferenceJobService(NAME_=_(ID_._ID_.)?_QNAME)?/NAME_=_(ID_._ID_.)?_QNAME!swap	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a NAMESPACE_FLATTEN_DELIMITER = a
+reject	accept	docs	executeInferenceJobService(NAME_=_(ID_._ID_.)?_ID)?/%empty	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a
+reject	accept	docs	executeInferenceJobService(NAME_=_(ID_._ID_.)?_ID)?/NAME_=_(ID_._ID_.)?_ID	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a NAME = a
+reject	undocumented	docs	executeInferenceJobService(NAME_=_(ID_._ID_.)?_ID)?/NAME_=_(ID_._ID_.)?_ID!drop-2	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a NAME a
+reject	undocumented	docs	executeInferenceJobService(NAME_=_(ID_._ID_.)?_ID)?/NAME_=_(ID_._ID_.)?_ID!drop-3	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a NAME =
+reject	undocumented	docs	executeInferenceJobService(NAME_=_(ID_._ID_.)?_ID)?/NAME_=_(ID_._ID_.)?_ID!insert	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a NAME = a zzz
+reject	undocumented	docs	executeInferenceJobService(NAME_=_(ID_._ID_.)?_ID)?/NAME_=_(ID_._ID_.)?_ID!swap	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a NAMESPACE_FLATTEN_DELIMITER = a
 reject	accept	docs	executeInferenceJobService(ASYNC_=_(TRUE|FALSE))?/%empty	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a
 reject	accept	docs	executeInferenceJobService(ASYNC_=_(TRUE|FALSE))?/ASYNC_=_(TRUE|FALSE)	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a ASYNC = TRUE
 reject	undocumented	docs	executeInferenceJobService(ASYNC_=_(TRUE|FALSE))?/ASYNC_=_(TRUE|FALSE)!drop-1	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a = TRUE
@@ -52650,7 +52657,7 @@ reject	undocumented	docs	executeInferenceJobService(REPLICAS_=_NUMBER)?/REPLICAS
 reject	undocumented	docs	executeInferenceJobService(REPLICAS_=_NUMBER)?/REPLICAS_=_NUMBER!drop-3	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a REPLICAS =
 reject	undocumented	docs	executeInferenceJobService(REPLICAS_=_NUMBER)?/REPLICAS_=_NUMBER!insert	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a REPLICAS = 1 zzz
 reject	undocumented	docs	executeInferenceJobService(REPLICAS_=_NUMBER)?/REPLICAS_=_NUMBER!swap	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a REPLICATE = 1
-reject	accept	docs	executeJobService/EXECUTE_JOB_SERVICE_IN_COMPUTE_POOL_ID_(executeJobServi~cda58840	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM SPECIFICATION 's'
+reject	accept	docs	executeJobService/EXECUTE_JOB_SERVICE_IN_COMPUTE_POOL_ID_(executeJobServi~2e0c8f5d	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM SPECIFICATION 's'
 reject	accept	docs	executeJobService(executeJobService_fromSpecification|~cc52c7ef)/executeJobService_fromSpecification	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM SPECIFICATION 's'
 reject	undocumented	docs	executeJobService(executeJobService_fromSpecification|~cc52c7ef)/executeJobService_fromSpecification!swap	EXECUTE JOB SERVICE IN COMPUTE POOL a FROZEN SPECIFICATION 's'
 reject	accept	docs	executeJobService(executeJobService_fromSpecification|~cc52c7ef)/executeJobService_fromSpecificationTemplate	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM SPECIFICATION_TEMPLATE 's' USING(a => 1)
@@ -52665,13 +52672,13 @@ reject	undocumented	docs	executeJobService(executeJobService_fromSpecification|~
 reject	undocumented	docs	executeJobService(executeJobService_fromSpecification|~cc52c7ef)/executeJobService_fromSpecificationTemplate!drop-9	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM SPECIFICATION_TEMPLATE 's' USING(a => 1
 reject	undocumented	docs	executeJobService(executeJobService_fromSpecification|~cc52c7ef)/executeJobService_fromSpecificationTemplate!insert	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM SPECIFICATION_TEMPLATE 's' USING(a => 1) zzz
 reject	undocumented	docs	executeJobService(executeJobService_fromSpecification|~cc52c7ef)/executeJobService_fromSpecificationTemplate!swap	EXECUTE JOB SERVICE IN COMPUTE POOL a FROZEN SPECIFICATION_TEMPLATE 's' USING(a => 1)
-reject	accept	docs	executeJobService(NAME_=_(ID_._ID_.)?_QNAME)?/%empty	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM SPECIFICATION 's'
-reject	accept	docs	executeJobService(NAME_=_(ID_._ID_.)?_QNAME)?/NAME_=_(ID_._ID_.)?_QNAME	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM SPECIFICATION 's' NAME = a
-reject	undocumented	docs	executeJobService(NAME_=_(ID_._ID_.)?_QNAME)?/NAME_=_(ID_._ID_.)?_QNAME!drop-1	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM SPECIFICATION 's' = a
-reject	undocumented	docs	executeJobService(NAME_=_(ID_._ID_.)?_QNAME)?/NAME_=_(ID_._ID_.)?_QNAME!drop-2	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM SPECIFICATION 's' NAME a
-reject	undocumented	docs	executeJobService(NAME_=_(ID_._ID_.)?_QNAME)?/NAME_=_(ID_._ID_.)?_QNAME!drop-3	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM SPECIFICATION 's' NAME =
-reject	undocumented	docs	executeJobService(NAME_=_(ID_._ID_.)?_QNAME)?/NAME_=_(ID_._ID_.)?_QNAME!insert	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM SPECIFICATION 's' NAME = a zzz
-reject	undocumented	docs	executeJobService(NAME_=_(ID_._ID_.)?_QNAME)?/NAME_=_(ID_._ID_.)?_QNAME!swap	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM SPECIFICATION 's' NAMESPACE_FLATTEN_DELIMITER = a
+reject	accept	docs	executeJobService(NAME_=_(ID_._ID_.)?_ID)?/%empty	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM SPECIFICATION 's'
+reject	accept	docs	executeJobService(NAME_=_(ID_._ID_.)?_ID)?/NAME_=_(ID_._ID_.)?_ID	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM SPECIFICATION 's' NAME = a
+reject	undocumented	docs	executeJobService(NAME_=_(ID_._ID_.)?_ID)?/NAME_=_(ID_._ID_.)?_ID!drop-1	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM SPECIFICATION 's' = a
+reject	undocumented	docs	executeJobService(NAME_=_(ID_._ID_.)?_ID)?/NAME_=_(ID_._ID_.)?_ID!drop-2	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM SPECIFICATION 's' NAME a
+reject	undocumented	docs	executeJobService(NAME_=_(ID_._ID_.)?_ID)?/NAME_=_(ID_._ID_.)?_ID!drop-3	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM SPECIFICATION 's' NAME =
+reject	undocumented	docs	executeJobService(NAME_=_(ID_._ID_.)?_ID)?/NAME_=_(ID_._ID_.)?_ID!insert	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM SPECIFICATION 's' NAME = a zzz
+reject	undocumented	docs	executeJobService(NAME_=_(ID_._ID_.)?_ID)?/NAME_=_(ID_._ID_.)?_ID!swap	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM SPECIFICATION 's' NAMESPACE_FLATTEN_DELIMITER = a
 reject	accept	docs	executeJobService(ID_._ID_.)?/%empty	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM SPECIFICATION 's' NAME = a
 reject	undocumented	docs	executeJobService(ID_._ID_.)?/%empty!insert	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM SPECIFICATION 's' NAME = zzz a
 reject	accept	docs	executeJobService(ID_._ID_.)?/ID_._ID_.	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM SPECIFICATION 's' NAME = a.a.a
@@ -52679,7 +52686,7 @@ reject	undocumented	docs	executeJobService(ID_._ID_.)?/ID_._ID_.!drop-1	EXECUTE 
 reject	undocumented	docs	executeJobService(ID_._ID_.)?/ID_._ID_.!drop-2	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM SPECIFICATION 's' NAME = a a.a
 reject	undocumented	docs	executeJobService(ID_._ID_.)?/ID_._ID_.!drop-3	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM SPECIFICATION 's' NAME = a..a
 reject	undocumented	docs	executeJobService(ID_._ID_.)?/ID_._ID_.!drop-4	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM SPECIFICATION 's' NAME = a.a a
-reject	accept	docs	executeJobService(ID_._ID_.)?/ID_._ID_.!truncate	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM SPECIFICATION 's' NAME = a.a
+reject	undocumented	docs	executeJobService(ID_._ID_.)?/ID_._ID_.!truncate	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM SPECIFICATION 's' NAME = a.a
 reject	undocumented	docs	executeJobService(ID_._ID_.)?/ID_._ID_.!insert	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM SPECIFICATION 's' NAME = a.a.zzz a
 reject	accept	docs	executeJobService(ASYNC_=_(TRUE|FALSE))?/%empty	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM SPECIFICATION 's'
 reject	accept	docs	executeJobService(ASYNC_=_(TRUE|FALSE))?/ASYNC_=_(TRUE|FALSE)	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM SPECIFICATION 's' ASYNC = TRUE
@@ -52772,7 +52779,7 @@ reject	undocumented	docs	executeNotebook(,_STRING)*/,_STRING_(,_STRING)*!drop-1	
 reject	undocumented	docs	executeNotebook(,_STRING)*/,_STRING_(,_STRING)*!drop-2	EXECUTE NOTEBOOK a('s',)
 reject	undocumented	docs	executeNotebook(,_STRING)*/,_STRING_(,_STRING)*!truncate	EXECUTE NOTEBOOK a('s',
 reject	undocumented	docs	executeNotebook(,_STRING)*/,_STRING_(,_STRING)*!insert	EXECUTE NOTEBOOK a('s', 's' zzz)
-reject	accept	docs	executeNotebookProject/EXECUTE_NOTEBOOK_PROJECT_ID_._QNAME_._QNAME_MAIN_FILE_=~b965df58	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's'
+reject	accept	docs	executeNotebookProject/EXECUTE_NOTEBOOK_PROJECT_ID_._ID_._ID_MAIN_FILE_=_STRIN~0ae25262	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's'
 reject	accept	docs	executeNotebookProject(ARGUMENTS_=_STRING)?/%empty	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's'
 reject	accept	docs	executeNotebookProject(ARGUMENTS_=_STRING)?/ARGUMENTS_=_STRING	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' ARGUMENTS = 's'
 reject	undocumented	docs	executeNotebookProject(ARGUMENTS_=_STRING)?/ARGUMENTS_=_STRING!drop-1	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' = 's'
@@ -52817,30 +52824,30 @@ reject	undocumented	docs	executeNotebookProject(,_ID)*/,_ID_(,_ID)*!drop-1	EXECU
 reject	undocumented	docs	executeNotebookProject(,_ID)*/,_ID_(,_ID)*!drop-2	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' EXTERNAL_ACCESS_INTEGRATIONS =(a,)
 reject	undocumented	docs	executeNotebookProject(,_ID)*/,_ID_(,_ID)*!truncate	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' EXTERNAL_ACCESS_INTEGRATIONS =(a,
 reject	undocumented	docs	executeNotebookProject(,_ID)*/,_ID_(,_ID)*!insert	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' EXTERNAL_ACCESS_INTEGRATIONS =(a, a zzz)
-reject	accept	docs	executeNotebookProject(SECRETS_=_(_ID_._QNAME_._QNAME_(,_ID~aa07ec1f)?/%empty	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's'
-reject	accept	docs	executeNotebookProject(SECRETS_=_(_ID_._QNAME_._QNAME_(,_ID~aa07ec1f)?/SECRETS_=_(_ID_._QNAME_._QNAME_(,_ID_._QNAME_._QNAME)*_)	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a.a.a)
-reject	undocumented	docs	executeNotebookProject(SECRETS_=_(_ID_._QNAME_._QNAME_(,_ID~aa07ec1f)?/SECRETS_=_(_ID_._QNAME_._QNAME_(,_ID_._QNAME_._QNAME)*_)!drop-1	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' =(a.a.a)
-reject	undocumented	docs	executeNotebookProject(SECRETS_=_(_ID_._QNAME_._QNAME_(,_ID~aa07ec1f)?/SECRETS_=_(_ID_._QNAME_._QNAME_(,_ID_._QNAME_._QNAME)*_)!drop-2	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS(a.a.a)
-reject	undocumented	docs	executeNotebookProject(SECRETS_=_(_ID_._QNAME_._QNAME_(,_ID~aa07ec1f)?/SECRETS_=_(_ID_._QNAME_._QNAME_(,_ID_._QNAME_._QNAME)*_)!drop-3	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS = a.a.a)
-reject	undocumented	docs	executeNotebookProject(SECRETS_=_(_ID_._QNAME_._QNAME_(,_ID~aa07ec1f)?/SECRETS_=_(_ID_._QNAME_._QNAME_(,_ID_._QNAME_._QNAME)*_)!drop-4	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(.a.a)
-reject	undocumented	docs	executeNotebookProject(SECRETS_=_(_ID_._QNAME_._QNAME_(,_ID~aa07ec1f)?/SECRETS_=_(_ID_._QNAME_._QNAME_(,_ID_._QNAME_._QNAME)*_)!drop-5	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a a.a)
-reject	undocumented	docs	executeNotebookProject(SECRETS_=_(_ID_._QNAME_._QNAME_(,_ID~aa07ec1f)?/SECRETS_=_(_ID_._QNAME_._QNAME_(,_ID_._QNAME_._QNAME)*_)!drop-6	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a..a)
-reject	undocumented	docs	executeNotebookProject(SECRETS_=_(_ID_._QNAME_._QNAME_(,_ID~aa07ec1f)?/SECRETS_=_(_ID_._QNAME_._QNAME_(,_ID_._QNAME_._QNAME)*_)!drop-7	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a.a a)
-reject	undocumented	docs	executeNotebookProject(SECRETS_=_(_ID_._QNAME_._QNAME_(,_ID~aa07ec1f)?/SECRETS_=_(_ID_._QNAME_._QNAME_(,_ID_._QNAME_._QNAME)*_)!drop-8	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a.a.)
-reject	undocumented	docs	executeNotebookProject(SECRETS_=_(_ID_._QNAME_._QNAME_(,_ID~aa07ec1f)?/SECRETS_=_(_ID_._QNAME_._QNAME_(,_ID_._QNAME_._QNAME)*_)!drop-9	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a.a.a
-reject	undocumented	docs	executeNotebookProject(SECRETS_=_(_ID_._QNAME_._QNAME_(,_ID~aa07ec1f)?/SECRETS_=_(_ID_._QNAME_._QNAME_(,_ID_._QNAME_._QNAME)*_)!insert	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a.a.a) zzz
-reject	undocumented	docs	executeNotebookProject(SECRETS_=_(_ID_._QNAME_._QNAME_(,_ID~aa07ec1f)?/SECRETS_=_(_ID_._QNAME_._QNAME_(,_ID_._QNAME_._QNAME)*_)!swap	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRET_AUTHORIZATION =(a.a.a)
-reject	accept	docs	executeNotebookProject(,_ID_._QNAME_._QNAME)*/%empty	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a.a.a)
-reject	undocumented	docs	executeNotebookProject(,_ID_._QNAME_._QNAME)*/%empty!insert	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a.a.a zzz)
-reject	accept	docs	executeNotebookProject(,_ID_._QNAME_._QNAME)*/,_ID_._QNAME_._QNAME_(,_ID_._QNAME_._QNAME)*	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a.a.a, a.a.a)
-reject	undocumented	docs	executeNotebookProject(,_ID_._QNAME_._QNAME)*/,_ID_._QNAME_._QNAME_(,_ID_._QNAME_._QNAME)*!drop-1	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a.a.a a.a.a)
-reject	undocumented	docs	executeNotebookProject(,_ID_._QNAME_._QNAME)*/,_ID_._QNAME_._QNAME_(,_ID_._QNAME_._QNAME)*!drop-2	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a.a.a,.a.a)
-reject	undocumented	docs	executeNotebookProject(,_ID_._QNAME_._QNAME)*/,_ID_._QNAME_._QNAME_(,_ID_._QNAME_._QNAME)*!drop-3	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a.a.a, a a.a)
-reject	undocumented	docs	executeNotebookProject(,_ID_._QNAME_._QNAME)*/,_ID_._QNAME_._QNAME_(,_ID_._QNAME_._QNAME)*!drop-4	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a.a.a, a..a)
-reject	undocumented	docs	executeNotebookProject(,_ID_._QNAME_._QNAME)*/,_ID_._QNAME_._QNAME_(,_ID_._QNAME_._QNAME)*!drop-5	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a.a.a, a.a a)
-reject	undocumented	docs	executeNotebookProject(,_ID_._QNAME_._QNAME)*/,_ID_._QNAME_._QNAME_(,_ID_._QNAME_._QNAME)*!drop-6	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a.a.a, a.a.)
-reject	undocumented	docs	executeNotebookProject(,_ID_._QNAME_._QNAME)*/,_ID_._QNAME_._QNAME_(,_ID_._QNAME_._QNAME)*!truncate	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a.a.a, a.a.
-reject	undocumented	docs	executeNotebookProject(,_ID_._QNAME_._QNAME)*/,_ID_._QNAME_._QNAME_(,_ID_._QNAME_._QNAME)*!insert	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a.a.a, a.a.a zzz)
+reject	accept	docs	executeNotebookProject(SECRETS_=_(_ID_._ID_._ID_(,_ID_._ID_._ID)*_))?/%empty	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's'
+reject	accept	docs	executeNotebookProject(SECRETS_=_(_ID_._ID_._ID_(,_ID_._ID_._ID)*_))?/SECRETS_=_(_ID_._ID_._ID_(,_ID_._ID_._ID)*_)	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a.a.a)
+reject	undocumented	docs	executeNotebookProject(SECRETS_=_(_ID_._ID_._ID_(,_ID_._ID_._ID)*_))?/SECRETS_=_(_ID_._ID_._ID_(,_ID_._ID_._ID)*_)!drop-1	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' =(a.a.a)
+reject	undocumented	docs	executeNotebookProject(SECRETS_=_(_ID_._ID_._ID_(,_ID_._ID_._ID)*_))?/SECRETS_=_(_ID_._ID_._ID_(,_ID_._ID_._ID)*_)!drop-2	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS(a.a.a)
+reject	undocumented	docs	executeNotebookProject(SECRETS_=_(_ID_._ID_._ID_(,_ID_._ID_._ID)*_))?/SECRETS_=_(_ID_._ID_._ID_(,_ID_._ID_._ID)*_)!drop-3	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS = a.a.a)
+reject	undocumented	docs	executeNotebookProject(SECRETS_=_(_ID_._ID_._ID_(,_ID_._ID_._ID)*_))?/SECRETS_=_(_ID_._ID_._ID_(,_ID_._ID_._ID)*_)!drop-4	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(.a.a)
+reject	undocumented	docs	executeNotebookProject(SECRETS_=_(_ID_._ID_._ID_(,_ID_._ID_._ID)*_))?/SECRETS_=_(_ID_._ID_._ID_(,_ID_._ID_._ID)*_)!drop-5	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a a.a)
+reject	undocumented	docs	executeNotebookProject(SECRETS_=_(_ID_._ID_._ID_(,_ID_._ID_._ID)*_))?/SECRETS_=_(_ID_._ID_._ID_(,_ID_._ID_._ID)*_)!drop-6	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a..a)
+reject	undocumented	docs	executeNotebookProject(SECRETS_=_(_ID_._ID_._ID_(,_ID_._ID_._ID)*_))?/SECRETS_=_(_ID_._ID_._ID_(,_ID_._ID_._ID)*_)!drop-7	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a.a a)
+reject	undocumented	docs	executeNotebookProject(SECRETS_=_(_ID_._ID_._ID_(,_ID_._ID_._ID)*_))?/SECRETS_=_(_ID_._ID_._ID_(,_ID_._ID_._ID)*_)!drop-8	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a.a.)
+reject	undocumented	docs	executeNotebookProject(SECRETS_=_(_ID_._ID_._ID_(,_ID_._ID_._ID)*_))?/SECRETS_=_(_ID_._ID_._ID_(,_ID_._ID_._ID)*_)!drop-9	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a.a.a
+reject	undocumented	docs	executeNotebookProject(SECRETS_=_(_ID_._ID_._ID_(,_ID_._ID_._ID)*_))?/SECRETS_=_(_ID_._ID_._ID_(,_ID_._ID_._ID)*_)!insert	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a.a.a) zzz
+reject	undocumented	docs	executeNotebookProject(SECRETS_=_(_ID_._ID_._ID_(,_ID_._ID_._ID)*_))?/SECRETS_=_(_ID_._ID_._ID_(,_ID_._ID_._ID)*_)!swap	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRET_AUTHORIZATION =(a.a.a)
+reject	accept	docs	executeNotebookProject(,_ID_._ID_._ID)*/%empty	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a.a.a)
+reject	undocumented	docs	executeNotebookProject(,_ID_._ID_._ID)*/%empty!insert	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a.a.a zzz)
+reject	accept	docs	executeNotebookProject(,_ID_._ID_._ID)*/,_ID_._ID_._ID_(,_ID_._ID_._ID)*	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a.a.a, a.a.a)
+reject	undocumented	docs	executeNotebookProject(,_ID_._ID_._ID)*/,_ID_._ID_._ID_(,_ID_._ID_._ID)*!drop-1	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a.a.a a.a.a)
+reject	undocumented	docs	executeNotebookProject(,_ID_._ID_._ID)*/,_ID_._ID_._ID_(,_ID_._ID_._ID)*!drop-2	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a.a.a,.a.a)
+reject	undocumented	docs	executeNotebookProject(,_ID_._ID_._ID)*/,_ID_._ID_._ID_(,_ID_._ID_._ID)*!drop-3	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a.a.a, a a.a)
+reject	undocumented	docs	executeNotebookProject(,_ID_._ID_._ID)*/,_ID_._ID_._ID_(,_ID_._ID_._ID)*!drop-4	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a.a.a, a..a)
+reject	undocumented	docs	executeNotebookProject(,_ID_._ID_._ID)*/,_ID_._ID_._ID_(,_ID_._ID_._ID)*!drop-5	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a.a.a, a.a a)
+reject	undocumented	docs	executeNotebookProject(,_ID_._ID_._ID)*/,_ID_._ID_._ID_(,_ID_._ID_._ID)*!drop-6	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a.a.a, a.a.)
+reject	undocumented	docs	executeNotebookProject(,_ID_._ID_._ID)*/,_ID_._ID_._ID_(,_ID_._ID_._ID)*!truncate	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a.a.a, a.a.
+reject	undocumented	docs	executeNotebookProject(,_ID_._ID_._ID)*/,_ID_._ID_._ID_(,_ID_._ID_._ID)*!insert	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a.a.a, a.a.a zzz)
 reject	accept	docs	executeCodeBundle/EXECUTE_CODE_BUNDLE_QNAME_ENTRYPOINT_=_STRING_(ARGUMENT~4862c172	EXECUTE CODE BUNDLE a ENTRYPOINT = 's'
 reject	accept	docs	executeCodeBundle(ARGUMENTS_=_(_STRING_(,_STRING)*_))?/%empty	EXECUTE CODE BUNDLE a ENTRYPOINT = 's'
 reject	accept	docs	executeCodeBundle(ARGUMENTS_=_(_STRING_(,_STRING)*_))?/ARGUMENTS_=_(_STRING_(,_STRING)*_)	EXECUTE CODE BUNDLE a ENTRYPOINT = 's' ARGUMENTS =('s')
@@ -66364,30 +66371,30 @@ reject	undocumented	docs	showAccounts(LIKE_STRING)?/LIKE_STRING!drop-1	SHOW ACCO
 reject	undocumented	docs	showAccounts(LIKE_STRING)?/LIKE_STRING!drop-2	SHOW ACCOUNTS LIKE
 reject	undocumented	docs	showAccounts(LIKE_STRING)?/LIKE_STRING!insert	SHOW ACCOUNTS LIKE 's' zzz
 reject	undocumented	docs	showAccounts(LIKE_STRING)?/LIKE_STRING!swap	SHOW ACCOUNTS LIMIT 's'
-accept	accept	docs	showAgents/SHOW_AGENTS_(LIKE_STRING)?_(IN_(ACCOUNT|DATABASE_ID|SCH~c5ba0667	SHOW AGENTS
+accept	accept	docs	showAgents/SHOW_AGENTS_(LIKE_STRING)?_(IN_(ACCOUNT|DATABASE_ID|SCH~52ce208b	SHOW AGENTS
 accept	accept	docs	showAgents(LIKE_STRING)?/%empty	SHOW AGENTS
 accept	accept	docs	showAgents(LIKE_STRING)?/LIKE_STRING	SHOW AGENTS LIKE 's'
 reject	undocumented	docs	showAgents(LIKE_STRING)?/LIKE_STRING!drop-1	SHOW AGENTS 's'
 reject	undocumented	docs	showAgents(LIKE_STRING)?/LIKE_STRING!drop-2	SHOW AGENTS LIKE
 reject	undocumented	docs	showAgents(LIKE_STRING)?/LIKE_STRING!insert	SHOW AGENTS LIKE 's' zzz
 reject	undocumented	docs	showAgents(LIKE_STRING)?/LIKE_STRING!swap	SHOW AGENTS LIMIT 's'
-accept	accept	docs	showAgents(IN_(ACCOUNT|DATABASE_ID|SCHEMA_(ID_.)?_QNAME))?/%empty	SHOW AGENTS
-accept	accept	docs	showAgents(IN_(ACCOUNT|DATABASE_ID|SCHEMA_(ID_.)?_QNAME))?/IN_(ACCOUNT|DATABASE_ID|SCHEMA_(ID_.)?_QNAME)	SHOW AGENTS IN ACCOUNT
-accept	undocumented	docs	showAgents(IN_(ACCOUNT|DATABASE_ID|SCHEMA_(ID_.)?_QNAME))?/IN_(ACCOUNT|DATABASE_ID|SCHEMA_(ID_.)?_QNAME)!drop-1	SHOW AGENTS ACCOUNT
-reject	undocumented	docs	showAgents(IN_(ACCOUNT|DATABASE_ID|SCHEMA_(ID_.)?_QNAME))?/IN_(ACCOUNT|DATABASE_ID|SCHEMA_(ID_.)?_QNAME)!drop-2	SHOW AGENTS IN
-reject	undocumented	docs	showAgents(IN_(ACCOUNT|DATABASE_ID|SCHEMA_(ID_.)?_QNAME))?/IN_(ACCOUNT|DATABASE_ID|SCHEMA_(ID_.)?_QNAME)!insert	SHOW AGENTS IN ACCOUNT zzz
-accept	undocumented	docs	showAgents(IN_(ACCOUNT|DATABASE_ID|SCHEMA_(ID_.)?_QNAME))?/IN_(ACCOUNT|DATABASE_ID|SCHEMA_(ID_.)?_QNAME)!swap	SHOW AGENTS INBOUND ACCOUNT
-accept	accept	docs	showAgents(ACCOUNT|DATABASE_ID|SCHEMA_(ID_.)?_QNAME)/ACCOUNT	SHOW AGENTS IN ACCOUNT
-accept	undocumented	docs	showAgents(ACCOUNT|DATABASE_ID|SCHEMA_(ID_.)?_QNAME)/ACCOUNT!swap	SHOW AGENTS IN ACCOUNTS
-accept	accept	docs	showAgents(ACCOUNT|DATABASE_ID|SCHEMA_(ID_.)?_QNAME)/DATABASE_ID	SHOW AGENTS IN DATABASE a
-accept	undocumented	docs	showAgents(ACCOUNT|DATABASE_ID|SCHEMA_(ID_.)?_QNAME)/DATABASE_ID!drop-1	SHOW AGENTS IN a
-accept	undocumented	docs	showAgents(ACCOUNT|DATABASE_ID|SCHEMA_(ID_.)?_QNAME)/DATABASE_ID!drop-2	SHOW AGENTS IN DATABASE
-reject	undocumented	docs	showAgents(ACCOUNT|DATABASE_ID|SCHEMA_(ID_.)?_QNAME)/DATABASE_ID!insert	SHOW AGENTS IN DATABASE a zzz
-reject	undocumented	docs	showAgents(ACCOUNT|DATABASE_ID|SCHEMA_(ID_.)?_QNAME)/DATABASE_ID!swap	SHOW AGENTS IN DATABASES a
-accept	accept	docs	showAgents(ACCOUNT|DATABASE_ID|SCHEMA_(ID_.)?_QNAME)/SCHEMA_(ID_.)?_QNAME	SHOW AGENTS IN SCHEMA a
-accept	undocumented	docs	showAgents(ACCOUNT|DATABASE_ID|SCHEMA_(ID_.)?_QNAME)/SCHEMA_(ID_.)?_QNAME!drop-2	SHOW AGENTS IN SCHEMA
-reject	undocumented	docs	showAgents(ACCOUNT|DATABASE_ID|SCHEMA_(ID_.)?_QNAME)/SCHEMA_(ID_.)?_QNAME!insert	SHOW AGENTS IN SCHEMA a zzz
-reject	undocumented	docs	showAgents(ACCOUNT|DATABASE_ID|SCHEMA_(ID_.)?_QNAME)/SCHEMA_(ID_.)?_QNAME!swap	SHOW AGENTS IN SCHEMAS a
+accept	accept	docs	showAgents(IN_(ACCOUNT|DATABASE_ID|SCHEMA_(ID_.)?_ID))?/%empty	SHOW AGENTS
+accept	accept	docs	showAgents(IN_(ACCOUNT|DATABASE_ID|SCHEMA_(ID_.)?_ID))?/IN_(ACCOUNT|DATABASE_ID|SCHEMA_(ID_.)?_ID)	SHOW AGENTS IN ACCOUNT
+accept	undocumented	docs	showAgents(IN_(ACCOUNT|DATABASE_ID|SCHEMA_(ID_.)?_ID))?/IN_(ACCOUNT|DATABASE_ID|SCHEMA_(ID_.)?_ID)!drop-1	SHOW AGENTS ACCOUNT
+reject	undocumented	docs	showAgents(IN_(ACCOUNT|DATABASE_ID|SCHEMA_(ID_.)?_ID))?/IN_(ACCOUNT|DATABASE_ID|SCHEMA_(ID_.)?_ID)!drop-2	SHOW AGENTS IN
+reject	undocumented	docs	showAgents(IN_(ACCOUNT|DATABASE_ID|SCHEMA_(ID_.)?_ID))?/IN_(ACCOUNT|DATABASE_ID|SCHEMA_(ID_.)?_ID)!insert	SHOW AGENTS IN ACCOUNT zzz
+accept	undocumented	docs	showAgents(IN_(ACCOUNT|DATABASE_ID|SCHEMA_(ID_.)?_ID))?/IN_(ACCOUNT|DATABASE_ID|SCHEMA_(ID_.)?_ID)!swap	SHOW AGENTS INBOUND ACCOUNT
+accept	accept	docs	showAgents(ACCOUNT|DATABASE_ID|SCHEMA_(ID_.)?_ID)/ACCOUNT	SHOW AGENTS IN ACCOUNT
+accept	undocumented	docs	showAgents(ACCOUNT|DATABASE_ID|SCHEMA_(ID_.)?_ID)/ACCOUNT!swap	SHOW AGENTS IN ACCOUNTS
+accept	accept	docs	showAgents(ACCOUNT|DATABASE_ID|SCHEMA_(ID_.)?_ID)/DATABASE_ID	SHOW AGENTS IN DATABASE a
+accept	undocumented	docs	showAgents(ACCOUNT|DATABASE_ID|SCHEMA_(ID_.)?_ID)/DATABASE_ID!drop-1	SHOW AGENTS IN a
+accept	undocumented	docs	showAgents(ACCOUNT|DATABASE_ID|SCHEMA_(ID_.)?_ID)/DATABASE_ID!drop-2	SHOW AGENTS IN DATABASE
+reject	undocumented	docs	showAgents(ACCOUNT|DATABASE_ID|SCHEMA_(ID_.)?_ID)/DATABASE_ID!insert	SHOW AGENTS IN DATABASE a zzz
+reject	undocumented	docs	showAgents(ACCOUNT|DATABASE_ID|SCHEMA_(ID_.)?_ID)/DATABASE_ID!swap	SHOW AGENTS IN DATABASES a
+accept	accept	docs	showAgents(ACCOUNT|DATABASE_ID|SCHEMA_(ID_.)?_ID)/SCHEMA_(ID_.)?_ID	SHOW AGENTS IN SCHEMA a
+accept	undocumented	docs	showAgents(ACCOUNT|DATABASE_ID|SCHEMA_(ID_.)?_ID)/SCHEMA_(ID_.)?_ID!drop-2	SHOW AGENTS IN SCHEMA
+reject	undocumented	docs	showAgents(ACCOUNT|DATABASE_ID|SCHEMA_(ID_.)?_ID)/SCHEMA_(ID_.)?_ID!insert	SHOW AGENTS IN SCHEMA a zzz
+reject	undocumented	docs	showAgents(ACCOUNT|DATABASE_ID|SCHEMA_(ID_.)?_ID)/SCHEMA_(ID_.)?_ID!swap	SHOW AGENTS IN SCHEMAS a
 accept	accept	docs	showAgents(ID_.)?/%empty	SHOW AGENTS IN SCHEMA a
 reject	undocumented	docs	showAgents(ID_.)?/%empty!insert	SHOW AGENTS IN SCHEMA zzz a
 accept	accept	docs	showAgents(ID_.)?/ID_.	SHOW AGENTS IN SCHEMA a.a
@@ -68944,17 +68951,17 @@ reject	undocumented	docs	showNodesComputePool(LIMIT_NUMBER)?/LIMIT_NUMBER!drop-2
 reject	undocumented	docs	showNodesComputePool(LIMIT_NUMBER)?/LIMIT_NUMBER!insert	SHOW NODES IN COMPUTE POOL a LIMIT 1 zzz
 reject	undocumented	docs	showNodesComputePool(LIMIT_NUMBER)?/LIMIT_NUMBER!swap	SHOW NODES IN COMPUTE POOL a LINKED_CATALOG 1
 accept	accept	docs	showNotebookProjects/SHOW_NOTEBOOK_PROJECTS	SHOW NOTEBOOK PROJECTS
-accept	accept	docs	showNotebookProjects/SHOW_NOTEBOOK_PROJECTS_IN_SCHEMA_ID_._QNAME	SHOW NOTEBOOK PROJECTS IN SCHEMA a.a
-reject	undocumented	docs	showNotebookProjects/SHOW_NOTEBOOK_PROJECTS_IN_SCHEMA_ID_._QNAME!drop-1	NOTEBOOK PROJECTS IN SCHEMA a.a
-accept	undocumented	docs	showNotebookProjects/SHOW_NOTEBOOK_PROJECTS_IN_SCHEMA_ID_._QNAME!drop-2	SHOW PROJECTS IN SCHEMA a.a
-accept	undocumented	docs	showNotebookProjects/SHOW_NOTEBOOK_PROJECTS_IN_SCHEMA_ID_._QNAME!drop-3	SHOW NOTEBOOK IN SCHEMA a.a
-reject	undocumented	docs	showNotebookProjects/SHOW_NOTEBOOK_PROJECTS_IN_SCHEMA_ID_._QNAME!drop-4	SHOW NOTEBOOK PROJECTS SCHEMA a.a
-accept	undocumented	docs	showNotebookProjects/SHOW_NOTEBOOK_PROJECTS_IN_SCHEMA_ID_._QNAME!drop-5	SHOW NOTEBOOK PROJECTS IN a.a
-reject	undocumented	docs	showNotebookProjects/SHOW_NOTEBOOK_PROJECTS_IN_SCHEMA_ID_._QNAME!drop-6	SHOW NOTEBOOK PROJECTS IN SCHEMA.a
-reject	undocumented	docs	showNotebookProjects/SHOW_NOTEBOOK_PROJECTS_IN_SCHEMA_ID_._QNAME!drop-7	SHOW NOTEBOOK PROJECTS IN SCHEMA a a
-reject	undocumented	docs	showNotebookProjects/SHOW_NOTEBOOK_PROJECTS_IN_SCHEMA_ID_._QNAME!drop-8	SHOW NOTEBOOK PROJECTS IN SCHEMA a.
-reject	undocumented	docs	showNotebookProjects/SHOW_NOTEBOOK_PROJECTS_IN_SCHEMA_ID_._QNAME!insert	SHOW NOTEBOOK PROJECTS IN SCHEMA a.a zzz
-reject	undocumented	docs	showNotebookProjects/SHOW_NOTEBOOK_PROJECTS_IN_SCHEMA_ID_._QNAME!swap	SHOW_INITIAL_ROWS NOTEBOOK PROJECTS IN SCHEMA a.a
+accept	accept	docs	showNotebookProjects/SHOW_NOTEBOOK_PROJECTS_IN_SCHEMA_ID_._ID	SHOW NOTEBOOK PROJECTS IN SCHEMA a.a
+reject	undocumented	docs	showNotebookProjects/SHOW_NOTEBOOK_PROJECTS_IN_SCHEMA_ID_._ID!drop-1	NOTEBOOK PROJECTS IN SCHEMA a.a
+accept	undocumented	docs	showNotebookProjects/SHOW_NOTEBOOK_PROJECTS_IN_SCHEMA_ID_._ID!drop-2	SHOW PROJECTS IN SCHEMA a.a
+accept	undocumented	docs	showNotebookProjects/SHOW_NOTEBOOK_PROJECTS_IN_SCHEMA_ID_._ID!drop-3	SHOW NOTEBOOK IN SCHEMA a.a
+reject	undocumented	docs	showNotebookProjects/SHOW_NOTEBOOK_PROJECTS_IN_SCHEMA_ID_._ID!drop-4	SHOW NOTEBOOK PROJECTS SCHEMA a.a
+accept	undocumented	docs	showNotebookProjects/SHOW_NOTEBOOK_PROJECTS_IN_SCHEMA_ID_._ID!drop-5	SHOW NOTEBOOK PROJECTS IN a.a
+reject	undocumented	docs	showNotebookProjects/SHOW_NOTEBOOK_PROJECTS_IN_SCHEMA_ID_._ID!drop-6	SHOW NOTEBOOK PROJECTS IN SCHEMA.a
+reject	undocumented	docs	showNotebookProjects/SHOW_NOTEBOOK_PROJECTS_IN_SCHEMA_ID_._ID!drop-7	SHOW NOTEBOOK PROJECTS IN SCHEMA a a
+reject	undocumented	docs	showNotebookProjects/SHOW_NOTEBOOK_PROJECTS_IN_SCHEMA_ID_._ID!drop-8	SHOW NOTEBOOK PROJECTS IN SCHEMA a.
+reject	undocumented	docs	showNotebookProjects/SHOW_NOTEBOOK_PROJECTS_IN_SCHEMA_ID_._ID!insert	SHOW NOTEBOOK PROJECTS IN SCHEMA a.a zzz
+reject	undocumented	docs	showNotebookProjects/SHOW_NOTEBOOK_PROJECTS_IN_SCHEMA_ID_._ID!swap	SHOW_INITIAL_ROWS NOTEBOOK PROJECTS IN SCHEMA a.a
 accept	accept	docs	showNotebookProjects/SHOW_NOTEBOOK_PROJECTS_IN_DATABASE_ID	SHOW NOTEBOOK PROJECTS IN DATABASE a
 reject	undocumented	docs	showNotebookProjects/SHOW_NOTEBOOK_PROJECTS_IN_DATABASE_ID!drop-1	NOTEBOOK PROJECTS IN DATABASE a
 accept	undocumented	docs	showNotebookProjects/SHOW_NOTEBOOK_PROJECTS_IN_DATABASE_ID!drop-2	SHOW PROJECTS IN DATABASE a
@@ -68973,17 +68980,17 @@ reject	undocumented	docs	showNotebookProjects/SHOW_NOTEBOOK_PROJECTS_IN_ACCOUNT!
 reject	undocumented	docs	showNotebookProjects/SHOW_NOTEBOOK_PROJECTS_IN_ACCOUNT!insert	SHOW NOTEBOOK PROJECTS IN ACCOUNT zzz
 reject	undocumented	docs	showNotebookProjects/SHOW_NOTEBOOK_PROJECTS_IN_ACCOUNT!swap	SHOW_INITIAL_ROWS NOTEBOOK PROJECTS IN ACCOUNT
 accept	accept	docs	showCodeBundles/SHOW_CODE_BUNDLES	SHOW CODE BUNDLES
-accept	accept	docs	showCodeBundles/SHOW_CODE_BUNDLES_IN_SCHEMA_ID_._QNAME	SHOW CODE BUNDLES IN SCHEMA a.a
-reject	undocumented	docs	showCodeBundles/SHOW_CODE_BUNDLES_IN_SCHEMA_ID_._QNAME!drop-1	CODE BUNDLES IN SCHEMA a.a
-accept	undocumented	docs	showCodeBundles/SHOW_CODE_BUNDLES_IN_SCHEMA_ID_._QNAME!drop-2	SHOW BUNDLES IN SCHEMA a.a
-accept	undocumented	docs	showCodeBundles/SHOW_CODE_BUNDLES_IN_SCHEMA_ID_._QNAME!drop-3	SHOW CODE IN SCHEMA a.a
-reject	undocumented	docs	showCodeBundles/SHOW_CODE_BUNDLES_IN_SCHEMA_ID_._QNAME!drop-4	SHOW CODE BUNDLES SCHEMA a.a
-accept	undocumented	docs	showCodeBundles/SHOW_CODE_BUNDLES_IN_SCHEMA_ID_._QNAME!drop-5	SHOW CODE BUNDLES IN a.a
-reject	undocumented	docs	showCodeBundles/SHOW_CODE_BUNDLES_IN_SCHEMA_ID_._QNAME!drop-6	SHOW CODE BUNDLES IN SCHEMA.a
-reject	undocumented	docs	showCodeBundles/SHOW_CODE_BUNDLES_IN_SCHEMA_ID_._QNAME!drop-7	SHOW CODE BUNDLES IN SCHEMA a a
-reject	undocumented	docs	showCodeBundles/SHOW_CODE_BUNDLES_IN_SCHEMA_ID_._QNAME!drop-8	SHOW CODE BUNDLES IN SCHEMA a.
-reject	undocumented	docs	showCodeBundles/SHOW_CODE_BUNDLES_IN_SCHEMA_ID_._QNAME!insert	SHOW CODE BUNDLES IN SCHEMA a.a zzz
-reject	undocumented	docs	showCodeBundles/SHOW_CODE_BUNDLES_IN_SCHEMA_ID_._QNAME!swap	SHOW_INITIAL_ROWS CODE BUNDLES IN SCHEMA a.a
+accept	accept	docs	showCodeBundles/SHOW_CODE_BUNDLES_IN_SCHEMA_ID_._ID	SHOW CODE BUNDLES IN SCHEMA a.a
+reject	undocumented	docs	showCodeBundles/SHOW_CODE_BUNDLES_IN_SCHEMA_ID_._ID!drop-1	CODE BUNDLES IN SCHEMA a.a
+accept	undocumented	docs	showCodeBundles/SHOW_CODE_BUNDLES_IN_SCHEMA_ID_._ID!drop-2	SHOW BUNDLES IN SCHEMA a.a
+accept	undocumented	docs	showCodeBundles/SHOW_CODE_BUNDLES_IN_SCHEMA_ID_._ID!drop-3	SHOW CODE IN SCHEMA a.a
+reject	undocumented	docs	showCodeBundles/SHOW_CODE_BUNDLES_IN_SCHEMA_ID_._ID!drop-4	SHOW CODE BUNDLES SCHEMA a.a
+accept	undocumented	docs	showCodeBundles/SHOW_CODE_BUNDLES_IN_SCHEMA_ID_._ID!drop-5	SHOW CODE BUNDLES IN a.a
+reject	undocumented	docs	showCodeBundles/SHOW_CODE_BUNDLES_IN_SCHEMA_ID_._ID!drop-6	SHOW CODE BUNDLES IN SCHEMA.a
+reject	undocumented	docs	showCodeBundles/SHOW_CODE_BUNDLES_IN_SCHEMA_ID_._ID!drop-7	SHOW CODE BUNDLES IN SCHEMA a a
+reject	undocumented	docs	showCodeBundles/SHOW_CODE_BUNDLES_IN_SCHEMA_ID_._ID!drop-8	SHOW CODE BUNDLES IN SCHEMA a.
+reject	undocumented	docs	showCodeBundles/SHOW_CODE_BUNDLES_IN_SCHEMA_ID_._ID!insert	SHOW CODE BUNDLES IN SCHEMA a.a zzz
+reject	undocumented	docs	showCodeBundles/SHOW_CODE_BUNDLES_IN_SCHEMA_ID_._ID!swap	SHOW_INITIAL_ROWS CODE BUNDLES IN SCHEMA a.a
 accept	accept	docs	showCodeBundles/SHOW_CODE_BUNDLES_IN_DATABASE_ID	SHOW CODE BUNDLES IN DATABASE a
 reject	undocumented	docs	showCodeBundles/SHOW_CODE_BUNDLES_IN_DATABASE_ID!drop-1	CODE BUNDLES IN DATABASE a
 accept	undocumented	docs	showCodeBundles/SHOW_CODE_BUNDLES_IN_DATABASE_ID!drop-2	SHOW BUNDLES IN DATABASE a
@@ -69956,7 +69963,7 @@ reject	undocumented	docs	showRunsInExperiment(LIKE_STRING)?/LIKE_STRING!drop-2	S
 reject	undocumented	docs	showRunsInExperiment(LIKE_STRING)?/LIKE_STRING!truncate	SHOW RUNS LIKE
 reject	undocumented	docs	showRunsInExperiment(LIKE_STRING)?/LIKE_STRING!insert	SHOW RUNS LIKE 's' zzz IN EXPERIMENT a
 reject	undocumented	docs	showRunsInExperiment(LIKE_STRING)?/LIKE_STRING!swap	SHOW RUNS LIMIT 's' IN EXPERIMENT a
-accept	accept	docs	showSchemaVariables/SHOW_SCHEMA_VARIABLES_(LIKE_STRING)?_IN_SCHEMA_(QNAME|I~2f40cc01	SHOW SCHEMA VARIABLES IN SCHEMA a
+accept	accept	docs	showSchemaVariables/SHOW_SCHEMA_VARIABLES_(LIKE_STRING)?_IN_SCHEMA_(QNAME|ID_._ID)	SHOW SCHEMA VARIABLES IN SCHEMA a
 accept	accept	docs	showSchemaVariables(LIKE_STRING)?/%empty	SHOW SCHEMA VARIABLES IN SCHEMA a
 accept	undocumented	docs	showSchemaVariables(LIKE_STRING)?/%empty!insert	SHOW SCHEMA VARIABLES zzz IN SCHEMA a
 accept	accept	docs	showSchemaVariables(LIKE_STRING)?/LIKE_STRING	SHOW SCHEMA VARIABLES LIKE 's' IN SCHEMA a
@@ -69965,12 +69972,12 @@ reject	undocumented	docs	showSchemaVariables(LIKE_STRING)?/LIKE_STRING!drop-2	SH
 reject	undocumented	docs	showSchemaVariables(LIKE_STRING)?/LIKE_STRING!truncate	SHOW SCHEMA VARIABLES LIKE
 reject	undocumented	docs	showSchemaVariables(LIKE_STRING)?/LIKE_STRING!insert	SHOW SCHEMA VARIABLES LIKE 's' zzz IN SCHEMA a
 reject	undocumented	docs	showSchemaVariables(LIKE_STRING)?/LIKE_STRING!swap	SHOW SCHEMA VARIABLES LIMIT 's' IN SCHEMA a
-accept	accept	docs	showSchemaVariables(QNAME|ID_._QNAME)/QNAME	SHOW SCHEMA VARIABLES IN SCHEMA a
-accept	accept	docs	showSchemaVariables(QNAME|ID_._QNAME)/ID_._QNAME	SHOW SCHEMA VARIABLES IN SCHEMA a.a
-reject	undocumented	docs	showSchemaVariables(QNAME|ID_._QNAME)/ID_._QNAME!drop-1	SHOW SCHEMA VARIABLES IN SCHEMA.a
-reject	undocumented	docs	showSchemaVariables(QNAME|ID_._QNAME)/ID_._QNAME!drop-2	SHOW SCHEMA VARIABLES IN SCHEMA a a
-reject	undocumented	docs	showSchemaVariables(QNAME|ID_._QNAME)/ID_._QNAME!drop-3	SHOW SCHEMA VARIABLES IN SCHEMA a.
-reject	undocumented	docs	showSchemaVariables(QNAME|ID_._QNAME)/ID_._QNAME!insert	SHOW SCHEMA VARIABLES IN SCHEMA a.a zzz
+accept	accept	docs	showSchemaVariables(QNAME|ID_._ID)/QNAME	SHOW SCHEMA VARIABLES IN SCHEMA a
+accept	accept	docs	showSchemaVariables(QNAME|ID_._ID)/ID_._ID	SHOW SCHEMA VARIABLES IN SCHEMA a.a
+reject	undocumented	docs	showSchemaVariables(QNAME|ID_._ID)/ID_._ID!drop-1	SHOW SCHEMA VARIABLES IN SCHEMA.a
+reject	undocumented	docs	showSchemaVariables(QNAME|ID_._ID)/ID_._ID!drop-2	SHOW SCHEMA VARIABLES IN SCHEMA a a
+reject	undocumented	docs	showSchemaVariables(QNAME|ID_._ID)/ID_._ID!drop-3	SHOW SCHEMA VARIABLES IN SCHEMA a.
+reject	undocumented	docs	showSchemaVariables(QNAME|ID_._ID)/ID_._ID!insert	SHOW SCHEMA VARIABLES IN SCHEMA a.a zzz
 accept	accept	docs	showSchemas/SHOW_(TERSE)?_SCHEMAS_(HISTORY)?_(LIKE_STRING)?_(IN_(AC~56b39017	SHOW SCHEMAS
 accept	accept	docs	showSchemas(TERSE)?/%empty	SHOW SCHEMAS
 accept	undocumented	docs	showSchemas(TERSE)?/%empty!insert	SHOW zzz SCHEMAS
@@ -70066,39 +70073,39 @@ accept	accept	docs	showSecrets(SCHEMA)?/%empty	SHOW SECRETS IN a
 accept	accept	docs	showSecrets(SCHEMA)?/SCHEMA	SHOW SECRETS IN SCHEMA a
 reject	undocumented	docs	showSecrets(SCHEMA)?/SCHEMA!insert	SHOW SECRETS IN SCHEMA zzz a
 reject	undocumented	docs	showSecrets(SCHEMA)?/SCHEMA!swap	SHOW SECRETS IN SCHEMAS a
-accept	accept	docs	showSemanticDimensions/SHOW_SEMANTIC_DIMENSIONS_(LIKE_STRING)?_(IN_(QNAME|ACCO~31bfffd2	SHOW SEMANTIC DIMENSIONS
+accept	accept	docs	showSemanticDimensions/SHOW_SEMANTIC_DIMENSIONS_(LIKE_STRING)?_(IN_(QNAME|ACCO~d74d0756	SHOW SEMANTIC DIMENSIONS
 accept	accept	docs	showSemanticDimensions(LIKE_STRING)?/%empty	SHOW SEMANTIC DIMENSIONS
 accept	accept	docs	showSemanticDimensions(LIKE_STRING)?/LIKE_STRING	SHOW SEMANTIC DIMENSIONS LIKE 's'
 reject	undocumented	docs	showSemanticDimensions(LIKE_STRING)?/LIKE_STRING!drop-1	SHOW SEMANTIC DIMENSIONS 's'
 reject	undocumented	docs	showSemanticDimensions(LIKE_STRING)?/LIKE_STRING!drop-2	SHOW SEMANTIC DIMENSIONS LIKE
 reject	undocumented	docs	showSemanticDimensions(LIKE_STRING)?/LIKE_STRING!insert	SHOW SEMANTIC DIMENSIONS LIKE 's' zzz
 reject	undocumented	docs	showSemanticDimensions(LIKE_STRING)?/LIKE_STRING!swap	SHOW SEMANTIC DIMENSIONS LIMIT 's'
-accept	accept	docs	showSemanticDimensions(IN_(QNAME|ACCOUNT|DATABASE|DATABASE_~5f75e9a1)?/%empty	SHOW SEMANTIC DIMENSIONS
-accept	accept	docs	showSemanticDimensions(IN_(QNAME|ACCOUNT|DATABASE|DATABASE_~5f75e9a1)?/IN_(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)	SHOW SEMANTIC DIMENSIONS IN a
-accept	undocumented	docs	showSemanticDimensions(IN_(QNAME|ACCOUNT|DATABASE|DATABASE_~5f75e9a1)?/IN_(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)!drop-1	SHOW SEMANTIC DIMENSIONS a
-reject	undocumented	docs	showSemanticDimensions(IN_(QNAME|ACCOUNT|DATABASE|DATABASE_~5f75e9a1)?/IN_(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)!drop-2	SHOW SEMANTIC DIMENSIONS IN
-reject	undocumented	docs	showSemanticDimensions(IN_(QNAME|ACCOUNT|DATABASE|DATABASE_~5f75e9a1)?/IN_(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)!insert	SHOW SEMANTIC DIMENSIONS IN a zzz
-accept	undocumented	docs	showSemanticDimensions(IN_(QNAME|ACCOUNT|DATABASE|DATABASE_~5f75e9a1)?/IN_(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)!swap	SHOW SEMANTIC DIMENSIONS INBOUND a
-accept	accept	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/QNAME	SHOW SEMANTIC DIMENSIONS IN a
-accept	accept	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/ACCOUNT	SHOW SEMANTIC DIMENSIONS IN ACCOUNT
-reject	undocumented	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/ACCOUNT!insert	SHOW SEMANTIC DIMENSIONS IN ACCOUNT zzz
-accept	accept	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/ACCOUNT!swap	SHOW SEMANTIC DIMENSIONS IN ACCOUNTS
-accept	accept	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/DATABASE	SHOW SEMANTIC DIMENSIONS IN DATABASE
-accept	accept	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/DATABASE!insert	SHOW SEMANTIC DIMENSIONS IN DATABASE zzz
-accept	accept	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/DATABASE!swap	SHOW SEMANTIC DIMENSIONS IN DATABASES
-accept	accept	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/DATABASE_ID	SHOW SEMANTIC DIMENSIONS IN DATABASE a
-reject	undocumented	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/DATABASE_ID!insert	SHOW SEMANTIC DIMENSIONS IN DATABASE a zzz
-reject	undocumented	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/DATABASE_ID!swap	SHOW SEMANTIC DIMENSIONS IN DATABASES a
-accept	accept	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/SCHEMA	SHOW SEMANTIC DIMENSIONS IN SCHEMA
-accept	undocumented	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/SCHEMA!insert	SHOW SEMANTIC DIMENSIONS IN SCHEMA zzz
-accept	accept	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/SCHEMA!swap	SHOW SEMANTIC DIMENSIONS IN SCHEMAS
-accept	accept	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/SCHEMA_ID_._QNAME	SHOW SEMANTIC DIMENSIONS IN SCHEMA a.a
-accept	accept	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/SCHEMA_ID_._QNAME!drop-1	SHOW SEMANTIC DIMENSIONS IN a.a
-reject	accept	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/SCHEMA_ID_._QNAME!drop-2	SHOW SEMANTIC DIMENSIONS IN SCHEMA.a
-reject	undocumented	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/SCHEMA_ID_._QNAME!drop-3	SHOW SEMANTIC DIMENSIONS IN SCHEMA a a
-reject	undocumented	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/SCHEMA_ID_._QNAME!drop-4	SHOW SEMANTIC DIMENSIONS IN SCHEMA a.
-reject	undocumented	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/SCHEMA_ID_._QNAME!insert	SHOW SEMANTIC DIMENSIONS IN SCHEMA a.a zzz
-reject	undocumented	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/SCHEMA_ID_._QNAME!swap	SHOW SEMANTIC DIMENSIONS IN SCHEMAS a.a
+accept	accept	docs	showSemanticDimensions(IN_(QNAME|ACCOUNT|DATABASE|DATABASE_~16426871)?/%empty	SHOW SEMANTIC DIMENSIONS
+accept	accept	docs	showSemanticDimensions(IN_(QNAME|ACCOUNT|DATABASE|DATABASE_~16426871)?/IN_(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)	SHOW SEMANTIC DIMENSIONS IN a
+accept	undocumented	docs	showSemanticDimensions(IN_(QNAME|ACCOUNT|DATABASE|DATABASE_~16426871)?/IN_(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)!drop-1	SHOW SEMANTIC DIMENSIONS a
+reject	undocumented	docs	showSemanticDimensions(IN_(QNAME|ACCOUNT|DATABASE|DATABASE_~16426871)?/IN_(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)!drop-2	SHOW SEMANTIC DIMENSIONS IN
+reject	undocumented	docs	showSemanticDimensions(IN_(QNAME|ACCOUNT|DATABASE|DATABASE_~16426871)?/IN_(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)!insert	SHOW SEMANTIC DIMENSIONS IN a zzz
+accept	undocumented	docs	showSemanticDimensions(IN_(QNAME|ACCOUNT|DATABASE|DATABASE_~16426871)?/IN_(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)!swap	SHOW SEMANTIC DIMENSIONS INBOUND a
+accept	accept	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/QNAME	SHOW SEMANTIC DIMENSIONS IN a
+accept	accept	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/ACCOUNT	SHOW SEMANTIC DIMENSIONS IN ACCOUNT
+reject	undocumented	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/ACCOUNT!insert	SHOW SEMANTIC DIMENSIONS IN ACCOUNT zzz
+accept	accept	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/ACCOUNT!swap	SHOW SEMANTIC DIMENSIONS IN ACCOUNTS
+accept	accept	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/DATABASE	SHOW SEMANTIC DIMENSIONS IN DATABASE
+accept	accept	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/DATABASE!insert	SHOW SEMANTIC DIMENSIONS IN DATABASE zzz
+accept	accept	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/DATABASE!swap	SHOW SEMANTIC DIMENSIONS IN DATABASES
+accept	accept	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/DATABASE_ID	SHOW SEMANTIC DIMENSIONS IN DATABASE a
+reject	undocumented	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/DATABASE_ID!insert	SHOW SEMANTIC DIMENSIONS IN DATABASE a zzz
+reject	undocumented	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/DATABASE_ID!swap	SHOW SEMANTIC DIMENSIONS IN DATABASES a
+accept	accept	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA	SHOW SEMANTIC DIMENSIONS IN SCHEMA
+accept	undocumented	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA!insert	SHOW SEMANTIC DIMENSIONS IN SCHEMA zzz
+accept	accept	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA!swap	SHOW SEMANTIC DIMENSIONS IN SCHEMAS
+accept	accept	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA_ID_._ID	SHOW SEMANTIC DIMENSIONS IN SCHEMA a.a
+accept	accept	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA_ID_._ID!drop-1	SHOW SEMANTIC DIMENSIONS IN a.a
+reject	accept	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA_ID_._ID!drop-2	SHOW SEMANTIC DIMENSIONS IN SCHEMA.a
+reject	undocumented	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA_ID_._ID!drop-3	SHOW SEMANTIC DIMENSIONS IN SCHEMA a a
+reject	undocumented	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA_ID_._ID!drop-4	SHOW SEMANTIC DIMENSIONS IN SCHEMA a.
+reject	undocumented	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA_ID_._ID!insert	SHOW SEMANTIC DIMENSIONS IN SCHEMA a.a zzz
+reject	undocumented	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA_ID_._ID!swap	SHOW SEMANTIC DIMENSIONS IN SCHEMAS a.a
 accept	accept	docs	showSemanticDimensions(STARTS_WITH_STRING)?/%empty	SHOW SEMANTIC DIMENSIONS
 accept	accept	docs	showSemanticDimensions(STARTS_WITH_STRING)?/STARTS_WITH_STRING	SHOW SEMANTIC DIMENSIONS STARTS WITH 's'
 reject	undocumented	docs	showSemanticDimensions(STARTS_WITH_STRING)?/STARTS_WITH_STRING!drop-1	SHOW SEMANTIC DIMENSIONS WITH 's'
@@ -70133,39 +70140,39 @@ reject	undocumented	docs	showSemanticDimensionsForMetric(LIMIT_NUMBER)?/LIMIT_NU
 reject	undocumented	docs	showSemanticDimensionsForMetric(LIMIT_NUMBER)?/LIMIT_NUMBER!drop-2	SHOW SEMANTIC DIMENSIONS IN a FOR METRIC a LIMIT
 reject	undocumented	docs	showSemanticDimensionsForMetric(LIMIT_NUMBER)?/LIMIT_NUMBER!insert	SHOW SEMANTIC DIMENSIONS IN a FOR METRIC a LIMIT 1 zzz
 reject	undocumented	docs	showSemanticDimensionsForMetric(LIMIT_NUMBER)?/LIMIT_NUMBER!swap	SHOW SEMANTIC DIMENSIONS IN a FOR METRIC a LINKED_CATALOG 1
-accept	accept	docs	showSemanticFacts/SHOW_SEMANTIC_FACTS_(LIKE_STRING)?_(IN_(QNAME|ACCOUNT|D~3e912e1e	SHOW SEMANTIC FACTS
+accept	accept	docs	showSemanticFacts/SHOW_SEMANTIC_FACTS_(LIKE_STRING)?_(IN_(QNAME|ACCOUNT|D~217602fb	SHOW SEMANTIC FACTS
 accept	accept	docs	showSemanticFacts(LIKE_STRING)?/%empty	SHOW SEMANTIC FACTS
 accept	accept	docs	showSemanticFacts(LIKE_STRING)?/LIKE_STRING	SHOW SEMANTIC FACTS LIKE 's'
 reject	undocumented	docs	showSemanticFacts(LIKE_STRING)?/LIKE_STRING!drop-1	SHOW SEMANTIC FACTS 's'
 reject	undocumented	docs	showSemanticFacts(LIKE_STRING)?/LIKE_STRING!drop-2	SHOW SEMANTIC FACTS LIKE
 reject	undocumented	docs	showSemanticFacts(LIKE_STRING)?/LIKE_STRING!insert	SHOW SEMANTIC FACTS LIKE 's' zzz
 reject	undocumented	docs	showSemanticFacts(LIKE_STRING)?/LIKE_STRING!swap	SHOW SEMANTIC FACTS LIMIT 's'
-accept	accept	docs	showSemanticFacts(IN_(QNAME|ACCOUNT|DATABASE|DATABASE_~5f75e9a1)?/%empty	SHOW SEMANTIC FACTS
-accept	accept	docs	showSemanticFacts(IN_(QNAME|ACCOUNT|DATABASE|DATABASE_~5f75e9a1)?/IN_(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)	SHOW SEMANTIC FACTS IN a
-accept	undocumented	docs	showSemanticFacts(IN_(QNAME|ACCOUNT|DATABASE|DATABASE_~5f75e9a1)?/IN_(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)!drop-1	SHOW SEMANTIC FACTS a
-reject	undocumented	docs	showSemanticFacts(IN_(QNAME|ACCOUNT|DATABASE|DATABASE_~5f75e9a1)?/IN_(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)!drop-2	SHOW SEMANTIC FACTS IN
-reject	undocumented	docs	showSemanticFacts(IN_(QNAME|ACCOUNT|DATABASE|DATABASE_~5f75e9a1)?/IN_(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)!insert	SHOW SEMANTIC FACTS IN a zzz
-accept	undocumented	docs	showSemanticFacts(IN_(QNAME|ACCOUNT|DATABASE|DATABASE_~5f75e9a1)?/IN_(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)!swap	SHOW SEMANTIC FACTS INBOUND a
-accept	accept	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/QNAME	SHOW SEMANTIC FACTS IN a
-accept	accept	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/ACCOUNT	SHOW SEMANTIC FACTS IN ACCOUNT
-reject	undocumented	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/ACCOUNT!insert	SHOW SEMANTIC FACTS IN ACCOUNT zzz
-accept	accept	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/ACCOUNT!swap	SHOW SEMANTIC FACTS IN ACCOUNTS
-accept	accept	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/DATABASE	SHOW SEMANTIC FACTS IN DATABASE
-accept	accept	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/DATABASE!insert	SHOW SEMANTIC FACTS IN DATABASE zzz
-accept	accept	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/DATABASE!swap	SHOW SEMANTIC FACTS IN DATABASES
-accept	accept	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/DATABASE_ID	SHOW SEMANTIC FACTS IN DATABASE a
-reject	undocumented	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/DATABASE_ID!insert	SHOW SEMANTIC FACTS IN DATABASE a zzz
-reject	undocumented	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/DATABASE_ID!swap	SHOW SEMANTIC FACTS IN DATABASES a
-accept	accept	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/SCHEMA	SHOW SEMANTIC FACTS IN SCHEMA
-accept	undocumented	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/SCHEMA!insert	SHOW SEMANTIC FACTS IN SCHEMA zzz
-accept	accept	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/SCHEMA!swap	SHOW SEMANTIC FACTS IN SCHEMAS
-accept	accept	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/SCHEMA_ID_._QNAME	SHOW SEMANTIC FACTS IN SCHEMA a.a
-accept	accept	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/SCHEMA_ID_._QNAME!drop-1	SHOW SEMANTIC FACTS IN a.a
-reject	accept	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/SCHEMA_ID_._QNAME!drop-2	SHOW SEMANTIC FACTS IN SCHEMA.a
-reject	undocumented	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/SCHEMA_ID_._QNAME!drop-3	SHOW SEMANTIC FACTS IN SCHEMA a a
-reject	undocumented	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/SCHEMA_ID_._QNAME!drop-4	SHOW SEMANTIC FACTS IN SCHEMA a.
-reject	undocumented	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/SCHEMA_ID_._QNAME!insert	SHOW SEMANTIC FACTS IN SCHEMA a.a zzz
-reject	undocumented	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/SCHEMA_ID_._QNAME!swap	SHOW SEMANTIC FACTS IN SCHEMAS a.a
+accept	accept	docs	showSemanticFacts(IN_(QNAME|ACCOUNT|DATABASE|DATABASE_~16426871)?/%empty	SHOW SEMANTIC FACTS
+accept	accept	docs	showSemanticFacts(IN_(QNAME|ACCOUNT|DATABASE|DATABASE_~16426871)?/IN_(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)	SHOW SEMANTIC FACTS IN a
+accept	undocumented	docs	showSemanticFacts(IN_(QNAME|ACCOUNT|DATABASE|DATABASE_~16426871)?/IN_(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)!drop-1	SHOW SEMANTIC FACTS a
+reject	undocumented	docs	showSemanticFacts(IN_(QNAME|ACCOUNT|DATABASE|DATABASE_~16426871)?/IN_(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)!drop-2	SHOW SEMANTIC FACTS IN
+reject	undocumented	docs	showSemanticFacts(IN_(QNAME|ACCOUNT|DATABASE|DATABASE_~16426871)?/IN_(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)!insert	SHOW SEMANTIC FACTS IN a zzz
+accept	undocumented	docs	showSemanticFacts(IN_(QNAME|ACCOUNT|DATABASE|DATABASE_~16426871)?/IN_(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)!swap	SHOW SEMANTIC FACTS INBOUND a
+accept	accept	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/QNAME	SHOW SEMANTIC FACTS IN a
+accept	accept	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/ACCOUNT	SHOW SEMANTIC FACTS IN ACCOUNT
+reject	undocumented	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/ACCOUNT!insert	SHOW SEMANTIC FACTS IN ACCOUNT zzz
+accept	accept	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/ACCOUNT!swap	SHOW SEMANTIC FACTS IN ACCOUNTS
+accept	accept	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/DATABASE	SHOW SEMANTIC FACTS IN DATABASE
+accept	accept	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/DATABASE!insert	SHOW SEMANTIC FACTS IN DATABASE zzz
+accept	accept	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/DATABASE!swap	SHOW SEMANTIC FACTS IN DATABASES
+accept	accept	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/DATABASE_ID	SHOW SEMANTIC FACTS IN DATABASE a
+reject	undocumented	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/DATABASE_ID!insert	SHOW SEMANTIC FACTS IN DATABASE a zzz
+reject	undocumented	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/DATABASE_ID!swap	SHOW SEMANTIC FACTS IN DATABASES a
+accept	accept	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA	SHOW SEMANTIC FACTS IN SCHEMA
+accept	undocumented	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA!insert	SHOW SEMANTIC FACTS IN SCHEMA zzz
+accept	accept	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA!swap	SHOW SEMANTIC FACTS IN SCHEMAS
+accept	accept	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA_ID_._ID	SHOW SEMANTIC FACTS IN SCHEMA a.a
+accept	accept	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA_ID_._ID!drop-1	SHOW SEMANTIC FACTS IN a.a
+reject	accept	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA_ID_._ID!drop-2	SHOW SEMANTIC FACTS IN SCHEMA.a
+reject	undocumented	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA_ID_._ID!drop-3	SHOW SEMANTIC FACTS IN SCHEMA a a
+reject	undocumented	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA_ID_._ID!drop-4	SHOW SEMANTIC FACTS IN SCHEMA a.
+reject	undocumented	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA_ID_._ID!insert	SHOW SEMANTIC FACTS IN SCHEMA a.a zzz
+reject	undocumented	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA_ID_._ID!swap	SHOW SEMANTIC FACTS IN SCHEMAS a.a
 accept	accept	docs	showSemanticFacts(STARTS_WITH_STRING)?/%empty	SHOW SEMANTIC FACTS
 accept	accept	docs	showSemanticFacts(STARTS_WITH_STRING)?/STARTS_WITH_STRING	SHOW SEMANTIC FACTS STARTS WITH 's'
 reject	undocumented	docs	showSemanticFacts(STARTS_WITH_STRING)?/STARTS_WITH_STRING!drop-1	SHOW SEMANTIC FACTS WITH 's'
@@ -70179,39 +70186,39 @@ reject	undocumented	docs	showSemanticFacts(LIMIT_NUMBER)?/LIMIT_NUMBER!drop-1	SH
 reject	undocumented	docs	showSemanticFacts(LIMIT_NUMBER)?/LIMIT_NUMBER!drop-2	SHOW SEMANTIC FACTS LIMIT
 reject	undocumented	docs	showSemanticFacts(LIMIT_NUMBER)?/LIMIT_NUMBER!insert	SHOW SEMANTIC FACTS LIMIT 1 zzz
 reject	undocumented	docs	showSemanticFacts(LIMIT_NUMBER)?/LIMIT_NUMBER!swap	SHOW SEMANTIC FACTS LINKED_CATALOG 1
-accept	accept	docs	showSemanticMetrics/SHOW_SEMANTIC_METRICS_(LIKE_STRING)?_(IN_(QNAME|ACCOUNT~6570430d	SHOW SEMANTIC METRICS
+accept	accept	docs	showSemanticMetrics/SHOW_SEMANTIC_METRICS_(LIKE_STRING)?_(IN_(QNAME|ACCOUNT~410b58ac	SHOW SEMANTIC METRICS
 accept	accept	docs	showSemanticMetrics(LIKE_STRING)?/%empty	SHOW SEMANTIC METRICS
 accept	accept	docs	showSemanticMetrics(LIKE_STRING)?/LIKE_STRING	SHOW SEMANTIC METRICS LIKE 's'
 reject	undocumented	docs	showSemanticMetrics(LIKE_STRING)?/LIKE_STRING!drop-1	SHOW SEMANTIC METRICS 's'
 reject	undocumented	docs	showSemanticMetrics(LIKE_STRING)?/LIKE_STRING!drop-2	SHOW SEMANTIC METRICS LIKE
 reject	undocumented	docs	showSemanticMetrics(LIKE_STRING)?/LIKE_STRING!insert	SHOW SEMANTIC METRICS LIKE 's' zzz
 reject	undocumented	docs	showSemanticMetrics(LIKE_STRING)?/LIKE_STRING!swap	SHOW SEMANTIC METRICS LIMIT 's'
-accept	accept	docs	showSemanticMetrics(IN_(QNAME|ACCOUNT|DATABASE|DATABASE_~5f75e9a1)?/%empty	SHOW SEMANTIC METRICS
-accept	accept	docs	showSemanticMetrics(IN_(QNAME|ACCOUNT|DATABASE|DATABASE_~5f75e9a1)?/IN_(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)	SHOW SEMANTIC METRICS IN a
-accept	undocumented	docs	showSemanticMetrics(IN_(QNAME|ACCOUNT|DATABASE|DATABASE_~5f75e9a1)?/IN_(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)!drop-1	SHOW SEMANTIC METRICS a
-reject	undocumented	docs	showSemanticMetrics(IN_(QNAME|ACCOUNT|DATABASE|DATABASE_~5f75e9a1)?/IN_(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)!drop-2	SHOW SEMANTIC METRICS IN
-reject	undocumented	docs	showSemanticMetrics(IN_(QNAME|ACCOUNT|DATABASE|DATABASE_~5f75e9a1)?/IN_(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)!insert	SHOW SEMANTIC METRICS IN a zzz
-accept	undocumented	docs	showSemanticMetrics(IN_(QNAME|ACCOUNT|DATABASE|DATABASE_~5f75e9a1)?/IN_(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)!swap	SHOW SEMANTIC METRICS INBOUND a
-accept	accept	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/QNAME	SHOW SEMANTIC METRICS IN a
-accept	accept	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/ACCOUNT	SHOW SEMANTIC METRICS IN ACCOUNT
-reject	undocumented	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/ACCOUNT!insert	SHOW SEMANTIC METRICS IN ACCOUNT zzz
-accept	accept	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/ACCOUNT!swap	SHOW SEMANTIC METRICS IN ACCOUNTS
-accept	accept	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/DATABASE	SHOW SEMANTIC METRICS IN DATABASE
-accept	accept	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/DATABASE!insert	SHOW SEMANTIC METRICS IN DATABASE zzz
-accept	accept	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/DATABASE!swap	SHOW SEMANTIC METRICS IN DATABASES
-accept	accept	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/DATABASE_ID	SHOW SEMANTIC METRICS IN DATABASE a
-reject	undocumented	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/DATABASE_ID!insert	SHOW SEMANTIC METRICS IN DATABASE a zzz
-reject	undocumented	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/DATABASE_ID!swap	SHOW SEMANTIC METRICS IN DATABASES a
-accept	accept	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/SCHEMA	SHOW SEMANTIC METRICS IN SCHEMA
-accept	undocumented	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/SCHEMA!insert	SHOW SEMANTIC METRICS IN SCHEMA zzz
-accept	accept	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/SCHEMA!swap	SHOW SEMANTIC METRICS IN SCHEMAS
-accept	accept	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/SCHEMA_ID_._QNAME	SHOW SEMANTIC METRICS IN SCHEMA a.a
-accept	accept	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/SCHEMA_ID_._QNAME!drop-1	SHOW SEMANTIC METRICS IN a.a
-reject	accept	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/SCHEMA_ID_._QNAME!drop-2	SHOW SEMANTIC METRICS IN SCHEMA.a
-reject	undocumented	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/SCHEMA_ID_._QNAME!drop-3	SHOW SEMANTIC METRICS IN SCHEMA a a
-reject	undocumented	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/SCHEMA_ID_._QNAME!drop-4	SHOW SEMANTIC METRICS IN SCHEMA a.
-reject	undocumented	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/SCHEMA_ID_._QNAME!insert	SHOW SEMANTIC METRICS IN SCHEMA a.a zzz
-reject	undocumented	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~ddd57c22)/SCHEMA_ID_._QNAME!swap	SHOW SEMANTIC METRICS IN SCHEMAS a.a
+accept	accept	docs	showSemanticMetrics(IN_(QNAME|ACCOUNT|DATABASE|DATABASE_~16426871)?/%empty	SHOW SEMANTIC METRICS
+accept	accept	docs	showSemanticMetrics(IN_(QNAME|ACCOUNT|DATABASE|DATABASE_~16426871)?/IN_(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)	SHOW SEMANTIC METRICS IN a
+accept	undocumented	docs	showSemanticMetrics(IN_(QNAME|ACCOUNT|DATABASE|DATABASE_~16426871)?/IN_(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)!drop-1	SHOW SEMANTIC METRICS a
+reject	undocumented	docs	showSemanticMetrics(IN_(QNAME|ACCOUNT|DATABASE|DATABASE_~16426871)?/IN_(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)!drop-2	SHOW SEMANTIC METRICS IN
+reject	undocumented	docs	showSemanticMetrics(IN_(QNAME|ACCOUNT|DATABASE|DATABASE_~16426871)?/IN_(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)!insert	SHOW SEMANTIC METRICS IN a zzz
+accept	undocumented	docs	showSemanticMetrics(IN_(QNAME|ACCOUNT|DATABASE|DATABASE_~16426871)?/IN_(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)!swap	SHOW SEMANTIC METRICS INBOUND a
+accept	accept	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/QNAME	SHOW SEMANTIC METRICS IN a
+accept	accept	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/ACCOUNT	SHOW SEMANTIC METRICS IN ACCOUNT
+reject	undocumented	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/ACCOUNT!insert	SHOW SEMANTIC METRICS IN ACCOUNT zzz
+accept	accept	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/ACCOUNT!swap	SHOW SEMANTIC METRICS IN ACCOUNTS
+accept	accept	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/DATABASE	SHOW SEMANTIC METRICS IN DATABASE
+accept	accept	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/DATABASE!insert	SHOW SEMANTIC METRICS IN DATABASE zzz
+accept	accept	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/DATABASE!swap	SHOW SEMANTIC METRICS IN DATABASES
+accept	accept	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/DATABASE_ID	SHOW SEMANTIC METRICS IN DATABASE a
+reject	undocumented	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/DATABASE_ID!insert	SHOW SEMANTIC METRICS IN DATABASE a zzz
+reject	undocumented	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/DATABASE_ID!swap	SHOW SEMANTIC METRICS IN DATABASES a
+accept	accept	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA	SHOW SEMANTIC METRICS IN SCHEMA
+accept	undocumented	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA!insert	SHOW SEMANTIC METRICS IN SCHEMA zzz
+accept	accept	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA!swap	SHOW SEMANTIC METRICS IN SCHEMAS
+accept	accept	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA_ID_._ID	SHOW SEMANTIC METRICS IN SCHEMA a.a
+accept	accept	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA_ID_._ID!drop-1	SHOW SEMANTIC METRICS IN a.a
+reject	accept	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA_ID_._ID!drop-2	SHOW SEMANTIC METRICS IN SCHEMA.a
+reject	undocumented	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA_ID_._ID!drop-3	SHOW SEMANTIC METRICS IN SCHEMA a a
+reject	undocumented	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA_ID_._ID!drop-4	SHOW SEMANTIC METRICS IN SCHEMA a.
+reject	undocumented	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA_ID_._ID!insert	SHOW SEMANTIC METRICS IN SCHEMA a.a zzz
+reject	undocumented	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA_ID_._ID!swap	SHOW SEMANTIC METRICS IN SCHEMAS a.a
 accept	accept	docs	showSemanticMetrics(STARTS_WITH_STRING)?/%empty	SHOW SEMANTIC METRICS
 accept	accept	docs	showSemanticMetrics(STARTS_WITH_STRING)?/STARTS_WITH_STRING	SHOW SEMANTIC METRICS STARTS WITH 's'
 reject	undocumented	docs	showSemanticMetrics(STARTS_WITH_STRING)?/STARTS_WITH_STRING!drop-1	SHOW SEMANTIC METRICS WITH 's'
@@ -71447,7 +71454,7 @@ accept	accept	docs	useDatabase(DATABASE)?/DATABASE	USE DATABASE a
 reject	undocumented	docs	useDatabase(DATABASE)?/DATABASE!insert	USE DATABASE zzz a
 reject	undocumented	docs	useDatabase(DATABASE)?/DATABASE!swap	USE DATABASES a
 accept	accept	docs	useRole/USE_ROLE_ID	USE ROLE a
-accept	accept	docs	useSchema/USE_(SCHEMA)?_(ID_.)?_QNAME	USE a
+accept	accept	docs	useSchema/USE_(SCHEMA)?_(ID_.)?_ID	USE a
 accept	accept	docs	useSchema(SCHEMA)?/%empty	USE a
 accept	accept	docs	useSchema(SCHEMA)?/SCHEMA	USE SCHEMA a
 reject	undocumented	docs	useSchema(SCHEMA)?/SCHEMA!insert	USE SCHEMA zzz a

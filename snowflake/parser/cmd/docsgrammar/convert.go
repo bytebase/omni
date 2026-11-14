@@ -1249,6 +1249,18 @@ func (c *converter) convert(text string, statement bool) ([]string, error) {
 			toks[i].text = "num"
 		}
 	}
+	// [ <db_name>. ]<name>: a name the notation already qualifies is one
+	// part, not a QNAME qualified again.
+	for i, t := range toks {
+		if t.kind != nPlaceholder || placeholderClass(t.text) != tQName {
+			continue
+		}
+		dot := i >= 1 && isLiteral(toks[i-1], ".") ||
+			i >= 2 && toks[i-1].kind == nClose && toks[i-1].text == "]" && isLiteral(toks[i-2], ".")
+		if dot {
+			toks[i].text = "part_name"
+		}
+	}
 	// KEY = with nothing after it is a value the docs left out; an = alone
 	// in brackets, INCREMENT [ BY ] [ = ] <n>, is an optional sign.
 	for i, t := range toks {

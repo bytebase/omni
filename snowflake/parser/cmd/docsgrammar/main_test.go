@@ -421,3 +421,12 @@ func TestAnAccountObjectsNameIsOnePart(t *testing.T) {
 		}
 	}
 }
+
+// TestAnExplicitNamespaceKeepsTheNameOnePart pins [ <db_name>. ]<name>:
+// the name after the notation's own dot is one part.
+func TestAnExplicitNamespaceKeepsTheNameOnePart(t *testing.T) {
+	pg := convertPage("use-schema", []string{"USE [ SCHEMA ] [<db_name>.]<name>"}, nil)
+	if want := "'USE' 'SCHEMA'? (ID '.')? ID"; len(pg.forms) != 1 || pg.forms[0] != want {
+		t.Errorf("forms %q, want %s", pg.forms, want)
+	}
+}
