@@ -861,6 +861,12 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 	// keeps the space so the call does not re-lex as the builtin.
 	spacedGeneric := schema == "" && !p.backtickQuotedAt(p.prev.Loc) && p.spacedFuncWordIsName(strings.ToUpper(name))
 	builtin := schema == "" && !p.backtickQuotedAt(p.prev.Loc) && !spacedGeneric
+	// An unqualified call through function_call_generic, IDENT_sys '('
+	// opt_udf_expr_list ')', takes udf_expr arguments, each `expr [select_alias]`.
+	// A native function refuses the alias (1583) and a stored one does (1584), but
+	// only once the statement has parsed. A keyword's own production, a qualified
+	// name and a SYM_FN word right before '(' take plain expressions.
+	udfArgs := schema == "" && (p.backtickQuotedAt(p.prev.Loc) || p.prev.Type == tokIDENT && !p.adjacentSymFn(strings.ToUpper(name)))
 	// A spaced gated keyword is a generic stored-function call, which a partition
 	// expression forbids like any qualified or quoted one: mysql:8.0 accepts
 	// HASH(sum(a)) but rejects HASH(sum (a)) and HASH(`sum`(a)).
@@ -982,6 +988,18 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 			return nil, p.syntaxErrorAtCur()
 		}
 		fc.Args = append(fc.Args, arg)
+		if udfArgs {
+			alias, err := p.parseUDFArgAlias()
+			if err != nil {
+				return nil, err
+			}
+			if alias != nil {
+				for len(fc.ArgAliases) < len(fc.Args)-1 {
+					fc.ArgAliases = append(fc.ArgAliases, nil)
+				}
+				fc.ArgAliases = append(fc.ArgAliases, alias)
+			}
+		}
 		if p.cur.Type != ',' {
 			break
 		}
@@ -2181,6 +2199,32 @@ func (p *Parser) parseCastExpr() (nodes.ExprNode, error) {
 		TypeName: dt,
 		Array:    isArray,
 	}, nil
+}
+
+// parseUDFArgAlias reads a udf_expr's select_alias, `[AS] ident` or `[AS]
+// 'text'`, and returns nil when none follows. An alias may be empty: `f(a AS '')`.
+// Ref: udf_expr and select_alias in MySQL 8.0 sql/sql_yacc.yy.
+func (p *Parser) parseUDFArgAlias() (*string, error) {
+	_, as := p.match(kwAS)
+	if p.cur.Type == tokSCONST {
+		alias := p.advance().Str
+		return &alias, nil
+	}
+	if as || p.isIdentToken() {
+		alias, _, err := p.parseIdent()
+		if err != nil {
+			return nil, err
+		}
+		return &alias, nil
+	}
+	return nil, nil
+}
+
+// adjacentSymFn reports whether the function word just read is a SYM_FN word
+// right before its '(', which the lexer folds into the keyword of a production
+// of its own. p.prev is the word and p.cur its '('.
+func (p *Parser) adjacentSymFn(upperName string) bool {
+	return (spacedTemporalWords[upperName] || spacedFuncWords[upperName]) && p.prev.End == p.cur.Loc
 }
 
 // parseCastAtTimeZone reads the rest of CAST(expr AT TIME ZONE [INTERVAL] 'tz' AS

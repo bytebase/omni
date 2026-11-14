@@ -3072,7 +3072,11 @@ func (p *Parser) parseQueryHint() (nodes.Node, error) {
 						hintNames = append(hintNames, &nodes.String{Str: p.cur.Str})
 						p.advance()
 					}
-					p.match(',')
+					if _, ok := p.match(','); !ok {
+						// Anything but a hint name or a comma: the loop
+						// would not move.
+						break
+					}
 				}
 				if _, err := p.expect(')'); err != nil {
 					return nil, err

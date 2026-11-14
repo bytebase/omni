@@ -600,6 +600,9 @@ func TestDeparseContainer_7_1_WindowFunctions(t *testing.T) {
 		{"named_window", "v_wf_named", "CREATE VIEW v_wf_named AS SELECT a, RANK() OVER w, DENSE_RANK() OVER w FROM t WINDOW w AS (ORDER BY a)"},
 		{"multiple_window_funcs", "v_wf_multi", "CREATE VIEW v_wf_multi AS SELECT a, ROW_NUMBER() OVER (ORDER BY a), SUM(b) OVER (ORDER BY a) FROM t"},
 		{"lag_lead", "v_wf_lagld", "CREATE VIEW v_wf_lagld AS SELECT a, LAG(a, 1) OVER (ORDER BY a), LEAD(a, 1) OVER (ORDER BY a) FROM t"},
+		{"empty_window", "v_wf_empty", "CREATE VIEW v_wf_empty AS SELECT a, ROW_NUMBER() OVER () AS r FROM t"},
+		{"percentile", "v_wf_pct", "CREATE VIEW v_wf_pct AS SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY a) OVER () AS p1, PERCENTILE_DISC(0.5) WITHIN GROUP (ORDER BY b DESC) OVER (PARTITION BY a, c) AS p2, PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY b ASC) OVER (PARTITION BY a) AS p3 FROM t"},
+		{"median", "v_wf_median", "CREATE VIEW v_wf_median AS SELECT MEDIAN(b) OVER (PARTITION BY a) AS m1, MEDIAN(a + 1) OVER () AS m2 FROM t"},
 	}
 
 	for _, tc := range cases {
@@ -802,6 +805,7 @@ func TestDeparseContainer_1_3_LiteralsSpacing(t *testing.T) {
 		{"escaped_quotes", "v_esc_quotes", "CREATE VIEW v_esc_quotes AS SELECT 'it''s' FROM t"},
 		{"escaped_backslash", "v_esc_bslash", "CREATE VIEW v_esc_bslash AS SELECT 'back\\\\slash' FROM t"},
 		{"temporal_literals", "v_temporal", "CREATE VIEW v_temporal AS SELECT DATE '2024-01-01', TIME '12:00:00', TIMESTAMP '2024-01-01 12:00:00' FROM t"},
+		{"introduced_byte_strings", "v_intro_bytes", "CREATE VIEW v_intro_bytes AS SELECT _utf8mb4 0x41 AS c1, _latin1 X'61' AS c2, _utf8mb4 b'1000001' AS c3, _binary 0x41 + 1 AS c4 FROM t"},
 		{"func_args_no_space", "v_func_args", "CREATE VIEW v_func_args AS SELECT CONCAT(a, b, c) FROM t"},
 		{"in_list_no_space", "v_in_list", "CREATE VIEW v_in_list AS SELECT a IN (1, 2, 3) FROM t"},
 	}
@@ -1161,6 +1165,11 @@ func TestDeparseContainer_2_3_SpecialFunctions(t *testing.T) {
 		{"group_concat_basic", "v_gc_basic", "CREATE VIEW v_gc_basic AS SELECT GROUP_CONCAT(a ORDER BY a SEPARATOR ',') FROM t", ""},
 		{"group_concat_full", "v_gc_full", "CREATE VIEW v_gc_full AS SELECT GROUP_CONCAT(DISTINCT a ORDER BY a DESC SEPARATOR ';') FROM t", ""},
 		{"simple_case", "v_simple_case", "CREATE VIEW v_simple_case AS SELECT CASE a WHEN 1 THEN 'one' WHEN 2 THEN 'two' ELSE 'other' END FROM t", ""},
+		{"trim_oracle", "v_trim_oracle", "CREATE VIEW v_trim_oracle AS SELECT TRIM_ORACLE(a) AS c1, TRIM_ORACLE(LEADING 'x' FROM a) AS c2, TRIM_ORACLE('x' FROM a) AS c3, TRIM_ORACLE(TRAILING FROM a) AS c4 FROM tv", "CREATE TABLE tv (a VARCHAR(50), b VARCHAR(50), c INT)"},
+		{"trim_mariadb_schema", "v_trim_mariadb_schema", "CREATE VIEW v_trim_mariadb_schema AS SELECT mariadb_schema.trim(LEADING 'x' FROM a) AS c1, mariadb_schema.trim('x' FROM a) AS c2, mariadb_schema.trim(a) AS c3 FROM tv", "CREATE TABLE tv (a VARCHAR(50), b VARCHAR(50), c INT)"},
+		{"value_func", "v_value_func", "CREATE VIEW v_value_func AS SELECT VALUE(a) AS c1, VALUE(t.b) AS c2 FROM t", ""},
+		{"dyncol_create", "v_dyncol_create", "CREATE VIEW v_dyncol_create AS SELECT COLUMN_CREATE('a', 1 AS INT, 'b', 'x' AS CHAR CHARACTER SET latin1, 'c', 1.5 AS DECIMAL(5,2), 'd', a AS UNSIGNED INT, 'e', 1 AS REAL, 'f', '10:00' AS TIME(2), 'g', 'y' AS NCHAR, 'h', 'z' AS CHAR BYTE, 'i', 2) AS c1 FROM tv", "CREATE TABLE tv (a VARCHAR(50), b VARCHAR(50), c INT)"},
+		{"dyncol_add_delete_get", "v_dyncol_get", "CREATE VIEW v_dyncol_get AS SELECT COLUMN_ADD(a, 'x', 1 AS DOUBLE, 'y', 'q' AS CHAR CHARSET latin1 COLLATE latin1_bin) AS c1, COLUMN_DELETE(a, 'a', 'b') AS c2, COLUMN_GET(a, 'a' AS INT) AS c3, COLUMN_GET(a, 'a' AS CHAR(3)) AS c4, COLUMN_GET(a, 'a' AS DECIMAL(10,2)) AS c5 FROM tv", "CREATE TABLE tv (a VARCHAR(50), b VARCHAR(50), c INT)"},
 	}
 
 	for _, tc := range cases {

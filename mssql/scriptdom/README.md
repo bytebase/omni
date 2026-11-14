@@ -24,12 +24,18 @@ ambiguity and lets callers reuse a single process across many fixtures.
 
 ## Consumers
 
-`mssql/parser/scriptdom_harness_test.go` (Go, build tag `scriptdom`) drives
-this harness in batch mode and diffs omni's AST against the ScriptDOM shape.
+The tests in `mssql/parser` that diff omni's AST against ScriptDOM's
+(`scriptdom_harness_test.go`, and the collation, `AT TIME ZONE` and
+unclosed-parenthesis tests) reach this harness through
+`testcontainer.OpenScriptDOM`: a replay of each test's tape, or, in a
+recording, this harness built and run in the .NET SDK image that
+`mssql/testdata/pins.tsv` pins as `scriptdom`, by digest. The pin's tag is
+the ScriptDOM version `harness.csproj` references; a recording fails while
+they differ. After changing `Program.cs` or the package version, record the
+tests again:
 
-Run with:
 ```bash
-go test ./mssql/parser/ -run TestScriptDOMDiff -v
+OMNI_RECORD=1 go test ./mssql/parser/
 ```
 
 ## Shape covered

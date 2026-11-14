@@ -5316,28 +5316,28 @@ accept	accept	engine	opt_histogram_update_param/%empty	ANALYZE TABLE utf8mb4 UPD
 reject	reject	engine	opt_histogram_update_param/%empty!insert	ANALYZE TABLE utf8mb4 UPDATE HISTOGRAM ON utf8mb4 zzz;
 accept	accept	engine	opt_histogram_update_param/WITH_NUM_BUCKETS_SYM	ANALYZE TABLE utf8mb4 UPDATE HISTOGRAM ON utf8mb4 WITH 1 BUCKETS;
 reject	reject	engine	opt_histogram_update_param/WITH_NUM_BUCKETS_SYM!drop-1	ANALYZE TABLE utf8mb4 UPDATE HISTOGRAM ON utf8mb4 1 BUCKETS;
-accept	reject	engine	opt_histogram_update_param/WITH_NUM_BUCKETS_SYM!drop-2	ANALYZE TABLE utf8mb4 UPDATE HISTOGRAM ON utf8mb4 WITH BUCKETS;
-accept	reject	engine	opt_histogram_update_param/WITH_NUM_BUCKETS_SYM!drop-3	ANALYZE TABLE utf8mb4 UPDATE HISTOGRAM ON utf8mb4 WITH 1;
-accept	reject	engine	opt_histogram_update_param/WITH_NUM_BUCKETS_SYM!truncate	ANALYZE TABLE utf8mb4 UPDATE HISTOGRAM ON utf8mb4 WITH 1
+reject	reject	engine	opt_histogram_update_param/WITH_NUM_BUCKETS_SYM!drop-2	ANALYZE TABLE utf8mb4 UPDATE HISTOGRAM ON utf8mb4 WITH BUCKETS;
+reject	reject	engine	opt_histogram_update_param/WITH_NUM_BUCKETS_SYM!drop-3	ANALYZE TABLE utf8mb4 UPDATE HISTOGRAM ON utf8mb4 WITH 1;
+reject	reject	engine	opt_histogram_update_param/WITH_NUM_BUCKETS_SYM!truncate	ANALYZE TABLE utf8mb4 UPDATE HISTOGRAM ON utf8mb4 WITH 1
 reject	reject	engine	opt_histogram_update_param/WITH_NUM_BUCKETS_SYM!insert	ANALYZE TABLE utf8mb4 UPDATE HISTOGRAM ON utf8mb4 WITH 1 BUCKETS zzz;
 reject	reject	engine	opt_histogram_update_param/WITH_NUM_BUCKETS_SYM!swap	ANALYZE TABLE utf8mb4 UPDATE HISTOGRAM ON utf8mb4 WITHOUT 1 BUCKETS;
 accept	accept	engine	opt_histogram_update_param/USING_DATA_SYM_TEXT_STRING_literal	ANALYZE TABLE utf8mb4 UPDATE HISTOGRAM ON utf8mb4 USING DATA 's';
 reject	reject	engine	opt_histogram_update_param/USING_DATA_SYM_TEXT_STRING_literal!drop-1	ANALYZE TABLE utf8mb4 UPDATE HISTOGRAM ON utf8mb4 DATA 's';
-accept	reject	engine	opt_histogram_update_param/USING_DATA_SYM_TEXT_STRING_literal!drop-2	ANALYZE TABLE utf8mb4 UPDATE HISTOGRAM ON utf8mb4 USING 's';
-accept	reject	engine	opt_histogram_update_param/USING_DATA_SYM_TEXT_STRING_literal!drop-3	ANALYZE TABLE utf8mb4 UPDATE HISTOGRAM ON utf8mb4 USING DATA;
-accept	reject	engine	opt_histogram_update_param/USING_DATA_SYM_TEXT_STRING_literal!truncate	ANALYZE TABLE utf8mb4 UPDATE HISTOGRAM ON utf8mb4 USING DATA
+reject	reject	engine	opt_histogram_update_param/USING_DATA_SYM_TEXT_STRING_literal!drop-2	ANALYZE TABLE utf8mb4 UPDATE HISTOGRAM ON utf8mb4 USING 's';
+reject	reject	engine	opt_histogram_update_param/USING_DATA_SYM_TEXT_STRING_literal!drop-3	ANALYZE TABLE utf8mb4 UPDATE HISTOGRAM ON utf8mb4 USING DATA;
+reject	reject	engine	opt_histogram_update_param/USING_DATA_SYM_TEXT_STRING_literal!truncate	ANALYZE TABLE utf8mb4 UPDATE HISTOGRAM ON utf8mb4 USING DATA
 reject	reject	engine	opt_histogram_update_param/USING_DATA_SYM_TEXT_STRING_literal!insert	ANALYZE TABLE utf8mb4 UPDATE HISTOGRAM ON utf8mb4 USING DATA 's' zzz;
 reject	reject	engine	opt_histogram_update_param/USING_DATA_SYM_TEXT_STRING_literal!swap	ANALYZE TABLE utf8mb4 UPDATE HISTOGRAM ON utf8mb4 UTC_DATE DATA 's';
 accept	accept	engine	opt_histogram/%empty	ANALYZE TABLE utf8mb4;
 accept	accept	engine	opt_histogram/UPDATE_SYM_HISTOGRAM_SYM_ON_SYM_ident_string_list_opt_histogram_update_param	ANALYZE TABLE utf8mb4 UPDATE HISTOGRAM ON utf8mb4;
 reject	reject	engine	opt_histogram/UPDATE_SYM_HISTOGRAM_SYM_ON_SYM_ident_string_list_opt_histogram_update_param!drop-1	ANALYZE TABLE utf8mb4 HISTOGRAM ON utf8mb4;
-accept	reject	engine	opt_histogram/UPDATE_SYM_HISTOGRAM_SYM_ON_SYM_ident_string_list_opt_histogram_update_param!drop-2	ANALYZE TABLE utf8mb4 UPDATE ON utf8mb4;
+reject	reject	engine	opt_histogram/UPDATE_SYM_HISTOGRAM_SYM_ON_SYM_ident_string_list_opt_histogram_update_param!drop-2	ANALYZE TABLE utf8mb4 UPDATE ON utf8mb4;
 reject	reject	engine	opt_histogram/UPDATE_SYM_HISTOGRAM_SYM_ON_SYM_ident_string_list_opt_histogram_update_param!drop-3	ANALYZE TABLE utf8mb4 UPDATE HISTOGRAM utf8mb4;
 reject	reject	engine	opt_histogram/UPDATE_SYM_HISTOGRAM_SYM_ON_SYM_ident_string_list_opt_histogram_update_param!drop-4	ANALYZE TABLE utf8mb4 UPDATE HISTOGRAM ON;
 reject	reject	engine	opt_histogram/UPDATE_SYM_HISTOGRAM_SYM_ON_SYM_ident_string_list_opt_histogram_update_param!truncate	ANALYZE TABLE utf8mb4 UPDATE HISTOGRAM ON
 reject	reject	engine	opt_histogram/UPDATE_SYM_HISTOGRAM_SYM_ON_SYM_ident_string_list_opt_histogram_update_param!swap	ANALYZE TABLE utf8mb4 UPGRADE HISTOGRAM ON utf8mb4;
 accept	accept	engine	opt_histogram/DROP_HISTOGRAM_SYM_ON_SYM_ident_string_list	ANALYZE TABLE utf8mb4 DROP HISTOGRAM ON utf8mb4;
-accept	reject	engine	opt_histogram/DROP_HISTOGRAM_SYM_ON_SYM_ident_string_list!drop-2	ANALYZE TABLE utf8mb4 DROP ON utf8mb4;
+reject	reject	engine	opt_histogram/DROP_HISTOGRAM_SYM_ON_SYM_ident_string_list!drop-2	ANALYZE TABLE utf8mb4 DROP ON utf8mb4;
 reject	reject	engine	opt_histogram/DROP_HISTOGRAM_SYM_ON_SYM_ident_string_list!drop-3	ANALYZE TABLE utf8mb4 DROP HISTOGRAM utf8mb4;
 reject	reject	engine	opt_histogram/DROP_HISTOGRAM_SYM_ON_SYM_ident_string_list!drop-4	ANALYZE TABLE utf8mb4 DROP HISTOGRAM ON;
 reject	reject	engine	opt_histogram/DROP_HISTOGRAM_SYM_ON_SYM_ident_string_list!truncate	ANALYZE TABLE utf8mb4 DROP HISTOGRAM ON
@@ -6959,14 +6959,14 @@ reject	reject	engine	opt_query_expansion/WITH_QUERY_SYM_EXPANSION_SYM!swap	DO MA
 accept	accept	engine	opt_udf_expr_list/%empty	DO utf8mb4();
 accept	accept	engine	opt_udf_expr_list/%empty!insert	DO utf8mb4(zzz);
 accept	accept	engine	opt_udf_expr_list/udf_expr_list	DO utf8mb4(utf8mb4);
-reject	accept	engine	opt_udf_expr_list/udf_expr_list!insert	DO utf8mb4(utf8mb4 zzz);
+accept	accept	engine	opt_udf_expr_list/udf_expr_list!insert	DO utf8mb4(utf8mb4 zzz);
 accept	accept	engine	udf_expr_list/udf_expr	DO utf8mb4(utf8mb4);
 accept	accept	engine	udf_expr_list/udf_expr_list_,_udf_expr	DO utf8mb4(utf8mb4, utf8mb4);
 reject	reject	engine	udf_expr_list/udf_expr_list_,_udf_expr!drop-1	DO utf8mb4(, utf8mb4);
-reject	accept	engine	udf_expr_list/udf_expr_list_,_udf_expr!drop-2	DO utf8mb4(utf8mb4 utf8mb4);
+accept	accept	engine	udf_expr_list/udf_expr_list_,_udf_expr!drop-2	DO utf8mb4(utf8mb4 utf8mb4);
 reject	reject	engine	udf_expr_list/udf_expr_list_,_udf_expr!drop-3	DO utf8mb4(utf8mb4,);
 reject	reject	engine	udf_expr_list/udf_expr_list_,_udf_expr!truncate	DO utf8mb4(utf8mb4,
-reject	accept	engine	udf_expr_list/udf_expr_list_,_udf_expr!insert	DO utf8mb4(utf8mb4, utf8mb4 zzz);
+accept	accept	engine	udf_expr_list/udf_expr_list_,_udf_expr!insert	DO utf8mb4(utf8mb4, utf8mb4 zzz);
 accept	accept	engine	udf_expr/expr_select_alias	DO utf8mb4(utf8mb4);
 accept	accept	engine	set_function_specification/sum_expr	DO AVG(utf8mb4);
 accept	accept	engine	set_function_specification/grouping_operation	DO GROUPING(utf8mb4);
@@ -10660,12 +10660,12 @@ reject	reject	engine	set_resource_group_stmt/SET_SYM_RESOURCE_SYM_GROUP_SYM_iden
 reject	reject	engine	set_resource_group_stmt/SET_SYM_RESOURCE_SYM_GROUP_SYM_ident_FOR_SYM_thread_id_list_options!drop-3	SET RESOURCE utf8mb4 FOR 1;
 reject	reject	engine	set_resource_group_stmt/SET_SYM_RESOURCE_SYM_GROUP_SYM_ident_FOR_SYM_thread_id_list_options!drop-4	SET RESOURCE GROUP FOR 1;
 reject	reject	engine	set_resource_group_stmt/SET_SYM_RESOURCE_SYM_GROUP_SYM_ident_FOR_SYM_thread_id_list_options!drop-5	SET RESOURCE GROUP utf8mb4 1;
-accept	reject	engine	set_resource_group_stmt/SET_SYM_RESOURCE_SYM_GROUP_SYM_ident_FOR_SYM_thread_id_list_options!drop-6	SET RESOURCE GROUP utf8mb4 FOR;
-accept	reject	engine	set_resource_group_stmt/SET_SYM_RESOURCE_SYM_GROUP_SYM_ident_FOR_SYM_thread_id_list_options!truncate	SET RESOURCE GROUP utf8mb4 FOR
+reject	reject	engine	set_resource_group_stmt/SET_SYM_RESOURCE_SYM_GROUP_SYM_ident_FOR_SYM_thread_id_list_options!drop-6	SET RESOURCE GROUP utf8mb4 FOR;
+reject	reject	engine	set_resource_group_stmt/SET_SYM_RESOURCE_SYM_GROUP_SYM_ident_FOR_SYM_thread_id_list_options!truncate	SET RESOURCE GROUP utf8mb4 FOR
 reject	reject	engine	set_resource_group_stmt/SET_SYM_RESOURCE_SYM_GROUP_SYM_ident_FOR_SYM_thread_id_list_options!insert	SET RESOURCE GROUP utf8mb4 FOR 1 zzz;
 reject	reject	engine	set_resource_group_stmt/SET_SYM_RESOURCE_SYM_GROUP_SYM_ident_FOR_SYM_thread_id_list_options!swap	SHARE RESOURCE GROUP utf8mb4 FOR 1;
 accept	accept	engine	thread_id_list/real_ulong_num	SET RESOURCE GROUP utf8mb4 FOR 1;
-reject	accept	engine	thread_id_list/thread_id_list_opt_comma_real_ulong_num	SET RESOURCE GROUP utf8mb4 FOR 1 1;
+accept	accept	engine	thread_id_list/thread_id_list_opt_comma_real_ulong_num	SET RESOURCE GROUP utf8mb4 FOR 1 1;
 accept	accept	engine	thread_id_list/thread_id_list_opt_comma_real_ulong_num!truncate	SET RESOURCE GROUP utf8mb4 FOR 1
 reject	reject	engine	thread_id_list/thread_id_list_opt_comma_real_ulong_num!insert	SET RESOURCE GROUP utf8mb4 FOR 1 1 zzz;
 accept	accept	engine	thread_id_list_options/thread_id_list	SET RESOURCE GROUP utf8mb4 FOR 1;
@@ -12249,7 +12249,7 @@ reject	reject	engine	opt_resource_group_vcpu_list/VCPU_SYM_opt_equal_vcpu_range_
 reject	reject	engine	opt_resource_group_vcpu_list/VCPU_SYM_opt_equal_vcpu_range_spec_list!insert	ALTER RESOURCE GROUP utf8mb4 VCPU 1 zzz;
 reject	reject	engine	opt_resource_group_vcpu_list/VCPU_SYM_opt_equal_vcpu_range_spec_list!swap	ALTER RESOURCE GROUP utf8mb4 VIEW 1;
 accept	accept	engine	vcpu_range_spec_list/vcpu_num_or_range	ALTER RESOURCE GROUP utf8mb4 VCPU 1;
-reject	accept	engine	vcpu_range_spec_list/vcpu_range_spec_list_opt_comma_vcpu_num_or_range	ALTER RESOURCE GROUP utf8mb4 VCPU 1 1;
+accept	accept	engine	vcpu_range_spec_list/vcpu_range_spec_list_opt_comma_vcpu_num_or_range	ALTER RESOURCE GROUP utf8mb4 VCPU 1 1;
 accept	accept	engine	vcpu_range_spec_list/vcpu_range_spec_list_opt_comma_vcpu_num_or_range!truncate	ALTER RESOURCE GROUP utf8mb4 VCPU 1
 reject	reject	engine	vcpu_range_spec_list/vcpu_range_spec_list_opt_comma_vcpu_num_or_range!insert	ALTER RESOURCE GROUP utf8mb4 VCPU 1 1 zzz;
 accept	accept	engine	vcpu_num_or_range/NUM	ALTER RESOURCE GROUP utf8mb4 VCPU 1;

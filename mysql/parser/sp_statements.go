@@ -170,6 +170,11 @@ func (p *Parser) setsAutocommit(set *nodes.SetStmt) bool {
 		name := a.Column.Column
 		switch {
 		case strings.HasPrefix(name, "@@"):
+			// The target's name keeps no mark of how it was written: @'@autocommit' is a
+			// user variable and `@@autocommit` a quoted name, so read the text.
+			if p.inputText(a.Column.Loc.Start, a.Column.Loc.Start+2) != "@@" {
+				continue
+			}
 			name = name[2:]
 			if i := strings.LastIndexByte(name, '.'); i >= 0 {
 				name = name[i+1:]
