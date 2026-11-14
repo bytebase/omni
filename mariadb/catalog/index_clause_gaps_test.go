@@ -80,6 +80,15 @@ var addIfNotExistsCases = []struct {
 	// A foreign key looks for a foreign key of the name, on this table, and an index is not one.
 	{name: "foreign key named as an index", table: "t", sql: "ALTER TABLE t ADD FOREIGN KEY IF NOT EXISTS k (b) REFERENCES r (id)", has: []string{"CONSTRAINT `k` FOREIGN KEY (`b`)"}},
 	{name: "foreign key with a symbol named as an index", table: "t", sql: "ALTER TABLE t ADD CONSTRAINT k FOREIGN KEY IF NOT EXISTS (b) REFERENCES r (id)", has: []string{"CONSTRAINT `k` FOREIGN KEY (`b`)"}},
+	// A column, ADD [COLUMN] IF NOT EXISTS: one the table has stays as it is.
+	{name: "column found", table: "t", sql: "ALTER TABLE t ADD IF NOT EXISTS a VARCHAR(5)", has: []string{"`a` int(11)"}, hasNot: []string{"varchar"}},
+	{name: "column new", table: "t", sql: "ALTER TABLE t ADD COLUMN IF NOT EXISTS c INT FIRST", has: []string{"(\n  `c` int(11)"}},
+	{name: "column twice", table: "t", sql: "ALTER TABLE t ADD IF NOT EXISTS c INT, ADD IF NOT EXISTS c VARCHAR(5)", has: []string{"`c` int(11)"}, hasNot: []string{"varchar"}},
+	{name: "column plain after IF NOT EXISTS", table: "t", sql: "ALTER TABLE t ADD IF NOT EXISTS c INT, ADD c INT", errCode: 1060},
+	{name: "column IF NOT EXISTS after plain", table: "t", sql: "ALTER TABLE t ADD c INT, ADD IF NOT EXISTS c VARCHAR(5)", has: []string{"`c` int(11)"}, hasNot: []string{"varchar"}},
+	// The column's own PRIMARY KEY counts even where IF NOT EXISTS skips the column.
+	{name: "skipped column's primary key", table: "np", sql: "ALTER TABLE np ADD IF NOT EXISTS a INT PRIMARY KEY, ADD b INT PRIMARY KEY", errCode: 1068},
+	{name: "column list", table: "t", sql: "ALTER TABLE t ADD IF NOT EXISTS (c INT, a VARCHAR(5), d INT)", has: []string{"`a` int(11)", "`c` int(11)", "`d` int(11)"}, hasNot: []string{"varchar"}},
 }
 
 func TestAddIfNotExists(t *testing.T) {

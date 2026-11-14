@@ -66,6 +66,9 @@ func walkChildren(v Visitor, node Node) {
 		if n.ExchangeTable != nil {
 			Walk(v, n.ExchangeTable)
 		}
+		if n.ConvertTable != nil {
+			Walk(v, n.ConvertTable)
+		}
 		for _, item := range n.OrderByItems {
 			if item != nil {
 				Walk(v, item)
@@ -235,6 +238,11 @@ func walkChildren(v Visitor, node Node) {
 		if n.Generated != nil {
 			Walk(v, n.Generated)
 		}
+		for _, item := range n.EngineOptions {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 	case *CommonTableExpr:
 		if n.Select != nil {
 			Walk(v, n.Select)
@@ -298,6 +306,20 @@ func walkChildren(v Visitor, node Node) {
 			}
 		}
 		for _, item := range n.Options {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+	case *CreatePackageStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, item := range n.Characteristics {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		for _, item := range n.Routines {
 			if item != nil {
 				Walk(v, item)
 			}
@@ -425,6 +447,10 @@ func walkChildren(v Visitor, node Node) {
 	case *DropIndexStmt:
 		if n.Table != nil {
 			Walk(v, n.Table)
+		}
+	case *DropPackageStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
 		}
 	case *DropRoutineStmt:
 		if n.Name != nil {
@@ -729,6 +755,20 @@ func walkChildren(v Visitor, node Node) {
 		}
 	case *OrderByItem:
 		Walk(v, n.Expr)
+	case *PackageRoutineSpec:
+		for _, item := range n.Params {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		if n.Returns != nil {
+			Walk(v, n.Returns)
+		}
+		for _, item := range n.Characteristics {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 	case *ParenExpr:
 		Walk(v, n.Expr)
 	case *PartitionClause:

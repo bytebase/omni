@@ -423,6 +423,12 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeAlterRoutineStmt(sb, n)
 	case *DropRoutineStmt:
 		writeDropRoutineStmt(sb, n)
+	case *CreatePackageStmt:
+		writeCreatePackageStmt(sb, n)
+	case *PackageRoutineSpec:
+		writePackageRoutineSpec(sb, n)
+	case *DropPackageStmt:
+		writeDropPackageStmt(sb, n)
 	case *DropTriggerStmt:
 		writeDropTriggerStmt(sb, n)
 	case *DropEventStmt:
@@ -2919,6 +2925,16 @@ func writeColumnDef(sb *strings.Builder, n *ColumnDef) {
 	if n.SystemVersioning != ColVersioningNone {
 		fmt.Fprintf(sb, " :system_versioning %d", n.SystemVersioning)
 	}
+	if len(n.EngineOptions) > 0 {
+		sb.WriteString(" :engine_options (")
+		for i, opt := range n.EngineOptions {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, opt)
+		}
+		sb.WriteString(")")
+	}
 	if len(n.Constraints) > 0 {
 		sb.WriteString(" :constraints ")
 		for i, c := range n.Constraints {
@@ -3122,6 +3138,9 @@ func writeAlterTableCmd(sb *strings.Builder, n *AlterTableCmd) {
 	if n.IfExists {
 		sb.WriteString(" :if_exists true")
 	}
+	if n.IfNotExists {
+		sb.WriteString(" :if_not_exists true")
+	}
 	if n.First {
 		sb.WriteString(" :first true")
 	}
@@ -3157,6 +3176,10 @@ func writeAlterTableCmd(sb *strings.Builder, n *AlterTableCmd) {
 	if n.ExchangeTable != nil {
 		sb.WriteString(" :exchange_table ")
 		writeNode(sb, n.ExchangeTable)
+	}
+	if n.ConvertTable != nil {
+		sb.WriteString(" :convert_table ")
+		writeNode(sb, n.ConvertTable)
 	}
 	if n.WithValidation != nil {
 		if *n.WithValidation {
@@ -3252,6 +3275,9 @@ func writePartitionDef(sb *strings.Builder, n *PartitionDef) {
 	if n.Values != nil {
 		sb.WriteString(" :values ")
 		writeNode(sb, n.Values)
+	}
+	if n.ValuesIn {
+		sb.WriteString(" :values_in true")
 	}
 	if n.SystemTime != "" {
 		fmt.Fprintf(sb, " :system_time %s", n.SystemTime)
@@ -4951,6 +4977,83 @@ func writeDropRoutineStmt(sb *strings.Builder, n *DropRoutineStmt) {
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
 	if n.IsProcedure {
 		sb.WriteString(" :is_procedure true")
+	}
+	if n.IfExists {
+		sb.WriteString(" :if_exists true")
+	}
+	if n.Name != nil {
+		sb.WriteString(" :name ")
+		writeNode(sb, n.Name)
+	}
+	sb.WriteString("}")
+}
+
+func writeCreatePackageStmt(sb *strings.Builder, n *CreatePackageStmt) {
+	sb.WriteString("{CREATE_PACKAGE")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.OrReplace {
+		sb.WriteString(" :or_replace true")
+	}
+	if n.IfNotExists {
+		sb.WriteString(" :if_not_exists true")
+	}
+	if n.Definer != "" {
+		fmt.Fprintf(sb, " :definer %s", n.Definer)
+	}
+	if n.Name != nil {
+		sb.WriteString(" :name ")
+		writeNode(sb, n.Name)
+	}
+	if len(n.Characteristics) > 0 {
+		sb.WriteString(" :characteristics")
+		for _, c := range n.Characteristics {
+			sb.WriteString(" ")
+			writeNode(sb, c)
+		}
+	}
+	if len(n.Routines) > 0 {
+		sb.WriteString(" :routines")
+		for _, r := range n.Routines {
+			sb.WriteString(" ")
+			writeNode(sb, r)
+		}
+	}
+	sb.WriteString("}")
+}
+
+func writePackageRoutineSpec(sb *strings.Builder, n *PackageRoutineSpec) {
+	sb.WriteString("{PACKAGE_ROUTINE")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.IsProcedure {
+		sb.WriteString(" :is_procedure true")
+	}
+	fmt.Fprintf(sb, " :name %s", n.Name)
+	if len(n.Params) > 0 {
+		sb.WriteString(" :params")
+		for _, prm := range n.Params {
+			sb.WriteString(" ")
+			writeNode(sb, prm)
+		}
+	}
+	if n.Returns != nil {
+		sb.WriteString(" :returns ")
+		writeNode(sb, n.Returns)
+	}
+	if len(n.Characteristics) > 0 {
+		sb.WriteString(" :characteristics")
+		for _, c := range n.Characteristics {
+			sb.WriteString(" ")
+			writeNode(sb, c)
+		}
+	}
+	sb.WriteString("}")
+}
+
+func writeDropPackageStmt(sb *strings.Builder, n *DropPackageStmt) {
+	sb.WriteString("{DROP_PACKAGE")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Body {
+		sb.WriteString(" :body true")
 	}
 	if n.IfExists {
 		sb.WriteString(" :if_exists true")

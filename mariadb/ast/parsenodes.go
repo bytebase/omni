@@ -304,21 +304,29 @@ const (
 	ATDropSystemVersioning
 	ATAddPeriod
 	ATDropPeriod
+	// MariaDB's CONVERT PARTITION p TO TABLE t and CONVERT TABLE t TO
+	// PARTITION part_definition.
+	ATConvertPartitionToTable
+	ATConvertTableToPartition
 )
 
 // AlterTableCmd represents a single ALTER TABLE operation.
 type AlterTableCmd struct {
-	Loc            Loc
-	Type           AlterTableCmdType
-	Name           string       // column/constraint/index name
-	NewName        string       // for RENAME operations
-	NewTable       *TableRef    // for RENAME TABLE
-	Column         *ColumnDef   // for ADD/MODIFY/CHANGE COLUMN
-	Columns        []*ColumnDef // for ADD (col1, col2, ...) multi-column form
-	Constraint     *Constraint  // for ADD CONSTRAINT
-	Option         *TableOption // for table options
-	DefaultExpr    ExprNode     // for ALTER COLUMN SET DEFAULT expr
-	IfExists       bool
+	Loc         Loc
+	Type        AlterTableCmdType
+	Name        string       // column/constraint/index name
+	NewName     string       // for RENAME operations
+	NewTable    *TableRef    // for RENAME TABLE
+	Column      *ColumnDef   // for ADD/MODIFY/CHANGE COLUMN
+	Columns     []*ColumnDef // for ADD (col1, col2, ...) multi-column form
+	Constraint  *Constraint  // for ADD CONSTRAINT
+	Option      *TableOption // for table options
+	DefaultExpr ExprNode     // for ALTER COLUMN SET DEFAULT expr
+	IfExists    bool
+	// IfNotExists is ADD [COLUMN] IF NOT EXISTS, MariaDB's
+	// opt_if_not_exists_table_element before a column: a column already there
+	// is skipped with a note (1060) instead of failing the statement.
+	IfNotExists    bool
 	First          bool            // FIRST positioning
 	After          string          // AFTER column positioning
 	PartitionNames []string        // for partition operations (DROP/TRUNCATE/ANALYZE/CHECK/OPTIMIZE/REBUILD/REPAIR/REORGANIZE/DISCARD/IMPORT)
@@ -330,10 +338,15 @@ type AlterTableCmd struct {
 	// takes after the PARTITION keyword. The grammar folds both spellings to
 	// one value, so the spelling used is not kept.
 	NoWriteToBinlog bool
-	ExchangeTable   *TableRef        // for EXCHANGE PARTITION ... WITH TABLE
-	WithValidation  *bool            // for EXCHANGE PARTITION: true=WITH VALIDATION, false=WITHOUT VALIDATION, nil=not specified
-	OrderByItems    []*OrderByItem   // for ORDER BY operation
-	PartitionBy     *PartitionClause // for PARTITION BY (repartition)
+	ExchangeTable   *TableRef // for EXCHANGE PARTITION ... WITH TABLE
+	// ConvertTable is the table of MariaDB's CONVERT PARTITION p TO TABLE t
+	// (the table the partition becomes, Name the partition) and of CONVERT
+	// TABLE t TO PARTITION part_definition (the table that becomes the
+	// partition, PartitionDefs[0] the partition).
+	ConvertTable   *TableRef
+	WithValidation *bool            // for EXCHANGE PARTITION: true=WITH VALIDATION, false=WITHOUT VALIDATION, nil=not specified
+	OrderByItems   []*OrderByItem   // for ORDER BY operation
+	PartitionBy    *PartitionClause // for PARTITION BY (repartition)
 	// PeriodStartCol / PeriodEndCol carry ADD PERIOD FOR <name> (start, end);
 	// PeriodName is the period name ("SYSTEM_TIME" or an application-time name).
 	PeriodStartCol string
@@ -514,6 +527,10 @@ type ColumnDef struct {
 	// appeared, even if a later WITHOUT on the same column overrode the net
 	// attribute. MariaDB marks the TABLE system-versioned once a WITH is seen.
 	SystemVersioningWithSeen bool
+	// EngineOptions are the column's engine-defined options, `name = value`
+	// (serial_attribute's engine_defined_option), in the order written. Each
+	// is an IndexOption with Engine set, as an index's are.
+	EngineOptions []*IndexOption
 }
 
 func (d *ColumnDef) nodeTag() {}
@@ -696,9 +713,13 @@ const (
 
 // PartitionDef represents a single partition definition.
 type PartitionDef struct {
-	Loc           Loc
-	Name          string
-	Values        Node   // VALUES LESS THAN (expr) or IN (list) — kept as Node to support heterogeneous partition value types
+	Loc    Loc
+	Name   string
+	Values Node // VALUES LESS THAN (expr) or IN (list) — kept as Node to support heterogeneous partition value types
+	// ValuesIn marks Values as VALUES IN rather than LESS THAN, which an ALTER
+	// TABLE's partition, read before the table's partitioning is known, needs to
+	// be held to it.
+	ValuesIn      bool
 	SystemTime    string // "HISTORY" | "CURRENT" for SYSTEM_TIME partitions ("" otherwise)
 	Options       []*TableOption
 	SubPartitions []*SubPartitionDef
@@ -3103,6 +3124,44 @@ type DropRoutineStmt struct {
 
 func (s *DropRoutineStmt) nodeTag()  {}
 func (s *DropRoutineStmt) stmtNode() {}
+
+// CreatePackageStmt represents MariaDB's CREATE PACKAGE, a package's specification: the
+// functions and procedures the package publishes, which its body defines.
+type CreatePackageStmt struct {
+	Loc             Loc
+	OrReplace       bool
+	IfNotExists     bool
+	Definer         string
+	Name            *TableRef
+	Characteristics []*RoutineCharacteristic // COMMENT, SQL SECURITY
+	Routines        []*PackageRoutineSpec
+}
+
+func (s *CreatePackageStmt) nodeTag()  {}
+func (s *CreatePackageStmt) stmtNode() {}
+
+// PackageRoutineSpec is one function or procedure a package specification publishes.
+type PackageRoutineSpec struct {
+	Loc             Loc
+	IsProcedure     bool
+	Name            string
+	Params          []*FuncParam
+	Returns         *DataType // a function's RETURNS
+	Characteristics []*RoutineCharacteristic
+}
+
+func (s *PackageRoutineSpec) nodeTag() {}
+
+// DropPackageStmt represents MariaDB's DROP PACKAGE [BODY].
+type DropPackageStmt struct {
+	Loc      Loc
+	Body     bool // DROP PACKAGE BODY
+	IfExists bool
+	Name     *TableRef
+}
+
+func (s *DropPackageStmt) nodeTag()  {}
+func (s *DropPackageStmt) stmtNode() {}
 
 // DropTriggerStmt represents a DROP TRIGGER statement.
 type DropTriggerStmt struct {

@@ -562,6 +562,7 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		}
 		// Optional SQL SECURITY {DEFINER|INVOKER} (view_suid)
 		var sqlSecurity string
+		sawSQLSecurity := p.cur.Type == kwSQL
 		if p.cur.Type == kwSQL {
 			if sqlSecurity, err = p.parseViewSQLSecurity(); err != nil {
 				return nil, err
@@ -618,10 +619,17 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 			}
 			return stmt, nil
 		default:
+			// definer_opt sp_handler_package_spec: no SQL SECURITY before PACKAGE.
+			if p.atWord("PACKAGE") && !sawSQLSecurity {
+				return p.parseCreatePackageStmt(start, orReplace, definer)
+			}
 			return nil, &ParseError{Message: "unexpected token after DEFINER clause", Position: p.cur.Loc}
 		}
 
 	default:
+		if p.atWord("PACKAGE") {
+			return p.parseCreatePackageStmt(start, orReplace, "")
+		}
 		return nil, &ParseError{
 			Message:  "unexpected token after CREATE",
 			Position: p.cur.Loc,
@@ -856,6 +864,9 @@ func (p *Parser) parseDropDispatch() (nodes.Node, error) {
 		}, nil
 
 	default:
+		if p.atWord("PACKAGE") && !temporary {
+			return p.parseDropPackageStmt(start)
+		}
 		return nil, &ParseError{
 			Message:  "unexpected token after DROP",
 			Position: p.cur.Loc,
@@ -898,7 +909,10 @@ func (p *Parser) parseDefinerValue() (string, error) {
 		user = "CURRENT_ROLE"
 		p.advance()
 	} else if p.isIdentToken() {
-		user, _, _ = p.parseIdentifier()
+		var err error
+		if user, _, err = p.parseIdentifier(); err != nil {
+			return "", err
+		}
 	} else {
 		return "", p.syntaxErrorAtCur()
 	}
@@ -922,13 +936,19 @@ func (p *Parser) parseDefinerValue() (string, error) {
 		atHost := p.cur.Str // e.g. "@localhost" or "@"
 		p.advance()
 		if atHost == "@" {
-			// Standalone @ followed by host identifier or string
+			// Standalone @ followed by a host string or name that touches it. With
+			// space after it the host is empty: mariadb:11.8.8 reads `root@ VIEW` as
+			// root@'' and refuses `root@ 'h'` and `root@ h`.
 			var host string
-			if p.cur.Type == tokSCONST {
+			adjacent := p.cur.Loc == p.prev.End
+			if adjacent && p.cur.Type == tokSCONST {
 				host = "'" + p.cur.Str + "'"
 				p.advance()
-			} else if p.isIdentToken() {
-				host, _, _ = p.parseIdentifier()
+			} else if adjacent && p.isIdentToken() {
+				var err error
+				if host, _, err = p.parseIdentifier(); err != nil {
+					return "", err
+				}
 			}
 			return user + "@" + host, nil
 		}

@@ -1,0 +1,20 @@
+# StarRocks token forms for generated compat rows: the text written for each
+# token of StarRocksLex.g4 that is a class of texts. Keywords and punctuation
+# spell themselves and need no row. Each note cites the lexer rule in
+# StarRocksLex.g4, whose keywords match in any case (the parser reads a
+# CaseInsensitiveStream).
+# columns: token, form, note
+LETTER_IDENTIFIER	a	StarRocksLex.g4:560 a letter or _, then letters, digits and _
+DIGIT_IDENTIFIER	1a	StarRocksLex.g4:564 a digit, then letters, digits and _
+BACKQUOTED_IDENTIFIER	`a`	StarRocksLex.g4:568 a backquoted name; `` is a backquote in it
+DOT_IDENTIFIER	.1a	StarRocksLex.g4:574 a dot and a DIGIT_IDENTIFIER
+INTEGER_VALUE	1	StarRocksLex.g4:530 decimal digits
+DECIMAL_VALUE	1.5	StarRocksLex.g4:534 digits with a point
+DOUBLE_VALUE	1E1	StarRocksLex.g4:539 digits with an exponent
+SINGLE_QUOTED_TEXT	'a'	StarRocksLex.g4:544 a single-quoted string; '' is a quote in it
+DOUBLE_QUOTED_TEXT	"a"	StarRocksLex.g4:548 a double-quoted string; "" is a quote in it
+BINARY_SINGLE_QUOTED_TEXT	X'00'	StarRocksLex.g4:552 X and a single-quoted string
+BINARY_DOUBLE_QUOTED_TEXT	X"00"	StarRocksLex.g4:556 X and a double-quoted string
+ATTACHMENT	$$a$$	StarRocksLex.g4:610 text between $$ and $$
+CONCAT	(unreachable)	StarRocksLex.g4:24 declared in tokens { }, made of || only under sql_mode PIPES_AS_CONCAT (StarRocksLex.g4:514)
+.	SELECT	StarRocks.g4:2081 translateSQL is any tokens (.+), a statement of the dialect TRANSLATE names
