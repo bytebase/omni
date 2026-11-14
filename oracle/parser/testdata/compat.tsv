@@ -1,4 +1,4 @@
-# pin: default gvenzl/oracle-free:23.26.3-slim-faststart sha256:f5ff19033860d662c821cb04eb10483fa94f14f78eae252d054291ea07028093 23.26.3.0.0 judge 1
+# pin: default gvenzl/oracle-free:23.26.3-slim-faststart sha256:f5ff19033860d662c821cb04eb10483fa94f14f78eae252d054291ea07028093 23.26.3.0.0 judge 2
 # columns: omni, expected, source, rule, statement
 accept	accept	engine	statement/administerKeyManagement	ADMINISTER KEY MANAGEMENT SET KEYSTORE CLOSE
 reject@0	reject@0	engine	statement/administerKeyManagement!drop-1	KEY MANAGEMENT SET KEYSTORE CLOSE
@@ -6051,7 +6051,7 @@ accept	reject@33	engine	alterMaterializedViewLog_alter_table_partitioning(alterM
 accept	accept	engine	alterMaterializedViewLog_alter_table_partitioning(alterMaterializedViewLog_modify_tabl~6c3f86a8)/alterMaterializedViewLog_alter_automatic_partitioning	ALTER MATERIALIZED VIEW LOG ON a SET PARTITIONING AUTOMATIC
 accept	reject@33	engine	alterMaterializedViewLog_alter_table_partitioning(alterMaterializedViewLog_modify_tabl~6c3f86a8)/alterMaterializedViewLog_alter_automatic_partitioning!drop-1	ALTER MATERIALIZED VIEW LOG ON a PARTITIONING AUTOMATIC
 accept	accept	engine	alterMaterializedViewLog_alter_table_partitioning(alterMaterializedViewLog_modify_tabl~6c3f86a8)/alterMaterializedViewLog_alter_automatic_partitioning!drop-2	ALTER MATERIALIZED VIEW LOG ON a SET AUTOMATIC
-accept	accept	engine	alterMaterializedViewLog_alter_table_partitioning(alterMaterializedViewLog_modify_tabl~6c3f86a8)/alterMaterializedViewLog_alter_automatic_partitioning!drop-3	ALTER MATERIALIZED VIEW LOG ON a SET PARTITIONING
+accept	reject@0	engine	alterMaterializedViewLog_alter_table_partitioning(alterMaterializedViewLog_modify_tabl~6c3f86a8)/alterMaterializedViewLog_alter_automatic_partitioning!drop-3	ALTER MATERIALIZED VIEW LOG ON a SET PARTITIONING
 accept	reject@60	engine	alterMaterializedViewLog_alter_table_partitioning(alterMaterializedViewLog_modify_tabl~6c3f86a8)/alterMaterializedViewLog_alter_automatic_partitioning!insert	ALTER MATERIALIZED VIEW LOG ON a SET PARTITIONING AUTOMATIC zzz
 accept	reject@33	engine	alterMaterializedViewLog_alter_table_partitioning(alterMaterializedViewLog_modify_tabl~6c3f86a8)/alterMaterializedViewLog_alter_automatic_partitioning!swap	ALTER MATERIALIZED VIEW LOG ON a SETS PARTITIONING AUTOMATIC
 accept	accept	engine	alterMaterializedViewLog_alter_table_partitioning(alterMaterializedViewLog_modify_tabl~6c3f86a8)/alterMaterializedViewLog_alter_interval_partitioning	ALTER MATERIALIZED VIEW LOG ON a SET INTERVAL()
@@ -8283,20 +8283,20 @@ reject@37	reject@26	engine	alterMaterializedView(alterMaterializedView_physical_
 accept	accept	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_inmemory_table_clause	ALTER MATERIALIZED VIEW a INMEMORY
 reject@35	reject@35	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_inmemory_table_clause!insert	ALTER MATERIALIZED VIEW a INMEMORY zzz
 reject@31	reject@26	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_inmemory_table_clause!swap	ALTER MATERIALIZED VIEW a INNER
-reject@50	accept	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_lob_storage_clause	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(LOGGING)
+reject@50	reject@26	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_lob_storage_clause	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(LOGGING)
 reject@46	reject@25	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_lob_storage_clause!drop-1	ALTER MATERIALIZED VIEW a(a) STORE AS(LOGGING)
-reject@31	accept	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_lob_storage_clause!drop-2	ALTER MATERIALIZED VIEW a LOB a) STORE AS(LOGGING)
-reject@49	accept	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_lob_storage_clause!drop-3	ALTER MATERIALIZED VIEW a LOB() STORE AS(LOGGING)
-reject@49	accept	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_lob_storage_clause!drop-4	ALTER MATERIALIZED VIEW a LOB(a STORE AS(LOGGING)
-reject@44	accept	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_lob_storage_clause!drop-5	ALTER MATERIALIZED VIEW a LOB(a) AS(LOGGING)
-reject@47	accept	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_lob_storage_clause!drop-6	ALTER MATERIALIZED VIEW a LOB(a) STORE(LOGGING)
-reject@49	accept	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_lob_storage_clause!drop-7	ALTER MATERIALIZED VIEW a LOB(a) STORE AS LOGGING)
-reject@43	accept	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_lob_storage_clause!drop-8	ALTER MATERIALIZED VIEW a LOB(a) STORE AS()
-reject@49	accept	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_lob_storage_clause!drop-9	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(LOGGING
-reject@54	accept	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_lob_storage_clause!insert	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(LOGGING) zzz
+reject@31	reject@26	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_lob_storage_clause!drop-2	ALTER MATERIALIZED VIEW a LOB a) STORE AS(LOGGING)
+reject@49	reject@26	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_lob_storage_clause!drop-3	ALTER MATERIALIZED VIEW a LOB() STORE AS(LOGGING)
+reject@49	reject@26	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_lob_storage_clause!drop-4	ALTER MATERIALIZED VIEW a LOB(a STORE AS(LOGGING)
+reject@44	reject@26	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_lob_storage_clause!drop-5	ALTER MATERIALIZED VIEW a LOB(a) AS(LOGGING)
+reject@47	reject@26	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_lob_storage_clause!drop-6	ALTER MATERIALIZED VIEW a LOB(a) STORE(LOGGING)
+reject@49	reject@26	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_lob_storage_clause!drop-7	ALTER MATERIALIZED VIEW a LOB(a) STORE AS LOGGING)
+reject@43	reject@26	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_lob_storage_clause!drop-8	ALTER MATERIALIZED VIEW a LOB(a) STORE AS()
+reject@49	reject@26	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_lob_storage_clause!drop-9	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(LOGGING
+reject@54	reject@26	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_lob_storage_clause!insert	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(LOGGING) zzz
 reject@51	reject@26	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_lob_storage_clause!swap	ALTER MATERIALIZED VIEW a LOBS(a) STORE AS(LOGGING)
 reject@33	reject@40	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_modify_lob_storage_clause	ALTER MATERIALIZED VIEW a MODIFY LOB(a)()
-reject@34	accept	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_modify_lob_storage_clause!drop-1	ALTER MATERIALIZED VIEW a LOB(a)()
+reject@34	reject@26	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_modify_lob_storage_clause!drop-1	ALTER MATERIALIZED VIEW a LOB(a)()
 reject@35	reject@35	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_modify_lob_storage_clause!drop-2	ALTER MATERIALIZED VIEW a MODIFY(a)()
 reject@38	reject@38	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_modify_lob_storage_clause!drop-3	ALTER MATERIALIZED VIEW a MODIFY LOB a)()
 reject@33	reject@37	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_modify_lob_storage_clause!drop-4	ALTER MATERIALIZED VIEW a MODIFY LOB()()
@@ -8306,13 +8306,13 @@ reject@40	reject@40	engine	alterMaterializedView(alterMaterializedView_physical_
 reject@33	reject@40	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_modify_lob_storage_clause!insert	ALTER MATERIALIZED VIEW a MODIFY LOB(a)() zzz
 reject@41	reject@26	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_modify_lob_storage_clause!swap	ALTER MATERIALIZED VIEW a MODULE LOB(a)()
 reject@39	accept	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_alter_table_partitioning	ALTER MATERIALIZED VIEW a ADD PARTITION
-reject@35	accept	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_alter_table_partitioning!drop-1	ALTER MATERIALIZED VIEW a PARTITION
+reject@35	reject@26	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_alter_table_partitioning!drop-1	ALTER MATERIALIZED VIEW a PARTITION
 reject@29	reject@29	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_alter_table_partitioning!drop-2	ALTER MATERIALIZED VIEW a ADD
 reject@43	accept	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_alter_table_partitioning!insert	ALTER MATERIALIZED VIEW a ADD PARTITION zzz
 reject@41	reject@26	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_alter_table_partitioning!swap	ALTER MATERIALIZED VIEW a ADMIN PARTITION
 accept	accept	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_parallel_clause	ALTER MATERIALIZED VIEW a PARALLEL
 reject@35	reject@35	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_parallel_clause!insert	ALTER MATERIALIZED VIEW a PARALLEL zzz
-reject@36	accept	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_parallel_clause!swap	ALTER MATERIALIZED VIEW a PARAMETERS
+reject@36	reject@26	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_parallel_clause!swap	ALTER MATERIALIZED VIEW a PARAMETERS
 accept	accept	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_logging_clause	ALTER MATERIALIZED VIEW a LOGGING
 reject@34	reject@34	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_logging_clause!insert	ALTER MATERIALIZED VIEW a LOGGING zzz
 reject@33	reject@26	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_logging_clause!swap	ALTER MATERIALIZED VIEW a LOGICAL
@@ -8329,7 +8329,7 @@ reject@38	reject@26	engine	alterMaterializedView(alterMaterializedView_physical_
 accept	accept	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_shrink_clause	ALTER MATERIALIZED VIEW a SHRINK SPACE
 reject@31	reject@26	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_shrink_clause!drop-1	ALTER MATERIALIZED VIEW a SPACE
 accept	reject@32	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_shrink_clause!drop-2	ALTER MATERIALIZED VIEW a SHRINK
-reject@39	accept	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_shrink_clause!insert	ALTER MATERIALIZED VIEW a SHRINK SPACE zzz
+reject@39	reject@39	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_shrink_clause!insert	ALTER MATERIALIZED VIEW a SHRINK SPACE zzz
 reject@40	reject@26	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_shrink_clause!swap	ALTER MATERIALIZED VIEW a SHUTDOWN SPACE
 accept	accept	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/(CACHE|NOCACHE)	ALTER MATERIALIZED VIEW a CACHE
 reject@32	reject@32	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/(CACHE|NOCACHE)!insert	ALTER MATERIALIZED VIEW a CACHE zzz
@@ -8401,7 +8401,7 @@ reject@58	reject@26	engine	alterMaterializedView(ENABLE|DISABLE)/DISABLE!swap	AL
 reject@25	reject@25	engine	alterMaterializedView_physical_attributes_clause/(PCTFREE_NUMBER)?_(PCTUSED_NUMBER)?_(INITRANS_NUMBER)?	ALTER MATERIALIZED VIEW a
 reject@25	reject@25	engine	alterMaterializedView_physical_attributes_clause(PCTFREE_NUMBER)?/%empty	ALTER MATERIALIZED VIEW a
 accept	accept	engine	alterMaterializedView_physical_attributes_clause(PCTFREE_NUMBER)?/PCTFREE_NUMBER	ALTER MATERIALIZED VIEW a PCTFREE 1
-reject@27	accept	engine	alterMaterializedView_physical_attributes_clause(PCTFREE_NUMBER)?/PCTFREE_NUMBER!drop-1	ALTER MATERIALIZED VIEW a 1
+reject@27	reject@26	engine	alterMaterializedView_physical_attributes_clause(PCTFREE_NUMBER)?/PCTFREE_NUMBER!drop-1	ALTER MATERIALIZED VIEW a 1
 accept	reject@33	engine	alterMaterializedView_physical_attributes_clause(PCTFREE_NUMBER)?/PCTFREE_NUMBER!drop-2	ALTER MATERIALIZED VIEW a PCTFREE
 reject@36	reject@36	engine	alterMaterializedView_physical_attributes_clause(PCTFREE_NUMBER)?/PCTFREE_NUMBER!insert	ALTER MATERIALIZED VIEW a PCTFREE 1 zzz
 reject@25	reject@25	engine	alterMaterializedView_physical_attributes_clause(PCTUSED_NUMBER)?/%empty	ALTER MATERIALIZED VIEW a
@@ -8413,7 +8413,7 @@ reject@25	reject@25	engine	alterMaterializedView_physical_attributes_clause(INIT
 accept	accept	engine	alterMaterializedView_physical_attributes_clause(INITRANS_NUMBER)?/INITRANS_NUMBER	ALTER MATERIALIZED VIEW a INITRANS 1
 accept	reject@34	engine	alterMaterializedView_physical_attributes_clause(INITRANS_NUMBER)?/INITRANS_NUMBER!drop-2	ALTER MATERIALIZED VIEW a INITRANS
 reject@37	reject@37	engine	alterMaterializedView_physical_attributes_clause(INITRANS_NUMBER)?/INITRANS_NUMBER!insert	ALTER MATERIALIZED VIEW a INITRANS 1 zzz
-reject@35	accept	engine	alterMaterializedView_physical_attributes_clause(INITRANS_NUMBER)?/INITRANS_NUMBER!swap	ALTER MATERIALIZED VIEW a INMEMORY 1
+reject@35	reject@35	engine	alterMaterializedView_physical_attributes_clause(INITRANS_NUMBER)?/INITRANS_NUMBER!swap	ALTER MATERIALIZED VIEW a INMEMORY 1
 accept	accept	engine	alterMaterializedView_modify_mv_column_clause/MODIFY_(_ID_alterMaterializedView_encryption_spec_(,_ID~2da1b141	ALTER MATERIALIZED VIEW a MODIFY(a)
 accept	accept	engine	alterMaterializedView_modify_mv_column_clause(,_ID_alterMaterializedView_encryption_spec)*/%empty	ALTER MATERIALIZED VIEW a MODIFY(a)
 reject@35	accept	engine	alterMaterializedView_modify_mv_column_clause(,_ID_alterMaterializedView_encryption_spec)*/%empty!insert	ALTER MATERIALIZED VIEW a MODIFY(a zzz)
@@ -8471,19 +8471,19 @@ reject@35	reject@66	engine	alterMaterializedView_inmemory_table_clause(alterMate
 reject@67	reject@67	engine	alterMaterializedView_inmemory_table_clause(alterMaterializedView_inmemory_column_clause)?/alterMaterializedView_inmemory_column_clause!drop-7	ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY(a
 reject@35	reject@69	engine	alterMaterializedView_inmemory_table_clause(alterMaterializedView_inmemory_column_clause)?/alterMaterializedView_inmemory_column_clause!insert	ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY(a) zzz
 reject@35	reject@35	engine	alterMaterializedView_inmemory_table_clause(alterMaterializedView_inmemory_column_clause)?/alterMaterializedView_inmemory_column_clause!swap	ALTER MATERIALIZED VIEW a INMEMORY INNER MEMCOMPRESS FOR QUERY(a)
-reject@50	accept	engine	alterMaterializedView_lob_storage_clause/LOB_(_ID_(,_ID)*_)_STORE_AS_(ID)?_(_alterMaterializedVi~40058da6	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(LOGGING)
-reject@50	accept	engine	alterMaterializedView_lob_storage_clause(,_ID)*/%empty	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(LOGGING)
-reject@54	accept	engine	alterMaterializedView_lob_storage_clause(,_ID)*/%empty!insert	ALTER MATERIALIZED VIEW a LOB(a zzz) STORE AS(LOGGING)
-reject@53	accept	engine	alterMaterializedView_lob_storage_clause(,_ID)*/,_ID_(,_ID)*	ALTER MATERIALIZED VIEW a LOB(a, a) STORE AS(LOGGING)
-reject@52	accept	engine	alterMaterializedView_lob_storage_clause(,_ID)*/,_ID_(,_ID)*!drop-1	ALTER MATERIALIZED VIEW a LOB(a a) STORE AS(LOGGING)
-reject@51	accept	engine	alterMaterializedView_lob_storage_clause(,_ID)*/,_ID_(,_ID)*!drop-2	ALTER MATERIALIZED VIEW a LOB(a,) STORE AS(LOGGING)
-reject@32	accept	engine	alterMaterializedView_lob_storage_clause(,_ID)*/,_ID_(,_ID)*!truncate	ALTER MATERIALIZED VIEW a LOB(a,
-reject@57	accept	engine	alterMaterializedView_lob_storage_clause(,_ID)*/,_ID_(,_ID)*!insert	ALTER MATERIALIZED VIEW a LOB(a, a zzz) STORE AS(LOGGING)
-reject@50	accept	engine	alterMaterializedView_lob_storage_clause(ID)?/%empty	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(LOGGING)
-reject@54	accept	engine	alterMaterializedView_lob_storage_clause(ID)?/%empty!insert	ALTER MATERIALIZED VIEW a LOB(a) STORE AS zzz(LOGGING)
-reject@52	accept	engine	alterMaterializedView_lob_storage_clause(ID)?/ID	ALTER MATERIALIZED VIEW a LOB(a) STORE AS a(LOGGING)
-reject@41	accept	engine	alterMaterializedView_lob_storage_clause(ID)?/ID!truncate	ALTER MATERIALIZED VIEW a LOB(a) STORE AS
-reject@56	accept	engine	alterMaterializedView_lob_storage_clause(ID)?/ID!insert	ALTER MATERIALIZED VIEW a LOB(a) STORE AS a zzz(LOGGING)
+reject@50	reject@26	engine	alterMaterializedView_lob_storage_clause/LOB_(_ID_(,_ID)*_)_STORE_AS_(ID)?_(_alterMaterializedVi~40058da6	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(LOGGING)
+reject@50	reject@26	engine	alterMaterializedView_lob_storage_clause(,_ID)*/%empty	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(LOGGING)
+reject@54	reject@26	engine	alterMaterializedView_lob_storage_clause(,_ID)*/%empty!insert	ALTER MATERIALIZED VIEW a LOB(a zzz) STORE AS(LOGGING)
+reject@53	reject@26	engine	alterMaterializedView_lob_storage_clause(,_ID)*/,_ID_(,_ID)*	ALTER MATERIALIZED VIEW a LOB(a, a) STORE AS(LOGGING)
+reject@52	reject@26	engine	alterMaterializedView_lob_storage_clause(,_ID)*/,_ID_(,_ID)*!drop-1	ALTER MATERIALIZED VIEW a LOB(a a) STORE AS(LOGGING)
+reject@51	reject@26	engine	alterMaterializedView_lob_storage_clause(,_ID)*/,_ID_(,_ID)*!drop-2	ALTER MATERIALIZED VIEW a LOB(a,) STORE AS(LOGGING)
+reject@32	reject@26	engine	alterMaterializedView_lob_storage_clause(,_ID)*/,_ID_(,_ID)*!truncate	ALTER MATERIALIZED VIEW a LOB(a,
+reject@57	reject@26	engine	alterMaterializedView_lob_storage_clause(,_ID)*/,_ID_(,_ID)*!insert	ALTER MATERIALIZED VIEW a LOB(a, a zzz) STORE AS(LOGGING)
+reject@50	reject@26	engine	alterMaterializedView_lob_storage_clause(ID)?/%empty	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(LOGGING)
+reject@54	reject@26	engine	alterMaterializedView_lob_storage_clause(ID)?/%empty!insert	ALTER MATERIALIZED VIEW a LOB(a) STORE AS zzz(LOGGING)
+reject@52	reject@26	engine	alterMaterializedView_lob_storage_clause(ID)?/ID	ALTER MATERIALIZED VIEW a LOB(a) STORE AS a(LOGGING)
+reject@41	reject@26	engine	alterMaterializedView_lob_storage_clause(ID)?/ID!truncate	ALTER MATERIALIZED VIEW a LOB(a) STORE AS
+reject@56	reject@26	engine	alterMaterializedView_lob_storage_clause(ID)?/ID!insert	ALTER MATERIALIZED VIEW a LOB(a) STORE AS a zzz(LOGGING)
 reject@33	reject@40	engine	alterMaterializedView_modify_lob_storage_clause/MODIFY_LOB_(_ID_(,_ID)*_)_(_alterMaterializedView_modif~175700e9	ALTER MATERIALIZED VIEW a MODIFY LOB(a)()
 reject@33	reject@40	engine	alterMaterializedView_modify_lob_storage_clause(,_ID)*/%empty	ALTER MATERIALIZED VIEW a MODIFY LOB(a)()
 reject@33	reject@39	engine	alterMaterializedView_modify_lob_storage_clause(,_ID)*/%empty!insert	ALTER MATERIALIZED VIEW a MODIFY LOB(a zzz)()
@@ -8494,7 +8494,7 @@ reject@39	reject@39	engine	alterMaterializedView_modify_lob_storage_clause(,_ID)
 reject@33	reject@40	engine	alterMaterializedView_modify_lob_storage_clause(,_ID)*/,_ID_(,_ID)*!insert	ALTER MATERIALIZED VIEW a MODIFY LOB(a, a zzz)()
 reject@39	accept	engine	alterMaterializedView_alter_table_partitioning/(alterMaterializedView_modify_table_d~62f7450e)	ALTER MATERIALIZED VIEW a ADD PARTITION
 reject@33	accept	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_modify_table_default_attrs	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES
-reject@44	accept	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_modify_table_default_attrs!drop-1	ALTER MATERIALIZED VIEW a DEFAULT ATTRIBUTES
+reject@44	reject@26	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_modify_table_default_attrs!drop-1	ALTER MATERIALIZED VIEW a DEFAULT ATTRIBUTES
 reject@33	accept	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_modify_table_default_attrs!drop-2	ALTER MATERIALIZED VIEW a MODIFY ATTRIBUTES
 reject@33	reject@40	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_modify_table_default_attrs!drop-3	ALTER MATERIALIZED VIEW a MODIFY DEFAULT
 reject@33	reject@52	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_modify_table_default_attrs!insert	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES zzz
@@ -8502,7 +8502,7 @@ reject@51	reject@26	engine	alterMaterializedView_alter_table_partitioning(alterM
 reject@52	accept	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_alter_automatic_partitioning	ALTER MATERIALIZED VIEW a SET PARTITIONING AUTOMATIC
 reject@48	reject@26	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_alter_automatic_partitioning!drop-1	ALTER MATERIALIZED VIEW a PARTITIONING AUTOMATIC
 reject@39	accept	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_alter_automatic_partitioning!drop-2	ALTER MATERIALIZED VIEW a SET AUTOMATIC
-reject@42	accept	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_alter_automatic_partitioning!drop-3	ALTER MATERIALIZED VIEW a SET PARTITIONING
+reject@42	reject@0	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_alter_automatic_partitioning!drop-3	ALTER MATERIALIZED VIEW a SET PARTITIONING
 reject@56	reject@53	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_alter_automatic_partitioning!insert	ALTER MATERIALIZED VIEW a SET PARTITIONING AUTOMATIC zzz
 reject@53	reject@26	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_alter_automatic_partitioning!swap	ALTER MATERIALIZED VIEW a SETS PARTITIONING AUTOMATIC
 reject@40	accept	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_alter_interval_partitioning	ALTER MATERIALIZED VIEW a SET INTERVAL()
@@ -8521,7 +8521,7 @@ reject@65	accept	engine	alterMaterializedView_alter_table_partitioning(alterMate
 reject@71	accept	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_set_subpartition_template!insert	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 zzz
 reject@68	reject@26	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_set_subpartition_template!swap	ALTER MATERIALIZED VIEW a SETS SUBPARTITION TEMPLATE SUBPARTITIONS 1
 reject@33	accept	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_modify_table_partition	ALTER MATERIALIZED VIEW a MODIFY PARTITION a
-reject@37	accept	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_modify_table_partition!drop-1	ALTER MATERIALIZED VIEW a PARTITION a
+reject@37	reject@26	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_modify_table_partition!drop-1	ALTER MATERIALIZED VIEW a PARTITION a
 reject@33	accept	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_modify_table_partition!drop-2	ALTER MATERIALIZED VIEW a MODIFY a
 reject@33	reject@42	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_modify_table_partition!drop-3	ALTER MATERIALIZED VIEW a MODIFY PARTITION
 reject@33	reject@45	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_modify_table_partition!insert	ALTER MATERIALIZED VIEW a MODIFY PARTITION a zzz
@@ -8546,7 +8546,7 @@ reject@49	reject@46	engine	alterMaterializedView_alter_table_partitioning(alterM
 reject@49	reject@26	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_move_table_subpartition!swap	ALTER MATERIALIZED VIEW a MOVEMENT SUBPARTITION a
 reject@39	accept	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_add_table_partition	ALTER MATERIALIZED VIEW a ADD PARTITION
 reject@44	accept	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_coalesce_table_partition	ALTER MATERIALIZED VIEW a COALESCE PARTITION
-reject@34	accept	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_coalesce_table_partition!drop-2	ALTER MATERIALIZED VIEW a COALESCE
+reject@34	reject@26	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_coalesce_table_partition!drop-2	ALTER MATERIALIZED VIEW a COALESCE
 reject@48	reject@45	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_coalesce_table_partition!insert	ALTER MATERIALIZED VIEW a COALESCE PARTITION zzz
 reject@42	reject@26	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_coalesce_table_partition!swap	ALTER MATERIALIZED VIEW a COARSE PARTITION
 reject@47	reject@35	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_coalesce_table_subpartition	ALTER MATERIALIZED VIEW a COALESCE SUBPARTITION
@@ -8563,7 +8563,7 @@ reject@43	reject@31	engine	alterMaterializedView_alter_table_partitioning(alterM
 reject@49	reject@31	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_drop_table_subpartition!insert	ALTER MATERIALIZED VIEW a DROP SUBPARTITION a zzz
 reject@48	reject@26	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_drop_table_subpartition!swap	ALTER MATERIALIZED VIEW a DUALITY SUBPARTITION a
 reject@49	accept	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_rename_partition_subpart	ALTER MATERIALIZED VIEW a RENAME PARTITION a TO a
-reject@42	accept	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_rename_partition_subpart!drop-1	ALTER MATERIALIZED VIEW a PARTITION a TO a
+reject@42	reject@26	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_rename_partition_subpart!drop-1	ALTER MATERIALIZED VIEW a PARTITION a TO a
 reject@39	reject@33	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_rename_partition_subpart!drop-2	ALTER MATERIALIZED VIEW a RENAME a TO a
 reject@47	reject@43	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_rename_partition_subpart!drop-3	ALTER MATERIALIZED VIEW a RENAME PARTITION TO a
 reject@46	reject@45	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_rename_partition_subpart!drop-4	ALTER MATERIALIZED VIEW a RENAME PARTITION a a
@@ -8576,7 +8576,7 @@ reject@44	reject@35	engine	alterMaterializedView_alter_table_partitioning(alterM
 reject@50	reject@35	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_truncate_partition_subpart!insert	ALTER MATERIALIZED VIEW a TRUNCATE PARTITION a zzz
 reject@45	reject@26	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_truncate_partition_subpart!swap	ALTER MATERIALIZED VIEW a TRUSTED PARTITION a
 reject@49	accept	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_split_table_partition	ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1)
-reject@43	accept	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_split_table_partition!drop-1	ALTER MATERIALIZED VIEW a PARTITION a AT(1)
+reject@43	reject@26	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_split_table_partition!drop-1	ALTER MATERIALIZED VIEW a PARTITION a AT(1)
 reject@39	reject@32	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_split_table_partition!drop-2	ALTER MATERIALIZED VIEW a SPLIT a AT(1)
 reject@47	reject@44	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_split_table_partition!drop-3	ALTER MATERIALIZED VIEW a SPLIT PARTITION AT(1)
 reject@46	reject@43	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_split_table_partition!drop-4	ALTER MATERIALIZED VIEW a SPLIT PARTITION a(1)
@@ -8610,7 +8610,7 @@ reject@48	reject@48	engine	alterMaterializedView_alter_table_partitioning(alterM
 reject@54	reject@51	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_merge_table_subpartitions!insert	ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a, a zzz
 reject@53	reject@26	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_merge_table_subpartitions!swap	ALTER MATERIALIZED VIEW a METADATA SUBPARTITIONS a, a
 reject@59	reject@35	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_exchange_partition_subpart	ALTER MATERIALIZED VIEW a EXCHANGE PARTITION a WITH TABLE a
-reject@50	accept	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_exchange_partition_subpart!drop-1	ALTER MATERIALIZED VIEW a PARTITION a WITH TABLE a
+reject@50	reject@26	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_exchange_partition_subpart!drop-1	ALTER MATERIALIZED VIEW a PARTITION a WITH TABLE a
 reject@49	reject@26	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_exchange_partition_subpart!drop-2	ALTER MATERIALIZED VIEW a EXCHANGE a WITH TABLE a
 reject@57	reject@35	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_exchange_partition_subpart!drop-3	ALTER MATERIALIZED VIEW a EXCHANGE PARTITION WITH TABLE a
 reject@54	reject@35	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_exchange_partition_subpart!drop-4	ALTER MATERIALIZED VIEW a EXCHANGE PARTITION a TABLE a
@@ -8632,47 +8632,47 @@ accept	accept	engine	alterMaterializedView_logging_clause(LOGGING|NOLOGGING)/NOL
 reject@36	reject@36	engine	alterMaterializedView_logging_clause(LOGGING|NOLOGGING)/NOLOGGING!insert	ALTER MATERIALIZED VIEW a NOLOGGING zzz
 accept	accept	engine	alterMaterializedView_allocate_extent_clause/ALLOCATE_EXTENT_((_(SIZE_alterMaterializedView_size_c~a83d47e7)?	ALTER MATERIALIZED VIEW a ALLOCATE EXTENT
 accept	accept	engine	alterMaterializedView_allocate_extent_clause((_(SIZE_alterMaterializedView_size_c~a83d47e7)?/%empty	ALTER MATERIALIZED VIEW a ALLOCATE EXTENT
-accept	accept	engine	alterMaterializedView_allocate_extent_clause((_(SIZE_alterMaterializedView_size_c~a83d47e7)?/(_(SIZE_alterMaterializedView_size_clause)?_(DATAFILE_S~5a004661	ALTER MATERIALIZED VIEW a ALLOCATE EXTENT()
+accept	reject@42	engine	alterMaterializedView_allocate_extent_clause((_(SIZE_alterMaterializedView_size_c~a83d47e7)?/(_(SIZE_alterMaterializedView_size_clause)?_(DATAFILE_S~5a004661	ALTER MATERIALIZED VIEW a ALLOCATE EXTENT()
 reject@41	reject@41	engine	alterMaterializedView_allocate_extent_clause((_(SIZE_alterMaterializedView_size_c~a83d47e7)?/(_(SIZE_alterMaterializedView_size_clause)?_(DATAFILE_S~5a004661!drop-1	ALTER MATERIALIZED VIEW a ALLOCATE EXTENT)
 reject@42	reject@42	engine	alterMaterializedView_allocate_extent_clause((_(SIZE_alterMaterializedView_size_c~a83d47e7)?/(_(SIZE_alterMaterializedView_size_clause)?_(DATAFILE_S~5a004661!drop-2	ALTER MATERIALIZED VIEW a ALLOCATE EXTENT(
-reject@44	accept	engine	alterMaterializedView_allocate_extent_clause((_(SIZE_alterMaterializedView_size_c~a83d47e7)?/(_(SIZE_alterMaterializedView_size_clause)?_(DATAFILE_S~5a004661!insert	ALTER MATERIALIZED VIEW a ALLOCATE EXTENT() zzz
-accept	accept	engine	alterMaterializedView_allocate_extent_clause(SIZE_alterMaterializedView_size_clause)?/%empty	ALTER MATERIALIZED VIEW a ALLOCATE EXTENT()
-accept	accept	engine	alterMaterializedView_allocate_extent_clause(SIZE_alterMaterializedView_size_clause)?/%empty!insert	ALTER MATERIALIZED VIEW a ALLOCATE EXTENT(zzz)
+reject@44	reject@42	engine	alterMaterializedView_allocate_extent_clause((_(SIZE_alterMaterializedView_size_c~a83d47e7)?/(_(SIZE_alterMaterializedView_size_clause)?_(DATAFILE_S~5a004661!insert	ALTER MATERIALIZED VIEW a ALLOCATE EXTENT() zzz
+accept	reject@42	engine	alterMaterializedView_allocate_extent_clause(SIZE_alterMaterializedView_size_clause)?/%empty	ALTER MATERIALIZED VIEW a ALLOCATE EXTENT()
+accept	reject@42	engine	alterMaterializedView_allocate_extent_clause(SIZE_alterMaterializedView_size_clause)?/%empty!insert	ALTER MATERIALIZED VIEW a ALLOCATE EXTENT(zzz)
 accept	accept	engine	alterMaterializedView_allocate_extent_clause(SIZE_alterMaterializedView_size_clause)?/SIZE_alterMaterializedView_size_clause	ALTER MATERIALIZED VIEW a ALLOCATE EXTENT(SIZE 1)
-accept	accept	engine	alterMaterializedView_allocate_extent_clause(SIZE_alterMaterializedView_size_clause)?/SIZE_alterMaterializedView_size_clause!drop-1	ALTER MATERIALIZED VIEW a ALLOCATE EXTENT(1)
+accept	reject@42	engine	alterMaterializedView_allocate_extent_clause(SIZE_alterMaterializedView_size_clause)?/SIZE_alterMaterializedView_size_clause!drop-1	ALTER MATERIALIZED VIEW a ALLOCATE EXTENT(1)
 accept	accept	engine	alterMaterializedView_allocate_extent_clause(SIZE_alterMaterializedView_size_clause)?/SIZE_alterMaterializedView_size_clause!drop-2	ALTER MATERIALIZED VIEW a ALLOCATE EXTENT(SIZE)
 reject@46	reject@46	engine	alterMaterializedView_allocate_extent_clause(SIZE_alterMaterializedView_size_clause)?/SIZE_alterMaterializedView_size_clause!truncate	ALTER MATERIALIZED VIEW a ALLOCATE EXTENT(SIZE
-accept	accept	engine	alterMaterializedView_allocate_extent_clause(SIZE_alterMaterializedView_size_clause)?/SIZE_alterMaterializedView_size_clause!insert	ALTER MATERIALIZED VIEW a ALLOCATE EXTENT(SIZE 1 zzz)
-accept	accept	engine	alterMaterializedView_allocate_extent_clause(SIZE_alterMaterializedView_size_clause)?/SIZE_alterMaterializedView_size_clause!swap	ALTER MATERIALIZED VIEW a ALLOCATE EXTENT(SKIP 1)
-accept	accept	engine	alterMaterializedView_allocate_extent_clause(DATAFILE_STRING)?/%empty	ALTER MATERIALIZED VIEW a ALLOCATE EXTENT()
+accept	reject@49	engine	alterMaterializedView_allocate_extent_clause(SIZE_alterMaterializedView_size_clause)?/SIZE_alterMaterializedView_size_clause!insert	ALTER MATERIALIZED VIEW a ALLOCATE EXTENT(SIZE 1 zzz)
+accept	reject@42	engine	alterMaterializedView_allocate_extent_clause(SIZE_alterMaterializedView_size_clause)?/SIZE_alterMaterializedView_size_clause!swap	ALTER MATERIALIZED VIEW a ALLOCATE EXTENT(SKIP 1)
+accept	reject@42	engine	alterMaterializedView_allocate_extent_clause(DATAFILE_STRING)?/%empty	ALTER MATERIALIZED VIEW a ALLOCATE EXTENT()
 accept	accept	engine	alterMaterializedView_allocate_extent_clause(DATAFILE_STRING)?/DATAFILE_STRING	ALTER MATERIALIZED VIEW a ALLOCATE EXTENT(DATAFILE 's')
-accept	accept	engine	alterMaterializedView_allocate_extent_clause(DATAFILE_STRING)?/DATAFILE_STRING!drop-1	ALTER MATERIALIZED VIEW a ALLOCATE EXTENT('s')
+accept	reject@42	engine	alterMaterializedView_allocate_extent_clause(DATAFILE_STRING)?/DATAFILE_STRING!drop-1	ALTER MATERIALIZED VIEW a ALLOCATE EXTENT('s')
 accept	accept	engine	alterMaterializedView_allocate_extent_clause(DATAFILE_STRING)?/DATAFILE_STRING!drop-2	ALTER MATERIALIZED VIEW a ALLOCATE EXTENT(DATAFILE)
 reject@50	reject@50	engine	alterMaterializedView_allocate_extent_clause(DATAFILE_STRING)?/DATAFILE_STRING!truncate	ALTER MATERIALIZED VIEW a ALLOCATE EXTENT(DATAFILE
-accept	accept	engine	alterMaterializedView_allocate_extent_clause(DATAFILE_STRING)?/DATAFILE_STRING!insert	ALTER MATERIALIZED VIEW a ALLOCATE EXTENT(DATAFILE 's' zzz)
-accept	accept	engine	alterMaterializedView_allocate_extent_clause(DATAFILE_STRING)?/DATAFILE_STRING!swap	ALTER MATERIALIZED VIEW a ALLOCATE EXTENT(DATAFILES 's')
-accept	accept	engine	alterMaterializedView_allocate_extent_clause(INSTANCE_NUMBER)?/%empty	ALTER MATERIALIZED VIEW a ALLOCATE EXTENT()
+accept	reject@55	engine	alterMaterializedView_allocate_extent_clause(DATAFILE_STRING)?/DATAFILE_STRING!insert	ALTER MATERIALIZED VIEW a ALLOCATE EXTENT(DATAFILE 's' zzz)
+accept	reject@42	engine	alterMaterializedView_allocate_extent_clause(DATAFILE_STRING)?/DATAFILE_STRING!swap	ALTER MATERIALIZED VIEW a ALLOCATE EXTENT(DATAFILES 's')
+accept	reject@42	engine	alterMaterializedView_allocate_extent_clause(INSTANCE_NUMBER)?/%empty	ALTER MATERIALIZED VIEW a ALLOCATE EXTENT()
 accept	accept	engine	alterMaterializedView_allocate_extent_clause(INSTANCE_NUMBER)?/INSTANCE_NUMBER	ALTER MATERIALIZED VIEW a ALLOCATE EXTENT(INSTANCE 1)
 accept	accept	engine	alterMaterializedView_allocate_extent_clause(INSTANCE_NUMBER)?/INSTANCE_NUMBER!drop-2	ALTER MATERIALIZED VIEW a ALLOCATE EXTENT(INSTANCE)
 reject@50	reject@50	engine	alterMaterializedView_allocate_extent_clause(INSTANCE_NUMBER)?/INSTANCE_NUMBER!truncate	ALTER MATERIALIZED VIEW a ALLOCATE EXTENT(INSTANCE
-accept	accept	engine	alterMaterializedView_allocate_extent_clause(INSTANCE_NUMBER)?/INSTANCE_NUMBER!insert	ALTER MATERIALIZED VIEW a ALLOCATE EXTENT(INSTANCE 1 zzz)
-accept	accept	engine	alterMaterializedView_allocate_extent_clause(INSTANCE_NUMBER)?/INSTANCE_NUMBER!swap	ALTER MATERIALIZED VIEW a ALLOCATE EXTENT(INSTANCES 1)
+accept	reject@53	engine	alterMaterializedView_allocate_extent_clause(INSTANCE_NUMBER)?/INSTANCE_NUMBER!insert	ALTER MATERIALIZED VIEW a ALLOCATE EXTENT(INSTANCE 1 zzz)
+accept	reject@42	engine	alterMaterializedView_allocate_extent_clause(INSTANCE_NUMBER)?/INSTANCE_NUMBER!swap	ALTER MATERIALIZED VIEW a ALLOCATE EXTENT(INSTANCES 1)
 accept	accept	engine	alterMaterializedView_deallocate_unused_clause/DEALLOCATE_UNUSED_(KEEP_alterMaterializedView_size_clause)?	ALTER MATERIALIZED VIEW a DEALLOCATE UNUSED
 accept	accept	engine	alterMaterializedView_deallocate_unused_clause(KEEP_alterMaterializedView_size_clause)?/%empty	ALTER MATERIALIZED VIEW a DEALLOCATE UNUSED
 accept	accept	engine	alterMaterializedView_deallocate_unused_clause(KEEP_alterMaterializedView_size_clause)?/KEEP_alterMaterializedView_size_clause	ALTER MATERIALIZED VIEW a DEALLOCATE UNUSED KEEP 1
-reject@44	accept	engine	alterMaterializedView_deallocate_unused_clause(KEEP_alterMaterializedView_size_clause)?/KEEP_alterMaterializedView_size_clause!drop-1	ALTER MATERIALIZED VIEW a DEALLOCATE UNUSED 1
+reject@44	reject@44	engine	alterMaterializedView_deallocate_unused_clause(KEEP_alterMaterializedView_size_clause)?/KEEP_alterMaterializedView_size_clause!drop-1	ALTER MATERIALIZED VIEW a DEALLOCATE UNUSED 1
 accept	reject@48	engine	alterMaterializedView_deallocate_unused_clause(KEEP_alterMaterializedView_size_clause)?/KEEP_alterMaterializedView_size_clause!drop-2	ALTER MATERIALIZED VIEW a DEALLOCATE UNUSED KEEP
 reject@51	reject@51	engine	alterMaterializedView_deallocate_unused_clause(KEEP_alterMaterializedView_size_clause)?/KEEP_alterMaterializedView_size_clause!insert	ALTER MATERIALIZED VIEW a DEALLOCATE UNUSED KEEP 1 zzz
 reject@44	reject@44	engine	alterMaterializedView_deallocate_unused_clause(KEEP_alterMaterializedView_size_clause)?/KEEP_alterMaterializedView_size_clause!swap	ALTER MATERIALIZED VIEW a DEALLOCATE UNUSED KEEP_DUPLICATES 1
 accept	accept	engine	alterMaterializedView_shrink_clause/SHRINK_SPACE_(COMPACT)?_(CASCADE)?	ALTER MATERIALIZED VIEW a SHRINK SPACE
 accept	accept	engine	alterMaterializedView_shrink_clause(COMPACT)?/%empty	ALTER MATERIALIZED VIEW a SHRINK SPACE
 accept	accept	engine	alterMaterializedView_shrink_clause(COMPACT)?/COMPACT	ALTER MATERIALIZED VIEW a SHRINK SPACE COMPACT
-reject@47	accept	engine	alterMaterializedView_shrink_clause(COMPACT)?/COMPACT!insert	ALTER MATERIALIZED VIEW a SHRINK SPACE COMPACT zzz
-reject@39	accept	engine	alterMaterializedView_shrink_clause(COMPACT)?/COMPACT!swap	ALTER MATERIALIZED VIEW a SHRINK SPACE COMPATIBILITY
+reject@47	reject@47	engine	alterMaterializedView_shrink_clause(COMPACT)?/COMPACT!insert	ALTER MATERIALIZED VIEW a SHRINK SPACE COMPACT zzz
+reject@39	reject@39	engine	alterMaterializedView_shrink_clause(COMPACT)?/COMPACT!swap	ALTER MATERIALIZED VIEW a SHRINK SPACE COMPATIBILITY
 accept	accept	engine	alterMaterializedView_shrink_clause(CASCADE)?/%empty	ALTER MATERIALIZED VIEW a SHRINK SPACE
 accept	accept	engine	alterMaterializedView_shrink_clause(CASCADE)?/CASCADE	ALTER MATERIALIZED VIEW a SHRINK SPACE CASCADE
-reject@47	accept	engine	alterMaterializedView_shrink_clause(CASCADE)?/CASCADE!insert	ALTER MATERIALIZED VIEW a SHRINK SPACE CASCADE zzz
-reject@39	accept	engine	alterMaterializedView_shrink_clause(CASCADE)?/CASCADE!swap	ALTER MATERIALIZED VIEW a SHRINK SPACE CASE
+reject@47	reject@47	engine	alterMaterializedView_shrink_clause(CASCADE)?/CASCADE!insert	ALTER MATERIALIZED VIEW a SHRINK SPACE CASCADE zzz
+reject@39	reject@39	engine	alterMaterializedView_shrink_clause(CASCADE)?/CASCADE!swap	ALTER MATERIALIZED VIEW a SHRINK SPACE CASE
 reject@44	accept	engine	alterMaterializedView_annotations_clause/ANNOTATIONS_(_(ADD_alterMaterializedView_annotation~a3c2a07d)_)	ALTER MATERIALIZED VIEW a ANNOTATIONS(ADD a)
 reject@44	accept	engine	alterMaterializedView_annotations_clause(ADD_alterMaterializedView_annotation~a3c2a07d)/ADD_alterMaterializedView_annotation	ALTER MATERIALIZED VIEW a ANNOTATIONS(ADD a)
 reject@41	reject@41	engine	alterMaterializedView_annotations_clause(ADD_alterMaterializedView_annotation~a3c2a07d)/ADD_alterMaterializedView_annotation!truncate	ALTER MATERIALIZED VIEW a ANNOTATIONS(ADD
@@ -8874,84 +8874,84 @@ reject@35	reject@68	engine	alterMaterializedView_inmemory_column_clause(,_ID)*/,
 reject@35	reject@68	engine	alterMaterializedView_inmemory_column_clause(,_ID)*/,_ID_(,_ID)*!drop-2	ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY(a,)
 reject@68	reject@68	engine	alterMaterializedView_inmemory_column_clause(,_ID)*/,_ID_(,_ID)*!truncate	ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY(a,
 reject@35	accept	engine	alterMaterializedView_inmemory_column_clause(,_ID)*/,_ID_(,_ID)*!insert	ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY(a, a zzz)
-reject@50	accept	engine	alterMaterializedView_lob_storage_parameters/((TABLESPACE_ID|alterMaterializedView~edbaf7e1)+	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(LOGGING)
-reject@42	accept	engine	alterMaterializedView_lob_storage_parameters/((TABLESPACE_ID|alterMaterializedView~edbaf7e1)+!truncate	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(
-reject@54	accept	engine	alterMaterializedView_lob_storage_parameters/((TABLESPACE_ID|alterMaterializedView~edbaf7e1)+!insert	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(LOGGING zzz)
-reject@50	accept	engine	alterMaterializedView_lob_storage_parameters/((TABLESPACE_ID|alterMaterializedView~edbaf7e1)+!swap	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(LOGICAL)
-reject@50	accept	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)+/((TABLESPACE_ID|alterMaterializedView~edbaf7e1)	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(LOGGING)
-reject@58	accept	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)+/((TABLESPACE_ID|alterMaterializedView~edbaf7e1)_((TABLE~b707200b	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(LOGGING LOGGING)
-reject@62	accept	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)+/((TABLESPACE_ID|alterMaterializedView~edbaf7e1)_((TABLE~b707200b!insert	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(LOGGING LOGGING zzz)
-reject@58	accept	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)+/((TABLESPACE_ID|alterMaterializedView~edbaf7e1)_((TABLE~b707200b!swap	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(LOGICAL LOGGING)
-reject@50	accept	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/(TABLESPACE_ID|alterMaterializedView_~cc055a9c)+	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(LOGGING)
-reject@64	accept	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/(ENABLE|DISABLE)_STORAGE_IN_ROW	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(ENABLE STORAGE IN ROW)
-reject@57	accept	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/(ENABLE|DISABLE)_STORAGE_IN_ROW!drop-1	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(STORAGE IN ROW)
-reject@56	accept	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/(ENABLE|DISABLE)_STORAGE_IN_ROW!drop-2	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(ENABLE IN ROW)
-reject@61	accept	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/(ENABLE|DISABLE)_STORAGE_IN_ROW!drop-3	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(ENABLE STORAGE ROW)
-reject@60	accept	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/(ENABLE|DISABLE)_STORAGE_IN_ROW!drop-4	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(ENABLE STORAGE IN)
-reject@59	accept	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/(ENABLE|DISABLE)_STORAGE_IN_ROW!truncate	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(ENABLE STORAGE IN
-reject@68	accept	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/(ENABLE|DISABLE)_STORAGE_IN_ROW!insert	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(ENABLE STORAGE IN ROW zzz)
-reject@68	accept	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/(ENABLE|DISABLE)_STORAGE_IN_ROW!swap	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(ENABLE_ALL STORAGE IN ROW)
-reject@50	accept	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/CHUNK_NUMBER	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(CHUNK 1)
-reject@44	accept	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/CHUNK_NUMBER!drop-1	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(1)
-reject@48	accept	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/CHUNK_NUMBER!drop-2	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(CHUNK)
-reject@47	accept	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/CHUNK_NUMBER!truncate	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(CHUNK
-reject@54	accept	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/CHUNK_NUMBER!insert	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(CHUNK 1 zzz)
-reject@50	accept	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/CHUNK_NUMBER!swap	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(CLASS 1)
-reject@55	accept	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/PCTVERSION_NUMBER	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(PCTVERSION 1)
-reject@53	accept	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/PCTVERSION_NUMBER!drop-2	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(PCTVERSION)
-reject@52	accept	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/PCTVERSION_NUMBER!truncate	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(PCTVERSION
-reject@59	accept	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/PCTVERSION_NUMBER!insert	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(PCTVERSION 1 zzz)
-reject@48	accept	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/PCTVERSION_NUMBER!swap	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(PER 1)
-reject@54	accept	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/FREEPOOLS_NUMBER	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(FREEPOOLS 1)
-reject@52	accept	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/FREEPOOLS_NUMBER!drop-2	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(FREEPOOLS)
-reject@51	accept	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/FREEPOOLS_NUMBER!truncate	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(FREEPOOLS
-reject@58	accept	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/FREEPOOLS_NUMBER!insert	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(FREEPOOLS 1 zzz)
-reject@50	accept	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/FREEPOOLS_NUMBER!swap	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(FRESH 1)
-reject@52	accept	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/alterMaterializedView_lob_retention_clause	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(RETENTION)
-reject@56	accept	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/alterMaterializedView_lob_retention_clause!insert	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(RETENTION zzz)
-reject@49	accept	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/alterMaterializedView_lob_retention_clause!swap	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(RETURN)
-reject@54	accept	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/alterMaterializedView_lob_deduplicate_clause	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(DEDUPLICATE)
-reject@58	accept	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/alterMaterializedView_lob_deduplicate_clause!insert	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(DEDUPLICATE zzz)
-reject@50	accept	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/alterMaterializedView_lob_deduplicate_clause!swap	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(DEFAULT)
-reject@51	accept	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/alterMaterializedView_lob_compression_clause	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(COMPRESS)
-reject@55	accept	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/alterMaterializedView_lob_compression_clause!insert	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(COMPRESS zzz)
-reject@54	accept	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/alterMaterializedView_lob_compression_clause!swap	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(COMPUTATION)
-reject@50	accept	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/(ENCRYPT_alterMaterializedView_encryp~1abb2676)	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(ENCRYPT)
-reject@54	accept	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/(ENCRYPT_alterMaterializedView_encryp~1abb2676)!insert	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(ENCRYPT zzz)
-reject@53	accept	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/(ENCRYPT_alterMaterializedView_encryp~1abb2676)!swap	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(ENCRYPTION)
-reject@48	accept	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/(CACHE|NOCACHE|CACHE_READS)_(alterMaterializedView_logg~29589da4	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(CACHE)
-reject@52	accept	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/(CACHE|NOCACHE|CACHE_READS)_(alterMaterializedView_logg~29589da4!insert	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(CACHE zzz)
-reject@47	accept	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/(CACHE|NOCACHE|CACHE_READS)_(alterMaterializedView_logg~29589da4!swap	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(CALL)
-reject@50	accept	engine	alterMaterializedView_lob_storage_parameters(TABLESPACE_ID|alterMaterializedView_~cc055a9c)+/(TABLESPACE_ID|alterMaterializedView_~cc055a9c)	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(LOGGING)
-reject@58	accept	engine	alterMaterializedView_lob_storage_parameters(TABLESPACE_ID|alterMaterializedView_~cc055a9c)+/(TABLESPACE_ID|alterMaterializedView_~cc055a9c)_(TABLES~075eb57c	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(LOGGING LOGGING)
-reject@55	accept	engine	alterMaterializedView_lob_storage_parameters(TABLESPACE_ID|alterMaterializedView_~cc055a9c)/TABLESPACE_ID	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(TABLESPACE a)
-reject@44	accept	engine	alterMaterializedView_lob_storage_parameters(TABLESPACE_ID|alterMaterializedView_~cc055a9c)/TABLESPACE_ID!drop-1	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(a)
-reject@53	accept	engine	alterMaterializedView_lob_storage_parameters(TABLESPACE_ID|alterMaterializedView_~cc055a9c)/TABLESPACE_ID!drop-2	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(TABLESPACE)
-reject@52	accept	engine	alterMaterializedView_lob_storage_parameters(TABLESPACE_ID|alterMaterializedView_~cc055a9c)/TABLESPACE_ID!truncate	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(TABLESPACE
-reject@59	accept	engine	alterMaterializedView_lob_storage_parameters(TABLESPACE_ID|alterMaterializedView_~cc055a9c)/TABLESPACE_ID!insert	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(TABLESPACE a zzz)
-reject@48	accept	engine	alterMaterializedView_lob_storage_parameters(TABLESPACE_ID|alterMaterializedView_~cc055a9c)/TABLESPACE_ID!swap	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(TAG a)
-reject@50	accept	engine	alterMaterializedView_lob_storage_parameters(TABLESPACE_ID|alterMaterializedView_~cc055a9c)/alterMaterializedView_logging_clause	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(LOGGING)
-reject@64	accept	engine	alterMaterializedView_lob_storage_parameters(ENABLE|DISABLE)/ENABLE	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(ENABLE STORAGE IN ROW)
-reject@68	accept	engine	alterMaterializedView_lob_storage_parameters(ENABLE|DISABLE)/ENABLE!insert	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(ENABLE zzz STORAGE IN ROW)
-reject@65	accept	engine	alterMaterializedView_lob_storage_parameters(ENABLE|DISABLE)/DISABLE	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(DISABLE STORAGE IN ROW)
-reject@69	accept	engine	alterMaterializedView_lob_storage_parameters(ENABLE|DISABLE)/DISABLE!insert	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(DISABLE zzz STORAGE IN ROW)
-reject@69	accept	engine	alterMaterializedView_lob_storage_parameters(ENABLE|DISABLE)/DISABLE!swap	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(DISABLE_ALL STORAGE IN ROW)
-reject@50	accept	engine	alterMaterializedView_lob_storage_parameters(ENCRYPT_alterMaterializedView_encryp~1abb2676)/ENCRYPT_alterMaterializedView_encryption_spec	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(ENCRYPT)
-reject@50	accept	engine	alterMaterializedView_lob_storage_parameters(ENCRYPT_alterMaterializedView_encryp~1abb2676)/DECRYPT	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(DECRYPT)
-reject@54	accept	engine	alterMaterializedView_lob_storage_parameters(ENCRYPT_alterMaterializedView_encryp~1abb2676)/DECRYPT!insert	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(DECRYPT zzz)
-reject@48	accept	engine	alterMaterializedView_lob_storage_parameters(CACHE|NOCACHE|CACHE_READS)/CACHE	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(CACHE)
-reject@50	accept	engine	alterMaterializedView_lob_storage_parameters(CACHE|NOCACHE|CACHE_READS)/NOCACHE	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(NOCACHE)
-reject@54	accept	engine	alterMaterializedView_lob_storage_parameters(CACHE|NOCACHE|CACHE_READS)/NOCACHE!insert	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(NOCACHE zzz)
-reject@50	accept	engine	alterMaterializedView_lob_storage_parameters(CACHE|NOCACHE|CACHE_READS)/NOCACHE!swap	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(NOCHECK)
-reject@54	accept	engine	alterMaterializedView_lob_storage_parameters(CACHE|NOCACHE|CACHE_READS)/CACHE_READS	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(CACHE READS)
-reject@48	accept	engine	alterMaterializedView_lob_storage_parameters(CACHE|NOCACHE|CACHE_READS)/CACHE_READS!drop-1	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(READS)
-reject@47	accept	engine	alterMaterializedView_lob_storage_parameters(CACHE|NOCACHE|CACHE_READS)/CACHE_READS!truncate	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(CACHE
-reject@58	accept	engine	alterMaterializedView_lob_storage_parameters(CACHE|NOCACHE|CACHE_READS)/CACHE_READS!insert	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(CACHE READS zzz)
-reject@53	accept	engine	alterMaterializedView_lob_storage_parameters(CACHE|NOCACHE|CACHE_READS)/CACHE_READS!swap	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(CALL READS)
-reject@48	accept	engine	alterMaterializedView_lob_storage_parameters(alterMaterializedView_logging_clause)?/%empty	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(CACHE)
-reject@56	accept	engine	alterMaterializedView_lob_storage_parameters(alterMaterializedView_logging_clause)?/alterMaterializedView_logging_clause	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(CACHE LOGGING)
-reject@60	accept	engine	alterMaterializedView_lob_storage_parameters(alterMaterializedView_logging_clause)?/alterMaterializedView_logging_clause!insert	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(CACHE LOGGING zzz)
-reject@56	accept	engine	alterMaterializedView_lob_storage_parameters(alterMaterializedView_logging_clause)?/alterMaterializedView_logging_clause!swap	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(CACHE LOGICAL)
+reject@50	reject@26	engine	alterMaterializedView_lob_storage_parameters/((TABLESPACE_ID|alterMaterializedView~edbaf7e1)+	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(LOGGING)
+reject@42	reject@26	engine	alterMaterializedView_lob_storage_parameters/((TABLESPACE_ID|alterMaterializedView~edbaf7e1)+!truncate	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(
+reject@54	reject@26	engine	alterMaterializedView_lob_storage_parameters/((TABLESPACE_ID|alterMaterializedView~edbaf7e1)+!insert	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(LOGGING zzz)
+reject@50	reject@26	engine	alterMaterializedView_lob_storage_parameters/((TABLESPACE_ID|alterMaterializedView~edbaf7e1)+!swap	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(LOGICAL)
+reject@50	reject@26	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)+/((TABLESPACE_ID|alterMaterializedView~edbaf7e1)	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(LOGGING)
+reject@58	reject@26	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)+/((TABLESPACE_ID|alterMaterializedView~edbaf7e1)_((TABLE~b707200b	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(LOGGING LOGGING)
+reject@62	reject@26	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)+/((TABLESPACE_ID|alterMaterializedView~edbaf7e1)_((TABLE~b707200b!insert	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(LOGGING LOGGING zzz)
+reject@58	reject@26	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)+/((TABLESPACE_ID|alterMaterializedView~edbaf7e1)_((TABLE~b707200b!swap	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(LOGICAL LOGGING)
+reject@50	reject@26	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/(TABLESPACE_ID|alterMaterializedView_~cc055a9c)+	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(LOGGING)
+reject@64	reject@26	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/(ENABLE|DISABLE)_STORAGE_IN_ROW	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(ENABLE STORAGE IN ROW)
+reject@57	reject@26	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/(ENABLE|DISABLE)_STORAGE_IN_ROW!drop-1	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(STORAGE IN ROW)
+reject@56	reject@26	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/(ENABLE|DISABLE)_STORAGE_IN_ROW!drop-2	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(ENABLE IN ROW)
+reject@61	reject@26	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/(ENABLE|DISABLE)_STORAGE_IN_ROW!drop-3	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(ENABLE STORAGE ROW)
+reject@60	reject@26	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/(ENABLE|DISABLE)_STORAGE_IN_ROW!drop-4	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(ENABLE STORAGE IN)
+reject@59	reject@26	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/(ENABLE|DISABLE)_STORAGE_IN_ROW!truncate	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(ENABLE STORAGE IN
+reject@68	reject@26	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/(ENABLE|DISABLE)_STORAGE_IN_ROW!insert	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(ENABLE STORAGE IN ROW zzz)
+reject@68	reject@26	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/(ENABLE|DISABLE)_STORAGE_IN_ROW!swap	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(ENABLE_ALL STORAGE IN ROW)
+reject@50	reject@26	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/CHUNK_NUMBER	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(CHUNK 1)
+reject@44	reject@26	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/CHUNK_NUMBER!drop-1	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(1)
+reject@48	reject@26	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/CHUNK_NUMBER!drop-2	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(CHUNK)
+reject@47	reject@26	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/CHUNK_NUMBER!truncate	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(CHUNK
+reject@54	reject@26	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/CHUNK_NUMBER!insert	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(CHUNK 1 zzz)
+reject@50	reject@26	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/CHUNK_NUMBER!swap	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(CLASS 1)
+reject@55	reject@26	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/PCTVERSION_NUMBER	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(PCTVERSION 1)
+reject@53	reject@26	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/PCTVERSION_NUMBER!drop-2	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(PCTVERSION)
+reject@52	reject@26	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/PCTVERSION_NUMBER!truncate	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(PCTVERSION
+reject@59	reject@26	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/PCTVERSION_NUMBER!insert	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(PCTVERSION 1 zzz)
+reject@48	reject@26	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/PCTVERSION_NUMBER!swap	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(PER 1)
+reject@54	reject@26	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/FREEPOOLS_NUMBER	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(FREEPOOLS 1)
+reject@52	reject@26	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/FREEPOOLS_NUMBER!drop-2	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(FREEPOOLS)
+reject@51	reject@26	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/FREEPOOLS_NUMBER!truncate	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(FREEPOOLS
+reject@58	reject@26	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/FREEPOOLS_NUMBER!insert	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(FREEPOOLS 1 zzz)
+reject@50	reject@26	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/FREEPOOLS_NUMBER!swap	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(FRESH 1)
+reject@52	reject@26	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/alterMaterializedView_lob_retention_clause	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(RETENTION)
+reject@56	reject@26	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/alterMaterializedView_lob_retention_clause!insert	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(RETENTION zzz)
+reject@49	reject@26	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/alterMaterializedView_lob_retention_clause!swap	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(RETURN)
+reject@54	reject@26	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/alterMaterializedView_lob_deduplicate_clause	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(DEDUPLICATE)
+reject@58	reject@26	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/alterMaterializedView_lob_deduplicate_clause!insert	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(DEDUPLICATE zzz)
+reject@50	reject@26	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/alterMaterializedView_lob_deduplicate_clause!swap	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(DEFAULT)
+reject@51	reject@26	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/alterMaterializedView_lob_compression_clause	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(COMPRESS)
+reject@55	reject@26	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/alterMaterializedView_lob_compression_clause!insert	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(COMPRESS zzz)
+reject@54	reject@26	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/alterMaterializedView_lob_compression_clause!swap	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(COMPUTATION)
+reject@50	reject@26	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/(ENCRYPT_alterMaterializedView_encryp~1abb2676)	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(ENCRYPT)
+reject@54	reject@26	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/(ENCRYPT_alterMaterializedView_encryp~1abb2676)!insert	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(ENCRYPT zzz)
+reject@53	reject@26	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/(ENCRYPT_alterMaterializedView_encryp~1abb2676)!swap	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(ENCRYPTION)
+reject@48	reject@26	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/(CACHE|NOCACHE|CACHE_READS)_(alterMaterializedView_logg~29589da4	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(CACHE)
+reject@52	reject@26	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/(CACHE|NOCACHE|CACHE_READS)_(alterMaterializedView_logg~29589da4!insert	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(CACHE zzz)
+reject@47	reject@26	engine	alterMaterializedView_lob_storage_parameters((TABLESPACE_ID|alterMaterializedView~edbaf7e1)/(CACHE|NOCACHE|CACHE_READS)_(alterMaterializedView_logg~29589da4!swap	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(CALL)
+reject@50	reject@26	engine	alterMaterializedView_lob_storage_parameters(TABLESPACE_ID|alterMaterializedView_~cc055a9c)+/(TABLESPACE_ID|alterMaterializedView_~cc055a9c)	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(LOGGING)
+reject@58	reject@26	engine	alterMaterializedView_lob_storage_parameters(TABLESPACE_ID|alterMaterializedView_~cc055a9c)+/(TABLESPACE_ID|alterMaterializedView_~cc055a9c)_(TABLES~075eb57c	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(LOGGING LOGGING)
+reject@55	reject@26	engine	alterMaterializedView_lob_storage_parameters(TABLESPACE_ID|alterMaterializedView_~cc055a9c)/TABLESPACE_ID	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(TABLESPACE a)
+reject@44	reject@26	engine	alterMaterializedView_lob_storage_parameters(TABLESPACE_ID|alterMaterializedView_~cc055a9c)/TABLESPACE_ID!drop-1	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(a)
+reject@53	reject@26	engine	alterMaterializedView_lob_storage_parameters(TABLESPACE_ID|alterMaterializedView_~cc055a9c)/TABLESPACE_ID!drop-2	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(TABLESPACE)
+reject@52	reject@26	engine	alterMaterializedView_lob_storage_parameters(TABLESPACE_ID|alterMaterializedView_~cc055a9c)/TABLESPACE_ID!truncate	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(TABLESPACE
+reject@59	reject@26	engine	alterMaterializedView_lob_storage_parameters(TABLESPACE_ID|alterMaterializedView_~cc055a9c)/TABLESPACE_ID!insert	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(TABLESPACE a zzz)
+reject@48	reject@26	engine	alterMaterializedView_lob_storage_parameters(TABLESPACE_ID|alterMaterializedView_~cc055a9c)/TABLESPACE_ID!swap	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(TAG a)
+reject@50	reject@26	engine	alterMaterializedView_lob_storage_parameters(TABLESPACE_ID|alterMaterializedView_~cc055a9c)/alterMaterializedView_logging_clause	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(LOGGING)
+reject@64	reject@26	engine	alterMaterializedView_lob_storage_parameters(ENABLE|DISABLE)/ENABLE	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(ENABLE STORAGE IN ROW)
+reject@68	reject@26	engine	alterMaterializedView_lob_storage_parameters(ENABLE|DISABLE)/ENABLE!insert	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(ENABLE zzz STORAGE IN ROW)
+reject@65	reject@26	engine	alterMaterializedView_lob_storage_parameters(ENABLE|DISABLE)/DISABLE	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(DISABLE STORAGE IN ROW)
+reject@69	reject@26	engine	alterMaterializedView_lob_storage_parameters(ENABLE|DISABLE)/DISABLE!insert	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(DISABLE zzz STORAGE IN ROW)
+reject@69	reject@26	engine	alterMaterializedView_lob_storage_parameters(ENABLE|DISABLE)/DISABLE!swap	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(DISABLE_ALL STORAGE IN ROW)
+reject@50	reject@26	engine	alterMaterializedView_lob_storage_parameters(ENCRYPT_alterMaterializedView_encryp~1abb2676)/ENCRYPT_alterMaterializedView_encryption_spec	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(ENCRYPT)
+reject@50	reject@26	engine	alterMaterializedView_lob_storage_parameters(ENCRYPT_alterMaterializedView_encryp~1abb2676)/DECRYPT	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(DECRYPT)
+reject@54	reject@26	engine	alterMaterializedView_lob_storage_parameters(ENCRYPT_alterMaterializedView_encryp~1abb2676)/DECRYPT!insert	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(DECRYPT zzz)
+reject@48	reject@26	engine	alterMaterializedView_lob_storage_parameters(CACHE|NOCACHE|CACHE_READS)/CACHE	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(CACHE)
+reject@50	reject@26	engine	alterMaterializedView_lob_storage_parameters(CACHE|NOCACHE|CACHE_READS)/NOCACHE	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(NOCACHE)
+reject@54	reject@26	engine	alterMaterializedView_lob_storage_parameters(CACHE|NOCACHE|CACHE_READS)/NOCACHE!insert	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(NOCACHE zzz)
+reject@50	reject@26	engine	alterMaterializedView_lob_storage_parameters(CACHE|NOCACHE|CACHE_READS)/NOCACHE!swap	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(NOCHECK)
+reject@54	reject@26	engine	alterMaterializedView_lob_storage_parameters(CACHE|NOCACHE|CACHE_READS)/CACHE_READS	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(CACHE READS)
+reject@48	reject@26	engine	alterMaterializedView_lob_storage_parameters(CACHE|NOCACHE|CACHE_READS)/CACHE_READS!drop-1	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(READS)
+reject@47	reject@26	engine	alterMaterializedView_lob_storage_parameters(CACHE|NOCACHE|CACHE_READS)/CACHE_READS!truncate	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(CACHE
+reject@58	reject@26	engine	alterMaterializedView_lob_storage_parameters(CACHE|NOCACHE|CACHE_READS)/CACHE_READS!insert	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(CACHE READS zzz)
+reject@53	reject@26	engine	alterMaterializedView_lob_storage_parameters(CACHE|NOCACHE|CACHE_READS)/CACHE_READS!swap	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(CALL READS)
+reject@48	reject@26	engine	alterMaterializedView_lob_storage_parameters(alterMaterializedView_logging_clause)?/%empty	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(CACHE)
+reject@56	reject@26	engine	alterMaterializedView_lob_storage_parameters(alterMaterializedView_logging_clause)?/alterMaterializedView_logging_clause	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(CACHE LOGGING)
+reject@60	reject@26	engine	alterMaterializedView_lob_storage_parameters(alterMaterializedView_logging_clause)?/alterMaterializedView_logging_clause!insert	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(CACHE LOGGING zzz)
+reject@56	reject@26	engine	alterMaterializedView_lob_storage_parameters(alterMaterializedView_logging_clause)?/alterMaterializedView_logging_clause!swap	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(CACHE LOGICAL)
 reject@33	reject@40	engine	alterMaterializedView_modify_lob_parameters/(alterMaterializedView_lob_retention_clause)?_(alterMat~1d8202a2	ALTER MATERIALIZED VIEW a MODIFY LOB(a)()
 reject@33	reject@40	engine	alterMaterializedView_modify_lob_parameters/(alterMaterializedView_lob_retention_clause)?_(alterMat~1d8202a2!insert	ALTER MATERIALIZED VIEW a MODIFY LOB(a)(zzz)
 reject@33	reject@40	engine	alterMaterializedView_modify_lob_parameters(alterMaterializedView_lob_retention_clause)?/%empty	ALTER MATERIALIZED VIEW a MODIFY LOB(a)()
@@ -9043,10 +9043,10 @@ reject@33	reject@61	engine	alterMaterializedView_modify_table_default_attrs(OVER
 reject@33	reject@52	engine	alterMaterializedView_modify_table_default_attrs(OVERFLOW_alterMaterializedView_segme~e7d86284)?/OVERFLOW_alterMaterializedView_segment_attributes_clause!swap	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES OWNER
 reject@52	accept	engine	alterMaterializedView_alter_automatic_partitioning/SET_PARTITIONING_(AUTOMATIC|MANUAL)	ALTER MATERIALIZED VIEW a SET PARTITIONING AUTOMATIC
 reject@52	accept	engine	alterMaterializedView_alter_automatic_partitioning(AUTOMATIC|MANUAL)/AUTOMATIC	ALTER MATERIALIZED VIEW a SET PARTITIONING AUTOMATIC
-reject@53	accept	engine	alterMaterializedView_alter_automatic_partitioning(AUTOMATIC|MANUAL)/AUTOMATIC!swap	ALTER MATERIALIZED VIEW a SET PARTITIONING AUTO_LOGIN
+reject@53	reject@0	engine	alterMaterializedView_alter_automatic_partitioning(AUTOMATIC|MANUAL)/AUTOMATIC!swap	ALTER MATERIALIZED VIEW a SET PARTITIONING AUTO_LOGIN
 reject@49	accept	engine	alterMaterializedView_alter_automatic_partitioning(AUTOMATIC|MANUAL)/MANUAL	ALTER MATERIALIZED VIEW a SET PARTITIONING MANUAL
 reject@53	reject@50	engine	alterMaterializedView_alter_automatic_partitioning(AUTOMATIC|MANUAL)/MANUAL!insert	ALTER MATERIALIZED VIEW a SET PARTITIONING MANUAL zzz
-reject@50	accept	engine	alterMaterializedView_alter_automatic_partitioning(AUTOMATIC|MANUAL)/MANUAL!swap	ALTER MATERIALIZED VIEW a SET PARTITIONING MAPPING
+reject@50	reject@0	engine	alterMaterializedView_alter_automatic_partitioning(AUTOMATIC|MANUAL)/MANUAL!swap	ALTER MATERIALIZED VIEW a SET PARTITIONING MAPPING
 reject@40	accept	engine	alterMaterializedView_alter_interval_partitioning/SET_INTERVAL_(_(EXPR)?_)	ALTER MATERIALIZED VIEW a SET INTERVAL()
 reject@40	accept	engine	alterMaterializedView_alter_interval_partitioning(EXPR)?/%empty	ALTER MATERIALIZED VIEW a SET INTERVAL()
 reject@43	accept	engine	alterMaterializedView_alter_interval_partitioning(EXPR)?/%empty!insert	ALTER MATERIALIZED VIEW a SET INTERVAL(zzz)
@@ -9058,39 +9058,39 @@ reject@64	accept	engine	alterMaterializedView_set_subpartition_template((_(alter
 reject@53	accept	engine	alterMaterializedView_set_subpartition_template((_(alterMaterializedView_range_subpa~15433c0a)/(_(alterMaterializedView_range_subparti~289474bc)_(,_(a~e93e68ad!drop-2	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE()
 reject@64	reject@64	engine	alterMaterializedView_set_subpartition_template((_(alterMaterializedView_range_subpa~15433c0a)/(_(alterMaterializedView_range_subparti~289474bc)_(,_(a~e93e68ad!drop-3	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(SUBPARTITION
 reject@69	reject@66	engine	alterMaterializedView_set_subpartition_template((_(alterMaterializedView_range_subpa~15433c0a)/(_(alterMaterializedView_range_subparti~289474bc)_(,_(a~e93e68ad!insert	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(SUBPARTITION) zzz
-reject@66	accept	engine	alterMaterializedView_set_subpartition_template((_(alterMaterializedView_range_subpa~15433c0a)/(_(alterMaterializedView_range_subparti~289474bc)_(,_(a~e93e68ad!swap	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(SUBPARTITIONS)
+reject@66	reject@52	engine	alterMaterializedView_set_subpartition_template((_(alterMaterializedView_range_subpa~15433c0a)/(_(alterMaterializedView_range_subparti~289474bc)_(,_(a~e93e68ad!swap	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(SUBPARTITIONS)
 reject@67	accept	engine	alterMaterializedView_set_subpartition_template((_(alterMaterializedView_range_subpa~15433c0a)/alterMaterializedView_hash_subparts_by_quantity	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1
 reject@60	accept	engine	alterMaterializedView_set_subpartition_template((_(alterMaterializedView_range_subpa~15433c0a)/alterMaterializedView_hash_subparts_by_quantity!swap	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBSET 1
 reject@85	accept	engine	alterMaterializedView_set_subpartition_template(alterMaterializedView_range_subparti~289474bc)/alterMaterializedView_range_subpartition_desc	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(SUBPARTITION VALUES LESS THAN(1))
-reject@72	accept	engine	alterMaterializedView_set_subpartition_template(alterMaterializedView_range_subparti~289474bc)/alterMaterializedView_range_subpartition_desc!drop-1	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(VALUES LESS THAN(1))
+reject@72	reject@52	engine	alterMaterializedView_set_subpartition_template(alterMaterializedView_range_subparti~289474bc)/alterMaterializedView_range_subpartition_desc!drop-1	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(VALUES LESS THAN(1))
 reject@78	accept	engine	alterMaterializedView_set_subpartition_template(alterMaterializedView_range_subparti~289474bc)/alterMaterializedView_range_subpartition_desc!drop-2	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(SUBPARTITION LESS THAN(1))
-reject@80	accept	engine	alterMaterializedView_set_subpartition_template(alterMaterializedView_range_subparti~289474bc)/alterMaterializedView_range_subpartition_desc!drop-3	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(SUBPARTITION VALUES THAN(1))
-reject@80	accept	engine	alterMaterializedView_set_subpartition_template(alterMaterializedView_range_subparti~289474bc)/alterMaterializedView_range_subpartition_desc!drop-4	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(SUBPARTITION VALUES LESS(1))
+reject@80	reject@72	engine	alterMaterializedView_set_subpartition_template(alterMaterializedView_range_subparti~289474bc)/alterMaterializedView_range_subpartition_desc!drop-3	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(SUBPARTITION VALUES THAN(1))
+reject@80	reject@76	engine	alterMaterializedView_set_subpartition_template(alterMaterializedView_range_subparti~289474bc)/alterMaterializedView_range_subpartition_desc!drop-4	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(SUBPARTITION VALUES LESS(1))
 reject@84	reject@82	engine	alterMaterializedView_set_subpartition_template(alterMaterializedView_range_subparti~289474bc)/alterMaterializedView_range_subpartition_desc!drop-5	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(SUBPARTITION VALUES LESS THAN 1))
 reject@84	reject@82	engine	alterMaterializedView_set_subpartition_template(alterMaterializedView_range_subparti~289474bc)/alterMaterializedView_range_subpartition_desc!drop-6	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(SUBPARTITION VALUES LESS THAN())
 reject@84	reject@84	engine	alterMaterializedView_set_subpartition_template(alterMaterializedView_range_subparti~289474bc)/alterMaterializedView_range_subpartition_desc!drop-7	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(SUBPARTITION VALUES LESS THAN(1)
 reject@83	reject@83	engine	alterMaterializedView_set_subpartition_template(alterMaterializedView_range_subparti~289474bc)/alterMaterializedView_range_subpartition_desc!truncate	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(SUBPARTITION VALUES LESS THAN(1
 reject@89	accept	engine	alterMaterializedView_set_subpartition_template(alterMaterializedView_range_subparti~289474bc)/alterMaterializedView_range_subpartition_desc!insert	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(SUBPARTITION VALUES LESS THAN(1) zzz)
-reject@86	accept	engine	alterMaterializedView_set_subpartition_template(alterMaterializedView_range_subparti~289474bc)/alterMaterializedView_range_subpartition_desc!swap	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(SUBPARTITIONS VALUES LESS THAN(1))
+reject@86	reject@52	engine	alterMaterializedView_set_subpartition_template(alterMaterializedView_range_subparti~289474bc)/alterMaterializedView_range_subpartition_desc!swap	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(SUBPARTITIONS VALUES LESS THAN(1))
 reject@75	accept	engine	alterMaterializedView_set_subpartition_template(alterMaterializedView_range_subparti~289474bc)/alterMaterializedView_list_subpartition_desc	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(SUBPARTITION VALUES(1))
-reject@62	accept	engine	alterMaterializedView_set_subpartition_template(alterMaterializedView_range_subparti~289474bc)/alterMaterializedView_list_subpartition_desc!drop-1	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(VALUES(1))
+reject@62	reject@52	engine	alterMaterializedView_set_subpartition_template(alterMaterializedView_range_subparti~289474bc)/alterMaterializedView_list_subpartition_desc!drop-1	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(VALUES(1))
 reject@68	accept	engine	alterMaterializedView_set_subpartition_template(alterMaterializedView_range_subparti~289474bc)/alterMaterializedView_list_subpartition_desc!drop-2	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(SUBPARTITION(1))
-reject@74	accept	engine	alterMaterializedView_set_subpartition_template(alterMaterializedView_range_subparti~289474bc)/alterMaterializedView_list_subpartition_desc!drop-3	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(SUBPARTITION VALUES 1))
+reject@74	reject@72	engine	alterMaterializedView_set_subpartition_template(alterMaterializedView_range_subparti~289474bc)/alterMaterializedView_list_subpartition_desc!drop-3	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(SUBPARTITION VALUES 1))
 reject@74	reject@72	engine	alterMaterializedView_set_subpartition_template(alterMaterializedView_range_subparti~289474bc)/alterMaterializedView_list_subpartition_desc!drop-4	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(SUBPARTITION VALUES())
 reject@74	reject@74	engine	alterMaterializedView_set_subpartition_template(alterMaterializedView_range_subparti~289474bc)/alterMaterializedView_list_subpartition_desc!drop-5	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(SUBPARTITION VALUES(1)
 reject@73	reject@73	engine	alterMaterializedView_set_subpartition_template(alterMaterializedView_range_subparti~289474bc)/alterMaterializedView_list_subpartition_desc!truncate	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(SUBPARTITION VALUES(1
 reject@79	accept	engine	alterMaterializedView_set_subpartition_template(alterMaterializedView_range_subparti~289474bc)/alterMaterializedView_list_subpartition_desc!insert	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(SUBPARTITION VALUES(1) zzz)
-reject@76	accept	engine	alterMaterializedView_set_subpartition_template(alterMaterializedView_range_subparti~289474bc)/alterMaterializedView_list_subpartition_desc!swap	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(SUBPARTITIONS VALUES(1))
+reject@76	reject@52	engine	alterMaterializedView_set_subpartition_template(alterMaterializedView_range_subparti~289474bc)/alterMaterializedView_list_subpartition_desc!swap	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(SUBPARTITIONS VALUES(1))
 reject@65	accept	engine	alterMaterializedView_set_subpartition_template(alterMaterializedView_range_subparti~289474bc)/alterMaterializedView_individual_hash_subparts	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(SUBPARTITION)
 reject@52	reject@52	engine	alterMaterializedView_set_subpartition_template(alterMaterializedView_range_subparti~289474bc)/alterMaterializedView_individual_hash_subparts!truncate	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(
 reject@69	accept	engine	alterMaterializedView_set_subpartition_template(alterMaterializedView_range_subparti~289474bc)/alterMaterializedView_individual_hash_subparts!insert	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(SUBPARTITION zzz)
 reject@65	accept	engine	alterMaterializedView_set_subpartition_template(,_(alterMaterializedView_range_subpa~0357ced5)*/%empty	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(SUBPARTITION)
 reject@79	accept	engine	alterMaterializedView_set_subpartition_template(,_(alterMaterializedView_range_subpa~0357ced5)*/,_(alterMaterializedView_range_subparti~289474bc)_(,_(a~ed5aeba6	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(SUBPARTITION, SUBPARTITION)
 reject@78	accept	engine	alterMaterializedView_set_subpartition_template(,_(alterMaterializedView_range_subpa~0357ced5)*/,_(alterMaterializedView_range_subparti~289474bc)_(,_(a~ed5aeba6!drop-1	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(SUBPARTITION SUBPARTITION)
-reject@66	accept	engine	alterMaterializedView_set_subpartition_template(,_(alterMaterializedView_range_subpa~0357ced5)*/,_(alterMaterializedView_range_subparti~289474bc)_(,_(a~ed5aeba6!drop-2	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(SUBPARTITION,)
+reject@66	reject@65	engine	alterMaterializedView_set_subpartition_template(,_(alterMaterializedView_range_subpa~0357ced5)*/,_(alterMaterializedView_range_subparti~289474bc)_(,_(a~ed5aeba6!drop-2	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(SUBPARTITION,)
 reject@65	reject@65	engine	alterMaterializedView_set_subpartition_template(,_(alterMaterializedView_range_subpa~0357ced5)*/,_(alterMaterializedView_range_subparti~289474bc)_(,_(a~ed5aeba6!truncate	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(SUBPARTITION,
 reject@83	accept	engine	alterMaterializedView_set_subpartition_template(,_(alterMaterializedView_range_subpa~0357ced5)*/,_(alterMaterializedView_range_subparti~289474bc)_(,_(a~ed5aeba6!insert	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(SUBPARTITION, SUBPARTITION zzz)
-reject@80	accept	engine	alterMaterializedView_set_subpartition_template(,_(alterMaterializedView_range_subpa~0357ced5)*/,_(alterMaterializedView_range_subparti~289474bc)_(,_(a~ed5aeba6!swap	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(SUBPARTITION, SUBPARTITIONS)
+reject@80	reject@66	engine	alterMaterializedView_set_subpartition_template(,_(alterMaterializedView_range_subpa~0357ced5)*/,_(alterMaterializedView_range_subparti~289474bc)_(,_(a~ed5aeba6!swap	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(SUBPARTITION, SUBPARTITIONS)
 reject@33	accept	engine	alterMaterializedView_modify_table_partition/MODIFY_PARTITION_ID_(alterMaterializedView_partition_at~bf63b34b	ALTER MATERIALIZED VIEW a MODIFY PARTITION a
 reject@33	accept	engine	alterMaterializedView_modify_table_partition(alterMaterializedView_partition_attr~6956ba1e)/alterMaterializedView_partition_attributes	ALTER MATERIALIZED VIEW a MODIFY PARTITION a
 reject@33	accept	engine	alterMaterializedView_modify_table_partition(alterMaterializedView_partition_attr~6956ba1e)/(alterMaterializedView_add_range_subp~45c89364)	ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION
@@ -9438,7 +9438,7 @@ reject@56	reject@48	engine	alterMaterializedView_rename_partition_subpart(PARTIT
 reject@53	reject@33	engine	alterMaterializedView_rename_partition_subpart(PARTITION_ID|SUBPARTITION_ID)/SUBPARTITION_ID!swap	ALTER MATERIALIZED VIEW a RENAME SUBPARTITIONS a TO a
 reject@46	reject@35	engine	alterMaterializedView_truncate_partition_subpart/TRUNCATE_(PARTITION|SUBPARTITION)_(ID|FOR_(_EXPR_(,_EXP~2c784c15	ALTER MATERIALIZED VIEW a TRUNCATE PARTITION a
 reject@46	reject@35	engine	alterMaterializedView_truncate_partition_subpart(PARTITION|SUBPARTITION)/PARTITION	ALTER MATERIALIZED VIEW a TRUNCATE PARTITION a
-reject@34	accept	engine	alterMaterializedView_truncate_partition_subpart(PARTITION|SUBPARTITION)/PARTITION!truncate	ALTER MATERIALIZED VIEW a TRUNCATE
+reject@34	reject@26	engine	alterMaterializedView_truncate_partition_subpart(PARTITION|SUBPARTITION)/PARTITION!truncate	ALTER MATERIALIZED VIEW a TRUNCATE
 reject@50	reject@35	engine	alterMaterializedView_truncate_partition_subpart(PARTITION|SUBPARTITION)/PARTITION!insert	ALTER MATERIALIZED VIEW a TRUNCATE PARTITION zzz a
 reject@49	reject@26	engine	alterMaterializedView_truncate_partition_subpart(PARTITION|SUBPARTITION)/PARTITION!swap	ALTER MATERIALIZED VIEW a TRUNCATE PARTITIONING a
 reject@49	reject@35	engine	alterMaterializedView_truncate_partition_subpart(PARTITION|SUBPARTITION)/SUBPARTITION	ALTER MATERIALIZED VIEW a TRUNCATE SUBPARTITION a
@@ -9968,11 +9968,11 @@ reject@33	reject@50	engine	alterMaterializedView_lob_retention_clause(MAX|MIN_NU
 reject@33	accept	engine	alterMaterializedView_lob_retention_clause(MAX|MIN_NUMBER|AUTO|NONE)?/NONE	ALTER MATERIALIZED VIEW a MODIFY LOB(a)(RETENTION NONE)
 reject@33	reject@55	engine	alterMaterializedView_lob_retention_clause(MAX|MIN_NUMBER|AUTO|NONE)?/NONE!insert	ALTER MATERIALIZED VIEW a MODIFY LOB(a)(RETENTION NONE zzz)
 reject@33	reject@50	engine	alterMaterializedView_lob_retention_clause(MAX|MIN_NUMBER|AUTO|NONE)?/NONE!swap	ALTER MATERIALIZED VIEW a MODIFY LOB(a)(RETENTION NONEDITIONABLE)
-reject@54	accept	engine	alterMaterializedView_lob_deduplicate_clause/(DEDUPLICATE|KEEP_DUPLICATES)	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(DEDUPLICATE)
-reject@54	accept	engine	alterMaterializedView_lob_deduplicate_clause(DEDUPLICATE|KEEP_DUPLICATES)/DEDUPLICATE	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(DEDUPLICATE)
-reject@58	accept	engine	alterMaterializedView_lob_deduplicate_clause(DEDUPLICATE|KEEP_DUPLICATES)/KEEP_DUPLICATES	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(KEEP_DUPLICATES)
-reject@62	accept	engine	alterMaterializedView_lob_deduplicate_clause(DEDUPLICATE|KEEP_DUPLICATES)/KEEP_DUPLICATES!insert	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(KEEP_DUPLICATES zzz)
-reject@46	accept	engine	alterMaterializedView_lob_deduplicate_clause(DEDUPLICATE|KEEP_DUPLICATES)/KEEP_DUPLICATES!swap	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(KEY)
+reject@54	reject@26	engine	alterMaterializedView_lob_deduplicate_clause/(DEDUPLICATE|KEEP_DUPLICATES)	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(DEDUPLICATE)
+reject@54	reject@26	engine	alterMaterializedView_lob_deduplicate_clause(DEDUPLICATE|KEEP_DUPLICATES)/DEDUPLICATE	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(DEDUPLICATE)
+reject@58	reject@26	engine	alterMaterializedView_lob_deduplicate_clause(DEDUPLICATE|KEEP_DUPLICATES)/KEEP_DUPLICATES	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(KEEP_DUPLICATES)
+reject@62	reject@26	engine	alterMaterializedView_lob_deduplicate_clause(DEDUPLICATE|KEEP_DUPLICATES)/KEEP_DUPLICATES!insert	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(KEEP_DUPLICATES zzz)
+reject@46	reject@26	engine	alterMaterializedView_lob_deduplicate_clause(DEDUPLICATE|KEEP_DUPLICATES)/KEEP_DUPLICATES!swap	ALTER MATERIALIZED VIEW a LOB(a) STORE AS(KEY)
 reject@33	accept	engine	alterMaterializedView_lob_compression_clause/(COMPRESS_(HIGH|MEDIUM|LOW)?|NOCOMPRESS)	ALTER MATERIALIZED VIEW a MODIFY LOB(a)(COMPRESS)
 reject@33	accept	engine	alterMaterializedView_lob_compression_clause(COMPRESS_(HIGH|MEDIUM|LOW)?|NOCOMPRESS)/COMPRESS_(HIGH|MEDIUM|LOW)?	ALTER MATERIALIZED VIEW a MODIFY LOB(a)(COMPRESS)
 reject@33	accept	engine	alterMaterializedView_lob_compression_clause(COMPRESS_(HIGH|MEDIUM|LOW)?|NOCOMPRESS)/NOCOMPRESS	ALTER MATERIALIZED VIEW a MODIFY LOB(a)(NOCOMPRESS)
@@ -10024,10 +10024,10 @@ reject@34	accept	engine	alterMaterializedView_segment_attributes_clause/(alterMa
 reject@34	accept	engine	alterMaterializedView_segment_attributes_clause(alterMaterializedView_physical_attri~94f69345)?/%empty	ALTER MATERIALIZED VIEW a OVERFLOW
 reject@34	accept	engine	alterMaterializedView_segment_attributes_clause(alterMaterializedView_physical_attri~94f69345)?/alterMaterializedView_physical_attributes_clause	ALTER MATERIALIZED VIEW a OVERFLOW
 reject@34	accept	engine	alterMaterializedView_segment_attributes_clause(TABLESPACE_ID)?/%empty	ALTER MATERIALIZED VIEW a OVERFLOW
-reject@47	accept	engine	alterMaterializedView_segment_attributes_clause(TABLESPACE_ID)?/TABLESPACE_ID	ALTER MATERIALIZED VIEW a OVERFLOW TABLESPACE a
+reject@47	reject@35	engine	alterMaterializedView_segment_attributes_clause(TABLESPACE_ID)?/TABLESPACE_ID	ALTER MATERIALIZED VIEW a OVERFLOW TABLESPACE a
 reject@36	reject@35	engine	alterMaterializedView_segment_attributes_clause(TABLESPACE_ID)?/TABLESPACE_ID!drop-1	ALTER MATERIALIZED VIEW a OVERFLOW a
-reject@45	accept	engine	alterMaterializedView_segment_attributes_clause(TABLESPACE_ID)?/TABLESPACE_ID!drop-2	ALTER MATERIALIZED VIEW a OVERFLOW TABLESPACE
-reject@51	accept	engine	alterMaterializedView_segment_attributes_clause(TABLESPACE_ID)?/TABLESPACE_ID!insert	ALTER MATERIALIZED VIEW a OVERFLOW TABLESPACE a zzz
+reject@45	reject@35	engine	alterMaterializedView_segment_attributes_clause(TABLESPACE_ID)?/TABLESPACE_ID!drop-2	ALTER MATERIALIZED VIEW a OVERFLOW TABLESPACE
+reject@51	reject@35	engine	alterMaterializedView_segment_attributes_clause(TABLESPACE_ID)?/TABLESPACE_ID!insert	ALTER MATERIALIZED VIEW a OVERFLOW TABLESPACE a zzz
 reject@40	reject@35	engine	alterMaterializedView_segment_attributes_clause(TABLESPACE_ID)?/TABLESPACE_ID!swap	ALTER MATERIALIZED VIEW a OVERFLOW TAG a
 reject@34	accept	engine	alterMaterializedView_segment_attributes_clause(alterMaterializedView_logging_clause)?/%empty	ALTER MATERIALIZED VIEW a OVERFLOW
 reject@42	accept	engine	alterMaterializedView_segment_attributes_clause(alterMaterializedView_logging_clause)?/alterMaterializedView_logging_clause	ALTER MATERIALIZED VIEW a OVERFLOW LOGGING
@@ -10565,7 +10565,7 @@ reject@35	accept	engine	alterMaterializedView_mapping_table_clauses/(MAPPING_TAB
 reject@39	accept	engine	alterMaterializedView_mapping_table_clauses(MAPPING_TABLE|NOMAPPING)/MAPPING_TABLE	ALTER MATERIALIZED VIEW a MAPPING TABLE
 reject@31	reject@26	engine	alterMaterializedView_mapping_table_clauses(MAPPING_TABLE|NOMAPPING)/MAPPING_TABLE!drop-1	ALTER MATERIALIZED VIEW a TABLE
 reject@33	reject@33	engine	alterMaterializedView_mapping_table_clauses(MAPPING_TABLE|NOMAPPING)/MAPPING_TABLE!drop-2	ALTER MATERIALIZED VIEW a MAPPING
-reject@43	accept	engine	alterMaterializedView_mapping_table_clauses(MAPPING_TABLE|NOMAPPING)/MAPPING_TABLE!insert	ALTER MATERIALIZED VIEW a MAPPING TABLE zzz
+reject@43	reject@40	engine	alterMaterializedView_mapping_table_clauses(MAPPING_TABLE|NOMAPPING)/MAPPING_TABLE!insert	ALTER MATERIALIZED VIEW a MAPPING TABLE zzz
 reject@38	reject@26	engine	alterMaterializedView_mapping_table_clauses(MAPPING_TABLE|NOMAPPING)/MAPPING_TABLE!swap	ALTER MATERIALIZED VIEW a MASTER TABLE
 reject@35	accept	engine	alterMaterializedView_mapping_table_clauses(MAPPING_TABLE|NOMAPPING)/NOMAPPING	ALTER MATERIALIZED VIEW a NOMAPPING
 reject@34	accept	engine	alterMaterializedView_index_org_overflow_clause/(INCLUDING_ID)?_OVERFLOW_(alterMaterializedView_segment~8fe83e3f	ALTER MATERIALIZED VIEW a OVERFLOW
@@ -12657,12 +12657,12 @@ accept	accept	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXP
 reject@18	reject@18	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/EDITION_=_ID!drop-1	ALTER SESSION SET = a
 accept	reject@26	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/EDITION_=_ID!drop-2	ALTER SESSION SET EDITION a
 reject@27	reject@27	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/EDITION_=_ID!drop-3	ALTER SESSION SET EDITION =
-accept	accept	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/EDITION_=_ID!insert	ALTER SESSION SET EDITION = a zzz
+accept	reject@30	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/EDITION_=_ID!insert	ALTER SESSION SET EDITION = a zzz
 accept	reject@18	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/EDITION_=_ID!swap	ALTER SESSION SET EDITIONABLE = a
 accept	accept	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/CONTAINER_=_ID_(SERVICE_=_ID)?	ALTER SESSION SET CONTAINER = a
 accept	reject@28	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/CONTAINER_=_ID_(SERVICE_=_ID)?!drop-2	ALTER SESSION SET CONTAINER a
 reject@29	reject@29	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/CONTAINER_=_ID_(SERVICE_=_ID)?!drop-3	ALTER SESSION SET CONTAINER =
-accept	accept	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/CONTAINER_=_ID_(SERVICE_=_ID)?!insert	ALTER SESSION SET CONTAINER = a zzz
+accept	reject@32	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/CONTAINER_=_ID_(SERVICE_=_ID)?!insert	ALTER SESSION SET CONTAINER = a zzz
 accept	reject@18	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/CONTAINER_=_ID_(SERVICE_=_ID)?!swap	ALTER SESSION SET CONTAINERS = a
 accept	accept	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/ROW_ARCHIVAL_VISIBILITY_=_(ACTIVE|ALL)	ALTER SESSION SET ROW ARCHIVAL VISIBILITY = ACTIVE
 accept	reject@18	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/ROW_ARCHIVAL_VISIBILITY_=_(ACTIVE|ALL)!drop-1	ALTER SESSION SET ARCHIVAL VISIBILITY = ACTIVE
@@ -12670,7 +12670,7 @@ accept	reject@0	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_E
 accept	reject@31	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/ROW_ARCHIVAL_VISIBILITY_=_(ACTIVE|ALL)!drop-3	ALTER SESSION SET ROW ARCHIVAL = ACTIVE
 accept	reject@42	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/ROW_ARCHIVAL_VISIBILITY_=_(ACTIVE|ALL)!drop-4	ALTER SESSION SET ROW ARCHIVAL VISIBILITY ACTIVE
 reject@43	reject@43	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/ROW_ARCHIVAL_VISIBILITY_=_(ACTIVE|ALL)!drop-5	ALTER SESSION SET ROW ARCHIVAL VISIBILITY =
-accept	accept	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/ROW_ARCHIVAL_VISIBILITY_=_(ACTIVE|ALL)!insert	ALTER SESSION SET ROW ARCHIVAL VISIBILITY = ACTIVE zzz
+accept	reject@51	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/ROW_ARCHIVAL_VISIBILITY_=_(ACTIVE|ALL)!insert	ALTER SESSION SET ROW ARCHIVAL VISIBILITY = ACTIVE zzz
 accept	reject@18	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/ROW_ARCHIVAL_VISIBILITY_=_(ACTIVE|ALL)!swap	ALTER SESSION SET ROWDEPENDENCIES ARCHIVAL VISIBILITY = ACTIVE
 accept	reject@0	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/DEFAULT_COLLATION_=_(ID|NONE)	ALTER SESSION SET DEFAULT_COLLATION = a
 accept	reject@0	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/DEFAULT_COLLATION_=_(ID|NONE)!drop-2	ALTER SESSION SET DEFAULT_COLLATION a
@@ -12681,54 +12681,54 @@ accept	accept	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXP
 reject@18	reject@18	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/(CONSTRAINT|CONSTRAINTS)_=_(IMMEDIATE|DEFERRED|DEFAULT)!drop-1	ALTER SESSION SET = IMMEDIATE
 accept	reject@29	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/(CONSTRAINT|CONSTRAINTS)_=_(IMMEDIATE|DEFERRED|DEFAULT)!drop-2	ALTER SESSION SET CONSTRAINT IMMEDIATE
 reject@30	reject@30	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/(CONSTRAINT|CONSTRAINTS)_=_(IMMEDIATE|DEFERRED|DEFAULT)!drop-3	ALTER SESSION SET CONSTRAINT =
-accept	accept	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/(CONSTRAINT|CONSTRAINTS)_=_(IMMEDIATE|DEFERRED|DEFAULT)!insert	ALTER SESSION SET CONSTRAINT = IMMEDIATE zzz
+accept	reject@41	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/(CONSTRAINT|CONSTRAINTS)_=_(IMMEDIATE|DEFERRED|DEFAULT)!insert	ALTER SESSION SET CONSTRAINT = IMMEDIATE zzz
 accept	accept	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/CURRENT_SCHEMA_=_ID	ALTER SESSION SET CURRENT_SCHEMA = a
 accept	reject@33	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/CURRENT_SCHEMA_=_ID!drop-2	ALTER SESSION SET CURRENT_SCHEMA a
 reject@34	reject@34	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/CURRENT_SCHEMA_=_ID!drop-3	ALTER SESSION SET CURRENT_SCHEMA =
-accept	accept	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/CURRENT_SCHEMA_=_ID!insert	ALTER SESSION SET CURRENT_SCHEMA = a zzz
+accept	reject@37	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/CURRENT_SCHEMA_=_ID!insert	ALTER SESSION SET CURRENT_SCHEMA = a zzz
 accept	reject@18	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/CURRENT_SCHEMA_=_ID!swap	ALTER SESSION SET CURRENT_USER = a
 accept	accept	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/ERROR_ON_OVERLAP_TIME_=_(TRUE|FALSE)	ALTER SESSION SET ERROR_ON_OVERLAP_TIME = TRUE
 reject@18	reject@18	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/ERROR_ON_OVERLAP_TIME_=_(TRUE|FALSE)!drop-1	ALTER SESSION SET = TRUE
 accept	reject@40	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/ERROR_ON_OVERLAP_TIME_=_(TRUE|FALSE)!drop-2	ALTER SESSION SET ERROR_ON_OVERLAP_TIME TRUE
 reject@41	reject@41	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/ERROR_ON_OVERLAP_TIME_=_(TRUE|FALSE)!drop-3	ALTER SESSION SET ERROR_ON_OVERLAP_TIME =
-accept	accept	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/ERROR_ON_OVERLAP_TIME_=_(TRUE|FALSE)!insert	ALTER SESSION SET ERROR_ON_OVERLAP_TIME = TRUE zzz
+accept	reject@47	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/ERROR_ON_OVERLAP_TIME_=_(TRUE|FALSE)!insert	ALTER SESSION SET ERROR_ON_OVERLAP_TIME = TRUE zzz
 accept	reject@18	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/ERROR_ON_OVERLAP_TIME_=_(TRUE|FALSE)!swap	ALTER SESSION SET ETAG = TRUE
 accept	accept	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/FLAGGER_=_(ENTRY|OFF)	ALTER SESSION SET FLAGGER = ENTRY
 reject@18	reject@18	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/FLAGGER_=_(ENTRY|OFF)!drop-1	ALTER SESSION SET = ENTRY
 accept	reject@26	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/FLAGGER_=_(ENTRY|OFF)!drop-2	ALTER SESSION SET FLAGGER ENTRY
 reject@27	reject@27	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/FLAGGER_=_(ENTRY|OFF)!drop-3	ALTER SESSION SET FLAGGER =
-accept	accept	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/FLAGGER_=_(ENTRY|OFF)!insert	ALTER SESSION SET FLAGGER = ENTRY zzz
+accept	reject@34	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/FLAGGER_=_(ENTRY|OFF)!insert	ALTER SESSION SET FLAGGER = ENTRY zzz
 accept	reject@18	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/FLAGGER_=_(ENTRY|OFF)!swap	ALTER SESSION SET FLASHBACK = ENTRY
 accept	accept	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/INSTANCE_=_NUMBER	ALTER SESSION SET INSTANCE = 1
 reject@27	reject@27	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/INSTANCE_=_NUMBER!drop-2	ALTER SESSION SET INSTANCE 1
 reject@28	reject@28	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/INSTANCE_=_NUMBER!drop-3	ALTER SESSION SET INSTANCE =
-accept	accept	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/INSTANCE_=_NUMBER!insert	ALTER SESSION SET INSTANCE = 1 zzz
+accept	reject@31	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/INSTANCE_=_NUMBER!insert	ALTER SESSION SET INSTANCE = 1 zzz
 accept	reject@18	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/INSTANCE_=_NUMBER!swap	ALTER SESSION SET INSTANCES = 1
 accept	accept	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/ISOLATION_LEVEL_=_(SERIALIZABLE|READ_COMMITTED)	ALTER SESSION SET ISOLATION_LEVEL = SERIALIZABLE
 reject@18	reject@18	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/ISOLATION_LEVEL_=_(SERIALIZABLE|READ_COMMITTED)!drop-1	ALTER SESSION SET = SERIALIZABLE
 accept	reject@34	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/ISOLATION_LEVEL_=_(SERIALIZABLE|READ_COMMITTED)!drop-2	ALTER SESSION SET ISOLATION_LEVEL SERIALIZABLE
 reject@35	reject@35	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/ISOLATION_LEVEL_=_(SERIALIZABLE|READ_COMMITTED)!drop-3	ALTER SESSION SET ISOLATION_LEVEL =
-accept	accept	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/ISOLATION_LEVEL_=_(SERIALIZABLE|READ_COMMITTED)!insert	ALTER SESSION SET ISOLATION_LEVEL = SERIALIZABLE zzz
+accept	reject@49	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/ISOLATION_LEVEL_=_(SERIALIZABLE|READ_COMMITTED)!insert	ALTER SESSION SET ISOLATION_LEVEL = SERIALIZABLE zzz
 accept	reject@18	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/ISOLATION_LEVEL_=_(SERIALIZABLE|READ_COMMITTED)!swap	ALTER SESSION SET IS_LEAF = SERIALIZABLE
 accept	accept	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/STANDBY_MAX_DATA_DELAY_=_(NUMBER|NONE)	ALTER SESSION SET STANDBY_MAX_DATA_DELAY = 1
 reject@41	reject@41	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/STANDBY_MAX_DATA_DELAY_=_(NUMBER|NONE)!drop-2	ALTER SESSION SET STANDBY_MAX_DATA_DELAY 1
 reject@42	reject@42	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/STANDBY_MAX_DATA_DELAY_=_(NUMBER|NONE)!drop-3	ALTER SESSION SET STANDBY_MAX_DATA_DELAY =
-accept	accept	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/STANDBY_MAX_DATA_DELAY_=_(NUMBER|NONE)!insert	ALTER SESSION SET STANDBY_MAX_DATA_DELAY = 1 zzz
+accept	reject@45	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/STANDBY_MAX_DATA_DELAY_=_(NUMBER|NONE)!insert	ALTER SESSION SET STANDBY_MAX_DATA_DELAY = 1 zzz
 accept	reject@18	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/STANDBY_MAX_DATA_DELAY_=_(NUMBER|NONE)!swap	ALTER SESSION SET START = 1
 accept	accept	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/TIME_ZONE_=_(STRING|LOCAL|DBTIMEZONE)	ALTER SESSION SET TIME_ZONE = 's'
 reject@18	reject@18	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/TIME_ZONE_=_(STRING|LOCAL|DBTIMEZONE)!drop-1	ALTER SESSION SET = 's'
 reject@28	reject@28	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/TIME_ZONE_=_(STRING|LOCAL|DBTIMEZONE)!drop-2	ALTER SESSION SET TIME_ZONE 's'
 reject@29	reject@29	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/TIME_ZONE_=_(STRING|LOCAL|DBTIMEZONE)!drop-3	ALTER SESSION SET TIME_ZONE =
-accept	accept	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/TIME_ZONE_=_(STRING|LOCAL|DBTIMEZONE)!insert	ALTER SESSION SET TIME_ZONE = 's' zzz
+accept	reject@34	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/TIME_ZONE_=_(STRING|LOCAL|DBTIMEZONE)!insert	ALTER SESSION SET TIME_ZONE = 's' zzz
 accept	reject@18	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/TIME_ZONE_=_(STRING|LOCAL|DBTIMEZONE)!swap	ALTER SESSION SET TO = 's'
 accept	accept	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/USE_PRIVATE_OUTLINES_=_(TRUE|FALSE|ID)	ALTER SESSION SET USE_PRIVATE_OUTLINES = TRUE
 accept	accept	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/USE_PRIVATE_OUTLINES_=_(TRUE|FALSE|ID)!drop-2	ALTER SESSION SET USE_PRIVATE_OUTLINES TRUE
 reject@40	accept	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/USE_PRIVATE_OUTLINES_=_(TRUE|FALSE|ID)!drop-3	ALTER SESSION SET USE_PRIVATE_OUTLINES =
-accept	accept	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/USE_PRIVATE_OUTLINES_=_(TRUE|FALSE|ID)!insert	ALTER SESSION SET USE_PRIVATE_OUTLINES = TRUE zzz
+accept	reject@46	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/USE_PRIVATE_OUTLINES_=_(TRUE|FALSE|ID)!insert	ALTER SESSION SET USE_PRIVATE_OUTLINES = TRUE zzz
 accept	accept	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/USE_STORED_OUTLINES_=_(TRUE|FALSE|ID)	ALTER SESSION SET USE_STORED_OUTLINES = TRUE
 accept	accept	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/USE_STORED_OUTLINES_=_(TRUE|FALSE|ID)!drop-2	ALTER SESSION SET USE_STORED_OUTLINES TRUE
 reject@39	accept	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/USE_STORED_OUTLINES_=_(TRUE|FALSE|ID)!drop-3	ALTER SESSION SET USE_STORED_OUTLINES =
-accept	accept	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/USE_STORED_OUTLINES_=_(TRUE|FALSE|ID)!insert	ALTER SESSION SET USE_STORED_OUTLINES = TRUE zzz
+accept	reject@45	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/USE_STORED_OUTLINES_=_(TRUE|FALSE|ID)!insert	ALTER SESSION SET USE_STORED_OUTLINES = TRUE zzz
 accept	reject@18	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/USE_STORED_OUTLINES_=_(TRUE|FALSE|ID)!swap	ALTER SESSION SET USING = TRUE
 accept	reject@18	engine	alterSession_alter_session_set_clause(,_ID_=_EXPR)*/%empty	ALTER SESSION SET a = 1
 accept	reject@18	engine	alterSession_alter_session_set_clause(,_ID_=_EXPR)*/,_ID_=_EXPR_(,_ID_=_EXPR)*	ALTER SESSION SET a = 1, a = 1
@@ -12742,12 +12742,12 @@ accept	accept	engine	alterSession_alter_session_set_clause(SERVICE_=_ID)?/SERVIC
 accept	reject@32	engine	alterSession_alter_session_set_clause(SERVICE_=_ID)?/SERVICE_=_ID!drop-1	ALTER SESSION SET CONTAINER = a = a
 accept	reject@40	engine	alterSession_alter_session_set_clause(SERVICE_=_ID)?/SERVICE_=_ID!drop-2	ALTER SESSION SET CONTAINER = a SERVICE a
 reject@41	reject@41	engine	alterSession_alter_session_set_clause(SERVICE_=_ID)?/SERVICE_=_ID!drop-3	ALTER SESSION SET CONTAINER = a SERVICE =
-accept	accept	engine	alterSession_alter_session_set_clause(SERVICE_=_ID)?/SERVICE_=_ID!insert	ALTER SESSION SET CONTAINER = a SERVICE = a zzz
+accept	reject@44	engine	alterSession_alter_session_set_clause(SERVICE_=_ID)?/SERVICE_=_ID!insert	ALTER SESSION SET CONTAINER = a SERVICE = a zzz
 accept	reject@32	engine	alterSession_alter_session_set_clause(SERVICE_=_ID)?/SERVICE_=_ID!swap	ALTER SESSION SET CONTAINER = a SERVICES = a
 accept	accept	engine	alterSession_alter_session_set_clause(ACTIVE|ALL)/ACTIVE	ALTER SESSION SET ROW ARCHIVAL VISIBILITY = ACTIVE
 accept	reject@44	engine	alterSession_alter_session_set_clause(ACTIVE|ALL)/ACTIVE!swap	ALTER SESSION SET ROW ARCHIVAL VISIBILITY = ADD
 accept	accept	engine	alterSession_alter_session_set_clause(ACTIVE|ALL)/ALL	ALTER SESSION SET ROW ARCHIVAL VISIBILITY = ALL
-accept	accept	engine	alterSession_alter_session_set_clause(ACTIVE|ALL)/ALL!insert	ALTER SESSION SET ROW ARCHIVAL VISIBILITY = ALL zzz
+accept	reject@48	engine	alterSession_alter_session_set_clause(ACTIVE|ALL)/ALL!insert	ALTER SESSION SET ROW ARCHIVAL VISIBILITY = ALL zzz
 accept	reject@44	engine	alterSession_alter_session_set_clause(ACTIVE|ALL)/ALL!swap	ALTER SESSION SET ROW ARCHIVAL VISIBILITY = ALLOCATE
 accept	reject@0	engine	alterSession_alter_session_set_clause(ID|NONE)/ID	ALTER SESSION SET DEFAULT_COLLATION = a
 accept	reject@0	engine	alterSession_alter_session_set_clause(ID|NONE)/NONE	ALTER SESSION SET DEFAULT_COLLATION = NONE
@@ -12762,46 +12762,46 @@ accept	reject@30	engine	alterSession_alter_session_set_clause(CONSTRAINT|CONSTRA
 accept	accept	engine	alterSession_alter_session_set_clause(IMMEDIATE|DEFERRED|DEFAULT)/IMMEDIATE	ALTER SESSION SET CONSTRAINT = IMMEDIATE
 accept	reject@31	engine	alterSession_alter_session_set_clause(IMMEDIATE|DEFERRED|DEFAULT)/IMMEDIATE!swap	ALTER SESSION SET CONSTRAINT = IMPORT
 accept	accept	engine	alterSession_alter_session_set_clause(IMMEDIATE|DEFERRED|DEFAULT)/DEFERRED	ALTER SESSION SET CONSTRAINT = DEFERRED
-accept	accept	engine	alterSession_alter_session_set_clause(IMMEDIATE|DEFERRED|DEFAULT)/DEFERRED!insert	ALTER SESSION SET CONSTRAINT = DEFERRED zzz
+accept	reject@40	engine	alterSession_alter_session_set_clause(IMMEDIATE|DEFERRED|DEFAULT)/DEFERRED!insert	ALTER SESSION SET CONSTRAINT = DEFERRED zzz
 accept	reject@31	engine	alterSession_alter_session_set_clause(IMMEDIATE|DEFERRED|DEFAULT)/DEFERRED!swap	ALTER SESSION SET CONSTRAINT = DEFINE
 accept	accept	engine	alterSession_alter_session_set_clause(IMMEDIATE|DEFERRED|DEFAULT)/DEFAULT	ALTER SESSION SET CONSTRAINT = DEFAULT
-accept	accept	engine	alterSession_alter_session_set_clause(IMMEDIATE|DEFERRED|DEFAULT)/DEFAULT!insert	ALTER SESSION SET CONSTRAINT = DEFAULT zzz
+accept	reject@39	engine	alterSession_alter_session_set_clause(IMMEDIATE|DEFERRED|DEFAULT)/DEFAULT!insert	ALTER SESSION SET CONSTRAINT = DEFAULT zzz
 accept	reject@31	engine	alterSession_alter_session_set_clause(IMMEDIATE|DEFERRED|DEFAULT)/DEFAULT!swap	ALTER SESSION SET CONSTRAINT = DEFAULT_COLLATION
 accept	accept	engine	alterSession_alter_session_set_clause(TRUE|FALSE)/TRUE	ALTER SESSION SET ERROR_ON_OVERLAP_TIME = TRUE
 accept	reject@42	engine	alterSession_alter_session_set_clause(TRUE|FALSE)/TRUE!swap	ALTER SESSION SET ERROR_ON_OVERLAP_TIME = TRUNCATE
 accept	accept	engine	alterSession_alter_session_set_clause(TRUE|FALSE)/FALSE	ALTER SESSION SET ERROR_ON_OVERLAP_TIME = FALSE
-accept	accept	engine	alterSession_alter_session_set_clause(TRUE|FALSE)/FALSE!insert	ALTER SESSION SET ERROR_ON_OVERLAP_TIME = FALSE zzz
+accept	reject@48	engine	alterSession_alter_session_set_clause(TRUE|FALSE)/FALSE!insert	ALTER SESSION SET ERROR_ON_OVERLAP_TIME = FALSE zzz
 accept	reject@42	engine	alterSession_alter_session_set_clause(TRUE|FALSE)/FALSE!swap	ALTER SESSION SET ERROR_ON_OVERLAP_TIME = FAR
 accept	accept	engine	alterSession_alter_session_set_clause(ENTRY|OFF)/ENTRY	ALTER SESSION SET FLAGGER = ENTRY
 accept	reject@28	engine	alterSession_alter_session_set_clause(ENTRY|OFF)/ENTRY!swap	ALTER SESSION SET FLAGGER = ENUM
 accept	accept	engine	alterSession_alter_session_set_clause(ENTRY|OFF)/OFF	ALTER SESSION SET FLAGGER = OFF
-accept	accept	engine	alterSession_alter_session_set_clause(ENTRY|OFF)/OFF!insert	ALTER SESSION SET FLAGGER = OFF zzz
+accept	reject@32	engine	alterSession_alter_session_set_clause(ENTRY|OFF)/OFF!insert	ALTER SESSION SET FLAGGER = OFF zzz
 accept	reject@28	engine	alterSession_alter_session_set_clause(ENTRY|OFF)/OFF!swap	ALTER SESSION SET FLAGGER = OFFLINE
 accept	accept	engine	alterSession_alter_session_set_clause(SERIALIZABLE|READ_COMMITTED)/SERIALIZABLE	ALTER SESSION SET ISOLATION_LEVEL = SERIALIZABLE
 accept	reject@36	engine	alterSession_alter_session_set_clause(SERIALIZABLE|READ_COMMITTED)/SERIALIZABLE!swap	ALTER SESSION SET ISOLATION_LEVEL = SERVICE
 accept	accept	engine	alterSession_alter_session_set_clause(SERIALIZABLE|READ_COMMITTED)/READ_COMMITTED	ALTER SESSION SET ISOLATION_LEVEL = READ COMMITTED
 accept	reject@36	engine	alterSession_alter_session_set_clause(SERIALIZABLE|READ_COMMITTED)/READ_COMMITTED!drop-1	ALTER SESSION SET ISOLATION_LEVEL = COMMITTED
 accept	reject@40	engine	alterSession_alter_session_set_clause(SERIALIZABLE|READ_COMMITTED)/READ_COMMITTED!drop-2	ALTER SESSION SET ISOLATION_LEVEL = READ
-accept	accept	engine	alterSession_alter_session_set_clause(SERIALIZABLE|READ_COMMITTED)/READ_COMMITTED!insert	ALTER SESSION SET ISOLATION_LEVEL = READ COMMITTED zzz
+accept	reject@51	engine	alterSession_alter_session_set_clause(SERIALIZABLE|READ_COMMITTED)/READ_COMMITTED!insert	ALTER SESSION SET ISOLATION_LEVEL = READ COMMITTED zzz
 accept	reject@36	engine	alterSession_alter_session_set_clause(SERIALIZABLE|READ_COMMITTED)/READ_COMMITTED!swap	ALTER SESSION SET ISOLATION_LEVEL = READS COMMITTED
 accept	accept	engine	alterSession_alter_session_set_clause(NUMBER|NONE)/NUMBER	ALTER SESSION SET STANDBY_MAX_DATA_DELAY = 1
 accept	accept	engine	alterSession_alter_session_set_clause(NUMBER|NONE)/NONE	ALTER SESSION SET STANDBY_MAX_DATA_DELAY = NONE
-accept	accept	engine	alterSession_alter_session_set_clause(NUMBER|NONE)/NONE!insert	ALTER SESSION SET STANDBY_MAX_DATA_DELAY = NONE zzz
+accept	reject@48	engine	alterSession_alter_session_set_clause(NUMBER|NONE)/NONE!insert	ALTER SESSION SET STANDBY_MAX_DATA_DELAY = NONE zzz
 accept	reject@43	engine	alterSession_alter_session_set_clause(NUMBER|NONE)/NONE!swap	ALTER SESSION SET STANDBY_MAX_DATA_DELAY = NONEDITIONABLE
 accept	accept	engine	alterSession_alter_session_set_clause(STRING|LOCAL|DBTIMEZONE)/STRING	ALTER SESSION SET TIME_ZONE = 's'
 accept	accept	engine	alterSession_alter_session_set_clause(STRING|LOCAL|DBTIMEZONE)/LOCAL	ALTER SESSION SET TIME_ZONE = LOCAL
-accept	accept	engine	alterSession_alter_session_set_clause(STRING|LOCAL|DBTIMEZONE)/LOCAL!insert	ALTER SESSION SET TIME_ZONE = LOCAL zzz
+accept	reject@36	engine	alterSession_alter_session_set_clause(STRING|LOCAL|DBTIMEZONE)/LOCAL!insert	ALTER SESSION SET TIME_ZONE = LOCAL zzz
 accept	reject@30	engine	alterSession_alter_session_set_clause(STRING|LOCAL|DBTIMEZONE)/LOCAL!swap	ALTER SESSION SET TIME_ZONE = LOCATION
 accept	accept	engine	alterSession_alter_session_set_clause(STRING|LOCAL|DBTIMEZONE)/DBTIMEZONE	ALTER SESSION SET TIME_ZONE = DBTIMEZONE
-accept	accept	engine	alterSession_alter_session_set_clause(STRING|LOCAL|DBTIMEZONE)/DBTIMEZONE!insert	ALTER SESSION SET TIME_ZONE = DBTIMEZONE zzz
+accept	reject@41	engine	alterSession_alter_session_set_clause(STRING|LOCAL|DBTIMEZONE)/DBTIMEZONE!insert	ALTER SESSION SET TIME_ZONE = DBTIMEZONE zzz
 accept	reject@30	engine	alterSession_alter_session_set_clause(STRING|LOCAL|DBTIMEZONE)/DBTIMEZONE!swap	ALTER SESSION SET TIME_ZONE = DDL
 accept	accept	engine	alterSession_alter_session_set_clause(TRUE|FALSE|ID)/TRUE	ALTER SESSION SET USE_PRIVATE_OUTLINES = TRUE
 accept	accept	engine	alterSession_alter_session_set_clause(TRUE|FALSE|ID)/TRUE!swap	ALTER SESSION SET USE_PRIVATE_OUTLINES = TRUNCATE
 accept	accept	engine	alterSession_alter_session_set_clause(TRUE|FALSE|ID)/FALSE	ALTER SESSION SET USE_PRIVATE_OUTLINES = FALSE
-accept	accept	engine	alterSession_alter_session_set_clause(TRUE|FALSE|ID)/FALSE!insert	ALTER SESSION SET USE_PRIVATE_OUTLINES = FALSE zzz
+accept	reject@47	engine	alterSession_alter_session_set_clause(TRUE|FALSE|ID)/FALSE!insert	ALTER SESSION SET USE_PRIVATE_OUTLINES = FALSE zzz
 accept	accept	engine	alterSession_alter_session_set_clause(TRUE|FALSE|ID)/FALSE!swap	ALTER SESSION SET USE_PRIVATE_OUTLINES = FAR
 accept	accept	engine	alterSession_alter_session_set_clause(TRUE|FALSE|ID)/ID	ALTER SESSION SET USE_PRIVATE_OUTLINES = a
-accept	accept	engine	alterSession_alter_session_set_clause(TRUE|FALSE|ID)/ID!insert	ALTER SESSION SET USE_PRIVATE_OUTLINES = a zzz
+accept	reject@43	engine	alterSession_alter_session_set_clause(TRUE|FALSE|ID)/ID!insert	ALTER SESSION SET USE_PRIVATE_OUTLINES = a zzz
 accept	accept	engine	alterSynonym/ALTER_(PUBLIC)?_SYNONYM_(IF_EXISTS)?_(ID_.)?_ID_(EDITIO~1f0cb73e	ALTER SYNONYM a EDITIONABLE
 accept	accept	engine	alterSynonym(PUBLIC)?/%empty	ALTER SYNONYM a EDITIONABLE
 reject@6	reject@6	engine	alterSynonym(PUBLIC)?/%empty!insert	ALTER zzz SYNONYM a EDITIONABLE
@@ -13616,7 +13616,7 @@ reject@14	reject@14	engine	alterTable_alter_table_partitioning(alterTable_modify
 accept	accept	engine	alterTable_alter_table_partitioning(alterTable_modify_table_default_attr~6613a821)/alterTable_alter_automatic_partitioning	ALTER TABLE a SET PARTITIONING AUTOMATIC
 reject@14	reject@14	engine	alterTable_alter_table_partitioning(alterTable_modify_table_default_attr~6613a821)/alterTable_alter_automatic_partitioning!drop-1	ALTER TABLE a PARTITIONING AUTOMATIC
 accept	accept	engine	alterTable_alter_table_partitioning(alterTable_modify_table_default_attr~6613a821)/alterTable_alter_automatic_partitioning!drop-2	ALTER TABLE a SET AUTOMATIC
-accept	accept	engine	alterTable_alter_table_partitioning(alterTable_modify_table_default_attr~6613a821)/alterTable_alter_automatic_partitioning!drop-3	ALTER TABLE a SET PARTITIONING
+accept	reject@0	engine	alterTable_alter_table_partitioning(alterTable_modify_table_default_attr~6613a821)/alterTable_alter_automatic_partitioning!drop-3	ALTER TABLE a SET PARTITIONING
 reject@41	reject@41	engine	alterTable_alter_table_partitioning(alterTable_modify_table_default_attr~6613a821)/alterTable_alter_automatic_partitioning!insert	ALTER TABLE a SET PARTITIONING AUTOMATIC zzz
 reject@14	reject@14	engine	alterTable_alter_table_partitioning(alterTable_modify_table_default_attr~6613a821)/alterTable_alter_automatic_partitioning!swap	ALTER TABLE a SETS PARTITIONING AUTOMATIC
 accept	accept	engine	alterTable_alter_table_partitioning(alterTable_modify_table_default_attr~6613a821)/alterTable_alter_interval_partitioning	ALTER TABLE a SET INTERVAL()
@@ -24961,7 +24961,7 @@ reject@19	reject@24	engine	createJava(BFILE_(_ID_,_STRING_)|(CLOB|BLOB|BFI~90826
 reject@37	accept	engine	createJava(BFILE_(_ID_,_STRING_)|(CLOB|BLOB|BFI~90826844)/BFILE_(_ID_,_STRING_)!drop-2	CREATE JAVA SOURCE USING BFILE a, 's')
 reject@19	accept	engine	createJava(BFILE_(_ID_,_STRING_)|(CLOB|BLOB|BFI~90826844)/BFILE_(_ID_,_STRING_)!drop-3	CREATE JAVA SOURCE USING BFILE(, 's')
 reject@19	reject@33	engine	createJava(BFILE_(_ID_,_STRING_)|(CLOB|BLOB|BFI~90826844)/BFILE_(_ID_,_STRING_)!drop-4	CREATE JAVA SOURCE USING BFILE(a 's')
-reject@19	accept	engine	createJava(BFILE_(_ID_,_STRING_)|(CLOB|BLOB|BFI~90826844)/BFILE_(_ID_,_STRING_)!drop-5	CREATE JAVA SOURCE USING BFILE(a,)
+reject@19	reject@33	engine	createJava(BFILE_(_ID_,_STRING_)|(CLOB|BLOB|BFI~90826844)/BFILE_(_ID_,_STRING_)!drop-5	CREATE JAVA SOURCE USING BFILE(a,)
 reject@37	reject@37	engine	createJava(BFILE_(_ID_,_STRING_)|(CLOB|BLOB|BFI~90826844)/BFILE_(_ID_,_STRING_)!drop-6	CREATE JAVA SOURCE USING BFILE(a, 's'
 reject@19	reject@39	engine	createJava(BFILE_(_ID_,_STRING_)|(CLOB|BLOB|BFI~90826844)/BFILE_(_ID_,_STRING_)!insert	CREATE JAVA SOURCE USING BFILE(a, 's') zzz
 reject@19	reject@25	engine	createJava(BFILE_(_ID_,_STRING_)|(CLOB|BLOB|BFI~90826844)/BFILE_(_ID_,_STRING_)!swap	CREATE JAVA SOURCE USING BIGFILE(a, 's')
@@ -45950,7 +45950,7 @@ reject@35	reject@35	engine	suite:reference	LOCK TABLE t IN EXCLUSIVE MODE WAIT
 reject@36	reject@36	engine	suite:reference	LOCK TABLE t IN EXCLUSIVE MODE WAIT 2.5
 reject@26	reject@13	engine	suite:reference	LOCK TABLE t PARTITION (p1, p2) IN EXCLUSIVE MODE
 accept	accept	engine	suite:reference	BEGIN LOCK TABLE t IN SHARE UPDATE MODE WAIT 5; ROLLBACK; END;
-reject@22	accept	engine	suite:reference	BEGIN LOCK TABLE t IN FOO MODE; END;
+reject@22	reject@26	engine	suite:reference	BEGIN LOCK TABLE t IN FOO MODE; END;
 accept	accept	engine	suite:reference	CREATE OR REPLACE PROCEDURE omni_ab_R1 (a NUMBER) AUTHID DEFINER ACCESSIBLE BY (PACKAGE omni_x, PROCEDURE omni_y, FUNCTION omni_z, TRIGGER omni_t, TYPE omni_ty, omni_plain, omni_s.omni_q) IS BEGIN NULL; END;
 accept	accept	engine	suite:reference	CREATE OR REPLACE PACKAGE omni_abk_R1 ACCESSIBLE BY (omni_x) AUTHID CURRENT_USER AS PROCEDURE p ACCESSIBLE BY (PACKAGE omni_x); FUNCTION f RETURN NUMBER ACCESSIBLE BY (omni_y); END;
 reject@65	reject	engine	suite:reference	CREATE OR REPLACE PROCEDURE omni_bad_ab_R1 ACCESSIBLE BY (PACKAGE) IS BEGIN NULL; END;
