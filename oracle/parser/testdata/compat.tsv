@@ -1005,7 +1005,7 @@ reject@0	reject@0	engine	statement/flashbackTable!swap	FLASH_CACHE TABLE a TO SC
 accept	accept	engine	statement/grant	GRANT a TO a
 reject@0	reject@0	engine	statement/grant!drop-1	a TO a
 reject@6	reject@6	engine	statement/grant!drop-2	GRANT TO a
-reject@9	reject@6	engine	statement/grant!drop-3	GRANT a a
+reject@6	reject@6	engine	statement/grant!drop-3	GRANT a a
 reject@10	reject@10	engine	statement/grant!drop-4	GRANT a TO
 reject@13	reject@13	engine	statement/grant!insert	GRANT a TO a zzz
 reject@0	reject@0	engine	statement/grant!swap	GRAPH a TO a
@@ -1037,9 +1037,9 @@ reject@24	reject@24	engine	statement/merge!drop-8	MERGE INTO a USING a ON()
 reject@29	reject@29	engine	statement/merge!drop-9	MERGE INTO a USING a ON(1 = 1
 reject@31	reject@31	engine	statement/merge!insert	MERGE INTO a USING a ON(1 = 1) zzz
 reject@0	reject@0	engine	statement/merge!swap	METADATA INTO a USING a ON(1 = 1)
-accept	reject@8	engine	statement/noauditTraditionalAuditing	NOAUDIT a
-accept	reject@7	engine	statement/noauditTraditionalAuditing!drop-2	NOAUDIT
-accept	reject@8	engine	statement/noauditTraditionalAuditing!insert	NOAUDIT a zzz
+reject@8	reject@8	engine	statement/noauditTraditionalAuditing	NOAUDIT a
+reject@7	reject@7	engine	statement/noauditTraditionalAuditing!drop-2	NOAUDIT
+reject@8	reject@8	engine	statement/noauditTraditionalAuditing!insert	NOAUDIT a zzz
 reject@0	reject@0	engine	statement/noauditTraditionalAuditing!swap	NOCACHE a
 accept	accept	engine	statement/noauditUnifiedAuditing	NOAUDIT POLICY a
 reject@14	reject@14	engine	statement/noauditUnifiedAuditing!drop-3	NOAUDIT POLICY
@@ -1056,12 +1056,12 @@ reject@9	reject@9	engine	statement/rename!drop-3	RENAME a a
 accept	reject@11	engine	statement/rename!drop-4	RENAME a TO
 reject@14	reject@14	engine	statement/rename!insert	RENAME a TO a zzz
 reject@0	reject@0	engine	statement/rename!swap	REPAIR a TO a
-accept	reject@7	engine	statement/revoke	REVOKE REVOKE a FROM a
+reject@7	reject@7	engine	statement/revoke	REVOKE REVOKE a FROM a
 accept	accept	engine	statement/revoke!drop-1	REVOKE a FROM a
 accept	accept	engine	statement/revoke!drop-3	REVOKE REVOKE FROM a
-reject@17	reject@7	engine	statement/revoke!drop-4	REVOKE REVOKE a a
-reject@20	reject@7	engine	statement/revoke!drop-5	REVOKE REVOKE a FROM
-reject@23	reject@7	engine	statement/revoke!insert	REVOKE REVOKE a FROM a zzz
+reject@7	reject@7	engine	statement/revoke!drop-4	REVOKE REVOKE a a
+reject@7	reject@7	engine	statement/revoke!drop-5	REVOKE REVOKE a FROM
+reject@7	reject@7	engine	statement/revoke!insert	REVOKE REVOKE a FROM a zzz
 reject@0	reject@0	engine	statement/revoke!swap	REWRITE REVOKE a FROM a
 accept	accept	engine	statement/rollback	ROLLBACK
 reject@9	reject@9	engine	statement/rollback!insert	ROLLBACK zzz
@@ -40104,135 +40104,135 @@ accept	accept	engine	flashbackTable(ENABLE|DISABLE)/DISABLE	FLASHBACK TABLE a TO
 reject@35	reject@35	engine	flashbackTable(ENABLE|DISABLE)/DISABLE!insert	FLASHBACK TABLE a TO SCN 1 DISABLE zzz TRIGGERS
 reject@27	reject@27	engine	flashbackTable(ENABLE|DISABLE)/DISABLE!swap	FLASHBACK TABLE a TO SCN 1 DISABLE_ALL TRIGGERS
 accept	accept	engine	grant/grant_grant_system_privileges	GRANT a TO a
-reject@18	reject@6	engine	grant/grant_grant_schema_privileges	GRANT a ON SCHEMA a TO a
+reject@6	reject@6	engine	grant/grant_grant_schema_privileges	GRANT a ON SCHEMA a TO a
 reject@0	reject@0	engine	grant/grant_grant_schema_privileges!drop-1	a ON SCHEMA a TO a
 reject@6	reject@6	engine	grant/grant_grant_schema_privileges!drop-2	GRANT ON SCHEMA a TO a
-accept	reject@6	engine	grant/grant_grant_schema_privileges!drop-3	GRANT a SCHEMA a TO a
-accept	reject@6	engine	grant/grant_grant_schema_privileges!drop-5	GRANT a ON SCHEMA TO a
-reject@18	reject@6	engine	grant/grant_grant_schema_privileges!drop-6	GRANT a ON SCHEMA a a
-reject@18	reject@6	engine	grant/grant_grant_schema_privileges!drop-7	GRANT a ON SCHEMA a TO
-reject@18	reject@6	engine	grant/grant_grant_schema_privileges!insert	GRANT a ON SCHEMA a TO a zzz
+reject@6	reject@6	engine	grant/grant_grant_schema_privileges!drop-3	GRANT a SCHEMA a TO a
+reject@6	reject@6	engine	grant/grant_grant_schema_privileges!drop-5	GRANT a ON SCHEMA TO a
+reject@6	reject@6	engine	grant/grant_grant_schema_privileges!drop-6	GRANT a ON SCHEMA a a
+reject@6	reject@6	engine	grant/grant_grant_schema_privileges!drop-7	GRANT a ON SCHEMA a TO
+reject@6	reject@6	engine	grant/grant_grant_schema_privileges!insert	GRANT a ON SCHEMA a TO a zzz
 reject@0	reject@0	engine	grant/grant_grant_schema_privileges!swap	GRAPH a ON SCHEMA a TO a
-accept	reject@6	engine	grant/grant_grant_object_privileges	GRANT a ON a TO a
+reject@6	reject@6	engine	grant/grant_grant_object_privileges	GRANT a ON a TO a
 reject@0	reject@0	engine	grant/grant_grant_object_privileges!drop-1	a ON a TO a
 reject@6	reject@6	engine	grant/grant_grant_object_privileges!drop-2	GRANT ON a TO a
-accept	reject@6	engine	grant/grant_grant_object_privileges!drop-3	GRANT a a TO a
-reject@14	reject@6	engine	grant/grant_grant_object_privileges!drop-4	GRANT a ON TO a
-reject@13	reject@6	engine	grant/grant_grant_object_privileges!drop-5	GRANT a ON a a
-reject@15	reject@6	engine	grant/grant_grant_object_privileges!drop-6	GRANT a ON a TO
-reject@18	reject@6	engine	grant/grant_grant_object_privileges!insert	GRANT a ON a TO a zzz
+reject@6	reject@6	engine	grant/grant_grant_object_privileges!drop-3	GRANT a a TO a
+reject@6	reject@6	engine	grant/grant_grant_object_privileges!drop-4	GRANT a ON TO a
+reject@6	reject@6	engine	grant/grant_grant_object_privileges!drop-5	GRANT a ON a a
+reject@6	reject@6	engine	grant/grant_grant_object_privileges!drop-6	GRANT a ON a TO
+reject@6	reject@6	engine	grant/grant_grant_object_privileges!insert	GRANT a ON a TO a zzz
 reject@0	reject@0	engine	grant/grant_grant_object_privileges!swap	GRAPH a ON a TO a
-reject@20	accept	engine	grant/grant_grant_roles_to_programs	GRANT a TO FUNCTION a
+accept	accept	engine	grant/grant_grant_roles_to_programs	GRANT a TO FUNCTION a
 reject@0	reject@0	engine	grant/grant_grant_roles_to_programs!drop-1	a TO FUNCTION a
 reject@6	accept	engine	grant/grant_grant_roles_to_programs!drop-2	GRANT TO FUNCTION a
-reject@18	reject@6	engine	grant/grant_grant_roles_to_programs!drop-3	GRANT a FUNCTION a
+reject@6	reject@6	engine	grant/grant_grant_roles_to_programs!drop-3	GRANT a FUNCTION a
 accept	accept	engine	grant/grant_grant_roles_to_programs!drop-5	GRANT a TO FUNCTION
-reject@20	reject@22	engine	grant/grant_grant_roles_to_programs!insert	GRANT a TO FUNCTION a zzz
+reject@22	reject@22	engine	grant/grant_grant_roles_to_programs!insert	GRANT a TO FUNCTION a zzz
 reject@0	reject@0	engine	grant/grant_grant_roles_to_programs!swap	GRAPH a TO FUNCTION a
 accept	accept	engine	grant_grant_system_privileges/GRANT_(ID_(,_ID)*|ALL_PRIVILEGES)_TO_grant_grantee_clau~e733701d	GRANT a TO a
 accept	accept	engine	grant_grant_system_privileges(ID_(,_ID)*|ALL_PRIVILEGES)/ID_(,_ID)*	GRANT a TO a
 reject@5	reject@5	engine	grant_grant_system_privileges(ID_(,_ID)*|ALL_PRIVILEGES)/ID_(,_ID)*!truncate	GRANT
-accept	reject@6	engine	grant_grant_system_privileges(ID_(,_ID)*|ALL_PRIVILEGES)/ID_(,_ID)*!insert	GRANT a zzz TO a
+reject@6	reject@6	engine	grant_grant_system_privileges(ID_(,_ID)*|ALL_PRIVILEGES)/ID_(,_ID)*!insert	GRANT a zzz TO a
 accept	accept	engine	grant_grant_system_privileges(ID_(,_ID)*|ALL_PRIVILEGES)/ALL_PRIVILEGES	GRANT ALL PRIVILEGES TO a
 accept	accept	engine	grant_grant_system_privileges(ID_(,_ID)*|ALL_PRIVILEGES)/ALL_PRIVILEGES!drop-1	GRANT PRIVILEGES TO a
 accept	accept	engine	grant_grant_system_privileges(ID_(,_ID)*|ALL_PRIVILEGES)/ALL_PRIVILEGES!drop-2	GRANT ALL TO a
 reject@9	reject@6	engine	grant_grant_system_privileges(ID_(,_ID)*|ALL_PRIVILEGES)/ALL_PRIVILEGES!truncate	GRANT ALL
 reject@21	reject@21	engine	grant_grant_system_privileges(ID_(,_ID)*|ALL_PRIVILEGES)/ALL_PRIVILEGES!insert	GRANT ALL PRIVILEGES zzz TO a
-accept	reject@6	engine	grant_grant_system_privileges(ID_(,_ID)*|ALL_PRIVILEGES)/ALL_PRIVILEGES!swap	GRANT ALLOCATE PRIVILEGES TO a
+reject@6	reject@6	engine	grant_grant_system_privileges(ID_(,_ID)*|ALL_PRIVILEGES)/ALL_PRIVILEGES!swap	GRANT ALLOCATE PRIVILEGES TO a
 accept	accept	engine	grant_grant_system_privileges(,_ID)*/%empty	GRANT a TO a
 accept	accept	engine	grant_grant_system_privileges(,_ID)*/,_ID_(,_ID)*	GRANT a, a TO a
-accept	reject@9	engine	grant_grant_system_privileges(,_ID)*/,_ID_(,_ID)*!drop-2	GRANT a, TO a
+reject@9	reject@9	engine	grant_grant_system_privileges(,_ID)*/,_ID_(,_ID)*!drop-2	GRANT a, TO a
 reject@8	reject@8	engine	grant_grant_system_privileges(,_ID)*/,_ID_(,_ID)*!truncate	GRANT a,
-accept	reject@9	engine	grant_grant_system_privileges(,_ID)*/,_ID_(,_ID)*!insert	GRANT a, a zzz TO a
+reject@9	reject@9	engine	grant_grant_system_privileges(,_ID)*/,_ID_(,_ID)*!insert	GRANT a, a zzz TO a
 accept	accept	engine	grant_grant_system_privileges(,_grant_grantee_clause)*/%empty	GRANT a TO a
 accept	accept	engine	grant_grant_system_privileges(,_grant_grantee_clause)*/,_grant_grantee_clause_(,_grant_grantee_clause)*	GRANT a TO a, a
 reject@13	reject@13	engine	grant_grant_system_privileges(,_grant_grantee_clause)*/,_grant_grantee_clause_(,_grant_grantee_clause)*!drop-1	GRANT a TO a a
 reject@13	reject@13	engine	grant_grant_system_privileges(,_grant_grantee_clause)*/,_grant_grantee_clause_(,_grant_grantee_clause)*!drop-2	GRANT a TO a,
 reject@16	accept	engine	grant_grant_system_privileges(,_grant_grantee_clause)*/,_grant_grantee_clause_(,_grant_grantee_clause)*!insert	GRANT a TO a, a zzz
 accept	accept	engine	grant_grant_system_privileges(IDENTIFIED_BY_ID_(,_ID)?)*/%empty	GRANT a TO a
-reject@13	accept	engine	grant_grant_system_privileges(IDENTIFIED_BY_ID_(,_ID)?)*/IDENTIFIED_BY_ID_(,_ID)?_(IDENTIFIED_BY_ID_(,_ID)?)*	GRANT a TO a IDENTIFIED BY a
+accept	accept	engine	grant_grant_system_privileges(IDENTIFIED_BY_ID_(,_ID)?)*/IDENTIFIED_BY_ID_(,_ID)?_(IDENTIFIED_BY_ID_(,_ID)?)*	GRANT a TO a IDENTIFIED BY a
 reject@13	accept	engine	grant_grant_system_privileges(IDENTIFIED_BY_ID_(,_ID)?)*/IDENTIFIED_BY_ID_(,_ID)?_(IDENTIFIED_BY_ID_(,_ID)?)*!drop-1	GRANT a TO a BY a
-reject@13	reject@24	engine	grant_grant_system_privileges(IDENTIFIED_BY_ID_(,_ID)?)*/IDENTIFIED_BY_ID_(,_ID)?_(IDENTIFIED_BY_ID_(,_ID)?)*!drop-2	GRANT a TO a IDENTIFIED a
-reject@13	reject@26	engine	grant_grant_system_privileges(IDENTIFIED_BY_ID_(,_ID)?)*/IDENTIFIED_BY_ID_(,_ID)?_(IDENTIFIED_BY_ID_(,_ID)?)*!drop-3	GRANT a TO a IDENTIFIED BY
-reject@13	reject@29	engine	grant_grant_system_privileges(IDENTIFIED_BY_ID_(,_ID)?)*/IDENTIFIED_BY_ID_(,_ID)?_(IDENTIFIED_BY_ID_(,_ID)?)*!insert	GRANT a TO a IDENTIFIED BY a zzz
+reject@24	reject@24	engine	grant_grant_system_privileges(IDENTIFIED_BY_ID_(,_ID)?)*/IDENTIFIED_BY_ID_(,_ID)?_(IDENTIFIED_BY_ID_(,_ID)?)*!drop-2	GRANT a TO a IDENTIFIED a
+reject@26	reject@26	engine	grant_grant_system_privileges(IDENTIFIED_BY_ID_(,_ID)?)*/IDENTIFIED_BY_ID_(,_ID)?_(IDENTIFIED_BY_ID_(,_ID)?)*!drop-3	GRANT a TO a IDENTIFIED BY
+reject@29	reject@29	engine	grant_grant_system_privileges(IDENTIFIED_BY_ID_(,_ID)?)*/IDENTIFIED_BY_ID_(,_ID)?_(IDENTIFIED_BY_ID_(,_ID)?)*!insert	GRANT a TO a IDENTIFIED BY a zzz
 reject@13	reject@13	engine	grant_grant_system_privileges(IDENTIFIED_BY_ID_(,_ID)?)*/IDENTIFIED_BY_ID_(,_ID)?_(IDENTIFIED_BY_ID_(,_ID)?)*!swap	GRANT a TO a IDENTIFIER BY a
-reject@13	accept	engine	grant_grant_system_privileges(,_ID)?/%empty	GRANT a TO a IDENTIFIED BY a
-reject@13	accept	engine	grant_grant_system_privileges(,_ID)?/,_ID	GRANT a TO a IDENTIFIED BY a, a
-reject@13	reject@29	engine	grant_grant_system_privileges(,_ID)?/,_ID!drop-1	GRANT a TO a IDENTIFIED BY a a
-reject@13	accept	engine	grant_grant_system_privileges(,_ID)?/,_ID!drop-2	GRANT a TO a IDENTIFIED BY a,
-reject@13	accept	engine	grant_grant_system_privileges(,_ID)?/,_ID!insert	GRANT a TO a IDENTIFIED BY a, a zzz
+accept	accept	engine	grant_grant_system_privileges(,_ID)?/%empty	GRANT a TO a IDENTIFIED BY a
+accept	accept	engine	grant_grant_system_privileges(,_ID)?/,_ID	GRANT a TO a IDENTIFIED BY a, a
+reject@29	reject@29	engine	grant_grant_system_privileges(,_ID)?/,_ID!drop-1	GRANT a TO a IDENTIFIED BY a a
+reject@29	accept	engine	grant_grant_system_privileges(,_ID)?/,_ID!drop-2	GRANT a TO a IDENTIFIED BY a,
+reject@32	accept	engine	grant_grant_system_privileges(,_ID)?/,_ID!insert	GRANT a TO a IDENTIFIED BY a, a zzz
 accept	accept	engine	grant_grant_system_privileges(WITH_(ADMIN|DELEGATE)_OPTION)?/%empty	GRANT a TO a
 accept	accept	engine	grant_grant_system_privileges(WITH_(ADMIN|DELEGATE)_OPTION)?/WITH_(ADMIN|DELEGATE)_OPTION	GRANT a TO a WITH ADMIN OPTION
 reject@13	reject@13	engine	grant_grant_system_privileges(WITH_(ADMIN|DELEGATE)_OPTION)?/WITH_(ADMIN|DELEGATE)_OPTION!drop-1	GRANT a TO a ADMIN OPTION
-reject@18	accept	engine	grant_grant_system_privileges(WITH_(ADMIN|DELEGATE)_OPTION)?/WITH_(ADMIN|DELEGATE)_OPTION!drop-2	GRANT a TO a WITH OPTION
-accept	reject@23	engine	grant_grant_system_privileges(WITH_(ADMIN|DELEGATE)_OPTION)?/WITH_(ADMIN|DELEGATE)_OPTION!drop-3	GRANT a TO a WITH ADMIN
+accept	accept	engine	grant_grant_system_privileges(WITH_(ADMIN|DELEGATE)_OPTION)?/WITH_(ADMIN|DELEGATE)_OPTION!drop-2	GRANT a TO a WITH OPTION
+reject@23	reject@23	engine	grant_grant_system_privileges(WITH_(ADMIN|DELEGATE)_OPTION)?/WITH_(ADMIN|DELEGATE)_OPTION!drop-3	GRANT a TO a WITH ADMIN
 reject@31	reject@31	engine	grant_grant_system_privileges(WITH_(ADMIN|DELEGATE)_OPTION)?/WITH_(ADMIN|DELEGATE)_OPTION!insert	GRANT a TO a WITH ADMIN OPTION zzz
 reject@13	reject@13	engine	grant_grant_system_privileges(WITH_(ADMIN|DELEGATE)_OPTION)?/WITH_(ADMIN|DELEGATE)_OPTION!swap	GRANT a TO a WITHOUT ADMIN OPTION
 accept	accept	engine	grant_grant_system_privileges(ADMIN|DELEGATE)/ADMIN	GRANT a TO a WITH ADMIN OPTION
-accept	reject@17	engine	grant_grant_system_privileges(ADMIN|DELEGATE)/ADMIN!truncate	GRANT a TO a WITH
+reject@17	reject@17	engine	grant_grant_system_privileges(ADMIN|DELEGATE)/ADMIN!truncate	GRANT a TO a WITH
 reject@24	reject@24	engine	grant_grant_system_privileges(ADMIN|DELEGATE)/ADMIN!insert	GRANT a TO a WITH ADMIN zzz OPTION
-reject@18	accept	engine	grant_grant_system_privileges(ADMIN|DELEGATE)/ADMIN!swap	GRANT a TO a WITH ADMINISTER OPTION
-reject@18	accept	engine	grant_grant_system_privileges(ADMIN|DELEGATE)/DELEGATE	GRANT a TO a WITH DELEGATE OPTION
-reject@18	reject@27	engine	grant_grant_system_privileges(ADMIN|DELEGATE)/DELEGATE!insert	GRANT a TO a WITH DELEGATE zzz OPTION
-reject@18	accept	engine	grant_grant_system_privileges(ADMIN|DELEGATE)/DELEGATE!swap	GRANT a TO a WITH DELETE OPTION
+accept	accept	engine	grant_grant_system_privileges(ADMIN|DELEGATE)/ADMIN!swap	GRANT a TO a WITH ADMINISTER OPTION
+accept	accept	engine	grant_grant_system_privileges(ADMIN|DELEGATE)/DELEGATE	GRANT a TO a WITH DELEGATE OPTION
+reject@27	reject@27	engine	grant_grant_system_privileges(ADMIN|DELEGATE)/DELEGATE!insert	GRANT a TO a WITH DELEGATE zzz OPTION
+accept	accept	engine	grant_grant_system_privileges(ADMIN|DELEGATE)/DELEGATE!swap	GRANT a TO a WITH DELETE OPTION
 accept	accept	engine	grant_grant_system_privileges(CONTAINER_=_(CURRENT|ALL))?/%empty	GRANT a TO a
-reject@13	accept	engine	grant_grant_system_privileges(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)	GRANT a TO a CONTAINER = CURRENT
+accept	accept	engine	grant_grant_system_privileges(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)	GRANT a TO a CONTAINER = CURRENT
 reject@13	reject@13	engine	grant_grant_system_privileges(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)!drop-1	GRANT a TO a = CURRENT
-reject@13	reject@23	engine	grant_grant_system_privileges(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)!drop-2	GRANT a TO a CONTAINER CURRENT
-reject@13	reject@24	engine	grant_grant_system_privileges(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)!drop-3	GRANT a TO a CONTAINER =
-reject@13	reject@33	engine	grant_grant_system_privileges(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)!insert	GRANT a TO a CONTAINER = CURRENT zzz
+reject@23	reject@23	engine	grant_grant_system_privileges(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)!drop-2	GRANT a TO a CONTAINER CURRENT
+reject@24	reject@24	engine	grant_grant_system_privileges(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)!drop-3	GRANT a TO a CONTAINER =
+reject@33	reject@33	engine	grant_grant_system_privileges(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)!insert	GRANT a TO a CONTAINER = CURRENT zzz
 reject@13	reject@13	engine	grant_grant_system_privileges(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)!swap	GRANT a TO a CONTAINERS = CURRENT
-reject@13	accept	engine	grant_grant_system_privileges(CURRENT|ALL)/CURRENT	GRANT a TO a CONTAINER = CURRENT
-reject@13	accept	engine	grant_grant_system_privileges(CURRENT|ALL)/CURRENT!swap	GRANT a TO a CONTAINER = CURRENT_SCHEMA
-reject@13	accept	engine	grant_grant_system_privileges(CURRENT|ALL)/ALL	GRANT a TO a CONTAINER = ALL
-reject@13	reject@29	engine	grant_grant_system_privileges(CURRENT|ALL)/ALL!insert	GRANT a TO a CONTAINER = ALL zzz
-reject@13	accept	engine	grant_grant_system_privileges(CURRENT|ALL)/ALL!swap	GRANT a TO a CONTAINER = ALLOCATE
-reject@18	reject@6	engine	grant_grant_schema_privileges/GRANT_(ID_(,_ID)*|ALL_PRIVILEGES?)_ON_SCHEMA_ID_TO_gran~c665fa38	GRANT a ON SCHEMA a TO a
-reject@18	reject@6	engine	grant_grant_schema_privileges(ID_(,_ID)*|ALL_PRIVILEGES?)/ID_(,_ID)*	GRANT a ON SCHEMA a TO a
-reject@22	reject@6	engine	grant_grant_schema_privileges(ID_(,_ID)*|ALL_PRIVILEGES?)/ID_(,_ID)*!insert	GRANT a zzz ON SCHEMA a TO a
-reject@20	reject@6	engine	grant_grant_schema_privileges(ID_(,_ID)*|ALL_PRIVILEGES?)/ALL_(PRIVILEGES)?	GRANT ALL ON SCHEMA a TO a
+accept	accept	engine	grant_grant_system_privileges(CURRENT|ALL)/CURRENT	GRANT a TO a CONTAINER = CURRENT
+accept	accept	engine	grant_grant_system_privileges(CURRENT|ALL)/CURRENT!swap	GRANT a TO a CONTAINER = CURRENT_SCHEMA
+accept	accept	engine	grant_grant_system_privileges(CURRENT|ALL)/ALL	GRANT a TO a CONTAINER = ALL
+reject@29	reject@29	engine	grant_grant_system_privileges(CURRENT|ALL)/ALL!insert	GRANT a TO a CONTAINER = ALL zzz
+accept	accept	engine	grant_grant_system_privileges(CURRENT|ALL)/ALL!swap	GRANT a TO a CONTAINER = ALLOCATE
+reject@6	reject@6	engine	grant_grant_schema_privileges/GRANT_(ID_(,_ID)*|ALL_PRIVILEGES?)_ON_SCHEMA_ID_TO_gran~c665fa38	GRANT a ON SCHEMA a TO a
+reject@6	reject@6	engine	grant_grant_schema_privileges(ID_(,_ID)*|ALL_PRIVILEGES?)/ID_(,_ID)*	GRANT a ON SCHEMA a TO a
+reject@6	reject@6	engine	grant_grant_schema_privileges(ID_(,_ID)*|ALL_PRIVILEGES?)/ID_(,_ID)*!insert	GRANT a zzz ON SCHEMA a TO a
+reject@6	reject@6	engine	grant_grant_schema_privileges(ID_(,_ID)*|ALL_PRIVILEGES?)/ALL_(PRIVILEGES)?	GRANT ALL ON SCHEMA a TO a
 reject@10	reject@6	engine	grant_grant_schema_privileges(ID_(,_ID)*|ALL_PRIVILEGES?)/ALL_(PRIVILEGES)?!insert	GRANT ALL zzz ON SCHEMA a TO a
-reject@25	reject@6	engine	grant_grant_schema_privileges(ID_(,_ID)*|ALL_PRIVILEGES?)/ALL_(PRIVILEGES)?!swap	GRANT ALLOCATE ON SCHEMA a TO a
-reject@18	reject@6	engine	grant_grant_schema_privileges(,_ID)*/%empty	GRANT a ON SCHEMA a TO a
-reject@21	reject@9	engine	grant_grant_schema_privileges(,_ID)*/,_ID_(,_ID)*	GRANT a, a ON SCHEMA a TO a
-reject@20	reject@6	engine	grant_grant_schema_privileges(,_ID)*/,_ID_(,_ID)*!drop-1	GRANT a a ON SCHEMA a TO a
-reject@19	reject@9	engine	grant_grant_schema_privileges(,_ID)*/,_ID_(,_ID)*!drop-2	GRANT a, ON SCHEMA a TO a
-reject@25	reject@9	engine	grant_grant_schema_privileges(,_ID)*/,_ID_(,_ID)*!insert	GRANT a, a zzz ON SCHEMA a TO a
-reject@20	reject@6	engine	grant_grant_schema_privileges(PRIVILEGES)?/%empty	GRANT ALL ON SCHEMA a TO a
-reject@31	accept	engine	grant_grant_schema_privileges(PRIVILEGES)?/PRIVILEGES	GRANT ALL PRIVILEGES ON SCHEMA a TO a
+reject@6	reject@6	engine	grant_grant_schema_privileges(ID_(,_ID)*|ALL_PRIVILEGES?)/ALL_(PRIVILEGES)?!swap	GRANT ALLOCATE ON SCHEMA a TO a
+reject@6	reject@6	engine	grant_grant_schema_privileges(,_ID)*/%empty	GRANT a ON SCHEMA a TO a
+reject@6	reject@9	engine	grant_grant_schema_privileges(,_ID)*/,_ID_(,_ID)*	GRANT a, a ON SCHEMA a TO a
+reject@6	reject@6	engine	grant_grant_schema_privileges(,_ID)*/,_ID_(,_ID)*!drop-1	GRANT a a ON SCHEMA a TO a
+reject@9	reject@9	engine	grant_grant_schema_privileges(,_ID)*/,_ID_(,_ID)*!drop-2	GRANT a, ON SCHEMA a TO a
+reject@9	reject@9	engine	grant_grant_schema_privileges(,_ID)*/,_ID_(,_ID)*!insert	GRANT a, a zzz ON SCHEMA a TO a
+reject@6	reject@6	engine	grant_grant_schema_privileges(PRIVILEGES)?/%empty	GRANT ALL ON SCHEMA a TO a
+accept	accept	engine	grant_grant_schema_privileges(PRIVILEGES)?/PRIVILEGES	GRANT ALL PRIVILEGES ON SCHEMA a TO a
 reject@21	reject@21	engine	grant_grant_schema_privileges(PRIVILEGES)?/PRIVILEGES!insert	GRANT ALL PRIVILEGES zzz ON SCHEMA a TO a
 reject@10	reject@6	engine	grant_grant_schema_privileges(PRIVILEGES)?/PRIVILEGES!swap	GRANT ALL PROCEDURE ON SCHEMA a TO a
-reject@18	reject@6	engine	grant_grant_schema_privileges(,_grant_grantee_clause)*/%empty	GRANT a ON SCHEMA a TO a
-reject@18	reject@6	engine	grant_grant_schema_privileges(,_grant_grantee_clause)*/,_grant_grantee_clause_(,_grant_grantee_clause)*	GRANT a ON SCHEMA a TO a, a
-reject@18	reject@6	engine	grant_grant_schema_privileges(,_grant_grantee_clause)*/,_grant_grantee_clause_(,_grant_grantee_clause)*!drop-1	GRANT a ON SCHEMA a TO a a
-reject@18	reject@6	engine	grant_grant_schema_privileges(,_grant_grantee_clause)*/,_grant_grantee_clause_(,_grant_grantee_clause)*!drop-2	GRANT a ON SCHEMA a TO a,
-reject@18	reject@6	engine	grant_grant_schema_privileges(,_grant_grantee_clause)*/,_grant_grantee_clause_(,_grant_grantee_clause)*!insert	GRANT a ON SCHEMA a TO a, a zzz
-reject@18	reject@6	engine	grant_grant_schema_privileges(WITH_ADMIN_OPTION)?/%empty	GRANT a ON SCHEMA a TO a
-reject@18	reject@6	engine	grant_grant_schema_privileges(WITH_ADMIN_OPTION)?/WITH_ADMIN_OPTION	GRANT a ON SCHEMA a TO a WITH ADMIN OPTION
-reject@18	reject@6	engine	grant_grant_schema_privileges(WITH_ADMIN_OPTION)?/WITH_ADMIN_OPTION!drop-1	GRANT a ON SCHEMA a TO a ADMIN OPTION
-reject@18	reject@6	engine	grant_grant_schema_privileges(WITH_ADMIN_OPTION)?/WITH_ADMIN_OPTION!drop-2	GRANT a ON SCHEMA a TO a WITH OPTION
-reject@18	reject@6	engine	grant_grant_schema_privileges(WITH_ADMIN_OPTION)?/WITH_ADMIN_OPTION!drop-3	GRANT a ON SCHEMA a TO a WITH ADMIN
-reject@18	reject@6	engine	grant_grant_schema_privileges(WITH_ADMIN_OPTION)?/WITH_ADMIN_OPTION!insert	GRANT a ON SCHEMA a TO a WITH ADMIN OPTION zzz
-reject@18	reject@6	engine	grant_grant_schema_privileges(WITH_ADMIN_OPTION)?/WITH_ADMIN_OPTION!swap	GRANT a ON SCHEMA a TO a WITHOUT ADMIN OPTION
-reject@18	reject@6	engine	grant_grant_schema_privileges(CONTAINER_=_(CURRENT|ALL))?/%empty	GRANT a ON SCHEMA a TO a
-reject@18	reject@6	engine	grant_grant_schema_privileges(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)	GRANT a ON SCHEMA a TO a CONTAINER = CURRENT
-reject@18	reject@6	engine	grant_grant_schema_privileges(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)!drop-1	GRANT a ON SCHEMA a TO a = CURRENT
-reject@18	reject@6	engine	grant_grant_schema_privileges(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)!drop-2	GRANT a ON SCHEMA a TO a CONTAINER CURRENT
-reject@18	reject@6	engine	grant_grant_schema_privileges(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)!drop-3	GRANT a ON SCHEMA a TO a CONTAINER =
-reject@18	reject@6	engine	grant_grant_schema_privileges(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)!insert	GRANT a ON SCHEMA a TO a CONTAINER = CURRENT zzz
-reject@18	reject@6	engine	grant_grant_schema_privileges(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)!swap	GRANT a ON SCHEMA a TO a CONTAINERS = CURRENT
-reject@18	reject@6	engine	grant_grant_schema_privileges(CURRENT|ALL)/CURRENT	GRANT a ON SCHEMA a TO a CONTAINER = CURRENT
-reject@18	reject@6	engine	grant_grant_schema_privileges(CURRENT|ALL)/CURRENT!swap	GRANT a ON SCHEMA a TO a CONTAINER = CURRENT_SCHEMA
-reject@18	reject@6	engine	grant_grant_schema_privileges(CURRENT|ALL)/ALL	GRANT a ON SCHEMA a TO a CONTAINER = ALL
-reject@18	reject@6	engine	grant_grant_schema_privileges(CURRENT|ALL)/ALL!insert	GRANT a ON SCHEMA a TO a CONTAINER = ALL zzz
-reject@18	reject@6	engine	grant_grant_schema_privileges(CURRENT|ALL)/ALL!swap	GRANT a ON SCHEMA a TO a CONTAINER = ALLOCATE
-accept	reject@6	engine	grant_grant_object_privileges/GRANT_(ID_((_ID_(,_ID)*_))?_(,_ID_((_ID_(,_~c5aa0bd6)_g~ad489bfc	GRANT a ON a TO a
-accept	reject@6	engine	grant_grant_object_privileges(ID_((_ID_(,_ID)*_))?_(,_ID_((_ID_(,_~c5aa0bd6)/ID_((_ID_(,_ID)*_))?_(,_ID_((_ID_(,_ID)*_))?)*	GRANT a ON a TO a
-accept	reject@6	engine	grant_grant_object_privileges(ID_((_ID_(,_ID)*_))?_(,_ID_((_ID_(,_~c5aa0bd6)/ID_((_ID_(,_ID)*_))?_(,_ID_((_ID_(,_ID)*_))?)*!insert	GRANT a zzz ON a TO a
+reject@6	reject@6	engine	grant_grant_schema_privileges(,_grant_grantee_clause)*/%empty	GRANT a ON SCHEMA a TO a
+reject@6	reject@6	engine	grant_grant_schema_privileges(,_grant_grantee_clause)*/,_grant_grantee_clause_(,_grant_grantee_clause)*	GRANT a ON SCHEMA a TO a, a
+reject@6	reject@6	engine	grant_grant_schema_privileges(,_grant_grantee_clause)*/,_grant_grantee_clause_(,_grant_grantee_clause)*!drop-1	GRANT a ON SCHEMA a TO a a
+reject@6	reject@6	engine	grant_grant_schema_privileges(,_grant_grantee_clause)*/,_grant_grantee_clause_(,_grant_grantee_clause)*!drop-2	GRANT a ON SCHEMA a TO a,
+reject@6	reject@6	engine	grant_grant_schema_privileges(,_grant_grantee_clause)*/,_grant_grantee_clause_(,_grant_grantee_clause)*!insert	GRANT a ON SCHEMA a TO a, a zzz
+reject@6	reject@6	engine	grant_grant_schema_privileges(WITH_ADMIN_OPTION)?/%empty	GRANT a ON SCHEMA a TO a
+reject@6	reject@6	engine	grant_grant_schema_privileges(WITH_ADMIN_OPTION)?/WITH_ADMIN_OPTION	GRANT a ON SCHEMA a TO a WITH ADMIN OPTION
+reject@6	reject@6	engine	grant_grant_schema_privileges(WITH_ADMIN_OPTION)?/WITH_ADMIN_OPTION!drop-1	GRANT a ON SCHEMA a TO a ADMIN OPTION
+reject@6	reject@6	engine	grant_grant_schema_privileges(WITH_ADMIN_OPTION)?/WITH_ADMIN_OPTION!drop-2	GRANT a ON SCHEMA a TO a WITH OPTION
+reject@6	reject@6	engine	grant_grant_schema_privileges(WITH_ADMIN_OPTION)?/WITH_ADMIN_OPTION!drop-3	GRANT a ON SCHEMA a TO a WITH ADMIN
+reject@6	reject@6	engine	grant_grant_schema_privileges(WITH_ADMIN_OPTION)?/WITH_ADMIN_OPTION!insert	GRANT a ON SCHEMA a TO a WITH ADMIN OPTION zzz
+reject@6	reject@6	engine	grant_grant_schema_privileges(WITH_ADMIN_OPTION)?/WITH_ADMIN_OPTION!swap	GRANT a ON SCHEMA a TO a WITHOUT ADMIN OPTION
+reject@6	reject@6	engine	grant_grant_schema_privileges(CONTAINER_=_(CURRENT|ALL))?/%empty	GRANT a ON SCHEMA a TO a
+reject@6	reject@6	engine	grant_grant_schema_privileges(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)	GRANT a ON SCHEMA a TO a CONTAINER = CURRENT
+reject@6	reject@6	engine	grant_grant_schema_privileges(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)!drop-1	GRANT a ON SCHEMA a TO a = CURRENT
+reject@6	reject@6	engine	grant_grant_schema_privileges(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)!drop-2	GRANT a ON SCHEMA a TO a CONTAINER CURRENT
+reject@6	reject@6	engine	grant_grant_schema_privileges(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)!drop-3	GRANT a ON SCHEMA a TO a CONTAINER =
+reject@6	reject@6	engine	grant_grant_schema_privileges(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)!insert	GRANT a ON SCHEMA a TO a CONTAINER = CURRENT zzz
+reject@6	reject@6	engine	grant_grant_schema_privileges(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)!swap	GRANT a ON SCHEMA a TO a CONTAINERS = CURRENT
+reject@6	reject@6	engine	grant_grant_schema_privileges(CURRENT|ALL)/CURRENT	GRANT a ON SCHEMA a TO a CONTAINER = CURRENT
+reject@6	reject@6	engine	grant_grant_schema_privileges(CURRENT|ALL)/CURRENT!swap	GRANT a ON SCHEMA a TO a CONTAINER = CURRENT_SCHEMA
+reject@6	reject@6	engine	grant_grant_schema_privileges(CURRENT|ALL)/ALL	GRANT a ON SCHEMA a TO a CONTAINER = ALL
+reject@6	reject@6	engine	grant_grant_schema_privileges(CURRENT|ALL)/ALL!insert	GRANT a ON SCHEMA a TO a CONTAINER = ALL zzz
+reject@6	reject@6	engine	grant_grant_schema_privileges(CURRENT|ALL)/ALL!swap	GRANT a ON SCHEMA a TO a CONTAINER = ALLOCATE
+reject@6	reject@6	engine	grant_grant_object_privileges/GRANT_(ID_((_ID_(,_ID)*_))?_(,_ID_((_ID_(,_~c5aa0bd6)_g~ad489bfc	GRANT a ON a TO a
+reject@6	reject@6	engine	grant_grant_object_privileges(ID_((_ID_(,_ID)*_))?_(,_ID_((_ID_(,_~c5aa0bd6)/ID_((_ID_(,_ID)*_))?_(,_ID_((_ID_(,_ID)*_))?)*	GRANT a ON a TO a
+reject@6	reject@6	engine	grant_grant_object_privileges(ID_((_ID_(,_ID)*_))?_(,_ID_((_ID_(,_~c5aa0bd6)/ID_((_ID_(,_ID)*_))?_(,_ID_((_ID_(,_ID)*_))?)*!insert	GRANT a zzz ON a TO a
 accept	accept	engine	grant_grant_object_privileges(ID_((_ID_(,_ID)*_))?_(,_ID_((_ID_(,_~c5aa0bd6)/ALL_(PRIVILEGES)?	GRANT ALL ON a TO a
 reject@10	reject@10	engine	grant_grant_object_privileges(ID_((_ID_(,_ID)*_))?_(,_ID_((_ID_(,_~c5aa0bd6)/ALL_(PRIVILEGES)?!insert	GRANT ALL zzz ON a TO a
-accept	reject@6	engine	grant_grant_object_privileges(ID_((_ID_(,_ID)*_))?_(,_ID_((_ID_(,_~c5aa0bd6)/ALL_(PRIVILEGES)?!swap	GRANT ALLOCATE ON a TO a
-accept	reject@6	engine	grant_grant_object_privileges((_ID_(,_ID)*_))?/%empty	GRANT a ON a TO a
+reject@6	reject@6	engine	grant_grant_object_privileges(ID_((_ID_(,_ID)*_))?_(,_ID_((_ID_(,_~c5aa0bd6)/ALL_(PRIVILEGES)?!swap	GRANT ALLOCATE ON a TO a
+reject@6	reject@6	engine	grant_grant_object_privileges((_ID_(,_ID)*_))?/%empty	GRANT a ON a TO a
 reject@7	reject@6	engine	grant_grant_object_privileges((_ID_(,_ID)*_))?/(_ID_(,_ID)*_)	GRANT a(a) ON a TO a
 reject@9	reject@6	engine	grant_grant_object_privileges((_ID_(,_ID)*_))?/(_ID_(,_ID)*_)!drop-1	GRANT a a) ON a TO a
 reject@7	reject@6	engine	grant_grant_object_privileges((_ID_(,_ID)*_))?/(_ID_(,_ID)*_)!drop-2	GRANT a() ON a TO a
@@ -40246,174 +40246,174 @@ reject@7	reject@6	engine	grant_grant_object_privileges(,_ID)*/,_ID_(,_ID)*!drop-
 reject@7	reject@6	engine	grant_grant_object_privileges(,_ID)*/,_ID_(,_ID)*!drop-2	GRANT a(a,) ON a TO a
 reject@10	reject@6	engine	grant_grant_object_privileges(,_ID)*/,_ID_(,_ID)*!truncate	GRANT a(a,
 reject@7	reject@6	engine	grant_grant_object_privileges(,_ID)*/,_ID_(,_ID)*!insert	GRANT a(a, a zzz) ON a TO a
-accept	reject@6	engine	grant_grant_object_privileges(,_ID_((_ID_(,_ID)*_))?)*/%empty	GRANT a ON a TO a
-accept	reject@6	engine	grant_grant_object_privileges(,_ID_((_ID_(,_ID)*_))?)*/,_ID_((_ID_(,_ID)*_))?_(,_ID_((_ID_(,_ID)*_))?)*	GRANT a, a ON a TO a
-accept	reject@6	engine	grant_grant_object_privileges(,_ID_((_ID_(,_ID)*_))?)*/,_ID_((_ID_(,_ID)*_))?_(,_ID_((_ID_(,_ID)*_))?)*!drop-1	GRANT a a ON a TO a
-accept	reject@9	engine	grant_grant_object_privileges(,_ID_((_ID_(,_ID)*_))?)*/,_ID_((_ID_(,_ID)*_))?_(,_ID_((_ID_(,_ID)*_))?)*!drop-2	GRANT a, ON a TO a
-accept	reject@6	engine	grant_grant_object_privileges(,_ID_((_ID_(,_ID)*_))?)*/,_ID_((_ID_(,_ID)*_))?_(,_ID_((_ID_(,_ID)*_))?)*!insert	GRANT a, a zzz ON a TO a
+reject@6	reject@6	engine	grant_grant_object_privileges(,_ID_((_ID_(,_ID)*_))?)*/%empty	GRANT a ON a TO a
+reject@6	reject@6	engine	grant_grant_object_privileges(,_ID_((_ID_(,_ID)*_))?)*/,_ID_((_ID_(,_ID)*_))?_(,_ID_((_ID_(,_ID)*_))?)*	GRANT a, a ON a TO a
+reject@6	reject@6	engine	grant_grant_object_privileges(,_ID_((_ID_(,_ID)*_))?)*/,_ID_((_ID_(,_ID)*_))?_(,_ID_((_ID_(,_ID)*_))?)*!drop-1	GRANT a a ON a TO a
+reject@9	reject@9	engine	grant_grant_object_privileges(,_ID_((_ID_(,_ID)*_))?)*/,_ID_((_ID_(,_ID)*_))?_(,_ID_((_ID_(,_ID)*_))?)*!drop-2	GRANT a, ON a TO a
+reject@9	reject@6	engine	grant_grant_object_privileges(,_ID_((_ID_(,_ID)*_))?)*/,_ID_((_ID_(,_ID)*_))?_(,_ID_((_ID_(,_ID)*_))?)*!insert	GRANT a, a zzz ON a TO a
 accept	accept	engine	grant_grant_object_privileges(PRIVILEGES)?/%empty	GRANT ALL ON a TO a
 accept	accept	engine	grant_grant_object_privileges(PRIVILEGES)?/PRIVILEGES	GRANT ALL PRIVILEGES ON a TO a
 reject@21	reject@21	engine	grant_grant_object_privileges(PRIVILEGES)?/PRIVILEGES!insert	GRANT ALL PRIVILEGES zzz ON a TO a
 reject@10	reject@6	engine	grant_grant_object_privileges(PRIVILEGES)?/PRIVILEGES!swap	GRANT ALL PROCEDURE ON a TO a
-accept	reject@6	engine	grant_grant_object_privileges(,_grant_grantee_clause)*/%empty	GRANT a ON a TO a
-accept	reject@6	engine	grant_grant_object_privileges(,_grant_grantee_clause)*/,_grant_grantee_clause_(,_grant_grantee_clause)*	GRANT a ON a TO a, a
-reject@18	reject@6	engine	grant_grant_object_privileges(,_grant_grantee_clause)*/,_grant_grantee_clause_(,_grant_grantee_clause)*!drop-1	GRANT a ON a TO a a
-reject@18	reject@6	engine	grant_grant_object_privileges(,_grant_grantee_clause)*/,_grant_grantee_clause_(,_grant_grantee_clause)*!drop-2	GRANT a ON a TO a,
-reject@21	reject@6	engine	grant_grant_object_privileges(,_grant_grantee_clause)*/,_grant_grantee_clause_(,_grant_grantee_clause)*!insert	GRANT a ON a TO a, a zzz
-accept	reject@6	engine	grant_grant_object_privileges(WITH_(GRANT|HIERARCHY)_OPTION)?/%empty	GRANT a ON a TO a
-accept	reject@6	engine	grant_grant_object_privileges(WITH_(GRANT|HIERARCHY)_OPTION)?/WITH_(GRANT|HIERARCHY)_OPTION	GRANT a ON a TO a WITH GRANT OPTION
-reject@18	reject@6	engine	grant_grant_object_privileges(WITH_(GRANT|HIERARCHY)_OPTION)?/WITH_(GRANT|HIERARCHY)_OPTION!drop-1	GRANT a ON a TO a GRANT OPTION
-reject@23	reject@6	engine	grant_grant_object_privileges(WITH_(GRANT|HIERARCHY)_OPTION)?/WITH_(GRANT|HIERARCHY)_OPTION!drop-2	GRANT a ON a TO a WITH OPTION
-accept	reject@6	engine	grant_grant_object_privileges(WITH_(GRANT|HIERARCHY)_OPTION)?/WITH_(GRANT|HIERARCHY)_OPTION!drop-3	GRANT a ON a TO a WITH GRANT
-reject@36	reject@6	engine	grant_grant_object_privileges(WITH_(GRANT|HIERARCHY)_OPTION)?/WITH_(GRANT|HIERARCHY)_OPTION!insert	GRANT a ON a TO a WITH GRANT OPTION zzz
-reject@18	reject@6	engine	grant_grant_object_privileges(WITH_(GRANT|HIERARCHY)_OPTION)?/WITH_(GRANT|HIERARCHY)_OPTION!swap	GRANT a ON a TO a WITHOUT GRANT OPTION
-accept	reject@6	engine	grant_grant_object_privileges(GRANT|HIERARCHY)/GRANT	GRANT a ON a TO a WITH GRANT OPTION
-accept	reject@6	engine	grant_grant_object_privileges(GRANT|HIERARCHY)/GRANT!truncate	GRANT a ON a TO a WITH
-reject@29	reject@6	engine	grant_grant_object_privileges(GRANT|HIERARCHY)/GRANT!insert	GRANT a ON a TO a WITH GRANT zzz OPTION
-reject@23	reject@6	engine	grant_grant_object_privileges(GRANT|HIERARCHY)/GRANT!swap	GRANT a ON a TO a WITH GRAPH OPTION
-reject@23	reject@6	engine	grant_grant_object_privileges(GRANT|HIERARCHY)/HIERARCHY	GRANT a ON a TO a WITH HIERARCHY OPTION
-reject@23	reject@6	engine	grant_grant_object_privileges(GRANT|HIERARCHY)/HIERARCHY!insert	GRANT a ON a TO a WITH HIERARCHY zzz OPTION
-reject@23	reject@6	engine	grant_grant_object_privileges(GRANT|HIERARCHY)/HIERARCHY!swap	GRANT a ON a TO a WITH HIER_ORDER OPTION
-accept	reject@6	engine	grant_grant_object_privileges(CONTAINER_=_(CURRENT|ALL))?/%empty	GRANT a ON a TO a
-reject@18	reject@6	engine	grant_grant_object_privileges(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)	GRANT a ON a TO a CONTAINER = CURRENT
-reject@18	reject@6	engine	grant_grant_object_privileges(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)!drop-1	GRANT a ON a TO a = CURRENT
-reject@18	reject@6	engine	grant_grant_object_privileges(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)!drop-2	GRANT a ON a TO a CONTAINER CURRENT
-reject@18	reject@6	engine	grant_grant_object_privileges(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)!drop-3	GRANT a ON a TO a CONTAINER =
-reject@18	reject@6	engine	grant_grant_object_privileges(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)!insert	GRANT a ON a TO a CONTAINER = CURRENT zzz
-reject@18	reject@6	engine	grant_grant_object_privileges(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)!swap	GRANT a ON a TO a CONTAINERS = CURRENT
-reject@18	reject@6	engine	grant_grant_object_privileges(CURRENT|ALL)/CURRENT	GRANT a ON a TO a CONTAINER = CURRENT
-reject@18	reject@6	engine	grant_grant_object_privileges(CURRENT|ALL)/CURRENT!swap	GRANT a ON a TO a CONTAINER = CURRENT_SCHEMA
-reject@18	reject@6	engine	grant_grant_object_privileges(CURRENT|ALL)/ALL	GRANT a ON a TO a CONTAINER = ALL
-reject@18	reject@6	engine	grant_grant_object_privileges(CURRENT|ALL)/ALL!insert	GRANT a ON a TO a CONTAINER = ALL zzz
-reject@18	reject@6	engine	grant_grant_object_privileges(CURRENT|ALL)/ALL!swap	GRANT a ON a TO a CONTAINER = ALLOCATE
-reject@20	accept	engine	grant_grant_roles_to_programs/GRANT_ID_(,_ID)*_TO_grant_program_unit_(,_grant_program~6e2b59cf	GRANT a TO FUNCTION a
-reject@20	accept	engine	grant_grant_roles_to_programs(,_ID)*/%empty	GRANT a TO FUNCTION a
-reject@24	accept	engine	grant_grant_roles_to_programs(,_ID)*/%empty!insert	GRANT a zzz TO FUNCTION a
-reject@23	accept	engine	grant_grant_roles_to_programs(,_ID)*/,_ID_(,_ID)*	GRANT a, a TO FUNCTION a
-reject@22	accept	engine	grant_grant_roles_to_programs(,_ID)*/,_ID_(,_ID)*!drop-1	GRANT a a TO FUNCTION a
-reject@21	accept	engine	grant_grant_roles_to_programs(,_ID)*/,_ID_(,_ID)*!drop-2	GRANT a, TO FUNCTION a
-reject@27	accept	engine	grant_grant_roles_to_programs(,_ID)*/,_ID_(,_ID)*!insert	GRANT a, a zzz TO FUNCTION a
-reject@20	accept	engine	grant_grant_roles_to_programs(,_grant_program_unit)*/%empty	GRANT a TO FUNCTION a
-reject@20	accept	engine	grant_grant_roles_to_programs(,_grant_program_unit)*/,_grant_program_unit_(,_grant_program_unit)*	GRANT a TO FUNCTION a, FUNCTION a
-reject@20	reject@22	engine	grant_grant_roles_to_programs(,_grant_program_unit)*/,_grant_program_unit_(,_grant_program_unit)*!drop-1	GRANT a TO FUNCTION a FUNCTION a
-reject@20	accept	engine	grant_grant_roles_to_programs(,_grant_program_unit)*/,_grant_program_unit_(,_grant_program_unit)*!drop-2	GRANT a TO FUNCTION a, a
-reject@20	reject@31	engine	grant_grant_roles_to_programs(,_grant_program_unit)*/,_grant_program_unit_(,_grant_program_unit)*!drop-3	GRANT a TO FUNCTION a, FUNCTION
-reject@20	reject@34	engine	grant_grant_roles_to_programs(,_grant_program_unit)*/,_grant_program_unit_(,_grant_program_unit)*!insert	GRANT a TO FUNCTION a, FUNCTION a zzz
-reject@20	accept	engine	grant_grant_roles_to_programs(,_grant_program_unit)*/,_grant_program_unit_(,_grant_program_unit)*!swap	GRANT a TO FUNCTION a, FUNCTIONS a
-reject@20	accept	engine	grant_grant_roles_to_programs(WITH_(ADMIN|DELEGATE)_OPTION)?/%empty	GRANT a TO FUNCTION a
-reject@20	reject@22	engine	grant_grant_roles_to_programs(WITH_(ADMIN|DELEGATE)_OPTION)?/WITH_(ADMIN|DELEGATE)_OPTION	GRANT a TO FUNCTION a WITH ADMIN OPTION
-reject@20	reject@22	engine	grant_grant_roles_to_programs(WITH_(ADMIN|DELEGATE)_OPTION)?/WITH_(ADMIN|DELEGATE)_OPTION!drop-1	GRANT a TO FUNCTION a ADMIN OPTION
-reject@20	reject@22	engine	grant_grant_roles_to_programs(WITH_(ADMIN|DELEGATE)_OPTION)?/WITH_(ADMIN|DELEGATE)_OPTION!drop-2	GRANT a TO FUNCTION a WITH OPTION
-reject@20	reject@22	engine	grant_grant_roles_to_programs(WITH_(ADMIN|DELEGATE)_OPTION)?/WITH_(ADMIN|DELEGATE)_OPTION!drop-3	GRANT a TO FUNCTION a WITH ADMIN
-reject@20	reject@22	engine	grant_grant_roles_to_programs(WITH_(ADMIN|DELEGATE)_OPTION)?/WITH_(ADMIN|DELEGATE)_OPTION!insert	GRANT a TO FUNCTION a WITH ADMIN OPTION zzz
-reject@20	reject@22	engine	grant_grant_roles_to_programs(WITH_(ADMIN|DELEGATE)_OPTION)?/WITH_(ADMIN|DELEGATE)_OPTION!swap	GRANT a TO FUNCTION a WITHOUT ADMIN OPTION
-reject@20	reject@22	engine	grant_grant_roles_to_programs(ADMIN|DELEGATE)/ADMIN	GRANT a TO FUNCTION a WITH ADMIN OPTION
-reject@20	reject@22	engine	grant_grant_roles_to_programs(ADMIN|DELEGATE)/ADMIN!truncate	GRANT a TO FUNCTION a WITH
-reject@20	reject@22	engine	grant_grant_roles_to_programs(ADMIN|DELEGATE)/ADMIN!insert	GRANT a TO FUNCTION a WITH ADMIN zzz OPTION
-reject@20	reject@22	engine	grant_grant_roles_to_programs(ADMIN|DELEGATE)/ADMIN!swap	GRANT a TO FUNCTION a WITH ADMINISTER OPTION
-reject@20	reject@22	engine	grant_grant_roles_to_programs(ADMIN|DELEGATE)/DELEGATE	GRANT a TO FUNCTION a WITH DELEGATE OPTION
-reject@20	reject@22	engine	grant_grant_roles_to_programs(ADMIN|DELEGATE)/DELEGATE!insert	GRANT a TO FUNCTION a WITH DELEGATE zzz OPTION
-reject@20	reject@22	engine	grant_grant_roles_to_programs(ADMIN|DELEGATE)/DELEGATE!swap	GRANT a TO FUNCTION a WITH DELETE OPTION
-reject@20	accept	engine	grant_grant_roles_to_programs(CONTAINER_=_(CURRENT|ALL))?/%empty	GRANT a TO FUNCTION a
-reject@20	reject@22	engine	grant_grant_roles_to_programs(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)	GRANT a TO FUNCTION a CONTAINER = CURRENT
-reject@20	reject@22	engine	grant_grant_roles_to_programs(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)!drop-1	GRANT a TO FUNCTION a = CURRENT
-reject@20	reject@22	engine	grant_grant_roles_to_programs(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)!drop-2	GRANT a TO FUNCTION a CONTAINER CURRENT
-reject@20	reject@22	engine	grant_grant_roles_to_programs(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)!drop-3	GRANT a TO FUNCTION a CONTAINER =
-reject@20	reject@22	engine	grant_grant_roles_to_programs(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)!insert	GRANT a TO FUNCTION a CONTAINER = CURRENT zzz
-reject@20	reject@22	engine	grant_grant_roles_to_programs(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)!swap	GRANT a TO FUNCTION a CONTAINERS = CURRENT
-reject@20	reject@22	engine	grant_grant_roles_to_programs(CURRENT|ALL)/CURRENT	GRANT a TO FUNCTION a CONTAINER = CURRENT
-reject@20	reject@22	engine	grant_grant_roles_to_programs(CURRENT|ALL)/CURRENT!swap	GRANT a TO FUNCTION a CONTAINER = CURRENT_SCHEMA
-reject@20	reject@22	engine	grant_grant_roles_to_programs(CURRENT|ALL)/ALL	GRANT a TO FUNCTION a CONTAINER = ALL
-reject@20	reject@22	engine	grant_grant_roles_to_programs(CURRENT|ALL)/ALL!insert	GRANT a TO FUNCTION a CONTAINER = ALL zzz
-reject@20	reject@22	engine	grant_grant_roles_to_programs(CURRENT|ALL)/ALL!swap	GRANT a TO FUNCTION a CONTAINER = ALLOCATE
+reject@6	reject@6	engine	grant_grant_object_privileges(,_grant_grantee_clause)*/%empty	GRANT a ON a TO a
+reject@6	reject@6	engine	grant_grant_object_privileges(,_grant_grantee_clause)*/,_grant_grantee_clause_(,_grant_grantee_clause)*	GRANT a ON a TO a, a
+reject@6	reject@6	engine	grant_grant_object_privileges(,_grant_grantee_clause)*/,_grant_grantee_clause_(,_grant_grantee_clause)*!drop-1	GRANT a ON a TO a a
+reject@6	reject@6	engine	grant_grant_object_privileges(,_grant_grantee_clause)*/,_grant_grantee_clause_(,_grant_grantee_clause)*!drop-2	GRANT a ON a TO a,
+reject@6	reject@6	engine	grant_grant_object_privileges(,_grant_grantee_clause)*/,_grant_grantee_clause_(,_grant_grantee_clause)*!insert	GRANT a ON a TO a, a zzz
+reject@6	reject@6	engine	grant_grant_object_privileges(WITH_(GRANT|HIERARCHY)_OPTION)?/%empty	GRANT a ON a TO a
+reject@6	reject@6	engine	grant_grant_object_privileges(WITH_(GRANT|HIERARCHY)_OPTION)?/WITH_(GRANT|HIERARCHY)_OPTION	GRANT a ON a TO a WITH GRANT OPTION
+reject@6	reject@6	engine	grant_grant_object_privileges(WITH_(GRANT|HIERARCHY)_OPTION)?/WITH_(GRANT|HIERARCHY)_OPTION!drop-1	GRANT a ON a TO a GRANT OPTION
+reject@6	reject@6	engine	grant_grant_object_privileges(WITH_(GRANT|HIERARCHY)_OPTION)?/WITH_(GRANT|HIERARCHY)_OPTION!drop-2	GRANT a ON a TO a WITH OPTION
+reject@6	reject@6	engine	grant_grant_object_privileges(WITH_(GRANT|HIERARCHY)_OPTION)?/WITH_(GRANT|HIERARCHY)_OPTION!drop-3	GRANT a ON a TO a WITH GRANT
+reject@6	reject@6	engine	grant_grant_object_privileges(WITH_(GRANT|HIERARCHY)_OPTION)?/WITH_(GRANT|HIERARCHY)_OPTION!insert	GRANT a ON a TO a WITH GRANT OPTION zzz
+reject@6	reject@6	engine	grant_grant_object_privileges(WITH_(GRANT|HIERARCHY)_OPTION)?/WITH_(GRANT|HIERARCHY)_OPTION!swap	GRANT a ON a TO a WITHOUT GRANT OPTION
+reject@6	reject@6	engine	grant_grant_object_privileges(GRANT|HIERARCHY)/GRANT	GRANT a ON a TO a WITH GRANT OPTION
+reject@6	reject@6	engine	grant_grant_object_privileges(GRANT|HIERARCHY)/GRANT!truncate	GRANT a ON a TO a WITH
+reject@6	reject@6	engine	grant_grant_object_privileges(GRANT|HIERARCHY)/GRANT!insert	GRANT a ON a TO a WITH GRANT zzz OPTION
+reject@6	reject@6	engine	grant_grant_object_privileges(GRANT|HIERARCHY)/GRANT!swap	GRANT a ON a TO a WITH GRAPH OPTION
+reject@6	reject@6	engine	grant_grant_object_privileges(GRANT|HIERARCHY)/HIERARCHY	GRANT a ON a TO a WITH HIERARCHY OPTION
+reject@6	reject@6	engine	grant_grant_object_privileges(GRANT|HIERARCHY)/HIERARCHY!insert	GRANT a ON a TO a WITH HIERARCHY zzz OPTION
+reject@6	reject@6	engine	grant_grant_object_privileges(GRANT|HIERARCHY)/HIERARCHY!swap	GRANT a ON a TO a WITH HIER_ORDER OPTION
+reject@6	reject@6	engine	grant_grant_object_privileges(CONTAINER_=_(CURRENT|ALL))?/%empty	GRANT a ON a TO a
+reject@6	reject@6	engine	grant_grant_object_privileges(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)	GRANT a ON a TO a CONTAINER = CURRENT
+reject@6	reject@6	engine	grant_grant_object_privileges(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)!drop-1	GRANT a ON a TO a = CURRENT
+reject@6	reject@6	engine	grant_grant_object_privileges(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)!drop-2	GRANT a ON a TO a CONTAINER CURRENT
+reject@6	reject@6	engine	grant_grant_object_privileges(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)!drop-3	GRANT a ON a TO a CONTAINER =
+reject@6	reject@6	engine	grant_grant_object_privileges(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)!insert	GRANT a ON a TO a CONTAINER = CURRENT zzz
+reject@6	reject@6	engine	grant_grant_object_privileges(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)!swap	GRANT a ON a TO a CONTAINERS = CURRENT
+reject@6	reject@6	engine	grant_grant_object_privileges(CURRENT|ALL)/CURRENT	GRANT a ON a TO a CONTAINER = CURRENT
+reject@6	reject@6	engine	grant_grant_object_privileges(CURRENT|ALL)/CURRENT!swap	GRANT a ON a TO a CONTAINER = CURRENT_SCHEMA
+reject@6	reject@6	engine	grant_grant_object_privileges(CURRENT|ALL)/ALL	GRANT a ON a TO a CONTAINER = ALL
+reject@6	reject@6	engine	grant_grant_object_privileges(CURRENT|ALL)/ALL!insert	GRANT a ON a TO a CONTAINER = ALL zzz
+reject@6	reject@6	engine	grant_grant_object_privileges(CURRENT|ALL)/ALL!swap	GRANT a ON a TO a CONTAINER = ALLOCATE
+accept	accept	engine	grant_grant_roles_to_programs/GRANT_ID_(,_ID)*_TO_grant_program_unit_(,_grant_program~6e2b59cf	GRANT a TO FUNCTION a
+accept	accept	engine	grant_grant_roles_to_programs(,_ID)*/%empty	GRANT a TO FUNCTION a
+reject@6	accept	engine	grant_grant_roles_to_programs(,_ID)*/%empty!insert	GRANT a zzz TO FUNCTION a
+accept	accept	engine	grant_grant_roles_to_programs(,_ID)*/,_ID_(,_ID)*	GRANT a, a TO FUNCTION a
+reject@6	accept	engine	grant_grant_roles_to_programs(,_ID)*/,_ID_(,_ID)*!drop-1	GRANT a a TO FUNCTION a
+reject@9	accept	engine	grant_grant_roles_to_programs(,_ID)*/,_ID_(,_ID)*!drop-2	GRANT a, TO FUNCTION a
+reject@9	accept	engine	grant_grant_roles_to_programs(,_ID)*/,_ID_(,_ID)*!insert	GRANT a, a zzz TO FUNCTION a
+accept	accept	engine	grant_grant_roles_to_programs(,_grant_program_unit)*/%empty	GRANT a TO FUNCTION a
+accept	accept	engine	grant_grant_roles_to_programs(,_grant_program_unit)*/,_grant_program_unit_(,_grant_program_unit)*	GRANT a TO FUNCTION a, FUNCTION a
+reject@22	reject@22	engine	grant_grant_roles_to_programs(,_grant_program_unit)*/,_grant_program_unit_(,_grant_program_unit)*!drop-1	GRANT a TO FUNCTION a FUNCTION a
+reject@24	accept	engine	grant_grant_roles_to_programs(,_grant_program_unit)*/,_grant_program_unit_(,_grant_program_unit)*!drop-2	GRANT a TO FUNCTION a, a
+reject@31	reject@31	engine	grant_grant_roles_to_programs(,_grant_program_unit)*/,_grant_program_unit_(,_grant_program_unit)*!drop-3	GRANT a TO FUNCTION a, FUNCTION
+reject@34	reject@34	engine	grant_grant_roles_to_programs(,_grant_program_unit)*/,_grant_program_unit_(,_grant_program_unit)*!insert	GRANT a TO FUNCTION a, FUNCTION a zzz
+reject@34	accept	engine	grant_grant_roles_to_programs(,_grant_program_unit)*/,_grant_program_unit_(,_grant_program_unit)*!swap	GRANT a TO FUNCTION a, FUNCTIONS a
+accept	accept	engine	grant_grant_roles_to_programs(WITH_(ADMIN|DELEGATE)_OPTION)?/%empty	GRANT a TO FUNCTION a
+reject@22	reject@22	engine	grant_grant_roles_to_programs(WITH_(ADMIN|DELEGATE)_OPTION)?/WITH_(ADMIN|DELEGATE)_OPTION	GRANT a TO FUNCTION a WITH ADMIN OPTION
+reject@22	reject@22	engine	grant_grant_roles_to_programs(WITH_(ADMIN|DELEGATE)_OPTION)?/WITH_(ADMIN|DELEGATE)_OPTION!drop-1	GRANT a TO FUNCTION a ADMIN OPTION
+reject@22	reject@22	engine	grant_grant_roles_to_programs(WITH_(ADMIN|DELEGATE)_OPTION)?/WITH_(ADMIN|DELEGATE)_OPTION!drop-2	GRANT a TO FUNCTION a WITH OPTION
+reject@22	reject@22	engine	grant_grant_roles_to_programs(WITH_(ADMIN|DELEGATE)_OPTION)?/WITH_(ADMIN|DELEGATE)_OPTION!drop-3	GRANT a TO FUNCTION a WITH ADMIN
+reject@22	reject@22	engine	grant_grant_roles_to_programs(WITH_(ADMIN|DELEGATE)_OPTION)?/WITH_(ADMIN|DELEGATE)_OPTION!insert	GRANT a TO FUNCTION a WITH ADMIN OPTION zzz
+reject@22	reject@22	engine	grant_grant_roles_to_programs(WITH_(ADMIN|DELEGATE)_OPTION)?/WITH_(ADMIN|DELEGATE)_OPTION!swap	GRANT a TO FUNCTION a WITHOUT ADMIN OPTION
+reject@22	reject@22	engine	grant_grant_roles_to_programs(ADMIN|DELEGATE)/ADMIN	GRANT a TO FUNCTION a WITH ADMIN OPTION
+reject@22	reject@22	engine	grant_grant_roles_to_programs(ADMIN|DELEGATE)/ADMIN!truncate	GRANT a TO FUNCTION a WITH
+reject@22	reject@22	engine	grant_grant_roles_to_programs(ADMIN|DELEGATE)/ADMIN!insert	GRANT a TO FUNCTION a WITH ADMIN zzz OPTION
+reject@22	reject@22	engine	grant_grant_roles_to_programs(ADMIN|DELEGATE)/ADMIN!swap	GRANT a TO FUNCTION a WITH ADMINISTER OPTION
+reject@22	reject@22	engine	grant_grant_roles_to_programs(ADMIN|DELEGATE)/DELEGATE	GRANT a TO FUNCTION a WITH DELEGATE OPTION
+reject@22	reject@22	engine	grant_grant_roles_to_programs(ADMIN|DELEGATE)/DELEGATE!insert	GRANT a TO FUNCTION a WITH DELEGATE zzz OPTION
+reject@22	reject@22	engine	grant_grant_roles_to_programs(ADMIN|DELEGATE)/DELEGATE!swap	GRANT a TO FUNCTION a WITH DELETE OPTION
+accept	accept	engine	grant_grant_roles_to_programs(CONTAINER_=_(CURRENT|ALL))?/%empty	GRANT a TO FUNCTION a
+reject@22	reject@22	engine	grant_grant_roles_to_programs(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)	GRANT a TO FUNCTION a CONTAINER = CURRENT
+reject@22	reject@22	engine	grant_grant_roles_to_programs(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)!drop-1	GRANT a TO FUNCTION a = CURRENT
+reject@22	reject@22	engine	grant_grant_roles_to_programs(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)!drop-2	GRANT a TO FUNCTION a CONTAINER CURRENT
+reject@22	reject@22	engine	grant_grant_roles_to_programs(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)!drop-3	GRANT a TO FUNCTION a CONTAINER =
+reject@22	reject@22	engine	grant_grant_roles_to_programs(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)!insert	GRANT a TO FUNCTION a CONTAINER = CURRENT zzz
+reject@22	reject@22	engine	grant_grant_roles_to_programs(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)!swap	GRANT a TO FUNCTION a CONTAINERS = CURRENT
+reject@22	reject@22	engine	grant_grant_roles_to_programs(CURRENT|ALL)/CURRENT	GRANT a TO FUNCTION a CONTAINER = CURRENT
+reject@22	reject@22	engine	grant_grant_roles_to_programs(CURRENT|ALL)/CURRENT!swap	GRANT a TO FUNCTION a CONTAINER = CURRENT_SCHEMA
+reject@22	reject@22	engine	grant_grant_roles_to_programs(CURRENT|ALL)/ALL	GRANT a TO FUNCTION a CONTAINER = ALL
+reject@22	reject@22	engine	grant_grant_roles_to_programs(CURRENT|ALL)/ALL!insert	GRANT a TO FUNCTION a CONTAINER = ALL zzz
+reject@22	reject@22	engine	grant_grant_roles_to_programs(CURRENT|ALL)/ALL!swap	GRANT a TO FUNCTION a CONTAINER = ALLOCATE
 accept	accept	engine	grant_grantee_clause/(ID|PUBLIC)	GRANT a TO a
 accept	accept	engine	grant_grantee_clause(ID|PUBLIC)/ID	GRANT a TO a
 accept	accept	engine	grant_grantee_clause(ID|PUBLIC)/PUBLIC	GRANT a TO PUBLIC
 reject@18	reject@18	engine	grant_grantee_clause(ID|PUBLIC)/PUBLIC!insert	GRANT a TO PUBLIC zzz
 accept	accept	engine	grant_grantee_clause(ID|PUBLIC)/PUBLIC!swap	GRANT a TO PURE
-accept	reject@6	engine	grant_on_object_clause/ON_(ID_.)?_ID	GRANT a ON a TO a
-reject@10	reject@6	engine	grant_on_object_clause/ON_(ID_.)?_ID!truncate	GRANT a ON
-reject@13	reject@6	engine	grant_on_object_clause/ON_(ID_.)?_ID!insert	GRANT a ON a zzz TO a
-accept	reject@6	engine	grant_on_object_clause/ON_(ID_.)?_ID!swap	GRANT a ONE a TO a
-reject@16	reject@6	engine	grant_on_object_clause/ON_USER_ID_(,_ID)*	GRANT a ON USER a TO a
-accept	reject@6	engine	grant_on_object_clause/ON_USER_ID_(,_ID)*!drop-1	GRANT a USER a TO a
-accept	reject@6	engine	grant_on_object_clause/ON_USER_ID_(,_ID)*!drop-3	GRANT a ON USER TO a
-reject@15	reject@6	engine	grant_on_object_clause/ON_USER_ID_(,_ID)*!truncate	GRANT a ON USER
-reject@16	reject@6	engine	grant_on_object_clause/ON_USER_ID_(,_ID)*!insert	GRANT a ON USER a zzz TO a
-accept	reject@6	engine	grant_on_object_clause/ON_USER_ID_(,_ID)*!swap	GRANT a ONE USER a TO a
-accept	reject@6	engine	grant_on_object_clause/ON_DIRECTORY_ID	GRANT a ON DIRECTORY a TO a
-accept	reject@6	engine	grant_on_object_clause/ON_DIRECTORY_ID!drop-1	GRANT a DIRECTORY a TO a
-reject@24	reject@6	engine	grant_on_object_clause/ON_DIRECTORY_ID!drop-3	GRANT a ON DIRECTORY TO a
-reject@20	reject@6	engine	grant_on_object_clause/ON_DIRECTORY_ID!truncate	GRANT a ON DIRECTORY
-reject@23	reject@6	engine	grant_on_object_clause/ON_DIRECTORY_ID!insert	GRANT a ON DIRECTORY a zzz TO a
-accept	reject@6	engine	grant_on_object_clause/ON_DIRECTORY_ID!swap	GRANT a ONE DIRECTORY a TO a
-reject@19	reject@6	engine	grant_on_object_clause/ON_EDITION_ID	GRANT a ON EDITION a TO a
-accept	reject@6	engine	grant_on_object_clause/ON_EDITION_ID!drop-1	GRANT a EDITION a TO a
-accept	reject@6	engine	grant_on_object_clause/ON_EDITION_ID!drop-3	GRANT a ON EDITION TO a
-reject@18	reject@6	engine	grant_on_object_clause/ON_EDITION_ID!truncate	GRANT a ON EDITION
-reject@19	reject@6	engine	grant_on_object_clause/ON_EDITION_ID!insert	GRANT a ON EDITION a zzz TO a
-accept	reject@6	engine	grant_on_object_clause/ON_EDITION_ID!swap	GRANT a ONE EDITION a TO a
-reject@18	reject@6	engine	grant_on_object_clause/ON_MINING_MODEL_(ID_.)?_ID	GRANT a ON MINING MODEL a TO a
-accept	reject@6	engine	grant_on_object_clause/ON_MINING_MODEL_(ID_.)?_ID!drop-1	GRANT a MINING MODEL a TO a
-reject@17	reject@6	engine	grant_on_object_clause/ON_MINING_MODEL_(ID_.)?_ID!drop-2	GRANT a ON MODEL a TO a
-reject@18	reject@6	engine	grant_on_object_clause/ON_MINING_MODEL_(ID_.)?_ID!drop-3	GRANT a ON MINING a TO a
-reject@18	reject@6	engine	grant_on_object_clause/ON_MINING_MODEL_(ID_.)?_ID!drop-4	GRANT a ON MINING MODEL TO a
-reject@18	reject@6	engine	grant_on_object_clause/ON_MINING_MODEL_(ID_.)?_ID!truncate	GRANT a ON MINING MODEL
-reject@18	reject@6	engine	grant_on_object_clause/ON_MINING_MODEL_(ID_.)?_ID!insert	GRANT a ON MINING MODEL a zzz TO a
-accept	reject@6	engine	grant_on_object_clause/ON_MINING_MODEL_(ID_.)?_ID!swap	GRANT a ONE MINING MODEL a TO a
-reject@16	reject@6	engine	grant_on_object_clause/ON_JAVA_(SOURCE|RESOURCE)_(ID_.)?_ID	GRANT a ON JAVA SOURCE a TO a
-accept	reject@6	engine	grant_on_object_clause/ON_JAVA_(SOURCE|RESOURCE)_(ID_.)?_ID!drop-1	GRANT a JAVA SOURCE a TO a
-reject@18	reject@6	engine	grant_on_object_clause/ON_JAVA_(SOURCE|RESOURCE)_(ID_.)?_ID!drop-2	GRANT a ON SOURCE a TO a
-reject@16	reject@6	engine	grant_on_object_clause/ON_JAVA_(SOURCE|RESOURCE)_(ID_.)?_ID!drop-3	GRANT a ON JAVA a TO a
-reject@16	reject@6	engine	grant_on_object_clause/ON_JAVA_(SOURCE|RESOURCE)_(ID_.)?_ID!drop-4	GRANT a ON JAVA SOURCE TO a
-reject@16	reject@6	engine	grant_on_object_clause/ON_JAVA_(SOURCE|RESOURCE)_(ID_.)?_ID!truncate	GRANT a ON JAVA SOURCE
-reject@16	reject@6	engine	grant_on_object_clause/ON_JAVA_(SOURCE|RESOURCE)_(ID_.)?_ID!insert	GRANT a ON JAVA SOURCE a zzz TO a
-accept	reject@6	engine	grant_on_object_clause/ON_JAVA_(SOURCE|RESOURCE)_(ID_.)?_ID!swap	GRANT a ONE JAVA SOURCE a TO a
-reject@15	reject@6	engine	grant_on_object_clause/ON_SQL_TRANSLATION_PROFILE_(ID_.)?_ID	GRANT a ON SQL TRANSLATION PROFILE a TO a
-accept	reject@6	engine	grant_on_object_clause/ON_SQL_TRANSLATION_PROFILE_(ID_.)?_ID!drop-1	GRANT a SQL TRANSLATION PROFILE a TO a
-reject@23	reject@6	engine	grant_on_object_clause/ON_SQL_TRANSLATION_PROFILE_(ID_.)?_ID!drop-2	GRANT a ON TRANSLATION PROFILE a TO a
-reject@15	reject@6	engine	grant_on_object_clause/ON_SQL_TRANSLATION_PROFILE_(ID_.)?_ID!drop-3	GRANT a ON SQL PROFILE a TO a
-reject@15	reject@6	engine	grant_on_object_clause/ON_SQL_TRANSLATION_PROFILE_(ID_.)?_ID!drop-4	GRANT a ON SQL TRANSLATION a TO a
-reject@15	reject@6	engine	grant_on_object_clause/ON_SQL_TRANSLATION_PROFILE_(ID_.)?_ID!drop-5	GRANT a ON SQL TRANSLATION PROFILE TO a
-reject@15	reject@6	engine	grant_on_object_clause/ON_SQL_TRANSLATION_PROFILE_(ID_.)?_ID!truncate	GRANT a ON SQL TRANSLATION PROFILE
-reject@15	reject@6	engine	grant_on_object_clause/ON_SQL_TRANSLATION_PROFILE_(ID_.)?_ID!insert	GRANT a ON SQL TRANSLATION PROFILE a zzz TO a
-accept	reject@6	engine	grant_on_object_clause/ON_SQL_TRANSLATION_PROFILE_(ID_.)?_ID!swap	GRANT a ONE SQL TRANSLATION PROFILE a TO a
-accept	reject@6	engine	grant_on_object_clause(ID_.)?/%empty	GRANT a ON a TO a
-reject@15	reject@6	engine	grant_on_object_clause(ID_.)?/%empty!insert	GRANT a ON zzz a TO a
-accept	reject@6	engine	grant_on_object_clause(ID_.)?/ID_.	GRANT a ON a.a TO a
-reject@10	reject@6	engine	grant_on_object_clause(ID_.)?/ID_.!drop-1	GRANT a ON.a TO a
-reject@13	reject@6	engine	grant_on_object_clause(ID_.)?/ID_.!drop-2	GRANT a ON a a TO a
-reject@12	reject@6	engine	grant_on_object_clause(ID_.)?/ID_.!truncate	GRANT a ON a
-reject@17	reject@6	engine	grant_on_object_clause(ID_.)?/ID_.!insert	GRANT a ON a.zzz a TO a
-reject@16	reject@6	engine	grant_on_object_clause(,_ID)*/%empty	GRANT a ON USER a TO a
-reject@16	reject@6	engine	grant_on_object_clause(,_ID)*/,_ID_(,_ID)*	GRANT a ON USER a, a TO a
-reject@16	reject@6	engine	grant_on_object_clause(,_ID)*/,_ID_(,_ID)*!drop-1	GRANT a ON USER a a TO a
-reject@16	reject@6	engine	grant_on_object_clause(,_ID)*/,_ID_(,_ID)*!drop-2	GRANT a ON USER a, TO a
-reject@16	reject@6	engine	grant_on_object_clause(,_ID)*/,_ID_(,_ID)*!truncate	GRANT a ON USER a,
-reject@16	reject@6	engine	grant_on_object_clause(,_ID)*/,_ID_(,_ID)*!insert	GRANT a ON USER a, a zzz TO a
-reject@16	reject@6	engine	grant_on_object_clause(SOURCE|RESOURCE)/SOURCE	GRANT a ON JAVA SOURCE a TO a
-reject@15	reject@6	engine	grant_on_object_clause(SOURCE|RESOURCE)/SOURCE!truncate	GRANT a ON JAVA
-reject@16	reject@6	engine	grant_on_object_clause(SOURCE|RESOURCE)/SOURCE!insert	GRANT a ON JAVA SOURCE zzz a TO a
-reject@16	reject@6	engine	grant_on_object_clause(SOURCE|RESOURCE)/SOURCE!swap	GRANT a ON JAVA SOURCE_FILE_DIRECTORY a TO a
-reject@16	reject@6	engine	grant_on_object_clause(SOURCE|RESOURCE)/RESOURCE	GRANT a ON JAVA RESOURCE a TO a
-reject@16	reject@6	engine	grant_on_object_clause(SOURCE|RESOURCE)/RESOURCE!insert	GRANT a ON JAVA RESOURCE zzz a TO a
-reject@16	reject@6	engine	grant_on_object_clause(SOURCE|RESOURCE)/RESOURCE!swap	GRANT a ON JAVA RESTART a TO a
-reject@20	accept	engine	grant_program_unit/(ID_.)?_(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)	GRANT a TO FUNCTION a
+reject@6	reject@6	engine	grant_on_object_clause/ON_(ID_.)?_ID	GRANT a ON a TO a
+reject@6	reject@6	engine	grant_on_object_clause/ON_(ID_.)?_ID!truncate	GRANT a ON
+reject@6	reject@6	engine	grant_on_object_clause/ON_(ID_.)?_ID!insert	GRANT a ON a zzz TO a
+reject@6	reject@6	engine	grant_on_object_clause/ON_(ID_.)?_ID!swap	GRANT a ONE a TO a
+reject@6	reject@6	engine	grant_on_object_clause/ON_USER_ID_(,_ID)*	GRANT a ON USER a TO a
+reject@6	reject@6	engine	grant_on_object_clause/ON_USER_ID_(,_ID)*!drop-1	GRANT a USER a TO a
+reject@6	reject@6	engine	grant_on_object_clause/ON_USER_ID_(,_ID)*!drop-3	GRANT a ON USER TO a
+reject@6	reject@6	engine	grant_on_object_clause/ON_USER_ID_(,_ID)*!truncate	GRANT a ON USER
+reject@6	reject@6	engine	grant_on_object_clause/ON_USER_ID_(,_ID)*!insert	GRANT a ON USER a zzz TO a
+reject@6	reject@6	engine	grant_on_object_clause/ON_USER_ID_(,_ID)*!swap	GRANT a ONE USER a TO a
+reject@6	reject@6	engine	grant_on_object_clause/ON_DIRECTORY_ID	GRANT a ON DIRECTORY a TO a
+reject@6	reject@6	engine	grant_on_object_clause/ON_DIRECTORY_ID!drop-1	GRANT a DIRECTORY a TO a
+reject@6	reject@6	engine	grant_on_object_clause/ON_DIRECTORY_ID!drop-3	GRANT a ON DIRECTORY TO a
+reject@6	reject@6	engine	grant_on_object_clause/ON_DIRECTORY_ID!truncate	GRANT a ON DIRECTORY
+reject@6	reject@6	engine	grant_on_object_clause/ON_DIRECTORY_ID!insert	GRANT a ON DIRECTORY a zzz TO a
+reject@6	reject@6	engine	grant_on_object_clause/ON_DIRECTORY_ID!swap	GRANT a ONE DIRECTORY a TO a
+reject@6	reject@6	engine	grant_on_object_clause/ON_EDITION_ID	GRANT a ON EDITION a TO a
+reject@6	reject@6	engine	grant_on_object_clause/ON_EDITION_ID!drop-1	GRANT a EDITION a TO a
+reject@6	reject@6	engine	grant_on_object_clause/ON_EDITION_ID!drop-3	GRANT a ON EDITION TO a
+reject@6	reject@6	engine	grant_on_object_clause/ON_EDITION_ID!truncate	GRANT a ON EDITION
+reject@6	reject@6	engine	grant_on_object_clause/ON_EDITION_ID!insert	GRANT a ON EDITION a zzz TO a
+reject@6	reject@6	engine	grant_on_object_clause/ON_EDITION_ID!swap	GRANT a ONE EDITION a TO a
+reject@6	reject@6	engine	grant_on_object_clause/ON_MINING_MODEL_(ID_.)?_ID	GRANT a ON MINING MODEL a TO a
+reject@6	reject@6	engine	grant_on_object_clause/ON_MINING_MODEL_(ID_.)?_ID!drop-1	GRANT a MINING MODEL a TO a
+reject@6	reject@6	engine	grant_on_object_clause/ON_MINING_MODEL_(ID_.)?_ID!drop-2	GRANT a ON MODEL a TO a
+reject@6	reject@6	engine	grant_on_object_clause/ON_MINING_MODEL_(ID_.)?_ID!drop-3	GRANT a ON MINING a TO a
+reject@6	reject@6	engine	grant_on_object_clause/ON_MINING_MODEL_(ID_.)?_ID!drop-4	GRANT a ON MINING MODEL TO a
+reject@6	reject@6	engine	grant_on_object_clause/ON_MINING_MODEL_(ID_.)?_ID!truncate	GRANT a ON MINING MODEL
+reject@6	reject@6	engine	grant_on_object_clause/ON_MINING_MODEL_(ID_.)?_ID!insert	GRANT a ON MINING MODEL a zzz TO a
+reject@6	reject@6	engine	grant_on_object_clause/ON_MINING_MODEL_(ID_.)?_ID!swap	GRANT a ONE MINING MODEL a TO a
+reject@6	reject@6	engine	grant_on_object_clause/ON_JAVA_(SOURCE|RESOURCE)_(ID_.)?_ID	GRANT a ON JAVA SOURCE a TO a
+reject@6	reject@6	engine	grant_on_object_clause/ON_JAVA_(SOURCE|RESOURCE)_(ID_.)?_ID!drop-1	GRANT a JAVA SOURCE a TO a
+reject@6	reject@6	engine	grant_on_object_clause/ON_JAVA_(SOURCE|RESOURCE)_(ID_.)?_ID!drop-2	GRANT a ON SOURCE a TO a
+reject@6	reject@6	engine	grant_on_object_clause/ON_JAVA_(SOURCE|RESOURCE)_(ID_.)?_ID!drop-3	GRANT a ON JAVA a TO a
+reject@6	reject@6	engine	grant_on_object_clause/ON_JAVA_(SOURCE|RESOURCE)_(ID_.)?_ID!drop-4	GRANT a ON JAVA SOURCE TO a
+reject@6	reject@6	engine	grant_on_object_clause/ON_JAVA_(SOURCE|RESOURCE)_(ID_.)?_ID!truncate	GRANT a ON JAVA SOURCE
+reject@6	reject@6	engine	grant_on_object_clause/ON_JAVA_(SOURCE|RESOURCE)_(ID_.)?_ID!insert	GRANT a ON JAVA SOURCE a zzz TO a
+reject@6	reject@6	engine	grant_on_object_clause/ON_JAVA_(SOURCE|RESOURCE)_(ID_.)?_ID!swap	GRANT a ONE JAVA SOURCE a TO a
+reject@6	reject@6	engine	grant_on_object_clause/ON_SQL_TRANSLATION_PROFILE_(ID_.)?_ID	GRANT a ON SQL TRANSLATION PROFILE a TO a
+reject@6	reject@6	engine	grant_on_object_clause/ON_SQL_TRANSLATION_PROFILE_(ID_.)?_ID!drop-1	GRANT a SQL TRANSLATION PROFILE a TO a
+reject@6	reject@6	engine	grant_on_object_clause/ON_SQL_TRANSLATION_PROFILE_(ID_.)?_ID!drop-2	GRANT a ON TRANSLATION PROFILE a TO a
+reject@6	reject@6	engine	grant_on_object_clause/ON_SQL_TRANSLATION_PROFILE_(ID_.)?_ID!drop-3	GRANT a ON SQL PROFILE a TO a
+reject@6	reject@6	engine	grant_on_object_clause/ON_SQL_TRANSLATION_PROFILE_(ID_.)?_ID!drop-4	GRANT a ON SQL TRANSLATION a TO a
+reject@6	reject@6	engine	grant_on_object_clause/ON_SQL_TRANSLATION_PROFILE_(ID_.)?_ID!drop-5	GRANT a ON SQL TRANSLATION PROFILE TO a
+reject@6	reject@6	engine	grant_on_object_clause/ON_SQL_TRANSLATION_PROFILE_(ID_.)?_ID!truncate	GRANT a ON SQL TRANSLATION PROFILE
+reject@6	reject@6	engine	grant_on_object_clause/ON_SQL_TRANSLATION_PROFILE_(ID_.)?_ID!insert	GRANT a ON SQL TRANSLATION PROFILE a zzz TO a
+reject@6	reject@6	engine	grant_on_object_clause/ON_SQL_TRANSLATION_PROFILE_(ID_.)?_ID!swap	GRANT a ONE SQL TRANSLATION PROFILE a TO a
+reject@6	reject@6	engine	grant_on_object_clause(ID_.)?/%empty	GRANT a ON a TO a
+reject@6	reject@6	engine	grant_on_object_clause(ID_.)?/%empty!insert	GRANT a ON zzz a TO a
+reject@6	reject@6	engine	grant_on_object_clause(ID_.)?/ID_.	GRANT a ON a.a TO a
+reject@6	reject@6	engine	grant_on_object_clause(ID_.)?/ID_.!drop-1	GRANT a ON.a TO a
+reject@6	reject@6	engine	grant_on_object_clause(ID_.)?/ID_.!drop-2	GRANT a ON a a TO a
+reject@6	reject@6	engine	grant_on_object_clause(ID_.)?/ID_.!truncate	GRANT a ON a
+reject@6	reject@6	engine	grant_on_object_clause(ID_.)?/ID_.!insert	GRANT a ON a.zzz a TO a
+reject@6	reject@6	engine	grant_on_object_clause(,_ID)*/%empty	GRANT a ON USER a TO a
+reject@6	reject@6	engine	grant_on_object_clause(,_ID)*/,_ID_(,_ID)*	GRANT a ON USER a, a TO a
+reject@6	reject@6	engine	grant_on_object_clause(,_ID)*/,_ID_(,_ID)*!drop-1	GRANT a ON USER a a TO a
+reject@6	reject@6	engine	grant_on_object_clause(,_ID)*/,_ID_(,_ID)*!drop-2	GRANT a ON USER a, TO a
+reject@6	reject@6	engine	grant_on_object_clause(,_ID)*/,_ID_(,_ID)*!truncate	GRANT a ON USER a,
+reject@6	reject@6	engine	grant_on_object_clause(,_ID)*/,_ID_(,_ID)*!insert	GRANT a ON USER a, a zzz TO a
+reject@6	reject@6	engine	grant_on_object_clause(SOURCE|RESOURCE)/SOURCE	GRANT a ON JAVA SOURCE a TO a
+reject@6	reject@6	engine	grant_on_object_clause(SOURCE|RESOURCE)/SOURCE!truncate	GRANT a ON JAVA
+reject@6	reject@6	engine	grant_on_object_clause(SOURCE|RESOURCE)/SOURCE!insert	GRANT a ON JAVA SOURCE zzz a TO a
+reject@6	reject@6	engine	grant_on_object_clause(SOURCE|RESOURCE)/SOURCE!swap	GRANT a ON JAVA SOURCE_FILE_DIRECTORY a TO a
+reject@6	reject@6	engine	grant_on_object_clause(SOURCE|RESOURCE)/RESOURCE	GRANT a ON JAVA RESOURCE a TO a
+reject@6	reject@6	engine	grant_on_object_clause(SOURCE|RESOURCE)/RESOURCE!insert	GRANT a ON JAVA RESOURCE zzz a TO a
+reject@6	reject@6	engine	grant_on_object_clause(SOURCE|RESOURCE)/RESOURCE!swap	GRANT a ON JAVA RESTART a TO a
+accept	accept	engine	grant_program_unit/(ID_.)?_(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)	GRANT a TO FUNCTION a
 reject@21	reject@21	engine	grant_program_unit/(ID_.)?_(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)!swap	GRANT a TO FUNCTIONS a
-reject@20	accept	engine	grant_program_unit(ID_.)?/%empty	GRANT a TO FUNCTION a
+accept	accept	engine	grant_program_unit(ID_.)?/%empty	GRANT a TO FUNCTION a
 reject@15	accept	engine	grant_program_unit(ID_.)?/%empty!insert	GRANT a TO zzz FUNCTION a
-reject@12	accept	engine	grant_program_unit(ID_.)?/ID_.	GRANT a TO a.FUNCTION a
+accept	accept	engine	grant_program_unit(ID_.)?/ID_.	GRANT a TO a.FUNCTION a
 reject@10	accept	engine	grant_program_unit(ID_.)?/ID_.!drop-1	GRANT a TO.FUNCTION a
 reject@13	accept	engine	grant_program_unit(ID_.)?/ID_.!drop-2	GRANT a TO a FUNCTION a
 reject@12	accept	engine	grant_program_unit(ID_.)?/ID_.!insert	GRANT a TO a.zzz FUNCTION a
-reject@20	accept	engine	grant_program_unit(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)/FUNCTION_ID	GRANT a TO FUNCTION a
-reject@21	accept	engine	grant_program_unit(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)/PROCEDURE_ID	GRANT a TO PROCEDURE a
+accept	accept	engine	grant_program_unit(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)/FUNCTION_ID	GRANT a TO FUNCTION a
+accept	accept	engine	grant_program_unit(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)/PROCEDURE_ID	GRANT a TO PROCEDURE a
 accept	accept	engine	grant_program_unit(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)/PROCEDURE_ID!drop-2	GRANT a TO PROCEDURE
-reject@21	reject@23	engine	grant_program_unit(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)/PROCEDURE_ID!insert	GRANT a TO PROCEDURE a zzz
+reject@23	reject@23	engine	grant_program_unit(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)/PROCEDURE_ID!insert	GRANT a TO PROCEDURE a zzz
 reject@19	reject@19	engine	grant_program_unit(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)/PROCEDURE_ID!swap	GRANT a TO PROFILE a
-reject@19	accept	engine	grant_program_unit(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)/PACKAGE_ID	GRANT a TO PACKAGE a
+accept	accept	engine	grant_program_unit(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)/PACKAGE_ID	GRANT a TO PACKAGE a
 accept	accept	engine	grant_program_unit(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)/PACKAGE_ID!drop-2	GRANT a TO PACKAGE
-reject@19	reject@21	engine	grant_program_unit(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)/PACKAGE_ID!insert	GRANT a TO PACKAGE a zzz
+reject@21	reject@21	engine	grant_program_unit(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)/PACKAGE_ID!insert	GRANT a TO PACKAGE a zzz
 reject@20	reject@20	engine	grant_program_unit(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)/PACKAGE_ID!swap	GRANT a TO PACKAGES a
 accept	accept	engine	insert/INSERT_(HINT)?_(insert_single_table_insert|insert_mu~e713bddc)	INSERT INTO a SELECT 1 FROM dual
 accept	accept	engine	insert(HINT)?/%empty	INSERT INTO a SELECT 1 FROM dual
@@ -40940,109 +40940,109 @@ reject@31	reject@31	engine	merge_error_logging_clause(NUMBER|UNLIMITED)/NUMBER	M
 reject@31	reject@31	engine	merge_error_logging_clause(NUMBER|UNLIMITED)/UNLIMITED	MERGE INTO a USING a ON(1 = 1) LOG ERRORS REJECT LIMIT UNLIMITED
 reject@31	reject@31	engine	merge_error_logging_clause(NUMBER|UNLIMITED)/UNLIMITED!insert	MERGE INTO a USING a ON(1 = 1) LOG ERRORS REJECT LIMIT UNLIMITED zzz
 reject@31	reject@31	engine	merge_error_logging_clause(NUMBER|UNLIMITED)/UNLIMITED!swap	MERGE INTO a USING a ON(1 = 1) LOG ERRORS REJECT LIMIT UNLOCK
-accept	reject@8	engine	noauditTraditionalAuditing/NOAUDIT_(noauditTraditionalAuditing_audit_ope~fc6dd2a1)~23cbb657	NOAUDIT a
-accept	reject@8	engine	noauditTraditionalAuditing(noauditTraditionalAuditing_audit_ope~fc6dd2a1)/noauditTraditionalAuditing_audit_operation_clause_(noau~2bae5693	NOAUDIT a
-accept	reject@8	engine	noauditTraditionalAuditing(noauditTraditionalAuditing_audit_ope~fc6dd2a1)/noauditTraditionalAuditing_audit_schema_object_clause	NOAUDIT a ON a
-accept	reject@8	engine	noauditTraditionalAuditing(noauditTraditionalAuditing_audit_ope~fc6dd2a1)/noauditTraditionalAuditing_audit_schema_object_clause!drop-1	NOAUDIT ON a
-accept	reject@8	engine	noauditTraditionalAuditing(noauditTraditionalAuditing_audit_ope~fc6dd2a1)/noauditTraditionalAuditing_audit_schema_object_clause!drop-2	NOAUDIT a a
-accept	reject@8	engine	noauditTraditionalAuditing(noauditTraditionalAuditing_audit_ope~fc6dd2a1)/noauditTraditionalAuditing_audit_schema_object_clause!drop-3	NOAUDIT a ON
-reject@15	reject@8	engine	noauditTraditionalAuditing(noauditTraditionalAuditing_audit_ope~fc6dd2a1)/noauditTraditionalAuditing_audit_schema_object_clause!insert	NOAUDIT a ON a zzz
-accept	reject@8	engine	noauditTraditionalAuditing(noauditTraditionalAuditing_audit_ope~fc6dd2a1)/noauditTraditionalAuditing_audit_schema_object_clause!swap	NOAUDIT a ONE a
-accept	reject@8	engine	noauditTraditionalAuditing(noauditTraditionalAuditing_auditing_by_clause)?/%empty	NOAUDIT a
-accept	reject@8	engine	noauditTraditionalAuditing(noauditTraditionalAuditing_auditing_by_clause)?/noauditTraditionalAuditing_auditing_by_clause	NOAUDIT a BY a
-accept	reject@8	engine	noauditTraditionalAuditing(noauditTraditionalAuditing_auditing_by_clause)?/noauditTraditionalAuditing_auditing_by_clause!drop-2	NOAUDIT a BY
-reject@15	reject@8	engine	noauditTraditionalAuditing(noauditTraditionalAuditing_auditing_by_clause)?/noauditTraditionalAuditing_auditing_by_clause!insert	NOAUDIT a BY a zzz
-accept	reject@8	engine	noauditTraditionalAuditing(noauditTraditionalAuditing_auditing_by_clause)?/noauditTraditionalAuditing_auditing_by_clause!swap	NOAUDIT a CACHE a
-accept	reject@8	engine	noauditTraditionalAuditing(WHENEVER_NOT?_SUCCESSFUL)?/%empty	NOAUDIT a
-accept	reject@8	engine	noauditTraditionalAuditing(WHENEVER_NOT?_SUCCESSFUL)?/WHENEVER_(NOT)?_SUCCESSFUL	NOAUDIT a WHENEVER SUCCESSFUL
-accept	reject@8	engine	noauditTraditionalAuditing(WHENEVER_NOT?_SUCCESSFUL)?/WHENEVER_(NOT)?_SUCCESSFUL!drop-1	NOAUDIT a SUCCESSFUL
-accept	reject@8	engine	noauditTraditionalAuditing(WHENEVER_NOT?_SUCCESSFUL)?/WHENEVER_(NOT)?_SUCCESSFUL!drop-2	NOAUDIT a WHENEVER
-reject@30	reject@8	engine	noauditTraditionalAuditing(WHENEVER_NOT?_SUCCESSFUL)?/WHENEVER_(NOT)?_SUCCESSFUL!insert	NOAUDIT a WHENEVER SUCCESSFUL zzz
-accept	reject@8	engine	noauditTraditionalAuditing(WHENEVER_NOT?_SUCCESSFUL)?/WHENEVER_(NOT)?_SUCCESSFUL!swap	NOAUDIT a WHERE SUCCESSFUL
-accept	reject@8	engine	noauditTraditionalAuditing(NOT)?/%empty	NOAUDIT a WHENEVER SUCCESSFUL
-reject@19	reject@8	engine	noauditTraditionalAuditing(NOT)?/%empty!insert	NOAUDIT a WHENEVER zzz SUCCESSFUL
-accept	reject@8	engine	noauditTraditionalAuditing(NOT)?/NOT	NOAUDIT a WHENEVER NOT SUCCESSFUL
-reject@23	reject@8	engine	noauditTraditionalAuditing(NOT)?/NOT!insert	NOAUDIT a WHENEVER NOT zzz SUCCESSFUL
-reject@19	reject@8	engine	noauditTraditionalAuditing(NOT)?/NOT!swap	NOAUDIT a WHENEVER NOTHING SUCCESSFUL
-accept	reject@8	engine	noauditTraditionalAuditing(CONTAINER_=_(CURRENT|ALL))?/%empty	NOAUDIT a
-accept	reject@8	engine	noauditTraditionalAuditing(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)	NOAUDIT a CONTAINER = CURRENT
-reject@10	reject@8	engine	noauditTraditionalAuditing(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)!drop-1	NOAUDIT a = CURRENT
-accept	reject@8	engine	noauditTraditionalAuditing(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)!drop-2	NOAUDIT a CONTAINER CURRENT
-reject@21	reject@8	engine	noauditTraditionalAuditing(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)!drop-3	NOAUDIT a CONTAINER =
-reject@30	reject@8	engine	noauditTraditionalAuditing(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)!insert	NOAUDIT a CONTAINER = CURRENT zzz
-reject@21	reject@8	engine	noauditTraditionalAuditing(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)!swap	NOAUDIT a CONTAINERS = CURRENT
-accept	reject@8	engine	noauditTraditionalAuditing(CURRENT|ALL)/CURRENT	NOAUDIT a CONTAINER = CURRENT
-reject@22	reject@8	engine	noauditTraditionalAuditing(CURRENT|ALL)/CURRENT!swap	NOAUDIT a CONTAINER = CURRENT_SCHEMA
-accept	reject@8	engine	noauditTraditionalAuditing(CURRENT|ALL)/ALL	NOAUDIT a CONTAINER = ALL
-reject@26	reject@8	engine	noauditTraditionalAuditing(CURRENT|ALL)/ALL!insert	NOAUDIT a CONTAINER = ALL zzz
-reject@22	reject@8	engine	noauditTraditionalAuditing(CURRENT|ALL)/ALL!swap	NOAUDIT a CONTAINER = ALLOCATE
-accept	reject@8	engine	noauditTraditionalAuditing_audit_operation_clause/(ID_(,_ID)*|ALL|ALL_STATEMENTS|ALL_PRIVILEGES)	NOAUDIT a
-accept	reject@8	engine	noauditTraditionalAuditing_audit_operation_clause(ID_(,_ID)*|ALL|ALL_STATEMENTS|ALL_PRIVILEGES)/ID_(,_ID)*	NOAUDIT a
+reject@8	reject@8	engine	noauditTraditionalAuditing/NOAUDIT_(noauditTraditionalAuditing_audit_ope~fc6dd2a1)~23cbb657	NOAUDIT a
+reject@8	reject@8	engine	noauditTraditionalAuditing(noauditTraditionalAuditing_audit_ope~fc6dd2a1)/noauditTraditionalAuditing_audit_operation_clause_(noau~2bae5693	NOAUDIT a
+reject@8	reject@8	engine	noauditTraditionalAuditing(noauditTraditionalAuditing_audit_ope~fc6dd2a1)/noauditTraditionalAuditing_audit_schema_object_clause	NOAUDIT a ON a
+reject@8	reject@8	engine	noauditTraditionalAuditing(noauditTraditionalAuditing_audit_ope~fc6dd2a1)/noauditTraditionalAuditing_audit_schema_object_clause!drop-1	NOAUDIT ON a
+reject@8	reject@8	engine	noauditTraditionalAuditing(noauditTraditionalAuditing_audit_ope~fc6dd2a1)/noauditTraditionalAuditing_audit_schema_object_clause!drop-2	NOAUDIT a a
+reject@8	reject@8	engine	noauditTraditionalAuditing(noauditTraditionalAuditing_audit_ope~fc6dd2a1)/noauditTraditionalAuditing_audit_schema_object_clause!drop-3	NOAUDIT a ON
+reject@8	reject@8	engine	noauditTraditionalAuditing(noauditTraditionalAuditing_audit_ope~fc6dd2a1)/noauditTraditionalAuditing_audit_schema_object_clause!insert	NOAUDIT a ON a zzz
+reject@8	reject@8	engine	noauditTraditionalAuditing(noauditTraditionalAuditing_audit_ope~fc6dd2a1)/noauditTraditionalAuditing_audit_schema_object_clause!swap	NOAUDIT a ONE a
+reject@8	reject@8	engine	noauditTraditionalAuditing(noauditTraditionalAuditing_auditing_by_clause)?/%empty	NOAUDIT a
+reject@8	reject@8	engine	noauditTraditionalAuditing(noauditTraditionalAuditing_auditing_by_clause)?/noauditTraditionalAuditing_auditing_by_clause	NOAUDIT a BY a
+reject@8	reject@8	engine	noauditTraditionalAuditing(noauditTraditionalAuditing_auditing_by_clause)?/noauditTraditionalAuditing_auditing_by_clause!drop-2	NOAUDIT a BY
+reject@8	reject@8	engine	noauditTraditionalAuditing(noauditTraditionalAuditing_auditing_by_clause)?/noauditTraditionalAuditing_auditing_by_clause!insert	NOAUDIT a BY a zzz
+reject@8	reject@8	engine	noauditTraditionalAuditing(noauditTraditionalAuditing_auditing_by_clause)?/noauditTraditionalAuditing_auditing_by_clause!swap	NOAUDIT a CACHE a
+reject@8	reject@8	engine	noauditTraditionalAuditing(WHENEVER_NOT?_SUCCESSFUL)?/%empty	NOAUDIT a
+reject@8	reject@8	engine	noauditTraditionalAuditing(WHENEVER_NOT?_SUCCESSFUL)?/WHENEVER_(NOT)?_SUCCESSFUL	NOAUDIT a WHENEVER SUCCESSFUL
+reject@8	reject@8	engine	noauditTraditionalAuditing(WHENEVER_NOT?_SUCCESSFUL)?/WHENEVER_(NOT)?_SUCCESSFUL!drop-1	NOAUDIT a SUCCESSFUL
+reject@8	reject@8	engine	noauditTraditionalAuditing(WHENEVER_NOT?_SUCCESSFUL)?/WHENEVER_(NOT)?_SUCCESSFUL!drop-2	NOAUDIT a WHENEVER
+reject@8	reject@8	engine	noauditTraditionalAuditing(WHENEVER_NOT?_SUCCESSFUL)?/WHENEVER_(NOT)?_SUCCESSFUL!insert	NOAUDIT a WHENEVER SUCCESSFUL zzz
+reject@8	reject@8	engine	noauditTraditionalAuditing(WHENEVER_NOT?_SUCCESSFUL)?/WHENEVER_(NOT)?_SUCCESSFUL!swap	NOAUDIT a WHERE SUCCESSFUL
+reject@8	reject@8	engine	noauditTraditionalAuditing(NOT)?/%empty	NOAUDIT a WHENEVER SUCCESSFUL
+reject@8	reject@8	engine	noauditTraditionalAuditing(NOT)?/%empty!insert	NOAUDIT a WHENEVER zzz SUCCESSFUL
+reject@8	reject@8	engine	noauditTraditionalAuditing(NOT)?/NOT	NOAUDIT a WHENEVER NOT SUCCESSFUL
+reject@8	reject@8	engine	noauditTraditionalAuditing(NOT)?/NOT!insert	NOAUDIT a WHENEVER NOT zzz SUCCESSFUL
+reject@8	reject@8	engine	noauditTraditionalAuditing(NOT)?/NOT!swap	NOAUDIT a WHENEVER NOTHING SUCCESSFUL
+reject@8	reject@8	engine	noauditTraditionalAuditing(CONTAINER_=_(CURRENT|ALL))?/%empty	NOAUDIT a
+reject@8	reject@8	engine	noauditTraditionalAuditing(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)	NOAUDIT a CONTAINER = CURRENT
+reject@8	reject@8	engine	noauditTraditionalAuditing(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)!drop-1	NOAUDIT a = CURRENT
+reject@8	reject@8	engine	noauditTraditionalAuditing(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)!drop-2	NOAUDIT a CONTAINER CURRENT
+reject@8	reject@8	engine	noauditTraditionalAuditing(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)!drop-3	NOAUDIT a CONTAINER =
+reject@8	reject@8	engine	noauditTraditionalAuditing(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)!insert	NOAUDIT a CONTAINER = CURRENT zzz
+reject@8	reject@8	engine	noauditTraditionalAuditing(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)!swap	NOAUDIT a CONTAINERS = CURRENT
+reject@8	reject@8	engine	noauditTraditionalAuditing(CURRENT|ALL)/CURRENT	NOAUDIT a CONTAINER = CURRENT
+reject@8	reject@8	engine	noauditTraditionalAuditing(CURRENT|ALL)/CURRENT!swap	NOAUDIT a CONTAINER = CURRENT_SCHEMA
+reject@8	reject@8	engine	noauditTraditionalAuditing(CURRENT|ALL)/ALL	NOAUDIT a CONTAINER = ALL
+reject@8	reject@8	engine	noauditTraditionalAuditing(CURRENT|ALL)/ALL!insert	NOAUDIT a CONTAINER = ALL zzz
+reject@8	reject@8	engine	noauditTraditionalAuditing(CURRENT|ALL)/ALL!swap	NOAUDIT a CONTAINER = ALLOCATE
+reject@8	reject@8	engine	noauditTraditionalAuditing_audit_operation_clause/(ID_(,_ID)*|ALL|ALL_STATEMENTS|ALL_PRIVILEGES)	NOAUDIT a
+reject@8	reject@8	engine	noauditTraditionalAuditing_audit_operation_clause(ID_(,_ID)*|ALL|ALL_STATEMENTS|ALL_PRIVILEGES)/ID_(,_ID)*	NOAUDIT a
 accept	accept	engine	noauditTraditionalAuditing_audit_operation_clause(ID_(,_ID)*|ALL|ALL_STATEMENTS|ALL_PRIVILEGES)/ALL	NOAUDIT ALL
-accept	reject@12	engine	noauditTraditionalAuditing_audit_operation_clause(ID_(,_ID)*|ALL|ALL_STATEMENTS|ALL_PRIVILEGES)/ALL!insert	NOAUDIT ALL zzz
-accept	reject@8	engine	noauditTraditionalAuditing_audit_operation_clause(ID_(,_ID)*|ALL|ALL_STATEMENTS|ALL_PRIVILEGES)/ALL!swap	NOAUDIT ALLOCATE
+reject@12	reject@12	engine	noauditTraditionalAuditing_audit_operation_clause(ID_(,_ID)*|ALL|ALL_STATEMENTS|ALL_PRIVILEGES)/ALL!insert	NOAUDIT ALL zzz
+reject@8	reject@8	engine	noauditTraditionalAuditing_audit_operation_clause(ID_(,_ID)*|ALL|ALL_STATEMENTS|ALL_PRIVILEGES)/ALL!swap	NOAUDIT ALLOCATE
 accept	accept	engine	noauditTraditionalAuditing_audit_operation_clause(ID_(,_ID)*|ALL|ALL_STATEMENTS|ALL_PRIVILEGES)/ALL_STATEMENTS	NOAUDIT ALL STATEMENTS
-accept	reject@8	engine	noauditTraditionalAuditing_audit_operation_clause(ID_(,_ID)*|ALL|ALL_STATEMENTS|ALL_PRIVILEGES)/ALL_STATEMENTS!drop-1	NOAUDIT STATEMENTS
-accept	reject@23	engine	noauditTraditionalAuditing_audit_operation_clause(ID_(,_ID)*|ALL|ALL_STATEMENTS|ALL_PRIVILEGES)/ALL_STATEMENTS!insert	NOAUDIT ALL STATEMENTS zzz
-accept	reject@8	engine	noauditTraditionalAuditing_audit_operation_clause(ID_(,_ID)*|ALL|ALL_STATEMENTS|ALL_PRIVILEGES)/ALL_STATEMENTS!swap	NOAUDIT ALLOCATE STATEMENTS
+reject@8	reject@8	engine	noauditTraditionalAuditing_audit_operation_clause(ID_(,_ID)*|ALL|ALL_STATEMENTS|ALL_PRIVILEGES)/ALL_STATEMENTS!drop-1	NOAUDIT STATEMENTS
+reject@23	reject@23	engine	noauditTraditionalAuditing_audit_operation_clause(ID_(,_ID)*|ALL|ALL_STATEMENTS|ALL_PRIVILEGES)/ALL_STATEMENTS!insert	NOAUDIT ALL STATEMENTS zzz
+reject@8	reject@8	engine	noauditTraditionalAuditing_audit_operation_clause(ID_(,_ID)*|ALL|ALL_STATEMENTS|ALL_PRIVILEGES)/ALL_STATEMENTS!swap	NOAUDIT ALLOCATE STATEMENTS
 accept	accept	engine	noauditTraditionalAuditing_audit_operation_clause(ID_(,_ID)*|ALL|ALL_STATEMENTS|ALL_PRIVILEGES)/ALL_PRIVILEGES	NOAUDIT ALL PRIVILEGES
-accept	reject@8	engine	noauditTraditionalAuditing_audit_operation_clause(ID_(,_ID)*|ALL|ALL_STATEMENTS|ALL_PRIVILEGES)/ALL_PRIVILEGES!drop-1	NOAUDIT PRIVILEGES
-accept	reject@23	engine	noauditTraditionalAuditing_audit_operation_clause(ID_(,_ID)*|ALL|ALL_STATEMENTS|ALL_PRIVILEGES)/ALL_PRIVILEGES!insert	NOAUDIT ALL PRIVILEGES zzz
-accept	reject@8	engine	noauditTraditionalAuditing_audit_operation_clause(ID_(,_ID)*|ALL|ALL_STATEMENTS|ALL_PRIVILEGES)/ALL_PRIVILEGES!swap	NOAUDIT ALLOCATE PRIVILEGES
-accept	reject@8	engine	noauditTraditionalAuditing_audit_operation_clause(,_ID)*/%empty	NOAUDIT a
-accept	reject@8	engine	noauditTraditionalAuditing_audit_operation_clause(,_ID)*/,_ID_(,_ID)*	NOAUDIT a, a
-reject@10	reject@8	engine	noauditTraditionalAuditing_audit_operation_clause(,_ID)*/,_ID_(,_ID)*!drop-2	NOAUDIT a,
-accept	reject@8	engine	noauditTraditionalAuditing_audit_operation_clause(,_ID)*/,_ID_(,_ID)*!insert	NOAUDIT a, a zzz
-accept	reject@8	engine	noauditTraditionalAuditing_auditing_by_clause/BY_ID_(,_ID)*	NOAUDIT a BY a
-accept	reject@8	engine	noauditTraditionalAuditing_auditing_by_clause(,_ID)*/%empty	NOAUDIT a BY a
-accept	reject@8	engine	noauditTraditionalAuditing_auditing_by_clause(,_ID)*/,_ID_(,_ID)*	NOAUDIT a BY a, a
-reject@15	reject@8	engine	noauditTraditionalAuditing_auditing_by_clause(,_ID)*/,_ID_(,_ID)*!drop-1	NOAUDIT a BY a a
-reject@15	reject@8	engine	noauditTraditionalAuditing_auditing_by_clause(,_ID)*/,_ID_(,_ID)*!drop-2	NOAUDIT a BY a,
-reject@18	reject@8	engine	noauditTraditionalAuditing_auditing_by_clause(,_ID)*/,_ID_(,_ID)*!insert	NOAUDIT a BY a, a zzz
-accept	reject@8	engine	noauditTraditionalAuditing_audit_schema_object_clause/(ID_(,_ID)*|ALL)_ON_noauditTraditionalAuditing_auditing~2bb0b728	NOAUDIT a ON a
-accept	reject@8	engine	noauditTraditionalAuditing_audit_schema_object_clause(ID_(,_ID)*|ALL)/ID_(,_ID)*	NOAUDIT a ON a
-accept	reject@8	engine	noauditTraditionalAuditing_audit_schema_object_clause(ID_(,_ID)*|ALL)/ID_(,_ID)*!insert	NOAUDIT a zzz ON a
+reject@8	reject@8	engine	noauditTraditionalAuditing_audit_operation_clause(ID_(,_ID)*|ALL|ALL_STATEMENTS|ALL_PRIVILEGES)/ALL_PRIVILEGES!drop-1	NOAUDIT PRIVILEGES
+reject@23	reject@23	engine	noauditTraditionalAuditing_audit_operation_clause(ID_(,_ID)*|ALL|ALL_STATEMENTS|ALL_PRIVILEGES)/ALL_PRIVILEGES!insert	NOAUDIT ALL PRIVILEGES zzz
+reject@8	reject@8	engine	noauditTraditionalAuditing_audit_operation_clause(ID_(,_ID)*|ALL|ALL_STATEMENTS|ALL_PRIVILEGES)/ALL_PRIVILEGES!swap	NOAUDIT ALLOCATE PRIVILEGES
+reject@8	reject@8	engine	noauditTraditionalAuditing_audit_operation_clause(,_ID)*/%empty	NOAUDIT a
+reject@8	reject@8	engine	noauditTraditionalAuditing_audit_operation_clause(,_ID)*/,_ID_(,_ID)*	NOAUDIT a, a
+reject@8	reject@8	engine	noauditTraditionalAuditing_audit_operation_clause(,_ID)*/,_ID_(,_ID)*!drop-2	NOAUDIT a,
+reject@8	reject@8	engine	noauditTraditionalAuditing_audit_operation_clause(,_ID)*/,_ID_(,_ID)*!insert	NOAUDIT a, a zzz
+reject@8	reject@8	engine	noauditTraditionalAuditing_auditing_by_clause/BY_ID_(,_ID)*	NOAUDIT a BY a
+reject@8	reject@8	engine	noauditTraditionalAuditing_auditing_by_clause(,_ID)*/%empty	NOAUDIT a BY a
+reject@8	reject@8	engine	noauditTraditionalAuditing_auditing_by_clause(,_ID)*/,_ID_(,_ID)*	NOAUDIT a BY a, a
+reject@8	reject@8	engine	noauditTraditionalAuditing_auditing_by_clause(,_ID)*/,_ID_(,_ID)*!drop-1	NOAUDIT a BY a a
+reject@8	reject@8	engine	noauditTraditionalAuditing_auditing_by_clause(,_ID)*/,_ID_(,_ID)*!drop-2	NOAUDIT a BY a,
+reject@8	reject@8	engine	noauditTraditionalAuditing_auditing_by_clause(,_ID)*/,_ID_(,_ID)*!insert	NOAUDIT a BY a, a zzz
+reject@8	reject@8	engine	noauditTraditionalAuditing_audit_schema_object_clause/(ID_(,_ID)*|ALL)_ON_noauditTraditionalAuditing_auditing~2bb0b728	NOAUDIT a ON a
+reject@8	reject@8	engine	noauditTraditionalAuditing_audit_schema_object_clause(ID_(,_ID)*|ALL)/ID_(,_ID)*	NOAUDIT a ON a
+reject@8	reject@8	engine	noauditTraditionalAuditing_audit_schema_object_clause(ID_(,_ID)*|ALL)/ID_(,_ID)*!insert	NOAUDIT a zzz ON a
 accept	accept	engine	noauditTraditionalAuditing_audit_schema_object_clause(ID_(,_ID)*|ALL)/ALL	NOAUDIT ALL ON a
-accept	reject@12	engine	noauditTraditionalAuditing_audit_schema_object_clause(ID_(,_ID)*|ALL)/ALL!insert	NOAUDIT ALL zzz ON a
-accept	reject@8	engine	noauditTraditionalAuditing_audit_schema_object_clause(ID_(,_ID)*|ALL)/ALL!swap	NOAUDIT ALLOCATE ON a
-accept	reject@8	engine	noauditTraditionalAuditing_audit_schema_object_clause(,_ID)*/%empty	NOAUDIT a ON a
-accept	reject@8	engine	noauditTraditionalAuditing_audit_schema_object_clause(,_ID)*/,_ID_(,_ID)*	NOAUDIT a, a ON a
-accept	reject@8	engine	noauditTraditionalAuditing_audit_schema_object_clause(,_ID)*/,_ID_(,_ID)*!drop-1	NOAUDIT a a ON a
-accept	reject@8	engine	noauditTraditionalAuditing_audit_schema_object_clause(,_ID)*/,_ID_(,_ID)*!drop-2	NOAUDIT a, ON a
-accept	reject@8	engine	noauditTraditionalAuditing_audit_schema_object_clause(,_ID)*/,_ID_(,_ID)*!insert	NOAUDIT a, a zzz ON a
-accept	reject@8	engine	noauditTraditionalAuditing_auditing_on_clause/(ID_.)?_ID	NOAUDIT a ON a
-accept	reject@8	engine	noauditTraditionalAuditing_auditing_on_clause/DIRECTORY_ID	NOAUDIT a ON DIRECTORY a
-accept	reject@8	engine	noauditTraditionalAuditing_auditing_on_clause/DIRECTORY_ID!drop-2	NOAUDIT a ON DIRECTORY
-reject@25	reject@8	engine	noauditTraditionalAuditing_auditing_on_clause/DIRECTORY_ID!insert	NOAUDIT a ON DIRECTORY a zzz
-reject@25	reject@8	engine	noauditTraditionalAuditing_auditing_on_clause/DIRECTORY_ID!swap	NOAUDIT a ON DIRECT_LOAD a
-accept	reject@8	engine	noauditTraditionalAuditing_auditing_on_clause/SQL_TRANSLATION_PROFILE_(ID_.)?_ID	NOAUDIT a ON SQL TRANSLATION PROFILE a
-reject@25	reject@8	engine	noauditTraditionalAuditing_auditing_on_clause/SQL_TRANSLATION_PROFILE_(ID_.)?_ID!drop-1	NOAUDIT a ON TRANSLATION PROFILE a
-accept	reject@8	engine	noauditTraditionalAuditing_auditing_on_clause/SQL_TRANSLATION_PROFILE_(ID_.)?_ID!drop-2	NOAUDIT a ON SQL PROFILE a
-accept	reject@8	engine	noauditTraditionalAuditing_auditing_on_clause/SQL_TRANSLATION_PROFILE_(ID_.)?_ID!drop-3	NOAUDIT a ON SQL TRANSLATION a
-accept	reject@8	engine	noauditTraditionalAuditing_auditing_on_clause/SQL_TRANSLATION_PROFILE_(ID_.)?_ID!drop-4	NOAUDIT a ON SQL TRANSLATION PROFILE
-reject@39	reject@8	engine	noauditTraditionalAuditing_auditing_on_clause/SQL_TRANSLATION_PROFILE_(ID_.)?_ID!insert	NOAUDIT a ON SQL TRANSLATION PROFILE a zzz
-reject@26	reject@8	engine	noauditTraditionalAuditing_auditing_on_clause/SQL_TRANSLATION_PROFILE_(ID_.)?_ID!swap	NOAUDIT a ON SQL_FIREWALL TRANSLATION PROFILE a
-accept	reject@8	engine	noauditTraditionalAuditing_auditing_on_clause/DEFAULT	NOAUDIT a ON DEFAULT
-reject@21	reject@8	engine	noauditTraditionalAuditing_auditing_on_clause/DEFAULT!insert	NOAUDIT a ON DEFAULT zzz
-accept	reject@8	engine	noauditTraditionalAuditing_auditing_on_clause/DEFAULT!swap	NOAUDIT a ON DEFAULT_COLLATION
-accept	reject@8	engine	noauditTraditionalAuditing_auditing_on_clause/NETWORK	NOAUDIT a ON NETWORK
-reject@21	reject@8	engine	noauditTraditionalAuditing_auditing_on_clause/NETWORK!insert	NOAUDIT a ON NETWORK zzz
-accept	reject@8	engine	noauditTraditionalAuditing_auditing_on_clause/NETWORK!swap	NOAUDIT a ON NEVER
-accept	reject@8	engine	noauditTraditionalAuditing_auditing_on_clause/DIRECT_PATH_LOAD	NOAUDIT a ON DIRECT_PATH LOAD
-accept	reject@8	engine	noauditTraditionalAuditing_auditing_on_clause/DIRECT_PATH_LOAD!drop-1	NOAUDIT a ON LOAD
-accept	reject@8	engine	noauditTraditionalAuditing_auditing_on_clause/DIRECT_PATH_LOAD!drop-2	NOAUDIT a ON DIRECT_PATH
-reject@30	reject@8	engine	noauditTraditionalAuditing_auditing_on_clause/DIRECT_PATH_LOAD!insert	NOAUDIT a ON DIRECT_PATH LOAD zzz
-reject@21	reject@8	engine	noauditTraditionalAuditing_auditing_on_clause/DIRECT_PATH_LOAD!swap	NOAUDIT a ON DISABLE LOAD
-accept	reject@8	engine	noauditTraditionalAuditing_auditing_on_clause(ID_.)?/%empty	NOAUDIT a ON a
-reject@17	reject@8	engine	noauditTraditionalAuditing_auditing_on_clause(ID_.)?/%empty!insert	NOAUDIT a ON zzz a
-accept	reject@8	engine	noauditTraditionalAuditing_auditing_on_clause(ID_.)?/ID_.	NOAUDIT a ON a.a
-reject@12	reject@8	engine	noauditTraditionalAuditing_auditing_on_clause(ID_.)?/ID_.!drop-1	NOAUDIT a ON.a
-reject@15	reject@8	engine	noauditTraditionalAuditing_auditing_on_clause(ID_.)?/ID_.!drop-2	NOAUDIT a ON a a
-reject@19	reject@8	engine	noauditTraditionalAuditing_auditing_on_clause(ID_.)?/ID_.!insert	NOAUDIT a ON a.zzz a
+reject@12	reject@12	engine	noauditTraditionalAuditing_audit_schema_object_clause(ID_(,_ID)*|ALL)/ALL!insert	NOAUDIT ALL zzz ON a
+reject@8	reject@8	engine	noauditTraditionalAuditing_audit_schema_object_clause(ID_(,_ID)*|ALL)/ALL!swap	NOAUDIT ALLOCATE ON a
+reject@8	reject@8	engine	noauditTraditionalAuditing_audit_schema_object_clause(,_ID)*/%empty	NOAUDIT a ON a
+reject@8	reject@8	engine	noauditTraditionalAuditing_audit_schema_object_clause(,_ID)*/,_ID_(,_ID)*	NOAUDIT a, a ON a
+reject@8	reject@8	engine	noauditTraditionalAuditing_audit_schema_object_clause(,_ID)*/,_ID_(,_ID)*!drop-1	NOAUDIT a a ON a
+reject@8	reject@8	engine	noauditTraditionalAuditing_audit_schema_object_clause(,_ID)*/,_ID_(,_ID)*!drop-2	NOAUDIT a, ON a
+reject@8	reject@8	engine	noauditTraditionalAuditing_audit_schema_object_clause(,_ID)*/,_ID_(,_ID)*!insert	NOAUDIT a, a zzz ON a
+reject@8	reject@8	engine	noauditTraditionalAuditing_auditing_on_clause/(ID_.)?_ID	NOAUDIT a ON a
+reject@8	reject@8	engine	noauditTraditionalAuditing_auditing_on_clause/DIRECTORY_ID	NOAUDIT a ON DIRECTORY a
+reject@8	reject@8	engine	noauditTraditionalAuditing_auditing_on_clause/DIRECTORY_ID!drop-2	NOAUDIT a ON DIRECTORY
+reject@8	reject@8	engine	noauditTraditionalAuditing_auditing_on_clause/DIRECTORY_ID!insert	NOAUDIT a ON DIRECTORY a zzz
+reject@8	reject@8	engine	noauditTraditionalAuditing_auditing_on_clause/DIRECTORY_ID!swap	NOAUDIT a ON DIRECT_LOAD a
+reject@8	reject@8	engine	noauditTraditionalAuditing_auditing_on_clause/SQL_TRANSLATION_PROFILE_(ID_.)?_ID	NOAUDIT a ON SQL TRANSLATION PROFILE a
+reject@8	reject@8	engine	noauditTraditionalAuditing_auditing_on_clause/SQL_TRANSLATION_PROFILE_(ID_.)?_ID!drop-1	NOAUDIT a ON TRANSLATION PROFILE a
+reject@8	reject@8	engine	noauditTraditionalAuditing_auditing_on_clause/SQL_TRANSLATION_PROFILE_(ID_.)?_ID!drop-2	NOAUDIT a ON SQL PROFILE a
+reject@8	reject@8	engine	noauditTraditionalAuditing_auditing_on_clause/SQL_TRANSLATION_PROFILE_(ID_.)?_ID!drop-3	NOAUDIT a ON SQL TRANSLATION a
+reject@8	reject@8	engine	noauditTraditionalAuditing_auditing_on_clause/SQL_TRANSLATION_PROFILE_(ID_.)?_ID!drop-4	NOAUDIT a ON SQL TRANSLATION PROFILE
+reject@8	reject@8	engine	noauditTraditionalAuditing_auditing_on_clause/SQL_TRANSLATION_PROFILE_(ID_.)?_ID!insert	NOAUDIT a ON SQL TRANSLATION PROFILE a zzz
+reject@8	reject@8	engine	noauditTraditionalAuditing_auditing_on_clause/SQL_TRANSLATION_PROFILE_(ID_.)?_ID!swap	NOAUDIT a ON SQL_FIREWALL TRANSLATION PROFILE a
+reject@8	reject@8	engine	noauditTraditionalAuditing_auditing_on_clause/DEFAULT	NOAUDIT a ON DEFAULT
+reject@8	reject@8	engine	noauditTraditionalAuditing_auditing_on_clause/DEFAULT!insert	NOAUDIT a ON DEFAULT zzz
+reject@8	reject@8	engine	noauditTraditionalAuditing_auditing_on_clause/DEFAULT!swap	NOAUDIT a ON DEFAULT_COLLATION
+reject@8	reject@8	engine	noauditTraditionalAuditing_auditing_on_clause/NETWORK	NOAUDIT a ON NETWORK
+reject@8	reject@8	engine	noauditTraditionalAuditing_auditing_on_clause/NETWORK!insert	NOAUDIT a ON NETWORK zzz
+reject@8	reject@8	engine	noauditTraditionalAuditing_auditing_on_clause/NETWORK!swap	NOAUDIT a ON NEVER
+reject@8	reject@8	engine	noauditTraditionalAuditing_auditing_on_clause/DIRECT_PATH_LOAD	NOAUDIT a ON DIRECT_PATH LOAD
+reject@8	reject@8	engine	noauditTraditionalAuditing_auditing_on_clause/DIRECT_PATH_LOAD!drop-1	NOAUDIT a ON LOAD
+reject@8	reject@8	engine	noauditTraditionalAuditing_auditing_on_clause/DIRECT_PATH_LOAD!drop-2	NOAUDIT a ON DIRECT_PATH
+reject@8	reject@8	engine	noauditTraditionalAuditing_auditing_on_clause/DIRECT_PATH_LOAD!insert	NOAUDIT a ON DIRECT_PATH LOAD zzz
+reject@8	reject@8	engine	noauditTraditionalAuditing_auditing_on_clause/DIRECT_PATH_LOAD!swap	NOAUDIT a ON DISABLE LOAD
+reject@8	reject@8	engine	noauditTraditionalAuditing_auditing_on_clause(ID_.)?/%empty	NOAUDIT a ON a
+reject@8	reject@8	engine	noauditTraditionalAuditing_auditing_on_clause(ID_.)?/%empty!insert	NOAUDIT a ON zzz a
+reject@8	reject@8	engine	noauditTraditionalAuditing_auditing_on_clause(ID_.)?/ID_.	NOAUDIT a ON a.a
+reject@8	reject@8	engine	noauditTraditionalAuditing_auditing_on_clause(ID_.)?/ID_.!drop-1	NOAUDIT a ON.a
+reject@8	reject@8	engine	noauditTraditionalAuditing_auditing_on_clause(ID_.)?/ID_.!drop-2	NOAUDIT a ON a a
+reject@8	reject@8	engine	noauditTraditionalAuditing_auditing_on_clause(ID_.)?/ID_.!insert	NOAUDIT a ON a.zzz a
 accept	accept	engine	noauditUnifiedAuditing/NOAUDIT_POLICY_ID_(BY_ID_(,_ID)*_(WITH_ROLE_ID_(,_ID)?)*)?	NOAUDIT POLICY a
 accept	accept	engine	noauditUnifiedAuditing/NOAUDIT_CONTEXT_NAMESPACE_ID_ATTRIBUTES_ID_(,_ID)*_(BY_~d7334bdf	NOAUDIT CONTEXT NAMESPACE a ATTRIBUTES a
 reject@0	reject@0	engine	noauditUnifiedAuditing/NOAUDIT_CONTEXT_NAMESPACE_ID_ATTRIBUTES_ID_(,_ID)*_(BY_~d7334bdf!drop-1	CONTEXT NAMESPACE a ATTRIBUTES a
-accept	reject@8	engine	noauditUnifiedAuditing/NOAUDIT_CONTEXT_NAMESPACE_ID_ATTRIBUTES_ID_(,_ID)*_(BY_~d7334bdf!drop-2	NOAUDIT NAMESPACE a ATTRIBUTES a
+reject@8	reject@8	engine	noauditUnifiedAuditing/NOAUDIT_CONTEXT_NAMESPACE_ID_ATTRIBUTES_ID_(,_ID)*_(BY_~d7334bdf!drop-2	NOAUDIT NAMESPACE a ATTRIBUTES a
 reject@16	reject@16	engine	noauditUnifiedAuditing/NOAUDIT_CONTEXT_NAMESPACE_ID_ATTRIBUTES_ID_(,_ID)*_(BY_~d7334bdf!drop-3	NOAUDIT CONTEXT a ATTRIBUTES a
 reject@37	reject@37	engine	noauditUnifiedAuditing/NOAUDIT_CONTEXT_NAMESPACE_ID_ATTRIBUTES_ID_(,_ID)*_(BY_~d7334bdf!drop-4	NOAUDIT CONTEXT NAMESPACE ATTRIBUTES a
 reject@28	reject@28	engine	noauditUnifiedAuditing/NOAUDIT_CONTEXT_NAMESPACE_ID_ATTRIBUTES_ID_(,_ID)*_(BY_~d7334bdf!drop-5	NOAUDIT CONTEXT NAMESPACE a a
@@ -41109,213 +41109,213 @@ reject@19	reject@23	engine	purge(USER_ID)?/USER_ID!drop-2	PURGE TABLESPACE a USE
 reject@19	reject@26	engine	purge(USER_ID)?/USER_ID!insert	PURGE TABLESPACE a USER a zzz
 reject@19	reject@19	engine	purge(USER_ID)?/USER_ID!swap	PURGE TABLESPACE a USERGROUP a
 accept	accept	engine	rename/RENAME_ID_TO_ID	RENAME a TO a
-accept	reject@7	engine	revoke/REVOKE_(revoke_revoke_system_privileges|revo~a1911384)_~11445325	REVOKE REVOKE a FROM a
-accept	reject@7	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_system_privileges	REVOKE REVOKE a FROM a
-accept	reject@7	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_system_privileges!swap	REVOKE REWRITE a FROM a
-reject@26	reject@7	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_schema_privileges	REVOKE REVOKE a ON SCHEMA a FROM a
-reject@19	reject@7	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_schema_privileges!drop-1	REVOKE a ON SCHEMA a FROM a
-reject@24	reject@7	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_schema_privileges!drop-2	REVOKE REVOKE ON SCHEMA a FROM a
-accept	reject@7	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_schema_privileges!drop-3	REVOKE REVOKE a SCHEMA a FROM a
-accept	reject@7	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_schema_privileges!drop-5	REVOKE REVOKE a ON SCHEMA FROM a
-reject@26	reject@7	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_schema_privileges!drop-6	REVOKE REVOKE a ON SCHEMA a a
-reject@26	reject@7	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_schema_privileges!drop-7	REVOKE REVOKE a ON SCHEMA a FROM
-reject@26	reject@7	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_schema_privileges!insert	REVOKE REVOKE a ON SCHEMA a FROM a zzz
-reject@27	reject@7	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_schema_privileges!swap	REVOKE REWRITE a ON SCHEMA a FROM a
-accept	reject@7	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_object_privileges	REVOKE REVOKE a ON a FROM a
-accept	reject@7	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_object_privileges!drop-1	REVOKE a ON a FROM a
-accept	reject@7	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_object_privileges!drop-2	REVOKE REVOKE ON a FROM a
-accept	reject@7	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_object_privileges!drop-3	REVOKE REVOKE a a FROM a
-reject@24	reject@7	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_object_privileges!drop-4	REVOKE REVOKE a ON FROM a
-reject@21	reject@7	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_object_privileges!drop-5	REVOKE REVOKE a ON a a
-reject@25	reject@7	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_object_privileges!drop-6	REVOKE REVOKE a ON a FROM
-reject@28	reject@7	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_object_privileges!insert	REVOKE REVOKE a ON a FROM a zzz
-accept	reject@7	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_object_privileges!swap	REVOKE REWRITE a ON a FROM a
-reject@31	accept	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_roles_from_programs	REVOKE REVOKE a FROM PROCEDURE FUNCTION a
-reject@24	reject@33	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_roles_from_programs!drop-1	REVOKE a FROM PROCEDURE FUNCTION a
-reject@29	reject@38	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_roles_from_programs!drop-2	REVOKE REVOKE FROM PROCEDURE FUNCTION a
-reject@36	reject@7	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_roles_from_programs!drop-3	REVOKE REVOKE a PROCEDURE FUNCTION a
-reject@30	accept	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_roles_from_programs!drop-4	REVOKE REVOKE a FROM FUNCTION a
-reject@31	accept	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_roles_from_programs!drop-5	REVOKE REVOKE a FROM PROCEDURE a
-reject@31	accept	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_roles_from_programs!drop-6	REVOKE REVOKE a FROM PROCEDURE FUNCTION
-reject@31	accept	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_roles_from_programs!insert	REVOKE REVOKE a FROM PROCEDURE FUNCTION a zzz
-reject@32	accept	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_roles_from_programs!swap	REVOKE REWRITE a FROM PROCEDURE FUNCTION a
-accept	reject@7	engine	revoke(CONTAINER_=_(CURRENT|ALL))?/%empty	REVOKE REVOKE a FROM a
-reject@23	reject@7	engine	revoke(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)	REVOKE REVOKE a FROM a CONTAINER = CURRENT
-reject@23	reject@7	engine	revoke(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)!drop-1	REVOKE REVOKE a FROM a = CURRENT
-reject@23	reject@7	engine	revoke(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)!drop-2	REVOKE REVOKE a FROM a CONTAINER CURRENT
-reject@23	reject@7	engine	revoke(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)!drop-3	REVOKE REVOKE a FROM a CONTAINER =
-reject@23	reject@7	engine	revoke(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)!insert	REVOKE REVOKE a FROM a CONTAINER = CURRENT zzz
-reject@23	reject@7	engine	revoke(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)!swap	REVOKE REVOKE a FROM a CONTAINERS = CURRENT
-reject@23	reject@7	engine	revoke(CURRENT|ALL)/CURRENT	REVOKE REVOKE a FROM a CONTAINER = CURRENT
-reject@23	reject@7	engine	revoke(CURRENT|ALL)/CURRENT!swap	REVOKE REVOKE a FROM a CONTAINER = CURRENT_SCHEMA
-reject@23	reject@7	engine	revoke(CURRENT|ALL)/ALL	REVOKE REVOKE a FROM a CONTAINER = ALL
-reject@23	reject@7	engine	revoke(CURRENT|ALL)/ALL!insert	REVOKE REVOKE a FROM a CONTAINER = ALL zzz
-reject@23	reject@7	engine	revoke(CURRENT|ALL)/ALL!swap	REVOKE REVOKE a FROM a CONTAINER = ALLOCATE
-accept	reject@7	engine	revoke_revoke_system_privileges/REVOKE_(ID_(,_ID)*|ALL_PRIVILEGES)_FROM_revoke_revokee_clause	REVOKE REVOKE a FROM a
-accept	reject@7	engine	revoke_revoke_system_privileges(ID_(,_ID)*|ALL_PRIVILEGES)/ID_(,_ID)*	REVOKE REVOKE a FROM a
-reject@13	reject@7	engine	revoke_revoke_system_privileges(ID_(,_ID)*|ALL_PRIVILEGES)/ID_(,_ID)*!truncate	REVOKE REVOKE
-accept	reject@7	engine	revoke_revoke_system_privileges(ID_(,_ID)*|ALL_PRIVILEGES)/ID_(,_ID)*!insert	REVOKE REVOKE a zzz FROM a
-accept	reject@7	engine	revoke_revoke_system_privileges(ID_(,_ID)*|ALL_PRIVILEGES)/ALL_PRIVILEGES	REVOKE REVOKE ALL PRIVILEGES FROM a
-accept	reject@7	engine	revoke_revoke_system_privileges(ID_(,_ID)*|ALL_PRIVILEGES)/ALL_PRIVILEGES!drop-1	REVOKE REVOKE PRIVILEGES FROM a
-accept	reject@7	engine	revoke_revoke_system_privileges(ID_(,_ID)*|ALL_PRIVILEGES)/ALL_PRIVILEGES!drop-2	REVOKE REVOKE ALL FROM a
-reject@17	reject@7	engine	revoke_revoke_system_privileges(ID_(,_ID)*|ALL_PRIVILEGES)/ALL_PRIVILEGES!truncate	REVOKE REVOKE ALL
-accept	reject@7	engine	revoke_revoke_system_privileges(ID_(,_ID)*|ALL_PRIVILEGES)/ALL_PRIVILEGES!insert	REVOKE REVOKE ALL PRIVILEGES zzz FROM a
-accept	reject@7	engine	revoke_revoke_system_privileges(ID_(,_ID)*|ALL_PRIVILEGES)/ALL_PRIVILEGES!swap	REVOKE REVOKE ALLOCATE PRIVILEGES FROM a
-accept	reject@7	engine	revoke_revoke_system_privileges(,_ID)*/%empty	REVOKE REVOKE a FROM a
-accept	reject@7	engine	revoke_revoke_system_privileges(,_ID)*/,_ID_(,_ID)*	REVOKE REVOKE a, a FROM a
-accept	reject@7	engine	revoke_revoke_system_privileges(,_ID)*/,_ID_(,_ID)*!drop-2	REVOKE REVOKE a, FROM a
-reject@16	reject@7	engine	revoke_revoke_system_privileges(,_ID)*/,_ID_(,_ID)*!truncate	REVOKE REVOKE a,
-accept	reject@7	engine	revoke_revoke_system_privileges(,_ID)*/,_ID_(,_ID)*!insert	REVOKE REVOKE a, a zzz FROM a
-reject@26	reject@7	engine	revoke_revoke_schema_privileges/REVOKE_(ID_(,_ID)*|ALL_PRIVILEGES?)_ON_SCHEMA_ID_FROM_r~fb7421f2	REVOKE REVOKE a ON SCHEMA a FROM a
-reject@26	reject@7	engine	revoke_revoke_schema_privileges(ID_(,_ID)*|ALL_PRIVILEGES?)/ID_(,_ID)*	REVOKE REVOKE a ON SCHEMA a FROM a
-reject@30	reject@7	engine	revoke_revoke_schema_privileges(ID_(,_ID)*|ALL_PRIVILEGES?)/ID_(,_ID)*!insert	REVOKE REVOKE a zzz ON SCHEMA a FROM a
-reject@28	reject@7	engine	revoke_revoke_schema_privileges(ID_(,_ID)*|ALL_PRIVILEGES?)/ALL_(PRIVILEGES)?	REVOKE REVOKE ALL ON SCHEMA a FROM a
-reject@32	reject@7	engine	revoke_revoke_schema_privileges(ID_(,_ID)*|ALL_PRIVILEGES?)/ALL_(PRIVILEGES)?!insert	REVOKE REVOKE ALL zzz ON SCHEMA a FROM a
-reject@33	reject@7	engine	revoke_revoke_schema_privileges(ID_(,_ID)*|ALL_PRIVILEGES?)/ALL_(PRIVILEGES)?!swap	REVOKE REVOKE ALLOCATE ON SCHEMA a FROM a
-reject@26	reject@7	engine	revoke_revoke_schema_privileges(,_ID)*/%empty	REVOKE REVOKE a ON SCHEMA a FROM a
-reject@29	reject@7	engine	revoke_revoke_schema_privileges(,_ID)*/,_ID_(,_ID)*	REVOKE REVOKE a, a ON SCHEMA a FROM a
-reject@28	reject@7	engine	revoke_revoke_schema_privileges(,_ID)*/,_ID_(,_ID)*!drop-1	REVOKE REVOKE a a ON SCHEMA a FROM a
-reject@27	reject@7	engine	revoke_revoke_schema_privileges(,_ID)*/,_ID_(,_ID)*!drop-2	REVOKE REVOKE a, ON SCHEMA a FROM a
-reject@33	reject@7	engine	revoke_revoke_schema_privileges(,_ID)*/,_ID_(,_ID)*!insert	REVOKE REVOKE a, a zzz ON SCHEMA a FROM a
-reject@28	reject@7	engine	revoke_revoke_schema_privileges(PRIVILEGES)?/%empty	REVOKE REVOKE ALL ON SCHEMA a FROM a
-reject@39	reject@7	engine	revoke_revoke_schema_privileges(PRIVILEGES)?/PRIVILEGES	REVOKE REVOKE ALL PRIVILEGES ON SCHEMA a FROM a
-reject@43	reject@7	engine	revoke_revoke_schema_privileges(PRIVILEGES)?/PRIVILEGES!insert	REVOKE REVOKE ALL PRIVILEGES zzz ON SCHEMA a FROM a
-reject@38	reject@7	engine	revoke_revoke_schema_privileges(PRIVILEGES)?/PRIVILEGES!swap	REVOKE REVOKE ALL PROCEDURE ON SCHEMA a FROM a
-accept	reject@7	engine	revoke_revoke_object_privileges/REVOKE_(ID_(,_ID)*|ALL_PRIVILEGES?)_revoke_on_object_cl~d4836106	REVOKE REVOKE a ON a FROM a
-accept	reject@7	engine	revoke_revoke_object_privileges(ID_(,_ID)*|ALL_PRIVILEGES?)/ID_(,_ID)*	REVOKE REVOKE a ON a FROM a
-accept	reject@7	engine	revoke_revoke_object_privileges(ID_(,_ID)*|ALL_PRIVILEGES?)/ID_(,_ID)*!insert	REVOKE REVOKE a zzz ON a FROM a
-accept	reject@7	engine	revoke_revoke_object_privileges(ID_(,_ID)*|ALL_PRIVILEGES?)/ALL_(PRIVILEGES)?	REVOKE REVOKE ALL ON a FROM a
-accept	reject@7	engine	revoke_revoke_object_privileges(ID_(,_ID)*|ALL_PRIVILEGES?)/ALL_(PRIVILEGES)?!insert	REVOKE REVOKE ALL zzz ON a FROM a
-accept	reject@7	engine	revoke_revoke_object_privileges(ID_(,_ID)*|ALL_PRIVILEGES?)/ALL_(PRIVILEGES)?!swap	REVOKE REVOKE ALLOCATE ON a FROM a
-accept	reject@7	engine	revoke_revoke_object_privileges(,_ID)*/%empty	REVOKE REVOKE a ON a FROM a
-accept	reject@7	engine	revoke_revoke_object_privileges(,_ID)*/,_ID_(,_ID)*	REVOKE REVOKE a, a ON a FROM a
-accept	reject@7	engine	revoke_revoke_object_privileges(,_ID)*/,_ID_(,_ID)*!drop-1	REVOKE REVOKE a a ON a FROM a
-accept	reject@7	engine	revoke_revoke_object_privileges(,_ID)*/,_ID_(,_ID)*!drop-2	REVOKE REVOKE a, ON a FROM a
-accept	reject@7	engine	revoke_revoke_object_privileges(,_ID)*/,_ID_(,_ID)*!insert	REVOKE REVOKE a, a zzz ON a FROM a
-accept	reject@7	engine	revoke_revoke_object_privileges(PRIVILEGES)?/%empty	REVOKE REVOKE ALL ON a FROM a
-accept	reject@7	engine	revoke_revoke_object_privileges(PRIVILEGES)?/PRIVILEGES	REVOKE REVOKE ALL PRIVILEGES ON a FROM a
-accept	reject@7	engine	revoke_revoke_object_privileges(PRIVILEGES)?/PRIVILEGES!insert	REVOKE REVOKE ALL PRIVILEGES zzz ON a FROM a
-accept	reject@7	engine	revoke_revoke_object_privileges(PRIVILEGES)?/PRIVILEGES!swap	REVOKE REVOKE ALL PROCEDURE ON a FROM a
-accept	reject@7	engine	revoke_revoke_object_privileges(CASCADE_CONSTRAINTS)?/%empty	REVOKE REVOKE a ON a FROM a
-reject@28	reject@7	engine	revoke_revoke_object_privileges(CASCADE_CONSTRAINTS)?/CASCADE_CONSTRAINTS	REVOKE REVOKE a ON a FROM a CASCADE CONSTRAINTS
-reject@28	reject@7	engine	revoke_revoke_object_privileges(CASCADE_CONSTRAINTS)?/CASCADE_CONSTRAINTS!drop-1	REVOKE REVOKE a ON a FROM a CONSTRAINTS
-reject@28	reject@7	engine	revoke_revoke_object_privileges(CASCADE_CONSTRAINTS)?/CASCADE_CONSTRAINTS!drop-2	REVOKE REVOKE a ON a FROM a CASCADE
-reject@28	reject@7	engine	revoke_revoke_object_privileges(CASCADE_CONSTRAINTS)?/CASCADE_CONSTRAINTS!insert	REVOKE REVOKE a ON a FROM a CASCADE CONSTRAINTS zzz
-reject@28	reject@7	engine	revoke_revoke_object_privileges(CASCADE_CONSTRAINTS)?/CASCADE_CONSTRAINTS!swap	REVOKE REVOKE a ON a FROM a CASE CONSTRAINTS
-accept	reject@7	engine	revoke_revoke_object_privileges(FORCE)?/%empty	REVOKE REVOKE a ON a FROM a
-reject@28	reject@7	engine	revoke_revoke_object_privileges(FORCE)?/FORCE	REVOKE REVOKE a ON a FROM a FORCE
-reject@28	reject@7	engine	revoke_revoke_object_privileges(FORCE)?/FORCE!insert	REVOKE REVOKE a ON a FROM a FORCE zzz
-reject@28	reject@7	engine	revoke_revoke_object_privileges(FORCE)?/FORCE!swap	REVOKE REVOKE a ON a FROM a FOREIGN
-reject@31	accept	engine	revoke_revoke_roles_from_programs/REVOKE_(ID_(,_ID)*|ALL)_FROM_(PROCEDURE|FUNCTION|PACKAG~61f5189a	REVOKE REVOKE a FROM PROCEDURE FUNCTION a
-reject@31	accept	engine	revoke_revoke_roles_from_programs(ID_(,_ID)*|ALL)/ID_(,_ID)*	REVOKE REVOKE a FROM PROCEDURE FUNCTION a
-reject@35	accept	engine	revoke_revoke_roles_from_programs(ID_(,_ID)*|ALL)/ID_(,_ID)*!insert	REVOKE REVOKE a zzz FROM PROCEDURE FUNCTION a
-reject@33	accept	engine	revoke_revoke_roles_from_programs(ID_(,_ID)*|ALL)/ALL	REVOKE REVOKE ALL FROM PROCEDURE FUNCTION a
-reject@37	accept	engine	revoke_revoke_roles_from_programs(ID_(,_ID)*|ALL)/ALL!insert	REVOKE REVOKE ALL zzz FROM PROCEDURE FUNCTION a
-reject@38	accept	engine	revoke_revoke_roles_from_programs(ID_(,_ID)*|ALL)/ALL!swap	REVOKE REVOKE ALLOCATE FROM PROCEDURE FUNCTION a
-reject@31	accept	engine	revoke_revoke_roles_from_programs(,_ID)*/%empty	REVOKE REVOKE a FROM PROCEDURE FUNCTION a
-reject@34	accept	engine	revoke_revoke_roles_from_programs(,_ID)*/,_ID_(,_ID)*	REVOKE REVOKE a, a FROM PROCEDURE FUNCTION a
-reject@33	accept	engine	revoke_revoke_roles_from_programs(,_ID)*/,_ID_(,_ID)*!drop-1	REVOKE REVOKE a a FROM PROCEDURE FUNCTION a
-reject@32	accept	engine	revoke_revoke_roles_from_programs(,_ID)*/,_ID_(,_ID)*!drop-2	REVOKE REVOKE a, FROM PROCEDURE FUNCTION a
-reject@38	accept	engine	revoke_revoke_roles_from_programs(,_ID)*/,_ID_(,_ID)*!insert	REVOKE REVOKE a, a zzz FROM PROCEDURE FUNCTION a
-reject@31	accept	engine	revoke_revoke_roles_from_programs(PROCEDURE|FUNCTION|PACKAGE)/PROCEDURE	REVOKE REVOKE a FROM PROCEDURE FUNCTION a
-reject@31	accept	engine	revoke_revoke_roles_from_programs(PROCEDURE|FUNCTION|PACKAGE)/PROCEDURE!insert	REVOKE REVOKE a FROM PROCEDURE zzz FUNCTION a
-reject@29	accept	engine	revoke_revoke_roles_from_programs(PROCEDURE|FUNCTION|PACKAGE)/PROCEDURE!swap	REVOKE REVOKE a FROM PROFILE FUNCTION a
-reject@30	accept	engine	revoke_revoke_roles_from_programs(PROCEDURE|FUNCTION|PACKAGE)/FUNCTION	REVOKE REVOKE a FROM FUNCTION FUNCTION a
-reject@30	accept	engine	revoke_revoke_roles_from_programs(PROCEDURE|FUNCTION|PACKAGE)/FUNCTION!insert	REVOKE REVOKE a FROM FUNCTION zzz FUNCTION a
-reject@31	accept	engine	revoke_revoke_roles_from_programs(PROCEDURE|FUNCTION|PACKAGE)/FUNCTION!swap	REVOKE REVOKE a FROM FUNCTIONS FUNCTION a
-reject@29	accept	engine	revoke_revoke_roles_from_programs(PROCEDURE|FUNCTION|PACKAGE)/PACKAGE	REVOKE REVOKE a FROM PACKAGE FUNCTION a
-reject@29	accept	engine	revoke_revoke_roles_from_programs(PROCEDURE|FUNCTION|PACKAGE)/PACKAGE!insert	REVOKE REVOKE a FROM PACKAGE zzz FUNCTION a
-reject@30	accept	engine	revoke_revoke_roles_from_programs(PROCEDURE|FUNCTION|PACKAGE)/PACKAGE!swap	REVOKE REVOKE a FROM PACKAGES FUNCTION a
-reject@31	accept	engine	revoke_revoke_roles_from_programs(ID_.)?/%empty	REVOKE REVOKE a FROM PROCEDURE FUNCTION a
-reject@31	accept	engine	revoke_revoke_roles_from_programs(ID_.)?/ID_.	REVOKE REVOKE a FROM PROCEDURE a.FUNCTION a
-reject@30	accept	engine	revoke_revoke_roles_from_programs(ID_.)?/ID_.!drop-1	REVOKE REVOKE a FROM PROCEDURE.FUNCTION a
-reject@31	accept	engine	revoke_revoke_roles_from_programs(ID_.)?/ID_.!drop-2	REVOKE REVOKE a FROM PROCEDURE a FUNCTION a
-reject@31	accept	engine	revoke_revoke_roles_from_programs(ID_.)?/ID_.!insert	REVOKE REVOKE a FROM PROCEDURE a.zzz FUNCTION a
-accept	reject@7	engine	revoke_revokee_clause/(ID|PUBLIC)_(,_(ID|PUBLIC))*	REVOKE REVOKE a FROM a
-accept	reject@7	engine	revoke_revokee_clause(ID|PUBLIC)/ID	REVOKE REVOKE a FROM a
-accept	reject@7	engine	revoke_revokee_clause(ID|PUBLIC)/PUBLIC	REVOKE REVOKE a FROM PUBLIC
-reject@28	reject@7	engine	revoke_revokee_clause(ID|PUBLIC)/PUBLIC!insert	REVOKE REVOKE a FROM PUBLIC zzz
-accept	reject@7	engine	revoke_revokee_clause(ID|PUBLIC)/PUBLIC!swap	REVOKE REVOKE a FROM PURE
-accept	reject@7	engine	revoke_revokee_clause(,_(ID|PUBLIC))*/%empty	REVOKE REVOKE a FROM a
-accept	reject@7	engine	revoke_revokee_clause(,_(ID|PUBLIC))*/,_(ID|PUBLIC)_(,_(ID|PUBLIC))*	REVOKE REVOKE a FROM a, a
-reject@23	reject@7	engine	revoke_revokee_clause(,_(ID|PUBLIC))*/,_(ID|PUBLIC)_(,_(ID|PUBLIC))*!drop-1	REVOKE REVOKE a FROM a a
-reject@23	reject@7	engine	revoke_revokee_clause(,_(ID|PUBLIC))*/,_(ID|PUBLIC)_(,_(ID|PUBLIC))*!drop-2	REVOKE REVOKE a FROM a,
-reject@26	reject@7	engine	revoke_revokee_clause(,_(ID|PUBLIC))*/,_(ID|PUBLIC)_(,_(ID|PUBLIC))*!insert	REVOKE REVOKE a FROM a, a zzz
-accept	reject@7	engine	revoke_on_object_clause/ON_((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)	REVOKE REVOKE a ON a FROM a
-reject@18	reject@7	engine	revoke_on_object_clause/ON_((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)!truncate	REVOKE REVOKE a ON
-reject@21	reject@7	engine	revoke_on_object_clause/ON_((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)!insert	REVOKE REVOKE a ON a zzz FROM a
-accept	reject@7	engine	revoke_on_object_clause/ON_((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)!swap	REVOKE REVOKE a ONE a FROM a
-accept	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/(ID_.)?_ID	REVOKE REVOKE a ON a FROM a
-reject@24	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/USER_ID_(,_ID)*	REVOKE REVOKE a ON USER a FROM a
-accept	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/USER_ID_(,_ID)*!drop-2	REVOKE REVOKE a ON USER FROM a
-reject@23	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/USER_ID_(,_ID)*!truncate	REVOKE REVOKE a ON USER
-reject@24	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/USER_ID_(,_ID)*!insert	REVOKE REVOKE a ON USER a zzz FROM a
-reject@29	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/USER_ID_(,_ID)*!swap	REVOKE REVOKE a ON USERGROUP a FROM a
-accept	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/DIRECTORY_ID	REVOKE REVOKE a ON DIRECTORY a FROM a
-reject@34	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/DIRECTORY_ID!drop-2	REVOKE REVOKE a ON DIRECTORY FROM a
-reject@28	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/DIRECTORY_ID!truncate	REVOKE REVOKE a ON DIRECTORY
-reject@31	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/DIRECTORY_ID!insert	REVOKE REVOKE a ON DIRECTORY a zzz FROM a
-reject@31	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/DIRECTORY_ID!swap	REVOKE REVOKE a ON DIRECT_LOAD a FROM a
-reject@27	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/EDITION_ID	REVOKE REVOKE a ON EDITION a FROM a
-accept	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/EDITION_ID!drop-2	REVOKE REVOKE a ON EDITION FROM a
-reject@26	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/EDITION_ID!truncate	REVOKE REVOKE a ON EDITION
-reject@27	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/EDITION_ID!insert	REVOKE REVOKE a ON EDITION a zzz FROM a
-reject@31	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/EDITION_ID!swap	REVOKE REVOKE a ON EDITIONABLE a FROM a
-reject@26	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/MINING_MODEL_(ID_.)?_ID	REVOKE REVOKE a ON MINING MODEL a FROM a
-reject@25	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/MINING_MODEL_(ID_.)?_ID!drop-1	REVOKE REVOKE a ON MODEL a FROM a
-reject@26	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/MINING_MODEL_(ID_.)?_ID!drop-2	REVOKE REVOKE a ON MINING a FROM a
-reject@26	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/MINING_MODEL_(ID_.)?_ID!drop-3	REVOKE REVOKE a ON MINING MODEL FROM a
-reject@26	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/MINING_MODEL_(ID_.)?_ID!truncate	REVOKE REVOKE a ON MINING MODEL
-reject@26	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/MINING_MODEL_(ID_.)?_ID!insert	REVOKE REVOKE a ON MINING MODEL a zzz FROM a
-reject@25	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/MINING_MODEL_(ID_.)?_ID!swap	REVOKE REVOKE a ON MINUS MODEL a FROM a
-reject@24	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/JAVA_(SOURCE|RESOURCE)_(ID_.)?_ID	REVOKE REVOKE a ON JAVA SOURCE a FROM a
-reject@26	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/JAVA_(SOURCE|RESOURCE)_(ID_.)?_ID!drop-1	REVOKE REVOKE a ON SOURCE a FROM a
-reject@24	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/JAVA_(SOURCE|RESOURCE)_(ID_.)?_ID!drop-2	REVOKE REVOKE a ON JAVA a FROM a
-reject@24	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/JAVA_(SOURCE|RESOURCE)_(ID_.)?_ID!drop-3	REVOKE REVOKE a ON JAVA SOURCE FROM a
-reject@24	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/JAVA_(SOURCE|RESOURCE)_(ID_.)?_ID!truncate	REVOKE REVOKE a ON JAVA SOURCE
-reject@24	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/JAVA_(SOURCE|RESOURCE)_(ID_.)?_ID!insert	REVOKE REVOKE a ON JAVA SOURCE a zzz FROM a
-reject@30	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/JAVA_(SOURCE|RESOURCE)_(ID_.)?_ID!swap	REVOKE REVOKE a ON JAVASCRIPT SOURCE a FROM a
-reject@23	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/SQL_TRANSLATION_PROFILE_(ID_.)?_ID	REVOKE REVOKE a ON SQL TRANSLATION PROFILE a FROM a
-reject@31	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/SQL_TRANSLATION_PROFILE_(ID_.)?_ID!drop-1	REVOKE REVOKE a ON TRANSLATION PROFILE a FROM a
-reject@23	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/SQL_TRANSLATION_PROFILE_(ID_.)?_ID!drop-2	REVOKE REVOKE a ON SQL PROFILE a FROM a
-reject@23	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/SQL_TRANSLATION_PROFILE_(ID_.)?_ID!drop-3	REVOKE REVOKE a ON SQL TRANSLATION a FROM a
-reject@23	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/SQL_TRANSLATION_PROFILE_(ID_.)?_ID!drop-4	REVOKE REVOKE a ON SQL TRANSLATION PROFILE FROM a
-reject@23	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/SQL_TRANSLATION_PROFILE_(ID_.)?_ID!truncate	REVOKE REVOKE a ON SQL TRANSLATION PROFILE
-reject@23	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/SQL_TRANSLATION_PROFILE_(ID_.)?_ID!insert	REVOKE REVOKE a ON SQL TRANSLATION PROFILE a zzz FROM a
-reject@32	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/SQL_TRANSLATION_PROFILE_(ID_.)?_ID!swap	REVOKE REVOKE a ON SQL_FIREWALL TRANSLATION PROFILE a FROM a
-accept	reject@7	engine	revoke_on_object_clause(ID_.)?/%empty	REVOKE REVOKE a ON a FROM a
-reject@23	reject@7	engine	revoke_on_object_clause(ID_.)?/%empty!insert	REVOKE REVOKE a ON zzz a FROM a
-accept	reject@7	engine	revoke_on_object_clause(ID_.)?/ID_.	REVOKE REVOKE a ON a.a FROM a
-reject@18	reject@7	engine	revoke_on_object_clause(ID_.)?/ID_.!drop-1	REVOKE REVOKE a ON.a FROM a
-reject@21	reject@7	engine	revoke_on_object_clause(ID_.)?/ID_.!drop-2	REVOKE REVOKE a ON a a FROM a
-reject@20	reject@7	engine	revoke_on_object_clause(ID_.)?/ID_.!truncate	REVOKE REVOKE a ON a
-reject@25	reject@7	engine	revoke_on_object_clause(ID_.)?/ID_.!insert	REVOKE REVOKE a ON a.zzz a FROM a
-reject@24	reject@7	engine	revoke_on_object_clause(,_ID)*/%empty	REVOKE REVOKE a ON USER a FROM a
-reject@24	reject@7	engine	revoke_on_object_clause(,_ID)*/,_ID_(,_ID)*	REVOKE REVOKE a ON USER a, a FROM a
-reject@24	reject@7	engine	revoke_on_object_clause(,_ID)*/,_ID_(,_ID)*!drop-1	REVOKE REVOKE a ON USER a a FROM a
-reject@24	reject@7	engine	revoke_on_object_clause(,_ID)*/,_ID_(,_ID)*!drop-2	REVOKE REVOKE a ON USER a, FROM a
-reject@24	reject@7	engine	revoke_on_object_clause(,_ID)*/,_ID_(,_ID)*!truncate	REVOKE REVOKE a ON USER a,
-reject@24	reject@7	engine	revoke_on_object_clause(,_ID)*/,_ID_(,_ID)*!insert	REVOKE REVOKE a ON USER a, a zzz FROM a
-reject@24	reject@7	engine	revoke_on_object_clause(SOURCE|RESOURCE)/SOURCE	REVOKE REVOKE a ON JAVA SOURCE a FROM a
-reject@23	reject@7	engine	revoke_on_object_clause(SOURCE|RESOURCE)/SOURCE!truncate	REVOKE REVOKE a ON JAVA
-reject@24	reject@7	engine	revoke_on_object_clause(SOURCE|RESOURCE)/SOURCE!insert	REVOKE REVOKE a ON JAVA SOURCE zzz a FROM a
-reject@24	reject@7	engine	revoke_on_object_clause(SOURCE|RESOURCE)/SOURCE!swap	REVOKE REVOKE a ON JAVA SOURCE_FILE_DIRECTORY a FROM a
-reject@24	reject@7	engine	revoke_on_object_clause(SOURCE|RESOURCE)/RESOURCE	REVOKE REVOKE a ON JAVA RESOURCE a FROM a
-reject@24	reject@7	engine	revoke_on_object_clause(SOURCE|RESOURCE)/RESOURCE!insert	REVOKE REVOKE a ON JAVA RESOURCE zzz a FROM a
-reject@24	reject@7	engine	revoke_on_object_clause(SOURCE|RESOURCE)/RESOURCE!swap	REVOKE REVOKE a ON JAVA RESTART a FROM a
-reject@31	accept	engine	revoke_program_unit/(ID_.)?_(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)	REVOKE REVOKE a FROM PROCEDURE FUNCTION a
-reject@31	accept	engine	revoke_program_unit/(ID_.)?_(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)!swap	REVOKE REVOKE a FROM PROCEDURE FUNCTIONS a
-reject@31	accept	engine	revoke_program_unit(ID_.)?/%empty	REVOKE REVOKE a FROM PROCEDURE FUNCTION a
-reject@31	accept	engine	revoke_program_unit(ID_.)?/ID_.	REVOKE REVOKE a FROM PROCEDURE a.FUNCTION a
-reject@31	accept	engine	revoke_program_unit(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)/FUNCTION_ID	REVOKE REVOKE a FROM PROCEDURE FUNCTION a
-reject@31	accept	engine	revoke_program_unit(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)/PROCEDURE_ID	REVOKE REVOKE a FROM PROCEDURE PROCEDURE a
-reject@31	accept	engine	revoke_program_unit(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)/PROCEDURE_ID!drop-2	REVOKE REVOKE a FROM PROCEDURE PROCEDURE
-reject@31	accept	engine	revoke_program_unit(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)/PROCEDURE_ID!insert	REVOKE REVOKE a FROM PROCEDURE PROCEDURE a zzz
-reject@31	accept	engine	revoke_program_unit(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)/PROCEDURE_ID!swap	REVOKE REVOKE a FROM PROCEDURE PROFILE a
-reject@31	accept	engine	revoke_program_unit(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)/PACKAGE_ID	REVOKE REVOKE a FROM PROCEDURE PACKAGE a
-reject@31	accept	engine	revoke_program_unit(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)/PACKAGE_ID!drop-2	REVOKE REVOKE a FROM PROCEDURE PACKAGE
-reject@31	accept	engine	revoke_program_unit(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)/PACKAGE_ID!insert	REVOKE REVOKE a FROM PROCEDURE PACKAGE a zzz
-reject@31	accept	engine	revoke_program_unit(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)/PACKAGE_ID!swap	REVOKE REVOKE a FROM PROCEDURE PACKAGES a
+reject@7	reject@7	engine	revoke/REVOKE_(revoke_revoke_system_privileges|revo~a1911384)_~11445325	REVOKE REVOKE a FROM a
+reject@7	reject@7	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_system_privileges	REVOKE REVOKE a FROM a
+reject@7	reject@7	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_system_privileges!swap	REVOKE REWRITE a FROM a
+reject@7	reject@7	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_schema_privileges	REVOKE REVOKE a ON SCHEMA a FROM a
+reject@7	reject@7	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_schema_privileges!drop-1	REVOKE a ON SCHEMA a FROM a
+reject@7	reject@7	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_schema_privileges!drop-2	REVOKE REVOKE ON SCHEMA a FROM a
+reject@7	reject@7	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_schema_privileges!drop-3	REVOKE REVOKE a SCHEMA a FROM a
+reject@7	reject@7	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_schema_privileges!drop-5	REVOKE REVOKE a ON SCHEMA FROM a
+reject@7	reject@7	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_schema_privileges!drop-6	REVOKE REVOKE a ON SCHEMA a a
+reject@7	reject@7	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_schema_privileges!drop-7	REVOKE REVOKE a ON SCHEMA a FROM
+reject@7	reject@7	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_schema_privileges!insert	REVOKE REVOKE a ON SCHEMA a FROM a zzz
+reject@7	reject@7	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_schema_privileges!swap	REVOKE REWRITE a ON SCHEMA a FROM a
+reject@7	reject@7	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_object_privileges	REVOKE REVOKE a ON a FROM a
+reject@7	reject@7	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_object_privileges!drop-1	REVOKE a ON a FROM a
+reject@7	reject@7	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_object_privileges!drop-2	REVOKE REVOKE ON a FROM a
+reject@7	reject@7	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_object_privileges!drop-3	REVOKE REVOKE a a FROM a
+reject@7	reject@7	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_object_privileges!drop-4	REVOKE REVOKE a ON FROM a
+reject@7	reject@7	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_object_privileges!drop-5	REVOKE REVOKE a ON a a
+reject@7	reject@7	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_object_privileges!drop-6	REVOKE REVOKE a ON a FROM
+reject@7	reject@7	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_object_privileges!insert	REVOKE REVOKE a ON a FROM a zzz
+reject@7	reject@7	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_object_privileges!swap	REVOKE REWRITE a ON a FROM a
+reject@7	accept	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_roles_from_programs	REVOKE REVOKE a FROM PROCEDURE FUNCTION a
+reject@33	reject@33	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_roles_from_programs!drop-1	REVOKE a FROM PROCEDURE FUNCTION a
+reject@38	reject@38	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_roles_from_programs!drop-2	REVOKE REVOKE FROM PROCEDURE FUNCTION a
+reject@7	reject@7	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_roles_from_programs!drop-3	REVOKE REVOKE a PROCEDURE FUNCTION a
+reject@7	accept	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_roles_from_programs!drop-4	REVOKE REVOKE a FROM FUNCTION a
+reject@7	accept	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_roles_from_programs!drop-5	REVOKE REVOKE a FROM PROCEDURE a
+reject@7	accept	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_roles_from_programs!drop-6	REVOKE REVOKE a FROM PROCEDURE FUNCTION
+reject@7	accept	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_roles_from_programs!insert	REVOKE REVOKE a FROM PROCEDURE FUNCTION a zzz
+reject@7	accept	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_roles_from_programs!swap	REVOKE REWRITE a FROM PROCEDURE FUNCTION a
+reject@7	reject@7	engine	revoke(CONTAINER_=_(CURRENT|ALL))?/%empty	REVOKE REVOKE a FROM a
+reject@7	reject@7	engine	revoke(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)	REVOKE REVOKE a FROM a CONTAINER = CURRENT
+reject@7	reject@7	engine	revoke(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)!drop-1	REVOKE REVOKE a FROM a = CURRENT
+reject@7	reject@7	engine	revoke(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)!drop-2	REVOKE REVOKE a FROM a CONTAINER CURRENT
+reject@7	reject@7	engine	revoke(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)!drop-3	REVOKE REVOKE a FROM a CONTAINER =
+reject@7	reject@7	engine	revoke(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)!insert	REVOKE REVOKE a FROM a CONTAINER = CURRENT zzz
+reject@7	reject@7	engine	revoke(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)!swap	REVOKE REVOKE a FROM a CONTAINERS = CURRENT
+reject@7	reject@7	engine	revoke(CURRENT|ALL)/CURRENT	REVOKE REVOKE a FROM a CONTAINER = CURRENT
+reject@7	reject@7	engine	revoke(CURRENT|ALL)/CURRENT!swap	REVOKE REVOKE a FROM a CONTAINER = CURRENT_SCHEMA
+reject@7	reject@7	engine	revoke(CURRENT|ALL)/ALL	REVOKE REVOKE a FROM a CONTAINER = ALL
+reject@7	reject@7	engine	revoke(CURRENT|ALL)/ALL!insert	REVOKE REVOKE a FROM a CONTAINER = ALL zzz
+reject@7	reject@7	engine	revoke(CURRENT|ALL)/ALL!swap	REVOKE REVOKE a FROM a CONTAINER = ALLOCATE
+reject@7	reject@7	engine	revoke_revoke_system_privileges/REVOKE_(ID_(,_ID)*|ALL_PRIVILEGES)_FROM_revoke_revokee_clause	REVOKE REVOKE a FROM a
+reject@7	reject@7	engine	revoke_revoke_system_privileges(ID_(,_ID)*|ALL_PRIVILEGES)/ID_(,_ID)*	REVOKE REVOKE a FROM a
+reject@7	reject@7	engine	revoke_revoke_system_privileges(ID_(,_ID)*|ALL_PRIVILEGES)/ID_(,_ID)*!truncate	REVOKE REVOKE
+reject@7	reject@7	engine	revoke_revoke_system_privileges(ID_(,_ID)*|ALL_PRIVILEGES)/ID_(,_ID)*!insert	REVOKE REVOKE a zzz FROM a
+reject@7	reject@7	engine	revoke_revoke_system_privileges(ID_(,_ID)*|ALL_PRIVILEGES)/ALL_PRIVILEGES	REVOKE REVOKE ALL PRIVILEGES FROM a
+reject@7	reject@7	engine	revoke_revoke_system_privileges(ID_(,_ID)*|ALL_PRIVILEGES)/ALL_PRIVILEGES!drop-1	REVOKE REVOKE PRIVILEGES FROM a
+reject@7	reject@7	engine	revoke_revoke_system_privileges(ID_(,_ID)*|ALL_PRIVILEGES)/ALL_PRIVILEGES!drop-2	REVOKE REVOKE ALL FROM a
+reject@7	reject@7	engine	revoke_revoke_system_privileges(ID_(,_ID)*|ALL_PRIVILEGES)/ALL_PRIVILEGES!truncate	REVOKE REVOKE ALL
+reject@7	reject@7	engine	revoke_revoke_system_privileges(ID_(,_ID)*|ALL_PRIVILEGES)/ALL_PRIVILEGES!insert	REVOKE REVOKE ALL PRIVILEGES zzz FROM a
+reject@7	reject@7	engine	revoke_revoke_system_privileges(ID_(,_ID)*|ALL_PRIVILEGES)/ALL_PRIVILEGES!swap	REVOKE REVOKE ALLOCATE PRIVILEGES FROM a
+reject@7	reject@7	engine	revoke_revoke_system_privileges(,_ID)*/%empty	REVOKE REVOKE a FROM a
+reject@7	reject@7	engine	revoke_revoke_system_privileges(,_ID)*/,_ID_(,_ID)*	REVOKE REVOKE a, a FROM a
+reject@7	reject@7	engine	revoke_revoke_system_privileges(,_ID)*/,_ID_(,_ID)*!drop-2	REVOKE REVOKE a, FROM a
+reject@7	reject@7	engine	revoke_revoke_system_privileges(,_ID)*/,_ID_(,_ID)*!truncate	REVOKE REVOKE a,
+reject@7	reject@7	engine	revoke_revoke_system_privileges(,_ID)*/,_ID_(,_ID)*!insert	REVOKE REVOKE a, a zzz FROM a
+reject@7	reject@7	engine	revoke_revoke_schema_privileges/REVOKE_(ID_(,_ID)*|ALL_PRIVILEGES?)_ON_SCHEMA_ID_FROM_r~fb7421f2	REVOKE REVOKE a ON SCHEMA a FROM a
+reject@7	reject@7	engine	revoke_revoke_schema_privileges(ID_(,_ID)*|ALL_PRIVILEGES?)/ID_(,_ID)*	REVOKE REVOKE a ON SCHEMA a FROM a
+reject@7	reject@7	engine	revoke_revoke_schema_privileges(ID_(,_ID)*|ALL_PRIVILEGES?)/ID_(,_ID)*!insert	REVOKE REVOKE a zzz ON SCHEMA a FROM a
+reject@7	reject@7	engine	revoke_revoke_schema_privileges(ID_(,_ID)*|ALL_PRIVILEGES?)/ALL_(PRIVILEGES)?	REVOKE REVOKE ALL ON SCHEMA a FROM a
+reject@7	reject@7	engine	revoke_revoke_schema_privileges(ID_(,_ID)*|ALL_PRIVILEGES?)/ALL_(PRIVILEGES)?!insert	REVOKE REVOKE ALL zzz ON SCHEMA a FROM a
+reject@7	reject@7	engine	revoke_revoke_schema_privileges(ID_(,_ID)*|ALL_PRIVILEGES?)/ALL_(PRIVILEGES)?!swap	REVOKE REVOKE ALLOCATE ON SCHEMA a FROM a
+reject@7	reject@7	engine	revoke_revoke_schema_privileges(,_ID)*/%empty	REVOKE REVOKE a ON SCHEMA a FROM a
+reject@7	reject@7	engine	revoke_revoke_schema_privileges(,_ID)*/,_ID_(,_ID)*	REVOKE REVOKE a, a ON SCHEMA a FROM a
+reject@7	reject@7	engine	revoke_revoke_schema_privileges(,_ID)*/,_ID_(,_ID)*!drop-1	REVOKE REVOKE a a ON SCHEMA a FROM a
+reject@7	reject@7	engine	revoke_revoke_schema_privileges(,_ID)*/,_ID_(,_ID)*!drop-2	REVOKE REVOKE a, ON SCHEMA a FROM a
+reject@7	reject@7	engine	revoke_revoke_schema_privileges(,_ID)*/,_ID_(,_ID)*!insert	REVOKE REVOKE a, a zzz ON SCHEMA a FROM a
+reject@7	reject@7	engine	revoke_revoke_schema_privileges(PRIVILEGES)?/%empty	REVOKE REVOKE ALL ON SCHEMA a FROM a
+reject@7	reject@7	engine	revoke_revoke_schema_privileges(PRIVILEGES)?/PRIVILEGES	REVOKE REVOKE ALL PRIVILEGES ON SCHEMA a FROM a
+reject@7	reject@7	engine	revoke_revoke_schema_privileges(PRIVILEGES)?/PRIVILEGES!insert	REVOKE REVOKE ALL PRIVILEGES zzz ON SCHEMA a FROM a
+reject@7	reject@7	engine	revoke_revoke_schema_privileges(PRIVILEGES)?/PRIVILEGES!swap	REVOKE REVOKE ALL PROCEDURE ON SCHEMA a FROM a
+reject@7	reject@7	engine	revoke_revoke_object_privileges/REVOKE_(ID_(,_ID)*|ALL_PRIVILEGES?)_revoke_on_object_cl~d4836106	REVOKE REVOKE a ON a FROM a
+reject@7	reject@7	engine	revoke_revoke_object_privileges(ID_(,_ID)*|ALL_PRIVILEGES?)/ID_(,_ID)*	REVOKE REVOKE a ON a FROM a
+reject@7	reject@7	engine	revoke_revoke_object_privileges(ID_(,_ID)*|ALL_PRIVILEGES?)/ID_(,_ID)*!insert	REVOKE REVOKE a zzz ON a FROM a
+reject@7	reject@7	engine	revoke_revoke_object_privileges(ID_(,_ID)*|ALL_PRIVILEGES?)/ALL_(PRIVILEGES)?	REVOKE REVOKE ALL ON a FROM a
+reject@7	reject@7	engine	revoke_revoke_object_privileges(ID_(,_ID)*|ALL_PRIVILEGES?)/ALL_(PRIVILEGES)?!insert	REVOKE REVOKE ALL zzz ON a FROM a
+reject@7	reject@7	engine	revoke_revoke_object_privileges(ID_(,_ID)*|ALL_PRIVILEGES?)/ALL_(PRIVILEGES)?!swap	REVOKE REVOKE ALLOCATE ON a FROM a
+reject@7	reject@7	engine	revoke_revoke_object_privileges(,_ID)*/%empty	REVOKE REVOKE a ON a FROM a
+reject@7	reject@7	engine	revoke_revoke_object_privileges(,_ID)*/,_ID_(,_ID)*	REVOKE REVOKE a, a ON a FROM a
+reject@7	reject@7	engine	revoke_revoke_object_privileges(,_ID)*/,_ID_(,_ID)*!drop-1	REVOKE REVOKE a a ON a FROM a
+reject@7	reject@7	engine	revoke_revoke_object_privileges(,_ID)*/,_ID_(,_ID)*!drop-2	REVOKE REVOKE a, ON a FROM a
+reject@7	reject@7	engine	revoke_revoke_object_privileges(,_ID)*/,_ID_(,_ID)*!insert	REVOKE REVOKE a, a zzz ON a FROM a
+reject@7	reject@7	engine	revoke_revoke_object_privileges(PRIVILEGES)?/%empty	REVOKE REVOKE ALL ON a FROM a
+reject@7	reject@7	engine	revoke_revoke_object_privileges(PRIVILEGES)?/PRIVILEGES	REVOKE REVOKE ALL PRIVILEGES ON a FROM a
+reject@7	reject@7	engine	revoke_revoke_object_privileges(PRIVILEGES)?/PRIVILEGES!insert	REVOKE REVOKE ALL PRIVILEGES zzz ON a FROM a
+reject@7	reject@7	engine	revoke_revoke_object_privileges(PRIVILEGES)?/PRIVILEGES!swap	REVOKE REVOKE ALL PROCEDURE ON a FROM a
+reject@7	reject@7	engine	revoke_revoke_object_privileges(CASCADE_CONSTRAINTS)?/%empty	REVOKE REVOKE a ON a FROM a
+reject@7	reject@7	engine	revoke_revoke_object_privileges(CASCADE_CONSTRAINTS)?/CASCADE_CONSTRAINTS	REVOKE REVOKE a ON a FROM a CASCADE CONSTRAINTS
+reject@7	reject@7	engine	revoke_revoke_object_privileges(CASCADE_CONSTRAINTS)?/CASCADE_CONSTRAINTS!drop-1	REVOKE REVOKE a ON a FROM a CONSTRAINTS
+reject@7	reject@7	engine	revoke_revoke_object_privileges(CASCADE_CONSTRAINTS)?/CASCADE_CONSTRAINTS!drop-2	REVOKE REVOKE a ON a FROM a CASCADE
+reject@7	reject@7	engine	revoke_revoke_object_privileges(CASCADE_CONSTRAINTS)?/CASCADE_CONSTRAINTS!insert	REVOKE REVOKE a ON a FROM a CASCADE CONSTRAINTS zzz
+reject@7	reject@7	engine	revoke_revoke_object_privileges(CASCADE_CONSTRAINTS)?/CASCADE_CONSTRAINTS!swap	REVOKE REVOKE a ON a FROM a CASE CONSTRAINTS
+reject@7	reject@7	engine	revoke_revoke_object_privileges(FORCE)?/%empty	REVOKE REVOKE a ON a FROM a
+reject@7	reject@7	engine	revoke_revoke_object_privileges(FORCE)?/FORCE	REVOKE REVOKE a ON a FROM a FORCE
+reject@7	reject@7	engine	revoke_revoke_object_privileges(FORCE)?/FORCE!insert	REVOKE REVOKE a ON a FROM a FORCE zzz
+reject@7	reject@7	engine	revoke_revoke_object_privileges(FORCE)?/FORCE!swap	REVOKE REVOKE a ON a FROM a FOREIGN
+reject@7	accept	engine	revoke_revoke_roles_from_programs/REVOKE_(ID_(,_ID)*|ALL)_FROM_(PROCEDURE|FUNCTION|PACKAG~61f5189a	REVOKE REVOKE a FROM PROCEDURE FUNCTION a
+reject@7	accept	engine	revoke_revoke_roles_from_programs(ID_(,_ID)*|ALL)/ID_(,_ID)*	REVOKE REVOKE a FROM PROCEDURE FUNCTION a
+reject@7	accept	engine	revoke_revoke_roles_from_programs(ID_(,_ID)*|ALL)/ID_(,_ID)*!insert	REVOKE REVOKE a zzz FROM PROCEDURE FUNCTION a
+reject@7	accept	engine	revoke_revoke_roles_from_programs(ID_(,_ID)*|ALL)/ALL	REVOKE REVOKE ALL FROM PROCEDURE FUNCTION a
+reject@7	accept	engine	revoke_revoke_roles_from_programs(ID_(,_ID)*|ALL)/ALL!insert	REVOKE REVOKE ALL zzz FROM PROCEDURE FUNCTION a
+reject@7	accept	engine	revoke_revoke_roles_from_programs(ID_(,_ID)*|ALL)/ALL!swap	REVOKE REVOKE ALLOCATE FROM PROCEDURE FUNCTION a
+reject@7	accept	engine	revoke_revoke_roles_from_programs(,_ID)*/%empty	REVOKE REVOKE a FROM PROCEDURE FUNCTION a
+reject@7	accept	engine	revoke_revoke_roles_from_programs(,_ID)*/,_ID_(,_ID)*	REVOKE REVOKE a, a FROM PROCEDURE FUNCTION a
+reject@7	accept	engine	revoke_revoke_roles_from_programs(,_ID)*/,_ID_(,_ID)*!drop-1	REVOKE REVOKE a a FROM PROCEDURE FUNCTION a
+reject@7	accept	engine	revoke_revoke_roles_from_programs(,_ID)*/,_ID_(,_ID)*!drop-2	REVOKE REVOKE a, FROM PROCEDURE FUNCTION a
+reject@7	accept	engine	revoke_revoke_roles_from_programs(,_ID)*/,_ID_(,_ID)*!insert	REVOKE REVOKE a, a zzz FROM PROCEDURE FUNCTION a
+reject@7	accept	engine	revoke_revoke_roles_from_programs(PROCEDURE|FUNCTION|PACKAGE)/PROCEDURE	REVOKE REVOKE a FROM PROCEDURE FUNCTION a
+reject@7	accept	engine	revoke_revoke_roles_from_programs(PROCEDURE|FUNCTION|PACKAGE)/PROCEDURE!insert	REVOKE REVOKE a FROM PROCEDURE zzz FUNCTION a
+reject@7	accept	engine	revoke_revoke_roles_from_programs(PROCEDURE|FUNCTION|PACKAGE)/PROCEDURE!swap	REVOKE REVOKE a FROM PROFILE FUNCTION a
+reject@7	accept	engine	revoke_revoke_roles_from_programs(PROCEDURE|FUNCTION|PACKAGE)/FUNCTION	REVOKE REVOKE a FROM FUNCTION FUNCTION a
+reject@7	accept	engine	revoke_revoke_roles_from_programs(PROCEDURE|FUNCTION|PACKAGE)/FUNCTION!insert	REVOKE REVOKE a FROM FUNCTION zzz FUNCTION a
+reject@7	accept	engine	revoke_revoke_roles_from_programs(PROCEDURE|FUNCTION|PACKAGE)/FUNCTION!swap	REVOKE REVOKE a FROM FUNCTIONS FUNCTION a
+reject@7	accept	engine	revoke_revoke_roles_from_programs(PROCEDURE|FUNCTION|PACKAGE)/PACKAGE	REVOKE REVOKE a FROM PACKAGE FUNCTION a
+reject@7	accept	engine	revoke_revoke_roles_from_programs(PROCEDURE|FUNCTION|PACKAGE)/PACKAGE!insert	REVOKE REVOKE a FROM PACKAGE zzz FUNCTION a
+reject@7	accept	engine	revoke_revoke_roles_from_programs(PROCEDURE|FUNCTION|PACKAGE)/PACKAGE!swap	REVOKE REVOKE a FROM PACKAGES FUNCTION a
+reject@7	accept	engine	revoke_revoke_roles_from_programs(ID_.)?/%empty	REVOKE REVOKE a FROM PROCEDURE FUNCTION a
+reject@7	accept	engine	revoke_revoke_roles_from_programs(ID_.)?/ID_.	REVOKE REVOKE a FROM PROCEDURE a.FUNCTION a
+reject@7	accept	engine	revoke_revoke_roles_from_programs(ID_.)?/ID_.!drop-1	REVOKE REVOKE a FROM PROCEDURE.FUNCTION a
+reject@7	accept	engine	revoke_revoke_roles_from_programs(ID_.)?/ID_.!drop-2	REVOKE REVOKE a FROM PROCEDURE a FUNCTION a
+reject@7	accept	engine	revoke_revoke_roles_from_programs(ID_.)?/ID_.!insert	REVOKE REVOKE a FROM PROCEDURE a.zzz FUNCTION a
+reject@7	reject@7	engine	revoke_revokee_clause/(ID|PUBLIC)_(,_(ID|PUBLIC))*	REVOKE REVOKE a FROM a
+reject@7	reject@7	engine	revoke_revokee_clause(ID|PUBLIC)/ID	REVOKE REVOKE a FROM a
+reject@7	reject@7	engine	revoke_revokee_clause(ID|PUBLIC)/PUBLIC	REVOKE REVOKE a FROM PUBLIC
+reject@7	reject@7	engine	revoke_revokee_clause(ID|PUBLIC)/PUBLIC!insert	REVOKE REVOKE a FROM PUBLIC zzz
+reject@7	reject@7	engine	revoke_revokee_clause(ID|PUBLIC)/PUBLIC!swap	REVOKE REVOKE a FROM PURE
+reject@7	reject@7	engine	revoke_revokee_clause(,_(ID|PUBLIC))*/%empty	REVOKE REVOKE a FROM a
+reject@7	reject@7	engine	revoke_revokee_clause(,_(ID|PUBLIC))*/,_(ID|PUBLIC)_(,_(ID|PUBLIC))*	REVOKE REVOKE a FROM a, a
+reject@7	reject@7	engine	revoke_revokee_clause(,_(ID|PUBLIC))*/,_(ID|PUBLIC)_(,_(ID|PUBLIC))*!drop-1	REVOKE REVOKE a FROM a a
+reject@7	reject@7	engine	revoke_revokee_clause(,_(ID|PUBLIC))*/,_(ID|PUBLIC)_(,_(ID|PUBLIC))*!drop-2	REVOKE REVOKE a FROM a,
+reject@7	reject@7	engine	revoke_revokee_clause(,_(ID|PUBLIC))*/,_(ID|PUBLIC)_(,_(ID|PUBLIC))*!insert	REVOKE REVOKE a FROM a, a zzz
+reject@7	reject@7	engine	revoke_on_object_clause/ON_((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)	REVOKE REVOKE a ON a FROM a
+reject@7	reject@7	engine	revoke_on_object_clause/ON_((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)!truncate	REVOKE REVOKE a ON
+reject@7	reject@7	engine	revoke_on_object_clause/ON_((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)!insert	REVOKE REVOKE a ON a zzz FROM a
+reject@7	reject@7	engine	revoke_on_object_clause/ON_((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)!swap	REVOKE REVOKE a ONE a FROM a
+reject@7	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/(ID_.)?_ID	REVOKE REVOKE a ON a FROM a
+reject@7	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/USER_ID_(,_ID)*	REVOKE REVOKE a ON USER a FROM a
+reject@7	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/USER_ID_(,_ID)*!drop-2	REVOKE REVOKE a ON USER FROM a
+reject@7	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/USER_ID_(,_ID)*!truncate	REVOKE REVOKE a ON USER
+reject@7	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/USER_ID_(,_ID)*!insert	REVOKE REVOKE a ON USER a zzz FROM a
+reject@7	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/USER_ID_(,_ID)*!swap	REVOKE REVOKE a ON USERGROUP a FROM a
+reject@7	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/DIRECTORY_ID	REVOKE REVOKE a ON DIRECTORY a FROM a
+reject@7	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/DIRECTORY_ID!drop-2	REVOKE REVOKE a ON DIRECTORY FROM a
+reject@7	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/DIRECTORY_ID!truncate	REVOKE REVOKE a ON DIRECTORY
+reject@7	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/DIRECTORY_ID!insert	REVOKE REVOKE a ON DIRECTORY a zzz FROM a
+reject@7	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/DIRECTORY_ID!swap	REVOKE REVOKE a ON DIRECT_LOAD a FROM a
+reject@7	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/EDITION_ID	REVOKE REVOKE a ON EDITION a FROM a
+reject@7	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/EDITION_ID!drop-2	REVOKE REVOKE a ON EDITION FROM a
+reject@7	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/EDITION_ID!truncate	REVOKE REVOKE a ON EDITION
+reject@7	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/EDITION_ID!insert	REVOKE REVOKE a ON EDITION a zzz FROM a
+reject@7	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/EDITION_ID!swap	REVOKE REVOKE a ON EDITIONABLE a FROM a
+reject@7	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/MINING_MODEL_(ID_.)?_ID	REVOKE REVOKE a ON MINING MODEL a FROM a
+reject@7	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/MINING_MODEL_(ID_.)?_ID!drop-1	REVOKE REVOKE a ON MODEL a FROM a
+reject@7	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/MINING_MODEL_(ID_.)?_ID!drop-2	REVOKE REVOKE a ON MINING a FROM a
+reject@7	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/MINING_MODEL_(ID_.)?_ID!drop-3	REVOKE REVOKE a ON MINING MODEL FROM a
+reject@7	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/MINING_MODEL_(ID_.)?_ID!truncate	REVOKE REVOKE a ON MINING MODEL
+reject@7	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/MINING_MODEL_(ID_.)?_ID!insert	REVOKE REVOKE a ON MINING MODEL a zzz FROM a
+reject@7	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/MINING_MODEL_(ID_.)?_ID!swap	REVOKE REVOKE a ON MINUS MODEL a FROM a
+reject@7	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/JAVA_(SOURCE|RESOURCE)_(ID_.)?_ID	REVOKE REVOKE a ON JAVA SOURCE a FROM a
+reject@7	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/JAVA_(SOURCE|RESOURCE)_(ID_.)?_ID!drop-1	REVOKE REVOKE a ON SOURCE a FROM a
+reject@7	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/JAVA_(SOURCE|RESOURCE)_(ID_.)?_ID!drop-2	REVOKE REVOKE a ON JAVA a FROM a
+reject@7	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/JAVA_(SOURCE|RESOURCE)_(ID_.)?_ID!drop-3	REVOKE REVOKE a ON JAVA SOURCE FROM a
+reject@7	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/JAVA_(SOURCE|RESOURCE)_(ID_.)?_ID!truncate	REVOKE REVOKE a ON JAVA SOURCE
+reject@7	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/JAVA_(SOURCE|RESOURCE)_(ID_.)?_ID!insert	REVOKE REVOKE a ON JAVA SOURCE a zzz FROM a
+reject@7	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/JAVA_(SOURCE|RESOURCE)_(ID_.)?_ID!swap	REVOKE REVOKE a ON JAVASCRIPT SOURCE a FROM a
+reject@7	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/SQL_TRANSLATION_PROFILE_(ID_.)?_ID	REVOKE REVOKE a ON SQL TRANSLATION PROFILE a FROM a
+reject@7	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/SQL_TRANSLATION_PROFILE_(ID_.)?_ID!drop-1	REVOKE REVOKE a ON TRANSLATION PROFILE a FROM a
+reject@7	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/SQL_TRANSLATION_PROFILE_(ID_.)?_ID!drop-2	REVOKE REVOKE a ON SQL PROFILE a FROM a
+reject@7	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/SQL_TRANSLATION_PROFILE_(ID_.)?_ID!drop-3	REVOKE REVOKE a ON SQL TRANSLATION a FROM a
+reject@7	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/SQL_TRANSLATION_PROFILE_(ID_.)?_ID!drop-4	REVOKE REVOKE a ON SQL TRANSLATION PROFILE FROM a
+reject@7	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/SQL_TRANSLATION_PROFILE_(ID_.)?_ID!truncate	REVOKE REVOKE a ON SQL TRANSLATION PROFILE
+reject@7	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/SQL_TRANSLATION_PROFILE_(ID_.)?_ID!insert	REVOKE REVOKE a ON SQL TRANSLATION PROFILE a zzz FROM a
+reject@7	reject@7	engine	revoke_on_object_clause((ID_.)?_ID|USER_ID_(,_ID)*|DIRECTORY~f2e643af)/SQL_TRANSLATION_PROFILE_(ID_.)?_ID!swap	REVOKE REVOKE a ON SQL_FIREWALL TRANSLATION PROFILE a FROM a
+reject@7	reject@7	engine	revoke_on_object_clause(ID_.)?/%empty	REVOKE REVOKE a ON a FROM a
+reject@7	reject@7	engine	revoke_on_object_clause(ID_.)?/%empty!insert	REVOKE REVOKE a ON zzz a FROM a
+reject@7	reject@7	engine	revoke_on_object_clause(ID_.)?/ID_.	REVOKE REVOKE a ON a.a FROM a
+reject@7	reject@7	engine	revoke_on_object_clause(ID_.)?/ID_.!drop-1	REVOKE REVOKE a ON.a FROM a
+reject@7	reject@7	engine	revoke_on_object_clause(ID_.)?/ID_.!drop-2	REVOKE REVOKE a ON a a FROM a
+reject@7	reject@7	engine	revoke_on_object_clause(ID_.)?/ID_.!truncate	REVOKE REVOKE a ON a
+reject@7	reject@7	engine	revoke_on_object_clause(ID_.)?/ID_.!insert	REVOKE REVOKE a ON a.zzz a FROM a
+reject@7	reject@7	engine	revoke_on_object_clause(,_ID)*/%empty	REVOKE REVOKE a ON USER a FROM a
+reject@7	reject@7	engine	revoke_on_object_clause(,_ID)*/,_ID_(,_ID)*	REVOKE REVOKE a ON USER a, a FROM a
+reject@7	reject@7	engine	revoke_on_object_clause(,_ID)*/,_ID_(,_ID)*!drop-1	REVOKE REVOKE a ON USER a a FROM a
+reject@7	reject@7	engine	revoke_on_object_clause(,_ID)*/,_ID_(,_ID)*!drop-2	REVOKE REVOKE a ON USER a, FROM a
+reject@7	reject@7	engine	revoke_on_object_clause(,_ID)*/,_ID_(,_ID)*!truncate	REVOKE REVOKE a ON USER a,
+reject@7	reject@7	engine	revoke_on_object_clause(,_ID)*/,_ID_(,_ID)*!insert	REVOKE REVOKE a ON USER a, a zzz FROM a
+reject@7	reject@7	engine	revoke_on_object_clause(SOURCE|RESOURCE)/SOURCE	REVOKE REVOKE a ON JAVA SOURCE a FROM a
+reject@7	reject@7	engine	revoke_on_object_clause(SOURCE|RESOURCE)/SOURCE!truncate	REVOKE REVOKE a ON JAVA
+reject@7	reject@7	engine	revoke_on_object_clause(SOURCE|RESOURCE)/SOURCE!insert	REVOKE REVOKE a ON JAVA SOURCE zzz a FROM a
+reject@7	reject@7	engine	revoke_on_object_clause(SOURCE|RESOURCE)/SOURCE!swap	REVOKE REVOKE a ON JAVA SOURCE_FILE_DIRECTORY a FROM a
+reject@7	reject@7	engine	revoke_on_object_clause(SOURCE|RESOURCE)/RESOURCE	REVOKE REVOKE a ON JAVA RESOURCE a FROM a
+reject@7	reject@7	engine	revoke_on_object_clause(SOURCE|RESOURCE)/RESOURCE!insert	REVOKE REVOKE a ON JAVA RESOURCE zzz a FROM a
+reject@7	reject@7	engine	revoke_on_object_clause(SOURCE|RESOURCE)/RESOURCE!swap	REVOKE REVOKE a ON JAVA RESTART a FROM a
+reject@7	accept	engine	revoke_program_unit/(ID_.)?_(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)	REVOKE REVOKE a FROM PROCEDURE FUNCTION a
+reject@7	accept	engine	revoke_program_unit/(ID_.)?_(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)!swap	REVOKE REVOKE a FROM PROCEDURE FUNCTIONS a
+reject@7	accept	engine	revoke_program_unit(ID_.)?/%empty	REVOKE REVOKE a FROM PROCEDURE FUNCTION a
+reject@7	accept	engine	revoke_program_unit(ID_.)?/ID_.	REVOKE REVOKE a FROM PROCEDURE a.FUNCTION a
+reject@7	accept	engine	revoke_program_unit(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)/FUNCTION_ID	REVOKE REVOKE a FROM PROCEDURE FUNCTION a
+reject@7	accept	engine	revoke_program_unit(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)/PROCEDURE_ID	REVOKE REVOKE a FROM PROCEDURE PROCEDURE a
+reject@7	accept	engine	revoke_program_unit(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)/PROCEDURE_ID!drop-2	REVOKE REVOKE a FROM PROCEDURE PROCEDURE
+reject@7	accept	engine	revoke_program_unit(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)/PROCEDURE_ID!insert	REVOKE REVOKE a FROM PROCEDURE PROCEDURE a zzz
+reject@7	accept	engine	revoke_program_unit(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)/PROCEDURE_ID!swap	REVOKE REVOKE a FROM PROCEDURE PROFILE a
+reject@7	accept	engine	revoke_program_unit(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)/PACKAGE_ID	REVOKE REVOKE a FROM PROCEDURE PACKAGE a
+reject@7	accept	engine	revoke_program_unit(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)/PACKAGE_ID!drop-2	REVOKE REVOKE a FROM PROCEDURE PACKAGE
+reject@7	accept	engine	revoke_program_unit(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)/PACKAGE_ID!insert	REVOKE REVOKE a FROM PROCEDURE PACKAGE a zzz
+reject@7	accept	engine	revoke_program_unit(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)/PACKAGE_ID!swap	REVOKE REVOKE a FROM PROCEDURE PACKAGES a
 accept	accept	engine	rollback/ROLLBACK_(WORK)?_(TO_SAVEPOINT?_ID|FORCE_STRING)?	ROLLBACK
 accept	accept	engine	rollback(WORK)?/%empty	ROLLBACK
 accept	accept	engine	rollback(WORK)?/WORK	ROLLBACK WORK

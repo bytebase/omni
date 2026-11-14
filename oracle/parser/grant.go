@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	nodes "github.com/bytebase/omni/oracle/ast"
 )
 
@@ -43,106 +45,94 @@ import (
 //	        [ WITH { GRANT | HIERARCHY } OPTION ]
 //	        [ CONTAINER = { CURRENT | ALL } ]
 //
-//	on_object_clause::=
-//	    ON [ schema. ] object
-//	  | ON USER user [, user ]...
-//	  | ON DIRECTORY directory_name
-//	  | ON EDITION edition_name
-//	  | ON MINING MODEL [ schema. ] mining_model_name
-//	  | ON JAVA { SOURCE | RESOURCE } [ schema. ] object
-//	  | ON SQL TRANSLATION PROFILE [ schema. ] profile
-//
 //	grant_roles_to_programs::=
 //	    GRANT role [, role ]...
 //	        TO program_unit [, program_unit ]...
 //	        [ WITH { ADMIN | DELEGATE } OPTION ]
 //	        [ CONTAINER = { CURRENT | ALL } ]
 //
-//	grantee_clause::=
-//	    { user | role | PUBLIC }
+// How Oracle 23ai reads the privileges is in parseGrantPrivileges and the
+// ON clause in parseGrantOnClause. Its grantees are names, one word each
+// (ORA-03048 at a '.' or '@'). A grant to program units takes nothing after
+// them (ORA-03048 at WITH). A grant of system privileges or roles takes the
+// word of its WITH ... OPTION and the value of CONTAINER = as words, and
+// refuses a wrong one after the parse (ORA-01939, ORA-65013); an object
+// grant takes WITH GRANT OPTION or WITH HIERARCHY OPTION alone (ORA-00993).
 func (p *Parser) parseGrantStmt() (nodes.StmtNode, error) {
 	start := p.pos()
 	p.advance() // consume GRANT
 
-	stmt := &nodes.GrantStmt{
-		Privileges: &nodes.List{},
-		Grantees:   &nodes.List{},
-		Loc:        nodes.Loc{Start: start},
+	stmt := &nodes.GrantStmt{Loc: nodes.Loc{Start: start}}
+	privs, err := p.parseGrantPrivileges()
+	if err != nil {
+		return nil, err
 	}
-	var parseErr763 error
+	stmt.AllPriv, stmt.Privileges = privs.all, privs.names()
 
-	// Parse privileges or ALL [PRIVILEGES].
-	stmt.AllPriv, stmt.Privileges, parseErr763 = p.parsePrivilegeList()
-	if parseErr763 !=
-
-		// ON clause (optional — absent means role grant or system privilege).
-		nil {
-		return nil, parseErr763
-	}
-	if !stmt.AllPriv && stmt.Privileges.Len() == 0 {
-		return nil, p.syntaxErrorAtCur()
-	}
-
+	on := grantOnNone
 	if p.cur.Type == kwON {
-		p.advance()
-		var // consume ON
-		parseErr764 error
-
-		// Optional object type keyword.
-		stmt.OnType, parseErr764 = p.parseOptionalObjectType()
-		if parseErr764 !=
-
-			// Object name.
-			nil {
-			return nil, parseErr764
+		if on, stmt.OnType, stmt.OnObject, err = p.parseGrantOnClause(privs); err != nil {
+			return nil, err
 		}
-		var parseErr765 error
-
-		stmt.OnObject, parseErr765 = p.parseObjectName()
-		if parseErr765 !=
-
-			// TO grantee [, grantee ...]
-			nil {
-			return nil, parseErr765
-		}
-		if stmt.OnObject == nil || stmt.OnObject.Name == "" {
-			return nil, p.syntaxErrorAtCur()
-		}
+	} else if err := privs.checkWithoutOn(p); err != nil {
+		return nil, err
 	}
 
 	if p.cur.Type != kwTO {
 		return nil, p.syntaxErrorAtCur()
 	}
 	p.advance()
-	var parseErr766 error
-	stmt.Grantees, parseErr766 = p.parseIdentList()
-	if parseErr766 !=
-
-		// WITH GRANT OPTION / WITH ADMIN OPTION
-		nil {
-		return nil, parseErr766
+	programs := on == grantOnNone && p.isGrantProgramUnitStart()
+	if stmt.Grantees, err = p.parseGrantees(programs); err != nil {
+		return nil, err
 	}
-	if stmt.Grantees.Len() == 0 {
-		return nil, p.syntaxErrorAtCur()
+	if programs {
+		stmt.Loc.End = p.prev.End
+		return stmt, nil
 	}
 
-	if p.cur.Type == kwWITH {
-		p.advance() // consume WITH
-		if p.cur.Type == kwGRANT {
-			p.advance() // consume GRANT
-			if p.cur.Type == kwOPTION {
-				p.advance() // consume OPTION
+	if on == grantOnNone && p.cur.Type == kwIDENTIFIED {
+		// IDENTIFIED BY password [, password ]...
+		p.advance()
+		if p.cur.Type != kwBY {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		for {
+			if !p.isIdentLike() {
+				return nil, p.syntaxErrorAtCur()
 			}
-			stmt.WithGrant = true
-		} else if p.isIdentLike() && p.cur.Str == "ADMIN" {
-			p.advance() // consume ADMIN
-			if p.cur.Type == kwOPTION {
-				p.advance() // consume OPTION
+			p.advance()
+			if p.cur.Type != ',' {
+				break
 			}
-			stmt.WithAdmin = true
+			p.advance()
 		}
 	}
 
+	if p.cur.Type == kwWITH {
+		p.advance()
+		switch {
+		case on == grantOnObject && p.cur.Type == kwGRANT:
+			stmt.WithGrant = true
+			p.advance()
+		case on == grantOnObject && p.isKeywordStr("HIERARCHY"):
+			p.advance()
+		case on == grantOnObject:
+			return nil, p.syntaxErrorAtCur()
+		case p.cur.Type != kwOPTION && p.isIdentLike():
+			stmt.WithAdmin = p.isKeywordStr("ADMIN")
+			p.advance()
+		}
+		if p.cur.Type != kwOPTION {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+	}
+
+	if err := p.parseGrantContainer(); err != nil {
+		return nil, err
+	}
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
@@ -179,222 +169,424 @@ func (p *Parser) parseGrantStmt() (nodes.StmtNode, error) {
 //	    [ CASCADE CONSTRAINTS ]
 //	    [ FORCE ]
 //
-//	on_object_clause:
-//	    ON { [ schema. ] object
-//	       | USER user [, user ]...
-//	       | DIRECTORY directory_name
-//	       | EDITION edition_name
-//	       | MINING MODEL [ schema. ] mining_model_name
-//	       | JAVA { SOURCE | RESOURCE } [ schema. ] object
-//	       | SQL TRANSLATION PROFILE [ schema. ] profile_name
-//	       }
-//
 //	revokee_clause:
 //	    { user | role | PUBLIC } [, { user | role | PUBLIC } ]...
+//
+//	revoke_roles_from_programs:
+//	    REVOKE { role [, role ]... | ALL }
+//	    FROM { PROCEDURE | FUNCTION | PACKAGE } [ schema. ] program_unit
+//
+// The privileges and the ON clause read as GRANT's do. Oracle 23ai takes
+// CASCADE CONSTRAINTS or FORCE, not both (ORA-03049 at the second), after
+// any revokees, refusing them where they do not apply after the parse, and
+// a list of program units.
 func (p *Parser) parseRevokeStmt() (nodes.StmtNode, error) {
 	start := p.pos()
 	p.advance() // consume REVOKE
 
-	stmt := &nodes.RevokeStmt{
-		Privileges: &nodes.List{},
-		Grantees:   &nodes.List{},
-		Loc:        nodes.Loc{Start: start},
+	stmt := &nodes.RevokeStmt{Loc: nodes.Loc{Start: start}}
+	privs, err := p.parseGrantPrivileges()
+	if err != nil {
+		return nil, err
 	}
-	var parseErr767 error
+	stmt.AllPriv, stmt.Privileges = privs.all, privs.names()
 
-	// Parse privileges or ALL [PRIVILEGES].
-	stmt.AllPriv, stmt.Privileges, parseErr767 = p.parsePrivilegeList()
-	if parseErr767 !=
-
-		// ON clause (optional).
-		nil {
-		return nil, parseErr767
-	}
-	if !stmt.AllPriv && stmt.Privileges.Len() == 0 {
-		return nil, p.syntaxErrorAtCur()
-	}
-
+	on := grantOnNone
 	if p.cur.Type == kwON {
-		p.advance()
-		var // consume ON
-		parseErr768 error
-
-		// Optional object type keyword.
-		stmt.OnType, parseErr768 = p.parseOptionalObjectType()
-		if parseErr768 !=
-
-			// Object name.
-			nil {
-			return nil, parseErr768
+		if on, stmt.OnType, stmt.OnObject, err = p.parseGrantOnClause(privs); err != nil {
+			return nil, err
 		}
-		var parseErr769 error
-
-		stmt.OnObject, parseErr769 = p.parseObjectName()
-		if parseErr769 !=
-
-			// FROM grantee [, grantee ...]
-			nil {
-			return nil, parseErr769
-		}
-		if stmt.OnObject == nil || stmt.OnObject.Name == "" {
-			return nil, p.syntaxErrorAtCur()
-		}
+	} else if err := privs.checkWithoutOn(p); err != nil {
+		return nil, err
 	}
 
 	if p.cur.Type != kwFROM {
 		return nil, p.syntaxErrorAtCur()
 	}
 	p.advance()
-	var parseErr770 error
-	stmt.Grantees, parseErr770 = p.parseIdentList()
-	if parseErr770 != nil {
-		return nil, parseErr770
+	programs := on == grantOnNone && p.isGrantProgramUnitStart()
+	if stmt.Grantees, err = p.parseGrantees(programs); err != nil {
+		return nil, err
 	}
-	if stmt.Grantees.Len() == 0 {
-		return nil, p.syntaxErrorAtCur()
+	if programs {
+		stmt.Loc.End = p.prev.End
+		return stmt, nil
 	}
 
+	switch {
+	case p.cur.Type == kwCASCADE:
+		p.advance()
+		if !p.isKeywordStr("CONSTRAINTS") {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+	case p.isKeywordStr("FORCE"):
+		p.advance()
+	}
+
+	if err := p.parseGrantContainer(); err != nil {
+		return nil, err
+	}
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
-// parsePrivilegeList parses a comma-separated list of privilege names or ALL [PRIVILEGES].
-// Returns (allPriv bool, privileges *List).
-func (p *Parser) parsePrivilegeList() (bool, *nodes.List, error) {
-	privs := &nodes.List{}
+// grantOnKind is what the ON clause of a GRANT or REVOKE names.
+type grantOnKind int
 
-	// ALL [PRIVILEGES]
+const (
+	grantOnNone grantOnKind = iota
+	grantOnObject
+	grantOnSchema
+	grantOnUser
+)
+
+// grantPrivilege is one item of a GRANT or REVOKE privilege list: the words
+// that name it, where it starts, and where its column list opens, if it has
+// one.
+type grantPrivilege struct {
+	name       string
+	start      Token
+	columns    Token
+	hasCols    bool
+	columnList *nodes.List
+}
+
+// grantPrivileges is the privilege list of a GRANT or REVOKE.
+type grantPrivileges struct {
+	all        bool // ALL [ PRIVILEGES ]
+	allStart   Token
+	privileges bool // PRIVILEGES after ALL
+	items      []grantPrivilege
+}
+
+func (g *grantPrivileges) names() *nodes.List {
+	list := &nodes.List{}
+	for _, item := range g.items {
+		list.Items = append(list.Items, &nodes.String{Str: item.name})
+	}
+	return list
+}
+
+// grantObjectPrivileges are the privileges Oracle 23ai grants on an object
+// (ORA-00990 at another one, as at a system privilege).
+var grantObjectPrivileges = newAuditNames(
+	"ALTER", "COLLECT DEBUG INFO", "CREATE", "DEBUG", "DELETE", "EXECUTE",
+	"FLASHBACK", "INDEX", "INSERT", "KEEP SEQUENCE", "MERGE VIEW",
+	"ON COMMIT REFRESH", "QUERY REWRITE", "READ", "REFERENCES", "SELECT",
+	"SIGN", "UNDER", "UPDATE", "USE", "WRITE",
+)
+
+// grantUserPrivileges are the privileges Oracle 23ai grants ON USER.
+var grantUserPrivileges = newAuditNames(
+	"INHERIT PRIVILEGES", "INHERIT REMOTE PRIVILEGES",
+)
+
+// grantColumnPrivileges are the object privileges that take a column list
+// (ORA-00969 at the '(' of another).
+var grantColumnPrivileges = map[string]bool{"INSERT": true, "UPDATE": true, "REFERENCES": true}
+
+// parseGrantPrivileges parses the privilege list of a GRANT or REVOKE.
+// Oracle 23ai reads each item as the longest run of words that names a
+// privilege, or else as one word, reserved or not, that names a role
+// (GRANT CONNECT TO u, GRANT FROM TO u parse); an item it reads that way
+// and the ',', ON, TO or FROM that does not follow it fail at the item
+// (ORA-00990: GRANT a a TO u, GRANT u, a b TO u). ALL [ PRIVILEGES ]
+// stands alone.
+func (p *Parser) parseGrantPrivileges() (*grantPrivileges, error) {
+	g := &grantPrivileges{}
 	if p.cur.Type == kwALL {
-		p.advance() // consume ALL
+		g.all = true
+		g.allStart = p.cur
+		p.advance()
 		if p.cur.Type == kwPRIVILEGES {
-			p.advance() // consume PRIVILEGES
-		}
-		return true, privs, nil
-	}
-
-	// Comma-separated list of privilege names.
-	// Privileges can be multi-word (e.g., "CREATE TABLE", "ALTER ANY TABLE").
-	// We parse each privilege as a sequence of identifiers up to a comma, ON, TO, or FROM.
-	for {
-		priv, parseErr771 := p.parsePrivilegeName()
-		if parseErr771 != nil {
-			return false, nil, parseErr771
-		}
-		if priv == "" {
-			break
-		}
-		privs.Items = append(privs.Items, &nodes.String{Str: priv})
-
-		if p.cur.Type != ',' {
-			break
-		}
-		p.advance() // consume ','
-	}
-
-	return false, privs, nil
-}
-
-// parsePrivilegeName parses a single privilege name, which may be multi-word
-// (e.g., "SELECT", "CREATE TABLE", "ALTER ANY TABLE").
-// Stops at comma, ON, TO, FROM, semicolon, or EOF.
-func (p *Parser) parsePrivilegeName() (string, error) {
-	if !p.isIdentLike() {
-		return "", nil
-	}
-
-	// Don't consume ON, TO, FROM as privilege names.
-	if p.cur.Type == kwON || p.cur.Type == kwTO || p.cur.Type == kwFROM {
-		return "", nil
-	}
-
-	name, parseErr772 := p.parseIdentifier()
-	if parseErr772 != nil {
-		return "", parseErr772
-
-		// Accumulate multi-word privilege names.
-	}
-	if name == "" {
-		return "", nil
-	}
-
-	for p.isIdentLike() &&
-		p.cur.Type != kwON &&
-		p.cur.Type != kwTO &&
-		p.cur.Type != kwFROM &&
-		p.cur.Type != ',' &&
-		p.cur.Type != ';' {
-		word, parseErr773 := p.parseIdentifier()
-		if parseErr773 != nil {
-			return "", parseErr773
-		}
-		if word == "" {
-			break
-		}
-		name += " " + word
-	}
-
-	return name, nil
-}
-
-// parseOptionalObjectType checks if the current token is an object type keyword
-// and returns the corresponding ObjectType. Returns OBJECT_TABLE as default.
-func (p *Parser) parseOptionalObjectType() (nodes.ObjectType, error) {
-	switch p.cur.Type {
-	case kwTABLE:
-		p.advance()
-		return nodes.OBJECT_TABLE, nil
-	case kwVIEW:
-		p.advance()
-		return nodes.OBJECT_VIEW, nil
-	case kwSEQUENCE:
-		p.advance()
-		return nodes.OBJECT_SEQUENCE, nil
-	case kwPROCEDURE:
-		p.advance()
-		return nodes.OBJECT_PROCEDURE, nil
-	case kwFUNCTION:
-		p.advance()
-		return nodes.OBJECT_FUNCTION, nil
-	case kwPACKAGE:
-		p.advance()
-		return nodes.OBJECT_PACKAGE, nil
-	case kwTYPE:
-		p.advance()
-		return nodes.OBJECT_TYPE, nil
-	case kwINDEX:
-		p.advance()
-		return nodes.OBJECT_INDEX, nil
-	default:
-		if p.isIdentLikeStr("DIRECTORY") {
+			g.privileges = true
 			p.advance()
-			return nodes.OBJECT_DIRECTORY, nil
 		}
-		// No explicit object type — default to TABLE for object privileges.
-		return nodes.OBJECT_TABLE, nil
+		return g, nil
+	}
+	for {
+		item := grantPrivilege{start: p.cur}
+		name, n := p.matchAuditName(auditSystemPrivileges, grantObjectPrivileges, grantUserPrivileges)
+		switch {
+		case n > 0 && !(p.cur.Type == kwON && n == 1):
+			item.name = name
+			for range n {
+				p.advance()
+			}
+		case p.isIdentLike():
+			var err error
+			if item.name, err = p.parseIdentifier(); err != nil {
+				return nil, err
+			}
+		default:
+			return nil, p.syntaxErrorAtCur()
+		}
+		if p.cur.Type == '(' {
+			if !grantColumnPrivileges[item.name] {
+				return nil, p.syntaxErrorAtCur()
+			}
+			item.columns, item.hasCols = p.cur, true
+			var err error
+			if item.columnList, err = p.parseIdentifierListInParens(); err != nil {
+				return nil, err
+			}
+		}
+		switch p.cur.Type {
+		case ',', kwON, kwTO, kwFROM:
+		default:
+			return nil, p.syntaxErrorAtTok(item.start)
+		}
+		g.items = append(g.items, item)
+		if p.cur.Type != ',' {
+			return g, nil
+		}
+		p.advance()
 	}
 }
 
-// parseIdentList parses a comma-separated list of identifiers and returns
-// a *List of *String nodes.
-func (p *Parser) parseIdentList() (*nodes.List, error) {
+// checkWithoutOn checks the privileges of a grant or revoke with no ON
+// clause: system privileges, roles, or ALL [ PRIVILEGES ]. A run of words
+// that names no system privilege fails at its start, and a column list at
+// its '(' (ORA-00969).
+func (g *grantPrivileges) checkWithoutOn(p *Parser) error {
+	for _, item := range g.items {
+		if item.hasCols {
+			return p.syntaxErrorAtTok(item.columns)
+		}
+		if strings.Contains(item.name, " ") && !auditSystemPrivileges.names[item.name] {
+			return p.syntaxErrorAtTok(item.start)
+		}
+	}
+	return nil
+}
+
+// parseGrantOnClause parses the ON clause of a GRANT or REVOKE, at ON,
+// after checking the privileges against what it names.
+//
+//	on_object_clause::=
+//	    ON [ schema. ] object
+//	  | ON USER user [, user ]...
+//	  | ON DIRECTORY directory_name
+//	  | ON EDITION edition_name
+//	  | ON MINING MODEL [ schema. ] mining_model_name
+//	  | ON JAVA { SOURCE | RESOURCE } [ schema. ] object
+//	  | ON SQL TRANSLATION PROFILE [ schema. ] profile
+//
+// Oracle 23ai grants object privileges on an object, INHERIT [ REMOTE ]
+// PRIVILEGES on one user, and system privileges that name ANY, or ALL
+// PRIVILEGES, on a schema; another privilege fails at its start (ORA-00990),
+// and a system privilege on a schema at the ON. An object takes no object
+// type before it (ORA-00903 at TABLE) and no database link (ORA-02021).
+func (p *Parser) parseGrantOnClause(g *grantPrivileges) (grantOnKind, nodes.ObjectType, *nodes.ObjectName, error) {
+	onTok := p.cur
+	p.advance() // consume ON
+
+	kind, objType := grantOnObject, nodes.OBJECT_TABLE
+	next := p.peekNext()
+	switch {
+	case p.isKeywordStr("SCHEMA") && next.Type != '.':
+		kind = grantOnSchema
+	case p.cur.Type == kwUSER && next.Type != '.':
+		kind, objType = grantOnUser, nodes.OBJECT_USER
+	case p.isKeywordStr("DIRECTORY") && next.Type != '.':
+		objType = nodes.OBJECT_DIRECTORY
+	case p.isKeywordStr("EDITION") && next.Type != '.':
+		objType = nodes.OBJECT_EDITION
+	case p.isKeywordStr("JAVA") && next.Type != '.':
+		objType = nodes.OBJECT_JAVA
+	}
+
+	// The privileges first: Oracle 23ai fails at a wrong one before it
+	// reads the object.
+	for _, item := range g.items {
+		var ok bool
+		switch kind {
+		case grantOnSchema:
+			if auditSystemPrivileges.names[item.name] && !strings.Contains(" "+item.name+" ", " ANY ") {
+				return 0, 0, nil, p.syntaxErrorAtTok(onTok)
+			}
+			ok = auditSystemPrivileges.names[item.name]
+		case grantOnUser:
+			ok = grantUserPrivileges.names[item.name]
+		default:
+			ok = grantObjectPrivileges.names[item.name]
+		}
+		if !ok {
+			return 0, 0, nil, p.syntaxErrorAtTok(item.start)
+		}
+		if item.hasCols && kind != grantOnObject {
+			return 0, 0, nil, p.syntaxErrorAtTok(item.columns)
+		}
+	}
+	if kind == grantOnSchema && g.all && !g.privileges {
+		return 0, 0, nil, p.syntaxErrorAtTok(g.allStart)
+	}
+
+	var err error
+	var obj *nodes.ObjectName
+	switch {
+	case kind == grantOnSchema, kind == grantOnUser:
+		p.advance() // consume SCHEMA or USER
+		obj, err = p.parseGrantObjectName(false)
+	case objType == nodes.OBJECT_DIRECTORY, objType == nodes.OBJECT_EDITION:
+		p.advance()
+		obj, err = p.parseGrantObjectName(false)
+	case objType == nodes.OBJECT_JAVA:
+		p.advance()
+		if !p.isKeywordStr("SOURCE") && !p.isKeywordStr("RESOURCE") {
+			return 0, 0, nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		obj, err = p.parseGrantObjectName(true)
+	case p.isKeywordStr("MINING") && next.Type == kwMODEL:
+		p.advance()
+		p.advance()
+		obj, err = p.parseGrantObjectName(true)
+	case p.isKeywordStr("SQL") && p.isGrantTranslationProfileAhead():
+		p.advance() // SQL
+		p.advance() // TRANSLATION
+		p.advance() // PROFILE
+		obj, err = p.parseGrantObjectName(true)
+	default:
+		obj, err = p.parseGrantObjectName(true)
+	}
+	if err != nil {
+		return 0, 0, nil, err
+	}
+	return kind, objType, obj, nil
+}
+
+// isGrantTranslationProfileAhead reports whether SQL TRANSLATION PROFILE
+// starts at the current token.
+func (p *Parser) isGrantTranslationProfileAhead() bool {
+	ahead := p.peekAhead(2)
+	return ahead[0].Type != tokQIDENT && ahead[0].Str == "TRANSLATION" &&
+		ahead[1].Type != tokQIDENT && ahead[1].Str == "PROFILE"
+}
+
+// parseGrantObjectName parses the name an ON clause grants on: one name, or
+// with qualified a [ schema. ] name, never a reserved word unquoted
+// (ORA-00903) nor a database link.
+func (p *Parser) parseGrantObjectName(qualified bool) (*nodes.ObjectName, error) {
+	start := p.pos()
+	part := func() (string, error) {
+		if !p.isIdentLike() {
+			return "", p.syntaxErrorAtCur()
+		}
+		if err := p.syntaxErrorIfReservedIdentifier(); err != nil {
+			return "", err
+		}
+		return p.parseIdentifier()
+	}
+	name, err := part()
+	if err != nil {
+		return nil, err
+	}
+	obj := &nodes.ObjectName{Name: name}
+	if qualified && p.cur.Type == '.' {
+		p.advance()
+		obj.Schema = name
+		if obj.Name, err = part(); err != nil {
+			return nil, err
+		}
+	}
+	// A database link is no object granted on (ORA-02021 at its name).
+	if p.cur.Type == '@' {
+		p.advance()
+		return nil, p.syntaxErrorAtCur()
+	}
+	obj.Loc = nodes.Loc{Start: start, End: p.prev.End}
+	return obj, nil
+}
+
+// isGrantProgramUnitStart reports whether the grantees of a GRANT or
+// REVOKE are program units: [ schema. ] { FUNCTION | PROCEDURE | PACKAGE }
+// and a name. A kind word alone names a grantee: GRANT r TO FUNCTION
+// parses on Oracle 23ai.
+func (p *Parser) isGrantProgramUnitStart() bool {
+	ahead := p.peekAhead(3)
+	if isGrantProgramUnitKind(p.cur) {
+		return isGrantWordToken(ahead[0])
+	}
+	return p.isIdentLike() && ahead[0].Type == '.' && isGrantProgramUnitKind(ahead[1])
+}
+
+// isGrantWordToken reports whether tok is a word: an identifier, quoted or
+// not, or a keyword.
+func isGrantWordToken(tok Token) bool {
+	return tok.Type == tokIDENT || tok.Type == tokQIDENT || tok.Type >= 2000
+}
+
+func isGrantProgramUnitKind(tok Token) bool {
+	switch tok.Type {
+	case kwFUNCTION, kwPROCEDURE, kwPACKAGE:
+		return true
+	}
+	return false
+}
+
+// parseGrantees parses the grantees of a GRANT or revokees of a REVOKE:
+// names, or with programs program units, each [ schema. ] { FUNCTION |
+// PROCEDURE | PACKAGE } name. A program unit is kept as its kind and name.
+func (p *Parser) parseGrantees(programs bool) (*nodes.List, error) {
 	list := &nodes.List{}
 	for {
-		if !p.isIdentLike() {
-			break
+		if programs {
+			prefix := ""
+			if !isGrantProgramUnitKind(p.cur) {
+				schema, err := p.parseIdentifier()
+				if err != nil {
+					return nil, err
+				}
+				p.advance() // consume '.'
+				prefix = schema + "."
+			}
+			if !isGrantProgramUnitKind(p.cur) {
+				return nil, p.syntaxErrorAtCur()
+			}
+			kind := p.cur.Str
+			p.advance()
+			obj, err := p.parseGrantObjectName(true)
+			if err != nil {
+				return nil, err
+			}
+			name := obj.Name
+			if obj.Schema != "" {
+				name = obj.Schema + "." + name
+			}
+			list.Items = append(list.Items, &nodes.String{Str: prefix + kind + " " + name})
+		} else {
+			if !p.isIdentLike() {
+				return nil, p.syntaxErrorAtCur()
+			}
+			name, err := p.parseIdentifier()
+			if err != nil {
+				return nil, err
+			}
+			list.Items = append(list.Items, &nodes.String{Str: name})
 		}
-		name, parseErr774 := p.parseIdentifier()
-		if parseErr774 != nil {
-			return nil, parseErr774
-		}
-		if name == "" {
-			break
-		}
-		list.Items = append(list.Items, &nodes.String{Str: name})
-
 		if p.cur.Type != ',' {
-			break
+			return list, nil
 		}
-		p.advance() // consume ','
+		p.advance()
 	}
-	return list, nil
+}
+
+// parseGrantContainer parses [ CONTAINER = value ], whose value Oracle 23ai
+// reads as a word and checks after the parse (ORA-65013 for ALLOCATE).
+func (p *Parser) parseGrantContainer() error {
+	if !p.isKeywordStr("CONTAINER") {
+		return nil
+	}
+	p.advance()
+	if p.cur.Type != '=' {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance()
+	if !p.isIdentLike() {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance()
+	return nil
 }
