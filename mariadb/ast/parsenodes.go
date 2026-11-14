@@ -818,6 +818,9 @@ type FuncCallExpr struct {
 	// written, else "CHAR" or "BINARY"; WeightAsLen holds its length (n).
 	WeightAs    string
 	WeightAsLen uint64
+	// WeightLevels is WEIGHT_STRING's LEVEL clause after LEVEL, "" when none:
+	// `1 DESC REVERSE, 2` or `1 - 3`.
+	WeightLevels string
 }
 
 // AggQuantifier is the prefix an aggregate's argument list carries. It is the

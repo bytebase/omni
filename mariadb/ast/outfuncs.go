@@ -2295,6 +2295,12 @@ func writeFuncCallExpr(sb *strings.Builder, n *FuncCallExpr) {
 	if n.Using != "" {
 		fmt.Fprintf(sb, " :using %s", n.Using)
 	}
+	if n.WeightAs != "" {
+		fmt.Fprintf(sb, " :weight_as %s(%d)", n.WeightAs, n.WeightAsLen)
+	}
+	if n.WeightLevels != "" {
+		fmt.Fprintf(sb, " :weight_levels %q", n.WeightLevels)
+	}
 	if len(n.Args) > 0 {
 		sb.WriteString(" :args ")
 		writeExprNodeList(sb, n.Args)

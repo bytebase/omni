@@ -1039,6 +1039,30 @@ func (p *Parser) parseWeightStringFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, 
 	}
 	fc.Args = []nodes.ExprNode{arg}
 
+	// WEIGHT_STRING(expr, result_length, nweights, flags), each a ulong_num: the
+	// form MariaDB stores every WEIGHT_STRING as. The numbers are its arguments.
+	if p.cur.Type == ',' {
+		for range 3 {
+			p.advance() // consume ','
+			if p.cur.Type != tokICONST && p.cur.Type != tokFCONST && !p.atHexNum() {
+				return nil, p.syntaxErrorAtCur()
+			}
+			num, err := p.parsePrimaryExpr()
+			if err != nil {
+				return nil, err
+			}
+			fc.Args = append(fc.Args, num)
+			if len(fc.Args) < 4 && p.cur.Type != ',' {
+				return nil, p.syntaxErrorAtCur()
+			}
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		return p.finishFuncCall(fc, true)
+	}
+
+	asChar := false
 	if p.cur.Type == kwAS {
 		p.advance() // consume AS
 		switch p.cur.Type {
@@ -1066,12 +1090,84 @@ func (p *Parser) parseWeightStringFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, 
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
+		asChar = fc.WeightAs == "CHAR"
+	}
+
+	// opt_ws_levels follows the bare argument and AS CHAR(n), not AS BINARY(n).
+	if p.cur.Type == kwLEVEL && (fc.WeightAs == "" || asChar) {
+		levels, err := p.parseWeightStringLevels()
+		if err != nil {
+			return nil, err
+		}
+		fc.WeightLevels = levels
 	}
 
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
 	return p.finishFuncCall(fc, true)
+}
+
+// parseWeightStringLevels reads WEIGHT_STRING's LEVEL clause, p.cur at LEVEL, and
+// returns it as written after LEVEL, its words in upper case: a list of levels,
+// each with ASC or DESC and REVERSE, or a range of two.
+//
+// Ref: opt_ws_levels, ws_level_list_or_range, ws_level_list_item,
+// ws_level_range and ws_level_flags in MariaDB 11.8 sql/sql_yacc.yy. A level is
+// real_ulong_num, an integer or a 0x number.
+func (p *Parser) parseWeightStringLevels() (string, error) {
+	p.advance() // consume LEVEL
+	var sb strings.Builder
+	first, err := p.parseWeightStringLevelNumber()
+	if err != nil {
+		return "", err
+	}
+	sb.WriteString(first)
+	if p.cur.Type == '-' {
+		p.advance()
+		last, err := p.parseWeightStringLevelNumber()
+		if err != nil {
+			return "", err
+		}
+		sb.WriteString(" - " + last)
+		return sb.String(), nil
+	}
+	for {
+		switch p.cur.Type {
+		case kwASC, kwDESC:
+			sb.WriteString(" " + strings.ToUpper(p.advance().Str))
+			if p.cur.Type == kwREVERSE {
+				p.advance()
+				sb.WriteString(" REVERSE")
+			}
+		case kwREVERSE:
+			p.advance()
+			sb.WriteString(" REVERSE")
+		}
+		if p.cur.Type != ',' {
+			return sb.String(), nil
+		}
+		p.advance() // consume ','
+		next, err := p.parseWeightStringLevelNumber()
+		if err != nil {
+			return "", err
+		}
+		sb.WriteString(", " + next)
+	}
+}
+
+// parseWeightStringLevelNumber reads ws_level_number, which is real_ulong_num.
+func (p *Parser) parseWeightStringLevelNumber() (string, error) {
+	if p.cur.Type != tokICONST && !p.atHexNum() {
+		return "", p.syntaxErrorAtCur()
+	}
+	tok := p.advance()
+	return p.inputText(tok.Loc, tok.End), nil
+}
+
+// atHexNum reports whether p.cur is HEX_NUM, a 0x number, and not x'..'.
+func (p *Parser) atHexNum() bool {
+	return p.cur.Type == tokXCONST && strings.HasPrefix(strings.ToLower(p.inputText(p.cur.Loc, p.cur.End)), "0x")
 }
 
 // finishFuncCall reads the optional OVER clause of a builtin call and closes
