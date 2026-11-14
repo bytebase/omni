@@ -33,7 +33,7 @@ func TestErrorSection2_10(t *testing.T) {
 	}{
 		{"RETURN_no_value", "RETURN"},
 		{"BEGIN_TRANSACTION", "BEGIN TRANSACTION"},
-		{"THROW_rethrow", "THROW"},
+		{"THROW_rethrow", "BEGIN TRY SELECT 1 END TRY BEGIN CATCH THROW END CATCH"},
 	}
 	for _, tt := range validTests {
 		t.Run(tt.name, func(t *testing.T) {

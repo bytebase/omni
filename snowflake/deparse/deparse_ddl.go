@@ -23,6 +23,9 @@ func (w *writer) writeCreateTableStmt(n *ast.CreateTableStmt) error {
 		w.buf.WriteString(" TRANSIENT")
 	} else if n.Temporary {
 		w.buf.WriteString(" TEMPORARY")
+		if n.ReadOnly {
+			w.buf.WriteString(" READ ONLY")
+		}
 	} else if n.Volatile {
 		w.buf.WriteString(" VOLATILE")
 	}
@@ -32,12 +35,44 @@ func (w *writer) writeCreateTableStmt(n *ast.CreateTableStmt) error {
 	if n.Iceberg {
 		w.buf.WriteString(" ICEBERG")
 	}
+	if n.Interactive {
+		w.buf.WriteString(" INTERACTIVE")
+	}
 	w.buf.WriteString(" TABLE")
 	if n.IfNotExists {
 		w.buf.WriteString(" IF NOT EXISTS")
 	}
 	w.buf.WriteByte(' ')
 	w.writeObjectNameNoSpace(n.Name)
+
+	// FROM BACKUP SET / FROM ARCHIVE OF
+	if n.FromBackup != nil {
+		w.writeBackupSource(n.FromBackup)
+		return nil
+	}
+	if a := n.FromArchive; a != nil {
+		w.buf.WriteString(" FROM ARCHIVE OF ")
+		w.writeObjectNameNoSpace(a.Table)
+		if !a.Alias.IsEmpty() {
+			w.buf.WriteString(" AS ")
+			w.buf.WriteString(a.Alias.String())
+		}
+		w.buf.WriteString(" WHERE ")
+		return writeExprNoLeadSpace(w, a.Where)
+	}
+
+	// [ COPY GRANTS ] USING TEMPLATE ( <query> )
+	if n.UsingTemplate != nil {
+		if n.CopyGrants {
+			w.buf.WriteString(" COPY GRANTS")
+		}
+		w.buf.WriteString(" USING TEMPLATE (")
+		if err := w.writeQueryExpr(n.UsingTemplate); err != nil {
+			return err
+		}
+		w.buf.WriteByte(')')
+		return nil
+	}
 
 	switch {
 	case n.Like != nil:
@@ -100,7 +135,8 @@ func (w *writer) writeCreateTableStmt(n *ast.CreateTableStmt) error {
 		return err
 	}
 
-	// Iceberg catalog and storage parameters, COPY = ( ... )
+	// Iceberg catalog and storage parameters, COPY = ( ... ), and an
+	// interactive table's TARGET_LAG / WAREHOUSE / INITIALIZATION_WAREHOUSE
 	if err := w.writeCopyOptions(n.Options); err != nil {
 		return err
 	}
@@ -165,12 +201,20 @@ func (w *writer) writeCreateTableStmt(n *ast.CreateTableStmt) error {
 		w.buf.WriteByte(')')
 	}
 
-	// AS SELECT
+	// AS SELECT, after the clauses the CTAS form writes before it
 	if n.AsSelect != nil {
 		w.buf.WriteString(" AS ")
 		return w.writeQueryExpr(n.AsSelect)
 	}
 	return nil
+}
+
+// writeBackupSource emits FROM BACKUP SET <set> IDENTIFIER '<id>'.
+func (w *writer) writeBackupSource(b *ast.BackupSource) {
+	w.buf.WriteString(" FROM BACKUP SET ")
+	w.writeObjectNameNoSpace(b.BackupSet)
+	w.buf.WriteString(" IDENTIFIER ")
+	w.buf.WriteString(quoteString(b.ID))
 }
 
 func (w *writer) writeColumnDef(n *ast.ColumnDef) error {
@@ -826,6 +870,10 @@ func (w *writer) writeViewColumn(vc *ast.ViewColumn) error {
 			}
 			w.buf.WriteByte(')')
 		}
+	}
+	if vc.ProjectionPolicy != nil {
+		w.buf.WriteString(" WITH PROJECTION POLICY ")
+		w.writeObjectNameNoSpace(vc.ProjectionPolicy)
 	}
 	if len(vc.Tags) > 0 {
 		w.buf.WriteString(" WITH TAG (")

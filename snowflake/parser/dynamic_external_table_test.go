@@ -503,9 +503,10 @@ func TestParseCreateExternalTable(t *testing.T) {
 	})
 
 	t.Run("with row access policy discarded", func(t *testing.T) {
-		// WITH ROW ACCESS POLICY ... ON (...) is consumed and discarded (mirrors
-		// CREATE TABLE); the statement must still parse.
-		stmt := mustCreateExternalTable(t, "CREATE EXTERNAL TABLE et(c date AS (value:c::date)) LOCATION=@s FILE_FORMAT=(TYPE=CSV) WITH ROW ACCESS POLICY rap ON (c)")
+		// WITH ROW ACCESS POLICY ... ON (VALUE) is consumed and discarded (mirrors
+		// CREATE TABLE); the statement must still parse. The page writes the
+		// policy on the VALUE column only.
+		stmt := mustCreateExternalTable(t, "CREATE EXTERNAL TABLE et(c date AS (value:c::date)) LOCATION=@s FILE_FORMAT=(TYPE=CSV) WITH ROW ACCESS POLICY rap ON (VALUE)")
 		if stmt.Location == nil {
 			t.Error("Location nil")
 		}

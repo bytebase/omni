@@ -2297,7 +2297,7 @@ func TestParseControlFlow(t *testing.T) {
 	})
 
 	t.Run("return", func(t *testing.T) {
-		sql := "RETURN 0"
+		sql := "RETURN"
 		result := ParseAndCheck(t, sql)
 		_, ok := result.Items[0].(*ast.ReturnStmt)
 		if !ok {
@@ -2306,19 +2306,43 @@ func TestParseControlFlow(t *testing.T) {
 	})
 
 	t.Run("break continue", func(t *testing.T) {
-		// These need to be in a context where they're valid statements
-		sql := "BREAK"
+		// BREAK and CONTINUE belong in a WHILE body: SQL Server refuses
+		// them elsewhere (Msg 135, 136).
+		sql := "WHILE 1 = 1 BREAK"
 		result := ParseAndCheck(t, sql)
-		_, ok := result.Items[0].(*ast.BreakStmt)
+		_, ok := result.Items[0].(*ast.WhileStmt).Body.(*ast.BreakStmt)
 		if !ok {
-			t.Fatalf("expected *BreakStmt, got %T", result.Items[0])
+			t.Fatalf("expected *BreakStmt, got %T", result.Items[0].(*ast.WhileStmt).Body)
 		}
 
-		sql = "CONTINUE"
+		sql = "WHILE 1 = 1 CONTINUE"
 		result = ParseAndCheck(t, sql)
-		_, ok2 := result.Items[0].(*ast.ContinueStmt)
+		_, ok2 := result.Items[0].(*ast.WhileStmt).Body.(*ast.ContinueStmt)
 		if !ok2 {
-			t.Fatalf("expected *ContinueStmt, got %T", result.Items[0])
+			t.Fatalf("expected *ContinueStmt, got %T", result.Items[0].(*ast.WhileStmt).Body)
+		}
+	})
+
+	// SQL Server refuses BREAK and CONTINUE outside a WHILE (Msg 135, 136),
+	// RETURN with a value outside a procedure or function (Msg 178), and
+	// THROW without arguments outside a CATCH block (Msg 10704).
+	t.Run("out of context", func(t *testing.T) {
+		for _, sql := range []string{
+			"BREAK", "CONTINUE", "IF 1 = 1 BREAK", "RETURN 0", "THROW",
+			"CREATE PROCEDURE p AS BREAK", "CREATE TRIGGER t ON a AFTER INSERT AS RETURN 1",
+			"BEGIN TRY THROW END TRY BEGIN CATCH SELECT 1 END CATCH",
+		} {
+			if _, err := Parse(sql); err == nil {
+				t.Errorf("Parse(%q): want an error", sql)
+			}
+		}
+		for _, sql := range []string{
+			"WHILE 1 = 1 BEGIN IF 1 = 1 BREAK END",
+			"CREATE PROCEDURE p AS BEGIN IF 1 = 1 RETURN 2 END",
+			"CREATE FUNCTION f() RETURNS INT AS BEGIN RETURN 1 END",
+			"BEGIN TRY SELECT 1 END TRY BEGIN CATCH IF 1 = 1 THROW END CATCH",
+		} {
+			ParseAndCheck(t, sql)
 		}
 	})
 
@@ -2608,11 +2632,12 @@ func TestParseUtility(t *testing.T) {
 	})
 
 	t.Run("throw rethrow", func(t *testing.T) {
-		sql := "THROW"
+		sql := "BEGIN TRY SELECT 1 END TRY BEGIN CATCH THROW END CATCH"
 		result := ParseAndCheck(t, sql)
-		_, ok := result.Items[0].(*ast.ThrowStmt)
+		catch := result.Items[0].(*ast.TryCatchStmt).CatchBlock
+		_, ok := catch.Items[0].(*ast.ThrowStmt)
 		if !ok {
-			t.Fatalf("expected *ThrowStmt, got %T", result.Items[0])
+			t.Fatalf("expected *ThrowStmt, got %T", catch.Items[0])
 		}
 	})
 
@@ -2702,7 +2727,7 @@ func TestParseCursorOperations(t *testing.T) {
 		// DECLARE CURSOR - ISO syntax with FOR READ_ONLY
 		{
 			name: "declare_cursor_for_read_only",
-			sql:  "DECLARE my_cursor CURSOR FOR SELECT * FROM employees FOR READ_ONLY",
+			sql:  "DECLARE my_cursor CURSOR FOR SELECT * FROM employees FOR READ ONLY",
 		},
 		// DECLARE CURSOR - ISO syntax with FOR UPDATE
 		{
@@ -17261,7 +17286,7 @@ func TestParseKillStatsJob(t *testing.T) {
 		},
 		{
 			name: "kill_stats_job_variable",
-			sql:  "KILL STATS JOB @job_id",
+			sql:  "KILL STATS JOB -1",
 		},
 	}
 
@@ -21637,7 +21662,7 @@ func TestParseVariablesCursorsControlFlowBnfReview(t *testing.T) {
 
 	// DECLARE CURSOR ISO syntax
 	t.Run("declare_cursor_iso", func(t *testing.T) {
-		sql := "DECLARE emp_cursor INSENSITIVE SCROLL CURSOR FOR SELECT * FROM employees FOR READ_ONLY"
+		sql := "DECLARE emp_cursor INSENSITIVE SCROLL CURSOR FOR SELECT * FROM employees FOR READ ONLY"
 		result := ParseAndCheck(t, sql)
 		stmt := result.Items[0].(*ast.DeclareCursorStmt)
 		if stmt.Name != "emp_cursor" {
@@ -21808,21 +21833,21 @@ func TestParseVariablesCursorsControlFlowBnfReview(t *testing.T) {
 
 	// BREAK
 	t.Run("break", func(t *testing.T) {
-		sql := "BREAK"
+		sql := "WHILE 1 = 1 BREAK"
 		ParseAndCheck(t, sql)
 	})
 
 	// CONTINUE
 	t.Run("continue", func(t *testing.T) {
-		sql := "CONTINUE"
+		sql := "WHILE 1 = 1 CONTINUE"
 		ParseAndCheck(t, sql)
 	})
 
-	// RETURN with expression
+	// RETURN with expression, which a procedure or function takes
 	t.Run("return_with_expr", func(t *testing.T) {
-		sql := "RETURN 42"
+		sql := "CREATE PROCEDURE p AS RETURN 42"
 		result := ParseAndCheck(t, sql)
-		stmt := result.Items[0].(*ast.ReturnStmt)
+		stmt := result.Items[0].(*ast.CreateProcedureStmt).Body.(*ast.ReturnStmt)
 		if stmt.Value == nil {
 			t.Error("expected return value")
 		}
@@ -21856,9 +21881,9 @@ func TestParseVariablesCursorsControlFlowBnfReview(t *testing.T) {
 
 	// THROW rethrow (no args)
 	t.Run("throw_rethrow", func(t *testing.T) {
-		sql := "THROW;"
+		sql := "BEGIN TRY SELECT 1 END TRY BEGIN CATCH THROW; END CATCH"
 		result := ParseAndCheck(t, sql)
-		stmt := result.Items[0].(*ast.ThrowStmt)
+		stmt := result.Items[0].(*ast.TryCatchStmt).CatchBlock.Items[0].(*ast.ThrowStmt)
 		if stmt.ErrorNumber != nil {
 			t.Error("expected nil ErrorNumber for rethrow")
 		}
@@ -24140,5 +24165,114 @@ func TestParseBuiltinCallsInContext(t *testing.T) {
 		if _, err := Parse(sql); err == nil {
 			t.Errorf("Parse(%q) = nil error, want SQL Server's rejection", sql)
 		}
+	}
+}
+
+// TestParseProceduralFormsSQLServerTakes pins forms the pinned SQL Server 2022
+// takes, and the ones it refuses, around DBCC options, DECLARE and RETURN.
+func TestParseProceduralFormsSQLServerTakes(t *testing.T) {
+	for _, sql := range []string{
+		"DBCC CHECKCONSTRAINTS WITH ALL_CONSTRAINTS",
+		"DBCC SHOWCONTIG WITH ALL_INDEXES",
+		"DECLARE @pi int, @PI int",
+		"CREATE PROCEDURE p AS SELECT 1; RETURN 0",
+		"ALTER PROCEDURE p AS SET NOCOUNT ON; RETURN 1",
+	} {
+		if _, err := Parse(sql); err != nil {
+			t.Errorf("Parse(%q): %v", sql, err)
+		}
+	}
+	for _, sql := range []string{
+		"DECLARE @pi int, @pi int",
+		"CREATE PROCEDURE p AS SELECT 1\nGO\nRETURN 0",
+		"RAISERROR('failure', 16, @@TRANCOUNT)",
+		"SET ROWCOUNT @@ROWCOUNT",
+		"DBCC CHECKDB WITH NOINDEX",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) = nil error, want SQL Server's rejection", sql)
+		}
+	}
+}
+
+// TestParseProceduralForms1070 pins the forms Codex raised on #1070.
+func TestParseProceduralForms1070(t *testing.T) {
+	ParseAndCheck(t, "BEGIN TRY SELECT 1 END TRY BEGIN CATCH IF 1=1 THROW ELSE PRINT 'no' END CATCH")
+
+	sql := "SET @x.[STLength]()"
+	res := ParseAndCheck(t, sql)
+	fc := res.Items[0].(*ast.SetStmt).Value.(*ast.FuncCallExpr)
+	if got := sql[fc.Name.Loc.Start:fc.Name.Loc.End]; got != "[STLength]" {
+		t.Errorf("method name span = %q, want %q", got, "[STLength]")
+	}
+
+	set := ParseAndCheck(t, "SET DATEFIRST 1, LANGUAGE French").Items[0].(*ast.SetOptionStmt)
+	if set.Values == nil || len(set.Values.Items) != 2 {
+		t.Fatalf("SET DATEFIRST 1, LANGUAGE French: Values = %v, want two values", set.Values)
+	}
+
+	ut := ParseAndCheck(t, "UPDATETEXT t.c @dest 0 0 s.c @src1").Items[0].(*ast.UpdatetextStmt)
+	if v, ok := ut.InsertedTextPtr.(*ast.VariableRef); !ok || v.Name != "@src1" {
+		t.Errorf("UPDATETEXT source text pointer = %#v, want @src1", ut.InsertedTextPtr)
+	}
+}
+
+// TestParseProceduralValuesKept pins operands the AST keeps: DBCC's MAXDOP
+// value and the TIMESTAMP of WRITETEXT and UPDATETEXT.
+func TestParseProceduralValuesKept(t *testing.T) {
+	dbcc := ParseAndCheck(t, "DBCC CHECKDB WITH MAXDOP = 4").Items[0].(*ast.DbccStmt)
+	opt := dbcc.Options.Items[0].(*ast.DbccOption)
+	if lit, ok := opt.Value.(*ast.Literal); !ok || lit.Ival != 4 {
+		t.Errorf("MAXDOP value = %#v, want 4", opt.Value)
+	}
+	if ast.NodeToString(ParseAndCheck(t, "WRITETEXT t.c @ptr TIMESTAMP = 0x01 'data'")) ==
+		ast.NodeToString(ParseAndCheck(t, "WRITETEXT t.c @ptr TIMESTAMP = 0x02 'data'")) {
+		t.Error("WRITETEXT keeps no TIMESTAMP")
+	}
+	if ast.NodeToString(ParseAndCheck(t, "UPDATETEXT t.c @ptr TIMESTAMP = 0x01 0 0 'data'")) ==
+		ast.NodeToString(ParseAndCheck(t, "UPDATETEXT t.c @ptr TIMESTAMP = 0x02 0 0 'data'")) {
+		t.Error("UPDATETEXT keeps no TIMESTAMP")
+	}
+}
+
+// TestParseDbccArgumentsAndOptions pins DBCC's named arguments and the
+// command-specific WITH options the pinned server takes.
+func TestParseDbccArgumentsAndOptions(t *testing.T) {
+	if ast.NodeToString(ParseAndCheck(t, "DBCC a(a = 1)")) == ast.NodeToString(ParseAndCheck(t, "DBCC a(b = 1)")) {
+		t.Error("DBCC keeps no argument name")
+	}
+	for _, sql := range []string{
+		"DBCC CLONEDATABASE(a, b) WITH NO_STATISTICS, NO_QUERYSTORE, VERIFY_CLONEDB, SERVICEBROKER, BACKUP_CLONEDB",
+		"DBCC SHOW_STATISTICS(a, b) WITH HISTOGRAM_STEPS",
+		"DBCC SHRINKDATABASE(a) WITH WAIT_AT_LOW_PRIORITY",
+		"DBCC SHRINKDATABASE(a) WITH WAIT_AT_LOW_PRIORITY(ABORT_AFTER_WAIT = SELF)",
+	} {
+		ParseAndCheck(t, sql)
+	}
+	if _, err := Parse("DBCC CHECKDB WITH NO_STATS"); err == nil {
+		t.Error("DBCC CHECKDB WITH NO_STATS parsed; SQL Server refuses it (Msg 195)")
+	}
+}
+
+// TestParseUpdatetextWithoutDataBeforeGo pins that GO ends an UPDATETEXT
+// whose inserted data is left out.
+func TestParseUpdatetextWithoutDataBeforeGo(t *testing.T) {
+	res := ParseAndCheck(t, "UPDATETEXT t.c @ptr 0 0\nGO")
+	if res.Len() != 2 {
+		t.Errorf("got %d statements, want UPDATETEXT and GO", res.Len())
+	}
+}
+
+// TestParseTextStatementBulk pins that the AST keeps BULK on WRITETEXT and
+// UPDATETEXT.
+func TestParseTextStatementBulk(t *testing.T) {
+	if !ParseAndCheck(t, "WRITETEXT BULK t.c @ptr 'x'").Items[0].(*ast.WritetextStmt).Bulk {
+		t.Error("WRITETEXT BULK: Bulk = false")
+	}
+	if !ParseAndCheck(t, "UPDATETEXT BULK t.c @ptr 0 0 'x'").Items[0].(*ast.UpdatetextStmt).Bulk {
+		t.Error("UPDATETEXT BULK: Bulk = false")
+	}
+	if ParseAndCheck(t, "WRITETEXT t.c @ptr 'x'").Items[0].(*ast.WritetextStmt).Bulk {
+		t.Error("WRITETEXT: Bulk = true")
 	}
 }

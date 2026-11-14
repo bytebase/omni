@@ -1980,23 +1980,22 @@ func TestParseTablespaceAll(t *testing.T) {
 	}{
 		// CREATE TABLESPACE - permanent with full options
 		{"create_perm_basic", "CREATE TABLESPACE users DATAFILE '/u01/users01.dbf' SIZE 100M"},
-		{"create_perm_if_not_exists", "CREATE TABLESPACE users IF NOT EXISTS DATAFILE '/u01/users01.dbf' SIZE 100M"},
+		{"create_perm_if_not_exists", "CREATE TABLESPACE IF NOT EXISTS users DATAFILE '/u01/users01.dbf' SIZE 100M"},
 		{"create_perm_encryption", "CREATE TABLESPACE secure_ts DATAFILE '/u01/secure.dbf' SIZE 500M ENCRYPTION USING 'AES256' ENCRYPT"},
 		{"create_perm_flashback", "CREATE TABLESPACE fb_ts DATAFILE '/u01/fb.dbf' SIZE 100M FLASHBACK ON"},
-		{"create_perm_lost_write", "CREATE TABLESPACE lw_ts DATAFILE '/u01/lw.dbf' SIZE 200M ENABLE LOST WRITE PROTECTION"},
+		{"create_perm_lost_write", "CREATE TABLESPACE lw_ts DATAFILE '/u01/lw.dbf' SIZE 200M LOST WRITE PROTECTION"},
 		{"create_perm_minimum_extent", "CREATE TABLESPACE min_ts DATAFILE '/u01/min.dbf' SIZE 100M MINIMUM EXTENT 64K"},
 		{"create_perm_extent_dictionary", "CREATE TABLESPACE dict_ts DATAFILE '/u01/dict.dbf' SIZE 100M EXTENT MANAGEMENT DICTIONARY"},
-		{"create_perm_filesystem_logging", "CREATE TABLESPACE fs_ts DATAFILE '/u01/fs.dbf' SIZE 100M FILESYSTEM_LIKE_LOGGING"},
 		{"create_perm_default_compress", "CREATE TABLESPACE comp_ts DATAFILE '/u01/comp.dbf' SIZE 100M DEFAULT TABLE COMPRESS FOR OLTP"},
-		{"create_perm_default_row_store", "CREATE TABLESPACE rs_ts DATAFILE '/u01/rs.dbf' SIZE 100M DEFAULT TABLE ROW STORE COMPRESS ADVANCED"},
-		{"create_perm_default_column_store", "CREATE TABLESPACE cs_ts DATAFILE '/u01/cs.dbf' SIZE 100M DEFAULT TABLE COLUMN STORE COMPRESS FOR QUERY HIGH"},
+		{"create_perm_default_row_store", "CREATE TABLESPACE rs_ts DATAFILE '/u01/rs.dbf' SIZE 100M DEFAULT ROW STORE COMPRESS ADVANCED"},
+		{"create_perm_default_column_store", "CREATE TABLESPACE cs_ts DATAFILE '/u01/cs.dbf' SIZE 100M DEFAULT COLUMN STORE COMPRESS FOR QUERY HIGH"},
 		{"create_perm_default_index_compress", "CREATE TABLESPACE ix_ts DATAFILE '/u01/ix.dbf' SIZE 100M DEFAULT INDEX COMPRESS ADVANCED LOW"},
 
 		// CREATE TEMPORARY TABLESPACE
 		{"create_temp", "CREATE TEMPORARY TABLESPACE temp_ts TEMPFILE '/u01/temp.dbf' SIZE 500M"},
 		{"create_temp_group", "CREATE TEMPORARY TABLESPACE temp_ts TEMPFILE '/u01/temp.dbf' SIZE 500M TABLESPACE GROUP temp_group"},
-		{"create_temp_for_all", "CREATE TEMPORARY TABLESPACE temp_ts TEMPFILE '/u01/temp.dbf' SIZE 500M FOR ALL"},
-		{"create_local_temp", "CREATE LOCAL TEMPORARY TABLESPACE temp_ts TEMPFILE '/u01/temp.dbf' SIZE 500M"},
+		{"create_local_temp_for_all", "CREATE LOCAL TEMPORARY TABLESPACE FOR ALL temp_ts TEMPFILE '/u01/temp.dbf' SIZE 500M"},
+		{"create_local_temp_for_leaf", "CREATE LOCAL TEMPORARY TABLESPACE FOR LEAF temp_ts TEMPFILE '/u01/temp.dbf' SIZE 500M"},
 
 		// CREATE UNDO TABLESPACE
 		{"create_undo", "CREATE UNDO TABLESPACE undo_ts DATAFILE '/u01/undo.dbf' SIZE 200M RETENTION GUARANTEE"},
@@ -2028,11 +2027,11 @@ func TestParseTablespaceAll(t *testing.T) {
 		{"alter_flashback_off", "ALTER TABLESPACE users FLASHBACK OFF"},
 		{"alter_retention", "ALTER TABLESPACE undo_ts RETENTION GUARANTEE"},
 		{"alter_encryption_online", "ALTER TABLESPACE secure_ts ENCRYPTION ONLINE"},
-		{"alter_lost_write_disable", "ALTER TABLESPACE users DISABLE LOST WRITE PROTECTION"},
+		{"alter_lost_write_suspend", "ALTER TABLESPACE users SUSPEND LOST WRITE PROTECTION"},
 		{"alter_permanent", "ALTER TABLESPACE temp_ts PERMANENT"},
 		{"alter_temporary", "ALTER TABLESPACE perm_ts TEMPORARY"},
 		{"alter_default_compress", "ALTER TABLESPACE users DEFAULT TABLE COMPRESS FOR OLTP"},
-		{"alter_group", "ALTER TABLESPACE temp_ts GROUP temp_grp"},
+		{"alter_group", "ALTER TABLESPACE temp_ts TABLESPACE GROUP temp_grp"},
 
 		// ALTER TABLESPACE SET
 		{"alter_ts_set_online", "ALTER TABLESPACE SET my_ts_set ONLINE"},
@@ -2067,6 +2066,39 @@ func TestParseTablespaceAll(t *testing.T) {
 			default:
 				t.Fatalf("expected tablespace statement, got %T", raw.Stmt)
 			}
+		})
+	}
+}
+
+// TestParseTablespaceRejects pins tablespace forms the pinned Oracle refuses
+// though the documentation pages show them.
+func TestParseTablespaceRejects(t *testing.T) {
+	for _, sql := range []string{
+		// IF NOT EXISTS goes before the name (ORA-02180 at IF).
+		"CREATE TABLESPACE users IF NOT EXISTS DATAFILE '/u01/users01.dbf' SIZE 100M",
+		// CREATE takes LOST WRITE PROTECTION without ENABLE (ORA-02180).
+		"CREATE TABLESPACE lw_ts DATAFILE '/u01/lw.dbf' SIZE 200M ENABLE LOST WRITE PROTECTION",
+		// FILESYSTEM_LIKE_LOGGING is refused for a tablespace (ORA-02180).
+		"CREATE TABLESPACE fs_ts DATAFILE '/u01/fs.dbf' SIZE 100M FILESYSTEM_LIKE_LOGGING",
+		// DEFAULT TABLE takes only COMPRESS or NOCOMPRESS (ORA-00922).
+		"CREATE TABLESPACE rs_ts DATAFILE '/u01/rs.dbf' SIZE 100M DEFAULT TABLE ROW STORE COMPRESS ADVANCED",
+		// FOR { ALL | LEAF } follows LOCAL TEMPORARY TABLESPACE, before the name.
+		"CREATE TEMPORARY TABLESPACE temp_ts TEMPFILE '/u01/temp.dbf' SIZE 500M FOR ALL",
+		"CREATE LOCAL TEMPORARY TABLESPACE temp_ts TEMPFILE '/u01/temp.dbf' SIZE 500M",
+		// ALTER takes no DISABLE LOST WRITE PROTECTION (ORA-02142).
+		"ALTER TABLESPACE users DISABLE LOST WRITE PROTECTION",
+		// The group clause is TABLESPACE GROUP (ORA-02142 at GROUP).
+		"ALTER TABLESPACE temp_ts GROUP temp_grp",
+		// ALTER takes one clause (ORA-03049 at FLASHBACK).
+		"ALTER TABLESPACE users ENCRYPTION ONLINE USING 'AES256' ENCRYPT FILE_NAME_CONVERT = ('old', 'new') FLASHBACK ON",
+		// A file specification names its file (ORA-02236 at SIZE).
+		"CREATE TABLESPACE SET ts_set1 USING TEMPLATE (DATAFILE SIZE 100M)",
+		"ALTER TABLESPACE ts1 ADD DATAFILE SIZE 200M",
+		// Options are taken once (ORA-25119).
+		"CREATE TABLESPACE ts1 LOGGING NOLOGGING",
+	} {
+		t.Run(sql, func(t *testing.T) {
+			ParseShouldFail(t, sql)
 		})
 	}
 }
@@ -2288,9 +2320,9 @@ func TestParseAlterDatabase(t *testing.T) {
 		{"backup_controlfile_trace", "ALTER DATABASE BACKUP CONTROLFILE TO TRACE"},
 		{"add_logfile", "ALTER DATABASE ADD LOGFILE GROUP 3 '/u01/redo03.log' SIZE 50M"},
 		{"drop_logfile", "ALTER DATABASE DROP LOGFILE GROUP 2"},
-		{"add_datafile", "ALTER DATABASE ADD DATAFILE '/u01/data02.dbf' SIZE 500M"},
+		{"create_datafile", "ALTER DATABASE CREATE DATAFILE '/u01/data02.dbf' AS '/u02/data02.dbf' SIZE 500M"},
 		{"recover", "ALTER DATABASE RECOVER AUTOMATIC"},
-		{"set_default_tablespace", "ALTER DATABASE SET DEFAULT TABLESPACE users"},
+		{"default_tablespace", "ALTER DATABASE DEFAULT TABLESPACE users"},
 		{"flashback_on", "ALTER DATABASE FLASHBACK ON"},
 		{"flashback_off", "ALTER DATABASE FLASHBACK OFF"},
 		{"named", "ALTER DATABASE mydb MOUNT"},
@@ -2981,9 +3013,9 @@ func TestParseAdministerKeyMgmt(t *testing.T) {
 		{"use_key", "ADMINISTER KEY MANAGEMENT USE KEY 'key_id_123' IDENTIFIED BY password1 WITH BACKUP"},
 		{"backup_keystore", "ADMINISTER KEY MANAGEMENT BACKUP KEYSTORE IDENTIFIED BY password1 TO '/backup/'"},
 		{"alter_password", "ADMINISTER KEY MANAGEMENT ALTER KEYSTORE PASSWORD IDENTIFIED BY old_pass SET new_pass WITH BACKUP"},
-		{"export_keys", "ADMINISTER KEY MANAGEMENT EXPORT KEYS WITH SECRET 'my_secret' TO '/tmp/export.p12' IDENTIFIED BY password1"},
-		{"import_keys", "ADMINISTER KEY MANAGEMENT IMPORT KEYS WITH SECRET 'my_secret' FROM '/tmp/export.p12' IDENTIFIED BY password1 WITH BACKUP"},
-		{"merge_keystore", "ADMINISTER KEY MANAGEMENT MERGE KEYSTORE '/u01/ks1' AND '/u01/ks2' IDENTIFIED BY password1 INTO NEW KEYSTORE '/u01/merged' IDENTIFIED BY password2"},
+		{"export_keys", "ADMINISTER KEY MANAGEMENT EXPORT KEYS WITH SECRET my_secret TO '/tmp/export.p12' IDENTIFIED BY password1"},
+		{"import_keys", "ADMINISTER KEY MANAGEMENT IMPORT KEYS WITH SECRET my_secret FROM '/tmp/export.p12' IDENTIFIED BY password1 WITH BACKUP"},
+		{"merge_keystore", "ADMINISTER KEY MANAGEMENT MERGE KEYSTORE '/u01/ks1' AND KEYSTORE '/u01/ks2' IDENTIFIED BY password1 INTO NEW KEYSTORE '/u01/merged' IDENTIFIED BY password2"},
 		{"add_secret", "ADMINISTER KEY MANAGEMENT ADD SECRET 'secret1' FOR CLIENT 'client1' IDENTIFIED BY password1"},
 		{"set_tag", "ADMINISTER KEY MANAGEMENT SET TAG 'mytag' FOR 'key123' IDENTIFIED BY password1 WITH BACKUP"},
 		{"external_store", "ADMINISTER KEY MANAGEMENT SET KEY IDENTIFIED BY EXTERNAL STORE WITH BACKUP"},
@@ -3896,8 +3928,8 @@ func TestBatch74_TablespaceSet(t *testing.T) {
 		name string
 		sql  string
 	}{
-		{"create_tablespace_set", "CREATE TABLESPACE SET ts_set1 IN SHARDSPACE shardspace1 USING TEMPLATE (DATAFILE SIZE 100M)"},
-		{"alter_tablespace_set", "ALTER TABLESPACE SET ts_set1 ADD DATAFILE SIZE 200M"},
+		{"create_tablespace_set", "CREATE TABLESPACE SET ts_set1 IN SHARDSPACE shardspace1 USING TEMPLATE (SEGMENT SPACE MANAGEMENT AUTO)"},
+		{"alter_tablespace_set", "ALTER TABLESPACE SET ts_set1 RESIZE 200M"},
 		{"drop_tablespace_set", "DROP TABLESPACE SET ts_set1"},
 	}
 	for _, tt := range tests {
@@ -5044,7 +5076,7 @@ func TestParseAlterDatabaseProper(t *testing.T) {
 		{"drop_standby_logfile", "ALTER DATABASE DROP STANDBY LOGFILE GROUP 10"},
 		{"clear_logfile", "ALTER DATABASE CLEAR LOGFILE GROUP 3"},
 		{"clear_unarchived_logfile", "ALTER DATABASE CLEAR UNARCHIVED LOGFILE GROUP 3"},
-		{"switch_logfile", "ALTER DATABASE SWITCH ALL LOGFILE"},
+		{"switch_logfile", "ALTER DATABASE SWITCH ALL LOGFILES TO BLOCKSIZE 4096"},
 
 		// controlfile_clauses
 		{"backup_controlfile_to", "ALTER DATABASE BACKUP CONTROLFILE TO '/u01/backup.ctl'"},
@@ -5069,7 +5101,7 @@ func TestParseAlterDatabaseProper(t *testing.T) {
 		{"flashback_on", "ALTER DATABASE FLASHBACK ON"},
 		{"flashback_off", "ALTER DATABASE FLASHBACK OFF"},
 		{"set_time_zone", "ALTER DATABASE SET TIME_ZONE = '+08:00'"},
-		{"default_edition", "ALTER DATABASE DEFAULT EDITION myedition"},
+		{"default_edition", "ALTER DATABASE DEFAULT EDITION = myedition"},
 
 		// security_clause
 		{"guard_all", "ALTER DATABASE GUARD ALL"},
@@ -5089,8 +5121,6 @@ func TestParseAlterDatabaseProper(t *testing.T) {
 		{"drop_supplemental_log", "ALTER DATABASE DROP SUPPLEMENTAL LOG DATA"},
 
 		// lost write protection / suspend resume
-		{"suspend", "ALTER DATABASE SUSPEND"},
-		{"resume", "ALTER DATABASE RESUME"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -5243,10 +5273,10 @@ func TestParseDatabaseControlfileBatch94(t *testing.T) {
 
 		// commit_switchover_clause
 		{"alter_db_prepare_switchover_logical", "ALTER DATABASE PREPARE TO SWITCHOVER TO LOGICAL STANDBY"},
-		{"alter_db_prepare_switchover_primary", "ALTER DATABASE PREPARE TO SWITCHOVER TO PRIMARY DATABASE"},
+		{"alter_db_prepare_switchover_primary", "ALTER DATABASE PREPARE TO SWITCHOVER TO PRIMARY"},
 		{"alter_db_commit_switchover_standby", "ALTER DATABASE COMMIT TO SWITCHOVER TO STANDBY"},
 		{"alter_db_commit_switchover_logical", "ALTER DATABASE COMMIT TO SWITCHOVER TO LOGICAL STANDBY"},
-		{"alter_db_commit_switchover_primary", "ALTER DATABASE COMMIT TO SWITCHOVER TO PRIMARY DATABASE"},
+		{"alter_db_commit_switchover_primary", "ALTER DATABASE COMMIT TO SWITCHOVER TO PRIMARY"},
 
 		// start/stop standby apply
 		{"alter_db_start_standby_apply", "ALTER DATABASE START LOGICAL STANDBY APPLY"},
@@ -5254,22 +5284,22 @@ func TestParseDatabaseControlfileBatch94(t *testing.T) {
 		{"alter_db_stop_standby_apply", "ALTER DATABASE STOP LOGICAL STANDBY APPLY"},
 
 		// switchover/failover clause
-		{"alter_db_switchover_to", "ALTER DATABASE SWITCHOVER TO PRIMARY VERIFY FORCE mydb"},
-		{"alter_db_failover_to", "ALTER DATABASE FAILOVER TO PHYSICAL STANDBY FORCE mydb"},
+		{"alter_db_switchover_to", "ALTER DATABASE SWITCHOVER TO mydb VERIFY FORCE"},
+		{"alter_db_failover_to", "ALTER DATABASE FAILOVER TO mydb FORCE"},
 
 		// instance_clauses: ENABLE/DISABLE RESTRICTED SESSION
-		{"alter_db_enable_restricted", "ALTER DATABASE ENABLE RESTRICTED SESSION"},
-		{"alter_db_disable_restricted", "ALTER DATABASE DISABLE RESTRICTED SESSION"},
+		{"alter_db_enable_thread", "ALTER DATABASE ENABLE PUBLIC THREAD 2"},
+		{"alter_db_disable_thread", "ALTER DATABASE DISABLE THREAD 2"},
 
 		// cdb_fleet_clauses
-		{"alter_db_set_lead_cdb", "ALTER DATABASE SET LEAD_CDB = mydb"},
-		{"alter_db_set_lead_cdb_none", "ALTER DATABASE SET LEAD_CDB = NONE"},
+		{"alter_db_set_lead_cdb", "ALTER DATABASE SET LEAD_CDB = TRUE"},
+		{"alter_db_set_lead_cdb_none", "ALTER DATABASE SET LEAD_CDB = FALSE"},
 		{"alter_db_set_lead_cdb_uri", "ALTER DATABASE SET LEAD_CDB_URI = 'jdbc:oracle:thin:@//host:1521/mydb'"},
-		{"alter_db_set_property", "ALTER DATABASE SET PROPERTY myprop = myval"},
+		{"alter_db_property_set", "ALTER DATABASE PROPERTY SET myprop = 'myval'"},
 
 		// replay_upgrade_clause
-		{"alter_db_start_replay", "ALTER DATABASE START REPLAY"},
-		{"alter_db_stop_replay", "ALTER DATABASE STOP REPLAY"},
+		{"alter_db_start_logical_apply", "ALTER DATABASE START LOGICAL STANDBY APPLY IMMEDIATE NODELAY"},
+		{"alter_db_abort_logical_apply", "ALTER DATABASE ABORT LOGICAL STANDBY APPLY"},
 
 		// ENCRYPT/DECRYPT for datafile
 		{"alter_db_datafile_encrypt", "ALTER DATABASE DATAFILE '/u01/data01.dbf' ENCRYPT"},
@@ -5287,16 +5317,16 @@ func TestParseDatabaseControlfileBatch94(t *testing.T) {
 		{"alter_db_set_standby_nologging_load", "ALTER DATABASE SET STANDBY NOLOGGING FOR LOAD PERFORMANCE"},
 
 		// supplemental_db_logging sub-clauses
-		{"alter_db_add_supp_log_pk", "ALTER DATABASE ADD SUPPLEMENTAL LOG DATA (PRIMARY KEY COLUMNS)"},
-		{"alter_db_add_supp_log_unique", "ALTER DATABASE ADD SUPPLEMENTAL LOG DATA (UNIQUE COLUMNS)"},
-		{"alter_db_add_supp_log_fk", "ALTER DATABASE ADD SUPPLEMENTAL LOG DATA (FOREIGN KEY COLUMNS)"},
-		{"alter_db_add_supp_log_all", "ALTER DATABASE ADD SUPPLEMENTAL LOG DATA (ALL COLUMNS)"},
-		{"alter_db_drop_supp_log_pk", "ALTER DATABASE DROP SUPPLEMENTAL LOG DATA (PRIMARY KEY COLUMNS)"},
+		{"alter_db_add_supp_log_pk", "ALTER DATABASE ADD SUPPLEMENTAL LOG DATA (PRIMARY KEY) COLUMNS"},
+		{"alter_db_add_supp_log_unique", "ALTER DATABASE ADD SUPPLEMENTAL LOG DATA (UNIQUE) COLUMNS"},
+		{"alter_db_add_supp_log_fk", "ALTER DATABASE ADD SUPPLEMENTAL LOG DATA (FOREIGN KEY) COLUMNS"},
+		{"alter_db_add_supp_log_all", "ALTER DATABASE ADD SUPPLEMENTAL LOG DATA (ALL) COLUMNS"},
+		{"alter_db_drop_supp_log_pk", "ALTER DATABASE DROP SUPPLEMENTAL LOG DATA (PRIMARY KEY) COLUMNS"},
 		{"alter_db_add_supp_log_subset", "ALTER DATABASE ADD SUPPLEMENTAL LOG DATA SUBSET DATABASE REPLICATION"},
 		{"alter_db_drop_supp_log_subset", "ALTER DATABASE DROP SUPPLEMENTAL LOG DATA SUBSET DATABASE REPLICATION"},
 
 		// SWITCH LOGFILE TO BLOCK SIZE
-		{"alter_db_switch_logfile_blocksize", "ALTER DATABASE SWITCH LOGFILE TO BLOCK SIZE 4096"},
+		{"alter_db_switch_logfile_blocksize", "ALTER DATABASE SWITCH ALL LOGFILES TO BLOCKSIZE 4096"},
 
 		// CLEAR LOGFILE with UNRECOVERABLE DATAFILE
 		{"alter_db_clear_logfile_unrecoverable", "ALTER DATABASE CLEAR LOGFILE GROUP 3 UNRECOVERABLE DATAFILE"},
@@ -5309,7 +5339,7 @@ func TestParseDatabaseControlfileBatch94(t *testing.T) {
 		{"alter_db_default_local_temp", "ALTER DATABASE DEFAULT LOCAL TEMPORARY TABLESPACE localtemp"},
 
 		// SET UNDO TABLESPACE
-		{"alter_db_set_undo_tablespace", "ALTER DATABASE SET UNDO TABLESPACE = undots2"},
+		{"alter_db_default_local_temp_tablespace", "ALTER DATABASE DEFAULT LOCAL TEMPORARY TABLESPACE temp2"},
 
 		// ENABLE/DISABLE LOST WRITE PROTECTION
 		{"alter_db_enable_lost_write", "ALTER DATABASE ENABLE LOST WRITE PROTECTION"},
@@ -5317,7 +5347,7 @@ func TestParseDatabaseControlfileBatch94(t *testing.T) {
 
 		// PREPARE MIRROR COPY / DROP MIRROR COPY
 		{"alter_db_prepare_mirror", "ALTER DATABASE PREPARE MIRROR COPY mirrorname"},
-		{"alter_db_drop_mirror", "ALTER DATABASE DROP MIRROR COPY"},
+		{"alter_db_drop_mirror", "ALTER DATABASE DROP MIRROR COPY mc1"},
 
 		// ENABLE BLOCK CHANGE TRACKING USING FILE '+diskgroup'
 		{"alter_db_enable_bct_asm", "ALTER DATABASE ENABLE BLOCK CHANGE TRACKING USING FILE '+DATA/bct.f'"},
@@ -5338,7 +5368,7 @@ func TestParseDatabaseControlfileBatch94(t *testing.T) {
 		{"alter_db_managed_standby_finish_force", "ALTER DATABASE RECOVER MANAGED STANDBY DATABASE FINISH FORCE"},
 
 		// REGISTER LOGFILE from managed standby context
-		{"alter_db_register_logfile_or_replace", "ALTER DATABASE REGISTER LOGFILE '/u01/arch01.log' OR REPLACE"},
+		{"alter_db_register_logfile_or_replace", "ALTER DATABASE REGISTER OR REPLACE LOGFILE '/u01/arch01.log'"},
 	}
 
 	for _, tc := range tests {
@@ -9255,9 +9285,9 @@ func TestBatch106_ReviewBundleTxnUtilityDclDrop(t *testing.T) {
 		{"akm_use_key", "ADMINISTER KEY MANAGEMENT USE KEY 'key_id_123' IDENTIFIED BY password1 WITH BACKUP"},
 		{"akm_backup", "ADMINISTER KEY MANAGEMENT BACKUP KEYSTORE IDENTIFIED BY password1 TO '/backup/'"},
 		{"akm_alter_pass", "ADMINISTER KEY MANAGEMENT ALTER KEYSTORE PASSWORD IDENTIFIED BY old_pass SET new_pass WITH BACKUP"},
-		{"akm_export", "ADMINISTER KEY MANAGEMENT EXPORT KEYS WITH SECRET 'my_secret' TO '/tmp/export.p12' IDENTIFIED BY password1"},
-		{"akm_import", "ADMINISTER KEY MANAGEMENT IMPORT KEYS WITH SECRET 'my_secret' FROM '/tmp/export.p12' IDENTIFIED BY password1 WITH BACKUP"},
-		{"akm_merge", "ADMINISTER KEY MANAGEMENT MERGE KEYSTORE '/u01/ks1' AND '/u01/ks2' IDENTIFIED BY password1 INTO NEW KEYSTORE '/u01/merged' IDENTIFIED BY password2"},
+		{"akm_export", "ADMINISTER KEY MANAGEMENT EXPORT KEYS WITH SECRET my_secret TO '/tmp/export.p12' IDENTIFIED BY password1"},
+		{"akm_import", "ADMINISTER KEY MANAGEMENT IMPORT KEYS WITH SECRET my_secret FROM '/tmp/export.p12' IDENTIFIED BY password1 WITH BACKUP"},
+		{"akm_merge", "ADMINISTER KEY MANAGEMENT MERGE KEYSTORE '/u01/ks1' AND KEYSTORE '/u01/ks2' IDENTIFIED BY password1 INTO NEW KEYSTORE '/u01/merged' IDENTIFIED BY password2"},
 		{"akm_add_secret", "ADMINISTER KEY MANAGEMENT ADD SECRET 'secret1' FOR CLIENT 'client1' IDENTIFIED BY password1"},
 		{"akm_set_tag", "ADMINISTER KEY MANAGEMENT SET TAG 'mytag' FOR 'key123' IDENTIFIED BY password1 WITH BACKUP"},
 

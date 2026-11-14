@@ -258,25 +258,13 @@ func (p *Parser) parseWrappedTableReference() (ast.TableExpr, error) {
 //
 //	tableNonJoin                           # JoinRhsBase
 //	PAREN_LEFT tableReference PAREN_RIGHT  # JoinRhsTableJoined
+//
+// The two alternatives are those of parseTablePrimary, tableNonJoin and a
+// parenthesized tableReference, and a '(' is read both ways as there: as
+// the source of a base reference, which takes an alias, `a, (b) x`, or as a
+// wrapped table reference, `a, (b CROSS JOIN c)`.
 func (p *Parser) parseJoinRhs() (ast.TableExpr, error) {
-	if p.cur.Type == tokPAREN_LEFT {
-		p.advance() // consume (
-		inner, err := p.parseTableReference()
-		if err != nil {
-			return nil, err
-		}
-		if _, err := p.expect(tokPAREN_RIGHT); err != nil {
-			return nil, err
-		}
-		return inner, nil
-	}
-
-	// UNPIVOT.
-	if p.cur.Type == tokUNPIVOT {
-		return p.parseTableUnpivot()
-	}
-
-	return p.parseTableBaseReference()
+	return p.parseTablePrimary()
 }
 
 // parseTableBaseReference parses a source expression with optional
@@ -302,12 +290,17 @@ func (p *Parser) parseTableBaseReference() (ast.TableExpr, error) {
 	// TableExpr, so it flows through the alias handling below like any other FROM
 	// source (the parenthesised many-pattern form is instead parsed inside
 	// parseParenExpr -> parseGraphMatch and arrives here already as a MatchExpr).
+	implicitAlias := true
 	if p.cur.Type == tokMATCH {
 		match, matchErr := p.parseGraphMatchOne(source)
 		if matchErr != nil {
 			return nil, matchErr
 		}
 		source = match
+		// TableBaseRefMatch takes AS, AT and BY aliases, and no bare alias:
+		// only TableBaseRefSymbol, whose source is an exprSelect, does
+		// (PartiQLParser.g4:481-483).
+		implicitAlias = false
 	}
 
 	// Try to parse optional aliases. We detect bare alias (implicit AS)
@@ -315,7 +308,7 @@ func (p *Parser) parseTableBaseReference() (ast.TableExpr, error) {
 	// keyword that starts a clause. The grammar rule
 	// tableBaseReference#TableBaseRefSymbol allows a bare symbolPrimitive
 	// alias without AS.
-	as, at, by, endLoc, err := p.parseTableAliases()
+	as, at, by, endLoc, err := p.parseTableAliases(implicitAlias)
 	if err != nil {
 		return nil, err
 	}
@@ -357,7 +350,9 @@ func exprAsTableExpr(expr ast.ExprNode) ast.TableExpr {
 //
 // Also handles the implicit AS form (bare symbolPrimitive) per
 // TableBaseRefSymbol (line 403) and TableBaseRefClauses (line 404).
-func (p *Parser) parseTableAliases() (as, at, by *string, endLoc int, err error) {
+//
+// implicitAlias says whether a bare symbolPrimitive is read as the AS alias.
+func (p *Parser) parseTableAliases(implicitAlias bool) (as, at, by *string, endLoc int, err error) {
 	// AS alias (explicit or implicit).
 	if p.cur.Type == tokAS {
 		p.advance() // consume AS
@@ -367,17 +362,18 @@ func (p *Parser) parseTableAliases() (as, at, by *string, endLoc int, err error)
 		}
 		as = &name
 		endLoc = nameLoc.End
-	} else if p.cur.Type == tokIDENT || p.cur.Type == tokIDENT_QUOTED {
+	} else if implicitAlias && (p.cur.Type == tokIDENT || p.cur.Type == tokIDENT_QUOTED) {
 		// Implicit AS: bare identifier. Only if it does not look like a
 		// keyword that starts the next clause. The lexer classifies
 		// keywords as their specific tok constants, not tokIDENT, so if
 		// cur.Type is tokIDENT it is safe to treat as an alias.
+		// TableBaseRefSymbol is `exprSelect symbolPrimitive` with no AT or
+		// BY after it (PartiQLParser.g4:481), so the chain ends here.
 		name, _, nameLoc, parseErr := p.parseSymbolPrimitive()
 		if parseErr != nil {
 			return nil, nil, nil, 0, parseErr
 		}
-		as = &name
-		endLoc = nameLoc.End
+		return &name, nil, nil, nameLoc.End, nil
 	}
 
 	// AT alias.

@@ -38,6 +38,19 @@ type Parser struct {
 	graphMatchDepth int
 
 	depth int // nesting depth of the productions being parsed (see enterNesting)
+
+	// procWhileDepth, procCatchDepth and procRoutineDepth count the WHILE
+	// bodies, CATCH blocks and procedure or function bodies being parsed:
+	// BREAK and CONTINUE need a WHILE, THROW without arguments a CATCH
+	// block, and RETURN with a value a routine (control_flow.go).
+	procWhileDepth   int
+	procCatchDepth   int
+	procRoutineDepth int
+	// procedureBatch is set by CREATE or ALTER PROCEDURE and cleared by GO:
+	// a procedure's body runs to the end of its batch, so every statement
+	// after AS is the procedure's (procedureStatementBody, TSql160.g), and a
+	// RETURN there may take a value.
+	procedureBatch bool
 }
 
 // enterSearchCondition / leaveSearchCondition push and pop the boolean
