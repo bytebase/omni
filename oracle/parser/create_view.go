@@ -6,11 +6,11 @@ import (
 	nodes "github.com/bytebase/omni/oracle/ast"
 )
 
-// parseCreateViewStmt parses a CREATE [OR REPLACE] VIEW or CREATE MATERIALIZED VIEW statement.
+// parseCreateViewStmt parses a CREATE [OR REPLACE] VIEW statement.
 // The CREATE keyword has already been consumed. orReplace is set if OR REPLACE was parsed.
+// CREATE MATERIALIZED VIEW is parseCreateMaterializedViewStmt's.
 //
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/CREATE-VIEW.html
-// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/CREATE-MATERIALIZED-VIEW.html
 //
 //	CREATE [ OR REPLACE ]
 //	    [ { FORCE | NOFORCE } ]
@@ -25,63 +25,45 @@ import (
 //	    AS select_statement
 //	    [ WITH { READ ONLY | CHECK OPTION } [ CONSTRAINT constraint_name ] ]
 //	    [ CONTAINER_MAP | CONTAINERS_DEFAULT ]
-//
-//	CREATE [ OR REPLACE ] MATERIALIZED VIEW [schema.]mview_name
-//	    [ IF NOT EXISTS ]
-//	    [ { BUILD IMMEDIATE | BUILD DEFERRED } ]
-//	    [ REFRESH ... ]
-//	    [ ON PREBUILT TABLE ... ]
-//	    [ NEVER REFRESH ]
-//	    [ ENABLE | DISABLE QUERY REWRITE ]
-//	    AS select_statement
 func (p *Parser) parseCreateViewStmt(start int, orReplace bool) (*nodes.CreateViewStmt, error) {
 	stmt := &nodes.CreateViewStmt{
 		OrReplace: orReplace,
 		Loc:       nodes.Loc{Start: start},
 	}
 
-	// MATERIALIZED VIEW
-	if p.cur.Type == kwMATERIALIZED {
-		stmt.Materialized = true
+	// [FORCE | NOFORCE] [EDITIONING] [EDITIONABLE | NONEDITIONABLE] VIEW
+	if p.cur.Type == kwFORCE {
+		stmt.Force = true
 		p.advance()
-		if p.cur.Type == kwVIEW {
-			p.advance()
-		}
-	} else {
-		// [FORCE | NOFORCE] [EDITIONING] [EDITIONABLE | NONEDITIONABLE] VIEW
+	} else if p.isIdentLike() && p.cur.Str == "NOFORCE" {
+		stmt.NoForce = true
+		p.advance()
+	} else if p.isIdentLike() && p.cur.Str == "NO" {
+		// NO FORCE
+		stmt.NoForce = true
+		p.advance()
 		if p.cur.Type == kwFORCE {
-			stmt.Force = true
 			p.advance()
-		} else if p.isIdentLike() && p.cur.Str == "NOFORCE" {
-			stmt.NoForce = true
-			p.advance()
-		} else if p.isIdentLike() && p.cur.Str == "NO" {
-			// NO FORCE
-			stmt.NoForce = true
-			p.advance()
-			if p.cur.Type == kwFORCE {
-				p.advance()
-			}
 		}
+	}
 
-		// EDITIONING
-		if p.isIdentLike() && p.cur.Str == "EDITIONING" {
-			stmt.Editioning = true
-			p.advance()
-		}
+	// EDITIONING
+	if p.isIdentLike() && p.cur.Str == "EDITIONING" {
+		stmt.Editioning = true
+		p.advance()
+	}
 
-		// EDITIONABLE | NONEDITIONABLE
-		if p.isIdentLike() && p.cur.Str == "EDITIONABLE" {
-			stmt.Editionable = "EDITIONABLE"
-			p.advance()
-		} else if p.isIdentLike() && p.cur.Str == "NONEDITIONABLE" {
-			stmt.Editionable = "NONEDITIONABLE"
-			p.advance()
-		}
+	// EDITIONABLE | NONEDITIONABLE
+	if p.isIdentLike() && p.cur.Str == "EDITIONABLE" {
+		stmt.Editionable = "EDITIONABLE"
+		p.advance()
+	} else if p.isIdentLike() && p.cur.Str == "NONEDITIONABLE" {
+		stmt.Editionable = "NONEDITIONABLE"
+		p.advance()
+	}
 
-		if p.cur.Type == kwVIEW {
-			p.advance()
-		}
+	if p.cur.Type == kwVIEW {
+		p.advance()
 	}
 
 	return p.finishCreateViewStmt(stmt)
@@ -152,7 +134,7 @@ func (p *Parser) finishCreateViewStmt(stmt *nodes.CreateViewStmt) (*nodes.Create
 	}
 
 	// Optional column alias list: ( col1, col2, ... )
-	if p.cur.Type == '(' && !stmt.Materialized {
+	if p.cur.Type == '(' {
 		p.advance()
 		stmt.Columns = &nodes.List{}
 		for {
@@ -267,13 +249,6 @@ func (p *Parser) finishCreateViewStmt(stmt *nodes.CreateViewStmt) (*nodes.Create
 		p.advance()
 	}
 
-	// Materialized view options (before AS)
-	if stmt.Materialized {
-		if err := p.parseMaterializedViewOptions(stmt); err != nil {
-			return nil, err
-		}
-	}
-
 	// AS select_statement
 	if p.cur.Type == kwAS {
 		p.advance()
@@ -314,281 +289,6 @@ func (p *Parser) finishCreateViewStmt(stmt *nodes.CreateViewStmt) (*nodes.Create
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
-}
-
-// parseMaterializedViewOptions parses BUILD, REFRESH, and other options for materialized views.
-func (p *Parser) parseMaterializedViewOptions(stmt *nodes.CreateViewStmt) error {
-	seenRefresh := false
-	for {
-		switch {
-		case p.isIdentLike() && p.cur.Str == "BUILD":
-			p.advance() // consume BUILD
-			if p.cur.Type == kwIMMEDIATE || (p.isIdentLike() && p.cur.Str == "IMMEDIATE") {
-				stmt.BuildMode = "IMMEDIATE"
-				p.advance()
-			} else if p.cur.Type == kwDEFERRED || (p.isIdentLike() && p.cur.Str == "DEFERRED") {
-				stmt.BuildMode = "DEFERRED"
-				p.advance()
-			}
-
-		case p.cur.Type == kwON && p.isIdentLikeStrAt(p.peekNext(), "PREBUILT"):
-			// ON PREBUILT TABLE [ { WITH | WITHOUT } REDUCED PRECISION ]
-			p.advance() // consume ON
-			p.advance() // consume PREBUILT
-			if p.isIdentLike() && p.cur.Str == "TABLE" {
-				p.advance()
-			}
-			stmt.OnPrebuilt = true
-			if p.cur.Type == kwWITH {
-				p.advance()
-				if p.isIdentLike() && p.cur.Str == "REDUCED" {
-					p.advance()
-					if p.isIdentLike() && p.cur.Str == "PRECISION" {
-						p.advance()
-					}
-				}
-				stmt.ReducedPrec = "WITH_REDUCED"
-			} else if p.isIdentLike() && p.cur.Str == "WITHOUT" {
-				p.advance()
-				if p.isIdentLike() && p.cur.Str == "REDUCED" {
-					p.advance()
-					if p.isIdentLike() && p.cur.Str == "PRECISION" {
-						p.advance()
-					}
-				}
-				stmt.ReducedPrec = "WITHOUT_REDUCED"
-			}
-
-		case p.isIdentLike() && p.cur.Str == "NEVER":
-			// NEVER REFRESH
-			p.advance()
-			if p.cur.Type == kwREFRESH {
-				p.advance()
-			}
-			stmt.NeverRefresh = true
-
-		case p.cur.Type == kwREFRESH:
-			seenRefresh = true
-			p.advance()
-			// FAST | COMPLETE | FORCE
-			if p.isIdentLike() && p.cur.Str == "FAST" {
-				stmt.RefreshMethod = "FAST"
-				p.advance()
-			} else if p.isIdentLike() && p.cur.Str == "COMPLETE" {
-				stmt.RefreshMethod = "COMPLETE"
-				p.advance()
-			} else if p.cur.Type == kwFORCE {
-				stmt.RefreshMethod = "FORCE"
-				p.advance()
-			}
-			// ON COMMIT | ON DEMAND | ON STATEMENT
-			if p.cur.Type == kwON {
-				p.advance()
-				if p.cur.Type == kwCOMMIT {
-					stmt.RefreshMode = "ON COMMIT"
-					p.advance()
-				} else if p.isIdentLike() && p.cur.Str == "DEMAND" {
-					stmt.RefreshMode = "ON DEMAND"
-					p.advance()
-				} else if p.isIdentLike() && p.cur.Str == "STATEMENT" {
-					stmt.RefreshMode = "ON STATEMENT"
-					stmt.RefreshOnStmt = true
-					p.advance()
-				}
-			}
-			// START WITH expr
-			if p.cur.Type == kwSTART {
-				p.advance()
-				if p.cur.Type == kwWITH {
-					p.advance()
-				}
-				var parseErr592 error
-				stmt.StartWith, parseErr592 = p.parseExpr()
-				if parseErr592 !=
-
-					// NEXT expr
-					nil {
-					return parseErr592
-				}
-			}
-
-			if p.cur.Type == kwNEXT {
-				p.advance()
-				var parseErr593 error
-				stmt.Next, parseErr593 = p.parseExpr()
-				if parseErr593 !=
-
-					// WITH PRIMARY KEY | WITH ROWID
-					nil {
-					return parseErr593
-				}
-			}
-
-			if p.cur.Type == kwWITH {
-				p.advance()
-				if p.cur.Type == kwPRIMARY {
-					p.advance()
-					if p.cur.Type == kwKEY {
-						p.advance()
-					}
-					stmt.WithPK = true
-				} else if p.cur.Type == kwROWID {
-					stmt.WithRowID = true
-					p.advance()
-				}
-			}
-			// USING ... (skip)
-			if p.cur.Type == kwUSING {
-				p.advance()
-				// skip rollback segment or constraints spec
-				for p.cur.Type != ';' && p.cur.Type != tokEOF &&
-					p.cur.Type != kwENABLE && p.cur.Type != kwDISABLE &&
-					p.cur.Type != kwAS && !(p.isIdentLike() && p.cur.Str == "BUILD") &&
-					p.cur.Type != kwREFRESH && p.cur.Type != kwCACHE &&
-					p.cur.Type != kwNOCACHE && p.cur.Type != kwPARALLEL &&
-					p.cur.Type != kwNOPARALLEL {
-					p.advance()
-				}
-			}
-
-		case p.cur.Type == kwUSING && p.peekNext().Type == kwINDEX:
-			// USING INDEX index_properties (default index storage for the
-			// mview). Properties only: Oracle rejects an index name or a
-			// nested CREATE INDEX here (ORA-02000).
-			p.advance() // consume USING
-			p.advance() // consume INDEX
-			var cs constraintState
-			if err := p.parseUsingIndexProperties(&cs); err != nil {
-				return err
-			}
-
-		case p.cur.Type == kwUSING && p.isIdentLikeStrAt(p.peekNext(), "NO"):
-			// USING NO INDEX
-			p.advance() // consume USING
-			p.advance() // consume NO
-			if p.cur.Type != kwINDEX {
-				return p.syntaxErrorAtCur()
-			}
-			p.advance() // consume INDEX
-
-		case seenRefresh && p.cur.Type == kwUSING &&
-			(p.isIdentLikeStrAt(p.peekNext(), "TRUSTED") || p.isIdentLikeStrAt(p.peekNext(), "ENFORCED")):
-			// USING { TRUSTED | ENFORCED } CONSTRAINTS — part of create_mv_refresh;
-			// Oracle rejects it without a preceding REFRESH clause.
-			p.advance() // consume USING
-			p.advance() // consume TRUSTED/ENFORCED
-			if p.cur.Type != kwCONSTRAINTS {
-				return p.syntaxErrorAtCur()
-			}
-			p.advance() // consume CONSTRAINTS
-
-		case p.cur.Type == kwENABLE:
-			p.advance()
-			if p.isIdentLike() && p.cur.Str == "QUERY" {
-				p.advance()
-				if p.cur.Type == kwREWRITE {
-					p.advance()
-				}
-				stmt.EnableQuery = true
-			} else if p.cur.Type == kwON {
-				// ENABLE ON QUERY COMPUTATION
-				p.advance()
-				if p.isIdentLike() && p.cur.Str == "QUERY" {
-					p.advance()
-					if p.isIdentLike() && p.cur.Str == "COMPUTATION" {
-						p.advance()
-					}
-				}
-				stmt.EnableOnQueryComputation = true
-			} else {
-				stmt.EnableQuery = true
-			}
-
-		case p.cur.Type == kwDISABLE:
-			p.advance()
-			if p.isIdentLike() && p.cur.Str == "QUERY" {
-				p.advance()
-				if p.cur.Type == kwREWRITE {
-					p.advance()
-				}
-				stmt.DisableQuery = true
-			} else if p.cur.Type == kwON {
-				// DISABLE ON QUERY COMPUTATION
-				p.advance()
-				if p.isIdentLike() && p.cur.Str == "QUERY" {
-					p.advance()
-					if p.isIdentLike() && p.cur.Str == "COMPUTATION" {
-						p.advance()
-					}
-				}
-				stmt.DisableOnQueryComputation = true
-			} else {
-				stmt.DisableQuery = true
-			}
-
-		case p.cur.Type == kwCACHE:
-			stmt.CacheMode = "CACHE"
-			p.advance()
-
-		case p.cur.Type == kwNOCACHE:
-			stmt.CacheMode = "NOCACHE"
-			p.advance()
-
-		case p.cur.Type == kwPARALLEL:
-			stmt.ParallelMode = "PARALLEL"
-			p.advance()
-			if p.cur.Type == tokICONST {
-				stmt.ParallelDegree = p.cur.Str
-				p.advance()
-			}
-
-		case p.cur.Type == kwNOPARALLEL:
-			stmt.ParallelMode = "NOPARALLEL"
-			p.advance()
-
-		case p.cur.Type == kwLOGGING:
-			p.advance()
-
-		case p.cur.Type == kwNOLOGGING:
-			p.advance()
-
-		case p.isIdentLike() && p.cur.Str == "SEGMENT":
-			// SEGMENT CREATION IMMEDIATE | DEFERRED
-			p.advance()
-			if p.isIdentLike() && p.cur.Str == "CREATION" {
-				p.advance()
-				if p.cur.Type == kwIMMEDIATE || p.cur.Type == kwDEFERRED {
-					p.advance()
-				}
-			}
-
-		case p.isIdentLike() && (p.cur.Str == "PCTFREE" || p.cur.Str == "PCTUSED" ||
-			p.cur.Str == "INITRANS" || p.cur.Str == "MAXTRANS" ||
-			p.cur.Str == "TABLESPACE" || p.cur.Str == "STORAGE"):
-			// physical attributes - skip keyword and value
-			p.advance()
-			if p.cur.Type == tokICONST || p.isIdentLike() {
-				p.advance()
-				// for STORAGE (...) or TABLESPACE name
-				if p.cur.Type == '(' {
-					p.advance()
-					depth := 1
-					for depth > 0 && p.cur.Type != tokEOF {
-						if p.cur.Type == '(' {
-							depth++
-						} else if p.cur.Type == ')' {
-							depth--
-						}
-						p.advance()
-					}
-				}
-			}
-
-		default:
-			return nil
-		}
-	}
-	return nil
 }
 
 // isIdentLikeStrAt checks if the given token is an identifier-like token with the given string.
