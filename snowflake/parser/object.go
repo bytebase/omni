@@ -39,6 +39,9 @@ type objectForm struct {
 	// CREATE ... IF NOT EXISTS or ALTER ... IF EXISTS, and dropNoIfExists where
 	// its DROP page writes no IF EXISTS.
 	noIfNotExists, noIfExists, dropNoIfExists bool
+	// alterNoName is set where ALTER <kind> names no object (ALTER
+	// ORGANIZATION, ALTER ORGANIZATION ACCOUNT); the statement's Name is nil.
+	alterNoName bool
 	// props, when set, are the properties the page documents and the value
 	// each takes. parseObjectStmt then rejects a property of a CREATE's run
 	// or a SET that props does not name or whose value has another shape,
@@ -163,11 +166,13 @@ func (p *Parser) parseObjectStmt(verb string, f *objectForm, start ast.Loc, orRe
 			return nil, err
 		}
 	}
-	name, err := p.parseFormName(f)
-	if err != nil {
-		return nil, err
+	if verb != "ALTER" || !f.alterNoName {
+		name, err := p.parseFormName(f)
+		if err != nil {
+			return nil, err
+		}
+		s.Name = name
 	}
-	s.Name = name
 	if err := read(p, s); err != nil {
 		return nil, err
 	}

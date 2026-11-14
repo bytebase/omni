@@ -54,7 +54,11 @@ func (w *writer) writeObjectClause(c *ast.ObjectClause) error {
 		w.buf.WriteByte(' ')
 		w.buf.WriteString(strings.Join(c.Keys, ", "))
 	}
-	for _, o := range c.Options {
+	for i, o := range c.Options {
+		if i > 0 && o.Name == "" && c.Options[i-1].Name == "" {
+			// A run of nameless options is a list: REGION GROUPS 'a', 'b'.
+			w.buf.WriteByte(',')
+		}
 		w.buf.WriteByte(' ')
 		if err := w.writeObjectOption(o); err != nil {
 			return err

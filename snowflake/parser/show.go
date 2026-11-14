@@ -205,6 +205,10 @@ func (p *Parser) startsShowClassWord() bool {
 func (p *Parser) parseShowScope(stmt *ast.ShowStmt) error {
 	p.advance() // consume IN/FOR
 
+	if ok, err := p.parseShowOrganizationScope(stmt); ok {
+		return err
+	}
+
 	switch p.cur.Type {
 	case kwACCOUNT:
 		p.advance()
