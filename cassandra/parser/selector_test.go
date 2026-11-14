@@ -58,6 +58,9 @@ func TestGrammarForms(t *testing.T) {
 		"SELECT * FROM t WHERE a = (int) ? AND b = [1, 2] + [3] AND c = {f: 1}",
 		"SELECT * FROM t ORDER BY v ANN OF [1, 2] LIMIT 5",
 		"SELECT * FROM t ORDER BY v ANN OF ? DESC",
+		// A sign written against a number is part of it (Lexer.g:337).
+		"INSERT INTO t (a, b, c) VALUES (CAST(-1 AS int), CAST(-1.5 AS double), (int) -1)",
+		"UPDATE t SET a = CAST(-1 AS int), b = CAST(-NaN AS double) WHERE k = 1",
 		// IF conditions (Parser.g:1728).
 		"UPDATE t SET a = 1 WHERE k = 1 IF a.f = 1 AND m['k'] IN ? AND b IN (1) AND s CONTAINS 1 AND u.f IN :m",
 		"DELETE FROM t WHERE k = 1 IF a IN ?",
@@ -75,13 +78,14 @@ func TestGrammarForms(t *testing.T) {
 	}
 
 	reject := []string{
-		"SELECT ks.* FROM t",                 // no qualified star
-		"SELECT counter(*) FROM t",           // only COUNT takes *
-		"SELECT ttl() FROM t",                // TTL takes a column
-		"SELECT writetime(1) FROM t",         // WRITETIME takes a column
-		"SELECT a.keyspace FROM t",           // a reserved word is no field name
-		"SELECT : keyspace FROM t",           // nor a bind marker name
-		"SELECT CAST(a AS list<int>) FROM t", // CAST takes a native type
+		"SELECT ks.* FROM t",                          // no qualified star
+		"INSERT INTO t (a) VALUES (CAST(- 1 AS int))", // a sign apart from its number is no constant
+		"SELECT counter(*) FROM t",                    // only COUNT takes *
+		"SELECT ttl() FROM t",                         // TTL takes a column
+		"SELECT writetime(1) FROM t",                  // WRITETIME takes a column
+		"SELECT a.keyspace FROM t",                    // a reserved word is no field name
+		"SELECT : keyspace FROM t",                    // nor a bind marker name
+		"SELECT CAST(a AS list<int>) FROM t",          // CAST takes a native type
 		"SELECT * FROM t WHERE token() = 1",
 		"SELECT * FROM t WHERE trigger(a) = 1",
 		"SELECT * FROM t WHERE a IN (b)", // a name is no term

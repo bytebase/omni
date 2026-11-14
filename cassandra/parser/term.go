@@ -106,7 +106,7 @@ func startsTerm(tok, next Token) bool {
 // simpleTerm (Parser.g:1661).
 func startsSimpleTerm(tok, next Token) bool {
 	switch {
-	case isConstantToken(tok):
+	case isConstantToken(tok), isSignedConstant(tok, next):
 		return true
 	case tok.Type == tokNULL, tok.Type == tokQMARK, tok.Type == tokCOLON,
 		tok.Type == tokLPAREN, tok.Type == tokLBRACK, tok.Type == tokLBRACE:
@@ -238,10 +238,35 @@ func (p *Parser) parseSimpleTerm() (ast.ExprNode, error) {
 		return &ast.NullLit{Loc: ast.Loc{Start: tok.Loc, End: tok.End}}, nil
 	case isConstantToken(p.cur):
 		return p.parseConstant()
+	case isSignedConstant(p.cur, p.peekNext()):
+		start := p.curLoc()
+		p.advance() // -
+		operand, err := p.parseConstant()
+		if err != nil {
+			return nil, err
+		}
+		return negate(operand, start, p.prevEnd()), nil
 	case isFunctionNameToken(p.cur) && (p.peekNext().Type == tokLPAREN || p.peekNext().Type == tokDOT):
 		return p.parseTermFunction()
 	}
 	return nil, p.errorf("expected term, got %s", p.tokenDesc())
+}
+
+// isSignedConstant reports whether tok is a minus written against the
+// number, duration, NaN or Infinity next: Cassandra's lexer reads the sign as
+// part of that one token (Lexer.g:337 INTEGER, FLOAT, DURATION,
+// K_NEGATIVE_NAN, K_NEGATIVE_INFINITY), so it is a constant wherever a
+// simpleTerm stands, such as CAST(-1 AS int). omni's lexer reads the minus
+// apart.
+func isSignedConstant(tok, next Token) bool {
+	if tok.Type != tokMINUS || next.Loc != tok.End {
+		return false
+	}
+	switch next.Type {
+	case tokINTEGER, tokFLOAT, tokDURATIONLIT, tokNAN, tokINFINITY:
+		return true
+	}
+	return false
 }
 
 // tryTypeHint parses '(' comparatorType ')' and what follows it, read by
