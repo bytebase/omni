@@ -1239,7 +1239,7 @@ func (p *Parser) parseAuditStmt() (nodes.StmtNode, error) {
 		Loc: nodes.Loc{Start: start},
 	}
 
-	// Unified: AUDIT POLICY ...
+	// Unified: AUDIT POLICY ... and AUDIT CONTEXT NAMESPACE ...
 	if p.isIdentLikeStr("POLICY") {
 		p.advance()
 		if p.isIdentLike() {
@@ -1249,100 +1249,40 @@ func (p *Parser) parseAuditStmt() (nodes.StmtNode, error) {
 		if stmt.Policy == "" {
 			return nil, p.syntaxErrorAtCur()
 		}
-		// [ { BY | EXCEPT } user [, user]... ]
-		// [ { BY | EXCEPT } USERS WITH ROLE role [, role]... ]
-		for p.cur.Type != ';' && p.cur.Type != tokEOF {
-			if p.cur.Type == kwBY {
-				p.advance()
-				if p.isIdentLikeStr("USERS") {
-					// BY USERS WITH ROLE role [, role]...
-					p.advance()
-					if p.cur.Type == kwWITH {
-						p.advance()
-					}
-					if p.cur.Type == kwROLE {
-						p.advance()
-					}
-					var parseErr1180 error
-					stmt.WithRoles, parseErr1180 = p.parseIdentListForAudit()
-					if parseErr1180 != nil {
-
-						// BY user [, user]...
-						return nil, parseErr1180
-					}
-				} else {
-					var parseErr1181 error
-
-					stmt.ByUsers, parseErr1181 = p.parseIdentListForAudit()
-					if parseErr1181 != nil {
-						return nil, parseErr1181
-					}
-				}
-			} else if p.cur.Type == kwEXCEPT {
-				p.advance()
-				if p.isIdentLikeStr("USERS") {
-					// EXCEPT USERS WITH ROLE role [, role]...
-					p.advance()
-					if p.cur.Type == kwWITH {
-						p.advance()
-					}
-					if p.cur.Type == kwROLE {
-						p.advance()
-					}
-					var parseErr1182 error
-					stmt.WithRoles, parseErr1182 = p.parseIdentListForAudit()
-					if parseErr1182 != nil {
-						return nil, parseErr1182
-					}
-					stmt.WithRoleExcept = true
-				} else {
-					var parseErr1183 error
-					// EXCEPT user [, user]...
-					stmt.ExceptUsers, parseErr1183 = p.parseIdentListForAudit()
-					if parseErr1183 != nil {
-						return nil, parseErr1183
-					}
-				}
-			} else if p.cur.Type == kwWHENEVER {
-				var parseErr1184 error
-				stmt.When, parseErr1184 = p.parseWheneverClause()
-				if parseErr1184 != nil {
-					return nil, parseErr1184
-				}
-			} else {
-				break
+		if p.cur.Type == kwBY || p.cur.Type == kwEXCEPT {
+			except := p.advance().Type == kwEXCEPT
+			users, roles, err := p.parseAuditPolicyUsers()
+			if err != nil {
+				return nil, err
 			}
+			switch {
+			case roles != nil:
+				stmt.WithRoles, stmt.WithRoleExcept = roles, except
+			case except:
+				stmt.ExceptUsers = users
+			default:
+				stmt.ByUsers = users
+			}
+		}
+		if p.cur.Type == kwWHENEVER {
+			when, err := p.parseWheneverClause()
+			if err != nil {
+				return nil, err
+			}
+			if !strings.HasSuffix(when, "SUCCESSFUL") {
+				return nil, p.syntaxErrorAtCur()
+			}
+			stmt.When = when
 		}
 		stmt.Loc.End = p.prev.End
 		return stmt, nil
 	}
-
-	// Unified: AUDIT CONTEXT NAMESPACE ...
 	if p.cur.Type == kwCONTEXT {
-		p.advance()
-		if p.isIdentLikeStr("NAMESPACE") {
-			p.advance()
+		ns, attrs, users, err := p.parseAuditContextNamespace()
+		if err != nil {
+			return nil, err
 		}
-		if p.isIdentLike() {
-			stmt.ContextNS = p.cur.Str
-			p.advance()
-		}
-		if p.isIdentLikeStr("ATTRIBUTES") {
-			p.advance()
-			var parseErr1185 error
-			stmt.ContextAttrs, parseErr1185 = p.parseIdentListForAudit()
-			if parseErr1185 != nil {
-				return nil, parseErr1185
-			}
-		}
-		if p.cur.Type == kwBY {
-			p.advance()
-			var parseErr1186 error
-			stmt.ByUsers, parseErr1186 = p.parseIdentListForAudit()
-			if parseErr1186 != nil {
-				return nil, parseErr1186
-			}
-		}
+		stmt.ContextNS, stmt.ContextAttrs, stmt.ByUsers = ns, attrs, users
 		stmt.Loc.End = p.prev.End
 		return stmt, nil
 	}
@@ -1479,73 +1419,30 @@ func (p *Parser) parseNoauditStmt() (nodes.StmtNode, error) {
 		Loc: nodes.Loc{Start: start},
 	}
 
-	// Unified: NOAUDIT POLICY ...
+	// Unified: NOAUDIT POLICY ... and NOAUDIT CONTEXT NAMESPACE ...
 	if p.isIdentLikeStr("POLICY") {
 		p.advance()
-		if p.isIdentLike() {
-			stmt.Policy = p.cur.Str
-			p.advance()
+		if !p.isIdentLike() {
+			return nil, p.syntaxErrorAtCur()
 		}
+		stmt.Policy = p.advance().Str
 		if p.cur.Type == kwBY {
 			p.advance()
-			var parseErr1192 error
-			stmt.ByUsers, parseErr1192 = p.parseIdentListForAudit()
-			if parseErr1192 != nil {
-				return nil, parseErr1192
+			users, roles, err := p.parseAuditPolicyUsers()
+			if err != nil {
+				return nil, err
 			}
-			if p.cur.Type == kwWITH {
-				p.advance()
-				if p.cur.Type == kwROLE {
-					p.advance()
-				}
-				var parseErr1193 error
-				stmt.WithRoles, parseErr1193 = p.parseIdentListForAudit()
-				if parseErr1193 != nil {
-					return nil, parseErr1193
-				}
-			}
+			stmt.ByUsers, stmt.WithRoles = users, roles
 		}
 		stmt.Loc.End = p.prev.End
 		return stmt, nil
 	}
-
-	// Unified: NOAUDIT CONTEXT NAMESPACE ...
 	if p.cur.Type == kwCONTEXT {
-		p.advance()
-		if p.isIdentLikeStr("NAMESPACE") {
-			p.advance()
+		ns, attrs, users, err := p.parseAuditContextNamespace()
+		if err != nil {
+			return nil, err
 		}
-		if p.isIdentLike() {
-			stmt.ContextNS = p.cur.Str
-			p.advance()
-		}
-		if p.isIdentLikeStr("ATTRIBUTES") {
-			p.advance()
-			var parseErr1194 error
-			stmt.ContextAttrs, parseErr1194 = p.parseIdentListForAudit()
-			if parseErr1194 != nil {
-				return nil, parseErr1194
-			}
-		}
-		if p.cur.Type == kwBY {
-			p.advance()
-			var parseErr1195 error
-			stmt.ByUsers, parseErr1195 = p.parseIdentListForAudit()
-			if parseErr1195 != nil {
-				return nil, parseErr1195
-			}
-			if p.cur.Type == kwWITH {
-				p.advance()
-				if p.cur.Type == kwROLE {
-					p.advance()
-				}
-				var parseErr1196 error
-				stmt.WithRoles, parseErr1196 = p.parseIdentListForAudit()
-				if parseErr1196 != nil {
-					return nil, parseErr1196
-				}
-			}
-		}
+		stmt.ContextNS, stmt.ContextAttrs, stmt.ByUsers = ns, attrs, users
 		stmt.Loc.End = p.prev.End
 		return stmt, nil
 	}
