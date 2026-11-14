@@ -8539,10 +8539,19 @@
 | SET foreign_key_checks = 1
 < ok 0 0
 > exec
-| ALTER TABLE `pa_mm_4dfac7b`.`products` MODIFY COLUMN `category` varchar(50) DEFAULT NULL
+| ALTER TABLE `pa_mm_4dfac7b`.`products` ADD COLUMN `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
 < ok 0 0
 > exec
-| ALTER TABLE `pa_mm_4dfac7b`.`products` ADD COLUMN `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
+| ALTER TABLE `pa_mm_4dfac7b`.`products` ADD COLUMN `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+< ok 0 0
+> exec
+| ALTER TABLE `pa_mm_4dfac7b`.`products` ADD COLUMN `stock_quantity` int DEFAULT '0'
+< ok 0 0
+> exec
+| ALTER TABLE `pa_mm_4dfac7b`.`products` ADD COLUMN `weight` decimal(5,2) DEFAULT NULL
+< ok 0 0
+> exec
+| ALTER TABLE `pa_mm_4dfac7b`.`products` MODIFY COLUMN `category` varchar(50) DEFAULT NULL
 < ok 0 0
 > exec
 | ALTER TABLE `pa_mm_4dfac7b`.`products` MODIFY COLUMN `description` text NOT NULL
@@ -8552,15 +8561,6 @@
 < ok 0 0
 > exec
 | ALTER TABLE `pa_mm_4dfac7b`.`products` MODIFY COLUMN `price` decimal(10,2) NOT NULL
-< ok 0 0
-> exec
-| ALTER TABLE `pa_mm_4dfac7b`.`products` ADD COLUMN `stock_quantity` int DEFAULT '0'
-< ok 0 0
-> exec
-| ALTER TABLE `pa_mm_4dfac7b`.`products` ADD COLUMN `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-< ok 0 0
-> exec
-| ALTER TABLE `pa_mm_4dfac7b`.`products` ADD COLUMN `weight` decimal(5,2) DEFAULT NULL
 < ok 0 0
 > exec
 | ALTER TABLE `pa_mm_4dfac7b`.`products` ADD KEY `idx_created_at` (`created_at`)
@@ -8642,8 +8642,8 @@
 |   `category` varchar(50) DEFAULT NULL,
 |   `is_active` tinyint(1) DEFAULT '1',
 |   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-|   `stock_quantity` int DEFAULT '0',
 |   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+|   `stock_quantity` int DEFAULT '0',
 |   `weight` decimal(5,2) DEFAULT NULL,
 |   PRIMARY KEY (`id`),
 |   UNIQUE KEY `uk_name_category` (`name`,`category`),
@@ -9108,10 +9108,10 @@
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 < ok 0 0
 > exec
-| ALTER TABLE `pa_mm_970419a3`.`products` ADD COLUMN `name_upper` varchar(100) GENERATED ALWAYS AS (upper(`name`)) VIRTUAL
+| ALTER TABLE `pa_mm_970419a3`.`products` ADD COLUMN `price_with_tax` decimal(10,2) GENERATED ALWAYS AS (((`price` * ((1 + ((`tax_rate` / 100))))))) STORED
 < ok 0 0
 > exec
-| ALTER TABLE `pa_mm_970419a3`.`products` ADD COLUMN `price_with_tax` decimal(10,2) GENERATED ALWAYS AS (((`price` * ((1 + ((`tax_rate` / 100))))))) STORED
+| ALTER TABLE `pa_mm_970419a3`.`products` ADD COLUMN `name_upper` varchar(100) GENERATED ALWAYS AS (upper(`name`)) VIRTUAL
 < ok 0 0
 > exec
 | ALTER TABLE `pa_mm_970419a3`.`order_summary` ADD KEY `idx_year_month` (`order_year`,`order_month`)
@@ -9219,8 +9219,8 @@
 |   `name` varchar(100) NOT NULL,
 |   `price` decimal(10,2) NOT NULL,
 |   `tax_rate` decimal(5,2) DEFAULT '8.00',
-|   `name_upper` varchar(100) GENERATED ALWAYS AS (upper(`name`)) VIRTUAL,
 |   `price_with_tax` decimal(10,2) GENERATED ALWAYS AS ((`price` * (1 + (`tax_rate` / 100)))) STORED,
+|   `name_upper` varchar(100) GENERATED ALWAYS AS (upper(`name`)) VIRTUAL,
 |   PRIMARY KEY (`id`),
 |   KEY `idx_price_with_tax` (`price_with_tax`),
 |   KEY `idx_name_upper` (`name_upper`)
@@ -9412,10 +9412,10 @@
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 < ok 0 0
 > exec
-| ALTER TABLE `pa_mm_de41a819`.`users` ADD COLUMN `metadata` json
+| ALTER TABLE `pa_mm_de41a819`.`users` ADD COLUMN `preferences` json
 < ok 0 0
 > exec
-| ALTER TABLE `pa_mm_de41a819`.`users` ADD COLUMN `preferences` json
+| ALTER TABLE `pa_mm_de41a819`.`users` ADD COLUMN `metadata` json
 < ok 0 0
 > exec
 | ALTER TABLE `pa_mm_de41a819`.`products` ADD KEY `idx_brand` (`brand`)
@@ -9522,8 +9522,8 @@
 |   `id` int NOT NULL AUTO_INCREMENT,
 |   `name` varchar(100) NOT NULL,
 |   `email` varchar(100) NOT NULL,
-|   `metadata` json DEFAULT NULL,
 |   `preferences` json DEFAULT NULL,
+|   `metadata` json DEFAULT NULL,
 |   PRIMARY KEY (`id`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 > query

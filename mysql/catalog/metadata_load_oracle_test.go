@@ -25,10 +25,6 @@ var metadataMigrationGaps = map[string]string{
 	"Circular foreign key dependencies and triggers":                                                                        "DEFAULT (NULL) kept",
 	"Re-adding a primary key and an overlapping secondary index on a partitioned table":                                     "DEFAULT (NULL) kept",
 	"Verify no migration generated for identical schemas (tests primary key, index, check constraints, DEFAULT NULL fixes)": "DEFAULT (NULL) kept",
-	// ADD COLUMN takes no position: an added column lands last, in name order.
-	"Reverse: Alter table columns":           "added columns out of place",
-	"Reverse: Drop generated columns":        "added columns out of place",
-	"Reverse: Drop JSON columns and indexes": "added columns out of place",
 }
 
 // TestOracle_MetadataMigrationApplyCorrectness applies each fixture's plan, generated

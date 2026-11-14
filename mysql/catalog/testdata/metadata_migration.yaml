@@ -7747,14 +7747,14 @@
                 visible: true
             name: products
   expected: |-
-    ALTER TABLE `testdb`.`products` MODIFY COLUMN `category` varchar(50) DEFAULT NULL;
     ALTER TABLE `testdb`.`products` ADD COLUMN `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP;
+    ALTER TABLE `testdb`.`products` ADD COLUMN `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;
+    ALTER TABLE `testdb`.`products` ADD COLUMN `stock_quantity` int DEFAULT '0';
+    ALTER TABLE `testdb`.`products` ADD COLUMN `weight` decimal(5,2) DEFAULT NULL;
+    ALTER TABLE `testdb`.`products` MODIFY COLUMN `category` varchar(50) DEFAULT NULL;
     ALTER TABLE `testdb`.`products` MODIFY COLUMN `description` text NOT NULL;
     ALTER TABLE `testdb`.`products` MODIFY COLUMN `name` varchar(100) NOT NULL;
     ALTER TABLE `testdb`.`products` MODIFY COLUMN `price` decimal(10,2) NOT NULL;
-    ALTER TABLE `testdb`.`products` ADD COLUMN `stock_quantity` int DEFAULT '0';
-    ALTER TABLE `testdb`.`products` ADD COLUMN `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;
-    ALTER TABLE `testdb`.`products` ADD COLUMN `weight` decimal(5,2) DEFAULT NULL;
     ALTER TABLE `testdb`.`products` ADD KEY `idx_created_at` (`created_at`);
     ALTER TABLE `testdb`.`products` ADD UNIQUE KEY `uk_name_category` (`name`,`category`);
     ALTER TABLE `testdb`.`products` ADD CONSTRAINT `chk_price_positive` CHECK ((`price` > 0));
@@ -8220,8 +8220,8 @@
       `order_month` int GENERATED ALWAYS AS (month(`order_date`)) VIRTUAL,
       PRIMARY KEY (`id`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-    ALTER TABLE `testdb`.`products` ADD COLUMN `name_upper` varchar(100) GENERATED ALWAYS AS (upper(`name`)) VIRTUAL;
     ALTER TABLE `testdb`.`products` ADD COLUMN `price_with_tax` decimal(10,2) GENERATED ALWAYS AS (((`price` * ((1 + ((`tax_rate` / 100))))))) STORED;
+    ALTER TABLE `testdb`.`products` ADD COLUMN `name_upper` varchar(100) GENERATED ALWAYS AS (upper(`name`)) VIRTUAL;
     ALTER TABLE `testdb`.`order_summary` ADD KEY `idx_year_month` (`order_year`,`order_month`);
     ALTER TABLE `testdb`.`products` ADD KEY `idx_name_upper` (`name_upper`);
     ALTER TABLE `testdb`.`products` ADD KEY `idx_price_with_tax` (`price_with_tax`)
@@ -8423,8 +8423,8 @@
       `brand` varchar(50) GENERATED ALWAYS AS (json_unquote(json_extract(`details`,_utf8mb4'$.brand'))) VIRTUAL,
       PRIMARY KEY (`id`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-    ALTER TABLE `testdb`.`users` ADD COLUMN `metadata` json;
     ALTER TABLE `testdb`.`users` ADD COLUMN `preferences` json;
+    ALTER TABLE `testdb`.`users` ADD COLUMN `metadata` json;
     ALTER TABLE `testdb`.`products` ADD KEY `idx_brand` (`brand`);
     ALTER TABLE `testdb`.`products` ADD KEY `idx_product_brand` ((cast(json_unquote(json_extract(`details`,_utf8mb4'$.brand')) as char(50) charset utf8mb4)));
     ALTER TABLE `testdb`.`products` ADD KEY `idx_product_price` ((cast(json_unquote(json_extract(`details`,_utf8mb4'$.price')) as decimal(10,2))));
