@@ -119,11 +119,13 @@ func (p *Parser) parseCreateWarehouseStmt(start ast.Loc, orReplace, orAlter bool
 // interactiveWarehouseProps are the objectProperties of CREATE INTERACTIVE
 // WAREHOUSE, and interactiveWarehouseParams its objectParams
 // (https://docs.snowflake.com/en/sql-reference/sql/create-interactive-warehouse).
-// The page's examples quote the size (WAREHOUSE_SIZE = 'MEDIUM'). AUTO_SUSPEND
-// is { <num> | NULL }, which interactiveWarehouseValueOK checks.
+// WAREHOUSE_SIZE takes the sizes the page's parameters list, X2LARGE and
+// X3LARGE among them; its examples quote the size (WAREHOUSE_SIZE = 'MEDIUM'),
+// as the hyphenated sizes must be ('2X-LARGE'). AUTO_SUSPEND is
+// { <num> | NULL }, which interactiveWarehouseValueOK checks.
 var (
 	interactiveWarehouseProps = objectProps{
-		"WAREHOUSE_SIZE":      propStringOr("XSMALL", "SMALL", "MEDIUM", "LARGE", "XLARGE", "XXLARGE", "XXXLARGE", "X4LARGE"),
+		"WAREHOUSE_SIZE":      propStringOr("XSMALL", "SMALL", "MEDIUM", "LARGE", "XLARGE", "XXLARGE", "X2LARGE", "XXXLARGE", "X3LARGE", "X4LARGE"),
 		"MAX_CLUSTER_COUNT":   propNumber,
 		"MIN_CLUSTER_COUNT":   propNumber,
 		"AUTO_SUSPEND":        propNumber,
