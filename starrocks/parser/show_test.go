@@ -549,3 +549,30 @@ func TestUnaryBindsBeforeMatch(t *testing.T) {
 		t.Errorf("left of MATCH is %T, want !Label", m.Expr)
 	}
 }
+
+// TestSetGrammar holds SET to StarRocks.g4's setStatement and its kin
+// (:339, :824, :1947, :2055); testdata/compat.tsv judged the near misses.
+func TestSetGrammar(t *testing.T) {
+	cases := []struct {
+		sql string
+		ok  bool
+	}{
+		{"SET CHARSET a, CHARACTER SET b, NAMES utf8 COLLATE DEFAULT, VERBOSE x = DEFAULT, @@GLOBAL.y = ON, @u = 1, z = ALL", true},
+		{"SET CATALOG c", true},
+		{"SET catalog = 1", true},
+		{"SET SESSION WAREHOUSE = w", true},
+		{"SET WAREHOUSE w", true},
+		{"SET v AS DEFAULT STORAGE VOLUME", true},
+		{"SET PASSWORD = PASSWORD('p')", true},
+		{"SET PASSWORD = PASSWORD()", true},
+		{"SET PASSWORD FOR u = 'p'", true},
+		{"SET a", false},
+		{"SET a := 1", false},
+	}
+	for _, c := range cases {
+		_, err := Parse(c.sql)
+		if (err == nil) != c.ok {
+			t.Errorf("Parse(%q): err = %v, want accepted=%v", c.sql, err, c.ok)
+		}
+	}
+}

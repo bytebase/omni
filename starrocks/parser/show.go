@@ -733,13 +733,36 @@ func (p *Parser) parseUse() (ast.Node, error) {
 func (p *Parser) parseGenericSet(startLoc ast.Loc) (ast.Node, error) {
 	stmt := &ast.SetStmt{Loc: startLoc, Type: "VARIABLE"}
 
-	// NAMES form
-	if p.cur.Kind == kwNAMES {
-		return p.parseSetNames(startLoc)
+	// setCatalogStatement (StarRocks.g4:339): SET CATALOG identifierOrString.
+	// CATALOG followed by '=' sets a variable of that name.
+	if p.cur.Kind == kwCATALOG && p.peekNext().Kind != int('=') {
+		p.advance() // consume CATALOG
+		name, loc, err := p.parseIdentifierOrString()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Type = "CATALOG"
+		stmt.Items = []*ast.SetItem{{Name: "catalog", Raw: name, Loc: loc}}
+		stmt.Loc.End = p.prev.Loc.End
+		return stmt, nil
 	}
-	// CHARSET form
-	if p.cur.Kind == kwCHARSET {
-		return p.parseSetCharset(startLoc)
+	// setWarehouseStatement (StarRocks.g4:2055): SET SESSION? WAREHOUSE EQ? identifierOrString
+	if p.isSetWarehouseStart() {
+		if p.cur.Kind == kwSESSION {
+			p.advance()
+		}
+		p.advance() // consume WAREHOUSE
+		if p.cur.Kind == int('=') {
+			p.advance()
+		}
+		name, loc, err := p.parseIdentifierOrString()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Type = "WAREHOUSE"
+		stmt.Items = []*ast.SetItem{{Name: "warehouse", Raw: name, Loc: loc}}
+		stmt.Loc.End = p.prev.Loc.End
+		return stmt, nil
 	}
 	// ROLE forms — StarRocks-only (container-verified: Doris rejects them):
 	//   SET ROLE NONE | ALL [EXCEPT r, ...] | r [, r ...]
@@ -772,20 +795,183 @@ func (p *Parser) parseGenericSet(startLoc ast.Loc) (ast.Node, error) {
 		return p.parseSetTransaction(startLoc, scope)
 	}
 
-	// One or more variable assignments.
+	// setStatement (StarRocks.g4:1947): SET setVar (',' setVar)*
 	for {
-		item, err := p.parseSetItem()
+		item, err := p.parseSetOption()
 		if err != nil {
 			return nil, err
 		}
 		stmt.Items = append(stmt.Items, item)
-		if _, ok := p.match(int(',')); !ok {
+		if p.cur.Kind != int(',') {
 			break
+		}
+		p.advance() // consume ','
+	}
+	if len(stmt.Items) == 1 {
+		switch stmt.Items[0].Name {
+		case "names":
+			stmt.Type = "NAMES"
+		case "charset":
+			stmt.Type = "CHARSET"
 		}
 	}
 
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
+}
+
+// isSetWarehouseStart reports whether cur begins setWarehouseStatement's
+// SESSION? WAREHOUSE: WAREHOUSE (an identifier to omni) followed by a name
+// or '=', or SESSION WAREHOUSE.
+func (p *Parser) isSetWarehouseStart() bool {
+	isWarehouse := func(tok Token) bool {
+		return tok.Kind == tokIdent && strings.EqualFold(tok.Str, "WAREHOUSE")
+	}
+	if p.cur.Kind == kwSESSION {
+		return isWarehouse(p.peekNext())
+	}
+	if !isWarehouse(p.cur) {
+		return false
+	}
+	next := p.peekNext().Kind
+	return next == tokString || isIdentifierToken(next)
+}
+
+// parseSetOption reads one setVar (StarRocks.g4:1951) other than PASSWORD
+// and TRANSACTION, which parseGenericSet's callers read:
+//
+//	(CHAR SET | CHARSET | CHARACTER SET) (identifierOrString | DEFAULT)
+//	| NAMES (identifierOrString | DEFAULT) (COLLATE (identifierOrString | DEFAULT))?
+//	| userVariable '=' expression
+//	| varType? identifier '=' setExprOrDefault
+//	| systemVariable '=' setExprOrDefault
+//	setExprOrDefault : DEFAULT | ON | ALL | expression
+//	varType : GLOBAL | LOCAL | SESSION | VERBOSE
+func (p *Parser) parseSetOption() (*ast.SetItem, error) {
+	item := &ast.SetItem{Loc: p.cur.Loc}
+	identOrStringOrDefault := func() (string, error) {
+		if p.cur.Kind == kwDEFAULT {
+			p.advance()
+			return "DEFAULT", nil
+		}
+		v, _, err := p.parseIdentifierOrString()
+		return v, err
+	}
+	isScope := func(k TokenKind) bool {
+		return k == kwGLOBAL || k == kwSESSION || k == kwLOCAL || k == kwVERBOSE
+	}
+	switch {
+	case p.cur.Kind == kwCHARSET || (p.cur.Kind == kwCHAR && p.peekNext().Kind == kwSET):
+		// omni lexes CHARACTER as CHAR.
+		if p.advance().Kind != kwCHARSET {
+			p.advance() // consume SET
+		}
+		item.Name = "charset"
+		v, err := identOrStringOrDefault()
+		if err != nil {
+			return nil, err
+		}
+		item.Raw = v
+
+	case p.cur.Kind == kwNAMES:
+		p.advance() // consume NAMES
+		item.Name = "names"
+		v, err := identOrStringOrDefault()
+		if err != nil {
+			return nil, err
+		}
+		item.Raw = v
+		if p.cur.Kind == kwCOLLATE {
+			p.advance()
+			c, err := identOrStringOrDefault()
+			if err != nil {
+				return nil, err
+			}
+			item.Raw += " COLLATE " + c
+		}
+
+	case p.cur.Kind == int('@'):
+		p.advance() // consume '@'
+		item.UserVariable = true
+		name, _, err := p.parseIdentifierOrString()
+		if err != nil {
+			return nil, err
+		}
+		item.Name = name
+		if _, err := p.expect(int('=')); err != nil {
+			return nil, err
+		}
+		expr, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		item.Value = expr
+
+	default:
+		if p.cur.Kind == tokDoubleAt {
+			p.advance() // consume @@
+			if isScope(p.cur.Kind) && p.peekNext().Kind == int('.') {
+				item.Scope = strings.ToUpper(p.cur.Str)
+				p.advance() // consume the scope
+				p.advance() // consume '.'
+			}
+		} else if isScope(p.cur.Kind) && p.peekNext().Kind != int('=') {
+			item.Scope = strings.ToUpper(p.advance().Str)
+		}
+		var name string
+		var err error
+		if isScope(p.cur.Kind) {
+			// A scope word followed by '=' is the variable's name.
+			name = p.advance().Str
+		} else if name, _, err = p.parseIdentifier(); err != nil {
+			return nil, err
+		}
+		item.Name = name
+		if _, err := p.expect(int('=')); err != nil {
+			return nil, err
+		}
+		switch p.cur.Kind {
+		case kwDEFAULT, kwON, kwALL:
+			item.Raw = strings.ToUpper(p.advance().Str)
+		default:
+			expr, err := p.parseExpr()
+			switch {
+			case err == nil:
+				item.Value = expr
+			case p.strictTrailing:
+				return nil, err
+			default:
+				// Best effort keeps the malformed value as raw text.
+				item.Raw = p.collectUntilCommaOrEOF()
+			}
+		}
+	}
+	item.Loc.End = p.prev.Loc.End
+	return item, nil
+}
+
+// parseSetDefaultStorageVolume parses setDefaultStorageVolumeStatement
+// (StarRocks.g4:824): SET identifierOrString AS DEFAULT STORAGE VOLUME.
+// SET has been consumed.
+func (p *Parser) parseSetDefaultStorageVolume(startLoc ast.Loc) (ast.Node, error) {
+	name, loc, err := p.parseIdentifierOrString()
+	if err != nil {
+		return nil, err
+	}
+	for _, kw := range []int{kwAS, kwDEFAULT, kwSTORAGE} {
+		if _, err := p.expect(kw); err != nil {
+			return nil, err
+		}
+	}
+	if p.cur.Kind != tokIdent || !strings.EqualFold(p.cur.Str, "VOLUME") {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+	return &ast.SetStmt{
+		Type:  "DEFAULT STORAGE VOLUME",
+		Items: []*ast.SetItem{{Name: "storage_volume", Raw: name, Loc: loc}},
+		Loc:   ast.Loc{Start: startLoc.Start, End: p.prev.Loc.End},
+	}, nil
 }
 
 // parseSetRoleTail parses the role specification after SET ROLE or

@@ -778,37 +778,21 @@ func (p *Parser) parseUse() (ast.Node, error) {
 // SET (generic variable assignment)
 // ---------------------------------------------------------------------------
 
-// parseGenericSet parses generic SET statements that are not handled by the
-// dedicated SET DEFAULT STORAGE VAULT or SET PASSWORD paths:
+// parseGenericSet parses #setOptions and #setTransaction
+// (DorisParser.g4:882-890), as the CUP parser's set_stmt also takes them:
 //
-//	SET [GLOBAL|SESSION|LOCAL] var = expr [, ...]
-//	SET @@[GLOBAL.|SESSION.]var = expr
-//	SET NAMES 'charset' [COLLATE 'collation']
-//	SET CHARSET 'charset'
-//	SET TRANSACTION { READ ONLY | READ WRITE | ISOLATION LEVEL ... }
+//	SET option (COMMA option)*
+//	SET (GLOBAL | LOCAL | SESSION)? TRANSACTION characteristics
 //
-// On entry, SET has already been consumed; startLoc is the SET token's Loc.
+// SET has been consumed. A statement of one NAMES or CHARSET option keeps
+// its Type; any other is a VARIABLE statement whose items may mix options.
 func (p *Parser) parseGenericSet(startLoc ast.Loc) (ast.Node, error) {
-	stmt := &ast.SetStmt{Loc: startLoc, Type: "VARIABLE"}
-
-	// NAMES form
-	if p.cur.Kind == kwNAMES {
-		return p.parseSetNames(startLoc)
-	}
-	// CHARSET form
-	if p.cur.Kind == kwCHARSET {
-		return p.parseSetCharset(startLoc)
-	}
-	// TRANSACTION form, with or without a leading scope keyword — the scoped
-	// spelling must not fall through to the generic assignment path, whose
-	// strict mode would reject the engine-valid SET SESSION TRANSACTION ...
 	if p.cur.Kind == kwTRANSACTION {
 		return p.parseSetTransaction(startLoc, "")
 	}
 	if (p.cur.Kind == kwGLOBAL || p.cur.Kind == kwSESSION || p.cur.Kind == kwLOCAL) &&
 		p.peekNext().Kind == kwTRANSACTION {
-		// LOCAL is a synonym for SESSION, matching the generic-assignment
-		// scope normalization.
+		// LOCAL is a synonym for SESSION, matching the assignment scopes.
 		scope := "SESSION"
 		if p.cur.Kind == kwGLOBAL {
 			scope = "GLOBAL"
@@ -817,18 +801,215 @@ func (p *Parser) parseGenericSet(startLoc ast.Loc) (ast.Node, error) {
 		return p.parseSetTransaction(startLoc, scope)
 	}
 
-	// One or more variable assignments.
+	stmt := &ast.SetStmt{Loc: startLoc, Type: "VARIABLE"}
 	for {
-		item, err := p.parseSetItem()
+		item, err := p.parseSetOption()
 		if err != nil {
 			return nil, err
 		}
 		stmt.Items = append(stmt.Items, item)
-		if _, ok := p.match(int(',')); !ok {
+		if p.cur.Kind != int(',') {
 			break
 		}
+		p.advance() // consume ','
 	}
+	if len(stmt.Items) == 1 {
+		switch stmt.Items[0].Name {
+		case "names":
+			stmt.Type = "NAMES"
+		case "charset":
+			stmt.Type = "CHARSET"
+		}
+	}
+	stmt.Loc.End = p.prev.Loc.End
+	return stmt, nil
+}
 
+// parseSetOption reads one optionWithType or optionWithoutType
+// (DorisParser.g4:893-913):
+//
+//	(GLOBAL | LOCAL | SESSION) identifier EQ setValue
+//	| (CHAR SET | CHARSET) (identifierOrText | DEFAULT)
+//	| NAMES (identifierOrText | DEFAULT) (COLLATE identifierOrText)?
+//	| LDAP_ADMIN_PASSWORD EQ (STRING_LITERAL | PASSWORD LEFT_PAREN STRING_LITERAL RIGHT_PAREN)
+//	| (DOUBLEATSIGN ((GLOBAL | LOCAL | SESSION) DOT)?)? identifier EQ setValue
+//	| ATSIGN identifier EQ expression
+//	setValue : expression | DEFAULT | ON | ALL
+//
+// A scope word followed by '=' names the variable itself (SET GLOBAL = 1).
+func (p *Parser) parseSetOption() (*ast.SetItem, error) {
+	item := &ast.SetItem{Loc: p.cur.Loc}
+	switch {
+	case p.cur.Kind == kwNAMES:
+		p.advance() // consume NAMES
+		item.Name = "names"
+		// Doris refuses NAMES = expression, which both grammars list, and a
+		// DEFAULT after the charset (testdata/compat.tsv: SET NAMES = 1,
+		// SET NAMES a DEFAULT).
+		if p.cur.Kind == kwDEFAULT {
+			p.advance()
+			item.Raw = "DEFAULT"
+		} else {
+			val, _, err := p.parseIdentifierOrString()
+			if err != nil {
+				return nil, err
+			}
+			item.Raw = val
+		}
+		if p.cur.Kind == kwCOLLATE {
+			p.advance()
+			collation, _, err := p.parseIdentifierOrString()
+			if err != nil {
+				return nil, err
+			}
+			item.Raw += " COLLATE " + collation
+		}
+
+	case p.cur.Kind == kwCHARSET || (p.cur.Kind == kwCHAR && p.peekNext().Kind == kwSET):
+		if p.advance().Kind == kwCHAR {
+			p.advance() // consume SET
+		}
+		item.Name = "charset"
+		if p.cur.Kind == kwDEFAULT {
+			p.advance()
+			item.Raw = "DEFAULT"
+		} else {
+			val, _, err := p.parseIdentifierOrString()
+			if err != nil {
+				return nil, err
+			}
+			item.Raw = val
+		}
+
+	case p.cur.Kind == kwLDAP_ADMIN_PASSWORD:
+		p.advance()
+		item.Name = "ldap_admin_password"
+		if _, err := p.expect(int('=')); err != nil {
+			return nil, err
+		}
+		if p.cur.Kind == kwPASSWORD {
+			p.advance()
+			if _, err := p.expect(int('(')); err != nil {
+				return nil, err
+			}
+			if p.cur.Kind != tokString {
+				return nil, p.syntaxErrorAtCur()
+			}
+			item.Raw = p.advance().Str
+			if _, err := p.expect(int(')')); err != nil {
+				return nil, err
+			}
+		} else if p.cur.Kind == tokString {
+			item.Raw = p.advance().Str
+		} else {
+			return nil, p.syntaxErrorAtCur()
+		}
+
+	case p.cur.Kind == int('@'):
+		p.advance() // consume '@'
+		item.UserVariable = true
+		name, _, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		item.Name = name
+		if _, err := p.expect(int('=')); err != nil {
+			return nil, err
+		}
+		expr, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		item.Value = expr
+
+	default:
+		if p.cur.Kind == tokDoubleAt {
+			p.advance() // consume @@
+			if (p.cur.Kind == kwGLOBAL || p.cur.Kind == kwSESSION || p.cur.Kind == kwLOCAL) &&
+				p.peekNext().Kind == int('.') {
+				item.Scope = strings.ToUpper(p.cur.Str)
+				p.advance() // consume the scope
+				p.advance() // consume '.'
+			}
+		} else if (p.cur.Kind == kwGLOBAL || p.cur.Kind == kwSESSION || p.cur.Kind == kwLOCAL) &&
+			p.peekNext().Kind != int('=') {
+			item.Scope = strings.ToUpper(p.advance().Str)
+		}
+		var name string
+		var err error
+		if p.cur.Kind == kwGLOBAL || p.cur.Kind == kwSESSION || p.cur.Kind == kwLOCAL {
+			// A scope word followed by '=' is the variable's name.
+			name = p.advance().Str
+		} else if name, _, err = p.parseIdentifier(); err != nil {
+			return nil, err
+		}
+		item.Name = name
+		// EQ: Doris refuses the CUP parser's := (SET a := DEFAULT).
+		if _, err := p.expect(int('=')); err != nil {
+			return nil, err
+		}
+		switch p.cur.Kind {
+		case kwDEFAULT, kwON, kwALL:
+			item.Raw = strings.ToUpper(p.advance().Str)
+		default:
+			expr, err := p.parseExpr()
+			switch {
+			case err == nil:
+				item.Value = expr
+			case p.strictTrailing:
+				return nil, err
+			default:
+				// Best effort keeps the malformed value as raw text.
+				item.Raw = p.collectUntilCommaOrEOF()
+			}
+		}
+	}
+	item.Loc.End = p.prev.Loc.End
+	return item, nil
+}
+
+// parseSetProperty parses #setUserProperties (DorisParser.g4:885) as the CUP
+// parser's set_stmt also takes it:
+//
+//	SET PROPERTY (FOR identifierOrText)? STRING_LITERAL '=' (STRING_LITERAL | NULL) (',' ...)*
+//
+// SET has been consumed; cur is PROPERTY.
+func (p *Parser) parseSetProperty(startLoc ast.Loc) (ast.Node, error) {
+	p.advance() // consume PROPERTY
+	stmt := &ast.SetStmt{Loc: startLoc, Type: "PROPERTY"}
+	if p.cur.Kind == kwFOR {
+		p.advance() // consume FOR
+		user, _, err := p.parseIdentifierOrString()
+		if err != nil {
+			return nil, err
+		}
+		stmt.PropertyUser = user
+	}
+	for {
+		start := p.cur.Loc
+		if p.cur.Kind != tokString {
+			return nil, p.syntaxErrorAtCur()
+		}
+		key := p.advance().Str
+		if _, err := p.expect(int('=')); err != nil {
+			return nil, err
+		}
+		var val string
+		switch p.cur.Kind {
+		case tokString:
+			val = p.advance().Str
+		case kwNULL:
+			p.advance()
+			val = "NULL"
+		default:
+			return nil, p.syntaxErrorAtCur()
+		}
+		stmt.Properties = append(stmt.Properties, &ast.Property{Key: key, Value: val, Loc: ast.Loc{Start: start.Start, End: p.prev.Loc.End}})
+		if p.cur.Kind != int(',') {
+			break
+		}
+		p.advance() // consume ','
+	}
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
 }

@@ -29,7 +29,7 @@ reject	accept	engine	statement/useCatalogStatement	USE 'a';
 reject	reject	engine	statement/useCatalogStatement!drop-1	'a';
 reject	reject	engine	statement/useCatalogStatement!insert	USE 'a' zzz;
 reject	reject	engine	statement/useCatalogStatement!swap	USER 'a';
-reject	accept	engine	statement/setCatalogStatement	SET CATALOG a;
+accept	accept	engine	statement/setCatalogStatement	SET CATALOG a;
 reject	reject	engine	statement/setCatalogStatement!drop-1	CATALOG a;
 reject	reject	engine	statement/setCatalogStatement!drop-2	SET a;
 reject	reject	engine	statement/setCatalogStatement!drop-3	SET CATALOG;
@@ -1361,7 +1361,7 @@ reject	reject	engine	statement/descStorageVolumeStatement!drop-3	DESC STORAGE a;
 reject	reject	engine	statement/descStorageVolumeStatement!drop-4	DESC STORAGE VOLUME;
 reject	reject	engine	statement/descStorageVolumeStatement!truncate	DESC STORAGE VOLUME
 reject	reject	engine	statement/descStorageVolumeStatement!insert	DESC STORAGE VOLUME a zzz;
-reject	accept	engine	statement/setDefaultStorageVolumeStatement	SET a AS DEFAULT STORAGE VOLUME;
+accept	accept	engine	statement/setDefaultStorageVolumeStatement	SET a AS DEFAULT STORAGE VOLUME;
 reject	reject	engine	statement/setDefaultStorageVolumeStatement!drop-1	a AS DEFAULT STORAGE VOLUME;
 reject	reject	engine	statement/setDefaultStorageVolumeStatement!drop-2	SET AS DEFAULT STORAGE VOLUME;
 reject	reject	engine	statement/setDefaultStorageVolumeStatement!drop-3	SET a DEFAULT STORAGE VOLUME;
@@ -1537,7 +1537,7 @@ reject	reject	engine	statement/resumeWarehouseStatement!drop-3	RESUME WAREHOUSE;
 reject	reject	engine	statement/resumeWarehouseStatement!truncate	RESUME WAREHOUSE
 reject	reject	engine	statement/resumeWarehouseStatement!insert	RESUME WAREHOUSE a zzz;
 reject	reject	engine	statement/resumeWarehouseStatement!swap	RETAIN WAREHOUSE a;
-reject	accept	engine	statement/setWarehouseStatement	SET WAREHOUSE a;
+accept	accept	engine	statement/setWarehouseStatement	SET WAREHOUSE a;
 reject	reject	engine	statement/setWarehouseStatement!drop-3	SET WAREHOUSE;
 reject	reject	engine	statement/setWarehouseStatement!truncate	SET WAREHOUSE
 reject	reject	engine	statement/setWarehouseStatement!insert	SET WAREHOUSE a zzz;
@@ -1575,7 +1575,7 @@ reject	reject	engine	statement/unsupportedStatement!insert	BEGIN zzz;
 reject	reject	engine	statement/unsupportedStatement!swap	BETWEEN;
 accept	accept	engine	useDatabaseStatement/USE_qualifiedName	USE a;
 reject	accept	engine	useCatalogStatement/USE_string	USE 'a';
-reject	accept	engine	setCatalogStatement/SET_CATALOG_identifierOrString	SET CATALOG a;
+accept	accept	engine	setCatalogStatement/SET_CATALOG_identifierOrString	SET CATALOG a;
 accept	accept	engine	showDatabasesStatement/SHOW_DATABASES_((FROM|IN)_qualifiedName)?_((LIKE_string~0bbb5ed3	SHOW DATABASES;
 accept	accept	engine	showDatabasesStatement/SHOW_SCHEMAS_((LIKE_string)|(WHERE_expression))?	SHOW SCHEMAS;
 reject	reject	engine	showDatabasesStatement/SHOW_SCHEMAS_((LIKE_string)|(WHERE_expression))?!drop-1	SCHEMAS;
@@ -3299,7 +3299,7 @@ reject	reject	engine	descStorageVolumeStatement(DESC|DESCRIBE)/DESC!insert	DESC 
 reject	accept	engine	descStorageVolumeStatement(DESC|DESCRIBE)/DESCRIBE	DESCRIBE STORAGE VOLUME a;
 reject	reject	engine	descStorageVolumeStatement(DESC|DESCRIBE)/DESCRIBE!insert	DESCRIBE zzz STORAGE VOLUME a;
 reject	reject	engine	descStorageVolumeStatement(DESC|DESCRIBE)/DESCRIBE!swap	DICTIONARY STORAGE VOLUME a;
-reject	accept	engine	setDefaultStorageVolumeStatement/SET_identifierOrString_AS_DEFAULT_STORAGE_VOLUME	SET a AS DEFAULT STORAGE VOLUME;
+accept	accept	engine	setDefaultStorageVolumeStatement/SET_identifierOrString_AS_DEFAULT_STORAGE_VOLUME	SET a AS DEFAULT STORAGE VOLUME;
 accept	accept	engine	updateFailPointStatusStatement/ADMIN_DISABLE_FAILPOINT_string_(ON_BACKEND_string)?	ADMIN DISABLE FAILPOINT 'a';
 accept	accept	engine	updateFailPointStatusStatement/ADMIN_ENABLE_FAILPOINT_string_(WITH_INTEGER_VALUE_TIMES~80fffb08	ADMIN ENABLE FAILPOINT 'a';
 reject	reject	engine	updateFailPointStatusStatement/ADMIN_ENABLE_FAILPOINT_string_(WITH_INTEGER_VALUE_TIMES~80fffb08!drop-1	ENABLE FAILPOINT 'a';
@@ -7344,7 +7344,7 @@ reject	reject	engine	showPipeStatement(limitElement)?/limitElement!insert	SHOW P
 reject	reject	engine	showPipeStatement(limitElement)?/limitElement!swap	SHOW PIPES LIST 1;
 accept	accept	engine	setStatement/SET_setVar_(,_setVar)*	SET CHARSET a;
 accept	accept	engine	setStatement(,_setVar)*/%empty	SET CHARSET a;
-reject	accept	engine	setStatement(,_setVar)*/,_setVar_(,_setVar)*	SET CHARSET a, CHARSET a;
+accept	accept	engine	setStatement(,_setVar)*/,_setVar_(,_setVar)*	SET CHARSET a, CHARSET a;
 reject	reject	engine	setStatement(,_setVar)*/,_setVar_(,_setVar)*!drop-1	SET CHARSET a CHARSET a;
 reject	reject	engine	setStatement(,_setVar)*/,_setVar_(,_setVar)*!drop-2	SET CHARSET a, a;
 reject	reject	engine	setStatement(,_setVar)*/,_setVar_(,_setVar)*!drop-3	SET CHARSET a, CHARSET;
@@ -7374,21 +7374,21 @@ reject	reject	engine	setVar/PASSWORD_FOR_user_=_(string|PASSWORD_(_string_))!dro
 reject	reject	engine	setVar/PASSWORD_FOR_user_=_(string|PASSWORD_(_string_))!truncate	SET PASSWORD FOR a =
 reject	reject	engine	setVar/PASSWORD_FOR_user_=_(string|PASSWORD_(_string_))!insert	SET PASSWORD FOR a = 'a' zzz;
 reject	reject	engine	setVar/PASSWORD_FOR_user_=_(string|PASSWORD_(_string_))!swap	SET PATH FOR a = 'a';
-reject	accept	engine	setVar/userVariable_=_expression	SET@a = CURRENT_USER;
+accept	accept	engine	setVar/userVariable_=_expression	SET@a = CURRENT_USER;
 reject	reject	engine	setVar/userVariable_=_expression!drop-2	SET@= CURRENT_USER;
 reject	reject	engine	setVar/userVariable_=_expression!drop-3	SET@a CURRENT_USER;
 reject	reject	engine	setVar/userVariable_=_expression!drop-4	SET@a =;
 reject	reject	engine	setVar/userVariable_=_expression!truncate	SET@a =
 reject	reject	engine	setVar/userVariable_=_expression!insert	SET@a = CURRENT_USER zzz;
-reject	accept	engine	setVar/userVariable_=_expression!swap	SET@a = DATA;
-reject	accept	engine	setVar/(varType)?_identifier_=_setExprOrDefault	SET a = DEFAULT;
+accept	accept	engine	setVar/userVariable_=_expression!swap	SET@a = DATA;
+accept	accept	engine	setVar/(varType)?_identifier_=_setExprOrDefault	SET a = DEFAULT;
 reject	reject	engine	setVar/(varType)?_identifier_=_setExprOrDefault!drop-1	SET = DEFAULT;
 reject	reject	engine	setVar/(varType)?_identifier_=_setExprOrDefault!drop-2	SET a DEFAULT;
 reject	reject	engine	setVar/(varType)?_identifier_=_setExprOrDefault!drop-3	SET a =;
 reject	reject	engine	setVar/(varType)?_identifier_=_setExprOrDefault!truncate	SET a =
 reject	reject	engine	setVar/(varType)?_identifier_=_setExprOrDefault!insert	SET a = DEFAULT zzz;
 accept	reject	engine	setVar/(varType)?_identifier_=_setExprOrDefault!swap	SET a = DEFERRED;
-reject	accept	engine	setVar/systemVariable_=_setExprOrDefault	SET@@a = DEFAULT;
+accept	accept	engine	setVar/systemVariable_=_setExprOrDefault	SET@@a = DEFAULT;
 reject	reject	engine	setVar/systemVariable_=_setExprOrDefault!drop-1	SET@a = DEFAULT;
 reject	reject	engine	setVar/systemVariable_=_setExprOrDefault!drop-3	SET@@= DEFAULT;
 reject	reject	engine	setVar/systemVariable_=_setExprOrDefault!drop-4	SET@@a DEFAULT;
@@ -7403,7 +7403,7 @@ reject	reject	engine	setVar/(varType)?_TRANSACTION_transaction_characteristics!d
 reject	reject	engine	setVar/(varType)?_TRANSACTION_transaction_characteristics!truncate	SET TRANSACTION READ
 reject	reject	engine	setVar/(varType)?_TRANSACTION_transaction_characteristics!insert	SET TRANSACTION READ ONLY zzz;
 reject	reject	engine	setVar/(varType)?_TRANSACTION_transaction_characteristics!swap	SET TRANSLATE READ ONLY;
-reject	accept	engine	setVar(CHAR_SET|CHARSET|CHARACTER_SET)/CHAR_SET	SET CHAR SET a;
+accept	accept	engine	setVar(CHAR_SET|CHARSET|CHARACTER_SET)/CHAR_SET	SET CHAR SET a;
 reject	reject	engine	setVar(CHAR_SET|CHARSET|CHARACTER_SET)/CHAR_SET!drop-1	SET SET a;
 reject	reject	engine	setVar(CHAR_SET|CHARSET|CHARACTER_SET)/CHAR_SET!drop-2	SET CHAR a;
 reject	reject	engine	setVar(CHAR_SET|CHARSET|CHARACTER_SET)/CHAR_SET!truncate	SET CHAR
@@ -7411,13 +7411,13 @@ reject	reject	engine	setVar(CHAR_SET|CHARSET|CHARACTER_SET)/CHAR_SET!insert	SET 
 accept	accept	engine	setVar(CHAR_SET|CHARSET|CHARACTER_SET)/CHARSET	SET CHARSET a;
 reject	reject	engine	setVar(CHAR_SET|CHARSET|CHARACTER_SET)/CHARSET!truncate	SET
 reject	reject	engine	setVar(CHAR_SET|CHARSET|CHARACTER_SET)/CHARSET!insert	SET CHARSET zzz a;
-reject	accept	engine	setVar(CHAR_SET|CHARSET|CHARACTER_SET)/CHARACTER_SET	SET CHARACTER SET a;
+accept	accept	engine	setVar(CHAR_SET|CHARSET|CHARACTER_SET)/CHARACTER_SET	SET CHARACTER SET a;
 reject	reject	engine	setVar(CHAR_SET|CHARSET|CHARACTER_SET)/CHARACTER_SET!drop-2	SET CHARACTER a;
 reject	reject	engine	setVar(CHAR_SET|CHARSET|CHARACTER_SET)/CHARACTER_SET!truncate	SET CHARACTER
 reject	reject	engine	setVar(CHAR_SET|CHARSET|CHARACTER_SET)/CHARACTER_SET!insert	SET CHARACTER SET zzz a;
 reject	reject	engine	setVar(CHAR_SET|CHARSET|CHARACTER_SET)/CHARACTER_SET!swap	SET CHARSET SET a;
 accept	accept	engine	setVar(identifierOrString|DEFAULT)/identifierOrString	SET CHARSET a;
-reject	accept	engine	setVar(identifierOrString|DEFAULT)/DEFAULT	SET CHARSET DEFAULT;
+accept	accept	engine	setVar(identifierOrString|DEFAULT)/DEFAULT	SET CHARSET DEFAULT;
 reject	reject	engine	setVar(identifierOrString|DEFAULT)/DEFAULT!insert	SET CHARSET DEFAULT zzz;
 accept	reject	engine	setVar(identifierOrString|DEFAULT)/DEFAULT!swap	SET CHARSET DEFERRED;
 accept	accept	engine	setVar(COLLATE_(identifierOrString|DEFAULT))?/%empty	SET NAMES a;
@@ -7429,16 +7429,16 @@ reject	reject	engine	setVar(COLLATE_(identifierOrString|DEFAULT))?/COLLATE_(iden
 reject	reject	engine	setVar(COLLATE_(identifierOrString|DEFAULT))?/COLLATE_(identifierOrString|DEFAULT)!swap	SET NAMES a COLLATION a;
 accept	accept	engine	setVar(string|PASSWORD_(_string_))/string	SET PASSWORD = 'a';
 accept	accept	engine	setVar(string|PASSWORD_(_string_))/PASSWORD_(_string_)	SET PASSWORD = PASSWORD('a');
-reject	accept	engine	setVar(string|PASSWORD_(_string_))/PASSWORD_(_string_)!drop-1	SET PASSWORD =('a');
+accept	accept	engine	setVar(string|PASSWORD_(_string_))/PASSWORD_(_string_)!drop-1	SET PASSWORD =('a');
 reject	reject	engine	setVar(string|PASSWORD_(_string_))/PASSWORD_(_string_)!drop-2	SET PASSWORD = PASSWORD 'a');
-reject	accept	engine	setVar(string|PASSWORD_(_string_))/PASSWORD_(_string_)!drop-3	SET PASSWORD = PASSWORD();
+accept	accept	engine	setVar(string|PASSWORD_(_string_))/PASSWORD_(_string_)!drop-3	SET PASSWORD = PASSWORD();
 reject	reject	engine	setVar(string|PASSWORD_(_string_))/PASSWORD_(_string_)!drop-4	SET PASSWORD = PASSWORD('a';
 reject	reject	engine	setVar(string|PASSWORD_(_string_))/PASSWORD_(_string_)!truncate	SET PASSWORD = PASSWORD('a'
 reject	reject	engine	setVar(string|PASSWORD_(_string_))/PASSWORD_(_string_)!insert	SET PASSWORD = PASSWORD('a') zzz;
-reject	accept	engine	setVar(string|PASSWORD_(_string_))/PASSWORD_(_string_)!swap	SET PASSWORD = PATH('a');
-reject	accept	engine	setVar(varType)?/%empty	SET a = DEFAULT;
+accept	accept	engine	setVar(string|PASSWORD_(_string_))/PASSWORD_(_string_)!swap	SET PASSWORD = PATH('a');
+accept	accept	engine	setVar(varType)?/%empty	SET a = DEFAULT;
 reject	reject	engine	setVar(varType)?/%empty!insert	SET zzz a = DEFAULT;
-reject	accept	engine	setVar(varType)?/varType	SET GLOBAL a = DEFAULT;
+accept	accept	engine	setVar(varType)?/varType	SET GLOBAL a = DEFAULT;
 reject	reject	engine	setVar(varType)?/varType!insert	SET GLOBAL zzz a = DEFAULT;
 reject	reject	engine	setVar(varType)?/varType!swap	SET GRANT a = DEFAULT;
 accept	accept	engine	transaction_characteristics/transaction_access_mode	SET TRANSACTION READ ONLY;
@@ -7493,11 +7493,11 @@ reject	reject	engine	isolation_types/REPEATABLE_READ!insert	SET TRANSACTION ISOL
 reject	reject	engine	isolation_types/REPEATABLE_READ!swap	SET TRANSACTION ISOLATION LEVEL REPLACE READ;
 accept	accept	engine	isolation_types/SERIALIZABLE	SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
 reject	reject	engine	isolation_types/SERIALIZABLE!swap	SET TRANSACTION ISOLATION LEVEL SESSION;
-reject	accept	engine	setExprOrDefault/DEFAULT	SET a = DEFAULT;
-reject	accept	engine	setExprOrDefault/ON	SET a = ON;
+accept	accept	engine	setExprOrDefault/DEFAULT	SET a = DEFAULT;
+accept	accept	engine	setExprOrDefault/ON	SET a = ON;
 reject	reject	engine	setExprOrDefault/ON!insert	SET a = ON zzz;
 accept	accept	engine	setExprOrDefault/ON!swap	SET a = ONLY;
-reject	accept	engine	setExprOrDefault/ALL	SET a = ALL;
+accept	accept	engine	setExprOrDefault/ALL	SET a = ALL;
 reject	reject	engine	setExprOrDefault/ALL!insert	SET a = ALL zzz;
 reject	reject	engine	setExprOrDefault/ALL!swap	SET a = ALTER;
 accept	accept	engine	setExprOrDefault/expression	SET a = CURRENT_USER;
@@ -7673,13 +7673,13 @@ reject	reject	engine	resumeWarehouseStatement(IF_EXISTS)?/IF_EXISTS!drop-2	RESUM
 reject	reject	engine	resumeWarehouseStatement(IF_EXISTS)?/IF_EXISTS!truncate	RESUME WAREHOUSE IF
 reject	reject	engine	resumeWarehouseStatement(IF_EXISTS)?/IF_EXISTS!insert	RESUME WAREHOUSE IF EXISTS zzz a;
 reject	reject	engine	resumeWarehouseStatement(IF_EXISTS)?/IF_EXISTS!swap	RESUME WAREHOUSE IGNORE EXISTS a;
-reject	accept	engine	setWarehouseStatement/SET_(SESSION)?_WAREHOUSE_(EQ)?_identifierOrString	SET WAREHOUSE a;
-reject	accept	engine	setWarehouseStatement(SESSION)?/%empty	SET WAREHOUSE a;
+accept	accept	engine	setWarehouseStatement/SET_(SESSION)?_WAREHOUSE_(EQ)?_identifierOrString	SET WAREHOUSE a;
+accept	accept	engine	setWarehouseStatement(SESSION)?/%empty	SET WAREHOUSE a;
 reject	reject	engine	setWarehouseStatement(SESSION)?/%empty!insert	SET zzz WAREHOUSE a;
-reject	accept	engine	setWarehouseStatement(SESSION)?/SESSION	SET SESSION WAREHOUSE a;
+accept	accept	engine	setWarehouseStatement(SESSION)?/SESSION	SET SESSION WAREHOUSE a;
 reject	reject	engine	setWarehouseStatement(SESSION)?/SESSION!insert	SET SESSION zzz WAREHOUSE a;
 reject	reject	engine	setWarehouseStatement(SESSION)?/SESSION!swap	SET SET WAREHOUSE a;
-reject	accept	engine	setWarehouseStatement(EQ)?/%empty	SET WAREHOUSE a;
+accept	accept	engine	setWarehouseStatement(EQ)?/%empty	SET WAREHOUSE a;
 reject	reject	engine	setWarehouseStatement(EQ)?/%empty!insert	SET WAREHOUSE zzz a;
 accept	accept	engine	setWarehouseStatement(EQ)?/EQ	SET WAREHOUSE = a;
 reject	reject	engine	setWarehouseStatement(EQ)?/EQ!insert	SET WAREHOUSE = zzz a;

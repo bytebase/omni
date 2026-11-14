@@ -4581,7 +4581,7 @@ accept	accept	engine	functionArgument/dataType	DROP FUNCTION a(VARIANT)
 reject	reject	engine	functionArgument/dataType!insert	DROP FUNCTION a(VARIANT zzz)
 reject	reject	engine	functionArgument/dataType!swap	DROP FUNCTION a(VAULT)
 accept	accept	engine	unsupportedSetStatement/SET_(optionWithType|optionWithoutType)_(COMMA_(optionWi~921b0ec3	SET CHARSET a
-reject	accept	engine	unsupportedSetStatement/SET_identifier_AS_DEFAULT_STORAGE_VAULT	SET a AS DEFAULT STORAGE VAULT
+accept	accept	engine	unsupportedSetStatement/SET_identifier_AS_DEFAULT_STORAGE_VAULT	SET a AS DEFAULT STORAGE VAULT
 reject	reject	engine	unsupportedSetStatement/SET_identifier_AS_DEFAULT_STORAGE_VAULT!drop-1	a AS DEFAULT STORAGE VAULT
 reject	reject	engine	unsupportedSetStatement/SET_identifier_AS_DEFAULT_STORAGE_VAULT!drop-2	SET AS DEFAULT STORAGE VAULT
 reject	reject	engine	unsupportedSetStatement/SET_identifier_AS_DEFAULT_STORAGE_VAULT!drop-3	SET a DEFAULT STORAGE VAULT
@@ -4606,7 +4606,7 @@ reject	reject	engine	unsupportedSetStatement/SET_(GLOBAL|LOCAL|SESSION)?_TRANSAC
 reject	reject	engine	unsupportedSetStatement/SET_(GLOBAL|LOCAL|SESSION)?_TRANSACTION_(transactionAcc~48d170d0!insert	SET TRANSACTION READ ONLY zzz
 reject	reject	engine	unsupportedSetStatement/SET_(GLOBAL|LOCAL|SESSION)?_TRANSACTION_(transactionAcc~48d170d0!swap	SETS TRANSACTION READ ONLY
 accept	accept	engine	unsupportedSetStatement(optionWithType|optionWithoutType)/optionWithType	SET GLOBAL a = CURRENT_DATE
-reject	accept	engine	unsupportedSetStatement(optionWithType|optionWithoutType)/optionWithType!drop-2	SET GLOBAL = CURRENT_DATE
+accept	accept	engine	unsupportedSetStatement(optionWithType|optionWithoutType)/optionWithType!drop-2	SET GLOBAL = CURRENT_DATE
 reject	reject	engine	unsupportedSetStatement(optionWithType|optionWithoutType)/optionWithType!drop-3	SET GLOBAL a CURRENT_DATE
 reject	reject	engine	unsupportedSetStatement(optionWithType|optionWithoutType)/optionWithType!drop-4	SET GLOBAL a =
 reject	reject	engine	unsupportedSetStatement(optionWithType|optionWithoutType)/optionWithType!insert	SET GLOBAL a = CURRENT_DATE zzz
@@ -4614,7 +4614,7 @@ reject	reject	engine	unsupportedSetStatement(optionWithType|optionWithoutType)/o
 accept	accept	engine	unsupportedSetStatement(optionWithType|optionWithoutType)/optionWithoutType	SET CHARSET a
 reject	reject	engine	unsupportedSetStatement(optionWithType|optionWithoutType)/optionWithoutType!swap	SET CHAR_FILTER a
 accept	accept	engine	unsupportedSetStatement(COMMA_(optionWithType|optionWithoutType))*/%empty	SET CHARSET a
-reject	accept	engine	unsupportedSetStatement(COMMA_(optionWithType|optionWithoutType))*/COMMA_(optionWithType|optionWithoutType)_(COMMA_(option~a96f97bf	SET CHARSET a, CHARSET a
+accept	accept	engine	unsupportedSetStatement(COMMA_(optionWithType|optionWithoutType))*/COMMA_(optionWithType|optionWithoutType)_(COMMA_(option~a96f97bf	SET CHARSET a, CHARSET a
 reject	reject	engine	unsupportedSetStatement(COMMA_(optionWithType|optionWithoutType))*/COMMA_(optionWithType|optionWithoutType)_(COMMA_(option~a96f97bf!drop-1	SET CHARSET a CHARSET a
 reject	reject	engine	unsupportedSetStatement(COMMA_(optionWithType|optionWithoutType))*/COMMA_(optionWithType|optionWithoutType)_(COMMA_(option~a96f97bf!drop-2	SET CHARSET a, a
 reject	reject	engine	unsupportedSetStatement(COMMA_(optionWithType|optionWithoutType))*/COMMA_(optionWithType|optionWithoutType)_(COMMA_(option~a96f97bf!drop-3	SET CHARSET a, CHARSET
@@ -4677,13 +4677,13 @@ reject	reject	engine	optionWithType(GLOBAL|LOCAL|SESSION)/SESSION!insert	SET SES
 reject	reject	engine	optionWithType(GLOBAL|LOCAL|SESSION)/SESSION!swap	SET SESSION_USER a = CURRENT_DATE
 accept	accept	engine	optionWithType(expression|DEFAULT|ON|ALL)/expression	SET GLOBAL a = CURRENT_DATE
 accept	accept	engine	optionWithType(expression|DEFAULT|ON|ALL)/expression!swap	SET GLOBAL a = CURRENT_TIME
-reject	accept	engine	optionWithType(expression|DEFAULT|ON|ALL)/DEFAULT	SET GLOBAL a = DEFAULT
+accept	accept	engine	optionWithType(expression|DEFAULT|ON|ALL)/DEFAULT	SET GLOBAL a = DEFAULT
 reject	reject	engine	optionWithType(expression|DEFAULT|ON|ALL)/DEFAULT!insert	SET GLOBAL a = DEFAULT zzz
 accept	accept	engine	optionWithType(expression|DEFAULT|ON|ALL)/DEFAULT!swap	SET GLOBAL a = DEFERRED
-reject	accept	engine	optionWithType(expression|DEFAULT|ON|ALL)/ON	SET GLOBAL a = ON
+accept	accept	engine	optionWithType(expression|DEFAULT|ON|ALL)/ON	SET GLOBAL a = ON
 reject	reject	engine	optionWithType(expression|DEFAULT|ON|ALL)/ON!insert	SET GLOBAL a = ON zzz
 accept	accept	engine	optionWithType(expression|DEFAULT|ON|ALL)/ON!swap	SET GLOBAL a = ONLY
-reject	accept	engine	optionWithType(expression|DEFAULT|ON|ALL)/ALL	SET GLOBAL a = ALL
+accept	accept	engine	optionWithType(expression|DEFAULT|ON|ALL)/ALL	SET GLOBAL a = ALL
 reject	reject	engine	optionWithType(expression|DEFAULT|ON|ALL)/ALL!insert	SET GLOBAL a = ALL zzz
 reject	reject	engine	optionWithType(expression|DEFAULT|ON|ALL)/ALL!swap	SET GLOBAL a = ALTER
 reject	reject	engine	optionWithoutType/NAMES_EQ_expression	SET NAMES = CURRENT_DATE
@@ -4713,7 +4713,7 @@ reject	reject	engine	optionWithoutType/variable!drop-2	SET a CURRENT_DATE
 reject	reject	engine	optionWithoutType/variable!drop-3	SET a =
 reject	reject	engine	optionWithoutType/variable!insert	SET a = CURRENT_DATE zzz
 accept	accept	engine	optionWithoutType/variable!swap	SET a = CURRENT_TIME
-reject	accept	engine	optionWithoutType(CHAR_SET|CHARSET)/CHAR_SET	SET CHAR SET a
+accept	accept	engine	optionWithoutType(CHAR_SET|CHARSET)/CHAR_SET	SET CHAR SET a
 reject	reject	engine	optionWithoutType(CHAR_SET|CHARSET)/CHAR_SET!drop-1	SET SET a
 reject	reject	engine	optionWithoutType(CHAR_SET|CHARSET)/CHAR_SET!drop-2	SET CHAR a
 reject	reject	engine	optionWithoutType(CHAR_SET|CHARSET)/CHAR_SET!truncate	SET CHAR
@@ -4722,7 +4722,7 @@ reject	reject	engine	optionWithoutType(CHAR_SET|CHARSET)/CHAR_SET!swap	SET CHARS
 accept	accept	engine	optionWithoutType(CHAR_SET|CHARSET)/CHARSET	SET CHARSET a
 reject	reject	engine	optionWithoutType(CHAR_SET|CHARSET)/CHARSET!insert	SET CHARSET zzz a
 accept	accept	engine	optionWithoutType(identifierOrText|DEFAULT)/identifierOrText	SET CHARSET a
-reject	accept	engine	optionWithoutType(identifierOrText|DEFAULT)/DEFAULT	SET CHARSET DEFAULT
+accept	accept	engine	optionWithoutType(identifierOrText|DEFAULT)/DEFAULT	SET CHARSET DEFAULT
 reject	reject	engine	optionWithoutType(identifierOrText|DEFAULT)/DEFAULT!insert	SET CHARSET DEFAULT zzz
 accept	accept	engine	optionWithoutType(identifierOrText|DEFAULT)/DEFAULT!swap	SET CHARSET DEFERRED
 accept	accept	engine	optionWithoutType(COLLATE_identifierOrText|DEFAULT)?/%empty	SET NAMES a
@@ -4751,12 +4751,12 @@ reject	reject	engine	optionWithoutType(STRING_LITERAL|(PASSWORD_LEFT_PAREN_~b81c
 reject	reject	engine	optionWithoutType(STRING_LITERAL|(PASSWORD_LEFT_PAREN_~b81c24ac)/PASSWORD_LEFT_PAREN_STRING_LITERAL_RIGHT_PAREN!insert	SET PASSWORD = PASSWORD('a') zzz
 reject	reject	engine	optionWithoutType(STRING_LITERAL|(PASSWORD_LEFT_PAREN_~b81c24ac)/PASSWORD_LEFT_PAREN_STRING_LITERAL_RIGHT_PAREN!swap	SET PASSWORD = PASSWORD_EXPIRE('a')
 accept	accept	engine	variable/(DOUBLEATSIGN_((GLOBAL|LOCAL|SESSION)_DOT)?)?_identifie~cc9575ad	SET a = CURRENT_DATE
-reject	accept	engine	variable/ATSIGN_identifier_EQ_expression	SET@a = CURRENT_DATE
+accept	accept	engine	variable/ATSIGN_identifier_EQ_expression	SET@a = CURRENT_DATE
 reject	reject	engine	variable/ATSIGN_identifier_EQ_expression!drop-2	SET@= CURRENT_DATE
 reject	reject	engine	variable/ATSIGN_identifier_EQ_expression!drop-3	SET@a CURRENT_DATE
 reject	reject	engine	variable/ATSIGN_identifier_EQ_expression!drop-4	SET@a =
 reject	reject	engine	variable/ATSIGN_identifier_EQ_expression!insert	SET@a = CURRENT_DATE zzz
-reject	accept	engine	variable/ATSIGN_identifier_EQ_expression!swap	SET@a = CURRENT_TIME
+accept	accept	engine	variable/ATSIGN_identifier_EQ_expression!swap	SET@a = CURRENT_TIME
 accept	accept	engine	variable(DOUBLEATSIGN_((GLOBAL|LOCAL|SESSION)_DOT)?)?/%empty	SET a = CURRENT_DATE
 reject	reject	engine	variable(DOUBLEATSIGN_((GLOBAL|LOCAL|SESSION)_DOT)?)?/%empty!insert	SET zzz a = CURRENT_DATE
 accept	accept	engine	variable(DOUBLEATSIGN_((GLOBAL|LOCAL|SESSION)_DOT)?)?/DOUBLEATSIGN_((GLOBAL|LOCAL|SESSION)_DOT)?	SET @@ a = CURRENT_DATE
@@ -4771,20 +4771,20 @@ reject	reject	engine	variable((GLOBAL|LOCAL|SESSION)_DOT)?/(GLOBAL|LOCAL|SESSION
 accept	accept	engine	variable(GLOBAL|LOCAL|SESSION)/GLOBAL	SET @@ GLOBAL.a = CURRENT_DATE
 reject	reject	engine	variable(GLOBAL|LOCAL|SESSION)/GLOBAL!truncate	SET @@
 reject	reject	engine	variable(GLOBAL|LOCAL|SESSION)/GLOBAL!insert	SET @@ GLOBAL zzz.a = CURRENT_DATE
-reject	accept	engine	variable(GLOBAL|LOCAL|SESSION)/LOCAL	SET @@ LOCAL.a = CURRENT_DATE
+accept	accept	engine	variable(GLOBAL|LOCAL|SESSION)/LOCAL	SET @@ LOCAL.a = CURRENT_DATE
 reject	reject	engine	variable(GLOBAL|LOCAL|SESSION)/LOCAL!insert	SET @@ LOCAL zzz.a = CURRENT_DATE
 reject	reject	engine	variable(GLOBAL|LOCAL|SESSION)/LOCAL!swap	SET @@ LOCALTIME.a = CURRENT_DATE
 accept	accept	engine	variable(GLOBAL|LOCAL|SESSION)/SESSION	SET @@ SESSION.a = CURRENT_DATE
 reject	reject	engine	variable(GLOBAL|LOCAL|SESSION)/SESSION!insert	SET @@ SESSION zzz.a = CURRENT_DATE
 reject	reject	engine	variable(GLOBAL|LOCAL|SESSION)/SESSION!swap	SET @@ SESSION_USER.a = CURRENT_DATE
 accept	accept	engine	variable(expression|DEFAULT|ON|ALL)/expression	SET a = CURRENT_DATE
-reject	accept	engine	variable(expression|DEFAULT|ON|ALL)/DEFAULT	SET a = DEFAULT
+accept	accept	engine	variable(expression|DEFAULT|ON|ALL)/DEFAULT	SET a = DEFAULT
 reject	reject	engine	variable(expression|DEFAULT|ON|ALL)/DEFAULT!insert	SET a = DEFAULT zzz
 accept	accept	engine	variable(expression|DEFAULT|ON|ALL)/DEFAULT!swap	SET a = DEFERRED
-reject	accept	engine	variable(expression|DEFAULT|ON|ALL)/ON	SET a = ON
+accept	accept	engine	variable(expression|DEFAULT|ON|ALL)/ON	SET a = ON
 reject	reject	engine	variable(expression|DEFAULT|ON|ALL)/ON!insert	SET a = ON zzz
 accept	accept	engine	variable(expression|DEFAULT|ON|ALL)/ON!swap	SET a = ONLY
-reject	accept	engine	variable(expression|DEFAULT|ON|ALL)/ALL	SET a = ALL
+accept	accept	engine	variable(expression|DEFAULT|ON|ALL)/ALL	SET a = ALL
 reject	reject	engine	variable(expression|DEFAULT|ON|ALL)/ALL!insert	SET a = ALL zzz
 reject	reject	engine	variable(expression|DEFAULT|ON|ALL)/ALL!swap	SET a = ALTER
 accept	accept	engine	transactionAccessMode/READ_(ONLY|WRITE)	SET TRANSACTION READ ONLY
@@ -12381,7 +12381,7 @@ accept	accept	engine	charset_name_or_default/DEFAULT	SET NAMES DEFAULT
 reject	reject	engine	charset_name_or_default/DEFAULT!insert	SET NAMES DEFAULT zzz
 accept	accept	engine	charset_name_or_default/DEFAULT!swap	SET NAMES DEFERRED
 accept	accept	engine	old_or_new_charset_name_or_default/ident_or_text	SET CHARSET a
-reject	accept	engine	old_or_new_charset_name_or_default/DEFAULT	SET CHARSET DEFAULT
+accept	accept	engine	old_or_new_charset_name_or_default/DEFAULT	SET CHARSET DEFAULT
 reject	reject	engine	old_or_new_charset_name_or_default/DEFAULT!insert	SET CHARSET DEFAULT zzz
 accept	accept	engine	old_or_new_charset_name_or_default/DEFAULT!swap	SET CHARSET DEFERRED
 accept	accept	engine	opt_collate/%empty	SELECT 1
@@ -12864,7 +12864,7 @@ reject	reject	engine	kill_stmt/KILL_QUERY_STRING_LITERAL!insert	KILL QUERY 'a' z
 reject	reject	engine	kill_stmt/KILL_QUERY_STRING_LITERAL!swap	LABEL QUERY 'a'
 accept	accept	engine	kill_analysis_job_stmt/KILL_ANALYZE_INTEGER_VALUE	KILL ANALYZE 1
 accept	accept	engine	set_stmt/SET_start_option_value_list	SET CHARSET a
-reject	accept	engine	set_stmt/SET_PROPERTY_opt_user_user_property_list	SET PROPERTY 'a' = 'a'
+accept	accept	engine	set_stmt/SET_PROPERTY_opt_user_user_property_list	SET PROPERTY 'a' = 'a'
 reject	reject	engine	set_stmt/SET_PROPERTY_opt_user_user_property_list!drop-1	PROPERTY 'a' = 'a'
 reject	reject	engine	set_stmt/SET_PROPERTY_opt_user_user_property_list!drop-2	SET 'a' = 'a'
 accept	accept	engine	set_stmt/SET_PROPERTY_opt_user_user_property_list!drop-3	SET PROPERTY = 'a'
@@ -12872,7 +12872,7 @@ reject	reject	engine	set_stmt/SET_PROPERTY_opt_user_user_property_list!drop-4	SE
 reject	reject	engine	set_stmt/SET_PROPERTY_opt_user_user_property_list!drop-5	SET PROPERTY 'a' =
 reject	reject	engine	set_stmt/SET_PROPERTY_opt_user_user_property_list!insert	SET PROPERTY 'a' = 'a' zzz
 reject	reject	engine	set_stmt/SET_PROPERTY_opt_user_user_property_list!swap	SETS PROPERTY 'a' = 'a'
-reject	accept	engine	set_stmt/SET_ident_AS_DEFAULT_STORAGE_VAULT	SET a AS DEFAULT STORAGE VAULT
+accept	accept	engine	set_stmt/SET_ident_AS_DEFAULT_STORAGE_VAULT	SET a AS DEFAULT STORAGE VAULT
 reject	reject	engine	set_stmt/SET_ident_AS_DEFAULT_STORAGE_VAULT!drop-1	a AS DEFAULT STORAGE VAULT
 reject	reject	engine	set_stmt/SET_ident_AS_DEFAULT_STORAGE_VAULT!drop-2	SET AS DEFAULT STORAGE VAULT
 reject	reject	engine	set_stmt/SET_ident_AS_DEFAULT_STORAGE_VAULT!drop-3	SET a DEFAULT STORAGE VAULT
@@ -12888,8 +12888,8 @@ reject	reject	engine	unset_var_stmt/UNSET_opt_var_type_VARIABLE_ALL!drop-2	UNSET
 reject	reject	engine	unset_var_stmt/UNSET_opt_var_type_VARIABLE_ALL!insert	UNSET VARIABLE ALL zzz
 reject	reject	engine	unset_var_stmt/UNSET_opt_var_type_VARIABLE_ALL!swap	UNSIGNED VARIABLE ALL
 accept	accept	engine	unset_default_storage_vault_stmt/UNSET_DEFAULT_STORAGE_VAULT	UNSET DEFAULT STORAGE VAULT
-reject	accept	engine	user_property_list/user_property	SET PROPERTY 'a' = 'a'
-reject	accept	engine	user_property_list/user_property_list_,_user_property	SET PROPERTY 'a' = 'a', 'a' = 'a'
+accept	accept	engine	user_property_list/user_property	SET PROPERTY 'a' = 'a'
+accept	accept	engine	user_property_list/user_property_list_,_user_property	SET PROPERTY 'a' = 'a', 'a' = 'a'
 reject	reject	engine	user_property_list/user_property_list_,_user_property!drop-1	SET PROPERTY = 'a', 'a' = 'a'
 reject	reject	engine	user_property_list/user_property_list_,_user_property!drop-2	SET PROPERTY 'a' 'a', 'a' = 'a'
 reject	reject	engine	user_property_list/user_property_list_,_user_property!drop-3	SET PROPERTY 'a' =, 'a' = 'a'
@@ -12898,8 +12898,8 @@ reject	reject	engine	user_property_list/user_property_list_,_user_property!drop-
 reject	reject	engine	user_property_list/user_property_list_,_user_property!drop-6	SET PROPERTY 'a' = 'a', 'a' 'a'
 reject	reject	engine	user_property_list/user_property_list_,_user_property!drop-7	SET PROPERTY 'a' = 'a', 'a' =
 reject	reject	engine	user_property_list/user_property_list_,_user_property!insert	SET PROPERTY 'a' = 'a', 'a' = 'a' zzz
-reject	accept	engine	user_property/STRING_LITERAL_equal_STRING_LITERAL	SET PROPERTY 'a' = 'a'
-reject	accept	engine	user_property/STRING_LITERAL_equal_NULL	SET PROPERTY 'a' = NULL
+accept	accept	engine	user_property/STRING_LITERAL_equal_STRING_LITERAL	SET PROPERTY 'a' = 'a'
+accept	accept	engine	user_property/STRING_LITERAL_equal_NULL	SET PROPERTY 'a' = NULL
 accept	accept	engine	user_property/STRING_LITERAL_equal_NULL!drop-1	SET PROPERTY = NULL
 reject	reject	engine	user_property/STRING_LITERAL_equal_NULL!drop-2	SET PROPERTY 'a' NULL
 reject	reject	engine	user_property/STRING_LITERAL_equal_NULL!insert	SET PROPERTY 'a' = NULL zzz
@@ -12912,13 +12912,13 @@ reject	reject	engine	start_option_value_list/TRANSACTION_transaction_characteris
 reject	reject	engine	start_option_value_list/TRANSACTION_transaction_characteristics!drop-3	SET TRANSACTION READ
 reject	reject	engine	start_option_value_list/TRANSACTION_transaction_characteristics!insert	SET TRANSACTION READ ONLY zzz
 reject	reject	engine	start_option_value_list/TRANSACTION_transaction_characteristics!swap	SET TRASH READ ONLY
-reject	accept	engine	start_option_value_list/option_type_start_option_value_list_following_option_type	SET GLOBAL a = DEFAULT
-reject	accept	engine	start_option_value_list/option_type_start_option_value_list_following_option_type!drop-2	SET GLOBAL = DEFAULT
+accept	accept	engine	start_option_value_list/option_type_start_option_value_list_following_option_type	SET GLOBAL a = DEFAULT
+accept	accept	engine	start_option_value_list/option_type_start_option_value_list_following_option_type!drop-2	SET GLOBAL = DEFAULT
 reject	reject	engine	start_option_value_list/option_type_start_option_value_list_following_option_type!drop-3	SET GLOBAL a DEFAULT
 reject	reject	engine	start_option_value_list/option_type_start_option_value_list_following_option_type!drop-4	SET GLOBAL a =
 reject	reject	engine	start_option_value_list/option_type_start_option_value_list_following_option_type!insert	SET GLOBAL a = DEFAULT zzz
 reject	reject	engine	start_option_value_list/option_type_start_option_value_list_following_option_type!swap	SET GRANT a = DEFAULT
-reject	accept	engine	start_option_value_list_following_option_type/option_value_follow_option_type_option_value_list_continued	SET GLOBAL a = DEFAULT
+accept	accept	engine	start_option_value_list_following_option_type/option_value_follow_option_type_option_value_list_continued	SET GLOBAL a = DEFAULT
 accept	accept	engine	start_option_value_list_following_option_type/option_value_follow_option_type_option_value_list_continued!swap	SET GLOBAL a = DEFERRED
 accept	accept	engine	start_option_value_list_following_option_type/TRANSACTION_transaction_characteristics	SET GLOBAL TRANSACTION READ ONLY
 reject	reject	engine	start_option_value_list_following_option_type/TRANSACTION_transaction_characteristics!drop-1	SET GLOBAL READ ONLY
@@ -12927,14 +12927,14 @@ reject	reject	engine	start_option_value_list_following_option_type/TRANSACTION_t
 reject	reject	engine	start_option_value_list_following_option_type/TRANSACTION_transaction_characteristics!insert	SET GLOBAL TRANSACTION READ ONLY zzz
 reject	reject	engine	start_option_value_list_following_option_type/TRANSACTION_transaction_characteristics!swap	SET GLOBAL TRASH READ ONLY
 accept	accept	engine	option_value_list_continued/%empty	SET CHARSET a
-reject	accept	engine	option_value_list_continued/,_option_value_list	SET CHARSET a, CHARSET a
+accept	accept	engine	option_value_list_continued/,_option_value_list	SET CHARSET a, CHARSET a
 reject	reject	engine	option_value_list_continued/,_option_value_list!drop-1	SET CHARSET a CHARSET a
 reject	reject	engine	option_value_list_continued/,_option_value_list!drop-2	SET CHARSET a, a
 reject	reject	engine	option_value_list_continued/,_option_value_list!drop-3	SET CHARSET a, CHARSET
 reject	reject	engine	option_value_list_continued/,_option_value_list!insert	SET CHARSET a, CHARSET a zzz
 reject	reject	engine	option_value_list_continued/,_option_value_list!swap	SET CHARSET a, CHAR_FILTER a
-reject	accept	engine	option_value_list/option_value	SET CHARSET a, CHARSET a
-reject	accept	engine	option_value_list/option_value_list_,_option_value	SET CHARSET a, CHARSET a, CHARSET a
+accept	accept	engine	option_value_list/option_value	SET CHARSET a, CHARSET a
+accept	accept	engine	option_value_list/option_value_list_,_option_value	SET CHARSET a, CHARSET a, CHARSET a
 reject	reject	engine	option_value_list/option_value_list_,_option_value!drop-1	SET CHARSET a, a, CHARSET a
 reject	reject	engine	option_value_list/option_value_list_,_option_value!drop-2	SET CHARSET a, CHARSET, CHARSET a
 reject	reject	engine	option_value_list/option_value_list_,_option_value!drop-3	SET CHARSET a, CHARSET a CHARSET a
@@ -12942,34 +12942,34 @@ reject	reject	engine	option_value_list/option_value_list_,_option_value!drop-4	S
 reject	reject	engine	option_value_list/option_value_list_,_option_value!drop-5	SET CHARSET a, CHARSET a, CHARSET
 reject	reject	engine	option_value_list/option_value_list_,_option_value!insert	SET CHARSET a, CHARSET a, CHARSET a zzz
 reject	reject	engine	option_value_list/option_value_list_,_option_value!swap	SET CHARSET a, CHAR_FILTER a, CHARSET a
-reject	accept	engine	option_value/option_type_option_value_follow_option_type	SET CHARSET a, GLOBAL a = DEFAULT
-reject	accept	engine	option_value/option_type_option_value_follow_option_type!drop-1	SET CHARSET a, a = DEFAULT
-reject	accept	engine	option_value/option_type_option_value_follow_option_type!drop-2	SET CHARSET a, GLOBAL = DEFAULT
+accept	accept	engine	option_value/option_type_option_value_follow_option_type	SET CHARSET a, GLOBAL a = DEFAULT
+accept	accept	engine	option_value/option_type_option_value_follow_option_type!drop-1	SET CHARSET a, a = DEFAULT
+accept	accept	engine	option_value/option_type_option_value_follow_option_type!drop-2	SET CHARSET a, GLOBAL = DEFAULT
 reject	reject	engine	option_value/option_type_option_value_follow_option_type!drop-3	SET CHARSET a, GLOBAL a DEFAULT
 reject	reject	engine	option_value/option_type_option_value_follow_option_type!drop-4	SET CHARSET a, GLOBAL a =
 reject	reject	engine	option_value/option_type_option_value_follow_option_type!insert	SET CHARSET a, GLOBAL a = DEFAULT zzz
 reject	reject	engine	option_value/option_type_option_value_follow_option_type!swap	SET CHARSET a, GRANT a = DEFAULT
-reject	accept	engine	option_value/option_value_no_option_type	SET CHARSET a, CHARSET a
-reject	accept	engine	option_value_follow_option_type/variable_name_equal_set_expr_or_default	SET GLOBAL a = DEFAULT
-reject	accept	engine	option_value_no_option_type/variable_name_equal_set_expr_or_default	SET a = DEFAULT
+accept	accept	engine	option_value/option_value_no_option_type	SET CHARSET a, CHARSET a
+accept	accept	engine	option_value_follow_option_type/variable_name_equal_set_expr_or_default	SET GLOBAL a = DEFAULT
+accept	accept	engine	option_value_no_option_type/variable_name_equal_set_expr_or_default	SET a = DEFAULT
 reject	reject	engine	option_value_no_option_type/variable_name_equal_set_expr_or_default!drop-1	SET = DEFAULT
 reject	reject	engine	option_value_no_option_type/variable_name_equal_set_expr_or_default!drop-2	SET a DEFAULT
 reject	reject	engine	option_value_no_option_type/variable_name_equal_set_expr_or_default!drop-3	SET a =
 reject	reject	engine	option_value_no_option_type/variable_name_equal_set_expr_or_default!insert	SET a = DEFAULT zzz
 accept	accept	engine	option_value_no_option_type/variable_name_equal_set_expr_or_default!swap	SET a = DEFERRED
-reject	accept	engine	option_value_no_option_type/@_ident_or_text_equal_expr	SET@a = 1
+accept	accept	engine	option_value_no_option_type/@_ident_or_text_equal_expr	SET@a = 1
 reject	reject	engine	option_value_no_option_type/@_ident_or_text_equal_expr!drop-2	SET@= 1
 reject	reject	engine	option_value_no_option_type/@_ident_or_text_equal_expr!drop-3	SET@a 1
 reject	reject	engine	option_value_no_option_type/@_ident_or_text_equal_expr!drop-4	SET@a =
 reject	reject	engine	option_value_no_option_type/@_ident_or_text_equal_expr!insert	SET@a = 1 zzz
-reject	accept	engine	option_value_no_option_type/@_@_variable_name_equal_set_expr_or_default	SET@@a = DEFAULT
+accept	accept	engine	option_value_no_option_type/@_@_variable_name_equal_set_expr_or_default	SET@@a = DEFAULT
 reject	reject	engine	option_value_no_option_type/@_@_variable_name_equal_set_expr_or_default!drop-1	SET@a = DEFAULT
 reject	reject	engine	option_value_no_option_type/@_@_variable_name_equal_set_expr_or_default!drop-3	SET@@= DEFAULT
 reject	reject	engine	option_value_no_option_type/@_@_variable_name_equal_set_expr_or_default!drop-4	SET@@a DEFAULT
 reject	reject	engine	option_value_no_option_type/@_@_variable_name_equal_set_expr_or_default!drop-5	SET@@a =
 reject	reject	engine	option_value_no_option_type/@_@_variable_name_equal_set_expr_or_default!insert	SET@@a = DEFAULT zzz
 accept	accept	engine	option_value_no_option_type/@_@_variable_name_equal_set_expr_or_default!swap	SET@@a = DEFERRED
-reject	accept	engine	option_value_no_option_type/@_@_var_ident_type_variable_name_equal_set_expr_or_default	SET@@GLOBAL.a = DEFAULT
+accept	accept	engine	option_value_no_option_type/@_@_var_ident_type_variable_name_equal_set_expr_or_default	SET@@GLOBAL.a = DEFAULT
 reject	reject	engine	option_value_no_option_type/@_@_var_ident_type_variable_name_equal_set_expr_or_default!drop-1	SET@GLOBAL.a = DEFAULT
 reject	reject	engine	option_value_no_option_type/@_@_var_ident_type_variable_name_equal_set_expr_or_default!drop-3	SET@@.a = DEFAULT
 reject	reject	engine	option_value_no_option_type/@_@_var_ident_type_variable_name_equal_set_expr_or_default!drop-4	SET@@GLOBAL a = DEFAULT
@@ -13015,13 +13015,13 @@ reject	reject	engine	text_or_password/PASSWORD_(_STRING_LITERAL_)!drop-3	SET PAS
 reject	reject	engine	text_or_password/PASSWORD_(_STRING_LITERAL_)!drop-4	SET PASSWORD = PASSWORD('a'
 reject	reject	engine	text_or_password/PASSWORD_(_STRING_LITERAL_)!insert	SET PASSWORD = PASSWORD('a') zzz
 reject	reject	engine	text_or_password/PASSWORD_(_STRING_LITERAL_)!swap	SET PASSWORD = PASSWORD_EXPIRE('a')
-reject	accept	engine	option_type/GLOBAL	SET GLOBAL a = DEFAULT
+accept	accept	engine	option_type/GLOBAL	SET GLOBAL a = DEFAULT
 reject	reject	engine	option_type/GLOBAL!truncate	SET
 reject	reject	engine	option_type/GLOBAL!insert	SET GLOBAL zzz a = DEFAULT
-reject	accept	engine	option_type/LOCAL	SET LOCAL a = DEFAULT
+accept	accept	engine	option_type/LOCAL	SET LOCAL a = DEFAULT
 reject	reject	engine	option_type/LOCAL!insert	SET LOCAL zzz a = DEFAULT
 reject	reject	engine	option_type/LOCAL!swap	SET LOCALTIME a = DEFAULT
-reject	accept	engine	option_type/SESSION	SET SESSION a = DEFAULT
+accept	accept	engine	option_type/SESSION	SET SESSION a = DEFAULT
 reject	reject	engine	option_type/SESSION!insert	SET SESSION zzz a = DEFAULT
 reject	reject	engine	option_type/SESSION!swap	SET SESSION_USER a = DEFAULT
 accept	accept	engine	opt_var_type/%empty	SHOW VARIABLES
@@ -13051,7 +13051,7 @@ accept	accept	engine	var_ident_type/SESSION_.!drop-2	SELECT@@SESSION a
 accept	accept	engine	var_ident_type/SESSION_.!truncate	SELECT@@SESSION
 accept	accept	engine	var_ident_type/SESSION_.!insert	SELECT@@SESSION.zzz a
 accept	accept	engine	var_ident_type/SESSION_.!swap	SELECT@@SESSION_USER.a
-reject	accept	engine	equal/=	SET a = DEFAULT
+accept	accept	engine	equal/=	SET a = DEFAULT
 reject	reject	engine	equal/=!insert	SET a = zzz DEFAULT
 reject	reject	engine	equal/COLON=	SET a := DEFAULT
 reject	reject	engine	equal/COLON=!insert	SET a := zzz DEFAULT
@@ -13102,11 +13102,11 @@ reject	reject	engine	isolation_types/REPEATABLE_READ!insert	SET TRANSACTION ISOL
 reject	reject	engine	isolation_types/REPEATABLE_READ!swap	SET TRANSACTION ISOLATION LEVEL REPLACE READ
 accept	accept	engine	isolation_types/SERIALIZABLE	SET TRANSACTION ISOLATION LEVEL SERIALIZABLE
 reject	reject	engine	isolation_types/SERIALIZABLE!swap	SET TRANSACTION ISOLATION LEVEL SESSION
-reject	accept	engine	set_expr_or_default/DEFAULT	SET a = DEFAULT
-reject	accept	engine	set_expr_or_default/ON	SET a = ON
+accept	accept	engine	set_expr_or_default/DEFAULT	SET a = DEFAULT
+accept	accept	engine	set_expr_or_default/ON	SET a = ON
 reject	reject	engine	set_expr_or_default/ON!insert	SET a = ON zzz
 accept	accept	engine	set_expr_or_default/ON!swap	SET a = ONLY
-reject	accept	engine	set_expr_or_default/ALL	SET a = ALL
+accept	accept	engine	set_expr_or_default/ALL	SET a = ALL
 reject	reject	engine	set_expr_or_default/ALL!insert	SET a = ALL zzz
 reject	reject	engine	set_expr_or_default/ALL!swap	SET a = ALTER
 accept	accept	engine	set_expr_or_default/expr	SET a = 1
