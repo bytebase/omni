@@ -6678,7 +6678,7 @@ func TestParseCreateAvailabilityGroup(t *testing.T) {
 		// CREATE DISTRIBUTED
 		"CREATE AVAILABILITY GROUP MyDistAG WITH (DISTRIBUTED) AVAILABILITY GROUP ON 'AG1' WITH (LISTENER_URL = 'TCP://server1:5022', AVAILABILITY_MODE = ASYNCHRONOUS_COMMIT, FAILOVER_MODE = MANUAL, SEEDING_MODE = AUTOMATIC), 'AG2' WITH (LISTENER_URL = 'TCP://server2:5022', AVAILABILITY_MODE = ASYNCHRONOUS_COMMIT, FAILOVER_MODE = MANUAL, SEEDING_MODE = AUTOMATIC)",
 		// CREATE with CONFIGURATION_ONLY availability mode
-		"CREATE AVAILABILITY GROUP MyAG FOR DATABASE MyDB REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = CONFIGURATION_ONLY, FAILOVER_MODE = MANUAL)",
+		"CREATE AVAILABILITY GROUP MyAG FOR DATABASE MyDB REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = CONFIGURATION_ONLY)",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
@@ -6739,7 +6739,7 @@ func TestParseAlterAvailabilityGroup(t *testing.T) {
 		// OFFLINE
 		"ALTER AVAILABILITY GROUP MyAG OFFLINE",
 		// SET multiple options
-		"ALTER AVAILABILITY GROUP MyAG SET (DB_FAILOVER = ON, FAILURE_CONDITION_LEVEL = 4, HEALTH_CHECK_TIMEOUT = 60000)",
+		"ALTER AVAILABILITY GROUP MyAG SET (FAILURE_CONDITION_LEVEL = 4)",
 		// MODIFY AVAILABILITY GROUP ON (distributed)
 		"ALTER AVAILABILITY GROUP MyDistAG MODIFY AVAILABILITY GROUP ON 'AG1' WITH (LISTENER_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT)",
 	}
@@ -13743,9 +13743,9 @@ func TestParseAvailabilityGroupOptionsDepth(t *testing.T) {
 	}{
 		// ag_replica_on_structured: REPLICA ON with all standard options parsed as key=value
 		{
-			sql: "CREATE AVAILABILITY GROUP MyAG REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC)",
+			sql: "CREATE AVAILABILITY GROUP MyAG FOR REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC)",
 			wantOpts: []string{
-				"REPLICA ON", "'server1'", "WITH",
+				"FOR", "REPLICA ON", "'server1'", "WITH",
 				"ENDPOINT_URL='TCP://server1:5022'",
 				"AVAILABILITY_MODE=SYNCHRONOUS_COMMIT",
 				"FAILOVER_MODE=AUTOMATIC",
@@ -13753,9 +13753,9 @@ func TestParseAvailabilityGroupOptionsDepth(t *testing.T) {
 		},
 		// ag_replica_on_structured: REPLICA ON with SEEDING_MODE, BACKUP_PRIORITY, SESSION_TIMEOUT
 		{
-			sql: "CREATE AVAILABILITY GROUP MyAG REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC, SEEDING_MODE = AUTOMATIC, BACKUP_PRIORITY = 50, SESSION_TIMEOUT = 10)",
+			sql: "CREATE AVAILABILITY GROUP MyAG FOR REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC, SEEDING_MODE = AUTOMATIC, BACKUP_PRIORITY = 50, SESSION_TIMEOUT = 10)",
 			wantOpts: []string{
-				"REPLICA ON", "'server1'", "WITH",
+				"FOR", "REPLICA ON", "'server1'", "WITH",
 				"ENDPOINT_URL='TCP://server1:5022'",
 				"AVAILABILITY_MODE=SYNCHRONOUS_COMMIT",
 				"FAILOVER_MODE=AUTOMATIC",
@@ -13766,9 +13766,9 @@ func TestParseAvailabilityGroupOptionsDepth(t *testing.T) {
 		},
 		// ag_replica_options_structured: SECONDARY_ROLE and PRIMARY_ROLE as nested option blocks
 		{
-			sql: "CREATE AVAILABILITY GROUP MyAG REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC, SECONDARY_ROLE (ALLOW_CONNECTIONS = READ_ONLY), PRIMARY_ROLE (ALLOW_CONNECTIONS = ALL))",
+			sql: "CREATE AVAILABILITY GROUP MyAG FOR REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC, SECONDARY_ROLE (ALLOW_CONNECTIONS = READ_ONLY), PRIMARY_ROLE (ALLOW_CONNECTIONS = ALL))",
 			wantOpts: []string{
-				"REPLICA ON", "'server1'", "WITH",
+				"FOR", "REPLICA ON", "'server1'", "WITH",
 				"ENDPOINT_URL='TCP://server1:5022'",
 				"AVAILABILITY_MODE=SYNCHRONOUS_COMMIT",
 				"FAILOVER_MODE=AUTOMATIC",
@@ -13778,9 +13778,9 @@ func TestParseAvailabilityGroupOptionsDepth(t *testing.T) {
 		},
 		// ag_replica_options_structured: PRIMARY_ROLE with READ_ONLY_ROUTING_LIST
 		{
-			sql: "CREATE AVAILABILITY GROUP MyAG REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC, PRIMARY_ROLE (ALLOW_CONNECTIONS = ALL, READ_ONLY_ROUTING_LIST = ('server2', 'server3')))",
+			sql: "CREATE AVAILABILITY GROUP MyAG FOR REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC, PRIMARY_ROLE (ALLOW_CONNECTIONS = ALL, READ_ONLY_ROUTING_LIST = ('server2', 'server3')))",
 			wantOpts: []string{
-				"REPLICA ON", "'server1'", "WITH",
+				"FOR", "REPLICA ON", "'server1'", "WITH",
 				"ENDPOINT_URL='TCP://server1:5022'",
 				"AVAILABILITY_MODE=SYNCHRONOUS_COMMIT",
 				"FAILOVER_MODE=AUTOMATIC",
@@ -13789,9 +13789,9 @@ func TestParseAvailabilityGroupOptionsDepth(t *testing.T) {
 		},
 		// ag_listener_structured: LISTENER with IP and PORT
 		{
-			sql: "CREATE AVAILABILITY GROUP MyAG REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC) LISTENER 'MyListener' (WITH IP (('10.120.19.155', '255.255.254.0')), PORT = 1433)",
+			sql: "CREATE AVAILABILITY GROUP MyAG FOR REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC) LISTENER 'MyListener' (WITH IP (('10.120.19.155', '255.255.254.0')), PORT = 1433)",
 			wantOpts: []string{
-				"REPLICA ON", "'server1'", "WITH",
+				"FOR", "REPLICA ON", "'server1'", "WITH",
 				"ENDPOINT_URL='TCP://server1:5022'",
 				"AVAILABILITY_MODE=SYNCHRONOUS_COMMIT",
 				"FAILOVER_MODE=AUTOMATIC",
@@ -13801,9 +13801,9 @@ func TestParseAvailabilityGroupOptionsDepth(t *testing.T) {
 		},
 		// ag_listener_structured: LISTENER with DHCP
 		{
-			sql: "CREATE AVAILABILITY GROUP MyAG REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC) LISTENER 'MyListener' (WITH DHCP ON ('10.120.19.0', '255.255.254.0'))",
+			sql: "CREATE AVAILABILITY GROUP MyAG FOR REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC) LISTENER 'MyListener' (WITH DHCP ON ('10.120.19.0', '255.255.254.0'))",
 			wantOpts: []string{
-				"REPLICA ON", "'server1'", "WITH",
+				"FOR", "REPLICA ON", "'server1'", "WITH",
 				"ENDPOINT_URL='TCP://server1:5022'",
 				"AVAILABILITY_MODE=SYNCHRONOUS_COMMIT",
 				"FAILOVER_MODE=AUTOMATIC",
@@ -13813,12 +13813,10 @@ func TestParseAvailabilityGroupOptionsDepth(t *testing.T) {
 		},
 		// SET options parsed structurally
 		{
-			sql: "ALTER AVAILABILITY GROUP MyAG SET (AUTOMATED_BACKUP_PREFERENCE = SECONDARY, DB_FAILOVER = ON, HEALTH_CHECK_TIMEOUT = 30000)",
+			sql: "ALTER AVAILABILITY GROUP MyAG SET (AUTOMATED_BACKUP_PREFERENCE = SECONDARY)",
 			wantOpts: []string{
 				"SET",
 				"AUTOMATED_BACKUP_PREFERENCE=SECONDARY",
-				"DB_FAILOVER=ON",
-				"HEALTH_CHECK_TIMEOUT=30000",
 			},
 		},
 		// MODIFY LISTENER with ADD IP
@@ -13895,9 +13893,9 @@ func TestParseAvailabilityRemainingDepth(t *testing.T) {
 		// ag_nested_parens_structured: IP tuples parsed as structured comma-separated values
 		{
 			name: "ag_nested_parens_structured_ip_tuple",
-			sql:  "CREATE AVAILABILITY GROUP MyAG REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC) LISTENER 'MyListener' (WITH IP (('10.0.0.1', '255.255.255.0'), ('10.0.0.2', '255.255.255.0')), PORT = 1433)",
+			sql:  "CREATE AVAILABILITY GROUP MyAG FOR REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC) LISTENER 'MyListener' (WITH IP (('10.0.0.1', '255.255.255.0'), ('10.0.0.2', '255.255.255.0')), PORT = 1433)",
 			wantOpts: []string{
-				"REPLICA ON", "'server1'", "WITH",
+				"FOR", "REPLICA ON", "'server1'", "WITH",
 				"ENDPOINT_URL='TCP://server1:5022'",
 				"AVAILABILITY_MODE=SYNCHRONOUS_COMMIT",
 				"FAILOVER_MODE=AUTOMATIC",
@@ -13908,9 +13906,9 @@ func TestParseAvailabilityRemainingDepth(t *testing.T) {
 		// ag_nested_parens_structured: key = (value_list) uses recursive parsing
 		{
 			name: "ag_nested_parens_structured_value_list",
-			sql:  "CREATE AVAILABILITY GROUP MyAG REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC, PRIMARY_ROLE (READ_ONLY_ROUTING_LIST = ('server2', 'server3', 'server4')))",
+			sql:  "CREATE AVAILABILITY GROUP MyAG FOR REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC, PRIMARY_ROLE (READ_ONLY_ROUTING_LIST = ('server2', 'server3', 'server4')))",
 			wantOpts: []string{
-				"REPLICA ON", "'server1'", "WITH",
+				"FOR", "REPLICA ON", "'server1'", "WITH",
 				"ENDPOINT_URL='TCP://server1:5022'",
 				"AVAILABILITY_MODE=SYNCHRONOUS_COMMIT",
 				"FAILOVER_MODE=AUTOMATIC",
@@ -17109,7 +17107,7 @@ func TestParseExternalCleanupDepth(t *testing.T) {
 func TestParseAvailabilitySkipCleanupDepth(t *testing.T) {
 	// Valid AG statements should still parse without UNEXPECTED tokens
 	t.Run("availability_group_unexpected_token_error", func(t *testing.T) {
-		sql := "ALTER AVAILABILITY GROUP myAG MODIFY REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT)"
+		sql := "ALTER AVAILABILITY GROUP myAG ADD REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = MANUAL)"
 		result := ParseAndCheck(t, sql)
 		stmt := result.Items[0].(*ast.SecurityStmt)
 		if stmt.Options == nil {
@@ -17127,7 +17125,7 @@ func TestParseAvailabilitySkipCleanupDepth(t *testing.T) {
 
 	// Verify standard parsing still works
 	t.Run("availability_group_valid_options", func(t *testing.T) {
-		sql := "CREATE AVAILABILITY GROUP myAG WITH (CLUSTER_TYPE = NONE) FOR REPLICA ON 'srv1' WITH (ENDPOINT_URL = 'TCP://srv1:5022')"
+		sql := "CREATE AVAILABILITY GROUP myAG WITH (CLUSTER_TYPE = NONE) FOR REPLICA ON 'srv1' WITH (ENDPOINT_URL = 'TCP://srv1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = EXTERNAL)"
 		result := ParseAndCheck(t, sql)
 		if result.Len() != 1 {
 			t.Fatalf("expected 1 statement, got %d", result.Len())
@@ -17597,12 +17595,12 @@ func TestParseAvailabilityOptionsStringsFinal(t *testing.T) {
 			{"ALTER AVAILABILITY GROUP MyAG SET (DB_FAILOVER = ON)", "SET", "", 0},
 			{"ALTER AVAILABILITY GROUP MyAG ADD DATABASE MyDB", "ADD DATABASE", "MyDB", 0},
 			{"ALTER AVAILABILITY GROUP MyAG REMOVE DATABASE OldDB", "REMOVE DATABASE", "OldDB", 0},
-			{"ALTER AVAILABILITY GROUP MyAG ADD REPLICA ON", "ADD REPLICA ON", "", 0},
-			{"ALTER AVAILABILITY GROUP MyAG MODIFY REPLICA ON", "MODIFY REPLICA ON", "", 0},
-			{"ALTER AVAILABILITY GROUP MyAG REMOVE REPLICA ON", "REMOVE REPLICA ON", "", 0},
+			{"ALTER AVAILABILITY GROUP MyAG ADD REPLICA ON 's2' WITH (ENDPOINT_URL = 'TCP://s2:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = MANUAL)", "ADD REPLICA ON", "", 0},
+			{"ALTER AVAILABILITY GROUP MyAG MODIFY REPLICA ON 's2' WITH (BACKUP_PRIORITY = 10)", "MODIFY REPLICA ON", "", 0},
+			{"ALTER AVAILABILITY GROUP MyAG REMOVE REPLICA ON 's2'", "REMOVE REPLICA ON", "", 0},
 			{"ALTER AVAILABILITY GROUP MyAG JOIN", "JOIN", "", 0},
-			{"ALTER AVAILABILITY GROUP MyAG JOIN AVAILABILITY GROUP ON", "JOIN AVAILABILITY GROUP ON", "", 0},
-			{"ALTER AVAILABILITY GROUP MyAG MODIFY AVAILABILITY GROUP ON", "MODIFY AVAILABILITY GROUP ON", "", 0},
+			{"ALTER AVAILABILITY GROUP MyAG JOIN AVAILABILITY GROUP ON 'AG1' WITH (LISTENER_URL = 'TCP://s1:5022', AVAILABILITY_MODE = ASYNCHRONOUS_COMMIT)", "JOIN AVAILABILITY GROUP ON", "", 0},
+			{"ALTER AVAILABILITY GROUP MyAG MODIFY AVAILABILITY GROUP ON 'AG1' WITH (SEEDING_MODE = MANUAL)", "MODIFY AVAILABILITY GROUP ON", "", 0},
 			{"ALTER AVAILABILITY GROUP MyAG GRANT CREATE ANY DATABASE", "GRANT CREATE ANY DATABASE", "", 0},
 			{"ALTER AVAILABILITY GROUP MyAG DENY CREATE ANY DATABASE", "DENY CREATE ANY DATABASE", "", 0},
 			{"ALTER AVAILABILITY GROUP MyAG FAILOVER", "FAILOVER", "", 0},
@@ -17632,33 +17630,28 @@ func TestParseAvailabilityOptionsStringsFinal(t *testing.T) {
 
 	// ag_key_value_opts_final: key=value options emit typed AvailabilityGroupOption
 	t.Run("ag_key_value_opts_final", func(t *testing.T) {
-		sql := "ALTER AVAILABILITY GROUP MyAG SET (AUTOMATED_BACKUP_PREFERENCE = SECONDARY, DB_FAILOVER = ON, HEALTH_CHECK_TIMEOUT = 30000)"
-		result := ParseAndCheck(t, sql)
-		// SET is option[0], then key=value options from parenthesized block
-		setOpt := getOpt(t, result, 0)
-		if setOpt.Name != "SET" {
-			t.Errorf("option[0] Name = %q, want SET", setOpt.Name)
-		}
-		// AUTOMATED_BACKUP_PREFERENCE=SECONDARY
-		opt1 := getOpt(t, result, 1)
-		if opt1.Name != "AUTOMATED_BACKUP_PREFERENCE" || opt1.Value != "SECONDARY" {
-			t.Errorf("option[1] = %q/%q, want AUTOMATED_BACKUP_PREFERENCE/SECONDARY", opt1.Name, opt1.Value)
-		}
-		// DB_FAILOVER=ON
-		opt2 := getOpt(t, result, 2)
-		if opt2.Name != "DB_FAILOVER" || opt2.Value != "ON" {
-			t.Errorf("option[2] = %q/%q, want DB_FAILOVER/ON", opt2.Name, opt2.Value)
-		}
-		// HEALTH_CHECK_TIMEOUT=30000
-		opt3 := getOpt(t, result, 3)
-		if opt3.Name != "HEALTH_CHECK_TIMEOUT" || opt3.Value != "30000" {
-			t.Errorf("option[3] = %q/%q, want HEALTH_CHECK_TIMEOUT/30000", opt3.Name, opt3.Value)
+		// SET takes one option per statement: SQL Server refuses a comma there.
+		for _, tt := range []struct{ sql, name, value string }{
+			{"ALTER AVAILABILITY GROUP MyAG SET (AUTOMATED_BACKUP_PREFERENCE = SECONDARY)", "AUTOMATED_BACKUP_PREFERENCE", "SECONDARY"},
+			{"ALTER AVAILABILITY GROUP MyAG SET (DB_FAILOVER = ON)", "DB_FAILOVER", "ON"},
+			{"ALTER AVAILABILITY GROUP MyAG SET (HEALTH_CHECK_TIMEOUT = 30000)", "HEALTH_CHECK_TIMEOUT", "30000"},
+		} {
+			result := ParseAndCheck(t, tt.sql)
+			// SET is option[0], then the key=value option from the parenthesized block
+			setOpt := getOpt(t, result, 0)
+			if setOpt.Name != "SET" {
+				t.Errorf("option[0] Name = %q, want SET", setOpt.Name)
+			}
+			opt1 := getOpt(t, result, 1)
+			if opt1.Name != tt.name || opt1.Value != tt.value {
+				t.Errorf("option[1] = %q/%q, want %s/%s", opt1.Name, opt1.Value, tt.name, tt.value)
+			}
 		}
 	})
 
 	// ag_ip_tuples_final: IP tuples emit typed AvailabilityGroupOption
 	t.Run("ag_ip_tuples_final", func(t *testing.T) {
-		sql := "CREATE AVAILABILITY GROUP MyAG REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC) LISTENER 'MyListener' (WITH IP (('10.0.0.1', '255.255.255.0')), PORT = 1433)"
+		sql := "CREATE AVAILABILITY GROUP MyAG FOR REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC) LISTENER 'MyListener' (WITH IP (('10.0.0.1', '255.255.255.0')), PORT = 1433)"
 		result := ParseAndCheck(t, sql)
 		stmt := result.Items[0].(*ast.SecurityStmt)
 		if stmt.Options == nil {
@@ -17717,7 +17710,7 @@ func TestParseAvailabilityOptionsStringsFinal(t *testing.T) {
 
 	// ag_nested_role_opts_final: nested SECONDARY_ROLE/PRIMARY_ROLE options
 	t.Run("ag_nested_role_opts_final", func(t *testing.T) {
-		sql := "CREATE AVAILABILITY GROUP MyAG REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC, SECONDARY_ROLE (ALLOW_CONNECTIONS = READ_ONLY), PRIMARY_ROLE (ALLOW_CONNECTIONS = ALL))"
+		sql := "CREATE AVAILABILITY GROUP MyAG FOR REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC, SECONDARY_ROLE (ALLOW_CONNECTIONS = READ_ONLY), PRIMARY_ROLE (ALLOW_CONNECTIONS = ALL))"
 		result := ParseAndCheck(t, sql)
 		stmt := result.Items[0].(*ast.SecurityStmt)
 		// Find SECONDARY_ROLE option
