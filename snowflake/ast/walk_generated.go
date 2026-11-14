@@ -901,6 +901,21 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Like)
 		}
 		walkCloneSource(v, n.Clone)
+		walkRowAccessPolicy(v, n.RowPolicy)
+		walkNodes(v, n.PartitionBy)
+		for _, item := range n.Options {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		if n.AggregationPolicy != nil {
+			Walk(v, n.AggregationPolicy)
+		}
+		for _, item := range n.Contacts {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 	case *CreateTagStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
