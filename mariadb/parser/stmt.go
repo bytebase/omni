@@ -1,8 +1,6 @@
 package parser
 
 import (
-	"strings"
-
 	nodes "github.com/bytebase/omni/mariadb/ast"
 )
 
@@ -876,8 +874,8 @@ func (p *Parser) parseDefinerValue() (string, error) {
 	// Parse user part: identifier, string literal, CURRENT_USER or CURRENT_ROLE
 	var user string
 	isCurUser := p.cur.Type == kwCURRENT_USER
-	// CURRENT_ROLE is no keyword here; the source text keeps `CURRENT_ROLE`, a name, apart.
-	isCurRole := p.cur.Type == tokIDENT && strings.EqualFold(p.inputText(p.cur.Loc, p.cur.End), "CURRENT_ROLE")
+	// CURRENT_ROLE is a reserved word; a backquoted `CURRENT_ROLE` is a name.
+	isCurRole := p.cur.Type == kwCURRENT_ROLE
 	if p.cur.Type == tokSCONST {
 		user = "'" + p.cur.Str + "'"
 		p.advance()

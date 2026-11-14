@@ -237,6 +237,9 @@ var temporalFormCases = []struct {
 	{"select current_user (1)", false},
 	{"select current_role", true},
 	{"select current_role()", true},
+	{"select current_role(1)", false},
+	{"select 1 as current_role", false},
+	{"select `current_role` from t", true},
 	// --- corpus row shape ---
 	{"SELECT CURRENT_DATE, CURRENT_DATE(), CURDATE(1)", false},
 	{"SELECT CURRENT_DATE, CURRENT_DATE(), CURDATE()", true},
