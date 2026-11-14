@@ -297,6 +297,10 @@ func (p *Parser) parseAlterStmt() (ast.Node, error) {
 		}
 		return p.unsupported("ALTER")
 	default:
+		// ALTER ICEBERG TABLE: ICEBERG is not a keyword.
+		if p.startsAlterIcebergTable() {
+			return p.parseAlterIcebergTableStmt()
+		}
 		// AUTHENTICATION is not a reserved keyword, so ALTER AUTHENTICATION POLICY
 		// lexes as an "AUTHENTICATION" identifier followed by POLICY (T4.6).
 		if p.startsPolicyKeyword() {

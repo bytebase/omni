@@ -1441,6 +1441,18 @@ func walkAlterTableAction(v Visitor, n *AlterTableAction) {
 	if n.MaskingPolicy != nil {
 		Walk(v, n.MaskingPolicy)
 	}
+	if n.ProjectionPolicy != nil {
+		Walk(v, n.ProjectionPolicy)
+	}
+	walkDataMetricAction(v, n.DataMetric)
+	for _, item := range n.Options {
+		if item != nil {
+			Walk(v, item)
+		}
+	}
+	if n.VersionTag != nil {
+		Walk(v, n.VersionTag)
+	}
 }
 
 // walkAlterViewColumnAction walks the node-bearing fields of the non-Node helper struct
@@ -1497,6 +1509,52 @@ func walkColumnAlter(v Visitor, n *ColumnAlter) {
 		Walk(v, n.DataType)
 	}
 	Walk(v, n.DefaultExpr)
+}
+
+// walkDataMetricAction walks the node-bearing fields of the non-Node helper struct
+// DataMetricAction. The helper itself is not visited (it is not a Node); its child
+// nodes are walked in field order.
+func walkDataMetricAction(v Visitor, n *DataMetricAction) {
+	if n == nil {
+		return
+	}
+	for _, item := range n.Functions {
+		walkDataMetricFunctionClause(v, item)
+	}
+}
+
+// walkDataMetricExpectation walks the node-bearing fields of the non-Node helper struct
+// DataMetricExpectation. The helper itself is not visited (it is not a Node); its child
+// nodes are walked in field order.
+func walkDataMetricExpectation(v Visitor, n *DataMetricExpectation) {
+	if n == nil {
+		return
+	}
+	Walk(v, n.Expr)
+}
+
+// walkDataMetricFunctionClause walks the node-bearing fields of the non-Node helper struct
+// DataMetricFunctionClause. The helper itself is not visited (it is not a Node); its child
+// nodes are walked in field order.
+func walkDataMetricFunctionClause(v Visitor, n *DataMetricFunctionClause) {
+	if n == nil {
+		return
+	}
+	if n.Name != nil {
+		Walk(v, n.Name)
+	}
+	if n.RefTable != nil {
+		Walk(v, n.RefTable)
+	}
+	Walk(v, n.Filter)
+	for _, item := range n.Expectations {
+		walkDataMetricExpectation(v, item)
+	}
+	for _, item := range n.Options {
+		if item != nil {
+			Walk(v, item)
+		}
+	}
 }
 
 // walkFetchClause walks the node-bearing fields of the non-Node helper struct

@@ -2252,46 +2252,69 @@ var _ Node = (*AlterMaterializedViewStmt)(nil)
 type AlterTableActionKind int
 
 const (
-	AlterTableRename                   AlterTableActionKind = iota // RENAME TO new_name
-	AlterTableSwapWith                                             // SWAP WITH other_table
-	AlterTableAddColumn                                            // ADD [COLUMN] [IF NOT EXISTS] col_def [, ...]
-	AlterTableDropColumn                                           // DROP [COLUMN] [IF EXISTS] col [, ...]
-	AlterTableRenameColumn                                         // RENAME COLUMN old TO new
-	AlterTableAlterColumn                                          // ALTER/MODIFY COLUMN col ...
-	AlterTableAddConstraint                                        // ADD [CONSTRAINT name] PK/UK/FK
-	AlterTableDropConstraint                                       // DROP CONSTRAINT name | DROP PRIMARY KEY | DROP UNIQUE
-	AlterTableRenameConstraint                                     // RENAME CONSTRAINT old TO new
-	AlterTableClusterBy                                            // CLUSTER BY [LINEAR] (exprs)
-	AlterTableDropClusterKey                                       // DROP CLUSTERING KEY
-	AlterTableRecluster                                            // RECLUSTER [MAX_SIZE = n] [WHERE expr]
-	AlterTableSuspendRecluster                                     // SUSPEND RECLUSTER
-	AlterTableResumeRecluster                                      // RESUME RECLUSTER
-	AlterTableSet                                                  // SET properties
-	AlterTableUnset                                                // UNSET properties
-	AlterTableSetTag                                               // SET TAG (...)
-	AlterTableUnsetTag                                             // UNSET TAG (...)
-	AlterTableAddRowAccessPolicy                                   // ADD ROW ACCESS POLICY name ON (cols)
-	AlterTableDropRowAccessPolicy                                  // DROP ROW ACCESS POLICY name
-	AlterTableDropAllRowAccessPolicies                             // DROP ALL ROW ACCESS POLICIES
-	AlterTableAddSearchOpt                                         // ADD SEARCH OPTIMIZATION [ON ...]
-	AlterTableDropSearchOpt                                        // DROP SEARCH OPTIMIZATION [ON ...]
-	AlterTableSetMaskingPolicy                                     // ALTER/MODIFY COLUMN col SET MASKING POLICY
-	AlterTableUnsetMaskingPolicy                                   // ALTER/MODIFY COLUMN col UNSET MASKING POLICY
-	AlterTableSetColumnTag                                         // ALTER/MODIFY col SET TAG (...)
-	AlterTableUnsetColumnTag                                       // ALTER/MODIFY col UNSET TAG (...)
+	AlterTableRename                     AlterTableActionKind = iota // RENAME TO new_name
+	AlterTableSwapWith                                               // SWAP WITH other_table
+	AlterTableAddColumn                                              // ADD [COLUMN] [IF NOT EXISTS] col_def [, ...]
+	AlterTableDropColumn                                             // DROP [COLUMN] [IF EXISTS] col [, ...]
+	AlterTableRenameColumn                                           // RENAME COLUMN old TO new
+	AlterTableAlterColumn                                            // ALTER/MODIFY COLUMN col ...
+	AlterTableAddConstraint                                          // ADD [CONSTRAINT name] PK/UK/FK
+	AlterTableDropConstraint                                         // DROP CONSTRAINT name | DROP PRIMARY KEY | DROP UNIQUE
+	AlterTableRenameConstraint                                       // RENAME CONSTRAINT old TO new
+	AlterTableClusterBy                                              // CLUSTER BY [LINEAR] (exprs)
+	AlterTableDropClusterKey                                         // DROP CLUSTERING KEY
+	AlterTableRecluster                                              // RECLUSTER [MAX_SIZE = n] [WHERE expr]
+	AlterTableSuspendRecluster                                       // SUSPEND RECLUSTER
+	AlterTableResumeRecluster                                        // RESUME RECLUSTER
+	AlterTableSet                                                    // SET properties
+	AlterTableUnset                                                  // UNSET properties
+	AlterTableSetTag                                                 // SET TAG (...)
+	AlterTableUnsetTag                                               // UNSET TAG (...)
+	AlterTableAddRowAccessPolicy                                     // ADD ROW ACCESS POLICY name ON (cols)
+	AlterTableDropRowAccessPolicy                                    // DROP ROW ACCESS POLICY name
+	AlterTableDropAllRowAccessPolicies                               // DROP ALL ROW ACCESS POLICIES
+	AlterTableAddSearchOpt                                           // ADD SEARCH OPTIMIZATION [ON ...]
+	AlterTableDropSearchOpt                                          // DROP SEARCH OPTIMIZATION [ON ...]
+	AlterTableSetMaskingPolicy                                       // ALTER/MODIFY COLUMN col SET MASKING POLICY
+	AlterTableUnsetMaskingPolicy                                     // ALTER/MODIFY COLUMN col UNSET MASKING POLICY
+	AlterTableSetColumnTag                                           // ALTER/MODIFY col SET TAG (...)
+	AlterTableUnsetColumnTag                                         // ALTER/MODIFY col UNSET TAG (...)
+	AlterTableAlterConstraint                                        // ALTER/MODIFY {CONSTRAINT n | PRIMARY KEY | UNIQUE | FOREIGN KEY} (cols) props
+	AlterTableSetAggregationPolicy                                   // SET AGGREGATION POLICY p [ENTITY KEY (cols)] [FORCE]
+	AlterTableUnsetAggregationPolicy                                 // UNSET AGGREGATION POLICY
+	AlterTableSetJoinPolicy                                          // SET JOIN POLICY p [FORCE]
+	AlterTableUnsetJoinPolicy                                        // UNSET JOIN POLICY
+	AlterTableSetProjectionPolicy                                    // ALTER/MODIFY [COLUMN] col SET PROJECTION POLICY p [FORCE]
+	AlterTableUnsetProjectionPolicy                                  // ALTER/MODIFY [COLUMN] col UNSET PROJECTION POLICY
+	AlterTableAddStorageLifecyclePolicy                              // ADD STORAGE LIFECYCLE POLICY p ON (cols)
+	AlterTableDropStorageLifecyclePolicy                             // DROP STORAGE LIFECYCLE POLICY
+	AlterTableDataMetric                                             // data metric function action (see DataMetric)
+	AlterTableRefresh                                                // ICEBERG: REFRESH ['<path>']
+	AlterTableConvertToManaged                                       // ICEBERG: CONVERT TO MANAGED [options]
+	AlterTableOptimize                                               // ICEBERG: OPTIMIZE (REMOVE_POSITION_DELETES)
+	AlterTableAddPartitionBy                                         // ICEBERG: ADD PARTITION BY (expr)
+	AlterTableDropPartitionBy                                        // ICEBERG: DROP PARTITION BY (expr)
+	AlterTableReplacePartitionBy                                     // ICEBERG: REPLACE PARTITION BY (expr) WITH (expr)
+	AlterTableCreateVersionTag                                       // ICEBERG: CREATE [OR REPLACE] VERSION_TAG [IF NOT EXISTS] n [AS OF ...]
+	AlterTableAlterVersionTag                                        // ICEBERG: ALTER VERSION_TAG n AS OF ...
+	AlterTableReplaceVersionTag                                      // ICEBERG: REPLACE VERSION_TAG n AS OF ... [RETAIN ...]
+	AlterTableDropVersionTag                                         // ICEBERG: DROP VERSION_TAG [IF EXISTS] n
+	AlterTableUpgradeIcebergVersion                                  // ICEBERG: UPGRADE TO ICEBERG VERSION n
 )
 
 // ColumnAlterKind discriminates the sub-action inside ALTER/MODIFY COLUMN.
 type ColumnAlterKind int
 
 const (
-	ColumnAlterSetDataType  ColumnAlterKind = iota // SET DATA TYPE t | TYPE t | t
-	ColumnAlterSetDefault                          // SET DEFAULT expr
-	ColumnAlterDropDefault                         // DROP DEFAULT
-	ColumnAlterSetNotNull                          // SET NOT NULL
-	ColumnAlterDropNotNull                         // DROP NOT NULL
-	ColumnAlterSetComment                          // COMMENT 'text'
-	ColumnAlterUnsetComment                        // UNSET COMMENT
+	ColumnAlterSetDataType      ColumnAlterKind = iota // SET DATA TYPE t | TYPE t | t
+	ColumnAlterSetDefault                              // SET DEFAULT expr
+	ColumnAlterDropDefault                             // DROP DEFAULT
+	ColumnAlterSetNotNull                              // SET NOT NULL
+	ColumnAlterDropNotNull                             // DROP NOT NULL
+	ColumnAlterSetComment                              // COMMENT 'text'
+	ColumnAlterUnsetComment                            // UNSET COMMENT
+	ColumnAlterSetWriteDefault                         // ICEBERG: SET WRITE DEFAULT expr
+	ColumnAlterDropWriteDefault                        // ICEBERG: DROP WRITE DEFAULT
 )
 
 // ColumnAlter holds the specification for a single ALTER/MODIFY COLUMN
@@ -2302,8 +2325,10 @@ type ColumnAlter struct {
 	Column      Ident // column being altered
 	Kind        ColumnAlterKind
 	DataType    *TypeName // for ColumnAlterSetDataType
-	DefaultExpr Node      // for ColumnAlterSetDefault
+	DefaultExpr Node      // for ColumnAlterSetDefault / ColumnAlterSetWriteDefault
 	Comment     *string   // for ColumnAlterSetComment
+	// RenameFields is the ICEBERG SET DATA TYPE ... RENAME FIELDS suffix.
+	RenameFields bool
 }
 
 // TableProp is a single SET property key=value pair used in ALTER TABLE SET.
@@ -2380,11 +2405,117 @@ type AlterTableAction struct {
 	// --- Column tag (ALTER/MODIFY col SET/UNSET TAG) ---
 	TagColumn Ident // column for SetColumnTag / UnsetColumnTag
 
+	// --- AlterConstraint ---
+	// ConstraintTarget is "PRIMARY KEY", "UNIQUE" or "FOREIGN KEY"; it is empty
+	// when ConstraintName names the constraint.
+	ConstraintTarget string
+	ConstraintCols   []Ident  // (cols) after the target
+	ConstraintProps  []string // [NOT] ENFORCED, VALIDATE|NOVALIDATE, RELY|NORELY, uppercased
+
+	// --- Aggregation / join policy (PolicyName holds the name) ---
+	PolicyKeyCols []Ident // SET AGGREGATION POLICY ... ENTITY KEY (cols)
+	PolicyForce   bool    // trailing FORCE
+
+	// --- Projection policy (column-level) ---
+	ProjectionColumn Ident       // column for SET/UNSET PROJECTION POLICY
+	ProjectionPolicy *ObjectName // SET PROJECTION POLICY target
+
+	// --- Data metric functions ---
+	DataMetric *DataMetricAction
+
+	// --- ICEBERG ---
+	RefreshPath    *string       // REFRESH '<path>'
+	Options        []*CopyOption // CONVERT TO MANAGED options
+	OptimizeOps    []string      // OPTIMIZE (op, ...), uppercased
+	Partition      *IcebergPartitionExpr
+	NewPartition   *IcebergPartitionExpr // REPLACE PARTITION BY (...) WITH (new)
+	VersionTag     *ObjectName           // VERSION_TAG name
+	OrReplace      bool                  // CREATE OR REPLACE VERSION_TAG
+	AsOfKind       string                // "VERSION" or "TIMESTAMP"; empty without AS OF
+	AsOfValue      string                // raw AS OF value
+	RetainCount    *int64                // RETAIN n
+	RetainUnit     string                // DAYS | HOURS | MINUTES
+	IcebergVersion string                // UPGRADE TO ICEBERG VERSION n
+
 	Loc Loc
+}
+
+// IcebergPartitionExpr is one Iceberg partition transform:
+//
+//	col | BUCKET(n, col) | TRUNCATE(n, col) | YEAR(col) | MONTH(col) | DAY(col) | HOUR(col)
+//
+// Transform is empty for the identity transform (a bare column). It is NOT a Node.
+type IcebergPartitionExpr struct {
+	Transform string // uppercased transform name; empty for identity
+	Arg       *int64 // BUCKET / TRUNCATE width
+	Column    Ident
+	Loc       Loc
+}
+
+// DataMetricActionKind discriminates the data metric function actions that
+// ALTER TABLE, ALTER VIEW, ALTER DYNAMIC TABLE and ALTER MATERIALIZED VIEW share.
+type DataMetricActionKind int
+
+const (
+	DataMetricSetSchedule   DataMetricActionKind = iota // SET DATA_METRIC_SCHEDULE = '...'
+	DataMetricUnsetSchedule                             // UNSET DATA_METRIC_SCHEDULE
+	DataMetricAdd                                       // ADD DATA METRIC FUNCTION ...
+	DataMetricDrop                                      // DROP DATA METRIC FUNCTION ...
+	DataMetricModify                                    // MODIFY DATA METRIC FUNCTION ...
+)
+
+// DataMetricModifyKind is what a MODIFY DATA METRIC FUNCTION clause changes.
+type DataMetricModifyKind int
+
+const (
+	DataMetricModifyNone              DataMetricModifyKind = iota // not a MODIFY clause
+	DataMetricModifySuspend                                       // SUSPEND
+	DataMetricModifyResume                                        // RESUME
+	DataMetricModifyAddExpectation                                // ADD EXPECTATION e (expr) [, ...]
+	DataMetricModifyModifyExpectation                             // MODIFY EXPECTATION e (expr) [, ...]
+	DataMetricModifyDropExpectation                               // DROP EXPECTATION e [, ...]
+	DataMetricModifyFilter                                        // FILTER ( [expr] )
+	DataMetricModifySet                                           // SET ANOMALY_DETECTION = ... | SENSITIVITY = ... | ...
+)
+
+// DataMetricAction is a data metric function action. It is NOT a Node.
+type DataMetricAction struct {
+	Kind      DataMetricActionKind
+	Schedule  string                      // SET DATA_METRIC_SCHEDULE value (string contents)
+	Functions []*DataMetricFunctionClause // ADD / DROP / MODIFY clauses
+	Loc       Loc
+}
+
+// DataMetricFunctionClause is one `<metric> [ ON ( <args> ) ] ...` entry of an
+// ADD, DROP or MODIFY DATA METRIC FUNCTION action. It is NOT a Node.
+type DataMetricFunctionClause struct {
+	Name         *ObjectName
+	HasOn        bool    // an ON ( ... ) argument list was written
+	Columns      []Ident // ON ( col, ... )
+	RefTable     *ObjectName
+	RefColumns   []Ident // ON ( ..., TABLE t ( col, ... ) )
+	WithinGroup  []Ident // WITHIN GROUP ( col, ... )
+	GroupLimit   *int64  // GROUP LIMIT n
+	Filter       Node    // FILTER ( expr ); nil for FILTER ( )
+	HasFilter    bool    // a FILTER clause was written
+	Expectations []*DataMetricExpectation
+	ExecuteAs    Ident         // EXECUTE AS ROLE r
+	Options      []*CopyOption // ANOMALY_DETECTION / SENSITIVITY / DATA_QUALITY_NOTIFICATION
+	Modify       DataMetricModifyKind
+	Loc          Loc
+}
+
+// DataMetricExpectation is one `<name> ( <boolean_expr> )` expectation, or a
+// bare name in DROP EXPECTATION. It is NOT a Node.
+type DataMetricExpectation struct {
+	Name Ident
+	Expr Node // nil for DROP EXPECTATION
+	Loc  Loc
 }
 
 // AlterTableStmt represents ALTER TABLE [IF EXISTS] name action [, action ...].
 type AlterTableStmt struct {
+	Iceberg  bool // ALTER ICEBERG TABLE
 	IfExists bool
 	Name     *ObjectName
 	Actions  []*AlterTableAction

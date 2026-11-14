@@ -1027,7 +1027,11 @@ func (w *writer) writeAlterMaterializedViewStmt(n *ast.AlterMaterializedViewStmt
 // ---------------------------------------------------------------------------
 
 func (w *writer) writeAlterTableStmt(n *ast.AlterTableStmt) error {
-	w.buf.WriteString("ALTER TABLE")
+	if n.Iceberg {
+		w.buf.WriteString("ALTER ICEBERG TABLE")
+	} else {
+		w.buf.WriteString("ALTER TABLE")
+	}
 	if n.IfExists {
 		w.buf.WriteString(" IF EXISTS")
 	}
@@ -1149,7 +1153,12 @@ func (w *writer) writeAlterTableAction(a *ast.AlterTableAction) error {
 		for _, prop := range a.Props {
 			w.buf.WriteByte(' ')
 			w.buf.WriteString(prop.Name)
-			w.buf.WriteString(" = ")
+			if prop.Name == "CONTACT" {
+				// Value is the verbatim `purpose = contact, ...` or `( ... )`.
+				w.buf.WriteByte(' ')
+			} else {
+				w.buf.WriteString(" = ")
+			}
 			w.buf.WriteString(prop.Value)
 		}
 	case ast.AlterTableUnset:
@@ -1214,10 +1223,278 @@ func (w *writer) writeAlterTableAction(a *ast.AlterTableAction) error {
 		w.buf.WriteString(" UNSET TAG (")
 		w.writeObjectNameList(a.UnsetTags)
 		w.buf.WriteByte(')')
+	case ast.AlterTableAlterConstraint:
+		w.buf.WriteString(" ALTER ")
+		if a.ConstraintTarget != "" {
+			w.buf.WriteString(a.ConstraintTarget)
+		} else {
+			w.buf.WriteString("CONSTRAINT ")
+			w.buf.WriteString(a.ConstraintName.String())
+		}
+		w.writeParenIdentList(a.ConstraintCols)
+		for _, prop := range a.ConstraintProps {
+			w.buf.WriteByte(' ')
+			w.buf.WriteString(prop)
+		}
+	case ast.AlterTableSetAggregationPolicy:
+		w.buf.WriteString(" SET AGGREGATION POLICY ")
+		w.writeObjectNameNoSpace(a.PolicyName)
+		if len(a.PolicyKeyCols) > 0 {
+			w.buf.WriteString(" ENTITY KEY")
+			w.writeParenIdentList(a.PolicyKeyCols)
+		}
+		if a.PolicyForce {
+			w.buf.WriteString(" FORCE")
+		}
+	case ast.AlterTableUnsetAggregationPolicy:
+		w.buf.WriteString(" UNSET AGGREGATION POLICY")
+	case ast.AlterTableSetJoinPolicy:
+		w.buf.WriteString(" SET JOIN POLICY ")
+		w.writeObjectNameNoSpace(a.PolicyName)
+		if a.PolicyForce {
+			w.buf.WriteString(" FORCE")
+		}
+	case ast.AlterTableUnsetJoinPolicy:
+		w.buf.WriteString(" UNSET JOIN POLICY")
+	case ast.AlterTableSetProjectionPolicy:
+		w.buf.WriteString(" ALTER COLUMN ")
+		w.buf.WriteString(a.ProjectionColumn.String())
+		w.buf.WriteString(" SET PROJECTION POLICY ")
+		w.writeObjectNameNoSpace(a.ProjectionPolicy)
+		if a.PolicyForce {
+			w.buf.WriteString(" FORCE")
+		}
+	case ast.AlterTableUnsetProjectionPolicy:
+		w.buf.WriteString(" ALTER COLUMN ")
+		w.buf.WriteString(a.ProjectionColumn.String())
+		w.buf.WriteString(" UNSET PROJECTION POLICY")
+	case ast.AlterTableAddStorageLifecyclePolicy:
+		w.buf.WriteString(" ADD STORAGE LIFECYCLE POLICY ")
+		w.writeObjectNameNoSpace(a.PolicyName)
+		w.buf.WriteString(" ON")
+		w.writeParenIdentList(a.PolicyCols)
+	case ast.AlterTableDropStorageLifecyclePolicy:
+		w.buf.WriteString(" DROP STORAGE LIFECYCLE POLICY")
+	case ast.AlterTableDataMetric:
+		w.buf.WriteByte(' ')
+		return w.writeDataMetricAction(a.DataMetric)
+	case ast.AlterTableRefresh:
+		w.buf.WriteString(" REFRESH")
+		if a.RefreshPath != nil {
+			w.buf.WriteByte(' ')
+			w.buf.WriteString(quoteString(*a.RefreshPath))
+		}
+	case ast.AlterTableConvertToManaged:
+		w.buf.WriteString(" CONVERT TO MANAGED")
+		return w.writeCopyOptions(a.Options)
+	case ast.AlterTableOptimize:
+		w.buf.WriteString(" OPTIMIZE (")
+		w.buf.WriteString(strings.Join(a.OptimizeOps, ", "))
+		w.buf.WriteByte(')')
+	case ast.AlterTableAddPartitionBy, ast.AlterTableDropPartitionBy, ast.AlterTableReplacePartitionBy:
+		switch a.Kind {
+		case ast.AlterTableAddPartitionBy:
+			w.buf.WriteString(" ADD")
+		case ast.AlterTableDropPartitionBy:
+			w.buf.WriteString(" DROP")
+		default:
+			w.buf.WriteString(" REPLACE")
+		}
+		w.buf.WriteString(" PARTITION BY (")
+		w.writeIcebergPartitionExpr(a.Partition)
+		w.buf.WriteByte(')')
+		if a.Kind == ast.AlterTableReplacePartitionBy {
+			w.buf.WriteString(" WITH (")
+			w.writeIcebergPartitionExpr(a.NewPartition)
+			w.buf.WriteByte(')')
+		}
+	case ast.AlterTableCreateVersionTag, ast.AlterTableAlterVersionTag, ast.AlterTableReplaceVersionTag:
+		switch a.Kind {
+		case ast.AlterTableCreateVersionTag:
+			w.buf.WriteString(" CREATE")
+			if a.OrReplace {
+				w.buf.WriteString(" OR REPLACE")
+			}
+			w.buf.WriteString(" VERSION_TAG")
+			if a.IfNotExists {
+				w.buf.WriteString(" IF NOT EXISTS")
+			}
+		case ast.AlterTableAlterVersionTag:
+			w.buf.WriteString(" ALTER VERSION_TAG")
+		default:
+			w.buf.WriteString(" REPLACE VERSION_TAG")
+		}
+		w.buf.WriteByte(' ')
+		w.writeObjectNameNoSpace(a.VersionTag)
+		if a.AsOfKind != "" {
+			w.buf.WriteString(" AS OF ")
+			w.buf.WriteString(a.AsOfKind)
+			w.buf.WriteByte(' ')
+			w.buf.WriteString(a.AsOfValue)
+		}
+		if a.RetainCount != nil {
+			w.buf.WriteString(" RETAIN ")
+			w.buf.WriteString(strconv.FormatInt(*a.RetainCount, 10))
+			w.buf.WriteByte(' ')
+			w.buf.WriteString(a.RetainUnit)
+		}
+	case ast.AlterTableDropVersionTag:
+		w.buf.WriteString(" DROP VERSION_TAG")
+		if a.IfExists {
+			w.buf.WriteString(" IF EXISTS")
+		}
+		w.buf.WriteByte(' ')
+		w.writeObjectNameNoSpace(a.VersionTag)
+	case ast.AlterTableUpgradeIcebergVersion:
+		w.buf.WriteString(" UPGRADE TO ICEBERG VERSION ")
+		w.buf.WriteString(a.IcebergVersion)
 	default:
 		return fmt.Errorf("deparse: unsupported ALTER TABLE action kind %d", a.Kind)
 	}
 	return nil
+}
+
+// writeParenIdentList writes " (a, b, ...)".
+func (w *writer) writeParenIdentList(ids []ast.Ident) {
+	w.buf.WriteString(" (")
+	for i, id := range ids {
+		if i > 0 {
+			w.buf.WriteString(", ")
+		}
+		w.buf.WriteString(id.String())
+	}
+	w.buf.WriteByte(')')
+}
+
+// writeIcebergPartitionExpr writes one Iceberg partition transform.
+func (w *writer) writeIcebergPartitionExpr(e *ast.IcebergPartitionExpr) {
+	if e == nil {
+		return
+	}
+	if e.Transform == "" {
+		w.buf.WriteString(e.Column.String())
+		return
+	}
+	w.buf.WriteString(e.Transform)
+	w.buf.WriteByte('(')
+	if e.Arg != nil {
+		w.buf.WriteString(strconv.FormatInt(*e.Arg, 10))
+		w.buf.WriteString(", ")
+	}
+	w.buf.WriteString(e.Column.String())
+	w.buf.WriteByte(')')
+}
+
+// writeDataMetricAction writes a data metric function action (shared by the
+// ALTER TABLE / VIEW / DYNAMIC TABLE / MATERIALIZED VIEW writers) without a
+// leading space.
+func (w *writer) writeDataMetricAction(dm *ast.DataMetricAction) error {
+	if dm == nil {
+		return fmt.Errorf("deparse: missing data metric action")
+	}
+	switch dm.Kind {
+	case ast.DataMetricSetSchedule:
+		w.buf.WriteString("SET DATA_METRIC_SCHEDULE = ")
+		w.buf.WriteString(quoteString(dm.Schedule))
+		return nil
+	case ast.DataMetricUnsetSchedule:
+		w.buf.WriteString("UNSET DATA_METRIC_SCHEDULE")
+		return nil
+	case ast.DataMetricAdd:
+		w.buf.WriteString("ADD")
+	case ast.DataMetricDrop:
+		w.buf.WriteString("DROP")
+	case ast.DataMetricModify:
+		w.buf.WriteString("MODIFY")
+	default:
+		return fmt.Errorf("deparse: unsupported data metric action kind %d", dm.Kind)
+	}
+	w.buf.WriteString(" DATA METRIC FUNCTION ")
+	for i, fn := range dm.Functions {
+		if i > 0 {
+			w.buf.WriteString(", ")
+		}
+		if err := w.writeDataMetricFunctionClause(fn); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (w *writer) writeDataMetricFunctionClause(fn *ast.DataMetricFunctionClause) error {
+	w.writeObjectNameNoSpace(fn.Name)
+	if fn.Modify == ast.DataMetricModifySet {
+		w.buf.WriteString(" SET")
+		return w.writeCopyOptions(fn.Options)
+	}
+	if fn.HasOn {
+		w.buf.WriteString(" ON (")
+		for i, col := range fn.Columns {
+			if i > 0 {
+				w.buf.WriteString(", ")
+			}
+			w.buf.WriteString(col.String())
+		}
+		if fn.RefTable != nil {
+			if len(fn.Columns) > 0 {
+				w.buf.WriteString(", ")
+			}
+			w.buf.WriteString("TABLE ")
+			w.writeObjectNameNoSpace(fn.RefTable)
+			w.writeParenIdentList(fn.RefColumns)
+		}
+		w.buf.WriteByte(')')
+	}
+	if len(fn.WithinGroup) > 0 {
+		w.buf.WriteString(" WITHIN GROUP")
+		w.writeParenIdentList(fn.WithinGroup)
+		if fn.GroupLimit != nil {
+			w.buf.WriteString(" GROUP LIMIT ")
+			w.buf.WriteString(strconv.FormatInt(*fn.GroupLimit, 10))
+		}
+	}
+	switch fn.Modify {
+	case ast.DataMetricModifySuspend:
+		w.buf.WriteString(" SUSPEND")
+	case ast.DataMetricModifyResume:
+		w.buf.WriteString(" RESUME")
+	case ast.DataMetricModifyAddExpectation:
+		w.buf.WriteString(" ADD")
+	case ast.DataMetricModifyModifyExpectation:
+		w.buf.WriteString(" MODIFY")
+	case ast.DataMetricModifyDropExpectation:
+		w.buf.WriteString(" DROP")
+	}
+	if fn.HasFilter {
+		w.buf.WriteString(" FILTER (")
+		if fn.Filter != nil {
+			if err := writeExprNoLeadSpace(w, fn.Filter); err != nil {
+				return err
+			}
+		}
+		w.buf.WriteByte(')')
+	}
+	if len(fn.Expectations) > 0 {
+		w.buf.WriteString(" EXPECTATION ")
+		for i, exp := range fn.Expectations {
+			if i > 0 {
+				w.buf.WriteString(", ")
+			}
+			w.buf.WriteString(exp.Name.String())
+			if exp.Expr != nil {
+				w.buf.WriteString(" (")
+				if err := writeExprNoLeadSpace(w, exp.Expr); err != nil {
+					return err
+				}
+				w.buf.WriteByte(')')
+			}
+		}
+	}
+	if fn.ExecuteAs.Name != "" {
+		w.buf.WriteString(" EXECUTE AS ROLE ")
+		w.buf.WriteString(fn.ExecuteAs.String())
+	}
+	return w.writeCopyOptions(fn.Options)
 }
 
 func (w *writer) writeColumnAlter(ca *ast.ColumnAlter) error {
@@ -1227,6 +1504,9 @@ func (w *writer) writeColumnAlter(ca *ast.ColumnAlter) error {
 	case ast.ColumnAlterSetDataType:
 		w.buf.WriteString(" SET DATA TYPE ")
 		w.writeTypeName(ca.DataType)
+		if ca.RenameFields {
+			w.buf.WriteString(" RENAME FIELDS")
+		}
 	case ast.ColumnAlterSetDefault:
 		w.buf.WriteString(" SET DEFAULT ")
 		if err := writeExprNoLeadSpace(w, ca.DefaultExpr); err != nil {
@@ -1245,6 +1525,13 @@ func (w *writer) writeColumnAlter(ca *ast.ColumnAlter) error {
 		}
 	case ast.ColumnAlterUnsetComment:
 		w.buf.WriteString(" UNSET COMMENT")
+	case ast.ColumnAlterSetWriteDefault:
+		w.buf.WriteString(" SET WRITE DEFAULT ")
+		if err := writeExprNoLeadSpace(w, ca.DefaultExpr); err != nil {
+			return err
+		}
+	case ast.ColumnAlterDropWriteDefault:
+		w.buf.WriteString(" DROP WRITE DEFAULT")
 	default:
 		return fmt.Errorf("deparse: unsupported ColumnAlterKind %d", ca.Kind)
 	}
