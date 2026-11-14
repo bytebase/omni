@@ -17,6 +17,14 @@ import (
 //	https://docs.snowflake.com/en/sql-reference/sql/alter-iceberg-table-version-tag
 // ---------------------------------------------------------------------------
 
+// convertToManagedProperties are the properties CONVERT TO MANAGED takes.
+var convertToManagedProperties = map[string]bool{
+	"FILE_PATH":                    true,
+	"BASE_LOCATION":                true,
+	"DROP_FROM_SOURCE_CATALOG":     true,
+	"STORAGE_SERIALIZATION_POLICY": true,
+}
+
 // seqIsWords reports whether cur and the tokens after it spell words, compared
 // by their uppercased text (keywords and identifiers alike). The parser state is
 // restored before returning.
@@ -62,6 +70,9 @@ func (p *Parser) parseAlterIcebergOnlyAction(action *ast.AlterTableAction) (bool
 		p.advance() // consume MANAGED
 		action.Kind = ast.AlterTableConvertToManaged
 		for p.startsAssignment() {
+			if !convertToManagedProperties[strings.ToUpper(p.cur.Str)] {
+				return true, p.syntaxErrorAtCur()
+			}
 			opt, err := p.parseAssignment()
 			if err != nil {
 				return true, err

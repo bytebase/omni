@@ -1276,7 +1276,9 @@ func (w *writer) writeAlterTableAction(a *ast.AlterTableAction) error {
 			if i > 0 {
 				w.buf.WriteByte(',')
 			}
-			if err := w.writeColumnAlter(ca); err != nil {
+			// The column alters of one action are one list: ALTER COLUMN a
+			// ..., COLUMN b ....
+			if err := w.writeColumnAlter(ca, a.Continuation || i > 0); err != nil {
 				return err
 			}
 		}
@@ -1387,22 +1389,22 @@ func (w *writer) writeAlterTableAction(a *ast.AlterTableAction) error {
 			w.buf.WriteString(strings.Join(a.SearchOptOn, ", "))
 		}
 	case ast.AlterTableSetMaskingPolicy:
-		w.buf.WriteString(" ALTER COLUMN ")
+		w.writeAlterColumnPrefix(a.Continuation)
 		w.buf.WriteString(a.MaskColumn.String())
 		w.buf.WriteString(" SET MASKING POLICY ")
 		w.writeObjectNameNoSpace(a.MaskingPolicy)
 	case ast.AlterTableUnsetMaskingPolicy:
-		w.buf.WriteString(" ALTER COLUMN ")
+		w.writeAlterColumnPrefix(a.Continuation)
 		w.buf.WriteString(a.MaskColumn.String())
 		w.buf.WriteString(" UNSET MASKING POLICY")
 	case ast.AlterTableSetColumnTag:
-		w.buf.WriteString(" ALTER COLUMN ")
+		w.writeAlterColumnPrefix(a.Continuation)
 		w.buf.WriteString(a.TagColumn.String())
 		w.buf.WriteString(" SET TAG (")
 		w.writeTagAssignments(a.Tags)
 		w.buf.WriteByte(')')
 	case ast.AlterTableUnsetColumnTag:
-		w.buf.WriteString(" ALTER COLUMN ")
+		w.writeAlterColumnPrefix(a.Continuation)
 		w.buf.WriteString(a.TagColumn.String())
 		w.buf.WriteString(" UNSET TAG (")
 		w.writeObjectNameList(a.UnsetTags)
@@ -1441,7 +1443,7 @@ func (w *writer) writeAlterTableAction(a *ast.AlterTableAction) error {
 	case ast.AlterTableUnsetJoinPolicy:
 		w.buf.WriteString(" UNSET JOIN POLICY")
 	case ast.AlterTableSetProjectionPolicy:
-		w.buf.WriteString(" ALTER COLUMN ")
+		w.writeAlterColumnPrefix(a.Continuation)
 		w.buf.WriteString(a.ProjectionColumn.String())
 		w.buf.WriteString(" SET PROJECTION POLICY ")
 		w.writeObjectNameNoSpace(a.ProjectionPolicy)
@@ -1449,7 +1451,7 @@ func (w *writer) writeAlterTableAction(a *ast.AlterTableAction) error {
 			w.buf.WriteString(" FORCE")
 		}
 	case ast.AlterTableUnsetProjectionPolicy:
-		w.buf.WriteString(" ALTER COLUMN ")
+		w.writeAlterColumnPrefix(a.Continuation)
 		w.buf.WriteString(a.ProjectionColumn.String())
 		w.buf.WriteString(" UNSET PROJECTION POLICY")
 	case ast.AlterTableAddStorageLifecyclePolicy:
@@ -1666,8 +1668,18 @@ func (w *writer) writeDataMetricFunctionClause(fn *ast.DataMetricFunctionClause)
 	return w.writeCopyOptions(fn.Options)
 }
 
-func (w *writer) writeColumnAlter(ca *ast.ColumnAlter) error {
+// writeAlterColumnPrefix writes " ALTER COLUMN ", or " COLUMN " for an action
+// that continues the previous ALTER / MODIFY column list.
+func (w *writer) writeAlterColumnPrefix(continuation bool) {
+	if continuation {
+		w.buf.WriteString(" COLUMN ")
+		return
+	}
 	w.buf.WriteString(" ALTER COLUMN ")
+}
+
+func (w *writer) writeColumnAlter(ca *ast.ColumnAlter, continuation bool) error {
+	w.writeAlterColumnPrefix(continuation)
 	w.buf.WriteString(ca.Column.String())
 	switch ca.Kind {
 	case ast.ColumnAlterSetDataType:

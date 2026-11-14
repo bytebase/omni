@@ -28,6 +28,20 @@ func TestDeparse_AlterTableDataMetricFunction(t *testing.T) {
 func TestDeparse_AlterTableGovernance(t *testing.T) {
 	assertRoundTrip(t, "ALTER TABLE t SET TAG t1 = 'x', t2 = 'y'")
 	assertRoundTrip(t, "ALTER TABLE t ALTER c1 SET TAG t1 = 'x', c2 UNSET TAG t2")
+	assertRoundTrip(t, "ALTER TABLE t ALTER c1 SET NOT NULL, COLUMN c2 SET TAG t1 = 'x', c3 SET MASKING POLICY m")
+	assertRoundTrip(t, "ALTER TABLE t ALTER c1 SET NOT NULL, ALTER c2 DROP NOT NULL")
+	// One ALTER per column list, as the page writes it.
+	for in, want := range map[string]string{
+		"ALTER TABLE t MODIFY c1 SET TAG t1 = 'x', c2 SET TAG t2 = 'y'": "ALTER TABLE t ALTER COLUMN c1 SET TAG (t1 = 'x'), COLUMN c2 SET TAG (t2 = 'y')",
+		"ALTER TABLE t ALTER c1 SET NOT NULL, c2 DROP NOT NULL":         "ALTER TABLE t ALTER COLUMN c1 SET NOT NULL, COLUMN c2 DROP NOT NULL",
+		"ALTER TABLE t ALTER c1 SET NOT NULL, ALTER c2 SET NOT NULL":    "ALTER TABLE t ALTER COLUMN c1 SET NOT NULL, ALTER COLUMN c2 SET NOT NULL",
+	} {
+		file, err := parser.Parse(in)
+		require.NoError(t, err)
+		out, err := deparse.DeparseFile(file)
+		require.NoError(t, err)
+		require.Equal(t, want, out)
+	}
 	assertRoundTrip(t, "ALTER TABLE t SET AGGREGATION POLICY p ENTITY KEY (a) FORCE")
 	assertRoundTrip(t, "ALTER TABLE t UNSET AGGREGATION POLICY")
 	assertRoundTrip(t, "ALTER TABLE t SET JOIN POLICY p FORCE")
@@ -55,6 +69,7 @@ func TestDeparse_AlterIcebergTable(t *testing.T) {
 	assertRoundTrip(t, "ALTER ICEBERG TABLE t ALTER VERSION_TAG v AS OF VERSION 3")
 	assertRoundTrip(t, "ALTER ICEBERG TABLE t DROP VERSION_TAG IF EXISTS v")
 	assertRoundTrip(t, "ALTER ICEBERG TABLE t ALTER COLUMN c SET WRITE DEFAULT 1, ALTER COLUMN d DROP WRITE DEFAULT")
+	assertRoundTrip(t, "ALTER ICEBERG TABLE t ALTER c SET WRITE DEFAULT 1, d DROP WRITE DEFAULT")
 	assertRoundTrip(t, "ALTER ICEBERG TABLE t ALTER COLUMN c SET DATA TYPE INT RENAME FIELDS")
 	assertRoundTrip(t, "ALTER ICEBERG TABLE t SET TARGET_FILE_SIZE = '64MB' CONTACT (steward = alice)")
 
