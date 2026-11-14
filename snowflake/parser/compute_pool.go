@@ -13,6 +13,7 @@ func init() {
 		alter:  parseAlterComputePool,
 		// https://docs.snowflake.com/en/sql-reference/sql/drop-compute-pool
 		drop:       true,
+		nameParts:  1, // an account-level object
 		props:      computePoolProps,
 		alterProps: computePoolAlterProps,
 		unset:      []string{"AUTO_SUSPEND_SECS", "AUTO_RESUME", "PLACEMENT_GROUP", "BACKUP_INSTANCE_FAMILIES", "COMMENT"},
@@ -57,7 +58,7 @@ var computePoolAlterProps = func() objectProps {
 // https://docs.snowflake.com/en/sql-reference/sql/create-compute-pool
 func parseCreateComputePool(p *Parser, s *ast.ObjectStmt) error {
 	if start := p.cur.Loc.Start; p.acceptWords("FOR", "APPLICATION") {
-		name, err := p.parseObjectName()
+		name, err := p.parseObjectSimpleName()
 		if err != nil {
 			return err
 		}
@@ -90,7 +91,7 @@ func parseAlterComputePool(p *Parser, s *ast.ObjectStmt) error {
 	case p.acceptWords("STOP", "ALL"):
 		c := p.addObjectKeywordsClause(s, "STOP ALL", start)
 		if p.acceptWords("OF", "TYPE") {
-			names, err := p.parseObjectNameList()
+			names, err := p.parseObjectSimpleNameList()
 			if err != nil {
 				return err
 			}
