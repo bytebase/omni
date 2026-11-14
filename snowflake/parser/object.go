@@ -345,6 +345,15 @@ func (p *Parser) parseObjectProperties(s *ast.ObjectStmt, keywords string, need 
 			if err != nil {
 				return nil, err
 			}
+			for _, prev := range c.Options {
+				if prev.Name == opt.Name {
+					// A property is set once a run.
+					return nil, &ParseError{
+						Position: opt.Loc.Start, End: opt.Loc.End,
+						Message: "syntax error: " + opt.Name + " is set twice",
+					}
+				}
+			}
 			c.Options = append(c.Options, opt)
 		default:
 			if len(c.Options) == 0 && len(c.Tags) == 0 {
