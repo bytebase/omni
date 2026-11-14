@@ -334,7 +334,8 @@ func Split(sql string) []Segment {
 		// package, which its END closes: the ';' after each routine it lists do not end
 		// it. Anywhere else PACKAGE is a word (DROP PACKAGE, a column named package).
 		case (b == 'p' || b == 'P') && matchWord(sql, i, "PACKAGE"):
-			if depth == 0 && createsPackage(sql[stmtStart:i]) {
+			// A PACKAGE that touches an @ is a definer's host, root@package.
+			if depth == 0 && (i == 0 || sql[i-1] != '@') && createsPackage(sql[stmtStart:i]) {
 				depth++
 			}
 			atStmtStart = false
@@ -499,8 +500,8 @@ func Split(sql string) []Segment {
 }
 
 // createsPackage reports whether head, the text of a statement up to a PACKAGE, is the head
-// of CREATE PACKAGE: CREATE, OR REPLACE, and a definer, CURRENT_USER[()] or user[@host],
-// a name bare or quoted. Comments may stand anywhere between the words.
+// of CREATE PACKAGE: CREATE, OR REPLACE, and a definer, CURRENT_USER[()], CURRENT_ROLE[()] or
+// user[@host], a name bare or quoted. Comments may stand anywhere between the words.
 //
 // Ref: create_routine's sp_handler_package_spec and sp_handler_package_body arms, and
 // definer_opt, in MariaDB 11.8 sql/sql_yacc.yy.
@@ -527,7 +528,7 @@ func createsPackage(head string) bool {
 			i++
 		}
 		switch {
-		case at(i, "CURRENT_USER"):
+		case at(i, "CURRENT_USER") || at(i, "CURRENT_ROLE"):
 			i++
 			if at(i, "(") && at(i+1, ")") {
 				i += 2
