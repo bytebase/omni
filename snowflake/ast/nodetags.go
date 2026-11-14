@@ -104,6 +104,7 @@ const (
 	T_CopyOption
 	T_CopyIntoTableStmt
 	T_CopyIntoLocationStmt
+	T_CopyFilesStmt
 	T_PutStmt
 	T_GetStmt
 	T_ListStmt
@@ -395,6 +396,8 @@ func (t NodeTag) String() string {
 		return "CopyIntoTableStmt"
 	case T_CopyIntoLocationStmt:
 		return "CopyIntoLocationStmt"
+	case T_CopyFilesStmt:
+		return "CopyFilesStmt"
 	case T_PutStmt:
 		return "PutStmt"
 	case T_GetStmt:

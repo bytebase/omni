@@ -1404,7 +1404,7 @@ reject	undocumented	docs	statement/comment!swap	COMMENTS ON TABLE a IS 's'
 accept	accept	docs	statement/commit	COMMIT
 reject	undocumented	docs	statement/commit!insert	COMMIT zzz
 reject	undocumented	docs	statement/commit!swap	COMMITTED
-reject	accept	docs	statement/copyFiles	COPY FILES INTO @a FROM @a
+accept	accept	docs	statement/copyFiles	COPY FILES INTO @a FROM @a
 reject	undocumented	docs	statement/copyFiles!drop-1	FILES INTO @a FROM @a
 reject	undocumented	docs	statement/copyFiles!drop-2	COPY INTO @a FROM @a
 reject	undocumented	docs	statement/copyFiles!drop-3	COPY FILES @a FROM @a
@@ -13545,7 +13545,7 @@ accept	undocumented	docs	alterFileFormat_formatTypeOptions_CSV(,?_(COMPRESSION_=
 accept	undocumented	docs	alterFileFormat_formatTypeOptions_CSV(,?_(COMPRESSION_=_(AUTO|GZIP|BZ2|BRO~1ec52794)*/(,)?_(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~e09731ce)_(,~d5f39415!swap	ALTER FILE FORMAT a SET COMPRESSION = AUTO COMPUTE = AUTO
 accept	accept	docs	alterFileFormat_formatTypeOptions_CSV(,)?/%empty	ALTER FILE FORMAT a SET COMPRESSION = AUTO COMPRESSION = AUTO
 accept	undocumented	docs	alterFileFormat_formatTypeOptions_CSV(,)?/%empty!insert	ALTER FILE FORMAT a SET COMPRESSION = AUTO zzz COMPRESSION = AUTO
-reject	accept	docs	alterFileFormat_formatTypeOptions_CSV(,)?/,	ALTER FILE FORMAT a SET COMPRESSION = AUTO, COMPRESSION = AUTO
+accept	accept	docs	alterFileFormat_formatTypeOptions_CSV(,)?/,	ALTER FILE FORMAT a SET COMPRESSION = AUTO, COMPRESSION = AUTO
 reject	undocumented	docs	alterFileFormat_formatTypeOptions_CSV(,)?/,!insert	ALTER FILE FORMAT a SET COMPRESSION = AUTO, zzz COMPRESSION = AUTO
 accept	accept	docs	alterFileFormat_formatTypeOptions_JSON/(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~06daabe2)_(,?_(CO~821034fa	ALTER FILE FORMAT a SET COMPRESSION = AUTO
 accept	accept	docs	alterFileFormat_formatTypeOptions_JSON(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~06daabe2)/COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|ZSTD|DEFLATE|RA~ec9870d1)	ALTER FILE FORMAT a SET COMPRESSION = AUTO
@@ -13605,7 +13605,7 @@ accept	accept	docs	alterFileFormat_formatTypeOptions_JSON(,_STRING)*/,_STRING_(,
 accept	accept	docs	alterFileFormat_formatTypeOptions_JSON(,?_(COMPRESSION_=_(AUTO|GZIP|BZ2|BRO~734a9ec2)*/%empty	ALTER FILE FORMAT a SET COMPRESSION = AUTO
 accept	accept	docs	alterFileFormat_formatTypeOptions_JSON(,?_(COMPRESSION_=_(AUTO|GZIP|BZ2|BRO~734a9ec2)*/(,)?_(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~06daabe2)_(,~10e268bb	ALTER FILE FORMAT a SET COMPRESSION = AUTO COMPRESSION = AUTO
 accept	accept	docs	alterFileFormat_formatTypeOptions_JSON(,)?/%empty	ALTER FILE FORMAT a SET COMPRESSION = AUTO COMPRESSION = AUTO
-reject	accept	docs	alterFileFormat_formatTypeOptions_JSON(,)?/,	ALTER FILE FORMAT a SET COMPRESSION = AUTO, COMPRESSION = AUTO
+accept	accept	docs	alterFileFormat_formatTypeOptions_JSON(,)?/,	ALTER FILE FORMAT a SET COMPRESSION = AUTO, COMPRESSION = AUTO
 accept	accept	docs	alterFileFormat_formatTypeOptions_AVRO/(COMPRESSION_=_(AUTO|GZIP|BROTLI|ZSTD~0d058127)_(,?_(CO~cd517fe0	ALTER FILE FORMAT a SET COMPRESSION = AUTO
 accept	accept	docs	alterFileFormat_formatTypeOptions_AVRO(COMPRESSION_=_(AUTO|GZIP|BROTLI|ZSTD~0d058127)/COMPRESSION_=_(AUTO|GZIP|BROTLI|ZSTD|DEFLATE|RAW_DEFLATE|NONE)	ALTER FILE FORMAT a SET COMPRESSION = AUTO
 accept	accept	docs	alterFileFormat_formatTypeOptions_AVRO(COMPRESSION_=_(AUTO|GZIP|BROTLI|ZSTD~0d058127)/TRIM_SPACE_=_(TRUE|FALSE)	ALTER FILE FORMAT a SET TRIM_SPACE = TRUE
@@ -13625,7 +13625,7 @@ accept	accept	docs	alterFileFormat_formatTypeOptions_AVRO(,_STRING)*/,_STRING_(,
 accept	accept	docs	alterFileFormat_formatTypeOptions_AVRO(,?_(COMPRESSION_=_(AUTO|GZIP|BROTLI|~c5246db2)*/%empty	ALTER FILE FORMAT a SET COMPRESSION = AUTO
 accept	accept	docs	alterFileFormat_formatTypeOptions_AVRO(,?_(COMPRESSION_=_(AUTO|GZIP|BROTLI|~c5246db2)*/(,)?_(COMPRESSION_=_(AUTO|GZIP|BROTLI|ZSTD~0d058127)_(,~f4c39235	ALTER FILE FORMAT a SET COMPRESSION = AUTO COMPRESSION = AUTO
 accept	accept	docs	alterFileFormat_formatTypeOptions_AVRO(,)?/%empty	ALTER FILE FORMAT a SET COMPRESSION = AUTO COMPRESSION = AUTO
-reject	accept	docs	alterFileFormat_formatTypeOptions_AVRO(,)?/,	ALTER FILE FORMAT a SET COMPRESSION = AUTO, COMPRESSION = AUTO
+accept	accept	docs	alterFileFormat_formatTypeOptions_AVRO(,)?/,	ALTER FILE FORMAT a SET COMPRESSION = AUTO, COMPRESSION = AUTO
 accept	accept	docs	alterFileFormat_formatTypeOptions_ORC/(TRIM_SPACE_=_(TRUE|FALSE)|REPLACE_IN~58753d05)_(,?_(TR~3f12abc9	ALTER FILE FORMAT a SET TRIM_SPACE = TRUE
 accept	accept	docs	alterFileFormat_formatTypeOptions_ORC(TRIM_SPACE_=_(TRUE|FALSE)|REPLACE_IN~58753d05)/TRIM_SPACE_=_(TRUE|FALSE)	ALTER FILE FORMAT a SET TRIM_SPACE = TRUE
 accept	accept	docs	alterFileFormat_formatTypeOptions_ORC(TRIM_SPACE_=_(TRUE|FALSE)|REPLACE_IN~58753d05)/REPLACE_INVALID_CHARACTERS_=_(TRUE|FALSE)	ALTER FILE FORMAT a SET REPLACE_INVALID_CHARACTERS = TRUE
@@ -13643,7 +13643,7 @@ accept	undocumented	docs	alterFileFormat_formatTypeOptions_ORC(,?_(TRIM_SPACE_=_
 accept	undocumented	docs	alterFileFormat_formatTypeOptions_ORC(,?_(TRIM_SPACE_=_(TRUE|FALSE)|REPLAC~1b963f34)*/(,)?_(TRIM_SPACE_=_(TRUE|FALSE)|REPLACE_IN~58753d05)_(,~bc64cd53!swap	ALTER FILE FORMAT a SET TRIM_SPACE = TRUE TRUE = TRUE
 accept	accept	docs	alterFileFormat_formatTypeOptions_ORC(,)?/%empty	ALTER FILE FORMAT a SET TRIM_SPACE = TRUE TRIM_SPACE = TRUE
 accept	undocumented	docs	alterFileFormat_formatTypeOptions_ORC(,)?/%empty!insert	ALTER FILE FORMAT a SET TRIM_SPACE = TRUE zzz TRIM_SPACE = TRUE
-reject	accept	docs	alterFileFormat_formatTypeOptions_ORC(,)?/,	ALTER FILE FORMAT a SET TRIM_SPACE = TRUE, TRIM_SPACE = TRUE
+accept	accept	docs	alterFileFormat_formatTypeOptions_ORC(,)?/,	ALTER FILE FORMAT a SET TRIM_SPACE = TRUE, TRIM_SPACE = TRUE
 reject	undocumented	docs	alterFileFormat_formatTypeOptions_ORC(,)?/,!insert	ALTER FILE FORMAT a SET TRIM_SPACE = TRUE, zzz TRIM_SPACE = TRUE
 accept	accept	docs	alterFileFormat_formatTypeOptions_PARQUET/(COMPRESSION_=_(AUTO|LZO|SNAPPY|NONE)~87ccea4e)_(,?_(CO~055822d3	ALTER FILE FORMAT a SET COMPRESSION = AUTO
 accept	accept	docs	alterFileFormat_formatTypeOptions_PARQUET(COMPRESSION_=_(AUTO|LZO|SNAPPY|NONE)~87ccea4e)/COMPRESSION_=_(AUTO|LZO|SNAPPY|NONE)	ALTER FILE FORMAT a SET COMPRESSION = AUTO
@@ -13688,7 +13688,7 @@ accept	accept	docs	alterFileFormat_formatTypeOptions_PARQUET(,_STRING)*/,_STRING
 accept	accept	docs	alterFileFormat_formatTypeOptions_PARQUET(,?_(COMPRESSION_=_(AUTO|LZO|SNAPPY|N~2e67c65d)*/%empty	ALTER FILE FORMAT a SET COMPRESSION = AUTO
 accept	accept	docs	alterFileFormat_formatTypeOptions_PARQUET(,?_(COMPRESSION_=_(AUTO|LZO|SNAPPY|N~2e67c65d)*/(,)?_(COMPRESSION_=_(AUTO|LZO|SNAPPY|NONE)~87ccea4e)_(,~785dbe9e	ALTER FILE FORMAT a SET COMPRESSION = AUTO COMPRESSION = AUTO
 accept	accept	docs	alterFileFormat_formatTypeOptions_PARQUET(,)?/%empty	ALTER FILE FORMAT a SET COMPRESSION = AUTO COMPRESSION = AUTO
-reject	accept	docs	alterFileFormat_formatTypeOptions_PARQUET(,)?/,	ALTER FILE FORMAT a SET COMPRESSION = AUTO, COMPRESSION = AUTO
+accept	accept	docs	alterFileFormat_formatTypeOptions_PARQUET(,)?/,	ALTER FILE FORMAT a SET COMPRESSION = AUTO, COMPRESSION = AUTO
 accept	accept	docs	alterFileFormat_formatTypeOptions_XML/(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~e8e8f2dd)_(,?_(CO~fbde0480	ALTER FILE FORMAT a SET COMPRESSION = AUTO
 accept	accept	docs	alterFileFormat_formatTypeOptions_XML(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~e8e8f2dd)/COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|ZSTD|DEFLATE|RA~ec9870d1)	ALTER FILE FORMAT a SET COMPRESSION = AUTO
 accept	accept	docs	alterFileFormat_formatTypeOptions_XML(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~e8e8f2dd)/IGNORE_UTF8_ERRORS_=_(TRUE|FALSE)	ALTER FILE FORMAT a SET IGNORE_UTF8_ERRORS = TRUE
@@ -13725,7 +13725,7 @@ accept	undocumented	docs	alterFileFormat_formatTypeOptions_XML(TRUE|FALSE)/FALSE
 accept	accept	docs	alterFileFormat_formatTypeOptions_XML(,?_(COMPRESSION_=_(AUTO|GZIP|BZ2|BRO~be55100a)*/%empty	ALTER FILE FORMAT a SET COMPRESSION = AUTO
 accept	accept	docs	alterFileFormat_formatTypeOptions_XML(,?_(COMPRESSION_=_(AUTO|GZIP|BZ2|BRO~be55100a)*/(,)?_(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~e8e8f2dd)_(,~2b884a94	ALTER FILE FORMAT a SET COMPRESSION = AUTO COMPRESSION = AUTO
 accept	accept	docs	alterFileFormat_formatTypeOptions_XML(,)?/%empty	ALTER FILE FORMAT a SET COMPRESSION = AUTO COMPRESSION = AUTO
-reject	accept	docs	alterFileFormat_formatTypeOptions_XML(,)?/,	ALTER FILE FORMAT a SET COMPRESSION = AUTO, COMPRESSION = AUTO
+accept	accept	docs	alterFileFormat_formatTypeOptions_XML(,)?/,	ALTER FILE FORMAT a SET COMPRESSION = AUTO, COMPRESSION = AUTO
 accept	accept	docs	alterFunction/ALTER_FUNCTION_(IF_EXISTS)?_QNAME_(_(DATA_TYPE_(,_DATA_~225a8a15	ALTER FUNCTION a() RENAME TO a
 reject	undocumented	docs	alterFunction/ALTER_FUNCTION_(IF_EXISTS)?_QNAME_(_(DATA_TYPE_(,_DATA_~225a8a15!drop-1	FUNCTION a() RENAME TO a
 reject	undocumented	docs	alterFunction/ALTER_FUNCTION_(IF_EXISTS)?_QNAME_(_(DATA_TYPE_(,_DATA_~225a8a15!drop-2	ALTER a() RENAME TO a
@@ -29434,9 +29434,9 @@ accept	accept	docs	commit(WORK)?/%empty	COMMIT
 accept	accept	docs	commit(WORK)?/WORK	COMMIT WORK
 reject	undocumented	docs	commit(WORK)?/WORK!insert	COMMIT WORK zzz
 reject	undocumented	docs	commit(WORK)?/WORK!swap	COMMIT WORKLOAD
-reject	accept	docs	copyFiles/COPY_FILES_INTO_STAGE_FROM_STAGE_(FILES_=_(_STRING_(,_S~957a04cf	COPY FILES INTO @a FROM @a
-reject	accept	docs	copyFiles(FILES_=_(_STRING_(,_STRING)*_))?/%empty	COPY FILES INTO @a FROM @a
-reject	accept	docs	copyFiles(FILES_=_(_STRING_(,_STRING)*_))?/FILES_=_(_STRING_(,_STRING)*_)	COPY FILES INTO @a FROM @a FILES =('s')
+accept	accept	docs	copyFiles/COPY_FILES_INTO_STAGE_FROM_STAGE_(FILES_=_(_STRING_(,_S~957a04cf	COPY FILES INTO @a FROM @a
+accept	accept	docs	copyFiles(FILES_=_(_STRING_(,_STRING)*_))?/%empty	COPY FILES INTO @a FROM @a
+accept	accept	docs	copyFiles(FILES_=_(_STRING_(,_STRING)*_))?/FILES_=_(_STRING_(,_STRING)*_)	COPY FILES INTO @a FROM @a FILES =('s')
 reject	undocumented	docs	copyFiles(FILES_=_(_STRING_(,_STRING)*_))?/FILES_=_(_STRING_(,_STRING)*_)!drop-1	COPY FILES INTO @a FROM @a =('s')
 reject	undocumented	docs	copyFiles(FILES_=_(_STRING_(,_STRING)*_))?/FILES_=_(_STRING_(,_STRING)*_)!drop-2	COPY FILES INTO @a FROM @a FILES('s')
 reject	undocumented	docs	copyFiles(FILES_=_(_STRING_(,_STRING)*_))?/FILES_=_(_STRING_(,_STRING)*_)!drop-3	COPY FILES INTO @a FROM @a FILES = 's')
@@ -29444,30 +29444,30 @@ reject	undocumented	docs	copyFiles(FILES_=_(_STRING_(,_STRING)*_))?/FILES_=_(_ST
 reject	undocumented	docs	copyFiles(FILES_=_(_STRING_(,_STRING)*_))?/FILES_=_(_STRING_(,_STRING)*_)!drop-5	COPY FILES INTO @a FROM @a FILES =('s'
 reject	undocumented	docs	copyFiles(FILES_=_(_STRING_(,_STRING)*_))?/FILES_=_(_STRING_(,_STRING)*_)!insert	COPY FILES INTO @a FROM @a FILES =('s') zzz
 reject	undocumented	docs	copyFiles(FILES_=_(_STRING_(,_STRING)*_))?/FILES_=_(_STRING_(,_STRING)*_)!swap	COPY FILES INTO @a FROM @a FILE_EXTENSION =('s')
-reject	accept	docs	copyFiles(,_STRING)*/%empty	COPY FILES INTO @a FROM @a FILES =('s')
+accept	accept	docs	copyFiles(,_STRING)*/%empty	COPY FILES INTO @a FROM @a FILES =('s')
 reject	undocumented	docs	copyFiles(,_STRING)*/%empty!insert	COPY FILES INTO @a FROM @a FILES =('s' zzz)
-reject	accept	docs	copyFiles(,_STRING)*/,_STRING_(,_STRING)*	COPY FILES INTO @a FROM @a FILES =('s', 's')
+accept	accept	docs	copyFiles(,_STRING)*/,_STRING_(,_STRING)*	COPY FILES INTO @a FROM @a FILES =('s', 's')
 reject	undocumented	docs	copyFiles(,_STRING)*/,_STRING_(,_STRING)*!drop-1	COPY FILES INTO @a FROM @a FILES =('s' 's')
 reject	undocumented	docs	copyFiles(,_STRING)*/,_STRING_(,_STRING)*!drop-2	COPY FILES INTO @a FROM @a FILES =('s',)
 reject	undocumented	docs	copyFiles(,_STRING)*/,_STRING_(,_STRING)*!truncate	COPY FILES INTO @a FROM @a FILES =('s',
 reject	undocumented	docs	copyFiles(,_STRING)*/,_STRING_(,_STRING)*!insert	COPY FILES INTO @a FROM @a FILES =('s', 's' zzz)
-reject	accept	docs	copyFiles(PATTERN_=_STRING)?/%empty	COPY FILES INTO @a FROM @a
-reject	accept	docs	copyFiles(PATTERN_=_STRING)?/PATTERN_=_STRING	COPY FILES INTO @a FROM @a PATTERN = 's'
+accept	accept	docs	copyFiles(PATTERN_=_STRING)?/%empty	COPY FILES INTO @a FROM @a
+accept	accept	docs	copyFiles(PATTERN_=_STRING)?/PATTERN_=_STRING	COPY FILES INTO @a FROM @a PATTERN = 's'
 reject	undocumented	docs	copyFiles(PATTERN_=_STRING)?/PATTERN_=_STRING!drop-1	COPY FILES INTO @a FROM @a = 's'
 reject	undocumented	docs	copyFiles(PATTERN_=_STRING)?/PATTERN_=_STRING!drop-2	COPY FILES INTO @a FROM @a PATTERN 's'
 reject	undocumented	docs	copyFiles(PATTERN_=_STRING)?/PATTERN_=_STRING!drop-3	COPY FILES INTO @a FROM @a PATTERN =
 reject	undocumented	docs	copyFiles(PATTERN_=_STRING)?/PATTERN_=_STRING!insert	COPY FILES INTO @a FROM @a PATTERN = 's' zzz
 reject	undocumented	docs	copyFiles(PATTERN_=_STRING)?/PATTERN_=_STRING!swap	COPY FILES INTO @a FROM @a PAT_POLICY = 's'
-reject	accept	docs	copyFiles(DETAILED_OUTPUT_=_(TRUE|FALSE))?/%empty	COPY FILES INTO @a FROM @a
-reject	accept	docs	copyFiles(DETAILED_OUTPUT_=_(TRUE|FALSE))?/DETAILED_OUTPUT_=_(TRUE|FALSE)	COPY FILES INTO @a FROM @a DETAILED_OUTPUT = TRUE
+accept	accept	docs	copyFiles(DETAILED_OUTPUT_=_(TRUE|FALSE))?/%empty	COPY FILES INTO @a FROM @a
+accept	accept	docs	copyFiles(DETAILED_OUTPUT_=_(TRUE|FALSE))?/DETAILED_OUTPUT_=_(TRUE|FALSE)	COPY FILES INTO @a FROM @a DETAILED_OUTPUT = TRUE
 reject	undocumented	docs	copyFiles(DETAILED_OUTPUT_=_(TRUE|FALSE))?/DETAILED_OUTPUT_=_(TRUE|FALSE)!drop-1	COPY FILES INTO @a FROM @a = TRUE
 reject	undocumented	docs	copyFiles(DETAILED_OUTPUT_=_(TRUE|FALSE))?/DETAILED_OUTPUT_=_(TRUE|FALSE)!drop-2	COPY FILES INTO @a FROM @a DETAILED_OUTPUT TRUE
 reject	undocumented	docs	copyFiles(DETAILED_OUTPUT_=_(TRUE|FALSE))?/DETAILED_OUTPUT_=_(TRUE|FALSE)!drop-3	COPY FILES INTO @a FROM @a DETAILED_OUTPUT =
 reject	undocumented	docs	copyFiles(DETAILED_OUTPUT_=_(TRUE|FALSE))?/DETAILED_OUTPUT_=_(TRUE|FALSE)!insert	COPY FILES INTO @a FROM @a DETAILED_OUTPUT = TRUE zzz
 reject	undocumented	docs	copyFiles(DETAILED_OUTPUT_=_(TRUE|FALSE))?/DETAILED_OUTPUT_=_(TRUE|FALSE)!swap	COPY FILES INTO @a FROM @a DEVELOP = TRUE
-reject	accept	docs	copyFiles(TRUE|FALSE)/TRUE	COPY FILES INTO @a FROM @a DETAILED_OUTPUT = TRUE
+accept	accept	docs	copyFiles(TRUE|FALSE)/TRUE	COPY FILES INTO @a FROM @a DETAILED_OUTPUT = TRUE
 reject	undocumented	docs	copyFiles(TRUE|FALSE)/TRUE!swap	COPY FILES INTO @a FROM @a DETAILED_OUTPUT = TRUNCATE
-reject	accept	docs	copyFiles(TRUE|FALSE)/FALSE	COPY FILES INTO @a FROM @a DETAILED_OUTPUT = FALSE
+accept	accept	docs	copyFiles(TRUE|FALSE)/FALSE	COPY FILES INTO @a FROM @a DETAILED_OUTPUT = FALSE
 reject	undocumented	docs	copyFiles(TRUE|FALSE)/FALSE!insert	COPY FILES INTO @a FROM @a DETAILED_OUTPUT = FALSE zzz
 reject	undocumented	docs	copyFiles(TRUE|FALSE)/FALSE!swap	COPY FILES INTO @a FROM @a DETAILED_OUTPUT = FAMILIES
 accept	accept	docs	copyIntoLocation/COPY_INTO_(copyIntoLocation_internalStage|copyI~187452c~7304f6ad	COPY INTO @a FROM a
@@ -29976,7 +29976,7 @@ accept	undocumented	docs	copyIntoLocation_copyOptions(,?_(OVERWRITE_=_(TRUE|FALS
 accept	undocumented	docs	copyIntoLocation_copyOptions(,?_(OVERWRITE_=_(TRUE|FALSE)|SINGLE_~8e12a8d2)*/(,)?_(OVERWRITE_=_(TRUE|FALSE)|SINGLE_=_(T~6ea5e27f)_(,~1d0684d5!swap	COPY INTO @a FROM a OVERWRITE = TRUE OWNED = TRUE
 accept	accept	docs	copyIntoLocation_copyOptions(,)?/%empty	COPY INTO @a FROM a OVERWRITE = TRUE OVERWRITE = TRUE
 accept	undocumented	docs	copyIntoLocation_copyOptions(,)?/%empty!insert	COPY INTO @a FROM a OVERWRITE = TRUE zzz OVERWRITE = TRUE
-reject	accept	docs	copyIntoLocation_copyOptions(,)?/,	COPY INTO @a FROM a OVERWRITE = TRUE, OVERWRITE = TRUE
+accept	accept	docs	copyIntoLocation_copyOptions(,)?/,	COPY INTO @a FROM a OVERWRITE = TRUE, OVERWRITE = TRUE
 reject	undocumented	docs	copyIntoLocation_copyOptions(,)?/,!insert	COPY INTO @a FROM a OVERWRITE = TRUE, zzz OVERWRITE = TRUE
 accept	accept	docs	copyIntoTable/COPY_INTO_(ID_._(ID_.)?)?_ID_FROM_(copyIntoTable_intern~259bceb3	COPY INTO a FROM @a
 accept	accept	docs	copyIntoTable/COPY_INTO_(ID_._(ID_.)?)?_ID_((_ID_(,_ID)*_))?_FROM_(_S~97966b36	COPY INTO a FROM(SELECT $1 FROM @a)
@@ -31055,7 +31055,7 @@ accept	undocumented	docs	copyIntoTable_copyOptions(,?_(CLUSTER_AT_INGEST_TIME_=_
 accept	undocumented	docs	copyIntoTable_copyOptions(,?_(CLUSTER_AT_INGEST_TIME_=_(TRUE|F~701682a8)*/(,)?_(CLUSTER_AT_INGEST_TIME_=_(TRUE|FALSE~ccbf7613)_(,~b5042c4a!swap	COPY INTO a FROM @a CLUSTER_AT_INGEST_TIME = TRUE CODE = TRUE
 accept	accept	docs	copyIntoTable_copyOptions(,)?/%empty	COPY INTO a FROM @a CLUSTER_AT_INGEST_TIME = TRUE CLUSTER_AT_INGEST_TIME = TRUE
 accept	undocumented	docs	copyIntoTable_copyOptions(,)?/%empty!insert	COPY INTO a FROM @a CLUSTER_AT_INGEST_TIME = TRUE zzz CLUSTER_AT_INGEST_TIME = TRUE
-reject	accept	docs	copyIntoTable_copyOptions(,)?/,	COPY INTO a FROM @a CLUSTER_AT_INGEST_TIME = TRUE, CLUSTER_AT_INGEST_TIME = TRUE
+accept	accept	docs	copyIntoTable_copyOptions(,)?/,	COPY INTO a FROM @a CLUSTER_AT_INGEST_TIME = TRUE, CLUSTER_AT_INGEST_TIME = TRUE
 reject	undocumented	docs	copyIntoTable_copyOptions(,)?/,!insert	COPY INTO a FROM @a CLUSTER_AT_INGEST_TIME = TRUE, zzz CLUSTER_AT_INGEST_TIME = TRUE
 accept	accept	docs	createAccount/CREATE_ACCOUNT_ID_ADMIN_NAME_=_STRING_(ADMIN_PASSWORD_=~d3b28357	CREATE ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' EDITION = STANDARD
 accept	accept	docs	createAccount(ADMIN_PASSWORD_=_STRING|ADMIN_RSA_PU~7156d253)/ADMIN_PASSWORD_=_STRING	CREATE ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' EDITION = STANDARD
@@ -37051,7 +37051,7 @@ accept	undocumented	docs	createFileFormat_formatTypeOptions_CSV(,?_(COMPRESSION_
 accept	undocumented	docs	createFileFormat_formatTypeOptions_CSV(,?_(COMPRESSION_=_(AUTO|GZIP|BZ2|BRO~1ec52794)*/(,)?_(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~e09731ce)_(,~d5f39415!swap	CREATE FILE FORMAT a TYPE = CSV COMPRESSION = AUTO COMPUTE = AUTO
 accept	accept	docs	createFileFormat_formatTypeOptions_CSV(,)?/%empty	CREATE FILE FORMAT a TYPE = CSV COMPRESSION = AUTO COMPRESSION = AUTO
 accept	undocumented	docs	createFileFormat_formatTypeOptions_CSV(,)?/%empty!insert	CREATE FILE FORMAT a TYPE = CSV COMPRESSION = AUTO zzz COMPRESSION = AUTO
-reject	accept	docs	createFileFormat_formatTypeOptions_CSV(,)?/,	CREATE FILE FORMAT a TYPE = CSV COMPRESSION = AUTO, COMPRESSION = AUTO
+accept	accept	docs	createFileFormat_formatTypeOptions_CSV(,)?/,	CREATE FILE FORMAT a TYPE = CSV COMPRESSION = AUTO, COMPRESSION = AUTO
 reject	undocumented	docs	createFileFormat_formatTypeOptions_CSV(,)?/,!insert	CREATE FILE FORMAT a TYPE = CSV COMPRESSION = AUTO, zzz COMPRESSION = AUTO
 accept	accept	docs	createFileFormat_formatTypeOptions_JSON/(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~06daabe2)_(,?_(CO~821034fa	CREATE FILE FORMAT a TYPE = JSON COMPRESSION = AUTO
 accept	accept	docs	createFileFormat_formatTypeOptions_JSON(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~06daabe2)/COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|ZSTD|DEFLATE|RA~ec9870d1)	CREATE FILE FORMAT a TYPE = JSON COMPRESSION = AUTO
@@ -37191,7 +37191,7 @@ accept	undocumented	docs	createFileFormat_formatTypeOptions_JSON(,?_(COMPRESSION
 accept	undocumented	docs	createFileFormat_formatTypeOptions_JSON(,?_(COMPRESSION_=_(AUTO|GZIP|BZ2|BRO~734a9ec2)*/(,)?_(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~06daabe2)_(,~10e268bb!swap	CREATE FILE FORMAT a TYPE = JSON COMPRESSION = AUTO COMPUTE = AUTO
 accept	accept	docs	createFileFormat_formatTypeOptions_JSON(,)?/%empty	CREATE FILE FORMAT a TYPE = JSON COMPRESSION = AUTO COMPRESSION = AUTO
 accept	undocumented	docs	createFileFormat_formatTypeOptions_JSON(,)?/%empty!insert	CREATE FILE FORMAT a TYPE = JSON COMPRESSION = AUTO zzz COMPRESSION = AUTO
-reject	accept	docs	createFileFormat_formatTypeOptions_JSON(,)?/,	CREATE FILE FORMAT a TYPE = JSON COMPRESSION = AUTO, COMPRESSION = AUTO
+accept	accept	docs	createFileFormat_formatTypeOptions_JSON(,)?/,	CREATE FILE FORMAT a TYPE = JSON COMPRESSION = AUTO, COMPRESSION = AUTO
 reject	undocumented	docs	createFileFormat_formatTypeOptions_JSON(,)?/,!insert	CREATE FILE FORMAT a TYPE = JSON COMPRESSION = AUTO, zzz COMPRESSION = AUTO
 accept	accept	docs	createFileFormat_formatTypeOptions_AVRO/(COMPRESSION_=_(AUTO|GZIP|BROTLI|ZSTD~0d058127)_(,?_(CO~cd517fe0	CREATE FILE FORMAT a TYPE = AVRO COMPRESSION = AUTO
 accept	accept	docs	createFileFormat_formatTypeOptions_AVRO(COMPRESSION_=_(AUTO|GZIP|BROTLI|ZSTD~0d058127)/COMPRESSION_=_(AUTO|GZIP|BROTLI|ZSTD|DEFLATE|RAW_DEFLATE|NONE)	CREATE FILE FORMAT a TYPE = AVRO COMPRESSION = AUTO
@@ -37255,7 +37255,7 @@ accept	undocumented	docs	createFileFormat_formatTypeOptions_AVRO(,?_(COMPRESSION
 accept	undocumented	docs	createFileFormat_formatTypeOptions_AVRO(,?_(COMPRESSION_=_(AUTO|GZIP|BROTLI|~c5246db2)*/(,)?_(COMPRESSION_=_(AUTO|GZIP|BROTLI|ZSTD~0d058127)_(,~f4c39235!swap	CREATE FILE FORMAT a TYPE = AVRO COMPRESSION = AUTO COMPUTE = AUTO
 accept	accept	docs	createFileFormat_formatTypeOptions_AVRO(,)?/%empty	CREATE FILE FORMAT a TYPE = AVRO COMPRESSION = AUTO COMPRESSION = AUTO
 accept	undocumented	docs	createFileFormat_formatTypeOptions_AVRO(,)?/%empty!insert	CREATE FILE FORMAT a TYPE = AVRO COMPRESSION = AUTO zzz COMPRESSION = AUTO
-reject	accept	docs	createFileFormat_formatTypeOptions_AVRO(,)?/,	CREATE FILE FORMAT a TYPE = AVRO COMPRESSION = AUTO, COMPRESSION = AUTO
+accept	accept	docs	createFileFormat_formatTypeOptions_AVRO(,)?/,	CREATE FILE FORMAT a TYPE = AVRO COMPRESSION = AUTO, COMPRESSION = AUTO
 reject	undocumented	docs	createFileFormat_formatTypeOptions_AVRO(,)?/,!insert	CREATE FILE FORMAT a TYPE = AVRO COMPRESSION = AUTO, zzz COMPRESSION = AUTO
 accept	accept	docs	createFileFormat_formatTypeOptions_ORC/(TRIM_SPACE_=_(TRUE|FALSE)|REPLACE_IN~58753d05)_(,?_(TR~3f12abc9	CREATE FILE FORMAT a TYPE = ORC TRIM_SPACE = TRUE
 accept	accept	docs	createFileFormat_formatTypeOptions_ORC(TRIM_SPACE_=_(TRUE|FALSE)|REPLACE_IN~58753d05)/TRIM_SPACE_=_(TRUE|FALSE)	CREATE FILE FORMAT a TYPE = ORC TRIM_SPACE = TRUE
@@ -37293,7 +37293,7 @@ accept	undocumented	docs	createFileFormat_formatTypeOptions_ORC(,?_(TRIM_SPACE_=
 accept	undocumented	docs	createFileFormat_formatTypeOptions_ORC(,?_(TRIM_SPACE_=_(TRUE|FALSE)|REPLAC~1b963f34)*/(,)?_(TRIM_SPACE_=_(TRUE|FALSE)|REPLACE_IN~58753d05)_(,~bc64cd53!swap	CREATE FILE FORMAT a TYPE = ORC TRIM_SPACE = TRUE TRUE = TRUE
 accept	accept	docs	createFileFormat_formatTypeOptions_ORC(,)?/%empty	CREATE FILE FORMAT a TYPE = ORC TRIM_SPACE = TRUE TRIM_SPACE = TRUE
 accept	undocumented	docs	createFileFormat_formatTypeOptions_ORC(,)?/%empty!insert	CREATE FILE FORMAT a TYPE = ORC TRIM_SPACE = TRUE zzz TRIM_SPACE = TRUE
-reject	accept	docs	createFileFormat_formatTypeOptions_ORC(,)?/,	CREATE FILE FORMAT a TYPE = ORC TRIM_SPACE = TRUE, TRIM_SPACE = TRUE
+accept	accept	docs	createFileFormat_formatTypeOptions_ORC(,)?/,	CREATE FILE FORMAT a TYPE = ORC TRIM_SPACE = TRUE, TRIM_SPACE = TRUE
 reject	undocumented	docs	createFileFormat_formatTypeOptions_ORC(,)?/,!insert	CREATE FILE FORMAT a TYPE = ORC TRIM_SPACE = TRUE, zzz TRIM_SPACE = TRUE
 accept	accept	docs	createFileFormat_formatTypeOptions_PARQUET/(COMPRESSION_=_(AUTO|LZO|SNAPPY|NONE)~87ccea4e)_(,?_(CO~055822d3	CREATE FILE FORMAT a TYPE = PARQUET COMPRESSION = AUTO
 accept	accept	docs	createFileFormat_formatTypeOptions_PARQUET(COMPRESSION_=_(AUTO|LZO|SNAPPY|NONE)~87ccea4e)/COMPRESSION_=_(AUTO|LZO|SNAPPY|NONE)	CREATE FILE FORMAT a TYPE = PARQUET COMPRESSION = AUTO
@@ -37368,7 +37368,7 @@ accept	undocumented	docs	createFileFormat_formatTypeOptions_PARQUET(,?_(COMPRESS
 accept	undocumented	docs	createFileFormat_formatTypeOptions_PARQUET(,?_(COMPRESSION_=_(AUTO|LZO|SNAPPY|N~2e67c65d)*/(,)?_(COMPRESSION_=_(AUTO|LZO|SNAPPY|NONE)~87ccea4e)_(,~785dbe9e!swap	CREATE FILE FORMAT a TYPE = PARQUET COMPRESSION = AUTO COMPUTE = AUTO
 accept	accept	docs	createFileFormat_formatTypeOptions_PARQUET(,)?/%empty	CREATE FILE FORMAT a TYPE = PARQUET COMPRESSION = AUTO COMPRESSION = AUTO
 accept	undocumented	docs	createFileFormat_formatTypeOptions_PARQUET(,)?/%empty!insert	CREATE FILE FORMAT a TYPE = PARQUET COMPRESSION = AUTO zzz COMPRESSION = AUTO
-reject	accept	docs	createFileFormat_formatTypeOptions_PARQUET(,)?/,	CREATE FILE FORMAT a TYPE = PARQUET COMPRESSION = AUTO, COMPRESSION = AUTO
+accept	accept	docs	createFileFormat_formatTypeOptions_PARQUET(,)?/,	CREATE FILE FORMAT a TYPE = PARQUET COMPRESSION = AUTO, COMPRESSION = AUTO
 reject	undocumented	docs	createFileFormat_formatTypeOptions_PARQUET(,)?/,!insert	CREATE FILE FORMAT a TYPE = PARQUET COMPRESSION = AUTO, zzz COMPRESSION = AUTO
 accept	accept	docs	createFileFormat_formatTypeOptions_XML/(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~e8e8f2dd)_(,?_(CO~fbde0480	CREATE FILE FORMAT a TYPE = XML COMPRESSION = AUTO
 accept	accept	docs	createFileFormat_formatTypeOptions_XML(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~e8e8f2dd)/COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|ZSTD|DEFLATE|RA~ec9870d1)	CREATE FILE FORMAT a TYPE = XML COMPRESSION = AUTO
@@ -37440,7 +37440,7 @@ accept	undocumented	docs	createFileFormat_formatTypeOptions_XML(,?_(COMPRESSION_
 accept	undocumented	docs	createFileFormat_formatTypeOptions_XML(,?_(COMPRESSION_=_(AUTO|GZIP|BZ2|BRO~be55100a)*/(,)?_(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~e8e8f2dd)_(,~2b884a94!swap	CREATE FILE FORMAT a TYPE = XML COMPRESSION = AUTO COMPUTE = AUTO
 accept	accept	docs	createFileFormat_formatTypeOptions_XML(,)?/%empty	CREATE FILE FORMAT a TYPE = XML COMPRESSION = AUTO COMPRESSION = AUTO
 accept	undocumented	docs	createFileFormat_formatTypeOptions_XML(,)?/%empty!insert	CREATE FILE FORMAT a TYPE = XML COMPRESSION = AUTO zzz COMPRESSION = AUTO
-reject	accept	docs	createFileFormat_formatTypeOptions_XML(,)?/,	CREATE FILE FORMAT a TYPE = XML COMPRESSION = AUTO, COMPRESSION = AUTO
+accept	accept	docs	createFileFormat_formatTypeOptions_XML(,)?/,	CREATE FILE FORMAT a TYPE = XML COMPRESSION = AUTO, COMPRESSION = AUTO
 reject	undocumented	docs	createFileFormat_formatTypeOptions_XML(,)?/,!insert	CREATE FILE FORMAT a TYPE = XML COMPRESSION = AUTO, zzz COMPRESSION = AUTO
 accept	accept	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~26bc749e	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVA HANDLER = 's' AS 's'
 reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~26bc749e!drop-1	FUNCTION a() RETURNS INT LANGUAGE JAVA HANDLER = 's' AS 's'

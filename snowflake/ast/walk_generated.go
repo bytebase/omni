@@ -585,6 +585,19 @@ func walkChildren(v Visitor, node Node) {
 		if n.Source != nil {
 			Walk(v, n.Source)
 		}
+	case *CopyFilesStmt:
+		if n.Into != nil {
+			Walk(v, n.Into)
+		}
+		if n.From != nil {
+			Walk(v, n.From)
+		}
+		Walk(v, n.FromQuery)
+		for _, item := range n.Options {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 	case *CopyIntoLocationStmt:
 		if n.Into != nil {
 			Walk(v, n.Into)
