@@ -2651,7 +2651,7 @@ reject	undocumented	docs	statement/createPrivacyPolicy!drop-10	CREATE PRIVACY PO
 reject	undocumented	docs	statement/createPrivacyPolicy!drop-11	CREATE PRIVACY POLICY a AS() RETURNS PRIVACY_BUDGET ->
 reject	undocumented	docs	statement/createPrivacyPolicy!insert	CREATE PRIVACY POLICY a AS() RETURNS PRIVACY_BUDGET -> 1 zzz
 reject	undocumented	docs	statement/createPrivacyPolicy!swap	CREATION PRIVACY POLICY a AS() RETURNS PRIVACY_BUDGET -> 1
-reject	accept	docs	statement/createProcedure	CREATE PROCEDURE SCOPED TEMP TABLE a(a INT)
+accept	accept	docs	statement/createProcedure	CREATE PROCEDURE SCOPED TEMP TABLE a(a INT)
 reject	undocumented	docs	statement/createProcedure!drop-1	PROCEDURE SCOPED TEMP TABLE a(a INT)
 reject	undocumented	docs	statement/createProcedure!drop-2	CREATE SCOPED TEMP TABLE a(a INT)
 reject	undocumented	docs	statement/createProcedure!drop-3	CREATE PROCEDURE TEMP TABLE a(a INT)
@@ -3674,7 +3674,7 @@ accept	accept	docs	statement/dropDatabase	DROP DATABASE a
 reject	undocumented	docs	statement/dropDatabase!drop-3	DROP DATABASE
 reject	undocumented	docs	statement/dropDatabase!insert	DROP DATABASE a zzz
 reject	undocumented	docs	statement/dropDatabase!swap	DROP_FROM_SOURCE_CATALOG DATABASE a
-reject	accept	docs	statement/dropDatabaseRole	DROP DATABASE ROLE a
+accept	accept	docs	statement/dropDatabaseRole	DROP DATABASE ROLE a
 accept	accept	docs	statement/dropDatabaseRole!drop-4	DROP DATABASE ROLE
 reject	undocumented	docs	statement/dropDatabaseRole!insert	DROP DATABASE ROLE a zzz
 reject	undocumented	docs	statement/dropDatabaseRole!swap	DROP_FROM_SOURCE_CATALOG DATABASE ROLE a
@@ -18876,7 +18876,7 @@ reject	undocumented	docs	alterProcedure(OWNER|CALLER|RESTRICTED_CALLER)/OWNER!sw
 accept	accept	docs	alterProcedure(OWNER|CALLER|RESTRICTED_CALLER)/CALLER	ALTER PROCEDURE a() EXECUTE AS CALLER
 reject	undocumented	docs	alterProcedure(OWNER|CALLER|RESTRICTED_CALLER)/CALLER!insert	ALTER PROCEDURE a() EXECUTE AS CALLER zzz
 reject	undocumented	docs	alterProcedure(OWNER|CALLER|RESTRICTED_CALLER)/CALLER!swap	ALTER PROCEDURE a() EXECUTE AS CASCADE
-reject	accept	docs	alterProcedure(OWNER|CALLER|RESTRICTED_CALLER)/RESTRICTED_CALLER	ALTER PROCEDURE a() EXECUTE AS RESTRICTED CALLER
+accept	accept	docs	alterProcedure(OWNER|CALLER|RESTRICTED_CALLER)/RESTRICTED_CALLER	ALTER PROCEDURE a() EXECUTE AS RESTRICTED CALLER
 reject	undocumented	docs	alterProcedure(OWNER|CALLER|RESTRICTED_CALLER)/RESTRICTED_CALLER!drop-2	ALTER PROCEDURE a() EXECUTE AS RESTRICTED
 reject	undocumented	docs	alterProcedure(OWNER|CALLER|RESTRICTED_CALLER)/RESTRICTED_CALLER!insert	ALTER PROCEDURE a() EXECUTE AS RESTRICTED CALLER zzz
 reject	undocumented	docs	alterProcedure(OWNER|CALLER|RESTRICTED_CALLER)/RESTRICTED_CALLER!swap	ALTER PROCEDURE a() EXECUTE AS RESTRICTIONS CALLER
@@ -19454,7 +19454,7 @@ accept	undocumented	docs	alterResourceMonitor(,_ID)*/,_ID_(,_ID)*!drop-2	ALTER R
 reject	undocumented	docs	alterResourceMonitor(,_ID)*/,_ID_(,_ID)*!truncate	ALTER RESOURCE MONITOR a SET NOTIFY_USERS =(a,
 accept	undocumented	docs	alterResourceMonitor(,_ID)*/,_ID_(,_ID)*!insert	ALTER RESOURCE MONITOR a SET NOTIFY_USERS =(a, a zzz)
 reject	accept	docs	alterResourceMonitor(TRIGGERS_alterResourceMonitor_trigge~9be61b51)?/%empty	ALTER RESOURCE MONITOR a
-reject	accept	docs	alterResourceMonitor(TRIGGERS_alterResourceMonitor_trigge~9be61b51)?/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO SUSPEND
+accept	accept	docs	alterResourceMonitor(TRIGGERS_alterResourceMonitor_trigge~9be61b51)?/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO SUSPEND
 reject	undocumented	docs	alterResourceMonitor(TRIGGERS_alterResourceMonitor_trigge~9be61b51)?/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!drop-1	ALTER RESOURCE MONITOR a ON 1 PERCENT DO SUSPEND
 reject	undocumented	docs	alterResourceMonitor(TRIGGERS_alterResourceMonitor_trigge~9be61b51)?/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!drop-2	ALTER RESOURCE MONITOR a TRIGGERS 1 PERCENT DO SUSPEND
 reject	undocumented	docs	alterResourceMonitor(TRIGGERS_alterResourceMonitor_trigge~9be61b51)?/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!drop-3	ALTER RESOURCE MONITOR a TRIGGERS ON PERCENT DO SUSPEND
@@ -19463,8 +19463,8 @@ reject	undocumented	docs	alterResourceMonitor(TRIGGERS_alterResourceMonitor_trig
 reject	undocumented	docs	alterResourceMonitor(TRIGGERS_alterResourceMonitor_trigge~9be61b51)?/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!drop-6	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO
 reject	undocumented	docs	alterResourceMonitor(TRIGGERS_alterResourceMonitor_trigge~9be61b51)?/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!insert	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO SUSPEND zzz
 reject	undocumented	docs	alterResourceMonitor(TRIGGERS_alterResourceMonitor_trigge~9be61b51)?/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!swap	ALTER RESOURCE MONITOR a TRIM_SPACE ON 1 PERCENT DO SUSPEND
-reject	accept	docs	alterResourceMonitor(alterResourceMonitor_triggerDefinition)*/%empty	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO SUSPEND
-reject	accept	docs	alterResourceMonitor(alterResourceMonitor_triggerDefinition)*/alterResourceMonitor_triggerDefinition_(alterResourceMo~93a8e7f9	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO SUSPEND ON 1 PERCENT DO SUSPEND
+accept	accept	docs	alterResourceMonitor(alterResourceMonitor_triggerDefinition)*/%empty	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO SUSPEND
+accept	accept	docs	alterResourceMonitor(alterResourceMonitor_triggerDefinition)*/alterResourceMonitor_triggerDefinition_(alterResourceMo~93a8e7f9	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO SUSPEND ON 1 PERCENT DO SUSPEND
 reject	undocumented	docs	alterResourceMonitor(alterResourceMonitor_triggerDefinition)*/alterResourceMonitor_triggerDefinition_(alterResourceMo~93a8e7f9!drop-1	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO SUSPEND 1 PERCENT DO SUSPEND
 reject	undocumented	docs	alterResourceMonitor(alterResourceMonitor_triggerDefinition)*/alterResourceMonitor_triggerDefinition_(alterResourceMo~93a8e7f9!drop-2	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO SUSPEND ON PERCENT DO SUSPEND
 reject	undocumented	docs	alterResourceMonitor(alterResourceMonitor_triggerDefinition)*/alterResourceMonitor_triggerDefinition_(alterResourceMo~93a8e7f9!drop-3	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO SUSPEND ON 1 DO SUSPEND
@@ -19472,14 +19472,14 @@ reject	undocumented	docs	alterResourceMonitor(alterResourceMonitor_triggerDefini
 reject	undocumented	docs	alterResourceMonitor(alterResourceMonitor_triggerDefinition)*/alterResourceMonitor_triggerDefinition_(alterResourceMo~93a8e7f9!drop-5	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO SUSPEND ON 1 PERCENT DO
 reject	undocumented	docs	alterResourceMonitor(alterResourceMonitor_triggerDefinition)*/alterResourceMonitor_triggerDefinition_(alterResourceMo~93a8e7f9!insert	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO SUSPEND ON 1 PERCENT DO SUSPEND zzz
 reject	undocumented	docs	alterResourceMonitor(alterResourceMonitor_triggerDefinition)*/alterResourceMonitor_triggerDefinition_(alterResourceMo~93a8e7f9!swap	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO SUSPEND ONBOARDING_QUESTION 1 PERCENT DO SUSPEND
-reject	accept	docs	alterResourceMonitor_triggerDefinition/ON_NUMBER_PERCENT_DO_(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO SUSPEND
+accept	accept	docs	alterResourceMonitor_triggerDefinition/ON_NUMBER_PERCENT_DO_(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO SUSPEND
 reject	undocumented	docs	alterResourceMonitor_triggerDefinition/ON_NUMBER_PERCENT_DO_(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)!swap	ALTER RESOURCE MONITOR a TRIGGERS ONBOARDING_QUESTION 1 PERCENT DO SUSPEND
-reject	accept	docs	alterResourceMonitor_triggerDefinition(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)/SUSPEND	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO SUSPEND
+accept	accept	docs	alterResourceMonitor_triggerDefinition(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)/SUSPEND	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO SUSPEND
 reject	undocumented	docs	alterResourceMonitor_triggerDefinition(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)/SUSPEND!swap	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO SUSPENDED
-reject	accept	docs	alterResourceMonitor_triggerDefinition(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)/SUSPEND_IMMEDIATE	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO SUSPEND_IMMEDIATE
+accept	accept	docs	alterResourceMonitor_triggerDefinition(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)/SUSPEND_IMMEDIATE	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO SUSPEND_IMMEDIATE
 reject	undocumented	docs	alterResourceMonitor_triggerDefinition(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)/SUSPEND_IMMEDIATE!insert	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO SUSPEND_IMMEDIATE zzz
 reject	undocumented	docs	alterResourceMonitor_triggerDefinition(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)/SUSPEND_IMMEDIATE!swap	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO SUSPEND_TASK_AFTER_NUM_FAILURES
-reject	accept	docs	alterResourceMonitor_triggerDefinition(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)/NOTIFY	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO NOTIFY
+accept	accept	docs	alterResourceMonitor_triggerDefinition(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)/NOTIFY	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO NOTIFY
 reject	undocumented	docs	alterResourceMonitor_triggerDefinition(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)/NOTIFY!insert	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO NOTIFY zzz
 reject	undocumented	docs	alterResourceMonitor_triggerDefinition(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)/NOTIFY!swap	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO NOTIFY_USERS
 accept	accept	docs	alterRestrictedSessionScope/ALTER_(RESTRICTED_SESSION_SCOPE|RSS)_(IF_EXISTS)?_QNAME~b061fa32	ALTER RSS a AS 's'
@@ -37686,7 +37686,7 @@ reject	undocumented	docs	createFunction(,_ID_DATA_TYPE_(DEFAULT_EXPR)?)*/,_ID_DA
 accept	undocumented	docs	createFunction(,_ID_DATA_TYPE_(DEFAULT_EXPR)?)*/,_ID_DATA_TYPE_(DEFAULT_EXPR)?_(,_ID_DATA_TYPE_(DEFAULT_EXPR)?)*!swap	CREATE FUNCTION a(a INT, a INTEGER) RETURNS INT AS 's'
 accept	accept	docs	createFunction(COPY_GRANTS)?/%empty	CREATE FUNCTION a() RETURNS INT AS 's'
 reject	undocumented	docs	createFunction(COPY_GRANTS)?/%empty!insert	CREATE FUNCTION a() zzz RETURNS INT AS 's'
-reject	accept	docs	createFunction(COPY_GRANTS)?/COPY_GRANTS	CREATE FUNCTION a() COPY GRANTS RETURNS INT AS 's'
+accept	accept	docs	createFunction(COPY_GRANTS)?/COPY_GRANTS	CREATE FUNCTION a() COPY GRANTS RETURNS INT AS 's'
 reject	undocumented	docs	createFunction(COPY_GRANTS)?/COPY_GRANTS!drop-1	CREATE FUNCTION a() GRANTS RETURNS INT AS 's'
 reject	undocumented	docs	createFunction(COPY_GRANTS)?/COPY_GRANTS!drop-2	CREATE FUNCTION a() COPY RETURNS INT AS 's'
 reject	undocumented	docs	createFunction(COPY_GRANTS)?/COPY_GRANTS!truncate	CREATE FUNCTION a() COPY
@@ -43286,10 +43286,10 @@ reject	undocumented	docs	createProcedure/CREATE_(OR_REPLACE)?_PROCEDURE_QNAME_(_
 reject	undocumented	docs	createProcedure/CREATE_(OR_REPLACE)?_PROCEDURE_QNAME_(_(ID_((IN|INPUT|O~bbcac267!drop-11	CREATE PROCEDURE a() RETURNS INT LANGUAGE SQL AS
 reject	undocumented	docs	createProcedure/CREATE_(OR_REPLACE)?_PROCEDURE_QNAME_(_(ID_((IN|INPUT|O~bbcac267!insert	CREATE PROCEDURE a() RETURNS INT LANGUAGE SQL AS 's' zzz
 reject	undocumented	docs	createProcedure/CREATE_(OR_REPLACE)?_PROCEDURE_QNAME_(_(ID_((IN|INPUT|O~bbcac267!swap	CREATION PROCEDURE a() RETURNS INT LANGUAGE SQL AS 's'
-reject	accept	docs	createProcedure/CREATE_(OR_REPLACE)?_PROCEDURE_SCOPED_(TEMP|TEMPORARY)_~3a1d9c11	CREATE PROCEDURE SCOPED TEMP TABLE a(a INT)
-reject	accept	docs	createProcedure(OR_REPLACE)?/%empty	CREATE PROCEDURE SCOPED TEMP TABLE a(a INT)
+accept	accept	docs	createProcedure/CREATE_(OR_REPLACE)?_PROCEDURE_SCOPED_(TEMP|TEMPORARY)_~3a1d9c11	CREATE PROCEDURE SCOPED TEMP TABLE a(a INT)
+accept	accept	docs	createProcedure(OR_REPLACE)?/%empty	CREATE PROCEDURE SCOPED TEMP TABLE a(a INT)
 reject	undocumented	docs	createProcedure(OR_REPLACE)?/%empty!insert	CREATE zzz PROCEDURE SCOPED TEMP TABLE a(a INT)
-reject	accept	docs	createProcedure(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE PROCEDURE SCOPED TEMP TABLE a(a INT)
+accept	accept	docs	createProcedure(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE PROCEDURE SCOPED TEMP TABLE a(a INT)
 reject	undocumented	docs	createProcedure(OR_REPLACE)?/OR_REPLACE!drop-1	CREATE REPLACE PROCEDURE SCOPED TEMP TABLE a(a INT)
 reject	undocumented	docs	createProcedure(OR_REPLACE)?/OR_REPLACE!drop-2	CREATE OR PROCEDURE SCOPED TEMP TABLE a(a INT)
 reject	undocumented	docs	createProcedure(OR_REPLACE)?/OR_REPLACE!insert	CREATE OR REPLACE zzz PROCEDURE SCOPED TEMP TABLE a(a INT)
@@ -43299,11 +43299,11 @@ reject	undocumented	docs	createProcedure((TEMP|TEMPORARY))?/%empty!insert	CREATE
 accept	accept	docs	createProcedure((TEMP|TEMPORARY))?/(TEMP|TEMPORARY)	CREATE TEMP PROCEDURE a() RETURNS INT LANGUAGE JAVASCRIPT AS 's'
 reject	undocumented	docs	createProcedure((TEMP|TEMPORARY))?/(TEMP|TEMPORARY)!insert	CREATE TEMP zzz PROCEDURE a() RETURNS INT LANGUAGE JAVASCRIPT AS 's'
 reject	undocumented	docs	createProcedure((TEMP|TEMPORARY))?/(TEMP|TEMPORARY)!swap	CREATE TEMPLATE PROCEDURE a() RETURNS INT LANGUAGE JAVASCRIPT AS 's'
-reject	accept	docs	createProcedure(TEMP|TEMPORARY)/TEMP	CREATE PROCEDURE SCOPED TEMP TABLE a(a INT)
+accept	accept	docs	createProcedure(TEMP|TEMPORARY)/TEMP	CREATE PROCEDURE SCOPED TEMP TABLE a(a INT)
 reject	undocumented	docs	createProcedure(TEMP|TEMPORARY)/TEMP!truncate	CREATE PROCEDURE SCOPED
 reject	undocumented	docs	createProcedure(TEMP|TEMPORARY)/TEMP!insert	CREATE PROCEDURE SCOPED TEMP zzz TABLE a(a INT)
 reject	undocumented	docs	createProcedure(TEMP|TEMPORARY)/TEMP!swap	CREATE PROCEDURE SCOPED TEMPLATE TABLE a(a INT)
-reject	accept	docs	createProcedure(TEMP|TEMPORARY)/TEMPORARY	CREATE PROCEDURE SCOPED TEMPORARY TABLE a(a INT)
+accept	accept	docs	createProcedure(TEMP|TEMPORARY)/TEMPORARY	CREATE PROCEDURE SCOPED TEMPORARY TABLE a(a INT)
 reject	undocumented	docs	createProcedure(TEMP|TEMPORARY)/TEMPORARY!insert	CREATE PROCEDURE SCOPED TEMPORARY zzz TABLE a(a INT)
 reject	undocumented	docs	createProcedure(TEMP|TEMPORARY)/TEMPORARY!swap	CREATE PROCEDURE SCOPED TENANT_TYPE TABLE a(a INT)
 accept	accept	docs	createProcedure(SECURE)?/%empty	CREATE PROCEDURE a() RETURNS INT LANGUAGE JAVASCRIPT AS 's'
@@ -43335,7 +43335,7 @@ reject	undocumented	docs	createProcedure(,_ID_DATA_TYPE_(DEFAULT_EXPR)?)*/,_ID_D
 accept	undocumented	docs	createProcedure(,_ID_DATA_TYPE_(DEFAULT_EXPR)?)*/,_ID_DATA_TYPE_(DEFAULT_EXPR)?_(,_ID_DATA_TYPE_(DEFAULT_EXPR)?)*!swap	CREATE PROCEDURE a(a INT, a INTEGER) RETURNS INT LANGUAGE JAVASCRIPT AS 's'
 accept	accept	docs	createProcedure(COPY_GRANTS)?/%empty	CREATE PROCEDURE a() RETURNS INT LANGUAGE JAVASCRIPT AS 's'
 reject	undocumented	docs	createProcedure(COPY_GRANTS)?/%empty!insert	CREATE PROCEDURE a() zzz RETURNS INT LANGUAGE JAVASCRIPT AS 's'
-reject	accept	docs	createProcedure(COPY_GRANTS)?/COPY_GRANTS	CREATE PROCEDURE a() COPY GRANTS RETURNS INT LANGUAGE JAVASCRIPT AS 's'
+accept	accept	docs	createProcedure(COPY_GRANTS)?/COPY_GRANTS	CREATE PROCEDURE a() COPY GRANTS RETURNS INT LANGUAGE JAVASCRIPT AS 's'
 reject	undocumented	docs	createProcedure(COPY_GRANTS)?/COPY_GRANTS!drop-1	CREATE PROCEDURE a() GRANTS RETURNS INT LANGUAGE JAVASCRIPT AS 's'
 reject	undocumented	docs	createProcedure(COPY_GRANTS)?/COPY_GRANTS!drop-2	CREATE PROCEDURE a() COPY RETURNS INT LANGUAGE JAVASCRIPT AS 's'
 reject	undocumented	docs	createProcedure(COPY_GRANTS)?/COPY_GRANTS!truncate	CREATE PROCEDURE a() COPY
@@ -43370,15 +43370,15 @@ reject	undocumented	docs	createProcedure(ID_DATA_TYPE_(,_ID_DATA_TYPE)*)?/ID_DAT
 reject	undocumented	docs	createProcedure(ID_DATA_TYPE_(,_ID_DATA_TYPE)*)?/ID_DATA_TYPE_(,_ID_DATA_TYPE)*!truncate	CREATE PROCEDURE a() RETURNS TABLE(a
 reject	undocumented	docs	createProcedure(ID_DATA_TYPE_(,_ID_DATA_TYPE)*)?/ID_DATA_TYPE_(,_ID_DATA_TYPE)*!insert	CREATE PROCEDURE a() RETURNS TABLE(a INT zzz) LANGUAGE SQL AS 's'
 accept	undocumented	docs	createProcedure(ID_DATA_TYPE_(,_ID_DATA_TYPE)*)?/ID_DATA_TYPE_(,_ID_DATA_TYPE)*!swap	CREATE PROCEDURE a() RETURNS TABLE(a INTEGER) LANGUAGE SQL AS 's'
-reject	accept	docs	createProcedure(,_ID_DATA_TYPE)*/%empty	CREATE PROCEDURE SCOPED TEMP TABLE a(a INT)
+accept	accept	docs	createProcedure(,_ID_DATA_TYPE)*/%empty	CREATE PROCEDURE SCOPED TEMP TABLE a(a INT)
 reject	undocumented	docs	createProcedure(,_ID_DATA_TYPE)*/%empty!insert	CREATE PROCEDURE SCOPED TEMP TABLE a(a INT zzz)
-reject	accept	docs	createProcedure(,_ID_DATA_TYPE)*/,_ID_DATA_TYPE_(,_ID_DATA_TYPE)*	CREATE PROCEDURE SCOPED TEMP TABLE a(a INT, a INT)
+accept	accept	docs	createProcedure(,_ID_DATA_TYPE)*/,_ID_DATA_TYPE_(,_ID_DATA_TYPE)*	CREATE PROCEDURE SCOPED TEMP TABLE a(a INT, a INT)
 reject	undocumented	docs	createProcedure(,_ID_DATA_TYPE)*/,_ID_DATA_TYPE_(,_ID_DATA_TYPE)*!drop-1	CREATE PROCEDURE SCOPED TEMP TABLE a(a INT a INT)
 reject	undocumented	docs	createProcedure(,_ID_DATA_TYPE)*/,_ID_DATA_TYPE_(,_ID_DATA_TYPE)*!drop-2	CREATE PROCEDURE SCOPED TEMP TABLE a(a INT, INT)
 reject	undocumented	docs	createProcedure(,_ID_DATA_TYPE)*/,_ID_DATA_TYPE_(,_ID_DATA_TYPE)*!drop-3	CREATE PROCEDURE SCOPED TEMP TABLE a(a INT, a)
 reject	undocumented	docs	createProcedure(,_ID_DATA_TYPE)*/,_ID_DATA_TYPE_(,_ID_DATA_TYPE)*!truncate	CREATE PROCEDURE SCOPED TEMP TABLE a(a INT, a
 reject	undocumented	docs	createProcedure(,_ID_DATA_TYPE)*/,_ID_DATA_TYPE_(,_ID_DATA_TYPE)*!insert	CREATE PROCEDURE SCOPED TEMP TABLE a(a INT, a INT zzz)
-reject	undocumented	docs	createProcedure(,_ID_DATA_TYPE)*/,_ID_DATA_TYPE_(,_ID_DATA_TYPE)*!swap	CREATE PROCEDURE SCOPED TEMP TABLE a(a INT, a INTEGER)
+accept	undocumented	docs	createProcedure(,_ID_DATA_TYPE)*/,_ID_DATA_TYPE_(,_ID_DATA_TYPE)*!swap	CREATE PROCEDURE SCOPED TEMP TABLE a(a INT, a INTEGER)
 accept	accept	docs	createProcedure(,_STRING)*/%empty	CREATE PROCEDURE a() RETURNS INT LANGUAGE JAVA RUNTIME_VERSION = 's' PACKAGES =('s') HANDLER = 's'
 accept	undocumented	docs	createProcedure(,_STRING)*/%empty!insert	CREATE PROCEDURE a() RETURNS INT LANGUAGE JAVA RUNTIME_VERSION = 's' PACKAGES =('s' zzz) HANDLER = 's'
 accept	accept	docs	createProcedure(,_STRING)*/,_STRING_(,_STRING)*	CREATE PROCEDURE a() RETURNS INT LANGUAGE JAVA RUNTIME_VERSION = 's' PACKAGES =('s', 's') HANDLER = 's'
@@ -43508,10 +43508,10 @@ reject	undocumented	docs	createProcedure(OWNER|CALLER|RESTRICTED_CALLER)/OWNER!s
 accept	accept	docs	createProcedure(OWNER|CALLER|RESTRICTED_CALLER)/CALLER	CREATE PROCEDURE a() RETURNS INT LANGUAGE JAVASCRIPT EXECUTE AS CALLER AS 's'
 accept	undocumented	docs	createProcedure(OWNER|CALLER|RESTRICTED_CALLER)/CALLER!insert	CREATE PROCEDURE a() RETURNS INT LANGUAGE JAVASCRIPT EXECUTE AS CALLER zzz AS 's'
 reject	undocumented	docs	createProcedure(OWNER|CALLER|RESTRICTED_CALLER)/CALLER!swap	CREATE PROCEDURE a() RETURNS INT LANGUAGE JAVASCRIPT EXECUTE AS CASCADE AS 's'
-reject	accept	docs	createProcedure(OWNER|CALLER|RESTRICTED_CALLER)/RESTRICTED_CALLER	CREATE PROCEDURE a() RETURNS INT LANGUAGE JAVASCRIPT EXECUTE AS RESTRICTED CALLER AS 's'
+accept	accept	docs	createProcedure(OWNER|CALLER|RESTRICTED_CALLER)/RESTRICTED_CALLER	CREATE PROCEDURE a() RETURNS INT LANGUAGE JAVASCRIPT EXECUTE AS RESTRICTED CALLER AS 's'
 reject	undocumented	docs	createProcedure(OWNER|CALLER|RESTRICTED_CALLER)/RESTRICTED_CALLER!drop-2	CREATE PROCEDURE a() RETURNS INT LANGUAGE JAVASCRIPT EXECUTE AS RESTRICTED AS 's'
 reject	undocumented	docs	createProcedure(OWNER|CALLER|RESTRICTED_CALLER)/RESTRICTED_CALLER!truncate	CREATE PROCEDURE a() RETURNS INT LANGUAGE JAVASCRIPT EXECUTE AS RESTRICTED
-reject	undocumented	docs	createProcedure(OWNER|CALLER|RESTRICTED_CALLER)/RESTRICTED_CALLER!insert	CREATE PROCEDURE a() RETURNS INT LANGUAGE JAVASCRIPT EXECUTE AS RESTRICTED CALLER zzz AS 's'
+accept	undocumented	docs	createProcedure(OWNER|CALLER|RESTRICTED_CALLER)/RESTRICTED_CALLER!insert	CREATE PROCEDURE a() RETURNS INT LANGUAGE JAVASCRIPT EXECUTE AS RESTRICTED CALLER zzz AS 's'
 reject	undocumented	docs	createProcedure(OWNER|CALLER|RESTRICTED_CALLER)/RESTRICTED_CALLER!swap	CREATE PROCEDURE a() RETURNS INT LANGUAGE JAVASCRIPT EXECUTE AS RESTRICTIONS CALLER AS 's'
 accept	accept	docs	createProcedure(VOLATILE|IMMUTABLE)?/%empty	CREATE PROCEDURE a() RETURNS INT LANGUAGE JAVASCRIPT AS 's'
 accept	accept	docs	createProcedure(VOLATILE|IMMUTABLE)?/VOLATILE	CREATE PROCEDURE a() RETURNS INT LANGUAGE JAVASCRIPT VOLATILE AS 's'
@@ -43537,17 +43537,17 @@ reject	undocumented	docs	createProcedure(ID_((IN|INPUT|OUT|OUTPUT))?_DATA_TYP~8a
 accept	undocumented	docs	createProcedure(ID_((IN|INPUT|OUT|OUTPUT))?_DATA_TYP~8a069c24)?/ID_((IN|INPUT|OUT|OUTPUT))?_DATA_TYPE_(DEFAULT_EXPR)?_(~8b413247!swap	CREATE PROCEDURE a(a INTEGER) RETURNS INT LANGUAGE SQL AS 's'
 accept	accept	docs	createProcedure((IN|INPUT|OUT|OUTPUT))?/%empty	CREATE PROCEDURE a(a INT) RETURNS INT LANGUAGE SQL AS 's'
 reject	undocumented	docs	createProcedure((IN|INPUT|OUT|OUTPUT))?/%empty!insert	CREATE PROCEDURE a(a zzz INT) RETURNS INT LANGUAGE SQL AS 's'
-reject	accept	docs	createProcedure((IN|INPUT|OUT|OUTPUT))?/(IN|INPUT|OUT|OUTPUT)	CREATE PROCEDURE a(a IN INT) RETURNS INT LANGUAGE SQL AS 's'
+accept	accept	docs	createProcedure((IN|INPUT|OUT|OUTPUT))?/(IN|INPUT|OUT|OUTPUT)	CREATE PROCEDURE a(a IN INT) RETURNS INT LANGUAGE SQL AS 's'
 reject	undocumented	docs	createProcedure((IN|INPUT|OUT|OUTPUT))?/(IN|INPUT|OUT|OUTPUT)!insert	CREATE PROCEDURE a(a IN zzz INT) RETURNS INT LANGUAGE SQL AS 's'
 reject	undocumented	docs	createProcedure((IN|INPUT|OUT|OUTPUT))?/(IN|INPUT|OUT|OUTPUT)!swap	CREATE PROCEDURE a(a INBOUND INT) RETURNS INT LANGUAGE SQL AS 's'
-reject	accept	docs	createProcedure(IN|INPUT|OUT|OUTPUT)/IN	CREATE PROCEDURE a(a IN INT) RETURNS INT LANGUAGE SQL AS 's'
-reject	accept	docs	createProcedure(IN|INPUT|OUT|OUTPUT)/INPUT	CREATE PROCEDURE a(a INPUT INT) RETURNS INT LANGUAGE SQL AS 's'
+accept	accept	docs	createProcedure(IN|INPUT|OUT|OUTPUT)/IN	CREATE PROCEDURE a(a IN INT) RETURNS INT LANGUAGE SQL AS 's'
+accept	accept	docs	createProcedure(IN|INPUT|OUT|OUTPUT)/INPUT	CREATE PROCEDURE a(a INPUT INT) RETURNS INT LANGUAGE SQL AS 's'
 reject	undocumented	docs	createProcedure(IN|INPUT|OUT|OUTPUT)/INPUT!insert	CREATE PROCEDURE a(a INPUT zzz INT) RETURNS INT LANGUAGE SQL AS 's'
 reject	undocumented	docs	createProcedure(IN|INPUT|OUT|OUTPUT)/INPUT!swap	CREATE PROCEDURE a(a INSERT INT) RETURNS INT LANGUAGE SQL AS 's'
-reject	accept	docs	createProcedure(IN|INPUT|OUT|OUTPUT)/OUT	CREATE PROCEDURE a(a OUT INT) RETURNS INT LANGUAGE SQL AS 's'
+accept	accept	docs	createProcedure(IN|INPUT|OUT|OUTPUT)/OUT	CREATE PROCEDURE a(a OUT INT) RETURNS INT LANGUAGE SQL AS 's'
 reject	undocumented	docs	createProcedure(IN|INPUT|OUT|OUTPUT)/OUT!insert	CREATE PROCEDURE a(a OUT zzz INT) RETURNS INT LANGUAGE SQL AS 's'
 reject	undocumented	docs	createProcedure(IN|INPUT|OUT|OUTPUT)/OUT!swap	CREATE PROCEDURE a(a OUTBOUND INT) RETURNS INT LANGUAGE SQL AS 's'
-reject	accept	docs	createProcedure(IN|INPUT|OUT|OUTPUT)/OUTPUT	CREATE PROCEDURE a(a OUTPUT INT) RETURNS INT LANGUAGE SQL AS 's'
+accept	accept	docs	createProcedure(IN|INPUT|OUT|OUTPUT)/OUTPUT	CREATE PROCEDURE a(a OUTPUT INT) RETURNS INT LANGUAGE SQL AS 's'
 reject	undocumented	docs	createProcedure(IN|INPUT|OUT|OUTPUT)/OUTPUT!insert	CREATE PROCEDURE a(a OUTPUT zzz INT) RETURNS INT LANGUAGE SQL AS 's'
 reject	undocumented	docs	createProcedure(IN|INPUT|OUT|OUTPUT)/OUTPUT!swap	CREATE PROCEDURE a(a OUTPUT_PATH INT) RETURNS INT LANGUAGE SQL AS 's'
 accept	accept	docs	createProcedure(,_ID_((IN|INPUT|OUT|OUTPUT))?_DATA_T~52209369)*/%empty	CREATE PROCEDURE a(a INT) RETURNS INT LANGUAGE SQL AS 's'
@@ -52073,13 +52073,13 @@ reject	undocumented	docs	dropDatabase(CASCADE|RESTRICT)?/CASCADE!swap	DROP DATAB
 accept	accept	docs	dropDatabase(CASCADE|RESTRICT)?/RESTRICT	DROP DATABASE a RESTRICT
 reject	undocumented	docs	dropDatabase(CASCADE|RESTRICT)?/RESTRICT!insert	DROP DATABASE a RESTRICT zzz
 reject	undocumented	docs	dropDatabase(CASCADE|RESTRICT)?/RESTRICT!swap	DROP DATABASE a RESTRICTED
-reject	accept	docs	dropDatabaseRole/DROP_DATABASE_ROLE_(IF_EXISTS)?_QNAME2	DROP DATABASE ROLE a
-reject	accept	docs	dropDatabaseRole(IF_EXISTS)?/%empty	DROP DATABASE ROLE a
+accept	accept	docs	dropDatabaseRole/DROP_DATABASE_ROLE_(IF_EXISTS)?_QNAME2	DROP DATABASE ROLE a
+accept	accept	docs	dropDatabaseRole(IF_EXISTS)?/%empty	DROP DATABASE ROLE a
 reject	undocumented	docs	dropDatabaseRole(IF_EXISTS)?/%empty!insert	DROP DATABASE ROLE zzz a
-reject	accept	docs	dropDatabaseRole(IF_EXISTS)?/IF_EXISTS	DROP DATABASE ROLE IF EXISTS a
+accept	accept	docs	dropDatabaseRole(IF_EXISTS)?/IF_EXISTS	DROP DATABASE ROLE IF EXISTS a
 reject	undocumented	docs	dropDatabaseRole(IF_EXISTS)?/IF_EXISTS!drop-1	DROP DATABASE ROLE EXISTS a
 reject	undocumented	docs	dropDatabaseRole(IF_EXISTS)?/IF_EXISTS!drop-2	DROP DATABASE ROLE IF a
-reject	accept	docs	dropDatabaseRole(IF_EXISTS)?/IF_EXISTS!truncate	DROP DATABASE ROLE IF
+accept	accept	docs	dropDatabaseRole(IF_EXISTS)?/IF_EXISTS!truncate	DROP DATABASE ROLE IF
 reject	undocumented	docs	dropDatabaseRole(IF_EXISTS)?/IF_EXISTS!insert	DROP DATABASE ROLE IF EXISTS zzz a
 reject	undocumented	docs	dropDatabaseRole(IF_EXISTS)?/IF_EXISTS!swap	DROP DATABASE ROLE IGNORE EXISTS a
 accept	accept	docs	dropDbtProject/DROP_DBT_PROJECT_(IF_EXISTS)?_QNAME	DROP DBT PROJECT a
