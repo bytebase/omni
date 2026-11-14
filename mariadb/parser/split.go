@@ -626,10 +626,11 @@ func packageHeadTokens(head string) []string {
 	return toks
 }
 
-// isPackageHeadIdentByte reports a byte of an unquoted name as the lexer reads one: a
-// letter, a digit, _ and $, and any byte of a multi-byte UTF-8 character.
+// isPackageHeadIdentByte reports a byte of an unquoted name or host as the lexer reads one: a
+// letter, a digit, _ and $, any byte of a multi-byte UTF-8 character, and the dots of a host
+// such as 127.0.0.1, which the lexer reads after @.
 func isPackageHeadIdentByte(b byte) bool {
-	return isIdentByte(b) || b == '$' || b >= 0x80
+	return isIdentByte(b) || b == '$' || b >= 0x80 || b == '.'
 }
 
 // skipSingleQuoteMySQL skips a single-quoted string starting at position i.

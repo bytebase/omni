@@ -208,6 +208,65 @@
 | 1330 42000 Duplicate parameter: x
 > exec ^
 : string
+| CREATE DEFINER=root@127.0.0.1 PACKAGE pk PROCEDURE p(); END
+< ok 0 0
+> exec ^
+: string
+| CREATE PACKAGE pk PROCEDURE `p.q`(); END
+< error
+| 1458 42000 Incorrect routine name 'p.q'
+> exec ^
+: string
+| CREATE PACKAGE pk PROCEDURE `p.q`(); END
+| ; SELECT FROM
+< error
+| 1458 42000 Incorrect routine name 'p.q'
+> exec ^
+: string
+| CREATE PACKAGE pk FUNCTION `f.g`() RETURNS INT; END
+< error
+| 1458 42000 Incorrect routine name 'f.g'
+> exec ^
+: string
+| CREATE PACKAGE pk FUNCTION `f.g`() RETURNS INT; END
+| ; SELECT FROM
+< error
+| 1458 42000 Incorrect routine name 'f.g'
+> exec ^
+: string
+| CREATE PACKAGE pk PROCEDURE ``(); END
+< error
+| 1458 42000 Incorrect routine name ''
+> exec ^
+: string
+| CREATE PACKAGE pk PROCEDURE ``(); END
+| ; SELECT FROM
+< error
+| 1458 42000 Incorrect routine name ''
+> exec ^
+: string
+| CREATE PACKAGE pk PROCEDURE `p `(); END
+< error
+| 1458 42000 Incorrect routine name 'p '
+> exec ^
+: string
+| CREATE PACKAGE pk PROCEDURE `p `(); END
+| ; SELECT FROM
+< error
+| 1458 42000 Incorrect routine name 'p '
+> exec ^
+: string
+| CREATE PACKAGE pk PROCEDURE `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa`(); END
+< error
+| 1059 42000 Identifier name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' is too long
+> exec ^
+: string
+| CREATE PACKAGE pk PROCEDURE `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa`(); END
+| ; SELECT FROM
+< error
+| 1059 42000 Identifier name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' is too long
+> exec ^
+: string
 | CREATE PACKAGE pk FUNCTION f(x INT, X INT) RETURNS INT; END
 < error
 | 1330 42000 Duplicate parameter: X

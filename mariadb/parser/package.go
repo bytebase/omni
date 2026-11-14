@@ -136,9 +136,20 @@ func (p *Parser) parsePackageRoutineSpec() (*nodes.PackageRoutineSpec, error) {
 	}
 	p.advance() // consume FUNCTION or PROCEDURE
 
-	name, _, err := p.parseIdentifier()
+	name, namePos, err := p.parseIdentifier()
 	if err != nil {
 		return nil, err
+	}
+	// The name is checked as a routine's (1458), and may not hold a dot even quoted, which
+	// would read as the package's own pkg.routine.
+	//
+	// Ref: LEX::package_routine_start and LEX::make_sp_name_package_routine in MariaDB 11.8
+	// sql/sql_lex.cc.
+	if err := refuseRoutineName(name, namePos); err != nil {
+		return nil, err
+	}
+	if strings.Contains(name, ".") {
+		return nil, &ParseError{Message: "Incorrect routine name '" + name + "'", Position: namePos}
 	}
 	routine.Name = name
 
