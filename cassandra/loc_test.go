@@ -170,6 +170,29 @@ func TestCheckLocations(t *testing.T) {
 		"CREATE ROLE myrole WITH PASSWORD = 'secret' AND LOGIN = true",
 		"ALTER ROLE myrole WITH PASSWORD = 'newsecret'",
 		"DROP ROLE IF EXISTS myrole",
+		"LIST USERS",
+		"LIST CREATE, SELECT ON ALL TABLES IN KEYSPACE ks OF r NORECURSIVE",
+		"CREATE ROLE 'r' WITH ACCESS FROM CIDRS {'a', 'b'}",
+		"ADD IDENTITY 'id' TO ROLE r",
+		"DROP IDENTITY IF EXISTS 'id'",
+
+		// DESCRIBE
+		"DESCRIBE FULL SCHEMA",
+		"DESCRIBE ONLY KEYSPACE ks WITH INTERNALS",
+		"DESC TABLE ks.t",
+		"DESCRIBE ks.t",
+
+		// Grammar forms
+		"CREATE KEYSPACE ks WITH replication = {'class': 'SimpleStrategy'} AND durable_writes = true AND x = KEYS",
+		"CREATE INDEX ON t(a, KEYS(m)) USING 'sai' WITH OPTIONS = {'k': 'v'}",
+		"CREATE INDEX ON t()",
+		"CREATE AGGREGATE a(int, text) SFUNC f STYPE int",
+		"CREATE TABLE t(a int PRIMARY KEY, b text MASKED WITH mask_inner(1, null), c ks.addr,)",
+		"ALTER TABLE t ALTER a TYPE text",
+		"ALTER TABLE t ALTER a MASKED WITH DEFAULT",
+		"ALTER TABLE t ADD (a int STATIC, b frozen<list<int>>)",
+		"ALTER TABLE t DROP (a, b) USING TIMESTAMP 10",
+		"CREATE MATERIALIZED VIEW v AS SELECT a FROM t WHERE a = 'x' PRIMARY KEY(a)",
 
 		// Multi-statement
 		"SELECT * FROM users; INSERT INTO users (id) VALUES (1); USE ks",

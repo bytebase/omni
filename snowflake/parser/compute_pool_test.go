@@ -1,7 +1,10 @@
 package parser
 
 import (
+	"fmt"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/bytebase/omni/snowflake/ast"
 )
@@ -121,10 +124,17 @@ func TestParseComputePoolRejects(t *testing.T) {
 		"CREATE COMPUTE POOL p FOR APPLICATION db.a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a",
 		"ALTER COMPUTE POOL p STOP ALL OF TYPE db.a",
 		"ALTER COMPUTE POOL p SET AUTO_RESUME = TRUE AUTO_RESUME = FALSE",
+		"CREATE COMPUTE POOL p MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a WITH TAG ()",
+		"CREATE COMPUTE POOL p MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a WITH TAG (t = 'v',)",
+		"CREATE COMPUTE POOL p MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a TAG (t = 'v') TAG (u = 'v')",
+		"ALTER COMPUTE POOL p SET TAG t = 'v' TAG u = 'v'",
+		"ALTER COMPUTE POOL p SET TAG t = 'v',",
 		"CREATE COMPUTE POOL p MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a MIN_NODES = 2",
 		"ALTER COMPUTE POOL p SET TAG (t = 'x')",
 		"ALTER COMPUTE POOL p SET INSTANCE_FAMILY = foo.",
 		"ALTER COMPUTE POOL p SET INSTANCE_FAMILY = foo..bar",
+		"ALTER COMPUTE POOL p SET INSTANCE_FAMILY = db.family", // a one-part name
+		"CREATE COMPUTE POOL p MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = db.family",
 		"ALTER COMPUTE POOL p SET AUTO_RESUME = \"TRUE\"",
 		"ALTER COMPUTE POOL p SET AUTO_RESUME = \"true\"",
 		"CREATE COMPUTE POOL p \"MIN_NODES\" = 1 MAX_NODES = 1 INSTANCE_FAMILY = a",
@@ -193,6 +203,12 @@ func TestObjectValueMatches(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := []objectValue{propNumber, propString, propName, propBool, propStrings, propNames, propGroup}
+	if nameParts(`a."b.c".d`) != 3 || nameParts(`"x.y"`) != 1 {
+		t.Fatal("nameParts")
+	}
+	if c, err := readObjectProperties(`Q = db.s.n`); err != nil || !propQName.matches(c.Options[0]) || propName.matches(c.Options[0]) {
+		t.Fatalf("propQName: %v", err)
+	}
 	for i, o := range c.Options {
 		for j, v := range want {
 			// propName takes any word, so TRUE matches it too.
@@ -226,5 +242,21 @@ func TestObjectFormIfExistsFlags(t *testing.T) {
 	}
 	for _, in := range []string{"CREATE ZZ THING IF NOT EXISTS t", "ALTER ZZ THING IF EXISTS t", "DROP ZZ THING IF EXISTS t"} {
 		mustRejectObject(t, in)
+	}
+}
+
+// A long run of distinct properties is read in linear time.
+func TestObjectPropertiesStayLinear(t *testing.T) {
+	var b strings.Builder
+	b.WriteString("ALTER COMPUTE POOL p SET")
+	for i := 0; i < 40000; i++ {
+		fmt.Fprintf(&b, " X%d = 1", i)
+	}
+	start := time.Now()
+	if _, err := Parse(b.String()); err == nil {
+		t.Fatal("want an error: X0 is not a compute pool property")
+	}
+	if d := time.Since(start); d > 2*time.Second {
+		t.Fatalf("took %v", d)
 	}
 }

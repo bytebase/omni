@@ -56,7 +56,7 @@ func TestDiffConstraint(t *testing.T) {
 			},
 		},
 		{
-			name: "UNIQUE constraint added",
+			name:    "UNIQUE constraint added",
 			fromSQL: `CREATE TABLE t1 (id int, email text);`,
 			toSQL:   `CREATE TABLE t1 (id int, email text, CONSTRAINT uq_email UNIQUE (email));`,
 			check: func(t *testing.T, d *SchemaDiff) {
@@ -79,7 +79,7 @@ func TestDiffConstraint(t *testing.T) {
 			},
 		},
 		{
-			name: "UNIQUE constraint dropped",
+			name:    "UNIQUE constraint dropped",
 			fromSQL: `CREATE TABLE t1 (id int, email text, CONSTRAINT uq_email UNIQUE (email));`,
 			toSQL:   `CREATE TABLE t1 (id int, email text);`,
 			check: func(t *testing.T, d *SchemaDiff) {
@@ -99,7 +99,7 @@ func TestDiffConstraint(t *testing.T) {
 			},
 		},
 		{
-			name: "CHECK constraint added",
+			name:    "CHECK constraint added",
 			fromSQL: `CREATE TABLE t1 (id int, age int);`,
 			toSQL:   `CREATE TABLE t1 (id int, age int, CONSTRAINT chk_age CHECK (age > 0));`,
 			check: func(t *testing.T, d *SchemaDiff) {
@@ -122,7 +122,7 @@ func TestDiffConstraint(t *testing.T) {
 			},
 		},
 		{
-			name: "CHECK constraint dropped",
+			name:    "CHECK constraint dropped",
 			fromSQL: `CREATE TABLE t1 (id int, age int, CONSTRAINT chk_age CHECK (age > 0));`,
 			toSQL:   `CREATE TABLE t1 (id int, age int);`,
 			check: func(t *testing.T, d *SchemaDiff) {
@@ -142,7 +142,7 @@ func TestDiffConstraint(t *testing.T) {
 			},
 		},
 		{
-			name: "CHECK constraint expression changed",
+			name:    "CHECK constraint expression changed",
 			fromSQL: `CREATE TABLE t1 (id int, age int, CONSTRAINT chk_age CHECK (age > 0));`,
 			toSQL:   `CREATE TABLE t1 (id int, age int, CONSTRAINT chk_age CHECK (age > 18));`,
 			check: func(t *testing.T, d *SchemaDiff) {
@@ -400,5 +400,22 @@ func TestDiffConstraint(t *testing.T) {
 			d := Diff(from, to)
 			tt.check(t, d)
 		})
+	}
+}
+
+func TestDiffMatchesKeyColumnsByName(t *testing.T) {
+	// A column added in the middle shifts the attnums of the key, index,
+	// and foreign key columns after it; none of them changed.
+	got := generateMigrationSQL(t,
+		`CREATE TABLE p (a int, b int, PRIMARY KEY (a));
+CREATE TABLE c (x int REFERENCES p (a));
+CREATE INDEX pi ON p (b);`,
+		`CREATE TABLE p (z int, a int, b int, PRIMARY KEY (a));
+CREATE TABLE c (y int, x int REFERENCES p (a));
+CREATE INDEX pi ON p (b);`)
+	want := `ALTER TABLE public.c ADD COLUMN y integer;
+ALTER TABLE public.p ADD COLUMN z integer`
+	if got != want {
+		t.Errorf("got:\n%s\nwant:\n%s", got, want)
 	}
 }

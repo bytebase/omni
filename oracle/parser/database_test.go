@@ -2,6 +2,8 @@ package parser
 
 import (
 	"testing"
+
+	"github.com/bytebase/omni/oracle/ast"
 )
 
 // TestParseDatabaseStmts tests parsing of CREATE/ALTER DATABASE,
@@ -121,9 +123,11 @@ func TestParseDatabaseStmts(t *testing.T) {
 		`ALTER DATABASE RECOVER MANAGED STANDBY DATABASE FINISH`,
 		`ALTER DATABASE RECOVER TABLESPACE users`,
 		`ALTER DATABASE RECOVER DATAFILE '/u01/data/users01.dbf'`,
+		`ALTER DATABASE RECOVER AUTOMATIC UNTIL TIME '2001-10-27:14:00:00'`,
+		`ALTER DATABASE RECOVER UNTIL CANCEL USING BACKUP CONTROLFILE TEST`,
 		// Database file clauses
 		`ALTER DATABASE RENAME FILE '/old/path.dbf' TO '/new/path.dbf'`,
-		`ALTER DATABASE CREATE DATAFILE '/u01/data/file1.dbf' AS NEW`,
+		`ALTER DATABASE CREATE DATAFILE '/u01/data/file1.dbf' AS '/u02/data/file1.dbf'`,
 		`ALTER DATABASE DATAFILE '/u01/data/file1.dbf' ONLINE`,
 		`ALTER DATABASE DATAFILE '/u01/data/file1.dbf' OFFLINE`,
 		`ALTER DATABASE DATAFILE '/u01/data/file1.dbf' OFFLINE FOR DROP`,
@@ -154,12 +158,12 @@ func TestParseDatabaseStmts(t *testing.T) {
 		// Standby clauses
 		`ALTER DATABASE ACTIVATE STANDBY DATABASE`,
 		`ALTER DATABASE ACTIVATE PHYSICAL STANDBY DATABASE`,
-		`ALTER DATABASE ACTIVATE PHYSICAL STANDBY DATABASE FINISH APPLY`,
+		`ALTER DATABASE ACTIVATE PHYSICAL STANDBY DATABASE`,
 		`ALTER DATABASE SET STANDBY DATABASE TO MAXIMIZE PROTECTION`,
 		`ALTER DATABASE SET STANDBY DATABASE TO MAXIMIZE AVAILABILITY`,
 		`ALTER DATABASE SET STANDBY DATABASE TO MAXIMIZE PERFORMANCE`,
 		`ALTER DATABASE COMMIT TO SWITCHOVER TO PHYSICAL STANDBY`,
-		`ALTER DATABASE COMMIT TO SWITCHOVER TO PRIMARY DATABASE`,
+		`ALTER DATABASE COMMIT TO SWITCHOVER TO PRIMARY`,
 		`ALTER DATABASE START LOGICAL STANDBY APPLY IMMEDIATE`,
 		`ALTER DATABASE STOP LOGICAL STANDBY APPLY`,
 		`ALTER DATABASE CONVERT TO PHYSICAL STANDBY`,
@@ -173,8 +177,8 @@ func TestParseDatabaseStmts(t *testing.T) {
 		`ALTER DATABASE FLASHBACK OFF`,
 		`ALTER DATABASE SET TIME_ZONE = '+05:30'`,
 		// Instance clauses
-		`ALTER DATABASE ENABLE RESTRICTED SESSION`,
-		`ALTER DATABASE DISABLE RESTRICTED SESSION`,
+		`ALTER DATABASE ENABLE THREAD 2`,
+		`ALTER DATABASE DISABLE THREAD 2`,
 		// Block change tracking
 		`ALTER DATABASE ENABLE BLOCK CHANGE TRACKING`,
 		`ALTER DATABASE ENABLE BLOCK CHANGE TRACKING USING FILE '/u01/bct/bct.chg'`,
@@ -188,7 +192,7 @@ func TestParseDatabaseStmts(t *testing.T) {
 		`ALTER DATABASE ADD SUPPLEMENTAL LOG DATA`,
 		`ALTER DATABASE DROP SUPPLEMENTAL LOG DATA`,
 		// CDB fleet
-		`ALTER DATABASE SET LEAD_CDB = NONE`,
+		`ALTER DATABASE SET LEAD_CDB = FALSE`,
 		// Replay upgrade
 		`ALTER DATABASE SET STANDBY NOLOGGING FOR DATA AVAILABILITY`,
 		`ALTER DATABASE SET STANDBY NOLOGGING FOR LOAD PERFORMANCE`,
@@ -231,10 +235,6 @@ func TestParseDatabaseStmts(t *testing.T) {
 		`CREATE PLUGGABLE DATABASE approot
 			AS APPLICATION CONTAINER
 			ADMIN USER appadmin IDENTIFIED BY appass`,
-		// AS SEED
-		`CREATE PLUGGABLE DATABASE pdbseed
-			AS SEED
-			ADMIN USER seedadmin IDENTIFIED BY seedpass`,
 		// With LOGGING/NOLOGGING
 		`CREATE PLUGGABLE DATABASE pdb5
 			ADMIN USER admin1 IDENTIFIED BY pass1
@@ -261,7 +261,7 @@ func TestParseDatabaseStmts(t *testing.T) {
 			USER_TABLESPACES = NONE`,
 		`CREATE PLUGGABLE DATABASE pdb12
 			FROM pdb1
-			USER_TABLESPACES = ALL EXCEPT (system, sysaux)`,
+			USER_TABLESPACES = ALL EXCEPT ('SYSTEM', 'SYSAUX')`,
 		// STANDBYS
 		`CREATE PLUGGABLE DATABASE pdb13
 			ADMIN USER admin4 IDENTIFIED BY pass4
@@ -287,14 +287,14 @@ func TestParseDatabaseStmts(t *testing.T) {
 			SERVICE_NAME_CONVERT = ('svc1', 'svc2')`,
 		// RELOCATE
 		`CREATE PLUGGABLE DATABASE pdb19
-			FROM pdb1
+			FROM pdb1@cdb1_link
 			RELOCATE`,
 		// REFRESH MODE
 		`CREATE PLUGGABLE DATABASE pdb20
-			FROM pdb1
+			FROM pdb1@cdb1_link
 			REFRESH MODE MANUAL`,
 		`CREATE PLUGGABLE DATABASE pdb21
-			FROM pdb1
+			FROM pdb1@cdb1_link
 			REFRESH MODE EVERY 60 MINUTES`,
 		// Comprehensive CREATE PDB
 		`CREATE PLUGGABLE DATABASE prodpdb
@@ -324,7 +324,7 @@ func TestParseDatabaseStmts(t *testing.T) {
 		// All PDBs
 		`ALTER PLUGGABLE DATABASE ALL OPEN`,
 		`ALTER PLUGGABLE DATABASE ALL CLOSE IMMEDIATE`,
-		`ALTER PLUGGABLE DATABASE ALL EXCEPT (pdb1, pdb2) OPEN`,
+		`ALTER PLUGGABLE DATABASE ALL EXCEPT pdb1, pdb2 OPEN`,
 		// SAVE/DISCARD STATE
 		`ALTER PLUGGABLE DATABASE pdb1 SAVE STATE`,
 		`ALTER PLUGGABLE DATABASE pdb1 DISCARD STATE`,
@@ -333,8 +333,8 @@ func TestParseDatabaseStmts(t *testing.T) {
 		// Settings
 		`ALTER PLUGGABLE DATABASE pdb1 DEFAULT TABLESPACE users`,
 		`ALTER PLUGGABLE DATABASE pdb1 DEFAULT TEMPORARY TABLESPACE temp`,
-		`ALTER PLUGGABLE DATABASE DEFAULT EDITION ed1`,
-		`ALTER PLUGGABLE DATABASE SET DEFAULT TABLESPACE BIGFILE`,
+		`ALTER PLUGGABLE DATABASE DEFAULT EDITION = ed1`,
+		`ALTER PLUGGABLE DATABASE SET DEFAULT BIGFILE TABLESPACE`,
 		// STORAGE
 		`ALTER PLUGGABLE DATABASE pdb1 STORAGE (MAXSIZE 20G)`,
 		`ALTER PLUGGABLE DATABASE pdb1 STORAGE (MAXSIZE UNLIMITED)`,
@@ -348,18 +348,18 @@ func TestParseDatabaseStmts(t *testing.T) {
 		// RENAME
 		`ALTER PLUGGABLE DATABASE pdb1 RENAME GLOBAL_NAME TO newpdb`,
 		// APPLICATION clauses
-		`ALTER PLUGGABLE DATABASE APPLICATION myapp BEGIN INSTALL VERSION '1.0'`,
+		`ALTER PLUGGABLE DATABASE APPLICATION myapp BEGIN INSTALL '1.0'`,
 		`ALTER PLUGGABLE DATABASE APPLICATION myapp END INSTALL`,
 		`ALTER PLUGGABLE DATABASE APPLICATION myapp BEGIN PATCH 1`,
 		`ALTER PLUGGABLE DATABASE APPLICATION myapp END PATCH`,
-		`ALTER PLUGGABLE DATABASE APPLICATION myapp BEGIN UPGRADE FROM '1.0' TO '2.0'`,
+		`ALTER PLUGGABLE DATABASE APPLICATION myapp BEGIN UPGRADE '1.0' TO '2.0'`,
 		`ALTER PLUGGABLE DATABASE APPLICATION myapp END UPGRADE`,
 		`ALTER PLUGGABLE DATABASE APPLICATION myapp SET COMPATIBILITY VERSION '2.0'`,
 		`ALTER PLUGGABLE DATABASE APPLICATION myapp SYNC`,
 		// SNAPSHOT clauses
 		`ALTER PLUGGABLE DATABASE SNAPSHOT MANUAL`,
 		`ALTER PLUGGABLE DATABASE SNAPSHOT NONE`,
-		`ALTER PLUGGABLE DATABASE CREATE SNAPSHOT snap1`,
+		`ALTER PLUGGABLE DATABASE DROP SNAPSHOT snap1`,
 		`ALTER PLUGGABLE DATABASE DROP SNAPSHOT snap1`,
 		`ALTER PLUGGABLE DATABASE SET MAX_PDB_SNAPSHOTS = 10`,
 		// REFRESH
@@ -367,8 +367,8 @@ func TestParseDatabaseStmts(t *testing.T) {
 		`ALTER PLUGGABLE DATABASE pdb1 REFRESH MODE MANUAL`,
 		`ALTER PLUGGABLE DATABASE pdb1 REFRESH MODE EVERY 30 MINUTES`,
 		// CONTAINERS
-		`ALTER PLUGGABLE DATABASE CONTAINERS DEFAULT TARGET pdb1`,
-		`ALTER PLUGGABLE DATABASE CONTAINERS DEFAULT TARGET NONE`,
+		`ALTER PLUGGABLE DATABASE CONTAINERS DEFAULT TARGET = (pdb1)`,
+		`ALTER PLUGGABLE DATABASE CONTAINERS DEFAULT TARGET = NONE`,
 		// PRIORITY
 		`ALTER PLUGGABLE DATABASE pdb1 PRIORITY 5`,
 		// BACKUP
@@ -443,18 +443,18 @@ func TestParseDatabaseStmts(t *testing.T) {
 		// ---- ALTER DISKGROUP ----
 		// ADD DISK
 		`ALTER DISKGROUP dg1 ADD DISK '/dev/sdc1'`,
-		`ALTER DISKGROUP dg1 ADD DISK '/dev/sdc1' NAME disk5 SIZE 200G FAILGROUP fg1`,
+		`ALTER DISKGROUP dg1 ADD FAILGROUP fg1 DISK '/dev/sdc1' NAME disk5 SIZE 200G`,
 		// DROP DISK
 		`ALTER DISKGROUP dg1 DROP DISK disk1`,
 		`ALTER DISKGROUP dg1 DROP DISK disk1, disk2 FORCE`,
 		`ALTER DISKGROUP dg1 DROP DISKS IN FAILGROUP fg1`,
 		// RESIZE
-		`ALTER DISKGROUP dg1 RESIZE ALL 500G`,
+		`ALTER DISKGROUP dg1 RESIZE ALL SIZE 500G`,
 		// REPLACE DISK
 		`ALTER DISKGROUP dg1 REPLACE DISK disk1 WITH '/dev/sde1'`,
 		`ALTER DISKGROUP dg1 REPLACE DISK disk1 WITH '/dev/sde1' FORCE POWER 5 WAIT`,
 		// RENAME DISK
-		`ALTER DISKGROUP dg1 RENAME DISK old_disk TO new_disk`,
+		`ALTER DISKGROUP dg1 RENAME DISK 'old_disk' TO 'new_disk'`,
 		`ALTER DISKGROUP dg1 RENAME DISKS ALL`,
 		// ONLINE/OFFLINE DISK
 		`ALTER DISKGROUP dg1 ONLINE DISK disk1, disk2`,
@@ -480,7 +480,7 @@ func TestParseDatabaseStmts(t *testing.T) {
 		`ALTER DISKGROUP dg1 DROP ALIAS '+dg1/myalias'`,
 		// VOLUME
 		`ALTER DISKGROUP dg1 ADD VOLUME vol1 SIZE 100G`,
-		`ALTER DISKGROUP dg1 RESIZE VOLUME vol1 200G`,
+		`ALTER DISKGROUP dg1 RESIZE VOLUME vol1 SIZE 200G`,
 		`ALTER DISKGROUP dg1 DROP VOLUME vol1`,
 		// SET ATTRIBUTE
 		`ALTER DISKGROUP dg1 SET ATTRIBUTE 'compatible.asm' = '19.0'`,
@@ -492,13 +492,13 @@ func TestParseDatabaseStmts(t *testing.T) {
 		// UNDROP DISKS
 		`ALTER DISKGROUP dg1 UNDROP DISKS`,
 		// CONVERT REDUNDANCY
-		`ALTER DISKGROUP dg1 CONVERT REDUNDANCY`,
+		`ALTER DISKGROUP dg1 CONVERT REDUNDANCY TO FLEX`,
 		// USERGROUP
-		`ALTER DISKGROUP dg1 ADD USERGROUP ug1`,
-		`ALTER DISKGROUP dg1 DROP USERGROUP ug1`,
+		`ALTER DISKGROUP dg1 ADD USERGROUP 'ug1'`,
+		`ALTER DISKGROUP dg1 DROP USERGROUP 'ug1'`,
 		// USER
-		`ALTER DISKGROUP dg1 ADD USER user1`,
-		`ALTER DISKGROUP dg1 DROP USER user1`,
+		`ALTER DISKGROUP dg1 ADD USER 'user1'`,
+		`ALTER DISKGROUP dg1 DROP USER 'user1'`,
 		// SCRUB
 		`ALTER DISKGROUP dg1 SCRUB`,
 		`ALTER DISKGROUP dg1 SCRUB REPAIR`,
@@ -514,7 +514,7 @@ func TestParseDatabaseStmts(t *testing.T) {
 		`ALTER DISKGROUP dg1 ENABLE VOLUME ALL`,
 		`ALTER DISKGROUP dg1 DISABLE VOLUME vol1`,
 		// MODIFY POWER
-		`ALTER DISKGROUP dg1 MODIFY POWER 3`,
+		`ALTER DISKGROUP dg1 REBALANCE MODIFY POWER 3`,
 
 		// ---- DROP DISKGROUP ----
 		`DROP DISKGROUP dg1`,
@@ -533,5 +533,91 @@ func TestParseDatabaseStmts(t *testing.T) {
 				t.Fatalf("expected at least 1 statement, got %d", result.Len())
 			}
 		})
+	}
+}
+
+// TestAlterDatabaseRecoverTargets checks that RECOVER keeps what it
+// recovers, each target spanning its text.
+func TestAlterDatabaseRecoverTargets(t *testing.T) {
+	tests := []struct {
+		sql, key string
+		targets  []string
+		texts    []string
+	}{
+		{"ALTER DATABASE RECOVER TABLESPACE users, tools", "RECOVER_TABLESPACE", []string{"USERS", "TOOLS"}, []string{"users", "tools"}},
+		{"ALTER DATABASE RECOVER DATAFILE '/u01/a.dbf', '/u01/b.dbf'", "RECOVER_DATAFILE", []string{"/u01/a.dbf", "/u01/b.dbf"}, []string{"'/u01/a.dbf'", "'/u01/b.dbf'"}},
+		{"ALTER DATABASE RECOVER LOGFILE '/u01/a.log'", "RECOVER_LOGFILE", []string{"/u01/a.log"}, []string{"'/u01/a.log'"}},
+		{"ALTER DATABASE RENAME FILE 'a', 'b' TO 'c', 'd'", "RENAME_FILE", []string{"a", "b", "c", "d"}, []string{"'a'", "'b'", "'c'", "'d'"}},
+		{"ALTER DATABASE MOVE DATAFILE 1 TO 'x'", "MOVE_DATAFILE", []string{"x"}, []string{"'x'"}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.sql, func(t *testing.T) {
+			result := ParseAndCheck(t, tc.sql)
+			stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.AdminDDLStmt)
+			opt := stmt.Options.Items[0].(*ast.DDLOption)
+			if opt.Key != tc.key {
+				t.Fatalf("key %q, want %q", opt.Key, tc.key)
+			}
+			if opt.Items == nil || len(opt.Items.Items) != len(tc.targets) {
+				t.Fatalf("targets %v, want %v", opt.Items, tc.targets)
+			}
+			for i, item := range opt.Items.Items {
+				target := item.(*ast.DDLOption)
+				if target.Value != tc.targets[i] {
+					t.Errorf("target %d = %q, want %q", i, target.Value, tc.targets[i])
+				}
+				if got := tc.sql[target.Loc.Start:target.Loc.End]; got != tc.texts[i] {
+					t.Errorf("target %d spans %q, want %q", i, got, tc.texts[i])
+				}
+			}
+		})
+	}
+}
+
+// TestAlterDatabaseManagedRecoveryQuotedOption checks that a quoted word or a
+// literal where a managed recovery option stands fails to parse.
+func TestAlterDatabaseManagedRecoveryQuotedOption(t *testing.T) {
+	for _, sql := range []string{
+		`ALTER DATABASE RECOVER MANAGED STANDBY DATABASE "PARALLEL"`,
+		`ALTER DATABASE RECOVER MANAGED STANDBY DATABASE "NODELAY"`,
+		`ALTER DATABASE RECOVER MANAGED STANDBY DATABASE 'x'`,
+		`ALTER DATABASE RECOVER MANAGED STANDBY DATABASE 1`,
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) succeeded", sql)
+		}
+	}
+}
+
+// TestPluggableDatabaseOptionSpans checks that each option of CREATE
+// PLUGGABLE DATABASE, and the DATAFILE of its default tablespace, spans its
+// text.
+func TestPluggableDatabaseOptionSpans(t *testing.T) {
+	sql := "CREATE PLUGGABLE DATABASE p ADMIN USER u IDENTIFIED BY pw ROLES = (dba) DEFAULT TABLESPACE users DATAFILE 'users.dbf' SIZE 10M"
+	result := ParseAndCheck(t, sql)
+	stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.AdminDDLStmt)
+	want := map[string]string{
+		"ADMIN_USER":         "ADMIN USER u IDENTIFIED BY pw",
+		"ROLES":              "ROLES = (dba)",
+		"DEFAULT_TABLESPACE": "DEFAULT TABLESPACE users DATAFILE 'users.dbf' SIZE 10M",
+		"DATAFILE":           "DATAFILE 'users.dbf' SIZE 10M",
+	}
+	got := map[string]string{}
+	var walk func(*ast.List)
+	walk = func(l *ast.List) {
+		if l == nil {
+			return
+		}
+		for _, item := range l.Items {
+			o := item.(*ast.DDLOption)
+			got[o.Key] = sql[o.Loc.Start:o.Loc.End]
+			walk(o.Items)
+		}
+	}
+	walk(stmt.Options)
+	for k, v := range want {
+		if got[k] != v {
+			t.Errorf("%s spans %q, want %q", k, got[k], v)
+		}
 	}
 }

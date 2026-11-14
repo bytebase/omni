@@ -445,3 +445,88 @@ func runReject(t *testing.T, input string) {
 		t.Fatalf("expected rejection, but parsed OK: %s\ninput: %s", ast.NodeToString(stmt), input)
 	}
 }
+
+// TestParser_SelectExclude covers a SELECT's EXCLUDE clause
+// (PartiQLParser.g4:340-355, 536), each path a variable and one or more
+// steps, as the reference parser's visitor reads them (visitExcludeClause ..
+// visitExcludeExprTupleWildcard).
+func TestParser_SelectExclude(t *testing.T) {
+	const input = "SELECT * EXCLUDE t.a, t[*].b, t.*, t[1], t['x'] FROM t"
+	stmt, err := NewParser(input).ParseStatement()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "SelectStmt{Star:true Exclude:[" +
+		"ExcludePath{Root:VarRef{Name:t} Steps:[DotStep{Field:a}]} " +
+		"ExcludePath{Root:VarRef{Name:t} Steps:[WildcardStep{} DotStep{Field:b}]} " +
+		"ExcludePath{Root:VarRef{Name:t} Steps:[AllFieldsStep{}]} " +
+		"ExcludePath{Root:VarRef{Name:t} Steps:[IndexStep{Index:NumberLit{Val:1}}]} " +
+		"ExcludePath{Root:VarRef{Name:t} Steps:[IndexStep{Index:StringLit{Val:\"x\"}}]}] From:VarRef{Name:t}}"
+	if got := ast.NodeToString(stmt); got != want {
+		t.Errorf("got:  %s\nwant: %s", got, want)
+	}
+	sel := stmt.(*ast.SelectStmt)
+	if loc := sel.Exclude[1].Loc; loc != (ast.Loc{Start: 22, End: 28}) {
+		t.Errorf("Exclude[1].Loc = %+v, want 22..28", loc)
+	}
+	for _, ok := range []string{
+		"SELECT VALUE a EXCLUDE a.b FROM t",
+		"SELECT a, b EXCLUDE a.c FROM t",
+		"PIVOT v AT k EXCLUDE v.a FROM t",
+	} {
+		if _, err := Parse(ok); err != nil {
+			t.Errorf("Parse(%q): %v", ok, err)
+		}
+	}
+	for _, bad := range []string{
+		"SELECT * EXCLUDE t FROM t",              // a step is required
+		"SELECT * EXCLUDE t[a] FROM t",           // a bracket takes a string, an integer or *
+		"SELECT * EXCLUDE t[1.5] FROM t",         //
+		"SELECT * EXCLUDE t[99999999999] FROM t", // past the visitor's 32-bit index
+		"SELECT * EXCLUDE t.a, FROM t",
+		"SELECT * FROM t EXCLUDE t.a",
+		"SELECT exclude FROM t", // EXCLUDE is reserved (PartiQLTokens.g4:104)
+	} {
+		if _, err := Parse(bad); err == nil {
+			t.Errorf("Parse(%q): want an error", bad)
+		}
+	}
+}
+
+// TestParser_FromAliasForms covers the aliases of a FROM source: a
+// parenthesized source on the right of a comma takes one, as joinRhs's
+// tableNonJoin does (PartiQLParser.g4:489-492), and a bare alias takes no AT
+// or BY after it and none follows a MATCH (TableBaseRefSymbol,
+// TableBaseRefMatch, g4:481-483).
+func TestParser_FromAliasForms(t *testing.T) {
+	cases := []struct {
+		input string
+		want  string
+	}{
+		{"SELECT * FROM a, (b) x", "SelectStmt{Star:true From:JoinExpr{Kind:CROSS Left:VarRef{Name:a} Right:AliasedSource{Source:VarRef{Name:b} As:x}}}"},
+		{"SELECT * FROM a CROSS JOIN (b) AS x AT y", "SelectStmt{Star:true From:JoinExpr{Kind:CROSS Left:VarRef{Name:a} Right:AliasedSource{Source:VarRef{Name:b} As:x At:y}}}"},
+		{"SELECT * FROM a, (b CROSS JOIN c)", "SelectStmt{Star:true From:JoinExpr{Kind:CROSS Left:VarRef{Name:a} Right:JoinExpr{Kind:CROSS Left:VarRef{Name:b} Right:VarRef{Name:c}}}}"},
+		{"SELECT * FROM g MATCH (n) AS x", "SelectStmt{Star:true From:AliasedSource{Source:MatchExpr{Expr:VarRef{Name:g} Patterns:[GraphPattern{Parts:[NodePattern{Variable:VarRef{Name:n}}]}]} As:x}}"},
+	}
+	for _, tc := range cases {
+		stmt, err := NewParser(tc.input).ParseStatement()
+		if err != nil {
+			t.Errorf("ParseStatement(%q): %v", tc.input, err)
+			continue
+		}
+		if got := ast.NodeToString(stmt); got != tc.want {
+			t.Errorf("ParseStatement(%q)\ngot:  %s\nwant: %s", tc.input, got, tc.want)
+		}
+	}
+	for _, bad := range []string{
+		"SELECT * FROM a b AT c",
+		"SELECT * FROM a, (b) x BY y",
+		"SELECT * FROM g MATCH (n) x",
+		"SELECT * FROM g MATCH zzz",
+		"SELECT * FROM g MATCH ANY zzz",
+	} {
+		if _, err := Parse(bad); err == nil {
+			t.Errorf("Parse(%q): want an error", bad)
+		}
+	}
+}

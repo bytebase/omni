@@ -8,10 +8,10 @@ import (
 
 // parseCreateCommand parses the two CREATE variants:
 //
-//	CREATE TABLE symbolPrimitive
+//	CREATE TABLE qualifiedName ( PAREN_LEFT tableDef PAREN_RIGHT )?
 //	CREATE INDEX ON symbolPrimitive ( pathSimple (, pathSimple)* )
 //
-// Grammar: createCommand (PartiQLParser.g4 lines 78-81).
+// Grammar: createCommand (PartiQLParser.g4:87-90).
 func (p *Parser) parseCreateCommand() (ast.StmtNode, error) {
 	start := p.cur.Loc.Start
 	p.advance() // consume CREATE
@@ -19,18 +19,24 @@ func (p *Parser) parseCreateCommand() (ast.StmtNode, error) {
 	switch p.cur.Type {
 	case tokTABLE:
 		p.advance() // consume TABLE
-		name, caseSensitive, nameLoc, err := p.parseSymbolPrimitive()
+		qualifier, name, err := p.parseQualifiedName()
 		if err != nil {
 			return nil, err
 		}
-		return &ast.CreateTableStmt{
-			Name: &ast.VarRef{
-				Name:          name,
-				CaseSensitive: caseSensitive,
-				Loc:           nameLoc,
-			},
-			Loc: ast.Loc{Start: start, End: nameLoc.End},
-		}, nil
+		stmt := &ast.CreateTableStmt{
+			Name:      name,
+			Qualifier: qualifier,
+			Loc:       ast.Loc{Start: start, End: name.Loc.End},
+		}
+		if p.cur.Type == tokPAREN_LEFT {
+			cols, end, err := p.parseTableDef()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Columns = cols
+			stmt.Loc.End = end
+		}
+		return stmt, nil
 
 	case tokINDEX:
 		p.advance() // consume INDEX
@@ -86,10 +92,10 @@ func (p *Parser) parseCreateCommand() (ast.StmtNode, error) {
 
 // parseDropCommand parses the two DROP variants:
 //
-//	DROP TABLE symbolPrimitive
+//	DROP TABLE qualifiedName
 //	DROP INDEX symbolPrimitive ON symbolPrimitive
 //
-// Grammar: dropCommand (PartiQLParser.g4 lines 83-86).
+// Grammar: dropCommand (PartiQLParser.g4:92-95).
 func (p *Parser) parseDropCommand() (ast.StmtNode, error) {
 	start := p.cur.Loc.Start
 	p.advance() // consume DROP
@@ -97,17 +103,14 @@ func (p *Parser) parseDropCommand() (ast.StmtNode, error) {
 	switch p.cur.Type {
 	case tokTABLE:
 		p.advance() // consume TABLE
-		name, caseSensitive, nameLoc, err := p.parseSymbolPrimitive()
+		qualifier, name, err := p.parseQualifiedName()
 		if err != nil {
 			return nil, err
 		}
 		return &ast.DropTableStmt{
-			Name: &ast.VarRef{
-				Name:          name,
-				CaseSensitive: caseSensitive,
-				Loc:           nameLoc,
-			},
-			Loc: ast.Loc{Start: start, End: nameLoc.End},
+			Name:      name,
+			Qualifier: qualifier,
+			Loc:       ast.Loc{Start: start, End: name.Loc.End},
 		}, nil
 
 	case tokINDEX:
@@ -193,21 +196,27 @@ loop:
 		case tokBRACKET_LEFT:
 			stepStart := p.cur.Loc.Start
 			p.advance() // consume [
-			// pathSimpleSteps has two bracket alternatives (g4 lines
-			// 114-115): `[ key=literal ]` and `[ key=symbolPrimitive ]`.
-			// A `literal` is the full set NULL | MISSING | TRUE | FALSE |
-			// string | number | Ion | DATE/TIME (g4 lines 661-672), so we
-			// route every literal-start token through parseLiteral —
-			// matching parsePrimaryBase's literal dispatch — and fall back
-			// to symbolPrimitive only for a bare identifier. (TIMESTAMP is
-			// dispatched here but is not a literal; parseLiteral rejects it
-			// precisely, matching the ANTLR oracle which also rejects
-			// `a[TIMESTAMP '...']`.)
+			// pathSimpleSteps has two bracket alternatives
+			// (PartiQLParser.g4:141-142): `[ key=literal ]` and
+			// `[ key=symbolPrimitive ]`. Every literal-start token goes
+			// through parseLiteral, and a bare identifier is a symbol. The
+			// grammar takes any literal, and the reference parser's visitor
+			// takes a number or a string and refuses any other
+			// (PartiQLParserDefault.kt:859-876, "Expected an integer or
+			// string literal").
 			var idx ast.ExprNode
 			if isLiteralStart(p.cur.Type) {
 				lit, err := p.parseLiteral()
 				if err != nil {
 					return nil, err
+				}
+				switch lit.(type) {
+				case *ast.NumberLit, *ast.StringLit:
+				default:
+					return nil, &ParseError{
+						Message:  "expected an integer or string literal in a path step",
+						Position: lit.GetLoc().Start, End: lit.GetLoc().End,
+					}
 				}
 				idx = lit
 			} else {
@@ -244,17 +253,11 @@ loop:
 	}, nil
 }
 
-// isLiteralStart reports whether tok can begin a `literal` (PartiQLParser.g4
-// lines 661-672): NULL, MISSING, TRUE, FALSE, string, integer, decimal, Ion,
-// or a DATE/TIME literal. It mirrors the literal cases of parsePrimaryBase's
-// dispatch (exprprimary.go) so the bracket-key path step in parsePathSimple
-// admits exactly the grammar's `literal` set.
-//
-// tokTIMESTAMP is included so it is routed to parseLiteral, which rejects it
-// with a precise "TIMESTAMP literal is not supported" error rather than the
-// generic "expected identifier" symbolPrimitive failure — TIMESTAMP is a
-// type-name keyword, not a member of the `literal` rule, and the ANTLR oracle
-// likewise rejects `a[TIMESTAMP '...']`.
+// isLiteralStart reports whether tok can begin a `literal`
+// (PartiQLParser.g4:775-787): NULL, MISSING, TRUE, FALSE, string, integer,
+// decimal, Ion, or a DATE/TIME/TIMESTAMP literal. It mirrors the literal
+// cases of parsePrimaryBase's dispatch (exprprimary.go) so the bracket-key
+// path step in parsePathSimple reads the grammar's `literal` set.
 func isLiteralStart(tok int) bool {
 	switch tok {
 	case tokNULL, tokMISSING, tokTRUE, tokFALSE,
@@ -264,4 +267,107 @@ func isLiteralStart(tok int) bool {
 	default:
 		return false
 	}
+}
+
+// parseQualifiedName parses
+//
+//	qualifiedName : (qualifier+=symbolPrimitive PERIOD)* name=symbolPrimitive
+//
+// (PartiQLParser.g4:75) and returns the qualifiers and the name.
+func (p *Parser) parseQualifiedName() ([]*ast.VarRef, *ast.VarRef, error) {
+	var qualifier []*ast.VarRef
+	for {
+		name, caseSensitive, loc, err := p.parseSymbolPrimitive()
+		if err != nil {
+			return nil, nil, err
+		}
+		ref := &ast.VarRef{Name: name, CaseSensitive: caseSensitive, Loc: loc}
+		if p.cur.Type != tokPERIOD {
+			return qualifier, ref, nil
+		}
+		p.advance() // consume .
+		qualifier = append(qualifier, ref)
+	}
+}
+
+// parseTableDef parses the column declarations of CREATE TABLE and returns
+// them with the end of the closing parenthesis. p.cur is the opening
+// parenthesis.
+//
+//	PAREN_LEFT tableDef PAREN_RIGHT
+//	tableDef         : tableDefPart ( COMMA tableDefPart )*
+//	tableDefPart     : columnName type columnConstraint*     # ColumnDeclaration
+//	columnConstraint : ( CONSTRAINT columnConstraintName )? columnConstraintDef
+//	columnConstraintDef : NOT NULL | NULL
+//
+// Grammar: PartiQLParser.g4:88, 97-112.
+func (p *Parser) parseTableDef() ([]*ast.ColumnDef, int, error) {
+	p.advance() // consume (
+	var cols []*ast.ColumnDef
+	for {
+		col, err := p.parseColumnDef()
+		if err != nil {
+			return nil, 0, err
+		}
+		cols = append(cols, col)
+		if p.cur.Type != tokCOMMA {
+			break
+		}
+		p.advance() // consume ,
+	}
+	rp, err := p.expect(tokPAREN_RIGHT)
+	if err != nil {
+		return nil, 0, err
+	}
+	return cols, rp.Loc.End, nil
+}
+
+// parseColumnDef parses `columnName type columnConstraint*`.
+func (p *Parser) parseColumnDef() (*ast.ColumnDef, error) {
+	name, caseSensitive, nameLoc, err := p.parseSymbolPrimitive()
+	if err != nil {
+		return nil, err
+	}
+	typ, err := p.parseType()
+	if err != nil {
+		return nil, err
+	}
+	col := &ast.ColumnDef{
+		Name: &ast.VarRef{Name: name, CaseSensitive: caseSensitive, Loc: nameLoc},
+		Type: typ,
+		Loc:  ast.Loc{Start: nameLoc.Start, End: typ.Loc.End},
+	}
+	for p.cur.Type == tokCONSTRAINT || p.cur.Type == tokNOT || p.cur.Type == tokNULL {
+		c, err := p.parseColumnConstraint()
+		if err != nil {
+			return nil, err
+		}
+		col.Constraints = append(col.Constraints, c)
+		col.Loc.End = c.Loc.End
+	}
+	return col, nil
+}
+
+// parseColumnConstraint parses
+// `( CONSTRAINT columnConstraintName )? ( NOT NULL | NULL )`.
+func (p *Parser) parseColumnConstraint() (*ast.ColumnConstraint, error) {
+	c := &ast.ColumnConstraint{Loc: ast.Loc{Start: p.cur.Loc.Start}}
+	if p.cur.Type == tokCONSTRAINT {
+		p.advance() // consume CONSTRAINT
+		name, caseSensitive, loc, err := p.parseSymbolPrimitive()
+		if err != nil {
+			return nil, err
+		}
+		c.Name = &ast.VarRef{Name: name, CaseSensitive: caseSensitive, Loc: loc}
+	}
+	if p.cur.Type == tokNOT {
+		p.advance() // consume NOT
+		c.NotNull = true
+	}
+	end, err := p.expect(tokNULL)
+	if err != nil {
+		return nil, err
+	}
+	c.Loc.End = end.Loc.End
+	return c, nil
 }
