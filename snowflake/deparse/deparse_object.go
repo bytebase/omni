@@ -54,6 +54,19 @@ func (w *writer) writeObjectClause(c *ast.ObjectClause) error {
 		w.buf.WriteByte(' ')
 		w.buf.WriteString(strings.Join(c.Keys, ", "))
 	}
+	if (c.Keywords == "AT" || c.Keywords == "BEFORE") && len(c.Options) == 1 {
+		// A point in time: { AT | BEFORE } ( <anchor> => <value> ), as a
+		// POSTGRES INSTANCE's FORK writes it.
+		o := c.Options[0]
+		w.buf.WriteString(" (")
+		w.buf.WriteString(o.Name)
+		w.buf.WriteString(" => ")
+		if err := w.writeObjectOption(&ast.CopyOption{Lit: o.Lit, Words: o.Words}); err != nil {
+			return err
+		}
+		w.buf.WriteByte(')')
+		return nil
+	}
 	for _, o := range c.Options {
 		w.buf.WriteByte(' ')
 		if err := w.writeObjectOption(o); err != nil {

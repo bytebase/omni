@@ -34,8 +34,10 @@ func init() {
 	registerObject(&objectForm{
 		words: []string{"OPENFLOW", "DATA", "PLANE", "INTEGRATION"},
 		alter: parseAlterOpenflowDataPlaneIntegration,
-		props: objectProps{"EVENT_TABLE": propString},
-		unset: []string{},
+		// The page writes no IF EXISTS.
+		noIfExists: true,
+		props:      objectProps{"EVENT_TABLE": propString},
+		unset:      []string{},
 	})
 }
 
@@ -175,11 +177,11 @@ func parseCreateOpenflowRuntime(p *Parser, s *ast.ObjectStmt) error {
 	if err := p.expectWords("IN", "DEPLOYMENT"); err != nil {
 		return err
 	}
-	dep, err := p.parseIdent()
+	dep, err := p.parseObjectSimpleName()
 	if err != nil {
 		return err
 	}
-	p.addObjectKeywordsClause(s, "IN DEPLOYMENT", start).Names = []*ast.ObjectName{{Name: dep, Loc: dep.Loc}}
+	p.addObjectKeywordsClause(s, "IN DEPLOYMENT", start).Names = []*ast.ObjectName{dep}
 	props, err := p.parseObjectProperties(s, "", true)
 	if err != nil {
 		return err

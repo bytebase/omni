@@ -72,11 +72,11 @@ var postgresInstanceCreateProps = []string{
 // https://docs.snowflake.com/en/sql-reference/sql/create-postgres-instance
 func parseCreatePostgresInstance(p *Parser, s *ast.ObjectStmt) error {
 	if start := p.cur.Loc.Start; p.acceptWords("FORK") {
-		src, err := p.parseIdent()
+		src, err := p.parseObjectSimpleName()
 		if err != nil {
 			return err
 		}
-		p.addObjectKeywordsClause(s, "FORK", start).Names = []*ast.ObjectName{{Name: src, Loc: src.Loc}}
+		p.addObjectKeywordsClause(s, "FORK", start).Names = []*ast.ObjectName{src}
 		if p.cur.Type == kwAT || p.cur.Type == kwBEFORE {
 			if err := parsePostgresInstanceForkPoint(p, s); err != nil {
 				return err
