@@ -333,11 +333,11 @@ func (k *keyManagementClauses) parseKey(start int, name string) error {
 	} else if force {
 		migrate = false
 	}
-	auth, err := k.identifiedBy(true)
+	store, err := k.identifiedBy(true)
 	if err != nil {
 		return err
 	}
-	if migrate && auth != externalStore && k.isMigrateStart(true) {
+	if migrate && !store && k.isMigrateStart(true) {
 		return k.migrate(true)
 	}
 	if err := k.withBackup(); err != nil {
@@ -371,11 +371,11 @@ func (k *keyManagementClauses) parseUseKey(start int) error {
 	if err != nil {
 		return err
 	}
-	auth, err := k.identifiedBy(true)
+	store, err := k.identifiedBy(true)
 	if err != nil {
 		return err
 	}
-	if !force && auth != externalStore && k.isMigrateStart(false) {
+	if !force && !store && k.isMigrateStart(false) {
 		return k.migrate(false)
 	}
 	return k.withBackup()
@@ -746,28 +746,27 @@ func (k *keyManagementClauses) forceKeystore() (bool, error) {
 	return true, nil
 }
 
-// externalStore is the auth value IDENTIFIED BY EXTERNAL STORE records.
-const externalStore = "EXTERNAL STORE"
-
 // identifiedBy parses IDENTIFIED BY and a password, or EXTERNAL STORE where
-// external says the clause takes it, and returns what it recorded.
-func (k *keyManagementClauses) identifiedBy(external bool) (string, error) {
+// external says the clause takes it, and reports whether it read EXTERNAL
+// STORE: a password "EXTERNAL STORE" records the same text.
+func (k *keyManagementClauses) identifiedBy(external bool) (bool, error) {
 	p := k.p
 	start := p.pos()
 	if p.cur.Type != kwIDENTIFIED {
-		return "", p.syntaxErrorAtCur()
+		return false, p.syntaxErrorAtCur()
 	}
 	p.advance()
 	if p.cur.Type != kwBY {
-		return "", p.syntaxErrorAtCur()
+		return false, p.syntaxErrorAtCur()
 	}
 	p.advance()
+	store := external && k.word("EXTERNAL")
 	value, err := k.password(external)
 	if err != nil {
-		return "", err
+		return false, err
 	}
 	k.add("IDENTIFIED BY", value, start)
-	return value, nil
+	return store, nil
 }
 
 // password parses a keystore password, an identifier Oracle reads as
@@ -781,7 +780,7 @@ func (k *keyManagementClauses) password(external bool) (string, error) {
 		if err := k.words("STORE"); err != nil {
 			return "", err
 		}
-		return externalStore, nil
+		return "EXTERNAL STORE", nil
 	}
 	if !k.isName() {
 		return "", p.syntaxErrorAtCur()
