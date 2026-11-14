@@ -318,7 +318,7 @@ func TestDisallowDropObject(t *testing.T) {
 		{name: "a statement under EXPLAIN, which does not run it", sql: "EXPLAIN DROP TABLE t;"},
 		{
 			name: "every DROP",
-			sql:  "DROP TABLE IF EXISTS t;\nDROP VIEW v;\nDROP MATERIALIZED VIEW mv;\nDROP DYNAMIC TABLE dt;\nDROP EXTERNAL TABLE et;\nDROP STAGE st;\nDROP STREAM sm;\nDROP TASK tk;\nDROP PIPE pp;\nDROP SEQUENCE sq;\nDROP FUNCTION f(NUMBER);\nDROP PROCEDURE pr();\nDROP USER u;\nDROP ROLE r;\nDROP WAREHOUSE w;\nDROP SCHEMA s CASCADE;\nDROP DATABASE d;",
+			sql:  "DROP TABLE IF EXISTS t;\nDROP VIEW v;\nDROP MATERIALIZED VIEW mv;\nDROP DYNAMIC TABLE dt;\nDROP EXTERNAL TABLE et;\nDROP STAGE st;\nDROP STREAM sm;\nDROP TASK tk;\nDROP PIPE pp;\nDROP SEQUENCE sq;\nDROP FUNCTION f(NUMBER);\nDROP PROCEDURE pr();\nDROP USER u;\nDROP ROLE r;\nDROP WAREHOUSE w;\nDROP SCHEMA s CASCADE;\nDROP DATABASE d;\nDROP COMPUTE POOL cp;",
 			want: []finding{
 				{0, "DROP TABLE IF EXISTS t", "Drops table `t`.", []int{0}},
 				{1, "DROP VIEW v", "Drops view `v`.", []int{0}},
@@ -337,6 +337,7 @@ func TestDisallowDropObject(t *testing.T) {
 				{14, "DROP WAREHOUSE w", "Drops warehouse `w`.", []int{0}},
 				{15, "DROP SCHEMA s CASCADE", "Drops schema `s`.", []int{0}},
 				{16, "DROP DATABASE d", "Drops database `d`.", []int{0}},
+				{17, "DROP COMPUTE POOL cp", "Drops compute pool `cp`.", []int{0}},
 			},
 		},
 		{

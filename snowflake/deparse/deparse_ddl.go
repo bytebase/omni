@@ -742,7 +742,7 @@ func (w *writer) writeDropStmt(n *ast.DropStmt) error {
 	if n.Iceberg {
 		w.buf.WriteString("ICEBERG ")
 	}
-	w.buf.WriteString(n.Kind.String())
+	w.buf.WriteString(n.ObjectType())
 	if n.IfExists {
 		w.buf.WriteString(" IF EXISTS")
 	}
