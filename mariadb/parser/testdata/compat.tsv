@@ -3423,45 +3423,45 @@ reject	reject	engine	ws_nweights/(_real_ulong_num_)!drop-2	DO WEIGHT_STRING(a AS
 reject	reject	engine	ws_nweights/(_real_ulong_num_)!drop-3	DO WEIGHT_STRING(a AS CHAR(1);
 reject	reject	engine	ws_nweights/(_real_ulong_num_)!truncate	DO WEIGHT_STRING(a AS CHAR(1
 reject	reject	engine	ws_nweights/(_real_ulong_num_)!insert	DO WEIGHT_STRING(a AS CHAR(1) zzz);
-reject	accept	engine	ws_level_flag_desc/ASC	DO WEIGHT_STRING(a LEVEL 1 ASC);
+accept	accept	engine	ws_level_flag_desc/ASC	DO WEIGHT_STRING(a LEVEL 1 ASC);
 reject	reject	engine	ws_level_flag_desc/ASC!truncate	DO WEIGHT_STRING(a LEVEL 1
 reject	reject	engine	ws_level_flag_desc/ASC!insert	DO WEIGHT_STRING(a LEVEL 1 ASC zzz);
 reject	reject	engine	ws_level_flag_desc/ASC!swap	DO WEIGHT_STRING(a LEVEL 1 ASCII);
-reject	accept	engine	ws_level_flag_desc/DESC	DO WEIGHT_STRING(a LEVEL 1 DESC);
+accept	accept	engine	ws_level_flag_desc/DESC	DO WEIGHT_STRING(a LEVEL 1 DESC);
 reject	reject	engine	ws_level_flag_desc/DESC!insert	DO WEIGHT_STRING(a LEVEL 1 DESC zzz);
 reject	reject	engine	ws_level_flag_desc/DESC!swap	DO WEIGHT_STRING(a LEVEL 1 DESCRIBE);
-reject	accept	engine	ws_level_flag_reverse/REVERSE_SYM	DO WEIGHT_STRING(a LEVEL 1 REVERSE);
+accept	accept	engine	ws_level_flag_reverse/REVERSE_SYM	DO WEIGHT_STRING(a LEVEL 1 REVERSE);
 reject	reject	engine	ws_level_flag_reverse/REVERSE_SYM!insert	DO WEIGHT_STRING(a LEVEL 1 REVERSE zzz);
 reject	reject	engine	ws_level_flag_reverse/REVERSE_SYM!swap	DO WEIGHT_STRING(a LEVEL 1 REVOKE);
-reject	accept	engine	ws_level_flags/%empty	DO WEIGHT_STRING(a LEVEL 1);
+accept	accept	engine	ws_level_flags/%empty	DO WEIGHT_STRING(a LEVEL 1);
 reject	reject	engine	ws_level_flags/%empty!insert	DO WEIGHT_STRING(a LEVEL 1 zzz);
-reject	accept	engine	ws_level_flags/ws_level_flag_desc	DO WEIGHT_STRING(a LEVEL 1 ASC);
-reject	accept	engine	ws_level_flags/ws_level_flag_desc_ws_level_flag_reverse	DO WEIGHT_STRING(a LEVEL 1 ASC REVERSE);
+accept	accept	engine	ws_level_flags/ws_level_flag_desc	DO WEIGHT_STRING(a LEVEL 1 ASC);
+accept	accept	engine	ws_level_flags/ws_level_flag_desc_ws_level_flag_reverse	DO WEIGHT_STRING(a LEVEL 1 ASC REVERSE);
 reject	reject	engine	ws_level_flags/ws_level_flag_desc_ws_level_flag_reverse!truncate	DO WEIGHT_STRING(a LEVEL 1 ASC
 reject	reject	engine	ws_level_flags/ws_level_flag_desc_ws_level_flag_reverse!insert	DO WEIGHT_STRING(a LEVEL 1 ASC REVERSE zzz);
 reject	reject	engine	ws_level_flags/ws_level_flag_desc_ws_level_flag_reverse!swap	DO WEIGHT_STRING(a LEVEL 1 ASCII REVERSE);
-reject	accept	engine	ws_level_flags/ws_level_flag_reverse	DO WEIGHT_STRING(a LEVEL 1 REVERSE);
-reject	accept	engine	ws_level_number/real_ulong_num	DO WEIGHT_STRING(a LEVEL 1);
+accept	accept	engine	ws_level_flags/ws_level_flag_reverse	DO WEIGHT_STRING(a LEVEL 1 REVERSE);
+accept	accept	engine	ws_level_number/real_ulong_num	DO WEIGHT_STRING(a LEVEL 1);
 reject	reject	engine	ws_level_number/real_ulong_num!drop-1	DO WEIGHT_STRING(a LEVEL);
 reject	reject	engine	ws_level_number/real_ulong_num!truncate	DO WEIGHT_STRING(a LEVEL
-reject	accept	engine	ws_level_list_item/ws_level_number_ws_level_flags	DO WEIGHT_STRING(a LEVEL 1);
-reject	accept	engine	ws_level_list/ws_level_list_item	DO WEIGHT_STRING(a LEVEL 1);
-reject	accept	engine	ws_level_list/ws_level_list_,_ws_level_list_item	DO WEIGHT_STRING(a LEVEL 1, 1);
+accept	accept	engine	ws_level_list_item/ws_level_number_ws_level_flags	DO WEIGHT_STRING(a LEVEL 1);
+accept	accept	engine	ws_level_list/ws_level_list_item	DO WEIGHT_STRING(a LEVEL 1);
+accept	accept	engine	ws_level_list/ws_level_list_,_ws_level_list_item	DO WEIGHT_STRING(a LEVEL 1, 1);
 reject	reject	engine	ws_level_list/ws_level_list_,_ws_level_list_item!drop-1	DO WEIGHT_STRING(a LEVEL, 1);
 reject	reject	engine	ws_level_list/ws_level_list_,_ws_level_list_item!drop-2	DO WEIGHT_STRING(a LEVEL 1 1);
 reject	reject	engine	ws_level_list/ws_level_list_,_ws_level_list_item!drop-3	DO WEIGHT_STRING(a LEVEL 1,);
 reject	reject	engine	ws_level_list/ws_level_list_,_ws_level_list_item!truncate	DO WEIGHT_STRING(a LEVEL 1,
 reject	reject	engine	ws_level_list/ws_level_list_,_ws_level_list_item!insert	DO WEIGHT_STRING(a LEVEL 1, 1 zzz);
-reject	accept	engine	ws_level_range/ws_level_number_-_ws_level_number	DO WEIGHT_STRING(a LEVEL 1 - 1);
+accept	accept	engine	ws_level_range/ws_level_number_-_ws_level_number	DO WEIGHT_STRING(a LEVEL 1 - 1);
 reject	reject	engine	ws_level_range/ws_level_number_-_ws_level_number!drop-1	DO WEIGHT_STRING(a LEVEL - 1);
 reject	reject	engine	ws_level_range/ws_level_number_-_ws_level_number!drop-3	DO WEIGHT_STRING(a LEVEL 1 -);
 reject	reject	engine	ws_level_range/ws_level_number_-_ws_level_number!truncate	DO WEIGHT_STRING(a LEVEL 1 -
 reject	reject	engine	ws_level_range/ws_level_number_-_ws_level_number!insert	DO WEIGHT_STRING(a LEVEL 1 - 1 zzz);
-reject	accept	engine	ws_level_list_or_range/ws_level_list	DO WEIGHT_STRING(a LEVEL 1);
-reject	accept	engine	ws_level_list_or_range/ws_level_range	DO WEIGHT_STRING(a LEVEL 1 - 1);
+accept	accept	engine	ws_level_list_or_range/ws_level_list	DO WEIGHT_STRING(a LEVEL 1);
+accept	accept	engine	ws_level_list_or_range/ws_level_range	DO WEIGHT_STRING(a LEVEL 1 - 1);
 accept	accept	engine	opt_ws_levels/%empty	DO WEIGHT_STRING(a);
 reject	reject	engine	opt_ws_levels/%empty!insert	DO WEIGHT_STRING(a zzz);
-reject	accept	engine	opt_ws_levels/LEVEL_SYM_ws_level_list_or_range	DO WEIGHT_STRING(a LEVEL 1);
+accept	accept	engine	opt_ws_levels/LEVEL_SYM_ws_level_list_or_range	DO WEIGHT_STRING(a LEVEL 1);
 reject	reject	engine	opt_ws_levels/LEVEL_SYM_ws_level_list_or_range!drop-1	DO WEIGHT_STRING(a 1);
 accept	accept	engine	opt_ws_levels/LEVEL_SYM_ws_level_list_or_range!swap	DO WEIGHT_STRING(a LIKE 1);
 accept	accept	engine	opt_primary/%empty	ALTER TABLE a ADD a INT KEY;
@@ -6305,7 +6305,7 @@ reject	reject	engine	function_call_conflict/WEIGHT_STRING_SYM_(_expr_AS_BINARY_w
 reject	reject	engine	function_call_conflict/WEIGHT_STRING_SYM_(_expr_AS_BINARY_ws_nweights_)!truncate	DO WEIGHT_STRING(a AS BINARY(1)
 reject	reject	engine	function_call_conflict/WEIGHT_STRING_SYM_(_expr_AS_BINARY_ws_nweights_)!insert	DO WEIGHT_STRING(a AS BINARY(1)) zzz;
 reject	reject	engine	function_call_conflict/WEIGHT_STRING_SYM_(_expr_AS_BINARY_ws_nweights_)!swap	DO WHEN(a AS BINARY(1));
-reject	accept	engine	function_call_conflict/WEIGHT_STRING_SYM_(_expr_,_ulong_num_,_ulong_num_,_ulong_num_)	DO WEIGHT_STRING(a, 1, 1, 1);
+accept	accept	engine	function_call_conflict/WEIGHT_STRING_SYM_(_expr_,_ulong_num_,_ulong_num_,_ulong_num_)	DO WEIGHT_STRING(a, 1, 1, 1);
 reject	reject	engine	function_call_conflict/WEIGHT_STRING_SYM_(_expr_,_ulong_num_,_ulong_num_,_ulong_num_)!drop-2	DO WEIGHT_STRING a, 1, 1, 1);
 reject	reject	engine	function_call_conflict/WEIGHT_STRING_SYM_(_expr_,_ulong_num_,_ulong_num_,_ulong_num_)!drop-3	DO WEIGHT_STRING(, 1, 1, 1);
 reject	reject	engine	function_call_conflict/WEIGHT_STRING_SYM_(_expr_,_ulong_num_,_ulong_num_,_ulong_num_)!drop-4	DO WEIGHT_STRING(a 1, 1, 1);
