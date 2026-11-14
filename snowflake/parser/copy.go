@@ -219,6 +219,13 @@ func (p *Parser) parseCopyIntoLocation(start ast.Loc) (ast.Node, error) {
 		Into: into,
 		Loc:  ast.Loc{Start: start.Start},
 	}
+	// An external location's STORAGE_INTEGRATION / CREDENTIALS / ENCRYPTION
+	// (copy_location.go).
+	if into.Kind == ast.StageExternal {
+		if stmt.IntoOptions, err = p.parseCopyLocationParams(externalLocationCloud(into.Raw)); err != nil {
+			return nil, err
+		}
+	}
 
 	if _, err := p.expect(kwFROM); err != nil {
 		return nil, err
