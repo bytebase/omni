@@ -729,6 +729,11 @@ type FuncCallExprQ struct {
 	// Name is the canonical lowercase function name (e.g. "concat", "count").
 	Name string
 
+	// Routine is the quoted qualified name of a stored routine's call,
+	// `db`.`f` or a package's `db`.`pkg`.`f` as written, which the deparser
+	// writes in Name's place. Empty for an unqualified call and a builtin.
+	Routine string
+
 	// Args are the analyzed arguments in source order.
 	Args []AnalyzedExpr
 

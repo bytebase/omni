@@ -34,6 +34,10 @@ func TestDeparseQueryKeepsSpecialCallForms(t *testing.T) {
 			"select oracle_schema.trim(`employees`.`name`) as `x`, oracle_schema.trim(leading 'a' from `employees`.`name`) as `y` from `dyn`.`employees`",
 		},
 		{
+			"SELECT d.pkg.f(1) AS x, d.PKG.trim(1, 2) AS y, d.g(id) AS z FROM employees",
+			"select `d`.`pkg`.`f`(1) as `x`, `d`.`PKG`.`trim`(1, 2) as `y`, `d`.`g`(`employees`.`id`) as `z` from `dyn`.`employees`",
+		},
+		{
 			"SELECT TRIM('a' FROM name) AS x, TRIM(TRAILING FROM name) AS y FROM employees",
 			"select trim(both 'a' from `employees`.`name`) as `x`, trim(trailing from `employees`.`name`) as `y` from `dyn`.`employees`",
 		},

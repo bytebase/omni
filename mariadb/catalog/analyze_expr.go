@@ -109,12 +109,30 @@ func analyzeFuncCall(c *Catalog, fc *nodes.FuncCallExpr, scope *analyzerScope) (
 	if strings.EqualFold(fc.Schema, "oracle_schema") && fc.Package == "" && strings.HasPrefix(lower, "trim") {
 		lower = "oracle_schema." + lower
 	}
+	// Any other qualified name calls a stored routine, a package's when it has
+	// three parts, and keeps all of them: f(1) is another routine than
+	// d.pkg.f(1). Only oracle_schema and mariadb_schema name builtins, TRIM
+	// and SUBSTRING, through a qualifier.
+	routine := ""
+	if fc.Schema != "" && !qualifiedBuiltin(fc, lower) {
+		raw := fc.RawName
+		if raw == "" {
+			raw = fc.Name
+		}
+		routine = backtickIDQ(fc.Schema) + "."
+		if fc.Package != "" {
+			routine += backtickIDQ(fc.Package) + "."
+		}
+		routine += backtickIDQ(raw)
+	}
 	result := &FuncCallExprQ{
-		Name: lower,
-		Args: args,
+		Name:    lower,
+		Routine: routine,
+		Args:    args,
 		// A spaced gated keyword is a generic call, not the builtin, so it is
 		// never the aggregate: `count (a)` is a stored-function call, not COUNT.
-		IsAggregate: isAggregateFunc(fc.Name) && !fc.SpacedParen,
+		// Nor is a stored routine's call.
+		IsAggregate: isAggregateFunc(fc.Name) && !fc.SpacedParen && routine == "",
 		Distinct:    fc.Quantifier.RemovesDuplicates(),
 		SpacedParen: fc.SpacedParen,
 	}
@@ -152,6 +170,17 @@ func analyzeFuncCall(c *Catalog, fc *nodes.FuncCallExpr, scope *analyzerScope) (
 	// Phase 3: populate return type from function type table.
 	result.ResultType = functionReturnType(result.Name, result.Args)
 	return result, nil
+}
+
+// qualifiedBuiltin reports a qualified call that is still a builtin:
+// oracle_schema's and mariadb_schema's TRIM and SUBSTRING, which the parser
+// reads with their own syntax (the TRIM forms are named trim_leading and so on).
+func qualifiedBuiltin(fc *nodes.FuncCallExpr, lower string) bool {
+	if fc.Package != "" || !(strings.EqualFold(fc.Schema, "oracle_schema") || strings.EqualFold(fc.Schema, "mariadb_schema")) {
+		return false
+	}
+	lower = strings.TrimPrefix(lower, "oracle_schema.")
+	return strings.HasPrefix(lower, "trim") || lower == "substring" || lower == "substr"
 }
 
 // analyzePositionExpr resolves POSITION(substr IN str). The node has to be
