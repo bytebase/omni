@@ -42,7 +42,7 @@ func qLoc(n ast.Node) ast.Loc {
 // (QUALIFY, WITH RECURSIVE, etc.) parse in the union grammar even though the
 // Spanner emulator *feature-rejects* them — that feature-reject is NOT a grammar
 // verdict (divergence ledger #9 QUALIFY, #11 WITH RECURSIVE/MERGE). The parser
-// therefore accepts them; the differential test (select_oracle_test.go) only
+// therefore accepts them; the differential test (the suite:select rows of testdata/compat.tsv) only
 // asserts the Spanner-authoritative forms.
 //
 // Grammar-faithful tree shape (a key ZetaSQL nuance): the trailing ORDER BY /

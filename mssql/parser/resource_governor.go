@@ -229,13 +229,9 @@ func (p *Parser) parseCreateExternalResourcePoolStmt() (*nodes.SecurityStmt, err
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	// pool_name
-	if p.isIdentLike() || p.cur.Type == tokSCONST {
-		stmt.Name = p.cur.Str
-		p.advance()
+	if err := p.parseExternalResourcePoolBody(stmt, false); err != nil {
+		return nil, err
 	}
-
-	stmt.Options = p.parseResourceGovernorOptions()
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
@@ -259,13 +255,11 @@ func (p *Parser) parseAlterExternalResourcePoolStmt() (*nodes.SecurityStmt, erro
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	// pool_name | "default"
-	if p.isIdentLike() || p.cur.Type == tokSCONST || p.cur.Type == kwDEFAULT {
-		stmt.Name = p.cur.Str
-		p.advance()
+	// pool_name | [default]: SQL Server takes the default pool's name only
+	// bracketed, and requires the WITH clause.
+	if err := p.parseExternalResourcePoolBody(stmt, true); err != nil {
+		return nil, err
 	}
-
-	stmt.Options = p.parseResourceGovernorOptions()
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
@@ -283,11 +277,11 @@ func (p *Parser) parseDropExternalResourcePoolStmt() (*nodes.SecurityStmt, error
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	// pool_name
-	if p.isIdentLike() || p.cur.Type == tokSCONST {
-		stmt.Name = p.cur.Str
-		p.advance()
+	name, err := p.extName()
+	if err != nil {
+		return nil, err
 	}
+	stmt.Name = name
 
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil

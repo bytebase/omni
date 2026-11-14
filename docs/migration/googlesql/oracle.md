@@ -13,7 +13,7 @@ Empirically established 2026-06-02. The oracle converts grammar correctness from
 | client | Go `cloud.google.com/go/spanner` v1.91.0 + `admin/database/apiv1`, env `SPANNER_EMULATOR_HOST=localhost:9010` |
 | image | `gcr.io/cloud-spanner-emulator/emulator:latest` |
 | digest | `sha256:caf1bd24c081e005837b5977bae5a250e25cb4da9f25ec1abc91936ad67e4de2` (image built 2026-05-30, pulled 2026-06-02) |
-| syntax_reject_signal | gRPC `InvalidArgument` **AND** message prefix `Syntax error:` (queries/DML) or `Error parsing Spanner DDL statement:` (DDL) |
+| syntax_reject_signal | gRPC `InvalidArgument` **AND** message prefix `Syntax error:` (any statement: the emulator hands `CREATE PROPERTY GRAPH` DDL to GoogleSQL's parser), `…: Syntax error:` inside a definition it parses later (a function's body), or `Error parsing Spanner DDL statement:` (DDL) |
 
 ## Standing it up
 
@@ -78,12 +78,13 @@ classify(kind, err):
       "Database already exists"):                                            ERROR (infra)  # scratch resource gone
   if kind == "ddl":
      InvalidArgument + "Error parsing Spanner DDL statement:" -> REJECT (syntax)  # DDL parse failure
+     InvalidArgument + "Syntax error:", or "…: Syntax error:" -> REJECT (syntax)  # GoogleSQL's parser: PROPERTY GRAPH, a function body
      InvalidArgument (other)           -> ACCEPT (semantic)  # bad index col / type change / length / generated|check|default expr
      FailedPrecondition | NotFound     -> ACCEPT (semantic)  # Duplicate name / missing INTERLEAVE parent
      Internal + "GOOGLESQL_RET_CHECK"  -> ACCEPT (semantic)  # emulator quirk on unknown type (parsed)
      else                              -> ERROR  (infra)
   else:  # query / dml
-     InvalidArgument + "Syntax error:" -> REJECT (syntax)
+     InvalidArgument + "Syntax error:", or "…: Syntax error:" -> REJECT (syntax)
      InvalidArgument (other)           -> ACCEPT (semantic)  # Table not found / Unrecognized name / "X is not supported"
      OutOfRange                        -> ACCEPT (semantic)  # runtime eval error (e.g. div by zero) => parsed
      else                              -> ERROR  (infra)
