@@ -16,7 +16,7 @@ reject	reject	engine	directly_executable_statement/statement!insert	COMMIT zzz;
 accept	accept	engine	directly_executable_statement/begin_stmt_mariadb	BEGIN;
 reject	reject	engine	directly_executable_statement/begin_stmt_mariadb!insert	BEGIN zzz;
 reject	reject	engine	directly_executable_statement/begin_stmt_mariadb!swap	BETWEEN;
-reject	accept	engine	directly_executable_statement/compound_statement	BEGIN NOT ATOMIC END;
+accept	accept	engine	directly_executable_statement/compound_statement	BEGIN NOT ATOMIC END;
 reject	reject	engine	directly_executable_statement/compound_statement!drop-1	NOT ATOMIC END;
 reject	reject	engine	directly_executable_statement/compound_statement!drop-2	BEGIN ATOMIC END;
 reject	reject	engine	directly_executable_statement/compound_statement!drop-3	BEGIN NOT END;
@@ -42,7 +42,7 @@ reject	reject	engine	verb_clause/analyze_stmt_command!drop-3	ANALYZE SELECT;
 reject	reject	engine	verb_clause/analyze_stmt_command!truncate	ANALYZE SELECT
 accept	accept	engine	verb_clause/analyze_stmt_command!insert	ANALYZE SELECT a zzz;
 reject	reject	engine	verb_clause/analyze_stmt_command!swap	AND SELECT a;
-reject	accept	engine	verb_clause/backup	BACKUP UNLOCK;
+accept	accept	engine	verb_clause/backup	BACKUP UNLOCK;
 reject	reject	engine	verb_clause/backup!drop-1	UNLOCK;
 reject	reject	engine	verb_clause/backup!drop-2	BACKUP;
 reject	reject	engine	verb_clause/backup!truncate	BACKUP
@@ -123,14 +123,14 @@ reject	reject	engine	verb_clause/execute!drop-2	EXECUTE;
 reject	reject	engine	verb_clause/execute!truncate	EXECUTE
 reject	reject	engine	verb_clause/execute!insert	EXECUTE a zzz;
 reject	reject	engine	verb_clause/execute!swap	EXISTS a;
-reject	accept	engine	verb_clause/explain_for_connection	DESC FOR CONNECTION a;
+accept	accept	engine	verb_clause/explain_for_connection	DESC FOR CONNECTION a;
 reject	reject	engine	verb_clause/explain_for_connection!drop-1	FOR CONNECTION a;
 accept	accept	engine	verb_clause/explain_for_connection!drop-2	DESC CONNECTION a;
 reject	reject	engine	verb_clause/explain_for_connection!drop-3	DESC FOR a;
 reject	reject	engine	verb_clause/explain_for_connection!drop-4	DESC FOR CONNECTION;
 reject	reject	engine	verb_clause/explain_for_connection!truncate	DESC FOR CONNECTION
 reject	reject	engine	verb_clause/explain_for_connection!insert	DESC FOR CONNECTION a zzz;
-reject	accept	engine	verb_clause/explain_for_connection!swap	DESCRIBE FOR CONNECTION a;
+accept	accept	engine	verb_clause/explain_for_connection!swap	DESCRIBE FOR CONNECTION a;
 accept	accept	engine	verb_clause/flush	FLUSH TABLE;
 reject	reject	engine	verb_clause/flush!drop-1	TABLE;
 reject	reject	engine	verb_clause/flush!drop-2	FLUSH;
@@ -190,7 +190,7 @@ reject	reject	engine	verb_clause/keycache!drop-5	CACHE INDEX a IN;
 reject	reject	engine	verb_clause/keycache!truncate	CACHE INDEX a IN
 reject	reject	engine	verb_clause/keycache!insert	CACHE INDEX a IN a zzz;
 reject	reject	engine	verb_clause/keycache!swap	CALL INDEX a IN a;
-accept	reject	engine	verb_clause/kill	KILL a;
+reject	reject	engine	verb_clause/kill	KILL a;
 reject	reject	engine	verb_clause/kill!drop-2	KILL;
 reject	reject	engine	verb_clause/kill!truncate	KILL
 reject	reject	engine	verb_clause/kill!insert	KILL a zzz;
@@ -293,7 +293,7 @@ reject	reject	engine	verb_clause/reset!truncate	RESET
 reject	reject	engine	verb_clause/reset!insert	RESET SLAVE zzz;
 reject	reject	engine	verb_clause/reset!swap	RESIGNAL SLAVE;
 accept	accept	engine	verb_clause/resignal_stmt	RESIGNAL;
-accept	reject	engine	verb_clause/resignal_stmt!insert	RESIGNAL zzz;
+reject	reject	engine	verb_clause/resignal_stmt!insert	RESIGNAL zzz;
 reject	reject	engine	verb_clause/resignal_stmt!swap	RESTART;
 accept	accept	engine	verb_clause/revoke	REVOKE a FROM a;
 reject	reject	engine	verb_clause/revoke!drop-2	REVOKE FROM a;
@@ -330,7 +330,7 @@ reject	reject	engine	verb_clause/set!drop-3	SET CHARSET;
 reject	reject	engine	verb_clause/set!truncate	SET CHARSET
 reject	reject	engine	verb_clause/set!insert	SET CHARSET utf8mb4 zzz;
 reject	reject	engine	verb_clause/set!swap	SETVAL CHARSET utf8mb4;
-accept	reject	engine	verb_clause/signal_stmt	SIGNAL a;
+reject	reject	engine	verb_clause/signal_stmt	SIGNAL a;
 reject	reject	engine	verb_clause/signal_stmt!drop-2	SIGNAL;
 reject	reject	engine	verb_clause/signal_stmt!truncate	SIGNAL
 reject	reject	engine	verb_clause/signal_stmt!insert	SIGNAL a zzz;
@@ -618,14 +618,14 @@ accept	accept	engine	optional_connection_name/connection_name!truncate	FLUSH SLA
 reject	reject	engine	optional_connection_name/connection_name!insert	FLUSH SLAVE 's' zzz;
 accept	accept	engine	connection_name/TEXT_STRING_sys	FLUSH SLAVE 's';
 accept	accept	engine	optional_for_channel/%empty	RESET SLAVE;
-reject	accept	engine	optional_for_channel/for_channel	RESET SLAVE FOR CHANNEL 's';
+accept	accept	engine	optional_for_channel/for_channel	RESET SLAVE FOR CHANNEL 's';
 reject	reject	engine	optional_for_channel/for_channel!drop-1	RESET SLAVE CHANNEL 's';
 reject	reject	engine	optional_for_channel/for_channel!drop-2	RESET SLAVE FOR 's';
 reject	reject	engine	optional_for_channel/for_channel!drop-3	RESET SLAVE FOR CHANNEL;
 reject	reject	engine	optional_for_channel/for_channel!truncate	RESET SLAVE FOR CHANNEL
 reject	reject	engine	optional_for_channel/for_channel!insert	RESET SLAVE FOR CHANNEL 's' zzz;
 reject	reject	engine	optional_for_channel/for_channel!swap	RESET SLAVE FORCE CHANNEL 's';
-reject	accept	engine	for_channel/FOR_SYM_CHANNEL_SYM_TEXT_STRING_sys	RESET SLAVE FOR CHANNEL 's';
+accept	accept	engine	for_channel/FOR_SYM_CHANNEL_SYM_TEXT_STRING_sys	RESET SLAVE FOR CHANNEL 's';
 accept	accept	engine	create/create_or_replace_opt_temporary_TABLE_SYM_opt_if_not_exists_table_ident_create_body	CREATE TABLE a;
 accept	accept	engine	create/create_or_replace_opt_temporary_SEQUENCE_SYM_opt_if_not_exists_table_ident_opt_sequence_opt_create_table_options	CREATE SEQUENCE a;
 reject	reject	engine	create/create_or_replace_opt_temporary_SEQUENCE_SYM_opt_if_not_exists_table_ident_opt_sequence_opt_create_table_options!drop-1	SEQUENCE a;
@@ -1151,7 +1151,7 @@ reject	reject	engine	sp_fdparams_no_default/sp_fdparams_no_default_,_sp_param!dr
 reject	reject	engine	sp_fdparams_no_default/sp_fdparams_no_default_,_sp_param!truncate	BEGIN NOT ATOMIC DECLARE a CURSOR(a INT, a
 reject	reject	engine	sp_fdparams_no_default/sp_fdparams_no_default_,_sp_param!insert	BEGIN NOT ATOMIC DECLARE a CURSOR(a INT, a INT zzz) FOR SELECT a; END;
 reject	reject	engine	sp_fdparams_no_default/sp_fdparams_no_default_,_sp_param!swap	BEGIN NOT ATOMIC DECLARE a CURSOR(a INTERSECT, a INT) FOR SELECT a; END;
-reject	accept	engine	sp_fdparams_no_default/sp_param	BEGIN NOT ATOMIC DECLARE a CURSOR(a INT) FOR SELECT a; END;
+accept	accept	engine	sp_fdparams_no_default/sp_param	BEGIN NOT ATOMIC DECLARE a CURSOR(a INT) FOR SELECT a; END;
 reject	reject	engine	sp_fdparams_no_default/sp_param!drop-1	BEGIN NOT ATOMIC DECLARE a CURSOR(INT) FOR SELECT a; END;
 reject	reject	engine	sp_fdparams_no_default/sp_param!drop-2	BEGIN NOT ATOMIC DECLARE a CURSOR(a) FOR SELECT a; END;
 reject	reject	engine	sp_fdparams_no_default/sp_param!truncate	BEGIN NOT ATOMIC DECLARE a CURSOR(a
@@ -1192,27 +1192,27 @@ accept	accept	engine	sp_parenthesized_pdparam_list/(_sp_pdparam_list_)	CREATE PR
 reject	reject	engine	sp_parenthesized_pdparam_list/(_sp_pdparam_list_)!drop-1	CREATE PROCEDURE a) COMMIT;
 reject	reject	engine	sp_parenthesized_pdparam_list/(_sp_pdparam_list_)!drop-2	CREATE PROCEDURE a(COMMIT;
 accept	accept	engine	sp_param_default/sp_param_init_vars_sp_opt_default	CREATE PROCEDURE a(a INT) COMMIT;
-reject	accept	engine	sp_param/sp_param_init_vars	BEGIN NOT ATOMIC DECLARE a CURSOR(a INT) FOR SELECT a; END;
+accept	accept	engine	sp_param/sp_param_init_vars	BEGIN NOT ATOMIC DECLARE a CURSOR(a INT) FOR SELECT a; END;
 accept	reject	engine	sp_parenthesized_fdparam_list/(_sp_fdparam_list_)	CREATE FUNCTION a() RETURNS INT RETURN a;
 reject	reject	engine	sp_parenthesized_fdparam_list/(_sp_fdparam_list_)!drop-1	CREATE FUNCTION a) RETURNS INT RETURN a;
 reject	reject	engine	sp_parenthesized_fdparam_list/(_sp_fdparam_list_)!drop-2	CREATE FUNCTION a(RETURNS INT RETURN a;
 reject	reject	engine	sp_parenthesized_fdparam_list/(_sp_fdparam_list_)!truncate	CREATE FUNCTION a(
 reject	reject	engine	sp_parenthesized_fdparam_list/(_sp_fdparam_list_)!insert	CREATE FUNCTION a() zzz RETURNS INT RETURN a;
-reject	accept	engine	sp_proc_stmts/%empty	BEGIN NOT ATOMIC END;
+accept	accept	engine	sp_proc_stmts/%empty	BEGIN NOT ATOMIC END;
 reject	reject	engine	sp_proc_stmts/%empty!insert	BEGIN NOT ATOMIC zzz END;
-reject	accept	engine	sp_proc_stmts/sp_proc_stmts_sp_proc_stmt_;	BEGIN NOT ATOMIC COMMIT; END;
+accept	accept	engine	sp_proc_stmts/sp_proc_stmts_sp_proc_stmt_;	BEGIN NOT ATOMIC COMMIT; END;
 reject	reject	engine	sp_proc_stmts/sp_proc_stmts_sp_proc_stmt_;!drop-1	BEGIN NOT ATOMIC; END;
 reject	reject	engine	sp_proc_stmts/sp_proc_stmts_sp_proc_stmt_;!drop-2	BEGIN NOT ATOMIC COMMIT END;
 reject	reject	engine	sp_proc_stmts/sp_proc_stmts_sp_proc_stmt_;!truncate	BEGIN NOT ATOMIC COMMIT
 reject	reject	engine	sp_proc_stmts/sp_proc_stmts_sp_proc_stmt_;!insert	BEGIN NOT ATOMIC COMMIT; zzz END;
 reject	reject	engine	sp_proc_stmts/sp_proc_stmts_sp_proc_stmt_;!swap	BEGIN NOT ATOMIC COMMITTED; END;
-reject	accept	engine	sp_proc_stmts1/sp_proc_stmt_;	LOOP COMMIT; END LOOP;
+accept	accept	engine	sp_proc_stmts1/sp_proc_stmt_;	LOOP COMMIT; END LOOP;
 reject	reject	engine	sp_proc_stmts1/sp_proc_stmt_;!drop-1	LOOP; END LOOP;
 reject	reject	engine	sp_proc_stmts1/sp_proc_stmt_;!drop-2	LOOP COMMIT END LOOP;
 reject	reject	engine	sp_proc_stmts1/sp_proc_stmt_;!truncate	LOOP COMMIT
 reject	reject	engine	sp_proc_stmts1/sp_proc_stmt_;!insert	LOOP COMMIT; zzz END LOOP;
 reject	reject	engine	sp_proc_stmts1/sp_proc_stmt_;!swap	LOOP COMMITTED; END LOOP;
-reject	accept	engine	sp_proc_stmts1/sp_proc_stmts1_sp_proc_stmt_;	LOOP COMMIT; COMMIT; END LOOP;
+accept	accept	engine	sp_proc_stmts1/sp_proc_stmts1_sp_proc_stmt_;	LOOP COMMIT; COMMIT; END LOOP;
 reject	reject	engine	sp_proc_stmts1/sp_proc_stmts1_sp_proc_stmt_;!drop-1	LOOP; COMMIT; END LOOP;
 reject	reject	engine	sp_proc_stmts1/sp_proc_stmts1_sp_proc_stmt_;!drop-2	LOOP COMMIT COMMIT; END LOOP;
 reject	reject	engine	sp_proc_stmts1/sp_proc_stmts1_sp_proc_stmt_;!drop-3	LOOP COMMIT;; END LOOP;
@@ -1224,13 +1224,13 @@ reject	reject	engine	optionally_qualified_column_ident/sp_decl_ident	BEGIN NOT A
 reject	reject	engine	optionally_qualified_column_ident/sp_decl_ident!drop-1	BEGIN NOT ATOMIC DECLARE a TYPE OF; END;
 reject	reject	engine	optionally_qualified_column_ident/sp_decl_ident!truncate	BEGIN NOT ATOMIC DECLARE a TYPE OF
 reject	reject	engine	optionally_qualified_column_ident/sp_decl_ident!insert	BEGIN NOT ATOMIC DECLARE a TYPE OF a zzz; END;
-reject	accept	engine	optionally_qualified_column_ident/sp_decl_ident_._ident	BEGIN NOT ATOMIC DECLARE a TYPE OF a.a; END;
+accept	accept	engine	optionally_qualified_column_ident/sp_decl_ident_._ident	BEGIN NOT ATOMIC DECLARE a TYPE OF a.a; END;
 reject	reject	engine	optionally_qualified_column_ident/sp_decl_ident_._ident!drop-1	BEGIN NOT ATOMIC DECLARE a TYPE OF.a; END;
 reject	reject	engine	optionally_qualified_column_ident/sp_decl_ident_._ident!drop-2	BEGIN NOT ATOMIC DECLARE a TYPE OF a a; END;
 reject	reject	engine	optionally_qualified_column_ident/sp_decl_ident_._ident!drop-3	BEGIN NOT ATOMIC DECLARE a TYPE OF a.; END;
 reject	reject	engine	optionally_qualified_column_ident/sp_decl_ident_._ident!truncate	BEGIN NOT ATOMIC DECLARE a TYPE OF a.
 reject	reject	engine	optionally_qualified_column_ident/sp_decl_ident_._ident!insert	BEGIN NOT ATOMIC DECLARE a TYPE OF a.a zzz; END;
-reject	accept	engine	optionally_qualified_column_ident/sp_decl_ident_._ident_._ident	BEGIN NOT ATOMIC DECLARE a TYPE OF a.a.a; END;
+accept	accept	engine	optionally_qualified_column_ident/sp_decl_ident_._ident_._ident	BEGIN NOT ATOMIC DECLARE a TYPE OF a.a.a; END;
 reject	reject	engine	optionally_qualified_column_ident/sp_decl_ident_._ident_._ident!drop-1	BEGIN NOT ATOMIC DECLARE a TYPE OF.a.a; END;
 reject	reject	engine	optionally_qualified_column_ident/sp_decl_ident_._ident_._ident!drop-2	BEGIN NOT ATOMIC DECLARE a TYPE OF a a.a; END;
 reject	reject	engine	optionally_qualified_column_ident/sp_decl_ident_._ident_._ident!drop-3	BEGIN NOT ATOMIC DECLARE a TYPE OF a..a; END;
@@ -1238,13 +1238,13 @@ reject	reject	engine	optionally_qualified_column_ident/sp_decl_ident_._ident_._i
 reject	reject	engine	optionally_qualified_column_ident/sp_decl_ident_._ident_._ident!drop-5	BEGIN NOT ATOMIC DECLARE a TYPE OF a.a.; END;
 reject	reject	engine	optionally_qualified_column_ident/sp_decl_ident_._ident_._ident!truncate	BEGIN NOT ATOMIC DECLARE a TYPE OF a.a.
 reject	reject	engine	optionally_qualified_column_ident/sp_decl_ident_._ident_._ident!insert	BEGIN NOT ATOMIC DECLARE a TYPE OF a.a.a zzz; END;
-reject	accept	engine	row_field_definition/row_field_name_field_type	CREATE PROCEDURE a(a ROW(a INT)) COMMIT;
+accept	accept	engine	row_field_definition/row_field_name_field_type	CREATE PROCEDURE a(a ROW(a INT)) COMMIT;
 reject	reject	engine	row_field_definition/row_field_name_field_type!drop-1	CREATE PROCEDURE a(a ROW(INT)) COMMIT;
 reject	reject	engine	row_field_definition/row_field_name_field_type!drop-2	CREATE PROCEDURE a(a ROW(a)) COMMIT;
 reject	reject	engine	row_field_definition/row_field_name_field_type!truncate	CREATE PROCEDURE a(a ROW(a
 reject	reject	engine	row_field_definition/row_field_name_field_type!insert	CREATE PROCEDURE a(a ROW(a INT zzz)) COMMIT;
 reject	reject	engine	row_field_definition/row_field_name_field_type!swap	CREATE PROCEDURE a(a ROW(a INTERSECT)) COMMIT;
-reject	accept	engine	row_field_definition_list/row_field_definition	CREATE PROCEDURE a(a ROW(a INT)) COMMIT;
+accept	accept	engine	row_field_definition_list/row_field_definition	CREATE PROCEDURE a(a ROW(a INT)) COMMIT;
 reject	reject	engine	row_field_definition_list/row_field_definition_list_,_row_field_definition	CREATE PROCEDURE a(a ROW(a INT, a INT)) COMMIT;
 reject	reject	engine	row_field_definition_list/row_field_definition_list_,_row_field_definition!drop-1	CREATE PROCEDURE a(a ROW(INT, a INT)) COMMIT;
 reject	reject	engine	row_field_definition_list/row_field_definition_list_,_row_field_definition!drop-2	CREATE PROCEDURE a(a ROW(a, a INT)) COMMIT;
@@ -1254,21 +1254,21 @@ reject	reject	engine	row_field_definition_list/row_field_definition_list_,_row_f
 reject	reject	engine	row_field_definition_list/row_field_definition_list_,_row_field_definition!truncate	CREATE PROCEDURE a(a ROW(a INT, a
 reject	reject	engine	row_field_definition_list/row_field_definition_list_,_row_field_definition!insert	CREATE PROCEDURE a(a ROW(a INT, a INT zzz)) COMMIT;
 reject	reject	engine	row_field_definition_list/row_field_definition_list_,_row_field_definition!swap	CREATE PROCEDURE a(a ROW(a INTERSECT, a INT)) COMMIT;
-reject	accept	engine	row_type_body/(_row_field_definition_list_)	CREATE PROCEDURE a(a ROW(a INT)) COMMIT;
+accept	accept	engine	row_type_body/(_row_field_definition_list_)	CREATE PROCEDURE a(a ROW(a INT)) COMMIT;
 reject	reject	engine	row_type_body/(_row_field_definition_list_)!drop-1	CREATE PROCEDURE a(a ROW a INT)) COMMIT;
 reject	reject	engine	row_type_body/(_row_field_definition_list_)!drop-4	CREATE PROCEDURE a(a ROW(a INT) COMMIT;
 reject	reject	engine	row_type_body/(_row_field_definition_list_)!truncate	CREATE PROCEDURE a(a ROW(a INT
 reject	reject	engine	row_type_body/(_row_field_definition_list_)!insert	CREATE PROCEDURE a(a ROW(a INT) zzz) COMMIT;
-reject	accept	engine	sp_decl_idents_init_vars/sp_decl_idents	BEGIN NOT ATOMIC DECLARE a INT; END;
+accept	accept	engine	sp_decl_idents_init_vars/sp_decl_idents	BEGIN NOT ATOMIC DECLARE a INT; END;
 reject	reject	engine	sp_decl_idents_init_vars/sp_decl_idents!drop-1	BEGIN NOT ATOMIC DECLARE INT; END;
 reject	reject	engine	sp_decl_idents_init_vars/sp_decl_idents!truncate	BEGIN NOT ATOMIC DECLARE
 reject	reject	engine	sp_decl_idents_init_vars/sp_decl_idents!insert	BEGIN NOT ATOMIC DECLARE a zzz INT; END;
-reject	accept	engine	sp_decl_variable_list/sp_decl_idents_init_vars_field_type_all_with_record_sp_opt_default	BEGIN NOT ATOMIC DECLARE a INT; END;
+accept	accept	engine	sp_decl_variable_list/sp_decl_idents_init_vars_field_type_all_with_record_sp_opt_default	BEGIN NOT ATOMIC DECLARE a INT; END;
 reject	reject	engine	sp_decl_variable_list/sp_decl_idents_init_vars_field_type_all_with_record_sp_opt_default!drop-2	BEGIN NOT ATOMIC DECLARE a; END;
 reject	reject	engine	sp_decl_variable_list/sp_decl_idents_init_vars_field_type_all_with_record_sp_opt_default!truncate	BEGIN NOT ATOMIC DECLARE a
 reject	reject	engine	sp_decl_variable_list/sp_decl_idents_init_vars_field_type_all_with_record_sp_opt_default!insert	BEGIN NOT ATOMIC DECLARE a INT zzz; END;
 reject	reject	engine	sp_decl_variable_list/sp_decl_idents_init_vars_field_type_all_with_record_sp_opt_default!swap	BEGIN NOT ATOMIC DECLARE a INTERSECT; END;
-reject	accept	engine	sp_decl_variable_list/sp_decl_idents_init_vars_ROW_SYM_row_type_body_sp_opt_default	BEGIN NOT ATOMIC DECLARE a ROW(a INT); END;
+accept	accept	engine	sp_decl_variable_list/sp_decl_idents_init_vars_ROW_SYM_row_type_body_sp_opt_default	BEGIN NOT ATOMIC DECLARE a ROW(a INT); END;
 reject	reject	engine	sp_decl_variable_list/sp_decl_idents_init_vars_ROW_SYM_row_type_body_sp_opt_default!drop-1	BEGIN NOT ATOMIC DECLARE ROW(a INT); END;
 reject	reject	engine	sp_decl_variable_list/sp_decl_idents_init_vars_ROW_SYM_row_type_body_sp_opt_default!drop-2	BEGIN NOT ATOMIC DECLARE a(a INT); END;
 reject	reject	engine	sp_decl_variable_list/sp_decl_idents_init_vars_ROW_SYM_row_type_body_sp_opt_default!drop-3	BEGIN NOT ATOMIC DECLARE a ROW a INT); END;
@@ -1283,7 +1283,7 @@ reject	reject	engine	sp_decl_variable_list/sp_decl_variable_list_anchored!drop-1
 reject	reject	engine	sp_decl_variable_list/sp_decl_variable_list_anchored!drop-2	BEGIN NOT ATOMIC DECLARE a OF a; END;
 reject	reject	engine	sp_decl_variable_list/sp_decl_variable_list_anchored!drop-3	BEGIN NOT ATOMIC DECLARE a TYPE a; END;
 reject	reject	engine	sp_decl_variable_list/sp_decl_variable_list_anchored!swap	BEGIN NOT ATOMIC DECLARE a UNBOUNDED OF a; END;
-reject	accept	engine	sp_decl_handler/sp_handler_type_HANDLER_SYM_FOR_SYM_sp_hcond_list_sp_proc_stmt	BEGIN NOT ATOMIC DECLARE EXIT HANDLER FOR 1 COMMIT; END;
+accept	accept	engine	sp_decl_handler/sp_handler_type_HANDLER_SYM_FOR_SYM_sp_hcond_list_sp_proc_stmt	BEGIN NOT ATOMIC DECLARE EXIT HANDLER FOR 1 COMMIT; END;
 reject	reject	engine	sp_decl_handler/sp_handler_type_HANDLER_SYM_FOR_SYM_sp_hcond_list_sp_proc_stmt!drop-1	BEGIN NOT ATOMIC DECLARE HANDLER FOR 1 COMMIT; END;
 reject	reject	engine	sp_decl_handler/sp_handler_type_HANDLER_SYM_FOR_SYM_sp_hcond_list_sp_proc_stmt!drop-2	BEGIN NOT ATOMIC DECLARE EXIT FOR 1 COMMIT; END;
 reject	reject	engine	sp_decl_handler/sp_handler_type_HANDLER_SYM_FOR_SYM_sp_hcond_list_sp_proc_stmt!drop-3	BEGIN NOT ATOMIC DECLARE EXIT HANDLER 1 COMMIT; END;
@@ -1292,27 +1292,27 @@ reject	reject	engine	sp_decl_handler/sp_handler_type_HANDLER_SYM_FOR_SYM_sp_hcon
 reject	reject	engine	sp_decl_handler/sp_handler_type_HANDLER_SYM_FOR_SYM_sp_hcond_list_sp_proc_stmt!truncate	BEGIN NOT ATOMIC DECLARE EXIT HANDLER FOR 1
 reject	reject	engine	sp_decl_handler/sp_handler_type_HANDLER_SYM_FOR_SYM_sp_hcond_list_sp_proc_stmt!insert	BEGIN NOT ATOMIC DECLARE EXIT HANDLER FOR 1 COMMIT zzz; END;
 reject	reject	engine	sp_decl_handler/sp_handler_type_HANDLER_SYM_FOR_SYM_sp_hcond_list_sp_proc_stmt!swap	BEGIN NOT ATOMIC DECLARE EXPANSION HANDLER FOR 1 COMMIT; END;
-reject	accept	engine	opt_parenthesized_cursor_formal_parameters/%empty	BEGIN NOT ATOMIC DECLARE a CURSOR FOR SELECT a; END;
+accept	accept	engine	opt_parenthesized_cursor_formal_parameters/%empty	BEGIN NOT ATOMIC DECLARE a CURSOR FOR SELECT a; END;
 reject	reject	engine	opt_parenthesized_cursor_formal_parameters/%empty!insert	BEGIN NOT ATOMIC DECLARE a CURSOR zzz FOR SELECT a; END;
-reject	accept	engine	opt_parenthesized_cursor_formal_parameters/(_sp_fdparams_no_default_)	BEGIN NOT ATOMIC DECLARE a CURSOR(a INT) FOR SELECT a; END;
+accept	accept	engine	opt_parenthesized_cursor_formal_parameters/(_sp_fdparams_no_default_)	BEGIN NOT ATOMIC DECLARE a CURSOR(a INT) FOR SELECT a; END;
 reject	reject	engine	opt_parenthesized_cursor_formal_parameters/(_sp_fdparams_no_default_)!drop-1	BEGIN NOT ATOMIC DECLARE a CURSOR a INT) FOR SELECT a; END;
 reject	reject	engine	opt_parenthesized_cursor_formal_parameters/(_sp_fdparams_no_default_)!drop-4	BEGIN NOT ATOMIC DECLARE a CURSOR(a INT FOR SELECT a; END;
 reject	reject	engine	opt_parenthesized_cursor_formal_parameters/(_sp_fdparams_no_default_)!truncate	BEGIN NOT ATOMIC DECLARE a CURSOR(a INT
 reject	reject	engine	opt_parenthesized_cursor_formal_parameters/(_sp_fdparams_no_default_)!insert	BEGIN NOT ATOMIC DECLARE a CURSOR(a INT) zzz FOR SELECT a; END;
-reject	accept	engine	sp_cursor_stmt_lex/%empty	BEGIN NOT ATOMIC DECLARE a CURSOR FOR SELECT a; END;
+accept	accept	engine	sp_cursor_stmt_lex/%empty	BEGIN NOT ATOMIC DECLARE a CURSOR FOR SELECT a; END;
 reject	reject	engine	sp_cursor_stmt_lex/%empty!insert	BEGIN NOT ATOMIC DECLARE a CURSOR FOR zzz SELECT a; END;
-reject	accept	engine	sp_cursor_stmt/sp_cursor_stmt_lex_remember_name_select_remember_end	BEGIN NOT ATOMIC DECLARE a CURSOR FOR SELECT a; END;
+accept	accept	engine	sp_cursor_stmt/sp_cursor_stmt_lex_remember_name_select_remember_end	BEGIN NOT ATOMIC DECLARE a CURSOR FOR SELECT a; END;
 reject	reject	engine	sp_cursor_stmt/sp_cursor_stmt_lex_remember_name_select_remember_end!drop-1	BEGIN NOT ATOMIC DECLARE a CURSOR FOR a; END;
 reject	reject	engine	sp_cursor_stmt/sp_cursor_stmt_lex_remember_name_select_remember_end!drop-2	BEGIN NOT ATOMIC DECLARE a CURSOR FOR SELECT; END;
 reject	reject	engine	sp_cursor_stmt/sp_cursor_stmt_lex_remember_name_select_remember_end!truncate	BEGIN NOT ATOMIC DECLARE a CURSOR FOR SELECT
-reject	accept	engine	sp_cursor_stmt/sp_cursor_stmt_lex_remember_name_select_remember_end!insert	BEGIN NOT ATOMIC DECLARE a CURSOR FOR SELECT a zzz; END;
+accept	accept	engine	sp_cursor_stmt/sp_cursor_stmt_lex_remember_name_select_remember_end!insert	BEGIN NOT ATOMIC DECLARE a CURSOR FOR SELECT a zzz; END;
 reject	reject	engine	sp_cursor_stmt/sp_cursor_stmt_lex_remember_name_select_remember_end!swap	BEGIN NOT ATOMIC DECLARE a CURSOR FOR SENSITIVE a; END;
-reject	accept	engine	sp_handler_type/EXIT_MARIADB_SYM	BEGIN NOT ATOMIC DECLARE EXIT HANDLER FOR 1 COMMIT; END;
+accept	accept	engine	sp_handler_type/EXIT_MARIADB_SYM	BEGIN NOT ATOMIC DECLARE EXIT HANDLER FOR 1 COMMIT; END;
 reject	reject	engine	sp_handler_type/EXIT_MARIADB_SYM!insert	BEGIN NOT ATOMIC DECLARE EXIT zzz HANDLER FOR 1 COMMIT; END;
-reject	accept	engine	sp_handler_type/CONTINUE_MARIADB_SYM	BEGIN NOT ATOMIC DECLARE CONTINUE HANDLER FOR 1 COMMIT; END;
+accept	accept	engine	sp_handler_type/CONTINUE_MARIADB_SYM	BEGIN NOT ATOMIC DECLARE CONTINUE HANDLER FOR 1 COMMIT; END;
 reject	reject	engine	sp_handler_type/CONTINUE_MARIADB_SYM!insert	BEGIN NOT ATOMIC DECLARE CONTINUE zzz HANDLER FOR 1 COMMIT; END;
 reject	reject	engine	sp_handler_type/CONTINUE_MARIADB_SYM!swap	BEGIN NOT ATOMIC DECLARE CONTRIBUTORS HANDLER FOR 1 COMMIT; END;
-reject	accept	engine	sp_hcond_list/sp_hcond_element	BEGIN NOT ATOMIC DECLARE EXIT HANDLER FOR 1 COMMIT; END;
+accept	accept	engine	sp_hcond_list/sp_hcond_element	BEGIN NOT ATOMIC DECLARE EXIT HANDLER FOR 1 COMMIT; END;
 reject	reject	engine	sp_hcond_list/sp_hcond_element!truncate	BEGIN NOT ATOMIC DECLARE EXIT HANDLER FOR
 reject	reject	engine	sp_hcond_list/sp_hcond_element!insert	BEGIN NOT ATOMIC DECLARE EXIT HANDLER FOR 1 zzz COMMIT; END;
 reject	reject	engine	sp_hcond_list/sp_hcond_list_,_sp_hcond_element	BEGIN NOT ATOMIC DECLARE EXIT HANDLER FOR 1, 1 COMMIT; END;
@@ -1321,8 +1321,8 @@ reject	reject	engine	sp_hcond_list/sp_hcond_list_,_sp_hcond_element!drop-2	BEGIN
 reject	reject	engine	sp_hcond_list/sp_hcond_list_,_sp_hcond_element!drop-3	BEGIN NOT ATOMIC DECLARE EXIT HANDLER FOR 1, COMMIT; END;
 reject	reject	engine	sp_hcond_list/sp_hcond_list_,_sp_hcond_element!truncate	BEGIN NOT ATOMIC DECLARE EXIT HANDLER FOR 1,
 reject	reject	engine	sp_hcond_list/sp_hcond_list_,_sp_hcond_element!insert	BEGIN NOT ATOMIC DECLARE EXIT HANDLER FOR 1, 1 zzz COMMIT; END;
-reject	accept	engine	sp_hcond_element/sp_hcond	BEGIN NOT ATOMIC DECLARE EXIT HANDLER FOR 1 COMMIT; END;
-reject	accept	engine	sp_cond/ulong_num	BEGIN NOT ATOMIC DECLARE a CONDITION FOR 1; END;
+accept	accept	engine	sp_hcond_element/sp_hcond	BEGIN NOT ATOMIC DECLARE EXIT HANDLER FOR 1 COMMIT; END;
+accept	accept	engine	sp_cond/ulong_num	BEGIN NOT ATOMIC DECLARE a CONDITION FOR 1; END;
 reject	reject	engine	sp_cond/ulong_num!drop-1	BEGIN NOT ATOMIC DECLARE a CONDITION FOR; END;
 reject	reject	engine	sp_cond/ulong_num!truncate	BEGIN NOT ATOMIC DECLARE a CONDITION FOR
 reject	reject	engine	sp_cond/ulong_num!insert	BEGIN NOT ATOMIC DECLARE a CONDITION FOR 1 zzz; END;
@@ -1343,28 +1343,28 @@ reject	reject	engine	opt_value/%empty!insert	RESIGNAL SQLSTATE zzz 's';
 reject	reject	engine	opt_value/VALUE_SYM	RESIGNAL SQLSTATE VALUE 's';
 reject	reject	engine	opt_value/VALUE_SYM!insert	RESIGNAL SQLSTATE VALUE zzz 's';
 reject	reject	engine	opt_value/VALUE_SYM!swap	RESIGNAL SQLSTATE VALUES 's';
-reject	accept	engine	sp_hcond/sp_cond	BEGIN NOT ATOMIC DECLARE EXIT HANDLER FOR 1 COMMIT; END;
+accept	accept	engine	sp_hcond/sp_cond	BEGIN NOT ATOMIC DECLARE EXIT HANDLER FOR 1 COMMIT; END;
 reject	reject	engine	sp_hcond/ident	BEGIN NOT ATOMIC DECLARE EXIT HANDLER FOR a COMMIT; END;
 reject	reject	engine	sp_hcond/ident!insert	BEGIN NOT ATOMIC DECLARE EXIT HANDLER FOR a zzz COMMIT; END;
-reject	accept	engine	sp_hcond/SQLWARNING_SYM	BEGIN NOT ATOMIC DECLARE EXIT HANDLER FOR SQLWARNING COMMIT; END;
+accept	accept	engine	sp_hcond/SQLWARNING_SYM	BEGIN NOT ATOMIC DECLARE EXIT HANDLER FOR SQLWARNING COMMIT; END;
 reject	reject	engine	sp_hcond/SQLWARNING_SYM!insert	BEGIN NOT ATOMIC DECLARE EXIT HANDLER FOR SQLWARNING zzz COMMIT; END;
 reject	reject	engine	sp_hcond/SQLWARNING_SYM!swap	BEGIN NOT ATOMIC DECLARE EXIT HANDLER FOR SQL_AFTER_GTIDS COMMIT; END;
-reject	accept	engine	sp_hcond/not_FOUND_SYM	BEGIN NOT ATOMIC DECLARE EXIT HANDLER FOR NOT FOUND COMMIT; END;
+accept	accept	engine	sp_hcond/not_FOUND_SYM	BEGIN NOT ATOMIC DECLARE EXIT HANDLER FOR NOT FOUND COMMIT; END;
 reject	reject	engine	sp_hcond/not_FOUND_SYM!drop-1	BEGIN NOT ATOMIC DECLARE EXIT HANDLER FOR FOUND COMMIT; END;
 reject	reject	engine	sp_hcond/not_FOUND_SYM!drop-2	BEGIN NOT ATOMIC DECLARE EXIT HANDLER FOR NOT COMMIT; END;
 reject	reject	engine	sp_hcond/not_FOUND_SYM!truncate	BEGIN NOT ATOMIC DECLARE EXIT HANDLER FOR NOT
 reject	reject	engine	sp_hcond/not_FOUND_SYM!insert	BEGIN NOT ATOMIC DECLARE EXIT HANDLER FOR NOT FOUND zzz COMMIT; END;
 reject	reject	engine	sp_hcond/not_FOUND_SYM!swap	BEGIN NOT ATOMIC DECLARE EXIT HANDLER FOR NOTFOUND FOUND COMMIT; END;
-reject	accept	engine	sp_hcond/SQLEXCEPTION_SYM	BEGIN NOT ATOMIC DECLARE EXIT HANDLER FOR SQLEXCEPTION COMMIT; END;
+accept	accept	engine	sp_hcond/SQLEXCEPTION_SYM	BEGIN NOT ATOMIC DECLARE EXIT HANDLER FOR SQLEXCEPTION COMMIT; END;
 reject	reject	engine	sp_hcond/SQLEXCEPTION_SYM!insert	BEGIN NOT ATOMIC DECLARE EXIT HANDLER FOR SQLEXCEPTION zzz COMMIT; END;
 reject	reject	engine	sp_hcond/SQLEXCEPTION_SYM!swap	BEGIN NOT ATOMIC DECLARE EXIT HANDLER FOR SQLSTATE COMMIT; END;
-accept	reject	engine	signal_stmt/SIGNAL_SYM_signal_value_opt_set_signal_information	SIGNAL a;
-accept	reject	engine	signal_value/ident	RESIGNAL a;
+reject	reject	engine	signal_stmt/SIGNAL_SYM_signal_value_opt_set_signal_information	SIGNAL a;
+reject	reject	engine	signal_value/ident	RESIGNAL a;
 accept	accept	engine	signal_value/ident!truncate	RESIGNAL
 reject	reject	engine	signal_value/ident!insert	RESIGNAL a zzz;
 reject	reject	engine	signal_value/sqlstate	RESIGNAL SQLSTATE 's';
 accept	accept	engine	opt_signal_value/%empty	RESIGNAL;
-accept	reject	engine	opt_signal_value/signal_value	RESIGNAL a;
+reject	reject	engine	opt_signal_value/signal_value	RESIGNAL a;
 accept	accept	engine	opt_set_signal_information/%empty	RESIGNAL;
 accept	accept	engine	opt_set_signal_information/SET_signal_information_item_list	RESIGNAL SET CLASS_ORIGIN = 's';
 reject	reject	engine	opt_set_signal_information/SET_signal_information_item_list!drop-1	RESIGNAL CLASS_ORIGIN = 's';
@@ -1536,7 +1536,7 @@ reject	reject	engine	sp_decl_ident/IDENT_sys!insert	ALTER TABLE a ADD a a zzz.IN
 reject	reject	engine	sp_decl_ident/keyword_sp_decl	ALTER TABLE a ADD a BIT.INT;
 reject	reject	engine	sp_decl_ident/keyword_sp_decl!insert	ALTER TABLE a ADD a BIT zzz.INT;
 reject	reject	engine	sp_decl_ident/keyword_sp_decl!swap	ALTER TABLE a ADD a BIT_AND.INT;
-reject	accept	engine	sp_decl_idents/sp_decl_ident	BEGIN NOT ATOMIC DECLARE a INT; END;
+accept	accept	engine	sp_decl_idents/sp_decl_ident	BEGIN NOT ATOMIC DECLARE a INT; END;
 reject	reject	engine	sp_decl_idents/sp_decl_idents_,_ident	BEGIN NOT ATOMIC DECLARE a, a INT; END;
 reject	reject	engine	sp_decl_idents/sp_decl_idents_,_ident!drop-1	BEGIN NOT ATOMIC DECLARE, a INT; END;
 reject	reject	engine	sp_decl_idents/sp_decl_idents_,_ident!drop-2	BEGIN NOT ATOMIC DECLARE a a INT; END;
@@ -1760,7 +1760,7 @@ reject	reject	engine	sp_for_loop_bounds/IN_SYM_opt_sp_for_loop_direction_for_loo
 reject	reject	engine	sp_for_loop_bounds/IN_SYM_opt_sp_for_loop_direction_for_loop_bound_expr_DOT_DOT_SYM_for_loop_bound_expr!insert	FOR a IN a..a zzz DO COMMIT; END FOR;
 reject	reject	engine	sp_for_loop_bounds/IN_SYM_opt_sp_for_loop_direction_for_loop_bound_expr_DOT_DOT_SYM_for_loop_bound_expr!swap	FOR a INCREMENT a..a DO COMMIT; END FOR;
 reject	reject	engine	sp_for_loop_bounds/IN_SYM_opt_sp_for_loop_direction_for_loop_bound_expr	FOR a IN a DO COMMIT; END FOR;
-reject	accept	engine	sp_for_loop_bounds/IN_SYM_opt_sp_for_loop_direction_(_sp_cursor_stmt_)	FOR a IN(SELECT a) DO COMMIT; END FOR;
+accept	accept	engine	sp_for_loop_bounds/IN_SYM_opt_sp_for_loop_direction_(_sp_cursor_stmt_)	FOR a IN(SELECT a) DO COMMIT; END FOR;
 reject	reject	engine	sp_for_loop_bounds/IN_SYM_opt_sp_for_loop_direction_(_sp_cursor_stmt_)!drop-1	FOR a(SELECT a) DO COMMIT; END FOR;
 reject	reject	engine	sp_for_loop_bounds/IN_SYM_opt_sp_for_loop_direction_(_sp_cursor_stmt_)!drop-2	FOR a IN SELECT a) DO COMMIT; END FOR;
 reject	reject	engine	sp_for_loop_bounds/IN_SYM_opt_sp_for_loop_direction_(_sp_cursor_stmt_)!drop-3	FOR a IN(a) DO COMMIT; END FOR;
@@ -1769,7 +1769,7 @@ reject	reject	engine	sp_for_loop_bounds/IN_SYM_opt_sp_for_loop_direction_(_sp_cu
 reject	reject	engine	sp_for_loop_bounds/IN_SYM_opt_sp_for_loop_direction_(_sp_cursor_stmt_)!truncate	FOR a IN(SELECT a
 reject	reject	engine	sp_for_loop_bounds/IN_SYM_opt_sp_for_loop_direction_(_sp_cursor_stmt_)!insert	FOR a IN(SELECT a) zzz DO COMMIT; END FOR;
 reject	reject	engine	sp_for_loop_bounds/IN_SYM_opt_sp_for_loop_direction_(_sp_cursor_stmt_)!swap	FOR a INCREMENT(SELECT a) DO COMMIT; END FOR;
-reject	accept	engine	loop_body/sp_proc_stmts1_END_LOOP_SYM	LOOP COMMIT; END LOOP;
+accept	accept	engine	loop_body/sp_proc_stmts1_END_LOOP_SYM	LOOP COMMIT; END LOOP;
 reject	reject	engine	loop_body/sp_proc_stmts1_END_LOOP_SYM!drop-3	LOOP COMMIT; LOOP;
 reject	reject	engine	loop_body/sp_proc_stmts1_END_LOOP_SYM!drop-4	LOOP COMMIT; END;
 reject	reject	engine	loop_body/sp_proc_stmts1_END_LOOP_SYM!truncate	LOOP COMMIT; END
@@ -1837,7 +1837,7 @@ reject	reject	engine	sp_labeled_control/sp_control_label_REPEAT_SYM_repeat_body_
 reject	reject	engine	sp_labeled_control/sp_control_label_REPEAT_SYM_repeat_body_pop_sp_loop_label!truncate	ALTER EVENT a DO a : REPEAT COMMIT; UNTIL a END
 reject	reject	engine	sp_labeled_control/sp_control_label_REPEAT_SYM_repeat_body_pop_sp_loop_label!insert	ALTER EVENT a DO a : REPEAT COMMIT; UNTIL a END REPEAT zzz;
 reject	reject	engine	sp_labeled_control/sp_control_label_REPEAT_SYM_repeat_body_pop_sp_loop_label!swap	ALTER EVENT a DO a : REPEATABLE COMMIT; UNTIL a END REPEAT;
-reject	accept	engine	sp_unlabeled_control/LOOP_SYM_loop_body	LOOP COMMIT; END LOOP;
+accept	accept	engine	sp_unlabeled_control/LOOP_SYM_loop_body	LOOP COMMIT; END LOOP;
 reject	reject	engine	sp_unlabeled_control/LOOP_SYM_loop_body!drop-1	COMMIT; END LOOP;
 reject	reject	engine	sp_unlabeled_control/LOOP_SYM_loop_body!swap	LOW_PRIORITY COMMIT; END LOOP;
 reject	reject	engine	sp_unlabeled_control/WHILE_SYM_while_body	WHILE a DO COMMIT; END WHILE;
@@ -2643,16 +2643,16 @@ accept	accept	engine	udf_type/STRING_SYM	CREATE FUNCTION a RETURNS STRING SONAME
 reject	reject	engine	udf_type/STRING_SYM!drop-1	CREATE FUNCTION a RETURNS SONAME 's';
 reject	reject	engine	udf_type/STRING_SYM!truncate	CREATE FUNCTION a RETURNS
 reject	reject	engine	udf_type/STRING_SYM!insert	CREATE FUNCTION a RETURNS STRING zzz SONAME 's';
-accept	reject	engine	udf_type/STRING_SYM!swap	CREATE FUNCTION a RETURNS SUBCLASS_ORIGIN SONAME 's';
+reject	reject	engine	udf_type/STRING_SYM!swap	CREATE FUNCTION a RETURNS SUBCLASS_ORIGIN SONAME 's';
 accept	accept	engine	udf_type/REAL	CREATE FUNCTION a RETURNS REAL SONAME 's';
 reject	reject	engine	udf_type/REAL!insert	CREATE FUNCTION a RETURNS REAL zzz SONAME 's';
-accept	reject	engine	udf_type/REAL!swap	CREATE FUNCTION a RETURNS REBUILD SONAME 's';
+reject	reject	engine	udf_type/REAL!swap	CREATE FUNCTION a RETURNS REBUILD SONAME 's';
 accept	accept	engine	udf_type/DECIMAL_SYM	CREATE FUNCTION a RETURNS DECIMAL SONAME 's';
 reject	reject	engine	udf_type/DECIMAL_SYM!insert	CREATE FUNCTION a RETURNS DECIMAL zzz SONAME 's';
-accept	reject	engine	udf_type/DECIMAL_SYM!swap	CREATE FUNCTION a RETURNS DECLARE SONAME 's';
+reject	reject	engine	udf_type/DECIMAL_SYM!swap	CREATE FUNCTION a RETURNS DECLARE SONAME 's';
 accept	accept	engine	udf_type/INT_SYM	CREATE FUNCTION a RETURNS INT SONAME 's';
 reject	reject	engine	udf_type/INT_SYM!insert	CREATE FUNCTION a RETURNS INT zzz SONAME 's';
-accept	reject	engine	udf_type/INT_SYM!swap	CREATE FUNCTION a RETURNS INTERSECT SONAME 's';
+reject	reject	engine	udf_type/INT_SYM!swap	CREATE FUNCTION a RETURNS INTERSECT SONAME 's';
 accept	accept	engine	create_field_list/field_list	ALTER TABLE a ADD(a INT);
 reject	reject	engine	create_field_list/field_list!drop-1	ALTER TABLE a ADD(INT);
 reject	reject	engine	create_field_list/field_list!drop-2	ALTER TABLE a ADD(a);
@@ -2997,7 +2997,7 @@ reject	reject	engine	field_type_all_builtin/field_type_misc!insert	ALTER TABLE a
 reject	reject	engine	field_type_all_builtin/field_type_misc!swap	ALTER TABLE a ADD a ERROR('s');
 accept	accept	engine	field_type_all/field_type_all_builtin	ALTER TABLE a ADD a INT;
 reject	reject	engine	field_type_all/udt_name_float_options_srid_option	ALTER TABLE a ADD a a;
-reject	accept	engine	field_type_all_with_record/field_type_all_builtin	BEGIN NOT ATOMIC DECLARE a INT; END;
+accept	accept	engine	field_type_all_with_record/field_type_all_builtin	BEGIN NOT ATOMIC DECLARE a INT; END;
 reject	reject	engine	field_type_all_with_record/udt_name_float_options_srid_option	BEGIN NOT ATOMIC DECLARE a a; END;
 reject	reject	engine	field_type_all_with_record/udt_name_float_options_srid_option!insert	BEGIN NOT ATOMIC DECLARE a a zzz; END;
 accept	accept	engine	field_type_numeric/int_type_opt_field_length_last_field_options	ALTER TABLE a ADD a INT;
@@ -3179,15 +3179,15 @@ reject	reject	engine	field_options/SIGNED_SYM!swap	ALTER SEQUENCE a AS INT SIMPL
 accept	accept	engine	field_options/UNSIGNED	ALTER SEQUENCE a AS INT UNSIGNED;
 reject	reject	engine	field_options/UNSIGNED!insert	ALTER SEQUENCE a AS INT UNSIGNED zzz;
 reject	reject	engine	field_options/UNSIGNED!swap	ALTER SEQUENCE a AS INT UNTIL;
-accept	reject	engine	field_options/ZEROFILL	ALTER SEQUENCE a AS INT ZEROFILL;
+reject	reject	engine	field_options/ZEROFILL	ALTER SEQUENCE a AS INT ZEROFILL;
 reject	reject	engine	field_options/ZEROFILL!insert	ALTER SEQUENCE a AS INT ZEROFILL zzz;
 reject	reject	engine	field_options/ZEROFILL!swap	ALTER SEQUENCE a AS INT ACCESSIBLE;
-accept	reject	engine	field_options/UNSIGNED_ZEROFILL	ALTER SEQUENCE a AS INT UNSIGNED ZEROFILL;
+reject	reject	engine	field_options/UNSIGNED_ZEROFILL	ALTER SEQUENCE a AS INT UNSIGNED ZEROFILL;
 accept	accept	engine	field_options/UNSIGNED_ZEROFILL!truncate	ALTER SEQUENCE a AS INT UNSIGNED
 reject	reject	engine	field_options/UNSIGNED_ZEROFILL!insert	ALTER SEQUENCE a AS INT UNSIGNED ZEROFILL zzz;
 reject	reject	engine	field_options/UNSIGNED_ZEROFILL!swap	ALTER SEQUENCE a AS INT UNTIL ZEROFILL;
-accept	reject	engine	field_options/ZEROFILL_UNSIGNED	ALTER SEQUENCE a AS INT ZEROFILL UNSIGNED;
-accept	reject	engine	field_options/ZEROFILL_UNSIGNED!truncate	ALTER SEQUENCE a AS INT ZEROFILL
+reject	reject	engine	field_options/ZEROFILL_UNSIGNED	ALTER SEQUENCE a AS INT ZEROFILL UNSIGNED;
+reject	reject	engine	field_options/ZEROFILL_UNSIGNED!truncate	ALTER SEQUENCE a AS INT ZEROFILL
 reject	reject	engine	field_options/ZEROFILL_UNSIGNED!insert	ALTER SEQUENCE a AS INT ZEROFILL UNSIGNED zzz;
 reject	reject	engine	field_options/ZEROFILL_UNSIGNED!swap	ALTER SEQUENCE a AS INT ACCESSIBLE UNSIGNED;
 accept	accept	engine	last_field_options/field_options	ALTER TABLE a ADD a INT;
@@ -5429,7 +5429,7 @@ accept	accept	engine	and/AND_SYM	DO a AND a;
 reject	reject	engine	and/AND_SYM!insert	DO a AND zzz a;
 accept	accept	engine	and/AND_AND_SYM	DO a && a;
 reject	reject	engine	and/AND_AND_SYM!insert	DO a && zzz a;
-reject	accept	engine	not/NOT_SYM	BEGIN NOT ATOMIC END;
+accept	accept	engine	not/NOT_SYM	BEGIN NOT ATOMIC END;
 accept	accept	engine	not/NOT_SYM!truncate	BEGIN
 reject	reject	engine	not/NOT_SYM!insert	BEGIN NOT zzz ATOMIC END;
 reject	reject	engine	not/NOT_SYM!swap	BEGIN NOTFOUND ATOMIC END;
@@ -5454,46 +5454,46 @@ reject	reject	engine	all_or_any/ANY_SYM!insert	DO a = ANY zzz(SELECT a);
 reject	reject	engine	all_or_any/ANY_SYM!swap	DO a = AS(SELECT a);
 accept	accept	engine	opt_dyncol_type/%empty	DO COLUMN_CREATE(a, a);
 reject	reject	engine	opt_dyncol_type/%empty!insert	DO COLUMN_CREATE(a, a zzz);
-reject	accept	engine	opt_dyncol_type/AS_dyncol_type	DO COLUMN_CREATE(a, a AS INT);
+accept	accept	engine	opt_dyncol_type/AS_dyncol_type	DO COLUMN_CREATE(a, a AS INT);
 reject	reject	engine	opt_dyncol_type/AS_dyncol_type!drop-1	DO COLUMN_CREATE(a, a INT);
 reject	reject	engine	opt_dyncol_type/AS_dyncol_type!drop-2	DO COLUMN_CREATE(a, a AS);
 reject	reject	engine	opt_dyncol_type/AS_dyncol_type!truncate	DO COLUMN_CREATE(a, a AS
 reject	reject	engine	opt_dyncol_type/AS_dyncol_type!insert	DO COLUMN_CREATE(a, a AS INT zzz);
 reject	reject	engine	opt_dyncol_type/AS_dyncol_type!swap	DO COLUMN_CREATE(a, a ASC INT);
-reject	accept	engine	dyncol_type/numeric_dyncol_type	DO COLUMN_CREATE(a, a AS INT);
+accept	accept	engine	dyncol_type/numeric_dyncol_type	DO COLUMN_CREATE(a, a AS INT);
 reject	reject	engine	dyncol_type/numeric_dyncol_type!swap	DO COLUMN_CREATE(a, a AS INTERSECT);
-reject	accept	engine	dyncol_type/temporal_dyncol_type	DO COLUMN_CREATE(a, a AS DATE);
+accept	accept	engine	dyncol_type/temporal_dyncol_type	DO COLUMN_CREATE(a, a AS DATE);
 reject	reject	engine	dyncol_type/temporal_dyncol_type!insert	DO COLUMN_CREATE(a, a AS DATE zzz);
-reject	accept	engine	dyncol_type/string_dyncol_type	DO COLUMN_CREATE(a, a AS CHAR);
+accept	accept	engine	dyncol_type/string_dyncol_type	DO COLUMN_CREATE(a, a AS CHAR);
 reject	reject	engine	dyncol_type/string_dyncol_type!insert	DO COLUMN_CREATE(a, a AS CHAR zzz);
 reject	reject	engine	dyncol_type/string_dyncol_type!swap	DO COLUMN_CREATE(a, a AS CHARSET);
-reject	accept	engine	numeric_dyncol_type/INT_SYM	DO COLUMN_CREATE(a, a AS INT);
-reject	accept	engine	numeric_dyncol_type/UNSIGNED_INT_SYM	DO COLUMN_CREATE(a, a AS UNSIGNED INT);
+accept	accept	engine	numeric_dyncol_type/INT_SYM	DO COLUMN_CREATE(a, a AS INT);
+accept	accept	engine	numeric_dyncol_type/UNSIGNED_INT_SYM	DO COLUMN_CREATE(a, a AS UNSIGNED INT);
 reject	reject	engine	numeric_dyncol_type/UNSIGNED_INT_SYM!drop-2	DO COLUMN_CREATE(a, a AS UNSIGNED);
 reject	reject	engine	numeric_dyncol_type/UNSIGNED_INT_SYM!truncate	DO COLUMN_CREATE(a, a AS UNSIGNED
 reject	reject	engine	numeric_dyncol_type/UNSIGNED_INT_SYM!insert	DO COLUMN_CREATE(a, a AS UNSIGNED INT zzz);
 reject	reject	engine	numeric_dyncol_type/UNSIGNED_INT_SYM!swap	DO COLUMN_CREATE(a, a AS UNTIL INT);
-reject	accept	engine	numeric_dyncol_type/DOUBLE_SYM	DO COLUMN_CREATE(a, a AS DOUBLE);
+accept	accept	engine	numeric_dyncol_type/DOUBLE_SYM	DO COLUMN_CREATE(a, a AS DOUBLE);
 reject	reject	engine	numeric_dyncol_type/DOUBLE_SYM!insert	DO COLUMN_CREATE(a, a AS DOUBLE zzz);
 reject	reject	engine	numeric_dyncol_type/DOUBLE_SYM!swap	DO COLUMN_CREATE(a, a AS DO_DOMAIN_IDS);
-reject	accept	engine	numeric_dyncol_type/REAL	DO COLUMN_CREATE(a, a AS REAL);
+accept	accept	engine	numeric_dyncol_type/REAL	DO COLUMN_CREATE(a, a AS REAL);
 reject	reject	engine	numeric_dyncol_type/REAL!insert	DO COLUMN_CREATE(a, a AS REAL zzz);
 reject	reject	engine	numeric_dyncol_type/REAL!swap	DO COLUMN_CREATE(a, a AS REBUILD);
-reject	accept	engine	numeric_dyncol_type/FLOAT_SYM	DO COLUMN_CREATE(a, a AS FLOAT);
+accept	accept	engine	numeric_dyncol_type/FLOAT_SYM	DO COLUMN_CREATE(a, a AS FLOAT);
 reject	reject	engine	numeric_dyncol_type/FLOAT_SYM!insert	DO COLUMN_CREATE(a, a AS FLOAT zzz);
 reject	reject	engine	numeric_dyncol_type/FLOAT_SYM!swap	DO COLUMN_CREATE(a, a AS FLUSH);
-reject	accept	engine	numeric_dyncol_type/DECIMAL_SYM_float_options	DO COLUMN_CREATE(a, a AS DECIMAL);
+accept	accept	engine	numeric_dyncol_type/DECIMAL_SYM_float_options	DO COLUMN_CREATE(a, a AS DECIMAL);
 reject	reject	engine	numeric_dyncol_type/DECIMAL_SYM_float_options!insert	DO COLUMN_CREATE(a, a AS DECIMAL zzz);
 reject	reject	engine	numeric_dyncol_type/DECIMAL_SYM_float_options!swap	DO COLUMN_CREATE(a, a AS DECLARE);
-reject	accept	engine	temporal_dyncol_type/DATE_SYM	DO COLUMN_CREATE(a, a AS DATE);
-reject	accept	engine	temporal_dyncol_type/TIME_SYM_opt_field_scale	DO COLUMN_CREATE(a, a AS TIME);
+accept	accept	engine	temporal_dyncol_type/DATE_SYM	DO COLUMN_CREATE(a, a AS DATE);
+accept	accept	engine	temporal_dyncol_type/TIME_SYM_opt_field_scale	DO COLUMN_CREATE(a, a AS TIME);
 reject	reject	engine	temporal_dyncol_type/TIME_SYM_opt_field_scale!insert	DO COLUMN_CREATE(a, a AS TIME zzz);
 reject	reject	engine	temporal_dyncol_type/TIME_SYM_opt_field_scale!swap	DO COLUMN_CREATE(a, a AS TIMESTAMP);
-reject	accept	engine	temporal_dyncol_type/DATETIME_opt_field_scale	DO COLUMN_CREATE(a, a AS DATETIME);
+accept	accept	engine	temporal_dyncol_type/DATETIME_opt_field_scale	DO COLUMN_CREATE(a, a AS DATETIME);
 reject	reject	engine	temporal_dyncol_type/DATETIME_opt_field_scale!insert	DO COLUMN_CREATE(a, a AS DATETIME zzz);
 reject	reject	engine	temporal_dyncol_type/DATETIME_opt_field_scale!swap	DO COLUMN_CREATE(a, a AS DATE_ADD);
-reject	accept	engine	string_dyncol_type/char_opt_binary	DO COLUMN_CREATE(a, a AS CHAR);
-reject	accept	engine	string_dyncol_type/nchar	DO COLUMN_CREATE(a, a AS NCHAR);
+accept	accept	engine	string_dyncol_type/char_opt_binary	DO COLUMN_CREATE(a, a AS CHAR);
+accept	accept	engine	string_dyncol_type/nchar	DO COLUMN_CREATE(a, a AS NCHAR);
 reject	reject	engine	string_dyncol_type/nchar!insert	DO COLUMN_CREATE(a, a AS NCHAR zzz);
 reject	reject	engine	string_dyncol_type/nchar!swap	DO COLUMN_CREATE(a, a AS NESTED);
 accept	accept	engine	dyncall_create_element/expr_,_expr_opt_dyncol_type	DO COLUMN_CREATE(a, a);
@@ -5704,7 +5704,7 @@ reject	reject	engine	column_default_non_parenthesized_expr/DEFAULT_(_simple_iden
 accept	accept	engine	column_default_non_parenthesized_expr/DEFAULT_(_simple_ident_)!swap	DO DEFINER(a);
 accept	accept	engine	column_default_non_parenthesized_expr/VALUE_SYM_(_simple_ident_nospvar_)	DO VALUE(a);
 reject	reject	engine	column_default_non_parenthesized_expr/VALUE_SYM_(_simple_ident_nospvar_)!drop-2	DO VALUE a);
-accept	reject	engine	column_default_non_parenthesized_expr/VALUE_SYM_(_simple_ident_nospvar_)!drop-3	DO VALUE();
+reject	reject	engine	column_default_non_parenthesized_expr/VALUE_SYM_(_simple_ident_nospvar_)!drop-3	DO VALUE();
 reject	reject	engine	column_default_non_parenthesized_expr/VALUE_SYM_(_simple_ident_nospvar_)!drop-4	DO VALUE(a;
 reject	reject	engine	column_default_non_parenthesized_expr/VALUE_SYM_(_simple_ident_nospvar_)!truncate	DO VALUE(a
 reject	reject	engine	column_default_non_parenthesized_expr/VALUE_SYM_(_simple_ident_nospvar_)!insert	DO VALUE(a) zzz;
@@ -6149,7 +6149,7 @@ reject	reject	engine	function_call_nonkeyword/TIMESTAMP_DIFF_(_interval_time_sta
 reject	reject	engine	function_call_nonkeyword/TIMESTAMP_DIFF_(_interval_time_stamp_,_expr_,_expr_)!swap	DO TINYBLOB(DAY, a, a);
 accept	accept	engine	function_call_nonkeyword/TRIM_ORACLE_(_trim_operands_)	DO TRIM_ORACLE(a);
 reject	reject	engine	function_call_nonkeyword/TRIM_ORACLE_(_trim_operands_)!drop-2	DO TRIM_ORACLE a);
-accept	reject	engine	function_call_nonkeyword/TRIM_ORACLE_(_trim_operands_)!drop-3	DO TRIM_ORACLE();
+reject	reject	engine	function_call_nonkeyword/TRIM_ORACLE_(_trim_operands_)!drop-3	DO TRIM_ORACLE();
 reject	reject	engine	function_call_nonkeyword/TRIM_ORACLE_(_trim_operands_)!drop-4	DO TRIM_ORACLE(a;
 reject	reject	engine	function_call_nonkeyword/TRIM_ORACLE_(_trim_operands_)!truncate	DO TRIM_ORACLE(a
 reject	reject	engine	function_call_nonkeyword/TRIM_ORACLE_(_trim_operands_)!insert	DO TRIM_ORACLE(a) zzz;
@@ -6180,13 +6180,13 @@ reject	reject	engine	function_call_nonkeyword/COLUMN_DELETE_SYM_(_expr_,_expr_li
 reject	reject	engine	function_call_nonkeyword/COLUMN_DELETE_SYM_(_expr_,_expr_list_)!drop-6	DO COLUMN_DELETE(a, a;
 reject	reject	engine	function_call_nonkeyword/COLUMN_DELETE_SYM_(_expr_,_expr_list_)!truncate	DO COLUMN_DELETE(a, a
 reject	reject	engine	function_call_nonkeyword/COLUMN_DELETE_SYM_(_expr_,_expr_list_)!insert	DO COLUMN_DELETE(a, a) zzz;
-accept	reject	engine	function_call_nonkeyword/COLUMN_DELETE_SYM_(_expr_,_expr_list_)!swap	DO COLUMN_GET(a, a);
+reject	reject	engine	function_call_nonkeyword/COLUMN_DELETE_SYM_(_expr_,_expr_list_)!swap	DO COLUMN_GET(a, a);
 accept	accept	engine	function_call_nonkeyword/COLUMN_CREATE_SYM_(_dyncall_create_list_)	DO COLUMN_CREATE(a, a);
 reject	reject	engine	function_call_nonkeyword/COLUMN_CREATE_SYM_(_dyncall_create_list_)!drop-2	DO COLUMN_CREATE a, a);
 reject	reject	engine	function_call_nonkeyword/COLUMN_CREATE_SYM_(_dyncall_create_list_)!drop-6	DO COLUMN_CREATE(a, a;
 reject	reject	engine	function_call_nonkeyword/COLUMN_CREATE_SYM_(_dyncall_create_list_)!truncate	DO COLUMN_CREATE(a, a
 reject	reject	engine	function_call_nonkeyword/COLUMN_CREATE_SYM_(_dyncall_create_list_)!insert	DO COLUMN_CREATE(a, a) zzz;
-reject	accept	engine	function_call_nonkeyword/COLUMN_GET_SYM_(_expr_,_expr_AS_cast_type_)	DO COLUMN_GET(a, a AS BINARY);
+accept	accept	engine	function_call_nonkeyword/COLUMN_GET_SYM_(_expr_,_expr_AS_cast_type_)	DO COLUMN_GET(a, a AS BINARY);
 reject	reject	engine	function_call_nonkeyword/COLUMN_GET_SYM_(_expr_,_expr_AS_cast_type_)!drop-1	DO(a, a AS BINARY);
 reject	reject	engine	function_call_nonkeyword/COLUMN_GET_SYM_(_expr_,_expr_AS_cast_type_)!drop-2	DO COLUMN_GET a, a AS BINARY);
 reject	reject	engine	function_call_nonkeyword/COLUMN_GET_SYM_(_expr_,_expr_AS_cast_type_)!drop-3	DO COLUMN_GET(, a AS BINARY);
@@ -6345,7 +6345,7 @@ reject	reject	engine	function_call_generic/ident_cli_._ident_cli_(_opt_expr_list
 reject	reject	engine	function_call_generic/ident_cli_._ident_cli_(_opt_expr_list_)!drop-5	DO a.a(;
 reject	reject	engine	function_call_generic/ident_cli_._ident_cli_(_opt_expr_list_)!truncate	DO a.a(
 reject	reject	engine	function_call_generic/ident_cli_._ident_cli_(_opt_expr_list_)!insert	DO a.a() zzz;
-reject	accept	engine	function_call_generic/ident_cli_._ident_cli_._ident_cli_(_opt_expr_list_)	DO a.a.a();
+accept	accept	engine	function_call_generic/ident_cli_._ident_cli_._ident_cli_(_opt_expr_list_)	DO a.a.a();
 reject	reject	engine	function_call_generic/ident_cli_._ident_cli_._ident_cli_(_opt_expr_list_)!drop-1	DO.a.a();
 reject	reject	engine	function_call_generic/ident_cli_._ident_cli_._ident_cli_(_opt_expr_list_)!drop-2	DO a a.a();
 reject	reject	engine	function_call_generic/ident_cli_._ident_cli_._ident_cli_(_opt_expr_list_)!drop-3	DO a..a();
@@ -6694,7 +6694,7 @@ reject	reject	engine	simple_window_func/LAG_SYM_(_expr_,_expr_)!truncate	DO LAG(
 reject	reject	engine	simple_window_func/LAG_SYM_(_expr_,_expr_)!insert	DO LAG(a, a) zzz OVER a;
 reject	reject	engine	simple_window_func/LAG_SYM_(_expr_,_expr_)!swap	DO LANGUAGE(a, a) OVER a;
 accept	accept	engine	inverse_distribution_function/percentile_function_OVER_SYM_(_opt_window_partition_clause_)	DO MEDIAN(a) OVER();
-reject	accept	engine	percentile_function/inverse_distribution_function_def_WITHIN_GROUP_SYM_(_order_by_single_element_list_)	DO PERCENTILE_CONT(a) WITHIN GROUP(ORDER BY a) OVER();
+accept	accept	engine	percentile_function/inverse_distribution_function_def_WITHIN_GROUP_SYM_(_order_by_single_element_list_)	DO PERCENTILE_CONT(a) WITHIN GROUP(ORDER BY a) OVER();
 reject	reject	engine	percentile_function/inverse_distribution_function_def_WITHIN_GROUP_SYM_(_order_by_single_element_list_)!drop-1	DO(a) WITHIN GROUP(ORDER BY a) OVER();
 reject	reject	engine	percentile_function/inverse_distribution_function_def_WITHIN_GROUP_SYM_(_order_by_single_element_list_)!drop-2	DO PERCENTILE_CONT a) WITHIN GROUP(ORDER BY a) OVER();
 reject	reject	engine	percentile_function/inverse_distribution_function_def_WITHIN_GROUP_SYM_(_order_by_single_element_list_)!drop-3	DO PERCENTILE_CONT() WITHIN GROUP(ORDER BY a) OVER();
@@ -6711,17 +6711,17 @@ reject	reject	engine	percentile_function/inverse_distribution_function_def_WITHI
 accept	accept	engine	percentile_function/MEDIAN_SYM_(_expr_)	DO MEDIAN(a) OVER();
 reject	reject	engine	percentile_function/MEDIAN_SYM_(_expr_)!truncate	DO MEDIAN(a
 reject	reject	engine	percentile_function/MEDIAN_SYM_(_expr_)!insert	DO MEDIAN(a) zzz OVER();
-reject	accept	engine	inverse_distribution_function_def/PERCENTILE_CONT_SYM_(_expr_)	DO PERCENTILE_CONT(a) WITHIN GROUP(ORDER BY a) OVER();
+accept	accept	engine	inverse_distribution_function_def/PERCENTILE_CONT_SYM_(_expr_)	DO PERCENTILE_CONT(a) WITHIN GROUP(ORDER BY a) OVER();
 reject	reject	engine	inverse_distribution_function_def/PERCENTILE_CONT_SYM_(_expr_)!truncate	DO PERCENTILE_CONT(a
 reject	reject	engine	inverse_distribution_function_def/PERCENTILE_CONT_SYM_(_expr_)!insert	DO PERCENTILE_CONT(a) zzz WITHIN GROUP(ORDER BY a) OVER();
-reject	accept	engine	inverse_distribution_function_def/PERCENTILE_DISC_SYM_(_expr_)	DO PERCENTILE_DISC(a) WITHIN GROUP(ORDER BY a) OVER();
+accept	accept	engine	inverse_distribution_function_def/PERCENTILE_DISC_SYM_(_expr_)	DO PERCENTILE_DISC(a) WITHIN GROUP(ORDER BY a) OVER();
 reject	reject	engine	inverse_distribution_function_def/PERCENTILE_DISC_SYM_(_expr_)!drop-2	DO PERCENTILE_DISC a) WITHIN GROUP(ORDER BY a) OVER();
 reject	reject	engine	inverse_distribution_function_def/PERCENTILE_DISC_SYM_(_expr_)!drop-3	DO PERCENTILE_DISC() WITHIN GROUP(ORDER BY a) OVER();
 reject	reject	engine	inverse_distribution_function_def/PERCENTILE_DISC_SYM_(_expr_)!drop-4	DO PERCENTILE_DISC(a WITHIN GROUP(ORDER BY a) OVER();
 reject	reject	engine	inverse_distribution_function_def/PERCENTILE_DISC_SYM_(_expr_)!truncate	DO PERCENTILE_DISC(a
 reject	reject	engine	inverse_distribution_function_def/PERCENTILE_DISC_SYM_(_expr_)!insert	DO PERCENTILE_DISC(a) zzz WITHIN GROUP(ORDER BY a) OVER();
 reject	reject	engine	inverse_distribution_function_def/PERCENTILE_DISC_SYM_(_expr_)!swap	DO PERCENT_RANK(a) WITHIN GROUP(ORDER BY a) OVER();
-reject	accept	engine	order_by_single_element_list/ORDER_SYM_BY_order_ident_order_dir	DO PERCENTILE_CONT(a) WITHIN GROUP(ORDER BY a) OVER();
+accept	accept	engine	order_by_single_element_list/ORDER_SYM_BY_order_ident_order_dir	DO PERCENTILE_CONT(a) WITHIN GROUP(ORDER BY a) OVER();
 reject	reject	engine	order_by_single_element_list/ORDER_SYM_BY_order_ident_order_dir!truncate	DO PERCENTILE_CONT(a) WITHIN GROUP(ORDER BY
 reject	reject	engine	order_by_single_element_list/ORDER_SYM_BY_order_ident_order_dir!insert	DO PERCENTILE_CONT(a) WITHIN GROUP(ORDER BY a zzz) OVER();
 reject	reject	engine	order_by_single_element_list/ORDER_SYM_BY_order_ident_order_dir!swap	DO PERCENTILE_CONT(a) WITHIN GROUP(ORDINALITY BY a) OVER();
@@ -7644,7 +7644,7 @@ reject	reject	engine	limit_clause/fetch_first_clause!drop-3	SELECT a OFFSET a;
 reject	reject	engine	limit_clause/fetch_first_clause!truncate	SELECT a OFFSET a
 reject	reject	engine	limit_clause/fetch_first_clause!insert	SELECT a OFFSET a ROW zzz;
 reject	reject	engine	limit_clause/fetch_first_clause!swap	SELECT a OLD_PASSWORD a ROW;
-reject	accept	engine	fetch_first_clause/FETCH_SYM_first_or_next_row_or_rows_only_or_with_ties	SELECT a FETCH FIRST ROW ONLY;
+accept	accept	engine	fetch_first_clause/FETCH_SYM_first_or_next_row_or_rows_only_or_with_ties	SELECT a FETCH FIRST ROW ONLY;
 reject	reject	engine	fetch_first_clause/FETCH_SYM_first_or_next_row_or_rows_only_or_with_ties!drop-1	SELECT a FIRST ROW ONLY;
 reject	reject	engine	fetch_first_clause/FETCH_SYM_first_or_next_row_or_rows_only_or_with_ties!drop-2	SELECT a FETCH ROW ONLY;
 reject	reject	engine	fetch_first_clause/FETCH_SYM_first_or_next_row_or_rows_only_or_with_ties!drop-3	SELECT a FETCH FIRST ONLY;
@@ -7683,11 +7683,11 @@ reject	reject	engine	fetch_first_clause/OFFSET_SYM_limit_option_row_or_rows_FETC
 reject	reject	engine	fetch_first_clause/OFFSET_SYM_limit_option_row_or_rows_FETCH_SYM_first_or_next_limit_option_row_or_rows_only_or_with_ties!insert	SELECT a OFFSET a ROW FETCH FIRST a ROW ONLY zzz;
 reject	reject	engine	fetch_first_clause/OFFSET_SYM_limit_option_row_or_rows_FETCH_SYM_first_or_next_limit_option_row_or_rows_only_or_with_ties!swap	SELECT a OLD_PASSWORD a ROW FETCH FIRST a ROW ONLY;
 reject	reject	engine	fetch_first_clause/OFFSET_SYM_limit_option_row_or_rows	SELECT a OFFSET a ROW;
-reject	accept	engine	first_or_next/FIRST_SYM	SELECT a FETCH FIRST ROW ONLY;
+accept	accept	engine	first_or_next/FIRST_SYM	SELECT a FETCH FIRST ROW ONLY;
 reject	reject	engine	first_or_next/FIRST_SYM!truncate	SELECT a FETCH
 reject	reject	engine	first_or_next/FIRST_SYM!insert	SELECT a FETCH FIRST zzz ROW ONLY;
 reject	reject	engine	first_or_next/FIRST_SYM!swap	SELECT a FETCH FIRST_VALUE ROW ONLY;
-reject	accept	engine	first_or_next/NEXT_SYM	SELECT a FETCH NEXT ROW ONLY;
+accept	accept	engine	first_or_next/NEXT_SYM	SELECT a FETCH NEXT ROW ONLY;
 reject	reject	engine	first_or_next/NEXT_SYM!insert	SELECT a FETCH NEXT zzz ROW ONLY;
 reject	reject	engine	first_or_next/NEXT_SYM!swap	SELECT a FETCH NEXTVAL ROW ONLY;
 reject	reject	engine	row_or_rows/ROW_SYM	SELECT a OFFSET a ROW;
@@ -7695,9 +7695,9 @@ reject	reject	engine	row_or_rows/ROW_SYM!swap	SELECT a OFFSET a ROWCOUNT;
 reject	reject	engine	row_or_rows/ROWS_SYM	SELECT a OFFSET a ROWS;
 reject	reject	engine	row_or_rows/ROWS_SYM!insert	SELECT a OFFSET a ROWS zzz;
 reject	reject	engine	row_or_rows/ROWS_SYM!swap	SELECT a OFFSET a ROWTYPE;
-reject	accept	engine	only_or_with_ties/ONLY_SYM	SELECT a FETCH FIRST ROW ONLY;
+accept	accept	engine	only_or_with_ties/ONLY_SYM	SELECT a FETCH FIRST ROW ONLY;
 reject	reject	engine	only_or_with_ties/ONLY_SYM!swap	SELECT a FETCH FIRST ROW OPEN;
-reject	accept	engine	only_or_with_ties/WITH_TIES_SYM	SELECT a FETCH FIRST ROW WITH TIES;
+accept	accept	engine	only_or_with_ties/WITH_TIES_SYM	SELECT a FETCH FIRST ROW WITH TIES;
 reject	reject	engine	only_or_with_ties/WITH_TIES_SYM!drop-1	SELECT a FETCH FIRST ROW TIES;
 reject	reject	engine	only_or_with_ties/WITH_TIES_SYM!drop-2	SELECT a FETCH FIRST ROW WITH;
 reject	reject	engine	only_or_with_ties/WITH_TIES_SYM!truncate	SELECT a FETCH FIRST ROW WITH
@@ -7768,7 +7768,7 @@ reject	reject	engine	query_expression_tail/order_limit_lock	(SELECT a) LIMIT a;
 reject	reject	engine	query_expression_tail/order_limit_lock!swap	(SELECT a) LINEAR a;
 accept	accept	engine	opt_query_expression_tail/opt_order_limit_lock	SELECT a;
 accept	accept	engine	opt_procedure_or_into/%empty	SELECT a;
-reject	accept	engine	opt_procedure_or_into/procedure_clause_opt_select_lock_type	SELECT a PROCEDURE a();
+accept	accept	engine	opt_procedure_or_into/procedure_clause_opt_select_lock_type	SELECT a PROCEDURE a();
 reject	reject	engine	opt_procedure_or_into/procedure_clause_opt_select_lock_type!drop-1	SELECT a a();
 reject	reject	engine	opt_procedure_or_into/procedure_clause_opt_select_lock_type!drop-2	SELECT a PROCEDURE();
 reject	reject	engine	opt_procedure_or_into/procedure_clause_opt_select_lock_type!drop-3	SELECT a PROCEDURE a);
@@ -7852,7 +7852,7 @@ accept	accept	engine	sequence_truncated_value_hybrid_num/opt_plus_LONG_NUM	ALTER
 reject	reject	engine	sequence_truncated_value_hybrid_num/opt_plus_LONG_NUM!insert	ALTER SEQUENCE a MINVALUE 2147483648 zzz;
 accept	accept	engine	sequence_truncated_value_hybrid_num/opt_plus_ULONGLONG_NUM	ALTER SEQUENCE a MINVALUE 9223372036854775808;
 reject	reject	engine	sequence_truncated_value_hybrid_num/opt_plus_ULONGLONG_NUM!insert	ALTER SEQUENCE a MINVALUE 9223372036854775808 zzz;
-reject	accept	engine	sequence_truncated_value_hybrid_num/opt_plus_DECIMAL_NUM	ALTER SEQUENCE a MINVALUE 1.5;
+accept	accept	engine	sequence_truncated_value_hybrid_num/opt_plus_DECIMAL_NUM	ALTER SEQUENCE a MINVALUE 1.5;
 reject	reject	engine	sequence_truncated_value_hybrid_num/opt_plus_DECIMAL_NUM!insert	ALTER SEQUENCE a MINVALUE 1.5 zzz;
 accept	accept	engine	sequence_truncated_value_hybrid_num/-_NUM	ALTER SEQUENCE a MINVALUE - 1;
 reject	reject	engine	sequence_truncated_value_hybrid_num/-_NUM!drop-2	ALTER SEQUENCE a MINVALUE -;
@@ -7862,7 +7862,7 @@ accept	accept	engine	sequence_truncated_value_hybrid_num/-_LONG_NUM	ALTER SEQUEN
 reject	reject	engine	sequence_truncated_value_hybrid_num/-_LONG_NUM!insert	ALTER SEQUENCE a MINVALUE - 2147483648 zzz;
 accept	accept	engine	sequence_truncated_value_hybrid_num/-_ULONGLONG_NUM	ALTER SEQUENCE a MINVALUE - 9223372036854775808;
 reject	reject	engine	sequence_truncated_value_hybrid_num/-_ULONGLONG_NUM!insert	ALTER SEQUENCE a MINVALUE - 9223372036854775808 zzz;
-reject	accept	engine	sequence_truncated_value_hybrid_num/-_DECIMAL_NUM	ALTER SEQUENCE a MINVALUE - 1.5;
+accept	accept	engine	sequence_truncated_value_hybrid_num/-_DECIMAL_NUM	ALTER SEQUENCE a MINVALUE - 1.5;
 reject	reject	engine	sequence_truncated_value_hybrid_num/-_DECIMAL_NUM!insert	ALTER SEQUENCE a MINVALUE - 1.5 zzz;
 accept	accept	engine	ulonglong_num/opt_plus_NUM	ALTER TABLE a MAX_ROWS 1;
 accept	accept	engine	ulonglong_num/opt_plus_ULONGLONG_NUM	ALTER TABLE a MAX_ROWS 9223372036854775808;
@@ -7897,19 +7897,19 @@ reject	reject	engine	bool/TRUE_SYM!swap	CHANGE MASTER TO MASTER_DEMOTE_TO_SLAVE 
 accept	accept	engine	bool/FALSE_SYM	CHANGE MASTER TO MASTER_DEMOTE_TO_SLAVE = FALSE;
 reject	reject	engine	bool/FALSE_SYM!insert	CHANGE MASTER TO MASTER_DEMOTE_TO_SLAVE = FALSE zzz;
 reject	reject	engine	bool/FALSE_SYM!swap	CHANGE MASTER TO MASTER_DEMOTE_TO_SLAVE = FAST;
-reject	accept	engine	procedure_clause/PROCEDURE_SYM_ident_(_procedure_list_)	SELECT a PROCEDURE a();
-reject	accept	engine	procedure_list/%empty	SELECT a PROCEDURE a();
-reject	accept	engine	procedure_list/%empty!insert	SELECT a PROCEDURE a(zzz);
-reject	accept	engine	procedure_list/procedure_list2	SELECT a PROCEDURE a(a);
+accept	accept	engine	procedure_clause/PROCEDURE_SYM_ident_(_procedure_list_)	SELECT a PROCEDURE a();
+accept	accept	engine	procedure_list/%empty	SELECT a PROCEDURE a();
+accept	accept	engine	procedure_list/%empty!insert	SELECT a PROCEDURE a(zzz);
+accept	accept	engine	procedure_list/procedure_list2	SELECT a PROCEDURE a(a);
 reject	reject	engine	procedure_list/procedure_list2!insert	SELECT a PROCEDURE a(a zzz);
-reject	accept	engine	procedure_list2/procedure_list2_,_procedure_item	SELECT a PROCEDURE a(a, a);
+accept	accept	engine	procedure_list2/procedure_list2_,_procedure_item	SELECT a PROCEDURE a(a, a);
 reject	reject	engine	procedure_list2/procedure_list2_,_procedure_item!drop-1	SELECT a PROCEDURE a(, a);
 reject	reject	engine	procedure_list2/procedure_list2_,_procedure_item!drop-2	SELECT a PROCEDURE a(a a);
 reject	reject	engine	procedure_list2/procedure_list2_,_procedure_item!drop-3	SELECT a PROCEDURE a(a,);
 reject	reject	engine	procedure_list2/procedure_list2_,_procedure_item!truncate	SELECT a PROCEDURE a(a,
 reject	reject	engine	procedure_list2/procedure_list2_,_procedure_item!insert	SELECT a PROCEDURE a(a, a zzz);
-reject	accept	engine	procedure_list2/procedure_item	SELECT a PROCEDURE a(a);
-reject	accept	engine	procedure_item/remember_name_expr_remember_end	SELECT a PROCEDURE a(a);
+accept	accept	engine	procedure_list2/procedure_item	SELECT a PROCEDURE a(a);
+accept	accept	engine	procedure_item/remember_name_expr_remember_end	SELECT a PROCEDURE a(a);
 accept	accept	engine	select_var_list_init/select_var_list	SELECT a INTO @a;
 accept	accept	engine	select_var_list/select_var_list_,_select_var_ident	SELECT a INTO @a, @a;
 reject	reject	engine	select_var_list/select_var_list_,_select_var_ident!drop-1	SELECT a INTO, @a;
@@ -7934,12 +7934,12 @@ reject	reject	engine	select_outvar/ident_._ident!insert	SELECT a INTO a.a zzz;
 accept	accept	engine	into/INTO_into_destination	SELECT a INTO @a;
 accept	accept	engine	into_destination/OUTFILE_TEXT_STRING_filesystem_opt_load_data_charset_opt_field_term_opt_line_term	SELECT a INTO OUTFILE 's';
 reject	reject	engine	into_destination/OUTFILE_TEXT_STRING_filesystem_opt_load_data_charset_opt_field_term_opt_line_term!drop-1	SELECT a INTO 's';
-accept	reject	engine	into_destination/OUTFILE_TEXT_STRING_filesystem_opt_load_data_charset_opt_field_term_opt_line_term!drop-2	SELECT a INTO OUTFILE;
-accept	reject	engine	into_destination/OUTFILE_TEXT_STRING_filesystem_opt_load_data_charset_opt_field_term_opt_line_term!truncate	SELECT a INTO OUTFILE
+reject	reject	engine	into_destination/OUTFILE_TEXT_STRING_filesystem_opt_load_data_charset_opt_field_term_opt_line_term!drop-2	SELECT a INTO OUTFILE;
+reject	reject	engine	into_destination/OUTFILE_TEXT_STRING_filesystem_opt_load_data_charset_opt_field_term_opt_line_term!truncate	SELECT a INTO OUTFILE
 reject	reject	engine	into_destination/OUTFILE_TEXT_STRING_filesystem_opt_load_data_charset_opt_field_term_opt_line_term!swap	SELECT a INTO OVER 's';
 accept	accept	engine	into_destination/DUMPFILE_TEXT_STRING_filesystem	SELECT a INTO DUMPFILE 's';
-accept	reject	engine	into_destination/DUMPFILE_TEXT_STRING_filesystem!drop-2	SELECT a INTO DUMPFILE;
-accept	reject	engine	into_destination/DUMPFILE_TEXT_STRING_filesystem!truncate	SELECT a INTO DUMPFILE
+reject	reject	engine	into_destination/DUMPFILE_TEXT_STRING_filesystem!drop-2	SELECT a INTO DUMPFILE;
+reject	reject	engine	into_destination/DUMPFILE_TEXT_STRING_filesystem!truncate	SELECT a INTO DUMPFILE
 reject	reject	engine	into_destination/DUMPFILE_TEXT_STRING_filesystem!insert	SELECT a INTO DUMPFILE 's' zzz;
 reject	reject	engine	into_destination/DUMPFILE_TEXT_STRING_filesystem!swap	SELECT a INTO DUPLICATE 's';
 accept	accept	engine	into_destination/select_var_list_init	SELECT a INTO @a;
@@ -8027,7 +8027,7 @@ reject	reject	engine	opt_if_exists_table_element/IF_SYM_EXISTS!insert	ALTER TABL
 reject	reject	engine	opt_if_exists_table_element/IF_SYM_EXISTS!swap	ALTER TABLE a DROP IGNORE EXISTS a;
 accept	accept	engine	opt_if_exists/%empty	ALTER TABLE a;
 reject	reject	engine	opt_if_exists/%empty!insert	ALTER TABLE zzz a;
-reject	accept	engine	opt_if_exists/IF_SYM_EXISTS	ALTER TABLE IF EXISTS a;
+accept	accept	engine	opt_if_exists/IF_SYM_EXISTS	ALTER TABLE IF EXISTS a;
 reject	reject	engine	opt_if_exists/IF_SYM_EXISTS!drop-1	ALTER TABLE EXISTS a;
 reject	reject	engine	opt_if_exists/IF_SYM_EXISTS!drop-2	ALTER TABLE IF a;
 reject	reject	engine	opt_if_exists/IF_SYM_EXISTS!truncate	ALTER TABLE IF
@@ -8748,7 +8748,7 @@ accept	accept	engine	analyze_stmt_command/ANALYZE_SYM_opt_format_json_explainabl
 accept	accept	engine	opt_extended_describe/EXTENDED_SYM	DESC EXTENDED SELECT a;
 reject	reject	engine	opt_extended_describe/EXTENDED_SYM!insert	DESC EXTENDED zzz SELECT a;
 reject	reject	engine	opt_extended_describe/EXTENDED_SYM!swap	DESC EXTENT_SIZE SELECT a;
-reject	accept	engine	opt_extended_describe/EXTENDED_SYM_ALL	DESC EXTENDED ALL SELECT a;
+accept	accept	engine	opt_extended_describe/EXTENDED_SYM_ALL	DESC EXTENDED ALL SELECT a;
 reject	reject	engine	opt_extended_describe/EXTENDED_SYM_ALL!drop-1	DESC ALL SELECT a;
 accept	accept	engine	opt_extended_describe/EXTENDED_SYM_ALL!truncate	DESC EXTENDED
 reject	reject	engine	opt_extended_describe/EXTENDED_SYM_ALL!insert	DESC EXTENDED ALL zzz SELECT a;
@@ -8773,7 +8773,7 @@ accept	accept	engine	opt_describe_column/text_string!truncate	DESC a
 reject	reject	engine	opt_describe_column/text_string!insert	DESC a 's' zzz;
 accept	accept	engine	opt_describe_column/ident	DESC a a;
 reject	reject	engine	opt_describe_column/ident!insert	DESC a a zzz;
-reject	accept	engine	explain_for_connection/describe_command_opt_format_json_FOR_SYM_CONNECTION_SYM_expr	DESC FOR CONNECTION a;
+accept	accept	engine	explain_for_connection/describe_command_opt_format_json_FOR_SYM_CONNECTION_SYM_expr	DESC FOR CONNECTION a;
 accept	accept	engine	flush/FLUSH_SYM_opt_no_write_to_binlog_flush_options	FLUSH TABLE;
 accept	accept	engine	flush_options/table_or_tables_opt_table_list_opt_flush_lock	FLUSH TABLE;
 accept	accept	engine	flush_options/flush_options_list	FLUSH HOSTS;
@@ -8880,19 +8880,19 @@ accept	accept	engine	opt_table_list/%empty	FLUSH TABLE;
 accept	accept	engine	opt_table_list/table_list	FLUSH TABLE a;
 accept	accept	engine	opt_table_list/table_list!truncate	FLUSH TABLE
 reject	reject	engine	opt_table_list/table_list!insert	FLUSH TABLE a zzz;
-reject	accept	engine	backup/BACKUP_SYM_backup_statements	BACKUP UNLOCK;
+accept	accept	engine	backup/BACKUP_SYM_backup_statements	BACKUP UNLOCK;
 reject	reject	engine	backup_statements/STAGE_SYM_ident	BACKUP STAGE a;
 reject	reject	engine	backup_statements/STAGE_SYM_ident!drop-1	BACKUP a;
 reject	reject	engine	backup_statements/STAGE_SYM_ident!drop-2	BACKUP STAGE;
 reject	reject	engine	backup_statements/STAGE_SYM_ident!truncate	BACKUP STAGE
 reject	reject	engine	backup_statements/STAGE_SYM_ident!insert	BACKUP STAGE a zzz;
 reject	reject	engine	backup_statements/STAGE_SYM_ident!swap	BACKUP START a;
-reject	accept	engine	backup_statements/LOCK_SYM_table_ident	BACKUP LOCK a;
+accept	accept	engine	backup_statements/LOCK_SYM_table_ident	BACKUP LOCK a;
 reject	reject	engine	backup_statements/LOCK_SYM_table_ident!drop-2	BACKUP LOCK;
 reject	reject	engine	backup_statements/LOCK_SYM_table_ident!truncate	BACKUP LOCK
 reject	reject	engine	backup_statements/LOCK_SYM_table_ident!insert	BACKUP LOCK a zzz;
 reject	reject	engine	backup_statements/LOCK_SYM_table_ident!swap	BACKUP LOCKED a;
-reject	accept	engine	backup_statements/UNLOCK_SYM	BACKUP UNLOCK;
+accept	accept	engine	backup_statements/UNLOCK_SYM	BACKUP UNLOCK;
 reject	reject	engine	backup_statements/UNLOCK_SYM!swap	BACKUP UNSIGNED;
 accept	accept	engine	opt_delete_gtid_domain/%empty	FLUSH BINARY LOGS;
 accept	accept	engine	opt_delete_gtid_domain/DELETE_DOMAIN_ID_SYM_=_(_delete_domain_id_list_)	FLUSH BINARY LOGS DELETE_DOMAIN_ID =();
@@ -8907,7 +8907,7 @@ accept	accept	engine	delete_domain_id_list/%empty	FLUSH BINARY LOGS DELETE_DOMAI
 reject	reject	engine	delete_domain_id_list/%empty!insert	FLUSH BINARY LOGS DELETE_DOMAIN_ID =(zzz);
 accept	accept	engine	delete_domain_id_list/delete_domain_id	FLUSH BINARY LOGS DELETE_DOMAIN_ID =(1);
 reject	reject	engine	delete_domain_id_list/delete_domain_id!insert	FLUSH BINARY LOGS DELETE_DOMAIN_ID =(1 zzz);
-reject	accept	engine	delete_domain_id_list/delete_domain_id_list_,_delete_domain_id	FLUSH BINARY LOGS DELETE_DOMAIN_ID =(, 1);
+accept	accept	engine	delete_domain_id_list/delete_domain_id_list_,_delete_domain_id	FLUSH BINARY LOGS DELETE_DOMAIN_ID =(, 1);
 reject	reject	engine	delete_domain_id_list/delete_domain_id_list_,_delete_domain_id!drop-2	FLUSH BINARY LOGS DELETE_DOMAIN_ID =(,);
 reject	reject	engine	delete_domain_id_list/delete_domain_id_list_,_delete_domain_id!truncate	FLUSH BINARY LOGS DELETE_DOMAIN_ID =(,
 reject	reject	engine	delete_domain_id_list/delete_domain_id_list_,_delete_domain_id!insert	FLUSH BINARY LOGS DELETE_DOMAIN_ID =(, 1 zzz);
@@ -8921,7 +8921,7 @@ reject	reject	engine	optional_flush_tables_arguments/AND_SYM_DISABLE_SYM_CHECKPO
 reject	reject	engine	optional_flush_tables_arguments/AND_SYM_DISABLE_SYM_CHECKPOINT_SYM!insert	FLUSH TABLE WITH READ LOCK AND DISABLE CHECKPOINT zzz;
 reject	reject	engine	optional_flush_tables_arguments/AND_SYM_DISABLE_SYM_CHECKPOINT_SYM!swap	FLUSH TABLE WITH READ LOCK ANY DISABLE CHECKPOINT;
 accept	accept	engine	reset/RESET_SYM_reset_options	RESET SLAVE;
-reject	accept	engine	reset_options/reset_options_,_reset_option	RESET SLAVE, SLAVE;
+accept	accept	engine	reset_options/reset_options_,_reset_option	RESET SLAVE, SLAVE;
 reject	reject	engine	reset_options/reset_options_,_reset_option!drop-1	RESET, SLAVE;
 reject	reject	engine	reset_options/reset_options_,_reset_option!drop-2	RESET SLAVE SLAVE;
 reject	reject	engine	reset_options/reset_options_,_reset_option!drop-3	RESET SLAVE,;
@@ -8950,7 +8950,7 @@ accept	accept	engine	master_reset_options/TO_SYM_ulong_num	RESET MASTER TO 1;
 reject	reject	engine	master_reset_options/TO_SYM_ulong_num!drop-1	RESET MASTER 1;
 reject	reject	engine	master_reset_options/TO_SYM_ulong_num!swap	RESET MASTER TRAILING 1;
 accept	accept	engine	purge/PURGE_master_or_binary_LOGS_SYM_TO_SYM_TEXT_STRING_sys	PURGE MASTER LOGS TO 's';
-accept	reject	engine	purge/PURGE_master_or_binary_LOGS_SYM_BEFORE_SYM_expr	PURGE MASTER LOGS BEFORE a;
+reject	reject	engine	purge/PURGE_master_or_binary_LOGS_SYM_BEFORE_SYM_expr	PURGE MASTER LOGS BEFORE a;
 reject	reject	engine	purge/PURGE_master_or_binary_LOGS_SYM_BEFORE_SYM_expr!drop-1	MASTER LOGS BEFORE a;
 reject	reject	engine	purge/PURGE_master_or_binary_LOGS_SYM_BEFORE_SYM_expr!drop-2	PURGE LOGS BEFORE a;
 reject	reject	engine	purge/PURGE_master_or_binary_LOGS_SYM_BEFORE_SYM_expr!drop-3	PURGE MASTER BEFORE a;
@@ -8959,8 +8959,8 @@ reject	reject	engine	purge/PURGE_master_or_binary_LOGS_SYM_BEFORE_SYM_expr!drop-
 reject	reject	engine	purge/PURGE_master_or_binary_LOGS_SYM_BEFORE_SYM_expr!truncate	PURGE MASTER LOGS BEFORE
 reject	reject	engine	purge/PURGE_master_or_binary_LOGS_SYM_BEFORE_SYM_expr!insert	PURGE MASTER LOGS BEFORE a zzz;
 reject	reject	engine	purge/PURGE_master_or_binary_LOGS_SYM_BEFORE_SYM_expr!swap	QUARTER MASTER LOGS BEFORE a;
-accept	reject	engine	kill/KILL_SYM_kill_type_kill_option	KILL a;
-accept	reject	engine	kill_type/%empty	KILL a;
+reject	reject	engine	kill/KILL_SYM_kill_type_kill_option	KILL a;
+reject	reject	engine	kill_type/%empty	KILL a;
 reject	reject	engine	kill_type/%empty!insert	KILL zzz a;
 reject	reject	engine	kill_type/HARD_SYM	KILL HARD a;
 reject	reject	engine	kill_type/HARD_SYM!insert	KILL HARD zzz a;
@@ -8968,31 +8968,31 @@ reject	reject	engine	kill_type/HARD_SYM!swap	KILL HASH a;
 reject	reject	engine	kill_type/SOFT_SYM	KILL SOFT a;
 reject	reject	engine	kill_type/SOFT_SYM!insert	KILL SOFT zzz a;
 reject	reject	engine	kill_type/SOFT_SYM!swap	KILL SONAME a;
-accept	reject	engine	kill_option/opt_connection_kill_expr	KILL a;
-accept	reject	engine	kill_option/QUERY_SYM_kill_expr	KILL QUERY a;
+reject	reject	engine	kill_option/opt_connection_kill_expr	KILL a;
+reject	reject	engine	kill_option/QUERY_SYM_kill_expr	KILL QUERY a;
 reject	reject	engine	kill_option/QUERY_SYM_kill_expr!drop-2	KILL QUERY;
 reject	reject	engine	kill_option/QUERY_SYM_kill_expr!truncate	KILL QUERY
 reject	reject	engine	kill_option/QUERY_SYM_kill_expr!insert	KILL QUERY a zzz;
 reject	reject	engine	kill_option/QUERY_SYM_kill_expr!swap	KILL QUICK a;
 reject	reject	engine	kill_option/QUERY_SYM_ID_SYM_expr	KILL QUERY ID a;
 reject	reject	engine	kill_option/QUERY_SYM_ID_SYM_expr!drop-1	KILL ID a;
-accept	reject	engine	kill_option/QUERY_SYM_ID_SYM_expr!drop-3	KILL QUERY ID;
-accept	reject	engine	kill_option/QUERY_SYM_ID_SYM_expr!truncate	KILL QUERY ID
+reject	reject	engine	kill_option/QUERY_SYM_ID_SYM_expr!drop-3	KILL QUERY ID;
+reject	reject	engine	kill_option/QUERY_SYM_ID_SYM_expr!truncate	KILL QUERY ID
 reject	reject	engine	kill_option/QUERY_SYM_ID_SYM_expr!insert	KILL QUERY ID a zzz;
 reject	reject	engine	kill_option/QUERY_SYM_ID_SYM_expr!swap	KILL QUICK ID a;
-accept	reject	engine	opt_connection/%empty	KILL a;
-accept	reject	engine	opt_connection/CONNECTION_SYM	KILL CONNECTION a;
+reject	reject	engine	opt_connection/%empty	KILL a;
+reject	reject	engine	opt_connection/CONNECTION_SYM	KILL CONNECTION a;
 reject	reject	engine	opt_connection/CONNECTION_SYM!insert	KILL CONNECTION zzz a;
 reject	reject	engine	opt_connection/CONNECTION_SYM!swap	KILL CONSISTENT a;
-accept	reject	engine	kill_expr/expr	KILL a;
-reject	accept	engine	kill_expr/USER_SYM_user	KILL USER a;
-accept	reject	engine	kill_expr/USER_SYM_user!drop-2	KILL USER;
-accept	reject	engine	kill_expr/USER_SYM_user!truncate	KILL USER
+reject	reject	engine	kill_expr/expr	KILL a;
+accept	accept	engine	kill_expr/USER_SYM_user	KILL USER a;
+reject	reject	engine	kill_expr/USER_SYM_user!drop-2	KILL USER;
+reject	reject	engine	kill_expr/USER_SYM_user!truncate	KILL USER
 reject	reject	engine	kill_expr/USER_SYM_user!insert	KILL USER a zzz;
 reject	reject	engine	kill_expr/USER_SYM_user!swap	KILL USER_RESOURCES a;
 accept	accept	engine	shutdown/SHUTDOWN_shutdown_option	SHUTDOWN;
 accept	accept	engine	shutdown_option/%empty	SHUTDOWN;
-reject	accept	engine	shutdown_option/WAIT_SYM_FOR_SYM_ALL_SLAVES	SHUTDOWN WAIT FOR ALL SLAVES;
+accept	accept	engine	shutdown_option/WAIT_SYM_FOR_SYM_ALL_SLAVES	SHUTDOWN WAIT FOR ALL SLAVES;
 reject	reject	engine	shutdown_option/WAIT_SYM_FOR_SYM_ALL_SLAVES!drop-1	SHUTDOWN FOR ALL SLAVES;
 reject	reject	engine	shutdown_option/WAIT_SYM_FOR_SYM_ALL_SLAVES!drop-2	SHUTDOWN WAIT ALL SLAVES;
 reject	reject	engine	shutdown_option/WAIT_SYM_FOR_SYM_ALL_SLAVES!drop-3	SHUTDOWN WAIT FOR SLAVES;
@@ -9174,12 +9174,12 @@ accept	accept	engine	text_literal/text_literal_TEXT_STRING_literal	DO 's' 's';
 accept	accept	engine	text_literal/text_literal_TEXT_STRING_literal!truncate	DO 's'
 reject	reject	engine	text_literal/text_literal_TEXT_STRING_literal!insert	DO 's' 's' zzz;
 accept	accept	engine	text_string/TEXT_STRING_literal	DESC a 's';
-reject	accept	engine	text_string/hex_or_bin_String	DESC a 0x41;
+accept	accept	engine	text_string/hex_or_bin_String	DESC a 0x41;
 reject	reject	engine	text_string/hex_or_bin_String!insert	DESC a 0x41 zzz;
-reject	accept	engine	hex_or_bin_String/HEX_NUM	DESC a 0x41;
-reject	accept	engine	hex_or_bin_String/HEX_STRING	DESC a x'41';
+accept	accept	engine	hex_or_bin_String/HEX_NUM	DESC a 0x41;
+accept	accept	engine	hex_or_bin_String/HEX_STRING	DESC a x'41';
 reject	reject	engine	hex_or_bin_String/HEX_STRING!insert	DESC a x'41' zzz;
-reject	accept	engine	hex_or_bin_String/BIN_NUM	DESC a b'1';
+accept	accept	engine	hex_or_bin_String/BIN_NUM	DESC a b'1';
 reject	reject	engine	hex_or_bin_String/BIN_NUM!insert	DESC a b'1' zzz;
 accept	accept	engine	param_marker/PARAM_MARKER	DO ?;
 accept	accept	engine	signed_literal/+_NUM_literal	ALTER TABLE a ADD a INT DEFAULT + 1;
@@ -9190,7 +9190,7 @@ reject	reject	engine	signed_literal/-_NUM_literal!insert	ALTER TABLE a ADD a INT
 accept	accept	engine	literal/text_literal	DO 's';
 accept	accept	engine	literal/NUM_literal	DO 1;
 reject	reject	engine	literal/NUM_literal!insert	DO 1 zzz;
-accept	reject	engine	literal/temporal_literal	DO DATE 's';
+reject	reject	engine	literal/temporal_literal	DO DATE 's';
 accept	accept	engine	literal/temporal_literal!drop-2	DO DATE;
 accept	accept	engine	literal/temporal_literal!truncate	DO DATE
 reject	reject	engine	literal/temporal_literal!insert	DO DATE 's' zzz;
@@ -9210,7 +9210,7 @@ accept	accept	engine	literal/HEX_STRING	DO x'41';
 reject	reject	engine	literal/HEX_STRING!insert	DO x'41' zzz;
 accept	accept	engine	literal/BIN_NUM	DO b'1';
 reject	reject	engine	literal/BIN_NUM!insert	DO b'1' zzz;
-reject	accept	engine	literal/UNDERSCORE_CHARSET_hex_or_bin_String	DO _utf8mb4 0x41;
+accept	accept	engine	literal/UNDERSCORE_CHARSET_hex_or_bin_String	DO _utf8mb4 0x41;
 reject	reject	engine	literal/UNDERSCORE_CHARSET_hex_or_bin_String!insert	DO _utf8mb4 0x41 zzz;
 accept	accept	engine	NUM_literal/NUM	DO 1;
 accept	accept	engine	NUM_literal/LONG_NUM	DO 2147483648;
@@ -9221,12 +9221,12 @@ accept	accept	engine	NUM_literal/DECIMAL_NUM	DO 1.5;
 reject	reject	engine	NUM_literal/DECIMAL_NUM!insert	DO 1.5 zzz;
 accept	accept	engine	NUM_literal/FLOAT_NUM	DO 1e0;
 reject	reject	engine	NUM_literal/FLOAT_NUM!insert	DO 1e0 zzz;
-accept	reject	engine	temporal_literal/DATE_SYM_TEXT_STRING	DO DATE 's';
-accept	reject	engine	temporal_literal/TIME_SYM_TEXT_STRING	DO TIME 's';
+reject	reject	engine	temporal_literal/DATE_SYM_TEXT_STRING	DO DATE 's';
+reject	reject	engine	temporal_literal/TIME_SYM_TEXT_STRING	DO TIME 's';
 accept	accept	engine	temporal_literal/TIME_SYM_TEXT_STRING!drop-2	DO TIME;
 accept	accept	engine	temporal_literal/TIME_SYM_TEXT_STRING!truncate	DO TIME
 reject	reject	engine	temporal_literal/TIME_SYM_TEXT_STRING!insert	DO TIME 's' zzz;
-accept	reject	engine	temporal_literal/TIMESTAMP_TEXT_STRING	DO TIMESTAMP 's';
+reject	reject	engine	temporal_literal/TIMESTAMP_TEXT_STRING	DO TIMESTAMP 's';
 accept	accept	engine	temporal_literal/TIMESTAMP_TEXT_STRING!drop-2	DO TIMESTAMP;
 accept	accept	engine	temporal_literal/TIMESTAMP_TEXT_STRING!truncate	DO TIMESTAMP
 reject	reject	engine	temporal_literal/TIMESTAMP_TEXT_STRING!insert	DO TIMESTAMP 's' zzz;
@@ -9343,7 +9343,7 @@ reject	reject	engine	simple_ident_nospvar/ident_._ident!drop-2	DO VALUE(a a);
 reject	reject	engine	simple_ident_nospvar/ident_._ident!drop-3	DO VALUE(a.);
 reject	reject	engine	simple_ident_nospvar/ident_._ident!truncate	DO VALUE(a.
 reject	reject	engine	simple_ident_nospvar/ident_._ident!insert	DO VALUE(a.a zzz);
-reject	accept	engine	simple_ident_nospvar/._ident_._ident	DO VALUE(.a.a);
+accept	accept	engine	simple_ident_nospvar/._ident_._ident	DO VALUE(.a.a);
 reject	reject	engine	simple_ident_nospvar/._ident_._ident!drop-2	DO VALUE(..a);
 reject	reject	engine	simple_ident_nospvar/._ident_._ident!drop-3	DO VALUE(.a a);
 reject	reject	engine	simple_ident_nospvar/._ident_._ident!drop-4	DO VALUE(.a.);
@@ -9491,7 +9491,7 @@ reject	reject	engine	keyword_table_alias/FUNCTION_SYM!insert	DELETE FROM a FUNCT
 accept	accept	engine	keyword_table_alias/FUNCTION_SYM!swap	DELETE FROM a GENERAL;
 accept	accept	engine	keyword_table_alias/IGNORED_SYM	DELETE FROM a IGNORED;
 reject	reject	engine	keyword_table_alias/IGNORED_SYM!insert	DELETE FROM a IGNORED zzz;
-accept	reject	engine	keyword_table_alias/IGNORED_SYM!swap	DELETE FROM a IGNORE_DOMAIN_IDS;
+reject	reject	engine	keyword_table_alias/IGNORED_SYM!swap	DELETE FROM a IGNORE_DOMAIN_IDS;
 accept	accept	engine	keyword_ident/keyword_data_type	CALL BIT;
 accept	accept	engine	keyword_ident/keyword_cast_type	CALL SIGNED;
 reject	reject	engine	keyword_ident/keyword_cast_type!insert	CALL SIGNED zzz;
@@ -9518,7 +9518,7 @@ reject	reject	engine	keyword_ident/WINDOW_SYM!insert	CALL WINDOW zzz;
 reject	reject	engine	keyword_ident/WINDOW_SYM!swap	CALL WITH;
 accept	accept	engine	keyword_ident/IGNORED_SYM	CALL IGNORED;
 reject	reject	engine	keyword_ident/IGNORED_SYM!insert	CALL IGNORED zzz;
-accept	reject	engine	keyword_ident/IGNORED_SYM!swap	CALL IGNORE_DOMAIN_IDS;
+reject	reject	engine	keyword_ident/IGNORED_SYM!swap	CALL IGNORE_DOMAIN_IDS;
 accept	accept	engine	keyword_sysvar_name/keyword_data_type	DO@@BIT;
 accept	accept	engine	keyword_sysvar_name/keyword_cast_type	DO@@SIGNED;
 reject	accept	engine	keyword_sysvar_name/keyword_cast_type!insert	DO@@SIGNED zzz;
@@ -9549,7 +9549,7 @@ reject	accept	engine	keyword_sysvar_name/WINDOW_SYM!insert	DO@@WINDOW zzz;
 reject	reject	engine	keyword_sysvar_name/WINDOW_SYM!swap	DO@@WITH;
 accept	accept	engine	keyword_sysvar_name/IGNORED_SYM	DO@@IGNORED;
 reject	accept	engine	keyword_sysvar_name/IGNORED_SYM!insert	DO@@IGNORED zzz;
-accept	reject	engine	keyword_sysvar_name/IGNORED_SYM!swap	DO@@IGNORE_DOMAIN_IDS;
+reject	reject	engine	keyword_sysvar_name/IGNORED_SYM!swap	DO@@IGNORE_DOMAIN_IDS;
 reject	accept	engine	keyword_sysvar_name/OFFSET_SYM	DO@@OFFSET;
 reject	accept	engine	keyword_sysvar_name/OFFSET_SYM!insert	DO@@OFFSET zzz;
 accept	accept	engine	keyword_sysvar_name/OFFSET_SYM!swap	DO@@OLD_PASSWORD;
@@ -9583,7 +9583,7 @@ reject	reject	engine	keyword_set_usual_case/WINDOW_SYM!insert	SET WINDOW zzz = a
 reject	reject	engine	keyword_set_usual_case/WINDOW_SYM!swap	SET WITH = a;
 accept	accept	engine	keyword_set_usual_case/IGNORED_SYM	SET IGNORED = a;
 reject	reject	engine	keyword_set_usual_case/IGNORED_SYM!insert	SET IGNORED zzz = a;
-accept	reject	engine	keyword_set_usual_case/IGNORED_SYM!swap	SET IGNORE_DOMAIN_IDS = a;
+reject	reject	engine	keyword_set_usual_case/IGNORED_SYM!swap	SET IGNORE_DOMAIN_IDS = a;
 accept	accept	engine	keyword_set_usual_case/OFFSET_SYM	SET OFFSET = a;
 reject	reject	engine	keyword_set_usual_case/OFFSET_SYM!insert	SET OFFSET zzz = a;
 accept	accept	engine	keyword_set_usual_case/OFFSET_SYM!swap	SET OLD_PASSWORD = a;
@@ -9674,7 +9674,7 @@ accept	accept	engine	keyword_sp_var_not_label/OWNER_SYM	CALL OWNER;
 reject	reject	engine	keyword_sp_var_not_label/OWNER_SYM!insert	CALL OWNER zzz;
 accept	accept	engine	keyword_sp_var_not_label/PARSER_SYM	CALL PARSER;
 reject	reject	engine	keyword_sp_var_not_label/PARSER_SYM!insert	CALL PARSER zzz;
-accept	reject	engine	keyword_sp_var_not_label/PARSER_SYM!swap	CALL PARSE_VCOL_EXPR;
+reject	reject	engine	keyword_sp_var_not_label/PARSER_SYM!swap	CALL PARSE_VCOL_EXPR;
 accept	accept	engine	keyword_sp_var_not_label/PERIOD_SYM	CALL PERIOD;
 reject	reject	engine	keyword_sp_var_not_label/PERIOD_SYM!insert	CALL PERIOD zzz;
 accept	accept	engine	keyword_sp_var_not_label/PORT_SYM	CALL PORT;
@@ -9928,7 +9928,7 @@ reject	reject	engine	keyword_func_sp_var_and_label/CONTRIBUTORS_SYM!insert	CALL 
 reject	reject	engine	keyword_func_sp_var_and_label/CONTRIBUTORS_SYM!swap	CALL CONVERT;
 accept	accept	engine	keyword_func_sp_var_and_label/CURRENT_POS_SYM	CALL CURRENT_POS;
 reject	reject	engine	keyword_func_sp_var_and_label/CURRENT_POS_SYM!insert	CALL CURRENT_POS zzz;
-accept	reject	engine	keyword_func_sp_var_and_label/CURRENT_POS_SYM!swap	CALL CURRENT_ROLE;
+reject	reject	engine	keyword_func_sp_var_and_label/CURRENT_POS_SYM!swap	CALL CURRENT_ROLE;
 accept	accept	engine	keyword_func_sp_var_and_label/CPU_SYM	CALL CPU;
 reject	reject	engine	keyword_func_sp_var_and_label/CPU_SYM!insert	CALL CPU zzz;
 reject	reject	engine	keyword_func_sp_var_and_label/CPU_SYM!swap	CALL CREATE;
@@ -10148,7 +10148,7 @@ accept	accept	engine	keyword_func_sp_var_and_label/MASTER_CONNECT_RETRY_SYM	CALL
 reject	reject	engine	keyword_func_sp_var_and_label/MASTER_CONNECT_RETRY_SYM!insert	CALL MASTER_CONNECT_RETRY zzz;
 accept	accept	engine	keyword_func_sp_var_and_label/MASTER_DELAY_SYM	CALL MASTER_DELAY;
 reject	reject	engine	keyword_func_sp_var_and_label/MASTER_DELAY_SYM!insert	CALL MASTER_DELAY zzz;
-accept	reject	engine	keyword_func_sp_var_and_label/MASTER_DELAY_SYM!swap	CALL MASTER_DEMOTE_TO_SLAVE;
+reject	reject	engine	keyword_func_sp_var_and_label/MASTER_DELAY_SYM!swap	CALL MASTER_DEMOTE_TO_SLAVE;
 accept	accept	engine	keyword_func_sp_var_and_label/MASTER_SSL_SYM	CALL MASTER_SSL;
 reject	reject	engine	keyword_func_sp_var_and_label/MASTER_SSL_SYM!insert	CALL MASTER_SSL zzz;
 accept	accept	engine	keyword_func_sp_var_and_label/MASTER_SSL_CA_SYM	CALL MASTER_SSL_CA;
@@ -10261,7 +10261,7 @@ accept	accept	engine	keyword_func_sp_var_and_label/PACK_KEYS_SYM	CALL PACK_KEYS;
 reject	reject	engine	keyword_func_sp_var_and_label/PACK_KEYS_SYM!insert	CALL PACK_KEYS zzz;
 accept	accept	engine	keyword_func_sp_var_and_label/PAGE_SYM	CALL PAGE;
 reject	reject	engine	keyword_func_sp_var_and_label/PAGE_SYM!insert	CALL PAGE zzz;
-accept	reject	engine	keyword_func_sp_var_and_label/PAGE_SYM!swap	CALL PAGE_CHECKSUM;
+reject	reject	engine	keyword_func_sp_var_and_label/PAGE_SYM!swap	CALL PAGE_CHECKSUM;
 accept	accept	engine	keyword_func_sp_var_and_label/PARTIAL	CALL PARTIAL;
 reject	reject	engine	keyword_func_sp_var_and_label/PARTIAL!insert	CALL PARTIAL zzz;
 reject	reject	engine	keyword_func_sp_var_and_label/PARTIAL!swap	CALL PARTITION;
@@ -11516,13 +11516,13 @@ accept	accept	engine	set_expr_misc/BINARY!insert	SET autocommit = BINARY zzz;
 accept	accept	engine	set_expr_misc/BINARY!swap	SET autocommit = BINLOG;
 accept	accept	engine	lock/LOCK_SYM_table_or_tables_table_lock_list_opt_lock_wait_timeout	LOCK TABLE a READ;
 accept	accept	engine	opt_lock_wait_timeout/%empty	TRUNCATE a;
-reject	accept	engine	opt_lock_wait_timeout/WAIT_SYM_ulong_num	TRUNCATE a WAIT 1;
+accept	accept	engine	opt_lock_wait_timeout/WAIT_SYM_ulong_num	TRUNCATE a WAIT 1;
 reject	reject	engine	opt_lock_wait_timeout/WAIT_SYM_ulong_num!drop-1	TRUNCATE a 1;
 reject	reject	engine	opt_lock_wait_timeout/WAIT_SYM_ulong_num!drop-2	TRUNCATE a WAIT;
 reject	reject	engine	opt_lock_wait_timeout/WAIT_SYM_ulong_num!truncate	TRUNCATE a WAIT
 reject	reject	engine	opt_lock_wait_timeout/WAIT_SYM_ulong_num!insert	TRUNCATE a WAIT 1 zzz;
 reject	reject	engine	opt_lock_wait_timeout/WAIT_SYM_ulong_num!swap	TRUNCATE a WARNINGS 1;
-reject	accept	engine	opt_lock_wait_timeout/NOWAIT_SYM	TRUNCATE a NOWAIT;
+accept	accept	engine	opt_lock_wait_timeout/NOWAIT_SYM	TRUNCATE a NOWAIT;
 accept	accept	engine	opt_lock_wait_timeout/NOWAIT_SYM!truncate	TRUNCATE a
 reject	reject	engine	opt_lock_wait_timeout/NOWAIT_SYM!insert	TRUNCATE a NOWAIT zzz;
 reject	reject	engine	opt_lock_wait_timeout/NOWAIT_SYM!swap	TRUNCATE a NO_WAIT;
@@ -12169,7 +12169,7 @@ reject	reject	engine	grant_option/resource_option!truncate	GRANT SELECT ON * TO 
 reject	reject	engine	grant_option/resource_option!insert	GRANT SELECT ON * TO a WITH MAX_QUERIES_PER_HOUR 1 zzz;
 reject	reject	engine	grant_option/resource_option!swap	GRANT SELECT ON * TO a WITH MAX_ROWS 1;
 accept	accept	engine	begin_stmt_mariadb/BEGIN_MARIADB_SYM_opt_work	BEGIN;
-reject	accept	engine	compound_statement/sp_proc_stmt_compound_ok	BEGIN NOT ATOMIC END;
+accept	accept	engine	compound_statement/sp_proc_stmt_compound_ok	BEGIN NOT ATOMIC END;
 accept	accept	engine	opt_not/%empty	ALTER EVENT a ON COMPLETION PRESERVE;
 reject	reject	engine	opt_not/%empty!insert	ALTER EVENT a ON COMPLETION zzz PRESERVE;
 accept	accept	engine	opt_not/not	ALTER EVENT a ON COMPLETION NOT PRESERVE;
@@ -12243,8 +12243,8 @@ accept	accept	engine	query_expression_option/HIGH_PRIORITY!swap	SELECT HISTORY a
 accept	accept	engine	query_expression_option/DISTINCT	SELECT DISTINCT a;
 accept	accept	engine	query_expression_option/DISTINCT!insert	SELECT DISTINCT zzz a;
 reject	reject	engine	query_expression_option/DISTINCT!swap	SELECT DIV a;
-reject	accept	engine	query_expression_option/UNIQUE_SYM	SELECT UNIQUE a;
-reject	accept	engine	query_expression_option/UNIQUE_SYM!insert	SELECT UNIQUE zzz a;
+accept	accept	engine	query_expression_option/UNIQUE_SYM	SELECT UNIQUE a;
+accept	accept	engine	query_expression_option/UNIQUE_SYM!insert	SELECT UNIQUE zzz a;
 accept	accept	engine	query_expression_option/UNIQUE_SYM!swap	SELECT UNKNOWN a;
 accept	accept	engine	query_expression_option/SQL_SMALL_RESULT	SELECT SQL_SMALL_RESULT a;
 accept	accept	engine	query_expression_option/SQL_SMALL_RESULT!insert	SELECT SQL_SMALL_RESULT zzz a;
@@ -12321,22 +12321,22 @@ accept	accept	engine	view_check_option/%empty	ALTER VIEW a AS SELECT a;
 accept	accept	engine	view_check_option/WITH_CHECK_SYM_OPTION	ALTER VIEW a AS SELECT a WITH CHECK OPTION;
 reject	reject	engine	view_check_option/WITH_CHECK_SYM_OPTION!drop-1	ALTER VIEW a AS SELECT a CHECK OPTION;
 reject	reject	engine	view_check_option/WITH_CHECK_SYM_OPTION!drop-2	ALTER VIEW a AS SELECT a WITH OPTION;
-accept	reject	engine	view_check_option/WITH_CHECK_SYM_OPTION!drop-3	ALTER VIEW a AS SELECT a WITH CHECK;
-accept	reject	engine	view_check_option/WITH_CHECK_SYM_OPTION!truncate	ALTER VIEW a AS SELECT a WITH CHECK
+reject	reject	engine	view_check_option/WITH_CHECK_SYM_OPTION!drop-3	ALTER VIEW a AS SELECT a WITH CHECK;
+reject	reject	engine	view_check_option/WITH_CHECK_SYM_OPTION!truncate	ALTER VIEW a AS SELECT a WITH CHECK
 reject	reject	engine	view_check_option/WITH_CHECK_SYM_OPTION!insert	ALTER VIEW a AS SELECT a WITH CHECK OPTION zzz;
 reject	reject	engine	view_check_option/WITH_CHECK_SYM_OPTION!swap	ALTER VIEW a AS SELECT a WITHIN CHECK OPTION;
 accept	accept	engine	view_check_option/WITH_CASCADED_CHECK_SYM_OPTION	ALTER VIEW a AS SELECT a WITH CASCADED CHECK OPTION;
 reject	reject	engine	view_check_option/WITH_CASCADED_CHECK_SYM_OPTION!drop-1	ALTER VIEW a AS SELECT a CASCADED CHECK OPTION;
 reject	reject	engine	view_check_option/WITH_CASCADED_CHECK_SYM_OPTION!drop-3	ALTER VIEW a AS SELECT a WITH CASCADED OPTION;
-accept	reject	engine	view_check_option/WITH_CASCADED_CHECK_SYM_OPTION!drop-4	ALTER VIEW a AS SELECT a WITH CASCADED CHECK;
-accept	reject	engine	view_check_option/WITH_CASCADED_CHECK_SYM_OPTION!truncate	ALTER VIEW a AS SELECT a WITH CASCADED CHECK
+reject	reject	engine	view_check_option/WITH_CASCADED_CHECK_SYM_OPTION!drop-4	ALTER VIEW a AS SELECT a WITH CASCADED CHECK;
+reject	reject	engine	view_check_option/WITH_CASCADED_CHECK_SYM_OPTION!truncate	ALTER VIEW a AS SELECT a WITH CASCADED CHECK
 reject	reject	engine	view_check_option/WITH_CASCADED_CHECK_SYM_OPTION!insert	ALTER VIEW a AS SELECT a WITH CASCADED CHECK OPTION zzz;
 reject	reject	engine	view_check_option/WITH_CASCADED_CHECK_SYM_OPTION!swap	ALTER VIEW a AS SELECT a WITHIN CASCADED CHECK OPTION;
 accept	accept	engine	view_check_option/WITH_LOCAL_SYM_CHECK_SYM_OPTION	ALTER VIEW a AS SELECT a WITH LOCAL CHECK OPTION;
 reject	reject	engine	view_check_option/WITH_LOCAL_SYM_CHECK_SYM_OPTION!drop-1	ALTER VIEW a AS SELECT a LOCAL CHECK OPTION;
 reject	reject	engine	view_check_option/WITH_LOCAL_SYM_CHECK_SYM_OPTION!drop-3	ALTER VIEW a AS SELECT a WITH LOCAL OPTION;
-accept	reject	engine	view_check_option/WITH_LOCAL_SYM_CHECK_SYM_OPTION!drop-4	ALTER VIEW a AS SELECT a WITH LOCAL CHECK;
-accept	reject	engine	view_check_option/WITH_LOCAL_SYM_CHECK_SYM_OPTION!truncate	ALTER VIEW a AS SELECT a WITH LOCAL CHECK
+reject	reject	engine	view_check_option/WITH_LOCAL_SYM_CHECK_SYM_OPTION!drop-4	ALTER VIEW a AS SELECT a WITH LOCAL CHECK;
+reject	reject	engine	view_check_option/WITH_LOCAL_SYM_CHECK_SYM_OPTION!truncate	ALTER VIEW a AS SELECT a WITH LOCAL CHECK
 reject	reject	engine	view_check_option/WITH_LOCAL_SYM_CHECK_SYM_OPTION!insert	ALTER VIEW a AS SELECT a WITH LOCAL CHECK OPTION zzz;
 reject	reject	engine	view_check_option/WITH_LOCAL_SYM_CHECK_SYM_OPTION!swap	ALTER VIEW a AS SELECT a WITHIN LOCAL CHECK OPTION;
 accept	reject	engine	trigger_action_order/FOLLOWS_SYM	CREATE TRIGGER a BEFORE INSERT ON a FOR EACH ROW FOLLOWS a COMMIT;
@@ -12680,7 +12680,7 @@ accept	accept	engine	opt_truncate_table_storage_clause/_empty	TRUNCATE a;
 reject	reject	engine	ident_for_loop_index/ident	FOR a IN a DO COMMIT; END FOR;
 reject	reject	engine	ident_for_loop_index/ident!truncate	FOR
 reject	reject	engine	ident_for_loop_index/ident!insert	FOR a zzz IN a DO COMMIT; END FOR;
-reject	accept	engine	row_field_name/ident	CREATE PROCEDURE a(a ROW(a INT)) COMMIT;
+accept	accept	engine	row_field_name/ident	CREATE PROCEDURE a(a ROW(a INT)) COMMIT;
 reject	reject	engine	row_field_name/ident!truncate	CREATE PROCEDURE a(a ROW(
 reject	reject	engine	row_field_name/ident!insert	CREATE PROCEDURE a(a ROW(a zzz INT)) COMMIT;
 reject	reject	engine	while_body/expr_lex_DO_SYM_sp_proc_stmts1_END_WHILE_SYM	WHILE a DO COMMIT; END WHILE;
@@ -12703,7 +12703,7 @@ reject	reject	engine	sp_opt_default/DEFAULT_remember_cpp_ptr_expr_remember_end!t
 reject	reject	engine	sp_opt_default/DEFAULT_remember_cpp_ptr_expr_remember_end!insert	CREATE PROCEDURE a(a INT DEFAULT a zzz) COMMIT;
 reject	reject	engine	sp_opt_default/DEFAULT_remember_cpp_ptr_expr_remember_end!swap	CREATE PROCEDURE a(a INT DEFINER a) COMMIT;
 reject	reject	engine	sp_decl_variable_list_anchored/sp_decl_idents_init_vars_TYPE_SYM_OF_SYM_optionally_qualified_column_ident_sp_opt_default	BEGIN NOT ATOMIC DECLARE a TYPE OF a; END;
-reject	accept	engine	sp_decl_variable_list_anchored/sp_decl_idents_init_vars_ROW_SYM_TYPE_SYM_OF_SYM_optionally_qualified_column_ident_sp_opt_default	BEGIN NOT ATOMIC DECLARE a ROW TYPE OF a; END;
+accept	accept	engine	sp_decl_variable_list_anchored/sp_decl_idents_init_vars_ROW_SYM_TYPE_SYM_OF_SYM_optionally_qualified_column_ident_sp_opt_default	BEGIN NOT ATOMIC DECLARE a ROW TYPE OF a; END;
 reject	reject	engine	sp_decl_variable_list_anchored/sp_decl_idents_init_vars_ROW_SYM_TYPE_SYM_OF_SYM_optionally_qualified_column_ident_sp_opt_default!drop-1	BEGIN NOT ATOMIC DECLARE ROW TYPE OF a; END;
 reject	reject	engine	sp_decl_variable_list_anchored/sp_decl_idents_init_vars_ROW_SYM_TYPE_SYM_OF_SYM_optionally_qualified_column_ident_sp_opt_default!drop-3	BEGIN NOT ATOMIC DECLARE a ROW OF a; END;
 reject	reject	engine	sp_decl_variable_list_anchored/sp_decl_idents_init_vars_ROW_SYM_TYPE_SYM_OF_SYM_optionally_qualified_column_ident_sp_opt_default!drop-4	BEGIN NOT ATOMIC DECLARE a ROW TYPE a; END;
@@ -12717,11 +12717,11 @@ reject	reject	engine	sp_param_name_and_mode/sp_parameter_type_sp_param_name!trun
 reject	reject	engine	sp_param_name_and_mode/sp_parameter_type_sp_param_name!insert	CREATE PROCEDURE a(IN a zzz INT) COMMIT;
 accept	accept	engine	sp_param_name_and_mode/sp_param_name	CREATE PROCEDURE a(a INT) COMMIT;
 accept	accept	engine	sp_param_init_vars/sp_param_name_and_mode_init_vars_field_type	CREATE PROCEDURE a(a INT) COMMIT;
-reject	accept	engine	sp_param_init_vars/sp_param_name_and_mode_init_vars_ROW_SYM_row_type_body	CREATE PROCEDURE a(a ROW(a INT)) COMMIT;
+accept	accept	engine	sp_param_init_vars/sp_param_name_and_mode_init_vars_ROW_SYM_row_type_body	CREATE PROCEDURE a(a ROW(a INT)) COMMIT;
 reject	reject	engine	sp_param_init_vars/sp_param_name_and_mode_init_vars_ROW_SYM_row_type_body!drop-1	CREATE PROCEDURE a(ROW(a INT)) COMMIT;
 reject	reject	engine	sp_param_init_vars/sp_param_name_and_mode_init_vars_ROW_SYM_row_type_body!drop-2	CREATE PROCEDURE a(a(a INT)) COMMIT;
 reject	reject	engine	sp_param_init_vars/sp_param_name_and_mode_init_vars_ROW_SYM_row_type_body!swap	CREATE PROCEDURE a(a ROWCOUNT(a INT)) COMMIT;
-reject	accept	engine	sp_param_init_vars/sp_param_anchored	CREATE PROCEDURE a(a ROW TYPE OF a) COMMIT;
+accept	accept	engine	sp_param_init_vars/sp_param_anchored	CREATE PROCEDURE a(a ROW TYPE OF a) COMMIT;
 reject	reject	engine	sp_param_init_vars/sp_param_anchored!drop-1	CREATE PROCEDURE a(ROW TYPE OF a) COMMIT;
 reject	reject	engine	sp_param_init_vars/sp_param_anchored!drop-2	CREATE PROCEDURE a(a TYPE OF a) COMMIT;
 reject	reject	engine	sp_param_init_vars/sp_param_anchored!drop-3	CREATE PROCEDURE a(a ROW OF a) COMMIT;
@@ -12730,7 +12730,7 @@ reject	reject	engine	sp_param_init_vars/sp_param_anchored!drop-5	CREATE PROCEDUR
 reject	reject	engine	sp_param_init_vars/sp_param_anchored!truncate	CREATE PROCEDURE a(a ROW TYPE OF
 reject	reject	engine	sp_param_init_vars/sp_param_anchored!insert	CREATE PROCEDURE a(a ROW TYPE OF a zzz) COMMIT;
 reject	reject	engine	sp_param_init_vars/sp_param_anchored!swap	CREATE PROCEDURE a(a ROWCOUNT TYPE OF a) COMMIT;
-reject	accept	engine	sp_param_anchored/sp_param_name_and_mode_init_vars_TYPE_SYM_OF_SYM_ident_._ident	CREATE PROCEDURE a(a TYPE OF a.a) COMMIT;
+accept	accept	engine	sp_param_anchored/sp_param_name_and_mode_init_vars_TYPE_SYM_OF_SYM_ident_._ident	CREATE PROCEDURE a(a TYPE OF a.a) COMMIT;
 reject	reject	engine	sp_param_anchored/sp_param_name_and_mode_init_vars_TYPE_SYM_OF_SYM_ident_._ident!drop-1	CREATE PROCEDURE a(TYPE OF a.a) COMMIT;
 reject	reject	engine	sp_param_anchored/sp_param_name_and_mode_init_vars_TYPE_SYM_OF_SYM_ident_._ident!drop-2	CREATE PROCEDURE a(a OF a.a) COMMIT;
 reject	reject	engine	sp_param_anchored/sp_param_name_and_mode_init_vars_TYPE_SYM_OF_SYM_ident_._ident!drop-3	CREATE PROCEDURE a(a TYPE a.a) COMMIT;
@@ -12740,7 +12740,7 @@ reject	reject	engine	sp_param_anchored/sp_param_name_and_mode_init_vars_TYPE_SYM
 reject	reject	engine	sp_param_anchored/sp_param_name_and_mode_init_vars_TYPE_SYM_OF_SYM_ident_._ident!truncate	CREATE PROCEDURE a(a TYPE OF a.
 reject	reject	engine	sp_param_anchored/sp_param_name_and_mode_init_vars_TYPE_SYM_OF_SYM_ident_._ident!insert	CREATE PROCEDURE a(a TYPE OF a.a zzz) COMMIT;
 reject	reject	engine	sp_param_anchored/sp_param_name_and_mode_init_vars_TYPE_SYM_OF_SYM_ident_._ident!swap	CREATE PROCEDURE a(a UNBOUNDED OF a.a) COMMIT;
-reject	accept	engine	sp_param_anchored/sp_param_name_and_mode_init_vars_TYPE_SYM_OF_SYM_ident_._ident_._ident	CREATE PROCEDURE a(a TYPE OF a.a.a) COMMIT;
+accept	accept	engine	sp_param_anchored/sp_param_name_and_mode_init_vars_TYPE_SYM_OF_SYM_ident_._ident_._ident	CREATE PROCEDURE a(a TYPE OF a.a.a) COMMIT;
 reject	reject	engine	sp_param_anchored/sp_param_name_and_mode_init_vars_TYPE_SYM_OF_SYM_ident_._ident_._ident!drop-1	CREATE PROCEDURE a(TYPE OF a.a.a) COMMIT;
 reject	reject	engine	sp_param_anchored/sp_param_name_and_mode_init_vars_TYPE_SYM_OF_SYM_ident_._ident_._ident!drop-2	CREATE PROCEDURE a(a OF a.a.a) COMMIT;
 reject	reject	engine	sp_param_anchored/sp_param_name_and_mode_init_vars_TYPE_SYM_OF_SYM_ident_._ident_._ident!drop-3	CREATE PROCEDURE a(a TYPE a.a.a) COMMIT;
@@ -12752,9 +12752,9 @@ reject	reject	engine	sp_param_anchored/sp_param_name_and_mode_init_vars_TYPE_SYM
 reject	reject	engine	sp_param_anchored/sp_param_name_and_mode_init_vars_TYPE_SYM_OF_SYM_ident_._ident_._ident!truncate	CREATE PROCEDURE a(a TYPE OF a.a.
 reject	reject	engine	sp_param_anchored/sp_param_name_and_mode_init_vars_TYPE_SYM_OF_SYM_ident_._ident_._ident!insert	CREATE PROCEDURE a(a TYPE OF a.a.a zzz) COMMIT;
 reject	reject	engine	sp_param_anchored/sp_param_name_and_mode_init_vars_TYPE_SYM_OF_SYM_ident_._ident_._ident!swap	CREATE PROCEDURE a(a UNBOUNDED OF a.a.a) COMMIT;
-reject	accept	engine	sp_param_anchored/sp_param_name_and_mode_init_vars_ROW_SYM_TYPE_SYM_OF_SYM_ident	CREATE PROCEDURE a(a ROW TYPE OF a) COMMIT;
-reject	accept	engine	sp_param_anchored/sp_param_name_and_mode_init_vars_ROW_SYM_TYPE_SYM_OF_SYM_ident_._ident	CREATE PROCEDURE a(a ROW TYPE OF a.a) COMMIT;
-reject	accept	engine	sp_param_anchored/sp_param_name_and_mode_init_vars_ROW_SYM_TYPE_SYM_OF_SYM_ident_._ident!drop-1	CREATE PROCEDURE a(ROW TYPE OF a.a) COMMIT;
+accept	accept	engine	sp_param_anchored/sp_param_name_and_mode_init_vars_ROW_SYM_TYPE_SYM_OF_SYM_ident	CREATE PROCEDURE a(a ROW TYPE OF a) COMMIT;
+accept	accept	engine	sp_param_anchored/sp_param_name_and_mode_init_vars_ROW_SYM_TYPE_SYM_OF_SYM_ident_._ident	CREATE PROCEDURE a(a ROW TYPE OF a.a) COMMIT;
+accept	accept	engine	sp_param_anchored/sp_param_name_and_mode_init_vars_ROW_SYM_TYPE_SYM_OF_SYM_ident_._ident!drop-1	CREATE PROCEDURE a(ROW TYPE OF a.a) COMMIT;
 reject	reject	engine	sp_param_anchored/sp_param_name_and_mode_init_vars_ROW_SYM_TYPE_SYM_OF_SYM_ident_._ident!drop-3	CREATE PROCEDURE a(a ROW OF a.a) COMMIT;
 reject	reject	engine	sp_param_anchored/sp_param_name_and_mode_init_vars_ROW_SYM_TYPE_SYM_OF_SYM_ident_._ident!drop-4	CREATE PROCEDURE a(a ROW TYPE a.a) COMMIT;
 reject	reject	engine	sp_param_anchored/sp_param_name_and_mode_init_vars_ROW_SYM_TYPE_SYM_OF_SYM_ident_._ident!drop-5	CREATE PROCEDURE a(a ROW TYPE OF.a) COMMIT;
@@ -12774,22 +12774,22 @@ reject	reject	engine	sp_tail_standalone/sp_name_sp_parenthesized_pdparam_list_sp
 reject	reject	engine	sp_tail_standalone/sp_name_sp_parenthesized_pdparam_list_sp_c_chistics_sp_proc_stmt_force_lookahead!drop-4	CREATE PROCEDURE a();
 reject	reject	engine	sp_tail_standalone/sp_name_sp_parenthesized_pdparam_list_sp_c_chistics_sp_proc_stmt_force_lookahead!insert	CREATE PROCEDURE a() COMMIT zzz;
 reject	reject	engine	sp_tail_standalone/sp_name_sp_parenthesized_pdparam_list_sp_c_chistics_sp_proc_stmt_force_lookahead!swap	CREATE PROCEDURE a() COMMITTED;
-reject	accept	engine	sp_decls/_empty	BEGIN NOT ATOMIC END;
-reject	accept	engine	sp_decls/sp_decls_sp_decl_;	BEGIN NOT ATOMIC DECLARE a INT; END;
+accept	accept	engine	sp_decls/_empty	BEGIN NOT ATOMIC END;
+accept	accept	engine	sp_decls/sp_decls_sp_decl_;	BEGIN NOT ATOMIC DECLARE a INT; END;
 reject	reject	engine	sp_decls/sp_decls_sp_decl_;!drop-1	BEGIN NOT ATOMIC a INT; END;
 reject	reject	engine	sp_decls/sp_decls_sp_decl_;!drop-4	BEGIN NOT ATOMIC DECLARE a INT END;
 reject	reject	engine	sp_decls/sp_decls_sp_decl_;!truncate	BEGIN NOT ATOMIC DECLARE a INT
 reject	reject	engine	sp_decls/sp_decls_sp_decl_;!insert	BEGIN NOT ATOMIC DECLARE a INT; zzz END;
 reject	reject	engine	sp_decls/sp_decls_sp_decl_;!swap	BEGIN NOT ATOMIC DEFAULT a INT; END;
-reject	accept	engine	sp_decl/DECLARE_MARIADB_SYM_sp_decl_body	BEGIN NOT ATOMIC DECLARE a INT; END;
-reject	accept	engine	sp_decl_body/sp_decl_variable_list	BEGIN NOT ATOMIC DECLARE a INT; END;
-reject	accept	engine	sp_decl_body/sp_decl_ident_CONDITION_SYM_FOR_SYM_sp_cond	BEGIN NOT ATOMIC DECLARE a CONDITION FOR 1; END;
+accept	accept	engine	sp_decl/DECLARE_MARIADB_SYM_sp_decl_body	BEGIN NOT ATOMIC DECLARE a INT; END;
+accept	accept	engine	sp_decl_body/sp_decl_variable_list	BEGIN NOT ATOMIC DECLARE a INT; END;
+accept	accept	engine	sp_decl_body/sp_decl_ident_CONDITION_SYM_FOR_SYM_sp_cond	BEGIN NOT ATOMIC DECLARE a CONDITION FOR 1; END;
 reject	reject	engine	sp_decl_body/sp_decl_ident_CONDITION_SYM_FOR_SYM_sp_cond!drop-1	BEGIN NOT ATOMIC DECLARE CONDITION FOR 1; END;
 reject	reject	engine	sp_decl_body/sp_decl_ident_CONDITION_SYM_FOR_SYM_sp_cond!drop-2	BEGIN NOT ATOMIC DECLARE a FOR 1; END;
 reject	reject	engine	sp_decl_body/sp_decl_ident_CONDITION_SYM_FOR_SYM_sp_cond!drop-3	BEGIN NOT ATOMIC DECLARE a CONDITION 1; END;
 reject	reject	engine	sp_decl_body/sp_decl_ident_CONDITION_SYM_FOR_SYM_sp_cond!swap	BEGIN NOT ATOMIC DECLARE a CONNECTION FOR 1; END;
-reject	accept	engine	sp_decl_body/sp_decl_handler	BEGIN NOT ATOMIC DECLARE EXIT HANDLER FOR 1 COMMIT; END;
-reject	accept	engine	sp_decl_body/sp_decl_ident_CURSOR_SYM_opt_parenthesized_cursor_formal_parameters_FOR_SYM_sp_cursor_stmt	BEGIN NOT ATOMIC DECLARE a CURSOR FOR SELECT a; END;
+accept	accept	engine	sp_decl_body/sp_decl_handler	BEGIN NOT ATOMIC DECLARE EXIT HANDLER FOR 1 COMMIT; END;
+accept	accept	engine	sp_decl_body/sp_decl_ident_CURSOR_SYM_opt_parenthesized_cursor_formal_parameters_FOR_SYM_sp_cursor_stmt	BEGIN NOT ATOMIC DECLARE a CURSOR FOR SELECT a; END;
 reject	reject	engine	sp_decl_body/sp_decl_ident_CURSOR_SYM_opt_parenthesized_cursor_formal_parameters_FOR_SYM_sp_cursor_stmt!drop-1	BEGIN NOT ATOMIC DECLARE CURSOR FOR SELECT a; END;
 reject	reject	engine	sp_decl_body/sp_decl_ident_CURSOR_SYM_opt_parenthesized_cursor_formal_parameters_FOR_SYM_sp_cursor_stmt!drop-2	BEGIN NOT ATOMIC DECLARE a FOR SELECT a; END;
 reject	reject	engine	sp_decl_body/sp_decl_ident_CURSOR_SYM_opt_parenthesized_cursor_formal_parameters_FOR_SYM_sp_cursor_stmt!drop-3	BEGIN NOT ATOMIC DECLARE a CURSOR SELECT a; END;
@@ -12807,7 +12807,7 @@ reject	reject	engine	sp_proc_stmt_in_returns_clause/sp_unlabeled_block!truncate	
 reject	reject	engine	sp_proc_stmt_in_returns_clause/sp_unlabeled_block!insert	ALTER EVENT a DO BEGIN END zzz;
 reject	reject	engine	sp_proc_stmt_in_returns_clause/sp_unlabeled_block!swap	ALTER EVENT a DO BETWEEN END;
 accept	accept	engine	sp_proc_stmt_in_returns_clause/sp_labeled_control	ALTER EVENT a DO a : LOOP COMMIT; END LOOP;
-reject	accept	engine	sp_proc_stmt_in_returns_clause/sp_proc_stmt_compound_ok	ALTER EVENT a DO BEGIN NOT ATOMIC END;
+accept	accept	engine	sp_proc_stmt_in_returns_clause/sp_proc_stmt_compound_ok	ALTER EVENT a DO BEGIN NOT ATOMIC END;
 reject	reject	engine	sp_proc_stmt_in_returns_clause/sp_proc_stmt_compound_ok!drop-1	ALTER EVENT a DO NOT ATOMIC END;
 reject	reject	engine	sp_proc_stmt_in_returns_clause/sp_proc_stmt_compound_ok!drop-2	ALTER EVENT a DO BEGIN ATOMIC END;
 reject	reject	engine	sp_proc_stmt_in_returns_clause/sp_proc_stmt_compound_ok!drop-3	ALTER EVENT a DO BEGIN NOT END;
@@ -12822,11 +12822,11 @@ reject	reject	engine	sp_proc_stmt/sp_proc_stmt_iterate	ALTER EVENT a DO ITERATE 
 reject	reject	engine	sp_proc_stmt/sp_proc_stmt_with_cursor	ALTER EVENT a DO OPEN a;
 reject	reject	engine	sp_proc_stmt_compound_ok/sp_proc_stmt_if	IF a THEN COMMIT; END IF;
 reject	reject	engine	sp_proc_stmt_compound_ok/case_stmt_specification	CASE WHEN a THEN COMMIT; END CASE;
-reject	accept	engine	sp_proc_stmt_compound_ok/sp_unlabeled_block_not_atomic	BEGIN NOT ATOMIC END;
-reject	accept	engine	sp_proc_stmt_compound_ok/sp_unlabeled_control	LOOP COMMIT; END LOOP;
+accept	accept	engine	sp_proc_stmt_compound_ok/sp_unlabeled_block_not_atomic	BEGIN NOT ATOMIC END;
+accept	accept	engine	sp_proc_stmt_compound_ok/sp_unlabeled_control	LOOP COMMIT; END LOOP;
 accept	accept	engine	sp_labeled_block/sp_block_label_BEGIN_MARIADB_SYM_sp_decls_sp_proc_stmts_END_sp_opt_label	ALTER EVENT a DO a : BEGIN END;
 accept	accept	engine	sp_unlabeled_block/BEGIN_MARIADB_SYM_sp_decls_sp_proc_stmts_END	ALTER EVENT a DO BEGIN END;
-reject	accept	engine	sp_unlabeled_block_not_atomic/BEGIN_MARIADB_SYM_not_ATOMIC_SYM_sp_decls_sp_proc_stmts_END	BEGIN NOT ATOMIC END;
+accept	accept	engine	sp_unlabeled_block_not_atomic/BEGIN_MARIADB_SYM_not_ATOMIC_SYM_sp_decls_sp_proc_stmts_END	BEGIN NOT ATOMIC END;
 reject	reject	engine	package_implementation_declare_section_list1/package_implementation_item_declaration	CREATE PACKAGE BODY a DECLARE a INT; END;
 reject	reject	engine	package_implementation_declare_section_list1/package_implementation_declare_section_list1_package_implementation_item_declaration	CREATE PACKAGE BODY a DECLARE a INT; DECLARE a INT; END;
 reject	reject	engine	package_implementation_declare_section_list1/package_implementation_declare_section_list1_package_implementation_item_declaration!drop-1	CREATE PACKAGE BODY a a INT; DECLARE a INT; END;
@@ -12925,7 +12925,7 @@ reject	reject	engine	create_routine/create_or_replace_definer_opt_PROCEDURE_SYM_
 accept	reject	engine	create_routine/create_or_replace_definer_opt_aggregate_FUNCTION_SYM_opt_if_not_exists_sp_name_sf_parameters_sf_returned_type_clause_sf_c_chistics_and_body_standalone_opt_trailing_sp_name	CREATE DEFINER = a FUNCTION a() RETURNS INT RETURN a;
 reject	reject	engine	create_routine/create_or_replace_definer_opt_aggregate_FUNCTION_SYM_opt_if_not_exists_sp_name_sf_parameters_sf_returned_type_clause_sf_c_chistics_and_body_standalone_opt_trailing_sp_name!drop-1	DEFINER = a FUNCTION a() RETURNS INT RETURN a;
 reject	reject	engine	create_routine/create_or_replace_definer_opt_aggregate_FUNCTION_SYM_opt_if_not_exists_sp_name_sf_parameters_sf_returned_type_clause_sf_c_chistics_and_body_standalone_opt_trailing_sp_name!drop-2	CREATE = a FUNCTION a() RETURNS INT RETURN a;
-accept	reject	engine	create_routine/create_or_replace_definer_opt_aggregate_FUNCTION_SYM_opt_if_not_exists_sp_name_sf_parameters_sf_returned_type_clause_sf_c_chistics_and_body_standalone_opt_trailing_sp_name!drop-3	CREATE DEFINER a FUNCTION a() RETURNS INT RETURN a;
+reject	reject	engine	create_routine/create_or_replace_definer_opt_aggregate_FUNCTION_SYM_opt_if_not_exists_sp_name_sf_parameters_sf_returned_type_clause_sf_c_chistics_and_body_standalone_opt_trailing_sp_name!drop-3	CREATE DEFINER a FUNCTION a() RETURNS INT RETURN a;
 reject	reject	engine	create_routine/create_or_replace_definer_opt_aggregate_FUNCTION_SYM_opt_if_not_exists_sp_name_sf_parameters_sf_returned_type_clause_sf_c_chistics_and_body_standalone_opt_trailing_sp_name!drop-4	CREATE DEFINER = FUNCTION a() RETURNS INT RETURN a;
 reject	reject	engine	create_routine/create_or_replace_definer_opt_aggregate_FUNCTION_SYM_opt_if_not_exists_sp_name_sf_parameters_sf_returned_type_clause_sf_c_chistics_and_body_standalone_opt_trailing_sp_name!drop-5	CREATE DEFINER = a a() RETURNS INT RETURN a;
 reject	reject	engine	create_routine/create_or_replace_definer_opt_aggregate_FUNCTION_SYM_opt_if_not_exists_sp_name_sf_parameters_sf_returned_type_clause_sf_c_chistics_and_body_standalone_opt_trailing_sp_name!drop-6	CREATE DEFINER = a FUNCTION() RETURNS INT RETURN a;

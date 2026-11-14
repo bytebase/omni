@@ -6469,10 +6469,6 @@ func TestParseSignal(t *testing.T) {
 			sql:  "SIGNAL SQLSTATE VALUE '45000'",
 			want: "{SIGNAL :loc 0 :condition 45000}",
 		},
-		{
-			sql:  "SIGNAL my_error",
-			want: "{SIGNAL :loc 0 :condition my_error}",
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.sql, func(t *testing.T) {
@@ -8288,8 +8284,8 @@ func TestParseResetReplica(t *testing.T) {
 		"RESET REPLICA",
 		"RESET SLAVE",
 		"RESET REPLICA ALL",
-		"RESET REPLICA FOR CHANNEL ch1",
-		"RESET REPLICA ALL FOR CHANNEL ch1",
+		"RESET REPLICA FOR CHANNEL 'ch1'",
+		"RESET REPLICA ALL FOR CHANNEL 'ch1'",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {

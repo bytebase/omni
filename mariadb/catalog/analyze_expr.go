@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	nodes "github.com/bytebase/omni/mariadb/ast"
+	"github.com/bytebase/omni/mariadb/deparse"
 )
 
 // analyzeExpr is the main expression analysis dispatcher.
@@ -103,18 +104,83 @@ func analyzeFuncCall(c *Catalog, fc *nodes.FuncCallExpr, scope *analyzerScope) (
 	if lower == "coalesce" || lower == "ifnull" {
 		return &CoalesceExprQ{Args: args}, nil
 	}
+	// TRIM_ORACLE reads as oracle_schema.TRIM, which is another function than
+	// TRIM: it returns NULL where TRIM returns ''. The name keeps the schema.
+	if strings.EqualFold(fc.Schema, "oracle_schema") && fc.Package == "" && strings.HasPrefix(lower, "trim") {
+		lower = "oracle_schema." + lower
+	}
+	// Any other qualified name calls a stored routine, a package's when it has
+	// three parts, and keeps all of them: f(1) is another routine than
+	// d.pkg.f(1). Only oracle_schema and mariadb_schema name builtins, TRIM
+	// and SUBSTRING, through a qualifier.
+	routine := ""
+	if fc.Schema != "" && !qualifiedBuiltin(fc, lower) {
+		raw := fc.RawName
+		if raw == "" {
+			raw = fc.Name
+		}
+		routine = backtickIDQ(fc.Schema) + "."
+		if fc.Package != "" {
+			routine += backtickIDQ(fc.Package) + "."
+		}
+		routine += backtickIDQ(raw)
+	}
 	result := &FuncCallExprQ{
-		Name: lower,
-		Args: args,
+		Name:    lower,
+		Routine: routine,
+		Args:    args,
 		// A spaced gated keyword is a generic call, not the builtin, so it is
 		// never the aggregate: `count (a)` is a stored-function call, not COUNT.
-		IsAggregate: isAggregateFunc(fc.Name) && !fc.SpacedParen,
+		// Nor is a stored routine's call.
+		IsAggregate: isAggregateFunc(fc.Name) && !fc.SpacedParen && routine == "",
 		Distinct:    fc.Quantifier.RemovesDuplicates(),
 		SpacedParen: fc.SpacedParen,
+	}
+	// PERCENTILE_CONT, PERCENTILE_DISC and MEDIAN carry their own window, a
+	// PARTITION BY list or nothing, and the first two a WITHIN GROUP order:
+	// neither parses without the other.
+	if fc.WithinGroup || (lower == "median" && fc.Over != nil && fc.Schema == "") {
+		if fc.WithinGroup && len(fc.OrderBy) == 1 {
+			order, err := analyzeExpr(c, fc.OrderBy[0].Expr, scope)
+			if err != nil {
+				return nil, err
+			}
+			result.WithinGroup, result.WithinGroupDesc = order, fc.OrderBy[0].Desc
+		}
+		if fc.Over != nil {
+			over := &WindowDefQ{}
+			for _, e := range fc.Over.PartitionBy {
+				a, err := analyzeExpr(c, e, scope)
+				if err != nil {
+					return nil, err
+				}
+				over.PartitionBy = append(over.PartitionBy, a)
+			}
+			result.Over = over
+		}
+	}
+	// A dynamic column function's AS types are part of the call: COLUMN_GET
+	// does not parse without one.
+	if len(fc.ArgTypes) > 0 {
+		result.ArgTypes = make([]string, len(fc.Args))
+		for i := range fc.Args {
+			result.ArgTypes[i] = deparse.DynColArgType(fc, i)
+		}
 	}
 	// Phase 3: populate return type from function type table.
 	result.ResultType = functionReturnType(result.Name, result.Args)
 	return result, nil
+}
+
+// qualifiedBuiltin reports a qualified call that is still a builtin:
+// oracle_schema's and mariadb_schema's TRIM and SUBSTRING, which the parser
+// reads with their own syntax (the TRIM forms are named trim_leading and so on).
+func qualifiedBuiltin(fc *nodes.FuncCallExpr, lower string) bool {
+	if fc.Package != "" || !(strings.EqualFold(fc.Schema, "oracle_schema") || strings.EqualFold(fc.Schema, "mariadb_schema")) {
+		return false
+	}
+	lower = strings.TrimPrefix(lower, "oracle_schema.")
+	return strings.HasPrefix(lower, "trim") || lower == "substring" || lower == "substr"
 }
 
 // analyzePositionExpr resolves POSITION(substr IN str). The node has to be

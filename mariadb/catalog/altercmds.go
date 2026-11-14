@@ -22,6 +22,10 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	key := toLower(tableName)
 	tbl := db.Tables[key]
 	if tbl == nil {
+		// IF EXISTS makes a missing table a note (1146 as a warning).
+		if stmt.IfExists {
+			return nil
+		}
 		return errNoSuchTable(db.Name, tableName)
 	}
 

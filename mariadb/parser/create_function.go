@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	nodes "github.com/bytebase/omni/mariadb/ast"
 )
 
@@ -45,10 +47,18 @@ func (p *Parser) finishLoadableFunction(stmt *nodes.CreateFunctionStmt) (*nodes.
 	if _, err := p.expect(kwRETURNS); err != nil {
 		return nil, err
 	}
+	// udf_type is STRING, REAL, DECIMAL or INT, each a keyword with the spellings its
+	// lexer gives the token (DEC, INTEGER, INT4); a backquoted name is none of them.
+	//
+	// Ref: udf_type in sql/sql_yacc.yy and the keyword table in sql/lex.h.
 	retStart := p.pos()
-	retType, _, err := p.parseKeywordOrIdent()
-	if err != nil {
-		return nil, err
+	var retType string
+	switch strings.ToUpper(p.inputText(p.cur.Loc, p.cur.End)) {
+	case "STRING", "REAL", "DECIMAL", "DEC", "INT", "INTEGER", "INT4":
+		retType = strings.ToUpper(p.cur.Str)
+		p.advance()
+	default:
+		return nil, p.syntaxErrorAtCur()
 	}
 	stmt.Returns = &nodes.DataType{
 		Loc:  nodes.Loc{Start: retStart, End: p.prev.End},
@@ -135,15 +145,8 @@ func (p *Parser) parseCreateFunctionStmt(start int, orReplace, isProcedure bool)
 	var paramNames []string
 	if p.cur.Type != ')' {
 		for {
-			namePos := p.cur.Loc
-			if isProcedure && (p.cur.Type == kwIN || p.cur.Type == kwOUT || p.cur.Type == kwINOUT) {
-				namePos = p.peekNext().Loc
-			}
-			param, err := p.parseFuncParam(isProcedure)
+			param, err := p.parseSpParam(isProcedure, paramNames)
 			if err != nil {
-				return nil, err
-			}
-			if err := p.checkSPParam(paramNames, param.Name, namePos); err != nil {
 				return nil, err
 			}
 			paramNames = append(paramNames, param.Name)
@@ -216,45 +219,6 @@ func (p *Parser) parseCreateFunctionStmt(start int, orReplace, isProcedure bool)
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
-}
-
-// parseFuncParam parses a function/procedure parameter.
-//
-//	[IN | OUT | INOUT] param_name type
-func (p *Parser) parseFuncParam(isProcedure bool) (*nodes.FuncParam, error) {
-	start := p.pos()
-	param := &nodes.FuncParam{Loc: nodes.Loc{Start: start}}
-
-	// Optional direction for procedures
-	if isProcedure {
-		if p.cur.Type == kwIN {
-			param.Direction = "IN"
-			p.advance()
-		} else if p.cur.Type == kwOUT {
-			param.Direction = "OUT"
-			p.advance()
-		} else if p.cur.Type == kwINOUT {
-			param.Direction = "INOUT"
-			p.advance()
-		}
-	}
-
-	// Parameter name
-	name, _, err := p.parseIdentifier()
-	if err != nil {
-		return nil, err
-	}
-	param.Name = name
-
-	// Data type
-	dt, err := p.parseDataType()
-	if err != nil {
-		return nil, err
-	}
-	param.TypeName = dt
-
-	param.Loc.End = p.prev.End
-	return param, nil
 }
 
 // parseRoutineCharacteristic parses a routine characteristic.
