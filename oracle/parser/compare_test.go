@@ -5959,33 +5959,34 @@ func TestParseCreateTableFull(t *testing.T) {
 			name: "default_collation",
 			sql:  "CREATE TABLE t1 (id NUMBER, name VARCHAR2(100)) DEFAULT COLLATION USING_NLS_COMP",
 		},
-		// Immutable table: NO DROP
+		// Immutable table: NO DROP, which Oracle 23ai refuses on a plain
+		// CREATE TABLE (ORA-00922)
 		{
 			name: "immutable_no_drop",
-			sql:  "CREATE TABLE t1 (id NUMBER) NO DROP",
+			sql:  "CREATE IMMUTABLE TABLE t1 (id NUMBER) NO DROP",
 		},
 		{
 			name: "immutable_no_drop_until",
-			sql:  "CREATE TABLE t1 (id NUMBER) NO DROP UNTIL 30 DAYS IDLE",
+			sql:  "CREATE IMMUTABLE TABLE t1 (id NUMBER) NO DROP UNTIL 30 DAYS IDLE",
 		},
 		// Immutable table: NO DELETE
 		{
 			name: "immutable_no_delete_locked",
-			sql:  "CREATE TABLE t1 (id NUMBER) NO DELETE LOCKED",
+			sql:  "CREATE IMMUTABLE TABLE t1 (id NUMBER) NO DELETE LOCKED",
 		},
 		{
 			name: "immutable_no_delete_until",
-			sql:  "CREATE TABLE t1 (id NUMBER) NO DELETE UNTIL 365 DAYS AFTER INSERT",
+			sql:  "CREATE IMMUTABLE TABLE t1 (id NUMBER) NO DELETE UNTIL 365 DAYS AFTER INSERT",
 		},
 		// Immutable table: NO DROP + NO DELETE combined
 		{
 			name: "immutable_no_drop_no_delete",
-			sql:  "CREATE TABLE t1 (id NUMBER) NO DROP UNTIL 16 DAYS IDLE NO DELETE UNTIL 16 DAYS AFTER INSERT",
+			sql:  "CREATE IMMUTABLE TABLE t1 (id NUMBER) NO DROP UNTIL 16 DAYS IDLE NO DELETE UNTIL 16 DAYS AFTER INSERT",
 		},
 		// Blockchain: HASHING USING / VERSION
 		{
 			name: "blockchain_hash_version",
-			sql:  "CREATE TABLE t1 (id NUMBER) NO DROP UNTIL 16 DAYS IDLE NO DELETE UNTIL 16 DAYS AFTER INSERT HASHING USING 'SHA2_512' VERSION 'v2'",
+			sql:  "CREATE BLOCKCHAIN TABLE t1 (id NUMBER) NO DROP UNTIL 16 DAYS IDLE NO DELETE UNTIL 16 DAYS AFTER INSERT HASHING USING 'SHA2_512' VERSION 'v2'",
 		},
 		// MEMOPTIMIZE FOR READ
 		{
