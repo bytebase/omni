@@ -491,9 +491,9 @@ reject	reject	engine	statement/showStreamLoadStatement!insert	SHOW STREAM LOAD z
 reject	reject	engine	statement/showStreamLoadStatement!swap	SIGNED STREAM LOAD;
 accept	accept	engine	statement/adminSetConfigStatement	ADMIN SET FRONTEND CONFIG('a' = 'a');
 reject	reject	engine	statement/adminSetConfigStatement!drop-1	SET FRONTEND CONFIG('a' = 'a');
-accept	reject	engine	statement/adminSetConfigStatement!drop-2	ADMIN FRONTEND CONFIG('a' = 'a');
-accept	reject	engine	statement/adminSetConfigStatement!drop-3	ADMIN SET CONFIG('a' = 'a');
-accept	reject	engine	statement/adminSetConfigStatement!drop-4	ADMIN SET FRONTEND('a' = 'a');
+reject	reject	engine	statement/adminSetConfigStatement!drop-2	ADMIN FRONTEND CONFIG('a' = 'a');
+reject	reject	engine	statement/adminSetConfigStatement!drop-3	ADMIN SET CONFIG('a' = 'a');
+reject	reject	engine	statement/adminSetConfigStatement!drop-4	ADMIN SET FRONTEND('a' = 'a');
 reject	reject	engine	statement/adminSetConfigStatement!drop-5	ADMIN SET FRONTEND CONFIG 'a' = 'a');
 reject	reject	engine	statement/adminSetConfigStatement!drop-6	ADMIN SET FRONTEND CONFIG(= 'a');
 reject	reject	engine	statement/adminSetConfigStatement!drop-7	ADMIN SET FRONTEND CONFIG('a' 'a');
@@ -504,9 +504,9 @@ reject	reject	engine	statement/adminSetConfigStatement!insert	ADMIN SET FRONTEND
 reject	reject	engine	statement/adminSetConfigStatement!swap	ADVISOR SET FRONTEND CONFIG('a' = 'a');
 accept	accept	engine	statement/adminSetReplicaStatusStatement	ADMIN SET REPLICA STATUS PROPERTIES('a' = 'a');
 reject	reject	engine	statement/adminSetReplicaStatusStatement!drop-1	SET REPLICA STATUS PROPERTIES('a' = 'a');
-accept	reject	engine	statement/adminSetReplicaStatusStatement!drop-2	ADMIN REPLICA STATUS PROPERTIES('a' = 'a');
-accept	reject	engine	statement/adminSetReplicaStatusStatement!drop-3	ADMIN SET STATUS PROPERTIES('a' = 'a');
-accept	reject	engine	statement/adminSetReplicaStatusStatement!drop-4	ADMIN SET REPLICA PROPERTIES('a' = 'a');
+reject	reject	engine	statement/adminSetReplicaStatusStatement!drop-2	ADMIN REPLICA STATUS PROPERTIES('a' = 'a');
+reject	reject	engine	statement/adminSetReplicaStatusStatement!drop-3	ADMIN SET STATUS PROPERTIES('a' = 'a');
+reject	reject	engine	statement/adminSetReplicaStatusStatement!drop-4	ADMIN SET REPLICA PROPERTIES('a' = 'a');
 reject	reject	engine	statement/adminSetReplicaStatusStatement!drop-5	ADMIN SET REPLICA STATUS('a' = 'a');
 reject	reject	engine	statement/adminSetReplicaStatusStatement!drop-6	ADMIN SET REPLICA STATUS PROPERTIES 'a' = 'a');
 reject	reject	engine	statement/adminSetReplicaStatusStatement!drop-7	ADMIN SET REPLICA STATUS PROPERTIES(= 'a');
@@ -518,55 +518,55 @@ reject	reject	engine	statement/adminSetReplicaStatusStatement!insert	ADMIN SET R
 reject	reject	engine	statement/adminSetReplicaStatusStatement!swap	ADVISOR SET REPLICA STATUS PROPERTIES('a' = 'a');
 accept	accept	engine	statement/adminShowConfigStatement	ADMIN SHOW FRONTEND CONFIG;
 reject	reject	engine	statement/adminShowConfigStatement!drop-1	SHOW FRONTEND CONFIG;
-accept	reject	engine	statement/adminShowConfigStatement!drop-2	ADMIN FRONTEND CONFIG;
-accept	reject	engine	statement/adminShowConfigStatement!drop-3	ADMIN SHOW CONFIG;
-accept	reject	engine	statement/adminShowConfigStatement!drop-4	ADMIN SHOW FRONTEND;
-accept	reject	engine	statement/adminShowConfigStatement!truncate	ADMIN SHOW FRONTEND
-accept	reject	engine	statement/adminShowConfigStatement!insert	ADMIN SHOW FRONTEND CONFIG zzz;
+reject	reject	engine	statement/adminShowConfigStatement!drop-2	ADMIN FRONTEND CONFIG;
+reject	reject	engine	statement/adminShowConfigStatement!drop-3	ADMIN SHOW CONFIG;
+reject	reject	engine	statement/adminShowConfigStatement!drop-4	ADMIN SHOW FRONTEND;
+reject	reject	engine	statement/adminShowConfigStatement!truncate	ADMIN SHOW FRONTEND
+reject	reject	engine	statement/adminShowConfigStatement!insert	ADMIN SHOW FRONTEND CONFIG zzz;
 reject	reject	engine	statement/adminShowConfigStatement!swap	ADVISOR SHOW FRONTEND CONFIG;
 accept	accept	engine	statement/adminShowReplicaDistributionStatement	ADMIN SHOW REPLICA DISTRIBUTION FROM a;
 reject	reject	engine	statement/adminShowReplicaDistributionStatement!drop-1	SHOW REPLICA DISTRIBUTION FROM a;
-accept	reject	engine	statement/adminShowReplicaDistributionStatement!drop-2	ADMIN REPLICA DISTRIBUTION FROM a;
-accept	reject	engine	statement/adminShowReplicaDistributionStatement!drop-3	ADMIN SHOW DISTRIBUTION FROM a;
-accept	reject	engine	statement/adminShowReplicaDistributionStatement!drop-4	ADMIN SHOW REPLICA FROM a;
-accept	reject	engine	statement/adminShowReplicaDistributionStatement!drop-5	ADMIN SHOW REPLICA DISTRIBUTION a;
-accept	reject	engine	statement/adminShowReplicaDistributionStatement!drop-6	ADMIN SHOW REPLICA DISTRIBUTION FROM;
-accept	reject	engine	statement/adminShowReplicaDistributionStatement!truncate	ADMIN SHOW REPLICA DISTRIBUTION FROM
-accept	reject	engine	statement/adminShowReplicaDistributionStatement!insert	ADMIN SHOW REPLICA DISTRIBUTION FROM a zzz;
+reject	reject	engine	statement/adminShowReplicaDistributionStatement!drop-2	ADMIN REPLICA DISTRIBUTION FROM a;
+reject	reject	engine	statement/adminShowReplicaDistributionStatement!drop-3	ADMIN SHOW DISTRIBUTION FROM a;
+reject	reject	engine	statement/adminShowReplicaDistributionStatement!drop-4	ADMIN SHOW REPLICA FROM a;
+reject	reject	engine	statement/adminShowReplicaDistributionStatement!drop-5	ADMIN SHOW REPLICA DISTRIBUTION a;
+reject	reject	engine	statement/adminShowReplicaDistributionStatement!drop-6	ADMIN SHOW REPLICA DISTRIBUTION FROM;
+reject	reject	engine	statement/adminShowReplicaDistributionStatement!truncate	ADMIN SHOW REPLICA DISTRIBUTION FROM
+reject	reject	engine	statement/adminShowReplicaDistributionStatement!insert	ADMIN SHOW REPLICA DISTRIBUTION FROM a zzz;
 reject	reject	engine	statement/adminShowReplicaDistributionStatement!swap	ADVISOR SHOW REPLICA DISTRIBUTION FROM a;
 accept	accept	engine	statement/adminShowReplicaStatusStatement	ADMIN SHOW REPLICA STATUS FROM a;
 reject	reject	engine	statement/adminShowReplicaStatusStatement!drop-1	SHOW REPLICA STATUS FROM a;
-accept	reject	engine	statement/adminShowReplicaStatusStatement!drop-2	ADMIN REPLICA STATUS FROM a;
-accept	reject	engine	statement/adminShowReplicaStatusStatement!drop-3	ADMIN SHOW STATUS FROM a;
-accept	reject	engine	statement/adminShowReplicaStatusStatement!drop-5	ADMIN SHOW REPLICA STATUS a;
-accept	reject	engine	statement/adminShowReplicaStatusStatement!drop-6	ADMIN SHOW REPLICA STATUS FROM;
-accept	reject	engine	statement/adminShowReplicaStatusStatement!truncate	ADMIN SHOW REPLICA STATUS FROM
-accept	reject	engine	statement/adminShowReplicaStatusStatement!insert	ADMIN SHOW REPLICA STATUS FROM a zzz;
+reject	reject	engine	statement/adminShowReplicaStatusStatement!drop-2	ADMIN REPLICA STATUS FROM a;
+reject	reject	engine	statement/adminShowReplicaStatusStatement!drop-3	ADMIN SHOW STATUS FROM a;
+reject	reject	engine	statement/adminShowReplicaStatusStatement!drop-5	ADMIN SHOW REPLICA STATUS a;
+reject	reject	engine	statement/adminShowReplicaStatusStatement!drop-6	ADMIN SHOW REPLICA STATUS FROM;
+reject	reject	engine	statement/adminShowReplicaStatusStatement!truncate	ADMIN SHOW REPLICA STATUS FROM
+reject	reject	engine	statement/adminShowReplicaStatusStatement!insert	ADMIN SHOW REPLICA STATUS FROM a zzz;
 reject	reject	engine	statement/adminShowReplicaStatusStatement!swap	ADVISOR SHOW REPLICA STATUS FROM a;
 accept	accept	engine	statement/adminRepairTableStatement	ADMIN REPAIR TABLE a;
 reject	reject	engine	statement/adminRepairTableStatement!drop-1	REPAIR TABLE a;
-accept	reject	engine	statement/adminRepairTableStatement!drop-2	ADMIN TABLE a;
-accept	reject	engine	statement/adminRepairTableStatement!drop-3	ADMIN REPAIR a;
-accept	reject	engine	statement/adminRepairTableStatement!drop-4	ADMIN REPAIR TABLE;
-accept	reject	engine	statement/adminRepairTableStatement!truncate	ADMIN REPAIR TABLE
-accept	reject	engine	statement/adminRepairTableStatement!insert	ADMIN REPAIR TABLE a zzz;
+reject	reject	engine	statement/adminRepairTableStatement!drop-2	ADMIN TABLE a;
+reject	reject	engine	statement/adminRepairTableStatement!drop-3	ADMIN REPAIR a;
+reject	reject	engine	statement/adminRepairTableStatement!drop-4	ADMIN REPAIR TABLE;
+reject	reject	engine	statement/adminRepairTableStatement!truncate	ADMIN REPAIR TABLE
+reject	reject	engine	statement/adminRepairTableStatement!insert	ADMIN REPAIR TABLE a zzz;
 reject	reject	engine	statement/adminRepairTableStatement!swap	ADVISOR REPAIR TABLE a;
 accept	accept	engine	statement/adminCancelRepairTableStatement	ADMIN CANCEL REPAIR TABLE a;
 accept	reject	engine	statement/adminCancelRepairTableStatement!drop-1	CANCEL REPAIR TABLE a;
-accept	reject	engine	statement/adminCancelRepairTableStatement!drop-3	ADMIN CANCEL TABLE a;
-accept	reject	engine	statement/adminCancelRepairTableStatement!drop-4	ADMIN CANCEL REPAIR a;
-accept	reject	engine	statement/adminCancelRepairTableStatement!drop-5	ADMIN CANCEL REPAIR TABLE;
-accept	reject	engine	statement/adminCancelRepairTableStatement!truncate	ADMIN CANCEL REPAIR TABLE
-accept	reject	engine	statement/adminCancelRepairTableStatement!insert	ADMIN CANCEL REPAIR TABLE a zzz;
+reject	reject	engine	statement/adminCancelRepairTableStatement!drop-3	ADMIN CANCEL TABLE a;
+reject	reject	engine	statement/adminCancelRepairTableStatement!drop-4	ADMIN CANCEL REPAIR a;
+reject	reject	engine	statement/adminCancelRepairTableStatement!drop-5	ADMIN CANCEL REPAIR TABLE;
+reject	reject	engine	statement/adminCancelRepairTableStatement!truncate	ADMIN CANCEL REPAIR TABLE
+reject	reject	engine	statement/adminCancelRepairTableStatement!insert	ADMIN CANCEL REPAIR TABLE a zzz;
 reject	reject	engine	statement/adminCancelRepairTableStatement!swap	ADVISOR CANCEL REPAIR TABLE a;
 accept	accept	engine	statement/adminCheckTabletsStatement	ADMIN CHECK TABLET(1) PROPERTIES('a' = 'a');
 reject	reject	engine	statement/adminCheckTabletsStatement!drop-1	CHECK TABLET(1) PROPERTIES('a' = 'a');
-accept	reject	engine	statement/adminCheckTabletsStatement!drop-2	ADMIN TABLET(1) PROPERTIES('a' = 'a');
-accept	reject	engine	statement/adminCheckTabletsStatement!drop-3	ADMIN CHECK(1) PROPERTIES('a' = 'a');
-accept	reject	engine	statement/adminCheckTabletsStatement!drop-4	ADMIN CHECK TABLET 1) PROPERTIES('a' = 'a');
-accept	reject	engine	statement/adminCheckTabletsStatement!drop-5	ADMIN CHECK TABLET() PROPERTIES('a' = 'a');
-accept	reject	engine	statement/adminCheckTabletsStatement!drop-6	ADMIN CHECK TABLET(1 PROPERTIES('a' = 'a');
-accept	reject	engine	statement/adminCheckTabletsStatement!drop-7	ADMIN CHECK TABLET(1)('a' = 'a');
+reject	reject	engine	statement/adminCheckTabletsStatement!drop-2	ADMIN TABLET(1) PROPERTIES('a' = 'a');
+reject	reject	engine	statement/adminCheckTabletsStatement!drop-3	ADMIN CHECK(1) PROPERTIES('a' = 'a');
+reject	reject	engine	statement/adminCheckTabletsStatement!drop-4	ADMIN CHECK TABLET 1) PROPERTIES('a' = 'a');
+reject	reject	engine	statement/adminCheckTabletsStatement!drop-5	ADMIN CHECK TABLET() PROPERTIES('a' = 'a');
+reject	reject	engine	statement/adminCheckTabletsStatement!drop-6	ADMIN CHECK TABLET(1 PROPERTIES('a' = 'a');
+reject	reject	engine	statement/adminCheckTabletsStatement!drop-7	ADMIN CHECK TABLET(1)('a' = 'a');
 reject	reject	engine	statement/adminCheckTabletsStatement!drop-8	ADMIN CHECK TABLET(1) PROPERTIES 'a' = 'a');
 reject	reject	engine	statement/adminCheckTabletsStatement!drop-9	ADMIN CHECK TABLET(1) PROPERTIES(= 'a');
 reject	reject	engine	statement/adminCheckTabletsStatement!drop-10	ADMIN CHECK TABLET(1) PROPERTIES('a' 'a');
@@ -575,10 +575,10 @@ reject	reject	engine	statement/adminCheckTabletsStatement!drop-12	ADMIN CHECK TA
 reject	reject	engine	statement/adminCheckTabletsStatement!truncate	ADMIN CHECK TABLET(1) PROPERTIES('a' = 'a'
 reject	reject	engine	statement/adminCheckTabletsStatement!insert	ADMIN CHECK TABLET(1) PROPERTIES('a' = 'a') zzz;
 reject	reject	engine	statement/adminCheckTabletsStatement!swap	ADVISOR CHECK TABLET(1) PROPERTIES('a' = 'a');
-reject	accept	engine	statement/adminSetPartitionVersion	ADMIN SET TABLE a PARTITION(a) VERSION TO 1;
+accept	accept	engine	statement/adminSetPartitionVersion	ADMIN SET TABLE a PARTITION(a) VERSION TO 1;
 reject	reject	engine	statement/adminSetPartitionVersion!drop-1	SET TABLE a PARTITION(a) VERSION TO 1;
-accept	reject	engine	statement/adminSetPartitionVersion!drop-2	ADMIN TABLE a PARTITION(a) VERSION TO 1;
-accept	reject	engine	statement/adminSetPartitionVersion!drop-3	ADMIN SET a PARTITION(a) VERSION TO 1;
+reject	reject	engine	statement/adminSetPartitionVersion!drop-2	ADMIN TABLE a PARTITION(a) VERSION TO 1;
+reject	reject	engine	statement/adminSetPartitionVersion!drop-3	ADMIN SET a PARTITION(a) VERSION TO 1;
 reject	reject	engine	statement/adminSetPartitionVersion!drop-4	ADMIN SET TABLE PARTITION(a) VERSION TO 1;
 reject	reject	engine	statement/adminSetPartitionVersion!drop-5	ADMIN SET TABLE a(a) VERSION TO 1;
 reject	reject	engine	statement/adminSetPartitionVersion!drop-6	ADMIN SET TABLE a PARTITION a) VERSION TO 1;
@@ -600,30 +600,30 @@ accept	accept	engine	statement/syncStatement	SYNC;
 reject	reject	engine	statement/syncStatement!insert	SYNC zzz;
 accept	accept	engine	statement/executeScriptStatement	ADMIN EXECUTE ON FRONTEND 'a';
 reject	reject	engine	statement/executeScriptStatement!drop-1	EXECUTE ON FRONTEND 'a';
-accept	reject	engine	statement/executeScriptStatement!drop-2	ADMIN ON FRONTEND 'a';
-accept	reject	engine	statement/executeScriptStatement!drop-3	ADMIN EXECUTE FRONTEND 'a';
-accept	reject	engine	statement/executeScriptStatement!drop-4	ADMIN EXECUTE ON 'a';
-accept	reject	engine	statement/executeScriptStatement!drop-5	ADMIN EXECUTE ON FRONTEND;
-accept	reject	engine	statement/executeScriptStatement!truncate	ADMIN EXECUTE ON FRONTEND
-accept	reject	engine	statement/executeScriptStatement!insert	ADMIN EXECUTE ON FRONTEND 'a' zzz;
+reject	reject	engine	statement/executeScriptStatement!drop-2	ADMIN ON FRONTEND 'a';
+reject	reject	engine	statement/executeScriptStatement!drop-3	ADMIN EXECUTE FRONTEND 'a';
+reject	reject	engine	statement/executeScriptStatement!drop-4	ADMIN EXECUTE ON 'a';
+reject	reject	engine	statement/executeScriptStatement!drop-5	ADMIN EXECUTE ON FRONTEND;
+reject	reject	engine	statement/executeScriptStatement!truncate	ADMIN EXECUTE ON FRONTEND
+reject	reject	engine	statement/executeScriptStatement!insert	ADMIN EXECUTE ON FRONTEND 'a' zzz;
 reject	reject	engine	statement/executeScriptStatement!swap	ADVISOR EXECUTE ON FRONTEND 'a';
 accept	accept	engine	statement/adminSetAutomatedSnapshotOnStatement	ADMIN SET AUTOMATED CLUSTER SNAPSHOT ON;
 reject	reject	engine	statement/adminSetAutomatedSnapshotOnStatement!drop-1	SET AUTOMATED CLUSTER SNAPSHOT ON;
-accept	reject	engine	statement/adminSetAutomatedSnapshotOnStatement!drop-2	ADMIN AUTOMATED CLUSTER SNAPSHOT ON;
-accept	reject	engine	statement/adminSetAutomatedSnapshotOnStatement!drop-3	ADMIN SET CLUSTER SNAPSHOT ON;
-accept	reject	engine	statement/adminSetAutomatedSnapshotOnStatement!drop-4	ADMIN SET AUTOMATED SNAPSHOT ON;
-accept	reject	engine	statement/adminSetAutomatedSnapshotOnStatement!drop-5	ADMIN SET AUTOMATED CLUSTER ON;
-accept	reject	engine	statement/adminSetAutomatedSnapshotOnStatement!drop-6	ADMIN SET AUTOMATED CLUSTER SNAPSHOT;
-accept	reject	engine	statement/adminSetAutomatedSnapshotOnStatement!truncate	ADMIN SET AUTOMATED CLUSTER SNAPSHOT
-accept	reject	engine	statement/adminSetAutomatedSnapshotOnStatement!insert	ADMIN SET AUTOMATED CLUSTER SNAPSHOT ON zzz;
+reject	reject	engine	statement/adminSetAutomatedSnapshotOnStatement!drop-2	ADMIN AUTOMATED CLUSTER SNAPSHOT ON;
+reject	reject	engine	statement/adminSetAutomatedSnapshotOnStatement!drop-3	ADMIN SET CLUSTER SNAPSHOT ON;
+reject	reject	engine	statement/adminSetAutomatedSnapshotOnStatement!drop-4	ADMIN SET AUTOMATED SNAPSHOT ON;
+reject	reject	engine	statement/adminSetAutomatedSnapshotOnStatement!drop-5	ADMIN SET AUTOMATED CLUSTER ON;
+reject	reject	engine	statement/adminSetAutomatedSnapshotOnStatement!drop-6	ADMIN SET AUTOMATED CLUSTER SNAPSHOT;
+reject	reject	engine	statement/adminSetAutomatedSnapshotOnStatement!truncate	ADMIN SET AUTOMATED CLUSTER SNAPSHOT
+reject	reject	engine	statement/adminSetAutomatedSnapshotOnStatement!insert	ADMIN SET AUTOMATED CLUSTER SNAPSHOT ON zzz;
 reject	reject	engine	statement/adminSetAutomatedSnapshotOnStatement!swap	ADVISOR SET AUTOMATED CLUSTER SNAPSHOT ON;
 accept	accept	engine	statement/adminSetAutomatedSnapshotOffStatement	ADMIN SET AUTOMATED CLUSTER SNAPSHOT OFF;
 reject	reject	engine	statement/adminSetAutomatedSnapshotOffStatement!drop-1	SET AUTOMATED CLUSTER SNAPSHOT OFF;
-accept	reject	engine	statement/adminSetAutomatedSnapshotOffStatement!drop-2	ADMIN AUTOMATED CLUSTER SNAPSHOT OFF;
-accept	reject	engine	statement/adminSetAutomatedSnapshotOffStatement!drop-3	ADMIN SET CLUSTER SNAPSHOT OFF;
-accept	reject	engine	statement/adminSetAutomatedSnapshotOffStatement!drop-4	ADMIN SET AUTOMATED SNAPSHOT OFF;
-accept	reject	engine	statement/adminSetAutomatedSnapshotOffStatement!drop-5	ADMIN SET AUTOMATED CLUSTER OFF;
-accept	reject	engine	statement/adminSetAutomatedSnapshotOffStatement!insert	ADMIN SET AUTOMATED CLUSTER SNAPSHOT OFF zzz;
+reject	reject	engine	statement/adminSetAutomatedSnapshotOffStatement!drop-2	ADMIN AUTOMATED CLUSTER SNAPSHOT OFF;
+reject	reject	engine	statement/adminSetAutomatedSnapshotOffStatement!drop-3	ADMIN SET CLUSTER SNAPSHOT OFF;
+reject	reject	engine	statement/adminSetAutomatedSnapshotOffStatement!drop-4	ADMIN SET AUTOMATED SNAPSHOT OFF;
+reject	reject	engine	statement/adminSetAutomatedSnapshotOffStatement!drop-5	ADMIN SET AUTOMATED CLUSTER OFF;
+reject	reject	engine	statement/adminSetAutomatedSnapshotOffStatement!insert	ADMIN SET AUTOMATED CLUSTER SNAPSHOT OFF zzz;
 reject	reject	engine	statement/adminSetAutomatedSnapshotOffStatement!swap	ADVISOR SET AUTOMATED CLUSTER SNAPSHOT OFF;
 reject	accept	engine	statement/alterSystemStatement	ALTER SYSTEM;
 reject	reject	engine	statement/alterSystemStatement!drop-2	ALTER;
@@ -1156,7 +1156,7 @@ reject	reject	engine	statement/addSqlBlackListStatement!drop-2	ADD 'a';
 reject	reject	engine	statement/addSqlBlackListStatement!drop-3	ADD SQLBLACKLIST;
 reject	reject	engine	statement/addSqlBlackListStatement!truncate	ADD SQLBLACKLIST
 reject	reject	engine	statement/addSqlBlackListStatement!insert	ADD SQLBLACKLIST 'a' zzz;
-accept	reject	engine	statement/addSqlBlackListStatement!swap	ADMIN SQLBLACKLIST 'a';
+reject	reject	engine	statement/addSqlBlackListStatement!swap	ADMIN SQLBLACKLIST 'a';
 reject	accept	engine	statement/delSqlBlackListStatement	DELETE SQLBLACKLIST 1;
 reject	reject	engine	statement/delSqlBlackListStatement!drop-1	SQLBLACKLIST 1;
 reject	reject	engine	statement/delSqlBlackListStatement!drop-2	DELETE 1;
@@ -1179,7 +1179,7 @@ reject	reject	engine	statement/addBackendBlackListStatement!drop-3	ADD BACKEND 1
 reject	reject	engine	statement/addBackendBlackListStatement!drop-4	ADD BACKEND BLACKLIST;
 reject	reject	engine	statement/addBackendBlackListStatement!truncate	ADD BACKEND BLACKLIST
 reject	reject	engine	statement/addBackendBlackListStatement!insert	ADD BACKEND BLACKLIST 1 zzz;
-accept	reject	engine	statement/addBackendBlackListStatement!swap	ADMIN BACKEND BLACKLIST 1;
+reject	reject	engine	statement/addBackendBlackListStatement!swap	ADMIN BACKEND BLACKLIST 1;
 reject	accept	engine	statement/delBackendBlackListStatement	DELETE BACKEND BLACKLIST 1;
 reject	reject	engine	statement/delBackendBlackListStatement!drop-2	DELETE BLACKLIST 1;
 reject	reject	engine	statement/delBackendBlackListStatement!drop-3	DELETE BACKEND 1;
@@ -1416,11 +1416,11 @@ accept	reject	engine	statement/cancelCompactionStatement!insert	CANCEL COMPACTIO
 reject	reject	engine	statement/cancelCompactionStatement!swap	CASE COMPACTION WHERE CURRENT_USER;
 accept	accept	engine	statement/updateFailPointStatusStatement	ADMIN DISABLE FAILPOINT 'a';
 reject	reject	engine	statement/updateFailPointStatusStatement!drop-1	DISABLE FAILPOINT 'a';
-accept	reject	engine	statement/updateFailPointStatusStatement!drop-2	ADMIN FAILPOINT 'a';
-accept	reject	engine	statement/updateFailPointStatusStatement!drop-3	ADMIN DISABLE 'a';
-accept	reject	engine	statement/updateFailPointStatusStatement!drop-4	ADMIN DISABLE FAILPOINT;
-accept	reject	engine	statement/updateFailPointStatusStatement!truncate	ADMIN DISABLE FAILPOINT
-accept	reject	engine	statement/updateFailPointStatusStatement!insert	ADMIN DISABLE FAILPOINT 'a' zzz;
+reject	reject	engine	statement/updateFailPointStatusStatement!drop-2	ADMIN FAILPOINT 'a';
+reject	reject	engine	statement/updateFailPointStatusStatement!drop-3	ADMIN DISABLE 'a';
+reject	reject	engine	statement/updateFailPointStatusStatement!drop-4	ADMIN DISABLE FAILPOINT;
+reject	reject	engine	statement/updateFailPointStatusStatement!truncate	ADMIN DISABLE FAILPOINT
+reject	reject	engine	statement/updateFailPointStatusStatement!insert	ADMIN DISABLE FAILPOINT 'a' zzz;
 reject	reject	engine	statement/updateFailPointStatusStatement!swap	ADVISOR DISABLE FAILPOINT 'a';
 accept	accept	engine	statement/showFailPointStatement	SHOW FAILPOINTS;
 reject	reject	engine	statement/showFailPointStatement!drop-1	FAILPOINTS;
@@ -3104,56 +3104,56 @@ accept	accept	engine	adminSetReplicaStatusStatement/ADMIN_SET_REPLICA_STATUS_pro
 accept	accept	engine	adminShowConfigStatement/ADMIN_SHOW_FRONTEND_CONFIG_(LIKE_string)?	ADMIN SHOW FRONTEND CONFIG;
 accept	accept	engine	adminShowConfigStatement(LIKE_string)?/%empty	ADMIN SHOW FRONTEND CONFIG;
 accept	accept	engine	adminShowConfigStatement(LIKE_string)?/LIKE_string	ADMIN SHOW FRONTEND CONFIG LIKE 'a';
-accept	reject	engine	adminShowConfigStatement(LIKE_string)?/LIKE_string!drop-1	ADMIN SHOW FRONTEND CONFIG 'a';
-accept	reject	engine	adminShowConfigStatement(LIKE_string)?/LIKE_string!drop-2	ADMIN SHOW FRONTEND CONFIG LIKE;
-accept	reject	engine	adminShowConfigStatement(LIKE_string)?/LIKE_string!truncate	ADMIN SHOW FRONTEND CONFIG LIKE
-accept	reject	engine	adminShowConfigStatement(LIKE_string)?/LIKE_string!insert	ADMIN SHOW FRONTEND CONFIG LIKE 'a' zzz;
-accept	reject	engine	adminShowConfigStatement(LIKE_string)?/LIKE_string!swap	ADMIN SHOW FRONTEND CONFIG LIMIT 'a';
+reject	reject	engine	adminShowConfigStatement(LIKE_string)?/LIKE_string!drop-1	ADMIN SHOW FRONTEND CONFIG 'a';
+reject	reject	engine	adminShowConfigStatement(LIKE_string)?/LIKE_string!drop-2	ADMIN SHOW FRONTEND CONFIG LIKE;
+reject	reject	engine	adminShowConfigStatement(LIKE_string)?/LIKE_string!truncate	ADMIN SHOW FRONTEND CONFIG LIKE
+reject	reject	engine	adminShowConfigStatement(LIKE_string)?/LIKE_string!insert	ADMIN SHOW FRONTEND CONFIG LIKE 'a' zzz;
+reject	reject	engine	adminShowConfigStatement(LIKE_string)?/LIKE_string!swap	ADMIN SHOW FRONTEND CONFIG LIMIT 'a';
 accept	accept	engine	adminShowReplicaDistributionStatement/ADMIN_SHOW_REPLICA_DISTRIBUTION_FROM_qualifiedName_(par~7c36e171	ADMIN SHOW REPLICA DISTRIBUTION FROM a;
 accept	accept	engine	adminShowReplicaDistributionStatement(partitionNames)?/%empty	ADMIN SHOW REPLICA DISTRIBUTION FROM a;
 accept	accept	engine	adminShowReplicaDistributionStatement(partitionNames)?/partitionNames	ADMIN SHOW REPLICA DISTRIBUTION FROM a PARTITION a;
-accept	reject	engine	adminShowReplicaDistributionStatement(partitionNames)?/partitionNames!drop-1	ADMIN SHOW REPLICA DISTRIBUTION FROM a a;
-accept	reject	engine	adminShowReplicaDistributionStatement(partitionNames)?/partitionNames!drop-2	ADMIN SHOW REPLICA DISTRIBUTION FROM a PARTITION;
-accept	reject	engine	adminShowReplicaDistributionStatement(partitionNames)?/partitionNames!truncate	ADMIN SHOW REPLICA DISTRIBUTION FROM a PARTITION
-accept	reject	engine	adminShowReplicaDistributionStatement(partitionNames)?/partitionNames!insert	ADMIN SHOW REPLICA DISTRIBUTION FROM a PARTITION a zzz;
+reject	reject	engine	adminShowReplicaDistributionStatement(partitionNames)?/partitionNames!drop-1	ADMIN SHOW REPLICA DISTRIBUTION FROM a a;
+reject	reject	engine	adminShowReplicaDistributionStatement(partitionNames)?/partitionNames!drop-2	ADMIN SHOW REPLICA DISTRIBUTION FROM a PARTITION;
+reject	reject	engine	adminShowReplicaDistributionStatement(partitionNames)?/partitionNames!truncate	ADMIN SHOW REPLICA DISTRIBUTION FROM a PARTITION
+reject	reject	engine	adminShowReplicaDistributionStatement(partitionNames)?/partitionNames!insert	ADMIN SHOW REPLICA DISTRIBUTION FROM a PARTITION a zzz;
 accept	accept	engine	adminShowReplicaDistributionStatement(partitionNames)?/partitionNames!swap	ADMIN SHOW REPLICA DISTRIBUTION FROM a PARTITIONS a;
 accept	accept	engine	adminShowReplicaStatusStatement/ADMIN_SHOW_REPLICA_STATUS_FROM_qualifiedName_(partition~e679e501	ADMIN SHOW REPLICA STATUS FROM a;
 accept	accept	engine	adminShowReplicaStatusStatement(partitionNames)?/%empty	ADMIN SHOW REPLICA STATUS FROM a;
 accept	accept	engine	adminShowReplicaStatusStatement(partitionNames)?/partitionNames	ADMIN SHOW REPLICA STATUS FROM a PARTITION a;
-accept	reject	engine	adminShowReplicaStatusStatement(partitionNames)?/partitionNames!drop-1	ADMIN SHOW REPLICA STATUS FROM a a;
-accept	reject	engine	adminShowReplicaStatusStatement(partitionNames)?/partitionNames!drop-2	ADMIN SHOW REPLICA STATUS FROM a PARTITION;
-accept	reject	engine	adminShowReplicaStatusStatement(partitionNames)?/partitionNames!truncate	ADMIN SHOW REPLICA STATUS FROM a PARTITION
-accept	reject	engine	adminShowReplicaStatusStatement(partitionNames)?/partitionNames!insert	ADMIN SHOW REPLICA STATUS FROM a PARTITION a zzz;
+reject	reject	engine	adminShowReplicaStatusStatement(partitionNames)?/partitionNames!drop-1	ADMIN SHOW REPLICA STATUS FROM a a;
+reject	reject	engine	adminShowReplicaStatusStatement(partitionNames)?/partitionNames!drop-2	ADMIN SHOW REPLICA STATUS FROM a PARTITION;
+reject	reject	engine	adminShowReplicaStatusStatement(partitionNames)?/partitionNames!truncate	ADMIN SHOW REPLICA STATUS FROM a PARTITION
+reject	reject	engine	adminShowReplicaStatusStatement(partitionNames)?/partitionNames!insert	ADMIN SHOW REPLICA STATUS FROM a PARTITION a zzz;
 accept	accept	engine	adminShowReplicaStatusStatement(partitionNames)?/partitionNames!swap	ADMIN SHOW REPLICA STATUS FROM a PARTITIONS a;
 accept	accept	engine	adminShowReplicaStatusStatement(WHERE_expression)?/%empty	ADMIN SHOW REPLICA STATUS FROM a;
 accept	accept	engine	adminShowReplicaStatusStatement(WHERE_expression)?/WHERE_expression	ADMIN SHOW REPLICA STATUS FROM a WHERE CURRENT_USER;
-accept	reject	engine	adminShowReplicaStatusStatement(WHERE_expression)?/WHERE_expression!drop-1	ADMIN SHOW REPLICA STATUS FROM a CURRENT_USER;
-accept	reject	engine	adminShowReplicaStatusStatement(WHERE_expression)?/WHERE_expression!drop-2	ADMIN SHOW REPLICA STATUS FROM a WHERE;
-accept	reject	engine	adminShowReplicaStatusStatement(WHERE_expression)?/WHERE_expression!truncate	ADMIN SHOW REPLICA STATUS FROM a WHERE
-accept	reject	engine	adminShowReplicaStatusStatement(WHERE_expression)?/WHERE_expression!insert	ADMIN SHOW REPLICA STATUS FROM a WHERE CURRENT_USER zzz;
-accept	reject	engine	adminShowReplicaStatusStatement(WHERE_expression)?/WHERE_expression!swap	ADMIN SHOW REPLICA STATUS FROM a WHITELIST CURRENT_USER;
+reject	reject	engine	adminShowReplicaStatusStatement(WHERE_expression)?/WHERE_expression!drop-1	ADMIN SHOW REPLICA STATUS FROM a CURRENT_USER;
+reject	reject	engine	adminShowReplicaStatusStatement(WHERE_expression)?/WHERE_expression!drop-2	ADMIN SHOW REPLICA STATUS FROM a WHERE;
+reject	reject	engine	adminShowReplicaStatusStatement(WHERE_expression)?/WHERE_expression!truncate	ADMIN SHOW REPLICA STATUS FROM a WHERE
+reject	reject	engine	adminShowReplicaStatusStatement(WHERE_expression)?/WHERE_expression!insert	ADMIN SHOW REPLICA STATUS FROM a WHERE CURRENT_USER zzz;
+reject	reject	engine	adminShowReplicaStatusStatement(WHERE_expression)?/WHERE_expression!swap	ADMIN SHOW REPLICA STATUS FROM a WHITELIST CURRENT_USER;
 accept	accept	engine	adminRepairTableStatement/ADMIN_REPAIR_TABLE_qualifiedName_(partitionNames)?	ADMIN REPAIR TABLE a;
 accept	accept	engine	adminRepairTableStatement(partitionNames)?/%empty	ADMIN REPAIR TABLE a;
 accept	accept	engine	adminRepairTableStatement(partitionNames)?/partitionNames	ADMIN REPAIR TABLE a PARTITION a;
-accept	reject	engine	adminRepairTableStatement(partitionNames)?/partitionNames!drop-1	ADMIN REPAIR TABLE a a;
-accept	reject	engine	adminRepairTableStatement(partitionNames)?/partitionNames!drop-2	ADMIN REPAIR TABLE a PARTITION;
-accept	reject	engine	adminRepairTableStatement(partitionNames)?/partitionNames!truncate	ADMIN REPAIR TABLE a PARTITION
-accept	reject	engine	adminRepairTableStatement(partitionNames)?/partitionNames!insert	ADMIN REPAIR TABLE a PARTITION a zzz;
+reject	reject	engine	adminRepairTableStatement(partitionNames)?/partitionNames!drop-1	ADMIN REPAIR TABLE a a;
+reject	reject	engine	adminRepairTableStatement(partitionNames)?/partitionNames!drop-2	ADMIN REPAIR TABLE a PARTITION;
+reject	reject	engine	adminRepairTableStatement(partitionNames)?/partitionNames!truncate	ADMIN REPAIR TABLE a PARTITION
+reject	reject	engine	adminRepairTableStatement(partitionNames)?/partitionNames!insert	ADMIN REPAIR TABLE a PARTITION a zzz;
 accept	accept	engine	adminRepairTableStatement(partitionNames)?/partitionNames!swap	ADMIN REPAIR TABLE a PARTITIONS a;
 accept	accept	engine	adminCancelRepairTableStatement/ADMIN_CANCEL_REPAIR_TABLE_qualifiedName_(partitionNames)?	ADMIN CANCEL REPAIR TABLE a;
 accept	accept	engine	adminCancelRepairTableStatement(partitionNames)?/%empty	ADMIN CANCEL REPAIR TABLE a;
 accept	accept	engine	adminCancelRepairTableStatement(partitionNames)?/partitionNames	ADMIN CANCEL REPAIR TABLE a PARTITION a;
-accept	reject	engine	adminCancelRepairTableStatement(partitionNames)?/partitionNames!drop-1	ADMIN CANCEL REPAIR TABLE a a;
-accept	reject	engine	adminCancelRepairTableStatement(partitionNames)?/partitionNames!drop-2	ADMIN CANCEL REPAIR TABLE a PARTITION;
-accept	reject	engine	adminCancelRepairTableStatement(partitionNames)?/partitionNames!truncate	ADMIN CANCEL REPAIR TABLE a PARTITION
-accept	reject	engine	adminCancelRepairTableStatement(partitionNames)?/partitionNames!insert	ADMIN CANCEL REPAIR TABLE a PARTITION a zzz;
+reject	reject	engine	adminCancelRepairTableStatement(partitionNames)?/partitionNames!drop-1	ADMIN CANCEL REPAIR TABLE a a;
+reject	reject	engine	adminCancelRepairTableStatement(partitionNames)?/partitionNames!drop-2	ADMIN CANCEL REPAIR TABLE a PARTITION;
+reject	reject	engine	adminCancelRepairTableStatement(partitionNames)?/partitionNames!truncate	ADMIN CANCEL REPAIR TABLE a PARTITION
+reject	reject	engine	adminCancelRepairTableStatement(partitionNames)?/partitionNames!insert	ADMIN CANCEL REPAIR TABLE a PARTITION a zzz;
 accept	accept	engine	adminCancelRepairTableStatement(partitionNames)?/partitionNames!swap	ADMIN CANCEL REPAIR TABLE a PARTITIONS a;
 accept	accept	engine	adminCheckTabletsStatement/ADMIN_CHECK_tabletList_PROPERTIES_(_property_)	ADMIN CHECK TABLET(1) PROPERTIES('a' = 'a');
-reject	accept	engine	adminSetPartitionVersion/ADMIN_SET_TABLE_qualifiedName_PARTITION_(_(identifierOr~006e4884	ADMIN SET TABLE a PARTITION(a) VERSION TO 1;
-reject	accept	engine	adminSetPartitionVersion(identifierOrString|INTEGER_VALUE)/identifierOrString	ADMIN SET TABLE a PARTITION(a) VERSION TO 1;
+accept	accept	engine	adminSetPartitionVersion/ADMIN_SET_TABLE_qualifiedName_PARTITION_(_(identifierOr~006e4884	ADMIN SET TABLE a PARTITION(a) VERSION TO 1;
+accept	accept	engine	adminSetPartitionVersion(identifierOrString|INTEGER_VALUE)/identifierOrString	ADMIN SET TABLE a PARTITION(a) VERSION TO 1;
 reject	reject	engine	adminSetPartitionVersion(identifierOrString|INTEGER_VALUE)/identifierOrString!truncate	ADMIN SET TABLE a PARTITION(
 reject	reject	engine	adminSetPartitionVersion(identifierOrString|INTEGER_VALUE)/identifierOrString!insert	ADMIN SET TABLE a PARTITION(a zzz) VERSION TO 1;
-reject	accept	engine	adminSetPartitionVersion(identifierOrString|INTEGER_VALUE)/INTEGER_VALUE	ADMIN SET TABLE a PARTITION(1) VERSION TO 1;
+accept	accept	engine	adminSetPartitionVersion(identifierOrString|INTEGER_VALUE)/INTEGER_VALUE	ADMIN SET TABLE a PARTITION(1) VERSION TO 1;
 reject	reject	engine	adminSetPartitionVersion(identifierOrString|INTEGER_VALUE)/INTEGER_VALUE!insert	ADMIN SET TABLE a PARTITION(1 zzz) VERSION TO 1;
 accept	accept	engine	killStatement/KILL_(CONNECTION?|QUERY)_(INTEGER_VALUE|string)	KILL 1;
 accept	accept	engine	killStatement(CONNECTION?|QUERY)/(CONNECTION)?	KILL 1;
@@ -3172,12 +3172,12 @@ accept	accept	engine	syncStatement/SYNC	SYNC;
 accept	accept	engine	adminSetAutomatedSnapshotOnStatement/ADMIN_SET_AUTOMATED_CLUSTER_SNAPSHOT_ON_(STORAGE_VOLUME~5a4198f5	ADMIN SET AUTOMATED CLUSTER SNAPSHOT ON;
 accept	accept	engine	adminSetAutomatedSnapshotOnStatement(STORAGE_VOLUME_identifier)?/%empty	ADMIN SET AUTOMATED CLUSTER SNAPSHOT ON;
 accept	accept	engine	adminSetAutomatedSnapshotOnStatement(STORAGE_VOLUME_identifier)?/STORAGE_VOLUME_identifier	ADMIN SET AUTOMATED CLUSTER SNAPSHOT ON STORAGE VOLUME a;
-accept	reject	engine	adminSetAutomatedSnapshotOnStatement(STORAGE_VOLUME_identifier)?/STORAGE_VOLUME_identifier!drop-1	ADMIN SET AUTOMATED CLUSTER SNAPSHOT ON VOLUME a;
-accept	reject	engine	adminSetAutomatedSnapshotOnStatement(STORAGE_VOLUME_identifier)?/STORAGE_VOLUME_identifier!drop-2	ADMIN SET AUTOMATED CLUSTER SNAPSHOT ON STORAGE a;
-accept	reject	engine	adminSetAutomatedSnapshotOnStatement(STORAGE_VOLUME_identifier)?/STORAGE_VOLUME_identifier!drop-3	ADMIN SET AUTOMATED CLUSTER SNAPSHOT ON STORAGE VOLUME;
-accept	reject	engine	adminSetAutomatedSnapshotOnStatement(STORAGE_VOLUME_identifier)?/STORAGE_VOLUME_identifier!truncate	ADMIN SET AUTOMATED CLUSTER SNAPSHOT ON STORAGE VOLUME
-accept	reject	engine	adminSetAutomatedSnapshotOnStatement(STORAGE_VOLUME_identifier)?/STORAGE_VOLUME_identifier!insert	ADMIN SET AUTOMATED CLUSTER SNAPSHOT ON STORAGE VOLUME a zzz;
-accept	reject	engine	adminSetAutomatedSnapshotOnStatement(STORAGE_VOLUME_identifier)?/STORAGE_VOLUME_identifier!swap	ADMIN SET AUTOMATED CLUSTER SNAPSHOT ON STREAM VOLUME a;
+reject	reject	engine	adminSetAutomatedSnapshotOnStatement(STORAGE_VOLUME_identifier)?/STORAGE_VOLUME_identifier!drop-1	ADMIN SET AUTOMATED CLUSTER SNAPSHOT ON VOLUME a;
+reject	reject	engine	adminSetAutomatedSnapshotOnStatement(STORAGE_VOLUME_identifier)?/STORAGE_VOLUME_identifier!drop-2	ADMIN SET AUTOMATED CLUSTER SNAPSHOT ON STORAGE a;
+reject	reject	engine	adminSetAutomatedSnapshotOnStatement(STORAGE_VOLUME_identifier)?/STORAGE_VOLUME_identifier!drop-3	ADMIN SET AUTOMATED CLUSTER SNAPSHOT ON STORAGE VOLUME;
+reject	reject	engine	adminSetAutomatedSnapshotOnStatement(STORAGE_VOLUME_identifier)?/STORAGE_VOLUME_identifier!truncate	ADMIN SET AUTOMATED CLUSTER SNAPSHOT ON STORAGE VOLUME
+reject	reject	engine	adminSetAutomatedSnapshotOnStatement(STORAGE_VOLUME_identifier)?/STORAGE_VOLUME_identifier!insert	ADMIN SET AUTOMATED CLUSTER SNAPSHOT ON STORAGE VOLUME a zzz;
+reject	reject	engine	adminSetAutomatedSnapshotOnStatement(STORAGE_VOLUME_identifier)?/STORAGE_VOLUME_identifier!swap	ADMIN SET AUTOMATED CLUSTER SNAPSHOT ON STREAM VOLUME a;
 accept	accept	engine	adminSetAutomatedSnapshotOffStatement/ADMIN_SET_AUTOMATED_CLUSTER_SNAPSHOT_OFF	ADMIN SET AUTOMATED CLUSTER SNAPSHOT OFF;
 reject	accept	engine	alterSystemStatement/ALTER_SYSTEM_alterClause	ALTER SYSTEM;
 accept	accept	engine	cancelAlterSystemStatement/CANCEL_DECOMMISSION_BACKEND_string_(,_string)*	CANCEL DECOMMISSION BACKEND 'a';
@@ -3303,36 +3303,36 @@ reject	accept	engine	setDefaultStorageVolumeStatement/SET_identifierOrString_AS_
 accept	accept	engine	updateFailPointStatusStatement/ADMIN_DISABLE_FAILPOINT_string_(ON_BACKEND_string)?	ADMIN DISABLE FAILPOINT 'a';
 accept	accept	engine	updateFailPointStatusStatement/ADMIN_ENABLE_FAILPOINT_string_(WITH_INTEGER_VALUE_TIMES~80fffb08	ADMIN ENABLE FAILPOINT 'a';
 reject	reject	engine	updateFailPointStatusStatement/ADMIN_ENABLE_FAILPOINT_string_(WITH_INTEGER_VALUE_TIMES~80fffb08!drop-1	ENABLE FAILPOINT 'a';
-accept	reject	engine	updateFailPointStatusStatement/ADMIN_ENABLE_FAILPOINT_string_(WITH_INTEGER_VALUE_TIMES~80fffb08!drop-3	ADMIN ENABLE 'a';
-accept	reject	engine	updateFailPointStatusStatement/ADMIN_ENABLE_FAILPOINT_string_(WITH_INTEGER_VALUE_TIMES~80fffb08!drop-4	ADMIN ENABLE FAILPOINT;
-accept	reject	engine	updateFailPointStatusStatement/ADMIN_ENABLE_FAILPOINT_string_(WITH_INTEGER_VALUE_TIMES~80fffb08!truncate	ADMIN ENABLE FAILPOINT
-accept	reject	engine	updateFailPointStatusStatement/ADMIN_ENABLE_FAILPOINT_string_(WITH_INTEGER_VALUE_TIMES~80fffb08!insert	ADMIN ENABLE FAILPOINT 'a' zzz;
+reject	reject	engine	updateFailPointStatusStatement/ADMIN_ENABLE_FAILPOINT_string_(WITH_INTEGER_VALUE_TIMES~80fffb08!drop-3	ADMIN ENABLE 'a';
+reject	reject	engine	updateFailPointStatusStatement/ADMIN_ENABLE_FAILPOINT_string_(WITH_INTEGER_VALUE_TIMES~80fffb08!drop-4	ADMIN ENABLE FAILPOINT;
+reject	reject	engine	updateFailPointStatusStatement/ADMIN_ENABLE_FAILPOINT_string_(WITH_INTEGER_VALUE_TIMES~80fffb08!truncate	ADMIN ENABLE FAILPOINT
+reject	reject	engine	updateFailPointStatusStatement/ADMIN_ENABLE_FAILPOINT_string_(WITH_INTEGER_VALUE_TIMES~80fffb08!insert	ADMIN ENABLE FAILPOINT 'a' zzz;
 reject	reject	engine	updateFailPointStatusStatement/ADMIN_ENABLE_FAILPOINT_string_(WITH_INTEGER_VALUE_TIMES~80fffb08!swap	ADVISOR ENABLE FAILPOINT 'a';
 accept	accept	engine	updateFailPointStatusStatement/ADMIN_ENABLE_FAILPOINT_string_(WITH_DECIMAL_VALUE_PROBA~59f6757b	ADMIN ENABLE FAILPOINT 'a';
 accept	accept	engine	updateFailPointStatusStatement(ON_BACKEND_string)?/%empty	ADMIN DISABLE FAILPOINT 'a';
 accept	accept	engine	updateFailPointStatusStatement(ON_BACKEND_string)?/ON_BACKEND_string	ADMIN DISABLE FAILPOINT 'a' ON BACKEND 'a';
-accept	reject	engine	updateFailPointStatusStatement(ON_BACKEND_string)?/ON_BACKEND_string!drop-1	ADMIN DISABLE FAILPOINT 'a' BACKEND 'a';
-accept	reject	engine	updateFailPointStatusStatement(ON_BACKEND_string)?/ON_BACKEND_string!drop-2	ADMIN DISABLE FAILPOINT 'a' ON 'a';
-accept	reject	engine	updateFailPointStatusStatement(ON_BACKEND_string)?/ON_BACKEND_string!drop-3	ADMIN DISABLE FAILPOINT 'a' ON BACKEND;
-accept	reject	engine	updateFailPointStatusStatement(ON_BACKEND_string)?/ON_BACKEND_string!truncate	ADMIN DISABLE FAILPOINT 'a' ON BACKEND
-accept	reject	engine	updateFailPointStatusStatement(ON_BACKEND_string)?/ON_BACKEND_string!insert	ADMIN DISABLE FAILPOINT 'a' ON BACKEND 'a' zzz;
-accept	reject	engine	updateFailPointStatusStatement(ON_BACKEND_string)?/ON_BACKEND_string!swap	ADMIN DISABLE FAILPOINT 'a' ONLY BACKEND 'a';
+reject	reject	engine	updateFailPointStatusStatement(ON_BACKEND_string)?/ON_BACKEND_string!drop-1	ADMIN DISABLE FAILPOINT 'a' BACKEND 'a';
+reject	reject	engine	updateFailPointStatusStatement(ON_BACKEND_string)?/ON_BACKEND_string!drop-2	ADMIN DISABLE FAILPOINT 'a' ON 'a';
+reject	reject	engine	updateFailPointStatusStatement(ON_BACKEND_string)?/ON_BACKEND_string!drop-3	ADMIN DISABLE FAILPOINT 'a' ON BACKEND;
+reject	reject	engine	updateFailPointStatusStatement(ON_BACKEND_string)?/ON_BACKEND_string!truncate	ADMIN DISABLE FAILPOINT 'a' ON BACKEND
+reject	reject	engine	updateFailPointStatusStatement(ON_BACKEND_string)?/ON_BACKEND_string!insert	ADMIN DISABLE FAILPOINT 'a' ON BACKEND 'a' zzz;
+reject	reject	engine	updateFailPointStatusStatement(ON_BACKEND_string)?/ON_BACKEND_string!swap	ADMIN DISABLE FAILPOINT 'a' ONLY BACKEND 'a';
 accept	accept	engine	updateFailPointStatusStatement(WITH_INTEGER_VALUE_TIMES)?/%empty	ADMIN ENABLE FAILPOINT 'a';
 accept	accept	engine	updateFailPointStatusStatement(WITH_INTEGER_VALUE_TIMES)?/WITH_INTEGER_VALUE_TIMES	ADMIN ENABLE FAILPOINT 'a' WITH 1 TIMES;
-accept	reject	engine	updateFailPointStatusStatement(WITH_INTEGER_VALUE_TIMES)?/WITH_INTEGER_VALUE_TIMES!drop-1	ADMIN ENABLE FAILPOINT 'a' 1 TIMES;
-accept	reject	engine	updateFailPointStatusStatement(WITH_INTEGER_VALUE_TIMES)?/WITH_INTEGER_VALUE_TIMES!drop-2	ADMIN ENABLE FAILPOINT 'a' WITH TIMES;
-accept	reject	engine	updateFailPointStatusStatement(WITH_INTEGER_VALUE_TIMES)?/WITH_INTEGER_VALUE_TIMES!drop-3	ADMIN ENABLE FAILPOINT 'a' WITH 1;
-accept	reject	engine	updateFailPointStatusStatement(WITH_INTEGER_VALUE_TIMES)?/WITH_INTEGER_VALUE_TIMES!truncate	ADMIN ENABLE FAILPOINT 'a' WITH 1
-accept	reject	engine	updateFailPointStatusStatement(WITH_INTEGER_VALUE_TIMES)?/WITH_INTEGER_VALUE_TIMES!insert	ADMIN ENABLE FAILPOINT 'a' WITH 1 TIMES zzz;
-accept	reject	engine	updateFailPointStatusStatement(WITH_INTEGER_VALUE_TIMES)?/WITH_INTEGER_VALUE_TIMES!swap	ADMIN ENABLE FAILPOINT 'a' WORK 1 TIMES;
+reject	reject	engine	updateFailPointStatusStatement(WITH_INTEGER_VALUE_TIMES)?/WITH_INTEGER_VALUE_TIMES!drop-1	ADMIN ENABLE FAILPOINT 'a' 1 TIMES;
+reject	reject	engine	updateFailPointStatusStatement(WITH_INTEGER_VALUE_TIMES)?/WITH_INTEGER_VALUE_TIMES!drop-2	ADMIN ENABLE FAILPOINT 'a' WITH TIMES;
+reject	reject	engine	updateFailPointStatusStatement(WITH_INTEGER_VALUE_TIMES)?/WITH_INTEGER_VALUE_TIMES!drop-3	ADMIN ENABLE FAILPOINT 'a' WITH 1;
+reject	reject	engine	updateFailPointStatusStatement(WITH_INTEGER_VALUE_TIMES)?/WITH_INTEGER_VALUE_TIMES!truncate	ADMIN ENABLE FAILPOINT 'a' WITH 1
+reject	reject	engine	updateFailPointStatusStatement(WITH_INTEGER_VALUE_TIMES)?/WITH_INTEGER_VALUE_TIMES!insert	ADMIN ENABLE FAILPOINT 'a' WITH 1 TIMES zzz;
+reject	reject	engine	updateFailPointStatusStatement(WITH_INTEGER_VALUE_TIMES)?/WITH_INTEGER_VALUE_TIMES!swap	ADMIN ENABLE FAILPOINT 'a' WORK 1 TIMES;
 accept	accept	engine	updateFailPointStatusStatement(WITH_DECIMAL_VALUE_PROBABILITY)?/%empty	ADMIN ENABLE FAILPOINT 'a';
-accept	reject	engine	updateFailPointStatusStatement(WITH_DECIMAL_VALUE_PROBABILITY)?/WITH_DECIMAL_VALUE_PROBABILITY	ADMIN ENABLE FAILPOINT 'a' WITH 1.5 PROBABILITY;
-accept	reject	engine	updateFailPointStatusStatement(WITH_DECIMAL_VALUE_PROBABILITY)?/WITH_DECIMAL_VALUE_PROBABILITY!drop-1	ADMIN ENABLE FAILPOINT 'a' 1.5 PROBABILITY;
-accept	reject	engine	updateFailPointStatusStatement(WITH_DECIMAL_VALUE_PROBABILITY)?/WITH_DECIMAL_VALUE_PROBABILITY!drop-2	ADMIN ENABLE FAILPOINT 'a' WITH PROBABILITY;
-accept	reject	engine	updateFailPointStatusStatement(WITH_DECIMAL_VALUE_PROBABILITY)?/WITH_DECIMAL_VALUE_PROBABILITY!drop-3	ADMIN ENABLE FAILPOINT 'a' WITH 1.5;
-accept	reject	engine	updateFailPointStatusStatement(WITH_DECIMAL_VALUE_PROBABILITY)?/WITH_DECIMAL_VALUE_PROBABILITY!truncate	ADMIN ENABLE FAILPOINT 'a' WITH 1.5
-accept	reject	engine	updateFailPointStatusStatement(WITH_DECIMAL_VALUE_PROBABILITY)?/WITH_DECIMAL_VALUE_PROBABILITY!insert	ADMIN ENABLE FAILPOINT 'a' WITH 1.5 PROBABILITY zzz;
-accept	reject	engine	updateFailPointStatusStatement(WITH_DECIMAL_VALUE_PROBABILITY)?/WITH_DECIMAL_VALUE_PROBABILITY!swap	ADMIN ENABLE FAILPOINT 'a' WORK 1.5 PROBABILITY;
+reject	reject	engine	updateFailPointStatusStatement(WITH_DECIMAL_VALUE_PROBABILITY)?/WITH_DECIMAL_VALUE_PROBABILITY	ADMIN ENABLE FAILPOINT 'a' WITH 1.5 PROBABILITY;
+reject	reject	engine	updateFailPointStatusStatement(WITH_DECIMAL_VALUE_PROBABILITY)?/WITH_DECIMAL_VALUE_PROBABILITY!drop-1	ADMIN ENABLE FAILPOINT 'a' 1.5 PROBABILITY;
+reject	reject	engine	updateFailPointStatusStatement(WITH_DECIMAL_VALUE_PROBABILITY)?/WITH_DECIMAL_VALUE_PROBABILITY!drop-2	ADMIN ENABLE FAILPOINT 'a' WITH PROBABILITY;
+reject	reject	engine	updateFailPointStatusStatement(WITH_DECIMAL_VALUE_PROBABILITY)?/WITH_DECIMAL_VALUE_PROBABILITY!drop-3	ADMIN ENABLE FAILPOINT 'a' WITH 1.5;
+reject	reject	engine	updateFailPointStatusStatement(WITH_DECIMAL_VALUE_PROBABILITY)?/WITH_DECIMAL_VALUE_PROBABILITY!truncate	ADMIN ENABLE FAILPOINT 'a' WITH 1.5
+reject	reject	engine	updateFailPointStatusStatement(WITH_DECIMAL_VALUE_PROBABILITY)?/WITH_DECIMAL_VALUE_PROBABILITY!insert	ADMIN ENABLE FAILPOINT 'a' WITH 1.5 PROBABILITY zzz;
+reject	reject	engine	updateFailPointStatusStatement(WITH_DECIMAL_VALUE_PROBABILITY)?/WITH_DECIMAL_VALUE_PROBABILITY!swap	ADMIN ENABLE FAILPOINT 'a' WORK 1.5 PROBABILITY;
 accept	accept	engine	showFailPointStatement/SHOW_FAILPOINTS_((LIKE_string))?_(ON_BACKEND_string)?	SHOW FAILPOINTS;
 accept	accept	engine	showFailPointStatement((LIKE_string))?/%empty	SHOW FAILPOINTS;
 accept	accept	engine	showFailPointStatement((LIKE_string))?/LIKE_string	SHOW FAILPOINTS LIKE 'a';
@@ -7521,11 +7521,11 @@ reject	reject	engine	roleList(,_identifierOrString)*/,_identifierOrString_(,_ide
 reject	reject	engine	roleList(,_identifierOrString)*/,_identifierOrString_(,_identifierOrString)*!insert	CREATE ROLE a, a zzz;
 accept	accept	engine	executeScriptStatement/ADMIN_EXECUTE_ON_(FRONTEND|INTEGER_VALUE)_string	ADMIN EXECUTE ON FRONTEND 'a';
 accept	accept	engine	executeScriptStatement(FRONTEND|INTEGER_VALUE)/FRONTEND	ADMIN EXECUTE ON FRONTEND 'a';
-accept	reject	engine	executeScriptStatement(FRONTEND|INTEGER_VALUE)/FRONTEND!truncate	ADMIN EXECUTE ON
-accept	reject	engine	executeScriptStatement(FRONTEND|INTEGER_VALUE)/FRONTEND!insert	ADMIN EXECUTE ON FRONTEND zzz 'a';
-accept	reject	engine	executeScriptStatement(FRONTEND|INTEGER_VALUE)/FRONTEND!swap	ADMIN EXECUTE ON FRONTENDS 'a';
+reject	reject	engine	executeScriptStatement(FRONTEND|INTEGER_VALUE)/FRONTEND!truncate	ADMIN EXECUTE ON
+reject	reject	engine	executeScriptStatement(FRONTEND|INTEGER_VALUE)/FRONTEND!insert	ADMIN EXECUTE ON FRONTEND zzz 'a';
+reject	reject	engine	executeScriptStatement(FRONTEND|INTEGER_VALUE)/FRONTEND!swap	ADMIN EXECUTE ON FRONTENDS 'a';
 accept	accept	engine	executeScriptStatement(FRONTEND|INTEGER_VALUE)/INTEGER_VALUE	ADMIN EXECUTE ON 1 'a';
-accept	reject	engine	executeScriptStatement(FRONTEND|INTEGER_VALUE)/INTEGER_VALUE!insert	ADMIN EXECUTE ON 1 zzz 'a';
+reject	reject	engine	executeScriptStatement(FRONTEND|INTEGER_VALUE)/INTEGER_VALUE!insert	ADMIN EXECUTE ON 1 zzz 'a';
 reject	accept	engine	unsupportedStatement/START_TRANSACTION_(WITH_CONSISTENT_SNAPSHOT)?	START TRANSACTION;
 reject	reject	engine	unsupportedStatement/START_TRANSACTION_(WITH_CONSISTENT_SNAPSHOT)?!drop-2	START;
 reject	reject	engine	unsupportedStatement/START_TRANSACTION_(WITH_CONSISTENT_SNAPSHOT)?!truncate	START

@@ -100,6 +100,7 @@ func TestFindingCodes(t *testing.T) {
 		{review.DisallowDropObject, "ALTER TABLE t DROP INDEX idx_n;", review.Change{}, shopTarget, codes(review.DropsDefinition)},
 		{review.DisallowDropObject, "ALTER TABLE t DROP PERIOD FOR app;", review.Change{}, shopTarget, codes(review.DropsDefinition)},
 		{review.DisallowDropObject, "DROP TRIGGER trig_bi;", review.Change{}, shopTarget, codes(review.DropsDefinition)},
+		{review.DisallowDropObject, "DROP PACKAGE BODY IF EXISTS pk;", review.Change{}, shopTarget, codes(review.DropsDefinition)},
 		{review.DisallowDropObject, "DROP USER u;", review.Change{}, shopTarget, codes(review.DropsAccess)},
 		{review.DisallowDropObject, "DROP ROLE r;", review.Change{}, shopTarget, codes(review.DropsAccess)},
 
