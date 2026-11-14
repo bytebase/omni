@@ -136,6 +136,20 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			tbl.Checksum = normalizedChecksum(opt.Value)
 		case "delay_key_write":
 			tbl.DelayKeyWrite = opt.Value
+		case "page_checksum":
+			tbl.PageChecksum = choiceValue(opt.Value)
+		case "transactional":
+			tbl.Transactional = choiceValue(opt.Value)
+		case "sequence":
+			if opt.Value == "1" {
+				return errSequenceInvalidTableStructure(db.Name, stmt.Table.Name)
+			}
+		default:
+			if opt.EngineDefined {
+				if err := tbl.setEngineOption(opt.Name, opt.Value, opt.StringValue); err != nil {
+					return err
+				}
+			}
 		}
 	}
 	// When charset is specified without explicit collation, derive the default collation.

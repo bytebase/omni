@@ -878,6 +878,12 @@ func writeCreateTableStmt(sb *strings.Builder, n *CreateTableStmt) {
 func writeAlterTableStmt(sb *strings.Builder, n *AlterTableStmt) {
 	sb.WriteString("{ALTER_TABLE")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Online {
+		sb.WriteString(" :online true")
+	}
+	if n.Ignore {
+		sb.WriteString(" :ignore true")
+	}
 	if n.Table != nil {
 		sb.WriteString(" :table ")
 		writeNode(sb, n.Table)
@@ -2085,6 +2091,9 @@ func writeAlterDatabaseStmt(sb *strings.Builder, n *AlterDatabaseStmt) {
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
 	if n.Name != "" {
 		fmt.Fprintf(sb, " :name %s", n.Name)
+	}
+	if n.UpgradeDataDirectoryName {
+		sb.WriteString(" :upgrade_data_directory_name true")
 	}
 	if len(n.Options) > 0 {
 		sb.WriteString(" :options ")

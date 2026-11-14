@@ -232,6 +232,9 @@ type AlterTableStmt struct {
 	Loc      Loc
 	Table    *TableRef
 	Commands []*AlterTableCmd
+	// Online and Ignore record ALTER [ONLINE] [IGNORE] TABLE's alter_option_list.
+	Online bool
+	Ignore bool
 }
 
 func (s *AlterTableStmt) nodeTag()  {}
@@ -636,6 +639,11 @@ type TableOption struct {
 	Name    string
 	Value   string
 	Storage string // TABLESPACE ... STORAGE {DISK|MEMORY}
+	// EngineDefined marks an engine_defined_option, `name = value`, whose name the
+	// engine checks when the statement runs; StringValue records that its value
+	// was a quoted string.
+	EngineDefined bool
+	StringValue   bool
 }
 
 func (o *TableOption) nodeTag() {}
@@ -2102,6 +2110,9 @@ type AlterDatabaseStmt struct {
 	Loc     Loc
 	Name    string
 	Options []*DatabaseOption
+	// UpgradeDataDirectoryName is ALTER DATABASE name UPGRADE DATA DIRECTORY
+	// NAME, which takes no option.
+	UpgradeDataDirectoryName bool
 }
 
 func (s *AlterDatabaseStmt) nodeTag()  {}
