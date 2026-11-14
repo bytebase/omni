@@ -32,6 +32,10 @@ type Recognizer struct {
 	null   []bool                // per rule: derives the empty string
 	first  []bitset              // per rule: the terminals it can start with
 	altFst [][]bitset            // per rule and alternative
+	// pathSigil holds the sigils that start a path (see Path), and paths
+	// the terminals that are one.
+	pathSigil map[rune]bool
+	paths     []int
 
 	mu        sync.Mutex
 	sets      []*earleySet
@@ -54,6 +58,12 @@ type cterm struct {
 	toks  []ltok   // the text it matches; empty for a token written as nothing
 	class string   // when set, it matches one token of this class (classOf)
 	more  [][]ltok // other texts it matches exactly, for a token of several spellings
+	// qualified: for a name class that also matches names joined by dots,
+	// the most parts it takes (see Qualified); 0 for one.
+	qualified int
+	// path: a variable class whose sigil starts a path (see Path), which
+	// also matches a quoted path, '@a/dir with spaces'.
+	path bool
 }
 
 // spelling is one exact text of a terminal: its toks, or one of more.
@@ -91,7 +101,12 @@ func (b bitset) union(o bitset) bool {
 
 // Recognizer returns a recognizer for the grammar.
 func (g *Grammar) Recognizer() *Recognizer {
-	r := &Recognizer{g: g, exact: map[string][]spelling{}, class: map[string][]int{}}
+	r := &Recognizer{g: g, exact: map[string][]spelling{}, class: map[string][]int{}, pathSigil: map[rune]bool{}}
+	for name := range g.path {
+		if text := g.termText[name]; text != "" && (text[0] == '@' || text[0] == '$') {
+			r.pathSigil[rune(text[0])] = true
+		}
+	}
 	ruleID := map[string]int{}
 	for i, gr := range g.rules {
 		ruleID[gr.name] = i
@@ -158,6 +173,13 @@ func (g *Grammar) Recognizer() *Recognizer {
 			case kString, kNumber, kVar:
 				t.class = classOf(tk)
 			}
+		}
+		if t.class != "" && !sym.literal {
+			t.qualified = g.qualified[sym.text]
+		}
+		t.path = t.class != "" && !sym.literal && g.path[sym.text]
+		if t.path {
+			r.paths = append(r.paths, len(r.terms))
 		}
 		r.terms = append(r.terms, t)
 		switch {
@@ -439,15 +461,37 @@ func (r *Recognizer) matchesAt(in []ltok, k int) []termMatch {
 	if tk.kind == kName && !tk.quoted && r.g.reserved[strings.ToUpper(tk.text)] {
 		return out
 	}
-	for _, id := range r.class[classOf(tk)] {
-		out = append(out, termMatch{id, 1})
+	if tk.kind == kString && len(tk.text) > 2 && tk.text[0] == '\'' && r.pathSigil[rune(tk.text[1])] {
+		// '@a/dir with spaces': a path quoted for its spaces.
+		want := classOf(ltok{kind: kVar, text: tk.text[1:2] + "a"})
+		for _, id := range r.paths {
+			if r.terms[id].class == want {
+				out = append(out, termMatch{id, 1})
+			}
+		}
 	}
+	ids := r.class[classOf(tk)]
 	if tk.kind == kName && tk.quoted {
-		for _, id := range r.class[nameClass] {
-			out = append(out, termMatch{id, 1})
+		ids = append(append([]int(nil), ids...), r.class[nameClass]...)
+	}
+	for _, id := range ids {
+		out = append(out, termMatch{id, 1})
+		if most := r.terms[id].qualified; most > 1 {
+			// db.schema.name: more names, each after a dot.
+			w := 1
+			for parts := 1; parts < most && k+w+1 < len(in) && in[k+w].kind == kPunct && in[k+w].text == "." && r.isName(in[k+w+1]); parts++ {
+				w += 2
+				out = append(out, termMatch{id, w})
+			}
 		}
 	}
 	return out
+}
+
+// isName reports whether a token is a name: a quoted one, or a word the
+// token table does not reserve.
+func (r *Recognizer) isName(t ltok) bool {
+	return t.kind == kName && (t.quoted || !r.g.reserved[strings.ToUpper(t.text)])
 }
 
 // --- a generic SQL lexer ---
@@ -609,6 +653,17 @@ func (r *Recognizer) lex(s string) []ltok {
 		case unicode.IsDigit(c) || (c == '.' && i+1 < n && unicode.IsDigit(rs[i+1])):
 			j, ok := number(rs, i)
 			out = append(out, ltok{kind: closedKind(ok, kNumber), text: string(rs[i:j])})
+			i = j
+		case r.pathSigil[c] && i+1 < n && (isWordPart(rs[i+1]) || rs[i+1] == '~' || rs[i+1] == '%'):
+			// A path: @~, @%t, @db.s.a/dir/file.csv (see Path).
+			j := i + 1
+			if rs[j] == '~' || rs[j] == '%' {
+				j++
+			}
+			for j < n && (isWordPart(rs[j]) || rs[j] == '.' || rs[j] == '/' || rs[j] == '%' && rs[j-1] == '.') {
+				j++
+			}
+			out = append(out, ltok{kind: kVar, text: string(rs[i:j])})
 			i = j
 		case (c == '@' || c == '$') && i+1 < n && (isWordPart(rs[i+1]) || rs[i+1] == '@'):
 			j := i + 1

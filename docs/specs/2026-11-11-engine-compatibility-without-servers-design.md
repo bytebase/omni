@@ -797,7 +797,7 @@ After step 0 the engines are independent. Order:
 - **Three connections a case,** as OceanBase's: the setup, the catalog, and the change, which sets `foreign_key_checks` itself: a new session could read the global a sweep's base had turned off before the setup turned it on again.
 - **Server state** goes through `testcontainer.Reset`: user databases dropped, `test` made again, and the global `foreign_key_checks` and `tidb_enable_check_constraint` on. The prior-backup, scan-rule and column-drop oracles stay as they were, on a tape each.
 
-**Snowflake.** A prototype converted the Syntax blocks of 77 docs pages to a `.g4` and generated 1,557 statements, of which omni accepts 64%. The blocks are near-BNF and map directly:
+**Snowflake, converted.** `snowflake/parser/cmd/docsgrammar` read the Syntax and Variant syntax sections of the 779 pages the command index lists on 2026-11-13 and wrote `snowflake/testdata/SnowflakeDocs.g4`: 765 pages have syntax, 758 give a rule, with 1,765 statement forms and 432 fragment rules. The blocks are near-BNF and map directly:
 
 ```text
 ALTER WAREHOUSE [ IF EXISTS ] [ <name> ] { SUSPEND | RESUME [ IF SUSPENDED ] }
@@ -805,10 +805,24 @@ ALTER WAREHOUSE [ IF EXISTS ] [ <name> ] { SUSPEND | RESUME [ IF SUSPENDED ] }
 
 ```antlr
 // https://docs.snowflake.com/en/sql-reference/sql/alter-warehouse
-alterWarehouse : ALTER WAREHOUSE (IF EXISTS)? name? (SUSPEND | RESUME (IF SUSPENDED)?) ;
+alterWarehouse
+    : 'ALTER' 'WAREHOUSE' ('IF' 'EXISTS')? ID? ('SUSPEND' | 'RESUME' ('IF' 'SUSPENDED')?)
 ```
 
-Docs are prose, so some blocks need hand fixes: malformed syntax, undefined fragments. Each fix is made in the `.g4`, with a comment citing its page.
+- **Placeholders are read by name** into twelve token classes, sampled in `tokens.tsv`: `<name>` is `ID`, `'<x>'` is `STRING`, `<num>` is `NUMBER`, `<expr>` is `EXPR`, `<query>` is `QUERY`, `<copy_statement>` is `COPY_STATEMENT`, a stage location is `STAGE`, a `file://` path is `FILE`.
+- **Docs are prose.** 170 places, mostly typos and brackets that do not close, are corrected in `snowflake/testdata/docs-fixes.tsv`, each with its page. The converter's own readings include: `SET` or `UNSET` followed only by optional parts sets at least one; a definition with one `NAME = value` per line is any number of them; variants between `--` comments are a choice; a `|` left before `}` adds nothing; a last line of `[ ... ]` is optional text left out; keywords written with commas before `[ , ... ]` are a choice; constraint properties come in any order; `<object_type>` is one of the object types the GRANT page lists; a block that starts with a JSON key is an example, not SQL; `[ OR REPLACE ]` and `[ IF NOT EXISTS ]` make two forms, since they exclude each other; `[<namespace>.]` is a database or a database and a schema; `tokens.tsv` marks a schema object's name, `QNAME`, `(qualified)`, so `db.schema.name` stands wherever one does, and a schema's or database role's, `QNAME2`, `(qualified 2)`, so `db.name` does while a column's, an account object's, and a name the notation already qualifies (`[<db_name>.]<name>`) stays one part, and a stage `(path)`, so `@db.s.a/dir`, `@~`, `@%t`, `@db.s.%t` and a quoted `'@a/dir'` stand wherever a stage does; in `{ <target> SET X | UNSET X }` the `UNSET` keeps the target; choices whose last line is a lone `[ , ... ]` are a list of the whole choice; each `-- If TYPE = X` section of `formatTypeOptions` follows only `TYPE = X` and takes commas between its options, as `copyOptions` does, and each `-- For X` section of `accountObjectPrivileges` and `schemaObjectPrivileges` is granted only `ON X`; a `|` outside brackets chooses what follows the object's name (`ALTER TASK <name> RESUME | SUSPEND`). And 16 `SHOW` pages leave out the `|` after `<schema_name>` in their `IN` list, which the converter puts back.
+- **61 forms are not converted,** listed in the `.g4` under their page: 41 write `...` for text they leave out (`SELECT * ILIKE ... REPLACE ...`, or a last line of `...` after `CLONE <source>`), 10 name a fragment their page does not define (`{oauth_parameters}`, GRANT CALLER's privileges) or are examples (`emp_id`), 5 are `DEFINE` forms, which run only in DCM project files, 2 hold Markdown, 1 has a bracket out of place, and CREATE and ALTER INTEGRATION write `<integration_type>` for the keyword each type's own page gives.
+
+The docs judged the 73,613 rows in about a minute, and a replay asks the recognizer again in 8 seconds:
+
+| Statements | Total | Agree | Only docs accept | Undocumented |
+| --- | --- | --- | --- | --- |
+| One per alternative | 19,798 | 13,427 | 6,371 | 0 |
+| Near-misses | 53,815 | 643 | 172 | 53,000 |
+
+- **6,543 disagreements,** all one way, since docs never reject. Omni rejects the shortest documented form of 310 of the 758 commands (104 `ALTER`, 83 `CREATE`, 64 `DROP`, 35 `SHOW`), mostly objects it does not know. By rows, the largest are `CREATE ICEBERG TABLE` and its catalog variants (330), `ALTER ICEBERG TABLE` (94), `ALTER DATABASE` (77), `ALTER POSTGRES INSTANCE` (67) and `ALTER SCHEMA` (66). The prototype's 64% is 61% here.
+- **What the docs cannot decide:** an `EXPR` is a constant and a `QUERY` is `SELECT 1`, since the command pages hold no expression or query grammar; a `DATA_TYPE` is `INT`; a class takes any token of its kind, so a value the engine restricts is not checked; a form whose every part is optional (`ALTER STAGE a SET`, `CREATE ICEBERG TABLE a`) is accepted, as written; and clause order is the docs', where Snowflake often takes any.
+- **Size.** The file is 12.1 MB. The undocumented near-misses are 9.1 MB of it and decide nothing; generating only the near-misses the docs derive would leave about 3.0 MB.
 
 **PartiQL, recorded.** `partiql/parser/testdata/compat.tsv` (2026-11-13): 632 alternatives and 1,217 near-misses of `PartiQLParser.g4`, the grammar of the reference implementation (partiql-lang-kotlin, Apache-2.0, committed), and the 61 statements DynamoDB's developer guide prints. No server: a recognizer over the grammar judges, in 0.1 seconds.
 

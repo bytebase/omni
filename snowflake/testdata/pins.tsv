@@ -1,0 +1,6 @@
+# The docs this engine's committed answers come from. default judges compat.tsv:
+# the Syntax blocks of the pages its image (the command index) lists, their
+# SHA-256 as snowflake/parser/cmd/docsgrammar reads them, and the date they
+# were read, which is the pin's source tag.
+# columns: role, image, digest, source tag
+default	https://docs.snowflake.com/en/sql-reference/sql-all	sha256:334be655f4130196272f45c96ed77fd2bc1399b40ce5c958c53bea02f6ad9177	2026-11-13

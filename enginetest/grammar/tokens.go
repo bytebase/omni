@@ -25,6 +25,18 @@ const (
 	// identifier. A recognizer matches it only where the grammar spells it,
 	// never for a token class such as a name.
 	Reserved = "(reserved)"
+	// Qualified, at the start of a row's note: the token is a name a
+	// recognizer also matches qualified, two or three of them joined by
+	// dots, as Snowflake writes db.schema.table wherever it takes a name.
+	// (qualified 2) limits it to two, as db.schema.
+	Qualified = "(qualified)"
+	// Path, at the start of a row's note: the token's sample is a variable,
+	// and a recognizer reads its sigil as the start of a path, one token
+	// through any ~ or % after the sigil and every name character, dot and
+	// slash after that, as Snowflake writes stages: @~, @%t, @db.s.a/dir; a
+	// % may also follow a dot, as a namespace's table stage, @db.s.%t, does.
+	// A string that starts with the sigil, '@a/dir with spaces', is one too.
+	Path = "(path)"
 )
 
 // Tokens is an engine's testdata/tokens.tsv: the text generated rows write
@@ -41,7 +53,9 @@ const (
 // one-token terms, so exprTerm is sampled as a name. The rule's own
 // alternatives keep their rows, written from their own symbols.
 type Tokens struct {
-	forms map[string]string
+	forms     map[string]string
+	qualified map[string]int // the most parts a qualified name takes
+	path      map[string]bool
 }
 
 // ReadTokens reads a tokens.tsv. Each row is token, form, and a note citing
@@ -51,7 +65,7 @@ func ReadTokens(path string) (*Tokens, error) {
 	if err != nil {
 		return nil, err
 	}
-	t := &Tokens{forms: map[string]string{}}
+	t := &Tokens{forms: map[string]string{}, qualified: map[string]int{}, path: map[string]bool{}}
 	for i, line := range strings.Split(string(b), "\n") {
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
@@ -68,6 +82,15 @@ func ReadTokens(path string) (*Tokens, error) {
 			return nil, fmt.Errorf("%s:%d: %s appears twice", path, i+1, name)
 		}
 		t.forms[name] = form
+		if len(f) == 3 && strings.HasPrefix(f[2], Qualified) {
+			t.qualified[name] = 3
+		}
+		if len(f) == 3 && strings.HasPrefix(f[2], "(qualified 2)") {
+			t.qualified[name] = 2
+		}
+		if len(f) == 3 && strings.HasPrefix(f[2], Path) {
+			t.path[name] = true
+		}
 	}
 	return t, nil
 }

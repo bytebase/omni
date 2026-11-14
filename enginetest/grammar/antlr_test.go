@@ -801,3 +801,60 @@ KW : 'X' [aA] [bB] [cC] [dD] [eE] [fF] [gG] ;
 		}
 	}
 }
+
+// TestRecognizerReadsQualifiedNames pins a name token marked qualified: it
+// also matches names joined by dots, up to its limit.
+func TestRecognizerReadsQualifiedNames(t *testing.T) {
+	const src = "grammar Q; s : 'DROP' 'TABLE' ID | 'USE' NAME ; ID : [a-z]+ ; NAME : [a-z]+ ;"
+	tok := &Tokens{forms: map[string]string{"ID": "a", "NAME": "a", "SELECT": Reserved}, qualified: map[string]int{"ID": 3, "NAME": 2}}
+	g, err := ReadANTLR(src, tok)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := g.Recognizer()
+	for sql, want := range map[string]bool{
+		"DROP TABLE a":          true,
+		"DROP TABLE a.b":        true,
+		`DROP TABLE a."B".c`:    true,
+		"DROP TABLE a.b.c.d":    false,
+		"DROP TABLE a.":         false,
+		"DROP TABLE a.select":   false,
+		`DROP TABLE a."SELECT"`: true,
+		"USE a":                 true,
+		"USE a.b":               true,
+		"USE a.b.c":             false,
+	} {
+		if got := rec.Accepts(sql); got != want {
+			t.Errorf("Accepts(%q) = %v, want %v", sql, got, want)
+		}
+	}
+}
+
+// TestRecognizerReadsPaths pins a variable token marked as a path: its
+// sigil starts one token through ~ or %, names, dots and slashes.
+func TestRecognizerReadsPaths(t *testing.T) {
+	const src = "grammar P; s : 'LIST' STAGE ; STAGE : '@' [a-z]+ ;"
+	tok := &Tokens{forms: map[string]string{"STAGE": "@a"}, path: map[string]bool{"STAGE": true}}
+	g, err := ReadANTLR(src, tok)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := g.Recognizer()
+	for sql, want := range map[string]bool{
+		"LIST @a":                   true,
+		"LIST @db.s.a/dir/f.csv":    true,
+		"LIST @~":                   true,
+		"LIST @%t":                  true,
+		"LIST @a.%t":                true,
+		"LIST @a.b.%t":              true,
+		"LIST @a%t":                 false,
+		"LIST '@a/dir with spaces'": true,
+		"LIST 'a'":                  false,
+		"LIST @a b":                 false,
+		"LIST a":                    false,
+	} {
+		if got := rec.Accepts(sql); got != want {
+			t.Errorf("Accepts(%q) = %v, want %v", sql, got, want)
+		}
+	}
+}
