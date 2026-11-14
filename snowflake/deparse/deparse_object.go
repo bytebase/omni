@@ -56,6 +56,19 @@ func (w *writer) writeObjectClause(kind string, c *ast.ObjectClause) error {
 		}
 		w.writeObjectNameNoSpace(name)
 	}
+	if c.Args != nil {
+		// ( <name> => <value> [ , ... ] ): USING ( ... ) of EXECUTE DCM PROJECT.
+		w.buf.WriteString(" (")
+		for i, a := range c.Args {
+			if i > 0 {
+				w.buf.WriteString(", ")
+			}
+			if err := w.writeCallArg(a); err != nil {
+				return err
+			}
+		}
+		w.buf.WriteByte(')')
+	}
 	if len(c.Keys) > 0 {
 		w.buf.WriteByte(' ')
 		w.buf.WriteString(strings.Join(c.Keys, ", "))
@@ -129,8 +142,21 @@ func objectOptionCommas(kind, keywords string) bool {
 // writeObjectOption writes a property as `NAME = value`, or its value alone
 // when it has no name (an element of a list of groups). A bare entry is its
 // name alone, followed by its Group in parentheses when it has one
-// (VECTOR INDEXES' <column> ( model = '<model>' )).
+// (VECTOR INDEXES' <column> ( model = '<model>' )). An element with an alias
+// is followed by AS '<alias>'.
 func (w *writer) writeObjectOption(o *ast.CopyOption) error {
+	if err := w.writeObjectOptionValue(o); err != nil {
+		return err
+	}
+	if o.Alias != nil {
+		w.buf.WriteString(" AS ")
+		return w.writeCopyOptionLiteral(o.Alias)
+	}
+	return nil
+}
+
+// writeObjectOptionValue writes writeObjectOption's `NAME = value`.
+func (w *writer) writeObjectOptionValue(o *ast.CopyOption) error {
 	if o.Name == "EXECUTE AS USER" && !o.Bare {
 		// TASK GRAPH's TASK_DEFAULTS ( EXECUTE AS USER <user_name> ): no '='.
 		w.buf.WriteString("EXECUTE AS USER ")
@@ -161,6 +187,8 @@ func (w *writer) writeObjectOption(o *ast.CopyOption) error {
 		return w.writeCopyOptionLiteral(o.Lit)
 	case o.Words != "":
 		w.buf.WriteString(o.Words)
+	case o.Expr != nil:
+		return w.writeExpr(o.Expr)
 	case o.List != nil:
 		w.buf.WriteByte('(')
 		for i, lit := range o.List {
