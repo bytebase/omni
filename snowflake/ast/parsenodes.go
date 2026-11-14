@@ -1689,6 +1689,7 @@ const (
 	DropSessionPolicy                   // DROP SESSION POLICY
 	DropShare                           // DROP SHARE
 	DropUser                            // DROP USER
+	DropObject                          // DROP of an object read by its documented shape; DropStmt.Object names it
 )
 
 // String returns the SQL object-type keyword for the kind.
@@ -1764,6 +1765,7 @@ func (k DropObjectKind) String() string {
 // DropSchemaStmt and are NOT covered by this type.
 type DropStmt struct {
 	Kind     DropObjectKind
+	Object   string // the object's keywords when Kind is DropObject: "COMPUTE POOL"
 	IfExists bool
 	Name     *ObjectName
 	// HasArgs / ArgTypes carry the argument-type signature of a DROP
@@ -5924,4 +5926,59 @@ var (
 	_ Node = (*ScriptFetchStmt)(nil)
 	_ Node = (*ScriptCloseStmt)(nil)
 	_ Node = (*ScriptRaiseStmt)(nil)
+)
+
+// ---------------------------------------------------------------------------
+// Objects read by their documented shape (ObjectStmt)
+// ---------------------------------------------------------------------------
+//
+// Snowflake keeps adding account and schema objects (compute pools, services,
+// applications, Postgres instances, ...) whose CREATE and ALTER statements are
+// a name, a few structural clauses and a bag of `KEY = value` properties.
+// omni reads each such statement by the form its docs page gives, and records
+// it as an ObjectStmt instead of a node per object: the object's keywords in
+// Kind, and its clauses in source order. Properties are open-ended CopyOptions,
+// as STAGE, WAREHOUSE and NETWORK RULE keep theirs.
+
+// ObjectStmt is a CREATE or ALTER of an object read by its documented shape:
+//
+//	CREATE [ OR REPLACE | OR ALTER ] <kind> [ IF NOT EXISTS ] <name> <clause>...
+//	ALTER <kind> [ IF EXISTS ] <name> <clause>...
+//
+// Loc spans the whole statement, from CREATE or ALTER.
+type ObjectStmt struct {
+	Verb        string          // "CREATE" or "ALTER"
+	Kind        string          // the object's keywords, uppercased and space-joined: "COMPUTE POOL"
+	OrReplace   bool            // CREATE OR REPLACE
+	OrAlter     bool            // CREATE OR ALTER
+	IfNotExists bool            // CREATE ... IF NOT EXISTS
+	IfExists    bool            // ALTER ... IF EXISTS
+	Name        *ObjectName     // the object's name
+	Clauses     []*ObjectClause // the clauses after the name, in source order
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *ObjectStmt) Tag() NodeTag { return T_ObjectStmt }
+
+// ObjectClause is one clause of an ObjectStmt. Keywords names it, uppercased
+// and space-joined: "SET", "UNSET", "SET TAG", "UNSET TAG", "RENAME TO",
+// "SUSPEND", "FOR APPLICATION", "STOP ALL OF TYPE", ... A CREATE's property run
+// has no keywords. The fields the clause does not take stay empty.
+type ObjectClause struct {
+	Keywords string           // the clause's keywords; "" for a CREATE's property run
+	Names    []*ObjectName    // the names the clause takes, in order
+	Options  []*CopyOption    // its `KEY = value` properties, in order
+	Keys     []string         // the property names an UNSET clears, uppercased
+	Tags     []*TagAssignment // its tag assignments (SET TAG, [ WITH ] TAG ( ... ))
+	Query    Node             // the query an AS clause holds
+	Loc      Loc
+}
+
+// Tag implements Node.
+func (n *ObjectClause) Tag() NodeTag { return T_ObjectClause }
+
+var (
+	_ Node = (*ObjectStmt)(nil)
+	_ Node = (*ObjectClause)(nil)
 )

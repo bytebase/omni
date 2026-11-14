@@ -1,0 +1,460 @@
+package parser
+
+import (
+	"strings"
+
+	"github.com/bytebase/omni/snowflake/ast"
+)
+
+// ---------------------------------------------------------------------------
+// Objects read by their documented shape (ast.ObjectStmt)
+// ---------------------------------------------------------------------------
+//
+// Many of Snowflake's newer objects (compute pools, services, applications,
+// Postgres instances, ...) share one statement shape: a name, a few structural
+// clauses, and a bag of `KEY = value` properties. Each such object registers an
+// objectForm in an init function of its own file: the keywords that name it,
+// and a function that reads the clauses of its CREATE and of its ALTER after
+// the name, by the form its docs page gives. parseCreateStmt and parseAlterStmt
+// ask the registry before their own dispatch, so a new object needs no case in
+// either switch. The helpers below read the clauses most objects share.
+
+// objectForm is one registered object.
+type objectForm struct {
+	words  []string // the object's keywords, uppercased: COMPUTE, POOL
+	kind   string   // words joined by spaces
+	create func(p *Parser, s *ast.ObjectStmt) error
+	alter  func(p *Parser, s *ast.ObjectStmt) error
+	// orReplace and orAlter report whether CREATE OR REPLACE and CREATE OR
+	// ALTER are documented for the object.
+	orReplace, orAlter bool
+	// drop reports whether DROP <kind> [ IF EXISTS ] <name> is documented.
+	drop bool
+}
+
+// objectForms maps an object's first keyword to the objects it starts.
+var objectForms = map[string][]*objectForm{}
+
+// registerObject adds an object to the registry. It is called from init.
+func registerObject(f *objectForm) {
+	f.kind = strings.Join(f.words, " ")
+	objectForms[f.words[0]] = append(objectForms[f.words[0]], f)
+}
+
+// matchObjectForm reports the registered object whose keywords start at cur,
+// preferring the longest. It consumes nothing.
+func (p *Parser) matchObjectForm() *objectForm {
+	if p.cur.Str == "" {
+		return nil
+	}
+	var best *objectForm
+	for _, f := range objectForms[strings.ToUpper(p.cur.Str)] {
+		if (best == nil || len(f.words) > len(best.words)) && p.atWords(f.words...) {
+			best = f
+		}
+	}
+	return best
+}
+
+// atWords reports whether the tokens from cur on spell words, matched by
+// their uppercased text whether they lex as keywords or identifiers. It
+// consumes nothing.
+func (p *Parser) atWords(words ...string) bool {
+	if !p.curIsWord(words[0]) {
+		return false
+	}
+	if len(words) == 1 {
+		return true
+	}
+	if !p.peekIsWord(words[1]) {
+		return false
+	}
+	if len(words) == 2 {
+		return true
+	}
+	snap := p.snapshot()
+	defer p.restore(snap)
+	p.advance()
+	p.advance()
+	for _, w := range words[2:] {
+		if !p.curIsWord(w) {
+			return false
+		}
+		p.advance()
+	}
+	return true
+}
+
+// acceptWords consumes words if the tokens from cur spell them, and reports
+// whether it did.
+func (p *Parser) acceptWords(words ...string) bool {
+	if !p.atWords(words...) {
+		return false
+	}
+	for range words {
+		p.advance()
+	}
+	return true
+}
+
+// expectWords consumes words, or fails at the first token that differs.
+func (p *Parser) expectWords(words ...string) error {
+	for _, w := range words {
+		if !p.curIsWord(w) {
+			return p.syntaxErrorAtCur()
+		}
+		p.advance()
+	}
+	return nil
+}
+
+// parseObjectStmt reads a CREATE or ALTER of a registered object. cur is the
+// object's first keyword; start is the CREATE or ALTER token's Loc.
+func (p *Parser) parseObjectStmt(verb string, f *objectForm, start ast.Loc, orReplace, orAlter bool) (ast.Node, error) {
+	read := f.create
+	if verb == "ALTER" {
+		read = f.alter
+	}
+	if read == nil || (orReplace && !f.orReplace) || (orAlter && !f.orAlter) {
+		return p.unsupported(verb)
+	}
+	for range f.words {
+		p.advance()
+	}
+	s := &ast.ObjectStmt{
+		Verb:      verb,
+		Kind:      f.kind,
+		OrReplace: orReplace,
+		OrAlter:   orAlter,
+		Loc:       ast.Loc{Start: start.Start},
+	}
+	// IF NOT EXISTS excludes OR REPLACE (the docs write the two forms apart).
+	if verb == "CREATE" && !orReplace {
+		if err := p.parseIfNotExists(&s.IfNotExists); err != nil {
+			return nil, err
+		}
+	}
+	if verb == "ALTER" {
+		if err := p.parseIfExists(&s.IfExists); err != nil {
+			return nil, err
+		}
+	}
+	name, err := p.parseObjectName()
+	if err != nil {
+		return nil, err
+	}
+	s.Name = name
+	if err := read(p, s); err != nil {
+		return nil, err
+	}
+	s.Loc.End = p.prev.Loc.End
+	return s, nil
+}
+
+// startsObjectProperty reports whether cur begins a `KEY = value` property:
+// a name word followed by '='.
+func (p *Parser) startsObjectProperty() bool {
+	return p.isOptionWord(p.cur.Type) && p.cur.Type != tokInt && p.cur.Type != tokFloat && p.cur.Type != tokReal &&
+		p.peekNext().Type == '='
+}
+
+// parseObjectProperties reads a run of `KEY = value` properties and
+// [ WITH ] TAG ( <tag> = '<value>' [ , ... ] ) clauses into one clause, and
+// appends and returns it when it holds anything (nil otherwise). need says
+// whether an empty run is a syntax error. keywords names the clause ("" for a
+// CREATE's run).
+func (p *Parser) parseObjectProperties(s *ast.ObjectStmt, keywords string, need bool) (*ast.ObjectClause, error) {
+	c := &ast.ObjectClause{Keywords: keywords, Loc: ast.Loc{Start: p.cur.Loc.Start}}
+	for {
+		switch {
+		case p.startsWithTags() && (p.cur.Type == kwWITH || p.peekNext().Type == '('):
+			tags, err := p.parseWithTags()
+			if err != nil {
+				return nil, err
+			}
+			c.Tags = append(c.Tags, tags...)
+		case keywords == "SET" && p.cur.Type == kwTAG && p.peekNext().Type != '(':
+			// Some pages list TAG <tag> = '<value>' [ , ... ] among SET's
+			// properties (ALTER COMPUTE POOL).
+			p.advance() // consume TAG
+			tags, err := p.parseObjectTagList()
+			if err != nil {
+				return nil, err
+			}
+			c.Tags = append(c.Tags, tags...)
+		case p.startsObjectProperty():
+			opt, err := p.parseObjectProperty()
+			if err != nil {
+				return nil, err
+			}
+			c.Options = append(c.Options, opt)
+		default:
+			if len(c.Options) == 0 && len(c.Tags) == 0 {
+				if need {
+					return nil, p.syntaxErrorAtCur()
+				}
+				return nil, nil
+			}
+			c.Loc.End = p.prev.Loc.End
+			s.Clauses = append(s.Clauses, c)
+			return c, nil
+		}
+	}
+}
+
+// objectActions selects the shared ALTER actions an object's docs give.
+type objectActions int
+
+const (
+	actSet      objectActions = 1 << iota // SET <property> [ ... ]
+	actSetTag                             // SET TAG <tag> = '<value>' [ , ... ]
+	actUnset                              // UNSET <property> [ , ... ]
+	actUnsetTag                           // UNSET TAG <tag> [ , ... ]
+	actRename                             // RENAME TO <new_name>
+	// actTags is SET TAG and UNSET TAG.
+	actTags = actSetTag | actUnsetTag
+)
+
+// parseObjectAlterCommon reads one of the shared ALTER actions allow names,
+// when one starts at cur, and reports whether it did.
+func (p *Parser) parseObjectAlterCommon(s *ast.ObjectStmt, allow objectActions) (bool, error) {
+	start := p.cur.Loc.Start
+	switch {
+	case p.cur.Type == kwSET && p.peekNext().Type == kwTAG && allow&actSetTag != 0:
+		p.advance() // consume SET
+		p.advance() // consume TAG
+		tags, err := p.parseObjectTagList()
+		if err != nil {
+			return true, err
+		}
+		s.Clauses = append(s.Clauses, &ast.ObjectClause{Keywords: "SET TAG", Tags: tags, Loc: ast.Loc{Start: start, End: p.prev.Loc.End}})
+		return true, nil
+	case p.cur.Type == kwSET && allow&actSet != 0:
+		p.advance() // consume SET
+		c, err := p.parseObjectProperties(s, "SET", true)
+		if err != nil {
+			return true, err
+		}
+		c.Loc.Start = start
+		return true, nil
+	case p.cur.Type == kwUNSET && p.peekNext().Type == kwTAG && allow&actUnsetTag != 0:
+		p.advance() // consume UNSET
+		p.advance() // consume TAG
+		names, err := p.parseObjectNameList()
+		if err != nil {
+			return true, err
+		}
+		s.Clauses = append(s.Clauses, &ast.ObjectClause{Keywords: "UNSET TAG", Names: names, Loc: ast.Loc{Start: start, End: p.prev.Loc.End}})
+		return true, nil
+	case p.cur.Type == kwUNSET && allow&actUnset != 0:
+		p.advance() // consume UNSET
+		keys, err := p.parseUnsetPropertyNames()
+		if err != nil {
+			return true, err
+		}
+		s.Clauses = append(s.Clauses, &ast.ObjectClause{Keywords: "UNSET", Keys: keys, Loc: ast.Loc{Start: start, End: p.prev.Loc.End}})
+		return true, nil
+	case p.cur.Type == kwRENAME && allow&actRename != 0:
+		name, err := p.parseRenameTo()
+		if err != nil {
+			return true, err
+		}
+		s.Clauses = append(s.Clauses, &ast.ObjectClause{Keywords: "RENAME TO", Names: []*ast.ObjectName{name}, Loc: ast.Loc{Start: start, End: p.prev.Loc.End}})
+		return true, nil
+	}
+	return false, nil
+}
+
+// requireObjectProperties fails unless clause c sets every one of names, as
+// a CREATE's required properties are.
+func (p *Parser) requireObjectProperties(c *ast.ObjectClause, names ...string) error {
+	for _, n := range names {
+		found := false
+		if c != nil {
+			for _, o := range c.Options {
+				if o.Name == n {
+					found = true
+					break
+				}
+			}
+		}
+		if !found {
+			return &ParseError{
+				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+				Message: "syntax error: " + n + " is required",
+			}
+		}
+	}
+	return nil
+}
+
+// parseObjectTagList reads <tag> = '<value>' [ , ... ] after SET TAG.
+func (p *Parser) parseObjectTagList() ([]*ast.TagAssignment, error) {
+	var tags []*ast.TagAssignment
+	for {
+		name, err := p.parseObjectName()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect('='); err != nil {
+			return nil, err
+		}
+		val, err := p.expect(tokString)
+		if err != nil {
+			return nil, err
+		}
+		tags = append(tags, &ast.TagAssignment{Name: name, Value: val.Str})
+		if p.cur.Type != ',' {
+			return tags, nil
+		}
+		p.advance() // consume ','
+	}
+}
+
+// addObjectKeywordsClause appends a clause of keywords alone (SUSPEND, RESUME,
+// STOP ALL, ...) once the caller has consumed them; start is where they began.
+func (p *Parser) addObjectKeywordsClause(s *ast.ObjectStmt, keywords string, start int) *ast.ObjectClause {
+	c := &ast.ObjectClause{Keywords: keywords, Loc: ast.Loc{Start: start, End: p.prev.Loc.End}}
+	s.Clauses = append(s.Clauses, c)
+	return c
+}
+
+// parseObjectProperty reads one `KEY = value` property. cur is the key, which
+// startsObjectProperty has seen followed by '='.
+func (p *Parser) parseObjectProperty() (*ast.CopyOption, error) {
+	key := p.advance()
+	opt := &ast.CopyOption{Name: strings.ToUpper(key.Str), Loc: ast.Loc{Start: key.Loc.Start}}
+	p.advance() // consume '='
+	if err := p.parseObjectValue(opt); err != nil {
+		return nil, err
+	}
+	opt.Loc.End = p.prev.Loc.End
+	return opt, nil
+}
+
+// parseObjectValue reads a property's value into opt, in the shapes the docs
+// give a property:
+//
+//	'<string>' | <number> | <word>         -> Lit, or Words
+//	( )                                     -> an empty Group
+//	( <literal> [ , ... ] )                 -> List
+//	( <entry> [ , ... ] )                   -> Group, where an entry is
+//	                                           <word> or '<string>' = <value>,
+//	                                           a bare <word>, or ( ... )
+//
+// Unlike COPY's options, a list needs its commas and an entry its value.
+func (p *Parser) parseObjectValue(opt *ast.CopyOption) error {
+	switch p.cur.Type {
+	case tokString, tokInt, tokFloat, tokReal:
+		lit, err := p.parseCopyLiteral()
+		if err != nil {
+			return err
+		}
+		opt.Lit = lit
+		return nil
+	case '(':
+		return p.parseObjectValueParen(opt)
+	}
+	if p.cur.Type == '-' && (p.peekNext().Type == tokInt || p.peekNext().Type == tokFloat || p.peekNext().Type == tokReal) {
+		minus := p.advance()
+		lit, err := p.parseCopyLiteral()
+		if err != nil {
+			return err
+		}
+		lit.Value = "-" + lit.Value
+		lit.Ival = -lit.Ival
+		lit.Loc.Start = minus.Loc.Start
+		opt.Lit = lit
+		return nil
+	}
+	words, _, err := p.parseValueWord()
+	if err != nil {
+		return err
+	}
+	opt.Words = words
+	return nil
+}
+
+// parseObjectValueParen reads a parenthesized property value. cur is '('.
+func (p *Parser) parseObjectValueParen(opt *ast.CopyOption) error {
+	if err := p.enterNesting(); err != nil {
+		return err
+	}
+	defer p.leaveNesting()
+	p.advance()                     // consume '('
+	opt.Group = []*ast.CopyOption{} // "()" is recorded as an empty group
+	if p.cur.Type == ')' {
+		p.advance()
+		return nil
+	}
+	// A list of literals: ( 's' [ , ... ] ).
+	if p.curIsLiteral() && p.peekNext().Type != '=' {
+		opt.Group = nil
+		for {
+			lit, err := p.parseCopyLiteral()
+			if err != nil {
+				return err
+			}
+			opt.List = append(opt.List, lit)
+			if p.cur.Type != ',' {
+				break
+			}
+			p.advance() // consume ','
+		}
+		_, err := p.expect(')')
+		return err
+	}
+	for {
+		entry := &ast.CopyOption{Loc: ast.Loc{Start: p.cur.Loc.Start}}
+		switch {
+		case p.cur.Type == '(':
+			// A list of groups: ACCEPTED_TOKENS = ( ( ... ) , ( ... ) ).
+			if err := p.parseObjectValueParen(entry); err != nil {
+				return err
+			}
+		case (p.cur.Type == tokString || p.startsObjectProperty()) && p.peekNext().Type == '=':
+			key := p.advance()
+			entry.Name = strings.ToUpper(key.Str)
+			if key.Type == tokString {
+				entry.Name = key.Str
+			}
+			p.advance() // consume '='
+			if err := p.parseObjectValue(entry); err != nil {
+				return err
+			}
+		case p.isOptionWord(p.cur.Type) && !p.curIsLiteral():
+			// A bare name in a list of names: ( a [ , ... ] ).
+			words, _, err := p.parseValueWord()
+			if err != nil {
+				return err
+			}
+			entry.Name = words
+			entry.Bare = true
+		default:
+			return p.syntaxErrorAtCur()
+		}
+		entry.Loc.End = p.prev.Loc.End
+		opt.Group = append(opt.Group, entry)
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance() // consume ','
+	}
+	_, err := p.expect(')')
+	return err
+}
+
+// parseObjectAsQuery reads AS <query> into a clause, as CORTEX SEARCH
+// SERVICE's body is written. cur is AS.
+func (p *Parser) parseObjectAsQuery(s *ast.ObjectStmt) error {
+	start := p.cur.Loc.Start
+	if _, err := p.expect(kwAS); err != nil {
+		return err
+	}
+	q, err := p.parseQueryExpr()
+	if err != nil {
+		return err
+	}
+	s.Clauses = append(s.Clauses, &ast.ObjectClause{Keywords: "AS", Query: q, Loc: ast.Loc{Start: start, End: p.prev.Loc.End}})
+	return nil
+}

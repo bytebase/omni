@@ -32,6 +32,12 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 		}
 	}
 
+	// An object read by its documented shape (object.go) is dispatched by the
+	// registry before the switches below.
+	if f := p.matchObjectForm(); f != nil {
+		return p.parseObjectStmt("CREATE", f, start, orReplace, orAlter)
+	}
+
 	// Optional SECURE modifier. SECURE applies to VIEW / MATERIALIZED VIEW
 	// (T2.4) and to FUNCTION / EXTERNAL FUNCTION / PROCEDURE (T4.5). It is
 	// checked before the temporary modifiers since it precedes the object type.
