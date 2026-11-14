@@ -7674,7 +7674,7 @@ func TestParseAlterSessionSystem(t *testing.T) {
 		// ALTER SYSTEM - KILL SESSION
 		"ALTER SYSTEM KILL SESSION '12,34'",
 		"ALTER SYSTEM KILL SESSION '12,34' IMMEDIATE",
-		"ALTER SYSTEM KILL SESSION '12,34', @2 FORCE NOREPLAY TIMEOUT 60",
+		"ALTER SYSTEM KILL SESSION '12,34,@2' FORCE TIMEOUT 60",
 		// ALTER SYSTEM - DISCONNECT SESSION
 		"ALTER SYSTEM DISCONNECT SESSION '12,34' POST_TRANSACTION",
 		"ALTER SYSTEM DISCONNECT SESSION '12,34' IMMEDIATE",
@@ -7701,7 +7701,7 @@ func TestParseAlterSessionSystem(t *testing.T) {
 		"ALTER SYSTEM ARCHIVE LOG CURRENT NOSWITCH",
 		"ALTER SYSTEM ARCHIVE LOG ALL",
 		"ALTER SYSTEM ARCHIVE LOG NEXT",
-		"ALTER SYSTEM ARCHIVE LOG INSTANCE 'inst1' GROUP 5 THREAD 2 TO '/archive/'",
+		"ALTER SYSTEM ARCHIVE LOG THREAD 2 GROUP 5 TO '/archive/'",
 		"ALTER SYSTEM ARCHIVE LOG LOGFILE '/redo/redo01.log' USING BACKUP CONTROLFILE",
 		"ALTER SYSTEM ARCHIVE LOG CHANGE 12345",
 		// ALTER SYSTEM - SUSPEND/RESUME
@@ -7720,7 +7720,7 @@ func TestParseAlterSessionSystem(t *testing.T) {
 		"ALTER SYSTEM REGISTER",
 		// ALTER SYSTEM - CANCEL SQL
 		"ALTER SYSTEM CANCEL SQL '12,34'",
-		"ALTER SYSTEM CANCEL SQL '12,34', @2 SQL_ID 'abc123def'",
+		"ALTER SYSTEM CANCEL SQL '12,34,@2,abc123def'",
 		// ALTER SYSTEM - SHUTDOWN dispatcher
 		"ALTER SYSTEM SHUTDOWN 'dispatcher1'",
 		"ALTER SYSTEM SHUTDOWN IMMEDIATE 'dispatcher1'",
@@ -7734,7 +7734,7 @@ func TestParseAlterSessionSystem(t *testing.T) {
 		// ALTER SYSTEM - SET ENCRYPTION
 		"ALTER SYSTEM SET ENCRYPTION WALLET OPEN IDENTIFIED BY my_password",
 		"ALTER SYSTEM SET ENCRYPTION WALLET CLOSE",
-		"ALTER SYSTEM SET ENCRYPTION KEY",
+		"ALTER SYSTEM SET ENCRYPTION KEY IDENTIFIED BY wallet_pw",
 	}
 	for _, sql := range tests {
 		name := sql
@@ -8497,8 +8497,8 @@ func TestBatch104_GraphVectorLockdownOutline(t *testing.T) {
 		}
 	})
 
-	t.Run("create_lockdown_profile_using", func(t *testing.T) {
-		result := ParseAndCheck(t, "CREATE LOCKDOWN PROFILE my_profile USING base_profile")
+	t.Run("create_lockdown_profile_from", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE LOCKDOWN PROFILE my_profile FROM base_profile")
 		raw := result.Items[0].(*ast.RawStmt)
 		stmt, ok := raw.Stmt.(*ast.CreateLockdownProfileStmt)
 		if !ok {
@@ -8525,7 +8525,7 @@ func TestBatch104_GraphVectorLockdownOutline(t *testing.T) {
 	// ALTER LOCKDOWN PROFILE
 	// ---------------------------------------------------------------
 	t.Run("alter_lockdown_profile_disable_feature", func(t *testing.T) {
-		result := ParseAndCheck(t, "ALTER LOCKDOWN PROFILE my_prof DISABLE FEATURE = (NETWORK_ACCESS)")
+		result := ParseAndCheck(t, "ALTER LOCKDOWN PROFILE my_prof DISABLE FEATURE = ('NETWORK_ACCESS')")
 		raw := result.Items[0].(*ast.RawStmt)
 		stmt, ok := raw.Stmt.(*ast.AlterLockdownProfileStmt)
 		if !ok {
@@ -9365,8 +9365,8 @@ func TestAlterSystem(t *testing.T) {
 		"ALTER SYSTEM RESET open_cursors SCOPE = BOTH SID = 'inst1'",
 		// KILL SESSION with all options
 		"ALTER SYSTEM KILL SESSION '123,456'",
-		"ALTER SYSTEM KILL SESSION '123,456', @3 IMMEDIATE",
-		"ALTER SYSTEM KILL SESSION '123,456' FORCE NOREPLAY TIMEOUT 120",
+		"ALTER SYSTEM KILL SESSION '123,456,@3' IMMEDIATE",
+		"ALTER SYSTEM KILL SESSION '123,456' NOREPLAY TIMEOUT 120",
 		// DISCONNECT SESSION
 		"ALTER SYSTEM DISCONNECT SESSION '123,456' POST_TRANSACTION IMMEDIATE",
 		// ARCHIVE LOG variants
@@ -9379,7 +9379,7 @@ func TestAlterSystem(t *testing.T) {
 		"ALTER SYSTEM ARCHIVE LOG LOGFILE '/redo/redo01.log' USING BACKUP CONTROLFILE",
 		"ALTER SYSTEM ARCHIVE LOG NEXT",
 		"ALTER SYSTEM ARCHIVE LOG ALL",
-		"ALTER SYSTEM ARCHIVE LOG INSTANCE 'inst1' ALL THREAD 2 TO '/archive/'",
+		"ALTER SYSTEM ARCHIVE LOG THREAD 2 SEQUENCE 5 TO '/archive/'",
 		// SUSPEND / RESUME
 		"ALTER SYSTEM SUSPEND",
 		"ALTER SYSTEM RESUME",
@@ -9396,7 +9396,7 @@ func TestAlterSystem(t *testing.T) {
 		"ALTER SYSTEM REGISTER",
 		// CANCEL SQL
 		"ALTER SYSTEM CANCEL SQL '12,34'",
-		"ALTER SYSTEM CANCEL SQL '12,34', @5 SQL_ID 'g3q7v5zn1h2k8'",
+		"ALTER SYSTEM CANCEL SQL '12,34,@5,g3q7v5zn1h2k8'",
 		// SHUTDOWN dispatcher
 		"ALTER SYSTEM SHUTDOWN 'my_dispatcher'",
 		"ALTER SYSTEM SHUTDOWN IMMEDIATE 'my_dispatcher'",
@@ -9411,7 +9411,7 @@ func TestAlterSystem(t *testing.T) {
 		"ALTER SYSTEM SET ENCRYPTION WALLET OPEN IDENTIFIED BY secret_pw",
 		"ALTER SYSTEM SET ENCRYPTION WALLET CLOSE",
 		"ALTER SYSTEM SET ENCRYPTION WALLET CLOSE IDENTIFIED BY secret_pw",
-		"ALTER SYSTEM SET ENCRYPTION KEY",
+		"ALTER SYSTEM SET ENCRYPTION KEY IDENTIFIED BY wallet_pw",
 		"ALTER SYSTEM SET ENCRYPTION KEY IDENTIFIED BY secret_pw",
 		// SWITCH LOGFILE
 		"ALTER SYSTEM SWITCH LOGFILE",

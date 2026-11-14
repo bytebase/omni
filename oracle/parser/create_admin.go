@@ -188,9 +188,10 @@ func (p *Parser) parseCreateAdminObject(start int, orReplace bool) (nodes.StmtNo
 				return p.parseCreateDimensionStmt(start)
 			case "FLASHBACK":
 				p.advance()
-				if p.isIdentLike() && p.cur.Str == "ARCHIVE" {
-					p.advance()
+				if !p.isKeywordStr("ARCHIVE") {
+					return nil, p.syntaxErrorAtCur()
 				}
+				p.advance() // consume ARCHIVE
 				return p.parseCreateFlashbackArchiveStmt(start)
 			case "MANDATORY":
 				p.advance()
@@ -236,9 +237,10 @@ func (p *Parser) parseCreateAdminObject(start int, orReplace bool) (nodes.StmtNo
 				return p.parseCreateOperatorStmt(start, false, false)
 			case "LOCKDOWN":
 				p.advance() // consume LOCKDOWN
-				if p.cur.Type == kwPROFILE {
-					p.advance() // consume PROFILE
+				if p.cur.Type != kwPROFILE {
+					return nil, p.syntaxErrorAtCur()
 				}
+				p.advance() // consume PROFILE
 				return p.parseCreateLockdownProfileStmt(start)
 			case "OUTLINE":
 				p.advance()
@@ -369,9 +371,10 @@ func (p *Parser) parseDropAdminObject(start int) (nodes.StmtNode, error) {
 				return p.parseDropSimpleStmt(nodes.OBJECT_DIMENSION, start)
 			case "FLASHBACK":
 				p.advance()
-				if p.isIdentLike() && p.cur.Str == "ARCHIVE" {
-					p.advance()
+				if !p.isKeywordStr("ARCHIVE") {
+					return nil, p.syntaxErrorAtCur()
 				}
+				p.advance() // consume ARCHIVE
 				return p.parseDropSimpleStmt(nodes.OBJECT_FLASHBACK_ARCHIVE, start)
 			case "DISKGROUP":
 				p.advance()
@@ -408,9 +411,10 @@ func (p *Parser) parseDropAdminObject(start int) (nodes.StmtNode, error) {
 				return p.parseDropSimpleStmt(nodes.OBJECT_OPERATOR, start)
 			case "LOCKDOWN":
 				p.advance() // consume LOCKDOWN
-				if p.cur.Type == kwPROFILE {
-					p.advance() // consume PROFILE
+				if p.cur.Type != kwPROFILE {
+					return nil, p.syntaxErrorAtCur()
 				}
+				p.advance() // consume PROFILE
 				return p.parseDropSimpleStmt(nodes.OBJECT_LOCKDOWN_PROFILE, start)
 			case "OUTLINE":
 				p.advance()
@@ -757,9 +761,10 @@ func (p *Parser) parseAlterAdminObject(start int) (nodes.StmtNode, error) {
 				return p.parseAlterOperatorStmt(start)
 			case "LOCKDOWN":
 				p.advance() // consume LOCKDOWN
-				if p.cur.Type == kwPROFILE {
-					p.advance() // consume PROFILE
+				if p.cur.Type != kwPROFILE {
+					return nil, p.syntaxErrorAtCur()
 				}
+				p.advance() // consume PROFILE
 				return p.parseAlterLockdownProfileStmt(start)
 			case "OUTLINE":
 				p.advance()
@@ -775,9 +780,10 @@ func (p *Parser) parseAlterAdminObject(start int) (nodes.StmtNode, error) {
 				return p.parseAlterInmemoryJoinGroupStmt(start)
 			case "FLASHBACK":
 				p.advance() // consume FLASHBACK
-				if p.isIdentLike() && p.cur.Str == "ARCHIVE" {
-					p.advance() // consume ARCHIVE
+				if !p.isKeywordStr("ARCHIVE") {
+					return nil, p.syntaxErrorAtCur()
 				}
+				p.advance() // consume ARCHIVE
 				return p.parseAlterFlashbackArchiveStmt(start)
 			case "RESOURCE":
 				p.advance() // consume RESOURCE
@@ -1146,273 +1152,6 @@ func (p *Parser) parseVectorIndexParameters(stmt *nodes.CreateVectorIndexStmt) e
 }
 
 // ---------------------------------------------------------------------------
-// CREATE / ALTER LOCKDOWN PROFILE
-// ---------------------------------------------------------------------------
-
-// parseCreateLockdownProfileStmt parses a CREATE LOCKDOWN PROFILE statement.
-// Called after CREATE LOCKDOWN PROFILE has been consumed.
-//
-// BNF:
-//
-//	CREATE LOCKDOWN PROFILE profile_name
-//	    [ USING base_profile_name | INCLUDING base_profile_name ]
-func (p *Parser) parseCreateLockdownProfileStmt(start int) (*nodes.CreateLockdownProfileStmt, error) {
-	stmt := &nodes.CreateLockdownProfileStmt{
-		Loc: nodes.Loc{Start: start},
-	}
-
-	// profile_name
-	if p.cur.Type != tokQIDENT && (isOracleSQLReservedKeyword(p.cur) || isOracleClauseStarterKeyword(p.cur.Type)) {
-		return nil, p.syntaxErrorAtCur()
-	}
-	if !p.isIdentLike() && p.cur.Type != tokIDENT && p.cur.Type != tokQIDENT {
-		return nil, p.syntaxErrorAtCur()
-	}
-	stmt.Name = p.cur.Str
-	p.advance()
-
-	// USING base_profile_name
-	if p.isIdentLikeStr("USING") {
-		p.advance()
-		if p.isIdentLike() || p.cur.Type == tokIDENT || p.cur.Type == tokQIDENT {
-			stmt.Using = p.cur.Str
-			p.advance()
-		}
-	}
-
-	// INCLUDING base_profile_name
-	if p.isIdentLikeStr("INCLUDING") {
-		p.advance()
-		if p.isIdentLike() || p.cur.Type == tokIDENT || p.cur.Type == tokQIDENT {
-			stmt.Including = p.cur.Str
-			p.advance()
-		}
-	}
-
-	stmt.Loc.End = p.prev.End
-	return stmt, nil
-}
-
-// parseAlterLockdownProfileStmt parses an ALTER LOCKDOWN PROFILE statement.
-// Called after ALTER LOCKDOWN PROFILE has been consumed.
-//
-// BNF:
-//
-//	ALTER LOCKDOWN PROFILE profile_name
-//	    { lockdown_features | lockdown_options | lockdown_statements }
-//	    [ USERS = { ALL | COMMON | LOCAL } ] ;
-func (p *Parser) parseAlterLockdownProfileStmt(start int) (*nodes.AlterLockdownProfileStmt, error) {
-	stmt := &nodes.AlterLockdownProfileStmt{
-		Loc: nodes.Loc{Start: start},
-	}
-
-	// profile_name
-	if p.isIdentLike() || p.cur.Type == tokIDENT || p.cur.Type == tokQIDENT {
-		stmt.Name = p.cur.Str
-		p.advance()
-	}
-
-	// { DISABLE | ENABLE }
-	if p.cur.Type == kwDISABLE {
-		stmt.Action = "DISABLE"
-		p.advance()
-	} else if p.cur.Type == kwENABLE {
-		stmt.Action = "ENABLE"
-		p.advance()
-	}
-
-	// { FEATURE = (...) | OPTION = (...) | STATEMENT = (...) }
-	if p.isIdentLikeStr("FEATURE") {
-		stmt.RuleType = "FEATURE"
-		p.advance()
-		if p.cur.Type == '=' {
-			p.advance()
-		}
-		var parseErr377 error
-		stmt.RuleItems, stmt.AllItems, stmt.ExceptItems, parseErr377 = p.parseLockdownItemList()
-		if parseErr377 != nil {
-			return nil, parseErr377
-		}
-	} else if p.cur.Type == kwOPTION || p.isIdentLikeStr("OPTION") {
-		stmt.RuleType = "OPTION"
-		p.advance()
-		if p.cur.Type == '=' {
-			p.advance()
-		}
-		var parseErr378 error
-		stmt.RuleItems, stmt.AllItems, stmt.ExceptItems, parseErr378 = p.parseLockdownItemList()
-		if parseErr378 != nil {
-			return nil, parseErr378
-		}
-	} else if p.isIdentLikeStr("STATEMENT") {
-		stmt.RuleType = "STATEMENT"
-		p.advance()
-		if p.cur.Type == '=' {
-			p.advance()
-		}
-		var parseErr379 error
-		stmt.RuleItems, stmt.AllItems, stmt.ExceptItems, parseErr379 = p.parseLockdownItemList()
-		if parseErr379 !=
-
-			// CLAUSE = (...)
-			nil {
-			return nil, parseErr379
-		}
-
-		if p.isIdentLikeStr("CLAUSE") {
-			p.advance()
-			if p.cur.Type == '=' {
-				p.advance()
-			}
-			var parseErr380 error
-			stmt.Clauses, stmt.ClauseAll, stmt.ClauseExceptItems, parseErr380 = p.parseLockdownItemList()
-			if parseErr380 !=
-
-				// OPTION = (...)
-				nil {
-				return nil, parseErr380
-			}
-
-			if p.cur.Type == kwOPTION || p.isIdentLikeStr("OPTION") {
-				p.advance()
-				if p.cur.Type == '=' {
-					p.advance()
-				}
-				var clauseAllItems bool
-				var clauseExceptItems []string
-				var parseErr381 error
-				stmt.ClauseOptions, clauseAllItems, clauseExceptItems, parseErr381 = p.parseLockdownItemList()
-				_ = clauseAllItems
-				_ = clauseExceptItems
-				if parseErr381 != nil {
-					return nil, parseErr381
-				}
-
-				// VALUE / MINVALUE / MAXVALUE
-				if p.isIdentLikeStr("VALUE") {
-					p.advance()
-					if p.cur.Type == '=' {
-						p.advance()
-					}
-					var valueAllItems bool
-					var valueExceptItems []string
-					var parseErr382 error
-					stmt.ValueItems, valueAllItems, valueExceptItems, parseErr382 = p.parseLockdownItemList()
-					_ = valueAllItems
-					_ = valueExceptItems
-					if parseErr382 != nil {
-						return nil, parseErr382
-					}
-				}
-				if p.cur.Type == kwMINVALUE || p.isIdentLikeStr("MINVALUE") {
-					p.advance()
-					if p.cur.Type == '=' {
-						p.advance()
-					}
-					if p.isIdentLike() || p.cur.Type == tokIDENT || p.cur.Type == tokICONST || p.cur.Type == tokSCONST {
-						stmt.MinValue = p.cur.Str
-						p.advance()
-					}
-				}
-				if p.cur.Type == kwMAXVALUE || p.isIdentLikeStr("MAXVALUE") {
-					p.advance()
-					if p.cur.Type == '=' {
-						p.advance()
-					}
-					if p.isIdentLike() || p.cur.Type == tokIDENT || p.cur.Type == tokICONST || p.cur.Type == tokSCONST {
-						stmt.MaxValue = p.cur.Str
-						p.advance()
-					}
-				}
-			}
-		}
-	}
-
-	// USERS = { ALL | COMMON | LOCAL }
-	if p.isIdentLikeStr("USERS") {
-		p.advance()
-		if p.cur.Type == '=' {
-			p.advance()
-		}
-		if p.cur.Type == kwALL {
-			stmt.Users = "ALL"
-			p.advance()
-		} else if p.isIdentLikeStr("COMMON") {
-			stmt.Users = "COMMON"
-			p.advance()
-		} else if p.isIdentLikeStr("LOCAL") {
-			stmt.Users = "LOCAL"
-			p.advance()
-		}
-	}
-
-	stmt.Loc.End = p.prev.End
-	return stmt, nil
-}
-
-// parseLockdownItemList parses ( item, item, ... ) or ( ALL ) or ( ALL EXCEPT = ( ... ) ).
-func (p *Parser) parseLockdownItemList() (items []string, allItems bool, exceptItems []string, parseErr error) {
-	if p.cur.Type != '(' {
-		return
-	}
-	p.advance() // consume (
-	if p.cur.Type == kwALL {
-		p.advance()
-		// ALL EXCEPT = ( ... )
-		if p.cur.Type == kwEXCEPT || p.isIdentLikeStr("EXCEPT") {
-			p.advance()
-			if p.cur.Type == '=' {
-				p.advance()
-			}
-			if p.cur.Type == '(' {
-				p.advance()
-				for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
-					// An item that consumes nothing would come round again.
-					if p.pos() == progress {
-						return nil, false, nil, p.syntaxErrorAtCur()
-					}
-					progress = p.pos()
-					if p.isIdentLike() || p.cur.Type == tokIDENT || p.cur.Type == tokQIDENT || p.cur.Type == tokSCONST {
-						exceptItems = append(exceptItems, p.cur.Str)
-						p.advance()
-					} else {
-						p.advance()
-					}
-					if p.cur.Type == ',' {
-						p.advance()
-					}
-				}
-				if p.cur.Type == ')' {
-					p.advance()
-				}
-			}
-		}
-		allItems = true
-	} else {
-		for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
-			// An item that consumes nothing would come round again.
-			if p.pos() == progress {
-				return nil, false, nil, p.syntaxErrorAtCur()
-			}
-			progress = p.pos()
-			if p.isIdentLike() || p.cur.Type == tokIDENT || p.cur.Type == tokQIDENT || p.cur.Type == tokSCONST {
-				items = append(items, p.cur.Str)
-				p.advance()
-			} else {
-				p.advance()
-			}
-			if p.cur.Type == ',' {
-				p.advance()
-			}
-		}
-	}
-	if p.cur.Type == ')' {
-		p.advance()
-	}
-	return
-}
-
-// ---------------------------------------------------------------------------
 // CREATE / ALTER OUTLINE
 // ---------------------------------------------------------------------------
 
@@ -1756,228 +1495,6 @@ func (p *Parser) parseCreateSpfileStmt(start int) (nodes.StmtNode, error) {
 	} else if p.isIdentLike() && p.cur.Str == "MEMORY" {
 		opts.Items = append(opts.Items, &nodes.DDLOption{Key: "FROM", Value: "MEMORY"})
 		p.advance()
-	}
-
-	if len(opts.Items) > 0 {
-		stmt.Options = opts
-	}
-	stmt.Loc.End = p.prev.End
-	return stmt, nil
-}
-
-// parseCreateFlashbackArchiveStmt parses a CREATE FLASHBACK ARCHIVE statement.
-// Called after CREATE FLASHBACK ARCHIVE has been consumed.
-//
-// BNF:
-//
-//	CREATE FLASHBACK ARCHIVE [ DEFAULT ] flashback_archive
-//	    TABLESPACE tablespace_name
-//	    [ flashback_archive_quota ]
-//	    [ { NO OPTIMIZE DATA | OPTIMIZE DATA } ]
-//	    flashback_archive_retention ;
-//
-//	flashback_archive_quota: QUOTA integer { K | M | G | T | P | E }
-//	flashback_archive_retention: RETENTION integer { DAY | DAYS | MONTH | MONTHS | YEAR | YEARS }
-func (p *Parser) parseCreateFlashbackArchiveStmt(start int) (nodes.StmtNode, error) {
-	stmt := &nodes.AdminDDLStmt{
-		Action:     "CREATE",
-		ObjectType: nodes.OBJECT_FLASHBACK_ARCHIVE,
-		Loc:        nodes.Loc{Start: start},
-	}
-	opts := &nodes.List{}
-
-	// [ DEFAULT ]
-	if p.isIdentLike() && p.cur.Str == "DEFAULT" {
-		opts.Items = append(opts.Items, &nodes.DDLOption{Key: "DEFAULT"})
-		p.advance()
-	}
-	var parseErr393 error
-
-	stmt.Name, parseErr393 = p.parseObjectName()
-	if parseErr393 !=
-
-		// Parse remaining clauses
-		nil {
-		return nil, parseErr393
-	}
-
-	for p.cur.Type != ';' && p.cur.Type != tokEOF {
-		if p.cur.Type == kwTABLESPACE {
-			p.advance()
-			if p.isIdentLike() || p.cur.Type == tokIDENT || p.cur.Type == tokQIDENT {
-				opts.Items = append(opts.Items, &nodes.DDLOption{Key: "TABLESPACE", Value: p.cur.Str})
-				p.advance()
-			}
-		} else if p.isIdentLike() && p.cur.Str == "QUOTA" {
-			p.advance()
-			size, parseErr394 := p.parseSizeClause()
-			if parseErr394 != nil {
-				return nil, parseErr394
-			}
-			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "QUOTA", Value: size})
-		} else if p.isIdentLike() && p.cur.Str == "NO" {
-			p.advance()
-			if p.isIdentLike() && p.cur.Str == "OPTIMIZE" {
-				p.advance()
-				if p.isIdentLike() && p.cur.Str == "DATA" {
-					p.advance()
-				}
-				opts.Items = append(opts.Items, &nodes.DDLOption{Key: "NO OPTIMIZE DATA"})
-			}
-		} else if p.isIdentLike() && p.cur.Str == "OPTIMIZE" {
-			p.advance()
-			if p.isIdentLike() && p.cur.Str == "DATA" {
-				p.advance()
-			}
-			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "OPTIMIZE DATA"})
-		} else if p.isIdentLike() && p.cur.Str == "RETENTION" {
-			p.advance()
-			val := ""
-			if p.cur.Type == tokICONST {
-				val = p.cur.Str
-				p.advance()
-			}
-			if p.isIdentLike() {
-				val += " " + p.cur.Str
-				p.advance()
-			}
-			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "RETENTION", Value: val})
-		} else {
-			p.advance()
-		}
-	}
-
-	if len(opts.Items) > 0 {
-		stmt.Options = opts
-	}
-	stmt.Loc.End = p.prev.End
-	return stmt, nil
-}
-
-// parseAlterFlashbackArchiveStmt parses an ALTER FLASHBACK ARCHIVE statement.
-// Called after ALTER FLASHBACK ARCHIVE has been consumed.
-//
-// BNF:
-//
-//	ALTER FLASHBACK ARCHIVE flashback_archive_name
-//	    { SET DEFAULT
-//	    | { ADD | MODIFY } TABLESPACE tablespace_name [ flashback_archive_quota ]
-//	    | REMOVE TABLESPACE tablespace_name
-//	    | MODIFY RETENTION flashback_archive_retention
-//	    | PURGE { ALL | BEFORE SCN scn_value | BEFORE TIMESTAMP timestamp_value }
-//	    | [ NO ] OPTIMIZE DATA
-//	    } ;
-func (p *Parser) parseAlterFlashbackArchiveStmt(start int) (nodes.StmtNode, error) {
-	stmt := &nodes.AdminDDLStmt{
-		Action:     "ALTER",
-		ObjectType: nodes.OBJECT_FLASHBACK_ARCHIVE,
-		Loc:        nodes.Loc{Start: start},
-	}
-	opts := &nodes.List{}
-	var parseErr395 error
-
-	stmt.Name, parseErr395 = p.parseObjectName()
-	if parseErr395 !=
-
-		// Parse action clause
-		nil {
-		return nil, parseErr395
-	}
-
-	for p.cur.Type != ';' && p.cur.Type != tokEOF {
-		if p.cur.Type == kwSET {
-			p.advance()
-			if p.isIdentLike() && p.cur.Str == "DEFAULT" {
-				p.advance()
-			}
-			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "SET DEFAULT"})
-		} else if p.isIdentLike() && (p.cur.Str == "ADD" || p.cur.Str == "MODIFY") {
-			action := p.cur.Str
-			p.advance()
-			if p.cur.Type == kwTABLESPACE {
-				p.advance()
-				tsName := ""
-				if p.isIdentLike() || p.cur.Type == tokIDENT || p.cur.Type == tokQIDENT {
-					tsName = p.cur.Str
-					p.advance()
-				}
-				opts.Items = append(opts.Items, &nodes.DDLOption{Key: action + " TABLESPACE", Value: tsName})
-				// optional quota
-				if p.isIdentLike() && p.cur.Str == "QUOTA" {
-					p.advance()
-					size, parseErr396 := p.parseSizeClause()
-					if parseErr396 != nil {
-						return nil, parseErr396
-					}
-					opts.Items = append(opts.Items, &nodes.DDLOption{Key: "QUOTA", Value: size})
-				}
-			} else if p.isIdentLike() && p.cur.Str == "RETENTION" {
-				p.advance()
-				val := ""
-				if p.cur.Type == tokICONST {
-					val = p.cur.Str
-					p.advance()
-				}
-				if p.isIdentLike() {
-					val += " " + p.cur.Str
-					p.advance()
-				}
-				opts.Items = append(opts.Items, &nodes.DDLOption{Key: "MODIFY RETENTION", Value: val})
-			}
-		} else if p.isIdentLike() && p.cur.Str == "REMOVE" {
-			p.advance()
-			if p.cur.Type == kwTABLESPACE {
-				p.advance()
-			}
-			tsName := ""
-			if p.isIdentLike() || p.cur.Type == tokIDENT || p.cur.Type == tokQIDENT {
-				tsName = p.cur.Str
-				p.advance()
-			}
-			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "REMOVE TABLESPACE", Value: tsName})
-		} else if p.isIdentLike() && p.cur.Str == "PURGE" {
-			p.advance()
-			val := ""
-			if p.isIdentLike() && p.cur.Str == "ALL" {
-				val = "ALL"
-				p.advance()
-			} else if p.isIdentLike() && p.cur.Str == "BEFORE" {
-				p.advance()
-				if p.isIdentLike() && p.cur.Str == "SCN" {
-					p.advance()
-					val = "BEFORE SCN"
-					if p.cur.Type == tokICONST {
-						val += " " + p.cur.Str
-						p.advance()
-					}
-				} else if p.isIdentLike() && p.cur.Str == "TIMESTAMP" {
-					p.advance()
-					val = "BEFORE TIMESTAMP"
-					// Skip the timestamp expression
-					for p.cur.Type != ';' && p.cur.Type != tokEOF {
-						p.advance()
-					}
-				}
-			}
-			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "PURGE", Value: val})
-		} else if p.isIdentLike() && p.cur.Str == "NO" {
-			p.advance()
-			if p.isIdentLike() && p.cur.Str == "OPTIMIZE" {
-				p.advance()
-				if p.isIdentLike() && p.cur.Str == "DATA" {
-					p.advance()
-				}
-				opts.Items = append(opts.Items, &nodes.DDLOption{Key: "NO OPTIMIZE DATA"})
-			}
-		} else if p.isIdentLike() && p.cur.Str == "OPTIMIZE" {
-			p.advance()
-			if p.isIdentLike() && p.cur.Str == "DATA" {
-				p.advance()
-			}
-			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "OPTIMIZE DATA"})
-		} else {
-			p.advance()
-		}
 	}
 
 	if len(opts.Items) > 0 {
