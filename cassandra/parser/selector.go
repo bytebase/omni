@@ -174,7 +174,10 @@ func (p *Parser) parseCollectionSubSelection(receiver ast.ExprNode, start int) (
 // startsSelectionGroupWithoutField reports whether tok can start a
 // selectionGroupWithoutField (Parser.g:364). FROM, which Cassandra
 // reserves, never does: SELECT (a) FROM t selects a in parentheses.
-func startsSelectionGroupWithoutField(tok, _ Token) bool {
+func startsSelectionGroupWithoutField(tok, next Token) bool {
+	if isSignedConstant(tok, next) {
+		return true
+	}
 	switch tok.Type {
 	case tokNULL, tokQMARK, tokCOLON, tokLPAREN, tokLBRACK, tokLBRACE:
 		return true
@@ -213,6 +216,16 @@ func (p *Parser) parseSelectionGroupWithoutField() (ast.ExprNode, error) {
 		return &ast.NullLit{Loc: ast.Loc{Start: tok.Loc, End: tok.End}}, nil
 	case isConstantToken(p.cur):
 		return p.parseConstant()
+	case isSignedConstant(p.cur, p.peekNext()):
+		// A sign written against a number is part of its constant
+		// (Lexer.g:337), so (int) -1 is a type hint on -1.
+		start := p.curLoc()
+		p.advance() // -
+		operand, err := p.parseConstant()
+		if err != nil {
+			return nil, err
+		}
+		return negate(operand, start, p.prevEnd()), nil
 	case isIdentLike(p.cur.Type):
 		return p.parseSelectionNameOrFunction()
 	}

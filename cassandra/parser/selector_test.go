@@ -135,6 +135,20 @@ func TestSelectorAST(t *testing.T) {
 		t.Errorf("writetime(u.f) argument = %#v, want a DotAccess", f.Args[0])
 	}
 
+	// A sign written against a number is part of it (Lexer.g:337), so
+	// (int) -1 is a type hint on -1, not (int) minus 1.
+	for i, want := range []string{"-1", "-1.5", "-Infinity"} {
+		hinted := parseOne(t, "SELECT (int) -1, (double) -1.5, (double) -Infinity FROM t").(*ast.SelectStmt)
+		h, ok := hinted.Elements[i].Expr.(*ast.TypeHintExpr)
+		if !ok {
+			t.Errorf("element %d = %#v, want a TypeHintExpr on %s", i, hinted.Elements[i].Expr, want)
+			continue
+		}
+		if got := h.Expr.GetLoc(); got.End-got.Start != len(want) {
+			t.Errorf("element %d hints %#v, want %s", i, h.Expr, want)
+		}
+	}
+
 	d := parseOne(t, "SELECT DISTINCT FROM t").(*ast.SelectStmt)
 	if d.Distinct || len(d.Elements) != 1 || d.Elements[0].Expr.(*ast.Identifier).Name != "DISTINCT" {
 		t.Errorf("SELECT DISTINCT FROM t: %+v, want the column distinct", d)
