@@ -1,8 +1,11 @@
 package parser
 
 import (
+	"fmt"
 	"testing"
 	"time"
+
+	"github.com/bytebase/omni/enginetest/cputime"
 )
 
 // listLoopHangs are statements on which Parse looped forever: a list loop
@@ -55,15 +58,8 @@ var listLoopHangs = []string{
 
 func TestListLoopsAlwaysProgress(t *testing.T) {
 	for _, sql := range listLoopHangs {
-		done := make(chan struct{})
-		go func() {
-			defer close(done)
+		cputime.Within(t, 30*time.Second, fmt.Sprintf("Parse of %q", sql), func() {
 			_, _ = Parse(sql)
-		}()
-		select {
-		case <-done:
-		case <-time.After(30 * time.Second):
-			t.Fatalf("Parse did not return in 30s: %q", sql)
-		}
+		})
 	}
 }

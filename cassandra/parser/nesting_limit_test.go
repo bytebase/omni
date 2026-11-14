@@ -2,11 +2,13 @@ package parser
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/bytebase/omni/cassandra/ast"
+	"github.com/bytebase/omni/enginetest/cputime"
 )
 
 func nest(n int, open, mid, closing string) string {
@@ -67,19 +69,13 @@ func TestNestingLimit(t *testing.T) {
 		}
 		for _, n := range []int{maxNestingDepth + 1, 200000} {
 			cql := tc.cql(n)
-			done := make(chan error, 1)
-			go func() {
-				_, err := Parse(cql)
-				done <- err
-			}()
-			select {
-			case err := <-done:
-				var pe *ParseError
-				if !errors.As(err, &pe) || pe.Message != nestingErrorMessage {
-					t.Errorf("%s: %d levels: err = %v, want the nesting error", tc.name, n, err)
-				}
-			case <-time.After(10 * time.Second):
-				t.Fatalf("%s: %d levels took over 10s", tc.name, n)
+			var err error
+			cputime.Within(t, 10*time.Second, fmt.Sprintf("%s: %d levels", tc.name, n), func() {
+				_, err = Parse(cql)
+			})
+			var pe *ParseError
+			if !errors.As(err, &pe) || pe.Message != nestingErrorMessage {
+				t.Errorf("%s: %d levels: err = %v, want the nesting error", tc.name, n, err)
 			}
 		}
 	}

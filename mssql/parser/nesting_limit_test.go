@@ -2,12 +2,14 @@ package parser
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
 
 	mssqldrv "github.com/microsoft/go-mssqldb"
 
+	"github.com/bytebase/omni/enginetest/cputime"
 	nodes "github.com/bytebase/omni/mssql/ast"
 )
 
@@ -80,21 +82,18 @@ var nestingCases = []struct {
 	{"unclosed blocks", func(n int) string { return strings.Repeat("BEGIN ", n) }, false},
 }
 
-// parseWithin parses sql on its own goroutine and reports false if it takes
-// longer than limit, so a construct whose retries turn exponential at the
-// limit fails the test instead of hanging it.
+// parseWithin parses sql on its own goroutine and reports false if it uses
+// more than limit of CPU time, so a construct whose retries turn exponential
+// at the limit fails the test instead of hanging it.
 func parseWithin(sql string, limit time.Duration) (error, bool) {
-	done := make(chan error, 1)
-	go func() {
-		_, err := Parse(sql)
-		done <- err
-	}()
-	select {
-	case err := <-done:
-		return err, true
-	case <-time.After(limit):
+	var err error
+	used, done := cputime.Run(cputime.Hang(limit), func() {
+		_, err = Parse(sql)
+	})
+	if !done || used > limit {
 		return nil, false
 	}
+	return err, true
 }
 
 func isNestingError(err error) bool {
@@ -116,7 +115,7 @@ func TestNestingLimit(t *testing.T) {
 		for _, n := range []int{maxNestingDepth + 1, 200000} {
 			err, ok := parseWithin(tc.sql(n), 10*time.Second)
 			if !ok {
-				t.Errorf("%s: %d levels: no result within 10s", tc.name, n)
+				t.Errorf("%s: %d levels: no result within a 10s CPU budget", tc.name, n)
 				continue
 			}
 			if !isNestingError(err) {
@@ -152,16 +151,9 @@ func TestNestingLimitCompletion(t *testing.T) {
 		strings.Repeat("SELECT (", 200000),
 		strings.Repeat("BEGIN ", 200000),
 	} {
-		done := make(chan struct{})
-		go func() {
+		cputime.Within(t, 10*time.Second, fmt.Sprintf("Collect on %.20q...", sql), func() {
 			Collect(sql, len(sql))
-			close(done)
-		}()
-		select {
-		case <-done:
-		case <-time.After(10 * time.Second):
-			t.Errorf("Collect on %.20q...: no result within 10s", sql)
-		}
+		})
 	}
 }
 
@@ -176,7 +168,7 @@ func TestFlatListsStayShallow(t *testing.T) {
 	} {
 		err, ok := parseWithin(sql, 10*time.Second)
 		if !ok {
-			t.Errorf("%s: no result within 10s", name)
+			t.Errorf("%s: no result within a 10s CPU budget", name)
 		} else if err != nil {
 			t.Errorf("%s: %v", name, err)
 		}

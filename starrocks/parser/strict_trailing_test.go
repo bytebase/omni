@@ -1,12 +1,14 @@
 package parser
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/bytebase/omni/enginetest/cputime"
 	"github.com/bytebase/omni/starrocks/ast"
 )
 
@@ -353,16 +355,11 @@ func TestStrictParseSetRoleForms(t *testing.T) {
 func TestStrictParseManyLexErrorsStayLinear(t *testing.T) {
 	const n = 200000
 	sql := "SELECT 1 " + strings.Repeat("\x01", n)
-	done := make(chan int, 1)
-	go func() {
-		done <- func() int { _, err := Parse(sql); return len(AllErrors(err)) }()
-	}()
-	select {
-	case got := <-done:
-		if got < n {
-			t.Fatalf("strict parse reported %d errors, want one per stray byte (%d)", got, n)
-		}
-	case <-time.After(2 * time.Second):
-		t.Fatalf("strict parse of %d stray bytes took over 2s", n)
+	var got int
+	cputime.Within(t, 2*time.Second, fmt.Sprintf("strict parse of %d stray bytes", n), func() {
+		got = func() int { _, err := Parse(sql); return len(AllErrors(err)) }()
+	})
+	if got < n {
+		t.Fatalf("strict parse reported %d errors, want one per stray byte (%d)", got, n)
 	}
 }

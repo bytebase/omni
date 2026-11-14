@@ -1,9 +1,12 @@
 package parser
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/bytebase/omni/enginetest/cputime"
 )
 
 // TestFromParensStayLinear guards the records behind the two readings of a
@@ -41,18 +44,12 @@ func TestFromParensStayLinear(t *testing.T) {
 		{"left-deep join group", "SELECT * FROM " + nest(depth, "(", "t", " CROSS JOIN t)"), false},
 		{"left-deep aliased group", "SELECT * FROM " + nest(depth, "(", "t", ") x"), true},
 	} {
-		done := make(chan error, 1)
-		go func() {
-			_, err := Parse(tc.sql)
-			done <- err
-		}()
-		select {
-		case err := <-done:
-			if (err != nil) != tc.wantErr || isNestingError(err) {
-				t.Fatalf("%s: Parse error = %v, want error %v", tc.name, err, tc.wantErr)
-			}
-		case <-time.After(2 * time.Second):
-			t.Fatalf("%s: Parse took over 2s", tc.name)
+		var err error
+		cputime.Within(t, 2*time.Second, fmt.Sprintf("%s: Parse", tc.name), func() {
+			_, err = Parse(tc.sql)
+		})
+		if (err != nil) != tc.wantErr || isNestingError(err) {
+			t.Fatalf("%s: Parse error = %v, want error %v", tc.name, err, tc.wantErr)
 		}
 	}
 }

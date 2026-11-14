@@ -1,10 +1,12 @@
 package deparse_test
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/bytebase/omni/enginetest/cputime"
 	"github.com/bytebase/omni/snowflake/deparse"
 	"github.com/bytebase/omni/snowflake/parser"
 )
@@ -25,18 +27,11 @@ func TestDeparseLongInputsStayLinear(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: parse error = %v", tc.name, err)
 		}
-		done := make(chan error, 1)
-		go func() {
-			_, err := deparse.DeparseFile(file)
-			done <- err
-		}()
-		select {
-		case err := <-done:
-			if err != nil {
-				t.Fatalf("%s: deparse error = %v", tc.name, err)
-			}
-		case <-time.After(2 * time.Second):
-			t.Fatalf("%s: deparse of %d bytes took over 2s", tc.name, len(tc.sql))
+		cputime.Within(t, 2*time.Second, fmt.Sprintf("%s: deparse of %d bytes", tc.name, len(tc.sql)), func() {
+			_, err = deparse.DeparseFile(file)
+		})
+		if err != nil {
+			t.Fatalf("%s: deparse error = %v", tc.name, err)
 		}
 	}
 }

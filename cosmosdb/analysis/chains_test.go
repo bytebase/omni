@@ -1,11 +1,13 @@
 package analysis_test
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/bytebase/omni/cosmosdb/analysis"
+	"github.com/bytebase/omni/enginetest/cputime"
 )
 
 // TestAnalyzeChainsStayLinear: field-path extraction returned a slice per
@@ -37,19 +39,16 @@ func TestAnalyzeChainsStayLinear(t *testing.T) {
 		{"objects", where(strings.Repeat(`{"k": `, nested) + "c.a" + strings.Repeat(`, "j": c.z}`, nested)), nested + 1, "c.z"},
 	} {
 		sel := parseSelect(t, tc.sql)
-		done := make(chan *analysis.QueryAnalysis, 1)
-		go func() { done <- analysis.Analyze(sel) }()
-		select {
-		case qa := <-done:
-			paths := qa.Predicates
-			if len(qa.Projections) == 1 {
-				paths = qa.Projections[0].SourcePaths
-			}
-			if len(paths) != tc.wantPaths || paths[len(paths)-1].String() != tc.wantLast {
-				t.Errorf("%s: %d paths, the last %q; want %d, the last %q", tc.name, len(paths), paths[len(paths)-1], tc.wantPaths, tc.wantLast)
-			}
-		case <-time.After(2 * time.Second):
-			t.Fatalf("%s: Analyze took over 2s", tc.name)
+		var qa *analysis.QueryAnalysis
+		cputime.Within(t, 2*time.Second, fmt.Sprintf("%s: Analyze", tc.name), func() {
+			qa = analysis.Analyze(sel)
+		})
+		paths := qa.Predicates
+		if len(qa.Projections) == 1 {
+			paths = qa.Projections[0].SourcePaths
+		}
+		if len(paths) != tc.wantPaths || paths[len(paths)-1].String() != tc.wantLast {
+			t.Errorf("%s: %d paths, the last %q; want %d, the last %q", tc.name, len(paths), paths[len(paths)-1], tc.wantPaths, tc.wantLast)
 		}
 	}
 }

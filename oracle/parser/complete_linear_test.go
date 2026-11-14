@@ -1,10 +1,13 @@
 package parser
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/bytebase/omni/enginetest/cputime"
 )
 
 // TestCompletionScopeStaysLinear: completion read the references of each
@@ -41,17 +44,12 @@ func TestCompletionScopeStaysLinear(t *testing.T) {
 		if caret < 0 {
 			caret = len(tc.sql)
 		}
-		done := make(chan *CompletionContext, 1)
-		go func() {
-			done <- CollectCompletion(tc.sql, caret)
-		}()
-		select {
-		case got := <-done:
-			if len(got.Scope.LocalReferences) == 0 {
-				t.Errorf("%s: no local references", tc.name)
-			}
-		case <-time.After(2 * time.Second):
-			t.Fatalf("%s: completion in %d bytes took over 2s", tc.name, len(tc.sql))
+		var got *CompletionContext
+		cputime.Within(t, 2*time.Second, fmt.Sprintf("%s: completion in %d bytes", tc.name, len(tc.sql)), func() {
+			got = CollectCompletion(tc.sql, caret)
+		})
+		if len(got.Scope.LocalReferences) == 0 {
+			t.Errorf("%s: no local references", tc.name)
 		}
 	}
 	// The outer select list sees the outer derived table, whose star
