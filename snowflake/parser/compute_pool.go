@@ -12,9 +12,38 @@ func init() {
 		create: parseCreateComputePool,
 		alter:  parseAlterComputePool,
 		// https://docs.snowflake.com/en/sql-reference/sql/drop-compute-pool
-		drop: true,
+		drop:       true,
+		props:      computePoolProps,
+		alterProps: computePoolAlterProps,
+		unset:      []string{"AUTO_SUSPEND_SECS", "AUTO_RESUME", "PLACEMENT_GROUP", "BACKUP_INSTANCE_FAMILIES", "COMMENT"},
 	})
 }
+
+// computePoolProps are the properties CREATE COMPUTE POOL and ALTER COMPUTE
+// POOL ... SET document. INITIALLY_SUSPENDED is CREATE's alone.
+var computePoolProps = objectProps{
+	"MIN_NODES":                propNumber,
+	"MAX_NODES":                propNumber,
+	"INSTANCE_FAMILY":          propName,
+	"AUTO_RESUME":              propBool,
+	"INITIALLY_SUSPENDED":      propBool,
+	"AUTO_SUSPEND_SECS":        propNumber,
+	"COMMENT":                  propString,
+	"PLACEMENT_GROUP":          propString,
+	"BACKUP_INSTANCE_FAMILIES": propStrings,
+}
+
+// computePoolAlterProps are ALTER COMPUTE POOL ... SET's: CREATE's but
+// INITIALLY_SUSPENDED.
+var computePoolAlterProps = func() objectProps {
+	m := objectProps{}
+	for k, v := range computePoolProps {
+		if k != "INITIALLY_SUSPENDED" {
+			m[k] = v
+		}
+	}
+	return m
+}()
 
 // parseCreateComputePool reads what follows the name of
 //
