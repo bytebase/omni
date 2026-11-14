@@ -11832,7 +11832,7 @@ accept	accept	engine	init_lex_create_info/%empty	CREATE VIEW utf8mb4 AS SELECT u
 reject	reject	engine	init_lex_create_info/%empty!insert	CREATE zzz VIEW utf8mb4 AS SELECT utf8mb4;
 accept	accept	engine	view_or_trigger_or_sp_or_event/definer_init_lex_create_info_definer_tail	CREATE DEFINER = utf8mb4 VIEW utf8mb4 AS SELECT utf8mb4;
 reject	reject	engine	view_or_trigger_or_sp_or_event/definer_init_lex_create_info_definer_tail!drop-1	CREATE = utf8mb4 VIEW utf8mb4 AS SELECT utf8mb4;
-accept	reject	engine	view_or_trigger_or_sp_or_event/definer_init_lex_create_info_definer_tail!drop-2	CREATE DEFINER utf8mb4 VIEW utf8mb4 AS SELECT utf8mb4;
+reject	reject	engine	view_or_trigger_or_sp_or_event/definer_init_lex_create_info_definer_tail!drop-2	CREATE DEFINER utf8mb4 VIEW utf8mb4 AS SELECT utf8mb4;
 reject	reject	engine	view_or_trigger_or_sp_or_event/definer_init_lex_create_info_definer_tail!drop-3	CREATE DEFINER = VIEW utf8mb4 AS SELECT utf8mb4;
 reject	reject	engine	view_or_trigger_or_sp_or_event/definer_init_lex_create_info_definer_tail!drop-4	CREATE DEFINER = utf8mb4 utf8mb4 AS SELECT utf8mb4;
 reject	reject	engine	view_or_trigger_or_sp_or_event/definer_init_lex_create_info_definer_tail!drop-5	CREATE DEFINER = utf8mb4 VIEW AS SELECT utf8mb4;
@@ -12010,22 +12010,22 @@ accept	accept	engine	view_check_option/%empty	ALTER VIEW utf8mb4 AS SELECT utf8m
 accept	accept	engine	view_check_option/WITH_CHECK_SYM_OPTION	ALTER VIEW utf8mb4 AS SELECT utf8mb4 WITH CHECK OPTION;
 reject	reject	engine	view_check_option/WITH_CHECK_SYM_OPTION!drop-1	ALTER VIEW utf8mb4 AS SELECT utf8mb4 CHECK OPTION;
 reject	reject	engine	view_check_option/WITH_CHECK_SYM_OPTION!drop-2	ALTER VIEW utf8mb4 AS SELECT utf8mb4 WITH OPTION;
-accept	reject	engine	view_check_option/WITH_CHECK_SYM_OPTION!drop-3	ALTER VIEW utf8mb4 AS SELECT utf8mb4 WITH CHECK;
-accept	reject	engine	view_check_option/WITH_CHECK_SYM_OPTION!truncate	ALTER VIEW utf8mb4 AS SELECT utf8mb4 WITH CHECK
+reject	reject	engine	view_check_option/WITH_CHECK_SYM_OPTION!drop-3	ALTER VIEW utf8mb4 AS SELECT utf8mb4 WITH CHECK;
+reject	reject	engine	view_check_option/WITH_CHECK_SYM_OPTION!truncate	ALTER VIEW utf8mb4 AS SELECT utf8mb4 WITH CHECK
 reject	reject	engine	view_check_option/WITH_CHECK_SYM_OPTION!insert	ALTER VIEW utf8mb4 AS SELECT utf8mb4 WITH CHECK OPTION zzz;
 reject	reject	engine	view_check_option/WITH_CHECK_SYM_OPTION!swap	ALTER VIEW utf8mb4 AS SELECT utf8mb4 WITHOUT CHECK OPTION;
 accept	accept	engine	view_check_option/WITH_CASCADED_CHECK_SYM_OPTION	ALTER VIEW utf8mb4 AS SELECT utf8mb4 WITH CASCADED CHECK OPTION;
 reject	reject	engine	view_check_option/WITH_CASCADED_CHECK_SYM_OPTION!drop-1	ALTER VIEW utf8mb4 AS SELECT utf8mb4 CASCADED CHECK OPTION;
 reject	reject	engine	view_check_option/WITH_CASCADED_CHECK_SYM_OPTION!drop-3	ALTER VIEW utf8mb4 AS SELECT utf8mb4 WITH CASCADED OPTION;
-accept	reject	engine	view_check_option/WITH_CASCADED_CHECK_SYM_OPTION!drop-4	ALTER VIEW utf8mb4 AS SELECT utf8mb4 WITH CASCADED CHECK;
-accept	reject	engine	view_check_option/WITH_CASCADED_CHECK_SYM_OPTION!truncate	ALTER VIEW utf8mb4 AS SELECT utf8mb4 WITH CASCADED CHECK
+reject	reject	engine	view_check_option/WITH_CASCADED_CHECK_SYM_OPTION!drop-4	ALTER VIEW utf8mb4 AS SELECT utf8mb4 WITH CASCADED CHECK;
+reject	reject	engine	view_check_option/WITH_CASCADED_CHECK_SYM_OPTION!truncate	ALTER VIEW utf8mb4 AS SELECT utf8mb4 WITH CASCADED CHECK
 reject	reject	engine	view_check_option/WITH_CASCADED_CHECK_SYM_OPTION!insert	ALTER VIEW utf8mb4 AS SELECT utf8mb4 WITH CASCADED CHECK OPTION zzz;
 reject	reject	engine	view_check_option/WITH_CASCADED_CHECK_SYM_OPTION!swap	ALTER VIEW utf8mb4 AS SELECT utf8mb4 WITHOUT CASCADED CHECK OPTION;
 accept	accept	engine	view_check_option/WITH_LOCAL_SYM_CHECK_SYM_OPTION	ALTER VIEW utf8mb4 AS SELECT utf8mb4 WITH LOCAL CHECK OPTION;
 reject	reject	engine	view_check_option/WITH_LOCAL_SYM_CHECK_SYM_OPTION!drop-1	ALTER VIEW utf8mb4 AS SELECT utf8mb4 LOCAL CHECK OPTION;
 reject	reject	engine	view_check_option/WITH_LOCAL_SYM_CHECK_SYM_OPTION!drop-3	ALTER VIEW utf8mb4 AS SELECT utf8mb4 WITH LOCAL OPTION;
-accept	reject	engine	view_check_option/WITH_LOCAL_SYM_CHECK_SYM_OPTION!drop-4	ALTER VIEW utf8mb4 AS SELECT utf8mb4 WITH LOCAL CHECK;
-accept	reject	engine	view_check_option/WITH_LOCAL_SYM_CHECK_SYM_OPTION!truncate	ALTER VIEW utf8mb4 AS SELECT utf8mb4 WITH LOCAL CHECK
+reject	reject	engine	view_check_option/WITH_LOCAL_SYM_CHECK_SYM_OPTION!drop-4	ALTER VIEW utf8mb4 AS SELECT utf8mb4 WITH LOCAL CHECK;
+reject	reject	engine	view_check_option/WITH_LOCAL_SYM_CHECK_SYM_OPTION!truncate	ALTER VIEW utf8mb4 AS SELECT utf8mb4 WITH LOCAL CHECK
 reject	reject	engine	view_check_option/WITH_LOCAL_SYM_CHECK_SYM_OPTION!insert	ALTER VIEW utf8mb4 AS SELECT utf8mb4 WITH LOCAL CHECK OPTION zzz;
 reject	reject	engine	view_check_option/WITH_LOCAL_SYM_CHECK_SYM_OPTION!swap	ALTER VIEW utf8mb4 AS SELECT utf8mb4 WITHOUT LOCAL CHECK OPTION;
 accept	reject	engine	trigger_action_order/FOLLOWS_SYM	CREATE TRIGGER utf8mb4 BEFORE INSERT ON utf8mb4 FOR EACH ROW FOLLOWS utf8mb4 COMMIT;

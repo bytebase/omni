@@ -12321,22 +12321,22 @@ accept	accept	engine	view_check_option/%empty	ALTER VIEW a AS SELECT a;
 accept	accept	engine	view_check_option/WITH_CHECK_SYM_OPTION	ALTER VIEW a AS SELECT a WITH CHECK OPTION;
 reject	reject	engine	view_check_option/WITH_CHECK_SYM_OPTION!drop-1	ALTER VIEW a AS SELECT a CHECK OPTION;
 reject	reject	engine	view_check_option/WITH_CHECK_SYM_OPTION!drop-2	ALTER VIEW a AS SELECT a WITH OPTION;
-accept	reject	engine	view_check_option/WITH_CHECK_SYM_OPTION!drop-3	ALTER VIEW a AS SELECT a WITH CHECK;
-accept	reject	engine	view_check_option/WITH_CHECK_SYM_OPTION!truncate	ALTER VIEW a AS SELECT a WITH CHECK
+reject	reject	engine	view_check_option/WITH_CHECK_SYM_OPTION!drop-3	ALTER VIEW a AS SELECT a WITH CHECK;
+reject	reject	engine	view_check_option/WITH_CHECK_SYM_OPTION!truncate	ALTER VIEW a AS SELECT a WITH CHECK
 reject	reject	engine	view_check_option/WITH_CHECK_SYM_OPTION!insert	ALTER VIEW a AS SELECT a WITH CHECK OPTION zzz;
 reject	reject	engine	view_check_option/WITH_CHECK_SYM_OPTION!swap	ALTER VIEW a AS SELECT a WITHIN CHECK OPTION;
 accept	accept	engine	view_check_option/WITH_CASCADED_CHECK_SYM_OPTION	ALTER VIEW a AS SELECT a WITH CASCADED CHECK OPTION;
 reject	reject	engine	view_check_option/WITH_CASCADED_CHECK_SYM_OPTION!drop-1	ALTER VIEW a AS SELECT a CASCADED CHECK OPTION;
 reject	reject	engine	view_check_option/WITH_CASCADED_CHECK_SYM_OPTION!drop-3	ALTER VIEW a AS SELECT a WITH CASCADED OPTION;
-accept	reject	engine	view_check_option/WITH_CASCADED_CHECK_SYM_OPTION!drop-4	ALTER VIEW a AS SELECT a WITH CASCADED CHECK;
-accept	reject	engine	view_check_option/WITH_CASCADED_CHECK_SYM_OPTION!truncate	ALTER VIEW a AS SELECT a WITH CASCADED CHECK
+reject	reject	engine	view_check_option/WITH_CASCADED_CHECK_SYM_OPTION!drop-4	ALTER VIEW a AS SELECT a WITH CASCADED CHECK;
+reject	reject	engine	view_check_option/WITH_CASCADED_CHECK_SYM_OPTION!truncate	ALTER VIEW a AS SELECT a WITH CASCADED CHECK
 reject	reject	engine	view_check_option/WITH_CASCADED_CHECK_SYM_OPTION!insert	ALTER VIEW a AS SELECT a WITH CASCADED CHECK OPTION zzz;
 reject	reject	engine	view_check_option/WITH_CASCADED_CHECK_SYM_OPTION!swap	ALTER VIEW a AS SELECT a WITHIN CASCADED CHECK OPTION;
 accept	accept	engine	view_check_option/WITH_LOCAL_SYM_CHECK_SYM_OPTION	ALTER VIEW a AS SELECT a WITH LOCAL CHECK OPTION;
 reject	reject	engine	view_check_option/WITH_LOCAL_SYM_CHECK_SYM_OPTION!drop-1	ALTER VIEW a AS SELECT a LOCAL CHECK OPTION;
 reject	reject	engine	view_check_option/WITH_LOCAL_SYM_CHECK_SYM_OPTION!drop-3	ALTER VIEW a AS SELECT a WITH LOCAL OPTION;
-accept	reject	engine	view_check_option/WITH_LOCAL_SYM_CHECK_SYM_OPTION!drop-4	ALTER VIEW a AS SELECT a WITH LOCAL CHECK;
-accept	reject	engine	view_check_option/WITH_LOCAL_SYM_CHECK_SYM_OPTION!truncate	ALTER VIEW a AS SELECT a WITH LOCAL CHECK
+reject	reject	engine	view_check_option/WITH_LOCAL_SYM_CHECK_SYM_OPTION!drop-4	ALTER VIEW a AS SELECT a WITH LOCAL CHECK;
+reject	reject	engine	view_check_option/WITH_LOCAL_SYM_CHECK_SYM_OPTION!truncate	ALTER VIEW a AS SELECT a WITH LOCAL CHECK
 reject	reject	engine	view_check_option/WITH_LOCAL_SYM_CHECK_SYM_OPTION!insert	ALTER VIEW a AS SELECT a WITH LOCAL CHECK OPTION zzz;
 reject	reject	engine	view_check_option/WITH_LOCAL_SYM_CHECK_SYM_OPTION!swap	ALTER VIEW a AS SELECT a WITHIN LOCAL CHECK OPTION;
 accept	reject	engine	trigger_action_order/FOLLOWS_SYM	CREATE TRIGGER a BEFORE INSERT ON a FOR EACH ROW FOLLOWS a COMMIT;
@@ -12925,7 +12925,7 @@ reject	reject	engine	create_routine/create_or_replace_definer_opt_PROCEDURE_SYM_
 accept	reject	engine	create_routine/create_or_replace_definer_opt_aggregate_FUNCTION_SYM_opt_if_not_exists_sp_name_sf_parameters_sf_returned_type_clause_sf_c_chistics_and_body_standalone_opt_trailing_sp_name	CREATE DEFINER = a FUNCTION a() RETURNS INT RETURN a;
 reject	reject	engine	create_routine/create_or_replace_definer_opt_aggregate_FUNCTION_SYM_opt_if_not_exists_sp_name_sf_parameters_sf_returned_type_clause_sf_c_chistics_and_body_standalone_opt_trailing_sp_name!drop-1	DEFINER = a FUNCTION a() RETURNS INT RETURN a;
 reject	reject	engine	create_routine/create_or_replace_definer_opt_aggregate_FUNCTION_SYM_opt_if_not_exists_sp_name_sf_parameters_sf_returned_type_clause_sf_c_chistics_and_body_standalone_opt_trailing_sp_name!drop-2	CREATE = a FUNCTION a() RETURNS INT RETURN a;
-accept	reject	engine	create_routine/create_or_replace_definer_opt_aggregate_FUNCTION_SYM_opt_if_not_exists_sp_name_sf_parameters_sf_returned_type_clause_sf_c_chistics_and_body_standalone_opt_trailing_sp_name!drop-3	CREATE DEFINER a FUNCTION a() RETURNS INT RETURN a;
+reject	reject	engine	create_routine/create_or_replace_definer_opt_aggregate_FUNCTION_SYM_opt_if_not_exists_sp_name_sf_parameters_sf_returned_type_clause_sf_c_chistics_and_body_standalone_opt_trailing_sp_name!drop-3	CREATE DEFINER a FUNCTION a() RETURNS INT RETURN a;
 reject	reject	engine	create_routine/create_or_replace_definer_opt_aggregate_FUNCTION_SYM_opt_if_not_exists_sp_name_sf_parameters_sf_returned_type_clause_sf_c_chistics_and_body_standalone_opt_trailing_sp_name!drop-4	CREATE DEFINER = FUNCTION a() RETURNS INT RETURN a;
 reject	reject	engine	create_routine/create_or_replace_definer_opt_aggregate_FUNCTION_SYM_opt_if_not_exists_sp_name_sf_parameters_sf_returned_type_clause_sf_c_chistics_and_body_standalone_opt_trailing_sp_name!drop-5	CREATE DEFINER = a a() RETURNS INT RETURN a;
 reject	reject	engine	create_routine/create_or_replace_definer_opt_aggregate_FUNCTION_SYM_opt_if_not_exists_sp_name_sf_parameters_sf_returned_type_clause_sf_c_chistics_and_body_standalone_opt_trailing_sp_name!drop-6	CREATE DEFINER = a FUNCTION() RETURNS INT RETURN a;
