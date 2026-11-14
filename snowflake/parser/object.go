@@ -30,6 +30,12 @@ type objectForm struct {
 	orReplace, orAlter bool
 	// drop reports whether DROP <kind> [ IF EXISTS ] <name> is documented.
 	drop bool
+	// props, when set, are the properties the page documents and the value
+	// each takes. parseObjectStmt then rejects a property of a CREATE's run
+	// or a SET that props does not name or whose value has another shape,
+	// and an UNSET of a name outside unset (or props, when unset is nil).
+	props objectProps
+	unset []string
 }
 
 // objectForms maps an object's first keyword to the objects it starts.
@@ -153,8 +159,144 @@ func (p *Parser) parseObjectStmt(verb string, f *objectForm, start ast.Loc, orRe
 	if err := read(p, s); err != nil {
 		return nil, err
 	}
+	if f.props != nil {
+		if err := f.checkClauses(s); err != nil {
+			return nil, err
+		}
+	}
 	s.Loc.End = p.prev.Loc.End
 	return s, nil
+}
+
+// objectValue is the shape of value a documented property takes.
+type objectValue struct {
+	kind  objectValueKind
+	words []string // for valWord: the keywords it may be, uppercased; nil takes any name
+}
+
+type objectValueKind int
+
+const (
+	valNumber  objectValueKind = iota + 1 // <num>, optionally signed
+	valString                             // '<string>'
+	valWord                               // a name, or one of words
+	valStrings                            // ( '<string>' [ , ... ] )
+	valNames                              // ( <name> [ , ... ] )
+	valGroup                              // ( <key> = <value> [ , ... ] ), as the page spells it
+)
+
+// objectProps maps a documented property's name to its value's shape.
+type objectProps map[string]objectValue
+
+var (
+	propNumber  = objectValue{kind: valNumber}
+	propString  = objectValue{kind: valString}
+	propName    = objectValue{kind: valWord}
+	propBool    = objectValue{kind: valWord, words: []string{"TRUE", "FALSE"}}
+	propStrings = objectValue{kind: valStrings}
+	propNames   = objectValue{kind: valNames}
+	propGroup   = objectValue{kind: valGroup}
+)
+
+// propOneOf is a property whose value is one of words.
+func propOneOf(words ...string) objectValue { return objectValue{kind: valWord, words: words} }
+
+// checkClauses holds a statement's property runs, SETs and UNSETs to f's
+// documented properties.
+func (f *objectForm) checkClauses(s *ast.ObjectStmt) error {
+	for _, c := range s.Clauses {
+		switch c.Keywords {
+		case "", "SET":
+			for _, o := range c.Options {
+				v, ok := f.props[o.Name]
+				if !ok || !v.matches(o) {
+					return &ParseError{
+						Position: o.Loc.Start, End: o.Loc.End,
+						Message: "syntax error at or near " + o.Name,
+					}
+				}
+			}
+		case "UNSET":
+			for _, k := range c.Keys {
+				if !f.unsets(k) {
+					return &ParseError{
+						Position: c.Loc.Start, End: c.Loc.End,
+						Message: "syntax error: " + s.Kind + " has no property " + k + " to unset",
+					}
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// unsets reports whether the page documents UNSET of property k.
+func (f *objectForm) unsets(k string) bool {
+	if f.unset == nil {
+		_, ok := f.props[k]
+		return ok
+	}
+	for _, u := range f.unset {
+		if u == k {
+			return true
+		}
+	}
+	return false
+}
+
+// matches reports whether option o holds a value of v's shape.
+func (v objectValue) matches(o *ast.CopyOption) bool {
+	switch v.kind {
+	case valNumber:
+		return o.Lit != nil && (o.Lit.Kind == ast.LitInt || o.Lit.Kind == ast.LitFloat)
+	case valString:
+		return o.Lit != nil && o.Lit.Kind == ast.LitString
+	case valWord:
+		if o.Words == "" {
+			return false
+		}
+		if v.words == nil {
+			return true
+		}
+		for _, w := range v.words {
+			if o.Words == w {
+				return true
+			}
+		}
+		return false
+	case valStrings:
+		return o.List != nil && len(o.List) > 0 && allStrings(o.List)
+	case valNames:
+		if len(o.Group) == 0 {
+			return false
+		}
+		for _, e := range o.Group {
+			if !e.Bare {
+				return false
+			}
+		}
+		return true
+	case valGroup:
+		if len(o.Group) == 0 {
+			return false
+		}
+		for _, e := range o.Group {
+			if e.Bare {
+				return false
+			}
+		}
+		return true
+	}
+	return false
+}
+
+func allStrings(lits []*ast.Literal) bool {
+	for _, l := range lits {
+		if l.Kind != ast.LitString {
+			return false
+		}
+	}
+	return true
 }
 
 // startsObjectProperty reports whether cur begins a `KEY = value` property:
