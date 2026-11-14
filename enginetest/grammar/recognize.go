@@ -54,6 +54,9 @@ type cterm struct {
 	toks  []ltok   // the text it matches; empty for a token written as nothing
 	class string   // when set, it matches one token of this class (classOf)
 	more  [][]ltok // other texts it matches exactly, for a token of several spellings
+	// qualified: a name class that also matches two or three names joined
+	// by dots (see Qualified).
+	qualified bool
 }
 
 // spelling is one exact text of a terminal: its toks, or one of more.
@@ -159,6 +162,7 @@ func (g *Grammar) Recognizer() *Recognizer {
 				t.class = classOf(tk)
 			}
 		}
+		t.qualified = t.class != "" && !sym.literal && g.qualified[sym.text]
 		r.terms = append(r.terms, t)
 		switch {
 		case t.class != "":
@@ -439,12 +443,19 @@ func (r *Recognizer) matchesAt(in []ltok, k int) []termMatch {
 	if tk.kind == kName && !tk.quoted && r.g.reserved[strings.ToUpper(tk.text)] {
 		return out
 	}
-	for _, id := range r.class[classOf(tk)] {
-		out = append(out, termMatch{id, 1})
-	}
+	ids := r.class[classOf(tk)]
 	if tk.kind == kName && tk.quoted {
-		for _, id := range r.class[nameClass] {
-			out = append(out, termMatch{id, 1})
+		ids = append(append([]int(nil), ids...), r.class[nameClass]...)
+	}
+	for _, id := range ids {
+		out = append(out, termMatch{id, 1})
+		if r.terms[id].qualified {
+			// db.schema.name: up to two more names, each after a dot.
+			w := 1
+			for parts := 1; parts < 3 && k+w+1 < len(in) && in[k+w].kind == kPunct && in[k+w].text == "." && in[k+w+1].kind == kName; parts++ {
+				w += 2
+				out = append(out, termMatch{id, w})
+			}
 		}
 	}
 	return out

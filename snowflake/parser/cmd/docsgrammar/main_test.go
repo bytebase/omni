@@ -164,6 +164,12 @@ func TestElidedTextIsNotConverted(t *testing.T) {
 	if got, err := c.form("SHOW X IN APPLICATION {app_name}"); err != nil || got[0] != "'SHOW' 'X' 'IN' 'APPLICATION' ID" {
 		t.Errorf("a placeholder in braces: got %v, %v", got, err)
 	}
+	if got, err := c.form("CREATE STAGE <name> CLONE <source>\n  [ ... ]"); err != nil || got[0] != "'CREATE' 'STAGE' ID 'CLONE' ID" {
+		t.Errorf("a last line of [ ... ]: got %v, %v", got, err)
+	}
+	if _, err := c.form("DEFINE TASK A.B.C\n  SCHEDULE = '1 minute'"); err != errProjectOnly {
+		t.Errorf("a DEFINE form: got %v, want errProjectOnly", err)
+	}
 	if _, err := c.form("CREATE TABLE <name>\n  CLONE <source>\n  ..."); err != errElided {
 		t.Errorf("a last line of ...: got %v, want errElided", err)
 	}

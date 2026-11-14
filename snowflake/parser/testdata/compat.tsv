@@ -1487,7 +1487,7 @@ reject	undocumented	docs	statement/createAlert!drop-2	CREATE a CLONE a
 reject	undocumented	docs	statement/createAlert!drop-3	CREATE ALERT CLONE a
 reject	undocumented	docs	statement/createAlert!drop-4	CREATE ALERT a a
 reject	undocumented	docs	statement/createAlert!drop-5	CREATE ALERT a CLONE
-reject	accept	docs	statement/createAlert!insert	CREATE ALERT a CLONE a zzz
+reject	undocumented	docs	statement/createAlert!insert	CREATE ALERT a CLONE a zzz
 reject	undocumented	docs	statement/createAlert!swap	CREATION ALERT a CLONE a
 accept	accept	docs	statement/createApiIntegration	CREATE API INTEGRATION a API_PROVIDER = git_https_api API_ALLOWED_PREFIXES =('s') ENABLED = TRUE
 reject	undocumented	docs	statement/createApiIntegration!drop-1	API INTEGRATION a API_PROVIDER = git_https_api API_ALLOWED_PREFIXES =('s') ENABLED = TRUE
@@ -2333,8 +2333,8 @@ reject	undocumented	docs	statement/createNotebook!swap	CREATION NOTEBOOK a
 reject	accept	docs	statement/createNotebookProject	CREATE NOTEBOOK PROJECT a.a.a FROM 's'
 reject	undocumented	docs	statement/createNotebookProject!drop-1	NOTEBOOK PROJECT a.a.a FROM 's'
 reject	undocumented	docs	statement/createNotebookProject!drop-2	CREATE PROJECT a.a.a FROM 's'
-reject	undocumented	docs	statement/createNotebookProject!drop-3	CREATE NOTEBOOK a.a.a FROM 's'
-reject	undocumented	docs	statement/createNotebookProject!drop-4	CREATE NOTEBOOK PROJECT.a.a FROM 's'
+reject	accept	docs	statement/createNotebookProject!drop-3	CREATE NOTEBOOK a.a.a FROM 's'
+reject	accept	docs	statement/createNotebookProject!drop-4	CREATE NOTEBOOK PROJECT.a.a FROM 's'
 reject	undocumented	docs	statement/createNotebookProject!drop-5	CREATE NOTEBOOK PROJECT a a.a FROM 's'
 reject	undocumented	docs	statement/createNotebookProject!drop-6	CREATE NOTEBOOK PROJECT a..a FROM 's'
 reject	undocumented	docs	statement/createNotebookProject!drop-7	CREATE NOTEBOOK PROJECT a.a a FROM 's'
@@ -14959,7 +14959,7 @@ reject	undocumented	docs	alterIcebergTable_inlineConstraint(INITIALLY_(DEFERRED|
 reject	undocumented	docs	alterIcebergTable_inlineConstraint(INITIALLY_(DEFERRED|IMMEDIATE))?/INITIALLY_(DEFERRED|IMMEDIATE)!insert	ALTER ICEBERG TABLE a ADD a INT UNIQUE INITIALLY DEFERRED zzz
 reject	undocumented	docs	alterIcebergTable_inlineConstraint(INITIALLY_(DEFERRED|IMMEDIATE))?/INITIALLY_(DEFERRED|IMMEDIATE)!swap	ALTER ICEBERG TABLE a ADD a INT UNIQUE INITIALLY_SUSPENDED DEFERRED
 reject	accept	docs	alterIcebergTable_inlineConstraint(DEFERRED|IMMEDIATE)/DEFERRED	ALTER ICEBERG TABLE a ADD a INT UNIQUE INITIALLY DEFERRED
-reject	undocumented	docs	alterIcebergTable_inlineConstraint(DEFERRED|IMMEDIATE)/DEFERRED!swap	ALTER ICEBERG TABLE a ADD a INT UNIQUE INITIALLY DEFINE
+reject	undocumented	docs	alterIcebergTable_inlineConstraint(DEFERRED|IMMEDIATE)/DEFERRED!swap	ALTER ICEBERG TABLE a ADD a INT UNIQUE INITIALLY DEFINITION
 reject	accept	docs	alterIcebergTable_inlineConstraint(DEFERRED|IMMEDIATE)/IMMEDIATE	ALTER ICEBERG TABLE a ADD a INT UNIQUE INITIALLY IMMEDIATE
 reject	undocumented	docs	alterIcebergTable_inlineConstraint(DEFERRED|IMMEDIATE)/IMMEDIATE!insert	ALTER ICEBERG TABLE a ADD a INT UNIQUE INITIALLY IMMEDIATE zzz
 reject	undocumented	docs	alterIcebergTable_inlineConstraint(DEFERRED|IMMEDIATE)/IMMEDIATE!swap	ALTER ICEBERG TABLE a ADD a INT UNIQUE INITIALLY IMMEDIATELY
@@ -21852,7 +21852,7 @@ accept	accept	docs	alterSequence(-)?/%empty	ALTER SEQUENCE a INCREMENT 1
 accept	accept	docs	alterSequence(-)?/-	ALTER SEQUENCE a INCREMENT - 1
 reject	undocumented	docs	alterSequence(-)?/-!insert	ALTER SEQUENCE a INCREMENT - zzz 1
 accept	accept	docs	alterSequence((ORDER|NOORDER)_(COMMENT_=_STRING)?|~8bbf8624)/(ORDER|NOORDER)_(COMMENT_=_STRING)?	ALTER SEQUENCE a SET ORDER
-reject	undocumented	docs	alterSequence((ORDER|NOORDER)_(COMMENT_=_STRING)?|~8bbf8624)/(ORDER|NOORDER)_(COMMENT_=_STRING)?!swap	ALTER SEQUENCE a SET ORDERS
+reject	undocumented	docs	alterSequence((ORDER|NOORDER)_(COMMENT_=_STRING)?|~8bbf8624)/(ORDER|NOORDER)_(COMMENT_=_STRING)?!swap	ALTER SEQUENCE a SET ORGANIZATION
 accept	accept	docs	alterSequence((ORDER|NOORDER)_(COMMENT_=_STRING)?|~8bbf8624)/COMMENT_=_STRING	ALTER SEQUENCE a SET COMMENT = 's'
 reject	undocumented	docs	alterSequence((ORDER|NOORDER)_(COMMENT_=_STRING)?|~8bbf8624)/COMMENT_=_STRING!drop-1	ALTER SEQUENCE a SET = 's'
 reject	undocumented	docs	alterSequence((ORDER|NOORDER)_(COMMENT_=_STRING)?|~8bbf8624)/COMMENT_=_STRING!drop-2	ALTER SEQUENCE a SET COMMENT 's'
@@ -24830,7 +24830,7 @@ reject	undocumented	docs	alterTable_tableColumnAction(((_NUMBER_,_NUMBER_)|START
 reject	undocumented	docs	alterTable_tableColumnAction(((_NUMBER_,_NUMBER_)|START_NUMBER_IN~456159f4)?/((_NUMBER_,_NUMBER_)|START_NUMBER_INC~f83f6f53)!drop-3	ALTER TABLE a ADD a INT AUTOINCREMENT START 1 1
 reject	undocumented	docs	alterTable_tableColumnAction(((_NUMBER_,_NUMBER_)|START_NUMBER_IN~456159f4)?/((_NUMBER_,_NUMBER_)|START_NUMBER_INC~f83f6f53)!drop-4	ALTER TABLE a ADD a INT AUTOINCREMENT START 1 INCREMENT
 reject	undocumented	docs	alterTable_tableColumnAction(((_NUMBER_,_NUMBER_)|START_NUMBER_IN~456159f4)?/((_NUMBER_,_NUMBER_)|START_NUMBER_INC~f83f6f53)!insert	ALTER TABLE a ADD a INT AUTOINCREMENT START 1 INCREMENT 1 zzz
-reject	undocumented	docs	alterTable_tableColumnAction(((_NUMBER_,_NUMBER_)|START_NUMBER_IN~456159f4)?/((_NUMBER_,_NUMBER_)|START_NUMBER_INC~f83f6f53)!swap	ALTER TABLE a ADD a INT AUTOINCREMENT STARTED 1 INCREMENT 1
+reject	undocumented	docs	alterTable_tableColumnAction(((_NUMBER_,_NUMBER_)|START_NUMBER_IN~456159f4)?/((_NUMBER_,_NUMBER_)|START_NUMBER_INC~f83f6f53)!swap	ALTER TABLE a ADD a INT AUTOINCREMENT STARTS 1 INCREMENT 1
 accept	accept	docs	alterTable_tableColumnAction((_NUMBER_,_NUMBER_)|START_NUMBER_INC~f83f6f53)/(_NUMBER_,_NUMBER_)	ALTER TABLE a ADD a INT AUTOINCREMENT(1, 1)
 reject	undocumented	docs	alterTable_tableColumnAction((_NUMBER_,_NUMBER_)|START_NUMBER_INC~f83f6f53)/(_NUMBER_,_NUMBER_)!drop-1	ALTER TABLE a ADD a INT AUTOINCREMENT 1, 1)
 reject	undocumented	docs	alterTable_tableColumnAction((_NUMBER_,_NUMBER_)|START_NUMBER_INC~f83f6f53)/(_NUMBER_,_NUMBER_)!drop-2	ALTER TABLE a ADD a INT AUTOINCREMENT(, 1)
@@ -24842,7 +24842,7 @@ accept	accept	docs	alterTable_tableColumnAction((_NUMBER_,_NUMBER_)|START_NUMBER
 accept	accept	docs	alterTable_tableColumnAction((ORDER|NOORDER))?/%empty	ALTER TABLE a ADD a INT AUTOINCREMENT
 accept	accept	docs	alterTable_tableColumnAction((ORDER|NOORDER))?/(ORDER|NOORDER)	ALTER TABLE a ADD a INT AUTOINCREMENT ORDER
 reject	undocumented	docs	alterTable_tableColumnAction((ORDER|NOORDER))?/(ORDER|NOORDER)!insert	ALTER TABLE a ADD a INT AUTOINCREMENT ORDER zzz
-reject	undocumented	docs	alterTable_tableColumnAction((ORDER|NOORDER))?/(ORDER|NOORDER)!swap	ALTER TABLE a ADD a INT AUTOINCREMENT ORDERS
+reject	undocumented	docs	alterTable_tableColumnAction((ORDER|NOORDER))?/(ORDER|NOORDER)!swap	ALTER TABLE a ADD a INT AUTOINCREMENT ORGANIZATION
 accept	accept	docs	alterTable_tableColumnAction(ORDER|NOORDER)/ORDER	ALTER TABLE a ADD a INT AUTOINCREMENT ORDER
 accept	accept	docs	alterTable_tableColumnAction(ORDER|NOORDER)/NOORDER	ALTER TABLE a ADD a INT AUTOINCREMENT NOORDER
 reject	undocumented	docs	alterTable_tableColumnAction(ORDER|NOORDER)/NOORDER!insert	ALTER TABLE a ADD a INT AUTOINCREMENT NOORDER zzz
@@ -25056,7 +25056,7 @@ reject	undocumented	docs	alterTable_inlineConstraint(INITIALLY_(DEFERRED|IMMEDIA
 reject	undocumented	docs	alterTable_inlineConstraint(INITIALLY_(DEFERRED|IMMEDIATE))?/INITIALLY_(DEFERRED|IMMEDIATE)!insert	ALTER TABLE a ADD a INT UNIQUE INITIALLY DEFERRED zzz
 reject	undocumented	docs	alterTable_inlineConstraint(INITIALLY_(DEFERRED|IMMEDIATE))?/INITIALLY_(DEFERRED|IMMEDIATE)!swap	ALTER TABLE a ADD a INT UNIQUE INITIALLY_SUSPENDED DEFERRED
 accept	accept	docs	alterTable_inlineConstraint(DEFERRED|IMMEDIATE)/DEFERRED	ALTER TABLE a ADD a INT UNIQUE INITIALLY DEFERRED
-reject	undocumented	docs	alterTable_inlineConstraint(DEFERRED|IMMEDIATE)/DEFERRED!swap	ALTER TABLE a ADD a INT UNIQUE INITIALLY DEFINE
+reject	undocumented	docs	alterTable_inlineConstraint(DEFERRED|IMMEDIATE)/DEFERRED!swap	ALTER TABLE a ADD a INT UNIQUE INITIALLY DEFINITION
 accept	accept	docs	alterTable_inlineConstraint(DEFERRED|IMMEDIATE)/IMMEDIATE	ALTER TABLE a ADD a INT UNIQUE INITIALLY IMMEDIATE
 reject	undocumented	docs	alterTable_inlineConstraint(DEFERRED|IMMEDIATE)/IMMEDIATE!insert	ALTER TABLE a ADD a INT UNIQUE INITIALLY IMMEDIATE zzz
 reject	undocumented	docs	alterTable_inlineConstraint(DEFERRED|IMMEDIATE)/IMMEDIATE!swap	ALTER TABLE a ADD a INT UNIQUE INITIALLY IMMEDIATELY
@@ -25807,7 +25807,7 @@ reject	undocumented	docs	alterTable_outoflineConstraint(INITIALLY_(DEFERRED|IMME
 reject	undocumented	docs	alterTable_outoflineConstraint(INITIALLY_(DEFERRED|IMMEDIATE))?/INITIALLY_(DEFERRED|IMMEDIATE)!insert	ALTER TABLE a ADD UNIQUE(a) INITIALLY DEFERRED zzz
 reject	undocumented	docs	alterTable_outoflineConstraint(INITIALLY_(DEFERRED|IMMEDIATE))?/INITIALLY_(DEFERRED|IMMEDIATE)!swap	ALTER TABLE a ADD UNIQUE(a) INITIALLY_SUSPENDED DEFERRED
 accept	accept	docs	alterTable_outoflineConstraint(DEFERRED|IMMEDIATE)/DEFERRED	ALTER TABLE a ADD UNIQUE(a) INITIALLY DEFERRED
-reject	undocumented	docs	alterTable_outoflineConstraint(DEFERRED|IMMEDIATE)/DEFERRED!swap	ALTER TABLE a ADD UNIQUE(a) INITIALLY DEFINE
+reject	undocumented	docs	alterTable_outoflineConstraint(DEFERRED|IMMEDIATE)/DEFERRED!swap	ALTER TABLE a ADD UNIQUE(a) INITIALLY DEFINITION
 accept	accept	docs	alterTable_outoflineConstraint(DEFERRED|IMMEDIATE)/IMMEDIATE	ALTER TABLE a ADD UNIQUE(a) INITIALLY IMMEDIATE
 reject	undocumented	docs	alterTable_outoflineConstraint(DEFERRED|IMMEDIATE)/IMMEDIATE!insert	ALTER TABLE a ADD UNIQUE(a) INITIALLY IMMEDIATE zzz
 reject	undocumented	docs	alterTable_outoflineConstraint(DEFERRED|IMMEDIATE)/IMMEDIATE!swap	ALTER TABLE a ADD UNIQUE(a) INITIALLY IMMEDIATELY
@@ -27019,7 +27019,7 @@ reject	accept	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STR
 reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~ae7a3889)/MUST_CHANGE_PASSWORD_=_(TRUE|FALSE)!drop-2	ALTER USER SET MUST_CHANGE_PASSWORD TRUE
 reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~ae7a3889)/MUST_CHANGE_PASSWORD_=_(TRUE|FALSE)!drop-3	ALTER USER SET MUST_CHANGE_PASSWORD =
 reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~ae7a3889)/MUST_CHANGE_PASSWORD_=_(TRUE|FALSE)!insert	ALTER USER SET MUST_CHANGE_PASSWORD = TRUE zzz
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~ae7a3889)/MUST_CHANGE_PASSWORD_=_(TRUE|FALSE)!swap	ALTER USER SET MY_DASHBOARD = TRUE
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~ae7a3889)/MUST_CHANGE_PASSWORD_=_(TRUE|FALSE)!swap	ALTER USER SET NAME = TRUE
 reject	accept	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~ae7a3889)/DISABLED_=_(TRUE|FALSE)	ALTER USER SET DISABLED = TRUE
 reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~ae7a3889)/DISABLED_=_(TRUE|FALSE)!drop-2	ALTER USER SET DISABLED TRUE
 reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~ae7a3889)/DISABLED_=_(TRUE|FALSE)!drop-3	ALTER USER SET DISABLED =
@@ -28846,7 +28846,7 @@ accept	accept	docs	begin/START_TRANSACTION_(NAME_ID)?	START TRANSACTION
 reject	undocumented	docs	begin/START_TRANSACTION_(NAME_ID)?!drop-1	TRANSACTION
 reject	undocumented	docs	begin/START_TRANSACTION_(NAME_ID)?!drop-2	START
 reject	undocumented	docs	begin/START_TRANSACTION_(NAME_ID)?!insert	START TRANSACTION zzz
-reject	undocumented	docs	begin/START_TRANSACTION_(NAME_ID)?!swap	STARTED TRANSACTION
+reject	undocumented	docs	begin/START_TRANSACTION_(NAME_ID)?!swap	STARTS TRANSACTION
 accept	accept	docs	begin((WORK|TRANSACTION))?/%empty	BEGIN
 accept	accept	docs	begin((WORK|TRANSACTION))?/(WORK|TRANSACTION)	BEGIN WORK
 reject	undocumented	docs	begin((WORK|TRANSACTION))?/(WORK|TRANSACTION)!insert	BEGIN WORK zzz
@@ -28895,7 +28895,7 @@ accept	accept	docs	callWith(,_(ID_=>)?_EXPR)*/%empty	CALL a(1)
 accept	accept	docs	callWith(,_(ID_=>)?_EXPR)*/,_(ID_=>)?_EXPR_(,_(ID_=>)?_EXPR)*	CALL a(1, 1)
 accept	accept	docs	callWith(INTO_COLON_ID)?/%empty	CALL a()
 reject	accept	docs	callWith(INTO_COLON_ID)?/INTO_COLON_ID	CALL a() INTO : a
-accept	accept	docs	comment/COMMENT_(IF_EXISTS)?_ON_OBJECT_TYPE_ID_IS_STRING	COMMENT ON TABLE a IS 's'
+accept	accept	docs	comment/COMMENT_(IF_EXISTS)?_ON_(TABLE|SCHEMA|VIEW|OBJECT_TYPE)~da9cf0ac	COMMENT ON TABLE a IS 's'
 accept	accept	docs	comment/COMMENT_(IF_EXISTS)?_ON_COLUMN_ID_._ID_IS_STRING	COMMENT ON COLUMN a.a IS 's'
 reject	undocumented	docs	comment/COMMENT_(IF_EXISTS)?_ON_COLUMN_ID_._ID_IS_STRING!drop-1	ON COLUMN a.a IS 's'
 reject	undocumented	docs	comment/COMMENT_(IF_EXISTS)?_ON_COLUMN_ID_._ID_IS_STRING!drop-2	COMMENT COLUMN a.a IS 's'
@@ -28915,6 +28915,17 @@ reject	undocumented	docs	comment(IF_EXISTS)?/IF_EXISTS!drop-2	COMMENT IF ON TABL
 reject	undocumented	docs	comment(IF_EXISTS)?/IF_EXISTS!truncate	COMMENT IF
 reject	undocumented	docs	comment(IF_EXISTS)?/IF_EXISTS!insert	COMMENT IF EXISTS zzz ON TABLE a IS 's'
 reject	undocumented	docs	comment(IF_EXISTS)?/IF_EXISTS!swap	COMMENT IGNORE EXISTS ON TABLE a IS 's'
+accept	accept	docs	comment(TABLE|SCHEMA|VIEW|OBJECT_TYPE)/TABLE	COMMENT ON TABLE a IS 's'
+reject	undocumented	docs	comment(TABLE|SCHEMA|VIEW|OBJECT_TYPE)/TABLE!truncate	COMMENT ON
+accept	undocumented	docs	comment(TABLE|SCHEMA|VIEW|OBJECT_TYPE)/TABLE!insert	COMMENT ON TABLE zzz a IS 's'
+accept	undocumented	docs	comment(TABLE|SCHEMA|VIEW|OBJECT_TYPE)/TABLE!swap	COMMENT ON TABLEAU_DESKTOP a IS 's'
+accept	accept	docs	comment(TABLE|SCHEMA|VIEW|OBJECT_TYPE)/SCHEMA	COMMENT ON SCHEMA a IS 's'
+accept	undocumented	docs	comment(TABLE|SCHEMA|VIEW|OBJECT_TYPE)/SCHEMA!insert	COMMENT ON SCHEMA zzz a IS 's'
+accept	undocumented	docs	comment(TABLE|SCHEMA|VIEW|OBJECT_TYPE)/SCHEMA!swap	COMMENT ON SCHEMAS a IS 's'
+accept	accept	docs	comment(TABLE|SCHEMA|VIEW|OBJECT_TYPE)/VIEW	COMMENT ON VIEW a IS 's'
+accept	undocumented	docs	comment(TABLE|SCHEMA|VIEW|OBJECT_TYPE)/VIEW!insert	COMMENT ON VIEW zzz a IS 's'
+accept	undocumented	docs	comment(TABLE|SCHEMA|VIEW|OBJECT_TYPE)/VIEW!swap	COMMENT ON VIEWS a IS 's'
+accept	accept	docs	comment(TABLE|SCHEMA|VIEW|OBJECT_TYPE)/OBJECT_TYPE	COMMENT ON TABLE a IS 's'
 accept	accept	docs	commit/COMMIT_(WORK)?	COMMIT
 accept	accept	docs	commit(WORK)?/%empty	COMMIT
 accept	accept	docs	commit(WORK)?/WORK	COMMIT WORK
@@ -30463,7 +30474,7 @@ accept	accept	docs	copyIntoTable_copyOptions(CLUSTER_AT_INGEST_TIME_=_(TRUE|FALS
 accept	undocumented	docs	copyIntoTable_copyOptions(CLUSTER_AT_INGEST_TIME_=_(TRUE|FALSE~6fd58abc)/TRUNCATECOLUMNS_=_(TRUE|FALSE)!drop-2	COPY INTO a FROM @a TRUNCATECOLUMNS TRUE
 reject	undocumented	docs	copyIntoTable_copyOptions(CLUSTER_AT_INGEST_TIME_=_(TRUE|FALSE~6fd58abc)/TRUNCATECOLUMNS_=_(TRUE|FALSE)!drop-3	COPY INTO a FROM @a TRUNCATECOLUMNS =
 accept	undocumented	docs	copyIntoTable_copyOptions(CLUSTER_AT_INGEST_TIME_=_(TRUE|FALSE~6fd58abc)/TRUNCATECOLUMNS_=_(TRUE|FALSE)!insert	COPY INTO a FROM @a TRUNCATECOLUMNS = TRUE zzz
-accept	undocumented	docs	copyIntoTable_copyOptions(CLUSTER_AT_INGEST_TIME_=_(TRUE|FALSE~6fd58abc)/TRUNCATECOLUMNS_=_(TRUE|FALSE)!swap	COPY INTO a FROM @a TSK_INGEST_DAILY_ORDERS = TRUE
+accept	undocumented	docs	copyIntoTable_copyOptions(CLUSTER_AT_INGEST_TIME_=_(TRUE|FALSE~6fd58abc)/TRUNCATECOLUMNS_=_(TRUE|FALSE)!swap	COPY INTO a FROM @a TWO_DIGIT_CENTURY_START = TRUE
 accept	accept	docs	copyIntoTable_copyOptions(TRUE|FALSE)/TRUE	COPY INTO a FROM @a CLUSTER_AT_INGEST_TIME = TRUE
 accept	undocumented	docs	copyIntoTable_copyOptions(TRUE|FALSE)/TRUE!swap	COPY INTO a FROM @a CLUSTER_AT_INGEST_TIME = TRUNCATE
 accept	accept	docs	copyIntoTable_copyOptions(TRUE|FALSE)/FALSE	COPY INTO a FROM @a CLUSTER_AT_INGEST_TIME = FALSE
@@ -30564,7 +30575,7 @@ reject	undocumented	docs	createAccount(MUST_CHANGE_PASSWORD_=_(TRUE|FALSE))?/MUS
 reject	undocumented	docs	createAccount(MUST_CHANGE_PASSWORD_=_(TRUE|FALSE))?/MUST_CHANGE_PASSWORD_=_(TRUE|FALSE)!drop-3	CREATE ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' MUST_CHANGE_PASSWORD = EDITION = STANDARD
 reject	undocumented	docs	createAccount(MUST_CHANGE_PASSWORD_=_(TRUE|FALSE))?/MUST_CHANGE_PASSWORD_=_(TRUE|FALSE)!truncate	CREATE ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' MUST_CHANGE_PASSWORD =
 accept	undocumented	docs	createAccount(MUST_CHANGE_PASSWORD_=_(TRUE|FALSE))?/MUST_CHANGE_PASSWORD_=_(TRUE|FALSE)!insert	CREATE ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' MUST_CHANGE_PASSWORD = TRUE zzz EDITION = STANDARD
-accept	undocumented	docs	createAccount(MUST_CHANGE_PASSWORD_=_(TRUE|FALSE))?/MUST_CHANGE_PASSWORD_=_(TRUE|FALSE)!swap	CREATE ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' MY_DASHBOARD = TRUE EDITION = STANDARD
+accept	undocumented	docs	createAccount(MUST_CHANGE_PASSWORD_=_(TRUE|FALSE))?/MUST_CHANGE_PASSWORD_=_(TRUE|FALSE)!swap	CREATE ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' NAME = TRUE EDITION = STANDARD
 accept	accept	docs	createAccount(TRUE|FALSE)/TRUE	CREATE ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' MUST_CHANGE_PASSWORD = TRUE EDITION = STANDARD
 accept	undocumented	docs	createAccount(TRUE|FALSE)/TRUE!swap	CREATE ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' MUST_CHANGE_PASSWORD = TRUNCATE EDITION = STANDARD
 accept	accept	docs	createAccount(TRUE|FALSE)/FALSE	CREATE ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' MUST_CHANGE_PASSWORD = FALSE EDITION = STANDARD
@@ -30794,53 +30805,7 @@ reject	undocumented	docs	createAlert/CREATE_OR_ALTER_ALERT_ID_(SCHEDULE_=_STRING
 reject	undocumented	docs	createAlert/CREATE_OR_ALTER_ALERT_ID_(SCHEDULE_=_STRING)?_(WAREHOUS~1802a747!drop-14	CREATE OR ALTER ALERT a IF(EXISTS(SELECT 1)) THEN
 accept	undocumented	docs	createAlert/CREATE_OR_ALTER_ALERT_ID_(SCHEDULE_=_STRING)?_(WAREHOUS~1802a747!insert	CREATE OR ALTER ALERT a IF(EXISTS(SELECT 1)) THEN SELECT 1 zzz
 reject	undocumented	docs	createAlert/CREATE_OR_ALTER_ALERT_ID_(SCHEDULE_=_STRING)?_(WAREHOUS~1802a747!swap	CREATION OR ALTER ALERT a IF(EXISTS(SELECT 1)) THEN SELECT 1
-reject	accept	docs	createAlert/DEFINE_ALERT_MY_DB_._MY_SCHEMA_._ALRT_CHECK_ORDER_VOLUM~acfda309	DEFINE ALERT MY_DB.MY_SCHEMA.ALRT_CHECK_ORDER_VOLUME WAREHOUSE = 'MY_WH' SCHEDULE = '60 MINUTE' STARTED IF(EXISTS(SELECT 1 FROM MY_DB.MY_SCHEMA.ORDERS WHERE ORDER_COUNT > 1000)) THEN CALL SYSTEM$SEND_EMAIL('my_notification_integration', 'ops@example.com', 'High order volume', 'Order volume exceeded 1000 orders.')
-reject	undocumented	docs	createAlert/DEFINE_ALERT_MY_DB_._MY_SCHEMA_._ALRT_CHECK_ORDER_VOLUM~acfda309!drop-1	ALERT MY_DB.MY_SCHEMA.ALRT_CHECK_ORDER_VOLUME WAREHOUSE = 'MY_WH' SCHEDULE = '60 MINUTE' STARTED IF(EXISTS(SELECT 1 FROM MY_DB.MY_SCHEMA.ORDERS WHERE ORDER_COUNT > 1000)) THEN CALL SYSTEM$SEND_EMAIL('my_notification_integration', 'ops@example.com', 'High order volume', 'Order volume exceeded 1000 orders.')
-reject	undocumented	docs	createAlert/DEFINE_ALERT_MY_DB_._MY_SCHEMA_._ALRT_CHECK_ORDER_VOLUM~acfda309!drop-2	DEFINE MY_DB.MY_SCHEMA.ALRT_CHECK_ORDER_VOLUME WAREHOUSE = 'MY_WH' SCHEDULE = '60 MINUTE' STARTED IF(EXISTS(SELECT 1 FROM MY_DB.MY_SCHEMA.ORDERS WHERE ORDER_COUNT > 1000)) THEN CALL SYSTEM$SEND_EMAIL('my_notification_integration', 'ops@example.com', 'High order volume', 'Order volume exceeded 1000 orders.')
-reject	undocumented	docs	createAlert/DEFINE_ALERT_MY_DB_._MY_SCHEMA_._ALRT_CHECK_ORDER_VOLUM~acfda309!drop-3	DEFINE ALERT.MY_SCHEMA.ALRT_CHECK_ORDER_VOLUME WAREHOUSE = 'MY_WH' SCHEDULE = '60 MINUTE' STARTED IF(EXISTS(SELECT 1 FROM MY_DB.MY_SCHEMA.ORDERS WHERE ORDER_COUNT > 1000)) THEN CALL SYSTEM$SEND_EMAIL('my_notification_integration', 'ops@example.com', 'High order volume', 'Order volume exceeded 1000 orders.')
-reject	undocumented	docs	createAlert/DEFINE_ALERT_MY_DB_._MY_SCHEMA_._ALRT_CHECK_ORDER_VOLUM~acfda309!drop-4	DEFINE ALERT MY_DB MY_SCHEMA.ALRT_CHECK_ORDER_VOLUME WAREHOUSE = 'MY_WH' SCHEDULE = '60 MINUTE' STARTED IF(EXISTS(SELECT 1 FROM MY_DB.MY_SCHEMA.ORDERS WHERE ORDER_COUNT > 1000)) THEN CALL SYSTEM$SEND_EMAIL('my_notification_integration', 'ops@example.com', 'High order volume', 'Order volume exceeded 1000 orders.')
-reject	undocumented	docs	createAlert/DEFINE_ALERT_MY_DB_._MY_SCHEMA_._ALRT_CHECK_ORDER_VOLUM~acfda309!drop-5	DEFINE ALERT MY_DB..ALRT_CHECK_ORDER_VOLUME WAREHOUSE = 'MY_WH' SCHEDULE = '60 MINUTE' STARTED IF(EXISTS(SELECT 1 FROM MY_DB.MY_SCHEMA.ORDERS WHERE ORDER_COUNT > 1000)) THEN CALL SYSTEM$SEND_EMAIL('my_notification_integration', 'ops@example.com', 'High order volume', 'Order volume exceeded 1000 orders.')
-reject	undocumented	docs	createAlert/DEFINE_ALERT_MY_DB_._MY_SCHEMA_._ALRT_CHECK_ORDER_VOLUM~acfda309!drop-6	DEFINE ALERT MY_DB.MY_SCHEMA ALRT_CHECK_ORDER_VOLUME WAREHOUSE = 'MY_WH' SCHEDULE = '60 MINUTE' STARTED IF(EXISTS(SELECT 1 FROM MY_DB.MY_SCHEMA.ORDERS WHERE ORDER_COUNT > 1000)) THEN CALL SYSTEM$SEND_EMAIL('my_notification_integration', 'ops@example.com', 'High order volume', 'Order volume exceeded 1000 orders.')
-reject	undocumented	docs	createAlert/DEFINE_ALERT_MY_DB_._MY_SCHEMA_._ALRT_CHECK_ORDER_VOLUM~acfda309!drop-7	DEFINE ALERT MY_DB.MY_SCHEMA.WAREHOUSE = 'MY_WH' SCHEDULE = '60 MINUTE' STARTED IF(EXISTS(SELECT 1 FROM MY_DB.MY_SCHEMA.ORDERS WHERE ORDER_COUNT > 1000)) THEN CALL SYSTEM$SEND_EMAIL('my_notification_integration', 'ops@example.com', 'High order volume', 'Order volume exceeded 1000 orders.')
-reject	undocumented	docs	createAlert/DEFINE_ALERT_MY_DB_._MY_SCHEMA_._ALRT_CHECK_ORDER_VOLUM~acfda309!drop-8	DEFINE ALERT MY_DB.MY_SCHEMA.ALRT_CHECK_ORDER_VOLUME = 'MY_WH' SCHEDULE = '60 MINUTE' STARTED IF(EXISTS(SELECT 1 FROM MY_DB.MY_SCHEMA.ORDERS WHERE ORDER_COUNT > 1000)) THEN CALL SYSTEM$SEND_EMAIL('my_notification_integration', 'ops@example.com', 'High order volume', 'Order volume exceeded 1000 orders.')
-reject	undocumented	docs	createAlert/DEFINE_ALERT_MY_DB_._MY_SCHEMA_._ALRT_CHECK_ORDER_VOLUM~acfda309!drop-9	DEFINE ALERT MY_DB.MY_SCHEMA.ALRT_CHECK_ORDER_VOLUME WAREHOUSE 'MY_WH' SCHEDULE = '60 MINUTE' STARTED IF(EXISTS(SELECT 1 FROM MY_DB.MY_SCHEMA.ORDERS WHERE ORDER_COUNT > 1000)) THEN CALL SYSTEM$SEND_EMAIL('my_notification_integration', 'ops@example.com', 'High order volume', 'Order volume exceeded 1000 orders.')
-reject	undocumented	docs	createAlert/DEFINE_ALERT_MY_DB_._MY_SCHEMA_._ALRT_CHECK_ORDER_VOLUM~acfda309!drop-10	DEFINE ALERT MY_DB.MY_SCHEMA.ALRT_CHECK_ORDER_VOLUME WAREHOUSE = SCHEDULE = '60 MINUTE' STARTED IF(EXISTS(SELECT 1 FROM MY_DB.MY_SCHEMA.ORDERS WHERE ORDER_COUNT > 1000)) THEN CALL SYSTEM$SEND_EMAIL('my_notification_integration', 'ops@example.com', 'High order volume', 'Order volume exceeded 1000 orders.')
-reject	undocumented	docs	createAlert/DEFINE_ALERT_MY_DB_._MY_SCHEMA_._ALRT_CHECK_ORDER_VOLUM~acfda309!drop-11	DEFINE ALERT MY_DB.MY_SCHEMA.ALRT_CHECK_ORDER_VOLUME WAREHOUSE = 'MY_WH' = '60 MINUTE' STARTED IF(EXISTS(SELECT 1 FROM MY_DB.MY_SCHEMA.ORDERS WHERE ORDER_COUNT > 1000)) THEN CALL SYSTEM$SEND_EMAIL('my_notification_integration', 'ops@example.com', 'High order volume', 'Order volume exceeded 1000 orders.')
-reject	undocumented	docs	createAlert/DEFINE_ALERT_MY_DB_._MY_SCHEMA_._ALRT_CHECK_ORDER_VOLUM~acfda309!drop-12	DEFINE ALERT MY_DB.MY_SCHEMA.ALRT_CHECK_ORDER_VOLUME WAREHOUSE = 'MY_WH' SCHEDULE '60 MINUTE' STARTED IF(EXISTS(SELECT 1 FROM MY_DB.MY_SCHEMA.ORDERS WHERE ORDER_COUNT > 1000)) THEN CALL SYSTEM$SEND_EMAIL('my_notification_integration', 'ops@example.com', 'High order volume', 'Order volume exceeded 1000 orders.')
-reject	undocumented	docs	createAlert/DEFINE_ALERT_MY_DB_._MY_SCHEMA_._ALRT_CHECK_ORDER_VOLUM~acfda309!drop-13	DEFINE ALERT MY_DB.MY_SCHEMA.ALRT_CHECK_ORDER_VOLUME WAREHOUSE = 'MY_WH' SCHEDULE = STARTED IF(EXISTS(SELECT 1 FROM MY_DB.MY_SCHEMA.ORDERS WHERE ORDER_COUNT > 1000)) THEN CALL SYSTEM$SEND_EMAIL('my_notification_integration', 'ops@example.com', 'High order volume', 'Order volume exceeded 1000 orders.')
-reject	undocumented	docs	createAlert/DEFINE_ALERT_MY_DB_._MY_SCHEMA_._ALRT_CHECK_ORDER_VOLUM~acfda309!drop-14	DEFINE ALERT MY_DB.MY_SCHEMA.ALRT_CHECK_ORDER_VOLUME WAREHOUSE = 'MY_WH' SCHEDULE = '60 MINUTE' IF(EXISTS(SELECT 1 FROM MY_DB.MY_SCHEMA.ORDERS WHERE ORDER_COUNT > 1000)) THEN CALL SYSTEM$SEND_EMAIL('my_notification_integration', 'ops@example.com', 'High order volume', 'Order volume exceeded 1000 orders.')
-reject	undocumented	docs	createAlert/DEFINE_ALERT_MY_DB_._MY_SCHEMA_._ALRT_CHECK_ORDER_VOLUM~acfda309!drop-15	DEFINE ALERT MY_DB.MY_SCHEMA.ALRT_CHECK_ORDER_VOLUME WAREHOUSE = 'MY_WH' SCHEDULE = '60 MINUTE' STARTED(EXISTS(SELECT 1 FROM MY_DB.MY_SCHEMA.ORDERS WHERE ORDER_COUNT > 1000)) THEN CALL SYSTEM$SEND_EMAIL('my_notification_integration', 'ops@example.com', 'High order volume', 'Order volume exceeded 1000 orders.')
-reject	undocumented	docs	createAlert/DEFINE_ALERT_MY_DB_._MY_SCHEMA_._ALRT_CHECK_ORDER_VOLUM~acfda309!drop-16	DEFINE ALERT MY_DB.MY_SCHEMA.ALRT_CHECK_ORDER_VOLUME WAREHOUSE = 'MY_WH' SCHEDULE = '60 MINUTE' STARTED IF EXISTS(SELECT 1 FROM MY_DB.MY_SCHEMA.ORDERS WHERE ORDER_COUNT > 1000)) THEN CALL SYSTEM$SEND_EMAIL('my_notification_integration', 'ops@example.com', 'High order volume', 'Order volume exceeded 1000 orders.')
-reject	undocumented	docs	createAlert/DEFINE_ALERT_MY_DB_._MY_SCHEMA_._ALRT_CHECK_ORDER_VOLUM~acfda309!drop-17	DEFINE ALERT MY_DB.MY_SCHEMA.ALRT_CHECK_ORDER_VOLUME WAREHOUSE = 'MY_WH' SCHEDULE = '60 MINUTE' STARTED IF((SELECT 1 FROM MY_DB.MY_SCHEMA.ORDERS WHERE ORDER_COUNT > 1000)) THEN CALL SYSTEM$SEND_EMAIL('my_notification_integration', 'ops@example.com', 'High order volume', 'Order volume exceeded 1000 orders.')
-reject	undocumented	docs	createAlert/DEFINE_ALERT_MY_DB_._MY_SCHEMA_._ALRT_CHECK_ORDER_VOLUM~acfda309!drop-18	DEFINE ALERT MY_DB.MY_SCHEMA.ALRT_CHECK_ORDER_VOLUME WAREHOUSE = 'MY_WH' SCHEDULE = '60 MINUTE' STARTED IF(EXISTS SELECT 1 FROM MY_DB.MY_SCHEMA.ORDERS WHERE ORDER_COUNT > 1000)) THEN CALL SYSTEM$SEND_EMAIL('my_notification_integration', 'ops@example.com', 'High order volume', 'Order volume exceeded 1000 orders.')
-reject	undocumented	docs	createAlert/DEFINE_ALERT_MY_DB_._MY_SCHEMA_._ALRT_CHECK_ORDER_VOLUM~acfda309!drop-19	DEFINE ALERT MY_DB.MY_SCHEMA.ALRT_CHECK_ORDER_VOLUME WAREHOUSE = 'MY_WH' SCHEDULE = '60 MINUTE' STARTED IF(EXISTS(1 FROM MY_DB.MY_SCHEMA.ORDERS WHERE ORDER_COUNT > 1000)) THEN CALL SYSTEM$SEND_EMAIL('my_notification_integration', 'ops@example.com', 'High order volume', 'Order volume exceeded 1000 orders.')
-reject	undocumented	docs	createAlert/DEFINE_ALERT_MY_DB_._MY_SCHEMA_._ALRT_CHECK_ORDER_VOLUM~acfda309!drop-20	DEFINE ALERT MY_DB.MY_SCHEMA.ALRT_CHECK_ORDER_VOLUME WAREHOUSE = 'MY_WH' SCHEDULE = '60 MINUTE' STARTED IF(EXISTS(SELECT FROM MY_DB.MY_SCHEMA.ORDERS WHERE ORDER_COUNT > 1000)) THEN CALL SYSTEM$SEND_EMAIL('my_notification_integration', 'ops@example.com', 'High order volume', 'Order volume exceeded 1000 orders.')
-reject	undocumented	docs	createAlert/DEFINE_ALERT_MY_DB_._MY_SCHEMA_._ALRT_CHECK_ORDER_VOLUM~acfda309!drop-21	DEFINE ALERT MY_DB.MY_SCHEMA.ALRT_CHECK_ORDER_VOLUME WAREHOUSE = 'MY_WH' SCHEDULE = '60 MINUTE' STARTED IF(EXISTS(SELECT 1 MY_DB.MY_SCHEMA.ORDERS WHERE ORDER_COUNT > 1000)) THEN CALL SYSTEM$SEND_EMAIL('my_notification_integration', 'ops@example.com', 'High order volume', 'Order volume exceeded 1000 orders.')
-reject	undocumented	docs	createAlert/DEFINE_ALERT_MY_DB_._MY_SCHEMA_._ALRT_CHECK_ORDER_VOLUM~acfda309!drop-22	DEFINE ALERT MY_DB.MY_SCHEMA.ALRT_CHECK_ORDER_VOLUME WAREHOUSE = 'MY_WH' SCHEDULE = '60 MINUTE' STARTED IF(EXISTS(SELECT 1 FROM.MY_SCHEMA.ORDERS WHERE ORDER_COUNT > 1000)) THEN CALL SYSTEM$SEND_EMAIL('my_notification_integration', 'ops@example.com', 'High order volume', 'Order volume exceeded 1000 orders.')
-reject	undocumented	docs	createAlert/DEFINE_ALERT_MY_DB_._MY_SCHEMA_._ALRT_CHECK_ORDER_VOLUM~acfda309!drop-23	DEFINE ALERT MY_DB.MY_SCHEMA.ALRT_CHECK_ORDER_VOLUME WAREHOUSE = 'MY_WH' SCHEDULE = '60 MINUTE' STARTED IF(EXISTS(SELECT 1 FROM MY_DB MY_SCHEMA.ORDERS WHERE ORDER_COUNT > 1000)) THEN CALL SYSTEM$SEND_EMAIL('my_notification_integration', 'ops@example.com', 'High order volume', 'Order volume exceeded 1000 orders.')
-reject	undocumented	docs	createAlert/DEFINE_ALERT_MY_DB_._MY_SCHEMA_._ALRT_CHECK_ORDER_VOLUM~acfda309!drop-24	DEFINE ALERT MY_DB.MY_SCHEMA.ALRT_CHECK_ORDER_VOLUME WAREHOUSE = 'MY_WH' SCHEDULE = '60 MINUTE' STARTED IF(EXISTS(SELECT 1 FROM MY_DB..ORDERS WHERE ORDER_COUNT > 1000)) THEN CALL SYSTEM$SEND_EMAIL('my_notification_integration', 'ops@example.com', 'High order volume', 'Order volume exceeded 1000 orders.')
-reject	undocumented	docs	createAlert/DEFINE_ALERT_MY_DB_._MY_SCHEMA_._ALRT_CHECK_ORDER_VOLUM~acfda309!drop-25	DEFINE ALERT MY_DB.MY_SCHEMA.ALRT_CHECK_ORDER_VOLUME WAREHOUSE = 'MY_WH' SCHEDULE = '60 MINUTE' STARTED IF(EXISTS(SELECT 1 FROM MY_DB.MY_SCHEMA ORDERS WHERE ORDER_COUNT > 1000)) THEN CALL SYSTEM$SEND_EMAIL('my_notification_integration', 'ops@example.com', 'High order volume', 'Order volume exceeded 1000 orders.')
-reject	undocumented	docs	createAlert/DEFINE_ALERT_MY_DB_._MY_SCHEMA_._ALRT_CHECK_ORDER_VOLUM~acfda309!drop-26	DEFINE ALERT MY_DB.MY_SCHEMA.ALRT_CHECK_ORDER_VOLUME WAREHOUSE = 'MY_WH' SCHEDULE = '60 MINUTE' STARTED IF(EXISTS(SELECT 1 FROM MY_DB.MY_SCHEMA.WHERE ORDER_COUNT > 1000)) THEN CALL SYSTEM$SEND_EMAIL('my_notification_integration', 'ops@example.com', 'High order volume', 'Order volume exceeded 1000 orders.')
-reject	undocumented	docs	createAlert/DEFINE_ALERT_MY_DB_._MY_SCHEMA_._ALRT_CHECK_ORDER_VOLUM~acfda309!drop-27	DEFINE ALERT MY_DB.MY_SCHEMA.ALRT_CHECK_ORDER_VOLUME WAREHOUSE = 'MY_WH' SCHEDULE = '60 MINUTE' STARTED IF(EXISTS(SELECT 1 FROM MY_DB.MY_SCHEMA.ORDERS ORDER_COUNT > 1000)) THEN CALL SYSTEM$SEND_EMAIL('my_notification_integration', 'ops@example.com', 'High order volume', 'Order volume exceeded 1000 orders.')
-reject	undocumented	docs	createAlert/DEFINE_ALERT_MY_DB_._MY_SCHEMA_._ALRT_CHECK_ORDER_VOLUM~acfda309!drop-28	DEFINE ALERT MY_DB.MY_SCHEMA.ALRT_CHECK_ORDER_VOLUME WAREHOUSE = 'MY_WH' SCHEDULE = '60 MINUTE' STARTED IF(EXISTS(SELECT 1 FROM MY_DB.MY_SCHEMA.ORDERS WHERE > 1000)) THEN CALL SYSTEM$SEND_EMAIL('my_notification_integration', 'ops@example.com', 'High order volume', 'Order volume exceeded 1000 orders.')
-reject	undocumented	docs	createAlert/DEFINE_ALERT_MY_DB_._MY_SCHEMA_._ALRT_CHECK_ORDER_VOLUM~acfda309!drop-29	DEFINE ALERT MY_DB.MY_SCHEMA.ALRT_CHECK_ORDER_VOLUME WAREHOUSE = 'MY_WH' SCHEDULE = '60 MINUTE' STARTED IF(EXISTS(SELECT 1 FROM MY_DB.MY_SCHEMA.ORDERS WHERE ORDER_COUNT 1000)) THEN CALL SYSTEM$SEND_EMAIL('my_notification_integration', 'ops@example.com', 'High order volume', 'Order volume exceeded 1000 orders.')
-reject	undocumented	docs	createAlert/DEFINE_ALERT_MY_DB_._MY_SCHEMA_._ALRT_CHECK_ORDER_VOLUM~acfda309!drop-30	DEFINE ALERT MY_DB.MY_SCHEMA.ALRT_CHECK_ORDER_VOLUME WAREHOUSE = 'MY_WH' SCHEDULE = '60 MINUTE' STARTED IF(EXISTS(SELECT 1 FROM MY_DB.MY_SCHEMA.ORDERS WHERE ORDER_COUNT >)) THEN CALL SYSTEM$SEND_EMAIL('my_notification_integration', 'ops@example.com', 'High order volume', 'Order volume exceeded 1000 orders.')
-reject	undocumented	docs	createAlert/DEFINE_ALERT_MY_DB_._MY_SCHEMA_._ALRT_CHECK_ORDER_VOLUM~acfda309!drop-31	DEFINE ALERT MY_DB.MY_SCHEMA.ALRT_CHECK_ORDER_VOLUME WAREHOUSE = 'MY_WH' SCHEDULE = '60 MINUTE' STARTED IF(EXISTS(SELECT 1 FROM MY_DB.MY_SCHEMA.ORDERS WHERE ORDER_COUNT > 1000) THEN CALL SYSTEM$SEND_EMAIL('my_notification_integration', 'ops@example.com', 'High order volume', 'Order volume exceeded 1000 orders.')
-reject	undocumented	docs	createAlert/DEFINE_ALERT_MY_DB_._MY_SCHEMA_._ALRT_CHECK_ORDER_VOLUM~acfda309!drop-33	DEFINE ALERT MY_DB.MY_SCHEMA.ALRT_CHECK_ORDER_VOLUME WAREHOUSE = 'MY_WH' SCHEDULE = '60 MINUTE' STARTED IF(EXISTS(SELECT 1 FROM MY_DB.MY_SCHEMA.ORDERS WHERE ORDER_COUNT > 1000)) CALL SYSTEM$SEND_EMAIL('my_notification_integration', 'ops@example.com', 'High order volume', 'Order volume exceeded 1000 orders.')
-reject	undocumented	docs	createAlert/DEFINE_ALERT_MY_DB_._MY_SCHEMA_._ALRT_CHECK_ORDER_VOLUM~acfda309!drop-34	DEFINE ALERT MY_DB.MY_SCHEMA.ALRT_CHECK_ORDER_VOLUME WAREHOUSE = 'MY_WH' SCHEDULE = '60 MINUTE' STARTED IF(EXISTS(SELECT 1 FROM MY_DB.MY_SCHEMA.ORDERS WHERE ORDER_COUNT > 1000)) THEN SYSTEM$SEND_EMAIL('my_notification_integration', 'ops@example.com', 'High order volume', 'Order volume exceeded 1000 orders.')
-reject	undocumented	docs	createAlert/DEFINE_ALERT_MY_DB_._MY_SCHEMA_._ALRT_CHECK_ORDER_VOLUM~acfda309!drop-35	DEFINE ALERT MY_DB.MY_SCHEMA.ALRT_CHECK_ORDER_VOLUME WAREHOUSE = 'MY_WH' SCHEDULE = '60 MINUTE' STARTED IF(EXISTS(SELECT 1 FROM MY_DB.MY_SCHEMA.ORDERS WHERE ORDER_COUNT > 1000)) THEN CALL('my_notification_integration', 'ops@example.com', 'High order volume', 'Order volume exceeded 1000 orders.')
-reject	undocumented	docs	createAlert/DEFINE_ALERT_MY_DB_._MY_SCHEMA_._ALRT_CHECK_ORDER_VOLUM~acfda309!drop-36	DEFINE ALERT MY_DB.MY_SCHEMA.ALRT_CHECK_ORDER_VOLUME WAREHOUSE = 'MY_WH' SCHEDULE = '60 MINUTE' STARTED IF(EXISTS(SELECT 1 FROM MY_DB.MY_SCHEMA.ORDERS WHERE ORDER_COUNT > 1000)) THEN CALL SYSTEM$SEND_EMAIL 'my_notification_integration', 'ops@example.com', 'High order volume', 'Order volume exceeded 1000 orders.')
-reject	undocumented	docs	createAlert/DEFINE_ALERT_MY_DB_._MY_SCHEMA_._ALRT_CHECK_ORDER_VOLUM~acfda309!drop-37	DEFINE ALERT MY_DB.MY_SCHEMA.ALRT_CHECK_ORDER_VOLUME WAREHOUSE = 'MY_WH' SCHEDULE = '60 MINUTE' STARTED IF(EXISTS(SELECT 1 FROM MY_DB.MY_SCHEMA.ORDERS WHERE ORDER_COUNT > 1000)) THEN CALL SYSTEM$SEND_EMAIL(, 'ops@example.com', 'High order volume', 'Order volume exceeded 1000 orders.')
-reject	undocumented	docs	createAlert/DEFINE_ALERT_MY_DB_._MY_SCHEMA_._ALRT_CHECK_ORDER_VOLUM~acfda309!drop-38	DEFINE ALERT MY_DB.MY_SCHEMA.ALRT_CHECK_ORDER_VOLUME WAREHOUSE = 'MY_WH' SCHEDULE = '60 MINUTE' STARTED IF(EXISTS(SELECT 1 FROM MY_DB.MY_SCHEMA.ORDERS WHERE ORDER_COUNT > 1000)) THEN CALL SYSTEM$SEND_EMAIL('my_notification_integration' 'ops@example.com', 'High order volume', 'Order volume exceeded 1000 orders.')
-reject	undocumented	docs	createAlert/DEFINE_ALERT_MY_DB_._MY_SCHEMA_._ALRT_CHECK_ORDER_VOLUM~acfda309!drop-39	DEFINE ALERT MY_DB.MY_SCHEMA.ALRT_CHECK_ORDER_VOLUME WAREHOUSE = 'MY_WH' SCHEDULE = '60 MINUTE' STARTED IF(EXISTS(SELECT 1 FROM MY_DB.MY_SCHEMA.ORDERS WHERE ORDER_COUNT > 1000)) THEN CALL SYSTEM$SEND_EMAIL('my_notification_integration',, 'High order volume', 'Order volume exceeded 1000 orders.')
-reject	undocumented	docs	createAlert/DEFINE_ALERT_MY_DB_._MY_SCHEMA_._ALRT_CHECK_ORDER_VOLUM~acfda309!drop-40	DEFINE ALERT MY_DB.MY_SCHEMA.ALRT_CHECK_ORDER_VOLUME WAREHOUSE = 'MY_WH' SCHEDULE = '60 MINUTE' STARTED IF(EXISTS(SELECT 1 FROM MY_DB.MY_SCHEMA.ORDERS WHERE ORDER_COUNT > 1000)) THEN CALL SYSTEM$SEND_EMAIL('my_notification_integration', 'ops@example.com' 'High order volume', 'Order volume exceeded 1000 orders.')
-reject	undocumented	docs	createAlert/DEFINE_ALERT_MY_DB_._MY_SCHEMA_._ALRT_CHECK_ORDER_VOLUM~acfda309!drop-41	DEFINE ALERT MY_DB.MY_SCHEMA.ALRT_CHECK_ORDER_VOLUME WAREHOUSE = 'MY_WH' SCHEDULE = '60 MINUTE' STARTED IF(EXISTS(SELECT 1 FROM MY_DB.MY_SCHEMA.ORDERS WHERE ORDER_COUNT > 1000)) THEN CALL SYSTEM$SEND_EMAIL('my_notification_integration', 'ops@example.com',, 'Order volume exceeded 1000 orders.')
-reject	undocumented	docs	createAlert/DEFINE_ALERT_MY_DB_._MY_SCHEMA_._ALRT_CHECK_ORDER_VOLUM~acfda309!drop-42	DEFINE ALERT MY_DB.MY_SCHEMA.ALRT_CHECK_ORDER_VOLUME WAREHOUSE = 'MY_WH' SCHEDULE = '60 MINUTE' STARTED IF(EXISTS(SELECT 1 FROM MY_DB.MY_SCHEMA.ORDERS WHERE ORDER_COUNT > 1000)) THEN CALL SYSTEM$SEND_EMAIL('my_notification_integration', 'ops@example.com', 'High order volume' 'Order volume exceeded 1000 orders.')
-reject	undocumented	docs	createAlert/DEFINE_ALERT_MY_DB_._MY_SCHEMA_._ALRT_CHECK_ORDER_VOLUM~acfda309!drop-43	DEFINE ALERT MY_DB.MY_SCHEMA.ALRT_CHECK_ORDER_VOLUME WAREHOUSE = 'MY_WH' SCHEDULE = '60 MINUTE' STARTED IF(EXISTS(SELECT 1 FROM MY_DB.MY_SCHEMA.ORDERS WHERE ORDER_COUNT > 1000)) THEN CALL SYSTEM$SEND_EMAIL('my_notification_integration', 'ops@example.com', 'High order volume',)
-reject	undocumented	docs	createAlert/DEFINE_ALERT_MY_DB_._MY_SCHEMA_._ALRT_CHECK_ORDER_VOLUM~acfda309!drop-44	DEFINE ALERT MY_DB.MY_SCHEMA.ALRT_CHECK_ORDER_VOLUME WAREHOUSE = 'MY_WH' SCHEDULE = '60 MINUTE' STARTED IF(EXISTS(SELECT 1 FROM MY_DB.MY_SCHEMA.ORDERS WHERE ORDER_COUNT > 1000)) THEN CALL SYSTEM$SEND_EMAIL('my_notification_integration', 'ops@example.com', 'High order volume', 'Order volume exceeded 1000 orders.'
-reject	undocumented	docs	createAlert/DEFINE_ALERT_MY_DB_._MY_SCHEMA_._ALRT_CHECK_ORDER_VOLUM~acfda309!insert	DEFINE ALERT MY_DB.MY_SCHEMA.ALRT_CHECK_ORDER_VOLUME WAREHOUSE = 'MY_WH' SCHEDULE = '60 MINUTE' STARTED IF(EXISTS(SELECT 1 FROM MY_DB.MY_SCHEMA.ORDERS WHERE ORDER_COUNT > 1000)) THEN CALL SYSTEM$SEND_EMAIL('my_notification_integration', 'ops@example.com', 'High order volume', 'Order volume exceeded 1000 orders.') zzz
-reject	undocumented	docs	createAlert/DEFINE_ALERT_MY_DB_._MY_SCHEMA_._ALRT_CHECK_ORDER_VOLUM~acfda309!swap	DEFINITION ALERT MY_DB.MY_SCHEMA.ALRT_CHECK_ORDER_VOLUME WAREHOUSE = 'MY_WH' SCHEDULE = '60 MINUTE' STARTED IF(EXISTS(SELECT 1 FROM MY_DB.MY_SCHEMA.ORDERS WHERE ORDER_COUNT > 1000)) THEN CALL SYSTEM$SEND_EMAIL('my_notification_integration', 'ops@example.com', 'High order volume', 'Order volume exceeded 1000 orders.')
-reject	accept	docs	createAlert/CREATE_(OR_REPLACE)?_ALERT_ID_CLONE_(ID)+	CREATE ALERT a CLONE a
+reject	accept	docs	createAlert/CREATE_(OR_REPLACE)?_ALERT_ID_CLONE_ID	CREATE ALERT a CLONE a
 reject	accept	docs	createAlert/CREATE_(OR_REPLACE)?_ALERT_(IF_NOT_EXISTS)?_ID_FROM_TEM~bb875e61	CREATE ALERT a FROM TEMPLATE a
 reject	undocumented	docs	createAlert/CREATE_(OR_REPLACE)?_ALERT_(IF_NOT_EXISTS)?_ID_FROM_TEM~bb875e61!drop-1	ALERT a FROM TEMPLATE a
 reject	undocumented	docs	createAlert/CREATE_(OR_REPLACE)?_ALERT_(IF_NOT_EXISTS)?_ID_FROM_TEM~bb875e61!drop-2	CREATE a FROM TEMPLATE a
@@ -30948,9 +30913,6 @@ reject	undocumented	docs	createAlert(SUSPEND_ALERT_AFTER_NUM_FAILURES_=_NUMBER)?
 reject	undocumented	docs	createAlert(SUSPEND_ALERT_AFTER_NUM_FAILURES_=_NUMBER)?/SUSPEND_ALERT_AFTER_NUM_FAILURES_=_NUMBER!drop-3	CREATE ALERT a FROM TEMPLATE a SUSPEND_ALERT_AFTER_NUM_FAILURES =
 reject	undocumented	docs	createAlert(SUSPEND_ALERT_AFTER_NUM_FAILURES_=_NUMBER)?/SUSPEND_ALERT_AFTER_NUM_FAILURES_=_NUMBER!insert	CREATE ALERT a FROM TEMPLATE a SUSPEND_ALERT_AFTER_NUM_FAILURES = 1 zzz
 reject	undocumented	docs	createAlert(SUSPEND_ALERT_AFTER_NUM_FAILURES_=_NUMBER)?/SUSPEND_ALERT_AFTER_NUM_FAILURES_=_NUMBER!swap	CREATE ALERT a FROM TEMPLATE a SUSPEND_IMMEDIATE = 1
-reject	accept	docs	createAlert(ID)+/ID	CREATE ALERT a CLONE a
-reject	accept	docs	createAlert(ID)+/ID_(ID)+	CREATE ALERT a CLONE a a
-reject	accept	docs	createAlert(ID)+/ID_(ID)+!insert	CREATE ALERT a CLONE a a zzz
 reject	accept	docs	createAlert(TEMPLATE_PARAMS_=_STRING)?/%empty	CREATE ALERT a FROM TEMPLATE a
 reject	accept	docs	createAlert(TEMPLATE_PARAMS_=_STRING)?/TEMPLATE_PARAMS_=_STRING	CREATE ALERT a FROM TEMPLATE a TEMPLATE_PARAMS = 's'
 reject	undocumented	docs	createAlert(TEMPLATE_PARAMS_=_STRING)?/TEMPLATE_PARAMS_=_STRING!drop-2	CREATE ALERT a FROM TEMPLATE a TEMPLATE_PARAMS 's'
@@ -31356,7 +31318,7 @@ reject	accept	docs	createApplication(QA|ALPHA|DEFAULT)/QA	CREATE APPLICATION a F
 reject	undocumented	docs	createApplication(QA|ALPHA|DEFAULT)/QA!swap	CREATE APPLICATION a FROM LISTING a USING RELEASE CHANNEL QUERIES
 reject	accept	docs	createApplication(QA|ALPHA|DEFAULT)/ALPHA	CREATE APPLICATION a FROM LISTING a USING RELEASE CHANNEL ALPHA
 reject	undocumented	docs	createApplication(QA|ALPHA|DEFAULT)/ALPHA!insert	CREATE APPLICATION a FROM LISTING a USING RELEASE CHANNEL ALPHA zzz
-reject	undocumented	docs	createApplication(QA|ALPHA|DEFAULT)/ALPHA!swap	CREATE APPLICATION a FROM LISTING a USING RELEASE CHANNEL ALRT_CHECK_ORDER_VOLUME
+reject	undocumented	docs	createApplication(QA|ALPHA|DEFAULT)/ALPHA!swap	CREATE APPLICATION a FROM LISTING a USING RELEASE CHANNEL ALTER
 reject	accept	docs	createApplication(QA|ALPHA|DEFAULT)/DEFAULT	CREATE APPLICATION a FROM LISTING a USING RELEASE CHANNEL DEFAULT
 reject	undocumented	docs	createApplication(QA|ALPHA|DEFAULT)/DEFAULT!insert	CREATE APPLICATION a FROM LISTING a USING RELEASE CHANNEL DEFAULT zzz
 reject	undocumented	docs	createApplication(QA|ALPHA|DEFAULT)/DEFAULT!swap	CREATE APPLICATION a FROM LISTING a USING RELEASE CHANNEL DEFAULT_DBT_VERSION
@@ -33423,13 +33385,13 @@ reject	undocumented	docs	createDatabase/CREATE_OR_ALTER_(TRANSIENT)?_DATABASE_ID
 reject	undocumented	docs	createDatabase/CREATE_OR_ALTER_(TRANSIENT)?_DATABASE_ID_(DATA_RETENTIO~96bde72b!drop-5	CREATE OR ALTER DATABASE
 reject	undocumented	docs	createDatabase/CREATE_OR_ALTER_(TRANSIENT)?_DATABASE_ID_(DATA_RETENTIO~96bde72b!insert	CREATE OR ALTER DATABASE a zzz
 reject	undocumented	docs	createDatabase/CREATE_OR_ALTER_(TRANSIENT)?_DATABASE_ID_(DATA_RETENTIO~96bde72b!swap	CREATION OR ALTER DATABASE a
-accept	accept	docs	createDatabase/CREATE_(OR_REPLACE)?_DATABASE_(IF_NOT_EXISTS)?_ID_CLONE_(ID)+	CREATE DATABASE a CLONE a
-reject	undocumented	docs	createDatabase/CREATE_(OR_REPLACE)?_DATABASE_(IF_NOT_EXISTS)?_ID_CLONE_(ID)+!drop-1	DATABASE a CLONE a
-reject	undocumented	docs	createDatabase/CREATE_(OR_REPLACE)?_DATABASE_(IF_NOT_EXISTS)?_ID_CLONE_(ID)+!drop-3	CREATE DATABASE CLONE a
-reject	undocumented	docs	createDatabase/CREATE_(OR_REPLACE)?_DATABASE_(IF_NOT_EXISTS)?_ID_CLONE_(ID)+!drop-4	CREATE DATABASE a a
-reject	undocumented	docs	createDatabase/CREATE_(OR_REPLACE)?_DATABASE_(IF_NOT_EXISTS)?_ID_CLONE_(ID)+!drop-5	CREATE DATABASE a CLONE
-reject	accept	docs	createDatabase/CREATE_(OR_REPLACE)?_DATABASE_(IF_NOT_EXISTS)?_ID_CLONE_(ID)+!insert	CREATE DATABASE a CLONE a zzz
-reject	undocumented	docs	createDatabase/CREATE_(OR_REPLACE)?_DATABASE_(IF_NOT_EXISTS)?_ID_CLONE_(ID)+!swap	CREATION DATABASE a CLONE a
+accept	accept	docs	createDatabase/CREATE_(OR_REPLACE)?_DATABASE_(IF_NOT_EXISTS)?_ID_CLONE_ID	CREATE DATABASE a CLONE a
+reject	undocumented	docs	createDatabase/CREATE_(OR_REPLACE)?_DATABASE_(IF_NOT_EXISTS)?_ID_CLONE_ID!drop-1	DATABASE a CLONE a
+reject	undocumented	docs	createDatabase/CREATE_(OR_REPLACE)?_DATABASE_(IF_NOT_EXISTS)?_ID_CLONE_ID!drop-3	CREATE DATABASE CLONE a
+reject	undocumented	docs	createDatabase/CREATE_(OR_REPLACE)?_DATABASE_(IF_NOT_EXISTS)?_ID_CLONE_ID!drop-4	CREATE DATABASE a a
+reject	undocumented	docs	createDatabase/CREATE_(OR_REPLACE)?_DATABASE_(IF_NOT_EXISTS)?_ID_CLONE_ID!drop-5	CREATE DATABASE a CLONE
+reject	undocumented	docs	createDatabase/CREATE_(OR_REPLACE)?_DATABASE_(IF_NOT_EXISTS)?_ID_CLONE_ID!insert	CREATE DATABASE a CLONE a zzz
+reject	undocumented	docs	createDatabase/CREATE_(OR_REPLACE)?_DATABASE_(IF_NOT_EXISTS)?_ID_CLONE_ID!swap	CREATION DATABASE a CLONE a
 accept	accept	docs	createDatabase(OR_REPLACE)?/%empty	CREATE DATABASE a
 reject	undocumented	docs	createDatabase(OR_REPLACE)?/%empty!insert	CREATE zzz DATABASE a
 accept	accept	docs	createDatabase(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE DATABASE a
@@ -33489,7 +33451,7 @@ accept	accept	docs	createDatabase(IGNORE_TABLES_WITH_INSUFFICIENT_DATA~f5b37699)
 reject	accept	docs	createDatabase(IGNORE_TABLES_WITH_INSUFFICIENT_DATA~f5b37699)?/IGNORE_TABLES_WITH_INSUFFICIENT_DATA_RETENTION	CREATE DATABASE a CLONE a IGNORE TABLES WITH INSUFFICIENT DATA RETENTION
 reject	undocumented	docs	createDatabase(IGNORE_TABLES_WITH_INSUFFICIENT_DATA~f5b37699)?/IGNORE_TABLES_WITH_INSUFFICIENT_DATA_RETENTION!drop-1	CREATE DATABASE a CLONE a TABLES WITH INSUFFICIENT DATA RETENTION
 reject	undocumented	docs	createDatabase(IGNORE_TABLES_WITH_INSUFFICIENT_DATA~f5b37699)?/IGNORE_TABLES_WITH_INSUFFICIENT_DATA_RETENTION!drop-2	CREATE DATABASE a CLONE a IGNORE WITH INSUFFICIENT DATA RETENTION
-reject	accept	docs	createDatabase(IGNORE_TABLES_WITH_INSUFFICIENT_DATA~f5b37699)?/IGNORE_TABLES_WITH_INSUFFICIENT_DATA_RETENTION!drop-3	CREATE DATABASE a CLONE a IGNORE TABLES INSUFFICIENT DATA RETENTION
+reject	undocumented	docs	createDatabase(IGNORE_TABLES_WITH_INSUFFICIENT_DATA~f5b37699)?/IGNORE_TABLES_WITH_INSUFFICIENT_DATA_RETENTION!drop-3	CREATE DATABASE a CLONE a IGNORE TABLES INSUFFICIENT DATA RETENTION
 reject	undocumented	docs	createDatabase(IGNORE_TABLES_WITH_INSUFFICIENT_DATA~f5b37699)?/IGNORE_TABLES_WITH_INSUFFICIENT_DATA_RETENTION!drop-4	CREATE DATABASE a CLONE a IGNORE TABLES WITH DATA RETENTION
 reject	undocumented	docs	createDatabase(IGNORE_TABLES_WITH_INSUFFICIENT_DATA~f5b37699)?/IGNORE_TABLES_WITH_INSUFFICIENT_DATA_RETENTION!drop-5	CREATE DATABASE a CLONE a IGNORE TABLES WITH INSUFFICIENT RETENTION
 reject	undocumented	docs	createDatabase(IGNORE_TABLES_WITH_INSUFFICIENT_DATA~f5b37699)?/IGNORE_TABLES_WITH_INSUFFICIENT_DATA_RETENTION!drop-6	CREATE DATABASE a CLONE a IGNORE TABLES WITH INSUFFICIENT DATA
@@ -33497,11 +33459,11 @@ reject	undocumented	docs	createDatabase(IGNORE_TABLES_WITH_INSUFFICIENT_DATA~f5b
 reject	undocumented	docs	createDatabase(IGNORE_TABLES_WITH_INSUFFICIENT_DATA~f5b37699)?/IGNORE_TABLES_WITH_INSUFFICIENT_DATA_RETENTION!swap	CREATE DATABASE a CLONE a IGNORE_NESTED_NAMESPACE TABLES WITH INSUFFICIENT DATA RETENTION
 accept	accept	docs	createDatabase(IGNORE_HYBRID_TABLES)?/%empty	CREATE DATABASE a CLONE a
 reject	accept	docs	createDatabase(IGNORE_HYBRID_TABLES)?/IGNORE_HYBRID_TABLES	CREATE DATABASE a CLONE a IGNORE HYBRID TABLES
-reject	accept	docs	createDatabase(IGNORE_HYBRID_TABLES)?/IGNORE_HYBRID_TABLES!drop-1	CREATE DATABASE a CLONE a HYBRID TABLES
-reject	accept	docs	createDatabase(IGNORE_HYBRID_TABLES)?/IGNORE_HYBRID_TABLES!drop-2	CREATE DATABASE a CLONE a IGNORE TABLES
-reject	accept	docs	createDatabase(IGNORE_HYBRID_TABLES)?/IGNORE_HYBRID_TABLES!drop-3	CREATE DATABASE a CLONE a IGNORE HYBRID
-reject	accept	docs	createDatabase(IGNORE_HYBRID_TABLES)?/IGNORE_HYBRID_TABLES!insert	CREATE DATABASE a CLONE a IGNORE HYBRID TABLES zzz
-reject	accept	docs	createDatabase(IGNORE_HYBRID_TABLES)?/IGNORE_HYBRID_TABLES!swap	CREATE DATABASE a CLONE a IGNORE_NESTED_NAMESPACE HYBRID TABLES
+reject	undocumented	docs	createDatabase(IGNORE_HYBRID_TABLES)?/IGNORE_HYBRID_TABLES!drop-1	CREATE DATABASE a CLONE a HYBRID TABLES
+reject	undocumented	docs	createDatabase(IGNORE_HYBRID_TABLES)?/IGNORE_HYBRID_TABLES!drop-2	CREATE DATABASE a CLONE a IGNORE TABLES
+reject	undocumented	docs	createDatabase(IGNORE_HYBRID_TABLES)?/IGNORE_HYBRID_TABLES!drop-3	CREATE DATABASE a CLONE a IGNORE HYBRID
+reject	undocumented	docs	createDatabase(IGNORE_HYBRID_TABLES)?/IGNORE_HYBRID_TABLES!insert	CREATE DATABASE a CLONE a IGNORE HYBRID TABLES zzz
+reject	undocumented	docs	createDatabase(IGNORE_HYBRID_TABLES)?/IGNORE_HYBRID_TABLES!swap	CREATE DATABASE a CLONE a IGNORE_NESTED_NAMESPACE HYBRID TABLES
 accept	accept	docs	createDatabase(DATA_RETENTION_TIME_IN_DAYS_=_NUMBER)?/%empty	CREATE DATABASE a
 accept	accept	docs	createDatabase(DATA_RETENTION_TIME_IN_DAYS_=_NUMBER)?/DATA_RETENTION_TIME_IN_DAYS_=_NUMBER	CREATE DATABASE a DATA_RETENTION_TIME_IN_DAYS = 1
 reject	undocumented	docs	createDatabase(DATA_RETENTION_TIME_IN_DAYS_=_NUMBER)?/DATA_RETENTION_TIME_IN_DAYS_=_NUMBER!drop-1	CREATE DATABASE a = 1
@@ -33715,9 +33677,6 @@ reject	undocumented	docs	createDatabase(TRACE_LEVEL_=_STRING)?/TRACE_LEVEL_=_STR
 reject	undocumented	docs	createDatabase(TRACE_LEVEL_=_STRING)?/TRACE_LEVEL_=_STRING!drop-3	CREATE OR ALTER DATABASE a TRACE_LEVEL =
 reject	undocumented	docs	createDatabase(TRACE_LEVEL_=_STRING)?/TRACE_LEVEL_=_STRING!insert	CREATE OR ALTER DATABASE a TRACE_LEVEL = 's' zzz
 reject	undocumented	docs	createDatabase(TRACE_LEVEL_=_STRING)?/TRACE_LEVEL_=_STRING!swap	CREATE OR ALTER DATABASE a TRANSACTION = 's'
-accept	accept	docs	createDatabase(ID)+/ID	CREATE DATABASE a CLONE a
-reject	accept	docs	createDatabase(ID)+/ID_(ID)+	CREATE DATABASE a CLONE a a
-reject	accept	docs	createDatabase(ID)+/ID_(ID)+!insert	CREATE DATABASE a CLONE a a zzz
 reject	accept	docs	createDatabaseCatalogLinked/CREATE_DATABASE_ID_LINKED_CATALOG_=_(_createDatabaseCat~85668394	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's')
 reject	accept	docs	createDatabaseCatalogLinked(EXTERNAL_VOLUME_=_STRING)?/%empty	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's')
 reject	accept	docs	createDatabaseCatalogLinked(EXTERNAL_VOLUME_=_STRING)?/EXTERNAL_VOLUME_=_STRING	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') EXTERNAL_VOLUME = 's'
@@ -34434,7 +34393,7 @@ reject	undocumented	docs	createDynamicTable(START_AT_(_(STREAM_=>_STRING|TIMESTA
 reject	undocumented	docs	createDynamicTable(START_AT_(_(STREAM_=>_STRING|TIMESTA~624933f7)?/START_AT_(_(STREAM_=>_STRING|TIMESTAMP_=>_STRING~99e06dae)_)!drop-7	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(STREAM => 's' AS SELECT 1
 reject	undocumented	docs	createDynamicTable(START_AT_(_(STREAM_=>_STRING|TIMESTA~624933f7)?/START_AT_(_(STREAM_=>_STRING|TIMESTAMP_=>_STRING~99e06dae)_)!truncate	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(STREAM => 's'
 reject	undocumented	docs	createDynamicTable(START_AT_(_(STREAM_=>_STRING|TIMESTA~624933f7)?/START_AT_(_(STREAM_=>_STRING|TIMESTAMP_=>_STRING~99e06dae)_)!insert	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(STREAM => 's') zzz AS SELECT 1
-reject	undocumented	docs	createDynamicTable(START_AT_(_(STREAM_=>_STRING|TIMESTA~624933f7)?/START_AT_(_(STREAM_=>_STRING|TIMESTAMP_=>_STRING~99e06dae)_)!swap	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a STARTED AT(STREAM => 's') AS SELECT 1
+reject	undocumented	docs	createDynamicTable(START_AT_(_(STREAM_=>_STRING|TIMESTA~624933f7)?/START_AT_(_(STREAM_=>_STRING|TIMESTAMP_=>_STRING~99e06dae)_)!swap	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a STARTS AT(STREAM => 's') AS SELECT 1
 reject	accept	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~99e06dae)/STREAM_=>_STRING	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(STREAM => 's') AS SELECT 1
 reject	undocumented	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~99e06dae)/STREAM_=>_STRING!truncate	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(STREAM =>
 reject	undocumented	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~99e06dae)/STREAM_=>_STRING!insert	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(STREAM => 's' zzz) AS SELECT 1
@@ -34717,7 +34676,7 @@ reject	undocumented	docs	createDynamicTable_partitionExpression/HOUR_(_ID_)!trun
 reject	undocumented	docs	createDynamicTable_partitionExpression/HOUR_(_ID_)!insert	CREATE DYNAMIC ICEBERG TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a PARTITION BY(HOUR(a) zzz) AS SELECT 1
 reject	undocumented	docs	createDynamicTable_partitionExpression/HOUR_(_ID_)!swap	CREATE DYNAMIC ICEBERG TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a PARTITION BY(HOURS(a)) AS SELECT 1
 accept	accept	docs	createEventTable/CREATE_(OR_REPLACE)?_EVENT_TABLE_(IF_NOT_EXISTS)?_ID_(C~d5d08663	CREATE EVENT TABLE a
-accept	accept	docs	createEventTable/CREATE_(OR_REPLACE)?_EVENT_TABLE_(IF_NOT_EXISTS)?_ID_CL~8f67e43d	CREATE EVENT TABLE a CLONE a
+accept	accept	docs	createEventTable/CREATE_(OR_REPLACE)?_EVENT_TABLE_(IF_NOT_EXISTS)?_ID_CL~818a8345	CREATE EVENT TABLE a CLONE a
 accept	accept	docs	createEventTable(OR_REPLACE)?/%empty	CREATE EVENT TABLE a
 reject	undocumented	docs	createEventTable(OR_REPLACE)?/%empty!insert	CREATE zzz EVENT TABLE a
 accept	accept	docs	createEventTable(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE EVENT TABLE a
@@ -34899,12 +34858,6 @@ reject	undocumented	docs	createEventTable(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1
 reject	undocumented	docs	createEventTable(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)/STATEMENT_=>_STRING!truncate	CREATE EVENT TABLE a CLONE a AT(STATEMENT =>
 reject	undocumented	docs	createEventTable(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)/STATEMENT_=>_STRING!insert	CREATE EVENT TABLE a CLONE a AT(STATEMENT => 's' zzz)
 reject	undocumented	docs	createEventTable(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)/STATEMENT_=>_STRING!swap	CREATE EVENT TABLE a CLONE a AT(STATEMENT_QUEUED_TIMEOUT_IN_SECONDS => 's')
-accept	accept	docs	createEventTable(COPY_GRANTS)*/%empty	CREATE EVENT TABLE a CLONE a
-accept	accept	docs	createEventTable(COPY_GRANTS)*/COPY_GRANTS_(COPY_GRANTS)*	CREATE EVENT TABLE a CLONE a COPY GRANTS
-accept	undocumented	docs	createEventTable(COPY_GRANTS)*/COPY_GRANTS_(COPY_GRANTS)*!drop-1	CREATE EVENT TABLE a CLONE a GRANTS
-reject	undocumented	docs	createEventTable(COPY_GRANTS)*/COPY_GRANTS_(COPY_GRANTS)*!drop-2	CREATE EVENT TABLE a CLONE a COPY
-accept	undocumented	docs	createEventTable(COPY_GRANTS)*/COPY_GRANTS_(COPY_GRANTS)*!insert	CREATE EVENT TABLE a CLONE a COPY GRANTS zzz
-accept	undocumented	docs	createEventTable(COPY_GRANTS)*/COPY_GRANTS_(COPY_GRANTS)*!swap	CREATE EVENT TABLE a CLONE a CORE GRANTS
 reject	accept	docs	createExperiment/CREATE_(OR_REPLACE)?_EXPERIMENT_(IF_NOT_EXISTS)?_ID	CREATE EXPERIMENT a
 reject	accept	docs	createExperiment(OR_REPLACE)?/%empty	CREATE EXPERIMENT a
 reject	undocumented	docs	createExperiment(OR_REPLACE)?/%empty!insert	CREATE zzz EXPERIMENT a
@@ -35620,7 +35573,7 @@ reject	undocumented	docs	createExternalTable_inlineConstraint(INITIALLY_(DEFERRE
 reject	undocumented	docs	createExternalTable_inlineConstraint(INITIALLY_(DEFERRED|IMMEDIATE))?/INITIALLY_(DEFERRED|IMMEDIATE)!insert	CREATE EXTERNAL TABLE a(a INT AS 1 UNIQUE INITIALLY DEFERRED zzz) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable_inlineConstraint(INITIALLY_(DEFERRED|IMMEDIATE))?/INITIALLY_(DEFERRED|IMMEDIATE)!swap	CREATE EXTERNAL TABLE a(a INT AS 1 UNIQUE INITIALLY_SUSPENDED DEFERRED) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 accept	accept	docs	createExternalTable_inlineConstraint(DEFERRED|IMMEDIATE)/DEFERRED	CREATE EXTERNAL TABLE a(a INT AS 1 UNIQUE INITIALLY DEFERRED) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-reject	undocumented	docs	createExternalTable_inlineConstraint(DEFERRED|IMMEDIATE)/DEFERRED!swap	CREATE EXTERNAL TABLE a(a INT AS 1 UNIQUE INITIALLY DEFINE) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
+reject	undocumented	docs	createExternalTable_inlineConstraint(DEFERRED|IMMEDIATE)/DEFERRED!swap	CREATE EXTERNAL TABLE a(a INT AS 1 UNIQUE INITIALLY DEFINITION) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 accept	accept	docs	createExternalTable_inlineConstraint(DEFERRED|IMMEDIATE)/IMMEDIATE	CREATE EXTERNAL TABLE a(a INT AS 1 UNIQUE INITIALLY IMMEDIATE) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable_inlineConstraint(DEFERRED|IMMEDIATE)/IMMEDIATE!insert	CREATE EXTERNAL TABLE a(a INT AS 1 UNIQUE INITIALLY IMMEDIATE zzz) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable_inlineConstraint(DEFERRED|IMMEDIATE)/IMMEDIATE!swap	CREATE EXTERNAL TABLE a(a INT AS 1 UNIQUE INITIALLY IMMEDIATELY) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
@@ -37527,7 +37480,7 @@ reject	undocumented	docs	createHybridTable(((_NUMBER_,_NUMBER_)|START_NUMBER_IN~
 reject	undocumented	docs	createHybridTable(((_NUMBER_,_NUMBER_)|START_NUMBER_IN~456159f4)?/((_NUMBER_,_NUMBER_)|START_NUMBER_INC~f83f6f53)!drop-4	CREATE HYBRID TABLE a(a INT AUTOINCREMENT START 1 INCREMENT)
 reject	undocumented	docs	createHybridTable(((_NUMBER_,_NUMBER_)|START_NUMBER_IN~456159f4)?/((_NUMBER_,_NUMBER_)|START_NUMBER_INC~f83f6f53)!truncate	CREATE HYBRID TABLE a(a INT AUTOINCREMENT START 1 INCREMENT
 reject	undocumented	docs	createHybridTable(((_NUMBER_,_NUMBER_)|START_NUMBER_IN~456159f4)?/((_NUMBER_,_NUMBER_)|START_NUMBER_INC~f83f6f53)!insert	CREATE HYBRID TABLE a(a INT AUTOINCREMENT START 1 INCREMENT 1 zzz)
-reject	undocumented	docs	createHybridTable(((_NUMBER_,_NUMBER_)|START_NUMBER_IN~456159f4)?/((_NUMBER_,_NUMBER_)|START_NUMBER_INC~f83f6f53)!swap	CREATE HYBRID TABLE a(a INT AUTOINCREMENT STARTED 1 INCREMENT 1)
+reject	undocumented	docs	createHybridTable(((_NUMBER_,_NUMBER_)|START_NUMBER_IN~456159f4)?/((_NUMBER_,_NUMBER_)|START_NUMBER_INC~f83f6f53)!swap	CREATE HYBRID TABLE a(a INT AUTOINCREMENT STARTS 1 INCREMENT 1)
 accept	accept	docs	createHybridTable((_NUMBER_,_NUMBER_)|START_NUMBER_INC~f83f6f53)/(_NUMBER_,_NUMBER_)	CREATE HYBRID TABLE a(a INT AUTOINCREMENT(1, 1))
 reject	undocumented	docs	createHybridTable((_NUMBER_,_NUMBER_)|START_NUMBER_INC~f83f6f53)/(_NUMBER_,_NUMBER_)!drop-1	CREATE HYBRID TABLE a(a INT AUTOINCREMENT 1, 1))
 reject	undocumented	docs	createHybridTable((_NUMBER_,_NUMBER_)|START_NUMBER_INC~f83f6f53)/(_NUMBER_,_NUMBER_)!drop-2	CREATE HYBRID TABLE a(a INT AUTOINCREMENT(, 1))
@@ -37541,7 +37494,7 @@ accept	accept	docs	createHybridTable((ORDER|NOORDER))?/%empty	CREATE HYBRID TABL
 accept	accept	docs	createHybridTable((ORDER|NOORDER))?/(ORDER|NOORDER)	CREATE HYBRID TABLE a(a INT AUTOINCREMENT ORDER)
 reject	undocumented	docs	createHybridTable((ORDER|NOORDER))?/(ORDER|NOORDER)!truncate	CREATE HYBRID TABLE a(a INT AUTOINCREMENT
 reject	undocumented	docs	createHybridTable((ORDER|NOORDER))?/(ORDER|NOORDER)!insert	CREATE HYBRID TABLE a(a INT AUTOINCREMENT ORDER zzz)
-reject	undocumented	docs	createHybridTable((ORDER|NOORDER))?/(ORDER|NOORDER)!swap	CREATE HYBRID TABLE a(a INT AUTOINCREMENT ORDERS)
+reject	undocumented	docs	createHybridTable((ORDER|NOORDER))?/(ORDER|NOORDER)!swap	CREATE HYBRID TABLE a(a INT AUTOINCREMENT ORGANIZATION)
 accept	accept	docs	createHybridTable(ORDER|NOORDER)/ORDER	CREATE HYBRID TABLE a(a INT AUTOINCREMENT ORDER)
 accept	accept	docs	createHybridTable(ORDER|NOORDER)/NOORDER	CREATE HYBRID TABLE a(a INT AUTOINCREMENT NOORDER)
 reject	undocumented	docs	createHybridTable(ORDER|NOORDER)/NOORDER!insert	CREATE HYBRID TABLE a(a INT AUTOINCREMENT NOORDER zzz)
@@ -37726,7 +37679,7 @@ reject	undocumented	docs	createHybridTable_inlineConstraint(INITIALLY_(DEFERRED|
 reject	undocumented	docs	createHybridTable_inlineConstraint(INITIALLY_(DEFERRED|IMMEDIATE))?/INITIALLY_(DEFERRED|IMMEDIATE)!insert	CREATE HYBRID TABLE a(a INT UNIQUE INITIALLY DEFERRED zzz)
 reject	undocumented	docs	createHybridTable_inlineConstraint(INITIALLY_(DEFERRED|IMMEDIATE))?/INITIALLY_(DEFERRED|IMMEDIATE)!swap	CREATE HYBRID TABLE a(a INT UNIQUE INITIALLY_SUSPENDED DEFERRED)
 accept	accept	docs	createHybridTable_inlineConstraint(DEFERRED|IMMEDIATE)/DEFERRED	CREATE HYBRID TABLE a(a INT UNIQUE INITIALLY DEFERRED)
-reject	undocumented	docs	createHybridTable_inlineConstraint(DEFERRED|IMMEDIATE)/DEFERRED!swap	CREATE HYBRID TABLE a(a INT UNIQUE INITIALLY DEFINE)
+reject	undocumented	docs	createHybridTable_inlineConstraint(DEFERRED|IMMEDIATE)/DEFERRED!swap	CREATE HYBRID TABLE a(a INT UNIQUE INITIALLY DEFINITION)
 accept	accept	docs	createHybridTable_inlineConstraint(DEFERRED|IMMEDIATE)/IMMEDIATE	CREATE HYBRID TABLE a(a INT UNIQUE INITIALLY IMMEDIATE)
 reject	undocumented	docs	createHybridTable_inlineConstraint(DEFERRED|IMMEDIATE)/IMMEDIATE!insert	CREATE HYBRID TABLE a(a INT UNIQUE INITIALLY IMMEDIATE zzz)
 reject	undocumented	docs	createHybridTable_inlineConstraint(DEFERRED|IMMEDIATE)/IMMEDIATE!swap	CREATE HYBRID TABLE a(a INT UNIQUE INITIALLY IMMEDIATELY)
@@ -37886,7 +37839,7 @@ reject	undocumented	docs	createHybridTable_outoflineConstraint(INITIALLY_(DEFERR
 reject	undocumented	docs	createHybridTable_outoflineConstraint(INITIALLY_(DEFERRED|IMMEDIATE))?/INITIALLY_(DEFERRED|IMMEDIATE)!insert	CREATE HYBRID TABLE a(a INT, UNIQUE(a) INITIALLY DEFERRED zzz)
 reject	undocumented	docs	createHybridTable_outoflineConstraint(INITIALLY_(DEFERRED|IMMEDIATE))?/INITIALLY_(DEFERRED|IMMEDIATE)!swap	CREATE HYBRID TABLE a(a INT, UNIQUE(a) INITIALLY_SUSPENDED DEFERRED)
 accept	accept	docs	createHybridTable_outoflineConstraint(DEFERRED|IMMEDIATE)/DEFERRED	CREATE HYBRID TABLE a(a INT, UNIQUE(a) INITIALLY DEFERRED)
-reject	undocumented	docs	createHybridTable_outoflineConstraint(DEFERRED|IMMEDIATE)/DEFERRED!swap	CREATE HYBRID TABLE a(a INT, UNIQUE(a) INITIALLY DEFINE)
+reject	undocumented	docs	createHybridTable_outoflineConstraint(DEFERRED|IMMEDIATE)/DEFERRED!swap	CREATE HYBRID TABLE a(a INT, UNIQUE(a) INITIALLY DEFINITION)
 accept	accept	docs	createHybridTable_outoflineConstraint(DEFERRED|IMMEDIATE)/IMMEDIATE	CREATE HYBRID TABLE a(a INT, UNIQUE(a) INITIALLY IMMEDIATE)
 reject	undocumented	docs	createHybridTable_outoflineConstraint(DEFERRED|IMMEDIATE)/IMMEDIATE!insert	CREATE HYBRID TABLE a(a INT, UNIQUE(a) INITIALLY IMMEDIATE zzz)
 reject	undocumented	docs	createHybridTable_outoflineConstraint(DEFERRED|IMMEDIATE)/IMMEDIATE!swap	CREATE HYBRID TABLE a(a INT, UNIQUE(a) INITIALLY IMMEDIATELY)
@@ -37949,14 +37902,14 @@ reject	undocumented	docs	createIcebergTable/CREATE_(OR_REPLACE)?_(TRANSIENT)?_IC
 reject	undocumented	docs	createIcebergTable/CREATE_(OR_REPLACE)?_(TRANSIENT)?_ICEBERG_TABLE_(IF_NOT~fc3028e6!insert	CREATE ICEBERG TABLE a(a INT) zzz
 reject	undocumented	docs	createIcebergTable/CREATE_(OR_REPLACE)?_(TRANSIENT)?_ICEBERG_TABLE_(IF_NOT~fc3028e6!swap	CREATION ICEBERG TABLE a(a INT)
 reject	accept	docs	createIcebergTable/CREATE_(OR_REPLACE)?_(TRANSIENT)?_ICEBERG_TABLE_ID_((_I~896f7881	CREATE ICEBERG TABLE a AS SELECT 1
-reject	accept	docs	createIcebergTable/CREATE_(OR_REPLACE)?_(TRANSIENT)?_ICEBERG_TABLE_ID_LIKE~f768523b	CREATE ICEBERG TABLE a LIKE a
-reject	undocumented	docs	createIcebergTable/CREATE_(OR_REPLACE)?_(TRANSIENT)?_ICEBERG_TABLE_ID_LIKE~f768523b!drop-1	ICEBERG TABLE a LIKE a
-reject	undocumented	docs	createIcebergTable/CREATE_(OR_REPLACE)?_(TRANSIENT)?_ICEBERG_TABLE_ID_LIKE~f768523b!drop-3	CREATE ICEBERG a LIKE a
-reject	undocumented	docs	createIcebergTable/CREATE_(OR_REPLACE)?_(TRANSIENT)?_ICEBERG_TABLE_ID_LIKE~f768523b!drop-4	CREATE ICEBERG TABLE LIKE a
-reject	undocumented	docs	createIcebergTable/CREATE_(OR_REPLACE)?_(TRANSIENT)?_ICEBERG_TABLE_ID_LIKE~f768523b!drop-5	CREATE ICEBERG TABLE a a
-reject	undocumented	docs	createIcebergTable/CREATE_(OR_REPLACE)?_(TRANSIENT)?_ICEBERG_TABLE_ID_LIKE~f768523b!drop-6	CREATE ICEBERG TABLE a LIKE
-reject	undocumented	docs	createIcebergTable/CREATE_(OR_REPLACE)?_(TRANSIENT)?_ICEBERG_TABLE_ID_LIKE~f768523b!insert	CREATE ICEBERG TABLE a LIKE a zzz
-reject	undocumented	docs	createIcebergTable/CREATE_(OR_REPLACE)?_(TRANSIENT)?_ICEBERG_TABLE_ID_LIKE~f768523b!swap	CREATION ICEBERG TABLE a LIKE a
+reject	accept	docs	createIcebergTable/CREATE_(OR_REPLACE)?_(TRANSIENT)?_ICEBERG_TABLE_ID_LIKE~64250949	CREATE ICEBERG TABLE a LIKE a
+reject	undocumented	docs	createIcebergTable/CREATE_(OR_REPLACE)?_(TRANSIENT)?_ICEBERG_TABLE_ID_LIKE~64250949!drop-1	ICEBERG TABLE a LIKE a
+reject	undocumented	docs	createIcebergTable/CREATE_(OR_REPLACE)?_(TRANSIENT)?_ICEBERG_TABLE_ID_LIKE~64250949!drop-3	CREATE ICEBERG a LIKE a
+reject	undocumented	docs	createIcebergTable/CREATE_(OR_REPLACE)?_(TRANSIENT)?_ICEBERG_TABLE_ID_LIKE~64250949!drop-4	CREATE ICEBERG TABLE LIKE a
+reject	undocumented	docs	createIcebergTable/CREATE_(OR_REPLACE)?_(TRANSIENT)?_ICEBERG_TABLE_ID_LIKE~64250949!drop-5	CREATE ICEBERG TABLE a a
+reject	undocumented	docs	createIcebergTable/CREATE_(OR_REPLACE)?_(TRANSIENT)?_ICEBERG_TABLE_ID_LIKE~64250949!drop-6	CREATE ICEBERG TABLE a LIKE
+reject	undocumented	docs	createIcebergTable/CREATE_(OR_REPLACE)?_(TRANSIENT)?_ICEBERG_TABLE_ID_LIKE~64250949!insert	CREATE ICEBERG TABLE a LIKE a zzz
+reject	undocumented	docs	createIcebergTable/CREATE_(OR_REPLACE)?_(TRANSIENT)?_ICEBERG_TABLE_ID_LIKE~64250949!swap	CREATION ICEBERG TABLE a LIKE a
 reject	accept	docs	createIcebergTable/CREATE_(OR_REPLACE)?_ICEBERG_TABLE_(IF_NOT_EXISTS)?_ID_~f585f956	CREATE ICEBERG TABLE a CATALOG_TABLE_NAME = 's'
 reject	accept	docs	createIcebergTable/CREATE_(OR_REPLACE)?_ICEBERG_TABLE_(IF_NOT_EXISTS)?_ID_~5ad9c4b4	CREATE ICEBERG TABLE a
 reject	accept	docs	createIcebergTable/CREATE_(OR_REPLACE)?_ICEBERG_TABLE_(IF_NOT_EXISTS)?_ID_~ed06743f	CREATE ICEBERG TABLE a BASE_LOCATION = 's'
@@ -38364,15 +38317,6 @@ reject	undocumented	docs	createIcebergTable(ENABLE_ICEBERG_MERGE_ON_READ_=_(TRUE
 reject	undocumented	docs	createIcebergTable(ENABLE_ICEBERG_MERGE_ON_READ_=_(TRUE|FALSE))*/ENABLE_ICEBERG_MERGE_ON_READ_=_(TRUE|FALSE)_(ENABLE_ICE~bdc742e4!drop-3	CREATE ICEBERG TABLE a ENABLE_ICEBERG_MERGE_ON_READ = AS SELECT 1
 reject	undocumented	docs	createIcebergTable(ENABLE_ICEBERG_MERGE_ON_READ_=_(TRUE|FALSE))*/ENABLE_ICEBERG_MERGE_ON_READ_=_(TRUE|FALSE)_(ENABLE_ICE~bdc742e4!insert	CREATE ICEBERG TABLE a ENABLE_ICEBERG_MERGE_ON_READ = TRUE zzz AS SELECT 1
 reject	undocumented	docs	createIcebergTable(ENABLE_ICEBERG_MERGE_ON_READ_=_(TRUE|FALSE))*/ENABLE_ICEBERG_MERGE_ON_READ_=_(TRUE|FALSE)_(ENABLE_ICE~bdc742e4!swap	CREATE ICEBERG TABLE a ENABLE_INTERNAL_STAGES_PRIVATELINK = TRUE AS SELECT 1
-reject	accept	docs	createIcebergTable(COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(~5bbf3e9b)*/%empty	CREATE ICEBERG TABLE a LIKE a
-reject	accept	docs	createIcebergTable(COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(~5bbf3e9b)*/COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(COMMENTS|TAGS|GRANT~7e7a5727	CREATE ICEBERG TABLE a LIKE a COPY =(COMMENTS)
-reject	undocumented	docs	createIcebergTable(COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(~5bbf3e9b)*/COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(COMMENTS|TAGS|GRANT~7e7a5727!drop-1	CREATE ICEBERG TABLE a LIKE a =(COMMENTS)
-reject	undocumented	docs	createIcebergTable(COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(~5bbf3e9b)*/COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(COMMENTS|TAGS|GRANT~7e7a5727!drop-2	CREATE ICEBERG TABLE a LIKE a COPY(COMMENTS)
-reject	undocumented	docs	createIcebergTable(COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(~5bbf3e9b)*/COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(COMMENTS|TAGS|GRANT~7e7a5727!drop-3	CREATE ICEBERG TABLE a LIKE a COPY = COMMENTS)
-reject	undocumented	docs	createIcebergTable(COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(~5bbf3e9b)*/COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(COMMENTS|TAGS|GRANT~7e7a5727!drop-4	CREATE ICEBERG TABLE a LIKE a COPY =()
-reject	undocumented	docs	createIcebergTable(COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(~5bbf3e9b)*/COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(COMMENTS|TAGS|GRANT~7e7a5727!drop-5	CREATE ICEBERG TABLE a LIKE a COPY =(COMMENTS
-reject	undocumented	docs	createIcebergTable(COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(~5bbf3e9b)*/COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(COMMENTS|TAGS|GRANT~7e7a5727!insert	CREATE ICEBERG TABLE a LIKE a COPY =(COMMENTS) zzz
-reject	undocumented	docs	createIcebergTable(COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(~5bbf3e9b)*/COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(COMMENTS|TAGS|GRANT~7e7a5727!swap	CREATE ICEBERG TABLE a LIKE a CORE =(COMMENTS)
 reject	accept	docs	createIcebergTable(CATALOG_=_STRING)?/%empty	CREATE ICEBERG TABLE a CATALOG_TABLE_NAME = 's'
 reject	undocumented	docs	createIcebergTable(CATALOG_=_STRING)?/%empty!insert	CREATE ICEBERG TABLE a zzz CATALOG_TABLE_NAME = 's'
 reject	accept	docs	createIcebergTable(CATALOG_=_STRING)?/CATALOG_=_STRING	CREATE ICEBERG TABLE a CATALOG = 's' CATALOG_TABLE_NAME = 's'
@@ -38591,7 +38535,7 @@ reject	undocumented	docs	createIcebergTable_inlineConstraint(INITIALLY_(DEFERRED
 reject	undocumented	docs	createIcebergTable_inlineConstraint(INITIALLY_(DEFERRED|IMMEDIATE))?/INITIALLY_(DEFERRED|IMMEDIATE)!insert	CREATE ICEBERG TABLE a(a INT UNIQUE INITIALLY DEFERRED zzz)
 reject	undocumented	docs	createIcebergTable_inlineConstraint(INITIALLY_(DEFERRED|IMMEDIATE))?/INITIALLY_(DEFERRED|IMMEDIATE)!swap	CREATE ICEBERG TABLE a(a INT UNIQUE INITIALLY_SUSPENDED DEFERRED)
 reject	accept	docs	createIcebergTable_inlineConstraint(DEFERRED|IMMEDIATE)/DEFERRED	CREATE ICEBERG TABLE a(a INT UNIQUE INITIALLY DEFERRED)
-reject	undocumented	docs	createIcebergTable_inlineConstraint(DEFERRED|IMMEDIATE)/DEFERRED!swap	CREATE ICEBERG TABLE a(a INT UNIQUE INITIALLY DEFINE)
+reject	undocumented	docs	createIcebergTable_inlineConstraint(DEFERRED|IMMEDIATE)/DEFERRED!swap	CREATE ICEBERG TABLE a(a INT UNIQUE INITIALLY DEFINITION)
 reject	accept	docs	createIcebergTable_inlineConstraint(DEFERRED|IMMEDIATE)/IMMEDIATE	CREATE ICEBERG TABLE a(a INT UNIQUE INITIALLY IMMEDIATE)
 reject	undocumented	docs	createIcebergTable_inlineConstraint(DEFERRED|IMMEDIATE)/IMMEDIATE!insert	CREATE ICEBERG TABLE a(a INT UNIQUE INITIALLY IMMEDIATE zzz)
 reject	undocumented	docs	createIcebergTable_inlineConstraint(DEFERRED|IMMEDIATE)/IMMEDIATE!swap	CREATE ICEBERG TABLE a(a INT UNIQUE INITIALLY IMMEDIATELY)
@@ -38755,7 +38699,7 @@ reject	undocumented	docs	createIcebergTable_outoflineConstraint(INITIALLY_(DEFER
 reject	undocumented	docs	createIcebergTable_outoflineConstraint(INITIALLY_(DEFERRED|IMMEDIATE))?/INITIALLY_(DEFERRED|IMMEDIATE)!insert	CREATE ICEBERG TABLE a(a INT, UNIQUE(a) INITIALLY DEFERRED zzz)
 reject	undocumented	docs	createIcebergTable_outoflineConstraint(INITIALLY_(DEFERRED|IMMEDIATE))?/INITIALLY_(DEFERRED|IMMEDIATE)!swap	CREATE ICEBERG TABLE a(a INT, UNIQUE(a) INITIALLY_SUSPENDED DEFERRED)
 reject	accept	docs	createIcebergTable_outoflineConstraint(DEFERRED|IMMEDIATE)/DEFERRED	CREATE ICEBERG TABLE a(a INT, UNIQUE(a) INITIALLY DEFERRED)
-reject	undocumented	docs	createIcebergTable_outoflineConstraint(DEFERRED|IMMEDIATE)/DEFERRED!swap	CREATE ICEBERG TABLE a(a INT, UNIQUE(a) INITIALLY DEFINE)
+reject	undocumented	docs	createIcebergTable_outoflineConstraint(DEFERRED|IMMEDIATE)/DEFERRED!swap	CREATE ICEBERG TABLE a(a INT, UNIQUE(a) INITIALLY DEFINITION)
 reject	accept	docs	createIcebergTable_outoflineConstraint(DEFERRED|IMMEDIATE)/IMMEDIATE	CREATE ICEBERG TABLE a(a INT, UNIQUE(a) INITIALLY IMMEDIATE)
 reject	undocumented	docs	createIcebergTable_outoflineConstraint(DEFERRED|IMMEDIATE)/IMMEDIATE!insert	CREATE ICEBERG TABLE a(a INT, UNIQUE(a) INITIALLY IMMEDIATE zzz)
 reject	undocumented	docs	createIcebergTable_outoflineConstraint(DEFERRED|IMMEDIATE)/IMMEDIATE!swap	CREATE ICEBERG TABLE a(a INT, UNIQUE(a) INITIALLY IMMEDIATELY)
@@ -39198,7 +39142,7 @@ reject	undocumented	docs	createIcebergTableParquet_inlineConstraint(INITIALLY_(D
 reject	undocumented	docs	createIcebergTableParquet_inlineConstraint(INITIALLY_(DEFERRED|IMMEDIATE))?/INITIALLY_(DEFERRED|IMMEDIATE)!insert	CREATE ICEBERG TABLE a(a INT UNIQUE INITIALLY DEFERRED zzz) BASE_LOCATION = 's'
 reject	undocumented	docs	createIcebergTableParquet_inlineConstraint(INITIALLY_(DEFERRED|IMMEDIATE))?/INITIALLY_(DEFERRED|IMMEDIATE)!swap	CREATE ICEBERG TABLE a(a INT UNIQUE INITIALLY_SUSPENDED DEFERRED) BASE_LOCATION = 's'
 reject	accept	docs	createIcebergTableParquet_inlineConstraint(DEFERRED|IMMEDIATE)/DEFERRED	CREATE ICEBERG TABLE a(a INT UNIQUE INITIALLY DEFERRED) BASE_LOCATION = 's'
-reject	undocumented	docs	createIcebergTableParquet_inlineConstraint(DEFERRED|IMMEDIATE)/DEFERRED!swap	CREATE ICEBERG TABLE a(a INT UNIQUE INITIALLY DEFINE) BASE_LOCATION = 's'
+reject	undocumented	docs	createIcebergTableParquet_inlineConstraint(DEFERRED|IMMEDIATE)/DEFERRED!swap	CREATE ICEBERG TABLE a(a INT UNIQUE INITIALLY DEFINITION) BASE_LOCATION = 's'
 reject	accept	docs	createIcebergTableParquet_inlineConstraint(DEFERRED|IMMEDIATE)/IMMEDIATE	CREATE ICEBERG TABLE a(a INT UNIQUE INITIALLY IMMEDIATE) BASE_LOCATION = 's'
 reject	undocumented	docs	createIcebergTableParquet_inlineConstraint(DEFERRED|IMMEDIATE)/IMMEDIATE!insert	CREATE ICEBERG TABLE a(a INT UNIQUE INITIALLY IMMEDIATE zzz) BASE_LOCATION = 's'
 reject	undocumented	docs	createIcebergTableParquet_inlineConstraint(DEFERRED|IMMEDIATE)/IMMEDIATE!swap	CREATE ICEBERG TABLE a(a INT UNIQUE INITIALLY IMMEDIATELY) BASE_LOCATION = 's'
@@ -39337,7 +39281,7 @@ reject	undocumented	docs	createIcebergTableParquet_outoflineConstraint(INITIALLY
 reject	undocumented	docs	createIcebergTableParquet_outoflineConstraint(INITIALLY_(DEFERRED|IMMEDIATE))?/INITIALLY_(DEFERRED|IMMEDIATE)!insert	CREATE ICEBERG TABLE a(a INT, UNIQUE(a) INITIALLY DEFERRED zzz) BASE_LOCATION = 's'
 reject	undocumented	docs	createIcebergTableParquet_outoflineConstraint(INITIALLY_(DEFERRED|IMMEDIATE))?/INITIALLY_(DEFERRED|IMMEDIATE)!swap	CREATE ICEBERG TABLE a(a INT, UNIQUE(a) INITIALLY_SUSPENDED DEFERRED) BASE_LOCATION = 's'
 reject	accept	docs	createIcebergTableParquet_outoflineConstraint(DEFERRED|IMMEDIATE)/DEFERRED	CREATE ICEBERG TABLE a(a INT, UNIQUE(a) INITIALLY DEFERRED) BASE_LOCATION = 's'
-reject	undocumented	docs	createIcebergTableParquet_outoflineConstraint(DEFERRED|IMMEDIATE)/DEFERRED!swap	CREATE ICEBERG TABLE a(a INT, UNIQUE(a) INITIALLY DEFINE) BASE_LOCATION = 's'
+reject	undocumented	docs	createIcebergTableParquet_outoflineConstraint(DEFERRED|IMMEDIATE)/DEFERRED!swap	CREATE ICEBERG TABLE a(a INT, UNIQUE(a) INITIALLY DEFINITION) BASE_LOCATION = 's'
 reject	accept	docs	createIcebergTableParquet_outoflineConstraint(DEFERRED|IMMEDIATE)/IMMEDIATE	CREATE ICEBERG TABLE a(a INT, UNIQUE(a) INITIALLY IMMEDIATE) BASE_LOCATION = 's'
 reject	undocumented	docs	createIcebergTableParquet_outoflineConstraint(DEFERRED|IMMEDIATE)/IMMEDIATE!insert	CREATE ICEBERG TABLE a(a INT, UNIQUE(a) INITIALLY IMMEDIATE zzz) BASE_LOCATION = 's'
 reject	undocumented	docs	createIcebergTableParquet_outoflineConstraint(DEFERRED|IMMEDIATE)/IMMEDIATE!swap	CREATE ICEBERG TABLE a(a INT, UNIQUE(a) INITIALLY IMMEDIATELY) BASE_LOCATION = 's'
@@ -39537,7 +39481,7 @@ reject	undocumented	docs	createIcebergTableSnowflake/CREATE_ICEBERG_TABLE_ID_(_I
 reject	undocumented	docs	createIcebergTableSnowflake/CREATE_ICEBERG_TABLE_ID_(_ID_DATA_TYPE_(DEFAULT_EXPR)?_~c7a85f40!drop-21	CREATE ICEBERG TABLE a(a INT MASKING POLICY a) ROW ACCESS POLICY a ON(a) AS
 reject	undocumented	docs	createIcebergTableSnowflake/CREATE_ICEBERG_TABLE_ID_(_ID_DATA_TYPE_(DEFAULT_EXPR)?_~c7a85f40!insert	CREATE ICEBERG TABLE a(a INT MASKING POLICY a) ROW ACCESS POLICY a ON(a) AS SELECT 1 zzz
 reject	undocumented	docs	createIcebergTableSnowflake/CREATE_ICEBERG_TABLE_ID_(_ID_DATA_TYPE_(DEFAULT_EXPR)?_~c7a85f40!swap	CREATION ICEBERG TABLE a(a INT MASKING POLICY a) ROW ACCESS POLICY a ON(a) AS SELECT 1
-reject	accept	docs	createIcebergTableSnowflake/CREATE_(OR_REPLACE)?_(TRANSIENT)?_ICEBERG_TABLE_ID_LIKE~f768523b	CREATE ICEBERG TABLE a LIKE a
+reject	accept	docs	createIcebergTableSnowflake/CREATE_(OR_REPLACE)?_(TRANSIENT)?_ICEBERG_TABLE_ID_LIKE~64250949	CREATE ICEBERG TABLE a LIKE a
 reject	accept	docs	createIcebergTableSnowflake/CREATE_ICEBERG_TABLE_ID_FROM_BACKUP_SET_ID_IDENTIFIER_STRING	CREATE ICEBERG TABLE a FROM BACKUP SET a IDENTIFIER 's'
 reject	undocumented	docs	createIcebergTableSnowflake/CREATE_ICEBERG_TABLE_ID_FROM_BACKUP_SET_ID_IDENTIFIER_STRING!drop-1	ICEBERG TABLE a FROM BACKUP SET a IDENTIFIER 's'
 reject	undocumented	docs	createIcebergTableSnowflake/CREATE_ICEBERG_TABLE_ID_FROM_BACKUP_SET_ID_IDENTIFIER_STRING!drop-3	CREATE ICEBERG a FROM BACKUP SET a IDENTIFIER 's'
@@ -39808,8 +39752,6 @@ reject	undocumented	docs	createIcebergTableSnowflake())+/)!insert	CREATE ICEBERG
 reject	accept	docs	createIcebergTableSnowflake())+/)_())+	CREATE ICEBERG TABLE a(a INT MASKING POLICY a) ROW ACCESS POLICY a ON(a)) AS SELECT 1
 reject	accept	docs	createIcebergTableSnowflake())+/)_())+!truncate	CREATE ICEBERG TABLE a(a INT MASKING POLICY a) ROW ACCESS POLICY a ON(a)
 reject	undocumented	docs	createIcebergTableSnowflake())+/)_())+!insert	CREATE ICEBERG TABLE a(a INT MASKING POLICY a) ROW ACCESS POLICY a ON(a)) zzz AS SELECT 1
-reject	accept	docs	createIcebergTableSnowflake(COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(~5bbf3e9b)*/%empty	CREATE ICEBERG TABLE a LIKE a
-reject	accept	docs	createIcebergTableSnowflake(COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(~5bbf3e9b)*/COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(COMMENTS|TAGS|GRANT~7e7a5727	CREATE ICEBERG TABLE a LIKE a COPY =(COMMENTS)
 reject	accept	docs	createIcebergTableSnowflake_inlineConstraint/(CONSTRAINT_ID)?_(UNIQUE|PRIMARY_KEY|(FOREIGN_KEY)?_RE~~b13c56ad	CREATE ICEBERG TABLE a(a INT UNIQUE)
 reject	accept	docs	createIcebergTableSnowflake_inlineConstraint(CONSTRAINT_ID)?/%empty	CREATE ICEBERG TABLE a(a INT UNIQUE)
 reject	accept	docs	createIcebergTableSnowflake_inlineConstraint(CONSTRAINT_ID)?/CONSTRAINT_ID	CREATE ICEBERG TABLE a(a INT CONSTRAINT a UNIQUE)
@@ -41304,23 +41246,6 @@ reject	undocumented	docs	createNotebookProject(IF_NOT_EXISTS)?/IF_NOT_EXISTS!tru
 reject	undocumented	docs	createNotebookProject(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE NOTEBOOK PROJECT IF NOT EXISTS zzz a.a.a FROM 's'
 reject	undocumented	docs	createNotebookProject(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE NOTEBOOK PROJECT IGNORE NOT EXISTS a.a.a FROM 's'
 reject	accept	docs	createCodeBundle/CREATE_(OR_REPLACE)?_CODE_BUNDLE_(IF_NOT_EXISTS)?_ID_._~a78a5ca5	CREATE CODE BUNDLE a.a.a FROM 's'
-reject	accept	docs	createCodeBundle/DEFINE_CODE_BUNDLE_DEMO_ID_._JOBS_._MY_JOB_FROM_'assetC~d83d3bc7	DEFINE CODE BUNDLE DEMO a.JOBS.MY_JOB FROM 'asset://my_job' COMMENT = 'Python job managed by DCM'
-reject	undocumented	docs	createCodeBundle/DEFINE_CODE_BUNDLE_DEMO_ID_._JOBS_._MY_JOB_FROM_'assetC~d83d3bc7!drop-1	CODE BUNDLE DEMO a.JOBS.MY_JOB FROM 'asset://my_job' COMMENT = 'Python job managed by DCM'
-reject	undocumented	docs	createCodeBundle/DEFINE_CODE_BUNDLE_DEMO_ID_._JOBS_._MY_JOB_FROM_'assetC~d83d3bc7!drop-2	DEFINE BUNDLE DEMO a.JOBS.MY_JOB FROM 'asset://my_job' COMMENT = 'Python job managed by DCM'
-reject	undocumented	docs	createCodeBundle/DEFINE_CODE_BUNDLE_DEMO_ID_._JOBS_._MY_JOB_FROM_'assetC~d83d3bc7!drop-3	DEFINE CODE DEMO a.JOBS.MY_JOB FROM 'asset://my_job' COMMENT = 'Python job managed by DCM'
-reject	undocumented	docs	createCodeBundle/DEFINE_CODE_BUNDLE_DEMO_ID_._JOBS_._MY_JOB_FROM_'assetC~d83d3bc7!drop-4	DEFINE CODE BUNDLE a.JOBS.MY_JOB FROM 'asset://my_job' COMMENT = 'Python job managed by DCM'
-reject	undocumented	docs	createCodeBundle/DEFINE_CODE_BUNDLE_DEMO_ID_._JOBS_._MY_JOB_FROM_'assetC~d83d3bc7!drop-5	DEFINE CODE BUNDLE DEMO.JOBS.MY_JOB FROM 'asset://my_job' COMMENT = 'Python job managed by DCM'
-reject	undocumented	docs	createCodeBundle/DEFINE_CODE_BUNDLE_DEMO_ID_._JOBS_._MY_JOB_FROM_'assetC~d83d3bc7!drop-6	DEFINE CODE BUNDLE DEMO a JOBS.MY_JOB FROM 'asset://my_job' COMMENT = 'Python job managed by DCM'
-reject	undocumented	docs	createCodeBundle/DEFINE_CODE_BUNDLE_DEMO_ID_._JOBS_._MY_JOB_FROM_'assetC~d83d3bc7!drop-7	DEFINE CODE BUNDLE DEMO a..MY_JOB FROM 'asset://my_job' COMMENT = 'Python job managed by DCM'
-reject	undocumented	docs	createCodeBundle/DEFINE_CODE_BUNDLE_DEMO_ID_._JOBS_._MY_JOB_FROM_'assetC~d83d3bc7!drop-8	DEFINE CODE BUNDLE DEMO a.JOBS MY_JOB FROM 'asset://my_job' COMMENT = 'Python job managed by DCM'
-reject	undocumented	docs	createCodeBundle/DEFINE_CODE_BUNDLE_DEMO_ID_._JOBS_._MY_JOB_FROM_'assetC~d83d3bc7!drop-9	DEFINE CODE BUNDLE DEMO a.JOBS.FROM 'asset://my_job' COMMENT = 'Python job managed by DCM'
-reject	undocumented	docs	createCodeBundle/DEFINE_CODE_BUNDLE_DEMO_ID_._JOBS_._MY_JOB_FROM_'assetC~d83d3bc7!drop-10	DEFINE CODE BUNDLE DEMO a.JOBS.MY_JOB 'asset://my_job' COMMENT = 'Python job managed by DCM'
-reject	undocumented	docs	createCodeBundle/DEFINE_CODE_BUNDLE_DEMO_ID_._JOBS_._MY_JOB_FROM_'assetC~d83d3bc7!drop-11	DEFINE CODE BUNDLE DEMO a.JOBS.MY_JOB FROM COMMENT = 'Python job managed by DCM'
-reject	undocumented	docs	createCodeBundle/DEFINE_CODE_BUNDLE_DEMO_ID_._JOBS_._MY_JOB_FROM_'assetC~d83d3bc7!drop-12	DEFINE CODE BUNDLE DEMO a.JOBS.MY_JOB FROM 'asset://my_job' = 'Python job managed by DCM'
-reject	undocumented	docs	createCodeBundle/DEFINE_CODE_BUNDLE_DEMO_ID_._JOBS_._MY_JOB_FROM_'assetC~d83d3bc7!drop-13	DEFINE CODE BUNDLE DEMO a.JOBS.MY_JOB FROM 'asset://my_job' COMMENT 'Python job managed by DCM'
-reject	undocumented	docs	createCodeBundle/DEFINE_CODE_BUNDLE_DEMO_ID_._JOBS_._MY_JOB_FROM_'assetC~d83d3bc7!drop-14	DEFINE CODE BUNDLE DEMO a.JOBS.MY_JOB FROM 'asset://my_job' COMMENT =
-reject	undocumented	docs	createCodeBundle/DEFINE_CODE_BUNDLE_DEMO_ID_._JOBS_._MY_JOB_FROM_'assetC~d83d3bc7!insert	DEFINE CODE BUNDLE DEMO a.JOBS.MY_JOB FROM 'asset://my_job' COMMENT = 'Python job managed by DCM' zzz
-reject	undocumented	docs	createCodeBundle/DEFINE_CODE_BUNDLE_DEMO_ID_._JOBS_._MY_JOB_FROM_'assetC~d83d3bc7!swap	DEFINITION CODE BUNDLE DEMO a.JOBS.MY_JOB FROM 'asset://my_job' COMMENT = 'Python job managed by DCM'
 reject	accept	docs	createCodeBundle(OR_REPLACE)?/%empty	CREATE CODE BUNDLE a.a.a FROM 's'
 reject	undocumented	docs	createCodeBundle(OR_REPLACE)?/%empty!insert	CREATE zzz CODE BUNDLE a.a.a FROM 's'
 reject	accept	docs	createCodeBundle(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE CODE BUNDLE a.a.a FROM 's'
@@ -41868,7 +41793,7 @@ reject	undocumented	docs	createOrganizationAccount(MUST_CHANGE_PASSWORD_=_(TRUE|
 reject	undocumented	docs	createOrganizationAccount(MUST_CHANGE_PASSWORD_=_(TRUE|FALSE))?/MUST_CHANGE_PASSWORD_=_(TRUE|FALSE)!drop-3	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' MUST_CHANGE_PASSWORD = EDITION = ENTERPRISE
 reject	undocumented	docs	createOrganizationAccount(MUST_CHANGE_PASSWORD_=_(TRUE|FALSE))?/MUST_CHANGE_PASSWORD_=_(TRUE|FALSE)!truncate	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' MUST_CHANGE_PASSWORD =
 reject	undocumented	docs	createOrganizationAccount(MUST_CHANGE_PASSWORD_=_(TRUE|FALSE))?/MUST_CHANGE_PASSWORD_=_(TRUE|FALSE)!insert	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' MUST_CHANGE_PASSWORD = TRUE zzz EDITION = ENTERPRISE
-reject	undocumented	docs	createOrganizationAccount(MUST_CHANGE_PASSWORD_=_(TRUE|FALSE))?/MUST_CHANGE_PASSWORD_=_(TRUE|FALSE)!swap	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' MY_DASHBOARD = TRUE EDITION = ENTERPRISE
+reject	undocumented	docs	createOrganizationAccount(MUST_CHANGE_PASSWORD_=_(TRUE|FALSE))?/MUST_CHANGE_PASSWORD_=_(TRUE|FALSE)!swap	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' NAME = TRUE EDITION = ENTERPRISE
 reject	accept	docs	createOrganizationAccount(TRUE|FALSE)/TRUE	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' MUST_CHANGE_PASSWORD = TRUE EDITION = ENTERPRISE
 reject	undocumented	docs	createOrganizationAccount(TRUE|FALSE)/TRUE!swap	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' MUST_CHANGE_PASSWORD = TRUNCATE EDITION = ENTERPRISE
 reject	accept	docs	createOrganizationAccount(TRUE|FALSE)/FALSE	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' MUST_CHANGE_PASSWORD = FALSE EDITION = ENTERPRISE
@@ -43435,13 +43360,13 @@ reject	undocumented	docs	createSchema/CREATE_OR_ALTER_(TRANSIENT)?_SCHEMA_ID_(WI
 reject	undocumented	docs	createSchema/CREATE_OR_ALTER_(TRANSIENT)?_SCHEMA_ID_(WITH_MANAGED_AC~50c3b37b!drop-5	CREATE OR ALTER SCHEMA
 reject	undocumented	docs	createSchema/CREATE_OR_ALTER_(TRANSIENT)?_SCHEMA_ID_(WITH_MANAGED_AC~50c3b37b!insert	CREATE OR ALTER SCHEMA a zzz
 reject	undocumented	docs	createSchema/CREATE_OR_ALTER_(TRANSIENT)?_SCHEMA_ID_(WITH_MANAGED_AC~50c3b37b!swap	CREATION OR ALTER SCHEMA a
-accept	accept	docs	createSchema/CREATE_(OR_REPLACE)?_SCHEMA_(IF_NOT_EXISTS)?_ID_CLONE_(ID)+	CREATE SCHEMA a CLONE a
-reject	undocumented	docs	createSchema/CREATE_(OR_REPLACE)?_SCHEMA_(IF_NOT_EXISTS)?_ID_CLONE_(ID)+!drop-1	SCHEMA a CLONE a
-reject	undocumented	docs	createSchema/CREATE_(OR_REPLACE)?_SCHEMA_(IF_NOT_EXISTS)?_ID_CLONE_(ID)+!drop-3	CREATE SCHEMA CLONE a
-reject	undocumented	docs	createSchema/CREATE_(OR_REPLACE)?_SCHEMA_(IF_NOT_EXISTS)?_ID_CLONE_(ID)+!drop-4	CREATE SCHEMA a a
-reject	undocumented	docs	createSchema/CREATE_(OR_REPLACE)?_SCHEMA_(IF_NOT_EXISTS)?_ID_CLONE_(ID)+!drop-5	CREATE SCHEMA a CLONE
-reject	accept	docs	createSchema/CREATE_(OR_REPLACE)?_SCHEMA_(IF_NOT_EXISTS)?_ID_CLONE_(ID)+!insert	CREATE SCHEMA a CLONE a zzz
-reject	undocumented	docs	createSchema/CREATE_(OR_REPLACE)?_SCHEMA_(IF_NOT_EXISTS)?_ID_CLONE_(ID)+!swap	CREATION SCHEMA a CLONE a
+accept	accept	docs	createSchema/CREATE_(OR_REPLACE)?_SCHEMA_(IF_NOT_EXISTS)?_ID_CLONE_ID	CREATE SCHEMA a CLONE a
+reject	undocumented	docs	createSchema/CREATE_(OR_REPLACE)?_SCHEMA_(IF_NOT_EXISTS)?_ID_CLONE_ID!drop-1	SCHEMA a CLONE a
+reject	undocumented	docs	createSchema/CREATE_(OR_REPLACE)?_SCHEMA_(IF_NOT_EXISTS)?_ID_CLONE_ID!drop-3	CREATE SCHEMA CLONE a
+reject	undocumented	docs	createSchema/CREATE_(OR_REPLACE)?_SCHEMA_(IF_NOT_EXISTS)?_ID_CLONE_ID!drop-4	CREATE SCHEMA a a
+reject	undocumented	docs	createSchema/CREATE_(OR_REPLACE)?_SCHEMA_(IF_NOT_EXISTS)?_ID_CLONE_ID!drop-5	CREATE SCHEMA a CLONE
+reject	undocumented	docs	createSchema/CREATE_(OR_REPLACE)?_SCHEMA_(IF_NOT_EXISTS)?_ID_CLONE_ID!insert	CREATE SCHEMA a CLONE a zzz
+reject	undocumented	docs	createSchema/CREATE_(OR_REPLACE)?_SCHEMA_(IF_NOT_EXISTS)?_ID_CLONE_ID!swap	CREATION SCHEMA a CLONE a
 accept	accept	docs	createSchema(OR_REPLACE)?/%empty	CREATE SCHEMA a
 reject	undocumented	docs	createSchema(OR_REPLACE)?/%empty!insert	CREATE zzz SCHEMA a
 accept	accept	docs	createSchema(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE SCHEMA a
@@ -43501,7 +43426,7 @@ accept	accept	docs	createSchema(IGNORE_TABLES_WITH_INSUFFICIENT_DATA~f5b37699)?/
 reject	accept	docs	createSchema(IGNORE_TABLES_WITH_INSUFFICIENT_DATA~f5b37699)?/IGNORE_TABLES_WITH_INSUFFICIENT_DATA_RETENTION	CREATE SCHEMA a CLONE a IGNORE TABLES WITH INSUFFICIENT DATA RETENTION
 reject	undocumented	docs	createSchema(IGNORE_TABLES_WITH_INSUFFICIENT_DATA~f5b37699)?/IGNORE_TABLES_WITH_INSUFFICIENT_DATA_RETENTION!drop-1	CREATE SCHEMA a CLONE a TABLES WITH INSUFFICIENT DATA RETENTION
 reject	undocumented	docs	createSchema(IGNORE_TABLES_WITH_INSUFFICIENT_DATA~f5b37699)?/IGNORE_TABLES_WITH_INSUFFICIENT_DATA_RETENTION!drop-2	CREATE SCHEMA a CLONE a IGNORE WITH INSUFFICIENT DATA RETENTION
-reject	accept	docs	createSchema(IGNORE_TABLES_WITH_INSUFFICIENT_DATA~f5b37699)?/IGNORE_TABLES_WITH_INSUFFICIENT_DATA_RETENTION!drop-3	CREATE SCHEMA a CLONE a IGNORE TABLES INSUFFICIENT DATA RETENTION
+reject	undocumented	docs	createSchema(IGNORE_TABLES_WITH_INSUFFICIENT_DATA~f5b37699)?/IGNORE_TABLES_WITH_INSUFFICIENT_DATA_RETENTION!drop-3	CREATE SCHEMA a CLONE a IGNORE TABLES INSUFFICIENT DATA RETENTION
 reject	undocumented	docs	createSchema(IGNORE_TABLES_WITH_INSUFFICIENT_DATA~f5b37699)?/IGNORE_TABLES_WITH_INSUFFICIENT_DATA_RETENTION!drop-4	CREATE SCHEMA a CLONE a IGNORE TABLES WITH DATA RETENTION
 reject	undocumented	docs	createSchema(IGNORE_TABLES_WITH_INSUFFICIENT_DATA~f5b37699)?/IGNORE_TABLES_WITH_INSUFFICIENT_DATA_RETENTION!drop-5	CREATE SCHEMA a CLONE a IGNORE TABLES WITH INSUFFICIENT RETENTION
 reject	undocumented	docs	createSchema(IGNORE_TABLES_WITH_INSUFFICIENT_DATA~f5b37699)?/IGNORE_TABLES_WITH_INSUFFICIENT_DATA_RETENTION!drop-6	CREATE SCHEMA a CLONE a IGNORE TABLES WITH INSUFFICIENT DATA
@@ -43509,11 +43434,11 @@ reject	undocumented	docs	createSchema(IGNORE_TABLES_WITH_INSUFFICIENT_DATA~f5b37
 reject	undocumented	docs	createSchema(IGNORE_TABLES_WITH_INSUFFICIENT_DATA~f5b37699)?/IGNORE_TABLES_WITH_INSUFFICIENT_DATA_RETENTION!swap	CREATE SCHEMA a CLONE a IGNORE_NESTED_NAMESPACE TABLES WITH INSUFFICIENT DATA RETENTION
 accept	accept	docs	createSchema(IGNORE_HYBRID_TABLES)?/%empty	CREATE SCHEMA a CLONE a
 reject	accept	docs	createSchema(IGNORE_HYBRID_TABLES)?/IGNORE_HYBRID_TABLES	CREATE SCHEMA a CLONE a IGNORE HYBRID TABLES
-reject	accept	docs	createSchema(IGNORE_HYBRID_TABLES)?/IGNORE_HYBRID_TABLES!drop-1	CREATE SCHEMA a CLONE a HYBRID TABLES
-reject	accept	docs	createSchema(IGNORE_HYBRID_TABLES)?/IGNORE_HYBRID_TABLES!drop-2	CREATE SCHEMA a CLONE a IGNORE TABLES
-reject	accept	docs	createSchema(IGNORE_HYBRID_TABLES)?/IGNORE_HYBRID_TABLES!drop-3	CREATE SCHEMA a CLONE a IGNORE HYBRID
-reject	accept	docs	createSchema(IGNORE_HYBRID_TABLES)?/IGNORE_HYBRID_TABLES!insert	CREATE SCHEMA a CLONE a IGNORE HYBRID TABLES zzz
-reject	accept	docs	createSchema(IGNORE_HYBRID_TABLES)?/IGNORE_HYBRID_TABLES!swap	CREATE SCHEMA a CLONE a IGNORE_NESTED_NAMESPACE HYBRID TABLES
+reject	undocumented	docs	createSchema(IGNORE_HYBRID_TABLES)?/IGNORE_HYBRID_TABLES!drop-1	CREATE SCHEMA a CLONE a HYBRID TABLES
+reject	undocumented	docs	createSchema(IGNORE_HYBRID_TABLES)?/IGNORE_HYBRID_TABLES!drop-2	CREATE SCHEMA a CLONE a IGNORE TABLES
+reject	undocumented	docs	createSchema(IGNORE_HYBRID_TABLES)?/IGNORE_HYBRID_TABLES!drop-3	CREATE SCHEMA a CLONE a IGNORE HYBRID
+reject	undocumented	docs	createSchema(IGNORE_HYBRID_TABLES)?/IGNORE_HYBRID_TABLES!insert	CREATE SCHEMA a CLONE a IGNORE HYBRID TABLES zzz
+reject	undocumented	docs	createSchema(IGNORE_HYBRID_TABLES)?/IGNORE_HYBRID_TABLES!swap	CREATE SCHEMA a CLONE a IGNORE_NESTED_NAMESPACE HYBRID TABLES
 accept	accept	docs	createSchema(WITH_MANAGED_ACCESS)?/%empty	CREATE SCHEMA a
 accept	accept	docs	createSchema(WITH_MANAGED_ACCESS)?/WITH_MANAGED_ACCESS	CREATE SCHEMA a WITH MANAGED ACCESS
 reject	undocumented	docs	createSchema(WITH_MANAGED_ACCESS)?/WITH_MANAGED_ACCESS!drop-1	CREATE SCHEMA a MANAGED ACCESS
@@ -43714,9 +43639,6 @@ reject	undocumented	docs	createSchema(TRACE_LEVEL_=_STRING)?/TRACE_LEVEL_=_STRIN
 reject	undocumented	docs	createSchema(TRACE_LEVEL_=_STRING)?/TRACE_LEVEL_=_STRING!drop-3	CREATE OR ALTER SCHEMA a TRACE_LEVEL =
 reject	undocumented	docs	createSchema(TRACE_LEVEL_=_STRING)?/TRACE_LEVEL_=_STRING!insert	CREATE OR ALTER SCHEMA a TRACE_LEVEL = 's' zzz
 reject	undocumented	docs	createSchema(TRACE_LEVEL_=_STRING)?/TRACE_LEVEL_=_STRING!swap	CREATE OR ALTER SCHEMA a TRANSACTION = 's'
-accept	accept	docs	createSchema(ID)+/ID	CREATE SCHEMA a CLONE a
-reject	accept	docs	createSchema(ID)+/ID_(ID)+	CREATE SCHEMA a CLONE a a
-reject	accept	docs	createSchema(ID)+/ID_(ID)+!insert	CREATE SCHEMA a CLONE a a zzz
 accept	accept	docs	createSecret/CREATE_(OR_REPLACE)?_SECRET_(IF_NOT_EXISTS)?_ID_TYPE_=_~396eade3	CREATE SECRET a TYPE = OAUTH2 API_AUTHENTICATION = a
 reject	undocumented	docs	createSecret/CREATE_(OR_REPLACE)?_SECRET_(IF_NOT_EXISTS)?_ID_TYPE_=_~396eade3!drop-1	SECRET a TYPE = OAUTH2 API_AUTHENTICATION = a
 reject	undocumented	docs	createSecret/CREATE_(OR_REPLACE)?_SECRET_(IF_NOT_EXISTS)?_ID_TYPE_=_~396eade3!drop-2	CREATE a TYPE = OAUTH2 API_AUTHENTICATION = a
@@ -45501,7 +45423,7 @@ accept	undocumented	docs	createSemanticView_windowFunctionMetricExpression(ORDER
 accept	undocumented	docs	createSemanticView_windowFunctionMetricExpression(ORDER_BY_EXPR_(ASC|DESC)?_(NULLS_(FI~6363e271)?/ORDER_BY_EXPR_(ASC|DESC)?_(NULLS_(FIRST|LAST))?_(,_EXPR~f5b4d707!drop-3	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(ORDER BY))
 reject	undocumented	docs	createSemanticView_windowFunctionMetricExpression(ORDER_BY_EXPR_(ASC|DESC)?_(NULLS_(FI~6363e271)?/ORDER_BY_EXPR_(ASC|DESC)?_(NULLS_(FIRST|LAST))?_(,_EXPR~f5b4d707!truncate	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(ORDER BY
 accept	undocumented	docs	createSemanticView_windowFunctionMetricExpression(ORDER_BY_EXPR_(ASC|DESC)?_(NULLS_(FI~6363e271)?/ORDER_BY_EXPR_(ASC|DESC)?_(NULLS_(FIRST|LAST))?_(,_EXPR~f5b4d707!insert	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(ORDER BY 1 zzz))
-accept	undocumented	docs	createSemanticView_windowFunctionMetricExpression(ORDER_BY_EXPR_(ASC|DESC)?_(NULLS_(FI~6363e271)?/ORDER_BY_EXPR_(ASC|DESC)?_(NULLS_(FIRST|LAST))?_(,_EXPR~f5b4d707!swap	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(ORDERS BY 1))
+accept	undocumented	docs	createSemanticView_windowFunctionMetricExpression(ORDER_BY_EXPR_(ASC|DESC)?_(NULLS_(FI~6363e271)?/ORDER_BY_EXPR_(ASC|DESC)?_(NULLS_(FIRST|LAST))?_(,_EXPR~f5b4d707!swap	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(ORGANIZATION BY 1))
 accept	accept	docs	createSemanticView_windowFunctionMetricExpression(ASC|DESC)?/%empty	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(ORDER BY 1))
 accept	accept	docs	createSemanticView_windowFunctionMetricExpression(ASC|DESC)?/ASC	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(ORDER BY 1 ASC))
 reject	undocumented	docs	createSemanticView_windowFunctionMetricExpression(ASC|DESC)?/ASC!truncate	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(ORDER BY 1
@@ -45585,7 +45507,7 @@ accept	accept	docs	createSequence(START_WITH?_=?_-?_NUMBER)?/START_(WITH)?_(=)?_
 reject	undocumented	docs	createSequence(START_WITH?_=?_-?_NUMBER)?/START_(WITH)?_(=)?_(-)?_NUMBER!drop-1	CREATE SEQUENCE a 1
 reject	undocumented	docs	createSequence(START_WITH?_=?_-?_NUMBER)?/START_(WITH)?_(=)?_(-)?_NUMBER!drop-2	CREATE SEQUENCE a START
 reject	undocumented	docs	createSequence(START_WITH?_=?_-?_NUMBER)?/START_(WITH)?_(=)?_(-)?_NUMBER!insert	CREATE SEQUENCE a START 1 zzz
-reject	undocumented	docs	createSequence(START_WITH?_=?_-?_NUMBER)?/START_(WITH)?_(=)?_(-)?_NUMBER!swap	CREATE SEQUENCE a STARTED 1
+reject	undocumented	docs	createSequence(START_WITH?_=?_-?_NUMBER)?/START_(WITH)?_(=)?_(-)?_NUMBER!swap	CREATE SEQUENCE a STARTS 1
 accept	accept	docs	createSequence(=)?/%empty	CREATE SEQUENCE a START 1
 reject	undocumented	docs	createSequence(=)?/%empty!insert	CREATE SEQUENCE a START zzz 1
 accept	accept	docs	createSequence(=)?/=	CREATE SEQUENCE a START = 1
@@ -45606,7 +45528,7 @@ reject	undocumented	docs	createSequence(BY)?/BY!swap	CREATE SEQUENCE a INCREMENT
 accept	accept	docs	createSequence((ORDER|NOORDER))?/%empty	CREATE SEQUENCE a
 accept	accept	docs	createSequence((ORDER|NOORDER))?/(ORDER|NOORDER)	CREATE SEQUENCE a ORDER
 reject	undocumented	docs	createSequence((ORDER|NOORDER))?/(ORDER|NOORDER)!insert	CREATE SEQUENCE a ORDER zzz
-reject	undocumented	docs	createSequence((ORDER|NOORDER))?/(ORDER|NOORDER)!swap	CREATE SEQUENCE a ORDERS
+reject	undocumented	docs	createSequence((ORDER|NOORDER))?/(ORDER|NOORDER)!swap	CREATE SEQUENCE a ORGANIZATION
 accept	accept	docs	createSequence(ORDER|NOORDER)/ORDER	CREATE SEQUENCE a ORDER
 accept	accept	docs	createSequence(ORDER|NOORDER)/NOORDER	CREATE SEQUENCE a NOORDER
 reject	undocumented	docs	createSequence(ORDER|NOORDER)/NOORDER!insert	CREATE SEQUENCE a NOORDER zzz
@@ -46128,13 +46050,13 @@ reject	undocumented	docs	createStage/CREATE_OR_ALTER_((TEMP|TEMPORARY))?_STAGE_I
 reject	undocumented	docs	createStage/CREATE_OR_ALTER_((TEMP|TEMPORARY))?_STAGE_ID_createStag~c57eb1af!drop-8	CREATE OR ALTER STAGE a URL =
 accept	undocumented	docs	createStage/CREATE_OR_ALTER_((TEMP|TEMPORARY))?_STAGE_ID_createStag~c57eb1af!insert	CREATE OR ALTER STAGE a URL = 's' zzz
 reject	undocumented	docs	createStage/CREATE_OR_ALTER_((TEMP|TEMPORARY))?_STAGE_ID_createStag~c57eb1af!swap	CREATION OR ALTER STAGE a URL = 's'
-accept	accept	docs	createStage/CREATE_(OR_REPLACE)?_STAGE_(IF_NOT_EXISTS)?_ID_CLONE_(ID)+	CREATE STAGE a CLONE a
-reject	undocumented	docs	createStage/CREATE_(OR_REPLACE)?_STAGE_(IF_NOT_EXISTS)?_ID_CLONE_(ID)+!drop-1	STAGE a CLONE a
-accept	undocumented	docs	createStage/CREATE_(OR_REPLACE)?_STAGE_(IF_NOT_EXISTS)?_ID_CLONE_(ID)+!drop-3	CREATE STAGE CLONE a
-accept	undocumented	docs	createStage/CREATE_(OR_REPLACE)?_STAGE_(IF_NOT_EXISTS)?_ID_CLONE_(ID)+!drop-4	CREATE STAGE a a
-accept	undocumented	docs	createStage/CREATE_(OR_REPLACE)?_STAGE_(IF_NOT_EXISTS)?_ID_CLONE_(ID)+!drop-5	CREATE STAGE a CLONE
-accept	accept	docs	createStage/CREATE_(OR_REPLACE)?_STAGE_(IF_NOT_EXISTS)?_ID_CLONE_(ID)+!insert	CREATE STAGE a CLONE a zzz
-reject	undocumented	docs	createStage/CREATE_(OR_REPLACE)?_STAGE_(IF_NOT_EXISTS)?_ID_CLONE_(ID)+!swap	CREATION STAGE a CLONE a
+accept	accept	docs	createStage/CREATE_(OR_REPLACE)?_STAGE_(IF_NOT_EXISTS)?_ID_CLONE_ID	CREATE STAGE a CLONE a
+reject	undocumented	docs	createStage/CREATE_(OR_REPLACE)?_STAGE_(IF_NOT_EXISTS)?_ID_CLONE_ID!drop-1	STAGE a CLONE a
+accept	undocumented	docs	createStage/CREATE_(OR_REPLACE)?_STAGE_(IF_NOT_EXISTS)?_ID_CLONE_ID!drop-3	CREATE STAGE CLONE a
+accept	undocumented	docs	createStage/CREATE_(OR_REPLACE)?_STAGE_(IF_NOT_EXISTS)?_ID_CLONE_ID!drop-4	CREATE STAGE a a
+accept	undocumented	docs	createStage/CREATE_(OR_REPLACE)?_STAGE_(IF_NOT_EXISTS)?_ID_CLONE_ID!drop-5	CREATE STAGE a CLONE
+accept	undocumented	docs	createStage/CREATE_(OR_REPLACE)?_STAGE_(IF_NOT_EXISTS)?_ID_CLONE_ID!insert	CREATE STAGE a CLONE a zzz
+reject	undocumented	docs	createStage/CREATE_(OR_REPLACE)?_STAGE_(IF_NOT_EXISTS)?_ID_CLONE_ID!swap	CREATION STAGE a CLONE a
 accept	accept	docs	createStage(OR_REPLACE)?/%empty	CREATE STAGE a
 reject	undocumented	docs	createStage(OR_REPLACE)?/%empty!insert	CREATE zzz STAGE a
 accept	accept	docs	createStage(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE STAGE a
@@ -46296,9 +46218,6 @@ reject	undocumented	docs	createStage(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRIN
 reject	undocumented	docs	createStage(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!drop-4	CREATE STAGE a TAG(a = 's', a =)
 reject	undocumented	docs	createStage(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!truncate	CREATE STAGE a TAG(a = 's', a =
 reject	undocumented	docs	createStage(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!insert	CREATE STAGE a TAG(a = 's', a = 's' zzz)
-accept	accept	docs	createStage(ID)+/ID	CREATE STAGE a CLONE a
-accept	accept	docs	createStage(ID)+/ID_(ID)+	CREATE STAGE a CLONE a a
-accept	accept	docs	createStage(ID)+/ID_(ID)+!insert	CREATE STAGE a CLONE a a zzz
 accept	accept	docs	createStage_internalStageParams/(ENCRYPTION_=_(_(TYPE_=_'SNOWFLAKE_FU~210972ff)?	CREATE STAGE a
 accept	accept	docs	createStage_internalStageParams(ENCRYPTION_=_(_(TYPE_=_'SNOWFLAKE_FU~210972ff)?/%empty	CREATE STAGE a
 accept	accept	docs	createStage_internalStageParams(ENCRYPTION_=_(_(TYPE_=_'SNOWFLAKE_FU~210972ff)?/ENCRYPTION_=_(_(TYPE_=_'SNOWFLAKE_FULL'|TYPE_=_'SNOWFLA~8137231e	CREATE STAGE a ENCRYPTION =(TYPE = 'SNOWFLAKE_FULL')
@@ -47455,7 +47374,7 @@ reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS
 reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~07d81bd4!drop-6	CREATE STREAM a ON VIEW
 accept	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~07d81bd4!insert	CREATE STREAM a ON VIEW a zzz
 reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~07d81bd4!swap	CREATION STREAM a ON VIEW a
-accept	accept	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_ID_CLONE_ID_(COPY_GRANTS)?_~2ea398bb	CREATE STREAM a CLONE a
+accept	accept	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_ID_CLONE_ID_(COPY_GRANTS)?_~ceb2b9aa	CREATE STREAM a CLONE a
 accept	accept	docs	createStream/CREATE_OR_ALTER_STREAM_ID_ON_TABLE_ID_(APPEND_ONLY_=_TR~f0d9a428	CREATE OR ALTER STREAM a ON TABLE a
 reject	undocumented	docs	createStream/CREATE_OR_ALTER_STREAM_ID_ON_TABLE_ID_(APPEND_ONLY_=_TR~f0d9a428!drop-1	OR ALTER STREAM a ON TABLE a
 reject	undocumented	docs	createStream/CREATE_OR_ALTER_STREAM_ID_ON_TABLE_ID_(APPEND_ONLY_=_TR~f0d9a428!drop-2	CREATE ALTER STREAM a ON TABLE a
@@ -47584,15 +47503,15 @@ reject	undocumented	docs	createStream(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-2
 reject	undocumented	docs	createStream(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	CREATE STREAM a ON TABLE a COMMENT =
 accept	undocumented	docs	createStream(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	CREATE STREAM a ON TABLE a COMMENT = 's' zzz
 accept	undocumented	docs	createStream(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE STREAM a ON TABLE a COMMENTS = 's'
-accept	accept	docs	createStream(COPY_=_(_GRANTS_))?/%empty	CREATE STREAM a ON TABLE a
-accept	accept	docs	createStream(COPY_=_(_GRANTS_))?/COPY_=_(_GRANTS_)	CREATE STREAM a ON TABLE a COPY =(GRANTS)
-reject	undocumented	docs	createStream(COPY_=_(_GRANTS_))?/COPY_=_(_GRANTS_)!drop-1	CREATE STREAM a ON TABLE a =(GRANTS)
-reject	undocumented	docs	createStream(COPY_=_(_GRANTS_))?/COPY_=_(_GRANTS_)!drop-2	CREATE STREAM a ON TABLE a COPY(GRANTS)
-reject	undocumented	docs	createStream(COPY_=_(_GRANTS_))?/COPY_=_(_GRANTS_)!drop-3	CREATE STREAM a ON TABLE a COPY = GRANTS)
-accept	undocumented	docs	createStream(COPY_=_(_GRANTS_))?/COPY_=_(_GRANTS_)!drop-4	CREATE STREAM a ON TABLE a COPY =()
-reject	undocumented	docs	createStream(COPY_=_(_GRANTS_))?/COPY_=_(_GRANTS_)!drop-5	CREATE STREAM a ON TABLE a COPY =(GRANTS
-accept	undocumented	docs	createStream(COPY_=_(_GRANTS_))?/COPY_=_(_GRANTS_)!insert	CREATE STREAM a ON TABLE a COPY =(GRANTS) zzz
-accept	undocumented	docs	createStream(COPY_=_(_GRANTS_))?/COPY_=_(_GRANTS_)!swap	CREATE STREAM a ON TABLE a CORE =(GRANTS)
+accept	accept	docs	createStream(COPY_=_(_GRANTS_))?/%empty	CREATE STREAM a CLONE a
+reject	accept	docs	createStream(COPY_=_(_GRANTS_))?/COPY_=_(_GRANTS_)	CREATE STREAM a CLONE a COPY =(GRANTS)
+reject	undocumented	docs	createStream(COPY_=_(_GRANTS_))?/COPY_=_(_GRANTS_)!drop-1	CREATE STREAM a CLONE a =(GRANTS)
+reject	undocumented	docs	createStream(COPY_=_(_GRANTS_))?/COPY_=_(_GRANTS_)!drop-2	CREATE STREAM a CLONE a COPY(GRANTS)
+reject	undocumented	docs	createStream(COPY_=_(_GRANTS_))?/COPY_=_(_GRANTS_)!drop-3	CREATE STREAM a CLONE a COPY = GRANTS)
+reject	undocumented	docs	createStream(COPY_=_(_GRANTS_))?/COPY_=_(_GRANTS_)!drop-4	CREATE STREAM a CLONE a COPY =()
+reject	undocumented	docs	createStream(COPY_=_(_GRANTS_))?/COPY_=_(_GRANTS_)!drop-5	CREATE STREAM a CLONE a COPY =(GRANTS
+reject	undocumented	docs	createStream(COPY_=_(_GRANTS_))?/COPY_=_(_GRANTS_)!insert	CREATE STREAM a CLONE a COPY =(GRANTS) zzz
+reject	undocumented	docs	createStream(COPY_=_(_GRANTS_))?/COPY_=_(_GRANTS_)!swap	CREATE STREAM a CLONE a CORE =(GRANTS)
 accept	accept	docs	createStream(INSERT_ONLY_=_TRUE)?/%empty	CREATE STREAM a ON EXTERNAL TABLE a
 accept	accept	docs	createStream(INSERT_ONLY_=_TRUE)?/INSERT_ONLY_=_TRUE	CREATE STREAM a ON EXTERNAL TABLE a INSERT_ONLY = TRUE
 reject	undocumented	docs	createStream(INSERT_ONLY_=_TRUE)?/INSERT_ONLY_=_TRUE!drop-1	CREATE STREAM a ON EXTERNAL TABLE a = TRUE
@@ -47600,15 +47519,6 @@ accept	undocumented	docs	createStream(INSERT_ONLY_=_TRUE)?/INSERT_ONLY_=_TRUE!dr
 reject	undocumented	docs	createStream(INSERT_ONLY_=_TRUE)?/INSERT_ONLY_=_TRUE!drop-3	CREATE STREAM a ON EXTERNAL TABLE a INSERT_ONLY =
 accept	undocumented	docs	createStream(INSERT_ONLY_=_TRUE)?/INSERT_ONLY_=_TRUE!insert	CREATE STREAM a ON EXTERNAL TABLE a INSERT_ONLY = TRUE zzz
 accept	undocumented	docs	createStream(INSERT_ONLY_=_TRUE)?/INSERT_ONLY_=_TRUE!swap	CREATE STREAM a ON EXTERNAL TABLE a INSTALL = TRUE
-accept	accept	docs	createStream(COPY_=_(_GRANTS_))*/%empty	CREATE STREAM a CLONE a
-reject	accept	docs	createStream(COPY_=_(_GRANTS_))*/COPY_=_(_GRANTS_)_(COPY_=_(_GRANTS_))*	CREATE STREAM a CLONE a COPY =(GRANTS)
-reject	undocumented	docs	createStream(COPY_=_(_GRANTS_))*/COPY_=_(_GRANTS_)_(COPY_=_(_GRANTS_))*!drop-1	CREATE STREAM a CLONE a =(GRANTS)
-reject	undocumented	docs	createStream(COPY_=_(_GRANTS_))*/COPY_=_(_GRANTS_)_(COPY_=_(_GRANTS_))*!drop-2	CREATE STREAM a CLONE a COPY(GRANTS)
-reject	undocumented	docs	createStream(COPY_=_(_GRANTS_))*/COPY_=_(_GRANTS_)_(COPY_=_(_GRANTS_))*!drop-3	CREATE STREAM a CLONE a COPY = GRANTS)
-reject	undocumented	docs	createStream(COPY_=_(_GRANTS_))*/COPY_=_(_GRANTS_)_(COPY_=_(_GRANTS_))*!drop-4	CREATE STREAM a CLONE a COPY =()
-reject	undocumented	docs	createStream(COPY_=_(_GRANTS_))*/COPY_=_(_GRANTS_)_(COPY_=_(_GRANTS_))*!drop-5	CREATE STREAM a CLONE a COPY =(GRANTS
-reject	undocumented	docs	createStream(COPY_=_(_GRANTS_))*/COPY_=_(_GRANTS_)_(COPY_=_(_GRANTS_))*!insert	CREATE STREAM a CLONE a COPY =(GRANTS) zzz
-reject	undocumented	docs	createStream(COPY_=_(_GRANTS_))*/COPY_=_(_GRANTS_)_(COPY_=_(_GRANTS_))*!swap	CREATE STREAM a CLONE a CORE =(GRANTS)
 reject	accept	docs	createStreamlit/CREATE_(OR_REPLACE)?_STREAMLIT_(IF_NOT_EXISTS)?_ID_(FRO~cbe5c419	CREATE STREAMLIT a
 reject	accept	docs	createStreamlit/CREATE_(OR_REPLACE)?_STREAMLIT_(IF_NOT_EXISTS)?_ID_ROOT~da5eeffb	CREATE STREAMLIT a ROOT_LOCATION = 's' MAIN_FILE = 's'
 reject	undocumented	docs	createStreamlit/CREATE_(OR_REPLACE)?_STREAMLIT_(IF_NOT_EXISTS)?_ID_ROOT~da5eeffb!drop-1	STREAMLIT a ROOT_LOCATION = 's' MAIN_FILE = 's'
@@ -47622,26 +47532,6 @@ reject	undocumented	docs	createStreamlit/CREATE_(OR_REPLACE)?_STREAMLIT_(IF_NOT_
 reject	undocumented	docs	createStreamlit/CREATE_(OR_REPLACE)?_STREAMLIT_(IF_NOT_EXISTS)?_ID_ROOT~da5eeffb!drop-9	CREATE STREAMLIT a ROOT_LOCATION = 's' MAIN_FILE =
 reject	undocumented	docs	createStreamlit/CREATE_(OR_REPLACE)?_STREAMLIT_(IF_NOT_EXISTS)?_ID_ROOT~da5eeffb!insert	CREATE STREAMLIT a ROOT_LOCATION = 's' MAIN_FILE = 's' zzz
 reject	undocumented	docs	createStreamlit/CREATE_(OR_REPLACE)?_STREAMLIT_(IF_NOT_EXISTS)?_ID_ROOT~da5eeffb!swap	CREATION STREAMLIT a ROOT_LOCATION = 's' MAIN_FILE = 's'
-reject	accept	docs	createStreamlit/DEFINE_STREAMLIT_DEMO_ID_._SERVE_._MY_DASHBOARD_FROM_'a~9143ffa0	DEFINE STREAMLIT DEMO a.SERVE.MY_DASHBOARD FROM 'asset://my_dashboard/' MAIN_FILE = 'streamlit_app.py' QUERY_WAREHOUSE = DEMO_WH a
-reject	undocumented	docs	createStreamlit/DEFINE_STREAMLIT_DEMO_ID_._SERVE_._MY_DASHBOARD_FROM_'a~9143ffa0!drop-1	STREAMLIT DEMO a.SERVE.MY_DASHBOARD FROM 'asset://my_dashboard/' MAIN_FILE = 'streamlit_app.py' QUERY_WAREHOUSE = DEMO_WH a
-reject	undocumented	docs	createStreamlit/DEFINE_STREAMLIT_DEMO_ID_._SERVE_._MY_DASHBOARD_FROM_'a~9143ffa0!drop-2	DEFINE DEMO a.SERVE.MY_DASHBOARD FROM 'asset://my_dashboard/' MAIN_FILE = 'streamlit_app.py' QUERY_WAREHOUSE = DEMO_WH a
-reject	undocumented	docs	createStreamlit/DEFINE_STREAMLIT_DEMO_ID_._SERVE_._MY_DASHBOARD_FROM_'a~9143ffa0!drop-3	DEFINE STREAMLIT a.SERVE.MY_DASHBOARD FROM 'asset://my_dashboard/' MAIN_FILE = 'streamlit_app.py' QUERY_WAREHOUSE = DEMO_WH a
-reject	undocumented	docs	createStreamlit/DEFINE_STREAMLIT_DEMO_ID_._SERVE_._MY_DASHBOARD_FROM_'a~9143ffa0!drop-4	DEFINE STREAMLIT DEMO.SERVE.MY_DASHBOARD FROM 'asset://my_dashboard/' MAIN_FILE = 'streamlit_app.py' QUERY_WAREHOUSE = DEMO_WH a
-reject	undocumented	docs	createStreamlit/DEFINE_STREAMLIT_DEMO_ID_._SERVE_._MY_DASHBOARD_FROM_'a~9143ffa0!drop-5	DEFINE STREAMLIT DEMO a SERVE.MY_DASHBOARD FROM 'asset://my_dashboard/' MAIN_FILE = 'streamlit_app.py' QUERY_WAREHOUSE = DEMO_WH a
-reject	undocumented	docs	createStreamlit/DEFINE_STREAMLIT_DEMO_ID_._SERVE_._MY_DASHBOARD_FROM_'a~9143ffa0!drop-6	DEFINE STREAMLIT DEMO a..MY_DASHBOARD FROM 'asset://my_dashboard/' MAIN_FILE = 'streamlit_app.py' QUERY_WAREHOUSE = DEMO_WH a
-reject	undocumented	docs	createStreamlit/DEFINE_STREAMLIT_DEMO_ID_._SERVE_._MY_DASHBOARD_FROM_'a~9143ffa0!drop-7	DEFINE STREAMLIT DEMO a.SERVE MY_DASHBOARD FROM 'asset://my_dashboard/' MAIN_FILE = 'streamlit_app.py' QUERY_WAREHOUSE = DEMO_WH a
-reject	undocumented	docs	createStreamlit/DEFINE_STREAMLIT_DEMO_ID_._SERVE_._MY_DASHBOARD_FROM_'a~9143ffa0!drop-8	DEFINE STREAMLIT DEMO a.SERVE.FROM 'asset://my_dashboard/' MAIN_FILE = 'streamlit_app.py' QUERY_WAREHOUSE = DEMO_WH a
-reject	undocumented	docs	createStreamlit/DEFINE_STREAMLIT_DEMO_ID_._SERVE_._MY_DASHBOARD_FROM_'a~9143ffa0!drop-9	DEFINE STREAMLIT DEMO a.SERVE.MY_DASHBOARD 'asset://my_dashboard/' MAIN_FILE = 'streamlit_app.py' QUERY_WAREHOUSE = DEMO_WH a
-reject	undocumented	docs	createStreamlit/DEFINE_STREAMLIT_DEMO_ID_._SERVE_._MY_DASHBOARD_FROM_'a~9143ffa0!drop-10	DEFINE STREAMLIT DEMO a.SERVE.MY_DASHBOARD FROM MAIN_FILE = 'streamlit_app.py' QUERY_WAREHOUSE = DEMO_WH a
-reject	undocumented	docs	createStreamlit/DEFINE_STREAMLIT_DEMO_ID_._SERVE_._MY_DASHBOARD_FROM_'a~9143ffa0!drop-11	DEFINE STREAMLIT DEMO a.SERVE.MY_DASHBOARD FROM 'asset://my_dashboard/' = 'streamlit_app.py' QUERY_WAREHOUSE = DEMO_WH a
-reject	undocumented	docs	createStreamlit/DEFINE_STREAMLIT_DEMO_ID_._SERVE_._MY_DASHBOARD_FROM_'a~9143ffa0!drop-12	DEFINE STREAMLIT DEMO a.SERVE.MY_DASHBOARD FROM 'asset://my_dashboard/' MAIN_FILE 'streamlit_app.py' QUERY_WAREHOUSE = DEMO_WH a
-reject	undocumented	docs	createStreamlit/DEFINE_STREAMLIT_DEMO_ID_._SERVE_._MY_DASHBOARD_FROM_'a~9143ffa0!drop-13	DEFINE STREAMLIT DEMO a.SERVE.MY_DASHBOARD FROM 'asset://my_dashboard/' MAIN_FILE = QUERY_WAREHOUSE = DEMO_WH a
-reject	undocumented	docs	createStreamlit/DEFINE_STREAMLIT_DEMO_ID_._SERVE_._MY_DASHBOARD_FROM_'a~9143ffa0!drop-14	DEFINE STREAMLIT DEMO a.SERVE.MY_DASHBOARD FROM 'asset://my_dashboard/' MAIN_FILE = 'streamlit_app.py' = DEMO_WH a
-reject	undocumented	docs	createStreamlit/DEFINE_STREAMLIT_DEMO_ID_._SERVE_._MY_DASHBOARD_FROM_'a~9143ffa0!drop-15	DEFINE STREAMLIT DEMO a.SERVE.MY_DASHBOARD FROM 'asset://my_dashboard/' MAIN_FILE = 'streamlit_app.py' QUERY_WAREHOUSE DEMO_WH a
-reject	undocumented	docs	createStreamlit/DEFINE_STREAMLIT_DEMO_ID_._SERVE_._MY_DASHBOARD_FROM_'a~9143ffa0!drop-16	DEFINE STREAMLIT DEMO a.SERVE.MY_DASHBOARD FROM 'asset://my_dashboard/' MAIN_FILE = 'streamlit_app.py' QUERY_WAREHOUSE = a
-reject	undocumented	docs	createStreamlit/DEFINE_STREAMLIT_DEMO_ID_._SERVE_._MY_DASHBOARD_FROM_'a~9143ffa0!drop-17	DEFINE STREAMLIT DEMO a.SERVE.MY_DASHBOARD FROM 'asset://my_dashboard/' MAIN_FILE = 'streamlit_app.py' QUERY_WAREHOUSE = DEMO_WH
-reject	undocumented	docs	createStreamlit/DEFINE_STREAMLIT_DEMO_ID_._SERVE_._MY_DASHBOARD_FROM_'a~9143ffa0!insert	DEFINE STREAMLIT DEMO a.SERVE.MY_DASHBOARD FROM 'asset://my_dashboard/' MAIN_FILE = 'streamlit_app.py' QUERY_WAREHOUSE = DEMO_WH a zzz
-reject	undocumented	docs	createStreamlit/DEFINE_STREAMLIT_DEMO_ID_._SERVE_._MY_DASHBOARD_FROM_'a~9143ffa0!swap	DEFINITION STREAMLIT DEMO a.SERVE.MY_DASHBOARD FROM 'asset://my_dashboard/' MAIN_FILE = 'streamlit_app.py' QUERY_WAREHOUSE = DEMO_WH a
 reject	accept	docs	createStreamlit(OR_REPLACE)?/%empty	CREATE STREAMLIT a
 reject	undocumented	docs	createStreamlit(OR_REPLACE)?/%empty!insert	CREATE zzz STREAMLIT a
 reject	accept	docs	createStreamlit(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE STREAMLIT a
@@ -47779,29 +47669,29 @@ reject	undocumented	docs	createTable/CREATE_OR_ALTER_((((LOCAL|GLOBAL))?_TEMP|TE
 reject	undocumented	docs	createTable/CREATE_OR_ALTER_((((LOCAL|GLOBAL))?_TEMP|TEMPORARY|TRAN~fa019015!insert	CREATE OR ALTER TABLE a(a INT) zzz
 reject	undocumented	docs	createTable/CREATE_OR_ALTER_((((LOCAL|GLOBAL))?_TEMP|TEMPORARY|TRAN~fa019015!swap	CREATION OR ALTER TABLE a(a INT)
 accept	accept	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_((_ID_DATA_TYPE?_(,_ID_DA~141d7cc1	CREATE TABLE a AS SELECT 1
-reject	accept	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_(COPY_GRANTS)?_USING_TEMP~b04505b5	CREATE TABLE a USING TEMPLATE SELECT 1
-reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_(COPY_GRANTS)?_USING_TEMP~b04505b5!drop-1	TABLE a USING TEMPLATE SELECT 1
-reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_(COPY_GRANTS)?_USING_TEMP~b04505b5!drop-2	CREATE a USING TEMPLATE SELECT 1
-reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_(COPY_GRANTS)?_USING_TEMP~b04505b5!drop-3	CREATE TABLE USING TEMPLATE SELECT 1
-reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_(COPY_GRANTS)?_USING_TEMP~b04505b5!drop-4	CREATE TABLE a TEMPLATE SELECT 1
-reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_(COPY_GRANTS)?_USING_TEMP~b04505b5!drop-5	CREATE TABLE a USING SELECT 1
-reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_(COPY_GRANTS)?_USING_TEMP~b04505b5!drop-6	CREATE TABLE a USING TEMPLATE
-reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_(COPY_GRANTS)?_USING_TEMP~b04505b5!insert	CREATE TABLE a USING TEMPLATE SELECT 1 zzz
-reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_(COPY_GRANTS)?_USING_TEMP~b04505b5!swap	CREATION TABLE a USING TEMPLATE SELECT 1
-accept	accept	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_LIKE_ID_(CLUSTER_BY_(_EXP~919438fa	CREATE TABLE a LIKE a
-reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_LIKE_ID_(CLUSTER_BY_(_EXP~919438fa!drop-1	TABLE a LIKE a
-reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_LIKE_ID_(CLUSTER_BY_(_EXP~919438fa!drop-2	CREATE a LIKE a
-reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_LIKE_ID_(CLUSTER_BY_(_EXP~919438fa!drop-3	CREATE TABLE LIKE a
-reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_LIKE_ID_(CLUSTER_BY_(_EXP~919438fa!drop-4	CREATE TABLE a a
-reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_LIKE_ID_(CLUSTER_BY_(_EXP~919438fa!drop-5	CREATE TABLE a LIKE
-reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_LIKE_ID_(CLUSTER_BY_(_EXP~919438fa!insert	CREATE TABLE a LIKE a zzz
-reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_LIKE_ID_(CLUSTER_BY_(_EXP~919438fa!swap	CREATION TABLE a LIKE a
-accept	accept	docs	createTable/CREATE_(OR_REPLACE)?_((((LOCAL|GLOBAL))?_TEMP_(READ_ONL~515eb8ac	CREATE TABLE a CLONE a
-reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_((((LOCAL|GLOBAL))?_TEMP_(READ_ONL~515eb8ac!drop-1	TABLE a CLONE a
-reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_((((LOCAL|GLOBAL))?_TEMP_(READ_ONL~515eb8ac!drop-3	CREATE TABLE CLONE a
-reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_((((LOCAL|GLOBAL))?_TEMP_(READ_ONL~515eb8ac!drop-5	CREATE TABLE a CLONE
-reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_((((LOCAL|GLOBAL))?_TEMP_(READ_ONL~515eb8ac!insert	CREATE TABLE a CLONE a zzz
-reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_((((LOCAL|GLOBAL))?_TEMP_(READ_ONL~515eb8ac!swap	CREATION TABLE a CLONE a
+reject	accept	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_(COPY_GRANTS)?_USING_TEMP~53ed9377	CREATE TABLE a USING TEMPLATE SELECT 1
+reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_(COPY_GRANTS)?_USING_TEMP~53ed9377!drop-1	TABLE a USING TEMPLATE SELECT 1
+reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_(COPY_GRANTS)?_USING_TEMP~53ed9377!drop-2	CREATE a USING TEMPLATE SELECT 1
+reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_(COPY_GRANTS)?_USING_TEMP~53ed9377!drop-3	CREATE TABLE USING TEMPLATE SELECT 1
+reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_(COPY_GRANTS)?_USING_TEMP~53ed9377!drop-4	CREATE TABLE a TEMPLATE SELECT 1
+reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_(COPY_GRANTS)?_USING_TEMP~53ed9377!drop-5	CREATE TABLE a USING SELECT 1
+reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_(COPY_GRANTS)?_USING_TEMP~53ed9377!drop-6	CREATE TABLE a USING TEMPLATE
+reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_(COPY_GRANTS)?_USING_TEMP~53ed9377!insert	CREATE TABLE a USING TEMPLATE SELECT 1 zzz
+reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_(COPY_GRANTS)?_USING_TEMP~53ed9377!swap	CREATION TABLE a USING TEMPLATE SELECT 1
+accept	accept	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_LIKE_ID_(CLUSTER_BY_(_EXP~1145fe51	CREATE TABLE a LIKE a
+reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_LIKE_ID_(CLUSTER_BY_(_EXP~1145fe51!drop-1	TABLE a LIKE a
+reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_LIKE_ID_(CLUSTER_BY_(_EXP~1145fe51!drop-2	CREATE a LIKE a
+reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_LIKE_ID_(CLUSTER_BY_(_EXP~1145fe51!drop-3	CREATE TABLE LIKE a
+reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_LIKE_ID_(CLUSTER_BY_(_EXP~1145fe51!drop-4	CREATE TABLE a a
+reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_LIKE_ID_(CLUSTER_BY_(_EXP~1145fe51!drop-5	CREATE TABLE a LIKE
+reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_LIKE_ID_(CLUSTER_BY_(_EXP~1145fe51!insert	CREATE TABLE a LIKE a zzz
+reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_LIKE_ID_(CLUSTER_BY_(_EXP~1145fe51!swap	CREATION TABLE a LIKE a
+accept	accept	docs	createTable/CREATE_(OR_REPLACE)?_((((LOCAL|GLOBAL))?_TEMP_(READ_ONL~854238f2	CREATE TABLE a CLONE a
+reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_((((LOCAL|GLOBAL))?_TEMP_(READ_ONL~854238f2!drop-1	TABLE a CLONE a
+reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_((((LOCAL|GLOBAL))?_TEMP_(READ_ONL~854238f2!drop-3	CREATE TABLE CLONE a
+reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_((((LOCAL|GLOBAL))?_TEMP_(READ_ONL~854238f2!drop-5	CREATE TABLE a CLONE
+reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_((((LOCAL|GLOBAL))?_TEMP_(READ_ONL~854238f2!insert	CREATE TABLE a CLONE a zzz
+reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_((((LOCAL|GLOBAL))?_TEMP_(READ_ONL~854238f2!swap	CREATION TABLE a CLONE a
 reject	accept	docs	createTable/CREATE_(TRANSIENT)?_TABLE_(IF_NOT_EXISTS)?_ID_FROM_ARCH~5693eebb	CREATE TABLE a FROM ARCHIVE OF a WHERE 1
 reject	undocumented	docs	createTable/CREATE_(TRANSIENT)?_TABLE_(IF_NOT_EXISTS)?_ID_FROM_ARCH~5693eebb!drop-1	TABLE a FROM ARCHIVE OF a WHERE 1
 reject	undocumented	docs	createTable/CREATE_(TRANSIENT)?_TABLE_(IF_NOT_EXISTS)?_ID_FROM_ARCH~5693eebb!drop-2	CREATE a FROM ARCHIVE OF a WHERE 1
@@ -47917,7 +47807,7 @@ reject	undocumented	docs	createTable(((_NUMBER_,_NUMBER_)|START_NUMBER_IN~456159
 reject	undocumented	docs	createTable(((_NUMBER_,_NUMBER_)|START_NUMBER_IN~456159f4)?/((_NUMBER_,_NUMBER_)|START_NUMBER_INC~f83f6f53)!drop-4	CREATE TABLE a(a INT AUTOINCREMENT START 1 INCREMENT)
 reject	undocumented	docs	createTable(((_NUMBER_,_NUMBER_)|START_NUMBER_IN~456159f4)?/((_NUMBER_,_NUMBER_)|START_NUMBER_INC~f83f6f53)!truncate	CREATE TABLE a(a INT AUTOINCREMENT START 1 INCREMENT
 reject	undocumented	docs	createTable(((_NUMBER_,_NUMBER_)|START_NUMBER_IN~456159f4)?/((_NUMBER_,_NUMBER_)|START_NUMBER_INC~f83f6f53)!insert	CREATE TABLE a(a INT AUTOINCREMENT START 1 INCREMENT 1 zzz)
-reject	undocumented	docs	createTable(((_NUMBER_,_NUMBER_)|START_NUMBER_IN~456159f4)?/((_NUMBER_,_NUMBER_)|START_NUMBER_INC~f83f6f53)!swap	CREATE TABLE a(a INT AUTOINCREMENT STARTED 1 INCREMENT 1)
+reject	undocumented	docs	createTable(((_NUMBER_,_NUMBER_)|START_NUMBER_IN~456159f4)?/((_NUMBER_,_NUMBER_)|START_NUMBER_INC~f83f6f53)!swap	CREATE TABLE a(a INT AUTOINCREMENT STARTS 1 INCREMENT 1)
 accept	accept	docs	createTable((_NUMBER_,_NUMBER_)|START_NUMBER_INC~f83f6f53)/(_NUMBER_,_NUMBER_)	CREATE TABLE a(a INT AUTOINCREMENT(1, 1))
 reject	undocumented	docs	createTable((_NUMBER_,_NUMBER_)|START_NUMBER_INC~f83f6f53)/(_NUMBER_,_NUMBER_)!drop-1	CREATE TABLE a(a INT AUTOINCREMENT 1, 1))
 reject	undocumented	docs	createTable((_NUMBER_,_NUMBER_)|START_NUMBER_INC~f83f6f53)/(_NUMBER_,_NUMBER_)!drop-2	CREATE TABLE a(a INT AUTOINCREMENT(, 1))
@@ -47931,7 +47821,7 @@ accept	accept	docs	createTable((ORDER|NOORDER))?/%empty	CREATE TABLE a(a INT AUT
 accept	accept	docs	createTable((ORDER|NOORDER))?/(ORDER|NOORDER)	CREATE TABLE a(a INT AUTOINCREMENT ORDER)
 reject	undocumented	docs	createTable((ORDER|NOORDER))?/(ORDER|NOORDER)!truncate	CREATE TABLE a(a INT AUTOINCREMENT
 reject	undocumented	docs	createTable((ORDER|NOORDER))?/(ORDER|NOORDER)!insert	CREATE TABLE a(a INT AUTOINCREMENT ORDER zzz)
-reject	undocumented	docs	createTable((ORDER|NOORDER))?/(ORDER|NOORDER)!swap	CREATE TABLE a(a INT AUTOINCREMENT ORDERS)
+reject	undocumented	docs	createTable((ORDER|NOORDER))?/(ORDER|NOORDER)!swap	CREATE TABLE a(a INT AUTOINCREMENT ORGANIZATION)
 accept	accept	docs	createTable(ORDER|NOORDER)/ORDER	CREATE TABLE a(a INT AUTOINCREMENT ORDER)
 accept	accept	docs	createTable(ORDER|NOORDER)/NOORDER	CREATE TABLE a(a INT AUTOINCREMENT NOORDER)
 reject	undocumented	docs	createTable(ORDER|NOORDER)/NOORDER!insert	CREATE TABLE a(a INT AUTOINCREMENT NOORDER zzz)
@@ -48098,15 +47988,15 @@ reject	accept	docs	createTable(COPY_TAGS)?/COPY_TAGS	CREATE TABLE a COPY TAGS AS
 reject	undocumented	docs	createTable(COPY_TAGS)?/COPY_TAGS!drop-1	CREATE TABLE a TAGS AS SELECT 1
 reject	undocumented	docs	createTable(COPY_TAGS)?/COPY_TAGS!insert	CREATE TABLE a COPY TAGS zzz AS SELECT 1
 reject	undocumented	docs	createTable(COPY_TAGS)?/COPY_TAGS!swap	CREATE TABLE a CORE TAGS AS SELECT 1
-accept	accept	docs	createTable(COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(~5bbf3e9b)?/%empty	CREATE TABLE a(a INT)
-reject	accept	docs	createTable(COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(~5bbf3e9b)?/COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(COMMENTS|TAGS|GRANTS))*_)	CREATE TABLE a(a INT) COPY =(COMMENTS)
-reject	undocumented	docs	createTable(COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(~5bbf3e9b)?/COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(COMMENTS|TAGS|GRANTS))*_)!drop-1	CREATE TABLE a(a INT) =(COMMENTS)
-reject	undocumented	docs	createTable(COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(~5bbf3e9b)?/COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(COMMENTS|TAGS|GRANTS))*_)!drop-2	CREATE TABLE a(a INT) COPY(COMMENTS)
-reject	undocumented	docs	createTable(COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(~5bbf3e9b)?/COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(COMMENTS|TAGS|GRANTS))*_)!drop-3	CREATE TABLE a(a INT) COPY = COMMENTS)
-reject	undocumented	docs	createTable(COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(~5bbf3e9b)?/COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(COMMENTS|TAGS|GRANTS))*_)!drop-4	CREATE TABLE a(a INT) COPY =()
-reject	undocumented	docs	createTable(COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(~5bbf3e9b)?/COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(COMMENTS|TAGS|GRANTS))*_)!drop-5	CREATE TABLE a(a INT) COPY =(COMMENTS
-reject	undocumented	docs	createTable(COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(~5bbf3e9b)?/COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(COMMENTS|TAGS|GRANTS))*_)!insert	CREATE TABLE a(a INT) COPY =(COMMENTS) zzz
-reject	undocumented	docs	createTable(COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(~5bbf3e9b)?/COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(COMMENTS|TAGS|GRANTS))*_)!swap	CREATE TABLE a(a INT) CORE =(COMMENTS)
+accept	accept	docs	createTable(COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(~5bbf3e9b)?/%empty	CREATE TABLE a LIKE a
+reject	accept	docs	createTable(COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(~5bbf3e9b)?/COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(COMMENTS|TAGS|GRANTS))*_)	CREATE TABLE a LIKE a COPY =(COMMENTS)
+reject	undocumented	docs	createTable(COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(~5bbf3e9b)?/COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(COMMENTS|TAGS|GRANTS))*_)!drop-1	CREATE TABLE a LIKE a =(COMMENTS)
+reject	undocumented	docs	createTable(COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(~5bbf3e9b)?/COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(COMMENTS|TAGS|GRANTS))*_)!drop-2	CREATE TABLE a LIKE a COPY(COMMENTS)
+reject	undocumented	docs	createTable(COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(~5bbf3e9b)?/COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(COMMENTS|TAGS|GRANTS))*_)!drop-3	CREATE TABLE a LIKE a COPY = COMMENTS)
+reject	undocumented	docs	createTable(COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(~5bbf3e9b)?/COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(COMMENTS|TAGS|GRANTS))*_)!drop-4	CREATE TABLE a LIKE a COPY =()
+reject	undocumented	docs	createTable(COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(~5bbf3e9b)?/COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(COMMENTS|TAGS|GRANTS))*_)!drop-5	CREATE TABLE a LIKE a COPY =(COMMENTS
+reject	undocumented	docs	createTable(COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(~5bbf3e9b)?/COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(COMMENTS|TAGS|GRANTS))*_)!insert	CREATE TABLE a LIKE a COPY =(COMMENTS) zzz
+reject	undocumented	docs	createTable(COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(~5bbf3e9b)?/COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(COMMENTS|TAGS|GRANTS))*_)!swap	CREATE TABLE a LIKE a CORE =(COMMENTS)
 reject	accept	docs	createTable(COMMENTS|TAGS|GRANTS)/COMMENTS	CREATE TABLE a COPY =(COMMENTS) AS SELECT 1
 reject	undocumented	docs	createTable(COMMENTS|TAGS|GRANTS)/COMMENTS!drop-1	CREATE TABLE a COPY =() AS SELECT 1
 reject	undocumented	docs	createTable(COMMENTS|TAGS|GRANTS)/COMMENTS!truncate	CREATE TABLE a COPY =(
@@ -48262,9 +48152,6 @@ reject	undocumented	docs	createTable(COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(~5bbf3e
 reject	undocumented	docs	createTable(COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(~5bbf3e9b)*/COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(COMMENTS|TAGS|GRANT~7e7a5727!truncate	CREATE TABLE a COPY =(COMMENTS
 reject	undocumented	docs	createTable(COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(~5bbf3e9b)*/COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(COMMENTS|TAGS|GRANT~7e7a5727!insert	CREATE TABLE a COPY =(COMMENTS) zzz AS SELECT 1
 reject	undocumented	docs	createTable(COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(~5bbf3e9b)*/COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(COMMENTS|TAGS|GRANT~7e7a5727!swap	CREATE TABLE a CORE =(COMMENTS) AS SELECT 1
-reject	accept	docs	createTable(QUERY)+/QUERY	CREATE TABLE a USING TEMPLATE SELECT 1
-reject	accept	docs	createTable(QUERY)+/QUERY_(QUERY)+	CREATE TABLE a USING TEMPLATE SELECT 1 SELECT 1
-reject	undocumented	docs	createTable(QUERY)+/QUERY_(QUERY)+!insert	CREATE TABLE a USING TEMPLATE SELECT 1 SELECT 1 zzz
 accept	accept	docs	createTable((((LOCAL|GLOBAL))?_TEMP_(READ_ONLY)?~e66f903d)?/%empty	CREATE TABLE a CLONE a
 reject	undocumented	docs	createTable((((LOCAL|GLOBAL))?_TEMP_(READ_ONLY)?~e66f903d)?/%empty!insert	CREATE zzz TABLE a CLONE a
 accept	accept	docs	createTable((((LOCAL|GLOBAL))?_TEMP_(READ_ONLY)?~e66f903d)?/(((LOCAL|GLOBAL))?_TEMP_(READ_ONLY)?|~33a9c438)	CREATE TEMP TABLE a CLONE a
@@ -48454,7 +48341,7 @@ reject	undocumented	docs	createTable_inlineConstraint(INITIALLY_(DEFERRED|IMMEDI
 reject	undocumented	docs	createTable_inlineConstraint(INITIALLY_(DEFERRED|IMMEDIATE))?/INITIALLY_(DEFERRED|IMMEDIATE)!insert	CREATE TABLE a(a INT UNIQUE INITIALLY DEFERRED zzz)
 reject	undocumented	docs	createTable_inlineConstraint(INITIALLY_(DEFERRED|IMMEDIATE))?/INITIALLY_(DEFERRED|IMMEDIATE)!swap	CREATE TABLE a(a INT UNIQUE INITIALLY_SUSPENDED DEFERRED)
 accept	accept	docs	createTable_inlineConstraint(DEFERRED|IMMEDIATE)/DEFERRED	CREATE TABLE a(a INT UNIQUE INITIALLY DEFERRED)
-reject	undocumented	docs	createTable_inlineConstraint(DEFERRED|IMMEDIATE)/DEFERRED!swap	CREATE TABLE a(a INT UNIQUE INITIALLY DEFINE)
+reject	undocumented	docs	createTable_inlineConstraint(DEFERRED|IMMEDIATE)/DEFERRED!swap	CREATE TABLE a(a INT UNIQUE INITIALLY DEFINITION)
 accept	accept	docs	createTable_inlineConstraint(DEFERRED|IMMEDIATE)/IMMEDIATE	CREATE TABLE a(a INT UNIQUE INITIALLY IMMEDIATE)
 reject	undocumented	docs	createTable_inlineConstraint(DEFERRED|IMMEDIATE)/IMMEDIATE!insert	CREATE TABLE a(a INT UNIQUE INITIALLY IMMEDIATE zzz)
 reject	undocumented	docs	createTable_inlineConstraint(DEFERRED|IMMEDIATE)/IMMEDIATE!swap	CREATE TABLE a(a INT UNIQUE INITIALLY IMMEDIATELY)
@@ -48614,7 +48501,7 @@ reject	undocumented	docs	createTable_outoflineConstraint(INITIALLY_(DEFERRED|IMM
 reject	undocumented	docs	createTable_outoflineConstraint(INITIALLY_(DEFERRED|IMMEDIATE))?/INITIALLY_(DEFERRED|IMMEDIATE)!insert	CREATE TABLE a(a INT, UNIQUE(a) INITIALLY DEFERRED zzz)
 reject	undocumented	docs	createTable_outoflineConstraint(INITIALLY_(DEFERRED|IMMEDIATE))?/INITIALLY_(DEFERRED|IMMEDIATE)!swap	CREATE TABLE a(a INT, UNIQUE(a) INITIALLY_SUSPENDED DEFERRED)
 accept	accept	docs	createTable_outoflineConstraint(DEFERRED|IMMEDIATE)/DEFERRED	CREATE TABLE a(a INT, UNIQUE(a) INITIALLY DEFERRED)
-reject	undocumented	docs	createTable_outoflineConstraint(DEFERRED|IMMEDIATE)/DEFERRED!swap	CREATE TABLE a(a INT, UNIQUE(a) INITIALLY DEFINE)
+reject	undocumented	docs	createTable_outoflineConstraint(DEFERRED|IMMEDIATE)/DEFERRED!swap	CREATE TABLE a(a INT, UNIQUE(a) INITIALLY DEFINITION)
 accept	accept	docs	createTable_outoflineConstraint(DEFERRED|IMMEDIATE)/IMMEDIATE	CREATE TABLE a(a INT, UNIQUE(a) INITIALLY IMMEDIATE)
 reject	undocumented	docs	createTable_outoflineConstraint(DEFERRED|IMMEDIATE)/IMMEDIATE!insert	CREATE TABLE a(a INT, UNIQUE(a) INITIALLY IMMEDIATE zzz)
 reject	undocumented	docs	createTable_outoflineConstraint(DEFERRED|IMMEDIATE)/IMMEDIATE!swap	CREATE TABLE a(a INT, UNIQUE(a) INITIALLY IMMEDIATELY)
@@ -48785,7 +48672,7 @@ reject	undocumented	docs	createTableConstraint_inlineFK(INITIALLY_(DEFERRED|IMME
 reject	undocumented	docs	createTableConstraint_inlineFK(INITIALLY_(DEFERRED|IMMEDIATE))?/INITIALLY_(DEFERRED|IMMEDIATE)!insert	CREATE TABLE a(a INT REFERENCES a INITIALLY DEFERRED zzz)
 reject	undocumented	docs	createTableConstraint_inlineFK(INITIALLY_(DEFERRED|IMMEDIATE))?/INITIALLY_(DEFERRED|IMMEDIATE)!swap	CREATE TABLE a(a INT REFERENCES a INITIALLY_SUSPENDED DEFERRED)
 reject	accept	docs	createTableConstraint_inlineFK(DEFERRED|IMMEDIATE)/DEFERRED	CREATE TABLE a(a INT REFERENCES a INITIALLY DEFERRED)
-reject	undocumented	docs	createTableConstraint_inlineFK(DEFERRED|IMMEDIATE)/DEFERRED!swap	CREATE TABLE a(a INT REFERENCES a INITIALLY DEFINE)
+reject	undocumented	docs	createTableConstraint_inlineFK(DEFERRED|IMMEDIATE)/DEFERRED!swap	CREATE TABLE a(a INT REFERENCES a INITIALLY DEFINITION)
 reject	accept	docs	createTableConstraint_inlineFK(DEFERRED|IMMEDIATE)/IMMEDIATE	CREATE TABLE a(a INT REFERENCES a INITIALLY IMMEDIATE)
 reject	undocumented	docs	createTableConstraint_inlineFK(DEFERRED|IMMEDIATE)/IMMEDIATE!insert	CREATE TABLE a(a INT REFERENCES a INITIALLY IMMEDIATE zzz)
 reject	undocumented	docs	createTableConstraint_inlineFK(DEFERRED|IMMEDIATE)/IMMEDIATE!swap	CREATE TABLE a(a INT REFERENCES a INITIALLY IMMEDIATELY)
@@ -48959,7 +48846,7 @@ reject	undocumented	docs	createTableConstraint_outoflineFK(INITIALLY_(DEFERRED|I
 reject	undocumented	docs	createTableConstraint_outoflineFK(INITIALLY_(DEFERRED|IMMEDIATE))?/INITIALLY_(DEFERRED|IMMEDIATE)!insert	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a INITIALLY DEFERRED zzz
 reject	undocumented	docs	createTableConstraint_outoflineFK(INITIALLY_(DEFERRED|IMMEDIATE))?/INITIALLY_(DEFERRED|IMMEDIATE)!swap	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a INITIALLY_SUSPENDED DEFERRED
 accept	accept	docs	createTableConstraint_outoflineFK(DEFERRED|IMMEDIATE)/DEFERRED	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a INITIALLY DEFERRED
-reject	undocumented	docs	createTableConstraint_outoflineFK(DEFERRED|IMMEDIATE)/DEFERRED!swap	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a INITIALLY DEFINE
+reject	undocumented	docs	createTableConstraint_outoflineFK(DEFERRED|IMMEDIATE)/DEFERRED!swap	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a INITIALLY DEFINITION
 accept	accept	docs	createTableConstraint_outoflineFK(DEFERRED|IMMEDIATE)/IMMEDIATE	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a INITIALLY IMMEDIATE
 reject	undocumented	docs	createTableConstraint_outoflineFK(DEFERRED|IMMEDIATE)/IMMEDIATE!insert	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a INITIALLY IMMEDIATE zzz
 reject	undocumented	docs	createTableConstraint_outoflineFK(DEFERRED|IMMEDIATE)/IMMEDIATE!swap	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a INITIALLY IMMEDIATELY
@@ -49098,33 +48985,13 @@ reject	undocumented	docs	createTask/CREATE_OR_ALTER_TASK_ID_(WAREHOUSE_=_ID|USER
 reject	undocumented	docs	createTask/CREATE_OR_ALTER_TASK_ID_(WAREHOUSE_=_ID|USER_TASK_MANAG~1698c177!drop-7	CREATE OR ALTER TASK a AS
 accept	undocumented	docs	createTask/CREATE_OR_ALTER_TASK_ID_(WAREHOUSE_=_ID|USER_TASK_MANAG~1698c177!insert	CREATE OR ALTER TASK a AS SELECT 1 zzz
 reject	undocumented	docs	createTask/CREATE_OR_ALTER_TASK_ID_(WAREHOUSE_=_ID|USER_TASK_MANAG~1698c177!swap	CREATION OR ALTER TASK a AS SELECT 1
-reject	accept	docs	createTask/DEFINE_TASK_MY_DB_._MY_SCHEMA_._TSK_INGEST_DAILY_ORDERS~f308430b	DEFINE TASK MY_DB.MY_SCHEMA.TSK_INGEST_DAILY_ORDERS WAREHOUSE = 'MY_WH' SCHEDULE = 'USING CRON 0 5 * * * UTC' STARTED AS SELECT 1
-reject	undocumented	docs	createTask/DEFINE_TASK_MY_DB_._MY_SCHEMA_._TSK_INGEST_DAILY_ORDERS~f308430b!drop-1	TASK MY_DB.MY_SCHEMA.TSK_INGEST_DAILY_ORDERS WAREHOUSE = 'MY_WH' SCHEDULE = 'USING CRON 0 5 * * * UTC' STARTED AS SELECT 1
-reject	undocumented	docs	createTask/DEFINE_TASK_MY_DB_._MY_SCHEMA_._TSK_INGEST_DAILY_ORDERS~f308430b!drop-2	DEFINE MY_DB.MY_SCHEMA.TSK_INGEST_DAILY_ORDERS WAREHOUSE = 'MY_WH' SCHEDULE = 'USING CRON 0 5 * * * UTC' STARTED AS SELECT 1
-reject	undocumented	docs	createTask/DEFINE_TASK_MY_DB_._MY_SCHEMA_._TSK_INGEST_DAILY_ORDERS~f308430b!drop-3	DEFINE TASK.MY_SCHEMA.TSK_INGEST_DAILY_ORDERS WAREHOUSE = 'MY_WH' SCHEDULE = 'USING CRON 0 5 * * * UTC' STARTED AS SELECT 1
-reject	undocumented	docs	createTask/DEFINE_TASK_MY_DB_._MY_SCHEMA_._TSK_INGEST_DAILY_ORDERS~f308430b!drop-4	DEFINE TASK MY_DB MY_SCHEMA.TSK_INGEST_DAILY_ORDERS WAREHOUSE = 'MY_WH' SCHEDULE = 'USING CRON 0 5 * * * UTC' STARTED AS SELECT 1
-reject	undocumented	docs	createTask/DEFINE_TASK_MY_DB_._MY_SCHEMA_._TSK_INGEST_DAILY_ORDERS~f308430b!drop-5	DEFINE TASK MY_DB..TSK_INGEST_DAILY_ORDERS WAREHOUSE = 'MY_WH' SCHEDULE = 'USING CRON 0 5 * * * UTC' STARTED AS SELECT 1
-reject	undocumented	docs	createTask/DEFINE_TASK_MY_DB_._MY_SCHEMA_._TSK_INGEST_DAILY_ORDERS~f308430b!drop-6	DEFINE TASK MY_DB.MY_SCHEMA TSK_INGEST_DAILY_ORDERS WAREHOUSE = 'MY_WH' SCHEDULE = 'USING CRON 0 5 * * * UTC' STARTED AS SELECT 1
-reject	undocumented	docs	createTask/DEFINE_TASK_MY_DB_._MY_SCHEMA_._TSK_INGEST_DAILY_ORDERS~f308430b!drop-7	DEFINE TASK MY_DB.MY_SCHEMA.WAREHOUSE = 'MY_WH' SCHEDULE = 'USING CRON 0 5 * * * UTC' STARTED AS SELECT 1
-reject	undocumented	docs	createTask/DEFINE_TASK_MY_DB_._MY_SCHEMA_._TSK_INGEST_DAILY_ORDERS~f308430b!drop-8	DEFINE TASK MY_DB.MY_SCHEMA.TSK_INGEST_DAILY_ORDERS = 'MY_WH' SCHEDULE = 'USING CRON 0 5 * * * UTC' STARTED AS SELECT 1
-reject	undocumented	docs	createTask/DEFINE_TASK_MY_DB_._MY_SCHEMA_._TSK_INGEST_DAILY_ORDERS~f308430b!drop-9	DEFINE TASK MY_DB.MY_SCHEMA.TSK_INGEST_DAILY_ORDERS WAREHOUSE 'MY_WH' SCHEDULE = 'USING CRON 0 5 * * * UTC' STARTED AS SELECT 1
-reject	undocumented	docs	createTask/DEFINE_TASK_MY_DB_._MY_SCHEMA_._TSK_INGEST_DAILY_ORDERS~f308430b!drop-10	DEFINE TASK MY_DB.MY_SCHEMA.TSK_INGEST_DAILY_ORDERS WAREHOUSE = SCHEDULE = 'USING CRON 0 5 * * * UTC' STARTED AS SELECT 1
-reject	undocumented	docs	createTask/DEFINE_TASK_MY_DB_._MY_SCHEMA_._TSK_INGEST_DAILY_ORDERS~f308430b!drop-11	DEFINE TASK MY_DB.MY_SCHEMA.TSK_INGEST_DAILY_ORDERS WAREHOUSE = 'MY_WH' = 'USING CRON 0 5 * * * UTC' STARTED AS SELECT 1
-reject	undocumented	docs	createTask/DEFINE_TASK_MY_DB_._MY_SCHEMA_._TSK_INGEST_DAILY_ORDERS~f308430b!drop-12	DEFINE TASK MY_DB.MY_SCHEMA.TSK_INGEST_DAILY_ORDERS WAREHOUSE = 'MY_WH' SCHEDULE 'USING CRON 0 5 * * * UTC' STARTED AS SELECT 1
-reject	undocumented	docs	createTask/DEFINE_TASK_MY_DB_._MY_SCHEMA_._TSK_INGEST_DAILY_ORDERS~f308430b!drop-13	DEFINE TASK MY_DB.MY_SCHEMA.TSK_INGEST_DAILY_ORDERS WAREHOUSE = 'MY_WH' SCHEDULE = STARTED AS SELECT 1
-reject	undocumented	docs	createTask/DEFINE_TASK_MY_DB_._MY_SCHEMA_._TSK_INGEST_DAILY_ORDERS~f308430b!drop-14	DEFINE TASK MY_DB.MY_SCHEMA.TSK_INGEST_DAILY_ORDERS WAREHOUSE = 'MY_WH' SCHEDULE = 'USING CRON 0 5 * * * UTC' AS SELECT 1
-reject	undocumented	docs	createTask/DEFINE_TASK_MY_DB_._MY_SCHEMA_._TSK_INGEST_DAILY_ORDERS~f308430b!drop-15	DEFINE TASK MY_DB.MY_SCHEMA.TSK_INGEST_DAILY_ORDERS WAREHOUSE = 'MY_WH' SCHEDULE = 'USING CRON 0 5 * * * UTC' STARTED SELECT 1
-reject	undocumented	docs	createTask/DEFINE_TASK_MY_DB_._MY_SCHEMA_._TSK_INGEST_DAILY_ORDERS~f308430b!drop-16	DEFINE TASK MY_DB.MY_SCHEMA.TSK_INGEST_DAILY_ORDERS WAREHOUSE = 'MY_WH' SCHEDULE = 'USING CRON 0 5 * * * UTC' STARTED AS 1
-reject	undocumented	docs	createTask/DEFINE_TASK_MY_DB_._MY_SCHEMA_._TSK_INGEST_DAILY_ORDERS~f308430b!drop-17	DEFINE TASK MY_DB.MY_SCHEMA.TSK_INGEST_DAILY_ORDERS WAREHOUSE = 'MY_WH' SCHEDULE = 'USING CRON 0 5 * * * UTC' STARTED AS SELECT
-reject	undocumented	docs	createTask/DEFINE_TASK_MY_DB_._MY_SCHEMA_._TSK_INGEST_DAILY_ORDERS~f308430b!insert	DEFINE TASK MY_DB.MY_SCHEMA.TSK_INGEST_DAILY_ORDERS WAREHOUSE = 'MY_WH' SCHEDULE = 'USING CRON 0 5 * * * UTC' STARTED AS SELECT 1 zzz
-reject	undocumented	docs	createTask/DEFINE_TASK_MY_DB_._MY_SCHEMA_._TSK_INGEST_DAILY_ORDERS~f308430b!swap	DEFINITION TASK MY_DB.MY_SCHEMA.TSK_INGEST_DAILY_ORDERS WAREHOUSE = 'MY_WH' SCHEDULE = 'USING CRON 0 5 * * * UTC' STARTED AS SELECT 1
-accept	accept	docs	createTask/CREATE_(OR_REPLACE)?_TASK_ID_CLONE_(ID)+	CREATE TASK a CLONE a
-reject	undocumented	docs	createTask/CREATE_(OR_REPLACE)?_TASK_ID_CLONE_(ID)+!drop-1	TASK a CLONE a
-reject	undocumented	docs	createTask/CREATE_(OR_REPLACE)?_TASK_ID_CLONE_(ID)+!drop-3	CREATE TASK CLONE a
-reject	undocumented	docs	createTask/CREATE_(OR_REPLACE)?_TASK_ID_CLONE_(ID)+!drop-4	CREATE TASK a a
-reject	undocumented	docs	createTask/CREATE_(OR_REPLACE)?_TASK_ID_CLONE_(ID)+!drop-5	CREATE TASK a CLONE
-reject	accept	docs	createTask/CREATE_(OR_REPLACE)?_TASK_ID_CLONE_(ID)+!insert	CREATE TASK a CLONE a zzz
-reject	undocumented	docs	createTask/CREATE_(OR_REPLACE)?_TASK_ID_CLONE_(ID)+!swap	CREATION TASK a CLONE a
+accept	accept	docs	createTask/CREATE_(OR_REPLACE)?_TASK_ID_CLONE_ID	CREATE TASK a CLONE a
+reject	undocumented	docs	createTask/CREATE_(OR_REPLACE)?_TASK_ID_CLONE_ID!drop-1	TASK a CLONE a
+reject	undocumented	docs	createTask/CREATE_(OR_REPLACE)?_TASK_ID_CLONE_ID!drop-3	CREATE TASK CLONE a
+reject	undocumented	docs	createTask/CREATE_(OR_REPLACE)?_TASK_ID_CLONE_ID!drop-4	CREATE TASK a a
+reject	undocumented	docs	createTask/CREATE_(OR_REPLACE)?_TASK_ID_CLONE_ID!drop-5	CREATE TASK a CLONE
+reject	undocumented	docs	createTask/CREATE_(OR_REPLACE)?_TASK_ID_CLONE_ID!insert	CREATE TASK a CLONE a zzz
+reject	undocumented	docs	createTask/CREATE_(OR_REPLACE)?_TASK_ID_CLONE_ID!swap	CREATION TASK a CLONE a
 accept	accept	docs	createTask(OR_REPLACE)?/%empty	CREATE TASK a AS SELECT 1
 reject	undocumented	docs	createTask(OR_REPLACE)?/%empty!insert	CREATE zzz TASK a AS SELECT 1
 accept	accept	docs	createTask(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE TASK a AS SELECT 1
@@ -49353,9 +49220,6 @@ reject	undocumented	docs	createTask(WHEN_EXPR)?/WHEN_EXPR!drop-2	CREATE TASK a W
 reject	undocumented	docs	createTask(WHEN_EXPR)?/WHEN_EXPR!truncate	CREATE TASK a WHEN
 accept	undocumented	docs	createTask(WHEN_EXPR)?/WHEN_EXPR!insert	CREATE TASK a WHEN 1 zzz AS SELECT 1
 reject	undocumented	docs	createTask(WHEN_EXPR)?/WHEN_EXPR!swap	CREATE TASK a WHERE 1 AS SELECT 1
-accept	accept	docs	createTask(ID)+/ID	CREATE TASK a CLONE a
-reject	accept	docs	createTask(ID)+/ID_(ID)+	CREATE TASK a CLONE a a
-reject	accept	docs	createTask(ID)+/ID_(ID)+!insert	CREATE TASK a CLONE a a zzz
 reject	accept	docs	createTaskGraph/CREATE_(OR_REPLACE)?_TASK_GRAPH_(IF_NOT_EXISTS)?_ID_(WI~638a64b6	CREATE TASK GRAPH a
 reject	accept	docs	createTaskGraph/CREATE_OR_ALTER_TASK_GRAPH_ID_(SCHEDULE_=_STRING)?_(ROO~f7ba9e2d	CREATE OR ALTER TASK GRAPH a
 reject	undocumented	docs	createTaskGraph/CREATE_OR_ALTER_TASK_GRAPH_ID_(SCHEDULE_=_STRING)?_(ROO~f7ba9e2d!drop-1	OR ALTER TASK GRAPH a
@@ -49645,7 +49509,7 @@ accept	accept	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_ST
 accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~ae823388)/MUST_CHANGE_PASSWORD_=_(TRUE|FALSE)!drop-2	CREATE USER a MUST_CHANGE_PASSWORD TRUE
 reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~ae823388)/MUST_CHANGE_PASSWORD_=_(TRUE|FALSE)!drop-3	CREATE USER a MUST_CHANGE_PASSWORD =
 accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~ae823388)/MUST_CHANGE_PASSWORD_=_(TRUE|FALSE)!insert	CREATE USER a MUST_CHANGE_PASSWORD = TRUE zzz
-accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~ae823388)/MUST_CHANGE_PASSWORD_=_(TRUE|FALSE)!swap	CREATE USER a MY_DASHBOARD = TRUE
+accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~ae823388)/MUST_CHANGE_PASSWORD_=_(TRUE|FALSE)!swap	CREATE USER a NAME = TRUE
 accept	accept	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~ae823388)/DISABLED_=_(TRUE|FALSE)	CREATE USER a DISABLED = TRUE
 accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~ae823388)/DISABLED_=_(TRUE|FALSE)!drop-2	CREATE USER a DISABLED TRUE
 reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~ae823388)/DISABLED_=_(TRUE|FALSE)!drop-3	CREATE USER a DISABLED =
@@ -52489,7 +52353,7 @@ reject	undocumented	docs	executeInferenceJobService(ID_._ID_.)?/ID_._ID_.!drop-1
 reject	undocumented	docs	executeInferenceJobService(ID_._ID_.)?/ID_._ID_.!drop-2	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a a.a
 reject	undocumented	docs	executeInferenceJobService(ID_._ID_.)?/ID_._ID_.!drop-3	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a..a
 reject	undocumented	docs	executeInferenceJobService(ID_._ID_.)?/ID_._ID_.!drop-4	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a.a a
-reject	undocumented	docs	executeInferenceJobService(ID_._ID_.)?/ID_._ID_.!truncate	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a.a
+reject	accept	docs	executeInferenceJobService(ID_._ID_.)?/ID_._ID_.!truncate	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a.a
 reject	undocumented	docs	executeInferenceJobService(ID_._ID_.)?/ID_._ID_.!insert	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a.a.zzz a
 reject	accept	docs	executeInferenceJobService(VERSION_=_ID)?/%empty	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a
 reject	accept	docs	executeInferenceJobService(VERSION_=_ID)?/VERSION_=_ID	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a VERSION = a
@@ -52559,7 +52423,7 @@ reject	undocumented	docs	executeJobService(ID_._ID_.)?/ID_._ID_.!drop-1	EXECUTE 
 reject	undocumented	docs	executeJobService(ID_._ID_.)?/ID_._ID_.!drop-2	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM SPECIFICATION 's' NAME = a a.a
 reject	undocumented	docs	executeJobService(ID_._ID_.)?/ID_._ID_.!drop-3	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM SPECIFICATION 's' NAME = a..a
 reject	undocumented	docs	executeJobService(ID_._ID_.)?/ID_._ID_.!drop-4	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM SPECIFICATION 's' NAME = a.a a
-reject	undocumented	docs	executeJobService(ID_._ID_.)?/ID_._ID_.!truncate	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM SPECIFICATION 's' NAME = a.a
+reject	accept	docs	executeJobService(ID_._ID_.)?/ID_._ID_.!truncate	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM SPECIFICATION 's' NAME = a.a
 reject	undocumented	docs	executeJobService(ID_._ID_.)?/ID_._ID_.!insert	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM SPECIFICATION 's' NAME = a.a.zzz a
 reject	accept	docs	executeJobService(ASYNC_=_(TRUE|FALSE))?/%empty	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM SPECIFICATION 's'
 reject	accept	docs	executeJobService(ASYNC_=_(TRUE|FALSE))?/ASYNC_=_(TRUE|FALSE)	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM SPECIFICATION 's' ASYNC = TRUE
@@ -66715,31 +66579,51 @@ accept	accept	docs	select(,_((ID_.)?_ID|(ID_.)?_POSITION|EXPR)~98d6e318)*/,_((ID
 accept	undocumented	docs	select(,_((ID_.)?_ID|(ID_.)?_POSITION|EXPR)~98d6e318)*/,_((ID_.)?_ID|(ID_.)?_POSITION|EXPR)_(AS?_ID)?_(,_((ID_~0be1034c!drop-2	SELECT a,
 accept	accept	docs	select(,_((ID_.)?_ID|(ID_.)?_POSITION|EXPR)~98d6e318)*/,_((ID_.)?_ID|(ID_.)?_POSITION|EXPR)_(AS?_ID)?_(,_((ID_~0be1034c!insert	SELECT a, a zzz
 accept	accept	docs	set/SET_ID_=_EXPR	SET a = 1
-accept	accept	docs	set/SET_(_ID_(,_ID)*_)_=_(_EXPR_(,_EXPR)*_)	SET(a) =(1)
-reject	undocumented	docs	set/SET_(_ID_(,_ID)*_)_=_(_EXPR_(,_EXPR)*_)!drop-1	(a) =(1)
-reject	undocumented	docs	set/SET_(_ID_(,_ID)*_)_=_(_EXPR_(,_EXPR)*_)!drop-2	SET a) =(1)
-reject	undocumented	docs	set/SET_(_ID_(,_ID)*_)_=_(_EXPR_(,_EXPR)*_)!drop-3	SET() =(1)
-reject	undocumented	docs	set/SET_(_ID_(,_ID)*_)_=_(_EXPR_(,_EXPR)*_)!drop-4	SET(a =(1)
-reject	undocumented	docs	set/SET_(_ID_(,_ID)*_)_=_(_EXPR_(,_EXPR)*_)!drop-5	SET(a)(1)
-reject	undocumented	docs	set/SET_(_ID_(,_ID)*_)_=_(_EXPR_(,_EXPR)*_)!drop-6	SET(a) = 1)
-reject	undocumented	docs	set/SET_(_ID_(,_ID)*_)_=_(_EXPR_(,_EXPR)*_)!drop-7	SET(a) =()
-reject	undocumented	docs	set/SET_(_ID_(,_ID)*_)_=_(_EXPR_(,_EXPR)*_)!drop-8	SET(a) =(1
-reject	undocumented	docs	set/SET_(_ID_(,_ID)*_)_=_(_EXPR_(,_EXPR)*_)!insert	SET(a) =(1) zzz
-reject	undocumented	docs	set/SET_(_ID_(,_ID)*_)_=_(_EXPR_(,_EXPR)*_)!swap	SETS(a) =(1)
-accept	accept	docs	set(,_ID)*/%empty	SET(a) =(1)
-reject	undocumented	docs	set(,_ID)*/%empty!insert	SET(a zzz) =(1)
-reject	accept	docs	set(,_ID)*/,_ID_(,_ID)*	SET(a, a) =(1)
-reject	undocumented	docs	set(,_ID)*/,_ID_(,_ID)*!drop-1	SET(a a) =(1)
-reject	undocumented	docs	set(,_ID)*/,_ID_(,_ID)*!drop-2	SET(a,) =(1)
-reject	undocumented	docs	set(,_ID)*/,_ID_(,_ID)*!truncate	SET(a,
-reject	undocumented	docs	set(,_ID)*/,_ID_(,_ID)*!insert	SET(a, a zzz) =(1)
-accept	accept	docs	set(,_EXPR)*/%empty	SET(a) =(1)
-reject	undocumented	docs	set(,_EXPR)*/%empty!insert	SET(a) =(1 zzz)
-reject	accept	docs	set(,_EXPR)*/,_EXPR_(,_EXPR)*	SET(a) =(1, 1)
-reject	undocumented	docs	set(,_EXPR)*/,_EXPR_(,_EXPR)*!drop-1	SET(a) =(1 1)
-reject	undocumented	docs	set(,_EXPR)*/,_EXPR_(,_EXPR)*!drop-2	SET(a) =(1,)
-reject	undocumented	docs	set(,_EXPR)*/,_EXPR_(,_EXPR)*!truncate	SET(a) =(1,
-reject	undocumented	docs	set(,_EXPR)*/,_EXPR_(,_EXPR)*!insert	SET(a) =(1, 1 zzz)
+accept	accept	docs	set/SET_(_ID_)_=_(_EXPR_)	SET(a) =(1)
+reject	undocumented	docs	set/SET_(_ID_)_=_(_EXPR_)!drop-1	(a) =(1)
+reject	undocumented	docs	set/SET_(_ID_)_=_(_EXPR_)!drop-2	SET a) =(1)
+reject	undocumented	docs	set/SET_(_ID_)_=_(_EXPR_)!drop-3	SET() =(1)
+reject	undocumented	docs	set/SET_(_ID_)_=_(_EXPR_)!drop-4	SET(a =(1)
+reject	undocumented	docs	set/SET_(_ID_)_=_(_EXPR_)!drop-5	SET(a)(1)
+reject	undocumented	docs	set/SET_(_ID_)_=_(_EXPR_)!drop-6	SET(a) = 1)
+reject	undocumented	docs	set/SET_(_ID_)_=_(_EXPR_)!drop-7	SET(a) =()
+reject	undocumented	docs	set/SET_(_ID_)_=_(_EXPR_)!drop-8	SET(a) =(1
+reject	undocumented	docs	set/SET_(_ID_)_=_(_EXPR_)!insert	SET(a) =(1) zzz
+reject	undocumented	docs	set/SET_(_ID_)_=_(_EXPR_)!swap	SETS(a) =(1)
+accept	accept	docs	set/SET_(_ID_,_ID_)_=_(_EXPR_,_EXPR_)	SET(a, a) =(1, 1)
+reject	undocumented	docs	set/SET_(_ID_,_ID_)_=_(_EXPR_,_EXPR_)!drop-1	(a, a) =(1, 1)
+reject	undocumented	docs	set/SET_(_ID_,_ID_)_=_(_EXPR_,_EXPR_)!drop-2	SET a, a) =(1, 1)
+reject	undocumented	docs	set/SET_(_ID_,_ID_)_=_(_EXPR_,_EXPR_)!drop-3	SET(, a) =(1, 1)
+reject	undocumented	docs	set/SET_(_ID_,_ID_)_=_(_EXPR_,_EXPR_)!drop-4	SET(a a) =(1, 1)
+reject	undocumented	docs	set/SET_(_ID_,_ID_)_=_(_EXPR_,_EXPR_)!drop-5	SET(a,) =(1, 1)
+reject	undocumented	docs	set/SET_(_ID_,_ID_)_=_(_EXPR_,_EXPR_)!drop-6	SET(a, a =(1, 1)
+reject	undocumented	docs	set/SET_(_ID_,_ID_)_=_(_EXPR_,_EXPR_)!drop-7	SET(a, a)(1, 1)
+reject	undocumented	docs	set/SET_(_ID_,_ID_)_=_(_EXPR_,_EXPR_)!drop-8	SET(a, a) = 1, 1)
+reject	undocumented	docs	set/SET_(_ID_,_ID_)_=_(_EXPR_,_EXPR_)!drop-9	SET(a, a) =(, 1)
+reject	undocumented	docs	set/SET_(_ID_,_ID_)_=_(_EXPR_,_EXPR_)!drop-10	SET(a, a) =(1 1)
+reject	undocumented	docs	set/SET_(_ID_,_ID_)_=_(_EXPR_,_EXPR_)!drop-11	SET(a, a) =(1,)
+reject	undocumented	docs	set/SET_(_ID_,_ID_)_=_(_EXPR_,_EXPR_)!drop-12	SET(a, a) =(1, 1
+reject	undocumented	docs	set/SET_(_ID_,_ID_)_=_(_EXPR_,_EXPR_)!insert	SET(a, a) =(1, 1) zzz
+reject	undocumented	docs	set/SET_(_ID_,_ID_)_=_(_EXPR_,_EXPR_)!swap	SETS(a, a) =(1, 1)
+accept	accept	docs	set/SET_(_ID_,_ID_,_ID_)_=_(_EXPR_,_EXPR_,_EXPR_)	SET(a, a, a) =(1, 1, 1)
+reject	undocumented	docs	set/SET_(_ID_,_ID_,_ID_)_=_(_EXPR_,_EXPR_,_EXPR_)!drop-1	(a, a, a) =(1, 1, 1)
+reject	undocumented	docs	set/SET_(_ID_,_ID_,_ID_)_=_(_EXPR_,_EXPR_,_EXPR_)!drop-2	SET a, a, a) =(1, 1, 1)
+reject	undocumented	docs	set/SET_(_ID_,_ID_,_ID_)_=_(_EXPR_,_EXPR_,_EXPR_)!drop-3	SET(, a, a) =(1, 1, 1)
+reject	undocumented	docs	set/SET_(_ID_,_ID_,_ID_)_=_(_EXPR_,_EXPR_,_EXPR_)!drop-4	SET(a a, a) =(1, 1, 1)
+reject	undocumented	docs	set/SET_(_ID_,_ID_,_ID_)_=_(_EXPR_,_EXPR_,_EXPR_)!drop-5	SET(a,, a) =(1, 1, 1)
+reject	undocumented	docs	set/SET_(_ID_,_ID_,_ID_)_=_(_EXPR_,_EXPR_,_EXPR_)!drop-6	SET(a, a a) =(1, 1, 1)
+reject	undocumented	docs	set/SET_(_ID_,_ID_,_ID_)_=_(_EXPR_,_EXPR_,_EXPR_)!drop-7	SET(a, a,) =(1, 1, 1)
+reject	undocumented	docs	set/SET_(_ID_,_ID_,_ID_)_=_(_EXPR_,_EXPR_,_EXPR_)!drop-8	SET(a, a, a =(1, 1, 1)
+reject	undocumented	docs	set/SET_(_ID_,_ID_,_ID_)_=_(_EXPR_,_EXPR_,_EXPR_)!drop-9	SET(a, a, a)(1, 1, 1)
+reject	undocumented	docs	set/SET_(_ID_,_ID_,_ID_)_=_(_EXPR_,_EXPR_,_EXPR_)!drop-10	SET(a, a, a) = 1, 1, 1)
+reject	undocumented	docs	set/SET_(_ID_,_ID_,_ID_)_=_(_EXPR_,_EXPR_,_EXPR_)!drop-11	SET(a, a, a) =(, 1, 1)
+reject	undocumented	docs	set/SET_(_ID_,_ID_,_ID_)_=_(_EXPR_,_EXPR_,_EXPR_)!drop-12	SET(a, a, a) =(1 1, 1)
+reject	undocumented	docs	set/SET_(_ID_,_ID_,_ID_)_=_(_EXPR_,_EXPR_,_EXPR_)!drop-13	SET(a, a, a) =(1,, 1)
+reject	undocumented	docs	set/SET_(_ID_,_ID_,_ID_)_=_(_EXPR_,_EXPR_,_EXPR_)!drop-14	SET(a, a, a) =(1, 1 1)
+reject	undocumented	docs	set/SET_(_ID_,_ID_,_ID_)_=_(_EXPR_,_EXPR_,_EXPR_)!drop-15	SET(a, a, a) =(1, 1,)
+reject	undocumented	docs	set/SET_(_ID_,_ID_,_ID_)_=_(_EXPR_,_EXPR_,_EXPR_)!drop-16	SET(a, a, a) =(1, 1, 1
+reject	undocumented	docs	set/SET_(_ID_,_ID_,_ID_)_=_(_EXPR_,_EXPR_,_EXPR_)!insert	SET(a, a, a) =(1, 1, 1) zzz
+reject	undocumented	docs	set/SET_(_ID_,_ID_,_ID_)_=_(_EXPR_,_EXPR_,_EXPR_)!swap	SETS(a, a, a) =(1, 1, 1)
 accept	accept	docs	showAccounts/SHOW_ACCOUNTS_(HISTORY)?_(LIKE_STRING)?	SHOW ACCOUNTS
 accept	accept	docs	showAccounts(HISTORY)?/%empty	SHOW ACCOUNTS
 accept	accept	docs	showAccounts(HISTORY)?/HISTORY	SHOW ACCOUNTS HISTORY
@@ -68570,7 +68454,7 @@ reject	undocumented	docs	showGrants(APPLICATION_ID|APPLICATION_ROLE_(ID_~a1caa68
 accept	accept	docs	showGrants(ID_.)?/%empty	SHOW GRANTS TO APPLICATION ROLE a
 reject	undocumented	docs	showGrants(ID_.)?/%empty!insert	SHOW GRANTS TO APPLICATION ROLE zzz a
 accept	accept	docs	showGrants(ID_.)?/ID_.	SHOW GRANTS TO APPLICATION ROLE a.a
-reject	undocumented	docs	showGrants(ID_.)?/ID_.!drop-1	SHOW GRANTS TO APPLICATION ROLE.a
+reject	accept	docs	showGrants(ID_.)?/ID_.!drop-1	SHOW GRANTS TO APPLICATION ROLE.a
 reject	undocumented	docs	showGrants(ID_.)?/ID_.!drop-2	SHOW GRANTS TO APPLICATION ROLE a a
 reject	undocumented	docs	showGrants(ID_.)?/ID_.!insert	SHOW GRANTS TO APPLICATION ROLE a.zzz a
 accept	accept	docs	showGrants(IN_APPLICATION_PACKAGE_ID)?/%empty	SHOW GRANTS TO SHARE a
@@ -70424,8 +70308,8 @@ accept	accept	docs	showSemanticDimensions(ID|ACCOUNT|DATABASE|DATABASE_ID|SCHE~5
 accept	undocumented	docs	showSemanticDimensions(ID|ACCOUNT|DATABASE|DATABASE_ID|SCHE~53c8a1ae)/SCHEMA!insert	SHOW SEMANTIC DIMENSIONS IN SCHEMA zzz
 accept	accept	docs	showSemanticDimensions(ID|ACCOUNT|DATABASE|DATABASE_ID|SCHE~53c8a1ae)/SCHEMA!swap	SHOW SEMANTIC DIMENSIONS IN SCHEMAS
 accept	accept	docs	showSemanticDimensions(ID|ACCOUNT|DATABASE|DATABASE_ID|SCHE~53c8a1ae)/SCHEMA_ID_._ID	SHOW SEMANTIC DIMENSIONS IN SCHEMA a.a
-accept	undocumented	docs	showSemanticDimensions(ID|ACCOUNT|DATABASE|DATABASE_ID|SCHE~53c8a1ae)/SCHEMA_ID_._ID!drop-1	SHOW SEMANTIC DIMENSIONS IN a.a
-reject	undocumented	docs	showSemanticDimensions(ID|ACCOUNT|DATABASE|DATABASE_ID|SCHE~53c8a1ae)/SCHEMA_ID_._ID!drop-2	SHOW SEMANTIC DIMENSIONS IN SCHEMA.a
+accept	accept	docs	showSemanticDimensions(ID|ACCOUNT|DATABASE|DATABASE_ID|SCHE~53c8a1ae)/SCHEMA_ID_._ID!drop-1	SHOW SEMANTIC DIMENSIONS IN a.a
+reject	accept	docs	showSemanticDimensions(ID|ACCOUNT|DATABASE|DATABASE_ID|SCHE~53c8a1ae)/SCHEMA_ID_._ID!drop-2	SHOW SEMANTIC DIMENSIONS IN SCHEMA.a
 reject	undocumented	docs	showSemanticDimensions(ID|ACCOUNT|DATABASE|DATABASE_ID|SCHE~53c8a1ae)/SCHEMA_ID_._ID!drop-3	SHOW SEMANTIC DIMENSIONS IN SCHEMA a a
 reject	undocumented	docs	showSemanticDimensions(ID|ACCOUNT|DATABASE|DATABASE_ID|SCHE~53c8a1ae)/SCHEMA_ID_._ID!drop-4	SHOW SEMANTIC DIMENSIONS IN SCHEMA a.
 reject	undocumented	docs	showSemanticDimensions(ID|ACCOUNT|DATABASE|DATABASE_ID|SCHE~53c8a1ae)/SCHEMA_ID_._ID!insert	SHOW SEMANTIC DIMENSIONS IN SCHEMA a.a zzz
@@ -70491,8 +70375,8 @@ accept	accept	docs	showSemanticFacts(ID|ACCOUNT|DATABASE|DATABASE_ID|SCHE~53c8a1
 accept	undocumented	docs	showSemanticFacts(ID|ACCOUNT|DATABASE|DATABASE_ID|SCHE~53c8a1ae)/SCHEMA!insert	SHOW SEMANTIC FACTS IN SCHEMA zzz
 accept	accept	docs	showSemanticFacts(ID|ACCOUNT|DATABASE|DATABASE_ID|SCHE~53c8a1ae)/SCHEMA!swap	SHOW SEMANTIC FACTS IN SCHEMAS
 accept	accept	docs	showSemanticFacts(ID|ACCOUNT|DATABASE|DATABASE_ID|SCHE~53c8a1ae)/SCHEMA_ID_._ID	SHOW SEMANTIC FACTS IN SCHEMA a.a
-accept	undocumented	docs	showSemanticFacts(ID|ACCOUNT|DATABASE|DATABASE_ID|SCHE~53c8a1ae)/SCHEMA_ID_._ID!drop-1	SHOW SEMANTIC FACTS IN a.a
-reject	undocumented	docs	showSemanticFacts(ID|ACCOUNT|DATABASE|DATABASE_ID|SCHE~53c8a1ae)/SCHEMA_ID_._ID!drop-2	SHOW SEMANTIC FACTS IN SCHEMA.a
+accept	accept	docs	showSemanticFacts(ID|ACCOUNT|DATABASE|DATABASE_ID|SCHE~53c8a1ae)/SCHEMA_ID_._ID!drop-1	SHOW SEMANTIC FACTS IN a.a
+reject	accept	docs	showSemanticFacts(ID|ACCOUNT|DATABASE|DATABASE_ID|SCHE~53c8a1ae)/SCHEMA_ID_._ID!drop-2	SHOW SEMANTIC FACTS IN SCHEMA.a
 reject	undocumented	docs	showSemanticFacts(ID|ACCOUNT|DATABASE|DATABASE_ID|SCHE~53c8a1ae)/SCHEMA_ID_._ID!drop-3	SHOW SEMANTIC FACTS IN SCHEMA a a
 reject	undocumented	docs	showSemanticFacts(ID|ACCOUNT|DATABASE|DATABASE_ID|SCHE~53c8a1ae)/SCHEMA_ID_._ID!drop-4	SHOW SEMANTIC FACTS IN SCHEMA a.
 reject	undocumented	docs	showSemanticFacts(ID|ACCOUNT|DATABASE|DATABASE_ID|SCHE~53c8a1ae)/SCHEMA_ID_._ID!insert	SHOW SEMANTIC FACTS IN SCHEMA a.a zzz
@@ -70537,8 +70421,8 @@ accept	accept	docs	showSemanticMetrics(ID|ACCOUNT|DATABASE|DATABASE_ID|SCHE~53c8
 accept	undocumented	docs	showSemanticMetrics(ID|ACCOUNT|DATABASE|DATABASE_ID|SCHE~53c8a1ae)/SCHEMA!insert	SHOW SEMANTIC METRICS IN SCHEMA zzz
 accept	accept	docs	showSemanticMetrics(ID|ACCOUNT|DATABASE|DATABASE_ID|SCHE~53c8a1ae)/SCHEMA!swap	SHOW SEMANTIC METRICS IN SCHEMAS
 accept	accept	docs	showSemanticMetrics(ID|ACCOUNT|DATABASE|DATABASE_ID|SCHE~53c8a1ae)/SCHEMA_ID_._ID	SHOW SEMANTIC METRICS IN SCHEMA a.a
-accept	undocumented	docs	showSemanticMetrics(ID|ACCOUNT|DATABASE|DATABASE_ID|SCHE~53c8a1ae)/SCHEMA_ID_._ID!drop-1	SHOW SEMANTIC METRICS IN a.a
-reject	undocumented	docs	showSemanticMetrics(ID|ACCOUNT|DATABASE|DATABASE_ID|SCHE~53c8a1ae)/SCHEMA_ID_._ID!drop-2	SHOW SEMANTIC METRICS IN SCHEMA.a
+accept	accept	docs	showSemanticMetrics(ID|ACCOUNT|DATABASE|DATABASE_ID|SCHE~53c8a1ae)/SCHEMA_ID_._ID!drop-1	SHOW SEMANTIC METRICS IN a.a
+reject	accept	docs	showSemanticMetrics(ID|ACCOUNT|DATABASE|DATABASE_ID|SCHE~53c8a1ae)/SCHEMA_ID_._ID!drop-2	SHOW SEMANTIC METRICS IN SCHEMA.a
 reject	undocumented	docs	showSemanticMetrics(ID|ACCOUNT|DATABASE|DATABASE_ID|SCHE~53c8a1ae)/SCHEMA_ID_._ID!drop-3	SHOW SEMANTIC METRICS IN SCHEMA a a
 reject	undocumented	docs	showSemanticMetrics(ID|ACCOUNT|DATABASE|DATABASE_ID|SCHE~53c8a1ae)/SCHEMA_ID_._ID!drop-4	SHOW SEMANTIC METRICS IN SCHEMA a.
 reject	undocumented	docs	showSemanticMetrics(ID|ACCOUNT|DATABASE|DATABASE_ID|SCHE~53c8a1ae)/SCHEMA_ID_._ID!insert	SHOW SEMANTIC METRICS IN SCHEMA a.a zzz

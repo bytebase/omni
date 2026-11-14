@@ -336,6 +336,14 @@ var camelName = regexp.MustCompile(`^[a-z]+[A-Z][A-Za-z]*$`)
 // X ,\n ... repeats X.
 var omittedTail = regexp.MustCompile(`[^,\s][ \t]*\n[ \t]*\.\.\.\s*$`)
 
+// optionalTail is a last line holding only [ ... ], after a line that does
+// not end in a comma: optional text the page leaves out.
+var optionalTail = regexp.MustCompile(`([^,\s])[ \t]*\n[ \t]*\[ \.\.\. \]\s*$`)
+
+// errProjectOnly marks a DEFINE form, which runs only in a DCM project's
+// definition files, not as a statement of its own.
+var errProjectOnly = errors.New("DEFINE runs only in DCM project files, not as a statement")
+
 // timeTravelOffset is Time Travel's OFFSET, a negative number of seconds,
 // and timeTravelStatement its STATEMENT, a query ID, which is a string.
 var (
@@ -1122,6 +1130,14 @@ func isName(n *node) bool {
 func (c *converter) convert(text string, statement bool) ([]string, error) {
 	if omittedTail.MatchString(text) {
 		return nil, errElided
+	}
+	if optionalTail.MatchString(text) {
+		// CLONE <source> [ ... ]: the rest is optional and left out, so the
+		// form without it is the form.
+		text = optionalTail.ReplaceAllString(text, "$1")
+	}
+	if strings.HasPrefix(strings.TrimSpace(text), "DEFINE ") {
+		return nil, errProjectOnly
 	}
 	toks, err := lexNotation(text)
 	if err != nil {

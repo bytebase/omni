@@ -3,6 +3,7 @@
 # Keywords and punctuation are literals in the grammar and need no row.
 # Sources, read 2026-11-13:
 #   https://docs.snowflake.com/en/sql-reference/identifiers-syntax
+#   https://docs.snowflake.com/en/sql-reference/name-resolution (qualified names)
 #   https://docs.snowflake.com/en/sql-reference/data-types-text#string-constants
 #   https://docs.snowflake.com/en/sql-reference/data-types-numeric#numeric-constants
 #   https://docs.snowflake.com/en/sql-reference/reserved-keywords
@@ -12,7 +13,7 @@
 # judge reads a statement; a keyword or a sample of several tokens stands for
 # itself. (reserved) marks a word the docs judge never reads as a name.
 # columns: token, form, note
-ID	a	unquoted identifier: a letter or _, then letters, digits, _ and $; a "double-quoted" one is a name too
+ID	a	(qualified) unquoted identifier: a letter or _, then letters, digits, _ and $; a "double-quoted" one is a name too, and db.schema.name qualifies one
 STRING	's'	single-quoted string constant; a $$dollar-quoted$$ one is a string too
 NUMBER	1	numeric constant: [+-][digits][.digits][e[+-]digits]
 EXPR	1	an expression; the command pages give no expression grammar, so a constant

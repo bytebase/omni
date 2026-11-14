@@ -163,3 +163,5 @@ alter-task	<session_parameter> = <value>	<session_parameter> = <expr>	a session 
 create-sequence	[ START [ WITH ] [ = ] <initial_value> ]	[ START [ WITH ] [ = ] [ - ] <initial_value> ]	the start may be negative, as the parameters say
 create-sequence	[ INCREMENT [ BY ] [ = ] <sequence_interval> ]	[ INCREMENT [ BY ] [ = ] [ - ] <sequence_interval> ]	the increment may be negative, as the parameters say
 alter-sequence	[ INCREMENT [ BY ] [ = ] <sequence_interval> ]	[ INCREMENT [ BY ] [ = ] [ - ] <sequence_interval> ]	the increment may be negative, as the parameters say
+comment	ON <object_type> <object_name> IS	ON { TABLE | SCHEMA | VIEW | <object_type> } <object_name> IS	the object type is TABLE, SCHEMA, VIEW and so on, as the parameters say
+set	SET ( <var> [ , <var> ... ] )  = ( <expr> [ , <expr> ... ] )	SET ( <var> ) = ( <expr> )\n\nSET ( <var> , <var> ) = ( <expr> , <expr> )\n\nSET ( <var> , <var> , <var> ) = ( <expr> , <expr> , <expr> )	the variables and the values must be as many, as the usage notes say; written out for up to three

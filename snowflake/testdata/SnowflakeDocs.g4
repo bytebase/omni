@@ -2696,8 +2696,9 @@ callWith
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/comment
+// fix: the object type is TABLE, SCHEMA, VIEW and so on, as the parameters say
 comment
-    : 'COMMENT' ('IF' 'EXISTS')? 'ON' OBJECT_TYPE ID 'IS' STRING
+    : 'COMMENT' ('IF' 'EXISTS')? 'ON' ('TABLE' | 'SCHEMA' | 'VIEW' | OBJECT_TYPE) ID 'IS' STRING
     | 'COMMENT' ('IF' 'EXISTS')? 'ON' 'COLUMN' ID '.' ID 'IS' STRING
     ;
 
@@ -2814,11 +2815,23 @@ createAiFunction
 // https://docs.snowflake.com/en/sql-reference/sql/create-alert
 // fix: <condition> and <action> are SQL statements, as the page's parameters say: a query, and any statement
 // fix: <condition> and <action> are SQL statements, as the page's parameters say: a query, and any statement
+// not converted (form): DEFINE runs only in DCM project files, not as a statement
+//   DEFINE ALERT MY_DB.MY_SCHEMA.ALRT_CHECK_ORDER_VOLUME
+//       WAREHOUSE = 'MY_WH'
+//       SCHEDULE = '60 MINUTE'
+//       STARTED
+//       IF (EXISTS (
+//         SELECT 1 FROM MY_DB.MY_SCHEMA.ORDERS WHERE ORDER_COUNT > 1000
+//       ))
+//       THEN
+//         CALL SYSTEM$SEND_EMAIL(
+//           'my_notification_integration', 'ops@example.com', 'High order volume', 'Order volume exceeded 1000 orders.'
+//         )
+//   ;
 createAlert
     : 'CREATE' ('OR' 'REPLACE')? 'ALERT' ('IF' 'NOT' 'EXISTS')? ID ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('SCHEDULE' '=' STRING)? ('WAREHOUSE' '=' ID)? ('COMMENT' '=' STRING)? ('CONFIG' '=' STRING)? ('RUNBOOK' '=' STRING)? ('SUSPEND_ALERT_AFTER_NUM_FAILURES' '=' NUMBER)? 'IF' '(' 'EXISTS' '(' QUERY ')' ')' 'THEN' QUERY
     | 'CREATE' 'OR' 'ALTER' 'ALERT' ID ('SCHEDULE' '=' STRING)? ('WAREHOUSE' '=' ID)? ('COMMENT' '=' STRING)? ('CONFIG' '=' STRING)? ('RUNBOOK' '=' STRING)? ('SUSPEND_ALERT_AFTER_NUM_FAILURES' '=' NUMBER)? 'IF' '(' 'EXISTS' '(' QUERY ')' ')' 'THEN' QUERY
-    | 'DEFINE' 'ALERT' 'MY_DB' '.' 'MY_SCHEMA' '.' 'ALRT_CHECK_ORDER_VOLUME' 'WAREHOUSE' '=' '\'MY_WH\'' 'SCHEDULE' '=' '\'60 MINUTE\'' 'STARTED' 'IF' '(' 'EXISTS' '(' 'SELECT' '1' 'FROM' 'MY_DB' '.' 'MY_SCHEMA' '.' 'ORDERS' 'WHERE' 'ORDER_COUNT' '>' '1000' ')' ')' 'THEN' 'CALL' 'SYSTEM$SEND_EMAIL' '(' '\'my_notification_integration\'' ',' '\'ops@example.com\'' ',' '\'High order volume\'' ',' '\'Order volume exceeded 1000 orders.\'' ')'
-    | 'CREATE' ('OR' 'REPLACE')? 'ALERT' ID 'CLONE' ID+
+    | 'CREATE' ('OR' 'REPLACE')? 'ALERT' ID 'CLONE' ID
     | 'CREATE' ('OR' 'REPLACE')? 'ALERT' ('IF' 'NOT' 'EXISTS')? ID 'FROM' 'TEMPLATE' ID ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('WAREHOUSE' '=' ID)? ('SCHEDULE' '=' STRING)? ('COMMENT' '=' STRING)? ('RUNBOOK' '=' STRING)? ('SUSPEND_ALERT_AFTER_NUM_FAILURES' '=' NUMBER)? ('TEMPLATE_PARAMS' '=' STRING)?
     | ID ':' ID ':' ID ',' ID ':' ID ':' ID? ',' ID ':' ID
     ;
@@ -3038,7 +3051,7 @@ createDatabase
     | 'CREATE' 'DATABASE' ID 'FROM' 'SHARE' ID '.' ID
     | 'CREATE' 'DATABASE' ID 'AS' 'REPLICA' 'OF' ID '.' ID ('DATA_RETENTION_TIME_IN_DAYS' '=' NUMBER)?
     | 'CREATE' 'OR' 'ALTER' 'TRANSIENT'? 'DATABASE' ID ('DATA_RETENTION_TIME_IN_DAYS' '=' NUMBER)? ('MAX_DATA_EXTENSION_TIME_IN_DAYS' '=' NUMBER)? ('EXTERNAL_VOLUME' '=' ID)? ('CATALOG' '=' ID)? ('ICEBERG_DEFAULT_DDL_COLLATION' '=' STRING)? ('ICEBERG_VERSION_DEFAULT' '=' NUMBER)? ('ICEBERG_MERGE_ON_READ_BEHAVIOR' '=' ('\'AUTO\'' | '\'ENABLED\'' | '\'DISABLED\''))? ('ENABLE_ICEBERG_MERGE_ON_READ' '=' ('TRUE' | 'FALSE'))? ('REPLACE_INVALID_CHARACTERS' '=' ('TRUE' | 'FALSE'))? ('DEFAULT_DDL_COLLATION' '=' STRING)? ('LOG_LEVEL' '=' STRING)? ('METRIC_LEVEL' '=' STRING)? ('TRACE_LEVEL' '=' STRING)? ('STORAGE_SERIALIZATION_POLICY' '=' ('COMPATIBLE' | 'OPTIMIZED'))? ('COMMENT' '=' STRING)? ('OBJECT_VISIBILITY' '=' (ID | 'PRIVILEGED'))?
-    | 'CREATE' ('OR' 'REPLACE')? 'DATABASE' ('IF' 'NOT' 'EXISTS')? ID 'CLONE' ID+
+    | 'CREATE' ('OR' 'REPLACE')? 'DATABASE' ('IF' 'NOT' 'EXISTS')? ID 'CLONE' ID
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-database-catalog-linked
@@ -3108,7 +3121,7 @@ createDynamicTable_partitionExpression
 // fix: read: Time Travel's OFFSET is a negative number of seconds, -N, and its STATEMENT a quoted query ID, as the Time Travel parameters say
 createEventTable
     : 'CREATE' ('OR' 'REPLACE')? 'EVENT' 'TABLE' ('IF' 'NOT' 'EXISTS')? ID ('CLUSTER' 'BY' '(' EXPR (',' EXPR)* ')')? ('DATA_RETENTION_TIME_IN_DAYS' '=' NUMBER)? ('MAX_DATA_EXTENSION_TIME_IN_DAYS' '=' NUMBER)? ('CHANGE_TRACKING' '=' ('TRUE' | 'FALSE'))? ('DEFAULT_DDL_COLLATION' '=' STRING)? ('COPY' 'GRANTS')? ('COPY' '=' '(' 'GRANTS' ')')? ('WITH'? 'COMMENT' '=' STRING)? ('WITH'? 'ROW' 'ACCESS' 'POLICY' ID 'ON' '(' ID (',' ID)* ')')? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('WITH' 'CONTACT' '(' ID '=' ID (',' ID '=' ID)* ')')?
-    | 'CREATE' ('OR' 'REPLACE')? 'EVENT' 'TABLE' ('IF' 'NOT' 'EXISTS')? ID 'CLONE' ID (('AT' | 'BEFORE') '(' ('TIMESTAMP' '=>' STRING | 'OFFSET' '=>' '-' NUMBER | 'STATEMENT' '=>' STRING) ')')? ('COPY' 'GRANTS')*
+    | 'CREATE' ('OR' 'REPLACE')? 'EVENT' 'TABLE' ('IF' 'NOT' 'EXISTS')? ID 'CLONE' ID (('AT' | 'BEFORE') '(' ('TIMESTAMP' '=>' STRING | 'OFFSET' '=>' '-' NUMBER | 'STATEMENT' '=>' STRING) ')')? ('COPY' 'GRANTS')?
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-experiment
@@ -3293,7 +3306,7 @@ createHybridTable_outoflineIndex
 createIcebergTable
     : 'CREATE' ('OR' 'REPLACE')? 'TRANSIENT'? 'ICEBERG' 'TABLE' ('IF' 'NOT' 'EXISTS')? ID '(' ID DATA_TYPE ('DEFAULT' EXPR)? createIcebergTable_inlineConstraint? ('NOT' 'NULL')? ('WITH'? 'MASKING' 'POLICY' ID ('USING' '(' ID ',' ID (',' ID)* ')')?)? ('WITH'? 'PROJECTION' 'POLICY' ID)? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('COMMENT' STRING)? (',' ID DATA_TYPE ('DEFAULT' EXPR)? createIcebergTable_inlineConstraint? ('NOT' 'NULL')? ('WITH'? 'MASKING' 'POLICY' ID ('USING' '(' ID ',' ID (',' ID)* ')')?)? ('WITH'? 'PROJECTION' 'POLICY' ID)? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('COMMENT' STRING)?)* (',' createIcebergTable_outoflineConstraint)* ')' ('PARTITION' 'BY' '(' createIcebergTable_partitionExpression (',' createIcebergTable_partitionExpression)* ')')? ('PATH_LAYOUT' '=' ('FLAT' | 'HIERARCHICAL'))? ('CLUSTER' 'BY' '(' EXPR (',' EXPR)* ')')? ('EXTERNAL_VOLUME' '=' STRING)? ('CATALOG' '=' '\'SNOWFLAKE\'')? ('BASE_LOCATION' '=' STRING)? ('TARGET_FILE_SIZE' '=' ('\'AUTO\'' | '\'16MB\'' | '\'32MB\'' | '\'64MB\'' | '\'128MB\''))? ('CATALOG_SYNC' '=' STRING)? ('STORAGE_SERIALIZATION_POLICY' '=' ('COMPATIBLE' | 'OPTIMIZED'))? ('DATA_RETENTION_TIME_IN_DAYS' '=' NUMBER)? ('MAX_DATA_EXTENSION_TIME_IN_DAYS' '=' NUMBER)? ('CHANGE_TRACKING' '=' ('TRUE' | 'FALSE'))? ('COPY' 'GRANTS')? ('COPY' 'TAGS')? ('COPY' '=' '(' ('COMMENTS' | 'TAGS' | 'GRANTS') (',' ('COMMENTS' | 'TAGS' | 'GRANTS'))* ')')? ('ERROR_LOGGING' '=' ('TRUE' | 'FALSE'))? ('COMMENT' '=' STRING)? ('ICEBERG_VERSION' '=' NUMBER)? ('ALLOW_V3_EXPRESSION_DEFAULTS' '=' ('TRUE' | 'FALSE'))? ('ICEBERG_MERGE_ON_READ_BEHAVIOR' '=' ('\'AUTO\'' | '\'ENABLED\'' | '\'DISABLED\''))? ('ENABLE_ICEBERG_MERGE_ON_READ' '=' ('TRUE' | 'FALSE'))? ('WITH'? 'ROW' 'ACCESS' 'POLICY' ID 'ON' '(' ID (',' ID)* ')')? ('WITH'? 'AGGREGATION' 'POLICY' ID)? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('WITH' 'CONTACT' '(' ID '=' ID (',' ID '=' ID)* ')')? ('ENABLE_DATA_COMPACTION' '=' ('TRUE' | 'FALSE'))? ('ENABLE_SCHEMA_EVOLUTION' '=' ('TRUE' | 'FALSE'))?
     | 'CREATE' ('OR' 'REPLACE')? 'TRANSIENT'? 'ICEBERG' 'TABLE' ID ('(' ID DATA_TYPE? ('DEFAULT' EXPR)? (',' ID DATA_TYPE? ('DEFAULT' EXPR)?)* ')')? ('CLUSTER' 'BY' '(' EXPR (',' EXPR)* ')')? ('EXTERNAL_VOLUME' '=' STRING)? ('CATALOG' '=' '\'SNOWFLAKE\'')? ('BASE_LOCATION' '=' STRING)? ('COPY' 'GRANTS')? ('COPY' 'TAGS')? ('COPY' '=' '(' ('COMMENTS' | 'TAGS' | 'GRANTS') (',' ('COMMENTS' | 'TAGS' | 'GRANTS'))* ')')? ('ICEBERG_VERSION' '=' NUMBER)? ('ICEBERG_MERGE_ON_READ_BEHAVIOR' '=' ('\'AUTO\'' | '\'ENABLED\'' | '\'DISABLED\''))? ('ENABLE_ICEBERG_MERGE_ON_READ' '=' ('TRUE' | 'FALSE'))* 'AS' QUERY
-    | 'CREATE' ('OR' 'REPLACE')? 'TRANSIENT'? 'ICEBERG' 'TABLE' ID 'LIKE' ID ('CLUSTER' 'BY' '(' EXPR (',' EXPR)* ')')? ('COPY' 'GRANTS')? ('COPY' 'TAGS')? ('COPY' '=' '(' ('COMMENTS' | 'TAGS' | 'GRANTS') (',' ('COMMENTS' | 'TAGS' | 'GRANTS'))* ')')*
+    | 'CREATE' ('OR' 'REPLACE')? 'TRANSIENT'? 'ICEBERG' 'TABLE' ID 'LIKE' ID ('CLUSTER' 'BY' '(' EXPR (',' EXPR)* ')')? ('COPY' 'GRANTS')? ('COPY' 'TAGS')? ('COPY' '=' '(' ('COMMENTS' | 'TAGS' | 'GRANTS') (',' ('COMMENTS' | 'TAGS' | 'GRANTS'))* ')')?
     | 'CREATE' ('OR' 'REPLACE')? 'ICEBERG' 'TABLE' ('IF' 'NOT' 'EXISTS')? ID ('EXTERNAL_VOLUME' '=' STRING)? ('CATALOG' '=' STRING)? 'CATALOG_TABLE_NAME' '=' STRING ('CATALOG_NAMESPACE' '=' STRING)? ('PATH_LAYOUT' '=' ('FLAT' | 'HIERARCHICAL'))? ('TARGET_FILE_SIZE' '=' ('\'AUTO\'' | '\'16MB\'' | '\'32MB\'' | '\'64MB\'' | '\'128MB\''))? ('REPLACE_INVALID_CHARACTERS' '=' ('TRUE' | 'FALSE'))? ('AUTO_REFRESH' '=' ('TRUE' | 'FALSE'))? ('COMMENT' '=' STRING)? ('STORAGE_SERIALIZATION_POLICY' '=' ('COMPATIBLE' | 'OPTIMIZED'))? ('ICEBERG_MERGE_ON_READ_BEHAVIOR' '=' ('\'AUTO\'' | '\'ENABLED\'' | '\'DISABLED\''))? ('ENABLE_ICEBERG_MERGE_ON_READ' '=' ('TRUE' | 'FALSE'))? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('WITH' 'CONTACT' '(' ID '=' ID (',' ID '=' ID)* ')')?
     | 'CREATE' ('OR' 'REPLACE')? 'ICEBERG' 'TABLE' ('IF' 'NOT' 'EXISTS')? ID ('(' ID DATA_TYPE ('DEFAULT' EXPR)? ('WITH'? 'MASKING' 'POLICY' ID ('USING' '(' ID ',' ID (',' ID)* ')')?)? (',' ID DATA_TYPE ('DEFAULT' EXPR)? ('WITH'? 'MASKING' 'POLICY' ID ('USING' '(' ID ',' ID (',' ID)* ')')?)?)* ')')? ('PARTITION' 'BY' '(' createIcebergTable_partitionExpression (',' createIcebergTable_partitionExpression)* ')')? ('PATH_LAYOUT' '=' ('FLAT' | 'HIERARCHICAL'))? ('TARGET_FILE_SIZE' '=' ('\'AUTO\'' | '\'16MB\'' | '\'32MB\'' | '\'64MB\'' | '\'128MB\''))? ('MAX_DATA_EXTENSION_TIME_IN_DAYS' '=' NUMBER)? ('AUTO_REFRESH' '=' ('TRUE' | 'FALSE'))? ('REPLACE_INVALID_CHARACTERS' '=' ('TRUE' | 'FALSE'))? ('COPY' 'GRANTS')? 'PURGE'? ('COMMENT' '=' STRING)? ('ICEBERG_VERSION' '=' NUMBER)? ('ICEBERG_MERGE_ON_READ_BEHAVIOR' '=' ('\'AUTO\'' | '\'ENABLED\'' | '\'DISABLED\''))? ('ENABLE_ICEBERG_MERGE_ON_READ' '=' ('TRUE' | 'FALSE'))? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('BASE_LOCATION' '=' STRING)? ('STORAGE_SERIALIZATION_POLICY' '=' ('COMPATIBLE' | 'OPTIMIZED'))?
     | 'CREATE' ('OR' 'REPLACE')? 'ICEBERG' 'TABLE' ('IF' 'NOT' 'EXISTS')? ID ('EXTERNAL_VOLUME' '=' STRING)? ('CATALOG' '=' STRING)? 'BASE_LOCATION' '=' STRING ('REPLACE_INVALID_CHARACTERS' '=' ('TRUE' | 'FALSE'))? ('AUTO_REFRESH' '=' ('TRUE' | 'FALSE'))? ('COMMENT' '=' STRING)? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('WITH' 'CONTACT' '(' ID '=' ID (',' ID '=' ID)* ')')?
@@ -3383,7 +3396,7 @@ createIcebergTableSnowflake
     : 'CREATE' ('OR' 'REPLACE')? 'TRANSIENT'? 'ICEBERG' 'TABLE' ('IF' 'NOT' 'EXISTS')? ID '(' ID DATA_TYPE ('DEFAULT' EXPR)? createIcebergTableSnowflake_inlineConstraint? ('NOT' 'NULL')? ('WITH'? 'MASKING' 'POLICY' ID ('USING' '(' ID ',' ID (',' ID)* ')')?)? ('WITH'? 'PROJECTION' 'POLICY' ID)? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('COMMENT' STRING)? (',' ID DATA_TYPE ('DEFAULT' EXPR)? createIcebergTableSnowflake_inlineConstraint? ('NOT' 'NULL')? ('WITH'? 'MASKING' 'POLICY' ID ('USING' '(' ID ',' ID (',' ID)* ')')?)? ('WITH'? 'PROJECTION' 'POLICY' ID)? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('COMMENT' STRING)?)* (',' createIcebergTableSnowflake_outoflineConstraint)* ')' ('PARTITION' 'BY' '(' createIcebergTableSnowflake_partitionExpression (',' createIcebergTableSnowflake_partitionExpression)* ')')? ('PATH_LAYOUT' '=' ('FLAT' | 'HIERARCHICAL'))? ('CLUSTER' 'BY' '(' EXPR (',' EXPR)* ')')? ('EXTERNAL_VOLUME' '=' STRING)? ('CATALOG' '=' '\'SNOWFLAKE\'')? ('BASE_LOCATION' '=' STRING)? ('TARGET_FILE_SIZE' '=' ('\'AUTO\'' | '\'16MB\'' | '\'32MB\'' | '\'64MB\'' | '\'128MB\''))? ('CATALOG_SYNC' '=' STRING)? ('STORAGE_SERIALIZATION_POLICY' '=' ('COMPATIBLE' | 'OPTIMIZED'))? ('DATA_RETENTION_TIME_IN_DAYS' '=' NUMBER)? ('MAX_DATA_EXTENSION_TIME_IN_DAYS' '=' NUMBER)? ('CHANGE_TRACKING' '=' ('TRUE' | 'FALSE'))? ('COPY' 'GRANTS')? ('COPY' 'TAGS')? ('COPY' '=' '(' ('COMMENTS' | 'TAGS' | 'GRANTS') (',' ('COMMENTS' | 'TAGS' | 'GRANTS'))* ')')? ('ERROR_LOGGING' '=' ('TRUE' | 'FALSE'))? ('COMMENT' '=' STRING)? ('ICEBERG_VERSION' '=' NUMBER)? ('ALLOW_V3_EXPRESSION_DEFAULTS' '=' ('TRUE' | 'FALSE'))? ('ICEBERG_MERGE_ON_READ_BEHAVIOR' '=' ('\'AUTO\'' | '\'ENABLED\'' | '\'DISABLED\''))? ('ENABLE_ICEBERG_MERGE_ON_READ' '=' ('TRUE' | 'FALSE'))? ('WITH'? 'ROW' 'ACCESS' 'POLICY' ID 'ON' '(' ID (',' ID)* ')')? ('WITH'? 'AGGREGATION' 'POLICY' ID)? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('WITH' 'CONTACT' '(' ID '=' ID (',' ID '=' ID)* ')')? ('ENABLE_DATA_COMPACTION' '=' ('TRUE' | 'FALSE'))? ('ENABLE_SCHEMA_EVOLUTION' '=' ('TRUE' | 'FALSE'))?
     | 'CREATE' ('OR' 'REPLACE')? 'TRANSIENT'? 'ICEBERG' 'TABLE' ID ('(' ID DATA_TYPE? ('DEFAULT' EXPR)? (',' ID DATA_TYPE? ('DEFAULT' EXPR)?)* ')')? ('CLUSTER' 'BY' '(' EXPR (',' EXPR)* ')')? ('EXTERNAL_VOLUME' '=' STRING)? ('CATALOG' '=' '\'SNOWFLAKE\'')? ('BASE_LOCATION' '=' STRING)? ('COPY' 'GRANTS')? ('COPY' 'TAGS')? ('COPY' '=' '(' ('COMMENTS' | 'TAGS' | 'GRANTS') (',' ('COMMENTS' | 'TAGS' | 'GRANTS'))* ')')? ('ICEBERG_VERSION' '=' NUMBER)? ('ICEBERG_MERGE_ON_READ_BEHAVIOR' '=' ('\'AUTO\'' | '\'ENABLED\'' | '\'DISABLED\''))? ('ENABLE_ICEBERG_MERGE_ON_READ' '=' ('TRUE' | 'FALSE'))* 'AS' QUERY
     | 'CREATE' 'ICEBERG' 'TABLE' ID '(' ID DATA_TYPE ('DEFAULT' EXPR)? 'WITH'? 'MASKING' 'POLICY' ID (',' ID)* ')' ('EXTERNAL_VOLUME' '=' STRING)? ('CATALOG' '=' '\'SNOWFLAKE\'')? ('BASE_LOCATION' '=' STRING)? ('ICEBERG_VERSION' '=' NUMBER)? ('ICEBERG_MERGE_ON_READ_BEHAVIOR' '=' ('\'AUTO\'' | '\'ENABLED\'' | '\'DISABLED\''))? ('ENABLE_ICEBERG_MERGE_ON_READ' '=' ('TRUE' | 'FALSE'))? 'WITH'? 'ROW' 'ACCESS' 'POLICY' ID 'ON' '(' ID (',' ID)* (')')+ 'AS' QUERY
-    | 'CREATE' ('OR' 'REPLACE')? 'TRANSIENT'? 'ICEBERG' 'TABLE' ID 'LIKE' ID ('CLUSTER' 'BY' '(' EXPR (',' EXPR)* ')')? ('COPY' 'GRANTS')? ('COPY' 'TAGS')? ('COPY' '=' '(' ('COMMENTS' | 'TAGS' | 'GRANTS') (',' ('COMMENTS' | 'TAGS' | 'GRANTS'))* ')')*
+    | 'CREATE' ('OR' 'REPLACE')? 'TRANSIENT'? 'ICEBERG' 'TABLE' ID 'LIKE' ID ('CLUSTER' 'BY' '(' EXPR (',' EXPR)* ')')? ('COPY' 'GRANTS')? ('COPY' 'TAGS')? ('COPY' '=' '(' ('COMMENTS' | 'TAGS' | 'GRANTS') (',' ('COMMENTS' | 'TAGS' | 'GRANTS'))* ')')?
     | 'CREATE' 'ICEBERG' 'TABLE' ID 'FROM' 'BACKUP' 'SET' ID 'IDENTIFIER' STRING
     ;
 createIcebergTableSnowflake_inlineConstraint
@@ -3526,9 +3539,12 @@ createNotebookProject
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-code-bundle
+// not converted (form): DEFINE runs only in DCM project files, not as a statement
+//   DEFINE CODE BUNDLE DEMO{{env_suffix}}.JOBS.MY_JOB
+//     FROM 'asset://my_job'
+//     COMMENT = 'Python job managed by DCM';
 createCodeBundle
     : 'CREATE' ('OR' 'REPLACE')? 'CODE' 'BUNDLE' ('IF' 'NOT' 'EXISTS')? ID '.' ID '.' ID 'FROM' STRING ('COMMENT' '=' STRING)?
-    | 'DEFINE' 'CODE' 'BUNDLE' 'DEMO' ID '.' 'JOBS' '.' 'MY_JOB' 'FROM' '\'asset://my_job\'' 'COMMENT' '=' '\'Python job managed by DCM\''
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-notification-integration
@@ -3767,12 +3783,12 @@ createSchema
     : 'CREATE' ('OR' 'REPLACE')? 'TRANSIENT'? 'SCHEMA' ('IF' 'NOT' 'EXISTS')? ID ('CLONE' ID (('AT' | 'BEFORE') '(' ('TIMESTAMP' '=>' STRING | 'OFFSET' '=>' '-' NUMBER | 'STATEMENT' '=>' STRING) ')')? ('IGNORE' 'TABLES' 'WITH' 'INSUFFICIENT' 'DATA' 'RETENTION')? ('IGNORE' 'HYBRID' 'TABLES')?)? ('WITH' 'MANAGED' 'ACCESS')? ('DATA_RETENTION_TIME_IN_DAYS' '=' NUMBER)? ('MAX_DATA_EXTENSION_TIME_IN_DAYS' '=' NUMBER)? ('STAGE_UNDROP_RETENTION_TIME_IN_DAYS' '=' NUMBER)? ('EXTERNAL_VOLUME' '=' ID)? ('CATALOG' '=' ID)? ('ICEBERG_DEFAULT_DDL_COLLATION' '=' STRING)? ('ICEBERG_VERSION_DEFAULT' '=' NUMBER)? ('ICEBERG_MERGE_ON_READ_BEHAVIOR' '=' ('\'AUTO\'' | '\'ENABLED\'' | '\'DISABLED\''))? ('ENABLE_ICEBERG_MERGE_ON_READ' '=' ('TRUE' | 'FALSE'))? ('REPLACE_INVALID_CHARACTERS' '=' ('TRUE' | 'FALSE'))? ('DEFAULT_DDL_COLLATION' '=' STRING)? ('STORAGE_SERIALIZATION_POLICY' '=' ('COMPATIBLE' | 'OPTIMIZED'))? ('CLASSIFICATION_PROFILE' '=' STRING)? ('COMMENT' '=' STRING)? ('CATALOG_SYNC' '=' STRING)? ('OBJECT_VISIBILITY' '=' 'PRIVILEGED')? ('ENABLE_DATA_COMPACTION' '=' ('TRUE' | 'FALSE'))? ('OAUTH_AUTHORIZATION_SERVER' '=' ID)? ('OAUTH_SCOPES_SUPPORTED' '=' STRING)? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('WITH' 'CONTACT' '(' ID '=' ID (',' ID '=' ID)* ')')?
     | 'CREATE' 'SCHEMA' ID 'FROM' 'BACKUP' 'SET' ID 'IDENTIFIER' STRING
     | 'CREATE' 'OR' 'ALTER' 'TRANSIENT'? 'SCHEMA' ID ('WITH' 'MANAGED' 'ACCESS')? ('DATA_RETENTION_TIME_IN_DAYS' '=' NUMBER)? ('MAX_DATA_EXTENSION_TIME_IN_DAYS' '=' NUMBER)? ('EXTERNAL_VOLUME' '=' ID)? ('CATALOG' '=' ID)? ('ICEBERG_DEFAULT_DDL_COLLATION' '=' STRING)? ('ICEBERG_VERSION_DEFAULT' '=' NUMBER)? ('ICEBERG_MERGE_ON_READ_BEHAVIOR' '=' ('\'AUTO\'' | '\'ENABLED\'' | '\'DISABLED\''))? ('ENABLE_ICEBERG_MERGE_ON_READ' '=' ('TRUE' | 'FALSE'))? ('REPLACE_INVALID_CHARACTERS' '=' ('TRUE' | 'FALSE'))? ('DEFAULT_DDL_COLLATION' '=' STRING)? ('LOG_LEVEL' '=' STRING)? ('TRACE_LEVEL' '=' STRING)? ('STORAGE_SERIALIZATION_POLICY' '=' ('COMPATIBLE' | 'OPTIMIZED'))? ('COMMENT' '=' STRING)? ('OBJECT_VISIBILITY' '=' 'PRIVILEGED')?
-    | 'CREATE' ('OR' 'REPLACE')? 'SCHEMA' ('IF' 'NOT' 'EXISTS')? ID 'CLONE' ID+
+    | 'CREATE' ('OR' 'REPLACE')? 'SCHEMA' ('IF' 'NOT' 'EXISTS')? ID 'CLONE' ID
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-secret
 // fix: leaving OAUTH_SCOPES out inherits the integration's scopes, as the parameters say
-// not converted (form): undefined fragment "env_secret": the page does not define it
+// not converted (form): DEFINE runs only in DCM project files, not as a statement
 //   DEFINE SECRET MY_DB.MY_SCHEMA.THIRD_PARTY_API_KEY
 //     TYPE = GENERIC_STRING
 //     SECRET_STRING = {{ _snow.env_secret("API_KEY") }}
@@ -3928,7 +3944,7 @@ createStage
     | 'CREATE' ('OR' 'REPLACE')? (('TEMP' | 'TEMPORARY'))? 'STAGE' ('IF' 'NOT' 'EXISTS')? ID createStage_externalStageParams createStage_directoryTableParams ('FILE_FORMAT' '=' '(' ('FORMAT_NAME' '=' STRING | ('TYPE' '=' 'CSV' createStage_formatTypeOptions_CSV? | 'TYPE' '=' 'JSON' createStage_formatTypeOptions_JSON? | 'TYPE' '=' 'AVRO' createStage_formatTypeOptions_AVRO? | 'TYPE' '=' 'ORC' createStage_formatTypeOptions_ORC? | 'TYPE' '=' 'PARQUET' createStage_formatTypeOptions_PARQUET? | 'TYPE' '=' 'XML' createStage_formatTypeOptions_XML? | 'TYPE' '=' 'CUSTOM')) ')')? ('COMMENT' '=' STRING)? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')?
     | 'CREATE' 'OR' 'ALTER' (('TEMP' | 'TEMPORARY'))? 'STAGE' ID createStage_internalStageParams createStage_directoryTableParams ('FILE_FORMAT' '=' '(' ('FORMAT_NAME' '=' STRING | ('TYPE' '=' 'CSV' createStage_formatTypeOptions_CSV? | 'TYPE' '=' 'JSON' createStage_formatTypeOptions_JSON? | 'TYPE' '=' 'AVRO' createStage_formatTypeOptions_AVRO? | 'TYPE' '=' 'ORC' createStage_formatTypeOptions_ORC? | 'TYPE' '=' 'PARQUET' createStage_formatTypeOptions_PARQUET? | 'TYPE' '=' 'XML' createStage_formatTypeOptions_XML? | 'TYPE' '=' 'CUSTOM')) ')')? ('COMMENT' '=' STRING)?
     | 'CREATE' 'OR' 'ALTER' (('TEMP' | 'TEMPORARY'))? 'STAGE' ID createStage_externalStageParams createStage_directoryTableParams ('FILE_FORMAT' '=' '(' ('FORMAT_NAME' '=' STRING | ('TYPE' '=' 'CSV' createStage_formatTypeOptions_CSV? | 'TYPE' '=' 'JSON' createStage_formatTypeOptions_JSON? | 'TYPE' '=' 'AVRO' createStage_formatTypeOptions_AVRO? | 'TYPE' '=' 'ORC' createStage_formatTypeOptions_ORC? | 'TYPE' '=' 'PARQUET' createStage_formatTypeOptions_PARQUET? | 'TYPE' '=' 'XML' createStage_formatTypeOptions_XML? | 'TYPE' '=' 'CUSTOM')) ')')? ('COMMENT' '=' STRING)?
-    | 'CREATE' ('OR' 'REPLACE')? 'STAGE' ('IF' 'NOT' 'EXISTS')? ID 'CLONE' ID+
+    | 'CREATE' ('OR' 'REPLACE')? 'STAGE' ('IF' 'NOT' 'EXISTS')? ID 'CLONE' ID
     ;
 createStage_internalStageParams
     : ('ENCRYPTION' '=' '(' ('TYPE' '=' '\'SNOWFLAKE_FULL\'' | 'TYPE' '=' '\'SNOWFLAKE_SSE\'') ')')?
@@ -3994,16 +4010,21 @@ createStream
     | 'CREATE' ('OR' 'REPLACE')? 'STREAM' ('IF' 'NOT' 'EXISTS')? ID ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('COPY' 'GRANTS')? 'ON' 'STAGE' ID ('COMMENT' '=' STRING)? ('COPY' '=' '(' 'GRANTS' ')')?
     | 'CREATE' ('OR' 'REPLACE')? 'STREAM' ('IF' 'NOT' 'EXISTS')? ID ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('COPY' 'GRANTS')? 'ON' 'DYNAMIC' 'TABLE' ID ('COMMENT' '=' STRING)? ('COPY' '=' '(' 'GRANTS' ')')?
     | 'CREATE' ('OR' 'REPLACE')? 'STREAM' ('IF' 'NOT' 'EXISTS')? ID ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('COPY' 'GRANTS')? 'ON' 'VIEW' ID (('AT' | 'BEFORE') '(' ('TIMESTAMP' '=>' STRING | 'OFFSET' '=>' '-' NUMBER | 'STATEMENT' '=>' STRING | 'STREAM' '=>' STRING) ')')? ('APPEND_ONLY' '=' 'TRUE' | 'APPEND_ONLY' '=' 'FALSE')? ('SHOW_INITIAL_ROWS' '=' 'TRUE' | 'SHOW_INITIAL_ROWS' '=' 'FALSE')? ('COMMENT' '=' STRING)? ('COPY' '=' '(' 'GRANTS' ')')?
-    | 'CREATE' ('OR' 'REPLACE')? 'STREAM' ID 'CLONE' ID ('COPY' 'GRANTS')? ('COPY' '=' '(' 'GRANTS' ')')*
+    | 'CREATE' ('OR' 'REPLACE')? 'STREAM' ID 'CLONE' ID ('COPY' 'GRANTS')? ('COPY' '=' '(' 'GRANTS' ')')?
     | 'CREATE' 'OR' 'ALTER' 'STREAM' ID 'ON' 'TABLE' ID ('APPEND_ONLY' '=' 'TRUE' | 'APPEND_ONLY' '=' 'FALSE')? ('SHOW_INITIAL_ROWS' '=' 'TRUE' | 'SHOW_INITIAL_ROWS' '=' 'FALSE')? ('COMMENT' '=' STRING)?
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-streamlit
 // fix: the source is a quoted stage path, as the parameters and examples write it
+// not converted (form): DEFINE runs only in DCM project files, not as a statement
+//   DEFINE STREAMLIT DEMO{{env_suffix}}.SERVE.MY_DASHBOARD
+//       FROM 'asset://my_dashboard/'
+//       MAIN_FILE = 'streamlit_app.py'
+//       QUERY_WAREHOUSE = DEMO_WH{{env_suffix}}
+//   ;
 createStreamlit
     : 'CREATE' ('OR' 'REPLACE')? 'STREAMLIT' ('IF' 'NOT' 'EXISTS')? ID ('FROM' STRING)? ('MAIN_FILE' '=' STRING)? ('QUERY_WAREHOUSE' '=' ID)? ('RUNTIME_NAME' '=' STRING)? ('COMPUTE_POOL' '=' ID)? ('COMMENT' '=' STRING)? ('TITLE' '=' STRING)? ('IMPORTS' '=' '(' STRING (',' STRING)* ')')? ('EXTERNAL_ACCESS_INTEGRATIONS' '=' '(' ID (',' ID)* ')')? ('SECRETS' '=' '(' STRING '=' ID (',' STRING '=' ID)* ')')?
     | 'CREATE' ('OR' 'REPLACE')? 'STREAMLIT' ('IF' 'NOT' 'EXISTS')? ID 'ROOT_LOCATION' '=' STRING 'MAIN_FILE' '=' STRING ('QUERY_WAREHOUSE' '=' ID)? ('COMMENT' '=' STRING)? ('TITLE' '=' STRING)? ('IMPORTS' '=' '(' STRING (',' STRING)* ')')? ('EXTERNAL_ACCESS_INTEGRATIONS' '=' '(' ID (',' ID)* ')')?
-    | 'DEFINE' 'STREAMLIT' 'DEMO' ID '.' 'SERVE' '.' 'MY_DASHBOARD' 'FROM' '\'asset://my_dashboard/\'' 'MAIN_FILE' '=' '\'streamlit_app.py\'' 'QUERY_WAREHOUSE' '=' 'DEMO_WH' ID
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-table
@@ -4024,9 +4045,9 @@ createTable
     | 'CREATE' 'TABLE' ID 'FROM' 'BACKUP' 'SET' ID 'IDENTIFIER' STRING
     | 'CREATE' 'OR' 'ALTER' (((('LOCAL' | 'GLOBAL'))? 'TEMP' | 'TEMPORARY' | 'TRANSIENT'))? 'TABLE' ID '(' ID DATA_TYPE createTable_inlineConstraint? ('NOT' 'NULL')? ('COLLATE' STRING)? (('DEFAULT' EXPR | ('AUTOINCREMENT' | 'IDENTITY') (('(' NUMBER ',' NUMBER ')' | 'START' NUMBER 'INCREMENT' NUMBER))? (('ORDER' | 'NOORDER'))?))? ('COMMENT' STRING)? (',' ID DATA_TYPE createTable_inlineConstraint? ('NOT' 'NULL')? ('COLLATE' STRING)? (('DEFAULT' EXPR | ('AUTOINCREMENT' | 'IDENTITY') (('(' NUMBER ',' NUMBER ')' | 'START' NUMBER 'INCREMENT' NUMBER))? (('ORDER' | 'NOORDER'))?))? ('COMMENT' STRING)?)* (',' createTable_outoflineConstraint)* ')' ('CLUSTER' 'BY' '(' EXPR (',' EXPR)* ')')? ('ENABLE_SCHEMA_EVOLUTION' '=' ('TRUE' | 'FALSE'))? ('DATA_RETENTION_TIME_IN_DAYS' '=' NUMBER)? ('MAX_DATA_EXTENSION_TIME_IN_DAYS' '=' NUMBER)? ('CHANGE_TRACKING' '=' ('TRUE' | 'FALSE'))? ('DEFAULT_DDL_COLLATION' '=' STRING)? ('ICEBERG_DEFAULT_DDL_COLLATION' '=' STRING)? ('ERROR_LOGGING' '=' ('TRUE' | 'FALSE'))? ('COMMENT' '=' STRING)? ('ROW_TIMESTAMP' '=' ('TRUE' | 'FALSE'))?
     | 'CREATE' ('OR' 'REPLACE')? 'TABLE' ID ('(' ID DATA_TYPE? (',' ID DATA_TYPE?)* ')')? ('CLUSTER' 'BY' '(' EXPR (',' EXPR)* ')')? ('COPY' 'GRANTS')? ('COPY' 'TAGS')? ('COPY' '=' '(' ('COMMENTS' | 'TAGS' | 'GRANTS') (',' ('COMMENTS' | 'TAGS' | 'GRANTS'))* ')')* 'AS' QUERY
-    | 'CREATE' ('OR' 'REPLACE')? 'TABLE' ID ('COPY' 'GRANTS')? 'USING' 'TEMPLATE' QUERY+
-    | 'CREATE' ('OR' 'REPLACE')? 'TABLE' ID 'LIKE' ID ('CLUSTER' 'BY' '(' EXPR (',' EXPR)* ')')? ('COPY' 'GRANTS')? ('COPY' 'TAGS')? ('COPY' '=' '(' ('COMMENTS' | 'TAGS' | 'GRANTS') (',' ('COMMENTS' | 'TAGS' | 'GRANTS'))* ')')*
-    | 'CREATE' ('OR' 'REPLACE')? (((('LOCAL' | 'GLOBAL'))? 'TEMP' ('READ' 'ONLY')? | 'TEMPORARY' ('READ' 'ONLY')? | 'VOLATILE' | 'TRANSIENT'))? 'TABLE' ID 'CLONE' ID (('AT' | 'BEFORE') '(' ('TIMESTAMP' '=>' STRING | 'OFFSET' '=>' '-' NUMBER | 'STATEMENT' '=>' STRING) ')')? ('COPY' 'GRANTS')? ('COPY' 'TAGS')? ('COPY' '=' '(' ('COMMENTS' | 'TAGS' | 'GRANTS') (',' ('COMMENTS' | 'TAGS' | 'GRANTS'))* ')')*
+    | 'CREATE' ('OR' 'REPLACE')? 'TABLE' ID ('COPY' 'GRANTS')? 'USING' 'TEMPLATE' QUERY
+    | 'CREATE' ('OR' 'REPLACE')? 'TABLE' ID 'LIKE' ID ('CLUSTER' 'BY' '(' EXPR (',' EXPR)* ')')? ('COPY' 'GRANTS')? ('COPY' 'TAGS')? ('COPY' '=' '(' ('COMMENTS' | 'TAGS' | 'GRANTS') (',' ('COMMENTS' | 'TAGS' | 'GRANTS'))* ')')?
+    | 'CREATE' ('OR' 'REPLACE')? (((('LOCAL' | 'GLOBAL'))? 'TEMP' ('READ' 'ONLY')? | 'TEMPORARY' ('READ' 'ONLY')? | 'VOLATILE' | 'TRANSIENT'))? 'TABLE' ID 'CLONE' ID (('AT' | 'BEFORE') '(' ('TIMESTAMP' '=>' STRING | 'OFFSET' '=>' '-' NUMBER | 'STATEMENT' '=>' STRING) ')')? ('COPY' 'GRANTS')? ('COPY' 'TAGS')? ('COPY' '=' '(' ('COMMENTS' | 'TAGS' | 'GRANTS') (',' ('COMMENTS' | 'TAGS' | 'GRANTS'))* ')')?
     | 'CREATE' 'TRANSIENT'? 'TABLE' ('IF' 'NOT' 'EXISTS')? ID 'FROM' 'ARCHIVE' 'OF' ID ('AS'? ID)? 'WHERE' EXPR
     ;
 createTable_inlineConstraint
@@ -4073,11 +4094,18 @@ createTag
 // fix: AFTER names predecessor tasks, as the parameters and examples write them
 // fix: the warehouse is a name, as the parameters say
 // fix: a session parameter takes a constant value, as the parameters say
+// not converted (form): DEFINE runs only in DCM project files, not as a statement
+//   DEFINE TASK MY_DB.MY_SCHEMA.TSK_INGEST_DAILY_ORDERS
+//       WAREHOUSE = 'MY_WH'
+//       SCHEDULE = 'USING CRON 0 5 * * * UTC'
+//       STARTED
+//   AS
+//       SELECT 1
+//   ;
 createTask
     : 'CREATE' ('OR' 'REPLACE')? 'TASK' ('IF' 'NOT' 'EXISTS')? ID ('WITH' 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('WITH' 'CONTACT' '(' ID '=' ID (',' ID '=' ID)* ')')? ('WAREHOUSE' '=' ID | 'USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE' '=' STRING)? ('SCHEDULE' '=' STRING)? ('CONFIG' '=' STRING)? ('OVERLAP_POLICY' '=' ('NO_OVERLAP' | 'ALLOW_CHILD_OVERLAP' | 'ALLOW_ALL_OVERLAP'))? (ID '=' EXPR (',' ID '=' EXPR)*)? ('USER_TASK_TIMEOUT_MS' '=' NUMBER)? ('SUSPEND_TASK_AFTER_NUM_FAILURES' '=' NUMBER)? ('ERROR_INTEGRATION' '=' ID)? ('SUCCESS_INTEGRATION' '=' ID)? ('LOG_LEVEL' '=' STRING)? ('COMMENT' '=' STRING)? ('FINALIZE' '=' STRING)? ('TASK_AUTO_RETRY_ATTEMPTS' '=' NUMBER)? ('USER_TASK_MINIMUM_TRIGGER_INTERVAL_IN_SECONDS' '=' NUMBER)? ('TARGET_COMPLETION_INTERVAL' '=' STRING)? ('SERVERLESS_TASK_MIN_STATEMENT_SIZE' '=' STRING)? ('SERVERLESS_TASK_MAX_STATEMENT_SIZE' '=' STRING)? ('AFTER' ID (',' ID)*)? ('EXECUTE' 'AS' 'USER' ID)? ('WHEN' EXPR)? 'AS' QUERY
     | 'CREATE' 'OR' 'ALTER' 'TASK' ID ('WAREHOUSE' '=' ID | 'USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE' '=' STRING)? ('SCHEDULE' '=' STRING)? ('CONFIG' '=' STRING)? ('OVERLAP_POLICY' '=' ('NO_OVERLAP' | 'ALLOW_CHILD_OVERLAP' | 'ALLOW_ALL_OVERLAP'))? ('USER_TASK_TIMEOUT_MS' '=' NUMBER)? (ID '=' EXPR (',' ID '=' EXPR)*)? ('SUSPEND_TASK_AFTER_NUM_FAILURES' '=' NUMBER)? ('ERROR_INTEGRATION' '=' ID)? ('SUCCESS_INTEGRATION' '=' ID)? ('COMMENT' '=' STRING)? ('FINALIZE' '=' STRING)? ('TASK_AUTO_RETRY_ATTEMPTS' '=' NUMBER)? ('AFTER' ID (',' ID)*)? ('EXECUTE' 'AS' 'USER' ID)? ('WHEN' EXPR)? 'AS' QUERY
-    | 'DEFINE' 'TASK' 'MY_DB' '.' 'MY_SCHEMA' '.' 'TSK_INGEST_DAILY_ORDERS' 'WAREHOUSE' '=' '\'MY_WH\'' 'SCHEDULE' '=' '\'USING CRON 0 5 * * * UTC\'' 'STARTED' 'AS' 'SELECT' '1'
-    | 'CREATE' ('OR' 'REPLACE')? 'TASK' ID 'CLONE' ID+
+    | 'CREATE' ('OR' 'REPLACE')? 'TASK' ID 'CLONE' ID
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-task-graph
@@ -6315,9 +6343,12 @@ select
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/set
+// fix: the variables and the values must be as many, as the usage notes say; written out for up to three
 set
     : 'SET' ID '=' EXPR
-    | 'SET' '(' ID (',' ID)* ')' '=' '(' EXPR (',' EXPR)* ')'
+    | 'SET' '(' ID ')' '=' '(' EXPR ')'
+    | 'SET' '(' ID ',' ID ')' '=' '(' EXPR ',' EXPR ')'
+    | 'SET' '(' ID ',' ID ',' ID ')' '=' '(' EXPR ',' EXPR ',' EXPR ')'
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/show

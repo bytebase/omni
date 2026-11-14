@@ -25,6 +25,10 @@ const (
 	// identifier. A recognizer matches it only where the grammar spells it,
 	// never for a token class such as a name.
 	Reserved = "(reserved)"
+	// Qualified, at the start of a row's note: the token is a name a
+	// recognizer also matches qualified, two or three of them joined by
+	// dots, as Snowflake writes db.schema.table wherever it takes a name.
+	Qualified = "(qualified)"
 )
 
 // Tokens is an engine's testdata/tokens.tsv: the text generated rows write
@@ -41,7 +45,8 @@ const (
 // one-token terms, so exprTerm is sampled as a name. The rule's own
 // alternatives keep their rows, written from their own symbols.
 type Tokens struct {
-	forms map[string]string
+	forms     map[string]string
+	qualified map[string]bool
 }
 
 // ReadTokens reads a tokens.tsv. Each row is token, form, and a note citing
@@ -51,7 +56,7 @@ func ReadTokens(path string) (*Tokens, error) {
 	if err != nil {
 		return nil, err
 	}
-	t := &Tokens{forms: map[string]string{}}
+	t := &Tokens{forms: map[string]string{}, qualified: map[string]bool{}}
 	for i, line := range strings.Split(string(b), "\n") {
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
@@ -68,6 +73,9 @@ func ReadTokens(path string) (*Tokens, error) {
 			return nil, fmt.Errorf("%s:%d: %s appears twice", path, i+1, name)
 		}
 		t.forms[name] = form
+		if len(f) == 3 && strings.HasPrefix(f[2], Qualified) {
+			t.qualified[name] = true
+		}
 	}
 	return t, nil
 }
