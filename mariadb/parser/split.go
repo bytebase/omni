@@ -327,7 +327,7 @@ func Split(sql string) []Segment {
 		// END FOR closes, wherever it stands: a routine's body after its RETURNS or its
 		// characteristics is no position atStmtStart knows. No other FOR is followed by a
 		// name and IN.
-		case (b == 'f' || b == 'F') && matchWord(sql, i, "FOR"):
+		case (b == 'f' || b == 'F') && matchWord(sql, i, "FOR") && !inLexerIdent(sql, i, i+3):
 			if prevWord(sql, i) != "END" && forLoopFollows(sql, skipToEndOfWord(sql, i)) {
 				depth++
 				atStmtStart = false
@@ -523,6 +523,13 @@ func skipSpaceAndComments(sql string, i int) int {
 		}
 	}
 	return i
+}
+
+// inLexerIdent reports whether sql[start:end] is part of a longer name in the lexer's
+// alphabet, which takes $ and multi-byte UTF-8 where matchWord's boundary does not: the for
+// of for$r or forë is no FOR.
+func inLexerIdent(sql string, start, end int) bool {
+	return (start > 0 && isIdentChar(sql[start-1])) || (end < len(sql) && isIdentChar(sql[end]))
 }
 
 // forLoopFollows reports whether a FOR loop's record and IN follow i, the end of a FOR: a

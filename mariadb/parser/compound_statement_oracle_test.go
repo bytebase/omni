@@ -198,6 +198,10 @@ func TestSplitCompoundStatements(t *testing.T) {
 			[]string{"FOR $r IN (SELECT 1) DO COMMIT; END FOR", " SELECT 2"}},
 		{"FOR résumé IN (SELECT 1) DO COMMIT; END FOR; SELECT 2",
 			[]string{"FOR résumé IN (SELECT 1) DO COMMIT; END FOR", " SELECT 2"}},
+		{"SELECT for$r IN (SELECT 1); SELECT 2",
+			[]string{"SELECT for$r IN (SELECT 1)", " SELECT 2"}},
+		{"SELECT forë IN (SELECT 1); SELECT 2",
+			[]string{"SELECT forë IN (SELECT 1)", " SELECT 2"}},
 		{"SELECT * FROM t FOR UPDATE; SET STATEMENT a=1 FOR SELECT 1; SELECT 2",
 			[]string{"SELECT * FROM t FOR UPDATE", " SET STATEMENT a=1 FOR SELECT 1", " SELECT 2"}},
 	} {
