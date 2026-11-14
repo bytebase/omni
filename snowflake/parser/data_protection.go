@@ -75,9 +75,13 @@ func init() {
 		// https://docs.snowflake.com/en/sql-reference/sql/create-snapshot
 		orReplace: true,
 		// https://docs.snowflake.com/en/sql-reference/sql/drop-snapshot
-		drop:  true,
-		props: dataProtectionCommentProps,
-		unset: []string{}, // ALTER SNAPSHOT documents no UNSET
+		drop: true,
+		// https://docs.snowflake.com/en/sql-reference/sql/undrop-snapshot
+		// also writes RENAME TO <new_snapshot_name>.
+		undrop:       true,
+		undropRename: true,
+		props:        dataProtectionCommentProps,
+		unset:        []string{}, // ALTER SNAPSHOT documents no UNSET
 	})
 	// CREATE STORAGE LIFECYCLE POLICY's body (AS ( <arg> <type> ... ) RETURNS
 	// BOOLEAN -> <expr>) and ALTER's SET BODY -> <expr> hold a signature and an

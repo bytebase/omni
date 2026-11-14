@@ -1883,12 +1883,16 @@ type DropStmt struct {
 	// empty form `f()` sets HasArgs with an empty ArgTypes.
 	HasArgs  bool
 	ArgTypes []*TypeName
-	Cascade  bool // CASCADE option (mutually exclusive with Restrict)
-	Restrict bool // RESTRICT option (mutually exclusive with Cascade)
-	Iceberg  bool // DROP ICEBERG TABLE (Kind is DropTable)
-	Purge    bool // PURGE (DROP [ICEBERG] TABLE only; mutually exclusive with NoPurge)
-	NoPurge  bool // NOPURGE (DROP [ICEBERG] TABLE only; mutually exclusive with Purge)
-	Loc      Loc
+	// TableArgs is a data metric function's signature,
+	// ( TABLE ( <argtype> [ , ... ] ) [ , TABLE ( ... ) ] ); HasArgs is then
+	// false.
+	TableArgs []*RoutineTableArgType
+	Cascade   bool // CASCADE option (mutually exclusive with Restrict)
+	Restrict  bool // RESTRICT option (mutually exclusive with Cascade)
+	Iceberg   bool // DROP ICEBERG TABLE (Kind is DropTable)
+	Purge     bool // PURGE (DROP [ICEBERG] TABLE only; mutually exclusive with NoPurge)
+	NoPurge   bool // NOPURGE (DROP [ICEBERG] TABLE only; mutually exclusive with Purge)
+	Loc       Loc
 }
 
 // Tag implements Node.
@@ -1911,8 +1915,8 @@ const (
 	UndropTable        UndropObjectKind = iota
 	UndropDynamicTable                  // UNDROP DYNAMIC TABLE
 	UndropTag                           // UNDROP TAG
-	// UndropObject is an object read by its documented shape (an
-	// ObjectStmt's kind); UndropStmt.Object names it.
+	// UndropObject is any other object; UndropStmt.Object names it: an
+	// ObjectStmt's kind, or ACCOUNT / EXTERNAL VOLUME / STAGE.
 	UndropObject
 )
 
@@ -1937,6 +1941,7 @@ type UndropStmt struct {
 	Object  string // the object's keywords when Kind is UndropObject: "VARIABLE"
 	Iceberg bool   // UNDROP ICEBERG TABLE (Kind is UndropTable)
 	Name    *ObjectName
+	NewName *ObjectName // RENAME TO <new_name> (UNDROP SNAPSHOT); nil if absent
 	Loc     Loc
 }
 
@@ -3184,9 +3189,12 @@ type DescribeStmt struct {
 	Name        *ObjectName // the object's qualified name; nil if NameLiteral set
 	NameLiteral *Literal    // literal name (DESCRIBE RESULT '<id>' / TRANSACTION <num>); nil otherwise
 	Signature   []*TypeName // FUNCTION/PROCEDURE arg-type list; nil if no ( ... )
-	TypeOption  string      // trailing TYPE = <kw>, uppercased; "" if absent
-	Revision    string      // DESC LISTING's REVISION = { DRAFT | PUBLISHED }, uppercased; "" if absent
-	Loc         Loc
+	// TableArgs is a data metric function's signature,
+	// ( TABLE ( <argtype> [ , ... ] ) [ , TABLE ( ... ) ] ); Signature is then nil.
+	TableArgs  []*RoutineTableArgType
+	TypeOption string // trailing TYPE = <kw>, uppercased; "" if absent
+	Revision   string // DESC LISTING's REVISION = { DRAFT | PUBLISHED }, uppercased; "" if absent
+	Loc        Loc
 }
 
 // Tag implements Node.
@@ -3997,7 +4005,13 @@ type GroupOption struct {
 	Name   string   // uppercased option name (e.g. "OBJECT_TYPES", "REPLICATION_SCHEDULE")
 	Values []string // unparenthesized comma-list of verbatim uppercased items; nil when Lit is set
 	Lit    *Literal // a string/number literal value; nil when Values is set
-	Loc    Loc
+	// Pairs is a parenthesized ( <name> = <name> [ , ... ] ) value (ALTER
+	// ACCOUNT's LOGIN_IDP_REDIRECT), each pair's value in its Values.
+	Pairs []*GroupOption
+	// List is a parenthesized ( '<s>' [ , ... ] ) value (ALTER ACCOUNT's
+	// DOMAIN_NAMES).
+	List []*Literal
+	Loc  Loc
 }
 
 // Tag implements Node.
@@ -4144,14 +4158,17 @@ func (n *CreateAccountStmt) Tag() NodeTag { return T_CreateAccountStmt }
 type AlterAccountAction int
 
 const (
-	AlterAccountSet         AlterAccountAction = iota // SET <param> = <value> [ , ... ] / SET RESOURCE_MONITOR = <name>
-	AlterAccountUnset                                 // UNSET <param> [ , ... ]
-	AlterAccountSetTag                                // SET TAG <tag> = '<value>' [ , ... ]
-	AlterAccountUnsetTag                              // UNSET TAG <tag> [ , ... ]
-	AlterAccountSetPolicy                             // SET { <policy_kind> } POLICY <name> [ <scope> ] [ FORCE ]
-	AlterAccountUnsetPolicy                           // UNSET { <policy_kind> } POLICY [ <scope> ]
-	AlterAccountRename                                // <name> RENAME TO <new_name> [ SAVE_OLD_URL = ... ]
-	AlterAccountDropURL                               // <name> DROP OLD [ ORGANIZATION ] URL
+	AlterAccountSet                         AlterAccountAction = iota // SET <param> = <value> [ , ... ] / SET RESOURCE_MONITOR = <name>
+	AlterAccountUnset                                                 // UNSET <param> [ , ... ]
+	AlterAccountSetTag                                                // SET TAG <tag> = '<value>' [ , ... ]
+	AlterAccountUnsetTag                                              // UNSET TAG <tag> [ , ... ]
+	AlterAccountSetPolicy                                             // SET { <policy_kind> } POLICY <name> [ <scope> ] [ FORCE ]
+	AlterAccountUnsetPolicy                                           // UNSET { <policy_kind> } POLICY [ <scope> ]
+	AlterAccountRename                                                // <name> RENAME TO <new_name> [ SAVE_OLD_URL = ... ]
+	AlterAccountDropURL                                               // <name> DROP OLD [ ORGANIZATION ] URL
+	AlterAccountAddOrganizationUserGroup                              // ADD ORGANIZATION USER GROUP <group_name>
+	AlterAccountRemoveOrganizationUserGroup                           // REMOVE ORGANIZATION USER GROUP <group_name>
+	AlterAccountSetContact                                            // SET CONTACT <purpose> = <contact_name> [ , ... ]
 )
 
 // AlterAccountStmt represents ALTER ACCOUNT. The current-account forms omit the
@@ -4168,6 +4185,8 @@ const (
 //	ALTER ACCOUNT <name> SET EDITION = ... | SET IS_ORG_ADMIN = ...
 //	ALTER ACCOUNT <name> RENAME TO <new_name> [ SAVE_OLD_URL = { TRUE | FALSE } ]
 //	ALTER ACCOUNT <name> DROP OLD [ ORGANIZATION ] URL
+//	ALTER ACCOUNT { ADD | REMOVE } ORGANIZATION USER GROUP <group_name>
+//	ALTER ACCOUNT SET CONTACT <purpose> = <contact_name> [ , ... ]
 type AlterAccountStmt struct {
 	Name         *ObjectName // nil for the current-account forms; set for the cross-account forms
 	Action       AlterAccountAction
@@ -4182,6 +4201,8 @@ type AlterAccountStmt struct {
 	NewName      *ObjectName      // RENAME TO; for AlterAccountRename
 	SaveOldURL   *bool            // RENAME ... SAVE_OLD_URL = { TRUE | FALSE }; nil if absent
 	Organization bool             // DROP OLD ORGANIZATION URL (vs DROP OLD URL); for AlterAccountDropURL
+	UserGroup    *ObjectName      // the organization user group; for Add/RemoveOrganizationUserGroup
+	Contacts     []*GroupOption   // SET CONTACT pairs, Name the purpose and Values the contact; for AlterAccountSetContact
 	Loc          Loc
 }
 
@@ -4400,11 +4421,16 @@ func (n *CreateSemanticViewStmt) Tag() NodeTag { return T_CreateSemanticViewStmt
 type AlterSemanticViewAction int
 
 const (
-	AlterSemanticViewRename   AlterSemanticViewAction = iota // RENAME TO <new_name>
-	AlterSemanticViewSet                                     // SET COMMENT = '...'
-	AlterSemanticViewUnset                                   // UNSET COMMENT
-	AlterSemanticViewSetTag                                  // SET TAG <tag> = '<value>' [ , ... ]
-	AlterSemanticViewUnsetTag                                // UNSET TAG <tag> [ , ... ]
+	AlterSemanticViewRename                 AlterSemanticViewAction = iota // RENAME TO <new_name>
+	AlterSemanticViewSet                                                   // SET COMMENT = '...'
+	AlterSemanticViewUnset                                                 // UNSET COMMENT
+	AlterSemanticViewSetTag                                                // SET TAG <tag> = '<value>' [ , ... ]
+	AlterSemanticViewUnsetTag                                              // UNSET TAG <tag> [ , ... ]
+	AlterSemanticViewAddMaterialization                                    // ADD MATERIALIZATION <name> WAREHOUSE = <wh> ... AS DIMENSIONS ... METRICS ...
+	AlterSemanticViewDropMaterialization                                   // DROP MATERIALIZATION <name>
+	AlterSemanticViewSuspendMaterialization                                // SUSPEND MATERIALIZATION <name>
+	AlterSemanticViewResumeMaterialization                                 // RESUME MATERIALIZATION <name>
+	AlterSemanticViewRefreshMaterialization                                // REFRESH MATERIALIZATION <name>
 )
 
 // AlterSemanticViewStmt represents ALTER SEMANTIC VIEW [ IF EXISTS ] <name>
@@ -4415,6 +4441,9 @@ const (
 //	UNSET COMMENT
 //	SET TAG <tag> = '<value>' [ , ... ]
 //	UNSET TAG <tag> [ , ... ]
+//	ADD MATERIALIZATION <name> WAREHOUSE = <wh> [ REFRESH_MODE = <mode> ] [ IMMUTABLE WHERE ( <cond> ) ]
+//	  AS DIMENSIONS <dim> [ , ... ] METRICS <metric> [ , ... ] [ WHERE ( <cond> ) ]
+//	{ DROP | SUSPEND | RESUME | REFRESH } MATERIALIZATION <name>
 type AlterSemanticViewStmt struct {
 	IfExists   bool
 	Name       *ObjectName
@@ -4424,7 +4453,17 @@ type AlterSemanticViewStmt struct {
 	Tags       []*TagAssignment // SET TAG assignments; for AlterSemanticViewSetTag
 	UnsetTags  []*ObjectName    // UNSET TAG names; for AlterSemanticViewUnsetTag
 	UnsetProps []string         // UNSET <property> names (COMMENT); for AlterSemanticViewUnset
-	Loc        Loc
+
+	// The materialization actions:
+	Materialization *ObjectName   // the materialization's name
+	Warehouse       *ObjectName   // ADD's WAREHOUSE = <warehouse_name>
+	RefreshMode     string        // ADD's REFRESH_MODE (AUTO / FULL / INCREMENTAL), uppercased; "" if absent
+	ImmutableWhere  Node          // ADD's IMMUTABLE WHERE ( <condition> ); nil if absent
+	Dimensions      []*ObjectName // ADD's AS DIMENSIONS list
+	Metrics         []*ObjectName // ADD's METRICS list
+	Where           Node          // ADD's trailing WHERE ( <condition> ); nil if absent
+
+	Loc Loc
 }
 
 // Tag implements Node.

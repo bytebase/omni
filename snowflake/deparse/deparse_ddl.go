@@ -767,6 +767,24 @@ func (w *writer) writeDropStmt(n *ast.DropStmt) error {
 		}
 		w.buf.WriteByte(')')
 	}
+	if n.TableArgs != nil {
+		// A data metric function's signature: f(TABLE(NUMBER), TABLE(VARCHAR)).
+		w.buf.WriteByte('(')
+		for i, arg := range n.TableArgs {
+			if i > 0 {
+				w.buf.WriteString(", ")
+			}
+			w.buf.WriteString("TABLE(")
+			for j, t := range arg.Types {
+				if j > 0 {
+					w.buf.WriteString(", ")
+				}
+				w.writeTypeName(t)
+			}
+			w.buf.WriteByte(')')
+		}
+		w.buf.WriteByte(')')
+	}
 	if n.Cascade {
 		w.buf.WriteString(" CASCADE")
 	} else if n.Restrict {
@@ -788,6 +806,10 @@ func (w *writer) writeUndropStmt(n *ast.UndropStmt) error {
 	w.buf.WriteString(n.ObjectType())
 	w.buf.WriteByte(' ')
 	w.writeObjectNameNoSpace(n.Name)
+	if n.NewName != nil {
+		w.buf.WriteString(" RENAME TO ")
+		w.writeObjectNameNoSpace(n.NewName)
+	}
 	return nil
 }
 

@@ -432,6 +432,16 @@ func (p *Parser) parseAlterSemanticViewStmt() (ast.Node, error) {
 	}
 	stmt.Name = name
 
+	// { ADD | DROP | SUSPEND | RESUME | REFRESH } MATERIALIZATION
+	// (semantic_view_materialization.go).
+	if ok, err := p.parseAlterSemanticViewMaterialization(stmt); ok {
+		if err != nil {
+			return nil, err
+		}
+		stmt.Loc.End = p.prev.Loc.End
+		return stmt, nil
+	}
+
 	switch p.cur.Type {
 	case kwRENAME:
 		// RENAME TO <new_name>

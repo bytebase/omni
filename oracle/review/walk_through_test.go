@@ -292,6 +292,8 @@ func TestWalkThroughOracleUserCode(t *testing.T) {
 	oneFinding(t, "INSERT INTO nokey (a) VALUES (sq.nextval + 1);\nINSERT INTO nokey (a) SELECT p.id FROM p JOIN t ON t.p_id = p.id WHERE note = current_date;\nCREATE TABLE t (a NUMBER);", 2, "Table `T` already exists.", shop)
 	oneFinding(t, "MERGE INTO nokey k USING p ON (k.a = p.id) WHEN NOT MATCHED THEN INSERT (a) VALUES (p.id);\nDELETE FROM shop.t WHERE shop.t.id = 1;\nCREATE INDEX i ON nokey (a);\nCREATE TABLE t (a NUMBER);", 3, "Table `T` already exists.", shop)
 	oneFinding(t, "CREATE TABLE x (a NUMBER);\nUPDATE x SET a = 1 WHERE a = 2;\nCREATE TABLE x (b NUMBER);", 2, "Table `X` already exists.", shop)
+	// A DELETE's FROM tables are in scope, as an UPDATE's are.
+	oneFinding(t, "DELETE nokey FROM p WHERE nokey.a = p.id;\nCREATE TABLE t (a NUMBER);", 1, "Table `T` already exists.", shop)
 	// A quoted name of a function of a syntax of its own is a plain call.
 	noFinding(t, "SELECT \"EXTRACT\"(1) FROM dual;\nCREATE TABLE t (a NUMBER);", shop)
 	oneFinding(t, "SELECT extract(year FROM sysdate) FROM dual;\nCREATE TABLE t (a NUMBER);", 1, "Table `T` already exists.", shop)

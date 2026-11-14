@@ -202,6 +202,15 @@ func (g *generator) findDisjointUniqueKey(columns []string) ([]string, error) {
 }
 
 func (g *generator) generateUpdate(stmt *ast.UpdateStmt) error {
+	// SET VALUE (t) = ... replaces whole rows, whose columns the restore
+	// cannot list.
+	if stmt.SetClauses != nil {
+		for _, item := range stmt.SetClauses.Items {
+			if clause, ok := item.(*ast.SetClause); ok && clause.ValueOf != "" {
+				return fmt.Errorf("cannot restore SET VALUE (%s), which replaces whole rows", clause.ValueOf)
+			}
+		}
+	}
 	updateColumns := extractUpdateColumns(stmt)
 	uk, err := g.findDisjointUniqueKey(updateColumns)
 	if err != nil {

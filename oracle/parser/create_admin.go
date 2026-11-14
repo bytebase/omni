@@ -10,7 +10,7 @@ import (
 // - CREATE MATERIALIZED VIEW LOG ON ... (mview log)
 // - CREATE MATERIALIZED VIEW ... (regular mview)
 func (p *Parser) parseCreateMaterializedOrView(start int, orReplace bool) (nodes.StmtNode, error) {
-	p.advance() // consume MATERIALIZED
+	materialized := p.advance() // consume MATERIALIZED
 	// Check for MATERIALIZED ZONEMAP
 	if p.isIdentLike() && p.cur.Str == "ZONEMAP" {
 		p.advance() // consume ZONEMAP
@@ -24,19 +24,18 @@ func (p *Parser) parseCreateMaterializedOrView(start int, orReplace bool) (nodes
 			return p.parseCreateMviewLogStmt(start)
 		}
 	}
-	// It's a regular MATERIALIZED VIEW — but we already consumed MATERIALIZED.
-	// parseCreateViewStmt expects to see kwMATERIALIZED. Since we consumed it,
-	// we need to handle VIEW directly.
-	stmt := &nodes.CreateViewStmt{
-		OrReplace:    orReplace,
+	// A materialized view is created, not replaced: Oracle refuses OR
+	// REPLACE at MATERIALIZED (ORA-00922).
+	if orReplace {
+		return nil, p.syntaxErrorAtTok(materialized)
+	}
+	if err := p.expectCreateTableToken(kwVIEW); err != nil {
+		return nil, err
+	}
+	return p.parseCreateMaterializedViewStmt(&nodes.CreateViewStmt{
 		Materialized: true,
 		Loc:          nodes.Loc{Start: start},
-	}
-	if p.cur.Type == kwVIEW {
-		p.advance()
-	}
-	// Delegate the rest to the existing view parsing logic.
-	return p.finishCreateViewStmt(stmt)
+	})
 }
 
 // parseAdminDDLWithOptions parses generic administrative DDL statements by consuming

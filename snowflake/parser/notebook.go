@@ -31,6 +31,8 @@ func init() {
 		// no IF EXISTS.
 		drop:           true,
 		dropNoIfExists: true,
+		// https://docs.snowflake.com/en/sql-reference/sql/undrop-notebook
+		undrop: true,
 		props: objectProps{
 			"MAIN_FILE":                       propString,
 			"COMMENT":                         propString,

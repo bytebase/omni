@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
@@ -673,15 +674,33 @@ func TestParseExprPrior(t *testing.T) {
 	}
 }
 
-// TestParseExprStar tests standalone star expression.
+// TestParseExprStar tests that a bare * is no expression: the select list
+// and JSON_OBJECT take it themselves, and Oracle 23ai fails at it
+// elsewhere (ORA-00936 for UPDATE t SET a = *).
 func TestParseExprStar(t *testing.T) {
 	p := newTestParser("*")
 	e, parseErr23 := p.parseExpr()
 	if parseErr23 != nil {
 		t.Fatalf("parse: %v", parseErr23)
 	}
-	_, ok := e.(*ast.Star)
-	if !ok {
-		t.Fatalf("expected Star, got %T", e)
+	if e != nil {
+		t.Fatalf("expected no expression, got %T", e)
+	}
+	for _, sql := range []string{"UPDATE t SET a = *", "DELETE FROM t WHERE *", "SELECT 1 WHERE *", "SELECT 1,,2 FROM dual", "SELECT * c FROM t", "SELECT t.* c FROM t"} {
+		ParseShouldFail(t, sql)
+	}
+	// A quoted "*" names a column, which takes an alias.
+	ParseAndCheck(t, `SELECT "*" AS c, t."*" d FROM t`)
+}
+
+// TestParseWindowClauseOrdering tests that a framed window orders its rows
+// itself or through the windows it builds on (ORA-30485 otherwise).
+func TestParseWindowClauseOrdering(t *testing.T) {
+	ParseAndCheck(t, "SELECT * FROM t WINDOW a AS (ORDER BY x), b AS (a), c AS (b ROWS UNBOUNDED PRECEDING)")
+	const unordered = "SELECT * FROM t WINDOW a AS (PARTITION BY x), b AS (a), c AS (b ROWS UNBOUNDED PRECEDING)"
+	_, err := Parse(unordered)
+	var pe *ParseError
+	if !errors.As(err, &pe) || !strings.HasPrefix(unordered[pe.Position:], "ROWS") {
+		t.Errorf("Parse(%q) = %v, want an error at ROWS", unordered, err)
 	}
 }
