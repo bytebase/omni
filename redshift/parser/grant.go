@@ -982,10 +982,11 @@ func (p *Parser) parseGranteeList() (*nodes.List, error) {
 // Redshift's reserved words, so a user may be named role
 // (https://docs.aws.amazon.com/redshift/latest/dg/r_pg_keywords.html), and
 // GRANT and REVOKE take TO { username | ROLE role_name | ... }
-// (https://docs.aws.amazon.com/redshift/latest/dg/r_GRANT.html).
+// (https://docs.aws.amazon.com/redshift/latest/dg/r_GRANT.html). CASCADE
+// and RESTRICT are unreserved too, so ROLE cascade names a role.
 func granteeEnds(t int) bool {
 	switch t {
-	case 0, ';', ',', WITH, RESTRICT, CASCADE:
+	case 0, ';', ',', WITH:
 		return true
 	}
 	return false
