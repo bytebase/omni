@@ -6,15 +6,12 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"sync"
 	"testing"
 
-	_ "github.com/microsoft/go-mssqldb"
-	"github.com/testcontainers/testcontainers-go"
-	tcmssql "github.com/testcontainers/testcontainers-go/modules/mssql"
-
+	"github.com/bytebase/omni/enginetest/tape"
 	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/mssql/ast"
+	"github.com/bytebase/omni/mssql/internal/testcontainer"
 	"github.com/bytebase/omni/review"
 )
 
@@ -31,50 +28,19 @@ var oracleBase = []string{
 	"INSERT INTO dbo.plain VALUES (1, 1), (2, 2)",
 }
 
-var mssqlOracle struct {
-	once      sync.Once
-	container *tcmssql.MSSQLServerContainer
-	db        *sql.DB
-	err       error
-}
-
+// TestMain runs the tests through the tape harness and removes the server
+// a recording started.
 func TestMain(m *testing.M) {
-	code := m.Run()
-	if mssqlOracle.db != nil {
-		_ = mssqlOracle.db.Close()
-	}
-	if mssqlOracle.container != nil {
-		_ = testcontainers.TerminateContainer(mssqlOracle.container)
-	}
+	code := tape.Main(m)
+	testcontainer.Terminate()
 	os.Exit(code)
 }
 
-// startMSSQL returns the SQL Server the oracle tests of this package ask,
-// started once.
+// startMSSQL returns t's connection to SQL Server: a replay of its tape, or
+// the pinned server in a recording.
 func startMSSQL(t *testing.T) *sql.DB {
 	t.Helper()
-	mssqlOracle.once.Do(func() {
-		ctx := context.Background()
-		c, err := tcmssql.Run(ctx, "mcr.microsoft.com/mssql/server:2022-CU27-GDR1-ubuntu-22.04", tcmssql.WithAcceptEULA(), tcmssql.WithPassword("Str0ngPa$$w0rd!"))
-		if err != nil {
-			mssqlOracle.err = err
-			return
-		}
-		mssqlOracle.container = c
-		dsn, err := c.ConnectionString(ctx)
-		if err != nil {
-			mssqlOracle.err = err
-			return
-		}
-		mssqlOracle.db, mssqlOracle.err = sql.Open("sqlserver", dsn)
-		if mssqlOracle.err == nil {
-			mssqlOracle.err = mssqlOracle.db.PingContext(ctx)
-		}
-	})
-	if mssqlOracle.err != nil {
-		t.Fatalf("SQL Server oracle unavailable: %v", mssqlOracle.err)
-	}
-	return mssqlOracle.db
+	return testcontainer.Open(t)
 }
 
 // resetOracle recreates the shop database from oracleBase, and an empty
@@ -156,7 +122,7 @@ func syncSchema(t *testing.T, conn *sql.Conn) *metadata.DatabaseSchemaMetadata {
 		}
 		return nil
 	})
-	query(`SELECT s.name, o.name, i.name, i.is_primary_key, i.is_unique, i.is_unique_constraint FROM sys.indexes i JOIN sys.objects o ON o.object_id = i.object_id JOIN sys.schemas s ON s.schema_id = o.schema_id WHERE o.type = 'U' AND i.name IS NOT NULL`, func(r *sql.Rows) error {
+	query(`SELECT s.name, o.name, i.name, i.is_primary_key, i.is_unique, i.is_unique_constraint FROM sys.indexes i JOIN sys.objects o ON o.object_id = i.object_id JOIN sys.schemas s ON s.schema_id = o.schema_id WHERE o.type = 'U' AND i.name IS NOT NULL ORDER BY s.name, o.name, i.name`, func(r *sql.Rows) error {
 		var schema, tbl, name string
 		var primary, unique, constraint bool
 		if err := r.Scan(&schema, &tbl, &name, &primary, &unique, &constraint); err != nil {
@@ -167,7 +133,7 @@ func syncSchema(t *testing.T, conn *sql.Conn) *metadata.DatabaseSchemaMetadata {
 		}
 		return nil
 	})
-	query(`SELECT s.name, o.name, f.name FROM sys.foreign_keys f JOIN sys.objects o ON o.object_id = f.parent_object_id JOIN sys.schemas s ON s.schema_id = o.schema_id`, func(r *sql.Rows) error {
+	query(`SELECT s.name, o.name, f.name FROM sys.foreign_keys f JOIN sys.objects o ON o.object_id = f.parent_object_id JOIN sys.schemas s ON s.schema_id = o.schema_id ORDER BY s.name, o.name, f.name`, func(r *sql.Rows) error {
 		var schema, tbl, name string
 		if err := r.Scan(&schema, &tbl, &name); err != nil {
 			return err
@@ -177,7 +143,7 @@ func syncSchema(t *testing.T, conn *sql.Conn) *metadata.DatabaseSchemaMetadata {
 		}
 		return nil
 	})
-	query(`SELECT s.name, o.name, c.name FROM sys.check_constraints c JOIN sys.objects o ON o.object_id = c.parent_object_id JOIN sys.schemas s ON s.schema_id = o.schema_id`, func(r *sql.Rows) error {
+	query(`SELECT s.name, o.name, c.name FROM sys.check_constraints c JOIN sys.objects o ON o.object_id = c.parent_object_id JOIN sys.schemas s ON s.schema_id = o.schema_id ORDER BY s.name, o.name, c.name`, func(r *sql.Rows) error {
 		var schema, tbl, name string
 		if err := r.Scan(&schema, &tbl, &name); err != nil {
 			return err
@@ -393,7 +359,8 @@ func constraintSet(t *testing.T, conn *sql.Conn) map[string]bool {
 	rows, err := conn.QueryContext(ctx, `
 		SELECT OBJECT_NAME(k.parent_object_id), k.type, k.name, '' FROM sys.key_constraints k
 		UNION ALL SELECT OBJECT_NAME(f.parent_object_id), 'F', f.name, '' FROM sys.foreign_keys f
-		UNION ALL SELECT OBJECT_NAME(c.parent_object_id), 'C', c.name, c.definition FROM sys.check_constraints c`)
+		UNION ALL SELECT OBJECT_NAME(c.parent_object_id), 'C', c.name, c.definition FROM sys.check_constraints c
+		ORDER BY 1, 2, 3`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -414,7 +381,7 @@ func primaryKeyed(t *testing.T, conn *sql.Conn) (keyed, all map[string]bool) {
 	t.Helper()
 	ctx := context.Background()
 	keyed, all = make(map[string]bool), make(map[string]bool)
-	rows, err := conn.QueryContext(ctx, `SELECT o.name, CASE WHEN EXISTS (SELECT 1 FROM sys.key_constraints k WHERE k.parent_object_id = o.object_id AND k.type = 'PK') THEN 1 ELSE 0 END FROM sys.objects o WHERE o.type = 'U'`)
+	rows, err := conn.QueryContext(ctx, `SELECT o.name, CASE WHEN EXISTS (SELECT 1 FROM sys.key_constraints k WHERE k.parent_object_id = o.object_id AND k.type = 'PK') THEN 1 ELSE 0 END FROM sys.objects o WHERE o.type = 'U' ORDER BY o.name`)
 	if err != nil {
 		t.Fatal(err)
 	}

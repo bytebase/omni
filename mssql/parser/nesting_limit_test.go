@@ -334,11 +334,12 @@ func TestNestingLimitBelowServer(t *testing.T) {
 		}
 	}
 	// Flat chains and lists are not nesting: both accept 50,000 terms.
-	for name, sql := range map[string]string{
-		"UNION":               "SELECT 1" + strings.Repeat(" UNION SELECT 1", 50000),
-		"AND":                 "SELECT 1 WHERE " + strings.Repeat("1 = 1 AND ", 50000) + "1 = 1",
-		"statements in block": "BEGIN " + strings.Repeat("SELECT 1; ", 50000) + "END",
+	for _, c := range []struct{ name, sql string }{
+		{"UNION", "SELECT 1" + strings.Repeat(" UNION SELECT 1", 50000)},
+		{"AND", "SELECT 1 WHERE " + strings.Repeat("1 = 1 AND ", 50000) + "1 = 1"},
+		{"statements in block", "BEGIN " + strings.Repeat("SELECT 1; ", 50000) + "END"},
 	} {
+		name, sql := c.name, c.sql
 		serverErr, err := oracle.parseError(sql)
 		if err != nil {
 			t.Fatalf("%s: %v", name, err)
