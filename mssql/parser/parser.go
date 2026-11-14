@@ -728,8 +728,8 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 			if next.Type == kwAUDIT {
 				p.advance() // consume DATABASE
 				p.advance() // consume AUDIT
-				if p.cur.Type == kwSPECIFICATION {
-					p.advance() // consume SPECIFICATION
+				if _, err := p.expect(kwSPECIFICATION); err != nil {
+					return nil, err
 				}
 				stmt, err := p.parseCreateDatabaseAuditSpecStmt()
 				if err != nil {
@@ -1405,8 +1405,8 @@ func (p *Parser) parseAlterStmt() (nodes.StmtNode, error) {
 			if next.Type == kwAUDIT {
 				p.advance() // consume DATABASE
 				p.advance() // consume AUDIT
-				if p.cur.Type == kwSPECIFICATION {
-					p.advance() // consume SPECIFICATION
+				if _, err := p.expect(kwSPECIFICATION); err != nil {
+					return nil, err
 				}
 				stmt, err := p.parseAlterDatabaseAuditSpecStmt()
 				if err != nil {
@@ -2058,6 +2058,16 @@ func (p *Parser) parseDropOrSecurityStmt() (nodes.StmtNode, error) {
 		}
 		stmt.Loc.Start = loc
 		return stmt, nil
+	case kwAUDIT:
+		// DROP AUDIT name (SQL Server 2022 accepts it; see parseDropAuditStmt)
+		p.advance() // consume DROP
+		p.advance() // consume AUDIT
+		stmt, err := p.parseDropAuditStmt()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Loc.Start = loc
+		return stmt, nil
 	case kwDATABASE:
 		// Could be DROP DATABASE, DROP DATABASE AUDIT SPECIFICATION,
 		// DROP DATABASE ENCRYPTION KEY, or DROP DATABASE SCOPED CREDENTIAL
@@ -2065,8 +2075,8 @@ func (p *Parser) parseDropOrSecurityStmt() (nodes.StmtNode, error) {
 		p.advance() // consume DATABASE
 		if p.cur.Type == kwAUDIT {
 			p.advance() // consume AUDIT
-			if p.cur.Type == kwSPECIFICATION {
-				p.advance() // consume SPECIFICATION
+			if _, err := p.expect(kwSPECIFICATION); err != nil {
+				return nil, err
 			}
 			stmt, err := p.parseDropDatabaseAuditSpecStmt()
 			if err != nil {
