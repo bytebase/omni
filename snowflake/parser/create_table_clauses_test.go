@@ -171,6 +171,9 @@ func TestCreateDynamicTable_Clauses(t *testing.T) {
 		t.Fatalf("Parse(%q): %v", sql, err)
 	}
 	dt = stmt.Stmts[0].(*ast.CreateDynamicTableStmt)
+	if lit, ok := dt.StartAt.(*ast.Literal); !ok || lit.Ival != -60 {
+		t.Errorf("StartAt = %+v, want the literal -60", dt.StartAt)
+	}
 	if dt.StartAtKind != "OFFSET" || dt.StartAt == nil || dt.ExecuteAsUser.Normalize() != "U" || len(dt.SecondaryRoles) != 2 {
 		t.Errorf("StartAt = %s %v, ExecuteAsUser = %v, SecondaryRoles = %v", dt.StartAtKind, dt.StartAt, dt.ExecuteAsUser, dt.SecondaryRoles)
 	}
@@ -224,6 +227,10 @@ func TestCreateTableVariants_Rejected(t *testing.T) {
 		// TARGET_LAG is a string, or DOWNSTREAM for a dynamic table only.
 		"CREATE DYNAMIC TABLE t CLONE s TARGET_LAG = DRAFT",
 		"CREATE INTERACTIVE TABLE t CLUSTER BY (a) TARGET_LAG = DOWNSTREAM AS SELECT 1",
+		// START AT takes a string, or a negative number for OFFSET.
+		"CREATE DYNAMIC TABLE t TARGET_LAG = DOWNSTREAM WAREHOUSE = wh START AT (STREAM => 123) AS SELECT 1",
+		"CREATE DYNAMIC TABLE t TARGET_LAG = DOWNSTREAM WAREHOUSE = wh START AT (OFFSET => 'x') AS SELECT 1",
+		"CREATE DYNAMIC TABLE t TARGET_LAG = DOWNSTREAM WAREHOUSE = wh START AT (OFFSET => 60) AS SELECT 1",
 		// An interactive table's column is a name and a data type.
 		"CREATE INTERACTIVE TABLE t (a) CLUSTER BY (a) AS SELECT 1",
 		"CREATE INTERACTIVE TABLE t (a INT NOT NULL) CLUSTER BY (a) AS SELECT 1",

@@ -421,6 +421,8 @@ func (p *Parser) parsePartitionTransform() (ast.Node, error) {
 //
 //	START AT ( { STREAM | TIMESTAMP | STATEMENT } => '<string>' | OFFSET => -<n> )
 //
+// keeping the value as a *Literal.
+//
 // (https://docs.snowflake.com/en/sql-reference/sql/create-dynamic-table).
 // On entry cur is START.
 func (p *Parser) parseDynamicTableStartAt(stmt *ast.CreateDynamicTableStmt) error {
@@ -439,12 +441,31 @@ func (p *Parser) parseDynamicTableStartAt(stmt *ast.CreateDynamicTableStmt) erro
 	if _, err := p.expect(tokAssoc); err != nil {
 		return err
 	}
-	value, err := p.parseExpr()
-	if err != nil {
-		return err
+	// STREAM / TIMESTAMP / STATEMENT take a string; OFFSET takes a negative
+	// number of seconds.
+	if stmt.StartAtKind != "OFFSET" {
+		tok, err := p.expect(tokString)
+		if err != nil {
+			return err
+		}
+		stmt.StartAt = &ast.Literal{Kind: ast.LitString, Value: tok.Str, Loc: tok.Loc}
+	} else {
+		minus, err := p.expect('-')
+		if err != nil {
+			return err
+		}
+		num, err := p.expect(tokInt)
+		if err != nil {
+			return err
+		}
+		stmt.StartAt = &ast.Literal{
+			Kind:  ast.LitInt,
+			Value: "-" + num.Str,
+			Ival:  -num.Ival,
+			Loc:   ast.Loc{Start: minus.Loc.Start, End: num.Loc.End},
+		}
 	}
-	stmt.StartAt = value
-	_, err = p.expect(')')
+	_, err := p.expect(')')
 	return err
 }
 

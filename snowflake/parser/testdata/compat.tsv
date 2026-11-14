@@ -34958,7 +34958,7 @@ reject	undocumented	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING
 accept	accept	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~99e06dae)/OFFSET_=>_-_NUMBER	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(OFFSET => - 1) AS SELECT 1
 reject	undocumented	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~99e06dae)/OFFSET_=>_-_NUMBER!drop-1	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(=> - 1) AS SELECT 1
 reject	undocumented	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~99e06dae)/OFFSET_=>_-_NUMBER!drop-2	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(OFFSET - 1) AS SELECT 1
-accept	undocumented	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~99e06dae)/OFFSET_=>_-_NUMBER!drop-3	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(OFFSET => 1) AS SELECT 1
+reject	undocumented	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~99e06dae)/OFFSET_=>_-_NUMBER!drop-3	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(OFFSET => 1) AS SELECT 1
 reject	undocumented	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~99e06dae)/OFFSET_=>_-_NUMBER!drop-4	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(OFFSET => -) AS SELECT 1
 reject	undocumented	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~99e06dae)/OFFSET_=>_-_NUMBER!truncate	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(OFFSET => -
 reject	undocumented	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~99e06dae)/OFFSET_=>_-_NUMBER!insert	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(OFFSET => - 1 zzz) AS SELECT 1
