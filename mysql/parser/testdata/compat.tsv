@@ -880,16 +880,16 @@ accept	accept	engine	execute/EXECUTE_SYM_ident_execute_using	EXECUTE utf8mb4;
 accept	accept	engine	execute_using/%empty	EXECUTE utf8mb4;
 accept	accept	engine	execute_using/USING_execute_var_list	EXECUTE utf8mb4 USING@utf8mb4;
 reject	reject	engine	execute_using/USING_execute_var_list!drop-1	EXECUTE utf8mb4@utf8mb4;
-accept	reject	engine	execute_using/USING_execute_var_list!drop-2	EXECUTE utf8mb4 USING utf8mb4;
+reject	reject	engine	execute_using/USING_execute_var_list!drop-2	EXECUTE utf8mb4 USING utf8mb4;
 accept	accept	engine	execute_using/USING_execute_var_list!drop-3	EXECUTE utf8mb4 USING@;
 accept	accept	engine	execute_using/USING_execute_var_list!truncate	EXECUTE utf8mb4 USING@
 reject	reject	engine	execute_using/USING_execute_var_list!insert	EXECUTE utf8mb4 USING@utf8mb4 zzz;
 reject	reject	engine	execute_using/USING_execute_var_list!swap	EXECUTE utf8mb4 UTC_DATE@utf8mb4;
 accept	accept	engine	execute_var_list/execute_var_list_,_execute_var_ident	EXECUTE utf8mb4 USING@utf8mb4,@utf8mb4;
-accept	reject	engine	execute_var_list/execute_var_list_,_execute_var_ident!drop-1	EXECUTE utf8mb4 USING utf8mb4,@utf8mb4;
+reject	reject	engine	execute_var_list/execute_var_list_,_execute_var_ident!drop-1	EXECUTE utf8mb4 USING utf8mb4,@utf8mb4;
 accept	accept	engine	execute_var_list/execute_var_list_,_execute_var_ident!drop-2	EXECUTE utf8mb4 USING@,@utf8mb4;
 reject	reject	engine	execute_var_list/execute_var_list_,_execute_var_ident!drop-3	EXECUTE utf8mb4 USING@utf8mb4@utf8mb4;
-accept	reject	engine	execute_var_list/execute_var_list_,_execute_var_ident!drop-4	EXECUTE utf8mb4 USING@utf8mb4, utf8mb4;
+reject	reject	engine	execute_var_list/execute_var_list_,_execute_var_ident!drop-4	EXECUTE utf8mb4 USING@utf8mb4, utf8mb4;
 accept	accept	engine	execute_var_list/execute_var_list_,_execute_var_ident!drop-5	EXECUTE utf8mb4 USING@utf8mb4,@;
 accept	accept	engine	execute_var_list/execute_var_list_,_execute_var_ident!truncate	EXECUTE utf8mb4 USING@utf8mb4,@
 reject	reject	engine	execute_var_list/execute_var_list_,_execute_var_ident!insert	EXECUTE utf8mb4 USING@utf8mb4,@utf8mb4 zzz;
