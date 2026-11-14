@@ -24128,3 +24128,22 @@ func TestParseGrantColumnLists(t *testing.T) {
 		}
 	}
 }
+
+// TestParseBuiltinCallsInContext pins calls the built-in check must not
+// refuse (checked on the pinned server).
+func TestParseBuiltinCallsInContext(t *testing.T) {
+	for _, sql := range []string{
+		"SELECT a FROM a GROUP BY ROLLUP(([a], a))",
+		"SELECT a FROM a GROUP BY CUBE((\"a\", /* , */ a), (a))",
+		"SELECT 1 FROM a WHERE MATCH(LAST_NODE(a) = LAST_NODE(a))",
+	} {
+		if _, err := Parse(sql); err != nil {
+			t.Errorf("Parse(%q): %v", sql, err)
+		}
+	}
+	for _, sql := range []string{"SELECT LAST_NODE(a)", "SELECT a()", "SELECT [getdate]()"} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) = nil error, want SQL Server's rejection", sql)
+		}
+	}
+}

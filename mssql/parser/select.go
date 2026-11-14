@@ -2413,24 +2413,55 @@ func (p *Parser) parseRollupCube() (nodes.Node, error) {
 
 // groupingElementIsComposite reports whether the parenthesis at the current
 // token opens a composite element (a, b) of ROLLUP or CUBE rather than a
-// parenthesized expression: a comma at its own depth, or nothing inside.
+// parenthesized expression: a comma at its own depth, or nothing inside. It
+// reads the source past quoted names, strings and comments.
 func (p *Parser) groupingElementIsComposite() bool {
+	src := p.source
 	depth := 0
-	for i, n := p.cur.Loc, len(p.source); i < n; i++ {
-		switch p.source[i] {
-		case '(':
+	empty := true
+	for i := p.cur.Loc; i < len(src); i++ {
+		c := src[i]
+		switch {
+		case c == '(':
 			depth++
-		case ')':
+			if depth > 1 {
+				empty = false
+			}
+		case c == ')':
 			depth--
 			if depth == 0 {
-				return strings.TrimSpace(p.source[p.cur.Loc+1:i]) == ""
+				return empty
 			}
-		case ',':
-			if depth == 1 {
-				return true
+		case c == ',' && depth == 1:
+			return true
+		case c == '\'' || c == '"' || c == '[':
+			end := byte(c)
+			if c == '[' {
+				end = ']'
 			}
-		case '\'', '"', '[':
-			return false
+			// A doubled closing character stays inside the token.
+			for i++; i < len(src); i++ {
+				if src[i] == end {
+					if i+1 < len(src) && src[i+1] == end {
+						i++
+						continue
+					}
+					break
+				}
+			}
+			empty = false
+		case c == '-' && i+1 < len(src) && src[i+1] == '-':
+			for i < len(src) && src[i] != '\n' {
+				i++
+			}
+		case c == '/' && i+1 < len(src) && src[i+1] == '*':
+			if k := strings.Index(src[i+2:], "*/"); k >= 0 {
+				i += k + 3
+			} else {
+				return false
+			}
+		case c != ' ' && c != '\t' && c != '\n' && c != '\r':
+			empty = false
 		}
 	}
 	return false
