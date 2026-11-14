@@ -557,16 +557,23 @@ func (p *Parser) parseAlterTableModify() (*nodes.AlterTableCmd, error) {
 	if p.cur.Type == '(' {
 		p.advance() // consume '('
 		cols := &nodes.List{}
+		named := map[string]bool{}
 		var col *nodes.ColumnDef
 		for {
 			var err error
-			col, err = p.parseColumnDef()
+			colTok := p.cur
+			col, err = p.parseATModifyColumn(true)
 			if err != nil {
 				return nil, err
 			}
 			if col == nil {
 				return nil, p.syntaxErrorAtCur()
 			}
+			// A column stands once in the list (ORA-00957).
+			if named[col.Name] {
+				return nil, p.syntaxErrorAtTok(colTok)
+			}
+			named[col.Name] = true
 			cols.Items = append(cols.Items, col)
 			if p.cur.Type != ',' {
 				break
@@ -591,7 +598,7 @@ func (p *Parser) parseAlterTableModify() (*nodes.AlterTableCmd, error) {
 	}
 
 	// MODIFY column_def (without parentheses) — includes modify_col_visibility
-	col, err := p.parseColumnDef()
+	col, err := p.parseATModifyColumn(false)
 	if err != nil {
 		return nil, err
 	}
@@ -603,6 +610,53 @@ func (p *Parser) parseAlterTableModify() (*nodes.AlterTableCmd, error) {
 		ColumnDef: col,
 		Loc:       nodes.Loc{Start: start, End: p.prev.End},
 	}, nil
+}
+
+// parseATModifyColumn reads modify_col_properties. Every part after the
+// column is optional there: Oracle runs ALTER TABLE t MODIFY c, MODIFY (c)
+// and MODIFY c LOGGING, which CREATE TABLE's column_definition does not
+// take. In a list (inList), a column followed by ',' or ')' is read alone;
+// otherwise one followed by the end of the statement or by another action.
+func (p *Parser) parseATModifyColumn(inList bool) (*nodes.ColumnDef, error) {
+	if p.isATNameStart() {
+		next := p.peekNext()
+		var alone bool
+		if inList {
+			alone = next.Type == ',' || next.Type == ')'
+		} else {
+			alone = next.Type == ';' || next.Type == tokEOF || p.isATActionAfterColumn(next)
+		}
+		if alone {
+			start := p.pos()
+			if err := p.syntaxErrorIfReservedColumnIdentifier(); err != nil {
+				return nil, err
+			}
+			name, err := p.parseATNameString()
+			if err != nil {
+				return nil, err
+			}
+			return &nodes.ColumnDef{
+				Name:        name,
+				Constraints: &nodes.List{},
+				Loc:         nodes.Loc{Start: start, End: p.prev.End},
+			}, nil
+		}
+	}
+	return p.parseColumnDef()
+}
+
+// isATActionAfterColumn reports whether tok, after a column of MODIFY,
+// starts another ALTER TABLE action rather than a column property (DROP
+// IDENTITY is one).
+func (p *Parser) isATActionAfterColumn(tok Token) bool {
+	switch tok.Type {
+	case kwDROP:
+		return !p.isIdentLikeStrAt(p.peekAhead(2)[1], "IDENTITY")
+	case kwADD, kwMODIFY, kwENABLE, kwDISABLE, kwLOGGING, kwNOLOGGING,
+		kwPARALLEL, kwNOPARALLEL, kwCOMPRESS, kwNOCOMPRESS, kwCACHE, kwREAD, kwPCTFREE:
+		return true
+	}
+	return false
 }
 
 // parseAlterTableModifyConstraint parses, after MODIFY,
