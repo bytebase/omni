@@ -167,6 +167,18 @@ func (n *BinaryExpr) Tag() NodeTag { return T_BinaryExpr }
 
 var _ Node = (*BinaryExpr)(nil)
 
+// DereferenceExpr is expr.field, a field of a struct-valued expression
+// other than a column name (named_struct('a', 1).a).
+type DereferenceExpr struct {
+	Expr  Node
+	Field string
+	Loc   Loc
+}
+
+func (n *DereferenceExpr) Tag() NodeTag { return T_DereferenceExpr }
+
+var _ Node = (*DereferenceExpr)(nil)
+
 // MatchExpr is expr [NOT] MATCH pattern, Op naming the MATCH kind
 // (MATCH, MATCH_ANY, MATCH_PHRASE, ...).
 type MatchExpr struct {

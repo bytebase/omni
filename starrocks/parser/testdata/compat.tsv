@@ -8939,10 +8939,10 @@ accept	accept	engine	primaryExpression(identifier|string)/identifier	SELECT CURR
 accept	accept	engine	primaryExpression(identifier|string)/string	SELECT CURRENT_USER COLLATE 'a';
 accept	accept	engine	primaryExpression(identifier|string)/string!insert	SELECT CURRENT_USER COLLATE 'a' zzz;
 reject	accept	engine	primaryExpression(DOT_IDENTIFIER|._identifier)/DOT_IDENTIFIER	SELECT CURRENT_USER.1a;
-reject	accept	engine	primaryExpression(DOT_IDENTIFIER|._identifier)/._identifier	SELECT CURRENT_USER.a;
+accept	accept	engine	primaryExpression(DOT_IDENTIFIER|._identifier)/._identifier	SELECT CURRENT_USER.a;
 reject	reject	engine	primaryExpression(DOT_IDENTIFIER|._identifier)/._identifier!drop-2	SELECT CURRENT_USER.;
 reject	reject	engine	primaryExpression(DOT_IDENTIFIER|._identifier)/._identifier!truncate	SELECT CURRENT_USER.
-reject	accept	engine	primaryExpression(DOT_IDENTIFIER|._identifier)/._identifier!insert	SELECT CURRENT_USER.a zzz;
+accept	accept	engine	primaryExpression(DOT_IDENTIFIER|._identifier)/._identifier!insert	SELECT CURRENT_USER.a zzz;
 accept	accept	engine	primaryExpression(MINUS_SYMBOL|PLUS_SYMBOL|BITNOT)/MINUS_SYMBOL	SELECT - CURRENT_USER;
 reject	reject	engine	primaryExpression(MINUS_SYMBOL|PLUS_SYMBOL|BITNOT)/MINUS_SYMBOL!insert	SELECT - zzz CURRENT_USER;
 accept	accept	engine	primaryExpression(MINUS_SYMBOL|PLUS_SYMBOL|BITNOT)/PLUS_SYMBOL	SELECT + CURRENT_USER;

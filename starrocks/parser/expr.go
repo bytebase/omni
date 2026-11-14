@@ -374,6 +374,18 @@ func (p *Parser) parsePostfixSuffixes(node ast.Node) (ast.Node, error) {
 			}
 			node = arrow
 
+		case p.cur.Kind == int('.') && isIdentifierTokenQualified(p.peekNext().Kind):
+			// primaryExpression '.' identifier (StarRocks.g4:2406). A column
+			// name's parts were read with it, so this is a field of another
+			// expression.
+			p.advance() // consume '.'
+			field := p.advance()
+			node = &ast.DereferenceExpr{
+				Expr:  node,
+				Field: field.Str,
+				Loc:   ast.Loc{Start: ast.NodeLoc(node).Start, End: field.Loc.End},
+			}
+
 		default:
 			return node, nil
 		}

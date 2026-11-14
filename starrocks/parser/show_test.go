@@ -469,6 +469,8 @@ func TestShowStrictRejects(t *testing.T) {
 	}
 	for _, sql := range []string{
 		"SHOW FULL TABLES FROM db LIKE 'a%'",
+		"SHOW LOAD WHERE named_struct('name', Label).name = 'a'",
+		"SHOW LOAD WHERE CURRENT_USER.a = 'a'",
 		"SHOW LOAD WHERE role = 'a'",
 		"SHOW LOAD WHERE Label MATCH !Label",
 		"SHOW LOAD WHERE GROUP_CONCAT(Label SEPARATOR Label) = 'a'",
