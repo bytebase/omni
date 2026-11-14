@@ -7707,6 +7707,20 @@ func TestParseReceiveColumnListDepth(t *testing.T) {
 
 // TestParseWindowFrame tests ROWS/RANGE/GROUPS window frame specification in OVER clause (batch 73).
 func TestParseWindowFrame(t *testing.T) {
+	// SQL Server 2022 has no GROUPS frame and no lone window name in OVER
+	// (Msg 102 on the pinned server).
+	for _, sql := range []string{
+		"SELECT SUM(x) OVER (ORDER BY id GROUPS UNBOUNDED PRECEDING)",
+		"SELECT SUM(x) OVER (ROWS UNBOUNDED PRECEDING)",
+		"SELECT SUM(x) OVER (ORDER BY id ROWS UNBOUNDED FOLLOWING)",
+		"SELECT SUM(x) OVER (ORDER BY id ROWS @n PRECEDING)",
+		"SELECT SUM(x) OVER (w) FROM t WINDOW w AS (ORDER BY id)",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) = nil error, want SQL Server's rejection", sql)
+		}
+	}
+
 	tests := []struct {
 		name string
 		sql  string
@@ -7727,10 +7741,6 @@ func TestParseWindowFrame(t *testing.T) {
 		{"range_between_unbounded_preceding_and_current_row", "SELECT SUM(x) OVER (ORDER BY id RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)"},
 		{"range_between_current_row_and_unbounded_following", "SELECT SUM(x) OVER (ORDER BY id RANGE BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING)"},
 		{"range_between_unbounded_preceding_and_unbounded_following", "SELECT SUM(x) OVER (ORDER BY id RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING)"},
-		// GROUPS frame (SQL Server 2022+)
-		{"groups_unbounded_preceding", "SELECT SUM(x) OVER (ORDER BY id GROUPS UNBOUNDED PRECEDING)"},
-		{"groups_between_n_preceding_and_n_following", "SELECT SUM(x) OVER (ORDER BY id GROUPS BETWEEN 1 PRECEDING AND 1 FOLLOWING)"},
-		{"groups_between_current_row_and_unbounded_following", "SELECT SUM(x) OVER (ORDER BY id GROUPS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING)"},
 		// Combined with PARTITION BY
 		{"partition_and_rows_frame", "SELECT SUM(x) OVER (PARTITION BY dept ORDER BY id ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING)"},
 		{"partition_and_range_frame", "SELECT AVG(salary) OVER (PARTITION BY dept ORDER BY hire_date RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)"},

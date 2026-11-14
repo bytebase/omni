@@ -1600,6 +1600,8 @@ const (
 	BinOpNotGt // !>
 	BinOpAnd
 	BinOpOr
+	BinOpShiftLeft  // << (SQL Server 2022)
+	BinOpShiftRight // >> (SQL Server 2022)
 )
 
 // UnaryExpr represents a unary operation.
