@@ -4,6 +4,8 @@ import (
 	"github.com/bytebase/omni/cassandra/ast"
 )
 
+// parseCreateKeyspace parses createKeyspaceStatement (Parser.g:763):
+// CREATE KEYSPACE [IF NOT EXISTS] ks WITH properties.
 func (p *Parser) parseCreateKeyspace() (*ast.CreateKeyspaceStmt, error) {
 	start := p.curLoc()
 	p.advance() // KEYSPACE
@@ -21,42 +23,23 @@ func (p *Parser) parseCreateKeyspace() (*ast.CreateKeyspaceStmt, error) {
 	if err := p.expectKeyword(tokWITH); err != nil {
 		return nil, err
 	}
+	opts, err := p.parseProperties()
+	if err != nil {
+		return nil, err
+	}
 
 	stmt := &ast.CreateKeyspaceStmt{
 		IfNotExists: ifNotExists,
 		Name:        name,
+		Options:     opts,
 	}
-
-	if err := p.expectKeyword(tokREPLICATION); err != nil {
-		return nil, err
-	}
-	if _, err := p.expect(tokEQ); err != nil {
-		return nil, err
-	}
-	repl, err := p.parseOptionHash()
-	if err != nil {
-		return nil, err
-	}
-	stmt.Replication = repl
-
-	if p.match(tokAND) {
-		if err := p.expectKeyword(tokDURABLE_WRITES); err != nil {
-			return nil, err
-		}
-		if _, err := p.expect(tokEQ); err != nil {
-			return nil, err
-		}
-		boolVal, err := p.parseBoolLit()
-		if err != nil {
-			return nil, err
-		}
-		stmt.DurableWrites = boolVal
-	}
-
+	stmt.Replication, stmt.DurableWrites = keyspaceOptions(opts)
 	stmt.Loc = p.makeLoc(start)
 	return stmt, nil
 }
 
+// parseAlterKeyspace parses alterKeyspaceStatement (Parser.g:939):
+// ALTER KEYSPACE [IF EXISTS] ks WITH properties.
 func (p *Parser) parseAlterKeyspace() (*ast.AlterKeyspaceStmt, error) {
 	start := p.curLoc()
 	p.advance() // KEYSPACE
@@ -68,39 +51,38 @@ func (p *Parser) parseAlterKeyspace() (*ast.AlterKeyspaceStmt, error) {
 		return nil, err
 	}
 
-	stmt := &ast.AlterKeyspaceStmt{IfExists: ifExists, Name: name}
-
 	if err := p.expectKeyword(tokWITH); err != nil {
 		return nil, err
 	}
-	if err := p.expectKeyword(tokREPLICATION); err != nil {
-		return nil, err
-	}
-	if _, err := p.expect(tokEQ); err != nil {
-		return nil, err
-	}
-	repl, err := p.parseOptionHash()
+	opts, err := p.parseProperties()
 	if err != nil {
 		return nil, err
 	}
-	stmt.Replication = repl
 
-	if p.match(tokAND) {
-		if err := p.expectKeyword(tokDURABLE_WRITES); err != nil {
-			return nil, err
-		}
-		if _, err := p.expect(tokEQ); err != nil {
-			return nil, err
-		}
-		boolVal, err := p.parseBoolLit()
-		if err != nil {
-			return nil, err
-		}
-		stmt.DurableWrites = boolVal
-	}
-
+	stmt := &ast.AlterKeyspaceStmt{IfExists: ifExists, Name: name, Options: opts}
+	stmt.Replication, stmt.DurableWrites = keyspaceOptions(opts)
 	stmt.Loc = p.makeLoc(start)
 	return stmt, nil
+}
+
+// keyspaceOptions picks the replication map and the durable_writes boolean
+// out of a keyspace's properties, where they are given in those forms.
+func keyspaceOptions(opts []*ast.TableOption) (*ast.OptionHash, *ast.BoolLit) {
+	var repl *ast.OptionHash
+	var durable *ast.BoolLit
+	for _, o := range opts {
+		switch identKey(o.Name) {
+		case "replication":
+			if h, ok := o.Value.(*ast.OptionHash); ok {
+				repl = h
+			}
+		case "durable_writes":
+			if b, ok := o.Value.(*ast.BoolLit); ok {
+				durable = b
+			}
+		}
+	}
+	return repl, durable
 }
 
 func (p *Parser) parseDropKeyspace() (*ast.DropKeyspaceStmt, error) {

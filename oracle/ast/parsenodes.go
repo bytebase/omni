@@ -3618,6 +3618,7 @@ func (n *AlterTablespaceStmt) stmtNode() {}
 // CreateTablespaceSetStmt represents a CREATE TABLESPACE SET statement.
 type CreateTablespaceSetStmt struct {
 	Name          *ObjectName       // tablespace set name
+	IfNotExists   bool              // IF NOT EXISTS
 	Shardspace    string            // IN SHARDSPACE name
 	Datafiles     []*DatafileClause // DATAFILE clauses in USING TEMPLATE
 	Logging       string            // LOGGING / NOLOGGING / FILESYSTEM_LIKE_LOGGING
