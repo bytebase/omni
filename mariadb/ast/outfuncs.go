@@ -135,8 +135,6 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeChecksumTableStmt(sb, n)
 	case *ShutdownStmt:
 		writeShutdownStmt(sb, n)
-	case *RestartStmt:
-		writeRestartStmt(sb, n)
 	case *AlterDatabaseStmt:
 		writeAlterDatabaseStmt(sb, n)
 	case *DropDatabaseStmt:
@@ -452,7 +450,11 @@ func writeNode(sb *strings.Builder, node Node) {
 	case *ImportTableStmt:
 		writeImportTableStmt(sb, n)
 	case *BinlogStmt:
-		fmt.Fprintf(sb, "{BINLOG :loc %d :str %q}", n.Loc.Start, n.Str)
+		if len(n.Fragments) > 0 {
+			fmt.Fprintf(sb, "{BINLOG :loc %d :fragments %q}", n.Loc.Start, n.Fragments)
+		} else {
+			fmt.Fprintf(sb, "{BINLOG :loc %d :str %q}", n.Loc.Start, n.Str)
+		}
 	case *CacheIndexStmt:
 		writeCacheIndexStmt(sb, n)
 	case *LoadIndexIntoCacheStmt:
@@ -878,6 +880,12 @@ func writeCreateTableStmt(sb *strings.Builder, n *CreateTableStmt) {
 func writeAlterTableStmt(sb *strings.Builder, n *AlterTableStmt) {
 	sb.WriteString("{ALTER_TABLE")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Online {
+		sb.WriteString(" :online true")
+	}
+	if n.Ignore {
+		sb.WriteString(" :ignore true")
+	}
 	if n.Table != nil {
 		sb.WriteString(" :table ")
 		writeNode(sb, n.Table)
@@ -2083,17 +2091,14 @@ func writeShutdownStmt(sb *strings.Builder, n *ShutdownStmt) {
 	sb.WriteString("}")
 }
 
-func writeRestartStmt(sb *strings.Builder, n *RestartStmt) {
-	sb.WriteString("{RESTART")
-	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
-	sb.WriteString("}")
-}
-
 func writeAlterDatabaseStmt(sb *strings.Builder, n *AlterDatabaseStmt) {
 	sb.WriteString("{ALTER_DATABASE")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
 	if n.Name != "" {
 		fmt.Fprintf(sb, " :name %s", n.Name)
+	}
+	if n.UpgradeDataDirectoryName {
+		sb.WriteString(" :upgrade_data_directory_name true")
 	}
 	if len(n.Options) > 0 {
 		sb.WriteString(" :options ")

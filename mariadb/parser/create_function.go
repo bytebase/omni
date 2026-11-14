@@ -132,12 +132,21 @@ func (p *Parser) parseCreateFunctionStmt(start int, orReplace, isProcedure bool)
 		return nil, &ParseError{Message: "collecting"}
 	}
 
+	var paramNames []string
 	if p.cur.Type != ')' {
 		for {
+			namePos := p.cur.Loc
+			if isProcedure && (p.cur.Type == kwIN || p.cur.Type == kwOUT || p.cur.Type == kwINOUT) {
+				namePos = p.peekNext().Loc
+			}
 			param, err := p.parseFuncParam(isProcedure)
 			if err != nil {
 				return nil, err
 			}
+			if err := p.checkSPParam(paramNames, param.Name, namePos); err != nil {
+				return nil, err
+			}
+			paramNames = append(paramNames, param.Name)
 			stmt.Params = append(stmt.Params, param)
 			if p.cur.Type != ',' {
 				break
@@ -196,7 +205,7 @@ func (p *Parser) parseCreateFunctionStmt(start int, orReplace, isProcedure bool)
 	// compound statements, labels, DECLAREs, etc.). See
 	// docs/plans/2026-04-20-mysql-routine-body-grammar.md.
 	bodyStart := p.pos()
-	defer p.enterStoredProgram(routineScope{noResultSet: !isProcedure, function: !isProcedure})()
+	defer p.enterStoredProgram(routineScope{noResultSet: !isProcedure, function: !isProcedure}, paramNames...)()
 	body, err := p.parseCompoundStmtOrStmt()
 	if err != nil {
 		return nil, err

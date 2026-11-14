@@ -232,6 +232,9 @@ type AlterTableStmt struct {
 	Loc      Loc
 	Table    *TableRef
 	Commands []*AlterTableCmd
+	// Online and Ignore record ALTER [ONLINE] [IGNORE] TABLE's alter_option_list.
+	Online bool
+	Ignore bool
 }
 
 func (s *AlterTableStmt) nodeTag()  {}
@@ -636,6 +639,11 @@ type TableOption struct {
 	Name    string
 	Value   string
 	Storage string // TABLESPACE ... STORAGE {DISK|MEMORY}
+	// EngineDefined marks an engine_defined_option, `name = value`, whose name the
+	// engine checks when the statement runs; StringValue records that its value
+	// was a quoted string.
+	EngineDefined bool
+	StringValue   bool
 }
 
 func (o *TableOption) nodeTag() {}
@@ -2101,19 +2109,14 @@ type ShutdownStmt struct {
 func (s *ShutdownStmt) nodeTag()  {}
 func (s *ShutdownStmt) stmtNode() {}
 
-// RestartStmt represents a RESTART statement.
-type RestartStmt struct {
-	Loc Loc
-}
-
-func (s *RestartStmt) nodeTag()  {}
-func (s *RestartStmt) stmtNode() {}
-
 // AlterDatabaseStmt represents an ALTER DATABASE statement.
 type AlterDatabaseStmt struct {
 	Loc     Loc
 	Name    string
 	Options []*DatabaseOption
+	// UpgradeDataDirectoryName is ALTER DATABASE name UPGRADE DATA DIRECTORY
+	// NAME, which takes no option.
+	UpgradeDataDirectoryName bool
 }
 
 func (s *AlterDatabaseStmt) nodeTag()  {}
@@ -3214,8 +3217,9 @@ func (s *ImportTableStmt) stmtNode() {}
 
 // BinlogStmt represents a BINLOG 'str' statement.
 type BinlogStmt struct {
-	Loc Loc
-	Str string // base64-encoded string
+	Loc       Loc
+	Str       string   // base64-encoded string
+	Fragments []string // BINLOG @a, @b: the two user variables the event is split across
 }
 
 func (s *BinlogStmt) nodeTag()  {}
