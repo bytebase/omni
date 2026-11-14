@@ -336,6 +336,9 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		case kwDATABASE, kwSCHEMA:
 			return p.parseCreateDatabase()
 		case kwTABLE, kwTEMPORARY:
+			if isCreateFunctionStart(p.cur.Kind, p.peekNext().Kind) {
+				return p.parseCreateFunction(createTok.Loc, false)
+			}
 			return p.parseCreateTable()
 		case kwEXTERNAL:
 			// Peek past EXTERNAL to distinguish CREATE EXTERNAL CATALOG,
@@ -370,8 +373,8 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseCreateMTMV(createTok.Loc)
 		case kwPROCEDURE:
 			return p.parseCreateProcedure(createTok.Loc, false)
-		case kwFUNCTION, kwAGGREGATE, kwALIAS, kwGLOBAL:
-			return p.parseCreateFunction(createTok.Loc)
+		case kwFUNCTION, kwAGGREGATE, kwGLOBAL:
+			return p.parseCreateFunction(createTok.Loc, false)
 		case kwOR:
 			// CREATE OR REPLACE VIEW ... or CREATE OR REPLACE PROCEDURE ...
 			p.advance() // consume OR
@@ -380,6 +383,9 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			}
 			if p.cur.Kind == kwPROCEDURE {
 				return p.parseCreateProcedure(createTok.Loc, true)
+			}
+			if isCreateFunctionStart(p.cur.Kind, p.peekNext().Kind) {
+				return p.parseCreateFunction(createTok.Loc, true)
 			}
 			return p.parseCreateView(createTok.Loc, true)
 		case kwSTORAGE:
@@ -405,6 +411,8 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseCreateEncryptKey(createTok.Loc)
 		case kwDICTIONARY:
 			return p.parseCreateDictionary(createTok.Loc)
+		case kwANALYZE:
+			return p.parseCreateAnalyze(createTok.Loc)
 		case kwROLE:
 			return p.parseCreateRole(createTok.Loc)
 		case kwUSER:
@@ -518,18 +526,11 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		case kwSTATS:
 			p.advance() // consume STATS
 			return p.parseDropStats(dropTok.Loc, "")
-		case kwEXPIRED:
-			p.advance() // consume EXPIRED
-			if _, err := p.expect(kwSTATS); err != nil {
-				return nil, err
-			}
-			return p.parseDropStats(dropTok.Loc, "EXPIRED")
-		case kwCACHED:
-			p.advance() // consume CACHED
-			if _, err := p.expect(kwSTATS); err != nil {
-				return nil, err
-			}
-			return p.parseDropStats(dropTok.Loc, "CACHED")
+		case kwANALYZE:
+			// dropAnalyzeJobStatement (StarRocks.g4:1329); StarRocks has no
+			// DROP EXPIRED STATS or DROP CACHED STATS.
+			p.advance() // consume ANALYZE
+			return p.parseDropStats(dropTok.Loc, "ANALYZE")
 		case kwPROCEDURE:
 			return p.parseDropProcedure(dropTok.Loc)
 		case kwFUNCTION, kwGLOBAL:

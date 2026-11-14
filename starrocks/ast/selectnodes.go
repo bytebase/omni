@@ -143,7 +143,39 @@ type TableRef struct {
 	// appears between the table name and the alias.
 	TabletIDs []int64
 
+	// Period holds the queryPeriod after the name: FOR SYSTEM_TIME AS OF x.
+	Period *QueryPeriod
+
+	// Partitions holds partitionNames: PARTITION p, PARTITIONS (p, ...), or
+	// PARTITION (col = value, ...) as written; TemporaryPartition marks TEMPORARY.
+	Partitions         []string
+	TemporaryPartition bool
+
+	// ReplicaIDs holds REPLICA(id, ...).
+	ReplicaIDs []int64
+
+	// Hints holds the bracketHint after the alias, each item as written:
+	// [a, b] or [a | f(x) (1, 2)].
+	Hints []string
+
+	// Before holds BEFORE 'ts'.
+	Before string
+
+	// ColumnAliases holds a subquery alias's column list: (SELECT ...) t(c1, c2).
+	ColumnAliases []string
+
 	Loc Loc
+}
+
+// QueryPeriod is a table reference's queryPeriod (StarRocks.g4:2102):
+//
+//	FOR? (SYSTEM_TIME | TIMESTAMP | VERSION)
+//	    (BETWEEN e AND e | FROM e TO e | ALL | AS OF e)
+type QueryPeriod struct {
+	Kind  string // SYSTEM_TIME, TIMESTAMP or VERSION
+	Op    string // BETWEEN, FROM, ALL or AS OF
+	Start Node   // the first expression, or nil for ALL
+	End   Node   // BETWEEN's and FROM's second expression
 }
 
 // Tag implements Node.
@@ -188,7 +220,11 @@ type TableFunctionRef struct {
 	Alias         string        // optional table alias; empty if absent
 	ColumnAliases []string      // optional column-alias list; nil if absent
 	Lateral       bool          // LATERAL prefix present
-	Loc           Loc
+	// Normalized marks TABLE(f(args)); ArgNames holds each argument's
+	// name there, beside Call.Args, "" for one passed by position.
+	Normalized bool
+	ArgNames   []string
+	Loc        Loc
 }
 
 // Tag implements Node.

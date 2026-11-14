@@ -71,13 +71,28 @@ func (n *DropTableStmt) Tag() NodeTag { return T_DropTableStmt }
 // Compile-time assertion that *DropTableStmt satisfies Node.
 var _ Node = (*DropTableStmt)(nil)
 
-// CreateFunctionStmt represents CREATE [GLOBAL] [AGGREGATE | ALIAS] FUNCTION ...
-// The full signature/body/properties is stored as RawSignature for best-effort
-// capture; structured parsing of UDF body is out of scope for the initial port.
+// CreateFunctionStmt represents
+//
+//	CREATE [GLOBAL | SESSION | LOCAL] [TABLES | AGGREGATE] FUNCTION [IF NOT EXISTS]
+//	    name(arg_types) RETURNS type [INTERMEDIATE type] [PROPERTIES (...)]
+//	CREATE [GLOBAL | SESSION | LOCAL] ALIAS FUNCTION [IF NOT EXISTS]
+//	    name(arg_types) WITH PARAMETER (params) AS expr
+//
+// RawSignature holds the text after CREATE, verbatim.
 type CreateFunctionStmt struct {
 	Global       bool
 	Aggregate    bool
+	Tables       bool
 	Alias        bool
+	IfNotExists  bool
+	Name         *ObjectName
+	Args         []*TypeName // argument types; a trailing "..." sets Variadic
+	Variadic     bool
+	Returns      *TypeName   // nil for an ALIAS function
+	Intermediate *TypeName   // INTERMEDIATE type, or nil
+	Properties   []*Property // PROPERTIES (...)
+	Parameters   []string    // ALIAS: WITH PARAMETER (...)
+	Body         Node        // ALIAS: the expression after AS
 	RawSignature string
 	Loc          Loc
 }
@@ -88,11 +103,15 @@ func (n *CreateFunctionStmt) Tag() NodeTag { return T_CreateFunctionStmt }
 // Compile-time assertion that *CreateFunctionStmt satisfies Node.
 var _ Node = (*CreateFunctionStmt)(nil)
 
-// DropFunctionStmt represents DROP [GLOBAL] FUNCTION [IF EXISTS] name(arg_types).
+// DropFunctionStmt represents
+//
+//	DROP [GLOBAL | SESSION | LOCAL] FUNCTION [IF EXISTS] name(arg_types).
 type DropFunctionStmt struct {
 	Name         *ObjectName
 	Global       bool
 	IfExists     bool
+	Args         []*TypeName // argument types; a trailing "..." sets Variadic
+	Variadic     bool
 	RawSignature string // function name + argument-type list (verbatim)
 	Loc          Loc
 }
@@ -175,13 +194,20 @@ func (n *ObjectName) String() string {
 //	DECIMAL(10,2)               → Name="DECIMAL", Params=[10,2]
 //	ARRAY<INT>                  → Name="ARRAY", ElementType=&TypeName{Name:"INT"}
 //	MAP<STRING,INT>             → Name="MAP", ElementType=&TypeName{Name:"STRING"}, ValueType=&TypeName{Name:"INT"}
-//	STRUCT<name VARCHAR(50)>    → Name="STRUCT", Fields=[{Name:"name", Type:...}]
+//	STRUCT<name:VARCHAR(50)>    → Name="STRUCT", Fields=[{Name:"name", Type:...}]
+//	VARIANT<'a':INT>            → Name="VARIANT", Fields=[{Name:"a", Type:...}]
+//	AGG_STATE<sum(INT NULL)>    → Name="AGG_STATE", Func="sum", Args=[{Name:"INT", Nullable:"NULL"}]
 type TypeName struct {
 	Name        string         // source text of type name: "INT", "VARCHAR", "ARRAY", etc.
 	Params      []int          // numeric params like (10) or (10,2); nil if absent
+	Star        bool           // VARCHAR(*): the first parameter is '*'
 	ElementType *TypeName      // for ARRAY<T>: element type; for MAP<K,V>: key type
 	ValueType   *TypeName      // for MAP<K,V>: value type
-	Fields      []*StructField // for STRUCT<name type, ...>: field list
+	Fields      []*StructField // for STRUCT<name:type, ...> and VARIANT<'path':type, ...>
+	Properties  []*Property    // for VARIANT<..., PROPERTIES(...)>
+	Func        string         // for AGG_STATE<func(...)>: the function name
+	Args        []*TypeName    // for AGG_STATE<func(...)>: the argument types
+	Nullable    string         // an AGG_STATE argument's "NULL" or "NOT NULL", else ""
 	Loc         Loc
 }
 
@@ -191,11 +217,14 @@ func (n *TypeName) Tag() NodeTag { return T_TypeName }
 // Compile-time assertion that *TypeName satisfies Node.
 var _ Node = (*TypeName)(nil)
 
-// StructField represents one named field in a STRUCT type: `name dataType`.
+// StructField represents one named field in a STRUCT type, `name:dataType`,
+// or a predefined sub-column of a VARIANT type, `'path':dataType`.
 type StructField struct {
-	Name string
-	Type *TypeName
-	Loc  Loc
+	Name      string
+	Type      *TypeName
+	Comment   string // COMMENT 'text', or ""
+	MatchType string // VARIANT only: MATCH_NAME or MATCH_NAME_GLOB, or ""
+	Loc       Loc
 }
 
 // ---------------------------------------------------------------------------

@@ -7,33 +7,17 @@ import (
 	"github.com/bytebase/omni/doris/ast"
 )
 
-// isPrimitiveTypeKeyword reports whether kind is a keyword that names a
-// primitive Doris column type (i.e., usable as a standalone type name without
-// angle-bracket parameters).
+// isPrimitiveTypeKeyword reports whether kind is a keyword of primitiveColType
+// (DorisParser.g4:1717), the types a column may name without angle brackets.
+// VARIANT is variantTypeDefinitions (:1759), read on its own.
 func isPrimitiveTypeKeyword(kind TokenKind) bool {
 	switch kind {
-	// Integer types
-	case kwTINYINT, kwSMALLINT, kwINT, kwINTEGER, kwBIGINT, kwLARGEINT:
-		return true
-	// Float/decimal types
-	case kwFLOAT, kwDOUBLE, kwDECIMAL, kwDECIMALV2, kwDECIMALV3:
-		return true
-	// Boolean
-	case kwBOOLEAN:
-		return true
-	// String types
-	case kwSTRING, kwTEXT, kwVARCHAR, kwCHAR, kwVARBINARY:
-		return true
-	// Date/time types
-	case kwDATE, kwDATETIME, kwTIME, kwDATEV1, kwDATEV2, kwDATETIMEV1, kwDATETIMEV2:
-		return true
-	// Special Doris types
-	case kwBITMAP, kwHLL, kwQUANTILE_STATE, kwJSON, kwJSONB:
-		return true
-	case kwIPV4, kwIPV6, kwVARIANT, kwAGG_STATE:
-		return true
-	// ALL keyword can appear as a type name in some grammar positions
-	case kwALL:
+	case kwTINYINT, kwSMALLINT, kwINT, kwINTEGER, kwBIGINT, kwLARGEINT,
+		kwBOOLEAN, kwFLOAT, kwDOUBLE,
+		kwDATE, kwDATETIME, kwTIME, kwDATEV2, kwDATETIMEV2, kwDATEV1, kwDATETIMEV1,
+		kwBITMAP, kwQUANTILE_STATE, kwHLL, kwAGG_STATE,
+		kwSTRING, kwJSON, kwJSONB, kwTEXT, kwVARCHAR, kwCHAR,
+		kwDECIMAL, kwDECIMALV2, kwDECIMALV3, kwIPV4, kwIPV6, kwALL:
 		return true
 	default:
 		return false
@@ -124,108 +108,136 @@ func typeKeywordName(tok Token) string {
 	}
 }
 
-// parseDataType parses a Doris data type expression and returns an *ast.TypeName.
+// parseDataType reads a data type as DorisParser.g4's dataType (:1705) does:
 //
-// Supported forms:
+//	dataType
+//	    : ARRAY LT dataType GT
+//	    | MAP LT dataType COMMA dataType GT
+//	    | STRUCT LT complexColTypeList GT
+//	    | variantTypeDefinitions
+//	    | AGG_STATE LT functionNameIdentifier
+//	        LEFT_PAREN dataTypeWithNullable (COMMA dataTypeWithNullable)* RIGHT_PAREN GT
+//	    | primitiveColType (LEFT_PAREN (INTEGER_VALUE | ASTERISK)
+//	        (COMMA INTEGER_VALUE)* RIGHT_PAREN)?
+//	    ;
 //
-//	primitive_type                    — e.g. INT, VARCHAR, BOOLEAN
-//	primitive_type(N)                 — e.g. VARCHAR(255), CHAR(1)
-//	primitive_type(N, M)              — e.g. DECIMAL(10,2)
-//	ARRAY<elementType>
-//	MAP<keyType, valueType>
-//	STRUCT<name1 type1, name2 type2, ...>
+// It is the type of the statements only the ANTLR parser reads (CREATE TABLE,
+// CAST). A statement Doris also hands to its CUP parser takes
+// parseLegacyDataType instead.
 func (p *Parser) parseDataType() (*ast.TypeName, error) {
+	return p.readDataType(false)
+}
+
+// parseLegacyDataType reads a data type in a statement that DorisParser.g4
+// derives from an unsupportedStatement, which Doris parses with both of its
+// parsers: the part of dataType (:1705) that the CUP parser's type
+// (DorisLegacyParser.g4:2528) also takes. That narrows each primitive to
+// the parameters its CUP alternative lists, drops a bare AGG_STATE and the
+// MATCH_NAME of a VARIANT sub-column, and takes VARIANT properties as
+// string pairs only.
+func (p *Parser) parseLegacyDataType() (*ast.TypeName, error) {
+	return p.readDataType(true)
+}
+
+// readDataType reads dataType; legacy narrows it to what the CUP parser's
+// type also takes.
+func (p *Parser) readDataType(legacy bool) (*ast.TypeName, error) {
 	if err := p.enterNesting(); err != nil {
 		return nil, err
 	}
 	defer p.leaveNesting()
-	tok := p.cur
 
-	switch tok.Kind {
+	switch p.cur.Kind {
 	case kwARRAY:
-		return p.parseArrayType()
+		return p.parseArrayType(legacy)
 	case kwMAP:
-		return p.parseMapType()
+		return p.parseMapType(legacy)
 	case kwSTRUCT:
-		return p.parseStructType()
-	default:
-		if isPrimitiveTypeKeyword(tok.Kind) {
-			return p.parsePrimitiveType()
+		return p.parseStructType(legacy)
+	case kwVARIANT:
+		return p.parseVariantType(legacy)
+	case kwAGG_STATE:
+		if p.peekNext().Kind == int('<') {
+			return p.parseAggStateType(legacy)
 		}
-		// Also accept unquoted identifiers as type names (for forward
-		// compatibility with new type names not yet in the keyword list).
-		if tok.Kind == tokIdent || tok.Kind == tokQuotedIdent {
-			return p.parsePrimitiveType()
-		}
-		return nil, &ParseError{
-			Position: tok.Loc.Start, End: tok.Loc.End,
-			Message: fmt.Sprintf("expected a data type, got %q", tok.Str),
+		if legacy {
+			// The CUP parser has no bare AGG_STATE.
+			p.advance()
+			return nil, p.syntaxErrorAtCur()
 		}
 	}
+	if !isPrimitiveTypeKeyword(p.cur.Kind) {
+		return nil, &ParseError{
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+			Message: fmt.Sprintf("expected a data type, got %q", p.cur.Str),
+		}
+	}
+	return p.parsePrimitiveType(legacy)
 }
 
-// parsePrimitiveType parses a primitive type name and its optional numeric
-// parameter list: type_name [ '(' N [ ',' M ] ')' ]
-func (p *Parser) parsePrimitiveType() (*ast.TypeName, error) {
+// legacyTypeParams says which parameter lists the CUP parser's type takes
+// after each primitive: none (absent from the map), "(" N ")" (one), or
+// also "(" N "," M ")" (two). VARCHAR also takes "(*)".
+var legacyTypeParams = map[TokenKind]int{
+	kwTINYINT: 1, kwSMALLINT: 1, kwINT: 1, kwINTEGER: 1, kwBIGINT: 1, kwLARGEINT: 1,
+	kwDATETIME: 1, kwTIME: 1, kwDATETIMEV2: 1, kwCHAR: 1, kwVARCHAR: 1,
+	kwDECIMAL: 2, kwDECIMALV2: 2, kwDECIMALV3: 2,
+}
+
+// parsePrimitiveType reads primitiveColType and its optional parameter list:
+//
+//	'(' (INTEGER_VALUE | '*') (',' INTEGER_VALUE)* ')'
+//
+// legacy holds the list to what the CUP parser's type takes for that
+// primitive (legacyTypeParams).
+func (p *Parser) parsePrimitiveType(legacy bool) (*ast.TypeName, error) {
 	tok := p.advance()
 	typName := &ast.TypeName{
 		Name: typeKeywordName(tok),
 		Loc:  tok.Loc,
 	}
-
-	// Optional parameter list: (N) or (N, M)
-	if p.cur.Kind == int('(') {
-		params, endLoc, err := p.parseTypeParams()
-		if err != nil {
-			return nil, err
-		}
-		typName.Params = params
-		typName.Loc.End = endLoc
+	if p.cur.Kind != int('(') {
+		return typName, nil
 	}
-
-	return typName, nil
-}
-
-// parseTypeParams parses the optional numeric parameter list for a type:
-//
-//	'(' integer [',' integer] ')'
-//
-// Returns the list of param values and the End byte offset of the closing ')'.
-func (p *Parser) parseTypeParams() ([]int, int, error) {
-	// consume '('
-	if _, err := p.expect(int('(')); err != nil {
-		return nil, 0, err
-	}
-
-	firstTok := p.cur
-	if firstTok.Kind != tokInt {
-		return nil, 0, &ParseError{
-			Position: firstTok.Loc.Start, End: firstTok.Loc.End,
-			Message: fmt.Sprintf("expected integer parameter, got %q", firstTok.Str),
+	maxParams := -1 // no limit
+	if legacy {
+		maxParams = legacyTypeParams[tok.Kind]
+		if maxParams == 0 {
+			return nil, p.syntaxErrorAtCur()
 		}
 	}
-	p.advance()
-	params := []int{int(firstTok.Ival)}
-
-	// Optional second param
-	if p.cur.Kind == int(',') {
+	p.advance() // consume '('
+	switch {
+	case p.cur.Kind == int('*') && (!legacy || tok.Kind == kwVARCHAR):
+		typName.Star = true
+		p.advance()
+		if legacy {
+			maxParams = 0 // the CUP parser takes VARCHAR(*) alone
+		}
+	case p.cur.Kind == tokInt:
+		typName.Params = append(typName.Params, int(p.advance().Ival))
+	default:
+		return nil, &ParseError{
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+			Message: fmt.Sprintf("expected integer parameter, got %q", p.cur.Str),
+		}
+	}
+	for p.cur.Kind == int(',') && (maxParams < 0 || len(typName.Params) < maxParams) {
 		p.advance() // consume ','
-		secondTok := p.cur
-		if secondTok.Kind != tokInt {
-			return nil, 0, &ParseError{
-				Position: secondTok.Loc.Start, End: secondTok.Loc.End,
-				Message: fmt.Sprintf("expected integer parameter, got %q", secondTok.Str),
+		if p.cur.Kind != tokInt {
+			return nil, &ParseError{
+				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+				Message: fmt.Sprintf("expected integer parameter, got %q", p.cur.Str),
 			}
 		}
-		p.advance()
-		params = append(params, int(secondTok.Ival))
+		typName.Params = append(typName.Params, int(p.advance().Ival))
 	}
-
 	closeTok, err := p.expect(int(')'))
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
-	return params, closeTok.Loc.End, nil
+	typName.Loc.End = closeTok.Loc.End
+	return typName, nil
 }
 
 // expectGT consumes a '>' token in a type-argument context, handling the case
@@ -265,173 +277,258 @@ func (p *Parser) expectGT() (Token, error) {
 	}
 }
 
-// parseArrayType parses: ARRAY '<' elementType '>'
-func (p *Parser) parseArrayType() (*ast.TypeName, error) {
-	startTok := p.advance() // consume ARRAY
-	typName := &ast.TypeName{
-		Name: "ARRAY",
-		Loc:  startTok.Loc,
-	}
-
-	// Expect '<'
-	if _, err := p.expect(int('<')); err != nil {
-		return nil, &ParseError{
+// expectLT consumes the '<' that opens a complex type's arguments.
+func (p *Parser) expectLT(typeName string) error {
+	if p.cur.Kind != int('<') {
+		return &ParseError{
 			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
-			Message: "expected '<' after ARRAY",
+			Message: "expected '<' after " + typeName,
 		}
 	}
+	p.advance()
+	return nil
+}
 
-	// Parse element type recursively
-	elemType, err := p.parseDataType()
+// parseArrayType parses: ARRAY '<' dataType '>'
+func (p *Parser) parseArrayType(legacy bool) (*ast.TypeName, error) {
+	startTok := p.advance() // consume ARRAY
+	typName := &ast.TypeName{Name: "ARRAY", Loc: startTok.Loc}
+	if err := p.expectLT("ARRAY"); err != nil {
+		return nil, err
+	}
+	elemType, err := p.readDataType(legacy)
 	if err != nil {
 		return nil, err
 	}
 	typName.ElementType = elemType
-
-	// Expect '>' — uses expectGT to handle ">>" (tokShiftRight) in nested types
-	// like ARRAY<ARRAY<INT>> where the lexer produces a single tokShiftRight.
+	// expectGT splits the ">>" that closes ARRAY<ARRAY<INT>>.
 	closeTok, err := p.expectGT()
 	if err != nil {
 		return nil, err
 	}
 	typName.Loc.End = closeTok.Loc.End
-
 	return typName, nil
 }
 
-// parseMapType parses: MAP '<' keyType ',' valueType '>'
-func (p *Parser) parseMapType() (*ast.TypeName, error) {
+// parseMapType parses: MAP '<' dataType ',' dataType '>'
+func (p *Parser) parseMapType(legacy bool) (*ast.TypeName, error) {
 	startTok := p.advance() // consume MAP
-	typName := &ast.TypeName{
-		Name: "MAP",
-		Loc:  startTok.Loc,
+	typName := &ast.TypeName{Name: "MAP", Loc: startTok.Loc}
+	if err := p.expectLT("MAP"); err != nil {
+		return nil, err
 	}
-
-	// Expect '<'
-	if _, err := p.expect(int('<')); err != nil {
-		return nil, &ParseError{
-			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
-			Message: "expected '<' after MAP",
-		}
-	}
-
-	// Parse key type
-	keyType, err := p.parseDataType()
+	keyType, err := p.readDataType(legacy)
 	if err != nil {
 		return nil, err
 	}
 	typName.ElementType = keyType
-
-	// Expect ','
-	if _, err := p.expect(int(',')); err != nil {
+	if p.cur.Kind != int(',') {
 		return nil, &ParseError{
 			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 			Message: "expected ',' between MAP key and value types",
 		}
 	}
-
-	// Parse value type
-	valType, err := p.parseDataType()
+	p.advance() // consume ','
+	valType, err := p.readDataType(legacy)
 	if err != nil {
 		return nil, err
 	}
 	typName.ValueType = valType
-
-	// Expect '>' — handle ">>" from nested types.
 	closeTok, err := p.expectGT()
 	if err != nil {
 		return nil, err
 	}
 	typName.Loc.End = closeTok.Loc.End
-
 	return typName, nil
 }
 
-// parseStructType parses: STRUCT '<' name1 type1 [',' name2 type2 ...] '>'
-func (p *Parser) parseStructType() (*ast.TypeName, error) {
+// parseStructType parses STRUCT '<' complexColTypeList '>' (DorisParser.g4:1751):
+//
+//	complexColType : identifier COLON dataType commentSpec?
+//
+// The CUP parser's struct_field (DorisLegacyParser.g4:2708) is the same.
+func (p *Parser) parseStructType(legacy bool) (*ast.TypeName, error) {
 	startTok := p.advance() // consume STRUCT
-	typName := &ast.TypeName{
-		Name: "STRUCT",
-		Loc:  startTok.Loc,
+	typName := &ast.TypeName{Name: "STRUCT", Loc: startTok.Loc}
+	if err := p.expectLT("STRUCT"); err != nil {
+		return nil, err
 	}
-
-	// Expect '<'
-	if _, err := p.expect(int('<')); err != nil {
-		return nil, &ParseError{
-			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
-			Message: "expected '<' after STRUCT",
-		}
-	}
-
-	// Parse one or more field definitions: name type [, name type ...]
 	for {
-		field, err := p.parseStructField()
+		nameTok := p.cur
+		name, _, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		field, err := p.parseTypeField(name, nameTok.Loc, legacy)
 		if err != nil {
 			return nil, err
 		}
 		typName.Fields = append(typName.Fields, field)
-
-		// Stop at '>' (or '>>' which will be split by expectGT)
-		if p.cur.Kind == int('>') || p.cur.Kind == tokShiftRight {
-			break
-		}
 		if p.cur.Kind != int(',') {
-			return nil, &ParseError{
-				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
-				Message: "expected ',' or '>' in STRUCT type field list",
-			}
+			break
 		}
 		p.advance() // consume ','
-
-		// Allow trailing comma before '>'
-		if p.cur.Kind == int('>') || p.cur.Kind == tokShiftRight {
-			break
-		}
 	}
-
-	// Expect '>' — handle ">>" from nested types.
 	closeTok, err := p.expectGT()
 	if err != nil {
 		return nil, err
 	}
 	typName.Loc.End = closeTok.Loc.End
-
 	return typName, nil
 }
 
-// parseStructField parses a single STRUCT field definition: name dataType
-//
-// The field name may be an identifier or a non-reserved keyword used as a
-// field name.
-func (p *Parser) parseStructField() (*ast.StructField, error) {
-	// Field name: accept identifiers AND keywords (field names can shadow keywords)
-	nameTok := p.cur
-	var fieldName string
-	switch {
-	case nameTok.Kind == tokIdent || nameTok.Kind == tokQuotedIdent:
-		fieldName = nameTok.Str
-		p.advance()
-	case nameTok.Kind >= 700:
-		// Any keyword token is valid as a struct field name
-		fieldName = nameTok.Str
-		p.advance()
-	default:
-		return nil, &ParseError{
-			Position: nameTok.Loc.Start, End: nameTok.Loc.End,
-			Message: fmt.Sprintf("expected field name in STRUCT, got %q", nameTok.Str),
-		}
+// parseTypeField reads the rest of a STRUCT field or a VARIANT sub-column
+// after its name: COLON dataType (COMMENT STRING_LITERAL)?.
+func (p *Parser) parseTypeField(name string, nameLoc ast.Loc, legacy bool) (*ast.StructField, error) {
+	if _, err := p.expect(int(':')); err != nil {
+		return nil, err
 	}
-
-	// Field type
-	fieldType, err := p.parseDataType()
+	fieldType, err := p.readDataType(legacy)
 	if err != nil {
 		return nil, err
 	}
-
 	field := &ast.StructField{
-		Name: fieldName,
+		Name: name,
 		Type: fieldType,
-		Loc:  ast.Loc{Start: nameTok.Loc.Start, End: fieldType.Loc.End},
+		Loc:  ast.Loc{Start: nameLoc.Start, End: fieldType.Loc.End},
+	}
+	if p.cur.Kind == kwCOMMENT {
+		p.advance() // consume COMMENT
+		if p.cur.Kind != tokString {
+			return nil, p.syntaxErrorAtCur()
+		}
+		tok := p.advance()
+		field.Comment = tok.Str
+		field.Loc.End = tok.Loc.End
 	}
 	return field, nil
+}
+
+// parseVariantType parses variantTypeDefinitions (DorisParser.g4:1759):
+//
+//	VARIANT LT variantSubColTypeList COMMA propertyClause GT
+//	| VARIANT LT variantSubColTypeList GT
+//	| VARIANT LT propertyClause GT
+//	| VARIANT
+//	variantSubColType : variantSubColMatchType? STRING_LITERAL COLON dataType commentSpec?
+//
+// legacy reads the CUP parser's forms (DorisLegacyParser.g4:2564): no
+// MATCH_NAME, and properties as 'k' = 'v' pairs.
+func (p *Parser) parseVariantType(legacy bool) (*ast.TypeName, error) {
+	startTok := p.advance() // consume VARIANT
+	typName := &ast.TypeName{Name: "VARIANT", Loc: startTok.Loc}
+	if p.cur.Kind != int('<') {
+		return typName, nil
+	}
+	p.advance() // consume '<'
+	// variantSubColTypeList COMMA propertyClause: properties after the
+	// sub-columns need the comma.
+	propsAllowed := p.cur.Kind == kwPROPERTIES
+	if !propsAllowed {
+		for {
+			start := p.cur.Loc
+			var match string
+			if !legacy && (p.cur.Kind == kwMATCH_NAME || p.cur.Kind == kwMATCH_NAME_GLOB) {
+				match = strings.ToUpper(p.advance().Str)
+			}
+			if p.cur.Kind != tokString {
+				return nil, p.syntaxErrorAtCur()
+			}
+			path := p.advance()
+			field, err := p.parseTypeField(path.Str, start, legacy)
+			if err != nil {
+				return nil, err
+			}
+			field.MatchType = match
+			typName.Fields = append(typName.Fields, field)
+			if p.cur.Kind != int(',') {
+				break
+			}
+			p.advance() // consume ','
+			if p.cur.Kind == kwPROPERTIES {
+				propsAllowed = true
+				break
+			}
+		}
+	}
+	if propsAllowed {
+		parseItem := p.parsePropertyItem
+		if legacy {
+			parseItem = p.parseStringProperty
+		}
+		p.advance() // consume PROPERTIES
+		if _, err := p.expect(int('(')); err != nil {
+			return nil, err
+		}
+		props, err := p.parsePropertyItems(parseItem)
+		if err != nil {
+			return nil, err
+		}
+		typName.Properties = props
+	}
+	closeTok, err := p.expectGT()
+	if err != nil {
+		return nil, err
+	}
+	typName.Loc.End = closeTok.Loc.End
+	return typName, nil
+}
+
+// parseAggStateType parses
+//
+//	AGG_STATE LT functionNameIdentifier
+//	    LEFT_PAREN dataTypeWithNullable (COMMA dataTypeWithNullable)* RIGHT_PAREN GT
+//	dataTypeWithNullable : dataType ((NOT)? NULL)?
+//
+// (DorisParser.g4:1710, :1701). The CUP parser's form
+// (DorisLegacyParser.g4:2585) names the function by an IDENTIFIER, so legacy
+// takes no reserved word there.
+func (p *Parser) parseAggStateType(legacy bool) (*ast.TypeName, error) {
+	startTok := p.advance() // consume AGG_STATE
+	typName := &ast.TypeName{Name: "AGG_STATE", Loc: startTok.Loc}
+	p.advance() // consume '<'
+	switch {
+	case isIdentifierToken(p.cur.Kind):
+		name, _, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		typName.Func = name
+	case !legacy && isFunctionNameKeyword(p.cur.Kind):
+		typName.Func = p.advance().Str
+	default:
+		return nil, p.syntaxErrorAtCur()
+	}
+	if _, err := p.expect(int('(')); err != nil {
+		return nil, err
+	}
+	for {
+		arg, err := p.readDataType(legacy)
+		if err != nil {
+			return nil, err
+		}
+		switch {
+		case p.cur.Kind == kwNULL:
+			arg.Nullable = "NULL"
+			arg.Loc.End = p.advance().Loc.End
+		case p.cur.Kind == kwNOT && p.peekNext().Kind == kwNULL:
+			p.advance() // consume NOT
+			arg.Nullable = "NOT NULL"
+			arg.Loc.End = p.advance().Loc.End
+		}
+		typName.Args = append(typName.Args, arg)
+		if p.cur.Kind != int(',') {
+			break
+		}
+		p.advance() // consume ','
+	}
+	if _, err := p.expect(int(')')); err != nil {
+		return nil, err
+	}
+	closeTok, err := p.expectGT()
+	if err != nil {
+		return nil, err
+	}
+	typName.Loc.End = closeTok.Loc.End
+	return typName, nil
 }
