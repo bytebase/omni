@@ -71,6 +71,7 @@ var backupDB = &backupDatabase{
 		}},
 		{Name: "parent", Columns: backupColumns("id", "v"), Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Expressions: []string{"id"}}}},
 		{Name: "child", Columns: backupColumns("id", "parent_id"), Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Expressions: []string{"id"}}}, ForeignKeys: []*metadata.ForeignKeyMetadata{{Name: "fk_cascade", Columns: []string{"parent_id"}, ReferencedTable: "parent", ReferencedColumns: []string{"id"}, OnDelete: "SET NULL", OnUpdate: "CASCADE"}}},
+		{Name: "summed", Columns: []*metadata.ColumnMetadata{{Name: "id"}, {Name: "a"}, {Name: "b"}, {Name: "g", Generation: &metadata.GenerationMetadata{Expression: "`a` + `b`"}}}, Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Expressions: []string{"id"}}, {Name: "uk_g", Unique: true, Expressions: []string{"g"}}}},
 		{Name: "chained", Columns: []*metadata.ColumnMetadata{{Name: "id"}, {Name: "a"}, {Name: "g1", Generation: &metadata.GenerationMetadata{Expression: "`a` + 1"}}, {Name: "g2", Generation: &metadata.GenerationMetadata{Expression: "`g1` + 1"}}}, Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Expressions: []string{"id"}}, {Name: "uk_g2", Unique: true, Expressions: []string{"g2"}}}},
 		{Name: "nokey", Columns: []*metadata.ColumnMetadata{{Name: "a", Nullable: true}, {Name: "b"}}, Indexes: []*metadata.IndexMetadata{uniqueKey("a")}},
 		{Name: "tg", Columns: backupColumns("a", "b", "g_c"), Indexes: []*metadata.IndexMetadata{uniqueKey("g_c"), uniqueKey(), uniqueKey("B")}},
@@ -314,6 +315,15 @@ func TestTransformDMLToSelectRefusesUnsafeScripts(t *testing.T) {
 		{"SET @v = 1; WITH c AS (SELECT @v AS a) DELETE t FROM t JOIN c ON t.a = c.a", "failed to prepare transformation: prior backup cannot handle a statement that reads @v after an earlier statement sets it"},
 		// Separate backups each see one of the UPDATEs that swap uk_u.
 		{"UPDATE swapped SET u = 30 WHERE id = 1; UPDATE swapped SET u = 10 WHERE id = 2", "prior backup cannot back up UPDATEs of db.swapped separately: together they change unique key uk_u, so a restore could match another row"},
+		// A system variable an earlier SET changes picks the rows.
+		{"SET SESSION auto_increment_increment = 2; DELETE FROM t WHERE @@session.auto_increment_increment = 2", "failed to prepare transformation: prior backup cannot handle a statement that reads @@auto_increment_increment after an earlier statement sets it"},
+		{"SET @@SESSION.x = 1; UPDATE t SET b = 1 WHERE a = @@X", "failed to prepare transformation: prior backup cannot handle a statement that reads @@X after an earlier statement sets it"},
+		// A target's rows depend on another target an earlier statement changes.
+		{"UPDATE t1 SET b = 1; UPDATE t JOIN t1 ON t.a = t1.a SET t.b = 2, t1.b = 2 WHERE t1.b = 1", "failed to prepare transformation: prior backup cannot handle a statement that reads db.t1 after an earlier statement changes it"},
+		// A sequence moves when the backup reads it.
+		{"DELETE FROM t WHERE a = LASTVAL(s)", "failed to prepare transformation: prior backup cannot back up a statement whose rows depend on LASTVAL(), whose value can differ when the backup runs"},
+		{"UPDATE t SET b = 1 WHERE a < SETVAL(s, 5)", "failed to prepare transformation: prior backup cannot back up a statement whose rows depend on SETVAL(), whose value can differ when the backup runs"},
+		{"DELETE FROM t WHERE a = NEXT VALUE FOR s", "failed to prepare transformation: prior backup cannot back up a statement whose rows depend on NEXTVAL(), whose value can differ when the backup runs"},
 		// The backup runs the row selection's := too.
 		{"DELETE FROM t WHERE (@n := COALESCE(@n, 0) + 1) = 2", "failed to prepare transformation: prior backup cannot back up a statement whose row selection sets @n, as the backup sets it too"},
 		// A USE before the statement moves its unqualified tables.
@@ -374,6 +384,7 @@ func TestTransformDMLToSelectKeepsSafeScripts(t *testing.T) {
 		"UPDATE t SET b = RAND() WHERE a = 1",
 		"UPDATE t SET b = (@n := @n + 1) WHERE a = 1",
 		"DELETE FROM t WHERE @n = a",
+		"SET @@x = 1; DELETE FROM t WHERE a = @x",
 		"/*!40000 UPDATE t SET b = 1 */",
 		// TiDB reads an executable comment the backup leaves open to the end.
 		"DELETE FROM t /*!80000 WHERE a = 1 */",

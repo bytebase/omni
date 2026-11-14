@@ -43,9 +43,10 @@ func TestRestoreSQL(t *testing.T) {
 	// A unique key on a generated column, or with no columns, never counts.
 	_, err = restore(t, "UPDATE tg SET b = 1", "tg")
 	require.EqualError(t, err, "no disjoint unique key found for db.tg")
+	// g_c reads a and b, so a literal a, or an expression on a, can move
+	// uk(g_c)'s values.
 	_, err = restore(t, "UPDATE tg SET a = 1", "tg")
-	require.NoError(t, err)
-	// g_c reads a, so an expression on a can move uk(g_c)'s values.
+	require.EqualError(t, err, "prior backup cannot restore db.tg: the UPDATE changes unique key uk, so the restore could match another row")
 	_, err = restore(t, "UPDATE tg SET a = a + 1", "tg")
 	require.EqualError(t, err, "prior backup cannot restore db.tg: the UPDATE changes unique key uk, so the restore could match another row")
 }
@@ -162,13 +163,13 @@ func TestRestoreSQLRefusesChangedUniqueKeys(t *testing.T) {
 func TestRestoreSQLSkipsGeneratedColumns(t *testing.T) {
 	// A generated column only takes DEFAULT, however its table is named.
 	for _, statement := range []string{
-		"UPDATE tg SET a = 1, g_c = DEFAULT",
-		"UPDATE tg SET tg.a = 1, tg.g_c = DEFAULT",
-		"UPDATE tg x SET x.a = 1, x.g_c = DEFAULT",
+		"UPDATE summed SET a = 1, b = 1, g = DEFAULT WHERE id = 1",
+		"UPDATE summed SET summed.a = 1, summed.b = 1, summed.g = DEFAULT WHERE id = 1",
+		"UPDATE summed x SET x.a = 1, x.b = 1, x.g = DEFAULT WHERE x.id = 1",
 	} {
-		got, err := restore(t, statement, "tg")
+		got, err := restore(t, statement, "summed")
 		require.NoError(t, err, statement)
-		require.True(t, strings.HasSuffix(got, "ON DUPLICATE KEY UPDATE `a` = VALUES(`a`);"), got)
+		require.True(t, strings.HasSuffix(got, "ON DUPLICATE KEY UPDATE `a` = VALUES(`a`), `b` = VALUES(`b`);"), got)
 	}
 }
 
@@ -182,5 +183,14 @@ func TestRestoreSQLFollowsGeneratedColumnsToKeys(t *testing.T) {
 		require.EqualError(t, err, "prior backup cannot restore db.chained: the UPDATE changes unique key uk_g2, so the restore could match another row", statement)
 	}
 	_, err := restore(t, "UPDATE chained SET a = 30 WHERE id = 1", "chained")
+	require.NoError(t, err)
+}
+
+func TestRestoreSQLRefusesLiteralsIntoMixedKeys(t *testing.T) {
+	// g = a + b moves each row to its own value when a alone is set.
+	_, err := restore(t, "UPDATE summed SET a = 0", "summed")
+	require.EqualError(t, err, "prior backup cannot restore db.summed: the UPDATE changes unique key uk_g, so the restore could match another row")
+	// Setting every column g reads pins it.
+	_, err = restore(t, "UPDATE summed SET a = 0, b = 0 WHERE id = 1", "summed")
 	require.NoError(t, err)
 }

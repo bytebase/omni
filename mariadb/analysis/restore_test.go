@@ -197,3 +197,37 @@ func TestRestoreSQLFollowsGeneratedColumnsToKeys(t *testing.T) {
 	_, err := restore(t, "UPDATE chained SET a = 30 WHERE id = 1", "chained")
 	require.NoError(t, err)
 }
+
+func TestRestoreSQLRefusesLiteralsIntoMixedKeys(t *testing.T) {
+	// g = a + b moves each row to its own value when a alone is set.
+	_, err := restore(t, "UPDATE summed SET a = 0", "summed")
+	require.EqualError(t, err, "prior backup cannot restore db.summed: the UPDATE changes unique key uk_g, so the restore could match another row")
+	// Setting every column g reads pins it.
+	_, err = restore(t, "UPDATE summed SET a = 0, b = 0 WHERE id = 1", "summed")
+	require.NoError(t, err)
+}
+
+func TestRestoreSQLFindsTablesInAnotherCase(t *testing.T) {
+	nodes, err := analysis.DMLs("UPDATE T SET b = 1 WHERE a = 1")
+	require.NoError(t, err)
+	opts := analysis.RestoreOptions{
+		Statement:      "UPDATE T SET b = 1 WHERE a = 1",
+		Database:       "db",
+		Table:          "T",
+		BackupDatabase: "bak",
+		BackupTable:    "pre_T",
+		Columns:        []string{"a", "b", "c"},
+		Catalog:        backupCatalog(),
+	}
+	_, err = analysis.RestoreSQL(nodes, opts)
+	require.NoError(t, err)
+	opts.CaseSensitive = true
+	_, err = analysis.RestoreSQL(nodes, opts)
+	require.EqualError(t, err, "table metadata is nil for db.T")
+	// Two tables match Cased but for case, so neither is the one.
+	nodes, err = analysis.DMLs("UPDATE Cased SET a = 1")
+	require.NoError(t, err)
+	opts.Statement, opts.Table, opts.Columns, opts.CaseSensitive = "UPDATE Cased SET a = 1", "Cased", []string{"a"}, false
+	_, err = analysis.RestoreSQL(nodes, opts)
+	require.EqualError(t, err, "table metadata is nil for db.Cased")
+}

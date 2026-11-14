@@ -576,30 +576,49 @@ func changedUniqueKey(tableMetadata *metadata.TableMetadata, updateColumns []str
 		if !index.Primary && !index.Unique {
 			continue
 		}
-		// reads holds the changed columns the key reads, through the generated
-		// columns it reads, however deep.
 		reads := make(map[string]bool)
-		expanded := make(map[string]bool)
-		var read func(name, expression string)
-		read = func(name, expression string) {
-			if column, ok := columns[name]; ok {
+		for _, part := range index.Expressions {
+			// inputs are the columns, not generated, that the part reads,
+			// through the generated columns it reads, however deep.
+			inputs := make(map[string]bool)
+			expanded := make(map[string]bool)
+			var read func(name, expression string)
+			read = func(name, expression string) {
+				if column, ok := columns[name]; ok {
+					if column.GetGeneration() == nil {
+						inputs[name] = true
+						return
+					}
+					if expanded[name] {
+						return
+					}
+					expanded[name] = true
+					expression = column.GetGeneration().GetExpression()
+				}
+				for _, token := range parser.Tokenize(expression) {
+					if name := strings.ToLower(token.Str); columns[name] != nil {
+						read(name, "")
+					}
+				}
+			}
+			key := strings.ToLower(part)
+			read(key, part)
+			changedInput, unchangedInput := false, false
+			for name := range inputs {
 				if changed[name] {
 					reads[name] = true
-				}
-				if column.GetGeneration() == nil || expanded[name] {
-					return
-				}
-				expanded[name] = true
-				expression = column.GetGeneration().GetExpression()
-			}
-			for _, token := range parser.Tokenize(expression) {
-				if name := strings.ToLower(token.Str); columns[name] != nil {
-					read(name, "")
+					changedInput = true
+				} else {
+					unchangedInput = true
 				}
 			}
-		}
-		for _, part := range index.Expressions {
-			read(strings.ToLower(part), part)
+			// A literal pins a part that is the column itself, or an expression
+			// of changed columns alone. An expression that mixes a changed
+			// column with another moves each row to its own value, which another
+			// row's old value can equal.
+			if direct := columns[key] != nil && columns[key].GetGeneration() == nil; !direct && changedInput && unchangedInput {
+				return index.Name
+			}
 		}
 		if len(reads) == 0 {
 			continue

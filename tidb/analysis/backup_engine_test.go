@@ -319,6 +319,34 @@ var roundTrips = []roundTrip{
 		tables:       []string{"separate_swap"},
 		transformErr: "together they change unique key uk_u",
 	},
+	{
+		// The second UPDATE picks flag_target's row by flag_source.flag, which
+		// the first changes, so flag_target's backup misses it.
+		name: "two_targets",
+		setup: "CREATE TABLE flag_source (id INT PRIMARY KEY, flag INT);CREATE TABLE flag_target (id INT PRIMARY KEY, v INT);" +
+			"INSERT INTO flag_source VALUES (1, 0);INSERT INTO flag_target VALUES (1, 0)",
+		script:       "UPDATE flag_source SET flag = 1; UPDATE flag_target JOIN flag_source ON flag_target.id = flag_source.id SET flag_target.v = 2, flag_source.flag = 2 WHERE flag_source.flag = 1",
+		tables:       []string{"flag_target", "flag_source"},
+		transformErr: "prior backup cannot handle a statement that reads",
+	},
+	{
+		// a = 0 moves g from 11 and 31 to 1 and 11, so restoring row 1 meets
+		// row 2's new g.
+		name: "summed_key",
+		setup: "CREATE TABLE summed_key (id INT PRIMARY KEY, a INT, b INT, g INT AS (a + b) STORED, UNIQUE KEY uk_g (g));" +
+			"INSERT INTO summed_key (id, a, b) VALUES (1, 10, 1), (2, 20, 11)",
+		script:     "UPDATE summed_key SET a = 0 ORDER BY id",
+		tables:     []string{"summed_key"},
+		restoreErr: "the UPDATE changes unique key uk_g",
+	},
+	{
+		// The backup reads the variable before the SET changes it.
+		name:         "system_variable",
+		setup:        "CREATE TABLE sysvar_rows (id INT PRIMARY KEY);INSERT INTO sysvar_rows VALUES (1), (2)",
+		script:       "SET SESSION auto_increment_increment = 2; DELETE FROM sysvar_rows WHERE @@session.auto_increment_increment = 2",
+		tables:       []string{"sysvar_rows"},
+		transformErr: "reads @@auto_increment_increment after an earlier statement sets it",
+	},
 }
 
 // TestBackupRestoreRoundTrip runs each backup, its statements and their

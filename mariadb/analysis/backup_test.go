@@ -72,6 +72,9 @@ var backupDB = &backupDatabase{
 		{Name: "bumped", Columns: backupColumns("id", "v"), Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Expressions: []string{"id"}}}, Triggers: []*metadata.TriggerMetadata{{Name: "tr_bump", Event: "UPDATE", Timing: "BEFORE"}}},
 		{Name: "logged", Columns: backupColumns("id", "v"), Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Expressions: []string{"id"}}}, Triggers: []*metadata.TriggerMetadata{{Name: "tr_log", Event: "delete", Timing: "AFTER"}}},
 		{Name: "stamped_insert", Columns: backupColumns("id", "v"), Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Expressions: []string{"id"}}}, Triggers: []*metadata.TriggerMetadata{{Name: "tr_insert", Event: "INSERT", Timing: "BEFORE"}}},
+		{Name: "cased", Columns: backupColumns("a"), Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Expressions: []string{"a"}}}},
+		{Name: "CASED", Columns: backupColumns("a"), Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Expressions: []string{"a"}}}},
+		{Name: "summed", Columns: []*metadata.ColumnMetadata{{Name: "id"}, {Name: "a"}, {Name: "b"}, {Name: "g", Generation: &metadata.GenerationMetadata{Expression: "`a` + `b`"}}}, Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Expressions: []string{"id"}}, {Name: "uk_g", Unique: true, Expressions: []string{"g"}}}},
 		{Name: "chained", Columns: []*metadata.ColumnMetadata{{Name: "id"}, {Name: "a"}, {Name: "g1", Generation: &metadata.GenerationMetadata{Expression: "`a` + 1"}}, {Name: "g2", Generation: &metadata.GenerationMetadata{Expression: "`g1` + 1"}}}, Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Expressions: []string{"id"}}, {Name: "uk_g2", Unique: true, Expressions: []string{"g2"}}}},
 		{Name: "nokey", Columns: []*metadata.ColumnMetadata{{Name: "a", Nullable: true}, {Name: "b"}}, Indexes: []*metadata.IndexMetadata{{Name: "uk", Unique: true, Expressions: []string{"a"}}}},
 		{Name: "tk", Columns: backupColumns("a", "b", "g_c"), Indexes: []*metadata.IndexMetadata{
@@ -390,6 +393,16 @@ func TestTransformDMLToSelectRefusesUnsafeScripts(t *testing.T) {
 		// ANALYZE runs the statement it carries.
 		{"ANALYZE DELETE FROM t WHERE a = 1", "failed to prepare transformation: prior backup does not support ANALYZE of an UPDATE or DELETE statement"},
 		{"ANALYZE FORMAT=JSON UPDATE t SET b = 2 WHERE a = 1", "failed to prepare transformation: prior backup does not support ANALYZE of an UPDATE or DELETE statement"},
+		// A system variable an earlier SET changes picks the rows.
+		{"SET SESSION auto_increment_increment = 2; DELETE FROM t WHERE @@session.auto_increment_increment = 2", "failed to prepare transformation: prior backup cannot handle a statement that reads @@auto_increment_increment after an earlier statement sets it"},
+		{"SET @@SESSION.x = 1; UPDATE t SET b = 1 WHERE a = @@X", "failed to prepare transformation: prior backup cannot handle a statement that reads @@X after an earlier statement sets it"},
+		// A target's rows depend on another target an earlier statement changes.
+		{"UPDATE t1 SET b = 1; UPDATE t JOIN t1 ON t.a = t1.a SET t.b = 2, t1.b = 2 WHERE t1.b = 1", "failed to prepare transformation: prior backup cannot handle a statement that reads db.t1 after an earlier statement changes it"},
+		// A sequence moves when the backup reads it.
+		{"DELETE FROM t WHERE a = LASTVAL(s)", "failed to prepare transformation: prior backup cannot back up a statement whose rows depend on LASTVAL(), whose value can differ when the backup runs"},
+		{"UPDATE t SET b = 1 WHERE a < SETVAL(s, 5)", "failed to prepare transformation: prior backup cannot back up a statement whose rows depend on SETVAL(), whose value can differ when the backup runs"},
+		{"DELETE FROM t WHERE (NEXT VALUE FOR s) = 2", "failed to prepare transformation: prior backup cannot back up a statement whose rows depend on NEXT VALUE FOR, whose value can differ when the backup runs"},
+		{"DELETE FROM t WHERE a = PREVIOUS VALUE FOR s", "failed to prepare transformation: prior backup cannot back up a statement whose rows depend on PREVIOUS VALUE FOR, whose value can differ when the backup runs"},
 		// The backup runs the row selection's := too.
 		{"DELETE FROM t WHERE (@n := COALESCE(@n, 0) + 1) = 2", "failed to prepare transformation: prior backup cannot back up a statement whose row selection sets @n, as the backup sets it too"},
 		// FOR PORTION OF can split a row, and DELETE HISTORY removes history.
@@ -411,6 +424,7 @@ func TestTransformDMLToSelectRefusesUnsafeScripts(t *testing.T) {
 		{"INSERT INTO t1 VALUES (1, 1); DELETE FROM t WHERE a = LAST_INSERT_ID()", "failed to prepare transformation: prior backup cannot back up a statement whose rows depend on LAST_INSERT_ID(), whose value can differ when the backup runs"},
 		// A trigger on the statement's event, or on the INSERT a restore runs.
 		{"UPDATE bumped SET v = 2 WHERE id = 1", "failed to generate SQL for table db.bumped: prior backup cannot back up db.bumped: trigger tr_bump runs on UPDATE, and the backup and its restore do not account for it"},
+		{"UPDATE BUMPED SET v = 2 WHERE id = 1", "failed to generate SQL for table db.BUMPED: prior backup cannot back up db.BUMPED: trigger tr_bump runs on UPDATE, and the backup and its restore do not account for it"},
 		{"DELETE FROM logged WHERE id = 1", "failed to generate SQL for table db.logged: prior backup cannot back up db.logged: trigger tr_log runs on DELETE, and the backup and its restore do not account for it"},
 		{"UPDATE stamped_insert SET v = 2 WHERE id = 1", "failed to generate SQL for table db.stamped_insert: prior backup cannot back up db.stamped_insert: trigger tr_insert runs on INSERT, and the backup and its restore do not account for it"},
 		{"DELETE FROM stamped_insert WHERE id = 1", "failed to generate SQL for table db.stamped_insert: prior backup cannot back up db.stamped_insert: trigger tr_insert runs on INSERT, and the backup and its restore do not account for it"},
@@ -457,6 +471,8 @@ func TestTransformDMLToSelectKeepsSafeScripts(t *testing.T) {
 		"UPDATE t SET b = RAND() WHERE a = 1",
 		"UPDATE t SET b = (@n := @n + 1) WHERE a = 1",
 		"DELETE FROM t WHERE @n = a",
+		"SET @@x = 1; DELETE FROM t WHERE a = @x",
+		"UPDATE t SET b = 1 WHERE a = 1; UPDATE t x JOIN t y ON x.a = y.b SET x.c = 2, y.c = 3",
 		"/*!40000 UPDATE t SET b = 1 */",
 		"DELETE FROM t /* WHERE a = 1 */ WHERE a = 2",
 		"DELETE FROM t WHERE b = '/*'",

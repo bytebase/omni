@@ -124,7 +124,7 @@ func TransformDMLToSelect(statement string, opts BackupOptions) ([]BackupStateme
 func prepareTransformation(databaseName, statement string, catalog Catalog, caseSensitive bool) ([]DMLTarget, error) {
 	var result []DMLTarget
 	// written holds the tables the statements before the current one change,
-	// and assigned the user variables they set.
+	// and assigned the variables they set.
 	var written []ColumnResource
 	assigned := make(map[string]bool)
 	// used is the database a USE switched to, if not databaseName.
@@ -157,8 +157,8 @@ func prepareTransformation(databaseName, statement string, catalog Catalog, case
 			// statement must not read a table or a user variable an earlier
 			// one changes.
 			if len(tables) > 0 {
-				if name := assignedUserVariable(node, text, assigned); name != "" {
-					return nil, fmt.Errorf("prior backup cannot handle a statement that reads @%s after an earlier statement sets it", name)
+				if name := assignedVariable(node, text, assigned); name != "" {
+					return nil, fmt.Errorf("prior backup cannot handle a statement that reads %s after an earlier statement sets it", name)
 				}
 				if name := rowSelectionAssignment(node, text); name != "" {
 					return nil, fmt.Errorf("prior backup cannot back up a statement whose row selection sets @%s, as the backup sets it too", name)
@@ -170,7 +170,7 @@ func prepareTransformation(databaseName, statement string, catalog Catalog, case
 					return nil, fmt.Errorf("prior backup cannot tell apart the tables named %s without aliases", name)
 				}
 				if name := volatileFunction(node, text); name != "" {
-					return nil, fmt.Errorf("prior backup cannot back up a statement whose rows depend on %s(), whose value can differ when the backup runs", name)
+					return nil, fmt.Errorf("prior backup cannot back up a statement whose rows depend on %s, whose value can differ when the backup runs", name)
 				}
 				for read := range statementReads(databaseName, node, text, tables) {
 					for _, changed := range written {
@@ -181,7 +181,7 @@ func prepareTransformation(databaseName, statement string, catalog Catalog, case
 				}
 			}
 			written = append(written, statementWrites(databaseName, node, tables)...)
-			assignUserVariables(node, text, assigned)
+			assignVariables(node, text, assigned)
 			if use, ok := node.(*ast.UseStmt); ok {
 				used = use.Database
 				if equalIdentifier(used, databaseName, caseSensitive) {
@@ -259,30 +259,25 @@ func rowSelectionAssignment(node ast.Node, fullSQL string) string {
 	return found
 }
 
-// assignUserVariables adds to assigned the user variables a statement sets:
-// by SET, SELECT ... INTO, or :=. User variable names are case-insensitive.
-func assignUserVariables(node ast.Node, fullSQL string, assigned map[string]bool) {
+// assignVariables adds to assigned the variables a statement sets: user
+// variables by SET, SELECT ... INTO or :=, and system variables by SET.
+func assignVariables(node ast.Node, fullSQL string, assigned map[string]bool) {
 	for _, n := range withCTEs(node, fullSQL) {
 		ast.Inspect(n, func(n ast.Node) bool {
 			switch n := n.(type) {
 			case *ast.SetStmt:
 				for _, assignment := range n.Assignments {
-					if assignment.Column == nil {
-						continue
-					}
-					if name, ok := strings.CutPrefix(assignment.Column.Column, "@"); ok {
-						assigned[strings.ToLower(name)] = true
+					if assignment.Column != nil {
+						assigned[setVariableKey(assignment.Column.Column)] = true
 					}
 				}
 			case *ast.IntoClause:
 				for _, v := range n.Vars {
-					if !v.System {
-						assigned[strings.ToLower(v.Name)] = true
-					}
+					assigned[variableKey(v)] = true
 				}
 			case *ast.BinaryExpr:
-				if v, ok := n.Left.(*ast.VariableRef); ok && n.Op == ast.BinOpAssign && !v.System {
-					assigned[strings.ToLower(v.Name)] = true
+				if v, ok := n.Left.(*ast.VariableRef); ok && n.Op == ast.BinOpAssign {
+					assigned[variableKey(v)] = true
 				}
 			}
 			return true
@@ -290,14 +285,45 @@ func assignUserVariables(node ast.Node, fullSQL string, assigned map[string]bool
 	}
 }
 
-// assignedUserVariable returns a user variable assigned holds that the rows
-// a statement changes depend on, or "" if there is none.
-func assignedUserVariable(node ast.Node, fullSQL string, assigned map[string]bool) string {
+// variableKey is how assigned names a variable: @name for a user variable,
+// @@name for a system variable of any scope. Variable names are
+// case-insensitive.
+func variableKey(v *ast.VariableRef) string {
+	if v.System {
+		return "@@" + strings.ToLower(v.Name)
+	}
+	return "@" + strings.ToLower(v.Name)
+}
+
+// setVariableKey is variableKey for the variable a SET assignment names,
+// which writes a system variable bare, with a scope word, or as @@scope.name.
+func setVariableKey(column string) string {
+	name := strings.ToLower(column)
+	if rest, ok := strings.CutPrefix(name, "@@"); ok {
+		for _, scope := range []string{"session.", "global.", "local.", "persist.", "persist_only."} {
+			if r, ok := strings.CutPrefix(rest, scope); ok {
+				return "@@" + r
+			}
+		}
+		return "@@" + rest
+	}
+	if strings.HasPrefix(name, "@") {
+		return name
+	}
+	return "@@" + name
+}
+
+// assignedVariable returns a variable assigned holds that the rows a
+// statement changes depend on, as written, or "" if there is none.
+func assignedVariable(node ast.Node, fullSQL string, assigned map[string]bool) string {
 	var found string
 	for _, n := range rowSelection(node, fullSQL) {
 		ast.Inspect(n, func(n ast.Node) bool {
-			if v, ok := n.(*ast.VariableRef); ok && !v.System && assigned[strings.ToLower(v.Name)] && found == "" {
-				found = v.Name
+			if v, ok := n.(*ast.VariableRef); ok && assigned[variableKey(v)] && found == "" {
+				found = "@" + v.Name
+				if v.System {
+					found = "@@" + v.Name
+				}
 			}
 			return found == ""
 		})
@@ -350,12 +376,12 @@ func repeatedTableName(node ast.Node, fullSQL string) string {
 }
 
 // volatileFunctions are the functions whose value can differ when the backup
-// runs: random values, the clock, and the session's last statement. The
-// parser upper-cases a built-in function's name.
+// runs: random values, the clock, the session's last statement, and sequences.
+// The parser upper-cases a built-in function's name.
 var volatileFunctions = []string{
 	"RAND", "UUID", "UUID_SHORT", "UUID_V4", "UUID_V7", "RANDOM_BYTES", "SYS_GUID", "NEXTVAL",
 	"NOW", "CURRENT_TIMESTAMP", "LOCALTIME", "LOCALTIMESTAMP", "SYSDATE", "CURDATE", "CURRENT_DATE", "CURTIME", "CURRENT_TIME", "UTC_DATE", "UTC_TIME", "UTC_TIMESTAMP",
-	"LAST_INSERT_ID", "ROW_COUNT", "FOUND_ROWS",
+	"LAST_INSERT_ID", "ROW_COUNT", "FOUND_ROWS", "LASTVAL", "SETVAL",
 }
 
 // volatileFunction returns a function of volatileFunctions, or UNIX_TIMESTAMP
@@ -365,9 +391,8 @@ func volatileFunction(node ast.Node, fullSQL string) string {
 	var found string
 	for _, n := range rowSelection(node, fullSQL) {
 		ast.Inspect(n, func(n ast.Node) bool {
-			call, ok := n.(*ast.FuncCallExpr)
-			if ok && found == "" && (slices.Contains(volatileFunctions, call.Name) || call.Name == "UNIX_TIMESTAMP" && len(call.Args) == 0) {
-				found = call.Name
+			if call, ok := n.(*ast.FuncCallExpr); ok && found == "" && (slices.Contains(volatileFunctions, call.Name) || call.Name == "UNIX_TIMESTAMP" && len(call.Args) == 0) {
+				found = call.Name + "()"
 			}
 			return found == ""
 		})
@@ -376,11 +401,18 @@ func volatileFunction(node ast.Node, fullSQL string) string {
 }
 
 // statementReads returns the tables an UPDATE or DELETE reads other than
-// through its targets: subqueries, CTEs, and the other tables it joins.
+// through its targets: subqueries, CTEs, the other tables it joins, and every
+// target when it changes more than one table.
 func statementReads(databaseName string, node ast.Node, fullSQL string, targets []DMLTarget) ColumnSet {
 	result := make(ColumnSet)
+	// A target reads only its own rows, unless the statement changes another
+	// table too, whose rows pick its rows.
 	target := make(map[string]bool)
 	for _, t := range targets {
+		if t.Table.Database != targets[0].Table.Database || t.Table.Table != targets[0].Table.Table {
+			clear(target)
+			break
+		}
 		key := t.Table.Table
 		if t.Table.Alias != "" {
 			key = t.Table.Alias
@@ -1276,7 +1308,11 @@ func checkTriggers(opts BackupOptions, table *TableReference) error {
 	if table.StatementType == DMLTypeUpdate {
 		event = "UPDATE"
 	}
-	for _, trigger := range db.GetTable(table.Table).GetTriggers() {
+	tableMetadata := db.GetTable(table.Table)
+	if tableMetadata == nil && !opts.CaseSensitive {
+		tableMetadata = tableFoldingCase(db, table.Table)
+	}
+	for _, trigger := range tableMetadata.GetTriggers() {
 		if e := strings.ToUpper(trigger.GetEvent()); e == event || e == "INSERT" {
 			return fmt.Errorf("prior backup cannot back up %s.%s: trigger %s runs on %s, and the backup and its restore do not account for it", table.Database, table.Table, trigger.GetName(), e)
 		}

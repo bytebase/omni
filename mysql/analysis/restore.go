@@ -30,6 +30,8 @@ type RestoreOptions struct {
 	// Catalog is the instance's metadata. An UPDATE's restore reads the
 	// table's unique keys from it.
 	Catalog Catalog
+	// CaseSensitive makes the table's lookup in Catalog case-sensitive.
+	CaseSensitive bool
 }
 
 // DMLs returns the UPDATE and DELETE statements of statement, in order. It
@@ -89,7 +91,7 @@ func RestoreSQL(nodes []ast.Node, opts RestoreOptions) (string, error) {
 				updates = append(updates, update)
 			}
 		}
-		r, err := generateUpdateRestore(opts.Catalog, updates, opts.Database, opts.Table, opts.BackupDatabase, opts.BackupTable, opts.Columns)
+		r, err := generateUpdateRestore(opts.Catalog, opts.CaseSensitive, updates, opts.Database, opts.Table, opts.BackupDatabase, opts.BackupTable, opts.Columns)
 		if err != nil {
 			return "", err
 		}
@@ -112,7 +114,7 @@ func generateDeleteRestore(originalDatabase, originalTable, backupDatabase, back
 	return fmt.Sprintf("INSERT INTO %s.%s (%s) SELECT %s FROM %s.%s;", quoteIdentifier(originalDatabase), quoteIdentifier(originalTable), quotedColumnList, quotedColumnList, quoteIdentifier(backupDatabase), quoteIdentifier(backupTable))
 }
 
-func generateUpdateRestore(catalog Catalog, stmts []*ast.UpdateStmt, originalDatabase, originalTable, backupDatabase, backupTable string, normalColumns []string) (string, error) {
+func generateUpdateRestore(catalog Catalog, caseSensitive bool, stmts []*ast.UpdateStmt, originalDatabase, originalTable, backupDatabase, backupTable string, normalColumns []string) (string, error) {
 	// One backup can cover several UPDATEs, and the restore must undo every
 	// column any of them changes, each once.
 	seen := make(map[string]bool)
@@ -136,7 +138,7 @@ func generateUpdateRestore(catalog Catalog, stmts []*ast.UpdateStmt, originalDat
 		}
 	}
 
-	tableMetadata, err := restoreTable(catalog, originalDatabase, originalTable)
+	tableMetadata, err := restoreTable(catalog, caseSensitive, originalDatabase, originalTable)
 	if err != nil {
 		return "", err
 	}
@@ -251,8 +253,9 @@ func targetAssignments(setList []*ast.Assignment, database string, targets []*Ta
 	return result
 }
 
-// restoreTable returns database.table from the catalog.
-func restoreTable(catalog Catalog, originalDatabase, originalTable string) (*metadata.TableMetadata, error) {
+// restoreTable returns database.table from the catalog. Unless caseSensitive,
+// a table the catalog spells in another case is found too.
+func restoreTable(catalog Catalog, caseSensitive bool, originalDatabase, originalTable string) (*metadata.TableMetadata, error) {
 	if catalog.GetDatabase == nil {
 		return nil, errors.New("the catalog has no GetDatabase")
 	}
@@ -270,6 +273,9 @@ func restoreTable(catalog Catalog, originalDatabase, originalTable string) (*met
 	}
 
 	tableMetadata := database.GetTable(originalTable)
+	if tableMetadata == nil && !caseSensitive {
+		tableMetadata = tableFoldingCase(database, originalTable)
+	}
 	if tableMetadata == nil {
 		return nil, fmt.Errorf("table metadata is nil for %s.%s", originalDatabase, originalTable)
 	}
@@ -329,30 +335,49 @@ func changedUniqueKey(tableMetadata *metadata.TableMetadata, updateColumns []str
 		if !index.Primary && !index.Unique {
 			continue
 		}
-		// reads holds the changed columns the key reads, through the generated
-		// columns it reads, however deep.
 		reads := make(map[string]bool)
-		expanded := make(map[string]bool)
-		var read func(name, expression string)
-		read = func(name, expression string) {
-			if column, ok := columns[name]; ok {
+		for _, part := range index.Expressions {
+			// inputs are the columns, not generated, that the part reads,
+			// through the generated columns it reads, however deep.
+			inputs := make(map[string]bool)
+			expanded := make(map[string]bool)
+			var read func(name, expression string)
+			read = func(name, expression string) {
+				if column, ok := columns[name]; ok {
+					if column.GetGeneration() == nil {
+						inputs[name] = true
+						return
+					}
+					if expanded[name] {
+						return
+					}
+					expanded[name] = true
+					expression = column.GetGeneration().GetExpression()
+				}
+				for _, token := range parser.Tokenize(expression) {
+					if name := strings.ToLower(token.Str); columns[name] != nil {
+						read(name, "")
+					}
+				}
+			}
+			key := strings.ToLower(part)
+			read(key, part)
+			changedInput, unchangedInput := false, false
+			for name := range inputs {
 				if changed[name] {
 					reads[name] = true
-				}
-				if column.GetGeneration() == nil || expanded[name] {
-					return
-				}
-				expanded[name] = true
-				expression = column.GetGeneration().GetExpression()
-			}
-			for _, token := range parser.Tokenize(expression) {
-				if name := strings.ToLower(token.Str); columns[name] != nil {
-					read(name, "")
+					changedInput = true
+				} else {
+					unchangedInput = true
 				}
 			}
-		}
-		for _, part := range index.Expressions {
-			read(strings.ToLower(part), part)
+			// A literal pins a part that is the column itself, or an expression
+			// of changed columns alone. An expression that mixes a changed
+			// column with another moves each row to its own value, which another
+			// row's old value can equal.
+			if direct := columns[key] != nil && columns[key].GetGeneration() == nil; !direct && changedInput && unchangedInput {
+				return index.Name
+			}
 		}
 		if len(reads) == 0 {
 			continue
@@ -449,4 +474,20 @@ func tableExprReferences(expr ast.TableExpr, database, table string) bool {
 		return tableExprReferences(n.Left, database, table) || tableExprReferences(n.Right, database, table)
 	}
 	return false
+}
+
+// tableFoldingCase returns the one table of database whose name equals name
+// but for case, or nil if there is none or more than one.
+func tableFoldingCase(database Database, name string) *metadata.TableMetadata {
+	var found *metadata.TableMetadata
+	for _, table := range database.ListTableNames() {
+		if !strings.EqualFold(table, name) {
+			continue
+		}
+		if found != nil {
+			return nil
+		}
+		found = database.GetTable(table)
+	}
+	return found
 }
