@@ -909,9 +909,9 @@ reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~8
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createEndpointStatement_ENDPOINT!drop-6	CREATE ENDPOINT a AS a(= ALL) FOR DATA_MIRRORING()
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createEndpointStatement_ENDPOINT!drop-7	CREATE ENDPOINT a AS a(LISTENER_IP ALL) FOR DATA_MIRRORING()
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createEndpointStatement_ENDPOINT!drop-8	CREATE ENDPOINT a AS a(LISTENER_IP =) FOR DATA_MIRRORING()
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createEndpointStatement_ENDPOINT!drop-9	CREATE ENDPOINT a AS a(LISTENER_IP = ALL FOR DATA_MIRRORING()
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createEndpointStatement_ENDPOINT!drop-9	CREATE ENDPOINT a AS a(LISTENER_IP = ALL FOR DATA_MIRRORING()
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createEndpointStatement_ENDPOINT!drop-10	CREATE ENDPOINT a AS a(LISTENER_IP = ALL) DATA_MIRRORING()
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createEndpointStatement_ENDPOINT!drop-11	CREATE ENDPOINT a AS a(LISTENER_IP = ALL) FOR()
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createEndpointStatement_ENDPOINT!drop-11	CREATE ENDPOINT a AS a(LISTENER_IP = ALL) FOR()
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createEndpointStatement_ENDPOINT!drop-12	CREATE ENDPOINT a AS a(LISTENER_IP = ALL) FOR DATA_MIRRORING)
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createEndpointStatement_ENDPOINT!drop-13	CREATE ENDPOINT a AS a(LISTENER_IP = ALL) FOR DATA_MIRRORING(
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createEndpointStatement_ENDPOINT!insert	CREATE ENDPOINT a AS a(LISTENER_IP = ALL) FOR DATA_MIRRORING() zzz
@@ -3191,7 +3191,7 @@ reject	reject	engine	dbccNamedLiteral(Identifier_EqualsSign)?/Identifier_EqualsS
 reject	reject	engine	endpointOptions/endpointOption_(Comma_endpointOption)*	ALTER ENDPOINT a STATE = a
 reject	reject	engine	endpointOptions/endpointOption_(Comma_endpointOption)*!drop-1	ALTER ENDPOINT a = a
 reject	reject	engine	endpointOptions/endpointOption_(Comma_endpointOption)*!drop-2	ALTER ENDPOINT a STATE a
-accept	reject	engine	endpointOptions/endpointOption_(Comma_endpointOption)*!drop-3	ALTER ENDPOINT a STATE =
+reject	reject	engine	endpointOptions/endpointOption_(Comma_endpointOption)*!drop-3	ALTER ENDPOINT a STATE =
 reject	reject	engine	endpointOptions/endpointOption_(Comma_endpointOption)*!insert	ALTER ENDPOINT a STATE = a zzz
 reject	reject	engine	endpointOptions/endpointOption_(Comma_endpointOption)*!swap	ALTER ENDPOINT a STATEMENT = a
 reject	reject	engine	endpointOptions(Comma_endpointOption)*/%empty	ALTER ENDPOINT a STATE = a
@@ -3206,184 +3206,184 @@ reject	reject	engine	endpointOption/endpointState_STATE	ALTER ENDPOINT a STATE =
 accept	accept	engine	endpointOption/endpointAffinity	ALTER ENDPOINT a AFFINITY = NONE
 reject	reject	engine	endpointOption/endpointAffinity!drop-1	ALTER ENDPOINT a = NONE
 reject	reject	engine	endpointOption/endpointAffinity!drop-2	ALTER ENDPOINT a AFFINITY NONE
-accept	reject	engine	endpointOption/endpointAffinity!drop-3	ALTER ENDPOINT a AFFINITY =
+reject	reject	engine	endpointOption/endpointAffinity!drop-3	ALTER ENDPOINT a AFFINITY =
 reject	reject	engine	endpointOption/endpointAffinity!insert	ALTER ENDPOINT a AFFINITY = NONE zzz
 reject	reject	engine	endpointOption/endpointAffinity!swap	ALTER ENDPOINT a AFTER = NONE
 accept	accept	engine	endpointAffinity/AFFINITY_EqualsSign_((NONE|ADMIN)|integer)	ALTER ENDPOINT a AFFINITY = NONE
 accept	accept	engine	endpointAffinity((NONE|ADMIN)|integer)/(NONE|ADMIN)	ALTER ENDPOINT a AFFINITY = NONE
-accept	reject	engine	endpointAffinity((NONE|ADMIN)|integer)/(NONE|ADMIN)!swap	ALTER ENDPOINT a AFFINITY = NORESET
-accept	reject	engine	endpointAffinity((NONE|ADMIN)|integer)/integer	ALTER ENDPOINT a AFFINITY = 1
+reject	reject	engine	endpointAffinity((NONE|ADMIN)|integer)/(NONE|ADMIN)!swap	ALTER ENDPOINT a AFFINITY = NORESET
+reject	reject	engine	endpointAffinity((NONE|ADMIN)|integer)/integer	ALTER ENDPOINT a AFFINITY = 1
 reject	reject	engine	endpointAffinity((NONE|ADMIN)|integer)/integer!insert	ALTER ENDPOINT a AFFINITY = 1 zzz
 accept	accept	engine	endpointAffinity(NONE|ADMIN)/NONE	ALTER ENDPOINT a AFFINITY = NONE
-accept	reject	engine	endpointAffinity(NONE|ADMIN)/ADMIN	ALTER ENDPOINT a AFFINITY = ADMIN
+reject	reject	engine	endpointAffinity(NONE|ADMIN)/ADMIN	ALTER ENDPOINT a AFFINITY = ADMIN
 reject	reject	engine	endpointAffinity(NONE|ADMIN)/ADMIN!insert	ALTER ENDPOINT a AFFINITY = ADMIN zzz
-accept	reject	engine	endpointAffinity(NONE|ADMIN)/ADMIN!swap	ALTER ENDPOINT a AFFINITY = AFFINITY
-accept	reject	engine	protocolInfo/As_Identifier_LeftParenthesis_protocolOptionsItem_(Comm~b2258af0	ALTER ENDPOINT a AS a(LISTENER_IP = ALL)
+reject	reject	engine	endpointAffinity(NONE|ADMIN)/ADMIN!swap	ALTER ENDPOINT a AFFINITY = AFFINITY
+reject	reject	engine	protocolInfo/As_Identifier_LeftParenthesis_protocolOptionsItem_(Comm~b2258af0	ALTER ENDPOINT a AS a(LISTENER_IP = ALL)
 reject	reject	engine	protocolInfo/As_Identifier_LeftParenthesis_protocolOptionsItem_(Comm~b2258af0!drop-1	ALTER ENDPOINT a a(LISTENER_IP = ALL)
 reject	reject	engine	protocolInfo/As_Identifier_LeftParenthesis_protocolOptionsItem_(Comm~b2258af0!drop-2	ALTER ENDPOINT a AS(LISTENER_IP = ALL)
 reject	reject	engine	protocolInfo/As_Identifier_LeftParenthesis_protocolOptionsItem_(Comm~b2258af0!drop-3	ALTER ENDPOINT a AS a LISTENER_IP = ALL)
-accept	reject	engine	protocolInfo/As_Identifier_LeftParenthesis_protocolOptionsItem_(Comm~b2258af0!drop-4	ALTER ENDPOINT a AS a(= ALL)
-accept	reject	engine	protocolInfo/As_Identifier_LeftParenthesis_protocolOptionsItem_(Comm~b2258af0!drop-5	ALTER ENDPOINT a AS a(LISTENER_IP ALL)
-accept	reject	engine	protocolInfo/As_Identifier_LeftParenthesis_protocolOptionsItem_(Comm~b2258af0!drop-6	ALTER ENDPOINT a AS a(LISTENER_IP =)
-accept	reject	engine	protocolInfo/As_Identifier_LeftParenthesis_protocolOptionsItem_(Comm~b2258af0!drop-7	ALTER ENDPOINT a AS a(LISTENER_IP = ALL
+reject	reject	engine	protocolInfo/As_Identifier_LeftParenthesis_protocolOptionsItem_(Comm~b2258af0!drop-4	ALTER ENDPOINT a AS a(= ALL)
+reject	reject	engine	protocolInfo/As_Identifier_LeftParenthesis_protocolOptionsItem_(Comm~b2258af0!drop-5	ALTER ENDPOINT a AS a(LISTENER_IP ALL)
+reject	reject	engine	protocolInfo/As_Identifier_LeftParenthesis_protocolOptionsItem_(Comm~b2258af0!drop-6	ALTER ENDPOINT a AS a(LISTENER_IP =)
+reject	reject	engine	protocolInfo/As_Identifier_LeftParenthesis_protocolOptionsItem_(Comm~b2258af0!drop-7	ALTER ENDPOINT a AS a(LISTENER_IP = ALL
 reject	reject	engine	protocolInfo/As_Identifier_LeftParenthesis_protocolOptionsItem_(Comm~b2258af0!insert	ALTER ENDPOINT a AS a(LISTENER_IP = ALL) zzz
 reject	reject	engine	protocolInfo/As_Identifier_LeftParenthesis_protocolOptionsItem_(Comm~b2258af0!swap	ALTER ENDPOINT a ASC a(LISTENER_IP = ALL)
-accept	reject	engine	protocolInfo(Comma_protocolOptionsItem)*/%empty	ALTER ENDPOINT a AS a(LISTENER_IP = ALL)
-accept	reject	engine	protocolInfo(Comma_protocolOptionsItem)*/%empty!insert	ALTER ENDPOINT a AS a(LISTENER_IP = ALL zzz)
-accept	reject	engine	protocolInfo(Comma_protocolOptionsItem)*/Comma_protocolOptionsItem_(Comma_protocolOptionsItem)*	ALTER ENDPOINT a AS a(LISTENER_IP = ALL, LISTENER_IP = ALL)
-accept	reject	engine	protocolInfo(Comma_protocolOptionsItem)*/Comma_protocolOptionsItem_(Comma_protocolOptionsItem)*!drop-1	ALTER ENDPOINT a AS a(LISTENER_IP = ALL LISTENER_IP = ALL)
-accept	reject	engine	protocolInfo(Comma_protocolOptionsItem)*/Comma_protocolOptionsItem_(Comma_protocolOptionsItem)*!drop-2	ALTER ENDPOINT a AS a(LISTENER_IP = ALL, = ALL)
-accept	reject	engine	protocolInfo(Comma_protocolOptionsItem)*/Comma_protocolOptionsItem_(Comma_protocolOptionsItem)*!drop-3	ALTER ENDPOINT a AS a(LISTENER_IP = ALL, LISTENER_IP ALL)
-accept	reject	engine	protocolInfo(Comma_protocolOptionsItem)*/Comma_protocolOptionsItem_(Comma_protocolOptionsItem)*!drop-4	ALTER ENDPOINT a AS a(LISTENER_IP = ALL, LISTENER_IP =)
-accept	reject	engine	protocolInfo(Comma_protocolOptionsItem)*/Comma_protocolOptionsItem_(Comma_protocolOptionsItem)*!truncate	ALTER ENDPOINT a AS a(LISTENER_IP = ALL, LISTENER_IP =
-accept	reject	engine	protocolInfo(Comma_protocolOptionsItem)*/Comma_protocolOptionsItem_(Comma_protocolOptionsItem)*!insert	ALTER ENDPOINT a AS a(LISTENER_IP = ALL, LISTENER_IP = ALL zzz)
-accept	reject	engine	protocolInfo(Comma_protocolOptionsItem)*/Comma_protocolOptionsItem_(Comma_protocolOptionsItem)*!swap	ALTER ENDPOINT a AS a(LISTENER_IP = ALL, LISTENER_PORT = ALL)
-accept	reject	engine	protocolOptionsItem/listenerIpProtocolOption_LISTENER_IP	ALTER ENDPOINT a AS a(LISTENER_IP = ALL)
-accept	reject	engine	protocolOptionsItem/listenerIpProtocolOption_LISTENER_IP!truncate	ALTER ENDPOINT a AS a(LISTENER_IP =
-accept	reject	engine	protocolOptionsItem/listenerIpProtocolOption_LISTENER_IP!swap	ALTER ENDPOINT a AS a(LISTENER_PORT = ALL)
-accept	reject	engine	protocolOptionsItem/listenerPortProtocolOption_LISTENER_PORT	ALTER ENDPOINT a AS a(LISTENER_PORT = 1)
-accept	reject	engine	protocolOptionsItem/listenerPortProtocolOption_LISTENER_PORT!drop-1	ALTER ENDPOINT a AS a(= 1)
-accept	reject	engine	protocolOptionsItem/listenerPortProtocolOption_LISTENER_PORT!drop-2	ALTER ENDPOINT a AS a(LISTENER_PORT 1)
-accept	reject	engine	protocolOptionsItem/listenerPortProtocolOption_LISTENER_PORT!drop-3	ALTER ENDPOINT a AS a(LISTENER_PORT =)
-accept	reject	engine	protocolOptionsItem/listenerPortProtocolOption_LISTENER_PORT!truncate	ALTER ENDPOINT a AS a(LISTENER_PORT =
-accept	reject	engine	protocolOptionsItem/listenerPortProtocolOption_LISTENER_PORT!insert	ALTER ENDPOINT a AS a(LISTENER_PORT = 1 zzz)
-accept	reject	engine	protocolOptionsItem/listenerPortProtocolOption_LISTENER_PORT!swap	ALTER ENDPOINT a AS a(LOCAL = 1)
-accept	reject	engine	protocolOptionsItem/pathProtocolOption_PATH	ALTER ENDPOINT a AS a(PATH = 'a')
-accept	reject	engine	protocolOptionsItem/pathProtocolOption_PATH!drop-1	ALTER ENDPOINT a AS a(= 'a')
-accept	reject	engine	protocolOptionsItem/pathProtocolOption_PATH!drop-2	ALTER ENDPOINT a AS a(PATH 'a')
-accept	reject	engine	protocolOptionsItem/pathProtocolOption_PATH!drop-3	ALTER ENDPOINT a AS a(PATH =)
-accept	reject	engine	protocolOptionsItem/pathProtocolOption_PATH!truncate	ALTER ENDPOINT a AS a(PATH =
-accept	reject	engine	protocolOptionsItem/pathProtocolOption_PATH!insert	ALTER ENDPOINT a AS a(PATH = 'a' zzz)
-accept	reject	engine	protocolOptionsItem/pathProtocolOption_PATH!swap	ALTER ENDPOINT a AS a(PAUSE = 'a')
-accept	reject	engine	protocolOptionsItem/siteProtocolOption_SITE	ALTER ENDPOINT a AS a(SITE = 'a')
-accept	reject	engine	protocolOptionsItem/siteProtocolOption_SITE!drop-2	ALTER ENDPOINT a AS a(SITE 'a')
-accept	reject	engine	protocolOptionsItem/siteProtocolOption_SITE!drop-3	ALTER ENDPOINT a AS a(SITE =)
-accept	reject	engine	protocolOptionsItem/siteProtocolOption_SITE!truncate	ALTER ENDPOINT a AS a(SITE =
-accept	reject	engine	protocolOptionsItem/siteProtocolOption_SITE!insert	ALTER ENDPOINT a AS a(SITE = 'a' zzz)
-accept	reject	engine	protocolOptionsItem/siteProtocolOption_SITE!swap	ALTER ENDPOINT a AS a(SIZE = 'a')
-accept	reject	engine	protocolOptionsItem/clearPortProtocolOption_CLEAR_PORT	ALTER ENDPOINT a AS a(CLEAR_PORT = 1)
-accept	reject	engine	protocolOptionsItem/clearPortProtocolOption_CLEAR_PORT!drop-2	ALTER ENDPOINT a AS a(CLEAR_PORT 1)
-accept	reject	engine	protocolOptionsItem/clearPortProtocolOption_CLEAR_PORT!drop-3	ALTER ENDPOINT a AS a(CLEAR_PORT =)
-accept	reject	engine	protocolOptionsItem/clearPortProtocolOption_CLEAR_PORT!truncate	ALTER ENDPOINT a AS a(CLEAR_PORT =
-accept	reject	engine	protocolOptionsItem/clearPortProtocolOption_CLEAR_PORT!insert	ALTER ENDPOINT a AS a(CLEAR_PORT = 1 zzz)
-accept	reject	engine	protocolOptionsItem/clearPortProtocolOption_CLEAR_PORT!swap	ALTER ENDPOINT a AS a(CLOSE = 1)
-accept	reject	engine	protocolOptionsItem/sslPortProtocolOption_SSL_PORT	ALTER ENDPOINT a AS a(SSL_PORT = 1)
-accept	reject	engine	protocolOptionsItem/sslPortProtocolOption_SSL_PORT!drop-2	ALTER ENDPOINT a AS a(SSL_PORT 1)
-accept	reject	engine	protocolOptionsItem/sslPortProtocolOption_SSL_PORT!drop-3	ALTER ENDPOINT a AS a(SSL_PORT =)
-accept	reject	engine	protocolOptionsItem/sslPortProtocolOption_SSL_PORT!truncate	ALTER ENDPOINT a AS a(SSL_PORT =
-accept	reject	engine	protocolOptionsItem/sslPortProtocolOption_SSL_PORT!insert	ALTER ENDPOINT a AS a(SSL_PORT = 1 zzz)
-accept	reject	engine	protocolOptionsItem/sslPortProtocolOption_SSL_PORT!swap	ALTER ENDPOINT a AS a(STALE_QUERY_THRESHOLD_DAYS = 1)
-accept	reject	engine	protocolOptionsItem/authenticationProtocolOption_AUTHENTICATION	ALTER ENDPOINT a AS a(AUTHENTICATION =(a))
-accept	reject	engine	protocolOptionsItem/authenticationProtocolOption_AUTHENTICATION!drop-1	ALTER ENDPOINT a AS a(=(a))
-accept	reject	engine	protocolOptionsItem/authenticationProtocolOption_AUTHENTICATION!drop-2	ALTER ENDPOINT a AS a(AUTHENTICATION(a))
-accept	reject	engine	protocolOptionsItem/authenticationProtocolOption_AUTHENTICATION!drop-3	ALTER ENDPOINT a AS a(AUTHENTICATION = a))
-accept	reject	engine	protocolOptionsItem/authenticationProtocolOption_AUTHENTICATION!drop-4	ALTER ENDPOINT a AS a(AUTHENTICATION =())
-accept	reject	engine	protocolOptionsItem/authenticationProtocolOption_AUTHENTICATION!drop-5	ALTER ENDPOINT a AS a(AUTHENTICATION =(a)
-accept	reject	engine	protocolOptionsItem/authenticationProtocolOption_AUTHENTICATION!truncate	ALTER ENDPOINT a AS a(AUTHENTICATION =(a
-accept	reject	engine	protocolOptionsItem/authenticationProtocolOption_AUTHENTICATION!insert	ALTER ENDPOINT a AS a(AUTHENTICATION =(a) zzz)
-accept	reject	engine	protocolOptionsItem/authenticationProtocolOption_AUTHENTICATION!swap	ALTER ENDPOINT a AS a(AUTHORIZATION =(a))
-accept	reject	engine	protocolOptionsItem/portsProtocolOption_PORTS	ALTER ENDPOINT a AS a(PORTS =(a))
-accept	reject	engine	protocolOptionsItem/portsProtocolOption_PORTS!drop-2	ALTER ENDPOINT a AS a(PORTS(a))
-accept	reject	engine	protocolOptionsItem/portsProtocolOption_PORTS!drop-3	ALTER ENDPOINT a AS a(PORTS = a))
-accept	reject	engine	protocolOptionsItem/portsProtocolOption_PORTS!drop-4	ALTER ENDPOINT a AS a(PORTS =())
-accept	reject	engine	protocolOptionsItem/portsProtocolOption_PORTS!drop-5	ALTER ENDPOINT a AS a(PORTS =(a)
-accept	reject	engine	protocolOptionsItem/portsProtocolOption_PORTS!truncate	ALTER ENDPOINT a AS a(PORTS =(a
-accept	reject	engine	protocolOptionsItem/portsProtocolOption_PORTS!insert	ALTER ENDPOINT a AS a(PORTS =(a) zzz)
-accept	reject	engine	protocolOptionsItem/portsProtocolOption_PORTS!swap	ALTER ENDPOINT a AS a(PRECEDING =(a))
-accept	reject	engine	protocolOptionsItem/authenticationRealmProtocolOption_AUTH_REALM	ALTER ENDPOINT a AS a(AUTH_REALM = 'a')
-accept	reject	engine	protocolOptionsItem/authenticationRealmProtocolOption_AUTH_REALM!drop-2	ALTER ENDPOINT a AS a(AUTH_REALM 'a')
-accept	reject	engine	protocolOptionsItem/authenticationRealmProtocolOption_AUTH_REALM!drop-3	ALTER ENDPOINT a AS a(AUTH_REALM =)
-accept	reject	engine	protocolOptionsItem/authenticationRealmProtocolOption_AUTH_REALM!truncate	ALTER ENDPOINT a AS a(AUTH_REALM =
-accept	reject	engine	protocolOptionsItem/authenticationRealmProtocolOption_AUTH_REALM!insert	ALTER ENDPOINT a AS a(AUTH_REALM = 'a' zzz)
-accept	reject	engine	protocolOptionsItem/authenticationRealmProtocolOption_AUTH_REALM!swap	ALTER ENDPOINT a AS a(AUTO = 'a')
-accept	reject	engine	protocolOptionsItem/defaultLogonDomainProtocolOption_DEFAULT_LOGON_DOMAIN	ALTER ENDPOINT a AS a(DEFAULT_LOGON_DOMAIN = 'a')
-accept	reject	engine	protocolOptionsItem/defaultLogonDomainProtocolOption_DEFAULT_LOGON_DOMAIN!drop-2	ALTER ENDPOINT a AS a(DEFAULT_LOGON_DOMAIN 'a')
-accept	reject	engine	protocolOptionsItem/defaultLogonDomainProtocolOption_DEFAULT_LOGON_DOMAIN!drop-3	ALTER ENDPOINT a AS a(DEFAULT_LOGON_DOMAIN =)
-accept	reject	engine	protocolOptionsItem/defaultLogonDomainProtocolOption_DEFAULT_LOGON_DOMAIN!truncate	ALTER ENDPOINT a AS a(DEFAULT_LOGON_DOMAIN =
-accept	reject	engine	protocolOptionsItem/defaultLogonDomainProtocolOption_DEFAULT_LOGON_DOMAIN!insert	ALTER ENDPOINT a AS a(DEFAULT_LOGON_DOMAIN = 'a' zzz)
-accept	reject	engine	protocolOptionsItem/defaultLogonDomainProtocolOption_DEFAULT_LOGON_DOMAIN!swap	ALTER ENDPOINT a AS a(DELAYED_DURABILITY = 'a')
-accept	reject	engine	protocolOptionsItem/compressionProtocolOption	ALTER ENDPOINT a AS a(a = ENABLED)
-accept	reject	engine	protocolOptionsItem/compressionProtocolOption!drop-1	ALTER ENDPOINT a AS a(= ENABLED)
-accept	reject	engine	protocolOptionsItem/compressionProtocolOption!drop-2	ALTER ENDPOINT a AS a(a ENABLED)
-accept	reject	engine	protocolOptionsItem/compressionProtocolOption!drop-3	ALTER ENDPOINT a AS a(a =)
-accept	reject	engine	protocolOptionsItem/compressionProtocolOption!truncate	ALTER ENDPOINT a AS a(a =
-accept	reject	engine	protocolOptionsItem/compressionProtocolOption!insert	ALTER ENDPOINT a AS a(a = ENABLED zzz)
-accept	reject	engine	protocolOptionsItem/compressionProtocolOption!swap	ALTER ENDPOINT a AS a(a = ENCLAVE_COMPUTATIONS)
-accept	reject	engine	compressionProtocolOption/Identifier_EqualsSign_(ENABLED|DISABLED)	ALTER ENDPOINT a AS a(a = ENABLED)
-accept	reject	engine	compressionProtocolOption(ENABLED|DISABLED)/ENABLED	ALTER ENDPOINT a AS a(a = ENABLED)
-accept	reject	engine	compressionProtocolOption(ENABLED|DISABLED)/DISABLED	ALTER ENDPOINT a AS a(a = DISABLED)
-accept	reject	engine	compressionProtocolOption(ENABLED|DISABLED)/DISABLED!insert	ALTER ENDPOINT a AS a(a = DISABLED zzz)
-accept	reject	engine	compressionProtocolOption(ENABLED|DISABLED)/DISABLED!swap	ALTER ENDPOINT a AS a(a = DISTINCT)
-accept	reject	engine	ipAddressV4/Numeric_(Numeric_(Numeric_(integer|)|Dot_inte~d98e9dab)	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5 1.5))
-accept	reject	engine	ipAddressV4/Numeric_(Numeric_(Numeric_(integer|)|Dot_inte~d98e9dab)!drop-1	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5))
-accept	reject	engine	ipAddressV4/Numeric_(Numeric_(Numeric_(integer|)|Dot_inte~d98e9dab)!truncate	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5
-accept	reject	engine	ipAddressV4/Numeric_(Numeric_(Numeric_(integer|)|Dot_inte~d98e9dab)!insert	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5 1.5 zzz))
-accept	reject	engine	ipAddressV4/integer_(Numeric_(Numeric_ipV4DotNumberTail|i~b308f876)	ALTER ENDPOINT a AS a(LISTENER_IP =(1 1.5 1.5 1.5))
-accept	reject	engine	ipAddressV4/integer_(Numeric_(Numeric_ipV4DotNumberTail|i~b308f876)!drop-2	ALTER ENDPOINT a AS a(LISTENER_IP =(1 1.5 1.5))
-accept	reject	engine	ipAddressV4/integer_(Numeric_(Numeric_ipV4DotNumberTail|i~b308f876)!truncate	ALTER ENDPOINT a AS a(LISTENER_IP =(1 1.5 1.5
-accept	reject	engine	ipAddressV4/integer_(Numeric_(Numeric_ipV4DotNumberTail|i~b308f876)!insert	ALTER ENDPOINT a AS a(LISTENER_IP =(1 1.5 1.5 1.5 zzz))
-accept	reject	engine	ipAddressV4(Numeric_(Numeric_(integer|)|Dot_inte~d98e9dab)/Numeric_(Numeric_(integer|)|Dot_integer|integ~561bc6d7)	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5 1.5))
-accept	reject	engine	ipAddressV4(Numeric_(Numeric_(integer|)|Dot_inte~d98e9dab)/ipV4DotLastTwoPartsTail	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5.1.5))
-accept	reject	engine	ipAddressV4(Numeric_(Numeric_(integer|)|Dot_inte~d98e9dab)/ipV4DotLastTwoPartsTail!drop-2	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5.))
-accept	reject	engine	ipAddressV4(Numeric_(Numeric_(integer|)|Dot_inte~d98e9dab)/ipV4DotLastTwoPartsTail!truncate	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5.
-accept	reject	engine	ipAddressV4(Numeric_(Numeric_(integer|)|Dot_inte~d98e9dab)/ipV4DotLastTwoPartsTail!insert	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5.1.5 zzz))
-accept	reject	engine	ipAddressV4(Numeric_(Numeric_(integer|)|Dot_inte~d98e9dab)/integer_(Numeric_ipV4DotNumberTail|ipV4DotLas~aaaddc9f)	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1 1.5 1.5))
-accept	reject	engine	ipAddressV4(Numeric_(Numeric_(integer|)|Dot_inte~d98e9dab)/integer_(Numeric_ipV4DotNumberTail|ipV4DotLas~aaaddc9f)!drop-2	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1 1.5))
-accept	reject	engine	ipAddressV4(Numeric_(Numeric_(integer|)|Dot_inte~d98e9dab)/integer_(Numeric_ipV4DotNumberTail|ipV4DotLas~aaaddc9f)!truncate	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1 1.5
-accept	reject	engine	ipAddressV4(Numeric_(Numeric_(integer|)|Dot_inte~d98e9dab)/integer_(Numeric_ipV4DotNumberTail|ipV4DotLas~aaaddc9f)!insert	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1 1.5 1.5 zzz))
-accept	reject	engine	ipAddressV4(Numeric_(integer|)|Dot_integer|integ~561bc6d7)/Numeric_(integer|)	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5 1.5))
-accept	reject	engine	ipAddressV4(Numeric_(integer|)|Dot_integer|integ~561bc6d7)/Dot_integer	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5.1))
-accept	reject	engine	ipAddressV4(Numeric_(integer|)|Dot_integer|integ~561bc6d7)/Dot_integer!drop-1	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5 1))
-accept	reject	engine	ipAddressV4(Numeric_(integer|)|Dot_integer|integ~561bc6d7)/Dot_integer!drop-2	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5.))
-accept	reject	engine	ipAddressV4(Numeric_(integer|)|Dot_integer|integ~561bc6d7)/Dot_integer!truncate	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5.
-accept	reject	engine	ipAddressV4(Numeric_(integer|)|Dot_integer|integ~561bc6d7)/Dot_integer!insert	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5.1 zzz))
-accept	reject	engine	ipAddressV4(Numeric_(integer|)|Dot_integer|integ~561bc6d7)/integer_ipV4DotNumberTail	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5 1 1.5))
-accept	reject	engine	ipAddressV4(Numeric_(integer|)|Dot_integer|integ~561bc6d7)/integer_ipV4DotNumberTail!truncate	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5 1
-accept	reject	engine	ipAddressV4(Numeric_(integer|)|Dot_integer|integ~561bc6d7)/integer_ipV4DotNumberTail!insert	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5 1 1.5 zzz))
-accept	reject	engine	ipAddressV4(integer|)/integer	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5 1.5 1))
-accept	reject	engine	ipAddressV4(integer|)/integer!truncate	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5 1.5
-accept	reject	engine	ipAddressV4(integer|)/integer!insert	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5 1.5 1 zzz))
-accept	reject	engine	ipAddressV4(integer|)/%empty	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5 1.5))
-accept	reject	engine	ipAddressV4(Numeric_ipV4DotNumberTail|ipV4DotLas~aaaddc9f)/Numeric_ipV4DotNumberTail	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1 1.5 1.5))
-accept	reject	engine	ipAddressV4(Numeric_ipV4DotNumberTail|ipV4DotLas~aaaddc9f)/ipV4DotLastTwoPartsTail	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.1.5))
-accept	reject	engine	ipAddressV4(Numeric_ipV4DotNumberTail|ipV4DotLas~aaaddc9f)/ipV4DotLastTwoPartsTail!drop-2	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.))
-accept	reject	engine	ipAddressV4(Numeric_ipV4DotNumberTail|ipV4DotLas~aaaddc9f)/ipV4DotLastTwoPartsTail!truncate	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.
-accept	reject	engine	ipAddressV4(Numeric_ipV4DotNumberTail|ipV4DotLas~aaaddc9f)/ipV4DotLastTwoPartsTail!insert	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.1.5 zzz))
-accept	reject	engine	ipAddressV4(Numeric_(Numeric_ipV4DotNumberTail|i~b308f876)/Numeric_(Numeric_ipV4DotNumberTail|ipV4DotLas~aaaddc9f)	ALTER ENDPOINT a AS a(LISTENER_IP =(1 1.5 1.5 1.5))
-accept	reject	engine	ipAddressV4(Numeric_(Numeric_ipV4DotNumberTail|i~b308f876)/Dot_(Numeric_(Numeric_(integer|)|Dot_inte~e9994c98)	ALTER ENDPOINT a AS a(LISTENER_IP =(1.1.5 1.5))
-accept	reject	engine	ipAddressV4(Numeric_(Numeric_ipV4DotNumberTail|i~b308f876)/Dot_(Numeric_(Numeric_(integer|)|Dot_inte~e9994c98)!drop-2	ALTER ENDPOINT a AS a(LISTENER_IP =(1.1.5))
-accept	reject	engine	ipAddressV4(Numeric_(Numeric_ipV4DotNumberTail|i~b308f876)/Dot_(Numeric_(Numeric_(integer|)|Dot_inte~e9994c98)!truncate	ALTER ENDPOINT a AS a(LISTENER_IP =(1.1.5
-accept	reject	engine	ipAddressV4(Numeric_(Numeric_ipV4DotNumberTail|i~b308f876)/Dot_(Numeric_(Numeric_(integer|)|Dot_inte~e9994c98)!insert	ALTER ENDPOINT a AS a(LISTENER_IP =(1.1.5 1.5 zzz))
-accept	reject	engine	ipAddressV4(Numeric_(Numeric_(integer|)|Dot_inte~e9994c98)/Numeric_(Numeric_(integer|)|Dot_integer|integ~561bc6d7)	ALTER ENDPOINT a AS a(LISTENER_IP =(1.1.5 1.5))
-accept	reject	engine	ipAddressV4(Numeric_(Numeric_(integer|)|Dot_inte~e9994c98)/integer_(Numeric_ipV4DotNumberTail|ipV4DotLas~aaaddc9f)	ALTER ENDPOINT a AS a(LISTENER_IP =(1.1 1.5 1.5))
-accept	reject	engine	ipAddressV4(Numeric_(Numeric_(integer|)|Dot_inte~e9994c98)/integer_(Numeric_ipV4DotNumberTail|ipV4DotLas~aaaddc9f)!drop-2	ALTER ENDPOINT a AS a(LISTENER_IP =(1.1 1.5))
-accept	reject	engine	ipAddressV4(Numeric_(Numeric_(integer|)|Dot_inte~e9994c98)/integer_(Numeric_ipV4DotNumberTail|ipV4DotLas~aaaddc9f)!truncate	ALTER ENDPOINT a AS a(LISTENER_IP =(1.1 1.5
-accept	reject	engine	ipAddressV4(Numeric_(Numeric_(integer|)|Dot_inte~e9994c98)/integer_(Numeric_ipV4DotNumberTail|ipV4DotLas~aaaddc9f)!insert	ALTER ENDPOINT a AS a(LISTENER_IP =(1.1 1.5 1.5 zzz))
-accept	reject	engine	ipV4DotLastTwoPartsTail/Dot_(ipV4NumericOrNumericIntegerTail|inte~ab6b0cd4)	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5.1.5))
-accept	reject	engine	ipV4DotLastTwoPartsTail(ipV4NumericOrNumericIntegerTail|inte~ab6b0cd4)/ipV4NumericOrNumericIntegerTail	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5.1.5))
-accept	reject	engine	ipV4DotLastTwoPartsTail(ipV4NumericOrNumericIntegerTail|inte~ab6b0cd4)/integer_ipV4DotNumberTail	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5.1 1.5))
-accept	reject	engine	ipV4DotLastTwoPartsTail(ipV4NumericOrNumericIntegerTail|inte~ab6b0cd4)/integer_ipV4DotNumberTail!drop-2	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5.1))
-accept	reject	engine	ipV4DotLastTwoPartsTail(ipV4NumericOrNumericIntegerTail|inte~ab6b0cd4)/integer_ipV4DotNumberTail!truncate	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5.1
-accept	reject	engine	ipV4DotLastTwoPartsTail(ipV4NumericOrNumericIntegerTail|inte~ab6b0cd4)/integer_ipV4DotNumberTail!insert	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5.1 1.5 zzz))
-accept	reject	engine	ipV4DotNumberTail/Numeric	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5 1 1.5))
-accept	reject	engine	ipV4DotNumberTail/Dot_integer	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5 1.1))
-accept	reject	engine	ipV4DotNumberTail/Dot_integer!drop-1	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5 1 1))
-accept	reject	engine	ipV4DotNumberTail/Dot_integer!drop-2	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5 1.))
-accept	reject	engine	ipV4DotNumberTail/Dot_integer!truncate	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5 1.
-accept	reject	engine	ipV4DotNumberTail/Dot_integer!insert	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5 1.1 zzz))
-accept	reject	engine	ipV4NumericOrNumericIntegerTail/Numeric_(integer|)	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5.1.5))
-accept	reject	engine	ipV4NumericOrNumericIntegerTail(integer|)/integer	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5.1.5 1))
-accept	reject	engine	ipV4NumericOrNumericIntegerTail(integer|)/integer!truncate	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5.1.5
-accept	reject	engine	ipV4NumericOrNumericIntegerTail(integer|)/integer!insert	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5.1.5 1 zzz))
-accept	reject	engine	ipV4NumericOrNumericIntegerTail(integer|)/%empty	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5.1.5))
-reject	accept	engine	payloadInfo/For_DATA_MIRRORING_LeftParenthesis_(payloadOption_(Comm~ad56a44f	ALTER ENDPOINT a FOR DATA_MIRRORING()
+reject	reject	engine	protocolInfo(Comma_protocolOptionsItem)*/%empty	ALTER ENDPOINT a AS a(LISTENER_IP = ALL)
+reject	reject	engine	protocolInfo(Comma_protocolOptionsItem)*/%empty!insert	ALTER ENDPOINT a AS a(LISTENER_IP = ALL zzz)
+reject	reject	engine	protocolInfo(Comma_protocolOptionsItem)*/Comma_protocolOptionsItem_(Comma_protocolOptionsItem)*	ALTER ENDPOINT a AS a(LISTENER_IP = ALL, LISTENER_IP = ALL)
+reject	reject	engine	protocolInfo(Comma_protocolOptionsItem)*/Comma_protocolOptionsItem_(Comma_protocolOptionsItem)*!drop-1	ALTER ENDPOINT a AS a(LISTENER_IP = ALL LISTENER_IP = ALL)
+reject	reject	engine	protocolInfo(Comma_protocolOptionsItem)*/Comma_protocolOptionsItem_(Comma_protocolOptionsItem)*!drop-2	ALTER ENDPOINT a AS a(LISTENER_IP = ALL, = ALL)
+reject	reject	engine	protocolInfo(Comma_protocolOptionsItem)*/Comma_protocolOptionsItem_(Comma_protocolOptionsItem)*!drop-3	ALTER ENDPOINT a AS a(LISTENER_IP = ALL, LISTENER_IP ALL)
+reject	reject	engine	protocolInfo(Comma_protocolOptionsItem)*/Comma_protocolOptionsItem_(Comma_protocolOptionsItem)*!drop-4	ALTER ENDPOINT a AS a(LISTENER_IP = ALL, LISTENER_IP =)
+reject	reject	engine	protocolInfo(Comma_protocolOptionsItem)*/Comma_protocolOptionsItem_(Comma_protocolOptionsItem)*!truncate	ALTER ENDPOINT a AS a(LISTENER_IP = ALL, LISTENER_IP =
+reject	reject	engine	protocolInfo(Comma_protocolOptionsItem)*/Comma_protocolOptionsItem_(Comma_protocolOptionsItem)*!insert	ALTER ENDPOINT a AS a(LISTENER_IP = ALL, LISTENER_IP = ALL zzz)
+reject	reject	engine	protocolInfo(Comma_protocolOptionsItem)*/Comma_protocolOptionsItem_(Comma_protocolOptionsItem)*!swap	ALTER ENDPOINT a AS a(LISTENER_IP = ALL, LISTENER_PORT = ALL)
+reject	reject	engine	protocolOptionsItem/listenerIpProtocolOption_LISTENER_IP	ALTER ENDPOINT a AS a(LISTENER_IP = ALL)
+reject	reject	engine	protocolOptionsItem/listenerIpProtocolOption_LISTENER_IP!truncate	ALTER ENDPOINT a AS a(LISTENER_IP =
+reject	reject	engine	protocolOptionsItem/listenerIpProtocolOption_LISTENER_IP!swap	ALTER ENDPOINT a AS a(LISTENER_PORT = ALL)
+reject	reject	engine	protocolOptionsItem/listenerPortProtocolOption_LISTENER_PORT	ALTER ENDPOINT a AS a(LISTENER_PORT = 1)
+reject	reject	engine	protocolOptionsItem/listenerPortProtocolOption_LISTENER_PORT!drop-1	ALTER ENDPOINT a AS a(= 1)
+reject	reject	engine	protocolOptionsItem/listenerPortProtocolOption_LISTENER_PORT!drop-2	ALTER ENDPOINT a AS a(LISTENER_PORT 1)
+reject	reject	engine	protocolOptionsItem/listenerPortProtocolOption_LISTENER_PORT!drop-3	ALTER ENDPOINT a AS a(LISTENER_PORT =)
+reject	reject	engine	protocolOptionsItem/listenerPortProtocolOption_LISTENER_PORT!truncate	ALTER ENDPOINT a AS a(LISTENER_PORT =
+reject	reject	engine	protocolOptionsItem/listenerPortProtocolOption_LISTENER_PORT!insert	ALTER ENDPOINT a AS a(LISTENER_PORT = 1 zzz)
+reject	reject	engine	protocolOptionsItem/listenerPortProtocolOption_LISTENER_PORT!swap	ALTER ENDPOINT a AS a(LOCAL = 1)
+reject	reject	engine	protocolOptionsItem/pathProtocolOption_PATH	ALTER ENDPOINT a AS a(PATH = 'a')
+reject	reject	engine	protocolOptionsItem/pathProtocolOption_PATH!drop-1	ALTER ENDPOINT a AS a(= 'a')
+reject	reject	engine	protocolOptionsItem/pathProtocolOption_PATH!drop-2	ALTER ENDPOINT a AS a(PATH 'a')
+reject	reject	engine	protocolOptionsItem/pathProtocolOption_PATH!drop-3	ALTER ENDPOINT a AS a(PATH =)
+reject	reject	engine	protocolOptionsItem/pathProtocolOption_PATH!truncate	ALTER ENDPOINT a AS a(PATH =
+reject	reject	engine	protocolOptionsItem/pathProtocolOption_PATH!insert	ALTER ENDPOINT a AS a(PATH = 'a' zzz)
+reject	reject	engine	protocolOptionsItem/pathProtocolOption_PATH!swap	ALTER ENDPOINT a AS a(PAUSE = 'a')
+reject	reject	engine	protocolOptionsItem/siteProtocolOption_SITE	ALTER ENDPOINT a AS a(SITE = 'a')
+reject	reject	engine	protocolOptionsItem/siteProtocolOption_SITE!drop-2	ALTER ENDPOINT a AS a(SITE 'a')
+reject	reject	engine	protocolOptionsItem/siteProtocolOption_SITE!drop-3	ALTER ENDPOINT a AS a(SITE =)
+reject	reject	engine	protocolOptionsItem/siteProtocolOption_SITE!truncate	ALTER ENDPOINT a AS a(SITE =
+reject	reject	engine	protocolOptionsItem/siteProtocolOption_SITE!insert	ALTER ENDPOINT a AS a(SITE = 'a' zzz)
+reject	reject	engine	protocolOptionsItem/siteProtocolOption_SITE!swap	ALTER ENDPOINT a AS a(SIZE = 'a')
+reject	reject	engine	protocolOptionsItem/clearPortProtocolOption_CLEAR_PORT	ALTER ENDPOINT a AS a(CLEAR_PORT = 1)
+reject	reject	engine	protocolOptionsItem/clearPortProtocolOption_CLEAR_PORT!drop-2	ALTER ENDPOINT a AS a(CLEAR_PORT 1)
+reject	reject	engine	protocolOptionsItem/clearPortProtocolOption_CLEAR_PORT!drop-3	ALTER ENDPOINT a AS a(CLEAR_PORT =)
+reject	reject	engine	protocolOptionsItem/clearPortProtocolOption_CLEAR_PORT!truncate	ALTER ENDPOINT a AS a(CLEAR_PORT =
+reject	reject	engine	protocolOptionsItem/clearPortProtocolOption_CLEAR_PORT!insert	ALTER ENDPOINT a AS a(CLEAR_PORT = 1 zzz)
+reject	reject	engine	protocolOptionsItem/clearPortProtocolOption_CLEAR_PORT!swap	ALTER ENDPOINT a AS a(CLOSE = 1)
+reject	reject	engine	protocolOptionsItem/sslPortProtocolOption_SSL_PORT	ALTER ENDPOINT a AS a(SSL_PORT = 1)
+reject	reject	engine	protocolOptionsItem/sslPortProtocolOption_SSL_PORT!drop-2	ALTER ENDPOINT a AS a(SSL_PORT 1)
+reject	reject	engine	protocolOptionsItem/sslPortProtocolOption_SSL_PORT!drop-3	ALTER ENDPOINT a AS a(SSL_PORT =)
+reject	reject	engine	protocolOptionsItem/sslPortProtocolOption_SSL_PORT!truncate	ALTER ENDPOINT a AS a(SSL_PORT =
+reject	reject	engine	protocolOptionsItem/sslPortProtocolOption_SSL_PORT!insert	ALTER ENDPOINT a AS a(SSL_PORT = 1 zzz)
+reject	reject	engine	protocolOptionsItem/sslPortProtocolOption_SSL_PORT!swap	ALTER ENDPOINT a AS a(STALE_QUERY_THRESHOLD_DAYS = 1)
+reject	reject	engine	protocolOptionsItem/authenticationProtocolOption_AUTHENTICATION	ALTER ENDPOINT a AS a(AUTHENTICATION =(a))
+reject	reject	engine	protocolOptionsItem/authenticationProtocolOption_AUTHENTICATION!drop-1	ALTER ENDPOINT a AS a(=(a))
+reject	reject	engine	protocolOptionsItem/authenticationProtocolOption_AUTHENTICATION!drop-2	ALTER ENDPOINT a AS a(AUTHENTICATION(a))
+reject	reject	engine	protocolOptionsItem/authenticationProtocolOption_AUTHENTICATION!drop-3	ALTER ENDPOINT a AS a(AUTHENTICATION = a))
+reject	reject	engine	protocolOptionsItem/authenticationProtocolOption_AUTHENTICATION!drop-4	ALTER ENDPOINT a AS a(AUTHENTICATION =())
+reject	reject	engine	protocolOptionsItem/authenticationProtocolOption_AUTHENTICATION!drop-5	ALTER ENDPOINT a AS a(AUTHENTICATION =(a)
+reject	reject	engine	protocolOptionsItem/authenticationProtocolOption_AUTHENTICATION!truncate	ALTER ENDPOINT a AS a(AUTHENTICATION =(a
+reject	reject	engine	protocolOptionsItem/authenticationProtocolOption_AUTHENTICATION!insert	ALTER ENDPOINT a AS a(AUTHENTICATION =(a) zzz)
+reject	reject	engine	protocolOptionsItem/authenticationProtocolOption_AUTHENTICATION!swap	ALTER ENDPOINT a AS a(AUTHORIZATION =(a))
+reject	reject	engine	protocolOptionsItem/portsProtocolOption_PORTS	ALTER ENDPOINT a AS a(PORTS =(a))
+reject	reject	engine	protocolOptionsItem/portsProtocolOption_PORTS!drop-2	ALTER ENDPOINT a AS a(PORTS(a))
+reject	reject	engine	protocolOptionsItem/portsProtocolOption_PORTS!drop-3	ALTER ENDPOINT a AS a(PORTS = a))
+reject	reject	engine	protocolOptionsItem/portsProtocolOption_PORTS!drop-4	ALTER ENDPOINT a AS a(PORTS =())
+reject	reject	engine	protocolOptionsItem/portsProtocolOption_PORTS!drop-5	ALTER ENDPOINT a AS a(PORTS =(a)
+reject	reject	engine	protocolOptionsItem/portsProtocolOption_PORTS!truncate	ALTER ENDPOINT a AS a(PORTS =(a
+reject	reject	engine	protocolOptionsItem/portsProtocolOption_PORTS!insert	ALTER ENDPOINT a AS a(PORTS =(a) zzz)
+reject	reject	engine	protocolOptionsItem/portsProtocolOption_PORTS!swap	ALTER ENDPOINT a AS a(PRECEDING =(a))
+reject	reject	engine	protocolOptionsItem/authenticationRealmProtocolOption_AUTH_REALM	ALTER ENDPOINT a AS a(AUTH_REALM = 'a')
+reject	reject	engine	protocolOptionsItem/authenticationRealmProtocolOption_AUTH_REALM!drop-2	ALTER ENDPOINT a AS a(AUTH_REALM 'a')
+reject	reject	engine	protocolOptionsItem/authenticationRealmProtocolOption_AUTH_REALM!drop-3	ALTER ENDPOINT a AS a(AUTH_REALM =)
+reject	reject	engine	protocolOptionsItem/authenticationRealmProtocolOption_AUTH_REALM!truncate	ALTER ENDPOINT a AS a(AUTH_REALM =
+reject	reject	engine	protocolOptionsItem/authenticationRealmProtocolOption_AUTH_REALM!insert	ALTER ENDPOINT a AS a(AUTH_REALM = 'a' zzz)
+reject	reject	engine	protocolOptionsItem/authenticationRealmProtocolOption_AUTH_REALM!swap	ALTER ENDPOINT a AS a(AUTO = 'a')
+reject	reject	engine	protocolOptionsItem/defaultLogonDomainProtocolOption_DEFAULT_LOGON_DOMAIN	ALTER ENDPOINT a AS a(DEFAULT_LOGON_DOMAIN = 'a')
+reject	reject	engine	protocolOptionsItem/defaultLogonDomainProtocolOption_DEFAULT_LOGON_DOMAIN!drop-2	ALTER ENDPOINT a AS a(DEFAULT_LOGON_DOMAIN 'a')
+reject	reject	engine	protocolOptionsItem/defaultLogonDomainProtocolOption_DEFAULT_LOGON_DOMAIN!drop-3	ALTER ENDPOINT a AS a(DEFAULT_LOGON_DOMAIN =)
+reject	reject	engine	protocolOptionsItem/defaultLogonDomainProtocolOption_DEFAULT_LOGON_DOMAIN!truncate	ALTER ENDPOINT a AS a(DEFAULT_LOGON_DOMAIN =
+reject	reject	engine	protocolOptionsItem/defaultLogonDomainProtocolOption_DEFAULT_LOGON_DOMAIN!insert	ALTER ENDPOINT a AS a(DEFAULT_LOGON_DOMAIN = 'a' zzz)
+reject	reject	engine	protocolOptionsItem/defaultLogonDomainProtocolOption_DEFAULT_LOGON_DOMAIN!swap	ALTER ENDPOINT a AS a(DELAYED_DURABILITY = 'a')
+reject	reject	engine	protocolOptionsItem/compressionProtocolOption	ALTER ENDPOINT a AS a(a = ENABLED)
+reject	reject	engine	protocolOptionsItem/compressionProtocolOption!drop-1	ALTER ENDPOINT a AS a(= ENABLED)
+reject	reject	engine	protocolOptionsItem/compressionProtocolOption!drop-2	ALTER ENDPOINT a AS a(a ENABLED)
+reject	reject	engine	protocolOptionsItem/compressionProtocolOption!drop-3	ALTER ENDPOINT a AS a(a =)
+reject	reject	engine	protocolOptionsItem/compressionProtocolOption!truncate	ALTER ENDPOINT a AS a(a =
+reject	reject	engine	protocolOptionsItem/compressionProtocolOption!insert	ALTER ENDPOINT a AS a(a = ENABLED zzz)
+reject	reject	engine	protocolOptionsItem/compressionProtocolOption!swap	ALTER ENDPOINT a AS a(a = ENCLAVE_COMPUTATIONS)
+reject	reject	engine	compressionProtocolOption/Identifier_EqualsSign_(ENABLED|DISABLED)	ALTER ENDPOINT a AS a(a = ENABLED)
+reject	reject	engine	compressionProtocolOption(ENABLED|DISABLED)/ENABLED	ALTER ENDPOINT a AS a(a = ENABLED)
+reject	reject	engine	compressionProtocolOption(ENABLED|DISABLED)/DISABLED	ALTER ENDPOINT a AS a(a = DISABLED)
+reject	reject	engine	compressionProtocolOption(ENABLED|DISABLED)/DISABLED!insert	ALTER ENDPOINT a AS a(a = DISABLED zzz)
+reject	reject	engine	compressionProtocolOption(ENABLED|DISABLED)/DISABLED!swap	ALTER ENDPOINT a AS a(a = DISTINCT)
+reject	reject	engine	ipAddressV4/Numeric_(Numeric_(Numeric_(integer|)|Dot_inte~d98e9dab)	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5 1.5))
+reject	reject	engine	ipAddressV4/Numeric_(Numeric_(Numeric_(integer|)|Dot_inte~d98e9dab)!drop-1	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5))
+reject	reject	engine	ipAddressV4/Numeric_(Numeric_(Numeric_(integer|)|Dot_inte~d98e9dab)!truncate	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5
+reject	reject	engine	ipAddressV4/Numeric_(Numeric_(Numeric_(integer|)|Dot_inte~d98e9dab)!insert	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5 1.5 zzz))
+reject	reject	engine	ipAddressV4/integer_(Numeric_(Numeric_ipV4DotNumberTail|i~b308f876)	ALTER ENDPOINT a AS a(LISTENER_IP =(1 1.5 1.5 1.5))
+reject	reject	engine	ipAddressV4/integer_(Numeric_(Numeric_ipV4DotNumberTail|i~b308f876)!drop-2	ALTER ENDPOINT a AS a(LISTENER_IP =(1 1.5 1.5))
+reject	reject	engine	ipAddressV4/integer_(Numeric_(Numeric_ipV4DotNumberTail|i~b308f876)!truncate	ALTER ENDPOINT a AS a(LISTENER_IP =(1 1.5 1.5
+reject	reject	engine	ipAddressV4/integer_(Numeric_(Numeric_ipV4DotNumberTail|i~b308f876)!insert	ALTER ENDPOINT a AS a(LISTENER_IP =(1 1.5 1.5 1.5 zzz))
+reject	reject	engine	ipAddressV4(Numeric_(Numeric_(integer|)|Dot_inte~d98e9dab)/Numeric_(Numeric_(integer|)|Dot_integer|integ~561bc6d7)	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5 1.5))
+reject	reject	engine	ipAddressV4(Numeric_(Numeric_(integer|)|Dot_inte~d98e9dab)/ipV4DotLastTwoPartsTail	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5.1.5))
+reject	reject	engine	ipAddressV4(Numeric_(Numeric_(integer|)|Dot_inte~d98e9dab)/ipV4DotLastTwoPartsTail!drop-2	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5.))
+reject	reject	engine	ipAddressV4(Numeric_(Numeric_(integer|)|Dot_inte~d98e9dab)/ipV4DotLastTwoPartsTail!truncate	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5.
+reject	reject	engine	ipAddressV4(Numeric_(Numeric_(integer|)|Dot_inte~d98e9dab)/ipV4DotLastTwoPartsTail!insert	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5.1.5 zzz))
+reject	reject	engine	ipAddressV4(Numeric_(Numeric_(integer|)|Dot_inte~d98e9dab)/integer_(Numeric_ipV4DotNumberTail|ipV4DotLas~aaaddc9f)	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1 1.5 1.5))
+reject	reject	engine	ipAddressV4(Numeric_(Numeric_(integer|)|Dot_inte~d98e9dab)/integer_(Numeric_ipV4DotNumberTail|ipV4DotLas~aaaddc9f)!drop-2	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1 1.5))
+reject	reject	engine	ipAddressV4(Numeric_(Numeric_(integer|)|Dot_inte~d98e9dab)/integer_(Numeric_ipV4DotNumberTail|ipV4DotLas~aaaddc9f)!truncate	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1 1.5
+reject	reject	engine	ipAddressV4(Numeric_(Numeric_(integer|)|Dot_inte~d98e9dab)/integer_(Numeric_ipV4DotNumberTail|ipV4DotLas~aaaddc9f)!insert	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1 1.5 1.5 zzz))
+reject	reject	engine	ipAddressV4(Numeric_(integer|)|Dot_integer|integ~561bc6d7)/Numeric_(integer|)	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5 1.5))
+reject	reject	engine	ipAddressV4(Numeric_(integer|)|Dot_integer|integ~561bc6d7)/Dot_integer	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5.1))
+reject	reject	engine	ipAddressV4(Numeric_(integer|)|Dot_integer|integ~561bc6d7)/Dot_integer!drop-1	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5 1))
+reject	reject	engine	ipAddressV4(Numeric_(integer|)|Dot_integer|integ~561bc6d7)/Dot_integer!drop-2	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5.))
+reject	reject	engine	ipAddressV4(Numeric_(integer|)|Dot_integer|integ~561bc6d7)/Dot_integer!truncate	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5.
+reject	reject	engine	ipAddressV4(Numeric_(integer|)|Dot_integer|integ~561bc6d7)/Dot_integer!insert	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5.1 zzz))
+reject	reject	engine	ipAddressV4(Numeric_(integer|)|Dot_integer|integ~561bc6d7)/integer_ipV4DotNumberTail	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5 1 1.5))
+reject	reject	engine	ipAddressV4(Numeric_(integer|)|Dot_integer|integ~561bc6d7)/integer_ipV4DotNumberTail!truncate	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5 1
+reject	reject	engine	ipAddressV4(Numeric_(integer|)|Dot_integer|integ~561bc6d7)/integer_ipV4DotNumberTail!insert	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5 1 1.5 zzz))
+reject	reject	engine	ipAddressV4(integer|)/integer	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5 1.5 1))
+reject	reject	engine	ipAddressV4(integer|)/integer!truncate	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5 1.5
+reject	reject	engine	ipAddressV4(integer|)/integer!insert	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5 1.5 1 zzz))
+reject	reject	engine	ipAddressV4(integer|)/%empty	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5 1.5))
+reject	reject	engine	ipAddressV4(Numeric_ipV4DotNumberTail|ipV4DotLas~aaaddc9f)/Numeric_ipV4DotNumberTail	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1 1.5 1.5))
+reject	reject	engine	ipAddressV4(Numeric_ipV4DotNumberTail|ipV4DotLas~aaaddc9f)/ipV4DotLastTwoPartsTail	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.1.5))
+reject	reject	engine	ipAddressV4(Numeric_ipV4DotNumberTail|ipV4DotLas~aaaddc9f)/ipV4DotLastTwoPartsTail!drop-2	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.))
+reject	reject	engine	ipAddressV4(Numeric_ipV4DotNumberTail|ipV4DotLas~aaaddc9f)/ipV4DotLastTwoPartsTail!truncate	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.
+reject	reject	engine	ipAddressV4(Numeric_ipV4DotNumberTail|ipV4DotLas~aaaddc9f)/ipV4DotLastTwoPartsTail!insert	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.1.5 zzz))
+reject	reject	engine	ipAddressV4(Numeric_(Numeric_ipV4DotNumberTail|i~b308f876)/Numeric_(Numeric_ipV4DotNumberTail|ipV4DotLas~aaaddc9f)	ALTER ENDPOINT a AS a(LISTENER_IP =(1 1.5 1.5 1.5))
+reject	reject	engine	ipAddressV4(Numeric_(Numeric_ipV4DotNumberTail|i~b308f876)/Dot_(Numeric_(Numeric_(integer|)|Dot_inte~e9994c98)	ALTER ENDPOINT a AS a(LISTENER_IP =(1.1.5 1.5))
+reject	reject	engine	ipAddressV4(Numeric_(Numeric_ipV4DotNumberTail|i~b308f876)/Dot_(Numeric_(Numeric_(integer|)|Dot_inte~e9994c98)!drop-2	ALTER ENDPOINT a AS a(LISTENER_IP =(1.1.5))
+reject	reject	engine	ipAddressV4(Numeric_(Numeric_ipV4DotNumberTail|i~b308f876)/Dot_(Numeric_(Numeric_(integer|)|Dot_inte~e9994c98)!truncate	ALTER ENDPOINT a AS a(LISTENER_IP =(1.1.5
+reject	reject	engine	ipAddressV4(Numeric_(Numeric_ipV4DotNumberTail|i~b308f876)/Dot_(Numeric_(Numeric_(integer|)|Dot_inte~e9994c98)!insert	ALTER ENDPOINT a AS a(LISTENER_IP =(1.1.5 1.5 zzz))
+reject	reject	engine	ipAddressV4(Numeric_(Numeric_(integer|)|Dot_inte~e9994c98)/Numeric_(Numeric_(integer|)|Dot_integer|integ~561bc6d7)	ALTER ENDPOINT a AS a(LISTENER_IP =(1.1.5 1.5))
+reject	reject	engine	ipAddressV4(Numeric_(Numeric_(integer|)|Dot_inte~e9994c98)/integer_(Numeric_ipV4DotNumberTail|ipV4DotLas~aaaddc9f)	ALTER ENDPOINT a AS a(LISTENER_IP =(1.1 1.5 1.5))
+reject	reject	engine	ipAddressV4(Numeric_(Numeric_(integer|)|Dot_inte~e9994c98)/integer_(Numeric_ipV4DotNumberTail|ipV4DotLas~aaaddc9f)!drop-2	ALTER ENDPOINT a AS a(LISTENER_IP =(1.1 1.5))
+reject	reject	engine	ipAddressV4(Numeric_(Numeric_(integer|)|Dot_inte~e9994c98)/integer_(Numeric_ipV4DotNumberTail|ipV4DotLas~aaaddc9f)!truncate	ALTER ENDPOINT a AS a(LISTENER_IP =(1.1 1.5
+reject	reject	engine	ipAddressV4(Numeric_(Numeric_(integer|)|Dot_inte~e9994c98)/integer_(Numeric_ipV4DotNumberTail|ipV4DotLas~aaaddc9f)!insert	ALTER ENDPOINT a AS a(LISTENER_IP =(1.1 1.5 1.5 zzz))
+reject	reject	engine	ipV4DotLastTwoPartsTail/Dot_(ipV4NumericOrNumericIntegerTail|inte~ab6b0cd4)	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5.1.5))
+reject	reject	engine	ipV4DotLastTwoPartsTail(ipV4NumericOrNumericIntegerTail|inte~ab6b0cd4)/ipV4NumericOrNumericIntegerTail	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5.1.5))
+reject	reject	engine	ipV4DotLastTwoPartsTail(ipV4NumericOrNumericIntegerTail|inte~ab6b0cd4)/integer_ipV4DotNumberTail	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5.1 1.5))
+reject	reject	engine	ipV4DotLastTwoPartsTail(ipV4NumericOrNumericIntegerTail|inte~ab6b0cd4)/integer_ipV4DotNumberTail!drop-2	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5.1))
+reject	reject	engine	ipV4DotLastTwoPartsTail(ipV4NumericOrNumericIntegerTail|inte~ab6b0cd4)/integer_ipV4DotNumberTail!truncate	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5.1
+reject	reject	engine	ipV4DotLastTwoPartsTail(ipV4NumericOrNumericIntegerTail|inte~ab6b0cd4)/integer_ipV4DotNumberTail!insert	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5.1 1.5 zzz))
+reject	reject	engine	ipV4DotNumberTail/Numeric	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5 1 1.5))
+reject	reject	engine	ipV4DotNumberTail/Dot_integer	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5 1.1))
+reject	reject	engine	ipV4DotNumberTail/Dot_integer!drop-1	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5 1 1))
+reject	reject	engine	ipV4DotNumberTail/Dot_integer!drop-2	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5 1.))
+reject	reject	engine	ipV4DotNumberTail/Dot_integer!truncate	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5 1.
+reject	reject	engine	ipV4DotNumberTail/Dot_integer!insert	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5 1.1 zzz))
+reject	reject	engine	ipV4NumericOrNumericIntegerTail/Numeric_(integer|)	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5.1.5))
+reject	reject	engine	ipV4NumericOrNumericIntegerTail(integer|)/integer	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5.1.5 1))
+reject	reject	engine	ipV4NumericOrNumericIntegerTail(integer|)/integer!truncate	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5.1.5
+reject	reject	engine	ipV4NumericOrNumericIntegerTail(integer|)/integer!insert	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5.1.5 1 zzz))
+reject	reject	engine	ipV4NumericOrNumericIntegerTail(integer|)/%empty	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5.1.5))
+accept	accept	engine	payloadInfo/For_DATA_MIRRORING_LeftParenthesis_(payloadOption_(Comm~ad56a44f	ALTER ENDPOINT a FOR DATA_MIRRORING()
 reject	reject	engine	payloadInfo/For_DATA_MIRRORING_LeftParenthesis_(payloadOption_(Comm~ad56a44f!drop-1	ALTER ENDPOINT a DATA_MIRRORING()
-accept	reject	engine	payloadInfo/For_DATA_MIRRORING_LeftParenthesis_(payloadOption_(Comm~ad56a44f!drop-2	ALTER ENDPOINT a FOR()
+reject	reject	engine	payloadInfo/For_DATA_MIRRORING_LeftParenthesis_(payloadOption_(Comm~ad56a44f!drop-2	ALTER ENDPOINT a FOR()
 reject	reject	engine	payloadInfo/For_DATA_MIRRORING_LeftParenthesis_(payloadOption_(Comm~ad56a44f!drop-3	ALTER ENDPOINT a FOR DATA_MIRRORING)
 reject	reject	engine	payloadInfo/For_DATA_MIRRORING_LeftParenthesis_(payloadOption_(Comm~ad56a44f!drop-4	ALTER ENDPOINT a FOR DATA_MIRRORING(
 reject	reject	engine	payloadInfo/For_DATA_MIRRORING_LeftParenthesis_(payloadOption_(Comm~ad56a44f!insert	ALTER ENDPOINT a FOR DATA_MIRRORING() zzz
 reject	reject	engine	payloadInfo/For_DATA_MIRRORING_LeftParenthesis_(payloadOption_(Comm~ad56a44f!swap	ALTER ENDPOINT a FORCE DATA_MIRRORING()
-reject	accept	engine	payloadInfo(payloadOption_(Comma_payloadOption)*)?/%empty	ALTER ENDPOINT a FOR DATA_MIRRORING()
+accept	accept	engine	payloadInfo(payloadOption_(Comma_payloadOption)*)?/%empty	ALTER ENDPOINT a FOR DATA_MIRRORING()
 reject	reject	engine	payloadInfo(payloadOption_(Comma_payloadOption)*)?/%empty!insert	ALTER ENDPOINT a FOR DATA_MIRRORING(zzz)
 reject	reject	engine	payloadInfo(payloadOption_(Comma_payloadOption)*)?/payloadOption_(Comma_payloadOption)*	ALTER ENDPOINT a FOR DATA_MIRRORING(DROP WEBMETHOD 'a')
 reject	reject	engine	payloadInfo(payloadOption_(Comma_payloadOption)*)?/payloadOption_(Comma_payloadOption)*!drop-1	ALTER ENDPOINT a FOR DATA_MIRRORING(WEBMETHOD 'a')
@@ -3495,7 +3495,7 @@ reject	reject	engine	payloadOption/messageForwardSizePayloadOption_MESSAGE_FORWA
 reject	reject	engine	payloadOption/messageForwardSizePayloadOption_MESSAGE_FORWARD_SIZE!truncate	ALTER ENDPOINT a FOR DATA_MIRRORING(MESSAGE_FORWARD_SIZE =
 reject	reject	engine	payloadOption/messageForwardSizePayloadOption_MESSAGE_FORWARD_SIZE!insert	ALTER ENDPOINT a FOR DATA_MIRRORING(MESSAGE_FORWARD_SIZE = 1 zzz)
 reject	reject	engine	payloadOption/messageForwardSizePayloadOption_MESSAGE_FORWARD_SIZE!swap	ALTER ENDPOINT a FOR DATA_MIRRORING(MINUTES = 1)
-reject	accept	engine	payloadOption/rolePayloadOption	ALTER ENDPOINT a FOR DATA_MIRRORING(ROLE = WITNESS)
+accept	accept	engine	payloadOption/rolePayloadOption	ALTER ENDPOINT a FOR DATA_MIRRORING(ROLE = WITNESS)
 reject	reject	engine	payloadOption/rolePayloadOption!drop-1	ALTER ENDPOINT a FOR DATA_MIRRORING(= WITNESS)
 reject	reject	engine	payloadOption/rolePayloadOption!drop-2	ALTER ENDPOINT a FOR DATA_MIRRORING(ROLE WITNESS)
 reject	reject	engine	payloadOption/rolePayloadOption!drop-3	ALTER ENDPOINT a FOR DATA_MIRRORING(ROLE =)
@@ -3519,14 +3519,14 @@ reject	reject	engine	schemaPayloadOption(STANDARD|NONE)/STANDARD!swap	ALTER ENDP
 reject	reject	engine	schemaPayloadOption(STANDARD|NONE)/NONE	ALTER ENDPOINT a FOR DATA_MIRRORING(SCHEMA = NONE)
 reject	reject	engine	schemaPayloadOption(STANDARD|NONE)/NONE!insert	ALTER ENDPOINT a FOR DATA_MIRRORING(SCHEMA = NONE zzz)
 reject	reject	engine	schemaPayloadOption(STANDARD|NONE)/NONE!swap	ALTER ENDPOINT a FOR DATA_MIRRORING(SCHEMA = NORESET)
-reject	accept	engine	rolePayloadOption/ROLE_EqualsSign_((WITNESS|PARTNER)|All)	ALTER ENDPOINT a FOR DATA_MIRRORING(ROLE = WITNESS)
-reject	accept	engine	rolePayloadOption((WITNESS|PARTNER)|All)/(WITNESS|PARTNER)	ALTER ENDPOINT a FOR DATA_MIRRORING(ROLE = WITNESS)
+accept	accept	engine	rolePayloadOption/ROLE_EqualsSign_((WITNESS|PARTNER)|All)	ALTER ENDPOINT a FOR DATA_MIRRORING(ROLE = WITNESS)
+accept	accept	engine	rolePayloadOption((WITNESS|PARTNER)|All)/(WITNESS|PARTNER)	ALTER ENDPOINT a FOR DATA_MIRRORING(ROLE = WITNESS)
 reject	reject	engine	rolePayloadOption((WITNESS|PARTNER)|All)/(WITNESS|PARTNER)!swap	ALTER ENDPOINT a FOR DATA_MIRRORING(ROLE = WLM_CONTEXT)
-reject	accept	engine	rolePayloadOption((WITNESS|PARTNER)|All)/All	ALTER ENDPOINT a FOR DATA_MIRRORING(ROLE = ALL)
+accept	accept	engine	rolePayloadOption((WITNESS|PARTNER)|All)/All	ALTER ENDPOINT a FOR DATA_MIRRORING(ROLE = ALL)
 reject	reject	engine	rolePayloadOption((WITNESS|PARTNER)|All)/All!insert	ALTER ENDPOINT a FOR DATA_MIRRORING(ROLE = ALL zzz)
 reject	reject	engine	rolePayloadOption((WITNESS|PARTNER)|All)/All!swap	ALTER ENDPOINT a FOR DATA_MIRRORING(ROLE = ALLOW_CONNECTIONS)
-reject	accept	engine	rolePayloadOption(WITNESS|PARTNER)/WITNESS	ALTER ENDPOINT a FOR DATA_MIRRORING(ROLE = WITNESS)
-reject	accept	engine	rolePayloadOption(WITNESS|PARTNER)/PARTNER	ALTER ENDPOINT a FOR DATA_MIRRORING(ROLE = PARTNER)
+accept	accept	engine	rolePayloadOption(WITNESS|PARTNER)/WITNESS	ALTER ENDPOINT a FOR DATA_MIRRORING(ROLE = WITNESS)
+accept	accept	engine	rolePayloadOption(WITNESS|PARTNER)/PARTNER	ALTER ENDPOINT a FOR DATA_MIRRORING(ROLE = PARTNER)
 reject	reject	engine	rolePayloadOption(WITNESS|PARTNER)/PARTNER!insert	ALTER ENDPOINT a FOR DATA_MIRRORING(ROLE = PARTNER zzz)
 reject	reject	engine	rolePayloadOption(WITNESS|PARTNER)/PARTNER!swap	ALTER ENDPOINT a FOR DATA_MIRRORING(ROLE = PASSWORD)
 reject	reject	engine	soapMethod/(Add|Alter)?_WEBMETHOD_soapMethodAlias_LeftParenthesis_~4a10f25e	ALTER ENDPOINT a FOR DATA_MIRRORING(WEBMETHOD 'a'(SCHEMA = NONE))
@@ -5070,8 +5070,8 @@ accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8
 accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterCredentialStatement_CREDENTIAL!drop-6	ALTER CREDENTIAL a WITH IDENTITY =
 accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterCredentialStatement_CREDENTIAL!insert	ALTER CREDENTIAL a WITH IDENTITY = 'a' zzz
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterCredentialStatement_CREDENTIAL!swap	ALTER CREDENTIAL_NAME a WITH IDENTITY = 'a'
-accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterEndpointStatement_ENDPOINT	ALTER ENDPOINT a
-accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterEndpointStatement_ENDPOINT!drop-2	ALTER ENDPOINT
+reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterEndpointStatement_ENDPOINT	ALTER ENDPOINT a
+reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterEndpointStatement_ENDPOINT!drop-2	ALTER ENDPOINT
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterEndpointStatement_ENDPOINT!insert	ALTER ENDPOINT a zzz
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterEndpointStatement_ENDPOINT!swap	ALTER END_TIME a
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterFulltextStatement_FULLTEXT	ALTER FULLTEXT a a REORGANIZE
@@ -6729,7 +6729,7 @@ accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e448
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropRemoteServiceBindingStatement_REMOTE!insert	DROP REMOTE SERVICE BINDING a zzz
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropRemoteServiceBindingStatement_REMOTE!swap	DROP REMOTE_DATA_ARCHIVE SERVICE BINDING a
 accept	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropEndpointStatement_ENDPOINT	DROP ENDPOINT a
-accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropEndpointStatement_ENDPOINT!drop-2	DROP ENDPOINT
+reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropEndpointStatement_ENDPOINT!drop-2	DROP ENDPOINT
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropEndpointStatement_ENDPOINT!insert	DROP ENDPOINT a zzz
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropEndpointStatement_ENDPOINT!swap	DROP END_TIME a
 accept	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSignatureStatement	DROP SIGNATURE FROM a BY CERTIFICATE a
@@ -15220,7 +15220,7 @@ reject	reject	engine	createEndpointStatement_ENDPOINT(endpointOptions)?/endpoint
 reject	reject	engine	createEndpointStatement_ENDPOINT(endpointOptions)?/endpointOptions!drop-1	CREATE ENDPOINT a = a AS a(LISTENER_IP = ALL) FOR DATA_MIRRORING()
 reject	reject	engine	createEndpointStatement_ENDPOINT(endpointOptions)?/endpointOptions!drop-2	CREATE ENDPOINT a STATE a AS a(LISTENER_IP = ALL) FOR DATA_MIRRORING()
 reject	reject	engine	createEndpointStatement_ENDPOINT(endpointOptions)?/endpointOptions!drop-3	CREATE ENDPOINT a STATE = AS a(LISTENER_IP = ALL) FOR DATA_MIRRORING()
-accept	reject	engine	createEndpointStatement_ENDPOINT(endpointOptions)?/endpointOptions!truncate	CREATE ENDPOINT a STATE =
+reject	reject	engine	createEndpointStatement_ENDPOINT(endpointOptions)?/endpointOptions!truncate	CREATE ENDPOINT a STATE =
 reject	reject	engine	createEndpointStatement_ENDPOINT(endpointOptions)?/endpointOptions!insert	CREATE ENDPOINT a STATE = a zzz AS a(LISTENER_IP = ALL) FOR DATA_MIRRORING()
 reject	reject	engine	createEndpointStatement_ENDPOINT(endpointOptions)?/endpointOptions!swap	CREATE ENDPOINT a STATEMENT = a AS a(LISTENER_IP = ALL) FOR DATA_MIRRORING()
 accept	accept	engine	createEventStatement_EVENT/EVENT_(createEventNotificationStatement_NOT~f09613f9)	CREATE EVENT SESSION a ON DATABASE ADD EVENT a.a
@@ -15946,56 +15946,56 @@ accept	reject	engine	restoreServiceMasterKeyStatement_SERVICE(FORCE)?/FORCE!swap
 reject	reject	engine	backupEncryptionOption_ENCRYPTION/ENCRYPTION_LeftParenthesis_ALGORITHM_EqualsSign_Identif~68462107	BACKUP DATABASE @a WITH ENCRYPTION(ALGORITHM = a, SERVER CERTIFICATE = a)
 reject	reject	engine	fileStreamRestoreOption_FILESTREAM/fileStreamCreateAlterDbOption_FILESTREAM	RESTORE DATABASE @a WITH FILESTREAM(a = OFF)
 reject	reject	engine	endpointState_STATE/STATE_EqualsSign_Identifier	ALTER ENDPOINT a STATE = a
-accept	reject	engine	listenerIpProtocolOption_LISTENER_IP/LISTENER_IP_EqualsSign_((LeftParenthesis_(ipAddressV4_(~df8b26ea	ALTER ENDPOINT a AS a(LISTENER_IP = ALL)
-accept	reject	engine	listenerIpProtocolOption_LISTENER_IP((LeftParenthesis_(ipAddressV4_(Colon~43bf336d)/LeftParenthesis_(ipAddressV4_(Colon_ipAddressV4)?|strin~21e8f56a	ALTER ENDPOINT a AS a(LISTENER_IP =('a'))
-accept	reject	engine	listenerIpProtocolOption_LISTENER_IP((LeftParenthesis_(ipAddressV4_(Colon~43bf336d)/LeftParenthesis_(ipAddressV4_(Colon_ipAddressV4)?|strin~21e8f56a!drop-1	ALTER ENDPOINT a AS a(LISTENER_IP = 'a'))
-accept	reject	engine	listenerIpProtocolOption_LISTENER_IP((LeftParenthesis_(ipAddressV4_(Colon~43bf336d)/LeftParenthesis_(ipAddressV4_(Colon_ipAddressV4)?|strin~21e8f56a!drop-2	ALTER ENDPOINT a AS a(LISTENER_IP =())
-accept	reject	engine	listenerIpProtocolOption_LISTENER_IP((LeftParenthesis_(ipAddressV4_(Colon~43bf336d)/LeftParenthesis_(ipAddressV4_(Colon_ipAddressV4)?|strin~21e8f56a!drop-3	ALTER ENDPOINT a AS a(LISTENER_IP =('a')
-accept	reject	engine	listenerIpProtocolOption_LISTENER_IP((LeftParenthesis_(ipAddressV4_(Colon~43bf336d)/LeftParenthesis_(ipAddressV4_(Colon_ipAddressV4)?|strin~21e8f56a!truncate	ALTER ENDPOINT a AS a(LISTENER_IP =('a'
-accept	reject	engine	listenerIpProtocolOption_LISTENER_IP((LeftParenthesis_(ipAddressV4_(Colon~43bf336d)/LeftParenthesis_(ipAddressV4_(Colon_ipAddressV4)?|strin~21e8f56a!insert	ALTER ENDPOINT a AS a(LISTENER_IP =('a') zzz)
-accept	reject	engine	listenerIpProtocolOption_LISTENER_IP((LeftParenthesis_(ipAddressV4_(Colon~43bf336d)/All	ALTER ENDPOINT a AS a(LISTENER_IP = ALL)
-accept	reject	engine	listenerIpProtocolOption_LISTENER_IP((LeftParenthesis_(ipAddressV4_(Colon~43bf336d)/All!swap	ALTER ENDPOINT a AS a(LISTENER_IP = ALLOW_CONNECTIONS)
-accept	reject	engine	listenerIpProtocolOption_LISTENER_IP(ipAddressV4_(Colon_ipAddressV4)?|stringLiteral)/ipAddressV4_(Colon_ipAddressV4)?	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5 1.5))
-accept	reject	engine	listenerIpProtocolOption_LISTENER_IP(ipAddressV4_(Colon_ipAddressV4)?|stringLiteral)/stringLiteral	ALTER ENDPOINT a AS a(LISTENER_IP =('a'))
-accept	reject	engine	listenerIpProtocolOption_LISTENER_IP(ipAddressV4_(Colon_ipAddressV4)?|stringLiteral)/stringLiteral!truncate	ALTER ENDPOINT a AS a(LISTENER_IP =(
-accept	reject	engine	listenerIpProtocolOption_LISTENER_IP(ipAddressV4_(Colon_ipAddressV4)?|stringLiteral)/stringLiteral!insert	ALTER ENDPOINT a AS a(LISTENER_IP =('a' zzz))
-accept	reject	engine	listenerIpProtocolOption_LISTENER_IP(Colon_ipAddressV4)?/%empty	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5 1.5))
-accept	reject	engine	listenerIpProtocolOption_LISTENER_IP(Colon_ipAddressV4)?/Colon_ipAddressV4	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5 1.5 : 1.5 1.5 1.5))
-accept	reject	engine	listenerIpProtocolOption_LISTENER_IP(Colon_ipAddressV4)?/Colon_ipAddressV4!drop-1	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5 1.5 1.5 1.5 1.5))
-accept	reject	engine	listenerIpProtocolOption_LISTENER_IP(Colon_ipAddressV4)?/Colon_ipAddressV4!drop-2	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5 1.5 : 1.5 1.5))
-accept	reject	engine	listenerIpProtocolOption_LISTENER_IP(Colon_ipAddressV4)?/Colon_ipAddressV4!truncate	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5 1.5 : 1.5 1.5
-accept	reject	engine	listenerIpProtocolOption_LISTENER_IP(Colon_ipAddressV4)?/Colon_ipAddressV4!insert	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5 1.5 : 1.5 1.5 1.5 zzz))
-accept	reject	engine	listenerPortProtocolOption_LISTENER_PORT/LISTENER_PORT_EqualsSign_integer	ALTER ENDPOINT a AS a(LISTENER_PORT = 1)
-accept	reject	engine	pathProtocolOption_PATH/PATH_EqualsSign_stringLiteral	ALTER ENDPOINT a AS a(PATH = 'a')
-accept	reject	engine	siteProtocolOption_SITE/SITE_EqualsSign_stringLiteral	ALTER ENDPOINT a AS a(SITE = 'a')
-accept	reject	engine	clearPortProtocolOption_CLEAR_PORT/CLEAR_PORT_EqualsSign_integer	ALTER ENDPOINT a AS a(CLEAR_PORT = 1)
-accept	reject	engine	sslPortProtocolOption_SSL_PORT/SSL_PORT_EqualsSign_integer	ALTER ENDPOINT a AS a(SSL_PORT = 1)
-accept	reject	engine	authenticationProtocolOption_AUTHENTICATION/AUTHENTICATION_EqualsSign_LeftParenthesis_Identifier_(C~cea0c784	ALTER ENDPOINT a AS a(AUTHENTICATION =(a))
-accept	reject	engine	authenticationProtocolOption_AUTHENTICATION(Comma_Identifier)*/%empty	ALTER ENDPOINT a AS a(AUTHENTICATION =(a))
-accept	reject	engine	authenticationProtocolOption_AUTHENTICATION(Comma_Identifier)*/%empty!insert	ALTER ENDPOINT a AS a(AUTHENTICATION =(a zzz))
-accept	reject	engine	authenticationProtocolOption_AUTHENTICATION(Comma_Identifier)*/Comma_Identifier_(Comma_Identifier)*	ALTER ENDPOINT a AS a(AUTHENTICATION =(a, a))
-accept	reject	engine	authenticationProtocolOption_AUTHENTICATION(Comma_Identifier)*/Comma_Identifier_(Comma_Identifier)*!drop-1	ALTER ENDPOINT a AS a(AUTHENTICATION =(a a))
-accept	reject	engine	authenticationProtocolOption_AUTHENTICATION(Comma_Identifier)*/Comma_Identifier_(Comma_Identifier)*!drop-2	ALTER ENDPOINT a AS a(AUTHENTICATION =(a,))
-accept	reject	engine	authenticationProtocolOption_AUTHENTICATION(Comma_Identifier)*/Comma_Identifier_(Comma_Identifier)*!truncate	ALTER ENDPOINT a AS a(AUTHENTICATION =(a,
-accept	reject	engine	authenticationProtocolOption_AUTHENTICATION(Comma_Identifier)*/Comma_Identifier_(Comma_Identifier)*!insert	ALTER ENDPOINT a AS a(AUTHENTICATION =(a, a zzz))
-accept	reject	engine	portsProtocolOption_PORTS/PORTS_EqualsSign_LeftParenthesis_Identifier_(Comma_Iden~c8991743	ALTER ENDPOINT a AS a(PORTS =(a))
-accept	reject	engine	portsProtocolOption_PORTS(Comma_Identifier)*/%empty	ALTER ENDPOINT a AS a(PORTS =(a))
-accept	reject	engine	portsProtocolOption_PORTS(Comma_Identifier)*/%empty!insert	ALTER ENDPOINT a AS a(PORTS =(a zzz))
-accept	reject	engine	portsProtocolOption_PORTS(Comma_Identifier)*/Comma_Identifier_(Comma_Identifier)*	ALTER ENDPOINT a AS a(PORTS =(a, a))
-accept	reject	engine	portsProtocolOption_PORTS(Comma_Identifier)*/Comma_Identifier_(Comma_Identifier)*!drop-1	ALTER ENDPOINT a AS a(PORTS =(a a))
-accept	reject	engine	portsProtocolOption_PORTS(Comma_Identifier)*/Comma_Identifier_(Comma_Identifier)*!drop-2	ALTER ENDPOINT a AS a(PORTS =(a,))
-accept	reject	engine	portsProtocolOption_PORTS(Comma_Identifier)*/Comma_Identifier_(Comma_Identifier)*!truncate	ALTER ENDPOINT a AS a(PORTS =(a,
-accept	reject	engine	portsProtocolOption_PORTS(Comma_Identifier)*/Comma_Identifier_(Comma_Identifier)*!insert	ALTER ENDPOINT a AS a(PORTS =(a, a zzz))
-accept	reject	engine	authenticationRealmProtocolOption_AUTH_REALM/AUTH_REALM_EqualsSign_(nonEmptyString|NONE)	ALTER ENDPOINT a AS a(AUTH_REALM = 'a')
-accept	reject	engine	authenticationRealmProtocolOption_AUTH_REALM(nonEmptyString|NONE)/nonEmptyString	ALTER ENDPOINT a AS a(AUTH_REALM = 'a')
-accept	reject	engine	authenticationRealmProtocolOption_AUTH_REALM(nonEmptyString|NONE)/NONE	ALTER ENDPOINT a AS a(AUTH_REALM = NONE)
-accept	reject	engine	authenticationRealmProtocolOption_AUTH_REALM(nonEmptyString|NONE)/NONE!insert	ALTER ENDPOINT a AS a(AUTH_REALM = NONE zzz)
-accept	reject	engine	authenticationRealmProtocolOption_AUTH_REALM(nonEmptyString|NONE)/NONE!swap	ALTER ENDPOINT a AS a(AUTH_REALM = NORESET)
-accept	reject	engine	defaultLogonDomainProtocolOption_DEFAULT_LOGON_DOMAIN/DEFAULT_LOGON_DOMAIN_EqualsSign_(nonEmptyString|NONE)	ALTER ENDPOINT a AS a(DEFAULT_LOGON_DOMAIN = 'a')
-accept	reject	engine	defaultLogonDomainProtocolOption_DEFAULT_LOGON_DOMAIN(nonEmptyString|NONE)/nonEmptyString	ALTER ENDPOINT a AS a(DEFAULT_LOGON_DOMAIN = 'a')
-accept	reject	engine	defaultLogonDomainProtocolOption_DEFAULT_LOGON_DOMAIN(nonEmptyString|NONE)/NONE	ALTER ENDPOINT a AS a(DEFAULT_LOGON_DOMAIN = NONE)
-accept	reject	engine	defaultLogonDomainProtocolOption_DEFAULT_LOGON_DOMAIN(nonEmptyString|NONE)/NONE!insert	ALTER ENDPOINT a AS a(DEFAULT_LOGON_DOMAIN = NONE zzz)
-accept	reject	engine	defaultLogonDomainProtocolOption_DEFAULT_LOGON_DOMAIN(nonEmptyString|NONE)/NONE!swap	ALTER ENDPOINT a AS a(DEFAULT_LOGON_DOMAIN = NORESET)
+reject	reject	engine	listenerIpProtocolOption_LISTENER_IP/LISTENER_IP_EqualsSign_((LeftParenthesis_(ipAddressV4_(~df8b26ea	ALTER ENDPOINT a AS a(LISTENER_IP = ALL)
+reject	reject	engine	listenerIpProtocolOption_LISTENER_IP((LeftParenthesis_(ipAddressV4_(Colon~43bf336d)/LeftParenthesis_(ipAddressV4_(Colon_ipAddressV4)?|strin~21e8f56a	ALTER ENDPOINT a AS a(LISTENER_IP =('a'))
+reject	reject	engine	listenerIpProtocolOption_LISTENER_IP((LeftParenthesis_(ipAddressV4_(Colon~43bf336d)/LeftParenthesis_(ipAddressV4_(Colon_ipAddressV4)?|strin~21e8f56a!drop-1	ALTER ENDPOINT a AS a(LISTENER_IP = 'a'))
+reject	reject	engine	listenerIpProtocolOption_LISTENER_IP((LeftParenthesis_(ipAddressV4_(Colon~43bf336d)/LeftParenthesis_(ipAddressV4_(Colon_ipAddressV4)?|strin~21e8f56a!drop-2	ALTER ENDPOINT a AS a(LISTENER_IP =())
+reject	reject	engine	listenerIpProtocolOption_LISTENER_IP((LeftParenthesis_(ipAddressV4_(Colon~43bf336d)/LeftParenthesis_(ipAddressV4_(Colon_ipAddressV4)?|strin~21e8f56a!drop-3	ALTER ENDPOINT a AS a(LISTENER_IP =('a')
+reject	reject	engine	listenerIpProtocolOption_LISTENER_IP((LeftParenthesis_(ipAddressV4_(Colon~43bf336d)/LeftParenthesis_(ipAddressV4_(Colon_ipAddressV4)?|strin~21e8f56a!truncate	ALTER ENDPOINT a AS a(LISTENER_IP =('a'
+reject	reject	engine	listenerIpProtocolOption_LISTENER_IP((LeftParenthesis_(ipAddressV4_(Colon~43bf336d)/LeftParenthesis_(ipAddressV4_(Colon_ipAddressV4)?|strin~21e8f56a!insert	ALTER ENDPOINT a AS a(LISTENER_IP =('a') zzz)
+reject	reject	engine	listenerIpProtocolOption_LISTENER_IP((LeftParenthesis_(ipAddressV4_(Colon~43bf336d)/All	ALTER ENDPOINT a AS a(LISTENER_IP = ALL)
+reject	reject	engine	listenerIpProtocolOption_LISTENER_IP((LeftParenthesis_(ipAddressV4_(Colon~43bf336d)/All!swap	ALTER ENDPOINT a AS a(LISTENER_IP = ALLOW_CONNECTIONS)
+reject	reject	engine	listenerIpProtocolOption_LISTENER_IP(ipAddressV4_(Colon_ipAddressV4)?|stringLiteral)/ipAddressV4_(Colon_ipAddressV4)?	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5 1.5))
+reject	reject	engine	listenerIpProtocolOption_LISTENER_IP(ipAddressV4_(Colon_ipAddressV4)?|stringLiteral)/stringLiteral	ALTER ENDPOINT a AS a(LISTENER_IP =('a'))
+reject	reject	engine	listenerIpProtocolOption_LISTENER_IP(ipAddressV4_(Colon_ipAddressV4)?|stringLiteral)/stringLiteral!truncate	ALTER ENDPOINT a AS a(LISTENER_IP =(
+reject	reject	engine	listenerIpProtocolOption_LISTENER_IP(ipAddressV4_(Colon_ipAddressV4)?|stringLiteral)/stringLiteral!insert	ALTER ENDPOINT a AS a(LISTENER_IP =('a' zzz))
+reject	reject	engine	listenerIpProtocolOption_LISTENER_IP(Colon_ipAddressV4)?/%empty	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5 1.5))
+reject	reject	engine	listenerIpProtocolOption_LISTENER_IP(Colon_ipAddressV4)?/Colon_ipAddressV4	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5 1.5 : 1.5 1.5 1.5))
+reject	reject	engine	listenerIpProtocolOption_LISTENER_IP(Colon_ipAddressV4)?/Colon_ipAddressV4!drop-1	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5 1.5 1.5 1.5 1.5))
+reject	reject	engine	listenerIpProtocolOption_LISTENER_IP(Colon_ipAddressV4)?/Colon_ipAddressV4!drop-2	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5 1.5 : 1.5 1.5))
+reject	reject	engine	listenerIpProtocolOption_LISTENER_IP(Colon_ipAddressV4)?/Colon_ipAddressV4!truncate	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5 1.5 : 1.5 1.5
+reject	reject	engine	listenerIpProtocolOption_LISTENER_IP(Colon_ipAddressV4)?/Colon_ipAddressV4!insert	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5 1.5 : 1.5 1.5 1.5 zzz))
+reject	reject	engine	listenerPortProtocolOption_LISTENER_PORT/LISTENER_PORT_EqualsSign_integer	ALTER ENDPOINT a AS a(LISTENER_PORT = 1)
+reject	reject	engine	pathProtocolOption_PATH/PATH_EqualsSign_stringLiteral	ALTER ENDPOINT a AS a(PATH = 'a')
+reject	reject	engine	siteProtocolOption_SITE/SITE_EqualsSign_stringLiteral	ALTER ENDPOINT a AS a(SITE = 'a')
+reject	reject	engine	clearPortProtocolOption_CLEAR_PORT/CLEAR_PORT_EqualsSign_integer	ALTER ENDPOINT a AS a(CLEAR_PORT = 1)
+reject	reject	engine	sslPortProtocolOption_SSL_PORT/SSL_PORT_EqualsSign_integer	ALTER ENDPOINT a AS a(SSL_PORT = 1)
+reject	reject	engine	authenticationProtocolOption_AUTHENTICATION/AUTHENTICATION_EqualsSign_LeftParenthesis_Identifier_(C~cea0c784	ALTER ENDPOINT a AS a(AUTHENTICATION =(a))
+reject	reject	engine	authenticationProtocolOption_AUTHENTICATION(Comma_Identifier)*/%empty	ALTER ENDPOINT a AS a(AUTHENTICATION =(a))
+reject	reject	engine	authenticationProtocolOption_AUTHENTICATION(Comma_Identifier)*/%empty!insert	ALTER ENDPOINT a AS a(AUTHENTICATION =(a zzz))
+reject	reject	engine	authenticationProtocolOption_AUTHENTICATION(Comma_Identifier)*/Comma_Identifier_(Comma_Identifier)*	ALTER ENDPOINT a AS a(AUTHENTICATION =(a, a))
+reject	reject	engine	authenticationProtocolOption_AUTHENTICATION(Comma_Identifier)*/Comma_Identifier_(Comma_Identifier)*!drop-1	ALTER ENDPOINT a AS a(AUTHENTICATION =(a a))
+reject	reject	engine	authenticationProtocolOption_AUTHENTICATION(Comma_Identifier)*/Comma_Identifier_(Comma_Identifier)*!drop-2	ALTER ENDPOINT a AS a(AUTHENTICATION =(a,))
+reject	reject	engine	authenticationProtocolOption_AUTHENTICATION(Comma_Identifier)*/Comma_Identifier_(Comma_Identifier)*!truncate	ALTER ENDPOINT a AS a(AUTHENTICATION =(a,
+reject	reject	engine	authenticationProtocolOption_AUTHENTICATION(Comma_Identifier)*/Comma_Identifier_(Comma_Identifier)*!insert	ALTER ENDPOINT a AS a(AUTHENTICATION =(a, a zzz))
+reject	reject	engine	portsProtocolOption_PORTS/PORTS_EqualsSign_LeftParenthesis_Identifier_(Comma_Iden~c8991743	ALTER ENDPOINT a AS a(PORTS =(a))
+reject	reject	engine	portsProtocolOption_PORTS(Comma_Identifier)*/%empty	ALTER ENDPOINT a AS a(PORTS =(a))
+reject	reject	engine	portsProtocolOption_PORTS(Comma_Identifier)*/%empty!insert	ALTER ENDPOINT a AS a(PORTS =(a zzz))
+reject	reject	engine	portsProtocolOption_PORTS(Comma_Identifier)*/Comma_Identifier_(Comma_Identifier)*	ALTER ENDPOINT a AS a(PORTS =(a, a))
+reject	reject	engine	portsProtocolOption_PORTS(Comma_Identifier)*/Comma_Identifier_(Comma_Identifier)*!drop-1	ALTER ENDPOINT a AS a(PORTS =(a a))
+reject	reject	engine	portsProtocolOption_PORTS(Comma_Identifier)*/Comma_Identifier_(Comma_Identifier)*!drop-2	ALTER ENDPOINT a AS a(PORTS =(a,))
+reject	reject	engine	portsProtocolOption_PORTS(Comma_Identifier)*/Comma_Identifier_(Comma_Identifier)*!truncate	ALTER ENDPOINT a AS a(PORTS =(a,
+reject	reject	engine	portsProtocolOption_PORTS(Comma_Identifier)*/Comma_Identifier_(Comma_Identifier)*!insert	ALTER ENDPOINT a AS a(PORTS =(a, a zzz))
+reject	reject	engine	authenticationRealmProtocolOption_AUTH_REALM/AUTH_REALM_EqualsSign_(nonEmptyString|NONE)	ALTER ENDPOINT a AS a(AUTH_REALM = 'a')
+reject	reject	engine	authenticationRealmProtocolOption_AUTH_REALM(nonEmptyString|NONE)/nonEmptyString	ALTER ENDPOINT a AS a(AUTH_REALM = 'a')
+reject	reject	engine	authenticationRealmProtocolOption_AUTH_REALM(nonEmptyString|NONE)/NONE	ALTER ENDPOINT a AS a(AUTH_REALM = NONE)
+reject	reject	engine	authenticationRealmProtocolOption_AUTH_REALM(nonEmptyString|NONE)/NONE!insert	ALTER ENDPOINT a AS a(AUTH_REALM = NONE zzz)
+reject	reject	engine	authenticationRealmProtocolOption_AUTH_REALM(nonEmptyString|NONE)/NONE!swap	ALTER ENDPOINT a AS a(AUTH_REALM = NORESET)
+reject	reject	engine	defaultLogonDomainProtocolOption_DEFAULT_LOGON_DOMAIN/DEFAULT_LOGON_DOMAIN_EqualsSign_(nonEmptyString|NONE)	ALTER ENDPOINT a AS a(DEFAULT_LOGON_DOMAIN = 'a')
+reject	reject	engine	defaultLogonDomainProtocolOption_DEFAULT_LOGON_DOMAIN(nonEmptyString|NONE)/nonEmptyString	ALTER ENDPOINT a AS a(DEFAULT_LOGON_DOMAIN = 'a')
+reject	reject	engine	defaultLogonDomainProtocolOption_DEFAULT_LOGON_DOMAIN(nonEmptyString|NONE)/NONE	ALTER ENDPOINT a AS a(DEFAULT_LOGON_DOMAIN = NONE)
+reject	reject	engine	defaultLogonDomainProtocolOption_DEFAULT_LOGON_DOMAIN(nonEmptyString|NONE)/NONE!insert	ALTER ENDPOINT a AS a(DEFAULT_LOGON_DOMAIN = NONE zzz)
+reject	reject	engine	defaultLogonDomainProtocolOption_DEFAULT_LOGON_DOMAIN(nonEmptyString|NONE)/NONE!swap	ALTER ENDPOINT a AS a(DEFAULT_LOGON_DOMAIN = NORESET)
 reject	reject	engine	batchesPayloadOption_BATCHES/BATCHES_EqualsSign_enabledDisabled	ALTER ENDPOINT a FOR DATA_MIRRORING(BATCHES = ENABLED)
 reject	reject	engine	wsdlPayloadOption_WSDL/WSDL_EqualsSign_(NONE|defaultLiteral|stringLiteral)	ALTER ENDPOINT a FOR DATA_MIRRORING(WSDL = NONE)
 reject	reject	engine	wsdlPayloadOption_WSDL(NONE|defaultLiteral|stringLiteral)/NONE	ALTER ENDPOINT a FOR DATA_MIRRORING(WSDL = NONE)
@@ -16474,13 +16474,13 @@ accept	reject	engine	alterCertificateStatement_CERTIFICATE(PRIVATE_Key|ATTESTED_
 accept	accept	engine	alterCertificateStatement_CERTIFICATE(privateKeySpec|createCertificateActivityFlag)/privateKeySpec	ALTER CERTIFICATE a WITH PRIVATE KEY(FILE = 'a')
 accept	accept	engine	alterCertificateStatement_CERTIFICATE(privateKeySpec|createCertificateActivityFlag)/createCertificateActivityFlag	ALTER CERTIFICATE a WITH ACTIVE FOR BEGIN_DIALOG = ON
 accept	accept	engine	alterCredentialStatement_CREDENTIAL/credentialStatementBody_CREDENTIAL	ALTER CREDENTIAL a WITH IDENTITY = 'a'
-accept	reject	engine	alterEndpointStatement_ENDPOINT/ENDPOINT_identifier_(endpointOptions)?_(protocolInfo)?_~3946c4df	ALTER ENDPOINT a
-accept	reject	engine	alterEndpointStatement_ENDPOINT(endpointOptions)?/%empty	ALTER ENDPOINT a
+reject	reject	engine	alterEndpointStatement_ENDPOINT/ENDPOINT_identifier_(endpointOptions)?_(protocolInfo)?_~3946c4df	ALTER ENDPOINT a
+reject	reject	engine	alterEndpointStatement_ENDPOINT(endpointOptions)?/%empty	ALTER ENDPOINT a
 reject	reject	engine	alterEndpointStatement_ENDPOINT(endpointOptions)?/endpointOptions	ALTER ENDPOINT a STATE = a
-accept	reject	engine	alterEndpointStatement_ENDPOINT(protocolInfo)?/%empty	ALTER ENDPOINT a
-accept	reject	engine	alterEndpointStatement_ENDPOINT(protocolInfo)?/protocolInfo	ALTER ENDPOINT a AS a(LISTENER_IP = ALL)
-accept	reject	engine	alterEndpointStatement_ENDPOINT(payloadInfo)?/%empty	ALTER ENDPOINT a
-reject	accept	engine	alterEndpointStatement_ENDPOINT(payloadInfo)?/payloadInfo	ALTER ENDPOINT a FOR DATA_MIRRORING()
+reject	reject	engine	alterEndpointStatement_ENDPOINT(protocolInfo)?/%empty	ALTER ENDPOINT a
+reject	reject	engine	alterEndpointStatement_ENDPOINT(protocolInfo)?/protocolInfo	ALTER ENDPOINT a AS a(LISTENER_IP = ALL)
+reject	reject	engine	alterEndpointStatement_ENDPOINT(payloadInfo)?/%empty	ALTER ENDPOINT a
+accept	accept	engine	alterEndpointStatement_ENDPOINT(payloadInfo)?/payloadInfo	ALTER ENDPOINT a FOR DATA_MIRRORING()
 reject	reject	engine	alterFulltextStatement_FULLTEXT/FULLTEXT_(alterFulltextCatalogStatement|alterF~e3755347)	ALTER FULLTEXT a a REORGANIZE
 reject	reject	engine	alterFulltextStatement_FULLTEXT(alterFulltextCatalogStatement|alterF~e3755347)/alterFulltextCatalogStatement	ALTER FULLTEXT a a REORGANIZE
 accept	accept	engine	alterFulltextStatement_FULLTEXT(alterFulltextCatalogStatement|alterF~e3755347)/alterFulltextIndexStatement	ALTER FULLTEXT INDEX ON a ENABLE

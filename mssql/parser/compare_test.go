@@ -12503,12 +12503,13 @@ func TestParseEndpointHTTPOptions(t *testing.T) {
 	tests := []struct {
 		sql string
 	}{
-		// HTTP endpoint with PATH and AUTHENTICATION
-		{sql: "CREATE ENDPOINT MyEndpoint STATE = STARTED AS HTTP (PATH = '/sql/endpoint', AUTHENTICATION = (INTEGRATED), PORTS = (CLEAR)) FOR TSQL ()"},
+		// HTTP endpoint with PATH and AUTHENTICATION. SQL Server takes an HTTP
+		// endpoint only FOR SOAP (Msg 7861).
+		{sql: "CREATE ENDPOINT MyEndpoint STATE = STARTED AS HTTP (PATH = '/sql/endpoint', AUTHENTICATION = (INTEGRATED), PORTS = (CLEAR)) FOR SOAP ()"},
 		// HTTP endpoint with all options
-		{sql: "CREATE ENDPOINT MyEndpoint AS HTTP (PATH = '/sql', AUTHENTICATION = (BASIC, DIGEST, NTLM), PORTS = (CLEAR, SSL), SITE = '*', CLEAR_PORT = 80, SSL_PORT = 443, AUTH_REALM = 'myRealm', DEFAULT_LOGON_DOMAIN = 'MYDOMAIN', COMPRESSION = ENABLED) FOR TSQL ()"},
+		{sql: "CREATE ENDPOINT MyEndpoint AS HTTP (PATH = '/sql', AUTHENTICATION = (BASIC, DIGEST, NTLM), PORTS = (CLEAR, SSL), SITE = '*', CLEAR_PORT = 80, SSL_PORT = 443, AUTH_REALM = 'myRealm', DEFAULT_LOGON_DOMAIN = 'MYDOMAIN', COMPRESSION = ENABLED) FOR SOAP ()"},
 		// HTTP endpoint with KERBEROS
-		{sql: "CREATE ENDPOINT MyEndpoint AS HTTP (PATH = '/sql', AUTHENTICATION = (KERBEROS), PORTS = (SSL)) FOR TSQL ()"},
+		{sql: "CREATE ENDPOINT MyEndpoint AS HTTP (PATH = '/sql', AUTHENTICATION = (KERBEROS), PORTS = (SSL)) FOR SOAP ()"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.sql, func(t *testing.T) {
@@ -12545,78 +12546,67 @@ func TestParseEndpointHTTPOptions(t *testing.T) {
 	}
 }
 
-// TestParseEndpointUnknownProtocolOptions tests batch 116: unknown protocol structured options.
-func TestParseEndpointUnknownProtocolOptions(t *testing.T) {
-	tests := []struct {
-		sql      string
-		wantOpts []string
-	}{
-		// Unknown protocol with key=value options
-		{
-			sql: "CREATE ENDPOINT ep1 AS CUSTOM_PROTO (OPTION_A = value1, OPTION_B = 42) FOR TSQL ()",
-			wantOpts: []string{
-				"AS=CUSTOM_PROTO",
-				"OPTION_A=VALUE1",
-				"OPTION_B=42",
-				"FOR=TSQL",
-			},
-		},
-		// Unknown protocol with string values
-		{
-			sql: "CREATE ENDPOINT ep1 AS MYPROTO (LISTENER_ADDRESS = '10.0.0.1', PORT = 8080) FOR TSQL ()",
-			wantOpts: []string{
-				"AS=MYPROTO",
-				"LISTENER_ADDRESS='10.0.0.1'",
-				"PORT=8080",
-				"FOR=TSQL",
-			},
-		},
-		// Unknown protocol with single option
-		{
-			sql: "CREATE ENDPOINT ep1 AS SOMEPROTO (PARAM1 = enabled) FOR TSQL ()",
-			wantOpts: []string{
-				"AS=SOMEPROTO",
-				"PARAM1=ENABLED",
-				"FOR=TSQL",
-			},
-		},
+// TestParseEndpointRejected checks that Parse refuses ENDPOINT forms SQL
+// Server 2022 refuses: a protocol other than TCP or HTTP, an option its
+// protocol or payload does not take, an HTTP endpoint for a payload other than
+// SOAP (Msg 7861), AFFINITY = ADMIN (Msg 7864), a missing required parameter
+// (Msg 7801), a repeated option (Msg 7816), an ALTER ENDPOINT that changes
+// nothing (Msg 7863), and an out-of-range port (Msg 7810).
+func TestParseEndpointRejected(t *testing.T) {
+	for _, sql := range []string{
+		"CREATE ENDPOINT ep1 AS CUSTOM_PROTO (OPTION_A = value1, OPTION_B = 42) FOR TSQL ()",
+		"CREATE ENDPOINT ep1 AS MYPROTO (LISTENER_ADDRESS = '10.0.0.1', PORT = 8080) FOR TSQL ()",
+		"CREATE ENDPOINT ep1 AS SOMEPROTO (PARAM1 = enabled) FOR TSQL ()",
+		"CREATE ENDPOINT ep1 AS CUSTOM_PROTO (AUTH = (BASIC, DIGEST), PORT = 8080) FOR TSQL ()",
+		"CREATE ENDPOINT ep1 AS CUSTOM_PROTO (VERBOSE) FOR TSQL ()",
+		"CREATE ENDPOINT ep1 AS [TCP] (LISTENER_PORT = 4022) FOR TSQL ()",
+		"CREATE ENDPOINT ep1 AS TCP (LISTENER_PORT = 4022) FOR SERVICE_BROKER (AUTHENTICATION = WINDOWS, CUSTOM_OPT = myval)",
+		"CREATE ENDPOINT ep1 AS TCP (LISTENER_PORT = 4022) FOR SERVICE_BROKER (ROLE = ALL)",
+		"CREATE ENDPOINT ep1 AS TCP (PATH = '/a', LISTENER_PORT = 4022) FOR TSQL ()",
+		"CREATE ENDPOINT ep1 AS HTTP (PATH = '/sql', AUTHENTICATION = (INTEGRATED), PORTS = (CLEAR)) FOR TSQL ()",
+		"CREATE ENDPOINT ep1 AS TCP (LISTENER_PORT = 4022) FOR SOAP ()",
+		"CREATE ENDPOINT ep1 AFFINITY = ADMIN AS TCP (LISTENER_PORT = 4022) FOR TSQL ()",
+		"CREATE ENDPOINT ep1 AS TCP (LISTENER_PORT = 4022)",
+		"CREATE ENDPOINT ep1 AS TCP (LISTENER_IP = ALL) FOR TSQL ()",
+		"CREATE ENDPOINT ep1 AS TCP (LISTENER_PORT = 4022) FOR DATABASE_MIRRORING ()",
+		"CREATE ENDPOINT ep1 AS TCP (LISTENER_PORT = 0) FOR TSQL ()",
+		"CREATE ENDPOINT ep1 AS TCP (LISTENER_PORT = 4022, LISTENER_IP = (1.2.3)) FOR TSQL ()",
+		"CREATE ENDPOINT ep1 AS TCP (LISTENER_PORT = 4022, LISTENER_IP = (1.2.3.256)) FOR TSQL ()",
+		"CREATE ENDPOINT ep1 STATE = STARTED, AS TCP (LISTENER_PORT = 4022) FOR TSQL ()",
+		"ALTER ENDPOINT ep1",
+		"ALTER ENDPOINT ep1 STATE = STARTED, STATE = STOPPED",
+		"ALTER ENDPOINT ep1 STATE = [STARTED]",
+		"ALTER ENDPOINT ep1 AUTHORIZATION sa STATE = STARTED",
+		"ALTER ENDPOINT ep1 FOR SERVICE_BROKER (ENCRYPTION = REQUIRED ALGORITHM AES AES)",
+		"ALTER ENDPOINT ep1 FOR SERVICE_BROKER (ENCRYPTION = DISABLED ALGORITHM AES)",
+		"ALTER ENDPOINT ep1 FOR SOAP (WEBMETHOD 'm' (NAME = 'a.b.c'))",
+		"ALTER ENDPOINT ep1 FOR SOAP (ADD WEBMETHOD 'm' (NAME = 'a.b'))",
+		"DROP ENDPOINT",
+		"DROP ENDPOINT 'ep1'",
+	} {
+		t.Run(sql, func(t *testing.T) {
+			if _, err := Parse(sql); err == nil {
+				t.Errorf("Parse(%q): want an error, SQL Server refuses it", sql)
+			}
+		})
 	}
-	for _, tt := range tests {
-		t.Run(tt.sql, func(t *testing.T) {
-			result := ParseAndCheck(t, tt.sql)
-			if result.Len() != 1 {
-				t.Fatalf("Parse(%q): got %d statements, want 1", tt.sql, result.Len())
-			}
-			stmt, ok := result.Items[0].(*ast.SecurityStmt)
-			if !ok {
-				t.Fatalf("Parse(%q): expected *SecurityStmt, got %T", tt.sql, result.Items[0])
-			}
-			if stmt.Options == nil || len(stmt.Options.Items) < len(tt.wantOpts) {
-				var gotStrs []string
-				if stmt.Options != nil {
-					for _, item := range stmt.Options.Items {
-						gotStrs = append(gotStrs, agOptStr(item))
-					}
-				}
-				t.Fatalf("Parse(%q): got %d options %v, want at least %d %v", tt.sql, len(gotStrs), gotStrs, len(tt.wantOpts), tt.wantOpts)
-			}
-			for _, want := range tt.wantOpts {
-				found := false
-				for _, item := range stmt.Options.Items {
-					if agOptStr(item) == want {
-						found = true
-						break
-					}
-				}
-				if !found {
-					var gotStrs []string
-					for _, item := range stmt.Options.Items {
-						gotStrs = append(gotStrs, agOptStr(item))
-					}
-					t.Errorf("Parse(%q): expected option %q not found in %v", tt.sql, want, gotStrs)
-				}
-			}
-			checkLocation(t, tt.sql, "SecurityStmt", stmt.Loc)
+}
+
+// TestParseEndpointSoapAccepted checks forms SQL Server 2022 takes that the
+// rejections above sit beside.
+func TestParseEndpointSoapAccepted(t *testing.T) {
+	for _, sql := range []string{
+		"CREATE ENDPOINT ep1 AS HTTP (PATH = '/a', PORTS = (CLEAR), AUTHENTICATION = (NTLM)) FOR SOAP (WEBMETHOD 'ns'.'m' (NAME = 'a.b.c', SCHEMA = DEFAULT, FORMAT = ALL_RESULTS), WSDL = DEFAULT, BATCHES = ENABLED, SESSION_TIMEOUT = NEVER, DATABASE = 'a', NAMESPACE = DEFAULT, SCHEMA = NONE, CHARACTER_SET = XML, HEADER_LIMIT = 5, LOGIN_TYPE = MIXED)",
+		"ALTER ENDPOINT ep1 FOR SOAP (ADD WEBMETHOD 'm' (NAME = '[a.b].c.d'), ALTER WEBMETHOD 'n' (NAME = 'a.b.c'), DROP WEBMETHOD 'o')",
+		"ALTER ENDPOINT ep1 FOR DATA_MIRRORING (ROLE = WITNESS)",
+		"ALTER ENDPOINT ep1 FOR DATA_MIRRORING ()",
+		"ALTER ENDPOINT ep1 AFFINITY = NONE, STATE = STOPPED",
+		"ALTER ENDPOINT ep1 AS TCP (LISTENER_IP = (1.2.3.4 : 5.6.7.8))",
+		"ALTER ENDPOINT ep1 AS TCP (LISTENER_IP = (1 .2 .3 .4))",
+		"ALTER ENDPOINT ep1 FOR TSQL (ENCRYPTION = REQUIRED)",
+	} {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
 		})
 	}
 }
@@ -16354,49 +16344,10 @@ func TestParseEndpointRemainingDepth(t *testing.T) {
 			wantOpts []string
 		}{
 			{
-				"generic_protocol_parenthesized_value",
-				"CREATE ENDPOINT ep1 AS CUSTOM_PROTO (AUTH = (BASIC, DIGEST), PORT = 8080) FOR TSQL ()",
+				"endpoint_options_affinity_none",
+				"CREATE ENDPOINT ep1 AFFINITY = NONE AS TCP (LISTENER_PORT = 4022) FOR TSQL ()",
 				[]string{
-					"AS=CUSTOM_PROTO",
-					"AUTH=BASIC,DIGEST",
-					"PORT=8080",
-					"FOR=TSQL",
-				},
-			},
-			{
-				"generic_protocol_nested_parens_value",
-				"CREATE ENDPOINT ep1 AS CUSTOM_PROTO (METHODS = (GET, POST, PUT)) FOR TSQL ()",
-				[]string{
-					"AS=CUSTOM_PROTO",
-					"METHODS=GET,POST,PUT",
-					"FOR=TSQL",
-				},
-			},
-			{
-				"generic_protocol_flag_option",
-				"CREATE ENDPOINT ep1 AS CUSTOM_PROTO (VERBOSE) FOR TSQL ()",
-				[]string{
-					"AS=CUSTOM_PROTO",
-					"VERBOSE",
-					"FOR=TSQL",
-				},
-			},
-			{
-				"endpoint_payload_unknown_option_key_value",
-				"CREATE ENDPOINT ep1 AS TCP (LISTENER_PORT = 4022) FOR SERVICE_BROKER (AUTHENTICATION = WINDOWS, CUSTOM_OPT = myval)",
-				[]string{
-					"AS=TCP",
-					"LISTENER_PORT=4022",
-					"FOR=SERVICE_BROKER",
-					"AUTHENTICATION=WINDOWS",
-					"CUSTOM_OPT=MYVAL",
-				},
-			},
-			{
-				"endpoint_options_unknown_toplevel_keyword",
-				"CREATE ENDPOINT ep1 AFFINITY = ADMIN AS TCP (LISTENER_PORT = 4022) FOR TSQL ()",
-				[]string{
-					"AFFINITY=ADMIN",
+					"AFFINITY=NONE",
 					"AS=TCP",
 					"LISTENER_PORT=4022",
 					"FOR=TSQL",
@@ -16494,11 +16445,6 @@ func TestParseEndpointOptionsStringsDepth(t *testing.T) {
 					"MESSAGE_FORWARDING":   "DISABLED",
 					"MESSAGE_FORWARD_SIZE": "5",
 				},
-			},
-			{
-				"sb_unknown_payload_option",
-				"CREATE ENDPOINT ep1 AS TCP (LISTENER_PORT = 4022) FOR SERVICE_BROKER (CUSTOM_OPT = myval)",
-				map[string]string{"CUSTOM_OPT": "MYVAL"},
 			},
 		}
 		for _, tt := range tests {
@@ -16610,7 +16556,7 @@ func TestParseEndpointOptionsStringsDepth(t *testing.T) {
 		tests := []string{
 			"CREATE ENDPOINT ep1 AUTHORIZATION sa STATE = STARTED AS TCP (LISTENER_PORT = 4022, LISTENER_IP = ALL) FOR SERVICE_BROKER (AUTHENTICATION = WINDOWS NEGOTIATE, ENCRYPTION = REQUIRED ALGORITHM AES RC4, MESSAGE_FORWARDING = ENABLED, MESSAGE_FORWARD_SIZE = 10)",
 			"ALTER ENDPOINT ep1 STATE = DISABLED AS TCP (LISTENER_PORT = 7022) FOR DATABASE_MIRRORING (AUTHENTICATION = CERTIFICATE MyCert, ENCRYPTION = SUPPORTED, ROLE = PARTNER)",
-			"CREATE ENDPOINT ep1 AS HTTP (PATH = '/sql', AUTHENTICATION = (INTEGRATED), PORTS = (CLEAR, SSL), SITE = '*', CLEAR_PORT = 80, SSL_PORT = 443, COMPRESSION = ENABLED)",
+			"CREATE ENDPOINT ep1 AS HTTP (PATH = '/sql', AUTHENTICATION = (INTEGRATED), PORTS = (CLEAR, SSL), SITE = '*', CLEAR_PORT = 80, SSL_PORT = 443, COMPRESSION = ENABLED) FOR SOAP ()",
 		}
 		for _, sql := range tests {
 			t.Run(sql[:40], func(t *testing.T) {
