@@ -156,19 +156,15 @@ func (p *Parser) parsePackageRoutineSpec() (*nodes.PackageRoutineSpec, error) {
 	if _, err := p.expect('('); err != nil {
 		return nil, err
 	}
+	// Each entry is a routine of its own, as package_routine_start makes it, so its parameters
+	// are read as a standalone routine's: named once each (1330), and ROW(...), TYPE OF and ROW
+	// TYPE OF among their types.
+	defer p.enterStoredProgram(routineScope{noResultSet: !routine.IsProcedure, function: !routine.IsProcedure})()
 	if p.cur.Type != ')' {
-		// The parameters are sp_parameters' and sf_parameters', named once each (1330).
 		var names []string
 		for {
-			namePos := p.cur.Loc
-			if routine.IsProcedure && (p.cur.Type == kwIN || p.cur.Type == kwOUT || p.cur.Type == kwINOUT) {
-				namePos = p.peekNext().Loc
-			}
-			param, err := p.parseFuncParam(routine.IsProcedure)
+			param, err := p.parseSpParam(routine.IsProcedure, names)
 			if err != nil {
-				return nil, err
-			}
-			if err := p.checkSPParam(names, param.Name, namePos); err != nil {
 				return nil, err
 			}
 			names = append(names, param.Name)

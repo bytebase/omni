@@ -58,6 +58,8 @@ func TestPackageFormsOracle(t *testing.T) {
 		{"CREATE PACKAGE pk PROCEDURE p() LANGUAGE SQL; END", true},
 		{"CREATE /*! /*! DEFINER = root */ PACKAGE pk PROCEDURE p(); END", true},
 		{"CREATE PACKAGE pk PROCEDURE p(x INT, x INT); END", false},
+		{"CREATE PACKAGE pk PROCEDURE p(a ROW(x INT), b TYPE OF t.c, c ROW TYPE OF t); END", true},
+		{"CREATE PACKAGE pk FUNCTION f(a TYPE OF a) RETURNS INT; END", false},
 		{"CREATE DEFINER=root@127.0.0.1 PACKAGE pk PROCEDURE p(); END", true},
 		{"CREATE DEFINER = CURRENT_USER( PACKAGE pk END", false},
 		{"CREATE DEFINER PACKAGE pk END", false},

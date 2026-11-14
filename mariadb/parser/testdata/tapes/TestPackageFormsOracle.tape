@@ -208,6 +208,15 @@
 | 1330 42000 Duplicate parameter: x
 > exec ^
 : string
+| CREATE PACKAGE pk PROCEDURE p(a ROW(x INT), b TYPE OF t.c, c ROW TYPE OF t); END
+< ok 0 0
+> exec ^
+: string
+| CREATE PACKAGE pk FUNCTION f(a TYPE OF a) RETURNS INT; END
+< error
+| 1064 42000 …near ') RETURNS INT; END' at line 1
+> exec ^
+: string
 | CREATE DEFINER=root@127.0.0.1 PACKAGE pk PROCEDURE p(); END
 < ok 0 0
 > exec ^

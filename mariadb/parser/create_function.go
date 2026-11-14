@@ -145,15 +145,8 @@ func (p *Parser) parseCreateFunctionStmt(start int, orReplace, isProcedure bool)
 	var paramNames []string
 	if p.cur.Type != ')' {
 		for {
-			namePos := p.cur.Loc
-			if isProcedure && (p.cur.Type == kwIN || p.cur.Type == kwOUT || p.cur.Type == kwINOUT) {
-				namePos = p.peekNext().Loc
-			}
-			param, err := p.parseFuncParam(isProcedure)
+			param, err := p.parseSpParam(isProcedure, paramNames)
 			if err != nil {
-				return nil, err
-			}
-			if err := p.checkSPParam(paramNames, param.Name, namePos); err != nil {
 				return nil, err
 			}
 			paramNames = append(paramNames, param.Name)
@@ -226,45 +219,6 @@ func (p *Parser) parseCreateFunctionStmt(start int, orReplace, isProcedure bool)
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
-}
-
-// parseFuncParam parses a function/procedure parameter.
-//
-//	[IN | OUT | INOUT] param_name type
-func (p *Parser) parseFuncParam(isProcedure bool) (*nodes.FuncParam, error) {
-	start := p.pos()
-	param := &nodes.FuncParam{Loc: nodes.Loc{Start: start}}
-
-	// Optional direction for procedures
-	if isProcedure {
-		if p.cur.Type == kwIN {
-			param.Direction = "IN"
-			p.advance()
-		} else if p.cur.Type == kwOUT {
-			param.Direction = "OUT"
-			p.advance()
-		} else if p.cur.Type == kwINOUT {
-			param.Direction = "INOUT"
-			p.advance()
-		}
-	}
-
-	// Parameter name
-	name, _, err := p.parseIdentifier()
-	if err != nil {
-		return nil, err
-	}
-	param.Name = name
-
-	// Data type
-	dt, err := p.parseDataType()
-	if err != nil {
-		return nil, err
-	}
-	param.TypeName = dt
-
-	param.Loc.End = p.prev.End
-	return param, nil
 }
 
 // parseRoutineCharacteristic parses a routine characteristic, every word of it required.

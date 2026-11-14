@@ -83,7 +83,13 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 		return p.parseExplainStmt()
 
 	case kwBEGIN:
+		if p.peekNext().Type == kwNOT {
+			return p.parseCompoundStatement()
+		}
 		return p.parseBeginStmt()
+
+	case kwLOOP, kwFOR:
+		return p.parseCompoundStatement()
 
 	case kwSTART:
 		return p.parseStartDispatch()
