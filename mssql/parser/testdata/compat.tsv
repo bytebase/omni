@@ -1617,86 +1617,86 @@ reject	reject	engine	alterServerAuditStatement(Where_eventBooleanExpression)?/Wh
 accept	reject	engine	alterServerAuditStatement(Where_eventBooleanExpression)?/Where_eventBooleanExpression!drop-4	ALTER SERVER AUDIT a WHERE a =
 reject	reject	engine	alterServerAuditStatement(Where_eventBooleanExpression)?/Where_eventBooleanExpression!insert	ALTER SERVER AUDIT a WHERE a = 1 zzz
 reject	reject	engine	alterServerAuditStatement(Where_eventBooleanExpression)?/Where_eventBooleanExpression!swap	ALTER SERVER AUDIT a WHILE a = 1
-accept	reject	engine	alterServerConfigurationExternalAuthenticationContainerOption/onOffOptionValue_(LeftParenthesis_(alterServerConfigur~f0b7948e)	ALTER SERVER CONFIGURATION SET EXTERNAL AUTHENTICATION ON
-accept	reject	engine	alterServerConfigurationExternalAuthenticationContainerOption/onOffOptionValue_(LeftParenthesis_(alterServerConfigur~f0b7948e)!drop-1	ALTER SERVER CONFIGURATION SET EXTERNAL AUTHENTICATION
+reject	reject	engine	alterServerConfigurationExternalAuthenticationContainerOption/onOffOptionValue_(LeftParenthesis_(alterServerConfigur~f0b7948e)	ALTER SERVER CONFIGURATION SET EXTERNAL AUTHENTICATION ON
+reject	reject	engine	alterServerConfigurationExternalAuthenticationContainerOption/onOffOptionValue_(LeftParenthesis_(alterServerConfigur~f0b7948e)!drop-1	ALTER SERVER CONFIGURATION SET EXTERNAL AUTHENTICATION
 reject	reject	engine	alterServerConfigurationExternalAuthenticationContainerOption/onOffOptionValue_(LeftParenthesis_(alterServerConfigur~f0b7948e)!insert	ALTER SERVER CONFIGURATION SET EXTERNAL AUTHENTICATION ON zzz
 reject	reject	engine	alterServerConfigurationExternalAuthenticationContainerOption/onOffOptionValue_(LeftParenthesis_(alterServerConfigur~f0b7948e)!swap	ALTER SERVER CONFIGURATION SET EXTERNAL AUTHENTICATION ONLINE
 accept	accept	engine	alterServerConfigurationExternalAuthenticationContainerOption(LeftParenthesis_(alterServerConfigur~f0b7948e)/LeftParenthesis_alterServerConfigurationExternalAuthent~244396ab	ALTER SERVER CONFIGURATION SET EXTERNAL AUTHENTICATION ON(USE_IDENTITY)
 reject	reject	engine	alterServerConfigurationExternalAuthenticationContainerOption(LeftParenthesis_(alterServerConfigur~f0b7948e)/LeftParenthesis_alterServerConfigurationExternalAuthent~244396ab!drop-1	ALTER SERVER CONFIGURATION SET EXTERNAL AUTHENTICATION ON USE_IDENTITY)
-accept	reject	engine	alterServerConfigurationExternalAuthenticationContainerOption(LeftParenthesis_(alterServerConfigur~f0b7948e)/LeftParenthesis_alterServerConfigurationExternalAuthent~244396ab!drop-2	ALTER SERVER CONFIGURATION SET EXTERNAL AUTHENTICATION ON()
-accept	reject	engine	alterServerConfigurationExternalAuthenticationContainerOption(LeftParenthesis_(alterServerConfigur~f0b7948e)/LeftParenthesis_alterServerConfigurationExternalAuthent~244396ab!drop-3	ALTER SERVER CONFIGURATION SET EXTERNAL AUTHENTICATION ON(USE_IDENTITY
+reject	reject	engine	alterServerConfigurationExternalAuthenticationContainerOption(LeftParenthesis_(alterServerConfigur~f0b7948e)/LeftParenthesis_alterServerConfigurationExternalAuthent~244396ab!drop-2	ALTER SERVER CONFIGURATION SET EXTERNAL AUTHENTICATION ON()
+reject	reject	engine	alterServerConfigurationExternalAuthenticationContainerOption(LeftParenthesis_(alterServerConfigur~f0b7948e)/LeftParenthesis_alterServerConfigurationExternalAuthent~244396ab!drop-3	ALTER SERVER CONFIGURATION SET EXTERNAL AUTHENTICATION ON(USE_IDENTITY
 reject	reject	engine	alterServerConfigurationExternalAuthenticationContainerOption(LeftParenthesis_(alterServerConfigur~f0b7948e)/LeftParenthesis_alterServerConfigurationExternalAuthent~244396ab!insert	ALTER SERVER CONFIGURATION SET EXTERNAL AUTHENTICATION ON(USE_IDENTITY) zzz
-accept	reject	engine	alterServerConfigurationExternalAuthenticationContainerOption(LeftParenthesis_(alterServerConfigur~f0b7948e)/LeftParenthesis_alterServerConfigurationExternalAuthent~244396ab!swap	ALTER SERVER CONFIGURATION SET EXTERNAL AUTHENTICATION ON(USE_TYPE_DEFAULT)
-accept	reject	engine	alterServerConfigurationExternalAuthenticationContainerOption(LeftParenthesis_(alterServerConfigur~f0b7948e)/%empty	ALTER SERVER CONFIGURATION SET EXTERNAL AUTHENTICATION ON
+reject	reject	engine	alterServerConfigurationExternalAuthenticationContainerOption(LeftParenthesis_(alterServerConfigur~f0b7948e)/LeftParenthesis_alterServerConfigurationExternalAuthent~244396ab!swap	ALTER SERVER CONFIGURATION SET EXTERNAL AUTHENTICATION ON(USE_TYPE_DEFAULT)
+reject	reject	engine	alterServerConfigurationExternalAuthenticationContainerOption(LeftParenthesis_(alterServerConfigur~f0b7948e)/%empty	ALTER SERVER CONFIGURATION SET EXTERNAL AUTHENTICATION ON
 accept	accept	engine	alterServerConfigurationExternalAuthenticationOption/alterServerConfigurationExternalAuthenticationUseIdenti~637b22a9	ALTER SERVER CONFIGURATION SET EXTERNAL AUTHENTICATION ON(USE_IDENTITY)
-accept	reject	engine	alterServerConfigurationExternalAuthenticationOption/alterServerConfigurationExternalAuthenticationUseIdenti~637b22a9!truncate	ALTER SERVER CONFIGURATION SET EXTERNAL AUTHENTICATION ON(
-accept	reject	engine	alterServerConfigurationExternalAuthenticationOption/alterServerConfigurationExternalAuthenticationUseIdenti~637b22a9!insert	ALTER SERVER CONFIGURATION SET EXTERNAL AUTHENTICATION ON(USE_IDENTITY zzz)
+reject	reject	engine	alterServerConfigurationExternalAuthenticationOption/alterServerConfigurationExternalAuthenticationUseIdenti~637b22a9!truncate	ALTER SERVER CONFIGURATION SET EXTERNAL AUTHENTICATION ON(
+reject	reject	engine	alterServerConfigurationExternalAuthenticationOption/alterServerConfigurationExternalAuthenticationUseIdenti~637b22a9!insert	ALTER SERVER CONFIGURATION SET EXTERNAL AUTHENTICATION ON(USE_IDENTITY zzz)
 accept	accept	engine	alterServerConfigurationExternalAuthenticationOption/alterServerConfigurationExternalAuthenticationCredentia~3fa8aae1	ALTER SERVER CONFIGURATION SET EXTERNAL AUTHENTICATION ON(CREDENTIAL_NAME = 'a')
 reject	reject	engine	alterServerConfigurationExternalAuthenticationOption/alterServerConfigurationExternalAuthenticationCredentia~3fa8aae1!drop-1	ALTER SERVER CONFIGURATION SET EXTERNAL AUTHENTICATION ON(= 'a')
 reject	reject	engine	alterServerConfigurationExternalAuthenticationOption/alterServerConfigurationExternalAuthenticationCredentia~3fa8aae1!drop-2	ALTER SERVER CONFIGURATION SET EXTERNAL AUTHENTICATION ON(CREDENTIAL_NAME 'a')
-accept	reject	engine	alterServerConfigurationExternalAuthenticationOption/alterServerConfigurationExternalAuthenticationCredentia~3fa8aae1!drop-3	ALTER SERVER CONFIGURATION SET EXTERNAL AUTHENTICATION ON(CREDENTIAL_NAME =)
-accept	reject	engine	alterServerConfigurationExternalAuthenticationOption/alterServerConfigurationExternalAuthenticationCredentia~3fa8aae1!truncate	ALTER SERVER CONFIGURATION SET EXTERNAL AUTHENTICATION ON(CREDENTIAL_NAME =
-accept	reject	engine	alterServerConfigurationExternalAuthenticationOption/alterServerConfigurationExternalAuthenticationCredentia~3fa8aae1!insert	ALTER SERVER CONFIGURATION SET EXTERNAL AUTHENTICATION ON(CREDENTIAL_NAME = 'a' zzz)
+reject	reject	engine	alterServerConfigurationExternalAuthenticationOption/alterServerConfigurationExternalAuthenticationCredentia~3fa8aae1!drop-3	ALTER SERVER CONFIGURATION SET EXTERNAL AUTHENTICATION ON(CREDENTIAL_NAME =)
+reject	reject	engine	alterServerConfigurationExternalAuthenticationOption/alterServerConfigurationExternalAuthenticationCredentia~3fa8aae1!truncate	ALTER SERVER CONFIGURATION SET EXTERNAL AUTHENTICATION ON(CREDENTIAL_NAME =
+reject	reject	engine	alterServerConfigurationExternalAuthenticationOption/alterServerConfigurationExternalAuthenticationCredentia~3fa8aae1!insert	ALTER SERVER CONFIGURATION SET EXTERNAL AUTHENTICATION ON(CREDENTIAL_NAME = 'a' zzz)
 reject	reject	engine	alterServerConfigurationExternalAuthenticationOption/alterServerConfigurationExternalAuthenticationCredentia~3fa8aae1!swap	ALTER SERVER CONFIGURATION SET EXTERNAL AUTHENTICATION ON(CROSS = 'a')
 accept	accept	engine	alterServerConfigurationSoftNumaOption/onOffOptionValue	ALTER SERVER CONFIGURATION SET SOFTNUMA ON
-accept	reject	engine	alterServerConfigurationSoftNumaOption/onOffOptionValue!drop-1	ALTER SERVER CONFIGURATION SET SOFTNUMA
+reject	reject	engine	alterServerConfigurationSoftNumaOption/onOffOptionValue!drop-1	ALTER SERVER CONFIGURATION SET SOFTNUMA
 reject	reject	engine	alterServerConfigurationSoftNumaOption/onOffOptionValue!insert	ALTER SERVER CONFIGURATION SET SOFTNUMA ON zzz
 reject	reject	engine	alterServerConfigurationSoftNumaOption/onOffOptionValue!swap	ALTER SERVER CONFIGURATION SET SOFTNUMA ONLINE
-accept	reject	engine	alterServerConfigurationBufferPoolExtensionContainerOption/onOffOptionValue_(LeftParenthesis_alterServerConfigura~8a4036ae)	ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON
-accept	reject	engine	alterServerConfigurationBufferPoolExtensionContainerOption/onOffOptionValue_(LeftParenthesis_alterServerConfigura~8a4036ae)!drop-1	ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION
+reject	reject	engine	alterServerConfigurationBufferPoolExtensionContainerOption/onOffOptionValue_(LeftParenthesis_alterServerConfigura~8a4036ae)	ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON
+reject	reject	engine	alterServerConfigurationBufferPoolExtensionContainerOption/onOffOptionValue_(LeftParenthesis_alterServerConfigura~8a4036ae)!drop-1	ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION
 reject	reject	engine	alterServerConfigurationBufferPoolExtensionContainerOption/onOffOptionValue_(LeftParenthesis_alterServerConfigura~8a4036ae)!insert	ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON zzz
 reject	reject	engine	alterServerConfigurationBufferPoolExtensionContainerOption/onOffOptionValue_(LeftParenthesis_alterServerConfigura~8a4036ae)!swap	ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ONLINE
-accept	reject	engine	alterServerConfigurationBufferPoolExtensionContainerOption(LeftParenthesis_alterServerConfigura~8a4036ae)/LeftParenthesis_alterServerConfigurationBufferPoolExten~ae9cd4c8	ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON(FILENAME = 'a', SIZE = 1 a)
+reject	reject	engine	alterServerConfigurationBufferPoolExtensionContainerOption(LeftParenthesis_alterServerConfigura~8a4036ae)/LeftParenthesis_alterServerConfigurationBufferPoolExten~ae9cd4c8	ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON(FILENAME = 'a', SIZE = 1 a)
 reject	reject	engine	alterServerConfigurationBufferPoolExtensionContainerOption(LeftParenthesis_alterServerConfigura~8a4036ae)/LeftParenthesis_alterServerConfigurationBufferPoolExten~ae9cd4c8!drop-1	ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON FILENAME = 'a', SIZE = 1 a)
 reject	reject	engine	alterServerConfigurationBufferPoolExtensionContainerOption(LeftParenthesis_alterServerConfigura~8a4036ae)/LeftParenthesis_alterServerConfigurationBufferPoolExten~ae9cd4c8!drop-2	ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON(= 'a', SIZE = 1 a)
-accept	reject	engine	alterServerConfigurationBufferPoolExtensionContainerOption(LeftParenthesis_alterServerConfigura~8a4036ae)/LeftParenthesis_alterServerConfigurationBufferPoolExten~ae9cd4c8!drop-3	ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON(FILENAME 'a', SIZE = 1 a)
-accept	reject	engine	alterServerConfigurationBufferPoolExtensionContainerOption(LeftParenthesis_alterServerConfigura~8a4036ae)/LeftParenthesis_alterServerConfigurationBufferPoolExten~ae9cd4c8!drop-4	ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON(FILENAME =, SIZE = 1 a)
-accept	reject	engine	alterServerConfigurationBufferPoolExtensionContainerOption(LeftParenthesis_alterServerConfigura~8a4036ae)/LeftParenthesis_alterServerConfigurationBufferPoolExten~ae9cd4c8!drop-5	ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON(FILENAME = 'a' SIZE = 1 a)
+reject	reject	engine	alterServerConfigurationBufferPoolExtensionContainerOption(LeftParenthesis_alterServerConfigura~8a4036ae)/LeftParenthesis_alterServerConfigurationBufferPoolExten~ae9cd4c8!drop-3	ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON(FILENAME 'a', SIZE = 1 a)
+reject	reject	engine	alterServerConfigurationBufferPoolExtensionContainerOption(LeftParenthesis_alterServerConfigura~8a4036ae)/LeftParenthesis_alterServerConfigurationBufferPoolExten~ae9cd4c8!drop-4	ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON(FILENAME =, SIZE = 1 a)
+reject	reject	engine	alterServerConfigurationBufferPoolExtensionContainerOption(LeftParenthesis_alterServerConfigura~8a4036ae)/LeftParenthesis_alterServerConfigurationBufferPoolExten~ae9cd4c8!drop-5	ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON(FILENAME = 'a' SIZE = 1 a)
 reject	reject	engine	alterServerConfigurationBufferPoolExtensionContainerOption(LeftParenthesis_alterServerConfigura~8a4036ae)/LeftParenthesis_alterServerConfigurationBufferPoolExten~ae9cd4c8!drop-6	ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON(FILENAME = 'a', = 1 a)
-accept	reject	engine	alterServerConfigurationBufferPoolExtensionContainerOption(LeftParenthesis_alterServerConfigura~8a4036ae)/LeftParenthesis_alterServerConfigurationBufferPoolExten~ae9cd4c8!drop-7	ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON(FILENAME = 'a', SIZE 1 a)
-accept	reject	engine	alterServerConfigurationBufferPoolExtensionContainerOption(LeftParenthesis_alterServerConfigura~8a4036ae)/LeftParenthesis_alterServerConfigurationBufferPoolExten~ae9cd4c8!drop-8	ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON(FILENAME = 'a', SIZE = a)
-accept	reject	engine	alterServerConfigurationBufferPoolExtensionContainerOption(LeftParenthesis_alterServerConfigura~8a4036ae)/LeftParenthesis_alterServerConfigurationBufferPoolExten~ae9cd4c8!drop-9	ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON(FILENAME = 'a', SIZE = 1)
-accept	reject	engine	alterServerConfigurationBufferPoolExtensionContainerOption(LeftParenthesis_alterServerConfigura~8a4036ae)/LeftParenthesis_alterServerConfigurationBufferPoolExten~ae9cd4c8!drop-10	ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON(FILENAME = 'a', SIZE = 1 a
+reject	reject	engine	alterServerConfigurationBufferPoolExtensionContainerOption(LeftParenthesis_alterServerConfigura~8a4036ae)/LeftParenthesis_alterServerConfigurationBufferPoolExten~ae9cd4c8!drop-7	ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON(FILENAME = 'a', SIZE 1 a)
+reject	reject	engine	alterServerConfigurationBufferPoolExtensionContainerOption(LeftParenthesis_alterServerConfigura~8a4036ae)/LeftParenthesis_alterServerConfigurationBufferPoolExten~ae9cd4c8!drop-8	ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON(FILENAME = 'a', SIZE = a)
+reject	reject	engine	alterServerConfigurationBufferPoolExtensionContainerOption(LeftParenthesis_alterServerConfigura~8a4036ae)/LeftParenthesis_alterServerConfigurationBufferPoolExten~ae9cd4c8!drop-9	ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON(FILENAME = 'a', SIZE = 1)
+reject	reject	engine	alterServerConfigurationBufferPoolExtensionContainerOption(LeftParenthesis_alterServerConfigura~8a4036ae)/LeftParenthesis_alterServerConfigurationBufferPoolExten~ae9cd4c8!drop-10	ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON(FILENAME = 'a', SIZE = 1 a
 reject	reject	engine	alterServerConfigurationBufferPoolExtensionContainerOption(LeftParenthesis_alterServerConfigura~8a4036ae)/LeftParenthesis_alterServerConfigurationBufferPoolExten~ae9cd4c8!insert	ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON(FILENAME = 'a', SIZE = 1 a) zzz
 reject	reject	engine	alterServerConfigurationBufferPoolExtensionContainerOption(LeftParenthesis_alterServerConfigura~8a4036ae)/LeftParenthesis_alterServerConfigurationBufferPoolExten~ae9cd4c8!swap	ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON(FILEPATH = 'a', SIZE = 1 a)
-accept	reject	engine	alterServerConfigurationBufferPoolExtensionContainerOption(LeftParenthesis_alterServerConfigura~8a4036ae)/%empty	ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON
-accept	reject	engine	alterServerConfigurationBufferPoolExtensionFileNameOption/FILENAME_EqualsSign_stringLiteralOptionValue	ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON(FILENAME = 'a', SIZE = 1 a)
-accept	reject	engine	alterServerConfigurationBufferPoolExtensionFileNameOption/FILENAME_EqualsSign_stringLiteralOptionValue!truncate	ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON(FILENAME =
+reject	reject	engine	alterServerConfigurationBufferPoolExtensionContainerOption(LeftParenthesis_alterServerConfigura~8a4036ae)/%empty	ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON
+reject	reject	engine	alterServerConfigurationBufferPoolExtensionFileNameOption/FILENAME_EqualsSign_stringLiteralOptionValue	ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON(FILENAME = 'a', SIZE = 1 a)
+reject	reject	engine	alterServerConfigurationBufferPoolExtensionFileNameOption/FILENAME_EqualsSign_stringLiteralOptionValue!truncate	ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON(FILENAME =
 reject	reject	engine	alterServerConfigurationBufferPoolExtensionFileNameOption/FILENAME_EqualsSign_stringLiteralOptionValue!insert	ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON(FILENAME = 'a' zzz, SIZE = 1 a)
-accept	reject	engine	alterServerConfigurationBufferPoolExtensionSizeOption/SIZE_EqualsSign_integerLiteralOptionValue_memUnit	ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON(FILENAME = 'a', SIZE = 1 a)
-accept	reject	engine	alterServerConfigurationBufferPoolExtensionSizeOption/SIZE_EqualsSign_integerLiteralOptionValue_memUnit!truncate	ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON(FILENAME = 'a', SIZE = 1
+reject	reject	engine	alterServerConfigurationBufferPoolExtensionSizeOption/SIZE_EqualsSign_integerLiteralOptionValue_memUnit	ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON(FILENAME = 'a', SIZE = 1 a)
+reject	reject	engine	alterServerConfigurationBufferPoolExtensionSizeOption/SIZE_EqualsSign_integerLiteralOptionValue_memUnit!truncate	ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON(FILENAME = 'a', SIZE = 1
 reject	reject	engine	alterServerConfigurationBufferPoolExtensionSizeOption/SIZE_EqualsSign_integerLiteralOptionValue_memUnit!insert	ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON(FILENAME = 'a', SIZE = 1 a zzz)
 reject	reject	engine	alterServerConfigurationBufferPoolExtensionSizeOption/SIZE_EqualsSign_integerLiteralOptionValue_memUnit!swap	ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON(FILENAME = 'a', SIZE_BASED_CLEANUP_MODE = 1 a)
 accept	accept	engine	alterServerConfigurationDiagnosticsLogOption/onOffOptionValue	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG ON
-accept	reject	engine	alterServerConfigurationDiagnosticsLogOption/onOffOptionValue!drop-1	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG
+reject	reject	engine	alterServerConfigurationDiagnosticsLogOption/onOffOptionValue!drop-1	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG
 reject	reject	engine	alterServerConfigurationDiagnosticsLogOption/onOffOptionValue!insert	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG ON zzz
-accept	reject	engine	alterServerConfigurationDiagnosticsLogOption/onOffOptionValue!swap	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG ONLINE
+reject	reject	engine	alterServerConfigurationDiagnosticsLogOption/onOffOptionValue!swap	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG ONLINE
 accept	accept	engine	alterServerConfigurationDiagnosticsLogOption/alterServerConfigurationDiagnosticsLogMaxSizeOption_MAX_SIZE	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG MAX_SIZE = DEFAULT
 reject	reject	engine	alterServerConfigurationDiagnosticsLogOption/alterServerConfigurationDiagnosticsLogMaxSizeOption_MAX_SIZE!drop-1	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG = DEFAULT
-accept	reject	engine	alterServerConfigurationDiagnosticsLogOption/alterServerConfigurationDiagnosticsLogMaxSizeOption_MAX_SIZE!drop-2	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG MAX_SIZE DEFAULT
-accept	reject	engine	alterServerConfigurationDiagnosticsLogOption/alterServerConfigurationDiagnosticsLogMaxSizeOption_MAX_SIZE!drop-3	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG MAX_SIZE =
+reject	reject	engine	alterServerConfigurationDiagnosticsLogOption/alterServerConfigurationDiagnosticsLogMaxSizeOption_MAX_SIZE!drop-2	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG MAX_SIZE DEFAULT
+reject	reject	engine	alterServerConfigurationDiagnosticsLogOption/alterServerConfigurationDiagnosticsLogMaxSizeOption_MAX_SIZE!drop-3	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG MAX_SIZE =
 reject	reject	engine	alterServerConfigurationDiagnosticsLogOption/alterServerConfigurationDiagnosticsLogMaxSizeOption_MAX_SIZE!insert	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG MAX_SIZE = DEFAULT zzz
-accept	reject	engine	alterServerConfigurationDiagnosticsLogOption/alterServerConfigurationDiagnosticsLogMaxSizeOption_MAX_SIZE!swap	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG MAX_STORAGE_SIZE_MB = DEFAULT
-accept	reject	engine	alterServerConfigurationDiagnosticsLogOption/Identifier_EqualsSign_(stringOrDefaultLiteralOptionValu~92f56a41	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG a = 'a'
+reject	reject	engine	alterServerConfigurationDiagnosticsLogOption/alterServerConfigurationDiagnosticsLogMaxSizeOption_MAX_SIZE!swap	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG MAX_STORAGE_SIZE_MB = DEFAULT
+reject	reject	engine	alterServerConfigurationDiagnosticsLogOption/Identifier_EqualsSign_(stringOrDefaultLiteralOptionValu~92f56a41	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG a = 'a'
 reject	reject	engine	alterServerConfigurationDiagnosticsLogOption/Identifier_EqualsSign_(stringOrDefaultLiteralOptionValu~92f56a41!drop-1	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG = 'a'
-accept	reject	engine	alterServerConfigurationDiagnosticsLogOption/Identifier_EqualsSign_(stringOrDefaultLiteralOptionValu~92f56a41!drop-2	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG a 'a'
-accept	reject	engine	alterServerConfigurationDiagnosticsLogOption/Identifier_EqualsSign_(stringOrDefaultLiteralOptionValu~92f56a41!drop-3	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG a =
+reject	reject	engine	alterServerConfigurationDiagnosticsLogOption/Identifier_EqualsSign_(stringOrDefaultLiteralOptionValu~92f56a41!drop-2	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG a 'a'
+reject	reject	engine	alterServerConfigurationDiagnosticsLogOption/Identifier_EqualsSign_(stringOrDefaultLiteralOptionValu~92f56a41!drop-3	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG a =
 reject	reject	engine	alterServerConfigurationDiagnosticsLogOption/Identifier_EqualsSign_(stringOrDefaultLiteralOptionValu~92f56a41!insert	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG a = 'a' zzz
-accept	reject	engine	alterServerConfigurationDiagnosticsLogOption(stringOrDefaultLiteralOptionValue|in~e5e9c09f)/stringOrDefaultLiteralOptionValue	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG a = 'a'
-accept	reject	engine	alterServerConfigurationDiagnosticsLogOption(stringOrDefaultLiteralOptionValue|in~e5e9c09f)/integerOrDefaultLiteralOptionValue	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG a = 1
+reject	reject	engine	alterServerConfigurationDiagnosticsLogOption(stringOrDefaultLiteralOptionValue|in~e5e9c09f)/stringOrDefaultLiteralOptionValue	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG a = 'a'
+reject	reject	engine	alterServerConfigurationDiagnosticsLogOption(stringOrDefaultLiteralOptionValue|in~e5e9c09f)/integerOrDefaultLiteralOptionValue	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG a = 1
 reject	reject	engine	alterServerConfigurationDiagnosticsLogOption(stringOrDefaultLiteralOptionValue|in~e5e9c09f)/integerOrDefaultLiteralOptionValue!insert	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG a = 1 zzz
-accept	reject	engine	alterServerConfigurationFailoverClusterPropertyOption/Identifier_EqualsSign_(binaryOrDefaultLiteralOptionValu~60df6311	ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY a = 0x00
+reject	reject	engine	alterServerConfigurationFailoverClusterPropertyOption/Identifier_EqualsSign_(binaryOrDefaultLiteralOptionValu~60df6311	ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY a = 0x00
 reject	reject	engine	alterServerConfigurationFailoverClusterPropertyOption/Identifier_EqualsSign_(binaryOrDefaultLiteralOptionValu~60df6311!drop-1	ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY = 0x00
-accept	reject	engine	alterServerConfigurationFailoverClusterPropertyOption/Identifier_EqualsSign_(binaryOrDefaultLiteralOptionValu~60df6311!drop-2	ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY a 0x00
-accept	reject	engine	alterServerConfigurationFailoverClusterPropertyOption/Identifier_EqualsSign_(binaryOrDefaultLiteralOptionValu~60df6311!drop-3	ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY a =
+reject	reject	engine	alterServerConfigurationFailoverClusterPropertyOption/Identifier_EqualsSign_(binaryOrDefaultLiteralOptionValu~60df6311!drop-2	ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY a 0x00
+reject	reject	engine	alterServerConfigurationFailoverClusterPropertyOption/Identifier_EqualsSign_(binaryOrDefaultLiteralOptionValu~60df6311!drop-3	ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY a =
 reject	reject	engine	alterServerConfigurationFailoverClusterPropertyOption/Identifier_EqualsSign_(binaryOrDefaultLiteralOptionValu~60df6311!insert	ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY a = 0x00 zzz
-accept	reject	engine	alterServerConfigurationFailoverClusterPropertyOption(binaryOrDefaultLiteralOptionValue|st~b74f4484)/binaryOrDefaultLiteralOptionValue	ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY a = 0x00
-accept	reject	engine	alterServerConfigurationFailoverClusterPropertyOption(binaryOrDefaultLiteralOptionValue|st~b74f4484)/stringOrDefaultLiteralOptionValue	ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY a = 'a'
+reject	reject	engine	alterServerConfigurationFailoverClusterPropertyOption(binaryOrDefaultLiteralOptionValue|st~b74f4484)/binaryOrDefaultLiteralOptionValue	ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY a = 0x00
+reject	reject	engine	alterServerConfigurationFailoverClusterPropertyOption(binaryOrDefaultLiteralOptionValue|st~b74f4484)/stringOrDefaultLiteralOptionValue	ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY a = 'a'
 reject	reject	engine	alterServerConfigurationFailoverClusterPropertyOption(binaryOrDefaultLiteralOptionValue|st~b74f4484)/stringOrDefaultLiteralOptionValue!insert	ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY a = 'a' zzz
-accept	reject	engine	alterServerConfigurationFailoverClusterPropertyOption(binaryOrDefaultLiteralOptionValue|st~b74f4484)/integerOrDefaultLiteralOptionValue	ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY a = 1
+reject	reject	engine	alterServerConfigurationFailoverClusterPropertyOption(binaryOrDefaultLiteralOptionValue|st~b74f4484)/integerOrDefaultLiteralOptionValue	ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY a = 1
 reject	reject	engine	alterServerConfigurationFailoverClusterPropertyOption(binaryOrDefaultLiteralOptionValue|st~b74f4484)/integerOrDefaultLiteralOptionValue!insert	ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY a = 1 zzz
 reject	reject	engine	alterServerConfigurationHadrClusterOption/Identifier_EqualsSign_(stringLiteralOptionValue|LOCAL)	ALTER SERVER CONFIGURATION SET HADR CLUSTER a = 'a'
-accept	reject	engine	alterServerConfigurationHadrClusterOption/Identifier_EqualsSign_(stringLiteralOptionValue|LOCAL)!drop-1	ALTER SERVER CONFIGURATION SET HADR CLUSTER = 'a'
+reject	reject	engine	alterServerConfigurationHadrClusterOption/Identifier_EqualsSign_(stringLiteralOptionValue|LOCAL)!drop-1	ALTER SERVER CONFIGURATION SET HADR CLUSTER = 'a'
 reject	reject	engine	alterServerConfigurationHadrClusterOption/Identifier_EqualsSign_(stringLiteralOptionValue|LOCAL)!drop-2	ALTER SERVER CONFIGURATION SET HADR CLUSTER a 'a'
 reject	reject	engine	alterServerConfigurationHadrClusterOption/Identifier_EqualsSign_(stringLiteralOptionValue|LOCAL)!drop-3	ALTER SERVER CONFIGURATION SET HADR CLUSTER a =
 reject	reject	engine	alterServerConfigurationHadrClusterOption/Identifier_EqualsSign_(stringLiteralOptionValue|LOCAL)!insert	ALTER SERVER CONFIGURATION SET HADR CLUSTER a = 'a' zzz
@@ -1704,18 +1704,18 @@ reject	reject	engine	alterServerConfigurationHadrClusterOption(stringLiteralOpti
 reject	reject	engine	alterServerConfigurationHadrClusterOption(stringLiteralOptionValue|LOCAL)/LOCAL	ALTER SERVER CONFIGURATION SET HADR CLUSTER a = LOCAL
 reject	reject	engine	alterServerConfigurationHadrClusterOption(stringLiteralOptionValue|LOCAL)/LOCAL!insert	ALTER SERVER CONFIGURATION SET HADR CLUSTER a = LOCAL zzz
 reject	reject	engine	alterServerConfigurationHadrClusterOption(stringLiteralOptionValue|LOCAL)/LOCAL!swap	ALTER SERVER CONFIGURATION SET HADR CLUSTER a = LOCATION
-accept	reject	engine	affinityRangeList/affinityRange_(Comma_affinityRange)*	ALTER SERVER CONFIGURATION SET PROCESS AFFINITY a = 1
-accept	reject	engine	affinityRangeList/affinityRange_(Comma_affinityRange)*!drop-1	ALTER SERVER CONFIGURATION SET PROCESS AFFINITY a =
+reject	reject	engine	affinityRangeList/affinityRange_(Comma_affinityRange)*	ALTER SERVER CONFIGURATION SET PROCESS AFFINITY a = 1
+reject	reject	engine	affinityRangeList/affinityRange_(Comma_affinityRange)*!drop-1	ALTER SERVER CONFIGURATION SET PROCESS AFFINITY a =
 reject	reject	engine	affinityRangeList/affinityRange_(Comma_affinityRange)*!insert	ALTER SERVER CONFIGURATION SET PROCESS AFFINITY a = 1 zzz
-accept	reject	engine	affinityRangeList(Comma_affinityRange)*/%empty	ALTER SERVER CONFIGURATION SET PROCESS AFFINITY a = 1
-accept	reject	engine	affinityRangeList(Comma_affinityRange)*/Comma_affinityRange_(Comma_affinityRange)*	ALTER SERVER CONFIGURATION SET PROCESS AFFINITY a = 1, 1
+reject	reject	engine	affinityRangeList(Comma_affinityRange)*/%empty	ALTER SERVER CONFIGURATION SET PROCESS AFFINITY a = 1
+reject	reject	engine	affinityRangeList(Comma_affinityRange)*/Comma_affinityRange_(Comma_affinityRange)*	ALTER SERVER CONFIGURATION SET PROCESS AFFINITY a = 1, 1
 reject	reject	engine	affinityRangeList(Comma_affinityRange)*/Comma_affinityRange_(Comma_affinityRange)*!drop-1	ALTER SERVER CONFIGURATION SET PROCESS AFFINITY a = 1 1
-accept	reject	engine	affinityRangeList(Comma_affinityRange)*/Comma_affinityRange_(Comma_affinityRange)*!drop-2	ALTER SERVER CONFIGURATION SET PROCESS AFFINITY a = 1,
+reject	reject	engine	affinityRangeList(Comma_affinityRange)*/Comma_affinityRange_(Comma_affinityRange)*!drop-2	ALTER SERVER CONFIGURATION SET PROCESS AFFINITY a = 1,
 reject	reject	engine	affinityRangeList(Comma_affinityRange)*/Comma_affinityRange_(Comma_affinityRange)*!insert	ALTER SERVER CONFIGURATION SET PROCESS AFFINITY a = 1, 1 zzz
-accept	reject	engine	affinityRange/integer_(To_integer)?	ALTER SERVER CONFIGURATION SET PROCESS AFFINITY a = 1
-accept	reject	engine	affinityRange(To_integer)?/%empty	ALTER SERVER CONFIGURATION SET PROCESS AFFINITY a = 1
-accept	reject	engine	affinityRange(To_integer)?/To_integer	ALTER SERVER CONFIGURATION SET PROCESS AFFINITY a = 1 TO 1
-accept	reject	engine	affinityRange(To_integer)?/To_integer!drop-2	ALTER SERVER CONFIGURATION SET PROCESS AFFINITY a = 1 TO
+reject	reject	engine	affinityRange/integer_(To_integer)?	ALTER SERVER CONFIGURATION SET PROCESS AFFINITY a = 1
+reject	reject	engine	affinityRange(To_integer)?/%empty	ALTER SERVER CONFIGURATION SET PROCESS AFFINITY a = 1
+reject	reject	engine	affinityRange(To_integer)?/To_integer	ALTER SERVER CONFIGURATION SET PROCESS AFFINITY a = 1 TO 1
+reject	reject	engine	affinityRange(To_integer)?/To_integer!drop-2	ALTER SERVER CONFIGURATION SET PROCESS AFFINITY a = 1 TO
 reject	reject	engine	affinityRange(To_integer)?/To_integer!insert	ALTER SERVER CONFIGURATION SET PROCESS AFFINITY a = 1 TO 1 zzz
 reject	reject	engine	affinityRange(To_integer)?/To_integer!swap	ALTER SERVER CONFIGURATION SET PROCESS AFFINITY a = 1 TOP 1
 accept	accept	engine	alterDatabaseStatements/Alter_Database_(alterDatabaseAuditSpecification_AUDI~c7e359d1)	ALTER DATABASE AUDIT SPECIFICATION a
@@ -14425,23 +14425,23 @@ reject	reject	engine	odbcLiteral(AsciiStringLiteral|UnicodeStringLiteral)/Unicod
 reject	reject	engine	odbcLiteral(AsciiStringLiteral|UnicodeStringLiteral)/UnicodeStringLiteral!insert	a { a N'a' zzz }
 reject	accept	engine	defaultLiteral/Default	a DEFAULT
 accept	accept	engine	onOffOptionValue/optionOnOff	ALTER SERVER CONFIGURATION SET SOFTNUMA ON
-accept	reject	engine	stringOrDefaultLiteralOptionValue/(stringLiteral|defaultLiteral)	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG a = 'a'
-accept	reject	engine	stringOrDefaultLiteralOptionValue(stringLiteral|defaultLiteral)/stringLiteral	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG a = 'a'
-accept	reject	engine	stringOrDefaultLiteralOptionValue(stringLiteral|defaultLiteral)/defaultLiteral	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG a = DEFAULT
+reject	reject	engine	stringOrDefaultLiteralOptionValue/(stringLiteral|defaultLiteral)	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG a = 'a'
+reject	reject	engine	stringOrDefaultLiteralOptionValue(stringLiteral|defaultLiteral)/stringLiteral	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG a = 'a'
+reject	reject	engine	stringOrDefaultLiteralOptionValue(stringLiteral|defaultLiteral)/defaultLiteral	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG a = DEFAULT
 reject	reject	engine	stringOrDefaultLiteralOptionValue(stringLiteral|defaultLiteral)/defaultLiteral!insert	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG a = DEFAULT zzz
 reject	reject	engine	stringOrDefaultLiteralOptionValue(stringLiteral|defaultLiteral)/defaultLiteral!swap	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG a = DEFAULT_DATABASE
 reject	reject	engine	stringLiteralOptionValue/stringLiteral	ALTER SERVER CONFIGURATION SET HADR CLUSTER a = 'a'
-accept	reject	engine	integerOrDefaultLiteralOptionValue/(integer|defaultLiteral)	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG a = 1
-accept	reject	engine	integerOrDefaultLiteralOptionValue(integer|defaultLiteral)/integer	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG a = 1
-accept	reject	engine	integerOrDefaultLiteralOptionValue(integer|defaultLiteral)/defaultLiteral	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG a = DEFAULT
+reject	reject	engine	integerOrDefaultLiteralOptionValue/(integer|defaultLiteral)	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG a = 1
+reject	reject	engine	integerOrDefaultLiteralOptionValue(integer|defaultLiteral)/integer	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG a = 1
+reject	reject	engine	integerOrDefaultLiteralOptionValue(integer|defaultLiteral)/defaultLiteral	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG a = DEFAULT
 accept	accept	engine	integerLiteralOptionValue/integer	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG MAX_SIZE = 1 MB
 reject	reject	engine	integerLiteralOptionValue/integer!drop-1	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG MAX_SIZE = MB
 reject	reject	engine	integerLiteralOptionValue/integer!insert	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG MAX_SIZE = 1 zzz MB
 accept	accept	engine	defaultLiteralOptionValue/defaultLiteral	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG MAX_SIZE = DEFAULT
 reject	reject	engine	defaultLiteralOptionValue/defaultLiteral!swap	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG MAX_SIZE = DEFAULT_DATABASE
-accept	reject	engine	binaryOrDefaultLiteralOptionValue/(binary|defaultLiteral)	ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY a = 0x00
-accept	reject	engine	binaryOrDefaultLiteralOptionValue(binary|defaultLiteral)/binary	ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY a = 0x00
-accept	reject	engine	binaryOrDefaultLiteralOptionValue(binary|defaultLiteral)/defaultLiteral	ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY a = DEFAULT
+reject	reject	engine	binaryOrDefaultLiteralOptionValue/(binary|defaultLiteral)	ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY a = 0x00
+reject	reject	engine	binaryOrDefaultLiteralOptionValue(binary|defaultLiteral)/binary	ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY a = 0x00
+reject	reject	engine	binaryOrDefaultLiteralOptionValue(binary|defaultLiteral)/defaultLiteral	ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY a = DEFAULT
 reject	reject	engine	binaryOrDefaultLiteralOptionValue(binary|defaultLiteral)/defaultLiteral!insert	ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY a = DEFAULT zzz
 reject	reject	engine	binaryOrDefaultLiteralOptionValue(binary|defaultLiteral)/defaultLiteral!swap	ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY a = DEFAULT_DATABASE
 accept	accept	engine	assignmentWithOptOp/EqualsSign	SET @a = 1
@@ -15522,39 +15522,39 @@ reject	reject	engine	alterServerAuditStatements_AUDIT(alterServerAuditSpecificat
 accept	reject	engine	alterServerAuditStatements_AUDIT(alterServerAuditSpecificationStateme~97d2dbe6)/alterServerAuditStatement	ALTER SERVER AUDIT a
 accept	accept	engine	alterServerConfigurationStatement_CONFIGURATION/CONFIGURATION_Set_(alterServerConfigurationSetProcessAf~a19290c7	ALTER SERVER CONFIGURATION SET SOFTNUMA ON
 reject	reject	engine	alterServerConfigurationStatement_CONFIGURATION/CONFIGURATION_Set_(alterServerConfigurationSetProcessAf~a19290c7!drop-1	ALTER SERVER SET SOFTNUMA ON
-accept	reject	engine	alterServerConfigurationStatement_CONFIGURATION/CONFIGURATION_Set_(alterServerConfigurationSetProcessAf~a19290c7!drop-2	ALTER SERVER CONFIGURATION SOFTNUMA ON
-accept	reject	engine	alterServerConfigurationStatement_CONFIGURATION/CONFIGURATION_Set_(alterServerConfigurationSetProcessAf~a19290c7!drop-3	ALTER SERVER CONFIGURATION SET ON
+reject	reject	engine	alterServerConfigurationStatement_CONFIGURATION/CONFIGURATION_Set_(alterServerConfigurationSetProcessAf~a19290c7!drop-2	ALTER SERVER CONFIGURATION SOFTNUMA ON
+reject	reject	engine	alterServerConfigurationStatement_CONFIGURATION/CONFIGURATION_Set_(alterServerConfigurationSetProcessAf~a19290c7!drop-3	ALTER SERVER CONFIGURATION SET ON
 reject	reject	engine	alterServerConfigurationStatement_CONFIGURATION/CONFIGURATION_Set_(alterServerConfigurationSetProcessAf~a19290c7!swap	ALTER SERVER CONNECTION SET SOFTNUMA ON
-accept	reject	engine	alterServerConfigurationStatement_CONFIGURATION(alterServerConfigurationSetProcessAf~79ce3d93)/alterServerConfigurationSetProcessAffinityStatement_PROCESS	ALTER SERVER CONFIGURATION SET PROCESS AFFINITY a = 1
-accept	reject	engine	alterServerConfigurationStatement_CONFIGURATION(alterServerConfigurationSetProcessAf~79ce3d93)/alterServerConfigurationSetProcessAffinityStatement_PROCESS!drop-1	ALTER SERVER CONFIGURATION SET AFFINITY a = 1
-accept	reject	engine	alterServerConfigurationStatement_CONFIGURATION(alterServerConfigurationSetProcessAf~79ce3d93)/alterServerConfigurationSetProcessAffinityStatement_PROCESS!drop-2	ALTER SERVER CONFIGURATION SET PROCESS a = 1
+reject	reject	engine	alterServerConfigurationStatement_CONFIGURATION(alterServerConfigurationSetProcessAf~79ce3d93)/alterServerConfigurationSetProcessAffinityStatement_PROCESS	ALTER SERVER CONFIGURATION SET PROCESS AFFINITY a = 1
+reject	reject	engine	alterServerConfigurationStatement_CONFIGURATION(alterServerConfigurationSetProcessAf~79ce3d93)/alterServerConfigurationSetProcessAffinityStatement_PROCESS!drop-1	ALTER SERVER CONFIGURATION SET AFFINITY a = 1
+reject	reject	engine	alterServerConfigurationStatement_CONFIGURATION(alterServerConfigurationSetProcessAf~79ce3d93)/alterServerConfigurationSetProcessAffinityStatement_PROCESS!drop-2	ALTER SERVER CONFIGURATION SET PROCESS a = 1
 reject	reject	engine	alterServerConfigurationStatement_CONFIGURATION(alterServerConfigurationSetProcessAf~79ce3d93)/alterServerConfigurationSetProcessAffinityStatement_PROCESS!drop-3	ALTER SERVER CONFIGURATION SET PROCESS AFFINITY = 1
-accept	reject	engine	alterServerConfigurationStatement_CONFIGURATION(alterServerConfigurationSetProcessAf~79ce3d93)/alterServerConfigurationSetProcessAffinityStatement_PROCESS!drop-4	ALTER SERVER CONFIGURATION SET PROCESS AFFINITY a 1
-accept	reject	engine	alterServerConfigurationStatement_CONFIGURATION(alterServerConfigurationSetProcessAf~79ce3d93)/alterServerConfigurationSetProcessAffinityStatement_PROCESS!swap	ALTER SERVER CONFIGURATION SET PROPERTY AFFINITY a = 1
-accept	reject	engine	alterServerConfigurationStatement_CONFIGURATION(alterServerConfigurationSetProcessAf~79ce3d93)/alterServerConfigurationSetBufferPoolExtensionStatement_BUFFER	ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON
-accept	reject	engine	alterServerConfigurationStatement_CONFIGURATION(alterServerConfigurationSetProcessAf~79ce3d93)/alterServerConfigurationSetBufferPoolExtensionStatement_BUFFER!drop-1	ALTER SERVER CONFIGURATION SET POOL EXTENSION ON
-accept	reject	engine	alterServerConfigurationStatement_CONFIGURATION(alterServerConfigurationSetProcessAf~79ce3d93)/alterServerConfigurationSetBufferPoolExtensionStatement_BUFFER!drop-2	ALTER SERVER CONFIGURATION SET BUFFER EXTENSION ON
-accept	reject	engine	alterServerConfigurationStatement_CONFIGURATION(alterServerConfigurationSetProcessAf~79ce3d93)/alterServerConfigurationSetBufferPoolExtensionStatement_BUFFER!drop-3	ALTER SERVER CONFIGURATION SET BUFFER POOL ON
-accept	reject	engine	alterServerConfigurationStatement_CONFIGURATION(alterServerConfigurationSetProcessAf~79ce3d93)/alterServerConfigurationSetBufferPoolExtensionStatement_BUFFER!swap	ALTER SERVER CONFIGURATION SET BULK POOL EXTENSION ON
+reject	reject	engine	alterServerConfigurationStatement_CONFIGURATION(alterServerConfigurationSetProcessAf~79ce3d93)/alterServerConfigurationSetProcessAffinityStatement_PROCESS!drop-4	ALTER SERVER CONFIGURATION SET PROCESS AFFINITY a 1
+reject	reject	engine	alterServerConfigurationStatement_CONFIGURATION(alterServerConfigurationSetProcessAf~79ce3d93)/alterServerConfigurationSetProcessAffinityStatement_PROCESS!swap	ALTER SERVER CONFIGURATION SET PROPERTY AFFINITY a = 1
+reject	reject	engine	alterServerConfigurationStatement_CONFIGURATION(alterServerConfigurationSetProcessAf~79ce3d93)/alterServerConfigurationSetBufferPoolExtensionStatement_BUFFER	ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON
+reject	reject	engine	alterServerConfigurationStatement_CONFIGURATION(alterServerConfigurationSetProcessAf~79ce3d93)/alterServerConfigurationSetBufferPoolExtensionStatement_BUFFER!drop-1	ALTER SERVER CONFIGURATION SET POOL EXTENSION ON
+reject	reject	engine	alterServerConfigurationStatement_CONFIGURATION(alterServerConfigurationSetProcessAf~79ce3d93)/alterServerConfigurationSetBufferPoolExtensionStatement_BUFFER!drop-2	ALTER SERVER CONFIGURATION SET BUFFER EXTENSION ON
+reject	reject	engine	alterServerConfigurationStatement_CONFIGURATION(alterServerConfigurationSetProcessAf~79ce3d93)/alterServerConfigurationSetBufferPoolExtensionStatement_BUFFER!drop-3	ALTER SERVER CONFIGURATION SET BUFFER POOL ON
+reject	reject	engine	alterServerConfigurationStatement_CONFIGURATION(alterServerConfigurationSetProcessAf~79ce3d93)/alterServerConfigurationSetBufferPoolExtensionStatement_BUFFER!swap	ALTER SERVER CONFIGURATION SET BULK POOL EXTENSION ON
 accept	accept	engine	alterServerConfigurationStatement_CONFIGURATION(alterServerConfigurationSetProcessAf~79ce3d93)/alterServerConfigurationSetDiagnosticsLogStatement_DIAGNOSTICS	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG ON
-accept	reject	engine	alterServerConfigurationStatement_CONFIGURATION(alterServerConfigurationSetProcessAf~79ce3d93)/alterServerConfigurationSetDiagnosticsLogStatement_DIAGNOSTICS!drop-1	ALTER SERVER CONFIGURATION SET LOG ON
-accept	reject	engine	alterServerConfigurationStatement_CONFIGURATION(alterServerConfigurationSetProcessAf~79ce3d93)/alterServerConfigurationSetDiagnosticsLogStatement_DIAGNOSTICS!drop-2	ALTER SERVER CONFIGURATION SET DIAGNOSTICS ON
-accept	reject	engine	alterServerConfigurationStatement_CONFIGURATION(alterServerConfigurationSetProcessAf~79ce3d93)/alterServerConfigurationSetDiagnosticsLogStatement_DIAGNOSTICS!swap	ALTER SERVER CONFIGURATION SET DIALOG LOG ON
-accept	reject	engine	alterServerConfigurationStatement_CONFIGURATION(alterServerConfigurationSetProcessAf~79ce3d93)/alterServerConfigurationSetFailoverClusterPropertyState~af1e681b	ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY a = 0x00
-accept	reject	engine	alterServerConfigurationStatement_CONFIGURATION(alterServerConfigurationSetProcessAf~79ce3d93)/alterServerConfigurationSetFailoverClusterPropertyState~af1e681b!drop-1	ALTER SERVER CONFIGURATION SET CLUSTER PROPERTY a = 0x00
-accept	reject	engine	alterServerConfigurationStatement_CONFIGURATION(alterServerConfigurationSetProcessAf~79ce3d93)/alterServerConfigurationSetFailoverClusterPropertyState~af1e681b!drop-2	ALTER SERVER CONFIGURATION SET FAILOVER PROPERTY a = 0x00
-accept	reject	engine	alterServerConfigurationStatement_CONFIGURATION(alterServerConfigurationSetProcessAf~79ce3d93)/alterServerConfigurationSetFailoverClusterPropertyState~af1e681b!drop-3	ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER a = 0x00
-accept	reject	engine	alterServerConfigurationStatement_CONFIGURATION(alterServerConfigurationSetProcessAf~79ce3d93)/alterServerConfigurationSetFailoverClusterPropertyState~af1e681b!swap	ALTER SERVER CONFIGURATION SET FAILOVER_MODE CLUSTER PROPERTY a = 0x00
+reject	reject	engine	alterServerConfigurationStatement_CONFIGURATION(alterServerConfigurationSetProcessAf~79ce3d93)/alterServerConfigurationSetDiagnosticsLogStatement_DIAGNOSTICS!drop-1	ALTER SERVER CONFIGURATION SET LOG ON
+reject	reject	engine	alterServerConfigurationStatement_CONFIGURATION(alterServerConfigurationSetProcessAf~79ce3d93)/alterServerConfigurationSetDiagnosticsLogStatement_DIAGNOSTICS!drop-2	ALTER SERVER CONFIGURATION SET DIAGNOSTICS ON
+reject	reject	engine	alterServerConfigurationStatement_CONFIGURATION(alterServerConfigurationSetProcessAf~79ce3d93)/alterServerConfigurationSetDiagnosticsLogStatement_DIAGNOSTICS!swap	ALTER SERVER CONFIGURATION SET DIALOG LOG ON
+reject	reject	engine	alterServerConfigurationStatement_CONFIGURATION(alterServerConfigurationSetProcessAf~79ce3d93)/alterServerConfigurationSetFailoverClusterPropertyState~af1e681b	ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY a = 0x00
+reject	reject	engine	alterServerConfigurationStatement_CONFIGURATION(alterServerConfigurationSetProcessAf~79ce3d93)/alterServerConfigurationSetFailoverClusterPropertyState~af1e681b!drop-1	ALTER SERVER CONFIGURATION SET CLUSTER PROPERTY a = 0x00
+reject	reject	engine	alterServerConfigurationStatement_CONFIGURATION(alterServerConfigurationSetProcessAf~79ce3d93)/alterServerConfigurationSetFailoverClusterPropertyState~af1e681b!drop-2	ALTER SERVER CONFIGURATION SET FAILOVER PROPERTY a = 0x00
+reject	reject	engine	alterServerConfigurationStatement_CONFIGURATION(alterServerConfigurationSetProcessAf~79ce3d93)/alterServerConfigurationSetFailoverClusterPropertyState~af1e681b!drop-3	ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER a = 0x00
+reject	reject	engine	alterServerConfigurationStatement_CONFIGURATION(alterServerConfigurationSetProcessAf~79ce3d93)/alterServerConfigurationSetFailoverClusterPropertyState~af1e681b!swap	ALTER SERVER CONFIGURATION SET FAILOVER_MODE CLUSTER PROPERTY a = 0x00
 reject	reject	engine	alterServerConfigurationStatement_CONFIGURATION(alterServerConfigurationSetProcessAf~79ce3d93)/alterServerConfigurationSetHadrClusterStatement_HADR	ALTER SERVER CONFIGURATION SET HADR CLUSTER a = 'a'
-accept	reject	engine	alterServerConfigurationStatement_CONFIGURATION(alterServerConfigurationSetProcessAf~79ce3d93)/alterServerConfigurationSetHadrClusterStatement_HADR!drop-1	ALTER SERVER CONFIGURATION SET CLUSTER a = 'a'
+reject	reject	engine	alterServerConfigurationStatement_CONFIGURATION(alterServerConfigurationSetProcessAf~79ce3d93)/alterServerConfigurationSetHadrClusterStatement_HADR!drop-1	ALTER SERVER CONFIGURATION SET CLUSTER a = 'a'
 reject	reject	engine	alterServerConfigurationStatement_CONFIGURATION(alterServerConfigurationSetProcessAf~79ce3d93)/alterServerConfigurationSetHadrClusterStatement_HADR!drop-2	ALTER SERVER CONFIGURATION SET HADR a = 'a'
-accept	reject	engine	alterServerConfigurationStatement_CONFIGURATION(alterServerConfigurationSetProcessAf~79ce3d93)/alterServerConfigurationSetHadrClusterStatement_HADR!swap	ALTER SERVER CONFIGURATION SET HASH CLUSTER a = 'a'
+reject	reject	engine	alterServerConfigurationStatement_CONFIGURATION(alterServerConfigurationSetProcessAf~79ce3d93)/alterServerConfigurationSetHadrClusterStatement_HADR!swap	ALTER SERVER CONFIGURATION SET HASH CLUSTER a = 'a'
 accept	accept	engine	alterServerConfigurationStatement_CONFIGURATION(alterServerConfigurationSetProcessAf~79ce3d93)/alterServerConfigurationSetSoftNumaStatement_SOFTNUMA	ALTER SERVER CONFIGURATION SET SOFTNUMA ON
-accept	reject	engine	alterServerConfigurationStatement_CONFIGURATION(alterServerConfigurationSetProcessAf~79ce3d93)/alterServerConfigurationSetSoftNumaStatement_SOFTNUMA!swap	ALTER SERVER CONFIGURATION SET SOME ON
-accept	reject	engine	alterServerConfigurationStatement_CONFIGURATION(alterServerConfigurationSetProcessAf~79ce3d93)/alterServerConfigurationSetExternalAuthenticationStatem~2ac2a07f	ALTER SERVER CONFIGURATION SET EXTERNAL AUTHENTICATION ON
-accept	reject	engine	alterServerConfigurationStatement_CONFIGURATION(alterServerConfigurationSetProcessAf~79ce3d93)/alterServerConfigurationSetExternalAuthenticationStatem~2ac2a07f!drop-1	ALTER SERVER CONFIGURATION SET AUTHENTICATION ON
-accept	reject	engine	alterServerConfigurationStatement_CONFIGURATION(alterServerConfigurationSetProcessAf~79ce3d93)/alterServerConfigurationSetExternalAuthenticationStatem~2ac2a07f!drop-2	ALTER SERVER CONFIGURATION SET EXTERNAL ON
-accept	reject	engine	alterServerConfigurationStatement_CONFIGURATION(alterServerConfigurationSetProcessAf~79ce3d93)/alterServerConfigurationSetExternalAuthenticationStatem~2ac2a07f!swap	ALTER SERVER CONFIGURATION SET EXTERNAL_MONITOR AUTHENTICATION ON
+reject	reject	engine	alterServerConfigurationStatement_CONFIGURATION(alterServerConfigurationSetProcessAf~79ce3d93)/alterServerConfigurationSetSoftNumaStatement_SOFTNUMA!swap	ALTER SERVER CONFIGURATION SET SOME ON
+reject	reject	engine	alterServerConfigurationStatement_CONFIGURATION(alterServerConfigurationSetProcessAf~79ce3d93)/alterServerConfigurationSetExternalAuthenticationStatem~2ac2a07f	ALTER SERVER CONFIGURATION SET EXTERNAL AUTHENTICATION ON
+reject	reject	engine	alterServerConfigurationStatement_CONFIGURATION(alterServerConfigurationSetProcessAf~79ce3d93)/alterServerConfigurationSetExternalAuthenticationStatem~2ac2a07f!drop-1	ALTER SERVER CONFIGURATION SET AUTHENTICATION ON
+reject	reject	engine	alterServerConfigurationStatement_CONFIGURATION(alterServerConfigurationSetProcessAf~79ce3d93)/alterServerConfigurationSetExternalAuthenticationStatem~2ac2a07f!drop-2	ALTER SERVER CONFIGURATION SET EXTERNAL ON
+reject	reject	engine	alterServerConfigurationStatement_CONFIGURATION(alterServerConfigurationSetProcessAf~79ce3d93)/alterServerConfigurationSetExternalAuthenticationStatem~2ac2a07f!swap	ALTER SERVER CONFIGURATION SET EXTERNAL_MONITOR AUTHENTICATION ON
 accept	accept	engine	alterServerRoleStatement_ROLE/ROLE_identifier_alterRoleAction	ALTER SERVER ROLE a ADD MEMBER a
 reject	reject	engine	alterServerRoleStatement_ROLE/ROLE_identifier_alterRoleAction!drop-1	ALTER SERVER a ADD MEMBER a
 accept	reject	engine	alterServerRoleStatement_ROLE/ROLE_identifier_alterRoleAction!drop-2	ALTER SERVER ROLE ADD MEMBER a
@@ -15583,22 +15583,22 @@ accept	reject	engine	alterServerAuditSpecificationStatement_SPECIFICATION(Comma_
 accept	reject	engine	alterServerAuditSpecificationStatement_SPECIFICATION(Comma_auditSpecificationDetail)*/Comma_auditSpecificationDetail_(Comma_auditSpecificationDetail)*!drop-5	ALTER SERVER AUDIT SPECIFICATION a ADD(a), ADD(a
 reject	reject	engine	alterServerAuditSpecificationStatement_SPECIFICATION(Comma_auditSpecificationDetail)*/Comma_auditSpecificationDetail_(Comma_auditSpecificationDetail)*!insert	ALTER SERVER AUDIT SPECIFICATION a ADD(a), ADD(a) zzz
 reject	reject	engine	alterServerAuditSpecificationStatement_SPECIFICATION(Comma_auditSpecificationDetail)*/Comma_auditSpecificationDetail_(Comma_auditSpecificationDetail)*!swap	ALTER SERVER AUDIT SPECIFICATION a ADD(a), ADMIN(a)
-accept	reject	engine	alterServerConfigurationSetProcessAffinityStatement_PROCESS/PROCESS_AFFINITY_Identifier_EqualsSign_(affinityRangeList|AUTO)	ALTER SERVER CONFIGURATION SET PROCESS AFFINITY a = 1
-accept	reject	engine	alterServerConfigurationSetProcessAffinityStatement_PROCESS(affinityRangeList|AUTO)/affinityRangeList	ALTER SERVER CONFIGURATION SET PROCESS AFFINITY a = 1
-accept	reject	engine	alterServerConfigurationSetProcessAffinityStatement_PROCESS(affinityRangeList|AUTO)/AUTO	ALTER SERVER CONFIGURATION SET PROCESS AFFINITY a = AUTO
+reject	reject	engine	alterServerConfigurationSetProcessAffinityStatement_PROCESS/PROCESS_AFFINITY_Identifier_EqualsSign_(affinityRangeList|AUTO)	ALTER SERVER CONFIGURATION SET PROCESS AFFINITY a = 1
+reject	reject	engine	alterServerConfigurationSetProcessAffinityStatement_PROCESS(affinityRangeList|AUTO)/affinityRangeList	ALTER SERVER CONFIGURATION SET PROCESS AFFINITY a = 1
+reject	reject	engine	alterServerConfigurationSetProcessAffinityStatement_PROCESS(affinityRangeList|AUTO)/AUTO	ALTER SERVER CONFIGURATION SET PROCESS AFFINITY a = AUTO
 reject	reject	engine	alterServerConfigurationSetProcessAffinityStatement_PROCESS(affinityRangeList|AUTO)/AUTO!insert	ALTER SERVER CONFIGURATION SET PROCESS AFFINITY a = AUTO zzz
 reject	reject	engine	alterServerConfigurationSetProcessAffinityStatement_PROCESS(affinityRangeList|AUTO)/AUTO!swap	ALTER SERVER CONFIGURATION SET PROCESS AFFINITY a = AUTOMATIC
-accept	reject	engine	alterServerConfigurationSetBufferPoolExtensionStatement_BUFFER/BUFFER_POOL_EXTENSION_alterServerConfigurationBufferPoo~46deb56a	ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON
+reject	reject	engine	alterServerConfigurationSetBufferPoolExtensionStatement_BUFFER/BUFFER_POOL_EXTENSION_alterServerConfigurationBufferPoo~46deb56a	ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON
 accept	accept	engine	alterServerConfigurationSetDiagnosticsLogStatement_DIAGNOSTICS/DIAGNOSTICS_LOG_alterServerConfigurationDiagnosticsLogOption	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG ON
-accept	reject	engine	alterServerConfigurationSetFailoverClusterPropertyStatement_FAILOVER/FAILOVER_CLUSTER_PROPERTY_alterServerConfigurationFailo~b6e17eac	ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY a = 0x00
+reject	reject	engine	alterServerConfigurationSetFailoverClusterPropertyStatement_FAILOVER/FAILOVER_CLUSTER_PROPERTY_alterServerConfigurationFailo~b6e17eac	ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY a = 0x00
 reject	reject	engine	alterServerConfigurationSetHadrClusterStatement_HADR/HADR_CLUSTER_alterServerConfigurationHadrClusterOption	ALTER SERVER CONFIGURATION SET HADR CLUSTER a = 'a'
 accept	accept	engine	alterServerConfigurationSetSoftNumaStatement_SOFTNUMA/SOFTNUMA_alterServerConfigurationSoftNumaOption	ALTER SERVER CONFIGURATION SET SOFTNUMA ON
-accept	reject	engine	alterServerConfigurationSetExternalAuthenticationStatement_EXTERNAL/EXTERNAL_AUTHENTICATION_alterServerConfigurationExterna~030842e3	ALTER SERVER CONFIGURATION SET EXTERNAL AUTHENTICATION ON
+reject	reject	engine	alterServerConfigurationSetExternalAuthenticationStatement_EXTERNAL/EXTERNAL_AUTHENTICATION_alterServerConfigurationExterna~030842e3	ALTER SERVER CONFIGURATION SET EXTERNAL AUTHENTICATION ON
 accept	accept	engine	alterServerConfigurationExternalAuthenticationUseIdentityOption_USE_IDENTITY/USE_IDENTITY	ALTER SERVER CONFIGURATION SET EXTERNAL AUTHENTICATION ON(USE_IDENTITY)
 accept	accept	engine	alterServerConfigurationExternalAuthenticationCredentialNameOption_CREDENTIAL_NAME/CREDENTIAL_NAME_EqualsSign_stringLiteralOptionValue	ALTER SERVER CONFIGURATION SET EXTERNAL AUTHENTICATION ON(CREDENTIAL_NAME = 'a')
 accept	accept	engine	alterServerConfigurationDiagnosticsLogMaxSizeOption_MAX_SIZE/MAX_SIZE_EqualsSign_(integerLiteralOptionValue_MB|defau~d8224d4d	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG MAX_SIZE = DEFAULT
 accept	accept	engine	alterServerConfigurationDiagnosticsLogMaxSizeOption_MAX_SIZE(integerLiteralOptionValue_MB|default~b0b12533)/integerLiteralOptionValue_MB	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG MAX_SIZE = 1 MB
-accept	reject	engine	alterServerConfigurationDiagnosticsLogMaxSizeOption_MAX_SIZE(integerLiteralOptionValue_MB|default~b0b12533)/integerLiteralOptionValue_MB!drop-2	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG MAX_SIZE = 1
+reject	reject	engine	alterServerConfigurationDiagnosticsLogMaxSizeOption_MAX_SIZE(integerLiteralOptionValue_MB|default~b0b12533)/integerLiteralOptionValue_MB!drop-2	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG MAX_SIZE = 1
 reject	reject	engine	alterServerConfigurationDiagnosticsLogMaxSizeOption_MAX_SIZE(integerLiteralOptionValue_MB|default~b0b12533)/integerLiteralOptionValue_MB!insert	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG MAX_SIZE = 1 MB zzz
 reject	reject	engine	alterServerConfigurationDiagnosticsLogMaxSizeOption_MAX_SIZE(integerLiteralOptionValue_MB|default~b0b12533)/integerLiteralOptionValue_MB!swap	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG MAX_SIZE = 1 MEMBER
 accept	accept	engine	alterServerConfigurationDiagnosticsLogMaxSizeOption_MAX_SIZE(integerLiteralOptionValue_MB|default~b0b12533)/defaultLiteralOptionValue	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG MAX_SIZE = DEFAULT
