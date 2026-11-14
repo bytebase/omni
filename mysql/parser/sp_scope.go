@@ -109,8 +109,10 @@ func (s *spScope) findCursor(name string) bool {
 	return false
 }
 
-// findCondition is sp_pcontext::find_condition. known is false when the name was taken as
-// found only because omni does not fold it as the server does (spNameMayMatch).
+// findCondition is sp_pcontext::find_condition, which takes the innermost declaration the
+// name folds to. known is false when the name was taken as found only because omni does not
+// fold it as the server does (spNameMayMatch): a declaration that may be the one the server
+// finds leaves which one it is open, though one past it matches exactly.
 func (s *spScope) findCondition(name string) (value nodes.HandlerCondValue, found, known bool) {
 	for ; s != nil; s = s.parent {
 		for i := len(s.conds) - 1; i >= 0; i-- {
@@ -118,14 +120,11 @@ func (s *spScope) findCondition(name string) (value nodes.HandlerCondValue, foun
 				return s.conds[i].value, true, true
 			}
 			if spNameMayMatch(name, s.conds[i].name) {
-				found = true
+				return nodes.HandlerCondValue{}, true, false
 			}
 		}
 	}
-	if !found && spLenientName(name) {
-		found = true
-	}
-	return nodes.HandlerCondValue{}, found, false
+	return nodes.HandlerCondValue{}, spLenientName(name), false
 }
 
 // spSameCondition is sp_condition_value::equals: the same kind, and for an error code or a
