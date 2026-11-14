@@ -329,9 +329,10 @@ func (b *builder) declEffects(d *tableDecl, r objRef) {
 // createTable follows CREATE [GLOBAL TEMPORARY] TABLE [IF NOT EXISTS],
 // with a column list or AS SELECT. A private temporary table, a nested
 // table, an external table, or a table with a supplemental log group,
-// which is a constraint, ends the walk (spec §6).
+// which is a constraint, ends the walk (spec §6), as does an object or
+// XMLType table, whose columns come from its type.
 func (b *builder) createTable(v *ast.CreateTableStmt) bool {
-	if v.Private || v.OrReplace || v.Sharded || v.Duplicated || v.Parent != nil || v.Organization == "EXTERNAL" {
+	if v.Private || v.OrReplace || v.Sharded || v.Duplicated || v.Parent != nil || v.Organization == "EXTERNAL" || v.OfType != nil {
 		return false
 	}
 	if v.Options != nil {

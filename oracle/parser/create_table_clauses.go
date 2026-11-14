@@ -1548,17 +1548,19 @@ func (p *Parser) parseCreateTableObjectAttribute(stmt *nodes.CreateTableStmt) er
 				col.Constraints.Items = append(col.Constraints.Items, cc)
 			}
 		case p.cur.Type == kwWITH && p.peekNext().Type == kwROWID:
+			start := p.pos()
 			p.advance() // consume WITH
 			p.advance() // consume ROWID
-			col.Constraints.Items = append(col.Constraints.Items, &nodes.ColumnConstraint{Type: nodes.CONSTRAINT_WITH_ROWID, Loc: nodes.Loc{Start: p.prev.Loc, End: p.prev.End}})
+			col.Constraints.Items = append(col.Constraints.Items, &nodes.ColumnConstraint{Type: nodes.CONSTRAINT_WITH_ROWID, Loc: nodes.Loc{Start: start, End: p.prev.End}})
 		case p.isKeywordStr("SCOPE") && p.peekNext().Type == kwIS:
+			start := p.pos()
 			p.advance() // consume SCOPE
 			p.advance() // consume IS
 			table, err := p.parseRefScopeTable()
 			if err != nil {
 				return err
 			}
-			col.Constraints.Items = append(col.Constraints.Items, &nodes.ColumnConstraint{Type: nodes.CONSTRAINT_SCOPE, RefTable: table})
+			col.Constraints.Items = append(col.Constraints.Items, &nodes.ColumnConstraint{Type: nodes.CONSTRAINT_SCOPE, RefTable: table, Loc: nodes.Loc{Start: start, End: p.prev.End}})
 		default:
 			if col.Default == nil && !col.Null && !col.NotNull && col.Constraints.Len() == 0 {
 				return p.syntaxErrorAtCur()
