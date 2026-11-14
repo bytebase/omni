@@ -31163,12 +31163,12 @@ reject@53	reject@53	engine	createPluggableDatabase_using_snapshot_clause/USING_S
 reject@56	reject@56	engine	createPluggableDatabase_using_snapshot_clause/USING_SNAPSHOT_AT_SCN_NUMBER!drop-5	CREATE PLUGGABLE DATABASE a FROM a USING SNAPSHOT AT SCN
 reject@59	reject@59	engine	createPluggableDatabase_using_snapshot_clause/USING_SNAPSHOT_AT_SCN_NUMBER!insert	CREATE PLUGGABLE DATABASE a FROM a USING SNAPSHOT AT SCN 1 zzz
 reject@35	reject@35	engine	createPluggableDatabase_using_snapshot_clause/USING_SNAPSHOT_AT_SCN_NUMBER!swap	CREATE PLUGGABLE DATABASE a FROM a VALIDATE SNAPSHOT AT SCN 1
-reject@58	accept	engine	createPluggableDatabase_using_snapshot_clause/USING_SNAPSHOT_AT_TIME_EXPR	CREATE PLUGGABLE DATABASE a FROM a USING SNAPSHOT AT TIME 1
+accept	accept	engine	createPluggableDatabase_using_snapshot_clause/USING_SNAPSHOT_AT_TIME_EXPR	CREATE PLUGGABLE DATABASE a FROM a USING SNAPSHOT AT TIME 1
 reject@44	reject@44	engine	createPluggableDatabase_using_snapshot_clause/USING_SNAPSHOT_AT_TIME_EXPR!drop-1	CREATE PLUGGABLE DATABASE a FROM a SNAPSHOT AT TIME 1
 reject@41	reject@41	engine	createPluggableDatabase_using_snapshot_clause/USING_SNAPSHOT_AT_TIME_EXPR!drop-2	CREATE PLUGGABLE DATABASE a FROM a USING AT TIME 1
 reject@50	reject@50	engine	createPluggableDatabase_using_snapshot_clause/USING_SNAPSHOT_AT_TIME_EXPR!drop-3	CREATE PLUGGABLE DATABASE a FROM a USING SNAPSHOT TIME 1
 reject@57	accept	engine	createPluggableDatabase_using_snapshot_clause/USING_SNAPSHOT_AT_TIME_EXPR!drop-5	CREATE PLUGGABLE DATABASE a FROM a USING SNAPSHOT AT TIME
-reject@58	reject@60	engine	createPluggableDatabase_using_snapshot_clause/USING_SNAPSHOT_AT_TIME_EXPR!insert	CREATE PLUGGABLE DATABASE a FROM a USING SNAPSHOT AT TIME 1 zzz
+reject@60	reject@60	engine	createPluggableDatabase_using_snapshot_clause/USING_SNAPSHOT_AT_TIME_EXPR!insert	CREATE PLUGGABLE DATABASE a FROM a USING SNAPSHOT AT TIME 1 zzz
 reject@35	reject@35	engine	createPluggableDatabase_using_snapshot_clause/USING_SNAPSHOT_AT_TIME_EXPR!swap	CREATE PLUGGABLE DATABASE a FROM a VALIDATE SNAPSHOT AT TIME 1
 reject@46	reject@46	engine	createPluggableDatabase_size_clause/NUMBER_(K|M|G|T|P)?	CREATE PLUGGABLE DATABASE a STORAGE(MAXSIZE 1)
 reject@46	reject@46	engine	createPluggableDatabase_size_clause(K|M|G|T|P)?/%empty	CREATE PLUGGABLE DATABASE a STORAGE(MAXSIZE 1)

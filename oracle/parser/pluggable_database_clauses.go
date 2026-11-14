@@ -735,7 +735,7 @@ func (p *Parser) pdbCopyData() (string, error) {
 
 // pdbUsingSnapshot reads, USING consumed,
 //
-//	SNAPSHOT { snapshot_name | AT SCN integer | AT TIME 'timestamp' }
+//	SNAPSHOT { snapshot_name | AT SCN integer | AT TIME { 'timestamp' | integer } }
 func (p *Parser) pdbUsingSnapshot() (string, error) {
 	if err := p.adbExpect("SNAPSHOT"); err != nil {
 		return "", err
@@ -753,9 +753,13 @@ func (p *Parser) pdbUsingSnapshot() (string, error) {
 		n, err := p.adbInteger()
 		return "AT SCN " + n, err
 	case p.adbWord("TIME"):
+		// Oracle reads one literal here, a string or a number, not an
+		// expression (ORA-00922 at the operator of 1 + 1).
 		p.advance()
-		s, err := p.adbString()
-		return "AT TIME " + s, err
+		if p.cur.Type != tokSCONST && p.cur.Type != tokICONST {
+			return "", p.syntaxErrorAtCur()
+		}
+		return "AT TIME " + p.advance().Str, nil
 	}
 	return "", p.syntaxErrorAtCur()
 }
