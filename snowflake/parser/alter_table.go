@@ -1414,6 +1414,16 @@ func (p *Parser) parseTableSetProps(iceberg bool) ([]*ast.TableProp, error) {
 // parseOneTableProp attempts to parse a single known SET property.
 // Returns (prop, true, nil) on success, (nil, false, nil) if no property found.
 func (p *Parser) parseOneTableProp(iceberg bool) (*ast.TableProp, bool, error) {
+	if iceberg {
+		// Of the properties named below, ALTER ICEBERG TABLE's SET takes only
+		// DATA_RETENTION_TIME_IN_DAYS and CONTACT; the rest are in
+		// icebergTableSetProperties.
+		switch p.cur.Type {
+		case kwMAX_DATA_EXTENSION_TIME_IN_DAYS, kwCHANGE_TRACKING, kwDEFAULT_DDL_COLLATION,
+			kwCOMMENT, kwSTAGE_FILE_FORMAT, kwSTAGE_COPY_OPTIONS:
+			return nil, false, nil
+		}
+	}
 	switch p.cur.Type {
 	case kwDATA_RETENTION_TIME_IN_DAYS:
 		p.advance()
