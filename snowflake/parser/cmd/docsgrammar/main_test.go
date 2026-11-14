@@ -7,7 +7,7 @@ import (
 
 func form(t *testing.T, notation string) string {
 	t.Helper()
-	c := &converter{page: "p", defs: map[string]bool{}}
+	c := &converter{page: "p", defs: map[string]bool{}, accountLevel: true} // <name> is one part, ID
 	alts, err := c.form(notation)
 	if err != nil {
 		t.Fatalf("%s: %v", notation, err)
@@ -22,7 +22,7 @@ func TestNotationReadsAsANTLR(t *testing.T) {
 	for _, c := range []struct{ in, want string }{
 		{"ALTER WAREHOUSE [ IF EXISTS ] [ <name> ] { SUSPEND | RESUME [ IF SUSPENDED ] }",
 			"'ALTER' 'WAREHOUSE' ('IF' 'EXISTS')? ID? ('SUSPEND' | 'RESUME' ('IF' 'SUSPENDED')?)"},
-		{"UNSET TAG <tag_name> [ , <tag_name> ... ]", "'UNSET' 'TAG' ID (',' ID)*"},
+		{"UNSET TAG <tag_name> [ , <tag_name> ... ]", "'UNSET' 'TAG' QNAME (',' QNAME)*"},
 		{"( <col_name> [ , ... ] )", "'(' ID (',' ID)* ')'"},
 		{"( <expr> [ , <expr> , ... ] )", "'(' EXPR (',' EXPR)* ')'"},
 		// A list element the docs spell twice is the element, however long.
@@ -106,7 +106,7 @@ func TestSetSetsAtLeastOne(t *testing.T) {
 // statement form: a choice of what follows the object's name, not of
 // whole statements.
 func TestBareChoicesChooseWhatFollowsTheName(t *testing.T) {
-	c := &converter{page: "p", defs: map[string]bool{}}
+	c := &converter{page: "p", defs: map[string]bool{}, accountLevel: true} // <name> is one part, ID
 	alts, err := c.statement("ALTER TASK [ IF EXISTS ] <name> RESUME | SUSPEND")
 	if err != nil {
 		t.Fatal(err)
@@ -137,7 +137,7 @@ func TestBareChoicesChooseWhatFollowsTheName(t *testing.T) {
 }
 
 func TestElidedTextIsNotConverted(t *testing.T) {
-	c := &converter{page: "p", defs: map[string]bool{}}
+	c := &converter{page: "p", defs: map[string]bool{}, accountLevel: true} // <name> is one part, ID
 	// A lowercase word is a value beside = or |, and an undefined fragment
 	// anywhere else.
 	if _, err := c.form("API_PROVIDER = { aws_api_gateway | azure }"); err != nil {
@@ -270,7 +270,7 @@ func TestAPageMayShowAnotherStatement(t *testing.T) {
 	pg := convertPage("create-table-constraint", []string{`CREATE TABLE <name> ( <col_name> <col_type> )
 COMMENT = '<string_literal>'
 ALTER TABLE <name> ADD COLUMN <col_name> <col_type>`}, nil)
-	want := []string{"'CREATE' 'TABLE' ID '(' ID DATA_TYPE ')' 'COMMENT' '=' STRING", "'ALTER' 'TABLE' ID 'ADD' 'COLUMN' ID DATA_TYPE"}
+	want := []string{"'CREATE' 'TABLE' QNAME '(' ID DATA_TYPE ')' 'COMMENT' '=' STRING", "'ALTER' 'TABLE' QNAME 'ADD' 'COLUMN' ID DATA_TYPE"}
 	if strings.Join(pg.forms, "\n") != strings.Join(want, "\n") {
 		t.Errorf("forms:\n%s", strings.Join(pg.forms, "\n"))
 	}
@@ -299,7 +299,7 @@ func TestARepeatedFragmentKeepsItsOperator(t *testing.T) {
 // with its value and the list's |: the | is not a choice of values.
 func TestATrailingBarIsTheLists(t *testing.T) {
 	pg := convertPage("alter-x", []string{"ALTER X <name> UNSET {\n    A |\n    B = <b> |\n    C }"}, nil)
-	if len(pg.forms) != 1 || pg.forms[0] != "'ALTER' 'X' ID 'UNSET' ('A' | 'B' '=' ID | 'C')" {
+	if len(pg.forms) != 1 || pg.forms[0] != "'ALTER' 'X' QNAME 'UNSET' ('A' | 'B' '=' ID | 'C')" {
 		t.Errorf("forms %q, failed %+v", pg.forms, pg.failed)
 	}
 }
@@ -314,7 +314,7 @@ func TestFixesApplyToTheirPage(t *testing.T) {
 
 func TestPlaceholderClasses(t *testing.T) {
 	for name, want := range map[string]string{
-		"name": tName, "table_name": tName, "integer": tNumber, "num": tNumber, "rows": tNumber,
+		"name": tQName, "table_name": tQName, "col_name": tName, "integer": tNumber, "num": tNumber, "rows": tNumber,
 		"expr": tExpr, "boolean_expr": tExpr, "condition": tExpr, "query": tQuery,
 		"col_type": tType, "arg_data_type": tType, "string_literal": tString, "copy_statement": tCopy,
 		"sql":       tQuery,
@@ -348,7 +348,7 @@ func TestATrailingListRepeatsTheWholeChoice(t *testing.T) {
 // line after a table's column definition repeats the whole definition.
 func TestAdditionalColumnsTakeTheWholeDefinition(t *testing.T) {
 	pg := convertPage("create-table", []string{"CREATE TABLE <name> (\n    -- Column definition\n    <col_name> <col_type>\n      [ NOT NULL ]\n\n    -- Additional column definitions\n    [ , <col_name> <col_type> [ ... ] ]\n  )"}, nil)
-	want := "'CREATE' 'TABLE' ID '(' ID DATA_TYPE ('NOT' 'NULL')? (',' ID DATA_TYPE ('NOT' 'NULL')?)* ')'"
+	want := "'CREATE' 'TABLE' QNAME '(' ID DATA_TYPE ('NOT' 'NULL')? (',' ID DATA_TYPE ('NOT' 'NULL')?)* ')'"
 	if len(pg.forms) != 1 || pg.forms[0] != want {
 		t.Errorf("forms %q, failed %+v\nwant %s", pg.forms, pg.failed, want)
 	}
@@ -361,7 +361,7 @@ func TestTypeOptionsFollowTheirType(t *testing.T) {
 		"CREATE FILE FORMAT <name>\n  [ TYPE = { CSV | JSON | CUSTOM } [ formatTypeOptions ] ]",
 		"formatTypeOptions ::=\n-- If TYPE = CSV\n     FIELD_DELIMITER = '<string>'\n-- If TYPE = JSON\n     STRIP_OUTER_ARRAY = TRUE | FALSE",
 	}, nil)
-	want := "'CREATE' 'FILE' 'FORMAT' ID (('TYPE' '=' 'CSV' createFileFormat_formatTypeOptions_CSV? | 'TYPE' '=' 'JSON' createFileFormat_formatTypeOptions_JSON? | 'TYPE' '=' 'CUSTOM'))?"
+	want := "'CREATE' 'FILE' 'FORMAT' QNAME (('TYPE' '=' 'CSV' createFileFormat_formatTypeOptions_CSV? | 'TYPE' '=' 'JSON' createFileFormat_formatTypeOptions_JSON? | 'TYPE' '=' 'CUSTOM'))?"
 	if len(pg.forms) != 1 || pg.forms[0] != want {
 		t.Errorf("forms %q, failed %+v\nwant %s", pg.forms, pg.failed, want)
 	}
@@ -404,6 +404,20 @@ func TestSectionObjects(t *testing.T) {
 	for o, want := range map[string]string{"TABLE": "TABLES", "MASKING POLICY": "MASKING POLICIES", "GATEWAY": "GATEWAYS", "SNAPSHOT SET": "SNAPSHOT SETS"} {
 		if got := plural(o); got != want {
 			t.Errorf("plural(%s) = %s, want %s", o, got, want)
+		}
+	}
+}
+
+// TestAnAccountObjectsNameIsOnePart pins that <name> is a qualified name
+// on a schema object's page and one part on an account-level object's.
+func TestAnAccountObjectsNameIsOnePart(t *testing.T) {
+	for slug, want := range map[string]string{
+		"alter-table":     "'ALTER' 'TABLE' QNAME 'RENAME' 'TO' QNAME",
+		"alter-warehouse": "'ALTER' 'TABLE' ID 'RENAME' 'TO' ID",
+	} {
+		pg := convertPage(slug, []string{"ALTER TABLE <name> RENAME TO <new_name>"}, nil)
+		if len(pg.forms) != 1 || pg.forms[0] != want {
+			t.Errorf("%s: forms %q, want %s", slug, pg.forms, want)
 		}
 	}
 }

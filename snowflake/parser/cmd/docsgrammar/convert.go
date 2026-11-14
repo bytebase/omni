@@ -20,6 +20,7 @@ const (
 	tStage       = "STAGE"
 	tPosition    = "POSITION"
 	tVariable    = "VARIABLE"
+	tQName       = "QNAME"
 	tObjectType  = "OBJECT_TYPE"
 	tObjectTypes = "OBJECT_TYPES"
 	tFile        = "FILE"
@@ -34,6 +35,27 @@ var (
 	runtimeVersion = regexp.MustCompile(`(python|java|scala|jdk|runtime)[a-z_]*_version$|^runtime_version$`)
 	stringName     = regexp.MustCompile(`(^|_|-)(string|literal|text)(_?[0-9]+|_|-|$)`)
 )
+
+// qualifiedName is a placeholder for a schema object's name, which
+// db.schema.name may qualify: <table_name>, <masking_policy_name>.
+var qualifiedName = regexp.MustCompile(`(^|_)(table|view|stage|stream|task|pipe|policy|tag|function|procedure|seq|sequence|model|secret|service|alert|format|repository|notebook|streamlit|dataset|experiment|gateway|bundle|schema|project|semantic)(_|$)`)
+
+// singleName is a placeholder for a name of one part, as a column's is,
+// whatever object its other words name.
+var singleName = regexp.MustCompile(`(^|_)(col[0-9]*|column|arg|alias|param|property)(_|$)`)
+
+// nameClass is a name placeholder's class: QNAME for a schema object's
+// name, and for <name> and <object_name>, which the converter narrows to
+// ID on an account-level object's page; ID for the rest.
+func nameClass(n string) string {
+	switch {
+	case singleName.MatchString(n):
+		return tName
+	case n == "name" || n == "new_name" || n == "object_name" || qualifiedName.MatchString(n):
+		return tQName
+	}
+	return tName
+}
 
 // placeholderClass returns the token class a <placeholder> stands for, by
 // its name. Anything not recognised as an expression, number, query, data
@@ -80,11 +102,11 @@ func placeholderClass(name string) string {
 		return tExpr
 	case strings.HasSuffix(n, "_name"):
 		// <text_column_name> names a column, whatever its first words say.
-		return tName
+		return nameClass(n)
 	case stringName.MatchString(n):
 		return tString
 	case strings.Contains(n, "name") || strings.Contains(n, "identifier"):
-		return tName
+		return nameClass(n)
 	case numberName.MatchString(n):
 		return tNumber
 	}
@@ -628,7 +650,8 @@ func objectPrivileges(blocks []string) ([]string, bool) {
 				var alts []string
 				for _, o := range strings.Split(sub[1], "|") {
 					o = strings.TrimSpace(o)
-					alts = append(alts, privilegesFor(takes[o])+" ON "+o+" "+sub[2])
+					// An account-level object's name is one part.
+					alts = append(alts, privilegesFor(takes[o])+" ON "+o+" <account_object_name>")
 				}
 				return "{ " + strings.Join(alts, " | ") + " }"
 			})
@@ -848,7 +871,7 @@ func convertPage(slug string, blocks []string, fixes []*fix) pageGrammar {
 		}
 		defs[u.def] = append(defs[u.def], u)
 	}
-	c := &converter{page: pg.rule, defs: map[string]bool{}}
+	c := &converter{page: pg.rule, defs: map[string]bool{}, accountLevel: accountLevelPage.MatchString(slug)}
 	for _, name := range defOrder {
 		c.defs[name] = true
 	}
@@ -988,9 +1011,17 @@ func ruleName(slug string) string {
 	return strings.Join(parts, "")
 }
 
+// isNameClass reports whether a class is a name's, qualified or not.
+func isNameClass(cls string) bool { return cls == tName || cls == tQName }
+
+// accountLevelPage is a page for an account-level object, whose <name> is
+// one part: a warehouse, user, role, database, share or integration.
+var accountLevelPage = regexp.MustCompile(`^[a-z]+-(warehouse|user|role|database|share|connection|resource-monitor|compute-pool|failover-group|replication-group|external-volume|application|application-package|account|organization-[a-z-]+|network-policy|listing|[a-z-]*integration[a-z-]*)$`)
+
 type converter struct {
-	page string
-	defs map[string]bool // fragments the page defines and that converted
+	accountLevel bool
+	page         string
+	defs         map[string]bool // fragments the page defines and that converted
 	// commas is set while converting a list of options the pages say may be
 	// separated by spaces, commas or newlines.
 	commas bool
@@ -1204,7 +1235,7 @@ func (c *converter) convert(text string, statement bool) ([]string, error) {
 		if next < len(toks) && toks[next].kind == nClose && i > 0 && toks[i-1].kind == nOpen {
 			next++ // [ <integration_type> ] INTEGRATION
 		}
-		if t.kind == nPlaceholder && strings.HasSuffix(t.text, "_type") && placeholderClass(t.text) == tName &&
+		if t.kind == nPlaceholder && strings.HasSuffix(t.text, "_type") && isNameClass(placeholderClass(t.text)) &&
 			i > 0 && toks[i-1].kind != nKeyword && !isLiteral(toks[i-1], "=") &&
 			next < len(toks) && toks[next].kind == nKeyword {
 			return nil, fmt.Errorf("<%s> stands for a type's keyword, whose page gives its syntax", t.text)
@@ -1213,7 +1244,7 @@ func (c *converter) convert(text string, statement bool) ([]string, error) {
 	// REFRESH_INTERVAL_SECONDS = <value>: a value a key names as a count of
 	// time units, or a count, is a number, whatever the placeholder says.
 	for i, t := range toks {
-		if t.kind == nPlaceholder && placeholderClass(t.text) == tName && i >= 2 && isLiteral(toks[i-1], "=") &&
+		if t.kind == nPlaceholder && isNameClass(placeholderClass(t.text)) && i >= 2 && isLiteral(toks[i-1], "=") &&
 			toks[i-2].kind == nKeyword && countKey.MatchString(toks[i-2].text) {
 			toks[i].text = "num"
 		}
@@ -1333,7 +1364,13 @@ func (c *converter) token(t ntok) (string, error) {
 			// not text to fill in.
 			return "", fmt.Errorf("%w fragment %q: the page does not define it", errUndefined, t.text)
 		}
-		return placeholderClass(t.text), nil
+		cls := placeholderClass(t.text)
+		if cls == tQName && c.accountLevel && (t.text == "name" || t.text == "new_name" || t.text == "object_name") {
+			// ALTER WAREHOUSE <name>: an account-level object's name is
+			// one part.
+			cls = tName
+		}
+		return cls, nil
 	case nFragment:
 		if c.defs[t.text] {
 			return c.fragName(t.text), nil
@@ -1393,9 +1430,10 @@ func writeG4(pin string, pages []pageGrammar) string {
 // lists, converted by snowflake/parser/cmd/docsgrammar. Do not edit it:
 // correct a page's text in docs-fixes.tsv and run the converter again.
 //
-// Keywords are literals. ID, STRING, NUMBER, EXPR, QUERY, COPY_STATEMENT,
-// DATA_TYPE, STAGE, FILE, POSITION, VARIABLE, OBJECT_TYPE and OBJECT_TYPES
-// are the values the docs write as <placeholders>; tokens.tsv samples them. A
+// Keywords are literals. ID, QNAME, STRING, NUMBER, EXPR, QUERY,
+// COPY_STATEMENT, DATA_TYPE, STAGE, FILE, POSITION, VARIABLE, OBJECT_TYPE and
+// OBJECT_TYPES are the values the docs write as <placeholders>; tokens.tsv
+// samples them. A
 // form a page writes with ... for text it leaves out, or with a word it
 // never defines, is not converted and is listed under its page.
 `)
@@ -1453,7 +1491,7 @@ func writeRule(b *strings.Builder, name string, alts []string) {
 // classes lists the token classes a grammar uses, for the report.
 func classes(g4 string) []string {
 	var out []string
-	for _, c := range []string{tName, tString, tNumber, tExpr, tQuery, tType, tStage, tPosition, tVariable, tObjectType, tObjectTypes, tFile, tCopy} {
+	for _, c := range []string{tName, tString, tNumber, tExpr, tQuery, tType, tStage, tPosition, tVariable, tQName, tObjectType, tObjectTypes, tFile, tCopy} {
 		if containsWord(g4, c) {
 			out = append(out, c)
 		}
