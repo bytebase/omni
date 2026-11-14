@@ -980,3 +980,32 @@ func TestCreateTablePrimaryKeyDesc(t *testing.T) {
 		t.Errorf("KeyDesc.Columns = %v, want [id]", stmt.KeyDesc.Columns)
 	}
 }
+
+// TestCreateTableGrammar holds CREATE TABLE's forms to StarRocks.g4
+// (:380, :488, :565); testdata/compat.tsv judged the near misses.
+func TestCreateTableGrammar(t *testing.T) {
+	cases := []struct {
+		sql string
+		ok  bool
+	}{
+		{"CREATE TABLE a DISTRIBUTED BY RANDOM PROPERTIES('k' = 'v') LIKE b", true},
+		{"CREATE TABLE a ORDER BY (a) AS SELECT 1", true},
+		{"CREATE TABLE a (INDEX i (a)) AS SELECT 1", true},
+		{"CREATE TABLE a (a, INDEX i (a)) AS SELECT 1", true},
+		{"CREATE TABLE a (a, INDEX i (a), b) AS SELECT 1", false},
+		{"CREATE TABLE a (a,) AS SELECT 1", false},
+		{"CREATE TABLE a () AS SELECT 1", false},
+		{"CREATE TABLE a SELECT 1", false},
+		{"CREATE TABLE a", false},
+		{"CREATE TABLE a PARTITION BY LIKE b", false},
+		{"CREATE TABLE a (a INT, INDEX i (a) USING BITMAP)", true},
+		{"CREATE TABLE a (a INT b INT)", false},
+		{"CREATE TABLE a (a INT,)", false},
+	}
+	for _, c := range cases {
+		_, err := Parse(c.sql)
+		if (err == nil) != c.ok {
+			t.Errorf("Parse(%q): err = %v, want accepted=%v", c.sql, err, c.ok)
+		}
+	}
+}

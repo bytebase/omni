@@ -890,20 +890,20 @@ reject	reject	engine	supportedCreateStatement(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap
 accept	accept	engine	supportedCreateStatement((identifierList)?|(LEFT_PAREN_column~057ae65a)/(identifierList)?	CREATE TABLE a
 accept	accept	engine	supportedCreateStatement((identifierList)?|(LEFT_PAREN_column~057ae65a)/LEFT_PAREN_columnDefs_(COMMA_indexDefs)?_(COMMA)?_RIGHT_PAREN	CREATE TABLE a(a VARIANT)
 reject	reject	engine	supportedCreateStatement((identifierList)?|(LEFT_PAREN_column~057ae65a)/LEFT_PAREN_columnDefs_(COMMA_indexDefs)?_(COMMA)?_RIGHT_PAREN!drop-1	CREATE TABLE a a VARIANT)
-reject	accept	engine	supportedCreateStatement((identifierList)?|(LEFT_PAREN_column~057ae65a)/LEFT_PAREN_columnDefs_(COMMA_indexDefs)?_(COMMA)?_RIGHT_PAREN!drop-2	CREATE TABLE a(VARIANT)
+accept	accept	engine	supportedCreateStatement((identifierList)?|(LEFT_PAREN_column~057ae65a)/LEFT_PAREN_columnDefs_(COMMA_indexDefs)?_(COMMA)?_RIGHT_PAREN!drop-2	CREATE TABLE a(VARIANT)
 reject	reject	engine	supportedCreateStatement((identifierList)?|(LEFT_PAREN_column~057ae65a)/LEFT_PAREN_columnDefs_(COMMA_indexDefs)?_(COMMA)?_RIGHT_PAREN!drop-4	CREATE TABLE a(a VARIANT
 reject	reject	engine	supportedCreateStatement((identifierList)?|(LEFT_PAREN_column~057ae65a)/LEFT_PAREN_columnDefs_(COMMA_indexDefs)?_(COMMA)?_RIGHT_PAREN!insert	CREATE TABLE a(a VARIANT) zzz
 reject	reject	engine	supportedCreateStatement((identifierList)?|(LEFT_PAREN_column~057ae65a)/LEFT_PAREN_columnDefs_(COMMA_indexDefs)?_(COMMA)?_RIGHT_PAREN!swap	CREATE TABLE a(a VAULT)
 accept	accept	engine	supportedCreateStatement(identifierList)?/%empty	CREATE TABLE a
-reject	accept	engine	supportedCreateStatement(identifierList)?/identifierList	CREATE TABLE a(a)
+accept	accept	engine	supportedCreateStatement(identifierList)?/identifierList	CREATE TABLE a(a)
 reject	reject	engine	supportedCreateStatement(identifierList)?/identifierList!drop-1	CREATE TABLE a a)
-accept	reject	engine	supportedCreateStatement(identifierList)?/identifierList!drop-2	CREATE TABLE a()
+reject	reject	engine	supportedCreateStatement(identifierList)?/identifierList!drop-2	CREATE TABLE a()
 reject	reject	engine	supportedCreateStatement(identifierList)?/identifierList!drop-3	CREATE TABLE a(a
 reject	reject	engine	supportedCreateStatement(identifierList)?/identifierList!insert	CREATE TABLE a(a) zzz
 accept	accept	engine	supportedCreateStatement(COMMA_indexDefs)?/%empty	CREATE TABLE a(a VARIANT)
 reject	reject	engine	supportedCreateStatement(COMMA_indexDefs)?/%empty!insert	CREATE TABLE a(a VARIANT zzz)
 accept	accept	engine	supportedCreateStatement(COMMA_indexDefs)?/COMMA_indexDefs	CREATE TABLE a(a VARIANT, INDEX a(a))
-accept	reject	engine	supportedCreateStatement(COMMA_indexDefs)?/COMMA_indexDefs!drop-1	CREATE TABLE a(a VARIANT INDEX a(a))
+reject	reject	engine	supportedCreateStatement(COMMA_indexDefs)?/COMMA_indexDefs!drop-1	CREATE TABLE a(a VARIANT INDEX a(a))
 reject	reject	engine	supportedCreateStatement(COMMA_indexDefs)?/COMMA_indexDefs!drop-2	CREATE TABLE a(a VARIANT, a(a))
 reject	reject	engine	supportedCreateStatement(COMMA_indexDefs)?/COMMA_indexDefs!drop-3	CREATE TABLE a(a VARIANT, INDEX(a))
 reject	reject	engine	supportedCreateStatement(COMMA_indexDefs)?/COMMA_indexDefs!drop-4	CREATE TABLE a(a VARIANT, INDEX a a))
@@ -1002,7 +1002,7 @@ reject	reject	engine	supportedCreateStatement(ROLLUP_LEFT_PAREN_rollupDefs_RIGHT
 reject	reject	engine	supportedCreateStatement(ROLLUP_LEFT_PAREN_rollupDefs_RIGHT_PAREN)?/ROLLUP_LEFT_PAREN_rollupDefs_RIGHT_PAREN!insert	CREATE TABLE a ROLLUP(a(a)) zzz
 reject	reject	engine	supportedCreateStatement(ROLLUP_LEFT_PAREN_rollupDefs_RIGHT_PAREN)?/ROLLUP_LEFT_PAREN_rollupDefs_RIGHT_PAREN!swap	CREATE TABLE a ROOT(a(a))
 accept	accept	engine	supportedCreateStatement(propertyClause)?/%empty	CREATE TABLE a
-reject	accept	engine	supportedCreateStatement(propertyClause)?/propertyClause	CREATE TABLE a PROPERTIES(a = a)
+accept	accept	engine	supportedCreateStatement(propertyClause)?/propertyClause	CREATE TABLE a PROPERTIES(a = a)
 reject	reject	engine	supportedCreateStatement(propertyClause)?/propertyClause!drop-1	CREATE TABLE a(a = a)
 reject	reject	engine	supportedCreateStatement(propertyClause)?/propertyClause!drop-2	CREATE TABLE a PROPERTIES a = a)
 reject	reject	engine	supportedCreateStatement(propertyClause)?/propertyClause!drop-3	CREATE TABLE a PROPERTIES(= a)
@@ -1012,7 +1012,7 @@ reject	reject	engine	supportedCreateStatement(propertyClause)?/propertyClause!dr
 reject	reject	engine	supportedCreateStatement(propertyClause)?/propertyClause!insert	CREATE TABLE a PROPERTIES(a = a) zzz
 reject	reject	engine	supportedCreateStatement(propertyClause)?/propertyClause!swap	CREATE TABLE a PROPERTY(a = a)
 accept	accept	engine	supportedCreateStatement(BROKER_propertyClause)?/%empty	CREATE TABLE a
-reject	accept	engine	supportedCreateStatement(BROKER_propertyClause)?/BROKER_propertyClause	CREATE TABLE a BROKER PROPERTIES(a = a)
+accept	accept	engine	supportedCreateStatement(BROKER_propertyClause)?/BROKER_propertyClause	CREATE TABLE a BROKER PROPERTIES(a = a)
 reject	reject	engine	supportedCreateStatement(BROKER_propertyClause)?/BROKER_propertyClause!drop-2	CREATE TABLE a BROKER(a = a)
 reject	reject	engine	supportedCreateStatement(BROKER_propertyClause)?/BROKER_propertyClause!drop-3	CREATE TABLE a BROKER PROPERTIES a = a)
 reject	reject	engine	supportedCreateStatement(BROKER_propertyClause)?/BROKER_propertyClause!drop-4	CREATE TABLE a BROKER PROPERTIES(= a)
@@ -1048,7 +1048,7 @@ reject	reject	engine	supportedCreateStatement(LEFT_PAREN_simpleColumnDefs_RIGHT_
 reject	reject	engine	supportedCreateStatement(LEFT_PAREN_simpleColumnDefs_RIGHT_PAREN)?/LEFT_PAREN_simpleColumnDefs_RIGHT_PAREN!truncate	CREATE VIEW a(a
 reject	reject	engine	supportedCreateStatement(LEFT_PAREN_simpleColumnDefs_RIGHT_PAREN)?/LEFT_PAREN_simpleColumnDefs_RIGHT_PAREN!insert	CREATE VIEW a(a) zzz SELECT CURRENT_DATE
 accept	accept	engine	supportedCreateStatement(WITH_ROLLUP_(identifierList)?)?/%empty	CREATE TABLE a LIKE a
-reject	accept	engine	supportedCreateStatement(WITH_ROLLUP_(identifierList)?)?/WITH_ROLLUP_(identifierList)?	CREATE TABLE a LIKE a WITH ROLLUP
+accept	accept	engine	supportedCreateStatement(WITH_ROLLUP_(identifierList)?)?/WITH_ROLLUP_(identifierList)?	CREATE TABLE a LIKE a WITH ROLLUP
 reject	reject	engine	supportedCreateStatement(WITH_ROLLUP_(identifierList)?)?/WITH_ROLLUP_(identifierList)?!drop-1	CREATE TABLE a LIKE a ROLLUP
 reject	reject	engine	supportedCreateStatement(WITH_ROLLUP_(identifierList)?)?/WITH_ROLLUP_(identifierList)?!drop-2	CREATE TABLE a LIKE a WITH
 reject	reject	engine	supportedCreateStatement(WITH_ROLLUP_(identifierList)?)?/WITH_ROLLUP_(identifierList)?!insert	CREATE TABLE a LIKE a WITH ROLLUP zzz
@@ -4998,7 +4998,7 @@ reject	reject	engine	partitionTable(AUTO)?/AUTO!swap	CREATE TABLE a AUTO_INCREME
 accept	accept	engine	partitionTable(RANGE|LIST)?/%empty	CREATE TABLE a PARTITION BY(a)()
 reject	reject	engine	partitionTable(RANGE|LIST)?/%empty!insert	CREATE TABLE a PARTITION BY zzz(a)()
 accept	accept	engine	partitionTable(RANGE|LIST)?/RANGE	CREATE TABLE a PARTITION BY RANGE(a)()
-accept	reject	engine	partitionTable(RANGE|LIST)?/RANGE!truncate	CREATE TABLE a PARTITION BY
+reject	reject	engine	partitionTable(RANGE|LIST)?/RANGE!truncate	CREATE TABLE a PARTITION BY
 reject	reject	engine	partitionTable(RANGE|LIST)?/RANGE!insert	CREATE TABLE a PARTITION BY RANGE zzz(a)()
 reject	reject	engine	partitionTable(RANGE|LIST)?/RANGE!swap	CREATE TABLE a PARTITION BY READ(a)()
 accept	accept	engine	partitionTable(RANGE|LIST)?/LIST	CREATE TABLE a PARTITION BY LIST(a)()
@@ -5947,7 +5947,7 @@ reject	reject	engine	joinCriteria/USING_identifierList!drop-3	SELECT CURRENT_DAT
 reject	reject	engine	joinCriteria/USING_identifierList!drop-4	SELECT CURRENT_DATE FROM a JOIN a USING(a
 reject	reject	engine	joinCriteria/USING_identifierList!insert	SELECT CURRENT_DATE FROM a JOIN a USING(a) zzz
 reject	reject	engine	joinCriteria/USING_identifierList!swap	SELECT CURRENT_DATE FROM a JOIN a VALUE(a)
-reject	accept	engine	identifierList/LEFT_PAREN_identifierSeq_RIGHT_PAREN	CREATE TABLE a(a)
+accept	accept	engine	identifierList/LEFT_PAREN_identifierSeq_RIGHT_PAREN	CREATE TABLE a(a)
 accept	accept	engine	identifierSeq/errorCapturingIdentifier_(COMMA_errorCapturingIdentifier)*	DROP SQL_BLOCK_RULE a
 accept	accept	engine	identifierSeq(COMMA_errorCapturingIdentifier)*/%empty	DROP SQL_BLOCK_RULE a
 reject	accept	engine	identifierSeq(COMMA_errorCapturingIdentifier)*/COMMA_errorCapturingIdentifier_(COMMA_errorCapturingIdentifier)*	DROP SQL_BLOCK_RULE a, a
@@ -6093,7 +6093,7 @@ reject	reject	engine	simpleColumnDef(COMMENT_STRING_LITERAL)?/COMMENT_STRING_LIT
 accept	accept	engine	columnDefs/columnDef_(COMMA_columnDef)*	CREATE TABLE a(a VARIANT)
 accept	accept	engine	columnDefs(COMMA_columnDef)*/%empty	CREATE TABLE a(a VARIANT)
 accept	accept	engine	columnDefs(COMMA_columnDef)*/COMMA_columnDef_(COMMA_columnDef)*	CREATE TABLE a(a VARIANT, a VARIANT)
-accept	reject	engine	columnDefs(COMMA_columnDef)*/COMMA_columnDef_(COMMA_columnDef)*!drop-1	CREATE TABLE a(a VARIANT a VARIANT)
+reject	reject	engine	columnDefs(COMMA_columnDef)*/COMMA_columnDef_(COMMA_columnDef)*!drop-1	CREATE TABLE a(a VARIANT a VARIANT)
 reject	reject	engine	columnDefs(COMMA_columnDef)*/COMMA_columnDef_(COMMA_columnDef)*!drop-2	CREATE TABLE a(a VARIANT, VARIANT)
 reject	reject	engine	columnDefs(COMMA_columnDef)*/COMMA_columnDef_(COMMA_columnDef)*!drop-3	CREATE TABLE a(a VARIANT, a)
 reject	reject	engine	columnDefs(COMMA_columnDef)*/COMMA_columnDef_(COMMA_columnDef)*!truncate	CREATE TABLE a(a VARIANT, a
@@ -6109,7 +6109,7 @@ accept	accept	engine	columnDef(aggTypeDef)?/aggTypeDef	CREATE TABLE a(a VARIANT 
 reject	reject	engine	columnDef(aggTypeDef)?/aggTypeDef!insert	CREATE TABLE a(a VARIANT MAX zzz)
 reject	reject	engine	columnDef(aggTypeDef)?/aggTypeDef!swap	CREATE TABLE a(a VARIANT MAXVALUE)
 accept	accept	engine	columnDef((GENERATED_ALWAYS)?_AS_LEFT_PAREN_ex~4c05d811)?/%empty	CREATE TABLE a(a VARIANT)
-reject	accept	engine	columnDef((GENERATED_ALWAYS)?_AS_LEFT_PAREN_ex~4c05d811)?/(GENERATED_ALWAYS)?_AS_LEFT_PAREN_expression_RIGHT_PAREN	CREATE TABLE a(a VARIANT AS(CURRENT_DATE))
+accept	accept	engine	columnDef((GENERATED_ALWAYS)?_AS_LEFT_PAREN_ex~4c05d811)?/(GENERATED_ALWAYS)?_AS_LEFT_PAREN_expression_RIGHT_PAREN	CREATE TABLE a(a VARIANT AS(CURRENT_DATE))
 reject	reject	engine	columnDef((GENERATED_ALWAYS)?_AS_LEFT_PAREN_ex~4c05d811)?/(GENERATED_ALWAYS)?_AS_LEFT_PAREN_expression_RIGHT_PAREN!drop-1	CREATE TABLE a(a VARIANT(CURRENT_DATE))
 reject	reject	engine	columnDef((GENERATED_ALWAYS)?_AS_LEFT_PAREN_ex~4c05d811)?/(GENERATED_ALWAYS)?_AS_LEFT_PAREN_expression_RIGHT_PAREN!drop-2	CREATE TABLE a(a VARIANT AS CURRENT_DATE))
 reject	reject	engine	columnDef((GENERATED_ALWAYS)?_AS_LEFT_PAREN_ex~4c05d811)?/(GENERATED_ALWAYS)?_AS_LEFT_PAREN_expression_RIGHT_PAREN!drop-3	CREATE TABLE a(a VARIANT AS())
@@ -6117,11 +6117,11 @@ reject	reject	engine	columnDef((GENERATED_ALWAYS)?_AS_LEFT_PAREN_ex~4c05d811)?/(
 reject	reject	engine	columnDef((GENERATED_ALWAYS)?_AS_LEFT_PAREN_ex~4c05d811)?/(GENERATED_ALWAYS)?_AS_LEFT_PAREN_expression_RIGHT_PAREN!truncate	CREATE TABLE a(a VARIANT AS(CURRENT_DATE
 reject	reject	engine	columnDef((GENERATED_ALWAYS)?_AS_LEFT_PAREN_ex~4c05d811)?/(GENERATED_ALWAYS)?_AS_LEFT_PAREN_expression_RIGHT_PAREN!insert	CREATE TABLE a(a VARIANT AS(CURRENT_DATE) zzz)
 reject	reject	engine	columnDef((GENERATED_ALWAYS)?_AS_LEFT_PAREN_ex~4c05d811)?/(GENERATED_ALWAYS)?_AS_LEFT_PAREN_expression_RIGHT_PAREN!swap	CREATE TABLE a(a VARIANT ASC(CURRENT_DATE))
-reject	accept	engine	columnDef(GENERATED_ALWAYS)?/%empty	CREATE TABLE a(a VARIANT AS(CURRENT_DATE))
+accept	accept	engine	columnDef(GENERATED_ALWAYS)?/%empty	CREATE TABLE a(a VARIANT AS(CURRENT_DATE))
 reject	reject	engine	columnDef(GENERATED_ALWAYS)?/%empty!insert	CREATE TABLE a(a VARIANT zzz AS(CURRENT_DATE))
 accept	accept	engine	columnDef(GENERATED_ALWAYS)?/GENERATED_ALWAYS	CREATE TABLE a(a VARIANT GENERATED ALWAYS AS(CURRENT_DATE))
 reject	reject	engine	columnDef(GENERATED_ALWAYS)?/GENERATED_ALWAYS!drop-1	CREATE TABLE a(a VARIANT ALWAYS AS(CURRENT_DATE))
-accept	reject	engine	columnDef(GENERATED_ALWAYS)?/GENERATED_ALWAYS!drop-2	CREATE TABLE a(a VARIANT GENERATED AS(CURRENT_DATE))
+reject	reject	engine	columnDef(GENERATED_ALWAYS)?/GENERATED_ALWAYS!drop-2	CREATE TABLE a(a VARIANT GENERATED AS(CURRENT_DATE))
 reject	reject	engine	columnDef(GENERATED_ALWAYS)?/GENERATED_ALWAYS!truncate	CREATE TABLE a(a VARIANT GENERATED
 reject	reject	engine	columnDef(GENERATED_ALWAYS)?/GENERATED_ALWAYS!insert	CREATE TABLE a(a VARIANT GENERATED ALWAYS zzz AS(CURRENT_DATE))
 reject	reject	engine	columnDef(GENERATED_ALWAYS)?/GENERATED_ALWAYS!swap	CREATE TABLE a(a VARIANT GENERIC ALWAYS AS(CURRENT_DATE))
@@ -6133,7 +6133,7 @@ accept	accept	engine	columnDef(NOT)?/%empty	CREATE TABLE a(a VARIANT NULL)
 reject	reject	engine	columnDef(NOT)?/%empty!insert	CREATE TABLE a(a VARIANT zzz NULL)
 accept	accept	engine	columnDef(NOT)?/NOT	CREATE TABLE a(a VARIANT NOT NULL)
 reject	reject	engine	columnDef(NOT)?/NOT!insert	CREATE TABLE a(a VARIANT NOT zzz NULL)
-accept	reject	engine	columnDef(NOT)?/NOT!swap	CREATE TABLE a(a VARIANT NULL NULL)
+reject	reject	engine	columnDef(NOT)?/NOT!swap	CREATE TABLE a(a VARIANT NULL NULL)
 accept	accept	engine	columnDef(AUTO_INCREMENT_(LEFT_PAREN_number_RI~3ec3d0f7)?/%empty	CREATE TABLE a(a VARIANT)
 accept	accept	engine	columnDef(AUTO_INCREMENT_(LEFT_PAREN_number_RI~3ec3d0f7)?/AUTO_INCREMENT_(LEFT_PAREN_number_RIGHT_PAREN)?	CREATE TABLE a(a VARIANT AUTO_INCREMENT)
 reject	reject	engine	columnDef(AUTO_INCREMENT_(LEFT_PAREN_number_RI~3ec3d0f7)?/AUTO_INCREMENT_(LEFT_PAREN_number_RIGHT_PAREN)?!insert	CREATE TABLE a(a VARIANT AUTO_INCREMENT zzz)
@@ -6141,7 +6141,7 @@ reject	reject	engine	columnDef(AUTO_INCREMENT_(LEFT_PAREN_number_RI~3ec3d0f7)?/A
 accept	accept	engine	columnDef(LEFT_PAREN_number_RIGHT_PAREN)?/%empty	CREATE TABLE a(a VARIANT AUTO_INCREMENT)
 accept	accept	engine	columnDef(LEFT_PAREN_number_RIGHT_PAREN)?/LEFT_PAREN_number_RIGHT_PAREN	CREATE TABLE a(a VARIANT AUTO_INCREMENT(1))
 reject	reject	engine	columnDef(LEFT_PAREN_number_RIGHT_PAREN)?/LEFT_PAREN_number_RIGHT_PAREN!drop-1	CREATE TABLE a(a VARIANT AUTO_INCREMENT 1))
-accept	reject	engine	columnDef(LEFT_PAREN_number_RIGHT_PAREN)?/LEFT_PAREN_number_RIGHT_PAREN!drop-2	CREATE TABLE a(a VARIANT AUTO_INCREMENT())
+reject	reject	engine	columnDef(LEFT_PAREN_number_RIGHT_PAREN)?/LEFT_PAREN_number_RIGHT_PAREN!drop-2	CREATE TABLE a(a VARIANT AUTO_INCREMENT())
 reject	reject	engine	columnDef(LEFT_PAREN_number_RIGHT_PAREN)?/LEFT_PAREN_number_RIGHT_PAREN!drop-3	CREATE TABLE a(a VARIANT AUTO_INCREMENT(1)
 reject	reject	engine	columnDef(LEFT_PAREN_number_RIGHT_PAREN)?/LEFT_PAREN_number_RIGHT_PAREN!truncate	CREATE TABLE a(a VARIANT AUTO_INCREMENT(1
 reject	reject	engine	columnDef(LEFT_PAREN_number_RIGHT_PAREN)?/LEFT_PAREN_number_RIGHT_PAREN!insert	CREATE TABLE a(a VARIANT AUTO_INCREMENT(1) zzz)
@@ -6196,7 +6196,7 @@ reject	reject	engine	columnDef(COMMENT_STRING_LITERAL)?/COMMENT_STRING_LITERAL!s
 accept	accept	engine	indexDefs/indexDef_(COMMA_indexDef)*	CREATE TABLE a(a VARIANT, INDEX a(a))
 accept	accept	engine	indexDefs(COMMA_indexDef)*/%empty	CREATE TABLE a(a VARIANT, INDEX a(a))
 accept	accept	engine	indexDefs(COMMA_indexDef)*/COMMA_indexDef_(COMMA_indexDef)*	CREATE TABLE a(a VARIANT, INDEX a(a), INDEX a(a))
-accept	reject	engine	indexDefs(COMMA_indexDef)*/COMMA_indexDef_(COMMA_indexDef)*!drop-1	CREATE TABLE a(a VARIANT, INDEX a(a) INDEX a(a))
+reject	reject	engine	indexDefs(COMMA_indexDef)*/COMMA_indexDef_(COMMA_indexDef)*!drop-1	CREATE TABLE a(a VARIANT, INDEX a(a) INDEX a(a))
 reject	reject	engine	indexDefs(COMMA_indexDef)*/COMMA_indexDef_(COMMA_indexDef)*!drop-2	CREATE TABLE a(a VARIANT, INDEX a(a), a(a))
 reject	reject	engine	indexDefs(COMMA_indexDef)*/COMMA_indexDef_(COMMA_indexDef)*!drop-3	CREATE TABLE a(a VARIANT, INDEX a(a), INDEX(a))
 reject	reject	engine	indexDefs(COMMA_indexDef)*/COMMA_indexDef_(COMMA_indexDef)*!drop-4	CREATE TABLE a(a VARIANT, INDEX a(a), INDEX a a))
@@ -6249,7 +6249,7 @@ reject	reject	engine	indexDef(COMMENT_STRING_LITERAL)?/COMMENT_STRING_LITERAL!sw
 accept	accept	engine	partitionsDef/partitionDef_(COMMA_partitionDef)*	CREATE TABLE a PARTITION BY(a)(PARTITION a)
 accept	accept	engine	partitionsDef(COMMA_partitionDef)*/%empty	CREATE TABLE a PARTITION BY(a)(PARTITION a)
 accept	accept	engine	partitionsDef(COMMA_partitionDef)*/COMMA_partitionDef_(COMMA_partitionDef)*	CREATE TABLE a PARTITION BY(a)(PARTITION a, PARTITION a)
-accept	reject	engine	partitionsDef(COMMA_partitionDef)*/COMMA_partitionDef_(COMMA_partitionDef)*!drop-1	CREATE TABLE a PARTITION BY(a)(PARTITION a PARTITION a)
+reject	reject	engine	partitionsDef(COMMA_partitionDef)*/COMMA_partitionDef_(COMMA_partitionDef)*!drop-1	CREATE TABLE a PARTITION BY(a)(PARTITION a PARTITION a)
 reject	reject	engine	partitionsDef(COMMA_partitionDef)*/COMMA_partitionDef_(COMMA_partitionDef)*!drop-2	CREATE TABLE a PARTITION BY(a)(PARTITION a, a)
 reject	reject	engine	partitionsDef(COMMA_partitionDef)*/COMMA_partitionDef_(COMMA_partitionDef)*!drop-3	CREATE TABLE a PARTITION BY(a)(PARTITION a, PARTITION)
 reject	reject	engine	partitionsDef(COMMA_partitionDef)*/COMMA_partitionDef_(COMMA_partitionDef)*!truncate	CREATE TABLE a PARTITION BY(a)(PARTITION a, PARTITION
@@ -6272,11 +6272,11 @@ reject	reject	engine	partitionDef(lessThanPartitionDef|fixedPartitionD~1977b838)
 reject	reject	engine	partitionDef(lessThanPartitionDef|fixedPartitionD~1977b838)/fixedPartitionDef!drop-3	CREATE TABLE a PARTITION BY(a)(PARTITION a [(1),(1)))
 reject	reject	engine	partitionDef(lessThanPartitionDef|fixedPartitionD~1977b838)/fixedPartitionDef!drop-4	CREATE TABLE a PARTITION BY(a)(PARTITION a VALUES(1),(1)))
 reject	reject	engine	partitionDef(lessThanPartitionDef|fixedPartitionD~1977b838)/fixedPartitionDef!drop-5	CREATE TABLE a PARTITION BY(a)(PARTITION a VALUES [ 1),(1)))
-accept	reject	engine	partitionDef(lessThanPartitionDef|fixedPartitionD~1977b838)/fixedPartitionDef!drop-6	CREATE TABLE a PARTITION BY(a)(PARTITION a VALUES [(),(1)))
+reject	reject	engine	partitionDef(lessThanPartitionDef|fixedPartitionD~1977b838)/fixedPartitionDef!drop-6	CREATE TABLE a PARTITION BY(a)(PARTITION a VALUES [(),(1)))
 reject	reject	engine	partitionDef(lessThanPartitionDef|fixedPartitionD~1977b838)/fixedPartitionDef!drop-7	CREATE TABLE a PARTITION BY(a)(PARTITION a VALUES [(1,(1)))
 reject	reject	engine	partitionDef(lessThanPartitionDef|fixedPartitionD~1977b838)/fixedPartitionDef!drop-8	CREATE TABLE a PARTITION BY(a)(PARTITION a VALUES [(1)(1)))
 reject	reject	engine	partitionDef(lessThanPartitionDef|fixedPartitionD~1977b838)/fixedPartitionDef!drop-9	CREATE TABLE a PARTITION BY(a)(PARTITION a VALUES [(1), 1)))
-accept	reject	engine	partitionDef(lessThanPartitionDef|fixedPartitionD~1977b838)/fixedPartitionDef!drop-10	CREATE TABLE a PARTITION BY(a)(PARTITION a VALUES [(1),()))
+reject	reject	engine	partitionDef(lessThanPartitionDef|fixedPartitionD~1977b838)/fixedPartitionDef!drop-10	CREATE TABLE a PARTITION BY(a)(PARTITION a VALUES [(1),()))
 reject	reject	engine	partitionDef(lessThanPartitionDef|fixedPartitionD~1977b838)/fixedPartitionDef!drop-11	CREATE TABLE a PARTITION BY(a)(PARTITION a VALUES [(1),(1))
 reject	reject	engine	partitionDef(lessThanPartitionDef|fixedPartitionD~1977b838)/fixedPartitionDef!truncate	CREATE TABLE a PARTITION BY(a)(PARTITION a VALUES [(1),(1)
 reject	reject	engine	partitionDef(lessThanPartitionDef|fixedPartitionD~1977b838)/fixedPartitionDef!insert	CREATE TABLE a PARTITION BY(a)(PARTITION a VALUES [(1),(1)) zzz)
@@ -6284,16 +6284,16 @@ reject	reject	engine	partitionDef(lessThanPartitionDef|fixedPartitionD~1977b838)
 accept	accept	engine	partitionDef(lessThanPartitionDef|fixedPartitionD~1977b838)/stepPartitionDef	CREATE TABLE a PARTITION BY(a)(FROM(1) TO(1) INTERVAL 1)
 reject	reject	engine	partitionDef(lessThanPartitionDef|fixedPartitionD~1977b838)/stepPartitionDef!drop-1	CREATE TABLE a PARTITION BY(a)((1) TO(1) INTERVAL 1)
 reject	reject	engine	partitionDef(lessThanPartitionDef|fixedPartitionD~1977b838)/stepPartitionDef!drop-2	CREATE TABLE a PARTITION BY(a)(FROM 1) TO(1) INTERVAL 1)
-accept	reject	engine	partitionDef(lessThanPartitionDef|fixedPartitionD~1977b838)/stepPartitionDef!drop-3	CREATE TABLE a PARTITION BY(a)(FROM() TO(1) INTERVAL 1)
+reject	reject	engine	partitionDef(lessThanPartitionDef|fixedPartitionD~1977b838)/stepPartitionDef!drop-3	CREATE TABLE a PARTITION BY(a)(FROM() TO(1) INTERVAL 1)
 reject	reject	engine	partitionDef(lessThanPartitionDef|fixedPartitionD~1977b838)/stepPartitionDef!drop-4	CREATE TABLE a PARTITION BY(a)(FROM(1 TO(1) INTERVAL 1)
 reject	reject	engine	partitionDef(lessThanPartitionDef|fixedPartitionD~1977b838)/stepPartitionDef!drop-5	CREATE TABLE a PARTITION BY(a)(FROM(1)(1) INTERVAL 1)
 reject	reject	engine	partitionDef(lessThanPartitionDef|fixedPartitionD~1977b838)/stepPartitionDef!drop-6	CREATE TABLE a PARTITION BY(a)(FROM(1) TO 1) INTERVAL 1)
-accept	reject	engine	partitionDef(lessThanPartitionDef|fixedPartitionD~1977b838)/stepPartitionDef!drop-7	CREATE TABLE a PARTITION BY(a)(FROM(1) TO() INTERVAL 1)
+reject	reject	engine	partitionDef(lessThanPartitionDef|fixedPartitionD~1977b838)/stepPartitionDef!drop-7	CREATE TABLE a PARTITION BY(a)(FROM(1) TO() INTERVAL 1)
 reject	reject	engine	partitionDef(lessThanPartitionDef|fixedPartitionD~1977b838)/stepPartitionDef!drop-8	CREATE TABLE a PARTITION BY(a)(FROM(1) TO(1 INTERVAL 1)
 reject	reject	engine	partitionDef(lessThanPartitionDef|fixedPartitionD~1977b838)/stepPartitionDef!drop-9	CREATE TABLE a PARTITION BY(a)(FROM(1) TO(1) 1)
 reject	reject	engine	partitionDef(lessThanPartitionDef|fixedPartitionD~1977b838)/stepPartitionDef!drop-10	CREATE TABLE a PARTITION BY(a)(FROM(1) TO(1) INTERVAL)
 reject	reject	engine	partitionDef(lessThanPartitionDef|fixedPartitionD~1977b838)/stepPartitionDef!truncate	CREATE TABLE a PARTITION BY(a)(FROM(1) TO(1) INTERVAL
-accept	reject	engine	partitionDef(lessThanPartitionDef|fixedPartitionD~1977b838)/stepPartitionDef!insert	CREATE TABLE a PARTITION BY(a)(FROM(1) TO(1) INTERVAL 1 zzz)
+reject	reject	engine	partitionDef(lessThanPartitionDef|fixedPartitionD~1977b838)/stepPartitionDef!insert	CREATE TABLE a PARTITION BY(a)(FROM(1) TO(1) INTERVAL 1 zzz)
 reject	reject	engine	partitionDef(lessThanPartitionDef|fixedPartitionD~1977b838)/stepPartitionDef!swap	CREATE TABLE a PARTITION BY(a)(FRONTEND(1) TO(1) INTERVAL 1)
 accept	accept	engine	partitionDef(lessThanPartitionDef|fixedPartitionD~1977b838)/inPartitionDef	CREATE TABLE a PARTITION BY(a)(PARTITION a)
 accept	accept	engine	partitionDef(LEFT_PAREN_propertyItemList_RIGHT_PAREN)?/%empty	CREATE TABLE a PARTITION BY(a)(PARTITION a)
@@ -6402,7 +6402,7 @@ reject	reject	engine	rollupDefs/rollupDef_(COMMA_rollupDef)*!truncate	CREATE TAB
 reject	reject	engine	rollupDefs/rollupDef_(COMMA_rollupDef)*!insert	CREATE TABLE a ROLLUP(a(a) zzz)
 accept	accept	engine	rollupDefs(COMMA_rollupDef)*/%empty	CREATE TABLE a ROLLUP(a(a))
 accept	accept	engine	rollupDefs(COMMA_rollupDef)*/COMMA_rollupDef_(COMMA_rollupDef)*	CREATE TABLE a ROLLUP(a(a), a(a))
-accept	reject	engine	rollupDefs(COMMA_rollupDef)*/COMMA_rollupDef_(COMMA_rollupDef)*!drop-1	CREATE TABLE a ROLLUP(a(a) a(a))
+reject	reject	engine	rollupDefs(COMMA_rollupDef)*/COMMA_rollupDef_(COMMA_rollupDef)*!drop-1	CREATE TABLE a ROLLUP(a(a) a(a))
 reject	reject	engine	rollupDefs(COMMA_rollupDef)*/COMMA_rollupDef_(COMMA_rollupDef)*!drop-2	CREATE TABLE a ROLLUP(a(a),(a))
 reject	reject	engine	rollupDefs(COMMA_rollupDef)*/COMMA_rollupDef_(COMMA_rollupDef)*!drop-3	CREATE TABLE a ROLLUP(a(a), a a))
 reject	reject	engine	rollupDefs(COMMA_rollupDef)*/COMMA_rollupDef_(COMMA_rollupDef)*!drop-4	CREATE TABLE a ROLLUP(a(a), a())
@@ -6421,7 +6421,7 @@ reject	reject	engine	rollupDef(DUPLICATE_KEY_identifierList)?/DUPLICATE_KEY_iden
 reject	reject	engine	rollupDef(DUPLICATE_KEY_identifierList)?/DUPLICATE_KEY_identifierList!insert	CREATE TABLE a ROLLUP(a(a) DUPLICATE KEY(a) zzz)
 reject	reject	engine	rollupDef(DUPLICATE_KEY_identifierList)?/DUPLICATE_KEY_identifierList!swap	CREATE TABLE a ROLLUP(a(a) DYNAMIC KEY(a))
 accept	accept	engine	rollupDef(propertyClause)?/%empty	CREATE TABLE a ROLLUP(a(a))
-reject	accept	engine	rollupDef(propertyClause)?/propertyClause	CREATE TABLE a ROLLUP(a(a) PROPERTIES(a = a))
+accept	accept	engine	rollupDef(propertyClause)?/propertyClause	CREATE TABLE a ROLLUP(a(a) PROPERTIES(a = a))
 reject	reject	engine	rollupDef(propertyClause)?/propertyClause!drop-1	CREATE TABLE a ROLLUP(a(a)(a = a))
 reject	reject	engine	rollupDef(propertyClause)?/propertyClause!drop-2	CREATE TABLE a ROLLUP(a(a) PROPERTIES a = a))
 reject	reject	engine	rollupDef(propertyClause)?/propertyClause!drop-3	CREATE TABLE a ROLLUP(a(a) PROPERTIES(= a))
@@ -9608,7 +9608,7 @@ reject	reject	engine	create_stmt/CREATE_opt_var_type_TABLES_FUNCTION_opt_if_not_
 reject	reject	engine	create_stmt/CREATE_opt_var_type_TABLES_FUNCTION_opt_if_not_exists_f~af5e0788!drop-8	CREATE TABLES FUNCTION a() RETURNS
 reject	reject	engine	create_stmt/CREATE_opt_var_type_TABLES_FUNCTION_opt_if_not_exists_f~af5e0788!insert	CREATE TABLES FUNCTION a() RETURNS TINYINT zzz
 reject	reject	engine	create_stmt/CREATE_opt_var_type_TABLES_FUNCTION_opt_if_not_exists_f~af5e0788!swap	CREATION TABLES FUNCTION a() RETURNS TINYINT
-reject	accept	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~e4766986	CREATE TABLE a LIKE a WITH ROLLUP(a)
+accept	accept	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~e4766986	CREATE TABLE a LIKE a WITH ROLLUP(a)
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~e4766986!drop-1	TABLE a LIKE a WITH ROLLUP(a)
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~e4766986!drop-2	CREATE a LIKE a WITH ROLLUP(a)
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~e4766986!drop-3	CREATE TABLE LIKE a WITH ROLLUP(a)
@@ -9621,7 +9621,7 @@ reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_tab
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~e4766986!drop-10	CREATE TABLE a LIKE a WITH ROLLUP(a
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~e4766986!insert	CREATE TABLE a LIKE a WITH ROLLUP(a) zzz
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~e4766986!swap	CREATION TABLE a LIKE a WITH ROLLUP(a)
-reject	accept	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~4049971c	CREATE TABLE a LIKE a WITH ROLLUP
+accept	accept	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~4049971c	CREATE TABLE a LIKE a WITH ROLLUP
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~4049971c!drop-1	TABLE a LIKE a WITH ROLLUP
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~4049971c!drop-2	CREATE a LIKE a WITH ROLLUP
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~4049971c!drop-3	CREATE TABLE LIKE a WITH ROLLUP
@@ -9645,7 +9645,7 @@ reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_tab
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~cd7182b0!drop-3	CREATE TABLE(a TINYINT)
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~cd7182b0!drop-4	CREATE TABLE a a TINYINT)
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~cd7182b0!drop-5	CREATE TABLE a(TINYINT)
-reject	accept	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~cd7182b0!drop-6	CREATE TABLE a(a)
+accept	accept	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~cd7182b0!drop-6	CREATE TABLE a(a)
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~cd7182b0!drop-7	CREATE TABLE a(a TINYINT
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~cd7182b0!insert	CREATE TABLE a(a TINYINT) zzz
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~cd7182b0!swap	CREATION TABLE a(a TINYINT)
@@ -9666,7 +9666,7 @@ reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_tab
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~dea6f3b1!drop-4	CREATE TABLE a a TINYINT, INDEX a(a))
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~dea6f3b1!drop-5	CREATE TABLE a(TINYINT, INDEX a(a))
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~dea6f3b1!drop-6	CREATE TABLE a(a, INDEX a(a))
-accept	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~dea6f3b1!drop-7	CREATE TABLE a(a TINYINT INDEX a(a))
+reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~dea6f3b1!drop-7	CREATE TABLE a(a TINYINT INDEX a(a))
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~dea6f3b1!drop-8	CREATE TABLE a(a TINYINT, a(a))
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~dea6f3b1!drop-9	CREATE TABLE a(a TINYINT, INDEX(a))
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~dea6f3b1!drop-10	CREATE TABLE a(a TINYINT, INDEX a a))
@@ -9681,7 +9681,7 @@ reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_tab
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~df7f4d5f!drop-4	CREATE TABLE a a TINYINT, INDEX a(a),)
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~df7f4d5f!drop-5	CREATE TABLE a(TINYINT, INDEX a(a),)
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~df7f4d5f!drop-6	CREATE TABLE a(a, INDEX a(a),)
-accept	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~df7f4d5f!drop-7	CREATE TABLE a(a TINYINT INDEX a(a),)
+reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~df7f4d5f!drop-7	CREATE TABLE a(a TINYINT INDEX a(a),)
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~df7f4d5f!drop-8	CREATE TABLE a(a TINYINT, a(a),)
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~df7f4d5f!drop-9	CREATE TABLE a(a TINYINT, INDEX(a),)
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~df7f4d5f!drop-10	CREATE TABLE a(a TINYINT, INDEX a a),)
@@ -11215,17 +11215,17 @@ reject	reject	engine	opt_all_partition_desc_list/all_partition_desc_list!swap	CR
 accept	accept	engine	all_partition_desc_list/all_partition_desc_list_,_single_partition_desc	CREATE TABLE a PARTITION BY RANGE(a)(PARTITION a, PARTITION a) AS SELECT 1
 reject	reject	engine	all_partition_desc_list/all_partition_desc_list_,_single_partition_desc!drop-1	CREATE TABLE a PARTITION BY RANGE(a)(a, PARTITION a) AS SELECT 1
 reject	reject	engine	all_partition_desc_list/all_partition_desc_list_,_single_partition_desc!drop-2	CREATE TABLE a PARTITION BY RANGE(a)(PARTITION, PARTITION a) AS SELECT 1
-accept	reject	engine	all_partition_desc_list/all_partition_desc_list_,_single_partition_desc!drop-3	CREATE TABLE a PARTITION BY RANGE(a)(PARTITION a PARTITION a) AS SELECT 1
+reject	reject	engine	all_partition_desc_list/all_partition_desc_list_,_single_partition_desc!drop-3	CREATE TABLE a PARTITION BY RANGE(a)(PARTITION a PARTITION a) AS SELECT 1
 reject	reject	engine	all_partition_desc_list/all_partition_desc_list_,_single_partition_desc!drop-4	CREATE TABLE a PARTITION BY RANGE(a)(PARTITION a, a) AS SELECT 1
 reject	reject	engine	all_partition_desc_list/all_partition_desc_list_,_single_partition_desc!drop-5	CREATE TABLE a PARTITION BY RANGE(a)(PARTITION a, PARTITION) AS SELECT 1
 reject	reject	engine	all_partition_desc_list/all_partition_desc_list_,_single_partition_desc!truncate	CREATE TABLE a PARTITION BY RANGE(a)(PARTITION a, PARTITION
 reject	reject	engine	all_partition_desc_list/all_partition_desc_list_,_single_partition_desc!insert	CREATE TABLE a PARTITION BY RANGE(a)(PARTITION a, PARTITION a zzz) AS SELECT 1
 reject	reject	engine	all_partition_desc_list/all_partition_desc_list_,_single_partition_desc!swap	CREATE TABLE a PARTITION BY RANGE(a)(PARTITIONS a, PARTITION a) AS SELECT 1
 accept	accept	engine	all_partition_desc_list/single_partition_desc	CREATE TABLE a PARTITION BY RANGE(a)(PARTITION a) AS SELECT 1
-accept	reject	engine	all_partition_desc_list/all_partition_desc_list_,_multi_partition_desc	CREATE TABLE a PARTITION BY RANGE(a)(PARTITION a, FROM() TO() INTERVAL 1) AS SELECT 1
+reject	reject	engine	all_partition_desc_list/all_partition_desc_list_,_multi_partition_desc	CREATE TABLE a PARTITION BY RANGE(a)(PARTITION a, FROM() TO() INTERVAL 1) AS SELECT 1
 reject	reject	engine	all_partition_desc_list/all_partition_desc_list_,_multi_partition_desc!drop-1	CREATE TABLE a PARTITION BY RANGE(a)(a, FROM() TO() INTERVAL 1) AS SELECT 1
 reject	reject	engine	all_partition_desc_list/all_partition_desc_list_,_multi_partition_desc!drop-2	CREATE TABLE a PARTITION BY RANGE(a)(PARTITION, FROM() TO() INTERVAL 1) AS SELECT 1
-accept	reject	engine	all_partition_desc_list/all_partition_desc_list_,_multi_partition_desc!drop-3	CREATE TABLE a PARTITION BY RANGE(a)(PARTITION a FROM() TO() INTERVAL 1) AS SELECT 1
+reject	reject	engine	all_partition_desc_list/all_partition_desc_list_,_multi_partition_desc!drop-3	CREATE TABLE a PARTITION BY RANGE(a)(PARTITION a FROM() TO() INTERVAL 1) AS SELECT 1
 reject	reject	engine	all_partition_desc_list/all_partition_desc_list_,_multi_partition_desc!drop-4	CREATE TABLE a PARTITION BY RANGE(a)(PARTITION a,() TO() INTERVAL 1) AS SELECT 1
 reject	reject	engine	all_partition_desc_list/all_partition_desc_list_,_multi_partition_desc!drop-5	CREATE TABLE a PARTITION BY RANGE(a)(PARTITION a, FROM) TO() INTERVAL 1) AS SELECT 1
 reject	reject	engine	all_partition_desc_list/all_partition_desc_list_,_multi_partition_desc!drop-6	CREATE TABLE a PARTITION BY RANGE(a)(PARTITION a, FROM(TO() INTERVAL 1) AS SELECT 1
@@ -11235,9 +11235,9 @@ reject	reject	engine	all_partition_desc_list/all_partition_desc_list_,_multi_par
 reject	reject	engine	all_partition_desc_list/all_partition_desc_list_,_multi_partition_desc!drop-10	CREATE TABLE a PARTITION BY RANGE(a)(PARTITION a, FROM() TO() 1) AS SELECT 1
 reject	reject	engine	all_partition_desc_list/all_partition_desc_list_,_multi_partition_desc!drop-11	CREATE TABLE a PARTITION BY RANGE(a)(PARTITION a, FROM() TO() INTERVAL) AS SELECT 1
 reject	reject	engine	all_partition_desc_list/all_partition_desc_list_,_multi_partition_desc!truncate	CREATE TABLE a PARTITION BY RANGE(a)(PARTITION a, FROM() TO() INTERVAL
-accept	reject	engine	all_partition_desc_list/all_partition_desc_list_,_multi_partition_desc!insert	CREATE TABLE a PARTITION BY RANGE(a)(PARTITION a, FROM() TO() INTERVAL 1 zzz) AS SELECT 1
+reject	reject	engine	all_partition_desc_list/all_partition_desc_list_,_multi_partition_desc!insert	CREATE TABLE a PARTITION BY RANGE(a)(PARTITION a, FROM() TO() INTERVAL 1 zzz) AS SELECT 1
 reject	reject	engine	all_partition_desc_list/all_partition_desc_list_,_multi_partition_desc!swap	CREATE TABLE a PARTITION BY RANGE(a)(PARTITIONS a, FROM() TO() INTERVAL 1) AS SELECT 1
-accept	reject	engine	all_partition_desc_list/multi_partition_desc	CREATE TABLE a PARTITION BY RANGE(a)(FROM() TO() INTERVAL 1) AS SELECT 1
+reject	reject	engine	all_partition_desc_list/multi_partition_desc	CREATE TABLE a PARTITION BY RANGE(a)(FROM() TO() INTERVAL 1) AS SELECT 1
 reject	reject	engine	all_partition_desc_list/multi_partition_desc!drop-1	CREATE TABLE a PARTITION BY RANGE(a)(() TO() INTERVAL 1) AS SELECT 1
 reject	reject	engine	all_partition_desc_list/multi_partition_desc!drop-2	CREATE TABLE a PARTITION BY RANGE(a)(FROM) TO() INTERVAL 1) AS SELECT 1
 reject	reject	engine	all_partition_desc_list/multi_partition_desc!drop-3	CREATE TABLE a PARTITION BY RANGE(a)(FROM(TO() INTERVAL 1) AS SELECT 1
@@ -11247,7 +11247,7 @@ reject	reject	engine	all_partition_desc_list/multi_partition_desc!drop-6	CREATE 
 reject	reject	engine	all_partition_desc_list/multi_partition_desc!drop-7	CREATE TABLE a PARTITION BY RANGE(a)(FROM() TO() 1) AS SELECT 1
 reject	reject	engine	all_partition_desc_list/multi_partition_desc!drop-8	CREATE TABLE a PARTITION BY RANGE(a)(FROM() TO() INTERVAL) AS SELECT 1
 reject	reject	engine	all_partition_desc_list/multi_partition_desc!truncate	CREATE TABLE a PARTITION BY RANGE(a)(FROM() TO() INTERVAL
-accept	reject	engine	all_partition_desc_list/multi_partition_desc!insert	CREATE TABLE a PARTITION BY RANGE(a)(FROM() TO() INTERVAL 1 zzz) AS SELECT 1
+reject	reject	engine	all_partition_desc_list/multi_partition_desc!insert	CREATE TABLE a PARTITION BY RANGE(a)(FROM() TO() INTERVAL 1 zzz) AS SELECT 1
 reject	reject	engine	all_partition_desc_list/multi_partition_desc!swap	CREATE TABLE a PARTITION BY RANGE(a)(FRONTEND() TO() INTERVAL 1) AS SELECT 1
 accept	accept	engine	single_partition_desc/PARTITION_opt_if_not_exists_ident_VALUES_LESS_THAN_part~fb5d8bf9	ALTER TABLE a ADD PARTITION a VALUES LESS THAN MAXVALUE
 reject	reject	engine	single_partition_desc/PARTITION_opt_if_not_exists_ident_VALUES_LESS_THAN_part~fb5d8bf9!drop-1	ALTER TABLE a ADD a VALUES LESS THAN MAXVALUE
@@ -11279,8 +11279,8 @@ reject	reject	engine	single_partition_desc/PARTITION_opt_if_not_exists_ident_VAL
 reject	reject	engine	single_partition_desc/PARTITION_opt_if_not_exists_ident_VALUES_IN_list_partit~f351fe23!drop-4	ALTER TABLE a ADD PARTITION a VALUES
 reject	reject	engine	single_partition_desc/PARTITION_opt_if_not_exists_ident_VALUES_IN_list_partit~f351fe23!insert	ALTER TABLE a ADD PARTITION a VALUES IN zzz
 reject	reject	engine	single_partition_desc/PARTITION_opt_if_not_exists_ident_VALUES_IN_list_partit~f351fe23!swap	ALTER TABLE a ADD PARTITIONS a VALUES IN
-accept	reject	engine	multi_partition_desc/fixed_multi_partition_key_desc_opt_key_value_map	CREATE TABLE a PARTITION BY RANGE(a)(FROM() TO() INTERVAL 1) AS SELECT 1
-accept	reject	engine	fixed_multi_partition_key_desc/FROM_(_partition_key_list_)_TO_(_partition_key_list_)_I~e922dbab	CREATE TABLE a PARTITION BY RANGE(a)(FROM() TO() INTERVAL 1 a) AS SELECT 1
+reject	reject	engine	multi_partition_desc/fixed_multi_partition_key_desc_opt_key_value_map	CREATE TABLE a PARTITION BY RANGE(a)(FROM() TO() INTERVAL 1) AS SELECT 1
+reject	reject	engine	fixed_multi_partition_key_desc/FROM_(_partition_key_list_)_TO_(_partition_key_list_)_I~e922dbab	CREATE TABLE a PARTITION BY RANGE(a)(FROM() TO() INTERVAL 1 a) AS SELECT 1
 reject	reject	engine	fixed_multi_partition_key_desc/FROM_(_partition_key_list_)_TO_(_partition_key_list_)_I~e922dbab!drop-1	CREATE TABLE a PARTITION BY RANGE(a)(() TO() INTERVAL 1 a) AS SELECT 1
 reject	reject	engine	fixed_multi_partition_key_desc/FROM_(_partition_key_list_)_TO_(_partition_key_list_)_I~e922dbab!drop-2	CREATE TABLE a PARTITION BY RANGE(a)(FROM) TO() INTERVAL 1 a) AS SELECT 1
 reject	reject	engine	fixed_multi_partition_key_desc/FROM_(_partition_key_list_)_TO_(_partition_key_list_)_I~e922dbab!drop-3	CREATE TABLE a PARTITION BY RANGE(a)(FROM(TO() INTERVAL 1 a) AS SELECT 1
@@ -11292,7 +11292,7 @@ reject	reject	engine	fixed_multi_partition_key_desc/FROM_(_partition_key_list_)_
 reject	reject	engine	fixed_multi_partition_key_desc/FROM_(_partition_key_list_)_TO_(_partition_key_list_)_I~e922dbab!truncate	CREATE TABLE a PARTITION BY RANGE(a)(FROM() TO() INTERVAL 1
 reject	reject	engine	fixed_multi_partition_key_desc/FROM_(_partition_key_list_)_TO_(_partition_key_list_)_I~e922dbab!insert	CREATE TABLE a PARTITION BY RANGE(a)(FROM() TO() INTERVAL 1 a zzz) AS SELECT 1
 reject	reject	engine	fixed_multi_partition_key_desc/FROM_(_partition_key_list_)_TO_(_partition_key_list_)_I~e922dbab!swap	CREATE TABLE a PARTITION BY RANGE(a)(FRONTEND() TO() INTERVAL 1 a) AS SELECT 1
-accept	reject	engine	fixed_multi_partition_key_desc/FROM_(_partition_key_list_)_TO_(_partition_key_list_)_I~8b7790e4	CREATE TABLE a PARTITION BY RANGE(a)(FROM() TO() INTERVAL 1) AS SELECT 1
+reject	reject	engine	fixed_multi_partition_key_desc/FROM_(_partition_key_list_)_TO_(_partition_key_list_)_I~8b7790e4	CREATE TABLE a PARTITION BY RANGE(a)(FROM() TO() INTERVAL 1) AS SELECT 1
 accept	accept	engine	partition_key_desc/MAXVALUE	ALTER TABLE a ADD PARTITION a VALUES LESS THAN MAXVALUE
 reject	reject	engine	partition_key_desc/MAXVALUE!swap	ALTER TABLE a ADD PARTITION a VALUES LESS THAN MEMO
 reject	reject	engine	partition_key_desc/(_partition_key_list_)	ALTER TABLE a ADD PARTITION a VALUES LESS THAN()
@@ -11539,7 +11539,7 @@ reject	reject	engine	column_definition_list/column_definition!swap	CREATE TABLE 
 accept	accept	engine	column_definition_list/column_definition_list_,_column_definition	CREATE TABLE a(a TINYINT, a TINYINT)
 reject	reject	engine	column_definition_list/column_definition_list_,_column_definition!drop-1	CREATE TABLE a(TINYINT, a TINYINT)
 reject	reject	engine	column_definition_list/column_definition_list_,_column_definition!drop-2	CREATE TABLE a(a, a TINYINT)
-accept	reject	engine	column_definition_list/column_definition_list_,_column_definition!drop-3	CREATE TABLE a(a TINYINT a TINYINT)
+reject	reject	engine	column_definition_list/column_definition_list_,_column_definition!drop-3	CREATE TABLE a(a TINYINT a TINYINT)
 reject	reject	engine	column_definition_list/column_definition_list_,_column_definition!drop-4	CREATE TABLE a(a TINYINT, TINYINT)
 reject	reject	engine	column_definition_list/column_definition_list_,_column_definition!drop-5	CREATE TABLE a(a TINYINT, a)
 reject	reject	engine	column_definition_list/column_definition_list_,_column_definition!truncate	CREATE TABLE a(a TINYINT, a
@@ -11555,7 +11555,7 @@ reject	reject	engine	index_definition_list/index_definition_list_,_index_definit
 reject	reject	engine	index_definition_list/index_definition_list_,_index_definition!drop-3	CREATE TABLE a(a TINYINT, INDEX a a), INDEX a(a))
 reject	reject	engine	index_definition_list/index_definition_list_,_index_definition!drop-4	CREATE TABLE a(a TINYINT, INDEX a(), INDEX a(a))
 reject	reject	engine	index_definition_list/index_definition_list_,_index_definition!drop-5	CREATE TABLE a(a TINYINT, INDEX a(a, INDEX a(a))
-accept	reject	engine	index_definition_list/index_definition_list_,_index_definition!drop-6	CREATE TABLE a(a TINYINT, INDEX a(a) INDEX a(a))
+reject	reject	engine	index_definition_list/index_definition_list_,_index_definition!drop-6	CREATE TABLE a(a TINYINT, INDEX a(a) INDEX a(a))
 reject	reject	engine	index_definition_list/index_definition_list_,_index_definition!drop-7	CREATE TABLE a(a TINYINT, INDEX a(a), a(a))
 reject	reject	engine	index_definition_list/index_definition_list_,_index_definition!drop-8	CREATE TABLE a(a TINYINT, INDEX a(a), INDEX(a))
 reject	reject	engine	index_definition_list/index_definition_list_,_index_definition!drop-9	CREATE TABLE a(a TINYINT, INDEX a(a), INDEX a a))
