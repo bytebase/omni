@@ -3534,8 +3534,9 @@ func (n *ConnectionReplica) Tag() NodeTag { return T_ConnectionReplica }
 //	CREATE [ OR REPLACE ] CATALOG INTEGRATION [ IF NOT EXISTS ] <name> <options...>
 //	CREATE [ OR REPLACE ] EXTERNAL ACCESS INTEGRATION <name> <options...>
 //
-// All configuration parameters are captured open-ended in Options, preserving
-// source order. The structural anchors are modeled separately: With records the
+// All configuration parameters are captured in Options, preserving source
+// order: open-ended for most kinds, and held to their pages' names and value
+// shapes for CATALOG, EXTERNAL ACCESS and NOTIFICATION INTEGRATION. The structural anchors are modeled separately: With records the
 // RESOURCE MONITOR WITH keyword; Triggers holds its TRIGGERS clause; Tags holds a
 // GIT REPOSITORY [WITH] TAG clause; Replica holds a CONNECTION AS REPLICA OF
 // clause. Per the docs OR REPLACE and IF NOT EXISTS are mutually exclusive for

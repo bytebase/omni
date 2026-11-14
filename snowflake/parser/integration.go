@@ -123,9 +123,16 @@ func (p *Parser) parseCreateIntegrationStmt(start ast.Loc, orReplace, orAlter bo
 		stmt.Options = opts
 
 	case ast.CatalogIntegration, ast.ExternalAccessIntegration, ast.NotificationIntegration:
-		// `KEY = value` properties by their pages' shape (see
-		// parseIntegrationProperties), the required ones checked.
-		opts, err := p.parseIntegrationProperties()
+		// `KEY = value` properties by their pages' names and shapes, the
+		// required ones checked.
+		props := notificationIntegrationProps
+		switch kind {
+		case ast.CatalogIntegration:
+			props = catalogIntegrationProps
+		case ast.ExternalAccessIntegration:
+			props = accessIntegrationProps
+		}
+		opts, err := p.parseIntegrationProperties(props)
 		if err != nil {
 			return nil, err
 		}
@@ -990,132 +997,362 @@ func (p *Parser) parseOptionalIfExists(flag *bool) {
 //
 // These integrations' CREATE (and the first two's ALTER ... SET) are read by
 // their pages' shape rather than through the open-ended COPY option reader the
-// other kinds use: every property is `KEY = value`, and a parenthesized value
-// is one of the forms the pages write. Property names and values stay open, as
-// everywhere in this file.
+// other kinds use: every property is `KEY = value`, its key one the pages
+// document, and its value of the shape they give it. A group's entries are
+// read the same way against the group's own keys.
 
-// parseIntegrationProperties reads a run of `KEY = value` properties.
-func (p *Parser) parseIntegrationProperties() ([]*ast.CopyOption, error) {
+// integrationProp is a documented property's value: a leaf of one of shapes,
+// a group of keys, a list of such groups, or string pairs.
+type integrationProp struct {
+	shapes []objectValue    // a leaf of one of these shapes (object.go)
+	group  integrationProps // ( <key> = <value> [ <key> = <value> ... ] )
+	groups bool             // with group: ( ( ... ) [ , ( ... ) ... ] )
+	pairs  bool             // ( '<key>' = '<value>' [ , ... ] )
+}
+
+// integrationProps maps a documented property's name to its value.
+type integrationProps map[string]integrationProp
+
+func intLeaf(shapes ...objectValue) integrationProp  { return integrationProp{shapes: shapes} }
+func intGroup(keys integrationProps) integrationProp { return integrationProp{group: keys} }
+
+var (
+	intString = intLeaf(propString)
+	intBool   = intLeaf(propBool)
+)
+
+// catalogRestConfig is REST_CONFIG's keys, across the catalog-source pages.
+var catalogRestConfig = integrationProps{
+	"CATALOG_URI":  intString,
+	"PREFIX":       intString,
+	"CATALOG_NAME": intString,
+	"CATALOG_API_TYPE": intLeaf(propOneOf("PUBLIC", "PRIVATE", "AWS_API_GATEWAY", "AWS_PRIVATE_API_GATEWAY",
+		"AWS_GLUE", "AWS_PRIVATE_GLUE", "AWS_S3TABLES", "AWS_PRIVATE_S3TABLES")),
+	"ACCESS_DELEGATION_MODE": intLeaf(propOneOf("VENDED_CREDENTIALS", "EXTERNAL_VOLUME_CREDENTIALS")),
+	"POSTGRES_INSTANCE":      intString,
+}
+
+// catalogRestAuthentication is REST_AUTHENTICATION's keys, across the
+// catalog-source pages.
+var catalogRestAuthentication = integrationProps{
+	"TYPE":                 intLeaf(propOneOf("OAUTH", "BEARER", "SIGV4", "OIDC")),
+	"OAUTH_API_TYPE":       intLeaf(propOneOf("PUBLIC", "PRIVATE")),
+	"OAUTH_TOKEN_URI":      intString,
+	"OAUTH_CLIENT_ID":      intString,
+	"OAUTH_CLIENT_SECRET":  intString,
+	"OAUTH_ALLOWED_SCOPES": intLeaf(propStrings),
+	"OAUTH_GRANT_TYPE":     intLeaf(propOneOf("TOKEN_EXCHANGE")),
+	"OAUTH_AUDIENCE":       intString,
+	"BEARER_TOKEN":         intString,
+	"SIGV4_IAM_ROLE":       intString,
+	"SIGV4_SIGNING_REGION": intString,
+	"SIGV4_EXTERNAL_ID":    intString,
+	"OIDC_AUDIENCE":        intString,
+}
+
+// catalogDefaultStorageConfig is DEFAULT_STORAGE_CONFIG's keys.
+var catalogDefaultStorageConfig = integrationProps{"USE_PRIVATELINK_ENDPOINT": intBool}
+
+// catalogIntegrationProps is CREATE CATALOG INTEGRATION's properties, across
+// the pages of its catalog sources:
+//
+//	CREATE [ OR REPLACE ] CATALOG INTEGRATION [ IF NOT EXISTS ] <name>
+//	  CATALOG_SOURCE = { GLUE | OBJECT_STORE | POLARIS | ICEBERG_REST | SNOWFLAKE_POSTGRES | DELTA_SHARING }
+//	  TABLE_FORMAT = { ICEBERG | DELTA | NONE | HIVE }
+//	  [ CATALOG_NAMESPACE = '<namespace>' ]
+//	  [ REST_CONFIG = ( ... ) ] [ REST_AUTHENTICATION = ( ... ) ] [ DEFAULT_STORAGE_CONFIG = ( ... ) ]
+//	  ENABLED = { TRUE | FALSE }
+//	  [ REFRESH_INTERVAL_SECONDS = <value> ] [ COMMENT = '<string_literal>' ]
+//
+// https://docs.snowflake.com/en/sql-reference/sql/create-catalog-integration-glue
+// https://docs.snowflake.com/en/sql-reference/sql/create-catalog-integration-object-storage
+// https://docs.snowflake.com/en/sql-reference/sql/create-catalog-integration-open-catalog
+// https://docs.snowflake.com/en/sql-reference/sql/create-catalog-integration-horizon
+// https://docs.snowflake.com/en/sql-reference/sql/create-catalog-integration-rest
+// https://docs.snowflake.com/en/sql-reference/sql/create-catalog-integration-snowflake-postgres
+// https://docs.snowflake.com/en/sql-reference/sql/create-catalog-integration-delta-sharing
+var catalogIntegrationProps = integrationProps{
+	"CATALOG_SOURCE": intLeaf(propOneOf("GLUE", "OBJECT_STORE", "POLARIS", "ICEBERG_REST",
+		"SNOWFLAKE_POSTGRES", "DELTA_SHARING")),
+	"TABLE_FORMAT":             intLeaf(propOneOf("ICEBERG", "DELTA", "NONE", "HIVE")),
+	"CATALOG_NAMESPACE":        intString,
+	"REST_CONFIG":              intGroup(catalogRestConfig),
+	"REST_AUTHENTICATION":      intGroup(catalogRestAuthentication),
+	"DEFAULT_STORAGE_CONFIG":   intGroup(catalogDefaultStorageConfig),
+	"ENABLED":                  intBool,
+	"REFRESH_INTERVAL_SECONDS": intLeaf(propNumber),
+	"COMMENT":                  intString,
+}
+
+// catalogIntegrationSetProps is ALTER CATALOG INTEGRATION SET's properties:
+//
+//	SET [ REST_AUTHENTICATION = ( { OAUTH_CLIENT_SECRET | BEARER_TOKEN } = '<value>' ) ]
+//	    [ DEFAULT_STORAGE_CONFIG = ( USE_PRIVATELINK_ENDPOINT = { TRUE | FALSE } ) ]
+//	    [ REFRESH_INTERVAL_SECONDS = <value> ] [ COMMENT = '<string_literal>' ]
+//
+// https://docs.snowflake.com/en/sql-reference/sql/alter-catalog-integration
+var catalogIntegrationSetProps = integrationProps{
+	"REST_AUTHENTICATION":      intGroup(integrationProps{"OAUTH_CLIENT_SECRET": intString, "BEARER_TOKEN": intString}),
+	"DEFAULT_STORAGE_CONFIG":   intGroup(catalogDefaultStorageConfig),
+	"REFRESH_INTERVAL_SECONDS": intLeaf(propNumber),
+	"COMMENT":                  intString,
+}
+
+// accessIntegrationProps is EXTERNAL ACCESS INTEGRATION's properties, which
+// its CREATE and ALTER ... SET share:
+//
+//	ALLOWED_NETWORK_RULES = ( <rule_name> [ , ... ] )
+//	[ ALLOWED_API_AUTHENTICATION_INTEGRATIONS = ( <integration_name> [ , ... ] ) | none ]
+//	[ ALLOWED_AUTHENTICATION_SECRETS = ( <secret_name> [ , ... ] ) | all | none ]
+//	ENABLED = { TRUE | FALSE }
+//	[ COMMENT = '<string_literal>' ]
+//
+// https://docs.snowflake.com/en/sql-reference/sql/create-external-access-integration
+// https://docs.snowflake.com/en/sql-reference/sql/alter-external-access-integration
+var accessIntegrationProps = integrationProps{
+	"ALLOWED_NETWORK_RULES":                   intLeaf(propNames),
+	"ALLOWED_API_AUTHENTICATION_INTEGRATIONS": intLeaf(propNames, propOneOf("NONE")),
+	"ALLOWED_AUTHENTICATION_SECRETS":          intLeaf(propNames, propOneOf("ALL", "NONE")),
+	"ENABLED":                                 intBool,
+	"COMMENT":                                 intString,
+}
+
+// accessIntegrationUnset is the properties ALTER EXTERNAL ACCESS INTEGRATION
+// UNSET names.
+var accessIntegrationUnset = []string{
+	"ALLOWED_NETWORK_RULES", "ALLOWED_API_AUTHENTICATION_INTEGRATIONS", "ALLOWED_AUTHENTICATION_SECRETS", "COMMENT",
+}
+
+// notificationProvider is NOTIFICATION_PROVIDER's values.
+var notificationProvider = intLeaf(propOneOf("AWS_SNS", "AZURE_EVENT_GRID", "AZURE_STORAGE_QUEUE", "GCP_PUBSUB"))
+
+// notificationIntegrationProps is CREATE NOTIFICATION INTEGRATION's properties,
+// across the pages of its types: queues (inbound Azure and GCP, outbound AWS,
+// Azure and GCP, multi-queue), webhooks and email.
+//
+// https://docs.snowflake.com/en/sql-reference/sql/create-notification-integration-queue-inbound-azure
+// https://docs.snowflake.com/en/sql-reference/sql/create-notification-integration-queue-inbound-gcp
+// https://docs.snowflake.com/en/sql-reference/sql/create-notification-integration-queue-outbound-aws
+// https://docs.snowflake.com/en/sql-reference/sql/create-notification-integration-queue-outbound-azure
+// https://docs.snowflake.com/en/sql-reference/sql/create-notification-integration-queue-outbound-gcp
+// https://docs.snowflake.com/en/sql-reference/sql/create-notification-integration-multi-queue
+// https://docs.snowflake.com/en/sql-reference/sql/create-notification-integration-webhooks
+// https://docs.snowflake.com/en/sql-reference/sql/create-notification-integration-email
+var notificationIntegrationProps = integrationProps{
+	"ENABLED":                         intBool,
+	"TYPE":                            intLeaf(propOneOf("QUEUE", "MULTI_QUEUE", "WEBHOOK", "EMAIL")),
+	"DIRECTION":                       intLeaf(propOneOf("INBOUND", "OUTBOUND")),
+	"NOTIFICATION_PROVIDER":           notificationProvider,
+	"AWS_SNS_TOPIC_ARN":               intString,
+	"AWS_SNS_ROLE_ARN":                intString,
+	"AZURE_EVENT_GRID_TOPIC_ENDPOINT": intString,
+	"AZURE_STORAGE_QUEUE_PRIMARY_URI": intString,
+	"AZURE_TENANT_ID":                 intString,
+	"USE_PRIVATELINK_ENDPOINT":        intBool,
+	"GCP_PUBSUB_SUBSCRIPTION_NAME":    intString,
+	"GCP_PUBSUB_TOPIC_NAME":           intString,
+	"QUEUES": {groups: true, group: integrationProps{
+		"NAME":                            intString,
+		"NOTIFICATION_PROVIDER":           notificationProvider,
+		"AWS_SNS_TOPIC_ARN":               intString,
+		"GCP_PUBSUB_SUBSCRIPTION_NAME":    intString,
+		"AZURE_STORAGE_QUEUE_PRIMARY_URI": intString,
+		"AZURE_TENANT_ID":                 intString,
+	}},
+	"ACTIVE":                intString,
+	"WEBHOOK_URL":           intString,
+	"WEBHOOK_SECRET":        intLeaf(propName),
+	"WEBHOOK_BODY_TEMPLATE": intString,
+	"WEBHOOK_HEADERS":       {pairs: true},
+	"ALLOWED_RECIPIENTS":    intLeaf(propStrings),
+	"DEFAULT_RECIPIENTS":    intLeaf(propStrings),
+	"DEFAULT_SUBJECT":       intString,
+	"COMMENT":               intString,
+}
+
+// parseIntegrationProperties reads a run of `KEY = value` properties, each a
+// key of props with a value of its shape, and no key twice.
+func (p *Parser) parseIntegrationProperties(props integrationProps) ([]*ast.CopyOption, error) {
 	var opts []*ast.CopyOption
+	seen := map[string]bool{}
 	for p.startsObjectProperty() {
-		opt, err := p.parseIntegrationProperty()
+		if seen[strings.ToUpper(p.cur.Str)] {
+			return nil, p.syntaxErrorAtCur()
+		}
+		opt, err := p.parseIntegrationProperty(props)
 		if err != nil {
 			return nil, err
 		}
+		seen[opt.Name] = true
 		opts = append(opts, opt)
 	}
 	return opts, nil
 }
 
-// parseIntegrationProperty reads one `KEY = value` property. cur is the key,
-// which startsObjectProperty has seen followed by '='.
-func (p *Parser) parseIntegrationProperty() (*ast.CopyOption, error) {
+// parseIntegrationProperty reads one `KEY = value` property whose key props
+// names. cur is the key, which startsObjectProperty has seen followed by '='.
+func (p *Parser) parseIntegrationProperty(props integrationProps) (*ast.CopyOption, error) {
+	spec, ok := props[strings.ToUpper(p.cur.Str)]
+	if !ok {
+		return nil, p.syntaxErrorAtCur()
+	}
 	key := p.advance()
 	opt := &ast.CopyOption{Name: strings.ToUpper(key.Str), Loc: ast.Loc{Start: key.Loc.Start}}
 	p.advance() // consume '='
-	if err := p.parseIntegrationValue(opt); err != nil {
+	var err error
+	switch {
+	case spec.groups:
+		err = p.parseIntegrationGroupList(opt, spec.group)
+	case spec.group != nil:
+		err = p.parseIntegrationGroup(opt, spec.group)
+	case spec.pairs:
+		err = p.parseIntegrationStringPairs(opt)
+	default:
+		err = p.parseIntegrationLeaf(opt, spec.shapes)
+	}
+	if err != nil {
 		return nil, err
 	}
 	opt.Loc.End = p.prev.Loc.End
 	return opt, nil
 }
 
-// parseIntegrationValue reads a property's value into opt:
-//
-//	'<string>' | <number> | <word>             -> Lit, or Words
-//	( '<string>' [ , ... ] )                    -> List (OAUTH_ALLOWED_SCOPES)
-//	( <name> [ , ... ] )                        -> Group of bare names
-//	                                               (ALLOWED_NETWORK_RULES)
-//	( <key> = <value> [ <key> = <value> ... ] ) -> Group (REST_CONFIG,
-//	                                               REST_AUTHENTICATION,
-//	                                               DEFAULT_STORAGE_CONFIG)
-//	( ( <key> = <value> ... ) [ , ... ] )       -> Group of unnamed groups
-//	                                               (QUEUES)
-//	( '<key>' = <value> [ , ... ] )             -> Group keyed by strings
-//	                                               (WEBHOOK_HEADERS)
-//
-// The pages separate a group's entries by spaces and a list's items by commas.
-func (p *Parser) parseIntegrationValue(opt *ast.CopyOption) error {
-	if p.cur.Type != '(' {
-		return p.parseObjectValue(opt)
-	}
+// parseIntegrationGroup reads ( <key> = <value> [ <key> = <value> ... ] ),
+// entries separated by spaces as the pages write them, each a key of keys.
+// cur is '('.
+func (p *Parser) parseIntegrationGroup(opt *ast.CopyOption, keys integrationProps) error {
 	if err := p.enterNesting(); err != nil {
 		return err
 	}
 	defer p.leaveNesting()
-	p.advance() // consume '('
-	switch {
-	case p.cur.Type == '(':
-		for {
-			entry := &ast.CopyOption{Loc: ast.Loc{Start: p.cur.Loc.Start}}
-			if err := p.parseIntegrationValue(entry); err != nil {
-				return err
-			}
-			entry.Loc.End = p.prev.Loc.End
-			opt.Group = append(opt.Group, entry)
-			if p.cur.Type != ',' {
-				break
-			}
-			p.advance() // consume ','
-		}
-	case p.startsObjectProperty():
-		for {
-			entry, err := p.parseIntegrationProperty()
-			if err != nil {
-				return err
-			}
-			opt.Group = append(opt.Group, entry)
-			if !p.startsObjectProperty() {
-				break
-			}
-		}
-	case p.cur.Type == tokString && p.peekNext().Type == '=':
-		for {
-			key := p.advance()
-			entry := &ast.CopyOption{Name: key.Str, Loc: ast.Loc{Start: key.Loc.Start}}
-			if _, err := p.expect('='); err != nil {
-				return err
-			}
-			if err := p.parseObjectValue(entry); err != nil {
-				return err
-			}
-			entry.Loc.End = p.prev.Loc.End
-			opt.Group = append(opt.Group, entry)
-			if p.cur.Type != ',' {
-				break
-			}
-			p.advance() // consume ','
-		}
-	case p.curIsLiteral():
-		for {
-			lit, err := p.parseCopyLiteral()
-			if err != nil {
-				return err
-			}
-			opt.List = append(opt.List, lit)
-			if p.cur.Type != ',' {
-				break
-			}
-			p.advance() // consume ','
-		}
-	case p.isOptionWord(p.cur.Type):
-		for {
-			start := p.cur.Loc.Start
-			name, end, err := p.parseValueWord()
-			if err != nil {
-				return err
-			}
-			opt.Group = append(opt.Group, &ast.CopyOption{Name: name, Bare: true, Loc: ast.Loc{Start: start, End: end}})
-			if p.cur.Type != ',' {
-				break
-			}
-			p.advance() // consume ','
-		}
-	default:
+	if _, err := p.expect('('); err != nil {
+		return err
+	}
+	if !p.startsObjectProperty() {
 		return p.syntaxErrorAtCur()
+	}
+	entries, err := p.parseIntegrationProperties(keys)
+	if err != nil {
+		return err
+	}
+	opt.Group = entries
+	_, err = p.expect(')')
+	return err
+}
+
+// parseIntegrationGroupList reads ( ( ... ) [ , ( ... ) ... ] ), a list of
+// groups of keys, as a multi-queue integration's QUEUES. cur is '('.
+func (p *Parser) parseIntegrationGroupList(opt *ast.CopyOption, keys integrationProps) error {
+	if err := p.enterNesting(); err != nil {
+		return err
+	}
+	defer p.leaveNesting()
+	if _, err := p.expect('('); err != nil {
+		return err
+	}
+	for {
+		entry := &ast.CopyOption{Loc: ast.Loc{Start: p.cur.Loc.Start}}
+		if err := p.parseIntegrationGroup(entry, keys); err != nil {
+			return err
+		}
+		entry.Loc.End = p.prev.Loc.End
+		opt.Group = append(opt.Group, entry)
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance() // consume ','
 	}
 	_, err := p.expect(')')
 	return err
+}
+
+// parseIntegrationStringPairs reads ( '<key>' = '<value>' [ , ... ] ), as a
+// webhook integration's WEBHOOK_HEADERS. cur is '('.
+func (p *Parser) parseIntegrationStringPairs(opt *ast.CopyOption) error {
+	if _, err := p.expect('('); err != nil {
+		return err
+	}
+	for {
+		key, err := p.expect(tokString)
+		if err != nil {
+			return err
+		}
+		if _, err := p.expect('='); err != nil {
+			return err
+		}
+		val, err := p.parseCopyLiteral()
+		if err != nil {
+			return err
+		}
+		if val.Kind != ast.LitString {
+			return &ParseError{Position: val.Loc.Start, End: val.Loc.End, Message: "syntax error: expected a string"}
+		}
+		opt.Group = append(opt.Group, &ast.CopyOption{Name: key.Str, Lit: val, Loc: ast.Loc{Start: key.Loc.Start, End: val.Loc.End}})
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance() // consume ','
+	}
+	_, err := p.expect(')')
+	return err
+}
+
+// parseIntegrationLeaf reads a value that is no group into opt, and fails
+// unless it has one of shapes:
+//
+//	'<string>' | <number> | <word>   -> Lit, or Words
+//	( '<string>' [ , ... ] )          -> List
+//	( <name> [ , ... ] )              -> Group of bare names
+func (p *Parser) parseIntegrationLeaf(opt *ast.CopyOption, shapes []objectValue) error {
+	start := p.cur.Loc.Start
+	if p.cur.Type != '(' {
+		if err := p.parseObjectValue(opt); err != nil {
+			return err
+		}
+	} else {
+		p.advance() // consume '('
+		switch {
+		case p.curIsLiteral():
+			for {
+				lit, err := p.parseCopyLiteral()
+				if err != nil {
+					return err
+				}
+				opt.List = append(opt.List, lit)
+				if p.cur.Type != ',' {
+					break
+				}
+				p.advance() // consume ','
+			}
+		case p.isOptionWord(p.cur.Type):
+			for {
+				nameStart := p.cur.Loc.Start
+				name, end, err := p.parseValueWord()
+				if err != nil {
+					return err
+				}
+				opt.Group = append(opt.Group, &ast.CopyOption{Name: name, Bare: true, Loc: ast.Loc{Start: nameStart, End: end}})
+				if p.cur.Type != ',' {
+					break
+				}
+				p.advance() // consume ','
+			}
+		default:
+			return p.syntaxErrorAtCur()
+		}
+		if _, err := p.expect(')'); err != nil {
+			return err
+		}
+	}
+	for _, v := range shapes {
+		if v.matches(opt) {
+			return nil
+		}
+	}
+	return &ParseError{
+		Position: start, End: p.prev.Loc.End,
+		Message: "syntax error: unexpected value for " + opt.Name,
+	}
 }
 
 // parseAlterIntegrationSetProperties reads the SET of a CATALOG or EXTERNAL
@@ -1133,7 +1370,11 @@ func (p *Parser) parseIntegrationValue(opt *ast.CopyOption) error {
 //
 // https://docs.snowflake.com/en/sql-reference/sql/alter-external-access-integration
 func (p *Parser) parseAlterIntegrationSetProperties(stmt *ast.AlterIntegrationStmt) error {
-	opts, err := p.parseIntegrationProperties()
+	props := catalogIntegrationSetProps
+	if stmt.Kind == ast.ExternalAccessIntegration {
+		props = accessIntegrationProps
+	}
+	opts, err := p.parseIntegrationProperties(props)
 	if err != nil {
 		return err
 	}
@@ -1153,8 +1394,8 @@ func (p *Parser) parseAlterIntegrationSetProperties(stmt *ast.AlterIntegrationSt
 }
 
 // parseAlterAccessIntegrationUnset reads the UNSET list of an EXTERNAL ACCESS
-// INTEGRATION once UNSET is consumed. Each item is one property name or
-// TAG <tag_name>:
+// INTEGRATION once UNSET is consumed. Each item is one property the page
+// names (accessIntegrationUnset) or TAG <tag_name>:
 //
 //	ALTER EXTERNAL ACCESS INTEGRATION [ IF EXISTS ] <name> UNSET {
 //	  ALLOWED_NETWORK_RULES | ALLOWED_API_AUTHENTICATION_INTEGRATIONS |
@@ -1166,18 +1407,18 @@ func (p *Parser) parseAlterIntegrationSetProperties(stmt *ast.AlterIntegrationSt
 // https://docs.snowflake.com/en/sql-reference/sql/alter-external-access-integration
 func (p *Parser) parseAlterAccessIntegrationUnset(stmt *ast.AlterIntegrationStmt) error {
 	for {
-		if p.cur.Type == kwTAG {
+		switch {
+		case p.cur.Type == kwTAG:
 			p.advance() // consume TAG
 			name, err := p.parseObjectName()
 			if err != nil {
 				return err
 			}
 			stmt.UnsetTags = append(stmt.UnsetTags, name)
-		} else {
-			if !p.isOptionWord(p.cur.Type) || p.curIsLiteral() {
-				return p.syntaxErrorAtCur()
-			}
+		case p.atAccessIntegrationUnsetKey():
 			stmt.UnsetProps = append(stmt.UnsetProps, strings.ToUpper(p.advance().Str))
+		default:
+			return p.syntaxErrorAtCur()
 		}
 		if p.cur.Type != ',' {
 			break
@@ -1189,4 +1430,16 @@ func (p *Parser) parseAlterAccessIntegrationUnset(stmt *ast.AlterIntegrationStmt
 		stmt.Action = ast.AlterIntegrationUnsetTag
 	}
 	return nil
+}
+
+// atAccessIntegrationUnsetKey reports whether cur is one of
+// accessIntegrationUnset, as an unquoted identifier or a keyword. It consumes
+// nothing.
+func (p *Parser) atAccessIntegrationUnsetKey() bool {
+	for _, w := range accessIntegrationUnset {
+		if isWordToken(p.cur, w) {
+			return true
+		}
+	}
+	return false
 }
