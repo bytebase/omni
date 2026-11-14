@@ -66,6 +66,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeTriggerEvent(sb, n)
 	case *TriggerOption:
 		writeTriggerOption(sb, n)
+	case *AtomicBlockOption:
+		writeAtomicBlockOption(sb, n)
 	case *EnableDisableTriggerStmt:
 		writeEnableDisableTriggerStmt(sb, n)
 	case *CreateFunctionStmt:
@@ -982,9 +984,6 @@ func writeCreateTriggerStmt(sb *strings.Builder, n *CreateTriggerStmt) {
 		sb.WriteString(" :events ")
 		writeNode(sb, n.Events)
 	}
-	if n.WithAppend {
-		sb.WriteString(" :withAppend true")
-	}
 	if n.NotForReplication {
 		sb.WriteString(" :notForReplication true")
 	}
@@ -1009,6 +1008,13 @@ func writeTriggerOption(sb *strings.Builder, n *TriggerOption) {
 	if n.Value != "" {
 		fmt.Fprintf(sb, " :value \"%s\"", escapeString(n.Value))
 	}
+	fmt.Fprintf(sb, " :loc %d %d}", n.Loc.Start, n.Loc.End)
+}
+
+func writeAtomicBlockOption(sb *strings.Builder, n *AtomicBlockOption) {
+	sb.WriteString("{ATOMICOPT")
+	fmt.Fprintf(sb, " :name \"%s\"", escapeString(n.Name))
+	fmt.Fprintf(sb, " :value \"%s\"", escapeString(n.Value))
 	fmt.Fprintf(sb, " :loc %d %d}", n.Loc.Start, n.Loc.End)
 }
 
@@ -1303,6 +1309,10 @@ func writeWhileStmt(sb *strings.Builder, n *WhileStmt) {
 
 func writeBeginEndStmt(sb *strings.Builder, n *BeginEndStmt) {
 	sb.WriteString("{BEGINEND")
+	if n.AtomicOptions != nil {
+		sb.WriteString(" :atomicOptions ")
+		writeNode(sb, n.AtomicOptions)
+	}
 	if n.Stmts != nil {
 		sb.WriteString(" :stmts ")
 		writeNode(sb, n.Stmts)
@@ -2914,6 +2924,9 @@ func writeParamDef(sb *strings.Builder, n *ParamDef) {
 	}
 	if n.Null {
 		sb.WriteString(" :null true")
+	}
+	if n.NotNull {
+		sb.WriteString(" :notNull true")
 	}
 	if n.Default != nil {
 		sb.WriteString(" :default ")

@@ -221,7 +221,14 @@ parseBlock:
 		}
 		stmts = append(stmts, s)
 	}
-	p.match(kwEND)
+	// BEGIN ( Semicolon )* ( statementOptSemi )+ END: at least one
+	// statement, and END (beginEndBlockStatement, TSql160.g:16146).
+	if len(stmts) == 0 {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if _, err := p.expect(kwEND); err != nil {
+		return nil, err
+	}
 
 	return &nodes.BeginEndStmt{
 		Stmts: &nodes.List{Items: stmts},
