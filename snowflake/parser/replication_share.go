@@ -590,14 +590,11 @@ func (p *Parser) parseAlterAccountUnset(stmt *ast.AlterAccountStmt) error {
 		}
 		stmt.Action = ast.AlterAccountUnsetPolicy
 		stmt.PolicyKind = kind
-		// Optional trailing scope (FOR ALL ... ).
-		if p.cur.Type == kwFOR {
-			scope, err := p.parseAccountPolicyScope()
-			if err != nil {
-				return err
-			}
-			stmt.PolicyScope = scope
+		scope, err := p.parseAccountPolicyScope(kind)
+		if err != nil {
+			return err
 		}
+		stmt.PolicyScope = scope
 		return nil
 	}
 
@@ -631,18 +628,12 @@ func (p *Parser) parseAlterAccountSetPolicy(stmt *ast.AlterAccountStmt) error {
 	if kind == "MAINTENANCE POLICY" && p.cur.Type == kwFORCE {
 		p.advance() // consume FORCE
 		stmt.Force = true
-		if p.cur.Type != kwFOR {
-			return p.syntaxErrorAtCur()
-		}
 	}
-	// Optional FOR ALL ... scope.
-	if p.cur.Type == kwFOR {
-		scope, err := p.parseAccountPolicyScope()
-		if err != nil {
-			return err
-		}
-		stmt.PolicyScope = scope
+	scope, err := p.parseAccountPolicyScope(kind)
+	if err != nil {
+		return err
 	}
+	stmt.PolicyScope = scope
 	// Optional trailing FORCE.
 	if !stmt.Force && kind != "MAINTENANCE POLICY" && p.cur.Type == kwFORCE {
 		p.advance() // consume FORCE
@@ -664,7 +655,8 @@ func (p *Parser) parseAccountContacts() ([]*ast.GroupOption, error) {
 		if _, err := p.expect('='); err != nil {
 			return nil, err
 		}
-		contact, err := p.parseIdent()
+		// A contact is a schema-level object, so its name may be qualified.
+		contact, err := p.parseObjectName()
 		if err != nil {
 			return nil, err
 		}
@@ -717,26 +709,40 @@ func (p *Parser) parseAccountPolicyKind() (string, error) {
 	return strings.ToUpper(kindTok.Str) + " POLICY", nil
 }
 
-// accountPolicyScopes are the policy scopes the ALTER ACCOUNT page writes.
-// https://docs.snowflake.com/en/sql-reference/sql/alter-account
-var accountPolicyScopes = [][]string{
-	{"FOR", "ALL", "PERSON", "USERS"},
-	{"FOR", "ALL", "SERVICE", "USERS"},
-	{"FOR", "ALL", "APPLICATIONS"},
-	{"FOR", "ALL", "DATABASES"},
-	{"FOR", "ALL", "PERSONAL", "DATABASES"},
+// accountPolicyScope is the FOR ALL ... scopes the ALTER ACCOUNT page writes
+// for one policy kind, and whether the kind requires one.
+type accountPolicyScope struct {
+	scopes   [][]string
+	required bool
 }
 
-// parseAccountPolicyScope parses a trailing policy scope clause, one of
-// accountPolicyScopes, and returns it uppercased and space-joined. cur is the
-// FOR keyword.
-func (p *Parser) parseAccountPolicyScope() (string, error) {
-	for _, words := range accountPolicyScopes {
+// accountPolicyScopes maps a policy kind to its scopes; a kind not listed
+// takes none.
+// https://docs.snowflake.com/en/sql-reference/sql/alter-account
+var accountPolicyScopes = map[string]accountPolicyScope{
+	"AUTHENTICATION POLICY": {scopes: [][]string{{"FOR", "ALL", "PERSON", "USERS"}, {"FOR", "ALL", "SERVICE", "USERS"}}},
+	"SESSION POLICY":        {scopes: [][]string{{"FOR", "ALL", "PERSON", "USERS"}, {"FOR", "ALL", "SERVICE", "USERS"}}},
+	"FEATURE POLICY": {
+		scopes:   [][]string{{"FOR", "ALL", "APPLICATIONS"}, {"FOR", "ALL", "DATABASES"}, {"FOR", "ALL", "PERSONAL", "DATABASES"}},
+		required: true,
+	},
+	"MAINTENANCE POLICY": {scopes: [][]string{{"FOR", "ALL", "APPLICATIONS"}}, required: true},
+}
+
+// parseAccountPolicyScope parses the policy scope clause kind takes, one of
+// accountPolicyScopes[kind], and returns it uppercased and space-joined, or
+// "" when the kind's scope is optional and absent.
+func (p *Parser) parseAccountPolicyScope(kind string) (string, error) {
+	rule := accountPolicyScopes[kind]
+	for _, words := range rule.scopes {
 		if p.acceptWords(words...) {
 			return strings.Join(words, " "), nil
 		}
 	}
-	return "", p.syntaxErrorAtCur()
+	if rule.required || p.cur.Type == kwFOR {
+		return "", p.syntaxErrorAtCur()
+	}
+	return "", nil
 }
 
 // ---------------------------------------------------------------------------

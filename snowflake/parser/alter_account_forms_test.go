@@ -57,6 +57,13 @@ func TestAlterAccountForms(t *testing.T) {
 	if len(s.Options) != 1 || len(s.Options[0].List) != 2 || s.Options[0].List[1].Value != "b.example.com" {
 		t.Errorf("DOMAIN_NAMES: %+v", s.Options)
 	}
+	// A contact is a schema-level object.
+	s = parseOneAlterAccount(t, "ALTER ACCOUNT SET CONTACT support = governance.contacts.helpdesk")
+	if len(s.Contacts) != 1 || s.Contacts[0].Values[0] != "GOVERNANCE.CONTACTS.HELPDESK" {
+		t.Errorf("qualified contact: %+v", s.Contacts)
+	}
+	parseOneAlterAccount(t, "ALTER ACCOUNT UNSET MAINTENANCE POLICY FOR ALL APPLICATIONS")
+	parseOneAlterAccount(t, "ALTER ACCOUNT UNSET SESSION POLICY")
 	// CONTACT followed by '=' is a parameter of that name.
 	if s = parseOneAlterAccount(t, "ALTER ACCOUNT SET CONTACT = a"); s.Action != ast.AlterAccountSet {
 		t.Errorf("CONTACT = a: %+v", s)
@@ -70,6 +77,13 @@ func TestAlterAccountForms(t *testing.T) {
 		// MAINTENANCE POLICY writes FORCE before its scope, which it requires.
 		"ALTER ACCOUNT SET MAINTENANCE POLICY p FOR ALL APPLICATIONS FORCE",
 		"ALTER ACCOUNT SET MAINTENANCE POLICY p FORCE",
+		"ALTER ACCOUNT SET MAINTENANCE POLICY p",
+		"ALTER ACCOUNT UNSET MAINTENANCE POLICY",
+		"ALTER ACCOUNT SET MAINTENANCE POLICY p FOR ALL DATABASES",
+		"ALTER ACCOUNT SET FEATURE POLICY p",
+		"ALTER ACCOUNT UNSET FEATURE POLICY",
+		"ALTER ACCOUNT SET INGRESS POLICY p FOR ALL APPLICATIONS",
+		"ALTER ACCOUNT SET SESSION POLICY p FOR ALL APPLICATIONS",
 		// The scopes are the page's.
 		"ALTER ACCOUNT SET FEATURE POLICY p FOR ALL",
 		"ALTER ACCOUNT SET FEATURE POLICY p FOR ALL APPLICATIONS zzz",
