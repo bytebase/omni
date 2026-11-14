@@ -453,6 +453,13 @@ func TestStoredProgramFieldNames(t *testing.T) {
 		{sql: "CREATE FUNCTION f() RETURNS INT RETURN 1 + (SELECT 1 AS a ORDER BY a) + a", code: 1327},
 		{sql: "CALL p((SELECT 1 AS a) + a)", code: 1054},
 		{sql: "CREATE FUNCTION f() RETURNS INT RETURN EXISTS ((SELECT 1 AS a) ORDER BY a)"},
+		{sql: "CREATE PROCEDURE p(sql_mode TEXT) SET SESSION sql_mode = ANSI"},
+		{sql: "CREATE PROCEDURE p(sql_mode TEXT) SET sql_mode = ANSI", code: 1327},
+		{sql: "CREATE PROCEDURE p(sql_mode TEXT) SET SESSION autocommit = 1, sql_mode = ANSI", code: 1327},
+		{sql: "CREATE PROCEDURE p(sql_mode TEXT) SET GLOBAL sql_mode = ANSI"},
+		{sql: "CREATE PROCEDURE p(sql_mode TEXT) SET @@session.sql_mode = ANSI"},
+		{sql: "CREATE PROCEDURE p(sql_mode TEXT) SET SESSION sql_mode = a"},
+		{sql: "CREATE PROCEDURE p(x INT) SET SESSION x = a"},
 	}
 	for _, c := range cases {
 		t.Run(c.sql, func(t *testing.T) {

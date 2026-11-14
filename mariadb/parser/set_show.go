@@ -439,7 +439,7 @@ func appendSetWord(stmt *nodes.SetStmt, column, value string, start, end int) {
 // BINARY 'x'` is an expression. ON and a bare DEFAULT are the value and nothing more, so `SET a
 // = ON + 1` and `SET a = DEFAULT + 1` are 1064s, where parseExpr would go on to read the sum.
 // DEFAULT(b) is an expression.
-func (p *Parser) parseSetValue(col *nodes.ColumnRef) (nodes.ExprNode, error) {
+func (p *Parser) parseSetValue(col *nodes.ColumnRef, scope string) (nodes.ExprNode, error) {
 	next := p.peekNext().Type
 	bareDefault := p.cur.Type == kwDEFAULT && next != '('
 	if strings.HasPrefix(col.Column, "@") && !strings.HasPrefix(col.Column, "@@") {
@@ -459,8 +459,9 @@ func (p *Parser) parseSetValue(col *nodes.ColumnRef) (nodes.ExprNode, error) {
 			return p.parseDefaultExpr()
 		}
 	}
-	// A SET of a stored program's variable reads no table (sp_fields.go).
-	if col.Table == "" && !strings.HasPrefix(col.Column, "@") && p.routine.sp != nil && p.routine.sp.hasVar(col.Column) {
+	// A SET of a stored program's variable reads no table (sp_fields.go). A scope word names
+	// the system variable, and MariaDB applies it to its own assignment only.
+	if scope == "" && col.Table == "" && !strings.HasPrefix(col.Column, "@") && p.routine.sp != nil && p.routine.sp.hasVar(col.Column) {
 		defer p.enterNoFields("SET", false)()
 	}
 	// An expr holds no bare DEFAULT, so `SET a = (DEFAULT)` and `SET a = 1 + DEFAULT` are 1064s.
@@ -622,7 +623,7 @@ func (p *Parser) parseSetVariableAssignment(start int, scope string) (*nodes.Ass
 		return nil, err
 	}
 
-	val, err := p.parseSetValue(col)
+	val, err := p.parseSetValue(col, scope)
 	if err != nil {
 		return nil, err
 	}

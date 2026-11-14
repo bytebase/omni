@@ -1,8 +1,11 @@
 package catalog
 
 import (
+	"errors"
 	"strings"
 	"testing"
+
+	"github.com/bytebase/omni/mariadb/parser"
 )
 
 // TestApplicationTimePeriodCatalog: a named (application-time) PERIOD FOR <name>
@@ -46,7 +49,6 @@ func TestApplicationTimePeriodValidation(t *testing.T) {
 	}{
 		{"cols_dont_exist", "CREATE TABLE t (id INT, PERIOD FOR app_time(nope1, nope2))", 1054},
 		{"two_app_periods", "CREATE TABLE t (id INT, s DATE, e DATE, s2 DATE, e2 DATE, PERIOD FOR p1(s,e), PERIOD FOR p2(s2,e2))", 4154},
-		{"same_col", "CREATE TABLE t (id INT, s DATE, PERIOD FOR app_time(s, s))", 1110},
 		{"wrong_type", "CREATE TABLE t (id INT, s VARCHAR(10), e VARCHAR(10), PERIOD FOR app_time(s, e))", 1063},
 		{"name_is_column", "CREATE TABLE t (id INT, s DATE, e DATE, PERIOD FOR id(s, e))", 1060},
 		{"different_types", "CREATE TABLE t (id INT, s DATE, e DATETIME, PERIOD FOR app_time(s, e))", 4153},
@@ -63,6 +65,21 @@ func TestApplicationTimePeriodValidation(t *testing.T) {
 				t.Errorf("Code = %d, want %d (message: %q)", catErr.Code, tc.code, catErr.Message)
 			}
 		})
+	}
+}
+
+// TestApplicationTimePeriodSameColumnRefused: a period over one column twice is
+// 1110, which MariaDB 11.8.8 raises while it parses (Lex->add_period), so the
+// parser refuses it before the catalog sees it, in CREATE and in ALTER alike.
+func TestApplicationTimePeriodSameColumnRefused(t *testing.T) {
+	for _, ddl := range []string{
+		"CREATE TABLE t (id INT, s DATE, PERIOD FOR app_time(s, s))",
+		"ALTER TABLE t ADD PERIOD FOR app_time(s, S)",
+	} {
+		var perr *parser.ParseError
+		if err := execErr(t, ddl); !errors.As(err, &perr) || !strings.Contains(perr.Message, "specified twice") {
+			t.Errorf("%s: %v, want the parser's 1110", ddl, err)
+		}
 	}
 }
 
@@ -204,7 +221,6 @@ func TestAlterAddApplicationTimePeriod(t *testing.T) {
 		{"already_has_period", "CREATE TABLE t (id INT, s DATE, e DATE, PERIOD FOR app_time(s,e))", "ALTER TABLE t ADD PERIOD FOR p2(s, e)", 4154},
 		{"nonexistent_col", "CREATE TABLE t (id INT)", "ALTER TABLE t ADD PERIOD FOR app_time(s, e)", 1054},
 		{"non_temporal", "CREATE TABLE t (id INT, s INT, e INT)", "ALTER TABLE t ADD PERIOD FOR app_time(s, e)", 1063},
-		{"same_col", "CREATE TABLE t (id INT, s DATE)", "ALTER TABLE t ADD PERIOD FOR app_time(s, s)", 1110},
 		{"name_is_column", "CREATE TABLE t (id INT, s DATE, e DATE)", "ALTER TABLE t ADD PERIOD FOR id(s, e)", 1060},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

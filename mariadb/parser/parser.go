@@ -71,6 +71,11 @@ type Parser struct {
 
 	newlines []int // offsets of the input's newlines, found on first use (see lineCol)
 
+	// ddlTable is the table the CREATE TABLE or ALTER TABLE being parsed names,
+	// which a qualified field_ident must name again (parseFieldIdent) and which
+	// LIKE, EXCHANGE PARTITION and CONVERT TABLE must not (refuseSameTable).
+	ddlTable *nodes.TableRef
+
 	// Completion mode fields.
 	completing bool          // true when collecting completion candidates
 	cursorOff  int           // byte offset of the cursor in source
