@@ -261,6 +261,7 @@ func (p *Parser) parseCompoundStmtOrStmt() (nodes.Node, error) {
 		if !p.routine.function {
 			return nil, &ParseError{Message: "RETURN is only allowed in a FUNCTION", Position: p.cur.Loc}
 		}
+		p.routine.hasReturn = true
 		return p.parseReturnStmt()
 	}
 
@@ -286,6 +287,9 @@ func (p *Parser) parseCompoundStmtOrStmt() (nodes.Node, error) {
 		return nil, err
 	}
 	if err := p.refuseResultSet(stmt, start); err != nil {
+		return nil, err
+	}
+	if err := p.refuseSPStatement(stmt, start); err != nil {
 		return nil, err
 	}
 	return stmt, nil
