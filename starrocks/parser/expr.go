@@ -27,6 +27,7 @@ const (
 	bpAdd     = 55 // +, -
 	bpMul     = 60 // *, /, %, DIV
 	bpBitXor  = 65 // ^
+	bpMatch   = 68 // MATCH: below the unary operators, above every binary one
 	bpUnary   = 70 // unary -, +, ~
 	bpPrimary = 80 // atoms
 )
@@ -53,8 +54,10 @@ func (p *Parser) parseExprPrec(minBP int) (ast.Node, error) {
 
 	for {
 		// primaryExpression NOT? MATCH primaryExpression (StarRocks.g4:2425)
-		// binds before any operator.
-		if p.cur.Kind == kwMATCH || (p.cur.Kind == kwNOT && p.peekNext().Kind == kwMATCH) {
+		// binds before any binary operator, but after the unary ones that
+		// come before it in primaryExpression (:2408-2409): !a MATCH b is
+		// (!a) MATCH b.
+		if minBP <= bpMatch && (p.cur.Kind == kwMATCH || (p.cur.Kind == kwNOT && p.peekNext().Kind == kwMATCH)) {
 			if left, err = p.parseMatchExpr(left, p.cur.Kind == kwNOT); err != nil {
 				return nil, err
 			}

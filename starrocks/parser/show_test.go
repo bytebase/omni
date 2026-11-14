@@ -524,3 +524,19 @@ func TestShiftWordsBindLooserThanBitOr(t *testing.T) {
 		t.Errorf("left of BITSHIFTLEFT is %T, want 1 | 2", shift.Left)
 	}
 }
+
+// TestUnaryBindsBeforeMatch holds MATCH below the unary operators of
+// StarRocks.g4:2408-2409: !Label MATCH 'job' is (!Label) MATCH 'job'.
+func TestUnaryBindsBeforeMatch(t *testing.T) {
+	file, err := Parse("SELECT !Label MATCH 'job' FROM t")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, ok := file.Stmts[0].(*ast.SelectStmt).Items[0].Expr.(*ast.MatchExpr)
+	if !ok {
+		t.Fatalf("got %T, want *ast.MatchExpr at the top", file.Stmts[0].(*ast.SelectStmt).Items[0].Expr)
+	}
+	if _, ok := m.Expr.(*ast.UnaryExpr); !ok {
+		t.Errorf("left of MATCH is %T, want !Label", m.Expr)
+	}
+}
