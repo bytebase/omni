@@ -6938,11 +6938,11 @@ accept	accept	engine	primaryExpression(identifier_DOT)?/identifier_DOT!drop-2	SE
 accept	accept	engine	primaryExpression(identifier_DOT)?/identifier_DOT!insert	SELECT KEY a.zzz a
 accept	accept	engine	primaryExpression(DATE|TIMESTAMP)?/%empty	SELECT EXTRACT(a FROM CURRENT_DATE)
 reject	reject	engine	primaryExpression(DATE|TIMESTAMP)?/%empty!insert	SELECT EXTRACT(a FROM zzz CURRENT_DATE)
-reject	accept	engine	primaryExpression(DATE|TIMESTAMP)?/DATE	SELECT EXTRACT(a FROM DATE CURRENT_DATE)
+accept	accept	engine	primaryExpression(DATE|TIMESTAMP)?/DATE	SELECT EXTRACT(a FROM DATE CURRENT_DATE)
 reject	reject	engine	primaryExpression(DATE|TIMESTAMP)?/DATE!truncate	SELECT EXTRACT(a FROM
 reject	reject	engine	primaryExpression(DATE|TIMESTAMP)?/DATE!insert	SELECT EXTRACT(a FROM DATE zzz CURRENT_DATE)
 reject	reject	engine	primaryExpression(DATE|TIMESTAMP)?/DATE!swap	SELECT EXTRACT(a FROM DATETIME CURRENT_DATE)
-reject	accept	engine	primaryExpression(DATE|TIMESTAMP)?/TIMESTAMP	SELECT EXTRACT(a FROM TIMESTAMP CURRENT_DATE)
+accept	accept	engine	primaryExpression(DATE|TIMESTAMP)?/TIMESTAMP	SELECT EXTRACT(a FROM TIMESTAMP CURRENT_DATE)
 reject	reject	engine	primaryExpression(DATE|TIMESTAMP)?/TIMESTAMP!insert	SELECT EXTRACT(a FROM TIMESTAMP zzz CURRENT_DATE)
 reject	reject	engine	primaryExpression(DATE|TIMESTAMP)?/TIMESTAMP!swap	SELECT EXTRACT(a FROM TINYINT CURRENT_DATE)
 accept	accept	engine	primaryExpression(identifier|STRING_LITERAL|DEFAULT)/identifier	SELECT CURRENT_DATE COLLATE a

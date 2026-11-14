@@ -833,16 +833,29 @@ func (p *Parser) parseFuncCall(name *ast.ObjectName) (*ast.FuncCallExpr, error) 
 	// default, is the other setQuantifier, which only the aggregates of
 	// StarRocks.g4:2453-2462 take; all but COUNT then need an argument.
 	needArg := false
+	quantified := false
 	if p.cur.Kind == kwDISTINCT {
 		p.advance()
 		fc.Distinct = true
+		quantified = true
 	} else if p.cur.Kind == kwALL && len(name.Parts) == 1 {
 		switch funcName {
 		case "COUNT":
 			p.advance()
+			quantified = true
 		case "AVG", "MAX", "MIN", "SUM", "ARRAY_AGG", "GROUP_CONCAT":
 			p.advance()
 			needArg = true
+		}
+	}
+	// COUNT '(' (setQuantifier bracketHint?)? ... (StarRocks.g4:2455): the
+	// hint guides the planner and, like a /*+ */ hint, is not kept. A '['
+	// that does not read as a hint opens an array argument (COUNT(DISTINCT
+	// [])).
+	if quantified && funcName == "COUNT" && len(name.Parts) == 1 && p.cur.Kind == int('[') {
+		cp := p.save()
+		if err := p.skipBracketHint(); err != nil {
+			p.restore(cp)
 		}
 	}
 
@@ -2187,4 +2200,44 @@ func (p *Parser) tryParseNameLambda() (ast.Node, bool, error) {
 	name := &ast.ObjectName{Parts: []string{tok.Str}, Loc: tok.Loc}
 	lam, err := p.parseLambdaExpr(&ast.ColumnRef{Name: name, Loc: tok.Loc})
 	return lam, err == nil, err
+}
+
+// skipBracketHint reads bracketHint (StarRocks.g4:2249):
+// '[' identifier (',' identifier)* ']' or
+// '[' identifier '|' primaryExpression literalExpressionList ']'.
+func (p *Parser) skipBracketHint() error {
+	p.advance() // consume '['
+	if _, _, err := p.parseIdentifier(); err != nil {
+		return err
+	}
+	if p.cur.Kind == int('|') {
+		p.advance() // consume '|'
+		if _, err := p.parsePrimaryExpr(); err != nil {
+			return err
+		}
+		if _, err := p.expect(int('(')); err != nil {
+			return err
+		}
+		for {
+			if _, err := p.parseExpr(); err != nil {
+				return err
+			}
+			if p.cur.Kind != int(',') {
+				break
+			}
+			p.advance() // consume ','
+		}
+		if _, err := p.expect(int(')')); err != nil {
+			return err
+		}
+	} else {
+		for p.cur.Kind == int(',') {
+			p.advance() // consume ','
+			if _, _, err := p.parseIdentifier(); err != nil {
+				return err
+			}
+		}
+	}
+	_, err := p.expect(int(']'))
+	return err
 }

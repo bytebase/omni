@@ -1311,6 +1311,15 @@ func (p *Parser) parseExtractExpr() (ast.Node, error) {
 	if _, err := p.expect(kwFROM); err != nil {
 		return nil, err
 	}
+	// FROM (DATE | TIMESTAMP)? valueExpression (DorisParser.g4:1589): the
+	// word is a prefix unless it is a call, a typed literal or the source.
+	if p.cur.Kind == kwDATE || p.cur.Kind == kwTIMESTAMP {
+		switch p.peekNext().Kind {
+		case int('('), int(')'), tokString:
+		default:
+			p.advance() // consume DATE / TIMESTAMP
+		}
+	}
 	expr, err := p.parseExpr()
 	if err != nil {
 		return nil, err

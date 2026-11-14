@@ -9181,7 +9181,7 @@ reject	reject	engine	aggregationFunction(bracketHint)?/bracketHint!drop-1	SELECT
 accept	accept	engine	aggregationFunction(bracketHint)?/bracketHint!drop-2	SELECT COUNT(DISTINCT [ ]);
 reject	reject	engine	aggregationFunction(bracketHint)?/bracketHint!drop-3	SELECT COUNT(DISTINCT [ a);
 reject	reject	engine	aggregationFunction(bracketHint)?/bracketHint!truncate	SELECT COUNT(DISTINCT [ a
-reject	accept	engine	aggregationFunction(bracketHint)?/bracketHint!insert	SELECT COUNT(DISTINCT [ a ] zzz);
+accept	accept	engine	aggregationFunction(bracketHint)?/bracketHint!insert	SELECT COUNT(DISTINCT [ a ] zzz);
 accept	accept	engine	aggregationFunction(expression_(,_expression)*)?/%empty	SELECT COUNT();
 accept	accept	engine	aggregationFunction(expression_(,_expression)*)?/expression_(,_expression)*	SELECT COUNT(CURRENT_USER);
 reject	reject	engine	aggregationFunction(expression_(,_expression)*)?/expression_(,_expression)*!insert	SELECT COUNT(CURRENT_USER zzz);
