@@ -411,6 +411,9 @@ func (p *Parser) parseAlterStmt() (ast.Node, error) {
 	case kwSEMANTIC:
 		// ALTER SEMANTIC VIEW ... (T4.9). The sub-parser consumes SEMANTIC + VIEW.
 		return p.parseAlterSemanticViewStmt()
+	case kwDATASET:
+		// ALTER DATASET ... { ADD | DROP } VERSION. The sub-parser consumes DATASET.
+		return p.parseAlterDatasetStmt(alterTok.Loc)
 	case kwFAILOVER, kwREPLICATION:
 		// ALTER { FAILOVER | REPLICATION } GROUP ... (T4.8). The sub-parser consumes
 		// the kind keyword + GROUP.
