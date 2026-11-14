@@ -381,7 +381,7 @@ func (p *Parser) parseAlterTableAction(iceberg bool) (*ast.AlterTableAction, err
 			}
 		default:
 			// SET table properties
-			props, err := p.parseTableSetProps()
+			props, err := p.parseTableSetProps(iceberg)
 			if err != nil {
 				return nil, err
 			}
@@ -640,15 +640,20 @@ func (p *Parser) parseSearchOptTargets(drop bool) ([]string, error) {
 		if p.cur.Type == '*' {
 			p.advance()
 			target = "*"
+			if p.cur.Type == ',' && p.peekIsWord("ANALYZER") {
+				p.advance() // consume ','
+				if err := p.parseSearchOptAnalyzer(); err != nil {
+					return nil, err
+				}
+				target = p.srcSlice(innerStart, p.prev.Loc.End)
+			}
 		} else {
 			for j := 0; ; j++ {
 				if j >= searchOptMethodCap {
 					return nil, p.syntaxErrorAtCur()
 				}
 				if j > 0 && p.curIsWord("ANALYZER") && p.peekNext().Type == tokAssoc {
-					p.advance() // consume ANALYZER
-					p.advance() // consume =>
-					if _, err := p.expect(tokString); err != nil {
+					if err := p.parseSearchOptAnalyzer(); err != nil {
 						return nil, err
 					}
 					break // the analyzer closes the argument list
@@ -673,6 +678,20 @@ func (p *Parser) parseSearchOptTargets(drop bool) ([]string, error) {
 		p.advance() // consume ',' between methods
 	}
 	return out, nil
+}
+
+// parseSearchOptAnalyzer parses ANALYZER => '<analyzer>', the trailing
+// FULL_TEXT argument. cur is ANALYZER.
+func (p *Parser) parseSearchOptAnalyzer() error {
+	if !p.curIsWord("ANALYZER") {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance() // consume ANALYZER
+	if _, err := p.expect(tokAssoc); err != nil {
+		return err
+	}
+	_, err := p.expect(tokString)
+	return err
 }
 
 // ---------------------------------------------------------------------------
@@ -944,8 +963,8 @@ func (p *Parser) parseAlterTableModifyAction(action *ast.AlterTableAction, icebe
 			}
 			return nil
 		}
-		// check if it looks like a column name (ident or non-reserved kw)
-		if p.cur.Type == tokIdent || p.isNonReservedKeyword(p.cur.Type) {
+		// check if it looks like a column name (ident, quoted ident or non-reserved kw)
+		if p.cur.Type == tokIdent || p.cur.Type == tokQuotedIdent || p.isNonReservedKeyword(p.cur.Type) {
 			colName, err := p.parseIdent()
 			if err != nil {
 				return err
@@ -1365,7 +1384,7 @@ func (p *Parser) parseAlterColumnOpts(colName ast.Ident, iceberg bool) (*ast.Col
 // a multi-column ALTER MODIFY list.
 func (p *Parser) isAlterColumnStart(tokType int) bool {
 	switch tokType {
-	case tokIdent, kwCOLUMN:
+	case tokIdent, tokQuotedIdent, kwCOLUMN:
 		return true
 	}
 	return p.isNonReservedKeyword(tokType)
@@ -1377,10 +1396,10 @@ func (p *Parser) isAlterColumnStart(tokType int) bool {
 
 // parseTableSetProps parses the SET properties after ALTER TABLE ... SET.
 // Returns a slice of TableProp, consuming all recognized properties.
-func (p *Parser) parseTableSetProps() ([]*ast.TableProp, error) {
+func (p *Parser) parseTableSetProps(iceberg bool) ([]*ast.TableProp, error) {
 	var props []*ast.TableProp
 	for {
-		prop, ok, err := p.parseOneTableProp()
+		prop, ok, err := p.parseOneTableProp(iceberg)
 		if err != nil {
 			return nil, err
 		}
@@ -1394,7 +1413,7 @@ func (p *Parser) parseTableSetProps() ([]*ast.TableProp, error) {
 
 // parseOneTableProp attempts to parse a single known SET property.
 // Returns (prop, true, nil) on success, (nil, false, nil) if no property found.
-func (p *Parser) parseOneTableProp() (*ast.TableProp, bool, error) {
+func (p *Parser) parseOneTableProp(iceberg bool) (*ast.TableProp, bool, error) {
 	switch p.cur.Type {
 	case kwDATA_RETENTION_TIME_IN_DAYS:
 		p.advance()
@@ -1480,12 +1499,16 @@ func (p *Parser) parseOneTableProp() (*ast.TableProp, bool, error) {
 			}
 			return &ast.TableProp{Name: "CONTACT", Value: val}, true, nil
 		}
-		// Any other documented property (ICEBERG_DEFAULT_DDL_COLLATION,
-		// ENABLE_SCHEMA_EVOLUTION, ERROR_LOGGING, ROW_TIMESTAMP, and the ALTER
-		// ICEBERG TABLE properties) is a KEY = value pair; parseAssignment holds
-		// each documented property to its documented values (propertyValues).
-		// Value keeps the value's source text.
-		if p.startsAssignment() && p.isColumnNameToken(p.cur.Type) && p.cur.Type != kwTAG {
+		// The other properties the page lists (ICEBERG_DEFAULT_DDL_COLLATION,
+		// ENABLE_SCHEMA_EVOLUTION, ERROR_LOGGING, ROW_TIMESTAMP, or the ALTER
+		// ICEBERG TABLE ones) are KEY = value pairs; parseAssignment holds each
+		// to its documented values (propertyValues). Value keeps the value's
+		// source text.
+		known := tableSetProperties
+		if iceberg {
+			known = icebergTableSetProperties
+		}
+		if p.startsAssignment() && p.isColumnNameToken(p.cur.Type) && known[strings.ToUpper(p.cur.Str)] {
 			eq := p.peekNext()
 			opt, err := p.parseAssignment()
 			if err != nil {

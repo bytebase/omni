@@ -88,6 +88,14 @@ func TestAlterTable_UnparenthesizedTags(t *testing.T) {
 	if len(stmt.Actions) != 2 || stmt.Actions[1].TagColumn.Name != "c2" {
 		t.Errorf("actions = %+v", stmt.Actions)
 	}
+	stmt = requireAlterTable(t, `ALTER TABLE t MODIFY c1 SET TAG t1 = 'v', "c2" SET TAG t2 = 'w'`)
+	if len(stmt.Actions) != 2 || stmt.Actions[1].TagColumn.Name != "c2" {
+		t.Errorf("actions = %+v", stmt.Actions)
+	}
+	stmt = requireAlterTable(t, `ALTER TABLE t MODIFY c1 UNSET TAG t1, "c2" UNSET TAG t2`)
+	if len(stmt.Actions) != 2 || stmt.Actions[1].TagColumn.Name != "c2" {
+		t.Errorf("actions = %+v", stmt.Actions)
+	}
 	stmt = requireAlterTable(t, "ALTER TABLE t MODIFY c1 UNSET TAG t1, t2, c2 UNSET TAG t3")
 	if len(stmt.Actions) != 2 || len(stmt.Actions[0].UnsetTags) != 2 || stmt.Actions[1].TagColumn.Name != "c2" {
 		t.Errorf("actions = %+v", stmt.Actions)
@@ -167,8 +175,10 @@ func TestAlterTable_NewProperties(t *testing.T) {
 		t.Errorf("unset = %v", a.UnsetProps)
 	}
 	for _, sql := range []string{
-		"ALTER TABLE t SET",                     // nothing to set
-		"ALTER TABLE t SET ANY = TRUE",          // a reserved word is no property name
+		"ALTER TABLE t SET",            // nothing to set
+		"ALTER TABLE t SET ANY = TRUE", // a reserved word is no property name
+		"ALTER TABLE t SET NOT_A_PROPERTY = 12",
+		"ALTER TABLE t SET PATH_LAYOUT = FLAT",  // an ALTER ICEBERG TABLE property
 		"ALTER TABLE t SET ERROR_LOGGING",       // a property needs = value
 		"ALTER TABLE t SET ERROR_LOGGING = 1 2", // one value per property
 		// Documented properties take their documented values.
@@ -188,6 +198,17 @@ func TestAlterTable_SearchOptimizationTargets(t *testing.T) {
 	stmt := requireAlterTable(t, "ALTER TABLE t ADD SEARCH OPTIMIZATION ON FULL_TEXT(a, b, ANALYZER => 'UNICODE_ANALYZER')")
 	if a := requireAction(t, stmt, 0); len(a.SearchOptOn) != 1 || a.SearchOptOn[0] != "FULL_TEXT(a, b, ANALYZER => 'UNICODE_ANALYZER')" {
 		t.Errorf("on = %v", a.SearchOptOn)
+	}
+	for _, sql := range []string{
+		"ALTER TABLE t ADD SEARCH OPTIMIZATION ON FULL_TEXT(*, ANALYZER => 'UNICODE_ANALYZER')",
+		"ALTER TABLE t DROP SEARCH OPTIMIZATION ON FULL_TEXT(*, ANALYZER => 'UNICODE_ANALYZER')",
+	} {
+		if a := requireAction(t, requireAlterTable(t, sql), 0); len(a.SearchOptOn) != 1 || a.SearchOptOn[0] != "FULL_TEXT(*, ANALYZER => 'UNICODE_ANALYZER')" {
+			t.Errorf("%q: on = %v", sql, a.SearchOptOn)
+		}
+	}
+	if _, err := Parse("ALTER TABLE t ADD SEARCH OPTIMIZATION ON FULL_TEXT(*, a)"); err == nil {
+		t.Error("only ANALYZER may follow *")
 	}
 	stmt = requireAlterTable(t, "ALTER TABLE t DROP SEARCH OPTIMIZATION ON c1, 1, EQUALITY(c2)")
 	if a := requireAction(t, stmt, 0); len(a.SearchOptOn) != 3 || a.SearchOptOn[1] != "1" {
