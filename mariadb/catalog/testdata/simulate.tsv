@@ -62,15 +62,15 @@ ok	1054	engine	one_table@missing	opt_as/AS	CREATE TABLE a AS SELECT a;
 1146	1146	engine	one_table@missing	create_table_option/TRANSACTIONAL_SYM_opt_equal_choice	ALTER TABLE a TRANSACTIONAL 1;
 1146	1146	engine	one_table@missing	create_table_option/engine_defined_option	ALTER TABLE a a = 's';
 1146	1146	engine	one_table@missing	create_table_option/SEQUENCE_SYM_opt_equal_choice	ALTER TABLE a SEQUENCE 1;
-1064	1146	engine	one_table@missing	create_table_option/versioning_option	ALTER TABLE a WITH SYSTEM VERSIONING;
+1146	1146	engine	one_table@missing	create_table_option/versioning_option	ALTER TABLE a WITH SYSTEM VERSIONING;
 1146	1146	engine	one_table@missing	engine_defined_option/ident_options_equal_ident	ALTER TABLE a a = a;
 1146	1146	engine	one_table@missing	engine_defined_option/ident_options_equal_real_ulonglong_num	ALTER TABLE a a = 1;
 1146	1146	engine	one_table@missing	engine_defined_option/ident_options_equal_DEFAULT	ALTER TABLE a a = DEFAULT;
 1146	1146	engine	one_table@missing	engine_defined_option/ident_options_equal_DEFAULT!swap	ALTER TABLE a a = DEFINER;
 1146	1146	engine	one_table@missing	ident_options/IDENT_sys!truncate	ALTER TABLE a
-1064	1146	engine	one_table@missing	ident_options/keyword_options	ALTER TABLE a READ_ONLY = 's';
-1064	1146	engine	one_table@missing	keyword_options/WRAPPER_SYM	ALTER TABLE a WRAPPER = 's';
-1064	1054	engine	one_table@missing	opt_versioning_option/versioning_option	CREATE TABLE a SELECT a WITH SYSTEM VERSIONING;
+1146	1146	engine	one_table@missing	ident_options/keyword_options	ALTER TABLE a READ_ONLY = 's';
+1146	1146	engine	one_table@missing	keyword_options/WRAPPER_SYM	ALTER TABLE a WRAPPER = 's';
+ok	1054	engine	one_table@missing	opt_versioning_option/versioning_option	CREATE TABLE a SELECT a WITH SYSTEM VERSIONING;
 ok	1054	engine	one_table@missing	opt_versioning_option/versioning_option!drop-1	CREATE TABLE a SELECT a VERSIONING;
 1146	1146	engine	one_table@missing	row_types/FIXED_SYM	ALTER TABLE a ROW_FORMAT FIXED;
 1146	1146	engine	one_table@missing	row_types/DYNAMIC_SYM	ALTER TABLE a ROW_FORMAT DYNAMIC;
@@ -321,8 +321,8 @@ ok	1054	engine	one_table@missing	opt_versioning_option/versioning_option!drop-1	
 1146	1146	engine	one_table@missing	opt_index_lock_algorithm/alter_algorithm_option_alter_lock_option	CREATE INDEX a ON a(a) ALGORITHM DEFAULT LOCK DEFAULT;
 1146	1146	engine	one_table@missing	opt_column/COLUMN_SYM	ALTER TABLE a DROP COLUMN a;
 1146	1146	engine	one_table@missing	alter_options_part2/alter_option_list	ALTER IGNORE TABLE a;
-1064	1146	engine	one_table@missing	alter_option_list/alter_option_list_alter_option	ALTER IGNORE IGNORE TABLE a;
-1064	1146	engine	one_table@missing	alter_option/ONLINE_SYM	ALTER ONLINE TABLE a;
+1146	1146	engine	one_table@missing	alter_option_list/alter_option_list_alter_option	ALTER IGNORE IGNORE TABLE a;
+1146	1146	engine	one_table@missing	alter_option/ONLINE_SYM	ALTER ONLINE TABLE a;
 1051	1051	engine	one_table@missing	opt_restrict/RESTRICT	DROP TABLE a RESTRICT;
 1051	1051	engine	one_table@missing	opt_restrict/RESTRICT!truncate	DROP TABLE a
 1051	1051	engine	one_table@missing	opt_restrict/CASCADE	DROP TABLE a CASCADE;
@@ -338,7 +338,7 @@ ok	1054	engine	one_table@missing	opt_versioning_option/versioning_option!drop-1	
 1146	1146	engine	one_table@missing	ulonglong_num/opt_plus_DECIMAL_NUM	ALTER TABLE a MAX_ROWS 1.5;
 1146	1146	engine	one_table@missing	ulonglong_num/opt_plus_FLOAT_NUM	ALTER TABLE a MAX_ROWS 1e0;
 1146	1146	engine	one_table@missing	real_ulonglong_num/ULONGLONG_NUM	ALTER TABLE a a = 9223372036854775808;
-1064	1146	engine	one_table@missing	real_ulonglong_num/HEX_NUM	ALTER TABLE a a = 0x41;
+1146	1146	engine	one_table@missing	real_ulonglong_num/HEX_NUM	ALTER TABLE a a = 0x41;
 1146	1146	engine	one_table@missing	real_ulonglong_num/LONG_NUM	ALTER TABLE a a = 2147483648;
 1146	1146	engine	one_table@missing	choice/DEFAULT	ALTER TABLE a PAGE_CHECKSUM DEFAULT;
 1146	1146	engine	one_table@missing	drop/DROP_INDEX_SYM_opt_if_exists_table_element_ident_ON_table_ident_opt_lock_wait_timeout	DROP INDEX a ON a;
@@ -423,17 +423,17 @@ ok:089d5b6fb5b4	ok:089d5b6fb5b4	engine	one_table@table	create_table_option/STORA
 ok:144e7538094a	ok:144e7538094a	engine	one_table@table	create_table_option/CONNECTION_SYM_opt_equal_TEXT_STRING_sys	ALTER TABLE a CONNECTION 's';
 ok:fe57e612bdeb	ok:fe57e612bdeb	engine	one_table@table	create_table_option/KEY_BLOCK_SIZE_opt_equal_ulong_num	ALTER TABLE a KEY_BLOCK_SIZE 1;
 ok:6c61d8b3d07d	ok:6c61d8b3d07d	engine	one_table@table	create_table_option/TRANSACTIONAL_SYM_opt_equal_choice	ALTER TABLE a TRANSACTIONAL 1;
-ok	1911	engine	one_table@table	create_table_option/engine_defined_option	ALTER TABLE a a = 's';
-ok	4086	engine	one_table@table	create_table_option/SEQUENCE_SYM_opt_equal_choice	ALTER TABLE a SEQUENCE 1;
-1064	ok:e2807d21bb3b	engine	one_table@table	create_table_option/versioning_option	ALTER TABLE a WITH SYSTEM VERSIONING;
-ok	1911	engine	one_table@table	engine_defined_option/ident_options_equal_ident	ALTER TABLE a a = a;
-ok	1911	engine	one_table@table	engine_defined_option/ident_options_equal_real_ulonglong_num	ALTER TABLE a a = 1;
-ok	1911	engine	one_table@table	engine_defined_option/ident_options_equal_DEFAULT	ALTER TABLE a a = DEFAULT;
-ok	1911	engine	one_table@table	engine_defined_option/ident_options_equal_DEFAULT!swap	ALTER TABLE a a = DEFINER;
+1911	1911	engine	one_table@table	create_table_option/engine_defined_option	ALTER TABLE a a = 's';
+4086	4086	engine	one_table@table	create_table_option/SEQUENCE_SYM_opt_equal_choice	ALTER TABLE a SEQUENCE 1;
+ok:e2807d21bb3b	ok:e2807d21bb3b	engine	one_table@table	create_table_option/versioning_option	ALTER TABLE a WITH SYSTEM VERSIONING;
+1911	1911	engine	one_table@table	engine_defined_option/ident_options_equal_ident	ALTER TABLE a a = a;
+1911	1911	engine	one_table@table	engine_defined_option/ident_options_equal_real_ulonglong_num	ALTER TABLE a a = 1;
+1911	1911	engine	one_table@table	engine_defined_option/ident_options_equal_DEFAULT	ALTER TABLE a a = DEFAULT;
+1911	1911	engine	one_table@table	engine_defined_option/ident_options_equal_DEFAULT!swap	ALTER TABLE a a = DEFINER;
 ok:089d5b6fb5b4	ok:089d5b6fb5b4	engine	one_table@table	ident_options/IDENT_sys!truncate	ALTER TABLE a
-1064	1911	engine	one_table@table	ident_options/keyword_options	ALTER TABLE a READ_ONLY = 's';
-1064	1911	engine	one_table@table	keyword_options/WRAPPER_SYM	ALTER TABLE a WRAPPER = 's';
-1064	1050	engine	one_table@table	opt_versioning_option/versioning_option	CREATE TABLE a SELECT a WITH SYSTEM VERSIONING;
+1911	1911	engine	one_table@table	ident_options/keyword_options	ALTER TABLE a READ_ONLY = 's';
+1911	1911	engine	one_table@table	keyword_options/WRAPPER_SYM	ALTER TABLE a WRAPPER = 's';
+1050	1050	engine	one_table@table	opt_versioning_option/versioning_option	CREATE TABLE a SELECT a WITH SYSTEM VERSIONING;
 1050	1050	engine	one_table@table	opt_versioning_option/versioning_option!drop-1	CREATE TABLE a SELECT a VERSIONING;
 ok	1478	engine	one_table@table	row_types/FIXED_SYM	ALTER TABLE a ROW_FORMAT FIXED;
 ok:89374d5056a9	ok:89374d5056a9	engine	one_table@table	row_types/DYNAMIC_SYM	ALTER TABLE a ROW_FORMAT DYNAMIC;
@@ -684,8 +684,8 @@ ok:e2807d21bb3b	ok:e2807d21bb3b	engine	one_table@table	alter_list_item/ADD_SYSTE
 1072	1072	engine	one_table@table	opt_index_lock_algorithm/alter_algorithm_option_alter_lock_option	CREATE INDEX a ON a(a) ALGORITHM DEFAULT LOCK DEFAULT;
 1091	1091	engine	one_table@table	opt_column/COLUMN_SYM	ALTER TABLE a DROP COLUMN a;
 ok:089d5b6fb5b4	ok:089d5b6fb5b4	engine	one_table@table	alter_options_part2/alter_option_list	ALTER IGNORE TABLE a;
-1064	ok:089d5b6fb5b4	engine	one_table@table	alter_option_list/alter_option_list_alter_option	ALTER IGNORE IGNORE TABLE a;
-1064	ok:089d5b6fb5b4	engine	one_table@table	alter_option/ONLINE_SYM	ALTER ONLINE TABLE a;
+ok:089d5b6fb5b4	ok:089d5b6fb5b4	engine	one_table@table	alter_option_list/alter_option_list_alter_option	ALTER IGNORE IGNORE TABLE a;
+ok:089d5b6fb5b4	ok:089d5b6fb5b4	engine	one_table@table	alter_option/ONLINE_SYM	ALTER ONLINE TABLE a;
 ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@table	opt_restrict/RESTRICT	DROP TABLE a RESTRICT;
 ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@table	opt_restrict/RESTRICT!truncate	DROP TABLE a
 ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@table	opt_restrict/CASCADE	DROP TABLE a CASCADE;
@@ -700,9 +700,9 @@ ok	ok:5a1c20fd7bed	engine	one_table@table	ulonglong_num/opt_plus_ULONGLONG_NUM	A
 ok:0b254c32c63a	ok:0b254c32c63a	engine	one_table@table	ulonglong_num/opt_plus_LONG_NUM	ALTER TABLE a MAX_ROWS 2147483648;
 ok	ok:4b74c35d2e5f	engine	one_table@table	ulonglong_num/opt_plus_DECIMAL_NUM	ALTER TABLE a MAX_ROWS 1.5;
 ok	ok:4b74c35d2e5f	engine	one_table@table	ulonglong_num/opt_plus_FLOAT_NUM	ALTER TABLE a MAX_ROWS 1e0;
-ok	1911	engine	one_table@table	real_ulonglong_num/ULONGLONG_NUM	ALTER TABLE a a = 9223372036854775808;
-1064	1911	engine	one_table@table	real_ulonglong_num/HEX_NUM	ALTER TABLE a a = 0x41;
-ok	1911	engine	one_table@table	real_ulonglong_num/LONG_NUM	ALTER TABLE a a = 2147483648;
+1911	1911	engine	one_table@table	real_ulonglong_num/ULONGLONG_NUM	ALTER TABLE a a = 9223372036854775808;
+1911	1911	engine	one_table@table	real_ulonglong_num/HEX_NUM	ALTER TABLE a a = 0x41;
+1911	1911	engine	one_table@table	real_ulonglong_num/LONG_NUM	ALTER TABLE a a = 2147483648;
 ok:089d5b6fb5b4	ok:089d5b6fb5b4	engine	one_table@table	choice/DEFAULT	ALTER TABLE a PAGE_CHECKSUM DEFAULT;
 1091	1091	engine	one_table@table	drop/DROP_INDEX_SYM_opt_if_exists_table_element_ident_ON_table_ident_opt_lock_wait_timeout	DROP INDEX a ON a;
 1051	4092	engine	one_table@table	drop/DROP_VIEW_SYM_opt_if_exists_table_list_opt_restrict	DROP VIEW a;
@@ -786,17 +786,17 @@ ok:25f17229f33b	ok:25f17229f33b	engine	one_table@column	create_table_option/STOR
 ok:78742f4e5f91	ok:78742f4e5f91	engine	one_table@column	create_table_option/CONNECTION_SYM_opt_equal_TEXT_STRING_sys	ALTER TABLE a CONNECTION 's';
 ok:333639620c75	ok:333639620c75	engine	one_table@column	create_table_option/KEY_BLOCK_SIZE_opt_equal_ulong_num	ALTER TABLE a KEY_BLOCK_SIZE 1;
 ok:58288a585670	ok:58288a585670	engine	one_table@column	create_table_option/TRANSACTIONAL_SYM_opt_equal_choice	ALTER TABLE a TRANSACTIONAL 1;
-ok	1911	engine	one_table@column	create_table_option/engine_defined_option	ALTER TABLE a a = 's';
-ok	4086	engine	one_table@column	create_table_option/SEQUENCE_SYM_opt_equal_choice	ALTER TABLE a SEQUENCE 1;
-1064	ok:5073b58d1529	engine	one_table@column	create_table_option/versioning_option	ALTER TABLE a WITH SYSTEM VERSIONING;
-ok	1911	engine	one_table@column	engine_defined_option/ident_options_equal_ident	ALTER TABLE a a = a;
-ok	1911	engine	one_table@column	engine_defined_option/ident_options_equal_real_ulonglong_num	ALTER TABLE a a = 1;
-ok	1911	engine	one_table@column	engine_defined_option/ident_options_equal_DEFAULT	ALTER TABLE a a = DEFAULT;
-ok	1911	engine	one_table@column	engine_defined_option/ident_options_equal_DEFAULT!swap	ALTER TABLE a a = DEFINER;
+1911	1911	engine	one_table@column	create_table_option/engine_defined_option	ALTER TABLE a a = 's';
+4086	4086	engine	one_table@column	create_table_option/SEQUENCE_SYM_opt_equal_choice	ALTER TABLE a SEQUENCE 1;
+ok:5073b58d1529	ok:5073b58d1529	engine	one_table@column	create_table_option/versioning_option	ALTER TABLE a WITH SYSTEM VERSIONING;
+1911	1911	engine	one_table@column	engine_defined_option/ident_options_equal_ident	ALTER TABLE a a = a;
+1911	1911	engine	one_table@column	engine_defined_option/ident_options_equal_real_ulonglong_num	ALTER TABLE a a = 1;
+1911	1911	engine	one_table@column	engine_defined_option/ident_options_equal_DEFAULT	ALTER TABLE a a = DEFAULT;
+1911	1911	engine	one_table@column	engine_defined_option/ident_options_equal_DEFAULT!swap	ALTER TABLE a a = DEFINER;
 ok:25f17229f33b	ok:25f17229f33b	engine	one_table@column	ident_options/IDENT_sys!truncate	ALTER TABLE a
-1064	1911	engine	one_table@column	ident_options/keyword_options	ALTER TABLE a READ_ONLY = 's';
-1064	1911	engine	one_table@column	keyword_options/WRAPPER_SYM	ALTER TABLE a WRAPPER = 's';
-1064	1050	engine	one_table@column	opt_versioning_option/versioning_option	CREATE TABLE a SELECT a WITH SYSTEM VERSIONING;
+1911	1911	engine	one_table@column	ident_options/keyword_options	ALTER TABLE a READ_ONLY = 's';
+1911	1911	engine	one_table@column	keyword_options/WRAPPER_SYM	ALTER TABLE a WRAPPER = 's';
+1050	1050	engine	one_table@column	opt_versioning_option/versioning_option	CREATE TABLE a SELECT a WITH SYSTEM VERSIONING;
 1050	1050	engine	one_table@column	opt_versioning_option/versioning_option!drop-1	CREATE TABLE a SELECT a VERSIONING;
 ok	1478	engine	one_table@column	row_types/FIXED_SYM	ALTER TABLE a ROW_FORMAT FIXED;
 ok:10fd86125ccb	ok:10fd86125ccb	engine	one_table@column	row_types/DYNAMIC_SYM	ALTER TABLE a ROW_FORMAT DYNAMIC;
@@ -1047,8 +1047,8 @@ ok:60a57f203d1c	ok:60a57f203d1c	engine	one_table@column	opt_index_lock_algorithm
 ok:60a57f203d1c	ok:60a57f203d1c	engine	one_table@column	opt_index_lock_algorithm/alter_algorithm_option_alter_lock_option	CREATE INDEX a ON a(a) ALGORITHM DEFAULT LOCK DEFAULT;
 ok:5ad1839727d0	ok:5ad1839727d0	engine	one_table@column	opt_column/COLUMN_SYM	ALTER TABLE a DROP COLUMN a;
 ok:25f17229f33b	ok:25f17229f33b	engine	one_table@column	alter_options_part2/alter_option_list	ALTER IGNORE TABLE a;
-1064	ok:25f17229f33b	engine	one_table@column	alter_option_list/alter_option_list_alter_option	ALTER IGNORE IGNORE TABLE a;
-1064	ok:25f17229f33b	engine	one_table@column	alter_option/ONLINE_SYM	ALTER ONLINE TABLE a;
+ok:25f17229f33b	ok:25f17229f33b	engine	one_table@column	alter_option_list/alter_option_list_alter_option	ALTER IGNORE IGNORE TABLE a;
+ok:25f17229f33b	ok:25f17229f33b	engine	one_table@column	alter_option/ONLINE_SYM	ALTER ONLINE TABLE a;
 ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@column	opt_restrict/RESTRICT	DROP TABLE a RESTRICT;
 ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@column	opt_restrict/RESTRICT!truncate	DROP TABLE a
 ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@column	opt_restrict/CASCADE	DROP TABLE a CASCADE;
@@ -1063,9 +1063,9 @@ ok	ok:5faa9504416e	engine	one_table@column	ulonglong_num/opt_plus_ULONGLONG_NUM	
 ok:14dba0c97b67	ok:14dba0c97b67	engine	one_table@column	ulonglong_num/opt_plus_LONG_NUM	ALTER TABLE a MAX_ROWS 2147483648;
 ok	ok:14a3ef68ecd4	engine	one_table@column	ulonglong_num/opt_plus_DECIMAL_NUM	ALTER TABLE a MAX_ROWS 1.5;
 ok	ok:14a3ef68ecd4	engine	one_table@column	ulonglong_num/opt_plus_FLOAT_NUM	ALTER TABLE a MAX_ROWS 1e0;
-ok	1911	engine	one_table@column	real_ulonglong_num/ULONGLONG_NUM	ALTER TABLE a a = 9223372036854775808;
-1064	1911	engine	one_table@column	real_ulonglong_num/HEX_NUM	ALTER TABLE a a = 0x41;
-ok	1911	engine	one_table@column	real_ulonglong_num/LONG_NUM	ALTER TABLE a a = 2147483648;
+1911	1911	engine	one_table@column	real_ulonglong_num/ULONGLONG_NUM	ALTER TABLE a a = 9223372036854775808;
+1911	1911	engine	one_table@column	real_ulonglong_num/HEX_NUM	ALTER TABLE a a = 0x41;
+1911	1911	engine	one_table@column	real_ulonglong_num/LONG_NUM	ALTER TABLE a a = 2147483648;
 ok:25f17229f33b	ok:25f17229f33b	engine	one_table@column	choice/DEFAULT	ALTER TABLE a PAGE_CHECKSUM DEFAULT;
 1091	1091	engine	one_table@column	drop/DROP_INDEX_SYM_opt_if_exists_table_element_ident_ON_table_ident_opt_lock_wait_timeout	DROP INDEX a ON a;
 1051	4092	engine	one_table@column	drop/DROP_VIEW_SYM_opt_if_exists_table_list_opt_restrict	DROP VIEW a;
@@ -1149,17 +1149,17 @@ ok:8eb6e8823936	ok:8eb6e8823936	engine	one_table@index	create_table_option/STORA
 ok:e10270fab368	ok:e10270fab368	engine	one_table@index	create_table_option/CONNECTION_SYM_opt_equal_TEXT_STRING_sys	ALTER TABLE a CONNECTION 's';
 ok:ee810fa222f2	ok:ee810fa222f2	engine	one_table@index	create_table_option/KEY_BLOCK_SIZE_opt_equal_ulong_num	ALTER TABLE a KEY_BLOCK_SIZE 1;
 ok:d877d4e258d8	ok:d877d4e258d8	engine	one_table@index	create_table_option/TRANSACTIONAL_SYM_opt_equal_choice	ALTER TABLE a TRANSACTIONAL 1;
-ok	1911	engine	one_table@index	create_table_option/engine_defined_option	ALTER TABLE a a = 's';
-ok	4086	engine	one_table@index	create_table_option/SEQUENCE_SYM_opt_equal_choice	ALTER TABLE a SEQUENCE 1;
-1064	ok:ae13ac48191b	engine	one_table@index	create_table_option/versioning_option	ALTER TABLE a WITH SYSTEM VERSIONING;
-ok	1911	engine	one_table@index	engine_defined_option/ident_options_equal_ident	ALTER TABLE a a = a;
-ok	1911	engine	one_table@index	engine_defined_option/ident_options_equal_real_ulonglong_num	ALTER TABLE a a = 1;
-ok	1911	engine	one_table@index	engine_defined_option/ident_options_equal_DEFAULT	ALTER TABLE a a = DEFAULT;
-ok	1911	engine	one_table@index	engine_defined_option/ident_options_equal_DEFAULT!swap	ALTER TABLE a a = DEFINER;
+1911	1911	engine	one_table@index	create_table_option/engine_defined_option	ALTER TABLE a a = 's';
+4086	4086	engine	one_table@index	create_table_option/SEQUENCE_SYM_opt_equal_choice	ALTER TABLE a SEQUENCE 1;
+ok:ae13ac48191b	ok:ae13ac48191b	engine	one_table@index	create_table_option/versioning_option	ALTER TABLE a WITH SYSTEM VERSIONING;
+1911	1911	engine	one_table@index	engine_defined_option/ident_options_equal_ident	ALTER TABLE a a = a;
+1911	1911	engine	one_table@index	engine_defined_option/ident_options_equal_real_ulonglong_num	ALTER TABLE a a = 1;
+1911	1911	engine	one_table@index	engine_defined_option/ident_options_equal_DEFAULT	ALTER TABLE a a = DEFAULT;
+1911	1911	engine	one_table@index	engine_defined_option/ident_options_equal_DEFAULT!swap	ALTER TABLE a a = DEFINER;
 ok:8eb6e8823936	ok:8eb6e8823936	engine	one_table@index	ident_options/IDENT_sys!truncate	ALTER TABLE a
-1064	1911	engine	one_table@index	ident_options/keyword_options	ALTER TABLE a READ_ONLY = 's';
-1064	1911	engine	one_table@index	keyword_options/WRAPPER_SYM	ALTER TABLE a WRAPPER = 's';
-1064	1050	engine	one_table@index	opt_versioning_option/versioning_option	CREATE TABLE a SELECT a WITH SYSTEM VERSIONING;
+1911	1911	engine	one_table@index	ident_options/keyword_options	ALTER TABLE a READ_ONLY = 's';
+1911	1911	engine	one_table@index	keyword_options/WRAPPER_SYM	ALTER TABLE a WRAPPER = 's';
+1050	1050	engine	one_table@index	opt_versioning_option/versioning_option	CREATE TABLE a SELECT a WITH SYSTEM VERSIONING;
 1050	1050	engine	one_table@index	opt_versioning_option/versioning_option!drop-1	CREATE TABLE a SELECT a VERSIONING;
 ok	1478	engine	one_table@index	row_types/FIXED_SYM	ALTER TABLE a ROW_FORMAT FIXED;
 ok:d1dcc47d9afe	ok:d1dcc47d9afe	engine	one_table@index	row_types/DYNAMIC_SYM	ALTER TABLE a ROW_FORMAT DYNAMIC;
@@ -1410,8 +1410,8 @@ ok:ae13ac48191b	ok:ae13ac48191b	engine	one_table@index	alter_list_item/ADD_SYSTE
 1061	1061	engine	one_table@index	opt_index_lock_algorithm/alter_algorithm_option_alter_lock_option	CREATE INDEX a ON a(a) ALGORITHM DEFAULT LOCK DEFAULT;
 ok:db2f8726731c	ok:db2f8726731c	engine	one_table@index	opt_column/COLUMN_SYM	ALTER TABLE a DROP COLUMN a;
 ok:8eb6e8823936	ok:8eb6e8823936	engine	one_table@index	alter_options_part2/alter_option_list	ALTER IGNORE TABLE a;
-1064	ok:8eb6e8823936	engine	one_table@index	alter_option_list/alter_option_list_alter_option	ALTER IGNORE IGNORE TABLE a;
-1064	ok:8eb6e8823936	engine	one_table@index	alter_option/ONLINE_SYM	ALTER ONLINE TABLE a;
+ok:8eb6e8823936	ok:8eb6e8823936	engine	one_table@index	alter_option_list/alter_option_list_alter_option	ALTER IGNORE IGNORE TABLE a;
+ok:8eb6e8823936	ok:8eb6e8823936	engine	one_table@index	alter_option/ONLINE_SYM	ALTER ONLINE TABLE a;
 ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@index	opt_restrict/RESTRICT	DROP TABLE a RESTRICT;
 ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@index	opt_restrict/RESTRICT!truncate	DROP TABLE a
 ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@index	opt_restrict/CASCADE	DROP TABLE a CASCADE;
@@ -1426,9 +1426,9 @@ ok	ok:a9ecdb96d764	engine	one_table@index	ulonglong_num/opt_plus_ULONGLONG_NUM	A
 ok:80f3019b9124	ok:80f3019b9124	engine	one_table@index	ulonglong_num/opt_plus_LONG_NUM	ALTER TABLE a MAX_ROWS 2147483648;
 ok	ok:4f47abb86596	engine	one_table@index	ulonglong_num/opt_plus_DECIMAL_NUM	ALTER TABLE a MAX_ROWS 1.5;
 ok	ok:4f47abb86596	engine	one_table@index	ulonglong_num/opt_plus_FLOAT_NUM	ALTER TABLE a MAX_ROWS 1e0;
-ok	1911	engine	one_table@index	real_ulonglong_num/ULONGLONG_NUM	ALTER TABLE a a = 9223372036854775808;
-1064	1911	engine	one_table@index	real_ulonglong_num/HEX_NUM	ALTER TABLE a a = 0x41;
-ok	1911	engine	one_table@index	real_ulonglong_num/LONG_NUM	ALTER TABLE a a = 2147483648;
+1911	1911	engine	one_table@index	real_ulonglong_num/ULONGLONG_NUM	ALTER TABLE a a = 9223372036854775808;
+1911	1911	engine	one_table@index	real_ulonglong_num/HEX_NUM	ALTER TABLE a a = 0x41;
+1911	1911	engine	one_table@index	real_ulonglong_num/LONG_NUM	ALTER TABLE a a = 2147483648;
 ok:8eb6e8823936	ok:8eb6e8823936	engine	one_table@index	choice/DEFAULT	ALTER TABLE a PAGE_CHECKSUM DEFAULT;
 ok:e6f744d4a4d4	ok:e6f744d4a4d4	engine	one_table@index	drop/DROP_INDEX_SYM_opt_if_exists_table_element_ident_ON_table_ident_opt_lock_wait_timeout	DROP INDEX a ON a;
 1051	4092	engine	one_table@index	drop/DROP_VIEW_SYM_opt_if_exists_table_list_opt_restrict	DROP VIEW a;
