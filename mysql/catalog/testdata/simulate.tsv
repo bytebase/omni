@@ -53,9 +53,9 @@ ok	1054	engine	one_table@missing	as_create_query_expression/AS_query_expression_
 1146	1146	engine	one_table@missing	part_func_max/part_value_item_list_paren	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES LESS THAN(MAXVALUE));
 1146	1054	engine	one_table@missing	part_func_max/part_value_item_list_paren!swap	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES LESS THAN(MAX_CONNECTIONS_PER_HOUR));
 1146	1054	engine	one_table@missing	part_values_in/part_value_item_list_paren!swap	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES IN(MAX_CONNECTIONS_PER_HOUR));
-1064	1054	engine	one_table@missing	part_values_in/(_part_value_list_)!swap	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES IN((MAX_CONNECTIONS_PER_HOUR)));
-1064	1054	engine	one_table@missing	part_value_list/part_value_list_,_part_value_item_list_paren!swap	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES IN((MAX_CONNECTIONS_PER_HOUR),(MAXVALUE)));
-1064	1054	engine	one_table@missing	part_value_item_list/part_value_item_list_,_part_value_item!swap	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES IN(MAX_CONNECTIONS_PER_HOUR, MAXVALUE));
+1146	1054	engine	one_table@missing	part_values_in/(_part_value_list_)!swap	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES IN((MAX_CONNECTIONS_PER_HOUR)));
+1146	1054	engine	one_table@missing	part_value_list/part_value_list_,_part_value_item_list_paren!swap	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES IN((MAX_CONNECTIONS_PER_HOUR),(MAXVALUE)));
+1146	1054	engine	one_table@missing	part_value_item_list/part_value_item_list_,_part_value_item!swap	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES IN(MAX_CONNECTIONS_PER_HOUR, MAXVALUE));
 1146	1054	engine	one_table@missing	part_value_item/bit_expr	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES IN(utf8mb4));
 1146	1146	engine	one_table@missing	opt_sub_partition/(_sub_part_list_)	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4(SUBPARTITION utf8mb4));
 1146	1146	engine	one_table@missing	sub_part_list/sub_part_list_,_sub_part_definition	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4(SUBPARTITION utf8mb4, SUBPARTITION utf8mb4));
@@ -213,7 +213,7 @@ ok	1072	engine	one_table@missing	table_element/table_constraint_def	CREATE TABLE
 1146	1146	engine	one_table@missing	column_attribute_list/column_attribute_list_column_attribute	ALTER TABLE utf8mb4 ADD utf8mb4 INT NULL NULL;
 1146	1146	engine	one_table@missing	column_attribute_list/column_attribute_list_column_attribute!truncate	ALTER TABLE utf8mb4 ADD utf8mb4 INT NULL
 1146	1146	engine	one_table@missing	column_attribute/not_NULL_SYM	ALTER TABLE utf8mb4 ADD utf8mb4 INT NOT NULL;
-1064	1146	engine	one_table@missing	column_attribute/not_SECONDARY_SYM	ALTER TABLE utf8mb4 ADD utf8mb4 INT NOT SECONDARY;
+1146	1146	engine	one_table@missing	column_attribute/not_SECONDARY_SYM	ALTER TABLE utf8mb4 ADD utf8mb4 INT NOT SECONDARY;
 1146	1067	engine	one_table@missing	column_attribute/DEFAULT_SYM_now_or_signed_literal	ALTER TABLE utf8mb4 ADD utf8mb4 INT DEFAULT CURRENT_TIMESTAMP;
 1146	1146	engine	one_table@missing	column_attribute/DEFAULT_SYM_(_expr_)	ALTER TABLE utf8mb4 ADD utf8mb4 INT DEFAULT(utf8mb4);
 1146	1294	engine	one_table@missing	column_attribute/ON_SYM_UPDATE_SYM_now	ALTER TABLE utf8mb4 ADD utf8mb4 INT ON UPDATE CURRENT_TIMESTAMP;
@@ -227,7 +227,7 @@ ok	1072	engine	one_table@missing	table_element/table_constraint_def	CREATE TABLE
 1146	1273	engine	one_table@missing	column_attribute/COLLATE_SYM_collation_name	ALTER TABLE utf8mb4 ADD utf8mb4 INT COLLATE utf8mb4;
 1064	1273	engine	one_table@missing	column_attribute/COLLATE_SYM_collation_name!insert	ALTER TABLE utf8mb4 ADD utf8mb4 INT COLLATE utf8mb4 zzz;
 1146	1146	engine	one_table@missing	column_attribute/COLUMN_FORMAT_SYM_column_format	ALTER TABLE utf8mb4 ADD utf8mb4 INT COLUMN_FORMAT DEFAULT;
-1064	1146	engine	one_table@missing	column_attribute/STORAGE_SYM_storage_media	ALTER TABLE utf8mb4 ADD utf8mb4 INT STORAGE DEFAULT;
+1146	1146	engine	one_table@missing	column_attribute/STORAGE_SYM_storage_media	ALTER TABLE utf8mb4 ADD utf8mb4 INT STORAGE DEFAULT;
 1146	1221	engine	one_table@missing	column_attribute/SRID_SYM_real_ulonglong_num	ALTER TABLE utf8mb4 ADD utf8mb4 INT SRID 1;
 1146	1146	engine	one_table@missing	column_attribute/opt_constraint_name_check_constraint	ALTER TABLE utf8mb4 ADD utf8mb4 INT CHECK(utf8mb4);
 1146	1146	engine	one_table@missing	column_attribute/visibility	ALTER TABLE utf8mb4 ADD utf8mb4 INT VISIBLE;
@@ -465,9 +465,9 @@ error	1505	engine	one_table@table	opt_part_values/VALUES_LESS_SYM_THAN_SYM_part_
 error	1505	engine	one_table@table	part_func_max/part_value_item_list_paren	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES LESS THAN(MAXVALUE));
 error	1054	engine	one_table@table	part_func_max/part_value_item_list_paren!swap	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES LESS THAN(MAX_CONNECTIONS_PER_HOUR));
 error	1054	engine	one_table@table	part_values_in/part_value_item_list_paren!swap	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES IN(MAX_CONNECTIONS_PER_HOUR));
-1064	1054	engine	one_table@table	part_values_in/(_part_value_list_)!swap	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES IN((MAX_CONNECTIONS_PER_HOUR)));
-1064	1054	engine	one_table@table	part_value_list/part_value_list_,_part_value_item_list_paren!swap	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES IN((MAX_CONNECTIONS_PER_HOUR),(MAXVALUE)));
-1064	1054	engine	one_table@table	part_value_item_list/part_value_item_list_,_part_value_item!swap	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES IN(MAX_CONNECTIONS_PER_HOUR, MAXVALUE));
+error	1054	engine	one_table@table	part_values_in/(_part_value_list_)!swap	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES IN((MAX_CONNECTIONS_PER_HOUR)));
+error	1054	engine	one_table@table	part_value_list/part_value_list_,_part_value_item_list_paren!swap	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES IN((MAX_CONNECTIONS_PER_HOUR),(MAXVALUE)));
+error	1054	engine	one_table@table	part_value_item_list/part_value_item_list_,_part_value_item!swap	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES IN(MAX_CONNECTIONS_PER_HOUR, MAXVALUE));
 error	1054	engine	one_table@table	part_value_item/bit_expr	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES IN(utf8mb4));
 error	1505	engine	one_table@table	opt_sub_partition/(_sub_part_list_)	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4(SUBPARTITION utf8mb4));
 error	1505	engine	one_table@table	sub_part_list/sub_part_list_,_sub_part_definition	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4(SUBPARTITION utf8mb4, SUBPARTITION utf8mb4));
@@ -625,7 +625,7 @@ ok:ef0ffd165948	ok:ef0ffd165948	engine	one_table@table	opt_column_attribute_list
 ok:ef0ffd165948	ok:ef0ffd165948	engine	one_table@table	column_attribute_list/column_attribute_list_column_attribute	ALTER TABLE utf8mb4 ADD utf8mb4 INT NULL NULL;
 ok:ef0ffd165948	ok:ef0ffd165948	engine	one_table@table	column_attribute_list/column_attribute_list_column_attribute!truncate	ALTER TABLE utf8mb4 ADD utf8mb4 INT NULL
 ok:995fc2f5fd23	ok:995fc2f5fd23	engine	one_table@table	column_attribute/not_NULL_SYM	ALTER TABLE utf8mb4 ADD utf8mb4 INT NOT NULL;
-1064	ok:c53e3a0fd93c	engine	one_table@table	column_attribute/not_SECONDARY_SYM	ALTER TABLE utf8mb4 ADD utf8mb4 INT NOT SECONDARY;
+ok:c53e3a0fd93c	ok:c53e3a0fd93c	engine	one_table@table	column_attribute/not_SECONDARY_SYM	ALTER TABLE utf8mb4 ADD utf8mb4 INT NOT SECONDARY;
 ok	1067	engine	one_table@table	column_attribute/DEFAULT_SYM_now_or_signed_literal	ALTER TABLE utf8mb4 ADD utf8mb4 INT DEFAULT CURRENT_TIMESTAMP;
 ok	3767	engine	one_table@table	column_attribute/DEFAULT_SYM_(_expr_)	ALTER TABLE utf8mb4 ADD utf8mb4 INT DEFAULT(utf8mb4);
 1294	1294	engine	one_table@table	column_attribute/ON_SYM_UPDATE_SYM_now	ALTER TABLE utf8mb4 ADD utf8mb4 INT ON UPDATE CURRENT_TIMESTAMP;
@@ -639,7 +639,7 @@ ok:28713c908468	ok:28713c908468	engine	one_table@table	column_attribute/COMMENT_
 ok	1273	engine	one_table@table	column_attribute/COLLATE_SYM_collation_name	ALTER TABLE utf8mb4 ADD utf8mb4 INT COLLATE utf8mb4;
 1064	1273	engine	one_table@table	column_attribute/COLLATE_SYM_collation_name!insert	ALTER TABLE utf8mb4 ADD utf8mb4 INT COLLATE utf8mb4 zzz;
 ok:ef0ffd165948	ok:ef0ffd165948	engine	one_table@table	column_attribute/COLUMN_FORMAT_SYM_column_format	ALTER TABLE utf8mb4 ADD utf8mb4 INT COLUMN_FORMAT DEFAULT;
-1064	ok:ef0ffd165948	engine	one_table@table	column_attribute/STORAGE_SYM_storage_media	ALTER TABLE utf8mb4 ADD utf8mb4 INT STORAGE DEFAULT;
+ok:ef0ffd165948	ok:ef0ffd165948	engine	one_table@table	column_attribute/STORAGE_SYM_storage_media	ALTER TABLE utf8mb4 ADD utf8mb4 INT STORAGE DEFAULT;
 ok	1221	engine	one_table@table	column_attribute/SRID_SYM_real_ulonglong_num	ALTER TABLE utf8mb4 ADD utf8mb4 INT SRID 1;
 ok	3812	engine	one_table@table	column_attribute/opt_constraint_name_check_constraint	ALTER TABLE utf8mb4 ADD utf8mb4 INT CHECK(utf8mb4);
 ok:ef0ffd165948	ok:ef0ffd165948	engine	one_table@table	column_attribute/visibility	ALTER TABLE utf8mb4 ADD utf8mb4 INT VISIBLE;
@@ -877,9 +877,9 @@ error	1505	engine	one_table@column	opt_part_values/VALUES_LESS_SYM_THAN_SYM_part
 error	1505	engine	one_table@column	part_func_max/part_value_item_list_paren	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES LESS THAN(MAXVALUE));
 error	1054	engine	one_table@column	part_func_max/part_value_item_list_paren!swap	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES LESS THAN(MAX_CONNECTIONS_PER_HOUR));
 error	1054	engine	one_table@column	part_values_in/part_value_item_list_paren!swap	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES IN(MAX_CONNECTIONS_PER_HOUR));
-1064	1054	engine	one_table@column	part_values_in/(_part_value_list_)!swap	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES IN((MAX_CONNECTIONS_PER_HOUR)));
-1064	1054	engine	one_table@column	part_value_list/part_value_list_,_part_value_item_list_paren!swap	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES IN((MAX_CONNECTIONS_PER_HOUR),(MAXVALUE)));
-1064	1054	engine	one_table@column	part_value_item_list/part_value_item_list_,_part_value_item!swap	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES IN(MAX_CONNECTIONS_PER_HOUR, MAXVALUE));
+error	1054	engine	one_table@column	part_values_in/(_part_value_list_)!swap	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES IN((MAX_CONNECTIONS_PER_HOUR)));
+error	1054	engine	one_table@column	part_value_list/part_value_list_,_part_value_item_list_paren!swap	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES IN((MAX_CONNECTIONS_PER_HOUR),(MAXVALUE)));
+error	1054	engine	one_table@column	part_value_item_list/part_value_item_list_,_part_value_item!swap	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES IN(MAX_CONNECTIONS_PER_HOUR, MAXVALUE));
 error	1054	engine	one_table@column	part_value_item/bit_expr	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES IN(utf8mb4));
 error	1505	engine	one_table@column	opt_sub_partition/(_sub_part_list_)	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4(SUBPARTITION utf8mb4));
 error	1505	engine	one_table@column	sub_part_list/sub_part_list_,_sub_part_definition	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4(SUBPARTITION utf8mb4, SUBPARTITION utf8mb4));
@@ -1037,7 +1037,7 @@ ok	3812	engine	one_table@column	opt_constraint_enforcement/constraint_enforcemen
 1060	1060	engine	one_table@column	column_attribute_list/column_attribute_list_column_attribute	ALTER TABLE utf8mb4 ADD utf8mb4 INT NULL NULL;
 1060	1060	engine	one_table@column	column_attribute_list/column_attribute_list_column_attribute!truncate	ALTER TABLE utf8mb4 ADD utf8mb4 INT NULL
 1060	1060	engine	one_table@column	column_attribute/not_NULL_SYM	ALTER TABLE utf8mb4 ADD utf8mb4 INT NOT NULL;
-1064	1060	engine	one_table@column	column_attribute/not_SECONDARY_SYM	ALTER TABLE utf8mb4 ADD utf8mb4 INT NOT SECONDARY;
+1060	1060	engine	one_table@column	column_attribute/not_SECONDARY_SYM	ALTER TABLE utf8mb4 ADD utf8mb4 INT NOT SECONDARY;
 1060	1067	engine	one_table@column	column_attribute/DEFAULT_SYM_now_or_signed_literal	ALTER TABLE utf8mb4 ADD utf8mb4 INT DEFAULT CURRENT_TIMESTAMP;
 1060	1060	engine	one_table@column	column_attribute/DEFAULT_SYM_(_expr_)	ALTER TABLE utf8mb4 ADD utf8mb4 INT DEFAULT(utf8mb4);
 1294	1294	engine	one_table@column	column_attribute/ON_SYM_UPDATE_SYM_now	ALTER TABLE utf8mb4 ADD utf8mb4 INT ON UPDATE CURRENT_TIMESTAMP;
@@ -1051,7 +1051,7 @@ ok	3812	engine	one_table@column	opt_constraint_enforcement/constraint_enforcemen
 1060	1273	engine	one_table@column	column_attribute/COLLATE_SYM_collation_name	ALTER TABLE utf8mb4 ADD utf8mb4 INT COLLATE utf8mb4;
 1064	1273	engine	one_table@column	column_attribute/COLLATE_SYM_collation_name!insert	ALTER TABLE utf8mb4 ADD utf8mb4 INT COLLATE utf8mb4 zzz;
 1060	1060	engine	one_table@column	column_attribute/COLUMN_FORMAT_SYM_column_format	ALTER TABLE utf8mb4 ADD utf8mb4 INT COLUMN_FORMAT DEFAULT;
-1064	1060	engine	one_table@column	column_attribute/STORAGE_SYM_storage_media	ALTER TABLE utf8mb4 ADD utf8mb4 INT STORAGE DEFAULT;
+1060	1060	engine	one_table@column	column_attribute/STORAGE_SYM_storage_media	ALTER TABLE utf8mb4 ADD utf8mb4 INT STORAGE DEFAULT;
 1060	1221	engine	one_table@column	column_attribute/SRID_SYM_real_ulonglong_num	ALTER TABLE utf8mb4 ADD utf8mb4 INT SRID 1;
 1060	3812	engine	one_table@column	column_attribute/opt_constraint_name_check_constraint	ALTER TABLE utf8mb4 ADD utf8mb4 INT CHECK(utf8mb4);
 1060	1060	engine	one_table@column	column_attribute/visibility	ALTER TABLE utf8mb4 ADD utf8mb4 INT VISIBLE;
@@ -1289,9 +1289,9 @@ error	1505	engine	one_table@index	opt_part_values/VALUES_LESS_SYM_THAN_SYM_part_
 error	1505	engine	one_table@index	part_func_max/part_value_item_list_paren	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES LESS THAN(MAXVALUE));
 error	1054	engine	one_table@index	part_func_max/part_value_item_list_paren!swap	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES LESS THAN(MAX_CONNECTIONS_PER_HOUR));
 error	1054	engine	one_table@index	part_values_in/part_value_item_list_paren!swap	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES IN(MAX_CONNECTIONS_PER_HOUR));
-1064	1054	engine	one_table@index	part_values_in/(_part_value_list_)!swap	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES IN((MAX_CONNECTIONS_PER_HOUR)));
-1064	1054	engine	one_table@index	part_value_list/part_value_list_,_part_value_item_list_paren!swap	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES IN((MAX_CONNECTIONS_PER_HOUR),(MAXVALUE)));
-1064	1054	engine	one_table@index	part_value_item_list/part_value_item_list_,_part_value_item!swap	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES IN(MAX_CONNECTIONS_PER_HOUR, MAXVALUE));
+error	1054	engine	one_table@index	part_values_in/(_part_value_list_)!swap	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES IN((MAX_CONNECTIONS_PER_HOUR)));
+error	1054	engine	one_table@index	part_value_list/part_value_list_,_part_value_item_list_paren!swap	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES IN((MAX_CONNECTIONS_PER_HOUR),(MAXVALUE)));
+error	1054	engine	one_table@index	part_value_item_list/part_value_item_list_,_part_value_item!swap	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES IN(MAX_CONNECTIONS_PER_HOUR, MAXVALUE));
 error	1054	engine	one_table@index	part_value_item/bit_expr	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES IN(utf8mb4));
 error	1505	engine	one_table@index	opt_sub_partition/(_sub_part_list_)	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4(SUBPARTITION utf8mb4));
 error	1505	engine	one_table@index	sub_part_list/sub_part_list_,_sub_part_definition	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4(SUBPARTITION utf8mb4, SUBPARTITION utf8mb4));
@@ -1449,7 +1449,7 @@ ok	3812	engine	one_table@index	opt_constraint_enforcement/constraint_enforcement
 1060	1060	engine	one_table@index	column_attribute_list/column_attribute_list_column_attribute	ALTER TABLE utf8mb4 ADD utf8mb4 INT NULL NULL;
 1060	1060	engine	one_table@index	column_attribute_list/column_attribute_list_column_attribute!truncate	ALTER TABLE utf8mb4 ADD utf8mb4 INT NULL
 1060	1060	engine	one_table@index	column_attribute/not_NULL_SYM	ALTER TABLE utf8mb4 ADD utf8mb4 INT NOT NULL;
-1064	1060	engine	one_table@index	column_attribute/not_SECONDARY_SYM	ALTER TABLE utf8mb4 ADD utf8mb4 INT NOT SECONDARY;
+1060	1060	engine	one_table@index	column_attribute/not_SECONDARY_SYM	ALTER TABLE utf8mb4 ADD utf8mb4 INT NOT SECONDARY;
 1060	1067	engine	one_table@index	column_attribute/DEFAULT_SYM_now_or_signed_literal	ALTER TABLE utf8mb4 ADD utf8mb4 INT DEFAULT CURRENT_TIMESTAMP;
 1060	1060	engine	one_table@index	column_attribute/DEFAULT_SYM_(_expr_)	ALTER TABLE utf8mb4 ADD utf8mb4 INT DEFAULT(utf8mb4);
 1294	1294	engine	one_table@index	column_attribute/ON_SYM_UPDATE_SYM_now	ALTER TABLE utf8mb4 ADD utf8mb4 INT ON UPDATE CURRENT_TIMESTAMP;
@@ -1463,7 +1463,7 @@ ok	3812	engine	one_table@index	opt_constraint_enforcement/constraint_enforcement
 1060	1273	engine	one_table@index	column_attribute/COLLATE_SYM_collation_name	ALTER TABLE utf8mb4 ADD utf8mb4 INT COLLATE utf8mb4;
 1064	1273	engine	one_table@index	column_attribute/COLLATE_SYM_collation_name!insert	ALTER TABLE utf8mb4 ADD utf8mb4 INT COLLATE utf8mb4 zzz;
 1060	1060	engine	one_table@index	column_attribute/COLUMN_FORMAT_SYM_column_format	ALTER TABLE utf8mb4 ADD utf8mb4 INT COLUMN_FORMAT DEFAULT;
-1064	1060	engine	one_table@index	column_attribute/STORAGE_SYM_storage_media	ALTER TABLE utf8mb4 ADD utf8mb4 INT STORAGE DEFAULT;
+1060	1060	engine	one_table@index	column_attribute/STORAGE_SYM_storage_media	ALTER TABLE utf8mb4 ADD utf8mb4 INT STORAGE DEFAULT;
 1060	1221	engine	one_table@index	column_attribute/SRID_SYM_real_ulonglong_num	ALTER TABLE utf8mb4 ADD utf8mb4 INT SRID 1;
 1060	3812	engine	one_table@index	column_attribute/opt_constraint_name_check_constraint	ALTER TABLE utf8mb4 ADD utf8mb4 INT CHECK(utf8mb4);
 1060	1060	engine	one_table@index	column_attribute/visibility	ALTER TABLE utf8mb4 ADD utf8mb4 INT VISIBLE;

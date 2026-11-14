@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"encoding/json"
 	"math"
 	"strconv"
 	"strings"
@@ -343,6 +344,15 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 	switch p.cur.Type {
 	case kwNOT:
 		p.advance()
+		// NOT SECONDARY keeps the column out of a secondary engine. Ref:
+		// column_attribute's `not SECONDARY_SYM` in MySQL 8.0 sql/sql_yacc.yy.
+		if _, ok := p.match(kwSECONDARY); ok {
+			col.Constraints = append(col.Constraints, &nodes.ColumnConstraint{
+				Loc:  nodes.Loc{Start: start, End: p.prev.End},
+				Type: nodes.ColConstrNotSecondary,
+			})
+			return true, nil
+		}
 		if _, err := p.expect(kwNULL); err != nil {
 			return false, err
 		}
@@ -587,7 +597,7 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 			val = "DEFAULT"
 			p.advance()
 		default:
-			return false, nil
+			return false, p.syntaxErrorAtCur()
 		}
 		col.ColumnFormat = val
 		col.Constraints = append(col.Constraints, &nodes.ColumnConstraint{
@@ -598,10 +608,14 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 		return true, nil
 
 	case kwSTORAGE:
-		// STORAGE {DISK | MEMORY}
+		// STORAGE {DEFAULT | DISK | MEMORY}. Ref: storage_media in MySQL 8.0
+		// sql/sql_yacc.yy.
 		p.advance()
 		var val string
 		switch p.cur.Type {
+		case kwDEFAULT:
+			val = "DEFAULT"
+			p.advance()
 		case kwDISK:
 			val = "DISK"
 			p.advance()
@@ -609,7 +623,7 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 			val = "MEMORY"
 			p.advance()
 		default:
-			return false, nil
+			return false, p.syntaxErrorAtCur()
 		}
 		col.Storage = val
 		col.Constraints = append(col.Constraints, &nodes.ColumnConstraint{
@@ -629,7 +643,7 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 		secondary := p.cur.Type == kwSECONDARY_ENGINE_ATTRIBUTE
 		p.advance()
 		p.matchEqual()
-		val, err := p.consumeStringOptionValue()
+		val, err := p.consumeJSONAttribute()
 		if err != nil {
 			return false, err
 		}
@@ -654,7 +668,7 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 	if p.cur.Type == kwSRID {
 		p.advance()
 		if p.cur.Type != tokICONST {
-			return false, nil
+			return false, p.syntaxErrorAtCur()
 		}
 		// The id is held to 32 unsigned bits while the statement parses (1690).
 		if p.cur.Ival > math.MaxUint32 {
@@ -887,11 +901,8 @@ func (p *Parser) parseGeneratedColumn() (*nodes.GeneratedColumn, error) {
 	start := p.pos()
 	p.advance() // consume GENERATED
 
-	// GENERATED is nothing without ALWAYS: opt_generated_always is empty or
-	// GENERATED ALWAYS_SYM, so MySQL 8.0.46 answers 1064 for
-	// `a INT GENERATED AS (1)`.
-	//
-	// Ref: opt_generated_always in MySQL 8.0.46 sql/sql_yacc.yy.
+	// GENERATED takes ALWAYS. Ref: opt_generated_always in MySQL 8.0
+	// sql/sql_yacc.yy.
 	if _, err := p.expect(kwALWAYS); err != nil {
 		return nil, err
 	}
@@ -1006,7 +1017,10 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 	switch p.cur.Type {
 	case kwPRIMARY:
 		p.advance()
-		p.match(kwKEY)
+		// PRIMARY takes KEY. Ref: constraint_key_type in MySQL 8.0 sql/sql_yacc.yy.
+		if _, err := p.expect(kwKEY); err != nil {
+			return nil, err
+		}
 		constr.Type = nodes.ConstrPrimaryKey
 		// Optional index name (undocumented but accepted by MySQL 8.0, silently ignored)
 		if p.isIdentToken() && p.cur.Type != '(' {
@@ -1050,7 +1064,9 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 
 	case kwFOREIGN:
 		p.advance()
-		p.match(kwKEY)
+		if _, err := p.expect(kwKEY); err != nil {
+			return nil, err
+		}
 		constr.Type = nodes.ConstrForeignKey
 		// Optional index name, kept apart from the CONSTRAINT symbol, which
 		// names the foreign key when given (see nodes.Constraint).
@@ -1563,7 +1579,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		optName := p.cur.Str
 		p.advance()
 		p.matchEqual()
-		val, err := p.consumeStringOptionValue()
+		val, err := p.consumeJSONAttribute()
 		if err != nil {
 			return nil, false, err
 		}
@@ -1677,6 +1693,22 @@ func (p *Parser) consumeStringOptionValue() (string, error) {
 	return val, nil
 }
 
+// consumeJSONAttribute reads json_attribute, the string ENGINE_ATTRIBUTE and
+// SECONDARY_ENGINE_ATTRIBUTE take on a table, a column and an index. The action
+// checks a string that is not empty is JSON while the statement parses (3980), so
+// `ENGINE_ATTRIBUTE 's'` is refused and `ENGINE_ATTRIBUTE ''` taken.
+//
+// Ref: json_attribute in MySQL 8.0 sql/sql_yacc.yy.
+func (p *Parser) consumeJSONAttribute() (string, error) {
+	if p.cur.Type != tokSCONST {
+		return "", p.syntaxErrorAtCur()
+	}
+	if p.cur.Str != "" && !json.Valid([]byte(p.cur.Str)) {
+		return "", &ParseError{Message: "Invalid json attribute", Position: p.cur.Loc}
+	}
+	return p.advance().Str, nil
+}
+
 // consumeZeroOneOrDefaultOptionValue reads an option value that must be 0, 1 or
 // DEFAULT, which is what STATS_AUTO_RECALC takes. Any other number, and any
 // string, is a 1064.
@@ -1695,6 +1727,15 @@ func (p *Parser) consumeZeroOneOrDefaultOptionValue() (string, error) {
 //
 // Ref: ulong_num and ternary_option in MySQL 8.0 sql/sql_yacc.yy.
 func (p *Parser) consumeBoundedOptionValue(minimum, maximum uint64) (string, error) {
+	if p.cur.Type == tokXCONST && strings.HasPrefix(strings.ToLower(p.inputText(p.cur.Loc, p.cur.End)), "0x") {
+		// ulong_num takes HEX_NUM, a 0x number, read in base 16.
+		n := replicationWhole(p.cur)
+		if n < minimum || n > maximum {
+			return "", p.syntaxErrorAtCur()
+		}
+		p.advance()
+		return strconv.FormatUint(n, 10), nil
+	}
 	if p.cur.Type != tokICONST && p.cur.Type != tokFCONST {
 		return "", p.syntaxErrorAtCur()
 	}
@@ -2101,6 +2142,15 @@ func (p *Parser) parsePartitionDefAndBound() (*nodes.PartitionDef, partitionBoun
 							if p.startsDefaultKeyword() {
 								return nil, 0, p.syntaxErrorAtCur()
 							}
+							if p.cur.Type == kwMAXVALUE {
+								tupleVals = append(tupleVals, &nodes.String{Str: "MAXVALUE"})
+								p.advance()
+								if p.cur.Type != ',' {
+									break
+								}
+								p.advance()
+								continue
+							}
 							expr, err := p.parsePartitionExpr(partitionExprValue)
 							if err != nil {
 								return nil, 0, err
@@ -2118,6 +2168,9 @@ func (p *Parser) parsePartitionDefAndBound() (*nodes.PartitionDef, partitionBoun
 							return nil, 0, err
 						}
 						items = append(items, &nodes.List{Items: tupleVals})
+					} else if p.cur.Type == kwMAXVALUE {
+						items = append(items, &nodes.String{Str: "MAXVALUE"})
+						p.advance()
 					} else {
 						if p.startsDefaultKeyword() {
 							return nil, 0, p.syntaxErrorAtCur()
@@ -2139,8 +2192,12 @@ func (p *Parser) parsePartitionDefAndBound() (*nodes.PartitionDef, partitionBoun
 				if _, err := p.expect(')'); err != nil {
 					return nil, 0, err
 				}
-				if err := validatePartitionInRows(items, start); err != nil {
+				if refersColumn, err := checkPartitionInValues(items, start); err != nil {
 					return nil, 0, err
+				} else if !refersColumn {
+					if err := validatePartitionInRows(items, start); err != nil {
+						return nil, 0, err
+					}
 				}
 				pd.Values = &nodes.List{Items: items}
 			} else {

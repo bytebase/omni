@@ -196,9 +196,7 @@ func (p *Parser) parseCreateFunctionStmt(start int, orReplace, isProcedure bool)
 	// compound statements, labels, DECLAREs, etc.). See
 	// docs/plans/2026-04-20-mysql-routine-body-grammar.md.
 	bodyStart := p.pos()
-	outerRoutine := p.routine
-	p.routine = routineScope{noResultSet: !isProcedure, function: !isProcedure}
-	defer func() { p.routine = outerRoutine }()
+	defer p.enterStoredProgram(routineScope{noResultSet: !isProcedure, function: !isProcedure})()
 	body, err := p.parseCompoundStmtOrStmt()
 	if err != nil {
 		return nil, err

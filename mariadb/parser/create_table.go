@@ -1427,7 +1427,12 @@ func (p *Parser) parseTableConstraint(place constraintPlace) (*nodes.Constraint,
 
 	case kwFOREIGN:
 		p.advance()
-		p.match(kwKEY)
+		// FOREIGN takes KEY. Ref: key_def's `opt_constraint FOREIGN KEY_SYM
+		// opt_if_not_exists opt_ident '(' key_list ')' references` in MariaDB 11.8
+		// sql/sql_yacc.yy.
+		if _, err := p.expect(kwKEY); err != nil {
+			return nil, err
+		}
 		constr.Type = nodes.ConstrForeignKey
 		if err := p.parseKeyIfNotExists(constr, place); err != nil {
 			return nil, err
