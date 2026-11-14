@@ -1,6 +1,10 @@
 package parser
 
-import "github.com/bytebase/omni/snowflake/ast"
+import (
+	"slices"
+
+	"github.com/bytebase/omni/snowflake/ast"
+)
 
 // ---------------------------------------------------------------------------
 // Openflow DEPLOYMENT, RUNTIME and DATA PLANE INTEGRATION, read as an
@@ -13,7 +17,9 @@ func init() {
 		create: parseCreateOpenflowDeployment,
 		alter:  parseAlterOpenflowDeployment,
 		// https://docs.snowflake.com/en/sql-reference/sql/drop-openflow-deployment
-		drop: true,
+		drop:  true,
+		props: openflowDeploymentProps,
+		unset: openflowDeploymentAlterProps,
 	})
 	registerObject(&objectForm{
 		words:  []string{"OPENFLOW", "RUNTIME"},
@@ -22,11 +28,83 @@ func init() {
 		// https://docs.snowflake.com/en/sql-reference/sql/drop-openflow-runtime
 		drop:        true,
 		dropCascade: true,
+		props:       openflowRuntimeProps,
+		unset:       []string{"DISPLAY_NAME", "EXTERNAL_ACCESS_INTEGRATIONS", "COMMENT"},
 	})
 	registerObject(&objectForm{
 		words: []string{"OPENFLOW", "DATA", "PLANE", "INTEGRATION"},
 		alter: parseAlterOpenflowDataPlaneIntegration,
+		props: objectProps{"EVENT_TABLE": propString},
+		unset: []string{},
 	})
+}
+
+// openflowDeploymentProps are the properties CREATE OPENFLOW DEPLOYMENT
+// documents; ALTER ... SET takes openflowDeploymentAlterProps.
+var openflowDeploymentProps = objectProps{
+	"DEPLOYMENT_TYPE":                 propOneOf("SNOWFLAKE", "BYOC"),
+	"VPC_TYPE":                        propString,
+	"USE_PRIVATE_LINK":                propBool,
+	"USE_USER_AUTH_OVER_PRIVATE_LINK": propBool,
+	"CUSTOM_INGRESS_HOSTNAME":         propString,
+	"DISPLAY_NAME":                    propString,
+	"COMMENT":                         propString,
+	"EVENT_TABLE":                     propStringOr("NONE"),
+}
+
+// openflowDeploymentAlterProps are the properties ALTER OPENFLOW DEPLOYMENT
+// sets and unsets.
+var openflowDeploymentAlterProps = []string{"DISPLAY_NAME", "COMMENT", "EVENT_TABLE"}
+
+// openflowRuntimeProps are the properties CREATE OPENFLOW RUNTIME documents;
+// ALTER ... SET takes openflowRuntimeAlterProps.
+var openflowRuntimeProps = objectProps{
+	"NODE_TYPE":                    propOneOf("SMALL", "MEDIUM", "LARGE"),
+	"NODE_TYPE_TIER":               propString,
+	"MIN_NODES":                    propNumber,
+	"MAX_NODES":                    propNumber,
+	"EXECUTE_AS_ROLE":              propName,
+	"EXTERNAL_ACCESS_INTEGRATIONS": propNames,
+	"DISPLAY_NAME":                 propString,
+	"COMMENT":                      propString,
+}
+
+// openflowRuntimeAlterProps are the properties ALTER OPENFLOW RUNTIME ... SET
+// documents: all of CREATE's but NODE_TYPE.
+var openflowRuntimeAlterProps = []string{
+	"DISPLAY_NAME", "MIN_NODES", "MAX_NODES", "NODE_TYPE_TIER", "EXTERNAL_ACCESS_INTEGRATIONS", "EXECUTE_AS_ROLE", "COMMENT",
+}
+
+// pgOpenflowOnlyProps fails when clause c sets a property outside names. A
+// form whose CREATE and SET document different properties holds each to its
+// own list, beside the shapes objectForm.props checks.
+func pgOpenflowOnlyProps(c *ast.ObjectClause, names ...string) error {
+	if c == nil {
+		return nil
+	}
+	for _, o := range c.Options {
+		if !slices.Contains(names, o.Name) {
+			return &ParseError{
+				Position: o.Loc.Start, End: o.Loc.End,
+				Message: "syntax error at or near " + o.Name,
+			}
+		}
+	}
+	return nil
+}
+
+// pgOpenflowAlterCommon reads one of the shared ALTER actions allow names, as
+// parseObjectAlterCommon does, and holds a SET's properties to setProps.
+func pgOpenflowAlterCommon(p *Parser, s *ast.ObjectStmt, allow objectActions, setProps []string) (bool, error) {
+	n := len(s.Clauses)
+	ok, err := p.parseObjectAlterCommon(s, allow)
+	if err != nil || !ok {
+		return ok, err
+	}
+	if c := s.Clauses[n]; c.Keywords == "SET" {
+		return true, pgOpenflowOnlyProps(c, setProps...)
+	}
+	return true, nil
 }
 
 // parseCreateOpenflowDeployment reads what follows the name of
@@ -64,7 +142,7 @@ func parseAlterOpenflowDeployment(p *Parser, s *ast.ObjectStmt) error {
 			return nil
 		}
 	}
-	ok, err := p.parseObjectAlterCommon(s, actSet|actUnset|actRename)
+	ok, err := pgOpenflowAlterCommon(p, s, actSet|actUnset|actRename, openflowDeploymentAlterProps)
 	if err != nil || ok {
 		return err
 	}
@@ -161,10 +239,13 @@ func parseAlterOpenflowRuntime(p *Parser, s *ast.ObjectStmt) error {
 		if err != nil {
 			return err
 		}
+		if !propNames.matches(opt) {
+			return &ParseError{Position: opt.Loc.Start, End: opt.Loc.End, Message: "syntax error at or near " + opt.Name}
+		}
 		p.addObjectKeywordsClause(s, kw, start).Options = []*ast.CopyOption{opt}
 		return nil
 	}
-	ok, err := p.parseObjectAlterCommon(s, actSet|actUnset|actRename)
+	ok, err := pgOpenflowAlterCommon(p, s, actSet|actUnset|actRename, openflowRuntimeAlterProps)
 	if err != nil || ok {
 		return err
 	}

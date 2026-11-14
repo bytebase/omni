@@ -12,8 +12,37 @@ func init() {
 		create: parseCreatePostgresInstance,
 		alter:  parseAlterPostgresInstance,
 		// https://docs.snowflake.com/en/sql-reference/sql/drop-postgres-instance
-		drop: true,
+		drop:  true,
+		props: postgresInstanceProps,
+		unset: []string{"COMMENT", "POSTGRES_SETTINGS", "NETWORK_POLICY", "MAINTENANCE_WINDOW_START", "STORAGE_INTEGRATION"},
 	})
+}
+
+// postgresInstanceProps are the properties CREATE POSTGRES INSTANCE and ALTER
+// POSTGRES INSTANCE ... SET document. MAINTENANCE_WINDOW_START is ALTER's
+// alone; a FORK takes only postgresInstanceForkProps.
+var postgresInstanceProps = objectProps{
+	"COMPUTE_FAMILY":            propString,
+	"STORAGE_SIZE_GB":           propNumber,
+	"AUTHENTICATION_AUTHORITY":  propOneOf("POSTGRES", "POSTGRES_OR_SNOWFLAKE", "EXTERNAL_OAUTH"),
+	"AUTHENTICATION_PROPERTIES": propGroup,
+	"POSTGRES_VERSION":          propNumber,
+	"NETWORK_POLICY":            propString,
+	"HIGH_AVAILABILITY":         propBool,
+	"STORAGE_INTEGRATION":       propString,
+	"MAINTENANCE_WINDOW_START":  propNumber,
+	"POSTGRES_SETTINGS":         propString,
+	"COMMENT":                   propString,
+}
+
+// postgresInstanceForkProps are the properties a FORK documents.
+var postgresInstanceForkProps = []string{"COMPUTE_FAMILY", "STORAGE_SIZE_GB", "HIGH_AVAILABILITY", "POSTGRES_SETTINGS", "COMMENT"}
+
+// postgresInstanceCreateProps are the properties a CREATE without FORK
+// documents.
+var postgresInstanceCreateProps = []string{
+	"COMPUTE_FAMILY", "STORAGE_SIZE_GB", "AUTHENTICATION_AUTHORITY", "AUTHENTICATION_PROPERTIES",
+	"POSTGRES_VERSION", "NETWORK_POLICY", "HIGH_AVAILABILITY", "STORAGE_INTEGRATION", "POSTGRES_SETTINGS", "COMMENT",
 }
 
 // parseCreatePostgresInstance reads what follows the name of
@@ -53,11 +82,17 @@ func parseCreatePostgresInstance(p *Parser, s *ast.ObjectStmt) error {
 				return err
 			}
 		}
-		_, err = p.parseObjectProperties(s, "", false)
-		return err
+		props, err := p.parseObjectProperties(s, "", false)
+		if err != nil {
+			return err
+		}
+		return pgOpenflowOnlyProps(props, postgresInstanceForkProps...)
 	}
 	props, err := p.parseObjectProperties(s, "", true)
 	if err != nil {
+		return err
+	}
+	if err := pgOpenflowOnlyProps(props, postgresInstanceCreateProps...); err != nil {
 		return err
 	}
 	return p.requireObjectProperties(props, "COMPUTE_FAMILY", "STORAGE_SIZE_GB", "AUTHENTICATION_AUTHORITY")
