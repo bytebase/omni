@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	nodes "github.com/bytebase/omni/mariadb/ast"
 )
 
@@ -544,15 +546,21 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 	case kwDEFINER:
 		// CREATE DEFINER=... {VIEW|FUNCTION|PROCEDURE|TRIGGER|EVENT}
 		// Parse DEFINER = user[@host] and propagate to sub-parsers.
-		definer := p.parseDefinerValue()
-		// Optional SQL SECURITY {DEFINER|INVOKER}
+		definer, err := p.parseDefinerValue()
+		if err != nil {
+			return nil, err
+		}
+		// Optional SQL SECURITY {DEFINER|INVOKER} (view_suid)
 		var sqlSecurity string
 		if p.cur.Type == kwSQL {
 			p.advance()
-			p.match(kwSECURITY)
-			if p.isIdentToken() {
-				sqlSecurity, _, _ = p.parseIdentifier()
+			if _, err := p.expect(kwSECURITY); err != nil {
+				return nil, err
 			}
+			if p.cur.Type != kwDEFINER && p.cur.Type != kwINVOKER {
+				return nil, p.syntaxErrorAtCur()
+			}
+			sqlSecurity, _, _ = p.parseIdentifier()
 		}
 		// Now dispatch on the object keyword
 		switch p.cur.Type {
@@ -692,15 +700,21 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 	case kwDEFINER:
 		// ALTER DEFINER = user {VIEW|EVENT}
 		// Parse DEFINER = user[@host] and propagate to sub-parsers.
-		definer := p.parseDefinerValue()
-		// Optional SQL SECURITY {DEFINER|INVOKER}
+		definer, err := p.parseDefinerValue()
+		if err != nil {
+			return nil, err
+		}
+		// Optional SQL SECURITY {DEFINER|INVOKER} (view_suid)
 		var sqlSecurity string
 		if p.cur.Type == kwSQL {
 			p.advance()
-			p.match(kwSECURITY)
-			if p.isIdentToken() {
-				sqlSecurity, _, _ = p.parseIdentifier()
+			if _, err := p.expect(kwSECURITY); err != nil {
+				return nil, err
 			}
+			if p.cur.Type != kwDEFINER && p.cur.Type != kwINVOKER {
+				return nil, p.syntaxErrorAtCur()
+			}
+			sqlSecurity, _, _ = p.parseIdentifier()
 		}
 		switch p.cur.Type {
 		case kwVIEW:
@@ -833,37 +847,52 @@ func (p *Parser) parseDropDispatch() (nodes.Node, error) {
 // definer string. Handles: 'user'@'host', user@host, CURRENT_USER, CURRENT_USER().
 // The current token must be DEFINER; on return, the current token is the one
 // after the definer clause.
-func (p *Parser) parseDefinerValue() string {
+//
+// definer: DEFINER_SYM '=' user_or_role (MariaDB 11.8 sql/sql_yacc.yy), so `=` and the
+// user are required; CURRENT_USER and CURRENT_ROLE take optional_braces.
+func (p *Parser) parseDefinerValue() (string, error) {
 	p.advance() // consume DEFINER
-	p.match('=')
+	if _, err := p.expect('='); err != nil {
+		return "", err
+	}
 
 	// Completion: after DEFINER=, offer CURRENT_USER keyword.
 	p.checkCursor()
 	if p.collectMode() {
 		p.addTokenCandidate(kwCURRENT_USER)
-		return ""
+		return "", &ParseError{Message: "collecting"}
 	}
 
-	// Parse user part: identifier, string literal, or CURRENT_USER
+	// Parse user part: identifier, string literal, CURRENT_USER or CURRENT_ROLE
 	var user string
 	isCurUser := p.cur.Type == kwCURRENT_USER
+	// CURRENT_ROLE is no keyword here; the source text keeps `CURRENT_ROLE`, a name, apart.
+	isCurRole := p.cur.Type == tokIDENT && strings.EqualFold(p.inputText(p.cur.Loc, p.cur.End), "CURRENT_ROLE")
 	if p.cur.Type == tokSCONST {
 		user = "'" + p.cur.Str + "'"
 		p.advance()
 	} else if isCurUser {
 		user = "CURRENT_USER"
 		p.advance()
+	} else if isCurRole {
+		user = "CURRENT_ROLE"
+		p.advance()
 	} else if p.isIdentToken() {
 		user, _, _ = p.parseIdentifier()
 	} else {
-		return ""
+		return "", p.syntaxErrorAtCur()
 	}
 
-	// Handle CURRENT_USER()
-	if isCurUser && p.cur.Type == '(' {
+	// Handle CURRENT_USER() and CURRENT_ROLE()
+	if (isCurUser || isCurRole) && p.cur.Type == '(' {
 		p.advance() // consume (
-		p.match(')')
-		return "CURRENT_USER()"
+		if _, err := p.expect(')'); err != nil {
+			return "", err
+		}
+		return user + "()", nil
+	}
+	if isCurRole {
+		return user, nil
 	}
 
 	// Handle @host: the lexer scans @host as a single tokIDENT with Str="@host",
@@ -881,12 +910,12 @@ func (p *Parser) parseDefinerValue() string {
 			} else if p.isIdentToken() {
 				host, _, _ = p.parseIdentifier()
 			}
-			return user + "@" + host
+			return user + "@" + host, nil
 		}
 		// @host as single token: strip @ prefix
 		host := atHost[1:]
-		return user + "@" + host
+		return user + "@" + host, nil
 	}
 
-	return user
+	return user, nil
 }

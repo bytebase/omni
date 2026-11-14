@@ -2361,6 +2361,20 @@ var parseRefusalForms = []struct {
 	{"CREATE TABLE t (a DATE) PARTITION BY LIST (YEAR(a)) (PARTITION p VALUES IN (quarter('2020-06-15')))", true},
 	{"CREATE TABLE t (a DATE) PARTITION BY RANGE (YEAR(a)) (PARTITION p VALUES LESS THAN (microsecond('10:00:00')))", true},
 	{"CREATE TABLE t (a DATE) PARTITION BY LIST (YEAR(a)) (PARTITION p VALUES IN (microsecond('10:00:00')))", true},
+	// The DEFINER clause: definer is DEFINER_SYM '=' user_or_role.
+	{"CREATE DEFINER u VIEW v AS SELECT 1", false},
+	{"ALTER DEFINER u VIEW v AS SELECT 1", false},
+	{"CREATE DEFINER = VIEW v AS SELECT 1", false},
+	{"CREATE DEFINER = CURRENT_USER( VIEW v AS SELECT 1", false},
+	{"CREATE DEFINER = CURRENT_USER() VIEW v AS SELECT 1", true},
+	{"CREATE DEFINER = CURRENT_ROLE VIEW v AS SELECT 1", true},
+	{"CREATE DEFINER = CURRENT_ROLE() VIEW v AS SELECT 1", true},
+	{"CREATE DEFINER = CURRENT_ROLE( VIEW v AS SELECT 1", false},
+	{"CREATE DEFINER = `CURRENT_ROLE`() VIEW v AS SELECT 1", false},
+	{"CREATE DEFINER = u SQL SECURITY u VIEW v AS SELECT 1", false},
+	{"CREATE DEFINER = u SQL VIEW v AS SELECT 1", false},
+	{"CREATE DEFINER = u SQL SECURITY INVOKER VIEW v AS SELECT 1", true},
+	{"CREATE DEFINER u PROCEDURE p() SELECT 1", false},
 }
 
 // TestParseRefusalForms holds Parse to the table.

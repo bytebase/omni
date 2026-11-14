@@ -15483,3 +15483,64 @@
 : string
 | CREATE TABLE t (a DATE) PARTITION BY LIST (YEAR(a)) (PARTITION p VALUES IN (microsecond('10:00:00')))
 < ok 0 0
+> exec ^
+: string
+| CREATE DEFINER u VIEW v AS SELECT 1
+< error
+| 1064 42000 …near 'u VIEW v AS SELECT 1' at line 1
+> exec ^
+: string
+| ALTER DEFINER u VIEW v AS SELECT 1
+< error
+| 1064 42000 …near 'u VIEW v AS SELECT 1' at line 1
+> exec ^
+: string
+| CREATE DEFINER = VIEW v AS SELECT 1
+< error
+| 1064 42000 …near 'v AS SELECT 1' at line 1
+> exec ^
+: string
+| CREATE DEFINER = CURRENT_USER( VIEW v AS SELECT 1
+< error
+| 1064 42000 …near 'VIEW v AS SELECT 1' at line 1
+> exec ^
+: string
+| CREATE DEFINER = CURRENT_USER() VIEW v AS SELECT 1
+< ok 0 0
+> exec ^
+: string
+| CREATE DEFINER = CURRENT_ROLE VIEW v AS SELECT 1
+< ok 0 0
+> exec ^
+: string
+| CREATE DEFINER = CURRENT_ROLE() VIEW v AS SELECT 1
+< ok 0 0
+> exec ^
+: string
+| CREATE DEFINER = CURRENT_ROLE( VIEW v AS SELECT 1
+< error
+| 1064 42000 …near 'VIEW v AS SELECT 1' at line 1
+> exec ^
+: string
+| CREATE DEFINER = `CURRENT_ROLE`() VIEW v AS SELECT 1
+< error
+| 1064 42000 …near '() VIEW v AS SELECT 1' at line 1
+> exec ^
+: string
+| CREATE DEFINER = u SQL SECURITY u VIEW v AS SELECT 1
+< error
+| 1064 42000 …near 'u VIEW v AS SELECT 1' at line 1
+> exec ^
+: string
+| CREATE DEFINER = u SQL VIEW v AS SELECT 1
+< error
+| 1064 42000 …near 'VIEW v AS SELECT 1' at line 1
+> exec ^
+: string
+| CREATE DEFINER = u SQL SECURITY INVOKER VIEW v AS SELECT 1
+< ok 0 0
+> exec ^
+: string
+| CREATE DEFINER u PROCEDURE p() SELECT 1
+< error
+| 1064 42000 …near 'u PROCEDURE p() SELECT 1' at line 1
