@@ -1767,7 +1767,7 @@ func TestParseAlterUserFull(t *testing.T) {
 		"ALTER USER scott ACCOUNT LOCK",
 		"ALTER USER scott ACCOUNT UNLOCK",
 		"ALTER USER scott ENABLE EDITIONS",
-		"ALTER USER c##scott CONTAINER = ALL",
+		"ALTER USER c##scott ACCOUNT LOCK CONTAINER = ALL",
 		"ALTER USER scott IDENTIFIED BY newpass DEFAULT TABLESPACE users QUOTA 100M ON users PROFILE default PASSWORD EXPIRE ACCOUNT UNLOCK",
 	}
 	for _, sql := range tests {
@@ -1814,7 +1814,7 @@ func TestParseCreateProfileFull(t *testing.T) {
 		"CREATE MANDATORY PROFILE mandatory_prof LIMIT SESSIONS_PER_USER 5",
 		"CREATE PROFILE app_profile LIMIT SESSIONS_PER_USER 10 CPU_PER_SESSION UNLIMITED FAILED_LOGIN_ATTEMPTS 3 PASSWORD_LIFE_TIME 60",
 		"CREATE PROFILE app_profile LIMIT SESSIONS_PER_USER 10 CONTAINER = ALL",
-		"CREATE PROFILE app_profile LIMIT SESSIONS_PER_USER 10 LIMIT FAILED_LOGIN_ATTEMPTS 5",
+		"CREATE PROFILE app_profile LIMIT SESSIONS_PER_USER 10 FAILED_LOGIN_ATTEMPTS 5",
 	}
 	for _, sql := range tests {
 		name := sql
@@ -2026,7 +2026,7 @@ func TestParseTablespaceAll(t *testing.T) {
 		{"alter_autoextend", "ALTER TABLESPACE users AUTOEXTEND ON NEXT 100M MAXSIZE UNLIMITED"},
 		{"alter_flashback_off", "ALTER TABLESPACE users FLASHBACK OFF"},
 		{"alter_retention", "ALTER TABLESPACE undo_ts RETENTION GUARANTEE"},
-		{"alter_encryption_online", "ALTER TABLESPACE secure_ts ENCRYPTION ONLINE"},
+		{"alter_encryption_online", "ALTER TABLESPACE secure_ts ENCRYPTION ONLINE ENCRYPT"},
 		{"alter_lost_write_suspend", "ALTER TABLESPACE users SUSPEND LOST WRITE PROTECTION"},
 		{"alter_permanent", "ALTER TABLESPACE temp_ts PERMANENT"},
 		{"alter_temporary", "ALTER TABLESPACE perm_ts TEMPORARY"},
@@ -2096,6 +2096,13 @@ func TestParseTablespaceRejects(t *testing.T) {
 		"ALTER TABLESPACE ts1 ADD DATAFILE SIZE 200M",
 		// Options are taken once (ORA-25119).
 		"CREATE TABLESPACE ts1 LOGGING NOLOGGING",
+		// A clause's operand is required at the end of the text too
+		// (ORA-02216, ORA-02142, ORA-02237, ORA-02236).
+		"CREATE TABLESPACE",
+		"ALTER TABLESPACE ts1",
+		"ALTER TABLESPACE ts1 RESIZE",
+		"ALTER TABLESPACE ts1 ADD DATAFILE",
+		"CREATE TABLESPACE ts1 DATAFILE",
 	} {
 		t.Run(sql, func(t *testing.T) {
 			ParseShouldFail(t, sql)
@@ -2659,7 +2666,7 @@ func TestParseDiskgroupBatch96(t *testing.T) {
 		{"alter_modify_quotagroup", "ALTER DISKGROUP dg1 MODIFY QUOTAGROUP qg1 SET QUOTA = UNLIMITED"},
 		{"alter_drop_quotagroup", "ALTER DISKGROUP dg1 DROP QUOTAGROUP qg1"},
 		// filegroup_clauses
-		{"alter_add_filegroup", "ALTER DISKGROUP dg1 ADD FILEGROUP fg1"},
+		{"alter_add_filegroup", "ALTER DISKGROUP dg1 ADD FILEGROUP fg1 DATABASE db1"},
 		{"alter_modify_filegroup", "ALTER DISKGROUP dg1 MODIFY FILEGROUP fg1 SET 'priority' = '1'"},
 		{"alter_drop_filegroup", "ALTER DISKGROUP dg1 DROP FILEGROUP fg1"},
 		{"alter_drop_filegroup_cascade", "ALTER DISKGROUP dg1 DROP FILEGROUP fg1 CASCADE"},
@@ -2928,8 +2935,8 @@ func TestParsePluggableDatabaseBatch95(t *testing.T) {
 		{"alter_recover_until_change", "ALTER PLUGGABLE DATABASE pdb1 RECOVER UNTIL CHANGE 12345"},
 		{"alter_recover_standby", "ALTER PLUGGABLE DATABASE pdb1 RECOVER DATAFILE '/u01/a.dbf'"},
 		{"alter_recover_backup_controlfile", "ALTER PLUGGABLE DATABASE pdb1 RECOVER USING BACKUP CONTROLFILE"},
-		{"alter_backup_begin", "ALTER PLUGGABLE DATABASE pdb1 BACKUP BEGIN"},
-		{"alter_backup_end", "ALTER PLUGGABLE DATABASE pdb1 BACKUP END"},
+		{"alter_backup_begin", "ALTER PLUGGABLE DATABASE pdb1 BEGIN BACKUP"},
+		{"alter_backup_end", "ALTER PLUGGABLE DATABASE pdb1 END BACKUP"},
 		{"alter_enable_recovery", "ALTER PLUGGABLE DATABASE pdb1 ENABLE RECOVERY"},
 		{"alter_disable_recovery", "ALTER PLUGGABLE DATABASE pdb1 DISABLE RECOVERY"},
 		// application_clauses
@@ -3273,7 +3280,7 @@ func TestBatch100_AuditUnified(t *testing.T) {
 					t.Errorf("except_users=%d", len(stmt.ExceptUsers))
 				}
 			}},
-		{"policy_with_role", "AUDIT POLICY my_policy BY USERS WITH ROLE dba, connect",
+		{"policy_with_role", "AUDIT POLICY my_policy BY USERS WITH GRANTED ROLES dba, connect",
 			func(t *testing.T, stmt *ast.AuditStmt) {
 				if len(stmt.WithRoles) != 2 {
 					t.Errorf("with_roles=%d", len(stmt.WithRoles))
@@ -3415,7 +3422,7 @@ func TestBatch100_NoauditUnified(t *testing.T) {
 					t.Errorf("by=%d", len(stmt.ByUsers))
 				}
 			}},
-		{"policy_with_role", "NOAUDIT POLICY my_policy BY scott WITH ROLE dba",
+		{"policy_with_role", "NOAUDIT POLICY my_policy BY USERS WITH GRANTED ROLES dba",
 			func(t *testing.T, stmt *ast.NoauditStmt) {
 				if len(stmt.WithRoles) != 1 {
 					t.Errorf("roles=%d", len(stmt.WithRoles))
@@ -3528,7 +3535,7 @@ func adminDDLTest(t *testing.T, sql string, wantAction string, wantType ast.Obje
 func TestBatch66_AnalyticViewHierarchy(t *testing.T) {
 	// CREATE/ALTER ANALYTIC VIEW now use dedicated AST types (upgraded in batch 93)
 	t.Run("create_analytic_view", func(t *testing.T) {
-		result := ParseAndCheck(t, "CREATE ANALYTIC VIEW sales_av USING sales_fact DIMENSION BY (time_dim) MEASURES (amount)")
+		result := ParseAndCheck(t, "CREATE ANALYTIC VIEW sales_av USING sales_fact DIMENSION BY (time_dim KEY month_id REFERENCES month_id HIERARCHIES (time_hier)) MEASURES (amount)")
 		raw := result.Items[0].(*ast.RawStmt)
 		_, ok := raw.Stmt.(*ast.CreateAnalyticViewStmt)
 		if !ok {
@@ -3952,7 +3959,7 @@ func TestBatch74_TablespaceSet(t *testing.T) {
 // TestBatch75_MleEnvModule tests CREATE/DROP MLE ENV and MLE MODULE.
 func TestBatch75_MleEnvModule(t *testing.T) {
 	t.Run("create_mle_env", func(t *testing.T) {
-		adminDDLTest(t, "CREATE MLE ENV my_env IMPORTS ('module1')", "CREATE", ast.OBJECT_MLE_ENV)
+		adminDDLTest(t, "CREATE MLE ENV my_env IMPORTS ('module1' MODULE m1)", "CREATE", ast.OBJECT_MLE_ENV)
 	})
 	t.Run("drop_mle_env", func(t *testing.T) {
 		result := ParseAndCheck(t, "DROP MLE ENV my_env")
@@ -4048,7 +4055,7 @@ func TestBatch78_RestorePointMisc(t *testing.T) {
 		adminDDLTest(t, "CREATE LOGICAL PARTITION TRACKING ON my_table PARTITION BY RANGE (col1) (PARTITION p1 VALUES LESS THAN (100))", "CREATE", ast.OBJECT_LOGICAL_PARTITION_TRACKING)
 	})
 	t.Run("create_pmem_filestore", func(t *testing.T) {
-		adminDDLTest(t, "CREATE PMEM FILESTORE my_pmem MOUNTPOINT '/pmem0' SIZE 100G", "CREATE", ast.OBJECT_PMEM_FILESTORE)
+		adminDDLTest(t, `CREATE PMEM FILESTORE "my_pmem" MOUNTPOINT '/pmem0' SIZE 100G`, "CREATE", ast.OBJECT_PMEM_FILESTORE)
 	})
 }
 
@@ -4890,9 +4897,9 @@ func TestParseAlterMaterializedView(t *testing.T) {
 		// DISABLE QUERY REWRITE
 		"ALTER MATERIALIZED VIEW mv1 DISABLE QUERY REWRITE",
 		// ENABLE ON QUERY COMPUTATION
-		"ALTER MATERIALIZED VIEW mv1 REFRESH ENABLE ON QUERY COMPUTATION",
+		"ALTER MATERIALIZED VIEW mv1 REFRESH FAST ENABLE ON QUERY COMPUTATION",
 		// DISABLE ON QUERY COMPUTATION
-		"ALTER MATERIALIZED VIEW mv1 REFRESH DISABLE ON QUERY COMPUTATION",
+		"ALTER MATERIALIZED VIEW mv1 REFRESH FAST DISABLE ON QUERY COMPUTATION",
 		// SHRINK SPACE
 		"ALTER MATERIALIZED VIEW mv1 SHRINK SPACE",
 		// SHRINK SPACE COMPACT
@@ -6189,7 +6196,7 @@ func TestParseAlterTableFull(t *testing.T) {
 		{"cache", `ALTER TABLE employees CACHE`},
 		{"pctfree", `ALTER TABLE employees PCTFREE 20`},
 		{"initrans", `ALTER TABLE employees INITRANS 4`},
-		{"storage", `ALTER TABLE employees STORAGE (INITIAL 64K NEXT 64K)`},
+		{"storage", `ALTER TABLE employees STORAGE (NEXT 64K)`},
 		{"read_only", `ALTER TABLE employees READ ONLY`},
 		{"read_write", `ALTER TABLE employees READ WRITE`},
 		{"result_cache", `ALTER TABLE employees RESULT_CACHE (MODE FORCE)`},
@@ -6220,8 +6227,7 @@ func TestParseAlterTableFull(t *testing.T) {
 		{"deallocate_unused_keep", `ALTER TABLE employees DEALLOCATE UNUSED KEEP 100K`},
 
 		// --- REFRESH ---
-		{"refresh", `ALTER TABLE employees REFRESH`},
-		{"no_refresh", `ALTER TABLE employees NO REFRESH`},
+		{"refresh", `ALTER TABLE employees REFRESH ON DEMAND`},
 
 		// --- Immutable / Blockchain table clauses ---
 		{"no_drop", `ALTER TABLE ledger NO DROP`},
@@ -6241,9 +6247,9 @@ func TestParseAlterTableFull(t *testing.T) {
 		{"exchange_partition", `ALTER TABLE sales EXCHANGE PARTITION sales_q1 WITH TABLE sales_staging`},
 		{"exchange_partition_opts", `ALTER TABLE sales EXCHANGE PARTITION sales_q1 WITH TABLE staging INCLUDING INDEXES WITHOUT VALIDATION`},
 		{"coalesce_partition", `ALTER TABLE hash_tab COALESCE PARTITION`},
-		{"coalesce_subpartition", `ALTER TABLE hash_tab COALESCE SUBPARTITION`},
+		{"coalesce_subpartition", `ALTER TABLE hash_tab MODIFY PARTITION p1 COALESCE SUBPARTITION`},
 		{"modify_partition", `ALTER TABLE sales MODIFY PARTITION sales_q1 PCTFREE 30`},
-		{"modify_subpartition", `ALTER TABLE sales MODIFY SUBPARTITION sales_q1_east TABLESPACE ts2`},
+		{"modify_subpartition", `ALTER TABLE sales MODIFY SUBPARTITION sales_q1_east ALLOCATE EXTENT`},
 		{"modify_default_attrs", `ALTER TABLE sales MODIFY DEFAULT ATTRIBUTES TABLESPACE ts_new`},
 		{"rename_partition", `ALTER TABLE sales RENAME PARTITION old_part TO new_part`},
 		{"rename_subpartition", `ALTER TABLE sales RENAME SUBPARTITION old_sub TO new_sub`},
@@ -6270,7 +6276,7 @@ func TestParseAlterTableFull(t *testing.T) {
 		{"multi_enable_disable", `ALTER TABLE employees ENABLE CONSTRAINT ck_sal ENABLE ALL TRIGGERS`},
 
 		// --- MODIFY OPAQUE TYPE ---
-		{"modify_opaque_type", `ALTER TABLE xml_tab MODIFY OPAQUE TYPE xmlcol STORE AS OBJECT RELATIONAL (xmldata)`},
+		{"modify_opaque_type", `ALTER TABLE any_tab MODIFY OPAQUE TYPE anycol STORE (sys.anydata) UNPACKED`},
 
 		// --- Schema-qualified ---
 		{"schema_qualified", `ALTER TABLE hr.employees ADD (middle_name VARCHAR2(50))`},
@@ -7157,7 +7163,11 @@ func TestBatch93_ViewsAllTypes(t *testing.T) {
 	})
 
 	t.Run("create_view_container_map", func(t *testing.T) {
-		result := ParseAndCheck(t, "CREATE VIEW emp_v CONTAINER_MAP AS SELECT * FROM employees")
+		// CONTAINER_MAP follows the subquery: Oracle 23ai refuses it before
+		// AS (ORA-02000).
+		ParseShouldFail(t, "CREATE VIEW emp_v CONTAINER_MAP AS SELECT * FROM employees")
+		// After a bare FROM table the word would be its alias.
+		result := ParseAndCheck(t, "CREATE VIEW emp_v AS SELECT * FROM employees WITH READ ONLY CONTAINER_MAP")
 		raw := result.Items[0].(*ast.RawStmt)
 		stmt := raw.Stmt.(*ast.CreateViewStmt)
 		if !stmt.ContainerMap {
@@ -7478,7 +7488,7 @@ func TestBatch93_ViewsAllTypes(t *testing.T) {
 
 	// ===== CREATE ANALYTIC VIEW =====
 	t.Run("create_analytic_view_basic", func(t *testing.T) {
-		result := ParseAndCheck(t, "CREATE ANALYTIC VIEW sales_av USING sales_fact DIMENSION BY (time_attr HIERARCHY time_hier) MEASURES (sales)")
+		result := ParseAndCheck(t, "CREATE ANALYTIC VIEW sales_av USING sales_fact DIMENSION BY (time_attr KEY month_id REFERENCES month_id HIERARCHIES (time_hier)) MEASURES (sales)")
 		raw := result.Items[0].(*ast.RawStmt)
 		stmt, ok := raw.Stmt.(*ast.CreateAnalyticViewStmt)
 		if !ok {
@@ -7490,7 +7500,7 @@ func TestBatch93_ViewsAllTypes(t *testing.T) {
 	})
 
 	t.Run("create_analytic_view_with_options", func(t *testing.T) {
-		result := ParseAndCheck(t, "CREATE OR REPLACE ANALYTIC VIEW sales_av USING sales_fact DIMENSION BY (time_attr HIERARCHY time_hier) MEASURES (sales FACT sales)")
+		result := ParseAndCheck(t, "CREATE OR REPLACE ANALYTIC VIEW sales_av USING sales_fact DIMENSION BY (time_attr KEY month_id REFERENCES month_id HIERARCHIES (time_hier)) MEASURES (sales FACT sales)")
 		raw := result.Items[0].(*ast.RawStmt)
 		stmt, ok := raw.Stmt.(*ast.CreateAnalyticViewStmt)
 		if !ok {
@@ -7530,7 +7540,7 @@ func TestBatch93_ViewsAllTypes(t *testing.T) {
 	})
 
 	t.Run("alter_analytic_view_add_cache", func(t *testing.T) {
-		result := ParseAndCheck(t, "ALTER ANALYTIC VIEW sales_av ADD CACHE STORE AS COLUMNSTORE")
+		result := ParseAndCheck(t, "ALTER ANALYTIC VIEW sales_av ADD CACHE MEASURE GROUP (sales) LEVELS (time_hier.month) MATERIALIZED")
 		raw := result.Items[0].(*ast.RawStmt)
 		stmt, ok := raw.Stmt.(*ast.AlterAnalyticViewStmt)
 		if !ok {
@@ -7604,7 +7614,7 @@ func TestBatch93_ViewsAllTypes(t *testing.T) {
 			"ALTER MATERIALIZED VIEW emp_mv SHRINK SPACE COMPACT",
 			"CREATE MATERIALIZED VIEW LOG ON employees WITH PRIMARY KEY INCLUDING NEW VALUES",
 			"ALTER MATERIALIZED VIEW LOG ON employees ADD (salary)",
-			"CREATE ANALYTIC VIEW sales_av USING sales_fact DIMENSION BY (time_attr HIERARCHY time_hier) MEASURES (sales)",
+			"CREATE ANALYTIC VIEW sales_av USING sales_fact DIMENSION BY (time_attr KEY month_id REFERENCES month_id HIERARCHIES (time_hier)) MEASURES (sales)",
 			"ALTER ANALYTIC VIEW sales_av COMPILE",
 			"ALTER ANALYTIC VIEW sales_av RENAME TO sales_av_new",
 			"CREATE JSON RELATIONAL DUALITY VIEW emp_dv AS SELECT employee_id FROM employees",
@@ -7819,17 +7829,17 @@ func TestParseBatch102_AttrDimensionHierarchyDomain(t *testing.T) {
 		// CREATE ATTRIBUTE DIMENSION - OR REPLACE, SHARING, DIMENSION TYPE, classification
 		`CREATE OR REPLACE ATTRIBUTE DIMENSION hr.time_attr_dim
 			SHARING = METADATA
+			DIMENSION TYPE TIME
 			CAPTION 'Time Dimension'
 			DESCRIPTION 'Time-based attribute dimension'
-			DIMENSION TYPE TIME
 			USING time_table
 			ATTRIBUTES (year_id AS yr, quarter_id AS qtr, month_id)
-			LEVEL year LEVEL TYPE YEARS KEY year_id NOT NULL
+			LEVEL year LEVEL TYPE YEARS KEY year_id
 			LEVEL quarter LEVEL TYPE QUARTERS KEY quarter_id
 			LEVEL month LEVEL TYPE MONTHS KEY month_id`,
 		// CREATE ATTRIBUTE DIMENSION - IF NOT EXISTS, JOIN PATH, multiple sources
 		`CREATE ATTRIBUTE DIMENSION IF NOT EXISTS product_dim
-			USING products p, JOIN PATH jp1 ON p.cat_id = categories.cat_id
+			USING products p, categories c JOIN PATH jp1 ON p.cat_id = c.cat_id
 			ATTRIBUTES (prod_name, prod_desc AS description)
 			LEVEL product KEY prod_name
 			LEVEL category KEY (cat_id, subcat_id)`,
@@ -7838,7 +7848,7 @@ func TestParseBatch102_AttrDimensionHierarchyDomain(t *testing.T) {
 			USING geography
 			ATTRIBUTES (country_id, region_id, city_id)
 			LEVEL country
-				KEY country_id NOT NULL
+				KEY country_id
 				ALTERNATE KEY country_code
 				MEMBER NAME country_id
 				MEMBER CAPTION country_id
@@ -7846,13 +7856,13 @@ func TestParseBatch102_AttrDimensionHierarchyDomain(t *testing.T) {
 				DETERMINES (region_id)
 			LEVEL region KEY region_id
 			ALL MEMBER NAME 'ALL_GEO'`,
-		// CREATE ATTRIBUTE DIMENSION - SKIP WHEN NULL, ORDER BY with multiple attrs
+		// CREATE ATTRIBUTE DIMENSION - ORDER BY with multiple attrs
 		`CREATE ATTRIBUTE DIMENSION time_dim
 			USING calendar
 			ATTRIBUTES (year_val, quarter_val, month_val)
-			LEVEL year KEY year_val SKIP WHEN NULL
+			LEVEL year KEY year_val
 			LEVEL quarter KEY quarter_val
-				ORDER BY (quarter_val ASC, year_val DESC)`,
+				ORDER BY quarter_val ASC, MIN year_val DESC NULLS LAST`,
 		// ALTER ATTRIBUTE DIMENSION - COMPILE
 		"ALTER ATTRIBUTE DIMENSION my_dim COMPILE",
 		// ALTER ATTRIBUTE DIMENSION - RENAME TO
@@ -9004,7 +9014,7 @@ func TestBatch105_SmallObjectsBundle(t *testing.T) {
 
 	// CREATE PMEM FILESTORE with AUTOEXTEND
 	t.Run("create_pmem_filestore", func(t *testing.T) {
-		result := ParseAndCheck(t, "CREATE PMEM FILESTORE my_fs MOUNTPOINT '/pmem0' BACKINGFILE '/pmem0/backing' SIZE 100G BLOCKSIZE 8K AUTOEXTEND ON NEXT 10G MAXSIZE UNLIMITED")
+		result := ParseAndCheck(t, `CREATE PMEM FILESTORE "my_fs" MOUNTPOINT '/pmem0' BACKINGFILE '/pmem0/backing' SIZE 100G BLOCKSIZE 8K AUTOEXTEND ON NEXT 10G MAXSIZE UNLIMITED`)
 		raw := result.Items[0].(*ast.RawStmt)
 		stmt, ok := raw.Stmt.(*ast.AdminDDLStmt)
 		if !ok {
@@ -9458,9 +9468,6 @@ func TestAlterMaterializedView(t *testing.T) {
 		"ALTER MATERIALIZED VIEW mv1 INMEMORY MEMCOMPRESS FOR QUERY LOW",
 		"ALTER MATERIALIZED VIEW mv1 INMEMORY PRIORITY HIGH",
 		"ALTER MATERIALIZED VIEW mv1 NO INMEMORY",
-		// QUERY REWRITE (alter_query_rewrite_clause)
-		"ALTER MATERIALIZED VIEW mv1 QUERY REWRITE ENABLE",
-		"ALTER MATERIALIZED VIEW mv1 QUERY REWRITE DISABLE",
 	}
 	for _, sql := range tests {
 		name := sql

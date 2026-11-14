@@ -787,13 +787,15 @@ func (n *HierarchicalClause) nodeTag() {}
 
 // JoinClause represents a JOIN.
 type JoinClause struct {
-	Type       JoinType  // type of join
-	Left       TableExpr // left table reference
-	Right      TableExpr // right table reference
-	On         ExprNode  // ON condition (nil for CROSS JOIN, USING)
-	Using      *List     // USING columns (list of *String)
-	OracleJoin bool      // Oracle (+) outer join syntax detected
-	Loc        Loc       // start location
+	Type             JoinType  // type of join
+	Left             TableExpr // left table reference
+	Right            TableExpr // right table reference
+	LeftPartitionBy  *List     // query_partition_clause after the left table of a partitioned outer join
+	RightPartitionBy *List     // query_partition_clause after the right table of a partitioned outer join
+	On               ExprNode  // ON condition (nil for CROSS JOIN, USING)
+	Using            *List     // USING columns (list of *String)
+	OracleJoin       bool      // Oracle (+) outer join syntax detected
+	Loc              Loc       // start location
 }
 
 func (n *JoinClause) nodeTag()   {}
@@ -989,9 +991,10 @@ func (n *UnpivotInItem) nodeTag() {}
 
 // WithClause represents a WITH clause (common table expressions).
 type WithClause struct {
-	CTEs      *List // list of *CTE
-	Recursive bool  // WITH RECURSIVE
-	Loc       Loc   // start location
+	PLSQLDeclarations *List // WITH FUNCTION / PROCEDURE definitions (*CreateFunctionStmt, *CreateProcedureStmt)
+	CTEs              *List // list of *CTE
+	Recursive         bool  // WITH RECURSIVE
+	Loc               Loc   // start location
 }
 
 func (n *WithClause) nodeTag() {}
@@ -1497,6 +1500,7 @@ func (n *UpdateStmt) stmtNode() {}
 type SetClause struct {
 	Column  *ColumnRef // column to set
 	Columns *List      // multi-column set: (col1, col2) = (subquery)
+	ValueOf string     // SET VALUE (t_alias) = ...: the alias whose row is set
 	Value   ExprNode   // value expression or subquery
 	Loc     Loc        // start location
 }
@@ -1515,6 +1519,7 @@ type DeleteStmt struct {
 	PartitionExt  *PartitionExtClause // PARTITION/SUBPARTITION extension
 	Dblink        string              // @dblink name
 	Alias         *Alias              // table alias
+	FromClause    *List               // FROM table references of the from_using_clause (23ai)
 	WhereClause   ExprNode            // WHERE condition
 	Returning     *List               // RETURNING INTO
 	ReturningBulk bool                // RETURNING ... BULK COLLECT INTO
@@ -1577,6 +1582,7 @@ type CreateTableStmt struct {
 	Duplicated       bool             // DUPLICATED
 	Immutable        bool             // IMMUTABLE
 	Blockchain       bool             // BLOCKCHAIN
+	OfType           *ObjectName      // OF [schema.]object_type: an object or XMLType table
 	Name             *ObjectName      // table name
 	Sharing          string           // SHARING = { METADATA | DATA | EXTENDED DATA | NONE }
 	Columns          *List            // column definitions (list of *ColumnDef)
@@ -2890,11 +2896,13 @@ func (n *LockTableStmt) stmtNode() {}
 //
 //	CALL [schema.]routine_name ( [args] ) [INTO :bind_variable]
 type CallStmt struct {
-	Name    *ObjectName // routine name, with its schema
-	Package string      // package or type of the routine, for schema.package.routine; "" otherwise
-	Args    *List       // argument list
-	Into    ExprNode    // INTO bind variable
-	Loc     Loc
+	Name      *ObjectName // routine name, with its schema; the method of an object access
+	Package   string      // package or type of the routine, for schema.package.routine; "" otherwise
+	Object    ExprNode    // the object of CALL ( expr ).method(...); nil for a routine
+	Args      *List       // argument list
+	Into      ExprNode    // INTO bind variable
+	Indicator ExprNode    // INDICATOR bind variable after INTO
+	Loc       Loc
 }
 
 func (n *CallStmt) nodeTag()  {}
@@ -4541,7 +4549,7 @@ type AlterMviewLogStmt struct {
 	OnTable  *ObjectName // ON table
 	IfExists bool
 	Force    bool
-	Action   string // "ADD", "ADD_PRIMARY_KEY", "ADD_ROWID", "ADD_OBJECT_ID", "ADD_SEQUENCE", "ADD_COLUMNS", "SHRINK", "MOVE", "PURGE", "FOR_REFRESH", "PARALLEL", "NOPARALLEL", "LOGGING", "NOLOGGING", "ALLOCATE_EXTENT"
+	Action   string // the first clause: an attribute's keyword ("PCTFREE", "LOGGING", "PARALLEL", ...), "ALLOCATE_EXTENT", "DEALLOCATE_UNUSED", "SHRINK", "ADD", "ADD_PRIMARY_KEY", "ADD_ROWID", "ADD_OBJECT_ID", "ADD_SEQUENCE", "PURGE", "FOR_REFRESH", "MOVE", "MOVE_PARTITION", "MOVE_SUBPARTITION", "MODIFY_COLUMN", "MODIFY_DEFAULT_ATTRIBUTES", "MODIFY_PARTITION", "MODIFY_SUBPARTITION", "RENAME_PARTITION", "RENAME_SUBPARTITION", "SET_PARTITIONING", "SET_STORE_IN", "SET_INTERVAL", "SET_SUBPARTITION_TEMPLATE", "SPLIT_PARTITION", "SPLIT_SUBPARTITION", "MERGE_PARTITIONS", "MERGE_SUBPARTITIONS"
 	Columns  *List  // columns for ADD
 	Options  *List  // generic options
 	Loc      Loc

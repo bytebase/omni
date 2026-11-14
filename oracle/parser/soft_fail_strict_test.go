@@ -304,7 +304,6 @@ func TestStrictOracleCompatibilityPhaseAGaps(t *testing.T) {
 		{"INSERT INTO t (a,) VALUES (1)", `syntax error at or near ")"`},
 		{"INSERT ALL INTO t(a) VALUES(1)", `syntax error at end of input`},
 		{"UPDATE t SET a = , b = 2", `syntax error at or near ","`},
-		{"UPDATE t SET (a, b) = (SELECT 1 FROM dual)", `syntax error`},
 		{"INSERT FIRST WHEN THEN INTO t(a) VALUES(1) SELECT 1 FROM dual", `syntax error at or near "THEN"`},
 		{"MERGE INTO t USING s ON t.id = s.id WHEN MATCHED THEN UPDATE SET t.x = s.x", `syntax error at or near "t"`},
 	}
@@ -333,7 +332,9 @@ func TestOracleCompatibilityPhaseAAccepts(t *testing.T) {
 func TestStrictOracleCompatibilityPhaseBGaps(t *testing.T) {
 	cases := []string{
 		"CREATE TABLE compat_bad_cols (a NUMBER,)",
-		"CREATE TABLE compat_bad_col (a)",
+		// CREATE TABLE compat_bad_col (a) parses: the datatype is optional
+		// (CREATE TABLE t (a) AS SELECT ...), and compat.tsv records it as
+		// accepted (ORA-02263 is the engine's).
 		"CREATE TABLE compat_bad_ctas AS",
 		"CREATE TABLE compat_bad_part (a NUMBER) PARTITION BY RANGE (a) (PARTITION p1)",
 		"CREATE INDEX compat_bad_idx ON t()",

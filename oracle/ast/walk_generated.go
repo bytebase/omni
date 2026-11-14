@@ -387,8 +387,10 @@ func walkChildren(v Visitor, node Node) {
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
+		Walk(v, n.Object)
 		walkList(v, n.Args)
 		Walk(v, n.Into)
+		Walk(v, n.Indicator)
 	case *CaseExpr:
 		Walk(v, n.Arg)
 		walkList(v, n.Whens)
@@ -698,6 +700,9 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Target)
 		}
 	case *CreateTableStmt:
+		if n.OfType != nil {
+			Walk(v, n.OfType)
+		}
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
@@ -833,6 +838,7 @@ func walkChildren(v Visitor, node Node) {
 		if n.Alias != nil {
 			Walk(v, n.Alias)
 		}
+		walkList(v, n.FromClause)
 		Walk(v, n.WhereClause)
 		walkList(v, n.Returning)
 		if n.ErrorLog != nil {
@@ -1033,6 +1039,8 @@ func walkChildren(v Visitor, node Node) {
 	case *JoinClause:
 		Walk(v, n.Left)
 		Walk(v, n.Right)
+		walkList(v, n.LeftPartitionBy)
+		walkList(v, n.RightPartitionBy)
 		Walk(v, n.On)
 		walkList(v, n.Using)
 	case *JoinGroupMember:
@@ -1557,6 +1565,7 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Frame)
 		}
 	case *WithClause:
+		walkList(v, n.PLSQLDeclarations)
 		walkList(v, n.CTEs)
 	case *XmlTableColumn:
 		if n.TypeName != nil {

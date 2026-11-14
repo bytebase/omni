@@ -201,7 +201,7 @@ func generateSQLForTable(opts BackupOptions, statementInfoList []statementInfo, 
 	if _, err := fmt.Fprintf(&buf, `CREATE TABLE "%s"."%s" AS`+"\n", targetDatabase, targetTable); err != nil {
 		return nil, fmt.Errorf("failed to write to buffer: %w", err)
 	}
-	if len(statementInfoList) == 1 {
+	if len(statementInfoList) == 1 && !joinsTables(statementInfoList[0].node) {
 		// Single DML: a plain CTAS needs no deduplication.
 		if err := writeBranchSelect(&buf, statementInfoList[0], "*", "  "); err != nil {
 			return nil, err
@@ -334,6 +334,19 @@ func dMLTableReference(databaseName string, name *ast.ObjectName, alias *ast.Ali
 // writeBranchSelect writes one `SELECT <qualifier>.<projection> FROM <dml
 // target and predicate>` branch. projection is "*" for a plain CTAS body and
 // "ROWID" for the deduplication subquery branches.
+// joinsTables reports whether a DML statement joins its target to the
+// tables of a FROM list, so that a target row may match more than once and
+// its backup needs the ROWID deduplication.
+func joinsTables(node ast.StmtNode) bool {
+	switch n := node.(type) {
+	case *ast.DeleteStmt:
+		return n.FromClause != nil && n.FromClause.Len() > 0
+	case *ast.UpdateStmt:
+		return n.FromClause != nil && n.FromClause.Len() > 0 && n.WhereClause != nil
+	}
+	return false
+}
+
 func writeBranchSelect(buf *strings.Builder, info statementInfo, projection string, indent string) error {
 	t := info.table
 	switch {
@@ -379,7 +392,13 @@ func writeSuffixSelectClause(buf *strings.Builder, node ast.StmtNode, fullSQL st
 		if n.Alias != nil {
 			targetEnd = n.Alias.Loc.End
 		}
-		suffix = joinOracleSuffix(oracleDMLTargetText(fullSQL, n.Table, n.PartitionExt, n.Alias), oracleWhereSuffix(fullSQL, targetEnd, n.WhereClause))
+		suffix = oracleDMLTargetText(fullSQL, n.Table, n.PartitionExt, n.Alias)
+		// DELETE t FROM u ...: the FROM's tables join the target's.
+		if fromText, fromEnd, ok := oracleListText(fullSQL, n.FromClause); ok {
+			suffix += ", " + fromText
+			targetEnd = fromEnd
+		}
+		suffix = joinOracleSuffix(suffix, oracleWhereSuffix(fullSQL, targetEnd, n.WhereClause))
 	default:
 	}
 	_, err := buf.WriteString(suffix)

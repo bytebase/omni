@@ -7,7 +7,7 @@ import (
 )
 
 var p2ModernFeaturePositiveSQL = []string{
-	"CREATE ANALYTIC VIEW sales_av USING sales_fact DIMENSION BY (time_dim) MEASURES (amount)",
+	"CREATE ANALYTIC VIEW sales_av USING sales_fact DIMENSION BY (time_dim KEY month_id REFERENCES month_id HIERARCHIES (time_hier)) MEASURES (amount)",
 	"ALTER ANALYTIC VIEW sales_av RENAME TO sales_av2",
 	"DROP ANALYTIC VIEW sales_av",
 	"CREATE ATTRIBUTE DIMENSION time_attr_dim USING time_dim ATTRIBUTES (yr) LEVEL detail KEY yr",
@@ -51,12 +51,12 @@ var p2ModernFeaturePositiveSQL = []string{
 	"CREATE LIBRARY my_lib AS '/usr/lib/mylib.so'",
 	"ALTER LIBRARY my_lib COMPILE",
 	"DROP LIBRARY my_lib",
-	"CREATE MLE ENV my_env IMPORTS ('module1')",
+	"CREATE MLE ENV my_env IMPORTS ('module1' MODULE m1)",
 	"DROP MLE ENV my_env",
 	"CREATE MLE MODULE my_module LANGUAGE JAVASCRIPT AS 'export function hello() { return 1; }'",
 	"DROP MLE MODULE my_module",
 	"CREATE LOGICAL PARTITION TRACKING ON my_table PARTITION BY RANGE (id) (PARTITION p1 VALUES LESS THAN (1000))",
-	"CREATE PMEM FILESTORE my_fs MOUNTPOINT '/pmem0' SIZE 100G",
+	`CREATE PMEM FILESTORE "my_fs" MOUNTPOINT '/pmem0' SIZE 100G`,
 }
 
 func TestP2ModernFeaturePositive(t *testing.T) {
@@ -88,7 +88,7 @@ func TestP2ModernFeatureNegative(t *testing.T) {
 }
 
 func TestP2ModernFeatureStructuredOptions(t *testing.T) {
-	result := ParseAndCheck(t, "CREATE ANALYTIC VIEW sales_av USING sales_fact DIMENSION BY (time_dim) MEASURES (amount) CACHE")
+	result := ParseAndCheck(t, "CREATE ANALYTIC VIEW sales_av USING sales_fact DIMENSION BY (time_dim KEY month_id REFERENCES month_id HIERARCHIES (time_hier)) MEASURES (amount) CACHE MEASURE GROUP ALL LEVELS (time_hier.month) MATERIALIZED")
 	raw := result.Items[0].(*ast.RawStmt)
 	stmt := raw.Stmt.(*ast.CreateAnalyticViewStmt)
 	if stmt.Options == nil || stmt.Options.Len() != 1 {
