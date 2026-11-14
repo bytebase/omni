@@ -24070,3 +24070,31 @@ func TestParseTableFormsSQLServerTakes(t *testing.T) {
 		}
 	}
 }
+
+// TestParseGrantColumnLists pins where SQL Server 2022 takes a column list in
+// GRANT, DENY and REVOKE (checked on the pinned server).
+func TestParseGrantColumnLists(t *testing.T) {
+	for _, sql := range []string{
+		"GRANT SELECT, UPDATE ON a(a) TO PUBLIC",
+		"GRANT ALL ON a(a) TO PUBLIC",
+		"GRANT REFERENCES(a) ON a TO PUBLIC",
+		"DENY SELECT ON a(a) TO PUBLIC",
+		"REVOKE UPDATE ON a(a) FROM PUBLIC",
+		"GRANT ALL(a) ON a TO PUBLIC",
+	} {
+		if _, err := Parse(sql); err != nil {
+			t.Errorf("Parse(%q): %v", sql, err)
+		}
+	}
+	for _, sql := range []string{
+		"GRANT SELECT(a) ON a(a) TO PUBLIC",
+		"GRANT SELECT, INSERT ON a(a) TO PUBLIC",
+		"GRANT INSERT(a) ON a TO PUBLIC",
+		"GRANT SELECT(a) TO PUBLIC",
+		"GRANT VIEW DEFINITION(a) ON a TO PUBLIC",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) = nil error, want SQL Server's rejection", sql)
+		}
+	}
+}
