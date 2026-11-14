@@ -64,18 +64,20 @@ func (p *Parser) parseExecuteStmt() (*nodes.ExecuteStmt, error) {
 	}
 	stmt.Name = name
 
-	// Optional USING
+	// Optional USING, a list of user variables and nothing else: `USING a` and
+	// `USING @a + 1` are 1064s. Ref: execute_var_ident, '@' ident_or_text, in
+	// MySQL 8.0 sql/sql_yacc.yy.
 	if p.cur.Type == kwUSING {
 		p.advance()
 		for {
-			expr, err := p.parseExpr()
+			if !p.atUserVarToken() && !p.atQuotedUserVar() {
+				return nil, p.syntaxErrorAtCur()
+			}
+			ref, err := p.parseVariableRef()
 			if err != nil {
 				return nil, err
 			}
-			if expr == nil {
-				return nil, p.syntaxErrorAtCur()
-			}
-			stmt.Params = append(stmt.Params, expr)
+			stmt.Params = append(stmt.Params, ref)
 			if p.cur.Type != ',' {
 				break
 			}
