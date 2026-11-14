@@ -834,10 +834,10 @@ The docs judged the 8,075 rows in under a second:
 
 | Statements | Total | Agree | Only docs accept | Undocumented |
 | --- | --- | --- | --- | --- |
-| One per alternative | 2,245 | 1,932 | 313 | 0 |
-| Near-misses | 5,830 | 93 | 52 | 5,685 |
+| One per alternative | 2,245 | 1,939 | 306 | 0 |
+| Near-misses | 5,830 | 105 | 40 | 5,685 |
 
-- **365 disagreements,** all one way: `GRANT` and `REVOKE` (111: `ASSUMEROLE`, `DEBUG`, templates, datashares), `SHOW` (81), templates (47), `CREATE` and `ALTER DATABASE` (42), `COPY` (18), `CREATE MATERIALIZED VIEW` (16), `SELECT` (12: `EXCLUDE`, `CONNECT BY`), `UNLOAD` (9), `MERGE` (8). 19 are statements omni took until pg's parser fixes were ported (#938 to #958): a `MERGE` with no `WHEN` clause, which the MERGE page brackets as optional, and `ROLE` as a name. None was fixed (`redshift/parser/testdata/README.md`).
+- **346 disagreements,** all one way: `GRANT` and `REVOKE` (102: `ASSUMEROLE`, `DEBUG`, templates, datashares), `SHOW` (81), templates (47), `CREATE` and `ALTER DATABASE` (42), `COPY` (18), `CREATE MATERIALIZED VIEW` (16), `SELECT` (12: `EXCLUDE`, `CONNECT BY`), `UNLOAD` (9). 19 more, which the ports of pg's parser fixes (#938 to #958) had refused, read again: a `MERGE` with no `WHEN` clause, which the MERGE page brackets as optional, and `ROLE` as a grantee's name. No other row was fixed (`redshift/parser/testdata/README.md`).
 - **What the docs cannot decide** is Snowflake's list, and where the docs are wrong as written (`ALTER USER`'s options with commas, `REVOKE [ GRANT OPTION ]` without `FOR`) the grammar keeps them. `REDSHIFT_COMPAT_DSN` would let a recording ask a dedicated cluster through `compat.RawParseVerdict`; that judge is not built.
 
 **PartiQL, recorded.** `partiql/parser/testdata/compat.tsv` (2026-11-13): 632 alternatives and 1,217 near-misses of `PartiQLParser.g4`, the grammar of the reference implementation (partiql-lang-kotlin, Apache-2.0, committed), and the 61 statements DynamoDB's developer guide prints. No server: a recognizer over the grammar judges, in 0.1 seconds.
