@@ -4,113 +4,6 @@ import (
 	nodes "github.com/bytebase/omni/oracle/ast"
 )
 
-// parseIdentifiedClause parses an IDENTIFIED clause for CREATE/ALTER USER.
-//
-// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/CREATE-USER.html
-//
-//	IDENTIFIED
-//	    { BY password
-//	    | EXTERNALLY [ AS 'certificate_DN' | AS 'kerberos_principal_name' ]
-//	    | GLOBALLY [ AS 'directory_DN' ]
-//	    }
-func (p *Parser) parseIdentifiedClause(allowReplace bool) (*nodes.IdentifiedClause, error) {
-	start := p.pos()
-	clause := &nodes.IdentifiedClause{
-		Loc: nodes.Loc{Start: start},
-	}
-
-	// Already consumed IDENTIFIED keyword
-	if p.cur.Type == kwBY {
-		// IDENTIFIED BY password
-		p.advance()
-		clause.Type = nodes.IDENTIFIED_BY
-		if p.cur.Type == tokSCONST || p.isIdentLike() {
-			clause.Password = p.cur.Str
-			p.advance()
-		}
-		// REPLACE old_password (ALTER USER only)
-		if allowReplace && p.cur.Type == kwREPLACE {
-			p.advance()
-			if p.cur.Type == tokSCONST || p.isIdentLike() {
-				clause.OldPass = p.cur.Str
-				p.advance()
-			}
-		}
-	} else if p.isIdentLikeStr("EXTERNALLY") {
-		// IDENTIFIED EXTERNALLY [AS '...']
-		p.advance()
-		clause.Type = nodes.IDENTIFIED_EXTERNALLY
-		if p.cur.Type == kwAS {
-			p.advance()
-			if p.cur.Type == tokSCONST {
-				clause.ExternalAs = p.cur.Str
-				p.advance()
-			}
-		}
-	} else if p.isIdentLikeStr("GLOBALLY") {
-		// IDENTIFIED GLOBALLY [AS '...']
-		p.advance()
-		clause.Type = nodes.IDENTIFIED_GLOBALLY
-		if p.cur.Type == kwAS {
-			p.advance()
-			if p.cur.Type == tokSCONST {
-				clause.ExternalAs = p.cur.Str
-				p.advance()
-			}
-		}
-	}
-
-	clause.Loc.End = p.prev.End
-	return clause, nil
-}
-
-// parseUserQuotaClause parses a QUOTA clause.
-//
-//	QUOTA { size_clause | UNLIMITED } ON tablespace
-//
-//	size_clause ::= integer [ K | M | G | T ]
-func (p *Parser) parseUserQuotaClause() (*nodes.UserQuotaClause, error) {
-	start := p.pos()
-	// Already consumed QUOTA keyword
-	clause := &nodes.UserQuotaClause{
-		Loc: nodes.Loc{Start: start},
-	}
-
-	if p.isIdentLikeStr("UNLIMITED") {
-		clause.Size = "UNLIMITED"
-		p.advance()
-	} else {
-		// size_clause: integer [K|M|G|T]
-		size := ""
-		if p.cur.Type == tokICONST {
-			size = p.cur.Str
-			p.advance()
-			// Optional size suffix
-			if p.isIdentLike() {
-				s := p.cur.Str
-				if s == "K" || s == "M" || s == "G" || s == "T" {
-					size += s
-					p.advance()
-				}
-			}
-		}
-		clause.Size = size
-	}
-
-	// ON tablespace
-	if p.cur.Type == kwON {
-		p.advance()
-		var parseErr900 error
-		clause.Tablespace, parseErr900 = p.parseObjectName()
-		if parseErr900 != nil {
-			return nil, parseErr900
-		}
-	}
-
-	clause.Loc.End = p.prev.End
-	return clause, nil
-}
-
 // parseContainerClause parses CONTAINER = { ALL | CURRENT }.
 // Returns: *bool (true=ALL, false=CURRENT), or nil if not present.
 func (p *Parser) parseContainerClause() (*bool, error) {
@@ -128,238 +21,6 @@ func (p *Parser) parseContainerClause() (*bool, error) {
 		return &v, nil
 	}
 	return nil, nil
-}
-
-// parseUserOptions parses common user option clauses for CREATE/ALTER USER.
-// Returns when it encounters a token it doesn't recognize as a user option.
-func (p *Parser) parseUserOptions(
-	setTablespace func(string),
-	setTempTablespace func(string, bool),
-	addQuota func(*nodes.UserQuotaClause),
-	setProfile func(string),
-	setPasswordExpire func(),
-	setAccountLock func(*bool),
-	setEnableEditions func(),
-	setCollation func(string),
-	setContainer func(*bool),
-) error {
-	for p.cur.Type != ';' && p.cur.Type != tokEOF {
-		switch {
-		case p.cur.Type == kwDEFAULT:
-			p.advance()
-			if p.cur.Type == kwTABLESPACE {
-				// DEFAULT TABLESPACE
-				p.advance()
-				if p.isIdentLike() {
-					setTablespace(p.cur.Str)
-					p.advance()
-				}
-			} else if p.isIdentLikeStr("COLLATION") {
-				// DEFAULT COLLATION
-				p.advance()
-				if p.isIdentLike() {
-					setCollation(p.cur.Str)
-					p.advance()
-				}
-			} else if p.cur.Type == kwROLE {
-				// DEFAULT ROLE — only for ALTER USER, handled by caller
-				return nil
-			} else {
-				// Unknown DEFAULT clause, skip
-				return nil
-			}
-
-		case p.isIdentLikeStr("LOCAL"):
-			// LOCAL TEMPORARY TABLESPACE
-			p.advance()
-			if p.cur.Type == kwTEMPORARY {
-				p.advance()
-				if p.cur.Type == kwTABLESPACE {
-					p.advance()
-					if p.isIdentLike() {
-						setTempTablespace(p.cur.Str, true)
-						p.advance()
-					}
-				}
-			}
-
-		case p.cur.Type == kwTEMPORARY:
-			// TEMPORARY TABLESPACE
-			p.advance()
-			if p.cur.Type == kwTABLESPACE {
-				p.advance()
-				if p.isIdentLike() {
-					setTempTablespace(p.cur.Str, false)
-					p.advance()
-				}
-			}
-
-		case p.isIdentLikeStr("QUOTA"):
-			// QUOTA clause
-			p.advance()
-			parseValue85, parseErr86 := p.parseUserQuotaClause()
-			if parseErr86 != nil {
-				return parseErr86
-			}
-			addQuota(parseValue85)
-
-		case p.cur.Type == kwPROFILE:
-			// PROFILE
-			p.advance()
-			if p.isIdentLike() {
-				setProfile(p.cur.Str)
-				p.advance()
-			}
-
-		case p.isIdentLikeStr("PASSWORD"):
-			// PASSWORD EXPIRE
-			p.advance()
-			if p.isIdentLikeStr("EXPIRE") {
-				p.advance()
-				setPasswordExpire()
-			} else {
-				return nil
-			}
-
-		case p.isIdentLikeStr("ACCOUNT"):
-			// ACCOUNT { LOCK | UNLOCK }
-			p.advance()
-			if p.cur.Type == kwLOCK {
-				p.advance()
-				v := true
-				setAccountLock(&v)
-			} else if p.isIdentLikeStr("UNLOCK") {
-				p.advance()
-				v := false
-				setAccountLock(&v)
-			}
-
-		case p.cur.Type == kwENABLE:
-			// ENABLE EDITIONS | ENABLE DICTIONARY PROTECTION
-			p.advance()
-			if p.isIdentLikeStr("EDITIONS") {
-				p.advance()
-				setEnableEditions()
-				// [ FOR object_type [, object_type]... ] [ FORCE ]
-				if p.cur.Type == kwFOR {
-					p.advance()
-					for p.isIdentLike() || p.cur.Type == ',' {
-						p.advance()
-					}
-				}
-				if p.cur.Type == kwFORCE {
-					p.advance()
-				}
-			} else if p.isIdentLikeStr("DICTIONARY") {
-				p.advance() // consume DICTIONARY
-				if p.isIdentLikeStr("PROTECTION") {
-					p.advance() // consume PROTECTION
-				}
-			} else {
-				return nil
-			}
-
-		case p.cur.Type == kwDISABLE:
-			// DISABLE DICTIONARY PROTECTION
-			p.advance()
-			if p.isIdentLikeStr("DICTIONARY") {
-				p.advance() // consume DICTIONARY
-				if p.isIdentLikeStr("PROTECTION") {
-					p.advance() // consume PROTECTION
-				}
-			} else {
-				return nil
-			}
-
-		case p.isIdentLikeStr("CONTAINER"):
-			// CONTAINER = { ALL | CURRENT }
-			p.advance()
-			parseValue87, parseErr88 := p.parseContainerClause()
-			if parseErr88 != nil {
-				return parseErr88
-			}
-			setContainer(parseValue87)
-
-		case p.cur.Type == kwREAD:
-			// READ ONLY | READ WRITE
-			p.advance()
-			if p.isIdentLikeStr("ONLY") || p.cur.Type == kwWRITE {
-				p.advance()
-			}
-
-		case p.isIdentLikeStr("HTTP"):
-			// [HTTP] DIGEST { ENABLE | DISABLE }
-			p.advance() // consume HTTP
-			if p.isIdentLikeStr("DIGEST") {
-				p.advance() // consume DIGEST
-				if p.cur.Type == kwENABLE || p.cur.Type == kwDISABLE {
-					p.advance()
-				}
-			}
-
-		case p.isIdentLikeStr("DIGEST"):
-			// DIGEST { ENABLE | DISABLE }
-			p.advance() // consume DIGEST
-			if p.cur.Type == kwENABLE || p.cur.Type == kwDISABLE {
-				p.advance()
-			}
-
-		case p.isIdentLikeStr("EXPIRE"):
-			// EXPIRE PASSWORD ROLLOVER PERIOD (ALTER USER)
-			p.advance() // consume EXPIRE
-			if p.isIdentLikeStr("PASSWORD") {
-				p.advance() // consume PASSWORD
-				if p.isIdentLikeStr("ROLLOVER") {
-					p.advance() // consume ROLLOVER
-					if p.isIdentLikeStr("PERIOD") {
-						p.advance() // consume PERIOD
-					}
-				}
-			}
-
-		case p.cur.Type == kwSET || p.isIdentLikeStr("ADD") || p.isIdentLikeStr("REMOVE"):
-			// container_data_clause: { SET | ADD | REMOVE } CONTAINER_DATA ...
-			p.advance() // consume SET/ADD/REMOVE
-			if p.isIdentLikeStr("CONTAINER_DATA") {
-				p.advance() // consume CONTAINER_DATA
-				// = or ( ... )
-				if p.cur.Type == '=' {
-					p.advance()
-				}
-				if p.cur.Type == '(' {
-					p.advance()
-					for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
-						// An item that consumes nothing would come round again.
-						if p.pos() == progress {
-							return p.syntaxErrorAtCur()
-						}
-						progress = p.pos()
-						p.advance()
-					}
-					if p.cur.Type == ')' {
-						p.advance()
-					}
-				} else if p.cur.Type == kwALL || p.cur.Type == kwDEFAULT {
-					p.advance()
-				}
-				// FOR [schema.]object_name
-				if p.cur.Type == kwFOR {
-					p.advance()
-					parseDiscard902, parseErr901 := p.parseObjectName()
-					_ = parseDiscard902
-					if parseErr901 != nil {
-						return parseErr901
-					}
-				}
-			} else {
-				return nil
-			}
-
-		default:
-			return nil
-		}
-	}
-	return nil
 }
 
 // parseCreateUserStmt parses a CREATE USER statement.
@@ -391,63 +52,39 @@ func (p *Parser) parseCreateUserStmt(start int) (nodes.StmtNode, error) {
 	stmt := &nodes.CreateUserStmt{
 		Loc: nodes.Loc{Start: start},
 	}
-
-	// IF NOT EXISTS
+	// IF NOT EXISTS: Oracle reports an incomplete one at IF (ORA-11543).
 	if p.cur.Type == kwIF {
+		ifTok := p.advance()
+		if p.cur.Type != kwNOT || p.peekNext().Type != kwEXISTS {
+			return nil, p.syntaxErrorAtTok(ifTok)
+		}
 		p.advance()
-		if p.cur.Type == kwNOT {
-			p.advance()
-			if p.cur.Type == kwEXISTS {
-				p.advance()
-				stmt.IfNotExists = true
-			}
+		p.advance()
+		stmt.IfNotExists = true
+	}
+	name, err := p.parseObjectName()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Name = name
+	switch {
+	case p.cur.Type == kwIDENTIFIED:
+		if stmt.Identified, err = p.parseUserIdentified(false); err != nil {
+			return nil, err
+		}
+	case p.isKeywordStr("NO"):
+		if stmt.Identified, err = p.parseUserNoAuthentication(); err != nil {
+			return nil, err
 		}
 	}
-	var parseErr903 error
-
-	stmt.Name, parseErr903 = p.parseObjectName()
-	if parseErr903 !=
-
-		// IDENTIFIED clause or NO AUTHENTICATION
-		nil {
-		return nil, parseErr903
+	var c userClauses
+	if err := p.parseUserClauses(false, &c); err != nil {
+		return nil, err
 	}
-
-	if p.cur.Type == kwIDENTIFIED {
-		p.advance()
-		var parseErr904 error
-		stmt.Identified, parseErr904 = p.parseIdentifiedClause(false)
-		if parseErr904 != nil {
-			return nil, parseErr904
-		}
-	} else if p.isIdentLikeStr("NO") {
-		p.advance()
-		if p.isIdentLikeStr("AUTHENTICATION") {
-			p.advance()
-			stmt.Identified = &nodes.IdentifiedClause{
-				Type: nodes.IDENTIFIED_NO_AUTH,
-				Loc:  nodes.Loc{Start: p.pos(), End: p.prev.End},
-			}
-		}
-	}
-	parseErr905 :=
-
-		// Parse remaining options
-		p.parseUserOptions(
-			func(ts string) { stmt.DefaultTablespace = ts },
-			func(ts string, local bool) { stmt.TempTablespace = ts; stmt.LocalTemp = local },
-			func(q *nodes.UserQuotaClause) { stmt.Quotas = append(stmt.Quotas, q) },
-			func(prof string) { stmt.Profile = prof },
-			func() { stmt.PasswordExpire = true },
-			func(v *bool) { stmt.AccountLock = v },
-			func() { stmt.EnableEditions = true },
-			func(c string) { stmt.DefaultCollation = c },
-			func(v *bool) { stmt.ContainerAll = v },
-		)
-	if parseErr905 != nil {
-		return nil, parseErr905
-	}
-
+	stmt.DefaultTablespace, stmt.TempTablespace, stmt.LocalTemp = c.defaultTablespace, c.tempTablespace, c.localTemp
+	stmt.Quotas, stmt.Profile, stmt.PasswordExpire = c.quotas, c.profile, c.passwordExpire
+	stmt.AccountLock, stmt.EnableEditions = c.accountLock, c.enableEditions
+	stmt.DefaultCollation, stmt.ContainerAll = c.defaultCollation, c.containerAll
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
@@ -508,176 +145,48 @@ func (p *Parser) parseAlterUserStmt(start int) (nodes.StmtNode, error) {
 	stmt := &nodes.AlterUserStmt{
 		Loc: nodes.Loc{Start: start},
 	}
-
-	// IF EXISTS
 	if p.cur.Type == kwIF {
 		p.advance()
-		if p.cur.Type == kwEXISTS {
-			p.advance()
-			stmt.IfExists = true
+		if p.cur.Type != kwEXISTS {
+			return nil, p.syntaxErrorAtCur()
 		}
-	}
-	var parseErr906 error
-
-	stmt.Name, parseErr906 = p.parseObjectName()
-	if parseErr906 !=
-
-		// IDENTIFIED clause or NO AUTHENTICATION
-		nil {
-		return nil, parseErr906
-	}
-
-	if p.cur.Type == kwIDENTIFIED {
 		p.advance()
-		var parseErr907 error
-		stmt.Identified, parseErr907 = p.parseIdentifiedClause(true)
-		if parseErr907 != nil {
-			return nil, parseErr907
-		}
-	} else if p.isIdentLikeStr("NO") {
-		p.advance()
-		if p.isIdentLikeStr("AUTHENTICATION") {
-			p.advance()
-			stmt.Identified = &nodes.IdentifiedClause{
-				Type: nodes.IDENTIFIED_NO_AUTH,
-				Loc:  nodes.Loc{Start: p.pos(), End: p.prev.End},
-			}
-		}
+		stmt.IfExists = true
 	}
-	parseErr908 :=
-
-		// Parse remaining options (may return early on DEFAULT ROLE)
-		p.parseUserOptions(
-			func(ts string) { stmt.DefaultTablespace = ts },
-			func(ts string, local bool) { stmt.TempTablespace = ts; stmt.LocalTemp = local },
-			func(q *nodes.UserQuotaClause) { stmt.Quotas = append(stmt.Quotas, q) },
-			func(prof string) { stmt.Profile = prof },
-			func() { stmt.PasswordExpire = true },
-			func(v *bool) { stmt.AccountLock = v },
-			func() { stmt.EnableEditions = true },
-			func(c string) { stmt.DefaultCollation = c },
-			func(v *bool) { stmt.ContainerAll = v },
-		)
-	if parseErr908 !=
-
-		// DEFAULT ROLE clause (parseUserOptions returns when it sees DEFAULT ROLE)
-		nil {
-		return nil, parseErr908
+	name, err := p.parseObjectName()
+	if err != nil {
+		return nil, err
 	}
-
-	if p.cur.Type == kwROLE {
-		p.advance()
-		var parseErr909 error
-		stmt.DefaultRole, parseErr909 = p.parseDefaultRoleClause()
-		if parseErr909 !=
-
-			// Continue parsing remaining options after DEFAULT ROLE
-			nil {
-			return nil, parseErr909
-		}
-		parseErr910 := p.parseUserOptions(
-			func(ts string) { stmt.DefaultTablespace = ts },
-			func(ts string, local bool) { stmt.TempTablespace = ts; stmt.LocalTemp = local },
-			func(q *nodes.UserQuotaClause) { stmt.Quotas = append(stmt.Quotas, q) },
-			func(prof string) { stmt.Profile = prof },
-			func() { stmt.PasswordExpire = true },
-			func(v *bool) { stmt.AccountLock = v },
-			func() { stmt.EnableEditions = true },
-			func(c string) { stmt.DefaultCollation = c },
-			func(v *bool) { stmt.ContainerAll = v },
-		)
-		if parseErr910 != nil {
-			return nil, parseErr910
-		}
-	}
+	stmt.Name = name
+	// ALTER USER with no clause Oracle answers with ORA-02157 at the end of
+	// the text, which compat.tsv records as accepted.
 	if p.cur.Type == kwGRANT || p.cur.Type == kwREVOKE {
-		parseErr911 := p.parseAlterUserProxyClause()
-		if parseErr911 != nil {
-			return nil, parseErr911
+		if err := p.parseUserProxyClause(); err != nil {
+			return nil, err
+		}
+		stmt.Loc.End = p.prev.End
+		return stmt, nil
+	}
+	switch {
+	case p.cur.Type == kwIDENTIFIED:
+		if stmt.Identified, err = p.parseUserIdentified(true); err != nil {
+			return nil, err
+		}
+	case p.isKeywordStr("NO"):
+		if stmt.Identified, err = p.parseUserNoAuthentication(); err != nil {
+			return nil, err
 		}
 	}
-
+	var c userClauses
+	if err := p.parseUserClauses(true, &c); err != nil {
+		return nil, err
+	}
+	stmt.DefaultTablespace, stmt.TempTablespace, stmt.LocalTemp = c.defaultTablespace, c.tempTablespace, c.localTemp
+	stmt.Quotas, stmt.Profile, stmt.DefaultRole, stmt.PasswordExpire = c.quotas, c.profile, c.defaultRole, c.passwordExpire
+	stmt.AccountLock, stmt.EnableEditions = c.accountLock, c.enableEditions
+	stmt.DefaultCollation, stmt.ContainerAll = c.defaultCollation, c.containerAll
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
-}
-
-// parseAlterUserProxyClause consumes ALTER USER proxy clauses:
-// GRANT/REVOKE CONNECT THROUGH { ENTERPRISE USERS | proxy_user ... }.
-func (p *Parser) parseAlterUserProxyClause() error {
-	p.advance() // GRANT or REVOKE
-	if p.cur.Type == kwCONNECT {
-		p.advance()
-	}
-	if p.isIdentLikeStr("THROUGH") {
-		p.advance()
-	}
-	if p.isIdentLikeStr("ENTERPRISE") {
-		p.advance()
-		if p.cur.Type == kwUSER || p.isIdentLikeStr("USERS") {
-			p.advance()
-		}
-	} else if p.isIdentLike() {
-		parseDiscard913, parseErr912 := p.parseObjectName()
-		_ = parseDiscard913
-		if parseErr912 != nil {
-			return parseErr912
-
-			// parseDefaultRoleClause parses the DEFAULT ROLE clause for ALTER USER.
-			//
-			//	DEFAULT ROLE { role [, role ]... | ALL [ EXCEPT role [, role ]... ] | NONE }
-		}
-	}
-	for !p.isStatementEnd() {
-		p.advance()
-	}
-	return nil
-}
-
-func (p *Parser) parseDefaultRoleClause() (*nodes.DefaultRoleClause, error) {
-	start := p.pos()
-	clause := &nodes.DefaultRoleClause{
-		Loc: nodes.Loc{Start: start},
-	}
-
-	if p.cur.Type == kwALL {
-		p.advance()
-		clause.AllRoles = true
-		// ALL EXCEPT role [, role]...
-		if p.cur.Type == kwEXCEPT {
-			p.advance()
-			clause.ExceptAll = true
-			for {
-				parseValue89, parseErr90 := p.parseObjectName()
-				if parseErr90 != nil {
-					return nil, parseErr90
-				}
-				clause.Roles = append(clause.Roles, parseValue89)
-				if p.cur.Type != ',' {
-					break
-				}
-				p.advance()
-			}
-		}
-	} else if p.isIdentLikeStr("NONE") {
-		p.advance()
-		clause.NoneRole = true
-	} else {
-		// Specific role list
-		for {
-			parseValue91, parseErr92 := p.parseObjectName()
-			if parseErr92 != nil {
-				return nil, parseErr92
-			}
-			clause.Roles = append(clause.Roles, parseValue91)
-			if p.cur.Type != ',' {
-				break
-			}
-			p.advance()
-		}
-	}
-
-	clause.Loc.End = p.prev.End
-	return clause, nil
 }
 
 // parseCreateRoleStmt parses a CREATE ROLE statement.
