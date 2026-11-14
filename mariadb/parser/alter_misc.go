@@ -245,7 +245,9 @@ func (p *Parser) parseAlterEventStmt(start int) (*nodes.AlterEventStmt, error) {
 	if p.cur.Type == kwDO {
 		p.advance()
 		bodyStart := p.pos()
+		leave := p.enterStoredProgram(routineScope{})
 		body, err := p.parseCompoundStmtOrStmt()
+		leave()
 		if err != nil {
 			return nil, err
 		}

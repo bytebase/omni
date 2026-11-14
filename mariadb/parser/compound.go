@@ -30,6 +30,13 @@ func (p *Parser) parseBeginEndBlock(labelName string, labelStart int) (*nodes.Be
 		start = p.pos()
 	}
 
+	dropLabel, err := p.pushSPLabel(labelName, start, false)
+	if err != nil {
+		return nil, err
+	}
+	defer dropLabel()
+	defer p.pushSPScope(false)()
+
 	p.advance() // consume BEGIN
 
 	stmt := &nodes.BeginEndBlock{
@@ -45,7 +52,6 @@ func (p *Parser) parseBeginEndBlock(labelName string, labelStart int) (*nodes.Be
 		p.advance()
 		stmt.NotAtomic = true
 	}
-	defer p.pushSpScope()()
 
 	// Parse statements until END, enforcing MySQL's declaration-ordering rule:
 	//   DECLARE var/condition  →  DECLARE cursor  →  DECLARE handler  →  stmts
@@ -389,7 +395,7 @@ func (p *Parser) parseDeclareVarStmt(start int, firstName string, firstPos int) 
 	}
 
 	for i, name := range stmt.Names {
-		if err := p.declareSpVar(name, positions[i]); err != nil {
+		if err := p.declareSPVar(name, positions[i], false); err != nil {
 			return nil, err
 		}
 	}
@@ -447,7 +453,7 @@ func (p *Parser) parseSpVarType(variable bool) (*nodes.DataType, []*nodes.RowFie
 		}
 		anchor.Loc.End = p.prev.End
 		if !anchor.Row && len(anchor.Names) == 1 {
-			if err := p.checkSpVarDeclared(anchor.Names[0], firstPos); err != nil {
+			if err := p.checkSPVarDeclared(anchor.Names[0], firstPos); err != nil {
 				return nil, nil, nil, err
 			}
 		}
@@ -522,7 +528,7 @@ func (p *Parser) parseDeclareConditionStmt(start int, name string, namePos int) 
 		return nil, err
 	}
 	stmt.ConditionValue = condVal
-	if err := p.declareSpCondition(name, condVal, namePos); err != nil {
+	if err := p.declareSPCondition(name, condVal, namePos); err != nil {
 		return nil, err
 	}
 
@@ -566,7 +572,7 @@ func (p *Parser) parseDeclareHandlerStmt(start int) (*nodes.DeclareHandlerStmt, 
 		if err != nil {
 			return nil, err
 		}
-		if err := p.declareSpHandlerCondition(condVal, condPos); err != nil {
+		if err := p.declareSPHandlerCondition(condVal, condPos); err != nil {
 			return nil, err
 		}
 		stmt.Conditions = append(stmt.Conditions, condVal)
@@ -576,7 +582,9 @@ func (p *Parser) parseDeclareHandlerStmt(start int) (*nodes.DeclareHandlerStmt, 
 		p.advance()
 	}
 
+	closeScope := p.pushSPScope(true)
 	body, err := p.parseCompoundStmtOrStmt()
+	closeScope()
 	if err != nil {
 		return nil, err
 	}
@@ -628,7 +636,7 @@ func (p *Parser) parseDeclareCursorStmt(start int, name string, namePos int) (*n
 		return nil, &ParseError{Message: "Cursor SELECT must not have INTO", Position: queryStart}
 	}
 	stmt.Select = sel
-	if err := p.declareSpCursor(name, namePos); err != nil {
+	if err := p.declareSPCursor(name, namePos); err != nil {
 		return nil, err
 	}
 
@@ -639,7 +647,7 @@ func (p *Parser) parseDeclareCursorStmt(start int, name string, namePos int) (*n
 // parseCursorParams reads a cursor's parenthesized parameters in a scope of their own.
 func (p *Parser) parseCursorParams() ([]*nodes.FuncParam, error) {
 	p.advance() // (
-	defer p.pushSpScope()()
+	defer p.pushSPScope(false)()
 	var params []*nodes.FuncParam
 	for {
 		param, err := p.parseSpParam(true)
@@ -695,7 +703,7 @@ func (p *Parser) parseSpParam(withDirection bool) (*nodes.FuncParam, error) {
 		return nil, err
 	}
 	param.TypeName, param.RowFields, param.Anchor = dt, row, anchor
-	if err := p.declareSpParam(name, namePos); err != nil {
+	if err := p.declareSPVar(name, namePos, true); err != nil {
 		return nil, err
 	}
 
@@ -991,6 +999,11 @@ func (p *Parser) parseWhileStmt(labelName string, labelStart int) (*nodes.WhileS
 	if labelName == "" {
 		start = p.pos()
 	}
+	dropLabel, err := p.pushSPLabel(labelName, start, true)
+	if err != nil {
+		return nil, err
+	}
+	defer dropLabel()
 	p.advance() // consume WHILE
 
 	// Parse condition
@@ -1050,6 +1063,11 @@ func (p *Parser) parseRepeatStmt(labelName string, labelStart int) (*nodes.Repea
 	if labelName == "" {
 		start = p.pos()
 	}
+	dropLabel, err := p.pushSPLabel(labelName, start, true)
+	if err != nil {
+		return nil, err
+	}
+	defer dropLabel()
 	p.advance() // consume REPEAT
 
 	stmt := &nodes.RepeatStmt{Loc: nodes.Loc{Start: start}, Label: labelName}
@@ -1109,6 +1127,11 @@ func (p *Parser) parseLoopStmt(labelName string, labelStart int) (*nodes.LoopStm
 	if labelName == "" {
 		start = p.pos()
 	}
+	dropLabel, err := p.pushSPLabel(labelName, start, true)
+	if err != nil {
+		return nil, err
+	}
+	defer dropLabel()
 	p.advance() // consume LOOP
 
 	stmt := &nodes.LoopStmt{Loc: nodes.Loc{Start: start}, Label: labelName}
@@ -1163,6 +1186,11 @@ func (p *Parser) parseForStmt(labelName string, labelStart int) (*nodes.ForStmt,
 	if labelName == "" {
 		start = p.pos()
 	}
+	dropLabel, err := p.pushSPLabel(labelName, start, true)
+	if err != nil {
+		return nil, err
+	}
+	defer dropLabel()
 	p.advance() // consume FOR
 
 	stmt := &nodes.ForStmt{Loc: nodes.Loc{Start: start}, Label: labelName}
@@ -1197,8 +1225,8 @@ func (p *Parser) parseForStmt(labelName string, labelStart int) (*nodes.ForStmt,
 		return nil, err
 	}
 
-	closeScope := p.pushSpScope()
-	if err := p.declareSpVar(name, namePos); err != nil {
+	closeScope := p.pushSPScope(false)
+	if err := p.declareSPVar(name, namePos, false); err != nil {
 		closeScope()
 		return nil, err
 	}
@@ -1243,11 +1271,7 @@ func (p *Parser) parseForStmt(labelName string, labelStart int) (*nodes.ForStmt,
 func (p *Parser) parseCompoundStatement() (nodes.Node, error) {
 	p.routineDepth++
 	defer func() { p.routineDepth-- }()
-	defer p.enterStoredProgram()()
-	outerRoutine := p.routine
-	p.routine = routineScope{}
-	defer func() { p.routine = outerRoutine }()
-	defer p.pushSpScope()()
+	defer p.enterStoredProgram(routineScope{})()
 
 	switch p.cur.Type {
 	case kwBEGIN:
@@ -1267,8 +1291,11 @@ func (p *Parser) parseLeaveStmt() (*nodes.LeaveStmt, error) {
 	start := p.pos()
 	p.advance() // consume LEAVE
 
-	label, _, err := p.parseLabelIdent()
+	label, labelPos, err := p.parseLabelIdent()
 	if err != nil {
+		return nil, err
+	}
+	if err := p.checkSPLabelRef("LEAVE", label, labelPos, false); err != nil {
 		return nil, err
 	}
 
@@ -1286,8 +1313,11 @@ func (p *Parser) parseIterateStmt() (*nodes.IterateStmt, error) {
 	start := p.pos()
 	p.advance() // consume ITERATE
 
-	label, _, err := p.parseLabelIdent()
+	label, labelPos, err := p.parseLabelIdent()
 	if err != nil {
+		return nil, err
+	}
+	if err := p.checkSPLabelRef("ITERATE", label, labelPos, true); err != nil {
 		return nil, err
 	}
 

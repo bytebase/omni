@@ -48,7 +48,8 @@ END my_block`,
 my_block: BEGIN
     ITERATE my_block;
 END my_block`,
-			wantCode: "undeclared_loop_label",
+			wantCode:     "undeclared_loop_label",
+			parseRefused: true,
 		},
 		{
 			name: "ITERATE loop label",
@@ -65,7 +66,8 @@ END`,
 BEGIN
     LEAVE nowhere;
 END`,
-			wantCode: "undeclared_label",
+			wantCode:     "undeclared_label",
+			parseRefused: true,
 		},
 		{
 			name: "label barrier — LEAVE outer label from inside HANDLER body",
@@ -77,7 +79,8 @@ my_block: BEGIN
     END;
     SELECT 1;
 END my_block`,
-			wantCode: "undeclared_label",
+			wantCode:     "undeclared_label",
+			parseRefused: true,
 		},
 
 		// ---------- Symbol resolution: variables ----------
@@ -248,7 +251,8 @@ lbl: BEGIN
         SELECT 1;
     END lbl;
 END lbl`,
-			wantCode: "duplicate_label",
+			wantCode:     "duplicate_label",
+			parseRefused: true,
 		},
 		{
 			name: "label name reused across handler barrier OK",
@@ -407,8 +411,8 @@ END`,
 		t.Run(c.name, func(t *testing.T) {
 			list, err := parser.Parse(c.sql)
 			if c.parseRefused {
-				// The server refuses it while parsing (1313), and so does Parse; the rule
-				// stays for a tree that comes from anywhere else.
+				// The server refuses it while parsing (1308, 1309, 1313), and so does Parse;
+				// the rule stays for a tree that comes from anywhere else.
 				if err == nil {
 					t.Fatalf("Parse(%q) accepted it", c.sql)
 				}

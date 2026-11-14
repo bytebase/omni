@@ -9,9 +9,11 @@ import (
 
 // routineParserCodes are the errors other than 1064 that MariaDB raises while it
 // parses a routine body and that omni's parser raises too. MariaDB's other
-// parse-time routine errors (1308 LEAVE with no matching label, 1324 an undeclared
-// cursor, ...) are mariadb/validate's to report, so Parse accepts those bodies.
+// parse-time routine errors (1324 an undeclared cursor, ...) are still
+// mariadb/validate's to report, so Parse accepts those bodies.
 var routineParserCodes = map[uint16]bool{
+	1308: true, // ER_SP_LILABEL_MISMATCH: LEAVE or ITERATE with no label in reach
+	1309: true, // ER_SP_LABEL_REDEFINE: a label already in reach
 	1313: true, // ER_SP_BADRETURN: RETURN anywhere but in a function
 	1310: true, // ER_SP_LABEL_MISMATCH: an end label that does not match its begin label
 	1362: true, // ER_TRG_CANT_CHANGE_ROW: an assignment to a row a trigger can't change

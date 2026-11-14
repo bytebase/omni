@@ -22,6 +22,13 @@ func (p *Parser) parseBeginEndBlock(labelName string, labelStart int) (*nodes.Be
 		start = p.pos()
 	}
 
+	dropLabel, err := p.pushSPLabel(labelName, start, false)
+	if err != nil {
+		return nil, err
+	}
+	defer dropLabel()
+	defer p.pushSPScope(false)()
+
 	p.advance() // consume BEGIN
 
 	stmt := &nodes.BeginEndBlock{
@@ -427,7 +434,9 @@ func (p *Parser) parseDeclareHandlerStmt(start int) (*nodes.DeclareHandlerStmt, 
 		p.advance()
 	}
 
+	closeScope := p.pushSPScope(true)
 	body, err := p.parseCompoundStmtOrStmt()
+	closeScope()
 	if err != nil {
 		return nil, err
 	}
@@ -745,6 +754,11 @@ func (p *Parser) parseWhileStmt(labelName string, labelStart int) (*nodes.WhileS
 	if labelName == "" {
 		start = p.pos()
 	}
+	dropLabel, err := p.pushSPLabel(labelName, start, true)
+	if err != nil {
+		return nil, err
+	}
+	defer dropLabel()
 	p.advance() // consume WHILE
 
 	// Parse condition
@@ -804,6 +818,11 @@ func (p *Parser) parseRepeatStmt(labelName string, labelStart int) (*nodes.Repea
 	if labelName == "" {
 		start = p.pos()
 	}
+	dropLabel, err := p.pushSPLabel(labelName, start, true)
+	if err != nil {
+		return nil, err
+	}
+	defer dropLabel()
 	p.advance() // consume REPEAT
 
 	stmt := &nodes.RepeatStmt{Loc: nodes.Loc{Start: start}, Label: labelName}
@@ -863,6 +882,11 @@ func (p *Parser) parseLoopStmt(labelName string, labelStart int) (*nodes.LoopStm
 	if labelName == "" {
 		start = p.pos()
 	}
+	dropLabel, err := p.pushSPLabel(labelName, start, true)
+	if err != nil {
+		return nil, err
+	}
+	defer dropLabel()
 	p.advance() // consume LOOP
 
 	stmt := &nodes.LoopStmt{Loc: nodes.Loc{Start: start}, Label: labelName}
@@ -904,8 +928,11 @@ func (p *Parser) parseLeaveStmt() (*nodes.LeaveStmt, error) {
 	start := p.pos()
 	p.advance() // consume LEAVE
 
-	label, _, err := p.parseLabelIdent()
+	label, labelPos, err := p.parseLabelIdent()
 	if err != nil {
+		return nil, err
+	}
+	if err := p.checkSPLabelRef("LEAVE", label, labelPos, false); err != nil {
 		return nil, err
 	}
 
@@ -923,8 +950,11 @@ func (p *Parser) parseIterateStmt() (*nodes.IterateStmt, error) {
 	start := p.pos()
 	p.advance() // consume ITERATE
 
-	label, _, err := p.parseLabelIdent()
+	label, labelPos, err := p.parseLabelIdent()
 	if err != nil {
+		return nil, err
+	}
+	if err := p.checkSPLabelRef("ITERATE", label, labelPos, true); err != nil {
 		return nil, err
 	}
 

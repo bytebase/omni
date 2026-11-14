@@ -134,8 +134,7 @@ func (p *Parser) parseCreateFunctionStmt(start int, orReplace, isProcedure bool)
 
 	// The parameters are a scope around the body's blocks: named once each (1330), and a
 	// variable the body's TYPE OF may name.
-	defer p.enterStoredProgram()()
-	defer p.pushSpScope()()
+	defer p.enterStoredProgram(routineScope{noResultSet: !isProcedure, function: !isProcedure})()
 	if p.cur.Type != ')' {
 		for {
 			param, err := p.parseSpParam(isProcedure)
@@ -200,9 +199,6 @@ func (p *Parser) parseCreateFunctionStmt(start int, orReplace, isProcedure bool)
 	// compound statements, labels, DECLAREs, etc.). See
 	// docs/plans/2026-04-20-mysql-routine-body-grammar.md.
 	bodyStart := p.pos()
-	outerRoutine := p.routine
-	p.routine = routineScope{noResultSet: !isProcedure, function: !isProcedure}
-	defer func() { p.routine = outerRoutine }()
 	body, err := p.parseCompoundStmtOrStmt()
 	if err != nil {
 		return nil, err
