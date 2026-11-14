@@ -635,6 +635,17 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 	case tokBIND:
 		return p.parseBindVariable()
 
+	case ':':
+		// A host variable with blanks after its colon: Oracle 23ai parses
+		// SELECT : a FROM dual as SELECT :a FROM dual.
+		if next := p.peekNext(); next.Type == tokIDENT || next.Type == tokQIDENT || next.Type == tokICONST || next.Type >= 2000 {
+			p.advance() // consume ':'
+			name := p.cur.Str
+			p.advance()
+			return &nodes.BindVariable{Name: name, Loc: nodes.Loc{Start: start, End: p.prev.End}}, nil
+		}
+		return nil, nil
+
 	case tokINQUIRY:
 		// An inquiry directive is a literal the compiler substitutes
 		// ($$PLSQL_LINE, $$PLSQL_UNIT): no name, no call, no field.
@@ -734,6 +745,11 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 		if isOracleClauseStarterKeyword(p.cur.Type) && isOracleSQLReservedKeyword(p.cur) &&
 			(p.cur.Type != kwEXCEPT || !p.plsqlCode) {
 			return nil, nil
+		}
+		// CURRENT is reserved and starts no expression: Oracle 23ai
+		// fails at it as a column or a function (ORA-00936).
+		if p.cur.Type == kwCURRENT {
+			return nil, p.syntaxErrorAtCur()
 		}
 		if p.isIdentLike() {
 			return p.parseIdentExpr()

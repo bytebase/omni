@@ -12,6 +12,227 @@ import (
 // where Oracle 23ai reads them as documented, and as the engine reads them
 // where it does not.
 
+// isSelectStarExpr reports whether expr is a select list's * or t.*.
+func isSelectStarExpr(expr nodes.ExprNode) bool {
+	switch e := expr.(type) {
+	case *nodes.Star:
+		return true
+	case *nodes.ColumnRef:
+		return e.Column == "*"
+	}
+	return false
+}
+
+// parseSelectWindowSpec parses the parenthesized window_specification of a
+// WINDOW clause.
+//
+//	window_specification:
+//	    [ existing_window_name ]
+//	    [ query_partition_clause ]
+//	    [ order_by_clause ]
+//	    [ windowing_clause ]
+//
+// The existing window is one named earlier in the clause, in defined
+// (ORA-32784 at its name), and a window built on it takes no PARTITION BY
+// of its own (ORA-32783 at the window's name, nameTok). A windowing clause
+// needs an ORDER BY, its own or an existing window's (ORA-30485 at ROWS,
+// RANGE or GROUPS).
+func (p *Parser) parseSelectWindowSpec(nameTok Token, defined map[string]*nodes.WindowSpec) (*nodes.WindowSpec, error) {
+	p.advance() // consume '('
+	ws := &nodes.WindowSpec{Loc: nodes.Loc{Start: p.pos()}}
+	var err error
+
+	var base *nodes.WindowSpec
+	if p.isIdentLike() && !p.isSelectWindowSpecKeyword() {
+		if err := p.syntaxErrorIfReservedIdentifier(); err != nil {
+			return nil, err
+		}
+		refTok := p.cur
+		if ws.WindowName, err = p.parseIdentifier(); err != nil {
+			return nil, err
+		}
+		var ok bool
+		if base, ok = defined[ws.WindowName]; !ok {
+			return nil, p.syntaxErrorAtTok(refTok)
+		}
+	}
+
+	if p.cur.Type == kwPARTITION {
+		if base != nil {
+			return nil, p.syntaxErrorAtTok(nameTok)
+		}
+		p.advance()
+		if p.cur.Type != kwBY {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		ws.PartitionBy = &nodes.List{}
+		for {
+			if p.cur.Type == '(' && p.peekNext().Type == ')' {
+				p.advance()
+				return nil, p.syntaxErrorAtCur()
+			}
+			expr, err := p.parseExpr()
+			if err != nil {
+				return nil, err
+			}
+			if expr == nil {
+				return nil, p.syntaxErrorAtCur()
+			}
+			ws.PartitionBy.Items = append(ws.PartitionBy.Items, expr)
+			if p.cur.Type != ',' {
+				break
+			}
+			p.advance()
+		}
+	}
+
+	if p.cur.Type == kwORDER {
+		p.advance()
+		if p.cur.Type != kwBY {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		if ws.OrderBy, err = p.parseOrderByList(); err != nil {
+			return nil, err
+		}
+		if ws.OrderBy.Len() == 0 {
+			return nil, p.syntaxErrorAtCur()
+		}
+	}
+
+	if p.cur.Type == kwROWS || p.cur.Type == kwRANGE || p.cur.Type == kwGROUPS {
+		if ws.OrderBy == nil && !selectWindowOrdered(base, defined) {
+			return nil, p.syntaxErrorAtCur()
+		}
+		if ws.Frame, err = p.parseWindowFrame(); err != nil {
+			return nil, err
+		}
+	}
+
+	if p.cur.Type != ')' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+	ws.Loc.End = p.prev.End
+	return ws, nil
+}
+
+// selectWindowOrdered reports whether the window spec, or one it builds on
+// in defined, has an ORDER BY.
+func selectWindowOrdered(spec *nodes.WindowSpec, defined map[string]*nodes.WindowSpec) bool {
+	for seen := 0; spec != nil && seen <= len(defined); seen++ {
+		if spec.OrderBy != nil {
+			return true
+		}
+		if spec.WindowName == "" {
+			return false
+		}
+		spec = defined[spec.WindowName]
+	}
+	return false
+}
+
+// isSelectWindowSpecKeyword reports whether the current token opens a
+// clause of a window specification rather than naming an existing window.
+func (p *Parser) isSelectWindowSpecKeyword() bool {
+	switch p.cur.Type {
+	case kwPARTITION, kwORDER, kwROWS, kwRANGE, kwGROUPS:
+		return true
+	}
+	return false
+}
+
+// parseSelectTableFunctionRef parses a table function called in FROM
+// without TABLE, name ( args ) [ t_alias ], which Oracle 23ai takes as it
+// takes TABLE ( name ( args ) ).
+func (p *Parser) parseSelectTableFunctionRef(name *nodes.ObjectName, start int) (nodes.TableExpr, error) {
+	call, err := p.parseFuncCall(name.Name, name.Schema, start)
+	if err != nil {
+		return nil, err
+	}
+	tc := &nodes.TableCollectionExpr{Expr: call, Loc: nodes.Loc{Start: start}}
+	if fn, ok := call.(*nodes.FuncCallExpr); ok {
+		tc.FunctionCall = fn
+	} else {
+		tc.CollectionExpr = call
+	}
+	if p.isTableAliasCandidate() {
+		if tc.Alias, err = p.parseAlias(); err != nil {
+			return nil, err
+		}
+	}
+	tc.Loc.End = p.prev.End
+	return p.parsePivotSuffix(tc)
+}
+
+// parseSelectQueryPartition parses a query_partition_clause, at PARTITION:
+//
+//	PARTITION BY { expr [, expr ]... | ( expr [, expr ]... ) }
+//
+// Oracle 23ai takes only the parenthesized form before an outer join
+// (parenthesized, ORA-00906 at the first expression otherwise).
+func (p *Parser) parseSelectQueryPartition(parenthesized bool) (*nodes.List, error) {
+	p.advance() // consume PARTITION
+	if p.cur.Type != kwBY {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+	if parenthesized {
+		if p.cur.Type != '(' {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		list, err := p.parseExprList()
+		if err != nil {
+			return nil, err
+		}
+		if list == nil || list.Len() == 0 || p.cur.Type != ')' {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		return list, nil
+	}
+	list, err := p.parseExprList()
+	if err != nil {
+		return nil, err
+	}
+	if list == nil || list.Len() == 0 {
+		return nil, p.syntaxErrorAtCur()
+	}
+	return list, nil
+}
+
+// isSelectQueryPartitionStart reports whether the current token opens a
+// query_partition_clause: PARTITION BY.
+func (p *Parser) isSelectQueryPartitionStart() bool {
+	return p.cur.Type == kwPARTITION && p.peekNext().Type == kwBY
+}
+
+// parseSelectWithDeclarations parses the plsql_declarations of a WITH
+// clause: function and procedure definitions, each ending in its ';'.
+func (p *Parser) parseSelectWithDeclarations() (*nodes.List, error) {
+	defer p.restorePLSQLCode(p.setPLSQLCode(true))
+	decls := &nodes.List{}
+	for p.cur.Type == kwFUNCTION || p.cur.Type == kwPROCEDURE {
+		var decl nodes.Node
+		var err error
+		if p.cur.Type == kwFUNCTION {
+			decl, err = p.parsePackageFuncDecl(subprogramNested)
+		} else {
+			decl, err = p.parsePackageProcDecl(subprogramNested)
+		}
+		if err != nil {
+			return nil, err
+		}
+		if p.prev.Type != ';' {
+			return nil, p.syntaxErrorAtCur()
+		}
+		decls.Items = append(decls.Items, decl)
+	}
+	return decls, nil
+}
+
 // parseInlineExternalTable parses Oracle's inline external table source.
 //
 //	inline_external_table:
@@ -301,8 +522,22 @@ func (p *Parser) collectBalancedRaw() (string, error) {
 // JOIN c ON x joins a to (b CROSS JOIN c), and a JOIN b JOIN c ON x lacks
 // the outer join's condition (ORA-02000 at the end).
 func (p *Parser) parseJoinContinuation(left nodes.TableExpr) (nodes.TableExpr, error) {
-	for p.isSelectJoinStart() {
+	for p.isSelectJoinStart() || p.isSelectQueryPartitionStart() {
 		joinStart := p.pos()
+		// A partitioned outer join partitions its left table:
+		// t PARTITION BY (...) LEFT JOIN u ON ... (an outer join follows).
+		var leftPartition *nodes.List
+		if p.isSelectQueryPartitionStart() {
+			var err error
+			if leftPartition, err = p.parseSelectQueryPartition(true); err != nil {
+				return nil, err
+			}
+			switch p.cur.Type {
+			case kwLEFT, kwRIGHT, kwFULL:
+			default:
+				return nil, p.syntaxErrorAtCur()
+			}
+		}
 		jt, err := p.matchJoinType()
 		if err != nil {
 			return nil, err
@@ -318,10 +553,17 @@ func (p *Parser) parseJoinContinuation(left nodes.TableExpr) (nodes.TableExpr, e
 
 		// A join starts where its left table does.
 		jc := &nodes.JoinClause{
-			Type:  jt,
-			Left:  left,
-			Right: right,
-			Loc:   nodes.Loc{Start: exprLocStart(left, joinStart)},
+			Type:            jt,
+			Left:            left,
+			Right:           right,
+			LeftPartitionBy: leftPartition,
+			Loc:             nodes.Loc{Start: exprLocStart(left, joinStart)},
+		}
+		// ... or its right one: LEFT JOIN u PARTITION BY (...) ON ...
+		if selectOuterJoin(jt) && p.isSelectQueryPartitionStart() {
+			if jc.RightPartitionBy, err = p.parseSelectQueryPartition(false); err != nil {
+				return nil, err
+			}
 		}
 
 		if selectJoinTakesCondition(jt) {
@@ -398,6 +640,17 @@ func (p *Parser) parseSelectJoinUsing() (*nodes.List, error) {
 func (p *Parser) isSelectJoinStart() bool {
 	switch p.cur.Type {
 	case kwJOIN, kwINNER, kwLEFT, kwRIGHT, kwFULL, kwCROSS, kwNATURAL, kwOUTER:
+		return true
+	}
+	return false
+}
+
+// selectOuterJoin reports whether a join of type jt is an outer join, which
+// a query_partition_clause may partition.
+func selectOuterJoin(jt nodes.JoinType) bool {
+	switch jt {
+	case nodes.JOIN_LEFT, nodes.JOIN_RIGHT, nodes.JOIN_FULL,
+		nodes.JOIN_NATURAL_LEFT, nodes.JOIN_NATURAL_RIGHT, nodes.JOIN_NATURAL_FULL:
 		return true
 	}
 	return false

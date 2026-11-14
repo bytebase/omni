@@ -58,6 +58,9 @@ func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 	}
 	defer p.leaveNesting()
 	defer p.restorePLSQLCode(p.setPLSQLCode(false))
+	// A query's own FROM is no DML statement's.
+	defer func(saved bool) { p.dmlFromClause = saved }(p.dmlFromClause)
+	p.dmlFromClause = false
 
 	sel, more, err := p.parseQueryOperand()
 	if err != nil || !more {
@@ -543,9 +546,10 @@ func (p *Parser) parseQueryBlockClauses(sel *nodes.SelectStmt) (*nodes.SelectStm
 
 	if p.cur.Type == kwGROUP {
 		p.advance()
-		if p.cur.Type == kwBY {
-			p.advance()
+		if p.cur.Type != kwBY {
+			return nil, p.syntaxErrorAtCur()
 		}
+		p.advance()
 		var parseErr949 error
 		sel.GroupClause, parseErr949 = p.parseGroupByList()
 		if parseErr949 != nil {
@@ -578,9 +582,10 @@ func (p *Parser) parseQueryBlockClauses(sel *nodes.SelectStmt) (*nodes.SelectStm
 
 	if p.cur.Type == kwGROUP && (sel.GroupClause == nil || sel.GroupClause.Len() == 0) {
 		p.advance()
-		if p.cur.Type == kwBY {
-			p.advance()
+		if p.cur.Type != kwBY {
+			return nil, p.syntaxErrorAtCur()
 		}
+		p.advance()
 		var parseErr951 error
 		sel.GroupClause, parseErr951 = p.parseGroupByList()
 		if parseErr951 != nil {
@@ -591,6 +596,11 @@ func (p *Parser) parseQueryBlockClauses(sel *nodes.SelectStmt) (*nodes.SelectStm
 		}
 	}
 
+	// A MODEL clause reads the rows of a FROM clause (ORA-00923 at MODEL
+	// without one).
+	if p.cur.Type == kwMODEL && (sel.FromClause == nil || sel.FromClause.Len() == 0) {
+		return nil, p.syntaxErrorAtCur()
+	}
 	if p.cur.Type == kwMODEL {
 		var parseErr951 error
 		sel.ModelClause, parseErr951 = p.parseModelClause()
@@ -617,11 +627,11 @@ func (p *Parser) parseQueryBlockClauses(sel *nodes.SelectStmt) (*nodes.SelectStm
 		p.advance()
 		var parseErr953 error
 		sel.QualifyClause, parseErr953 = p.parseExpr()
-		if parseErr953 !=
-
-			// ORDER [SIBLINGS] BY
-			nil {
+		if parseErr953 != nil {
 			return nil, parseErr953
+		}
+		if sel.QualifyClause == nil {
+			return nil, p.syntaxErrorAtCur()
 		}
 	}
 	return sel, nil
@@ -636,12 +646,17 @@ func (p *Parser) parseQueryTail(sel *nodes.SelectStmt) (more bool, err error) {
 	if p.cur.Type == kwORDER {
 		p.advance()
 		if p.isIdentLikeStr("SIBLINGS") {
+			// SIBLINGS orders a hierarchical query's rows (ORA-30929).
+			if sel.Hierarchical == nil {
+				return false, p.syntaxErrorAtCur()
+			}
 			sel.SiblingsOrder = true
 			p.advance()
 		}
-		if p.cur.Type == kwBY {
-			p.advance()
+		if p.cur.Type != kwBY {
+			return false, p.syntaxErrorAtCur()
 		}
+		p.advance()
 		sel.OrderBy, err = p.parseOrderByList()
 		if err != nil {
 			return false, err
@@ -711,6 +726,11 @@ func (p *Parser) parseSelectList() (*nodes.List, error) {
 		if p.isSelectListTerminator() {
 			break
 		}
+		// A bare * is the whole select list: Oracle 23ai fails at the
+		// ',' after it (ORA-00923) and at a * after a ',' (ORA-00936).
+		if p.cur.Type == '*' && list.Len() > 0 {
+			return nil, p.syntaxErrorAtCur()
+		}
 		rt, parseErr960 := p.parseResTarget()
 		if parseErr960 != nil {
 			return nil, parseErr960
@@ -720,6 +740,9 @@ func (p *Parser) parseSelectList() (*nodes.List, error) {
 		}
 		if p.cur.Type != ',' {
 			break
+		}
+		if _, star := rt.Expr.(*nodes.Star); star && rt != nil {
+			return nil, p.syntaxErrorAtCur()
 		}
 		p.advance() // consume ','
 	}
@@ -755,6 +778,12 @@ func (p *Parser) parseResTarget() (*nodes.ResTarget, error) {
 	rt := &nodes.ResTarget{
 		Expr: expr,
 		Loc:  nodes.Loc{Start: start},
+	}
+
+	// * and t.* take no alias (ORA-00923 at it).
+	if isSelectStarExpr(expr) {
+		rt.Loc.End = p.prev.End
+		return rt, nil
 	}
 
 	// Optional alias: AS name or just name
@@ -868,8 +897,21 @@ func (p *Parser) parseGroupByList() (*nodes.List, error) {
 	return list, nil
 }
 
-// parseGroupByItem parses a single GROUP BY item: expression, ROLLUP(...), CUBE(...),
-// or GROUPING SETS(...).
+// parseGroupByItem parses a single GROUP BY item: an expression, ROLLUP(...),
+// CUBE(...), or GROUPING SETS(...).
+//
+//	rollup_cube_clause:
+//	    { ROLLUP | CUBE } ( grouping_expression_list )
+//
+//	grouping_sets_clause:
+//	    GROUPING SETS
+//	    ( { rollup_cube_clause | grouping_expression_list }
+//	      [, { rollup_cube_clause | grouping_expression_list } ]... )
+//
+// An empty ( ) is a grouping set, and a whole GROUP BY list, but not an
+// element of ROLLUP or CUBE (ORA-00936 at its ')'). GROUPING SETS do not
+// nest (ORA-00907 at the inner SETS), and the GROUPING function groups
+// nothing (ORA-00934).
 func (p *Parser) parseGroupByItem() (nodes.Node, error) {
 	if err := p.enterNesting(); err != nil {
 		return nil, err
@@ -877,77 +919,99 @@ func (p *Parser) parseGroupByItem() (nodes.Node, error) {
 	defer p.leaveNesting()
 	start := p.pos()
 
-	switch p.cur.Type {
-	case kwROLLUP:
-		p.advance() // consume ROLLUP
-		rc := &nodes.RollupClause{Loc: nodes.Loc{Start: start}}
-		if p.cur.Type == '(' {
-			p.advance()
-			var parseErr966 error
-			rc.Args, parseErr966 = p.parseExprList()
-			if parseErr966 != nil {
-				return nil, parseErr966
-			}
-			if p.cur.Type == ')' {
-				p.advance()
-			}
+	switch {
+	case (p.cur.Type == kwROLLUP || p.cur.Type == kwCUBE) && p.peekNext().Type == '(':
+		rollup := p.cur.Type == kwROLLUP
+		p.advance() // consume ROLLUP or CUBE
+		args, err := p.parseSelectGroupingList()
+		if err != nil {
+			return nil, err
 		}
-		rc.Loc.End = p.prev.End
-		return rc, nil
-
-	case kwCUBE:
-		p.advance() // consume CUBE
-		cc := &nodes.CubeClause{Loc: nodes.Loc{Start: start}}
-		if p.cur.Type == '(' {
-			p.advance()
-			var parseErr967 error
-			cc.Args, parseErr967 = p.parseExprList()
-			if parseErr967 != nil {
-				return nil, parseErr967
-			}
-			if p.cur.Type == ')' {
-				p.advance()
-			}
+		if rollup {
+			return &nodes.RollupClause{Args: args, Loc: nodes.Loc{Start: start, End: p.prev.End}}, nil
 		}
-		cc.Loc.End = p.prev.End
-		return cc, nil
+		return &nodes.CubeClause{Args: args, Loc: nodes.Loc{Start: start, End: p.prev.End}}, nil
 
-	case kwGROUPING:
-		// GROUPING SETS(...)
-		if p.peekNext().Type == kwSETS {
-			p.advance() // consume GROUPING
-			p.advance() // consume SETS
-			gs := &nodes.GroupingSetsClause{Loc: nodes.Loc{Start: start}}
-			if p.cur.Type == '(' {
+	case p.cur.Type == kwGROUPING && p.peekNext().Type == kwSETS:
+		p.advance() // consume GROUPING
+		p.advance() // consume SETS
+		gs := &nodes.GroupingSetsClause{Loc: nodes.Loc{Start: start}}
+		if p.cur.Type != '(' {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		gs.Sets = &nodes.List{}
+		for {
+			var item nodes.Node
+			switch {
+			case p.cur.Type == kwGROUPING && p.peekNext().Type == kwSETS:
 				p.advance()
-				gs.Sets = &nodes.List{}
-				for {
-					item, parseErr968 := p.parseGroupByItem()
-					if parseErr968 != nil {
-						return nil, parseErr968
-					}
-					if item == nil {
-						break
-					}
-					gs.Sets.Items = append(gs.Sets.Items, item)
-					if p.cur.Type != ',' {
-						break
-					}
-					p.advance()
+				return nil, p.syntaxErrorAtCur()
+			case p.cur.Type == '(' && p.peekNext().Type == ')':
+				parenStart := p.pos()
+				p.advance()
+				p.advance()
+				item = &nodes.ParenExpr{Loc: nodes.Loc{Start: parenStart, End: p.prev.End}}
+			default:
+				var err error
+				if item, err = p.parseGroupByItem(); err != nil {
+					return nil, err
 				}
-				if p.cur.Type == ')' {
-					p.advance()
+				if item == nil {
+					return nil, p.syntaxErrorAtCur()
 				}
 			}
-			gs.Loc.End = p.prev.End
-			return gs, nil
+			gs.Sets.Items = append(gs.Sets.Items, item)
+			if p.cur.Type != ',' {
+				break
+			}
+			p.advance()
 		}
-		// GROUPING(expr) is a function call, fall through to parseExpr
-		return p.parseExpr()
+		if p.cur.Type != ')' {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		gs.Loc.End = p.prev.End
+		return gs, nil
 
-	default:
-		return p.parseExpr()
+	case p.cur.Type == kwGROUPING && p.peekNext().Type == '(':
+		return nil, p.syntaxErrorAtCur()
 	}
+	return p.parseExpr()
+}
+
+// parseSelectGroupingList parses the parenthesized grouping expression list
+// of ROLLUP or CUBE: expressions, each maybe a parenthesized list, never an
+// empty one.
+func (p *Parser) parseSelectGroupingList() (*nodes.List, error) {
+	if p.cur.Type != '(' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+	args := &nodes.List{}
+	for {
+		if p.cur.Type == '(' && p.peekNext().Type == ')' {
+			p.advance()
+			return nil, p.syntaxErrorAtCur()
+		}
+		e, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		if e == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		args.Items = append(args.Items, e)
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+	if p.cur.Type != ')' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+	return args, nil
 }
 
 // parseFromClause parses a FROM clause (comma-separated table references).
@@ -1090,8 +1154,14 @@ func (p *Parser) parseTableRef() (nodes.TableExpr, error) {
 		Loc:  nodes.Loc{Start: start},
 	}
 
-	// Partition extension clause: PARTITION (name) | PARTITION FOR (key) | SUBPARTITION ...
-	if p.cur.Type == kwPARTITION || p.cur.Type == kwSUBPARTITION {
+	// A table function called without TABLE (Oracle 23ai): name ( args ).
+	if p.cur.Type == '(' && name.DBLink == "" {
+		return p.parseSelectTableFunctionRef(name, start)
+	}
+
+	// Partition extension clause: PARTITION (name) | PARTITION FOR (key) |
+	// SUBPARTITION ..., not the PARTITION BY of a partitioned outer join.
+	if (p.cur.Type == kwPARTITION || p.cur.Type == kwSUBPARTITION) && p.peekNext().Type != kwBY {
 		var parseErr972 error
 		tr.PartitionExt, parseErr972 = p.parsePartitionExtClause(true)
 		if parseErr972 !=
@@ -1128,6 +1198,11 @@ func (p *Parser) parseTableRef() (nodes.TableExpr, error) {
 	// SAMPLE opens the clause before ( or BLOCK; otherwise Oracle 23ai reads
 	// it as the table's alias (FROM t SAMPLE parses, FROM t SAMPLE 1 is
 	// ORA-03047 at the 1).
+	// A DML statement's FROM samples no table, nor takes SAMPLE as an alias
+	// (ORA-03049 at SAMPLE).
+	if p.cur.Type == kwSAMPLE && p.dmlFromClause {
+		return nil, p.syntaxErrorAtCur()
+	}
 	if p.cur.Type == kwSAMPLE && !p.isSelectSampleClauseAhead() {
 		alias, err := p.parseAlias()
 		if err != nil {
@@ -1153,6 +1228,11 @@ func (p *Parser) parseTableRef() (nodes.TableExpr, error) {
 		return p.parsePivotSuffix(tr)
 	}
 
+	// Nor does it match patterns: Oracle 23ai fails in its own code on
+	// MATCH_RECOGNIZE there.
+	if p.isIdentLikeStr("MATCH_RECOGNIZE") && p.dmlFromClause {
+		return nil, p.syntaxErrorAtCur()
+	}
 	if p.isIdentLikeStr("MATCH_RECOGNIZE") {
 		// The clause wraps the table it reads, so it starts where the table
 		// does, and the table ends before it.
@@ -1196,6 +1276,15 @@ func (p *Parser) isTableAliasCandidate() bool {
 	if p.cur.Type == tokQIDENT {
 		return true
 	}
+	// LOG ERRORS opens a DML statement's error_logging_clause.
+	if p.cur.Type == kwLOG && p.peekNext().Type == kwERRORS {
+		return false
+	}
+	// PIVOT and UNPIVOT name an alias where no clause of theirs follows:
+	// FROM t PIVOT parses on Oracle 23ai.
+	if p.cur.Type == kwPIVOT && !p.pivotClauseAhead() || p.cur.Type == kwUNPIVOT && !p.unpivotClauseAhead() {
+		return true
+	}
 	if p.cur.Type == tokIDENT {
 		switch strings.ToUpper(p.cur.Str) {
 		case "WINDOW", "QUALIFY", "MATCH_RECOGNIZE", "CONTAINERS", "SHARDS",
@@ -1230,13 +1319,17 @@ func (p *Parser) parseSubqueryRef(start int) (nodes.TableExpr, error) {
 		return nil, parseErr979
 	}
 
-	if p.cur.Type == ')' {
-		p.advance()
-	}
-
 	ref := &nodes.SubqueryRef{
 		Subquery: subSel,
 		Loc:      nodes.Loc{Start: start},
+	}
+	// ( subquery [ subquery_restriction_clause ] )
+	if ref.Restriction, parseErr979 = p.parseDMLSubqueryRestriction(subSel); parseErr979 != nil {
+		return nil, parseErr979
+	}
+
+	if p.cur.Type == ')' {
+		p.advance()
 	}
 
 	if p.pivotClauseAhead() || p.unpivotClauseAhead() {
@@ -1782,48 +1875,52 @@ func (p *Parser) parseHierarchicalClause() (*nodes.HierarchicalClause, error) {
 	hc := &nodes.HierarchicalClause{
 		Loc: nodes.Loc{Start: start},
 	}
+	startWith := func() error {
+		p.advance() // START
+		if p.cur.Type != kwWITH {
+			return p.syntaxErrorAtCur()
+		}
+		p.advance()
+		var err error
+		if hc.StartWith, err = p.parseExpr(); err != nil {
+			return err
+		}
+		if hc.StartWith == nil {
+			return p.syntaxErrorAtCur()
+		}
+		return nil
+	}
 
 	// START WITH first, then CONNECT BY
 	if p.cur.Type == kwSTART {
-		p.advance() // START
-		if p.cur.Type == kwWITH {
-			p.advance() // WITH
-		}
-		var parseErr1009 error
-		hc.StartWith, parseErr1009 = p.parseExpr()
-		if parseErr1009 != nil {
-			return nil, parseErr1009
+		if err := startWith(); err != nil {
+			return nil, err
 		}
 	}
 
 	if p.cur.Type == kwCONNECT {
 		p.advance() // CONNECT
-		if p.cur.Type == kwBY {
-			p.advance() // BY
+		if p.cur.Type != kwBY {
+			return nil, p.syntaxErrorAtCur()
 		}
+		p.advance()
 		if p.isIdentLikeStr("NOCYCLE") {
 			hc.IsNocycle = true
 			p.advance()
 		}
-		var parseErr1010 error
-		hc.ConnectBy, parseErr1010 = p.parseExpr()
-		if parseErr1010 !=
-
-			// START WITH may come after CONNECT BY
-			nil {
-			return nil, parseErr1010
+		var err error
+		if hc.ConnectBy, err = p.parseExpr(); err != nil {
+			return nil, err
+		}
+		if hc.ConnectBy == nil {
+			return nil, p.syntaxErrorAtCur()
 		}
 	}
 
+	// START WITH may come after CONNECT BY
 	if hc.StartWith == nil && p.cur.Type == kwSTART {
-		p.advance()
-		if p.cur.Type == kwWITH {
-			p.advance()
-		}
-		var parseErr1011 error
-		hc.StartWith, parseErr1011 = p.parseExpr()
-		if parseErr1011 != nil {
-			return nil, parseErr1011
+		if err := startWith(); err != nil {
+			return nil, err
 		}
 	}
 
@@ -1907,9 +2004,11 @@ func (p *Parser) parseForUpdateClause() (*nodes.ForUpdateClause, error) {
 	start := p.pos()
 	p.advance() // consume FOR
 
-	if p.cur.Type == kwUPDATE {
-		p.advance()
+	// FOR takes UPDATE (ORA-02000).
+	if p.cur.Type != kwUPDATE {
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance()
 
 	fu := &nodes.ForUpdateClause{
 		Loc: nodes.Loc{Start: start},
@@ -1939,12 +2038,16 @@ func (p *Parser) parseForUpdateClause() (*nodes.ForUpdateClause, error) {
 		if parseErr1015 != nil {
 			return nil, parseErr1015
 		}
+		if fu.Wait == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 	case kwSKIP:
 		p.advance()
-		if p.cur.Type == kwLOCKED {
-			fu.SkipLocked = true
-			p.advance()
+		if p.cur.Type != kwLOCKED {
+			return nil, p.syntaxErrorAtCur()
 		}
+		fu.SkipLocked = true
+		p.advance()
 	}
 
 	fu.Loc.End = p.prev.End
@@ -1980,9 +2083,11 @@ func (p *Parser) parseFetchFirstClause() (*nodes.FetchFirstClause, error) {
 			return nil, p.syntaxErrorAtCur()
 		}
 
-		if p.cur.Type == kwROW || p.cur.Type == kwROWS {
-			p.advance()
+		// ROW | ROWS (ORA-02000)
+		if p.cur.Type != kwROW && p.cur.Type != kwROWS {
+			return nil, p.syntaxErrorAtCur()
 		}
+		p.advance()
 	}
 
 	// FETCH FIRST|NEXT
@@ -2058,6 +2163,19 @@ func (p *Parser) parseWithClause() (*nodes.WithClause, error) {
 		p.advance()
 	}
 
+	// plsql_declarations: FUNCTION and PROCEDURE definitions, then the
+	// query or more elements.
+	if p.cur.Type == kwFUNCTION || p.cur.Type == kwPROCEDURE {
+		var err error
+		if wc.PLSQLDeclarations, err = p.parseSelectWithDeclarations(); err != nil {
+			return nil, err
+		}
+		if p.cur.Type == kwSELECT || p.cur.Type == '(' {
+			wc.Loc.End = p.prev.End
+			return wc, nil
+		}
+	}
+
 	for {
 		cte, parseErr1018 := p.parseCTE()
 		if parseErr1018 != nil {
@@ -2095,10 +2213,12 @@ func (p *Parser) parseCTE() (*nodes.CTE, error) {
 		Loc:  nodes.Loc{Start: start},
 	}
 
-	// Optional column list
+	// Optional column list, each name once (ORA-32049 at its ')').
 	if p.cur.Type == '(' {
 		p.advance()
 		cte.Columns = &nodes.List{}
+		seen := map[string]bool{}
+		dup := false
 		for {
 			if !p.isIdentLike() {
 				return nil, p.syntaxErrorAtCur()
@@ -2107,13 +2227,15 @@ func (p *Parser) parseCTE() (*nodes.CTE, error) {
 			if parseErr1020 != nil {
 				return nil, parseErr1020
 			}
+			dup = dup || seen[col]
+			seen[col] = true
 			cte.Columns.Items = append(cte.Columns.Items, &nodes.String{Str: col})
 			if p.cur.Type != ',' {
 				break
 			}
 			p.advance()
 		}
-		if p.cur.Type != ')' {
+		if p.cur.Type != ')' || dup {
 			return nil, p.syntaxErrorAtCur()
 		}
 		p.advance()
@@ -2123,6 +2245,7 @@ func (p *Parser) parseCTE() (*nodes.CTE, error) {
 	if p.cur.Type != kwAS {
 		return nil, p.syntaxErrorAtCur()
 	}
+	asTok := p.cur
 	p.advance()
 	if p.cur.Type != '(' {
 		return nil, p.syntaxErrorAtCur()
@@ -2140,6 +2263,12 @@ func (p *Parser) parseCTE() (*nodes.CTE, error) {
 		return nil, p.syntaxErrorAtCur()
 	}
 	p.advance()
+
+	// SEARCH and CYCLE belong to a recursive WITH element, which names its
+	// columns (ORA-32488 at its AS).
+	if (p.isIdentLikeStr("SEARCH") || p.cur.Type == kwCYCLE) && cte.Columns == nil {
+		return nil, p.syntaxErrorAtTok(asTok)
+	}
 
 	// SEARCH { BREADTH FIRST | DEPTH FIRST } BY col [, ...] SET ordering_column
 	if p.isIdentLikeStr("SEARCH") {
@@ -2939,94 +3068,41 @@ func (p *Parser) parseModelCellRef() (nodes.ExprNode, *nodes.ModelCellReference,
 func (p *Parser) parseWindowClause() ([]*nodes.WindowDef, error) {
 	p.advance() // consume WINDOW (soft keyword)
 
+	// Each window is named once (ORA-32782), and a window it builds on is
+	// one named before it (ORA-32784).
 	var defs []*nodes.WindowDef
+	defined := map[string]*nodes.WindowSpec{}
 	for {
-		if !p.isIdentLike() {
-			break
-		}
 		start := p.pos()
-		name, parseErr1073 := p.parseIdentifier()
-		if parseErr1073 != nil {
-			return nil, parseErr1073
+		nameTok := p.cur
+		if !p.isIdentLike() {
+			return nil, p.syntaxErrorAtCur()
+		}
+		if err := p.syntaxErrorIfReservedIdentifier(); err != nil {
+			return nil, err
+		}
+		name, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		if _, dup := defined[name]; dup {
+			return nil, p.syntaxErrorAtTok(nameTok)
 		}
 		wd := &nodes.WindowDef{
 			Name: name,
 			Loc:  nodes.Loc{Start: start},
 		}
-
-		// AS ( window_specification )
-		if p.cur.Type == kwAS {
-			p.advance()
+		if p.cur.Type != kwAS {
+			return nil, p.syntaxErrorAtCur()
 		}
-		if p.cur.Type == '(' {
-			p.advance()
-			ws := &nodes.WindowSpec{Loc: nodes.Loc{Start: p.pos()}}
-
-			// [ existing_window_name ] — only if followed by something other than BY
-			if p.isIdentLike() && p.peekNext().Type != kwBY &&
-				p.cur.Type != kwPARTITION && p.cur.Type != kwORDER &&
-				p.cur.Type != kwROWS && p.cur.Type != kwRANGE && p.cur.Type != kwGROUPS {
-				var parseErr1074 error
-				ws.WindowName, parseErr1074 = p.parseIdentifier()
-				if parseErr1074 !=
-
-					// PARTITION BY
-					nil {
-					return nil, parseErr1074
-				}
-			}
-
-			if p.cur.Type == kwPARTITION {
-				p.advance()
-				if p.cur.Type == kwBY {
-					p.advance()
-				}
-				ws.PartitionBy = &nodes.List{}
-				for {
-					expr, parseErr1075 := p.parseExpr()
-					if parseErr1075 != nil {
-						return nil, parseErr1075
-					}
-					if expr != nil {
-						ws.PartitionBy.Items = append(ws.PartitionBy.Items, expr)
-					}
-					if p.cur.Type != ',' {
-						break
-					}
-					p.advance()
-				}
-			}
-
-			// ORDER BY
-			if p.cur.Type == kwORDER {
-				p.advance()
-				if p.cur.Type == kwBY {
-					p.advance()
-				}
-				var parseErr1076 error
-				ws.OrderBy, parseErr1076 = p.parseOrderByList()
-				if parseErr1076 !=
-
-					// Windowing clause: ROWS | RANGE | GROUPS
-					nil {
-					return nil, parseErr1076
-				}
-			}
-
-			if p.cur.Type == kwROWS || p.cur.Type == kwRANGE || p.cur.Type == kwGROUPS {
-				var parseErr1077 error
-				ws.Frame, parseErr1077 = p.parseWindowFrame()
-				if parseErr1077 != nil {
-					return nil, parseErr1077
-				}
-			}
-
-			if p.cur.Type == ')' {
-				p.advance()
-			}
-			ws.Loc.End = p.prev.End
-			wd.Spec = ws
+		p.advance()
+		if p.cur.Type != '(' {
+			return nil, p.syntaxErrorAtCur()
 		}
+		if wd.Spec, err = p.parseSelectWindowSpec(nameTok, defined); err != nil {
+			return nil, err
+		}
+		defined[name] = wd.Spec
 
 		wd.Loc.End = p.prev.End
 		defs = append(defs, wd)
@@ -3084,6 +3160,10 @@ func (p *Parser) parsePartitionExtClause(emptyAtOpen bool) (*nodes.PartitionExtC
 		}
 	case p.cur.Type == ')' && emptyAtOpen:
 		return nil, p.syntaxErrorAtTok(open)
+	case p.cur.Type == tokICONST:
+		// Oracle 23ai parses a number as the name and looks it up later.
+		pe.Name = p.cur.Str
+		p.advance()
 	default:
 		if !p.isIdentLike() {
 			return nil, p.syntaxErrorAtCur()

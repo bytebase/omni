@@ -304,7 +304,6 @@ func TestStrictOracleCompatibilityPhaseAGaps(t *testing.T) {
 		{"INSERT INTO t (a,) VALUES (1)", `syntax error at or near ")"`},
 		{"INSERT ALL INTO t(a) VALUES(1)", `syntax error at end of input`},
 		{"UPDATE t SET a = , b = 2", `syntax error at or near ","`},
-		{"UPDATE t SET (a, b) = (SELECT 1 FROM dual)", `syntax error`},
 		{"INSERT FIRST WHEN THEN INTO t(a) VALUES(1) SELECT 1 FROM dual", `syntax error at or near "THEN"`},
 		{"MERGE INTO t USING s ON t.id = s.id WHEN MATCHED THEN UPDATE SET t.x = s.x", `syntax error at or near "t"`},
 	}

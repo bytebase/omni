@@ -130,7 +130,9 @@ func (p *Parser) parseUpdateStmt() (*nodes.UpdateStmt, error) {
 	if p.cur.Type == kwFROM {
 		p.advance()
 		var parseErr1133 error
+		p.dmlFromClause = true
 		stmt.FromClause, parseErr1133 = p.parseFromClause()
+		p.dmlFromClause = false
 		if parseErr1133 != nil {
 			return nil, parseErr1133
 		}
@@ -202,9 +204,44 @@ func (p *Parser) parseSetClauses() (*nodes.List, error) {
 	return list, nil
 }
 
-// parseSetClause parses a single SET clause: col = expr | (col1,col2) = (subquery).
+// parseSetClause parses a single SET clause: col = expr | (col1,col2) =
+// (subquery) | VALUE (t_alias) = { expr | (subquery) }.
 func (p *Parser) parseSetClause() (*nodes.SetClause, error) {
 	start := p.pos()
+
+	// VALUE ( t_alias ) sets a whole row of an object table.
+	if p.isKeywordStr("VALUE") && p.peekNext().Type == '(' {
+		p.advance() // consume VALUE
+		p.advance() // consume (
+		if !p.isIdentLike() {
+			return nil, p.syntaxErrorAtCur()
+		}
+		alias, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		if p.cur.Type != ')' {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		if p.cur.Type != '=' {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		sc := &nodes.SetClause{ValueOf: alias, Loc: nodes.Loc{Start: start}}
+		if p.cur.Type == '(' && p.peekNext().Type == ')' {
+			p.advance()
+			return nil, p.syntaxErrorAtCur()
+		}
+		if sc.Value, err = p.parseExpr(); err != nil {
+			return nil, err
+		}
+		if sc.Value == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		sc.Loc.End = p.prev.End
+		return sc, nil
+	}
 
 	// Multi-column: (col1, col2) = (subquery)
 	if p.cur.Type == '(' {
@@ -250,9 +287,6 @@ func (p *Parser) parseSetClause() (*nodes.SetClause, error) {
 			return nil, parseErr1140
 		}
 		if sc.Value == nil {
-			return nil, p.syntaxErrorAtCur()
-		}
-		if targetCount, valueCount, ok := countSubquerySetArity(sc); ok && targetCount != valueCount {
 			return nil, p.syntaxErrorAtCur()
 		}
 		sc.Loc.End = p.prev.End
@@ -411,7 +445,7 @@ func (p *Parser) parseDMLSubqueryTarget(start int) (*nodes.SubqueryRef, error) {
 		Loc:      nodes.Loc{Start: start},
 	}
 	var parseErr1153 error
-	ref.Restriction, parseErr1153 = p.parseDMLSubqueryRestriction()
+	ref.Restriction, parseErr1153 = p.parseDMLSubqueryRestriction(parsedSubquery)
 	if parseErr1153 != nil {
 		return nil, parseErr1153
 	}
@@ -446,13 +480,22 @@ func (p *Parser) parseDMLSubqueryTarget(start int) (*nodes.SubqueryRef, error) {
 	return ref, nil
 }
 
-func (p *Parser) parseDMLSubqueryRestriction() (*nodes.SubqueryRestrictionClause, error) {
+// The query it restricts reads a FROM: Oracle 23ai fails at the WITH after
+// a query block without one (ORA-00923).
+func (p *Parser) parseDMLSubqueryRestriction(query *nodes.SelectStmt) (*nodes.SubqueryRestrictionClause, error) {
 	if p.cur.Type != kwWITH {
 		return nil, nil
 	}
 	next := p.peekNext()
 	if next.Type != kwREAD && next.Type != kwCHECK {
 		return nil, nil
+	}
+	last := query
+	for last != nil && last.Rarg != nil {
+		last = last.Rarg
+	}
+	if last != nil && last.Larg == nil && (last.FromClause == nil || last.FromClause.Len() == 0) {
+		return nil, p.syntaxErrorAtCur()
 	}
 	start := p.pos()
 	p.advance() // consume WITH
@@ -501,49 +544,6 @@ func syncDeleteLegacyTarget(stmt *nodes.DeleteStmt) {
 	stmt.PartitionExt = target.PartitionExt
 	stmt.Dblink = target.Dblink
 	stmt.Alias = target.Alias
-}
-
-func countSubquerySetArity(sc *nodes.SetClause) (targetCount int, valueCount int, ok bool) {
-	if sc == nil || sc.Columns == nil {
-		return 0, 0, false
-	}
-	subquery, ok := sc.Value.(*nodes.SubqueryExpr)
-	if !ok {
-		return 0, 0, false
-	}
-	selectStmt, ok := subquery.Subquery.(*nodes.SelectStmt)
-	if !ok {
-		return 0, 0, false
-	}
-	// A parenthesized operand followed by a set operator or ORDER BY is a
-	// wrapper; the query in its Larg gives the columns. A * expands to
-	// columns only the catalog knows.
-	for selectStmt.Larg != nil {
-		selectStmt = selectStmt.Larg
-	}
-	if selectStmt.TargetList == nil || selectListHasStar(selectStmt.TargetList) {
-		return 0, 0, false
-	}
-	return sc.Columns.Len(), selectStmt.TargetList.Len(), true
-}
-
-// selectListHasStar reports whether list selects * or table.*.
-func selectListHasStar(list *nodes.List) bool {
-	for _, item := range list.Items {
-		target, ok := item.(*nodes.ResTarget)
-		if !ok {
-			continue
-		}
-		switch e := target.Expr.(type) {
-		case *nodes.Star:
-			return true
-		case *nodes.ColumnRef:
-			if e.Column == "*" {
-				return true
-			}
-		}
-	}
-	return false
 }
 
 // parseDeleteStmt parses a DELETE statement.
@@ -628,6 +628,22 @@ func (p *Parser) parseDeleteStmt() (*nodes.DeleteStmt, error) {
 		return nil, p.syntaxErrorAtCur()
 	}
 	syncDeleteLegacyTarget(stmt)
+
+	// from_using_clause: FROM table references joined to the target, as
+	// UPDATE's (Oracle 23ai).
+	if p.cur.Type == kwFROM {
+		p.advance()
+		var err error
+		p.dmlFromClause = true
+		stmt.FromClause, err = p.parseFromClause()
+		p.dmlFromClause = false
+		if err != nil {
+			return nil, err
+		}
+		if stmt.FromClause.Len() == 0 {
+			return nil, p.syntaxErrorAtCur()
+		}
+	}
 
 	if p.cur.Type == kwWHERE {
 		p.advance()

@@ -329,11 +329,12 @@ func (p *Parser) parseCallStmt() (nodes.StmtNode, error) {
 		}
 	}
 
-	// A routine takes its arguments in parentheses, which it needs even
-	// without any (ORA-06576 on Oracle 23ai for CALL k.p), in positional,
-	// named, or mixed notation. No positional argument follows a named one
+	// A routine takes its arguments in parentheses, in positional, named,
+	// or mixed notation. No positional argument follows a named one
 	// (PLS-00312), and none is left out (ORA-00936 for (1,) and (,1)).
-	if stmt.Name != nil && stmt.Name.Name != "" && p.cur.Type != '(' {
+	// Oracle 23ai parses CALL k.p without them and refuses it after the
+	// parse (ORA-06576); an object's method takes them.
+	if stmt.Object != nil && p.cur.Type != '(' {
 		return nil, p.syntaxErrorAtCur()
 	}
 	if p.cur.Type == '(' {
@@ -381,6 +382,22 @@ func (p *Parser) parseCallStmt() (nodes.StmtNode, error) {
 				return nil, p.syntaxErrorAtCur()
 			}
 			return nil, p.syntaxErrorAtNode(stmt.Into)
+		}
+		// [ [ INDICATOR ] :indicator_variable ]
+		indicator := p.isKeywordStr("INDICATOR")
+		if indicator {
+			p.advance()
+		}
+		if indicator || p.cur.Type == tokBIND || p.cur.Type == ':' {
+			if stmt.Indicator, parseErr1155 = p.parseExpr(); parseErr1155 != nil {
+				return nil, parseErr1155
+			}
+			if _, ok := stmt.Indicator.(*nodes.BindVariable); !ok {
+				if stmt.Indicator == nil {
+					return nil, p.syntaxErrorAtCur()
+				}
+				return nil, p.syntaxErrorAtNode(stmt.Indicator)
+			}
 		}
 	}
 
