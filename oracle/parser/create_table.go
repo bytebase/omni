@@ -112,8 +112,11 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 
 	// PUBLIC (for CREATE PUBLIC SYNONYM / DATABASE LINK)
 	public := false
+	var publicTok *Token
 	if p.cur.Type == kwPUBLIC {
 		public = true
+		tok := p.cur
+		publicTok = &tok
 		p.advance()
 	}
 
@@ -159,6 +162,11 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 			edition = &editionTok
 		}
 		return p.parseCreateLibraryStmt(start, orReplace, edition)
+	}
+
+	// CONTEXT, RESTORE POINT, ROLLBACK SEGMENT, INMEMORY JOIN GROUP
+	if stmt, ok, err := p.parseCreateAdminTail(start, orReplace, ifNotExists, ifTok, publicTok); ok {
+		return stmt, err
 	}
 
 	switch p.cur.Type {
@@ -216,7 +224,7 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 		}
 		return p.parseCreateJsonDualityViewStmt(start, orReplace, false)
 	case kwUSER, kwROLE, kwPROFILE,
-		kwTABLESPACE, kwDIRECTORY, kwCONTEXT,
+		kwTABLESPACE, kwDIRECTORY,
 		kwCLUSTER, kwJAVA, kwSCHEMA:
 		return p.parseCreateAdminObject(start, orReplace)
 	case kwTEMPORARY:
@@ -304,13 +312,6 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 					p.advance() // consume INDEX
 				}
 				return p.parseCreateVectorIndexStmt(start, ifNotExists)
-			case "ROLLBACK":
-				// CREATE [PUBLIC] ROLLBACK SEGMENT
-				p.advance() // consume ROLLBACK
-				if p.isIdentLike() && p.cur.Str == "SEGMENT" {
-					p.advance() // consume SEGMENT
-				}
-				return p.parseCreateRollbackSegmentStmt(start, public)
 			case "MLE":
 				// CREATE MLE { ENV | MODULE } takes IF NOT EXISTS after its
 				// kind, not before MLE (ORA-00901 on Oracle 23ai, at the IF).

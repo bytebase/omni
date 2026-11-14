@@ -113,14 +113,14 @@ reject@0	reject@0	engine	statement/alterIndextype!swap	ALTERNATE INDEXTYPE a COM
 accept	reject@32	engine	statement/alterInmemoryJoinGroup	ALTER INMEMORY JOIN GROUP a ADD(a(a))
 reject@0	reject@0	engine	statement/alterInmemoryJoinGroup!drop-1	INMEMORY JOIN GROUP a ADD(a(a))
 reject@6	reject@6	engine	statement/alterInmemoryJoinGroup!drop-2	ALTER JOIN GROUP a ADD(a(a))
-accept	reject@15	engine	statement/alterInmemoryJoinGroup!drop-3	ALTER INMEMORY GROUP a ADD(a(a))
-accept	reject@20	engine	statement/alterInmemoryJoinGroup!drop-4	ALTER INMEMORY JOIN a ADD(a(a))
-accept	reject@26	engine	statement/alterInmemoryJoinGroup!drop-5	ALTER INMEMORY JOIN GROUP ADD(a(a))
-accept	reject@27	engine	statement/alterInmemoryJoinGroup!drop-6	ALTER INMEMORY JOIN GROUP a(a(a))
+reject@15	reject@15	engine	statement/alterInmemoryJoinGroup!drop-3	ALTER INMEMORY GROUP a ADD(a(a))
+reject@20	reject@20	engine	statement/alterInmemoryJoinGroup!drop-4	ALTER INMEMORY JOIN a ADD(a(a))
+reject@26	reject@26	engine	statement/alterInmemoryJoinGroup!drop-5	ALTER INMEMORY JOIN GROUP ADD(a(a))
+reject@27	reject@27	engine	statement/alterInmemoryJoinGroup!drop-6	ALTER INMEMORY JOIN GROUP a(a(a))
 reject@36	reject@32	engine	statement/alterInmemoryJoinGroup!drop-7	ALTER INMEMORY JOIN GROUP a ADD a(a))
-accept	reject@32	engine	statement/alterInmemoryJoinGroup!drop-8	ALTER INMEMORY JOIN GROUP a ADD((a))
+reject@32	reject@32	engine	statement/alterInmemoryJoinGroup!drop-8	ALTER INMEMORY JOIN GROUP a ADD((a))
 reject@36	reject@34	engine	statement/alterInmemoryJoinGroup!drop-9	ALTER INMEMORY JOIN GROUP a ADD(a a))
-accept	reject@34	engine	statement/alterInmemoryJoinGroup!drop-10	ALTER INMEMORY JOIN GROUP a ADD(a())
+reject@34	reject@34	engine	statement/alterInmemoryJoinGroup!drop-10	ALTER INMEMORY JOIN GROUP a ADD(a())
 reject@36	reject@32	engine	statement/alterInmemoryJoinGroup!drop-11	ALTER INMEMORY JOIN GROUP a ADD(a(a)
 reject@38	reject@38	engine	statement/alterInmemoryJoinGroup!insert	ALTER INMEMORY JOIN GROUP a ADD(a(a)) zzz
 reject@0	reject@0	engine	statement/alterInmemoryJoinGroup!swap	ALTERNATE INMEMORY JOIN GROUP a ADD(a(a))
@@ -231,12 +231,12 @@ reject@0	reject@0	engine	statement/alterRole!swap	ALTERNATE ROLE a NOT IDENTIFIE
 accept	accept	engine	statement/alterRollbackSegment	ALTER ROLLBACK SEGMENT a ONLINE
 reject@9	reject@9	engine	statement/alterRollbackSegment!drop-1	ROLLBACK SEGMENT a ONLINE
 reject@6	reject@6	engine	statement/alterRollbackSegment!drop-2	ALTER SEGMENT a ONLINE
-accept	reject@15	engine	statement/alterRollbackSegment!drop-3	ALTER ROLLBACK a ONLINE
-accept	reject@23	engine	statement/alterRollbackSegment!drop-4	ALTER ROLLBACK SEGMENT ONLINE
-accept	reject@24	engine	statement/alterRollbackSegment!drop-5	ALTER ROLLBACK SEGMENT a
-accept	reject@32	engine	statement/alterRollbackSegment!insert	ALTER ROLLBACK SEGMENT a ONLINE zzz
+reject@15	reject@15	engine	statement/alterRollbackSegment!drop-3	ALTER ROLLBACK a ONLINE
+reject@23	reject@23	engine	statement/alterRollbackSegment!drop-4	ALTER ROLLBACK SEGMENT ONLINE
+reject@24	reject@24	engine	statement/alterRollbackSegment!drop-5	ALTER ROLLBACK SEGMENT a
+reject@32	reject@32	engine	statement/alterRollbackSegment!insert	ALTER ROLLBACK SEGMENT a ONLINE zzz
 reject@0	reject@0	engine	statement/alterRollbackSegment!swap	ALTERNATE ROLLBACK SEGMENT a ONLINE
-accept	reject@16	engine	statement/alterSequence	ALTER SEQUENCE a
+reject@16	reject@16	engine	statement/alterSequence	ALTER SEQUENCE a
 reject@0	reject@0	engine	statement/alterSequence!drop-1	SEQUENCE a
 reject@14	reject@14	engine	statement/alterSequence!drop-3	ALTER SEQUENCE
 reject@17	reject@17	engine	statement/alterSequence!insert	ALTER SEQUENCE a zzz
@@ -406,10 +406,10 @@ reject@0	reject@0	engine	statement/createCluster!swap	CREATE_FILE_DEST CLUSTER a
 accept	accept	engine	statement/createContext	CREATE CONTEXT a USING a
 reject@0	reject@0	engine	statement/createContext!drop-1	CONTEXT a USING a
 reject@7	reject@7	engine	statement/createContext!drop-2	CREATE a USING a
-accept	reject@21	engine	statement/createContext!drop-3	CREATE CONTEXT USING a
-accept	reject@17	engine	statement/createContext!drop-4	CREATE CONTEXT a a
-accept	reject@22	engine	statement/createContext!drop-5	CREATE CONTEXT a USING
-accept	reject@25	engine	statement/createContext!insert	CREATE CONTEXT a USING a zzz
+reject@21	reject@21	engine	statement/createContext!drop-3	CREATE CONTEXT USING a
+reject@17	reject@17	engine	statement/createContext!drop-4	CREATE CONTEXT a a
+reject@22	reject@22	engine	statement/createContext!drop-5	CREATE CONTEXT a USING
+reject@25	reject@25	engine	statement/createContext!insert	CREATE CONTEXT a USING a zzz
 reject@0	reject@0	engine	statement/createContext!swap	CREATE_FILE_DEST CONTEXT a USING a
 accept	accept	engine	statement/createDatabaseLink	CREATE DATABASE LINK a USING 's'
 reject@0	reject@0	engine	statement/createDatabaseLink!drop-1	DATABASE LINK a USING 's'
@@ -521,13 +521,13 @@ reject@0	reject@0	engine	statement/createIndextype!swap	CREATE_FILE_DEST INDEXTY
 accept	reject@29	engine	statement/createInmemoryJoinGroup	CREATE INMEMORY JOIN GROUP a(a(a))
 reject@0	reject@0	engine	statement/createInmemoryJoinGroup!drop-1	INMEMORY JOIN GROUP a(a(a))
 reject@7	reject@7	engine	statement/createInmemoryJoinGroup!drop-2	CREATE JOIN GROUP a(a(a))
-accept	reject@16	engine	statement/createInmemoryJoinGroup!drop-3	CREATE INMEMORY GROUP a(a(a))
-accept	reject@21	engine	statement/createInmemoryJoinGroup!drop-4	CREATE INMEMORY JOIN a(a(a))
-accept	reject@26	engine	statement/createInmemoryJoinGroup!drop-5	CREATE INMEMORY JOIN GROUP(a(a))
+reject@16	reject@16	engine	statement/createInmemoryJoinGroup!drop-3	CREATE INMEMORY GROUP a(a(a))
+reject@21	reject@21	engine	statement/createInmemoryJoinGroup!drop-4	CREATE INMEMORY JOIN a(a(a))
+reject@26	reject@26	engine	statement/createInmemoryJoinGroup!drop-5	CREATE INMEMORY JOIN GROUP(a(a))
 reject@33	reject@29	engine	statement/createInmemoryJoinGroup!drop-6	CREATE INMEMORY JOIN GROUP a a(a))
-accept	reject@29	engine	statement/createInmemoryJoinGroup!drop-7	CREATE INMEMORY JOIN GROUP a((a))
+reject@29	reject@29	engine	statement/createInmemoryJoinGroup!drop-7	CREATE INMEMORY JOIN GROUP a((a))
 reject@33	reject@31	engine	statement/createInmemoryJoinGroup!drop-8	CREATE INMEMORY JOIN GROUP a(a a))
-accept	reject@31	engine	statement/createInmemoryJoinGroup!drop-9	CREATE INMEMORY JOIN GROUP a(a())
+reject@31	reject@31	engine	statement/createInmemoryJoinGroup!drop-9	CREATE INMEMORY JOIN GROUP a(a())
 reject@33	reject@29	engine	statement/createInmemoryJoinGroup!drop-10	CREATE INMEMORY JOIN GROUP a(a(a)
 reject@35	reject@35	engine	statement/createInmemoryJoinGroup!insert	CREATE INMEMORY JOIN GROUP a(a(a)) zzz
 reject@0	reject@0	engine	statement/createInmemoryJoinGroup!swap	CREATE_FILE_DEST INMEMORY JOIN GROUP a(a(a))
@@ -646,9 +646,9 @@ reject@0	reject@0	engine	statement/createProfile!swap	CREATE_FILE_DEST PROFILE a
 accept	accept	engine	statement/createRestorePoint	CREATE RESTORE POINT a
 reject@0	reject@0	engine	statement/createRestorePoint!drop-1	RESTORE POINT a
 reject@7	reject@7	engine	statement/createRestorePoint!drop-2	CREATE POINT a
-accept	reject@15	engine	statement/createRestorePoint!drop-3	CREATE RESTORE a
-accept	reject@20	engine	statement/createRestorePoint!drop-4	CREATE RESTORE POINT
-accept	reject@23	engine	statement/createRestorePoint!insert	CREATE RESTORE POINT a zzz
+reject@15	reject@15	engine	statement/createRestorePoint!drop-3	CREATE RESTORE a
+reject@20	reject@20	engine	statement/createRestorePoint!drop-4	CREATE RESTORE POINT
+reject@23	reject@23	engine	statement/createRestorePoint!insert	CREATE RESTORE POINT a zzz
 reject@0	reject@0	engine	statement/createRestorePoint!swap	CREATE_FILE_DEST RESTORE POINT a
 accept	accept	engine	statement/createRole	CREATE ROLE a
 reject@0	reject@0	engine	statement/createRole!drop-1	ROLE a
@@ -658,9 +658,9 @@ reject@0	reject@0	engine	statement/createRole!swap	CREATE_FILE_DEST ROLE a
 accept	accept	engine	statement/createRollbackSegment	CREATE ROLLBACK SEGMENT a
 reject@9	reject@9	engine	statement/createRollbackSegment!drop-1	ROLLBACK SEGMENT a
 reject@7	reject@7	engine	statement/createRollbackSegment!drop-2	CREATE SEGMENT a
-accept	reject@16	engine	statement/createRollbackSegment!drop-3	CREATE ROLLBACK a
-accept	reject@23	engine	statement/createRollbackSegment!drop-4	CREATE ROLLBACK SEGMENT
-accept	reject@26	engine	statement/createRollbackSegment!insert	CREATE ROLLBACK SEGMENT a zzz
+reject@16	reject@16	engine	statement/createRollbackSegment!drop-3	CREATE ROLLBACK a
+reject@23	reject@23	engine	statement/createRollbackSegment!drop-4	CREATE ROLLBACK SEGMENT
+reject@26	reject@26	engine	statement/createRollbackSegment!insert	CREATE ROLLBACK SEGMENT a zzz
 reject@0	reject@0	engine	statement/createRollbackSegment!swap	CREATE_FILE_DEST ROLLBACK SEGMENT a
 accept	accept	engine	statement/createSchema	CREATE SCHEMA AUTHORIZATION a CREATE TABLE a (a NUMBER)
 reject@0	reject@0	engine	statement/createSchema!drop-1	SCHEMA AUTHORIZATION a CREATE TABLE a (a NUMBER)
@@ -5641,16 +5641,16 @@ accept	reject@32	engine	alterInmemoryJoinGroup/ALTER_INMEMORY_JOIN_GROUP_(IF_EXI
 accept	reject@32	engine	alterInmemoryJoinGroup(IF_EXISTS)?/%empty	ALTER INMEMORY JOIN GROUP a ADD(a(a))
 reject@30	reject@30	engine	alterInmemoryJoinGroup(IF_EXISTS)?/%empty!insert	ALTER INMEMORY JOIN GROUP zzz a ADD(a(a))
 accept	reject@42	engine	alterInmemoryJoinGroup(IF_EXISTS)?/IF_EXISTS	ALTER INMEMORY JOIN GROUP IF EXISTS a ADD(a(a))
-reject@33	reject@26	engine	alterInmemoryJoinGroup(IF_EXISTS)?/IF_EXISTS!drop-1	ALTER INMEMORY JOIN GROUP EXISTS a ADD(a(a))
+reject@26	reject@26	engine	alterInmemoryJoinGroup(IF_EXISTS)?/IF_EXISTS!drop-1	ALTER INMEMORY JOIN GROUP EXISTS a ADD(a(a))
 reject@29	reject@29	engine	alterInmemoryJoinGroup(IF_EXISTS)?/IF_EXISTS!drop-2	ALTER INMEMORY JOIN GROUP IF a ADD(a(a))
-accept	reject@28	engine	alterInmemoryJoinGroup(IF_EXISTS)?/IF_EXISTS!truncate	ALTER INMEMORY JOIN GROUP IF
+reject@28	reject@28	engine	alterInmemoryJoinGroup(IF_EXISTS)?/IF_EXISTS!truncate	ALTER INMEMORY JOIN GROUP IF
 reject@40	reject@40	engine	alterInmemoryJoinGroup(IF_EXISTS)?/IF_EXISTS!insert	ALTER INMEMORY JOIN GROUP IF EXISTS zzz a ADD(a(a))
 reject@33	reject@33	engine	alterInmemoryJoinGroup(IF_EXISTS)?/IF_EXISTS!swap	ALTER INMEMORY JOIN GROUP IGNORE EXISTS a ADD(a(a))
 accept	reject@32	engine	alterInmemoryJoinGroup(ID_.)?/%empty	ALTER INMEMORY JOIN GROUP a ADD(a(a))
 accept	accept	engine	alterInmemoryJoinGroup(ID_.)?/ID_.	ALTER INMEMORY JOIN GROUP a.a ADD(a(a))
 reject@25	reject@25	engine	alterInmemoryJoinGroup(ID_.)?/ID_.!drop-1	ALTER INMEMORY JOIN GROUP.a ADD(a(a))
 reject@28	reject@28	engine	alterInmemoryJoinGroup(ID_.)?/ID_.!drop-2	ALTER INMEMORY JOIN GROUP a a ADD(a(a))
-accept	reject@27	engine	alterInmemoryJoinGroup(ID_.)?/ID_.!truncate	ALTER INMEMORY JOIN GROUP a
+reject@27	reject@27	engine	alterInmemoryJoinGroup(ID_.)?/ID_.!truncate	ALTER INMEMORY JOIN GROUP a
 reject@32	reject@32	engine	alterInmemoryJoinGroup(ID_.)?/ID_.!insert	ALTER INMEMORY JOIN GROUP a.zzz a ADD(a(a))
 accept	reject@32	engine	alterInmemoryJoinGroup(ADD|REMOVE)/ADD	ALTER INMEMORY JOIN GROUP a ADD(a(a))
 reject@32	reject@32	engine	alterInmemoryJoinGroup(ADD|REMOVE)/ADD!insert	ALTER INMEMORY JOIN GROUP a ADD zzz(a(a))
@@ -12421,58 +12421,58 @@ reject@48	reject@48	engine	alterRole(ALL|CURRENT)/CURRENT!insert	ALTER ROLE a NO
 reject@40	reject@40	engine	alterRole(ALL|CURRENT)/CURRENT!swap	ALTER ROLE a NOT IDENTIFIED CONTAINER = CURRENT_SCHEMA
 accept	accept	engine	alterRollbackSegment/ALTER_ROLLBACK_SEGMENT_ID_(ONLINE|OFFLINE|SHRINK_(TO_al~7812791b	ALTER ROLLBACK SEGMENT a ONLINE
 accept	accept	engine	alterRollbackSegment(ONLINE|OFFLINE|SHRINK_(TO_alterRollb~5f4f123b)/ONLINE	ALTER ROLLBACK SEGMENT a ONLINE
-accept	reject@25	engine	alterRollbackSegment(ONLINE|OFFLINE|SHRINK_(TO_alterRollb~5f4f123b)/ONLINE!swap	ALTER ROLLBACK SEGMENT a ONLY
+reject@25	reject@25	engine	alterRollbackSegment(ONLINE|OFFLINE|SHRINK_(TO_alterRollb~5f4f123b)/ONLINE!swap	ALTER ROLLBACK SEGMENT a ONLY
 accept	accept	engine	alterRollbackSegment(ONLINE|OFFLINE|SHRINK_(TO_alterRollb~5f4f123b)/OFFLINE	ALTER ROLLBACK SEGMENT a OFFLINE
-accept	reject@33	engine	alterRollbackSegment(ONLINE|OFFLINE|SHRINK_(TO_alterRollb~5f4f123b)/OFFLINE!insert	ALTER ROLLBACK SEGMENT a OFFLINE zzz
-accept	reject@25	engine	alterRollbackSegment(ONLINE|OFFLINE|SHRINK_(TO_alterRollb~5f4f123b)/OFFLINE!swap	ALTER ROLLBACK SEGMENT a OFFSET
+reject@33	reject@33	engine	alterRollbackSegment(ONLINE|OFFLINE|SHRINK_(TO_alterRollb~5f4f123b)/OFFLINE!insert	ALTER ROLLBACK SEGMENT a OFFLINE zzz
+reject@25	reject@25	engine	alterRollbackSegment(ONLINE|OFFLINE|SHRINK_(TO_alterRollb~5f4f123b)/OFFLINE!swap	ALTER ROLLBACK SEGMENT a OFFSET
 accept	accept	engine	alterRollbackSegment(ONLINE|OFFLINE|SHRINK_(TO_alterRollb~5f4f123b)/SHRINK_(TO_alterRollbackSegment_size_clause)?	ALTER ROLLBACK SEGMENT a SHRINK
-accept	reject@32	engine	alterRollbackSegment(ONLINE|OFFLINE|SHRINK_(TO_alterRollb~5f4f123b)/SHRINK_(TO_alterRollbackSegment_size_clause)?!insert	ALTER ROLLBACK SEGMENT a SHRINK zzz
-accept	reject@25	engine	alterRollbackSegment(ONLINE|OFFLINE|SHRINK_(TO_alterRollb~5f4f123b)/SHRINK_(TO_alterRollbackSegment_size_clause)?!swap	ALTER ROLLBACK SEGMENT a SHUTDOWN
+reject@32	reject@32	engine	alterRollbackSegment(ONLINE|OFFLINE|SHRINK_(TO_alterRollb~5f4f123b)/SHRINK_(TO_alterRollbackSegment_size_clause)?!insert	ALTER ROLLBACK SEGMENT a SHRINK zzz
+reject@25	reject@25	engine	alterRollbackSegment(ONLINE|OFFLINE|SHRINK_(TO_alterRollb~5f4f123b)/SHRINK_(TO_alterRollbackSegment_size_clause)?!swap	ALTER ROLLBACK SEGMENT a SHUTDOWN
 accept	accept	engine	alterRollbackSegment(TO_alterRollbackSegment_size_clause)?/%empty	ALTER ROLLBACK SEGMENT a SHRINK
 accept	accept	engine	alterRollbackSegment(TO_alterRollbackSegment_size_clause)?/TO_alterRollbackSegment_size_clause	ALTER ROLLBACK SEGMENT a SHRINK TO 1
-accept	reject@32	engine	alterRollbackSegment(TO_alterRollbackSegment_size_clause)?/TO_alterRollbackSegment_size_clause!drop-1	ALTER ROLLBACK SEGMENT a SHRINK 1
-accept	reject@34	engine	alterRollbackSegment(TO_alterRollbackSegment_size_clause)?/TO_alterRollbackSegment_size_clause!drop-2	ALTER ROLLBACK SEGMENT a SHRINK TO
-accept	reject@37	engine	alterRollbackSegment(TO_alterRollbackSegment_size_clause)?/TO_alterRollbackSegment_size_clause!insert	ALTER ROLLBACK SEGMENT a SHRINK TO 1 zzz
-accept	reject@32	engine	alterRollbackSegment(TO_alterRollbackSegment_size_clause)?/TO_alterRollbackSegment_size_clause!swap	ALTER ROLLBACK SEGMENT a SHRINK TOPLEVEL 1
+reject@32	reject@32	engine	alterRollbackSegment(TO_alterRollbackSegment_size_clause)?/TO_alterRollbackSegment_size_clause!drop-1	ALTER ROLLBACK SEGMENT a SHRINK 1
+reject@34	reject@34	engine	alterRollbackSegment(TO_alterRollbackSegment_size_clause)?/TO_alterRollbackSegment_size_clause!drop-2	ALTER ROLLBACK SEGMENT a SHRINK TO
+reject@37	reject@37	engine	alterRollbackSegment(TO_alterRollbackSegment_size_clause)?/TO_alterRollbackSegment_size_clause!insert	ALTER ROLLBACK SEGMENT a SHRINK TO 1 zzz
+reject@32	reject@32	engine	alterRollbackSegment(TO_alterRollbackSegment_size_clause)?/TO_alterRollbackSegment_size_clause!swap	ALTER ROLLBACK SEGMENT a SHRINK TOPLEVEL 1
 accept	accept	engine	alterRollbackSegment_size_clause/NUMBER_(K|M|G|T|P)?	ALTER ROLLBACK SEGMENT a SHRINK TO 1
 accept	accept	engine	alterRollbackSegment_size_clause(K|M|G|T|P)?/%empty	ALTER ROLLBACK SEGMENT a SHRINK TO 1
 accept	accept	engine	alterRollbackSegment_size_clause(K|M|G|T|P)?/K	ALTER ROLLBACK SEGMENT a SHRINK TO 1 K
-accept	reject@39	engine	alterRollbackSegment_size_clause(K|M|G|T|P)?/K!insert	ALTER ROLLBACK SEGMENT a SHRINK TO 1 K zzz
-accept	reject@37	engine	alterRollbackSegment_size_clause(K|M|G|T|P)?/K!swap	ALTER ROLLBACK SEGMENT a SHRINK TO 1 KEEP
+reject@39	reject@39	engine	alterRollbackSegment_size_clause(K|M|G|T|P)?/K!insert	ALTER ROLLBACK SEGMENT a SHRINK TO 1 K zzz
+reject@37	reject@37	engine	alterRollbackSegment_size_clause(K|M|G|T|P)?/K!swap	ALTER ROLLBACK SEGMENT a SHRINK TO 1 KEEP
 accept	accept	engine	alterRollbackSegment_size_clause(K|M|G|T|P)?/M	ALTER ROLLBACK SEGMENT a SHRINK TO 1 M
-accept	reject@39	engine	alterRollbackSegment_size_clause(K|M|G|T|P)?/M!insert	ALTER ROLLBACK SEGMENT a SHRINK TO 1 M zzz
-accept	reject@37	engine	alterRollbackSegment_size_clause(K|M|G|T|P)?/M!swap	ALTER ROLLBACK SEGMENT a SHRINK TO 1 MAIN
+reject@39	reject@39	engine	alterRollbackSegment_size_clause(K|M|G|T|P)?/M!insert	ALTER ROLLBACK SEGMENT a SHRINK TO 1 M zzz
+reject@37	reject@37	engine	alterRollbackSegment_size_clause(K|M|G|T|P)?/M!swap	ALTER ROLLBACK SEGMENT a SHRINK TO 1 MAIN
 accept	accept	engine	alterRollbackSegment_size_clause(K|M|G|T|P)?/G	ALTER ROLLBACK SEGMENT a SHRINK TO 1 G
-accept	reject@39	engine	alterRollbackSegment_size_clause(K|M|G|T|P)?/G!insert	ALTER ROLLBACK SEGMENT a SHRINK TO 1 G zzz
-accept	reject@37	engine	alterRollbackSegment_size_clause(K|M|G|T|P)?/G!swap	ALTER ROLLBACK SEGMENT a SHRINK TO 1 GENERATED
+reject@39	reject@39	engine	alterRollbackSegment_size_clause(K|M|G|T|P)?/G!insert	ALTER ROLLBACK SEGMENT a SHRINK TO 1 G zzz
+reject@37	reject@37	engine	alterRollbackSegment_size_clause(K|M|G|T|P)?/G!swap	ALTER ROLLBACK SEGMENT a SHRINK TO 1 GENERATED
 accept	accept	engine	alterRollbackSegment_size_clause(K|M|G|T|P)?/T	ALTER ROLLBACK SEGMENT a SHRINK TO 1 T
-accept	reject@39	engine	alterRollbackSegment_size_clause(K|M|G|T|P)?/T!insert	ALTER ROLLBACK SEGMENT a SHRINK TO 1 T zzz
-accept	reject@37	engine	alterRollbackSegment_size_clause(K|M|G|T|P)?/T!swap	ALTER ROLLBACK SEGMENT a SHRINK TO 1 TABLE
+reject@39	reject@39	engine	alterRollbackSegment_size_clause(K|M|G|T|P)?/T!insert	ALTER ROLLBACK SEGMENT a SHRINK TO 1 T zzz
+reject@37	reject@37	engine	alterRollbackSegment_size_clause(K|M|G|T|P)?/T!swap	ALTER ROLLBACK SEGMENT a SHRINK TO 1 TABLE
 accept	accept	engine	alterRollbackSegment_size_clause(K|M|G|T|P)?/P	ALTER ROLLBACK SEGMENT a SHRINK TO 1 P
-accept	reject@35	engine	alterRollbackSegment_size_clause(K|M|G|T|P)?/P!insert	ALTER ROLLBACK SEGMENT a SHRINK TO 1 P zzz
-accept	reject@37	engine	alterRollbackSegment_size_clause(K|M|G|T|P)?/P!swap	ALTER ROLLBACK SEGMENT a SHRINK TO 1 PACKAGE
-accept	reject@16	engine	alterSequence/ALTER_SEQUENCE_(IF_EXISTS)?_(ID_.)?_ID_(INCREMENT_BY_NU~f1f3d3eb	ALTER SEQUENCE a
-accept	reject@16	engine	alterSequence(IF_EXISTS)?/%empty	ALTER SEQUENCE a
+reject@39	reject@35	engine	alterRollbackSegment_size_clause(K|M|G|T|P)?/P!insert	ALTER ROLLBACK SEGMENT a SHRINK TO 1 P zzz
+reject@37	reject@37	engine	alterRollbackSegment_size_clause(K|M|G|T|P)?/P!swap	ALTER ROLLBACK SEGMENT a SHRINK TO 1 PACKAGE
+reject@16	reject@16	engine	alterSequence/ALTER_SEQUENCE_(IF_EXISTS)?_(ID_.)?_ID_(INCREMENT_BY_NU~f1f3d3eb	ALTER SEQUENCE a
+reject@16	reject@16	engine	alterSequence(IF_EXISTS)?/%empty	ALTER SEQUENCE a
 reject@19	reject@19	engine	alterSequence(IF_EXISTS)?/%empty!insert	ALTER SEQUENCE zzz a
-accept	reject@26	engine	alterSequence(IF_EXISTS)?/IF_EXISTS	ALTER SEQUENCE IF EXISTS a
-reject@22	reject@15	engine	alterSequence(IF_EXISTS)?/IF_EXISTS!drop-1	ALTER SEQUENCE EXISTS a
+reject@26	reject@26	engine	alterSequence(IF_EXISTS)?/IF_EXISTS	ALTER SEQUENCE IF EXISTS a
+reject@15	reject@15	engine	alterSequence(IF_EXISTS)?/IF_EXISTS!drop-1	ALTER SEQUENCE EXISTS a
 reject@18	reject@18	engine	alterSequence(IF_EXISTS)?/IF_EXISTS!drop-2	ALTER SEQUENCE IF a
-accept	reject@17	engine	alterSequence(IF_EXISTS)?/IF_EXISTS!truncate	ALTER SEQUENCE IF
+reject@17	reject@17	engine	alterSequence(IF_EXISTS)?/IF_EXISTS!truncate	ALTER SEQUENCE IF
 reject@29	reject@29	engine	alterSequence(IF_EXISTS)?/IF_EXISTS!insert	ALTER SEQUENCE IF EXISTS zzz a
 reject@22	reject@22	engine	alterSequence(IF_EXISTS)?/IF_EXISTS!swap	ALTER SEQUENCE IGNORE EXISTS a
-accept	reject@16	engine	alterSequence(ID_.)?/%empty	ALTER SEQUENCE a
-accept	reject@18	engine	alterSequence(ID_.)?/ID_.	ALTER SEQUENCE a.a
+reject@16	reject@16	engine	alterSequence(ID_.)?/%empty	ALTER SEQUENCE a
+reject@18	reject@18	engine	alterSequence(ID_.)?/ID_.	ALTER SEQUENCE a.a
 reject@14	reject@14	engine	alterSequence(ID_.)?/ID_.!drop-1	ALTER SEQUENCE.a
 reject@17	reject@17	engine	alterSequence(ID_.)?/ID_.!drop-2	ALTER SEQUENCE a a
 reject@21	reject@21	engine	alterSequence(ID_.)?/ID_.!insert	ALTER SEQUENCE a.zzz a
-accept	reject@16	engine	alterSequence(INCREMENT_BY_NUMBER)?/%empty	ALTER SEQUENCE a
+reject@16	reject@16	engine	alterSequence(INCREMENT_BY_NUMBER)?/%empty	ALTER SEQUENCE a
 accept	accept	engine	alterSequence(INCREMENT_BY_NUMBER)?/INCREMENT_BY_NUMBER	ALTER SEQUENCE a INCREMENT BY 1
 reject@17	reject@17	engine	alterSequence(INCREMENT_BY_NUMBER)?/INCREMENT_BY_NUMBER!drop-1	ALTER SEQUENCE a BY 1
-accept	reject@27	engine	alterSequence(INCREMENT_BY_NUMBER)?/INCREMENT_BY_NUMBER!drop-2	ALTER SEQUENCE a INCREMENT 1
+reject@27	reject@27	engine	alterSequence(INCREMENT_BY_NUMBER)?/INCREMENT_BY_NUMBER!drop-2	ALTER SEQUENCE a INCREMENT 1
 reject@29	reject@29	engine	alterSequence(INCREMENT_BY_NUMBER)?/INCREMENT_BY_NUMBER!drop-3	ALTER SEQUENCE a INCREMENT BY
 reject@32	reject@32	engine	alterSequence(INCREMENT_BY_NUMBER)?/INCREMENT_BY_NUMBER!insert	ALTER SEQUENCE a INCREMENT BY 1 zzz
 reject@17	reject@17	engine	alterSequence(INCREMENT_BY_NUMBER)?/INCREMENT_BY_NUMBER!swap	ALTER SEQUENCE a INDEX BY 1
-accept	reject@16	engine	alterSequence((MAXVALUE_NUMBER|NOMAXVALUE))?/%empty	ALTER SEQUENCE a
+reject@16	reject@16	engine	alterSequence((MAXVALUE_NUMBER|NOMAXVALUE))?/%empty	ALTER SEQUENCE a
 accept	accept	engine	alterSequence((MAXVALUE_NUMBER|NOMAXVALUE))?/(MAXVALUE_NUMBER|NOMAXVALUE)	ALTER SEQUENCE a NOMAXVALUE
 reject@28	reject@28	engine	alterSequence((MAXVALUE_NUMBER|NOMAXVALUE))?/(MAXVALUE_NUMBER|NOMAXVALUE)!insert	ALTER SEQUENCE a NOMAXVALUE zzz
 accept	accept	engine	alterSequence(MAXVALUE_NUMBER|NOMAXVALUE)/MAXVALUE_NUMBER	ALTER SEQUENCE a MAXVALUE 1
@@ -12481,7 +12481,7 @@ reject@25	reject@25	engine	alterSequence(MAXVALUE_NUMBER|NOMAXVALUE)/MAXVALUE_NU
 reject@28	reject@28	engine	alterSequence(MAXVALUE_NUMBER|NOMAXVALUE)/MAXVALUE_NUMBER!insert	ALTER SEQUENCE a MAXVALUE 1 zzz
 reject@17	reject@17	engine	alterSequence(MAXVALUE_NUMBER|NOMAXVALUE)/MAXVALUE_NUMBER!swap	ALTER SEQUENCE a MAX_AUDIT_SIZE 1
 accept	accept	engine	alterSequence(MAXVALUE_NUMBER|NOMAXVALUE)/NOMAXVALUE	ALTER SEQUENCE a NOMAXVALUE
-accept	reject@16	engine	alterSequence((MINVALUE_NUMBER|NOMINVALUE))?/%empty	ALTER SEQUENCE a
+reject@16	reject@16	engine	alterSequence((MINVALUE_NUMBER|NOMINVALUE))?/%empty	ALTER SEQUENCE a
 accept	accept	engine	alterSequence((MINVALUE_NUMBER|NOMINVALUE))?/(MINVALUE_NUMBER|NOMINVALUE)	ALTER SEQUENCE a NOMINVALUE
 reject@28	reject@28	engine	alterSequence((MINVALUE_NUMBER|NOMINVALUE))?/(MINVALUE_NUMBER|NOMINVALUE)!insert	ALTER SEQUENCE a NOMINVALUE zzz
 reject@17	reject@17	engine	alterSequence((MINVALUE_NUMBER|NOMINVALUE))?/(MINVALUE_NUMBER|NOMINVALUE)!swap	ALTER SEQUENCE a NOMONITORING
@@ -12490,7 +12490,7 @@ reject@25	reject@25	engine	alterSequence(MINVALUE_NUMBER|NOMINVALUE)/MINVALUE_NU
 reject@28	reject@28	engine	alterSequence(MINVALUE_NUMBER|NOMINVALUE)/MINVALUE_NUMBER!insert	ALTER SEQUENCE a MINVALUE 1 zzz
 reject@17	reject@17	engine	alterSequence(MINVALUE_NUMBER|NOMINVALUE)/MINVALUE_NUMBER!swap	ALTER SEQUENCE a MIN_VECTORS_PER_PARTITION 1
 accept	accept	engine	alterSequence(MINVALUE_NUMBER|NOMINVALUE)/NOMINVALUE	ALTER SEQUENCE a NOMINVALUE
-accept	reject@16	engine	alterSequence((CYCLE|NOCYCLE))?/%empty	ALTER SEQUENCE a
+reject@16	reject@16	engine	alterSequence((CYCLE|NOCYCLE))?/%empty	ALTER SEQUENCE a
 accept	accept	engine	alterSequence((CYCLE|NOCYCLE))?/(CYCLE|NOCYCLE)	ALTER SEQUENCE a CYCLE
 reject@23	reject@23	engine	alterSequence((CYCLE|NOCYCLE))?/(CYCLE|NOCYCLE)!insert	ALTER SEQUENCE a CYCLE zzz
 reject@17	reject@17	engine	alterSequence((CYCLE|NOCYCLE))?/(CYCLE|NOCYCLE)!swap	ALTER SEQUENCE a DANGLING
@@ -12498,7 +12498,7 @@ accept	accept	engine	alterSequence(CYCLE|NOCYCLE)/CYCLE	ALTER SEQUENCE a CYCLE
 accept	accept	engine	alterSequence(CYCLE|NOCYCLE)/NOCYCLE	ALTER SEQUENCE a NOCYCLE
 reject@25	reject@25	engine	alterSequence(CYCLE|NOCYCLE)/NOCYCLE!insert	ALTER SEQUENCE a NOCYCLE zzz
 reject@17	reject@17	engine	alterSequence(CYCLE|NOCYCLE)/NOCYCLE!swap	ALTER SEQUENCE a NODELAY
-accept	reject@16	engine	alterSequence((CACHE_NUMBER|NOCACHE))?/%empty	ALTER SEQUENCE a
+reject@16	reject@16	engine	alterSequence((CACHE_NUMBER|NOCACHE))?/%empty	ALTER SEQUENCE a
 accept	accept	engine	alterSequence((CACHE_NUMBER|NOCACHE))?/(CACHE_NUMBER|NOCACHE)	ALTER SEQUENCE a NOCACHE
 reject@25	reject@25	engine	alterSequence((CACHE_NUMBER|NOCACHE))?/(CACHE_NUMBER|NOCACHE)!insert	ALTER SEQUENCE a NOCACHE zzz
 reject@17	reject@17	engine	alterSequence((CACHE_NUMBER|NOCACHE))?/(CACHE_NUMBER|NOCACHE)!swap	ALTER SEQUENCE a NOCHECK
@@ -12507,7 +12507,7 @@ reject@22	reject@22	engine	alterSequence(CACHE_NUMBER|NOCACHE)/CACHE_NUMBER!drop
 reject@25	reject@25	engine	alterSequence(CACHE_NUMBER|NOCACHE)/CACHE_NUMBER!insert	ALTER SEQUENCE a CACHE 1 zzz
 reject@17	reject@17	engine	alterSequence(CACHE_NUMBER|NOCACHE)/CACHE_NUMBER!swap	ALTER SEQUENCE a CALL 1
 accept	accept	engine	alterSequence(CACHE_NUMBER|NOCACHE)/NOCACHE	ALTER SEQUENCE a NOCACHE
-accept	reject@16	engine	alterSequence((ORDER|NOORDER))?/%empty	ALTER SEQUENCE a
+reject@16	reject@16	engine	alterSequence((ORDER|NOORDER))?/%empty	ALTER SEQUENCE a
 accept	accept	engine	alterSequence((ORDER|NOORDER))?/(ORDER|NOORDER)	ALTER SEQUENCE a ORDER
 reject@23	reject@23	engine	alterSequence((ORDER|NOORDER))?/(ORDER|NOORDER)!insert	ALTER SEQUENCE a ORDER zzz
 reject@17	reject@17	engine	alterSequence((ORDER|NOORDER))?/(ORDER|NOORDER)!swap	ALTER SEQUENCE a ORGANIZATION
@@ -12515,7 +12515,7 @@ accept	accept	engine	alterSequence(ORDER|NOORDER)/ORDER	ALTER SEQUENCE a ORDER
 accept	accept	engine	alterSequence(ORDER|NOORDER)/NOORDER	ALTER SEQUENCE a NOORDER
 reject@25	reject@25	engine	alterSequence(ORDER|NOORDER)/NOORDER!insert	ALTER SEQUENCE a NOORDER zzz
 reject@17	reject@17	engine	alterSequence(ORDER|NOORDER)/NOORDER!swap	ALTER SEQUENCE a NOPARALLEL
-accept	reject@16	engine	alterSequence((KEEP|NOKEEP))?/%empty	ALTER SEQUENCE a
+reject@16	reject@16	engine	alterSequence((KEEP|NOKEEP))?/%empty	ALTER SEQUENCE a
 accept	accept	engine	alterSequence((KEEP|NOKEEP))?/(KEEP|NOKEEP)	ALTER SEQUENCE a KEEP
 reject@22	reject@22	engine	alterSequence((KEEP|NOKEEP))?/(KEEP|NOKEEP)!insert	ALTER SEQUENCE a KEEP zzz
 reject@17	reject@17	engine	alterSequence((KEEP|NOKEEP))?/(KEEP|NOKEEP)!swap	ALTER SEQUENCE a KEEP_DUPLICATES
@@ -12523,7 +12523,7 @@ accept	accept	engine	alterSequence(KEEP|NOKEEP)/KEEP	ALTER SEQUENCE a KEEP
 accept	accept	engine	alterSequence(KEEP|NOKEEP)/NOKEEP	ALTER SEQUENCE a NOKEEP
 reject@24	reject@24	engine	alterSequence(KEEP|NOKEEP)/NOKEEP!insert	ALTER SEQUENCE a NOKEEP zzz
 reject@17	reject@17	engine	alterSequence(KEEP|NOKEEP)/NOKEEP!swap	ALTER SEQUENCE a NOLOGGING
-accept	reject@16	engine	alterSequence((SCALE_(EXTEND|NOEXTEND)?|NOSCALE))?/%empty	ALTER SEQUENCE a
+reject@16	reject@16	engine	alterSequence((SCALE_(EXTEND|NOEXTEND)?|NOSCALE))?/%empty	ALTER SEQUENCE a
 accept	accept	engine	alterSequence((SCALE_(EXTEND|NOEXTEND)?|NOSCALE))?/(SCALE_(EXTEND|NOEXTEND)?|NOSCALE)	ALTER SEQUENCE a SCALE
 reject@23	reject@23	engine	alterSequence((SCALE_(EXTEND|NOEXTEND)?|NOSCALE))?/(SCALE_(EXTEND|NOEXTEND)?|NOSCALE)!insert	ALTER SEQUENCE a SCALE zzz
 reject@17	reject@17	engine	alterSequence((SCALE_(EXTEND|NOEXTEND)?|NOSCALE))?/(SCALE_(EXTEND|NOEXTEND)?|NOSCALE)!swap	ALTER SEQUENCE a SCAN
@@ -12537,7 +12537,7 @@ reject@23	reject@23	engine	alterSequence(EXTEND|NOEXTEND)?/EXTEND!swap	ALTER SEQ
 accept	accept	engine	alterSequence(EXTEND|NOEXTEND)?/NOEXTEND	ALTER SEQUENCE a SCALE NOEXTEND
 reject@32	reject@32	engine	alterSequence(EXTEND|NOEXTEND)?/NOEXTEND!insert	ALTER SEQUENCE a SCALE NOEXTEND zzz
 reject@23	reject@23	engine	alterSequence(EXTEND|NOEXTEND)?/NOEXTEND!swap	ALTER SEQUENCE a SCALE NOFORCE
-accept	reject@16	engine	alterSequence((SHARD_(EXTEND|NOEXTEND)?|NOSHARD))?/%empty	ALTER SEQUENCE a
+reject@16	reject@16	engine	alterSequence((SHARD_(EXTEND|NOEXTEND)?|NOSHARD))?/%empty	ALTER SEQUENCE a
 accept	reject@17	engine	alterSequence((SHARD_(EXTEND|NOEXTEND)?|NOSHARD))?/(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)	ALTER SEQUENCE a SHARD
 reject@23	reject@17	engine	alterSequence((SHARD_(EXTEND|NOEXTEND)?|NOSHARD))?/(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)!insert	ALTER SEQUENCE a SHARD zzz
 reject@17	reject@17	engine	alterSequence((SHARD_(EXTEND|NOEXTEND)?|NOSHARD))?/(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)!swap	ALTER SEQUENCE a SHARDED
@@ -12545,15 +12545,15 @@ accept	reject@17	engine	alterSequence(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)/SHARD_(E
 accept	reject@17	engine	alterSequence(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)/NOSHARD	ALTER SEQUENCE a NOSHARD
 reject@25	reject@17	engine	alterSequence(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)/NOSHARD!insert	ALTER SEQUENCE a NOSHARD zzz
 reject@17	reject@17	engine	alterSequence(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)/NOSHARD!swap	ALTER SEQUENCE a NOSORT
-accept	reject@16	engine	alterSequence(RESTART_(WITH_NUMBER)?)?/%empty	ALTER SEQUENCE a
+reject@16	reject@16	engine	alterSequence(RESTART_(WITH_NUMBER)?)?/%empty	ALTER SEQUENCE a
 accept	accept	engine	alterSequence(RESTART_(WITH_NUMBER)?)?/RESTART_(WITH_NUMBER)?	ALTER SEQUENCE a RESTART
 reject@25	reject@25	engine	alterSequence(RESTART_(WITH_NUMBER)?)?/RESTART_(WITH_NUMBER)?!insert	ALTER SEQUENCE a RESTART zzz
 reject@17	reject@17	engine	alterSequence(RESTART_(WITH_NUMBER)?)?/RESTART_(WITH_NUMBER)?!swap	ALTER SEQUENCE a RESTORE
 accept	accept	engine	alterSequence(WITH_NUMBER)?/%empty	ALTER SEQUENCE a RESTART
-accept	reject@25	engine	alterSequence(WITH_NUMBER)?/WITH_NUMBER	ALTER SEQUENCE a RESTART WITH 1
+reject@25	reject@25	engine	alterSequence(WITH_NUMBER)?/WITH_NUMBER	ALTER SEQUENCE a RESTART WITH 1
 reject@25	reject@25	engine	alterSequence(WITH_NUMBER)?/WITH_NUMBER!drop-1	ALTER SEQUENCE a RESTART 1
-accept	reject@25	engine	alterSequence(WITH_NUMBER)?/WITH_NUMBER!drop-2	ALTER SEQUENCE a RESTART WITH
-reject@32	reject@25	engine	alterSequence(WITH_NUMBER)?/WITH_NUMBER!insert	ALTER SEQUENCE a RESTART WITH 1 zzz
+reject@25	reject@25	engine	alterSequence(WITH_NUMBER)?/WITH_NUMBER!drop-2	ALTER SEQUENCE a RESTART WITH
+reject@25	reject@25	engine	alterSequence(WITH_NUMBER)?/WITH_NUMBER!insert	ALTER SEQUENCE a RESTART WITH 1 zzz
 reject@25	reject@25	engine	alterSequence(WITH_NUMBER)?/WITH_NUMBER!swap	ALTER SEQUENCE a RESTART WITHOUT 1
 accept	accept	engine	alterSession/ALTER_SESSION_(ADVISE_(COMMIT|ROLLBACK|NOTHING)|CLO~4ab7efe1)	ALTER SESSION ADVISE COMMIT
 accept	accept	engine	alterSession(ADVISE_(COMMIT|ROLLBACK|NOTHING)|CLO~4ab7efe1)/ADVISE_(COMMIT|ROLLBACK|NOTHING)	ALTER SESSION ADVISE COMMIT
@@ -20957,7 +20957,7 @@ accept	accept	engine	alterView/ALTER_VIEW_(IF_EXISTS)?_(ID_.)?_ID_(COMPILE|(READ
 accept	accept	engine	alterView(IF_EXISTS)?/%empty	ALTER VIEW a COMPILE
 reject@15	reject@15	engine	alterView(IF_EXISTS)?/%empty!insert	ALTER VIEW zzz a COMPILE
 accept	accept	engine	alterView(IF_EXISTS)?/IF_EXISTS	ALTER VIEW IF EXISTS a COMPILE
-reject@18	reject@11	engine	alterView(IF_EXISTS)?/IF_EXISTS!drop-1	ALTER VIEW EXISTS a COMPILE
+reject@11	reject@11	engine	alterView(IF_EXISTS)?/IF_EXISTS!drop-1	ALTER VIEW EXISTS a COMPILE
 reject@14	reject@14	engine	alterView(IF_EXISTS)?/IF_EXISTS!drop-2	ALTER VIEW IF a COMPILE
 reject@13	reject@13	engine	alterView(IF_EXISTS)?/IF_EXISTS!truncate	ALTER VIEW IF
 reject@25	reject@25	engine	alterView(IF_EXISTS)?/IF_EXISTS!insert	ALTER VIEW IF EXISTS zzz a COMPILE
@@ -20984,29 +20984,29 @@ reject@27	reject@27	engine	alterView(COMPILE|(READ_ONLY|READ_WRITE)|ADD_a~4e8548
 reject@13	reject@13	engine	alterView(COMPILE|(READ_ONLY|READ_WRITE)|ADD_a~4e85484f)/ADD_alterView_out_of_line_constraint!swap	ALTER VIEW a ADMIN UNIQUE(a)
 accept	accept	engine	alterView(COMPILE|(READ_ONLY|READ_WRITE)|ADD_a~4e85484f)/MODIFY_CONSTRAINT_ID_(RELY|NORELY)	ALTER VIEW a MODIFY CONSTRAINT a RELY
 reject@13	reject@13	engine	alterView(COMPILE|(READ_ONLY|READ_WRITE)|ADD_a~4e85484f)/MODIFY_CONSTRAINT_ID_(RELY|NORELY)!drop-1	ALTER VIEW a CONSTRAINT a RELY
-accept	reject@20	engine	alterView(COMPILE|(READ_ONLY|READ_WRITE)|ADD_a~4e85484f)/MODIFY_CONSTRAINT_ID_(RELY|NORELY)!drop-2	ALTER VIEW a MODIFY a RELY
-accept	reject@35	engine	alterView(COMPILE|(READ_ONLY|READ_WRITE)|ADD_a~4e85484f)/MODIFY_CONSTRAINT_ID_(RELY|NORELY)!drop-3	ALTER VIEW a MODIFY CONSTRAINT RELY
-accept	reject@32	engine	alterView(COMPILE|(READ_ONLY|READ_WRITE)|ADD_a~4e85484f)/MODIFY_CONSTRAINT_ID_(RELY|NORELY)!drop-4	ALTER VIEW a MODIFY CONSTRAINT a
+reject@20	reject@20	engine	alterView(COMPILE|(READ_ONLY|READ_WRITE)|ADD_a~4e85484f)/MODIFY_CONSTRAINT_ID_(RELY|NORELY)!drop-2	ALTER VIEW a MODIFY a RELY
+reject@35	reject@35	engine	alterView(COMPILE|(READ_ONLY|READ_WRITE)|ADD_a~4e85484f)/MODIFY_CONSTRAINT_ID_(RELY|NORELY)!drop-3	ALTER VIEW a MODIFY CONSTRAINT RELY
+reject@32	reject@32	engine	alterView(COMPILE|(READ_ONLY|READ_WRITE)|ADD_a~4e85484f)/MODIFY_CONSTRAINT_ID_(RELY|NORELY)!drop-4	ALTER VIEW a MODIFY CONSTRAINT a
 reject@38	reject@38	engine	alterView(COMPILE|(READ_ONLY|READ_WRITE)|ADD_a~4e85484f)/MODIFY_CONSTRAINT_ID_(RELY|NORELY)!insert	ALTER VIEW a MODIFY CONSTRAINT a RELY zzz
 reject@13	reject@13	engine	alterView(COMPILE|(READ_ONLY|READ_WRITE)|ADD_a~4e85484f)/MODIFY_CONSTRAINT_ID_(RELY|NORELY)!swap	ALTER VIEW a MODULE CONSTRAINT a RELY
 accept	accept	engine	alterView(COMPILE|(READ_ONLY|READ_WRITE)|ADD_a~4e85484f)/DROP_CONSTRAINT_ID	ALTER VIEW a DROP CONSTRAINT a
 reject@13	reject@13	engine	alterView(COMPILE|(READ_ONLY|READ_WRITE)|ADD_a~4e85484f)/DROP_CONSTRAINT_ID!drop-1	ALTER VIEW a CONSTRAINT a
-accept	reject@18	engine	alterView(COMPILE|(READ_ONLY|READ_WRITE)|ADD_a~4e85484f)/DROP_CONSTRAINT_ID!drop-2	ALTER VIEW a DROP a
-accept	reject@28	engine	alterView(COMPILE|(READ_ONLY|READ_WRITE)|ADD_a~4e85484f)/DROP_CONSTRAINT_ID!drop-3	ALTER VIEW a DROP CONSTRAINT
+reject@18	reject@18	engine	alterView(COMPILE|(READ_ONLY|READ_WRITE)|ADD_a~4e85484f)/DROP_CONSTRAINT_ID!drop-2	ALTER VIEW a DROP a
+reject@28	reject@28	engine	alterView(COMPILE|(READ_ONLY|READ_WRITE)|ADD_a~4e85484f)/DROP_CONSTRAINT_ID!drop-3	ALTER VIEW a DROP CONSTRAINT
 reject@31	reject@31	engine	alterView(COMPILE|(READ_ONLY|READ_WRITE)|ADD_a~4e85484f)/DROP_CONSTRAINT_ID!insert	ALTER VIEW a DROP CONSTRAINT a zzz
 reject@13	reject@13	engine	alterView(COMPILE|(READ_ONLY|READ_WRITE)|ADD_a~4e85484f)/DROP_CONSTRAINT_ID!swap	ALTER VIEW a DUALITY CONSTRAINT a
 accept	accept	engine	alterView(COMPILE|(READ_ONLY|READ_WRITE)|ADD_a~4e85484f)/(EDITIONABLE|NONEDITIONABLE)	ALTER VIEW a EDITIONABLE
 reject@25	reject@25	engine	alterView(COMPILE|(READ_ONLY|READ_WRITE)|ADD_a~4e85484f)/(EDITIONABLE|NONEDITIONABLE)!insert	ALTER VIEW a EDITIONABLE zzz
 reject@13	reject@13	engine	alterView(COMPILE|(READ_ONLY|READ_WRITE)|ADD_a~4e85484f)/(EDITIONABLE|NONEDITIONABLE)!swap	ALTER VIEW a EDITIONING
-accept	reject@41	engine	alterView(COMPILE|(READ_ONLY|READ_WRITE)|ADD_a~4e85484f)/ANNOTATIONS_(_alterView_annotations_clause_)	ALTER VIEW a ANNOTATIONS(DROP ANNOTATIONS(a))
+reject@41	reject@41	engine	alterView(COMPILE|(READ_ONLY|READ_WRITE)|ADD_a~4e85484f)/ANNOTATIONS_(_alterView_annotations_clause_)	ALTER VIEW a ANNOTATIONS(DROP ANNOTATIONS(a))
 reject@12	reject@12	engine	alterView(COMPILE|(READ_ONLY|READ_WRITE)|ADD_a~4e85484f)/ANNOTATIONS_(_alterView_annotations_clause_)!drop-1	ALTER VIEW a(DROP ANNOTATIONS(a))
 reject@44	reject@25	engine	alterView(COMPILE|(READ_ONLY|READ_WRITE)|ADD_a~4e85484f)/ANNOTATIONS_(_alterView_annotations_clause_)!drop-2	ALTER VIEW a ANNOTATIONS DROP ANNOTATIONS(a))
-accept	reject@36	engine	alterView(COMPILE|(READ_ONLY|READ_WRITE)|ADD_a~4e85484f)/ANNOTATIONS_(_alterView_annotations_clause_)!drop-3	ALTER VIEW a ANNOTATIONS(ANNOTATIONS(a))
-accept	reject@29	engine	alterView(COMPILE|(READ_ONLY|READ_WRITE)|ADD_a~4e85484f)/ANNOTATIONS_(_alterView_annotations_clause_)!drop-4	ALTER VIEW a ANNOTATIONS(DROP(a))
+reject@36	reject@36	engine	alterView(COMPILE|(READ_ONLY|READ_WRITE)|ADD_a~4e85484f)/ANNOTATIONS_(_alterView_annotations_clause_)!drop-3	ALTER VIEW a ANNOTATIONS(ANNOTATIONS(a))
+reject@29	reject@29	engine	alterView(COMPILE|(READ_ONLY|READ_WRITE)|ADD_a~4e85484f)/ANNOTATIONS_(_alterView_annotations_clause_)!drop-4	ALTER VIEW a ANNOTATIONS(DROP(a))
 reject@44	reject@42	engine	alterView(COMPILE|(READ_ONLY|READ_WRITE)|ADD_a~4e85484f)/ANNOTATIONS_(_alterView_annotations_clause_)!drop-5	ALTER VIEW a ANNOTATIONS(DROP ANNOTATIONS a))
-accept	reject@41	engine	alterView(COMPILE|(READ_ONLY|READ_WRITE)|ADD_a~4e85484f)/ANNOTATIONS_(_alterView_annotations_clause_)!drop-6	ALTER VIEW a ANNOTATIONS(DROP ANNOTATIONS())
+reject@41	reject@41	engine	alterView(COMPILE|(READ_ONLY|READ_WRITE)|ADD_a~4e85484f)/ANNOTATIONS_(_alterView_annotations_clause_)!drop-6	ALTER VIEW a ANNOTATIONS(DROP ANNOTATIONS())
 reject@44	reject@41	engine	alterView(COMPILE|(READ_ONLY|READ_WRITE)|ADD_a~4e85484f)/ANNOTATIONS_(_alterView_annotations_clause_)!drop-7	ALTER VIEW a ANNOTATIONS(DROP ANNOTATIONS(a)
-reject@46	reject@41	engine	alterView(COMPILE|(READ_ONLY|READ_WRITE)|ADD_a~4e85484f)/ANNOTATIONS_(_alterView_annotations_clause_)!insert	ALTER VIEW a ANNOTATIONS(DROP ANNOTATIONS(a)) zzz
+reject@41	reject@41	engine	alterView(COMPILE|(READ_ONLY|READ_WRITE)|ADD_a~4e85484f)/ANNOTATIONS_(_alterView_annotations_clause_)!insert	ALTER VIEW a ANNOTATIONS(DROP ANNOTATIONS(a)) zzz
 reject@13	reject@13	engine	alterView(COMPILE|(READ_ONLY|READ_WRITE)|ADD_a~4e85484f)/ANNOTATIONS_(_alterView_annotations_clause_)!swap	ALTER VIEW a ANY(DROP ANNOTATIONS(a))
 accept	accept	engine	alterView(READ_ONLY|READ_WRITE)/READ_ONLY	ALTER VIEW a READ ONLY
 accept	accept	engine	alterView(READ_ONLY|READ_WRITE)/READ_WRITE	ALTER VIEW a READ WRITE
@@ -21093,27 +21093,27 @@ reject@64	reject@45	engine	alterView_out_of_line_constraint(CASCADE|SET_NULL)/SE
 reject@55	reject@45	engine	alterView_out_of_line_constraint(CASCADE|SET_NULL)/SET_NULL!swap	ALTER VIEW a ADD FOREIGN KEY(a) REFERENCES a ON DELETE SETS NULL
 reject@26	reject@26	engine	alterView_out_of_line_constraint(alterView_constraint_state)?/%empty	ALTER VIEW a ADD UNIQUE(a)
 reject@26	reject@26	engine	alterView_out_of_line_constraint(alterView_constraint_state)?/alterView_constraint_state	ALTER VIEW a ADD UNIQUE(a)
-accept	reject@41	engine	alterView_annotations_clause/(ADD_OR_REPLACE|DROP)_ANNOTATIONS_(_alterView_annotatio~e0745213	ALTER VIEW a ANNOTATIONS(DROP ANNOTATIONS(a))
+reject@41	reject@41	engine	alterView_annotations_clause/(ADD_OR_REPLACE|DROP)_ANNOTATIONS_(_alterView_annotatio~e0745213	ALTER VIEW a ANNOTATIONS(DROP ANNOTATIONS(a))
 reject@43	reject@41	engine	alterView_annotations_clause/(ADD_OR_REPLACE|DROP)_ANNOTATIONS_(_alterView_annotatio~e0745213!truncate	ALTER VIEW a ANNOTATIONS(DROP ANNOTATIONS(a
-accept	reject@41	engine	alterView_annotations_clause/(ADD_OR_REPLACE|DROP)_ANNOTATIONS_(_alterView_annotatio~e0745213!insert	ALTER VIEW a ANNOTATIONS(DROP ANNOTATIONS(a) zzz)
-accept	reject@33	engine	alterView_annotations_clause/(ADD_OR_REPLACE|DROP)_ANNOTATIONS_(_alterView_annotatio~e0745213!swap	ALTER VIEW a ANNOTATIONS(DUALITY ANNOTATIONS(a))
-accept	reject@51	engine	alterView_annotations_clause(ADD_OR_REPLACE|DROP)/ADD_OR_REPLACE	ALTER VIEW a ANNOTATIONS(ADD OR REPLACE ANNOTATIONS(a))
-accept	reject@25	engine	alterView_annotations_clause(ADD_OR_REPLACE|DROP)/ADD_OR_REPLACE!drop-1	ALTER VIEW a ANNOTATIONS(OR REPLACE ANNOTATIONS(a))
-accept	reject@37	engine	alterView_annotations_clause(ADD_OR_REPLACE|DROP)/ADD_OR_REPLACE!drop-2	ALTER VIEW a ANNOTATIONS(ADD REPLACE ANNOTATIONS(a))
-accept	reject@29	engine	alterView_annotations_clause(ADD_OR_REPLACE|DROP)/ADD_OR_REPLACE!drop-3	ALTER VIEW a ANNOTATIONS(ADD OR ANNOTATIONS(a))
+reject@41	reject@41	engine	alterView_annotations_clause/(ADD_OR_REPLACE|DROP)_ANNOTATIONS_(_alterView_annotatio~e0745213!insert	ALTER VIEW a ANNOTATIONS(DROP ANNOTATIONS(a) zzz)
+reject@33	reject@33	engine	alterView_annotations_clause/(ADD_OR_REPLACE|DROP)_ANNOTATIONS_(_alterView_annotatio~e0745213!swap	ALTER VIEW a ANNOTATIONS(DUALITY ANNOTATIONS(a))
+reject@51	reject@51	engine	alterView_annotations_clause(ADD_OR_REPLACE|DROP)/ADD_OR_REPLACE	ALTER VIEW a ANNOTATIONS(ADD OR REPLACE ANNOTATIONS(a))
+reject@25	reject@25	engine	alterView_annotations_clause(ADD_OR_REPLACE|DROP)/ADD_OR_REPLACE!drop-1	ALTER VIEW a ANNOTATIONS(OR REPLACE ANNOTATIONS(a))
+reject@37	reject@37	engine	alterView_annotations_clause(ADD_OR_REPLACE|DROP)/ADD_OR_REPLACE!drop-2	ALTER VIEW a ANNOTATIONS(ADD REPLACE ANNOTATIONS(a))
+reject@29	reject@29	engine	alterView_annotations_clause(ADD_OR_REPLACE|DROP)/ADD_OR_REPLACE!drop-3	ALTER VIEW a ANNOTATIONS(ADD OR ANNOTATIONS(a))
 reject@31	reject@29	engine	alterView_annotations_clause(ADD_OR_REPLACE|DROP)/ADD_OR_REPLACE!truncate	ALTER VIEW a ANNOTATIONS(ADD OR
-accept	reject@44	engine	alterView_annotations_clause(ADD_OR_REPLACE|DROP)/ADD_OR_REPLACE!insert	ALTER VIEW a ANNOTATIONS(ADD OR REPLACE zzz ANNOTATIONS(a))
-accept	reject@31	engine	alterView_annotations_clause(ADD_OR_REPLACE|DROP)/ADD_OR_REPLACE!swap	ALTER VIEW a ANNOTATIONS(ADMIN OR REPLACE ANNOTATIONS(a))
-accept	reject@41	engine	alterView_annotations_clause(ADD_OR_REPLACE|DROP)/DROP	ALTER VIEW a ANNOTATIONS(DROP ANNOTATIONS(a))
+reject@44	reject@44	engine	alterView_annotations_clause(ADD_OR_REPLACE|DROP)/ADD_OR_REPLACE!insert	ALTER VIEW a ANNOTATIONS(ADD OR REPLACE zzz ANNOTATIONS(a))
+reject@31	reject@31	engine	alterView_annotations_clause(ADD_OR_REPLACE|DROP)/ADD_OR_REPLACE!swap	ALTER VIEW a ANNOTATIONS(ADMIN OR REPLACE ANNOTATIONS(a))
+reject@41	reject@41	engine	alterView_annotations_clause(ADD_OR_REPLACE|DROP)/DROP	ALTER VIEW a ANNOTATIONS(DROP ANNOTATIONS(a))
 reject@25	reject@25	engine	alterView_annotations_clause(ADD_OR_REPLACE|DROP)/DROP!truncate	ALTER VIEW a ANNOTATIONS(
-accept	reject@34	engine	alterView_annotations_clause(ADD_OR_REPLACE|DROP)/DROP!insert	ALTER VIEW a ANNOTATIONS(DROP zzz ANNOTATIONS(a))
-accept	reject@41	engine	alterView_annotations_clause(,_alterView_annotation)*/%empty	ALTER VIEW a ANNOTATIONS(DROP ANNOTATIONS(a))
-accept	reject@41	engine	alterView_annotations_clause(,_alterView_annotation)*/%empty!insert	ALTER VIEW a ANNOTATIONS(DROP ANNOTATIONS(a zzz))
-accept	reject@41	engine	alterView_annotations_clause(,_alterView_annotation)*/,_alterView_annotation_(,_alterView_annotation)*	ALTER VIEW a ANNOTATIONS(DROP ANNOTATIONS(a, a))
-accept	reject@41	engine	alterView_annotations_clause(,_alterView_annotation)*/,_alterView_annotation_(,_alterView_annotation)*!drop-1	ALTER VIEW a ANNOTATIONS(DROP ANNOTATIONS(a a))
-accept	reject@41	engine	alterView_annotations_clause(,_alterView_annotation)*/,_alterView_annotation_(,_alterView_annotation)*!drop-2	ALTER VIEW a ANNOTATIONS(DROP ANNOTATIONS(a,))
+reject@34	reject@34	engine	alterView_annotations_clause(ADD_OR_REPLACE|DROP)/DROP!insert	ALTER VIEW a ANNOTATIONS(DROP zzz ANNOTATIONS(a))
+reject@41	reject@41	engine	alterView_annotations_clause(,_alterView_annotation)*/%empty	ALTER VIEW a ANNOTATIONS(DROP ANNOTATIONS(a))
+reject@41	reject@41	engine	alterView_annotations_clause(,_alterView_annotation)*/%empty!insert	ALTER VIEW a ANNOTATIONS(DROP ANNOTATIONS(a zzz))
+reject@41	reject@41	engine	alterView_annotations_clause(,_alterView_annotation)*/,_alterView_annotation_(,_alterView_annotation)*	ALTER VIEW a ANNOTATIONS(DROP ANNOTATIONS(a, a))
+reject@41	reject@41	engine	alterView_annotations_clause(,_alterView_annotation)*/,_alterView_annotation_(,_alterView_annotation)*!drop-1	ALTER VIEW a ANNOTATIONS(DROP ANNOTATIONS(a a))
+reject@41	reject@41	engine	alterView_annotations_clause(,_alterView_annotation)*/,_alterView_annotation_(,_alterView_annotation)*!drop-2	ALTER VIEW a ANNOTATIONS(DROP ANNOTATIONS(a,))
 reject@44	reject@41	engine	alterView_annotations_clause(,_alterView_annotation)*/,_alterView_annotation_(,_alterView_annotation)*!truncate	ALTER VIEW a ANNOTATIONS(DROP ANNOTATIONS(a,
-accept	reject@41	engine	alterView_annotations_clause(,_alterView_annotation)*/,_alterView_annotation_(,_alterView_annotation)*!insert	ALTER VIEW a ANNOTATIONS(DROP ANNOTATIONS(a, a zzz))
+reject@41	reject@41	engine	alterView_annotations_clause(,_alterView_annotation)*/,_alterView_annotation_(,_alterView_annotation)*!insert	ALTER VIEW a ANNOTATIONS(DROP ANNOTATIONS(a, a zzz))
 reject@26	reject@26	engine	alterView_constraint_state/(NOT?_DEFERRABLE_(INITIALLY_(DEFERRED~0e474ef9)?_(RELY|~bb7a3cc8	ALTER VIEW a ADD UNIQUE(a)
 reject@26	reject@26	engine	alterView_constraint_state(NOT?_DEFERRABLE_(INITIALLY_(DEFERRED~0e474ef9)?/%empty	ALTER VIEW a ADD UNIQUE(a)
 reject@27	reject@27	engine	alterView_constraint_state(NOT?_DEFERRABLE_(INITIALLY_(DEFERRED~0e474ef9)?/(NOT)?_DEFERRABLE_(INITIALLY_(DEFERRED|IMMEDIATE))?	ALTER VIEW a ADD UNIQUE(a) DEFERRABLE
@@ -21179,11 +21179,11 @@ reject@27	reject@27	engine	alterView_constraint_state(alterView_exceptions_claus
 reject@27	reject@27	engine	alterView_constraint_state(alterView_exceptions_clause)?/alterView_exceptions_clause!drop-3	ALTER VIEW a ADD UNIQUE(a) EXCEPTIONS INTO
 reject@27	reject@27	engine	alterView_constraint_state(alterView_exceptions_clause)?/alterView_exceptions_clause!insert	ALTER VIEW a ADD UNIQUE(a) EXCEPTIONS INTO a zzz
 reject@27	reject@27	engine	alterView_constraint_state(alterView_exceptions_clause)?/alterView_exceptions_clause!swap	ALTER VIEW a ADD UNIQUE(a) EXCHANGE INTO a
-accept	reject@41	engine	alterView_annotation/ID_(EXPR)?	ALTER VIEW a ANNOTATIONS(DROP ANNOTATIONS(a))
+reject@41	reject@41	engine	alterView_annotation/ID_(EXPR)?	ALTER VIEW a ANNOTATIONS(DROP ANNOTATIONS(a))
 reject@42	reject@41	engine	alterView_annotation/ID_(EXPR)?!truncate	ALTER VIEW a ANNOTATIONS(DROP ANNOTATIONS(
-accept	reject@41	engine	alterView_annotation(EXPR)?/%empty	ALTER VIEW a ANNOTATIONS(DROP ANNOTATIONS(a))
-accept	reject@41	engine	alterView_annotation(EXPR)?/EXPR	ALTER VIEW a ANNOTATIONS(DROP ANNOTATIONS(a 1))
-accept	reject@41	engine	alterView_annotation(EXPR)?/EXPR!insert	ALTER VIEW a ANNOTATIONS(DROP ANNOTATIONS(a 1 zzz))
+reject@41	reject@41	engine	alterView_annotation(EXPR)?/%empty	ALTER VIEW a ANNOTATIONS(DROP ANNOTATIONS(a))
+reject@41	reject@41	engine	alterView_annotation(EXPR)?/EXPR	ALTER VIEW a ANNOTATIONS(DROP ANNOTATIONS(a 1))
+reject@41	reject@41	engine	alterView_annotation(EXPR)?/EXPR!insert	ALTER VIEW a ANNOTATIONS(DROP ANNOTATIONS(a 1 zzz))
 reject@27	reject@27	engine	alterView_using_index_clause/USING_INDEX_((ID_.)?_ID|alterView_index_attributes)	ALTER VIEW a ADD UNIQUE(a) USING INDEX
 reject@27	reject@27	engine	alterView_using_index_clause((ID_.)?_ID|alterView_index_attributes)/(ID_.)?_ID	ALTER VIEW a ADD UNIQUE(a) USING INDEX a
 reject@27	reject@27	engine	alterView_using_index_clause((ID_.)?_ID|alterView_index_attributes)/(ID_.)?_ID!insert	ALTER VIEW a ADD UNIQUE(a) USING INDEX a zzz
@@ -23313,40 +23313,40 @@ reject@10	reject@10	engine	createContext(OR_REPLACE)?/OR_REPLACE!drop-2	CREATE O
 reject@18	reject@18	engine	createContext(OR_REPLACE)?/OR_REPLACE!insert	CREATE OR REPLACE zzz CONTEXT a USING a
 reject@7	reject@7	engine	createContext(OR_REPLACE)?/OR_REPLACE!swap	CREATE ORDER REPLACE CONTEXT a USING a
 accept	accept	engine	createContext(ID_.)?/%empty	CREATE CONTEXT a USING a
-accept	reject@27	engine	createContext(ID_.)?/%empty!insert	CREATE CONTEXT a USING zzz a
+reject@27	reject@27	engine	createContext(ID_.)?/%empty!insert	CREATE CONTEXT a USING zzz a
 accept	accept	engine	createContext(ID_.)?/ID_.	CREATE CONTEXT a USING a.a
-accept	reject@22	engine	createContext(ID_.)?/ID_.!drop-1	CREATE CONTEXT a USING.a
-accept	reject@25	engine	createContext(ID_.)?/ID_.!drop-2	CREATE CONTEXT a USING a a
-accept	reject@29	engine	createContext(ID_.)?/ID_.!insert	CREATE CONTEXT a USING a.zzz a
+reject@22	reject@22	engine	createContext(ID_.)?/ID_.!drop-1	CREATE CONTEXT a USING.a
+reject@25	reject@25	engine	createContext(ID_.)?/ID_.!drop-2	CREATE CONTEXT a USING a a
+reject@29	reject@29	engine	createContext(ID_.)?/ID_.!insert	CREATE CONTEXT a USING a.zzz a
 accept	accept	engine	createContext(SHARING_=_(METADATA|NONE))?/%empty	CREATE CONTEXT a USING a
-accept	reject@25	engine	createContext(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)	CREATE CONTEXT a USING a SHARING = METADATA
-accept	reject@25	engine	createContext(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)!drop-1	CREATE CONTEXT a USING a = METADATA
-accept	reject@25	engine	createContext(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)!drop-2	CREATE CONTEXT a USING a SHARING METADATA
-reject@34	reject@25	engine	createContext(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)!drop-3	CREATE CONTEXT a USING a SHARING =
-accept	reject@25	engine	createContext(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)!insert	CREATE CONTEXT a USING a SHARING = METADATA zzz
-accept	reject@25	engine	createContext(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)!swap	CREATE CONTEXT a USING a SHOW = METADATA
-accept	reject@25	engine	createContext(METADATA|NONE)/METADATA	CREATE CONTEXT a USING a SHARING = METADATA
-accept	reject@25	engine	createContext(METADATA|NONE)/METADATA!swap	CREATE CONTEXT a USING a SHARING = MIGRATE
-accept	reject@25	engine	createContext(METADATA|NONE)/NONE	CREATE CONTEXT a USING a SHARING = NONE
-accept	reject@25	engine	createContext(METADATA|NONE)/NONE!insert	CREATE CONTEXT a USING a SHARING = NONE zzz
-accept	reject@25	engine	createContext(METADATA|NONE)/NONE!swap	CREATE CONTEXT a USING a SHARING = NONEDITIONABLE
+reject@25	reject@25	engine	createContext(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)	CREATE CONTEXT a USING a SHARING = METADATA
+reject@25	reject@25	engine	createContext(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)!drop-1	CREATE CONTEXT a USING a = METADATA
+reject@25	reject@25	engine	createContext(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)!drop-2	CREATE CONTEXT a USING a SHARING METADATA
+reject@25	reject@25	engine	createContext(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)!drop-3	CREATE CONTEXT a USING a SHARING =
+reject@25	reject@25	engine	createContext(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)!insert	CREATE CONTEXT a USING a SHARING = METADATA zzz
+reject@25	reject@25	engine	createContext(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)!swap	CREATE CONTEXT a USING a SHOW = METADATA
+reject@25	reject@25	engine	createContext(METADATA|NONE)/METADATA	CREATE CONTEXT a USING a SHARING = METADATA
+reject@25	reject@25	engine	createContext(METADATA|NONE)/METADATA!swap	CREATE CONTEXT a USING a SHARING = MIGRATE
+reject@25	reject@25	engine	createContext(METADATA|NONE)/NONE	CREATE CONTEXT a USING a SHARING = NONE
+reject@25	reject@25	engine	createContext(METADATA|NONE)/NONE!insert	CREATE CONTEXT a USING a SHARING = NONE zzz
+reject@25	reject@25	engine	createContext(METADATA|NONE)/NONE!swap	CREATE CONTEXT a USING a SHARING = NONEDITIONABLE
 accept	accept	engine	createContext(INITIALIZED_(EXTERNALLY|GLOBALLY))?/%empty	CREATE CONTEXT a USING a
 accept	accept	engine	createContext(INITIALIZED_(EXTERNALLY|GLOBALLY))?/INITIALIZED_(EXTERNALLY|GLOBALLY)	CREATE CONTEXT a USING a INITIALIZED EXTERNALLY
-accept	reject@25	engine	createContext(INITIALIZED_(EXTERNALLY|GLOBALLY))?/INITIALIZED_(EXTERNALLY|GLOBALLY)!drop-1	CREATE CONTEXT a USING a EXTERNALLY
-accept	reject@36	engine	createContext(INITIALIZED_(EXTERNALLY|GLOBALLY))?/INITIALIZED_(EXTERNALLY|GLOBALLY)!drop-2	CREATE CONTEXT a USING a INITIALIZED
-accept	reject@48	engine	createContext(INITIALIZED_(EXTERNALLY|GLOBALLY))?/INITIALIZED_(EXTERNALLY|GLOBALLY)!insert	CREATE CONTEXT a USING a INITIALIZED EXTERNALLY zzz
-accept	reject@25	engine	createContext(INITIALIZED_(EXTERNALLY|GLOBALLY))?/INITIALIZED_(EXTERNALLY|GLOBALLY)!swap	CREATE CONTEXT a USING a INITIALLY EXTERNALLY
+reject@25	reject@25	engine	createContext(INITIALIZED_(EXTERNALLY|GLOBALLY))?/INITIALIZED_(EXTERNALLY|GLOBALLY)!drop-1	CREATE CONTEXT a USING a EXTERNALLY
+reject@36	reject@36	engine	createContext(INITIALIZED_(EXTERNALLY|GLOBALLY))?/INITIALIZED_(EXTERNALLY|GLOBALLY)!drop-2	CREATE CONTEXT a USING a INITIALIZED
+reject@48	reject@48	engine	createContext(INITIALIZED_(EXTERNALLY|GLOBALLY))?/INITIALIZED_(EXTERNALLY|GLOBALLY)!insert	CREATE CONTEXT a USING a INITIALIZED EXTERNALLY zzz
+reject@25	reject@25	engine	createContext(INITIALIZED_(EXTERNALLY|GLOBALLY))?/INITIALIZED_(EXTERNALLY|GLOBALLY)!swap	CREATE CONTEXT a USING a INITIALLY EXTERNALLY
 accept	accept	engine	createContext(EXTERNALLY|GLOBALLY)/EXTERNALLY	CREATE CONTEXT a USING a INITIALIZED EXTERNALLY
-accept	reject@0	engine	createContext(EXTERNALLY|GLOBALLY)/EXTERNALLY!swap	CREATE CONTEXT a USING a INITIALIZED FACT
+reject@37	reject@0	engine	createContext(EXTERNALLY|GLOBALLY)/EXTERNALLY!swap	CREATE CONTEXT a USING a INITIALIZED FACT
 accept	accept	engine	createContext(EXTERNALLY|GLOBALLY)/GLOBALLY	CREATE CONTEXT a USING a INITIALIZED GLOBALLY
-accept	reject@46	engine	createContext(EXTERNALLY|GLOBALLY)/GLOBALLY!insert	CREATE CONTEXT a USING a INITIALIZED GLOBALLY zzz
-accept	reject@0	engine	createContext(EXTERNALLY|GLOBALLY)/GLOBALLY!swap	CREATE CONTEXT a USING a INITIALIZED GLOBAL_NAME
+reject@46	reject@46	engine	createContext(EXTERNALLY|GLOBALLY)/GLOBALLY!insert	CREATE CONTEXT a USING a INITIALIZED GLOBALLY zzz
+reject@37	reject@0	engine	createContext(EXTERNALLY|GLOBALLY)/GLOBALLY!swap	CREATE CONTEXT a USING a INITIALIZED GLOBAL_NAME
 accept	accept	engine	createContext(ACCESSED_GLOBALLY)?/%empty	CREATE CONTEXT a USING a
 accept	accept	engine	createContext(ACCESSED_GLOBALLY)?/ACCESSED_GLOBALLY	CREATE CONTEXT a USING a ACCESSED GLOBALLY
-accept	reject@25	engine	createContext(ACCESSED_GLOBALLY)?/ACCESSED_GLOBALLY!drop-1	CREATE CONTEXT a USING a GLOBALLY
-accept	reject@33	engine	createContext(ACCESSED_GLOBALLY)?/ACCESSED_GLOBALLY!drop-2	CREATE CONTEXT a USING a ACCESSED
-accept	reject@43	engine	createContext(ACCESSED_GLOBALLY)?/ACCESSED_GLOBALLY!insert	CREATE CONTEXT a USING a ACCESSED GLOBALLY zzz
-accept	reject@25	engine	createContext(ACCESSED_GLOBALLY)?/ACCESSED_GLOBALLY!swap	CREATE CONTEXT a USING a ACCESSIBLE GLOBALLY
+reject@25	reject@25	engine	createContext(ACCESSED_GLOBALLY)?/ACCESSED_GLOBALLY!drop-1	CREATE CONTEXT a USING a GLOBALLY
+reject@33	reject@33	engine	createContext(ACCESSED_GLOBALLY)?/ACCESSED_GLOBALLY!drop-2	CREATE CONTEXT a USING a ACCESSED
+reject@43	reject@43	engine	createContext(ACCESSED_GLOBALLY)?/ACCESSED_GLOBALLY!insert	CREATE CONTEXT a USING a ACCESSED GLOBALLY zzz
+reject@25	reject@25	engine	createContext(ACCESSED_GLOBALLY)?/ACCESSED_GLOBALLY!swap	CREATE CONTEXT a USING a ACCESSIBLE GLOBALLY
 accept	accept	engine	createDatabaseLink/CREATE_(SHARED)?_(PUBLIC)?_DATABASE_LINK_(IF_NOT_EXISTS~51da20d6	CREATE DATABASE LINK a USING 's'
 accept	accept	engine	createDatabaseLink(SHARED)?/%empty	CREATE DATABASE LINK a USING 's'
 reject@7	reject@7	engine	createDatabaseLink(SHARED)?/%empty!insert	CREATE zzz DATABASE LINK a USING 's'
@@ -24843,28 +24843,28 @@ accept	reject@29	engine	createInmemoryJoinGroup/CREATE_INMEMORY_JOIN_GROUP_(IF_N
 accept	reject@29	engine	createInmemoryJoinGroup(IF_NOT_EXISTS)?/%empty	CREATE INMEMORY JOIN GROUP a(a(a))
 reject@31	reject@31	engine	createInmemoryJoinGroup(IF_NOT_EXISTS)?/%empty!insert	CREATE INMEMORY JOIN GROUP zzz a(a(a))
 accept	reject@43	engine	createInmemoryJoinGroup(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE INMEMORY JOIN GROUP IF NOT EXISTS a(a(a))
-reject@31	reject@27	engine	createInmemoryJoinGroup(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	CREATE INMEMORY JOIN GROUP NOT EXISTS a(a(a))
-reject@30	reject@27	engine	createInmemoryJoinGroup(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	CREATE INMEMORY JOIN GROUP IF EXISTS a(a(a))
-accept	reject@27	engine	createInmemoryJoinGroup(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE INMEMORY JOIN GROUP IF NOT a(a(a))
-accept	reject@27	engine	createInmemoryJoinGroup(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE INMEMORY JOIN GROUP IF NOT
+reject@27	reject@27	engine	createInmemoryJoinGroup(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	CREATE INMEMORY JOIN GROUP NOT EXISTS a(a(a))
+reject@27	reject@27	engine	createInmemoryJoinGroup(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	CREATE INMEMORY JOIN GROUP IF EXISTS a(a(a))
+reject@27	reject@27	engine	createInmemoryJoinGroup(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE INMEMORY JOIN GROUP IF NOT a(a(a))
+reject@27	reject@27	engine	createInmemoryJoinGroup(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE INMEMORY JOIN GROUP IF NOT
 reject@45	reject@45	engine	createInmemoryJoinGroup(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE INMEMORY JOIN GROUP IF NOT EXISTS zzz a(a(a))
 reject@34	reject@34	engine	createInmemoryJoinGroup(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE INMEMORY JOIN GROUP IGNORE NOT EXISTS a(a(a))
 accept	reject@29	engine	createInmemoryJoinGroup(ID_.)?/%empty	CREATE INMEMORY JOIN GROUP a(a(a))
 accept	accept	engine	createInmemoryJoinGroup(ID_.)?/ID_.	CREATE INMEMORY JOIN GROUP a.a(a(a))
 reject@26	reject@26	engine	createInmemoryJoinGroup(ID_.)?/ID_.!drop-1	CREATE INMEMORY JOIN GROUP.a(a(a))
 reject@29	reject@29	engine	createInmemoryJoinGroup(ID_.)?/ID_.!drop-2	CREATE INMEMORY JOIN GROUP a a(a(a))
-accept	reject@28	engine	createInmemoryJoinGroup(ID_.)?/ID_.!truncate	CREATE INMEMORY JOIN GROUP a
+reject@28	reject@28	engine	createInmemoryJoinGroup(ID_.)?/ID_.!truncate	CREATE INMEMORY JOIN GROUP a
 reject@33	reject@33	engine	createInmemoryJoinGroup(ID_.)?/ID_.!insert	CREATE INMEMORY JOIN GROUP a.zzz a(a(a))
 accept	reject@29	engine	createInmemoryJoinGroup(,_(ID_.)?_ID_(_ID_))*/%empty	CREATE INMEMORY JOIN GROUP a(a(a))
-accept	reject@37	engine	createInmemoryJoinGroup(,_(ID_.)?_ID_(_ID_))*/%empty!insert	CREATE INMEMORY JOIN GROUP a(a(a) zzz)
+reject@34	reject@37	engine	createInmemoryJoinGroup(,_(ID_.)?_ID_(_ID_))*/%empty!insert	CREATE INMEMORY JOIN GROUP a(a(a) zzz)
 accept	reject@29	engine	createInmemoryJoinGroup(,_(ID_.)?_ID_(_ID_))*/,_(ID_.)?_ID_(_ID_)_(,_(ID_.)?_ID_(_ID_))*	CREATE INMEMORY JOIN GROUP a(a(a), a(a))
-accept	reject@29	engine	createInmemoryJoinGroup(,_(ID_.)?_ID_(_ID_))*/,_(ID_.)?_ID_(_ID_)_(,_(ID_.)?_ID_(_ID_))*!drop-1	CREATE INMEMORY JOIN GROUP a(a(a) a(a))
-accept	reject@34	engine	createInmemoryJoinGroup(,_(ID_.)?_ID_(_ID_))*/,_(ID_.)?_ID_(_ID_)_(,_(ID_.)?_ID_(_ID_))*!drop-2	CREATE INMEMORY JOIN GROUP a(a(a),(a))
+reject@34	reject@29	engine	createInmemoryJoinGroup(,_(ID_.)?_ID_(_ID_))*/,_(ID_.)?_ID_(_ID_)_(,_(ID_.)?_ID_(_ID_))*!drop-1	CREATE INMEMORY JOIN GROUP a(a(a) a(a))
+reject@34	reject@34	engine	createInmemoryJoinGroup(,_(ID_.)?_ID_(_ID_))*/,_(ID_.)?_ID_(_ID_)_(,_(ID_.)?_ID_(_ID_))*!drop-2	CREATE INMEMORY JOIN GROUP a(a(a),(a))
 reject@39	reject@37	engine	createInmemoryJoinGroup(,_(ID_.)?_ID_(_ID_))*/,_(ID_.)?_ID_(_ID_)_(,_(ID_.)?_ID_(_ID_))*!drop-3	CREATE INMEMORY JOIN GROUP a(a(a), a a))
-accept	reject@37	engine	createInmemoryJoinGroup(,_(ID_.)?_ID_(_ID_))*/,_(ID_.)?_ID_(_ID_)_(,_(ID_.)?_ID_(_ID_))*!drop-4	CREATE INMEMORY JOIN GROUP a(a(a), a())
+reject@37	reject@37	engine	createInmemoryJoinGroup(,_(ID_.)?_ID_(_ID_))*/,_(ID_.)?_ID_(_ID_)_(,_(ID_.)?_ID_(_ID_))*!drop-4	CREATE INMEMORY JOIN GROUP a(a(a), a())
 reject@39	reject@29	engine	createInmemoryJoinGroup(,_(ID_.)?_ID_(_ID_))*/,_(ID_.)?_ID_(_ID_)_(,_(ID_.)?_ID_(_ID_))*!drop-5	CREATE INMEMORY JOIN GROUP a(a(a), a(a)
 reject@38	reject@38	engine	createInmemoryJoinGroup(,_(ID_.)?_ID_(_ID_))*/,_(ID_.)?_ID_(_ID_)_(,_(ID_.)?_ID_(_ID_))*!truncate	CREATE INMEMORY JOIN GROUP a(a(a), a(a
-accept	reject@43	engine	createInmemoryJoinGroup(,_(ID_.)?_ID_(_ID_))*/,_(ID_.)?_ID_(_ID_)_(,_(ID_.)?_ID_(_ID_))*!insert	CREATE INMEMORY JOIN GROUP a(a(a), a(a) zzz)
+reject@40	reject@43	engine	createInmemoryJoinGroup(,_(ID_.)?_ID_(_ID_))*/,_(ID_.)?_ID_(_ID_)_(,_(ID_.)?_ID_(_ID_))*!insert	CREATE INMEMORY JOIN GROUP a(a(a), a(a) zzz)
 reject@25	reject@25	engine	createJava/CREATE_(OR_REPLACE|IF_NOT_EXISTS)?_(AND_(RESOLVE|COMPIL~4292c46c	CREATE JAVA SOURCE USING a
 reject@25	reject@25	engine	createJava(OR_REPLACE|IF_NOT_EXISTS)?/%empty	CREATE JAVA SOURCE USING a
 reject@7	reject@7	engine	createJava(OR_REPLACE|IF_NOT_EXISTS)?/%empty!insert	CREATE zzz JAVA SOURCE USING a
@@ -31382,42 +31382,42 @@ accept	accept	engine	createRestorePoint/CREATE_(CLEAN)?_RESTORE_POINT_ID_(FOR_PL
 accept	accept	engine	createRestorePoint(CLEAN)?/%empty	CREATE RESTORE POINT a
 reject@7	reject@7	engine	createRestorePoint(CLEAN)?/%empty!insert	CREATE zzz RESTORE POINT a
 accept	accept	engine	createRestorePoint(CLEAN)?/CLEAN	CREATE CLEAN RESTORE POINT a
-accept	reject@13	engine	createRestorePoint(CLEAN)?/CLEAN!insert	CREATE CLEAN zzz RESTORE POINT a
+reject@13	reject@13	engine	createRestorePoint(CLEAN)?/CLEAN!insert	CREATE CLEAN zzz RESTORE POINT a
 reject@7	reject@7	engine	createRestorePoint(CLEAN)?/CLEAN!swap	CREATE CLEANUP RESTORE POINT a
 accept	accept	engine	createRestorePoint(FOR_PLUGGABLE_DATABASE_ID)?/%empty	CREATE RESTORE POINT a
 accept	accept	engine	createRestorePoint(FOR_PLUGGABLE_DATABASE_ID)?/FOR_PLUGGABLE_DATABASE_ID	CREATE RESTORE POINT a FOR PLUGGABLE DATABASE a
-accept	reject@23	engine	createRestorePoint(FOR_PLUGGABLE_DATABASE_ID)?/FOR_PLUGGABLE_DATABASE_ID!drop-1	CREATE RESTORE POINT a PLUGGABLE DATABASE a
-accept	reject@27	engine	createRestorePoint(FOR_PLUGGABLE_DATABASE_ID)?/FOR_PLUGGABLE_DATABASE_ID!drop-2	CREATE RESTORE POINT a FOR DATABASE a
-accept	reject@37	engine	createRestorePoint(FOR_PLUGGABLE_DATABASE_ID)?/FOR_PLUGGABLE_DATABASE_ID!drop-3	CREATE RESTORE POINT a FOR PLUGGABLE a
-accept	reject@45	engine	createRestorePoint(FOR_PLUGGABLE_DATABASE_ID)?/FOR_PLUGGABLE_DATABASE_ID!drop-4	CREATE RESTORE POINT a FOR PLUGGABLE DATABASE
-accept	reject@48	engine	createRestorePoint(FOR_PLUGGABLE_DATABASE_ID)?/FOR_PLUGGABLE_DATABASE_ID!insert	CREATE RESTORE POINT a FOR PLUGGABLE DATABASE a zzz
-accept	reject@23	engine	createRestorePoint(FOR_PLUGGABLE_DATABASE_ID)?/FOR_PLUGGABLE_DATABASE_ID!swap	CREATE RESTORE POINT a FORCE PLUGGABLE DATABASE a
+reject@23	reject@23	engine	createRestorePoint(FOR_PLUGGABLE_DATABASE_ID)?/FOR_PLUGGABLE_DATABASE_ID!drop-1	CREATE RESTORE POINT a PLUGGABLE DATABASE a
+reject@27	reject@27	engine	createRestorePoint(FOR_PLUGGABLE_DATABASE_ID)?/FOR_PLUGGABLE_DATABASE_ID!drop-2	CREATE RESTORE POINT a FOR DATABASE a
+reject@37	reject@37	engine	createRestorePoint(FOR_PLUGGABLE_DATABASE_ID)?/FOR_PLUGGABLE_DATABASE_ID!drop-3	CREATE RESTORE POINT a FOR PLUGGABLE a
+reject@45	reject@45	engine	createRestorePoint(FOR_PLUGGABLE_DATABASE_ID)?/FOR_PLUGGABLE_DATABASE_ID!drop-4	CREATE RESTORE POINT a FOR PLUGGABLE DATABASE
+reject@48	reject@48	engine	createRestorePoint(FOR_PLUGGABLE_DATABASE_ID)?/FOR_PLUGGABLE_DATABASE_ID!insert	CREATE RESTORE POINT a FOR PLUGGABLE DATABASE a zzz
+reject@23	reject@23	engine	createRestorePoint(FOR_PLUGGABLE_DATABASE_ID)?/FOR_PLUGGABLE_DATABASE_ID!swap	CREATE RESTORE POINT a FORCE PLUGGABLE DATABASE a
 accept	accept	engine	createRestorePoint(AS_OF_(TIMESTAMP|SCN)_EXPR)?/%empty	CREATE RESTORE POINT a
 accept	accept	engine	createRestorePoint(AS_OF_(TIMESTAMP|SCN)_EXPR)?/AS_OF_(TIMESTAMP|SCN)_EXPR	CREATE RESTORE POINT a AS OF TIMESTAMP 1
-accept	reject@23	engine	createRestorePoint(AS_OF_(TIMESTAMP|SCN)_EXPR)?/AS_OF_(TIMESTAMP|SCN)_EXPR!drop-1	CREATE RESTORE POINT a OF TIMESTAMP 1
-accept	reject@26	engine	createRestorePoint(AS_OF_(TIMESTAMP|SCN)_EXPR)?/AS_OF_(TIMESTAMP|SCN)_EXPR!drop-2	CREATE RESTORE POINT a AS TIMESTAMP 1
-accept	reject@29	engine	createRestorePoint(AS_OF_(TIMESTAMP|SCN)_EXPR)?/AS_OF_(TIMESTAMP|SCN)_EXPR!drop-3	CREATE RESTORE POINT a AS OF 1
-accept	reject@38	engine	createRestorePoint(AS_OF_(TIMESTAMP|SCN)_EXPR)?/AS_OF_(TIMESTAMP|SCN)_EXPR!drop-4	CREATE RESTORE POINT a AS OF TIMESTAMP
-accept	reject@41	engine	createRestorePoint(AS_OF_(TIMESTAMP|SCN)_EXPR)?/AS_OF_(TIMESTAMP|SCN)_EXPR!insert	CREATE RESTORE POINT a AS OF TIMESTAMP 1 zzz
-accept	reject@23	engine	createRestorePoint(AS_OF_(TIMESTAMP|SCN)_EXPR)?/AS_OF_(TIMESTAMP|SCN)_EXPR!swap	CREATE RESTORE POINT a ASC OF TIMESTAMP 1
+reject@23	reject@23	engine	createRestorePoint(AS_OF_(TIMESTAMP|SCN)_EXPR)?/AS_OF_(TIMESTAMP|SCN)_EXPR!drop-1	CREATE RESTORE POINT a OF TIMESTAMP 1
+reject@26	reject@26	engine	createRestorePoint(AS_OF_(TIMESTAMP|SCN)_EXPR)?/AS_OF_(TIMESTAMP|SCN)_EXPR!drop-2	CREATE RESTORE POINT a AS TIMESTAMP 1
+reject@29	reject@29	engine	createRestorePoint(AS_OF_(TIMESTAMP|SCN)_EXPR)?/AS_OF_(TIMESTAMP|SCN)_EXPR!drop-3	CREATE RESTORE POINT a AS OF 1
+reject@38	reject@38	engine	createRestorePoint(AS_OF_(TIMESTAMP|SCN)_EXPR)?/AS_OF_(TIMESTAMP|SCN)_EXPR!drop-4	CREATE RESTORE POINT a AS OF TIMESTAMP
+reject@41	reject@41	engine	createRestorePoint(AS_OF_(TIMESTAMP|SCN)_EXPR)?/AS_OF_(TIMESTAMP|SCN)_EXPR!insert	CREATE RESTORE POINT a AS OF TIMESTAMP 1 zzz
+reject@23	reject@23	engine	createRestorePoint(AS_OF_(TIMESTAMP|SCN)_EXPR)?/AS_OF_(TIMESTAMP|SCN)_EXPR!swap	CREATE RESTORE POINT a ASC OF TIMESTAMP 1
 accept	accept	engine	createRestorePoint(TIMESTAMP|SCN)/TIMESTAMP	CREATE RESTORE POINT a AS OF TIMESTAMP 1
-accept	reject@28	engine	createRestorePoint(TIMESTAMP|SCN)/TIMESTAMP!truncate	CREATE RESTORE POINT a AS OF
-accept	reject@39	engine	createRestorePoint(TIMESTAMP|SCN)/TIMESTAMP!insert	CREATE RESTORE POINT a AS OF TIMESTAMP zzz 1
-accept	reject@29	engine	createRestorePoint(TIMESTAMP|SCN)/TIMESTAMP!swap	CREATE RESTORE POINT a AS OF TIME_ZONE 1
+reject@28	reject@28	engine	createRestorePoint(TIMESTAMP|SCN)/TIMESTAMP!truncate	CREATE RESTORE POINT a AS OF
+reject@43	reject@39	engine	createRestorePoint(TIMESTAMP|SCN)/TIMESTAMP!insert	CREATE RESTORE POINT a AS OF TIMESTAMP zzz 1
+reject@29	reject@29	engine	createRestorePoint(TIMESTAMP|SCN)/TIMESTAMP!swap	CREATE RESTORE POINT a AS OF TIME_ZONE 1
 accept	accept	engine	createRestorePoint(TIMESTAMP|SCN)/SCN	CREATE RESTORE POINT a AS OF SCN 1
-accept	reject@33	engine	createRestorePoint(TIMESTAMP|SCN)/SCN!insert	CREATE RESTORE POINT a AS OF SCN zzz 1
-accept	reject@29	engine	createRestorePoint(TIMESTAMP|SCN)/SCN!swap	CREATE RESTORE POINT a AS OF SCOPE 1
+reject@37	reject@33	engine	createRestorePoint(TIMESTAMP|SCN)/SCN!insert	CREATE RESTORE POINT a AS OF SCN zzz 1
+reject@29	reject@29	engine	createRestorePoint(TIMESTAMP|SCN)/SCN!swap	CREATE RESTORE POINT a AS OF SCOPE 1
 accept	accept	engine	createRestorePoint(PRESERVE)?/%empty	CREATE RESTORE POINT a
 accept	accept	engine	createRestorePoint(PRESERVE)?/PRESERVE	CREATE RESTORE POINT a PRESERVE
-accept	reject@32	engine	createRestorePoint(PRESERVE)?/PRESERVE!insert	CREATE RESTORE POINT a PRESERVE zzz
-accept	reject@23	engine	createRestorePoint(PRESERVE)?/PRESERVE!swap	CREATE RESTORE POINT a PRIMARY
+reject@32	reject@32	engine	createRestorePoint(PRESERVE)?/PRESERVE!insert	CREATE RESTORE POINT a PRESERVE zzz
+reject@23	reject@23	engine	createRestorePoint(PRESERVE)?/PRESERVE!swap	CREATE RESTORE POINT a PRIMARY
 accept	accept	engine	createRestorePoint(GUARANTEE_FLASHBACK_DATABASE)?/%empty	CREATE RESTORE POINT a
 accept	accept	engine	createRestorePoint(GUARANTEE_FLASHBACK_DATABASE)?/GUARANTEE_FLASHBACK_DATABASE	CREATE RESTORE POINT a GUARANTEE FLASHBACK DATABASE
-accept	reject@23	engine	createRestorePoint(GUARANTEE_FLASHBACK_DATABASE)?/GUARANTEE_FLASHBACK_DATABASE!drop-1	CREATE RESTORE POINT a FLASHBACK DATABASE
-accept	reject@33	engine	createRestorePoint(GUARANTEE_FLASHBACK_DATABASE)?/GUARANTEE_FLASHBACK_DATABASE!drop-2	CREATE RESTORE POINT a GUARANTEE DATABASE
-accept	reject@42	engine	createRestorePoint(GUARANTEE_FLASHBACK_DATABASE)?/GUARANTEE_FLASHBACK_DATABASE!drop-3	CREATE RESTORE POINT a GUARANTEE FLASHBACK
-accept	reject@52	engine	createRestorePoint(GUARANTEE_FLASHBACK_DATABASE)?/GUARANTEE_FLASHBACK_DATABASE!insert	CREATE RESTORE POINT a GUARANTEE FLASHBACK DATABASE zzz
-accept	reject@23	engine	createRestorePoint(GUARANTEE_FLASHBACK_DATABASE)?/GUARANTEE_FLASHBACK_DATABASE!swap	CREATE RESTORE POINT a GUARD FLASHBACK DATABASE
+reject@23	reject@23	engine	createRestorePoint(GUARANTEE_FLASHBACK_DATABASE)?/GUARANTEE_FLASHBACK_DATABASE!drop-1	CREATE RESTORE POINT a FLASHBACK DATABASE
+reject@33	reject@33	engine	createRestorePoint(GUARANTEE_FLASHBACK_DATABASE)?/GUARANTEE_FLASHBACK_DATABASE!drop-2	CREATE RESTORE POINT a GUARANTEE DATABASE
+reject@42	reject@42	engine	createRestorePoint(GUARANTEE_FLASHBACK_DATABASE)?/GUARANTEE_FLASHBACK_DATABASE!drop-3	CREATE RESTORE POINT a GUARANTEE FLASHBACK
+reject@52	reject@52	engine	createRestorePoint(GUARANTEE_FLASHBACK_DATABASE)?/GUARANTEE_FLASHBACK_DATABASE!insert	CREATE RESTORE POINT a GUARANTEE FLASHBACK DATABASE zzz
+reject@23	reject@23	engine	createRestorePoint(GUARANTEE_FLASHBACK_DATABASE)?/GUARANTEE_FLASHBACK_DATABASE!swap	CREATE RESTORE POINT a GUARD FLASHBACK DATABASE
 accept	accept	engine	createRole/CREATE_ROLE_ID_(NOT_IDENTIFIED|IDENTIFIED_(BY_ID|USI~f6~945f3189	CREATE ROLE a
 accept	accept	engine	createRole(NOT_IDENTIFIED|IDENTIFIED_(BY_ID|USI~f60c6aba)?/%empty	CREATE ROLE a
 accept	accept	engine	createRole(NOT_IDENTIFIED|IDENTIFIED_(BY_ID|USI~f60c6aba)?/NOT_IDENTIFIED	CREATE ROLE a NOT IDENTIFIED
@@ -31475,10 +31475,10 @@ reject@14	reject@14	engine	createRollbackSegment(PUBLIC)?/PUBLIC!insert	CREATE P
 reject@7	reject@7	engine	createRollbackSegment(PUBLIC)?/PUBLIC!swap	CREATE PURE ROLLBACK SEGMENT a
 accept	accept	engine	createRollbackSegment(TABLESPACE_ID)?/%empty	CREATE ROLLBACK SEGMENT a
 accept	accept	engine	createRollbackSegment(TABLESPACE_ID)?/TABLESPACE_ID	CREATE ROLLBACK SEGMENT a TABLESPACE a
-accept	reject@26	engine	createRollbackSegment(TABLESPACE_ID)?/TABLESPACE_ID!drop-1	CREATE ROLLBACK SEGMENT a a
-accept	reject@36	engine	createRollbackSegment(TABLESPACE_ID)?/TABLESPACE_ID!drop-2	CREATE ROLLBACK SEGMENT a TABLESPACE
-accept	reject@39	engine	createRollbackSegment(TABLESPACE_ID)?/TABLESPACE_ID!insert	CREATE ROLLBACK SEGMENT a TABLESPACE a zzz
-accept	reject@26	engine	createRollbackSegment(TABLESPACE_ID)?/TABLESPACE_ID!swap	CREATE ROLLBACK SEGMENT a TAG a
+reject@26	reject@26	engine	createRollbackSegment(TABLESPACE_ID)?/TABLESPACE_ID!drop-1	CREATE ROLLBACK SEGMENT a a
+reject@36	reject@36	engine	createRollbackSegment(TABLESPACE_ID)?/TABLESPACE_ID!drop-2	CREATE ROLLBACK SEGMENT a TABLESPACE
+reject@39	reject@39	engine	createRollbackSegment(TABLESPACE_ID)?/TABLESPACE_ID!insert	CREATE ROLLBACK SEGMENT a TABLESPACE a zzz
+reject@26	reject@26	engine	createRollbackSegment(TABLESPACE_ID)?/TABLESPACE_ID!swap	CREATE ROLLBACK SEGMENT a TAG a
 accept	accept	engine	createSchema/CREATE_SCHEMA_AUTHORIZATION_ID_(CREATE_TABLE|CREATE_VIE~cadf56b4	CREATE SCHEMA AUTHORIZATION a CREATE TABLE a (a NUMBER)
 accept	accept	engine	createSchema(CREATE_TABLE|CREATE_VIEW|GRANT)/CREATE_TABLE	CREATE SCHEMA AUTHORIZATION a CREATE TABLE a (a NUMBER)
 accept	accept	engine	createSchema(CREATE_TABLE|CREATE_VIEW|GRANT)/CREATE_VIEW	CREATE SCHEMA AUTHORIZATION a CREATE VIEW a AS SELECT 1 a FROM dual

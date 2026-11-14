@@ -166,9 +166,6 @@ func (p *Parser) parseCreateAdminObject(start int, orReplace bool) (nodes.StmtNo
 	case kwDIRECTORY:
 		p.advance()
 		return p.parseCreateDirectoryStmt(start, orReplace)
-	case kwCONTEXT:
-		p.advance()
-		return p.parseCreateContextStmt(start, orReplace)
 	case kwCLUSTER:
 		p.advance()
 		return p.parseCreateClusterStmt(start)
@@ -248,21 +245,6 @@ func (p *Parser) parseCreateAdminObject(start int, orReplace bool) (nodes.StmtNo
 			case "OUTLINE":
 				p.advance()
 				return p.parseCreateOutlineStmt(start, false, false)
-			case "INMEMORY":
-				p.advance() // consume INMEMORY
-				if p.cur.Type == kwJOIN {
-					p.advance() // consume JOIN
-				}
-				if p.cur.Type == kwGROUP || (p.isIdentLike() && p.cur.Str == "GROUP") {
-					p.advance() // consume GROUP
-				}
-				return p.parseCreateInmemoryJoinGroupStmt(start)
-			case "ROLLBACK":
-				p.advance() // consume ROLLBACK
-				if p.isIdentLike() && p.cur.Str == "SEGMENT" {
-					p.advance() // consume SEGMENT
-				}
-				return p.parseCreateRollbackSegmentStmt(start, false)
 			case "EDITION":
 				p.advance()
 				return p.parseCreateEditionStmt(start)
@@ -284,21 +266,6 @@ func (p *Parser) parseCreateAdminObject(start int, orReplace bool) (nodes.StmtNo
 					p.advance() // consume INDEX
 				}
 				return p.parseCreateVectorIndexStmt(start, false)
-			case "RESTORE":
-				p.advance() // consume RESTORE
-				if p.isIdentLike() && p.cur.Str == "POINT" {
-					p.advance() // consume POINT
-				}
-				return p.parseCreateRestorePointStmt(start, false)
-			case "CLEAN":
-				p.advance() // consume CLEAN
-				if p.isIdentLike() && p.cur.Str == "RESTORE" {
-					p.advance() // consume RESTORE
-				}
-				if p.isIdentLike() && p.cur.Str == "POINT" {
-					p.advance() // consume POINT
-				}
-				return p.parseCreateRestorePointStmt(start, true)
 			case "LOGICAL":
 				p.advance() // consume LOGICAL
 				if p.cur.Type != kwPARTITION {
@@ -664,149 +631,9 @@ func (p *Parser) parseIntValue() (int, error) {
 // CREATE INMEMORY JOIN GROUP
 // ---------------------------------------------------------------------------
 
-// parseCreateInmemoryJoinGroupStmt parses a CREATE INMEMORY JOIN GROUP statement.
-//
-// BNF: oracle/parser/bnf/CREATE-INMEMORY-JOIN-GROUP.bnf
-//
-//	CREATE INMEMORY JOIN GROUP [ IF NOT EXISTS ] [ schema. ] join_group
-//	    ( [ schema. ] table ( column )
-//	      [, [ schema. ] table ( column ) ]... ) ;
-func (p *Parser) parseCreateInmemoryJoinGroupStmt(start int) (*nodes.CreateInmemoryJoinGroupStmt, error) {
-	stmt := &nodes.CreateInmemoryJoinGroupStmt{
-		Loc: nodes.Loc{Start: start},
-	}
-
-	// Optional IF NOT EXISTS
-	if p.cur.Type == kwIF {
-		next := p.peekNext()
-		if next.Type == kwNOT {
-			p.advance() // IF
-			p.advance() // NOT
-			if p.cur.Type == kwEXISTS {
-				p.advance() // EXISTS
-			}
-			stmt.IfNotExists = true
-		}
-	}
-	var parseErr275 error
-
-	stmt.Name, parseErr275 = p.parseObjectName()
-	if parseErr275 !=
-
-		// Parse member list: ( table(col) [, table(col) ]... )
-		nil {
-		return nil, parseErr275
-	}
-
-	if p.cur.Type == '(' {
-		p.advance()
-		for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
-			// An item that consumes nothing would come round again.
-			if p.pos() == progress {
-				return nil, p.syntaxErrorAtCur()
-			}
-			progress = p.pos()
-			member, parseErr276 := p.parseJoinGroupMember()
-			if parseErr276 != nil {
-				return nil, parseErr276
-			}
-			stmt.Members = append(stmt.Members, member)
-			if p.cur.Type == ',' {
-				p.advance()
-			}
-		}
-		if p.cur.Type == ')' {
-			p.advance()
-		}
-	}
-
-	stmt.Loc.End = p.prev.End
-	return stmt, nil
-}
-
-// parseJoinGroupMember parses a table(column) member of a join group.
-func (p *Parser) parseJoinGroupMember() (*nodes.JoinGroupMember, error) {
-	m := &nodes.JoinGroupMember{
-		Loc: nodes.Loc{Start: p.pos()},
-	}
-	var parseErr277 error
-	m.Table, parseErr277 = p.parseObjectName()
-	if parseErr277 != nil {
-		return nil, parseErr277
-	}
-	if p.cur.Type == '(' {
-		p.advance()
-		var parseErr278 error
-		m.Column, parseErr278 = p.parseIdentifier()
-		if parseErr278 != nil {
-			return nil, parseErr278
-		}
-		if p.cur.Type == ')' {
-			p.advance()
-		}
-	}
-	m.Loc.End = p.prev.End
-	return m, nil
-}
-
 // ---------------------------------------------------------------------------
 // ALTER INMEMORY JOIN GROUP
 // ---------------------------------------------------------------------------
-
-// parseAlterInmemoryJoinGroupStmt parses an ALTER INMEMORY JOIN GROUP statement.
-//
-// BNF: oracle/parser/bnf/ALTER-INMEMORY-JOIN-GROUP.bnf
-//
-//	ALTER INMEMORY JOIN GROUP [ IF EXISTS ] [ schema. ] join_group
-//	    { ADD | REMOVE } ( [ schema. ] table ( column ) ) ;
-func (p *Parser) parseAlterInmemoryJoinGroupStmt(start int) (*nodes.AlterInmemoryJoinGroupStmt, error) {
-	stmt := &nodes.AlterInmemoryJoinGroupStmt{
-		Loc: nodes.Loc{Start: start},
-	}
-
-	// Optional IF EXISTS
-	if p.cur.Type == kwIF {
-		next := p.peekNext()
-		if next.Type == kwEXISTS {
-			p.advance() // IF
-			p.advance() // EXISTS
-			stmt.IfExists = true
-		}
-	}
-	var parseErr279 error
-
-	stmt.Name, parseErr279 = p.parseObjectName()
-	if parseErr279 !=
-
-		// ADD or REMOVE
-		nil {
-		return nil, parseErr279
-	}
-
-	if p.cur.Type == kwADD {
-		p.advance()
-		stmt.Action = "ADD"
-	} else if p.isIdentLike() && p.cur.Str == "REMOVE" {
-		p.advance()
-		stmt.Action = "REMOVE"
-	}
-
-	// ( table(column) )
-	if p.cur.Type == '(' {
-		p.advance()
-		var parseErr280 error
-		stmt.Member, parseErr280 = p.parseJoinGroupMember()
-		if parseErr280 != nil {
-			return nil, parseErr280
-		}
-		if p.cur.Type == ')' {
-			p.advance()
-		}
-	}
-
-	stmt.Loc.End = p.prev.End
-	return stmt, nil
-}
 
 // ---------------------------------------------------------------------------
 // DROP CLUSTER (with INCLUDING TABLES / CASCADE CONSTRAINTS)
@@ -943,11 +770,11 @@ func (p *Parser) parseAlterAdminObject(start int) (nodes.StmtNode, error) {
 				return p.parseAlterOutlineStmt(start)
 			case "INMEMORY":
 				p.advance() // consume INMEMORY
-				if p.cur.Type == kwJOIN {
-					p.advance() // consume JOIN
+				if err := p.expectCreateTableWord("JOIN"); err != nil {
+					return nil, err
 				}
-				if p.cur.Type == kwGROUP || (p.isIdentLike() && p.cur.Str == "GROUP") {
-					p.advance() // consume GROUP
+				if err := p.expectCreateTableWord("GROUP"); err != nil {
+					return nil, err
 				}
 				return p.parseAlterInmemoryJoinGroupStmt(start)
 			case "FLASHBACK":
@@ -965,8 +792,8 @@ func (p *Parser) parseAlterAdminObject(start int) (nodes.StmtNode, error) {
 				return p.parseAlterResourceCostStmt(start)
 			case "ROLLBACK":
 				p.advance() // consume ROLLBACK
-				if p.isIdentLike() && p.cur.Str == "SEGMENT" {
-					p.advance() // consume SEGMENT
+				if err := p.expectCreateTableWord("SEGMENT"); err != nil {
+					return nil, err
 				}
 				return p.parseAlterRollbackSegmentStmt(start)
 			case "MATERIALIZED":
@@ -1526,80 +1353,6 @@ func (p *Parser) parseCreateDirectoryStmt(start int, orReplace bool) (nodes.Stmt
 	return stmt, nil
 }
 
-// parseCreateContextStmt parses a CREATE CONTEXT statement.
-// Called after CREATE [OR REPLACE] CONTEXT has been consumed.
-//
-// BNF:
-//
-//	CREATE [ OR REPLACE ] CONTEXT namespace
-//	    USING [ schema. ] package
-//	    [ SHARING = { METADATA | NONE } ]
-//	    [ INITIALIZED { EXTERNALLY | GLOBALLY } ]
-//	    [ ACCESSED GLOBALLY ] ;
-func (p *Parser) parseCreateContextStmt(start int, orReplace bool) (nodes.StmtNode, error) {
-	stmt := &nodes.AdminDDLStmt{
-		Action:     "CREATE",
-		ObjectType: nodes.OBJECT_CONTEXT,
-		OrReplace:  orReplace,
-		Loc:        nodes.Loc{Start: start},
-	}
-	opts := &nodes.List{}
-	var parseErr388 error
-
-	stmt.Name, parseErr388 = p.parseObjectName()
-	if parseErr388 !=
-
-		// USING [ schema. ] package
-		nil {
-		return nil, parseErr388
-	}
-
-	if p.isIdentLike() && p.cur.Str == "USING" {
-		p.advance()
-		usingName, parseErr389 := p.parseObjectName()
-		if parseErr389 != nil {
-			return nil, parseErr389
-		}
-		if usingName != nil {
-			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "USING", Value: usingName.Name})
-		}
-	}
-
-	// Parse remaining clauses
-	for p.cur.Type != ';' && p.cur.Type != tokEOF {
-		if p.isIdentLike() && p.cur.Str == "SHARING" {
-			p.advance()
-			if p.cur.Type == '=' {
-				p.advance()
-			}
-			if p.isIdentLike() || p.cur.Type == tokIDENT {
-				opts.Items = append(opts.Items, &nodes.DDLOption{Key: "SHARING", Value: p.cur.Str})
-				p.advance()
-			}
-		} else if p.isIdentLike() && p.cur.Str == "INITIALIZED" {
-			p.advance()
-			if p.isIdentLike() && (p.cur.Str == "EXTERNALLY" || p.cur.Str == "GLOBALLY") {
-				opts.Items = append(opts.Items, &nodes.DDLOption{Key: "INITIALIZED", Value: p.cur.Str})
-				p.advance()
-			}
-		} else if p.isIdentLike() && p.cur.Str == "ACCESSED" {
-			p.advance()
-			if p.isIdentLike() && p.cur.Str == "GLOBALLY" {
-				p.advance()
-			}
-			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "ACCESSED GLOBALLY"})
-		} else {
-			p.advance()
-		}
-	}
-
-	if len(opts.Items) > 0 {
-		stmt.Options = opts
-	}
-	stmt.Loc.End = p.prev.End
-	return stmt, nil
-}
-
 // parseCreatePfileStmt parses a CREATE PFILE statement.
 // Called after CREATE PFILE has been consumed.
 //
@@ -1723,124 +1476,6 @@ func (p *Parser) parseCreateSpfileStmt(start int) (nodes.StmtNode, error) {
 	return stmt, nil
 }
 
-// parseCreateRollbackSegmentStmt parses a CREATE ROLLBACK SEGMENT statement.
-// Called after CREATE [PUBLIC] ROLLBACK SEGMENT has been consumed.
-//
-// BNF:
-//
-//	CREATE [ PUBLIC ] ROLLBACK SEGMENT rollback_segment
-//	    [ TABLESPACE tablespace ]
-//	    [ storage_clause ] ;
-func (p *Parser) parseCreateRollbackSegmentStmt(start int, public bool) (nodes.StmtNode, error) {
-	stmt := &nodes.AdminDDLStmt{
-		Action:     "CREATE",
-		ObjectType: nodes.OBJECT_ROLLBACK_SEGMENT,
-		Loc:        nodes.Loc{Start: start},
-	}
-	opts := &nodes.List{}
-
-	if public {
-		opts.Items = append(opts.Items, &nodes.DDLOption{Key: "PUBLIC"})
-	}
-	var parseErr397 error
-
-	stmt.Name, parseErr397 = p.parseObjectName()
-	if parseErr397 !=
-
-		// [ TABLESPACE tablespace ]
-		nil {
-		return nil, parseErr397
-	}
-
-	if p.cur.Type == kwTABLESPACE {
-		p.advance()
-		if p.isIdentLike() || p.cur.Type == tokIDENT || p.cur.Type == tokQIDENT {
-			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "TABLESPACE", Value: p.cur.Str})
-			p.advance()
-		}
-	}
-
-	// [ storage_clause ] and remaining
-	for p.cur.Type != ';' && p.cur.Type != tokEOF {
-		if p.isIdentLike() && p.cur.Str == "STORAGE" {
-			p.advance()
-			if p.cur.Type == '(' {
-				p.skipParenthesized()
-			}
-			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "STORAGE"})
-		} else {
-			p.advance()
-		}
-	}
-
-	if len(opts.Items) > 0 {
-		stmt.Options = opts
-	}
-	stmt.Loc.End = p.prev.End
-	return stmt, nil
-}
-
-// parseAlterRollbackSegmentStmt parses an ALTER ROLLBACK SEGMENT statement.
-// Called after ALTER ROLLBACK SEGMENT has been consumed.
-//
-// BNF:
-//
-//	ALTER ROLLBACK SEGMENT rollback_segment
-//	    { ONLINE | OFFLINE | storage_clause | SHRINK [ TO size_clause ] }
-func (p *Parser) parseAlterRollbackSegmentStmt(start int) (nodes.StmtNode, error) {
-	stmt := &nodes.AdminDDLStmt{
-		Action:     "ALTER",
-		ObjectType: nodes.OBJECT_ROLLBACK_SEGMENT,
-		Loc:        nodes.Loc{Start: start},
-	}
-	opts := &nodes.List{}
-	var parseErr398 error
-
-	stmt.Name, parseErr398 = p.parseObjectName()
-	if parseErr398 !=
-
-		// Parse action
-		nil {
-		return nil, parseErr398
-	}
-
-	for p.cur.Type != ';' && p.cur.Type != tokEOF {
-		if p.isIdentLike() && p.cur.Str == "ONLINE" {
-			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "ONLINE"})
-			p.advance()
-		} else if p.isIdentLike() && p.cur.Str == "OFFLINE" {
-			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "OFFLINE"})
-			p.advance()
-		} else if p.isIdentLike() && p.cur.Str == "SHRINK" {
-			p.advance()
-			val := ""
-			if p.cur.Type == kwTO {
-				p.advance()
-				var parseErr399 error
-				val, parseErr399 = p.parseSizeClause()
-				if parseErr399 != nil {
-					return nil, parseErr399
-				}
-			}
-			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "SHRINK", Value: val})
-		} else if p.isIdentLike() && p.cur.Str == "STORAGE" {
-			p.advance()
-			if p.cur.Type == '(' {
-				p.skipParenthesized()
-			}
-			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "STORAGE"})
-		} else {
-			p.advance()
-		}
-	}
-
-	if len(opts.Items) > 0 {
-		stmt.Options = opts
-	}
-	stmt.Loc.End = p.prev.End
-	return stmt, nil
-}
-
 // parseCreateEditionStmt parses a CREATE EDITION statement.
 // Called after CREATE [IF NOT EXISTS] EDITION has been consumed.
 //
@@ -1936,89 +1571,6 @@ func (p *Parser) parseDropEditionStmt(start int) (*nodes.DropStmt, error) {
 		p.advance()
 	}
 
-	stmt.Loc.End = p.prev.End
-	return stmt, nil
-}
-
-// parseCreateRestorePointStmt parses a CREATE RESTORE POINT statement.
-// Called after CREATE [CLEAN] RESTORE POINT has been consumed.
-//
-// BNF:
-//
-//	CREATE [ CLEAN ] RESTORE POINT restore_point
-//	    [ FOR PLUGGABLE DATABASE pdb_name ]
-//	    [ AS OF { TIMESTAMP | SCN } expr ]
-//	    [ PRESERVE ]
-//	    [ GUARANTEE FLASHBACK DATABASE ] ;
-func (p *Parser) parseCreateRestorePointStmt(start int, clean bool) (nodes.StmtNode, error) {
-	stmt := &nodes.AdminDDLStmt{
-		Action:     "CREATE",
-		ObjectType: nodes.OBJECT_RESTORE_POINT,
-		Loc:        nodes.Loc{Start: start},
-	}
-	opts := &nodes.List{}
-
-	if clean {
-		opts.Items = append(opts.Items, &nodes.DDLOption{Key: "CLEAN"})
-	}
-	var parseErr402 error
-
-	stmt.Name, parseErr402 = p.parseObjectName()
-	if parseErr402 !=
-
-		// Parse remaining clauses
-		nil {
-		return nil, parseErr402
-	}
-
-	for p.cur.Type != ';' && p.cur.Type != tokEOF {
-		if p.isIdentLike() && p.cur.Str == "FOR" {
-			p.advance()
-			if p.isIdentLike() && p.cur.Str == "PLUGGABLE" {
-				p.advance()
-			}
-			if p.cur.Type == kwDATABASE {
-				p.advance()
-			}
-			if p.isIdentLike() || p.cur.Type == tokIDENT || p.cur.Type == tokQIDENT {
-				opts.Items = append(opts.Items, &nodes.DDLOption{Key: "FOR PLUGGABLE DATABASE", Value: p.cur.Str})
-				p.advance()
-			}
-		} else if p.cur.Type == kwAS {
-			p.advance()
-			if p.isIdentLike() && p.cur.Str == "OF" {
-				p.advance()
-			}
-			if p.isIdentLike() && (p.cur.Str == "TIMESTAMP" || p.cur.Str == "SCN") {
-				asOfType := p.cur.Str
-				p.advance()
-				opts.Items = append(opts.Items, &nodes.DDLOption{Key: "AS OF", Value: asOfType})
-				// Skip the expression
-				for p.cur.Type != ';' && p.cur.Type != tokEOF &&
-					!(p.isIdentLike() && (p.cur.Str == "PRESERVE" || p.cur.Str == "GUARANTEE")) {
-					p.advance()
-				}
-			}
-		} else if p.isIdentLike() && p.cur.Str == "PRESERVE" {
-			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "PRESERVE"})
-			p.advance()
-		} else if p.isIdentLike() && p.cur.Str == "GUARANTEE" {
-			p.advance()
-			if p.cur.Type == kwFLASHBACK {
-				p.advance()
-			}
-			if p.cur.Type == kwDATABASE {
-				p.advance()
-			}
-			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "GUARANTEE FLASHBACK DATABASE"})
-		} else {
-			p.advance()
-		}
-	}
-
-	if len(opts.Items) > 0 {
-		stmt.Options = opts
-	}
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }

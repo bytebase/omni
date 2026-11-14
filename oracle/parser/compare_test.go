@@ -4687,8 +4687,11 @@ func TestParseAlterSequenceProper(t *testing.T) {
 		}
 	})
 
+	// Oracle 23ai takes RESTART START WITH and refuses RESTART WITH
+	// (ORA-03048 at WITH).
 	t.Run("alter_sequence_restart_with", func(t *testing.T) {
-		result := ParseAndCheck(t, "ALTER SEQUENCE seq1 RESTART WITH 100")
+		ParseShouldFail(t, "ALTER SEQUENCE seq1 RESTART WITH 100")
+		result := ParseAndCheck(t, "ALTER SEQUENCE seq1 RESTART START WITH 100")
 		raw := result.Items[0].(*ast.RawStmt)
 		stmt := raw.Stmt.(*ast.AlterSequenceStmt)
 		if !stmt.Restart {
@@ -8808,9 +8811,11 @@ func TestBatch105_SmallObjectsBundle(t *testing.T) {
 		}
 	})
 
-	// CREATE CONTEXT
+	// CREATE CONTEXT. Oracle 23ai takes INITIALIZED or ACCESSED GLOBALLY,
+	// not both (ORA-03049).
 	t.Run("create_context", func(t *testing.T) {
-		result := ParseAndCheck(t, "CREATE OR REPLACE CONTEXT app_ctx USING hr.ctx_pkg INITIALIZED GLOBALLY ACCESSED GLOBALLY")
+		ParseShouldFail(t, "CREATE OR REPLACE CONTEXT app_ctx USING hr.ctx_pkg INITIALIZED GLOBALLY ACCESSED GLOBALLY")
+		result := ParseAndCheck(t, "CREATE OR REPLACE CONTEXT app_ctx USING hr.ctx_pkg INITIALIZED GLOBALLY")
 		raw := result.Items[0].(*ast.RawStmt)
 		stmt, ok := raw.Stmt.(*ast.AdminDDLStmt)
 		if !ok {
@@ -8972,9 +8977,11 @@ func TestBatch105_SmallObjectsBundle(t *testing.T) {
 		}
 	})
 
-	// CREATE RESTORE POINT with PRESERVE and GUARANTEE
+	// CREATE RESTORE POINT with PRESERVE. Oracle 23ai takes PRESERVE or
+	// GUARANTEE FLASHBACK DATABASE, not both (ORA-03049).
 	t.Run("create_restore_point_preserve", func(t *testing.T) {
-		result := ParseAndCheck(t, "CREATE RESTORE POINT rp1 PRESERVE GUARANTEE FLASHBACK DATABASE")
+		ParseShouldFail(t, "CREATE RESTORE POINT rp1 PRESERVE GUARANTEE FLASHBACK DATABASE")
+		result := ParseAndCheck(t, "CREATE RESTORE POINT rp1 PRESERVE")
 		raw := result.Items[0].(*ast.RawStmt)
 		stmt, ok := raw.Stmt.(*ast.AdminDDLStmt)
 		if !ok {

@@ -3967,11 +3967,12 @@ type CreateInmemoryJoinGroupStmt struct {
 func (n *CreateInmemoryJoinGroupStmt) nodeTag()  {}
 func (n *CreateInmemoryJoinGroupStmt) stmtNode() {}
 
-// JoinGroupMember represents a table(column) in an INMEMORY JOIN GROUP.
+// JoinGroupMember represents a table(column [, column]...) in an INMEMORY
+// JOIN GROUP.
 type JoinGroupMember struct {
-	Table  *ObjectName
-	Column string
-	Loc    Loc
+	Table   *ObjectName
+	Columns []string
+	Loc     Loc
 }
 
 func (n *JoinGroupMember) nodeTag() {}
@@ -3990,7 +3991,7 @@ type AlterInmemoryJoinGroupStmt struct {
 	IfExists bool        // IF EXISTS
 	Name     *ObjectName // join group name
 	Action   string      // "ADD" or "REMOVE"
-	Member   *JoinGroupMember
+	Members  []*JoinGroupMember
 	Loc      Loc
 }
 
@@ -4105,7 +4106,7 @@ func (n *AlterIndexStmt) stmtNode() {}
 type AlterViewStmt struct {
 	Name           *ObjectName      // view name
 	IfExists       bool             // IF EXISTS
-	Action         string           // "COMPILE", "ADD_CONSTRAINT", "MODIFY_CONSTRAINT", "DROP_CONSTRAINT", "READ_ONLY", "READ_WRITE", "EDITIONABLE", "NONEDITIONABLE", "ANNOTATIONS"
+	Action         string           // "COMPILE", "ADD_CONSTRAINT", "MODIFY_CONSTRAINT", "MODIFY_PRIMARY_KEY", "MODIFY_UNIQUE", "DROP_CONSTRAINT", "DROP_PRIMARY_KEY", "DROP_UNIQUE", "READ_ONLY", "READ_WRITE", "EDITIONABLE", "NONEDITIONABLE", "ANNOTATIONS"
 	Constraint     *TableConstraint // for ADD constraint
 	ConstraintName string           // for MODIFY/DROP CONSTRAINT
 	Rely           bool             // MODIFY CONSTRAINT ... RELY

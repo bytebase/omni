@@ -114,8 +114,10 @@ func walkChildren(v Visitor, node Node) {
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
-		if n.Member != nil {
-			Walk(v, n.Member)
+		for _, item := range n.Members {
+			if item != nil {
+				Walk(v, item)
+			}
 		}
 	case *AlterJsonDualityViewStmt:
 		if n.Name != nil {
