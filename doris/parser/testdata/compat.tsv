@@ -24,7 +24,7 @@ reject	reject	engine	statement/CALL_multipartIdentifier_LEFT_PAREN_(expression_(
 reject	reject	engine	statement/CALL_multipartIdentifier_LEFT_PAREN_(expression_(COMMA_~2c88524e!drop-3	CALL a)
 reject	reject	engine	statement/CALL_multipartIdentifier_LEFT_PAREN_(expression_(COMMA_~2c88524e!drop-4	CALL a(
 reject	reject	engine	statement/CALL_multipartIdentifier_LEFT_PAREN_(expression_(COMMA_~2c88524e!insert	CALL a() zzz
-accept	reject	engine	statement/CALL_multipartIdentifier_LEFT_PAREN_(expression_(COMMA_~2c88524e!swap	CANCEL a()
+reject	reject	engine	statement/CALL_multipartIdentifier_LEFT_PAREN_(expression_(COMMA_~2c88524e!swap	CANCEL a()
 reject	accept	engine	statement/(ALTER|CREATE_(OR_REPLACE)?|REPLACE)_(PROCEDURE|PROC)_m~b4a56940	ALTER PROCEDURE a()
 reject	reject	engine	statement/(ALTER|CREATE_(OR_REPLACE)?|REPLACE)_(PROCEDURE|PROC)_m~b4a56940!drop-1	PROCEDURE a()
 reject	reject	engine	statement/(ALTER|CREATE_(OR_REPLACE)?|REPLACE)_(PROCEDURE|PROC)_m~b4a56940!drop-2	ALTER a()
@@ -205,7 +205,7 @@ accept	reject	engine	statementBase/supportedShowStatement!insert	SHOW VIEW FROM 
 reject	reject	engine	statementBase/supportedShowStatement!swap	SIGNED VIEW FROM a
 accept	accept	engine	statementBase/supportedKillStatement	KILL 1
 reject	reject	engine	statementBase/supportedKillStatement!drop-1	1
-accept	reject	engine	statementBase/supportedKillStatement!drop-2	KILL
+reject	reject	engine	statementBase/supportedKillStatement!drop-2	KILL
 reject	reject	engine	statementBase/supportedKillStatement!insert	KILL 1 zzz
 reject	reject	engine	statementBase/supportedKillStatement!swap	LABEL 1
 accept	accept	engine	statementBase/supportedAdminStatement	ADMIN ROTATE TDE ROOT KEY
@@ -237,8 +237,8 @@ reject	reject	engine	unsupportedStatement/unsupportedSetStatement!insert	SET CHA
 reject	reject	engine	unsupportedStatement/unsupportedSetStatement!swap	SETS CHARSET a
 accept	accept	engine	unsupportedStatement/unsupoortedUnsetStatement	UNSET VARIABLE ALL
 reject	reject	engine	unsupportedStatement/unsupoortedUnsetStatement!drop-1	VARIABLE ALL
-accept	reject	engine	unsupportedStatement/unsupoortedUnsetStatement!drop-2	UNSET ALL
-accept	reject	engine	unsupportedStatement/unsupoortedUnsetStatement!drop-3	UNSET VARIABLE
+reject	reject	engine	unsupportedStatement/unsupoortedUnsetStatement!drop-2	UNSET ALL
+reject	reject	engine	unsupportedStatement/unsupoortedUnsetStatement!drop-3	UNSET VARIABLE
 reject	reject	engine	unsupportedStatement/unsupoortedUnsetStatement!insert	UNSET VARIABLE ALL zzz
 reject	reject	engine	unsupportedStatement/unsupoortedUnsetStatement!swap	UNSIGNED VARIABLE ALL
 accept	accept	engine	unsupportedStatement/unsupportedUseStatement	USE a
@@ -290,24 +290,24 @@ reject	reject	engine	unsupportedStatement/unsupportedAdminStatement!swap	AFTER R
 accept	accept	engine	unsupportedStatement/unsupportedTransactionStatement	BEGIN
 accept	accept	engine	unsupportedStatement/unsupportedRecoverStatement	RECOVER DATABASE a
 reject	reject	engine	unsupportedStatement/unsupportedRecoverStatement!drop-2	RECOVER a
-accept	reject	engine	unsupportedStatement/unsupportedRecoverStatement!drop-3	RECOVER DATABASE
+reject	reject	engine	unsupportedStatement/unsupportedRecoverStatement!drop-3	RECOVER DATABASE
 reject	reject	engine	unsupportedStatement/unsupportedRecoverStatement!insert	RECOVER DATABASE a zzz
 reject	reject	engine	unsupportedStatement/unsupportedRecoverStatement!swap	RECYCLE DATABASE a
 accept	accept	engine	unsupportedStatement/unsupportedCancelStatement	CANCEL LOAD
 reject	reject	engine	unsupportedStatement/unsupportedCancelStatement!drop-1	LOAD
-accept	reject	engine	unsupportedStatement/unsupportedCancelStatement!drop-2	CANCEL
-accept	reject	engine	unsupportedStatement/unsupportedCancelStatement!insert	CANCEL LOAD zzz
+reject	reject	engine	unsupportedStatement/unsupportedCancelStatement!drop-2	CANCEL
+reject	reject	engine	unsupportedStatement/unsupportedCancelStatement!insert	CANCEL LOAD zzz
 reject	reject	engine	unsupportedStatement/unsupportedCancelStatement!swap	CASE LOAD
-reject	accept	engine	unsupportedStatement/unsupportedJobStatement	PAUSE JOB
+accept	accept	engine	unsupportedStatement/unsupportedJobStatement	PAUSE JOB
 reject	reject	engine	unsupportedStatement/unsupportedJobStatement!drop-1	JOB
 reject	reject	engine	unsupportedStatement/unsupportedJobStatement!drop-2	PAUSE
-accept	reject	engine	unsupportedStatement/unsupportedJobStatement!insert	PAUSE JOB zzz
+reject	reject	engine	unsupportedStatement/unsupportedJobStatement!insert	PAUSE JOB zzz
 reject	reject	engine	unsupportedStatement/unsupportedJobStatement!swap	PERCENT JOB
 accept	accept	engine	unsupportedStatement/unsupportedCleanStatement	CLEAN ALL PROFILE
 reject	reject	engine	unsupportedStatement/unsupportedCleanStatement!drop-1	ALL PROFILE
-accept	reject	engine	unsupportedStatement/unsupportedCleanStatement!drop-2	CLEAN PROFILE
-accept	reject	engine	unsupportedStatement/unsupportedCleanStatement!drop-3	CLEAN ALL
-accept	reject	engine	unsupportedStatement/unsupportedCleanStatement!insert	CLEAN ALL PROFILE zzz
+reject	reject	engine	unsupportedStatement/unsupportedCleanStatement!drop-2	CLEAN PROFILE
+reject	reject	engine	unsupportedStatement/unsupportedCleanStatement!drop-3	CLEAN ALL
+reject	reject	engine	unsupportedStatement/unsupportedCleanStatement!insert	CLEAN ALL PROFILE zzz
 reject	reject	engine	unsupportedStatement/unsupportedCleanStatement!swap	CLUSTER ALL PROFILE
 reject	accept	engine	unsupportedStatement/unsupportedRefreshStatement	REFRESH TABLE a
 reject	reject	engine	unsupportedStatement/unsupportedRefreshStatement!drop-2	REFRESH a
@@ -322,7 +322,7 @@ reject	reject	engine	unsupportedStatement/unsupportedShowStatement!drop-1	SQL_BL
 accept	reject	engine	unsupportedStatement/unsupportedShowStatement!insert	SHOW SQL_BLOCK_RULE zzz
 reject	reject	engine	unsupportedStatement/unsupportedShowStatement!swap	SIGNED SQL_BLOCK_RULE
 accept	accept	engine	unsupportedStatement/unsupportedOtherStatement	HELP a
-accept	reject	engine	unsupportedStatement/unsupportedOtherStatement!drop-2	HELP
+reject	reject	engine	unsupportedStatement/unsupportedOtherStatement!drop-2	HELP
 reject	reject	engine	unsupportedStatement/unsupportedOtherStatement!insert	HELP a zzz
 reject	reject	engine	unsupportedStatement/unsupportedOtherStatement!swap	HISTOGRAM a
 reject	reject	engine	materializedViewStatement/CREATE_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?_multipartIden~e31db86a	CREATE MATERIALIZED VIEW a SELECT CURRENT_DATE
@@ -337,8 +337,8 @@ accept	accept	engine	materializedViewStatement/REFRESH_MATERIALIZED_VIEW_multipa
 reject	reject	engine	materializedViewStatement/REFRESH_MATERIALIZED_VIEW_multipartIdentifier_(partitio~74ec912e!drop-1	MATERIALIZED VIEW a COMPLETE
 reject	reject	engine	materializedViewStatement/REFRESH_MATERIALIZED_VIEW_multipartIdentifier_(partitio~74ec912e!drop-2	REFRESH VIEW a COMPLETE
 reject	reject	engine	materializedViewStatement/REFRESH_MATERIALIZED_VIEW_multipartIdentifier_(partitio~74ec912e!drop-3	REFRESH MATERIALIZED a COMPLETE
-accept	reject	engine	materializedViewStatement/REFRESH_MATERIALIZED_VIEW_multipartIdentifier_(partitio~74ec912e!drop-4	REFRESH MATERIALIZED VIEW COMPLETE
-accept	reject	engine	materializedViewStatement/REFRESH_MATERIALIZED_VIEW_multipartIdentifier_(partitio~74ec912e!drop-5	REFRESH MATERIALIZED VIEW a
+reject	reject	engine	materializedViewStatement/REFRESH_MATERIALIZED_VIEW_multipartIdentifier_(partitio~74ec912e!drop-4	REFRESH MATERIALIZED VIEW COMPLETE
+reject	reject	engine	materializedViewStatement/REFRESH_MATERIALIZED_VIEW_multipartIdentifier_(partitio~74ec912e!drop-5	REFRESH MATERIALIZED VIEW a
 reject	reject	engine	materializedViewStatement/REFRESH_MATERIALIZED_VIEW_multipartIdentifier_(partitio~74ec912e!insert	REFRESH MATERIALIZED VIEW a COMPLETE zzz
 reject	reject	engine	materializedViewStatement/REFRESH_MATERIALIZED_VIEW_multipartIdentifier_(partitio~74ec912e!swap	REGEXP MATERIALIZED VIEW a COMPLETE
 accept	accept	engine	materializedViewStatement/ALTER_MATERIALIZED_VIEW_multipartIdentifier_((RENAME_id~6e98a1d4	ALTER MATERIALIZED VIEW a RENAME a
@@ -370,7 +370,7 @@ reject	reject	engine	materializedViewStatement/RESUME_MATERIALIZED_VIEW_JOB_ON_m
 reject	reject	engine	materializedViewStatement/RESUME_MATERIALIZED_VIEW_JOB_ON_multipartIdentifier!swap	RETAIN MATERIALIZED VIEW JOB ON a
 accept	accept	engine	materializedViewStatement/CANCEL_MATERIALIZED_VIEW_TASK_INTEGER_VALUE_ON_multipar~00d6dc6f	CANCEL MATERIALIZED VIEW TASK 1 ON a
 reject	reject	engine	materializedViewStatement/CANCEL_MATERIALIZED_VIEW_TASK_INTEGER_VALUE_ON_multipar~00d6dc6f!drop-1	MATERIALIZED VIEW TASK 1 ON a
-accept	reject	engine	materializedViewStatement/CANCEL_MATERIALIZED_VIEW_TASK_INTEGER_VALUE_ON_multipar~00d6dc6f!drop-2	CANCEL VIEW TASK 1 ON a
+reject	reject	engine	materializedViewStatement/CANCEL_MATERIALIZED_VIEW_TASK_INTEGER_VALUE_ON_multipar~00d6dc6f!drop-2	CANCEL VIEW TASK 1 ON a
 reject	reject	engine	materializedViewStatement/CANCEL_MATERIALIZED_VIEW_TASK_INTEGER_VALUE_ON_multipar~00d6dc6f!drop-3	CANCEL MATERIALIZED TASK 1 ON a
 reject	reject	engine	materializedViewStatement/CANCEL_MATERIALIZED_VIEW_TASK_INTEGER_VALUE_ON_multipar~00d6dc6f!drop-4	CANCEL MATERIALIZED VIEW 1 ON a
 reject	reject	engine	materializedViewStatement/CANCEL_MATERIALIZED_VIEW_TASK_INTEGER_VALUE_ON_multipar~00d6dc6f!drop-5	CANCEL MATERIALIZED VIEW TASK ON a
@@ -1220,7 +1220,7 @@ accept	reject	engine	supportedShowStatement((FROM|IN)_identifier)?/(FROM|IN)_ide
 accept	accept	engine	supportedKillStatement/KILL_(CONNECTION)?_INTEGER_VALUE	KILL 1
 accept	accept	engine	supportedKillStatement/KILL_QUERY_(INTEGER_VALUE|STRING_LITERAL)	KILL QUERY 1
 reject	reject	engine	supportedKillStatement/KILL_QUERY_(INTEGER_VALUE|STRING_LITERAL)!drop-1	QUERY 1
-accept	reject	engine	supportedKillStatement/KILL_QUERY_(INTEGER_VALUE|STRING_LITERAL)!drop-3	KILL QUERY
+reject	reject	engine	supportedKillStatement/KILL_QUERY_(INTEGER_VALUE|STRING_LITERAL)!drop-3	KILL QUERY
 reject	reject	engine	supportedKillStatement/KILL_QUERY_(INTEGER_VALUE|STRING_LITERAL)!insert	KILL QUERY 1 zzz
 reject	reject	engine	supportedKillStatement/KILL_QUERY_(INTEGER_VALUE|STRING_LITERAL)!swap	LABEL QUERY 1
 accept	accept	engine	supportedKillStatement(CONNECTION)?/%empty	KILL 1
@@ -1248,21 +1248,21 @@ reject	reject	engine	unsupportedOtherStatement/UNINSTALL_PLUGIN_identifierOrText
 accept	accept	engine	unsupportedOtherStatement/LOCK_TABLES_(lockTable_(COMMA_lockTable)*)?	LOCK TABLES
 reject	reject	engine	unsupportedOtherStatement/LOCK_TABLES_(lockTable_(COMMA_lockTable)*)?!drop-1	TABLES
 reject	reject	engine	unsupportedOtherStatement/LOCK_TABLES_(lockTable_(COMMA_lockTable)*)?!drop-2	LOCK
-accept	reject	engine	unsupportedOtherStatement/LOCK_TABLES_(lockTable_(COMMA_lockTable)*)?!insert	LOCK TABLES zzz
+reject	reject	engine	unsupportedOtherStatement/LOCK_TABLES_(lockTable_(COMMA_lockTable)*)?!insert	LOCK TABLES zzz
 reject	reject	engine	unsupportedOtherStatement/LOCK_TABLES_(lockTable_(COMMA_lockTable)*)?!swap	LOGICAL TABLES
 accept	accept	engine	unsupportedOtherStatement/UNLOCK_TABLES	UNLOCK TABLES
-accept	reject	engine	unsupportedOtherStatement/UNLOCK_TABLES!drop-2	UNLOCK
+reject	reject	engine	unsupportedOtherStatement/UNLOCK_TABLES!drop-2	UNLOCK
 reject	reject	engine	unsupportedOtherStatement/UNLOCK_TABLES!insert	UNLOCK TABLES zzz
-accept	reject	engine	unsupportedOtherStatement/UNLOCK_TABLES!swap	UNSET TABLES
+reject	reject	engine	unsupportedOtherStatement/UNLOCK_TABLES!swap	UNSET TABLES
 accept	accept	engine	unsupportedOtherStatement/WARM_UP_(CLUSTER|COMPUTE_GROUP)_identifier_WITH_((CLUST~c88af15a	WARM UP CLUSTER a WITH CLUSTER a
 reject	reject	engine	unsupportedOtherStatement/WARM_UP_(CLUSTER|COMPUTE_GROUP)_identifier_WITH_((CLUST~c88af15a!drop-1	UP CLUSTER a WITH CLUSTER a
 reject	reject	engine	unsupportedOtherStatement/WARM_UP_(CLUSTER|COMPUTE_GROUP)_identifier_WITH_((CLUST~c88af15a!drop-2	WARM CLUSTER a WITH CLUSTER a
-accept	reject	engine	unsupportedOtherStatement/WARM_UP_(CLUSTER|COMPUTE_GROUP)_identifier_WITH_((CLUST~c88af15a!drop-3	WARM UP a WITH CLUSTER a
-accept	reject	engine	unsupportedOtherStatement/WARM_UP_(CLUSTER|COMPUTE_GROUP)_identifier_WITH_((CLUST~c88af15a!drop-4	WARM UP CLUSTER WITH CLUSTER a
-accept	reject	engine	unsupportedOtherStatement/WARM_UP_(CLUSTER|COMPUTE_GROUP)_identifier_WITH_((CLUST~c88af15a!drop-5	WARM UP CLUSTER a CLUSTER a
-accept	reject	engine	unsupportedOtherStatement/WARM_UP_(CLUSTER|COMPUTE_GROUP)_identifier_WITH_((CLUST~c88af15a!drop-6	WARM UP CLUSTER a WITH a
-accept	reject	engine	unsupportedOtherStatement/WARM_UP_(CLUSTER|COMPUTE_GROUP)_identifier_WITH_((CLUST~c88af15a!drop-7	WARM UP CLUSTER a WITH CLUSTER
-accept	reject	engine	unsupportedOtherStatement/WARM_UP_(CLUSTER|COMPUTE_GROUP)_identifier_WITH_((CLUST~c88af15a!insert	WARM UP CLUSTER a WITH CLUSTER a zzz
+reject	reject	engine	unsupportedOtherStatement/WARM_UP_(CLUSTER|COMPUTE_GROUP)_identifier_WITH_((CLUST~c88af15a!drop-3	WARM UP a WITH CLUSTER a
+reject	reject	engine	unsupportedOtherStatement/WARM_UP_(CLUSTER|COMPUTE_GROUP)_identifier_WITH_((CLUST~c88af15a!drop-4	WARM UP CLUSTER WITH CLUSTER a
+reject	reject	engine	unsupportedOtherStatement/WARM_UP_(CLUSTER|COMPUTE_GROUP)_identifier_WITH_((CLUST~c88af15a!drop-5	WARM UP CLUSTER a CLUSTER a
+reject	reject	engine	unsupportedOtherStatement/WARM_UP_(CLUSTER|COMPUTE_GROUP)_identifier_WITH_((CLUST~c88af15a!drop-6	WARM UP CLUSTER a WITH a
+reject	reject	engine	unsupportedOtherStatement/WARM_UP_(CLUSTER|COMPUTE_GROUP)_identifier_WITH_((CLUST~c88af15a!drop-7	WARM UP CLUSTER a WITH CLUSTER
+reject	reject	engine	unsupportedOtherStatement/WARM_UP_(CLUSTER|COMPUTE_GROUP)_identifier_WITH_((CLUST~c88af15a!insert	WARM UP CLUSTER a WITH CLUSTER a zzz
 reject	reject	engine	unsupportedOtherStatement/WARM_UP_(CLUSTER|COMPUTE_GROUP)_identifier_WITH_((CLUST~c88af15a!swap	WARNINGS UP CLUSTER a WITH CLUSTER a
 accept	accept	engine	unsupportedOtherStatement/BACKUP_SNAPSHOT_multipartIdentifier_TO_identifier_((ON|~bed80993	BACKUP SNAPSHOT a TO a
 reject	reject	engine	unsupportedOtherStatement/BACKUP_SNAPSHOT_multipartIdentifier_TO_identifier_((ON|~bed80993!drop-1	SNAPSHOT a TO a
@@ -1298,48 +1298,48 @@ reject	reject	engine	unsupportedOtherStatement(propertyClause)?/propertyClause!s
 accept	accept	engine	unsupportedOtherStatement(lockTable_(COMMA_lockTable)*)?/%empty	LOCK TABLES
 accept	accept	engine	unsupportedOtherStatement(lockTable_(COMMA_lockTable)*)?/lockTable_(COMMA_lockTable)*	LOCK TABLES a READ
 reject	reject	engine	unsupportedOtherStatement(lockTable_(COMMA_lockTable)*)?/lockTable_(COMMA_lockTable)*!drop-1	LOCK TABLES READ
-accept	reject	engine	unsupportedOtherStatement(lockTable_(COMMA_lockTable)*)?/lockTable_(COMMA_lockTable)*!drop-2	LOCK TABLES a
+reject	reject	engine	unsupportedOtherStatement(lockTable_(COMMA_lockTable)*)?/lockTable_(COMMA_lockTable)*!drop-2	LOCK TABLES a
 reject	reject	engine	unsupportedOtherStatement(lockTable_(COMMA_lockTable)*)?/lockTable_(COMMA_lockTable)*!insert	LOCK TABLES a READ zzz
 reject	reject	engine	unsupportedOtherStatement(lockTable_(COMMA_lockTable)*)?/lockTable_(COMMA_lockTable)*!swap	LOCK TABLES a REAL
 accept	accept	engine	unsupportedOtherStatement(COMMA_lockTable)*/%empty	LOCK TABLES a READ
 accept	accept	engine	unsupportedOtherStatement(COMMA_lockTable)*/COMMA_lockTable_(COMMA_lockTable)*	LOCK TABLES a READ, a READ
 reject	reject	engine	unsupportedOtherStatement(COMMA_lockTable)*/COMMA_lockTable_(COMMA_lockTable)*!drop-1	LOCK TABLES a READ a READ
 reject	reject	engine	unsupportedOtherStatement(COMMA_lockTable)*/COMMA_lockTable_(COMMA_lockTable)*!drop-2	LOCK TABLES a READ, READ
-accept	reject	engine	unsupportedOtherStatement(COMMA_lockTable)*/COMMA_lockTable_(COMMA_lockTable)*!drop-3	LOCK TABLES a READ, a
+reject	reject	engine	unsupportedOtherStatement(COMMA_lockTable)*/COMMA_lockTable_(COMMA_lockTable)*!drop-3	LOCK TABLES a READ, a
 reject	reject	engine	unsupportedOtherStatement(COMMA_lockTable)*/COMMA_lockTable_(COMMA_lockTable)*!insert	LOCK TABLES a READ, a READ zzz
 reject	reject	engine	unsupportedOtherStatement(COMMA_lockTable)*/COMMA_lockTable_(COMMA_lockTable)*!swap	LOCK TABLES a READ, a REAL
 accept	accept	engine	unsupportedOtherStatement(CLUSTER|COMPUTE_GROUP)/CLUSTER	WARM UP CLUSTER a WITH CLUSTER a
-accept	reject	engine	unsupportedOtherStatement(CLUSTER|COMPUTE_GROUP)/CLUSTER!truncate	WARM UP
-accept	reject	engine	unsupportedOtherStatement(CLUSTER|COMPUTE_GROUP)/CLUSTER!insert	WARM UP CLUSTER zzz a WITH CLUSTER a
-accept	reject	engine	unsupportedOtherStatement(CLUSTER|COMPUTE_GROUP)/CLUSTER!swap	WARM UP CLUSTERS a WITH CLUSTER a
-accept	reject	engine	unsupportedOtherStatement(CLUSTER|COMPUTE_GROUP)/COMPUTE_GROUP	WARM UP COMPUTE GROUP a WITH CLUSTER a
-accept	reject	engine	unsupportedOtherStatement(CLUSTER|COMPUTE_GROUP)/COMPUTE_GROUP!drop-1	WARM UP GROUP a WITH CLUSTER a
-accept	reject	engine	unsupportedOtherStatement(CLUSTER|COMPUTE_GROUP)/COMPUTE_GROUP!drop-2	WARM UP COMPUTE a WITH CLUSTER a
-accept	reject	engine	unsupportedOtherStatement(CLUSTER|COMPUTE_GROUP)/COMPUTE_GROUP!truncate	WARM UP COMPUTE
-accept	reject	engine	unsupportedOtherStatement(CLUSTER|COMPUTE_GROUP)/COMPUTE_GROUP!insert	WARM UP COMPUTE GROUP zzz a WITH CLUSTER a
-accept	reject	engine	unsupportedOtherStatement(CLUSTER|COMPUTE_GROUP)/COMPUTE_GROUP!swap	WARM UP CONDITIONS GROUP a WITH CLUSTER a
+reject	reject	engine	unsupportedOtherStatement(CLUSTER|COMPUTE_GROUP)/CLUSTER!truncate	WARM UP
+reject	reject	engine	unsupportedOtherStatement(CLUSTER|COMPUTE_GROUP)/CLUSTER!insert	WARM UP CLUSTER zzz a WITH CLUSTER a
+reject	reject	engine	unsupportedOtherStatement(CLUSTER|COMPUTE_GROUP)/CLUSTER!swap	WARM UP CLUSTERS a WITH CLUSTER a
+reject	reject	engine	unsupportedOtherStatement(CLUSTER|COMPUTE_GROUP)/COMPUTE_GROUP	WARM UP COMPUTE GROUP a WITH CLUSTER a
+reject	reject	engine	unsupportedOtherStatement(CLUSTER|COMPUTE_GROUP)/COMPUTE_GROUP!drop-1	WARM UP GROUP a WITH CLUSTER a
+reject	reject	engine	unsupportedOtherStatement(CLUSTER|COMPUTE_GROUP)/COMPUTE_GROUP!drop-2	WARM UP COMPUTE a WITH CLUSTER a
+reject	reject	engine	unsupportedOtherStatement(CLUSTER|COMPUTE_GROUP)/COMPUTE_GROUP!truncate	WARM UP COMPUTE
+reject	reject	engine	unsupportedOtherStatement(CLUSTER|COMPUTE_GROUP)/COMPUTE_GROUP!insert	WARM UP COMPUTE GROUP zzz a WITH CLUSTER a
+reject	reject	engine	unsupportedOtherStatement(CLUSTER|COMPUTE_GROUP)/COMPUTE_GROUP!swap	WARM UP CONDITIONS GROUP a WITH CLUSTER a
 accept	accept	engine	unsupportedOtherStatement((CLUSTER|COMPUTE_GROUP)_identifier|(~822777e5)/(CLUSTER|COMPUTE_GROUP)_identifier	WARM UP CLUSTER a WITH CLUSTER a
-accept	reject	engine	unsupportedOtherStatement((CLUSTER|COMPUTE_GROUP)_identifier|(~822777e5)/(CLUSTER|COMPUTE_GROUP)_identifier!swap	WARM UP CLUSTER a WITH CLUSTERS a
+reject	reject	engine	unsupportedOtherStatement((CLUSTER|COMPUTE_GROUP)_identifier|(~822777e5)/(CLUSTER|COMPUTE_GROUP)_identifier!swap	WARM UP CLUSTER a WITH CLUSTERS a
 accept	accept	engine	unsupportedOtherStatement((CLUSTER|COMPUTE_GROUP)_identifier|(~822777e5)/warmUpItem_(AND_warmUpItem)*	WARM UP CLUSTER a WITH TABLE a
-accept	reject	engine	unsupportedOtherStatement((CLUSTER|COMPUTE_GROUP)_identifier|(~822777e5)/warmUpItem_(AND_warmUpItem)*!drop-2	WARM UP CLUSTER a WITH TABLE
-accept	reject	engine	unsupportedOtherStatement((CLUSTER|COMPUTE_GROUP)_identifier|(~822777e5)/warmUpItem_(AND_warmUpItem)*!insert	WARM UP CLUSTER a WITH TABLE a zzz
-accept	reject	engine	unsupportedOtherStatement((CLUSTER|COMPUTE_GROUP)_identifier|(~822777e5)/warmUpItem_(AND_warmUpItem)*!swap	WARM UP CLUSTER a WITH TABLES a
+reject	reject	engine	unsupportedOtherStatement((CLUSTER|COMPUTE_GROUP)_identifier|(~822777e5)/warmUpItem_(AND_warmUpItem)*!drop-2	WARM UP CLUSTER a WITH TABLE
+reject	reject	engine	unsupportedOtherStatement((CLUSTER|COMPUTE_GROUP)_identifier|(~822777e5)/warmUpItem_(AND_warmUpItem)*!insert	WARM UP CLUSTER a WITH TABLE a zzz
+reject	reject	engine	unsupportedOtherStatement((CLUSTER|COMPUTE_GROUP)_identifier|(~822777e5)/warmUpItem_(AND_warmUpItem)*!swap	WARM UP CLUSTER a WITH TABLES a
 accept	accept	engine	unsupportedOtherStatement(AND_warmUpItem)*/%empty	WARM UP CLUSTER a WITH TABLE a
 accept	accept	engine	unsupportedOtherStatement(AND_warmUpItem)*/AND_warmUpItem_(AND_warmUpItem)*	WARM UP CLUSTER a WITH TABLE a AND TABLE a
-accept	reject	engine	unsupportedOtherStatement(AND_warmUpItem)*/AND_warmUpItem_(AND_warmUpItem)*!drop-1	WARM UP CLUSTER a WITH TABLE a TABLE a
-accept	reject	engine	unsupportedOtherStatement(AND_warmUpItem)*/AND_warmUpItem_(AND_warmUpItem)*!drop-2	WARM UP CLUSTER a WITH TABLE a AND a
-accept	reject	engine	unsupportedOtherStatement(AND_warmUpItem)*/AND_warmUpItem_(AND_warmUpItem)*!drop-3	WARM UP CLUSTER a WITH TABLE a AND TABLE
-accept	reject	engine	unsupportedOtherStatement(AND_warmUpItem)*/AND_warmUpItem_(AND_warmUpItem)*!insert	WARM UP CLUSTER a WITH TABLE a AND TABLE a zzz
-accept	reject	engine	unsupportedOtherStatement(AND_warmUpItem)*/AND_warmUpItem_(AND_warmUpItem)*!swap	WARM UP CLUSTER a WITH TABLE a ANTI TABLE a
+reject	reject	engine	unsupportedOtherStatement(AND_warmUpItem)*/AND_warmUpItem_(AND_warmUpItem)*!drop-1	WARM UP CLUSTER a WITH TABLE a TABLE a
+reject	reject	engine	unsupportedOtherStatement(AND_warmUpItem)*/AND_warmUpItem_(AND_warmUpItem)*!drop-2	WARM UP CLUSTER a WITH TABLE a AND a
+reject	reject	engine	unsupportedOtherStatement(AND_warmUpItem)*/AND_warmUpItem_(AND_warmUpItem)*!drop-3	WARM UP CLUSTER a WITH TABLE a AND TABLE
+reject	reject	engine	unsupportedOtherStatement(AND_warmUpItem)*/AND_warmUpItem_(AND_warmUpItem)*!insert	WARM UP CLUSTER a WITH TABLE a AND TABLE a zzz
+reject	reject	engine	unsupportedOtherStatement(AND_warmUpItem)*/AND_warmUpItem_(AND_warmUpItem)*!swap	WARM UP CLUSTER a WITH TABLE a ANTI TABLE a
 accept	accept	engine	unsupportedOtherStatement(FORCE)?/%empty	WARM UP CLUSTER a WITH CLUSTER a
 accept	accept	engine	unsupportedOtherStatement(FORCE)?/FORCE	WARM UP CLUSTER a WITH CLUSTER a FORCE
-accept	reject	engine	unsupportedOtherStatement(FORCE)?/FORCE!insert	WARM UP CLUSTER a WITH CLUSTER a FORCE zzz
-accept	reject	engine	unsupportedOtherStatement(FORCE)?/FORCE!swap	WARM UP CLUSTER a WITH CLUSTER a FOREIGN
+reject	reject	engine	unsupportedOtherStatement(FORCE)?/FORCE!insert	WARM UP CLUSTER a WITH CLUSTER a FORCE zzz
+reject	reject	engine	unsupportedOtherStatement(FORCE)?/FORCE!swap	WARM UP CLUSTER a WITH CLUSTER a FOREIGN
 accept	accept	engine	unsupportedOtherStatement((ON|EXCLUDE)_LEFT_PAREN_baseTableRef~4578e819)?/%empty	BACKUP SNAPSHOT a TO a
 accept	accept	engine	unsupportedOtherStatement((ON|EXCLUDE)_LEFT_PAREN_baseTableRef~4578e819)?/(ON|EXCLUDE)_LEFT_PAREN_baseTableRef_(COMMA_baseTableRe~eb9469eb	BACKUP SNAPSHOT a TO a ON(a)
 reject	reject	engine	unsupportedOtherStatement((ON|EXCLUDE)_LEFT_PAREN_baseTableRef~4578e819)?/(ON|EXCLUDE)_LEFT_PAREN_baseTableRef_(COMMA_baseTableRe~eb9469eb!drop-1	BACKUP SNAPSHOT a TO a(a)
 reject	reject	engine	unsupportedOtherStatement((ON|EXCLUDE)_LEFT_PAREN_baseTableRef~4578e819)?/(ON|EXCLUDE)_LEFT_PAREN_baseTableRef_(COMMA_baseTableRe~eb9469eb!drop-2	BACKUP SNAPSHOT a TO a ON a)
-accept	reject	engine	unsupportedOtherStatement((ON|EXCLUDE)_LEFT_PAREN_baseTableRef~4578e819)?/(ON|EXCLUDE)_LEFT_PAREN_baseTableRef_(COMMA_baseTableRe~eb9469eb!drop-3	BACKUP SNAPSHOT a TO a ON()
+reject	reject	engine	unsupportedOtherStatement((ON|EXCLUDE)_LEFT_PAREN_baseTableRef~4578e819)?/(ON|EXCLUDE)_LEFT_PAREN_baseTableRef_(COMMA_baseTableRe~eb9469eb!drop-3	BACKUP SNAPSHOT a TO a ON()
 reject	reject	engine	unsupportedOtherStatement((ON|EXCLUDE)_LEFT_PAREN_baseTableRef~4578e819)?/(ON|EXCLUDE)_LEFT_PAREN_baseTableRef_(COMMA_baseTableRe~eb9469eb!drop-4	BACKUP SNAPSHOT a TO a ON(a
 reject	reject	engine	unsupportedOtherStatement((ON|EXCLUDE)_LEFT_PAREN_baseTableRef~4578e819)?/(ON|EXCLUDE)_LEFT_PAREN_baseTableRef_(COMMA_baseTableRe~eb9469eb!insert	BACKUP SNAPSHOT a TO a ON(a) zzz
 reject	reject	engine	unsupportedOtherStatement((ON|EXCLUDE)_LEFT_PAREN_baseTableRef~4578e819)?/(ON|EXCLUDE)_LEFT_PAREN_baseTableRef_(COMMA_baseTableRe~eb9469eb!swap	BACKUP SNAPSHOT a TO a ONLY(a)
@@ -1352,7 +1352,7 @@ accept	accept	engine	unsupportedOtherStatement(COMMA_baseTableRef)*/%empty	BACKU
 accept	accept	engine	unsupportedOtherStatement(COMMA_baseTableRef)*/%empty!insert	BACKUP SNAPSHOT a TO a ON(a zzz)
 accept	accept	engine	unsupportedOtherStatement(COMMA_baseTableRef)*/COMMA_baseTableRef_(COMMA_baseTableRef)*	BACKUP SNAPSHOT a TO a ON(a, a)
 accept	accept	engine	unsupportedOtherStatement(COMMA_baseTableRef)*/COMMA_baseTableRef_(COMMA_baseTableRef)*!drop-1	BACKUP SNAPSHOT a TO a ON(a a)
-accept	reject	engine	unsupportedOtherStatement(COMMA_baseTableRef)*/COMMA_baseTableRef_(COMMA_baseTableRef)*!drop-2	BACKUP SNAPSHOT a TO a ON(a,)
+reject	reject	engine	unsupportedOtherStatement(COMMA_baseTableRef)*/COMMA_baseTableRef_(COMMA_baseTableRef)*!drop-2	BACKUP SNAPSHOT a TO a ON(a,)
 reject	reject	engine	unsupportedOtherStatement(COMMA_baseTableRef)*/COMMA_baseTableRef_(COMMA_baseTableRef)*!truncate	BACKUP SNAPSHOT a TO a ON(a,
 accept	accept	engine	unsupportedOtherStatement(COMMA_baseTableRef)*/COMMA_baseTableRef_(COMMA_baseTableRef)*!insert	BACKUP SNAPSHOT a TO a ON(a, a zzz)
 reject	accept	engine	unsupportedOtherStatement(WITH_CONSISTENT_SNAPSHOT)?/%empty	START TRANSACTION
@@ -1365,10 +1365,10 @@ reject	reject	engine	unsupportedOtherStatement(WITH_CONSISTENT_SNAPSHOT)?/WITH_C
 accept	accept	engine	warmUpItem/TABLE_multipartIdentifier_(PARTITION_identifier)?	WARM UP CLUSTER a WITH TABLE a
 accept	accept	engine	warmUpItem(PARTITION_identifier)?/%empty	WARM UP CLUSTER a WITH TABLE a
 accept	accept	engine	warmUpItem(PARTITION_identifier)?/PARTITION_identifier	WARM UP CLUSTER a WITH TABLE a PARTITION a
-accept	reject	engine	warmUpItem(PARTITION_identifier)?/PARTITION_identifier!drop-1	WARM UP CLUSTER a WITH TABLE a a
-accept	reject	engine	warmUpItem(PARTITION_identifier)?/PARTITION_identifier!drop-2	WARM UP CLUSTER a WITH TABLE a PARTITION
-accept	reject	engine	warmUpItem(PARTITION_identifier)?/PARTITION_identifier!insert	WARM UP CLUSTER a WITH TABLE a PARTITION a zzz
-accept	reject	engine	warmUpItem(PARTITION_identifier)?/PARTITION_identifier!swap	WARM UP CLUSTER a WITH TABLE a PARTITIONS a
+reject	reject	engine	warmUpItem(PARTITION_identifier)?/PARTITION_identifier!drop-1	WARM UP CLUSTER a WITH TABLE a a
+reject	reject	engine	warmUpItem(PARTITION_identifier)?/PARTITION_identifier!drop-2	WARM UP CLUSTER a WITH TABLE a PARTITION
+reject	reject	engine	warmUpItem(PARTITION_identifier)?/PARTITION_identifier!insert	WARM UP CLUSTER a WITH TABLE a PARTITION a zzz
+reject	reject	engine	warmUpItem(PARTITION_identifier)?/PARTITION_identifier!swap	WARM UP CLUSTER a WITH TABLE a PARTITIONS a
 accept	accept	engine	lockTable/multipartIdentifier_(AS_identifierOrText)?_(READ_(LOCAL~30cbe15c	LOCK TABLES a READ
 accept	accept	engine	lockTable(AS_identifierOrText)?/%empty	LOCK TABLES a READ
 reject	reject	engine	lockTable(AS_identifierOrText)?/%empty!insert	LOCK TABLES a zzz READ
@@ -1834,7 +1834,7 @@ reject	reject	engine	unsupportedShowStatement/SHOW_COPY_((FROM|IN)_multipartIden
 accept	reject	engine	unsupportedShowStatement/SHOW_COPY_((FROM|IN)_multipartIdentifier)?_(whereClause~c71f0e57!insert	SHOW COPY zzz
 reject	reject	engine	unsupportedShowStatement/SHOW_COPY_((FROM|IN)_multipartIdentifier)?_(whereClause~c71f0e57!swap	SIGNED COPY
 accept	accept	engine	unsupportedShowStatement/SHOW_WARM_UP_JOB_(wildWhere)?	SHOW WARM UP JOB
-accept	reject	engine	unsupportedShowStatement/SHOW_WARM_UP_JOB_(wildWhere)?!drop-1	WARM UP JOB
+reject	reject	engine	unsupportedShowStatement/SHOW_WARM_UP_JOB_(wildWhere)?!drop-1	WARM UP JOB
 accept	reject	engine	unsupportedShowStatement/SHOW_WARM_UP_JOB_(wildWhere)?!drop-2	SHOW UP JOB
 accept	reject	engine	unsupportedShowStatement/SHOW_WARM_UP_JOB_(wildWhere)?!drop-3	SHOW WARM JOB
 accept	reject	engine	unsupportedShowStatement/SHOW_WARM_UP_JOB_(wildWhere)?!drop-4	SHOW WARM UP
@@ -2392,165 +2392,165 @@ reject	reject	engine	unsupportedRefreshStatement(ALL|(FOR_identifierOrText))/FOR
 reject	reject	engine	unsupportedRefreshStatement(ALL|(FOR_identifierOrText))/FOR_identifierOrText!swap	REFRESH LDAP FORCE a
 accept	accept	engine	unsupportedCleanStatement/CLEAN_LABEL_(identifier)?_(FROM|IN)_identifier	CLEAN LABEL FROM a
 reject	reject	engine	unsupportedCleanStatement/CLEAN_LABEL_(identifier)?_(FROM|IN)_identifier!drop-1	LABEL FROM a
-accept	reject	engine	unsupportedCleanStatement/CLEAN_LABEL_(identifier)?_(FROM|IN)_identifier!drop-2	CLEAN FROM a
-accept	reject	engine	unsupportedCleanStatement/CLEAN_LABEL_(identifier)?_(FROM|IN)_identifier!drop-3	CLEAN LABEL a
-accept	reject	engine	unsupportedCleanStatement/CLEAN_LABEL_(identifier)?_(FROM|IN)_identifier!drop-4	CLEAN LABEL FROM
-accept	reject	engine	unsupportedCleanStatement/CLEAN_LABEL_(identifier)?_(FROM|IN)_identifier!insert	CLEAN LABEL FROM a zzz
+reject	reject	engine	unsupportedCleanStatement/CLEAN_LABEL_(identifier)?_(FROM|IN)_identifier!drop-2	CLEAN FROM a
+reject	reject	engine	unsupportedCleanStatement/CLEAN_LABEL_(identifier)?_(FROM|IN)_identifier!drop-3	CLEAN LABEL a
+reject	reject	engine	unsupportedCleanStatement/CLEAN_LABEL_(identifier)?_(FROM|IN)_identifier!drop-4	CLEAN LABEL FROM
+reject	reject	engine	unsupportedCleanStatement/CLEAN_LABEL_(identifier)?_(FROM|IN)_identifier!insert	CLEAN LABEL FROM a zzz
 reject	reject	engine	unsupportedCleanStatement/CLEAN_LABEL_(identifier)?_(FROM|IN)_identifier!swap	CLUSTER LABEL FROM a
 accept	accept	engine	unsupportedCleanStatement/CLEAN_ALL_PROFILE	CLEAN ALL PROFILE
 accept	accept	engine	unsupportedCleanStatement/CLEAN_QUERY_STATS_((FOR_identifier)|((FROM|IN)_multipar~77f43f34	CLEAN QUERY STATS FOR a
 reject	reject	engine	unsupportedCleanStatement/CLEAN_QUERY_STATS_((FOR_identifier)|((FROM|IN)_multipar~77f43f34!drop-1	QUERY STATS FOR a
-accept	reject	engine	unsupportedCleanStatement/CLEAN_QUERY_STATS_((FOR_identifier)|((FROM|IN)_multipar~77f43f34!drop-2	CLEAN STATS FOR a
-accept	reject	engine	unsupportedCleanStatement/CLEAN_QUERY_STATS_((FOR_identifier)|((FROM|IN)_multipar~77f43f34!drop-3	CLEAN QUERY FOR a
-accept	reject	engine	unsupportedCleanStatement/CLEAN_QUERY_STATS_((FOR_identifier)|((FROM|IN)_multipar~77f43f34!drop-4	CLEAN QUERY STATS a
-accept	reject	engine	unsupportedCleanStatement/CLEAN_QUERY_STATS_((FOR_identifier)|((FROM|IN)_multipar~77f43f34!drop-5	CLEAN QUERY STATS FOR
-accept	reject	engine	unsupportedCleanStatement/CLEAN_QUERY_STATS_((FOR_identifier)|((FROM|IN)_multipar~77f43f34!insert	CLEAN QUERY STATS FOR a zzz
+reject	reject	engine	unsupportedCleanStatement/CLEAN_QUERY_STATS_((FOR_identifier)|((FROM|IN)_multipar~77f43f34!drop-2	CLEAN STATS FOR a
+reject	reject	engine	unsupportedCleanStatement/CLEAN_QUERY_STATS_((FOR_identifier)|((FROM|IN)_multipar~77f43f34!drop-3	CLEAN QUERY FOR a
+reject	reject	engine	unsupportedCleanStatement/CLEAN_QUERY_STATS_((FOR_identifier)|((FROM|IN)_multipar~77f43f34!drop-4	CLEAN QUERY STATS a
+reject	reject	engine	unsupportedCleanStatement/CLEAN_QUERY_STATS_((FOR_identifier)|((FROM|IN)_multipar~77f43f34!drop-5	CLEAN QUERY STATS FOR
+reject	reject	engine	unsupportedCleanStatement/CLEAN_QUERY_STATS_((FOR_identifier)|((FROM|IN)_multipar~77f43f34!insert	CLEAN QUERY STATS FOR a zzz
 reject	reject	engine	unsupportedCleanStatement/CLEAN_QUERY_STATS_((FOR_identifier)|((FROM|IN)_multipar~77f43f34!swap	CLUSTER QUERY STATS FOR a
 accept	accept	engine	unsupportedCleanStatement/CLEAN_ALL_QUERY_STATS	CLEAN ALL QUERY STATS
 reject	reject	engine	unsupportedCleanStatement/CLEAN_ALL_QUERY_STATS!drop-1	ALL QUERY STATS
-accept	reject	engine	unsupportedCleanStatement/CLEAN_ALL_QUERY_STATS!drop-2	CLEAN QUERY STATS
-accept	reject	engine	unsupportedCleanStatement/CLEAN_ALL_QUERY_STATS!drop-3	CLEAN ALL STATS
-accept	reject	engine	unsupportedCleanStatement/CLEAN_ALL_QUERY_STATS!drop-4	CLEAN ALL QUERY
-accept	reject	engine	unsupportedCleanStatement/CLEAN_ALL_QUERY_STATS!insert	CLEAN ALL QUERY STATS zzz
+reject	reject	engine	unsupportedCleanStatement/CLEAN_ALL_QUERY_STATS!drop-2	CLEAN QUERY STATS
+reject	reject	engine	unsupportedCleanStatement/CLEAN_ALL_QUERY_STATS!drop-3	CLEAN ALL STATS
+reject	reject	engine	unsupportedCleanStatement/CLEAN_ALL_QUERY_STATS!drop-4	CLEAN ALL QUERY
+reject	reject	engine	unsupportedCleanStatement/CLEAN_ALL_QUERY_STATS!insert	CLEAN ALL QUERY STATS zzz
 reject	reject	engine	unsupportedCleanStatement/CLEAN_ALL_QUERY_STATS!swap	CLUSTER ALL QUERY STATS
 accept	accept	engine	unsupportedCleanStatement(identifier)?/%empty	CLEAN LABEL FROM a
 accept	accept	engine	unsupportedCleanStatement(identifier)?/%empty!insert	CLEAN LABEL zzz FROM a
 accept	accept	engine	unsupportedCleanStatement(identifier)?/identifier	CLEAN LABEL a FROM a
-accept	reject	engine	unsupportedCleanStatement(identifier)?/identifier!truncate	CLEAN LABEL
-accept	reject	engine	unsupportedCleanStatement(identifier)?/identifier!insert	CLEAN LABEL a zzz FROM a
+reject	reject	engine	unsupportedCleanStatement(identifier)?/identifier!truncate	CLEAN LABEL
+reject	reject	engine	unsupportedCleanStatement(identifier)?/identifier!insert	CLEAN LABEL a zzz FROM a
 accept	accept	engine	unsupportedCleanStatement(FROM|IN)/FROM	CLEAN LABEL FROM a
-accept	reject	engine	unsupportedCleanStatement(FROM|IN)/FROM!insert	CLEAN LABEL FROM zzz a
-accept	reject	engine	unsupportedCleanStatement(FROM|IN)/FROM!swap	CLEAN LABEL FRONTEND a
+reject	reject	engine	unsupportedCleanStatement(FROM|IN)/FROM!insert	CLEAN LABEL FROM zzz a
+reject	reject	engine	unsupportedCleanStatement(FROM|IN)/FROM!swap	CLEAN LABEL FRONTEND a
 accept	accept	engine	unsupportedCleanStatement(FROM|IN)/IN	CLEAN LABEL IN a
-accept	reject	engine	unsupportedCleanStatement(FROM|IN)/IN!insert	CLEAN LABEL IN zzz a
-accept	reject	engine	unsupportedCleanStatement(FROM|IN)/IN!swap	CLEAN LABEL INCREMENTAL a
+reject	reject	engine	unsupportedCleanStatement(FROM|IN)/IN!insert	CLEAN LABEL IN zzz a
+reject	reject	engine	unsupportedCleanStatement(FROM|IN)/IN!swap	CLEAN LABEL INCREMENTAL a
 accept	accept	engine	unsupportedCleanStatement((FOR_identifier)|((FROM|IN)_multipar~f6787dc6)/FOR_identifier	CLEAN QUERY STATS FOR a
-accept	reject	engine	unsupportedCleanStatement((FOR_identifier)|((FROM|IN)_multipar~f6787dc6)/FOR_identifier!swap	CLEAN QUERY STATS FORCE a
+reject	reject	engine	unsupportedCleanStatement((FOR_identifier)|((FROM|IN)_multipar~f6787dc6)/FOR_identifier!swap	CLEAN QUERY STATS FORCE a
 accept	accept	engine	unsupportedCleanStatement((FOR_identifier)|((FROM|IN)_multipar~f6787dc6)/(FROM|IN)_multipartIdentifier	CLEAN QUERY STATS FROM a
-accept	reject	engine	unsupportedCleanStatement((FOR_identifier)|((FROM|IN)_multipar~f6787dc6)/(FROM|IN)_multipartIdentifier!drop-2	CLEAN QUERY STATS FROM
-accept	reject	engine	unsupportedCleanStatement((FOR_identifier)|((FROM|IN)_multipar~f6787dc6)/(FROM|IN)_multipartIdentifier!insert	CLEAN QUERY STATS FROM a zzz
-accept	reject	engine	unsupportedCleanStatement((FOR_identifier)|((FROM|IN)_multipar~f6787dc6)/(FROM|IN)_multipartIdentifier!swap	CLEAN QUERY STATS FRONTEND a
-reject	accept	engine	unsupportedJobStatement/PAUSE_JOB_(wildWhere)?	PAUSE JOB
-reject	accept	engine	unsupportedJobStatement/DROP_JOB_(IF_EXISTS)?_(wildWhere)?	DROP JOB
-accept	reject	engine	unsupportedJobStatement/DROP_JOB_(IF_EXISTS)?_(wildWhere)?!insert	DROP JOB zzz
+reject	reject	engine	unsupportedCleanStatement((FOR_identifier)|((FROM|IN)_multipar~f6787dc6)/(FROM|IN)_multipartIdentifier!drop-2	CLEAN QUERY STATS FROM
+reject	reject	engine	unsupportedCleanStatement((FOR_identifier)|((FROM|IN)_multipar~f6787dc6)/(FROM|IN)_multipartIdentifier!insert	CLEAN QUERY STATS FROM a zzz
+reject	reject	engine	unsupportedCleanStatement((FOR_identifier)|((FROM|IN)_multipar~f6787dc6)/(FROM|IN)_multipartIdentifier!swap	CLEAN QUERY STATS FRONTEND a
+accept	accept	engine	unsupportedJobStatement/PAUSE_JOB_(wildWhere)?	PAUSE JOB
+accept	accept	engine	unsupportedJobStatement/DROP_JOB_(IF_EXISTS)?_(wildWhere)?	DROP JOB
+reject	reject	engine	unsupportedJobStatement/DROP_JOB_(IF_EXISTS)?_(wildWhere)?!insert	DROP JOB zzz
 reject	reject	engine	unsupportedJobStatement/DROP_JOB_(IF_EXISTS)?_(wildWhere)?!swap	DROPP JOB
-reject	accept	engine	unsupportedJobStatement/RESUME_JOB_(wildWhere)?	RESUME JOB
+accept	accept	engine	unsupportedJobStatement/RESUME_JOB_(wildWhere)?	RESUME JOB
 reject	reject	engine	unsupportedJobStatement/RESUME_JOB_(wildWhere)?!drop-2	RESUME
-accept	reject	engine	unsupportedJobStatement/RESUME_JOB_(wildWhere)?!insert	RESUME JOB zzz
+reject	reject	engine	unsupportedJobStatement/RESUME_JOB_(wildWhere)?!insert	RESUME JOB zzz
 reject	reject	engine	unsupportedJobStatement/RESUME_JOB_(wildWhere)?!swap	RETAIN JOB
 reject	accept	engine	unsupportedJobStatement/CANCEL_TASK_(wildWhere)?	CANCEL TASK
 reject	reject	engine	unsupportedJobStatement/CANCEL_TASK_(wildWhere)?!drop-1	TASK
 reject	reject	engine	unsupportedJobStatement/CANCEL_TASK_(wildWhere)?!insert	CANCEL TASK zzz
 reject	reject	engine	unsupportedJobStatement/CANCEL_TASK_(wildWhere)?!swap	CASE TASK
-reject	accept	engine	unsupportedJobStatement(wildWhere)?/%empty	PAUSE JOB
-reject	accept	engine	unsupportedJobStatement(wildWhere)?/wildWhere	PAUSE JOB LIKE 'a'
+accept	accept	engine	unsupportedJobStatement(wildWhere)?/%empty	PAUSE JOB
+accept	accept	engine	unsupportedJobStatement(wildWhere)?/wildWhere	PAUSE JOB LIKE 'a'
 reject	reject	engine	unsupportedJobStatement(wildWhere)?/wildWhere!drop-1	PAUSE JOB 'a'
 reject	reject	engine	unsupportedJobStatement(wildWhere)?/wildWhere!drop-2	PAUSE JOB LIKE
 reject	reject	engine	unsupportedJobStatement(wildWhere)?/wildWhere!insert	PAUSE JOB LIKE 'a' zzz
 reject	reject	engine	unsupportedJobStatement(wildWhere)?/wildWhere!swap	PAUSE JOB LIMIT 'a'
-reject	accept	engine	unsupportedJobStatement(IF_EXISTS)?/%empty	DROP JOB
-reject	accept	engine	unsupportedJobStatement(IF_EXISTS)?/IF_EXISTS	DROP JOB IF EXISTS
+accept	accept	engine	unsupportedJobStatement(IF_EXISTS)?/%empty	DROP JOB
+accept	accept	engine	unsupportedJobStatement(IF_EXISTS)?/IF_EXISTS	DROP JOB IF EXISTS
 reject	reject	engine	unsupportedJobStatement(IF_EXISTS)?/IF_EXISTS!drop-1	DROP JOB EXISTS
 reject	reject	engine	unsupportedJobStatement(IF_EXISTS)?/IF_EXISTS!drop-2	DROP JOB IF
-accept	reject	engine	unsupportedJobStatement(IF_EXISTS)?/IF_EXISTS!insert	DROP JOB IF EXISTS zzz
+reject	reject	engine	unsupportedJobStatement(IF_EXISTS)?/IF_EXISTS!insert	DROP JOB IF EXISTS zzz
 reject	reject	engine	unsupportedJobStatement(IF_EXISTS)?/IF_EXISTS!swap	DROP JOB IGNORE EXISTS
 accept	accept	engine	unsupportedCancelStatement/CANCEL_LOAD_((FROM|IN)_identifier)?_(wildWhere)?	CANCEL LOAD
 accept	accept	engine	unsupportedCancelStatement/CANCEL_EXPORT_((FROM|IN)_identifier)?_(wildWhere)?	CANCEL EXPORT
-accept	reject	engine	unsupportedCancelStatement/CANCEL_EXPORT_((FROM|IN)_identifier)?_(wildWhere)?!insert	CANCEL EXPORT zzz
+reject	reject	engine	unsupportedCancelStatement/CANCEL_EXPORT_((FROM|IN)_identifier)?_(wildWhere)?!insert	CANCEL EXPORT zzz
 reject	reject	engine	unsupportedCancelStatement/CANCEL_EXPORT_((FROM|IN)_identifier)?_(wildWhere)?!swap	CASE EXPORT
 accept	accept	engine	unsupportedCancelStatement/CANCEL_ALTER_TABLE_(ROLLUP|(MATERIALIZED_VIEW)|COLUMN)_~93a59f35	CANCEL ALTER TABLE ROLLUP FROM a
 accept	reject	engine	unsupportedCancelStatement/CANCEL_ALTER_TABLE_(ROLLUP|(MATERIALIZED_VIEW)|COLUMN)_~93a59f35!drop-1	ALTER TABLE ROLLUP FROM a
-accept	reject	engine	unsupportedCancelStatement/CANCEL_ALTER_TABLE_(ROLLUP|(MATERIALIZED_VIEW)|COLUMN)_~93a59f35!drop-2	CANCEL TABLE ROLLUP FROM a
-accept	reject	engine	unsupportedCancelStatement/CANCEL_ALTER_TABLE_(ROLLUP|(MATERIALIZED_VIEW)|COLUMN)_~93a59f35!drop-3	CANCEL ALTER ROLLUP FROM a
-accept	reject	engine	unsupportedCancelStatement/CANCEL_ALTER_TABLE_(ROLLUP|(MATERIALIZED_VIEW)|COLUMN)_~93a59f35!drop-4	CANCEL ALTER TABLE FROM a
-accept	reject	engine	unsupportedCancelStatement/CANCEL_ALTER_TABLE_(ROLLUP|(MATERIALIZED_VIEW)|COLUMN)_~93a59f35!drop-5	CANCEL ALTER TABLE ROLLUP a
-accept	reject	engine	unsupportedCancelStatement/CANCEL_ALTER_TABLE_(ROLLUP|(MATERIALIZED_VIEW)|COLUMN)_~93a59f35!drop-6	CANCEL ALTER TABLE ROLLUP FROM
-accept	reject	engine	unsupportedCancelStatement/CANCEL_ALTER_TABLE_(ROLLUP|(MATERIALIZED_VIEW)|COLUMN)_~93a59f35!insert	CANCEL ALTER TABLE ROLLUP FROM a zzz
+reject	reject	engine	unsupportedCancelStatement/CANCEL_ALTER_TABLE_(ROLLUP|(MATERIALIZED_VIEW)|COLUMN)_~93a59f35!drop-2	CANCEL TABLE ROLLUP FROM a
+reject	reject	engine	unsupportedCancelStatement/CANCEL_ALTER_TABLE_(ROLLUP|(MATERIALIZED_VIEW)|COLUMN)_~93a59f35!drop-3	CANCEL ALTER ROLLUP FROM a
+reject	reject	engine	unsupportedCancelStatement/CANCEL_ALTER_TABLE_(ROLLUP|(MATERIALIZED_VIEW)|COLUMN)_~93a59f35!drop-4	CANCEL ALTER TABLE FROM a
+reject	reject	engine	unsupportedCancelStatement/CANCEL_ALTER_TABLE_(ROLLUP|(MATERIALIZED_VIEW)|COLUMN)_~93a59f35!drop-5	CANCEL ALTER TABLE ROLLUP a
+reject	reject	engine	unsupportedCancelStatement/CANCEL_ALTER_TABLE_(ROLLUP|(MATERIALIZED_VIEW)|COLUMN)_~93a59f35!drop-6	CANCEL ALTER TABLE ROLLUP FROM
+reject	reject	engine	unsupportedCancelStatement/CANCEL_ALTER_TABLE_(ROLLUP|(MATERIALIZED_VIEW)|COLUMN)_~93a59f35!insert	CANCEL ALTER TABLE ROLLUP FROM a zzz
 reject	reject	engine	unsupportedCancelStatement/CANCEL_ALTER_TABLE_(ROLLUP|(MATERIALIZED_VIEW)|COLUMN)_~93a59f35!swap	CASE ALTER TABLE ROLLUP FROM a
 accept	accept	engine	unsupportedCancelStatement/CANCEL_BUILD_INDEX_ON_multipartIdentifier_(LEFT_PAREN_I~8295fbc0	CANCEL BUILD INDEX ON a
 reject	reject	engine	unsupportedCancelStatement/CANCEL_BUILD_INDEX_ON_multipartIdentifier_(LEFT_PAREN_I~8295fbc0!drop-1	BUILD INDEX ON a
-accept	reject	engine	unsupportedCancelStatement/CANCEL_BUILD_INDEX_ON_multipartIdentifier_(LEFT_PAREN_I~8295fbc0!drop-2	CANCEL INDEX ON a
-accept	reject	engine	unsupportedCancelStatement/CANCEL_BUILD_INDEX_ON_multipartIdentifier_(LEFT_PAREN_I~8295fbc0!drop-3	CANCEL BUILD ON a
-accept	reject	engine	unsupportedCancelStatement/CANCEL_BUILD_INDEX_ON_multipartIdentifier_(LEFT_PAREN_I~8295fbc0!drop-4	CANCEL BUILD INDEX a
-accept	reject	engine	unsupportedCancelStatement/CANCEL_BUILD_INDEX_ON_multipartIdentifier_(LEFT_PAREN_I~8295fbc0!drop-5	CANCEL BUILD INDEX ON
-accept	reject	engine	unsupportedCancelStatement/CANCEL_BUILD_INDEX_ON_multipartIdentifier_(LEFT_PAREN_I~8295fbc0!insert	CANCEL BUILD INDEX ON a zzz
+reject	reject	engine	unsupportedCancelStatement/CANCEL_BUILD_INDEX_ON_multipartIdentifier_(LEFT_PAREN_I~8295fbc0!drop-2	CANCEL INDEX ON a
+reject	reject	engine	unsupportedCancelStatement/CANCEL_BUILD_INDEX_ON_multipartIdentifier_(LEFT_PAREN_I~8295fbc0!drop-3	CANCEL BUILD ON a
+reject	reject	engine	unsupportedCancelStatement/CANCEL_BUILD_INDEX_ON_multipartIdentifier_(LEFT_PAREN_I~8295fbc0!drop-4	CANCEL BUILD INDEX a
+reject	reject	engine	unsupportedCancelStatement/CANCEL_BUILD_INDEX_ON_multipartIdentifier_(LEFT_PAREN_I~8295fbc0!drop-5	CANCEL BUILD INDEX ON
+reject	reject	engine	unsupportedCancelStatement/CANCEL_BUILD_INDEX_ON_multipartIdentifier_(LEFT_PAREN_I~8295fbc0!insert	CANCEL BUILD INDEX ON a zzz
 reject	reject	engine	unsupportedCancelStatement/CANCEL_BUILD_INDEX_ON_multipartIdentifier_(LEFT_PAREN_I~8295fbc0!swap	CASE BUILD INDEX ON a
 accept	accept	engine	unsupportedCancelStatement/CANCEL_DECOMMISSION_BACKEND_STRING_LITERAL_(COMMA_STRIN~fc72eadb	CANCEL DECOMMISSION BACKEND 'a'
 reject	reject	engine	unsupportedCancelStatement/CANCEL_DECOMMISSION_BACKEND_STRING_LITERAL_(COMMA_STRIN~fc72eadb!drop-1	DECOMMISSION BACKEND 'a'
-accept	reject	engine	unsupportedCancelStatement/CANCEL_DECOMMISSION_BACKEND_STRING_LITERAL_(COMMA_STRIN~fc72eadb!drop-2	CANCEL BACKEND 'a'
-accept	reject	engine	unsupportedCancelStatement/CANCEL_DECOMMISSION_BACKEND_STRING_LITERAL_(COMMA_STRIN~fc72eadb!drop-3	CANCEL DECOMMISSION 'a'
-accept	reject	engine	unsupportedCancelStatement/CANCEL_DECOMMISSION_BACKEND_STRING_LITERAL_(COMMA_STRIN~fc72eadb!drop-4	CANCEL DECOMMISSION BACKEND
+reject	reject	engine	unsupportedCancelStatement/CANCEL_DECOMMISSION_BACKEND_STRING_LITERAL_(COMMA_STRIN~fc72eadb!drop-2	CANCEL BACKEND 'a'
+reject	reject	engine	unsupportedCancelStatement/CANCEL_DECOMMISSION_BACKEND_STRING_LITERAL_(COMMA_STRIN~fc72eadb!drop-3	CANCEL DECOMMISSION 'a'
+reject	reject	engine	unsupportedCancelStatement/CANCEL_DECOMMISSION_BACKEND_STRING_LITERAL_(COMMA_STRIN~fc72eadb!drop-4	CANCEL DECOMMISSION BACKEND
 reject	reject	engine	unsupportedCancelStatement/CANCEL_DECOMMISSION_BACKEND_STRING_LITERAL_(COMMA_STRIN~fc72eadb!insert	CANCEL DECOMMISSION BACKEND 'a' zzz
 reject	reject	engine	unsupportedCancelStatement/CANCEL_DECOMMISSION_BACKEND_STRING_LITERAL_(COMMA_STRIN~fc72eadb!swap	CASE DECOMMISSION BACKEND 'a'
 accept	accept	engine	unsupportedCancelStatement/CANCEL_BACKUP_((FROM|IN)_identifier)?	CANCEL BACKUP
-accept	reject	engine	unsupportedCancelStatement/CANCEL_BACKUP_((FROM|IN)_identifier)?!insert	CANCEL BACKUP zzz
+reject	reject	engine	unsupportedCancelStatement/CANCEL_BACKUP_((FROM|IN)_identifier)?!insert	CANCEL BACKUP zzz
 reject	reject	engine	unsupportedCancelStatement/CANCEL_BACKUP_((FROM|IN)_identifier)?!swap	CASE BACKUP
 accept	accept	engine	unsupportedCancelStatement/CANCEL_RESTORE_((FROM|IN)_identifier)?	CANCEL RESTORE
-accept	reject	engine	unsupportedCancelStatement/CANCEL_RESTORE_((FROM|IN)_identifier)?!insert	CANCEL RESTORE zzz
+reject	reject	engine	unsupportedCancelStatement/CANCEL_RESTORE_((FROM|IN)_identifier)?!insert	CANCEL RESTORE zzz
 reject	reject	engine	unsupportedCancelStatement/CANCEL_RESTORE_((FROM|IN)_identifier)?!swap	CASE RESTORE
 accept	accept	engine	unsupportedCancelStatement/CANCEL_WARM_UP_JOB_(wildWhere)?	CANCEL WARM UP JOB
-accept	reject	engine	unsupportedCancelStatement/CANCEL_WARM_UP_JOB_(wildWhere)?!drop-2	CANCEL UP JOB
-accept	reject	engine	unsupportedCancelStatement/CANCEL_WARM_UP_JOB_(wildWhere)?!drop-3	CANCEL WARM JOB
-accept	reject	engine	unsupportedCancelStatement/CANCEL_WARM_UP_JOB_(wildWhere)?!drop-4	CANCEL WARM UP
-accept	reject	engine	unsupportedCancelStatement/CANCEL_WARM_UP_JOB_(wildWhere)?!insert	CANCEL WARM UP JOB zzz
+reject	reject	engine	unsupportedCancelStatement/CANCEL_WARM_UP_JOB_(wildWhere)?!drop-2	CANCEL UP JOB
+reject	reject	engine	unsupportedCancelStatement/CANCEL_WARM_UP_JOB_(wildWhere)?!drop-3	CANCEL WARM JOB
+reject	reject	engine	unsupportedCancelStatement/CANCEL_WARM_UP_JOB_(wildWhere)?!drop-4	CANCEL WARM UP
+reject	reject	engine	unsupportedCancelStatement/CANCEL_WARM_UP_JOB_(wildWhere)?!insert	CANCEL WARM UP JOB zzz
 reject	reject	engine	unsupportedCancelStatement/CANCEL_WARM_UP_JOB_(wildWhere)?!swap	CASE WARM UP JOB
 accept	accept	engine	unsupportedCancelStatement((FROM|IN)_identifier)?/%empty	CANCEL LOAD
 accept	accept	engine	unsupportedCancelStatement((FROM|IN)_identifier)?/(FROM|IN)_identifier	CANCEL LOAD FROM a
-accept	reject	engine	unsupportedCancelStatement((FROM|IN)_identifier)?/(FROM|IN)_identifier!drop-1	CANCEL LOAD a
-accept	reject	engine	unsupportedCancelStatement((FROM|IN)_identifier)?/(FROM|IN)_identifier!drop-2	CANCEL LOAD FROM
-accept	reject	engine	unsupportedCancelStatement((FROM|IN)_identifier)?/(FROM|IN)_identifier!insert	CANCEL LOAD FROM a zzz
-accept	reject	engine	unsupportedCancelStatement((FROM|IN)_identifier)?/(FROM|IN)_identifier!swap	CANCEL LOAD FRONTEND a
+reject	reject	engine	unsupportedCancelStatement((FROM|IN)_identifier)?/(FROM|IN)_identifier!drop-1	CANCEL LOAD a
+reject	reject	engine	unsupportedCancelStatement((FROM|IN)_identifier)?/(FROM|IN)_identifier!drop-2	CANCEL LOAD FROM
+reject	reject	engine	unsupportedCancelStatement((FROM|IN)_identifier)?/(FROM|IN)_identifier!insert	CANCEL LOAD FROM a zzz
+reject	reject	engine	unsupportedCancelStatement((FROM|IN)_identifier)?/(FROM|IN)_identifier!swap	CANCEL LOAD FRONTEND a
 accept	accept	engine	unsupportedCancelStatement(FROM|IN)/FROM	CANCEL LOAD FROM a
-accept	reject	engine	unsupportedCancelStatement(FROM|IN)/FROM!insert	CANCEL LOAD FROM zzz a
+reject	reject	engine	unsupportedCancelStatement(FROM|IN)/FROM!insert	CANCEL LOAD FROM zzz a
 accept	accept	engine	unsupportedCancelStatement(FROM|IN)/IN	CANCEL LOAD IN a
-accept	reject	engine	unsupportedCancelStatement(FROM|IN)/IN!insert	CANCEL LOAD IN zzz a
-accept	reject	engine	unsupportedCancelStatement(FROM|IN)/IN!swap	CANCEL LOAD INCREMENTAL a
+reject	reject	engine	unsupportedCancelStatement(FROM|IN)/IN!insert	CANCEL LOAD IN zzz a
+reject	reject	engine	unsupportedCancelStatement(FROM|IN)/IN!swap	CANCEL LOAD INCREMENTAL a
 accept	accept	engine	unsupportedCancelStatement(wildWhere)?/%empty	CANCEL LOAD
 accept	accept	engine	unsupportedCancelStatement(wildWhere)?/wildWhere	CANCEL LOAD LIKE 'a'
-accept	reject	engine	unsupportedCancelStatement(wildWhere)?/wildWhere!drop-1	CANCEL LOAD 'a'
-accept	reject	engine	unsupportedCancelStatement(wildWhere)?/wildWhere!drop-2	CANCEL LOAD LIKE
-accept	reject	engine	unsupportedCancelStatement(wildWhere)?/wildWhere!insert	CANCEL LOAD LIKE 'a' zzz
-accept	reject	engine	unsupportedCancelStatement(wildWhere)?/wildWhere!swap	CANCEL LOAD LIMIT 'a'
+reject	reject	engine	unsupportedCancelStatement(wildWhere)?/wildWhere!drop-1	CANCEL LOAD 'a'
+reject	reject	engine	unsupportedCancelStatement(wildWhere)?/wildWhere!drop-2	CANCEL LOAD LIKE
+reject	reject	engine	unsupportedCancelStatement(wildWhere)?/wildWhere!insert	CANCEL LOAD LIKE 'a' zzz
+reject	reject	engine	unsupportedCancelStatement(wildWhere)?/wildWhere!swap	CANCEL LOAD LIMIT 'a'
 accept	accept	engine	unsupportedCancelStatement(ROLLUP|(MATERIALIZED_VIEW)|COLUMN)/ROLLUP	CANCEL ALTER TABLE ROLLUP FROM a
-accept	reject	engine	unsupportedCancelStatement(ROLLUP|(MATERIALIZED_VIEW)|COLUMN)/ROLLUP!truncate	CANCEL ALTER TABLE
-accept	reject	engine	unsupportedCancelStatement(ROLLUP|(MATERIALIZED_VIEW)|COLUMN)/ROLLUP!insert	CANCEL ALTER TABLE ROLLUP zzz FROM a
-accept	reject	engine	unsupportedCancelStatement(ROLLUP|(MATERIALIZED_VIEW)|COLUMN)/ROLLUP!swap	CANCEL ALTER TABLE ROOT FROM a
+reject	reject	engine	unsupportedCancelStatement(ROLLUP|(MATERIALIZED_VIEW)|COLUMN)/ROLLUP!truncate	CANCEL ALTER TABLE
+reject	reject	engine	unsupportedCancelStatement(ROLLUP|(MATERIALIZED_VIEW)|COLUMN)/ROLLUP!insert	CANCEL ALTER TABLE ROLLUP zzz FROM a
+reject	reject	engine	unsupportedCancelStatement(ROLLUP|(MATERIALIZED_VIEW)|COLUMN)/ROLLUP!swap	CANCEL ALTER TABLE ROOT FROM a
 accept	accept	engine	unsupportedCancelStatement(ROLLUP|(MATERIALIZED_VIEW)|COLUMN)/MATERIALIZED_VIEW	CANCEL ALTER TABLE MATERIALIZED VIEW FROM a
-accept	reject	engine	unsupportedCancelStatement(ROLLUP|(MATERIALIZED_VIEW)|COLUMN)/MATERIALIZED_VIEW!drop-1	CANCEL ALTER TABLE VIEW FROM a
-accept	reject	engine	unsupportedCancelStatement(ROLLUP|(MATERIALIZED_VIEW)|COLUMN)/MATERIALIZED_VIEW!drop-2	CANCEL ALTER TABLE MATERIALIZED FROM a
-accept	reject	engine	unsupportedCancelStatement(ROLLUP|(MATERIALIZED_VIEW)|COLUMN)/MATERIALIZED_VIEW!truncate	CANCEL ALTER TABLE MATERIALIZED
-accept	reject	engine	unsupportedCancelStatement(ROLLUP|(MATERIALIZED_VIEW)|COLUMN)/MATERIALIZED_VIEW!insert	CANCEL ALTER TABLE MATERIALIZED VIEW zzz FROM a
-accept	reject	engine	unsupportedCancelStatement(ROLLUP|(MATERIALIZED_VIEW)|COLUMN)/MATERIALIZED_VIEW!swap	CANCEL ALTER TABLE MAX VIEW FROM a
+reject	reject	engine	unsupportedCancelStatement(ROLLUP|(MATERIALIZED_VIEW)|COLUMN)/MATERIALIZED_VIEW!drop-1	CANCEL ALTER TABLE VIEW FROM a
+reject	reject	engine	unsupportedCancelStatement(ROLLUP|(MATERIALIZED_VIEW)|COLUMN)/MATERIALIZED_VIEW!drop-2	CANCEL ALTER TABLE MATERIALIZED FROM a
+reject	reject	engine	unsupportedCancelStatement(ROLLUP|(MATERIALIZED_VIEW)|COLUMN)/MATERIALIZED_VIEW!truncate	CANCEL ALTER TABLE MATERIALIZED
+reject	reject	engine	unsupportedCancelStatement(ROLLUP|(MATERIALIZED_VIEW)|COLUMN)/MATERIALIZED_VIEW!insert	CANCEL ALTER TABLE MATERIALIZED VIEW zzz FROM a
+reject	reject	engine	unsupportedCancelStatement(ROLLUP|(MATERIALIZED_VIEW)|COLUMN)/MATERIALIZED_VIEW!swap	CANCEL ALTER TABLE MAX VIEW FROM a
 accept	accept	engine	unsupportedCancelStatement(ROLLUP|(MATERIALIZED_VIEW)|COLUMN)/COLUMN	CANCEL ALTER TABLE COLUMN FROM a
-accept	reject	engine	unsupportedCancelStatement(ROLLUP|(MATERIALIZED_VIEW)|COLUMN)/COLUMN!insert	CANCEL ALTER TABLE COLUMN zzz FROM a
-accept	reject	engine	unsupportedCancelStatement(ROLLUP|(MATERIALIZED_VIEW)|COLUMN)/COLUMN!swap	CANCEL ALTER TABLE COLUMNS FROM a
+reject	reject	engine	unsupportedCancelStatement(ROLLUP|(MATERIALIZED_VIEW)|COLUMN)/COLUMN!insert	CANCEL ALTER TABLE COLUMN zzz FROM a
+reject	reject	engine	unsupportedCancelStatement(ROLLUP|(MATERIALIZED_VIEW)|COLUMN)/COLUMN!swap	CANCEL ALTER TABLE COLUMNS FROM a
 accept	accept	engine	unsupportedCancelStatement(LEFT_PAREN_INTEGER_VALUE_(COMMA_INTE~496cd065)?/%empty	CANCEL BUILD INDEX ON a
 accept	accept	engine	unsupportedCancelStatement(LEFT_PAREN_INTEGER_VALUE_(COMMA_INTE~496cd065)?/LEFT_PAREN_INTEGER_VALUE_(COMMA_INTEGER_VALUE)*_RIGHT_PAREN	CANCEL BUILD INDEX ON a(1)
-accept	reject	engine	unsupportedCancelStatement(LEFT_PAREN_INTEGER_VALUE_(COMMA_INTE~496cd065)?/LEFT_PAREN_INTEGER_VALUE_(COMMA_INTEGER_VALUE)*_RIGHT_PAREN!drop-1	CANCEL BUILD INDEX ON a 1)
-accept	reject	engine	unsupportedCancelStatement(LEFT_PAREN_INTEGER_VALUE_(COMMA_INTE~496cd065)?/LEFT_PAREN_INTEGER_VALUE_(COMMA_INTEGER_VALUE)*_RIGHT_PAREN!drop-2	CANCEL BUILD INDEX ON a()
-accept	reject	engine	unsupportedCancelStatement(LEFT_PAREN_INTEGER_VALUE_(COMMA_INTE~496cd065)?/LEFT_PAREN_INTEGER_VALUE_(COMMA_INTEGER_VALUE)*_RIGHT_PAREN!drop-3	CANCEL BUILD INDEX ON a(1
-accept	reject	engine	unsupportedCancelStatement(LEFT_PAREN_INTEGER_VALUE_(COMMA_INTE~496cd065)?/LEFT_PAREN_INTEGER_VALUE_(COMMA_INTEGER_VALUE)*_RIGHT_PAREN!insert	CANCEL BUILD INDEX ON a(1) zzz
+reject	reject	engine	unsupportedCancelStatement(LEFT_PAREN_INTEGER_VALUE_(COMMA_INTE~496cd065)?/LEFT_PAREN_INTEGER_VALUE_(COMMA_INTEGER_VALUE)*_RIGHT_PAREN!drop-1	CANCEL BUILD INDEX ON a 1)
+reject	reject	engine	unsupportedCancelStatement(LEFT_PAREN_INTEGER_VALUE_(COMMA_INTE~496cd065)?/LEFT_PAREN_INTEGER_VALUE_(COMMA_INTEGER_VALUE)*_RIGHT_PAREN!drop-2	CANCEL BUILD INDEX ON a()
+reject	reject	engine	unsupportedCancelStatement(LEFT_PAREN_INTEGER_VALUE_(COMMA_INTE~496cd065)?/LEFT_PAREN_INTEGER_VALUE_(COMMA_INTEGER_VALUE)*_RIGHT_PAREN!drop-3	CANCEL BUILD INDEX ON a(1
+reject	reject	engine	unsupportedCancelStatement(LEFT_PAREN_INTEGER_VALUE_(COMMA_INTE~496cd065)?/LEFT_PAREN_INTEGER_VALUE_(COMMA_INTEGER_VALUE)*_RIGHT_PAREN!insert	CANCEL BUILD INDEX ON a(1) zzz
 accept	accept	engine	unsupportedCancelStatement(COMMA_INTEGER_VALUE)*/%empty	CANCEL BUILD INDEX ON a(1)
-accept	reject	engine	unsupportedCancelStatement(COMMA_INTEGER_VALUE)*/%empty!insert	CANCEL BUILD INDEX ON a(1 zzz)
+reject	reject	engine	unsupportedCancelStatement(COMMA_INTEGER_VALUE)*/%empty!insert	CANCEL BUILD INDEX ON a(1 zzz)
 accept	accept	engine	unsupportedCancelStatement(COMMA_INTEGER_VALUE)*/COMMA_INTEGER_VALUE_(COMMA_INTEGER_VALUE)*	CANCEL BUILD INDEX ON a(1, 1)
-accept	reject	engine	unsupportedCancelStatement(COMMA_INTEGER_VALUE)*/COMMA_INTEGER_VALUE_(COMMA_INTEGER_VALUE)*!drop-1	CANCEL BUILD INDEX ON a(1 1)
-accept	reject	engine	unsupportedCancelStatement(COMMA_INTEGER_VALUE)*/COMMA_INTEGER_VALUE_(COMMA_INTEGER_VALUE)*!drop-2	CANCEL BUILD INDEX ON a(1,)
-accept	reject	engine	unsupportedCancelStatement(COMMA_INTEGER_VALUE)*/COMMA_INTEGER_VALUE_(COMMA_INTEGER_VALUE)*!truncate	CANCEL BUILD INDEX ON a(1,
-accept	reject	engine	unsupportedCancelStatement(COMMA_INTEGER_VALUE)*/COMMA_INTEGER_VALUE_(COMMA_INTEGER_VALUE)*!insert	CANCEL BUILD INDEX ON a(1, 1 zzz)
+reject	reject	engine	unsupportedCancelStatement(COMMA_INTEGER_VALUE)*/COMMA_INTEGER_VALUE_(COMMA_INTEGER_VALUE)*!drop-1	CANCEL BUILD INDEX ON a(1 1)
+reject	reject	engine	unsupportedCancelStatement(COMMA_INTEGER_VALUE)*/COMMA_INTEGER_VALUE_(COMMA_INTEGER_VALUE)*!drop-2	CANCEL BUILD INDEX ON a(1,)
+reject	reject	engine	unsupportedCancelStatement(COMMA_INTEGER_VALUE)*/COMMA_INTEGER_VALUE_(COMMA_INTEGER_VALUE)*!truncate	CANCEL BUILD INDEX ON a(1,
+reject	reject	engine	unsupportedCancelStatement(COMMA_INTEGER_VALUE)*/COMMA_INTEGER_VALUE_(COMMA_INTEGER_VALUE)*!insert	CANCEL BUILD INDEX ON a(1, 1 zzz)
 accept	accept	engine	unsupportedCancelStatement(COMMA_STRING_LITERAL)*/%empty	CANCEL DECOMMISSION BACKEND 'a'
 accept	accept	engine	unsupportedCancelStatement(COMMA_STRING_LITERAL)*/COMMA_STRING_LITERAL_(COMMA_STRING_LITERAL)*	CANCEL DECOMMISSION BACKEND 'a', 'a'
 reject	reject	engine	unsupportedCancelStatement(COMMA_STRING_LITERAL)*/COMMA_STRING_LITERAL_(COMMA_STRING_LITERAL)*!drop-1	CANCEL DECOMMISSION BACKEND 'a' 'a'
-accept	reject	engine	unsupportedCancelStatement(COMMA_STRING_LITERAL)*/COMMA_STRING_LITERAL_(COMMA_STRING_LITERAL)*!drop-2	CANCEL DECOMMISSION BACKEND 'a',
+reject	reject	engine	unsupportedCancelStatement(COMMA_STRING_LITERAL)*/COMMA_STRING_LITERAL_(COMMA_STRING_LITERAL)*!drop-2	CANCEL DECOMMISSION BACKEND 'a',
 reject	reject	engine	unsupportedCancelStatement(COMMA_STRING_LITERAL)*/COMMA_STRING_LITERAL_(COMMA_STRING_LITERAL)*!insert	CANCEL DECOMMISSION BACKEND 'a', 'a' zzz
 accept	accept	engine	unsupportedRecoverStatement/RECOVER_DATABASE_identifier_(INTEGER_VALUE)?_(AS_identifier)?	RECOVER DATABASE a
 accept	accept	engine	unsupportedRecoverStatement/RECOVER_TABLE_multipartIdentifier_(INTEGER_VALUE)?_(AS_~8cb6d312	RECOVER TABLE a
-accept	reject	engine	unsupportedRecoverStatement/RECOVER_TABLE_multipartIdentifier_(INTEGER_VALUE)?_(AS_~8cb6d312!drop-3	RECOVER TABLE
+reject	reject	engine	unsupportedRecoverStatement/RECOVER_TABLE_multipartIdentifier_(INTEGER_VALUE)?_(AS_~8cb6d312!drop-3	RECOVER TABLE
 reject	reject	engine	unsupportedRecoverStatement/RECOVER_TABLE_multipartIdentifier_(INTEGER_VALUE)?_(AS_~8cb6d312!insert	RECOVER TABLE a zzz
 reject	reject	engine	unsupportedRecoverStatement/RECOVER_TABLE_multipartIdentifier_(INTEGER_VALUE)?_(AS_~8cb6d312!swap	RECYCLE TABLE a
 accept	accept	engine	unsupportedRecoverStatement/RECOVER_PARTITION_identifier_(INTEGER_VALUE)?_(AS_ident~beab07a9	RECOVER PARTITION a FROM a
 reject	reject	engine	unsupportedRecoverStatement/RECOVER_PARTITION_identifier_(INTEGER_VALUE)?_(AS_ident~beab07a9!drop-1	PARTITION a FROM a
 reject	reject	engine	unsupportedRecoverStatement/RECOVER_PARTITION_identifier_(INTEGER_VALUE)?_(AS_ident~beab07a9!drop-2	RECOVER a FROM a
-accept	reject	engine	unsupportedRecoverStatement/RECOVER_PARTITION_identifier_(INTEGER_VALUE)?_(AS_ident~beab07a9!drop-3	RECOVER PARTITION FROM a
+reject	reject	engine	unsupportedRecoverStatement/RECOVER_PARTITION_identifier_(INTEGER_VALUE)?_(AS_ident~beab07a9!drop-3	RECOVER PARTITION FROM a
 reject	reject	engine	unsupportedRecoverStatement/RECOVER_PARTITION_identifier_(INTEGER_VALUE)?_(AS_ident~beab07a9!drop-4	RECOVER PARTITION a a
 reject	reject	engine	unsupportedRecoverStatement/RECOVER_PARTITION_identifier_(INTEGER_VALUE)?_(AS_ident~beab07a9!drop-5	RECOVER PARTITION a FROM
 reject	reject	engine	unsupportedRecoverStatement/RECOVER_PARTITION_identifier_(INTEGER_VALUE)?_(AS_ident~beab07a9!insert	RECOVER PARTITION a FROM a zzz
@@ -2612,7 +2612,7 @@ accept	reject	engine	unsupportedAdminStatement/ADMIN_REPAIR_TABLE_baseTableRef!d
 accept	accept	engine	unsupportedAdminStatement/ADMIN_REPAIR_TABLE_baseTableRef!insert	ADMIN REPAIR TABLE a zzz
 reject	reject	engine	unsupportedAdminStatement/ADMIN_REPAIR_TABLE_baseTableRef!swap	AFTER REPAIR TABLE a
 accept	accept	engine	unsupportedAdminStatement/ADMIN_CANCEL_REPAIR_TABLE_baseTableRef	ADMIN CANCEL REPAIR TABLE a
-accept	reject	engine	unsupportedAdminStatement/ADMIN_CANCEL_REPAIR_TABLE_baseTableRef!drop-1	CANCEL REPAIR TABLE a
+reject	reject	engine	unsupportedAdminStatement/ADMIN_CANCEL_REPAIR_TABLE_baseTableRef!drop-1	CANCEL REPAIR TABLE a
 accept	reject	engine	unsupportedAdminStatement/ADMIN_CANCEL_REPAIR_TABLE_baseTableRef!drop-3	ADMIN CANCEL TABLE a
 accept	reject	engine	unsupportedAdminStatement/ADMIN_CANCEL_REPAIR_TABLE_baseTableRef!drop-4	ADMIN CANCEL REPAIR a
 accept	reject	engine	unsupportedAdminStatement/ADMIN_CANCEL_REPAIR_TABLE_baseTableRef!drop-5	ADMIN CANCEL REPAIR TABLE
@@ -2642,13 +2642,13 @@ accept	reject	engine	unsupportedAdminStatement/ADMIN_CHECK_tabletList_(propertyC
 reject	reject	engine	unsupportedAdminStatement/ADMIN_CHECK_tabletList_(propertyClause)?!swap	AFTER CHECK TABLET(1)
 accept	accept	engine	unsupportedAdminStatement/ADMIN_REBALANCE_DISK_(ON_LEFT_PAREN_STRING_LITERAL_(COM~750b4eaa	ADMIN REBALANCE DISK
 accept	accept	engine	unsupportedAdminStatement/ADMIN_CANCEL_REBALANCE_DISK_(ON_LEFT_PAREN_STRING_LITER~f4ed1fa8	ADMIN CANCEL REBALANCE DISK
-accept	reject	engine	unsupportedAdminStatement/ADMIN_CANCEL_REBALANCE_DISK_(ON_LEFT_PAREN_STRING_LITER~f4ed1fa8!drop-1	CANCEL REBALANCE DISK
+reject	reject	engine	unsupportedAdminStatement/ADMIN_CANCEL_REBALANCE_DISK_(ON_LEFT_PAREN_STRING_LITER~f4ed1fa8!drop-1	CANCEL REBALANCE DISK
 accept	reject	engine	unsupportedAdminStatement/ADMIN_CANCEL_REBALANCE_DISK_(ON_LEFT_PAREN_STRING_LITER~f4ed1fa8!drop-3	ADMIN CANCEL DISK
 accept	reject	engine	unsupportedAdminStatement/ADMIN_CANCEL_REBALANCE_DISK_(ON_LEFT_PAREN_STRING_LITER~f4ed1fa8!drop-4	ADMIN CANCEL REBALANCE
 reject	reject	engine	unsupportedAdminStatement/ADMIN_CANCEL_REBALANCE_DISK_(ON_LEFT_PAREN_STRING_LITER~f4ed1fa8!insert	ADMIN CANCEL REBALANCE DISK zzz
 reject	reject	engine	unsupportedAdminStatement/ADMIN_CANCEL_REBALANCE_DISK_(ON_LEFT_PAREN_STRING_LITER~f4ed1fa8!swap	AFTER CANCEL REBALANCE DISK
 accept	accept	engine	unsupportedAdminStatement/ADMIN_CLEAN_TRASH_(ON_LEFT_PAREN_STRING_LITERAL_(COMMA_~648914ec	ADMIN CLEAN TRASH
-accept	reject	engine	unsupportedAdminStatement/ADMIN_CLEAN_TRASH_(ON_LEFT_PAREN_STRING_LITERAL_(COMMA_~648914ec!drop-1	CLEAN TRASH
+reject	reject	engine	unsupportedAdminStatement/ADMIN_CLEAN_TRASH_(ON_LEFT_PAREN_STRING_LITERAL_(COMMA_~648914ec!drop-1	CLEAN TRASH
 accept	reject	engine	unsupportedAdminStatement/ADMIN_CLEAN_TRASH_(ON_LEFT_PAREN_STRING_LITERAL_(COMMA_~648914ec!drop-2	ADMIN TRASH
 accept	reject	engine	unsupportedAdminStatement/ADMIN_CLEAN_TRASH_(ON_LEFT_PAREN_STRING_LITERAL_(COMMA_~648914ec!drop-3	ADMIN CLEAN
 reject	reject	engine	unsupportedAdminStatement/ADMIN_CLEAN_TRASH_(ON_LEFT_PAREN_STRING_LITERAL_(COMMA_~648914ec!insert	ADMIN CLEAN TRASH zzz
@@ -4023,7 +4023,7 @@ reject	reject	engine	unsupportedStatsStatement/DROP_ANALYZE_JOB_INTEGER_VALUE!in
 reject	reject	engine	unsupportedStatsStatement/DROP_ANALYZE_JOB_INTEGER_VALUE!swap	DROPP ANALYZE JOB 1
 accept	accept	engine	unsupportedStatsStatement/KILL_ANALYZE_INTEGER_VALUE	KILL ANALYZE 1
 reject	reject	engine	unsupportedStatsStatement/KILL_ANALYZE_INTEGER_VALUE!drop-1	ANALYZE 1
-accept	reject	engine	unsupportedStatsStatement/KILL_ANALYZE_INTEGER_VALUE!drop-3	KILL ANALYZE
+reject	reject	engine	unsupportedStatsStatement/KILL_ANALYZE_INTEGER_VALUE!drop-3	KILL ANALYZE
 reject	reject	engine	unsupportedStatsStatement/KILL_ANALYZE_INTEGER_VALUE!insert	KILL ANALYZE 1 zzz
 reject	reject	engine	unsupportedStatsStatement/KILL_ANALYZE_INTEGER_VALUE!swap	LABEL ANALYZE 1
 accept	accept	engine	unsupportedStatsStatement/SHOW_TABLE_STATS_multipartIdentifier_(partitionSpec)?_(~449d0112	SHOW TABLE STATS a
@@ -4820,7 +4820,7 @@ reject	reject	engine	unsupoortedUnsetStatement/UNSET_DEFAULT_STORAGE_VAULT!swap	
 accept	accept	engine	unsupoortedUnsetStatement(GLOBAL|SESSION|LOCAL)?/%empty	UNSET VARIABLE ALL
 reject	reject	engine	unsupoortedUnsetStatement(GLOBAL|SESSION|LOCAL)?/%empty!insert	UNSET zzz VARIABLE ALL
 accept	accept	engine	unsupoortedUnsetStatement(GLOBAL|SESSION|LOCAL)?/GLOBAL	UNSET GLOBAL VARIABLE ALL
-accept	reject	engine	unsupoortedUnsetStatement(GLOBAL|SESSION|LOCAL)?/GLOBAL!truncate	UNSET
+reject	reject	engine	unsupoortedUnsetStatement(GLOBAL|SESSION|LOCAL)?/GLOBAL!truncate	UNSET
 reject	reject	engine	unsupoortedUnsetStatement(GLOBAL|SESSION|LOCAL)?/GLOBAL!insert	UNSET GLOBAL zzz VARIABLE ALL
 reject	reject	engine	unsupoortedUnsetStatement(GLOBAL|SESSION|LOCAL)?/GLOBAL!swap	UNSET GRANT VARIABLE ALL
 accept	accept	engine	unsupoortedUnsetStatement(GLOBAL|SESSION|LOCAL)?/SESSION	UNSET SESSION VARIABLE ALL
@@ -4840,7 +4840,7 @@ reject	reject	engine	unsupportedUseStatement/USE_((identifier_DOT)?_identifier)?
 reject	reject	engine	unsupportedUseStatement/USE_((identifier_DOT)?_identifier)?_ATSIGN_identifier!insert	USE@a zzz
 reject	reject	engine	unsupportedUseStatement/USE_((identifier_DOT)?_identifier)?_ATSIGN_identifier!swap	USER@a
 accept	accept	engine	unsupportedUseStatement/SWITCH_identifier	SWITCH a
-accept	reject	engine	unsupportedUseStatement/SWITCH_identifier!drop-2	SWITCH
+reject	reject	engine	unsupportedUseStatement/SWITCH_identifier!drop-2	SWITCH
 reject	reject	engine	unsupportedUseStatement/SWITCH_identifier!insert	SWITCH a zzz
 reject	reject	engine	unsupportedUseStatement/SWITCH_identifier!swap	SYNC a
 accept	accept	engine	unsupportedUseStatement(identifier_DOT)?/%empty	USE a
@@ -8392,7 +8392,7 @@ reject	reject	engine	stmt/create_stmt!insert	CREATE DATABASE a zzz
 reject	reject	engine	stmt/create_stmt!swap	CREATION DATABASE a
 accept	accept	engine	stmt/switch_stmt	SWITCH a
 reject	reject	engine	stmt/switch_stmt!drop-1	a
-accept	reject	engine	stmt/switch_stmt!drop-2	SWITCH
+reject	reject	engine	stmt/switch_stmt!drop-2	SWITCH
 reject	reject	engine	stmt/switch_stmt!insert	SWITCH a zzz
 reject	reject	engine	stmt/switch_stmt!swap	SYNC a
 accept	accept	engine	stmt/query_stmt	SELECT 1
@@ -8406,7 +8406,7 @@ reject	reject	engine	stmt/drop_stmt!insert	DROP DATABASE a zzz
 reject	reject	engine	stmt/drop_stmt!swap	DROPP DATABASE a
 accept	accept	engine	stmt/recover_stmt	RECOVER DATABASE a
 reject	reject	engine	stmt/recover_stmt!drop-2	RECOVER a
-accept	reject	engine	stmt/recover_stmt!drop-3	RECOVER DATABASE
+reject	reject	engine	stmt/recover_stmt!drop-3	RECOVER DATABASE
 reject	reject	engine	stmt/recover_stmt!insert	RECOVER DATABASE a zzz
 reject	reject	engine	stmt/recover_stmt!swap	RECYCLE DATABASE a
 accept	accept	engine	stmt/use_stmt	USE a
@@ -8426,8 +8426,8 @@ reject	reject	engine	stmt/set_stmt!insert	SET CHARSET a zzz
 reject	reject	engine	stmt/set_stmt!swap	SETS CHARSET a
 accept	accept	engine	stmt/unset_var_stmt	UNSET VARIABLE a
 reject	reject	engine	stmt/unset_var_stmt!drop-1	VARIABLE a
-accept	reject	engine	stmt/unset_var_stmt!drop-2	UNSET a
-accept	reject	engine	stmt/unset_var_stmt!drop-3	UNSET VARIABLE
+reject	reject	engine	stmt/unset_var_stmt!drop-2	UNSET a
+reject	reject	engine	stmt/unset_var_stmt!drop-3	UNSET VARIABLE
 reject	reject	engine	stmt/unset_var_stmt!insert	UNSET VARIABLE a zzz
 reject	reject	engine	stmt/unset_var_stmt!swap	UNSIGNED VARIABLE a
 accept	accept	engine	stmt/unset_default_storage_vault_stmt	UNSET DEFAULT STORAGE VAULT
@@ -8438,16 +8438,16 @@ reject	reject	engine	stmt/unset_default_storage_vault_stmt!drop-4	UNSET DEFAULT 
 reject	reject	engine	stmt/unset_default_storage_vault_stmt!insert	UNSET DEFAULT STORAGE VAULT zzz
 reject	reject	engine	stmt/unset_default_storage_vault_stmt!swap	UNSIGNED DEFAULT STORAGE VAULT
 accept	accept	engine	stmt/kill_stmt	KILL 1
-accept	reject	engine	stmt/kill_stmt!drop-2	KILL
+reject	reject	engine	stmt/kill_stmt!drop-2	KILL
 reject	reject	engine	stmt/kill_stmt!insert	KILL 1 zzz
 reject	reject	engine	stmt/kill_stmt!swap	LABEL 1
 accept	accept	engine	stmt/kill_analysis_job_stmt	KILL ANALYZE 1
 reject	reject	engine	stmt/kill_analysis_job_stmt!drop-1	ANALYZE 1
-accept	reject	engine	stmt/kill_analysis_job_stmt!drop-3	KILL ANALYZE
+reject	reject	engine	stmt/kill_analysis_job_stmt!drop-3	KILL ANALYZE
 reject	reject	engine	stmt/kill_analysis_job_stmt!insert	KILL ANALYZE 1 zzz
 reject	reject	engine	stmt/kill_analysis_job_stmt!swap	LABEL ANALYZE 1
 accept	accept	engine	stmt/describe_stmt	DESCRIBE a
-accept	reject	engine	stmt/describe_stmt!drop-2	DESCRIBE
+reject	reject	engine	stmt/describe_stmt!drop-2	DESCRIBE
 reject	reject	engine	stmt/describe_stmt!insert	DESCRIBE a zzz
 reject	reject	engine	stmt/describe_stmt!swap	DIAGNOSE a
 accept	accept	engine	stmt/show_stmt	SHOW WHITELIST
@@ -8470,7 +8470,7 @@ reject	reject	engine	stmt/revoke_stmt!drop-4	REVOKE 'a' FROM
 reject	reject	engine	stmt/revoke_stmt!insert	REVOKE 'a' FROM a zzz
 reject	reject	engine	stmt/revoke_stmt!swap	REWRITTEN 'a' FROM a
 accept	accept	engine	stmt/help_stmt	HELP a
-accept	reject	engine	stmt/help_stmt!drop-2	HELP
+reject	reject	engine	stmt/help_stmt!drop-2	HELP
 reject	reject	engine	stmt/help_stmt!insert	HELP a zzz
 reject	reject	engine	stmt/help_stmt!swap	HISTOGRAM a
 reject	accept	engine	stmt/load_stmt	LOAD DATA INFILE 'a' INTO TABLE a
@@ -8545,23 +8545,23 @@ reject	reject	engine	stmt/create_job_stmt!drop-5	CREATE JOB a ON DO
 reject	reject	engine	stmt/create_job_stmt!drop-6	CREATE JOB a ON SCHEDULE
 reject	reject	engine	stmt/create_job_stmt!insert	CREATE JOB a ON SCHEDULE DO zzz
 reject	reject	engine	stmt/create_job_stmt!swap	CREATION JOB a ON SCHEDULE DO
-reject	accept	engine	stmt/pause_job_stmt	PAUSE JOB
+accept	accept	engine	stmt/pause_job_stmt	PAUSE JOB
 reject	reject	engine	stmt/pause_job_stmt!drop-1	JOB
 reject	reject	engine	stmt/pause_job_stmt!drop-2	PAUSE
-accept	reject	engine	stmt/pause_job_stmt!insert	PAUSE JOB zzz
+reject	reject	engine	stmt/pause_job_stmt!insert	PAUSE JOB zzz
 reject	reject	engine	stmt/pause_job_stmt!swap	PERCENT JOB
 reject	accept	engine	stmt/cancel_job_task_stmt	CANCEL TASK
 reject	reject	engine	stmt/cancel_job_task_stmt!drop-1	TASK
-accept	reject	engine	stmt/cancel_job_task_stmt!drop-2	CANCEL
+reject	reject	engine	stmt/cancel_job_task_stmt!drop-2	CANCEL
 reject	reject	engine	stmt/cancel_job_task_stmt!insert	CANCEL TASK zzz
 reject	reject	engine	stmt/cancel_job_task_stmt!swap	CASE TASK
-reject	accept	engine	stmt/stop_job_stmt	DROP JOB
+accept	accept	engine	stmt/stop_job_stmt	DROP JOB
 reject	reject	engine	stmt/stop_job_stmt!drop-2	DROP
-accept	reject	engine	stmt/stop_job_stmt!insert	DROP JOB zzz
+reject	reject	engine	stmt/stop_job_stmt!insert	DROP JOB zzz
 reject	reject	engine	stmt/stop_job_stmt!swap	DROPP JOB
-reject	accept	engine	stmt/resume_job_stmt	RESUME JOB
+accept	accept	engine	stmt/resume_job_stmt	RESUME JOB
 reject	reject	engine	stmt/resume_job_stmt!drop-2	RESUME
-accept	reject	engine	stmt/resume_job_stmt!insert	RESUME JOB zzz
+reject	reject	engine	stmt/resume_job_stmt!insert	RESUME JOB zzz
 reject	reject	engine	stmt/resume_job_stmt!swap	RETAIN JOB
 reject	accept	engine	stmt/show_create_load_stmt	SHOW CREATE LOAD FOR a
 reject	reject	engine	stmt/show_create_load_stmt!drop-1	CREATE LOAD FOR a
@@ -8580,7 +8580,7 @@ reject	reject	engine	stmt/show_create_reporitory_stmt!insert	SHOW CREATE REPOSIT
 reject	reject	engine	stmt/show_create_reporitory_stmt!swap	SIGNED CREATE REPOSITORY FOR a
 accept	accept	engine	stmt/cancel_stmt	CANCEL LOAD
 reject	reject	engine	stmt/cancel_stmt!drop-1	LOAD
-accept	reject	engine	stmt/cancel_stmt!insert	CANCEL LOAD zzz
+reject	reject	engine	stmt/cancel_stmt!insert	CANCEL LOAD zzz
 reject	reject	engine	stmt/cancel_stmt!swap	CASE LOAD
 accept	accept	engine	stmt/delete_stmt	DELETE FROM a
 reject	reject	engine	stmt/delete_stmt!drop-1	FROM a
@@ -8677,12 +8677,12 @@ reject	reject	engine	stmt/uninstall_plugin_stmt!swap	UNION PLUGIN a
 accept	accept	engine	stmt/lock_tables_stmt	LOCK TABLES
 reject	reject	engine	stmt/lock_tables_stmt!drop-1	TABLES
 reject	reject	engine	stmt/lock_tables_stmt!drop-2	LOCK
-accept	reject	engine	stmt/lock_tables_stmt!insert	LOCK TABLES zzz
+reject	reject	engine	stmt/lock_tables_stmt!insert	LOCK TABLES zzz
 reject	reject	engine	stmt/lock_tables_stmt!swap	LOGICAL TABLES
 accept	accept	engine	stmt/unlock_tables_stmt	UNLOCK TABLES
-accept	reject	engine	stmt/unlock_tables_stmt!drop-2	UNLOCK
+reject	reject	engine	stmt/unlock_tables_stmt!drop-2	UNLOCK
 reject	reject	engine	stmt/unlock_tables_stmt!insert	UNLOCK TABLES zzz
-accept	reject	engine	stmt/unlock_tables_stmt!swap	UNSET TABLES
+reject	reject	engine	stmt/unlock_tables_stmt!swap	UNSET TABLES
 reject	reject	engine	stmt/refresh_stmt	REFRESH LDAP
 reject	reject	engine	stmt/refresh_stmt!drop-1	LDAP
 reject	reject	engine	stmt/refresh_stmt!drop-2	REFRESH
@@ -8690,9 +8690,9 @@ reject	reject	engine	stmt/refresh_stmt!insert	REFRESH LDAP zzz
 reject	reject	engine	stmt/refresh_stmt!swap	REGEXP LDAP
 accept	accept	engine	stmt/clean_stmt	CLEAN ALL PROFILE
 reject	reject	engine	stmt/clean_stmt!drop-1	ALL PROFILE
-accept	reject	engine	stmt/clean_stmt!drop-2	CLEAN PROFILE
-accept	reject	engine	stmt/clean_stmt!drop-3	CLEAN ALL
-accept	reject	engine	stmt/clean_stmt!insert	CLEAN ALL PROFILE zzz
+reject	reject	engine	stmt/clean_stmt!drop-2	CLEAN PROFILE
+reject	reject	engine	stmt/clean_stmt!drop-3	CLEAN ALL
+reject	reject	engine	stmt/clean_stmt!insert	CLEAN ALL PROFILE zzz
 reject	reject	engine	stmt/clean_stmt!swap	CLUSTER ALL PROFILE
 accept	accept	engine	stmt/analyze_stmt	ANALYZE TABLE a
 accept	reject	engine	stmt/analyze_stmt!drop-2	ANALYZE a
@@ -8702,12 +8702,12 @@ reject	reject	engine	stmt/analyze_stmt!swap	ANALYZED TABLE a
 accept	accept	engine	stmt/warm_up_stmt	WARM UP CLUSTER a WITH CLUSTER a
 reject	reject	engine	stmt/warm_up_stmt!drop-1	UP CLUSTER a WITH CLUSTER a
 reject	reject	engine	stmt/warm_up_stmt!drop-2	WARM CLUSTER a WITH CLUSTER a
-accept	reject	engine	stmt/warm_up_stmt!drop-3	WARM UP a WITH CLUSTER a
-accept	reject	engine	stmt/warm_up_stmt!drop-4	WARM UP CLUSTER WITH CLUSTER a
-accept	reject	engine	stmt/warm_up_stmt!drop-5	WARM UP CLUSTER a CLUSTER a
-accept	reject	engine	stmt/warm_up_stmt!drop-6	WARM UP CLUSTER a WITH a
-accept	reject	engine	stmt/warm_up_stmt!drop-7	WARM UP CLUSTER a WITH CLUSTER
-accept	reject	engine	stmt/warm_up_stmt!insert	WARM UP CLUSTER a WITH CLUSTER a zzz
+reject	reject	engine	stmt/warm_up_stmt!drop-3	WARM UP a WITH CLUSTER a
+reject	reject	engine	stmt/warm_up_stmt!drop-4	WARM UP CLUSTER WITH CLUSTER a
+reject	reject	engine	stmt/warm_up_stmt!drop-5	WARM UP CLUSTER a CLUSTER a
+reject	reject	engine	stmt/warm_up_stmt!drop-6	WARM UP CLUSTER a WITH a
+reject	reject	engine	stmt/warm_up_stmt!drop-7	WARM UP CLUSTER a WITH CLUSTER
+reject	reject	engine	stmt/warm_up_stmt!insert	WARM UP CLUSTER a WITH CLUSTER a zzz
 reject	reject	engine	stmt/warm_up_stmt!swap	WARNINGS UP CLUSTER a WITH CLUSTER a
 accept	accept	engine	stmt/%empty	
 accept	accept	engine	stmt/copy_stmt	COPY INTO a FROM@a
@@ -8749,40 +8749,40 @@ reject	reject	engine	refresh_stmt/REFRESH_LDAP_ALL!swap	REGEXP LDAP ALL
 reject	reject	engine	refresh_stmt/REFRESH_LDAP_opt_user	REFRESH LDAP
 accept	accept	engine	clean_stmt/CLEAN_LABEL_from_or_in_ident	CLEAN LABEL FROM a
 reject	reject	engine	clean_stmt/CLEAN_LABEL_from_or_in_ident!drop-1	LABEL FROM a
-accept	reject	engine	clean_stmt/CLEAN_LABEL_from_or_in_ident!drop-2	CLEAN FROM a
-accept	reject	engine	clean_stmt/CLEAN_LABEL_from_or_in_ident!drop-3	CLEAN LABEL a
-accept	reject	engine	clean_stmt/CLEAN_LABEL_from_or_in_ident!drop-4	CLEAN LABEL FROM
-accept	reject	engine	clean_stmt/CLEAN_LABEL_from_or_in_ident!insert	CLEAN LABEL FROM a zzz
+reject	reject	engine	clean_stmt/CLEAN_LABEL_from_or_in_ident!drop-2	CLEAN FROM a
+reject	reject	engine	clean_stmt/CLEAN_LABEL_from_or_in_ident!drop-3	CLEAN LABEL a
+reject	reject	engine	clean_stmt/CLEAN_LABEL_from_or_in_ident!drop-4	CLEAN LABEL FROM
+reject	reject	engine	clean_stmt/CLEAN_LABEL_from_or_in_ident!insert	CLEAN LABEL FROM a zzz
 reject	reject	engine	clean_stmt/CLEAN_LABEL_from_or_in_ident!swap	CLUSTER LABEL FROM a
 accept	accept	engine	clean_stmt/CLEAN_LABEL_ident_from_or_in_ident	CLEAN LABEL a FROM a
 reject	reject	engine	clean_stmt/CLEAN_LABEL_ident_from_or_in_ident!drop-1	LABEL a FROM a
-accept	reject	engine	clean_stmt/CLEAN_LABEL_ident_from_or_in_ident!drop-2	CLEAN a FROM a
-accept	reject	engine	clean_stmt/CLEAN_LABEL_ident_from_or_in_ident!drop-4	CLEAN LABEL a a
-accept	reject	engine	clean_stmt/CLEAN_LABEL_ident_from_or_in_ident!drop-5	CLEAN LABEL a FROM
-accept	reject	engine	clean_stmt/CLEAN_LABEL_ident_from_or_in_ident!insert	CLEAN LABEL a FROM a zzz
+reject	reject	engine	clean_stmt/CLEAN_LABEL_ident_from_or_in_ident!drop-2	CLEAN a FROM a
+reject	reject	engine	clean_stmt/CLEAN_LABEL_ident_from_or_in_ident!drop-4	CLEAN LABEL a a
+reject	reject	engine	clean_stmt/CLEAN_LABEL_ident_from_or_in_ident!drop-5	CLEAN LABEL a FROM
+reject	reject	engine	clean_stmt/CLEAN_LABEL_ident_from_or_in_ident!insert	CLEAN LABEL a FROM a zzz
 reject	reject	engine	clean_stmt/CLEAN_LABEL_ident_from_or_in_ident!swap	CLUSTER LABEL a FROM a
 accept	accept	engine	clean_stmt/CLEAN_ALL_PROFILE	CLEAN ALL PROFILE
 accept	accept	engine	clean_stmt/CLEAN_QUERY_STATS_FOR_ident	CLEAN QUERY STATS FOR a
 reject	reject	engine	clean_stmt/CLEAN_QUERY_STATS_FOR_ident!drop-1	QUERY STATS FOR a
-accept	reject	engine	clean_stmt/CLEAN_QUERY_STATS_FOR_ident!drop-2	CLEAN STATS FOR a
-accept	reject	engine	clean_stmt/CLEAN_QUERY_STATS_FOR_ident!drop-3	CLEAN QUERY FOR a
-accept	reject	engine	clean_stmt/CLEAN_QUERY_STATS_FOR_ident!drop-4	CLEAN QUERY STATS a
-accept	reject	engine	clean_stmt/CLEAN_QUERY_STATS_FOR_ident!drop-5	CLEAN QUERY STATS FOR
-accept	reject	engine	clean_stmt/CLEAN_QUERY_STATS_FOR_ident!insert	CLEAN QUERY STATS FOR a zzz
+reject	reject	engine	clean_stmt/CLEAN_QUERY_STATS_FOR_ident!drop-2	CLEAN STATS FOR a
+reject	reject	engine	clean_stmt/CLEAN_QUERY_STATS_FOR_ident!drop-3	CLEAN QUERY FOR a
+reject	reject	engine	clean_stmt/CLEAN_QUERY_STATS_FOR_ident!drop-4	CLEAN QUERY STATS a
+reject	reject	engine	clean_stmt/CLEAN_QUERY_STATS_FOR_ident!drop-5	CLEAN QUERY STATS FOR
+reject	reject	engine	clean_stmt/CLEAN_QUERY_STATS_FOR_ident!insert	CLEAN QUERY STATS FOR a zzz
 reject	reject	engine	clean_stmt/CLEAN_QUERY_STATS_FOR_ident!swap	CLUSTER QUERY STATS FOR a
 accept	accept	engine	clean_stmt/CLEAN_ALL_QUERY_STATS	CLEAN ALL QUERY STATS
 reject	reject	engine	clean_stmt/CLEAN_ALL_QUERY_STATS!drop-1	ALL QUERY STATS
-accept	reject	engine	clean_stmt/CLEAN_ALL_QUERY_STATS!drop-2	CLEAN QUERY STATS
-accept	reject	engine	clean_stmt/CLEAN_ALL_QUERY_STATS!drop-3	CLEAN ALL STATS
-accept	reject	engine	clean_stmt/CLEAN_ALL_QUERY_STATS!drop-4	CLEAN ALL QUERY
-accept	reject	engine	clean_stmt/CLEAN_ALL_QUERY_STATS!insert	CLEAN ALL QUERY STATS zzz
+reject	reject	engine	clean_stmt/CLEAN_ALL_QUERY_STATS!drop-2	CLEAN QUERY STATS
+reject	reject	engine	clean_stmt/CLEAN_ALL_QUERY_STATS!drop-3	CLEAN ALL STATS
+reject	reject	engine	clean_stmt/CLEAN_ALL_QUERY_STATS!drop-4	CLEAN ALL QUERY
+reject	reject	engine	clean_stmt/CLEAN_ALL_QUERY_STATS!insert	CLEAN ALL QUERY STATS zzz
 reject	reject	engine	clean_stmt/CLEAN_ALL_QUERY_STATS!swap	CLUSTER ALL QUERY STATS
 accept	accept	engine	clean_stmt/CLEAN_QUERY_STATS_from_or_in_table_name	CLEAN QUERY STATS FROM a
 reject	reject	engine	clean_stmt/CLEAN_QUERY_STATS_from_or_in_table_name!drop-1	QUERY STATS FROM a
-accept	reject	engine	clean_stmt/CLEAN_QUERY_STATS_from_or_in_table_name!drop-2	CLEAN STATS FROM a
-accept	reject	engine	clean_stmt/CLEAN_QUERY_STATS_from_or_in_table_name!drop-3	CLEAN QUERY FROM a
-accept	reject	engine	clean_stmt/CLEAN_QUERY_STATS_from_or_in_table_name!drop-5	CLEAN QUERY STATS FROM
-accept	reject	engine	clean_stmt/CLEAN_QUERY_STATS_from_or_in_table_name!insert	CLEAN QUERY STATS FROM a zzz
+reject	reject	engine	clean_stmt/CLEAN_QUERY_STATS_from_or_in_table_name!drop-2	CLEAN STATS FROM a
+reject	reject	engine	clean_stmt/CLEAN_QUERY_STATS_from_or_in_table_name!drop-3	CLEAN QUERY FROM a
+reject	reject	engine	clean_stmt/CLEAN_QUERY_STATS_from_or_in_table_name!drop-5	CLEAN QUERY STATS FROM
+reject	reject	engine	clean_stmt/CLEAN_QUERY_STATS_from_or_in_table_name!insert	CLEAN QUERY STATS FROM a zzz
 reject	reject	engine	clean_stmt/CLEAN_QUERY_STATS_from_or_in_table_name!swap	CLUSTER QUERY STATS FROM a
 accept	accept	engine	install_plugin_stmt/INSTALL_PLUGIN_FROM_ident_or_text_opt_properties	INSTALL PLUGIN FROM a
 accept	accept	engine	uninstall_plugin_stmt/UNINSTALL_PLUGIN_ident_or_text	UNINSTALL PLUGIN a
@@ -9025,53 +9025,53 @@ accept	accept	engine	warm_up_stmt/WARM_UP_CLUSTER_ident_WITH_CLUSTER_ident_opt_f
 accept	accept	engine	warm_up_stmt/WARM_UP_CLUSTER_ident_WITH_warm_up_list_opt_force	WARM UP CLUSTER a WITH TABLE a
 reject	reject	engine	warm_up_stmt/WARM_UP_CLUSTER_ident_WITH_warm_up_list_opt_force!drop-1	UP CLUSTER a WITH TABLE a
 reject	reject	engine	warm_up_stmt/WARM_UP_CLUSTER_ident_WITH_warm_up_list_opt_force!drop-2	WARM CLUSTER a WITH TABLE a
-accept	reject	engine	warm_up_stmt/WARM_UP_CLUSTER_ident_WITH_warm_up_list_opt_force!drop-3	WARM UP a WITH TABLE a
-accept	reject	engine	warm_up_stmt/WARM_UP_CLUSTER_ident_WITH_warm_up_list_opt_force!drop-4	WARM UP CLUSTER WITH TABLE a
-accept	reject	engine	warm_up_stmt/WARM_UP_CLUSTER_ident_WITH_warm_up_list_opt_force!drop-5	WARM UP CLUSTER a TABLE a
-accept	reject	engine	warm_up_stmt/WARM_UP_CLUSTER_ident_WITH_warm_up_list_opt_force!drop-7	WARM UP CLUSTER a WITH TABLE
-accept	reject	engine	warm_up_stmt/WARM_UP_CLUSTER_ident_WITH_warm_up_list_opt_force!insert	WARM UP CLUSTER a WITH TABLE a zzz
+reject	reject	engine	warm_up_stmt/WARM_UP_CLUSTER_ident_WITH_warm_up_list_opt_force!drop-3	WARM UP a WITH TABLE a
+reject	reject	engine	warm_up_stmt/WARM_UP_CLUSTER_ident_WITH_warm_up_list_opt_force!drop-4	WARM UP CLUSTER WITH TABLE a
+reject	reject	engine	warm_up_stmt/WARM_UP_CLUSTER_ident_WITH_warm_up_list_opt_force!drop-5	WARM UP CLUSTER a TABLE a
+reject	reject	engine	warm_up_stmt/WARM_UP_CLUSTER_ident_WITH_warm_up_list_opt_force!drop-7	WARM UP CLUSTER a WITH TABLE
+reject	reject	engine	warm_up_stmt/WARM_UP_CLUSTER_ident_WITH_warm_up_list_opt_force!insert	WARM UP CLUSTER a WITH TABLE a zzz
 reject	reject	engine	warm_up_stmt/WARM_UP_CLUSTER_ident_WITH_warm_up_list_opt_force!swap	WARNINGS UP CLUSTER a WITH TABLE a
 accept	accept	engine	warm_up_stmt/WARM_UP_COMPUTE_GROUP_ident_WITH_COMPUTE_GROUP_ident_op~7b2f24d9	WARM UP COMPUTE GROUP a WITH COMPUTE GROUP a
 reject	reject	engine	warm_up_stmt/WARM_UP_COMPUTE_GROUP_ident_WITH_COMPUTE_GROUP_ident_op~7b2f24d9!drop-1	UP COMPUTE GROUP a WITH COMPUTE GROUP a
 reject	reject	engine	warm_up_stmt/WARM_UP_COMPUTE_GROUP_ident_WITH_COMPUTE_GROUP_ident_op~7b2f24d9!drop-2	WARM COMPUTE GROUP a WITH COMPUTE GROUP a
-accept	reject	engine	warm_up_stmt/WARM_UP_COMPUTE_GROUP_ident_WITH_COMPUTE_GROUP_ident_op~7b2f24d9!drop-3	WARM UP GROUP a WITH COMPUTE GROUP a
-accept	reject	engine	warm_up_stmt/WARM_UP_COMPUTE_GROUP_ident_WITH_COMPUTE_GROUP_ident_op~7b2f24d9!drop-4	WARM UP COMPUTE a WITH COMPUTE GROUP a
-accept	reject	engine	warm_up_stmt/WARM_UP_COMPUTE_GROUP_ident_WITH_COMPUTE_GROUP_ident_op~7b2f24d9!drop-5	WARM UP COMPUTE GROUP WITH COMPUTE GROUP a
-accept	reject	engine	warm_up_stmt/WARM_UP_COMPUTE_GROUP_ident_WITH_COMPUTE_GROUP_ident_op~7b2f24d9!drop-6	WARM UP COMPUTE GROUP a COMPUTE GROUP a
-accept	reject	engine	warm_up_stmt/WARM_UP_COMPUTE_GROUP_ident_WITH_COMPUTE_GROUP_ident_op~7b2f24d9!drop-7	WARM UP COMPUTE GROUP a WITH GROUP a
-accept	reject	engine	warm_up_stmt/WARM_UP_COMPUTE_GROUP_ident_WITH_COMPUTE_GROUP_ident_op~7b2f24d9!drop-8	WARM UP COMPUTE GROUP a WITH COMPUTE a
-accept	reject	engine	warm_up_stmt/WARM_UP_COMPUTE_GROUP_ident_WITH_COMPUTE_GROUP_ident_op~7b2f24d9!drop-9	WARM UP COMPUTE GROUP a WITH COMPUTE GROUP
-accept	reject	engine	warm_up_stmt/WARM_UP_COMPUTE_GROUP_ident_WITH_COMPUTE_GROUP_ident_op~7b2f24d9!insert	WARM UP COMPUTE GROUP a WITH COMPUTE GROUP a zzz
+reject	reject	engine	warm_up_stmt/WARM_UP_COMPUTE_GROUP_ident_WITH_COMPUTE_GROUP_ident_op~7b2f24d9!drop-3	WARM UP GROUP a WITH COMPUTE GROUP a
+reject	reject	engine	warm_up_stmt/WARM_UP_COMPUTE_GROUP_ident_WITH_COMPUTE_GROUP_ident_op~7b2f24d9!drop-4	WARM UP COMPUTE a WITH COMPUTE GROUP a
+reject	reject	engine	warm_up_stmt/WARM_UP_COMPUTE_GROUP_ident_WITH_COMPUTE_GROUP_ident_op~7b2f24d9!drop-5	WARM UP COMPUTE GROUP WITH COMPUTE GROUP a
+reject	reject	engine	warm_up_stmt/WARM_UP_COMPUTE_GROUP_ident_WITH_COMPUTE_GROUP_ident_op~7b2f24d9!drop-6	WARM UP COMPUTE GROUP a COMPUTE GROUP a
+reject	reject	engine	warm_up_stmt/WARM_UP_COMPUTE_GROUP_ident_WITH_COMPUTE_GROUP_ident_op~7b2f24d9!drop-7	WARM UP COMPUTE GROUP a WITH GROUP a
+reject	reject	engine	warm_up_stmt/WARM_UP_COMPUTE_GROUP_ident_WITH_COMPUTE_GROUP_ident_op~7b2f24d9!drop-8	WARM UP COMPUTE GROUP a WITH COMPUTE a
+reject	reject	engine	warm_up_stmt/WARM_UP_COMPUTE_GROUP_ident_WITH_COMPUTE_GROUP_ident_op~7b2f24d9!drop-9	WARM UP COMPUTE GROUP a WITH COMPUTE GROUP
+reject	reject	engine	warm_up_stmt/WARM_UP_COMPUTE_GROUP_ident_WITH_COMPUTE_GROUP_ident_op~7b2f24d9!insert	WARM UP COMPUTE GROUP a WITH COMPUTE GROUP a zzz
 reject	reject	engine	warm_up_stmt/WARM_UP_COMPUTE_GROUP_ident_WITH_COMPUTE_GROUP_ident_op~7b2f24d9!swap	WARNINGS UP COMPUTE GROUP a WITH COMPUTE GROUP a
 accept	accept	engine	warm_up_stmt/WARM_UP_COMPUTE_GROUP_ident_WITH_warm_up_list_opt_force	WARM UP COMPUTE GROUP a WITH TABLE a
 reject	reject	engine	warm_up_stmt/WARM_UP_COMPUTE_GROUP_ident_WITH_warm_up_list_opt_force!drop-1	UP COMPUTE GROUP a WITH TABLE a
 reject	reject	engine	warm_up_stmt/WARM_UP_COMPUTE_GROUP_ident_WITH_warm_up_list_opt_force!drop-2	WARM COMPUTE GROUP a WITH TABLE a
-accept	reject	engine	warm_up_stmt/WARM_UP_COMPUTE_GROUP_ident_WITH_warm_up_list_opt_force!drop-3	WARM UP GROUP a WITH TABLE a
-accept	reject	engine	warm_up_stmt/WARM_UP_COMPUTE_GROUP_ident_WITH_warm_up_list_opt_force!drop-4	WARM UP COMPUTE a WITH TABLE a
-accept	reject	engine	warm_up_stmt/WARM_UP_COMPUTE_GROUP_ident_WITH_warm_up_list_opt_force!drop-5	WARM UP COMPUTE GROUP WITH TABLE a
-accept	reject	engine	warm_up_stmt/WARM_UP_COMPUTE_GROUP_ident_WITH_warm_up_list_opt_force!drop-6	WARM UP COMPUTE GROUP a TABLE a
-accept	reject	engine	warm_up_stmt/WARM_UP_COMPUTE_GROUP_ident_WITH_warm_up_list_opt_force!drop-7	WARM UP COMPUTE GROUP a WITH a
-accept	reject	engine	warm_up_stmt/WARM_UP_COMPUTE_GROUP_ident_WITH_warm_up_list_opt_force!drop-8	WARM UP COMPUTE GROUP a WITH TABLE
-accept	reject	engine	warm_up_stmt/WARM_UP_COMPUTE_GROUP_ident_WITH_warm_up_list_opt_force!insert	WARM UP COMPUTE GROUP a WITH TABLE a zzz
+reject	reject	engine	warm_up_stmt/WARM_UP_COMPUTE_GROUP_ident_WITH_warm_up_list_opt_force!drop-3	WARM UP GROUP a WITH TABLE a
+reject	reject	engine	warm_up_stmt/WARM_UP_COMPUTE_GROUP_ident_WITH_warm_up_list_opt_force!drop-4	WARM UP COMPUTE a WITH TABLE a
+reject	reject	engine	warm_up_stmt/WARM_UP_COMPUTE_GROUP_ident_WITH_warm_up_list_opt_force!drop-5	WARM UP COMPUTE GROUP WITH TABLE a
+reject	reject	engine	warm_up_stmt/WARM_UP_COMPUTE_GROUP_ident_WITH_warm_up_list_opt_force!drop-6	WARM UP COMPUTE GROUP a TABLE a
+reject	reject	engine	warm_up_stmt/WARM_UP_COMPUTE_GROUP_ident_WITH_warm_up_list_opt_force!drop-7	WARM UP COMPUTE GROUP a WITH a
+reject	reject	engine	warm_up_stmt/WARM_UP_COMPUTE_GROUP_ident_WITH_warm_up_list_opt_force!drop-8	WARM UP COMPUTE GROUP a WITH TABLE
+reject	reject	engine	warm_up_stmt/WARM_UP_COMPUTE_GROUP_ident_WITH_warm_up_list_opt_force!insert	WARM UP COMPUTE GROUP a WITH TABLE a zzz
 reject	reject	engine	warm_up_stmt/WARM_UP_COMPUTE_GROUP_ident_WITH_warm_up_list_opt_force!swap	WARNINGS UP COMPUTE GROUP a WITH TABLE a
 accept	accept	engine	warm_up_item/TABLE_table_name	WARM UP CLUSTER a WITH TABLE a
-accept	reject	engine	warm_up_item/TABLE_table_name!swap	WARM UP CLUSTER a WITH TABLES a
+reject	reject	engine	warm_up_item/TABLE_table_name!swap	WARM UP CLUSTER a WITH TABLES a
 accept	accept	engine	warm_up_item/TABLE_table_name_PARTITION_ident	WARM UP CLUSTER a WITH TABLE a PARTITION a
-accept	reject	engine	warm_up_item/TABLE_table_name_PARTITION_ident!drop-1	WARM UP CLUSTER a WITH a PARTITION a
-accept	reject	engine	warm_up_item/TABLE_table_name_PARTITION_ident!drop-2	WARM UP CLUSTER a WITH TABLE PARTITION a
-accept	reject	engine	warm_up_item/TABLE_table_name_PARTITION_ident!drop-3	WARM UP CLUSTER a WITH TABLE a a
-accept	reject	engine	warm_up_item/TABLE_table_name_PARTITION_ident!drop-4	WARM UP CLUSTER a WITH TABLE a PARTITION
-accept	reject	engine	warm_up_item/TABLE_table_name_PARTITION_ident!insert	WARM UP CLUSTER a WITH TABLE a PARTITION a zzz
-accept	reject	engine	warm_up_item/TABLE_table_name_PARTITION_ident!swap	WARM UP CLUSTER a WITH TABLES a PARTITION a
+reject	reject	engine	warm_up_item/TABLE_table_name_PARTITION_ident!drop-1	WARM UP CLUSTER a WITH a PARTITION a
+reject	reject	engine	warm_up_item/TABLE_table_name_PARTITION_ident!drop-2	WARM UP CLUSTER a WITH TABLE PARTITION a
+reject	reject	engine	warm_up_item/TABLE_table_name_PARTITION_ident!drop-3	WARM UP CLUSTER a WITH TABLE a a
+reject	reject	engine	warm_up_item/TABLE_table_name_PARTITION_ident!drop-4	WARM UP CLUSTER a WITH TABLE a PARTITION
+reject	reject	engine	warm_up_item/TABLE_table_name_PARTITION_ident!insert	WARM UP CLUSTER a WITH TABLE a PARTITION a zzz
+reject	reject	engine	warm_up_item/TABLE_table_name_PARTITION_ident!swap	WARM UP CLUSTER a WITH TABLES a PARTITION a
 accept	accept	engine	warm_up_list/warm_up_item	WARM UP CLUSTER a WITH TABLE a
 accept	accept	engine	warm_up_list/warm_up_list_AND_warm_up_item	WARM UP CLUSTER a WITH TABLE a AND TABLE a
-accept	reject	engine	warm_up_list/warm_up_list_AND_warm_up_item!drop-1	WARM UP CLUSTER a WITH a AND TABLE a
-accept	reject	engine	warm_up_list/warm_up_list_AND_warm_up_item!drop-2	WARM UP CLUSTER a WITH TABLE AND TABLE a
-accept	reject	engine	warm_up_list/warm_up_list_AND_warm_up_item!drop-3	WARM UP CLUSTER a WITH TABLE a TABLE a
-accept	reject	engine	warm_up_list/warm_up_list_AND_warm_up_item!drop-4	WARM UP CLUSTER a WITH TABLE a AND a
-accept	reject	engine	warm_up_list/warm_up_list_AND_warm_up_item!drop-5	WARM UP CLUSTER a WITH TABLE a AND TABLE
-accept	reject	engine	warm_up_list/warm_up_list_AND_warm_up_item!insert	WARM UP CLUSTER a WITH TABLE a AND TABLE a zzz
-accept	reject	engine	warm_up_list/warm_up_list_AND_warm_up_item!swap	WARM UP CLUSTER a WITH TABLES a AND TABLE a
+reject	reject	engine	warm_up_list/warm_up_list_AND_warm_up_item!drop-1	WARM UP CLUSTER a WITH a AND TABLE a
+reject	reject	engine	warm_up_list/warm_up_list_AND_warm_up_item!drop-2	WARM UP CLUSTER a WITH TABLE AND TABLE a
+reject	reject	engine	warm_up_list/warm_up_list_AND_warm_up_item!drop-3	WARM UP CLUSTER a WITH TABLE a TABLE a
+reject	reject	engine	warm_up_list/warm_up_list_AND_warm_up_item!drop-4	WARM UP CLUSTER a WITH TABLE a AND a
+reject	reject	engine	warm_up_list/warm_up_list_AND_warm_up_item!drop-5	WARM UP CLUSTER a WITH TABLE a AND TABLE
+reject	reject	engine	warm_up_list/warm_up_list_AND_warm_up_item!insert	WARM UP CLUSTER a WITH TABLE a AND TABLE a zzz
+reject	reject	engine	warm_up_list/warm_up_list_AND_warm_up_item!swap	WARM UP CLUSTER a WITH TABLES a AND TABLE a
 accept	accept	engine	opt_datasource_properties/%empty	ALTER ROUTINE LOAD FOR a
 accept	accept	engine	opt_datasource_properties/FROM_ident_(_key_value_map_)	ALTER ROUTINE LOAD FOR a FROM a('a' = 'a')
 reject	reject	engine	opt_datasource_properties/FROM_ident_(_key_value_map_)!drop-1	ALTER ROUTINE LOAD FOR a a('a' = 'a')
@@ -10398,9 +10398,9 @@ reject	reject	engine	opt_job_ends/ENDS_STRING_LITERAL!drop-2	CREATE JOB a ON SCH
 reject	reject	engine	opt_job_ends/ENDS_STRING_LITERAL!truncate	CREATE JOB a ON SCHEDULE EVERY 1 a ENDS
 reject	reject	engine	opt_job_ends/ENDS_STRING_LITERAL!insert	CREATE JOB a ON SCHEDULE EVERY 1 a ENDS 'a' zzz DO
 reject	reject	engine	opt_job_ends/ENDS_STRING_LITERAL!swap	CREATE JOB a ON SCHEDULE EVERY 1 a ENGINE 'a' DO
-reject	accept	engine	pause_job_stmt/PAUSE_JOB_opt_wild_where	PAUSE JOB
-reject	accept	engine	stop_job_stmt/DROP_JOB_opt_if_exists_opt_wild_where	DROP JOB
-reject	accept	engine	resume_job_stmt/RESUME_JOB_opt_wild_where	RESUME JOB
+accept	accept	engine	pause_job_stmt/PAUSE_JOB_opt_wild_where	PAUSE JOB
+accept	accept	engine	stop_job_stmt/DROP_JOB_opt_if_exists_opt_wild_where	DROP JOB
+accept	accept	engine	resume_job_stmt/RESUME_JOB_opt_wild_where	RESUME JOB
 reject	accept	engine	cancel_job_task_stmt/CANCEL_TASK_opt_wild_where	CANCEL TASK
 reject	accept	engine	create_routine_load_stmt/CREATE_ROUTINE_LOAD_job_label_optional_on_ident_opt_wit~30a53ac6	CREATE ROUTINE LOAD a FROM a('a' = 'a')
 accept	accept	engine	optional_on_ident/ON_ident	CREATE ROUTINE LOAD a ON a FROM a('a' = 'a')
@@ -11011,13 +11011,13 @@ reject	reject	engine	drop_stmt/DROP_STAGE_opt_if_exists_ident!insert	DROP STAGE 
 reject	reject	engine	drop_stmt/DROP_STAGE_opt_if_exists_ident!swap	DROPP STAGE a
 accept	accept	engine	recover_stmt/RECOVER_DATABASE_ident_opt_id_opt_alias	RECOVER DATABASE a
 accept	accept	engine	recover_stmt/RECOVER_TABLE_table_name_opt_id_opt_alias	RECOVER TABLE a
-accept	reject	engine	recover_stmt/RECOVER_TABLE_table_name_opt_id_opt_alias!drop-3	RECOVER TABLE
+reject	reject	engine	recover_stmt/RECOVER_TABLE_table_name_opt_id_opt_alias!drop-3	RECOVER TABLE
 reject	reject	engine	recover_stmt/RECOVER_TABLE_table_name_opt_id_opt_alias!insert	RECOVER TABLE a zzz
 reject	reject	engine	recover_stmt/RECOVER_TABLE_table_name_opt_id_opt_alias!swap	RECYCLE TABLE a
 accept	accept	engine	recover_stmt/RECOVER_PARTITION_ident_opt_id_opt_alias_FROM_table_name	RECOVER PARTITION a FROM a
 reject	reject	engine	recover_stmt/RECOVER_PARTITION_ident_opt_id_opt_alias_FROM_table_name!drop-1	PARTITION a FROM a
 reject	reject	engine	recover_stmt/RECOVER_PARTITION_ident_opt_id_opt_alias_FROM_table_name!drop-2	RECOVER a FROM a
-accept	reject	engine	recover_stmt/RECOVER_PARTITION_ident_opt_id_opt_alias_FROM_table_name!drop-3	RECOVER PARTITION FROM a
+reject	reject	engine	recover_stmt/RECOVER_PARTITION_ident_opt_id_opt_alias_FROM_table_name!drop-3	RECOVER PARTITION FROM a
 reject	reject	engine	recover_stmt/RECOVER_PARTITION_ident_opt_id_opt_alias_FROM_table_name!drop-4	RECOVER PARTITION a a
 reject	reject	engine	recover_stmt/RECOVER_PARTITION_ident_opt_id_opt_alias_FROM_table_name!drop-5	RECOVER PARTITION a FROM
 reject	reject	engine	recover_stmt/RECOVER_PARTITION_ident_opt_id_opt_alias_FROM_table_name!insert	RECOVER PARTITION a FROM a zzz
@@ -11685,11 +11685,11 @@ reject	reject	engine	opt_or_replace/OR_REPLACE!drop-2	CREATE OR VIEW a AS SELECT
 reject	reject	engine	opt_or_replace/OR_REPLACE!truncate	CREATE OR
 reject	reject	engine	opt_or_replace/OR_REPLACE!insert	CREATE OR REPLACE zzz VIEW a AS SELECT 1
 reject	reject	engine	opt_or_replace/OR_REPLACE!swap	CREATE ORDER REPLACE VIEW a AS SELECT 1
-reject	accept	engine	opt_if_exists/%empty	DROP JOB
-reject	accept	engine	opt_if_exists/IF_EXISTS	DROP JOB IF EXISTS
+accept	accept	engine	opt_if_exists/%empty	DROP JOB
+accept	accept	engine	opt_if_exists/IF_EXISTS	DROP JOB IF EXISTS
 reject	reject	engine	opt_if_exists/IF_EXISTS!drop-1	DROP JOB EXISTS
 reject	reject	engine	opt_if_exists/IF_EXISTS!drop-2	DROP JOB IF
-accept	reject	engine	opt_if_exists/IF_EXISTS!insert	DROP JOB IF EXISTS zzz
+reject	reject	engine	opt_if_exists/IF_EXISTS!insert	DROP JOB IF EXISTS zzz
 reject	reject	engine	opt_if_exists/IF_EXISTS!swap	DROP JOB IGNORE EXISTS
 accept	accept	engine	opt_if_not_exists/%empty	CREATE DATABASE a
 reject	reject	engine	opt_if_not_exists/%empty!insert	CREATE DATABASE zzz a
@@ -12469,7 +12469,7 @@ reject	accept	engine	describe_stmt/describe_command_FUNCTION_table_valued_functi
 reject	reject	engine	describe_stmt/describe_command_FUNCTION_table_valued_function_ref!swap	DIAGNOSE FUNCTION a()
 accept	accept	engine	describe_stmt/describe_command_table_name_ALL	DESCRIBE a ALL
 reject	reject	engine	describe_stmt/describe_command_table_name_ALL!drop-1	a ALL
-accept	reject	engine	describe_stmt/describe_command_table_name_ALL!drop-2	DESCRIBE ALL
+reject	reject	engine	describe_stmt/describe_command_table_name_ALL!drop-2	DESCRIBE ALL
 reject	reject	engine	describe_stmt/describe_command_table_name_ALL!insert	DESCRIBE a ALL zzz
 reject	reject	engine	describe_stmt/describe_command_table_name_ALL!swap	DIAGNOSE a ALL
 reject	accept	engine	describe_stmt/describe_command_opt_explain_options_query_stmt	DESCRIBE SELECT 1
@@ -12491,49 +12491,49 @@ accept	accept	engine	describe_command/DESC	DESC a
 reject	reject	engine	describe_command/DESC!insert	DESC zzz a
 accept	accept	engine	cancel_stmt/CANCEL_cancel_param	CANCEL LOAD
 accept	accept	engine	job_id_list/%empty	CANCEL BUILD INDEX ON a
-accept	reject	engine	job_id_list/%empty!insert	CANCEL BUILD INDEX ON a zzz
+reject	reject	engine	job_id_list/%empty!insert	CANCEL BUILD INDEX ON a zzz
 accept	accept	engine	job_id_list/(_integer_list_)	CANCEL BUILD INDEX ON a(1)
-accept	reject	engine	job_id_list/(_integer_list_)!drop-1	CANCEL BUILD INDEX ON a 1)
-accept	reject	engine	job_id_list/(_integer_list_)!drop-2	CANCEL BUILD INDEX ON a()
-accept	reject	engine	job_id_list/(_integer_list_)!drop-3	CANCEL BUILD INDEX ON a(1
-accept	reject	engine	job_id_list/(_integer_list_)!insert	CANCEL BUILD INDEX ON a(1) zzz
+reject	reject	engine	job_id_list/(_integer_list_)!drop-1	CANCEL BUILD INDEX ON a 1)
+reject	reject	engine	job_id_list/(_integer_list_)!drop-2	CANCEL BUILD INDEX ON a()
+reject	reject	engine	job_id_list/(_integer_list_)!drop-3	CANCEL BUILD INDEX ON a(1
+reject	reject	engine	job_id_list/(_integer_list_)!insert	CANCEL BUILD INDEX ON a(1) zzz
 accept	accept	engine	cancel_param/LOAD_opt_db_opt_wild_where	CANCEL LOAD
-accept	reject	engine	cancel_param/LOAD_opt_db_opt_wild_where!swap	CANCEL LOCAL
+reject	reject	engine	cancel_param/LOAD_opt_db_opt_wild_where!swap	CANCEL LOCAL
 accept	accept	engine	cancel_param/EXPORT_opt_db_opt_wild_where	CANCEL EXPORT
-accept	reject	engine	cancel_param/EXPORT_opt_db_opt_wild_where!insert	CANCEL EXPORT zzz
-accept	reject	engine	cancel_param/EXPORT_opt_db_opt_wild_where!swap	CANCEL EXTENDED
+reject	reject	engine	cancel_param/EXPORT_opt_db_opt_wild_where!insert	CANCEL EXPORT zzz
+reject	reject	engine	cancel_param/EXPORT_opt_db_opt_wild_where!swap	CANCEL EXTENDED
 accept	accept	engine	cancel_param/ALTER_TABLE_opt_alter_type_FROM_table_name_job_id_list	CANCEL ALTER TABLE ROLLUP FROM a
-accept	reject	engine	cancel_param/ALTER_TABLE_opt_alter_type_FROM_table_name_job_id_list!drop-1	CANCEL TABLE ROLLUP FROM a
-accept	reject	engine	cancel_param/ALTER_TABLE_opt_alter_type_FROM_table_name_job_id_list!drop-2	CANCEL ALTER ROLLUP FROM a
-accept	reject	engine	cancel_param/ALTER_TABLE_opt_alter_type_FROM_table_name_job_id_list!drop-3	CANCEL ALTER TABLE FROM a
-accept	reject	engine	cancel_param/ALTER_TABLE_opt_alter_type_FROM_table_name_job_id_list!drop-4	CANCEL ALTER TABLE ROLLUP a
-accept	reject	engine	cancel_param/ALTER_TABLE_opt_alter_type_FROM_table_name_job_id_list!drop-5	CANCEL ALTER TABLE ROLLUP FROM
-accept	reject	engine	cancel_param/ALTER_TABLE_opt_alter_type_FROM_table_name_job_id_list!insert	CANCEL ALTER TABLE ROLLUP FROM a zzz
-accept	reject	engine	cancel_param/ALTER_TABLE_opt_alter_type_FROM_table_name_job_id_list!swap	CANCEL ALWAYS TABLE ROLLUP FROM a
+reject	reject	engine	cancel_param/ALTER_TABLE_opt_alter_type_FROM_table_name_job_id_list!drop-1	CANCEL TABLE ROLLUP FROM a
+reject	reject	engine	cancel_param/ALTER_TABLE_opt_alter_type_FROM_table_name_job_id_list!drop-2	CANCEL ALTER ROLLUP FROM a
+reject	reject	engine	cancel_param/ALTER_TABLE_opt_alter_type_FROM_table_name_job_id_list!drop-3	CANCEL ALTER TABLE FROM a
+reject	reject	engine	cancel_param/ALTER_TABLE_opt_alter_type_FROM_table_name_job_id_list!drop-4	CANCEL ALTER TABLE ROLLUP a
+reject	reject	engine	cancel_param/ALTER_TABLE_opt_alter_type_FROM_table_name_job_id_list!drop-5	CANCEL ALTER TABLE ROLLUP FROM
+reject	reject	engine	cancel_param/ALTER_TABLE_opt_alter_type_FROM_table_name_job_id_list!insert	CANCEL ALTER TABLE ROLLUP FROM a zzz
+reject	reject	engine	cancel_param/ALTER_TABLE_opt_alter_type_FROM_table_name_job_id_list!swap	CANCEL ALWAYS TABLE ROLLUP FROM a
 accept	accept	engine	cancel_param/BUILD_INDEX_ON_table_name_job_id_list	CANCEL BUILD INDEX ON a
-accept	reject	engine	cancel_param/BUILD_INDEX_ON_table_name_job_id_list!drop-1	CANCEL INDEX ON a
-accept	reject	engine	cancel_param/BUILD_INDEX_ON_table_name_job_id_list!drop-2	CANCEL BUILD ON a
-accept	reject	engine	cancel_param/BUILD_INDEX_ON_table_name_job_id_list!drop-3	CANCEL BUILD INDEX a
-accept	reject	engine	cancel_param/BUILD_INDEX_ON_table_name_job_id_list!drop-4	CANCEL BUILD INDEX ON
-accept	reject	engine	cancel_param/BUILD_INDEX_ON_table_name_job_id_list!swap	CANCEL BUILTIN INDEX ON a
+reject	reject	engine	cancel_param/BUILD_INDEX_ON_table_name_job_id_list!drop-1	CANCEL INDEX ON a
+reject	reject	engine	cancel_param/BUILD_INDEX_ON_table_name_job_id_list!drop-2	CANCEL BUILD ON a
+reject	reject	engine	cancel_param/BUILD_INDEX_ON_table_name_job_id_list!drop-3	CANCEL BUILD INDEX a
+reject	reject	engine	cancel_param/BUILD_INDEX_ON_table_name_job_id_list!drop-4	CANCEL BUILD INDEX ON
+reject	reject	engine	cancel_param/BUILD_INDEX_ON_table_name_job_id_list!swap	CANCEL BUILTIN INDEX ON a
 accept	accept	engine	cancel_param/DECOMMISSION_BACKEND_string_list	CANCEL DECOMMISSION BACKEND 'a'
-accept	reject	engine	cancel_param/DECOMMISSION_BACKEND_string_list!drop-1	CANCEL BACKEND 'a'
-accept	reject	engine	cancel_param/DECOMMISSION_BACKEND_string_list!drop-2	CANCEL DECOMMISSION 'a'
-accept	reject	engine	cancel_param/DECOMMISSION_BACKEND_string_list!drop-3	CANCEL DECOMMISSION BACKEND
+reject	reject	engine	cancel_param/DECOMMISSION_BACKEND_string_list!drop-1	CANCEL BACKEND 'a'
+reject	reject	engine	cancel_param/DECOMMISSION_BACKEND_string_list!drop-2	CANCEL DECOMMISSION 'a'
+reject	reject	engine	cancel_param/DECOMMISSION_BACKEND_string_list!drop-3	CANCEL DECOMMISSION BACKEND
 reject	reject	engine	cancel_param/DECOMMISSION_BACKEND_string_list!insert	CANCEL DECOMMISSION BACKEND 'a' zzz
-accept	reject	engine	cancel_param/DECOMMISSION_BACKEND_string_list!swap	CANCEL DEFAULT BACKEND 'a'
+reject	reject	engine	cancel_param/DECOMMISSION_BACKEND_string_list!swap	CANCEL DEFAULT BACKEND 'a'
 accept	accept	engine	cancel_param/BACKUP_opt_db	CANCEL BACKUP
-accept	reject	engine	cancel_param/BACKUP_opt_db!insert	CANCEL BACKUP zzz
-accept	reject	engine	cancel_param/BACKUP_opt_db!swap	CANCEL BEGIN
+reject	reject	engine	cancel_param/BACKUP_opt_db!insert	CANCEL BACKUP zzz
+reject	reject	engine	cancel_param/BACKUP_opt_db!swap	CANCEL BEGIN
 accept	accept	engine	cancel_param/RESTORE_opt_db	CANCEL RESTORE
-accept	reject	engine	cancel_param/RESTORE_opt_db!insert	CANCEL RESTORE zzz
-accept	reject	engine	cancel_param/RESTORE_opt_db!swap	CANCEL RESTRICTIVE
+reject	reject	engine	cancel_param/RESTORE_opt_db!insert	CANCEL RESTORE zzz
+reject	reject	engine	cancel_param/RESTORE_opt_db!swap	CANCEL RESTRICTIVE
 accept	accept	engine	cancel_param/WARM_UP_JOB_opt_wild_where	CANCEL WARM UP JOB
-accept	reject	engine	cancel_param/WARM_UP_JOB_opt_wild_where!drop-1	CANCEL UP JOB
-accept	reject	engine	cancel_param/WARM_UP_JOB_opt_wild_where!drop-2	CANCEL WARM JOB
-accept	reject	engine	cancel_param/WARM_UP_JOB_opt_wild_where!drop-3	CANCEL WARM UP
-accept	reject	engine	cancel_param/WARM_UP_JOB_opt_wild_where!insert	CANCEL WARM UP JOB zzz
-accept	reject	engine	cancel_param/WARM_UP_JOB_opt_wild_where!swap	CANCEL WARNINGS UP JOB
+reject	reject	engine	cancel_param/WARM_UP_JOB_opt_wild_where!drop-1	CANCEL UP JOB
+reject	reject	engine	cancel_param/WARM_UP_JOB_opt_wild_where!drop-2	CANCEL WARM JOB
+reject	reject	engine	cancel_param/WARM_UP_JOB_opt_wild_where!drop-3	CANCEL WARM UP
+reject	reject	engine	cancel_param/WARM_UP_JOB_opt_wild_where!insert	CANCEL WARM UP JOB zzz
+reject	reject	engine	cancel_param/WARM_UP_JOB_opt_wild_where!swap	CANCEL WARNINGS UP JOB
 accept	accept	engine	opt_detailed/%empty	SHOW DATA
 accept	accept	engine	opt_detailed/ALL	SHOW DATA ALL
 accept	reject	engine	opt_detailed/ALL!insert	SHOW DATA ALL zzz
@@ -12801,13 +12801,13 @@ reject	reject	engine	lock_alias/AS_ident!drop-2	LOCK TABLES a AS READ
 reject	reject	engine	lock_alias/AS_ident!truncate	LOCK TABLES a AS
 reject	reject	engine	lock_alias/AS_ident!insert	LOCK TABLES a AS a zzz READ
 reject	reject	engine	lock_alias/AS_ident!swap	LOCK TABLES a ASC a READ
-reject	accept	engine	lock_alias/AS_STRING_LITERAL	LOCK TABLES a AS 'a' READ
+accept	accept	engine	lock_alias/AS_STRING_LITERAL	LOCK TABLES a AS 'a' READ
 reject	reject	engine	lock_alias/AS_STRING_LITERAL!drop-1	LOCK TABLES a 'a' READ
 reject	reject	engine	lock_alias/AS_STRING_LITERAL!insert	LOCK TABLES a AS 'a' zzz READ
 reject	reject	engine	lock_alias/AS_STRING_LITERAL!swap	LOCK TABLES a ASC 'a' READ
 accept	accept	engine	lock_table/table_name_lock_alias_READ	LOCK TABLES a READ
 reject	reject	engine	lock_table/table_name_lock_alias_READ!drop-1	LOCK TABLES READ
-accept	reject	engine	lock_table/table_name_lock_alias_READ!drop-2	LOCK TABLES a
+reject	reject	engine	lock_table/table_name_lock_alias_READ!drop-2	LOCK TABLES a
 reject	reject	engine	lock_table/table_name_lock_alias_READ!insert	LOCK TABLES a READ zzz
 reject	reject	engine	lock_table/table_name_lock_alias_READ!swap	LOCK TABLES a REAL
 accept	accept	engine	lock_table/table_name_lock_alias_READ_LOCAL	LOCK TABLES a READ LOCAL
@@ -12835,7 +12835,7 @@ accept	accept	engine	lock_tables_stmt/LOCK_TABLES_opt_lock_tables_list	LOCK TABL
 accept	accept	engine	opt_backup_table_ref_list/backup_exclude_or_not_(_base_table_ref_list_)	BACKUP SNAPSHOT a TO a ON(a)
 reject	reject	engine	opt_backup_table_ref_list/backup_exclude_or_not_(_base_table_ref_list_)!drop-1	BACKUP SNAPSHOT a TO a(a)
 reject	reject	engine	opt_backup_table_ref_list/backup_exclude_or_not_(_base_table_ref_list_)!drop-2	BACKUP SNAPSHOT a TO a ON a)
-accept	reject	engine	opt_backup_table_ref_list/backup_exclude_or_not_(_base_table_ref_list_)!drop-3	BACKUP SNAPSHOT a TO a ON()
+reject	reject	engine	opt_backup_table_ref_list/backup_exclude_or_not_(_base_table_ref_list_)!drop-3	BACKUP SNAPSHOT a TO a ON()
 reject	reject	engine	opt_backup_table_ref_list/backup_exclude_or_not_(_base_table_ref_list_)!drop-4	BACKUP SNAPSHOT a TO a ON(a
 reject	reject	engine	opt_backup_table_ref_list/backup_exclude_or_not_(_base_table_ref_list_)!insert	BACKUP SNAPSHOT a TO a ON(a) zzz
 reject	reject	engine	opt_backup_table_ref_list/backup_exclude_or_not_(_base_table_ref_list_)!swap	BACKUP SNAPSHOT a TO a ONLY(a)
@@ -12849,17 +12849,17 @@ accept	accept	engine	restore_stmt/RESTORE_SNAPSHOT_job_label_FROM_ident_opt_back
 accept	accept	engine	kill_stmt/KILL_INTEGER_VALUE	KILL 1
 accept	accept	engine	kill_stmt/KILL_CONNECTION_INTEGER_VALUE	KILL CONNECTION 1
 reject	reject	engine	kill_stmt/KILL_CONNECTION_INTEGER_VALUE!drop-1	CONNECTION 1
-accept	reject	engine	kill_stmt/KILL_CONNECTION_INTEGER_VALUE!drop-3	KILL CONNECTION
+reject	reject	engine	kill_stmt/KILL_CONNECTION_INTEGER_VALUE!drop-3	KILL CONNECTION
 reject	reject	engine	kill_stmt/KILL_CONNECTION_INTEGER_VALUE!insert	KILL CONNECTION 1 zzz
 reject	reject	engine	kill_stmt/KILL_CONNECTION_INTEGER_VALUE!swap	LABEL CONNECTION 1
 accept	accept	engine	kill_stmt/KILL_QUERY_INTEGER_VALUE	KILL QUERY 1
 reject	reject	engine	kill_stmt/KILL_QUERY_INTEGER_VALUE!drop-1	QUERY 1
-accept	reject	engine	kill_stmt/KILL_QUERY_INTEGER_VALUE!drop-3	KILL QUERY
+reject	reject	engine	kill_stmt/KILL_QUERY_INTEGER_VALUE!drop-3	KILL QUERY
 reject	reject	engine	kill_stmt/KILL_QUERY_INTEGER_VALUE!insert	KILL QUERY 1 zzz
 reject	reject	engine	kill_stmt/KILL_QUERY_INTEGER_VALUE!swap	LABEL QUERY 1
 accept	accept	engine	kill_stmt/KILL_QUERY_STRING_LITERAL	KILL QUERY 'a'
 reject	reject	engine	kill_stmt/KILL_QUERY_STRING_LITERAL!drop-1	QUERY 'a'
-accept	reject	engine	kill_stmt/KILL_QUERY_STRING_LITERAL!drop-2	KILL 'a'
+reject	reject	engine	kill_stmt/KILL_QUERY_STRING_LITERAL!drop-2	KILL 'a'
 reject	reject	engine	kill_stmt/KILL_QUERY_STRING_LITERAL!insert	KILL QUERY 'a' zzz
 reject	reject	engine	kill_stmt/KILL_QUERY_STRING_LITERAL!swap	LABEL QUERY 'a'
 accept	accept	engine	kill_analysis_job_stmt/KILL_ANALYZE_INTEGER_VALUE	KILL ANALYZE 1
@@ -12884,7 +12884,7 @@ reject	reject	engine	set_stmt/SET_ident_AS_DEFAULT_STORAGE_VAULT!swap	SETS a AS 
 accept	accept	engine	unset_var_stmt/UNSET_opt_var_type_VARIABLE_variable_name	UNSET VARIABLE a
 accept	accept	engine	unset_var_stmt/UNSET_opt_var_type_VARIABLE_ALL	UNSET VARIABLE ALL
 reject	reject	engine	unset_var_stmt/UNSET_opt_var_type_VARIABLE_ALL!drop-1	VARIABLE ALL
-accept	reject	engine	unset_var_stmt/UNSET_opt_var_type_VARIABLE_ALL!drop-2	UNSET ALL
+reject	reject	engine	unset_var_stmt/UNSET_opt_var_type_VARIABLE_ALL!drop-2	UNSET ALL
 reject	reject	engine	unset_var_stmt/UNSET_opt_var_type_VARIABLE_ALL!insert	UNSET VARIABLE ALL zzz
 reject	reject	engine	unset_var_stmt/UNSET_opt_var_type_VARIABLE_ALL!swap	UNSIGNED VARIABLE ALL
 accept	accept	engine	unset_default_storage_vault_stmt/UNSET_DEFAULT_STORAGE_VAULT	UNSET DEFAULT STORAGE VAULT
@@ -13378,7 +13378,7 @@ accept	accept	engine	base_table_ref_list/base_table_ref!insert	BACKUP SNAPSHOT a
 accept	accept	engine	base_table_ref_list/base_table_ref_list_,_base_table_ref	BACKUP SNAPSHOT a TO a ON(a, a)
 reject	reject	engine	base_table_ref_list/base_table_ref_list_,_base_table_ref!drop-1	BACKUP SNAPSHOT a TO a ON(, a)
 accept	accept	engine	base_table_ref_list/base_table_ref_list_,_base_table_ref!drop-2	BACKUP SNAPSHOT a TO a ON(a a)
-accept	reject	engine	base_table_ref_list/base_table_ref_list_,_base_table_ref!drop-3	BACKUP SNAPSHOT a TO a ON(a,)
+reject	reject	engine	base_table_ref_list/base_table_ref_list_,_base_table_ref!drop-3	BACKUP SNAPSHOT a TO a ON(a,)
 reject	reject	engine	base_table_ref_list/base_table_ref_list_,_base_table_ref!truncate	BACKUP SNAPSHOT a TO a ON(a,
 accept	accept	engine	base_table_ref_list/base_table_ref_list_,_base_table_ref!insert	BACKUP SNAPSHOT a TO a ON(a, a zzz)
 accept	accept	engine	base_table_ref/table_name_opt_scan_params_ref_opt_table_snapshot_opt_p~3d0a20f1	TRUNCATE TABLE a
@@ -15079,7 +15079,7 @@ accept	reject	engine	admin_stmt/ADMIN_REPAIR_TABLE_base_table_ref!drop-4	ADMIN R
 accept	accept	engine	admin_stmt/ADMIN_REPAIR_TABLE_base_table_ref!insert	ADMIN REPAIR TABLE a zzz
 reject	reject	engine	admin_stmt/ADMIN_REPAIR_TABLE_base_table_ref!swap	AFTER REPAIR TABLE a
 accept	accept	engine	admin_stmt/ADMIN_CANCEL_REPAIR_TABLE_base_table_ref	ADMIN CANCEL REPAIR TABLE a
-accept	reject	engine	admin_stmt/ADMIN_CANCEL_REPAIR_TABLE_base_table_ref!drop-1	CANCEL REPAIR TABLE a
+reject	reject	engine	admin_stmt/ADMIN_CANCEL_REPAIR_TABLE_base_table_ref!drop-1	CANCEL REPAIR TABLE a
 accept	reject	engine	admin_stmt/ADMIN_CANCEL_REPAIR_TABLE_base_table_ref!drop-3	ADMIN CANCEL TABLE a
 accept	reject	engine	admin_stmt/ADMIN_CANCEL_REPAIR_TABLE_base_table_ref!drop-4	ADMIN CANCEL REPAIR a
 accept	reject	engine	admin_stmt/ADMIN_CANCEL_REPAIR_TABLE_base_table_ref!drop-5	ADMIN CANCEL REPAIR TABLE
@@ -15152,7 +15152,7 @@ reject	reject	engine	admin_stmt/ADMIN_REBALANCE_DISK_ON_(_string_list_)!insert	A
 reject	reject	engine	admin_stmt/ADMIN_REBALANCE_DISK_ON_(_string_list_)!swap	AFTER REBALANCE DISK ON('a')
 accept	accept	engine	admin_stmt/ADMIN_REBALANCE_DISK	ADMIN REBALANCE DISK
 accept	reject	engine	admin_stmt/ADMIN_CANCEL_REBALANCE_DISK_ON_(_string_list_)	ADMIN CANCEL REBALANCE DISK ON('a')
-accept	reject	engine	admin_stmt/ADMIN_CANCEL_REBALANCE_DISK_ON_(_string_list_)!drop-1	CANCEL REBALANCE DISK ON('a')
+reject	reject	engine	admin_stmt/ADMIN_CANCEL_REBALANCE_DISK_ON_(_string_list_)!drop-1	CANCEL REBALANCE DISK ON('a')
 accept	reject	engine	admin_stmt/ADMIN_CANCEL_REBALANCE_DISK_ON_(_string_list_)!drop-3	ADMIN CANCEL DISK ON('a')
 accept	reject	engine	admin_stmt/ADMIN_CANCEL_REBALANCE_DISK_ON_(_string_list_)!drop-4	ADMIN CANCEL REBALANCE ON('a')
 reject	reject	engine	admin_stmt/ADMIN_CANCEL_REBALANCE_DISK_ON_(_string_list_)!drop-5	ADMIN CANCEL REBALANCE DISK('a')
@@ -15162,13 +15162,13 @@ accept	reject	engine	admin_stmt/ADMIN_CANCEL_REBALANCE_DISK_ON_(_string_list_)!d
 reject	reject	engine	admin_stmt/ADMIN_CANCEL_REBALANCE_DISK_ON_(_string_list_)!insert	ADMIN CANCEL REBALANCE DISK ON('a') zzz
 reject	reject	engine	admin_stmt/ADMIN_CANCEL_REBALANCE_DISK_ON_(_string_list_)!swap	AFTER CANCEL REBALANCE DISK ON('a')
 accept	accept	engine	admin_stmt/ADMIN_CANCEL_REBALANCE_DISK	ADMIN CANCEL REBALANCE DISK
-accept	reject	engine	admin_stmt/ADMIN_CANCEL_REBALANCE_DISK!drop-1	CANCEL REBALANCE DISK
+reject	reject	engine	admin_stmt/ADMIN_CANCEL_REBALANCE_DISK!drop-1	CANCEL REBALANCE DISK
 accept	reject	engine	admin_stmt/ADMIN_CANCEL_REBALANCE_DISK!drop-3	ADMIN CANCEL DISK
 accept	reject	engine	admin_stmt/ADMIN_CANCEL_REBALANCE_DISK!drop-4	ADMIN CANCEL REBALANCE
 reject	reject	engine	admin_stmt/ADMIN_CANCEL_REBALANCE_DISK!insert	ADMIN CANCEL REBALANCE DISK zzz
 reject	reject	engine	admin_stmt/ADMIN_CANCEL_REBALANCE_DISK!swap	AFTER CANCEL REBALANCE DISK
 accept	reject	engine	admin_stmt/ADMIN_CLEAN_TRASH_ON_(_string_list_)	ADMIN CLEAN TRASH ON('a')
-accept	reject	engine	admin_stmt/ADMIN_CLEAN_TRASH_ON_(_string_list_)!drop-1	CLEAN TRASH ON('a')
+reject	reject	engine	admin_stmt/ADMIN_CLEAN_TRASH_ON_(_string_list_)!drop-1	CLEAN TRASH ON('a')
 accept	reject	engine	admin_stmt/ADMIN_CLEAN_TRASH_ON_(_string_list_)!drop-2	ADMIN TRASH ON('a')
 accept	reject	engine	admin_stmt/ADMIN_CLEAN_TRASH_ON_(_string_list_)!drop-3	ADMIN CLEAN ON('a')
 reject	reject	engine	admin_stmt/ADMIN_CLEAN_TRASH_ON_(_string_list_)!drop-4	ADMIN CLEAN TRASH('a')
@@ -15178,7 +15178,7 @@ accept	reject	engine	admin_stmt/ADMIN_CLEAN_TRASH_ON_(_string_list_)!drop-7	ADMI
 reject	reject	engine	admin_stmt/ADMIN_CLEAN_TRASH_ON_(_string_list_)!insert	ADMIN CLEAN TRASH ON('a') zzz
 reject	reject	engine	admin_stmt/ADMIN_CLEAN_TRASH_ON_(_string_list_)!swap	AFTER CLEAN TRASH ON('a')
 accept	accept	engine	admin_stmt/ADMIN_CLEAN_TRASH	ADMIN CLEAN TRASH
-accept	reject	engine	admin_stmt/ADMIN_CLEAN_TRASH!drop-1	CLEAN TRASH
+reject	reject	engine	admin_stmt/ADMIN_CLEAN_TRASH!drop-1	CLEAN TRASH
 accept	reject	engine	admin_stmt/ADMIN_CLEAN_TRASH!drop-2	ADMIN TRASH
 accept	reject	engine	admin_stmt/ADMIN_CLEAN_TRASH!drop-3	ADMIN CLEAN
 reject	reject	engine	admin_stmt/ADMIN_CLEAN_TRASH!insert	ADMIN CLEAN TRASH zzz

@@ -289,10 +289,10 @@ func TestAlterJobDoStmt(t *testing.T) {
 // DROP JOB
 // ---------------------------------------------------------------------------
 
-func TestDropJobByName(t *testing.T) {
-	stmt := parseDropJobStmt(t, "DROP JOB my_job")
-	if stmt.Name == nil || stmt.Name.Parts[0] != "my_job" {
-		t.Errorf("Name: got %v, want my_job", stmt.Name.Parts)
+func TestDropJobLike(t *testing.T) {
+	stmt := parseDropJobStmt(t, "DROP JOB LIKE 'my_job'")
+	if stmt.Like != "my_job" {
+		t.Errorf("Like: got %q, want my_job", stmt.Like)
 	}
 	if stmt.Where != nil {
 		t.Errorf("Where: got non-nil, want nil")
@@ -300,12 +300,12 @@ func TestDropJobByName(t *testing.T) {
 }
 
 func TestDropJobIfExists(t *testing.T) {
-	stmt := parseDropJobStmt(t, "DROP JOB IF EXISTS my_job")
+	stmt := parseDropJobStmt(t, "DROP JOB IF EXISTS WHERE jobName = 'my_job'")
 	if !stmt.IfExists {
 		t.Errorf("IfExists: got false, want true")
 	}
-	if stmt.Name == nil || stmt.Name.Parts[0] != "my_job" {
-		t.Errorf("Name: got %v, want my_job", stmt.Name.Parts)
+	if stmt.Where == nil {
+		t.Errorf("Where: got nil, want non-nil")
 	}
 }
 
@@ -315,8 +315,23 @@ func TestDropJobWhere(t *testing.T) {
 	if stmt.Where == nil {
 		t.Errorf("Where: got nil, want non-nil")
 	}
-	if stmt.Name != nil {
-		t.Errorf("Name: got non-nil, want nil for WHERE form")
+	if stmt.Like != "" {
+		t.Errorf("Like: got %q, want empty for WHERE form", stmt.Like)
+	}
+}
+
+// A job is named by LIKE or WHERE, never by a bare name: Doris rejects
+// `DROP JOB zzz`, `PAUSE JOB zzz` and `RESUME JOB zzz` (compat.tsv).
+func TestJobBareNameRejected(t *testing.T) {
+	for _, sql := range []string{
+		"DROP JOB my_job",
+		"DROP JOB IF EXISTS my_job",
+		"PAUSE JOB my_job",
+		"RESUME JOB my_job",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q): got nil error, want a syntax error", sql)
+		}
 	}
 }
 
@@ -324,10 +339,10 @@ func TestDropJobWhere(t *testing.T) {
 // PAUSE JOB
 // ---------------------------------------------------------------------------
 
-func TestPauseJobByName(t *testing.T) {
-	stmt := parsePauseJobStmt(t, "PAUSE JOB my_job")
-	if stmt.Name == nil || stmt.Name.Parts[0] != "my_job" {
-		t.Errorf("Name: got %v, want my_job", stmt.Name.Parts)
+func TestPauseJobLike(t *testing.T) {
+	stmt := parsePauseJobStmt(t, "PAUSE JOB LIKE 'my_job'")
+	if stmt.Like != "my_job" {
+		t.Errorf("Like: got %q, want my_job", stmt.Like)
 	}
 	if stmt.Where != nil {
 		t.Errorf("Where: got non-nil, want nil")
@@ -340,22 +355,16 @@ func TestPauseJobWhere(t *testing.T) {
 	if stmt.Where == nil {
 		t.Errorf("Where: got nil, want non-nil")
 	}
-	if stmt.Name != nil {
-		t.Errorf("Name: got non-nil, want nil for WHERE form")
-	}
 }
 
 // ---------------------------------------------------------------------------
 // RESUME JOB
 // ---------------------------------------------------------------------------
 
-func TestResumeJobByName(t *testing.T) {
-	stmt := parseResumeJobStmt(t, "RESUME JOB my_job")
-	if stmt.Name == nil || stmt.Name.Parts[0] != "my_job" {
-		t.Errorf("Name: got %v, want my_job", stmt.Name.Parts)
-	}
-	if stmt.Where != nil {
-		t.Errorf("Where: got non-nil, want nil")
+func TestResumeJobBare(t *testing.T) {
+	stmt := parseResumeJobStmt(t, "RESUME JOB")
+	if stmt.Like != "" || stmt.Where != nil {
+		t.Errorf("got Like %q Where %v, want neither", stmt.Like, stmt.Where)
 	}
 }
 
@@ -364,9 +373,6 @@ func TestResumeJobWhere(t *testing.T) {
 	stmt := parseResumeJobStmt(t, "RESUME JOB WHERE jobName='example'")
 	if stmt.Where == nil {
 		t.Errorf("Where: got nil, want non-nil")
-	}
-	if stmt.Name != nil {
-		t.Errorf("Name: got non-nil, want nil for WHERE form")
 	}
 }
 

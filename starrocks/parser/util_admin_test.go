@@ -80,16 +80,6 @@ func parseUninstallPluginStmt(t *testing.T, sql string) *ast.UninstallPluginStmt
 	return stmt
 }
 
-func parseWarmUpStmt(t *testing.T, sql string) *ast.WarmUpStmt {
-	t.Helper()
-	n := parseOne(t, sql)
-	stmt, ok := n.(*ast.WarmUpStmt)
-	if !ok {
-		t.Fatalf("expected *ast.WarmUpStmt, got %T", n)
-	}
-	return stmt
-}
-
 func parseCleanStmt(t *testing.T, sql string) *ast.CleanStmt {
 	t.Helper()
 	n := parseOne(t, sql)
@@ -385,27 +375,26 @@ func TestUninstallPlugin(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// WARM UP tests
+// Statements StarRocks does not have
 // ---------------------------------------------------------------------------
 
-func TestWarmUpCluster(t *testing.T) {
-	stmt := parseWarmUpStmt(t, `WARM UP CLUSTER cloud_cluster FROM cloud_cluster2`)
-	if stmt.Verb != "CLUSTER" {
-		t.Errorf("Verb: got %q, want CLUSTER", stmt.Verb)
-	}
-}
-
-func TestWarmUpComputeGroup(t *testing.T) {
-	stmt := parseWarmUpStmt(t, `WARM UP COMPUTE GROUP cg1 WITH TABLE t1`)
-	if stmt.Verb != "COMPUTE GROUP" {
-		t.Errorf("Verb: got %q, want COMPUTE GROUP", stmt.Verb)
-	}
-}
-
-func TestWarmUpLoc(t *testing.T) {
-	stmt := parseWarmUpStmt(t, `WARM UP CLUSTER c1 FROM c2`)
-	if !stmt.Loc.IsValid() {
-		t.Error("Loc should be valid")
+// WARM UP, the Doris CLEAN forms, CANCEL BUILD INDEX and RECOVER's id and
+// alias came with the doris fork; StarRocks.g4 has none of them.
+func TestDorisOnlyUtilityRejected(t *testing.T) {
+	for _, sql := range []string{
+		"WARM UP CLUSTER c1 WITH CLUSTER c2",
+		"WARM UP COMPUTE GROUP cg1 WITH TABLE t1",
+		"CLEAN ALL PROFILE",
+		"CLEAN LABEL my_label FROM my_db",
+		"CLEAN QUERY STATS FROM my_db",
+		"CANCEL BUILD INDEX ON example_tbl",
+		"RECOVER DATABASE example_db 12345",
+		"RECOVER TABLE example_db.example_tbl AS new_example_tbl",
+		"RECOVER PARTITION p1 12347 AS new_p1 FROM example_tbl",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q): got nil error, want a syntax error", sql)
+		}
 	}
 }
 
@@ -413,38 +402,32 @@ func TestWarmUpLoc(t *testing.T) {
 // CLEAN tests
 // ---------------------------------------------------------------------------
 
-func TestCleanAllProfile(t *testing.T) {
-	stmt := parseCleanStmt(t, `CLEAN ALL PROFILE`)
-	if stmt.Verb != "ALL PROFILE" {
-		t.Errorf("Verb: got %q, want ALL PROFILE", stmt.Verb)
+func TestCleanTemporaryTable(t *testing.T) {
+	sql := `CLEAN TEMPORARY TABLE ON SESSION '0e5f7d3c-8f6a-4b1e-9c2d-3a4b5c6d7e8f'`
+	stmt := parseCleanStmt(t, sql)
+	if stmt.Verb != "TEMPORARY TABLE" {
+		t.Errorf("Verb: got %q, want TEMPORARY TABLE", stmt.Verb)
+	}
+	if stmt.Target != "0e5f7d3c-8f6a-4b1e-9c2d-3a4b5c6d7e8f" {
+		t.Errorf("Target: got %q", stmt.Target)
+	}
+	if stmt.Loc.Start != 0 || stmt.Loc.End != len(sql) {
+		t.Errorf("Loc: got %+v, want {0 %d}", stmt.Loc, len(sql))
 	}
 }
 
-func TestCleanLabel(t *testing.T) {
-	stmt := parseCleanStmt(t, `CLEAN LABEL my_label FROM my_db`)
-	if stmt.Verb != "LABEL" {
-		t.Errorf("Verb: got %q, want LABEL", stmt.Verb)
-	}
-}
-
-func TestCleanQueryStats(t *testing.T) {
-	stmt := parseCleanStmt(t, `CLEAN QUERY STATS FROM my_db`)
-	if stmt.Verb != "QUERY STATS" {
-		t.Errorf("Verb: got %q, want QUERY STATS", stmt.Verb)
-	}
-}
-
-func TestCleanQueryStatsAll(t *testing.T) {
-	stmt := parseCleanStmt(t, `CLEAN QUERY STATS ALL`)
-	if stmt.Verb != "QUERY STATS" {
-		t.Errorf("Verb: got %q, want QUERY STATS", stmt.Verb)
-	}
-}
-
-func TestCleanLoc(t *testing.T) {
-	stmt := parseCleanStmt(t, `CLEAN ALL PROFILE`)
-	if !stmt.Loc.IsValid() {
-		t.Error("Loc should be valid")
+// The AST builder reads the session id with UUID.fromString and refuses one
+// it cannot read: StarRocks rejects `CLEAN TEMPORARY TABLE ON SESSION 'a'`
+// (compat.tsv).
+func TestCleanTemporaryTableBadSessionID(t *testing.T) {
+	for _, sql := range []string{
+		`CLEAN TEMPORARY TABLE ON SESSION 'a'`,
+		`CLEAN TEMPORARY TABLE ON SESSION '0e5f7d3c-8f6a-4b1e-9c2d'`,
+		`CLEAN TEMPORARY TABLE ON SESSION '0e5f7d3c-8f6a-4b1e-9c2d-3a4b5c6d7e8g'`,
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q): got nil error, want an error", sql)
+		}
 	}
 }
 
@@ -494,13 +477,6 @@ func TestCancelAlterTableRollup(t *testing.T) {
 	}
 }
 
-func TestCancelBuildIndex(t *testing.T) {
-	stmt := parseCancelStmt(t, `CANCEL BUILD INDEX ON example_tbl`)
-	if stmt.Verb != "BUILD INDEX" {
-		t.Errorf("Verb: got %q, want BUILD INDEX", stmt.Verb)
-	}
-}
-
 func TestCancelLoc(t *testing.T) {
 	stmt := parseCancelStmt(t, `CANCEL LOAD FROM db WHERE label = "x"`)
 	if !stmt.Loc.IsValid() {
@@ -542,57 +518,6 @@ func TestRecoverPartition(t *testing.T) {
 	}
 	if stmt.Name == nil || stmt.Name.String() != "p1" {
 		t.Errorf("Name: got %v", stmt.Name)
-	}
-	if stmt.FromTable == nil || stmt.FromTable.String() != "example_tbl" {
-		t.Errorf("FromTable: got %v", stmt.FromTable)
-	}
-}
-
-func TestRecoverDatabaseWithID(t *testing.T) {
-	stmt := parseRecoverStmt(t, `RECOVER DATABASE example_db 12345`)
-	if stmt.ID != "12345" {
-		t.Errorf("ID: got %q, want 12345", stmt.ID)
-	}
-}
-
-func TestRecoverTableWithID(t *testing.T) {
-	stmt := parseRecoverStmt(t, `RECOVER TABLE example_db.example_tbl 12346`)
-	if stmt.ID != "12346" {
-		t.Errorf("ID: got %q, want 12346", stmt.ID)
-	}
-}
-
-func TestRecoverPartitionWithID(t *testing.T) {
-	stmt := parseRecoverStmt(t, `RECOVER PARTITION p1 12347 FROM example_tbl`)
-	if stmt.ID != "12347" {
-		t.Errorf("ID: got %q, want 12347", stmt.ID)
-	}
-}
-
-func TestRecoverDatabaseWithIDAndNewName(t *testing.T) {
-	stmt := parseRecoverStmt(t, `RECOVER DATABASE example_db 12345 AS new_example_db`)
-	if stmt.ID != "12345" {
-		t.Errorf("ID: got %q, want 12345", stmt.ID)
-	}
-	if stmt.NewName != "new_example_db" {
-		t.Errorf("NewName: got %q, want new_example_db", stmt.NewName)
-	}
-}
-
-func TestRecoverTableWithNewName(t *testing.T) {
-	stmt := parseRecoverStmt(t, `RECOVER TABLE example_db.example_tbl AS new_example_tbl`)
-	if stmt.NewName != "new_example_tbl" {
-		t.Errorf("NewName: got %q, want new_example_tbl", stmt.NewName)
-	}
-}
-
-func TestRecoverPartitionWithIDAndNewName(t *testing.T) {
-	stmt := parseRecoverStmt(t, `RECOVER PARTITION p1 12347 AS new_p1 FROM example_tbl`)
-	if stmt.ID != "12347" {
-		t.Errorf("ID: got %q, want 12347", stmt.ID)
-	}
-	if stmt.NewName != "new_p1" {
-		t.Errorf("NewName: got %q, want new_p1", stmt.NewName)
 	}
 	if stmt.FromTable == nil || stmt.FromTable.String() != "example_tbl" {
 		t.Errorf("FromTable: got %v", stmt.FromTable)

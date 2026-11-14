@@ -863,9 +863,6 @@ func walkChildren(v Visitor, node Node) {
 		}
 
 	case *DropJobStmt:
-		if n.Name != nil {
-			Walk(v, n.Name)
-		}
 		if n.Where != nil {
 			Walk(v, n.Where)
 		}
@@ -957,17 +954,11 @@ func walkChildren(v Visitor, node Node) {
 		}
 
 	case *PauseJobStmt:
-		if n.Name != nil {
-			Walk(v, n.Name)
-		}
 		if n.Where != nil {
 			Walk(v, n.Where)
 		}
 
 	case *ResumeJobStmt:
-		if n.Name != nil {
-			Walk(v, n.Name)
-		}
 		if n.Where != nil {
 			Walk(v, n.Where)
 		}
