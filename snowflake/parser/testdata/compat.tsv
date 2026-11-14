@@ -49203,24 +49203,24 @@ reject	undocumented	docs	createWarehouse_objectParams(MAX_CONCURRENCY_LEVEL_=_NU
 reject	undocumented	docs	createWarehouse_objectParams(MAX_CONCURRENCY_LEVEL_=_NUMBER|STATE~ce66b9b4)/STATEMENT_TIMEOUT_IN_SECONDS_=_NUMBER!drop-3	CREATE WAREHOUSE a STATEMENT_TIMEOUT_IN_SECONDS =
 accept	undocumented	docs	createWarehouse_objectParams(MAX_CONCURRENCY_LEVEL_=_NUMBER|STATE~ce66b9b4)/STATEMENT_TIMEOUT_IN_SECONDS_=_NUMBER!insert	CREATE WAREHOUSE a STATEMENT_TIMEOUT_IN_SECONDS = 1 zzz
 accept	undocumented	docs	createWarehouse_objectParams(MAX_CONCURRENCY_LEVEL_=_NUMBER|STATE~ce66b9b4)/STATEMENT_TIMEOUT_IN_SECONDS_=_NUMBER!swap	CREATE WAREHOUSE a STATUS = 1
-accept	accept	docs	delete/DELETE_FROM_ID_(USING_(ID|(_QUERY_))_(,_(ID|(_QUERY_)))~8ab4bac0	DELETE FROM a
-accept	accept	docs	delete(USING_(ID|(_QUERY_))_(,_(ID|(_QUERY_)))?)?/%empty	DELETE FROM a
-accept	accept	docs	delete(USING_(ID|(_QUERY_))_(,_(ID|(_QUERY_)))?)?/USING_(ID|(_QUERY_))_(,_(ID|(_QUERY_)))?	DELETE FROM a USING a
-accept	undocumented	docs	delete(USING_(ID|(_QUERY_))_(,_(ID|(_QUERY_)))?)?/USING_(ID|(_QUERY_))_(,_(ID|(_QUERY_)))?!drop-1	DELETE FROM a a
-reject	undocumented	docs	delete(USING_(ID|(_QUERY_))_(,_(ID|(_QUERY_)))?)?/USING_(ID|(_QUERY_))_(,_(ID|(_QUERY_)))?!drop-2	DELETE FROM a USING
-accept	undocumented	docs	delete(USING_(ID|(_QUERY_))_(,_(ID|(_QUERY_)))?)?/USING_(ID|(_QUERY_))_(,_(ID|(_QUERY_)))?!insert	DELETE FROM a USING a zzz
-reject	undocumented	docs	delete(USING_(ID|(_QUERY_))_(,_(ID|(_QUERY_)))?)?/USING_(ID|(_QUERY_))_(,_(ID|(_QUERY_)))?!swap	DELETE FROM a UTF8 a
+accept	accept	docs	delete/DELETE_FROM_ID_(USING_(ID|(_QUERY_))_(,_(ID|(_QUERY_)))~ac430d67	DELETE FROM a
+accept	accept	docs	delete(USING_(ID|(_QUERY_))_(,_(ID|(_QUERY_)))*)?/%empty	DELETE FROM a
+accept	accept	docs	delete(USING_(ID|(_QUERY_))_(,_(ID|(_QUERY_)))*)?/USING_(ID|(_QUERY_))_(,_(ID|(_QUERY_)))*	DELETE FROM a USING a
+accept	undocumented	docs	delete(USING_(ID|(_QUERY_))_(,_(ID|(_QUERY_)))*)?/USING_(ID|(_QUERY_))_(,_(ID|(_QUERY_)))*!drop-1	DELETE FROM a a
+reject	undocumented	docs	delete(USING_(ID|(_QUERY_))_(,_(ID|(_QUERY_)))*)?/USING_(ID|(_QUERY_))_(,_(ID|(_QUERY_)))*!drop-2	DELETE FROM a USING
+accept	undocumented	docs	delete(USING_(ID|(_QUERY_))_(,_(ID|(_QUERY_)))*)?/USING_(ID|(_QUERY_))_(,_(ID|(_QUERY_)))*!insert	DELETE FROM a USING a zzz
+reject	undocumented	docs	delete(USING_(ID|(_QUERY_))_(,_(ID|(_QUERY_)))*)?/USING_(ID|(_QUERY_))_(,_(ID|(_QUERY_)))*!swap	DELETE FROM a UTF8 a
 accept	accept	docs	delete(ID|(_QUERY_))/ID	DELETE FROM a USING a
 accept	accept	docs	delete(ID|(_QUERY_))/(_QUERY_)	DELETE FROM a USING(SELECT 1)
 reject	undocumented	docs	delete(ID|(_QUERY_))/(_QUERY_)!drop-1	DELETE FROM a USING SELECT 1)
 reject	undocumented	docs	delete(ID|(_QUERY_))/(_QUERY_)!drop-2	DELETE FROM a USING()
 reject	undocumented	docs	delete(ID|(_QUERY_))/(_QUERY_)!drop-3	DELETE FROM a USING(SELECT 1
 accept	undocumented	docs	delete(ID|(_QUERY_))/(_QUERY_)!insert	DELETE FROM a USING(SELECT 1) zzz
-accept	accept	docs	delete(,_(ID|(_QUERY_)))?/%empty	DELETE FROM a USING a
-accept	accept	docs	delete(,_(ID|(_QUERY_)))?/,_(ID|(_QUERY_))	DELETE FROM a USING a, a
-accept	undocumented	docs	delete(,_(ID|(_QUERY_)))?/,_(ID|(_QUERY_))!drop-1	DELETE FROM a USING a a
-reject	undocumented	docs	delete(,_(ID|(_QUERY_)))?/,_(ID|(_QUERY_))!drop-2	DELETE FROM a USING a,
-accept	undocumented	docs	delete(,_(ID|(_QUERY_)))?/,_(ID|(_QUERY_))!insert	DELETE FROM a USING a, a zzz
+accept	accept	docs	delete(,_(ID|(_QUERY_)))*/%empty	DELETE FROM a USING a
+accept	accept	docs	delete(,_(ID|(_QUERY_)))*/,_(ID|(_QUERY_))_(,_(ID|(_QUERY_)))*	DELETE FROM a USING a, a
+accept	undocumented	docs	delete(,_(ID|(_QUERY_)))*/,_(ID|(_QUERY_))_(,_(ID|(_QUERY_)))*!drop-1	DELETE FROM a USING a a
+reject	undocumented	docs	delete(,_(ID|(_QUERY_)))*/,_(ID|(_QUERY_))_(,_(ID|(_QUERY_)))*!drop-2	DELETE FROM a USING a,
+accept	undocumented	docs	delete(,_(ID|(_QUERY_)))*/,_(ID|(_QUERY_))_(,_(ID|(_QUERY_)))*!insert	DELETE FROM a USING a, a zzz
 accept	accept	docs	delete(WHERE_EXPR)?/%empty	DELETE FROM a
 accept	accept	docs	delete(WHERE_EXPR)?/WHERE_EXPR	DELETE FROM a WHERE 1
 reject	undocumented	docs	delete(WHERE_EXPR)?/WHERE_EXPR!drop-1	DELETE FROM a 1

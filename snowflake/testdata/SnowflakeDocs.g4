@@ -3998,9 +3998,9 @@ createWarehouse_objectParams
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/delete
-// fix: USING takes tables or parenthesized subqueries, as the parameters say
+// fix: USING takes any number of tables or parenthesized subqueries, as the parameters say
 delete
-    : 'DELETE' 'FROM' ID ('USING' (ID | '(' QUERY ')') (',' (ID | '(' QUERY ')'))?)? ('WHERE' EXPR)?
+    : 'DELETE' 'FROM' ID ('USING' (ID | '(' QUERY ')') (',' (ID | '(' QUERY ')'))*)? ('WHERE' EXPR)?
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/desc
