@@ -40,13 +40,15 @@ func DorisVerdict(err error, message func(error) (string, bool)) (string, error)
 	if !ok {
 		return "", err
 	}
+	// The parsers' exceptions first: the ANTLR parser's echoes the
+	// statement after "== SQL ==", which may quote the refusal below.
 	switch {
-	case strings.Contains(msg, dorisInTransaction):
-		return Accept, nil
 	case dorisParseException.MatchString(msg),
 		strings.Contains(msg, "Syntax error in line "),
 		strings.Contains(msg, "sql parsing error, please check your sql"):
 		return Reject, nil
+	case strings.Contains(msg, dorisInTransaction):
+		return Accept, nil
 	}
 	return Accept, nil
 }

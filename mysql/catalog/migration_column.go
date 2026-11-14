@@ -256,6 +256,9 @@ func formatColumnDefinition(tbl *Table, c *Column, n *Normalizer) string {
 		if n.CanonicalNotNull(tbl, c) {
 			b.WriteString(" NOT NULL")
 		}
+		if c.NotSecondary {
+			b.WriteString(" NOT SECONDARY")
+		}
 		writeColumnComment(&b, c)
 		if c.Invisible {
 			b.WriteString(" /*!80023 INVISIBLE */")
@@ -271,6 +274,9 @@ func formatColumnDefinition(tbl *Table, c *Column, n *Normalizer) string {
 		b.WriteString(" NOT NULL")
 	} else if isTimestampType(c.DataType) {
 		b.WriteString(" NULL")
+	}
+	if c.NotSecondary {
+		b.WriteString(" NOT SECONDARY")
 	}
 
 	// SRID (spatial) — MySQL places it after NOT NULL, before DEFAULT. Emit on PRESENCE so

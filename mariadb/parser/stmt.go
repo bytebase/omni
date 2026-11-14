@@ -206,9 +206,6 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 	case kwSHUTDOWN:
 		return p.parseShutdownStmt()
 
-	case kwRESTART:
-		return p.parseRestartStmt()
-
 	case kwCLONE:
 		return p.parseCloneStmt()
 
@@ -277,8 +274,11 @@ func (p *Parser) parseStartDispatch() (nodes.Node, error) {
 	}
 
 	// Fall through to START TRANSACTION (parseBeginStmt expects p.cur is START or BEGIN)
-	// We already consumed START, so we need to handle TRANSACTION here
-	p.match(kwTRANSACTION)
+	// We already consumed START, so we need to handle TRANSACTION here. start:
+	// START_SYM TRANSACTION_SYM opt_start_transaction_option_list, TRANSACTION required.
+	if _, err := p.expect(kwTRANSACTION); err != nil {
+		return nil, err
+	}
 
 	// Completion: after START TRANSACTION, offer transaction characteristic keywords.
 	p.checkCursor()
@@ -544,14 +544,15 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 	case kwDEFINER:
 		// CREATE DEFINER=... {VIEW|FUNCTION|PROCEDURE|TRIGGER|EVENT}
 		// Parse DEFINER = user[@host] and propagate to sub-parsers.
-		definer := p.parseDefinerValue()
-		// Optional SQL SECURITY {DEFINER|INVOKER}
+		definer, err := p.parseDefinerValue()
+		if err != nil {
+			return nil, err
+		}
+		// Optional SQL SECURITY {DEFINER|INVOKER} (view_suid)
 		var sqlSecurity string
 		if p.cur.Type == kwSQL {
-			p.advance()
-			p.match(kwSECURITY)
-			if p.isIdentToken() {
-				sqlSecurity, _, _ = p.parseIdentifier()
+			if sqlSecurity, err = p.parseViewSQLSecurity(); err != nil {
+				return nil, err
 			}
 		}
 		// Now dispatch on the object keyword
@@ -658,8 +659,28 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 	// only immediately before TABLE and carries no AST state.
 	// Ref: MariaDB ALTER TABLE grammar, "ALTER [ONLINE] [IGNORE] TABLE ...";
 	// measured accept on MariaDB 11.8.8.
-	if p.cur.Type == kwIGNORE && p.peekNext().Type == kwTABLE {
-		p.advance() // consume IGNORE; fall through to the TABLE arm
+	// ALTER [ONLINE] [IGNORE] TABLE: alter_option_list, ONLINE and IGNORE in any
+	// order and number, before TABLE only.
+	// Ref: alter and alter_option_list in MariaDB 11.8 sql/sql_yacc.yy.
+	var online, ignore bool
+	for p.cur.Type == kwIGNORE || p.atBareWord("ONLINE") {
+		if p.cur.Type == kwIGNORE {
+			ignore = true
+		} else {
+			online = true
+		}
+		p.advance()
+		if p.cur.Type != kwIGNORE && !p.atBareWord("ONLINE") && p.cur.Type != kwTABLE {
+			return nil, p.syntaxErrorAtCur()
+		}
+	}
+	if online || ignore {
+		stmt, err := p.parseAlterTableStmt(start)
+		if err != nil {
+			return nil, err
+		}
+		stmt.Online, stmt.Ignore = online, ignore
+		return stmt, nil
 	}
 
 	switch p.cur.Type {
@@ -692,14 +713,15 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 	case kwDEFINER:
 		// ALTER DEFINER = user {VIEW|EVENT}
 		// Parse DEFINER = user[@host] and propagate to sub-parsers.
-		definer := p.parseDefinerValue()
-		// Optional SQL SECURITY {DEFINER|INVOKER}
+		definer, err := p.parseDefinerValue()
+		if err != nil {
+			return nil, err
+		}
+		// Optional SQL SECURITY {DEFINER|INVOKER} (view_suid)
 		var sqlSecurity string
 		if p.cur.Type == kwSQL {
-			p.advance()
-			p.match(kwSECURITY)
-			if p.isIdentToken() {
-				sqlSecurity, _, _ = p.parseIdentifier()
+			if sqlSecurity, err = p.parseViewSQLSecurity(); err != nil {
+				return nil, err
 			}
 		}
 		switch p.cur.Type {
@@ -833,37 +855,52 @@ func (p *Parser) parseDropDispatch() (nodes.Node, error) {
 // definer string. Handles: 'user'@'host', user@host, CURRENT_USER, CURRENT_USER().
 // The current token must be DEFINER; on return, the current token is the one
 // after the definer clause.
-func (p *Parser) parseDefinerValue() string {
+//
+// definer: DEFINER_SYM '=' user_or_role (MariaDB 11.8 sql/sql_yacc.yy), so `=` and the
+// user are required; CURRENT_USER and CURRENT_ROLE take optional_braces.
+func (p *Parser) parseDefinerValue() (string, error) {
 	p.advance() // consume DEFINER
-	p.match('=')
+	if _, err := p.expect('='); err != nil {
+		return "", err
+	}
 
 	// Completion: after DEFINER=, offer CURRENT_USER keyword.
 	p.checkCursor()
 	if p.collectMode() {
 		p.addTokenCandidate(kwCURRENT_USER)
-		return ""
+		return "", &ParseError{Message: "collecting"}
 	}
 
-	// Parse user part: identifier, string literal, or CURRENT_USER
+	// Parse user part: identifier, string literal, CURRENT_USER or CURRENT_ROLE
 	var user string
 	isCurUser := p.cur.Type == kwCURRENT_USER
+	// CURRENT_ROLE is a reserved word; a backquoted `CURRENT_ROLE` is a name.
+	isCurRole := p.cur.Type == kwCURRENT_ROLE
 	if p.cur.Type == tokSCONST {
 		user = "'" + p.cur.Str + "'"
 		p.advance()
 	} else if isCurUser {
 		user = "CURRENT_USER"
 		p.advance()
+	} else if isCurRole {
+		user = "CURRENT_ROLE"
+		p.advance()
 	} else if p.isIdentToken() {
 		user, _, _ = p.parseIdentifier()
 	} else {
-		return ""
+		return "", p.syntaxErrorAtCur()
 	}
 
-	// Handle CURRENT_USER()
-	if isCurUser && p.cur.Type == '(' {
+	// Handle CURRENT_USER() and CURRENT_ROLE()
+	if (isCurUser || isCurRole) && p.cur.Type == '(' {
 		p.advance() // consume (
-		p.match(')')
-		return "CURRENT_USER()"
+		if _, err := p.expect(')'); err != nil {
+			return "", err
+		}
+		return user + "()", nil
+	}
+	if isCurRole {
+		return user, nil
 	}
 
 	// Handle @host: the lexer scans @host as a single tokIDENT with Str="@host",
@@ -881,12 +918,12 @@ func (p *Parser) parseDefinerValue() string {
 			} else if p.isIdentToken() {
 				host, _, _ = p.parseIdentifier()
 			}
-			return user + "@" + host
+			return user + "@" + host, nil
 		}
 		// @host as single token: strip @ prefix
 		host := atHost[1:]
-		return user + "@" + host
+		return user + "@" + host, nil
 	}
 
-	return user
+	return user, nil
 }

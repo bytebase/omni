@@ -15740,3 +15740,174 @@
 : string
 | CREATE TABLE t (a DATE) PARTITION BY LIST (YEAR(a)) (PARTITION p VALUES IN (microsecond('10:00:00')))
 < ok 0 0
+> exec ^
+: string
+| DROP TABLE t, t
+< error
+| 1066 42000 Not unique table/alias: 't'
+> exec ^
+: string
+| DROP TABLE t, t
+| ; SELECT FROM
+< error
+| 1066 42000 Not unique table/alias: 't'
+> exec ^
+: string
+| DROP TABLE IF EXISTS t, t
+< error
+| 1066 42000 Not unique table/alias: 't'
+> exec ^
+: string
+| DROP TABLE IF EXISTS t, t
+| ; SELECT FROM
+< error
+| 1066 42000 Not unique table/alias: 't'
+> exec ^
+: string
+| DROP TABLE t, T
+< ok 0 0
+> exec ^
+: string
+| DROP TABLE x.t, x.t
+< error
+| 1066 42000 Not unique table/alias: 't'
+> exec ^
+: string
+| DROP TABLE x.t, x.t
+| ; SELECT FROM
+< error
+| 1066 42000 Not unique table/alias: 't'
+> exec ^
+: string
+| DROP TABLE t, x.t
+< ok 0 0
+> exec ^
+: string
+| DROP VIEW v, v
+< error
+| 1066 42000 Not unique table/alias: 'v'
+> exec ^
+: string
+| DROP VIEW v, v
+| ; SELECT FROM
+< error
+| 1066 42000 Not unique table/alias: 'v'
+> exec ^
+: string
+| CHECKSUM TABLE t, t
+< error
+| 1066 42000 Not unique table/alias: 't'
+> exec ^
+: string
+| CHECKSUM TABLE t, t
+| ; SELECT FROM
+< error
+| 1066 42000 Not unique table/alias: 't'
+> exec ^
+: string
+| FLUSH TABLES t, t
+< error
+| 1066 42000 Not unique table/alias: 't'
+> exec ^
+: string
+| FLUSH TABLES t, t
+| ; SELECT FROM
+< error
+| 1066 42000 Not unique table/alias: 't'
+> exec ^
+: string
+| CHECK TABLE t, t
+< error
+| 1066 42000 Not unique table/alias: 't'
+> exec ^
+: string
+| CHECK TABLE t, t
+| ; SELECT FROM
+< error
+| 1064 42000 …near 'SELECT FROM' at line 2
+> exec ^
+: string
+| ANALYZE TABLE t, t
+< error
+| 1066 42000 Not unique table/alias: 't'
+> exec ^
+: string
+| ANALYZE TABLE t, t
+| ; SELECT FROM
+< error
+| 1064 42000 …near 'SELECT FROM' at line 2
+> exec ^
+: string
+| CACHE INDEX t, t IN c
+< error
+| 1066 42000 Not unique table/alias: 't'
+> exec ^
+: string
+| CACHE INDEX t, t IN c
+| ; SELECT FROM
+< error
+| 1064 42000 …near 'SELECT FROM' at line 2
+> exec ^
+: string
+| WITH a AS (SELECT 1), a AS (SELECT 2) SELECT 1
+< error
+| 1066 42000 Not unique table/alias: 'a'
+> exec ^
+: string
+| WITH a AS (SELECT 1), a AS (SELECT 2) SELECT 1
+| ; SELECT FROM
+< error
+| 1066 42000 Not unique table/alias: 'a'
+> exec ^
+: string
+| WITH a AS (SELECT 1), A AS (SELECT 2) SELECT 1
+< ok 0 0
+> exec ^
+: string
+| WITH a AS (SELECT 1) SELECT * FROM (WITH a AS (SELECT 2) SELECT 1) d
+< ok 0 0
+> exec ^
+: string
+| CREATE SQL SECURITY u VIEW v AS SELECT 1
+< error
+| 1064 42000 …near 'u VIEW v AS SELECT 1' at line 1
+> exec ^
+: string
+| CREATE ALGORITHM = MERGE SQL SECURITY u VIEW v AS SELECT 1
+< error
+| 1064 42000 …near 'u VIEW v AS SELECT 1' at line 1
+> exec ^
+: string
+| ALTER SQL SECURITY u VIEW v AS SELECT 1
+< error
+| 1064 42000 …near 'u VIEW v AS SELECT 1' at line 1
+> exec ^
+: string
+| CREATE SQL INVOKER VIEW v AS SELECT 1
+< error
+| 1064 42000 …near 'INVOKER VIEW v AS SELECT 1' at line 1
+> exec ^
+: string
+| CREATE SQL SECURITY INVOKER VIEW v AS SELECT 1
+< ok 0 0
+> exec ^
+: string
+| ALTER SQL SECURITY DEFINER VIEW v AS SELECT 1
+< error
+| 1295 HY000 This command is not supported in the prepared statement protocol yet
+> exec ^
+: string
+| ALTER SQL SECURITY DEFINER VIEW v AS SELECT 1
+| ; SELECT FROM
+< error
+| 1064 42000 …near 'SELECT FROM' at line 2
+> exec ^
+: string
+| CREATE DEFINER = CURRENT_USER( VIEW v AS SELECT 1
+< error
+| 1064 42000 …near 'VIEW v AS SELECT 1' at line 1
+> exec ^
+: string
+| CREATE DEFINER = u SQL SECURITY u VIEW v AS SELECT 1
+< error
+| 1064 42000 …near 'u VIEW v AS SELECT 1' at line 1

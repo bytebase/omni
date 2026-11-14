@@ -120,6 +120,9 @@ func validatePartitionBound(part *nodes.PartitionClause, def *nodes.PartitionDef
 		if !ok || part.Type != nodes.PartitionList {
 			return nil
 		}
+		if refersColumn(list) {
+			return nil // 1054 answers first, past parsing
+		}
 		_, tuples := list.Items[0].(*nodes.List)
 		if columns <= 1 && tuples {
 			return refuse("Row expressions in VALUES IN only allowed for multi-field column partitioning")
@@ -140,6 +143,64 @@ func holdsRow(items []nodes.Node) bool {
 		}
 	}
 	return false
+}
+
+// checkPartitionInValues walks VALUES IN's values in order, as the server checks
+// them after parsing, and answers the first of two refusals: MAXVALUE, which a list
+// partition cannot hold (1064), or a column, which no partition value may name (1054,
+// past parsing). It reports whether a column came first, in which case no later check
+// on the values, such as a row of one, is reached.
+//
+// Ref: PT_part_values_in_list::contextualize in MySQL 8.0 sql/parse_tree_partitions.cc.
+func checkPartitionInValues(items []nodes.Node, pos int) (bool, error) {
+	for _, item := range items {
+		values := []nodes.Node{item}
+		if row, ok := item.(*nodes.List); ok {
+			values = row.Items
+		}
+		for _, v := range values {
+			if s, ok := v.(*nodes.String); ok && s.Str == "MAXVALUE" {
+				return false, &ParseError{Message: "Cannot use MAXVALUE as value in VALUES IN", Position: pos}
+			}
+			if refersColumn(v) {
+				return true, nil
+			}
+		}
+	}
+	return false, nil
+}
+
+// refersColumn reports whether a value names a column anywhere in it. It keeps
+// its own stack, since it runs before the parser measures the tree's height and a
+// long chain of terms would otherwise overflow the Go stack.
+func refersColumn(n nodes.Node) bool {
+	stack := []nodes.Node{n}
+	for len(stack) > 0 {
+		top := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		if _, ok := top.(*nodes.ColumnRef); ok {
+			return true
+		}
+		nodes.Walk(childCollector{root: top, out: &stack}, top)
+	}
+	return false
+}
+
+// childCollector gathers a node's children onto out without walking below them.
+type childCollector struct {
+	root nodes.Node
+	out  *[]nodes.Node
+}
+
+func (c childCollector) Visit(n nodes.Node) nodes.Visitor {
+	if n == nil {
+		return nil
+	}
+	if n == c.root {
+		return c
+	}
+	*c.out = append(*c.out, n)
+	return nil
 }
 
 // validatePartitionInRows is part_values_in: VALUES IN takes values, of which a later

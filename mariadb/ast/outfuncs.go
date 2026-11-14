@@ -135,8 +135,6 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeChecksumTableStmt(sb, n)
 	case *ShutdownStmt:
 		writeShutdownStmt(sb, n)
-	case *RestartStmt:
-		writeRestartStmt(sb, n)
 	case *AlterDatabaseStmt:
 		writeAlterDatabaseStmt(sb, n)
 	case *DropDatabaseStmt:
@@ -287,6 +285,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeForUpdate(sb, n)
 	case *IntoClause:
 		writeIntoClause(sb, n)
+	case *ProcedureClause:
+		writeProcedureClause(sb, n)
 	case *RenameTablePair:
 		writeRenameTablePair(sb, n)
 	case *LockTable:
@@ -452,7 +452,11 @@ func writeNode(sb *strings.Builder, node Node) {
 	case *ImportTableStmt:
 		writeImportTableStmt(sb, n)
 	case *BinlogStmt:
-		fmt.Fprintf(sb, "{BINLOG :loc %d :str %q}", n.Loc.Start, n.Str)
+		if len(n.Fragments) > 0 {
+			fmt.Fprintf(sb, "{BINLOG :loc %d :fragments %q}", n.Loc.Start, n.Fragments)
+		} else {
+			fmt.Fprintf(sb, "{BINLOG :loc %d :str %q}", n.Loc.Start, n.Str)
+		}
 	case *CacheIndexStmt:
 		writeCacheIndexStmt(sb, n)
 	case *LoadIndexIntoCacheStmt:
@@ -593,6 +597,10 @@ func writeSelectStmt(sb *strings.Builder, n *SelectStmt) {
 	if n.Into != nil {
 		sb.WriteString(" :into ")
 		writeNode(sb, n.Into)
+	}
+	if n.Procedure != nil {
+		sb.WriteString(" :procedure ")
+		writeNode(sb, n.Procedure)
 	}
 	if n.SetOp != SetOpNone {
 		sb.WriteString(" :set_op ")
@@ -878,6 +886,15 @@ func writeCreateTableStmt(sb *strings.Builder, n *CreateTableStmt) {
 func writeAlterTableStmt(sb *strings.Builder, n *AlterTableStmt) {
 	sb.WriteString("{ALTER_TABLE")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Online {
+		sb.WriteString(" :online true")
+	}
+	if n.Ignore {
+		sb.WriteString(" :ignore true")
+	}
+	if n.IfExists {
+		sb.WriteString(" :if_exists true")
+	}
 	if n.Table != nil {
 		sb.WriteString(" :table ")
 		writeNode(sb, n.Table)
@@ -1051,6 +1068,12 @@ func writeTruncateStmt(sb *strings.Builder, n *TruncateStmt) {
 			writeNode(sb, t)
 		}
 	}
+	if n.NoWait {
+		sb.WriteString(" :nowait true")
+	}
+	if n.HasWait {
+		fmt.Fprintf(sb, " :wait %s", n.WaitSeconds)
+	}
 	sb.WriteString("}")
 }
 
@@ -1158,6 +1181,9 @@ func writeShowStmt(sb *strings.Builder, n *ShowStmt) {
 		sb.WriteString(" :for_query ")
 		writeNode(sb, n.ForQuery)
 	}
+	if n.Format != "" {
+		fmt.Fprintf(sb, " :format %s", n.Format)
+	}
 	if n.ForUser != nil {
 		sb.WriteString(" :for_user ")
 		writeNode(sb, n.ForUser)
@@ -1205,6 +1231,9 @@ func writeExplainStmt(sb *strings.Builder, n *ExplainStmt) {
 	if n.Extended {
 		sb.WriteString(" :extended true")
 	}
+	if n.ExtendedAll {
+		sb.WriteString(" :extended_all true")
+	}
 	if n.Partitions {
 		sb.WriteString(" :partitions true")
 	}
@@ -1213,6 +1242,10 @@ func writeExplainStmt(sb *strings.Builder, n *ExplainStmt) {
 	}
 	if n.ForConnection != 0 {
 		fmt.Fprintf(sb, " :for_connection %d", n.ForConnection)
+	}
+	if n.Connection != nil {
+		sb.WriteString(" :connection ")
+		writeNode(sb, n.Connection)
 	}
 	if n.Stmt != nil {
 		sb.WriteString(" :stmt ")
@@ -1549,6 +1582,9 @@ func writeCreateRoleStmt(sb *strings.Builder, n *CreateRoleStmt) {
 	if len(n.Roles) > 0 {
 		fmt.Fprintf(sb, " :roles %s", strings.Join(n.Roles, ", "))
 	}
+	if n.Admin != "" {
+		fmt.Fprintf(sb, " :admin %s", n.Admin)
+	}
 	sb.WriteString("}")
 }
 
@@ -1623,6 +1659,9 @@ func writeRevokeRoleStmt(sb *strings.Builder, n *RevokeRoleStmt) {
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
 	if n.IfExists {
 		sb.WriteString(" :if_exists true")
+	}
+	if n.AdminOption {
+		sb.WriteString(" :admin_option true")
 	}
 	if len(n.Roles) > 0 {
 		fmt.Fprintf(sb, " :roles %s", strings.Join(n.Roles, ", "))
@@ -2074,17 +2113,14 @@ func writeShutdownStmt(sb *strings.Builder, n *ShutdownStmt) {
 	sb.WriteString("}")
 }
 
-func writeRestartStmt(sb *strings.Builder, n *RestartStmt) {
-	sb.WriteString("{RESTART")
-	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
-	sb.WriteString("}")
-}
-
 func writeAlterDatabaseStmt(sb *strings.Builder, n *AlterDatabaseStmt) {
 	sb.WriteString("{ALTER_DATABASE")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
 	if n.Name != "" {
 		fmt.Fprintf(sb, " :name %s", n.Name)
+	}
+	if n.UpgradeDataDirectoryName {
+		sb.WriteString(" :upgrade_data_directory_name true")
 	}
 	if len(n.Options) > 0 {
 		sb.WriteString(" :options ")
@@ -2286,6 +2322,9 @@ func writeFuncCallExpr(sb *strings.Builder, n *FuncCallExpr) {
 	if n.Schema != "" {
 		fmt.Fprintf(sb, " :schema %s", n.Schema)
 	}
+	if n.Package != "" {
+		fmt.Fprintf(sb, " :package %s", n.Package)
+	}
 	if q := n.Quantifier.String(); q != "" {
 		fmt.Fprintf(sb, " :quantifier %s", q)
 	}
@@ -2295,11 +2334,34 @@ func writeFuncCallExpr(sb *strings.Builder, n *FuncCallExpr) {
 	if n.Using != "" {
 		fmt.Fprintf(sb, " :using %s", n.Using)
 	}
+	if n.WeightAs != "" {
+		fmt.Fprintf(sb, " :weight_as %s(%d)", n.WeightAs, n.WeightAsLen)
+	}
+	if n.WeightLevels != "" {
+		fmt.Fprintf(sb, " :weight_levels %q", n.WeightLevels)
+	}
 	if len(n.Args) > 0 {
 		sb.WriteString(" :args ")
 		writeExprNodeList(sb, n.Args)
 	}
+	if len(n.ArgTypes) > 0 {
+		sb.WriteString(" :arg_types (")
+		for i, dt := range n.ArgTypes {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			if dt == nil {
+				sb.WriteString("<>")
+				continue
+			}
+			writeNode(sb, dt)
+		}
+		sb.WriteString(")")
+	}
 	if len(n.OrderBy) > 0 {
+		if n.WithinGroup {
+			sb.WriteString(" :within_group true")
+		}
 		sb.WriteString(" :order_by ")
 		writeOrderByList(sb, n.OrderBy)
 	}
@@ -2699,6 +2761,12 @@ func writeLimit(sb *strings.Builder, n *Limit) {
 	if n.Offset != nil {
 		sb.WriteString(" :offset ")
 		writeNode(sb, n.Offset)
+	}
+	if n.Fetch {
+		sb.WriteString(" :fetch true")
+	}
+	if n.WithTies {
+		sb.WriteString(" :with_ties true")
 	}
 	sb.WriteString("}")
 }
@@ -3271,6 +3339,16 @@ func writeForUpdate(sb *strings.Builder, n *ForUpdate) {
 	sb.WriteString("}")
 }
 
+func writeProcedureClause(sb *strings.Builder, n *ProcedureClause) {
+	sb.WriteString("{PROCEDURE")
+	fmt.Fprintf(sb, " :name %s :loc %d", n.Name, n.Loc.Start)
+	if len(n.Args) > 0 {
+		sb.WriteString(" :args ")
+		writeExprNodeList(sb, n.Args)
+	}
+	sb.WriteString("}")
+}
+
 func writeIntoClause(sb *strings.Builder, n *IntoClause) {
 	sb.WriteString("{INTO")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
@@ -3391,6 +3469,9 @@ func writeResourceOption(sb *strings.Builder, n *ResourceOption) {
 	if n.HasMaxUserConn {
 		fmt.Fprintf(sb, " :max_user_connections %d", n.MaxUserConnections)
 	}
+	if n.HasMaxStatementTime {
+		fmt.Fprintf(sb, " :max_statement_time %s", n.MaxStatementTime)
+	}
 	sb.WriteString("}")
 }
 
@@ -3442,6 +3523,16 @@ func writeUserSpec(sb *strings.Builder, n *UserSpec) {
 	}
 	if n.InitialAuthRandom {
 		sb.WriteString(" :initial_auth_random true")
+	}
+	if len(n.AuthAlternatives) > 0 {
+		sb.WriteString(" :auth_alternatives (")
+		for i, alt := range n.AuthAlternatives {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, alt)
+		}
+		sb.WriteString(")")
 	}
 	sb.WriteString("}")
 }

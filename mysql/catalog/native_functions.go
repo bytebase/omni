@@ -1,0 +1,76 @@
+package catalog
+
+import "strings"
+
+// nativeFunctions are the functions MySQL 8.0.46 builds through its native
+// function table, func_array in sql/item_create.cc: a generic call to one is no
+// stored function. A function the grammar gives a production of its own (IF,
+// LEFT, CHAR and the like) is not here.
+var nativeFunctions = func() map[string]bool {
+	m := map[string]bool{}
+	for _, name := range strings.Fields(`
+abs acos addtime aes_decrypt aes_encrypt any_value asin atan atan2 benchmark bin
+bin_to_uuid bit_count bit_length can_access_column can_access_database can_access_event
+can_access_resource_group can_access_routine can_access_table can_access_trigger
+can_access_user can_access_view ceil ceiling char_length character_length coercibility
+compress concat concat_ws connection_id conv convert_cpu_id_mask
+convert_interval_to_user_interval convert_tz cos cot crc32 current_role date_format
+datediff dayname dayofmonth dayofweek dayofyear degrees elt exp export_set extractvalue
+field find_in_set floor format_bytes format_pico_time found_rows from_base64 from_days
+from_unixtime get_dd_column_privileges get_dd_create_options get_dd_index_private_data
+get_dd_index_sub_part_length get_dd_property_key_value get_dd_schema_options
+get_dd_tablespace_private_data get_lock greatest gtid_subset gtid_subtract hex icu_version
+ifnull inet6_aton inet6_ntoa inet_aton inet_ntoa instr internal_auto_increment
+internal_avg_row_length internal_check_time internal_checksum internal_data_free
+internal_data_length internal_dd_char_length internal_get_comment_or_error
+internal_get_dd_column_extra internal_get_enabled_role_json internal_get_hostname
+internal_get_mandatory_roles_json internal_get_partition_nodegroup internal_get_username
+internal_get_view_warning_or_error internal_index_column_cardinality internal_index_length
+internal_is_enabled_role internal_is_mandatory_role internal_keys_disabled
+internal_max_data_length internal_table_rows internal_tablespace_autoextend_size
+internal_tablespace_data_free internal_tablespace_extent_size internal_tablespace_extra
+internal_tablespace_free_extents internal_tablespace_id internal_tablespace_initial_size
+internal_tablespace_logfile_group_name internal_tablespace_logfile_group_number
+internal_tablespace_maximum_size internal_tablespace_row_format internal_tablespace_status
+internal_tablespace_total_extents internal_tablespace_type internal_tablespace_version
+internal_update_time is_free_lock is_ipv4 is_ipv4_compat is_ipv4_mapped is_ipv6
+is_used_lock is_uuid is_visible_dd_object isnull json_array json_array_append
+json_array_insert json_contains json_contains_path json_depth json_extract json_insert
+json_keys json_length json_merge json_merge_patch json_merge_preserve json_object
+json_overlaps json_pretty json_quote json_remove json_replace json_schema_valid
+json_schema_validation_report json_search json_set json_storage_free json_storage_size
+json_type json_unquote json_valid last_day last_insert_id lcase least length
+like_range_max like_range_min ln load_file locate log log10 log2 lower lpad ltrim make_set
+makedate maketime master_pos_wait mbrcontains mbrcoveredby mbrcovers mbrdisjoint mbrequals
+mbrintersects mbroverlaps mbrtouches mbrwithin md5 monthname name_const nullif oct
+octet_length ord period_add period_diff pi pow power ps_current_thread_id ps_thread_id
+quote radians rand random_bytes regexp_instr regexp_like regexp_replace regexp_substr
+release_all_locks release_lock remove_dd_property_key reverse roles_graphml round rpad
+rtrim sec_to_time sha sha1 sha2 sign sin sleep soundex source_pos_wait space sqrt st_area
+st_asbinary st_asgeojson st_astext st_aswkb st_aswkt st_buffer st_buffer_strategy
+st_centroid st_contains st_convexhull st_crosses st_difference st_dimension st_disjoint
+st_distance st_distance_sphere st_endpoint st_envelope st_equals st_exteriorring
+st_frechetdistance st_geohash st_geomcollfromtext st_geomcollfromtxt st_geomcollfromwkb
+st_geometrycollectionfromtext st_geometrycollectionfromwkb st_geometryfromtext
+st_geometryfromwkb st_geometryn st_geometrytype st_geomfromgeojson st_geomfromtext
+st_geomfromwkb st_hausdorffdistance st_interiorringn st_intersection st_intersects
+st_isclosed st_isempty st_issimple st_isvalid st_latfromgeohash st_latitude st_length
+st_linefromtext st_linefromwkb st_lineinterpolatepoint st_lineinterpolatepoints
+st_linestringfromtext st_linestringfromwkb st_longfromgeohash st_longitude st_makeenvelope
+st_mlinefromtext st_mlinefromwkb st_mpointfromtext st_mpointfromwkb st_mpolyfromtext
+st_mpolyfromwkb st_multilinestringfromtext st_multilinestringfromwkb st_multipointfromtext
+st_multipointfromwkb st_multipolygonfromtext st_multipolygonfromwkb st_numgeometries
+st_numinteriorring st_numinteriorrings st_numpoints st_overlaps st_pointatdistance
+st_pointfromgeohash st_pointfromtext st_pointfromwkb st_pointn st_polyfromtext
+st_polyfromwkb st_polygonfromtext st_polygonfromwkb st_simplify st_srid st_startpoint
+st_swapxy st_symdifference st_touches st_transform st_union st_validate st_within st_x
+st_y statement_digest statement_digest_text str_to_date strcmp substring_index subtime tan
+time_format time_to_sec timediff to_base64 to_days to_seconds ucase uncompress
+uncompressed_length unhex unix_timestamp updatexml upper uuid uuid_short uuid_to_bin
+validate_password_strength version wait_for_executed_gtid_set
+wait_until_sql_thread_after_gtids weekday weekofyear yearweek
+`) {
+		m[name] = true
+	}
+	return m
+}()

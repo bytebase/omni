@@ -163,10 +163,11 @@ func (p *Parser) parseIndexKeyPart() (*nodes.IndexColumn, error) {
 		// Ref: key_part in MySQL 8.0 sql/sql_yacc.yy.
 		if p.cur.Type == '(' {
 			p.advance()
-			if p.cur.isNum() {
-				col.Length = int(p.cur.Ival)
-				p.advance()
+			if !p.cur.isNum() {
+				return nil, p.syntaxErrorAtCur()
 			}
+			col.Length = int(p.cur.Ival)
+			p.advance()
 			if _, err := p.expect(')'); err != nil {
 				return nil, err
 			}
@@ -323,8 +324,10 @@ func (p *Parser) parseIndexOption() (*nodes.IndexOption, bool, error) {
 		p.advance()
 		p.matchEqual()
 		if p.cur.Type == tokSCONST {
-			val := p.cur.Str
-			p.advance()
+			val, err := p.consumeJSONAttribute()
+			if err != nil {
+				return nil, false, err
+			}
 			return &nodes.IndexOption{
 				Loc:   nodes.Loc{Start: start, End: p.prev.End},
 				Name:  "ENGINE_ATTRIBUTE",
@@ -337,8 +340,10 @@ func (p *Parser) parseIndexOption() (*nodes.IndexOption, bool, error) {
 		p.advance()
 		p.matchEqual()
 		if p.cur.Type == tokSCONST {
-			val := p.cur.Str
-			p.advance()
+			val, err := p.consumeJSONAttribute()
+			if err != nil {
+				return nil, false, err
+			}
 			return &nodes.IndexOption{
 				Loc:   nodes.Loc{Start: start, End: p.prev.End},
 				Name:  "SECONDARY_ENGINE_ATTRIBUTE",

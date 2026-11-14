@@ -28,6 +28,7 @@ type SelectStmt struct {
 	ForUpdate         *ForUpdate         // FOR UPDATE / SHARE
 	WindowClause      []*WindowDef       // WINDOW clause
 	Into              *IntoClause        // INTO clause
+	Procedure         *ProcedureClause   // PROCEDURE name(args), in INTO's place (opt_procedure_or_into)
 	SetOp             SetOperation       // UNION / INTERSECT / EXCEPT
 	SetAll            bool               // ALL modifier for set operations
 	Left              *SelectStmt        // left side of set operation
@@ -232,6 +233,11 @@ type AlterTableStmt struct {
 	Loc      Loc
 	Table    *TableRef
 	Commands []*AlterTableCmd
+	// Online and Ignore record ALTER [ONLINE] [IGNORE] TABLE's alter_option_list.
+	Online bool
+	Ignore bool
+	// IfExists is ALTER TABLE IF EXISTS: a missing table is a note, not an error.
+	IfExists bool
 }
 
 func (s *AlterTableStmt) nodeTag()  {}
@@ -455,6 +461,11 @@ func (o *DatabaseOption) nodeTag() {}
 type TruncateStmt struct {
 	Loc    Loc
 	Tables []*TableRef
+	// NoWait, HasWait and WaitSeconds are the [WAIT n | NOWAIT] after the table, of
+	// which there is at most one. WaitSeconds keeps the literal as written.
+	NoWait      bool
+	HasWait     bool
+	WaitSeconds string
 }
 
 func (s *TruncateStmt) nodeTag()  {}
@@ -636,6 +647,11 @@ type TableOption struct {
 	Name    string
 	Value   string
 	Storage string // TABLESPACE ... STORAGE {DISK|MEMORY}
+	// EngineDefined marks an engine_defined_option, `name = value`, whose name the
+	// engine checks when the statement runs; StringValue records that its value
+	// was a quoted string.
+	EngineDefined bool
+	StringValue   bool
 }
 
 func (o *TableOption) nodeTag() {}
@@ -795,9 +811,20 @@ type FuncCallExpr struct {
 	// RawName is the name as it was written, where Name is upper-cased for
 	// comparison against the built-ins. A stored routine keeps the spelling it
 	// was declared with, which a qualified call is written back with.
-	RawName    string
-	Schema     string // schema-qualified name
-	Args       []ExprNode
+	RawName string
+	Schema  string // schema-qualified name
+	// Package is the middle part of a three-part name, db.package.routine(),
+	// which calls a routine of a stored package (MariaDB's function_call_generic
+	// arm ident_cli '.' ident_cli '.' ident_cli '(' opt_expr_list ')'). Schema
+	// then holds the database and RawName the routine, each as written.
+	Package string
+	Args    []ExprNode
+	// ArgTypes holds the `AS type` MariaDB's dynamic column functions write
+	// after an argument: a value's type in COLUMN_CREATE and COLUMN_ADD
+	// (opt_dyncol_type) and the result's type in COLUMN_GET (cast_type). It is
+	// as long as Args, nil where no type is written, and empty for every other
+	// call.
+	ArgTypes   []*DataType
 	Quantifier AggQuantifier // COUNT(DISTINCT ...), SUM(ALL ...)
 	Star       bool          // COUNT(*)
 	HasParens  bool          // true if explicit parentheses were written (e.g., NOW() vs CURRENT_TIMESTAMP)
@@ -810,6 +837,9 @@ type FuncCallExpr struct {
 	// there.
 	SpacedParen bool
 	OrderBy     []*OrderByItem
+	// WithinGroup marks PERCENTILE_CONT and PERCENTILE_DISC's
+	// WITHIN GROUP (ORDER BY ...) clause, whose one item OrderBy holds.
+	WithinGroup bool
 	Over        *WindowDef // OVER clause for window functions
 	Separator   ExprNode   // GROUP_CONCAT SEPARATOR value (nil = not specified)
 	Using       string     // CHAR(n, ... USING charset_name): the character set as written ("" = no USING)
@@ -818,6 +848,9 @@ type FuncCallExpr struct {
 	// written, else "CHAR" or "BINARY"; WeightAsLen holds its length (n).
 	WeightAs    string
 	WeightAsLen uint64
+	// WeightLevels is WEIGHT_STRING's LEVEL clause after LEVEL, "" when none:
+	// `1 DESC REVERSE, 2` or `1 - 3`.
+	WeightLevels string
 }
 
 // AggQuantifier is the prefix an aggregate's argument list carries. It is the
@@ -1211,6 +1244,15 @@ type Limit struct {
 	// opposite positions, so deparse must reproduce the original form to keep
 	// the positional binding order. False when there is no offset.
 	OffsetKeyword bool
+	// Fetch marks the SQL standard spelling MariaDB takes in LIMIT's place
+	// (fetch_first_clause): [OFFSET offset {ROW | ROWS}] FETCH {FIRST | NEXT}
+	// [count] {ROW | ROWS} {ONLY | WITH TIES}, or the OFFSET part alone.
+	// Count is an IntLit 1 at Loc -1 when FETCH leaves the count out, and nil
+	// when there is no FETCH.
+	Fetch bool
+	// WithTies is FETCH's WITH TIES, which keeps the rows that tie with the
+	// last one in the ORDER BY.
+	WithTies bool
 }
 
 func (l *Limit) nodeTag() {}
@@ -1330,6 +1372,16 @@ const (
 	BoundUnboundedFollowing
 )
 
+// ProcedureClause is a SELECT statement's PROCEDURE name(args), which hands
+// the result to a server procedure such as ANALYSE (MariaDB's procedure_clause).
+type ProcedureClause struct {
+	Loc  Loc
+	Name string
+	Args []ExprNode
+}
+
+func (c *ProcedureClause) nodeTag() {}
+
 // IntoClause represents a SELECT ... INTO clause.
 type IntoClause struct {
 	Loc                Loc
@@ -1437,7 +1489,8 @@ type ShowStmt struct {
 	Where        ExprNode
 	IfNotExists  bool        // SHOW CREATE DATABASE IF NOT EXISTS
 	ProfileTypes []string    // SHOW PROFILE type list (CPU, BLOCK IO, etc.)
-	ForQuery     ExprNode    // SHOW PROFILE FOR QUERY n
+	ForQuery     ExprNode    // SHOW PROFILE FOR QUERY n, SHOW {EXPLAIN | ANALYZE} FOR connection
+	Format       string      // SHOW {EXPLAIN | ANALYZE} FORMAT = format
 	ForUser      *UserSpec   // SHOW GRANTS FOR user
 	Using        []*UserSpec // SHOW GRANTS ... USING role [, role]
 	FromPos      ExprNode    // SHOW BINLOG/RELAYLOG EVENTS FROM pos
@@ -1471,9 +1524,14 @@ type ExplainStmt struct {
 	Format        string // any ident_or_text: JSON, TRADITIONAL, quoted or not
 	Analyze       bool   // EXPLAIN ANALYZE: no MariaDB syntax sets this
 	Extended      bool   // EXPLAIN EXTENDED
+	ExtendedAll   bool   // EXPLAIN EXTENDED ALL, which sets Extended too
 	Partitions    bool   // EXPLAIN PARTITIONS
 	ForConnection int64  // EXPLAIN FOR CONNECTION connection_id
-	Stmt          StmtNode
+	// Connection is the expression FOR CONNECTION reads, which MariaDB takes
+	// whole (explain_for_connection: FOR_SYM CONNECTION_SYM expr). ForConnection
+	// holds its value when it is an integer literal.
+	Connection ExprNode
+	Stmt       StmtNode
 }
 
 func (s *ExplainStmt) nodeTag()  {}
@@ -1571,6 +1629,9 @@ type ResourceOption struct {
 	HasMaxUpdates         bool
 	HasMaxConnections     bool
 	HasMaxUserConn        bool
+	// MaxStatementTime is MariaDB's MAX_STATEMENT_TIME, a number of seconds as written.
+	MaxStatementTime    string
+	HasMaxStatementTime bool
 }
 
 func (r *ResourceOption) nodeTag() {}
@@ -1737,6 +1798,9 @@ type UserSpec struct {
 	InitialAuthPlugin     string      // INITIAL AUTHENTICATION IDENTIFIED WITH plugin
 	InitialAuthString     string      // INITIAL AUTHENTICATION ... AS/BY 'auth_string'
 	InitialAuthRandom     bool        // INITIAL AUTHENTICATION IDENTIFIED BY RANDOM PASSWORD
+	// AuthAlternatives are the plugins after the first of MariaDB's `IDENTIFIED VIA p1 OR
+	// p2 ...`, each with its AuthPlugin and its AuthHash or Password.
+	AuthAlternatives []*UserSpec
 }
 
 func (u *UserSpec) nodeTag() {}
@@ -1747,6 +1811,7 @@ type CreateRoleStmt struct {
 	OrReplace   bool // CREATE OR REPLACE ROLE: drops an existing role first
 	IfNotExists bool
 	Roles       []string
+	Admin       string // WITH ADMIN user_or_role
 }
 
 func (s *CreateRoleStmt) nodeTag()  {}
@@ -1802,6 +1867,7 @@ func (s *GrantRoleStmt) stmtNode() {}
 type RevokeRoleStmt struct {
 	Loc               Loc
 	IfExists          bool
+	AdminOption       bool // REVOKE ADMIN OPTION FOR role: the grant stays, its admin option goes
 	Roles             []string
 	From              []string
 	IgnoreUnknownUser bool
@@ -2089,19 +2155,14 @@ type ShutdownStmt struct {
 func (s *ShutdownStmt) nodeTag()  {}
 func (s *ShutdownStmt) stmtNode() {}
 
-// RestartStmt represents a RESTART statement.
-type RestartStmt struct {
-	Loc Loc
-}
-
-func (s *RestartStmt) nodeTag()  {}
-func (s *RestartStmt) stmtNode() {}
-
 // AlterDatabaseStmt represents an ALTER DATABASE statement.
 type AlterDatabaseStmt struct {
 	Loc     Loc
 	Name    string
 	Options []*DatabaseOption
+	// UpgradeDataDirectoryName is ALTER DATABASE name UPGRADE DATA DIRECTORY
+	// NAME, which takes no option.
+	UpgradeDataDirectoryName bool
 }
 
 func (s *AlterDatabaseStmt) nodeTag()  {}
@@ -3202,8 +3263,9 @@ func (s *ImportTableStmt) stmtNode() {}
 
 // BinlogStmt represents a BINLOG 'str' statement.
 type BinlogStmt struct {
-	Loc Loc
-	Str string // base64-encoded string
+	Loc       Loc
+	Str       string   // base64-encoded string
+	Fragments []string // BINLOG @a, @b: the two user variables the event is split across
 }
 
 func (s *BinlogStmt) nodeTag()  {}

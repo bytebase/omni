@@ -134,9 +134,7 @@ func (p *Parser) parseCreateTriggerStmt(start int, orReplace bool) (*nodes.Creat
 
 	// Trigger body — parse via the grammar.
 	bodyStart := p.pos()
-	outerRoutine := p.routine
-	p.routine = routineScope{triggerTiming: stmt.Timing, triggerEvent: stmt.Event, noResultSet: true}
-	defer func() { p.routine = outerRoutine }()
+	defer p.enterStoredProgram(routineScope{triggerTiming: stmt.Timing, triggerEvent: stmt.Event, noResultSet: true})()
 	body, err := p.parseCompoundStmtOrStmt()
 	if err != nil {
 		return nil, err
@@ -259,9 +257,7 @@ func (p *Parser) parseCreateEventStmt(start int, orReplace bool) (*nodes.CreateE
 
 	// Event body — parse via the grammar.
 	bodyStart := p.pos()
-	outerRoutine := p.routine
-	p.routine = routineScope{}
-	defer func() { p.routine = outerRoutine }()
+	defer p.enterStoredProgram(routineScope{})()
 	body, err := p.parseCompoundStmtOrStmt()
 	if err != nil {
 		return nil, err

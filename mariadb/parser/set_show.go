@@ -175,19 +175,20 @@ func (p *Parser) parseSetPasswordStmt(start int) (*nodes.SetPasswordStmt, error)
 			return nil, err
 		}
 
-		// Password value: either a string literal or PASSWORD('string')
-		if p.cur.Type == kwPASSWORD {
+		// Password value: a string literal, PASSWORD('string') or
+		// OLD_PASSWORD('string'), the last a keyword this lexer does not know.
+		if p.cur.Type == kwPASSWORD || p.atWord("OLD_PASSWORD") {
 			// PASSWORD('auth_string') form, whole.
 			//
 			// Ref: text_or_password in MariaDB 11.8 sql/sql_yacc.yy.
-			p.advance() // consume PASSWORD
+			fn := strings.ToUpper(p.advance().Str)
 			if _, err := p.expect('('); err != nil {
 				return nil, err
 			}
 			if p.cur.Type != tokSCONST {
 				return nil, p.syntaxErrorAtCur()
 			}
-			stmt.Password = "PASSWORD(" + p.advance().Str + ")"
+			stmt.Password = fn + "(" + p.advance().Str + ")"
 			if _, err := p.expect(')'); err != nil {
 				return nil, err
 			}
@@ -1446,7 +1447,68 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 			return nil, err
 		}
 
+	case kwALL:
+		// SHOW ALL {SLAVES | REPLICAS} STATUS, every connection's SHOW SLAVE STATUS,
+		// with no filter after it: mariadb:11.8.8 runs `SHOW ALL REPLICAS STATUS`
+		// and answers 1064 for a LIKE after it. SLAVES is no keyword of this lexer.
+		//
+		// Ref: show_param, ALL SLAVES STATUS_SYM, in MariaDB 11.8 sql/sql_yacc.yy.
+		p.advance() // consume ALL
+		if p.cur.Type != kwREPLICAS && !p.atWord("SLAVES") {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		if _, err := p.expect(kwSTATUS); err != nil {
+			return nil, err
+		}
+		stmt.Type = "ALL SLAVES STATUS"
+
+	case kwDESC, kwDESCRIBE, kwEXPLAIN, kwANALYZE:
+		// SHOW {EXPLAIN | DESC | DESCRIBE | ANALYZE} [FORMAT = format] FOR expr, the
+		// plan of the statement the connection expr runs. EXPLAIN is DESCRIBE's
+		// other spelling in MariaDB's lexer.
+		//
+		// Ref: show_param, describe_command opt_format_json FOR_SYM expr and
+		// ANALYZE_SYM opt_format_json FOR_SYM expr, in MariaDB 11.8 sql/sql_yacc.yy.
+		stmt.Type = "EXPLAIN"
+		if p.cur.Type == kwANALYZE {
+			stmt.Type = "ANALYZE"
+		}
+		p.advance()
+		if p.cur.Type == kwFORMAT {
+			if p.peekNext().Type != '=' {
+				return nil, p.syntaxErrorAtCur()
+			}
+			name, err := p.parseExplainFormat()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Format = name
+		}
+		if _, err := p.expect(kwFOR); err != nil {
+			return nil, err
+		}
+		expr, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		if expr == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		stmt.ForQuery = expr
+
 	default:
+		// SHOW AUTHORS and SHOW CONTRIBUTORS, each the word alone: mariadb:11.8.8
+		// answers 1064 for SHOW AUTHORS LIKE 'a'. Neither is a keyword of this lexer.
+		//
+		// Ref: show_param, AUTHORS_SYM and CONTRIBUTORS_SYM, in MariaDB 11.8
+		// sql/sql_yacc.yy.
+		if p.atWord("AUTHORS") || p.atWord("CONTRIBUTORS") {
+			stmt.Type = strings.ToUpper(p.advance().Str)
+			stmt.Loc.End = p.prev.End
+			return stmt, nil
+		}
+
 		// SHOW PROFILE [type [, type] ...] [FOR QUERY n] [LIMIT row_count [OFFSET offset]]
 		if p.cur.Type == kwPROFILE {
 			stmt.Type = "PROFILE"
@@ -1832,7 +1894,9 @@ func (p *Parser) explainTakesStatement() bool {
 	switch p.cur.Type {
 	case kwFORMAT:
 		return p.peekNext().Type == '='
-	case kwEXTENDED, kwPARTITIONS:
+	case kwEXTENDED:
+		return p.peekNext().Type == kwALL || p.explainModifierAhead()
+	case kwPARTITIONS:
 		return p.explainModifierAhead()
 	case kwFOR, kwSELECT, kwWITH, kwTABLE, kwVALUES, kwINSERT, kwUPDATE, kwDELETE, kwREPLACE, '(':
 		return true
@@ -1941,6 +2005,17 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 	hasFormat := false
 	switch p.cur.Type {
 	case kwEXTENDED:
+		// EXTENDED ALL is opt_extended_describe's other arm, and ALL is reserved, so
+		// it is never the table form.
+		if p.peekNext().Type == kwALL {
+			stmt.Extended, stmt.ExtendedAll = true, true
+			p.advance()
+			p.advance()
+			if !startsExplainableStmt(p.cur.Type) {
+				return nil, p.syntaxErrorAtCur()
+			}
+			break
+		}
 		if !p.explainModifierAhead() {
 			break
 		}
@@ -1968,24 +2043,27 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 	// and PARTITIONS do not reach. CONNECTION and the id are both required:
 	// FOR 1 and FOR CONNECTION are each a 1064.
 	//
-	// The id is read as an unsigned integer, which is the documented form.
-	// MariaDB 11.8.8 also parses a signed number, a string literal and a user
-	// variable there -- FOR CONNECTION -1, FOR CONNECTION 'x' and
-	// FOR CONNECTION @a all reach the server, where MySQL and TiDB refuse all
-	// three -- and none of them is a connection id any layer above this parser
-	// could use, so they stay rejected here and the divergence is pinned in
-	// explain_forms_test.go instead.
+	// The id is an expression (explain_for_connection: describe_command
+	// opt_format_json FOR_SYM CONNECTION_SYM expr): MariaDB 11.8.8 parses
+	// FOR CONNECTION a, 1+1, 'x', @a and -1, where MySQL and TiDB take an
+	// unsigned integer alone. Connection holds it, and ForConnection its value
+	// when it is an integer.
 	if p.cur.Type == kwFOR && !stmt.Extended && !stmt.Partitions {
 		p.advance() // consume FOR
 		if _, err := p.expect(kwCONNECTION); err != nil {
 			return nil, err
 		}
-		// A digit run past 64 bits lexes as a decimal and is still a run of digits,
-		// which mariadb:11.8.8 parses here, so it is read with the integers.
-		if p.cur.Type != tokICONST && !(p.cur.Type == tokFCONST && leadingDigits(p.cur.Str) == p.cur.Str) {
+		id, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		if id == nil {
 			return nil, p.syntaxErrorAtCur()
 		}
-		stmt.ForConnection = p.advance().Ival
+		stmt.Connection = id
+		if lit, ok := id.(*nodes.IntLit); ok {
+			stmt.ForConnection = lit.Value
+		}
 		stmt.Loc.End = p.prev.End
 		return stmt, nil
 	}
@@ -2118,6 +2196,18 @@ func (p *Parser) parseExplainColumn(showStmt *nodes.ShowStmt) error {
 	if p.cur.Type == tokSCONST {
 		tok := p.advance()
 		showStmt.Like = &nodes.StringLit{Loc: nodes.Loc{Start: tok.Loc, End: tok.End}, Value: tok.Str}
+		return nil
+	}
+	// The string is text_string, which is TEXT_STRING_literal or hex_or_bin_String:
+	// EXPLAIN t 0x41, x'41' and b'1' parse on 11.8.8, and stand for the string their
+	// bytes spell.
+	if p.cur.Type == tokXCONST || p.cur.Type == tokBCONST {
+		tok := p.advance()
+		value, err := p.decodeByteLiteral(tok)
+		if err != nil {
+			return err
+		}
+		showStmt.Like = &nodes.StringLit{Loc: nodes.Loc{Start: tok.Loc, End: tok.End}, Value: value}
 		return nil
 	}
 	start := p.pos()

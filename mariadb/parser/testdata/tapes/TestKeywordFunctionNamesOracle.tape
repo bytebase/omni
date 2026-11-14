@@ -5896,6 +5896,10 @@
 < ok 0 0
 > exec ^
 : string
+| SELECT current_role()
+< ok 0 0
+> exec ^
+: string
 | SELECT current_time()
 < ok 0 0
 > exec ^
@@ -14785,6 +14789,126 @@
 | 1064 42000 …near 'ignore(a) OVER ()' at line 1
 > exec ^
 : string
+| SELECT ignore_domain_ids()
+< error
+| 1064 42000 …near 'ignore_domain_ids()' at line 1
+> exec ^
+: string
+| SELECT ignore_domain_ids(1)
+< error
+| 1064 42000 …near 'ignore_domain_ids(1)' at line 1
+> exec ^
+: string
+| SELECT ignore_domain_ids(1,2)
+< error
+| 1064 42000 …near 'ignore_domain_ids(1,2)' at line 1
+> exec ^
+: string
+| SELECT ignore_domain_ids(1,2,3)
+< error
+| 1064 42000 …near 'ignore_domain_ids(1,2,3)' at line 1
+> exec ^
+: string
+| SELECT ignore_domain_ids(1,2,3,4)
+< error
+| 1064 42000 …near 'ignore_domain_ids(1,2,3,4)' at line 1
+> exec ^
+: string
+| SELECT ignore_domain_ids(*)
+< error
+| 1064 42000 …near 'ignore_domain_ids(*)' at line 1
+> exec ^
+: string
+| SELECT ignore_domain_ids('a')
+< error
+| 1064 42000 …near 'ignore_domain_ids('a')' at line 1
+> exec ^
+: string
+| SELECT ignore_domain_ids(a USING utf8mb4)
+< error
+| 1064 42000 …near 'ignore_domain_ids(a USING utf8mb4)' at line 1
+> exec ^
+: string
+| SELECT ignore_domain_ids(1 AS SIGNED)
+< error
+| 1064 42000 …near 'ignore_domain_ids(1 AS SIGNED)' at line 1
+> exec ^
+: string
+| SELECT ignore_domain_ids(1, INTERVAL 1 DAY)
+< error
+| 1064 42000 …near 'ignore_domain_ids(1, INTERVAL 1 DAY)' at line 1
+> exec ^
+: string
+| SELECT ignore_domain_ids(1 FROM 2)
+< error
+| 1064 42000 …near 'ignore_domain_ids(1 FROM 2)' at line 1
+> exec ^
+: string
+| SELECT ignore_domain_ids(1 IN 2)
+< error
+| 1064 42000 …near 'ignore_domain_ids(1 IN 2)' at line 1
+> exec ^
+: string
+| SELECT ignore_domain_ids(DISTINCT 1)
+< error
+| 1064 42000 …near 'ignore_domain_ids(DISTINCT 1)' at line 1
+> exec ^
+: string
+| SELECT ignore_domain_ids() OVER ()
+< error
+| 1064 42000 …near 'ignore_domain_ids() OVER ()' at line 1
+> exec ^
+: string
+| SELECT ignore_domain_ids(1) OVER ()
+< error
+| 1064 42000 …near 'ignore_domain_ids(1) OVER ()' at line 1
+> exec ^
+: string
+| SELECT ignore_domain_ids(1,2) OVER ()
+< error
+| 1064 42000 …near 'ignore_domain_ids(1,2) OVER ()' at line 1
+> exec ^
+: string
+| SELECT ignore_domain_ids(1,2,3) OVER ()
+< error
+| 1064 42000 …near 'ignore_domain_ids(1,2,3) OVER ()' at line 1
+> exec ^
+: string
+| SELECT ignore_domain_ids(1) FROM t
+< error
+| 1064 42000 …near 'ignore_domain_ids(1) FROM t' at line 1
+> exec ^
+: string
+| SELECT ignore_domain_ids(SELECT 1)
+< error
+| 1064 42000 …near 'ignore_domain_ids(SELECT 1)' at line 1
+> exec ^
+: string
+| SELECT ignore_domain_ids(YEAR FROM 1)
+< error
+| 1064 42000 …near 'ignore_domain_ids(YEAR FROM 1)' at line 1
+> exec ^
+: string
+| SELECT ignore_domain_ids(DAY, 1, 2)
+< error
+| 1064 42000 …near 'ignore_domain_ids(DAY, 1, 2)' at line 1
+> exec ^
+: string
+| SELECT ignore_domain_ids(a)
+< error
+| 1064 42000 …near 'ignore_domain_ids(a)' at line 1
+> exec ^
+: string
+| SELECT ignore_domain_ids(a, b)
+< error
+| 1064 42000 …near 'ignore_domain_ids(a, b)' at line 1
+> exec ^
+: string
+| SELECT ignore_domain_ids(a) OVER ()
+< error
+| 1064 42000 …near 'ignore_domain_ids(a) OVER ()' at line 1
+> exec ^
+: string
 | SELECT ignore_server_ids()
 < error
 | 1630 42000 FUNCTION test.ignore_server_ids does not exist. Check the 'Function Name Parsing and Resolution' section in the Reference Manual
@@ -20128,6 +20252,126 @@
 | 1064 42000 …near 'SELECT FROM' at line 2
 > exec ^
 : string
+| SELECT master_demote_to_slave()
+< error
+| 1064 42000 …near 'master_demote_to_slave()' at line 1
+> exec ^
+: string
+| SELECT master_demote_to_slave(1)
+< error
+| 1064 42000 …near 'master_demote_to_slave(1)' at line 1
+> exec ^
+: string
+| SELECT master_demote_to_slave(1,2)
+< error
+| 1064 42000 …near 'master_demote_to_slave(1,2)' at line 1
+> exec ^
+: string
+| SELECT master_demote_to_slave(1,2,3)
+< error
+| 1064 42000 …near 'master_demote_to_slave(1,2,3)' at line 1
+> exec ^
+: string
+| SELECT master_demote_to_slave(1,2,3,4)
+< error
+| 1064 42000 …near 'master_demote_to_slave(1,2,3,4)' at line 1
+> exec ^
+: string
+| SELECT master_demote_to_slave(*)
+< error
+| 1064 42000 …near 'master_demote_to_slave(*)' at line 1
+> exec ^
+: string
+| SELECT master_demote_to_slave('a')
+< error
+| 1064 42000 …near 'master_demote_to_slave('a')' at line 1
+> exec ^
+: string
+| SELECT master_demote_to_slave(a USING utf8mb4)
+< error
+| 1064 42000 …near 'master_demote_to_slave(a USING utf8mb4)' at line 1
+> exec ^
+: string
+| SELECT master_demote_to_slave(1 AS SIGNED)
+< error
+| 1064 42000 …near 'master_demote_to_slave(1 AS SIGNED)' at line 1
+> exec ^
+: string
+| SELECT master_demote_to_slave(1, INTERVAL 1 DAY)
+< error
+| 1064 42000 …near 'master_demote_to_slave(1, INTERVAL 1 DAY)' at line 1
+> exec ^
+: string
+| SELECT master_demote_to_slave(1 FROM 2)
+< error
+| 1064 42000 …near 'master_demote_to_slave(1 FROM 2)' at line 1
+> exec ^
+: string
+| SELECT master_demote_to_slave(1 IN 2)
+< error
+| 1064 42000 …near 'master_demote_to_slave(1 IN 2)' at line 1
+> exec ^
+: string
+| SELECT master_demote_to_slave(DISTINCT 1)
+< error
+| 1064 42000 …near 'master_demote_to_slave(DISTINCT 1)' at line 1
+> exec ^
+: string
+| SELECT master_demote_to_slave() OVER ()
+< error
+| 1064 42000 …near 'master_demote_to_slave() OVER ()' at line 1
+> exec ^
+: string
+| SELECT master_demote_to_slave(1) OVER ()
+< error
+| 1064 42000 …near 'master_demote_to_slave(1) OVER ()' at line 1
+> exec ^
+: string
+| SELECT master_demote_to_slave(1,2) OVER ()
+< error
+| 1064 42000 …near 'master_demote_to_slave(1,2) OVER ()' at line 1
+> exec ^
+: string
+| SELECT master_demote_to_slave(1,2,3) OVER ()
+< error
+| 1064 42000 …near 'master_demote_to_slave(1,2,3) OVER ()' at line 1
+> exec ^
+: string
+| SELECT master_demote_to_slave(1) FROM t
+< error
+| 1064 42000 …near 'master_demote_to_slave(1) FROM t' at line 1
+> exec ^
+: string
+| SELECT master_demote_to_slave(SELECT 1)
+< error
+| 1064 42000 …near 'master_demote_to_slave(SELECT 1)' at line 1
+> exec ^
+: string
+| SELECT master_demote_to_slave(YEAR FROM 1)
+< error
+| 1064 42000 …near 'master_demote_to_slave(YEAR FROM 1)' at line 1
+> exec ^
+: string
+| SELECT master_demote_to_slave(DAY, 1, 2)
+< error
+| 1064 42000 …near 'master_demote_to_slave(DAY, 1, 2)' at line 1
+> exec ^
+: string
+| SELECT master_demote_to_slave(a)
+< error
+| 1064 42000 …near 'master_demote_to_slave(a)' at line 1
+> exec ^
+: string
+| SELECT master_demote_to_slave(a, b)
+< error
+| 1064 42000 …near 'master_demote_to_slave(a, b)' at line 1
+> exec ^
+: string
+| SELECT master_demote_to_slave(a) OVER ()
+< error
+| 1064 42000 …near 'master_demote_to_slave(a) OVER ()' at line 1
+> exec ^
+: string
 | SELECT master_heartbeat_period()
 < error
 | 1630 42000 FUNCTION test.master_heartbeat_period does not exist. Check the 'Function Name Parsing and Resolution' section in the Reference Manual
@@ -25426,6 +25670,126 @@
 | 1064 42000 …near 'SELECT FROM' at line 2
 > exec ^
 : string
+| SELECT page_checksum()
+< error
+| 1064 42000 …near 'page_checksum()' at line 1
+> exec ^
+: string
+| SELECT page_checksum(1)
+< error
+| 1064 42000 …near 'page_checksum(1)' at line 1
+> exec ^
+: string
+| SELECT page_checksum(1,2)
+< error
+| 1064 42000 …near 'page_checksum(1,2)' at line 1
+> exec ^
+: string
+| SELECT page_checksum(1,2,3)
+< error
+| 1064 42000 …near 'page_checksum(1,2,3)' at line 1
+> exec ^
+: string
+| SELECT page_checksum(1,2,3,4)
+< error
+| 1064 42000 …near 'page_checksum(1,2,3,4)' at line 1
+> exec ^
+: string
+| SELECT page_checksum(*)
+< error
+| 1064 42000 …near 'page_checksum(*)' at line 1
+> exec ^
+: string
+| SELECT page_checksum('a')
+< error
+| 1064 42000 …near 'page_checksum('a')' at line 1
+> exec ^
+: string
+| SELECT page_checksum(a USING utf8mb4)
+< error
+| 1064 42000 …near 'page_checksum(a USING utf8mb4)' at line 1
+> exec ^
+: string
+| SELECT page_checksum(1 AS SIGNED)
+< error
+| 1064 42000 …near 'page_checksum(1 AS SIGNED)' at line 1
+> exec ^
+: string
+| SELECT page_checksum(1, INTERVAL 1 DAY)
+< error
+| 1064 42000 …near 'page_checksum(1, INTERVAL 1 DAY)' at line 1
+> exec ^
+: string
+| SELECT page_checksum(1 FROM 2)
+< error
+| 1064 42000 …near 'page_checksum(1 FROM 2)' at line 1
+> exec ^
+: string
+| SELECT page_checksum(1 IN 2)
+< error
+| 1064 42000 …near 'page_checksum(1 IN 2)' at line 1
+> exec ^
+: string
+| SELECT page_checksum(DISTINCT 1)
+< error
+| 1064 42000 …near 'page_checksum(DISTINCT 1)' at line 1
+> exec ^
+: string
+| SELECT page_checksum() OVER ()
+< error
+| 1064 42000 …near 'page_checksum() OVER ()' at line 1
+> exec ^
+: string
+| SELECT page_checksum(1) OVER ()
+< error
+| 1064 42000 …near 'page_checksum(1) OVER ()' at line 1
+> exec ^
+: string
+| SELECT page_checksum(1,2) OVER ()
+< error
+| 1064 42000 …near 'page_checksum(1,2) OVER ()' at line 1
+> exec ^
+: string
+| SELECT page_checksum(1,2,3) OVER ()
+< error
+| 1064 42000 …near 'page_checksum(1,2,3) OVER ()' at line 1
+> exec ^
+: string
+| SELECT page_checksum(1) FROM t
+< error
+| 1064 42000 …near 'page_checksum(1) FROM t' at line 1
+> exec ^
+: string
+| SELECT page_checksum(SELECT 1)
+< error
+| 1064 42000 …near 'page_checksum(SELECT 1)' at line 1
+> exec ^
+: string
+| SELECT page_checksum(YEAR FROM 1)
+< error
+| 1064 42000 …near 'page_checksum(YEAR FROM 1)' at line 1
+> exec ^
+: string
+| SELECT page_checksum(DAY, 1, 2)
+< error
+| 1064 42000 …near 'page_checksum(DAY, 1, 2)' at line 1
+> exec ^
+: string
+| SELECT page_checksum(a)
+< error
+| 1064 42000 …near 'page_checksum(a)' at line 1
+> exec ^
+: string
+| SELECT page_checksum(a, b)
+< error
+| 1064 42000 …near 'page_checksum(a, b)' at line 1
+> exec ^
+: string
+| SELECT page_checksum(a) OVER ()
+< error
+| 1064 42000 …near 'page_checksum(a) OVER ()' at line 1
+> exec ^
+: string
 | SELECT parallel()
 < error
 | 1305 42000 FUNCTION test.parallel does not exist
@@ -25457,6 +25821,126 @@
 | ; SELECT FROM
 < error
 | 1064 42000 …near 'SELECT FROM' at line 2
+> exec ^
+: string
+| SELECT parse_vcol_expr()
+< error
+| 1064 42000 …near 'parse_vcol_expr()' at line 1
+> exec ^
+: string
+| SELECT parse_vcol_expr(1)
+< error
+| 1064 42000 …near 'parse_vcol_expr(1)' at line 1
+> exec ^
+: string
+| SELECT parse_vcol_expr(1,2)
+< error
+| 1064 42000 …near 'parse_vcol_expr(1,2)' at line 1
+> exec ^
+: string
+| SELECT parse_vcol_expr(1,2,3)
+< error
+| 1064 42000 …near 'parse_vcol_expr(1,2,3)' at line 1
+> exec ^
+: string
+| SELECT parse_vcol_expr(1,2,3,4)
+< error
+| 1064 42000 …near 'parse_vcol_expr(1,2,3,4)' at line 1
+> exec ^
+: string
+| SELECT parse_vcol_expr(*)
+< error
+| 1064 42000 …near 'parse_vcol_expr(*)' at line 1
+> exec ^
+: string
+| SELECT parse_vcol_expr('a')
+< error
+| 1064 42000 …near 'parse_vcol_expr('a')' at line 1
+> exec ^
+: string
+| SELECT parse_vcol_expr(a USING utf8mb4)
+< error
+| 1064 42000 …near 'parse_vcol_expr(a USING utf8mb4)' at line 1
+> exec ^
+: string
+| SELECT parse_vcol_expr(1 AS SIGNED)
+< error
+| 1064 42000 …near 'parse_vcol_expr(1 AS SIGNED)' at line 1
+> exec ^
+: string
+| SELECT parse_vcol_expr(1, INTERVAL 1 DAY)
+< error
+| 1064 42000 …near 'parse_vcol_expr(1, INTERVAL 1 DAY)' at line 1
+> exec ^
+: string
+| SELECT parse_vcol_expr(1 FROM 2)
+< error
+| 1064 42000 …near 'parse_vcol_expr(1 FROM 2)' at line 1
+> exec ^
+: string
+| SELECT parse_vcol_expr(1 IN 2)
+< error
+| 1064 42000 …near 'parse_vcol_expr(1 IN 2)' at line 1
+> exec ^
+: string
+| SELECT parse_vcol_expr(DISTINCT 1)
+< error
+| 1064 42000 …near 'parse_vcol_expr(DISTINCT 1)' at line 1
+> exec ^
+: string
+| SELECT parse_vcol_expr() OVER ()
+< error
+| 1064 42000 …near 'parse_vcol_expr() OVER ()' at line 1
+> exec ^
+: string
+| SELECT parse_vcol_expr(1) OVER ()
+< error
+| 1064 42000 …near 'parse_vcol_expr(1) OVER ()' at line 1
+> exec ^
+: string
+| SELECT parse_vcol_expr(1,2) OVER ()
+< error
+| 1064 42000 …near 'parse_vcol_expr(1,2) OVER ()' at line 1
+> exec ^
+: string
+| SELECT parse_vcol_expr(1,2,3) OVER ()
+< error
+| 1064 42000 …near 'parse_vcol_expr(1,2,3) OVER ()' at line 1
+> exec ^
+: string
+| SELECT parse_vcol_expr(1) FROM t
+< error
+| 1064 42000 …near 'parse_vcol_expr(1) FROM t' at line 1
+> exec ^
+: string
+| SELECT parse_vcol_expr(SELECT 1)
+< error
+| 1064 42000 …near 'parse_vcol_expr(SELECT 1)' at line 1
+> exec ^
+: string
+| SELECT parse_vcol_expr(YEAR FROM 1)
+< error
+| 1064 42000 …near 'parse_vcol_expr(YEAR FROM 1)' at line 1
+> exec ^
+: string
+| SELECT parse_vcol_expr(DAY, 1, 2)
+< error
+| 1064 42000 …near 'parse_vcol_expr(DAY, 1, 2)' at line 1
+> exec ^
+: string
+| SELECT parse_vcol_expr(a)
+< error
+| 1064 42000 …near 'parse_vcol_expr(a)' at line 1
+> exec ^
+: string
+| SELECT parse_vcol_expr(a, b)
+< error
+| 1064 42000 …near 'parse_vcol_expr(a, b)' at line 1
+> exec ^
+: string
+| SELECT parse_vcol_expr(a) OVER ()
+< error
+| 1064 42000 …near 'parse_vcol_expr(a) OVER ()' at line 1
 > exec ^
 : string
 | SELECT parser()

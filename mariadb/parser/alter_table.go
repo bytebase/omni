@@ -52,6 +52,15 @@ func (p *Parser) parseAlterTableStmt(start int) (*nodes.AlterTableStmt, error) {
 		Loc: nodes.Loc{Start: start},
 	}
 
+	// TABLE opt_if_exists: mariadb:11.8.8 runs `ALTER TABLE IF EXISTS t`, and answers a
+	// note for a table it does not have.
+	// Ref: alter in MariaDB 11.8 sql/sql_yacc.yy.
+	ifExists, err := p.parseOptIfExists()
+	if err != nil {
+		return nil, err
+	}
+	stmt.IfExists = ifExists
+
 	// Table name
 	ref, err := p.parseTableRef()
 	if err != nil {
@@ -482,6 +491,20 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 		return cmd, nil
 
 	case kwWITH:
+		// WITH SYSTEM VERSIONING is versioning_option, a table option that sets
+		// the flag ADD SYSTEM VERSIONING sets. Ref: create_table_option in
+		// MariaDB 11.8 sql/sql_yacc.yy.
+		if p.peekNext().Type == kwSYSTEM {
+			p.advance() // WITH
+			p.advance() // SYSTEM
+			if !p.atBareWord("VERSIONING") {
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance()
+			cmd.Type = nodes.ATAddSystemVersioning
+			cmd.Loc.End = p.prev.End
+			return cmd, nil
+		}
 		// WITH VALIDATION
 		p.advance()
 		if _, err := p.expect(kwVALIDATION); err != nil {

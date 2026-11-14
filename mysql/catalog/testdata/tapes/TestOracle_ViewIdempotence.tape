@@ -92,6 +92,51 @@
 : bytes
 | utf8mb4_general_ci
 
+== TestOracle_ViewIdempotence/8.0/cast-at-time-zone default#1
+> exec
+| DROP DATABASE IF EXISTS videm_cast_at_time_zone
+< ok 0 0
+> exec
+| CREATE DATABASE videm_cast_at_time_zone DEFAULT CHARSET=utf8mb4
+< ok 1 0
+> exec
+| USE videm_cast_at_time_zone
+< ok 0 0
+> exec
+| CREATE TABLE t (a TIMESTAMP NULL)
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT CAST(a AT TIME ZONE 'UTC' AS DATETIME) AS c1, CAST(a AT TIME ZONE INTERVAL '+00:00' AS DATETIME(3)) AS c2 FROM t
+< ok 0 0
+> query
+| SHOW CREATE TABLE videm_cast_at_time_zone.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` timestamp NULL DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE VIEW videm_cast_at_time_zone.v
+< result
+< column "View" "VARCHAR"
+< column "Create View" "VARCHAR"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< row
+: bytes
+| v
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v` AS select cast(`time_zone`(`t`.`a`) as datetime) AS `c1`,cast(`time_zone`(`t`.`a`) as datetime(3)) AS `c2` from `t`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+
 == TestOracle_ViewIdempotence/8.0/check-cascaded default#1
 > exec
 | DROP DATABASE IF EXISTS videm_check_cascaded
@@ -2512,6 +2557,51 @@
 | v
 : bytes
 | CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v` AS select weight_string(`t`.`s`) AS `c1`,weight_string(`t`.`s` as char(4)) AS `c2`,weight_string(cast(`t`.`s` as char(4) charset binary)) AS `c3` from `t`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+
+== TestOracle_ViewIdempotence/8.0/weight-string-numbers default#1
+> exec
+| DROP DATABASE IF EXISTS videm_weight_string_numbers
+< ok 0 0
+> exec
+| CREATE DATABASE videm_weight_string_numbers DEFAULT CHARSET=utf8mb4
+< ok 1 0
+> exec
+| USE videm_weight_string_numbers
+< ok 0 0
+> exec
+| CREATE TABLE t (s VARCHAR(20))
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT WEIGHT_STRING(s, 1, 2, 3) AS c1, WEIGHT_STRING(s, 0, 0, 0) AS c2 FROM t
+< ok 0 0
+> query
+| SHOW CREATE TABLE videm_weight_string_numbers.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `s` varchar(20) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE VIEW videm_weight_string_numbers.v
+< result
+< column "View" "VARCHAR"
+< column "Create View" "VARCHAR"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< row
+: bytes
+| v
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v` AS select weight_string(`t`.`s` as char(2)) AS `c1`,weight_string(`t`.`s`) AS `c2` from `t`
 : bytes
 | utf8mb4
 : bytes

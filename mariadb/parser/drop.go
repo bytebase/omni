@@ -46,6 +46,9 @@ func (p *Parser) parseDropTableStmt(start int, temporary bool) (*nodes.DropTable
 		}
 		p.advance()
 	}
+	if err := refuseRepeatedTables(stmt.Tables); err != nil {
+		return nil, err
+	}
 
 	// RESTRICT | CASCADE
 	if _, ok := p.match(kwRESTRICT); ok {
@@ -159,6 +162,9 @@ func (p *Parser) parseDropViewStmt(start int) (*nodes.DropViewStmt, error) {
 		}
 		p.advance()
 	}
+	if err := refuseRepeatedTables(stmt.Views); err != nil {
+		return nil, err
+	}
 
 	// RESTRICT | CASCADE
 	if _, ok := p.match(kwRESTRICT); ok {
@@ -175,7 +181,7 @@ func (p *Parser) parseDropViewStmt(start int) (*nodes.DropViewStmt, error) {
 //
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/truncate-table.html
 //
-//	TRUNCATE [TABLE] tbl_name
+//	TRUNCATE [TABLE] tbl_name [WAIT n | NOWAIT]
 func (p *Parser) parseTruncateStmt() (*nodes.TruncateStmt, error) {
 	start := p.pos()
 	p.advance() // consume TRUNCATE
@@ -196,9 +202,15 @@ func (p *Parser) parseTruncateStmt() (*nodes.TruncateStmt, error) {
 	}
 
 	stmt := &nodes.TruncateStmt{
-		Loc:    nodes.Loc{Start: start, End: p.prev.End},
+		Loc:    nodes.Loc{Start: start},
 		Tables: []*nodes.TableRef{ref},
 	}
+	// opt_lock_wait_timeout: WAIT n or NOWAIT, which mariadb:11.8.8 runs after the table.
+	// Ref: truncate and opt_lock_wait_timeout in MariaDB 11.8 sql/sql_yacc.yy.
+	if stmt.NoWait, stmt.HasWait, stmt.WaitSeconds, err = p.parseIndexLockWait(); err != nil {
+		return nil, err
+	}
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -208,8 +220,11 @@ func (p *Parser) parseTruncateStmt() (*nodes.TruncateStmt, error) {
 //
 //	RENAME TABLE tbl_name TO new_tbl_name [, tbl_name2 TO new_tbl_name2] ...
 func (p *Parser) parseRenameTableStmt(start int) (*nodes.RenameTableStmt, error) {
-	// Already consumed RENAME
-	p.match(kwTABLE)
+	// Already consumed RENAME. rename: RENAME table_or_tables opt_if_exists
+	// table_to_table_list, so TABLE or TABLES is required.
+	if _, ok := p.match(kwTABLE, kwTABLES); !ok {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	// Completion: after RENAME TABLE, offer table_ref.
 	p.checkCursor()

@@ -273,8 +273,11 @@ func (p *Parser) parseMergeStmt(withClause *nodes.WithClause) (*nodes.MergeStmt,
 			return nil, p.syntaxErrorAtCur()
 		}
 		removeDuplicates = true
-	} else {
-		// merge_when_list
+	} else if p.cur.Type == WHEN {
+		// merge_when_list. Redshift's MERGE writes its WHEN clauses and
+		// REMOVE DUPLICATES in brackets, as optional
+		// (https://docs.aws.amazon.com/redshift/latest/dg/r_MERGE.html),
+		// where PostgreSQL's gram.y requires a WHEN.
 		mergeWhenClauses, err = p.parseMergeWhenList()
 		if err != nil {
 			return nil, err
