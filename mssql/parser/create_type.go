@@ -90,7 +90,7 @@ func (p *Parser) parseCreateTypeStmt() (*nodes.CreateTypeStmt, error) {
 						elements = append(elements, idx)
 					}
 				} else {
-					col, err := p.parseColumnDef()
+					col, err := p.parseTypedColumnDef()
 					if err != nil {
 						return nil, err
 					}
