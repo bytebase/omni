@@ -244,6 +244,14 @@ func walkChildren(v Visitor, node Node) {
 		} else if n.Name != nil {
 			Walk(v, n.Name)
 		}
+		if n.Period != nil {
+			if n.Period.Start != nil {
+				Walk(v, n.Period.Start)
+			}
+			if n.Period.End != nil {
+				Walk(v, n.Period.End)
+			}
+		}
 	case *InlineTable:
 		for _, row := range n.Rows {
 			walkNodes(v, row)

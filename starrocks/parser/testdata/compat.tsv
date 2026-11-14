@@ -7786,50 +7786,50 @@ reject	reject	engine	queryNoWith(limitElement)?/limitElement!drop-2	SELECT CURRE
 reject	reject	engine	queryNoWith(limitElement)?/limitElement!truncate	SELECT CURRENT_USER LIMIT
 reject	reject	engine	queryNoWith(limitElement)?/limitElement!insert	SELECT CURRENT_USER LIMIT 1 zzz;
 reject	reject	engine	queryNoWith(limitElement)?/limitElement!swap	SELECT CURRENT_USER LIST 1;
-reject	accept	engine	queryPeriod/(FOR)?_periodType_BETWEEN_expression_AND_expression	SELECT CURRENT_USER FROM a SYSTEM_TIME BETWEEN CURRENT_USER AND CURRENT_USER;
+accept	accept	engine	queryPeriod/(FOR)?_periodType_BETWEEN_expression_AND_expression	SELECT CURRENT_USER FROM a SYSTEM_TIME BETWEEN CURRENT_USER AND CURRENT_USER;
 reject	reject	engine	queryPeriod/(FOR)?_periodType_BETWEEN_expression_AND_expression!drop-1	SELECT CURRENT_USER FROM a BETWEEN CURRENT_USER AND CURRENT_USER;
 reject	reject	engine	queryPeriod/(FOR)?_periodType_BETWEEN_expression_AND_expression!drop-2	SELECT CURRENT_USER FROM a SYSTEM_TIME CURRENT_USER AND CURRENT_USER;
 reject	reject	engine	queryPeriod/(FOR)?_periodType_BETWEEN_expression_AND_expression!drop-3	SELECT CURRENT_USER FROM a SYSTEM_TIME BETWEEN AND CURRENT_USER;
 reject	reject	engine	queryPeriod/(FOR)?_periodType_BETWEEN_expression_AND_expression!drop-4	SELECT CURRENT_USER FROM a SYSTEM_TIME BETWEEN CURRENT_USER CURRENT_USER;
 reject	reject	engine	queryPeriod/(FOR)?_periodType_BETWEEN_expression_AND_expression!drop-5	SELECT CURRENT_USER FROM a SYSTEM_TIME BETWEEN CURRENT_USER AND;
 reject	reject	engine	queryPeriod/(FOR)?_periodType_BETWEEN_expression_AND_expression!truncate	SELECT CURRENT_USER FROM a SYSTEM_TIME BETWEEN CURRENT_USER AND
-reject	accept	engine	queryPeriod/(FOR)?_periodType_BETWEEN_expression_AND_expression!insert	SELECT CURRENT_USER FROM a SYSTEM_TIME BETWEEN CURRENT_USER AND CURRENT_USER zzz;
+accept	accept	engine	queryPeriod/(FOR)?_periodType_BETWEEN_expression_AND_expression!insert	SELECT CURRENT_USER FROM a SYSTEM_TIME BETWEEN CURRENT_USER AND CURRENT_USER zzz;
 reject	reject	engine	queryPeriod/(FOR)?_periodType_BETWEEN_expression_AND_expression!swap	SELECT CURRENT_USER FROM a TABLE BETWEEN CURRENT_USER AND CURRENT_USER;
-reject	accept	engine	queryPeriod/(FOR)?_periodType_FROM_expression_TO_expression	SELECT CURRENT_USER FROM a SYSTEM_TIME FROM CURRENT_USER TO CURRENT_USER;
+accept	accept	engine	queryPeriod/(FOR)?_periodType_FROM_expression_TO_expression	SELECT CURRENT_USER FROM a SYSTEM_TIME FROM CURRENT_USER TO CURRENT_USER;
 reject	reject	engine	queryPeriod/(FOR)?_periodType_FROM_expression_TO_expression!drop-1	SELECT CURRENT_USER FROM a FROM CURRENT_USER TO CURRENT_USER;
 reject	reject	engine	queryPeriod/(FOR)?_periodType_FROM_expression_TO_expression!drop-2	SELECT CURRENT_USER FROM a SYSTEM_TIME CURRENT_USER TO CURRENT_USER;
 reject	reject	engine	queryPeriod/(FOR)?_periodType_FROM_expression_TO_expression!drop-3	SELECT CURRENT_USER FROM a SYSTEM_TIME FROM TO CURRENT_USER;
 reject	reject	engine	queryPeriod/(FOR)?_periodType_FROM_expression_TO_expression!drop-4	SELECT CURRENT_USER FROM a SYSTEM_TIME FROM CURRENT_USER CURRENT_USER;
 reject	reject	engine	queryPeriod/(FOR)?_periodType_FROM_expression_TO_expression!drop-5	SELECT CURRENT_USER FROM a SYSTEM_TIME FROM CURRENT_USER TO;
 reject	reject	engine	queryPeriod/(FOR)?_periodType_FROM_expression_TO_expression!truncate	SELECT CURRENT_USER FROM a SYSTEM_TIME FROM CURRENT_USER TO
-reject	accept	engine	queryPeriod/(FOR)?_periodType_FROM_expression_TO_expression!insert	SELECT CURRENT_USER FROM a SYSTEM_TIME FROM CURRENT_USER TO CURRENT_USER zzz;
+accept	accept	engine	queryPeriod/(FOR)?_periodType_FROM_expression_TO_expression!insert	SELECT CURRENT_USER FROM a SYSTEM_TIME FROM CURRENT_USER TO CURRENT_USER zzz;
 reject	reject	engine	queryPeriod/(FOR)?_periodType_FROM_expression_TO_expression!swap	SELECT CURRENT_USER FROM a TABLE FROM CURRENT_USER TO CURRENT_USER;
-reject	accept	engine	queryPeriod/(FOR)?_periodType_ALL	SELECT CURRENT_USER FROM a SYSTEM_TIME ALL;
+accept	accept	engine	queryPeriod/(FOR)?_periodType_ALL	SELECT CURRENT_USER FROM a SYSTEM_TIME ALL;
 reject	reject	engine	queryPeriod/(FOR)?_periodType_ALL!drop-1	SELECT CURRENT_USER FROM a ALL;
 accept	accept	engine	queryPeriod/(FOR)?_periodType_ALL!drop-2	SELECT CURRENT_USER FROM a SYSTEM_TIME;
 accept	accept	engine	queryPeriod/(FOR)?_periodType_ALL!truncate	SELECT CURRENT_USER FROM a SYSTEM_TIME
-reject	accept	engine	queryPeriod/(FOR)?_periodType_ALL!insert	SELECT CURRENT_USER FROM a SYSTEM_TIME ALL zzz;
+accept	accept	engine	queryPeriod/(FOR)?_periodType_ALL!insert	SELECT CURRENT_USER FROM a SYSTEM_TIME ALL zzz;
 reject	reject	engine	queryPeriod/(FOR)?_periodType_ALL!swap	SELECT CURRENT_USER FROM a TABLE ALL;
-reject	accept	engine	queryPeriod/(FOR)?_periodType_AS_OF_expression	SELECT CURRENT_USER FROM a SYSTEM_TIME AS OF CURRENT_USER;
+accept	accept	engine	queryPeriod/(FOR)?_periodType_AS_OF_expression	SELECT CURRENT_USER FROM a SYSTEM_TIME AS OF CURRENT_USER;
 reject	reject	engine	queryPeriod/(FOR)?_periodType_AS_OF_expression!drop-1	SELECT CURRENT_USER FROM a AS OF CURRENT_USER;
 reject	reject	engine	queryPeriod/(FOR)?_periodType_AS_OF_expression!drop-2	SELECT CURRENT_USER FROM a SYSTEM_TIME OF CURRENT_USER;
 reject	reject	engine	queryPeriod/(FOR)?_periodType_AS_OF_expression!drop-3	SELECT CURRENT_USER FROM a SYSTEM_TIME AS CURRENT_USER;
 reject	reject	engine	queryPeriod/(FOR)?_periodType_AS_OF_expression!drop-4	SELECT CURRENT_USER FROM a SYSTEM_TIME AS OF;
 reject	reject	engine	queryPeriod/(FOR)?_periodType_AS_OF_expression!truncate	SELECT CURRENT_USER FROM a SYSTEM_TIME AS OF
-reject	accept	engine	queryPeriod/(FOR)?_periodType_AS_OF_expression!insert	SELECT CURRENT_USER FROM a SYSTEM_TIME AS OF CURRENT_USER zzz;
+accept	accept	engine	queryPeriod/(FOR)?_periodType_AS_OF_expression!insert	SELECT CURRENT_USER FROM a SYSTEM_TIME AS OF CURRENT_USER zzz;
 reject	reject	engine	queryPeriod/(FOR)?_periodType_AS_OF_expression!swap	SELECT CURRENT_USER FROM a TABLE AS OF CURRENT_USER;
-reject	accept	engine	queryPeriod(FOR)?/%empty	SELECT CURRENT_USER FROM a SYSTEM_TIME ALL;
+accept	accept	engine	queryPeriod(FOR)?/%empty	SELECT CURRENT_USER FROM a SYSTEM_TIME ALL;
 reject	reject	engine	queryPeriod(FOR)?/%empty!insert	SELECT CURRENT_USER FROM a zzz SYSTEM_TIME ALL;
-reject	accept	engine	queryPeriod(FOR)?/FOR	SELECT CURRENT_USER FROM a FOR SYSTEM_TIME ALL;
+accept	accept	engine	queryPeriod(FOR)?/FOR	SELECT CURRENT_USER FROM a FOR SYSTEM_TIME ALL;
 accept	accept	engine	queryPeriod(FOR)?/FOR!truncate	SELECT CURRENT_USER FROM a
 reject	reject	engine	queryPeriod(FOR)?/FOR!insert	SELECT CURRENT_USER FROM a FOR zzz SYSTEM_TIME ALL;
 reject	reject	engine	queryPeriod(FOR)?/FOR!swap	SELECT CURRENT_USER FROM a FORCE SYSTEM_TIME ALL;
-reject	accept	engine	periodType/SYSTEM_TIME	SELECT CURRENT_USER FROM a SYSTEM_TIME ALL;
+accept	accept	engine	periodType/SYSTEM_TIME	SELECT CURRENT_USER FROM a SYSTEM_TIME ALL;
 reject	reject	engine	periodType/SYSTEM_TIME!insert	SELECT CURRENT_USER FROM a SYSTEM_TIME zzz ALL;
-reject	accept	engine	periodType/TIMESTAMP	SELECT CURRENT_USER FROM a TIMESTAMP ALL;
+accept	accept	engine	periodType/TIMESTAMP	SELECT CURRENT_USER FROM a TIMESTAMP ALL;
 reject	reject	engine	periodType/TIMESTAMP!insert	SELECT CURRENT_USER FROM a TIMESTAMP zzz ALL;
 reject	reject	engine	periodType/TIMESTAMP!swap	SELECT CURRENT_USER FROM a TIMESTAMPADD ALL;
-reject	accept	engine	periodType/VERSION	SELECT CURRENT_USER FROM a VERSION ALL;
+accept	accept	engine	periodType/VERSION	SELECT CURRENT_USER FROM a VERSION ALL;
 reject	reject	engine	periodType/VERSION!insert	SELECT CURRENT_USER FROM a VERSION zzz ALL;
 reject	reject	engine	periodType/VERSION!swap	SELECT CURRENT_USER FROM a VIEW ALL;
 accept	accept	engine	queryPrimary/querySpecification	SELECT CURRENT_USER;
@@ -8112,12 +8112,12 @@ accept	accept	engine	relationPrimary/subquery_(AS?_identifier_columnAliases?)?!i
 reject	reject	engine	relationPrimary/subquery_(AS?_identifier_columnAliases?)?!swap	SELECT CURRENT_USER FROM(SEMI CURRENT_USER);
 accept	accept	engine	relationPrimary/qualifiedName_(_expressionList_)_(AS?_identifier_column~e623e79c	SELECT CURRENT_USER FROM a(CURRENT_USER);
 reject	reject	engine	relationPrimary/qualifiedName_(_expressionList_)_(AS?_identifier_column~e623e79c!drop-2	SELECT CURRENT_USER FROM a CURRENT_USER);
-accept	reject	engine	relationPrimary/qualifiedName_(_expressionList_)_(AS?_identifier_column~e623e79c!drop-3	SELECT CURRENT_USER FROM a();
+reject	reject	engine	relationPrimary/qualifiedName_(_expressionList_)_(AS?_identifier_column~e623e79c!drop-3	SELECT CURRENT_USER FROM a();
 reject	reject	engine	relationPrimary/qualifiedName_(_expressionList_)_(AS?_identifier_column~e623e79c!drop-4	SELECT CURRENT_USER FROM a(CURRENT_USER;
 reject	reject	engine	relationPrimary/qualifiedName_(_expressionList_)_(AS?_identifier_column~e623e79c!truncate	SELECT CURRENT_USER FROM a(CURRENT_USER
 accept	accept	engine	relationPrimary/qualifiedName_(_expressionList_)_(AS?_identifier_column~e623e79c!insert	SELECT CURRENT_USER FROM a(CURRENT_USER) zzz;
 accept	accept	engine	relationPrimary/qualifiedName_(_expressionList_)_(AS?_identifier_column~e623e79c!swap	SELECT CURRENT_USER FROM a(DATA);
-reject	accept	engine	relationPrimary/TABLE_(_qualifiedName_(_argumentList_)_)_(AS?_identifie~fbd414f2	SELECT CURRENT_USER FROM TABLE(a(CURRENT_USER));
+accept	accept	engine	relationPrimary/TABLE_(_qualifiedName_(_argumentList_)_)_(AS?_identifie~fbd414f2	SELECT CURRENT_USER FROM TABLE(a(CURRENT_USER));
 accept	accept	engine	relationPrimary/TABLE_(_qualifiedName_(_argumentList_)_)_(AS?_identifie~fbd414f2!drop-1	SELECT CURRENT_USER FROM(a(CURRENT_USER));
 reject	reject	engine	relationPrimary/TABLE_(_qualifiedName_(_argumentList_)_)_(AS?_identifie~fbd414f2!drop-2	SELECT CURRENT_USER FROM TABLE a(CURRENT_USER));
 reject	reject	engine	relationPrimary/TABLE_(_qualifiedName_(_argumentList_)_)_(AS?_identifie~fbd414f2!drop-3	SELECT CURRENT_USER FROM TABLE((CURRENT_USER));
@@ -8125,7 +8125,7 @@ reject	reject	engine	relationPrimary/TABLE_(_qualifiedName_(_argumentList_)_)_(A
 reject	reject	engine	relationPrimary/TABLE_(_qualifiedName_(_argumentList_)_)_(AS?_identifie~fbd414f2!drop-5	SELECT CURRENT_USER FROM TABLE(a());
 reject	reject	engine	relationPrimary/TABLE_(_qualifiedName_(_argumentList_)_)_(AS?_identifie~fbd414f2!drop-6	SELECT CURRENT_USER FROM TABLE(a(CURRENT_USER);
 reject	reject	engine	relationPrimary/TABLE_(_qualifiedName_(_argumentList_)_)_(AS?_identifie~fbd414f2!truncate	SELECT CURRENT_USER FROM TABLE(a(CURRENT_USER)
-reject	accept	engine	relationPrimary/TABLE_(_qualifiedName_(_argumentList_)_)_(AS?_identifie~fbd414f2!insert	SELECT CURRENT_USER FROM TABLE(a(CURRENT_USER)) zzz;
+accept	accept	engine	relationPrimary/TABLE_(_qualifiedName_(_argumentList_)_)_(AS?_identifie~fbd414f2!insert	SELECT CURRENT_USER FROM TABLE(a(CURRENT_USER)) zzz;
 accept	accept	engine	relationPrimary/TABLE_(_qualifiedName_(_argumentList_)_)_(AS?_identifie~fbd414f2!swap	SELECT CURRENT_USER FROM TABLES(a(CURRENT_USER));
 accept	accept	engine	relationPrimary/FILES_propertyList_(AS?_identifier_columnAliases?)?	SELECT CURRENT_USER FROM FILES('a' = 'a');
 reject	reject	engine	relationPrimary/FILES_propertyList_(AS?_identifier_columnAliases?)?!drop-1	SELECT CURRENT_USER FROM('a' = 'a');
@@ -8139,13 +8139,13 @@ accept	accept	engine	relationPrimary/FILES_propertyList_(AS?_identifier_columnAl
 accept	accept	engine	relationPrimary/FILES_propertyList_(AS?_identifier_columnAliases?)?!swap	SELECT CURRENT_USER FROM FILTER('a' = 'a');
 accept	accept	engine	relationPrimary/(_relations_)	SELECT CURRENT_USER FROM(a);
 accept	accept	engine	relationPrimary(queryPeriod)?/%empty	SELECT CURRENT_USER FROM a;
-reject	accept	engine	relationPrimary(queryPeriod)?/queryPeriod	SELECT CURRENT_USER FROM a SYSTEM_TIME ALL;
+accept	accept	engine	relationPrimary(queryPeriod)?/queryPeriod	SELECT CURRENT_USER FROM a SYSTEM_TIME ALL;
 accept	accept	engine	relationPrimary(partitionNames)?/%empty	SELECT CURRENT_USER FROM a;
-reject	accept	engine	relationPrimary(partitionNames)?/partitionNames	SELECT CURRENT_USER FROM a PARTITION a;
+accept	accept	engine	relationPrimary(partitionNames)?/partitionNames	SELECT CURRENT_USER FROM a PARTITION a;
 reject	reject	engine	relationPrimary(partitionNames)?/partitionNames!drop-2	SELECT CURRENT_USER FROM a PARTITION;
 reject	reject	engine	relationPrimary(partitionNames)?/partitionNames!truncate	SELECT CURRENT_USER FROM a PARTITION
-reject	accept	engine	relationPrimary(partitionNames)?/partitionNames!insert	SELECT CURRENT_USER FROM a PARTITION a zzz;
-reject	accept	engine	relationPrimary(partitionNames)?/partitionNames!swap	SELECT CURRENT_USER FROM a PARTITIONS a;
+accept	accept	engine	relationPrimary(partitionNames)?/partitionNames!insert	SELECT CURRENT_USER FROM a PARTITION a zzz;
+accept	accept	engine	relationPrimary(partitionNames)?/partitionNames!swap	SELECT CURRENT_USER FROM a PARTITIONS a;
 accept	accept	engine	relationPrimary(tabletList)?/%empty	SELECT CURRENT_USER FROM a;
 accept	accept	engine	relationPrimary(tabletList)?/tabletList	SELECT CURRENT_USER FROM a TABLET(1);
 accept	accept	engine	relationPrimary(tabletList)?/tabletList!drop-1	SELECT CURRENT_USER FROM a(1);
@@ -8156,12 +8156,12 @@ reject	reject	engine	relationPrimary(tabletList)?/tabletList!truncate	SELECT CUR
 accept	accept	engine	relationPrimary(tabletList)?/tabletList!insert	SELECT CURRENT_USER FROM a TABLET(1) zzz;
 reject	reject	engine	relationPrimary(tabletList)?/tabletList!swap	SELECT CURRENT_USER FROM a TABLETS(1);
 accept	accept	engine	relationPrimary(replicaList)?/%empty	SELECT CURRENT_USER FROM a;
-reject	accept	engine	relationPrimary(replicaList)?/replicaList	SELECT CURRENT_USER FROM a REPLICA(1);
+accept	accept	engine	relationPrimary(replicaList)?/replicaList	SELECT CURRENT_USER FROM a REPLICA(1);
 reject	reject	engine	relationPrimary(replicaList)?/replicaList!drop-2	SELECT CURRENT_USER FROM a REPLICA 1);
 reject	reject	engine	relationPrimary(replicaList)?/replicaList!drop-3	SELECT CURRENT_USER FROM a REPLICA();
 reject	reject	engine	relationPrimary(replicaList)?/replicaList!drop-4	SELECT CURRENT_USER FROM a REPLICA(1;
 reject	reject	engine	relationPrimary(replicaList)?/replicaList!truncate	SELECT CURRENT_USER FROM a REPLICA(1
-reject	accept	engine	relationPrimary(replicaList)?/replicaList!insert	SELECT CURRENT_USER FROM a REPLICA(1) zzz;
+accept	accept	engine	relationPrimary(replicaList)?/replicaList!insert	SELECT CURRENT_USER FROM a REPLICA(1) zzz;
 reject	reject	engine	relationPrimary(replicaList)?/replicaList!swap	SELECT CURRENT_USER FROM a REPOSITORIES(1);
 accept	accept	engine	relationPrimary(AS?_identifier)?/%empty	SELECT CURRENT_USER FROM a;
 accept	accept	engine	relationPrimary(AS?_identifier)?/(AS)?_identifier	SELECT CURRENT_USER FROM a a;
@@ -8172,7 +8172,7 @@ accept	accept	engine	relationPrimary(AS)?/AS	SELECT CURRENT_USER FROM a AS a;
 reject	reject	engine	relationPrimary(AS)?/AS!insert	SELECT CURRENT_USER FROM a AS zzz a;
 reject	reject	engine	relationPrimary(AS)?/AS!swap	SELECT CURRENT_USER FROM a ASC a;
 accept	accept	engine	relationPrimary(bracketHint)?/%empty	SELECT CURRENT_USER FROM a;
-reject	accept	engine	relationPrimary(bracketHint)?/bracketHint	SELECT CURRENT_USER FROM a [ a ];
+accept	accept	engine	relationPrimary(bracketHint)?/bracketHint	SELECT CURRENT_USER FROM a [ a ];
 reject	reject	engine	relationPrimary(bracketHint)?/bracketHint!drop-1	SELECT CURRENT_USER FROM a a ];
 reject	reject	engine	relationPrimary(bracketHint)?/bracketHint!drop-2	SELECT CURRENT_USER FROM a [ ];
 reject	reject	engine	relationPrimary(bracketHint)?/bracketHint!drop-3	SELECT CURRENT_USER FROM a [ a;
@@ -8199,7 +8199,7 @@ accept	accept	engine	relationPrimary(AS?_identifier_columnAliases?)?/(AS)?_ident
 accept	accept	engine	relationPrimary(AS?_identifier_columnAliases?)?/(AS)?_identifier_(columnAliases)?!truncate	SELECT CURRENT_USER FROM(SELECT CURRENT_USER)
 reject	reject	engine	relationPrimary(AS?_identifier_columnAliases?)?/(AS)?_identifier_(columnAliases)?!insert	SELECT CURRENT_USER FROM(SELECT CURRENT_USER) a zzz;
 accept	accept	engine	relationPrimary(columnAliases)?/%empty	SELECT CURRENT_USER FROM(SELECT CURRENT_USER) a;
-reject	accept	engine	relationPrimary(columnAliases)?/columnAliases	SELECT CURRENT_USER FROM(SELECT CURRENT_USER) a(a);
+accept	accept	engine	relationPrimary(columnAliases)?/columnAliases	SELECT CURRENT_USER FROM(SELECT CURRENT_USER) a(a);
 reject	reject	engine	relationPrimary(columnAliases)?/columnAliases!drop-1	SELECT CURRENT_USER FROM(SELECT CURRENT_USER) a a);
 reject	reject	engine	relationPrimary(columnAliases)?/columnAliases!drop-2	SELECT CURRENT_USER FROM(SELECT CURRENT_USER) a();
 reject	reject	engine	relationPrimary(columnAliases)?/columnAliases!drop-3	SELECT CURRENT_USER FROM(SELECT CURRENT_USER) a(a;
@@ -8269,28 +8269,28 @@ reject	reject	engine	pivotValue(AS)?/AS!swap	SELECT CURRENT_USER FROM a PIVOT(CU
 reject	reject	engine	pivotValue(identifier|string)/identifier	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(NULL a));
 reject	reject	engine	pivotValue(identifier|string)/string	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(NULL 'a'));
 reject	reject	engine	pivotValue(identifier|string)/string!insert	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(NULL 'a' zzz));
-reject	accept	engine	argumentList/expressionList	SELECT CURRENT_USER FROM TABLE(a(CURRENT_USER));
+accept	accept	engine	argumentList/expressionList	SELECT CURRENT_USER FROM TABLE(a(CURRENT_USER));
 reject	reject	engine	argumentList/expressionList!truncate	SELECT CURRENT_USER FROM TABLE(a(
 reject	reject	engine	argumentList/expressionList!insert	SELECT CURRENT_USER FROM TABLE(a(CURRENT_USER zzz));
-reject	accept	engine	argumentList/expressionList!swap	SELECT CURRENT_USER FROM TABLE(a(DATA));
-reject	accept	engine	argumentList/namedArgumentList	SELECT CURRENT_USER FROM TABLE(a(a => CURRENT_USER));
+accept	accept	engine	argumentList/expressionList!swap	SELECT CURRENT_USER FROM TABLE(a(DATA));
+accept	accept	engine	argumentList/namedArgumentList	SELECT CURRENT_USER FROM TABLE(a(a => CURRENT_USER));
 reject	reject	engine	argumentList/namedArgumentList!drop-1	SELECT CURRENT_USER FROM TABLE(a(=> CURRENT_USER));
 reject	reject	engine	argumentList/namedArgumentList!drop-2	SELECT CURRENT_USER FROM TABLE(a(a CURRENT_USER));
 reject	reject	engine	argumentList/namedArgumentList!drop-3	SELECT CURRENT_USER FROM TABLE(a(a =>));
 reject	reject	engine	argumentList/namedArgumentList!truncate	SELECT CURRENT_USER FROM TABLE(a(a =>
 reject	reject	engine	argumentList/namedArgumentList!insert	SELECT CURRENT_USER FROM TABLE(a(a => CURRENT_USER zzz));
-reject	accept	engine	argumentList/namedArgumentList!swap	SELECT CURRENT_USER FROM TABLE(a(a => DATA));
-reject	accept	engine	namedArgumentList/namedArgument_(,_namedArgument)*	SELECT CURRENT_USER FROM TABLE(a(a => CURRENT_USER));
-reject	accept	engine	namedArgumentList(,_namedArgument)*/%empty	SELECT CURRENT_USER FROM TABLE(a(a => CURRENT_USER));
-reject	accept	engine	namedArgumentList(,_namedArgument)*/,_namedArgument_(,_namedArgument)*	SELECT CURRENT_USER FROM TABLE(a(a => CURRENT_USER, a => CURRENT_USER));
+accept	accept	engine	argumentList/namedArgumentList!swap	SELECT CURRENT_USER FROM TABLE(a(a => DATA));
+accept	accept	engine	namedArgumentList/namedArgument_(,_namedArgument)*	SELECT CURRENT_USER FROM TABLE(a(a => CURRENT_USER));
+accept	accept	engine	namedArgumentList(,_namedArgument)*/%empty	SELECT CURRENT_USER FROM TABLE(a(a => CURRENT_USER));
+accept	accept	engine	namedArgumentList(,_namedArgument)*/,_namedArgument_(,_namedArgument)*	SELECT CURRENT_USER FROM TABLE(a(a => CURRENT_USER, a => CURRENT_USER));
 reject	reject	engine	namedArgumentList(,_namedArgument)*/,_namedArgument_(,_namedArgument)*!drop-1	SELECT CURRENT_USER FROM TABLE(a(a => CURRENT_USER a => CURRENT_USER));
 reject	reject	engine	namedArgumentList(,_namedArgument)*/,_namedArgument_(,_namedArgument)*!drop-2	SELECT CURRENT_USER FROM TABLE(a(a => CURRENT_USER, => CURRENT_USER));
 reject	reject	engine	namedArgumentList(,_namedArgument)*/,_namedArgument_(,_namedArgument)*!drop-3	SELECT CURRENT_USER FROM TABLE(a(a => CURRENT_USER, a CURRENT_USER));
 reject	reject	engine	namedArgumentList(,_namedArgument)*/,_namedArgument_(,_namedArgument)*!drop-4	SELECT CURRENT_USER FROM TABLE(a(a => CURRENT_USER, a =>));
 reject	reject	engine	namedArgumentList(,_namedArgument)*/,_namedArgument_(,_namedArgument)*!truncate	SELECT CURRENT_USER FROM TABLE(a(a => CURRENT_USER, a =>
 reject	reject	engine	namedArgumentList(,_namedArgument)*/,_namedArgument_(,_namedArgument)*!insert	SELECT CURRENT_USER FROM TABLE(a(a => CURRENT_USER, a => CURRENT_USER zzz));
-reject	accept	engine	namedArgumentList(,_namedArgument)*/,_namedArgument_(,_namedArgument)*!swap	SELECT CURRENT_USER FROM TABLE(a(a => CURRENT_USER, a => DATA));
-reject	accept	engine	namedArgument/identifier_=>_expression	SELECT CURRENT_USER FROM TABLE(a(a => CURRENT_USER));
+accept	accept	engine	namedArgumentList(,_namedArgument)*/,_namedArgument_(,_namedArgument)*!swap	SELECT CURRENT_USER FROM TABLE(a(a => CURRENT_USER, a => DATA));
+accept	accept	engine	namedArgument/identifier_=>_expression	SELECT CURRENT_USER FROM TABLE(a(a => CURRENT_USER));
 accept	accept	engine	joinRelation/crossOrInnerJoinType_(bracketHint)?_(LATERAL)?_relation~f8d93c63	SELECT CURRENT_USER FROM a JOIN a;
 accept	accept	engine	joinRelation/outerAndSemiJoinType_(bracketHint)?_(LATERAL)?_relation~59680e8f	SELECT CURRENT_USER FROM a LEFT JOIN a ON CURRENT_USER;
 reject	reject	engine	joinRelation/outerAndSemiJoinType_(bracketHint)?_(LATERAL)?_relation~59680e8f!drop-2	SELECT CURRENT_USER FROM a LEFT a ON CURRENT_USER;
@@ -8304,7 +8304,7 @@ accept	accept	engine	joinRelation(bracketHint)?/%empty	SELECT CURRENT_USER FROM 
 accept	accept	engine	joinRelation(bracketHint)?/%empty!insert	SELECT CURRENT_USER FROM a JOIN zzz a;
 accept	accept	engine	joinRelation(bracketHint)?/bracketHint	SELECT CURRENT_USER FROM a JOIN [ a ] a;
 reject	reject	engine	joinRelation(bracketHint)?/bracketHint!drop-1	SELECT CURRENT_USER FROM a JOIN a ] a;
-accept	reject	engine	joinRelation(bracketHint)?/bracketHint!drop-2	SELECT CURRENT_USER FROM a JOIN [ ] a;
+reject	reject	engine	joinRelation(bracketHint)?/bracketHint!drop-2	SELECT CURRENT_USER FROM a JOIN [ ] a;
 reject	reject	engine	joinRelation(bracketHint)?/bracketHint!drop-3	SELECT CURRENT_USER FROM a JOIN [ a a;
 reject	reject	engine	joinRelation(bracketHint)?/bracketHint!truncate	SELECT CURRENT_USER FROM a JOIN [ a
 accept	accept	engine	joinRelation(bracketHint)?/bracketHint!insert	SELECT CURRENT_USER FROM a JOIN [ a ] zzz a;
@@ -8325,8 +8325,8 @@ reject	reject	engine	crossOrInnerJoinType/INNER_JOIN!drop-2	SELECT CURRENT_USER 
 reject	reject	engine	crossOrInnerJoinType/INNER_JOIN!truncate	SELECT CURRENT_USER FROM a INNER
 accept	accept	engine	crossOrInnerJoinType/INNER_JOIN!insert	SELECT CURRENT_USER FROM a INNER JOIN zzz a;
 accept	reject	engine	crossOrInnerJoinType/INNER_JOIN!swap	SELECT CURRENT_USER FROM a INSERT JOIN a;
-reject	accept	engine	crossOrInnerJoinType/CROSS	SELECT CURRENT_USER FROM a CROSS a;
-reject	accept	engine	crossOrInnerJoinType/CROSS!insert	SELECT CURRENT_USER FROM a CROSS zzz a;
+accept	accept	engine	crossOrInnerJoinType/CROSS	SELECT CURRENT_USER FROM a CROSS a;
+accept	accept	engine	crossOrInnerJoinType/CROSS!insert	SELECT CURRENT_USER FROM a CROSS zzz a;
 reject	reject	engine	crossOrInnerJoinType/CROSS!swap	SELECT CURRENT_USER FROM a CUBE a;
 accept	accept	engine	crossOrInnerJoinType/CROSS_JOIN	SELECT CURRENT_USER FROM a CROSS JOIN a;
 reject	reject	engine	crossOrInnerJoinType/CROSS_JOIN!truncate	SELECT CURRENT_USER FROM a CROSS
@@ -8348,43 +8348,43 @@ accept	reject	engine	outerAndSemiJoinType/FULL_JOIN!swap	SELECT CURRENT_USER FRO
 accept	accept	engine	outerAndSemiJoinType/LEFT_OUTER_JOIN	SELECT CURRENT_USER FROM a LEFT OUTER JOIN a ON CURRENT_USER;
 reject	reject	engine	outerAndSemiJoinType/LEFT_OUTER_JOIN!drop-1	SELECT CURRENT_USER FROM a OUTER JOIN a ON CURRENT_USER;
 reject	reject	engine	outerAndSemiJoinType/LEFT_OUTER_JOIN!drop-3	SELECT CURRENT_USER FROM a LEFT OUTER a ON CURRENT_USER;
-accept	reject	engine	outerAndSemiJoinType/LEFT_OUTER_JOIN!truncate	SELECT CURRENT_USER FROM a LEFT OUTER
+reject	reject	engine	outerAndSemiJoinType/LEFT_OUTER_JOIN!truncate	SELECT CURRENT_USER FROM a LEFT OUTER
 accept	accept	engine	outerAndSemiJoinType/LEFT_OUTER_JOIN!insert	SELECT CURRENT_USER FROM a LEFT OUTER JOIN zzz a ON CURRENT_USER;
 reject	reject	engine	outerAndSemiJoinType/LEFT_OUTER_JOIN!swap	SELECT CURRENT_USER FROM a LESS OUTER JOIN a ON CURRENT_USER;
 accept	accept	engine	outerAndSemiJoinType/RIGHT_OUTER_JOIN	SELECT CURRENT_USER FROM a RIGHT OUTER JOIN a ON CURRENT_USER;
 reject	reject	engine	outerAndSemiJoinType/RIGHT_OUTER_JOIN!drop-3	SELECT CURRENT_USER FROM a RIGHT OUTER a ON CURRENT_USER;
-accept	reject	engine	outerAndSemiJoinType/RIGHT_OUTER_JOIN!truncate	SELECT CURRENT_USER FROM a RIGHT OUTER
+reject	reject	engine	outerAndSemiJoinType/RIGHT_OUTER_JOIN!truncate	SELECT CURRENT_USER FROM a RIGHT OUTER
 accept	accept	engine	outerAndSemiJoinType/RIGHT_OUTER_JOIN!insert	SELECT CURRENT_USER FROM a RIGHT OUTER JOIN zzz a ON CURRENT_USER;
 reject	reject	engine	outerAndSemiJoinType/RIGHT_OUTER_JOIN!swap	SELECT CURRENT_USER FROM a RLIKE OUTER JOIN a ON CURRENT_USER;
 accept	accept	engine	outerAndSemiJoinType/FULL_OUTER_JOIN	SELECT CURRENT_USER FROM a FULL OUTER JOIN a ON CURRENT_USER;
 reject	reject	engine	outerAndSemiJoinType/FULL_OUTER_JOIN!drop-3	SELECT CURRENT_USER FROM a FULL OUTER a ON CURRENT_USER;
-accept	reject	engine	outerAndSemiJoinType/FULL_OUTER_JOIN!truncate	SELECT CURRENT_USER FROM a FULL OUTER
+reject	reject	engine	outerAndSemiJoinType/FULL_OUTER_JOIN!truncate	SELECT CURRENT_USER FROM a FULL OUTER
 accept	accept	engine	outerAndSemiJoinType/FULL_OUTER_JOIN!insert	SELECT CURRENT_USER FROM a FULL OUTER JOIN zzz a ON CURRENT_USER;
 reject	reject	engine	outerAndSemiJoinType/FULL_OUTER_JOIN!swap	SELECT CURRENT_USER FROM a FUNCTION OUTER JOIN a ON CURRENT_USER;
 accept	accept	engine	outerAndSemiJoinType/LEFT_SEMI_JOIN	SELECT CURRENT_USER FROM a LEFT SEMI JOIN a ON CURRENT_USER;
 reject	accept	engine	outerAndSemiJoinType/LEFT_SEMI_JOIN!drop-1	SELECT CURRENT_USER FROM a SEMI JOIN a ON CURRENT_USER;
 reject	reject	engine	outerAndSemiJoinType/LEFT_SEMI_JOIN!drop-3	SELECT CURRENT_USER FROM a LEFT SEMI a ON CURRENT_USER;
-accept	reject	engine	outerAndSemiJoinType/LEFT_SEMI_JOIN!truncate	SELECT CURRENT_USER FROM a LEFT SEMI
+reject	reject	engine	outerAndSemiJoinType/LEFT_SEMI_JOIN!truncate	SELECT CURRENT_USER FROM a LEFT SEMI
 accept	accept	engine	outerAndSemiJoinType/LEFT_SEMI_JOIN!insert	SELECT CURRENT_USER FROM a LEFT SEMI JOIN zzz a ON CURRENT_USER;
 reject	reject	engine	outerAndSemiJoinType/LEFT_SEMI_JOIN!swap	SELECT CURRENT_USER FROM a LESS SEMI JOIN a ON CURRENT_USER;
 accept	accept	engine	outerAndSemiJoinType/RIGHT_SEMI_JOIN	SELECT CURRENT_USER FROM a RIGHT SEMI JOIN a ON CURRENT_USER;
 reject	reject	engine	outerAndSemiJoinType/RIGHT_SEMI_JOIN!drop-3	SELECT CURRENT_USER FROM a RIGHT SEMI a ON CURRENT_USER;
-accept	reject	engine	outerAndSemiJoinType/RIGHT_SEMI_JOIN!truncate	SELECT CURRENT_USER FROM a RIGHT SEMI
+reject	reject	engine	outerAndSemiJoinType/RIGHT_SEMI_JOIN!truncate	SELECT CURRENT_USER FROM a RIGHT SEMI
 accept	accept	engine	outerAndSemiJoinType/RIGHT_SEMI_JOIN!insert	SELECT CURRENT_USER FROM a RIGHT SEMI JOIN zzz a ON CURRENT_USER;
 reject	reject	engine	outerAndSemiJoinType/RIGHT_SEMI_JOIN!swap	SELECT CURRENT_USER FROM a RLIKE SEMI JOIN a ON CURRENT_USER;
 accept	accept	engine	outerAndSemiJoinType/LEFT_ANTI_JOIN	SELECT CURRENT_USER FROM a LEFT ANTI JOIN a ON CURRENT_USER;
 reject	accept	engine	outerAndSemiJoinType/LEFT_ANTI_JOIN!drop-1	SELECT CURRENT_USER FROM a ANTI JOIN a ON CURRENT_USER;
 reject	reject	engine	outerAndSemiJoinType/LEFT_ANTI_JOIN!drop-3	SELECT CURRENT_USER FROM a LEFT ANTI a ON CURRENT_USER;
-accept	reject	engine	outerAndSemiJoinType/LEFT_ANTI_JOIN!truncate	SELECT CURRENT_USER FROM a LEFT ANTI
+reject	reject	engine	outerAndSemiJoinType/LEFT_ANTI_JOIN!truncate	SELECT CURRENT_USER FROM a LEFT ANTI
 accept	accept	engine	outerAndSemiJoinType/LEFT_ANTI_JOIN!insert	SELECT CURRENT_USER FROM a LEFT ANTI JOIN zzz a ON CURRENT_USER;
 reject	reject	engine	outerAndSemiJoinType/LEFT_ANTI_JOIN!swap	SELECT CURRENT_USER FROM a LESS ANTI JOIN a ON CURRENT_USER;
 accept	accept	engine	outerAndSemiJoinType/RIGHT_ANTI_JOIN	SELECT CURRENT_USER FROM a RIGHT ANTI JOIN a ON CURRENT_USER;
 reject	reject	engine	outerAndSemiJoinType/RIGHT_ANTI_JOIN!drop-3	SELECT CURRENT_USER FROM a RIGHT ANTI a ON CURRENT_USER;
-accept	reject	engine	outerAndSemiJoinType/RIGHT_ANTI_JOIN!truncate	SELECT CURRENT_USER FROM a RIGHT ANTI
+reject	reject	engine	outerAndSemiJoinType/RIGHT_ANTI_JOIN!truncate	SELECT CURRENT_USER FROM a RIGHT ANTI
 accept	accept	engine	outerAndSemiJoinType/RIGHT_ANTI_JOIN!insert	SELECT CURRENT_USER FROM a RIGHT ANTI JOIN zzz a ON CURRENT_USER;
 reject	reject	engine	outerAndSemiJoinType/RIGHT_ANTI_JOIN!swap	SELECT CURRENT_USER FROM a RLIKE ANTI JOIN a ON CURRENT_USER;
-reject	accept	engine	bracketHint/[_identifier_(,_identifier)*_]	SELECT CURRENT_USER FROM a [ a ];
-reject	accept	engine	bracketHint/[_identifier_|_primaryExpression_literalExpressionList_]	SELECT CURRENT_USER FROM a [ a | CURRENT_USER(NULL) ];
+accept	accept	engine	bracketHint/[_identifier_(,_identifier)*_]	SELECT CURRENT_USER FROM a [ a ];
+accept	accept	engine	bracketHint/[_identifier_|_primaryExpression_literalExpressionList_]	SELECT CURRENT_USER FROM a [ a | CURRENT_USER(NULL) ];
 reject	reject	engine	bracketHint/[_identifier_|_primaryExpression_literalExpressionList_]!drop-1	SELECT CURRENT_USER FROM a a | CURRENT_USER(NULL) ];
 reject	reject	engine	bracketHint/[_identifier_|_primaryExpression_literalExpressionList_]!drop-2	SELECT CURRENT_USER FROM a [ | CURRENT_USER(NULL) ];
 reject	reject	engine	bracketHint/[_identifier_|_primaryExpression_literalExpressionList_]!drop-3	SELECT CURRENT_USER FROM a [ a CURRENT_USER(NULL) ];
@@ -8395,10 +8395,10 @@ reject	reject	engine	bracketHint/[_identifier_|_primaryExpression_literalExpress
 reject	reject	engine	bracketHint/[_identifier_|_primaryExpression_literalExpressionList_]!drop-8	SELECT CURRENT_USER FROM a [ a | CURRENT_USER(NULL);
 reject	reject	engine	bracketHint/[_identifier_|_primaryExpression_literalExpressionList_]!truncate	SELECT CURRENT_USER FROM a [ a | CURRENT_USER(NULL)
 reject	reject	engine	bracketHint/[_identifier_|_primaryExpression_literalExpressionList_]!insert	SELECT CURRENT_USER FROM a [ a | CURRENT_USER(NULL) ] zzz;
-reject	accept	engine	bracketHint/[_identifier_|_primaryExpression_literalExpressionList_]!swap	SELECT CURRENT_USER FROM a [ a | DATA(NULL) ];
-reject	accept	engine	bracketHint(,_identifier)*/%empty	SELECT CURRENT_USER FROM a [ a ];
+accept	accept	engine	bracketHint/[_identifier_|_primaryExpression_literalExpressionList_]!swap	SELECT CURRENT_USER FROM a [ a | DATA(NULL) ];
+accept	accept	engine	bracketHint(,_identifier)*/%empty	SELECT CURRENT_USER FROM a [ a ];
 reject	reject	engine	bracketHint(,_identifier)*/%empty!insert	SELECT CURRENT_USER FROM a [ a zzz ];
-reject	accept	engine	bracketHint(,_identifier)*/,_identifier_(,_identifier)*	SELECT CURRENT_USER FROM a [ a, a ];
+accept	accept	engine	bracketHint(,_identifier)*/,_identifier_(,_identifier)*	SELECT CURRENT_USER FROM a [ a, a ];
 reject	reject	engine	bracketHint(,_identifier)*/,_identifier_(,_identifier)*!drop-1	SELECT CURRENT_USER FROM a [ a a ];
 reject	reject	engine	bracketHint(,_identifier)*/,_identifier_(,_identifier)*!drop-2	SELECT CURRENT_USER FROM a [ a, ];
 reject	reject	engine	bracketHint(,_identifier)*/,_identifier_(,_identifier)*!truncate	SELECT CURRENT_USER FROM a [ a,
@@ -8509,10 +8509,10 @@ reject	reject	engine	deallocateStatement(DEALLOCATE|DROP)/DEALLOCATE!insert	DEAL
 reject	accept	engine	deallocateStatement(DEALLOCATE|DROP)/DROP	DROP PREPARE a;
 reject	reject	engine	deallocateStatement(DEALLOCATE|DROP)/DROP!insert	DROP zzz PREPARE a;
 reject	reject	engine	deallocateStatement(DEALLOCATE|DROP)/DROP!swap	DUAL PREPARE a;
-reject	accept	engine	replicaList/REPLICA_(_INTEGER_VALUE_(,_INTEGER_VALUE)*_)	SELECT CURRENT_USER FROM a REPLICA(1);
-reject	accept	engine	replicaList(,_INTEGER_VALUE)*/%empty	SELECT CURRENT_USER FROM a REPLICA(1);
+accept	accept	engine	replicaList/REPLICA_(_INTEGER_VALUE_(,_INTEGER_VALUE)*_)	SELECT CURRENT_USER FROM a REPLICA(1);
+accept	accept	engine	replicaList(,_INTEGER_VALUE)*/%empty	SELECT CURRENT_USER FROM a REPLICA(1);
 reject	reject	engine	replicaList(,_INTEGER_VALUE)*/%empty!insert	SELECT CURRENT_USER FROM a REPLICA(1 zzz);
-reject	accept	engine	replicaList(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*	SELECT CURRENT_USER FROM a REPLICA(1, 1);
+accept	accept	engine	replicaList(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*	SELECT CURRENT_USER FROM a REPLICA(1, 1);
 reject	reject	engine	replicaList(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*!drop-1	SELECT CURRENT_USER FROM a REPLICA(1 1);
 reject	reject	engine	replicaList(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*!drop-2	SELECT CURRENT_USER FROM a REPLICA(1,);
 reject	reject	engine	replicaList(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*!truncate	SELECT CURRENT_USER FROM a REPLICA(1,
@@ -9969,13 +9969,13 @@ reject	reject	engine	stringList(,_string)*/,_string_(,_string)*!drop-1	CREATE ST
 reject	reject	engine	stringList(,_string)*/,_string_(,_string)*!drop-2	CREATE STORAGE VOLUME a TYPE = a LOCATIONS =('a',);
 reject	reject	engine	stringList(,_string)*/,_string_(,_string)*!truncate	CREATE STORAGE VOLUME a TYPE = a LOCATIONS =('a',
 reject	reject	engine	stringList(,_string)*/,_string_(,_string)*!insert	CREATE STORAGE VOLUME a TYPE = a LOCATIONS =('a', 'a' zzz);
-reject	accept	engine	literalExpressionList/(_literalExpression_(,_literalExpression)*_)	SELECT CURRENT_USER FROM a [ a | CURRENT_USER(NULL) ];
+accept	accept	engine	literalExpressionList/(_literalExpression_(,_literalExpression)*_)	SELECT CURRENT_USER FROM a [ a | CURRENT_USER(NULL) ];
 reject	reject	engine	literalExpressionList/(_literalExpression_(,_literalExpression)*_)!truncate	SELECT CURRENT_USER FROM a [ a | CURRENT_USER(NULL
 reject	reject	engine	literalExpressionList/(_literalExpression_(,_literalExpression)*_)!insert	SELECT CURRENT_USER FROM a [ a | CURRENT_USER(NULL) zzz ];
 reject	reject	engine	literalExpressionList/(_literalExpression_(,_literalExpression)*_)!swap	SELECT CURRENT_USER FROM a [ a | CURRENT_USER(NULLS) ];
-reject	accept	engine	literalExpressionList(,_literalExpression)*/%empty	SELECT CURRENT_USER FROM a [ a | CURRENT_USER(NULL) ];
+accept	accept	engine	literalExpressionList(,_literalExpression)*/%empty	SELECT CURRENT_USER FROM a [ a | CURRENT_USER(NULL) ];
 reject	reject	engine	literalExpressionList(,_literalExpression)*/%empty!insert	SELECT CURRENT_USER FROM a [ a | CURRENT_USER(NULL zzz) ];
-reject	accept	engine	literalExpressionList(,_literalExpression)*/,_literalExpression_(,_literalExpression)*	SELECT CURRENT_USER FROM a [ a | CURRENT_USER(NULL, NULL) ];
+accept	accept	engine	literalExpressionList(,_literalExpression)*/,_literalExpression_(,_literalExpression)*	SELECT CURRENT_USER FROM a [ a | CURRENT_USER(NULL, NULL) ];
 reject	reject	engine	literalExpressionList(,_literalExpression)*/,_literalExpression_(,_literalExpression)*!drop-1	SELECT CURRENT_USER FROM a [ a | CURRENT_USER(NULL NULL) ];
 reject	reject	engine	literalExpressionList(,_literalExpression)*/,_literalExpression_(,_literalExpression)*!drop-2	SELECT CURRENT_USER FROM a [ a | CURRENT_USER(NULL,) ];
 reject	reject	engine	literalExpressionList(,_literalExpression)*/,_literalExpression_(,_literalExpression)*!truncate	SELECT CURRENT_USER FROM a [ a | CURRENT_USER(NULL,

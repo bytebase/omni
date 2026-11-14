@@ -5677,26 +5677,26 @@ reject	reject	engine	relation(joinRelation)*/joinRelation_(joinRelation)*!swap	S
 accept	accept	engine	joinRelation/joinType_JOIN_(distributeType)?_relationPrimary_(joinCriteria)?	SELECT CURRENT_DATE FROM a JOIN a
 accept	accept	engine	joinRelation(distributeType)?/%empty	SELECT CURRENT_DATE FROM a JOIN a
 accept	accept	engine	joinRelation(distributeType)?/%empty!insert	SELECT CURRENT_DATE FROM a JOIN zzz a
-accept	reject	engine	joinRelation(distributeType)?/distributeType	SELECT CURRENT_DATE FROM a JOIN [ a ] a
+reject	reject	engine	joinRelation(distributeType)?/distributeType	SELECT CURRENT_DATE FROM a JOIN [ a ] a
 reject	reject	engine	joinRelation(distributeType)?/distributeType!drop-1	SELECT CURRENT_DATE FROM a JOIN a ] a
-accept	reject	engine	joinRelation(distributeType)?/distributeType!drop-2	SELECT CURRENT_DATE FROM a JOIN [ ] a
+reject	reject	engine	joinRelation(distributeType)?/distributeType!drop-2	SELECT CURRENT_DATE FROM a JOIN [ ] a
 reject	reject	engine	joinRelation(distributeType)?/distributeType!drop-3	SELECT CURRENT_DATE FROM a JOIN [ a a
 reject	reject	engine	joinRelation(distributeType)?/distributeType!truncate	SELECT CURRENT_DATE FROM a JOIN [ a
-accept	reject	engine	joinRelation(distributeType)?/distributeType!insert	SELECT CURRENT_DATE FROM a JOIN [ a ] zzz a
+reject	reject	engine	joinRelation(distributeType)?/distributeType!insert	SELECT CURRENT_DATE FROM a JOIN [ a ] zzz a
 accept	accept	engine	joinRelation(joinCriteria)?/%empty	SELECT CURRENT_DATE FROM a JOIN a
 accept	accept	engine	joinRelation(joinCriteria)?/joinCriteria	SELECT CURRENT_DATE FROM a JOIN a ON CURRENT_DATE
 accept	accept	engine	joinRelation(joinCriteria)?/joinCriteria!drop-1	SELECT CURRENT_DATE FROM a JOIN a CURRENT_DATE
 reject	reject	engine	joinRelation(joinCriteria)?/joinCriteria!drop-2	SELECT CURRENT_DATE FROM a JOIN a ON
 reject	reject	engine	joinRelation(joinCriteria)?/joinCriteria!insert	SELECT CURRENT_DATE FROM a JOIN a ON CURRENT_DATE zzz
 reject	reject	engine	joinRelation(joinCriteria)?/joinCriteria!swap	SELECT CURRENT_DATE FROM a JOIN a ONLY CURRENT_DATE
-accept	reject	engine	distributeType/LEFT_BRACKET_identifier_RIGHT_BRACKET	SELECT CURRENT_DATE FROM a JOIN [ a ] a
+reject	reject	engine	distributeType/LEFT_BRACKET_identifier_RIGHT_BRACKET	SELECT CURRENT_DATE FROM a JOIN [ a ] a
 accept	accept	engine	distributeType/HINT_START_identifier_HINT_END	SELECT CURRENT_DATE FROM a JOIN /*+ a */ a
 reject	reject	engine	distributeType/HINT_START_identifier_HINT_END!drop-1	SELECT CURRENT_DATE FROM a JOIN a */ a
 accept	accept	engine	distributeType/HINT_START_identifier_HINT_END!drop-2	SELECT CURRENT_DATE FROM a JOIN /*+ */ a
 reject	reject	engine	distributeType/HINT_START_identifier_HINT_END!drop-3	SELECT CURRENT_DATE FROM a JOIN /*+ a a
 reject	reject	engine	distributeType/HINT_START_identifier_HINT_END!truncate	SELECT CURRENT_DATE FROM a JOIN /*+ a
 accept	accept	engine	distributeType/HINT_START_identifier_HINT_END!insert	SELECT CURRENT_DATE FROM a JOIN /*+ a */ zzz a
-reject	accept	engine	relationHint/LEFT_BRACKET_identifier_(COMMA_identifier)*_RIGHT_BRACKET	SELECT CURRENT_DATE FROM a [ a ]
+accept	accept	engine	relationHint/LEFT_BRACKET_identifier_(COMMA_identifier)*_RIGHT_BRACKET	SELECT CURRENT_DATE FROM a [ a ]
 reject	reject	engine	relationHint/LEFT_BRACKET_identifier_(COMMA_identifier)*_RIGHT_BRACKET!drop-1	SELECT CURRENT_DATE FROM a a ]
 reject	reject	engine	relationHint/LEFT_BRACKET_identifier_(COMMA_identifier)*_RIGHT_BRACKET!drop-2	SELECT CURRENT_DATE FROM a [ ]
 reject	reject	engine	relationHint/LEFT_BRACKET_identifier_(COMMA_identifier)*_RIGHT_BRACKET!drop-3	SELECT CURRENT_DATE FROM a [ a
@@ -5706,9 +5706,9 @@ reject	reject	engine	relationHint/HINT_START_identifier_(COMMA_identifier)*_HINT
 accept	accept	engine	relationHint/HINT_START_identifier_(COMMA_identifier)*_HINT_END!drop-2	SELECT CURRENT_DATE FROM a /*+ */
 accept	accept	engine	relationHint/HINT_START_identifier_(COMMA_identifier)*_HINT_END!drop-3	SELECT CURRENT_DATE FROM a /*+ a
 accept	accept	engine	relationHint/HINT_START_identifier_(COMMA_identifier)*_HINT_END!insert	SELECT CURRENT_DATE FROM a /*+ a */ zzz
-reject	accept	engine	relationHint(COMMA_identifier)*/%empty	SELECT CURRENT_DATE FROM a [ a ]
+accept	accept	engine	relationHint(COMMA_identifier)*/%empty	SELECT CURRENT_DATE FROM a [ a ]
 reject	reject	engine	relationHint(COMMA_identifier)*/%empty!insert	SELECT CURRENT_DATE FROM a [ a zzz ]
-reject	accept	engine	relationHint(COMMA_identifier)*/COMMA_identifier_(COMMA_identifier)*	SELECT CURRENT_DATE FROM a [ a, a ]
+accept	accept	engine	relationHint(COMMA_identifier)*/COMMA_identifier_(COMMA_identifier)*	SELECT CURRENT_DATE FROM a [ a, a ]
 reject	reject	engine	relationHint(COMMA_identifier)*/COMMA_identifier_(COMMA_identifier)*!drop-1	SELECT CURRENT_DATE FROM a [ a a ]
 reject	reject	engine	relationHint(COMMA_identifier)*/COMMA_identifier_(COMMA_identifier)*!drop-2	SELECT CURRENT_DATE FROM a [ a, ]
 reject	reject	engine	relationHint(COMMA_identifier)*/COMMA_identifier_(COMMA_identifier)*!truncate	SELECT CURRENT_DATE FROM a [ a,
@@ -5906,42 +5906,42 @@ accept	accept	engine	joinType/(INNER)?!insert	SELECT CURRENT_DATE FROM a zzz JOI
 accept	accept	engine	joinType/CROSS	SELECT CURRENT_DATE FROM a CROSS JOIN a
 reject	reject	engine	joinType/CROSS!insert	SELECT CURRENT_DATE FROM a CROSS zzz JOIN a
 reject	reject	engine	joinType/CROSS!swap	SELECT CURRENT_DATE FROM a CUBE JOIN a
-accept	reject	engine	joinType/LEFT_(OUTER)?	SELECT CURRENT_DATE FROM a LEFT JOIN a
+reject	reject	engine	joinType/LEFT_(OUTER)?	SELECT CURRENT_DATE FROM a LEFT JOIN a
 reject	reject	engine	joinType/LEFT_(OUTER)?!insert	SELECT CURRENT_DATE FROM a LEFT zzz JOIN a
 accept	accept	engine	joinType/LEFT_(OUTER)?!swap	SELECT CURRENT_DATE FROM a LESS JOIN a
-accept	reject	engine	joinType/RIGHT_(OUTER)?	SELECT CURRENT_DATE FROM a RIGHT JOIN a
+reject	reject	engine	joinType/RIGHT_(OUTER)?	SELECT CURRENT_DATE FROM a RIGHT JOIN a
 reject	reject	engine	joinType/RIGHT_(OUTER)?!insert	SELECT CURRENT_DATE FROM a RIGHT zzz JOIN a
 accept	accept	engine	joinType/RIGHT_(OUTER)?!swap	SELECT CURRENT_DATE FROM a RLIKE JOIN a
-accept	reject	engine	joinType/FULL_(OUTER)?	SELECT CURRENT_DATE FROM a FULL JOIN a
+reject	reject	engine	joinType/FULL_(OUTER)?	SELECT CURRENT_DATE FROM a FULL JOIN a
 reject	reject	engine	joinType/FULL_(OUTER)?!insert	SELECT CURRENT_DATE FROM a FULL zzz JOIN a
 accept	accept	engine	joinType/FULL_(OUTER)?!swap	SELECT CURRENT_DATE FROM a FUNCTION JOIN a
-accept	reject	engine	joinType/LEFT_SEMI	SELECT CURRENT_DATE FROM a LEFT SEMI JOIN a
+reject	reject	engine	joinType/LEFT_SEMI	SELECT CURRENT_DATE FROM a LEFT SEMI JOIN a
 reject	reject	engine	joinType/LEFT_SEMI!drop-1	SELECT CURRENT_DATE FROM a SEMI JOIN a
 reject	reject	engine	joinType/LEFT_SEMI!truncate	SELECT CURRENT_DATE FROM a LEFT
 reject	reject	engine	joinType/LEFT_SEMI!insert	SELECT CURRENT_DATE FROM a LEFT SEMI zzz JOIN a
 reject	reject	engine	joinType/LEFT_SEMI!swap	SELECT CURRENT_DATE FROM a LESS SEMI JOIN a
-accept	reject	engine	joinType/RIGHT_SEMI	SELECT CURRENT_DATE FROM a RIGHT SEMI JOIN a
+reject	reject	engine	joinType/RIGHT_SEMI	SELECT CURRENT_DATE FROM a RIGHT SEMI JOIN a
 reject	reject	engine	joinType/RIGHT_SEMI!truncate	SELECT CURRENT_DATE FROM a RIGHT
 reject	reject	engine	joinType/RIGHT_SEMI!insert	SELECT CURRENT_DATE FROM a RIGHT SEMI zzz JOIN a
 reject	reject	engine	joinType/RIGHT_SEMI!swap	SELECT CURRENT_DATE FROM a RLIKE SEMI JOIN a
-accept	reject	engine	joinType/LEFT_ANTI	SELECT CURRENT_DATE FROM a LEFT ANTI JOIN a
+reject	reject	engine	joinType/LEFT_ANTI	SELECT CURRENT_DATE FROM a LEFT ANTI JOIN a
 reject	reject	engine	joinType/LEFT_ANTI!drop-1	SELECT CURRENT_DATE FROM a ANTI JOIN a
 reject	reject	engine	joinType/LEFT_ANTI!insert	SELECT CURRENT_DATE FROM a LEFT ANTI zzz JOIN a
 reject	reject	engine	joinType/LEFT_ANTI!swap	SELECT CURRENT_DATE FROM a LESS ANTI JOIN a
-accept	reject	engine	joinType/RIGHT_ANTI	SELECT CURRENT_DATE FROM a RIGHT ANTI JOIN a
+reject	reject	engine	joinType/RIGHT_ANTI	SELECT CURRENT_DATE FROM a RIGHT ANTI JOIN a
 reject	reject	engine	joinType/RIGHT_ANTI!insert	SELECT CURRENT_DATE FROM a RIGHT ANTI zzz JOIN a
 reject	reject	engine	joinType/RIGHT_ANTI!swap	SELECT CURRENT_DATE FROM a RLIKE ANTI JOIN a
 accept	accept	engine	joinType(INNER)?/%empty	SELECT CURRENT_DATE FROM a JOIN a
 accept	accept	engine	joinType(INNER)?/INNER	SELECT CURRENT_DATE FROM a INNER JOIN a
 reject	reject	engine	joinType(INNER)?/INNER!insert	SELECT CURRENT_DATE FROM a INNER zzz JOIN a
 accept	reject	engine	joinType(INNER)?/INNER!swap	SELECT CURRENT_DATE FROM a INSERT JOIN a
-accept	reject	engine	joinType(OUTER)?/%empty	SELECT CURRENT_DATE FROM a LEFT JOIN a
-accept	reject	engine	joinType(OUTER)?/OUTER	SELECT CURRENT_DATE FROM a LEFT OUTER JOIN a
+reject	reject	engine	joinType(OUTER)?/%empty	SELECT CURRENT_DATE FROM a LEFT JOIN a
+reject	reject	engine	joinType(OUTER)?/OUTER	SELECT CURRENT_DATE FROM a LEFT OUTER JOIN a
 reject	reject	engine	joinType(OUTER)?/OUTER!insert	SELECT CURRENT_DATE FROM a LEFT OUTER zzz JOIN a
 reject	reject	engine	joinType(OUTER)?/OUTER!swap	SELECT CURRENT_DATE FROM a LEFT OUTFILE JOIN a
 accept	accept	engine	joinCriteria/ON_booleanExpression	SELECT CURRENT_DATE FROM a JOIN a ON CURRENT_DATE
 accept	accept	engine	joinCriteria/USING_identifierList	SELECT CURRENT_DATE FROM a JOIN a USING(a)
-accept	reject	engine	joinCriteria/USING_identifierList!drop-1	SELECT CURRENT_DATE FROM a JOIN a(a)
+reject	reject	engine	joinCriteria/USING_identifierList!drop-1	SELECT CURRENT_DATE FROM a JOIN a(a)
 reject	reject	engine	joinCriteria/USING_identifierList!drop-2	SELECT CURRENT_DATE FROM a JOIN a USING a)
 reject	reject	engine	joinCriteria/USING_identifierList!drop-3	SELECT CURRENT_DATE FROM a JOIN a USING()
 reject	reject	engine	joinCriteria/USING_identifierList!drop-4	SELECT CURRENT_DATE FROM a JOIN a USING(a
@@ -5954,24 +5954,24 @@ reject	accept	engine	identifierSeq(COMMA_errorCapturingIdentifier)*/COMMA_errorC
 reject	reject	engine	identifierSeq(COMMA_errorCapturingIdentifier)*/COMMA_errorCapturingIdentifier_(COMMA_errorCapturingIdentifier)*!drop-1	DROP SQL_BLOCK_RULE a a
 reject	reject	engine	identifierSeq(COMMA_errorCapturingIdentifier)*/COMMA_errorCapturingIdentifier_(COMMA_errorCapturingIdentifier)*!drop-2	DROP SQL_BLOCK_RULE a,
 reject	reject	engine	identifierSeq(COMMA_errorCapturingIdentifier)*/COMMA_errorCapturingIdentifier_(COMMA_errorCapturingIdentifier)*!insert	DROP SQL_BLOCK_RULE a, a zzz
-reject	accept	engine	optScanParams/ATSIGN_identifier_LEFT_PAREN_(propertyItemList|identifi~c7281b31	SELECT CURRENT_DATE FROM a@a()
+accept	accept	engine	optScanParams/ATSIGN_identifier_LEFT_PAREN_(propertyItemList|identifi~c7281b31	SELECT CURRENT_DATE FROM a@a()
 reject	reject	engine	optScanParams/ATSIGN_identifier_LEFT_PAREN_(propertyItemList|identifi~c7281b31!drop-1	SELECT CURRENT_DATE FROM a a()
 reject	reject	engine	optScanParams/ATSIGN_identifier_LEFT_PAREN_(propertyItemList|identifi~c7281b31!drop-2	SELECT CURRENT_DATE FROM a@()
 reject	reject	engine	optScanParams/ATSIGN_identifier_LEFT_PAREN_(propertyItemList|identifi~c7281b31!drop-3	SELECT CURRENT_DATE FROM a@a)
 reject	reject	engine	optScanParams/ATSIGN_identifier_LEFT_PAREN_(propertyItemList|identifi~c7281b31!drop-4	SELECT CURRENT_DATE FROM a@a(
-reject	accept	engine	optScanParams/ATSIGN_identifier_LEFT_PAREN_(propertyItemList|identifi~c7281b31!insert	SELECT CURRENT_DATE FROM a@a() zzz
-reject	accept	engine	optScanParams(propertyItemList|identifierSeq)?/%empty	SELECT CURRENT_DATE FROM a@a()
-reject	accept	engine	optScanParams(propertyItemList|identifierSeq)?/%empty!insert	SELECT CURRENT_DATE FROM a@a(zzz)
-reject	accept	engine	optScanParams(propertyItemList|identifierSeq)?/propertyItemList	SELECT CURRENT_DATE FROM a@a(a = a)
+accept	accept	engine	optScanParams/ATSIGN_identifier_LEFT_PAREN_(propertyItemList|identifi~c7281b31!insert	SELECT CURRENT_DATE FROM a@a() zzz
+accept	accept	engine	optScanParams(propertyItemList|identifierSeq)?/%empty	SELECT CURRENT_DATE FROM a@a()
+accept	accept	engine	optScanParams(propertyItemList|identifierSeq)?/%empty!insert	SELECT CURRENT_DATE FROM a@a(zzz)
+accept	accept	engine	optScanParams(propertyItemList|identifierSeq)?/propertyItemList	SELECT CURRENT_DATE FROM a@a(a = a)
 reject	reject	engine	optScanParams(propertyItemList|identifierSeq)?/propertyItemList!drop-1	SELECT CURRENT_DATE FROM a@a(= a)
 reject	reject	engine	optScanParams(propertyItemList|identifierSeq)?/propertyItemList!drop-2	SELECT CURRENT_DATE FROM a@a(a a)
 reject	reject	engine	optScanParams(propertyItemList|identifierSeq)?/propertyItemList!drop-3	SELECT CURRENT_DATE FROM a@a(a =)
 reject	reject	engine	optScanParams(propertyItemList|identifierSeq)?/propertyItemList!truncate	SELECT CURRENT_DATE FROM a@a(a =
 reject	reject	engine	optScanParams(propertyItemList|identifierSeq)?/propertyItemList!insert	SELECT CURRENT_DATE FROM a@a(a = a zzz)
-reject	accept	engine	optScanParams(propertyItemList|identifierSeq)?/identifierSeq	SELECT CURRENT_DATE FROM a@a(a)
+accept	accept	engine	optScanParams(propertyItemList|identifierSeq)?/identifierSeq	SELECT CURRENT_DATE FROM a@a(a)
 reject	reject	engine	optScanParams(propertyItemList|identifierSeq)?/identifierSeq!insert	SELECT CURRENT_DATE FROM a@a(a zzz)
 accept	accept	engine	relationPrimary/multipartIdentifier_(optScanParams)?_(materializedViewN~253bd9ba	SELECT CURRENT_DATE FROM a
-accept	reject	engine	relationPrimary/LEFT_PAREN_query_RIGHT_PAREN_tableAlias_(lateralView)*	SELECT CURRENT_DATE FROM(SELECT CURRENT_DATE)
+reject	reject	engine	relationPrimary/LEFT_PAREN_query_RIGHT_PAREN_tableAlias_(lateralView)*	SELECT CURRENT_DATE FROM(SELECT CURRENT_DATE)
 reject	reject	engine	relationPrimary/LEFT_PAREN_query_RIGHT_PAREN_tableAlias_(lateralView)*!drop-1	SELECT CURRENT_DATE FROM SELECT CURRENT_DATE)
 accept	accept	engine	relationPrimary/LEFT_PAREN_query_RIGHT_PAREN_tableAlias_(lateralView)*!drop-2	SELECT CURRENT_DATE FROM(CURRENT_DATE)
 reject	reject	engine	relationPrimary/LEFT_PAREN_query_RIGHT_PAREN_tableAlias_(lateralView)*!drop-3	SELECT CURRENT_DATE FROM(SELECT)
@@ -5987,29 +5987,29 @@ accept	accept	engine	relationPrimary/LEFT_PAREN_relations_RIGHT_PAREN	SELECT CUR
 reject	reject	engine	relationPrimary/LEFT_PAREN_relations_RIGHT_PAREN!drop-3	SELECT CURRENT_DATE FROM(a
 reject	reject	engine	relationPrimary/LEFT_PAREN_relations_RIGHT_PAREN!insert	SELECT CURRENT_DATE FROM(a) zzz
 accept	accept	engine	relationPrimary(optScanParams)?/%empty	SELECT CURRENT_DATE FROM a
-reject	accept	engine	relationPrimary(optScanParams)?/optScanParams	SELECT CURRENT_DATE FROM a@a()
+accept	accept	engine	relationPrimary(optScanParams)?/optScanParams	SELECT CURRENT_DATE FROM a@a()
 accept	accept	engine	relationPrimary(materializedViewName)?/%empty	SELECT CURRENT_DATE FROM a
-reject	accept	engine	relationPrimary(materializedViewName)?/materializedViewName	SELECT CURRENT_DATE FROM a INDEX a
+accept	accept	engine	relationPrimary(materializedViewName)?/materializedViewName	SELECT CURRENT_DATE FROM a INDEX a
 reject	reject	engine	relationPrimary(materializedViewName)?/materializedViewName!drop-2	SELECT CURRENT_DATE FROM a INDEX
-reject	accept	engine	relationPrimary(materializedViewName)?/materializedViewName!insert	SELECT CURRENT_DATE FROM a INDEX a zzz
+accept	accept	engine	relationPrimary(materializedViewName)?/materializedViewName!insert	SELECT CURRENT_DATE FROM a INDEX a zzz
 reject	reject	engine	relationPrimary(materializedViewName)?/materializedViewName!swap	SELECT CURRENT_DATE FROM a INDEXES a
 accept	accept	engine	relationPrimary(tableSnapshot)?/%empty	SELECT CURRENT_DATE FROM a
-reject	accept	engine	relationPrimary(tableSnapshot)?/tableSnapshot	SELECT CURRENT_DATE FROM a FOR VERSION AS OF 1
+accept	accept	engine	relationPrimary(tableSnapshot)?/tableSnapshot	SELECT CURRENT_DATE FROM a FOR VERSION AS OF 1
 reject	reject	engine	relationPrimary(tableSnapshot)?/tableSnapshot!drop-1	SELECT CURRENT_DATE FROM a VERSION AS OF 1
 reject	reject	engine	relationPrimary(tableSnapshot)?/tableSnapshot!drop-2	SELECT CURRENT_DATE FROM a FOR AS OF 1
 reject	reject	engine	relationPrimary(tableSnapshot)?/tableSnapshot!drop-3	SELECT CURRENT_DATE FROM a FOR VERSION OF 1
 reject	reject	engine	relationPrimary(tableSnapshot)?/tableSnapshot!drop-4	SELECT CURRENT_DATE FROM a FOR VERSION AS 1
 reject	reject	engine	relationPrimary(tableSnapshot)?/tableSnapshot!drop-5	SELECT CURRENT_DATE FROM a FOR VERSION AS OF
-reject	accept	engine	relationPrimary(tableSnapshot)?/tableSnapshot!insert	SELECT CURRENT_DATE FROM a FOR VERSION AS OF 1 zzz
+accept	accept	engine	relationPrimary(tableSnapshot)?/tableSnapshot!insert	SELECT CURRENT_DATE FROM a FOR VERSION AS OF 1 zzz
 reject	reject	engine	relationPrimary(tableSnapshot)?/tableSnapshot!swap	SELECT CURRENT_DATE FROM a FORCE VERSION AS OF 1
 accept	accept	engine	relationPrimary(specifiedPartition)?/%empty	SELECT CURRENT_DATE FROM a
-reject	accept	engine	relationPrimary(specifiedPartition)?/specifiedPartition	SELECT CURRENT_DATE FROM a PARTITION a
+accept	accept	engine	relationPrimary(specifiedPartition)?/specifiedPartition	SELECT CURRENT_DATE FROM a PARTITION a
 reject	reject	engine	relationPrimary(specifiedPartition)?/specifiedPartition!drop-2	SELECT CURRENT_DATE FROM a PARTITION
-reject	accept	engine	relationPrimary(specifiedPartition)?/specifiedPartition!insert	SELECT CURRENT_DATE FROM a PARTITION a zzz
+accept	accept	engine	relationPrimary(specifiedPartition)?/specifiedPartition!insert	SELECT CURRENT_DATE FROM a PARTITION a zzz
 reject	reject	engine	relationPrimary(specifiedPartition)?/specifiedPartition!swap	SELECT CURRENT_DATE FROM a PARTITIONS a
 accept	accept	engine	relationPrimary(tabletList)?/%empty	SELECT CURRENT_DATE FROM a
 accept	accept	engine	relationPrimary(tabletList)?/tabletList	SELECT CURRENT_DATE FROM a TABLET(1)
-accept	reject	engine	relationPrimary(tabletList)?/tabletList!drop-1	SELECT CURRENT_DATE FROM a(1)
+reject	reject	engine	relationPrimary(tabletList)?/tabletList!drop-1	SELECT CURRENT_DATE FROM a(1)
 reject	reject	engine	relationPrimary(tabletList)?/tabletList!drop-2	SELECT CURRENT_DATE FROM a TABLET 1)
 reject	reject	engine	relationPrimary(tabletList)?/tabletList!drop-3	SELECT CURRENT_DATE FROM a TABLET()
 reject	reject	engine	relationPrimary(tabletList)?/tabletList!drop-4	SELECT CURRENT_DATE FROM a TABLET(1
@@ -6021,18 +6021,18 @@ reject	reject	engine	relationPrimary(sample)?/sample!drop-2	SELECT CURRENT_DATE 
 reject	reject	engine	relationPrimary(sample)?/sample!drop-3	SELECT CURRENT_DATE FROM a TABLESAMPLE(
 reject	reject	engine	relationPrimary(sample)?/sample!insert	SELECT CURRENT_DATE FROM a TABLESAMPLE() zzz
 accept	accept	engine	relationPrimary(relationHint)?/%empty	SELECT CURRENT_DATE FROM a
-reject	accept	engine	relationPrimary(relationHint)?/relationHint	SELECT CURRENT_DATE FROM a [ a ]
+accept	accept	engine	relationPrimary(relationHint)?/relationHint	SELECT CURRENT_DATE FROM a [ a ]
 accept	accept	engine	relationPrimary(lateralView)*/%empty	SELECT CURRENT_DATE FROM a
 accept	accept	engine	relationPrimary(lateralView)*/lateralView_(lateralView)*	SELECT CURRENT_DATE FROM a LATERAL VIEW a() a AS a
 accept	accept	engine	relationPrimary(propertyItemList)?/%empty	SELECT CURRENT_DATE FROM a()
-accept	reject	engine	relationPrimary(propertyItemList)?/%empty!insert	SELECT CURRENT_DATE FROM a(zzz)
+reject	reject	engine	relationPrimary(propertyItemList)?/%empty!insert	SELECT CURRENT_DATE FROM a(zzz)
 accept	accept	engine	relationPrimary(propertyItemList)?/propertyItemList	SELECT CURRENT_DATE FROM a(a = a)
 reject	reject	engine	relationPrimary(propertyItemList)?/propertyItemList!drop-1	SELECT CURRENT_DATE FROM a(= a)
 reject	reject	engine	relationPrimary(propertyItemList)?/propertyItemList!drop-2	SELECT CURRENT_DATE FROM a(a a)
 reject	reject	engine	relationPrimary(propertyItemList)?/propertyItemList!drop-3	SELECT CURRENT_DATE FROM a(a =)
 reject	reject	engine	relationPrimary(propertyItemList)?/propertyItemList!truncate	SELECT CURRENT_DATE FROM a(a =
 reject	reject	engine	relationPrimary(propertyItemList)?/propertyItemList!insert	SELECT CURRENT_DATE FROM a(a = a zzz)
-reject	accept	engine	materializedViewName/INDEX_identifier	SELECT CURRENT_DATE FROM a INDEX a
+accept	accept	engine	materializedViewName/INDEX_identifier	SELECT CURRENT_DATE FROM a INDEX a
 reject	reject	engine	propertyClause/PROPERTIES_LEFT_PAREN_propertyItemList_RIGHT_PAREN	SHOW DATA PROPERTIES(a = a)
 reject	reject	engine	propertyItemList/propertyItem_(COMMA_propertyItem)*	SET PROPERTY a = a
 reject	reject	engine	propertyItemList(COMMA_propertyItem)*/%empty	SET PROPERTY a = a
@@ -7531,21 +7531,21 @@ accept	accept	engine	sampleMethod/INTEGER_VALUE_ROWS	SELECT CURRENT_DATE FROM a 
 reject	reject	engine	sampleMethod/INTEGER_VALUE_ROWS!drop-1	SELECT CURRENT_DATE FROM a TABLESAMPLE(ROWS)
 reject	reject	engine	sampleMethod/INTEGER_VALUE_ROWS!insert	SELECT CURRENT_DATE FROM a TABLESAMPLE(1 ROWS zzz)
 reject	reject	engine	sampleMethod/INTEGER_VALUE_ROWS!swap	SELECT CURRENT_DATE FROM a TABLESAMPLE(1 S3)
-reject	accept	engine	tableSnapshot/FOR_VERSION_AS_OF_(INTEGER_VALUE|STRING_LITERAL)	SELECT CURRENT_DATE FROM a FOR VERSION AS OF 1
-reject	accept	engine	tableSnapshot/FOR_TIME_AS_OF_(STRING_LITERAL|INTEGER_VALUE)	SELECT CURRENT_DATE FROM a FOR TIME AS OF 'a'
+accept	accept	engine	tableSnapshot/FOR_VERSION_AS_OF_(INTEGER_VALUE|STRING_LITERAL)	SELECT CURRENT_DATE FROM a FOR VERSION AS OF 1
+accept	accept	engine	tableSnapshot/FOR_TIME_AS_OF_(STRING_LITERAL|INTEGER_VALUE)	SELECT CURRENT_DATE FROM a FOR TIME AS OF 'a'
 reject	reject	engine	tableSnapshot/FOR_TIME_AS_OF_(STRING_LITERAL|INTEGER_VALUE)!drop-1	SELECT CURRENT_DATE FROM a TIME AS OF 'a'
 reject	reject	engine	tableSnapshot/FOR_TIME_AS_OF_(STRING_LITERAL|INTEGER_VALUE)!drop-2	SELECT CURRENT_DATE FROM a FOR AS OF 'a'
 reject	reject	engine	tableSnapshot/FOR_TIME_AS_OF_(STRING_LITERAL|INTEGER_VALUE)!drop-3	SELECT CURRENT_DATE FROM a FOR TIME OF 'a'
 reject	reject	engine	tableSnapshot/FOR_TIME_AS_OF_(STRING_LITERAL|INTEGER_VALUE)!drop-4	SELECT CURRENT_DATE FROM a FOR TIME AS 'a'
 reject	reject	engine	tableSnapshot/FOR_TIME_AS_OF_(STRING_LITERAL|INTEGER_VALUE)!drop-5	SELECT CURRENT_DATE FROM a FOR TIME AS OF
-reject	accept	engine	tableSnapshot/FOR_TIME_AS_OF_(STRING_LITERAL|INTEGER_VALUE)!insert	SELECT CURRENT_DATE FROM a FOR TIME AS OF 'a' zzz
+accept	accept	engine	tableSnapshot/FOR_TIME_AS_OF_(STRING_LITERAL|INTEGER_VALUE)!insert	SELECT CURRENT_DATE FROM a FOR TIME AS OF 'a' zzz
 reject	reject	engine	tableSnapshot/FOR_TIME_AS_OF_(STRING_LITERAL|INTEGER_VALUE)!swap	SELECT CURRENT_DATE FROM a FORCE TIME AS OF 'a'
-reject	accept	engine	tableSnapshot(INTEGER_VALUE|STRING_LITERAL)/INTEGER_VALUE	SELECT CURRENT_DATE FROM a FOR VERSION AS OF 1
-reject	accept	engine	tableSnapshot(INTEGER_VALUE|STRING_LITERAL)/STRING_LITERAL	SELECT CURRENT_DATE FROM a FOR VERSION AS OF 'a'
-reject	accept	engine	tableSnapshot(INTEGER_VALUE|STRING_LITERAL)/STRING_LITERAL!insert	SELECT CURRENT_DATE FROM a FOR VERSION AS OF 'a' zzz
-reject	accept	engine	tableSnapshot(STRING_LITERAL|INTEGER_VALUE)/STRING_LITERAL	SELECT CURRENT_DATE FROM a FOR TIME AS OF 'a'
-reject	accept	engine	tableSnapshot(STRING_LITERAL|INTEGER_VALUE)/INTEGER_VALUE	SELECT CURRENT_DATE FROM a FOR TIME AS OF 1
-reject	accept	engine	tableSnapshot(STRING_LITERAL|INTEGER_VALUE)/INTEGER_VALUE!insert	SELECT CURRENT_DATE FROM a FOR TIME AS OF 1 zzz
+accept	accept	engine	tableSnapshot(INTEGER_VALUE|STRING_LITERAL)/INTEGER_VALUE	SELECT CURRENT_DATE FROM a FOR VERSION AS OF 1
+accept	accept	engine	tableSnapshot(INTEGER_VALUE|STRING_LITERAL)/STRING_LITERAL	SELECT CURRENT_DATE FROM a FOR VERSION AS OF 'a'
+accept	accept	engine	tableSnapshot(INTEGER_VALUE|STRING_LITERAL)/STRING_LITERAL!insert	SELECT CURRENT_DATE FROM a FOR VERSION AS OF 'a' zzz
+accept	accept	engine	tableSnapshot(STRING_LITERAL|INTEGER_VALUE)/STRING_LITERAL	SELECT CURRENT_DATE FROM a FOR TIME AS OF 'a'
+accept	accept	engine	tableSnapshot(STRING_LITERAL|INTEGER_VALUE)/INTEGER_VALUE	SELECT CURRENT_DATE FROM a FOR TIME AS OF 1
+accept	accept	engine	tableSnapshot(STRING_LITERAL|INTEGER_VALUE)/INTEGER_VALUE!insert	SELECT CURRENT_DATE FROM a FOR TIME AS OF 1 zzz
 reject	accept	engine	errorCapturingIdentifier/identifier_errorCapturingIdentifierExtra	EXPLAIN a
 reject	reject	engine	errorCapturingIdentifierExtra/(SUBTRACT_identifier)+	EXPLAIN a - a
 reject	reject	engine	errorCapturingIdentifierExtra/(SUBTRACT_identifier)+!drop-2	EXPLAIN a -
@@ -13351,14 +13351,14 @@ accept	accept	engine	table_ref_list/table_ref_list_join_operator_opt_plan_hints_
 reject	reject	engine	table_ref_list/table_ref_list_join_operator_opt_plan_hints_table_ref_o~8a18060c!drop-1	SELECT 1 FROM JOIN a USING(a)
 reject	reject	engine	table_ref_list/table_ref_list_join_operator_opt_plan_hints_table_ref_o~8a18060c!drop-2	SELECT 1 FROM a a USING(a)
 reject	reject	engine	table_ref_list/table_ref_list_join_operator_opt_plan_hints_table_ref_o~8a18060c!drop-3	SELECT 1 FROM a JOIN USING(a)
-accept	reject	engine	table_ref_list/table_ref_list_join_operator_opt_plan_hints_table_ref_o~8a18060c!drop-4	SELECT 1 FROM a JOIN a(a)
+reject	reject	engine	table_ref_list/table_ref_list_join_operator_opt_plan_hints_table_ref_o~8a18060c!drop-4	SELECT 1 FROM a JOIN a(a)
 reject	reject	engine	table_ref_list/table_ref_list_join_operator_opt_plan_hints_table_ref_o~8a18060c!drop-5	SELECT 1 FROM a JOIN a USING a)
 reject	reject	engine	table_ref_list/table_ref_list_join_operator_opt_plan_hints_table_ref_o~8a18060c!drop-6	SELECT 1 FROM a JOIN a USING()
 reject	reject	engine	table_ref_list/table_ref_list_join_operator_opt_plan_hints_table_ref_o~8a18060c!drop-7	SELECT 1 FROM a JOIN a USING(a
 reject	reject	engine	table_ref_list/table_ref_list_join_operator_opt_plan_hints_table_ref_o~8a18060c!insert	SELECT 1 FROM a JOIN a USING(a) zzz
 reject	reject	engine	table_ref_list/table_ref_list_join_operator_opt_plan_hints_table_ref_o~8a18060c!swap	SELECT 1 FROM a JSON a USING(a)
 accept	accept	engine	table_ref/base_table_ref_opt_lateral_view_ref_list	SELECT 1 FROM a
-accept	reject	engine	table_ref/inline_view_ref_opt_lateral_view_ref_list	SELECT 1 FROM(SELECT 1)
+reject	reject	engine	table_ref/inline_view_ref_opt_lateral_view_ref_list	SELECT 1 FROM(SELECT 1)
 reject	reject	engine	table_ref/inline_view_ref_opt_lateral_view_ref_list!drop-1	SELECT 1 FROM SELECT 1)
 reject	reject	engine	table_ref/inline_view_ref_opt_lateral_view_ref_list!drop-2	SELECT 1 FROM(1)
 reject	reject	engine	table_ref/inline_view_ref_opt_lateral_view_ref_list!drop-3	SELECT 1 FROM(SELECT)
@@ -13371,7 +13371,7 @@ reject	reject	engine	table_ref/table_valued_function_ref!drop-2	SELECT 1 FROM a)
 reject	reject	engine	table_ref/table_valued_function_ref!drop-3	SELECT 1 FROM a(
 accept	accept	engine	table_ref/table_valued_function_ref!insert	SELECT 1 FROM a() zzz
 reject	accept	engine	table_valued_function_ref/ident_(_opt_key_value_map_in_paren_)_opt_table_alias	DESCRIBE FUNCTION a()
-accept	reject	engine	inline_view_ref/(_query_stmt_)_opt_table_alias	SELECT 1 FROM(SELECT 1)
+reject	reject	engine	inline_view_ref/(_query_stmt_)_opt_table_alias	SELECT 1 FROM(SELECT 1)
 accept	accept	engine	base_table_ref_list/base_table_ref	BACKUP SNAPSHOT a TO a ON(a)
 reject	reject	engine	base_table_ref_list/base_table_ref!truncate	BACKUP SNAPSHOT a TO a ON(
 accept	accept	engine	base_table_ref_list/base_table_ref!insert	BACKUP SNAPSHOT a TO a ON(a zzz)
@@ -13560,62 +13560,62 @@ reject	reject	engine	lateral_view_ref_list/lateral_view_ref_lateral_view_ref_lis
 accept	accept	engine	lateral_view_ref/LATERAL_VIEW_function_call_expr_ident_AS_ident	SELECT 1 FROM a LATERAL VIEW a() a AS a
 accept	accept	engine	join_operator/opt_inner_JOIN	SELECT 1 FROM a JOIN a
 accept	accept	engine	join_operator/opt_inner_JOIN!insert	SELECT 1 FROM a JOIN zzz a
-accept	reject	engine	join_operator/LEFT_opt_outer_JOIN	SELECT 1 FROM a LEFT JOIN a
+reject	reject	engine	join_operator/LEFT_opt_outer_JOIN	SELECT 1 FROM a LEFT JOIN a
 reject	reject	engine	join_operator/LEFT_opt_outer_JOIN!drop-2	SELECT 1 FROM a LEFT a
 reject	reject	engine	join_operator/LEFT_opt_outer_JOIN!truncate	SELECT 1 FROM a LEFT
-accept	reject	engine	join_operator/LEFT_opt_outer_JOIN!insert	SELECT 1 FROM a LEFT JOIN zzz a
+reject	reject	engine	join_operator/LEFT_opt_outer_JOIN!insert	SELECT 1 FROM a LEFT JOIN zzz a
 accept	accept	engine	join_operator/LEFT_opt_outer_JOIN!swap	SELECT 1 FROM a LESS JOIN a
-accept	reject	engine	join_operator/RIGHT_opt_outer_JOIN	SELECT 1 FROM a RIGHT JOIN a
+reject	reject	engine	join_operator/RIGHT_opt_outer_JOIN	SELECT 1 FROM a RIGHT JOIN a
 reject	reject	engine	join_operator/RIGHT_opt_outer_JOIN!drop-2	SELECT 1 FROM a RIGHT a
 reject	reject	engine	join_operator/RIGHT_opt_outer_JOIN!truncate	SELECT 1 FROM a RIGHT
-accept	reject	engine	join_operator/RIGHT_opt_outer_JOIN!insert	SELECT 1 FROM a RIGHT JOIN zzz a
+reject	reject	engine	join_operator/RIGHT_opt_outer_JOIN!insert	SELECT 1 FROM a RIGHT JOIN zzz a
 accept	accept	engine	join_operator/RIGHT_opt_outer_JOIN!swap	SELECT 1 FROM a RLIKE JOIN a
-accept	reject	engine	join_operator/FULL_opt_outer_JOIN	SELECT 1 FROM a FULL JOIN a
+reject	reject	engine	join_operator/FULL_opt_outer_JOIN	SELECT 1 FROM a FULL JOIN a
 reject	reject	engine	join_operator/FULL_opt_outer_JOIN!drop-2	SELECT 1 FROM a FULL a
 reject	reject	engine	join_operator/FULL_opt_outer_JOIN!truncate	SELECT 1 FROM a FULL
-accept	reject	engine	join_operator/FULL_opt_outer_JOIN!insert	SELECT 1 FROM a FULL JOIN zzz a
+reject	reject	engine	join_operator/FULL_opt_outer_JOIN!insert	SELECT 1 FROM a FULL JOIN zzz a
 accept	accept	engine	join_operator/FULL_opt_outer_JOIN!swap	SELECT 1 FROM a FUNCTION JOIN a
-accept	reject	engine	join_operator/LEFT_SEMI_JOIN	SELECT 1 FROM a LEFT SEMI JOIN a
+reject	reject	engine	join_operator/LEFT_SEMI_JOIN	SELECT 1 FROM a LEFT SEMI JOIN a
 reject	reject	engine	join_operator/LEFT_SEMI_JOIN!drop-1	SELECT 1 FROM a SEMI JOIN a
 reject	reject	engine	join_operator/LEFT_SEMI_JOIN!drop-3	SELECT 1 FROM a LEFT SEMI a
-accept	reject	engine	join_operator/LEFT_SEMI_JOIN!truncate	SELECT 1 FROM a LEFT SEMI
-accept	reject	engine	join_operator/LEFT_SEMI_JOIN!insert	SELECT 1 FROM a LEFT SEMI JOIN zzz a
+reject	reject	engine	join_operator/LEFT_SEMI_JOIN!truncate	SELECT 1 FROM a LEFT SEMI
+reject	reject	engine	join_operator/LEFT_SEMI_JOIN!insert	SELECT 1 FROM a LEFT SEMI JOIN zzz a
 reject	reject	engine	join_operator/LEFT_SEMI_JOIN!swap	SELECT 1 FROM a LESS SEMI JOIN a
-accept	reject	engine	join_operator/RIGHT_SEMI_JOIN	SELECT 1 FROM a RIGHT SEMI JOIN a
+reject	reject	engine	join_operator/RIGHT_SEMI_JOIN	SELECT 1 FROM a RIGHT SEMI JOIN a
 reject	reject	engine	join_operator/RIGHT_SEMI_JOIN!drop-3	SELECT 1 FROM a RIGHT SEMI a
-accept	reject	engine	join_operator/RIGHT_SEMI_JOIN!truncate	SELECT 1 FROM a RIGHT SEMI
-accept	reject	engine	join_operator/RIGHT_SEMI_JOIN!insert	SELECT 1 FROM a RIGHT SEMI JOIN zzz a
+reject	reject	engine	join_operator/RIGHT_SEMI_JOIN!truncate	SELECT 1 FROM a RIGHT SEMI
+reject	reject	engine	join_operator/RIGHT_SEMI_JOIN!insert	SELECT 1 FROM a RIGHT SEMI JOIN zzz a
 reject	reject	engine	join_operator/RIGHT_SEMI_JOIN!swap	SELECT 1 FROM a RLIKE SEMI JOIN a
-accept	reject	engine	join_operator/LEFT_ANTI_JOIN	SELECT 1 FROM a LEFT ANTI JOIN a
+reject	reject	engine	join_operator/LEFT_ANTI_JOIN	SELECT 1 FROM a LEFT ANTI JOIN a
 reject	reject	engine	join_operator/LEFT_ANTI_JOIN!drop-1	SELECT 1 FROM a ANTI JOIN a
 reject	reject	engine	join_operator/LEFT_ANTI_JOIN!drop-3	SELECT 1 FROM a LEFT ANTI a
-accept	reject	engine	join_operator/LEFT_ANTI_JOIN!truncate	SELECT 1 FROM a LEFT ANTI
-accept	reject	engine	join_operator/LEFT_ANTI_JOIN!insert	SELECT 1 FROM a LEFT ANTI JOIN zzz a
+reject	reject	engine	join_operator/LEFT_ANTI_JOIN!truncate	SELECT 1 FROM a LEFT ANTI
+reject	reject	engine	join_operator/LEFT_ANTI_JOIN!insert	SELECT 1 FROM a LEFT ANTI JOIN zzz a
 reject	reject	engine	join_operator/LEFT_ANTI_JOIN!swap	SELECT 1 FROM a LESS ANTI JOIN a
-accept	reject	engine	join_operator/RIGHT_ANTI_JOIN	SELECT 1 FROM a RIGHT ANTI JOIN a
+reject	reject	engine	join_operator/RIGHT_ANTI_JOIN	SELECT 1 FROM a RIGHT ANTI JOIN a
 reject	reject	engine	join_operator/RIGHT_ANTI_JOIN!drop-3	SELECT 1 FROM a RIGHT ANTI a
-accept	reject	engine	join_operator/RIGHT_ANTI_JOIN!truncate	SELECT 1 FROM a RIGHT ANTI
-accept	reject	engine	join_operator/RIGHT_ANTI_JOIN!insert	SELECT 1 FROM a RIGHT ANTI JOIN zzz a
+reject	reject	engine	join_operator/RIGHT_ANTI_JOIN!truncate	SELECT 1 FROM a RIGHT ANTI
+reject	reject	engine	join_operator/RIGHT_ANTI_JOIN!insert	SELECT 1 FROM a RIGHT ANTI JOIN zzz a
 reject	reject	engine	join_operator/RIGHT_ANTI_JOIN!swap	SELECT 1 FROM a RLIKE ANTI JOIN a
 accept	accept	engine	join_operator/CROSS_JOIN	SELECT 1 FROM a CROSS JOIN a
 reject	reject	engine	join_operator/CROSS_JOIN!drop-2	SELECT 1 FROM a CROSS a
 reject	reject	engine	join_operator/CROSS_JOIN!truncate	SELECT 1 FROM a CROSS
 accept	accept	engine	join_operator/CROSS_JOIN!insert	SELECT 1 FROM a CROSS JOIN zzz a
 reject	reject	engine	join_operator/CROSS_JOIN!swap	SELECT 1 FROM a CUBE JOIN a
-accept	reject	engine	join_operator/NATURAL_JOIN	SELECT 1 FROM a NATURAL JOIN a
+reject	reject	engine	join_operator/NATURAL_JOIN	SELECT 1 FROM a NATURAL JOIN a
 reject	reject	engine	join_operator/NATURAL_JOIN!drop-2	SELECT 1 FROM a NATURAL a
 reject	reject	engine	join_operator/NATURAL_JOIN!truncate	SELECT 1 FROM a NATURAL
-accept	reject	engine	join_operator/NATURAL_JOIN!insert	SELECT 1 FROM a NATURAL JOIN zzz a
+reject	reject	engine	join_operator/NATURAL_JOIN!insert	SELECT 1 FROM a NATURAL JOIN zzz a
 accept	accept	engine	join_operator/NATURAL_JOIN!swap	SELECT 1 FROM a NEGATIVE JOIN a
 accept	accept	engine	opt_inner/INNER	SELECT 1 FROM a INNER JOIN a
 reject	reject	engine	opt_inner/INNER!insert	SELECT 1 FROM a INNER zzz JOIN a
 accept	reject	engine	opt_inner/INNER!swap	SELECT 1 FROM a INSERT JOIN a
 accept	accept	engine	opt_inner/%empty	SELECT 1 FROM a JOIN a
 accept	accept	engine	opt_inner/%empty!insert	SELECT 1 FROM a zzz JOIN a
-accept	reject	engine	opt_outer/OUTER	SELECT 1 FROM a LEFT OUTER JOIN a
+reject	reject	engine	opt_outer/OUTER	SELECT 1 FROM a LEFT OUTER JOIN a
 reject	reject	engine	opt_outer/OUTER!insert	SELECT 1 FROM a LEFT OUTER zzz JOIN a
 reject	reject	engine	opt_outer/OUTER!swap	SELECT 1 FROM a LEFT OUTFILE JOIN a
-accept	reject	engine	opt_outer/%empty	SELECT 1 FROM a LEFT JOIN a
+reject	reject	engine	opt_outer/%empty	SELECT 1 FROM a LEFT JOIN a
 reject	reject	engine	opt_outer/%empty!insert	SELECT 1 FROM a LEFT zzz JOIN a
 accept	accept	engine	opt_plan_hints/COMMENTED_PLAN_HINT_START_ident_list_COMMENTED_PLAN_HINT_END	INSERT INTO a /*+ a */ SELECT 1
 reject	reject	engine	opt_plan_hints/COMMENTED_PLAN_HINT_START_ident_list_COMMENTED_PLAN_HINT_END!drop-1	INSERT INTO a a */ SELECT 1
@@ -13630,7 +13630,7 @@ reject	reject	engine	opt_plan_hints/[_ident_list_]!drop-3	INSERT INTO a [ a SELE
 reject	reject	engine	opt_plan_hints/[_ident_list_]!truncate	INSERT INTO a [ a
 reject	reject	engine	opt_plan_hints/[_ident_list_]!insert	INSERT INTO a [ a ] zzz SELECT 1
 accept	accept	engine	opt_plan_hints/%empty	INSERT INTO a SELECT 1
-reject	accept	engine	opt_sort_hints/[_ident_list_]	SELECT 1 FROM a [ a ]
+accept	accept	engine	opt_sort_hints/[_ident_list_]	SELECT 1 FROM a [ a ]
 reject	reject	engine	opt_sort_hints/[_ident_list_]!drop-1	SELECT 1 FROM a a ]
 reject	reject	engine	opt_sort_hints/[_ident_list_]!drop-2	SELECT 1 FROM a [ ]
 reject	reject	engine	opt_sort_hints/[_ident_list_]!drop-3	SELECT 1 FROM a [ a
