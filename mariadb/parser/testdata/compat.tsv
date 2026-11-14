@@ -3179,15 +3179,15 @@ reject	reject	engine	field_options/SIGNED_SYM!swap	ALTER SEQUENCE a AS INT SIMPL
 accept	accept	engine	field_options/UNSIGNED	ALTER SEQUENCE a AS INT UNSIGNED;
 reject	reject	engine	field_options/UNSIGNED!insert	ALTER SEQUENCE a AS INT UNSIGNED zzz;
 reject	reject	engine	field_options/UNSIGNED!swap	ALTER SEQUENCE a AS INT UNTIL;
-accept	reject	engine	field_options/ZEROFILL	ALTER SEQUENCE a AS INT ZEROFILL;
+reject	reject	engine	field_options/ZEROFILL	ALTER SEQUENCE a AS INT ZEROFILL;
 reject	reject	engine	field_options/ZEROFILL!insert	ALTER SEQUENCE a AS INT ZEROFILL zzz;
 reject	reject	engine	field_options/ZEROFILL!swap	ALTER SEQUENCE a AS INT ACCESSIBLE;
-accept	reject	engine	field_options/UNSIGNED_ZEROFILL	ALTER SEQUENCE a AS INT UNSIGNED ZEROFILL;
+reject	reject	engine	field_options/UNSIGNED_ZEROFILL	ALTER SEQUENCE a AS INT UNSIGNED ZEROFILL;
 accept	accept	engine	field_options/UNSIGNED_ZEROFILL!truncate	ALTER SEQUENCE a AS INT UNSIGNED
 reject	reject	engine	field_options/UNSIGNED_ZEROFILL!insert	ALTER SEQUENCE a AS INT UNSIGNED ZEROFILL zzz;
 reject	reject	engine	field_options/UNSIGNED_ZEROFILL!swap	ALTER SEQUENCE a AS INT UNTIL ZEROFILL;
-accept	reject	engine	field_options/ZEROFILL_UNSIGNED	ALTER SEQUENCE a AS INT ZEROFILL UNSIGNED;
-accept	reject	engine	field_options/ZEROFILL_UNSIGNED!truncate	ALTER SEQUENCE a AS INT ZEROFILL
+reject	reject	engine	field_options/ZEROFILL_UNSIGNED	ALTER SEQUENCE a AS INT ZEROFILL UNSIGNED;
+reject	reject	engine	field_options/ZEROFILL_UNSIGNED!truncate	ALTER SEQUENCE a AS INT ZEROFILL
 reject	reject	engine	field_options/ZEROFILL_UNSIGNED!insert	ALTER SEQUENCE a AS INT ZEROFILL UNSIGNED zzz;
 reject	reject	engine	field_options/ZEROFILL_UNSIGNED!swap	ALTER SEQUENCE a AS INT ACCESSIBLE UNSIGNED;
 accept	accept	engine	last_field_options/field_options	ALTER TABLE a ADD a INT;
@@ -7852,7 +7852,7 @@ accept	accept	engine	sequence_truncated_value_hybrid_num/opt_plus_LONG_NUM	ALTER
 reject	reject	engine	sequence_truncated_value_hybrid_num/opt_plus_LONG_NUM!insert	ALTER SEQUENCE a MINVALUE 2147483648 zzz;
 accept	accept	engine	sequence_truncated_value_hybrid_num/opt_plus_ULONGLONG_NUM	ALTER SEQUENCE a MINVALUE 9223372036854775808;
 reject	reject	engine	sequence_truncated_value_hybrid_num/opt_plus_ULONGLONG_NUM!insert	ALTER SEQUENCE a MINVALUE 9223372036854775808 zzz;
-reject	accept	engine	sequence_truncated_value_hybrid_num/opt_plus_DECIMAL_NUM	ALTER SEQUENCE a MINVALUE 1.5;
+accept	accept	engine	sequence_truncated_value_hybrid_num/opt_plus_DECIMAL_NUM	ALTER SEQUENCE a MINVALUE 1.5;
 reject	reject	engine	sequence_truncated_value_hybrid_num/opt_plus_DECIMAL_NUM!insert	ALTER SEQUENCE a MINVALUE 1.5 zzz;
 accept	accept	engine	sequence_truncated_value_hybrid_num/-_NUM	ALTER SEQUENCE a MINVALUE - 1;
 reject	reject	engine	sequence_truncated_value_hybrid_num/-_NUM!drop-2	ALTER SEQUENCE a MINVALUE -;
@@ -7862,7 +7862,7 @@ accept	accept	engine	sequence_truncated_value_hybrid_num/-_LONG_NUM	ALTER SEQUEN
 reject	reject	engine	sequence_truncated_value_hybrid_num/-_LONG_NUM!insert	ALTER SEQUENCE a MINVALUE - 2147483648 zzz;
 accept	accept	engine	sequence_truncated_value_hybrid_num/-_ULONGLONG_NUM	ALTER SEQUENCE a MINVALUE - 9223372036854775808;
 reject	reject	engine	sequence_truncated_value_hybrid_num/-_ULONGLONG_NUM!insert	ALTER SEQUENCE a MINVALUE - 9223372036854775808 zzz;
-reject	accept	engine	sequence_truncated_value_hybrid_num/-_DECIMAL_NUM	ALTER SEQUENCE a MINVALUE - 1.5;
+accept	accept	engine	sequence_truncated_value_hybrid_num/-_DECIMAL_NUM	ALTER SEQUENCE a MINVALUE - 1.5;
 reject	reject	engine	sequence_truncated_value_hybrid_num/-_DECIMAL_NUM!insert	ALTER SEQUENCE a MINVALUE - 1.5 zzz;
 accept	accept	engine	ulonglong_num/opt_plus_NUM	ALTER TABLE a MAX_ROWS 1;
 accept	accept	engine	ulonglong_num/opt_plus_ULONGLONG_NUM	ALTER TABLE a MAX_ROWS 9223372036854775808;
