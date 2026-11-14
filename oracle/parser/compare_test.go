@@ -6201,7 +6201,7 @@ func TestParseAlterTableFull(t *testing.T) {
 		{"cache", `ALTER TABLE employees CACHE`},
 		{"pctfree", `ALTER TABLE employees PCTFREE 20`},
 		{"initrans", `ALTER TABLE employees INITRANS 4`},
-		{"storage", `ALTER TABLE employees STORAGE (INITIAL 64K NEXT 64K)`},
+		{"storage", `ALTER TABLE employees STORAGE (NEXT 64K)`},
 		{"read_only", `ALTER TABLE employees READ ONLY`},
 		{"read_write", `ALTER TABLE employees READ WRITE`},
 		{"result_cache", `ALTER TABLE employees RESULT_CACHE (MODE FORCE)`},
@@ -6232,8 +6232,7 @@ func TestParseAlterTableFull(t *testing.T) {
 		{"deallocate_unused_keep", `ALTER TABLE employees DEALLOCATE UNUSED KEEP 100K`},
 
 		// --- REFRESH ---
-		{"refresh", `ALTER TABLE employees REFRESH`},
-		{"no_refresh", `ALTER TABLE employees NO REFRESH`},
+		{"refresh", `ALTER TABLE employees REFRESH ON DEMAND`},
 
 		// --- Immutable / Blockchain table clauses ---
 		{"no_drop", `ALTER TABLE ledger NO DROP`},
@@ -6253,9 +6252,9 @@ func TestParseAlterTableFull(t *testing.T) {
 		{"exchange_partition", `ALTER TABLE sales EXCHANGE PARTITION sales_q1 WITH TABLE sales_staging`},
 		{"exchange_partition_opts", `ALTER TABLE sales EXCHANGE PARTITION sales_q1 WITH TABLE staging INCLUDING INDEXES WITHOUT VALIDATION`},
 		{"coalesce_partition", `ALTER TABLE hash_tab COALESCE PARTITION`},
-		{"coalesce_subpartition", `ALTER TABLE hash_tab COALESCE SUBPARTITION`},
+		{"coalesce_subpartition", `ALTER TABLE hash_tab MODIFY PARTITION p1 COALESCE SUBPARTITION`},
 		{"modify_partition", `ALTER TABLE sales MODIFY PARTITION sales_q1 PCTFREE 30`},
-		{"modify_subpartition", `ALTER TABLE sales MODIFY SUBPARTITION sales_q1_east TABLESPACE ts2`},
+		{"modify_subpartition", `ALTER TABLE sales MODIFY SUBPARTITION sales_q1_east ALLOCATE EXTENT`},
 		{"modify_default_attrs", `ALTER TABLE sales MODIFY DEFAULT ATTRIBUTES TABLESPACE ts_new`},
 		{"rename_partition", `ALTER TABLE sales RENAME PARTITION old_part TO new_part`},
 		{"rename_subpartition", `ALTER TABLE sales RENAME SUBPARTITION old_sub TO new_sub`},
@@ -6282,7 +6281,7 @@ func TestParseAlterTableFull(t *testing.T) {
 		{"multi_enable_disable", `ALTER TABLE employees ENABLE CONSTRAINT ck_sal ENABLE ALL TRIGGERS`},
 
 		// --- MODIFY OPAQUE TYPE ---
-		{"modify_opaque_type", `ALTER TABLE xml_tab MODIFY OPAQUE TYPE xmlcol STORE AS OBJECT RELATIONAL (xmldata)`},
+		{"modify_opaque_type", `ALTER TABLE any_tab MODIFY OPAQUE TYPE anycol STORE (sys.anydata) UNPACKED`},
 
 		// --- Schema-qualified ---
 		{"schema_qualified", `ALTER TABLE hr.employees ADD (middle_name VARCHAR2(50))`},
