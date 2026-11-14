@@ -8795,10 +8795,10 @@ accept	accept	engine	primaryExpression/literalExpression	SELECT NULL;
 accept	accept	engine	primaryExpression/literalExpression!insert	SELECT NULL zzz;
 accept	accept	engine	primaryExpression/columnReference	SELECT a;
 accept	accept	engine	primaryExpression/columnReference!insert	SELECT a zzz;
-reject	accept	engine	primaryExpression/primaryExpression_(DOT_IDENTIFIER|._identifier)	SELECT CURRENT_USER.1a;
+accept	accept	engine	primaryExpression/primaryExpression_(DOT_IDENTIFIER|._identifier)	SELECT CURRENT_USER.1a;
 accept	reject	engine	primaryExpression/primaryExpression_(DOT_IDENTIFIER|._identifier)!drop-1	SELECT.1a;
-reject	accept	engine	primaryExpression/primaryExpression_(DOT_IDENTIFIER|._identifier)!insert	SELECT CURRENT_USER.1a zzz;
-reject	accept	engine	primaryExpression/primaryExpression_(DOT_IDENTIFIER|._identifier)!swap	SELECT DATA.1a;
+accept	accept	engine	primaryExpression/primaryExpression_(DOT_IDENTIFIER|._identifier)!insert	SELECT CURRENT_USER.1a zzz;
+accept	accept	engine	primaryExpression/primaryExpression_(DOT_IDENTIFIER|._identifier)!swap	SELECT DATA.1a;
 accept	accept	engine	primaryExpression/(MINUS_SYMBOL|PLUS_SYMBOL|BITNOT)_primaryExpression	SELECT - CURRENT_USER;
 reject	reject	engine	primaryExpression/(MINUS_SYMBOL|PLUS_SYMBOL|BITNOT)_primaryExpression!drop-2	SELECT -;
 reject	reject	engine	primaryExpression/(MINUS_SYMBOL|PLUS_SYMBOL|BITNOT)_primaryExpression!truncate	SELECT -
@@ -8938,7 +8938,7 @@ accept	accept	engine	primaryExpression/primaryExpression_(NOT)?_MATCH_primaryExp
 accept	accept	engine	primaryExpression(identifier|string)/identifier	SELECT CURRENT_USER COLLATE a;
 accept	accept	engine	primaryExpression(identifier|string)/string	SELECT CURRENT_USER COLLATE 'a';
 accept	accept	engine	primaryExpression(identifier|string)/string!insert	SELECT CURRENT_USER COLLATE 'a' zzz;
-reject	accept	engine	primaryExpression(DOT_IDENTIFIER|._identifier)/DOT_IDENTIFIER	SELECT CURRENT_USER.1a;
+accept	accept	engine	primaryExpression(DOT_IDENTIFIER|._identifier)/DOT_IDENTIFIER	SELECT CURRENT_USER.1a;
 accept	accept	engine	primaryExpression(DOT_IDENTIFIER|._identifier)/._identifier	SELECT CURRENT_USER.a;
 reject	reject	engine	primaryExpression(DOT_IDENTIFIER|._identifier)/._identifier!drop-2	SELECT CURRENT_USER.;
 reject	reject	engine	primaryExpression(DOT_IDENTIFIER|._identifier)/._identifier!truncate	SELECT CURRENT_USER.

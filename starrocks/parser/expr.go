@@ -374,6 +374,18 @@ func (p *Parser) parsePostfixSuffixes(node ast.Node) (ast.Node, error) {
 			}
 			node = arrow
 
+		case p.cur.Kind == tokFloat && isDotDigits(p.cur.Str) &&
+			isIdentifierTokenQualified(p.peekNext().Kind) && p.peekNext().Loc.Start == p.cur.Loc.End:
+			// DOT_IDENTIFIER (StarRocks.g4:2406, StarRocksLex.g4:574): a field
+			// name that opens with digits, which omni lexes as .1 then a.
+			digits := p.advance()
+			rest := p.advance()
+			node = &ast.DereferenceExpr{
+				Expr:  node,
+				Field: digits.Str[1:] + rest.Str,
+				Loc:   ast.Loc{Start: ast.NodeLoc(node).Start, End: rest.Loc.End},
+			}
+
 		case p.cur.Kind == int('.') && isIdentifierTokenQualified(p.peekNext().Kind):
 			// primaryExpression '.' identifier (StarRocks.g4:2406). A column
 			// name's parts were read with it, so this is a field of another
@@ -2118,4 +2130,17 @@ func (p *Parser) parseTupleInSubquery(start int, first ast.Node) (ast.Node, erro
 		Not:    not,
 		Loc:    ast.Loc{Start: start, End: sub.Loc.End},
 	}, nil
+}
+
+// isDotDigits reports whether s is '.' and one or more digits.
+func isDotDigits(s string) bool {
+	if len(s) < 2 || s[0] != '.' {
+		return false
+	}
+	for i := 1; i < len(s); i++ {
+		if s[i] < '0' || s[i] > '9' {
+			return false
+		}
+	}
+	return true
 }
