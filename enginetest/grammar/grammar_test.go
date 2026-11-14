@@ -282,7 +282,7 @@ func TestReadTokens(t *testing.T) {
 	if tok.forms["identifier"] != "ident" || tok.forms["hint"] != Empty {
 		t.Errorf("forms %v", tok.forms)
 	}
-	if !tok.qualified["name"] || tok.qualified["identifier"] {
+	if tok.qualified["name"] != 3 || tok.qualified["identifier"] != 0 {
 		t.Errorf("qualified %v", tok.qualified)
 	}
 	for _, bad := range []string{"identifier\n", "identifier\t\n", "a\tb\nа\tb\na\tc\n"} {

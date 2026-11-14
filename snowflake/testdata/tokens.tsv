@@ -16,6 +16,7 @@
 # columns: token, form, note
 ID	a	unquoted identifier: a letter or _, then letters, digits, _ and $; a "double-quoted" one is a name too
 QNAME	a	(qualified) a schema object's name, as an ID, which db.schema.name may qualify
+QNAME2	a	(qualified 2) a database's schema or database role, as an ID, which db.name may qualify
 STRING	's'	single-quoted string constant; a $$dollar-quoted$$ one is a string too
 NUMBER	1	numeric constant: [+-][digits][.digits][e[+-]digits]
 EXPR	1	an expression; the command pages give no expression grammar, so a constant

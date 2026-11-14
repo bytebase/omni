@@ -21,6 +21,7 @@ const (
 	tPosition    = "POSITION"
 	tVariable    = "VARIABLE"
 	tQName       = "QNAME"
+	tQName2      = "QNAME2"
 	tObjectType  = "OBJECT_TYPE"
 	tObjectTypes = "OBJECT_TYPES"
 	tFile        = "FILE"
@@ -38,11 +39,18 @@ var (
 
 // qualifiedName is a placeholder for a schema object's name, which
 // db.schema.name may qualify: <table_name>, <masking_policy_name>.
-var qualifiedName = regexp.MustCompile(`(^|_)(table|view|stage|stream|task|pipe|policy|tag|function|procedure|seq|sequence|model|secret|service|alert|format|repository|notebook|streamlit|dataset|experiment|gateway|bundle|schema|project|semantic)(_|$)`)
+var qualifiedName = regexp.MustCompile(`(^|_)(table|view|stage|stream|task|pipe|policy|tag|function|procedure|seq|sequence|model|secret|service|alert|format|repository|notebook|streamlit|dataset|experiment|gateway|bundle|project|semantic)(_|$)`)
 
 // objectWord is a placeholder that ends in a schema object's kind, without
 // saying name: <target_table>, <additional_tables>, <source_schema>.
-var objectWord = regexp.MustCompile(`(^|_)(table|view|stage|stream|task|schema|alert|pipe|sequence)s?$`)
+var objectWord = regexp.MustCompile(`(^|_)(table|view|stage|stream|task|alert|pipe|sequence)s?$`)
+
+// databaseScoped is a placeholder for an object a database holds, whose
+// name db.name may qualify: <schema_name>, <database_role_name>.
+var databaseScoped = regexp.MustCompile(`(^|_)(schema|database_role)(_name)?$`)
+
+// databaseScopedPage is a page for such an object, whose <name> is QNAME2.
+var databaseScopedPage = regexp.MustCompile(`^[a-z]+-(schema|database-role)$`)
 
 // singleName is a placeholder for a name of one part, as a column's is,
 // whatever object its other words name.
@@ -55,6 +63,8 @@ func nameClass(n string) string {
 	switch {
 	case singleName.MatchString(n):
 		return tName
+	case databaseScoped.MatchString(n):
+		return tQName2
 	case n == "name" || n == "new_name" || n == "object_name" || qualifiedName.MatchString(n):
 		return tQName
 	}
@@ -883,7 +893,7 @@ func convertPage(slug string, blocks []string, fixes []*fix) pageGrammar {
 		}
 		defs[u.def] = append(defs[u.def], u)
 	}
-	c := &converter{page: pg.rule, defs: map[string]bool{}, accountLevel: accountLevelPage.MatchString(slug)}
+	c := &converter{page: pg.rule, defs: map[string]bool{}, accountLevel: accountLevelPage.MatchString(slug), databaseScoped: databaseScopedPage.MatchString(slug)}
 	for _, name := range defOrder {
 		c.defs[name] = true
 	}
@@ -1024,16 +1034,17 @@ func ruleName(slug string) string {
 }
 
 // isNameClass reports whether a class is a name's, qualified or not.
-func isNameClass(cls string) bool { return cls == tName || cls == tQName }
+func isNameClass(cls string) bool { return cls == tName || cls == tQName || cls == tQName2 }
 
 // accountLevelPage is a page for an account-level object, whose <name> is
 // one part: a warehouse, user, role, database, share or integration.
 var accountLevelPage = regexp.MustCompile(`^[a-z]+-(warehouse|user|role|database|share|connection|resource-monitor|compute-pool|failover-group|replication-group|external-volume|application|application-package|account|organization-[a-z-]+|network-policy|listing|[a-z-]*integration[a-z-]*)$`)
 
 type converter struct {
-	accountLevel bool
-	page         string
-	defs         map[string]bool // fragments the page defines and that converted
+	accountLevel   bool
+	databaseScoped bool
+	page           string
+	defs           map[string]bool // fragments the page defines and that converted
 	// commas is set while converting a list of options the pages say may be
 	// separated by spaces, commas or newlines.
 	commas bool
@@ -1285,7 +1296,7 @@ func (c *converter) convert(text string, statement bool) ([]string, error) {
 	// [ <db_name>. ]<name>: a name the notation already qualifies is one
 	// part, not a QNAME qualified again.
 	for i, t := range toks {
-		if t.kind != nPlaceholder || placeholderClass(t.text) != tQName {
+		if t.kind != nPlaceholder || placeholderClass(t.text) != tQName && placeholderClass(t.text) != tQName2 {
 			continue
 		}
 		j := i - 1
@@ -1412,10 +1423,16 @@ func (c *converter) token(t ntok) (string, error) {
 			return "", fmt.Errorf("%w fragment %q: the page does not define it", errUndefined, t.text)
 		}
 		cls := placeholderClass(t.text)
-		if cls == tQName && c.accountLevel && (t.text == "name" || t.text == "new_name" || t.text == "object_name") {
-			// ALTER WAREHOUSE <name>: an account-level object's name is
-			// one part.
-			cls = tName
+		if cls == tQName && (t.text == "name" || t.text == "new_name" || t.text == "object_name") {
+			switch {
+			case c.accountLevel:
+				// ALTER WAREHOUSE <name>: an account-level object's
+				// name is one part.
+				cls = tName
+			case c.databaseScoped:
+				// CREATE SCHEMA <name>: db.name at most.
+				cls = tQName2
+			}
 		}
 		return cls, nil
 	case nFragment:
@@ -1477,7 +1494,7 @@ func writeG4(pin string, pages []pageGrammar) string {
 // lists, converted by snowflake/parser/cmd/docsgrammar. Do not edit it:
 // correct a page's text in docs-fixes.tsv and run the converter again.
 //
-// Keywords are literals. ID, QNAME, STRING, NUMBER, EXPR, QUERY,
+// Keywords are literals. ID, QNAME, QNAME2, STRING, NUMBER, EXPR, QUERY,
 // COPY_STATEMENT, DATA_TYPE, STAGE, FILE, POSITION, VARIABLE, OBJECT_TYPE and
 // OBJECT_TYPES are the values the docs write as <placeholders>; tokens.tsv
 // samples them. A
@@ -1538,7 +1555,7 @@ func writeRule(b *strings.Builder, name string, alts []string) {
 // classes lists the token classes a grammar uses, for the report.
 func classes(g4 string) []string {
 	var out []string
-	for _, c := range []string{tName, tString, tNumber, tExpr, tQuery, tType, tStage, tPosition, tVariable, tQName, tObjectType, tObjectTypes, tFile, tCopy} {
+	for _, c := range []string{tName, tString, tNumber, tExpr, tQuery, tType, tStage, tPosition, tVariable, tQName, tQName2, tObjectType, tObjectTypes, tFile, tCopy} {
 		if containsWord(g4, c) {
 			out = append(out, c)
 		}

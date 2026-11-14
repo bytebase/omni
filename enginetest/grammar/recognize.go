@@ -58,9 +58,9 @@ type cterm struct {
 	toks  []ltok   // the text it matches; empty for a token written as nothing
 	class string   // when set, it matches one token of this class (classOf)
 	more  [][]ltok // other texts it matches exactly, for a token of several spellings
-	// qualified: a name class that also matches two or three names joined
-	// by dots (see Qualified).
-	qualified bool
+	// qualified: for a name class that also matches names joined by dots,
+	// the most parts it takes (see Qualified); 0 for one.
+	qualified int
 	// path: a variable class whose sigil starts a path (see Path), which
 	// also matches a quoted path, '@a/dir with spaces'.
 	path bool
@@ -174,7 +174,9 @@ func (g *Grammar) Recognizer() *Recognizer {
 				t.class = classOf(tk)
 			}
 		}
-		t.qualified = t.class != "" && !sym.literal && g.qualified[sym.text]
+		if t.class != "" && !sym.literal {
+			t.qualified = g.qualified[sym.text]
+		}
 		t.path = t.class != "" && !sym.literal && g.path[sym.text]
 		if t.path {
 			r.paths = append(r.paths, len(r.terms))
@@ -474,10 +476,10 @@ func (r *Recognizer) matchesAt(in []ltok, k int) []termMatch {
 	}
 	for _, id := range ids {
 		out = append(out, termMatch{id, 1})
-		if r.terms[id].qualified {
-			// db.schema.name: up to two more names, each after a dot.
+		if most := r.terms[id].qualified; most > 1 {
+			// db.schema.name: more names, each after a dot.
 			w := 1
-			for parts := 1; parts < 3 && k+w+1 < len(in) && in[k+w].kind == kPunct && in[k+w].text == "." && r.isName(in[k+w+1]); parts++ {
+			for parts := 1; parts < most && k+w+1 < len(in) && in[k+w].kind == kPunct && in[k+w].text == "." && r.isName(in[k+w+1]); parts++ {
 				w += 2
 				out = append(out, termMatch{id, w})
 			}

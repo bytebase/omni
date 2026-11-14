@@ -803,11 +803,10 @@ KW : 'X' [aA] [bB] [cC] [dD] [eE] [fF] [gG] ;
 }
 
 // TestRecognizerReadsQualifiedNames pins a name token marked qualified: it
-// also matches two or three names joined by dots, and an unmarked one does
-// not.
+// also matches names joined by dots, up to its limit.
 func TestRecognizerReadsQualifiedNames(t *testing.T) {
 	const src = "grammar Q; s : 'DROP' 'TABLE' ID | 'USE' NAME ; ID : [a-z]+ ; NAME : [a-z]+ ;"
-	tok := &Tokens{forms: map[string]string{"ID": "a", "NAME": "a", "SELECT": Reserved}, qualified: map[string]bool{"ID": true}}
+	tok := &Tokens{forms: map[string]string{"ID": "a", "NAME": "a", "SELECT": Reserved}, qualified: map[string]int{"ID": 3, "NAME": 2}}
 	g, err := ReadANTLR(src, tok)
 	if err != nil {
 		t.Fatal(err)
@@ -822,7 +821,8 @@ func TestRecognizerReadsQualifiedNames(t *testing.T) {
 		"DROP TABLE a.select":   false,
 		`DROP TABLE a."SELECT"`: true,
 		"USE a":                 true,
-		"USE a.b":               false,
+		"USE a.b":               true,
+		"USE a.b.c":             false,
 	} {
 		if got := rec.Accepts(sql); got != want {
 			t.Errorf("Accepts(%q) = %v, want %v", sql, got, want)

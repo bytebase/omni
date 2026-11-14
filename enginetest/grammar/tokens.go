@@ -28,6 +28,7 @@ const (
 	// Qualified, at the start of a row's note: the token is a name a
 	// recognizer also matches qualified, two or three of them joined by
 	// dots, as Snowflake writes db.schema.table wherever it takes a name.
+	// (qualified 2) limits it to two, as db.schema.
 	Qualified = "(qualified)"
 	// Path, at the start of a row's note: the token's sample is a variable,
 	// and a recognizer reads its sigil as the start of a path, one token
@@ -53,7 +54,7 @@ const (
 // alternatives keep their rows, written from their own symbols.
 type Tokens struct {
 	forms     map[string]string
-	qualified map[string]bool
+	qualified map[string]int // the most parts a qualified name takes
 	path      map[string]bool
 }
 
@@ -64,7 +65,7 @@ func ReadTokens(path string) (*Tokens, error) {
 	if err != nil {
 		return nil, err
 	}
-	t := &Tokens{forms: map[string]string{}, qualified: map[string]bool{}, path: map[string]bool{}}
+	t := &Tokens{forms: map[string]string{}, qualified: map[string]int{}, path: map[string]bool{}}
 	for i, line := range strings.Split(string(b), "\n") {
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
@@ -82,7 +83,10 @@ func ReadTokens(path string) (*Tokens, error) {
 		}
 		t.forms[name] = form
 		if len(f) == 3 && strings.HasPrefix(f[2], Qualified) {
-			t.qualified[name] = true
+			t.qualified[name] = 3
+		}
+		if len(f) == 3 && strings.HasPrefix(f[2], "(qualified 2)") {
+			t.qualified[name] = 2
 		}
 		if len(f) == 3 && strings.HasPrefix(f[2], Path) {
 			t.path[name] = true

@@ -314,7 +314,7 @@ func TestFixesApplyToTheirPage(t *testing.T) {
 
 func TestPlaceholderClasses(t *testing.T) {
 	for name, want := range map[string]string{
-		"name": tQName, "table_name": tQName, "col_name": tName, "target_table": tQName, "additional_tables": tQName, "repository_url": tName, "integer": tNumber, "num": tNumber, "rows": tNumber,
+		"name": tQName, "table_name": tQName, "col_name": tName, "schema_name": tQName2, "database_role_name": tQName2, "target_table": tQName, "additional_tables": tQName, "repository_url": tName, "integer": tNumber, "num": tNumber, "rows": tNumber,
 		"expr": tExpr, "boolean_expr": tExpr, "condition": tExpr, "query": tQuery,
 		"col_type": tType, "arg_data_type": tType, "string_literal": tString, "copy_statement": tCopy,
 		"sql":       tQuery,
