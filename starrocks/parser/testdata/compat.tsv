@@ -2923,21 +2923,21 @@ accept	reject	engine	mvPartitionExprs/primaryExpression!drop-1	CREATE MATERIALIZ
 reject	reject	engine	mvPartitionExprs/primaryExpression!truncate	CREATE MATERIALIZED VIEW a PARTITION BY
 accept	reject	engine	mvPartitionExprs/primaryExpression!insert	CREATE MATERIALIZED VIEW a PARTITION BY CURRENT_USER zzz AS SELECT CURRENT_USER;
 accept	reject	engine	mvPartitionExprs/primaryExpression!swap	CREATE MATERIALIZED VIEW a PARTITION BY DATA AS SELECT CURRENT_USER;
-accept	reject	engine	mvPartitionExprs/(_primaryExpression_(,_primaryExpression)*_)	CREATE MATERIALIZED VIEW a PARTITION BY(CURRENT_USER) AS SELECT CURRENT_USER;
+reject	reject	engine	mvPartitionExprs/(_primaryExpression_(,_primaryExpression)*_)	CREATE MATERIALIZED VIEW a PARTITION BY(CURRENT_USER) AS SELECT CURRENT_USER;
 accept	reject	engine	mvPartitionExprs/(_primaryExpression_(,_primaryExpression)*_)!drop-1	CREATE MATERIALIZED VIEW a PARTITION BY CURRENT_USER) AS SELECT CURRENT_USER;
 reject	reject	engine	mvPartitionExprs/(_primaryExpression_(,_primaryExpression)*_)!drop-2	CREATE MATERIALIZED VIEW a PARTITION BY() AS SELECT CURRENT_USER;
 reject	reject	engine	mvPartitionExprs/(_primaryExpression_(,_primaryExpression)*_)!drop-3	CREATE MATERIALIZED VIEW a PARTITION BY(CURRENT_USER AS SELECT CURRENT_USER;
 reject	reject	engine	mvPartitionExprs/(_primaryExpression_(,_primaryExpression)*_)!truncate	CREATE MATERIALIZED VIEW a PARTITION BY(CURRENT_USER
-accept	reject	engine	mvPartitionExprs/(_primaryExpression_(,_primaryExpression)*_)!insert	CREATE MATERIALIZED VIEW a PARTITION BY(CURRENT_USER) zzz AS SELECT CURRENT_USER;
+reject	reject	engine	mvPartitionExprs/(_primaryExpression_(,_primaryExpression)*_)!insert	CREATE MATERIALIZED VIEW a PARTITION BY(CURRENT_USER) zzz AS SELECT CURRENT_USER;
 accept	reject	engine	mvPartitionExprs/(_primaryExpression_(,_primaryExpression)*_)!swap	CREATE MATERIALIZED VIEW a PARTITION BY(DATA) AS SELECT CURRENT_USER;
-accept	reject	engine	mvPartitionExprs(,_primaryExpression)*/%empty	CREATE MATERIALIZED VIEW a PARTITION BY(CURRENT_USER) AS SELECT CURRENT_USER;
+reject	reject	engine	mvPartitionExprs(,_primaryExpression)*/%empty	CREATE MATERIALIZED VIEW a PARTITION BY(CURRENT_USER) AS SELECT CURRENT_USER;
 reject	reject	engine	mvPartitionExprs(,_primaryExpression)*/%empty!insert	CREATE MATERIALIZED VIEW a PARTITION BY(CURRENT_USER zzz) AS SELECT CURRENT_USER;
-accept	reject	engine	mvPartitionExprs(,_primaryExpression)*/,_primaryExpression_(,_primaryExpression)*	CREATE MATERIALIZED VIEW a PARTITION BY(CURRENT_USER, CURRENT_USER) AS SELECT CURRENT_USER;
+reject	reject	engine	mvPartitionExprs(,_primaryExpression)*/,_primaryExpression_(,_primaryExpression)*	CREATE MATERIALIZED VIEW a PARTITION BY(CURRENT_USER, CURRENT_USER) AS SELECT CURRENT_USER;
 reject	reject	engine	mvPartitionExprs(,_primaryExpression)*/,_primaryExpression_(,_primaryExpression)*!drop-1	CREATE MATERIALIZED VIEW a PARTITION BY(CURRENT_USER CURRENT_USER) AS SELECT CURRENT_USER;
 reject	reject	engine	mvPartitionExprs(,_primaryExpression)*/,_primaryExpression_(,_primaryExpression)*!drop-2	CREATE MATERIALIZED VIEW a PARTITION BY(CURRENT_USER,) AS SELECT CURRENT_USER;
 reject	reject	engine	mvPartitionExprs(,_primaryExpression)*/,_primaryExpression_(,_primaryExpression)*!truncate	CREATE MATERIALIZED VIEW a PARTITION BY(CURRENT_USER,
 reject	reject	engine	mvPartitionExprs(,_primaryExpression)*/,_primaryExpression_(,_primaryExpression)*!insert	CREATE MATERIALIZED VIEW a PARTITION BY(CURRENT_USER, CURRENT_USER zzz) AS SELECT CURRENT_USER;
-accept	reject	engine	mvPartitionExprs(,_primaryExpression)*/,_primaryExpression_(,_primaryExpression)*!swap	CREATE MATERIALIZED VIEW a PARTITION BY(CURRENT_USER, DATA) AS SELECT CURRENT_USER;
+reject	reject	engine	mvPartitionExprs(,_primaryExpression)*/,_primaryExpression_(,_primaryExpression)*!swap	CREATE MATERIALIZED VIEW a PARTITION BY(CURRENT_USER, DATA) AS SELECT CURRENT_USER;
 accept	reject	engine	materializedViewDesc/PARTITION_BY_mvPartitionExprs	CREATE MATERIALIZED VIEW a PARTITION BY CURRENT_USER AS SELECT CURRENT_USER;
 accept	reject	engine	materializedViewDesc/PARTITION_BY_mvPartitionExprs!drop-1	CREATE MATERIALIZED VIEW a BY CURRENT_USER AS SELECT CURRENT_USER;
 reject	reject	engine	materializedViewDesc/PARTITION_BY_mvPartitionExprs!drop-2	CREATE MATERIALIZED VIEW a PARTITION CURRENT_USER AS SELECT CURRENT_USER;
@@ -4645,7 +4645,7 @@ accept	accept	engine	deleteStatement(USING_relations)?/USING_relations!insert	DE
 reject	reject	engine	deleteStatement(USING_relations)?/USING_relations!swap	DELETE FROM a VALUE a;
 accept	accept	engine	deleteStatement(WHERE_expression)?/%empty	DELETE FROM a;
 accept	accept	engine	deleteStatement(WHERE_expression)?/WHERE_expression	DELETE FROM a WHERE CURRENT_USER;
-accept	reject	engine	deleteStatement(WHERE_expression)?/WHERE_expression!drop-1	DELETE FROM a CURRENT_USER;
+reject	reject	engine	deleteStatement(WHERE_expression)?/WHERE_expression!drop-1	DELETE FROM a CURRENT_USER;
 reject	reject	engine	deleteStatement(WHERE_expression)?/WHERE_expression!drop-2	DELETE FROM a WHERE;
 reject	reject	engine	deleteStatement(WHERE_expression)?/WHERE_expression!truncate	DELETE FROM a WHERE
 reject	reject	engine	deleteStatement(WHERE_expression)?/WHERE_expression!insert	DELETE FROM a WHERE CURRENT_USER zzz;
@@ -7924,13 +7924,13 @@ reject	reject	engine	limitElement(OFFSET_(INTEGER_VALUE|PARAMETER))?/OFFSET_(INT
 reject	reject	engine	limitElement(OFFSET_(INTEGER_VALUE|PARAMETER))?/OFFSET_(INTEGER_VALUE|PARAMETER)!swap	SELECT CURRENT_USER LIMIT 1 ON 1;
 accept	accept	engine	querySpecification/SELECT_(setQuantifier)?_selectItem_(,_selectItem)*_from~60b8a9b2	SELECT CURRENT_USER;
 accept	accept	engine	querySpecification(setQuantifier)?/%empty	SELECT CURRENT_USER;
-accept	reject	engine	querySpecification(setQuantifier)?/%empty!insert	SELECT zzz CURRENT_USER;
+reject	reject	engine	querySpecification(setQuantifier)?/%empty!insert	SELECT zzz CURRENT_USER;
 accept	accept	engine	querySpecification(setQuantifier)?/setQuantifier	SELECT DISTINCT CURRENT_USER;
-accept	reject	engine	querySpecification(setQuantifier)?/setQuantifier!insert	SELECT DISTINCT zzz CURRENT_USER;
+reject	reject	engine	querySpecification(setQuantifier)?/setQuantifier!insert	SELECT DISTINCT zzz CURRENT_USER;
 reject	reject	engine	querySpecification(setQuantifier)?/setQuantifier!swap	SELECT DISTRIBUTED CURRENT_USER;
 accept	accept	engine	querySpecification(,_selectItem)*/%empty	SELECT CURRENT_USER;
 accept	accept	engine	querySpecification(,_selectItem)*/,_selectItem_(,_selectItem)*	SELECT CURRENT_USER, CURRENT_USER;
-accept	reject	engine	querySpecification(,_selectItem)*/,_selectItem_(,_selectItem)*!drop-1	SELECT CURRENT_USER CURRENT_USER;
+reject	reject	engine	querySpecification(,_selectItem)*/,_selectItem_(,_selectItem)*!drop-1	SELECT CURRENT_USER CURRENT_USER;
 reject	reject	engine	querySpecification(,_selectItem)*/,_selectItem_(,_selectItem)*!drop-2	SELECT CURRENT_USER,;
 reject	reject	engine	querySpecification(,_selectItem)*/,_selectItem_(,_selectItem)*!truncate	SELECT CURRENT_USER,
 accept	accept	engine	querySpecification(,_selectItem)*/,_selectItem_(,_selectItem)*!insert	SELECT CURRENT_USER, CURRENT_USER zzz;
@@ -8049,7 +8049,7 @@ reject	reject	engine	commonTableExpression(columnAliases)?/columnAliases!truncat
 reject	reject	engine	commonTableExpression(columnAliases)?/columnAliases!insert	WITH a(a) zzz AS(SELECT CURRENT_USER) SELECT CURRENT_USER;
 accept	accept	engine	setQuantifier/DISTINCT	SELECT DISTINCT CURRENT_USER;
 accept	accept	engine	setQuantifier/ALL	SELECT ALL CURRENT_USER;
-accept	reject	engine	setQuantifier/ALL!insert	SELECT ALL zzz CURRENT_USER;
+reject	reject	engine	setQuantifier/ALL!insert	SELECT ALL zzz CURRENT_USER;
 reject	reject	engine	setQuantifier/ALL!swap	SELECT ALTER CURRENT_USER;
 accept	accept	engine	selectItem/expression_(AS?_(identifier|string))?	SELECT CURRENT_USER;
 accept	accept	engine	selectItem/qualifiedName_._ASTERISK_SYMBOL	SELECT a.*;
@@ -8098,13 +8098,13 @@ reject	reject	engine	relation(joinRelation)*/joinRelation_(joinRelation)*!swap	S
 accept	accept	engine	relationPrimary/qualifiedName_(queryPeriod)?_(partitionNames)?_(tabletL~f27f18d9	SELECT CURRENT_USER FROM a;
 accept	accept	engine	relationPrimary/(_VALUES_rowConstructor_(,_rowConstructor)*_)_(AS?_iden~a5ee691a	SELECT CURRENT_USER FROM(VALUES(CURRENT_USER));
 reject	reject	engine	relationPrimary/(_VALUES_rowConstructor_(,_rowConstructor)*_)_(AS?_iden~a5ee691a!drop-1	SELECT CURRENT_USER FROM VALUES(CURRENT_USER));
-accept	reject	engine	relationPrimary/(_VALUES_rowConstructor_(,_rowConstructor)*_)_(AS?_iden~a5ee691a!drop-2	SELECT CURRENT_USER FROM((CURRENT_USER));
+reject	reject	engine	relationPrimary/(_VALUES_rowConstructor_(,_rowConstructor)*_)_(AS?_iden~a5ee691a!drop-2	SELECT CURRENT_USER FROM((CURRENT_USER));
 reject	reject	engine	relationPrimary/(_VALUES_rowConstructor_(,_rowConstructor)*_)_(AS?_iden~a5ee691a!truncate	SELECT CURRENT_USER FROM(VALUES(CURRENT_USER)
 accept	accept	engine	relationPrimary/(_VALUES_rowConstructor_(,_rowConstructor)*_)_(AS?_iden~a5ee691a!insert	SELECT CURRENT_USER FROM(VALUES(CURRENT_USER)) zzz;
 accept	accept	engine	relationPrimary/(_VALUES_rowConstructor_(,_rowConstructor)*_)_(AS?_iden~a5ee691a!swap	SELECT CURRENT_USER FROM(VARBINARY(CURRENT_USER));
 accept	accept	engine	relationPrimary/subquery_(AS?_identifier_columnAliases?)?	SELECT CURRENT_USER FROM(SELECT CURRENT_USER);
 reject	reject	engine	relationPrimary/subquery_(AS?_identifier_columnAliases?)?!drop-1	SELECT CURRENT_USER FROM SELECT CURRENT_USER);
-accept	reject	engine	relationPrimary/subquery_(AS?_identifier_columnAliases?)?!drop-2	SELECT CURRENT_USER FROM(CURRENT_USER);
+reject	reject	engine	relationPrimary/subquery_(AS?_identifier_columnAliases?)?!drop-2	SELECT CURRENT_USER FROM(CURRENT_USER);
 reject	reject	engine	relationPrimary/subquery_(AS?_identifier_columnAliases?)?!drop-3	SELECT CURRENT_USER FROM(SELECT);
 reject	reject	engine	relationPrimary/subquery_(AS?_identifier_columnAliases?)?!drop-4	SELECT CURRENT_USER FROM(SELECT CURRENT_USER;
 reject	reject	engine	relationPrimary/subquery_(AS?_identifier_columnAliases?)?!truncate	SELECT CURRENT_USER FROM(SELECT CURRENT_USER
@@ -8295,7 +8295,7 @@ accept	accept	engine	joinRelation/crossOrInnerJoinType_(bracketHint)?_(LATERAL)?
 accept	accept	engine	joinRelation/outerAndSemiJoinType_(bracketHint)?_(LATERAL)?_relation~59680e8f	SELECT CURRENT_USER FROM a LEFT JOIN a ON CURRENT_USER;
 reject	reject	engine	joinRelation/outerAndSemiJoinType_(bracketHint)?_(LATERAL)?_relation~59680e8f!drop-2	SELECT CURRENT_USER FROM a LEFT a ON CURRENT_USER;
 reject	reject	engine	joinRelation/outerAndSemiJoinType_(bracketHint)?_(LATERAL)?_relation~59680e8f!drop-3	SELECT CURRENT_USER FROM a LEFT JOIN ON CURRENT_USER;
-accept	reject	engine	joinRelation/outerAndSemiJoinType_(bracketHint)?_(LATERAL)?_relation~59680e8f!drop-4	SELECT CURRENT_USER FROM a LEFT JOIN a CURRENT_USER;
+reject	reject	engine	joinRelation/outerAndSemiJoinType_(bracketHint)?_(LATERAL)?_relation~59680e8f!drop-4	SELECT CURRENT_USER FROM a LEFT JOIN a CURRENT_USER;
 reject	reject	engine	joinRelation/outerAndSemiJoinType_(bracketHint)?_(LATERAL)?_relation~59680e8f!drop-5	SELECT CURRENT_USER FROM a LEFT JOIN a ON;
 reject	reject	engine	joinRelation/outerAndSemiJoinType_(bracketHint)?_(LATERAL)?_relation~59680e8f!truncate	SELECT CURRENT_USER FROM a LEFT JOIN a ON
 reject	reject	engine	joinRelation/outerAndSemiJoinType_(bracketHint)?_(LATERAL)?_relation~59680e8f!insert	SELECT CURRENT_USER FROM a LEFT JOIN a ON CURRENT_USER zzz;
@@ -8314,7 +8314,7 @@ accept	accept	engine	joinRelation(LATERAL)?/LATERAL!insert	SELECT CURRENT_USER F
 accept	reject	engine	joinRelation(LATERAL)?/LATERAL!swap	SELECT CURRENT_USER FROM a JOIN LEAD a;
 accept	accept	engine	joinRelation(joinCriteria)?/%empty	SELECT CURRENT_USER FROM a JOIN a;
 accept	accept	engine	joinRelation(joinCriteria)?/joinCriteria	SELECT CURRENT_USER FROM a JOIN a ON CURRENT_USER;
-accept	reject	engine	joinRelation(joinCriteria)?/joinCriteria!drop-1	SELECT CURRENT_USER FROM a JOIN a CURRENT_USER;
+reject	reject	engine	joinRelation(joinCriteria)?/joinCriteria!drop-1	SELECT CURRENT_USER FROM a JOIN a CURRENT_USER;
 reject	reject	engine	joinRelation(joinCriteria)?/joinCriteria!drop-2	SELECT CURRENT_USER FROM a JOIN a ON;
 reject	reject	engine	joinRelation(joinCriteria)?/joinCriteria!truncate	SELECT CURRENT_USER FROM a JOIN a ON
 reject	reject	engine	joinRelation(joinCriteria)?/joinCriteria!insert	SELECT CURRENT_USER FROM a JOIN a ON CURRENT_USER zzz;
@@ -8554,7 +8554,7 @@ accept	accept	engine	expression/NOT_expression	SELECT NOT CURRENT_USER;
 reject	reject	engine	expression/NOT_expression!drop-2	SELECT NOT;
 reject	reject	engine	expression/NOT_expression!truncate	SELECT NOT
 accept	accept	engine	expression/NOT_expression!insert	SELECT NOT CURRENT_USER zzz;
-accept	reject	engine	expression/NOT_expression!swap	SELECT NTILE CURRENT_USER;
+reject	reject	engine	expression/NOT_expression!swap	SELECT NTILE CURRENT_USER;
 accept	accept	engine	expression/expression_(AND|LOGICAL_AND)_expression	SELECT CURRENT_USER AND CURRENT_USER;
 reject	reject	engine	expression/expression_(AND|LOGICAL_AND)_expression!drop-1	SELECT AND CURRENT_USER;
 reject	reject	engine	expression/expression_(AND|LOGICAL_AND)_expression!drop-3	SELECT CURRENT_USER AND;
@@ -8569,17 +8569,17 @@ accept	accept	engine	expression/expression_(OR|LOGICAL_OR)_expression!insert	SEL
 accept	accept	engine	expression/expression_(OR|LOGICAL_OR)_expression!swap	SELECT DATA OR CURRENT_USER;
 accept	accept	engine	expression(BINARY)?/%empty	SELECT CURRENT_USER;
 accept	accept	engine	expression(BINARY)?/BINARY	SELECT BINARY CURRENT_USER;
-accept	reject	engine	expression(BINARY)?/BINARY!insert	SELECT BINARY zzz CURRENT_USER;
-accept	reject	engine	expression(BINARY)?/BINARY!swap	SELECT BITMAP CURRENT_USER;
+reject	reject	engine	expression(BINARY)?/BINARY!insert	SELECT BINARY zzz CURRENT_USER;
+reject	reject	engine	expression(BINARY)?/BINARY!swap	SELECT BITMAP CURRENT_USER;
 accept	accept	engine	expression(AND|LOGICAL_AND)/AND	SELECT CURRENT_USER AND CURRENT_USER;
-accept	reject	engine	expression(AND|LOGICAL_AND)/AND!insert	SELECT CURRENT_USER AND zzz CURRENT_USER;
+reject	reject	engine	expression(AND|LOGICAL_AND)/AND!insert	SELECT CURRENT_USER AND zzz CURRENT_USER;
 reject	reject	engine	expression(AND|LOGICAL_AND)/AND!swap	SELECT CURRENT_USER ANTI CURRENT_USER;
 accept	accept	engine	expression(AND|LOGICAL_AND)/LOGICAL_AND	SELECT CURRENT_USER && CURRENT_USER;
-accept	reject	engine	expression(AND|LOGICAL_AND)/LOGICAL_AND!insert	SELECT CURRENT_USER && zzz CURRENT_USER;
+reject	reject	engine	expression(AND|LOGICAL_AND)/LOGICAL_AND!insert	SELECT CURRENT_USER && zzz CURRENT_USER;
 accept	accept	engine	expression(OR|LOGICAL_OR)/OR	SELECT CURRENT_USER OR CURRENT_USER;
-accept	reject	engine	expression(OR|LOGICAL_OR)/OR!insert	SELECT CURRENT_USER OR zzz CURRENT_USER;
+reject	reject	engine	expression(OR|LOGICAL_OR)/OR!insert	SELECT CURRENT_USER OR zzz CURRENT_USER;
 accept	accept	engine	expression(OR|LOGICAL_OR)/LOGICAL_OR	SELECT CURRENT_USER || CURRENT_USER;
-accept	reject	engine	expression(OR|LOGICAL_OR)/LOGICAL_OR!insert	SELECT CURRENT_USER || zzz CURRENT_USER;
+reject	reject	engine	expression(OR|LOGICAL_OR)/LOGICAL_OR!insert	SELECT CURRENT_USER || zzz CURRENT_USER;
 accept	accept	engine	expressionList/expression_(,_expression)*	SELECT [ CURRENT_USER ];
 reject	reject	engine	expressionList/expression_(,_expression)*!truncate	SELECT [
 reject	reject	engine	expressionList/expression_(,_expression)*!insert	SELECT [ CURRENT_USER zzz ];
@@ -8690,12 +8690,12 @@ accept	accept	engine	predicateOperations(NOT)?/NOT	SELECT CURRENT_USER NOT LIKE 
 reject	reject	engine	predicateOperations(NOT)?/NOT!insert	SELECT CURRENT_USER NOT zzz LIKE CURRENT_USER;
 reject	reject	engine	predicateOperations(NOT)?/NOT!swap	SELECT CURRENT_USER NTILE LIKE CURRENT_USER;
 accept	accept	engine	predicateOperations(LIKE|RLIKE|REGEXP)/LIKE	SELECT CURRENT_USER LIKE CURRENT_USER;
-accept	reject	engine	predicateOperations(LIKE|RLIKE|REGEXP)/LIKE!insert	SELECT CURRENT_USER LIKE zzz CURRENT_USER;
+reject	reject	engine	predicateOperations(LIKE|RLIKE|REGEXP)/LIKE!insert	SELECT CURRENT_USER LIKE zzz CURRENT_USER;
 accept	accept	engine	predicateOperations(LIKE|RLIKE|REGEXP)/RLIKE	SELECT CURRENT_USER RLIKE CURRENT_USER;
-accept	reject	engine	predicateOperations(LIKE|RLIKE|REGEXP)/RLIKE!insert	SELECT CURRENT_USER RLIKE zzz CURRENT_USER;
+reject	reject	engine	predicateOperations(LIKE|RLIKE|REGEXP)/RLIKE!insert	SELECT CURRENT_USER RLIKE zzz CURRENT_USER;
 reject	reject	engine	predicateOperations(LIKE|RLIKE|REGEXP)/RLIKE!swap	SELECT CURRENT_USER ROLE CURRENT_USER;
 accept	accept	engine	predicateOperations(LIKE|RLIKE|REGEXP)/REGEXP	SELECT CURRENT_USER REGEXP CURRENT_USER;
-accept	reject	engine	predicateOperations(LIKE|RLIKE|REGEXP)/REGEXP!insert	SELECT CURRENT_USER REGEXP zzz CURRENT_USER;
+reject	reject	engine	predicateOperations(LIKE|RLIKE|REGEXP)/REGEXP!insert	SELECT CURRENT_USER REGEXP zzz CURRENT_USER;
 reject	reject	engine	predicateOperations(LIKE|RLIKE|REGEXP)/REGEXP!swap	SELECT CURRENT_USER RELEASE CURRENT_USER;
 accept	accept	engine	valueExpression/primaryExpression	SELECT CURRENT_USER;
 accept	accept	engine	valueExpression/valueExpression_BITXOR_valueExpression	SELECT CURRENT_USER ^ CURRENT_USER;
@@ -8728,39 +8728,39 @@ reject	reject	engine	valueExpression/valueExpression_BITOR_valueExpression!trunc
 accept	accept	engine	valueExpression/valueExpression_BITOR_valueExpression!insert	SELECT CURRENT_USER | CURRENT_USER zzz;
 accept	accept	engine	valueExpression/valueExpression_BITOR_valueExpression!swap	SELECT DATA | CURRENT_USER;
 reject	accept	engine	valueExpression/valueExpression_BIT_SHIFT_LEFT_valueExpression	SELECT CURRENT_USER BITSHIFTLEFT CURRENT_USER;
-accept	reject	engine	valueExpression/valueExpression_BIT_SHIFT_LEFT_valueExpression!drop-1	SELECT BITSHIFTLEFT CURRENT_USER;
+reject	reject	engine	valueExpression/valueExpression_BIT_SHIFT_LEFT_valueExpression!drop-1	SELECT BITSHIFTLEFT CURRENT_USER;
 accept	reject	engine	valueExpression/valueExpression_BIT_SHIFT_LEFT_valueExpression!drop-3	SELECT CURRENT_USER BITSHIFTLEFT;
 accept	reject	engine	valueExpression/valueExpression_BIT_SHIFT_LEFT_valueExpression!truncate	SELECT CURRENT_USER BITSHIFTLEFT
 reject	accept	engine	valueExpression/valueExpression_BIT_SHIFT_LEFT_valueExpression!insert	SELECT CURRENT_USER BITSHIFTLEFT CURRENT_USER zzz;
 reject	accept	engine	valueExpression/valueExpression_BIT_SHIFT_LEFT_valueExpression!swap	SELECT DATA BITSHIFTLEFT CURRENT_USER;
 reject	accept	engine	valueExpression/valueExpression_BIT_SHIFT_RIGHT_valueExpression	SELECT CURRENT_USER BITSHIFTRIGHT CURRENT_USER;
-accept	reject	engine	valueExpression/valueExpression_BIT_SHIFT_RIGHT_valueExpression!drop-1	SELECT BITSHIFTRIGHT CURRENT_USER;
+reject	reject	engine	valueExpression/valueExpression_BIT_SHIFT_RIGHT_valueExpression!drop-1	SELECT BITSHIFTRIGHT CURRENT_USER;
 accept	reject	engine	valueExpression/valueExpression_BIT_SHIFT_RIGHT_valueExpression!drop-3	SELECT CURRENT_USER BITSHIFTRIGHT;
 accept	reject	engine	valueExpression/valueExpression_BIT_SHIFT_RIGHT_valueExpression!truncate	SELECT CURRENT_USER BITSHIFTRIGHT
 reject	accept	engine	valueExpression/valueExpression_BIT_SHIFT_RIGHT_valueExpression!insert	SELECT CURRENT_USER BITSHIFTRIGHT CURRENT_USER zzz;
 reject	accept	engine	valueExpression/valueExpression_BIT_SHIFT_RIGHT_valueExpression!swap	SELECT DATA BITSHIFTRIGHT CURRENT_USER;
 reject	accept	engine	valueExpression/valueExpression_BIT_SHIFT_RIGHT_LOGICAL_valueExpression	SELECT CURRENT_USER BITSHIFTRIGHTLOGICAL CURRENT_USER;
-accept	reject	engine	valueExpression/valueExpression_BIT_SHIFT_RIGHT_LOGICAL_valueExpression!drop-1	SELECT BITSHIFTRIGHTLOGICAL CURRENT_USER;
+reject	reject	engine	valueExpression/valueExpression_BIT_SHIFT_RIGHT_LOGICAL_valueExpression!drop-1	SELECT BITSHIFTRIGHTLOGICAL CURRENT_USER;
 accept	reject	engine	valueExpression/valueExpression_BIT_SHIFT_RIGHT_LOGICAL_valueExpression!drop-3	SELECT CURRENT_USER BITSHIFTRIGHTLOGICAL;
 accept	reject	engine	valueExpression/valueExpression_BIT_SHIFT_RIGHT_LOGICAL_valueExpression!truncate	SELECT CURRENT_USER BITSHIFTRIGHTLOGICAL
 reject	accept	engine	valueExpression/valueExpression_BIT_SHIFT_RIGHT_LOGICAL_valueExpression!insert	SELECT CURRENT_USER BITSHIFTRIGHTLOGICAL CURRENT_USER zzz;
 reject	accept	engine	valueExpression/valueExpression_BIT_SHIFT_RIGHT_LOGICAL_valueExpression!swap	SELECT DATA BITSHIFTRIGHTLOGICAL CURRENT_USER;
 accept	accept	engine	valueExpression(ASTERISK_SYMBOL|SLASH_SYMBOL|PERCENT~a063f6a1)/ASTERISK_SYMBOL	SELECT CURRENT_USER * CURRENT_USER;
-accept	reject	engine	valueExpression(ASTERISK_SYMBOL|SLASH_SYMBOL|PERCENT~a063f6a1)/ASTERISK_SYMBOL!insert	SELECT CURRENT_USER * zzz CURRENT_USER;
+reject	reject	engine	valueExpression(ASTERISK_SYMBOL|SLASH_SYMBOL|PERCENT~a063f6a1)/ASTERISK_SYMBOL!insert	SELECT CURRENT_USER * zzz CURRENT_USER;
 accept	accept	engine	valueExpression(ASTERISK_SYMBOL|SLASH_SYMBOL|PERCENT~a063f6a1)/SLASH_SYMBOL	SELECT CURRENT_USER / CURRENT_USER;
-accept	reject	engine	valueExpression(ASTERISK_SYMBOL|SLASH_SYMBOL|PERCENT~a063f6a1)/SLASH_SYMBOL!insert	SELECT CURRENT_USER / zzz CURRENT_USER;
+reject	reject	engine	valueExpression(ASTERISK_SYMBOL|SLASH_SYMBOL|PERCENT~a063f6a1)/SLASH_SYMBOL!insert	SELECT CURRENT_USER / zzz CURRENT_USER;
 accept	accept	engine	valueExpression(ASTERISK_SYMBOL|SLASH_SYMBOL|PERCENT~a063f6a1)/PERCENT_SYMBOL	SELECT CURRENT_USER % CURRENT_USER;
-accept	reject	engine	valueExpression(ASTERISK_SYMBOL|SLASH_SYMBOL|PERCENT~a063f6a1)/PERCENT_SYMBOL!insert	SELECT CURRENT_USER % zzz CURRENT_USER;
+reject	reject	engine	valueExpression(ASTERISK_SYMBOL|SLASH_SYMBOL|PERCENT~a063f6a1)/PERCENT_SYMBOL!insert	SELECT CURRENT_USER % zzz CURRENT_USER;
 accept	accept	engine	valueExpression(ASTERISK_SYMBOL|SLASH_SYMBOL|PERCENT~a063f6a1)/INT_DIV	SELECT CURRENT_USER DIV CURRENT_USER;
-accept	reject	engine	valueExpression(ASTERISK_SYMBOL|SLASH_SYMBOL|PERCENT~a063f6a1)/INT_DIV!insert	SELECT CURRENT_USER DIV zzz CURRENT_USER;
+reject	reject	engine	valueExpression(ASTERISK_SYMBOL|SLASH_SYMBOL|PERCENT~a063f6a1)/INT_DIV!insert	SELECT CURRENT_USER DIV zzz CURRENT_USER;
 reject	reject	engine	valueExpression(ASTERISK_SYMBOL|SLASH_SYMBOL|PERCENT~a063f6a1)/INT_DIV!swap	SELECT CURRENT_USER DOUBLE CURRENT_USER;
-reject	accept	engine	valueExpression(ASTERISK_SYMBOL|SLASH_SYMBOL|PERCENT~a063f6a1)/MOD	SELECT CURRENT_USER MOD CURRENT_USER;
+accept	accept	engine	valueExpression(ASTERISK_SYMBOL|SLASH_SYMBOL|PERCENT~a063f6a1)/MOD	SELECT CURRENT_USER MOD CURRENT_USER;
 reject	reject	engine	valueExpression(ASTERISK_SYMBOL|SLASH_SYMBOL|PERCENT~a063f6a1)/MOD!insert	SELECT CURRENT_USER MOD zzz CURRENT_USER;
 reject	reject	engine	valueExpression(ASTERISK_SYMBOL|SLASH_SYMBOL|PERCENT~a063f6a1)/MOD!swap	SELECT CURRENT_USER MODE CURRENT_USER;
 accept	accept	engine	valueExpression(PLUS_SYMBOL|MINUS_SYMBOL)/PLUS_SYMBOL	SELECT CURRENT_USER + CURRENT_USER;
-accept	reject	engine	valueExpression(PLUS_SYMBOL|MINUS_SYMBOL)/PLUS_SYMBOL!insert	SELECT CURRENT_USER + zzz CURRENT_USER;
+reject	reject	engine	valueExpression(PLUS_SYMBOL|MINUS_SYMBOL)/PLUS_SYMBOL!insert	SELECT CURRENT_USER + zzz CURRENT_USER;
 accept	accept	engine	valueExpression(PLUS_SYMBOL|MINUS_SYMBOL)/MINUS_SYMBOL	SELECT CURRENT_USER - CURRENT_USER;
-accept	reject	engine	valueExpression(PLUS_SYMBOL|MINUS_SYMBOL)/MINUS_SYMBOL!insert	SELECT CURRENT_USER - zzz CURRENT_USER;
+reject	reject	engine	valueExpression(PLUS_SYMBOL|MINUS_SYMBOL)/MINUS_SYMBOL!insert	SELECT CURRENT_USER - zzz CURRENT_USER;
 accept	accept	engine	primaryExpression/userVariable	SELECT@a;
 reject	reject	engine	primaryExpression/userVariable!drop-2	SELECT@;
 reject	reject	engine	primaryExpression/userVariable!truncate	SELECT@
@@ -8785,12 +8785,12 @@ reject	reject	engine	primaryExpression/{_FN_functionCall_}!drop-4	SELECT { FN CU
 reject	reject	engine	primaryExpression/{_FN_functionCall_}!truncate	SELECT { FN CURRENT_USER
 reject	reject	engine	primaryExpression/{_FN_functionCall_}!insert	SELECT { FN CURRENT_USER } zzz;
 reject	reject	engine	primaryExpression/{_FN_functionCall_}!swap	SELECT { FOLLOWER CURRENT_USER };
-reject	accept	engine	primaryExpression/primaryExpression_COLLATE_(identifier|string)	SELECT CURRENT_USER COLLATE a;
+accept	accept	engine	primaryExpression/primaryExpression_COLLATE_(identifier|string)	SELECT CURRENT_USER COLLATE a;
 reject	reject	engine	primaryExpression/primaryExpression_COLLATE_(identifier|string)!drop-1	SELECT COLLATE a;
 reject	reject	engine	primaryExpression/primaryExpression_COLLATE_(identifier|string)!drop-3	SELECT CURRENT_USER COLLATE;
 reject	reject	engine	primaryExpression/primaryExpression_COLLATE_(identifier|string)!truncate	SELECT CURRENT_USER COLLATE
-reject	accept	engine	primaryExpression/primaryExpression_COLLATE_(identifier|string)!insert	SELECT CURRENT_USER COLLATE a zzz;
-reject	accept	engine	primaryExpression/primaryExpression_COLLATE_(identifier|string)!swap	SELECT DATA COLLATE a;
+accept	accept	engine	primaryExpression/primaryExpression_COLLATE_(identifier|string)!insert	SELECT CURRENT_USER COLLATE a zzz;
+accept	accept	engine	primaryExpression/primaryExpression_COLLATE_(identifier|string)!swap	SELECT DATA COLLATE a;
 accept	accept	engine	primaryExpression/literalExpression	SELECT NULL;
 accept	accept	engine	primaryExpression/literalExpression!insert	SELECT NULL zzz;
 accept	accept	engine	primaryExpression/columnReference	SELECT a;
@@ -8915,7 +8915,7 @@ accept	accept	engine	primaryExpression/primaryExpression_ARROW_string!insert	SEL
 accept	accept	engine	primaryExpression/primaryExpression_ARROW_string!swap	SELECT DATA -> 'a';
 reject	accept	engine	primaryExpression/(identifier|identifierList)_->_expression	SELECT a -> CURRENT_USER;
 reject	reject	engine	primaryExpression/(identifier|identifierList)_->_expression!drop-1	SELECT -> CURRENT_USER;
-accept	reject	engine	primaryExpression/(identifier|identifierList)_->_expression!drop-2	SELECT a CURRENT_USER;
+reject	reject	engine	primaryExpression/(identifier|identifierList)_->_expression!drop-2	SELECT a CURRENT_USER;
 reject	reject	engine	primaryExpression/(identifier|identifierList)_->_expression!drop-3	SELECT a ->;
 reject	reject	engine	primaryExpression/(identifier|identifierList)_->_expression!truncate	SELECT a ->
 reject	accept	engine	primaryExpression/(identifier|identifierList)_->_expression!insert	SELECT a -> CURRENT_USER zzz;
@@ -8935,20 +8935,20 @@ reject	accept	engine	primaryExpression/primaryExpression_(NOT)?_MATCH_primaryExp
 reject	accept	engine	primaryExpression/primaryExpression_(NOT)?_MATCH_primaryExpression!truncate	SELECT CURRENT_USER MATCH
 reject	accept	engine	primaryExpression/primaryExpression_(NOT)?_MATCH_primaryExpression!insert	SELECT CURRENT_USER MATCH CURRENT_USER zzz;
 reject	accept	engine	primaryExpression/primaryExpression_(NOT)?_MATCH_primaryExpression!swap	SELECT DATA MATCH CURRENT_USER;
-reject	accept	engine	primaryExpression(identifier|string)/identifier	SELECT CURRENT_USER COLLATE a;
-reject	accept	engine	primaryExpression(identifier|string)/string	SELECT CURRENT_USER COLLATE 'a';
-reject	accept	engine	primaryExpression(identifier|string)/string!insert	SELECT CURRENT_USER COLLATE 'a' zzz;
+accept	accept	engine	primaryExpression(identifier|string)/identifier	SELECT CURRENT_USER COLLATE a;
+accept	accept	engine	primaryExpression(identifier|string)/string	SELECT CURRENT_USER COLLATE 'a';
+accept	accept	engine	primaryExpression(identifier|string)/string!insert	SELECT CURRENT_USER COLLATE 'a' zzz;
 reject	accept	engine	primaryExpression(DOT_IDENTIFIER|._identifier)/DOT_IDENTIFIER	SELECT CURRENT_USER.1a;
 reject	accept	engine	primaryExpression(DOT_IDENTIFIER|._identifier)/._identifier	SELECT CURRENT_USER.a;
 reject	reject	engine	primaryExpression(DOT_IDENTIFIER|._identifier)/._identifier!drop-2	SELECT CURRENT_USER.;
 reject	reject	engine	primaryExpression(DOT_IDENTIFIER|._identifier)/._identifier!truncate	SELECT CURRENT_USER.
 reject	accept	engine	primaryExpression(DOT_IDENTIFIER|._identifier)/._identifier!insert	SELECT CURRENT_USER.a zzz;
 accept	accept	engine	primaryExpression(MINUS_SYMBOL|PLUS_SYMBOL|BITNOT)/MINUS_SYMBOL	SELECT - CURRENT_USER;
-accept	reject	engine	primaryExpression(MINUS_SYMBOL|PLUS_SYMBOL|BITNOT)/MINUS_SYMBOL!insert	SELECT - zzz CURRENT_USER;
+reject	reject	engine	primaryExpression(MINUS_SYMBOL|PLUS_SYMBOL|BITNOT)/MINUS_SYMBOL!insert	SELECT - zzz CURRENT_USER;
 accept	accept	engine	primaryExpression(MINUS_SYMBOL|PLUS_SYMBOL|BITNOT)/PLUS_SYMBOL	SELECT + CURRENT_USER;
-accept	reject	engine	primaryExpression(MINUS_SYMBOL|PLUS_SYMBOL|BITNOT)/PLUS_SYMBOL!insert	SELECT + zzz CURRENT_USER;
+reject	reject	engine	primaryExpression(MINUS_SYMBOL|PLUS_SYMBOL|BITNOT)/PLUS_SYMBOL!insert	SELECT + zzz CURRENT_USER;
 accept	accept	engine	primaryExpression(MINUS_SYMBOL|PLUS_SYMBOL|BITNOT)/BITNOT	SELECT ~ CURRENT_USER;
-accept	reject	engine	primaryExpression(MINUS_SYMBOL|PLUS_SYMBOL|BITNOT)/BITNOT!insert	SELECT ~ zzz CURRENT_USER;
+reject	reject	engine	primaryExpression(MINUS_SYMBOL|PLUS_SYMBOL|BITNOT)/BITNOT!insert	SELECT ~ zzz CURRENT_USER;
 accept	accept	engine	primaryExpression(whenClause)+/whenClause	SELECT CASE WHEN CURRENT_USER THEN CURRENT_USER END;
 reject	reject	engine	primaryExpression(whenClause)+/whenClause!truncate	SELECT CASE WHEN CURRENT_USER THEN
 reject	reject	engine	primaryExpression(whenClause)+/whenClause!insert	SELECT CASE WHEN CURRENT_USER THEN CURRENT_USER zzz END;
@@ -10220,19 +10220,19 @@ accept	accept	engine	binary/BINARY_SINGLE_QUOTED_TEXT	SELECT X'00';
 reject	accept	engine	binary/BINARY_DOUBLE_QUOTED_TEXT	SELECT X"00";
 reject	accept	engine	binary/BINARY_DOUBLE_QUOTED_TEXT!insert	SELECT X"00" zzz;
 accept	accept	engine	comparisonOperator/EQ	SELECT CURRENT_USER = CURRENT_USER;
-accept	reject	engine	comparisonOperator/EQ!insert	SELECT CURRENT_USER = zzz CURRENT_USER;
+reject	reject	engine	comparisonOperator/EQ!insert	SELECT CURRENT_USER = zzz CURRENT_USER;
 accept	accept	engine	comparisonOperator/NEQ	SELECT CURRENT_USER <> CURRENT_USER;
-accept	reject	engine	comparisonOperator/NEQ!insert	SELECT CURRENT_USER <> zzz CURRENT_USER;
+reject	reject	engine	comparisonOperator/NEQ!insert	SELECT CURRENT_USER <> zzz CURRENT_USER;
 accept	accept	engine	comparisonOperator/LT	SELECT CURRENT_USER < CURRENT_USER;
-accept	reject	engine	comparisonOperator/LT!insert	SELECT CURRENT_USER < zzz CURRENT_USER;
+reject	reject	engine	comparisonOperator/LT!insert	SELECT CURRENT_USER < zzz CURRENT_USER;
 accept	accept	engine	comparisonOperator/LTE	SELECT CURRENT_USER <= CURRENT_USER;
-accept	reject	engine	comparisonOperator/LTE!insert	SELECT CURRENT_USER <= zzz CURRENT_USER;
+reject	reject	engine	comparisonOperator/LTE!insert	SELECT CURRENT_USER <= zzz CURRENT_USER;
 accept	accept	engine	comparisonOperator/GT	SELECT CURRENT_USER > CURRENT_USER;
-accept	reject	engine	comparisonOperator/GT!insert	SELECT CURRENT_USER > zzz CURRENT_USER;
+reject	reject	engine	comparisonOperator/GT!insert	SELECT CURRENT_USER > zzz CURRENT_USER;
 accept	accept	engine	comparisonOperator/GTE	SELECT CURRENT_USER >= CURRENT_USER;
-accept	reject	engine	comparisonOperator/GTE!insert	SELECT CURRENT_USER >= zzz CURRENT_USER;
+reject	reject	engine	comparisonOperator/GTE!insert	SELECT CURRENT_USER >= zzz CURRENT_USER;
 accept	accept	engine	comparisonOperator/EQ_FOR_NULL	SELECT CURRENT_USER <=> CURRENT_USER;
-accept	reject	engine	comparisonOperator/EQ_FOR_NULL!insert	SELECT CURRENT_USER <=> zzz CURRENT_USER;
+reject	reject	engine	comparisonOperator/EQ_FOR_NULL!insert	SELECT CURRENT_USER <=> zzz CURRENT_USER;
 accept	accept	engine	booleanValue/TRUE	SELECT TRUE;
 accept	accept	engine	booleanValue/FALSE	SELECT FALSE;
 accept	accept	engine	booleanValue/FALSE!insert	SELECT FALSE zzz;

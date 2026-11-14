@@ -2,6 +2,8 @@ package parser
 
 import (
 	"strings"
+
+	"github.com/bytebase/omni/doris/ast"
 )
 
 // The SHOW statements Doris accepts, one pattern per form. parseShow builds
@@ -352,28 +354,8 @@ func (p *Parser) showShapeNonterminal(name string) bool {
 			return p.showShapePartitionList()
 		}
 		return false
-	case "tableref": // baseTableRef (:517) as both grammars take it here
-		if _, err := p.parseMultipartIdentifier(); err != nil {
-			return false
-		}
-		if p.cur.Kind == kwPARTITION || p.cur.Kind == kwPARTITIONS || p.cur.Kind == kwTEMPORARY {
-			if !p.showShapeNonterminal("part") {
-				return false
-			}
-		}
-		if p.showShapeToken(kwTABLET) {
-			if !p.showShapeToken(int('(')) || !p.showShapeNonterminal("ints") || !p.showShapeToken(int(')')) {
-				return false
-			}
-		}
-		if p.showShapeToken(kwAS) {
-			_, _, err := p.parseIdentifier()
-			return err == nil
-		}
-		if isIdentifierToken(p.cur.Kind) {
-			p.advance()
-		}
-		return true
+	case "tableref": // baseTableRef, as the ADMIN statements read it
+		return p.parseAdminBaseTableRef(&ast.AdminStmt{}) == nil
 	case "fargs": // functionArguments (:872)
 		for {
 			if !p.showShapeToken(tokDotDotDot) {

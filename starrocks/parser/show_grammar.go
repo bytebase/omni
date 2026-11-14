@@ -219,14 +219,18 @@ func (p *Parser) atShowWord(word string) bool {
 func (p *Parser) showShapeNonterminal(name string) bool {
 	switch name {
 	case "ident":
-		_, _, err := p.parseIdentifier()
-		return err == nil
+		return p.showShapeIdent()
 	case "name": // qualifiedName (:2850)
-		_, err := p.parseMultipartIdentifier()
-		return err == nil
+		if !p.showShapeIdent() {
+			return false
+		}
+		for p.cur.Kind == int('.') && isIdentifierTokenQualified(p.peekNext().Kind) {
+			p.advance()
+			p.advance()
+		}
+		return true
 	case "text": // identifierOrString (:2877)
-		_, _, err := p.parseIdentifierOrString()
-		return err == nil
+		return p.showShapeToken(tokString) || p.showShapeIdent()
 	case "str":
 		return p.showShapeToken(tokString)
 	case "int":
@@ -258,23 +262,19 @@ func (p *Parser) showShapeNonterminal(name string) bool {
 		}
 		return true
 	case "user": // user (:2892)
-		// ROLE is in nonReserved (StarRocks.g4), so it names a user here.
-		if !p.showShapeToken(kwROLE) {
-			if _, _, err := p.parseIdentifierOrString(); err != nil {
-				return false
-			}
+		if !p.showShapeNonterminal("text") {
+			return false
 		}
 		if !p.showShapeToken(int('@')) {
 			return true
 		}
 		if p.showShapeToken(int('[')) {
-			if _, _, err := p.parseIdentifierOrString(); err != nil {
+			if !p.showShapeNonterminal("text") {
 				return false
 			}
 			return p.showShapeToken(int(']'))
 		}
-		_, _, err := p.parseIdentifierOrString()
-		return err == nil
+		return p.showShapeNonterminal("text")
 	case "part": // partitionNames (:2268)
 		temporary := p.showShapeToken(kwTEMPORARY)
 		switch {
@@ -283,7 +283,7 @@ func (p *Parser) showShapeNonterminal(name string) bool {
 			p.advance()
 			p.advance()
 			for {
-				if _, _, err := p.parseIdentifierOrString(); err != nil {
+				if !p.showShapeNonterminal("text") {
 					return false
 				}
 				if p.showShapeToken(int('=')) {
@@ -297,11 +297,10 @@ func (p *Parser) showShapeNonterminal(name string) bool {
 			}
 		case p.showShapeToken(kwPARTITION), p.showShapeToken(kwPARTITIONS):
 			if !p.showShapeToken(int('(')) {
-				_, _, err := p.parseIdentifierOrString()
-				return err == nil
+				return p.showShapeNonterminal("text")
 			}
 			for {
-				if _, _, err := p.parseIdentifierOrString(); err != nil {
+				if !p.showShapeNonterminal("text") {
 					return false
 				}
 				if !p.showShapeToken(int(',')) {
@@ -312,6 +311,33 @@ func (p *Parser) showShapeNonterminal(name string) bool {
 		return false
 	}
 	panic("show pattern names an unknown nonterminal: " + name)
+}
+
+// showShapeIdent reads an identifier: one omni's lexer allows, or a word
+// StarRocks.g4 lists in nonReserved that omni reserves elsewhere.
+func (p *Parser) showShapeIdent() bool {
+	if starRocksNonReservedWords[p.cur.Kind] {
+		p.advance()
+		return true
+	}
+	_, _, err := p.parseIdentifier()
+	return err == nil
+}
+
+// starRocksNonReservedWords are the words of StarRocks.g4's nonReserved that
+// IsReserved reports reserved.
+var starRocksNonReservedWords = map[TokenKind]bool{
+	kwADMIN: true, kwANTI: true, kwBACKEND: true, kwBINARY: true, kwCANCEL: true,
+	kwCAST: true, kwCLEAN: true, kwCURRENT: true, kwDECOMMISSION: true, kwDISK: true,
+	kwDISTRIBUTED: true, kwDISTRIBUTION: true, kwDUPLICATE: true, kwEXECUTE: true,
+	kwEXPORT: true, kwEXTRACT: true, kwFOLLOWER: true, kwFOLLOWING: true,
+	kwFRONTEND: true, kwFUNCTIONS: true, kwGRANTS: true, kwINSTALL: true,
+	kwINTERMEDIATE: true, kwINTERVAL: true, kwLIST: true, kwLOW_PRIORITY: true,
+	kwMATCH: true, kwMINUS: true, kwOBSERVER: true, kwOVERWRITE: true,
+	kwPRECEDING: true, kwREPAIR: true, kwREPLICA: true, kwROLE: true, kwROLES: true,
+	kwROW: true, kwSEMI: true, kwSETS: true, kwSIGNED: true, kwSYNC: true,
+	kwTABLET: true, kwTABLETS: true, kwUNBOUNDED: true, kwUNINSTALL: true,
+	kwWHITELIST: true, kwWRITE: true,
 }
 
 // showShapeLimitValue reads INTEGER_VALUE or PARAMETER.

@@ -1163,7 +1163,7 @@ var nonReservedKeywords = map[TokenKind]bool{
 	kwCURRENT_DATE:           true,
 	kwCURRENT_TIME:           true,
 	kwCURRENT_TIMESTAMP:      true,
-	kwCURRENT_USER:           true,
+	// CURRENT_USER is reserved: StarRocks.g4's nonReserved leaves it out.
 	kwDATA:                   true,
 	kwDATE:                   true,
 	kwDATETIME:               true,

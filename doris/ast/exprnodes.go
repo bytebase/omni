@@ -157,6 +157,17 @@ func (n *BinaryExpr) Tag() NodeTag { return T_BinaryExpr }
 
 var _ Node = (*BinaryExpr)(nil)
 
+// CollateExpr is expr COLLATE collation.
+type CollateExpr struct {
+	Expr      Node
+	Collation string
+	Loc       Loc
+}
+
+func (n *CollateExpr) Tag() NodeTag { return T_CollateExpr }
+
+var _ Node = (*CollateExpr)(nil)
+
 // UnaryExpr represents a unary operation: op expr.
 type UnaryExpr struct {
 	Op   UnaryOp

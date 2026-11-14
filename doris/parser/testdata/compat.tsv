@@ -6864,11 +6864,11 @@ reject	reject	engine	primaryExpression/EXTRACT_LEFT_PAREN_identifier_FROM_(DATE|
 reject	reject	engine	primaryExpression/EXTRACT_LEFT_PAREN_identifier_FROM_(DATE|TIMESTAMP)?_va~c052f34f!drop-6	SELECT EXTRACT(a FROM CURRENT_DATE
 accept	accept	engine	primaryExpression/EXTRACT_LEFT_PAREN_identifier_FROM_(DATE|TIMESTAMP)?_va~c052f34f!insert	SELECT EXTRACT(a FROM CURRENT_DATE) zzz
 reject	reject	engine	primaryExpression/EXTRACT_LEFT_PAREN_identifier_FROM_(DATE|TIMESTAMP)?_va~c052f34f!swap	SELECT FAILED_LOGIN_ATTEMPTS(a FROM CURRENT_DATE)
-reject	accept	engine	primaryExpression/primaryExpression_COLLATE_(identifier|STRING_LITERAL|DEFAULT)	SELECT CURRENT_DATE COLLATE a
+accept	accept	engine	primaryExpression/primaryExpression_COLLATE_(identifier|STRING_LITERAL|DEFAULT)	SELECT CURRENT_DATE COLLATE a
 reject	reject	engine	primaryExpression/primaryExpression_COLLATE_(identifier|STRING_LITERAL|DEFAULT)!drop-1	SELECT COLLATE a
 reject	reject	engine	primaryExpression/primaryExpression_COLLATE_(identifier|STRING_LITERAL|DEFAULT)!drop-3	SELECT CURRENT_DATE COLLATE
-reject	accept	engine	primaryExpression/primaryExpression_COLLATE_(identifier|STRING_LITERAL|DEFAULT)!insert	SELECT CURRENT_DATE COLLATE a zzz
-reject	accept	engine	primaryExpression/primaryExpression_COLLATE_(identifier|STRING_LITERAL|DEFAULT)!swap	SELECT CURRENT_TIME COLLATE a
+accept	accept	engine	primaryExpression/primaryExpression_COLLATE_(identifier|STRING_LITERAL|DEFAULT)!insert	SELECT CURRENT_DATE COLLATE a zzz
+accept	accept	engine	primaryExpression/primaryExpression_COLLATE_(identifier|STRING_LITERAL|DEFAULT)!swap	SELECT CURRENT_TIME COLLATE a
 accept	accept	engine	primaryExpression(whenClause)+/whenClause	SELECT CASE WHEN CURRENT_DATE THEN CURRENT_DATE END
 reject	reject	engine	primaryExpression(whenClause)+/whenClause!truncate	SELECT CASE WHEN CURRENT_DATE THEN
 reject	reject	engine	primaryExpression(whenClause)+/whenClause!insert	SELECT CASE WHEN CURRENT_DATE THEN CURRENT_DATE zzz END
@@ -6945,12 +6945,12 @@ reject	reject	engine	primaryExpression(DATE|TIMESTAMP)?/DATE!swap	SELECT EXTRACT
 reject	accept	engine	primaryExpression(DATE|TIMESTAMP)?/TIMESTAMP	SELECT EXTRACT(a FROM TIMESTAMP CURRENT_DATE)
 reject	reject	engine	primaryExpression(DATE|TIMESTAMP)?/TIMESTAMP!insert	SELECT EXTRACT(a FROM TIMESTAMP zzz CURRENT_DATE)
 reject	reject	engine	primaryExpression(DATE|TIMESTAMP)?/TIMESTAMP!swap	SELECT EXTRACT(a FROM TINYINT CURRENT_DATE)
-reject	accept	engine	primaryExpression(identifier|STRING_LITERAL|DEFAULT)/identifier	SELECT CURRENT_DATE COLLATE a
-reject	accept	engine	primaryExpression(identifier|STRING_LITERAL|DEFAULT)/STRING_LITERAL	SELECT CURRENT_DATE COLLATE 'a'
-reject	accept	engine	primaryExpression(identifier|STRING_LITERAL|DEFAULT)/STRING_LITERAL!insert	SELECT CURRENT_DATE COLLATE 'a' zzz
-reject	accept	engine	primaryExpression(identifier|STRING_LITERAL|DEFAULT)/DEFAULT	SELECT CURRENT_DATE COLLATE DEFAULT
-reject	accept	engine	primaryExpression(identifier|STRING_LITERAL|DEFAULT)/DEFAULT!insert	SELECT CURRENT_DATE COLLATE DEFAULT zzz
-reject	accept	engine	primaryExpression(identifier|STRING_LITERAL|DEFAULT)/DEFAULT!swap	SELECT CURRENT_DATE COLLATE DEFERRED
+accept	accept	engine	primaryExpression(identifier|STRING_LITERAL|DEFAULT)/identifier	SELECT CURRENT_DATE COLLATE a
+accept	accept	engine	primaryExpression(identifier|STRING_LITERAL|DEFAULT)/STRING_LITERAL	SELECT CURRENT_DATE COLLATE 'a'
+accept	accept	engine	primaryExpression(identifier|STRING_LITERAL|DEFAULT)/STRING_LITERAL!insert	SELECT CURRENT_DATE COLLATE 'a' zzz
+accept	accept	engine	primaryExpression(identifier|STRING_LITERAL|DEFAULT)/DEFAULT	SELECT CURRENT_DATE COLLATE DEFAULT
+accept	accept	engine	primaryExpression(identifier|STRING_LITERAL|DEFAULT)/DEFAULT!insert	SELECT CURRENT_DATE COLLATE DEFAULT zzz
+accept	accept	engine	primaryExpression(identifier|STRING_LITERAL|DEFAULT)/DEFAULT!swap	SELECT CURRENT_DATE COLLATE DEFERRED
 accept	accept	engine	castDataType/dataType	SELECT CAST(CURRENT_DATE AS VARIANT)
 reject	reject	engine	castDataType/dataType!truncate	SELECT CAST(CURRENT_DATE AS
 reject	reject	engine	castDataType/dataType!insert	SELECT CAST(CURRENT_DATE AS VARIANT zzz)
@@ -12385,14 +12385,14 @@ reject	accept	engine	old_or_new_charset_name_or_default/DEFAULT	SET CHARSET DEFA
 reject	reject	engine	old_or_new_charset_name_or_default/DEFAULT!insert	SET CHARSET DEFAULT zzz
 accept	accept	engine	old_or_new_charset_name_or_default/DEFAULT!swap	SET CHARSET DEFERRED
 accept	accept	engine	opt_collate/%empty	SELECT 1
-reject	accept	engine	opt_collate/COLLATE_collation_name_or_default	SELECT 1 COLLATE a
+accept	accept	engine	opt_collate/COLLATE_collation_name_or_default	SELECT 1 COLLATE a
 reject	reject	engine	opt_collate/COLLATE_collation_name_or_default!drop-2	SELECT 1 COLLATE
-reject	accept	engine	opt_collate/COLLATE_collation_name_or_default!insert	SELECT 1 COLLATE a zzz
+accept	accept	engine	opt_collate/COLLATE_collation_name_or_default!insert	SELECT 1 COLLATE a zzz
 reject	reject	engine	opt_collate/COLLATE_collation_name_or_default!swap	SELECT 1 COLLATION a
-reject	accept	engine	collation_name_or_default/ident_or_text	SELECT 1 COLLATE a
-reject	accept	engine	collation_name_or_default/DEFAULT	SELECT 1 COLLATE DEFAULT
-reject	accept	engine	collation_name_or_default/DEFAULT!insert	SELECT 1 COLLATE DEFAULT zzz
-reject	accept	engine	collation_name_or_default/DEFAULT!swap	SELECT 1 COLLATE DEFERRED
+accept	accept	engine	collation_name_or_default/ident_or_text	SELECT 1 COLLATE a
+accept	accept	engine	collation_name_or_default/DEFAULT	SELECT 1 COLLATE DEFAULT
+accept	accept	engine	collation_name_or_default/DEFAULT!insert	SELECT 1 COLLATE DEFAULT zzz
+accept	accept	engine	collation_name_or_default/DEFAULT!swap	SELECT 1 COLLATE DEFERRED
 accept	accept	engine	opt_storage/%empty	SHOW ENGINES
 reject	reject	engine	opt_storage/%empty!insert	SHOW zzz ENGINES
 accept	accept	engine	opt_storage/STORAGE	SHOW STORAGE ENGINES

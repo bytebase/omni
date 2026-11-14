@@ -52,6 +52,13 @@ func (p *Parser) parseExprPrec(minBP int) (ast.Node, error) {
 	}
 
 	for {
+		// primaryExpression COLLATE (StarRocks.g4:2403) binds before any operator.
+		if p.cur.Kind == kwCOLLATE {
+			if left, err = p.parseCollateExpr(left); err != nil {
+				return nil, err
+			}
+			continue
+		}
 		bp, op, special, ok := p.infixBindingPower()
 		if !ok || bp < minBP {
 			break
@@ -186,6 +193,12 @@ func (p *Parser) infixBindingPower() (int, ast.BinaryOp, string, bool) {
 		return bpMul, ast.BinMod, "", true
 	case kwDIV:
 		return bpMul, ast.BinIntDiv, "", true
+	case tokIdent:
+		// MOD is a reserved word of the engine's grammar (StarRocks.g4:2386), which
+		// omni lexes as a name; outside a call it is the modulo operator.
+		if strings.EqualFold(p.cur.Str, "MOD") {
+			return bpMul, ast.BinMod, "", true
+		}
 
 	// Bitwise XOR
 	case int('^'):
@@ -1886,5 +1899,27 @@ func (p *Parser) parseRegexpExpr(left ast.Node, notFlag bool) (ast.Node, error) 
 		Pattern: pattern,
 		Not:     notFlag,
 		Loc:     ast.Loc{Start: ast.NodeLoc(left).Start, End: ast.NodeLoc(pattern).End},
+	}, nil
+}
+
+// parseCollateExpr reads COLLATE (identifier | string) after left (StarRocks.g4:2403).
+func (p *Parser) parseCollateExpr(left ast.Node) (ast.Node, error) {
+	p.advance() // consume COLLATE
+	var name string
+	switch {
+	case p.cur.Kind == tokString:
+		name = p.cur.Str
+		p.advance()
+	default:
+		ident, _, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		name = ident
+	}
+	return &ast.CollateExpr{
+		Expr:      left,
+		Collation: name,
+		Loc:       ast.Loc{Start: ast.NodeLoc(left).Start, End: p.prev.Loc.End},
 	}, nil
 }

@@ -635,6 +635,9 @@ const (
 
 	// T_DropProcedureStmt is the tag for *DropProcedureStmt.
 	T_DropProcedureStmt
+
+	// T_CollateExpr is the tag for *CollateExpr (expr COLLATE name).
+	T_CollateExpr
 )
 
 // String returns a human-readable representation of the tag.
@@ -672,6 +675,8 @@ func (t NodeTag) String() string {
 		return "BinaryExpr"
 	case T_UnaryExpr:
 		return "UnaryExpr"
+	case T_CollateExpr:
+		return "CollateExpr"
 	case T_IsExpr:
 		return "IsExpr"
 	case T_BetweenExpr:
