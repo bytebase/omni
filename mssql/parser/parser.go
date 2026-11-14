@@ -1324,8 +1324,8 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 				stmt.Loc.Start = loc
 				return stmt, nil
 			}
-			if p.cur.Type == kwGROUP {
-				p.advance() // consume GROUP
+			if _, err := p.expect(kwGROUP); err != nil {
+				return nil, err
 			}
 			stmt, err := p.parseCreateWorkloadGroupStmt()
 			if err != nil {
@@ -1950,8 +1950,8 @@ func (p *Parser) parseAlterStmt() (nodes.StmtNode, error) {
 				stmt.Loc.Start = loc
 				return stmt, nil
 			}
-			if p.cur.Type == kwGROUP {
-				p.advance() // consume GROUP
+			if _, err := p.expect(kwGROUP); err != nil {
+				return nil, err
 			}
 			stmt, err := p.parseAlterWorkloadGroupStmt()
 			if err != nil {
@@ -2377,8 +2377,8 @@ func (p *Parser) parseDropOrSecurityStmt() (nodes.StmtNode, error) {
 				stmt.Loc.Start = loc
 				return stmt, nil
 			}
-			if p.cur.Type == kwGROUP {
-				p.advance() // consume GROUP
+			if _, err := p.expect(kwGROUP); err != nil {
+				return nil, err
 			}
 			stmt, err := p.parseDropWorkloadGroupStmt()
 			if err != nil {

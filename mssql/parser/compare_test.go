@@ -5485,13 +5485,6 @@ func TestParseResourceGovernor(t *testing.T) {
 			objectType: "WORKLOAD GROUP",
 			name:       "fullGroup",
 		},
-		// CREATE WORKLOAD GROUP - with GROUP_MAX_TEMPDB_DATA_MB
-		{
-			sql:        "CREATE WORKLOAD GROUP tempGroup WITH (GROUP_MAX_TEMPDB_DATA_MB = 500, GROUP_MAX_TEMPDB_DATA_PERCENT = 25)",
-			action:     "CREATE",
-			objectType: "WORKLOAD GROUP",
-			name:       "tempGroup",
-		},
 		// ALTER WORKLOAD GROUP
 		{
 			sql:        "ALTER WORKLOAD GROUP [default] WITH (IMPORTANCE = LOW)",
@@ -8590,89 +8583,89 @@ func TestParseSizeValueStructured(t *testing.T) {
 	})
 }
 
-// TestParseWorkloadClassifier tests CREATE/ALTER/DROP WORKLOAD CLASSIFIER (batch 80).
-func TestParseWorkloadClassifier(t *testing.T) {
-	t.Run("create_workload_classifier", func(t *testing.T) {
-		tests := []struct {
-			name string
-			sql  string
-		}{
-			{
-				"basic",
-				`CREATE WORKLOAD CLASSIFIER wgcELTRole
-				WITH (WORKLOAD_GROUP = 'staticrc20', MEMBERNAME = 'ELTRole')`,
-			},
-			{
-				"with importance",
-				`CREATE WORKLOAD CLASSIFIER wgcELTRole
-				WITH (WORKLOAD_GROUP = 'staticrc20', MEMBERNAME = 'ELTRole', IMPORTANCE = ABOVE_NORMAL)`,
-			},
-			{
-				"with label and context",
-				`CREATE WORKLOAD CLASSIFIER wgcELTRole
-				WITH (WORKLOAD_GROUP = 'wgDataLoad', MEMBERNAME = 'ELTRole', WLM_LABEL = 'dimension_loads', WLM_CONTEXT = 'dim_load')`,
-			},
-			{
-				"with time range",
-				`CREATE WORKLOAD CLASSIFIER wgcNight
-				WITH (WORKLOAD_GROUP = 'wgDataLoads', MEMBERNAME = 'ELTRole', START_TIME = '22:00', END_TIME = '02:00')`,
-			},
-			{
-				"all options",
-				`CREATE WORKLOAD CLASSIFIER wgcAll
-				WITH (WORKLOAD_GROUP = 'wg1', MEMBERNAME = 'user1', WLM_LABEL = 'lbl', WLM_CONTEXT = 'ctx', START_TIME = '08:00', END_TIME = '17:00', IMPORTANCE = HIGH)`,
-			},
-		}
-		for _, tt := range tests {
-			t.Run(tt.name, func(t *testing.T) {
-				result := ParseAndCheck(t, tt.sql)
-				stmt, ok := result.Items[0].(*ast.SecurityStmt)
-				if !ok {
-					t.Fatalf("expected *SecurityStmt, got %T", result.Items[0])
-				}
-				if stmt.Action != "CREATE" {
-					t.Errorf("expected action CREATE, got %s", stmt.Action)
-				}
-				if stmt.ObjectType != "WORKLOAD CLASSIFIER" {
-					t.Errorf("expected objectType WORKLOAD CLASSIFIER, got %s", stmt.ObjectType)
-				}
-			})
-		}
-	})
+// TestParseResourceGovernorRejected checks Resource Governor statements SQL
+// Server 2022 refuses: an option it does not take (GROUP_MAX_TEMPDB_DATA_MB,
+// the Synapse parameters, a bracketed option word), a value out of range
+// (Msg 1080, 1031, 1040), a repeated option or pool (Msg 1039), ALTER with
+// nothing to change (Msg 10917), a one-part classifier function, a bare
+// default, and every WORKLOAD CLASSIFIER statement, which only Azure Synapse
+// Analytics takes (Msg 22487).
+func TestParseResourceGovernorRejected(t *testing.T) {
+	for _, sql := range []string{
+		"CREATE RESOURCE POOL",
+		"CREATE RESOURCE POOL 'a'",
+		"CREATE RESOURCE POOL a WITH ()",
+		"CREATE RESOURCE POOL a WITH (MAX_PROCESSES = 1)",
+		"CREATE RESOURCE POOL a WITH ([MIN_CPU_PERCENT] = 1)",
+		"CREATE RESOURCE POOL a WITH (MAX_CPU_PERCENT = 0)",
+		"CREATE RESOURCE POOL a WITH (MIN_CPU_PERCENT = 101)",
+		"CREATE RESOURCE POOL a WITH (MAX_CPU_PERCENT = 1.5)",
+		"CREATE RESOURCE POOL a WITH (MAX_CPU_PERCENT = 0x1)",
+		"CREATE RESOURCE POOL a WITH (MAX_IOPS_PER_VOLUME = 2147483648)",
+		"CREATE RESOURCE POOL a WITH (MAX_CPU_PERCENT = 1, MAX_CPU_PERCENT = 2)",
+		"CREATE RESOURCE POOL a WITH (AFFINITY NUMANODE = AUTO)",
+		"CREATE RESOURCE POOL a WITH (AFFINITY SCHEDULER = AUTO, AFFINITY NUMANODE = (1))",
+		"CREATE RESOURCE POOL a WITH (AFFINITY SCHEDULER = ())",
+		"ALTER RESOURCE POOL a",
+		"ALTER RESOURCE POOL default WITH (MAX_CPU_PERCENT = 1)",
+		"DROP RESOURCE POOL a, b",
+		"CREATE WORKLOAD a",
+		"CREATE WORKLOAD GROUP a WITH (GROUP_MAX_TEMPDB_DATA_MB = 500, GROUP_MAX_TEMPDB_DATA_PERCENT = 25)",
+		"CREATE WORKLOAD GROUP a WITH (IMPORTANCE = NORMAL)",
+		"CREATE WORKLOAD GROUP a WITH (IMPORTANCE = [LOW])",
+		"CREATE WORKLOAD GROUP a WITH (MAX_DOP = 1.5)",
+		"CREATE WORKLOAD GROUP a WITH (REQUEST_MAX_MEMORY_GRANT_PERCENT = 100.5)",
+		"CREATE WORKLOAD GROUP a WITH (REQUEST_MAX_MEMORY_GRANT_PERCENT = 1.5e0)",
+		"CREATE WORKLOAD GROUP a WITH (MAX_DOP = 1, MAX_DOP = 2)",
+		"CREATE WORKLOAD GROUP a USING a, b",
+		"CREATE WORKLOAD GROUP a USING EXTERNAL b, EXTERNAL c",
+		"CREATE WORKLOAD GROUP a USING default",
+		"CREATE WORKLOAD GROUP a USING a WITH (MAX_DOP = 1)",
+		"ALTER WORKLOAD GROUP a",
+		"ALTER WORKLOAD GROUP [default]",
+		"ALTER RESOURCE GOVERNOR",
+		"ALTER RESOURCE GOVERNOR RESET",
+		"ALTER RESOURCE GOVERNOR [DISABLE]",
+		"ALTER RESOURCE GOVERNOR WITH (CLASSIFIER_FUNCTION = a)",
+		"ALTER RESOURCE GOVERNOR WITH (CLASSIFIER_FUNCTION = a.b.c)",
+		"ALTER RESOURCE GOVERNOR WITH (CLASSIFIER_FUNCTION = NULL, MAX_OUTSTANDING_IO_PER_VOLUME = 10)",
+		"ALTER RESOURCE GOVERNOR WITH (MAX_OUTSTANDING_IO_PER_VOLUME = 0)",
+		"ALTER RESOURCE GOVERNOR WITH (MAX_OUTSTANDING_IO_PER_VOLUME = 101)",
+		"CREATE WORKLOAD CLASSIFIER wgcELTRole WITH (WORKLOAD_GROUP = 'staticrc20', MEMBERNAME = 'ELTRole')",
+		"CREATE WORKLOAD CLASSIFIER wc1 WITH (WORKLOAD_GROUP = 'wg1', MEMBERNAME = 'user1', WLM_LABEL = 'label1', WLM_CONTEXT = 'ctx1', START_TIME = '08:00', END_TIME = '17:00', IMPORTANCE = NORMAL)",
+		"ALTER WORKLOAD CLASSIFIER wgcELTRole WITH (WORKLOAD_GROUP = 'staticrc30', MEMBERNAME = 'ELTRole', IMPORTANCE = HIGH)",
+		"DROP WORKLOAD CLASSIFIER wgcELTRole",
+	} {
+		t.Run(sql, func(t *testing.T) {
+			if _, err := Parse(sql); err == nil {
+				t.Errorf("Parse(%q): want an error, SQL Server refuses it", sql)
+			}
+		})
+	}
+}
 
-	t.Run("alter_workload_classifier", func(t *testing.T) {
-		sql := `ALTER WORKLOAD CLASSIFIER wgcELTRole
-			WITH (WORKLOAD_GROUP = 'staticrc30', MEMBERNAME = 'ELTRole', IMPORTANCE = HIGH)`
-		result := ParseAndCheck(t, sql)
-		stmt, ok := result.Items[0].(*ast.SecurityStmt)
-		if !ok {
-			t.Fatalf("expected *SecurityStmt, got %T", result.Items[0])
-		}
-		if stmt.Action != "ALTER" {
-			t.Errorf("expected action ALTER, got %s", stmt.Action)
-		}
-		if stmt.ObjectType != "WORKLOAD CLASSIFIER" {
-			t.Errorf("expected objectType WORKLOAD CLASSIFIER, got %s", stmt.ObjectType)
-		}
-	})
-
-	t.Run("drop_workload_classifier", func(t *testing.T) {
-		sql := "DROP WORKLOAD CLASSIFIER wgcELTRole"
-		result := ParseAndCheck(t, sql)
-		stmt, ok := result.Items[0].(*ast.SecurityStmt)
-		if !ok {
-			t.Fatalf("expected *SecurityStmt, got %T", result.Items[0])
-		}
-		if stmt.Action != "DROP" {
-			t.Errorf("expected action DROP, got %s", stmt.Action)
-		}
-		if stmt.ObjectType != "WORKLOAD CLASSIFIER" {
-			t.Errorf("expected objectType WORKLOAD CLASSIFIER, got %s", stmt.ObjectType)
-		}
-		if stmt.Name != "wgcELTRole" {
-			t.Errorf("expected name wgcELTRole, got %s", stmt.Name)
-		}
-	})
+// TestParseResourceGovernorAccepted checks forms SQL Server 2022 takes that the
+// rejections above sit beside.
+func TestParseResourceGovernorAccepted(t *testing.T) {
+	for _, sql := range []string{
+		"CREATE RESOURCE POOL [default]",
+		"CREATE RESOURCE POOL a WITH (min_cpu_percent = 0, MAX_CPU_PERCENT = 100, CAP_CPU_PERCENT = 1, MIN_MEMORY_PERCENT = 0, MAX_MEMORY_PERCENT = 1, MIN_IOPS_PER_VOLUME = 0, MAX_IOPS_PER_VOLUME = 2147483647)",
+		"CREATE RESOURCE POOL a WITH (MIN_IO_PERCENT = 0, MAX_IO_PERCENT = 100, CAP_IO_PERCENT = 1, TARGET_MEMORY_PERCENT = 1)",
+		"CREATE RESOURCE POOL a WITH (AFFINITY scheduler = auto, MAX_CPU_PERCENT = 01)",
+		"CREATE RESOURCE POOL a WITH (AFFINITY SCHEDULER = (2 TO 1, 3))",
+		"ALTER RESOURCE POOL [default] WITH (MAX_CPU_PERCENT = 1)",
+		"CREATE WORKLOAD GROUP a WITH (IMPORTANCE = low, REQUEST_MAX_MEMORY_GRANT_PERCENT = .5)",
+		"CREATE WORKLOAD GROUP a WITH (REQUEST_MAX_MEMORY_GRANT_PERCENT = 1., MAX_DOP = 2147483647)",
+		"CREATE WORKLOAD GROUP a USING EXTERNAL b, a",
+		"ALTER WORKLOAD GROUP [default] USING EXTERNAL [default]",
+		"ALTER RESOURCE GOVERNOR reset statistics",
+		"ALTER RESOURCE GOVERNOR WITH (classifier_function = [dbo].[select])",
+		"ALTER RESOURCE GOVERNOR WITH (MAX_OUTSTANDING_IO_PER_VOLUME = 100)",
+	} {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
 }
 
 // TestParseSubqueryComparison tests ANY/SOME/ALL subquery comparison operators (batch 79).
@@ -12253,19 +12246,6 @@ func TestParseResourceGovernorOptionsDepth(t *testing.T) {
 		{
 			name: "alter_resource_governor_classifier_null",
 			sql:  "ALTER RESOURCE GOVERNOR WITH (CLASSIFIER_FUNCTION = NULL)",
-		},
-		// Workload classifier structured options
-		{
-			name: "workload_classifier_full",
-			sql:  "CREATE WORKLOAD CLASSIFIER wc1 WITH (WORKLOAD_GROUP = 'wg1', MEMBERNAME = 'user1', IMPORTANCE = HIGH)",
-		},
-		{
-			name: "workload_classifier_all_options",
-			sql:  "CREATE WORKLOAD CLASSIFIER wc1 WITH (WORKLOAD_GROUP = 'wg1', MEMBERNAME = 'user1', WLM_LABEL = 'label1', WLM_CONTEXT = 'ctx1', START_TIME = '08:00', END_TIME = '17:00', IMPORTANCE = NORMAL)",
-		},
-		{
-			name: "alter_workload_classifier",
-			sql:  "ALTER WORKLOAD CLASSIFIER wc1 WITH (IMPORTANCE = LOW)",
 		},
 	}
 
@@ -22762,7 +22742,7 @@ func TestParseHAServerBNFReview(t *testing.T) {
 	t.Run("alter_resource_pool", func(t *testing.T) {
 		tests := []string{
 			"ALTER RESOURCE POOL mypool WITH (MAX_CPU_PERCENT = 75)",
-			"ALTER RESOURCE POOL default WITH (MAX_MEMORY_PERCENT = 80)",
+			"ALTER RESOURCE POOL [default] WITH (MAX_MEMORY_PERCENT = 80)",
 		}
 		for _, sql := range tests {
 			t.Run(sql, func(t *testing.T) {
@@ -22789,7 +22769,7 @@ func TestParseHAServerBNFReview(t *testing.T) {
 	t.Run("alter_workload_group", func(t *testing.T) {
 		tests := []string{
 			"ALTER WORKLOAD GROUP mygroup WITH (IMPORTANCE = LOW)",
-			"ALTER WORKLOAD GROUP default WITH (MAX_DOP = 8)",
+			"ALTER WORKLOAD GROUP [default] WITH (MAX_DOP = 8)",
 			"ALTER WORKLOAD GROUP mygroup USING newpool",
 		}
 		for _, sql := range tests {

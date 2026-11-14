@@ -1028,8 +1028,8 @@ reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~8
 accept	accept	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createResourcePoolStatement_RESOURCE	CREATE RESOURCE POOL a
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createResourcePoolStatement_RESOURCE!drop-1	CREATE POOL a
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createResourcePoolStatement_RESOURCE!drop-2	CREATE RESOURCE a
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createResourcePoolStatement_RESOURCE!drop-3	CREATE RESOURCE POOL
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createResourcePoolStatement_RESOURCE!insert	CREATE RESOURCE POOL a zzz
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createResourcePoolStatement_RESOURCE!drop-3	CREATE RESOURCE POOL
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createResourcePoolStatement_RESOURCE!insert	CREATE RESOURCE POOL a zzz
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createResourcePoolStatement_RESOURCE!swap	CREATE RESPECT POOL a
 accept	accept	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createRoleStatement_ROLE	CREATE ROLE a
 accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createRoleStatement_ROLE!drop-2	CREATE ROLE
@@ -1099,9 +1099,9 @@ reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~8
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createServerStatements_SERVER!swap	CREATE SERVICE ROLE a
 accept	accept	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createWorkloadStatements_WORKLOAD	CREATE WORKLOAD GROUP a
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createWorkloadStatements_WORKLOAD!drop-1	CREATE GROUP a
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createWorkloadStatements_WORKLOAD!drop-2	CREATE WORKLOAD a
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createWorkloadStatements_WORKLOAD!drop-3	CREATE WORKLOAD GROUP
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createWorkloadStatements_WORKLOAD!insert	CREATE WORKLOAD GROUP a zzz
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createWorkloadStatements_WORKLOAD!drop-2	CREATE WORKLOAD a
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createWorkloadStatements_WORKLOAD!drop-3	CREATE WORKLOAD GROUP
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createWorkloadStatements_WORKLOAD!insert	CREATE WORKLOAD GROUP a zzz
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createWorkloadStatements_WORKLOAD!swap	CREATE WORKLOAD_GROUP GROUP a
 accept	accept	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createSequenceStatement_SEQUENCE	CREATE SEQUENCE a
 accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createSequenceStatement_SEQUENCE!drop-2	CREATE SEQUENCE
@@ -5041,17 +5041,17 @@ accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8
 accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterRemoteServiceBindingStatement_REMOTE!drop-4	ALTER REMOTE SERVICE BINDING WITH USER = a
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterRemoteServiceBindingStatement_REMOTE!drop-5	ALTER REMOTE SERVICE BINDING a USER = a
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterRemoteServiceBindingStatement_REMOTE!swap	ALTER REMOTE_DATA_ARCHIVE SERVICE BINDING a WITH USER = a
-accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterResourceStatement_RESOURCE	ALTER RESOURCE POOL a
+reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterResourceStatement_RESOURCE	ALTER RESOURCE POOL a
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterResourceStatement_RESOURCE!drop-1	ALTER POOL a
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterResourceStatement_RESOURCE!drop-2	ALTER RESOURCE a
-accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterResourceStatement_RESOURCE!drop-3	ALTER RESOURCE POOL
-accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterResourceStatement_RESOURCE!insert	ALTER RESOURCE POOL a zzz
+reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterResourceStatement_RESOURCE!drop-3	ALTER RESOURCE POOL
+reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterResourceStatement_RESOURCE!insert	ALTER RESOURCE POOL a zzz
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterResourceStatement_RESOURCE!swap	ALTER RESPECT POOL a
-accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterWorkloadGroupStatement_WORKLOAD	ALTER WORKLOAD GROUP a
+reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterWorkloadGroupStatement_WORKLOAD	ALTER WORKLOAD GROUP a
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterWorkloadGroupStatement_WORKLOAD!drop-1	ALTER GROUP a
-accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterWorkloadGroupStatement_WORKLOAD!drop-2	ALTER WORKLOAD a
-accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterWorkloadGroupStatement_WORKLOAD!drop-3	ALTER WORKLOAD GROUP
-accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterWorkloadGroupStatement_WORKLOAD!insert	ALTER WORKLOAD GROUP a zzz
+reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterWorkloadGroupStatement_WORKLOAD!drop-2	ALTER WORKLOAD a
+reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterWorkloadGroupStatement_WORKLOAD!drop-3	ALTER WORKLOAD GROUP
+reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterWorkloadGroupStatement_WORKLOAD!insert	ALTER WORKLOAD GROUP a zzz
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterWorkloadGroupStatement_WORKLOAD!swap	ALTER WORKLOAD_GROUP GROUP a
 accept	accept	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterCertificateStatement_CERTIFICATE	ALTER CERTIFICATE a REMOVE PRIVATE KEY
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterCertificateStatement_CERTIFICATE!drop-1	ALTER a REMOVE PRIVATE KEY
@@ -6654,12 +6654,12 @@ reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e448
 accept	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropResourcePoolStatement_RESOURCE	DROP RESOURCE POOL a
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropResourcePoolStatement_RESOURCE!drop-1	DROP POOL a
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropResourcePoolStatement_RESOURCE!drop-2	DROP RESOURCE a
-accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropResourcePoolStatement_RESOURCE!drop-3	DROP RESOURCE POOL
+reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropResourcePoolStatement_RESOURCE!drop-3	DROP RESOURCE POOL
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropResourcePoolStatement_RESOURCE!insert	DROP RESOURCE POOL a zzz
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropResourcePoolStatement_RESOURCE!swap	DROP RESPECT POOL a
 accept	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropWorkloadStatements_WORKLOAD	DROP WORKLOAD GROUP a
-accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropWorkloadStatements_WORKLOAD!drop-2	DROP WORKLOAD a
-accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropWorkloadStatements_WORKLOAD!drop-3	DROP WORKLOAD GROUP
+reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropWorkloadStatements_WORKLOAD!drop-2	DROP WORKLOAD a
+reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropWorkloadStatements_WORKLOAD!drop-3	DROP WORKLOAD GROUP
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropWorkloadStatements_WORKLOAD!insert	DROP WORKLOAD GROUP a zzz
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropWorkloadStatements_WORKLOAD!swap	DROP WORKLOAD_GROUP GROUP a
 accept	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropRoleStatement_ROLE	DROP ROLE a
@@ -10284,36 +10284,36 @@ accept	reject	engine	cryptographicProviderFile/From_File_EqualsSign_stringLitera
 accept	reject	engine	cryptographicProviderFile/From_File_EqualsSign_stringLiteral!drop-4	ALTER CRYPTOGRAPHIC PROVIDER a FROM FILE =
 accept	reject	engine	cryptographicProviderFile/From_File_EqualsSign_stringLiteral!insert	ALTER CRYPTOGRAPHIC PROVIDER a FROM FILE = 'a' zzz
 accept	reject	engine	cryptographicProviderFile/From_File_EqualsSign_stringLiteral!swap	ALTER CRYPTOGRAPHIC PROVIDER a FULL FILE = 'a'
-accept	reject	engine	resourcePoolStatementBody/(With_LeftParenthesis_resourcePoolPar~5d1a7d62)?	ALTER RESOURCE POOL a
-accept	reject	engine	resourcePoolStatementBody(With_LeftParenthesis_resourcePoolPar~5d1a7d62)?/%empty	ALTER RESOURCE POOL a
-accept	reject	engine	resourcePoolStatementBody(With_LeftParenthesis_resourcePoolPar~5d1a7d62)?/With_LeftParenthesis_resourcePoolParameter_(Comma_resou~0a249a05	ALTER RESOURCE POOL a WITH(a = 1)
+reject	reject	engine	resourcePoolStatementBody/(With_LeftParenthesis_resourcePoolPar~5d1a7d62)?	ALTER RESOURCE POOL a
+reject	reject	engine	resourcePoolStatementBody(With_LeftParenthesis_resourcePoolPar~5d1a7d62)?/%empty	ALTER RESOURCE POOL a
+reject	reject	engine	resourcePoolStatementBody(With_LeftParenthesis_resourcePoolPar~5d1a7d62)?/With_LeftParenthesis_resourcePoolParameter_(Comma_resou~0a249a05	ALTER RESOURCE POOL a WITH(a = 1)
 reject	reject	engine	resourcePoolStatementBody(With_LeftParenthesis_resourcePoolPar~5d1a7d62)?/With_LeftParenthesis_resourcePoolParameter_(Comma_resou~0a249a05!drop-1	ALTER RESOURCE POOL a(a = 1)
 reject	reject	engine	resourcePoolStatementBody(With_LeftParenthesis_resourcePoolPar~5d1a7d62)?/With_LeftParenthesis_resourcePoolParameter_(Comma_resou~0a249a05!drop-2	ALTER RESOURCE POOL a WITH a = 1)
 reject	reject	engine	resourcePoolStatementBody(With_LeftParenthesis_resourcePoolPar~5d1a7d62)?/With_LeftParenthesis_resourcePoolParameter_(Comma_resou~0a249a05!drop-3	ALTER RESOURCE POOL a WITH(= 1)
 reject	reject	engine	resourcePoolStatementBody(With_LeftParenthesis_resourcePoolPar~5d1a7d62)?/With_LeftParenthesis_resourcePoolParameter_(Comma_resou~0a249a05!drop-4	ALTER RESOURCE POOL a WITH(a 1)
-accept	reject	engine	resourcePoolStatementBody(With_LeftParenthesis_resourcePoolPar~5d1a7d62)?/With_LeftParenthesis_resourcePoolParameter_(Comma_resou~0a249a05!drop-5	ALTER RESOURCE POOL a WITH(a =)
-accept	reject	engine	resourcePoolStatementBody(With_LeftParenthesis_resourcePoolPar~5d1a7d62)?/With_LeftParenthesis_resourcePoolParameter_(Comma_resou~0a249a05!drop-6	ALTER RESOURCE POOL a WITH(a = 1
-accept	reject	engine	resourcePoolStatementBody(With_LeftParenthesis_resourcePoolPar~5d1a7d62)?/With_LeftParenthesis_resourcePoolParameter_(Comma_resou~0a249a05!insert	ALTER RESOURCE POOL a WITH(a = 1) zzz
+reject	reject	engine	resourcePoolStatementBody(With_LeftParenthesis_resourcePoolPar~5d1a7d62)?/With_LeftParenthesis_resourcePoolParameter_(Comma_resou~0a249a05!drop-5	ALTER RESOURCE POOL a WITH(a =)
+reject	reject	engine	resourcePoolStatementBody(With_LeftParenthesis_resourcePoolPar~5d1a7d62)?/With_LeftParenthesis_resourcePoolParameter_(Comma_resou~0a249a05!drop-6	ALTER RESOURCE POOL a WITH(a = 1
+reject	reject	engine	resourcePoolStatementBody(With_LeftParenthesis_resourcePoolPar~5d1a7d62)?/With_LeftParenthesis_resourcePoolParameter_(Comma_resou~0a249a05!insert	ALTER RESOURCE POOL a WITH(a = 1) zzz
 reject	reject	engine	resourcePoolStatementBody(With_LeftParenthesis_resourcePoolPar~5d1a7d62)?/With_LeftParenthesis_resourcePoolParameter_(Comma_resou~0a249a05!swap	ALTER RESOURCE POOL a WITHIN(a = 1)
-accept	reject	engine	resourcePoolStatementBody(Comma_resourcePoolParameter)*/%empty	ALTER RESOURCE POOL a WITH(a = 1)
+reject	reject	engine	resourcePoolStatementBody(Comma_resourcePoolParameter)*/%empty	ALTER RESOURCE POOL a WITH(a = 1)
 reject	reject	engine	resourcePoolStatementBody(Comma_resourcePoolParameter)*/%empty!insert	ALTER RESOURCE POOL a WITH(a = 1 zzz)
-accept	reject	engine	resourcePoolStatementBody(Comma_resourcePoolParameter)*/Comma_resourcePoolParameter_(Comma_resourcePoolParameter)*	ALTER RESOURCE POOL a WITH(a = 1, a = 1)
+reject	reject	engine	resourcePoolStatementBody(Comma_resourcePoolParameter)*/Comma_resourcePoolParameter_(Comma_resourcePoolParameter)*	ALTER RESOURCE POOL a WITH(a = 1, a = 1)
 reject	reject	engine	resourcePoolStatementBody(Comma_resourcePoolParameter)*/Comma_resourcePoolParameter_(Comma_resourcePoolParameter)*!drop-1	ALTER RESOURCE POOL a WITH(a = 1 a = 1)
 reject	reject	engine	resourcePoolStatementBody(Comma_resourcePoolParameter)*/Comma_resourcePoolParameter_(Comma_resourcePoolParameter)*!drop-2	ALTER RESOURCE POOL a WITH(a = 1, = 1)
 reject	reject	engine	resourcePoolStatementBody(Comma_resourcePoolParameter)*/Comma_resourcePoolParameter_(Comma_resourcePoolParameter)*!drop-3	ALTER RESOURCE POOL a WITH(a = 1, a 1)
-accept	reject	engine	resourcePoolStatementBody(Comma_resourcePoolParameter)*/Comma_resourcePoolParameter_(Comma_resourcePoolParameter)*!drop-4	ALTER RESOURCE POOL a WITH(a = 1, a =)
-accept	reject	engine	resourcePoolStatementBody(Comma_resourcePoolParameter)*/Comma_resourcePoolParameter_(Comma_resourcePoolParameter)*!truncate	ALTER RESOURCE POOL a WITH(a = 1, a =
+reject	reject	engine	resourcePoolStatementBody(Comma_resourcePoolParameter)*/Comma_resourcePoolParameter_(Comma_resourcePoolParameter)*!drop-4	ALTER RESOURCE POOL a WITH(a = 1, a =)
+reject	reject	engine	resourcePoolStatementBody(Comma_resourcePoolParameter)*/Comma_resourcePoolParameter_(Comma_resourcePoolParameter)*!truncate	ALTER RESOURCE POOL a WITH(a = 1, a =
 reject	reject	engine	resourcePoolStatementBody(Comma_resourcePoolParameter)*/Comma_resourcePoolParameter_(Comma_resourcePoolParameter)*!insert	ALTER RESOURCE POOL a WITH(a = 1, a = 1 zzz)
 reject	reject	engine	resourcePoolParameter/resourcePoolAffinitySpecification_AFFINITY	ALTER RESOURCE POOL a WITH(AFFINITY a = AUTO)
-accept	reject	engine	resourcePoolParameter/resourcePoolAffinitySpecification_AFFINITY!drop-1	ALTER RESOURCE POOL a WITH(a = AUTO)
+reject	reject	engine	resourcePoolParameter/resourcePoolAffinitySpecification_AFFINITY!drop-1	ALTER RESOURCE POOL a WITH(a = AUTO)
 reject	reject	engine	resourcePoolParameter/resourcePoolAffinitySpecification_AFFINITY!drop-2	ALTER RESOURCE POOL a WITH(AFFINITY = AUTO)
 reject	reject	engine	resourcePoolParameter/resourcePoolAffinitySpecification_AFFINITY!drop-3	ALTER RESOURCE POOL a WITH(AFFINITY a AUTO)
 reject	reject	engine	resourcePoolParameter/resourcePoolAffinitySpecification_AFFINITY!drop-4	ALTER RESOURCE POOL a WITH(AFFINITY a =)
-accept	reject	engine	resourcePoolParameter/resourcePoolAffinitySpecification_AFFINITY!truncate	ALTER RESOURCE POOL a WITH(AFFINITY a =
+reject	reject	engine	resourcePoolParameter/resourcePoolAffinitySpecification_AFFINITY!truncate	ALTER RESOURCE POOL a WITH(AFFINITY a =
 reject	reject	engine	resourcePoolParameter/resourcePoolAffinitySpecification_AFFINITY!insert	ALTER RESOURCE POOL a WITH(AFFINITY a = AUTO zzz)
 reject	reject	engine	resourcePoolParameter/resourcePoolAffinitySpecification_AFFINITY!swap	ALTER RESOURCE POOL a WITH(AFTER a = AUTO)
-accept	reject	engine	resourcePoolParameter/Identifier_EqualsSign_integer	ALTER RESOURCE POOL a WITH(a = 1)
-accept	reject	engine	resourcePoolParameter/Identifier_EqualsSign_integer!truncate	ALTER RESOURCE POOL a WITH(a =
+reject	reject	engine	resourcePoolParameter/Identifier_EqualsSign_integer	ALTER RESOURCE POOL a WITH(a = 1)
+reject	reject	engine	resourcePoolParameter/Identifier_EqualsSign_integer!truncate	ALTER RESOURCE POOL a WITH(a =
 reject	reject	engine	poolAffinityRange/integer_(To_integer)?	ALTER RESOURCE POOL a WITH(AFFINITY a =(1))
 reject	reject	engine	poolAffinityRange/integer_(To_integer)?!drop-1	ALTER RESOURCE POOL a WITH(AFFINITY a =())
 reject	reject	engine	poolAffinityRange/integer_(To_integer)?!truncate	ALTER RESOURCE POOL a WITH(AFFINITY a =(
@@ -10367,81 +10367,81 @@ reject	reject	engine	externalPoolAffinityRange(To_integer)?/To_integer!truncate	
 reject	reject	engine	externalPoolAffinityRange(To_integer)?/To_integer!insert	ALTER EXTERNAL RESOURCE POOL a WITH(AFFINITY a =(1 TO 1 zzz))
 reject	reject	engine	externalPoolAffinityRange(To_integer)?/To_integer!swap	ALTER EXTERNAL RESOURCE POOL a WITH(AFFINITY a =(1 TOP 1))
 accept	accept	engine	workloadGroupUsingOption/EXTERNAL_identifier	ALTER WORKLOAD GROUP a USING EXTERNAL a
-accept	reject	engine	workloadGroupUsingOption/EXTERNAL_identifier!drop-2	ALTER WORKLOAD GROUP a USING EXTERNAL
-accept	reject	engine	workloadGroupUsingOption/EXTERNAL_identifier!insert	ALTER WORKLOAD GROUP a USING EXTERNAL a zzz
-accept	reject	engine	workloadGroupUsingOption/EXTERNAL_identifier!swap	ALTER WORKLOAD GROUP a USING EXTERNAL_MONITOR a
+reject	reject	engine	workloadGroupUsingOption/EXTERNAL_identifier!drop-2	ALTER WORKLOAD GROUP a USING EXTERNAL
+reject	reject	engine	workloadGroupUsingOption/EXTERNAL_identifier!insert	ALTER WORKLOAD GROUP a USING EXTERNAL a zzz
+reject	reject	engine	workloadGroupUsingOption/EXTERNAL_identifier!swap	ALTER WORKLOAD GROUP a USING EXTERNAL_MONITOR a
 accept	accept	engine	workloadGroupUsingOption/identifier	ALTER WORKLOAD GROUP a USING a
-accept	reject	engine	workloadGroupUsingOption/identifier!drop-1	ALTER WORKLOAD GROUP a USING
-accept	reject	engine	workloadGroupUsingOption/identifier!insert	ALTER WORKLOAD GROUP a USING a zzz
-accept	reject	engine	workloadGroupParameter/Identifier_EqualsSign_(Identifier|integerOrRealOrNumeric)	ALTER WORKLOAD GROUP a WITH(a = a)
+reject	reject	engine	workloadGroupUsingOption/identifier!drop-1	ALTER WORKLOAD GROUP a USING
+reject	reject	engine	workloadGroupUsingOption/identifier!insert	ALTER WORKLOAD GROUP a USING a zzz
+reject	reject	engine	workloadGroupParameter/Identifier_EqualsSign_(Identifier|integerOrRealOrNumeric)	ALTER WORKLOAD GROUP a WITH(a = a)
 reject	reject	engine	workloadGroupParameter/Identifier_EqualsSign_(Identifier|integerOrRealOrNumeric)!drop-1	ALTER WORKLOAD GROUP a WITH(= a)
 reject	reject	engine	workloadGroupParameter/Identifier_EqualsSign_(Identifier|integerOrRealOrNumeric)!drop-2	ALTER WORKLOAD GROUP a WITH(a a)
-accept	reject	engine	workloadGroupParameter/Identifier_EqualsSign_(Identifier|integerOrRealOrNumeric)!drop-3	ALTER WORKLOAD GROUP a WITH(a =)
-accept	reject	engine	workloadGroupParameter/Identifier_EqualsSign_(Identifier|integerOrRealOrNumeric)!truncate	ALTER WORKLOAD GROUP a WITH(a =
+reject	reject	engine	workloadGroupParameter/Identifier_EqualsSign_(Identifier|integerOrRealOrNumeric)!drop-3	ALTER WORKLOAD GROUP a WITH(a =)
+reject	reject	engine	workloadGroupParameter/Identifier_EqualsSign_(Identifier|integerOrRealOrNumeric)!truncate	ALTER WORKLOAD GROUP a WITH(a =
 reject	reject	engine	workloadGroupParameter/Identifier_EqualsSign_(Identifier|integerOrRealOrNumeric)!insert	ALTER WORKLOAD GROUP a WITH(a = a zzz)
-accept	reject	engine	workloadGroupParameter(Identifier|integerOrRealOrNumeric)/Identifier	ALTER WORKLOAD GROUP a WITH(a = a)
-accept	reject	engine	workloadGroupParameter(Identifier|integerOrRealOrNumeric)/integerOrRealOrNumeric	ALTER WORKLOAD GROUP a WITH(a = 1)
+reject	reject	engine	workloadGroupParameter(Identifier|integerOrRealOrNumeric)/Identifier	ALTER WORKLOAD GROUP a WITH(a = a)
+reject	reject	engine	workloadGroupParameter(Identifier|integerOrRealOrNumeric)/integerOrRealOrNumeric	ALTER WORKLOAD GROUP a WITH(a = 1)
 reject	reject	engine	workloadGroupParameter(Identifier|integerOrRealOrNumeric)/integerOrRealOrNumeric!insert	ALTER WORKLOAD GROUP a WITH(a = 1 zzz)
-accept	reject	engine	withClassifierOptions/With_LeftParenthesis_workloadClassifierOption_(Comma_wo~f8c7d2ec	CREATE WORKLOAD CLASSIFIER a WITH(WORKLOAD_GROUP = 'a')
+reject	reject	engine	withClassifierOptions/With_LeftParenthesis_workloadClassifierOption_(Comma_wo~f8c7d2ec	CREATE WORKLOAD CLASSIFIER a WITH(WORKLOAD_GROUP = 'a')
 reject	reject	engine	withClassifierOptions/With_LeftParenthesis_workloadClassifierOption_(Comma_wo~f8c7d2ec!drop-1	CREATE WORKLOAD CLASSIFIER a(WORKLOAD_GROUP = 'a')
 reject	reject	engine	withClassifierOptions/With_LeftParenthesis_workloadClassifierOption_(Comma_wo~f8c7d2ec!drop-2	CREATE WORKLOAD CLASSIFIER a WITH WORKLOAD_GROUP = 'a')
 reject	reject	engine	withClassifierOptions/With_LeftParenthesis_workloadClassifierOption_(Comma_wo~f8c7d2ec!drop-3	CREATE WORKLOAD CLASSIFIER a WITH(= 'a')
 reject	reject	engine	withClassifierOptions/With_LeftParenthesis_workloadClassifierOption_(Comma_wo~f8c7d2ec!drop-4	CREATE WORKLOAD CLASSIFIER a WITH(WORKLOAD_GROUP 'a')
-accept	reject	engine	withClassifierOptions/With_LeftParenthesis_workloadClassifierOption_(Comma_wo~f8c7d2ec!drop-5	CREATE WORKLOAD CLASSIFIER a WITH(WORKLOAD_GROUP =)
-accept	reject	engine	withClassifierOptions/With_LeftParenthesis_workloadClassifierOption_(Comma_wo~f8c7d2ec!drop-6	CREATE WORKLOAD CLASSIFIER a WITH(WORKLOAD_GROUP = 'a'
-accept	reject	engine	withClassifierOptions/With_LeftParenthesis_workloadClassifierOption_(Comma_wo~f8c7d2ec!insert	CREATE WORKLOAD CLASSIFIER a WITH(WORKLOAD_GROUP = 'a') zzz
+reject	reject	engine	withClassifierOptions/With_LeftParenthesis_workloadClassifierOption_(Comma_wo~f8c7d2ec!drop-5	CREATE WORKLOAD CLASSIFIER a WITH(WORKLOAD_GROUP =)
+reject	reject	engine	withClassifierOptions/With_LeftParenthesis_workloadClassifierOption_(Comma_wo~f8c7d2ec!drop-6	CREATE WORKLOAD CLASSIFIER a WITH(WORKLOAD_GROUP = 'a'
+reject	reject	engine	withClassifierOptions/With_LeftParenthesis_workloadClassifierOption_(Comma_wo~f8c7d2ec!insert	CREATE WORKLOAD CLASSIFIER a WITH(WORKLOAD_GROUP = 'a') zzz
 reject	reject	engine	withClassifierOptions/With_LeftParenthesis_workloadClassifierOption_(Comma_wo~f8c7d2ec!swap	CREATE WORKLOAD CLASSIFIER a WITHIN(WORKLOAD_GROUP = 'a')
-accept	reject	engine	withClassifierOptions(Comma_workloadClassifierOption)*/%empty	CREATE WORKLOAD CLASSIFIER a WITH(WORKLOAD_GROUP = 'a')
+reject	reject	engine	withClassifierOptions(Comma_workloadClassifierOption)*/%empty	CREATE WORKLOAD CLASSIFIER a WITH(WORKLOAD_GROUP = 'a')
 reject	reject	engine	withClassifierOptions(Comma_workloadClassifierOption)*/%empty!insert	CREATE WORKLOAD CLASSIFIER a WITH(WORKLOAD_GROUP = 'a' zzz)
-accept	reject	engine	withClassifierOptions(Comma_workloadClassifierOption)*/Comma_workloadClassifierOption_(Comma_workloadClassifierOption)*	CREATE WORKLOAD CLASSIFIER a WITH(WORKLOAD_GROUP = 'a', WORKLOAD_GROUP = 'a')
+reject	reject	engine	withClassifierOptions(Comma_workloadClassifierOption)*/Comma_workloadClassifierOption_(Comma_workloadClassifierOption)*	CREATE WORKLOAD CLASSIFIER a WITH(WORKLOAD_GROUP = 'a', WORKLOAD_GROUP = 'a')
 reject	reject	engine	withClassifierOptions(Comma_workloadClassifierOption)*/Comma_workloadClassifierOption_(Comma_workloadClassifierOption)*!drop-1	CREATE WORKLOAD CLASSIFIER a WITH(WORKLOAD_GROUP = 'a' WORKLOAD_GROUP = 'a')
 reject	reject	engine	withClassifierOptions(Comma_workloadClassifierOption)*/Comma_workloadClassifierOption_(Comma_workloadClassifierOption)*!drop-2	CREATE WORKLOAD CLASSIFIER a WITH(WORKLOAD_GROUP = 'a', = 'a')
 reject	reject	engine	withClassifierOptions(Comma_workloadClassifierOption)*/Comma_workloadClassifierOption_(Comma_workloadClassifierOption)*!drop-3	CREATE WORKLOAD CLASSIFIER a WITH(WORKLOAD_GROUP = 'a', WORKLOAD_GROUP 'a')
-accept	reject	engine	withClassifierOptions(Comma_workloadClassifierOption)*/Comma_workloadClassifierOption_(Comma_workloadClassifierOption)*!drop-4	CREATE WORKLOAD CLASSIFIER a WITH(WORKLOAD_GROUP = 'a', WORKLOAD_GROUP =)
-accept	reject	engine	withClassifierOptions(Comma_workloadClassifierOption)*/Comma_workloadClassifierOption_(Comma_workloadClassifierOption)*!truncate	CREATE WORKLOAD CLASSIFIER a WITH(WORKLOAD_GROUP = 'a', WORKLOAD_GROUP =
+reject	reject	engine	withClassifierOptions(Comma_workloadClassifierOption)*/Comma_workloadClassifierOption_(Comma_workloadClassifierOption)*!drop-4	CREATE WORKLOAD CLASSIFIER a WITH(WORKLOAD_GROUP = 'a', WORKLOAD_GROUP =)
+reject	reject	engine	withClassifierOptions(Comma_workloadClassifierOption)*/Comma_workloadClassifierOption_(Comma_workloadClassifierOption)*!truncate	CREATE WORKLOAD CLASSIFIER a WITH(WORKLOAD_GROUP = 'a', WORKLOAD_GROUP =
 reject	reject	engine	withClassifierOptions(Comma_workloadClassifierOption)*/Comma_workloadClassifierOption_(Comma_workloadClassifierOption)*!insert	CREATE WORKLOAD CLASSIFIER a WITH(WORKLOAD_GROUP = 'a', WORKLOAD_GROUP = 'a' zzz)
 reject	reject	engine	withClassifierOptions(Comma_workloadClassifierOption)*/Comma_workloadClassifierOption_(Comma_workloadClassifierOption)*!swap	CREATE WORKLOAD CLASSIFIER a WITH(WORKLOAD_GROUP = 'a', WRITETEXT = 'a')
-accept	reject	engine	workloadClassifierOption/(classifierWorkloadGroupOption_WORKLO~86f48e92)	CREATE WORKLOAD CLASSIFIER a WITH(WORKLOAD_GROUP = 'a')
-accept	reject	engine	workloadClassifierOption/(classifierWorkloadGroupOption_WORKLO~86f48e92)!truncate	CREATE WORKLOAD CLASSIFIER a WITH(WORKLOAD_GROUP =
+reject	reject	engine	workloadClassifierOption/(classifierWorkloadGroupOption_WORKLO~86f48e92)	CREATE WORKLOAD CLASSIFIER a WITH(WORKLOAD_GROUP = 'a')
+reject	reject	engine	workloadClassifierOption/(classifierWorkloadGroupOption_WORKLO~86f48e92)!truncate	CREATE WORKLOAD CLASSIFIER a WITH(WORKLOAD_GROUP =
 reject	reject	engine	workloadClassifierOption/(classifierWorkloadGroupOption_WORKLO~86f48e92)!swap	CREATE WORKLOAD CLASSIFIER a WITH(WRITETEXT = 'a')
-accept	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierWorkloadGroupOption_WORKLOAD_GROUP	CREATE WORKLOAD CLASSIFIER a WITH(WORKLOAD_GROUP = 'a')
-accept	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierMemberNameOption_MEMBERNAME	CREATE WORKLOAD CLASSIFIER a WITH(MEMBERNAME = 'a')
+reject	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierWorkloadGroupOption_WORKLOAD_GROUP	CREATE WORKLOAD CLASSIFIER a WITH(WORKLOAD_GROUP = 'a')
+reject	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierMemberNameOption_MEMBERNAME	CREATE WORKLOAD CLASSIFIER a WITH(MEMBERNAME = 'a')
 reject	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierMemberNameOption_MEMBERNAME!drop-2	CREATE WORKLOAD CLASSIFIER a WITH(MEMBERNAME 'a')
-accept	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierMemberNameOption_MEMBERNAME!drop-3	CREATE WORKLOAD CLASSIFIER a WITH(MEMBERNAME =)
-accept	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierMemberNameOption_MEMBERNAME!truncate	CREATE WORKLOAD CLASSIFIER a WITH(MEMBERNAME =
+reject	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierMemberNameOption_MEMBERNAME!drop-3	CREATE WORKLOAD CLASSIFIER a WITH(MEMBERNAME =)
+reject	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierMemberNameOption_MEMBERNAME!truncate	CREATE WORKLOAD CLASSIFIER a WITH(MEMBERNAME =
 reject	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierMemberNameOption_MEMBERNAME!insert	CREATE WORKLOAD CLASSIFIER a WITH(MEMBERNAME = 'a' zzz)
-accept	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierMemberNameOption_MEMBERNAME!swap	CREATE WORKLOAD CLASSIFIER a WITH(MEMORY_OPTIMIZED = 'a')
-accept	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierWlmLabelOption_WLM_LABEL	CREATE WORKLOAD CLASSIFIER a WITH(WLM_LABEL = 'a')
+reject	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierMemberNameOption_MEMBERNAME!swap	CREATE WORKLOAD CLASSIFIER a WITH(MEMORY_OPTIMIZED = 'a')
+reject	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierWlmLabelOption_WLM_LABEL	CREATE WORKLOAD CLASSIFIER a WITH(WLM_LABEL = 'a')
 reject	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierWlmLabelOption_WLM_LABEL!drop-2	CREATE WORKLOAD CLASSIFIER a WITH(WLM_LABEL 'a')
-accept	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierWlmLabelOption_WLM_LABEL!drop-3	CREATE WORKLOAD CLASSIFIER a WITH(WLM_LABEL =)
-accept	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierWlmLabelOption_WLM_LABEL!truncate	CREATE WORKLOAD CLASSIFIER a WITH(WLM_LABEL =
+reject	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierWlmLabelOption_WLM_LABEL!drop-3	CREATE WORKLOAD CLASSIFIER a WITH(WLM_LABEL =)
+reject	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierWlmLabelOption_WLM_LABEL!truncate	CREATE WORKLOAD CLASSIFIER a WITH(WLM_LABEL =
 reject	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierWlmLabelOption_WLM_LABEL!insert	CREATE WORKLOAD CLASSIFIER a WITH(WLM_LABEL = 'a' zzz)
-accept	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierWlmLabelOption_WLM_LABEL!swap	CREATE WORKLOAD CLASSIFIER a WITH(WORK = 'a')
-accept	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierWlmContextOption_WLM_CONTEXT	CREATE WORKLOAD CLASSIFIER a WITH(WLM_CONTEXT = 'a')
+reject	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierWlmLabelOption_WLM_LABEL!swap	CREATE WORKLOAD CLASSIFIER a WITH(WORK = 'a')
+reject	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierWlmContextOption_WLM_CONTEXT	CREATE WORKLOAD CLASSIFIER a WITH(WLM_CONTEXT = 'a')
 reject	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierWlmContextOption_WLM_CONTEXT!drop-2	CREATE WORKLOAD CLASSIFIER a WITH(WLM_CONTEXT 'a')
-accept	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierWlmContextOption_WLM_CONTEXT!drop-3	CREATE WORKLOAD CLASSIFIER a WITH(WLM_CONTEXT =)
-accept	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierWlmContextOption_WLM_CONTEXT!truncate	CREATE WORKLOAD CLASSIFIER a WITH(WLM_CONTEXT =
+reject	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierWlmContextOption_WLM_CONTEXT!drop-3	CREATE WORKLOAD CLASSIFIER a WITH(WLM_CONTEXT =)
+reject	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierWlmContextOption_WLM_CONTEXT!truncate	CREATE WORKLOAD CLASSIFIER a WITH(WLM_CONTEXT =
 reject	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierWlmContextOption_WLM_CONTEXT!insert	CREATE WORKLOAD CLASSIFIER a WITH(WLM_CONTEXT = 'a' zzz)
-accept	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierImportanceOption_IMPORTANCE	CREATE WORKLOAD CLASSIFIER a WITH(IMPORTANCE = a)
+reject	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierImportanceOption_IMPORTANCE	CREATE WORKLOAD CLASSIFIER a WITH(IMPORTANCE = a)
 reject	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierImportanceOption_IMPORTANCE!drop-1	CREATE WORKLOAD CLASSIFIER a WITH(= a)
 reject	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierImportanceOption_IMPORTANCE!drop-2	CREATE WORKLOAD CLASSIFIER a WITH(IMPORTANCE a)
-accept	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierImportanceOption_IMPORTANCE!drop-3	CREATE WORKLOAD CLASSIFIER a WITH(IMPORTANCE =)
-accept	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierImportanceOption_IMPORTANCE!truncate	CREATE WORKLOAD CLASSIFIER a WITH(IMPORTANCE =
+reject	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierImportanceOption_IMPORTANCE!drop-3	CREATE WORKLOAD CLASSIFIER a WITH(IMPORTANCE =)
+reject	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierImportanceOption_IMPORTANCE!truncate	CREATE WORKLOAD CLASSIFIER a WITH(IMPORTANCE =
 reject	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierImportanceOption_IMPORTANCE!insert	CREATE WORKLOAD CLASSIFIER a WITH(IMPORTANCE = a zzz)
 reject	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierImportanceOption_IMPORTANCE!swap	CREATE WORKLOAD CLASSIFIER a WITH(IN = a)
-accept	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierStartTimeOption_START_TIME	CREATE WORKLOAD CLASSIFIER a WITH(START_TIME = 'a')
+reject	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierStartTimeOption_START_TIME	CREATE WORKLOAD CLASSIFIER a WITH(START_TIME = 'a')
 reject	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierStartTimeOption_START_TIME!drop-2	CREATE WORKLOAD CLASSIFIER a WITH(START_TIME 'a')
-accept	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierStartTimeOption_START_TIME!drop-3	CREATE WORKLOAD CLASSIFIER a WITH(START_TIME =)
-accept	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierStartTimeOption_START_TIME!truncate	CREATE WORKLOAD CLASSIFIER a WITH(START_TIME =
+reject	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierStartTimeOption_START_TIME!drop-3	CREATE WORKLOAD CLASSIFIER a WITH(START_TIME =)
+reject	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierStartTimeOption_START_TIME!truncate	CREATE WORKLOAD CLASSIFIER a WITH(START_TIME =
 reject	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierStartTimeOption_START_TIME!insert	CREATE WORKLOAD CLASSIFIER a WITH(START_TIME = 'a' zzz)
-accept	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierStartTimeOption_START_TIME!swap	CREATE WORKLOAD CLASSIFIER a WITH(STATE = 'a')
-accept	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierEndTimeOption_END_TIME	CREATE WORKLOAD CLASSIFIER a WITH(END_TIME = 'a')
+reject	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierStartTimeOption_START_TIME!swap	CREATE WORKLOAD CLASSIFIER a WITH(STATE = 'a')
+reject	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierEndTimeOption_END_TIME	CREATE WORKLOAD CLASSIFIER a WITH(END_TIME = 'a')
 reject	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierEndTimeOption_END_TIME!drop-2	CREATE WORKLOAD CLASSIFIER a WITH(END_TIME 'a')
-accept	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierEndTimeOption_END_TIME!drop-3	CREATE WORKLOAD CLASSIFIER a WITH(END_TIME =)
-accept	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierEndTimeOption_END_TIME!truncate	CREATE WORKLOAD CLASSIFIER a WITH(END_TIME =
+reject	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierEndTimeOption_END_TIME!drop-3	CREATE WORKLOAD CLASSIFIER a WITH(END_TIME =)
+reject	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierEndTimeOption_END_TIME!truncate	CREATE WORKLOAD CLASSIFIER a WITH(END_TIME =
 reject	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierEndTimeOption_END_TIME!insert	CREATE WORKLOAD CLASSIFIER a WITH(END_TIME = 'a' zzz)
-accept	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierEndTimeOption_END_TIME!swap	CREATE WORKLOAD CLASSIFIER a WITH(ENFORCED = 'a')
-accept	reject	engine	wlmTimeLiteral/stringLiteral	CREATE WORKLOAD CLASSIFIER a WITH(START_TIME = 'a')
+reject	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierEndTimeOption_END_TIME!swap	CREATE WORKLOAD CLASSIFIER a WITH(ENFORCED = 'a')
+reject	reject	engine	wlmTimeLiteral/stringLiteral	CREATE WORKLOAD CLASSIFIER a WITH(START_TIME = 'a')
 accept	reject	engine	brokerPriorityParameter/Identifier_EqualsSign_(identifier|stringLiteral|integer~f131aa02	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a = a)
 accept	reject	engine	brokerPriorityParameter/Identifier_EqualsSign_(identifier|stringLiteral|integer~f131aa02!drop-1	ALTER BROKER PRIORITY a FOR CONVERSATION SET(= a)
 accept	reject	engine	brokerPriorityParameter/Identifier_EqualsSign_(identifier|stringLiteral|integer~f131aa02!drop-2	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a a)
@@ -15413,41 +15413,41 @@ reject	reject	engine	createServerStatements_SERVER(createServerAuditStatements_A
 reject	reject	engine	createServerStatements_SERVER(createServerAuditStatements_AUDIT|cr~7229b0bd)/createServerAuditStatements_AUDIT!swap	CREATE SERVER AUTHENTICATION a TO APPLICATION_LOG
 accept	accept	engine	createServerStatements_SERVER(createServerAuditStatements_AUDIT|cr~7229b0bd)/createServerRoleStatement_ROLE	CREATE SERVER ROLE a
 reject	reject	engine	createServerStatements_SERVER(createServerAuditStatements_AUDIT|cr~7229b0bd)/createServerRoleStatement_ROLE!swap	CREATE SERVER ROLLBACK a
-accept	reject	engine	workloadGroupStatementBody_WORKLOAD/WORKLOAD_Group_identifier_(With_LeftParenthesis_workloa~8215d109	ALTER WORKLOAD GROUP a
-accept	reject	engine	workloadGroupStatementBody_WORKLOAD(With_LeftParenthesis_workloadGroupPa~135e45d7)?/%empty	ALTER WORKLOAD GROUP a
-accept	reject	engine	workloadGroupStatementBody_WORKLOAD(With_LeftParenthesis_workloadGroupPa~135e45d7)?/With_LeftParenthesis_workloadGroupParameter_(Comma_work~52340c2f	ALTER WORKLOAD GROUP a WITH(a = a)
+reject	reject	engine	workloadGroupStatementBody_WORKLOAD/WORKLOAD_Group_identifier_(With_LeftParenthesis_workloa~8215d109	ALTER WORKLOAD GROUP a
+reject	reject	engine	workloadGroupStatementBody_WORKLOAD(With_LeftParenthesis_workloadGroupPa~135e45d7)?/%empty	ALTER WORKLOAD GROUP a
+reject	reject	engine	workloadGroupStatementBody_WORKLOAD(With_LeftParenthesis_workloadGroupPa~135e45d7)?/With_LeftParenthesis_workloadGroupParameter_(Comma_work~52340c2f	ALTER WORKLOAD GROUP a WITH(a = a)
 reject	reject	engine	workloadGroupStatementBody_WORKLOAD(With_LeftParenthesis_workloadGroupPa~135e45d7)?/With_LeftParenthesis_workloadGroupParameter_(Comma_work~52340c2f!drop-1	ALTER WORKLOAD GROUP a(a = a)
 reject	reject	engine	workloadGroupStatementBody_WORKLOAD(With_LeftParenthesis_workloadGroupPa~135e45d7)?/With_LeftParenthesis_workloadGroupParameter_(Comma_work~52340c2f!drop-2	ALTER WORKLOAD GROUP a WITH a = a)
-accept	reject	engine	workloadGroupStatementBody_WORKLOAD(With_LeftParenthesis_workloadGroupPa~135e45d7)?/With_LeftParenthesis_workloadGroupParameter_(Comma_work~52340c2f!drop-6	ALTER WORKLOAD GROUP a WITH(a = a
-accept	reject	engine	workloadGroupStatementBody_WORKLOAD(With_LeftParenthesis_workloadGroupPa~135e45d7)?/With_LeftParenthesis_workloadGroupParameter_(Comma_work~52340c2f!insert	ALTER WORKLOAD GROUP a WITH(a = a) zzz
+reject	reject	engine	workloadGroupStatementBody_WORKLOAD(With_LeftParenthesis_workloadGroupPa~135e45d7)?/With_LeftParenthesis_workloadGroupParameter_(Comma_work~52340c2f!drop-6	ALTER WORKLOAD GROUP a WITH(a = a
+reject	reject	engine	workloadGroupStatementBody_WORKLOAD(With_LeftParenthesis_workloadGroupPa~135e45d7)?/With_LeftParenthesis_workloadGroupParameter_(Comma_work~52340c2f!insert	ALTER WORKLOAD GROUP a WITH(a = a) zzz
 reject	reject	engine	workloadGroupStatementBody_WORKLOAD(With_LeftParenthesis_workloadGroupPa~135e45d7)?/With_LeftParenthesis_workloadGroupParameter_(Comma_work~52340c2f!swap	ALTER WORKLOAD GROUP a WITHIN(a = a)
-accept	reject	engine	workloadGroupStatementBody_WORKLOAD(Comma_workloadGroupParameter)*/%empty	ALTER WORKLOAD GROUP a WITH(a = a)
-accept	reject	engine	workloadGroupStatementBody_WORKLOAD(Comma_workloadGroupParameter)*/Comma_workloadGroupParameter_(Comma_workloadGroupParameter)*	ALTER WORKLOAD GROUP a WITH(a = a, a = a)
+reject	reject	engine	workloadGroupStatementBody_WORKLOAD(Comma_workloadGroupParameter)*/%empty	ALTER WORKLOAD GROUP a WITH(a = a)
+reject	reject	engine	workloadGroupStatementBody_WORKLOAD(Comma_workloadGroupParameter)*/Comma_workloadGroupParameter_(Comma_workloadGroupParameter)*	ALTER WORKLOAD GROUP a WITH(a = a, a = a)
 reject	reject	engine	workloadGroupStatementBody_WORKLOAD(Comma_workloadGroupParameter)*/Comma_workloadGroupParameter_(Comma_workloadGroupParameter)*!drop-1	ALTER WORKLOAD GROUP a WITH(a = a a = a)
 reject	reject	engine	workloadGroupStatementBody_WORKLOAD(Comma_workloadGroupParameter)*/Comma_workloadGroupParameter_(Comma_workloadGroupParameter)*!drop-2	ALTER WORKLOAD GROUP a WITH(a = a, = a)
 reject	reject	engine	workloadGroupStatementBody_WORKLOAD(Comma_workloadGroupParameter)*/Comma_workloadGroupParameter_(Comma_workloadGroupParameter)*!drop-3	ALTER WORKLOAD GROUP a WITH(a = a, a a)
-accept	reject	engine	workloadGroupStatementBody_WORKLOAD(Comma_workloadGroupParameter)*/Comma_workloadGroupParameter_(Comma_workloadGroupParameter)*!drop-4	ALTER WORKLOAD GROUP a WITH(a = a, a =)
-accept	reject	engine	workloadGroupStatementBody_WORKLOAD(Comma_workloadGroupParameter)*/Comma_workloadGroupParameter_(Comma_workloadGroupParameter)*!truncate	ALTER WORKLOAD GROUP a WITH(a = a, a =
+reject	reject	engine	workloadGroupStatementBody_WORKLOAD(Comma_workloadGroupParameter)*/Comma_workloadGroupParameter_(Comma_workloadGroupParameter)*!drop-4	ALTER WORKLOAD GROUP a WITH(a = a, a =)
+reject	reject	engine	workloadGroupStatementBody_WORKLOAD(Comma_workloadGroupParameter)*/Comma_workloadGroupParameter_(Comma_workloadGroupParameter)*!truncate	ALTER WORKLOAD GROUP a WITH(a = a, a =
 reject	reject	engine	workloadGroupStatementBody_WORKLOAD(Comma_workloadGroupParameter)*/Comma_workloadGroupParameter_(Comma_workloadGroupParameter)*!insert	ALTER WORKLOAD GROUP a WITH(a = a, a = a zzz)
-accept	reject	engine	workloadGroupStatementBody_WORKLOAD(USING_workloadGroupUsingOption_(Comm~99722eaa)?/%empty	ALTER WORKLOAD GROUP a
+reject	reject	engine	workloadGroupStatementBody_WORKLOAD(USING_workloadGroupUsingOption_(Comm~99722eaa)?/%empty	ALTER WORKLOAD GROUP a
 accept	accept	engine	workloadGroupStatementBody_WORKLOAD(USING_workloadGroupUsingOption_(Comm~99722eaa)?/USING_workloadGroupUsingOption_(Comma_workloadGroupUsingOption)*	ALTER WORKLOAD GROUP a USING a
-accept	reject	engine	workloadGroupStatementBody_WORKLOAD(USING_workloadGroupUsingOption_(Comm~99722eaa)?/USING_workloadGroupUsingOption_(Comma_workloadGroupUsingOption)*!drop-1	ALTER WORKLOAD GROUP a a
-accept	reject	engine	workloadGroupStatementBody_WORKLOAD(USING_workloadGroupUsingOption_(Comm~99722eaa)?/USING_workloadGroupUsingOption_(Comma_workloadGroupUsingOption)*!swap	ALTER WORKLOAD GROUP a VALIDATION a
+reject	reject	engine	workloadGroupStatementBody_WORKLOAD(USING_workloadGroupUsingOption_(Comm~99722eaa)?/USING_workloadGroupUsingOption_(Comma_workloadGroupUsingOption)*!drop-1	ALTER WORKLOAD GROUP a a
+reject	reject	engine	workloadGroupStatementBody_WORKLOAD(USING_workloadGroupUsingOption_(Comm~99722eaa)?/USING_workloadGroupUsingOption_(Comma_workloadGroupUsingOption)*!swap	ALTER WORKLOAD GROUP a VALIDATION a
 accept	accept	engine	workloadGroupStatementBody_WORKLOAD(Comma_workloadGroupUsingOption)*/%empty	ALTER WORKLOAD GROUP a USING a
-accept	reject	engine	workloadGroupStatementBody_WORKLOAD(Comma_workloadGroupUsingOption)*/Comma_workloadGroupUsingOption_(Comma_workloadGroupUsingOption)*	ALTER WORKLOAD GROUP a USING a, a
-accept	reject	engine	workloadGroupStatementBody_WORKLOAD(Comma_workloadGroupUsingOption)*/Comma_workloadGroupUsingOption_(Comma_workloadGroupUsingOption)*!drop-1	ALTER WORKLOAD GROUP a USING a a
-accept	reject	engine	workloadGroupStatementBody_WORKLOAD(Comma_workloadGroupUsingOption)*/Comma_workloadGroupUsingOption_(Comma_workloadGroupUsingOption)*!drop-2	ALTER WORKLOAD GROUP a USING a,
-accept	reject	engine	workloadGroupStatementBody_WORKLOAD(Comma_workloadGroupUsingOption)*/Comma_workloadGroupUsingOption_(Comma_workloadGroupUsingOption)*!insert	ALTER WORKLOAD GROUP a USING a, a zzz
+reject	reject	engine	workloadGroupStatementBody_WORKLOAD(Comma_workloadGroupUsingOption)*/Comma_workloadGroupUsingOption_(Comma_workloadGroupUsingOption)*	ALTER WORKLOAD GROUP a USING a, a
+reject	reject	engine	workloadGroupStatementBody_WORKLOAD(Comma_workloadGroupUsingOption)*/Comma_workloadGroupUsingOption_(Comma_workloadGroupUsingOption)*!drop-1	ALTER WORKLOAD GROUP a USING a a
+reject	reject	engine	workloadGroupStatementBody_WORKLOAD(Comma_workloadGroupUsingOption)*/Comma_workloadGroupUsingOption_(Comma_workloadGroupUsingOption)*!drop-2	ALTER WORKLOAD GROUP a USING a,
+reject	reject	engine	workloadGroupStatementBody_WORKLOAD(Comma_workloadGroupUsingOption)*/Comma_workloadGroupUsingOption_(Comma_workloadGroupUsingOption)*!insert	ALTER WORKLOAD GROUP a USING a, a zzz
 accept	accept	engine	createWorkloadGroupStatement_WORKLOAD/workloadGroupStatementBody_WORKLOAD	CREATE WORKLOAD GROUP a
-accept	reject	engine	workloadClassifierStatementBody_WORKLOAD/WORKLOAD_CLASSIFIER_identifier_withClassifierOptions	CREATE WORKLOAD CLASSIFIER a WITH(WORKLOAD_GROUP = 'a')
+reject	reject	engine	workloadClassifierStatementBody_WORKLOAD/WORKLOAD_CLASSIFIER_identifier_withClassifierOptions	CREATE WORKLOAD CLASSIFIER a WITH(WORKLOAD_GROUP = 'a')
 reject	reject	engine	workloadClassifierStatementBody_WORKLOAD/WORKLOAD_CLASSIFIER_identifier_withClassifierOptions!drop-1	CREATE CLASSIFIER a WITH(WORKLOAD_GROUP = 'a')
-accept	reject	engine	workloadClassifierStatementBody_WORKLOAD/WORKLOAD_CLASSIFIER_identifier_withClassifierOptions!drop-2	CREATE WORKLOAD a WITH(WORKLOAD_GROUP = 'a')
-accept	reject	engine	workloadClassifierStatementBody_WORKLOAD/WORKLOAD_CLASSIFIER_identifier_withClassifierOptions!drop-3	CREATE WORKLOAD CLASSIFIER WITH(WORKLOAD_GROUP = 'a')
+reject	reject	engine	workloadClassifierStatementBody_WORKLOAD/WORKLOAD_CLASSIFIER_identifier_withClassifierOptions!drop-2	CREATE WORKLOAD a WITH(WORKLOAD_GROUP = 'a')
+reject	reject	engine	workloadClassifierStatementBody_WORKLOAD/WORKLOAD_CLASSIFIER_identifier_withClassifierOptions!drop-3	CREATE WORKLOAD CLASSIFIER WITH(WORKLOAD_GROUP = 'a')
 reject	reject	engine	workloadClassifierStatementBody_WORKLOAD/WORKLOAD_CLASSIFIER_identifier_withClassifierOptions!swap	CREATE WORKLOAD_GROUP CLASSIFIER a WITH(WORKLOAD_GROUP = 'a')
-accept	reject	engine	createWorkloadClassifierStatement_WORKLOAD/workloadClassifierStatementBody_WORKLOAD	CREATE WORKLOAD CLASSIFIER a WITH(WORKLOAD_GROUP = 'a')
+reject	reject	engine	createWorkloadClassifierStatement_WORKLOAD/workloadClassifierStatementBody_WORKLOAD	CREATE WORKLOAD CLASSIFIER a WITH(WORKLOAD_GROUP = 'a')
 accept	accept	engine	createWorkloadStatements_WORKLOAD/(createWorkloadGroupStatement_WORKLOA~af3e021b)	CREATE WORKLOAD GROUP a
 accept	accept	engine	createWorkloadStatements_WORKLOAD(createWorkloadGroupStatement_WORKLOA~af3e021b)/createWorkloadGroupStatement_WORKLOAD	CREATE WORKLOAD GROUP a
-accept	reject	engine	createWorkloadStatements_WORKLOAD(createWorkloadGroupStatement_WORKLOA~af3e021b)/createWorkloadClassifierStatement_WORKLOAD	CREATE WORKLOAD CLASSIFIER a WITH(WORKLOAD_GROUP = 'a')
+reject	reject	engine	createWorkloadStatements_WORKLOAD(createWorkloadGroupStatement_WORKLOA~af3e021b)/createWorkloadClassifierStatement_WORKLOAD	CREATE WORKLOAD CLASSIFIER a WITH(WORKLOAD_GROUP = 'a')
 accept	accept	engine	createSequenceStatement_SEQUENCE/SEQUENCE_schemaObjectTwoPartName_(createSequenceOptionList)?	CREATE SEQUENCE a
 accept	accept	engine	createSequenceStatement_SEQUENCE(createSequenceOptionList)?/%empty	CREATE SEQUENCE a
 accept	accept	engine	createSequenceStatement_SEQUENCE(createSequenceOptionList)?/createSequenceOptionList	CREATE SEQUENCE a CACHE
@@ -16443,15 +16443,15 @@ reject	reject	engine	alterRemoteServiceBindingStatement_REMOTE(Comma_bindingUser
 accept	reject	engine	alterRemoteServiceBindingStatement_REMOTE(Comma_bindingUserOption)?/Comma_bindingUserOption!drop-4	ALTER REMOTE SERVICE BINDING a WITH ANONYMOUS = ON, USER =
 reject	reject	engine	alterRemoteServiceBindingStatement_REMOTE(Comma_bindingUserOption)?/Comma_bindingUserOption!insert	ALTER REMOTE SERVICE BINDING a WITH ANONYMOUS = ON, USER = a zzz
 accept	reject	engine	alterRemoteServiceBindingStatement_REMOTE(Comma_bindingUserOption)?/Comma_bindingUserOption!swap	ALTER REMOTE SERVICE BINDING a WITH ANONYMOUS = ON, USER_DB = a
-accept	reject	engine	alterResourceStatement_RESOURCE/RESOURCE_(alterResourcePoolStatement_POOL|alte~f8730d9b)	ALTER RESOURCE POOL a
-accept	reject	engine	alterResourceStatement_RESOURCE(alterResourcePoolStatement_POOL|alte~f8730d9b)/alterResourcePoolStatement_POOL	ALTER RESOURCE POOL a
+reject	reject	engine	alterResourceStatement_RESOURCE/RESOURCE_(alterResourcePoolStatement_POOL|alte~f8730d9b)	ALTER RESOURCE POOL a
+reject	reject	engine	alterResourceStatement_RESOURCE(alterResourcePoolStatement_POOL|alte~f8730d9b)/alterResourcePoolStatement_POOL	ALTER RESOURCE POOL a
 reject	reject	engine	alterResourceStatement_RESOURCE(alterResourcePoolStatement_POOL|alte~f8730d9b)/alterResourcePoolStatement_POOL!swap	ALTER RESOURCE POPULATION a
 accept	accept	engine	alterResourceStatement_RESOURCE(alterResourcePoolStatement_POOL|alte~f8730d9b)/alterResourceGovernorStatement_GOVERNOR	ALTER RESOURCE GOVERNOR DISABLE
 reject	reject	engine	alterResourceStatement_RESOURCE(alterResourcePoolStatement_POOL|alte~f8730d9b)/alterResourceGovernorStatement_GOVERNOR!drop-1	ALTER RESOURCE DISABLE
-accept	reject	engine	alterResourceStatement_RESOURCE(alterResourcePoolStatement_POOL|alte~f8730d9b)/alterResourceGovernorStatement_GOVERNOR!drop-2	ALTER RESOURCE GOVERNOR
-accept	reject	engine	alterResourceStatement_RESOURCE(alterResourcePoolStatement_POOL|alte~f8730d9b)/alterResourceGovernorStatement_GOVERNOR!insert	ALTER RESOURCE GOVERNOR DISABLE zzz
+reject	reject	engine	alterResourceStatement_RESOURCE(alterResourcePoolStatement_POOL|alte~f8730d9b)/alterResourceGovernorStatement_GOVERNOR!drop-2	ALTER RESOURCE GOVERNOR
+reject	reject	engine	alterResourceStatement_RESOURCE(alterResourcePoolStatement_POOL|alte~f8730d9b)/alterResourceGovernorStatement_GOVERNOR!insert	ALTER RESOURCE GOVERNOR DISABLE zzz
 reject	reject	engine	alterResourceStatement_RESOURCE(alterResourcePoolStatement_POOL|alte~f8730d9b)/alterResourceGovernorStatement_GOVERNOR!swap	ALTER RESOURCE GRANT DISABLE
-accept	reject	engine	alterWorkloadGroupStatement_WORKLOAD/workloadGroupStatementBody_WORKLOAD	ALTER WORKLOAD GROUP a
+reject	reject	engine	alterWorkloadGroupStatement_WORKLOAD/workloadGroupStatementBody_WORKLOAD	ALTER WORKLOAD GROUP a
 accept	accept	engine	alterCertificateStatement_CERTIFICATE/CERTIFICATE_identifier_(REMOVE_(PRIVATE_Key|ATTESTED_Op~6fd5a35f	ALTER CERTIFICATE a REMOVE PRIVATE KEY
 accept	accept	engine	alterCertificateStatement_CERTIFICATE(REMOVE_(PRIVATE_Key|ATTESTED_Option)~d3f64169)/REMOVE_(PRIVATE_Key|ATTESTED_Option)	ALTER CERTIFICATE a REMOVE PRIVATE KEY
 accept	reject	engine	alterCertificateStatement_CERTIFICATE(REMOVE_(PRIVATE_Key|ATTESTED_Option)~d3f64169)/REMOVE_(PRIVATE_Key|ATTESTED_Option)!swap	ALTER CERTIFICATE a RENAME PRIVATE KEY
@@ -16724,8 +16724,8 @@ accept	accept	engine	dropResourcePoolStatement_RESOURCE/RESOURCE_POOL_identifier
 accept	accept	engine	dropWorkloadStatements_WORKLOAD/WORKLOAD_(dropWorkloadGroupStatement_GROUP|dro~2bff6494)	DROP WORKLOAD GROUP a
 accept	accept	engine	dropWorkloadStatements_WORKLOAD(dropWorkloadGroupStatement_GROUP|dro~2bff6494)/dropWorkloadGroupStatement_GROUP	DROP WORKLOAD GROUP a
 reject	reject	engine	dropWorkloadStatements_WORKLOAD(dropWorkloadGroupStatement_GROUP|dro~2bff6494)/dropWorkloadGroupStatement_GROUP!swap	DROP WORKLOAD GROUPING a
-accept	reject	engine	dropWorkloadStatements_WORKLOAD(dropWorkloadGroupStatement_GROUP|dro~2bff6494)/dropWorkloadClassifierStatement_CLASSIFIER	DROP WORKLOAD CLASSIFIER a
-accept	reject	engine	dropWorkloadStatements_WORKLOAD(dropWorkloadGroupStatement_GROUP|dro~2bff6494)/dropWorkloadClassifierStatement_CLASSIFIER!drop-2	DROP WORKLOAD CLASSIFIER
+reject	reject	engine	dropWorkloadStatements_WORKLOAD(dropWorkloadGroupStatement_GROUP|dro~2bff6494)/dropWorkloadClassifierStatement_CLASSIFIER	DROP WORKLOAD CLASSIFIER a
+reject	reject	engine	dropWorkloadStatements_WORKLOAD(dropWorkloadGroupStatement_GROUP|dro~2bff6494)/dropWorkloadClassifierStatement_CLASSIFIER!drop-2	DROP WORKLOAD CLASSIFIER
 reject	reject	engine	dropWorkloadStatements_WORKLOAD(dropWorkloadGroupStatement_GROUP|dro~2bff6494)/dropWorkloadClassifierStatement_CLASSIFIER!insert	DROP WORKLOAD CLASSIFIER a zzz
 reject	reject	engine	dropWorkloadStatements_WORKLOAD(dropWorkloadGroupStatement_GROUP|dro~2bff6494)/dropWorkloadClassifierStatement_CLASSIFIER!swap	DROP WORKLOAD CLASSIFIER_FUNCTION a
 accept	accept	engine	dropRoleStatement_ROLE/ROLE_(If_Exists)?_identifier	DROP ROLE a
@@ -16885,7 +16885,7 @@ accept	accept	engine	dropExternalResourcePoolStatement_RESOURCE/RESOURCE_POOL_id
 accept	accept	engine	dropColumnMasterKeyStatement_MASTER/MASTER_Key_identifier	DROP COLUMN MASTER KEY a
 accept	accept	engine	dropColumnEncryptionKeyStatement_ENCRYPTION/ENCRYPTION_Key_identifier	DROP COLUMN ENCRYPTION KEY a
 accept	accept	engine	dropWorkloadGroupStatement_GROUP/GROUP_identifier	DROP WORKLOAD GROUP a
-accept	reject	engine	dropWorkloadClassifierStatement_CLASSIFIER/CLASSIFIER_identifier	DROP WORKLOAD CLASSIFIER a
+reject	reject	engine	dropWorkloadClassifierStatement_CLASSIFIER/CLASSIFIER_identifier	DROP WORKLOAD CLASSIFIER a
 reject	reject	engine	dateFirstOption_DATEFIRST/DATEFIRST_EqualsSign_integer	BEGIN ATOMIC WITH(DATEFIRST = 1) SELECT 1 END
 reject	reject	engine	dateFormatOption_DATEFORMAT/DATEFORMAT_EqualsSign_stringLiteral	BEGIN ATOMIC WITH(DATEFORMAT = 'a') SELECT 1 END
 reject	reject	engine	delayedDurabilityOption_DELAYED_DURABILITY/DELAYED_DURABILITY_EqualsSign_optionOnOff	BEGIN ATOMIC WITH(DELAYED_DURABILITY = ON) SELECT 1 END
@@ -16990,29 +16990,29 @@ reject	reject	engine	groupingSetsSpec_GROUPING(Comma_groupingSet)*/Comma_groupin
 reject	reject	engine	groupingSetsSpec_GROUPING(Comma_groupingSet)*/Comma_groupingSet_(Comma_groupingSet)*!drop-2	SELECT * GROUP BY GROUPING SETS(1,)
 reject	reject	engine	groupingSetsSpec_GROUPING(Comma_groupingSet)*/Comma_groupingSet_(Comma_groupingSet)*!truncate	SELECT * GROUP BY GROUPING SETS(1,
 reject	reject	engine	groupingSetsSpec_GROUPING(Comma_groupingSet)*/Comma_groupingSet_(Comma_groupingSet)*!insert	SELECT * GROUP BY GROUPING SETS(1, 1 zzz)
-accept	reject	engine	alterResourcePoolStatement_POOL/POOL_identifier_resourcePoolStatementBody	ALTER RESOURCE POOL a
+reject	reject	engine	alterResourcePoolStatement_POOL/POOL_identifier_resourcePoolStatementBody	ALTER RESOURCE POOL a
 accept	accept	engine	alterResourceGovernorStatement_GOVERNOR/GOVERNOR_(DISABLE|Reconfigure|With_LeftParenth~9feec636)	ALTER RESOURCE GOVERNOR DISABLE
 accept	accept	engine	alterResourceGovernorStatement_GOVERNOR(DISABLE|Reconfigure|With_LeftParenth~9feec636)/DISABLE	ALTER RESOURCE GOVERNOR DISABLE
-accept	reject	engine	alterResourceGovernorStatement_GOVERNOR(DISABLE|Reconfigure|With_LeftParenth~9feec636)/DISABLE!swap	ALTER RESOURCE GOVERNOR DISABLED
+reject	reject	engine	alterResourceGovernorStatement_GOVERNOR(DISABLE|Reconfigure|With_LeftParenth~9feec636)/DISABLE!swap	ALTER RESOURCE GOVERNOR DISABLED
 accept	accept	engine	alterResourceGovernorStatement_GOVERNOR(DISABLE|Reconfigure|With_LeftParenth~9feec636)/Reconfigure	ALTER RESOURCE GOVERNOR RECONFIGURE
-accept	reject	engine	alterResourceGovernorStatement_GOVERNOR(DISABLE|Reconfigure|With_LeftParenth~9feec636)/Reconfigure!insert	ALTER RESOURCE GOVERNOR RECONFIGURE zzz
-accept	reject	engine	alterResourceGovernorStatement_GOVERNOR(DISABLE|Reconfigure|With_LeftParenth~9feec636)/Reconfigure!swap	ALTER RESOURCE GOVERNOR RECOVERY
-accept	reject	engine	alterResourceGovernorStatement_GOVERNOR(DISABLE|Reconfigure|With_LeftParenth~9feec636)/With_LeftParenthesis_CLASSIFIER_FUNCTION_EqualsSign_(sc~35dbdaff	ALTER RESOURCE GOVERNOR WITH(CLASSIFIER_FUNCTION = a)
+reject	reject	engine	alterResourceGovernorStatement_GOVERNOR(DISABLE|Reconfigure|With_LeftParenth~9feec636)/Reconfigure!insert	ALTER RESOURCE GOVERNOR RECONFIGURE zzz
+reject	reject	engine	alterResourceGovernorStatement_GOVERNOR(DISABLE|Reconfigure|With_LeftParenth~9feec636)/Reconfigure!swap	ALTER RESOURCE GOVERNOR RECOVERY
+reject	reject	engine	alterResourceGovernorStatement_GOVERNOR(DISABLE|Reconfigure|With_LeftParenth~9feec636)/With_LeftParenthesis_CLASSIFIER_FUNCTION_EqualsSign_(sc~35dbdaff	ALTER RESOURCE GOVERNOR WITH(CLASSIFIER_FUNCTION = a)
 reject	reject	engine	alterResourceGovernorStatement_GOVERNOR(DISABLE|Reconfigure|With_LeftParenth~9feec636)/With_LeftParenthesis_CLASSIFIER_FUNCTION_EqualsSign_(sc~35dbdaff!drop-1	ALTER RESOURCE GOVERNOR(CLASSIFIER_FUNCTION = a)
 reject	reject	engine	alterResourceGovernorStatement_GOVERNOR(DISABLE|Reconfigure|With_LeftParenth~9feec636)/With_LeftParenthesis_CLASSIFIER_FUNCTION_EqualsSign_(sc~35dbdaff!drop-2	ALTER RESOURCE GOVERNOR WITH CLASSIFIER_FUNCTION = a)
 reject	reject	engine	alterResourceGovernorStatement_GOVERNOR(DISABLE|Reconfigure|With_LeftParenth~9feec636)/With_LeftParenthesis_CLASSIFIER_FUNCTION_EqualsSign_(sc~35dbdaff!drop-3	ALTER RESOURCE GOVERNOR WITH(= a)
 reject	reject	engine	alterResourceGovernorStatement_GOVERNOR(DISABLE|Reconfigure|With_LeftParenth~9feec636)/With_LeftParenthesis_CLASSIFIER_FUNCTION_EqualsSign_(sc~35dbdaff!drop-4	ALTER RESOURCE GOVERNOR WITH(CLASSIFIER_FUNCTION a)
-accept	reject	engine	alterResourceGovernorStatement_GOVERNOR(DISABLE|Reconfigure|With_LeftParenth~9feec636)/With_LeftParenthesis_CLASSIFIER_FUNCTION_EqualsSign_(sc~35dbdaff!drop-5	ALTER RESOURCE GOVERNOR WITH(CLASSIFIER_FUNCTION =)
-accept	reject	engine	alterResourceGovernorStatement_GOVERNOR(DISABLE|Reconfigure|With_LeftParenth~9feec636)/With_LeftParenthesis_CLASSIFIER_FUNCTION_EqualsSign_(sc~35dbdaff!drop-6	ALTER RESOURCE GOVERNOR WITH(CLASSIFIER_FUNCTION = a
-accept	reject	engine	alterResourceGovernorStatement_GOVERNOR(DISABLE|Reconfigure|With_LeftParenth~9feec636)/With_LeftParenthesis_CLASSIFIER_FUNCTION_EqualsSign_(sc~35dbdaff!insert	ALTER RESOURCE GOVERNOR WITH(CLASSIFIER_FUNCTION = a) zzz
+reject	reject	engine	alterResourceGovernorStatement_GOVERNOR(DISABLE|Reconfigure|With_LeftParenth~9feec636)/With_LeftParenthesis_CLASSIFIER_FUNCTION_EqualsSign_(sc~35dbdaff!drop-5	ALTER RESOURCE GOVERNOR WITH(CLASSIFIER_FUNCTION =)
+reject	reject	engine	alterResourceGovernorStatement_GOVERNOR(DISABLE|Reconfigure|With_LeftParenth~9feec636)/With_LeftParenthesis_CLASSIFIER_FUNCTION_EqualsSign_(sc~35dbdaff!drop-6	ALTER RESOURCE GOVERNOR WITH(CLASSIFIER_FUNCTION = a
+reject	reject	engine	alterResourceGovernorStatement_GOVERNOR(DISABLE|Reconfigure|With_LeftParenth~9feec636)/With_LeftParenthesis_CLASSIFIER_FUNCTION_EqualsSign_(sc~35dbdaff!insert	ALTER RESOURCE GOVERNOR WITH(CLASSIFIER_FUNCTION = a) zzz
 reject	reject	engine	alterResourceGovernorStatement_GOVERNOR(DISABLE|Reconfigure|With_LeftParenth~9feec636)/With_LeftParenthesis_CLASSIFIER_FUNCTION_EqualsSign_(sc~35dbdaff!swap	ALTER RESOURCE GOVERNOR WITHIN(CLASSIFIER_FUNCTION = a)
 accept	accept	engine	alterResourceGovernorStatement_GOVERNOR(DISABLE|Reconfigure|With_LeftParenth~9feec636)/RESET_Statistics	ALTER RESOURCE GOVERNOR RESET STATISTICS
-accept	reject	engine	alterResourceGovernorStatement_GOVERNOR(DISABLE|Reconfigure|With_LeftParenth~9feec636)/RESET_Statistics!drop-1	ALTER RESOURCE GOVERNOR STATISTICS
-accept	reject	engine	alterResourceGovernorStatement_GOVERNOR(DISABLE|Reconfigure|With_LeftParenth~9feec636)/RESET_Statistics!drop-2	ALTER RESOURCE GOVERNOR RESET
-accept	reject	engine	alterResourceGovernorStatement_GOVERNOR(DISABLE|Reconfigure|With_LeftParenth~9feec636)/RESET_Statistics!insert	ALTER RESOURCE GOVERNOR RESET STATISTICS zzz
-accept	reject	engine	alterResourceGovernorStatement_GOVERNOR(DISABLE|Reconfigure|With_LeftParenth~9feec636)/RESET_Statistics!swap	ALTER RESOURCE GOVERNOR RESOURCE STATISTICS
-accept	reject	engine	alterResourceGovernorStatement_GOVERNOR(schemaObjectNonEmptyTwoPartName|Null)/schemaObjectNonEmptyTwoPartName	ALTER RESOURCE GOVERNOR WITH(CLASSIFIER_FUNCTION = a)
-accept	reject	engine	alterResourceGovernorStatement_GOVERNOR(schemaObjectNonEmptyTwoPartName|Null)/schemaObjectNonEmptyTwoPartName!truncate	ALTER RESOURCE GOVERNOR WITH(CLASSIFIER_FUNCTION =
+reject	reject	engine	alterResourceGovernorStatement_GOVERNOR(DISABLE|Reconfigure|With_LeftParenth~9feec636)/RESET_Statistics!drop-1	ALTER RESOURCE GOVERNOR STATISTICS
+reject	reject	engine	alterResourceGovernorStatement_GOVERNOR(DISABLE|Reconfigure|With_LeftParenth~9feec636)/RESET_Statistics!drop-2	ALTER RESOURCE GOVERNOR RESET
+reject	reject	engine	alterResourceGovernorStatement_GOVERNOR(DISABLE|Reconfigure|With_LeftParenth~9feec636)/RESET_Statistics!insert	ALTER RESOURCE GOVERNOR RESET STATISTICS zzz
+reject	reject	engine	alterResourceGovernorStatement_GOVERNOR(DISABLE|Reconfigure|With_LeftParenth~9feec636)/RESET_Statistics!swap	ALTER RESOURCE GOVERNOR RESOURCE STATISTICS
+reject	reject	engine	alterResourceGovernorStatement_GOVERNOR(schemaObjectNonEmptyTwoPartName|Null)/schemaObjectNonEmptyTwoPartName	ALTER RESOURCE GOVERNOR WITH(CLASSIFIER_FUNCTION = a)
+reject	reject	engine	alterResourceGovernorStatement_GOVERNOR(schemaObjectNonEmptyTwoPartName|Null)/schemaObjectNonEmptyTwoPartName!truncate	ALTER RESOURCE GOVERNOR WITH(CLASSIFIER_FUNCTION =
 reject	reject	engine	alterResourceGovernorStatement_GOVERNOR(schemaObjectNonEmptyTwoPartName|Null)/schemaObjectNonEmptyTwoPartName!insert	ALTER RESOURCE GOVERNOR WITH(CLASSIFIER_FUNCTION = a zzz)
 accept	accept	engine	alterResourceGovernorStatement_GOVERNOR(schemaObjectNonEmptyTwoPartName|Null)/Null	ALTER RESOURCE GOVERNOR WITH(CLASSIFIER_FUNCTION = NULL)
 reject	reject	engine	alterResourceGovernorStatement_GOVERNOR(schemaObjectNonEmptyTwoPartName|Null)/Null!insert	ALTER RESOURCE GOVERNOR WITH(CLASSIFIER_FUNCTION = NULL zzz)
@@ -17043,13 +17043,13 @@ reject	reject	engine	externalResourcePoolAffinitySpecification_AFFINITY(Comma_ex
 reject	reject	engine	externalResourcePoolAffinitySpecification_AFFINITY(Comma_externalPoolAffinityRange)*/Comma_externalPoolAffinityRange_(Comma_externalPoolAffi~38c45a89!drop-2	ALTER EXTERNAL RESOURCE POOL a WITH(AFFINITY a =(1,))
 reject	reject	engine	externalResourcePoolAffinitySpecification_AFFINITY(Comma_externalPoolAffinityRange)*/Comma_externalPoolAffinityRange_(Comma_externalPoolAffi~38c45a89!truncate	ALTER EXTERNAL RESOURCE POOL a WITH(AFFINITY a =(1,
 reject	reject	engine	externalResourcePoolAffinitySpecification_AFFINITY(Comma_externalPoolAffinityRange)*/Comma_externalPoolAffinityRange_(Comma_externalPoolAffi~38c45a89!insert	ALTER EXTERNAL RESOURCE POOL a WITH(AFFINITY a =(1, 1 zzz))
-accept	reject	engine	classifierWorkloadGroupOption_WORKLOAD_GROUP/WORKLOAD_GROUP_EqualsSign_stringLiteral	CREATE WORKLOAD CLASSIFIER a WITH(WORKLOAD_GROUP = 'a')
-accept	reject	engine	classifierMemberNameOption_MEMBERNAME/MEMBERNAME_EqualsSign_stringLiteral	CREATE WORKLOAD CLASSIFIER a WITH(MEMBERNAME = 'a')
-accept	reject	engine	classifierWlmLabelOption_WLM_LABEL/WLM_LABEL_EqualsSign_stringLiteral	CREATE WORKLOAD CLASSIFIER a WITH(WLM_LABEL = 'a')
-accept	reject	engine	classifierWlmContextOption_WLM_CONTEXT/WLM_CONTEXT_EqualsSign_stringLiteral	CREATE WORKLOAD CLASSIFIER a WITH(WLM_CONTEXT = 'a')
-accept	reject	engine	classifierImportanceOption_IMPORTANCE/IMPORTANCE_EqualsSign_Identifier	CREATE WORKLOAD CLASSIFIER a WITH(IMPORTANCE = a)
-accept	reject	engine	classifierStartTimeOption_START_TIME/START_TIME_EqualsSign_wlmTimeLiteral	CREATE WORKLOAD CLASSIFIER a WITH(START_TIME = 'a')
-accept	reject	engine	classifierEndTimeOption_END_TIME/END_TIME_EqualsSign_wlmTimeLiteral	CREATE WORKLOAD CLASSIFIER a WITH(END_TIME = 'a')
+reject	reject	engine	classifierWorkloadGroupOption_WORKLOAD_GROUP/WORKLOAD_GROUP_EqualsSign_stringLiteral	CREATE WORKLOAD CLASSIFIER a WITH(WORKLOAD_GROUP = 'a')
+reject	reject	engine	classifierMemberNameOption_MEMBERNAME/MEMBERNAME_EqualsSign_stringLiteral	CREATE WORKLOAD CLASSIFIER a WITH(MEMBERNAME = 'a')
+reject	reject	engine	classifierWlmLabelOption_WLM_LABEL/WLM_LABEL_EqualsSign_stringLiteral	CREATE WORKLOAD CLASSIFIER a WITH(WLM_LABEL = 'a')
+reject	reject	engine	classifierWlmContextOption_WLM_CONTEXT/WLM_CONTEXT_EqualsSign_stringLiteral	CREATE WORKLOAD CLASSIFIER a WITH(WLM_CONTEXT = 'a')
+reject	reject	engine	classifierImportanceOption_IMPORTANCE/IMPORTANCE_EqualsSign_Identifier	CREATE WORKLOAD CLASSIFIER a WITH(IMPORTANCE = a)
+reject	reject	engine	classifierStartTimeOption_START_TIME/START_TIME_EqualsSign_wlmTimeLiteral	CREATE WORKLOAD CLASSIFIER a WITH(START_TIME = 'a')
+reject	reject	engine	classifierEndTimeOption_END_TIME/END_TIME_EqualsSign_wlmTimeLiteral	CREATE WORKLOAD CLASSIFIER a WITH(END_TIME = 'a')
 accept	accept	engine	sequenceRestartOptionListElement_RESTART/RESTART_(With_seedIncrement)?	ALTER SEQUENCE a RESTART
 accept	accept	engine	sequenceRestartOptionListElement_RESTART(With_seedIncrement)?/%empty	ALTER SEQUENCE a RESTART
 accept	accept	engine	sequenceRestartOptionListElement_RESTART(With_seedIncrement)?/With_seedIncrement	ALTER SEQUENCE a RESTART WITH 1
