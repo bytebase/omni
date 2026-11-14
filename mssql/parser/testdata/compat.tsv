@@ -137,7 +137,7 @@ reject	reject	engine	ctasCreateTableStatement/(columnNameList)?_withTableOptions
 reject	reject	engine	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement!drop-5	CREATE TABLE a WITH(HEAP) SELECT *
 reject	reject	engine	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement!drop-6	CREATE TABLE a WITH(HEAP) AS *
 reject	reject	engine	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement!drop-7	CREATE TABLE a WITH(HEAP) AS SELECT
-accept	reject	engine	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement!insert	CREATE TABLE a WITH(HEAP) AS SELECT * zzz
+reject	reject	engine	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement!insert	CREATE TABLE a WITH(HEAP) AS SELECT * zzz
 reject	reject	engine	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement!swap	CREATE TABLE a WITHIN(HEAP) AS SELECT *
 accept	reject	engine	ctasCreateTableStatement(columnNameList)?/%empty	CREATE TABLE a WITH(HEAP) AS SELECT *
 reject	reject	engine	ctasCreateTableStatement(columnNameList)?/%empty!insert	CREATE TABLE a zzz WITH(HEAP) AS SELECT *
@@ -157,7 +157,7 @@ reject	reject	engine	ctasCreateExternalTableStatement/withExternalTableOptions_A
 reject	reject	engine	ctasCreateExternalTableStatement/withExternalTableOptions_As_selectStatement!drop-7	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a) SELECT *
 reject	reject	engine	ctasCreateExternalTableStatement/withExternalTableOptions_As_selectStatement!drop-8	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a) AS *
 reject	reject	engine	ctasCreateExternalTableStatement/withExternalTableOptions_As_selectStatement!drop-9	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a) AS SELECT
-accept	reject	engine	ctasCreateExternalTableStatement/withExternalTableOptions_As_selectStatement!insert	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a) AS SELECT * zzz
+reject	reject	engine	ctasCreateExternalTableStatement/withExternalTableOptions_As_selectStatement!insert	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a) AS SELECT * zzz
 reject	reject	engine	ctasCreateExternalTableStatement/withExternalTableOptions_As_selectStatement!swap	CREATE EXTERNAL TABLE a WITHIN(DATA_SOURCE = a) AS SELECT *
 reject	accept	engine	optSimpleExecute/execProc_optSemicolons	a
 accept	accept	engine	optSimpleExecute/%empty	
@@ -283,7 +283,7 @@ reject	reject	engine	statement/executeStatement!swap	EXISTS a
 accept	accept	engine	statement/withCommonTableExpressionsAndXmlNamespacesStatements	SELECT *
 reject	reject	engine	statement/withCommonTableExpressionsAndXmlNamespacesStatements!drop-1	*
 reject	reject	engine	statement/withCommonTableExpressionsAndXmlNamespacesStatements!drop-2	SELECT
-accept	reject	engine	statement/withCommonTableExpressionsAndXmlNamespacesStatements!insert	SELECT * zzz
+reject	reject	engine	statement/withCommonTableExpressionsAndXmlNamespacesStatements!insert	SELECT * zzz
 reject	reject	engine	statement/withCommonTableExpressionsAndXmlNamespacesStatements!swap	SELECTIVE *
 accept	accept	engine	statement/raiseErrorStatement	RAISERROR(1, 1, 1)
 reject	reject	engine	statement/raiseErrorStatement!drop-1	(1, 1, 1)
@@ -400,23 +400,23 @@ accept	reject	engine	statement/truncateTableStatement!drop-2	TRUNCATE a
 accept	reject	engine	statement/truncateTableStatement!drop-3	TRUNCATE TABLE
 reject	reject	engine	statement/truncateTableStatement!insert	TRUNCATE TABLE a zzz
 reject	reject	engine	statement/truncateTableStatement!swap	TRUNCATE_TARGET TABLE a
-accept	reject	engine	statement/grantStatement90	GRANT a TO PUBLIC
+reject	reject	engine	statement/grantStatement90	GRANT a TO PUBLIC
 reject	reject	engine	statement/grantStatement90!drop-1	a TO PUBLIC
-accept	reject	engine	statement/grantStatement90!drop-2	GRANT TO PUBLIC
+reject	reject	engine	statement/grantStatement90!drop-2	GRANT TO PUBLIC
 reject	reject	engine	statement/grantStatement90!drop-3	GRANT a PUBLIC
-accept	reject	engine	statement/grantStatement90!drop-4	GRANT a TO
+reject	reject	engine	statement/grantStatement90!drop-4	GRANT a TO
 reject	reject	engine	statement/grantStatement90!insert	GRANT a TO PUBLIC zzz
 reject	reject	engine	statement/grantStatement90!swap	GRAPH a TO PUBLIC
-accept	reject	engine	statement/denyStatement90	DENY a TO PUBLIC
-accept	reject	engine	statement/denyStatement90!drop-2	DENY TO PUBLIC
+reject	reject	engine	statement/denyStatement90	DENY a TO PUBLIC
+reject	reject	engine	statement/denyStatement90!drop-2	DENY TO PUBLIC
 reject	reject	engine	statement/denyStatement90!drop-3	DENY a PUBLIC
-accept	reject	engine	statement/denyStatement90!drop-4	DENY a TO
+reject	reject	engine	statement/denyStatement90!drop-4	DENY a TO
 reject	reject	engine	statement/denyStatement90!insert	DENY a TO PUBLIC zzz
 reject	reject	engine	statement/denyStatement90!swap	DEPENDENTS a TO PUBLIC
-accept	reject	engine	statement/revokeStatement90	REVOKE a TO PUBLIC
-accept	reject	engine	statement/revokeStatement90!drop-2	REVOKE TO PUBLIC
+reject	reject	engine	statement/revokeStatement90	REVOKE a TO PUBLIC
+reject	reject	engine	statement/revokeStatement90!drop-2	REVOKE TO PUBLIC
 reject	reject	engine	statement/revokeStatement90!drop-3	REVOKE a PUBLIC
-accept	reject	engine	statement/revokeStatement90!drop-4	REVOKE a TO
+reject	reject	engine	statement/revokeStatement90!drop-4	REVOKE a TO
 reject	reject	engine	statement/revokeStatement90!insert	REVOKE a TO PUBLIC zzz
 reject	reject	engine	statement/revokeStatement90!swap	RIGHT a TO PUBLIC
 accept	accept	engine	statement/returnStatement	RETURN
@@ -448,7 +448,7 @@ reject	reject	engine	statement/dbccStatement!insert	DBCC a zzz
 reject	accept	engine	statement/dbccStatement!swap	DB_CHAINING a
 accept	accept	engine	statement/revertStatement	REVERT
 reject	reject	engine	statement/revertStatement!insert	REVERT zzz
-accept	reject	engine	statement/revertStatement!swap	REVOKE
+reject	reject	engine	statement/revertStatement!swap	REVOKE
 reject	reject	engine	statement/executeAsStatement	EXECUTE AS a
 reject	reject	engine	statement/executeAsStatement!drop-1	AS a
 accept	reject	engine	statement/executeAsStatement!drop-3	EXECUTE AS
@@ -568,7 +568,7 @@ accept	reject	engine	lastStatement/createViewStatement!drop-3	CREATE VIEW AS SEL
 reject	reject	engine	lastStatement/createViewStatement!drop-4	CREATE VIEW a SELECT *
 reject	reject	engine	lastStatement/createViewStatement!drop-5	CREATE VIEW a AS *
 reject	reject	engine	lastStatement/createViewStatement!drop-6	CREATE VIEW a AS SELECT
-accept	reject	engine	lastStatement/createViewStatement!insert	CREATE VIEW a AS SELECT * zzz
+reject	reject	engine	lastStatement/createViewStatement!insert	CREATE VIEW a AS SELECT * zzz
 reject	reject	engine	lastStatement/createViewStatement!swap	CREATE_INDEX VIEW a AS SELECT *
 accept	accept	engine	lastStatement/alterViewStatement	ALTER VIEW a AS SELECT *
 reject	reject	engine	lastStatement/alterViewStatement!drop-2	ALTER a AS SELECT *
@@ -576,7 +576,7 @@ accept	reject	engine	lastStatement/alterViewStatement!drop-3	ALTER VIEW AS SELEC
 reject	reject	engine	lastStatement/alterViewStatement!drop-4	ALTER VIEW a SELECT *
 reject	reject	engine	lastStatement/alterViewStatement!drop-5	ALTER VIEW a AS *
 reject	reject	engine	lastStatement/alterViewStatement!drop-6	ALTER VIEW a AS SELECT
-accept	reject	engine	lastStatement/alterViewStatement!insert	ALTER VIEW a AS SELECT * zzz
+reject	reject	engine	lastStatement/alterViewStatement!insert	ALTER VIEW a AS SELECT * zzz
 reject	reject	engine	lastStatement/alterViewStatement!swap	ALWAYS VIEW a AS SELECT *
 accept	accept	engine	lastStatement/createFunctionStatement	CREATE FUNCTION a() RETURNS a BEGIN SELECT 1 END
 reject	reject	engine	lastStatement/createFunctionStatement!drop-1	FUNCTION a() RETURNS a BEGIN SELECT 1 END
@@ -651,7 +651,7 @@ reject	reject	engine	createIdentifierStatement(createMaterializedViewStatement_M
 accept	reject	engine	createIdentifierStatement(createMaterializedViewStatement_MATE~799f03ed)/createMaterializedViewStatement_MATERIALIZED!drop-8	CREATE MATERIALIZED VIEW a WITH(FOR_APPEND) SELECT *
 reject	reject	engine	createIdentifierStatement(createMaterializedViewStatement_MATE~799f03ed)/createMaterializedViewStatement_MATERIALIZED!drop-9	CREATE MATERIALIZED VIEW a WITH(FOR_APPEND) AS *
 reject	reject	engine	createIdentifierStatement(createMaterializedViewStatement_MATE~799f03ed)/createMaterializedViewStatement_MATERIALIZED!drop-10	CREATE MATERIALIZED VIEW a WITH(FOR_APPEND) AS SELECT
-accept	reject	engine	createIdentifierStatement(createMaterializedViewStatement_MATE~799f03ed)/createMaterializedViewStatement_MATERIALIZED!insert	CREATE MATERIALIZED VIEW a WITH(FOR_APPEND) AS SELECT * zzz
+reject	reject	engine	createIdentifierStatement(createMaterializedViewStatement_MATE~799f03ed)/createMaterializedViewStatement_MATERIALIZED!insert	CREATE MATERIALIZED VIEW a WITH(FOR_APPEND) AS SELECT * zzz
 reject	reject	engine	createIdentifierStatement(createMaterializedViewStatement_MATE~799f03ed)/createMaterializedViewStatement_MATERIALIZED!swap	CREATE MAX VIEW a WITH(FOR_APPEND) AS SELECT *
 accept	reject	engine	createIdentifierStatement(createMaterializedViewStatement_MATE~799f03ed)/createFederationStatement_FEDERATION	CREATE FEDERATION a(a a RANGE)
 reject	reject	engine	createIdentifierStatement(createMaterializedViewStatement_MATE~799f03ed)/createFederationStatement_FEDERATION!swap	CREATE FETCH a(a a RANGE)
@@ -702,7 +702,7 @@ accept	reject	engine	createOrAlterStatements(createOrAlterFunctionStatement|crea
 reject	reject	engine	createOrAlterStatements(createOrAlterFunctionStatement|creat~bea47e32)/createOrAlterViewStatement!drop-3	CREATE OR ALTER VIEW a SELECT *
 reject	reject	engine	createOrAlterStatements(createOrAlterFunctionStatement|creat~bea47e32)/createOrAlterViewStatement!drop-4	CREATE OR ALTER VIEW a AS *
 reject	reject	engine	createOrAlterStatements(createOrAlterFunctionStatement|creat~bea47e32)/createOrAlterViewStatement!drop-5	CREATE OR ALTER VIEW a AS SELECT
-accept	reject	engine	createOrAlterStatements(createOrAlterFunctionStatement|creat~bea47e32)/createOrAlterViewStatement!insert	CREATE OR ALTER VIEW a AS SELECT * zzz
+reject	reject	engine	createOrAlterStatements(createOrAlterFunctionStatement|creat~bea47e32)/createOrAlterViewStatement!insert	CREATE OR ALTER VIEW a AS SELECT * zzz
 reject	reject	engine	createOrAlterStatements(createOrAlterFunctionStatement|creat~bea47e32)/createOrAlterViewStatement!swap	CREATE OR ALTER WAITFOR a AS SELECT *
 accept	accept	engine	identifierStatements/disableTriggerStatement_DISABLE	DISABLE TRIGGER a ON a
 reject	reject	engine	identifierStatements/disableTriggerStatement_DISABLE!drop-1	TRIGGER a ON a
@@ -5793,26 +5793,26 @@ accept	reject	engine	createSchemaElement(createViewStatement|createTableState~7f
 reject	reject	engine	createSchemaElement(createViewStatement|createTableState~7fe00a04)/createViewStatement!drop-4	CREATE SCHEMA a CREATE VIEW a SELECT *
 reject	reject	engine	createSchemaElement(createViewStatement|createTableState~7fe00a04)/createViewStatement!drop-5	CREATE SCHEMA a CREATE VIEW a AS *
 reject	reject	engine	createSchemaElement(createViewStatement|createTableState~7fe00a04)/createViewStatement!drop-6	CREATE SCHEMA a CREATE VIEW a AS SELECT
-accept	reject	engine	createSchemaElement(createViewStatement|createTableState~7fe00a04)/createViewStatement!insert	CREATE SCHEMA a CREATE VIEW a AS SELECT * zzz
+reject	reject	engine	createSchemaElement(createViewStatement|createTableState~7fe00a04)/createViewStatement!insert	CREATE SCHEMA a CREATE VIEW a AS SELECT * zzz
 reject	reject	engine	createSchemaElement(createViewStatement|createTableState~7fe00a04)/createViewStatement!swap	CREATE SCHEMA a CREATE_INDEX VIEW a AS SELECT *
 reject	reject	engine	createSchemaElement(createViewStatement|createTableState~7fe00a04)/createTableStatement	CREATE SCHEMA a CREATE TABLE a AS
-accept	reject	engine	createSchemaElement(createViewStatement|createTableState~7fe00a04)/grantStatement90	CREATE SCHEMA a GRANT a TO PUBLIC
+reject	reject	engine	createSchemaElement(createViewStatement|createTableState~7fe00a04)/grantStatement90	CREATE SCHEMA a GRANT a TO PUBLIC
 reject	reject	engine	createSchemaElement(createViewStatement|createTableState~7fe00a04)/grantStatement90!drop-1	CREATE SCHEMA a a TO PUBLIC
-accept	reject	engine	createSchemaElement(createViewStatement|createTableState~7fe00a04)/grantStatement90!drop-2	CREATE SCHEMA a GRANT TO PUBLIC
+reject	reject	engine	createSchemaElement(createViewStatement|createTableState~7fe00a04)/grantStatement90!drop-2	CREATE SCHEMA a GRANT TO PUBLIC
 reject	reject	engine	createSchemaElement(createViewStatement|createTableState~7fe00a04)/grantStatement90!drop-3	CREATE SCHEMA a GRANT a PUBLIC
-accept	reject	engine	createSchemaElement(createViewStatement|createTableState~7fe00a04)/grantStatement90!drop-4	CREATE SCHEMA a GRANT a TO
+reject	reject	engine	createSchemaElement(createViewStatement|createTableState~7fe00a04)/grantStatement90!drop-4	CREATE SCHEMA a GRANT a TO
 reject	reject	engine	createSchemaElement(createViewStatement|createTableState~7fe00a04)/grantStatement90!insert	CREATE SCHEMA a GRANT a TO PUBLIC zzz
 reject	reject	engine	createSchemaElement(createViewStatement|createTableState~7fe00a04)/grantStatement90!swap	CREATE SCHEMA a GRAPH a TO PUBLIC
-accept	reject	engine	createSchemaElement(createViewStatement|createTableState~7fe00a04)/denyStatement90	CREATE SCHEMA a DENY a TO PUBLIC
-accept	reject	engine	createSchemaElement(createViewStatement|createTableState~7fe00a04)/denyStatement90!drop-2	CREATE SCHEMA a DENY TO PUBLIC
+reject	reject	engine	createSchemaElement(createViewStatement|createTableState~7fe00a04)/denyStatement90	CREATE SCHEMA a DENY a TO PUBLIC
+reject	reject	engine	createSchemaElement(createViewStatement|createTableState~7fe00a04)/denyStatement90!drop-2	CREATE SCHEMA a DENY TO PUBLIC
 reject	reject	engine	createSchemaElement(createViewStatement|createTableState~7fe00a04)/denyStatement90!drop-3	CREATE SCHEMA a DENY a PUBLIC
-accept	reject	engine	createSchemaElement(createViewStatement|createTableState~7fe00a04)/denyStatement90!drop-4	CREATE SCHEMA a DENY a TO
+reject	reject	engine	createSchemaElement(createViewStatement|createTableState~7fe00a04)/denyStatement90!drop-4	CREATE SCHEMA a DENY a TO
 reject	reject	engine	createSchemaElement(createViewStatement|createTableState~7fe00a04)/denyStatement90!insert	CREATE SCHEMA a DENY a TO PUBLIC zzz
 reject	reject	engine	createSchemaElement(createViewStatement|createTableState~7fe00a04)/denyStatement90!swap	CREATE SCHEMA a DEPENDENTS a TO PUBLIC
-accept	reject	engine	createSchemaElement(createViewStatement|createTableState~7fe00a04)/revokeStatement90	CREATE SCHEMA a REVOKE a TO PUBLIC
-accept	reject	engine	createSchemaElement(createViewStatement|createTableState~7fe00a04)/revokeStatement90!drop-2	CREATE SCHEMA a REVOKE TO PUBLIC
+reject	reject	engine	createSchemaElement(createViewStatement|createTableState~7fe00a04)/revokeStatement90	CREATE SCHEMA a REVOKE a TO PUBLIC
+reject	reject	engine	createSchemaElement(createViewStatement|createTableState~7fe00a04)/revokeStatement90!drop-2	CREATE SCHEMA a REVOKE TO PUBLIC
 reject	reject	engine	createSchemaElement(createViewStatement|createTableState~7fe00a04)/revokeStatement90!drop-3	CREATE SCHEMA a REVOKE a PUBLIC
-accept	reject	engine	createSchemaElement(createViewStatement|createTableState~7fe00a04)/revokeStatement90!drop-4	CREATE SCHEMA a REVOKE a TO
+reject	reject	engine	createSchemaElement(createViewStatement|createTableState~7fe00a04)/revokeStatement90!drop-4	CREATE SCHEMA a REVOKE a TO
 reject	reject	engine	createSchemaElement(createViewStatement|createTableState~7fe00a04)/revokeStatement90!insert	CREATE SCHEMA a REVOKE a TO PUBLIC zzz
 reject	reject	engine	createSchemaElement(createViewStatement|createTableState~7fe00a04)/revokeStatement90!swap	CREATE SCHEMA a RIGHT a TO PUBLIC
 accept	accept	engine	createFunctionStatement/Create_functionStatementBody	CREATE FUNCTION a() RETURNS a BEGIN SELECT 1 END
@@ -5848,7 +5848,7 @@ reject	reject	engine	functionReturnTypeAndBody/Table_(functionAttributesNoExecut
 accept	reject	engine	functionReturnTypeAndBody/Table_(functionAttributesNoExecuteAs)?_(As)?_Return_fun~d3b2c518!drop-2	CREATE FUNCTION a() RETURNS TABLE SELECT *
 reject	reject	engine	functionReturnTypeAndBody/Table_(functionAttributesNoExecuteAs)?_(As)?_Return_fun~d3b2c518!drop-3	CREATE FUNCTION a() RETURNS TABLE RETURN *
 reject	reject	engine	functionReturnTypeAndBody/Table_(functionAttributesNoExecuteAs)?_(As)?_Return_fun~d3b2c518!drop-4	CREATE FUNCTION a() RETURNS TABLE RETURN SELECT
-accept	reject	engine	functionReturnTypeAndBody/Table_(functionAttributesNoExecuteAs)?_(As)?_Return_fun~d3b2c518!insert	CREATE FUNCTION a() RETURNS TABLE RETURN SELECT * zzz
+reject	reject	engine	functionReturnTypeAndBody/Table_(functionAttributesNoExecuteAs)?_(As)?_Return_fun~d3b2c518!insert	CREATE FUNCTION a() RETURNS TABLE RETURN SELECT * zzz
 reject	reject	engine	functionReturnTypeAndBody/Table_(functionAttributesNoExecuteAs)?_(As)?_Return_fun~d3b2c518!swap	CREATE FUNCTION a() RETURNS TABLESAMPLE RETURN SELECT *
 reject	reject	engine	functionReturnTypeAndBody/declareTableBody_(functionAttributes)?_(As)?_beginEndBl~18d2faeb	CREATE FUNCTION a() RETURNS @a TABLE(a) BEGIN SELECT 1 END
 reject	reject	engine	functionReturnTypeAndBody/declareTableBody_(functionAttributes)?_(As)?_beginEndBl~18d2faeb!drop-1	CREATE FUNCTION a() RETURNS TABLE(a) BEGIN SELECT 1 END
@@ -6231,19 +6231,19 @@ reject	reject	engine	truncateTableStatement(Comma_compressionPartitionRange)*/Co
 reject	reject	engine	truncateTableStatement(Comma_compressionPartitionRange)*/Comma_compressionPartitionRange_(Comma_compressionParti~4b10d355!drop-2	TRUNCATE TABLE a WITH(a(1,))
 reject	reject	engine	truncateTableStatement(Comma_compressionPartitionRange)*/Comma_compressionPartitionRange_(Comma_compressionParti~4b10d355!truncate	TRUNCATE TABLE a WITH(a(1,
 reject	reject	engine	truncateTableStatement(Comma_compressionPartitionRange)*/Comma_compressionPartitionRange_(Comma_compressionParti~4b10d355!insert	TRUNCATE TABLE a WITH(a(1, 1 zzz))
-accept	reject	engine	permission/(securityStatementPermission)+_(columnNameList)?	GRANT a TO PUBLIC
-accept	reject	engine	permission/(securityStatementPermission)+_(columnNameList)?!truncate	GRANT
+reject	reject	engine	permission/(securityStatementPermission)+_(columnNameList)?	GRANT a TO PUBLIC
+reject	reject	engine	permission/(securityStatementPermission)+_(columnNameList)?!truncate	GRANT
 reject	reject	engine	permission/(securityStatementPermission)+_(columnNameList)?!insert	GRANT a zzz TO PUBLIC
-accept	reject	engine	permission(securityStatementPermission)+/securityStatementPermission	GRANT a TO PUBLIC
+reject	reject	engine	permission(securityStatementPermission)+/securityStatementPermission	GRANT a TO PUBLIC
 reject	reject	engine	permission(securityStatementPermission)+/securityStatementPermission_(securityStatementPermission)+	GRANT a a TO PUBLIC
-accept	reject	engine	permission(securityStatementPermission)+/securityStatementPermission_(securityStatementPermission)+!truncate	GRANT a
+reject	reject	engine	permission(securityStatementPermission)+/securityStatementPermission_(securityStatementPermission)+!truncate	GRANT a
 reject	reject	engine	permission(securityStatementPermission)+/securityStatementPermission_(securityStatementPermission)+!insert	GRANT a a zzz TO PUBLIC
-accept	reject	engine	permission(columnNameList)?/%empty	GRANT a TO PUBLIC
-accept	reject	engine	permission(columnNameList)?/columnNameList	GRANT a(a) TO PUBLIC
+reject	reject	engine	permission(columnNameList)?/%empty	GRANT a TO PUBLIC
+reject	reject	engine	permission(columnNameList)?/columnNameList	GRANT a(a) TO PUBLIC
 reject	reject	engine	permission(columnNameList)?/columnNameList!drop-1	GRANT a a) TO PUBLIC
-accept	reject	engine	permission(columnNameList)?/columnNameList!drop-2	GRANT a() TO PUBLIC
-accept	reject	engine	permission(columnNameList)?/columnNameList!drop-3	GRANT a(a TO PUBLIC
-accept	reject	engine	permission(columnNameList)?/columnNameList!truncate	GRANT a(a
+reject	reject	engine	permission(columnNameList)?/columnNameList!drop-2	GRANT a() TO PUBLIC
+reject	reject	engine	permission(columnNameList)?/columnNameList!drop-3	GRANT a(a TO PUBLIC
+reject	reject	engine	permission(columnNameList)?/columnNameList!truncate	GRANT a(a
 reject	reject	engine	permission(columnNameList)?/columnNameList!insert	GRANT a(a) zzz TO PUBLIC
 accept	accept	engine	securityTargetObjectCommon/On_((securityStatementPermission|securit~888d2aba)?_mul~f646bb06	ALTER AUTHORIZATION ON a TO a
 accept	reject	engine	securityTargetObjectCommon/On_((securityStatementPermission|securit~888d2aba)?_mul~f646bb06!truncate	ALTER AUTHORIZATION ON
@@ -6263,12 +6263,12 @@ reject	reject	engine	securityTargetObjectCommon(securityStatementPermission|secu
 reject	reject	engine	securityTargetObjectCommon(securityStatementPermission|security~53514a2c)/securityStatementPermission	ALTER AUTHORIZATION ON a a :: a TO a
 reject	reject	engine	securityTargetObjectCommon(securityStatementPermission|security~53514a2c)/securityStatementPermission_securityStatementPermission	ALTER AUTHORIZATION ON a a a :: a TO a
 reject	reject	engine	securityTargetObjectCommon(securityStatementPermission|security~53514a2c)/securityStatementPermission_securityStatementPermission!insert	ALTER AUTHORIZATION ON a a a zzz :: a TO a
-accept	reject	engine	securityTargetObject/securityTargetObjectCommon_(columnNameList)?	GRANT a ON a TO PUBLIC
-accept	reject	engine	securityTargetObject/securityTargetObjectCommon_(columnNameList)?!drop-2	GRANT a ON TO PUBLIC
-accept	reject	engine	securityTargetObject/securityTargetObjectCommon_(columnNameList)?!truncate	GRANT a ON
+reject	reject	engine	securityTargetObject/securityTargetObjectCommon_(columnNameList)?	GRANT a ON a TO PUBLIC
+reject	reject	engine	securityTargetObject/securityTargetObjectCommon_(columnNameList)?!drop-2	GRANT a ON TO PUBLIC
+reject	reject	engine	securityTargetObject/securityTargetObjectCommon_(columnNameList)?!truncate	GRANT a ON
 reject	reject	engine	securityTargetObject/securityTargetObjectCommon_(columnNameList)?!insert	GRANT a ON a zzz TO PUBLIC
 reject	reject	engine	securityTargetObject/securityTargetObjectCommon_(columnNameList)?!swap	GRANT a ONLINE a TO PUBLIC
-accept	reject	engine	securityTargetObject(columnNameList)?/%empty	GRANT a ON a TO PUBLIC
+reject	reject	engine	securityTargetObject(columnNameList)?/%empty	GRANT a ON a TO PUBLIC
 reject	reject	engine	securityTargetObject(columnNameList)?/columnNameList	GRANT a ON a(a) TO PUBLIC
 reject	reject	engine	securityTargetObject(columnNameList)?/columnNameList!drop-1	GRANT a ON a a) TO PUBLIC
 reject	reject	engine	securityTargetObject(columnNameList)?/columnNameList!drop-2	GRANT a ON a() TO PUBLIC
@@ -6276,12 +6276,12 @@ reject	reject	engine	securityTargetObject(columnNameList)?/columnNameList!drop-3
 reject	reject	engine	securityTargetObject(columnNameList)?/columnNameList!truncate	GRANT a ON a(a
 reject	reject	engine	securityTargetObject(columnNameList)?/columnNameList!insert	GRANT a ON a(a) zzz TO PUBLIC
 accept	accept	engine	authorizationTargetObject/securityTargetObjectCommon	ALTER AUTHORIZATION ON a TO a
-accept	reject	engine	principal/Public	GRANT a TO PUBLIC
-accept	reject	engine	principal/Public!swap	GRANT a TO PUSHDOWN
+reject	reject	engine	principal/Public	GRANT a TO PUBLIC
+reject	reject	engine	principal/Public!swap	GRANT a TO PUSHDOWN
 reject	reject	engine	principal/Null	GRANT a TO NULL
 reject	reject	engine	principal/Null!insert	GRANT a TO NULL zzz
 reject	reject	engine	principal/Null!swap	GRANT a TO NULLIF
-accept	reject	engine	principal/identifier	GRANT a TO a
+reject	reject	engine	principal/identifier	GRANT a TO a
 reject	reject	engine	principal/identifier!insert	GRANT a TO a zzz
 accept	accept	engine	alterAuthorizationStatement/Authorization_authorizationTargetObject_To_(Schema_OWNE~5adf4360	ALTER AUTHORIZATION ON a TO a
 accept	accept	engine	alterAuthorizationStatement(Schema_OWNER|identifier)/Schema_OWNER	ALTER AUTHORIZATION ON a TO SCHEMA OWNER
@@ -6290,61 +6290,61 @@ accept	reject	engine	alterAuthorizationStatement(Schema_OWNER|identifier)/Schema
 reject	reject	engine	alterAuthorizationStatement(Schema_OWNER|identifier)/Schema_OWNER!insert	ALTER AUTHORIZATION ON a TO SCHEMA OWNER zzz
 reject	reject	engine	alterAuthorizationStatement(Schema_OWNER|identifier)/Schema_OWNER!swap	ALTER AUTHORIZATION ON a TO SCHEMABINDING OWNER
 accept	accept	engine	alterAuthorizationStatement(Schema_OWNER|identifier)/identifier	ALTER AUTHORIZATION ON a TO a
-accept	reject	engine	grantStatement90/Grant_permissionsList_securityStatementTargetObjectOpt_~6b0c8573	GRANT a TO PUBLIC
-accept	reject	engine	grantStatement90(With_Grant_Option)?/%empty	GRANT a TO PUBLIC
-accept	reject	engine	grantStatement90(With_Grant_Option)?/With_Grant_Option	GRANT a TO PUBLIC WITH GRANT OPTION
+reject	reject	engine	grantStatement90/Grant_permissionsList_securityStatementTargetObjectOpt_~6b0c8573	GRANT a TO PUBLIC
+reject	reject	engine	grantStatement90(With_Grant_Option)?/%empty	GRANT a TO PUBLIC
+reject	reject	engine	grantStatement90(With_Grant_Option)?/With_Grant_Option	GRANT a TO PUBLIC WITH GRANT OPTION
 reject	reject	engine	grantStatement90(With_Grant_Option)?/With_Grant_Option!drop-1	GRANT a TO PUBLIC GRANT OPTION
 reject	reject	engine	grantStatement90(With_Grant_Option)?/With_Grant_Option!drop-2	GRANT a TO PUBLIC WITH OPTION
-accept	reject	engine	grantStatement90(With_Grant_Option)?/With_Grant_Option!drop-3	GRANT a TO PUBLIC WITH GRANT
+reject	reject	engine	grantStatement90(With_Grant_Option)?/With_Grant_Option!drop-3	GRANT a TO PUBLIC WITH GRANT
 reject	reject	engine	grantStatement90(With_Grant_Option)?/With_Grant_Option!insert	GRANT a TO PUBLIC WITH GRANT OPTION zzz
 reject	reject	engine	grantStatement90(With_Grant_Option)?/With_Grant_Option!swap	GRANT a TO PUBLIC WITHIN GRANT OPTION
-accept	reject	engine	denyStatement90/Deny_permissionsList_securityStatementTargetObjectOpt_T~571def8e	DENY a TO PUBLIC
-accept	reject	engine	denyStatement90(Cascade)?/%empty	DENY a TO PUBLIC
-accept	reject	engine	denyStatement90(Cascade)?/Cascade	DENY a TO PUBLIC CASCADE
+reject	reject	engine	denyStatement90/Deny_permissionsList_securityStatementTargetObjectOpt_T~571def8e	DENY a TO PUBLIC
+reject	reject	engine	denyStatement90(Cascade)?/%empty	DENY a TO PUBLIC
+reject	reject	engine	denyStatement90(Cascade)?/Cascade	DENY a TO PUBLIC CASCADE
 reject	reject	engine	denyStatement90(Cascade)?/Cascade!insert	DENY a TO PUBLIC CASCADE zzz
 reject	reject	engine	denyStatement90(Cascade)?/Cascade!swap	DENY a TO PUBLIC CASE
-accept	reject	engine	revokeStatement90/Revoke_(Grant_Option_For)?_permissionsList_securityStat~722b98b5	REVOKE a TO PUBLIC
-accept	reject	engine	revokeStatement90(Grant_Option_For)?/%empty	REVOKE a TO PUBLIC
+reject	reject	engine	revokeStatement90/Revoke_(Grant_Option_For)?_permissionsList_securityStat~722b98b5	REVOKE a TO PUBLIC
+reject	reject	engine	revokeStatement90(Grant_Option_For)?/%empty	REVOKE a TO PUBLIC
 reject	reject	engine	revokeStatement90(Grant_Option_For)?/%empty!insert	REVOKE zzz a TO PUBLIC
-accept	reject	engine	revokeStatement90(Grant_Option_For)?/Grant_Option_For	REVOKE GRANT OPTION FOR a TO PUBLIC
+reject	reject	engine	revokeStatement90(Grant_Option_For)?/Grant_Option_For	REVOKE GRANT OPTION FOR a TO PUBLIC
 reject	reject	engine	revokeStatement90(Grant_Option_For)?/Grant_Option_For!drop-1	REVOKE OPTION FOR a TO PUBLIC
 reject	reject	engine	revokeStatement90(Grant_Option_For)?/Grant_Option_For!drop-2	REVOKE GRANT FOR a TO PUBLIC
-accept	reject	engine	revokeStatement90(Grant_Option_For)?/Grant_Option_For!drop-3	REVOKE GRANT OPTION a TO PUBLIC
-accept	reject	engine	revokeStatement90(Grant_Option_For)?/Grant_Option_For!truncate	REVOKE GRANT OPTION
+reject	reject	engine	revokeStatement90(Grant_Option_For)?/Grant_Option_For!drop-3	REVOKE GRANT OPTION a TO PUBLIC
+reject	reject	engine	revokeStatement90(Grant_Option_For)?/Grant_Option_For!truncate	REVOKE GRANT OPTION
 reject	reject	engine	revokeStatement90(Grant_Option_For)?/Grant_Option_For!insert	REVOKE GRANT OPTION FOR zzz a TO PUBLIC
 reject	reject	engine	revokeStatement90(Grant_Option_For)?/Grant_Option_For!swap	REVOKE GRAPH OPTION FOR a TO PUBLIC
-accept	reject	engine	revokeStatement90(To|From)/To	REVOKE a TO PUBLIC
-accept	reject	engine	revokeStatement90(To|From)/To!truncate	REVOKE a
+reject	reject	engine	revokeStatement90(To|From)/To	REVOKE a TO PUBLIC
+reject	reject	engine	revokeStatement90(To|From)/To!truncate	REVOKE a
 reject	reject	engine	revokeStatement90(To|From)/To!insert	REVOKE a TO zzz PUBLIC
 reject	reject	engine	revokeStatement90(To|From)/To!swap	REVOKE a TOP PUBLIC
-accept	reject	engine	revokeStatement90(To|From)/From	REVOKE a FROM PUBLIC
+reject	reject	engine	revokeStatement90(To|From)/From	REVOKE a FROM PUBLIC
 reject	reject	engine	revokeStatement90(To|From)/From!insert	REVOKE a FROM zzz PUBLIC
 reject	reject	engine	revokeStatement90(To|From)/From!swap	REVOKE a FULL PUBLIC
-accept	reject	engine	revokeStatement90(Cascade)?/%empty	REVOKE a TO PUBLIC
-accept	reject	engine	revokeStatement90(Cascade)?/Cascade	REVOKE a TO PUBLIC CASCADE
+reject	reject	engine	revokeStatement90(Cascade)?/%empty	REVOKE a TO PUBLIC
+reject	reject	engine	revokeStatement90(Cascade)?/Cascade	REVOKE a TO PUBLIC CASCADE
 reject	reject	engine	revokeStatement90(Cascade)?/Cascade!insert	REVOKE a TO PUBLIC CASCADE zzz
 reject	reject	engine	revokeStatement90(Cascade)?/Cascade!swap	REVOKE a TO PUBLIC CASE
-accept	reject	engine	securityStatementPrincipalList/principal_(Comma_principal)*	GRANT a TO PUBLIC
-accept	reject	engine	securityStatementPrincipalList(Comma_principal)*/%empty	GRANT a TO PUBLIC
-accept	reject	engine	securityStatementPrincipalList(Comma_principal)*/Comma_principal_(Comma_principal)*	GRANT a TO PUBLIC, PUBLIC
+reject	reject	engine	securityStatementPrincipalList/principal_(Comma_principal)*	GRANT a TO PUBLIC
+reject	reject	engine	securityStatementPrincipalList(Comma_principal)*/%empty	GRANT a TO PUBLIC
+reject	reject	engine	securityStatementPrincipalList(Comma_principal)*/Comma_principal_(Comma_principal)*	GRANT a TO PUBLIC, PUBLIC
 reject	reject	engine	securityStatementPrincipalList(Comma_principal)*/Comma_principal_(Comma_principal)*!drop-1	GRANT a TO PUBLIC PUBLIC
-accept	reject	engine	securityStatementPrincipalList(Comma_principal)*/Comma_principal_(Comma_principal)*!drop-2	GRANT a TO PUBLIC,
+reject	reject	engine	securityStatementPrincipalList(Comma_principal)*/Comma_principal_(Comma_principal)*!drop-2	GRANT a TO PUBLIC,
 reject	reject	engine	securityStatementPrincipalList(Comma_principal)*/Comma_principal_(Comma_principal)*!insert	GRANT a TO PUBLIC, PUBLIC zzz
-accept	reject	engine	securityStatementPrincipalList(Comma_principal)*/Comma_principal_(Comma_principal)*!swap	GRANT a TO PUBLIC, PUSHDOWN
-accept	reject	engine	permissionsList/permission_(Comma_permission)*	GRANT a TO PUBLIC
-accept	reject	engine	permissionsList(Comma_permission)*/%empty	GRANT a TO PUBLIC
-accept	reject	engine	permissionsList(Comma_permission)*/Comma_permission_(Comma_permission)*	GRANT a, a TO PUBLIC
-accept	reject	engine	permissionsList(Comma_permission)*/Comma_permission_(Comma_permission)*!drop-2	GRANT a, TO PUBLIC
-accept	reject	engine	permissionsList(Comma_permission)*/Comma_permission_(Comma_permission)*!truncate	GRANT a,
+reject	reject	engine	securityStatementPrincipalList(Comma_principal)*/Comma_principal_(Comma_principal)*!swap	GRANT a TO PUBLIC, PUSHDOWN
+reject	reject	engine	permissionsList/permission_(Comma_permission)*	GRANT a TO PUBLIC
+reject	reject	engine	permissionsList(Comma_permission)*/%empty	GRANT a TO PUBLIC
+reject	reject	engine	permissionsList(Comma_permission)*/Comma_permission_(Comma_permission)*	GRANT a, a TO PUBLIC
+reject	reject	engine	permissionsList(Comma_permission)*/Comma_permission_(Comma_permission)*!drop-2	GRANT a, TO PUBLIC
+reject	reject	engine	permissionsList(Comma_permission)*/Comma_permission_(Comma_permission)*!truncate	GRANT a,
 reject	reject	engine	permissionsList(Comma_permission)*/Comma_permission_(Comma_permission)*!insert	GRANT a, a zzz TO PUBLIC
-accept	reject	engine	securityStatementTargetObjectOpt/(securityTargetObject)?	GRANT a TO PUBLIC
-accept	reject	engine	securityStatementTargetObjectOpt(securityTargetObject)?/%empty	GRANT a TO PUBLIC
-accept	reject	engine	securityStatementTargetObjectOpt(securityTargetObject)?/securityTargetObject	GRANT a ON a TO PUBLIC
-accept	reject	engine	securityStatementAsClauseOpt/(As_identifier)?	GRANT a TO PUBLIC
-accept	reject	engine	securityStatementAsClauseOpt(As_identifier)?/%empty	GRANT a TO PUBLIC
-accept	reject	engine	securityStatementAsClauseOpt(As_identifier)?/As_identifier	GRANT a TO PUBLIC AS a
+reject	reject	engine	securityStatementTargetObjectOpt/(securityTargetObject)?	GRANT a TO PUBLIC
+reject	reject	engine	securityStatementTargetObjectOpt(securityTargetObject)?/%empty	GRANT a TO PUBLIC
+reject	reject	engine	securityStatementTargetObjectOpt(securityTargetObject)?/securityTargetObject	GRANT a ON a TO PUBLIC
+reject	reject	engine	securityStatementAsClauseOpt/(As_identifier)?	GRANT a TO PUBLIC
+reject	reject	engine	securityStatementAsClauseOpt(As_identifier)?/%empty	GRANT a TO PUBLIC
+reject	reject	engine	securityStatementAsClauseOpt(As_identifier)?/As_identifier	GRANT a TO PUBLIC AS a
 reject	reject	engine	securityStatementAsClauseOpt(As_identifier)?/As_identifier!drop-1	GRANT a TO PUBLIC a
-accept	reject	engine	securityStatementAsClauseOpt(As_identifier)?/As_identifier!drop-2	GRANT a TO PUBLIC AS
+reject	reject	engine	securityStatementAsClauseOpt(As_identifier)?/As_identifier!drop-2	GRANT a TO PUBLIC AS
 reject	reject	engine	securityStatementAsClauseOpt(As_identifier)?/As_identifier!insert	GRANT a TO PUBLIC AS a zzz
 reject	reject	engine	securityStatementAsClauseOpt(As_identifier)?/As_identifier!swap	GRANT a TO PUBLIC ASC a
 accept	accept	engine	printStatement/Print_expression	PRINT 1
@@ -7429,7 +7429,7 @@ reject	reject	engine	declareStatements(declareTableBody|declareVariableStat~611e
 accept	reject	engine	declareStatements(declareTableBody|declareVariableStat~611ebfd1)/declareCursorStatement!drop-3	DECLARE a CURSOR SELECT *
 reject	reject	engine	declareStatements(declareTableBody|declareVariableStat~611ebfd1)/declareCursorStatement!drop-4	DECLARE a CURSOR FOR *
 reject	reject	engine	declareStatements(declareTableBody|declareVariableStat~611ebfd1)/declareCursorStatement!drop-5	DECLARE a CURSOR FOR SELECT
-accept	reject	engine	declareStatements(declareTableBody|declareVariableStat~611ebfd1)/declareCursorStatement!insert	DECLARE a CURSOR FOR SELECT * zzz
+reject	reject	engine	declareStatements(declareTableBody|declareVariableStat~611ebfd1)/declareCursorStatement!insert	DECLARE a CURSOR FOR SELECT * zzz
 reject	reject	engine	declareStatements(declareTableBody|declareVariableStat~611ebfd1)/declareCursorStatement!swap	DECLARE a CURSOR_DEFAULT FOR SELECT *
 reject	reject	engine	setStatements/Set_(predicateSetStatement|setVariableSta~4d4b682f)	SET a ON
 reject	reject	engine	setStatements(predicateSetStatement|setVariableSta~4d4b682f)/predicateSetStatement	SET a ON
@@ -8157,8 +8157,8 @@ reject	reject	engine	select(orderByClause_(offsetClause)?)?/orderByClause_(offse
 accept	accept	engine	select(offsetClause)?/%empty	SELECT * ORDER BY 1
 accept	accept	engine	select(offsetClause)?/offsetClause	SELECT * ORDER BY 1 OFFSET 1 ROW
 reject	reject	engine	select(offsetClause)?/offsetClause!drop-1	SELECT * ORDER BY 1 1 ROW
-accept	reject	engine	select(offsetClause)?/offsetClause!drop-2	SELECT * ORDER BY 1 OFFSET ROW
-accept	reject	engine	select(offsetClause)?/offsetClause!drop-3	SELECT * ORDER BY 1 OFFSET 1
+reject	reject	engine	select(offsetClause)?/offsetClause!drop-2	SELECT * ORDER BY 1 OFFSET ROW
+reject	reject	engine	select(offsetClause)?/offsetClause!drop-3	SELECT * ORDER BY 1 OFFSET 1
 reject	reject	engine	select(offsetClause)?/offsetClause!insert	SELECT * ORDER BY 1 OFFSET 1 ROW zzz
 reject	reject	engine	select(offsetClause)?/offsetClause!swap	SELECT * ORDER BY 1 OFFSETS 1 ROW
 accept	accept	engine	select(forClause)?/%empty	SELECT *
@@ -8171,7 +8171,7 @@ accept	accept	engine	select(optimizerHints)?/%empty	SELECT *
 reject	reject	engine	select(optimizerHints)?/optimizerHints	SELECT * OPTION(a)
 reject	reject	engine	select(optimizerHints)?/optimizerHints!drop-1	SELECT *(a)
 reject	reject	engine	select(optimizerHints)?/optimizerHints!drop-2	SELECT * OPTION a)
-accept	reject	engine	select(optimizerHints)?/optimizerHints!drop-3	SELECT * OPTION()
+reject	reject	engine	select(optimizerHints)?/optimizerHints!drop-3	SELECT * OPTION()
 reject	reject	engine	select(optimizerHints)?/optimizerHints!drop-4	SELECT * OPTION(a
 reject	reject	engine	select(optimizerHints)?/optimizerHints!insert	SELECT * OPTION(a) zzz
 accept	reject	engine	select(optimizerHints)?/optimizerHints!swap	SELECT * OR(a)
@@ -8228,14 +8228,14 @@ accept	accept	engine	subquery/LeftParenthesis_subqueryExpression_RightParenthesi
 reject	reject	engine	subquery/LeftParenthesis_subqueryExpression_RightParenthesis!swap	SELECT(SELECTIVE *)
 accept	accept	engine	subqueryExpression/subqueryExpressionUnit_((Union|Except|Intersect)_(All)?~a613ec4c	SELECT(SELECT *)
 reject	reject	engine	subqueryExpression/subqueryExpressionUnit_((Union|Except|Intersect)_(All)?~a613ec4c!truncate	SELECT(SELECT
-accept	reject	engine	subqueryExpression/subqueryExpressionUnit_((Union|Except|Intersect)_(All)?~a613ec4c!insert	SELECT(SELECT * zzz)
+reject	reject	engine	subqueryExpression/subqueryExpressionUnit_((Union|Except|Intersect)_(All)?~a613ec4c!insert	SELECT(SELECT * zzz)
 accept	accept	engine	subqueryExpression((Union|Except|Intersect)_(All)?_subq~795762a5)*/%empty	SELECT(SELECT *)
 accept	accept	engine	subqueryExpression((Union|Except|Intersect)_(All)?_subq~795762a5)*/(Union|Except|Intersect)_(All)?_subqueryExpressionUnit_~a43ea75c	SELECT(SELECT * UNION SELECT *)
 reject	reject	engine	subqueryExpression((Union|Except|Intersect)_(All)?_subq~795762a5)*/(Union|Except|Intersect)_(All)?_subqueryExpressionUnit_~a43ea75c!drop-1	SELECT(SELECT * SELECT *)
 reject	reject	engine	subqueryExpression((Union|Except|Intersect)_(All)?_subq~795762a5)*/(Union|Except|Intersect)_(All)?_subqueryExpressionUnit_~a43ea75c!drop-2	SELECT(SELECT * UNION *)
 reject	reject	engine	subqueryExpression((Union|Except|Intersect)_(All)?_subq~795762a5)*/(Union|Except|Intersect)_(All)?_subqueryExpressionUnit_~a43ea75c!drop-3	SELECT(SELECT * UNION SELECT)
 reject	reject	engine	subqueryExpression((Union|Except|Intersect)_(All)?_subq~795762a5)*/(Union|Except|Intersect)_(All)?_subqueryExpressionUnit_~a43ea75c!truncate	SELECT(SELECT * UNION SELECT
-accept	reject	engine	subqueryExpression((Union|Except|Intersect)_(All)?_subq~795762a5)*/(Union|Except|Intersect)_(All)?_subqueryExpressionUnit_~a43ea75c!insert	SELECT(SELECT * UNION SELECT * zzz)
+reject	reject	engine	subqueryExpression((Union|Except|Intersect)_(All)?_subq~795762a5)*/(Union|Except|Intersect)_(All)?_subqueryExpressionUnit_~a43ea75c!insert	SELECT(SELECT * UNION SELECT * zzz)
 reject	reject	engine	subqueryExpression((Union|Except|Intersect)_(All)?_subq~795762a5)*/(Union|Except|Intersect)_(All)?_subqueryExpressionUnit_~a43ea75c!swap	SELECT(SELECT * UNIQUE SELECT *)
 accept	accept	engine	subqueryExpression(Union|Except|Intersect)/Union	SELECT(SELECT * UNION SELECT *)
 reject	reject	engine	subqueryExpression(Union|Except|Intersect)/Union!insert	SELECT(SELECT * UNION zzz SELECT *)
@@ -8266,7 +8266,7 @@ accept	accept	engine	queryExpression((Union|Except|Intersect)_(All)?_quer~5c3af1
 accept	accept	engine	queryExpression((Union|Except|Intersect)_(All)?_quer~5c3af167)*/(Union|Except|Intersect)_(All)?_queryExpressionUnit_((U~53ecd75e!drop-1	SELECT * SELECT *
 reject	reject	engine	queryExpression((Union|Except|Intersect)_(All)?_quer~5c3af167)*/(Union|Except|Intersect)_(All)?_queryExpressionUnit_((U~53ecd75e!drop-2	SELECT * UNION *
 reject	reject	engine	queryExpression((Union|Except|Intersect)_(All)?_quer~5c3af167)*/(Union|Except|Intersect)_(All)?_queryExpressionUnit_((U~53ecd75e!drop-3	SELECT * UNION SELECT
-accept	reject	engine	queryExpression((Union|Except|Intersect)_(All)?_quer~5c3af167)*/(Union|Except|Intersect)_(All)?_queryExpressionUnit_((U~53ecd75e!insert	SELECT * UNION SELECT * zzz
+reject	reject	engine	queryExpression((Union|Except|Intersect)_(All)?_quer~5c3af167)*/(Union|Except|Intersect)_(All)?_queryExpressionUnit_((U~53ecd75e!insert	SELECT * UNION SELECT * zzz
 reject	reject	engine	queryExpression((Union|Except|Intersect)_(All)?_quer~5c3af167)*/(Union|Except|Intersect)_(All)?_queryExpressionUnit_((U~53ecd75e!swap	SELECT * UNIQUE SELECT *
 accept	accept	engine	queryExpression(Union|Except|Intersect)/Union	SELECT * UNION SELECT *
 reject	reject	engine	queryExpression(Union|Except|Intersect)/Union!insert	SELECT * UNION zzz SELECT *
@@ -8275,7 +8275,7 @@ reject	reject	engine	queryExpression(Union|Except|Intersect)/Except!insert	SELEC
 reject	reject	engine	queryExpression(Union|Except|Intersect)/Except!swap	SELECT * EXEC SELECT *
 accept	accept	engine	queryExpression(Union|Except|Intersect)/Intersect	SELECT * INTERSECT SELECT *
 reject	reject	engine	queryExpression(Union|Except|Intersect)/Intersect!insert	SELECT * INTERSECT zzz SELECT *
-accept	reject	engine	queryExpression(Union|Except|Intersect)/Intersect!swap	SELECT * INTERVAL_LENGTH_MINUTES SELECT *
+reject	reject	engine	queryExpression(Union|Except|Intersect)/Intersect!swap	SELECT * INTERVAL_LENGTH_MINUTES SELECT *
 accept	accept	engine	queryExpression(All)?/%empty	SELECT * UNION SELECT *
 accept	accept	engine	queryExpression(All)?/All	SELECT * UNION ALL SELECT *
 reject	reject	engine	queryExpression(All)?/All!truncate	SELECT * UNION
@@ -8304,7 +8304,7 @@ accept	accept	engine	subquerySpecification(Comma_selectColumnOrStarExpression)*/
 reject	reject	engine	subquerySpecification(Comma_selectColumnOrStarExpression)*/Comma_selectColumnOrStarExpression_(Comma_selectColumnO~a01d7b1f!drop-1	SELECT(SELECT * *)
 reject	reject	engine	subquerySpecification(Comma_selectColumnOrStarExpression)*/Comma_selectColumnOrStarExpression_(Comma_selectColumnO~a01d7b1f!drop-2	SELECT(SELECT *,)
 reject	reject	engine	subquerySpecification(Comma_selectColumnOrStarExpression)*/Comma_selectColumnOrStarExpression_(Comma_selectColumnO~a01d7b1f!truncate	SELECT(SELECT *,
-accept	reject	engine	subquerySpecification(Comma_selectColumnOrStarExpression)*/Comma_selectColumnOrStarExpression_(Comma_selectColumnO~a01d7b1f!insert	SELECT(SELECT *, * zzz)
+reject	reject	engine	subquerySpecification(Comma_selectColumnOrStarExpression)*/Comma_selectColumnOrStarExpression_(Comma_selectColumnO~a01d7b1f!insert	SELECT(SELECT *, * zzz)
 accept	accept	engine	subquerySpecification(whereClause)?/%empty	SELECT(SELECT *)
 accept	accept	engine	subquerySpecification(whereClause)?/whereClause	SELECT(SELECT * WHERE 1 = 1)
 reject	reject	engine	subquerySpecification(whereClause)?/whereClause!drop-1	SELECT(SELECT * 1 = 1)
@@ -8331,7 +8331,7 @@ reject	reject	engine	subquerySpecification(havingClause)?/havingClause!truncate	
 reject	reject	engine	subquerySpecification(havingClause)?/havingClause!insert	SELECT(SELECT * HAVING 1 = 1 zzz)
 reject	reject	engine	subquerySpecification(havingClause)?/havingClause!swap	SELECT(SELECT * HEADER_LIMIT 1 = 1)
 accept	accept	engine	subquerySpecification(windowClause)?/%empty	SELECT(SELECT *)
-reject	accept	engine	subquerySpecification(windowClause)?/windowClause	SELECT(SELECT * WINDOW a AS())
+accept	accept	engine	subquerySpecification(windowClause)?/windowClause	SELECT(SELECT * WINDOW a AS())
 reject	reject	engine	subquerySpecification(windowClause)?/windowClause!drop-1	SELECT(SELECT * a AS())
 reject	reject	engine	subquerySpecification(windowClause)?/windowClause!drop-2	SELECT(SELECT * WINDOW AS())
 reject	reject	engine	subquerySpecification(windowClause)?/windowClause!drop-3	SELECT(SELECT * WINDOW a())
@@ -8350,8 +8350,8 @@ reject	reject	engine	subquerySpecification(orderByClause_(offsetClause)?)?/order
 accept	reject	engine	subquerySpecification(offsetClause)?/%empty	SELECT(SELECT * ORDER BY 1)
 accept	accept	engine	subquerySpecification(offsetClause)?/offsetClause	SELECT(SELECT * ORDER BY 1 OFFSET 1 ROW)
 reject	reject	engine	subquerySpecification(offsetClause)?/offsetClause!drop-1	SELECT(SELECT * ORDER BY 1 1 ROW)
-accept	reject	engine	subquerySpecification(offsetClause)?/offsetClause!drop-2	SELECT(SELECT * ORDER BY 1 OFFSET ROW)
-accept	reject	engine	subquerySpecification(offsetClause)?/offsetClause!drop-3	SELECT(SELECT * ORDER BY 1 OFFSET 1)
+reject	reject	engine	subquerySpecification(offsetClause)?/offsetClause!drop-2	SELECT(SELECT * ORDER BY 1 OFFSET ROW)
+reject	reject	engine	subquerySpecification(offsetClause)?/offsetClause!drop-3	SELECT(SELECT * ORDER BY 1 OFFSET 1)
 reject	reject	engine	subquerySpecification(offsetClause)?/offsetClause!truncate	SELECT(SELECT * ORDER BY 1 OFFSET 1
 reject	reject	engine	subquerySpecification(offsetClause)?/offsetClause!insert	SELECT(SELECT * ORDER BY 1 OFFSET 1 ROW zzz)
 reject	reject	engine	subquerySpecification(offsetClause)?/offsetClause!swap	SELECT(SELECT * ORDER BY 1 OFFSETS 1 ROW)
@@ -8366,14 +8366,14 @@ accept	accept	engine	subquerySpecification(For_(xmlForClause_XML|jsonForClause_J
 reject	reject	engine	subquerySpecification(For_(xmlForClause_XML|jsonForClause_JSON))?/For_(xmlForClause_XML|jsonForClause_JSON)	SELECT(SELECT * FOR XML a)
 reject	reject	engine	subquerySpecification(For_(xmlForClause_XML|jsonForClause_JSON))?/For_(xmlForClause_XML|jsonForClause_JSON)!drop-1	SELECT(SELECT * XML a)
 reject	reject	engine	subquerySpecification(For_(xmlForClause_XML|jsonForClause_JSON))?/For_(xmlForClause_XML|jsonForClause_JSON)!drop-2	SELECT(SELECT * FOR a)
-accept	reject	engine	subquerySpecification(For_(xmlForClause_XML|jsonForClause_JSON))?/For_(xmlForClause_XML|jsonForClause_JSON)!drop-3	SELECT(SELECT * FOR XML)
+reject	reject	engine	subquerySpecification(For_(xmlForClause_XML|jsonForClause_JSON))?/For_(xmlForClause_XML|jsonForClause_JSON)!drop-3	SELECT(SELECT * FOR XML)
 reject	reject	engine	subquerySpecification(For_(xmlForClause_XML|jsonForClause_JSON))?/For_(xmlForClause_XML|jsonForClause_JSON)!truncate	SELECT(SELECT * FOR XML
 reject	reject	engine	subquerySpecification(For_(xmlForClause_XML|jsonForClause_JSON))?/For_(xmlForClause_XML|jsonForClause_JSON)!insert	SELECT(SELECT * FOR XML a zzz)
 reject	reject	engine	subquerySpecification(For_(xmlForClause_XML|jsonForClause_JSON))?/For_(xmlForClause_XML|jsonForClause_JSON)!swap	SELECT(SELECT * FORCE XML a)
 reject	reject	engine	subquerySpecification(xmlForClause_XML|jsonForClause_JSON)/xmlForClause_XML	SELECT(SELECT * FOR XML a)
 reject	reject	engine	subquerySpecification(xmlForClause_XML|jsonForClause_JSON)/xmlForClause_XML!swap	SELECT(SELECT * FOR XMLNAMESPACES a)
 reject	reject	engine	subquerySpecification(xmlForClause_XML|jsonForClause_JSON)/jsonForClause_JSON	SELECT(SELECT * FOR JSON a)
-accept	reject	engine	subquerySpecification(xmlForClause_XML|jsonForClause_JSON)/jsonForClause_JSON!drop-2	SELECT(SELECT * FOR JSON)
+reject	reject	engine	subquerySpecification(xmlForClause_XML|jsonForClause_JSON)/jsonForClause_JSON!drop-2	SELECT(SELECT * FOR JSON)
 reject	reject	engine	subquerySpecification(xmlForClause_XML|jsonForClause_JSON)/jsonForClause_JSON!truncate	SELECT(SELECT * FOR JSON
 reject	reject	engine	subquerySpecification(xmlForClause_XML|jsonForClause_JSON)/jsonForClause_JSON!insert	SELECT(SELECT * FOR JSON a zzz)
 reject	reject	engine	subquerySpecification(xmlForClause_XML|jsonForClause_JSON)/jsonForClause_JSON!swap	SELECT(SELECT * FOR JSON_ARRAY a)
@@ -8392,13 +8392,13 @@ accept	accept	engine	querySpecification(Comma_selectExpression)*/%empty	SELECT *
 accept	accept	engine	querySpecification(Comma_selectExpression)*/Comma_selectExpression_(Comma_selectExpression)*	SELECT *, *
 reject	reject	engine	querySpecification(Comma_selectExpression)*/Comma_selectExpression_(Comma_selectExpression)*!drop-1	SELECT * *
 reject	reject	engine	querySpecification(Comma_selectExpression)*/Comma_selectExpression_(Comma_selectExpression)*!drop-2	SELECT *,
-accept	reject	engine	querySpecification(Comma_selectExpression)*/Comma_selectExpression_(Comma_selectExpression)*!insert	SELECT *, * zzz
+reject	reject	engine	querySpecification(Comma_selectExpression)*/Comma_selectExpression_(Comma_selectExpression)*!insert	SELECT *, * zzz
 accept	accept	engine	querySpecification(Into_schemaObjectThreePartName)?/%empty	SELECT *
 accept	accept	engine	querySpecification(Into_schemaObjectThreePartName)?/Into_schemaObjectThreePartName	SELECT * INTO a
-accept	reject	engine	querySpecification(Into_schemaObjectThreePartName)?/Into_schemaObjectThreePartName!drop-1	SELECT * a
+reject	reject	engine	querySpecification(Into_schemaObjectThreePartName)?/Into_schemaObjectThreePartName!drop-1	SELECT * a
 reject	reject	engine	querySpecification(Into_schemaObjectThreePartName)?/Into_schemaObjectThreePartName!drop-2	SELECT * INTO
 reject	reject	engine	querySpecification(Into_schemaObjectThreePartName)?/Into_schemaObjectThreePartName!insert	SELECT * INTO a zzz
-accept	reject	engine	querySpecification(Into_schemaObjectThreePartName)?/Into_schemaObjectThreePartName!swap	SELECT * IS a
+reject	reject	engine	querySpecification(Into_schemaObjectThreePartName)?/Into_schemaObjectThreePartName!swap	SELECT * IS a
 accept	accept	engine	querySpecification(On_identifier)?/%empty	SELECT *
 reject	reject	engine	querySpecification(On_identifier)?/On_identifier	SELECT * ON a
 reject	reject	engine	querySpecification(On_identifier)?/On_identifier!drop-2	SELECT * ON
@@ -8426,7 +8426,7 @@ reject	reject	engine	querySpecification(havingClause)?/havingClause!drop-4	SELEC
 reject	reject	engine	querySpecification(havingClause)?/havingClause!insert	SELECT * HAVING 1 = 1 zzz
 reject	reject	engine	querySpecification(havingClause)?/havingClause!swap	SELECT * HEADER_LIMIT 1 = 1
 accept	accept	engine	querySpecification(windowClause)?/%empty	SELECT *
-reject	accept	engine	querySpecification(windowClause)?/windowClause	SELECT * WINDOW a AS()
+accept	accept	engine	querySpecification(windowClause)?/windowClause	SELECT * WINDOW a AS()
 reject	reject	engine	querySpecification(windowClause)?/windowClause!drop-1	SELECT * a AS()
 reject	reject	engine	querySpecification(windowClause)?/windowClause!drop-2	SELECT * WINDOW AS()
 reject	reject	engine	querySpecification(windowClause)?/windowClause!drop-3	SELECT * WINDOW a()
@@ -8452,14 +8452,14 @@ reject	reject	engine	offsetClause(ROW|ROWS)/ROWS!swap	SELECT * ORDER BY 1 OFFSET
 accept	accept	engine	offsetClause(Fetch_(FIRST|NEXT)_expression_(ROW|ROWS)_ONLY)?/%empty	SELECT * ORDER BY 1 OFFSET 1 ROW
 accept	accept	engine	offsetClause(Fetch_(FIRST|NEXT)_expression_(ROW|ROWS)_ONLY)?/Fetch_(FIRST|NEXT)_expression_(ROW|ROWS)_ONLY	SELECT * ORDER BY 1 OFFSET 1 ROW FETCH FIRST 1 ROW ONLY
 reject	reject	engine	offsetClause(Fetch_(FIRST|NEXT)_expression_(ROW|ROWS)_ONLY)?/Fetch_(FIRST|NEXT)_expression_(ROW|ROWS)_ONLY!drop-1	SELECT * ORDER BY 1 OFFSET 1 ROW FIRST 1 ROW ONLY
-accept	reject	engine	offsetClause(Fetch_(FIRST|NEXT)_expression_(ROW|ROWS)_ONLY)?/Fetch_(FIRST|NEXT)_expression_(ROW|ROWS)_ONLY!drop-2	SELECT * ORDER BY 1 OFFSET 1 ROW FETCH 1 ROW ONLY
-accept	reject	engine	offsetClause(Fetch_(FIRST|NEXT)_expression_(ROW|ROWS)_ONLY)?/Fetch_(FIRST|NEXT)_expression_(ROW|ROWS)_ONLY!drop-3	SELECT * ORDER BY 1 OFFSET 1 ROW FETCH FIRST ROW ONLY
-accept	reject	engine	offsetClause(Fetch_(FIRST|NEXT)_expression_(ROW|ROWS)_ONLY)?/Fetch_(FIRST|NEXT)_expression_(ROW|ROWS)_ONLY!drop-4	SELECT * ORDER BY 1 OFFSET 1 ROW FETCH FIRST 1 ONLY
-accept	reject	engine	offsetClause(Fetch_(FIRST|NEXT)_expression_(ROW|ROWS)_ONLY)?/Fetch_(FIRST|NEXT)_expression_(ROW|ROWS)_ONLY!drop-5	SELECT * ORDER BY 1 OFFSET 1 ROW FETCH FIRST 1 ROW
+reject	reject	engine	offsetClause(Fetch_(FIRST|NEXT)_expression_(ROW|ROWS)_ONLY)?/Fetch_(FIRST|NEXT)_expression_(ROW|ROWS)_ONLY!drop-2	SELECT * ORDER BY 1 OFFSET 1 ROW FETCH 1 ROW ONLY
+reject	reject	engine	offsetClause(Fetch_(FIRST|NEXT)_expression_(ROW|ROWS)_ONLY)?/Fetch_(FIRST|NEXT)_expression_(ROW|ROWS)_ONLY!drop-3	SELECT * ORDER BY 1 OFFSET 1 ROW FETCH FIRST ROW ONLY
+reject	reject	engine	offsetClause(Fetch_(FIRST|NEXT)_expression_(ROW|ROWS)_ONLY)?/Fetch_(FIRST|NEXT)_expression_(ROW|ROWS)_ONLY!drop-4	SELECT * ORDER BY 1 OFFSET 1 ROW FETCH FIRST 1 ONLY
+reject	reject	engine	offsetClause(Fetch_(FIRST|NEXT)_expression_(ROW|ROWS)_ONLY)?/Fetch_(FIRST|NEXT)_expression_(ROW|ROWS)_ONLY!drop-5	SELECT * ORDER BY 1 OFFSET 1 ROW FETCH FIRST 1 ROW
 reject	reject	engine	offsetClause(Fetch_(FIRST|NEXT)_expression_(ROW|ROWS)_ONLY)?/Fetch_(FIRST|NEXT)_expression_(ROW|ROWS)_ONLY!insert	SELECT * ORDER BY 1 OFFSET 1 ROW FETCH FIRST 1 ROW ONLY zzz
 reject	reject	engine	offsetClause(Fetch_(FIRST|NEXT)_expression_(ROW|ROWS)_ONLY)?/Fetch_(FIRST|NEXT)_expression_(ROW|ROWS)_ONLY!swap	SELECT * ORDER BY 1 OFFSET 1 ROW FILE FIRST 1 ROW ONLY
 accept	accept	engine	offsetClause(FIRST|NEXT)/FIRST	SELECT * ORDER BY 1 OFFSET 1 ROW FETCH FIRST 1 ROW ONLY
-accept	reject	engine	offsetClause(FIRST|NEXT)/FIRST!truncate	SELECT * ORDER BY 1 OFFSET 1 ROW FETCH
+reject	reject	engine	offsetClause(FIRST|NEXT)/FIRST!truncate	SELECT * ORDER BY 1 OFFSET 1 ROW FETCH
 reject	reject	engine	offsetClause(FIRST|NEXT)/FIRST!insert	SELECT * ORDER BY 1 OFFSET 1 ROW FETCH FIRST zzz 1 ROW ONLY
 reject	reject	engine	offsetClause(FIRST|NEXT)/FIRST!swap	SELECT * ORDER BY 1 OFFSET 1 ROW FETCH FLUSH_INTERVAL_SECONDS 1 ROW ONLY
 accept	accept	engine	offsetClause(FIRST|NEXT)/NEXT	SELECT * ORDER BY 1 OFFSET 1 ROW FETCH NEXT 1 ROW ONLY
@@ -8514,29 +8514,29 @@ accept	accept	engine	selectColumnOrStarExpression/selectColumn	SELECT(SELECT 1)
 accept	accept	engine	selectColumnOrStarExpression/selectColumn!insert	SELECT(SELECT 1 zzz)
 accept	reject	engine	outputClauseSelectElement/selectStarExpression	DELETE a OUTPUT *
 accept	reject	engine	outputClauseSelectElement/selectStarExpression!drop-1	DELETE a OUTPUT
-accept	reject	engine	outputClauseSelectElement/selectStarExpression!insert	DELETE a OUTPUT * zzz
+reject	reject	engine	outputClauseSelectElement/selectStarExpression!insert	DELETE a OUTPUT * zzz
 accept	accept	engine	outputClauseSelectElement/outputClauseSelectColumn	DELETE a OUTPUT 1
 accept	accept	engine	outputClauseSelectElement/outputClauseSelectColumn!insert	DELETE a OUTPUT 1 zzz
 accept	accept	engine	outputClauseSelectColumn/expression_((As)?_(stringOrIdentifier))?	DELETE a OUTPUT 1
 accept	accept	engine	outputClauseSelectColumn((As)?_(stringOrIdentifier))?/%empty	DELETE a OUTPUT 1
-reject	accept	engine	outputClauseSelectColumn((As)?_(stringOrIdentifier))?/(As)?_stringOrIdentifier	DELETE a OUTPUT 1 'a'
+accept	accept	engine	outputClauseSelectColumn((As)?_(stringOrIdentifier))?/(As)?_stringOrIdentifier	DELETE a OUTPUT 1 'a'
 reject	reject	engine	outputClauseSelectColumn((As)?_(stringOrIdentifier))?/(As)?_stringOrIdentifier!insert	DELETE a OUTPUT 1 'a' zzz
-reject	accept	engine	outputClauseSelectColumn(As)?/%empty	DELETE a OUTPUT 1 'a'
+accept	accept	engine	outputClauseSelectColumn(As)?/%empty	DELETE a OUTPUT 1 'a'
 reject	reject	engine	outputClauseSelectColumn(As)?/%empty!insert	DELETE a OUTPUT 1 zzz 'a'
-reject	accept	engine	outputClauseSelectColumn(As)?/As	DELETE a OUTPUT 1 AS 'a'
+accept	accept	engine	outputClauseSelectColumn(As)?/As	DELETE a OUTPUT 1 AS 'a'
 reject	reject	engine	outputClauseSelectColumn(As)?/As!insert	DELETE a OUTPUT 1 AS zzz 'a'
 reject	reject	engine	outputClauseSelectColumn(As)?/As!swap	DELETE a OUTPUT 1 ASC 'a'
 accept	accept	engine	selectColumn/selectColumnExpression_((As)?_(stringOrIdentifier))?	SELECT 1
 accept	accept	engine	selectColumn/stringOrIdentifier_EqualsSign_selectColumnExpression	SELECT 'a' = 1
 reject	reject	engine	selectColumn/stringOrIdentifier_EqualsSign_selectColumnExpression!drop-2	SELECT 'a' 1
 reject	reject	engine	selectColumn/stringOrIdentifier_EqualsSign_selectColumnExpression!drop-3	SELECT 'a' =
-accept	reject	engine	selectColumn/stringOrIdentifier_EqualsSign_selectColumnExpression!insert	SELECT 'a' = 1 zzz
+reject	reject	engine	selectColumn/stringOrIdentifier_EqualsSign_selectColumnExpression!insert	SELECT 'a' = 1 zzz
 accept	accept	engine	selectColumn((As)?_(stringOrIdentifier))?/%empty	SELECT 1
-reject	accept	engine	selectColumn((As)?_(stringOrIdentifier))?/(As)?_stringOrIdentifier	SELECT 1 'a'
+accept	accept	engine	selectColumn((As)?_(stringOrIdentifier))?/(As)?_stringOrIdentifier	SELECT 1 'a'
 reject	reject	engine	selectColumn((As)?_(stringOrIdentifier))?/(As)?_stringOrIdentifier!insert	SELECT 1 'a' zzz
-reject	accept	engine	selectColumn(As)?/%empty	SELECT 1 'a'
+accept	accept	engine	selectColumn(As)?/%empty	SELECT 1 'a'
 reject	reject	engine	selectColumn(As)?/%empty!insert	SELECT 1 zzz 'a'
-reject	accept	engine	selectColumn(As)?/As	SELECT 1 AS 'a'
+accept	accept	engine	selectColumn(As)?/As	SELECT 1 AS 'a'
 reject	reject	engine	selectColumn(As)?/As!insert	SELECT 1 AS zzz 'a'
 reject	reject	engine	selectColumn(As)?/As!swap	SELECT 1 ASC 'a'
 accept	accept	engine	selectColumnExpression/expression	SELECT 1
@@ -9234,7 +9234,7 @@ accept	accept	engine	deleteStatement(optimizerHints)?/%empty	DELETE a
 reject	reject	engine	deleteStatement(optimizerHints)?/optimizerHints	DELETE a OPTION(a)
 reject	reject	engine	deleteStatement(optimizerHints)?/optimizerHints!drop-1	DELETE a(a)
 reject	reject	engine	deleteStatement(optimizerHints)?/optimizerHints!drop-2	DELETE a OPTION a)
-accept	reject	engine	deleteStatement(optimizerHints)?/optimizerHints!drop-3	DELETE a OPTION()
+reject	reject	engine	deleteStatement(optimizerHints)?/optimizerHints!drop-3	DELETE a OPTION()
 reject	reject	engine	deleteStatement(optimizerHints)?/optimizerHints!drop-4	DELETE a OPTION(a
 reject	reject	engine	deleteStatement(optimizerHints)?/optimizerHints!insert	DELETE a OPTION(a) zzz
 reject	reject	engine	deleteStatement(optimizerHints)?/optimizerHints!swap	DELETE a OR(a)
@@ -9256,7 +9256,7 @@ accept	accept	engine	insertStatement(optimizerHints)?/%empty	INSERT a DEFAULT VA
 reject	reject	engine	insertStatement(optimizerHints)?/optimizerHints	INSERT a DEFAULT VALUES OPTION(a)
 reject	reject	engine	insertStatement(optimizerHints)?/optimizerHints!drop-1	INSERT a DEFAULT VALUES(a)
 reject	reject	engine	insertStatement(optimizerHints)?/optimizerHints!drop-2	INSERT a DEFAULT VALUES OPTION a)
-accept	reject	engine	insertStatement(optimizerHints)?/optimizerHints!drop-3	INSERT a DEFAULT VALUES OPTION()
+reject	reject	engine	insertStatement(optimizerHints)?/optimizerHints!drop-3	INSERT a DEFAULT VALUES OPTION()
 reject	reject	engine	insertStatement(optimizerHints)?/optimizerHints!drop-4	INSERT a DEFAULT VALUES OPTION(a
 reject	reject	engine	insertStatement(optimizerHints)?/optimizerHints!insert	INSERT a DEFAULT VALUES OPTION(a) zzz
 reject	reject	engine	insertStatement(optimizerHints)?/optimizerHints!swap	INSERT a DEFAULT VALUES OR(a)
@@ -9295,14 +9295,14 @@ reject	reject	engine	insertSpecification((valuesInsertSource)|executeInsertSo~7d
 accept	accept	engine	insertSpecification((valuesInsertSource)|executeInsertSo~7d9d24da)/selectInsertSource	INSERT a SELECT *
 reject	reject	engine	insertSpecification((valuesInsertSource)|executeInsertSo~7d9d24da)/selectInsertSource!drop-1	INSERT a *
 reject	reject	engine	insertSpecification((valuesInsertSource)|executeInsertSo~7d9d24da)/selectInsertSource!drop-2	INSERT a SELECT
-accept	reject	engine	insertSpecification((valuesInsertSource)|executeInsertSo~7d9d24da)/selectInsertSource!insert	INSERT a SELECT * zzz
+reject	reject	engine	insertSpecification((valuesInsertSource)|executeInsertSo~7d9d24da)/selectInsertSource!insert	INSERT a SELECT * zzz
 reject	reject	engine	insertSpecification((valuesInsertSource)|executeInsertSo~7d9d24da)/selectInsertSource!swap	INSERT a SELECTIVE *
 accept	accept	engine	updateStatement/updateSpecification_(optimizerHints)?	UPDATE a SET @a = 1
 accept	accept	engine	updateStatement(optimizerHints)?/%empty	UPDATE a SET @a = 1
 reject	reject	engine	updateStatement(optimizerHints)?/optimizerHints	UPDATE a SET @a = 1 OPTION(a)
 reject	reject	engine	updateStatement(optimizerHints)?/optimizerHints!drop-1	UPDATE a SET @a = 1(a)
 reject	reject	engine	updateStatement(optimizerHints)?/optimizerHints!drop-2	UPDATE a SET @a = 1 OPTION a)
-accept	reject	engine	updateStatement(optimizerHints)?/optimizerHints!drop-3	UPDATE a SET @a = 1 OPTION()
+reject	reject	engine	updateStatement(optimizerHints)?/optimizerHints!drop-3	UPDATE a SET @a = 1 OPTION()
 reject	reject	engine	updateStatement(optimizerHints)?/optimizerHints!drop-4	UPDATE a SET @a = 1 OPTION(a
 reject	reject	engine	updateStatement(optimizerHints)?/optimizerHints!insert	UPDATE a SET @a = 1 OPTION(a) zzz
 accept	reject	engine	updateStatement(optimizerHints)?/optimizerHints!swap	UPDATE a SET @a = 1 OR(a)
@@ -9364,8 +9364,8 @@ reject	reject	engine	selectInsertSource(orderByClause_(offsetClause)?)?/orderByC
 accept	accept	engine	selectInsertSource(offsetClause)?/%empty	INSERT a SELECT * ORDER BY 1
 accept	accept	engine	selectInsertSource(offsetClause)?/offsetClause	INSERT a SELECT * ORDER BY 1 OFFSET 1 ROW
 reject	reject	engine	selectInsertSource(offsetClause)?/offsetClause!drop-1	INSERT a SELECT * ORDER BY 1 1 ROW
-accept	reject	engine	selectInsertSource(offsetClause)?/offsetClause!drop-2	INSERT a SELECT * ORDER BY 1 OFFSET ROW
-accept	reject	engine	selectInsertSource(offsetClause)?/offsetClause!drop-3	INSERT a SELECT * ORDER BY 1 OFFSET 1
+reject	reject	engine	selectInsertSource(offsetClause)?/offsetClause!drop-2	INSERT a SELECT * ORDER BY 1 OFFSET ROW
+reject	reject	engine	selectInsertSource(offsetClause)?/offsetClause!drop-3	INSERT a SELECT * ORDER BY 1 OFFSET 1
 reject	reject	engine	selectInsertSource(offsetClause)?/offsetClause!insert	INSERT a SELECT * ORDER BY 1 OFFSET 1 ROW zzz
 reject	reject	engine	selectInsertSource(offsetClause)?/offsetClause!swap	INSERT a SELECT * ORDER BY 1 OFFSETS 1 ROW
 accept	accept	engine	valuesInsertSource/defaultValuesInsertSource	INSERT a DEFAULT VALUES
@@ -10073,11 +10073,11 @@ reject	reject	engine	forClause(browseForClause|(Read_ONLY)|xmlForCl~571d01ed)/Re
 reject	reject	engine	forClause(browseForClause|(Read_ONLY)|xmlForCl~571d01ed)/Read_ONLY!swap	SELECT * FOR READONLY ONLY
 reject	reject	engine	forClause(browseForClause|(Read_ONLY)|xmlForCl~571d01ed)/xmlForClause_XML	SELECT * FOR XML a
 reject	reject	engine	forClause(browseForClause|(Read_ONLY)|xmlForCl~571d01ed)/xmlForClause_XML!drop-1	SELECT * FOR a
-accept	reject	engine	forClause(browseForClause|(Read_ONLY)|xmlForCl~571d01ed)/xmlForClause_XML!drop-2	SELECT * FOR XML
+reject	reject	engine	forClause(browseForClause|(Read_ONLY)|xmlForCl~571d01ed)/xmlForClause_XML!drop-2	SELECT * FOR XML
 reject	reject	engine	forClause(browseForClause|(Read_ONLY)|xmlForCl~571d01ed)/xmlForClause_XML!insert	SELECT * FOR XML a zzz
 reject	reject	engine	forClause(browseForClause|(Read_ONLY)|xmlForCl~571d01ed)/xmlForClause_XML!swap	SELECT * FOR XMLNAMESPACES a
 reject	reject	engine	forClause(browseForClause|(Read_ONLY)|xmlForCl~571d01ed)/jsonForClause_JSON	SELECT * FOR JSON a
-accept	reject	engine	forClause(browseForClause|(Read_ONLY)|xmlForCl~571d01ed)/jsonForClause_JSON!drop-2	SELECT * FOR JSON
+reject	reject	engine	forClause(browseForClause|(Read_ONLY)|xmlForCl~571d01ed)/jsonForClause_JSON!drop-2	SELECT * FOR JSON
 reject	reject	engine	forClause(browseForClause|(Read_ONLY)|xmlForCl~571d01ed)/jsonForClause_JSON!insert	SELECT * FOR JSON a zzz
 reject	reject	engine	forClause(browseForClause|(Read_ONLY)|xmlForCl~571d01ed)/jsonForClause_JSON!swap	SELECT * FOR JSON_ARRAY a
 reject	reject	engine	forClause(browseForClause|(Read_ONLY)|xmlForCl~571d01ed)/updateForClause	SELECT * FOR UPDATE
@@ -10146,14 +10146,14 @@ reject	reject	engine	hint/simpleOptimizerHint!truncate	SELECT * OPTION(
 accept	accept	engine	hint/usePlanOptimizerHint	SELECT * OPTION(USE PLAN 'a')
 reject	reject	engine	hint/usePlanOptimizerHint!drop-1	SELECT * OPTION(PLAN 'a')
 reject	reject	engine	hint/usePlanOptimizerHint!drop-2	SELECT * OPTION(USE 'a')
-accept	reject	engine	hint/usePlanOptimizerHint!drop-3	SELECT * OPTION(USE PLAN)
+reject	reject	engine	hint/usePlanOptimizerHint!drop-3	SELECT * OPTION(USE PLAN)
 reject	reject	engine	hint/usePlanOptimizerHint!truncate	SELECT * OPTION(USE PLAN
 reject	reject	engine	hint/usePlanOptimizerHint!insert	SELECT * OPTION(USE PLAN 'a' zzz)
 reject	reject	engine	hint/usePlanOptimizerHint!swap	SELECT * OPTION(USED PLAN 'a')
 accept	accept	engine	hint/optimizeForOptimizerHint	SELECT * OPTION(OPTIMIZE FOR UNKNOWN)
 reject	reject	engine	hint/optimizeForOptimizerHint!drop-1	SELECT * OPTION(FOR UNKNOWN)
 reject	reject	engine	hint/optimizeForOptimizerHint!drop-2	SELECT * OPTION(OPTIMIZE UNKNOWN)
-accept	reject	engine	hint/optimizeForOptimizerHint!drop-3	SELECT * OPTION(OPTIMIZE FOR)
+reject	reject	engine	hint/optimizeForOptimizerHint!drop-3	SELECT * OPTION(OPTIMIZE FOR)
 reject	reject	engine	hint/optimizeForOptimizerHint!truncate	SELECT * OPTION(OPTIMIZE FOR
 reject	reject	engine	hint/optimizeForOptimizerHint!insert	SELECT * OPTION(OPTIMIZE FOR UNKNOWN zzz)
 reject	reject	engine	hint/optimizeForOptimizerHint!swap	SELECT * OPTION(OPTION FOR UNKNOWN)
@@ -10161,16 +10161,16 @@ accept	accept	engine	hint/tableHintsOptimizerHint	SELECT * OPTION(TABLE HINT(a))
 reject	reject	engine	hint/tableHintsOptimizerHint!drop-1	SELECT * OPTION(HINT(a))
 reject	reject	engine	hint/tableHintsOptimizerHint!drop-2	SELECT * OPTION(TABLE(a))
 reject	reject	engine	hint/tableHintsOptimizerHint!drop-3	SELECT * OPTION(TABLE HINT a))
-accept	reject	engine	hint/tableHintsOptimizerHint!drop-4	SELECT * OPTION(TABLE HINT())
+reject	reject	engine	hint/tableHintsOptimizerHint!drop-4	SELECT * OPTION(TABLE HINT())
 reject	reject	engine	hint/tableHintsOptimizerHint!drop-5	SELECT * OPTION(TABLE HINT(a)
 reject	reject	engine	hint/tableHintsOptimizerHint!truncate	SELECT * OPTION(TABLE HINT(a
 reject	reject	engine	hint/tableHintsOptimizerHint!insert	SELECT * OPTION(TABLE HINT(a) zzz)
 reject	reject	engine	hint/tableHintsOptimizerHint!swap	SELECT * OPTION(TABLESAMPLE HINT(a))
-accept	reject	engine	hint/useHintClause	SELECT * OPTION(USE HINT('a'))
+reject	reject	engine	hint/useHintClause	SELECT * OPTION(USE HINT('a'))
 reject	reject	engine	hint/useHintClause!drop-1	SELECT * OPTION(HINT('a'))
 reject	reject	engine	hint/useHintClause!drop-2	SELECT * OPTION(USE('a'))
 reject	reject	engine	hint/useHintClause!drop-3	SELECT * OPTION(USE HINT 'a'))
-accept	reject	engine	hint/useHintClause!drop-4	SELECT * OPTION(USE HINT())
+reject	reject	engine	hint/useHintClause!drop-4	SELECT * OPTION(USE HINT())
 reject	reject	engine	hint/useHintClause!drop-5	SELECT * OPTION(USE HINT('a')
 reject	reject	engine	hint/useHintClause!truncate	SELECT * OPTION(USE HINT('a'
 reject	reject	engine	hint/useHintClause!insert	SELECT * OPTION(USE HINT('a') zzz)
@@ -10189,7 +10189,7 @@ reject	reject	engine	simpleOptimizerHint/Identifier_Join!drop-1	SELECT * OPTION(
 reject	reject	engine	simpleOptimizerHint/Identifier_Join!insert	SELECT * OPTION(a JOIN zzz)
 reject	reject	engine	simpleOptimizerHint/Identifier_Join!swap	SELECT * OPTION(a JSON)
 accept	accept	engine	simpleOptimizerHint/Merge_Join	SELECT * OPTION(MERGE JOIN)
-accept	reject	engine	simpleOptimizerHint/Merge_Join!drop-2	SELECT * OPTION(MERGE)
+reject	reject	engine	simpleOptimizerHint/Merge_Join!drop-2	SELECT * OPTION(MERGE)
 reject	reject	engine	simpleOptimizerHint/Merge_Join!truncate	SELECT * OPTION(MERGE
 reject	reject	engine	simpleOptimizerHint/Merge_Join!insert	SELECT * OPTION(MERGE JOIN zzz)
 reject	reject	engine	simpleOptimizerHint/Merge_Join!swap	SELECT * OPTION(MESSAGE JOIN)
@@ -10201,14 +10201,14 @@ accept	accept	engine	simpleOptimizerHint/Merge_Union	SELECT * OPTION(MERGE UNION
 reject	reject	engine	simpleOptimizerHint/Merge_Union!insert	SELECT * OPTION(MERGE UNION zzz)
 reject	reject	engine	simpleOptimizerHint/Merge_Union!swap	SELECT * OPTION(MESSAGE UNION)
 accept	accept	engine	simpleOptimizerHint/FORCE_Order	SELECT * OPTION(FORCE ORDER)
-accept	reject	engine	simpleOptimizerHint/FORCE_Order!drop-1	SELECT * OPTION(ORDER)
-accept	reject	engine	simpleOptimizerHint/FORCE_Order!drop-2	SELECT * OPTION(FORCE)
+reject	reject	engine	simpleOptimizerHint/FORCE_Order!drop-1	SELECT * OPTION(ORDER)
+reject	reject	engine	simpleOptimizerHint/FORCE_Order!drop-2	SELECT * OPTION(FORCE)
 reject	reject	engine	simpleOptimizerHint/FORCE_Order!truncate	SELECT * OPTION(FORCE
 reject	reject	engine	simpleOptimizerHint/FORCE_Order!insert	SELECT * OPTION(FORCE ORDER zzz)
 reject	reject	engine	simpleOptimizerHint/FORCE_Order!swap	SELECT * OPTION(FORCED ORDER)
 accept	accept	engine	simpleOptimizerHint/HASH_Group	SELECT * OPTION(HASH GROUP)
 reject	reject	engine	simpleOptimizerHint/HASH_Group!drop-1	SELECT * OPTION(GROUP)
-accept	reject	engine	simpleOptimizerHint/HASH_Group!drop-2	SELECT * OPTION(HASH)
+reject	reject	engine	simpleOptimizerHint/HASH_Group!drop-2	SELECT * OPTION(HASH)
 reject	reject	engine	simpleOptimizerHint/HASH_Group!truncate	SELECT * OPTION(HASH
 reject	reject	engine	simpleOptimizerHint/HASH_Group!insert	SELECT * OPTION(HASH GROUP zzz)
 reject	reject	engine	simpleOptimizerHint/HASH_Group!swap	SELECT * OPTION(HASHED GROUP)
@@ -10244,7 +10244,7 @@ accept	accept	engine	optimizeForOptimizerHint/OPTIMIZE_For_(LeftParenthesis_vari
 accept	accept	engine	optimizeForOptimizerHint(LeftParenthesis_variableValuePair_(C~e8d8e4d2)/LeftParenthesis_variableValuePair_(Comma_variableValueP~d0bbec3f	SELECT * OPTION(OPTIMIZE FOR(@a UNKNOWN))
 reject	reject	engine	optimizeForOptimizerHint(LeftParenthesis_variableValuePair_(C~e8d8e4d2)/LeftParenthesis_variableValuePair_(Comma_variableValueP~d0bbec3f!drop-1	SELECT * OPTION(OPTIMIZE FOR @a UNKNOWN))
 reject	reject	engine	optimizeForOptimizerHint(LeftParenthesis_variableValuePair_(C~e8d8e4d2)/LeftParenthesis_variableValuePair_(Comma_variableValueP~d0bbec3f!drop-2	SELECT * OPTION(OPTIMIZE FOR(UNKNOWN))
-accept	reject	engine	optimizeForOptimizerHint(LeftParenthesis_variableValuePair_(C~e8d8e4d2)/LeftParenthesis_variableValuePair_(Comma_variableValueP~d0bbec3f!drop-3	SELECT * OPTION(OPTIMIZE FOR(@a))
+reject	reject	engine	optimizeForOptimizerHint(LeftParenthesis_variableValuePair_(C~e8d8e4d2)/LeftParenthesis_variableValuePair_(Comma_variableValueP~d0bbec3f!drop-3	SELECT * OPTION(OPTIMIZE FOR(@a))
 reject	reject	engine	optimizeForOptimizerHint(LeftParenthesis_variableValuePair_(C~e8d8e4d2)/LeftParenthesis_variableValuePair_(Comma_variableValueP~d0bbec3f!drop-4	SELECT * OPTION(OPTIMIZE FOR(@a UNKNOWN)
 reject	reject	engine	optimizeForOptimizerHint(LeftParenthesis_variableValuePair_(C~e8d8e4d2)/LeftParenthesis_variableValuePair_(Comma_variableValueP~d0bbec3f!truncate	SELECT * OPTION(OPTIMIZE FOR(@a UNKNOWN
 reject	reject	engine	optimizeForOptimizerHint(LeftParenthesis_variableValuePair_(C~e8d8e4d2)/LeftParenthesis_variableValuePair_(Comma_variableValueP~d0bbec3f!insert	SELECT * OPTION(OPTIMIZE FOR(@a UNKNOWN) zzz)
@@ -10256,7 +10256,7 @@ reject	reject	engine	optimizeForOptimizerHint(Comma_variableValuePair)*/%empty!i
 accept	accept	engine	optimizeForOptimizerHint(Comma_variableValuePair)*/Comma_variableValuePair_(Comma_variableValuePair)*	SELECT * OPTION(OPTIMIZE FOR(@a UNKNOWN, @a UNKNOWN))
 reject	reject	engine	optimizeForOptimizerHint(Comma_variableValuePair)*/Comma_variableValuePair_(Comma_variableValuePair)*!drop-1	SELECT * OPTION(OPTIMIZE FOR(@a UNKNOWN @a UNKNOWN))
 reject	reject	engine	optimizeForOptimizerHint(Comma_variableValuePair)*/Comma_variableValuePair_(Comma_variableValuePair)*!drop-2	SELECT * OPTION(OPTIMIZE FOR(@a UNKNOWN, UNKNOWN))
-accept	reject	engine	optimizeForOptimizerHint(Comma_variableValuePair)*/Comma_variableValuePair_(Comma_variableValuePair)*!drop-3	SELECT * OPTION(OPTIMIZE FOR(@a UNKNOWN, @a))
+reject	reject	engine	optimizeForOptimizerHint(Comma_variableValuePair)*/Comma_variableValuePair_(Comma_variableValuePair)*!drop-3	SELECT * OPTION(OPTIMIZE FOR(@a UNKNOWN, @a))
 reject	reject	engine	optimizeForOptimizerHint(Comma_variableValuePair)*/Comma_variableValuePair_(Comma_variableValuePair)*!truncate	SELECT * OPTION(OPTIMIZE FOR(@a UNKNOWN, @a
 reject	reject	engine	optimizeForOptimizerHint(Comma_variableValuePair)*/Comma_variableValuePair_(Comma_variableValuePair)*!insert	SELECT * OPTION(OPTIMIZE FOR(@a UNKNOWN, @a UNKNOWN zzz))
 reject	reject	engine	optimizeForOptimizerHint(Comma_variableValuePair)*/Comma_variableValuePair_(Comma_variableValuePair)*!swap	SELECT * OPTION(OPTIMIZE FOR(@a UNKNOWN, @a UNLIMITED))
@@ -10264,16 +10264,16 @@ accept	accept	engine	variableValuePair/variable_(EqualsSign_possibleNegativeCons
 reject	reject	engine	variableValuePair/variable_(EqualsSign_possibleNegativeConstant|UNKNOWN)!truncate	SELECT * OPTION(OPTIMIZE FOR(@a
 accept	accept	engine	variableValuePair(EqualsSign_possibleNegativeConstant|UNKNOWN)/EqualsSign_possibleNegativeConstant	SELECT * OPTION(OPTIMIZE FOR(@a = 1))
 reject	reject	engine	variableValuePair(EqualsSign_possibleNegativeConstant|UNKNOWN)/EqualsSign_possibleNegativeConstant!drop-1	SELECT * OPTION(OPTIMIZE FOR(@a 1))
-accept	reject	engine	variableValuePair(EqualsSign_possibleNegativeConstant|UNKNOWN)/EqualsSign_possibleNegativeConstant!drop-2	SELECT * OPTION(OPTIMIZE FOR(@a =))
+reject	reject	engine	variableValuePair(EqualsSign_possibleNegativeConstant|UNKNOWN)/EqualsSign_possibleNegativeConstant!drop-2	SELECT * OPTION(OPTIMIZE FOR(@a =))
 reject	reject	engine	variableValuePair(EqualsSign_possibleNegativeConstant|UNKNOWN)/EqualsSign_possibleNegativeConstant!truncate	SELECT * OPTION(OPTIMIZE FOR(@a =
 reject	reject	engine	variableValuePair(EqualsSign_possibleNegativeConstant|UNKNOWN)/EqualsSign_possibleNegativeConstant!insert	SELECT * OPTION(OPTIMIZE FOR(@a = 1 zzz))
 accept	accept	engine	variableValuePair(EqualsSign_possibleNegativeConstant|UNKNOWN)/UNKNOWN	SELECT * OPTION(OPTIMIZE FOR(@a UNKNOWN))
-accept	reject	engine	useHintClause/Use_HINT_LeftParenthesis_stringLiteral_(Comma_stringLit~4bcf12a7	SELECT * OPTION(USE HINT('a'))
-accept	reject	engine	useHintClause(Comma_stringLiteral)*/%empty	SELECT * OPTION(USE HINT('a'))
+reject	reject	engine	useHintClause/Use_HINT_LeftParenthesis_stringLiteral_(Comma_stringLit~4bcf12a7	SELECT * OPTION(USE HINT('a'))
+reject	reject	engine	useHintClause(Comma_stringLiteral)*/%empty	SELECT * OPTION(USE HINT('a'))
 reject	reject	engine	useHintClause(Comma_stringLiteral)*/%empty!insert	SELECT * OPTION(USE HINT('a' zzz))
-accept	reject	engine	useHintClause(Comma_stringLiteral)*/Comma_stringLiteral_(Comma_stringLiteral)*	SELECT * OPTION(USE HINT('a', 'a'))
+reject	reject	engine	useHintClause(Comma_stringLiteral)*/Comma_stringLiteral_(Comma_stringLiteral)*	SELECT * OPTION(USE HINT('a', 'a'))
 reject	reject	engine	useHintClause(Comma_stringLiteral)*/Comma_stringLiteral_(Comma_stringLiteral)*!drop-1	SELECT * OPTION(USE HINT('a' 'a'))
-accept	reject	engine	useHintClause(Comma_stringLiteral)*/Comma_stringLiteral_(Comma_stringLiteral)*!drop-2	SELECT * OPTION(USE HINT('a',))
+reject	reject	engine	useHintClause(Comma_stringLiteral)*/Comma_stringLiteral_(Comma_stringLiteral)*!drop-2	SELECT * OPTION(USE HINT('a',))
 reject	reject	engine	useHintClause(Comma_stringLiteral)*/Comma_stringLiteral_(Comma_stringLiteral)*!truncate	SELECT * OPTION(USE HINT('a',
 reject	reject	engine	useHintClause(Comma_stringLiteral)*/Comma_stringLiteral_(Comma_stringLiteral)*!insert	SELECT * OPTION(USE HINT('a', 'a' zzz))
 accept	reject	engine	createRuleStatement/Create_Rule_schemaObjectThreePartName_As_booleanExpression	CREATE RULE a AS 1 = 1
@@ -13599,12 +13599,12 @@ accept	accept	engine	expressionBinaryPri1(Star_expressionUnary|Divide_expressi~e
 accept	accept	engine	expressionBinaryPri1(Star_expressionUnary|Divide_expressi~e6a220c0)/PercentSign_expressionUnary	SELECT 1 % 1
 reject	reject	engine	expressionBinaryPri1(Star_expressionUnary|Divide_expressi~e6a220c0)/PercentSign_expressionUnary!drop-2	SELECT 1 %
 accept	accept	engine	expressionBinaryPri1(Star_expressionUnary|Divide_expressi~e6a220c0)/PercentSign_expressionUnary!insert	SELECT 1 % 1 zzz
-reject	accept	engine	expressionBinaryPri1(Star_expressionUnary|Divide_expressi~e6a220c0)/LeftShift_expressionUnary	SELECT 1 << 1
+accept	accept	engine	expressionBinaryPri1(Star_expressionUnary|Divide_expressi~e6a220c0)/LeftShift_expressionUnary	SELECT 1 << 1
 reject	reject	engine	expressionBinaryPri1(Star_expressionUnary|Divide_expressi~e6a220c0)/LeftShift_expressionUnary!drop-2	SELECT 1 <<
-reject	accept	engine	expressionBinaryPri1(Star_expressionUnary|Divide_expressi~e6a220c0)/LeftShift_expressionUnary!insert	SELECT 1 << 1 zzz
-reject	accept	engine	expressionBinaryPri1(Star_expressionUnary|Divide_expressi~e6a220c0)/RightShift_expressionUnary	SELECT 1 >> 1
+accept	accept	engine	expressionBinaryPri1(Star_expressionUnary|Divide_expressi~e6a220c0)/LeftShift_expressionUnary!insert	SELECT 1 << 1 zzz
+accept	accept	engine	expressionBinaryPri1(Star_expressionUnary|Divide_expressi~e6a220c0)/RightShift_expressionUnary	SELECT 1 >> 1
 reject	reject	engine	expressionBinaryPri1(Star_expressionUnary|Divide_expressi~e6a220c0)/RightShift_expressionUnary!drop-2	SELECT 1 >>
-reject	accept	engine	expressionBinaryPri1(Star_expressionUnary|Divide_expressi~e6a220c0)/RightShift_expressionUnary!insert	SELECT 1 >> 1 zzz
+accept	accept	engine	expressionBinaryPri1(Star_expressionUnary|Divide_expressi~e6a220c0)/RightShift_expressionUnary!insert	SELECT 1 >> 1 zzz
 accept	accept	engine	expressionUnary/(Plus|Minus|Tilde)_expressionUnary	SELECT + 1
 reject	reject	engine	expressionUnary/(Plus|Minus|Tilde)_expressionUnary!drop-2	SELECT +
 accept	accept	engine	expressionUnary/(Plus|Minus|Tilde)_expressionUnary!insert	SELECT + 1 zzz
@@ -13675,9 +13675,9 @@ reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d6
 reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/iIfCall_IIF!drop-4	SELECT IIF(1 1, 1, 1)
 reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/iIfCall_IIF!drop-5	SELECT IIF(1 =, 1, 1)
 reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/iIfCall_IIF!drop-6	SELECT IIF(1 = 1 1, 1)
-accept	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/iIfCall_IIF!drop-7	SELECT IIF(1 = 1,, 1)
+reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/iIfCall_IIF!drop-7	SELECT IIF(1 = 1,, 1)
 reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/iIfCall_IIF!drop-8	SELECT IIF(1 = 1, 1 1)
-accept	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/iIfCall_IIF!drop-9	SELECT IIF(1 = 1, 1,)
+reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/iIfCall_IIF!drop-9	SELECT IIF(1 = 1, 1,)
 reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/iIfCall_IIF!drop-10	SELECT IIF(1 = 1, 1, 1
 accept	accept	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/iIfCall_IIF!insert	SELECT IIF(1 = 1, 1, 1) zzz
 accept	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/iIfCall_IIF!swap	SELECT IMMEDIATE(1 = 1, 1, 1)
@@ -13732,7 +13732,7 @@ reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d6
 reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/nullIfExpression!drop-2	SELECT NULLIF 1, 1)
 reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/nullIfExpression!drop-3	SELECT NULLIF(, 1)
 reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/nullIfExpression!drop-4	SELECT NULLIF(1 1)
-accept	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/nullIfExpression!drop-5	SELECT NULLIF(1,)
+reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/nullIfExpression!drop-5	SELECT NULLIF(1,)
 reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/nullIfExpression!drop-6	SELECT NULLIF(1, 1
 accept	accept	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/nullIfExpression!insert	SELECT NULLIF(1, 1) zzz
 accept	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/nullIfExpression!swap	SELECT NULLS(1, 1)
@@ -13751,7 +13751,7 @@ reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d6
 reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/caseExpression!drop-4	SELECT CASE 1 WHEN THEN 1 END
 reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/caseExpression!drop-5	SELECT CASE 1 WHEN 1 1 END
 reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/caseExpression!drop-6	SELECT CASE 1 WHEN 1 THEN END
-accept	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/caseExpression!drop-7	SELECT CASE 1 WHEN 1 THEN 1
+reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/caseExpression!drop-7	SELECT CASE 1 WHEN 1 THEN 1
 accept	accept	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/caseExpression!insert	SELECT CASE 1 WHEN 1 THEN 1 END zzz
 reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/caseExpression!swap	SELECT CAST 1 WHEN 1 THEN 1 END
 accept	accept	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/convertCall	SELECT CONVERT(a, 1)
@@ -13759,7 +13759,7 @@ reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d6
 reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/convertCall!drop-2	SELECT CONVERT a, 1)
 reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/convertCall!drop-3	SELECT CONVERT(, 1)
 reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/convertCall!drop-4	SELECT CONVERT(a 1)
-accept	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/convertCall!drop-5	SELECT CONVERT(a,)
+reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/convertCall!drop-5	SELECT CONVERT(a,)
 reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/convertCall!drop-6	SELECT CONVERT(a, 1
 accept	accept	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/convertCall!insert	SELECT CONVERT(a, 1) zzz
 accept	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/convertCall!swap	SELECT COOKIE(a, 1)
@@ -13767,7 +13767,7 @@ accept	accept	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d6
 reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/tryConvertCall!drop-2	SELECT TRY_CONVERT a, 1)
 reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/tryConvertCall!drop-3	SELECT TRY_CONVERT(, 1)
 reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/tryConvertCall!drop-4	SELECT TRY_CONVERT(a 1)
-accept	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/tryConvertCall!drop-5	SELECT TRY_CONVERT(a,)
+reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/tryConvertCall!drop-5	SELECT TRY_CONVERT(a,)
 reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/tryConvertCall!drop-6	SELECT TRY_CONVERT(a, 1
 accept	accept	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/tryConvertCall!insert	SELECT TRY_CONVERT(a, 1) zzz
 reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/tryConvertCall!swap	SELECT TRY_PARSE(a, 1)
@@ -13797,7 +13797,7 @@ accept	accept	engine	convertCall(Comma_expression)?/%empty	SELECT CONVERT(a, 1)
 reject	reject	engine	convertCall(Comma_expression)?/%empty!insert	SELECT CONVERT(a, 1 zzz)
 accept	accept	engine	convertCall(Comma_expression)?/Comma_expression	SELECT CONVERT(a, 1, 1)
 reject	reject	engine	convertCall(Comma_expression)?/Comma_expression!drop-1	SELECT CONVERT(a, 1 1)
-accept	reject	engine	convertCall(Comma_expression)?/Comma_expression!drop-2	SELECT CONVERT(a, 1,)
+reject	reject	engine	convertCall(Comma_expression)?/Comma_expression!drop-2	SELECT CONVERT(a, 1,)
 reject	reject	engine	convertCall(Comma_expression)?/Comma_expression!truncate	SELECT CONVERT(a, 1,
 reject	reject	engine	convertCall(Comma_expression)?/Comma_expression!insert	SELECT CONVERT(a, 1, 1 zzz)
 accept	accept	engine	tryConvertCall/TryConvert_LeftParenthesis_scalarDataType_Comma_express~5dca6b44	SELECT TRY_CONVERT(a, 1)
@@ -13805,7 +13805,7 @@ accept	accept	engine	tryConvertCall(Comma_expression)?/%empty	SELECT TRY_CONVERT
 reject	reject	engine	tryConvertCall(Comma_expression)?/%empty!insert	SELECT TRY_CONVERT(a, 1 zzz)
 accept	accept	engine	tryConvertCall(Comma_expression)?/Comma_expression	SELECT TRY_CONVERT(a, 1, 1)
 reject	reject	engine	tryConvertCall(Comma_expression)?/Comma_expression!drop-1	SELECT TRY_CONVERT(a, 1 1)
-accept	reject	engine	tryConvertCall(Comma_expression)?/Comma_expression!drop-2	SELECT TRY_CONVERT(a, 1,)
+reject	reject	engine	tryConvertCall(Comma_expression)?/Comma_expression!drop-2	SELECT TRY_CONVERT(a, 1,)
 reject	reject	engine	tryConvertCall(Comma_expression)?/Comma_expression!truncate	SELECT TRY_CONVERT(a, 1,
 reject	reject	engine	tryConvertCall(Comma_expression)?/Comma_expression!insert	SELECT TRY_CONVERT(a, 1, 1 zzz)
 accept	accept	engine	parameterlessCall/User	SELECT USER
@@ -13828,7 +13828,7 @@ reject	reject	engine	expressionList/expression_(Comma_expression)*!insert	SELECT
 accept	accept	engine	expressionList(Comma_expression)*/%empty	SELECT JSON_ARRAY(1)
 accept	accept	engine	expressionList(Comma_expression)*/Comma_expression_(Comma_expression)*	SELECT JSON_ARRAY(1, 1)
 reject	reject	engine	expressionList(Comma_expression)*/Comma_expression_(Comma_expression)*!drop-1	SELECT JSON_ARRAY(1 1)
-accept	reject	engine	expressionList(Comma_expression)*/Comma_expression_(Comma_expression)*!drop-2	SELECT JSON_ARRAY(1,)
+reject	reject	engine	expressionList(Comma_expression)*/Comma_expression_(Comma_expression)*!drop-2	SELECT JSON_ARRAY(1,)
 reject	reject	engine	expressionList(Comma_expression)*/Comma_expression_(Comma_expression)*!truncate	SELECT JSON_ARRAY(1,
 reject	reject	engine	expressionList(Comma_expression)*/Comma_expression_(Comma_expression)*!insert	SELECT JSON_ARRAY(1, 1 zzz)
 accept	accept	engine	jsonObjectExpressionList/(jsonKeyValueExpression_(Comma_jsonKe~31f50409)_(jsonNu~1b655f14	SELECT JSON_OBJECT()
@@ -13870,8 +13870,8 @@ reject	reject	engine	jsonKeyValueExpression(expression_Colon_expression|Label_ex
 reject	reject	engine	jsonKeyValueExpression(expression_Colon_expression|Label_expression)/expression_Colon_expression!truncate	SELECT JSON_OBJECT(1 :
 reject	reject	engine	jsonKeyValueExpression(expression_Colon_expression|Label_expression)/expression_Colon_expression!insert	SELECT JSON_OBJECT(1 : 1 zzz)
 accept	accept	engine	jsonKeyValueExpression(expression_Colon_expression|Label_expression)/Label_expression	SELECT JSON_OBJECT(a: 1)
-reject	accept	engine	windowClause/WINDOW_windowDefinition_(Comma_windowDefinition)*	SELECT * WINDOW a AS()
-reject	accept	engine	windowClause(Comma_windowDefinition)*/%empty	SELECT * WINDOW a AS()
+accept	accept	engine	windowClause/WINDOW_windowDefinition_(Comma_windowDefinition)*	SELECT * WINDOW a AS()
+accept	accept	engine	windowClause(Comma_windowDefinition)*/%empty	SELECT * WINDOW a AS()
 reject	reject	engine	windowClause(Comma_windowDefinition)*/Comma_windowDefinition_(Comma_windowDefinition)*	SELECT * WINDOW a AS(), a AS()
 reject	reject	engine	windowClause(Comma_windowDefinition)*/Comma_windowDefinition_(Comma_windowDefinition)*!drop-1	SELECT * WINDOW a AS() a AS()
 reject	reject	engine	windowClause(Comma_windowDefinition)*/Comma_windowDefinition_(Comma_windowDefinition)*!drop-2	SELECT * WINDOW a AS(), AS()
@@ -13880,28 +13880,28 @@ reject	reject	engine	windowClause(Comma_windowDefinition)*/Comma_windowDefinitio
 reject	reject	engine	windowClause(Comma_windowDefinition)*/Comma_windowDefinition_(Comma_windowDefinition)*!drop-5	SELECT * WINDOW a AS(), a AS(
 reject	reject	engine	windowClause(Comma_windowDefinition)*/Comma_windowDefinition_(Comma_windowDefinition)*!insert	SELECT * WINDOW a AS(), a AS() zzz
 reject	reject	engine	windowClause(Comma_windowDefinition)*/Comma_windowDefinition_(Comma_windowDefinition)*!swap	SELECT * WINDOW a AS(), a ASC()
-reject	accept	engine	windowDefinition/identifier_As_LeftParenthesis_(identifier)?_(PARTITION_~c63983c5	SELECT * WINDOW a AS()
+accept	accept	engine	windowDefinition/identifier_As_LeftParenthesis_(identifier)?_(PARTITION_~c63983c5	SELECT * WINDOW a AS()
 reject	reject	engine	windowDefinition/identifier_As_LeftParenthesis_(identifier)?_(PARTITION_~c63983c5!swap	SELECT * WINDOW a ASC()
-reject	accept	engine	windowDefinition(identifier)?/%empty	SELECT * WINDOW a AS()
-reject	accept	engine	windowDefinition(identifier)?/%empty!insert	SELECT * WINDOW a AS(zzz)
-reject	accept	engine	windowDefinition(identifier)?/identifier	SELECT * WINDOW a AS(a)
+accept	accept	engine	windowDefinition(identifier)?/%empty	SELECT * WINDOW a AS()
+accept	accept	engine	windowDefinition(identifier)?/%empty!insert	SELECT * WINDOW a AS(zzz)
+accept	accept	engine	windowDefinition(identifier)?/identifier	SELECT * WINDOW a AS(a)
 reject	reject	engine	windowDefinition(identifier)?/identifier!insert	SELECT * WINDOW a AS(a zzz)
-reject	accept	engine	windowDefinition(PARTITION_By_expressionList)?/%empty	SELECT * WINDOW a AS()
-reject	accept	engine	windowDefinition(PARTITION_By_expressionList)?/PARTITION_By_expressionList	SELECT * WINDOW a AS(PARTITION BY 1)
+accept	accept	engine	windowDefinition(PARTITION_By_expressionList)?/%empty	SELECT * WINDOW a AS()
+accept	accept	engine	windowDefinition(PARTITION_By_expressionList)?/PARTITION_By_expressionList	SELECT * WINDOW a AS(PARTITION BY 1)
 reject	reject	engine	windowDefinition(PARTITION_By_expressionList)?/PARTITION_By_expressionList!drop-1	SELECT * WINDOW a AS(BY 1)
 reject	reject	engine	windowDefinition(PARTITION_By_expressionList)?/PARTITION_By_expressionList!drop-2	SELECT * WINDOW a AS(PARTITION 1)
 reject	reject	engine	windowDefinition(PARTITION_By_expressionList)?/PARTITION_By_expressionList!drop-3	SELECT * WINDOW a AS(PARTITION BY)
 reject	reject	engine	windowDefinition(PARTITION_By_expressionList)?/PARTITION_By_expressionList!truncate	SELECT * WINDOW a AS(PARTITION BY
 reject	reject	engine	windowDefinition(PARTITION_By_expressionList)?/PARTITION_By_expressionList!insert	SELECT * WINDOW a AS(PARTITION BY 1 zzz)
 reject	reject	engine	windowDefinition(PARTITION_By_expressionList)?/PARTITION_By_expressionList!swap	SELECT * WINDOW a AS(PARTITIONS BY 1)
-reject	accept	engine	windowDefinition(orderByClause)?/%empty	SELECT * WINDOW a AS()
-reject	accept	engine	windowDefinition(orderByClause)?/orderByClause	SELECT * WINDOW a AS(ORDER BY 1)
+accept	accept	engine	windowDefinition(orderByClause)?/%empty	SELECT * WINDOW a AS()
+accept	accept	engine	windowDefinition(orderByClause)?/orderByClause	SELECT * WINDOW a AS(ORDER BY 1)
 reject	reject	engine	windowDefinition(orderByClause)?/orderByClause!drop-2	SELECT * WINDOW a AS(ORDER 1)
 reject	reject	engine	windowDefinition(orderByClause)?/orderByClause!drop-3	SELECT * WINDOW a AS(ORDER BY)
 reject	reject	engine	windowDefinition(orderByClause)?/orderByClause!truncate	SELECT * WINDOW a AS(ORDER BY
 reject	reject	engine	windowDefinition(orderByClause)?/orderByClause!insert	SELECT * WINDOW a AS(ORDER BY 1 zzz)
 reject	reject	engine	windowDefinition(orderByClause)?/orderByClause!swap	SELECT * WINDOW a AS(OUT BY 1)
-reject	accept	engine	windowDefinition(windowFrameClause)?/%empty	SELECT * WINDOW a AS()
+accept	accept	engine	windowDefinition(windowFrameClause)?/%empty	SELECT * WINDOW a AS()
 reject	reject	engine	windowDefinition(windowFrameClause)?/windowFrameClause	SELECT * WINDOW a AS(ROWS CURRENT a)
 reject	reject	engine	windowDefinition(windowFrameClause)?/windowFrameClause!drop-1	SELECT * WINDOW a AS(CURRENT a)
 reject	reject	engine	windowDefinition(windowFrameClause)?/windowFrameClause!drop-2	SELECT * WINDOW a AS(ROWS a)
@@ -13925,15 +13925,15 @@ reject	reject	engine	overClause(orderByClause)?/%empty!insert	SELECT a() OVER(zz
 accept	reject	engine	overClause(orderByClause)?/orderByClause	SELECT a() OVER(ORDER BY 1)
 reject	reject	engine	overClause(orderByClause)?/orderByClause!drop-1	SELECT a() OVER(BY 1)
 reject	reject	engine	overClause(orderByClause)?/orderByClause!drop-2	SELECT a() OVER(ORDER 1)
-accept	reject	engine	overClause(orderByClause)?/orderByClause!drop-3	SELECT a() OVER(ORDER BY)
+reject	reject	engine	overClause(orderByClause)?/orderByClause!drop-3	SELECT a() OVER(ORDER BY)
 reject	reject	engine	overClause(orderByClause)?/orderByClause!truncate	SELECT a() OVER(ORDER BY
 reject	reject	engine	overClause(orderByClause)?/orderByClause!insert	SELECT a() OVER(ORDER BY 1 zzz)
 reject	reject	engine	overClause(orderByClause)?/orderByClause!swap	SELECT a() OVER(OUT BY 1)
 accept	reject	engine	overClause(windowFrameClause)?/%empty	SELECT a() OVER()
 reject	reject	engine	overClause(windowFrameClause)?/windowFrameClause	SELECT a() OVER(ROWS CURRENT a)
 reject	reject	engine	overClause(windowFrameClause)?/windowFrameClause!drop-1	SELECT a() OVER(CURRENT a)
-accept	reject	engine	overClause(windowFrameClause)?/windowFrameClause!drop-2	SELECT a() OVER(ROWS a)
-accept	reject	engine	overClause(windowFrameClause)?/windowFrameClause!drop-3	SELECT a() OVER(ROWS CURRENT)
+reject	reject	engine	overClause(windowFrameClause)?/windowFrameClause!drop-2	SELECT a() OVER(ROWS a)
+reject	reject	engine	overClause(windowFrameClause)?/windowFrameClause!drop-3	SELECT a() OVER(ROWS CURRENT)
 reject	reject	engine	overClause(windowFrameClause)?/windowFrameClause!truncate	SELECT a() OVER(ROWS CURRENT
 reject	reject	engine	overClause(windowFrameClause)?/windowFrameClause!insert	SELECT a() OVER(ROWS CURRENT a zzz)
 reject	reject	engine	overClause(windowFrameClause)?/windowFrameClause!swap	SELECT a() OVER(RULE CURRENT a)
@@ -13972,19 +13972,19 @@ reject	reject	engine	windowFrameExtent/Between_windowFrameDelimiter_And_windowFr
 reject	reject	engine	windowFrameExtent/windowFrameDelimiter	SELECT a() OVER(ROWS CURRENT a)
 reject	reject	engine	windowFrameExtent/windowFrameDelimiter!swap	SELECT a() OVER(ROWS CURRENT_DATE a)
 reject	reject	engine	windowFrameDelimiter/Current_Identifier	SELECT a() OVER(ROWS CURRENT a)
-accept	reject	engine	windowFrameDelimiter/integer_(PRECEDING|FOLLOWING)	SELECT a() OVER(ROWS 1 PRECEDING)
-accept	reject	engine	windowFrameDelimiter/integer_(PRECEDING|FOLLOWING)!drop-1	SELECT a() OVER(ROWS PRECEDING)
-accept	reject	engine	windowFrameDelimiter/integer_(PRECEDING|FOLLOWING)!drop-2	SELECT a() OVER(ROWS 1)
+reject	reject	engine	windowFrameDelimiter/integer_(PRECEDING|FOLLOWING)	SELECT a() OVER(ROWS 1 PRECEDING)
+reject	reject	engine	windowFrameDelimiter/integer_(PRECEDING|FOLLOWING)!drop-1	SELECT a() OVER(ROWS PRECEDING)
+reject	reject	engine	windowFrameDelimiter/integer_(PRECEDING|FOLLOWING)!drop-2	SELECT a() OVER(ROWS 1)
 reject	reject	engine	windowFrameDelimiter/integer_(PRECEDING|FOLLOWING)!truncate	SELECT a() OVER(ROWS 1
 reject	reject	engine	windowFrameDelimiter/integer_(PRECEDING|FOLLOWING)!insert	SELECT a() OVER(ROWS 1 PRECEDING zzz)
 reject	reject	engine	windowFrameDelimiter/integer_(PRECEDING|FOLLOWING)!swap	SELECT a() OVER(ROWS 1 PRECISION)
-accept	reject	engine	windowFrameDelimiter/UNBOUNDED_(PRECEDING|FOLLOWING)	SELECT a() OVER(ROWS UNBOUNDED PRECEDING)
-accept	reject	engine	windowFrameDelimiter/UNBOUNDED_(PRECEDING|FOLLOWING)!drop-2	SELECT a() OVER(ROWS UNBOUNDED)
+reject	reject	engine	windowFrameDelimiter/UNBOUNDED_(PRECEDING|FOLLOWING)	SELECT a() OVER(ROWS UNBOUNDED PRECEDING)
+reject	reject	engine	windowFrameDelimiter/UNBOUNDED_(PRECEDING|FOLLOWING)!drop-2	SELECT a() OVER(ROWS UNBOUNDED)
 reject	reject	engine	windowFrameDelimiter/UNBOUNDED_(PRECEDING|FOLLOWING)!truncate	SELECT a() OVER(ROWS UNBOUNDED
 reject	reject	engine	windowFrameDelimiter/UNBOUNDED_(PRECEDING|FOLLOWING)!insert	SELECT a() OVER(ROWS UNBOUNDED PRECEDING zzz)
-accept	reject	engine	windowFrameDelimiter/UNBOUNDED_(PRECEDING|FOLLOWING)!swap	SELECT a() OVER(ROWS UNCHECKED PRECEDING)
-accept	reject	engine	windowFrameDelimiter(PRECEDING|FOLLOWING)/PRECEDING	SELECT a() OVER(ROWS 1 PRECEDING)
-accept	reject	engine	windowFrameDelimiter(PRECEDING|FOLLOWING)/FOLLOWING	SELECT a() OVER(ROWS 1 FOLLOWING)
+reject	reject	engine	windowFrameDelimiter/UNBOUNDED_(PRECEDING|FOLLOWING)!swap	SELECT a() OVER(ROWS UNCHECKED PRECEDING)
+reject	reject	engine	windowFrameDelimiter(PRECEDING|FOLLOWING)/PRECEDING	SELECT a() OVER(ROWS 1 PRECEDING)
+reject	reject	engine	windowFrameDelimiter(PRECEDING|FOLLOWING)/FOLLOWING	SELECT a() OVER(ROWS 1 FOLLOWING)
 reject	reject	engine	windowFrameDelimiter(PRECEDING|FOLLOWING)/FOLLOWING!insert	SELECT a() OVER(ROWS 1 FOLLOWING zzz)
 reject	reject	engine	windowFrameDelimiter(PRECEDING|FOLLOWING)/FOLLOWING!swap	SELECT a() OVER(ROWS 1 FOR)
 reject	reject	engine	withinGroupClause/WITHIN_Group_LeftParenthesis_((graphPathClause_GRAPH)|o~1014f188	SELECT a() WITHIN GROUP(GRAPH PATH)
@@ -14153,8 +14153,8 @@ accept	accept	engine	caseExpression(expression_simpleCaseExpression|sear~558d2f3
 accept	accept	engine	caseExpression(Else_expression)?/%empty	SELECT CASE 1 WHEN 1 THEN 1 END
 accept	accept	engine	caseExpression(Else_expression)?/Else_expression	SELECT CASE 1 WHEN 1 THEN 1 ELSE 1 END
 reject	reject	engine	caseExpression(Else_expression)?/Else_expression!drop-1	SELECT CASE 1 WHEN 1 THEN 1 1 END
-accept	reject	engine	caseExpression(Else_expression)?/Else_expression!drop-2	SELECT CASE 1 WHEN 1 THEN 1 ELSE END
-accept	reject	engine	caseExpression(Else_expression)?/Else_expression!truncate	SELECT CASE 1 WHEN 1 THEN 1 ELSE
+reject	reject	engine	caseExpression(Else_expression)?/Else_expression!drop-2	SELECT CASE 1 WHEN 1 THEN 1 ELSE END
+reject	reject	engine	caseExpression(Else_expression)?/Else_expression!truncate	SELECT CASE 1 WHEN 1 THEN 1 ELSE
 reject	reject	engine	caseExpression(Else_expression)?/Else_expression!insert	SELECT CASE 1 WHEN 1 THEN 1 ELSE 1 zzz END
 reject	reject	engine	caseExpression(Else_expression)?/Else_expression!swap	SELECT CASE 1 WHEN 1 THEN 1 ENABLE 1 END
 accept	accept	engine	simpleCaseExpression/(simpleWhenClause)+	SELECT CASE 1 WHEN 1 THEN 1 END
@@ -14249,7 +14249,7 @@ accept	accept	engine	selectStarExpression/(multiPartIdentifier_Dot_Star|Star)	SE
 accept	accept	engine	selectStarExpression(multiPartIdentifier_Dot_Star|Star)/multiPartIdentifier_Dot_Star	SELECT a.*
 reject	reject	engine	selectStarExpression(multiPartIdentifier_Dot_Star|Star)/multiPartIdentifier_Dot_Star!drop-1	SELECT.*
 reject	reject	engine	selectStarExpression(multiPartIdentifier_Dot_Star|Star)/multiPartIdentifier_Dot_Star!drop-2	SELECT a *
-accept	reject	engine	selectStarExpression(multiPartIdentifier_Dot_Star|Star)/multiPartIdentifier_Dot_Star!insert	SELECT a.* zzz
+reject	reject	engine	selectStarExpression(multiPartIdentifier_Dot_Star|Star)/multiPartIdentifier_Dot_Star!insert	SELECT a.* zzz
 accept	accept	engine	selectStarExpression(multiPartIdentifier_Dot_Star|Star)/Star	SELECT *
 accept	accept	engine	revertStatement/Revert_(With_COOKIE_EqualsSign_expression)?	REVERT
 accept	accept	engine	revertStatement(With_COOKIE_EqualsSign_expression)?/%empty	REVERT
@@ -14336,7 +14336,7 @@ accept	reject	engine	identifierVariable/Variable!truncate	DECLARE
 reject	reject	engine	identifierOrInteger/identifier	DELETE a WITH(INDEX = a)
 reject	reject	engine	identifierOrInteger/integer	DELETE a WITH(INDEX = 1)
 reject	reject	engine	identifierOrInteger/integer!insert	DELETE a WITH(INDEX = 1 zzz)
-reject	accept	engine	stringOrIdentifier/stringLiteral	SELECT 1 'a'
+accept	accept	engine	stringOrIdentifier/stringLiteral	SELECT 1 'a'
 accept	accept	engine	stringOrIdentifier/identifier	SELECT 1 a
 reject	reject	engine	stringOrIdentifier/identifier!insert	SELECT 1 a zzz
 reject	reject	engine	stringOrSignedIntegerOrIdentifier/stringLiteral	ALTER DATABASE SCOPED CONFIGURATION SET a = 'a'
@@ -14469,99 +14469,99 @@ reject	reject	engine	onOff/On	ALTER DATABASE SCOPED CONFIGURATION SET a = ON
 reject	reject	engine	onOff/Off	ALTER DATABASE SCOPED CONFIGURATION SET a = OFF
 reject	reject	engine	onOff/Off!insert	ALTER DATABASE SCOPED CONFIGURATION SET a = OFF zzz
 reject	reject	engine	onOff/Off!swap	ALTER DATABASE SCOPED CONFIGURATION SET a = OFFLINE
-accept	reject	engine	securityStatementPermission/Identifier	GRANT a TO PUBLIC
+reject	reject	engine	securityStatementPermission/Identifier	GRANT a TO PUBLIC
 reject	reject	engine	securityStatementPermission/Add	GRANT ADD TO PUBLIC
 reject	reject	engine	securityStatementPermission/Add!insert	GRANT ADD zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Add!swap	GRANT ADMIN TO PUBLIC
+reject	reject	engine	securityStatementPermission/Add!swap	GRANT ADMIN TO PUBLIC
 accept	accept	engine	securityStatementPermission/All	GRANT ALL TO PUBLIC
 reject	reject	engine	securityStatementPermission/All!insert	GRANT ALL zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/All!swap	GRANT ALLOW_CONNECTIONS TO PUBLIC
+reject	reject	engine	securityStatementPermission/All!swap	GRANT ALLOW_CONNECTIONS TO PUBLIC
 accept	accept	engine	securityStatementPermission/Alter	GRANT ALTER TO PUBLIC
-accept	reject	engine	securityStatementPermission/Alter!insert	GRANT ALTER zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Alter!swap	GRANT ALWAYS TO PUBLIC
+reject	reject	engine	securityStatementPermission/Alter!insert	GRANT ALTER zzz TO PUBLIC
+reject	reject	engine	securityStatementPermission/Alter!swap	GRANT ALWAYS TO PUBLIC
 reject	reject	engine	securityStatementPermission/And	GRANT AND TO PUBLIC
 reject	reject	engine	securityStatementPermission/And!insert	GRANT AND zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/And!swap	GRANT ANONYMOUS TO PUBLIC
+reject	reject	engine	securityStatementPermission/And!swap	GRANT ANONYMOUS TO PUBLIC
 reject	reject	engine	securityStatementPermission/Any	GRANT ANY TO PUBLIC
 reject	reject	engine	securityStatementPermission/Any!insert	GRANT ANY zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Any!swap	GRANT APPEND_ONLY TO PUBLIC
+reject	reject	engine	securityStatementPermission/Any!swap	GRANT APPEND_ONLY TO PUBLIC
 reject	reject	engine	securityStatementPermission/As	GRANT AS TO PUBLIC
 reject	reject	engine	securityStatementPermission/As!insert	GRANT AS zzz TO PUBLIC
 reject	reject	engine	securityStatementPermission/Asc	GRANT ASC TO PUBLIC
 reject	reject	engine	securityStatementPermission/Asc!insert	GRANT ASC zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Asc!swap	GRANT ASSEMBLY TO PUBLIC
+reject	reject	engine	securityStatementPermission/Asc!swap	GRANT ASSEMBLY TO PUBLIC
 reject	reject	engine	securityStatementPermission/Authorization	GRANT AUTHORIZATION TO PUBLIC
 reject	reject	engine	securityStatementPermission/Authorization!insert	GRANT AUTHORIZATION zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Authorization!swap	GRANT AUTH_REALM TO PUBLIC
+reject	reject	engine	securityStatementPermission/Authorization!swap	GRANT AUTH_REALM TO PUBLIC
 reject	reject	engine	securityStatementPermission/Backup	GRANT BACKUP TO PUBLIC
 reject	reject	engine	securityStatementPermission/Backup!insert	GRANT BACKUP zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Backup!swap	GRANT BASE64 TO PUBLIC
+reject	reject	engine	securityStatementPermission/Backup!swap	GRANT BASE64 TO PUBLIC
 reject	reject	engine	securityStatementPermission/Begin	GRANT BEGIN TO PUBLIC
 reject	reject	engine	securityStatementPermission/Begin!insert	GRANT BEGIN zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Begin!swap	GRANT BEGIN_DIALOG TO PUBLIC
+reject	reject	engine	securityStatementPermission/Begin!swap	GRANT BEGIN_DIALOG TO PUBLIC
 reject	reject	engine	securityStatementPermission/Between	GRANT BETWEEN TO PUBLIC
 reject	reject	engine	securityStatementPermission/Between!insert	GRANT BETWEEN zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Between!swap	GRANT BINDING TO PUBLIC
+reject	reject	engine	securityStatementPermission/Between!swap	GRANT BINDING TO PUBLIC
 reject	reject	engine	securityStatementPermission/Break	GRANT BREAK TO PUBLIC
 reject	reject	engine	securityStatementPermission/Break!insert	GRANT BREAK zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Break!swap	GRANT BROKER TO PUBLIC
+reject	reject	engine	securityStatementPermission/Break!swap	GRANT BROKER TO PUBLIC
 reject	reject	engine	securityStatementPermission/Browse	GRANT BROWSE TO PUBLIC
 reject	reject	engine	securityStatementPermission/Browse!insert	GRANT BROWSE zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Browse!swap	GRANT BUCKET_COUNT TO PUBLIC
+reject	reject	engine	securityStatementPermission/Browse!swap	GRANT BUCKET_COUNT TO PUBLIC
 reject	reject	engine	securityStatementPermission/Bulk	GRANT BULK TO PUBLIC
 reject	reject	engine	securityStatementPermission/Bulk!insert	GRANT BULK zzz TO PUBLIC
 reject	reject	engine	securityStatementPermission/By	GRANT BY TO PUBLIC
 reject	reject	engine	securityStatementPermission/By!insert	GRANT BY zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/By!swap	GRANT CACHE TO PUBLIC
+reject	reject	engine	securityStatementPermission/By!swap	GRANT CACHE TO PUBLIC
 reject	reject	engine	securityStatementPermission/Cascade	GRANT CASCADE TO PUBLIC
 reject	reject	engine	securityStatementPermission/Cascade!insert	GRANT CASCADE zzz TO PUBLIC
 reject	reject	engine	securityStatementPermission/Case	GRANT CASE TO PUBLIC
 reject	reject	engine	securityStatementPermission/Case!insert	GRANT CASE zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Case!swap	GRANT CAST TO PUBLIC
+reject	reject	engine	securityStatementPermission/Case!swap	GRANT CAST TO PUBLIC
 reject	reject	engine	securityStatementPermission/Check	GRANT CHECK TO PUBLIC
 reject	reject	engine	securityStatementPermission/Check!insert	GRANT CHECK zzz TO PUBLIC
-reject	accept	engine	securityStatementPermission/Checkpoint	GRANT CHECKPOINT TO PUBLIC
+accept	accept	engine	securityStatementPermission/Checkpoint	GRANT CHECKPOINT TO PUBLIC
 reject	reject	engine	securityStatementPermission/Checkpoint!insert	GRANT CHECKPOINT zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Checkpoint!swap	GRANT CLASSIFICATION TO PUBLIC
+reject	reject	engine	securityStatementPermission/Checkpoint!swap	GRANT CLASSIFICATION TO PUBLIC
 reject	reject	engine	securityStatementPermission/Close	GRANT CLOSE TO PUBLIC
 reject	reject	engine	securityStatementPermission/Close!insert	GRANT CLOSE zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Close!swap	GRANT CLUSTER TO PUBLIC
+reject	reject	engine	securityStatementPermission/Close!swap	GRANT CLUSTER TO PUBLIC
 reject	reject	engine	securityStatementPermission/Clustered	GRANT CLUSTERED TO PUBLIC
 reject	reject	engine	securityStatementPermission/Clustered!insert	GRANT CLUSTERED zzz TO PUBLIC
 reject	reject	engine	securityStatementPermission/Coalesce	GRANT COALESCE TO PUBLIC
 reject	reject	engine	securityStatementPermission/Coalesce!insert	GRANT COALESCE zzz TO PUBLIC
 reject	reject	engine	securityStatementPermission/Collate	GRANT COLLATE TO PUBLIC
 reject	reject	engine	securityStatementPermission/Collate!insert	GRANT COLLATE zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Collate!swap	GRANT COLLECTION TO PUBLIC
+reject	reject	engine	securityStatementPermission/Collate!swap	GRANT COLLECTION TO PUBLIC
 reject	reject	engine	securityStatementPermission/Column	GRANT COLUMN TO PUBLIC
 reject	reject	engine	securityStatementPermission/Column!insert	GRANT COLUMN zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Column!swap	GRANT COLUMNSTORE TO PUBLIC
+reject	reject	engine	securityStatementPermission/Column!swap	GRANT COLUMNSTORE TO PUBLIC
 reject	reject	engine	securityStatementPermission/Commit	GRANT COMMIT TO PUBLIC
 reject	reject	engine	securityStatementPermission/Commit!insert	GRANT COMMIT zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Commit!swap	GRANT COMMITTED TO PUBLIC
+reject	reject	engine	securityStatementPermission/Commit!swap	GRANT COMMITTED TO PUBLIC
 reject	reject	engine	securityStatementPermission/Compute	GRANT COMPUTE TO PUBLIC
 reject	reject	engine	securityStatementPermission/Compute!insert	GRANT COMPUTE zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Compute!swap	GRANT CONFIGURATION TO PUBLIC
+reject	reject	engine	securityStatementPermission/Compute!swap	GRANT CONFIGURATION TO PUBLIC
 reject	reject	engine	securityStatementPermission/Constraint	GRANT CONSTRAINT TO PUBLIC
 reject	reject	engine	securityStatementPermission/Constraint!insert	GRANT CONSTRAINT zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Constraint!swap	GRANT CONTAINED TO PUBLIC
+reject	reject	engine	securityStatementPermission/Constraint!swap	GRANT CONTAINED TO PUBLIC
 reject	reject	engine	securityStatementPermission/Contains	GRANT CONTAINS TO PUBLIC
 reject	reject	engine	securityStatementPermission/Contains!insert	GRANT CONTAINS zzz TO PUBLIC
 reject	reject	engine	securityStatementPermission/ContainsTable	GRANT CONTAINSTABLE TO PUBLIC
 reject	reject	engine	securityStatementPermission/ContainsTable!insert	GRANT CONTAINSTABLE zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/ContainsTable!swap	GRANT CONTENT TO PUBLIC
+reject	reject	engine	securityStatementPermission/ContainsTable!swap	GRANT CONTENT TO PUBLIC
 reject	reject	engine	securityStatementPermission/Continue	GRANT CONTINUE TO PUBLIC
 reject	reject	engine	securityStatementPermission/Continue!insert	GRANT CONTINUE zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Continue!swap	GRANT CONTRACT TO PUBLIC
+reject	reject	engine	securityStatementPermission/Continue!swap	GRANT CONTRACT TO PUBLIC
 reject	reject	engine	securityStatementPermission/Convert	GRANT CONVERT TO PUBLIC
 reject	reject	engine	securityStatementPermission/Convert!insert	GRANT CONVERT zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Convert!swap	GRANT COOKIE TO PUBLIC
-accept	reject	engine	securityStatementPermission/Create	GRANT CREATE TO PUBLIC
-accept	reject	engine	securityStatementPermission/Create!insert	GRANT CREATE zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Create!swap	GRANT CREATE_INDEX TO PUBLIC
+reject	reject	engine	securityStatementPermission/Convert!swap	GRANT COOKIE TO PUBLIC
+reject	reject	engine	securityStatementPermission/Create	GRANT CREATE TO PUBLIC
+reject	reject	engine	securityStatementPermission/Create!insert	GRANT CREATE zzz TO PUBLIC
+reject	reject	engine	securityStatementPermission/Create!swap	GRANT CREATE_INDEX TO PUBLIC
 reject	reject	engine	securityStatementPermission/Cross	GRANT CROSS TO PUBLIC
 reject	reject	engine	securityStatementPermission/Cross!insert	GRANT CROSS zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Cross!swap	GRANT CRYPTOGRAPHIC TO PUBLIC
+reject	reject	engine	securityStatementPermission/Cross!swap	GRANT CRYPTOGRAPHIC TO PUBLIC
 reject	reject	engine	securityStatementPermission/Current	GRANT CURRENT TO PUBLIC
 reject	reject	engine	securityStatementPermission/Current!insert	GRANT CURRENT zzz TO PUBLIC
 reject	reject	engine	securityStatementPermission/CurrentDate	GRANT CURRENT_DATE TO PUBLIC
@@ -14574,80 +14574,80 @@ reject	reject	engine	securityStatementPermission/CurrentUser	GRANT CURRENT_USER 
 reject	reject	engine	securityStatementPermission/CurrentUser!insert	GRANT CURRENT_USER zzz TO PUBLIC
 reject	reject	engine	securityStatementPermission/Cursor	GRANT CURSOR TO PUBLIC
 reject	reject	engine	securityStatementPermission/Cursor!insert	GRANT CURSOR zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Cursor!swap	GRANT CURSOR_DEFAULT TO PUBLIC
+reject	reject	engine	securityStatementPermission/Cursor!swap	GRANT CURSOR_DEFAULT TO PUBLIC
 reject	reject	engine	securityStatementPermission/Database	GRANT DATABASE TO PUBLIC
 reject	reject	engine	securityStatementPermission/Database!insert	GRANT DATABASE zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Database!swap	GRANT DATA_COMPRESSION TO PUBLIC
+reject	reject	engine	securityStatementPermission/Database!swap	GRANT DATA_COMPRESSION TO PUBLIC
 reject	reject	engine	securityStatementPermission/Dbcc	GRANT DBCC TO PUBLIC
 reject	reject	engine	securityStatementPermission/Dbcc!insert	GRANT DBCC zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Dbcc!swap	GRANT DB_CHAINING TO PUBLIC
+reject	reject	engine	securityStatementPermission/Dbcc!swap	GRANT DB_CHAINING TO PUBLIC
 reject	reject	engine	securityStatementPermission/Deallocate	GRANT DEALLOCATE TO PUBLIC
 reject	reject	engine	securityStatementPermission/Deallocate!insert	GRANT DEALLOCATE zzz TO PUBLIC
 reject	reject	engine	securityStatementPermission/Declare	GRANT DECLARE TO PUBLIC
 reject	reject	engine	securityStatementPermission/Declare!insert	GRANT DECLARE zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Declare!swap	GRANT DECRYPTION TO PUBLIC
+reject	reject	engine	securityStatementPermission/Declare!swap	GRANT DECRYPTION TO PUBLIC
 reject	reject	engine	securityStatementPermission/Default	GRANT DEFAULT TO PUBLIC
 reject	reject	engine	securityStatementPermission/Default!insert	GRANT DEFAULT zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Default!swap	GRANT DEFAULT_DATABASE TO PUBLIC
+reject	reject	engine	securityStatementPermission/Default!swap	GRANT DEFAULT_DATABASE TO PUBLIC
 accept	accept	engine	securityStatementPermission/Delete	GRANT DELETE TO PUBLIC
 reject	reject	engine	securityStatementPermission/Delete!insert	GRANT DELETE zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Delete!swap	GRANT DELIMITEDTEXT TO PUBLIC
-accept	reject	engine	securityStatementPermission/Deny	GRANT DENY TO PUBLIC
-accept	reject	engine	securityStatementPermission/Deny!insert	GRANT DENY zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Deny!swap	GRANT DEPENDENTS TO PUBLIC
+reject	reject	engine	securityStatementPermission/Delete!swap	GRANT DELIMITEDTEXT TO PUBLIC
+reject	reject	engine	securityStatementPermission/Deny	GRANT DENY TO PUBLIC
+reject	reject	engine	securityStatementPermission/Deny!insert	GRANT DENY zzz TO PUBLIC
+reject	reject	engine	securityStatementPermission/Deny!swap	GRANT DEPENDENTS TO PUBLIC
 reject	reject	engine	securityStatementPermission/Desc	GRANT DESC TO PUBLIC
 reject	reject	engine	securityStatementPermission/Desc!insert	GRANT DESC zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Desc!swap	GRANT DESCRIPTION TO PUBLIC
+reject	reject	engine	securityStatementPermission/Desc!swap	GRANT DESCRIPTION TO PUBLIC
 reject	reject	engine	securityStatementPermission/Distinct	GRANT DISTINCT TO PUBLIC
 reject	reject	engine	securityStatementPermission/Distinct!insert	GRANT DISTINCT zzz TO PUBLIC
 reject	reject	engine	securityStatementPermission/Distributed	GRANT DISTRIBUTED TO PUBLIC
 reject	reject	engine	securityStatementPermission/Distributed!insert	GRANT DISTRIBUTED zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Distributed!swap	GRANT DISTRIBUTED_AGG TO PUBLIC
+reject	reject	engine	securityStatementPermission/Distributed!swap	GRANT DISTRIBUTED_AGG TO PUBLIC
 reject	reject	engine	securityStatementPermission/Double	GRANT DOUBLE TO PUBLIC
 reject	reject	engine	securityStatementPermission/Double!insert	GRANT DOUBLE zzz TO PUBLIC
 reject	reject	engine	securityStatementPermission/Drop	GRANT DROP TO PUBLIC
 reject	reject	engine	securityStatementPermission/Drop!insert	GRANT DROP zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Drop!swap	GRANT DROP_INDEX TO PUBLIC
+reject	reject	engine	securityStatementPermission/Drop!swap	GRANT DROP_INDEX TO PUBLIC
 reject	reject	engine	securityStatementPermission/Else	GRANT ELSE TO PUBLIC
 reject	reject	engine	securityStatementPermission/Else!insert	GRANT ELSE zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Else!swap	GRANT ENABLE TO PUBLIC
+reject	reject	engine	securityStatementPermission/Else!swap	GRANT ENABLE TO PUBLIC
 reject	reject	engine	securityStatementPermission/End	GRANT END TO PUBLIC
 reject	reject	engine	securityStatementPermission/End!insert	GRANT END zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/End!swap	GRANT ENDPOINT TO PUBLIC
+reject	reject	engine	securityStatementPermission/End!swap	GRANT ENDPOINT TO PUBLIC
 reject	reject	engine	securityStatementPermission/Errlvl	GRANT ERRLVL TO PUBLIC
 reject	reject	engine	securityStatementPermission/Errlvl!insert	GRANT ERRLVL zzz TO PUBLIC
 reject	reject	engine	securityStatementPermission/Escape	GRANT ESCAPE TO PUBLIC
 reject	reject	engine	securityStatementPermission/Escape!insert	GRANT ESCAPE zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Escape!swap	GRANT EVENT TO PUBLIC
+reject	reject	engine	securityStatementPermission/Escape!swap	GRANT EVENT TO PUBLIC
 reject	reject	engine	securityStatementPermission/Except	GRANT EXCEPT TO PUBLIC
 reject	reject	engine	securityStatementPermission/Except!insert	GRANT EXCEPT zzz TO PUBLIC
 accept	accept	engine	securityStatementPermission/Exec	GRANT EXEC TO PUBLIC
 reject	reject	engine	securityStatementPermission/Exec!insert	GRANT EXEC zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Exec!swap	GRANT EXECUTABLE TO PUBLIC
+reject	reject	engine	securityStatementPermission/Exec!swap	GRANT EXECUTABLE TO PUBLIC
 accept	accept	engine	securityStatementPermission/Execute	GRANT EXECUTE TO PUBLIC
 reject	reject	engine	securityStatementPermission/Execute!insert	GRANT EXECUTE zzz TO PUBLIC
 reject	reject	engine	securityStatementPermission/External	GRANT EXTERNAL TO PUBLIC
 reject	reject	engine	securityStatementPermission/External!insert	GRANT EXTERNAL zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/External!swap	GRANT EXTERNAL_MONITOR TO PUBLIC
+reject	reject	engine	securityStatementPermission/External!swap	GRANT EXTERNAL_MONITOR TO PUBLIC
 reject	reject	engine	securityStatementPermission/Exists	GRANT EXISTS TO PUBLIC
 reject	reject	engine	securityStatementPermission/Exists!insert	GRANT EXISTS zzz TO PUBLIC
 reject	reject	engine	securityStatementPermission/Exit	GRANT EXIT TO PUBLIC
 reject	reject	engine	securityStatementPermission/Exit!insert	GRANT EXIT zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Exit!swap	GRANT EXTENSION TO PUBLIC
+reject	reject	engine	securityStatementPermission/Exit!swap	GRANT EXTENSION TO PUBLIC
 reject	reject	engine	securityStatementPermission/Fetch	GRANT FETCH TO PUBLIC
 reject	reject	engine	securityStatementPermission/Fetch!insert	GRANT FETCH zzz TO PUBLIC
 reject	reject	engine	securityStatementPermission/File	GRANT FILE TO PUBLIC
 reject	reject	engine	securityStatementPermission/File!insert	GRANT FILE zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/File!swap	GRANT FILEGROUP TO PUBLIC
+reject	reject	engine	securityStatementPermission/File!swap	GRANT FILEGROUP TO PUBLIC
 reject	reject	engine	securityStatementPermission/FillFactor	GRANT FILLFACTOR TO PUBLIC
 reject	reject	engine	securityStatementPermission/FillFactor!insert	GRANT FILLFACTOR zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/FillFactor!swap	GRANT FILTERING TO PUBLIC
+reject	reject	engine	securityStatementPermission/FillFactor!swap	GRANT FILTERING TO PUBLIC
 reject	reject	engine	securityStatementPermission/For	GRANT FOR TO PUBLIC
 reject	reject	engine	securityStatementPermission/For!insert	GRANT FOR zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/For!swap	GRANT FORCE TO PUBLIC
+reject	reject	engine	securityStatementPermission/For!swap	GRANT FORCE TO PUBLIC
 reject	reject	engine	securityStatementPermission/Foreign	GRANT FOREIGN TO PUBLIC
 reject	reject	engine	securityStatementPermission/Foreign!insert	GRANT FOREIGN zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Foreign!swap	GRANT FORMAT TO PUBLIC
+reject	reject	engine	securityStatementPermission/Foreign!swap	GRANT FORMAT TO PUBLIC
 reject	reject	engine	securityStatementPermission/FreeText	GRANT FREETEXT TO PUBLIC
 reject	reject	engine	securityStatementPermission/FreeText!insert	GRANT FREETEXT zzz TO PUBLIC
 reject	reject	engine	securityStatementPermission/FreeTextTable	GRANT FREETEXTTABLE TO PUBLIC
@@ -14655,264 +14655,264 @@ reject	reject	engine	securityStatementPermission/FreeTextTable!insert	GRANT FREE
 reject	reject	engine	securityStatementPermission/FreeTextTable!swap	GRANT FROM TO PUBLIC
 reject	reject	engine	securityStatementPermission/Full	GRANT FULL TO PUBLIC
 reject	reject	engine	securityStatementPermission/Full!insert	GRANT FULL zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Full!swap	GRANT FULLSCAN TO PUBLIC
+reject	reject	engine	securityStatementPermission/Full!swap	GRANT FULLSCAN TO PUBLIC
 reject	reject	engine	securityStatementPermission/Function	GRANT FUNCTION TO PUBLIC
 reject	reject	engine	securityStatementPermission/Function!insert	GRANT FUNCTION zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Function!swap	GRANT GB TO PUBLIC
+reject	reject	engine	securityStatementPermission/Function!swap	GRANT GB TO PUBLIC
 reject	reject	engine	securityStatementPermission/GoTo	GRANT GOTO TO PUBLIC
 reject	reject	engine	securityStatementPermission/GoTo!insert	GRANT GOTO zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/GoTo!swap	GRANT GOVERNOR TO PUBLIC
+reject	reject	engine	securityStatementPermission/GoTo!swap	GRANT GOVERNOR TO PUBLIC
 reject	reject	engine	securityStatementPermission/Group	GRANT GROUP TO PUBLIC
 reject	reject	engine	securityStatementPermission/Group!insert	GRANT GROUP zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Group!swap	GRANT GROUPING TO PUBLIC
+reject	reject	engine	securityStatementPermission/Group!swap	GRANT GROUPING TO PUBLIC
 reject	reject	engine	securityStatementPermission/Having	GRANT HAVING TO PUBLIC
 reject	reject	engine	securityStatementPermission/Having!insert	GRANT HAVING zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Having!swap	GRANT HEADER_LIMIT TO PUBLIC
+reject	reject	engine	securityStatementPermission/Having!swap	GRANT HEADER_LIMIT TO PUBLIC
 reject	reject	engine	securityStatementPermission/HoldLock	GRANT HOLDLOCK TO PUBLIC
 reject	reject	engine	securityStatementPermission/HoldLock!insert	GRANT HOLDLOCK zzz TO PUBLIC
 reject	reject	engine	securityStatementPermission/Identity	GRANT IDENTITY TO PUBLIC
 reject	reject	engine	securityStatementPermission/Identity!insert	GRANT IDENTITY zzz TO PUBLIC
 reject	reject	engine	securityStatementPermission/IdentityInsert	GRANT IDENTITY_INSERT TO PUBLIC
 reject	reject	engine	securityStatementPermission/IdentityInsert!insert	GRANT IDENTITY_INSERT zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/IdentityInsert!swap	GRANT IDENTITY_VALUE TO PUBLIC
+reject	reject	engine	securityStatementPermission/IdentityInsert!swap	GRANT IDENTITY_VALUE TO PUBLIC
 reject	reject	engine	securityStatementPermission/IdentityColumn	GRANT IDENTITYCOL TO PUBLIC
 reject	reject	engine	securityStatementPermission/IdentityColumn!insert	GRANT IDENTITYCOL zzz TO PUBLIC
 reject	reject	engine	securityStatementPermission/If	GRANT IF TO PUBLIC
 reject	reject	engine	securityStatementPermission/If!insert	GRANT IF zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/If!swap	GRANT IGNORE TO PUBLIC
+reject	reject	engine	securityStatementPermission/If!swap	GRANT IGNORE TO PUBLIC
 reject	reject	engine	securityStatementPermission/In	GRANT IN TO PUBLIC
 reject	reject	engine	securityStatementPermission/In!insert	GRANT IN zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/In!swap	GRANT INCLUDE TO PUBLIC
+reject	reject	engine	securityStatementPermission/In!swap	GRANT INCLUDE TO PUBLIC
 reject	reject	engine	securityStatementPermission/Index	GRANT INDEX TO PUBLIC
 reject	reject	engine	securityStatementPermission/Index!insert	GRANT INDEX zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Index!swap	GRANT INFINITE TO PUBLIC
+reject	reject	engine	securityStatementPermission/Index!swap	GRANT INFINITE TO PUBLIC
 reject	reject	engine	securityStatementPermission/Inner	GRANT INNER TO PUBLIC
 reject	reject	engine	securityStatementPermission/Inner!insert	GRANT INNER zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Inner!swap	GRANT INPUT TO PUBLIC
+reject	reject	engine	securityStatementPermission/Inner!swap	GRANT INPUT TO PUBLIC
 accept	accept	engine	securityStatementPermission/Insert	GRANT INSERT TO PUBLIC
 reject	reject	engine	securityStatementPermission/Insert!insert	GRANT INSERT zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Insert!swap	GRANT INSTEAD TO PUBLIC
+reject	reject	engine	securityStatementPermission/Insert!swap	GRANT INSTEAD TO PUBLIC
 reject	reject	engine	securityStatementPermission/Intersect	GRANT INTERSECT TO PUBLIC
 reject	reject	engine	securityStatementPermission/Intersect!insert	GRANT INTERSECT zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Intersect!swap	GRANT INTERVAL_LENGTH_MINUTES TO PUBLIC
+reject	reject	engine	securityStatementPermission/Intersect!swap	GRANT INTERVAL_LENGTH_MINUTES TO PUBLIC
 reject	reject	engine	securityStatementPermission/Into	GRANT INTO TO PUBLIC
 reject	reject	engine	securityStatementPermission/Into!insert	GRANT INTO zzz TO PUBLIC
 reject	reject	engine	securityStatementPermission/Is	GRANT IS TO PUBLIC
 reject	reject	engine	securityStatementPermission/Is!insert	GRANT IS zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Is!swap	GRANT ISOLATION TO PUBLIC
+reject	reject	engine	securityStatementPermission/Is!swap	GRANT ISOLATION TO PUBLIC
 reject	reject	engine	securityStatementPermission/Join	GRANT JOIN TO PUBLIC
 reject	reject	engine	securityStatementPermission/Join!insert	GRANT JOIN zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Join!swap	GRANT JSON TO PUBLIC
+reject	reject	engine	securityStatementPermission/Join!swap	GRANT JSON TO PUBLIC
 reject	reject	engine	securityStatementPermission/Key	GRANT KEY TO PUBLIC
 reject	reject	engine	securityStatementPermission/Key!insert	GRANT KEY zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Key!swap	GRANT KEYS TO PUBLIC
+reject	reject	engine	securityStatementPermission/Key!swap	GRANT KEYS TO PUBLIC
 reject	reject	engine	securityStatementPermission/Kill	GRANT KILL TO PUBLIC
 reject	reject	engine	securityStatementPermission/Kill!insert	GRANT KILL zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Kill!swap	GRANT LANGUAGE TO PUBLIC
+reject	reject	engine	securityStatementPermission/Kill!swap	GRANT LANGUAGE TO PUBLIC
 reject	reject	engine	securityStatementPermission/Left	GRANT LEFT TO PUBLIC
 reject	reject	engine	securityStatementPermission/Left!insert	GRANT LEFT zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Left!swap	GRANT LEGACY_CARDINALITY_ESTIMATION TO PUBLIC
+reject	reject	engine	securityStatementPermission/Left!swap	GRANT LEGACY_CARDINALITY_ESTIMATION TO PUBLIC
 reject	reject	engine	securityStatementPermission/Like	GRANT LIKE TO PUBLIC
 reject	reject	engine	securityStatementPermission/Like!insert	GRANT LIKE zzz TO PUBLIC
 reject	reject	engine	securityStatementPermission/LineNo	GRANT LINENO TO PUBLIC
 reject	reject	engine	securityStatementPermission/LineNo!insert	GRANT LINENO zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/LineNo!swap	GRANT LIST TO PUBLIC
+reject	reject	engine	securityStatementPermission/LineNo!swap	GRANT LIST TO PUBLIC
 reject	reject	engine	securityStatementPermission/Merge	GRANT MERGE TO PUBLIC
 reject	reject	engine	securityStatementPermission/Merge!insert	GRANT MERGE zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Merge!swap	GRANT MESSAGE TO PUBLIC
+reject	reject	engine	securityStatementPermission/Merge!swap	GRANT MESSAGE TO PUBLIC
 reject	reject	engine	securityStatementPermission/National	GRANT NATIONAL TO PUBLIC
 reject	reject	engine	securityStatementPermission/National!insert	GRANT NATIONAL zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/National!swap	GRANT NEVER TO PUBLIC
+reject	reject	engine	securityStatementPermission/National!swap	GRANT NEVER TO PUBLIC
 reject	reject	engine	securityStatementPermission/NoCheck	GRANT NOCHECK TO PUBLIC
 reject	reject	engine	securityStatementPermission/NoCheck!insert	GRANT NOCHECK zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/NoCheck!swap	GRANT NODE TO PUBLIC
+reject	reject	engine	securityStatementPermission/NoCheck!swap	GRANT NODE TO PUBLIC
 reject	reject	engine	securityStatementPermission/NonClustered	GRANT NONCLUSTERED TO PUBLIC
 reject	reject	engine	securityStatementPermission/NonClustered!insert	GRANT NONCLUSTERED zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/NonClustered!swap	GRANT NONE TO PUBLIC
+reject	reject	engine	securityStatementPermission/NonClustered!swap	GRANT NONE TO PUBLIC
 reject	reject	engine	securityStatementPermission/Not	GRANT NOT TO PUBLIC
 reject	reject	engine	securityStatementPermission/Not!insert	GRANT NOT zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Not!swap	GRANT NOTIFICATION TO PUBLIC
+reject	reject	engine	securityStatementPermission/Not!swap	GRANT NOTIFICATION TO PUBLIC
 reject	reject	engine	securityStatementPermission/Null	GRANT NULL TO PUBLIC
 reject	reject	engine	securityStatementPermission/Null!insert	GRANT NULL zzz TO PUBLIC
 reject	reject	engine	securityStatementPermission/NullIf	GRANT NULLIF TO PUBLIC
 reject	reject	engine	securityStatementPermission/NullIf!insert	GRANT NULLIF zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/NullIf!swap	GRANT NULLS TO PUBLIC
+reject	reject	engine	securityStatementPermission/NullIf!swap	GRANT NULLS TO PUBLIC
 reject	reject	engine	securityStatementPermission/Of	GRANT OF TO PUBLIC
 reject	reject	engine	securityStatementPermission/Of!insert	GRANT OF zzz TO PUBLIC
 reject	reject	engine	securityStatementPermission/Off	GRANT OFF TO PUBLIC
 reject	reject	engine	securityStatementPermission/Off!insert	GRANT OFF zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Off!swap	GRANT OFFLINE TO PUBLIC
+reject	reject	engine	securityStatementPermission/Off!swap	GRANT OFFLINE TO PUBLIC
 reject	reject	engine	securityStatementPermission/Offsets	GRANT OFFSETS TO PUBLIC
 reject	reject	engine	securityStatementPermission/Offsets!insert	GRANT OFFSETS zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Offsets!swap	GRANT OFF_WITHOUT_DATA_RECOVERY TO PUBLIC
+reject	reject	engine	securityStatementPermission/Offsets!swap	GRANT OFF_WITHOUT_DATA_RECOVERY TO PUBLIC
 reject	reject	engine	securityStatementPermission/Open	GRANT OPEN TO PUBLIC
 reject	reject	engine	securityStatementPermission/Open!insert	GRANT OPEN zzz TO PUBLIC
 reject	reject	engine	securityStatementPermission/OpenDataSource	GRANT OPENDATASOURCE TO PUBLIC
 reject	reject	engine	securityStatementPermission/OpenDataSource!insert	GRANT OPENDATASOURCE zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/OpenDataSource!swap	GRANT OPENJSON TO PUBLIC
+reject	reject	engine	securityStatementPermission/OpenDataSource!swap	GRANT OPENJSON TO PUBLIC
 reject	reject	engine	securityStatementPermission/OpenQuery	GRANT OPENQUERY TO PUBLIC
 reject	reject	engine	securityStatementPermission/OpenQuery!insert	GRANT OPENQUERY zzz TO PUBLIC
 reject	reject	engine	securityStatementPermission/OpenRowSet	GRANT OPENROWSET TO PUBLIC
 reject	reject	engine	securityStatementPermission/OpenRowSet!insert	GRANT OPENROWSET zzz TO PUBLIC
 reject	reject	engine	securityStatementPermission/OpenXml	GRANT OPENXML TO PUBLIC
 reject	reject	engine	securityStatementPermission/OpenXml!insert	GRANT OPENXML zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/OpenXml!swap	GRANT OPEN_EXISTING TO PUBLIC
+reject	reject	engine	securityStatementPermission/OpenXml!swap	GRANT OPEN_EXISTING TO PUBLIC
 reject	reject	engine	securityStatementPermission/Option	GRANT OPTION TO PUBLIC
 reject	reject	engine	securityStatementPermission/Option!insert	GRANT OPTION zzz TO PUBLIC
 reject	reject	engine	securityStatementPermission/Or	GRANT OR TO PUBLIC
 reject	reject	engine	securityStatementPermission/Or!insert	GRANT OR zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Or!swap	GRANT ORC TO PUBLIC
+reject	reject	engine	securityStatementPermission/Or!swap	GRANT ORC TO PUBLIC
 reject	reject	engine	securityStatementPermission/Order	GRANT ORDER TO PUBLIC
 reject	reject	engine	securityStatementPermission/Order!insert	GRANT ORDER zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Order!swap	GRANT OUT TO PUBLIC
+reject	reject	engine	securityStatementPermission/Order!swap	GRANT OUT TO PUBLIC
 reject	reject	engine	securityStatementPermission/Outer	GRANT OUTER TO PUBLIC
 reject	reject	engine	securityStatementPermission/Outer!insert	GRANT OUTER zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Outer!swap	GRANT OUTPUT TO PUBLIC
+reject	reject	engine	securityStatementPermission/Outer!swap	GRANT OUTPUT TO PUBLIC
 reject	reject	engine	securityStatementPermission/Over	GRANT OVER TO PUBLIC
 reject	reject	engine	securityStatementPermission/Over!insert	GRANT OVER zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Over!swap	GRANT OVERRIDE TO PUBLIC
+reject	reject	engine	securityStatementPermission/Over!swap	GRANT OVERRIDE TO PUBLIC
 reject	reject	engine	securityStatementPermission/Percent	GRANT PERCENT TO PUBLIC
 reject	reject	engine	securityStatementPermission/Percent!insert	GRANT PERCENT zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Percent!swap	GRANT PERCENTAGE TO PUBLIC
+reject	reject	engine	securityStatementPermission/Percent!swap	GRANT PERCENTAGE TO PUBLIC
 reject	reject	engine	securityStatementPermission/Pivot	GRANT PIVOT TO PUBLIC
 reject	reject	engine	securityStatementPermission/Pivot!insert	GRANT PIVOT zzz TO PUBLIC
 reject	reject	engine	securityStatementPermission/Plan	GRANT PLAN TO PUBLIC
 reject	reject	engine	securityStatementPermission/Plan!insert	GRANT PLAN zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Plan!swap	GRANT PLATFORM TO PUBLIC
+reject	reject	engine	securityStatementPermission/Plan!swap	GRANT PLATFORM TO PUBLIC
 reject	reject	engine	securityStatementPermission/Primary	GRANT PRIMARY TO PUBLIC
 reject	reject	engine	securityStatementPermission/Primary!insert	GRANT PRIMARY zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Primary!swap	GRANT PRIMARY_ROLE TO PUBLIC
+reject	reject	engine	securityStatementPermission/Primary!swap	GRANT PRIMARY_ROLE TO PUBLIC
 reject	reject	engine	securityStatementPermission/Print	GRANT PRINT TO PUBLIC
 reject	reject	engine	securityStatementPermission/Print!insert	GRANT PRINT zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Print!swap	GRANT PRIORITY TO PUBLIC
+reject	reject	engine	securityStatementPermission/Print!swap	GRANT PRIORITY TO PUBLIC
 reject	reject	engine	securityStatementPermission/Proc	GRANT PROC TO PUBLIC
 reject	reject	engine	securityStatementPermission/Proc!insert	GRANT PROC zzz TO PUBLIC
 reject	reject	engine	securityStatementPermission/Procedure	GRANT PROCEDURE TO PUBLIC
 reject	reject	engine	securityStatementPermission/Procedure!insert	GRANT PROCEDURE zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Procedure!swap	GRANT PROCESS TO PUBLIC
+reject	reject	engine	securityStatementPermission/Procedure!swap	GRANT PROCESS TO PUBLIC
 reject	reject	engine	securityStatementPermission/Public	GRANT PUBLIC TO PUBLIC
 reject	reject	engine	securityStatementPermission/Public!insert	GRANT PUBLIC zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Public!swap	GRANT PUSHDOWN TO PUBLIC
+reject	reject	engine	securityStatementPermission/Public!swap	GRANT PUSHDOWN TO PUBLIC
 reject	reject	engine	securityStatementPermission/Raiserror	GRANT RAISERROR TO PUBLIC
 reject	reject	engine	securityStatementPermission/Raiserror!insert	GRANT RAISERROR zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Raiserror!swap	GRANT RANDOMIZED TO PUBLIC
+reject	reject	engine	securityStatementPermission/Raiserror!swap	GRANT RANDOMIZED TO PUBLIC
 reject	reject	engine	securityStatementPermission/Read	GRANT READ TO PUBLIC
 reject	reject	engine	securityStatementPermission/Read!insert	GRANT READ zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Read!swap	GRANT READONLY TO PUBLIC
+reject	reject	engine	securityStatementPermission/Read!swap	GRANT READONLY TO PUBLIC
 reject	reject	engine	securityStatementPermission/ReadText	GRANT READTEXT TO PUBLIC
 reject	reject	engine	securityStatementPermission/ReadText!insert	GRANT READTEXT zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/ReadText!swap	GRANT READ_ONLY TO PUBLIC
+reject	reject	engine	securityStatementPermission/ReadText!swap	GRANT READ_ONLY TO PUBLIC
 reject	reject	engine	securityStatementPermission/Reconfigure	GRANT RECONFIGURE TO PUBLIC
 reject	reject	engine	securityStatementPermission/Reconfigure!insert	GRANT RECONFIGURE zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Reconfigure!swap	GRANT RECOVERY TO PUBLIC
+reject	reject	engine	securityStatementPermission/Reconfigure!swap	GRANT RECOVERY TO PUBLIC
 accept	accept	engine	securityStatementPermission/References	GRANT REFERENCES TO PUBLIC
 reject	reject	engine	securityStatementPermission/References!insert	GRANT REFERENCES zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/References!swap	GRANT REGENERATE TO PUBLIC
+reject	reject	engine	securityStatementPermission/References!swap	GRANT REGENERATE TO PUBLIC
 reject	reject	engine	securityStatementPermission/Replication	GRANT REPLICATION TO PUBLIC
 reject	reject	engine	securityStatementPermission/Replication!insert	GRANT REPLICATION zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Replication!swap	GRANT REQUIRED_COPIES_TO_COMMIT TO PUBLIC
+reject	reject	engine	securityStatementPermission/Replication!swap	GRANT REQUIRED_COPIES_TO_COMMIT TO PUBLIC
 reject	reject	engine	securityStatementPermission/Restore	GRANT RESTORE TO PUBLIC
 reject	reject	engine	securityStatementPermission/Restore!insert	GRANT RESTORE zzz TO PUBLIC
 reject	reject	engine	securityStatementPermission/Restrict	GRANT RESTRICT TO PUBLIC
 reject	reject	engine	securityStatementPermission/Restrict!insert	GRANT RESTRICT zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Restrict!swap	GRANT RESTRICTED_USER TO PUBLIC
+reject	reject	engine	securityStatementPermission/Restrict!swap	GRANT RESTRICTED_USER TO PUBLIC
 reject	reject	engine	securityStatementPermission/Return	GRANT RETURN TO PUBLIC
 reject	reject	engine	securityStatementPermission/Return!insert	GRANT RETURN zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Return!swap	GRANT RETURNS TO PUBLIC
+reject	reject	engine	securityStatementPermission/Return!swap	GRANT RETURNS TO PUBLIC
 reject	reject	engine	securityStatementPermission/Revert	GRANT REVERT TO PUBLIC
 reject	reject	engine	securityStatementPermission/Revert!insert	GRANT REVERT zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Revoke	GRANT REVOKE TO PUBLIC
-accept	reject	engine	securityStatementPermission/Revoke!insert	GRANT REVOKE zzz TO PUBLIC
+reject	reject	engine	securityStatementPermission/Revoke	GRANT REVOKE TO PUBLIC
+reject	reject	engine	securityStatementPermission/Revoke!insert	GRANT REVOKE zzz TO PUBLIC
 reject	reject	engine	securityStatementPermission/Right	GRANT RIGHT TO PUBLIC
 reject	reject	engine	securityStatementPermission/Right!insert	GRANT RIGHT zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Right!swap	GRANT ROLE TO PUBLIC
+reject	reject	engine	securityStatementPermission/Right!swap	GRANT ROLE TO PUBLIC
 reject	reject	engine	securityStatementPermission/Rollback	GRANT ROLLBACK TO PUBLIC
 reject	reject	engine	securityStatementPermission/Rollback!insert	GRANT ROLLBACK zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Rollback!swap	GRANT ROLLUP TO PUBLIC
+reject	reject	engine	securityStatementPermission/Rollback!swap	GRANT ROLLUP TO PUBLIC
 reject	reject	engine	securityStatementPermission/RowCount	GRANT ROWCOUNT TO PUBLIC
 reject	reject	engine	securityStatementPermission/RowCount!insert	GRANT ROWCOUNT zzz TO PUBLIC
 reject	reject	engine	securityStatementPermission/RowGuidColumn	GRANT ROWGUIDCOL TO PUBLIC
 reject	reject	engine	securityStatementPermission/RowGuidColumn!insert	GRANT ROWGUIDCOL zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/RowGuidColumn!swap	GRANT ROWS TO PUBLIC
+reject	reject	engine	securityStatementPermission/RowGuidColumn!swap	GRANT ROWS TO PUBLIC
 reject	reject	engine	securityStatementPermission/Rule	GRANT RULE TO PUBLIC
 reject	reject	engine	securityStatementPermission/Rule!insert	GRANT RULE zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Rule!swap	GRANT SAFETY TO PUBLIC
+reject	reject	engine	securityStatementPermission/Rule!swap	GRANT SAFETY TO PUBLIC
 reject	reject	engine	securityStatementPermission/Save	GRANT SAVE TO PUBLIC
 reject	reject	engine	securityStatementPermission/Save!insert	GRANT SAVE zzz TO PUBLIC
 reject	reject	engine	securityStatementPermission/Schema	GRANT SCHEMA TO PUBLIC
 reject	reject	engine	securityStatementPermission/Schema!insert	GRANT SCHEMA zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Schema!swap	GRANT SCHEMABINDING TO PUBLIC
+reject	reject	engine	securityStatementPermission/Schema!swap	GRANT SCHEMABINDING TO PUBLIC
 accept	accept	engine	securityStatementPermission/Select	GRANT SELECT TO PUBLIC
 reject	reject	engine	securityStatementPermission/Select!insert	GRANT SELECT zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Select!swap	GRANT SELECTIVE TO PUBLIC
+reject	reject	engine	securityStatementPermission/Select!swap	GRANT SELECTIVE TO PUBLIC
 reject	reject	engine	securityStatementPermission/SessionUser	GRANT SESSION_USER TO PUBLIC
 reject	reject	engine	securityStatementPermission/SessionUser!insert	GRANT SESSION_USER zzz TO PUBLIC
 reject	reject	engine	securityStatementPermission/Set	GRANT SET TO PUBLIC
 reject	reject	engine	securityStatementPermission/Set!insert	GRANT SET zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Set!swap	GRANT SETS TO PUBLIC
+reject	reject	engine	securityStatementPermission/Set!swap	GRANT SETS TO PUBLIC
 reject	reject	engine	securityStatementPermission/SetUser	GRANT SETUSER TO PUBLIC
 reject	reject	engine	securityStatementPermission/SetUser!insert	GRANT SETUSER zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/SetUser!swap	GRANT SHARDED TO PUBLIC
-reject	accept	engine	securityStatementPermission/Shutdown	GRANT SHUTDOWN TO PUBLIC
+reject	reject	engine	securityStatementPermission/SetUser!swap	GRANT SHARDED TO PUBLIC
+accept	accept	engine	securityStatementPermission/Shutdown	GRANT SHUTDOWN TO PUBLIC
 reject	reject	engine	securityStatementPermission/Shutdown!insert	GRANT SHUTDOWN zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Shutdown!swap	GRANT SID TO PUBLIC
+reject	reject	engine	securityStatementPermission/Shutdown!swap	GRANT SID TO PUBLIC
 reject	reject	engine	securityStatementPermission/Some	GRANT SOME TO PUBLIC
 reject	reject	engine	securityStatementPermission/Some!insert	GRANT SOME zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Some!swap	GRANT SORTED_DATA TO PUBLIC
+reject	reject	engine	securityStatementPermission/Some!swap	GRANT SORTED_DATA TO PUBLIC
 reject	reject	engine	securityStatementPermission/Statistics	GRANT STATISTICS TO PUBLIC
 reject	reject	engine	securityStatementPermission/Statistics!insert	GRANT STATISTICS zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Statistics!swap	GRANT STATS TO PUBLIC
+reject	reject	engine	securityStatementPermission/Statistics!swap	GRANT STATS TO PUBLIC
 reject	reject	engine	securityStatementPermission/StopList	GRANT STOPLIST TO PUBLIC
 reject	reject	engine	securityStatementPermission/StopList!insert	GRANT STOPLIST zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/StopList!swap	GRANT STREAM TO PUBLIC
+reject	reject	engine	securityStatementPermission/StopList!swap	GRANT STREAM TO PUBLIC
 reject	reject	engine	securityStatementPermission/SystemUser	GRANT SYSTEM_USER TO PUBLIC
 reject	reject	engine	securityStatementPermission/SystemUser!insert	GRANT SYSTEM_USER zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/SystemUser!swap	GRANT SYSTEM_VERSIONING TO PUBLIC
+reject	reject	engine	securityStatementPermission/SystemUser!swap	GRANT SYSTEM_VERSIONING TO PUBLIC
 reject	reject	engine	securityStatementPermission/Table	GRANT TABLE TO PUBLIC
 reject	reject	engine	securityStatementPermission/Table!insert	GRANT TABLE zzz TO PUBLIC
 reject	reject	engine	securityStatementPermission/TableSample	GRANT TABLESAMPLE TO PUBLIC
 reject	reject	engine	securityStatementPermission/TableSample!insert	GRANT TABLESAMPLE zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/TableSample!swap	GRANT TARGET TO PUBLIC
+reject	reject	engine	securityStatementPermission/TableSample!swap	GRANT TARGET TO PUBLIC
 reject	reject	engine	securityStatementPermission/TextSize	GRANT TEXTSIZE TO PUBLIC
 reject	reject	engine	securityStatementPermission/TextSize!insert	GRANT TEXTSIZE zzz TO PUBLIC
 reject	reject	engine	securityStatementPermission/Then	GRANT THEN TO PUBLIC
 reject	reject	engine	securityStatementPermission/Then!insert	GRANT THEN zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Then!swap	GRANT THROW TO PUBLIC
+reject	reject	engine	securityStatementPermission/Then!swap	GRANT THROW TO PUBLIC
 reject	reject	engine	securityStatementPermission/Top	GRANT TOP TO PUBLIC
 reject	reject	engine	securityStatementPermission/Top!insert	GRANT TOP zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Top!swap	GRANT TRACK_CAUSALITY TO PUBLIC
+reject	reject	engine	securityStatementPermission/Top!swap	GRANT TRACK_CAUSALITY TO PUBLIC
 reject	reject	engine	securityStatementPermission/Tran	GRANT TRAN TO PUBLIC
 reject	reject	engine	securityStatementPermission/Tran!insert	GRANT TRAN zzz TO PUBLIC
 reject	reject	engine	securityStatementPermission/Transaction	GRANT TRANSACTION TO PUBLIC
 reject	reject	engine	securityStatementPermission/Transaction!insert	GRANT TRANSACTION zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Transaction!swap	GRANT TRANSACTION_ID_COLUMN_NAME TO PUBLIC
+reject	reject	engine	securityStatementPermission/Transaction!swap	GRANT TRANSACTION_ID_COLUMN_NAME TO PUBLIC
 reject	reject	engine	securityStatementPermission/Trigger	GRANT TRIGGER TO PUBLIC
 reject	reject	engine	securityStatementPermission/Trigger!insert	GRANT TRIGGER zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Trigger!swap	GRANT TRIM TO PUBLIC
+reject	reject	engine	securityStatementPermission/Trigger!swap	GRANT TRIM TO PUBLIC
 reject	reject	engine	securityStatementPermission/Truncate	GRANT TRUNCATE TO PUBLIC
 reject	reject	engine	securityStatementPermission/Truncate!insert	GRANT TRUNCATE zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Truncate!swap	GRANT TRUNCATE_TARGET TO PUBLIC
+reject	reject	engine	securityStatementPermission/Truncate!swap	GRANT TRUNCATE_TARGET TO PUBLIC
 reject	reject	engine	securityStatementPermission/TSEqual	GRANT TSEQUAL TO PUBLIC
 reject	reject	engine	securityStatementPermission/TSEqual!insert	GRANT TSEQUAL zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/TSEqual!swap	GRANT TYPE TO PUBLIC
+reject	reject	engine	securityStatementPermission/TSEqual!swap	GRANT TYPE TO PUBLIC
 reject	reject	engine	securityStatementPermission/Union	GRANT UNION TO PUBLIC
 reject	reject	engine	securityStatementPermission/Union!insert	GRANT UNION zzz TO PUBLIC
 reject	reject	engine	securityStatementPermission/Unique	GRANT UNIQUE TO PUBLIC
 reject	reject	engine	securityStatementPermission/Unique!insert	GRANT UNIQUE zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Unique!swap	GRANT UNKNOWN TO PUBLIC
+reject	reject	engine	securityStatementPermission/Unique!swap	GRANT UNKNOWN TO PUBLIC
 reject	reject	engine	securityStatementPermission/Unpivot	GRANT UNPIVOT TO PUBLIC
 reject	reject	engine	securityStatementPermission/Unpivot!insert	GRANT UNPIVOT zzz TO PUBLIC
 accept	accept	engine	securityStatementPermission/Update	GRANT UPDATE TO PUBLIC
 reject	reject	engine	securityStatementPermission/Update!insert	GRANT UPDATE zzz TO PUBLIC
 reject	reject	engine	securityStatementPermission/UpdateText	GRANT UPDATETEXT TO PUBLIC
 reject	reject	engine	securityStatementPermission/UpdateText!insert	GRANT UPDATETEXT zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/UpdateText!swap	GRANT URL TO PUBLIC
+reject	reject	engine	securityStatementPermission/UpdateText!swap	GRANT URL TO PUBLIC
 reject	reject	engine	securityStatementPermission/Use	GRANT USE TO PUBLIC
 reject	reject	engine	securityStatementPermission/Use!insert	GRANT USE zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/Use!swap	GRANT USED TO PUBLIC
+reject	reject	engine	securityStatementPermission/Use!swap	GRANT USED TO PUBLIC
 reject	reject	engine	securityStatementPermission/User	GRANT USER TO PUBLIC
 reject	reject	engine	securityStatementPermission/User!insert	GRANT USER zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/User!swap	GRANT USER_DB TO PUBLIC
+reject	reject	engine	securityStatementPermission/User!swap	GRANT USER_DB TO PUBLIC
 reject	reject	engine	securityStatementPermission/Values	GRANT VALUES TO PUBLIC
 reject	reject	engine	securityStatementPermission/Values!insert	GRANT VALUES zzz TO PUBLIC
 reject	reject	engine	securityStatementPermission/Varying	GRANT VARYING TO PUBLIC
@@ -14921,19 +14921,19 @@ reject	reject	engine	securityStatementPermission/View	GRANT VIEW TO PUBLIC
 reject	reject	engine	securityStatementPermission/View!insert	GRANT VIEW zzz TO PUBLIC
 reject	reject	engine	securityStatementPermission/WaitFor	GRANT WAITFOR TO PUBLIC
 reject	reject	engine	securityStatementPermission/WaitFor!insert	GRANT WAITFOR zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/WaitFor!swap	GRANT WAIT_AT_LOW_PRIORITY TO PUBLIC
+reject	reject	engine	securityStatementPermission/WaitFor!swap	GRANT WAIT_AT_LOW_PRIORITY TO PUBLIC
 reject	reject	engine	securityStatementPermission/When	GRANT WHEN TO PUBLIC
 reject	reject	engine	securityStatementPermission/When!insert	GRANT WHEN zzz TO PUBLIC
 reject	reject	engine	securityStatementPermission/When!swap	GRANT WHERE TO PUBLIC
 reject	reject	engine	securityStatementPermission/While	GRANT WHILE TO PUBLIC
 reject	reject	engine	securityStatementPermission/While!insert	GRANT WHILE zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/While!swap	GRANT WINDOW TO PUBLIC
+reject	reject	engine	securityStatementPermission/While!swap	GRANT WINDOW TO PUBLIC
 reject	reject	engine	securityStatementPermission/With	GRANT WITH TO PUBLIC
 reject	reject	engine	securityStatementPermission/With!insert	GRANT WITH zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/With!swap	GRANT WITHIN TO PUBLIC
+reject	reject	engine	securityStatementPermission/With!swap	GRANT WITHIN TO PUBLIC
 reject	reject	engine	securityStatementPermission/WriteText	GRANT WRITETEXT TO PUBLIC
 reject	reject	engine	securityStatementPermission/WriteText!insert	GRANT WRITETEXT zzz TO PUBLIC
-accept	reject	engine	securityStatementPermission/WriteText!swap	GRANT WSDL TO PUBLIC
+reject	reject	engine	securityStatementPermission/WriteText!swap	GRANT WSDL TO PUBLIC
 accept	reject	engine	createMaterializedViewStatement_MATERIALIZED/MATERIALIZED_View_schemaObjectTwoPartName_With_LeftPare~7e21030a	CREATE MATERIALIZED VIEW a WITH(FOR_APPEND) AS SELECT *
 accept	reject	engine	createMaterializedViewStatement_MATERIALIZED(Comma_createMaterializedViewOption)?/%empty	CREATE MATERIALIZED VIEW a WITH(FOR_APPEND) AS SELECT *
 accept	reject	engine	createMaterializedViewStatement_MATERIALIZED(Comma_createMaterializedViewOption)?/Comma_createMaterializedViewOption	CREATE MATERIALIZED VIEW a WITH(FOR_APPEND, FOR_APPEND) AS SELECT *
@@ -16959,7 +16959,7 @@ accept	reject	engine	outputIntoOutputClause_OUTPUT(Comma_outputClauseSelectEleme
 accept	reject	engine	outputIntoOutputClause_OUTPUT(Comma_outputClauseSelectElement)*/Comma_outputClauseSelectElement_(Comma_outputClauseSele~84977106	DELETE a OUTPUT *, *
 reject	reject	engine	outputIntoOutputClause_OUTPUT(Comma_outputClauseSelectElement)*/Comma_outputClauseSelectElement_(Comma_outputClauseSele~84977106!drop-1	DELETE a OUTPUT * *
 reject	reject	engine	outputIntoOutputClause_OUTPUT(Comma_outputClauseSelectElement)*/Comma_outputClauseSelectElement_(Comma_outputClauseSele~84977106!drop-2	DELETE a OUTPUT *,
-accept	reject	engine	outputIntoOutputClause_OUTPUT(Comma_outputClauseSelectElement)*/Comma_outputClauseSelectElement_(Comma_outputClauseSele~84977106!insert	DELETE a OUTPUT *, * zzz
+reject	reject	engine	outputIntoOutputClause_OUTPUT(Comma_outputClauseSelectElement)*/Comma_outputClauseSelectElement_(Comma_outputClauseSele~84977106!insert	DELETE a OUTPUT *, * zzz
 accept	reject	engine	outputIntoOutputClause_OUTPUT((outputIntoClause_(outputClause_OUTPUT)?)|)/outputIntoClause_(outputClause_OUTPUT)?	DELETE a OUTPUT * INTO @a
 accept	reject	engine	outputIntoOutputClause_OUTPUT((outputIntoClause_(outputClause_OUTPUT)?)|)/%empty	DELETE a OUTPUT *
 accept	reject	engine	outputIntoOutputClause_OUTPUT(outputClause_OUTPUT)?/%empty	DELETE a OUTPUT * INTO @a
@@ -17481,7 +17481,7 @@ reject	reject	engine	suite:lexer	SELECT 'a
 accept	accept	engine	suite:lexer	SELECT N'a'
 accept	accept	engine	suite:lexer	SELECT n'a'
 accept	accept	engine	suite:lexer	SELECT N'a''b'
-reject	accept	engine	suite:lexer	SELECT N 'a'
+accept	accept	engine	suite:lexer	SELECT N 'a'
 accept	accept	engine	suite:lexer	SELECT 0x
 accept	accept	engine	suite:lexer	SELECT 0xAbC1
 accept	accept	engine	suite:lexer	SELECT 0X1F
@@ -17492,7 +17492,7 @@ accept	accept	engine	suite:lexer	SELECT 1e5
 accept	accept	engine	suite:lexer	SELECT 1.5E-3
 accept	accept	engine	suite:lexer	SELECT 1e
 accept	accept	engine	suite:lexer	SELECT 2147483648
-accept	reject	engine	suite:lexer	SELECT 123456789012345678901234567890123456789012345
+reject	reject	engine	suite:lexer	SELECT 123456789012345678901234567890123456789012345
 accept	accept	engine	suite:lexer	SELECT $1
 accept	accept	engine	suite:lexer	SELECT $-1.5
 accept	accept	engine	suite:lexer	SELECT $ 1
@@ -17536,4 +17536,4 @@ reject	reject	engine	suite:lexer	SELECT 1||1
 accept	accept	engine	suite:lexer	SELECT 1 FROM a WHERE a <> 1
 reject	reject	engine	suite:lexer	DECLARE @a INT; SET @a ||= 1
 reject	reject	engine	suite:lexer	DECLARE @a INT; SET @a <<= 1
-reject	accept	engine	suite:lexer	SELECT 1 << 1
+accept	accept	engine	suite:lexer	SELECT 1 << 1
