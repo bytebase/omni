@@ -175,19 +175,20 @@ func (p *Parser) parseSetPasswordStmt(start int) (*nodes.SetPasswordStmt, error)
 			return nil, err
 		}
 
-		// Password value: either a string literal or PASSWORD('string')
-		if p.cur.Type == kwPASSWORD {
+		// Password value: a string literal, PASSWORD('string') or
+		// OLD_PASSWORD('string'), the last a keyword this lexer does not know.
+		if p.cur.Type == kwPASSWORD || p.atWord("OLD_PASSWORD") {
 			// PASSWORD('auth_string') form, whole.
 			//
 			// Ref: text_or_password in MariaDB 11.8 sql/sql_yacc.yy.
-			p.advance() // consume PASSWORD
+			fn := strings.ToUpper(p.advance().Str)
 			if _, err := p.expect('('); err != nil {
 				return nil, err
 			}
 			if p.cur.Type != tokSCONST {
 				return nil, p.syntaxErrorAtCur()
 			}
-			stmt.Password = "PASSWORD(" + p.advance().Str + ")"
+			stmt.Password = fn + "(" + p.advance().Str + ")"
 			if _, err := p.expect(')'); err != nil {
 				return nil, err
 			}

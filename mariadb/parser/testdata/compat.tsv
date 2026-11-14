@@ -7795,7 +7795,7 @@ accept	accept	engine	int_num/opt_plus_NUM	ALTER USER a WITH MAX_USER_CONNECTIONS
 reject	reject	engine	int_num/opt_plus_NUM!drop-1	ALTER USER a WITH MAX_USER_CONNECTIONS;
 reject	reject	engine	int_num/opt_plus_NUM!truncate	ALTER USER a WITH MAX_USER_CONNECTIONS
 reject	reject	engine	int_num/opt_plus_NUM!insert	ALTER USER a WITH MAX_USER_CONNECTIONS 1 zzz;
-reject	accept	engine	int_num/-_NUM	ALTER USER a WITH MAX_USER_CONNECTIONS - 1;
+accept	accept	engine	int_num/-_NUM	ALTER USER a WITH MAX_USER_CONNECTIONS - 1;
 reject	reject	engine	int_num/-_NUM!drop-2	ALTER USER a WITH MAX_USER_CONNECTIONS -;
 reject	reject	engine	int_num/-_NUM!truncate	ALTER USER a WITH MAX_USER_CONNECTIONS -
 reject	reject	engine	int_num/-_NUM!insert	ALTER USER a WITH MAX_USER_CONNECTIONS - 1 zzz;
@@ -9277,12 +9277,12 @@ reject	reject	engine	opt_column_name_list/(_comma_separated_ident_list_)!drop-2	
 reject	reject	engine	opt_column_name_list/(_comma_separated_ident_list_)!drop-3	DELETE a FROM(SELECT a) a(a;
 reject	reject	engine	opt_column_name_list/(_comma_separated_ident_list_)!truncate	DELETE a FROM(SELECT a) a(a
 reject	reject	engine	opt_column_name_list/(_comma_separated_ident_list_)!insert	DELETE a FROM(SELECT a) a(a) zzz;
-accept	reject	engine	ident_sys_alloc/ident_cli	GRANT SELECT(a) ON * TO a;
+reject	reject	engine	ident_sys_alloc/ident_cli	GRANT SELECT(a) ON * TO a;
 reject	reject	engine	ident_sys_alloc/ident_cli!drop-1	GRANT SELECT() ON * TO a;
 reject	reject	engine	ident_sys_alloc/ident_cli!truncate	GRANT SELECT(
 reject	reject	engine	ident_sys_alloc/ident_cli!insert	GRANT SELECT(a zzz) ON * TO a;
-accept	reject	engine	comma_separated_ident_list/ident_sys_alloc	GRANT SELECT(a) ON * TO a;
-accept	reject	engine	comma_separated_ident_list/comma_separated_ident_list_,_ident_sys_alloc	GRANT SELECT(a, a) ON * TO a;
+reject	reject	engine	comma_separated_ident_list/ident_sys_alloc	GRANT SELECT(a) ON * TO a;
+reject	reject	engine	comma_separated_ident_list/comma_separated_ident_list_,_ident_sys_alloc	GRANT SELECT(a, a) ON * TO a;
 reject	reject	engine	comma_separated_ident_list/comma_separated_ident_list_,_ident_sys_alloc!drop-1	GRANT SELECT(, a) ON * TO a;
 reject	reject	engine	comma_separated_ident_list/comma_separated_ident_list_,_ident_sys_alloc!drop-2	GRANT SELECT(a a) ON * TO a;
 reject	reject	engine	comma_separated_ident_list/comma_separated_ident_list_,_ident_sys_alloc!drop-3	GRANT SELECT(a,) ON * TO a;
@@ -11493,7 +11493,7 @@ reject	reject	engine	text_or_password/PASSWORD_SYM_(_TEXT_STRING_)!drop-4	SET PA
 reject	reject	engine	text_or_password/PASSWORD_SYM_(_TEXT_STRING_)!truncate	SET PASSWORD = PASSWORD('s'
 reject	reject	engine	text_or_password/PASSWORD_SYM_(_TEXT_STRING_)!insert	SET PASSWORD = PASSWORD('s') zzz;
 reject	reject	engine	text_or_password/PASSWORD_SYM_(_TEXT_STRING_)!swap	SET PASSWORD = PATH('s');
-reject	accept	engine	text_or_password/OLD_PASSWORD_SYM_(_TEXT_STRING_)	SET PASSWORD = OLD_PASSWORD('s');
+accept	accept	engine	text_or_password/OLD_PASSWORD_SYM_(_TEXT_STRING_)	SET PASSWORD = OLD_PASSWORD('s');
 reject	reject	engine	text_or_password/OLD_PASSWORD_SYM_(_TEXT_STRING_)!drop-2	SET PASSWORD = OLD_PASSWORD 's');
 reject	reject	engine	text_or_password/OLD_PASSWORD_SYM_(_TEXT_STRING_)!drop-3	SET PASSWORD = OLD_PASSWORD();
 reject	reject	engine	text_or_password/OLD_PASSWORD_SYM_(_TEXT_STRING_)!drop-4	SET PASSWORD = OLD_PASSWORD('s';
@@ -11653,7 +11653,7 @@ reject	reject	engine	revoke_command/PROXY_SYM_ON_user_FROM_user_list!insert	REVO
 reject	reject	engine	revoke_command/PROXY_SYM_ON_user_FROM_user_list!swap	REVOKE PURGE ON a FROM a;
 accept	accept	engine	revoke_command/admin_option_for_role_FROM_user_and_role_list	REVOKE a FROM a;
 reject	reject	engine	revoke_command/admin_option_for_role_FROM_user_and_role_list!swap	REVOKE a FULL a;
-reject	accept	engine	admin_option_for_role/ADMIN_SYM_OPTION_FOR_SYM_grant_role	REVOKE ADMIN OPTION FOR a FROM a;
+accept	accept	engine	admin_option_for_role/ADMIN_SYM_OPTION_FOR_SYM_grant_role	REVOKE ADMIN OPTION FOR a FROM a;
 reject	reject	engine	admin_option_for_role/ADMIN_SYM_OPTION_FOR_SYM_grant_role!drop-1	REVOKE OPTION FOR a FROM a;
 reject	reject	engine	admin_option_for_role/ADMIN_SYM_OPTION_FOR_SYM_grant_role!drop-2	REVOKE ADMIN FOR a FROM a;
 reject	reject	engine	admin_option_for_role/ADMIN_SYM_OPTION_FOR_SYM_grant_role!drop-3	REVOKE ADMIN OPTION a FROM a;
@@ -11695,7 +11695,7 @@ reject	reject	engine	grant_command/PROXY_SYM_ON_user_TO_SYM_grant_list_opt_grant
 accept	accept	engine	grant_command/grant_role_TO_SYM_grant_list_opt_with_admin_option	GRANT a TO a;
 reject	reject	engine	grant_command/grant_role_TO_SYM_grant_list_opt_with_admin_option!swap	GRANT a TRAILING a;
 accept	accept	engine	opt_with_admin/%empty	CREATE ROLE a;
-reject	accept	engine	opt_with_admin/WITH_ADMIN_SYM_user_or_role	CREATE ROLE a WITH ADMIN a;
+accept	accept	engine	opt_with_admin/WITH_ADMIN_SYM_user_or_role	CREATE ROLE a WITH ADMIN a;
 reject	reject	engine	opt_with_admin/WITH_ADMIN_SYM_user_or_role!drop-1	CREATE ROLE a ADMIN a;
 reject	reject	engine	opt_with_admin/WITH_ADMIN_SYM_user_or_role!drop-2	CREATE ROLE a WITH a;
 reject	reject	engine	opt_with_admin/WITH_ADMIN_SYM_user_or_role!drop-3	CREATE ROLE a WITH ADMIN;
@@ -11740,7 +11740,7 @@ reject	reject	engine	opt_privileges/PRIVILEGES!truncate	GRANT ALL
 reject	reject	engine	opt_privileges/PRIVILEGES!insert	GRANT ALL PRIVILEGES zzz ON * TO a;
 reject	reject	engine	opt_privileges/PRIVILEGES!swap	GRANT ALL PROCEDURE ON * TO a;
 accept	accept	engine	object_privilege_list/object_privilege	GRANT SELECT ON * TO a;
-accept	reject	engine	object_privilege_list/column_list_privilege	GRANT SELECT(a) ON * TO a;
+reject	reject	engine	object_privilege_list/column_list_privilege	GRANT SELECT(a) ON * TO a;
 reject	reject	engine	object_privilege_list/column_list_privilege!drop-1	GRANT(a) ON * TO a;
 reject	reject	engine	object_privilege_list/column_list_privilege!drop-2	GRANT SELECT a) ON * TO a;
 reject	reject	engine	object_privilege_list/column_list_privilege!drop-4	GRANT SELECT(a ON * TO a;
@@ -11754,7 +11754,7 @@ reject	reject	engine	object_privilege_list/object_privilege_list_,_object_privil
 reject	reject	engine	object_privilege_list/object_privilege_list_,_object_privilege!truncate	GRANT SELECT,
 reject	reject	engine	object_privilege_list/object_privilege_list_,_object_privilege!insert	GRANT SELECT, SELECT zzz ON * TO a;
 reject	reject	engine	object_privilege_list/object_privilege_list_,_object_privilege!swap	GRANT SENSITIVE, SELECT ON * TO a;
-accept	reject	engine	object_privilege_list/object_privilege_list_,_column_list_privilege	GRANT SELECT, SELECT(a) ON * TO a;
+reject	reject	engine	object_privilege_list/object_privilege_list_,_column_list_privilege	GRANT SELECT, SELECT(a) ON * TO a;
 reject	reject	engine	object_privilege_list/object_privilege_list_,_column_list_privilege!drop-1	GRANT, SELECT(a) ON * TO a;
 reject	reject	engine	object_privilege_list/object_privilege_list_,_column_list_privilege!drop-2	GRANT SELECT SELECT(a) ON * TO a;
 reject	reject	engine	object_privilege_list/object_privilege_list_,_column_list_privilege!drop-3	GRANT SELECT,(a) ON * TO a;
@@ -11764,16 +11764,16 @@ reject	reject	engine	object_privilege_list/object_privilege_list_,_column_list_p
 reject	reject	engine	object_privilege_list/object_privilege_list_,_column_list_privilege!truncate	GRANT SELECT, SELECT(a
 reject	reject	engine	object_privilege_list/object_privilege_list_,_column_list_privilege!insert	GRANT SELECT, SELECT(a) zzz ON * TO a;
 reject	reject	engine	object_privilege_list/object_privilege_list_,_column_list_privilege!swap	GRANT SENSITIVE, SELECT(a) ON * TO a;
-accept	reject	engine	column_list_privilege/column_privilege_(_comma_separated_ident_list_)	GRANT SELECT(a) ON * TO a;
-accept	reject	engine	column_privilege/SELECT_SYM	GRANT SELECT(a) ON * TO a;
+reject	reject	engine	column_list_privilege/column_privilege_(_comma_separated_ident_list_)	GRANT SELECT(a) ON * TO a;
+reject	reject	engine	column_privilege/SELECT_SYM	GRANT SELECT(a) ON * TO a;
 reject	reject	engine	column_privilege/SELECT_SYM!insert	GRANT SELECT zzz(a) ON * TO a;
-accept	reject	engine	column_privilege/INSERT	GRANT INSERT(a) ON * TO a;
+reject	reject	engine	column_privilege/INSERT	GRANT INSERT(a) ON * TO a;
 reject	reject	engine	column_privilege/INSERT!insert	GRANT INSERT zzz(a) ON * TO a;
 reject	reject	engine	column_privilege/INSERT!swap	GRANT INSERT_METHOD(a) ON * TO a;
-accept	reject	engine	column_privilege/UPDATE_SYM	GRANT UPDATE(a) ON * TO a;
+reject	reject	engine	column_privilege/UPDATE_SYM	GRANT UPDATE(a) ON * TO a;
 reject	reject	engine	column_privilege/UPDATE_SYM!insert	GRANT UPDATE zzz(a) ON * TO a;
 reject	reject	engine	column_privilege/UPDATE_SYM!swap	GRANT UPGRADE(a) ON * TO a;
-accept	reject	engine	column_privilege/REFERENCES	GRANT REFERENCES(a) ON * TO a;
+reject	reject	engine	column_privilege/REFERENCES	GRANT REFERENCES(a) ON * TO a;
 reject	reject	engine	column_privilege/REFERENCES!insert	GRANT REFERENCES zzz(a) ON * TO a;
 reject	reject	engine	column_privilege/REFERENCES!swap	GRANT REF_SYSTEM_ID(a) ON * TO a;
 accept	accept	engine	object_privilege/SELECT_SYM	GRANT SELECT ON * TO a;
@@ -11837,7 +11837,7 @@ reject	reject	engine	object_privilege/SUPER_SYM!swap	GRANT SUSPEND ON * TO a;
 accept	accept	engine	object_privilege/CREATE_TEMPORARY_TABLES	GRANT CREATE TEMPORARY TABLES ON * TO a;
 reject	reject	engine	object_privilege/CREATE_TEMPORARY_TABLES!drop-1	GRANT TEMPORARY TABLES ON * TO a;
 reject	reject	engine	object_privilege/CREATE_TEMPORARY_TABLES!drop-2	GRANT CREATE TABLES ON * TO a;
-accept	reject	engine	object_privilege/CREATE_TEMPORARY_TABLES!drop-3	GRANT CREATE TEMPORARY ON * TO a;
+reject	reject	engine	object_privilege/CREATE_TEMPORARY_TABLES!drop-3	GRANT CREATE TEMPORARY ON * TO a;
 reject	reject	engine	object_privilege/CREATE_TEMPORARY_TABLES!truncate	GRANT CREATE TEMPORARY
 reject	reject	engine	object_privilege/CREATE_TEMPORARY_TABLES!insert	GRANT CREATE TEMPORARY TABLES zzz ON * TO a;
 reject	reject	engine	object_privilege/CREATE_TEMPORARY_TABLES!swap	GRANT CROSS TEMPORARY TABLES ON * TO a;
@@ -12021,7 +12021,7 @@ reject	reject	engine	user_and_role_list/user_and_role_list_,_user_or_role!drop-2
 reject	reject	engine	user_and_role_list/user_and_role_list_,_user_or_role!drop-3	REVOKE a FROM a,;
 reject	reject	engine	user_and_role_list/user_and_role_list_,_user_or_role!truncate	REVOKE a FROM a,
 reject	reject	engine	user_and_role_list/user_and_role_list_,_user_or_role!insert	REVOKE a FROM a, a zzz;
-reject	accept	engine	via_or_with/VIA_SYM	ALTER USER a IDENTIFIED VIA a;
+accept	accept	engine	via_or_with/VIA_SYM	ALTER USER a IDENTIFIED VIA a;
 reject	reject	engine	via_or_with/VIA_SYM!drop-1	ALTER USER a IDENTIFIED a;
 reject	reject	engine	via_or_with/VIA_SYM!truncate	ALTER USER a IDENTIFIED
 reject	reject	engine	via_or_with/VIA_SYM!insert	ALTER USER a IDENTIFIED VIA zzz a;
@@ -12029,12 +12029,12 @@ reject	reject	engine	via_or_with/VIA_SYM!swap	ALTER USER a IDENTIFIED VIEW a;
 accept	accept	engine	via_or_with/WITH	ALTER USER a IDENTIFIED WITH a;
 reject	reject	engine	via_or_with/WITH!insert	ALTER USER a IDENTIFIED WITH zzz a;
 reject	reject	engine	via_or_with/WITH!swap	ALTER USER a IDENTIFIED WITHIN a;
-reject	accept	engine	using_or_as/USING	ALTER USER a IDENTIFIED VIA a USING 's';
+accept	accept	engine	using_or_as/USING	ALTER USER a IDENTIFIED VIA a USING 's';
 reject	reject	engine	using_or_as/USING!drop-1	ALTER USER a IDENTIFIED VIA a 's';
-reject	accept	engine	using_or_as/USING!truncate	ALTER USER a IDENTIFIED VIA a
+accept	accept	engine	using_or_as/USING!truncate	ALTER USER a IDENTIFIED VIA a
 reject	reject	engine	using_or_as/USING!insert	ALTER USER a IDENTIFIED VIA a USING zzz 's';
 reject	reject	engine	using_or_as/USING!swap	ALTER USER a IDENTIFIED VIA a UTC_DATE 's';
-reject	accept	engine	using_or_as/AS	ALTER USER a IDENTIFIED VIA a AS 's';
+accept	accept	engine	using_or_as/AS	ALTER USER a IDENTIFIED VIA a AS 's';
 reject	reject	engine	using_or_as/AS!insert	ALTER USER a IDENTIFIED VIA a AS zzz 's';
 reject	reject	engine	using_or_as/AS!swap	ALTER USER a IDENTIFIED VIA a ASC 's';
 accept	accept	engine	grant_user/user_IDENTIFIED_SYM_BY_TEXT_STRING	ALTER USER a IDENTIFIED BY 's';
@@ -12053,7 +12053,7 @@ reject	reject	engine	grant_user/user_IDENTIFIED_SYM_BY_PASSWORD_SYM_TEXT_STRING!
 reject	reject	engine	grant_user/user_IDENTIFIED_SYM_BY_PASSWORD_SYM_TEXT_STRING!truncate	ALTER USER a IDENTIFIED BY PASSWORD
 reject	reject	engine	grant_user/user_IDENTIFIED_SYM_BY_PASSWORD_SYM_TEXT_STRING!insert	ALTER USER a IDENTIFIED BY PASSWORD 's' zzz;
 reject	reject	engine	grant_user/user_IDENTIFIED_SYM_BY_PASSWORD_SYM_TEXT_STRING!swap	ALTER USER a IF BY PASSWORD 's';
-reject	accept	engine	grant_user/user_IDENTIFIED_SYM_via_or_with_auth_expression	ALTER USER a IDENTIFIED VIA a;
+accept	accept	engine	grant_user/user_IDENTIFIED_SYM_via_or_with_auth_expression	ALTER USER a IDENTIFIED VIA a;
 reject	reject	engine	grant_user/user_IDENTIFIED_SYM_via_or_with_auth_expression!drop-1	ALTER USER IDENTIFIED VIA a;
 reject	reject	engine	grant_user/user_IDENTIFIED_SYM_via_or_with_auth_expression!drop-2	ALTER USER a VIA a;
 reject	reject	engine	grant_user/user_IDENTIFIED_SYM_via_or_with_auth_expression!drop-4	ALTER USER a IDENTIFIED VIA;
@@ -12061,21 +12061,21 @@ reject	reject	engine	grant_user/user_IDENTIFIED_SYM_via_or_with_auth_expression!
 reject	reject	engine	grant_user/user_IDENTIFIED_SYM_via_or_with_auth_expression!insert	ALTER USER a IDENTIFIED VIA a zzz;
 reject	reject	engine	grant_user/user_IDENTIFIED_SYM_via_or_with_auth_expression!swap	ALTER USER a IF VIA a;
 accept	accept	engine	grant_user/user_or_role	ALTER USER a;
-reject	accept	engine	auth_expression/auth_token_OR_SYM_auth_expression	ALTER USER a IDENTIFIED VIA a OR a;
+accept	accept	engine	auth_expression/auth_token_OR_SYM_auth_expression	ALTER USER a IDENTIFIED VIA a OR a;
 reject	reject	engine	auth_expression/auth_token_OR_SYM_auth_expression!drop-1	ALTER USER a IDENTIFIED VIA OR a;
 reject	reject	engine	auth_expression/auth_token_OR_SYM_auth_expression!drop-2	ALTER USER a IDENTIFIED VIA a a;
 reject	reject	engine	auth_expression/auth_token_OR_SYM_auth_expression!drop-3	ALTER USER a IDENTIFIED VIA a OR;
 reject	reject	engine	auth_expression/auth_token_OR_SYM_auth_expression!truncate	ALTER USER a IDENTIFIED VIA a OR
 reject	reject	engine	auth_expression/auth_token_OR_SYM_auth_expression!insert	ALTER USER a IDENTIFIED VIA a OR a zzz;
 reject	reject	engine	auth_expression/auth_token_OR_SYM_auth_expression!swap	ALTER USER a IDENTIFIED VIA a ORDER a;
-reject	accept	engine	auth_expression/auth_token	ALTER USER a IDENTIFIED VIA a;
-reject	accept	engine	auth_token/ident_or_text_opt_auth_str	ALTER USER a IDENTIFIED VIA a;
-reject	accept	engine	opt_auth_str/%empty	ALTER USER a IDENTIFIED VIA a;
-reject	accept	engine	opt_auth_str/using_or_as_TEXT_STRING_sys	ALTER USER a IDENTIFIED VIA a USING 's';
+accept	accept	engine	auth_expression/auth_token	ALTER USER a IDENTIFIED VIA a;
+accept	accept	engine	auth_token/ident_or_text_opt_auth_str	ALTER USER a IDENTIFIED VIA a;
+accept	accept	engine	opt_auth_str/%empty	ALTER USER a IDENTIFIED VIA a;
+accept	accept	engine	opt_auth_str/using_or_as_TEXT_STRING_sys	ALTER USER a IDENTIFIED VIA a USING 's';
 reject	reject	engine	opt_auth_str/using_or_as_TEXT_STRING_sys!drop-2	ALTER USER a IDENTIFIED VIA a USING;
 reject	reject	engine	opt_auth_str/using_or_as_TEXT_STRING_sys!truncate	ALTER USER a IDENTIFIED VIA a USING
 reject	reject	engine	opt_auth_str/using_or_as_TEXT_STRING_sys!insert	ALTER USER a IDENTIFIED VIA a USING 's' zzz;
-reject	accept	engine	opt_auth_str/using_or_as_PASSWORD_SYM_(_TEXT_STRING_)	ALTER USER a IDENTIFIED VIA a USING PASSWORD('s');
+accept	accept	engine	opt_auth_str/using_or_as_PASSWORD_SYM_(_TEXT_STRING_)	ALTER USER a IDENTIFIED VIA a USING PASSWORD('s');
 reject	reject	engine	opt_auth_str/using_or_as_PASSWORD_SYM_(_TEXT_STRING_)!drop-1	ALTER USER a IDENTIFIED VIA a PASSWORD('s');
 reject	reject	engine	opt_auth_str/using_or_as_PASSWORD_SYM_(_TEXT_STRING_)!drop-2	ALTER USER a IDENTIFIED VIA a USING('s');
 reject	reject	engine	opt_auth_str/using_or_as_PASSWORD_SYM_(_TEXT_STRING_)!drop-3	ALTER USER a IDENTIFIED VIA a USING PASSWORD 's');
@@ -12118,7 +12118,7 @@ reject	reject	engine	resource_option/MAX_CONNECTIONS_PER_HOUR_ulong_num!truncate
 reject	reject	engine	resource_option/MAX_CONNECTIONS_PER_HOUR_ulong_num!insert	ALTER USER a WITH MAX_CONNECTIONS_PER_HOUR 1 zzz;
 accept	accept	engine	resource_option/MAX_USER_CONNECTIONS_SYM_int_num	ALTER USER a WITH MAX_USER_CONNECTIONS 1;
 reject	reject	engine	resource_option/MAX_USER_CONNECTIONS_SYM_int_num!swap	ALTER USER a WITH MEDIAN 1;
-reject	accept	engine	resource_option/MAX_STATEMENT_TIME_SYM_NUM_literal	ALTER USER a WITH MAX_STATEMENT_TIME 1;
+accept	accept	engine	resource_option/MAX_STATEMENT_TIME_SYM_NUM_literal	ALTER USER a WITH MAX_STATEMENT_TIME 1;
 reject	reject	engine	resource_option/MAX_STATEMENT_TIME_SYM_NUM_literal!drop-2	ALTER USER a WITH MAX_STATEMENT_TIME;
 reject	reject	engine	resource_option/MAX_STATEMENT_TIME_SYM_NUM_literal!truncate	ALTER USER a WITH MAX_STATEMENT_TIME
 reject	reject	engine	resource_option/MAX_STATEMENT_TIME_SYM_NUM_literal!insert	ALTER USER a WITH MAX_STATEMENT_TIME 1 zzz;

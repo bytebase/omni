@@ -1549,6 +1549,9 @@ func writeCreateRoleStmt(sb *strings.Builder, n *CreateRoleStmt) {
 	if len(n.Roles) > 0 {
 		fmt.Fprintf(sb, " :roles %s", strings.Join(n.Roles, ", "))
 	}
+	if n.Admin != "" {
+		fmt.Fprintf(sb, " :admin %s", n.Admin)
+	}
 	sb.WriteString("}")
 }
 
@@ -1623,6 +1626,9 @@ func writeRevokeRoleStmt(sb *strings.Builder, n *RevokeRoleStmt) {
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
 	if n.IfExists {
 		sb.WriteString(" :if_exists true")
+	}
+	if n.AdminOption {
+		sb.WriteString(" :admin_option true")
 	}
 	if len(n.Roles) > 0 {
 		fmt.Fprintf(sb, " :roles %s", strings.Join(n.Roles, ", "))
@@ -3391,6 +3397,9 @@ func writeResourceOption(sb *strings.Builder, n *ResourceOption) {
 	if n.HasMaxUserConn {
 		fmt.Fprintf(sb, " :max_user_connections %d", n.MaxUserConnections)
 	}
+	if n.HasMaxStatementTime {
+		fmt.Fprintf(sb, " :max_statement_time %s", n.MaxStatementTime)
+	}
 	sb.WriteString("}")
 }
 
@@ -3442,6 +3451,16 @@ func writeUserSpec(sb *strings.Builder, n *UserSpec) {
 	}
 	if n.InitialAuthRandom {
 		sb.WriteString(" :initial_auth_random true")
+	}
+	if len(n.AuthAlternatives) > 0 {
+		sb.WriteString(" :auth_alternatives (")
+		for i, alt := range n.AuthAlternatives {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, alt)
+		}
+		sb.WriteString(")")
 	}
 	sb.WriteString("}")
 }
