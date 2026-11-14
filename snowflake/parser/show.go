@@ -189,6 +189,9 @@ func (p *Parser) parseShowStmt() (ast.Node, error) {
 	if err := checkShowProjectScope(stmt); err != nil {
 		return nil, err
 	}
+	if err := checkShowConnectorOrRoutingScope(stmt); err != nil {
+		return nil, err
+	}
 	return stmt, nil
 }
 
@@ -261,6 +264,12 @@ func (p *Parser) parseShowScope(stmt *ast.ShowStmt) error {
 		}
 		stmt.ScopeName = name
 		return nil
+	}
+
+	// SHOW VERSIONS IN OPENFLOW CONNECTOR <name> and SHOW RULES IN EVENT
+	// ROUTING TABLE ( <name> ) (openflow_connector.go).
+	if ok, err := p.parseShowConnectorOrRoutingScope(stmt); ok {
+		return err
 	}
 
 	// IN { MODEL | DATASET | EXPERIMENT | GATEWAY } <name> (model.go).

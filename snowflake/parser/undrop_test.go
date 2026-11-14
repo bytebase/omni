@@ -22,26 +22,26 @@ func parseOneUndrop(t *testing.T, sql string) *ast.UndropStmt {
 	return stmt
 }
 
-// TestUndropMore covers the UNDROP forms undrop.go reads.
-func TestUndropMore(t *testing.T) {
+// TestUndropObjects covers UNDROP of the objects read by their documented
+// shape (objectForm.undrop) and of those undrop.go lists, all read into
+// ast.UndropObject.
+func TestUndropObjects(t *testing.T) {
 	for _, tt := range []struct {
-		sql  string
-		kind ast.UndropObjectKind
-		name string
+		sql, object, name string
 	}{
-		{"UNDROP ACCOUNT my_account", ast.UndropAccount, "MY_ACCOUNT"},
-		{"UNDROP AGENT db.s.agent1", ast.UndropAgent, "DB.S.AGENT1"},
-		{"UNDROP EXTERNAL VOLUME vol1", ast.UndropExternalVolume, "VOL1"},
-		{"UNDROP NOTEBOOK db.s.nb", ast.UndropNotebook, "DB.S.NB"},
-		{"UNDROP SNAPSHOT example_snapshot", ast.UndropSnapshot, "EXAMPLE_SNAPSHOT"},
-		{"UNDROP STAGE s.stg", ast.UndropStage, "S.STG"},
-		{"UNDROP STREAMLIT app", ast.UndropStreamlit, "APP"},
-		{"UNDROP TYPE db.s.t", ast.UndropType, "DB.S.T"},
-		{"UNDROP VARIABLE v", ast.UndropVariable, "V"},
+		{"UNDROP ACCOUNT my_account", "ACCOUNT", "MY_ACCOUNT"},
+		{"UNDROP AGENT db.s.agent1", "AGENT", "DB.S.AGENT1"},
+		{"UNDROP EXTERNAL VOLUME vol1", "EXTERNAL VOLUME", "VOL1"},
+		{"UNDROP NOTEBOOK db.s.nb", "NOTEBOOK", "DB.S.NB"},
+		{"UNDROP SNAPSHOT example_snapshot", "SNAPSHOT", "EXAMPLE_SNAPSHOT"},
+		{"UNDROP STAGE s.stg", "STAGE", "S.STG"},
+		{"UNDROP STREAMLIT app", "STREAMLIT", "APP"},
+		{"UNDROP TYPE db.s.t", "TYPE", "DB.S.T"},
+		{"UNDROP VARIABLE v", "VARIABLE", "V"},
 	} {
 		stmt := parseOneUndrop(t, tt.sql)
-		if stmt.Kind != tt.kind || stmt.Name.Normalize() != tt.name || stmt.NewName != nil {
-			t.Errorf("%q: kind=%v name=%q new=%v", tt.sql, stmt.Kind, stmt.Name.Normalize(), stmt.NewName)
+		if stmt.Kind != ast.UndropObject || stmt.ObjectType() != tt.object || stmt.Name.Normalize() != tt.name || stmt.NewName != nil {
+			t.Errorf("%q: kind=%v object=%q name=%q new=%v", tt.sql, stmt.Kind, stmt.ObjectType(), stmt.Name.Normalize(), stmt.NewName)
 		}
 	}
 
@@ -57,6 +57,7 @@ func TestUndropMore(t *testing.T) {
 		"UNDROP EXTERNAL VOLUME db.vol",
 		// RENAME TO is UNDROP SNAPSHOT's, and takes one part.
 		"UNDROP STAGE s RENAME TO t",
+		"UNDROP NOTEBOOK n RENAME TO t",
 		"UNDROP SNAPSHOT s RENAME TO db.t",
 		"UNDROP SNAPSHOT s RENAME t",
 		"UNDROP EXTERNAL v",

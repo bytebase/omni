@@ -1139,6 +1139,11 @@ func walkChildren(v Visitor, node Node) {
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
+		for _, item := range n.Tables {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 		for _, item := range n.Options {
 			if item != nil {
 				Walk(v, item)
@@ -1183,6 +1188,9 @@ func walkChildren(v Visitor, node Node) {
 	case *DropStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
+		}
+		if n.Table != nil {
+			Walk(v, n.Table)
 		}
 		for _, item := range n.ArgTypes {
 			if item != nil {
@@ -1383,6 +1391,9 @@ func walkChildren(v Visitor, node Node) {
 			walkTagAssignment(v, item)
 		}
 		Walk(v, n.Query)
+		if n.Type != nil {
+			Walk(v, n.Type)
+		}
 		if n.TimeTravel != nil {
 			Walk(v, n.TimeTravel)
 		}

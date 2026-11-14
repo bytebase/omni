@@ -747,6 +747,11 @@ func (w *writer) writeDropStmt(n *ast.DropStmt) error {
 		w.buf.WriteString(" IF EXISTS")
 	}
 	w.buf.WriteByte(' ')
+	if n.Table != nil {
+		// DROP INDEX <table_name>.<index_name>
+		w.writeObjectNameNoSpace(n.Table)
+		w.buf.WriteByte('.')
+	}
 	w.writeObjectNameNoSpace(n.Name)
 	if n.HasArgs {
 		// DROP FUNCTION / PROCEDURE overload signature: f(NUMBER, VARCHAR).
@@ -795,7 +800,7 @@ func (w *writer) writeUndropStmt(n *ast.UndropStmt) error {
 	if n.Iceberg {
 		w.buf.WriteString("ICEBERG ")
 	}
-	w.buf.WriteString(n.Kind.String())
+	w.buf.WriteString(n.ObjectType())
 	w.buf.WriteByte(' ')
 	w.writeObjectNameNoSpace(n.Name)
 	if n.NewName != nil {
@@ -2016,13 +2021,41 @@ func (w *writer) writeCreateWarehouseStmt(n *ast.CreateWarehouseStmt) error {
 	} else if n.OrAlter {
 		w.buf.WriteString(" OR ALTER")
 	}
+	if n.Interactive {
+		w.buf.WriteString(" INTERACTIVE")
+	}
 	w.buf.WriteString(" WAREHOUSE")
 	if n.IfNotExists {
 		w.buf.WriteString(" IF NOT EXISTS")
 	}
 	w.buf.WriteByte(' ')
 	w.writeObjectNameNoSpace(n.Name)
-	if err := w.writeCopyOptions(n.Options); err != nil {
+	if len(n.Tables) > 0 {
+		w.buf.WriteString(" TABLES (")
+		w.writeObjectNameList(n.Tables)
+		w.buf.WriteByte(')')
+	}
+	if !n.Interactive {
+		if err := w.writeCopyOptions(n.Options); err != nil {
+			return err
+		}
+		if len(n.Tags) > 0 {
+			w.buf.WriteString(" WITH TAG (")
+			w.writeTagAssignments(n.Tags)
+			w.buf.WriteByte(')')
+		}
+		return nil
+	}
+	// An interactive warehouse's page writes its object parameters after the
+	// tag clause, so the options are split around it.
+	props, params := n.Options, []*ast.CopyOption(nil)
+	for i, o := range n.Options {
+		if isInteractiveWarehouseParam(o.Name) {
+			props, params = n.Options[:i], n.Options[i:]
+			break
+		}
+	}
+	if err := w.writeCopyOptions(props); err != nil {
 		return err
 	}
 	if len(n.Tags) > 0 {
@@ -2030,7 +2063,17 @@ func (w *writer) writeCreateWarehouseStmt(n *ast.CreateWarehouseStmt) error {
 		w.writeTagAssignments(n.Tags)
 		w.buf.WriteByte(')')
 	}
-	return nil
+	return w.writeCopyOptions(params)
+}
+
+// isInteractiveWarehouseParam reports whether name is one of CREATE
+// INTERACTIVE WAREHOUSE's objectParams, which follow its tag clause.
+func isInteractiveWarehouseParam(name string) bool {
+	switch name {
+	case "MAX_CONCURRENCY_LEVEL", "STATEMENT_QUEUED_TIMEOUT_IN_SECONDS", "STATEMENT_TIMEOUT_IN_SECONDS":
+		return true
+	}
+	return false
 }
 
 func (w *writer) writeAlterWarehouseStmt(n *ast.AlterWarehouseStmt) error {
@@ -2038,9 +2081,15 @@ func (w *writer) writeAlterWarehouseStmt(n *ast.AlterWarehouseStmt) error {
 	if n.IfExists {
 		w.buf.WriteString(" IF EXISTS")
 	}
-	w.buf.WriteByte(' ')
-	w.writeObjectNameNoSpace(n.Name)
+	if n.Name != nil {
+		w.buf.WriteByte(' ')
+		w.writeObjectNameNoSpace(n.Name)
+	}
 	switch n.Action {
+	case ast.AlterWarehouseEnable:
+		w.buf.WriteString(" ENABLE")
+	case ast.AlterWarehouseDisable:
+		w.buf.WriteString(" DISABLE")
 	case ast.AlterWarehouseSuspend:
 		w.buf.WriteString(" SUSPEND")
 	case ast.AlterWarehouseResume:

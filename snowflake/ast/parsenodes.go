@@ -1870,6 +1870,9 @@ type DropStmt struct {
 	Object   string // the object's keywords when Kind is DropObject: "COMPUTE POOL"
 	IfExists bool
 	Name     *ObjectName
+	// Table is the table a DROP INDEX names before the index,
+	// <table_name>.<index_name>; Name is then the index's one-part name.
+	Table *ObjectName
 	// HasArgs / ArgTypes carry the argument-type signature of a DROP
 	// FUNCTION / DROP PROCEDURE — `DROP FUNCTION f(NUMBER, VARCHAR)`.
 	// Snowflake requires the signature to disambiguate overloads; the
@@ -1905,18 +1908,12 @@ func (n *DropStmt) ObjectType() string {
 type UndropObjectKind int
 
 const (
-	UndropTable          UndropObjectKind = iota
-	UndropDynamicTable                    // UNDROP DYNAMIC TABLE
-	UndropTag                             // UNDROP TAG
-	UndropAccount                         // UNDROP ACCOUNT
-	UndropAgent                           // UNDROP AGENT
-	UndropExternalVolume                  // UNDROP EXTERNAL VOLUME
-	UndropNotebook                        // UNDROP NOTEBOOK
-	UndropSnapshot                        // UNDROP SNAPSHOT
-	UndropStage                           // UNDROP STAGE
-	UndropStreamlit                       // UNDROP STREAMLIT
-	UndropType                            // UNDROP TYPE
-	UndropVariable                        // UNDROP VARIABLE
+	UndropTable        UndropObjectKind = iota
+	UndropDynamicTable                  // UNDROP DYNAMIC TABLE
+	UndropTag                           // UNDROP TAG
+	// UndropObject is any other object; UndropStmt.Object names it: an
+	// ObjectStmt's kind, or ACCOUNT / EXTERNAL VOLUME / STAGE.
+	UndropObject
 )
 
 // String returns the SQL object-type keyword for the kind.
@@ -1928,24 +1925,6 @@ func (k UndropObjectKind) String() string {
 		return "DYNAMIC TABLE"
 	case UndropTag:
 		return "TAG"
-	case UndropAccount:
-		return "ACCOUNT"
-	case UndropAgent:
-		return "AGENT"
-	case UndropExternalVolume:
-		return "EXTERNAL VOLUME"
-	case UndropNotebook:
-		return "NOTEBOOK"
-	case UndropSnapshot:
-		return "SNAPSHOT"
-	case UndropStage:
-		return "STAGE"
-	case UndropStreamlit:
-		return "STREAMLIT"
-	case UndropType:
-		return "TYPE"
-	case UndropVariable:
-		return "VARIABLE"
 	default:
 		return "UNKNOWN"
 	}
@@ -1955,14 +1934,24 @@ func (k UndropObjectKind) String() string {
 // DATABASE and SCHEMA are handled by T2.1.
 type UndropStmt struct {
 	Kind    UndropObjectKind
-	Iceberg bool // UNDROP ICEBERG TABLE (Kind is UndropTable)
+	Object  string // the object's keywords when Kind is UndropObject: "VARIABLE"
+	Iceberg bool   // UNDROP ICEBERG TABLE (Kind is UndropTable)
 	Name    *ObjectName
-	NewName *ObjectName // UNDROP SNAPSHOT ... RENAME TO <new_snapshot_name>; nil if absent
+	NewName *ObjectName // RENAME TO <new_name> (UNDROP SNAPSHOT); nil if absent
 	Loc     Loc
 }
 
 // Tag implements Node.
 func (n *UndropStmt) Tag() NodeTag { return T_UndropStmt }
+
+// ObjectType returns the keywords naming the undropped object's type:
+// Object for an UndropObject, the kind's keywords otherwise.
+func (n *UndropStmt) ObjectType() string {
+	if n.Kind == UndropObject {
+		return n.Object
+	}
+	return n.Kind.String()
+}
 
 // Compile-time assertions.
 var (
@@ -5900,11 +5889,18 @@ var (
 // where each <prop> is an open-ended `KEY = value` pair captured in Options,
 // preserving source order. The leading optional WITH (CREATE WAREHOUSE w WITH
 // WAREHOUSE_SIZE=...) is purely cosmetic and not retained.
+//
+// Interactive marks CREATE [ OR REPLACE ] INTERACTIVE WAREHOUSE, which may
+// name its tables first (TABLES ( <table> [ , ... ] ), held in Tables) and
+// takes only the properties its page documents: object properties before the
+// tag clause and object parameters after it, all kept in Options in order.
 type CreateWarehouseStmt struct {
 	OrReplace   bool
 	OrAlter     bool // CREATE OR ALTER (mutually exclusive with OrReplace)
+	Interactive bool // CREATE INTERACTIVE WAREHOUSE
 	IfNotExists bool
 	Name        *ObjectName
+	Tables      []*ObjectName    // INTERACTIVE ... TABLES ( ... ); nil if absent
 	Options     []*CopyOption    // open-ended warehouse properties / object+session params
 	Tags        []*TagAssignment // [WITH] TAG (...); nil if absent
 	Loc         Loc
@@ -5927,13 +5923,16 @@ const (
 	AlterWarehouseUnsetTag                                 // UNSET TAG <tag> [ , ... ]
 	AlterWarehouseAddTables                                // ADD TABLES ( <id> [ , ... ] )
 	AlterWarehouseRemoveTables                             // { REMOVE | DROP } TABLES ( <id> [ , ... ] )
+	AlterWarehouseEnable                                   // ENABLE (an adaptive warehouse)
+	AlterWarehouseDisable                                  // DISABLE (an adaptive warehouse)
 )
 
 // AlterWarehouseStmt represents ALTER WAREHOUSE [ IF EXISTS ] <name> <action>.
 //
-//	SUSPEND
-//	RESUME [ IF SUSPENDED ]
-//	ABORT ALL QUERIES
+//	SUSPEND                                 -- name optional: the current warehouse
+//	RESUME [ IF SUSPENDED ]                 -- name optional
+//	ABORT ALL QUERIES                       -- name optional
+//	{ ENABLE | DISABLE }
 //	RENAME TO <new_name>
 //	SET <prop> [ <prop> ... ]               -- open-ended KEY = value params
 //	UNSET <key> [ , ... ]
@@ -5945,7 +5944,8 @@ const (
 // NewName holds the RENAME target. Options holds the SET properties. UnsetKeys
 // holds the UNSET key names. Tags / UnsetTags hold the SET TAG / UNSET TAG
 // assignments and names. Tables holds the ADD/REMOVE TABLES identifier list.
-// ResumeIfSuspended records the optional IF SUSPENDED on RESUME.
+// ResumeIfSuspended records the optional IF SUSPENDED on RESUME. Name is nil
+// when SUSPEND, RESUME or ABORT ALL QUERIES names no warehouse.
 type AlterWarehouseStmt struct {
 	IfExists          bool
 	Name              *ObjectName
@@ -6672,6 +6672,9 @@ type ObjectClause struct {
 	Keys     []string         // the property names an UNSET clears, uppercased
 	Tags     []*TagAssignment // its tag assignments (SET TAG, [ WITH ] TAG ( ... ))
 	Query    Node             // the query an AS clause holds
+	// Type is the data type a clause names: a VARIABLE's <data_type>, a
+	// TYPE's AS <type>; nil otherwise.
+	Type *TypeName
 	// TimeTravel is the point in time an AT or BEFORE clause names, as a
 	// POSTGRES INSTANCE's FORK writes it.
 	TimeTravel *TimeTravelClause

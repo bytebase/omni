@@ -611,7 +611,11 @@ func mentions(blocks []string, name string) bool {
 // https://docs.snowflake.com/en/sql-reference/sql/create-table-constraint.
 var foreignKeyRef = regexp.MustCompile(`(REFERENCES <ref_table_name> \[ \( <ref_col_name>[^()]*\) \])`)
 
-const foreignKeyProperties = " [ MATCH { FULL | SIMPLE | PARTIAL } ] [ ON [ UPDATE { CASCADE | SET NULL | SET DEFAULT | RESTRICT | NO ACTION } ] [ DELETE { CASCADE | SET NULL | SET DEFAULT | RESTRICT | NO ACTION } ] ]"
+// foreignKeyProperties are those properties. The page writes ON
+// [ UPDATE ... ] [ DELETE ... ]; ON names one or both, so it is read as a
+// choice, not as ON alone.
+
+const foreignKeyProperties = " [ MATCH { FULL | SIMPLE | PARTIAL } ] [ ON { UPDATE { CASCADE | SET NULL | SET DEFAULT | RESTRICT | NO ACTION } [ DELETE { CASCADE | SET NULL | SET DEFAULT | RESTRICT | NO ACTION } ] | DELETE { CASCADE | SET NULL | SET DEFAULT | RESTRICT | NO ACTION } } ]"
 
 // prefixList is API_ALLOWED_PREFIXES or API_BLOCKED_PREFIXES written with
 // one elided URL, ('<...>'): a list of URLs.

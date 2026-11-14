@@ -158,6 +158,12 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 		volatile = true
 	}
 
+	// CREATE [ OR REPLACE ] INTERACTIVE WAREHOUSE (warehouse.go).
+	if !transient && !temporary && !volatile && !orAlter &&
+		tokIsWord(p.cur, "INTERACTIVE") && p.peekNext().Type == kwWAREHOUSE {
+		return p.parseCreateInteractiveWarehouseStmt(start, orReplace)
+	}
+
 	// CREATE [ OR REPLACE ] INTERACTIVE TABLE
 	// (https://docs.snowflake.com/en/sql-reference/sql/create-interactive-table).
 	// INTERACTIVE is not a keyword token; it takes no temporary modifier.
