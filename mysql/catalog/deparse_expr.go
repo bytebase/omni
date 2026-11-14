@@ -347,6 +347,15 @@ func writeSubLinkExprQ(b *strings.Builder, s *SubLinkExprQ, q *deparseScope) {
 func writeCastExprQ(b *strings.Builder, c *CastExprQ, q *deparseScope) {
 	b.WriteString("cast(")
 	writeAnalyzedExpr(b, c.Arg, q)
+	if c.AtTimeZone != "" {
+		// The conversion is kept as written: the stored `time_zone`(x) is no function
+		// a query can call.
+		b.WriteString(" at time zone ")
+		if c.AtTimeZoneInterval {
+			b.WriteString("interval ")
+		}
+		writeConstExprQ(b, &ConstExprQ{Value: c.AtTimeZone, IsString: true})
+	}
 	b.WriteString(" as ")
 	b.WriteString(deparseResolvedTypeQ(c.TargetType))
 	b.WriteString(")")

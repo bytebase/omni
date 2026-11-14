@@ -578,8 +578,5 @@ func (p *Parser) isUserVariable() bool {
 	if p.atQuotedUserVar() {
 		return true
 	}
-	if p.cur.Type != tokIDENT || len(p.cur.Str) < 2 || p.cur.Str[0] != '@' {
-		return false
-	}
-	return strings.HasPrefix(p.inputText(p.cur.Loc, p.cur.End), "@")
+	return p.atUserVarToken()
 }
