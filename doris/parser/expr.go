@@ -293,6 +293,20 @@ func (p *Parser) parsePrefixExpr() (ast.Node, error) {
 			Loc:  ast.Loc{Start: start.Start, End: ast.NodeLoc(operand).End},
 		}, nil
 
+	case int('!'):
+		// LOGICAL NOT (DorisParser.g4:1516, as NOT).
+		start := p.cur.Loc
+		p.advance()
+		operand, err := p.parseExprPrec(bpNot)
+		if err != nil {
+			return nil, err
+		}
+		return &ast.UnaryExpr{
+			Op:   ast.UnaryNot,
+			Expr: operand,
+			Loc:  ast.Loc{Start: start.Start, End: ast.NodeLoc(operand).End},
+		}, nil
+
 	case kwEXISTS:
 		return p.parseExistsExpr()
 
@@ -361,6 +375,13 @@ func (p *Parser) parsePostfixSubscripts(node ast.Node) (ast.Node, error) {
 // parsePrimaryExpr parses atomic expressions: literals, identifiers,
 // function calls, parenthesized expressions, CASE, CAST, etc.
 func (p *Parser) parsePrimaryExpr() (ast.Node, error) {
+	// A typed literal, DATE '2024-01-01' (DorisParser.g4:1670).
+	if (p.cur.Kind == kwDATE || p.cur.Kind == kwDATEV1 || p.cur.Kind == kwDATEV2 || p.cur.Kind == kwTIMESTAMP) && p.peekNext().Kind == tokString {
+		start := p.advance().Loc
+		str := p.advance()
+		loc := ast.Loc{Start: start.Start, End: str.Loc.End}
+		return &ast.Literal{Kind: ast.LitTyped, Value: p.sourceText(loc), Loc: loc}, nil
+	}
 	switch p.cur.Kind {
 	// KEY ident — Doris encryption-key reference (used in AES_ENCRYPT/AES_DECRYPT
 	// function arguments). Represent as a ColumnRef with a "KEY/" prefix so the

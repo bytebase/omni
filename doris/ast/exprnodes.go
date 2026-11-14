@@ -131,6 +131,7 @@ const (
 	LitKeyword                // keyword used as literal value, e.g. DEFAULT
 	LitHex                    // hex literal, X'1f'
 	LitBit                    // bit literal, B'101'
+	LitTyped                  // typed literal, DATE '2024-01-01'; Value holds the whole text
 )
 
 // CaseKind classifies a CASE expression as simple or searched.

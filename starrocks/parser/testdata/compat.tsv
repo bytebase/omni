@@ -8804,11 +8804,11 @@ reject	reject	engine	primaryExpression/(MINUS_SYMBOL|PLUS_SYMBOL|BITNOT)_primary
 reject	reject	engine	primaryExpression/(MINUS_SYMBOL|PLUS_SYMBOL|BITNOT)_primaryExpression!truncate	SELECT -
 accept	accept	engine	primaryExpression/(MINUS_SYMBOL|PLUS_SYMBOL|BITNOT)_primaryExpression!insert	SELECT - CURRENT_USER zzz;
 accept	accept	engine	primaryExpression/(MINUS_SYMBOL|PLUS_SYMBOL|BITNOT)_primaryExpression!swap	SELECT - DATA;
-reject	accept	engine	primaryExpression/LOGICAL_NOT_primaryExpression	SELECT ! CURRENT_USER;
+accept	accept	engine	primaryExpression/LOGICAL_NOT_primaryExpression	SELECT ! CURRENT_USER;
 reject	reject	engine	primaryExpression/LOGICAL_NOT_primaryExpression!drop-2	SELECT !;
 reject	reject	engine	primaryExpression/LOGICAL_NOT_primaryExpression!truncate	SELECT !
-reject	accept	engine	primaryExpression/LOGICAL_NOT_primaryExpression!insert	SELECT ! CURRENT_USER zzz;
-reject	accept	engine	primaryExpression/LOGICAL_NOT_primaryExpression!swap	SELECT ! DATA;
+accept	accept	engine	primaryExpression/LOGICAL_NOT_primaryExpression!insert	SELECT ! CURRENT_USER zzz;
+accept	accept	engine	primaryExpression/LOGICAL_NOT_primaryExpression!swap	SELECT ! DATA;
 accept	accept	engine	primaryExpression/(_expression_)	SELECT(CURRENT_USER);
 reject	reject	engine	primaryExpression/(_expression_)!drop-2	SELECT();
 reject	reject	engine	primaryExpression/(_expression_)!drop-3	SELECT(CURRENT_USER;

@@ -52,6 +52,14 @@ func (p *Parser) parseExprPrec(minBP int) (ast.Node, error) {
 	}
 
 	for {
+		// primaryExpression NOT? MATCH primaryExpression (StarRocks.g4:2425)
+		// binds before any operator.
+		if p.cur.Kind == kwMATCH || (p.cur.Kind == kwNOT && p.peekNext().Kind == kwMATCH) {
+			if left, err = p.parseMatchExpr(left, p.cur.Kind == kwNOT); err != nil {
+				return nil, err
+			}
+			continue
+		}
 		// primaryExpression COLLATE (StarRocks.g4:2403) binds before any operator.
 		if p.cur.Kind == kwCOLLATE {
 			if left, err = p.parseCollateExpr(left); err != nil {
@@ -84,10 +92,6 @@ func (p *Parser) parseExprPrec(minBP int) (ast.Node, error) {
 				left, err = p.parseRegexpExpr(left, false)
 			case "NOT_REGEXP":
 				left, err = p.parseRegexpExpr(left, true)
-			case "MATCH":
-				left, err = p.parseMatchExpr(left, false)
-			case "NOT_MATCH":
-				left, err = p.parseMatchExpr(left, true)
 			}
 			if err != nil {
 				return nil, err
@@ -137,8 +141,6 @@ func (p *Parser) infixBindingPower() (int, ast.BinaryOp, string, bool) {
 			return bpPred, 0, "NOT_LIKE", true
 		case kwREGEXP, kwRLIKE:
 			return bpPred, 0, "NOT_REGEXP", true
-		case kwMATCH:
-			return bpPred, 0, "NOT_MATCH", true
 		}
 		return 0, 0, "", false
 
@@ -153,8 +155,6 @@ func (p *Parser) infixBindingPower() (int, ast.BinaryOp, string, bool) {
 		return bpPred, 0, "LIKE", true
 	case kwREGEXP, kwRLIKE:
 		return bpPred, 0, "REGEXP", true
-	case kwMATCH:
-		return bpPred, 0, "MATCH", true
 
 	// Comparison operators
 	case int('='):
@@ -293,6 +293,20 @@ func (p *Parser) parsePrefixExpr() (ast.Node, error) {
 		}
 		return &ast.UnaryExpr{
 			Op:   ast.UnaryBinary,
+			Expr: operand,
+			Loc:  ast.Loc{Start: start.Start, End: ast.NodeLoc(operand).End},
+		}, nil
+
+	case int('!'):
+		// LOGICAL NOT (StarRocks.g4:2409, before a primaryExpression).
+		start := p.cur.Loc
+		p.advance()
+		operand, err := p.parseExprPrec(bpUnary)
+		if err != nil {
+			return nil, err
+		}
+		return &ast.UnaryExpr{
+			Op:   ast.UnaryNot,
 			Expr: operand,
 			Loc:  ast.Loc{Start: start.Start, End: ast.NodeLoc(operand).End},
 		}, nil
@@ -1932,13 +1946,13 @@ func (p *Parser) parseCollateExpr(left ast.Node) (ast.Node, error) {
 	}, nil
 }
 
-// parseMatchExpr reads [NOT] MATCH-kind pattern after left (StarRocks.g4:2425).
+// parseMatchExpr reads [NOT] MATCH primaryExpression after left (StarRocks.g4:2425).
 func (p *Parser) parseMatchExpr(left ast.Node, notFlag bool) (ast.Node, error) {
 	if notFlag {
 		p.advance() // consume NOT
 	}
-	op := strings.ToUpper(p.advance().Str) // consume the MATCH kind
-	pattern, err := p.parseExprPrec(bpPred + 1)
+	op := strings.ToUpper(p.advance().Str) // consume MATCH
+	pattern, err := p.parseMatchOperand()
 	if err != nil {
 		return nil, err
 	}
@@ -1949,4 +1963,23 @@ func (p *Parser) parseMatchExpr(left ast.Node, notFlag bool) (ast.Node, error) {
 		Not:     notFlag,
 		Loc:     ast.Loc{Start: ast.NodeLoc(left).Start, End: ast.NodeLoc(pattern).End},
 	}, nil
+}
+
+// parseMatchOperand reads the primaryExpression right of MATCH, with the
+// subscripts and COLLATE that bind as tightly.
+func (p *Parser) parseMatchOperand() (ast.Node, error) {
+	node, err := p.parsePrimaryExpr()
+	if err != nil {
+		return nil, err
+	}
+	node, err = p.parsePostfixSuffixes(node)
+	if err != nil {
+		return nil, err
+	}
+	for p.cur.Kind == kwCOLLATE {
+		if node, err = p.parseCollateExpr(node); err != nil {
+			return nil, err
+		}
+	}
+	return node, nil
 }

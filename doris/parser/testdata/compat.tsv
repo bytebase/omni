@@ -6520,10 +6520,10 @@ reject	reject	engine	lambdaExpression(COMMA_errorCapturingIdentifier)+/COMMA_err
 reject	reject	engine	lambdaExpression(COMMA_errorCapturingIdentifier)+/COMMA_errorCapturingIdentifier_(COMMA_errorCapturingIdentifier)+!drop-4	SELECT a((a, a,) -> CURRENT_DATE)
 reject	reject	engine	lambdaExpression(COMMA_errorCapturingIdentifier)+/COMMA_errorCapturingIdentifier_(COMMA_errorCapturingIdentifier)+!truncate	SELECT a((a, a,
 reject	reject	engine	lambdaExpression(COMMA_errorCapturingIdentifier)+/COMMA_errorCapturingIdentifier_(COMMA_errorCapturingIdentifier)+!insert	SELECT a((a, a, a zzz) -> CURRENT_DATE)
-reject	accept	engine	booleanExpression/(LOGICALNOT|NOT)_booleanExpression	SELECT ! CURRENT_DATE
+accept	accept	engine	booleanExpression/(LOGICALNOT|NOT)_booleanExpression	SELECT ! CURRENT_DATE
 reject	reject	engine	booleanExpression/(LOGICALNOT|NOT)_booleanExpression!drop-2	SELECT !
-reject	accept	engine	booleanExpression/(LOGICALNOT|NOT)_booleanExpression!insert	SELECT ! CURRENT_DATE zzz
-reject	accept	engine	booleanExpression/(LOGICALNOT|NOT)_booleanExpression!swap	SELECT ! CURRENT_TIME
+accept	accept	engine	booleanExpression/(LOGICALNOT|NOT)_booleanExpression!insert	SELECT ! CURRENT_DATE zzz
+accept	accept	engine	booleanExpression/(LOGICALNOT|NOT)_booleanExpression!swap	SELECT ! CURRENT_TIME
 accept	accept	engine	booleanExpression/EXISTS_LEFT_PAREN_query_RIGHT_PAREN	SELECT EXISTS(SELECT CURRENT_DATE)
 reject	reject	engine	booleanExpression/EXISTS_LEFT_PAREN_query_RIGHT_PAREN!drop-2	SELECT EXISTS SELECT CURRENT_DATE)
 reject	reject	engine	booleanExpression/EXISTS_LEFT_PAREN_query_RIGHT_PAREN!drop-3	SELECT EXISTS(CURRENT_DATE)
@@ -6563,8 +6563,8 @@ reject	reject	engine	booleanExpression/booleanExpression_DOUBLEPIPES_booleanExpr
 reject	reject	engine	booleanExpression/booleanExpression_DOUBLEPIPES_booleanExpression!drop-3	SELECT CURRENT_DATE ||
 accept	accept	engine	booleanExpression/booleanExpression_DOUBLEPIPES_booleanExpression!insert	SELECT CURRENT_DATE || CURRENT_DATE zzz
 accept	accept	engine	booleanExpression/booleanExpression_DOUBLEPIPES_booleanExpression!swap	SELECT CURRENT_TIME || CURRENT_DATE
-reject	accept	engine	booleanExpression(LOGICALNOT|NOT)/LOGICALNOT	SELECT ! CURRENT_DATE
-reject	accept	engine	booleanExpression(LOGICALNOT|NOT)/LOGICALNOT!insert	SELECT ! zzz CURRENT_DATE
+accept	accept	engine	booleanExpression(LOGICALNOT|NOT)/LOGICALNOT	SELECT ! CURRENT_DATE
+accept	accept	engine	booleanExpression(LOGICALNOT|NOT)/LOGICALNOT!insert	SELECT ! zzz CURRENT_DATE
 accept	accept	engine	booleanExpression(LOGICALNOT|NOT)/NOT	SELECT NOT CURRENT_DATE
 accept	accept	engine	booleanExpression(LOGICALNOT|NOT)/NOT!insert	SELECT NOT zzz CURRENT_DATE
 accept	accept	engine	booleanExpression(LOGICALNOT|NOT)/NOT!swap	SELECT NULL CURRENT_DATE
@@ -7145,8 +7145,8 @@ reject	reject	engine	specifiedPartition(identifier|identifierList)/identifierLis
 reject	reject	engine	specifiedPartition(identifier|identifierList)/identifierList!drop-3	EXPLAIN a PARTITION(a
 reject	reject	engine	specifiedPartition(identifier|identifierList)/identifierList!insert	EXPLAIN a PARTITION(a) zzz
 accept	accept	engine	constant/NULL	SELECT NULL
-reject	accept	engine	constant/(DATE|DATEV1|DATEV2|TIMESTAMP)_STRING_LITERAL	SELECT DATE 'a'
-reject	accept	engine	constant/(DATE|DATEV1|DATEV2|TIMESTAMP)_STRING_LITERAL!insert	SELECT DATE 'a' zzz
+accept	accept	engine	constant/(DATE|DATEV1|DATEV2|TIMESTAMP)_STRING_LITERAL	SELECT DATE 'a'
+accept	accept	engine	constant/(DATE|DATEV1|DATEV2|TIMESTAMP)_STRING_LITERAL!insert	SELECT DATE 'a' zzz
 reject	accept	engine	constant/(DATE|DATEV1|DATEV2|TIMESTAMP)_STRING_LITERAL!swap	SELECT DATETIME 'a'
 accept	accept	engine	constant/number	SELECT 1
 accept	accept	engine	constant/number!insert	SELECT 1 zzz
@@ -7167,14 +7167,14 @@ accept	accept	engine	constant/LEFT_BRACE_constant_(COMMA_constant)*_RIGHT_BRACE!
 reject	reject	engine	constant/LEFT_BRACE_constant_(COMMA_constant)*_RIGHT_BRACE!swap	SELECT { NULLS }
 accept	accept	engine	constant/PLACEHOLDER	SELECT ?
 accept	accept	engine	constant/PLACEHOLDER!insert	SELECT ? zzz
-reject	accept	engine	constant(DATE|DATEV1|DATEV2|TIMESTAMP)/DATE	SELECT DATE 'a'
+accept	accept	engine	constant(DATE|DATEV1|DATEV2|TIMESTAMP)/DATE	SELECT DATE 'a'
 reject	reject	engine	constant(DATE|DATEV1|DATEV2|TIMESTAMP)/DATE!insert	SELECT DATE zzz 'a'
-reject	accept	engine	constant(DATE|DATEV1|DATEV2|TIMESTAMP)/DATEV1	SELECT DATEV1 'a'
+accept	accept	engine	constant(DATE|DATEV1|DATEV2|TIMESTAMP)/DATEV1	SELECT DATEV1 'a'
 reject	reject	engine	constant(DATE|DATEV1|DATEV2|TIMESTAMP)/DATEV1!insert	SELECT DATEV1 zzz 'a'
-reject	accept	engine	constant(DATE|DATEV1|DATEV2|TIMESTAMP)/DATEV2	SELECT DATEV2 'a'
+accept	accept	engine	constant(DATE|DATEV1|DATEV2|TIMESTAMP)/DATEV2	SELECT DATEV2 'a'
 reject	reject	engine	constant(DATE|DATEV1|DATEV2|TIMESTAMP)/DATEV2!insert	SELECT DATEV2 zzz 'a'
 reject	accept	engine	constant(DATE|DATEV1|DATEV2|TIMESTAMP)/DATEV2!swap	SELECT DAY 'a'
-reject	accept	engine	constant(DATE|DATEV1|DATEV2|TIMESTAMP)/TIMESTAMP	SELECT TIMESTAMP 'a'
+accept	accept	engine	constant(DATE|DATEV1|DATEV2|TIMESTAMP)/TIMESTAMP	SELECT TIMESTAMP 'a'
 reject	reject	engine	constant(DATE|DATEV1|DATEV2|TIMESTAMP)/TIMESTAMP!insert	SELECT TIMESTAMP zzz 'a'
 reject	reject	engine	constant(DATE|DATEV1|DATEV2|TIMESTAMP)/TIMESTAMP!swap	SELECT TINYINT 'a'
 accept	accept	engine	constant(BINARY)?/%empty	SELECT 'a'
@@ -14376,20 +14376,20 @@ accept	accept	engine	non_pred_expr/map_expr	SELECT MAP()
 accept	accept	engine	non_pred_expr/map_literal	SELECT { }
 accept	accept	engine	non_pred_expr/struct_literal	SELECT { 1 }
 accept	accept	engine	non_pred_expr/function_call_expr	SELECT a()
-reject	accept	engine	non_pred_expr/DATE_STRING_LITERAL	SELECT DATE 'a'
+accept	accept	engine	non_pred_expr/DATE_STRING_LITERAL	SELECT DATE 'a'
 accept	accept	engine	non_pred_expr/DATE_STRING_LITERAL!drop-2	SELECT DATE
-reject	accept	engine	non_pred_expr/DATE_STRING_LITERAL!insert	SELECT DATE 'a' zzz
+accept	accept	engine	non_pred_expr/DATE_STRING_LITERAL!insert	SELECT DATE 'a' zzz
 reject	accept	engine	non_pred_expr/DATE_STRING_LITERAL!swap	SELECT DATETIME 'a'
-reject	accept	engine	non_pred_expr/DATEV1_STRING_LITERAL	SELECT DATEV1 'a'
+accept	accept	engine	non_pred_expr/DATEV1_STRING_LITERAL	SELECT DATEV1 'a'
 accept	accept	engine	non_pred_expr/DATEV1_STRING_LITERAL!drop-2	SELECT DATEV1
-reject	accept	engine	non_pred_expr/DATEV1_STRING_LITERAL!insert	SELECT DATEV1 'a' zzz
-reject	accept	engine	non_pred_expr/DATEV2_STRING_LITERAL	SELECT DATEV2 'a'
+accept	accept	engine	non_pred_expr/DATEV1_STRING_LITERAL!insert	SELECT DATEV1 'a' zzz
+accept	accept	engine	non_pred_expr/DATEV2_STRING_LITERAL	SELECT DATEV2 'a'
 accept	accept	engine	non_pred_expr/DATEV2_STRING_LITERAL!drop-2	SELECT DATEV2
-reject	accept	engine	non_pred_expr/DATEV2_STRING_LITERAL!insert	SELECT DATEV2 'a' zzz
+accept	accept	engine	non_pred_expr/DATEV2_STRING_LITERAL!insert	SELECT DATEV2 'a' zzz
 reject	accept	engine	non_pred_expr/DATEV2_STRING_LITERAL!swap	SELECT DAY 'a'
-reject	accept	engine	non_pred_expr/TIMESTAMP_STRING_LITERAL	SELECT TIMESTAMP 'a'
+accept	accept	engine	non_pred_expr/TIMESTAMP_STRING_LITERAL	SELECT TIMESTAMP 'a'
 accept	accept	engine	non_pred_expr/TIMESTAMP_STRING_LITERAL!drop-2	SELECT TIMESTAMP
-reject	accept	engine	non_pred_expr/TIMESTAMP_STRING_LITERAL!insert	SELECT TIMESTAMP 'a' zzz
+accept	accept	engine	non_pred_expr/TIMESTAMP_STRING_LITERAL!insert	SELECT TIMESTAMP 'a' zzz
 reject	reject	engine	non_pred_expr/TIMESTAMP_STRING_LITERAL!swap	SELECT TINYINT 'a'
 accept	accept	engine	non_pred_expr/EXTRACT_(_function_name_FROM_func_arg_list_)	SELECT EXTRACT(a FROM 1)
 reject	reject	engine	non_pred_expr/EXTRACT_(_function_name_FROM_func_arg_list_)!drop-1	SELECT(a FROM 1)
@@ -14938,9 +14938,9 @@ reject	reject	engine	compound_predicate/expr_OR_expr!drop-1	SELECT OR 1
 reject	reject	engine	compound_predicate/expr_OR_expr!drop-3	SELECT 1 OR
 accept	accept	engine	compound_predicate/expr_OR_expr!insert	SELECT 1 OR 1 zzz
 accept	accept	engine	compound_predicate/NOT_expr	SELECT NOT 1
-reject	accept	engine	compound_predicate/!_expr	SELECT ! 1
+accept	accept	engine	compound_predicate/!_expr	SELECT ! 1
 reject	reject	engine	compound_predicate/!_expr!drop-2	SELECT !
-reject	accept	engine	compound_predicate/!_expr!insert	SELECT ! 1 zzz
+accept	accept	engine	compound_predicate/!_expr!insert	SELECT ! 1 zzz
 reject	reject	engine	sub_column_path/ident	SELECT a : a
 reject	reject	engine	sub_column_path/ident!drop-1	SELECT a :
 reject	reject	engine	sub_column_path/ident!insert	SELECT a : a zzz

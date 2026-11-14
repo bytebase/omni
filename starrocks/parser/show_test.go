@@ -469,6 +469,7 @@ func TestShowStrictRejects(t *testing.T) {
 	}
 	for _, sql := range []string{
 		"SHOW FULL TABLES FROM db LIKE 'a%'",
+		"SHOW LOAD WHERE !(Label = 'job')",
 		"SHOW LOAD WHERE Label MATCH 'job' AND 5 MOD 2 = 1",
 		"SHOW LOAD WHERE Label COLLATE utf8_general_ci = 'job'",
 		"SHOW RESOURCE GROUP role",
@@ -485,5 +486,22 @@ func TestShowStrictRejects(t *testing.T) {
 		if _, err := Parse(sql); err != nil {
 			t.Errorf("Parse(%q): %v", sql, err)
 		}
+	}
+}
+
+// TestMatchBindsAsPrimary holds MATCH to StarRocks.g4:2425, between primary
+// expressions: it binds before a comparison.
+func TestMatchBindsAsPrimary(t *testing.T) {
+	file, err := Parse("SELECT Label MATCH 'job' = TRUE FROM t")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sel := file.Stmts[0].(*ast.SelectStmt)
+	cmp, ok := sel.Items[0].Expr.(*ast.BinaryExpr)
+	if !ok || cmp.Op != ast.BinEq {
+		t.Fatalf("got %T, want a comparison", sel.Items[0].Expr)
+	}
+	if _, ok := cmp.Left.(*ast.MatchExpr); !ok {
+		t.Errorf("left of = is %T, want *ast.MatchExpr", cmp.Left)
 	}
 }
