@@ -71,6 +71,21 @@ type SystemAlterStmt struct {
 	// Args holds raw text fallback for unstructured trailing tokens.
 	Args string
 
+	// Warehouse is the INTO / FROM WAREHOUSE name of a backend or compute
+	// node clause.
+	Warehouse string
+
+	// Force records DROP BACKEND ... FORCE.
+	Force bool
+
+	// NewHost is the TO host of MODIFY FRONTEND / BACKEND HOST.
+	NewHost string
+
+	// Clause holds a table or partition clause, which StarRocks's grammar
+	// lets ALTER SYSTEM carry (alterSystemStatement: ALTER SYSTEM
+	// alterClause); Verb is then empty.
+	Clause *AlterTableAction
+
 	Loc Loc
 }
 

@@ -331,13 +331,35 @@ func TestAlterMTMV_Rename(t *testing.T) {
 }
 
 func TestAlterMTMV_RefreshComplete(t *testing.T) {
-	// Legacy corpus: ALTER MATERIALIZED VIEW partition_mv REFRESH COMPLETE;
-	stmt := parseAlterMTMVStmt(t, "ALTER MATERIALIZED VIEW partition_mv REFRESH COMPLETE")
-	if stmt.Name.String() != "partition_mv" {
-		t.Errorf("Name = %q, want partition_mv", stmt.Name.String())
+	// REFRESH COMPLETE is Doris's; StarRocks.g4 refreshSchemeDesc takes
+	// (IMMEDIATE | DEFERRED)? ASYNC [...] | INCREMENTAL | MANUAL.
+	if _, errs := parseForTest("ALTER MATERIALIZED VIEW partition_mv REFRESH COMPLETE"); len(errs) == 0 {
+		t.Error("REFRESH COMPLETE parsed; want a syntax error")
 	}
-	if stmt.RefreshMethod != "COMPLETE" {
-		t.Errorf("RefreshMethod = %q, want COMPLETE", stmt.RefreshMethod)
+	for sql, want := range map[string]string{
+		"ALTER MATERIALIZED VIEW mv REFRESH ASYNC":                                             "ASYNC",
+		"ALTER MATERIALIZED VIEW mv REFRESH DEFERRED ASYNC":                                    "DEFERRED ASYNC",
+		"ALTER MATERIALIZED VIEW mv REFRESH ASYNC START ('2024-01-01') EVERY (INTERVAL 1 DAY)": "ASYNC",
+		"ALTER MATERIALIZED VIEW mv REFRESH MANUAL":                                            "MANUAL",
+	} {
+		stmt := parseAlterMTMVStmt(t, sql)
+		if stmt.RefreshMethod != want {
+			t.Errorf("%q: RefreshMethod = %q, want %q", sql, stmt.RefreshMethod, want)
+		}
+	}
+}
+
+func TestAlterMTMV_RefreshAsyncSchedule(t *testing.T) {
+	stmt := parseAlterMTMVStmt(t, "ALTER MATERIALIZED VIEW mv REFRESH ASYNC START ('2024-01-01') EVERY (INTERVAL 1 DAY)")
+	tr := stmt.RefreshTrigger
+	if tr == nil {
+		t.Fatal("RefreshTrigger is nil")
+	}
+	if !tr.OnSchedule || tr.StartsAt != "2024-01-01" || tr.Interval != "1 DAY" {
+		t.Errorf("RefreshTrigger = %+v, want schedule from 2024-01-01 every 1 DAY", tr)
+	}
+	if stmt := parseAlterMTMVStmt(t, "ALTER MATERIALIZED VIEW mv REFRESH ASYNC"); stmt.RefreshTrigger != nil {
+		t.Errorf("REFRESH ASYNC: RefreshTrigger = %+v, want nil", stmt.RefreshTrigger)
 	}
 }
 
@@ -361,18 +383,18 @@ func TestAlterMTMV_SetProperties(t *testing.T) {
 }
 
 func TestAlterMTMV_ReplaceWith(t *testing.T) {
-	stmt := parseAlterMTMVStmt(t, "ALTER MATERIALIZED VIEW mv REPLACE WITH MATERIALIZED VIEW mv2")
-	if stmt.Name.String() != "mv" {
-		t.Errorf("Name = %q, want mv", stmt.Name.String())
+	// REPLACE WITH MATERIALIZED VIEW is Doris's; StarRocks swaps with
+	// SWAP WITH (StarRocks.g4 swapTableClause).
+	if _, errs := parseForTest("ALTER MATERIALIZED VIEW mv REPLACE WITH MATERIALIZED VIEW mv2"); len(errs) == 0 {
+		t.Error("REPLACE WITH parsed; want a syntax error")
 	}
-	if !stmt.Replace {
-		t.Error("Replace should be true")
+	stmt := parseAlterMTMVStmt(t, "ALTER MATERIALIZED VIEW mv SWAP WITH mv2")
+	if stmt.SwapWith == nil || stmt.SwapWith.String() != "mv2" {
+		t.Errorf("SwapWith = %v, want mv2", stmt.SwapWith)
 	}
-	if stmt.ReplaceTarget == nil {
-		t.Fatal("ReplaceTarget is nil")
-	}
-	if stmt.ReplaceTarget.String() != "mv2" {
-		t.Errorf("ReplaceTarget = %q, want mv2", stmt.ReplaceTarget.String())
+	stmt = parseAlterMTMVStmt(t, "ALTER MATERIALIZED VIEW mv INACTIVE")
+	if stmt.Status != "INACTIVE" {
+		t.Errorf("Status = %q, want INACTIVE", stmt.Status)
 	}
 }
 

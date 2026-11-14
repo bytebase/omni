@@ -6,12 +6,14 @@ import (
 	"github.com/bytebase/omni/doris/ast"
 )
 
-// parseAlterTable parses:
+// parseAlterTableLoose parses:
 //
 //	ALTER TABLE name action [, action ...]
 //
-// The ALTER keyword has already been consumed; cur is TABLE.
-func (p *Parser) parseAlterTable() (ast.Node, error) {
+// loosely, keeping an action it cannot read as raw text. Only a best-effort
+// parse reaches it, for a statement parseAlterTableStrict refuses. The ALTER
+// keyword has already been consumed; cur is TABLE.
+func (p *Parser) parseAlterTableLoose() (ast.Node, error) {
 	startLoc := p.prev.Loc // loc of ALTER token
 
 	// Consume TABLE

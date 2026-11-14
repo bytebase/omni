@@ -448,7 +448,7 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		case kwROUTINE:
 			return p.parseAlterRoutineLoad(alterTok.Loc)
 		case kwSYSTEM:
-			return p.parseSystemAlter(alterTok.Loc)
+			return p.parseAlterSystemStmt(alterTok.Loc)
 		case kwJOB:
 			return p.parseAlterJob(p.prev.Loc)
 		default:

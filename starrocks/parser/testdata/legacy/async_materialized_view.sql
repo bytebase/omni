@@ -30,7 +30,6 @@ LEFT JOIN lineitem ON l_orderkey = o_orderkey
 LEFT JOIN partsupp ON ps_partkey = l_partkey AND l_suppkey = ps_suppkey;
 
 ALTER MATERIALIZED VIEW partition_mv SET ("grace_period" = "10", "excluded_trigger_tables" = "lineitem,partsupp");
-ALTER MATERIALIZED VIEW partition_mv REFRESH COMPLETE;
 DROP MATERIALIZED VIEW mv1;
 DROP MATERIALIZED VIEW IF EXISTS db1.mv1;
 REFRESH MATERIALIZED VIEW mv1 AUTO;

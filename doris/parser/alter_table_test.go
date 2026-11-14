@@ -212,24 +212,20 @@ func TestAlterTableModifyColumn(t *testing.T) {
 func TestAlterTableRename(t *testing.T) {
 	cases := []alterTableTestCase{
 		{
-			sql: "ALTER TABLE t RENAME TO new_name",
-			check: func(t *testing.T, stmt *ast.AlterTableStmt) {
-				a := stmt.Actions[0]
-				if a.Type != ast.AlterRenameTable {
-					t.Errorf("expected AlterRenameTable, got %v", a.Type)
-				}
-				if a.NewTableName == nil || a.NewTableName.Parts[0] != "new_name" {
-					t.Errorf("expected new_name, got %v", a.NewTableName)
-				}
-			},
+			// RENAME takes the new name alone (DorisParser.g4:650 renameClause;
+			// DorisLegacyParser.g4:318 'RENAME' ident, TO being no ident).
+			sql:     "ALTER TABLE t RENAME TO new_name",
+			wantErr: true,
 		},
 		{
-			// RENAME without TO
 			sql: "ALTER TABLE table1 RENAME table2",
 			check: func(t *testing.T, stmt *ast.AlterTableStmt) {
 				a := stmt.Actions[0]
 				if a.Type != ast.AlterRenameTable {
 					t.Errorf("expected AlterRenameTable, got %v", a.Type)
+				}
+				if a.NewTableName == nil || a.NewTableName.Parts[0] != "table2" {
+					t.Errorf("expected table2, got %v", a.NewTableName)
 				}
 			},
 		},
@@ -834,4 +830,56 @@ func TestAlterTableLegacyRollup(t *testing.T) {
 		{sql: "ALTER TABLE example_db.my_table\nDROP ROLLUP example_rollup_index2,example_rollup_index3"},
 	}
 	runAlterTableTests(t, cases)
+}
+
+func TestAlterTableBranchTagOptions(t *testing.T) {
+	runAlterTableTests(t, []alterTableTestCase{
+		{
+			sql: "ALTER TABLE t CREATE BRANCH b AS OF VERSION 123 RETAIN 7 DAYS WITH SNAPSHOT RETENTION 5 SNAPSHOTS 2 HOURS",
+			check: func(t *testing.T, stmt *ast.AlterTableStmt) {
+				a := stmt.Actions[0]
+				if a.Type != ast.AlterCreateBranch || a.RefName != "b" {
+					t.Fatalf("got %v %q, want AlterCreateBranch b", a.Type, a.RefName)
+				}
+				if a.AsOfVersion != "123" || a.RetainTime != "7 DAYS" || a.MinSnapshots != "5" || a.MaxSnapshotAge != "2 HOURS" {
+					t.Errorf("options = %q %q %q %q, want 123, 7 DAYS, 5, 2 HOURS",
+						a.AsOfVersion, a.RetainTime, a.MinSnapshots, a.MaxSnapshotAge)
+				}
+			},
+		},
+		{
+			sql: "ALTER TABLE t CREATE OR REPLACE TAG g AS OF VERSION 9 RETAIN 30 MINUTES",
+			check: func(t *testing.T, stmt *ast.AlterTableStmt) {
+				a := stmt.Actions[0]
+				if a.Type != ast.AlterCreateTag || !a.OrReplace || a.AsOfVersion != "9" || a.RetainTime != "30 MINUTES" {
+					t.Errorf("got %+v", a)
+				}
+			},
+		},
+	})
+}
+
+func TestAlterTableAddPartitionPropsOnce(t *testing.T) {
+	runAlterTableTests(t, []alterTableTestCase{{
+		sql: `ALTER TABLE t ADD PARTITION p VALUES LESS THAN ("10") ("replication_num"="1")`,
+		check: func(t *testing.T, stmt *ast.AlterTableStmt) {
+			a := stmt.Actions[0]
+			if len(a.PartitionProps) != 1 || a.PartitionProps[0].Key != "replication_num" {
+				t.Fatalf("PartitionProps = %v, want [replication_num]", a.PartitionProps)
+			}
+			if a.Partition == nil || len(a.Partition.Properties) != 0 {
+				t.Errorf("Partition.Properties = %v, want none (held in PartitionProps)", a.Partition.Properties)
+			}
+			n := 0
+			ast.Inspect(stmt, func(node ast.Node) bool {
+				if _, ok := node.(*ast.Property); ok {
+					n++
+				}
+				return true
+			})
+			if n != 1 {
+				t.Errorf("walk visited %d properties, want 1", n)
+			}
+		},
+	}})
 }

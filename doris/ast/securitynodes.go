@@ -109,7 +109,7 @@ type CreateDictionaryStmt struct {
 	IfNotExists bool
 	UsingTable  *ObjectName
 	Columns     []*DictionaryColumn
-	Layout      string      // HASH_MAP, IP_TRIE, etc.
+	Layout      string // HASH_MAP, IP_TRIE, etc.
 	Properties  []*Property
 	Loc         Loc
 }
@@ -239,12 +239,12 @@ type CreateUserStmt struct {
 	DefaultRole  string
 	Comment      string
 	// Password policy options (stored as raw token text for forward-compat)
-	PasswordExpire  bool
-	PasswordExpireInterval int    // INTERVAL n DAY; 0 = not set
-	FailedLoginAttempts int
-	PasswordLockTime   int    // lock time in days; 0 = not set
-	PasswordHistory    int    // HISTORY n; 0 = not set
-	Loc          Loc
+	PasswordExpire         bool
+	PasswordExpireInterval int // INTERVAL n DAY; 0 = not set
+	FailedLoginAttempts    int
+	PasswordLockTime       int // lock time in days; 0 = not set
+	PasswordHistory        int // HISTORY n; 0 = not set
+	Loc                    Loc
 }
 
 // Tag implements Node.
@@ -260,17 +260,26 @@ var _ Node = (*CreateUserStmt)(nil)
 //	    [ACCOUNT_LOCK | ACCOUNT_UNLOCK]
 //	    [COMMENT 'text']
 type AlterUserStmt struct {
-	Name         *UserIdentity
-	IfExists     bool
-	Password     string
-	PasswordHash string
-	Comment      string
+	Name          *UserIdentity
+	IfExists      bool
+	Password      string
+	PasswordHash  string
+	Comment       string
 	AccountLock   bool // ACCOUNT_LOCK
 	AccountUnlock bool // ACCOUNT_UNLOCK
 	// Password policy options
 	FailedLoginAttempts int
 	PasswordLockTime    int
-	Loc                 Loc
+	// PasswordLockTimeUnit is DAY, HOUR or SECOND, or UNBOUNDED with no
+	// PasswordLockTime.
+	PasswordLockTimeUnit string
+	// PasswordHistory, PasswordExpire and PasswordReuse hold those options
+	// as written after their keyword ("DEFAULT", "NEVER", "INTERVAL 1 DAY",
+	// "1"), "" when absent.
+	PasswordHistory string
+	PasswordExpire  string
+	PasswordReuse   string
+	Loc             Loc
 }
 
 // Tag implements Node.
@@ -321,11 +330,11 @@ var _ Node = (*SetPasswordStmt)(nil)
 // form) or Privileges is non-empty (privilege-grant form).
 type GrantStmt struct {
 	// Privilege-grant form fields.
-	Privileges  []string    // SELECT_PRIV, INSERT_PRIV, ALL, etc.
-	ObjectType  string      // TABLE (default), DATABASE, RESOURCE, CLUSTER, COMPUTE GROUP, STAGE, STORAGE VAULT, WORKLOAD GROUP
-	Object      *ObjectName // target object (may be *.* or db.*)
-	ToType      string      // USER or ROLE (empty when grantee has no explicit keyword)
-	Grantees    []string    // user@host or role names (raw text)
+	Privileges      []string    // SELECT_PRIV, INSERT_PRIV, ALL, etc.
+	ObjectType      string      // TABLE (default), DATABASE, RESOURCE, CLUSTER, COMPUTE GROUP, STAGE, STORAGE VAULT, WORKLOAD GROUP
+	Object          *ObjectName // target object (may be *.* or db.*)
+	ToType          string      // USER or ROLE (empty when grantee has no explicit keyword)
+	Grantees        []string    // user@host or role names (raw text)
 	WithGrantOption bool
 
 	// Role-grant form fields (GRANT ROLE role1,role2 TO user/role).

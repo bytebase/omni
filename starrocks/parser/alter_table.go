@@ -37,47 +37,96 @@ func (p *Parser) parseAlterTable() (ast.Node, error) {
 		return p.parseDropConstraint(startLoc, name)
 	}
 
-	// Parse comma-separated action list.
-	// Most actions start with a keyword (ADD, DROP, MODIFY, RENAME, SET, ...).
-	// Exception: after DROP ROLLUP name, a bare identifier means another rollup
-	// name in the same DROP ROLLUP list (e.g., DROP ROLLUP r1,r2).
-	var lastActionType ast.AlterActionType
-	for {
-		action, err := p.parseAlterTableAction()
-		if err != nil {
-			return nil, err
+	// StarRocks.g4:510 ALTER TABLE qualifiedName ADD ROLLUP rollupItem (',' rollupItem)*
+	if p.cur.Kind == kwADD && p.peekNext().Kind == kwROLLUP {
+		cp := p.save()
+		if err := p.parseAlterAddRollupList(stmt); err == nil || p.strictTrailing {
+			if err != nil {
+				return nil, err
+			}
+			stmt.Loc = startLoc.Merge(p.prev.Loc)
+			return stmt, nil
 		}
-		stmt.Actions = append(stmt.Actions, action)
-		lastActionType = action.Type
-
-		if p.cur.Kind != int(',') {
-			break
-		}
-		p.advance() // consume ','
-
-		// If the previous action was DROP ROLLUP and the current token is a
-		// bare identifier (not an action keyword), treat it as another rollup
-		// name in the same DROP ROLLUP list.
-		if lastActionType == ast.AlterDropRollup && isIdentifierToken(p.cur.Kind) && !isAlterActionKeyword(p.cur.Kind) {
+		p.restore(cp)
+		stmt.Actions = nil
+	}
+	// StarRocks.g4:511 ALTER TABLE qualifiedName DROP ROLLUP identifier (',' identifier)*
+	if p.cur.Kind == kwDROP && p.peekNext().Kind == kwROLLUP {
+		p.advance() // consume DROP
+		p.advance() // consume ROLLUP
+		for {
+			startTok := p.cur
 			rollupName, _, err := p.parseIdentifier()
 			if err != nil {
 				return nil, err
 			}
-			extra := &ast.AlterTableAction{
+			stmt.Actions = append(stmt.Actions, &ast.AlterTableAction{
 				Type:       ast.AlterDropRollup,
 				RollupName: rollupName,
-				Loc:        p.prev.Loc,
-			}
-			stmt.Actions = append(stmt.Actions, extra)
+				Loc:        startTok.Loc,
+			})
 			if p.cur.Kind != int(',') {
 				break
 			}
 			p.advance() // consume ','
 		}
+		stmt.Loc = startLoc.Merge(p.prev.Loc)
+		return stmt, nil
+	}
+
+	// StarRocks.g4:509 ALTER TABLE qualifiedName alterClause (',' alterClause)*
+	// Best-effort parsing falls back to the loose reader below for a clause
+	// the grammar does not derive.
+	for {
+		cp := p.save()
+		action, err := p.parseAlterClause()
+		if err != nil {
+			if p.strictTrailing {
+				return nil, err
+			}
+			p.restore(cp)
+			if action, err = p.parseAlterTableAction(); err != nil {
+				return nil, err
+			}
+		}
+		stmt.Actions = append(stmt.Actions, action)
+		if p.cur.Kind != int(',') {
+			break
+		}
+		p.advance() // consume ','
 	}
 
 	stmt.Loc = startLoc.Merge(p.prev.Loc)
 	return stmt, nil
+}
+
+// parseAlterAddRollupList reads ADD ROLLUP rollupItem (',' rollupItem)*,
+// rollupItem (StarRocks.g4:469) being
+//
+//	rollupName=identifier identifierList (dupKeys)? (fromRollup)? properties?
+//
+// cur is ADD.
+func (p *Parser) parseAlterAddRollupList(stmt *ast.AlterTableStmt) error {
+	p.advance() // consume ADD
+	p.advance() // consume ROLLUP
+	for {
+		startLoc := p.cur.Loc
+		rd, err := p.parseRollupDef()
+		if err != nil {
+			return err
+		}
+		action := &ast.AlterTableAction{
+			Type:       ast.AlterAddRollup,
+			Rollup:     rd,
+			RollupName: rd.FromRollup,
+			Loc:        ast.Loc{Start: startLoc.Start, End: rd.Loc.End},
+		}
+		stmt.Actions = append(stmt.Actions, action)
+		if p.cur.Kind != int(',') {
+			return nil
+		}
+		p.advance() // consume ','
+	}
 }
 
 // parseAlterTableAction parses a single ALTER TABLE action.
