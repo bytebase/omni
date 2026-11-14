@@ -15,6 +15,9 @@ func TestParseTaskContactsAndSessionParams(t *testing.T) {
 	if len(c.Contacts) != 2 || c.Contacts[0].Name != "STEWARD" || c.Contacts[1].Words != "B" {
 		t.Errorf("contacts = %+v", c.Contacts)
 	}
+	// A contact is a schema object: db.schema.name may qualify it.
+	mustCreateTask(t, "CREATE TASK t WITH CONTACT (STEWARD = governance.contacts.owner) AS SELECT 1")
+	mustAlterTask(t, "ALTER TASK t SET CONTACT STEWARD = governance.contacts.owner")
 	if len(c.Options) != 3 {
 		t.Errorf("options = %+v", c.Options)
 	}

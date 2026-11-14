@@ -100,6 +100,12 @@ func objectOptionCommas(kind, keywords string) bool {
 // writeObjectOption writes a property as `NAME = value`, or its value alone
 // when it has no name (an element of a list of groups).
 func (w *writer) writeObjectOption(o *ast.CopyOption) error {
+	if o.Name == "EXECUTE AS USER" && !o.Bare {
+		// TASK GRAPH's TASK_DEFAULTS ( EXECUTE AS USER <user_name> ): no '='.
+		w.buf.WriteString("EXECUTE AS USER ")
+		w.buf.WriteString(o.Words)
+		return nil
+	}
 	if o.Name != "" {
 		w.buf.WriteString(o.Name)
 		if o.Bare {

@@ -58,6 +58,7 @@ var taskGraphDefaults = objectProps{
 	"COMMENT":                                  propString,
 	"LOG_LEVEL":                                propString,
 	"TRACE_LEVEL":                              propString,
+	"EXECUTE AS USER":                          propName, // EXECUTE AS USER <user_name>, no '='
 }
 
 // startsTaskGraph reports whether cur, TASK, is followed by the word GRAPH.
@@ -72,7 +73,8 @@ func (p *Parser) parseTaskOrGraph(graph, task func() (ast.Node, error)) (ast.Nod
 	snap := p.snapshot()
 	node, gerr := graph()
 	if gerr == nil {
-		if p.cur.Type == tokEOF || p.cur.Type == ';' {
+		// A result pipe (->>) after the statement is parseTopStmt's to read.
+		if p.cur.Type == tokEOF || p.cur.Type == ';' || p.cur.Type == tokFlow {
 			return node, nil
 		}
 		gerr = p.syntaxErrorAtCur()
@@ -116,7 +118,7 @@ func parseCreateTaskGraph(p *Parser, s *ast.ObjectStmt) error {
 			seen["WITH CONTACT"] = true
 			p.advance() // consume WITH
 			p.advance() // consume CONTACT
-			group, err := p.parseTaskGraphGroup(false)
+			group, err := p.parseTaskGraphGroup(false, false)
 			if err != nil {
 				return err
 			}
@@ -230,7 +232,7 @@ func parseAlterTaskGraph(p *Parser, s *ast.ObjectStmt) error {
 		p.advance() // consume CONTACT
 		var contacts []*ast.CopyOption
 		for {
-			e, err := p.parseTaskGraphEntry(false)
+			e, err := p.parseTaskGraphEntry(false, false)
 			if err != nil {
 				return err
 			}
@@ -302,11 +304,12 @@ func checkTaskGraphProperty(o *ast.CopyOption) error {
 }
 
 // checkTaskGraphContacts holds WITH CONTACT and SET CONTACT to
-// <purpose> = <contact_name> entries. Like a tag list, it may name a purpose
-// more than once.
+// <purpose> = <contact_name> entries. A contact is a schema object, which
+// db.schema.name may qualify, as CREATE SCHEMA's WITH CONTACT reads it. Like a
+// tag list, it may name a purpose more than once.
 func checkTaskGraphContacts(group *ast.CopyOption) error {
 	for _, e := range group.Group {
-		if !propName.matches(e) {
+		if !propQName.matches(e) {
 			return &ParseError{Position: e.Loc.Start, End: e.Loc.End, Message: "syntax error: a contact is <purpose> = <contact_name>"}
 		}
 	}
@@ -317,7 +320,7 @@ func checkTaskGraphContacts(group *ast.CopyOption) error {
 // [ , ... ] ), or with names ( <default_property> [ , ... ] ), holding each
 // property to the ones the page lists, once. cur is '('.
 func (p *Parser) parseTaskGraphDefaults(names bool) (*ast.CopyOption, error) {
-	group, err := p.parseTaskGraphGroup(names)
+	group, err := p.parseTaskGraphGroup(names, true)
 	if err != nil {
 		return nil, err
 	}
@@ -336,15 +339,16 @@ func (p *Parser) parseTaskGraphDefaults(names bool) (*ast.CopyOption, error) {
 }
 
 // parseTaskGraphGroup reads ( <entry> [ , ... ] ) into a nameless option
-// whose Group holds the entries. cur is '('.
-func (p *Parser) parseTaskGraphGroup(names bool) (*ast.CopyOption, error) {
+// whose Group holds the entries; execAs lets an entry be EXECUTE AS USER.
+// cur is '('.
+func (p *Parser) parseTaskGraphGroup(names, execAs bool) (*ast.CopyOption, error) {
 	open, err := p.expect('(')
 	if err != nil {
 		return nil, err
 	}
 	group := &ast.CopyOption{Loc: ast.Loc{Start: open.Loc.Start}}
 	for {
-		e, err := p.parseTaskGraphEntry(names)
+		e, err := p.parseTaskGraphEntry(names, execAs)
 		if err != nil {
 			return nil, err
 		}
@@ -362,8 +366,22 @@ func (p *Parser) parseTaskGraphGroup(names bool) (*ast.CopyOption, error) {
 }
 
 // parseTaskGraphEntry reads one <name> = <value> entry, or with names a bare
-// <name>. The name is an unquoted identifier or keyword.
-func (p *Parser) parseTaskGraphEntry(names bool) (*ast.CopyOption, error) {
+// <name>. The name is an unquoted identifier or keyword. With execAs, the
+// entry may be TASK_DEFAULTS' EXECUTE AS USER <user_name> (with names,
+// EXECUTE AS USER alone): the option "EXECUTE AS USER" whose Words is the user.
+func (p *Parser) parseTaskGraphEntry(names, execAs bool) (*ast.CopyOption, error) {
+	if start := p.cur.Loc.Start; execAs && p.acceptWords("EXECUTE", "AS", "USER") {
+		e := &ast.CopyOption{Name: "EXECUTE AS USER", Bare: names}
+		if !names {
+			user, err := p.parseObjectWord()
+			if err != nil {
+				return nil, err
+			}
+			e.Words = user
+		}
+		e.Loc = ast.Loc{Start: start, End: p.prev.Loc.End}
+		return e, nil
+	}
 	if !isNameWordTok(p.cur) {
 		return nil, p.syntaxErrorAtCur()
 	}

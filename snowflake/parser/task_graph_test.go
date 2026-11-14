@@ -37,6 +37,8 @@ func TestParseCreateTaskGraph(t *testing.T) {
 		"CREATE TASK GRAPH IF NOT EXISTS g SUSPEND_TASK_AFTER_NUM_FAILURES = 3 TASK_AUTO_RETRY_ATTEMPTS = 2",
 		"CREATE OR ALTER TASK GRAPH g SCHEDULE = '5 MINUTES' ROOTS = (t) ERROR_INTEGRATION = i SUCCESS_INTEGRATION = j",
 		"CREATE TASK GRAPH g TAG (t = 'v') OVERLAP_POLICY = ALLOW_ALL_OVERLAP",
+		"CREATE TASK GRAPH g WITH CONTACT (STEWARD = governance.contacts.owner)",
+		"CREATE TASK GRAPH g TASK_DEFAULTS (EXECUTE AS USER svc, WAREHOUSE = wh)",
 	} {
 		mustObjectStmt(t, in)
 	}
@@ -68,6 +70,10 @@ func TestParseCreateTaskGraphRejects(t *testing.T) {
 		"CREATE OR ALTER TASK GRAPH IF NOT EXISTS g",
 		"CREATE OR REPLACE TASK GRAPH IF NOT EXISTS g",
 		"CREATE TASK GRAPH 'COMMENT' = 'x'",
+		"CREATE TASK GRAPH g TASK_DEFAULTS (EXECUTE AS USER db.svc)",
+		"CREATE TASK GRAPH g TASK_DEFAULTS (EXECUTE AS USER)",
+		"CREATE TASK GRAPH g TASK_DEFAULTS (EXECUTE AS USER = svc)",
+		"CREATE TASK GRAPH g TASK_DEFAULTS (EXECUTE AS USER a, EXECUTE AS USER b)",
 	} {
 		mustRejectObject(t, in)
 	}
@@ -85,6 +91,7 @@ func TestParseAlterTaskGraph(t *testing.T) {
 		"ALTER TASK GRAPH g UNSET CONFIG, FINALIZER":                    "UNSET",
 		"ALTER TASK GRAPH g SET TASK_DEFAULTS (WAREHOUSE = new_wh)":     "SET TASK_DEFAULTS",
 		"ALTER TASK GRAPH g UNSET TASK_DEFAULTS (LOG_LEVEL, COMMENT)":   "UNSET TASK_DEFAULTS",
+		"ALTER TASK GRAPH g UNSET TASK_DEFAULTS (EXECUTE AS USER)":      "UNSET TASK_DEFAULTS",
 		"ALTER TASK GRAPH g SET TAG t = 'v', u = 'w'":                   "SET TAG",
 		"ALTER TASK GRAPH g UNSET TAG t, u":                             "UNSET TAG",
 		"ALTER TASK GRAPH g SET CONTACT STEWARD = c, SUPPORT = d":       "SET CONTACT",
@@ -143,6 +150,15 @@ func TestParseTaskNamedGraph(t *testing.T) {
 }
 
 func TestParseDropExecuteTaskGraph(t *testing.T) {
+	// A result pipe after a graph's statement reads as after a task's.
+	rs, ok := mustParseOne(t, "EXECUTE TASK GRAPH g ->> SELECT * FROM $1").(*ast.ResultScanStmt)
+	if !ok {
+		t.Fatalf("pipe: not a ResultScanStmt")
+	}
+	if x, ok := rs.Source.(*ast.ExecuteTaskStmt); !ok || !x.Graph {
+		t.Errorf("pipe source = %#v", rs.Source)
+	}
+
 	d := mustParseOne(t, "DROP TASK GRAPH IF EXISTS db.s.g").(*ast.DropStmt)
 	if d.Kind != ast.DropObject || d.ObjectType() != "TASK GRAPH" || !d.IfExists || d.Name.String() != "db.s.g" {
 		t.Errorf("got %+v", d)

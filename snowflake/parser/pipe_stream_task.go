@@ -520,7 +520,7 @@ func (p *Parser) parseCreateTaskStmt(start ast.Loc, orReplace, orAlter bool) (as
 	if p.cur.Type == kwWITH && isWordToken(p.peekNext(), "CONTACT") {
 		p.advance() // consume WITH
 		p.advance() // consume CONTACT
-		group, err := p.parseTaskGraphGroup(false)
+		group, err := p.parseTaskGraphGroup(false, false)
 		if err != nil {
 			return nil, err
 		}
@@ -627,7 +627,7 @@ func (p *Parser) parseTaskSetOptions() ([]*ast.CopyOption, error) {
 			p.advance() // consume CONTACT
 			group := &ast.CopyOption{}
 			for {
-				e, err := p.parseTaskGraphEntry(false)
+				e, err := p.parseTaskGraphEntry(false, false)
 				if err != nil {
 					return nil, err
 				}
