@@ -46,7 +46,7 @@ var artifactRepositoryProps = objectProps{
 	"TYPE":                  propOneOf("APPLICATION", "PYPI"),
 	"API_INTEGRATION":       propString,
 	"INDEX_URL":             propString,
-	"AUTHENTICATION_SECRET": propName,
+	"AUTHENTICATION_SECRET": propQName,
 	"PACKAGE_RETENTION":     propOneOf("ON_OBJECT_CREATION"),
 	"COMMENT":               propString,
 }
@@ -55,7 +55,7 @@ var artifactRepositoryProps = objectProps{
 // CREATE's but TYPE and API_INTEGRATION.
 var artifactRepositoryAlterProps = objectProps{
 	"INDEX_URL":             propString,
-	"AUTHENTICATION_SECRET": propName,
+	"AUTHENTICATION_SECRET": propQName,
 	"PACKAGE_RETENTION":     propOneOf("ON_OBJECT_CREATION"),
 	"COMMENT":               propString,
 }

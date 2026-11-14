@@ -208,6 +208,8 @@ func TestParseServiceRejects(t *testing.T) {
 		"EXECUTE JOB SERVICE IN COMPUTE POOL db.p FROM SPECIFICATION 'x'",                               // the pool is a single name
 		"CREATE SERVICE s IN COMPUTE POOL p FROM SPECIFICATION 'x' MIN_INSTANCES = 1 MIN_INSTANCES = 2", // set twice
 		"ALTER SERVICE s SET COMMENT = 'c' WITH TAG (t = 'v')",
+		"ALTER SERVICE s SET QUERY_WAREHOUSE = db.wh", // a warehouse is a single name
+		"EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL p WITH SPECIFICATION 's' FROM (SELECT 1) MODEL = m VERSION = a.b",
 	} {
 		mustRejectObject(t, in)
 	}

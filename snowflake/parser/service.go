@@ -50,7 +50,7 @@ var serviceProps = objectProps{
 // They are not registered: EXECUTE is dispatched by parseExecuteStmt.
 var (
 	executeJobServiceForm = &objectForm{props: objectProps{
-		"NAME":                         propName,
+		"NAME":                         propQName,
 		"ASYNC":                        propBool,
 		"REPLICAS":                     propNumber,
 		"QUERY_WAREHOUSE":              propName,
@@ -58,10 +58,10 @@ var (
 		"EXTERNAL_ACCESS_INTEGRATIONS": propNames,
 	}}
 	executeInferenceJobServiceForm = &objectForm{props: objectProps{
-		"MODEL":    propName,
+		"MODEL":    propQName,
 		"VERSION":  propName,
 		"FUNCTION": propString,
-		"NAME":     propName,
+		"NAME":     propQName,
 		"ASYNC":    propBool,
 		"REPLICAS": propNumber,
 	}}
