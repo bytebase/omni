@@ -4,6 +4,10 @@ import (
 	"github.com/bytebase/omni/cassandra/ast"
 )
 
+// parseCreateIndex parses createIndexStatement (Parser.g:848):
+//
+//	CREATE [CUSTOM] INDEX [IF NOT EXISTS] [name] ON t '(' [indexIdent (',' indexIdent)*] ')'
+//	[USING 'class'] [WITH properties]
 func (p *Parser) parseCreateIndex() (*ast.CreateIndexStmt, error) {
 	start := p.curLoc()
 	isCustom := false
@@ -11,7 +15,9 @@ func (p *Parser) parseCreateIndex() (*ast.CreateIndexStmt, error) {
 		isCustom = true
 		p.advance()
 	}
-	p.advance() // INDEX
+	if err := p.expectKeyword(tokINDEX); err != nil {
+		return nil, err
+	}
 
 	ifNotExists, err := p.parseIfNotExists()
 	if err != nil {
@@ -45,71 +51,71 @@ func (p *Parser) parseCreateIndex() (*ast.CreateIndexStmt, error) {
 	if _, err := p.expect(tokLPAREN); err != nil {
 		return nil, err
 	}
-
-	// Index column: IDENT or FULL(IDENT), KEYS(IDENT), VALUES(IDENT), ENTRIES(IDENT)
-	switch p.cur.Type {
-	case tokFULL, tokKEYS, tokVALUES, tokENTRIES:
-		fStart := p.curLoc()
-		fname, err := p.parseIdentifier()
-		if err != nil {
-			return nil, err
+	if p.cur.Type != tokRPAREN {
+		for {
+			target, err := p.parseIndexIdent()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Columns = append(stmt.Columns, target)
+			if !p.match(tokCOMMA) {
+				break
+			}
 		}
-		fc, err := p.parseFunctionCallWithName(fname)
-		if err != nil {
-			return nil, err
-		}
-		fc.Loc.Start = fStart
-		stmt.Column = fc
-	default:
-		col, err := p.parseIdentifier()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Column = col
+		stmt.Column = stmt.Columns[0]
 	}
-
 	if _, err := p.expect(tokRPAREN); err != nil {
 		return nil, err
 	}
 
-	// Optional USING class
 	if p.match(tokUSING) {
-		switch p.cur.Type {
-		case tokSTRING:
-			stmt.UsingClass = &ast.StringLit{Val: p.cur.Str, Loc: ast.Loc{Start: p.cur.Loc, End: p.cur.End}}
-			p.advance()
-		case tokSAI:
-			stmt.UsingClass = &ast.Identifier{Name: p.cur.Str, Loc: ast.Loc{Start: p.cur.Loc, End: p.cur.End}}
-			p.advance()
-		case tokSTORAGEATTACHEDINDEX:
-			stmt.UsingClass = &ast.Identifier{Name: p.cur.Str, Loc: ast.Loc{Start: p.cur.Loc, End: p.cur.End}}
-			p.advance()
-		default:
-			val, err := p.parseConstant()
-			if err != nil {
-				return nil, err
-			}
-			stmt.UsingClass = val
-		}
-	}
-
-	// Optional WITH OPTIONS = { ... } or WITH { ... }
-	if p.match(tokWITH) {
-		if p.cur.Type == tokOPTIONS {
-			p.advance()
-			if _, err := p.expect(tokEQ); err != nil {
-				return nil, err
-			}
-		}
-		opts, err := p.parseOptionHash()
+		cls, err := p.parseStringLit()
 		if err != nil {
 			return nil, err
 		}
-		stmt.Options = opts
+		stmt.UsingClass = cls
+	}
+
+	if p.match(tokWITH) {
+		props, err := p.parseProperties()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Properties = props
+		for _, o := range props {
+			if h, ok := o.Value.(*ast.OptionHash); ok && identKey(o.Name) == "options" {
+				stmt.Options = h
+			}
+		}
 	}
 
 	stmt.Loc = p.makeLoc(start)
 	return stmt, nil
+}
+
+// parseIndexIdent parses indexIdent (Parser.g:862): a column, or VALUES,
+// KEYS, ENTRIES or FULL of one. KEYS and VALUES are also column names unless
+// '(' follows.
+func (p *Parser) parseIndexIdent() (ast.ExprNode, error) {
+	switch p.cur.Type {
+	case tokFULL, tokKEYS, tokVALUES, tokENTRIES:
+		if p.peekNext().Type != tokLPAREN {
+			break
+		}
+		fStart := p.curLoc()
+		fname := tokIdent(p.cur)
+		p.advance() // FULL | KEYS | VALUES | ENTRIES
+		p.advance() // (
+		col, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(tokRPAREN); err != nil {
+			return nil, err
+		}
+		return &ast.FunctionCall{Name: fname, Args: []ast.ExprNode{col}, Loc: p.makeLoc(fStart)}, nil
+	}
+	return p.parseIdentifier()
 }
 
 func (p *Parser) parseDropIndex() (*ast.DropIndexStmt, error) {

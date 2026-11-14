@@ -894,8 +894,8 @@ func (p *Parser) parseWithTags() ([]*ast.TagAssignment, error) {
 // (identifier or keyword) — the settable property/parameter vocabulary is large
 // and version-growing (DEFAULT_ROLE / DISPLAY_NAME / DEFAULT_WAREHOUSE /
 // SESSION_IDLE_TIMEOUT_MINS / PASSWORD_MIN_LENGTH / COMMENT / ...), much of it
-// lexed as keywords, so it is NOT enumerated (unlike the DB/SCHEMA-specific
-// parsePropertyNameList). Returns the uppercased names; consumes at least one.
+// lexed as keywords, so it is NOT enumerated. Returns the uppercased names;
+// consumes at least one.
 func (p *Parser) parseUnsetPropertyNames() ([]string, error) {
 	var names []string
 	for {

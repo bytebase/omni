@@ -88,12 +88,15 @@ const (
 	tokCOMMA                            // ,
 	tokPERIOD                           // .
 	tokQUESTION_MARK                    // ?
+	tokVERTBAR                          // | (label disjunction in a graph pattern)
+	tokAMPERSAND                        // & (bitwise and; label conjunction)
+	tokBANG                             // ! (label negation)
 )
 
 // tokenName returns the canonical printable name for a token type constant.
 // Used by error messages, test failure output, and future debugging.
 //
-// Covers all 302 tok* constants in the package.
+// Covers all 307 tok* constants in the package.
 func tokenName(t int) string {
 	switch t {
 	// Specials.
@@ -173,6 +176,12 @@ func tokenName(t int) string {
 		return "PERIOD"
 	case tokQUESTION_MARK:
 		return "QUESTION_MARK"
+	case tokVERTBAR:
+		return "VERTBAR"
+	case tokAMPERSAND:
+		return "AMPERSAND"
+	case tokBANG:
+		return "BANG"
 
 	// Keywords (alphabetical).
 	case tokABSOLUTE:
@@ -351,6 +360,10 @@ func tokenName(t int) string {
 		return "EXCEPT"
 	case tokEXCEPTION:
 		return "EXCEPTION"
+	case tokEVERY:
+		return "EVERY"
+	case tokEXCLUDE:
+		return "EXCLUDE"
 	case tokEXCLUDED:
 		return "EXCLUDED"
 	case tokEXEC:
@@ -714,7 +727,7 @@ func tokenName(t int) string {
 // ===========================================================================
 // Keyword tokens — group 3000.
 //
-// 266 keywords from PartiQLLexer.g4 lines 13–295, alphabetical.
+// 268 keywords from PartiQLLexer.g4 lines 13–295, alphabetical.
 //
 // Includes standard SQL keywords (ABSOLUTE..ZONE), window keywords
 // (LAG, LEAD, OVER, PARTITION), PartiQL extension keywords (CAN_CAST,
@@ -814,6 +827,8 @@ const (
 	tokESCAPE
 	tokEXCEPT
 	tokEXCEPTION
+	tokEVERY
+	tokEXCLUDE
 	tokEXCLUDED
 	tokEXEC
 	tokEXECUTE

@@ -35,6 +35,7 @@ func generatePartitionDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 			// Only handle table-type RelKinds; view/matview changes are handled by generateViewDDL.
 			fromIsTable := entry.From.RelKind == 'r' || entry.From.RelKind == 'p'
 			toIsTable := entry.To.RelKind == 'r' || entry.To.RelKind == 'p'
+			// tableRebuilt says the same for the other generators.
 			if fromIsTable && toIsTable && entry.From.RelKind != entry.To.RelKind {
 				ops = append(ops, buildTableRecreateOps(from, to, entry,
 					fmt.Sprintf("converting table from relkind '%c' to '%c'", entry.From.RelKind, entry.To.RelKind))...)
@@ -67,6 +68,15 @@ func generatePartitionDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 	})
 
 	return ops
+}
+
+// tableRebuilt reports whether the plan drops and recreates a table: its kind
+// changes between plain and partitioned, or its inheritance changes, neither
+// of which ALTER TABLE can do.
+func tableRebuilt(from, to *Catalog, fromRel, toRel *Relation) bool {
+	fromIsTable := fromRel.RelKind == 'r' || fromRel.RelKind == 'p'
+	toIsTable := toRel.RelKind == 'r' || toRel.RelKind == 'p'
+	return fromIsTable && toIsTable && (fromRel.RelKind != toRel.RelKind || !inhParentsEqual(from, to, fromRel.InhParents, toRel.InhParents))
 }
 
 // generatePartitionChildDDL generates CREATE TABLE ... PARTITION OF ... FOR VALUES ...
@@ -127,6 +137,8 @@ func generatePartitionChildDDL(c *Catalog, entry RelationDiffEntry) []MigrationO
 			b.WriteString(fmt.Sprintf(" FOR VALUES WITH (MODULUS %d, REMAINDER %d)", bound.Modulus, bound.Remainder))
 		}
 	}
+	// A partition with subpartitions is itself partitioned.
+	b.WriteString(formatPartitionByClause(rel))
 
 	return []MigrationOp{{
 		Type:          OpCreateTable,

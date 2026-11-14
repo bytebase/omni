@@ -167,15 +167,22 @@ func (p *Parser) parseCreateAggregate() (*ast.CreateAggregateStmt, error) {
 		return nil, err
 	}
 
+	// '(' [comparatorType (',' comparatorType)*] ')' (Parser.g:662)
 	if _, err := p.expect(tokLPAREN); err != nil {
 		return nil, err
 	}
-	paramType, err := p.parseDataType()
-	if err != nil {
-		return nil, err
+	var paramTypes []*ast.DataType
+	if p.cur.Type != tokRPAREN {
+		if paramTypes, err = p.parseTypeList(); err != nil {
+			return nil, err
+		}
 	}
 	if _, err := p.expect(tokRPAREN); err != nil {
 		return nil, err
+	}
+	var paramType *ast.DataType
+	if len(paramTypes) > 0 {
+		paramType = paramTypes[0]
 	}
 
 	if err := p.expectKeyword(tokSFUNC); err != nil {
@@ -218,6 +225,7 @@ func (p *Parser) parseCreateAggregate() (*ast.CreateAggregateStmt, error) {
 		IfNotExists: ifNotExists,
 		Name:        name,
 		ParamType:   paramType,
+		ParamTypes:  paramTypes,
 		SFunc:       sfunc,
 		SType:       stype,
 		FinalFunc:   finalfunc,

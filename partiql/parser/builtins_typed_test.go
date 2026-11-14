@@ -754,3 +754,80 @@ func TestParser_Trim_DeepNestingLinear(t *testing.T) {
 		t.Fatalf("TRIM nested %d deep did not parse within %s — exponential-time regression", depth, budget)
 	}
 }
+
+// TestParser_ExprGrammarForms covers expression forms of PartiQLParser.g4
+// that the reference parser's visitor takes: POSITION and OVERLAY in both
+// forms (g4:666-678, visitPosition, visitOverlay), the EVERY, ANY and SOME
+// aggregates (g4:682), CURRENT_USER and CURRENT_DATE (g4:627-628),
+// EXCLUDED as a variable (g4:745-750), a qualified function name
+// (g4:721-724), & (g4:576), VALUES (g4:645-649) and a value list
+// (g4:651-652). Each expression spans the whole input.
+func TestParser_ExprGrammarForms(t *testing.T) {
+	cases := []struct {
+		input string
+		want  string
+	}{
+		{"POSITION(a IN b)", "FuncCall{Name:POSITION Args:[VarRef{Name:a} VarRef{Name:b}]}"},
+		{"POSITION(a, b)", "FuncCall{Name:POSITION Args:[VarRef{Name:a} VarRef{Name:b}]}"},
+		// The first operand of the IN form leaves its IN to POSITION.
+		{"POSITION(x = a IN b)", "FuncCall{Name:POSITION Args:[BinaryExpr{Op:= Left:VarRef{Name:x} Right:VarRef{Name:a}} VarRef{Name:b}]}"},
+		{"POSITION(NOT a IN b AND c)", "FuncCall{Name:POSITION Args:[UnaryExpr{Op:NOT Operand:VarRef{Name:a}} BinaryExpr{Op:AND Left:VarRef{Name:b} Right:VarRef{Name:c}}]}"},
+		{"POSITION(POSITION(a IN b) IN c)", "FuncCall{Name:POSITION Args:[FuncCall{Name:POSITION Args:[VarRef{Name:a} VarRef{Name:b}]} VarRef{Name:c}]}"},
+		// An IN in parentheses or in the comma form is a predicate.
+		{"POSITION((a IN b) IN c)", "FuncCall{Name:POSITION Args:[InExpr{Expr:VarRef{Name:a} List:[VarRef{Name:b}] Not:false} VarRef{Name:c}]}"},
+		{"POSITION(a IN b, c)", "FuncCall{Name:POSITION Args:[InExpr{Expr:VarRef{Name:a} List:[VarRef{Name:b}] Not:false} VarRef{Name:c}]}"},
+		{"OVERLAY(a PLACING b FROM c)", "FuncCall{Name:OVERLAY Args:[VarRef{Name:a} VarRef{Name:b} VarRef{Name:c}]}"},
+		{"OVERLAY(a PLACING b FROM c FOR d)", "FuncCall{Name:OVERLAY Args:[VarRef{Name:a} VarRef{Name:b} VarRef{Name:c} VarRef{Name:d}]}"},
+		{"OVERLAY(a, b, c)", "FuncCall{Name:OVERLAY Args:[VarRef{Name:a} VarRef{Name:b} VarRef{Name:c}]}"},
+		{"OVERLAY(a, b, c, d)", "FuncCall{Name:OVERLAY Args:[VarRef{Name:a} VarRef{Name:b} VarRef{Name:c} VarRef{Name:d}]}"},
+		{"EVERY(a)", "FuncCall{Name:EVERY Args:[VarRef{Name:a}]}"},
+		{"ANY(a)", "FuncCall{Name:ANY Args:[VarRef{Name:a}]}"},
+		{"some(DISTINCT a)", "FuncCall{Name:SOME Quantifier:DISTINCT Args:[VarRef{Name:a}]}"},
+		{"CURRENT_USER", "SessionAttribute{Name:CURRENT_USER}"},
+		{"current_date", "SessionAttribute{Name:CURRENT_DATE}"},
+		{"EXCLUDED", "VarRef{Name:EXCLUDED}"},
+		{"@excluded", "VarRef{Name:excluded AtPrefixed:true}"},
+		{"a.b(c)", "FuncCall{Name:b Qualifier:[VarRef{Name:a}] Args:[VarRef{Name:c}]}"},
+		{`"a".b.char_length(x)`, "FuncCall{Name:CHAR_LENGTH Qualifier:[VarRef{Name:a CaseSensitive:true} VarRef{Name:b}] Args:[VarRef{Name:x}]}"},
+		{"a & b || c", "BinaryExpr{Op:|| Left:BinaryExpr{Op:& Left:VarRef{Name:a} Right:VarRef{Name:b}} Right:VarRef{Name:c}}"},
+		{"1 + 2 & 3", "BinaryExpr{Op:& Left:BinaryExpr{Op:+ Left:NumberLit{Val:1} Right:NumberLit{Val:2}} Right:NumberLit{Val:3}}"},
+		{"VALUES (1, 2), (3)", "ValuesExpr{Rows:[ValueList{Items:[NumberLit{Val:1} NumberLit{Val:2}]} ValueList{Items:[NumberLit{Val:3}]}]}"},
+		{"(1, (2, 3))", "ValueList{Items:[NumberLit{Val:1} ValueList{Items:[NumberLit{Val:2} NumberLit{Val:3}]}]}"},
+	}
+	for _, tc := range cases {
+		expr, err := NewParser(tc.input).ParseExpr()
+		if err != nil {
+			t.Errorf("ParseExpr(%q): %v", tc.input, err)
+			continue
+		}
+		if got := ast.NodeToString(expr); got != tc.want {
+			t.Errorf("ParseExpr(%q)\ngot:  %s\nwant: %s", tc.input, got, tc.want)
+		}
+		if loc := expr.GetLoc(); loc != (ast.Loc{Start: 0, End: len(tc.input)}) {
+			t.Errorf("ParseExpr(%q).Loc = %+v, want 0..%d", tc.input, loc, len(tc.input))
+		}
+	}
+	for _, bad := range []string{
+		"POSITION(a)",
+		"POSITION(a NOT IN b)",
+		"OVERLAY(a, b)",
+		"OVERLAY(a PLACING b)",
+		"OVERLAY(a PLACING b FROM c, d)",
+		"EVERY(*)",
+		"SOME(a, b)",
+		"CURRENT_TIME",
+		"EXCLUDED(a)",
+		"@a.b(c)",
+		"a.COUNT(*)",
+		"a.(b)",
+		"VALUES",
+		"VALUES ()",
+		"VALUES (1),",
+		"(1,)",
+		"a &",
+	} {
+		if _, err := NewParser(bad).ParseExpr(); err == nil {
+			t.Errorf("ParseExpr(%q): want an error", bad)
+		}
+	}
+}

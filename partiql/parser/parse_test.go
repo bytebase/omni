@@ -114,12 +114,6 @@ func TestParse(t *testing.T) {
 			wantLen: 1,
 			wantStr: "ExecStmt{Name:VarRef{Name:myProc} Args:[NumberLit{Val:1} StringLit{Val:\"hello\"}]}",
 		},
-		{
-			name:    "execute_keyword",
-			input:   "EXECUTE myProc",
-			wantLen: 1,
-			wantStr: "ExecStmt{",
-		},
 
 		// -----------------------------------------------------------------------
 		// EXEC via ParseStatement (single-stmt path)
@@ -196,10 +190,6 @@ func TestParseStatement_Exec(t *testing.T) {
 		{
 			input:   "EXEC myProc 1, 2",
 			wantStr: "ExecStmt{Name:VarRef{Name:myProc} Args:[NumberLit{Val:1} NumberLit{Val:2}]}",
-		},
-		{
-			input:   "EXECUTE proc123",
-			wantStr: "ExecStmt{Name:VarRef{Name:proc123} Args:[]}",
 		},
 	}
 
@@ -306,4 +296,27 @@ func TestParse_TrailingLexerError(t *testing.T) {
 			}
 		}
 	})
+}
+
+// TestParseExec_Refused covers what the grammar or the reference parser
+// refuses after EXEC: execCommand begins with EXEC alone
+// (PartiQLParser.g4:64-65), and the visitor takes a procedure name that is a
+// variable only (PartiQLParserDefault.kt:663).
+func TestParseExec_Refused(t *testing.T) {
+	for _, input := range []string{
+		"EXECUTE myProc",
+		"EXEC 'myProc'",
+		"EXEC ?",
+		"EXEC a.b",
+		"EXEC f(1)",
+	} {
+		if _, err := Parse(input); err == nil {
+			t.Errorf("Parse(%q): want an error", input)
+		}
+	}
+	for _, input := range []string{"EXEC \"myProc\"", "EXEC @p 1", "EXEC excluded"} {
+		if _, err := Parse(input); err != nil {
+			t.Errorf("Parse(%q): %v", input, err)
+		}
+	}
 }
