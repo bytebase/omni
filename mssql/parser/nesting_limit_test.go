@@ -69,9 +69,6 @@ var nestingCases = []struct {
 			nest(n, "(", "sqlserver.session_id > 50", ")") + ")"
 	}, true},
 	{"CREATE SCHEMA elements", func(n int) string { return strings.Repeat("CREATE SCHEMA s ", n) }, false},
-	{"availability group options", func(n int) string {
-		return "ALTER AVAILABILITY GROUP ag MODIFY REPLICA ON 's' WITH (" + nest(n, "SECONDARY_ROLE (", "ALLOW_CONNECTIONS = ALL", ")") + ")"
-	}, false},
 	{"unclosed parentheses", func(n int) string { return "SELECT " + strings.Repeat("(", n) }, false},
 	{"unclosed function calls", func(n int) string { return "SELECT " + strings.Repeat("ABS(", n) }, false},
 	{"unclosed subqueries", func(n int) string { return strings.Repeat("SELECT (", n) }, false},

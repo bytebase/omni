@@ -1498,8 +1498,8 @@ accept	accept	engine	unsupportedShowStatement/SHOW_CREATE_CATALOG_identifier	SHO
 reject	reject	engine	unsupportedShowStatement/SHOW_CREATE_CATALOG_identifier!drop-4	SHOW CREATE CATALOG
 reject	reject	engine	unsupportedShowStatement/SHOW_CREATE_CATALOG_identifier!insert	SHOW CREATE CATALOG a zzz
 reject	reject	engine	unsupportedShowStatement/SHOW_CREATE_CATALOG_identifier!swap	SIGNED CREATE CATALOG a
-reject	accept	engine	unsupportedShowStatement/SHOW_CREATE_(GLOBAL|SESSION|LOCAL)?_FUNCTION_functionId~bafd9516	SHOW CREATE FUNCTION a()
-accept	reject	engine	unsupportedShowStatement/SHOW_CREATE_(GLOBAL|SESSION|LOCAL)?_FUNCTION_functionId~bafd9516!drop-1	CREATE FUNCTION a()
+accept	accept	engine	unsupportedShowStatement/SHOW_CREATE_(GLOBAL|SESSION|LOCAL)?_FUNCTION_functionId~bafd9516	SHOW CREATE FUNCTION a()
+reject	reject	engine	unsupportedShowStatement/SHOW_CREATE_(GLOBAL|SESSION|LOCAL)?_FUNCTION_functionId~bafd9516!drop-1	CREATE FUNCTION a()
 reject	reject	engine	unsupportedShowStatement/SHOW_CREATE_(GLOBAL|SESSION|LOCAL)?_FUNCTION_functionId~bafd9516!drop-2	SHOW FUNCTION a()
 reject	reject	engine	unsupportedShowStatement/SHOW_CREATE_(GLOBAL|SESSION|LOCAL)?_FUNCTION_functionId~bafd9516!drop-3	SHOW CREATE a()
 reject	reject	engine	unsupportedShowStatement/SHOW_CREATE_(GLOBAL|SESSION|LOCAL)?_FUNCTION_functionId~bafd9516!drop-4	SHOW CREATE FUNCTION()
@@ -1921,9 +1921,9 @@ reject	reject	engine	unsupportedShowStatement(DATABASE|SCHEMA)/DATABASE!swap	SHO
 accept	accept	engine	unsupportedShowStatement(DATABASE|SCHEMA)/SCHEMA	SHOW CREATE SCHEMA a
 reject	reject	engine	unsupportedShowStatement(DATABASE|SCHEMA)/SCHEMA!insert	SHOW CREATE SCHEMA zzz a
 reject	reject	engine	unsupportedShowStatement(DATABASE|SCHEMA)/SCHEMA!swap	SHOW CREATE SCHEMAS a
-reject	accept	engine	unsupportedShowStatement(functionArguments)?/%empty	SHOW CREATE FUNCTION a()
+accept	accept	engine	unsupportedShowStatement(functionArguments)?/%empty	SHOW CREATE FUNCTION a()
 reject	reject	engine	unsupportedShowStatement(functionArguments)?/%empty!insert	SHOW CREATE FUNCTION a(zzz)
-reject	accept	engine	unsupportedShowStatement(functionArguments)?/functionArguments	SHOW CREATE FUNCTION a(...)
+accept	accept	engine	unsupportedShowStatement(functionArguments)?/functionArguments	SHOW CREATE FUNCTION a(...)
 reject	reject	engine	unsupportedShowStatement(functionArguments)?/functionArguments!insert	SHOW CREATE FUNCTION a(...zzz)
 accept	accept	engine	unsupportedShowStatement(DATABASES|SCHEMAS)/DATABASES	SHOW DATABASES
 reject	reject	engine	unsupportedShowStatement(DATABASES|SCHEMAS)/DATABASES!swap	SHOW DATE
@@ -3813,9 +3813,9 @@ reject	reject	engine	unsupportedDropStatement/DROP_CATALOG_(IF_EXISTS)?_identifi
 accept	accept	engine	unsupportedDropStatement/DROP_(GLOBAL|SESSION|LOCAL)?_FUNCTION_(IF_EXISTS)?_func~e7e53777	DROP FUNCTION a()
 reject	reject	engine	unsupportedDropStatement/DROP_(GLOBAL|SESSION|LOCAL)?_FUNCTION_(IF_EXISTS)?_func~e7e53777!drop-1	FUNCTION a()
 reject	reject	engine	unsupportedDropStatement/DROP_(GLOBAL|SESSION|LOCAL)?_FUNCTION_(IF_EXISTS)?_func~e7e53777!drop-2	DROP a()
-accept	reject	engine	unsupportedDropStatement/DROP_(GLOBAL|SESSION|LOCAL)?_FUNCTION_(IF_EXISTS)?_func~e7e53777!drop-3	DROP FUNCTION()
+reject	reject	engine	unsupportedDropStatement/DROP_(GLOBAL|SESSION|LOCAL)?_FUNCTION_(IF_EXISTS)?_func~e7e53777!drop-3	DROP FUNCTION()
 reject	reject	engine	unsupportedDropStatement/DROP_(GLOBAL|SESSION|LOCAL)?_FUNCTION_(IF_EXISTS)?_func~e7e53777!drop-4	DROP FUNCTION a)
-accept	reject	engine	unsupportedDropStatement/DROP_(GLOBAL|SESSION|LOCAL)?_FUNCTION_(IF_EXISTS)?_func~e7e53777!drop-5	DROP FUNCTION a(
+reject	reject	engine	unsupportedDropStatement/DROP_(GLOBAL|SESSION|LOCAL)?_FUNCTION_(IF_EXISTS)?_func~e7e53777!drop-5	DROP FUNCTION a(
 reject	reject	engine	unsupportedDropStatement/DROP_(GLOBAL|SESSION|LOCAL)?_FUNCTION_(IF_EXISTS)?_func~e7e53777!insert	DROP FUNCTION a() zzz
 reject	reject	engine	unsupportedDropStatement/DROP_(GLOBAL|SESSION|LOCAL)?_FUNCTION_(IF_EXISTS)?_func~e7e53777!swap	DROPP FUNCTION a()
 accept	accept	engine	unsupportedDropStatement/DROP_(TEMPORARY)?_TABLE_(IF_EXISTS)?_multipartIdentifie~7f9f9545	DROP TABLE a
@@ -3921,16 +3921,16 @@ reject	reject	engine	unsupportedDropStatement(GLOBAL|SESSION|LOCAL)?/%empty!inse
 accept	accept	engine	unsupportedDropStatement(GLOBAL|SESSION|LOCAL)?/GLOBAL	DROP GLOBAL FUNCTION a()
 reject	reject	engine	unsupportedDropStatement(GLOBAL|SESSION|LOCAL)?/GLOBAL!insert	DROP GLOBAL zzz FUNCTION a()
 reject	reject	engine	unsupportedDropStatement(GLOBAL|SESSION|LOCAL)?/GLOBAL!swap	DROP GRANT FUNCTION a()
-reject	accept	engine	unsupportedDropStatement(GLOBAL|SESSION|LOCAL)?/SESSION	DROP SESSION FUNCTION a()
+accept	accept	engine	unsupportedDropStatement(GLOBAL|SESSION|LOCAL)?/SESSION	DROP SESSION FUNCTION a()
 reject	reject	engine	unsupportedDropStatement(GLOBAL|SESSION|LOCAL)?/SESSION!insert	DROP SESSION zzz FUNCTION a()
 reject	reject	engine	unsupportedDropStatement(GLOBAL|SESSION|LOCAL)?/SESSION!swap	DROP SESSION_USER FUNCTION a()
-reject	accept	engine	unsupportedDropStatement(GLOBAL|SESSION|LOCAL)?/LOCAL	DROP LOCAL FUNCTION a()
+accept	accept	engine	unsupportedDropStatement(GLOBAL|SESSION|LOCAL)?/LOCAL	DROP LOCAL FUNCTION a()
 reject	reject	engine	unsupportedDropStatement(GLOBAL|SESSION|LOCAL)?/LOCAL!insert	DROP LOCAL zzz FUNCTION a()
 reject	reject	engine	unsupportedDropStatement(GLOBAL|SESSION|LOCAL)?/LOCAL!swap	DROP LOCALTIME FUNCTION a()
 accept	accept	engine	unsupportedDropStatement(functionArguments)?/%empty	DROP FUNCTION a()
-accept	reject	engine	unsupportedDropStatement(functionArguments)?/%empty!insert	DROP FUNCTION a(zzz)
+reject	reject	engine	unsupportedDropStatement(functionArguments)?/%empty!insert	DROP FUNCTION a(zzz)
 accept	accept	engine	unsupportedDropStatement(functionArguments)?/functionArguments	DROP FUNCTION a(...)
-accept	reject	engine	unsupportedDropStatement(functionArguments)?/functionArguments!insert	DROP FUNCTION a(...zzz)
+reject	reject	engine	unsupportedDropStatement(functionArguments)?/functionArguments!insert	DROP FUNCTION a(...zzz)
 accept	accept	engine	unsupportedDropStatement(TEMPORARY)?/%empty	DROP TABLE a
 reject	reject	engine	unsupportedDropStatement(TEMPORARY)?/%empty!insert	DROP zzz TABLE a
 accept	accept	engine	unsupportedDropStatement(TEMPORARY)?/TEMPORARY	DROP TEMPORARY TABLE a
@@ -4178,27 +4178,27 @@ reject	reject	engine	unsupportedCreateStatement/CREATE_CATALOG_(IF_NOT_EXISTS)?_
 accept	accept	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_(TABLES|AGGREGATE)?_FUNC~6a837b59	CREATE FUNCTION a() RETURNS VARIANT
 reject	reject	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_(TABLES|AGGREGATE)?_FUNC~6a837b59!drop-1	FUNCTION a() RETURNS VARIANT
 reject	reject	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_(TABLES|AGGREGATE)?_FUNC~6a837b59!drop-2	CREATE a() RETURNS VARIANT
-accept	reject	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_(TABLES|AGGREGATE)?_FUNC~6a837b59!drop-3	CREATE FUNCTION() RETURNS VARIANT
-accept	reject	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_(TABLES|AGGREGATE)?_FUNC~6a837b59!drop-4	CREATE FUNCTION a) RETURNS VARIANT
-accept	reject	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_(TABLES|AGGREGATE)?_FUNC~6a837b59!drop-5	CREATE FUNCTION a(RETURNS VARIANT
-accept	reject	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_(TABLES|AGGREGATE)?_FUNC~6a837b59!drop-6	CREATE FUNCTION a() VARIANT
-accept	reject	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_(TABLES|AGGREGATE)?_FUNC~6a837b59!drop-7	CREATE FUNCTION a() RETURNS
-accept	reject	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_(TABLES|AGGREGATE)?_FUNC~6a837b59!insert	CREATE FUNCTION a() RETURNS VARIANT zzz
+reject	reject	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_(TABLES|AGGREGATE)?_FUNC~6a837b59!drop-3	CREATE FUNCTION() RETURNS VARIANT
+reject	reject	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_(TABLES|AGGREGATE)?_FUNC~6a837b59!drop-4	CREATE FUNCTION a) RETURNS VARIANT
+reject	reject	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_(TABLES|AGGREGATE)?_FUNC~6a837b59!drop-5	CREATE FUNCTION a(RETURNS VARIANT
+reject	reject	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_(TABLES|AGGREGATE)?_FUNC~6a837b59!drop-6	CREATE FUNCTION a() VARIANT
+reject	reject	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_(TABLES|AGGREGATE)?_FUNC~6a837b59!drop-7	CREATE FUNCTION a() RETURNS
+reject	reject	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_(TABLES|AGGREGATE)?_FUNC~6a837b59!insert	CREATE FUNCTION a() RETURNS VARIANT zzz
 reject	reject	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_(TABLES|AGGREGATE)?_FUNC~6a837b59!swap	CREATION FUNCTION a() RETURNS VARIANT
 accept	accept	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_ALIAS_FUNCTION_(IF_NOT_E~1528f095	CREATE ALIAS FUNCTION a() WITH PARAMETER() AS CURRENT_DATE
 reject	reject	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_ALIAS_FUNCTION_(IF_NOT_E~1528f095!drop-1	ALIAS FUNCTION a() WITH PARAMETER() AS CURRENT_DATE
-accept	reject	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_ALIAS_FUNCTION_(IF_NOT_E~1528f095!drop-2	CREATE FUNCTION a() WITH PARAMETER() AS CURRENT_DATE
+reject	reject	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_ALIAS_FUNCTION_(IF_NOT_E~1528f095!drop-2	CREATE FUNCTION a() WITH PARAMETER() AS CURRENT_DATE
 reject	reject	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_ALIAS_FUNCTION_(IF_NOT_E~1528f095!drop-3	CREATE ALIAS a() WITH PARAMETER() AS CURRENT_DATE
-accept	reject	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_ALIAS_FUNCTION_(IF_NOT_E~1528f095!drop-4	CREATE ALIAS FUNCTION() WITH PARAMETER() AS CURRENT_DATE
-accept	reject	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_ALIAS_FUNCTION_(IF_NOT_E~1528f095!drop-5	CREATE ALIAS FUNCTION a) WITH PARAMETER() AS CURRENT_DATE
-accept	reject	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_ALIAS_FUNCTION_(IF_NOT_E~1528f095!drop-6	CREATE ALIAS FUNCTION a(WITH PARAMETER() AS CURRENT_DATE
-accept	reject	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_ALIAS_FUNCTION_(IF_NOT_E~1528f095!drop-7	CREATE ALIAS FUNCTION a() PARAMETER() AS CURRENT_DATE
-accept	reject	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_ALIAS_FUNCTION_(IF_NOT_E~1528f095!drop-8	CREATE ALIAS FUNCTION a() WITH() AS CURRENT_DATE
-accept	reject	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_ALIAS_FUNCTION_(IF_NOT_E~1528f095!drop-9	CREATE ALIAS FUNCTION a() WITH PARAMETER) AS CURRENT_DATE
-accept	reject	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_ALIAS_FUNCTION_(IF_NOT_E~1528f095!drop-10	CREATE ALIAS FUNCTION a() WITH PARAMETER(AS CURRENT_DATE
-accept	reject	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_ALIAS_FUNCTION_(IF_NOT_E~1528f095!drop-11	CREATE ALIAS FUNCTION a() WITH PARAMETER() CURRENT_DATE
-accept	reject	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_ALIAS_FUNCTION_(IF_NOT_E~1528f095!drop-12	CREATE ALIAS FUNCTION a() WITH PARAMETER() AS
-accept	reject	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_ALIAS_FUNCTION_(IF_NOT_E~1528f095!insert	CREATE ALIAS FUNCTION a() WITH PARAMETER() AS CURRENT_DATE zzz
+reject	reject	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_ALIAS_FUNCTION_(IF_NOT_E~1528f095!drop-4	CREATE ALIAS FUNCTION() WITH PARAMETER() AS CURRENT_DATE
+reject	reject	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_ALIAS_FUNCTION_(IF_NOT_E~1528f095!drop-5	CREATE ALIAS FUNCTION a) WITH PARAMETER() AS CURRENT_DATE
+reject	reject	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_ALIAS_FUNCTION_(IF_NOT_E~1528f095!drop-6	CREATE ALIAS FUNCTION a(WITH PARAMETER() AS CURRENT_DATE
+reject	reject	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_ALIAS_FUNCTION_(IF_NOT_E~1528f095!drop-7	CREATE ALIAS FUNCTION a() PARAMETER() AS CURRENT_DATE
+reject	reject	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_ALIAS_FUNCTION_(IF_NOT_E~1528f095!drop-8	CREATE ALIAS FUNCTION a() WITH() AS CURRENT_DATE
+reject	reject	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_ALIAS_FUNCTION_(IF_NOT_E~1528f095!drop-9	CREATE ALIAS FUNCTION a() WITH PARAMETER) AS CURRENT_DATE
+reject	reject	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_ALIAS_FUNCTION_(IF_NOT_E~1528f095!drop-10	CREATE ALIAS FUNCTION a() WITH PARAMETER(AS CURRENT_DATE
+reject	reject	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_ALIAS_FUNCTION_(IF_NOT_E~1528f095!drop-11	CREATE ALIAS FUNCTION a() WITH PARAMETER() CURRENT_DATE
+reject	reject	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_ALIAS_FUNCTION_(IF_NOT_E~1528f095!drop-12	CREATE ALIAS FUNCTION a() WITH PARAMETER() AS
+reject	reject	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_ALIAS_FUNCTION_(IF_NOT_E~1528f095!insert	CREATE ALIAS FUNCTION a() WITH PARAMETER() AS CURRENT_DATE zzz
 reject	reject	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_ALIAS_FUNCTION_(IF_NOT_E~1528f095!swap	CREATION ALIAS FUNCTION a() WITH PARAMETER() AS CURRENT_DATE
 accept	accept	engine	unsupportedCreateStatement/CREATE_USER_(IF_NOT_EXISTS)?_grantUserIdentify_(SUPERUS~ec5b8d27	CREATE USER a
 reject	reject	engine	unsupportedCreateStatement/CREATE_USER_(IF_NOT_EXISTS)?_grantUserIdentify_(SUPERUS~ec5b8d27!drop-3	CREATE USER
@@ -4331,35 +4331,35 @@ reject	reject	engine	unsupportedCreateStatement(GLOBAL|SESSION|LOCAL)?/%empty!in
 accept	accept	engine	unsupportedCreateStatement(GLOBAL|SESSION|LOCAL)?/GLOBAL	CREATE GLOBAL FUNCTION a() RETURNS VARIANT
 reject	reject	engine	unsupportedCreateStatement(GLOBAL|SESSION|LOCAL)?/GLOBAL!insert	CREATE GLOBAL zzz FUNCTION a() RETURNS VARIANT
 reject	reject	engine	unsupportedCreateStatement(GLOBAL|SESSION|LOCAL)?/GLOBAL!swap	CREATE GRANT FUNCTION a() RETURNS VARIANT
-reject	accept	engine	unsupportedCreateStatement(GLOBAL|SESSION|LOCAL)?/SESSION	CREATE SESSION FUNCTION a() RETURNS VARIANT
+accept	accept	engine	unsupportedCreateStatement(GLOBAL|SESSION|LOCAL)?/SESSION	CREATE SESSION FUNCTION a() RETURNS VARIANT
 reject	reject	engine	unsupportedCreateStatement(GLOBAL|SESSION|LOCAL)?/SESSION!insert	CREATE SESSION zzz FUNCTION a() RETURNS VARIANT
 reject	reject	engine	unsupportedCreateStatement(GLOBAL|SESSION|LOCAL)?/SESSION!swap	CREATE SESSION_USER FUNCTION a() RETURNS VARIANT
-reject	accept	engine	unsupportedCreateStatement(GLOBAL|SESSION|LOCAL)?/LOCAL	CREATE LOCAL FUNCTION a() RETURNS VARIANT
+accept	accept	engine	unsupportedCreateStatement(GLOBAL|SESSION|LOCAL)?/LOCAL	CREATE LOCAL FUNCTION a() RETURNS VARIANT
 reject	reject	engine	unsupportedCreateStatement(GLOBAL|SESSION|LOCAL)?/LOCAL!insert	CREATE LOCAL zzz FUNCTION a() RETURNS VARIANT
 reject	reject	engine	unsupportedCreateStatement(GLOBAL|SESSION|LOCAL)?/LOCAL!swap	CREATE LOCALTIME FUNCTION a() RETURNS VARIANT
 accept	accept	engine	unsupportedCreateStatement(TABLES|AGGREGATE)?/%empty	CREATE FUNCTION a() RETURNS VARIANT
-reject	accept	engine	unsupportedCreateStatement(TABLES|AGGREGATE)?/TABLES	CREATE TABLES FUNCTION a() RETURNS VARIANT
+accept	accept	engine	unsupportedCreateStatement(TABLES|AGGREGATE)?/TABLES	CREATE TABLES FUNCTION a() RETURNS VARIANT
 reject	reject	engine	unsupportedCreateStatement(TABLES|AGGREGATE)?/TABLES!insert	CREATE TABLES zzz FUNCTION a() RETURNS VARIANT
 reject	reject	engine	unsupportedCreateStatement(TABLES|AGGREGATE)?/TABLES!swap	CREATE TABLESAMPLE FUNCTION a() RETURNS VARIANT
 accept	accept	engine	unsupportedCreateStatement(TABLES|AGGREGATE)?/AGGREGATE	CREATE AGGREGATE FUNCTION a() RETURNS VARIANT
 reject	reject	engine	unsupportedCreateStatement(TABLES|AGGREGATE)?/AGGREGATE!insert	CREATE AGGREGATE zzz FUNCTION a() RETURNS VARIANT
 reject	reject	engine	unsupportedCreateStatement(TABLES|AGGREGATE)?/AGGREGATE!swap	CREATE AGG_STATE FUNCTION a() RETURNS VARIANT
 accept	accept	engine	unsupportedCreateStatement(functionArguments)?/%empty	CREATE FUNCTION a() RETURNS VARIANT
-accept	reject	engine	unsupportedCreateStatement(functionArguments)?/%empty!insert	CREATE FUNCTION a(zzz) RETURNS VARIANT
+reject	reject	engine	unsupportedCreateStatement(functionArguments)?/%empty!insert	CREATE FUNCTION a(zzz) RETURNS VARIANT
 accept	accept	engine	unsupportedCreateStatement(functionArguments)?/functionArguments	CREATE FUNCTION a(...) RETURNS VARIANT
-accept	reject	engine	unsupportedCreateStatement(functionArguments)?/functionArguments!truncate	CREATE FUNCTION a(
-accept	reject	engine	unsupportedCreateStatement(functionArguments)?/functionArguments!insert	CREATE FUNCTION a(...zzz) RETURNS VARIANT
+reject	reject	engine	unsupportedCreateStatement(functionArguments)?/functionArguments!truncate	CREATE FUNCTION a(
+reject	reject	engine	unsupportedCreateStatement(functionArguments)?/functionArguments!insert	CREATE FUNCTION a(...zzz) RETURNS VARIANT
 accept	accept	engine	unsupportedCreateStatement(INTERMEDIATE_dataType)?/%empty	CREATE FUNCTION a() RETURNS VARIANT
 accept	accept	engine	unsupportedCreateStatement(INTERMEDIATE_dataType)?/INTERMEDIATE_dataType	CREATE FUNCTION a() RETURNS VARIANT INTERMEDIATE VARIANT
-accept	reject	engine	unsupportedCreateStatement(INTERMEDIATE_dataType)?/INTERMEDIATE_dataType!drop-1	CREATE FUNCTION a() RETURNS VARIANT VARIANT
-accept	reject	engine	unsupportedCreateStatement(INTERMEDIATE_dataType)?/INTERMEDIATE_dataType!drop-2	CREATE FUNCTION a() RETURNS VARIANT INTERMEDIATE
-accept	reject	engine	unsupportedCreateStatement(INTERMEDIATE_dataType)?/INTERMEDIATE_dataType!insert	CREATE FUNCTION a() RETURNS VARIANT INTERMEDIATE VARIANT zzz
-accept	reject	engine	unsupportedCreateStatement(INTERMEDIATE_dataType)?/INTERMEDIATE_dataType!swap	CREATE FUNCTION a() RETURNS VARIANT INTERSECT VARIANT
+reject	reject	engine	unsupportedCreateStatement(INTERMEDIATE_dataType)?/INTERMEDIATE_dataType!drop-1	CREATE FUNCTION a() RETURNS VARIANT VARIANT
+reject	reject	engine	unsupportedCreateStatement(INTERMEDIATE_dataType)?/INTERMEDIATE_dataType!drop-2	CREATE FUNCTION a() RETURNS VARIANT INTERMEDIATE
+reject	reject	engine	unsupportedCreateStatement(INTERMEDIATE_dataType)?/INTERMEDIATE_dataType!insert	CREATE FUNCTION a() RETURNS VARIANT INTERMEDIATE VARIANT zzz
+reject	reject	engine	unsupportedCreateStatement(INTERMEDIATE_dataType)?/INTERMEDIATE_dataType!swap	CREATE FUNCTION a() RETURNS VARIANT INTERSECT VARIANT
 accept	accept	engine	unsupportedCreateStatement(identifierSeq)?/%empty	CREATE ALIAS FUNCTION a() WITH PARAMETER() AS CURRENT_DATE
 accept	accept	engine	unsupportedCreateStatement(identifierSeq)?/%empty!insert	CREATE ALIAS FUNCTION a() WITH PARAMETER(zzz) AS CURRENT_DATE
 accept	accept	engine	unsupportedCreateStatement(identifierSeq)?/identifierSeq	CREATE ALIAS FUNCTION a() WITH PARAMETER(a) AS CURRENT_DATE
-accept	reject	engine	unsupportedCreateStatement(identifierSeq)?/identifierSeq!truncate	CREATE ALIAS FUNCTION a() WITH PARAMETER(
-accept	reject	engine	unsupportedCreateStatement(identifierSeq)?/identifierSeq!insert	CREATE ALIAS FUNCTION a() WITH PARAMETER(a zzz) AS CURRENT_DATE
+reject	reject	engine	unsupportedCreateStatement(identifierSeq)?/identifierSeq!truncate	CREATE ALIAS FUNCTION a() WITH PARAMETER(
+reject	reject	engine	unsupportedCreateStatement(identifierSeq)?/identifierSeq!insert	CREATE ALIAS FUNCTION a() WITH PARAMETER(a zzz) AS CURRENT_DATE
 accept	accept	engine	unsupportedCreateStatement(SUPERUSER|DEFAULT_ROLE_STRING_LITERAL)?/%empty	CREATE USER a
 reject	accept	engine	unsupportedCreateStatement(SUPERUSER|DEFAULT_ROLE_STRING_LITERAL)?/SUPERUSER	CREATE USER a SUPERUSER
 reject	reject	engine	unsupportedCreateStatement(SUPERUSER|DEFAULT_ROLE_STRING_LITERAL)?/SUPERUSER!insert	CREATE USER a SUPERUSER zzz
@@ -4415,9 +4415,9 @@ accept	accept	engine	unsupportedCreateStatement(CONDITIONS_LEFT_PAREN_workloadPo
 accept	accept	engine	unsupportedCreateStatement(CONDITIONS_LEFT_PAREN_workloadPolicy~ef2130b5)?/CONDITIONS_LEFT_PAREN_workloadPolicyConditions_RIGHT_PAREN	CREATE WORKLOAD POLICY a CONDITIONS(a = 1)
 reject	reject	engine	unsupportedCreateStatement(CONDITIONS_LEFT_PAREN_workloadPolicy~ef2130b5)?/CONDITIONS_LEFT_PAREN_workloadPolicyConditions_RIGHT_PAREN!drop-1	CREATE WORKLOAD POLICY a(a = 1)
 reject	reject	engine	unsupportedCreateStatement(CONDITIONS_LEFT_PAREN_workloadPolicy~ef2130b5)?/CONDITIONS_LEFT_PAREN_workloadPolicyConditions_RIGHT_PAREN!drop-2	CREATE WORKLOAD POLICY a CONDITIONS a = 1)
-accept	reject	engine	unsupportedCreateStatement(CONDITIONS_LEFT_PAREN_workloadPolicy~ef2130b5)?/CONDITIONS_LEFT_PAREN_workloadPolicyConditions_RIGHT_PAREN!drop-3	CREATE WORKLOAD POLICY a CONDITIONS(= 1)
-accept	reject	engine	unsupportedCreateStatement(CONDITIONS_LEFT_PAREN_workloadPolicy~ef2130b5)?/CONDITIONS_LEFT_PAREN_workloadPolicyConditions_RIGHT_PAREN!drop-4	CREATE WORKLOAD POLICY a CONDITIONS(a 1)
-accept	reject	engine	unsupportedCreateStatement(CONDITIONS_LEFT_PAREN_workloadPolicy~ef2130b5)?/CONDITIONS_LEFT_PAREN_workloadPolicyConditions_RIGHT_PAREN!drop-5	CREATE WORKLOAD POLICY a CONDITIONS(a =)
+reject	reject	engine	unsupportedCreateStatement(CONDITIONS_LEFT_PAREN_workloadPolicy~ef2130b5)?/CONDITIONS_LEFT_PAREN_workloadPolicyConditions_RIGHT_PAREN!drop-3	CREATE WORKLOAD POLICY a CONDITIONS(= 1)
+reject	reject	engine	unsupportedCreateStatement(CONDITIONS_LEFT_PAREN_workloadPolicy~ef2130b5)?/CONDITIONS_LEFT_PAREN_workloadPolicyConditions_RIGHT_PAREN!drop-4	CREATE WORKLOAD POLICY a CONDITIONS(a 1)
+reject	reject	engine	unsupportedCreateStatement(CONDITIONS_LEFT_PAREN_workloadPolicy~ef2130b5)?/CONDITIONS_LEFT_PAREN_workloadPolicyConditions_RIGHT_PAREN!drop-5	CREATE WORKLOAD POLICY a CONDITIONS(a =)
 reject	reject	engine	unsupportedCreateStatement(CONDITIONS_LEFT_PAREN_workloadPolicy~ef2130b5)?/CONDITIONS_LEFT_PAREN_workloadPolicyConditions_RIGHT_PAREN!drop-6	CREATE WORKLOAD POLICY a CONDITIONS(a = 1
 reject	reject	engine	unsupportedCreateStatement(CONDITIONS_LEFT_PAREN_workloadPolicy~ef2130b5)?/CONDITIONS_LEFT_PAREN_workloadPolicyConditions_RIGHT_PAREN!insert	CREATE WORKLOAD POLICY a CONDITIONS(a = 1) zzz
 reject	reject	engine	unsupportedCreateStatement(CONDITIONS_LEFT_PAREN_workloadPolicy~ef2130b5)?/CONDITIONS_LEFT_PAREN_workloadPolicyConditions_RIGHT_PAREN!swap	CREATE WORKLOAD POLICY a CONFIG(a = 1)
@@ -4425,7 +4425,7 @@ accept	accept	engine	unsupportedCreateStatement(ACTIONS_LEFT_PAREN_workloadPolic
 accept	accept	engine	unsupportedCreateStatement(ACTIONS_LEFT_PAREN_workloadPolicyAct~f80b7918)?/ACTIONS_LEFT_PAREN_workloadPolicyActions_RIGHT_PAREN	CREATE WORKLOAD POLICY a ACTIONS(a)
 reject	reject	engine	unsupportedCreateStatement(ACTIONS_LEFT_PAREN_workloadPolicyAct~f80b7918)?/ACTIONS_LEFT_PAREN_workloadPolicyActions_RIGHT_PAREN!drop-1	CREATE WORKLOAD POLICY a(a)
 reject	reject	engine	unsupportedCreateStatement(ACTIONS_LEFT_PAREN_workloadPolicyAct~f80b7918)?/ACTIONS_LEFT_PAREN_workloadPolicyActions_RIGHT_PAREN!drop-2	CREATE WORKLOAD POLICY a ACTIONS a)
-accept	reject	engine	unsupportedCreateStatement(ACTIONS_LEFT_PAREN_workloadPolicyAct~f80b7918)?/ACTIONS_LEFT_PAREN_workloadPolicyActions_RIGHT_PAREN!drop-3	CREATE WORKLOAD POLICY a ACTIONS()
+reject	reject	engine	unsupportedCreateStatement(ACTIONS_LEFT_PAREN_workloadPolicyAct~f80b7918)?/ACTIONS_LEFT_PAREN_workloadPolicyActions_RIGHT_PAREN!drop-3	CREATE WORKLOAD POLICY a ACTIONS()
 reject	reject	engine	unsupportedCreateStatement(ACTIONS_LEFT_PAREN_workloadPolicyAct~f80b7918)?/ACTIONS_LEFT_PAREN_workloadPolicyActions_RIGHT_PAREN!drop-4	CREATE WORKLOAD POLICY a ACTIONS(a
 reject	reject	engine	unsupportedCreateStatement(ACTIONS_LEFT_PAREN_workloadPolicyAct~f80b7918)?/ACTIONS_LEFT_PAREN_workloadPolicyActions_RIGHT_PAREN!insert	CREATE WORKLOAD POLICY a ACTIONS(a) zzz
 reject	reject	engine	unsupportedCreateStatement(ACTIONS_LEFT_PAREN_workloadPolicyAct~f80b7918)?/ACTIONS_LEFT_PAREN_workloadPolicyActions_RIGHT_PAREN!swap	CREATE WORKLOAD POLICY a ADD(a)
@@ -4437,38 +4437,38 @@ reject	reject	engine	unsupportedCreateStatement(partitionSpec)?/partitionSpec!in
 reject	reject	engine	unsupportedCreateStatement(partitionSpec)?/partitionSpec!swap	BUILD INDEX a ON a PARTITIONS a
 accept	accept	engine	workloadPolicyActions/workloadPolicyAction_(COMMA_workloadPolicyAction)*	CREATE WORKLOAD POLICY a ACTIONS(a)
 reject	reject	engine	workloadPolicyActions/workloadPolicyAction_(COMMA_workloadPolicyAction)*!truncate	CREATE WORKLOAD POLICY a ACTIONS(
-accept	reject	engine	workloadPolicyActions/workloadPolicyAction_(COMMA_workloadPolicyAction)*!insert	CREATE WORKLOAD POLICY a ACTIONS(a zzz)
+reject	reject	engine	workloadPolicyActions/workloadPolicyAction_(COMMA_workloadPolicyAction)*!insert	CREATE WORKLOAD POLICY a ACTIONS(a zzz)
 accept	accept	engine	workloadPolicyActions(COMMA_workloadPolicyAction)*/%empty	CREATE WORKLOAD POLICY a ACTIONS(a)
 accept	accept	engine	workloadPolicyActions(COMMA_workloadPolicyAction)*/COMMA_workloadPolicyAction_(COMMA_workloadPolicyAction)*	CREATE WORKLOAD POLICY a ACTIONS(a, a)
-accept	reject	engine	workloadPolicyActions(COMMA_workloadPolicyAction)*/COMMA_workloadPolicyAction_(COMMA_workloadPolicyAction)*!drop-1	CREATE WORKLOAD POLICY a ACTIONS(a a)
-accept	reject	engine	workloadPolicyActions(COMMA_workloadPolicyAction)*/COMMA_workloadPolicyAction_(COMMA_workloadPolicyAction)*!drop-2	CREATE WORKLOAD POLICY a ACTIONS(a,)
+reject	reject	engine	workloadPolicyActions(COMMA_workloadPolicyAction)*/COMMA_workloadPolicyAction_(COMMA_workloadPolicyAction)*!drop-1	CREATE WORKLOAD POLICY a ACTIONS(a a)
+reject	reject	engine	workloadPolicyActions(COMMA_workloadPolicyAction)*/COMMA_workloadPolicyAction_(COMMA_workloadPolicyAction)*!drop-2	CREATE WORKLOAD POLICY a ACTIONS(a,)
 reject	reject	engine	workloadPolicyActions(COMMA_workloadPolicyAction)*/COMMA_workloadPolicyAction_(COMMA_workloadPolicyAction)*!truncate	CREATE WORKLOAD POLICY a ACTIONS(a,
-accept	reject	engine	workloadPolicyActions(COMMA_workloadPolicyAction)*/COMMA_workloadPolicyAction_(COMMA_workloadPolicyAction)*!insert	CREATE WORKLOAD POLICY a ACTIONS(a, a zzz)
+reject	reject	engine	workloadPolicyActions(COMMA_workloadPolicyAction)*/COMMA_workloadPolicyAction_(COMMA_workloadPolicyAction)*!insert	CREATE WORKLOAD POLICY a ACTIONS(a, a zzz)
 accept	accept	engine	workloadPolicyAction/SET_SESSION_VARIABLE_STRING_LITERAL	CREATE WORKLOAD POLICY a ACTIONS(SET_SESSION_VARIABLE 'a')
-accept	reject	engine	workloadPolicyAction/SET_SESSION_VARIABLE_STRING_LITERAL!drop-1	CREATE WORKLOAD POLICY a ACTIONS('a')
+reject	reject	engine	workloadPolicyAction/SET_SESSION_VARIABLE_STRING_LITERAL!drop-1	CREATE WORKLOAD POLICY a ACTIONS('a')
 accept	accept	engine	workloadPolicyAction/SET_SESSION_VARIABLE_STRING_LITERAL!drop-2	CREATE WORKLOAD POLICY a ACTIONS(SET_SESSION_VARIABLE)
 reject	reject	engine	workloadPolicyAction/SET_SESSION_VARIABLE_STRING_LITERAL!truncate	CREATE WORKLOAD POLICY a ACTIONS(SET_SESSION_VARIABLE
-accept	reject	engine	workloadPolicyAction/SET_SESSION_VARIABLE_STRING_LITERAL!insert	CREATE WORKLOAD POLICY a ACTIONS(SET_SESSION_VARIABLE 'a' zzz)
+reject	reject	engine	workloadPolicyAction/SET_SESSION_VARIABLE_STRING_LITERAL!insert	CREATE WORKLOAD POLICY a ACTIONS(SET_SESSION_VARIABLE 'a' zzz)
 accept	accept	engine	workloadPolicyAction/SET_SESSION_VARIABLE_STRING_LITERAL!swap	CREATE WORKLOAD POLICY a ACTIONS(SHAPE 'a')
 accept	accept	engine	workloadPolicyAction/identifier_(STRING_LITERAL)?	CREATE WORKLOAD POLICY a ACTIONS(a)
 accept	accept	engine	workloadPolicyAction(STRING_LITERAL)?/%empty	CREATE WORKLOAD POLICY a ACTIONS(a)
 accept	accept	engine	workloadPolicyAction(STRING_LITERAL)?/STRING_LITERAL	CREATE WORKLOAD POLICY a ACTIONS(a 'a')
-accept	reject	engine	workloadPolicyAction(STRING_LITERAL)?/STRING_LITERAL!insert	CREATE WORKLOAD POLICY a ACTIONS(a 'a' zzz)
+reject	reject	engine	workloadPolicyAction(STRING_LITERAL)?/STRING_LITERAL!insert	CREATE WORKLOAD POLICY a ACTIONS(a 'a' zzz)
 accept	accept	engine	workloadPolicyConditions/workloadPolicyCondition_(COMMA_workloadPolicyCondition)*	CREATE WORKLOAD POLICY a CONDITIONS(a = 1)
 reject	reject	engine	workloadPolicyConditions/workloadPolicyCondition_(COMMA_workloadPolicyCondition)*!truncate	CREATE WORKLOAD POLICY a CONDITIONS(a =
-accept	reject	engine	workloadPolicyConditions/workloadPolicyCondition_(COMMA_workloadPolicyCondition)*!insert	CREATE WORKLOAD POLICY a CONDITIONS(a = 1 zzz)
+reject	reject	engine	workloadPolicyConditions/workloadPolicyCondition_(COMMA_workloadPolicyCondition)*!insert	CREATE WORKLOAD POLICY a CONDITIONS(a = 1 zzz)
 accept	accept	engine	workloadPolicyConditions(COMMA_workloadPolicyCondition)*/%empty	CREATE WORKLOAD POLICY a CONDITIONS(a = 1)
 accept	accept	engine	workloadPolicyConditions(COMMA_workloadPolicyCondition)*/COMMA_workloadPolicyCondition_(COMMA_workloadPolicyCondition)*	CREATE WORKLOAD POLICY a CONDITIONS(a = 1, a = 1)
-accept	reject	engine	workloadPolicyConditions(COMMA_workloadPolicyCondition)*/COMMA_workloadPolicyCondition_(COMMA_workloadPolicyCondition)*!drop-1	CREATE WORKLOAD POLICY a CONDITIONS(a = 1 a = 1)
-accept	reject	engine	workloadPolicyConditions(COMMA_workloadPolicyCondition)*/COMMA_workloadPolicyCondition_(COMMA_workloadPolicyCondition)*!drop-2	CREATE WORKLOAD POLICY a CONDITIONS(a = 1, = 1)
-accept	reject	engine	workloadPolicyConditions(COMMA_workloadPolicyCondition)*/COMMA_workloadPolicyCondition_(COMMA_workloadPolicyCondition)*!drop-3	CREATE WORKLOAD POLICY a CONDITIONS(a = 1, a 1)
-accept	reject	engine	workloadPolicyConditions(COMMA_workloadPolicyCondition)*/COMMA_workloadPolicyCondition_(COMMA_workloadPolicyCondition)*!drop-4	CREATE WORKLOAD POLICY a CONDITIONS(a = 1, a =)
+reject	reject	engine	workloadPolicyConditions(COMMA_workloadPolicyCondition)*/COMMA_workloadPolicyCondition_(COMMA_workloadPolicyCondition)*!drop-1	CREATE WORKLOAD POLICY a CONDITIONS(a = 1 a = 1)
+reject	reject	engine	workloadPolicyConditions(COMMA_workloadPolicyCondition)*/COMMA_workloadPolicyCondition_(COMMA_workloadPolicyCondition)*!drop-2	CREATE WORKLOAD POLICY a CONDITIONS(a = 1, = 1)
+reject	reject	engine	workloadPolicyConditions(COMMA_workloadPolicyCondition)*/COMMA_workloadPolicyCondition_(COMMA_workloadPolicyCondition)*!drop-3	CREATE WORKLOAD POLICY a CONDITIONS(a = 1, a 1)
+reject	reject	engine	workloadPolicyConditions(COMMA_workloadPolicyCondition)*/COMMA_workloadPolicyCondition_(COMMA_workloadPolicyCondition)*!drop-4	CREATE WORKLOAD POLICY a CONDITIONS(a = 1, a =)
 reject	reject	engine	workloadPolicyConditions(COMMA_workloadPolicyCondition)*/COMMA_workloadPolicyCondition_(COMMA_workloadPolicyCondition)*!truncate	CREATE WORKLOAD POLICY a CONDITIONS(a = 1, a =
-accept	reject	engine	workloadPolicyConditions(COMMA_workloadPolicyCondition)*/COMMA_workloadPolicyCondition_(COMMA_workloadPolicyCondition)*!insert	CREATE WORKLOAD POLICY a CONDITIONS(a = 1, a = 1 zzz)
+reject	reject	engine	workloadPolicyConditions(COMMA_workloadPolicyCondition)*/COMMA_workloadPolicyCondition_(COMMA_workloadPolicyCondition)*!insert	CREATE WORKLOAD POLICY a CONDITIONS(a = 1, a = 1 zzz)
 accept	accept	engine	workloadPolicyCondition/identifier_comparisonOperator_(number|STRING_LITERAL)	CREATE WORKLOAD POLICY a CONDITIONS(a = 1)
 accept	accept	engine	workloadPolicyCondition(number|STRING_LITERAL)/number	CREATE WORKLOAD POLICY a CONDITIONS(a = 1)
 accept	accept	engine	workloadPolicyCondition(number|STRING_LITERAL)/STRING_LITERAL	CREATE WORKLOAD POLICY a CONDITIONS(a = 'a')
-accept	reject	engine	workloadPolicyCondition(number|STRING_LITERAL)/STRING_LITERAL!insert	CREATE WORKLOAD POLICY a CONDITIONS(a = 'a' zzz)
+reject	reject	engine	workloadPolicyCondition(number|STRING_LITERAL)/STRING_LITERAL!insert	CREATE WORKLOAD POLICY a CONDITIONS(a = 'a' zzz)
 reject	reject	engine	storageBackend/(BROKER|S3|HDFS|LOCAL)_(identifier)?_ON_LOCATION_STRING~f9ad3195	CREATE REPOSITORY a WITH BROKER ON LOCATION 'a'
 reject	reject	engine	storageBackend/(BROKER|S3|HDFS|LOCAL)_(identifier)?_ON_LOCATION_STRING~f9ad3195!swap	CREATE REPOSITORY a WITH BUCKETS ON LOCATION 'a'
 reject	reject	engine	storageBackend(BROKER|S3|HDFS|LOCAL)/BROKER	CREATE REPOSITORY a WITH BROKER ON LOCATION 'a'
@@ -4571,15 +4571,15 @@ reject	reject	engine	passwordOption(ACCOUNT_LOCK|ACCOUNT_UNLOCK)?/ACCOUNT_UNLOCK
 reject	reject	engine	passwordOption(ACCOUNT_LOCK|ACCOUNT_UNLOCK)?/ACCOUNT_UNLOCK!swap	CREATE USER a ACTIONS
 accept	accept	engine	functionArguments/functionArgument_(COMMA_functionArgument)*	DROP FUNCTION a(...)
 accept	accept	engine	functionArguments(COMMA_functionArgument)*/%empty	DROP FUNCTION a(...)
-accept	reject	engine	functionArguments(COMMA_functionArgument)*/COMMA_functionArgument_(COMMA_functionArgument)*	DROP FUNCTION a(...,...)
-accept	reject	engine	functionArguments(COMMA_functionArgument)*/COMMA_functionArgument_(COMMA_functionArgument)*!drop-1	DROP FUNCTION a(......)
-accept	reject	engine	functionArguments(COMMA_functionArgument)*/COMMA_functionArgument_(COMMA_functionArgument)*!drop-2	DROP FUNCTION a(...,)
-accept	reject	engine	functionArguments(COMMA_functionArgument)*/COMMA_functionArgument_(COMMA_functionArgument)*!truncate	DROP FUNCTION a(...,
-accept	reject	engine	functionArguments(COMMA_functionArgument)*/COMMA_functionArgument_(COMMA_functionArgument)*!insert	DROP FUNCTION a(...,...zzz)
+reject	reject	engine	functionArguments(COMMA_functionArgument)*/COMMA_functionArgument_(COMMA_functionArgument)*	DROP FUNCTION a(...,...)
+reject	reject	engine	functionArguments(COMMA_functionArgument)*/COMMA_functionArgument_(COMMA_functionArgument)*!drop-1	DROP FUNCTION a(......)
+reject	reject	engine	functionArguments(COMMA_functionArgument)*/COMMA_functionArgument_(COMMA_functionArgument)*!drop-2	DROP FUNCTION a(...,)
+reject	reject	engine	functionArguments(COMMA_functionArgument)*/COMMA_functionArgument_(COMMA_functionArgument)*!truncate	DROP FUNCTION a(...,
+reject	reject	engine	functionArguments(COMMA_functionArgument)*/COMMA_functionArgument_(COMMA_functionArgument)*!insert	DROP FUNCTION a(...,...zzz)
 accept	accept	engine	functionArgument/DOTDOTDOT	DROP FUNCTION a(...)
 accept	accept	engine	functionArgument/dataType	DROP FUNCTION a(VARIANT)
-accept	reject	engine	functionArgument/dataType!insert	DROP FUNCTION a(VARIANT zzz)
-accept	reject	engine	functionArgument/dataType!swap	DROP FUNCTION a(VAULT)
+reject	reject	engine	functionArgument/dataType!insert	DROP FUNCTION a(VARIANT zzz)
+reject	reject	engine	functionArgument/dataType!swap	DROP FUNCTION a(VAULT)
 accept	accept	engine	unsupportedSetStatement/SET_(optionWithType|optionWithoutType)_(COMMA_(optionWi~921b0ec3	SET CHARSET a
 reject	accept	engine	unsupportedSetStatement/SET_identifier_AS_DEFAULT_STORAGE_VAULT	SET a AS DEFAULT STORAGE VAULT
 reject	reject	engine	unsupportedSetStatement/SET_identifier_AS_DEFAULT_STORAGE_VAULT!drop-1	a AS DEFAULT STORAGE VAULT
@@ -7250,265 +7250,265 @@ accept	accept	engine	unitIdentifier/SECOND	SELECT INTERVAL CURRENT_DATE SECOND
 accept	accept	engine	unitIdentifier/SECOND!insert	SELECT INTERVAL CURRENT_DATE SECOND zzz
 reject	reject	engine	unitIdentifier/SECOND!swap	SELECT INTERVAL CURRENT_DATE SELECT
 accept	accept	engine	dataTypeWithNullable/dataType_((NOT)?_NULL)?	DROP FUNCTION a(AGG_STATE < a(VARIANT) >)
-accept	reject	engine	dataTypeWithNullable/dataType_((NOT)?_NULL)?!drop-1	DROP FUNCTION a(AGG_STATE < a() >)
-accept	reject	engine	dataTypeWithNullable/dataType_((NOT)?_NULL)?!truncate	DROP FUNCTION a(AGG_STATE < a(
-accept	reject	engine	dataTypeWithNullable/dataType_((NOT)?_NULL)?!insert	DROP FUNCTION a(AGG_STATE < a(VARIANT zzz) >)
-accept	reject	engine	dataTypeWithNullable/dataType_((NOT)?_NULL)?!swap	DROP FUNCTION a(AGG_STATE < a(VAULT) >)
+reject	reject	engine	dataTypeWithNullable/dataType_((NOT)?_NULL)?!drop-1	DROP FUNCTION a(AGG_STATE < a() >)
+reject	reject	engine	dataTypeWithNullable/dataType_((NOT)?_NULL)?!truncate	DROP FUNCTION a(AGG_STATE < a(
+reject	reject	engine	dataTypeWithNullable/dataType_((NOT)?_NULL)?!insert	DROP FUNCTION a(AGG_STATE < a(VARIANT zzz) >)
+reject	reject	engine	dataTypeWithNullable/dataType_((NOT)?_NULL)?!swap	DROP FUNCTION a(AGG_STATE < a(VAULT) >)
 accept	accept	engine	dataTypeWithNullable((NOT)?_NULL)?/%empty	DROP FUNCTION a(AGG_STATE < a(VARIANT) >)
 accept	accept	engine	dataTypeWithNullable((NOT)?_NULL)?/(NOT)?_NULL	DROP FUNCTION a(AGG_STATE < a(VARIANT NULL) >)
-accept	reject	engine	dataTypeWithNullable((NOT)?_NULL)?/(NOT)?_NULL!truncate	DROP FUNCTION a(AGG_STATE < a(VARIANT
-accept	reject	engine	dataTypeWithNullable((NOT)?_NULL)?/(NOT)?_NULL!insert	DROP FUNCTION a(AGG_STATE < a(VARIANT NULL zzz) >)
-accept	reject	engine	dataTypeWithNullable((NOT)?_NULL)?/(NOT)?_NULL!swap	DROP FUNCTION a(AGG_STATE < a(VARIANT NULLS) >)
+reject	reject	engine	dataTypeWithNullable((NOT)?_NULL)?/(NOT)?_NULL!truncate	DROP FUNCTION a(AGG_STATE < a(VARIANT
+reject	reject	engine	dataTypeWithNullable((NOT)?_NULL)?/(NOT)?_NULL!insert	DROP FUNCTION a(AGG_STATE < a(VARIANT NULL zzz) >)
+reject	reject	engine	dataTypeWithNullable((NOT)?_NULL)?/(NOT)?_NULL!swap	DROP FUNCTION a(AGG_STATE < a(VARIANT NULLS) >)
 accept	accept	engine	dataTypeWithNullable(NOT)?/%empty	DROP FUNCTION a(AGG_STATE < a(VARIANT NULL) >)
-accept	reject	engine	dataTypeWithNullable(NOT)?/%empty!insert	DROP FUNCTION a(AGG_STATE < a(VARIANT zzz NULL) >)
+reject	reject	engine	dataTypeWithNullable(NOT)?/%empty!insert	DROP FUNCTION a(AGG_STATE < a(VARIANT zzz NULL) >)
 accept	accept	engine	dataTypeWithNullable(NOT)?/NOT	DROP FUNCTION a(AGG_STATE < a(VARIANT NOT NULL) >)
-accept	reject	engine	dataTypeWithNullable(NOT)?/NOT!insert	DROP FUNCTION a(AGG_STATE < a(VARIANT NOT zzz NULL) >)
-accept	reject	engine	dataTypeWithNullable(NOT)?/NOT!swap	DROP FUNCTION a(AGG_STATE < a(VARIANT NULL NULL) >)
+reject	reject	engine	dataTypeWithNullable(NOT)?/NOT!insert	DROP FUNCTION a(AGG_STATE < a(VARIANT NOT zzz NULL) >)
+reject	reject	engine	dataTypeWithNullable(NOT)?/NOT!swap	DROP FUNCTION a(AGG_STATE < a(VARIANT NULL NULL) >)
 accept	accept	engine	dataType/ARRAY_LT_dataType_GT	DROP FUNCTION a(ARRAY < VARIANT >)
-accept	reject	engine	dataType/ARRAY_LT_dataType_GT!drop-1	DROP FUNCTION a(< VARIANT >)
-accept	reject	engine	dataType/ARRAY_LT_dataType_GT!drop-2	DROP FUNCTION a(ARRAY VARIANT >)
-accept	reject	engine	dataType/ARRAY_LT_dataType_GT!drop-3	DROP FUNCTION a(ARRAY < >)
-accept	reject	engine	dataType/ARRAY_LT_dataType_GT!drop-4	DROP FUNCTION a(ARRAY < VARIANT)
-accept	reject	engine	dataType/ARRAY_LT_dataType_GT!truncate	DROP FUNCTION a(ARRAY < VARIANT
-accept	reject	engine	dataType/ARRAY_LT_dataType_GT!insert	DROP FUNCTION a(ARRAY < VARIANT > zzz)
-accept	reject	engine	dataType/ARRAY_LT_dataType_GT!swap	DROP FUNCTION a(AS < VARIANT >)
+reject	reject	engine	dataType/ARRAY_LT_dataType_GT!drop-1	DROP FUNCTION a(< VARIANT >)
+reject	reject	engine	dataType/ARRAY_LT_dataType_GT!drop-2	DROP FUNCTION a(ARRAY VARIANT >)
+reject	reject	engine	dataType/ARRAY_LT_dataType_GT!drop-3	DROP FUNCTION a(ARRAY < >)
+reject	reject	engine	dataType/ARRAY_LT_dataType_GT!drop-4	DROP FUNCTION a(ARRAY < VARIANT)
+reject	reject	engine	dataType/ARRAY_LT_dataType_GT!truncate	DROP FUNCTION a(ARRAY < VARIANT
+reject	reject	engine	dataType/ARRAY_LT_dataType_GT!insert	DROP FUNCTION a(ARRAY < VARIANT > zzz)
+reject	reject	engine	dataType/ARRAY_LT_dataType_GT!swap	DROP FUNCTION a(AS < VARIANT >)
 accept	accept	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT	DROP FUNCTION a(MAP < VARIANT, VARIANT >)
-accept	reject	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-1	DROP FUNCTION a(< VARIANT, VARIANT >)
-accept	reject	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-2	DROP FUNCTION a(MAP VARIANT, VARIANT >)
-accept	reject	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-3	DROP FUNCTION a(MAP <, VARIANT >)
-accept	reject	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-4	DROP FUNCTION a(MAP < VARIANT VARIANT >)
-accept	reject	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-5	DROP FUNCTION a(MAP < VARIANT, >)
-accept	reject	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-6	DROP FUNCTION a(MAP < VARIANT, VARIANT)
-accept	reject	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT!truncate	DROP FUNCTION a(MAP < VARIANT, VARIANT
-accept	reject	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT!insert	DROP FUNCTION a(MAP < VARIANT, VARIANT > zzz)
-accept	reject	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT!swap	DROP FUNCTION a(MATCH < VARIANT, VARIANT >)
+reject	reject	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-1	DROP FUNCTION a(< VARIANT, VARIANT >)
+reject	reject	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-2	DROP FUNCTION a(MAP VARIANT, VARIANT >)
+reject	reject	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-3	DROP FUNCTION a(MAP <, VARIANT >)
+reject	reject	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-4	DROP FUNCTION a(MAP < VARIANT VARIANT >)
+reject	reject	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-5	DROP FUNCTION a(MAP < VARIANT, >)
+reject	reject	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-6	DROP FUNCTION a(MAP < VARIANT, VARIANT)
+reject	reject	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT!truncate	DROP FUNCTION a(MAP < VARIANT, VARIANT
+reject	reject	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT!insert	DROP FUNCTION a(MAP < VARIANT, VARIANT > zzz)
+reject	reject	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT!swap	DROP FUNCTION a(MATCH < VARIANT, VARIANT >)
 accept	accept	engine	dataType/STRUCT_LT_complexColTypeList_GT	DROP FUNCTION a(STRUCT < a : VARIANT >)
-accept	reject	engine	dataType/STRUCT_LT_complexColTypeList_GT!drop-1	DROP FUNCTION a(< a : VARIANT >)
-accept	reject	engine	dataType/STRUCT_LT_complexColTypeList_GT!drop-2	DROP FUNCTION a(STRUCT a : VARIANT >)
-accept	reject	engine	dataType/STRUCT_LT_complexColTypeList_GT!drop-3	DROP FUNCTION a(STRUCT < : VARIANT >)
-accept	reject	engine	dataType/STRUCT_LT_complexColTypeList_GT!drop-4	DROP FUNCTION a(STRUCT < a VARIANT >)
-accept	reject	engine	dataType/STRUCT_LT_complexColTypeList_GT!drop-5	DROP FUNCTION a(STRUCT < a : >)
-accept	reject	engine	dataType/STRUCT_LT_complexColTypeList_GT!drop-6	DROP FUNCTION a(STRUCT < a : VARIANT)
-accept	reject	engine	dataType/STRUCT_LT_complexColTypeList_GT!truncate	DROP FUNCTION a(STRUCT < a : VARIANT
-accept	reject	engine	dataType/STRUCT_LT_complexColTypeList_GT!insert	DROP FUNCTION a(STRUCT < a : VARIANT > zzz)
-accept	reject	engine	dataType/STRUCT_LT_complexColTypeList_GT!swap	DROP FUNCTION a(SUM < a : VARIANT >)
+reject	reject	engine	dataType/STRUCT_LT_complexColTypeList_GT!drop-1	DROP FUNCTION a(< a : VARIANT >)
+reject	reject	engine	dataType/STRUCT_LT_complexColTypeList_GT!drop-2	DROP FUNCTION a(STRUCT a : VARIANT >)
+reject	reject	engine	dataType/STRUCT_LT_complexColTypeList_GT!drop-3	DROP FUNCTION a(STRUCT < : VARIANT >)
+reject	reject	engine	dataType/STRUCT_LT_complexColTypeList_GT!drop-4	DROP FUNCTION a(STRUCT < a VARIANT >)
+reject	reject	engine	dataType/STRUCT_LT_complexColTypeList_GT!drop-5	DROP FUNCTION a(STRUCT < a : >)
+reject	reject	engine	dataType/STRUCT_LT_complexColTypeList_GT!drop-6	DROP FUNCTION a(STRUCT < a : VARIANT)
+reject	reject	engine	dataType/STRUCT_LT_complexColTypeList_GT!truncate	DROP FUNCTION a(STRUCT < a : VARIANT
+reject	reject	engine	dataType/STRUCT_LT_complexColTypeList_GT!insert	DROP FUNCTION a(STRUCT < a : VARIANT > zzz)
+reject	reject	engine	dataType/STRUCT_LT_complexColTypeList_GT!swap	DROP FUNCTION a(SUM < a : VARIANT >)
 accept	accept	engine	dataType/variantTypeDefinitions	DROP FUNCTION a(VARIANT)
 accept	accept	engine	dataType/AGG_STATE_LT_functionNameIdentifier_LEFT_PAREN_dataType~ae542142	DROP FUNCTION a(AGG_STATE < a(VARIANT) >)
-accept	reject	engine	dataType/AGG_STATE_LT_functionNameIdentifier_LEFT_PAREN_dataType~ae542142!drop-1	DROP FUNCTION a(< a(VARIANT) >)
-accept	reject	engine	dataType/AGG_STATE_LT_functionNameIdentifier_LEFT_PAREN_dataType~ae542142!drop-2	DROP FUNCTION a(AGG_STATE a(VARIANT) >)
-accept	reject	engine	dataType/AGG_STATE_LT_functionNameIdentifier_LEFT_PAREN_dataType~ae542142!drop-3	DROP FUNCTION a(AGG_STATE <(VARIANT) >)
+reject	reject	engine	dataType/AGG_STATE_LT_functionNameIdentifier_LEFT_PAREN_dataType~ae542142!drop-1	DROP FUNCTION a(< a(VARIANT) >)
+reject	reject	engine	dataType/AGG_STATE_LT_functionNameIdentifier_LEFT_PAREN_dataType~ae542142!drop-2	DROP FUNCTION a(AGG_STATE a(VARIANT) >)
+reject	reject	engine	dataType/AGG_STATE_LT_functionNameIdentifier_LEFT_PAREN_dataType~ae542142!drop-3	DROP FUNCTION a(AGG_STATE <(VARIANT) >)
 reject	reject	engine	dataType/AGG_STATE_LT_functionNameIdentifier_LEFT_PAREN_dataType~ae542142!drop-4	DROP FUNCTION a(AGG_STATE < a VARIANT) >)
-accept	reject	engine	dataType/AGG_STATE_LT_functionNameIdentifier_LEFT_PAREN_dataType~ae542142!drop-6	DROP FUNCTION a(AGG_STATE < a(VARIANT >)
-accept	reject	engine	dataType/AGG_STATE_LT_functionNameIdentifier_LEFT_PAREN_dataType~ae542142!drop-7	DROP FUNCTION a(AGG_STATE < a(VARIANT))
-accept	reject	engine	dataType/AGG_STATE_LT_functionNameIdentifier_LEFT_PAREN_dataType~ae542142!truncate	DROP FUNCTION a(AGG_STATE < a(VARIANT)
-accept	reject	engine	dataType/AGG_STATE_LT_functionNameIdentifier_LEFT_PAREN_dataType~ae542142!insert	DROP FUNCTION a(AGG_STATE < a(VARIANT) > zzz)
-accept	reject	engine	dataType/AGG_STATE_LT_functionNameIdentifier_LEFT_PAREN_dataType~ae542142!swap	DROP FUNCTION a(ALIAS < a(VARIANT) >)
+reject	reject	engine	dataType/AGG_STATE_LT_functionNameIdentifier_LEFT_PAREN_dataType~ae542142!drop-6	DROP FUNCTION a(AGG_STATE < a(VARIANT >)
+reject	reject	engine	dataType/AGG_STATE_LT_functionNameIdentifier_LEFT_PAREN_dataType~ae542142!drop-7	DROP FUNCTION a(AGG_STATE < a(VARIANT))
+reject	reject	engine	dataType/AGG_STATE_LT_functionNameIdentifier_LEFT_PAREN_dataType~ae542142!truncate	DROP FUNCTION a(AGG_STATE < a(VARIANT)
+reject	reject	engine	dataType/AGG_STATE_LT_functionNameIdentifier_LEFT_PAREN_dataType~ae542142!insert	DROP FUNCTION a(AGG_STATE < a(VARIANT) > zzz)
+reject	reject	engine	dataType/AGG_STATE_LT_functionNameIdentifier_LEFT_PAREN_dataType~ae542142!swap	DROP FUNCTION a(ALIAS < a(VARIANT) >)
 accept	accept	engine	dataType/primitiveColType_(LEFT_PAREN_(INTEGER_VALUE|ASTERISK)_~~4c607e1a	DROP FUNCTION a(TINYINT)
-accept	reject	engine	dataType/primitiveColType_(LEFT_PAREN_(INTEGER_VALUE|ASTERISK)_~~4c607e1a!insert	DROP FUNCTION a(TINYINT zzz)
-accept	reject	engine	dataType/primitiveColType_(LEFT_PAREN_(INTEGER_VALUE|ASTERISK)_~~4c607e1a!swap	DROP FUNCTION a(TO)
+reject	reject	engine	dataType/primitiveColType_(LEFT_PAREN_(INTEGER_VALUE|ASTERISK)_~~4c607e1a!insert	DROP FUNCTION a(TINYINT zzz)
+reject	reject	engine	dataType/primitiveColType_(LEFT_PAREN_(INTEGER_VALUE|ASTERISK)_~~4c607e1a!swap	DROP FUNCTION a(TO)
 accept	accept	engine	dataType(COMMA_dataTypeWithNullable)*/%empty	DROP FUNCTION a(AGG_STATE < a(VARIANT) >)
 accept	accept	engine	dataType(COMMA_dataTypeWithNullable)*/COMMA_dataTypeWithNullable_(COMMA_dataTypeWithNullable)*	DROP FUNCTION a(AGG_STATE < a(VARIANT, VARIANT) >)
-accept	reject	engine	dataType(COMMA_dataTypeWithNullable)*/COMMA_dataTypeWithNullable_(COMMA_dataTypeWithNullable)*!drop-1	DROP FUNCTION a(AGG_STATE < a(VARIANT VARIANT) >)
-accept	reject	engine	dataType(COMMA_dataTypeWithNullable)*/COMMA_dataTypeWithNullable_(COMMA_dataTypeWithNullable)*!drop-2	DROP FUNCTION a(AGG_STATE < a(VARIANT,) >)
-accept	reject	engine	dataType(COMMA_dataTypeWithNullable)*/COMMA_dataTypeWithNullable_(COMMA_dataTypeWithNullable)*!truncate	DROP FUNCTION a(AGG_STATE < a(VARIANT,
-accept	reject	engine	dataType(COMMA_dataTypeWithNullable)*/COMMA_dataTypeWithNullable_(COMMA_dataTypeWithNullable)*!insert	DROP FUNCTION a(AGG_STATE < a(VARIANT, VARIANT zzz) >)
-accept	reject	engine	dataType(COMMA_dataTypeWithNullable)*/COMMA_dataTypeWithNullable_(COMMA_dataTypeWithNullable)*!swap	DROP FUNCTION a(AGG_STATE < a(VARIANT, VAULT) >)
+reject	reject	engine	dataType(COMMA_dataTypeWithNullable)*/COMMA_dataTypeWithNullable_(COMMA_dataTypeWithNullable)*!drop-1	DROP FUNCTION a(AGG_STATE < a(VARIANT VARIANT) >)
+reject	reject	engine	dataType(COMMA_dataTypeWithNullable)*/COMMA_dataTypeWithNullable_(COMMA_dataTypeWithNullable)*!drop-2	DROP FUNCTION a(AGG_STATE < a(VARIANT,) >)
+reject	reject	engine	dataType(COMMA_dataTypeWithNullable)*/COMMA_dataTypeWithNullable_(COMMA_dataTypeWithNullable)*!truncate	DROP FUNCTION a(AGG_STATE < a(VARIANT,
+reject	reject	engine	dataType(COMMA_dataTypeWithNullable)*/COMMA_dataTypeWithNullable_(COMMA_dataTypeWithNullable)*!insert	DROP FUNCTION a(AGG_STATE < a(VARIANT, VARIANT zzz) >)
+reject	reject	engine	dataType(COMMA_dataTypeWithNullable)*/COMMA_dataTypeWithNullable_(COMMA_dataTypeWithNullable)*!swap	DROP FUNCTION a(AGG_STATE < a(VARIANT, VAULT) >)
 accept	accept	engine	dataType(LEFT_PAREN_(INTEGER_VALUE|ASTERISK)_~9c916795)?/%empty	DROP FUNCTION a(TINYINT)
 accept	accept	engine	dataType(LEFT_PAREN_(INTEGER_VALUE|ASTERISK)_~9c916795)?/LEFT_PAREN_(INTEGER_VALUE|ASTERISK)_(COMMA_INTEGER_VALU~e47fe5bf	DROP FUNCTION a(TINYINT(1))
 reject	reject	engine	dataType(LEFT_PAREN_(INTEGER_VALUE|ASTERISK)_~9c916795)?/LEFT_PAREN_(INTEGER_VALUE|ASTERISK)_(COMMA_INTEGER_VALU~e47fe5bf!drop-1	DROP FUNCTION a(TINYINT 1))
-accept	reject	engine	dataType(LEFT_PAREN_(INTEGER_VALUE|ASTERISK)_~9c916795)?/LEFT_PAREN_(INTEGER_VALUE|ASTERISK)_(COMMA_INTEGER_VALU~e47fe5bf!drop-2	DROP FUNCTION a(TINYINT())
-accept	reject	engine	dataType(LEFT_PAREN_(INTEGER_VALUE|ASTERISK)_~9c916795)?/LEFT_PAREN_(INTEGER_VALUE|ASTERISK)_(COMMA_INTEGER_VALU~e47fe5bf!drop-3	DROP FUNCTION a(TINYINT(1)
-accept	reject	engine	dataType(LEFT_PAREN_(INTEGER_VALUE|ASTERISK)_~9c916795)?/LEFT_PAREN_(INTEGER_VALUE|ASTERISK)_(COMMA_INTEGER_VALU~e47fe5bf!truncate	DROP FUNCTION a(TINYINT(1
-accept	reject	engine	dataType(LEFT_PAREN_(INTEGER_VALUE|ASTERISK)_~9c916795)?/LEFT_PAREN_(INTEGER_VALUE|ASTERISK)_(COMMA_INTEGER_VALU~e47fe5bf!insert	DROP FUNCTION a(TINYINT(1) zzz)
+reject	reject	engine	dataType(LEFT_PAREN_(INTEGER_VALUE|ASTERISK)_~9c916795)?/LEFT_PAREN_(INTEGER_VALUE|ASTERISK)_(COMMA_INTEGER_VALU~e47fe5bf!drop-2	DROP FUNCTION a(TINYINT())
+reject	reject	engine	dataType(LEFT_PAREN_(INTEGER_VALUE|ASTERISK)_~9c916795)?/LEFT_PAREN_(INTEGER_VALUE|ASTERISK)_(COMMA_INTEGER_VALU~e47fe5bf!drop-3	DROP FUNCTION a(TINYINT(1)
+reject	reject	engine	dataType(LEFT_PAREN_(INTEGER_VALUE|ASTERISK)_~9c916795)?/LEFT_PAREN_(INTEGER_VALUE|ASTERISK)_(COMMA_INTEGER_VALU~e47fe5bf!truncate	DROP FUNCTION a(TINYINT(1
+reject	reject	engine	dataType(LEFT_PAREN_(INTEGER_VALUE|ASTERISK)_~9c916795)?/LEFT_PAREN_(INTEGER_VALUE|ASTERISK)_(COMMA_INTEGER_VALU~e47fe5bf!insert	DROP FUNCTION a(TINYINT(1) zzz)
 accept	accept	engine	dataType(INTEGER_VALUE|ASTERISK)/INTEGER_VALUE	DROP FUNCTION a(TINYINT(1))
-accept	reject	engine	dataType(INTEGER_VALUE|ASTERISK)/INTEGER_VALUE!truncate	DROP FUNCTION a(TINYINT(
-accept	reject	engine	dataType(INTEGER_VALUE|ASTERISK)/INTEGER_VALUE!insert	DROP FUNCTION a(TINYINT(1 zzz))
-accept	reject	engine	dataType(INTEGER_VALUE|ASTERISK)/ASTERISK	DROP FUNCTION a(TINYINT(*))
-accept	reject	engine	dataType(INTEGER_VALUE|ASTERISK)/ASTERISK!insert	DROP FUNCTION a(TINYINT(* zzz))
+reject	reject	engine	dataType(INTEGER_VALUE|ASTERISK)/INTEGER_VALUE!truncate	DROP FUNCTION a(TINYINT(
+reject	reject	engine	dataType(INTEGER_VALUE|ASTERISK)/INTEGER_VALUE!insert	DROP FUNCTION a(TINYINT(1 zzz))
+reject	reject	engine	dataType(INTEGER_VALUE|ASTERISK)/ASTERISK	DROP FUNCTION a(TINYINT(*))
+reject	reject	engine	dataType(INTEGER_VALUE|ASTERISK)/ASTERISK!insert	DROP FUNCTION a(TINYINT(* zzz))
 accept	accept	engine	dataType(COMMA_INTEGER_VALUE)*/%empty	DROP FUNCTION a(TINYINT(1))
-accept	reject	engine	dataType(COMMA_INTEGER_VALUE)*/COMMA_INTEGER_VALUE_(COMMA_INTEGER_VALUE)*	DROP FUNCTION a(TINYINT(1, 1))
-accept	reject	engine	dataType(COMMA_INTEGER_VALUE)*/COMMA_INTEGER_VALUE_(COMMA_INTEGER_VALUE)*!drop-1	DROP FUNCTION a(TINYINT(1 1))
-accept	reject	engine	dataType(COMMA_INTEGER_VALUE)*/COMMA_INTEGER_VALUE_(COMMA_INTEGER_VALUE)*!drop-2	DROP FUNCTION a(TINYINT(1,))
-accept	reject	engine	dataType(COMMA_INTEGER_VALUE)*/COMMA_INTEGER_VALUE_(COMMA_INTEGER_VALUE)*!truncate	DROP FUNCTION a(TINYINT(1,
-accept	reject	engine	dataType(COMMA_INTEGER_VALUE)*/COMMA_INTEGER_VALUE_(COMMA_INTEGER_VALUE)*!insert	DROP FUNCTION a(TINYINT(1, 1 zzz))
+reject	reject	engine	dataType(COMMA_INTEGER_VALUE)*/COMMA_INTEGER_VALUE_(COMMA_INTEGER_VALUE)*	DROP FUNCTION a(TINYINT(1, 1))
+reject	reject	engine	dataType(COMMA_INTEGER_VALUE)*/COMMA_INTEGER_VALUE_(COMMA_INTEGER_VALUE)*!drop-1	DROP FUNCTION a(TINYINT(1 1))
+reject	reject	engine	dataType(COMMA_INTEGER_VALUE)*/COMMA_INTEGER_VALUE_(COMMA_INTEGER_VALUE)*!drop-2	DROP FUNCTION a(TINYINT(1,))
+reject	reject	engine	dataType(COMMA_INTEGER_VALUE)*/COMMA_INTEGER_VALUE_(COMMA_INTEGER_VALUE)*!truncate	DROP FUNCTION a(TINYINT(1,
+reject	reject	engine	dataType(COMMA_INTEGER_VALUE)*/COMMA_INTEGER_VALUE_(COMMA_INTEGER_VALUE)*!insert	DROP FUNCTION a(TINYINT(1, 1 zzz))
 accept	accept	engine	primitiveColType/TINYINT	DROP FUNCTION a(TINYINT)
 accept	accept	engine	primitiveColType/SMALLINT	DROP FUNCTION a(SMALLINT)
-accept	reject	engine	primitiveColType/SMALLINT!insert	DROP FUNCTION a(SMALLINT zzz)
-accept	reject	engine	primitiveColType/SMALLINT!swap	DROP FUNCTION a(SNAPSHOT)
+reject	reject	engine	primitiveColType/SMALLINT!insert	DROP FUNCTION a(SMALLINT zzz)
+reject	reject	engine	primitiveColType/SMALLINT!swap	DROP FUNCTION a(SNAPSHOT)
 accept	accept	engine	primitiveColType/(INT|INTEGER)	DROP FUNCTION a(INT)
-accept	reject	engine	primitiveColType/(INT|INTEGER)!insert	DROP FUNCTION a(INT zzz)
+reject	reject	engine	primitiveColType/(INT|INTEGER)!insert	DROP FUNCTION a(INT zzz)
 accept	accept	engine	primitiveColType/BIGINT	DROP FUNCTION a(BIGINT)
-accept	reject	engine	primitiveColType/BIGINT!insert	DROP FUNCTION a(BIGINT zzz)
-accept	reject	engine	primitiveColType/BIGINT!swap	DROP FUNCTION a(BIN)
+reject	reject	engine	primitiveColType/BIGINT!insert	DROP FUNCTION a(BIGINT zzz)
+reject	reject	engine	primitiveColType/BIGINT!swap	DROP FUNCTION a(BIN)
 accept	accept	engine	primitiveColType/LARGEINT	DROP FUNCTION a(LARGEINT)
-accept	reject	engine	primitiveColType/LARGEINT!insert	DROP FUNCTION a(LARGEINT zzz)
-accept	reject	engine	primitiveColType/LARGEINT!swap	DROP FUNCTION a(LAST)
+reject	reject	engine	primitiveColType/LARGEINT!insert	DROP FUNCTION a(LARGEINT zzz)
+reject	reject	engine	primitiveColType/LARGEINT!swap	DROP FUNCTION a(LAST)
 accept	accept	engine	primitiveColType/BOOLEAN	DROP FUNCTION a(BOOLEAN)
-accept	reject	engine	primitiveColType/BOOLEAN!insert	DROP FUNCTION a(BOOLEAN zzz)
-accept	reject	engine	primitiveColType/BOOLEAN!swap	DROP FUNCTION a(BRANCH)
+reject	reject	engine	primitiveColType/BOOLEAN!insert	DROP FUNCTION a(BOOLEAN zzz)
+reject	reject	engine	primitiveColType/BOOLEAN!swap	DROP FUNCTION a(BRANCH)
 accept	accept	engine	primitiveColType/FLOAT	DROP FUNCTION a(FLOAT)
-accept	reject	engine	primitiveColType/FLOAT!insert	DROP FUNCTION a(FLOAT zzz)
-accept	reject	engine	primitiveColType/FLOAT!swap	DROP FUNCTION a(FOLLOWER)
+reject	reject	engine	primitiveColType/FLOAT!insert	DROP FUNCTION a(FLOAT zzz)
+reject	reject	engine	primitiveColType/FLOAT!swap	DROP FUNCTION a(FOLLOWER)
 accept	accept	engine	primitiveColType/DOUBLE	DROP FUNCTION a(DOUBLE)
-accept	reject	engine	primitiveColType/DOUBLE!insert	DROP FUNCTION a(DOUBLE zzz)
-accept	reject	engine	primitiveColType/DOUBLE!swap	DROP FUNCTION a(DROP)
+reject	reject	engine	primitiveColType/DOUBLE!insert	DROP FUNCTION a(DOUBLE zzz)
+reject	reject	engine	primitiveColType/DOUBLE!swap	DROP FUNCTION a(DROP)
 accept	accept	engine	primitiveColType/DATE	DROP FUNCTION a(DATE)
-accept	reject	engine	primitiveColType/DATE!insert	DROP FUNCTION a(DATE zzz)
+reject	reject	engine	primitiveColType/DATE!insert	DROP FUNCTION a(DATE zzz)
 accept	accept	engine	primitiveColType/DATETIME	DROP FUNCTION a(DATETIME)
-accept	reject	engine	primitiveColType/DATETIME!insert	DROP FUNCTION a(DATETIME zzz)
+reject	reject	engine	primitiveColType/DATETIME!insert	DROP FUNCTION a(DATETIME zzz)
 accept	accept	engine	primitiveColType/TIME	DROP FUNCTION a(TIME)
-accept	reject	engine	primitiveColType/TIME!insert	DROP FUNCTION a(TIME zzz)
-accept	reject	engine	primitiveColType/TIME!swap	DROP FUNCTION a(TIMESTAMP)
+reject	reject	engine	primitiveColType/TIME!insert	DROP FUNCTION a(TIME zzz)
+reject	reject	engine	primitiveColType/TIME!swap	DROP FUNCTION a(TIMESTAMP)
 accept	accept	engine	primitiveColType/DATEV2	DROP FUNCTION a(DATEV2)
-accept	reject	engine	primitiveColType/DATEV2!insert	DROP FUNCTION a(DATEV2 zzz)
-accept	reject	engine	primitiveColType/DATEV2!swap	DROP FUNCTION a(DAY)
+reject	reject	engine	primitiveColType/DATEV2!insert	DROP FUNCTION a(DATEV2 zzz)
+reject	reject	engine	primitiveColType/DATEV2!swap	DROP FUNCTION a(DAY)
 accept	accept	engine	primitiveColType/DATETIMEV2	DROP FUNCTION a(DATETIMEV2)
-accept	reject	engine	primitiveColType/DATETIMEV2!insert	DROP FUNCTION a(DATETIMEV2 zzz)
+reject	reject	engine	primitiveColType/DATETIMEV2!insert	DROP FUNCTION a(DATETIMEV2 zzz)
 accept	accept	engine	primitiveColType/DATEV1	DROP FUNCTION a(DATEV1)
-accept	reject	engine	primitiveColType/DATEV1!insert	DROP FUNCTION a(DATEV1 zzz)
+reject	reject	engine	primitiveColType/DATEV1!insert	DROP FUNCTION a(DATEV1 zzz)
 accept	accept	engine	primitiveColType/DATETIMEV1	DROP FUNCTION a(DATETIMEV1)
-accept	reject	engine	primitiveColType/DATETIMEV1!insert	DROP FUNCTION a(DATETIMEV1 zzz)
+reject	reject	engine	primitiveColType/DATETIMEV1!insert	DROP FUNCTION a(DATETIMEV1 zzz)
 accept	accept	engine	primitiveColType/BITMAP	DROP FUNCTION a(BITMAP)
-accept	reject	engine	primitiveColType/BITMAP!insert	DROP FUNCTION a(BITMAP zzz)
-accept	reject	engine	primitiveColType/BITMAP!swap	DROP FUNCTION a(BITMAP_EMPTY)
+reject	reject	engine	primitiveColType/BITMAP!insert	DROP FUNCTION a(BITMAP zzz)
+reject	reject	engine	primitiveColType/BITMAP!swap	DROP FUNCTION a(BITMAP_EMPTY)
 accept	accept	engine	primitiveColType/QUANTILE_STATE	DROP FUNCTION a(QUANTILE_STATE)
-accept	reject	engine	primitiveColType/QUANTILE_STATE!insert	DROP FUNCTION a(QUANTILE_STATE zzz)
-accept	reject	engine	primitiveColType/QUANTILE_STATE!swap	DROP FUNCTION a(QUANTILE_UNION)
+reject	reject	engine	primitiveColType/QUANTILE_STATE!insert	DROP FUNCTION a(QUANTILE_STATE zzz)
+reject	reject	engine	primitiveColType/QUANTILE_STATE!swap	DROP FUNCTION a(QUANTILE_UNION)
 accept	accept	engine	primitiveColType/HLL	DROP FUNCTION a(HLL)
-accept	reject	engine	primitiveColType/HLL!insert	DROP FUNCTION a(HLL zzz)
-accept	reject	engine	primitiveColType/HLL!swap	DROP FUNCTION a(HLL_UNION)
-accept	reject	engine	primitiveColType/AGG_STATE	DROP FUNCTION a(AGG_STATE)
-accept	reject	engine	primitiveColType/AGG_STATE!insert	DROP FUNCTION a(AGG_STATE zzz)
-accept	reject	engine	primitiveColType/AGG_STATE!swap	DROP FUNCTION a(ALIAS)
+reject	reject	engine	primitiveColType/HLL!insert	DROP FUNCTION a(HLL zzz)
+reject	reject	engine	primitiveColType/HLL!swap	DROP FUNCTION a(HLL_UNION)
+reject	reject	engine	primitiveColType/AGG_STATE	DROP FUNCTION a(AGG_STATE)
+reject	reject	engine	primitiveColType/AGG_STATE!insert	DROP FUNCTION a(AGG_STATE zzz)
+reject	reject	engine	primitiveColType/AGG_STATE!swap	DROP FUNCTION a(ALIAS)
 accept	accept	engine	primitiveColType/STRING	DROP FUNCTION a(STRING)
-accept	reject	engine	primitiveColType/STRING!insert	DROP FUNCTION a(STRING zzz)
-accept	reject	engine	primitiveColType/STRING!swap	DROP FUNCTION a(STRUCT)
+reject	reject	engine	primitiveColType/STRING!insert	DROP FUNCTION a(STRING zzz)
+reject	reject	engine	primitiveColType/STRING!swap	DROP FUNCTION a(STRUCT)
 accept	accept	engine	primitiveColType/JSON	DROP FUNCTION a(JSON)
-accept	reject	engine	primitiveColType/JSON!insert	DROP FUNCTION a(JSON zzz)
+reject	reject	engine	primitiveColType/JSON!insert	DROP FUNCTION a(JSON zzz)
 accept	accept	engine	primitiveColType/JSONB	DROP FUNCTION a(JSONB)
-accept	reject	engine	primitiveColType/JSONB!insert	DROP FUNCTION a(JSONB zzz)
-accept	reject	engine	primitiveColType/JSONB!swap	DROP FUNCTION a(KEY)
+reject	reject	engine	primitiveColType/JSONB!insert	DROP FUNCTION a(JSONB zzz)
+reject	reject	engine	primitiveColType/JSONB!swap	DROP FUNCTION a(KEY)
 accept	accept	engine	primitiveColType/TEXT	DROP FUNCTION a(TEXT)
-accept	reject	engine	primitiveColType/TEXT!insert	DROP FUNCTION a(TEXT zzz)
-accept	reject	engine	primitiveColType/TEXT!swap	DROP FUNCTION a(THAN)
+reject	reject	engine	primitiveColType/TEXT!insert	DROP FUNCTION a(TEXT zzz)
+reject	reject	engine	primitiveColType/TEXT!swap	DROP FUNCTION a(THAN)
 accept	accept	engine	primitiveColType/VARCHAR	DROP FUNCTION a(VARCHAR)
-accept	reject	engine	primitiveColType/VARCHAR!insert	DROP FUNCTION a(VARCHAR zzz)
-accept	reject	engine	primitiveColType/VARCHAR!swap	DROP FUNCTION a(VARIABLE)
+reject	reject	engine	primitiveColType/VARCHAR!insert	DROP FUNCTION a(VARCHAR zzz)
+reject	reject	engine	primitiveColType/VARCHAR!swap	DROP FUNCTION a(VARIABLE)
 accept	accept	engine	primitiveColType/CHAR	DROP FUNCTION a(CHAR)
-accept	reject	engine	primitiveColType/CHAR!insert	DROP FUNCTION a(CHAR zzz)
-accept	reject	engine	primitiveColType/CHAR!swap	DROP FUNCTION a(CHARSET)
+reject	reject	engine	primitiveColType/CHAR!insert	DROP FUNCTION a(CHAR zzz)
+reject	reject	engine	primitiveColType/CHAR!swap	DROP FUNCTION a(CHARSET)
 accept	accept	engine	primitiveColType/DECIMAL	DROP FUNCTION a(DECIMAL)
-accept	reject	engine	primitiveColType/DECIMAL!insert	DROP FUNCTION a(DECIMAL zzz)
+reject	reject	engine	primitiveColType/DECIMAL!insert	DROP FUNCTION a(DECIMAL zzz)
 accept	accept	engine	primitiveColType/DECIMALV2	DROP FUNCTION a(DECIMALV2)
-accept	reject	engine	primitiveColType/DECIMALV2!insert	DROP FUNCTION a(DECIMALV2 zzz)
+reject	reject	engine	primitiveColType/DECIMALV2!insert	DROP FUNCTION a(DECIMALV2 zzz)
 accept	accept	engine	primitiveColType/DECIMALV3	DROP FUNCTION a(DECIMALV3)
-accept	reject	engine	primitiveColType/DECIMALV3!insert	DROP FUNCTION a(DECIMALV3 zzz)
-accept	reject	engine	primitiveColType/DECIMALV3!swap	DROP FUNCTION a(DECOMMISSION)
+reject	reject	engine	primitiveColType/DECIMALV3!insert	DROP FUNCTION a(DECIMALV3 zzz)
+reject	reject	engine	primitiveColType/DECIMALV3!swap	DROP FUNCTION a(DECOMMISSION)
 accept	accept	engine	primitiveColType/IPV4	DROP FUNCTION a(IPV4)
-accept	reject	engine	primitiveColType/IPV4!insert	DROP FUNCTION a(IPV4 zzz)
+reject	reject	engine	primitiveColType/IPV4!insert	DROP FUNCTION a(IPV4 zzz)
 accept	accept	engine	primitiveColType/IPV6	DROP FUNCTION a(IPV6)
-accept	reject	engine	primitiveColType/IPV6!insert	DROP FUNCTION a(IPV6 zzz)
-accept	reject	engine	primitiveColType/IPV6!swap	DROP FUNCTION a(IS)
+reject	reject	engine	primitiveColType/IPV6!insert	DROP FUNCTION a(IPV6 zzz)
+reject	reject	engine	primitiveColType/IPV6!swap	DROP FUNCTION a(IS)
 accept	accept	engine	primitiveColType/ALL	DROP FUNCTION a(ALL)
-accept	reject	engine	primitiveColType/ALL!insert	DROP FUNCTION a(ALL zzz)
-accept	reject	engine	primitiveColType/ALL!swap	DROP FUNCTION a(ALTER)
+reject	reject	engine	primitiveColType/ALL!insert	DROP FUNCTION a(ALL zzz)
+reject	reject	engine	primitiveColType/ALL!swap	DROP FUNCTION a(ALTER)
 accept	accept	engine	primitiveColType(INT|INTEGER)/INT	DROP FUNCTION a(INT)
 accept	accept	engine	primitiveColType(INT|INTEGER)/INTEGER	DROP FUNCTION a(INTEGER)
-accept	reject	engine	primitiveColType(INT|INTEGER)/INTEGER!insert	DROP FUNCTION a(INTEGER zzz)
-accept	reject	engine	primitiveColType(INT|INTEGER)/INTEGER!swap	DROP FUNCTION a(INTERMEDIATE)
+reject	reject	engine	primitiveColType(INT|INTEGER)/INTEGER!insert	DROP FUNCTION a(INTEGER zzz)
+reject	reject	engine	primitiveColType(INT|INTEGER)/INTEGER!swap	DROP FUNCTION a(INTERMEDIATE)
 accept	accept	engine	complexColTypeList/complexColType_(COMMA_complexColType)*	DROP FUNCTION a(STRUCT < a : VARIANT >)
-accept	reject	engine	complexColTypeList/complexColType_(COMMA_complexColType)*!truncate	DROP FUNCTION a(STRUCT < a :
-accept	reject	engine	complexColTypeList/complexColType_(COMMA_complexColType)*!insert	DROP FUNCTION a(STRUCT < a : VARIANT zzz >)
-accept	reject	engine	complexColTypeList/complexColType_(COMMA_complexColType)*!swap	DROP FUNCTION a(STRUCT < a : VAULT >)
+reject	reject	engine	complexColTypeList/complexColType_(COMMA_complexColType)*!truncate	DROP FUNCTION a(STRUCT < a :
+reject	reject	engine	complexColTypeList/complexColType_(COMMA_complexColType)*!insert	DROP FUNCTION a(STRUCT < a : VARIANT zzz >)
+reject	reject	engine	complexColTypeList/complexColType_(COMMA_complexColType)*!swap	DROP FUNCTION a(STRUCT < a : VAULT >)
 accept	accept	engine	complexColTypeList(COMMA_complexColType)*/%empty	DROP FUNCTION a(STRUCT < a : VARIANT >)
 accept	accept	engine	complexColTypeList(COMMA_complexColType)*/COMMA_complexColType_(COMMA_complexColType)*	DROP FUNCTION a(STRUCT < a : VARIANT, a : VARIANT >)
-accept	reject	engine	complexColTypeList(COMMA_complexColType)*/COMMA_complexColType_(COMMA_complexColType)*!drop-1	DROP FUNCTION a(STRUCT < a : VARIANT a : VARIANT >)
-accept	reject	engine	complexColTypeList(COMMA_complexColType)*/COMMA_complexColType_(COMMA_complexColType)*!drop-2	DROP FUNCTION a(STRUCT < a : VARIANT, : VARIANT >)
-accept	reject	engine	complexColTypeList(COMMA_complexColType)*/COMMA_complexColType_(COMMA_complexColType)*!drop-3	DROP FUNCTION a(STRUCT < a : VARIANT, a VARIANT >)
-accept	reject	engine	complexColTypeList(COMMA_complexColType)*/COMMA_complexColType_(COMMA_complexColType)*!drop-4	DROP FUNCTION a(STRUCT < a : VARIANT, a : >)
-accept	reject	engine	complexColTypeList(COMMA_complexColType)*/COMMA_complexColType_(COMMA_complexColType)*!truncate	DROP FUNCTION a(STRUCT < a : VARIANT, a :
-accept	reject	engine	complexColTypeList(COMMA_complexColType)*/COMMA_complexColType_(COMMA_complexColType)*!insert	DROP FUNCTION a(STRUCT < a : VARIANT, a : VARIANT zzz >)
-accept	reject	engine	complexColTypeList(COMMA_complexColType)*/COMMA_complexColType_(COMMA_complexColType)*!swap	DROP FUNCTION a(STRUCT < a : VARIANT, a : VAULT >)
+reject	reject	engine	complexColTypeList(COMMA_complexColType)*/COMMA_complexColType_(COMMA_complexColType)*!drop-1	DROP FUNCTION a(STRUCT < a : VARIANT a : VARIANT >)
+reject	reject	engine	complexColTypeList(COMMA_complexColType)*/COMMA_complexColType_(COMMA_complexColType)*!drop-2	DROP FUNCTION a(STRUCT < a : VARIANT, : VARIANT >)
+reject	reject	engine	complexColTypeList(COMMA_complexColType)*/COMMA_complexColType_(COMMA_complexColType)*!drop-3	DROP FUNCTION a(STRUCT < a : VARIANT, a VARIANT >)
+reject	reject	engine	complexColTypeList(COMMA_complexColType)*/COMMA_complexColType_(COMMA_complexColType)*!drop-4	DROP FUNCTION a(STRUCT < a : VARIANT, a : >)
+reject	reject	engine	complexColTypeList(COMMA_complexColType)*/COMMA_complexColType_(COMMA_complexColType)*!truncate	DROP FUNCTION a(STRUCT < a : VARIANT, a :
+reject	reject	engine	complexColTypeList(COMMA_complexColType)*/COMMA_complexColType_(COMMA_complexColType)*!insert	DROP FUNCTION a(STRUCT < a : VARIANT, a : VARIANT zzz >)
+reject	reject	engine	complexColTypeList(COMMA_complexColType)*/COMMA_complexColType_(COMMA_complexColType)*!swap	DROP FUNCTION a(STRUCT < a : VARIANT, a : VAULT >)
 accept	accept	engine	complexColType/identifier_COLON_dataType_(commentSpec)?	DROP FUNCTION a(STRUCT < a : VARIANT >)
 accept	accept	engine	complexColType(commentSpec)?/%empty	DROP FUNCTION a(STRUCT < a : VARIANT >)
 accept	accept	engine	complexColType(commentSpec)?/commentSpec	DROP FUNCTION a(STRUCT < a : VARIANT COMMENT 'a' >)
-accept	reject	engine	complexColType(commentSpec)?/commentSpec!drop-1	DROP FUNCTION a(STRUCT < a : VARIANT 'a' >)
-accept	reject	engine	complexColType(commentSpec)?/commentSpec!drop-2	DROP FUNCTION a(STRUCT < a : VARIANT COMMENT >)
-accept	reject	engine	complexColType(commentSpec)?/commentSpec!truncate	DROP FUNCTION a(STRUCT < a : VARIANT COMMENT
-accept	reject	engine	complexColType(commentSpec)?/commentSpec!insert	DROP FUNCTION a(STRUCT < a : VARIANT COMMENT 'a' zzz >)
-accept	reject	engine	complexColType(commentSpec)?/commentSpec!swap	DROP FUNCTION a(STRUCT < a : VARIANT COMMIT 'a' >)
-accept	reject	engine	variantTypeDefinitions/VARIANT_LT_variantSubColTypeList_COMMA_propertyClause_GT	DROP FUNCTION a(VARIANT < 'a' : VARIANT, PROPERTIES(a = a) >)
-accept	reject	engine	variantTypeDefinitions/VARIANT_LT_variantSubColTypeList_COMMA_propertyClause_GT!drop-1	DROP FUNCTION a(< 'a' : VARIANT, PROPERTIES(a = a) >)
-accept	reject	engine	variantTypeDefinitions/VARIANT_LT_variantSubColTypeList_COMMA_propertyClause_GT!drop-2	DROP FUNCTION a(VARIANT 'a' : VARIANT, PROPERTIES(a = a) >)
-accept	reject	engine	variantTypeDefinitions/VARIANT_LT_variantSubColTypeList_COMMA_propertyClause_GT!drop-3	DROP FUNCTION a(VARIANT < : VARIANT, PROPERTIES(a = a) >)
-accept	reject	engine	variantTypeDefinitions/VARIANT_LT_variantSubColTypeList_COMMA_propertyClause_GT!drop-4	DROP FUNCTION a(VARIANT < 'a' VARIANT, PROPERTIES(a = a) >)
-accept	reject	engine	variantTypeDefinitions/VARIANT_LT_variantSubColTypeList_COMMA_propertyClause_GT!drop-5	DROP FUNCTION a(VARIANT < 'a' :, PROPERTIES(a = a) >)
-accept	reject	engine	variantTypeDefinitions/VARIANT_LT_variantSubColTypeList_COMMA_propertyClause_GT!drop-6	DROP FUNCTION a(VARIANT < 'a' : VARIANT PROPERTIES(a = a) >)
-accept	reject	engine	variantTypeDefinitions/VARIANT_LT_variantSubColTypeList_COMMA_propertyClause_GT!drop-7	DROP FUNCTION a(VARIANT < 'a' : VARIANT,(a = a) >)
+reject	reject	engine	complexColType(commentSpec)?/commentSpec!drop-1	DROP FUNCTION a(STRUCT < a : VARIANT 'a' >)
+reject	reject	engine	complexColType(commentSpec)?/commentSpec!drop-2	DROP FUNCTION a(STRUCT < a : VARIANT COMMENT >)
+reject	reject	engine	complexColType(commentSpec)?/commentSpec!truncate	DROP FUNCTION a(STRUCT < a : VARIANT COMMENT
+reject	reject	engine	complexColType(commentSpec)?/commentSpec!insert	DROP FUNCTION a(STRUCT < a : VARIANT COMMENT 'a' zzz >)
+reject	reject	engine	complexColType(commentSpec)?/commentSpec!swap	DROP FUNCTION a(STRUCT < a : VARIANT COMMIT 'a' >)
+reject	reject	engine	variantTypeDefinitions/VARIANT_LT_variantSubColTypeList_COMMA_propertyClause_GT	DROP FUNCTION a(VARIANT < 'a' : VARIANT, PROPERTIES(a = a) >)
+reject	reject	engine	variantTypeDefinitions/VARIANT_LT_variantSubColTypeList_COMMA_propertyClause_GT!drop-1	DROP FUNCTION a(< 'a' : VARIANT, PROPERTIES(a = a) >)
+reject	reject	engine	variantTypeDefinitions/VARIANT_LT_variantSubColTypeList_COMMA_propertyClause_GT!drop-2	DROP FUNCTION a(VARIANT 'a' : VARIANT, PROPERTIES(a = a) >)
+reject	reject	engine	variantTypeDefinitions/VARIANT_LT_variantSubColTypeList_COMMA_propertyClause_GT!drop-3	DROP FUNCTION a(VARIANT < : VARIANT, PROPERTIES(a = a) >)
+reject	reject	engine	variantTypeDefinitions/VARIANT_LT_variantSubColTypeList_COMMA_propertyClause_GT!drop-4	DROP FUNCTION a(VARIANT < 'a' VARIANT, PROPERTIES(a = a) >)
+reject	reject	engine	variantTypeDefinitions/VARIANT_LT_variantSubColTypeList_COMMA_propertyClause_GT!drop-5	DROP FUNCTION a(VARIANT < 'a' :, PROPERTIES(a = a) >)
+reject	reject	engine	variantTypeDefinitions/VARIANT_LT_variantSubColTypeList_COMMA_propertyClause_GT!drop-6	DROP FUNCTION a(VARIANT < 'a' : VARIANT PROPERTIES(a = a) >)
+reject	reject	engine	variantTypeDefinitions/VARIANT_LT_variantSubColTypeList_COMMA_propertyClause_GT!drop-7	DROP FUNCTION a(VARIANT < 'a' : VARIANT,(a = a) >)
 reject	reject	engine	variantTypeDefinitions/VARIANT_LT_variantSubColTypeList_COMMA_propertyClause_GT!drop-8	DROP FUNCTION a(VARIANT < 'a' : VARIANT, PROPERTIES a = a) >)
-accept	reject	engine	variantTypeDefinitions/VARIANT_LT_variantSubColTypeList_COMMA_propertyClause_GT!drop-9	DROP FUNCTION a(VARIANT < 'a' : VARIANT, PROPERTIES(= a) >)
-accept	reject	engine	variantTypeDefinitions/VARIANT_LT_variantSubColTypeList_COMMA_propertyClause_GT!drop-10	DROP FUNCTION a(VARIANT < 'a' : VARIANT, PROPERTIES(a a) >)
-accept	reject	engine	variantTypeDefinitions/VARIANT_LT_variantSubColTypeList_COMMA_propertyClause_GT!drop-11	DROP FUNCTION a(VARIANT < 'a' : VARIANT, PROPERTIES(a =) >)
-accept	reject	engine	variantTypeDefinitions/VARIANT_LT_variantSubColTypeList_COMMA_propertyClause_GT!drop-12	DROP FUNCTION a(VARIANT < 'a' : VARIANT, PROPERTIES(a = a >)
-accept	reject	engine	variantTypeDefinitions/VARIANT_LT_variantSubColTypeList_COMMA_propertyClause_GT!drop-13	DROP FUNCTION a(VARIANT < 'a' : VARIANT, PROPERTIES(a = a))
-accept	reject	engine	variantTypeDefinitions/VARIANT_LT_variantSubColTypeList_COMMA_propertyClause_GT!truncate	DROP FUNCTION a(VARIANT < 'a' : VARIANT, PROPERTIES(a = a)
-accept	reject	engine	variantTypeDefinitions/VARIANT_LT_variantSubColTypeList_COMMA_propertyClause_GT!insert	DROP FUNCTION a(VARIANT < 'a' : VARIANT, PROPERTIES(a = a) > zzz)
-accept	reject	engine	variantTypeDefinitions/VARIANT_LT_variantSubColTypeList_COMMA_propertyClause_GT!swap	DROP FUNCTION a(VAULT < 'a' : VARIANT, PROPERTIES(a = a) >)
+reject	reject	engine	variantTypeDefinitions/VARIANT_LT_variantSubColTypeList_COMMA_propertyClause_GT!drop-9	DROP FUNCTION a(VARIANT < 'a' : VARIANT, PROPERTIES(= a) >)
+reject	reject	engine	variantTypeDefinitions/VARIANT_LT_variantSubColTypeList_COMMA_propertyClause_GT!drop-10	DROP FUNCTION a(VARIANT < 'a' : VARIANT, PROPERTIES(a a) >)
+reject	reject	engine	variantTypeDefinitions/VARIANT_LT_variantSubColTypeList_COMMA_propertyClause_GT!drop-11	DROP FUNCTION a(VARIANT < 'a' : VARIANT, PROPERTIES(a =) >)
+reject	reject	engine	variantTypeDefinitions/VARIANT_LT_variantSubColTypeList_COMMA_propertyClause_GT!drop-12	DROP FUNCTION a(VARIANT < 'a' : VARIANT, PROPERTIES(a = a >)
+reject	reject	engine	variantTypeDefinitions/VARIANT_LT_variantSubColTypeList_COMMA_propertyClause_GT!drop-13	DROP FUNCTION a(VARIANT < 'a' : VARIANT, PROPERTIES(a = a))
+reject	reject	engine	variantTypeDefinitions/VARIANT_LT_variantSubColTypeList_COMMA_propertyClause_GT!truncate	DROP FUNCTION a(VARIANT < 'a' : VARIANT, PROPERTIES(a = a)
+reject	reject	engine	variantTypeDefinitions/VARIANT_LT_variantSubColTypeList_COMMA_propertyClause_GT!insert	DROP FUNCTION a(VARIANT < 'a' : VARIANT, PROPERTIES(a = a) > zzz)
+reject	reject	engine	variantTypeDefinitions/VARIANT_LT_variantSubColTypeList_COMMA_propertyClause_GT!swap	DROP FUNCTION a(VAULT < 'a' : VARIANT, PROPERTIES(a = a) >)
 accept	accept	engine	variantTypeDefinitions/VARIANT_LT_variantSubColTypeList_GT	DROP FUNCTION a(VARIANT < 'a' : VARIANT >)
-accept	reject	engine	variantTypeDefinitions/VARIANT_LT_variantSubColTypeList_GT!drop-1	DROP FUNCTION a(< 'a' : VARIANT >)
-accept	reject	engine	variantTypeDefinitions/VARIANT_LT_variantSubColTypeList_GT!drop-2	DROP FUNCTION a(VARIANT 'a' : VARIANT >)
-accept	reject	engine	variantTypeDefinitions/VARIANT_LT_variantSubColTypeList_GT!drop-3	DROP FUNCTION a(VARIANT < : VARIANT >)
-accept	reject	engine	variantTypeDefinitions/VARIANT_LT_variantSubColTypeList_GT!drop-4	DROP FUNCTION a(VARIANT < 'a' VARIANT >)
-accept	reject	engine	variantTypeDefinitions/VARIANT_LT_variantSubColTypeList_GT!drop-5	DROP FUNCTION a(VARIANT < 'a' : >)
-accept	reject	engine	variantTypeDefinitions/VARIANT_LT_variantSubColTypeList_GT!drop-6	DROP FUNCTION a(VARIANT < 'a' : VARIANT)
-accept	reject	engine	variantTypeDefinitions/VARIANT_LT_variantSubColTypeList_GT!truncate	DROP FUNCTION a(VARIANT < 'a' : VARIANT
-accept	reject	engine	variantTypeDefinitions/VARIANT_LT_variantSubColTypeList_GT!insert	DROP FUNCTION a(VARIANT < 'a' : VARIANT > zzz)
-accept	reject	engine	variantTypeDefinitions/VARIANT_LT_variantSubColTypeList_GT!swap	DROP FUNCTION a(VAULT < 'a' : VARIANT >)
-accept	reject	engine	variantTypeDefinitions/VARIANT_LT_propertyClause_GT	DROP FUNCTION a(VARIANT < PROPERTIES(a = a) >)
-accept	reject	engine	variantTypeDefinitions/VARIANT_LT_propertyClause_GT!drop-1	DROP FUNCTION a(< PROPERTIES(a = a) >)
-accept	reject	engine	variantTypeDefinitions/VARIANT_LT_propertyClause_GT!drop-2	DROP FUNCTION a(VARIANT PROPERTIES(a = a) >)
-accept	reject	engine	variantTypeDefinitions/VARIANT_LT_propertyClause_GT!drop-3	DROP FUNCTION a(VARIANT <(a = a) >)
+reject	reject	engine	variantTypeDefinitions/VARIANT_LT_variantSubColTypeList_GT!drop-1	DROP FUNCTION a(< 'a' : VARIANT >)
+reject	reject	engine	variantTypeDefinitions/VARIANT_LT_variantSubColTypeList_GT!drop-2	DROP FUNCTION a(VARIANT 'a' : VARIANT >)
+reject	reject	engine	variantTypeDefinitions/VARIANT_LT_variantSubColTypeList_GT!drop-3	DROP FUNCTION a(VARIANT < : VARIANT >)
+reject	reject	engine	variantTypeDefinitions/VARIANT_LT_variantSubColTypeList_GT!drop-4	DROP FUNCTION a(VARIANT < 'a' VARIANT >)
+reject	reject	engine	variantTypeDefinitions/VARIANT_LT_variantSubColTypeList_GT!drop-5	DROP FUNCTION a(VARIANT < 'a' : >)
+reject	reject	engine	variantTypeDefinitions/VARIANT_LT_variantSubColTypeList_GT!drop-6	DROP FUNCTION a(VARIANT < 'a' : VARIANT)
+reject	reject	engine	variantTypeDefinitions/VARIANT_LT_variantSubColTypeList_GT!truncate	DROP FUNCTION a(VARIANT < 'a' : VARIANT
+reject	reject	engine	variantTypeDefinitions/VARIANT_LT_variantSubColTypeList_GT!insert	DROP FUNCTION a(VARIANT < 'a' : VARIANT > zzz)
+reject	reject	engine	variantTypeDefinitions/VARIANT_LT_variantSubColTypeList_GT!swap	DROP FUNCTION a(VAULT < 'a' : VARIANT >)
+reject	reject	engine	variantTypeDefinitions/VARIANT_LT_propertyClause_GT	DROP FUNCTION a(VARIANT < PROPERTIES(a = a) >)
+reject	reject	engine	variantTypeDefinitions/VARIANT_LT_propertyClause_GT!drop-1	DROP FUNCTION a(< PROPERTIES(a = a) >)
+reject	reject	engine	variantTypeDefinitions/VARIANT_LT_propertyClause_GT!drop-2	DROP FUNCTION a(VARIANT PROPERTIES(a = a) >)
+reject	reject	engine	variantTypeDefinitions/VARIANT_LT_propertyClause_GT!drop-3	DROP FUNCTION a(VARIANT <(a = a) >)
 reject	reject	engine	variantTypeDefinitions/VARIANT_LT_propertyClause_GT!drop-4	DROP FUNCTION a(VARIANT < PROPERTIES a = a) >)
-accept	reject	engine	variantTypeDefinitions/VARIANT_LT_propertyClause_GT!drop-5	DROP FUNCTION a(VARIANT < PROPERTIES(= a) >)
-accept	reject	engine	variantTypeDefinitions/VARIANT_LT_propertyClause_GT!drop-6	DROP FUNCTION a(VARIANT < PROPERTIES(a a) >)
-accept	reject	engine	variantTypeDefinitions/VARIANT_LT_propertyClause_GT!drop-7	DROP FUNCTION a(VARIANT < PROPERTIES(a =) >)
-accept	reject	engine	variantTypeDefinitions/VARIANT_LT_propertyClause_GT!drop-8	DROP FUNCTION a(VARIANT < PROPERTIES(a = a >)
-accept	reject	engine	variantTypeDefinitions/VARIANT_LT_propertyClause_GT!drop-9	DROP FUNCTION a(VARIANT < PROPERTIES(a = a))
-accept	reject	engine	variantTypeDefinitions/VARIANT_LT_propertyClause_GT!truncate	DROP FUNCTION a(VARIANT < PROPERTIES(a = a)
-accept	reject	engine	variantTypeDefinitions/VARIANT_LT_propertyClause_GT!insert	DROP FUNCTION a(VARIANT < PROPERTIES(a = a) > zzz)
-accept	reject	engine	variantTypeDefinitions/VARIANT_LT_propertyClause_GT!swap	DROP FUNCTION a(VAULT < PROPERTIES(a = a) >)
+reject	reject	engine	variantTypeDefinitions/VARIANT_LT_propertyClause_GT!drop-5	DROP FUNCTION a(VARIANT < PROPERTIES(= a) >)
+reject	reject	engine	variantTypeDefinitions/VARIANT_LT_propertyClause_GT!drop-6	DROP FUNCTION a(VARIANT < PROPERTIES(a a) >)
+reject	reject	engine	variantTypeDefinitions/VARIANT_LT_propertyClause_GT!drop-7	DROP FUNCTION a(VARIANT < PROPERTIES(a =) >)
+reject	reject	engine	variantTypeDefinitions/VARIANT_LT_propertyClause_GT!drop-8	DROP FUNCTION a(VARIANT < PROPERTIES(a = a >)
+reject	reject	engine	variantTypeDefinitions/VARIANT_LT_propertyClause_GT!drop-9	DROP FUNCTION a(VARIANT < PROPERTIES(a = a))
+reject	reject	engine	variantTypeDefinitions/VARIANT_LT_propertyClause_GT!truncate	DROP FUNCTION a(VARIANT < PROPERTIES(a = a)
+reject	reject	engine	variantTypeDefinitions/VARIANT_LT_propertyClause_GT!insert	DROP FUNCTION a(VARIANT < PROPERTIES(a = a) > zzz)
+reject	reject	engine	variantTypeDefinitions/VARIANT_LT_propertyClause_GT!swap	DROP FUNCTION a(VAULT < PROPERTIES(a = a) >)
 accept	accept	engine	variantTypeDefinitions/VARIANT	DROP FUNCTION a(VARIANT)
 accept	accept	engine	variantSubColTypeList/variantSubColType_(COMMA_variantSubColType)*	DROP FUNCTION a(VARIANT < 'a' : VARIANT >)
-accept	reject	engine	variantSubColTypeList/variantSubColType_(COMMA_variantSubColType)*!truncate	DROP FUNCTION a(VARIANT < 'a' :
-accept	reject	engine	variantSubColTypeList/variantSubColType_(COMMA_variantSubColType)*!insert	DROP FUNCTION a(VARIANT < 'a' : VARIANT zzz >)
-accept	reject	engine	variantSubColTypeList/variantSubColType_(COMMA_variantSubColType)*!swap	DROP FUNCTION a(VARIANT < 'a' : VAULT >)
+reject	reject	engine	variantSubColTypeList/variantSubColType_(COMMA_variantSubColType)*!truncate	DROP FUNCTION a(VARIANT < 'a' :
+reject	reject	engine	variantSubColTypeList/variantSubColType_(COMMA_variantSubColType)*!insert	DROP FUNCTION a(VARIANT < 'a' : VARIANT zzz >)
+reject	reject	engine	variantSubColTypeList/variantSubColType_(COMMA_variantSubColType)*!swap	DROP FUNCTION a(VARIANT < 'a' : VAULT >)
 accept	accept	engine	variantSubColTypeList(COMMA_variantSubColType)*/%empty	DROP FUNCTION a(VARIANT < 'a' : VARIANT >)
 accept	accept	engine	variantSubColTypeList(COMMA_variantSubColType)*/COMMA_variantSubColType_(COMMA_variantSubColType)*	DROP FUNCTION a(VARIANT < 'a' : VARIANT, 'a' : VARIANT >)
-accept	reject	engine	variantSubColTypeList(COMMA_variantSubColType)*/COMMA_variantSubColType_(COMMA_variantSubColType)*!drop-1	DROP FUNCTION a(VARIANT < 'a' : VARIANT 'a' : VARIANT >)
-accept	reject	engine	variantSubColTypeList(COMMA_variantSubColType)*/COMMA_variantSubColType_(COMMA_variantSubColType)*!drop-2	DROP FUNCTION a(VARIANT < 'a' : VARIANT, : VARIANT >)
-accept	reject	engine	variantSubColTypeList(COMMA_variantSubColType)*/COMMA_variantSubColType_(COMMA_variantSubColType)*!drop-3	DROP FUNCTION a(VARIANT < 'a' : VARIANT, 'a' VARIANT >)
-accept	reject	engine	variantSubColTypeList(COMMA_variantSubColType)*/COMMA_variantSubColType_(COMMA_variantSubColType)*!drop-4	DROP FUNCTION a(VARIANT < 'a' : VARIANT, 'a' : >)
-accept	reject	engine	variantSubColTypeList(COMMA_variantSubColType)*/COMMA_variantSubColType_(COMMA_variantSubColType)*!truncate	DROP FUNCTION a(VARIANT < 'a' : VARIANT, 'a' :
-accept	reject	engine	variantSubColTypeList(COMMA_variantSubColType)*/COMMA_variantSubColType_(COMMA_variantSubColType)*!insert	DROP FUNCTION a(VARIANT < 'a' : VARIANT, 'a' : VARIANT zzz >)
-accept	reject	engine	variantSubColTypeList(COMMA_variantSubColType)*/COMMA_variantSubColType_(COMMA_variantSubColType)*!swap	DROP FUNCTION a(VARIANT < 'a' : VARIANT, 'a' : VAULT >)
+reject	reject	engine	variantSubColTypeList(COMMA_variantSubColType)*/COMMA_variantSubColType_(COMMA_variantSubColType)*!drop-1	DROP FUNCTION a(VARIANT < 'a' : VARIANT 'a' : VARIANT >)
+reject	reject	engine	variantSubColTypeList(COMMA_variantSubColType)*/COMMA_variantSubColType_(COMMA_variantSubColType)*!drop-2	DROP FUNCTION a(VARIANT < 'a' : VARIANT, : VARIANT >)
+reject	reject	engine	variantSubColTypeList(COMMA_variantSubColType)*/COMMA_variantSubColType_(COMMA_variantSubColType)*!drop-3	DROP FUNCTION a(VARIANT < 'a' : VARIANT, 'a' VARIANT >)
+reject	reject	engine	variantSubColTypeList(COMMA_variantSubColType)*/COMMA_variantSubColType_(COMMA_variantSubColType)*!drop-4	DROP FUNCTION a(VARIANT < 'a' : VARIANT, 'a' : >)
+reject	reject	engine	variantSubColTypeList(COMMA_variantSubColType)*/COMMA_variantSubColType_(COMMA_variantSubColType)*!truncate	DROP FUNCTION a(VARIANT < 'a' : VARIANT, 'a' :
+reject	reject	engine	variantSubColTypeList(COMMA_variantSubColType)*/COMMA_variantSubColType_(COMMA_variantSubColType)*!insert	DROP FUNCTION a(VARIANT < 'a' : VARIANT, 'a' : VARIANT zzz >)
+reject	reject	engine	variantSubColTypeList(COMMA_variantSubColType)*/COMMA_variantSubColType_(COMMA_variantSubColType)*!swap	DROP FUNCTION a(VARIANT < 'a' : VARIANT, 'a' : VAULT >)
 accept	accept	engine	variantSubColType/(variantSubColMatchType)?_STRING_LITERAL_COLON_dataType~19b3814a	DROP FUNCTION a(VARIANT < 'a' : VARIANT >)
 accept	accept	engine	variantSubColType(variantSubColMatchType)?/%empty	DROP FUNCTION a(VARIANT < 'a' : VARIANT >)
-accept	reject	engine	variantSubColType(variantSubColMatchType)?/%empty!insert	DROP FUNCTION a(VARIANT < zzz 'a' : VARIANT >)
-accept	reject	engine	variantSubColType(variantSubColMatchType)?/variantSubColMatchType	DROP FUNCTION a(VARIANT < MATCH_NAME 'a' : VARIANT >)
-accept	reject	engine	variantSubColType(variantSubColMatchType)?/variantSubColMatchType!truncate	DROP FUNCTION a(VARIANT <
-accept	reject	engine	variantSubColType(variantSubColMatchType)?/variantSubColMatchType!insert	DROP FUNCTION a(VARIANT < MATCH_NAME zzz 'a' : VARIANT >)
+reject	reject	engine	variantSubColType(variantSubColMatchType)?/%empty!insert	DROP FUNCTION a(VARIANT < zzz 'a' : VARIANT >)
+reject	reject	engine	variantSubColType(variantSubColMatchType)?/variantSubColMatchType	DROP FUNCTION a(VARIANT < MATCH_NAME 'a' : VARIANT >)
+reject	reject	engine	variantSubColType(variantSubColMatchType)?/variantSubColMatchType!truncate	DROP FUNCTION a(VARIANT <
+reject	reject	engine	variantSubColType(variantSubColMatchType)?/variantSubColMatchType!insert	DROP FUNCTION a(VARIANT < MATCH_NAME zzz 'a' : VARIANT >)
 accept	accept	engine	variantSubColType(commentSpec)?/%empty	DROP FUNCTION a(VARIANT < 'a' : VARIANT >)
 accept	accept	engine	variantSubColType(commentSpec)?/commentSpec	DROP FUNCTION a(VARIANT < 'a' : VARIANT COMMENT 'a' >)
-accept	reject	engine	variantSubColType(commentSpec)?/commentSpec!drop-1	DROP FUNCTION a(VARIANT < 'a' : VARIANT 'a' >)
-accept	reject	engine	variantSubColType(commentSpec)?/commentSpec!drop-2	DROP FUNCTION a(VARIANT < 'a' : VARIANT COMMENT >)
-accept	reject	engine	variantSubColType(commentSpec)?/commentSpec!truncate	DROP FUNCTION a(VARIANT < 'a' : VARIANT COMMENT
-accept	reject	engine	variantSubColType(commentSpec)?/commentSpec!insert	DROP FUNCTION a(VARIANT < 'a' : VARIANT COMMENT 'a' zzz >)
-accept	reject	engine	variantSubColType(commentSpec)?/commentSpec!swap	DROP FUNCTION a(VARIANT < 'a' : VARIANT COMMIT 'a' >)
-accept	reject	engine	variantSubColMatchType/(MATCH_NAME|MATCH_NAME_GLOB)	DROP FUNCTION a(VARIANT < MATCH_NAME 'a' : VARIANT >)
-accept	reject	engine	variantSubColMatchType(MATCH_NAME|MATCH_NAME_GLOB)/MATCH_NAME	DROP FUNCTION a(VARIANT < MATCH_NAME 'a' : VARIANT >)
-accept	reject	engine	variantSubColMatchType(MATCH_NAME|MATCH_NAME_GLOB)/MATCH_NAME_GLOB	DROP FUNCTION a(VARIANT < MATCH_NAME_GLOB 'a' : VARIANT >)
-accept	reject	engine	variantSubColMatchType(MATCH_NAME|MATCH_NAME_GLOB)/MATCH_NAME_GLOB!insert	DROP FUNCTION a(VARIANT < MATCH_NAME_GLOB zzz 'a' : VARIANT >)
-accept	reject	engine	variantSubColMatchType(MATCH_NAME|MATCH_NAME_GLOB)/MATCH_NAME_GLOB!swap	DROP FUNCTION a(VARIANT < MATCH_PHRASE 'a' : VARIANT >)
+reject	reject	engine	variantSubColType(commentSpec)?/commentSpec!drop-1	DROP FUNCTION a(VARIANT < 'a' : VARIANT 'a' >)
+reject	reject	engine	variantSubColType(commentSpec)?/commentSpec!drop-2	DROP FUNCTION a(VARIANT < 'a' : VARIANT COMMENT >)
+reject	reject	engine	variantSubColType(commentSpec)?/commentSpec!truncate	DROP FUNCTION a(VARIANT < 'a' : VARIANT COMMENT
+reject	reject	engine	variantSubColType(commentSpec)?/commentSpec!insert	DROP FUNCTION a(VARIANT < 'a' : VARIANT COMMENT 'a' zzz >)
+reject	reject	engine	variantSubColType(commentSpec)?/commentSpec!swap	DROP FUNCTION a(VARIANT < 'a' : VARIANT COMMIT 'a' >)
+reject	reject	engine	variantSubColMatchType/(MATCH_NAME|MATCH_NAME_GLOB)	DROP FUNCTION a(VARIANT < MATCH_NAME 'a' : VARIANT >)
+reject	reject	engine	variantSubColMatchType(MATCH_NAME|MATCH_NAME_GLOB)/MATCH_NAME	DROP FUNCTION a(VARIANT < MATCH_NAME 'a' : VARIANT >)
+reject	reject	engine	variantSubColMatchType(MATCH_NAME|MATCH_NAME_GLOB)/MATCH_NAME_GLOB	DROP FUNCTION a(VARIANT < MATCH_NAME_GLOB 'a' : VARIANT >)
+reject	reject	engine	variantSubColMatchType(MATCH_NAME|MATCH_NAME_GLOB)/MATCH_NAME_GLOB!insert	DROP FUNCTION a(VARIANT < MATCH_NAME_GLOB zzz 'a' : VARIANT >)
+reject	reject	engine	variantSubColMatchType(MATCH_NAME|MATCH_NAME_GLOB)/MATCH_NAME_GLOB!swap	DROP FUNCTION a(VARIANT < MATCH_PHRASE 'a' : VARIANT >)
 accept	accept	engine	commentSpec/COMMENT_STRING_LITERAL	ALTER ROLE a COMMENT 'a'
 reject	reject	engine	commentSpec/COMMENT_STRING_LITERAL!swap	ALTER ROLE a COMMIT 'a'
 accept	accept	engine	sample/TABLESAMPLE_LEFT_PAREN_(sampleMethod)?_RIGHT_PAREN_(REP~afa98dc5	SELECT CURRENT_DATE FROM a TABLESAMPLE()
@@ -9549,12 +9549,12 @@ reject	reject	engine	alter_system_clause/MODIFY_BACKEND_STRING_LITERAL_HOSTNAME_
 reject	reject	engine	alter_system_clause/MODIFY_BACKEND_STRING_LITERAL_HOSTNAME_STRING_LITERAL!swap	ALTER SYSTEM MONTH BACKEND 'a' HOSTNAME 'a'
 accept	accept	engine	sync_stmt/SYNC	SYNC
 accept	accept	engine	opt_intermediate_type/%empty	CREATE FUNCTION a() RETURNS TINYINT
-accept	reject	engine	opt_intermediate_type/%empty!insert	CREATE FUNCTION a() RETURNS TINYINT zzz
+reject	reject	engine	opt_intermediate_type/%empty!insert	CREATE FUNCTION a() RETURNS TINYINT zzz
 accept	accept	engine	opt_intermediate_type/INTERMEDIATE_type_def	CREATE FUNCTION a() RETURNS TINYINT INTERMEDIATE TINYINT
-accept	reject	engine	opt_intermediate_type/INTERMEDIATE_type_def!drop-1	CREATE FUNCTION a() RETURNS TINYINT TINYINT
-accept	reject	engine	opt_intermediate_type/INTERMEDIATE_type_def!drop-2	CREATE FUNCTION a() RETURNS TINYINT INTERMEDIATE
-accept	reject	engine	opt_intermediate_type/INTERMEDIATE_type_def!insert	CREATE FUNCTION a() RETURNS TINYINT INTERMEDIATE TINYINT zzz
-accept	reject	engine	opt_intermediate_type/INTERMEDIATE_type_def!swap	CREATE FUNCTION a() RETURNS TINYINT INTERSECT TINYINT
+reject	reject	engine	opt_intermediate_type/INTERMEDIATE_type_def!drop-1	CREATE FUNCTION a() RETURNS TINYINT TINYINT
+reject	reject	engine	opt_intermediate_type/INTERMEDIATE_type_def!drop-2	CREATE FUNCTION a() RETURNS TINYINT INTERMEDIATE
+reject	reject	engine	opt_intermediate_type/INTERMEDIATE_type_def!insert	CREATE FUNCTION a() RETURNS TINYINT INTERMEDIATE TINYINT zzz
+reject	reject	engine	opt_intermediate_type/INTERMEDIATE_type_def!swap	CREATE FUNCTION a() RETURNS TINYINT INTERSECT TINYINT
 accept	accept	engine	create_stmt/CREATE_DATABASE_opt_if_not_exists_db_name_opt_properties	CREATE DATABASE a
 accept	accept	engine	create_stmt/CREATE_SCHEMA_opt_if_not_exists_db_name	CREATE SCHEMA a
 reject	reject	engine	create_stmt/CREATE_SCHEMA_opt_if_not_exists_db_name!drop-1	SCHEMA a
@@ -9577,28 +9577,28 @@ reject	reject	engine	create_stmt/CREATE_CATALOG_opt_if_not_exists_ident_WITH_RES
 accept	accept	engine	create_stmt/CREATE_opt_var_type_opt_aggregate_FUNCTION_opt_if_not_e~0dad90b5	CREATE FUNCTION a() RETURNS TINYINT
 reject	reject	engine	create_stmt/CREATE_opt_var_type_opt_aggregate_FUNCTION_opt_if_not_e~0dad90b5!drop-1	FUNCTION a() RETURNS TINYINT
 reject	reject	engine	create_stmt/CREATE_opt_var_type_opt_aggregate_FUNCTION_opt_if_not_e~0dad90b5!drop-2	CREATE a() RETURNS TINYINT
-accept	reject	engine	create_stmt/CREATE_opt_var_type_opt_aggregate_FUNCTION_opt_if_not_e~0dad90b5!drop-3	CREATE FUNCTION() RETURNS TINYINT
-accept	reject	engine	create_stmt/CREATE_opt_var_type_opt_aggregate_FUNCTION_opt_if_not_e~0dad90b5!drop-4	CREATE FUNCTION a) RETURNS TINYINT
-accept	reject	engine	create_stmt/CREATE_opt_var_type_opt_aggregate_FUNCTION_opt_if_not_e~0dad90b5!drop-5	CREATE FUNCTION a(RETURNS TINYINT
-accept	reject	engine	create_stmt/CREATE_opt_var_type_opt_aggregate_FUNCTION_opt_if_not_e~0dad90b5!drop-6	CREATE FUNCTION a() TINYINT
-accept	reject	engine	create_stmt/CREATE_opt_var_type_opt_aggregate_FUNCTION_opt_if_not_e~0dad90b5!drop-7	CREATE FUNCTION a() RETURNS
+reject	reject	engine	create_stmt/CREATE_opt_var_type_opt_aggregate_FUNCTION_opt_if_not_e~0dad90b5!drop-3	CREATE FUNCTION() RETURNS TINYINT
+reject	reject	engine	create_stmt/CREATE_opt_var_type_opt_aggregate_FUNCTION_opt_if_not_e~0dad90b5!drop-4	CREATE FUNCTION a) RETURNS TINYINT
+reject	reject	engine	create_stmt/CREATE_opt_var_type_opt_aggregate_FUNCTION_opt_if_not_e~0dad90b5!drop-5	CREATE FUNCTION a(RETURNS TINYINT
+reject	reject	engine	create_stmt/CREATE_opt_var_type_opt_aggregate_FUNCTION_opt_if_not_e~0dad90b5!drop-6	CREATE FUNCTION a() TINYINT
+reject	reject	engine	create_stmt/CREATE_opt_var_type_opt_aggregate_FUNCTION_opt_if_not_e~0dad90b5!drop-7	CREATE FUNCTION a() RETURNS
 reject	reject	engine	create_stmt/CREATE_opt_var_type_opt_aggregate_FUNCTION_opt_if_not_e~0dad90b5!swap	CREATION FUNCTION a() RETURNS TINYINT
 accept	accept	engine	create_stmt/CREATE_opt_var_type_ALIAS_FUNCTION_opt_if_not_exists_fu~d5a8e271	CREATE ALIAS FUNCTION a() WITH PARAMETER() AS 1
 reject	reject	engine	create_stmt/CREATE_opt_var_type_ALIAS_FUNCTION_opt_if_not_exists_fu~d5a8e271!drop-1	ALIAS FUNCTION a() WITH PARAMETER() AS 1
-accept	reject	engine	create_stmt/CREATE_opt_var_type_ALIAS_FUNCTION_opt_if_not_exists_fu~d5a8e271!drop-2	CREATE FUNCTION a() WITH PARAMETER() AS 1
+reject	reject	engine	create_stmt/CREATE_opt_var_type_ALIAS_FUNCTION_opt_if_not_exists_fu~d5a8e271!drop-2	CREATE FUNCTION a() WITH PARAMETER() AS 1
 reject	reject	engine	create_stmt/CREATE_opt_var_type_ALIAS_FUNCTION_opt_if_not_exists_fu~d5a8e271!drop-3	CREATE ALIAS a() WITH PARAMETER() AS 1
-accept	reject	engine	create_stmt/CREATE_opt_var_type_ALIAS_FUNCTION_opt_if_not_exists_fu~d5a8e271!drop-4	CREATE ALIAS FUNCTION() WITH PARAMETER() AS 1
-accept	reject	engine	create_stmt/CREATE_opt_var_type_ALIAS_FUNCTION_opt_if_not_exists_fu~d5a8e271!drop-5	CREATE ALIAS FUNCTION a) WITH PARAMETER() AS 1
-accept	reject	engine	create_stmt/CREATE_opt_var_type_ALIAS_FUNCTION_opt_if_not_exists_fu~d5a8e271!drop-6	CREATE ALIAS FUNCTION a(WITH PARAMETER() AS 1
-accept	reject	engine	create_stmt/CREATE_opt_var_type_ALIAS_FUNCTION_opt_if_not_exists_fu~d5a8e271!drop-7	CREATE ALIAS FUNCTION a() PARAMETER() AS 1
-accept	reject	engine	create_stmt/CREATE_opt_var_type_ALIAS_FUNCTION_opt_if_not_exists_fu~d5a8e271!drop-8	CREATE ALIAS FUNCTION a() WITH() AS 1
-accept	reject	engine	create_stmt/CREATE_opt_var_type_ALIAS_FUNCTION_opt_if_not_exists_fu~d5a8e271!drop-9	CREATE ALIAS FUNCTION a() WITH PARAMETER) AS 1
-accept	reject	engine	create_stmt/CREATE_opt_var_type_ALIAS_FUNCTION_opt_if_not_exists_fu~d5a8e271!drop-10	CREATE ALIAS FUNCTION a() WITH PARAMETER(AS 1
-accept	reject	engine	create_stmt/CREATE_opt_var_type_ALIAS_FUNCTION_opt_if_not_exists_fu~d5a8e271!drop-11	CREATE ALIAS FUNCTION a() WITH PARAMETER() 1
-accept	reject	engine	create_stmt/CREATE_opt_var_type_ALIAS_FUNCTION_opt_if_not_exists_fu~d5a8e271!drop-12	CREATE ALIAS FUNCTION a() WITH PARAMETER() AS
-accept	reject	engine	create_stmt/CREATE_opt_var_type_ALIAS_FUNCTION_opt_if_not_exists_fu~d5a8e271!insert	CREATE ALIAS FUNCTION a() WITH PARAMETER() AS 1 zzz
+reject	reject	engine	create_stmt/CREATE_opt_var_type_ALIAS_FUNCTION_opt_if_not_exists_fu~d5a8e271!drop-4	CREATE ALIAS FUNCTION() WITH PARAMETER() AS 1
+reject	reject	engine	create_stmt/CREATE_opt_var_type_ALIAS_FUNCTION_opt_if_not_exists_fu~d5a8e271!drop-5	CREATE ALIAS FUNCTION a) WITH PARAMETER() AS 1
+reject	reject	engine	create_stmt/CREATE_opt_var_type_ALIAS_FUNCTION_opt_if_not_exists_fu~d5a8e271!drop-6	CREATE ALIAS FUNCTION a(WITH PARAMETER() AS 1
+reject	reject	engine	create_stmt/CREATE_opt_var_type_ALIAS_FUNCTION_opt_if_not_exists_fu~d5a8e271!drop-7	CREATE ALIAS FUNCTION a() PARAMETER() AS 1
+reject	reject	engine	create_stmt/CREATE_opt_var_type_ALIAS_FUNCTION_opt_if_not_exists_fu~d5a8e271!drop-8	CREATE ALIAS FUNCTION a() WITH() AS 1
+reject	reject	engine	create_stmt/CREATE_opt_var_type_ALIAS_FUNCTION_opt_if_not_exists_fu~d5a8e271!drop-9	CREATE ALIAS FUNCTION a() WITH PARAMETER) AS 1
+reject	reject	engine	create_stmt/CREATE_opt_var_type_ALIAS_FUNCTION_opt_if_not_exists_fu~d5a8e271!drop-10	CREATE ALIAS FUNCTION a() WITH PARAMETER(AS 1
+reject	reject	engine	create_stmt/CREATE_opt_var_type_ALIAS_FUNCTION_opt_if_not_exists_fu~d5a8e271!drop-11	CREATE ALIAS FUNCTION a() WITH PARAMETER() 1
+reject	reject	engine	create_stmt/CREATE_opt_var_type_ALIAS_FUNCTION_opt_if_not_exists_fu~d5a8e271!drop-12	CREATE ALIAS FUNCTION a() WITH PARAMETER() AS
+reject	reject	engine	create_stmt/CREATE_opt_var_type_ALIAS_FUNCTION_opt_if_not_exists_fu~d5a8e271!insert	CREATE ALIAS FUNCTION a() WITH PARAMETER() AS 1 zzz
 reject	reject	engine	create_stmt/CREATE_opt_var_type_ALIAS_FUNCTION_opt_if_not_exists_fu~d5a8e271!swap	CREATION ALIAS FUNCTION a() WITH PARAMETER() AS 1
-reject	accept	engine	create_stmt/CREATE_opt_var_type_TABLES_FUNCTION_opt_if_not_exists_f~af5e0788	CREATE TABLES FUNCTION a() RETURNS TINYINT
+accept	accept	engine	create_stmt/CREATE_opt_var_type_TABLES_FUNCTION_opt_if_not_exists_f~af5e0788	CREATE TABLES FUNCTION a() RETURNS TINYINT
 reject	reject	engine	create_stmt/CREATE_opt_var_type_TABLES_FUNCTION_opt_if_not_exists_f~af5e0788!drop-1	TABLES FUNCTION a() RETURNS TINYINT
 reject	reject	engine	create_stmt/CREATE_opt_var_type_TABLES_FUNCTION_opt_if_not_exists_f~af5e0788!drop-3	CREATE TABLES a() RETURNS TINYINT
 reject	reject	engine	create_stmt/CREATE_opt_var_type_TABLES_FUNCTION_opt_if_not_exists_f~af5e0788!drop-4	CREATE TABLES FUNCTION() RETURNS TINYINT
@@ -10850,9 +10850,9 @@ reject	reject	engine	drop_stmt/DROP_CATALOG_opt_if_exists_ident!swap	DROPP CATAL
 accept	accept	engine	drop_stmt/DROP_opt_var_type_FUNCTION_opt_if_exists_function_name_~3920143c	DROP FUNCTION a()
 reject	reject	engine	drop_stmt/DROP_opt_var_type_FUNCTION_opt_if_exists_function_name_~3920143c!drop-1	FUNCTION a()
 reject	reject	engine	drop_stmt/DROP_opt_var_type_FUNCTION_opt_if_exists_function_name_~3920143c!drop-2	DROP a()
-accept	reject	engine	drop_stmt/DROP_opt_var_type_FUNCTION_opt_if_exists_function_name_~3920143c!drop-3	DROP FUNCTION()
+reject	reject	engine	drop_stmt/DROP_opt_var_type_FUNCTION_opt_if_exists_function_name_~3920143c!drop-3	DROP FUNCTION()
 reject	reject	engine	drop_stmt/DROP_opt_var_type_FUNCTION_opt_if_exists_function_name_~3920143c!drop-4	DROP FUNCTION a)
-accept	reject	engine	drop_stmt/DROP_opt_var_type_FUNCTION_opt_if_exists_function_name_~3920143c!drop-5	DROP FUNCTION a(
+reject	reject	engine	drop_stmt/DROP_opt_var_type_FUNCTION_opt_if_exists_function_name_~3920143c!drop-5	DROP FUNCTION a(
 reject	reject	engine	drop_stmt/DROP_opt_var_type_FUNCTION_opt_if_exists_function_name_~3920143c!insert	DROP FUNCTION a() zzz
 reject	reject	engine	drop_stmt/DROP_opt_var_type_FUNCTION_opt_if_exists_function_name_~3920143c!swap	DROPP FUNCTION a()
 accept	accept	engine	drop_stmt/DROP_opt_tmp_TABLE_opt_if_exists_table_name_opt_force	DROP TABLE a
@@ -11425,11 +11425,11 @@ reject	reject	engine	key_value_map/key_value_map_,_STRING_LITERAL_=_STRING_LITER
 reject	reject	engine	key_value_map/key_value_map_,_STRING_LITERAL_=_STRING_LITERAL!drop-7	SHOW DATA PROPERTIES('a' = 'a', 'a' =)
 reject	reject	engine	key_value_map/key_value_map_,_STRING_LITERAL_=_STRING_LITERAL!truncate	SHOW DATA PROPERTIES('a' = 'a', 'a' =
 reject	reject	engine	key_value_map/key_value_map_,_STRING_LITERAL_=_STRING_LITERAL!insert	SHOW DATA PROPERTIES('a' = 'a', 'a' = 'a' zzz)
-accept	reject	engine	type_opt_properties/,_opt_properties	DROP FUNCTION a(VARIANT < 'a' : TINYINT, >)
-accept	reject	engine	type_opt_properties/,_opt_properties!truncate	DROP FUNCTION a(VARIANT < 'a' : TINYINT
-accept	reject	engine	type_opt_properties/,_opt_properties!insert	DROP FUNCTION a(VARIANT < 'a' : TINYINT, zzz >)
+reject	reject	engine	type_opt_properties/,_opt_properties	DROP FUNCTION a(VARIANT < 'a' : TINYINT, >)
+reject	reject	engine	type_opt_properties/,_opt_properties!truncate	DROP FUNCTION a(VARIANT < 'a' : TINYINT
+reject	reject	engine	type_opt_properties/,_opt_properties!insert	DROP FUNCTION a(VARIANT < 'a' : TINYINT, zzz >)
 accept	accept	engine	type_opt_properties/%empty	DROP FUNCTION a(VARIANT < 'a' : TINYINT >)
-accept	reject	engine	type_opt_properties/%empty!insert	DROP FUNCTION a(VARIANT < 'a' : TINYINT zzz >)
+reject	reject	engine	type_opt_properties/%empty!insert	DROP FUNCTION a(VARIANT < 'a' : TINYINT zzz >)
 accept	accept	engine	opt_properties/%empty	SHOW DATA
 reject	reject	engine	opt_properties/%empty!insert	SHOW DATA zzz
 accept	accept	engine	opt_properties/properties	SHOW DATA PROPERTIES('a' = 'a')
@@ -11439,39 +11439,39 @@ reject	reject	engine	opt_properties/properties!drop-6	SHOW DATA PROPERTIES('a' =
 reject	reject	engine	opt_properties/properties!insert	SHOW DATA PROPERTIES('a' = 'a') zzz
 reject	reject	engine	opt_properties/properties!swap	SHOW DATA PROPERTY('a' = 'a')
 accept	accept	engine	policy_condition_op/=	CREATE WORKLOAD POLICY a CONDITIONS(a = 1)
-accept	reject	engine	policy_condition_op/=!drop-1	CREATE WORKLOAD POLICY a CONDITIONS(a 1)
+reject	reject	engine	policy_condition_op/=!drop-1	CREATE WORKLOAD POLICY a CONDITIONS(a 1)
 reject	reject	engine	policy_condition_op/=!truncate	CREATE WORKLOAD POLICY a CONDITIONS(a
-accept	reject	engine	policy_condition_op/=!insert	CREATE WORKLOAD POLICY a CONDITIONS(a = zzz 1)
+reject	reject	engine	policy_condition_op/=!insert	CREATE WORKLOAD POLICY a CONDITIONS(a = zzz 1)
 accept	accept	engine	policy_condition_op/>	CREATE WORKLOAD POLICY a CONDITIONS(a > 1)
-accept	reject	engine	policy_condition_op/>!insert	CREATE WORKLOAD POLICY a CONDITIONS(a > zzz 1)
+reject	reject	engine	policy_condition_op/>!insert	CREATE WORKLOAD POLICY a CONDITIONS(a > zzz 1)
 accept	accept	engine	policy_condition_op/<	CREATE WORKLOAD POLICY a CONDITIONS(a < 1)
-accept	reject	engine	policy_condition_op/<!insert	CREATE WORKLOAD POLICY a CONDITIONS(a < zzz 1)
-accept	reject	engine	policy_condition_op/>_=	CREATE WORKLOAD POLICY a CONDITIONS(a > = 1)
+reject	reject	engine	policy_condition_op/<!insert	CREATE WORKLOAD POLICY a CONDITIONS(a < zzz 1)
+reject	reject	engine	policy_condition_op/>_=	CREATE WORKLOAD POLICY a CONDITIONS(a > = 1)
 reject	reject	engine	policy_condition_op/>_=!truncate	CREATE WORKLOAD POLICY a CONDITIONS(a >
-accept	reject	engine	policy_condition_op/>_=!insert	CREATE WORKLOAD POLICY a CONDITIONS(a > = zzz 1)
-accept	reject	engine	policy_condition_op/<_=	CREATE WORKLOAD POLICY a CONDITIONS(a < = 1)
+reject	reject	engine	policy_condition_op/>_=!insert	CREATE WORKLOAD POLICY a CONDITIONS(a > = zzz 1)
+reject	reject	engine	policy_condition_op/<_=	CREATE WORKLOAD POLICY a CONDITIONS(a < = 1)
 reject	reject	engine	policy_condition_op/<_=!truncate	CREATE WORKLOAD POLICY a CONDITIONS(a <
-accept	reject	engine	policy_condition_op/<_=!insert	CREATE WORKLOAD POLICY a CONDITIONS(a < = zzz 1)
+reject	reject	engine	policy_condition_op/<_=!insert	CREATE WORKLOAD POLICY a CONDITIONS(a < = zzz 1)
 accept	accept	engine	policy_condition_value/INTEGER_VALUE	CREATE WORKLOAD POLICY a CONDITIONS(a = 1)
-accept	reject	engine	policy_condition_value/INTEGER_VALUE!drop-1	CREATE WORKLOAD POLICY a CONDITIONS(a =)
+reject	reject	engine	policy_condition_value/INTEGER_VALUE!drop-1	CREATE WORKLOAD POLICY a CONDITIONS(a =)
 reject	reject	engine	policy_condition_value/INTEGER_VALUE!truncate	CREATE WORKLOAD POLICY a CONDITIONS(a =
-accept	reject	engine	policy_condition_value/INTEGER_VALUE!insert	CREATE WORKLOAD POLICY a CONDITIONS(a = 1 zzz)
+reject	reject	engine	policy_condition_value/INTEGER_VALUE!insert	CREATE WORKLOAD POLICY a CONDITIONS(a = 1 zzz)
 accept	accept	engine	policy_condition_value/STRING_LITERAL	CREATE WORKLOAD POLICY a CONDITIONS(a = 'a')
-accept	reject	engine	policy_condition_value/STRING_LITERAL!insert	CREATE WORKLOAD POLICY a CONDITIONS(a = 'a' zzz)
+reject	reject	engine	policy_condition_value/STRING_LITERAL!insert	CREATE WORKLOAD POLICY a CONDITIONS(a = 'a' zzz)
 accept	accept	engine	policy_condition_value/DECIMAL_VALUE	CREATE WORKLOAD POLICY a CONDITIONS(a = 1.5)
-accept	reject	engine	policy_condition_value/DECIMAL_VALUE!insert	CREATE WORKLOAD POLICY a CONDITIONS(a = 1.5 zzz)
+reject	reject	engine	policy_condition_value/DECIMAL_VALUE!insert	CREATE WORKLOAD POLICY a CONDITIONS(a = 1.5 zzz)
 accept	accept	engine	workload_policy_condition_list/ident_policy_condition_op_policy_condition_value	CREATE WORKLOAD POLICY a CONDITIONS(a = 1)
-accept	reject	engine	workload_policy_condition_list/ident_policy_condition_op_policy_condition_value!drop-1	CREATE WORKLOAD POLICY a CONDITIONS(= 1)
+reject	reject	engine	workload_policy_condition_list/ident_policy_condition_op_policy_condition_value!drop-1	CREATE WORKLOAD POLICY a CONDITIONS(= 1)
 accept	accept	engine	workload_policy_condition_list/workload_policy_condition_list_,_ident_policy_condition~d3cf42ad	CREATE WORKLOAD POLICY a CONDITIONS(a = 1, a = 1)
-accept	reject	engine	workload_policy_condition_list/workload_policy_condition_list_,_ident_policy_condition~d3cf42ad!drop-1	CREATE WORKLOAD POLICY a CONDITIONS(= 1, a = 1)
-accept	reject	engine	workload_policy_condition_list/workload_policy_condition_list_,_ident_policy_condition~d3cf42ad!drop-2	CREATE WORKLOAD POLICY a CONDITIONS(a 1, a = 1)
-accept	reject	engine	workload_policy_condition_list/workload_policy_condition_list_,_ident_policy_condition~d3cf42ad!drop-3	CREATE WORKLOAD POLICY a CONDITIONS(a =, a = 1)
-accept	reject	engine	workload_policy_condition_list/workload_policy_condition_list_,_ident_policy_condition~d3cf42ad!drop-4	CREATE WORKLOAD POLICY a CONDITIONS(a = 1 a = 1)
-accept	reject	engine	workload_policy_condition_list/workload_policy_condition_list_,_ident_policy_condition~d3cf42ad!drop-5	CREATE WORKLOAD POLICY a CONDITIONS(a = 1, = 1)
-accept	reject	engine	workload_policy_condition_list/workload_policy_condition_list_,_ident_policy_condition~d3cf42ad!drop-6	CREATE WORKLOAD POLICY a CONDITIONS(a = 1, a 1)
-accept	reject	engine	workload_policy_condition_list/workload_policy_condition_list_,_ident_policy_condition~d3cf42ad!drop-7	CREATE WORKLOAD POLICY a CONDITIONS(a = 1, a =)
+reject	reject	engine	workload_policy_condition_list/workload_policy_condition_list_,_ident_policy_condition~d3cf42ad!drop-1	CREATE WORKLOAD POLICY a CONDITIONS(= 1, a = 1)
+reject	reject	engine	workload_policy_condition_list/workload_policy_condition_list_,_ident_policy_condition~d3cf42ad!drop-2	CREATE WORKLOAD POLICY a CONDITIONS(a 1, a = 1)
+reject	reject	engine	workload_policy_condition_list/workload_policy_condition_list_,_ident_policy_condition~d3cf42ad!drop-3	CREATE WORKLOAD POLICY a CONDITIONS(a =, a = 1)
+reject	reject	engine	workload_policy_condition_list/workload_policy_condition_list_,_ident_policy_condition~d3cf42ad!drop-4	CREATE WORKLOAD POLICY a CONDITIONS(a = 1 a = 1)
+reject	reject	engine	workload_policy_condition_list/workload_policy_condition_list_,_ident_policy_condition~d3cf42ad!drop-5	CREATE WORKLOAD POLICY a CONDITIONS(a = 1, = 1)
+reject	reject	engine	workload_policy_condition_list/workload_policy_condition_list_,_ident_policy_condition~d3cf42ad!drop-6	CREATE WORKLOAD POLICY a CONDITIONS(a = 1, a 1)
+reject	reject	engine	workload_policy_condition_list/workload_policy_condition_list_,_ident_policy_condition~d3cf42ad!drop-7	CREATE WORKLOAD POLICY a CONDITIONS(a = 1, a =)
 reject	reject	engine	workload_policy_condition_list/workload_policy_condition_list_,_ident_policy_condition~d3cf42ad!truncate	CREATE WORKLOAD POLICY a CONDITIONS(a = 1, a =
-accept	reject	engine	workload_policy_condition_list/workload_policy_condition_list_,_ident_policy_condition~d3cf42ad!insert	CREATE WORKLOAD POLICY a CONDITIONS(a = 1, a = 1 zzz)
+reject	reject	engine	workload_policy_condition_list/workload_policy_condition_list_,_ident_policy_condition~d3cf42ad!insert	CREATE WORKLOAD POLICY a CONDITIONS(a = 1, a = 1 zzz)
 accept	accept	engine	conditions/CONDITIONS_(_workload_policy_condition_list_)	CREATE WORKLOAD POLICY a CONDITIONS(a = 1)
 reject	reject	engine	conditions/CONDITIONS_(_workload_policy_condition_list_)!drop-1	CREATE WORKLOAD POLICY a(a = 1)
 reject	reject	engine	conditions/CONDITIONS_(_workload_policy_condition_list_)!drop-2	CREATE WORKLOAD POLICY a CONDITIONS a = 1)
@@ -11481,37 +11481,37 @@ reject	reject	engine	conditions/CONDITIONS_(_workload_policy_condition_list_)!sw
 accept	accept	engine	opt_conditions/%empty	CREATE WORKLOAD POLICY a
 accept	accept	engine	opt_conditions/conditions	CREATE WORKLOAD POLICY a CONDITIONS(a = 1)
 accept	accept	engine	workload_policy_action_list/SET_SESSION_VARIABLE_STRING_LITERAL	CREATE WORKLOAD POLICY a ACTIONS(SET_SESSION_VARIABLE 'a')
-accept	reject	engine	workload_policy_action_list/SET_SESSION_VARIABLE_STRING_LITERAL!drop-1	CREATE WORKLOAD POLICY a ACTIONS('a')
+reject	reject	engine	workload_policy_action_list/SET_SESSION_VARIABLE_STRING_LITERAL!drop-1	CREATE WORKLOAD POLICY a ACTIONS('a')
 accept	accept	engine	workload_policy_action_list/SET_SESSION_VARIABLE_STRING_LITERAL!drop-2	CREATE WORKLOAD POLICY a ACTIONS(SET_SESSION_VARIABLE)
 reject	reject	engine	workload_policy_action_list/SET_SESSION_VARIABLE_STRING_LITERAL!truncate	CREATE WORKLOAD POLICY a ACTIONS(SET_SESSION_VARIABLE
-accept	reject	engine	workload_policy_action_list/SET_SESSION_VARIABLE_STRING_LITERAL!insert	CREATE WORKLOAD POLICY a ACTIONS(SET_SESSION_VARIABLE 'a' zzz)
+reject	reject	engine	workload_policy_action_list/SET_SESSION_VARIABLE_STRING_LITERAL!insert	CREATE WORKLOAD POLICY a ACTIONS(SET_SESSION_VARIABLE 'a' zzz)
 accept	accept	engine	workload_policy_action_list/SET_SESSION_VARIABLE_STRING_LITERAL!swap	CREATE WORKLOAD POLICY a ACTIONS(SHAPE 'a')
 accept	accept	engine	workload_policy_action_list/workload_policy_action_list_,_SET_SESSION_VARIABLE_STRI~09505c51	CREATE WORKLOAD POLICY a ACTIONS(a, SET_SESSION_VARIABLE 'a')
-accept	reject	engine	workload_policy_action_list/workload_policy_action_list_,_SET_SESSION_VARIABLE_STRI~09505c51!drop-1	CREATE WORKLOAD POLICY a ACTIONS(, SET_SESSION_VARIABLE 'a')
-accept	reject	engine	workload_policy_action_list/workload_policy_action_list_,_SET_SESSION_VARIABLE_STRI~09505c51!drop-2	CREATE WORKLOAD POLICY a ACTIONS(a SET_SESSION_VARIABLE 'a')
-accept	reject	engine	workload_policy_action_list/workload_policy_action_list_,_SET_SESSION_VARIABLE_STRI~09505c51!drop-3	CREATE WORKLOAD POLICY a ACTIONS(a, 'a')
+reject	reject	engine	workload_policy_action_list/workload_policy_action_list_,_SET_SESSION_VARIABLE_STRI~09505c51!drop-1	CREATE WORKLOAD POLICY a ACTIONS(, SET_SESSION_VARIABLE 'a')
+reject	reject	engine	workload_policy_action_list/workload_policy_action_list_,_SET_SESSION_VARIABLE_STRI~09505c51!drop-2	CREATE WORKLOAD POLICY a ACTIONS(a SET_SESSION_VARIABLE 'a')
+reject	reject	engine	workload_policy_action_list/workload_policy_action_list_,_SET_SESSION_VARIABLE_STRI~09505c51!drop-3	CREATE WORKLOAD POLICY a ACTIONS(a, 'a')
 accept	accept	engine	workload_policy_action_list/workload_policy_action_list_,_SET_SESSION_VARIABLE_STRI~09505c51!drop-4	CREATE WORKLOAD POLICY a ACTIONS(a, SET_SESSION_VARIABLE)
 reject	reject	engine	workload_policy_action_list/workload_policy_action_list_,_SET_SESSION_VARIABLE_STRI~09505c51!truncate	CREATE WORKLOAD POLICY a ACTIONS(a, SET_SESSION_VARIABLE
-accept	reject	engine	workload_policy_action_list/workload_policy_action_list_,_SET_SESSION_VARIABLE_STRI~09505c51!insert	CREATE WORKLOAD POLICY a ACTIONS(a, SET_SESSION_VARIABLE 'a' zzz)
+reject	reject	engine	workload_policy_action_list/workload_policy_action_list_,_SET_SESSION_VARIABLE_STRI~09505c51!insert	CREATE WORKLOAD POLICY a ACTIONS(a, SET_SESSION_VARIABLE 'a' zzz)
 accept	accept	engine	workload_policy_action_list/workload_policy_action_list_,_SET_SESSION_VARIABLE_STRI~09505c51!swap	CREATE WORKLOAD POLICY a ACTIONS(a, SHAPE 'a')
 accept	accept	engine	workload_policy_action_list/ident	CREATE WORKLOAD POLICY a ACTIONS(a)
-accept	reject	engine	workload_policy_action_list/ident!drop-1	CREATE WORKLOAD POLICY a ACTIONS()
+reject	reject	engine	workload_policy_action_list/ident!drop-1	CREATE WORKLOAD POLICY a ACTIONS()
 reject	reject	engine	workload_policy_action_list/ident!truncate	CREATE WORKLOAD POLICY a ACTIONS(
-accept	reject	engine	workload_policy_action_list/ident!insert	CREATE WORKLOAD POLICY a ACTIONS(a zzz)
+reject	reject	engine	workload_policy_action_list/ident!insert	CREATE WORKLOAD POLICY a ACTIONS(a zzz)
 accept	accept	engine	workload_policy_action_list/ident_STRING_LITERAL	CREATE WORKLOAD POLICY a ACTIONS(a 'a')
 reject	reject	engine	workload_policy_action_list/ident_STRING_LITERAL!truncate	CREATE WORKLOAD POLICY a ACTIONS(a
-accept	reject	engine	workload_policy_action_list/ident_STRING_LITERAL!insert	CREATE WORKLOAD POLICY a ACTIONS(a 'a' zzz)
+reject	reject	engine	workload_policy_action_list/ident_STRING_LITERAL!insert	CREATE WORKLOAD POLICY a ACTIONS(a 'a' zzz)
 accept	accept	engine	workload_policy_action_list/workload_policy_action_list_,_ident	CREATE WORKLOAD POLICY a ACTIONS(a, a)
-accept	reject	engine	workload_policy_action_list/workload_policy_action_list_,_ident!drop-1	CREATE WORKLOAD POLICY a ACTIONS(, a)
-accept	reject	engine	workload_policy_action_list/workload_policy_action_list_,_ident!drop-2	CREATE WORKLOAD POLICY a ACTIONS(a a)
-accept	reject	engine	workload_policy_action_list/workload_policy_action_list_,_ident!drop-3	CREATE WORKLOAD POLICY a ACTIONS(a,)
+reject	reject	engine	workload_policy_action_list/workload_policy_action_list_,_ident!drop-1	CREATE WORKLOAD POLICY a ACTIONS(, a)
+reject	reject	engine	workload_policy_action_list/workload_policy_action_list_,_ident!drop-2	CREATE WORKLOAD POLICY a ACTIONS(a a)
+reject	reject	engine	workload_policy_action_list/workload_policy_action_list_,_ident!drop-3	CREATE WORKLOAD POLICY a ACTIONS(a,)
 reject	reject	engine	workload_policy_action_list/workload_policy_action_list_,_ident!truncate	CREATE WORKLOAD POLICY a ACTIONS(a,
-accept	reject	engine	workload_policy_action_list/workload_policy_action_list_,_ident!insert	CREATE WORKLOAD POLICY a ACTIONS(a, a zzz)
+reject	reject	engine	workload_policy_action_list/workload_policy_action_list_,_ident!insert	CREATE WORKLOAD POLICY a ACTIONS(a, a zzz)
 accept	accept	engine	workload_policy_action_list/workload_policy_action_list_,_ident_STRING_LITERAL	CREATE WORKLOAD POLICY a ACTIONS(a, a 'a')
-accept	reject	engine	workload_policy_action_list/workload_policy_action_list_,_ident_STRING_LITERAL!drop-1	CREATE WORKLOAD POLICY a ACTIONS(, a 'a')
-accept	reject	engine	workload_policy_action_list/workload_policy_action_list_,_ident_STRING_LITERAL!drop-2	CREATE WORKLOAD POLICY a ACTIONS(a a 'a')
+reject	reject	engine	workload_policy_action_list/workload_policy_action_list_,_ident_STRING_LITERAL!drop-1	CREATE WORKLOAD POLICY a ACTIONS(, a 'a')
+reject	reject	engine	workload_policy_action_list/workload_policy_action_list_,_ident_STRING_LITERAL!drop-2	CREATE WORKLOAD POLICY a ACTIONS(a a 'a')
 reject	reject	engine	workload_policy_action_list/workload_policy_action_list_,_ident_STRING_LITERAL!truncate	CREATE WORKLOAD POLICY a ACTIONS(a, a
-accept	reject	engine	workload_policy_action_list/workload_policy_action_list_,_ident_STRING_LITERAL!insert	CREATE WORKLOAD POLICY a ACTIONS(a, a 'a' zzz)
+reject	reject	engine	workload_policy_action_list/workload_policy_action_list_,_ident_STRING_LITERAL!insert	CREATE WORKLOAD POLICY a ACTIONS(a, a 'a' zzz)
 accept	accept	engine	actions/ACTIONS_(_workload_policy_action_list_)	CREATE WORKLOAD POLICY a ACTIONS(a)
 reject	reject	engine	actions/ACTIONS_(_workload_policy_action_list_)!drop-1	CREATE WORKLOAD POLICY a(a)
 reject	reject	engine	actions/ACTIONS_(_workload_policy_action_list_)!drop-2	CREATE WORKLOAD POLICY a ACTIONS a)
@@ -11631,16 +11631,16 @@ reject	reject	engine	opt_nullable_type/NOT_NULL!drop-2	ALTER TABLE a ADD COLUMN 
 reject	reject	engine	opt_nullable_type/NOT_NULL!insert	ALTER TABLE a ADD COLUMN a TINYINT NOT NULL zzz
 reject	reject	engine	opt_nullable_type/NOT_NULL!swap	ALTER TABLE a ADD COLUMN a TINYINT NULL NULL
 accept	accept	engine	opt_is_allow_null/%empty	DROP FUNCTION a(AGG_STATE < a(TINYINT) >)
-accept	reject	engine	opt_is_allow_null/%empty!insert	DROP FUNCTION a(AGG_STATE < a(TINYINT zzz) >)
+reject	reject	engine	opt_is_allow_null/%empty!insert	DROP FUNCTION a(AGG_STATE < a(TINYINT zzz) >)
 accept	accept	engine	opt_is_allow_null/NULL	DROP FUNCTION a(AGG_STATE < a(TINYINT NULL) >)
-accept	reject	engine	opt_is_allow_null/NULL!truncate	DROP FUNCTION a(AGG_STATE < a(TINYINT
-accept	reject	engine	opt_is_allow_null/NULL!insert	DROP FUNCTION a(AGG_STATE < a(TINYINT NULL zzz) >)
-accept	reject	engine	opt_is_allow_null/NULL!swap	DROP FUNCTION a(AGG_STATE < a(TINYINT NULLS) >)
+reject	reject	engine	opt_is_allow_null/NULL!truncate	DROP FUNCTION a(AGG_STATE < a(TINYINT
+reject	reject	engine	opt_is_allow_null/NULL!insert	DROP FUNCTION a(AGG_STATE < a(TINYINT NULL zzz) >)
+reject	reject	engine	opt_is_allow_null/NULL!swap	DROP FUNCTION a(AGG_STATE < a(TINYINT NULLS) >)
 accept	accept	engine	opt_is_allow_null/NOT_NULL	DROP FUNCTION a(AGG_STATE < a(TINYINT NOT NULL) >)
-accept	reject	engine	opt_is_allow_null/NOT_NULL!drop-2	DROP FUNCTION a(AGG_STATE < a(TINYINT NOT) >)
-accept	reject	engine	opt_is_allow_null/NOT_NULL!truncate	DROP FUNCTION a(AGG_STATE < a(TINYINT NOT
-accept	reject	engine	opt_is_allow_null/NOT_NULL!insert	DROP FUNCTION a(AGG_STATE < a(TINYINT NOT NULL zzz) >)
-accept	reject	engine	opt_is_allow_null/NOT_NULL!swap	DROP FUNCTION a(AGG_STATE < a(TINYINT NULL NULL) >)
+reject	reject	engine	opt_is_allow_null/NOT_NULL!drop-2	DROP FUNCTION a(AGG_STATE < a(TINYINT NOT) >)
+reject	reject	engine	opt_is_allow_null/NOT_NULL!truncate	DROP FUNCTION a(AGG_STATE < a(TINYINT NOT
+reject	reject	engine	opt_is_allow_null/NOT_NULL!insert	DROP FUNCTION a(AGG_STATE < a(TINYINT NOT NULL zzz) >)
+reject	reject	engine	opt_is_allow_null/NOT_NULL!swap	DROP FUNCTION a(AGG_STATE < a(TINYINT NULL NULL) >)
 accept	accept	engine	opt_auto_inc_init_value/%empty	ALTER TABLE a ADD COLUMN a TINYINT
 accept	accept	engine	opt_auto_inc_init_value/AUTO_INCREMENT	ALTER TABLE a ADD COLUMN a TINYINT AUTO_INCREMENT
 reject	reject	engine	opt_auto_inc_init_value/AUTO_INCREMENT!insert	ALTER TABLE a ADD COLUMN a TINYINT AUTO_INCREMENT zzz
@@ -11910,7 +11910,7 @@ accept	accept	engine	show_param/CREATE_CATALOG_ident	SHOW CREATE CATALOG a
 reject	reject	engine	show_param/CREATE_CATALOG_ident!drop-3	SHOW CREATE CATALOG
 reject	reject	engine	show_param/CREATE_CATALOG_ident!insert	SHOW CREATE CATALOG a zzz
 reject	reject	engine	show_param/CREATE_CATALOG_ident!swap	SHOW CREATION CATALOG a
-reject	accept	engine	show_param/CREATE_opt_var_type_FUNCTION_function_name_(_func_args_~83cf42ae	SHOW CREATE FUNCTION a()
+accept	accept	engine	show_param/CREATE_opt_var_type_FUNCTION_function_name_(_func_args_~83cf42ae	SHOW CREATE FUNCTION a()
 reject	reject	engine	show_param/CREATE_opt_var_type_FUNCTION_function_name_(_func_args_~83cf42ae!drop-1	SHOW FUNCTION a()
 reject	reject	engine	show_param/CREATE_opt_var_type_FUNCTION_function_name_(_func_args_~83cf42ae!drop-2	SHOW CREATE a()
 reject	reject	engine	show_param/CREATE_opt_var_type_FUNCTION_function_name_(_func_args_~83cf42ae!drop-3	SHOW CREATE FUNCTION()
@@ -13645,8 +13645,8 @@ reject	reject	engine	ident_list/ident_list_,_ident!insert	DROP SQL_BLOCK_RULE a,
 accept	accept	engine	opt_ident_list/%empty	CREATE ALIAS FUNCTION a() WITH PARAMETER() AS 1
 accept	accept	engine	opt_ident_list/%empty!insert	CREATE ALIAS FUNCTION a() WITH PARAMETER(zzz) AS 1
 accept	accept	engine	opt_ident_list/ident_list	CREATE ALIAS FUNCTION a() WITH PARAMETER(a) AS 1
-accept	reject	engine	opt_ident_list/ident_list!truncate	CREATE ALIAS FUNCTION a() WITH PARAMETER(
-accept	reject	engine	opt_ident_list/ident_list!insert	CREATE ALIAS FUNCTION a() WITH PARAMETER(a zzz) AS 1
+reject	reject	engine	opt_ident_list/ident_list!truncate	CREATE ALIAS FUNCTION a() WITH PARAMETER(
+reject	reject	engine	opt_ident_list/ident_list!insert	CREATE ALIAS FUNCTION a() WITH PARAMETER(a zzz) AS 1
 accept	accept	engine	with_analysis_properties/SYNC	ANALYZE TABLE a WITH SYNC
 reject	reject	engine	with_analysis_properties/SYNC!drop-1	ANALYZE TABLE a WITH
 reject	reject	engine	with_analysis_properties/SYNC!insert	ANALYZE TABLE a WITH SYNC zzz
@@ -13820,340 +13820,340 @@ reject	reject	engine	limit_clause/LIMIT_INTEGER_VALUE_,_INTEGER_VALUE!swap	SELEC
 accept	accept	engine	limit_clause/LIMIT_INTEGER_VALUE_OFFSET_INTEGER_VALUE	SELECT 1 LIMIT 1 OFFSET 1
 reject	reject	engine	limit_clause/LIMIT_INTEGER_VALUE_OFFSET_INTEGER_VALUE!swap	SELECT 1 LINES 1 OFFSET 1
 accept	accept	engine	type/TINYINT_opt_field_length	DROP FUNCTION a(TINYINT)
-accept	reject	engine	type/TINYINT_opt_field_length!insert	DROP FUNCTION a(TINYINT zzz)
-accept	reject	engine	type/TINYINT_opt_field_length!swap	DROP FUNCTION a(TO)
+reject	reject	engine	type/TINYINT_opt_field_length!insert	DROP FUNCTION a(TINYINT zzz)
+reject	reject	engine	type/TINYINT_opt_field_length!swap	DROP FUNCTION a(TO)
 accept	accept	engine	type/SMALLINT_opt_field_length	DROP FUNCTION a(SMALLINT)
-accept	reject	engine	type/SMALLINT_opt_field_length!insert	DROP FUNCTION a(SMALLINT zzz)
-accept	reject	engine	type/SMALLINT_opt_field_length!swap	DROP FUNCTION a(SNAPSHOT)
+reject	reject	engine	type/SMALLINT_opt_field_length!insert	DROP FUNCTION a(SMALLINT zzz)
+reject	reject	engine	type/SMALLINT_opt_field_length!swap	DROP FUNCTION a(SNAPSHOT)
 accept	accept	engine	type/opt_signed_unsigned_INT_opt_field_length	DROP FUNCTION a(INT)
-accept	reject	engine	type/opt_signed_unsigned_INT_opt_field_length!insert	DROP FUNCTION a(INT zzz)
+reject	reject	engine	type/opt_signed_unsigned_INT_opt_field_length!insert	DROP FUNCTION a(INT zzz)
 accept	accept	engine	type/opt_signed_unsigned_INT_opt_field_length!swap	DROP FUNCTION a(INTEGER)
-accept	reject	engine	type/UNSIGNED_INT_opt_field_length	DROP FUNCTION a(UNSIGNED INT)
-accept	reject	engine	type/UNSIGNED_INT_opt_field_length!drop-2	DROP FUNCTION a(UNSIGNED)
-accept	reject	engine	type/UNSIGNED_INT_opt_field_length!truncate	DROP FUNCTION a(UNSIGNED
-accept	reject	engine	type/UNSIGNED_INT_opt_field_length!insert	DROP FUNCTION a(UNSIGNED INT zzz)
-accept	reject	engine	type/UNSIGNED_INT_opt_field_length!swap	DROP FUNCTION a(UP INT)
+reject	reject	engine	type/UNSIGNED_INT_opt_field_length	DROP FUNCTION a(UNSIGNED INT)
+reject	reject	engine	type/UNSIGNED_INT_opt_field_length!drop-2	DROP FUNCTION a(UNSIGNED)
+reject	reject	engine	type/UNSIGNED_INT_opt_field_length!truncate	DROP FUNCTION a(UNSIGNED
+reject	reject	engine	type/UNSIGNED_INT_opt_field_length!insert	DROP FUNCTION a(UNSIGNED INT zzz)
+reject	reject	engine	type/UNSIGNED_INT_opt_field_length!swap	DROP FUNCTION a(UP INT)
 accept	accept	engine	type/BIGINT_opt_field_length	DROP FUNCTION a(BIGINT)
-accept	reject	engine	type/BIGINT_opt_field_length!insert	DROP FUNCTION a(BIGINT zzz)
-accept	reject	engine	type/BIGINT_opt_field_length!swap	DROP FUNCTION a(BIN)
+reject	reject	engine	type/BIGINT_opt_field_length!insert	DROP FUNCTION a(BIGINT zzz)
+reject	reject	engine	type/BIGINT_opt_field_length!swap	DROP FUNCTION a(BIN)
 accept	accept	engine	type/LARGEINT_opt_field_length	DROP FUNCTION a(LARGEINT)
-accept	reject	engine	type/LARGEINT_opt_field_length!insert	DROP FUNCTION a(LARGEINT zzz)
-accept	reject	engine	type/LARGEINT_opt_field_length!swap	DROP FUNCTION a(LAST)
+reject	reject	engine	type/LARGEINT_opt_field_length!insert	DROP FUNCTION a(LARGEINT zzz)
+reject	reject	engine	type/LARGEINT_opt_field_length!swap	DROP FUNCTION a(LAST)
 accept	accept	engine	type/BOOLEAN	DROP FUNCTION a(BOOLEAN)
-accept	reject	engine	type/BOOLEAN!insert	DROP FUNCTION a(BOOLEAN zzz)
-accept	reject	engine	type/BOOLEAN!swap	DROP FUNCTION a(BRANCH)
+reject	reject	engine	type/BOOLEAN!insert	DROP FUNCTION a(BOOLEAN zzz)
+reject	reject	engine	type/BOOLEAN!swap	DROP FUNCTION a(BRANCH)
 accept	accept	engine	type/FLOAT	DROP FUNCTION a(FLOAT)
-accept	reject	engine	type/FLOAT!insert	DROP FUNCTION a(FLOAT zzz)
-accept	reject	engine	type/FLOAT!swap	DROP FUNCTION a(FOLLOWER)
+reject	reject	engine	type/FLOAT!insert	DROP FUNCTION a(FLOAT zzz)
+reject	reject	engine	type/FLOAT!swap	DROP FUNCTION a(FOLLOWER)
 accept	accept	engine	type/DOUBLE	DROP FUNCTION a(DOUBLE)
-accept	reject	engine	type/DOUBLE!insert	DROP FUNCTION a(DOUBLE zzz)
-accept	reject	engine	type/DOUBLE!swap	DROP FUNCTION a(DROP)
+reject	reject	engine	type/DOUBLE!insert	DROP FUNCTION a(DOUBLE zzz)
+reject	reject	engine	type/DOUBLE!swap	DROP FUNCTION a(DROP)
 accept	accept	engine	type/DATE	DROP FUNCTION a(DATE)
-accept	reject	engine	type/DATE!insert	DROP FUNCTION a(DATE zzz)
+reject	reject	engine	type/DATE!insert	DROP FUNCTION a(DATE zzz)
 accept	accept	engine	type/DATETIME_(_INTEGER_VALUE_)	DROP FUNCTION a(DATETIME(1))
-accept	reject	engine	type/DATETIME_(_INTEGER_VALUE_)!drop-1	DROP FUNCTION a((1))
+reject	reject	engine	type/DATETIME_(_INTEGER_VALUE_)!drop-1	DROP FUNCTION a((1))
 reject	reject	engine	type/DATETIME_(_INTEGER_VALUE_)!drop-2	DROP FUNCTION a(DATETIME 1))
-accept	reject	engine	type/DATETIME_(_INTEGER_VALUE_)!drop-3	DROP FUNCTION a(DATETIME())
-accept	reject	engine	type/DATETIME_(_INTEGER_VALUE_)!drop-4	DROP FUNCTION a(DATETIME(1)
-accept	reject	engine	type/DATETIME_(_INTEGER_VALUE_)!truncate	DROP FUNCTION a(DATETIME(1
-accept	reject	engine	type/DATETIME_(_INTEGER_VALUE_)!insert	DROP FUNCTION a(DATETIME(1) zzz)
-accept	reject	engine	type/DATETIME_(_INTEGER_VALUE_)!swap	DROP FUNCTION a(DATETIMEV1(1))
+reject	reject	engine	type/DATETIME_(_INTEGER_VALUE_)!drop-3	DROP FUNCTION a(DATETIME())
+reject	reject	engine	type/DATETIME_(_INTEGER_VALUE_)!drop-4	DROP FUNCTION a(DATETIME(1)
+reject	reject	engine	type/DATETIME_(_INTEGER_VALUE_)!truncate	DROP FUNCTION a(DATETIME(1
+reject	reject	engine	type/DATETIME_(_INTEGER_VALUE_)!insert	DROP FUNCTION a(DATETIME(1) zzz)
+reject	reject	engine	type/DATETIME_(_INTEGER_VALUE_)!swap	DROP FUNCTION a(DATETIMEV1(1))
 accept	accept	engine	type/DATETIME	DROP FUNCTION a(DATETIME)
-accept	reject	engine	type/DATETIME!insert	DROP FUNCTION a(DATETIME zzz)
+reject	reject	engine	type/DATETIME!insert	DROP FUNCTION a(DATETIME zzz)
 accept	accept	engine	type/DATEV1	DROP FUNCTION a(DATEV1)
-accept	reject	engine	type/DATEV1!insert	DROP FUNCTION a(DATEV1 zzz)
+reject	reject	engine	type/DATEV1!insert	DROP FUNCTION a(DATEV1 zzz)
 accept	accept	engine	type/DATETIMEV1	DROP FUNCTION a(DATETIMEV1)
-accept	reject	engine	type/DATETIMEV1!insert	DROP FUNCTION a(DATETIMEV1 zzz)
+reject	reject	engine	type/DATETIMEV1!insert	DROP FUNCTION a(DATETIMEV1 zzz)
 accept	accept	engine	type/TIME_(_INTEGER_VALUE_)	DROP FUNCTION a(TIME(1))
 reject	reject	engine	type/TIME_(_INTEGER_VALUE_)!drop-2	DROP FUNCTION a(TIME 1))
-accept	reject	engine	type/TIME_(_INTEGER_VALUE_)!drop-3	DROP FUNCTION a(TIME())
-accept	reject	engine	type/TIME_(_INTEGER_VALUE_)!drop-4	DROP FUNCTION a(TIME(1)
-accept	reject	engine	type/TIME_(_INTEGER_VALUE_)!truncate	DROP FUNCTION a(TIME(1
-accept	reject	engine	type/TIME_(_INTEGER_VALUE_)!insert	DROP FUNCTION a(TIME(1) zzz)
-accept	reject	engine	type/TIME_(_INTEGER_VALUE_)!swap	DROP FUNCTION a(TIMESTAMP(1))
+reject	reject	engine	type/TIME_(_INTEGER_VALUE_)!drop-3	DROP FUNCTION a(TIME())
+reject	reject	engine	type/TIME_(_INTEGER_VALUE_)!drop-4	DROP FUNCTION a(TIME(1)
+reject	reject	engine	type/TIME_(_INTEGER_VALUE_)!truncate	DROP FUNCTION a(TIME(1
+reject	reject	engine	type/TIME_(_INTEGER_VALUE_)!insert	DROP FUNCTION a(TIME(1) zzz)
+reject	reject	engine	type/TIME_(_INTEGER_VALUE_)!swap	DROP FUNCTION a(TIMESTAMP(1))
 accept	accept	engine	type/TIME	DROP FUNCTION a(TIME)
-accept	reject	engine	type/TIME!insert	DROP FUNCTION a(TIME zzz)
-accept	reject	engine	type/TIME!swap	DROP FUNCTION a(TIMESTAMP)
+reject	reject	engine	type/TIME!insert	DROP FUNCTION a(TIME zzz)
+reject	reject	engine	type/TIME!swap	DROP FUNCTION a(TIMESTAMP)
 accept	accept	engine	type/DATEV2	DROP FUNCTION a(DATEV2)
-accept	reject	engine	type/DATEV2!insert	DROP FUNCTION a(DATEV2 zzz)
-accept	reject	engine	type/DATEV2!swap	DROP FUNCTION a(DAY)
+reject	reject	engine	type/DATEV2!insert	DROP FUNCTION a(DATEV2 zzz)
+reject	reject	engine	type/DATEV2!swap	DROP FUNCTION a(DAY)
 accept	accept	engine	type/DATETIMEV2_(_INTEGER_VALUE_)	DROP FUNCTION a(DATETIMEV2(1))
 reject	reject	engine	type/DATETIMEV2_(_INTEGER_VALUE_)!drop-2	DROP FUNCTION a(DATETIMEV2 1))
-accept	reject	engine	type/DATETIMEV2_(_INTEGER_VALUE_)!drop-3	DROP FUNCTION a(DATETIMEV2())
-accept	reject	engine	type/DATETIMEV2_(_INTEGER_VALUE_)!drop-4	DROP FUNCTION a(DATETIMEV2(1)
-accept	reject	engine	type/DATETIMEV2_(_INTEGER_VALUE_)!truncate	DROP FUNCTION a(DATETIMEV2(1
-accept	reject	engine	type/DATETIMEV2_(_INTEGER_VALUE_)!insert	DROP FUNCTION a(DATETIMEV2(1) zzz)
-accept	reject	engine	type/DATETIMEV2_(_INTEGER_VALUE_)!swap	DROP FUNCTION a(DATEV1(1))
+reject	reject	engine	type/DATETIMEV2_(_INTEGER_VALUE_)!drop-3	DROP FUNCTION a(DATETIMEV2())
+reject	reject	engine	type/DATETIMEV2_(_INTEGER_VALUE_)!drop-4	DROP FUNCTION a(DATETIMEV2(1)
+reject	reject	engine	type/DATETIMEV2_(_INTEGER_VALUE_)!truncate	DROP FUNCTION a(DATETIMEV2(1
+reject	reject	engine	type/DATETIMEV2_(_INTEGER_VALUE_)!insert	DROP FUNCTION a(DATETIMEV2(1) zzz)
+reject	reject	engine	type/DATETIMEV2_(_INTEGER_VALUE_)!swap	DROP FUNCTION a(DATEV1(1))
 accept	accept	engine	type/DATETIMEV2	DROP FUNCTION a(DATETIMEV2)
-accept	reject	engine	type/DATETIMEV2!insert	DROP FUNCTION a(DATETIMEV2 zzz)
+reject	reject	engine	type/DATETIMEV2!insert	DROP FUNCTION a(DATETIMEV2 zzz)
 accept	accept	engine	type/IPV4	DROP FUNCTION a(IPV4)
-accept	reject	engine	type/IPV4!insert	DROP FUNCTION a(IPV4 zzz)
+reject	reject	engine	type/IPV4!insert	DROP FUNCTION a(IPV4 zzz)
 accept	accept	engine	type/IPV6	DROP FUNCTION a(IPV6)
-accept	reject	engine	type/IPV6!insert	DROP FUNCTION a(IPV6 zzz)
-accept	reject	engine	type/IPV6!swap	DROP FUNCTION a(IS)
+reject	reject	engine	type/IPV6!insert	DROP FUNCTION a(IPV6 zzz)
+reject	reject	engine	type/IPV6!swap	DROP FUNCTION a(IS)
 accept	accept	engine	type/BITMAP	DROP FUNCTION a(BITMAP)
-accept	reject	engine	type/BITMAP!insert	DROP FUNCTION a(BITMAP zzz)
-accept	reject	engine	type/BITMAP!swap	DROP FUNCTION a(BITMAP_EMPTY)
+reject	reject	engine	type/BITMAP!insert	DROP FUNCTION a(BITMAP zzz)
+reject	reject	engine	type/BITMAP!swap	DROP FUNCTION a(BITMAP_EMPTY)
 accept	accept	engine	type/QUANTILE_STATE	DROP FUNCTION a(QUANTILE_STATE)
-accept	reject	engine	type/QUANTILE_STATE!insert	DROP FUNCTION a(QUANTILE_STATE zzz)
-accept	reject	engine	type/QUANTILE_STATE!swap	DROP FUNCTION a(QUANTILE_UNION)
+reject	reject	engine	type/QUANTILE_STATE!insert	DROP FUNCTION a(QUANTILE_STATE zzz)
+reject	reject	engine	type/QUANTILE_STATE!swap	DROP FUNCTION a(QUANTILE_UNION)
 accept	accept	engine	type/STRING	DROP FUNCTION a(STRING)
-accept	reject	engine	type/STRING!insert	DROP FUNCTION a(STRING zzz)
-accept	reject	engine	type/STRING!swap	DROP FUNCTION a(STRUCT)
+reject	reject	engine	type/STRING!insert	DROP FUNCTION a(STRING zzz)
+reject	reject	engine	type/STRING!swap	DROP FUNCTION a(STRUCT)
 accept	accept	engine	type/JSON	DROP FUNCTION a(JSON)
-accept	reject	engine	type/JSON!insert	DROP FUNCTION a(JSON zzz)
+reject	reject	engine	type/JSON!insert	DROP FUNCTION a(JSON zzz)
 accept	accept	engine	type/JSONB	DROP FUNCTION a(JSONB)
-accept	reject	engine	type/JSONB!insert	DROP FUNCTION a(JSONB zzz)
-accept	reject	engine	type/JSONB!swap	DROP FUNCTION a(KEY)
+reject	reject	engine	type/JSONB!insert	DROP FUNCTION a(JSONB zzz)
+reject	reject	engine	type/JSONB!swap	DROP FUNCTION a(KEY)
 accept	accept	engine	type/TEXT	DROP FUNCTION a(TEXT)
-accept	reject	engine	type/TEXT!insert	DROP FUNCTION a(TEXT zzz)
-accept	reject	engine	type/TEXT!swap	DROP FUNCTION a(THAN)
+reject	reject	engine	type/TEXT!insert	DROP FUNCTION a(TEXT zzz)
+reject	reject	engine	type/TEXT!swap	DROP FUNCTION a(THAN)
 accept	accept	engine	type/VARIANT	DROP FUNCTION a(VARIANT)
-accept	reject	engine	type/VARIANT!insert	DROP FUNCTION a(VARIANT zzz)
-accept	reject	engine	type/VARIANT!swap	DROP FUNCTION a(VAULT)
+reject	reject	engine	type/VARIANT!insert	DROP FUNCTION a(VARIANT zzz)
+reject	reject	engine	type/VARIANT!swap	DROP FUNCTION a(VAULT)
 accept	accept	engine	type/VARCHAR_(_INTEGER_VALUE_)	DROP FUNCTION a(VARCHAR(1))
 reject	reject	engine	type/VARCHAR_(_INTEGER_VALUE_)!drop-2	DROP FUNCTION a(VARCHAR 1))
-accept	reject	engine	type/VARCHAR_(_INTEGER_VALUE_)!drop-3	DROP FUNCTION a(VARCHAR())
-accept	reject	engine	type/VARCHAR_(_INTEGER_VALUE_)!drop-4	DROP FUNCTION a(VARCHAR(1)
-accept	reject	engine	type/VARCHAR_(_INTEGER_VALUE_)!truncate	DROP FUNCTION a(VARCHAR(1
-accept	reject	engine	type/VARCHAR_(_INTEGER_VALUE_)!insert	DROP FUNCTION a(VARCHAR(1) zzz)
-accept	reject	engine	type/VARCHAR_(_INTEGER_VALUE_)!swap	DROP FUNCTION a(VARIABLE(1))
-accept	reject	engine	type/VARCHAR_(_ident_or_text_)	DROP FUNCTION a(VARCHAR(a))
-accept	reject	engine	type/VARCHAR_(_ident_or_text_)!drop-1	DROP FUNCTION a((a))
+reject	reject	engine	type/VARCHAR_(_INTEGER_VALUE_)!drop-3	DROP FUNCTION a(VARCHAR())
+reject	reject	engine	type/VARCHAR_(_INTEGER_VALUE_)!drop-4	DROP FUNCTION a(VARCHAR(1)
+reject	reject	engine	type/VARCHAR_(_INTEGER_VALUE_)!truncate	DROP FUNCTION a(VARCHAR(1
+reject	reject	engine	type/VARCHAR_(_INTEGER_VALUE_)!insert	DROP FUNCTION a(VARCHAR(1) zzz)
+reject	reject	engine	type/VARCHAR_(_INTEGER_VALUE_)!swap	DROP FUNCTION a(VARIABLE(1))
+reject	reject	engine	type/VARCHAR_(_ident_or_text_)	DROP FUNCTION a(VARCHAR(a))
+reject	reject	engine	type/VARCHAR_(_ident_or_text_)!drop-1	DROP FUNCTION a((a))
 reject	reject	engine	type/VARCHAR_(_ident_or_text_)!drop-2	DROP FUNCTION a(VARCHAR a))
-accept	reject	engine	type/VARCHAR_(_ident_or_text_)!drop-4	DROP FUNCTION a(VARCHAR(a)
-accept	reject	engine	type/VARCHAR_(_ident_or_text_)!truncate	DROP FUNCTION a(VARCHAR(a
-accept	reject	engine	type/VARCHAR_(_ident_or_text_)!insert	DROP FUNCTION a(VARCHAR(a) zzz)
-accept	reject	engine	type/VARCHAR_(_ident_or_text_)!swap	DROP FUNCTION a(VARIABLE(a))
+reject	reject	engine	type/VARCHAR_(_ident_or_text_)!drop-4	DROP FUNCTION a(VARCHAR(a)
+reject	reject	engine	type/VARCHAR_(_ident_or_text_)!truncate	DROP FUNCTION a(VARCHAR(a
+reject	reject	engine	type/VARCHAR_(_ident_or_text_)!insert	DROP FUNCTION a(VARCHAR(a) zzz)
+reject	reject	engine	type/VARCHAR_(_ident_or_text_)!swap	DROP FUNCTION a(VARIABLE(a))
 accept	accept	engine	type/VARCHAR_(_*_)	DROP FUNCTION a(VARCHAR(*))
-accept	reject	engine	type/VARCHAR_(_*_)!drop-1	DROP FUNCTION a((*))
+reject	reject	engine	type/VARCHAR_(_*_)!drop-1	DROP FUNCTION a((*))
 reject	reject	engine	type/VARCHAR_(_*_)!drop-2	DROP FUNCTION a(VARCHAR *))
-accept	reject	engine	type/VARCHAR_(_*_)!drop-4	DROP FUNCTION a(VARCHAR(*)
-accept	reject	engine	type/VARCHAR_(_*_)!truncate	DROP FUNCTION a(VARCHAR(*
-accept	reject	engine	type/VARCHAR_(_*_)!insert	DROP FUNCTION a(VARCHAR(*) zzz)
-accept	reject	engine	type/VARCHAR_(_*_)!swap	DROP FUNCTION a(VARIABLE(*))
+reject	reject	engine	type/VARCHAR_(_*_)!drop-4	DROP FUNCTION a(VARCHAR(*)
+reject	reject	engine	type/VARCHAR_(_*_)!truncate	DROP FUNCTION a(VARCHAR(*
+reject	reject	engine	type/VARCHAR_(_*_)!insert	DROP FUNCTION a(VARCHAR(*) zzz)
+reject	reject	engine	type/VARCHAR_(_*_)!swap	DROP FUNCTION a(VARIABLE(*))
 accept	accept	engine	type/VARCHAR	DROP FUNCTION a(VARCHAR)
-accept	reject	engine	type/VARCHAR!insert	DROP FUNCTION a(VARCHAR zzz)
-accept	reject	engine	type/VARCHAR!swap	DROP FUNCTION a(VARIABLE)
+reject	reject	engine	type/VARCHAR!insert	DROP FUNCTION a(VARCHAR zzz)
+reject	reject	engine	type/VARCHAR!swap	DROP FUNCTION a(VARIABLE)
 accept	accept	engine	type/ARRAY_<_type_>	DROP FUNCTION a(ARRAY < TINYINT >)
-accept	reject	engine	type/ARRAY_<_type_>!drop-1	DROP FUNCTION a(< TINYINT >)
-accept	reject	engine	type/ARRAY_<_type_>!drop-2	DROP FUNCTION a(ARRAY TINYINT >)
-accept	reject	engine	type/ARRAY_<_type_>!drop-3	DROP FUNCTION a(ARRAY < >)
-accept	reject	engine	type/ARRAY_<_type_>!drop-4	DROP FUNCTION a(ARRAY < TINYINT)
-accept	reject	engine	type/ARRAY_<_type_>!truncate	DROP FUNCTION a(ARRAY < TINYINT
-accept	reject	engine	type/ARRAY_<_type_>!insert	DROP FUNCTION a(ARRAY < TINYINT > zzz)
-accept	reject	engine	type/ARRAY_<_type_>!swap	DROP FUNCTION a(AS < TINYINT >)
+reject	reject	engine	type/ARRAY_<_type_>!drop-1	DROP FUNCTION a(< TINYINT >)
+reject	reject	engine	type/ARRAY_<_type_>!drop-2	DROP FUNCTION a(ARRAY TINYINT >)
+reject	reject	engine	type/ARRAY_<_type_>!drop-3	DROP FUNCTION a(ARRAY < >)
+reject	reject	engine	type/ARRAY_<_type_>!drop-4	DROP FUNCTION a(ARRAY < TINYINT)
+reject	reject	engine	type/ARRAY_<_type_>!truncate	DROP FUNCTION a(ARRAY < TINYINT
+reject	reject	engine	type/ARRAY_<_type_>!insert	DROP FUNCTION a(ARRAY < TINYINT > zzz)
+reject	reject	engine	type/ARRAY_<_type_>!swap	DROP FUNCTION a(AS < TINYINT >)
 accept	accept	engine	type/MAP_<_type_,_type_>	DROP FUNCTION a(MAP < TINYINT, TINYINT >)
-accept	reject	engine	type/MAP_<_type_,_type_>!drop-1	DROP FUNCTION a(< TINYINT, TINYINT >)
-accept	reject	engine	type/MAP_<_type_,_type_>!drop-2	DROP FUNCTION a(MAP TINYINT, TINYINT >)
-accept	reject	engine	type/MAP_<_type_,_type_>!drop-3	DROP FUNCTION a(MAP <, TINYINT >)
-accept	reject	engine	type/MAP_<_type_,_type_>!drop-4	DROP FUNCTION a(MAP < TINYINT TINYINT >)
-accept	reject	engine	type/MAP_<_type_,_type_>!drop-5	DROP FUNCTION a(MAP < TINYINT, >)
-accept	reject	engine	type/MAP_<_type_,_type_>!drop-6	DROP FUNCTION a(MAP < TINYINT, TINYINT)
-accept	reject	engine	type/MAP_<_type_,_type_>!truncate	DROP FUNCTION a(MAP < TINYINT, TINYINT
-accept	reject	engine	type/MAP_<_type_,_type_>!insert	DROP FUNCTION a(MAP < TINYINT, TINYINT > zzz)
-accept	reject	engine	type/MAP_<_type_,_type_>!swap	DROP FUNCTION a(MATCH < TINYINT, TINYINT >)
+reject	reject	engine	type/MAP_<_type_,_type_>!drop-1	DROP FUNCTION a(< TINYINT, TINYINT >)
+reject	reject	engine	type/MAP_<_type_,_type_>!drop-2	DROP FUNCTION a(MAP TINYINT, TINYINT >)
+reject	reject	engine	type/MAP_<_type_,_type_>!drop-3	DROP FUNCTION a(MAP <, TINYINT >)
+reject	reject	engine	type/MAP_<_type_,_type_>!drop-4	DROP FUNCTION a(MAP < TINYINT TINYINT >)
+reject	reject	engine	type/MAP_<_type_,_type_>!drop-5	DROP FUNCTION a(MAP < TINYINT, >)
+reject	reject	engine	type/MAP_<_type_,_type_>!drop-6	DROP FUNCTION a(MAP < TINYINT, TINYINT)
+reject	reject	engine	type/MAP_<_type_,_type_>!truncate	DROP FUNCTION a(MAP < TINYINT, TINYINT
+reject	reject	engine	type/MAP_<_type_,_type_>!insert	DROP FUNCTION a(MAP < TINYINT, TINYINT > zzz)
+reject	reject	engine	type/MAP_<_type_,_type_>!swap	DROP FUNCTION a(MATCH < TINYINT, TINYINT >)
 accept	accept	engine	type/STRUCT_<_struct_field_list_>	DROP FUNCTION a(STRUCT < a : TINYINT >)
-accept	reject	engine	type/STRUCT_<_struct_field_list_>!drop-1	DROP FUNCTION a(< a : TINYINT >)
-accept	reject	engine	type/STRUCT_<_struct_field_list_>!drop-2	DROP FUNCTION a(STRUCT a : TINYINT >)
-accept	reject	engine	type/STRUCT_<_struct_field_list_>!drop-3	DROP FUNCTION a(STRUCT < : TINYINT >)
-accept	reject	engine	type/STRUCT_<_struct_field_list_>!drop-4	DROP FUNCTION a(STRUCT < a TINYINT >)
-accept	reject	engine	type/STRUCT_<_struct_field_list_>!drop-5	DROP FUNCTION a(STRUCT < a : >)
-accept	reject	engine	type/STRUCT_<_struct_field_list_>!drop-6	DROP FUNCTION a(STRUCT < a : TINYINT)
-accept	reject	engine	type/STRUCT_<_struct_field_list_>!truncate	DROP FUNCTION a(STRUCT < a : TINYINT
-accept	reject	engine	type/STRUCT_<_struct_field_list_>!insert	DROP FUNCTION a(STRUCT < a : TINYINT > zzz)
-accept	reject	engine	type/STRUCT_<_struct_field_list_>!swap	DROP FUNCTION a(SUM < a : TINYINT >)
+reject	reject	engine	type/STRUCT_<_struct_field_list_>!drop-1	DROP FUNCTION a(< a : TINYINT >)
+reject	reject	engine	type/STRUCT_<_struct_field_list_>!drop-2	DROP FUNCTION a(STRUCT a : TINYINT >)
+reject	reject	engine	type/STRUCT_<_struct_field_list_>!drop-3	DROP FUNCTION a(STRUCT < : TINYINT >)
+reject	reject	engine	type/STRUCT_<_struct_field_list_>!drop-4	DROP FUNCTION a(STRUCT < a TINYINT >)
+reject	reject	engine	type/STRUCT_<_struct_field_list_>!drop-5	DROP FUNCTION a(STRUCT < a : >)
+reject	reject	engine	type/STRUCT_<_struct_field_list_>!drop-6	DROP FUNCTION a(STRUCT < a : TINYINT)
+reject	reject	engine	type/STRUCT_<_struct_field_list_>!truncate	DROP FUNCTION a(STRUCT < a : TINYINT
+reject	reject	engine	type/STRUCT_<_struct_field_list_>!insert	DROP FUNCTION a(STRUCT < a : TINYINT > zzz)
+reject	reject	engine	type/STRUCT_<_struct_field_list_>!swap	DROP FUNCTION a(SUM < a : TINYINT >)
 accept	accept	engine	type/VARIANT_<_variant_field_list_type_opt_properties_>	DROP FUNCTION a(VARIANT < 'a' : TINYINT >)
-accept	reject	engine	type/VARIANT_<_variant_field_list_type_opt_properties_>!drop-1	DROP FUNCTION a(< 'a' : TINYINT >)
-accept	reject	engine	type/VARIANT_<_variant_field_list_type_opt_properties_>!drop-2	DROP FUNCTION a(VARIANT 'a' : TINYINT >)
-accept	reject	engine	type/VARIANT_<_variant_field_list_type_opt_properties_>!drop-3	DROP FUNCTION a(VARIANT < : TINYINT >)
-accept	reject	engine	type/VARIANT_<_variant_field_list_type_opt_properties_>!drop-4	DROP FUNCTION a(VARIANT < 'a' TINYINT >)
-accept	reject	engine	type/VARIANT_<_variant_field_list_type_opt_properties_>!drop-5	DROP FUNCTION a(VARIANT < 'a' : >)
-accept	reject	engine	type/VARIANT_<_variant_field_list_type_opt_properties_>!drop-6	DROP FUNCTION a(VARIANT < 'a' : TINYINT)
-accept	reject	engine	type/VARIANT_<_variant_field_list_type_opt_properties_>!insert	DROP FUNCTION a(VARIANT < 'a' : TINYINT > zzz)
-accept	reject	engine	type/VARIANT_<_variant_field_list_type_opt_properties_>!swap	DROP FUNCTION a(VAULT < 'a' : TINYINT >)
+reject	reject	engine	type/VARIANT_<_variant_field_list_type_opt_properties_>!drop-1	DROP FUNCTION a(< 'a' : TINYINT >)
+reject	reject	engine	type/VARIANT_<_variant_field_list_type_opt_properties_>!drop-2	DROP FUNCTION a(VARIANT 'a' : TINYINT >)
+reject	reject	engine	type/VARIANT_<_variant_field_list_type_opt_properties_>!drop-3	DROP FUNCTION a(VARIANT < : TINYINT >)
+reject	reject	engine	type/VARIANT_<_variant_field_list_type_opt_properties_>!drop-4	DROP FUNCTION a(VARIANT < 'a' TINYINT >)
+reject	reject	engine	type/VARIANT_<_variant_field_list_type_opt_properties_>!drop-5	DROP FUNCTION a(VARIANT < 'a' : >)
+reject	reject	engine	type/VARIANT_<_variant_field_list_type_opt_properties_>!drop-6	DROP FUNCTION a(VARIANT < 'a' : TINYINT)
+reject	reject	engine	type/VARIANT_<_variant_field_list_type_opt_properties_>!insert	DROP FUNCTION a(VARIANT < 'a' : TINYINT > zzz)
+reject	reject	engine	type/VARIANT_<_variant_field_list_type_opt_properties_>!swap	DROP FUNCTION a(VAULT < 'a' : TINYINT >)
 accept	accept	engine	type/VARIANT_<_properties_>	DROP FUNCTION a(VARIANT < PROPERTIES('a' = 'a') >)
-accept	reject	engine	type/VARIANT_<_properties_>!drop-1	DROP FUNCTION a(< PROPERTIES('a' = 'a') >)
-accept	reject	engine	type/VARIANT_<_properties_>!drop-2	DROP FUNCTION a(VARIANT PROPERTIES('a' = 'a') >)
-accept	reject	engine	type/VARIANT_<_properties_>!drop-3	DROP FUNCTION a(VARIANT <('a' = 'a') >)
+reject	reject	engine	type/VARIANT_<_properties_>!drop-1	DROP FUNCTION a(< PROPERTIES('a' = 'a') >)
+reject	reject	engine	type/VARIANT_<_properties_>!drop-2	DROP FUNCTION a(VARIANT PROPERTIES('a' = 'a') >)
+reject	reject	engine	type/VARIANT_<_properties_>!drop-3	DROP FUNCTION a(VARIANT <('a' = 'a') >)
 reject	reject	engine	type/VARIANT_<_properties_>!drop-4	DROP FUNCTION a(VARIANT < PROPERTIES 'a' = 'a') >)
-accept	reject	engine	type/VARIANT_<_properties_>!drop-5	DROP FUNCTION a(VARIANT < PROPERTIES(= 'a') >)
-accept	reject	engine	type/VARIANT_<_properties_>!drop-6	DROP FUNCTION a(VARIANT < PROPERTIES('a' 'a') >)
-accept	reject	engine	type/VARIANT_<_properties_>!drop-7	DROP FUNCTION a(VARIANT < PROPERTIES('a' =) >)
-accept	reject	engine	type/VARIANT_<_properties_>!drop-8	DROP FUNCTION a(VARIANT < PROPERTIES('a' = 'a' >)
-accept	reject	engine	type/VARIANT_<_properties_>!drop-9	DROP FUNCTION a(VARIANT < PROPERTIES('a' = 'a'))
-accept	reject	engine	type/VARIANT_<_properties_>!truncate	DROP FUNCTION a(VARIANT < PROPERTIES('a' = 'a')
-accept	reject	engine	type/VARIANT_<_properties_>!insert	DROP FUNCTION a(VARIANT < PROPERTIES('a' = 'a') > zzz)
-accept	reject	engine	type/VARIANT_<_properties_>!swap	DROP FUNCTION a(VAULT < PROPERTIES('a' = 'a') >)
+reject	reject	engine	type/VARIANT_<_properties_>!drop-5	DROP FUNCTION a(VARIANT < PROPERTIES(= 'a') >)
+reject	reject	engine	type/VARIANT_<_properties_>!drop-6	DROP FUNCTION a(VARIANT < PROPERTIES('a' 'a') >)
+reject	reject	engine	type/VARIANT_<_properties_>!drop-7	DROP FUNCTION a(VARIANT < PROPERTIES('a' =) >)
+reject	reject	engine	type/VARIANT_<_properties_>!drop-8	DROP FUNCTION a(VARIANT < PROPERTIES('a' = 'a' >)
+reject	reject	engine	type/VARIANT_<_properties_>!drop-9	DROP FUNCTION a(VARIANT < PROPERTIES('a' = 'a'))
+reject	reject	engine	type/VARIANT_<_properties_>!truncate	DROP FUNCTION a(VARIANT < PROPERTIES('a' = 'a')
+reject	reject	engine	type/VARIANT_<_properties_>!insert	DROP FUNCTION a(VARIANT < PROPERTIES('a' = 'a') > zzz)
+reject	reject	engine	type/VARIANT_<_properties_>!swap	DROP FUNCTION a(VAULT < PROPERTIES('a' = 'a') >)
 accept	accept	engine	type/CHAR_(_INTEGER_VALUE_)	DROP FUNCTION a(CHAR(1))
 reject	reject	engine	type/CHAR_(_INTEGER_VALUE_)!drop-2	DROP FUNCTION a(CHAR 1))
-accept	reject	engine	type/CHAR_(_INTEGER_VALUE_)!drop-3	DROP FUNCTION a(CHAR())
-accept	reject	engine	type/CHAR_(_INTEGER_VALUE_)!drop-4	DROP FUNCTION a(CHAR(1)
-accept	reject	engine	type/CHAR_(_INTEGER_VALUE_)!truncate	DROP FUNCTION a(CHAR(1
-accept	reject	engine	type/CHAR_(_INTEGER_VALUE_)!insert	DROP FUNCTION a(CHAR(1) zzz)
-accept	reject	engine	type/CHAR_(_INTEGER_VALUE_)!swap	DROP FUNCTION a(CHARSET(1))
-accept	reject	engine	type/CHAR_(_ident_or_text_)	DROP FUNCTION a(CHAR(a))
+reject	reject	engine	type/CHAR_(_INTEGER_VALUE_)!drop-3	DROP FUNCTION a(CHAR())
+reject	reject	engine	type/CHAR_(_INTEGER_VALUE_)!drop-4	DROP FUNCTION a(CHAR(1)
+reject	reject	engine	type/CHAR_(_INTEGER_VALUE_)!truncate	DROP FUNCTION a(CHAR(1
+reject	reject	engine	type/CHAR_(_INTEGER_VALUE_)!insert	DROP FUNCTION a(CHAR(1) zzz)
+reject	reject	engine	type/CHAR_(_INTEGER_VALUE_)!swap	DROP FUNCTION a(CHARSET(1))
+reject	reject	engine	type/CHAR_(_ident_or_text_)	DROP FUNCTION a(CHAR(a))
 reject	reject	engine	type/CHAR_(_ident_or_text_)!drop-2	DROP FUNCTION a(CHAR a))
-accept	reject	engine	type/CHAR_(_ident_or_text_)!drop-4	DROP FUNCTION a(CHAR(a)
-accept	reject	engine	type/CHAR_(_ident_or_text_)!truncate	DROP FUNCTION a(CHAR(a
-accept	reject	engine	type/CHAR_(_ident_or_text_)!insert	DROP FUNCTION a(CHAR(a) zzz)
-accept	reject	engine	type/CHAR_(_ident_or_text_)!swap	DROP FUNCTION a(CHARSET(a))
+reject	reject	engine	type/CHAR_(_ident_or_text_)!drop-4	DROP FUNCTION a(CHAR(a)
+reject	reject	engine	type/CHAR_(_ident_or_text_)!truncate	DROP FUNCTION a(CHAR(a
+reject	reject	engine	type/CHAR_(_ident_or_text_)!insert	DROP FUNCTION a(CHAR(a) zzz)
+reject	reject	engine	type/CHAR_(_ident_or_text_)!swap	DROP FUNCTION a(CHARSET(a))
 accept	accept	engine	type/CHAR	DROP FUNCTION a(CHAR)
-accept	reject	engine	type/CHAR!insert	DROP FUNCTION a(CHAR zzz)
-accept	reject	engine	type/CHAR!swap	DROP FUNCTION a(CHARSET)
+reject	reject	engine	type/CHAR!insert	DROP FUNCTION a(CHAR zzz)
+reject	reject	engine	type/CHAR!swap	DROP FUNCTION a(CHARSET)
 accept	accept	engine	type/DECIMAL_(_INTEGER_VALUE_)	DROP FUNCTION a(DECIMAL(1))
 reject	reject	engine	type/DECIMAL_(_INTEGER_VALUE_)!drop-2	DROP FUNCTION a(DECIMAL 1))
-accept	reject	engine	type/DECIMAL_(_INTEGER_VALUE_)!drop-3	DROP FUNCTION a(DECIMAL())
-accept	reject	engine	type/DECIMAL_(_INTEGER_VALUE_)!drop-4	DROP FUNCTION a(DECIMAL(1)
-accept	reject	engine	type/DECIMAL_(_INTEGER_VALUE_)!truncate	DROP FUNCTION a(DECIMAL(1
-accept	reject	engine	type/DECIMAL_(_INTEGER_VALUE_)!insert	DROP FUNCTION a(DECIMAL(1) zzz)
+reject	reject	engine	type/DECIMAL_(_INTEGER_VALUE_)!drop-3	DROP FUNCTION a(DECIMAL())
+reject	reject	engine	type/DECIMAL_(_INTEGER_VALUE_)!drop-4	DROP FUNCTION a(DECIMAL(1)
+reject	reject	engine	type/DECIMAL_(_INTEGER_VALUE_)!truncate	DROP FUNCTION a(DECIMAL(1
+reject	reject	engine	type/DECIMAL_(_INTEGER_VALUE_)!insert	DROP FUNCTION a(DECIMAL(1) zzz)
 accept	accept	engine	type/DECIMAL_(_INTEGER_VALUE_,_INTEGER_VALUE_)	DROP FUNCTION a(DECIMAL(1, 1))
-accept	reject	engine	type/DECIMAL_(_INTEGER_VALUE_,_INTEGER_VALUE_)!drop-1	DROP FUNCTION a((1, 1))
+reject	reject	engine	type/DECIMAL_(_INTEGER_VALUE_,_INTEGER_VALUE_)!drop-1	DROP FUNCTION a((1, 1))
 reject	reject	engine	type/DECIMAL_(_INTEGER_VALUE_,_INTEGER_VALUE_)!drop-2	DROP FUNCTION a(DECIMAL 1, 1))
-accept	reject	engine	type/DECIMAL_(_INTEGER_VALUE_,_INTEGER_VALUE_)!drop-3	DROP FUNCTION a(DECIMAL(, 1))
-accept	reject	engine	type/DECIMAL_(_INTEGER_VALUE_,_INTEGER_VALUE_)!drop-4	DROP FUNCTION a(DECIMAL(1 1))
-accept	reject	engine	type/DECIMAL_(_INTEGER_VALUE_,_INTEGER_VALUE_)!drop-5	DROP FUNCTION a(DECIMAL(1,))
-accept	reject	engine	type/DECIMAL_(_INTEGER_VALUE_,_INTEGER_VALUE_)!drop-6	DROP FUNCTION a(DECIMAL(1, 1)
-accept	reject	engine	type/DECIMAL_(_INTEGER_VALUE_,_INTEGER_VALUE_)!truncate	DROP FUNCTION a(DECIMAL(1, 1
-accept	reject	engine	type/DECIMAL_(_INTEGER_VALUE_,_INTEGER_VALUE_)!insert	DROP FUNCTION a(DECIMAL(1, 1) zzz)
+reject	reject	engine	type/DECIMAL_(_INTEGER_VALUE_,_INTEGER_VALUE_)!drop-3	DROP FUNCTION a(DECIMAL(, 1))
+reject	reject	engine	type/DECIMAL_(_INTEGER_VALUE_,_INTEGER_VALUE_)!drop-4	DROP FUNCTION a(DECIMAL(1 1))
+reject	reject	engine	type/DECIMAL_(_INTEGER_VALUE_,_INTEGER_VALUE_)!drop-5	DROP FUNCTION a(DECIMAL(1,))
+reject	reject	engine	type/DECIMAL_(_INTEGER_VALUE_,_INTEGER_VALUE_)!drop-6	DROP FUNCTION a(DECIMAL(1, 1)
+reject	reject	engine	type/DECIMAL_(_INTEGER_VALUE_,_INTEGER_VALUE_)!truncate	DROP FUNCTION a(DECIMAL(1, 1
+reject	reject	engine	type/DECIMAL_(_INTEGER_VALUE_,_INTEGER_VALUE_)!insert	DROP FUNCTION a(DECIMAL(1, 1) zzz)
 accept	accept	engine	type/DECIMAL	DROP FUNCTION a(DECIMAL)
-accept	reject	engine	type/DECIMAL!insert	DROP FUNCTION a(DECIMAL zzz)
-accept	reject	engine	type/DECIMAL_(_ident_or_text_)	DROP FUNCTION a(DECIMAL(a))
+reject	reject	engine	type/DECIMAL!insert	DROP FUNCTION a(DECIMAL zzz)
+reject	reject	engine	type/DECIMAL_(_ident_or_text_)	DROP FUNCTION a(DECIMAL(a))
 reject	reject	engine	type/DECIMAL_(_ident_or_text_)!drop-2	DROP FUNCTION a(DECIMAL a))
-accept	reject	engine	type/DECIMAL_(_ident_or_text_)!drop-4	DROP FUNCTION a(DECIMAL(a)
-accept	reject	engine	type/DECIMAL_(_ident_or_text_)!truncate	DROP FUNCTION a(DECIMAL(a
-accept	reject	engine	type/DECIMAL_(_ident_or_text_)!insert	DROP FUNCTION a(DECIMAL(a) zzz)
-accept	reject	engine	type/DECIMAL_(_ident_or_text_,_ident_or_text_)	DROP FUNCTION a(DECIMAL(a, a))
-accept	reject	engine	type/DECIMAL_(_ident_or_text_,_ident_or_text_)!drop-1	DROP FUNCTION a((a, a))
+reject	reject	engine	type/DECIMAL_(_ident_or_text_)!drop-4	DROP FUNCTION a(DECIMAL(a)
+reject	reject	engine	type/DECIMAL_(_ident_or_text_)!truncate	DROP FUNCTION a(DECIMAL(a
+reject	reject	engine	type/DECIMAL_(_ident_or_text_)!insert	DROP FUNCTION a(DECIMAL(a) zzz)
+reject	reject	engine	type/DECIMAL_(_ident_or_text_,_ident_or_text_)	DROP FUNCTION a(DECIMAL(a, a))
+reject	reject	engine	type/DECIMAL_(_ident_or_text_,_ident_or_text_)!drop-1	DROP FUNCTION a((a, a))
 reject	reject	engine	type/DECIMAL_(_ident_or_text_,_ident_or_text_)!drop-2	DROP FUNCTION a(DECIMAL a, a))
-accept	reject	engine	type/DECIMAL_(_ident_or_text_,_ident_or_text_)!drop-3	DROP FUNCTION a(DECIMAL(, a))
-accept	reject	engine	type/DECIMAL_(_ident_or_text_,_ident_or_text_)!drop-4	DROP FUNCTION a(DECIMAL(a a))
-accept	reject	engine	type/DECIMAL_(_ident_or_text_,_ident_or_text_)!drop-5	DROP FUNCTION a(DECIMAL(a,))
-accept	reject	engine	type/DECIMAL_(_ident_or_text_,_ident_or_text_)!drop-6	DROP FUNCTION a(DECIMAL(a, a)
-accept	reject	engine	type/DECIMAL_(_ident_or_text_,_ident_or_text_)!truncate	DROP FUNCTION a(DECIMAL(a, a
-accept	reject	engine	type/DECIMAL_(_ident_or_text_,_ident_or_text_)!insert	DROP FUNCTION a(DECIMAL(a, a) zzz)
+reject	reject	engine	type/DECIMAL_(_ident_or_text_,_ident_or_text_)!drop-3	DROP FUNCTION a(DECIMAL(, a))
+reject	reject	engine	type/DECIMAL_(_ident_or_text_,_ident_or_text_)!drop-4	DROP FUNCTION a(DECIMAL(a a))
+reject	reject	engine	type/DECIMAL_(_ident_or_text_,_ident_or_text_)!drop-5	DROP FUNCTION a(DECIMAL(a,))
+reject	reject	engine	type/DECIMAL_(_ident_or_text_,_ident_or_text_)!drop-6	DROP FUNCTION a(DECIMAL(a, a)
+reject	reject	engine	type/DECIMAL_(_ident_or_text_,_ident_or_text_)!truncate	DROP FUNCTION a(DECIMAL(a, a
+reject	reject	engine	type/DECIMAL_(_ident_or_text_,_ident_or_text_)!insert	DROP FUNCTION a(DECIMAL(a, a) zzz)
 accept	accept	engine	type/DECIMALV3_(_INTEGER_VALUE_)	DROP FUNCTION a(DECIMALV3(1))
 reject	reject	engine	type/DECIMALV3_(_INTEGER_VALUE_)!drop-2	DROP FUNCTION a(DECIMALV3 1))
-accept	reject	engine	type/DECIMALV3_(_INTEGER_VALUE_)!drop-3	DROP FUNCTION a(DECIMALV3())
-accept	reject	engine	type/DECIMALV3_(_INTEGER_VALUE_)!drop-4	DROP FUNCTION a(DECIMALV3(1)
-accept	reject	engine	type/DECIMALV3_(_INTEGER_VALUE_)!truncate	DROP FUNCTION a(DECIMALV3(1
-accept	reject	engine	type/DECIMALV3_(_INTEGER_VALUE_)!insert	DROP FUNCTION a(DECIMALV3(1) zzz)
-accept	reject	engine	type/DECIMALV3_(_INTEGER_VALUE_)!swap	DROP FUNCTION a(DECOMMISSION(1))
+reject	reject	engine	type/DECIMALV3_(_INTEGER_VALUE_)!drop-3	DROP FUNCTION a(DECIMALV3())
+reject	reject	engine	type/DECIMALV3_(_INTEGER_VALUE_)!drop-4	DROP FUNCTION a(DECIMALV3(1)
+reject	reject	engine	type/DECIMALV3_(_INTEGER_VALUE_)!truncate	DROP FUNCTION a(DECIMALV3(1
+reject	reject	engine	type/DECIMALV3_(_INTEGER_VALUE_)!insert	DROP FUNCTION a(DECIMALV3(1) zzz)
+reject	reject	engine	type/DECIMALV3_(_INTEGER_VALUE_)!swap	DROP FUNCTION a(DECOMMISSION(1))
 accept	accept	engine	type/DECIMALV3_(_INTEGER_VALUE_,_INTEGER_VALUE_)	DROP FUNCTION a(DECIMALV3(1, 1))
 reject	reject	engine	type/DECIMALV3_(_INTEGER_VALUE_,_INTEGER_VALUE_)!drop-2	DROP FUNCTION a(DECIMALV3 1, 1))
-accept	reject	engine	type/DECIMALV3_(_INTEGER_VALUE_,_INTEGER_VALUE_)!drop-3	DROP FUNCTION a(DECIMALV3(, 1))
-accept	reject	engine	type/DECIMALV3_(_INTEGER_VALUE_,_INTEGER_VALUE_)!drop-4	DROP FUNCTION a(DECIMALV3(1 1))
-accept	reject	engine	type/DECIMALV3_(_INTEGER_VALUE_,_INTEGER_VALUE_)!drop-5	DROP FUNCTION a(DECIMALV3(1,))
-accept	reject	engine	type/DECIMALV3_(_INTEGER_VALUE_,_INTEGER_VALUE_)!drop-6	DROP FUNCTION a(DECIMALV3(1, 1)
-accept	reject	engine	type/DECIMALV3_(_INTEGER_VALUE_,_INTEGER_VALUE_)!truncate	DROP FUNCTION a(DECIMALV3(1, 1
-accept	reject	engine	type/DECIMALV3_(_INTEGER_VALUE_,_INTEGER_VALUE_)!insert	DROP FUNCTION a(DECIMALV3(1, 1) zzz)
-accept	reject	engine	type/DECIMALV3_(_INTEGER_VALUE_,_INTEGER_VALUE_)!swap	DROP FUNCTION a(DECOMMISSION(1, 1))
+reject	reject	engine	type/DECIMALV3_(_INTEGER_VALUE_,_INTEGER_VALUE_)!drop-3	DROP FUNCTION a(DECIMALV3(, 1))
+reject	reject	engine	type/DECIMALV3_(_INTEGER_VALUE_,_INTEGER_VALUE_)!drop-4	DROP FUNCTION a(DECIMALV3(1 1))
+reject	reject	engine	type/DECIMALV3_(_INTEGER_VALUE_,_INTEGER_VALUE_)!drop-5	DROP FUNCTION a(DECIMALV3(1,))
+reject	reject	engine	type/DECIMALV3_(_INTEGER_VALUE_,_INTEGER_VALUE_)!drop-6	DROP FUNCTION a(DECIMALV3(1, 1)
+reject	reject	engine	type/DECIMALV3_(_INTEGER_VALUE_,_INTEGER_VALUE_)!truncate	DROP FUNCTION a(DECIMALV3(1, 1
+reject	reject	engine	type/DECIMALV3_(_INTEGER_VALUE_,_INTEGER_VALUE_)!insert	DROP FUNCTION a(DECIMALV3(1, 1) zzz)
+reject	reject	engine	type/DECIMALV3_(_INTEGER_VALUE_,_INTEGER_VALUE_)!swap	DROP FUNCTION a(DECOMMISSION(1, 1))
 accept	accept	engine	type/DECIMALV3	DROP FUNCTION a(DECIMALV3)
-accept	reject	engine	type/DECIMALV3!insert	DROP FUNCTION a(DECIMALV3 zzz)
-accept	reject	engine	type/DECIMALV3!swap	DROP FUNCTION a(DECOMMISSION)
-accept	reject	engine	type/DECIMALV3_(_ident_or_text_)	DROP FUNCTION a(DECIMALV3(a))
+reject	reject	engine	type/DECIMALV3!insert	DROP FUNCTION a(DECIMALV3 zzz)
+reject	reject	engine	type/DECIMALV3!swap	DROP FUNCTION a(DECOMMISSION)
+reject	reject	engine	type/DECIMALV3_(_ident_or_text_)	DROP FUNCTION a(DECIMALV3(a))
 reject	reject	engine	type/DECIMALV3_(_ident_or_text_)!drop-2	DROP FUNCTION a(DECIMALV3 a))
-accept	reject	engine	type/DECIMALV3_(_ident_or_text_)!drop-4	DROP FUNCTION a(DECIMALV3(a)
-accept	reject	engine	type/DECIMALV3_(_ident_or_text_)!truncate	DROP FUNCTION a(DECIMALV3(a
-accept	reject	engine	type/DECIMALV3_(_ident_or_text_)!insert	DROP FUNCTION a(DECIMALV3(a) zzz)
-accept	reject	engine	type/DECIMALV3_(_ident_or_text_)!swap	DROP FUNCTION a(DECOMMISSION(a))
-accept	reject	engine	type/DECIMALV3_(_ident_or_text_,_ident_or_text_)	DROP FUNCTION a(DECIMALV3(a, a))
+reject	reject	engine	type/DECIMALV3_(_ident_or_text_)!drop-4	DROP FUNCTION a(DECIMALV3(a)
+reject	reject	engine	type/DECIMALV3_(_ident_or_text_)!truncate	DROP FUNCTION a(DECIMALV3(a
+reject	reject	engine	type/DECIMALV3_(_ident_or_text_)!insert	DROP FUNCTION a(DECIMALV3(a) zzz)
+reject	reject	engine	type/DECIMALV3_(_ident_or_text_)!swap	DROP FUNCTION a(DECOMMISSION(a))
+reject	reject	engine	type/DECIMALV3_(_ident_or_text_,_ident_or_text_)	DROP FUNCTION a(DECIMALV3(a, a))
 reject	reject	engine	type/DECIMALV3_(_ident_or_text_,_ident_or_text_)!drop-2	DROP FUNCTION a(DECIMALV3 a, a))
-accept	reject	engine	type/DECIMALV3_(_ident_or_text_,_ident_or_text_)!drop-3	DROP FUNCTION a(DECIMALV3(, a))
-accept	reject	engine	type/DECIMALV3_(_ident_or_text_,_ident_or_text_)!drop-4	DROP FUNCTION a(DECIMALV3(a a))
-accept	reject	engine	type/DECIMALV3_(_ident_or_text_,_ident_or_text_)!drop-5	DROP FUNCTION a(DECIMALV3(a,))
-accept	reject	engine	type/DECIMALV3_(_ident_or_text_,_ident_or_text_)!drop-6	DROP FUNCTION a(DECIMALV3(a, a)
-accept	reject	engine	type/DECIMALV3_(_ident_or_text_,_ident_or_text_)!truncate	DROP FUNCTION a(DECIMALV3(a, a
-accept	reject	engine	type/DECIMALV3_(_ident_or_text_,_ident_or_text_)!insert	DROP FUNCTION a(DECIMALV3(a, a) zzz)
-accept	reject	engine	type/DECIMALV3_(_ident_or_text_,_ident_or_text_)!swap	DROP FUNCTION a(DECOMMISSION(a, a))
+reject	reject	engine	type/DECIMALV3_(_ident_or_text_,_ident_or_text_)!drop-3	DROP FUNCTION a(DECIMALV3(, a))
+reject	reject	engine	type/DECIMALV3_(_ident_or_text_,_ident_or_text_)!drop-4	DROP FUNCTION a(DECIMALV3(a a))
+reject	reject	engine	type/DECIMALV3_(_ident_or_text_,_ident_or_text_)!drop-5	DROP FUNCTION a(DECIMALV3(a,))
+reject	reject	engine	type/DECIMALV3_(_ident_or_text_,_ident_or_text_)!drop-6	DROP FUNCTION a(DECIMALV3(a, a)
+reject	reject	engine	type/DECIMALV3_(_ident_or_text_,_ident_or_text_)!truncate	DROP FUNCTION a(DECIMALV3(a, a
+reject	reject	engine	type/DECIMALV3_(_ident_or_text_,_ident_or_text_)!insert	DROP FUNCTION a(DECIMALV3(a, a) zzz)
+reject	reject	engine	type/DECIMALV3_(_ident_or_text_,_ident_or_text_)!swap	DROP FUNCTION a(DECOMMISSION(a, a))
 accept	accept	engine	type/DECIMALV2_(_INTEGER_VALUE_)	DROP FUNCTION a(DECIMALV2(1))
 reject	reject	engine	type/DECIMALV2_(_INTEGER_VALUE_)!drop-2	DROP FUNCTION a(DECIMALV2 1))
-accept	reject	engine	type/DECIMALV2_(_INTEGER_VALUE_)!drop-3	DROP FUNCTION a(DECIMALV2())
-accept	reject	engine	type/DECIMALV2_(_INTEGER_VALUE_)!drop-4	DROP FUNCTION a(DECIMALV2(1)
-accept	reject	engine	type/DECIMALV2_(_INTEGER_VALUE_)!truncate	DROP FUNCTION a(DECIMALV2(1
-accept	reject	engine	type/DECIMALV2_(_INTEGER_VALUE_)!insert	DROP FUNCTION a(DECIMALV2(1) zzz)
+reject	reject	engine	type/DECIMALV2_(_INTEGER_VALUE_)!drop-3	DROP FUNCTION a(DECIMALV2())
+reject	reject	engine	type/DECIMALV2_(_INTEGER_VALUE_)!drop-4	DROP FUNCTION a(DECIMALV2(1)
+reject	reject	engine	type/DECIMALV2_(_INTEGER_VALUE_)!truncate	DROP FUNCTION a(DECIMALV2(1
+reject	reject	engine	type/DECIMALV2_(_INTEGER_VALUE_)!insert	DROP FUNCTION a(DECIMALV2(1) zzz)
 accept	accept	engine	type/DECIMALV2_(_INTEGER_VALUE_,_INTEGER_VALUE_)	DROP FUNCTION a(DECIMALV2(1, 1))
 reject	reject	engine	type/DECIMALV2_(_INTEGER_VALUE_,_INTEGER_VALUE_)!drop-2	DROP FUNCTION a(DECIMALV2 1, 1))
-accept	reject	engine	type/DECIMALV2_(_INTEGER_VALUE_,_INTEGER_VALUE_)!drop-3	DROP FUNCTION a(DECIMALV2(, 1))
-accept	reject	engine	type/DECIMALV2_(_INTEGER_VALUE_,_INTEGER_VALUE_)!drop-4	DROP FUNCTION a(DECIMALV2(1 1))
-accept	reject	engine	type/DECIMALV2_(_INTEGER_VALUE_,_INTEGER_VALUE_)!drop-5	DROP FUNCTION a(DECIMALV2(1,))
-accept	reject	engine	type/DECIMALV2_(_INTEGER_VALUE_,_INTEGER_VALUE_)!drop-6	DROP FUNCTION a(DECIMALV2(1, 1)
-accept	reject	engine	type/DECIMALV2_(_INTEGER_VALUE_,_INTEGER_VALUE_)!truncate	DROP FUNCTION a(DECIMALV2(1, 1
-accept	reject	engine	type/DECIMALV2_(_INTEGER_VALUE_,_INTEGER_VALUE_)!insert	DROP FUNCTION a(DECIMALV2(1, 1) zzz)
+reject	reject	engine	type/DECIMALV2_(_INTEGER_VALUE_,_INTEGER_VALUE_)!drop-3	DROP FUNCTION a(DECIMALV2(, 1))
+reject	reject	engine	type/DECIMALV2_(_INTEGER_VALUE_,_INTEGER_VALUE_)!drop-4	DROP FUNCTION a(DECIMALV2(1 1))
+reject	reject	engine	type/DECIMALV2_(_INTEGER_VALUE_,_INTEGER_VALUE_)!drop-5	DROP FUNCTION a(DECIMALV2(1,))
+reject	reject	engine	type/DECIMALV2_(_INTEGER_VALUE_,_INTEGER_VALUE_)!drop-6	DROP FUNCTION a(DECIMALV2(1, 1)
+reject	reject	engine	type/DECIMALV2_(_INTEGER_VALUE_,_INTEGER_VALUE_)!truncate	DROP FUNCTION a(DECIMALV2(1, 1
+reject	reject	engine	type/DECIMALV2_(_INTEGER_VALUE_,_INTEGER_VALUE_)!insert	DROP FUNCTION a(DECIMALV2(1, 1) zzz)
 accept	accept	engine	type/DECIMALV2	DROP FUNCTION a(DECIMALV2)
-accept	reject	engine	type/DECIMALV2!insert	DROP FUNCTION a(DECIMALV2 zzz)
-accept	reject	engine	type/DECIMALV2_(_ident_or_text_)	DROP FUNCTION a(DECIMALV2(a))
+reject	reject	engine	type/DECIMALV2!insert	DROP FUNCTION a(DECIMALV2 zzz)
+reject	reject	engine	type/DECIMALV2_(_ident_or_text_)	DROP FUNCTION a(DECIMALV2(a))
 reject	reject	engine	type/DECIMALV2_(_ident_or_text_)!drop-2	DROP FUNCTION a(DECIMALV2 a))
-accept	reject	engine	type/DECIMALV2_(_ident_or_text_)!drop-4	DROP FUNCTION a(DECIMALV2(a)
-accept	reject	engine	type/DECIMALV2_(_ident_or_text_)!truncate	DROP FUNCTION a(DECIMALV2(a
-accept	reject	engine	type/DECIMALV2_(_ident_or_text_)!insert	DROP FUNCTION a(DECIMALV2(a) zzz)
-accept	reject	engine	type/DECIMALV2_(_ident_or_text_,_ident_or_text_)	DROP FUNCTION a(DECIMALV2(a, a))
+reject	reject	engine	type/DECIMALV2_(_ident_or_text_)!drop-4	DROP FUNCTION a(DECIMALV2(a)
+reject	reject	engine	type/DECIMALV2_(_ident_or_text_)!truncate	DROP FUNCTION a(DECIMALV2(a
+reject	reject	engine	type/DECIMALV2_(_ident_or_text_)!insert	DROP FUNCTION a(DECIMALV2(a) zzz)
+reject	reject	engine	type/DECIMALV2_(_ident_or_text_,_ident_or_text_)	DROP FUNCTION a(DECIMALV2(a, a))
 reject	reject	engine	type/DECIMALV2_(_ident_or_text_,_ident_or_text_)!drop-2	DROP FUNCTION a(DECIMALV2 a, a))
-accept	reject	engine	type/DECIMALV2_(_ident_or_text_,_ident_or_text_)!drop-3	DROP FUNCTION a(DECIMALV2(, a))
-accept	reject	engine	type/DECIMALV2_(_ident_or_text_,_ident_or_text_)!drop-4	DROP FUNCTION a(DECIMALV2(a a))
-accept	reject	engine	type/DECIMALV2_(_ident_or_text_,_ident_or_text_)!drop-5	DROP FUNCTION a(DECIMALV2(a,))
-accept	reject	engine	type/DECIMALV2_(_ident_or_text_,_ident_or_text_)!drop-6	DROP FUNCTION a(DECIMALV2(a, a)
-accept	reject	engine	type/DECIMALV2_(_ident_or_text_,_ident_or_text_)!truncate	DROP FUNCTION a(DECIMALV2(a, a
-accept	reject	engine	type/DECIMALV2_(_ident_or_text_,_ident_or_text_)!insert	DROP FUNCTION a(DECIMALV2(a, a) zzz)
+reject	reject	engine	type/DECIMALV2_(_ident_or_text_,_ident_or_text_)!drop-3	DROP FUNCTION a(DECIMALV2(, a))
+reject	reject	engine	type/DECIMALV2_(_ident_or_text_,_ident_or_text_)!drop-4	DROP FUNCTION a(DECIMALV2(a a))
+reject	reject	engine	type/DECIMALV2_(_ident_or_text_,_ident_or_text_)!drop-5	DROP FUNCTION a(DECIMALV2(a,))
+reject	reject	engine	type/DECIMALV2_(_ident_or_text_,_ident_or_text_)!drop-6	DROP FUNCTION a(DECIMALV2(a, a)
+reject	reject	engine	type/DECIMALV2_(_ident_or_text_,_ident_or_text_)!truncate	DROP FUNCTION a(DECIMALV2(a, a
+reject	reject	engine	type/DECIMALV2_(_ident_or_text_,_ident_or_text_)!insert	DROP FUNCTION a(DECIMALV2(a, a) zzz)
 accept	accept	engine	type/HLL	DROP FUNCTION a(HLL)
-accept	reject	engine	type/HLL!insert	DROP FUNCTION a(HLL zzz)
-accept	reject	engine	type/HLL!swap	DROP FUNCTION a(HLL_UNION)
+reject	reject	engine	type/HLL!insert	DROP FUNCTION a(HLL zzz)
+reject	reject	engine	type/HLL!swap	DROP FUNCTION a(HLL_UNION)
 accept	accept	engine	type/AGG_STATE_<_IDENTIFIER_(_type_def_nullable_list_)_>	DROP FUNCTION a(AGG_STATE < a(TINYINT) >)
-accept	reject	engine	type/AGG_STATE_<_IDENTIFIER_(_type_def_nullable_list_)_>!drop-1	DROP FUNCTION a(< a(TINYINT) >)
-accept	reject	engine	type/AGG_STATE_<_IDENTIFIER_(_type_def_nullable_list_)_>!drop-2	DROP FUNCTION a(AGG_STATE a(TINYINT) >)
-accept	reject	engine	type/AGG_STATE_<_IDENTIFIER_(_type_def_nullable_list_)_>!drop-3	DROP FUNCTION a(AGG_STATE <(TINYINT) >)
+reject	reject	engine	type/AGG_STATE_<_IDENTIFIER_(_type_def_nullable_list_)_>!drop-1	DROP FUNCTION a(< a(TINYINT) >)
+reject	reject	engine	type/AGG_STATE_<_IDENTIFIER_(_type_def_nullable_list_)_>!drop-2	DROP FUNCTION a(AGG_STATE a(TINYINT) >)
+reject	reject	engine	type/AGG_STATE_<_IDENTIFIER_(_type_def_nullable_list_)_>!drop-3	DROP FUNCTION a(AGG_STATE <(TINYINT) >)
 reject	reject	engine	type/AGG_STATE_<_IDENTIFIER_(_type_def_nullable_list_)_>!drop-4	DROP FUNCTION a(AGG_STATE < a TINYINT) >)
-accept	reject	engine	type/AGG_STATE_<_IDENTIFIER_(_type_def_nullable_list_)_>!drop-5	DROP FUNCTION a(AGG_STATE < a() >)
-accept	reject	engine	type/AGG_STATE_<_IDENTIFIER_(_type_def_nullable_list_)_>!drop-6	DROP FUNCTION a(AGG_STATE < a(TINYINT >)
-accept	reject	engine	type/AGG_STATE_<_IDENTIFIER_(_type_def_nullable_list_)_>!drop-7	DROP FUNCTION a(AGG_STATE < a(TINYINT))
-accept	reject	engine	type/AGG_STATE_<_IDENTIFIER_(_type_def_nullable_list_)_>!truncate	DROP FUNCTION a(AGG_STATE < a(TINYINT)
-accept	reject	engine	type/AGG_STATE_<_IDENTIFIER_(_type_def_nullable_list_)_>!insert	DROP FUNCTION a(AGG_STATE < a(TINYINT) > zzz)
-accept	reject	engine	type/AGG_STATE_<_IDENTIFIER_(_type_def_nullable_list_)_>!swap	DROP FUNCTION a(ALIAS < a(TINYINT) >)
+reject	reject	engine	type/AGG_STATE_<_IDENTIFIER_(_type_def_nullable_list_)_>!drop-5	DROP FUNCTION a(AGG_STATE < a() >)
+reject	reject	engine	type/AGG_STATE_<_IDENTIFIER_(_type_def_nullable_list_)_>!drop-6	DROP FUNCTION a(AGG_STATE < a(TINYINT >)
+reject	reject	engine	type/AGG_STATE_<_IDENTIFIER_(_type_def_nullable_list_)_>!drop-7	DROP FUNCTION a(AGG_STATE < a(TINYINT))
+reject	reject	engine	type/AGG_STATE_<_IDENTIFIER_(_type_def_nullable_list_)_>!truncate	DROP FUNCTION a(AGG_STATE < a(TINYINT)
+reject	reject	engine	type/AGG_STATE_<_IDENTIFIER_(_type_def_nullable_list_)_>!insert	DROP FUNCTION a(AGG_STATE < a(TINYINT) > zzz)
+reject	reject	engine	type/AGG_STATE_<_IDENTIFIER_(_type_def_nullable_list_)_>!swap	DROP FUNCTION a(ALIAS < a(TINYINT) >)
 accept	accept	engine	type/ALL	DROP FUNCTION a(ALL)
-accept	reject	engine	type/ALL!insert	DROP FUNCTION a(ALL zzz)
-accept	reject	engine	type/ALL!swap	DROP FUNCTION a(ALTER)
+reject	reject	engine	type/ALL!insert	DROP FUNCTION a(ALL zzz)
+reject	reject	engine	type/ALL!swap	DROP FUNCTION a(ALTER)
 accept	accept	engine	opt_field_length/(_INTEGER_VALUE_)	DROP FUNCTION a(TINYINT(1))
 reject	reject	engine	opt_field_length/(_INTEGER_VALUE_)!drop-1	DROP FUNCTION a(TINYINT 1))
-accept	reject	engine	opt_field_length/(_INTEGER_VALUE_)!drop-2	DROP FUNCTION a(TINYINT())
-accept	reject	engine	opt_field_length/(_INTEGER_VALUE_)!drop-3	DROP FUNCTION a(TINYINT(1)
-accept	reject	engine	opt_field_length/(_INTEGER_VALUE_)!truncate	DROP FUNCTION a(TINYINT(1
-accept	reject	engine	opt_field_length/(_INTEGER_VALUE_)!insert	DROP FUNCTION a(TINYINT(1) zzz)
+reject	reject	engine	opt_field_length/(_INTEGER_VALUE_)!drop-2	DROP FUNCTION a(TINYINT())
+reject	reject	engine	opt_field_length/(_INTEGER_VALUE_)!drop-3	DROP FUNCTION a(TINYINT(1)
+reject	reject	engine	opt_field_length/(_INTEGER_VALUE_)!truncate	DROP FUNCTION a(TINYINT(1
+reject	reject	engine	opt_field_length/(_INTEGER_VALUE_)!insert	DROP FUNCTION a(TINYINT(1) zzz)
 accept	accept	engine	opt_field_length/%empty	DROP FUNCTION a(TINYINT)
 accept	accept	engine	opt_signed_unsigned/%empty	DROP FUNCTION a(INT)
-accept	reject	engine	opt_signed_unsigned/%empty!insert	DROP FUNCTION a(zzz INT)
-accept	reject	engine	opt_signed_unsigned/SIGNED	DROP FUNCTION a(SIGNED INT)
-accept	reject	engine	opt_signed_unsigned/SIGNED!insert	DROP FUNCTION a(SIGNED zzz INT)
-accept	reject	engine	opt_signed_unsigned/SIGNED!swap	DROP FUNCTION a(SKEW INT)
+reject	reject	engine	opt_signed_unsigned/%empty!insert	DROP FUNCTION a(zzz INT)
+reject	reject	engine	opt_signed_unsigned/SIGNED	DROP FUNCTION a(SIGNED INT)
+reject	reject	engine	opt_signed_unsigned/SIGNED!insert	DROP FUNCTION a(SIGNED zzz INT)
+reject	reject	engine	opt_signed_unsigned/SIGNED!swap	DROP FUNCTION a(SKEW INT)
 accept	accept	engine	type_def/type	DROP FUNCTION a(TINYINT)
 accept	accept	engine	type_def_list/type_def	DROP FUNCTION a(TINYINT)
 accept	accept	engine	type_def_list/type_def_list_,_type_def	DROP FUNCTION a(TINYINT, TINYINT)
-accept	reject	engine	type_def_list/type_def_list_,_type_def!drop-1	DROP FUNCTION a(, TINYINT)
-accept	reject	engine	type_def_list/type_def_list_,_type_def!drop-2	DROP FUNCTION a(TINYINT TINYINT)
-accept	reject	engine	type_def_list/type_def_list_,_type_def!drop-3	DROP FUNCTION a(TINYINT,)
-accept	reject	engine	type_def_list/type_def_list_,_type_def!truncate	DROP FUNCTION a(TINYINT,
-accept	reject	engine	type_def_list/type_def_list_,_type_def!insert	DROP FUNCTION a(TINYINT, TINYINT zzz)
-accept	reject	engine	type_def_list/type_def_list_,_type_def!swap	DROP FUNCTION a(TO, TINYINT)
+reject	reject	engine	type_def_list/type_def_list_,_type_def!drop-1	DROP FUNCTION a(, TINYINT)
+reject	reject	engine	type_def_list/type_def_list_,_type_def!drop-2	DROP FUNCTION a(TINYINT TINYINT)
+reject	reject	engine	type_def_list/type_def_list_,_type_def!drop-3	DROP FUNCTION a(TINYINT,)
+reject	reject	engine	type_def_list/type_def_list_,_type_def!truncate	DROP FUNCTION a(TINYINT,
+reject	reject	engine	type_def_list/type_def_list_,_type_def!insert	DROP FUNCTION a(TINYINT, TINYINT zzz)
+reject	reject	engine	type_def_list/type_def_list_,_type_def!swap	DROP FUNCTION a(TO, TINYINT)
 accept	accept	engine	type_def_nullable/type_opt_is_allow_null	DROP FUNCTION a(AGG_STATE < a(TINYINT) >)
-accept	reject	engine	type_def_nullable/type_opt_is_allow_null!truncate	DROP FUNCTION a(AGG_STATE < a(
-accept	reject	engine	type_def_nullable/type_opt_is_allow_null!swap	DROP FUNCTION a(AGG_STATE < a(TO) >)
+reject	reject	engine	type_def_nullable/type_opt_is_allow_null!truncate	DROP FUNCTION a(AGG_STATE < a(
+reject	reject	engine	type_def_nullable/type_opt_is_allow_null!swap	DROP FUNCTION a(AGG_STATE < a(TO) >)
 accept	accept	engine	type_def_nullable_list/type_def_nullable	DROP FUNCTION a(AGG_STATE < a(TINYINT) >)
 accept	accept	engine	type_def_nullable_list/type_def_nullable_list_,_type_def_nullable	DROP FUNCTION a(AGG_STATE < a(TINYINT, TINYINT) >)
-accept	reject	engine	type_def_nullable_list/type_def_nullable_list_,_type_def_nullable!drop-1	DROP FUNCTION a(AGG_STATE < a(, TINYINT) >)
-accept	reject	engine	type_def_nullable_list/type_def_nullable_list_,_type_def_nullable!drop-2	DROP FUNCTION a(AGG_STATE < a(TINYINT TINYINT) >)
-accept	reject	engine	type_def_nullable_list/type_def_nullable_list_,_type_def_nullable!drop-3	DROP FUNCTION a(AGG_STATE < a(TINYINT,) >)
-accept	reject	engine	type_def_nullable_list/type_def_nullable_list_,_type_def_nullable!truncate	DROP FUNCTION a(AGG_STATE < a(TINYINT,
-accept	reject	engine	type_def_nullable_list/type_def_nullable_list_,_type_def_nullable!insert	DROP FUNCTION a(AGG_STATE < a(TINYINT, TINYINT zzz) >)
-accept	reject	engine	type_def_nullable_list/type_def_nullable_list_,_type_def_nullable!swap	DROP FUNCTION a(AGG_STATE < a(TO, TINYINT) >)
+reject	reject	engine	type_def_nullable_list/type_def_nullable_list_,_type_def_nullable!drop-1	DROP FUNCTION a(AGG_STATE < a(, TINYINT) >)
+reject	reject	engine	type_def_nullable_list/type_def_nullable_list_,_type_def_nullable!drop-2	DROP FUNCTION a(AGG_STATE < a(TINYINT TINYINT) >)
+reject	reject	engine	type_def_nullable_list/type_def_nullable_list_,_type_def_nullable!drop-3	DROP FUNCTION a(AGG_STATE < a(TINYINT,) >)
+reject	reject	engine	type_def_nullable_list/type_def_nullable_list_,_type_def_nullable!truncate	DROP FUNCTION a(AGG_STATE < a(TINYINT,
+reject	reject	engine	type_def_nullable_list/type_def_nullable_list_,_type_def_nullable!insert	DROP FUNCTION a(AGG_STATE < a(TINYINT, TINYINT zzz) >)
+reject	reject	engine	type_def_nullable_list/type_def_nullable_list_,_type_def_nullable!swap	DROP FUNCTION a(AGG_STATE < a(TO, TINYINT) >)
 accept	accept	engine	func_args_def/%empty	DROP FUNCTION a()
-accept	reject	engine	func_args_def/%empty!insert	DROP FUNCTION a(zzz)
+reject	reject	engine	func_args_def/%empty!insert	DROP FUNCTION a(zzz)
 accept	accept	engine	func_args_def/type_def_list	DROP FUNCTION a(TINYINT)
 accept	accept	engine	func_args_def/...	DROP FUNCTION a(...)
-accept	reject	engine	func_args_def/...!insert	DROP FUNCTION a(...zzz)
+reject	reject	engine	func_args_def/...!insert	DROP FUNCTION a(...zzz)
 accept	accept	engine	func_args_def/type_def_list_,_...	DROP FUNCTION a(TINYINT,...)
-accept	reject	engine	func_args_def/type_def_list_,_...!drop-1	DROP FUNCTION a(,...)
-accept	reject	engine	func_args_def/type_def_list_,_...!drop-2	DROP FUNCTION a(TINYINT...)
-accept	reject	engine	func_args_def/type_def_list_,_...!insert	DROP FUNCTION a(TINYINT,...zzz)
-accept	reject	engine	func_args_def/type_def_list_,_...!swap	DROP FUNCTION a(TO,...)
+reject	reject	engine	func_args_def/type_def_list_,_...!drop-1	DROP FUNCTION a(,...)
+reject	reject	engine	func_args_def/type_def_list_,_...!drop-2	DROP FUNCTION a(TINYINT...)
+reject	reject	engine	func_args_def/type_def_list_,_...!insert	DROP FUNCTION a(TINYINT,...zzz)
+reject	reject	engine	func_args_def/type_def_list_,_...!swap	DROP FUNCTION a(TO,...)
 accept	accept	engine	cast_expr/CAST_(_expr_AS_type_def_)	SELECT CAST(1 AS TINYINT)
 reject	reject	engine	cast_expr/CAST_(_expr_AS_type_def_)!drop-1	SELECT(1 AS TINYINT)
 reject	reject	engine	cast_expr/CAST_(_expr_AS_type_def_)!drop-2	SELECT CAST 1 AS TINYINT)
@@ -14317,36 +14317,36 @@ reject	reject	engine	map_expr/MAP_(_)!drop-3	SELECT MAP(
 accept	accept	engine	map_expr/MAP_(_)!insert	SELECT MAP() zzz
 reject	reject	engine	map_expr/MAP_(_)!swap	SELECT MATCH()
 accept	accept	engine	struct_field/ident_COLON_type_opt_comment	DROP FUNCTION a(STRUCT < a : TINYINT >)
-accept	reject	engine	struct_field/ident_COLON_type_opt_comment!truncate	DROP FUNCTION a(STRUCT < a :
-accept	reject	engine	struct_field/ident_COLON_type_opt_comment!insert	DROP FUNCTION a(STRUCT < a : TINYINT zzz >)
-accept	reject	engine	struct_field/ident_COLON_type_opt_comment!swap	DROP FUNCTION a(STRUCT < a : TO >)
+reject	reject	engine	struct_field/ident_COLON_type_opt_comment!truncate	DROP FUNCTION a(STRUCT < a :
+reject	reject	engine	struct_field/ident_COLON_type_opt_comment!insert	DROP FUNCTION a(STRUCT < a : TINYINT zzz >)
+reject	reject	engine	struct_field/ident_COLON_type_opt_comment!swap	DROP FUNCTION a(STRUCT < a : TO >)
 accept	accept	engine	struct_field_list/struct_field	DROP FUNCTION a(STRUCT < a : TINYINT >)
 accept	accept	engine	struct_field_list/struct_field_list_,_struct_field	DROP FUNCTION a(STRUCT < a : TINYINT, a : TINYINT >)
-accept	reject	engine	struct_field_list/struct_field_list_,_struct_field!drop-1	DROP FUNCTION a(STRUCT < : TINYINT, a : TINYINT >)
-accept	reject	engine	struct_field_list/struct_field_list_,_struct_field!drop-2	DROP FUNCTION a(STRUCT < a TINYINT, a : TINYINT >)
-accept	reject	engine	struct_field_list/struct_field_list_,_struct_field!drop-3	DROP FUNCTION a(STRUCT < a :, a : TINYINT >)
-accept	reject	engine	struct_field_list/struct_field_list_,_struct_field!drop-4	DROP FUNCTION a(STRUCT < a : TINYINT a : TINYINT >)
-accept	reject	engine	struct_field_list/struct_field_list_,_struct_field!drop-5	DROP FUNCTION a(STRUCT < a : TINYINT, : TINYINT >)
-accept	reject	engine	struct_field_list/struct_field_list_,_struct_field!drop-6	DROP FUNCTION a(STRUCT < a : TINYINT, a TINYINT >)
-accept	reject	engine	struct_field_list/struct_field_list_,_struct_field!drop-7	DROP FUNCTION a(STRUCT < a : TINYINT, a : >)
-accept	reject	engine	struct_field_list/struct_field_list_,_struct_field!truncate	DROP FUNCTION a(STRUCT < a : TINYINT, a :
-accept	reject	engine	struct_field_list/struct_field_list_,_struct_field!insert	DROP FUNCTION a(STRUCT < a : TINYINT, a : TINYINT zzz >)
-accept	reject	engine	struct_field_list/struct_field_list_,_struct_field!swap	DROP FUNCTION a(STRUCT < a : TO, a : TINYINT >)
+reject	reject	engine	struct_field_list/struct_field_list_,_struct_field!drop-1	DROP FUNCTION a(STRUCT < : TINYINT, a : TINYINT >)
+reject	reject	engine	struct_field_list/struct_field_list_,_struct_field!drop-2	DROP FUNCTION a(STRUCT < a TINYINT, a : TINYINT >)
+reject	reject	engine	struct_field_list/struct_field_list_,_struct_field!drop-3	DROP FUNCTION a(STRUCT < a :, a : TINYINT >)
+reject	reject	engine	struct_field_list/struct_field_list_,_struct_field!drop-4	DROP FUNCTION a(STRUCT < a : TINYINT a : TINYINT >)
+reject	reject	engine	struct_field_list/struct_field_list_,_struct_field!drop-5	DROP FUNCTION a(STRUCT < a : TINYINT, : TINYINT >)
+reject	reject	engine	struct_field_list/struct_field_list_,_struct_field!drop-6	DROP FUNCTION a(STRUCT < a : TINYINT, a TINYINT >)
+reject	reject	engine	struct_field_list/struct_field_list_,_struct_field!drop-7	DROP FUNCTION a(STRUCT < a : TINYINT, a : >)
+reject	reject	engine	struct_field_list/struct_field_list_,_struct_field!truncate	DROP FUNCTION a(STRUCT < a : TINYINT, a :
+reject	reject	engine	struct_field_list/struct_field_list_,_struct_field!insert	DROP FUNCTION a(STRUCT < a : TINYINT, a : TINYINT zzz >)
+reject	reject	engine	struct_field_list/struct_field_list_,_struct_field!swap	DROP FUNCTION a(STRUCT < a : TO, a : TINYINT >)
 accept	accept	engine	variant_field/STRING_LITERAL_COLON_type_opt_comment	DROP FUNCTION a(VARIANT < 'a' : TINYINT >)
-accept	reject	engine	variant_field/STRING_LITERAL_COLON_type_opt_comment!truncate	DROP FUNCTION a(VARIANT < 'a' :
-accept	reject	engine	variant_field/STRING_LITERAL_COLON_type_opt_comment!swap	DROP FUNCTION a(VARIANT < 'a' : TO >)
+reject	reject	engine	variant_field/STRING_LITERAL_COLON_type_opt_comment!truncate	DROP FUNCTION a(VARIANT < 'a' :
+reject	reject	engine	variant_field/STRING_LITERAL_COLON_type_opt_comment!swap	DROP FUNCTION a(VARIANT < 'a' : TO >)
 accept	accept	engine	variant_field_list/variant_field	DROP FUNCTION a(VARIANT < 'a' : TINYINT >)
 accept	accept	engine	variant_field_list/variant_field_list_,_variant_field	DROP FUNCTION a(VARIANT < 'a' : TINYINT, 'a' : TINYINT >)
-accept	reject	engine	variant_field_list/variant_field_list_,_variant_field!drop-1	DROP FUNCTION a(VARIANT < : TINYINT, 'a' : TINYINT >)
-accept	reject	engine	variant_field_list/variant_field_list_,_variant_field!drop-2	DROP FUNCTION a(VARIANT < 'a' TINYINT, 'a' : TINYINT >)
-accept	reject	engine	variant_field_list/variant_field_list_,_variant_field!drop-3	DROP FUNCTION a(VARIANT < 'a' :, 'a' : TINYINT >)
-accept	reject	engine	variant_field_list/variant_field_list_,_variant_field!drop-4	DROP FUNCTION a(VARIANT < 'a' : TINYINT 'a' : TINYINT >)
-accept	reject	engine	variant_field_list/variant_field_list_,_variant_field!drop-5	DROP FUNCTION a(VARIANT < 'a' : TINYINT, : TINYINT >)
-accept	reject	engine	variant_field_list/variant_field_list_,_variant_field!drop-6	DROP FUNCTION a(VARIANT < 'a' : TINYINT, 'a' TINYINT >)
-accept	reject	engine	variant_field_list/variant_field_list_,_variant_field!drop-7	DROP FUNCTION a(VARIANT < 'a' : TINYINT, 'a' : >)
-accept	reject	engine	variant_field_list/variant_field_list_,_variant_field!truncate	DROP FUNCTION a(VARIANT < 'a' : TINYINT, 'a' :
-accept	reject	engine	variant_field_list/variant_field_list_,_variant_field!insert	DROP FUNCTION a(VARIANT < 'a' : TINYINT, 'a' : TINYINT zzz >)
-accept	reject	engine	variant_field_list/variant_field_list_,_variant_field!swap	DROP FUNCTION a(VARIANT < 'a' : TO, 'a' : TINYINT >)
+reject	reject	engine	variant_field_list/variant_field_list_,_variant_field!drop-1	DROP FUNCTION a(VARIANT < : TINYINT, 'a' : TINYINT >)
+reject	reject	engine	variant_field_list/variant_field_list_,_variant_field!drop-2	DROP FUNCTION a(VARIANT < 'a' TINYINT, 'a' : TINYINT >)
+reject	reject	engine	variant_field_list/variant_field_list_,_variant_field!drop-3	DROP FUNCTION a(VARIANT < 'a' :, 'a' : TINYINT >)
+reject	reject	engine	variant_field_list/variant_field_list_,_variant_field!drop-4	DROP FUNCTION a(VARIANT < 'a' : TINYINT 'a' : TINYINT >)
+reject	reject	engine	variant_field_list/variant_field_list_,_variant_field!drop-5	DROP FUNCTION a(VARIANT < 'a' : TINYINT, : TINYINT >)
+reject	reject	engine	variant_field_list/variant_field_list_,_variant_field!drop-6	DROP FUNCTION a(VARIANT < 'a' : TINYINT, 'a' TINYINT >)
+reject	reject	engine	variant_field_list/variant_field_list_,_variant_field!drop-7	DROP FUNCTION a(VARIANT < 'a' : TINYINT, 'a' : >)
+reject	reject	engine	variant_field_list/variant_field_list_,_variant_field!truncate	DROP FUNCTION a(VARIANT < 'a' : TINYINT, 'a' :
+reject	reject	engine	variant_field_list/variant_field_list_,_variant_field!insert	DROP FUNCTION a(VARIANT < 'a' : TINYINT, 'a' : TINYINT zzz >)
+reject	reject	engine	variant_field_list/variant_field_list_,_variant_field!swap	DROP FUNCTION a(VARIANT < 'a' : TO, 'a' : TINYINT >)
 accept	accept	engine	struct_literal/{_expr_list_}	SELECT { 1 }
 reject	accept	engine	struct_literal/{_expr_list_}!drop-1	SELECT 1 }
 reject	reject	engine	struct_literal/{_expr_list_}!drop-3	SELECT { 1

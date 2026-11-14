@@ -239,9 +239,9 @@ func (p *Parser) parseShowCreate(stmt *ast.ShowStmt) (ast.Node, error) {
 			p.advance()
 		}
 		typeWord = "CREATE MATERIALIZED VIEW"
-	case kwFUNCTION:
-		typeWord = "CREATE FUNCTION"
-		p.advance()
+	case kwFUNCTION, kwGLOBAL, kwSESSION, kwLOCAL:
+		// SHOW CREATE [GLOBAL | SESSION | LOCAL] FUNCTION name(args) [(FROM | IN) db]
+		return p.parseShowCreateFunction(stmt)
 	default:
 		// Unrecognized: let it fall through, name may be the next token
 	}
@@ -262,6 +262,43 @@ func (p *Parser) parseShowCreate(stmt *ast.ShowStmt) (ast.Node, error) {
 		}
 	}
 
+	stmt.Loc.End = p.prev.Loc.End
+	return stmt, nil
+}
+
+// parseShowCreateFunction reads the rest of
+//
+//	SHOW CREATE (GLOBAL | SESSION | LOCAL)? FUNCTION functionIdentifier
+//	    LEFT_PAREN functionArguments? RIGHT_PAREN ((FROM | IN) multipartIdentifier)?
+//
+// (DorisParser.g4:291-293). cur is on the word after CREATE.
+func (p *Parser) parseShowCreateFunction(stmt *ast.ShowStmt) (ast.Node, error) {
+	stmt.Type = "CREATE FUNCTION"
+	if p.cur.Kind == kwGLOBAL {
+		stmt.Type = "CREATE GLOBAL FUNCTION"
+	}
+	if p.cur.Kind != kwFUNCTION {
+		p.advance() // consume GLOBAL, SESSION or LOCAL
+	}
+	if _, err := p.expect(kwFUNCTION); err != nil {
+		return nil, err
+	}
+	target, err := p.parseFunctionIdentifier()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Target = target
+	if _, _, err := p.parseFunctionArguments(); err != nil {
+		return nil, err
+	}
+	if p.cur.Kind == kwFROM || p.cur.Kind == kwIN {
+		p.advance() // consume FROM/IN
+		db, err := p.parseMultipartIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		stmt.From = strings.Join(db.Parts, ".")
+	}
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
 }
