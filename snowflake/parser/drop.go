@@ -25,6 +25,10 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 		node.(*ast.DropStmt).Object = f.kind
 		return node, nil
 	}
+	// DROP [ <integration kind> ] INTEGRATION (integration.go).
+	if p.acceptDropIntegrationKind() {
+		return p.parseDropObject(ast.DropIntegration, start, true, false)
+	}
 
 	switch p.cur.Type {
 	case kwDATABASE:

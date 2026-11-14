@@ -12,7 +12,7 @@ import (
 //
 // CREATE / ALTER for the account/schema-level objects:
 //
-//	{ STORAGE | API | NOTIFICATION | SECURITY } INTEGRATION
+//	{ STORAGE | API | NOTIFICATION | SECURITY | CATALOG | EXTERNAL ACCESS } INTEGRATION
 //	RESOURCE MONITOR
 //	SECRET
 //	CONNECTION
@@ -53,13 +53,19 @@ import (
 // T4.7 objects. The CREATE keyword and the optional OR REPLACE modifier have
 // already been consumed by parseCreateStmt; start is the Loc of the CREATE token,
 // and cur is the object-type keyword (STORAGE / API / NOTIFICATION / SECURITY /
-// RESOURCE / SECRET / CONNECTION / GIT). EXTERNAL VOLUME enters through
-// parseCreateExternalVolumeStmt instead (its dispatch already consumed EXTERNAL +
-// VOLUME).
+// CATALOG / EXTERNAL ACCESS / RESOURCE / SECRET / CONNECTION / GIT). EXTERNAL
+// VOLUME enters through parseCreateExternalVolumeStmt instead (its dispatch
+// already consumed EXTERNAL + VOLUME).
 func (p *Parser) parseCreateIntegrationStmt(start ast.Loc, orReplace, orAlter bool) (ast.Node, error) {
 	kind, err := p.consumeIntegrationObjectKeyword()
 	if err != nil {
 		return nil, err
+	}
+
+	// The CATALOG and EXTERNAL ACCESS INTEGRATION pages document CREATE
+	// [ OR REPLACE ] only.
+	if orAlter && (kind == ast.CatalogIntegration || kind == ast.ExternalAccessIntegration) {
+		return p.unsupported("CREATE")
 	}
 
 	stmt := &ast.CreateIntegrationStmt{
@@ -116,8 +122,20 @@ func (p *Parser) parseCreateIntegrationStmt(start ast.Loc, orReplace, orAlter bo
 		}
 		stmt.Options = opts
 
+	case ast.CatalogIntegration, ast.ExternalAccessIntegration, ast.NotificationIntegration:
+		// `KEY = value` properties by their pages' shape (see
+		// parseIntegrationProperties), the required ones checked.
+		opts, err := p.parseIntegrationProperties()
+		if err != nil {
+			return nil, err
+		}
+		if err := p.requireIntegrationOptions(kind, opts); err != nil {
+			return nil, err
+		}
+		stmt.Options = opts
+
 	default:
-		// STORAGE/API/NOTIFICATION/SECURITY INTEGRATION, SECRET, GIT REPOSITORY:
+		// STORAGE/API/SECURITY INTEGRATION, SECRET, GIT REPOSITORY:
 		// an open-ended option bag, optionally followed (GIT REPOSITORY) by a
 		// [WITH] TAG clause. The loop accepts options and tag clauses in any order
 		// so a COMMENT that trails the TAG clause is not dropped (mirrors STAGE).
@@ -247,12 +265,79 @@ func (p *Parser) parseAlterIntegrationStmt() (ast.Node, error) {
 		p.advance() // consume PRIMARY
 		stmt.Action = ast.AlterIntegrationPrimary
 
+	case kwREFRESH:
+		// [ SECURITY ] INTEGRATION REFRESH.
+		p.parseAlterIntegrationRefresh(stmt)
+
 	default:
 		return nil, p.syntaxErrorAtCur()
 	}
 
+	if !integrationAlterActionDocumented(kind, stmt.Action) {
+		return nil, &ParseError{
+			Position: startLoc.Start, End: p.prev.Loc.End,
+			Message: "syntax error: ALTER " + kind.String() + " does not take this action",
+		}
+	}
+
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
+}
+
+// integrationAlterActionDocumented reports whether ALTER of kind documents
+// action. Only the kinds whose pages name a short list are checked here:
+//
+//	ALTER CATALOG INTEGRATION [ IF EXISTS ] <name> SET ...
+//
+// https://docs.snowflake.com/en/sql-reference/sql/alter-catalog-integration
+//
+//	ALTER EXTERNAL ACCESS INTEGRATION [ IF EXISTS ] <name> SET ...
+//	ALTER EXTERNAL ACCESS INTEGRATION [ IF EXISTS ] <name> UNSET ...
+//
+// https://docs.snowflake.com/en/sql-reference/sql/alter-external-access-integration
+// (whose SET and UNSET carry TAG <tag> = '<value>' and TAG <tag>), and REFRESH,
+// which only a [ SECURITY ] INTEGRATION takes.
+func integrationAlterActionDocumented(kind ast.IntegrationObjectKind, action ast.AlterIntegrationAction) bool {
+	switch kind {
+	case ast.CatalogIntegration:
+		return action == ast.AlterIntegrationSet
+	case ast.ExternalAccessIntegration:
+		switch action {
+		case ast.AlterIntegrationSet, ast.AlterIntegrationUnset, ast.AlterIntegrationSetTag, ast.AlterIntegrationUnsetTag:
+			return true
+		}
+		return false
+	case ast.StorageIntegration, ast.SecurityIntegration:
+		// A bare ALTER INTEGRATION reads as StorageIntegration (see
+		// consumeIntegrationObjectKeyword), so it may be a security integration.
+		return true
+	}
+	return action != ast.AlterIntegrationRefresh
+}
+
+// parseAlterIntegrationRefresh reads a security integration's REFRESH action.
+// cur is REFRESH.
+//
+//	ALTER [ SECURITY ] INTEGRATION [ IF EXISTS ] <name> REFRESH { OAUTH_CLIENT_SECRET | OAUTH_CLIENT_SECRET_2 }
+//
+// https://docs.snowflake.com/en/sql-reference/sql/alter-security-integration-oauth-snowflake
+//
+//	ALTER [ SECURITY ] INTEGRATION <name> REFRESH [ SAML2_SNOWFLAKE_PRIVATE_KEY ] [ METADATA_URL ]
+//
+// https://docs.snowflake.com/en/sql-reference/sql/alter-security-integration-saml2
+func (p *Parser) parseAlterIntegrationRefresh(stmt *ast.AlterIntegrationStmt) {
+	p.advance() // consume REFRESH
+	stmt.Action = ast.AlterIntegrationRefresh
+	switch {
+	case p.curIsWord("OAUTH_CLIENT_SECRET"), p.curIsWord("OAUTH_CLIENT_SECRET_2"):
+		stmt.Refresh = append(stmt.Refresh, strings.ToUpper(p.advance().Str))
+		return
+	case p.curIsWord("SAML2_SNOWFLAKE_PRIVATE_KEY"):
+		stmt.Refresh = append(stmt.Refresh, strings.ToUpper(p.advance().Str))
+	}
+	if p.curIsWord("METADATA_URL") {
+		stmt.Refresh = append(stmt.Refresh, strings.ToUpper(p.advance().Str))
+	}
 }
 
 // parseAlterExternalVolumeStmt parses
@@ -358,6 +443,10 @@ func (p *Parser) parseAlterExternalVolumeStmt(startLoc ast.Loc) (ast.Node, error
 func (p *Parser) parseAlterIntegrationSet(stmt *ast.AlterIntegrationStmt) error {
 	p.advance() // consume SET
 
+	if stmt.Kind == ast.CatalogIntegration || (stmt.Kind == ast.ExternalAccessIntegration && p.cur.Type != kwTAG) {
+		return p.parseAlterIntegrationSetProperties(stmt)
+	}
+
 	if p.cur.Type == kwTAG {
 		tags, err := p.parseTagSetList()
 		if err != nil {
@@ -395,6 +484,10 @@ func (p *Parser) parseAlterIntegrationSet(stmt *ast.AlterIntegrationStmt) error 
 //	UNSET <property> [ , ... ]           -> AlterIntegrationUnset (e.g. ENABLED, COMMENT)
 func (p *Parser) parseAlterIntegrationUnset(stmt *ast.AlterIntegrationStmt) error {
 	p.advance() // consume UNSET
+
+	if stmt.Kind == ast.ExternalAccessIntegration {
+		return p.parseAlterAccessIntegrationUnset(stmt)
+	}
 
 	if p.cur.Type == kwTAG {
 		names, err := p.parseUnsetTagNameList()
@@ -725,9 +818,41 @@ func (p *Parser) consumeIntegrationObjectKeyword() (ast.IntegrationObjectKind, e
 			return 0, err
 		}
 		return ast.GitRepository, nil
-	default:
-		return 0, p.syntaxErrorAtCur()
 	}
+	switch {
+	case p.acceptWords("CATALOG", "INTEGRATION"):
+		return ast.CatalogIntegration, nil
+	case p.acceptWords("EXTERNAL", "ACCESS", "INTEGRATION"):
+		return ast.ExternalAccessIntegration, nil
+	}
+	return 0, p.syntaxErrorAtCur()
+}
+
+// startsCatalogOrAccessIntegration reports whether cur begins CATALOG
+// INTEGRATION or EXTERNAL ACCESS INTEGRATION, the integrations the CREATE and
+// ALTER dispatch switches do not reach by their first keyword (CATALOG is not
+// a keyword; EXTERNAL also starts TABLE, VOLUME and FUNCTION). It consumes
+// nothing.
+func (p *Parser) startsCatalogOrAccessIntegration() bool {
+	return p.atWords("CATALOG", "INTEGRATION") || p.atWords("EXTERNAL", "ACCESS", "INTEGRATION")
+}
+
+// acceptDropIntegrationKind consumes the object words of
+//
+//	DROP [ { API | CATALOG | EXTERNAL ACCESS | NOTIFICATION | SECURITY | STORAGE } ] INTEGRATION
+//
+// when they start at cur, and reports whether it did. The qualifier names no
+// different object, so every spelling reads as ast.DropIntegration.
+//
+// https://docs.snowflake.com/en/sql-reference/sql/drop-integration
+// https://docs.snowflake.com/en/sql-reference/sql/drop-catalog-integration
+func (p *Parser) acceptDropIntegrationKind() bool {
+	for _, q := range [][]string{{"API"}, {"CATALOG"}, {"EXTERNAL", "ACCESS"}, {"NOTIFICATION"}, {"SECURITY"}, {"STORAGE"}} {
+		if p.acceptWords(append(q, "INTEGRATION")...) {
+			return true
+		}
+	}
+	return false
 }
 
 // parseIntegrationOptions parses a run of zero or more open-ended `KEY = value`
@@ -753,6 +878,44 @@ func (p *Parser) parseIntegrationOptions() ([]*ast.CopyOption, error) {
 		opts = append(opts, opt)
 	}
 	return opts, nil
+}
+
+// requireIntegrationOptions fails unless opts sets each property the CREATE
+// page of kind marks required. Only the kinds read with such a list are
+// checked:
+//
+//	CREATE CATALOG INTEGRATION <name> CATALOG_SOURCE = ... TABLE_FORMAT = ... ENABLED = ...
+//
+// on every catalog-source page under
+// https://docs.snowflake.com/en/sql-reference/sql/create-catalog-integration, and
+//
+//	CREATE EXTERNAL ACCESS INTEGRATION <name> ALLOWED_NETWORK_RULES = ( ... ) ENABLED = ...
+//
+// https://docs.snowflake.com/en/sql-reference/sql/create-external-access-integration
+func (p *Parser) requireIntegrationOptions(kind ast.IntegrationObjectKind, opts []*ast.CopyOption) error {
+	var required []string
+	switch kind {
+	case ast.CatalogIntegration:
+		required = []string{"CATALOG_SOURCE", "TABLE_FORMAT", "ENABLED"}
+	case ast.ExternalAccessIntegration:
+		required = []string{"ALLOWED_NETWORK_RULES", "ENABLED"}
+	}
+	for _, n := range required {
+		found := false
+		for _, o := range opts {
+			if o.Name == n {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return &ParseError{
+				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+				Message: "syntax error: " + n + " is required",
+			}
+		}
+	}
+	return nil
 }
 
 // startsIntegrationOption reports whether the current token can begin an option.
@@ -819,4 +982,211 @@ func (p *Parser) parseOptionalIfExists(flag *bool) {
 			*flag = true
 		}
 	}
+}
+
+// ---------------------------------------------------------------------------
+// CATALOG, EXTERNAL ACCESS and NOTIFICATION INTEGRATION properties
+// ---------------------------------------------------------------------------
+//
+// These integrations' CREATE (and the first two's ALTER ... SET) are read by
+// their pages' shape rather than through the open-ended COPY option reader the
+// other kinds use: every property is `KEY = value`, and a parenthesized value
+// is one of the forms the pages write. Property names and values stay open, as
+// everywhere in this file.
+
+// parseIntegrationProperties reads a run of `KEY = value` properties.
+func (p *Parser) parseIntegrationProperties() ([]*ast.CopyOption, error) {
+	var opts []*ast.CopyOption
+	for p.startsObjectProperty() {
+		opt, err := p.parseIntegrationProperty()
+		if err != nil {
+			return nil, err
+		}
+		opts = append(opts, opt)
+	}
+	return opts, nil
+}
+
+// parseIntegrationProperty reads one `KEY = value` property. cur is the key,
+// which startsObjectProperty has seen followed by '='.
+func (p *Parser) parseIntegrationProperty() (*ast.CopyOption, error) {
+	key := p.advance()
+	opt := &ast.CopyOption{Name: strings.ToUpper(key.Str), Loc: ast.Loc{Start: key.Loc.Start}}
+	p.advance() // consume '='
+	if err := p.parseIntegrationValue(opt); err != nil {
+		return nil, err
+	}
+	opt.Loc.End = p.prev.Loc.End
+	return opt, nil
+}
+
+// parseIntegrationValue reads a property's value into opt:
+//
+//	'<string>' | <number> | <word>             -> Lit, or Words
+//	( '<string>' [ , ... ] )                    -> List (OAUTH_ALLOWED_SCOPES)
+//	( <name> [ , ... ] )                        -> Group of bare names
+//	                                               (ALLOWED_NETWORK_RULES)
+//	( <key> = <value> [ <key> = <value> ... ] ) -> Group (REST_CONFIG,
+//	                                               REST_AUTHENTICATION,
+//	                                               DEFAULT_STORAGE_CONFIG)
+//	( ( <key> = <value> ... ) [ , ... ] )       -> Group of unnamed groups
+//	                                               (QUEUES)
+//	( '<key>' = <value> [ , ... ] )             -> Group keyed by strings
+//	                                               (WEBHOOK_HEADERS)
+//
+// The pages separate a group's entries by spaces and a list's items by commas.
+func (p *Parser) parseIntegrationValue(opt *ast.CopyOption) error {
+	if p.cur.Type != '(' {
+		return p.parseObjectValue(opt)
+	}
+	if err := p.enterNesting(); err != nil {
+		return err
+	}
+	defer p.leaveNesting()
+	p.advance() // consume '('
+	switch {
+	case p.cur.Type == '(':
+		for {
+			entry := &ast.CopyOption{Loc: ast.Loc{Start: p.cur.Loc.Start}}
+			if err := p.parseIntegrationValue(entry); err != nil {
+				return err
+			}
+			entry.Loc.End = p.prev.Loc.End
+			opt.Group = append(opt.Group, entry)
+			if p.cur.Type != ',' {
+				break
+			}
+			p.advance() // consume ','
+		}
+	case p.startsObjectProperty():
+		for {
+			entry, err := p.parseIntegrationProperty()
+			if err != nil {
+				return err
+			}
+			opt.Group = append(opt.Group, entry)
+			if !p.startsObjectProperty() {
+				break
+			}
+		}
+	case p.cur.Type == tokString && p.peekNext().Type == '=':
+		for {
+			key := p.advance()
+			entry := &ast.CopyOption{Name: key.Str, Loc: ast.Loc{Start: key.Loc.Start}}
+			if _, err := p.expect('='); err != nil {
+				return err
+			}
+			if err := p.parseObjectValue(entry); err != nil {
+				return err
+			}
+			entry.Loc.End = p.prev.Loc.End
+			opt.Group = append(opt.Group, entry)
+			if p.cur.Type != ',' {
+				break
+			}
+			p.advance() // consume ','
+		}
+	case p.curIsLiteral():
+		for {
+			lit, err := p.parseCopyLiteral()
+			if err != nil {
+				return err
+			}
+			opt.List = append(opt.List, lit)
+			if p.cur.Type != ',' {
+				break
+			}
+			p.advance() // consume ','
+		}
+	case p.isOptionWord(p.cur.Type):
+		for {
+			start := p.cur.Loc.Start
+			name, end, err := p.parseValueWord()
+			if err != nil {
+				return err
+			}
+			opt.Group = append(opt.Group, &ast.CopyOption{Name: name, Bare: true, Loc: ast.Loc{Start: start, End: end}})
+			if p.cur.Type != ',' {
+				break
+			}
+			p.advance() // consume ','
+		}
+	default:
+		return p.syntaxErrorAtCur()
+	}
+	_, err := p.expect(')')
+	return err
+}
+
+// parseAlterIntegrationSetProperties reads the SET of a CATALOG or EXTERNAL
+// ACCESS INTEGRATION once SET is consumed:
+//
+//	ALTER CATALOG INTEGRATION [ IF EXISTS ] <name> SET
+//	  [ REST_AUTHENTICATION = ( ... ) ] [ DEFAULT_STORAGE_CONFIG = ( ... ) ]
+//	  [ REFRESH_INTERVAL_SECONDS = <value> ] [ COMMENT = '<string>' ]
+//
+// https://docs.snowflake.com/en/sql-reference/sql/alter-catalog-integration
+//
+//	ALTER EXTERNAL ACCESS INTEGRATION [ IF EXISTS ] <name> SET
+//	  [ ALLOWED_NETWORK_RULES = ( ... ) ] [ ... ] [ COMMENT = '<string>' ]
+//	  [ TAG <tag_name> = '<tag_value>' [ , <tag_name> = '<tag_value>' ... ] ]
+//
+// https://docs.snowflake.com/en/sql-reference/sql/alter-external-access-integration
+func (p *Parser) parseAlterIntegrationSetProperties(stmt *ast.AlterIntegrationStmt) error {
+	opts, err := p.parseIntegrationProperties()
+	if err != nil {
+		return err
+	}
+	if len(opts) == 0 {
+		return p.syntaxErrorAtCur()
+	}
+	stmt.Action = ast.AlterIntegrationSet
+	stmt.Options = opts
+	if stmt.Kind == ast.ExternalAccessIntegration && p.cur.Type == kwTAG {
+		tags, err := p.parseTagSetList()
+		if err != nil {
+			return err
+		}
+		stmt.Tags = tags
+	}
+	return nil
+}
+
+// parseAlterAccessIntegrationUnset reads the UNSET list of an EXTERNAL ACCESS
+// INTEGRATION once UNSET is consumed. Each item is one property name or
+// TAG <tag_name>:
+//
+//	ALTER EXTERNAL ACCESS INTEGRATION [ IF EXISTS ] <name> UNSET {
+//	  ALLOWED_NETWORK_RULES | ALLOWED_API_AUTHENTICATION_INTEGRATIONS |
+//	  ALLOWED_AUTHENTICATION_SECRETS | COMMENT | TAG <tag_name> } [ , ... ]
+//
+// A list of tags alone reads as AlterIntegrationUnsetTag, as the other kinds'
+// UNSET TAG does.
+//
+// https://docs.snowflake.com/en/sql-reference/sql/alter-external-access-integration
+func (p *Parser) parseAlterAccessIntegrationUnset(stmt *ast.AlterIntegrationStmt) error {
+	for {
+		if p.cur.Type == kwTAG {
+			p.advance() // consume TAG
+			name, err := p.parseObjectName()
+			if err != nil {
+				return err
+			}
+			stmt.UnsetTags = append(stmt.UnsetTags, name)
+		} else {
+			if !p.isOptionWord(p.cur.Type) || p.curIsLiteral() {
+				return p.syntaxErrorAtCur()
+			}
+			stmt.UnsetProps = append(stmt.UnsetProps, strings.ToUpper(p.advance().Str))
+		}
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance() // consume ','
+	}
+	stmt.Action = ast.AlterIntegrationUnset
+	if len(stmt.UnsetProps) == 0 {
+		stmt.Action = ast.AlterIntegrationUnsetTag
+	}
+	return nil
 }

@@ -37,6 +37,10 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 	if f := p.matchObjectForm(); f != nil {
 		return p.parseObjectStmt("CREATE", f, start, orReplace, orAlter)
 	}
+	// CATALOG / EXTERNAL ACCESS INTEGRATION (integration.go).
+	if p.startsCatalogOrAccessIntegration() {
+		return p.parseCreateIntegrationStmt(start, orReplace, orAlter)
+	}
 
 	// Optional SECURE modifier. SECURE applies to VIEW / MATERIALIZED VIEW
 	// (T2.4) and to FUNCTION / EXTERNAL FUNCTION / PROCEDURE (T4.5). It is

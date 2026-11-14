@@ -183,6 +183,10 @@ func (p *Parser) parseAlterStmt() (ast.Node, error) {
 	if f := p.matchObjectForm(); f != nil {
 		return p.parseObjectStmt("ALTER", f, alterTok.Loc, false, false)
 	}
+	// CATALOG / EXTERNAL ACCESS INTEGRATION (integration.go).
+	if p.startsCatalogOrAccessIntegration() {
+		return p.parseAlterIntegrationStmt()
+	}
 
 	switch p.cur.Type {
 	case kwTABLE:
