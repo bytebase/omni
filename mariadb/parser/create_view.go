@@ -40,20 +40,16 @@ func (p *Parser) parseCreateViewStmt(start int, orReplace bool) (*nodes.CreateVi
 
 	// DEFINER = user
 	if p.cur.Type == kwDEFINER {
-		stmt.Definer = p.parseDefinerValue()
+		definer, err := p.parseDefinerValue()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Definer = definer
 	}
 
 	// SQL SECURITY { DEFINER | INVOKER }
 	if p.cur.Type == kwSQL {
-		p.advance()
-		if p.cur.Type != kwSECURITY {
-			return nil, &ParseError{
-				Message:  "expected SECURITY after SQL",
-				Position: p.cur.Loc,
-			}
-		}
-		p.advance()
-		name, _, err := p.parseKeywordOrIdent()
+		name, err := p.parseViewSQLSecurity()
 		if err != nil {
 			return nil, err
 		}
@@ -111,23 +107,51 @@ func (p *Parser) parseCreateViewStmt(start int, orReplace bool) (*nodes.CreateVi
 
 	// WITH [CASCADED | LOCAL] CHECK OPTION
 	if p.cur.Type == kwWITH {
-		p.advance()
-		checkOption := "CASCADED" // default
-		if p.cur.Type == kwCASCADED {
-			p.advance()
-		} else if p.cur.Type == kwLOCAL {
-			checkOption = "LOCAL"
-			p.advance()
-		}
-		if p.cur.Type == kwCHECK {
-			p.advance()
-			if p.cur.Type == kwOPTION {
-				p.advance()
-			}
+		checkOption, err := p.parseViewCheckOption()
+		if err != nil {
+			return nil, err
 		}
 		stmt.CheckOption = checkOption
 	}
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// parseViewCheckOption parses WITH [CASCADED | LOCAL] CHECK OPTION after a view's query,
+// p.cur at WITH, and returns CASCADED or LOCAL. Every word but the level is required:
+// `WITH CHECK` and `WITH LOCAL CHECK` are 1064.
+//
+// Ref: view_check_option in MariaDB 11.8 sql/sql_yacc.yy.
+func (p *Parser) parseViewCheckOption() (string, error) {
+	p.advance()               // consume WITH
+	checkOption := "CASCADED" // default
+	if p.cur.Type == kwCASCADED {
+		p.advance()
+	} else if p.cur.Type == kwLOCAL {
+		checkOption = "LOCAL"
+		p.advance()
+	}
+	for _, kw := range []int{kwCHECK, kwOPTION} {
+		if _, err := p.expect(kw); err != nil {
+			return "", err
+		}
+	}
+	return checkOption, nil
+}
+
+// parseViewSQLSecurity parses SQL SECURITY {DEFINER | INVOKER}, p.cur at SQL, and returns
+// the word after SECURITY. Every word is required and the last is one of the two.
+//
+// Ref: view_suid in MariaDB 11.8 sql/sql_yacc.yy.
+func (p *Parser) parseViewSQLSecurity() (string, error) {
+	p.advance() // consume SQL
+	if _, err := p.expect(kwSECURITY); err != nil {
+		return "", err
+	}
+	if p.cur.Type != kwDEFINER && p.cur.Type != kwINVOKER {
+		return "", p.syntaxErrorAtCur()
+	}
+	name, _, err := p.parseKeywordOrIdent()
+	return name, err
 }

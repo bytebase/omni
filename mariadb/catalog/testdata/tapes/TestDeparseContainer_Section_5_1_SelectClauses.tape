@@ -115,6 +115,116 @@
 : bytes
 | utf8mb4_uca1400_ai_ci
 > exec
+| DROP VIEW IF EXISTS v_fetch_only
+< ok 0 0
+> exec
+| CREATE VIEW v_fetch_only AS SELECT a FROM t ORDER BY a OFFSET 1 ROWS FETCH NEXT 3 ROWS ONLY
+< ok 0 0
+> query
+| SHOW CREATE VIEW v_fetch_only
+< result
+< column "View" "VARCHAR"
+< column "Create View" "VARCHAR"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< row
+: bytes
+| v_fetch_only
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_fetch_only` AS select `t`.`a` AS `a` from `t` order by `t`.`a` limit 1,3
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_uca1400_ai_ci
+> exec
+| DROP VIEW IF EXISTS v_fetch_row
+< ok 0 0
+> exec
+| CREATE VIEW v_fetch_row AS SELECT a FROM t FETCH FIRST ROW ONLY
+< ok 0 0
+> query
+| SHOW CREATE VIEW v_fetch_row
+< result
+< column "View" "VARCHAR"
+< column "Create View" "VARCHAR"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< row
+: bytes
+| v_fetch_row
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_fetch_row` AS select `t`.`a` AS `a` from `t` limit 1
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_uca1400_ai_ci
+> exec
+| DROP VIEW IF EXISTS v_fetch_ties
+< ok 0 0
+> exec
+| CREATE VIEW v_fetch_ties AS SELECT a FROM t ORDER BY a OFFSET 1 ROW FETCH FIRST 2 ROWS WITH TIES
+< ok 0 0
+> query
+| SHOW CREATE VIEW v_fetch_ties
+< result
+< column "View" "VARCHAR"
+< column "Create View" "VARCHAR"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< row
+: bytes
+| v_fetch_ties
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_fetch_ties` AS select `t`.`a` AS `a` from `t` order by `t`.`a` offset 1 rows  fetch first 2 rows with ties
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_uca1400_ai_ci
+> exec
+| DROP VIEW IF EXISTS v_offset_rows
+< ok 0 0
+> exec
+| CREATE VIEW v_offset_rows AS SELECT a FROM t OFFSET 2 ROWS
+< ok 0 0
+> query
+| SHOW CREATE VIEW v_offset_rows
+< result
+< column "View" "VARCHAR"
+< column "Create View" "VARCHAR"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< row
+: bytes
+| v_offset_rows
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_offset_rows` AS select `t`.`a` AS `a` from `t`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_uca1400_ai_ci
+> exec
+| DROP VIEW IF EXISTS v_select_unique
+< ok 0 0
+> exec
+| CREATE VIEW v_select_unique AS SELECT UNIQUE a FROM t
+< ok 0 0
+> query
+| SHOW CREATE VIEW v_select_unique
+< result
+< column "View" "VARCHAR"
+< column "Create View" "VARCHAR"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< row
+: bytes
+| v_select_unique
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_select_unique` AS select distinct `t`.`a` AS `a` from `t`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_uca1400_ai_ci
+> exec
 | DROP VIEW IF EXISTS v_expr_groupby
 < ok 0 0
 > exec

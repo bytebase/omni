@@ -309,12 +309,31 @@ func Split(sql string) []Segment {
 				atStmtStart = false
 			}
 			i = endOfWord
+			// BEGIN NOT ATOMIC: the block's first statement follows ATOMIC, whatever
+			// comments stand between the three words.
+			if isCompound {
+				j := skipSpaceAndComments(sql, i)
+				if matchWord(sql, j, "NOT") {
+					k := skipSpaceAndComments(sql, skipToEndOfWord(sql, j))
+					if matchWord(sql, k, "ATOMIC") {
+						i = skipToEndOfWord(sql, k)
+					}
+				}
+			}
 
 		// FOR — SET STATEMENT ... FOR takes a whole statement, so what follows it is at
 		// stmt-start: `SET STATEMENT a = 1 FOR IF b THEN c; END IF`. Elsewhere the next word
-		// is no IF: FOR EACH ROW, FOR UPDATE, FOR i IN.
-		case (b == 'f' || b == 'F') && matchWord(sql, i, "FOR"):
-			atStmtStart = true
+		// is no IF: FOR EACH ROW, FOR UPDATE. FOR name IN opens MariaDB's FOR loop, which
+		// END FOR closes, wherever it stands: a routine's body after its RETURNS or its
+		// characteristics is no position atStmtStart knows. No other FOR is followed by a
+		// name and IN.
+		case (b == 'f' || b == 'F') && matchWord(sql, i, "FOR") && !inLexerIdent(sql, i, i+3):
+			if prevWord(sql, i) != "END" && forLoopFollows(sql, skipToEndOfWord(sql, i)) {
+				depth++
+				atStmtStart = false
+			} else {
+				atStmtStart = true
+			}
 			i = skipToEndOfWord(sql, i)
 
 		// PROCEDURE after CREATE — enter the routine header so the body position
@@ -484,6 +503,52 @@ func Split(sql string) []Segment {
 		return nil
 	}
 	return segments
+}
+
+// skipSpaceAndComments skips whitespace and comments from i. An executable comment is
+// text the server reads, so it stops there.
+func skipSpaceAndComments(sql string, i int) int {
+	for i < len(sql) {
+		switch {
+		case sql[i] == ' ' || sql[i] == '\t' || sql[i] == '\n' || sql[i] == '\r':
+			i++
+		case isDashComment(sql, i):
+			i = skipDashComment(sql, i)
+		case sql[i] == '#':
+			i = skipHashComment(sql, i)
+		case sql[i] == '/' && i+1 < len(sql) && sql[i+1] == '*' && !isExecutableCommentStart(sql, i):
+			i = skipBlockCommentMySQL(sql, i)
+		default:
+			return i
+		}
+	}
+	return i
+}
+
+// inLexerIdent reports whether sql[start:end] is part of a longer name in the lexer's
+// alphabet, which takes $ and multi-byte UTF-8 where matchWord's boundary does not: the for
+// of for$r or forë is no FOR.
+func inLexerIdent(sql string, start, end int) bool {
+	return (start > 0 && isIdentChar(sql[start-1])) || (end < len(sql) && isIdentChar(sql[end]))
+}
+
+// forLoopFollows reports whether a FOR loop's record and IN follow i, the end of a FOR: a
+// name, bare or quoted, then IN, with comments allowed between.
+func forLoopFollows(sql string, i int) bool {
+	j := skipSpaceAndComments(sql, i)
+	switch {
+	case j < len(sql) && sql[j] == '`':
+		j = skipBacktick(sql, j)
+	case j < len(sql) && isIdentChar(sql[j]):
+		// The lexer's alphabet: $ and multi-byte UTF-8 too.
+		for j < len(sql) && isIdentChar(sql[j]) {
+			j++
+		}
+	default:
+		return false
+	}
+	k := skipSpaceAndComments(sql, j)
+	return matchWord(sql, k, "IN") && !inLexerIdent(sql, k, k+2)
 }
 
 // skipSingleQuoteMySQL skips a single-quoted string starting at position i.
