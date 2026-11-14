@@ -61,9 +61,9 @@ func generateForeignKeyDDL(_, _ *Catalog, diff *SchemaDiff, n *Normalizer) []Mig
 		entry := &diff.Tables[i]
 		switch entry.Action {
 		case DiffAdd:
-			ops = append(ops, addForeignKeyOpsForNewTable(entry)...)
+			ops = append(ops, addForeignKeyOpsForNewTable(entry, n)...)
 		case DiffModify:
-			ops = append(ops, foreignKeyOpsForModifiedTable(entry, seenBackingDrop)...)
+			ops = append(ops, foreignKeyOpsForModifiedTable(entry, seenBackingDrop, n)...)
 		case DiffDrop:
 			// The table itself is being dropped, but its FKs must be RELEASED first: a FK on this
 			// table that references ANOTHER table being dropped in the same plan would otherwise
@@ -129,14 +129,14 @@ const priorityForeignKeyBackingIndexDrop = priorityIndexDrop - 1
 // created table. formatCreateTable (migration_table.go) renders only columns and the inline
 // PRIMARY KEY — it does NOT inline FK constraints — so every FK on a new table is added here in
 // PhasePost, after the table (and any referenced tables) exist.
-func addForeignKeyOpsForNewTable(entry *TableDiffEntry) []MigrationOp {
+func addForeignKeyOpsForNewTable(entry *TableDiffEntry, n *Normalizer) []MigrationOp {
 	if entry.To == nil {
 		return nil
 	}
 	table := tableIdent(entry.To)
 	var ops []MigrationOp
 	for _, con := range orderedForeignKeys(entry.To) {
-		ops = append(ops, addForeignKeyOp(entry, table, con))
+		ops = append(ops, addForeignKeyOps(entry, table, con, n)...)
 	}
 	return ops
 }
@@ -146,7 +146,7 @@ func addForeignKeyOpsForNewTable(entry *TableDiffEntry) []MigrationOp {
 // DROP runs in PhasePre (priorityForeignKeyConstraintDrop) and the ADD in PhasePost
 // (priorityForeignKey), so the old constraint is fully released before the new one is created —
 // the name is free and any backing index the new FK needs is settled by then.
-func foreignKeyOpsForModifiedTable(entry *TableDiffEntry, seenBackingDrop map[string]bool) []MigrationOp {
+func foreignKeyOpsForModifiedTable(entry *TableDiffEntry, seenBackingDrop map[string]bool, n *Normalizer) []MigrationOp {
 	if len(entry.ForeignKeys) == 0 {
 		return nil
 	}
@@ -157,7 +157,7 @@ func foreignKeyOpsForModifiedTable(entry *TableDiffEntry, seenBackingDrop map[st
 			if fe.To == nil || entry.To == nil {
 				continue
 			}
-			ops = append(ops, addForeignKeyOp(entry, tableIdent(entry.To), fe.To))
+			ops = append(ops, addForeignKeyOps(entry, tableIdent(entry.To), fe.To, n)...)
 		case DiffDrop:
 			if fe.From == nil {
 				continue
@@ -171,10 +171,74 @@ func foreignKeyOpsForModifiedTable(entry *TableDiffEntry, seenBackingDrop map[st
 			// needed), then ADD the new one. The DROP is in PhasePre, the ADD in PhasePost, so the
 			// drop always precedes the add.
 			ops = append(ops, dropForeignKeyOps(entry, fe.From, seenBackingDrop)...)
-			ops = append(ops, addForeignKeyOp(entry, tableIdent(entry.To), fe.To))
+			ops = append(ops, addForeignKeyOps(entry, tableIdent(entry.To), fe.To, n)...)
 		}
 	}
 	return ops
+}
+
+// addForeignKeyOps returns the FK's ADD, preceded by the ADD of its backing index when MySQL would
+// otherwise name that index differently from `to` (fkBackingIndexOp).
+func addForeignKeyOps(entry *TableDiffEntry, table string, con *Constraint, n *Normalizer) []MigrationOp {
+	if op, ok := fkBackingIndexOp(entry, table, con, n); ok {
+		return []MigrationOp{op, addForeignKeyOp(entry, table, con)}
+	}
+	return []MigrationOp{addForeignKeyOp(entry, table, con)}
+}
+
+// fkBackingIndexOp returns an ADD for the FK-implicit index backing con in `to` when the FK's own
+// ADD would not reproduce it. ADD CONSTRAINT `c` FOREIGN KEY names the index it creates `c`, so a
+// backing index named after the first FK column (an unnamed FK, or an explicit KEY of that name)
+// must exist before the FK runs, which then reuses it. No ADD is needed when the index node owns
+// the name (a user index on the `from` side), when a `from` index of that name survives (a
+// surviving FK still needs it, so leftoverBackingIndexToDrop keeps it), or when CREATE TABLE
+// already inlines it (autoIncSupportingIndex).
+//
+// The op is typed OpAddForeignKey, as the leftover DROP INDEX is, because the index belongs to the
+// FK's lifecycle. Its grouping metadata lets the AUTO_INCREMENT pass use it as a covering key.
+func fkBackingIndexOp(entry *TableDiffEntry, table string, con *Constraint, n *Normalizer) (MigrationOp, bool) {
+	idx := fkImplicitBackingIndexes(entry.To)[con]
+	if idx == nil || strings.EqualFold(idx.Name, con.Name) {
+		return MigrationOp{}, false
+	}
+	if entry.Action == DiffAdd {
+		if idx == autoIncSupportingIndex(entry.To) {
+			return MigrationOp{}, false
+		}
+	} else {
+		if userIndexNameSet(entry.From)[toLower(idx.Name)] {
+			return MigrationOp{}, false
+		}
+		if fromIdx := tableIndexByName(entry.From, idx.Name); fromIdx != nil && fkBackingIndexStillNeeded(entry.To, fromIdx) {
+			return MigrationOp{}, false
+		}
+	}
+	clause := "ADD " + formatIndexDefinition(idx, n)
+	return MigrationOp{
+		Type:         OpAddForeignKey,
+		Database:     entry.Database,
+		ObjectName:   entry.Name,
+		ParentObject: entry.Name,
+		SQL:          fmt.Sprintf("ALTER TABLE %s %s", table, clause),
+		Phase:        PhaseMain,
+		Priority:     priorityIndex,
+		sortName:     indexSortName(entry.Database, entry.Name, idx.Name),
+		alterClause:  clause,
+		addsIndex:    idx,
+	}, true
+}
+
+// tableIndexByName returns t's index of the given name (case-insensitive), or nil.
+func tableIndexByName(t *Table, name string) *Index {
+	if t == nil {
+		return nil
+	}
+	for _, idx := range t.Indexes {
+		if idx != nil && strings.EqualFold(idx.Name, name) {
+			return idx
+		}
+	}
+	return nil
 }
 
 // addForeignKeyOp builds an ALTER TABLE ... ADD CONSTRAINT `name` FOREIGN KEY (...) REFERENCES
@@ -372,12 +436,11 @@ func orderedForeignKeys(t *Table) []*Constraint {
 //	    [ON DELETE <action>] [ON UPDATE <action>]
 //
 // It mirrors show.go's showConstraint (the stored FK line) so the readback of the ADD
-// canonicalizes equal to `to`. The ON DELETE / ON UPDATE clauses are emitted ONLY for a
-// non-default action (CASCADE / SET NULL / SET DEFAULT): RESTRICT and NO ACTION (and an absent
-// clause) are the engine's default and are omitted, so the emitted DDL round-trips to the same
-// stored form the canonical key folds to (see diff_foreign_key.go canonicalFKAction). Emitting an
-// explicit RESTRICT/NO ACTION would also round-trip on equality, but omitting matches show.go and
-// keeps the surface minimal.
+// reproduces `to`. An action is omitted only when absent or NO ACTION, which MySQL 8.0 stores as
+// its default and hides; an explicit RESTRICT is emitted because 8.0 stores and echoes it
+// (information_schema DELETE_RULE 'RESTRICT', not 'NO ACTION'). The diff still folds RESTRICT,
+// NO ACTION, and an absent clause together (canonicalFKAction), so this affects only what an
+// emitted ADD stores.
 func formatForeignKeyDefinition(con *Constraint) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "CONSTRAINT %s FOREIGN KEY (", migrationQuoteIdent(con.Name))
@@ -392,28 +455,13 @@ func formatForeignKeyDefinition(con *Constraint) string {
 	b.WriteString(quoteIdentList(con.RefColumns))
 	b.WriteString(")")
 
-	if con.OnDelete != "" && !isFKDefaultAction(con.OnDelete) {
+	if con.OnDelete != "" && !isFKDefault(con.OnDelete) {
 		fmt.Fprintf(&b, " ON DELETE %s", strings.ToUpper(con.OnDelete))
 	}
-	if con.OnUpdate != "" && !isFKDefaultAction(con.OnUpdate) {
+	if con.OnUpdate != "" && !isFKDefault(con.OnUpdate) {
 		fmt.Fprintf(&b, " ON UPDATE %s", strings.ToUpper(con.OnUpdate))
 	}
 	return b.String()
-}
-
-// isFKDefaultAction reports whether a referential action is a MySQL default that is omitted from
-// the rendered FK clause. RESTRICT, NO ACTION, and an absent clause are all the "default" (no
-// referential action) and are omitted — matching the canonical-equality collapse in
-// canonicalFKAction, so the emitted DDL reads back to a form that diffs empty against `to` on both
-// versions (8.0 omits NO ACTION but would echo RESTRICT; 5.7 omits RESTRICT but would echo NO
-// ACTION — omitting BOTH from what we emit sidesteps the per-version echo entirely).
-func isFKDefaultAction(action string) bool {
-	switch strings.ToUpper(strings.TrimSpace(action)) {
-	case "", "RESTRICT", "NO ACTION":
-		return true
-	default:
-		return false
-	}
 }
 
 // quoteIdentList backtick-quotes each identifier and joins with ", " (the spacing show.go's FK
