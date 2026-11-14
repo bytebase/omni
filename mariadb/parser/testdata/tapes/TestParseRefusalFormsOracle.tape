@@ -15710,3 +15710,31 @@
 | CREATE DEFINER u PROCEDURE p() SELECT 1
 < error
 | 1064 42000 …near 'u PROCEDURE p() SELECT 1' at line 1
+> exec ^
+: string
+| CREATE SQL SECURITY u VIEW v AS SELECT 1
+< error
+| 1064 42000 …near 'u VIEW v AS SELECT 1' at line 1
+> exec ^
+: string
+| CREATE ALGORITHM = MERGE SQL SECURITY u VIEW v AS SELECT 1
+< error
+| 1064 42000 …near 'u VIEW v AS SELECT 1' at line 1
+> exec ^
+: string
+| ALTER SQL SECURITY u VIEW v AS SELECT 1
+< error
+| 1064 42000 …near 'u VIEW v AS SELECT 1' at line 1
+> exec ^
+: string
+| CREATE SQL INVOKER VIEW v AS SELECT 1
+< error
+| 1064 42000 …near 'INVOKER VIEW v AS SELECT 1' at line 1
+> exec ^
+: string
+| CREATE SQL SECURITY INVOKER VIEW v AS SELECT 1
+< ok 0 0
+> exec ^
+: string
+| ALTER SQL SECURITY DEFINER VIEW v AS SELECT 1
+< ok 0 0

@@ -504,14 +504,9 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		// Optional SQL SECURITY {DEFINER|INVOKER} (view_suid)
 		var sqlSecurity string
 		if p.cur.Type == kwSQL {
-			p.advance()
-			if _, err := p.expect(kwSECURITY); err != nil {
+			if sqlSecurity, err = p.parseViewSQLSecurity(); err != nil {
 				return nil, err
 			}
-			if p.cur.Type != kwDEFINER && p.cur.Type != kwINVOKER {
-				return nil, p.syntaxErrorAtCur()
-			}
-			sqlSecurity, _, _ = p.parseIdentifier()
 		}
 		// Now dispatch on the object keyword
 		switch p.cur.Type {
@@ -673,14 +668,9 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 		// Optional SQL SECURITY {DEFINER|INVOKER} (view_suid)
 		var sqlSecurity string
 		if p.cur.Type == kwSQL {
-			p.advance()
-			if _, err := p.expect(kwSECURITY); err != nil {
+			if sqlSecurity, err = p.parseViewSQLSecurity(); err != nil {
 				return nil, err
 			}
-			if p.cur.Type != kwDEFINER && p.cur.Type != kwINVOKER {
-				return nil, p.syntaxErrorAtCur()
-			}
-			sqlSecurity, _, _ = p.parseIdentifier()
 		}
 		switch p.cur.Type {
 		case kwVIEW:
