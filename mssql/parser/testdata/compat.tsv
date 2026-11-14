@@ -225,15 +225,15 @@ accept	accept	engine	statement/whileStatement!insert	WHILE 1 = 1 SELECT 1 zzz
 reject	reject	engine	statement/whileStatement!swap	WINDOW 1 = 1 SELECT 1
 accept	accept	engine	statement/labelStatement	a:
 reject	reject	engine	statement/labelStatement!insert	a: zzz
-reject	accept	engine	statement/backupStatements	BACKUP DATABASE @a
+accept	accept	engine	statement/backupStatements	BACKUP DATABASE @a
 reject	reject	engine	statement/backupStatements!drop-1	DATABASE @a
 reject	reject	engine	statement/backupStatements!drop-2	BACKUP @a
-accept	reject	engine	statement/backupStatements!drop-3	BACKUP DATABASE
+reject	reject	engine	statement/backupStatements!drop-3	BACKUP DATABASE
 reject	reject	engine	statement/backupStatements!insert	BACKUP DATABASE @a zzz
 reject	reject	engine	statement/backupStatements!swap	BASE64 DATABASE @a
-reject	accept	engine	statement/restoreStatements	RESTORE DATABASE @a
+accept	accept	engine	statement/restoreStatements	RESTORE DATABASE @a
 reject	reject	engine	statement/restoreStatements!drop-2	RESTORE @a
-accept	reject	engine	statement/restoreStatements!drop-3	RESTORE DATABASE
+reject	reject	engine	statement/restoreStatements!drop-3	RESTORE DATABASE
 reject	reject	engine	statement/restoreStatements!insert	RESTORE DATABASE @a zzz
 reject	reject	engine	statement/restoreStatements!swap	RESTRICT DATABASE @a
 accept	reject	engine	statement/gotoStatement	GOTO a
@@ -2727,9 +2727,9 @@ accept	reject	engine	dekEncryptorType((CERTIFICATE)|(ASYMMETRIC_Key))/ASYMMETRIC
 accept	reject	engine	dekEncryptorType((CERTIFICATE)|(ASYMMETRIC_Key))/ASYMMETRIC_Key!truncate	ALTER DATABASE ENCRYPTION KEY ENCRYPTION BY SERVER ASYMMETRIC
 accept	reject	engine	dekEncryptorType((CERTIFICATE)|(ASYMMETRIC_Key))/ASYMMETRIC_Key!insert	ALTER DATABASE ENCRYPTION KEY ENCRYPTION BY SERVER ASYMMETRIC KEY zzz a
 accept	reject	engine	dekEncryptorType((CERTIFICATE)|(ASYMMETRIC_Key))/ASYMMETRIC_Key!swap	ALTER DATABASE ENCRYPTION KEY ENCRYPTION BY SERVER ASYNCHRONOUS_COMMIT KEY a
-reject	accept	engine	backupStatements/Backup_(backupCertificateStatement_CERTIFICA~a26b43de)	BACKUP DATABASE @a
+accept	accept	engine	backupStatements/Backup_(backupCertificateStatement_CERTIFICA~a26b43de)	BACKUP DATABASE @a
 accept	accept	engine	backupStatements(backupCertificateStatement_CERTIFICA~a26b43de)/backupCertificateStatement_CERTIFICATE	BACKUP CERTIFICATE a TO FILE = 'a'
-accept	reject	engine	backupStatements(backupCertificateStatement_CERTIFICA~a26b43de)/backupCertificateStatement_CERTIFICATE!drop-1	BACKUP a TO FILE = 'a'
+reject	reject	engine	backupStatements(backupCertificateStatement_CERTIFICA~a26b43de)/backupCertificateStatement_CERTIFICATE!drop-1	BACKUP a TO FILE = 'a'
 accept	reject	engine	backupStatements(backupCertificateStatement_CERTIFICA~a26b43de)/backupCertificateStatement_CERTIFICATE!drop-2	BACKUP CERTIFICATE TO FILE = 'a'
 accept	reject	engine	backupStatements(backupCertificateStatement_CERTIFICA~a26b43de)/backupCertificateStatement_CERTIFICATE!drop-3	BACKUP CERTIFICATE a FILE = 'a'
 accept	reject	engine	backupStatements(backupCertificateStatement_CERTIFICA~a26b43de)/backupCertificateStatement_CERTIFICATE!drop-4	BACKUP CERTIFICATE a TO = 'a'
@@ -2765,22 +2765,22 @@ accept	reject	engine	backupStatements(backupCertificateStatement_CERTIFICA~a26b4
 accept	reject	engine	backupStatements(backupCertificateStatement_CERTIFICA~a26b43de)/backupMasterKeyStatement!drop-11	BACKUP MASTER KEY TO FILE = 'a' ENCRYPTION BY PASSWORD =
 accept	reject	engine	backupStatements(backupCertificateStatement_CERTIFICA~a26b43de)/backupMasterKeyStatement!insert	BACKUP MASTER KEY TO FILE = 'a' ENCRYPTION BY PASSWORD = 'a' zzz
 reject	reject	engine	backupStatements(backupCertificateStatement_CERTIFICA~a26b43de)/backupMasterKeyStatement!swap	BACKUP MATCH KEY TO FILE = 'a' ENCRYPTION BY PASSWORD = 'a'
-reject	accept	engine	backupStatements(backupCertificateStatement_CERTIFICA~a26b43de)/backupStatement	BACKUP DATABASE @a
+accept	accept	engine	backupStatements(backupCertificateStatement_CERTIFICA~a26b43de)/backupStatement	BACKUP DATABASE @a
 reject	reject	engine	backupStatements(backupCertificateStatement_CERTIFICA~a26b43de)/backupStatement!swap	BACKUP DATA_COMPRESSION @a
-reject	accept	engine	backupStatement/backupMain_(backupDevices)?_(backupOptions)?	BACKUP DATABASE @a
-reject	accept	engine	backupStatement(backupDevices)?/%empty	BACKUP DATABASE @a
-reject	accept	engine	backupStatement(backupDevices)?/backupDevices	BACKUP DATABASE @a TO @a
+accept	accept	engine	backupStatement/backupMain_(backupDevices)?_(backupOptions)?	BACKUP DATABASE @a
+accept	accept	engine	backupStatement(backupDevices)?/%empty	BACKUP DATABASE @a
+accept	accept	engine	backupStatement(backupDevices)?/backupDevices	BACKUP DATABASE @a TO @a
 reject	reject	engine	backupStatement(backupDevices)?/backupDevices!drop-1	BACKUP DATABASE @a @a
 reject	reject	engine	backupStatement(backupDevices)?/backupDevices!drop-2	BACKUP DATABASE @a TO
 reject	reject	engine	backupStatement(backupDevices)?/backupDevices!insert	BACKUP DATABASE @a TO @a zzz
 reject	reject	engine	backupStatement(backupDevices)?/backupDevices!swap	BACKUP DATABASE @a TOP @a
-reject	accept	engine	backupStatement(backupOptions)?/%empty	BACKUP DATABASE @a
+accept	accept	engine	backupStatement(backupOptions)?/%empty	BACKUP DATABASE @a
 reject	reject	engine	backupStatement(backupOptions)?/backupOptions	BACKUP DATABASE @a WITH a
 reject	reject	engine	backupStatement(backupOptions)?/backupOptions!drop-1	BACKUP DATABASE @a a
 reject	reject	engine	backupStatement(backupOptions)?/backupOptions!drop-2	BACKUP DATABASE @a WITH
 reject	reject	engine	backupStatement(backupOptions)?/backupOptions!insert	BACKUP DATABASE @a WITH a zzz
 reject	reject	engine	backupStatement(backupOptions)?/backupOptions!swap	BACKUP DATABASE @a WITHIN a
-reject	accept	engine	restoreStatements/Restore_(restoreServiceMasterKeyStatement_SER~2746682f)	RESTORE DATABASE @a
+accept	accept	engine	restoreStatements/Restore_(restoreServiceMasterKeyStatement_SER~2746682f)	RESTORE DATABASE @a
 accept	accept	engine	restoreStatements(restoreServiceMasterKeyStatement_SER~2746682f)/restoreServiceMasterKeyStatement_SERVICE	RESTORE SERVICE MASTER KEY FROM FILE = 'a' DECRYPTION BY PASSWORD = 'a'
 accept	reject	engine	restoreStatements(restoreServiceMasterKeyStatement_SER~2746682f)/restoreServiceMasterKeyStatement_SERVICE!drop-1	RESTORE MASTER KEY FROM FILE = 'a' DECRYPTION BY PASSWORD = 'a'
 accept	reject	engine	restoreStatements(restoreServiceMasterKeyStatement_SER~2746682f)/restoreServiceMasterKeyStatement_SERVICE!drop-2	RESTORE SERVICE KEY FROM FILE = 'a' DECRYPTION BY PASSWORD = 'a'
@@ -2815,91 +2815,91 @@ accept	reject	engine	restoreStatements(restoreServiceMasterKeyStatement_SER~2746
 accept	reject	engine	restoreStatements(restoreServiceMasterKeyStatement_SER~2746682f)/restoreMasterKeyStatement!drop-16	RESTORE MASTER KEY FROM FILE = 'a' DECRYPTION BY PASSWORD = 'a' ENCRYPTION BY PASSWORD =
 accept	reject	engine	restoreStatements(restoreServiceMasterKeyStatement_SER~2746682f)/restoreMasterKeyStatement!insert	RESTORE MASTER KEY FROM FILE = 'a' DECRYPTION BY PASSWORD = 'a' ENCRYPTION BY PASSWORD = 'a' zzz
 reject	reject	engine	restoreStatements(restoreServiceMasterKeyStatement_SER~2746682f)/restoreMasterKeyStatement!swap	RESTORE MATCH KEY FROM FILE = 'a' DECRYPTION BY PASSWORD = 'a' ENCRYPTION BY PASSWORD = 'a'
-reject	accept	engine	restoreStatements(restoreServiceMasterKeyStatement_SER~2746682f)/restoreStatement	RESTORE DATABASE @a
+accept	accept	engine	restoreStatements(restoreServiceMasterKeyStatement_SER~2746682f)/restoreStatement	RESTORE DATABASE @a
 reject	reject	engine	restoreStatements(restoreServiceMasterKeyStatement_SER~2746682f)/restoreStatement!swap	RESTORE DATA_COMPRESSION @a
-reject	accept	engine	restoreStatement/((restoreMain_(From_devList)?)|(Ident~5f510a02)_(restor~7369a09a	RESTORE DATABASE @a
-reject	accept	engine	restoreStatement((restoreMain_(From_devList)?)|(Ident~5f510a02)/restoreMain_(From_devList)?	RESTORE DATABASE @a
+accept	accept	engine	restoreStatement/((restoreMain_(From_devList)?)|(Ident~5f510a02)_(restor~7369a09a	RESTORE DATABASE @a
+accept	accept	engine	restoreStatement((restoreMain_(From_devList)?)|(Ident~5f510a02)/restoreMain_(From_devList)?	RESTORE DATABASE @a
 reject	reject	engine	restoreStatement((restoreMain_(From_devList)?)|(Ident~5f510a02)/Identifier_From_devList	RESTORE a FROM @a
 reject	reject	engine	restoreStatement((restoreMain_(From_devList)?)|(Ident~5f510a02)/Identifier_From_devList!drop-1	RESTORE FROM @a
 reject	reject	engine	restoreStatement((restoreMain_(From_devList)?)|(Ident~5f510a02)/Identifier_From_devList!drop-2	RESTORE a @a
-accept	reject	engine	restoreStatement((restoreMain_(From_devList)?)|(Ident~5f510a02)/Identifier_From_devList!drop-3	RESTORE a FROM
+reject	reject	engine	restoreStatement((restoreMain_(From_devList)?)|(Ident~5f510a02)/Identifier_From_devList!drop-3	RESTORE a FROM
 reject	reject	engine	restoreStatement((restoreMain_(From_devList)?)|(Ident~5f510a02)/Identifier_From_devList!insert	RESTORE a FROM @a zzz
 reject	reject	engine	restoreStatement((restoreMain_(From_devList)?)|(Ident~5f510a02)/Identifier_From_devList!swap	RESTORE a FULL @a
-reject	accept	engine	restoreStatement(From_devList)?/%empty	RESTORE DATABASE @a
-reject	accept	engine	restoreStatement(From_devList)?/From_devList	RESTORE DATABASE @a FROM @a
+accept	accept	engine	restoreStatement(From_devList)?/%empty	RESTORE DATABASE @a
+accept	accept	engine	restoreStatement(From_devList)?/From_devList	RESTORE DATABASE @a FROM @a
 reject	reject	engine	restoreStatement(From_devList)?/From_devList!drop-1	RESTORE DATABASE @a @a
 reject	reject	engine	restoreStatement(From_devList)?/From_devList!drop-2	RESTORE DATABASE @a FROM
 reject	reject	engine	restoreStatement(From_devList)?/From_devList!insert	RESTORE DATABASE @a FROM @a zzz
 reject	reject	engine	restoreStatement(From_devList)?/From_devList!swap	RESTORE DATABASE @a FULL @a
-reject	accept	engine	restoreStatement(restoreOptions)?/%empty	RESTORE DATABASE @a
+accept	accept	engine	restoreStatement(restoreOptions)?/%empty	RESTORE DATABASE @a
 reject	reject	engine	restoreStatement(restoreOptions)?/restoreOptions	RESTORE DATABASE @a WITH a
 reject	reject	engine	restoreStatement(restoreOptions)?/restoreOptions!drop-1	RESTORE DATABASE @a a
 reject	reject	engine	restoreStatement(restoreOptions)?/restoreOptions!drop-2	RESTORE DATABASE @a WITH
 reject	reject	engine	restoreStatement(restoreOptions)?/restoreOptions!insert	RESTORE DATABASE @a WITH a zzz
 reject	reject	engine	restoreStatement(restoreOptions)?/restoreOptions!swap	RESTORE DATABASE @a WITHIN a
-reject	accept	engine	backupMain/backupDatabase	BACKUP DATABASE @a
-reject	accept	engine	backupMain/backupTransactionLog	BACKUP LOG @a
-accept	reject	engine	backupMain/backupTransactionLog!drop-2	BACKUP LOG
+accept	accept	engine	backupMain/backupDatabase	BACKUP DATABASE @a
+accept	accept	engine	backupMain/backupTransactionLog	BACKUP LOG @a
+reject	reject	engine	backupMain/backupTransactionLog!drop-2	BACKUP LOG
 reject	reject	engine	backupMain/backupTransactionLog!insert	BACKUP LOG @a zzz
 reject	reject	engine	backupMain/backupTransactionLog!swap	BACKUP LOGIN @a
-reject	accept	engine	backupDatabase/Database_identifierOrVariable_backupFileListOpt	BACKUP DATABASE @a
-reject	accept	engine	backupTransactionLog/LOG_identifierOrVariable	BACKUP LOG @a
-reject	accept	engine	backupFileListOpt/(backupRestoreFile_(Comma_backupRestoreFile)*)?	BACKUP DATABASE @a
-reject	accept	engine	backupFileListOpt(backupRestoreFile_(Comma_backupRestoreFile)*)?/%empty	BACKUP DATABASE @a
-reject	accept	engine	backupFileListOpt(backupRestoreFile_(Comma_backupRestoreFile)*)?/backupRestoreFile_(Comma_backupRestoreFile)*	BACKUP DATABASE @a READ_WRITE_FILEGROUPS
+accept	accept	engine	backupDatabase/Database_identifierOrVariable_backupFileListOpt	BACKUP DATABASE @a
+accept	accept	engine	backupTransactionLog/LOG_identifierOrVariable	BACKUP LOG @a
+accept	accept	engine	backupFileListOpt/(backupRestoreFile_(Comma_backupRestoreFile)*)?	BACKUP DATABASE @a
+accept	accept	engine	backupFileListOpt(backupRestoreFile_(Comma_backupRestoreFile)*)?/%empty	BACKUP DATABASE @a
+accept	accept	engine	backupFileListOpt(backupRestoreFile_(Comma_backupRestoreFile)*)?/backupRestoreFile_(Comma_backupRestoreFile)*	BACKUP DATABASE @a READ_WRITE_FILEGROUPS
 reject	reject	engine	backupFileListOpt(backupRestoreFile_(Comma_backupRestoreFile)*)?/backupRestoreFile_(Comma_backupRestoreFile)*!insert	BACKUP DATABASE @a READ_WRITE_FILEGROUPS zzz
 reject	reject	engine	backupFileListOpt(backupRestoreFile_(Comma_backupRestoreFile)*)?/backupRestoreFile_(Comma_backupRestoreFile)*!swap	BACKUP DATABASE @a REBUILD
-reject	accept	engine	backupFileListOpt(Comma_backupRestoreFile)*/%empty	BACKUP DATABASE @a READ_WRITE_FILEGROUPS
-reject	accept	engine	backupFileListOpt(Comma_backupRestoreFile)*/Comma_backupRestoreFile_(Comma_backupRestoreFile)*	BACKUP DATABASE @a READ_WRITE_FILEGROUPS, READ_WRITE_FILEGROUPS
+accept	accept	engine	backupFileListOpt(Comma_backupRestoreFile)*/%empty	BACKUP DATABASE @a READ_WRITE_FILEGROUPS
+accept	accept	engine	backupFileListOpt(Comma_backupRestoreFile)*/Comma_backupRestoreFile_(Comma_backupRestoreFile)*	BACKUP DATABASE @a READ_WRITE_FILEGROUPS, READ_WRITE_FILEGROUPS
 reject	reject	engine	backupFileListOpt(Comma_backupRestoreFile)*/Comma_backupRestoreFile_(Comma_backupRestoreFile)*!drop-1	BACKUP DATABASE @a READ_WRITE_FILEGROUPS READ_WRITE_FILEGROUPS
 reject	reject	engine	backupFileListOpt(Comma_backupRestoreFile)*/Comma_backupRestoreFile_(Comma_backupRestoreFile)*!drop-2	BACKUP DATABASE @a READ_WRITE_FILEGROUPS,
 reject	reject	engine	backupFileListOpt(Comma_backupRestoreFile)*/Comma_backupRestoreFile_(Comma_backupRestoreFile)*!insert	BACKUP DATABASE @a READ_WRITE_FILEGROUPS, READ_WRITE_FILEGROUPS zzz
 reject	reject	engine	backupFileListOpt(Comma_backupRestoreFile)*/Comma_backupRestoreFile_(Comma_backupRestoreFile)*!swap	BACKUP DATABASE @a READ_WRITE_FILEGROUPS, REBUILD
-reject	accept	engine	restoreFileListOpt/(backupRestoreFile_(Comma_backupRestoreFile)*)?	RESTORE DATABASE @a
-reject	accept	engine	restoreFileListOpt(backupRestoreFile_(Comma_backupRestoreFile)*)?/%empty	RESTORE DATABASE @a
-reject	accept	engine	restoreFileListOpt(backupRestoreFile_(Comma_backupRestoreFile)*)?/backupRestoreFile_(Comma_backupRestoreFile)*	RESTORE DATABASE @a READ_WRITE_FILEGROUPS
+accept	accept	engine	restoreFileListOpt/(backupRestoreFile_(Comma_backupRestoreFile)*)?	RESTORE DATABASE @a
+accept	accept	engine	restoreFileListOpt(backupRestoreFile_(Comma_backupRestoreFile)*)?/%empty	RESTORE DATABASE @a
+accept	accept	engine	restoreFileListOpt(backupRestoreFile_(Comma_backupRestoreFile)*)?/backupRestoreFile_(Comma_backupRestoreFile)*	RESTORE DATABASE @a READ_WRITE_FILEGROUPS
 reject	reject	engine	restoreFileListOpt(backupRestoreFile_(Comma_backupRestoreFile)*)?/backupRestoreFile_(Comma_backupRestoreFile)*!insert	RESTORE DATABASE @a READ_WRITE_FILEGROUPS zzz
 reject	reject	engine	restoreFileListOpt(backupRestoreFile_(Comma_backupRestoreFile)*)?/backupRestoreFile_(Comma_backupRestoreFile)*!swap	RESTORE DATABASE @a REBUILD
-reject	accept	engine	restoreFileListOpt(Comma_backupRestoreFile)*/%empty	RESTORE DATABASE @a READ_WRITE_FILEGROUPS
-reject	accept	engine	restoreFileListOpt(Comma_backupRestoreFile)*/Comma_backupRestoreFile_(Comma_backupRestoreFile)*	RESTORE DATABASE @a READ_WRITE_FILEGROUPS, READ_WRITE_FILEGROUPS
+accept	accept	engine	restoreFileListOpt(Comma_backupRestoreFile)*/%empty	RESTORE DATABASE @a READ_WRITE_FILEGROUPS
+accept	accept	engine	restoreFileListOpt(Comma_backupRestoreFile)*/Comma_backupRestoreFile_(Comma_backupRestoreFile)*	RESTORE DATABASE @a READ_WRITE_FILEGROUPS, READ_WRITE_FILEGROUPS
 reject	reject	engine	restoreFileListOpt(Comma_backupRestoreFile)*/Comma_backupRestoreFile_(Comma_backupRestoreFile)*!drop-1	RESTORE DATABASE @a READ_WRITE_FILEGROUPS READ_WRITE_FILEGROUPS
 reject	reject	engine	restoreFileListOpt(Comma_backupRestoreFile)*/Comma_backupRestoreFile_(Comma_backupRestoreFile)*!drop-2	RESTORE DATABASE @a READ_WRITE_FILEGROUPS,
 reject	reject	engine	restoreFileListOpt(Comma_backupRestoreFile)*/Comma_backupRestoreFile_(Comma_backupRestoreFile)*!insert	RESTORE DATABASE @a READ_WRITE_FILEGROUPS, READ_WRITE_FILEGROUPS zzz
 reject	reject	engine	restoreFileListOpt(Comma_backupRestoreFile)*/Comma_backupRestoreFile_(Comma_backupRestoreFile)*!swap	RESTORE DATABASE @a READ_WRITE_FILEGROUPS, REBUILD
-reject	accept	engine	backupRestoreFile/File_EqualsSign_(stringOrVariable|backupRestoreFileNameList)	BACKUP DATABASE @a FILE = 'a'
+accept	accept	engine	backupRestoreFile/File_EqualsSign_(stringOrVariable|backupRestoreFileNameList)	BACKUP DATABASE @a FILE = 'a'
 reject	reject	engine	backupRestoreFile/File_EqualsSign_(stringOrVariable|backupRestoreFileNameList)!drop-1	BACKUP DATABASE @a = 'a'
 reject	reject	engine	backupRestoreFile/File_EqualsSign_(stringOrVariable|backupRestoreFileNameList)!drop-2	BACKUP DATABASE @a FILE 'a'
 reject	reject	engine	backupRestoreFile/File_EqualsSign_(stringOrVariable|backupRestoreFileNameList)!drop-3	BACKUP DATABASE @a FILE =
 reject	reject	engine	backupRestoreFile/File_EqualsSign_(stringOrVariable|backupRestoreFileNameList)!insert	BACKUP DATABASE @a FILE = 'a' zzz
-reject	accept	engine	backupRestoreFile/File_EqualsSign_(stringOrVariable|backupRestoreFileNameList)!swap	BACKUP DATABASE @a FILEGROUP = 'a'
+accept	accept	engine	backupRestoreFile/File_EqualsSign_(stringOrVariable|backupRestoreFileNameList)!swap	BACKUP DATABASE @a FILEGROUP = 'a'
 reject	reject	engine	backupRestoreFile/Identifier_EqualsSign_(stringOrVariable|backupRestoreFi~90168e7d	BACKUP DATABASE @a a = 'a'
 reject	reject	engine	backupRestoreFile/Identifier_EqualsSign_(stringOrVariable|backupRestoreFi~90168e7d!drop-2	BACKUP DATABASE @a a 'a'
 reject	reject	engine	backupRestoreFile/Identifier_EqualsSign_(stringOrVariable|backupRestoreFi~90168e7d!drop-3	BACKUP DATABASE @a a =
 reject	reject	engine	backupRestoreFile/Identifier_EqualsSign_(stringOrVariable|backupRestoreFi~90168e7d!insert	BACKUP DATABASE @a a = 'a' zzz
-reject	accept	engine	backupRestoreFile/READ_WRITE_FILEGROUPS	BACKUP DATABASE @a READ_WRITE_FILEGROUPS
-reject	accept	engine	backupRestoreFile(stringOrVariable|backupRestoreFileNameList)/stringOrVariable	BACKUP DATABASE @a FILE = 'a'
-reject	accept	engine	backupRestoreFile(stringOrVariable|backupRestoreFileNameList)/backupRestoreFileNameList	BACKUP DATABASE @a FILE =('a')
+accept	accept	engine	backupRestoreFile/READ_WRITE_FILEGROUPS	BACKUP DATABASE @a READ_WRITE_FILEGROUPS
+accept	accept	engine	backupRestoreFile(stringOrVariable|backupRestoreFileNameList)/stringOrVariable	BACKUP DATABASE @a FILE = 'a'
+accept	accept	engine	backupRestoreFile(stringOrVariable|backupRestoreFileNameList)/backupRestoreFileNameList	BACKUP DATABASE @a FILE =('a')
 reject	reject	engine	backupRestoreFile(stringOrVariable|backupRestoreFileNameList)/backupRestoreFileNameList!drop-1	BACKUP DATABASE @a FILE = 'a')
 reject	reject	engine	backupRestoreFile(stringOrVariable|backupRestoreFileNameList)/backupRestoreFileNameList!drop-2	BACKUP DATABASE @a FILE =()
 reject	reject	engine	backupRestoreFile(stringOrVariable|backupRestoreFileNameList)/backupRestoreFileNameList!drop-3	BACKUP DATABASE @a FILE =('a'
 reject	reject	engine	backupRestoreFile(stringOrVariable|backupRestoreFileNameList)/backupRestoreFileNameList!insert	BACKUP DATABASE @a FILE =('a') zzz
-reject	accept	engine	backupRestoreFileNameList/LeftParenthesis_stringOrVariable_(Comma_stringOrVariabl~4eb00288	BACKUP DATABASE @a FILE =('a')
-reject	accept	engine	backupRestoreFileNameList(Comma_stringOrVariable)*/%empty	BACKUP DATABASE @a FILE =('a')
+accept	accept	engine	backupRestoreFileNameList/LeftParenthesis_stringOrVariable_(Comma_stringOrVariabl~4eb00288	BACKUP DATABASE @a FILE =('a')
+accept	accept	engine	backupRestoreFileNameList(Comma_stringOrVariable)*/%empty	BACKUP DATABASE @a FILE =('a')
 reject	reject	engine	backupRestoreFileNameList(Comma_stringOrVariable)*/%empty!insert	BACKUP DATABASE @a FILE =('a' zzz)
-reject	accept	engine	backupRestoreFileNameList(Comma_stringOrVariable)*/Comma_stringOrVariable_(Comma_stringOrVariable)*	BACKUP DATABASE @a FILE =('a', 'a')
+accept	accept	engine	backupRestoreFileNameList(Comma_stringOrVariable)*/Comma_stringOrVariable_(Comma_stringOrVariable)*	BACKUP DATABASE @a FILE =('a', 'a')
 reject	reject	engine	backupRestoreFileNameList(Comma_stringOrVariable)*/Comma_stringOrVariable_(Comma_stringOrVariable)*!drop-1	BACKUP DATABASE @a FILE =('a' 'a')
 reject	reject	engine	backupRestoreFileNameList(Comma_stringOrVariable)*/Comma_stringOrVariable_(Comma_stringOrVariable)*!drop-2	BACKUP DATABASE @a FILE =('a',)
 reject	reject	engine	backupRestoreFileNameList(Comma_stringOrVariable)*/Comma_stringOrVariable_(Comma_stringOrVariable)*!truncate	BACKUP DATABASE @a FILE =('a',
 reject	reject	engine	backupRestoreFileNameList(Comma_stringOrVariable)*/Comma_stringOrVariable_(Comma_stringOrVariable)*!insert	BACKUP DATABASE @a FILE =('a', 'a' zzz)
-reject	accept	engine	backupDevices/To_devList_(mirrorTo)*	BACKUP DATABASE @a TO @a
-reject	accept	engine	backupDevices(mirrorTo)*/%empty	BACKUP DATABASE @a TO @a
-reject	accept	engine	backupDevices(mirrorTo)*/mirrorTo_(mirrorTo)*	BACKUP DATABASE @a TO @a MIRROR TO @a
+accept	accept	engine	backupDevices/To_devList_(mirrorTo)*	BACKUP DATABASE @a TO @a
+accept	accept	engine	backupDevices(mirrorTo)*/%empty	BACKUP DATABASE @a TO @a
+accept	accept	engine	backupDevices(mirrorTo)*/mirrorTo_(mirrorTo)*	BACKUP DATABASE @a TO @a MIRROR TO @a
 reject	reject	engine	backupDevices(mirrorTo)*/mirrorTo_(mirrorTo)*!drop-1	BACKUP DATABASE @a TO @a TO @a
 reject	reject	engine	backupDevices(mirrorTo)*/mirrorTo_(mirrorTo)*!drop-2	BACKUP DATABASE @a TO @a MIRROR @a
 reject	reject	engine	backupDevices(mirrorTo)*/mirrorTo_(mirrorTo)*!drop-3	BACKUP DATABASE @a TO @a MIRROR TO
 reject	reject	engine	backupDevices(mirrorTo)*/mirrorTo_(mirrorTo)*!insert	BACKUP DATABASE @a TO @a MIRROR TO @a zzz
 reject	reject	engine	backupDevices(mirrorTo)*/mirrorTo_(mirrorTo)*!swap	BACKUP DATABASE @a TO @a MIXED TO @a
-reject	accept	engine	mirrorTo/MIRROR_To_devList	BACKUP DATABASE @a TO @a MIRROR TO @a
+accept	accept	engine	mirrorTo/MIRROR_To_devList	BACKUP DATABASE @a TO @a MIRROR TO @a
 reject	reject	engine	devList/deviceInfo_(Comma_deviceInfo)*	RESTORE a FROM @a
 reject	reject	engine	devList(Comma_deviceInfo)*/%empty	RESTORE a FROM @a
 reject	reject	engine	devList(Comma_deviceInfo)*/Comma_deviceInfo_(Comma_deviceInfo)*	RESTORE a FROM @a, @a
@@ -2907,10 +2907,10 @@ reject	reject	engine	devList(Comma_deviceInfo)*/Comma_deviceInfo_(Comma_deviceIn
 reject	reject	engine	devList(Comma_deviceInfo)*/Comma_deviceInfo_(Comma_deviceInfo)*!drop-2	RESTORE a FROM @a,
 reject	reject	engine	devList(Comma_deviceInfo)*/Comma_deviceInfo_(Comma_deviceInfo)*!insert	RESTORE a FROM @a, @a zzz
 reject	reject	engine	deviceInfo/identifierOrVariable	RESTORE a FROM @a
-accept	reject	engine	deviceInfo/Identifier_EqualsSign_stringOrVariable	RESTORE a FROM a = 'a'
+reject	reject	engine	deviceInfo/Identifier_EqualsSign_stringOrVariable	RESTORE a FROM a = 'a'
 reject	reject	engine	deviceInfo/Identifier_EqualsSign_stringOrVariable!drop-1	RESTORE a FROM = 'a'
 reject	reject	engine	deviceInfo/Identifier_EqualsSign_stringOrVariable!drop-2	RESTORE a FROM a 'a'
-accept	reject	engine	deviceInfo/Identifier_EqualsSign_stringOrVariable!drop-3	RESTORE a FROM a =
+reject	reject	engine	deviceInfo/Identifier_EqualsSign_stringOrVariable!drop-3	RESTORE a FROM a =
 reject	reject	engine	deviceInfo/Identifier_EqualsSign_stringOrVariable!insert	RESTORE a FROM a = 'a' zzz
 reject	reject	engine	backupOptions/With_backupOption_(Comma_backupOption)*	BACKUP DATABASE @a WITH a
 reject	reject	engine	backupOptions(Comma_backupOption)*/%empty	BACKUP DATABASE @a WITH a
@@ -2945,9 +2945,9 @@ reject	reject	engine	backupEncrytor/dekEncryptorType_EqualsSign_identifier	BACKU
 reject	reject	engine	backupEncrytor/dekEncryptorType_EqualsSign_identifier!truncate	BACKUP DATABASE @a WITH ENCRYPTION(ALGORITHM = a, SERVER CERTIFICATE =
 reject	reject	engine	backupEncrytor/dekEncryptorType_EqualsSign_identifier!insert	BACKUP DATABASE @a WITH ENCRYPTION(ALGORITHM = a, SERVER CERTIFICATE = a zzz)
 reject	reject	engine	backupEncrytor/dekEncryptorType_EqualsSign_identifier!swap	BACKUP DATABASE @a WITH ENCRYPTION(ALGORITHM = a, SERVICE CERTIFICATE = a)
-reject	accept	engine	restoreMain/Database_identifierOrVariable_restoreFileListOpt	RESTORE DATABASE @a
-reject	accept	engine	restoreMain/LOG_identifierOrVariable_restoreFileListOpt	RESTORE LOG @a
-accept	reject	engine	restoreMain/LOG_identifierOrVariable_restoreFileListOpt!drop-2	RESTORE LOG
+accept	accept	engine	restoreMain/Database_identifierOrVariable_restoreFileListOpt	RESTORE DATABASE @a
+accept	accept	engine	restoreMain/LOG_identifierOrVariable_restoreFileListOpt	RESTORE LOG @a
+reject	reject	engine	restoreMain/LOG_identifierOrVariable_restoreFileListOpt!drop-2	RESTORE LOG
 reject	reject	engine	restoreMain/LOG_identifierOrVariable_restoreFileListOpt!insert	RESTORE LOG @a zzz
 reject	reject	engine	restoreMain/LOG_identifierOrVariable_restoreFileListOpt!swap	RESTORE LOGIN @a
 reject	reject	engine	restoreOptions/With_restoreOptionsList	RESTORE DATABASE @a WITH a
@@ -2969,14 +2969,14 @@ reject	reject	engine	restoreOption/Identifier_EqualsSign_((stringOrVariable_afte
 reject	reject	engine	restoreOption/Identifier_EqualsSign_((stringOrVariable_afterClause)|s~8d898c1b!drop-2	RESTORE DATABASE @a WITH a 1
 reject	reject	engine	restoreOption/Identifier_EqualsSign_((stringOrVariable_afterClause)|s~8d898c1b!drop-3	RESTORE DATABASE @a WITH a =
 reject	reject	engine	restoreOption/Identifier_EqualsSign_((stringOrVariable_afterClause)|s~8d898c1b!insert	RESTORE DATABASE @a WITH a = 1 zzz
-reject	accept	engine	restoreOption/moveRestoreOption	RESTORE DATABASE @a WITH MOVE 'a' TO 'a'
+accept	accept	engine	restoreOption/moveRestoreOption	RESTORE DATABASE @a WITH MOVE 'a' TO 'a'
 reject	reject	engine	restoreOption/moveRestoreOption!drop-1	RESTORE DATABASE @a WITH 'a' TO 'a'
 reject	reject	engine	restoreOption/moveRestoreOption!drop-2	RESTORE DATABASE @a WITH MOVE TO 'a'
 reject	reject	engine	restoreOption/moveRestoreOption!drop-3	RESTORE DATABASE @a WITH MOVE 'a' 'a'
 reject	reject	engine	restoreOption/moveRestoreOption!drop-4	RESTORE DATABASE @a WITH MOVE 'a' TO
 reject	reject	engine	restoreOption/moveRestoreOption!insert	RESTORE DATABASE @a WITH MOVE 'a' TO 'a' zzz
 reject	reject	engine	restoreOption/moveRestoreOption!swap	RESTORE DATABASE @a WITH MUST_CHANGE 'a' TO 'a'
-reject	accept	engine	restoreOption/fileRestoreOption	RESTORE DATABASE @a WITH FILE = 1
+accept	accept	engine	restoreOption/fileRestoreOption	RESTORE DATABASE @a WITH FILE = 1
 reject	reject	engine	restoreOption/fileRestoreOption!drop-2	RESTORE DATABASE @a WITH FILE 1
 reject	reject	engine	restoreOption/fileRestoreOption!drop-3	RESTORE DATABASE @a WITH FILE =
 reject	reject	engine	restoreOption/fileRestoreOption!insert	RESTORE DATABASE @a WITH FILE = 1 zzz
@@ -2991,8 +2991,8 @@ reject	reject	engine	restoreOption((stringOrVariable_afterClause)|signe~abf697ca
 reject	reject	engine	restoreOption((stringOrVariable_afterClause)|signe~abf697ca)/stringOrVariable	RESTORE DATABASE @a WITH a = 'a'
 reject	reject	engine	restoreOption((stringOrVariable_afterClause)|signe~abf697ca)/stringOrVariable!insert	RESTORE DATABASE @a WITH a = 'a' zzz
 reject	reject	engine	simpleRestoreOption/Identifier	RESTORE DATABASE @a WITH a
-reject	accept	engine	moveRestoreOption/MOVE_stringOrVariable_To_stringOrVariable	RESTORE DATABASE @a WITH MOVE 'a' TO 'a'
-reject	accept	engine	fileRestoreOption/File_EqualsSign_signedIntegerOrVariable	RESTORE DATABASE @a WITH FILE = 1
+accept	accept	engine	moveRestoreOption/MOVE_stringOrVariable_To_stringOrVariable	RESTORE DATABASE @a WITH MOVE 'a' TO 'a'
+accept	accept	engine	fileRestoreOption/File_EqualsSign_signedIntegerOrVariable	RESTORE DATABASE @a WITH FILE = 1
 reject	reject	engine	afterClause/AFTER_stringOrVariable	RESTORE DATABASE @a WITH a = 'a' AFTER 'a'
 accept	accept	engine	restoreMasterKeyBody/MASTER_Key_From_File_EqualsSign_stringLiteral_DECRYPTIO~31d7ef20	RESTORE SERVICE MASTER KEY FROM FILE = 'a' DECRYPTION BY PASSWORD = 'a'
 accept	reject	engine	restoreMasterKeyBody/MASTER_Key_From_File_EqualsSign_stringLiteral_DECRYPTIO~31d7ef20!swap	RESTORE SERVICE MATCH KEY FROM FILE = 'a' DECRYPTION BY PASSWORD = 'a'
@@ -5705,11 +5705,11 @@ reject	reject	engine	alterSchemaStatement(OBJECT|TYPE)/TYPE!insert	ALTER SCHEMA 
 reject	reject	engine	alterSchemaStatement(OBJECT|TYPE)/TYPE!swap	ALTER SCHEMA a TRANSFER UNBOUNDED :: a
 accept	accept	engine	alterSequenceOptionList/(alterSequenceOptionListElement)+	ALTER SEQUENCE a RESTART
 reject	reject	engine	alterSequenceOptionList/(alterSequenceOptionListElement)+!insert	ALTER SEQUENCE a RESTART zzz
-accept	reject	engine	alterSequenceOptionList/(alterSequenceOptionListElement)+!swap	ALTER SEQUENCE a RESTORE
+reject	reject	engine	alterSequenceOptionList/(alterSequenceOptionListElement)+!swap	ALTER SEQUENCE a RESTORE
 accept	accept	engine	alterSequenceOptionList(alterSequenceOptionListElement)+/alterSequenceOptionListElement	ALTER SEQUENCE a RESTART
 accept	reject	engine	alterSequenceOptionList(alterSequenceOptionListElement)+/alterSequenceOptionListElement_(alterSequenceOptionListElement)+	ALTER SEQUENCE a RESTART RESTART
 reject	reject	engine	alterSequenceOptionList(alterSequenceOptionListElement)+/alterSequenceOptionListElement_(alterSequenceOptionListElement)+!insert	ALTER SEQUENCE a RESTART RESTART zzz
-accept	reject	engine	alterSequenceOptionList(alterSequenceOptionListElement)+/alterSequenceOptionListElement_(alterSequenceOptionListElement)+!swap	ALTER SEQUENCE a RESTORE RESTART
+reject	reject	engine	alterSequenceOptionList(alterSequenceOptionListElement)+/alterSequenceOptionListElement_(alterSequenceOptionListElement)+!swap	ALTER SEQUENCE a RESTORE RESTART
 accept	accept	engine	alterServiceMasterKeyStatement/MASTER_Key_(FORCE_REGENERATE|REGENERATE|With_(OL~e16cab8d)	ALTER SERVICE MASTER KEY REGENERATE
 reject	reject	engine	alterServiceMasterKeyStatement/MASTER_Key_(FORCE_REGENERATE|REGENERATE|With_(OL~e16cab8d)!swap	ALTER SERVICE MATCH KEY REGENERATE
 accept	accept	engine	alterServiceMasterKeyStatement(FORCE_REGENERATE|REGENERATE|With_(OL~e16cab8d)/FORCE_REGENERATE	ALTER SERVICE MASTER KEY FORCE REGENERATE

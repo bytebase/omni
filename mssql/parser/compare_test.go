@@ -22482,7 +22482,7 @@ func TestParseBackupRestoreBnfReview(t *testing.T) {
 			},
 			{
 				name: "credential",
-				sql:  "BACKUP DATABASE mydb TO URL = 'https://storage.blob.core.windows.net/container/mydb.bak' WITH CREDENTIAL",
+				sql:  "BACKUP DATABASE mydb TO URL = 'https://storage.blob.core.windows.net/container/mydb.bak' WITH CREDENTIAL = 'mycred'",
 			},
 		}
 		for _, tt := range tests {
