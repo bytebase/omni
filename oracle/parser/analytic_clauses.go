@@ -150,13 +150,13 @@ func (p *Parser) anParseString() (string, error) {
 	return p.advance().Str, nil
 }
 
-// anText is the source text from start to end with its white space
-// collapsed, as the AST's summary fields keep it.
+// anText is the source text from start to end, as the AST's summary fields
+// keep it.
 func (p *Parser) anText(start, end int) string {
 	if start < 0 || end > len(p.source) || start > end {
 		return ""
 	}
-	return strings.Join(strings.Fields(p.source[start:end]), " ")
+	return p.source[start:end]
 }
 
 // anOption is a DDLOption for the text from start to the previous token.
