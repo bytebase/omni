@@ -217,6 +217,22 @@ func (p *Parser) startsShowClassWord() bool {
 func (p *Parser) parseShowScope(stmt *ast.ShowStmt) error {
 	p.advance() // consume IN/FOR
 
+	// SHOW BACKUPS IN BACKUP SET <name> and SHOW SNAPSHOTS IN SNAPSHOT SET
+	// <name> (https://docs.snowflake.com/en/sql-reference/sql/show-backups-in-backup-set,
+	// https://docs.snowflake.com/en/sql-reference/sql/show-snapshots-in-snapshot-set).
+	if (stmt.ObjectClass == "BACKUPS" && p.atWords("BACKUP", "SET")) ||
+		(stmt.ObjectClass == "SNAPSHOTS" && p.atWords("SNAPSHOT", "SET")) {
+		stmt.Scope = ast.ShowScopeOther
+		stmt.ScopeText = strings.ToUpper(p.advance().Str) + " SET"
+		p.advance() // consume SET
+		name, err := p.parseObjectName()
+		if err != nil {
+			return err
+		}
+		stmt.ScopeName = name
+		return nil
+	}
+
 	// IN { MODEL | DATASET | EXPERIMENT | GATEWAY } <name> (model.go).
 	if word := p.startsShowModelScope(); word != "" {
 		return p.parseShowModelScope(stmt, word)

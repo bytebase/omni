@@ -4086,7 +4086,7 @@ type AlterAccountStmt struct {
 	Tags         []*TagAssignment // SET TAG assignments; for AlterAccountSetTag
 	UnsetTags    []*ObjectName    // UNSET TAG names; for AlterAccountUnsetTag
 	UnsetProps   []string         // UNSET <property> names; for AlterAccountUnset
-	PolicyKind   string           // "{ AUTHENTICATION | SESSION | PACKAGES | PASSWORD | FEATURE } POLICY"; for Set/UnsetPolicy — uppercased
+	PolicyKind   string           // "{ AUTHENTICATION | SESSION | PACKAGES | PASSWORD | FEATURE | DATA MOVEMENT } POLICY"; for Set/UnsetPolicy — uppercased
 	PolicyName   *ObjectName      // the policy name; for AlterAccountSetPolicy
 	PolicyScope  string           // the trailing FOR ALL ... clause, verbatim uppercased; "" if absent
 	Force        bool             // trailing FORCE; for AlterAccountSetPolicy
