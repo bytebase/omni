@@ -2274,66 +2274,35 @@ func (p *Parser) parseGroupByList() (*nodes.List, error) {
 				loc := p.pos()
 				p.advance() // consume GROUPING
 				p.advance() // consume SETS
-				if _, err := p.expect('('); err == nil {
-					sets, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
-						return p.parseGroupingSet()
-					})
-					if err != nil {
-						return nil, err
-					}
-					if _, err := p.expect(')'); err != nil {
-						return nil, err
-					}
-					items = append(items, &nodes.GroupingSetsExpr{
-						Sets: &nodes.List{Items: sets},
-						Loc:  nodes.Loc{Start: loc, End: p.prevEnd()},
-					})
+				if _, err := p.expect('('); err != nil {
+					return nil, err
 				}
+				sets, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
+					return p.parseGroupingSet()
+				})
+				if err != nil {
+					return nil, err
+				}
+				if _, err := p.expect(')'); err != nil {
+					return nil, err
+				}
+				items = append(items, &nodes.GroupingSetsExpr{
+					Sets: &nodes.List{Items: sets},
+					Loc:  nodes.Loc{Start: loc, End: p.prevEnd()},
+				})
 				if _, ok := p.match(','); !ok {
 					break
 				}
 				continue
 			}
 		}
-		// ROLLUP (...)
-		if p.cur.Type == kwROLLUP {
-			loc := p.pos()
-			p.advance() // consume ROLLUP
-			if _, err := p.expect('('); err == nil {
-				args, err := p.parseExprList()
-				if err != nil {
-					return nil, err
-				}
-				if _, err := p.expect(')'); err != nil {
-					return nil, err
-				}
-				items = append(items, &nodes.RollupExpr{
-					Args: args,
-					Loc:  nodes.Loc{Start: loc, End: p.prevEnd()},
-				})
+		// ROLLUP (...) / CUBE (...)
+		if p.cur.Type == kwROLLUP || p.cur.Type == kwCUBE {
+			item, err := p.parseRollupCube()
+			if err != nil {
+				return nil, err
 			}
-			if _, ok := p.match(','); !ok {
-				break
-			}
-			continue
-		}
-		// CUBE (...)
-		if p.cur.Type == kwCUBE {
-			loc := p.pos()
-			p.advance() // consume CUBE
-			if _, err := p.expect('('); err == nil {
-				args, err := p.parseExprList()
-				if err != nil {
-					return nil, err
-				}
-				if _, err := p.expect(')'); err != nil {
-					return nil, err
-				}
-				items = append(items, &nodes.CubeExpr{
-					Args: args,
-					Loc:  nodes.Loc{Start: loc, End: p.prevEnd()},
-				})
-			}
+			items = append(items, item)
 			if _, ok := p.match(','); !ok {
 				break
 			}
@@ -2368,14 +2337,7 @@ func (p *Parser) parseGroupingSet() (*nodes.List, error) {
 	if p.cur.Type == '(' {
 		p.advance()
 		items, err := p.parseCommaList(')', commaListAllowEmpty, func() (nodes.Node, error) {
-			expr, err := p.parseExpr()
-			if err != nil {
-				return nil, err
-			}
-			if expr == nil {
-				return nil, p.unexpectedToken()
-			}
-			return expr, nil
+			return p.parseGroupingSetItem()
 		})
 		if err != nil {
 			return nil, err
@@ -2385,15 +2347,93 @@ func (p *Parser) parseGroupingSet() (*nodes.List, error) {
 		}
 		return &nodes.List{Items: items}, nil
 	}
-	// Single expression as a set
+	item, err := p.parseGroupingSetItem()
+	if err != nil {
+		return nil, err
+	}
+	return &nodes.List{Items: []nodes.Node{item}}, nil
+}
+
+// parseGroupingSetItem parses an expression, ROLLUP ( ... ) or CUBE ( ... )
+// inside GROUPING SETS (groupingSetItem, TSql160.g).
+func (p *Parser) parseGroupingSetItem() (nodes.Node, error) {
+	if p.cur.Type == kwROLLUP || p.cur.Type == kwCUBE {
+		return p.parseRollupCube()
+	}
 	expr, err := p.parseExpr()
 	if err != nil {
 		return nil, err
 	}
-	if expr != nil {
-		return &nodes.List{Items: []nodes.Node{expr}}, nil
+	if expr == nil {
+		return nil, p.unexpectedToken()
 	}
-	return &nodes.List{Items: nil}, nil
+	return expr, nil
+}
+
+// parseRollupCube parses { ROLLUP | CUBE } ( element [ ,...n ] ), an element
+// being an expression or a parenthesized list of them (rollupSpec, cubeSpec,
+// TSql160.g). SQL Server refuses an empty list and an empty element.
+func (p *Parser) parseRollupCube() (nodes.Node, error) {
+	loc := p.pos()
+	rollup := p.cur.Type == kwROLLUP
+	p.advance() // consume ROLLUP / CUBE
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	args, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
+		if p.cur.Type == '(' && p.groupingElementIsComposite() {
+			p.advance()
+			list, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
+				return p.parseRequiredExpr()
+			})
+			if err != nil {
+				return nil, err
+			}
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
+			return &nodes.List{Items: list}, nil
+		}
+		return p.parseRequiredExpr()
+	})
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	if len(args) == 0 {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if rollup {
+		return &nodes.RollupExpr{Args: &nodes.List{Items: args}, Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
+	}
+	return &nodes.CubeExpr{Args: &nodes.List{Items: args}, Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
+}
+
+// groupingElementIsComposite reports whether the parenthesis at the current
+// token opens a composite element (a, b) of ROLLUP or CUBE rather than a
+// parenthesized expression: a comma at its own depth, or nothing inside.
+func (p *Parser) groupingElementIsComposite() bool {
+	depth := 0
+	for i, n := p.cur.Loc, len(p.source); i < n; i++ {
+		switch p.source[i] {
+		case '(':
+			depth++
+		case ')':
+			depth--
+			if depth == 0 {
+				return strings.TrimSpace(p.source[p.cur.Loc+1:i]) == ""
+			}
+		case ',':
+			if depth == 1 {
+				return true
+			}
+		case '\'', '"', '[':
+			return false
+		}
+	}
+	return false
 }
 
 // parseWindowClause parses WINDOW window_name AS (window_spec) [, ...].

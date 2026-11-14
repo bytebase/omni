@@ -9968,9 +9968,9 @@ reject	reject	engine	groupByItem/rollupSpec_ROLLUP!drop-2	SELECT * GROUP BY ROLL
 reject	reject	engine	groupByItem/rollupSpec_ROLLUP!drop-3	SELECT * GROUP BY ROLLUP()
 reject	reject	engine	groupByItem/rollupSpec_ROLLUP!drop-4	SELECT * GROUP BY ROLLUP(1
 reject	reject	engine	groupByItem/rollupSpec_ROLLUP!insert	SELECT * GROUP BY ROLLUP(1) zzz
-accept	reject	engine	groupByItem/rollupSpec_ROLLUP!swap	SELECT * GROUP BY ROOT(1)
+reject	reject	engine	groupByItem/rollupSpec_ROLLUP!swap	SELECT * GROUP BY ROOT(1)
 accept	accept	engine	groupByItem/groupingSetsSpec_GROUPING	SELECT * GROUP BY GROUPING SETS(1)
-accept	reject	engine	groupByItem/groupingSetsSpec_GROUPING!drop-1	SELECT * GROUP BY SETS(1)
+reject	reject	engine	groupByItem/groupingSetsSpec_GROUPING!drop-1	SELECT * GROUP BY SETS(1)
 accept	accept	engine	groupByItem/groupingSetsSpec_GROUPING!drop-2	SELECT * GROUP BY GROUPING(1)
 reject	reject	engine	groupByItem/groupingSetsSpec_GROUPING!drop-3	SELECT * GROUP BY GROUPING SETS 1)
 reject	reject	engine	groupByItem/groupingSetsSpec_GROUPING!drop-4	SELECT * GROUP BY GROUPING SETS()
@@ -10006,18 +10006,18 @@ reject	reject	engine	composingGroupingSet(Comma_groupingSetItem)*/Comma_grouping
 accept	accept	engine	grandTotal/LeftParenthesis_RightParenthesis	SELECT * GROUP BY()
 accept	accept	engine	groupingSetItem/cubeSpec_CUBE	SELECT * GROUP BY GROUPING SETS(CUBE(1))
 reject	reject	engine	groupingSetItem/cubeSpec_CUBE!drop-2	SELECT * GROUP BY GROUPING SETS(CUBE 1))
-accept	reject	engine	groupingSetItem/cubeSpec_CUBE!drop-3	SELECT * GROUP BY GROUPING SETS(CUBE())
+reject	reject	engine	groupingSetItem/cubeSpec_CUBE!drop-3	SELECT * GROUP BY GROUPING SETS(CUBE())
 reject	reject	engine	groupingSetItem/cubeSpec_CUBE!drop-4	SELECT * GROUP BY GROUPING SETS(CUBE(1)
 reject	reject	engine	groupingSetItem/cubeSpec_CUBE!truncate	SELECT * GROUP BY GROUPING SETS(CUBE(1
 reject	reject	engine	groupingSetItem/cubeSpec_CUBE!insert	SELECT * GROUP BY GROUPING SETS(CUBE(1) zzz)
 reject	reject	engine	groupingSetItem/cubeSpec_CUBE!swap	SELECT * GROUP BY GROUPING SETS(CURRENT(1))
 accept	accept	engine	groupingSetItem/rollupSpec_ROLLUP	SELECT * GROUP BY GROUPING SETS(ROLLUP(1))
 reject	reject	engine	groupingSetItem/rollupSpec_ROLLUP!drop-2	SELECT * GROUP BY GROUPING SETS(ROLLUP 1))
-accept	reject	engine	groupingSetItem/rollupSpec_ROLLUP!drop-3	SELECT * GROUP BY GROUPING SETS(ROLLUP())
+reject	reject	engine	groupingSetItem/rollupSpec_ROLLUP!drop-3	SELECT * GROUP BY GROUPING SETS(ROLLUP())
 reject	reject	engine	groupingSetItem/rollupSpec_ROLLUP!drop-4	SELECT * GROUP BY GROUPING SETS(ROLLUP(1)
 reject	reject	engine	groupingSetItem/rollupSpec_ROLLUP!truncate	SELECT * GROUP BY GROUPING SETS(ROLLUP(1
 reject	reject	engine	groupingSetItem/rollupSpec_ROLLUP!insert	SELECT * GROUP BY GROUPING SETS(ROLLUP(1) zzz)
-accept	reject	engine	groupingSetItem/rollupSpec_ROLLUP!swap	SELECT * GROUP BY GROUPING SETS(ROOT(1))
+reject	reject	engine	groupingSetItem/rollupSpec_ROLLUP!swap	SELECT * GROUP BY GROUPING SETS(ROOT(1))
 accept	accept	engine	groupingSetItem/simpleGroupByItem	SELECT * GROUP BY GROUPING SETS(1)
 accept	accept	engine	cubeOrRollupArgumentList/cubeOrRollupArgument_(Comma_cubeOrRollupArgument)*	SELECT * GROUP BY CUBE(1)
 reject	reject	engine	cubeOrRollupArgumentList/cubeOrRollupArgument_(Comma_cubeOrRollupArgument)*!truncate	SELECT * GROUP BY CUBE(
@@ -10030,7 +10030,7 @@ reject	reject	engine	cubeOrRollupArgumentList(Comma_cubeOrRollupArgument)*/Comma
 reject	reject	engine	cubeOrRollupArgumentList(Comma_cubeOrRollupArgument)*/Comma_cubeOrRollupArgument_(Comma_cubeOrRollupArgument)*!insert	SELECT * GROUP BY CUBE(1, 1 zzz)
 accept	accept	engine	cubeOrRollupArgument/compositeGroupByItem	SELECT * GROUP BY CUBE((1))
 reject	reject	engine	cubeOrRollupArgument/compositeGroupByItem!drop-1	SELECT * GROUP BY CUBE(1))
-accept	reject	engine	cubeOrRollupArgument/compositeGroupByItem!drop-2	SELECT * GROUP BY CUBE(())
+reject	reject	engine	cubeOrRollupArgument/compositeGroupByItem!drop-2	SELECT * GROUP BY CUBE(())
 reject	reject	engine	cubeOrRollupArgument/compositeGroupByItem!drop-3	SELECT * GROUP BY CUBE((1)
 reject	reject	engine	cubeOrRollupArgument/compositeGroupByItem!truncate	SELECT * GROUP BY CUBE((1
 reject	reject	engine	cubeOrRollupArgument/compositeGroupByItem!insert	SELECT * GROUP BY CUBE((1) zzz)
@@ -10038,7 +10038,7 @@ accept	accept	engine	cubeOrRollupArgument/simpleGroupByItem	SELECT * GROUP BY CU
 accept	accept	engine	compositeGroupByItem/LeftParenthesis_simpleGroupByItem_(Comma_simpleGroupByI~7b7096aa	SELECT * GROUP BY CUBE((1))
 accept	accept	engine	compositeGroupByItem(Comma_simpleGroupByItem)*/%empty	SELECT * GROUP BY CUBE((1))
 reject	reject	engine	compositeGroupByItem(Comma_simpleGroupByItem)*/%empty!insert	SELECT * GROUP BY CUBE((1 zzz))
-reject	accept	engine	compositeGroupByItem(Comma_simpleGroupByItem)*/Comma_simpleGroupByItem_(Comma_simpleGroupByItem)*	SELECT * GROUP BY CUBE((1, 1))
+accept	accept	engine	compositeGroupByItem(Comma_simpleGroupByItem)*/Comma_simpleGroupByItem_(Comma_simpleGroupByItem)*	SELECT * GROUP BY CUBE((1, 1))
 reject	reject	engine	compositeGroupByItem(Comma_simpleGroupByItem)*/Comma_simpleGroupByItem_(Comma_simpleGroupByItem)*!drop-1	SELECT * GROUP BY CUBE((1 1))
 reject	reject	engine	compositeGroupByItem(Comma_simpleGroupByItem)*/Comma_simpleGroupByItem_(Comma_simpleGroupByItem)*!drop-2	SELECT * GROUP BY CUBE((1,))
 reject	reject	engine	compositeGroupByItem(Comma_simpleGroupByItem)*/Comma_simpleGroupByItem_(Comma_simpleGroupByItem)*!truncate	SELECT * GROUP BY CUBE((1,
@@ -13209,7 +13209,7 @@ reject	reject	engine	booleanExpressionPrimary/MATCH_LeftParenthesis_graphMatchPa
 reject	reject	engine	booleanExpressionPrimary/MATCH_LeftParenthesis_graphMatchPattern_RightParenthesis!drop-6	IF MATCH(LAST_NODE = a SELECT 1
 reject	reject	engine	booleanExpressionPrimary/MATCH_LeftParenthesis_graphMatchPattern_RightParenthesis!truncate	IF MATCH(LAST_NODE = a
 reject	reject	engine	booleanExpressionPrimary/MATCH_LeftParenthesis_graphMatchPattern_RightParenthesis!insert	IF MATCH(LAST_NODE = a) zzz SELECT 1
-accept	reject	engine	booleanExpressionPrimary/MATCH_LeftParenthesis_graphMatchPattern_RightParenthesis!swap	IF MATCHED(LAST_NODE = a) SELECT 1
+reject	reject	engine	booleanExpressionPrimary/MATCH_LeftParenthesis_graphMatchPattern_RightParenthesis!swap	IF MATCHED(LAST_NODE = a) SELECT 1
 accept	accept	engine	booleanExpressionPrimary/expressionWithFlags_(comparisonOperator_(comparisonPred~84b4ba56	IF 1 = 1 SELECT 1
 accept	accept	engine	booleanExpressionPrimary/fulltextPredicate	IF CONTAINS(*, 'a') SELECT 1
 reject	reject	engine	booleanExpressionPrimary/fulltextPredicate!drop-1	IF(*, 'a') SELECT 1
@@ -13239,7 +13239,7 @@ reject	reject	engine	booleanExpressionPrimary/tsEqualCall!drop-5	IF TSEQUAL(1,) 
 reject	reject	engine	booleanExpressionPrimary/tsEqualCall!drop-6	IF TSEQUAL(1, 1 SELECT 1
 reject	reject	engine	booleanExpressionPrimary/tsEqualCall!truncate	IF TSEQUAL(1, 1
 reject	reject	engine	booleanExpressionPrimary/tsEqualCall!insert	IF TSEQUAL(1, 1) zzz SELECT 1
-accept	reject	engine	booleanExpressionPrimary/tsEqualCall!swap	IF TYPE(1, 1) SELECT 1
+reject	reject	engine	booleanExpressionPrimary/tsEqualCall!swap	IF TYPE(1, 1) SELECT 1
 reject	reject	engine	booleanExpressionPrimary/updateCall	IF UPDATE(a) SELECT 1
 accept	reject	engine	booleanExpressionPrimary/updateCall!drop-1	IF(a) SELECT 1
 reject	reject	engine	booleanExpressionPrimary/updateCall!drop-2	IF UPDATE a) SELECT 1
@@ -13335,7 +13335,7 @@ reject	reject	engine	graphMatchExpressionPattern(graphMatchRecursivePattern_SHOR
 reject	reject	engine	graphMatchExpressionPattern(graphMatchRecursivePattern_SHORTEST_~c81f85c0)/graphMatchRecursivePattern_SHORTEST_PATH!drop-3	IF MATCH(SHORTEST_PATH(() +)) SELECT 1
 reject	reject	engine	graphMatchExpressionPattern(graphMatchRecursivePattern_SHORTEST_~c81f85c0)/graphMatchRecursivePattern_SHORTEST_PATH!drop-4	IF MATCH(SHORTEST_PATH(a) +)) SELECT 1
 reject	reject	engine	graphMatchExpressionPattern(graphMatchRecursivePattern_SHORTEST_~c81f85c0)/graphMatchRecursivePattern_SHORTEST_PATH!drop-5	IF MATCH(SHORTEST_PATH(a(+)) SELECT 1
-accept	reject	engine	graphMatchExpressionPattern(graphMatchRecursivePattern_SHORTEST_~c81f85c0)/graphMatchRecursivePattern_SHORTEST_PATH!drop-6	IF MATCH(SHORTEST_PATH(a())) SELECT 1
+reject	reject	engine	graphMatchExpressionPattern(graphMatchRecursivePattern_SHORTEST_~c81f85c0)/graphMatchRecursivePattern_SHORTEST_PATH!drop-6	IF MATCH(SHORTEST_PATH(a())) SELECT 1
 reject	reject	engine	graphMatchExpressionPattern(graphMatchRecursivePattern_SHORTEST_~c81f85c0)/graphMatchRecursivePattern_SHORTEST_PATH!drop-7	IF MATCH(SHORTEST_PATH(a() +) SELECT 1
 reject	reject	engine	graphMatchExpressionPattern(graphMatchRecursivePattern_SHORTEST_~c81f85c0)/graphMatchRecursivePattern_SHORTEST_PATH!truncate	IF MATCH(SHORTEST_PATH(a() +
 reject	reject	engine	graphMatchExpressionPattern(graphMatchRecursivePattern_SHORTEST_~c81f85c0)/graphMatchRecursivePattern_SHORTEST_PATH!insert	IF MATCH(SHORTEST_PATH(a() +) zzz) SELECT 1
@@ -13354,7 +13354,7 @@ reject	reject	engine	graphMatchExpressionPattern(graphMatchRecursivePattern_SHOR
 reject	reject	engine	graphMatchExpressionPattern(graphMatchRecursivePattern_SHORTEST_~c81f85c0)/graphCompositeMatchPattern!insert	IF MATCH(a -(a) - > a zzz) SELECT 1
 reject	reject	engine	graphRecursiveMatchQuantifier/(Plus|LeftCurly_integer_Comma_integer~3491bdac)	IF MATCH(SHORTEST_PATH(a() +)) SELECT 1
 reject	reject	engine	graphRecursiveMatchQuantifier/(Plus|LeftCurly_integer_Comma_integer~3491bdac)!truncate	IF MATCH(SHORTEST_PATH(a()
-accept	reject	engine	graphRecursiveMatchQuantifier/(Plus|LeftCurly_integer_Comma_integer~3491bdac)!insert	IF MATCH(SHORTEST_PATH(a() + zzz)) SELECT 1
+reject	reject	engine	graphRecursiveMatchQuantifier/(Plus|LeftCurly_integer_Comma_integer~3491bdac)!insert	IF MATCH(SHORTEST_PATH(a() + zzz)) SELECT 1
 reject	reject	engine	graphRecursiveMatchQuantifier(Plus|LeftCurly_integer_Comma_integer~3491bdac)/Plus	IF MATCH(SHORTEST_PATH(a() +)) SELECT 1
 reject	reject	engine	graphRecursiveMatchQuantifier(Plus|LeftCurly_integer_Comma_integer~3491bdac)/LeftCurly_integer_Comma_integer_RightCurly	IF MATCH(SHORTEST_PATH(a() { 1, 1 })) SELECT 1
 reject	reject	engine	graphRecursiveMatchQuantifier(Plus|LeftCurly_integer_Comma_integer~3491bdac)/LeftCurly_integer_Comma_integer_RightCurly!drop-1	IF MATCH(SHORTEST_PATH(a() 1, 1 })) SELECT 1
@@ -13365,14 +13365,14 @@ reject	reject	engine	graphRecursiveMatchQuantifier(Plus|LeftCurly_integer_Comma_
 reject	reject	engine	graphRecursiveMatchQuantifier(Plus|LeftCurly_integer_Comma_integer~3491bdac)/LeftCurly_integer_Comma_integer_RightCurly!truncate	IF MATCH(SHORTEST_PATH(a() { 1, 1
 reject	reject	engine	graphRecursiveMatchQuantifier(Plus|LeftCurly_integer_Comma_integer~3491bdac)/LeftCurly_integer_Comma_integer_RightCurly!insert	IF MATCH(SHORTEST_PATH(a() { 1, 1 } zzz)) SELECT 1
 accept	reject	engine	graphMatchNodeExpression/(LAST_NODE_LeftParenthesis_identifier~e650f698)	IF MATCH(LAST_NODE = a) SELECT 1
-accept	reject	engine	graphMatchNodeExpression(LAST_NODE_LeftParenthesis_identifier~e650f698)/LAST_NODE_LeftParenthesis_identifier_RightParenthesis	IF MATCH(LAST_NODE = LAST_NODE(a)) SELECT 1
+reject	reject	engine	graphMatchNodeExpression(LAST_NODE_LeftParenthesis_identifier~e650f698)/LAST_NODE_LeftParenthesis_identifier_RightParenthesis	IF MATCH(LAST_NODE = LAST_NODE(a)) SELECT 1
 accept	reject	engine	graphMatchNodeExpression(LAST_NODE_LeftParenthesis_identifier~e650f698)/LAST_NODE_LeftParenthesis_identifier_RightParenthesis!drop-1	IF MATCH(LAST_NODE =(a)) SELECT 1
 reject	reject	engine	graphMatchNodeExpression(LAST_NODE_LeftParenthesis_identifier~e650f698)/LAST_NODE_LeftParenthesis_identifier_RightParenthesis!drop-2	IF MATCH(LAST_NODE = LAST_NODE a)) SELECT 1
-accept	reject	engine	graphMatchNodeExpression(LAST_NODE_LeftParenthesis_identifier~e650f698)/LAST_NODE_LeftParenthesis_identifier_RightParenthesis!drop-3	IF MATCH(LAST_NODE = LAST_NODE()) SELECT 1
+reject	reject	engine	graphMatchNodeExpression(LAST_NODE_LeftParenthesis_identifier~e650f698)/LAST_NODE_LeftParenthesis_identifier_RightParenthesis!drop-3	IF MATCH(LAST_NODE = LAST_NODE()) SELECT 1
 reject	reject	engine	graphMatchNodeExpression(LAST_NODE_LeftParenthesis_identifier~e650f698)/LAST_NODE_LeftParenthesis_identifier_RightParenthesis!drop-4	IF MATCH(LAST_NODE = LAST_NODE(a) SELECT 1
 reject	reject	engine	graphMatchNodeExpression(LAST_NODE_LeftParenthesis_identifier~e650f698)/LAST_NODE_LeftParenthesis_identifier_RightParenthesis!truncate	IF MATCH(LAST_NODE = LAST_NODE(a
 reject	reject	engine	graphMatchNodeExpression(LAST_NODE_LeftParenthesis_identifier~e650f698)/LAST_NODE_LeftParenthesis_identifier_RightParenthesis!insert	IF MATCH(LAST_NODE = LAST_NODE(a) zzz) SELECT 1
-accept	reject	engine	graphMatchNodeExpression(LAST_NODE_LeftParenthesis_identifier~e650f698)/LAST_NODE_LeftParenthesis_identifier_RightParenthesis!swap	IF MATCH(LAST_NODE = LEADING(a)) SELECT 1
+reject	reject	engine	graphMatchNodeExpression(LAST_NODE_LeftParenthesis_identifier~e650f698)/LAST_NODE_LeftParenthesis_identifier_RightParenthesis!swap	IF MATCH(LAST_NODE = LEADING(a)) SELECT 1
 accept	reject	engine	graphMatchNodeExpression(LAST_NODE_LeftParenthesis_identifier~e650f698)/identifier	IF MATCH(LAST_NODE = a) SELECT 1
 reject	accept	engine	graphCompositeMatchPattern/graphMatchNodeExpression_graphSingleMatchPattern_(graph~5a897ca4	IF MATCH(a -(a) - > a) SELECT 1
 reject	accept	engine	graphCompositeMatchPattern(graphSingleMatchPattern)*/%empty	IF MATCH(a -(a) - > a) SELECT 1
@@ -13399,9 +13399,9 @@ reject	reject	engine	graphMatchSPRightRecursivePattern(graphSingleMatchPattern)*
 reject	reject	engine	graphMatchSPRightRecursivePattern(graphSingleMatchPattern)*/graphSingleMatchPattern_(graphSingleMatchPattern)*!drop-7	IF MATCH(SHORTEST_PATH(a(-(a) - >) +)) SELECT 1
 reject	reject	engine	graphMatchSPRightRecursivePattern(graphSingleMatchPattern)*/graphSingleMatchPattern_(graphSingleMatchPattern)*!truncate	IF MATCH(SHORTEST_PATH(a(-(a) - >
 reject	reject	engine	graphMatchSPRightRecursivePattern(graphSingleMatchPattern)*/graphSingleMatchPattern_(graphSingleMatchPattern)*!insert	IF MATCH(SHORTEST_PATH(a(-(a) - > a zzz) +)) SELECT 1
-accept	reject	engine	graphMatchSPLeftRecursivePattern/(graphSingleLeftMatchPattern)*	IF MATCH(SHORTEST_PATH(() + a)) SELECT 1
-accept	reject	engine	graphMatchSPLeftRecursivePattern/(graphSingleLeftMatchPattern)*!insert	IF MATCH(SHORTEST_PATH((zzz) + a)) SELECT 1
-accept	reject	engine	graphMatchSPLeftRecursivePattern(graphSingleLeftMatchPattern)*/%empty	IF MATCH(SHORTEST_PATH(() + a)) SELECT 1
+reject	reject	engine	graphMatchSPLeftRecursivePattern/(graphSingleLeftMatchPattern)*	IF MATCH(SHORTEST_PATH(() + a)) SELECT 1
+reject	reject	engine	graphMatchSPLeftRecursivePattern/(graphSingleLeftMatchPattern)*!insert	IF MATCH(SHORTEST_PATH((zzz) + a)) SELECT 1
+reject	reject	engine	graphMatchSPLeftRecursivePattern(graphSingleLeftMatchPattern)*/%empty	IF MATCH(SHORTEST_PATH(() + a)) SELECT 1
 reject	accept	engine	graphMatchSPLeftRecursivePattern(graphSingleLeftMatchPattern)*/graphSingleLeftMatchPattern_(graphSingleLeftMatchPattern)*	IF MATCH(SHORTEST_PATH((a -(a) - >) + a)) SELECT 1
 reject	reject	engine	graphMatchSPLeftRecursivePattern(graphSingleLeftMatchPattern)*/graphSingleLeftMatchPattern_(graphSingleLeftMatchPattern)*!drop-1	IF MATCH(SHORTEST_PATH((-(a) - >) + a)) SELECT 1
 reject	reject	engine	graphMatchSPLeftRecursivePattern(graphSingleLeftMatchPattern)*/graphSingleLeftMatchPattern_(graphSingleLeftMatchPattern)*!drop-2	IF MATCH(SHORTEST_PATH((a(a) - >) + a)) SELECT 1
@@ -13420,9 +13420,9 @@ reject	reject	engine	graphSingleLeftMatchPattern((graphMatchNodeExpression_Minus
 reject	reject	engine	graphSingleLeftMatchPattern((graphMatchNodeExpression_Minus_Left~a2c105ae)/graphMatchNodeExpression_LessThan_Minus_LeftParenthesis~6f8f085a!drop-4	IF MATCH(SHORTEST_PATH((a < - a) -) + a)) SELECT 1
 reject	reject	engine	graphSingleLeftMatchPattern((graphMatchNodeExpression_Minus_Left~a2c105ae)/graphMatchNodeExpression_LessThan_Minus_LeftParenthesis~6f8f085a!drop-5	IF MATCH(SHORTEST_PATH((a < -() -) + a)) SELECT 1
 reject	reject	engine	graphSingleLeftMatchPattern((graphMatchNodeExpression_Minus_Left~a2c105ae)/graphMatchNodeExpression_LessThan_Minus_LeftParenthesis~6f8f085a!drop-6	IF MATCH(SHORTEST_PATH((a < -(a -) + a)) SELECT 1
-accept	reject	engine	graphSingleLeftMatchPattern((graphMatchNodeExpression_Minus_Left~a2c105ae)/graphMatchNodeExpression_LessThan_Minus_LeftParenthesis~6f8f085a!drop-7	IF MATCH(SHORTEST_PATH((a < -(a)) + a)) SELECT 1
+reject	reject	engine	graphSingleLeftMatchPattern((graphMatchNodeExpression_Minus_Left~a2c105ae)/graphMatchNodeExpression_LessThan_Minus_LeftParenthesis~6f8f085a!drop-7	IF MATCH(SHORTEST_PATH((a < -(a)) + a)) SELECT 1
 reject	reject	engine	graphSingleLeftMatchPattern((graphMatchNodeExpression_Minus_Left~a2c105ae)/graphMatchNodeExpression_LessThan_Minus_LeftParenthesis~6f8f085a!truncate	IF MATCH(SHORTEST_PATH((a < -(a)
-accept	reject	engine	graphSingleLeftMatchPattern((graphMatchNodeExpression_Minus_Left~a2c105ae)/graphMatchNodeExpression_LessThan_Minus_LeftParenthesis~6f8f085a!insert	IF MATCH(SHORTEST_PATH((a < -(a) - zzz) + a)) SELECT 1
+reject	reject	engine	graphSingleLeftMatchPattern((graphMatchNodeExpression_Minus_Left~a2c105ae)/graphMatchNodeExpression_LessThan_Minus_LeftParenthesis~6f8f085a!insert	IF MATCH(SHORTEST_PATH((a < -(a) - zzz) + a)) SELECT 1
 reject	accept	engine	graphSingleMatchPattern/((Minus_LeftParenthesis_identifier_Ri~9c9c91b0)	IF MATCH(LAST_NODE -(a) - > a) SELECT 1
 reject	reject	engine	graphSingleMatchPattern/((Minus_LeftParenthesis_identifier_Ri~9c9c91b0)!drop-1	IF MATCH(LAST_NODE(a) - > a) SELECT 1
 reject	reject	engine	graphSingleMatchPattern/((Minus_LeftParenthesis_identifier_Ri~9c9c91b0)!drop-2	IF MATCH(LAST_NODE - a) - > a) SELECT 1
@@ -13680,7 +13680,7 @@ reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d6
 reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/iIfCall_IIF!drop-9	SELECT IIF(1 = 1, 1,)
 reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/iIfCall_IIF!drop-10	SELECT IIF(1 = 1, 1, 1
 accept	accept	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/iIfCall_IIF!insert	SELECT IIF(1 = 1, 1, 1) zzz
-accept	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/iIfCall_IIF!swap	SELECT IMMEDIATE(1 = 1, 1, 1)
+reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/iIfCall_IIF!swap	SELECT IMMEDIATE(1 = 1, 1, 1)
 accept	accept	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/jsonObjectCall_JSON_OBJECT	SELECT JSON_OBJECT()
 accept	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/jsonObjectCall_JSON_OBJECT!drop-1	SELECT()
 reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/jsonObjectCall_JSON_OBJECT!drop-2	SELECT JSON_OBJECT)
@@ -13696,21 +13696,21 @@ reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d6
 accept	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/trimCall_TRIM!drop-3	SELECT TRIM()
 reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/trimCall_TRIM!drop-4	SELECT TRIM(1
 accept	accept	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/trimCall_TRIM!insert	SELECT TRIM(1) zzz
-accept	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/trimCall_TRIM!swap	SELECT TRUE(1)
-accept	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/builtInFunctionCall	SELECT a()
+reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/trimCall_TRIM!swap	SELECT TRUE(1)
+reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/builtInFunctionCall	SELECT a()
 reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/builtInFunctionCall!drop-2	SELECT a)
 reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/builtInFunctionCall!drop-3	SELECT a(
-accept	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/builtInFunctionCall!insert	SELECT a() zzz
+reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/builtInFunctionCall!insert	SELECT a() zzz
 accept	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/leftFunctionCall	SELECT LEFT()
 reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/leftFunctionCall!drop-2	SELECT LEFT)
 reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/leftFunctionCall!drop-3	SELECT LEFT(
 accept	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/leftFunctionCall!insert	SELECT LEFT() zzz
-accept	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/leftFunctionCall!swap	SELECT LEGACY_CARDINALITY_ESTIMATION()
+reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/leftFunctionCall!swap	SELECT LEGACY_CARDINALITY_ESTIMATION()
 accept	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/rightFunctionCall	SELECT RIGHT()
 reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/rightFunctionCall!drop-2	SELECT RIGHT)
 reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/rightFunctionCall!drop-3	SELECT RIGHT(
 accept	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/rightFunctionCall!insert	SELECT RIGHT() zzz
-accept	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/rightFunctionCall!swap	SELECT ROLE()
+reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/rightFunctionCall!swap	SELECT ROLE()
 accept	accept	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/partitionFunctionCall	SELECT $PARTITION.a(1)
 reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/partitionFunctionCall!drop-1	SELECT.a(1)
 reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/partitionFunctionCall!drop-2	SELECT $PARTITION a(1)
@@ -13735,7 +13735,7 @@ reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d6
 reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/nullIfExpression!drop-5	SELECT NULLIF(1,)
 reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/nullIfExpression!drop-6	SELECT NULLIF(1, 1
 accept	accept	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/nullIfExpression!insert	SELECT NULLIF(1, 1) zzz
-accept	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/nullIfExpression!swap	SELECT NULLS(1, 1)
+reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/nullIfExpression!swap	SELECT NULLS(1, 1)
 accept	accept	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/coalesceExpression	SELECT COALESCE(1, 1)
 reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/coalesceExpression!drop-2	SELECT COALESCE 1, 1)
 reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/coalesceExpression!drop-3	SELECT COALESCE(, 1)
@@ -13762,7 +13762,7 @@ reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d6
 reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/convertCall!drop-5	SELECT CONVERT(a,)
 reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/convertCall!drop-6	SELECT CONVERT(a, 1
 accept	accept	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/convertCall!insert	SELECT CONVERT(a, 1) zzz
-accept	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/convertCall!swap	SELECT COOKIE(a, 1)
+reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/convertCall!swap	SELECT COOKIE(a, 1)
 accept	accept	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/tryConvertCall	SELECT TRY_CONVERT(a, 1)
 reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/tryConvertCall!drop-2	SELECT TRY_CONVERT a, 1)
 reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/tryConvertCall!drop-3	SELECT TRY_CONVERT(, 1)
@@ -13909,27 +13909,27 @@ reject	reject	engine	windowDefinition(windowFrameClause)?/windowFrameClause!drop
 reject	reject	engine	windowDefinition(windowFrameClause)?/windowFrameClause!truncate	SELECT * WINDOW a AS(ROWS CURRENT
 reject	reject	engine	windowDefinition(windowFrameClause)?/windowFrameClause!insert	SELECT * WINDOW a AS(ROWS CURRENT a zzz)
 reject	reject	engine	windowDefinition(windowFrameClause)?/windowFrameClause!swap	SELECT * WINDOW a AS(RULE CURRENT a)
-accept	reject	engine	overClause/overClauseBeginning_(orderByClause)?_(windowFrameClause~bb510683	SELECT a() OVER()
+reject	reject	engine	overClause/overClauseBeginning_(orderByClause)?_(windowFrameClause~bb510683	SELECT a() OVER()
 reject	reject	engine	overClause/overClauseBeginning_(orderByClause)?_(windowFrameClause~bb510683!drop-1	SELECT a()()
 reject	reject	engine	overClause/overClauseBeginning_(orderByClause)?_(windowFrameClause~bb510683!drop-2	SELECT a() OVER)
 reject	reject	engine	overClause/overClauseBeginning_(orderByClause)?_(windowFrameClause~bb510683!drop-3	SELECT a() OVER(
-accept	reject	engine	overClause/overClauseBeginning_(orderByClause)?_(windowFrameClause~bb510683!insert	SELECT a() OVER() zzz
+reject	reject	engine	overClause/overClauseBeginning_(orderByClause)?_(windowFrameClause~bb510683!insert	SELECT a() OVER() zzz
 reject	reject	engine	overClause/overClauseBeginning_(orderByClause)?_(windowFrameClause~bb510683!swap	SELECT a() OVERRIDE()
-accept	reject	engine	overClause/overClauseWithWindow	SELECT a() OVER a
-accept	reject	engine	overClause/overClauseWithWindow!drop-1	SELECT a() a
+reject	reject	engine	overClause/overClauseWithWindow	SELECT a() OVER a
+reject	reject	engine	overClause/overClauseWithWindow!drop-1	SELECT a() a
 reject	reject	engine	overClause/overClauseWithWindow!drop-2	SELECT a() OVER
-accept	reject	engine	overClause/overClauseWithWindow!insert	SELECT a() OVER a zzz
+reject	reject	engine	overClause/overClauseWithWindow!insert	SELECT a() OVER a zzz
 reject	reject	engine	overClause/overClauseWithWindow!swap	SELECT a() OVERRIDE a
-accept	reject	engine	overClause(orderByClause)?/%empty	SELECT a() OVER()
+reject	reject	engine	overClause(orderByClause)?/%empty	SELECT a() OVER()
 reject	reject	engine	overClause(orderByClause)?/%empty!insert	SELECT a() OVER(zzz)
-accept	reject	engine	overClause(orderByClause)?/orderByClause	SELECT a() OVER(ORDER BY 1)
+reject	reject	engine	overClause(orderByClause)?/orderByClause	SELECT a() OVER(ORDER BY 1)
 reject	reject	engine	overClause(orderByClause)?/orderByClause!drop-1	SELECT a() OVER(BY 1)
 reject	reject	engine	overClause(orderByClause)?/orderByClause!drop-2	SELECT a() OVER(ORDER 1)
 reject	reject	engine	overClause(orderByClause)?/orderByClause!drop-3	SELECT a() OVER(ORDER BY)
 reject	reject	engine	overClause(orderByClause)?/orderByClause!truncate	SELECT a() OVER(ORDER BY
 reject	reject	engine	overClause(orderByClause)?/orderByClause!insert	SELECT a() OVER(ORDER BY 1 zzz)
 reject	reject	engine	overClause(orderByClause)?/orderByClause!swap	SELECT a() OVER(OUT BY 1)
-accept	reject	engine	overClause(windowFrameClause)?/%empty	SELECT a() OVER()
+reject	reject	engine	overClause(windowFrameClause)?/%empty	SELECT a() OVER()
 reject	reject	engine	overClause(windowFrameClause)?/windowFrameClause	SELECT a() OVER(ROWS CURRENT a)
 reject	reject	engine	overClause(windowFrameClause)?/windowFrameClause!drop-1	SELECT a() OVER(CURRENT a)
 reject	reject	engine	overClause(windowFrameClause)?/windowFrameClause!drop-2	SELECT a() OVER(ROWS a)
@@ -13937,22 +13937,22 @@ reject	reject	engine	overClause(windowFrameClause)?/windowFrameClause!drop-3	SEL
 reject	reject	engine	overClause(windowFrameClause)?/windowFrameClause!truncate	SELECT a() OVER(ROWS CURRENT
 reject	reject	engine	overClause(windowFrameClause)?/windowFrameClause!insert	SELECT a() OVER(ROWS CURRENT a zzz)
 reject	reject	engine	overClause(windowFrameClause)?/windowFrameClause!swap	SELECT a() OVER(RULE CURRENT a)
-accept	reject	engine	overClauseWithWindow/Over_identifier	SELECT a() OVER a
-accept	reject	engine	overClauseNoOrderBy/overClauseBeginningNoWindowName_RightParenthesis	SELECT a() OVER()
-accept	reject	engine	overClauseBeginning/Over_LeftParenthesis_(identifier)?_(PARTITION_By_expres~86cb9cf6	SELECT a() OVER()
-accept	reject	engine	overClauseBeginning(identifier)?/%empty	SELECT a() OVER()
+reject	reject	engine	overClauseWithWindow/Over_identifier	SELECT a() OVER a
+reject	reject	engine	overClauseNoOrderBy/overClauseBeginningNoWindowName_RightParenthesis	SELECT a() OVER()
+reject	reject	engine	overClauseBeginning/Over_LeftParenthesis_(identifier)?_(PARTITION_By_expres~86cb9cf6	SELECT a() OVER()
+reject	reject	engine	overClauseBeginning(identifier)?/%empty	SELECT a() OVER()
 reject	reject	engine	overClauseBeginning(identifier)?/identifier	SELECT a() OVER(a)
 reject	reject	engine	overClauseBeginning(identifier)?/identifier!insert	SELECT a() OVER(a zzz)
-accept	reject	engine	overClauseBeginning(PARTITION_By_expressionList)?/%empty	SELECT a() OVER()
-accept	reject	engine	overClauseBeginning(PARTITION_By_expressionList)?/PARTITION_By_expressionList	SELECT a() OVER(PARTITION BY 1)
+reject	reject	engine	overClauseBeginning(PARTITION_By_expressionList)?/%empty	SELECT a() OVER()
+reject	reject	engine	overClauseBeginning(PARTITION_By_expressionList)?/PARTITION_By_expressionList	SELECT a() OVER(PARTITION BY 1)
 reject	reject	engine	overClauseBeginning(PARTITION_By_expressionList)?/PARTITION_By_expressionList!drop-2	SELECT a() OVER(PARTITION 1)
 reject	reject	engine	overClauseBeginning(PARTITION_By_expressionList)?/PARTITION_By_expressionList!drop-3	SELECT a() OVER(PARTITION BY)
 reject	reject	engine	overClauseBeginning(PARTITION_By_expressionList)?/PARTITION_By_expressionList!truncate	SELECT a() OVER(PARTITION BY
 reject	reject	engine	overClauseBeginning(PARTITION_By_expressionList)?/PARTITION_By_expressionList!insert	SELECT a() OVER(PARTITION BY 1 zzz)
 reject	reject	engine	overClauseBeginning(PARTITION_By_expressionList)?/PARTITION_By_expressionList!swap	SELECT a() OVER(PARTITIONS BY 1)
-accept	reject	engine	overClauseBeginningNoWindowName/Over_LeftParenthesis_(PARTITION_By_expressionList|)	SELECT a() OVER()
-accept	reject	engine	overClauseBeginningNoWindowName(PARTITION_By_expressionList|)/PARTITION_By_expressionList	SELECT a() OVER(PARTITION BY 1)
-accept	reject	engine	overClauseBeginningNoWindowName(PARTITION_By_expressionList|)/%empty	SELECT a() OVER()
+reject	reject	engine	overClauseBeginningNoWindowName/Over_LeftParenthesis_(PARTITION_By_expressionList|)	SELECT a() OVER()
+reject	reject	engine	overClauseBeginningNoWindowName(PARTITION_By_expressionList|)/PARTITION_By_expressionList	SELECT a() OVER(PARTITION BY 1)
+reject	reject	engine	overClauseBeginningNoWindowName(PARTITION_By_expressionList|)/%empty	SELECT a() OVER()
 reject	reject	engine	windowFrameClause/(ROWS|RANGE)_windowFrameExtent	SELECT a() OVER(ROWS CURRENT a)
 reject	reject	engine	windowFrameClause(ROWS|RANGE)/ROWS	SELECT a() OVER(ROWS CURRENT a)
 reject	reject	engine	windowFrameClause(ROWS|RANGE)/ROWS!insert	SELECT a() OVER(ROWS zzz CURRENT a)
@@ -14007,9 +14007,9 @@ reject	reject	engine	withinGroupClause((graphPathClause_GRAPH)|orderByClause)/or
 reject	reject	engine	withinGroupClause((graphPathClause_GRAPH)|orderByClause)/orderByClause!truncate	SELECT a() WITHIN GROUP(ORDER BY
 reject	reject	engine	withinGroupClause((graphPathClause_GRAPH)|orderByClause)/orderByClause!insert	SELECT a() WITHIN GROUP(ORDER BY 1 zzz)
 reject	reject	engine	withinGroupClause((graphPathClause_GRAPH)|orderByClause)/orderByClause!swap	SELECT a() WITHIN GROUP(OUT BY 1)
-accept	reject	engine	builtInFunctionCall/nonQuotedIdentifier_LeftParenthesis_(jsonArrayBuiltInFu~890ee637	SELECT a()
-accept	reject	engine	builtInFunctionCall(jsonArrayBuiltInFunctionCall|jsonObj~678229c7)/jsonArrayBuiltInFunctionCall	SELECT a()
-accept	reject	engine	builtInFunctionCall(jsonArrayBuiltInFunctionCall|jsonObj~678229c7)/jsonObjectBuiltInFunctionCall	SELECT a()
+reject	reject	engine	builtInFunctionCall/nonQuotedIdentifier_LeftParenthesis_(jsonArrayBuiltInFu~890ee637	SELECT a()
+reject	reject	engine	builtInFunctionCall(jsonArrayBuiltInFunctionCall|jsonObj~678229c7)/jsonArrayBuiltInFunctionCall	SELECT a()
+reject	reject	engine	builtInFunctionCall(jsonArrayBuiltInFunctionCall|jsonObj~678229c7)/jsonObjectBuiltInFunctionCall	SELECT a()
 reject	reject	engine	builtInFunctionCall(jsonArrayBuiltInFunctionCall|jsonObj~678229c7)/trim3ArgsBuiltInFunctionCall	SELECT a(a 1 FROM 1)
 reject	reject	engine	builtInFunctionCall(jsonArrayBuiltInFunctionCall|jsonObj~678229c7)/trim3ArgsBuiltInFunctionCall!drop-1	SELECT a(1 FROM 1)
 reject	reject	engine	builtInFunctionCall(jsonArrayBuiltInFunctionCall|jsonObj~678229c7)/trim3ArgsBuiltInFunctionCall!drop-2	SELECT a(a FROM 1)
@@ -14018,11 +14018,11 @@ reject	reject	engine	builtInFunctionCall(jsonArrayBuiltInFunctionCall|jsonObj~67
 reject	reject	engine	builtInFunctionCall(jsonArrayBuiltInFunctionCall|jsonObj~678229c7)/trim3ArgsBuiltInFunctionCall!drop-5	SELECT a(a 1 FROM 1
 reject	reject	engine	builtInFunctionCall(jsonArrayBuiltInFunctionCall|jsonObj~678229c7)/trim3ArgsBuiltInFunctionCall!insert	SELECT a(a 1 FROM 1) zzz
 reject	reject	engine	builtInFunctionCall(jsonArrayBuiltInFunctionCall|jsonObj~678229c7)/trim3ArgsBuiltInFunctionCall!swap	SELECT a(a 1 FULL 1)
-accept	reject	engine	builtInFunctionCall(jsonArrayBuiltInFunctionCall|jsonObj~678229c7)/trimBuiltInFunctionCall	SELECT a(1)
+reject	reject	engine	builtInFunctionCall(jsonArrayBuiltInFunctionCall|jsonObj~678229c7)/trimBuiltInFunctionCall	SELECT a(1)
 reject	reject	engine	builtInFunctionCall(jsonArrayBuiltInFunctionCall|jsonObj~678229c7)/trimBuiltInFunctionCall!drop-2	SELECT a(1
-accept	reject	engine	builtInFunctionCall(jsonArrayBuiltInFunctionCall|jsonObj~678229c7)/trimBuiltInFunctionCall!insert	SELECT a(1) zzz
-accept	reject	engine	builtInFunctionCall(jsonArrayBuiltInFunctionCall|jsonObj~678229c7)/ignoreRespectNullsRegularBuiltInFunctionCall	SELECT a()
-accept	reject	engine	builtInFunctionCall(jsonArrayBuiltInFunctionCall|jsonObj~678229c7)/regularBuiltInFunctionCall	SELECT a()
+reject	reject	engine	builtInFunctionCall(jsonArrayBuiltInFunctionCall|jsonObj~678229c7)/trimBuiltInFunctionCall!insert	SELECT a(1) zzz
+reject	reject	engine	builtInFunctionCall(jsonArrayBuiltInFunctionCall|jsonObj~678229c7)/ignoreRespectNullsRegularBuiltInFunctionCall	SELECT a()
+reject	reject	engine	builtInFunctionCall(jsonArrayBuiltInFunctionCall|jsonObj~678229c7)/regularBuiltInFunctionCall	SELECT a()
 reject	reject	engine	builtInFunctionCall(jsonArrayBuiltInFunctionCall|jsonObj~678229c7)/aggregateBuiltInFunctionCall	SELECT a(ALL 1)
 reject	reject	engine	builtInFunctionCall(jsonArrayBuiltInFunctionCall|jsonObj~678229c7)/aggregateBuiltInFunctionCall!drop-2	SELECT a(ALL)
 reject	reject	engine	builtInFunctionCall(jsonArrayBuiltInFunctionCall|jsonObj~678229c7)/aggregateBuiltInFunctionCall!drop-3	SELECT a(ALL 1
@@ -14043,27 +14043,27 @@ accept	accept	engine	jsonArrayBuiltInFunctionCall(jsonNullClauseFunction|)/%empt
 accept	accept	engine	jsonObjectBuiltInFunctionCall/(jsonObjectExpressionList|)_RightParenthesis	SELECT JSON_OBJECT()
 accept	accept	engine	jsonObjectBuiltInFunctionCall(jsonObjectExpressionList|)/jsonObjectExpressionList	SELECT JSON_OBJECT()
 accept	accept	engine	jsonObjectBuiltInFunctionCall(jsonObjectExpressionList|)/%empty	SELECT JSON_OBJECT()
-accept	reject	engine	regularBuiltInFunctionCall/(expressionList|starColumnReferenceExpression|)_RightPa~a01dfe86	SELECT a()
-accept	reject	engine	regularBuiltInFunctionCall(expressionList|starColumnReferenceExpression|)/expressionList	SELECT a(1)
+reject	reject	engine	regularBuiltInFunctionCall/(expressionList|starColumnReferenceExpression|)_RightPa~a01dfe86	SELECT a()
+reject	reject	engine	regularBuiltInFunctionCall(expressionList|starColumnReferenceExpression|)/expressionList	SELECT a(1)
 reject	reject	engine	regularBuiltInFunctionCall(expressionList|starColumnReferenceExpression|)/expressionList!insert	SELECT a(1 zzz)
-accept	reject	engine	regularBuiltInFunctionCall(expressionList|starColumnReferenceExpression|)/starColumnReferenceExpression	SELECT a(*)
+reject	reject	engine	regularBuiltInFunctionCall(expressionList|starColumnReferenceExpression|)/starColumnReferenceExpression	SELECT a(*)
 reject	reject	engine	regularBuiltInFunctionCall(expressionList|starColumnReferenceExpression|)/starColumnReferenceExpression!insert	SELECT a(* zzz)
-accept	reject	engine	regularBuiltInFunctionCall(expressionList|starColumnReferenceExpression|)/%empty	SELECT a()
-accept	reject	engine	regularBuiltInFunctionCall(expressionList|starColumnReferenceExpression|)/%empty!insert	SELECT a(zzz)
-accept	reject	engine	regularBuiltInFunctionCall(withinGroupOrOverClause)?/%empty	SELECT a()
-accept	reject	engine	regularBuiltInFunctionCall(withinGroupOrOverClause)?/withinGroupOrOverClause	SELECT a() OVER a
-accept	reject	engine	ignoreRespectNullsRegularBuiltInFunctionCall/(expressionList|starColumnReferenceExpression|)_RightPa~eff26e81	SELECT a()
-accept	reject	engine	ignoreRespectNullsRegularBuiltInFunctionCall(expressionList|starColumnReferenceExpression|)/expressionList	SELECT a(1)
-accept	reject	engine	ignoreRespectNullsRegularBuiltInFunctionCall(expressionList|starColumnReferenceExpression|)/starColumnReferenceExpression	SELECT a(*)
-accept	reject	engine	ignoreRespectNullsRegularBuiltInFunctionCall(expressionList|starColumnReferenceExpression|)/%empty	SELECT a()
-accept	reject	engine	ignoreRespectNullsRegularBuiltInFunctionCall(ignoreRespectNulls)?/%empty	SELECT a()
+reject	reject	engine	regularBuiltInFunctionCall(expressionList|starColumnReferenceExpression|)/%empty	SELECT a()
+reject	reject	engine	regularBuiltInFunctionCall(expressionList|starColumnReferenceExpression|)/%empty!insert	SELECT a(zzz)
+reject	reject	engine	regularBuiltInFunctionCall(withinGroupOrOverClause)?/%empty	SELECT a()
+reject	reject	engine	regularBuiltInFunctionCall(withinGroupOrOverClause)?/withinGroupOrOverClause	SELECT a() OVER a
+reject	reject	engine	ignoreRespectNullsRegularBuiltInFunctionCall/(expressionList|starColumnReferenceExpression|)_RightPa~eff26e81	SELECT a()
+reject	reject	engine	ignoreRespectNullsRegularBuiltInFunctionCall(expressionList|starColumnReferenceExpression|)/expressionList	SELECT a(1)
+reject	reject	engine	ignoreRespectNullsRegularBuiltInFunctionCall(expressionList|starColumnReferenceExpression|)/starColumnReferenceExpression	SELECT a(*)
+reject	reject	engine	ignoreRespectNullsRegularBuiltInFunctionCall(expressionList|starColumnReferenceExpression|)/%empty	SELECT a()
+reject	reject	engine	ignoreRespectNullsRegularBuiltInFunctionCall(ignoreRespectNulls)?/%empty	SELECT a()
 reject	reject	engine	ignoreRespectNullsRegularBuiltInFunctionCall(ignoreRespectNulls)?/ignoreRespectNulls	SELECT a() IGNORE NULLS
-accept	reject	engine	ignoreRespectNullsRegularBuiltInFunctionCall(ignoreRespectNulls)?/ignoreRespectNulls!drop-1	SELECT a() NULLS
-accept	reject	engine	ignoreRespectNullsRegularBuiltInFunctionCall(ignoreRespectNulls)?/ignoreRespectNulls!drop-2	SELECT a() IGNORE
+reject	reject	engine	ignoreRespectNullsRegularBuiltInFunctionCall(ignoreRespectNulls)?/ignoreRespectNulls!drop-1	SELECT a() NULLS
+reject	reject	engine	ignoreRespectNullsRegularBuiltInFunctionCall(ignoreRespectNulls)?/ignoreRespectNulls!drop-2	SELECT a() IGNORE
 reject	reject	engine	ignoreRespectNullsRegularBuiltInFunctionCall(ignoreRespectNulls)?/ignoreRespectNulls!insert	SELECT a() IGNORE NULLS zzz
 reject	reject	engine	ignoreRespectNullsRegularBuiltInFunctionCall(ignoreRespectNulls)?/ignoreRespectNulls!swap	SELECT a() IGNORE_DUP_KEY NULLS
-accept	reject	engine	ignoreRespectNullsRegularBuiltInFunctionCall(withinGroupOrOverClause)?/%empty	SELECT a()
-accept	reject	engine	ignoreRespectNullsRegularBuiltInFunctionCall(withinGroupOrOverClause)?/withinGroupOrOverClause	SELECT a() OVER a
+reject	reject	engine	ignoreRespectNullsRegularBuiltInFunctionCall(withinGroupOrOverClause)?/%empty	SELECT a()
+reject	reject	engine	ignoreRespectNullsRegularBuiltInFunctionCall(withinGroupOrOverClause)?/withinGroupOrOverClause	SELECT a() OVER a
 reject	reject	engine	ignoreRespectNulls/(IGNORE|RESPECT)_NULLS	SELECT a() IGNORE NULLS
 reject	reject	engine	ignoreRespectNulls(IGNORE|RESPECT)/IGNORE	SELECT a() IGNORE NULLS
 reject	reject	engine	ignoreRespectNulls(IGNORE|RESPECT)/IGNORE!insert	SELECT a() IGNORE zzz NULLS
@@ -14071,7 +14071,7 @@ reject	reject	engine	ignoreRespectNulls(IGNORE|RESPECT)/RESPECT	SELECT a() RESPE
 reject	reject	engine	ignoreRespectNulls(IGNORE|RESPECT)/RESPECT!insert	SELECT a() RESPECT zzz NULLS
 reject	reject	engine	ignoreRespectNulls(IGNORE|RESPECT)/RESPECT!swap	SELECT a() RESTART NULLS
 reject	reject	engine	withinGroupOrOverClause/withinGroupClause_(overClauseNoOrderBy)?	SELECT a() WITHIN GROUP(GRAPH PATH)
-accept	reject	engine	withinGroupOrOverClause/overClause	SELECT a() OVER a
+reject	reject	engine	withinGroupOrOverClause/overClause	SELECT a() OVER a
 reject	reject	engine	withinGroupOrOverClause(overClauseNoOrderBy)?/%empty	SELECT a() WITHIN GROUP(GRAPH PATH)
 reject	reject	engine	withinGroupOrOverClause(overClauseNoOrderBy)?/overClauseNoOrderBy	SELECT a() WITHIN GROUP(GRAPH PATH) OVER()
 reject	reject	engine	withinGroupOrOverClause(overClauseNoOrderBy)?/overClauseNoOrderBy!drop-1	SELECT a() WITHIN GROUP(GRAPH PATH)()
@@ -14079,7 +14079,7 @@ reject	reject	engine	withinGroupOrOverClause(overClauseNoOrderBy)?/overClauseNoO
 reject	reject	engine	withinGroupOrOverClause(overClauseNoOrderBy)?/overClauseNoOrderBy!drop-3	SELECT a() WITHIN GROUP(GRAPH PATH) OVER(
 reject	reject	engine	withinGroupOrOverClause(overClauseNoOrderBy)?/overClauseNoOrderBy!insert	SELECT a() WITHIN GROUP(GRAPH PATH) OVER() zzz
 reject	reject	engine	withinGroupOrOverClause(overClauseNoOrderBy)?/overClauseNoOrderBy!swap	SELECT a() WITHIN GROUP(GRAPH PATH) OVERRIDE()
-accept	reject	engine	starColumnReferenceExpression/Star	SELECT a(*)
+reject	reject	engine	starColumnReferenceExpression/Star	SELECT a(*)
 reject	reject	engine	aggregateBuiltInFunctionCall/uniqueRowFilter_expression_RightParenthesis_(overClause~18cac5ba	SELECT a(ALL 1)
 reject	reject	engine	aggregateBuiltInFunctionCall(overClauseNoOrderBy)?/%empty	SELECT a(ALL 1)
 reject	reject	engine	aggregateBuiltInFunctionCall(overClauseNoOrderBy)?/overClauseNoOrderBy	SELECT a(ALL 1) OVER()
@@ -14105,13 +14105,13 @@ accept	reject	engine	reservedBuiltInFunctionCallParameters(expressionList)?/%emp
 accept	reject	engine	reservedBuiltInFunctionCallParameters(expressionList)?/%empty!insert	SELECT LEFT(zzz)
 accept	reject	engine	reservedBuiltInFunctionCallParameters(expressionList)?/expressionList	SELECT LEFT(1)
 reject	reject	engine	reservedBuiltInFunctionCallParameters(expressionList)?/expressionList!insert	SELECT LEFT(1 zzz)
-accept	reject	engine	expressionWithDefault/expression	SELECT a(1)
-accept	reject	engine	expressionWithDefault/defaultLiteral	SELECT a(DEFAULT)
+reject	reject	engine	expressionWithDefault/expression	SELECT a(1)
+reject	reject	engine	expressionWithDefault/defaultLiteral	SELECT a(DEFAULT)
 reject	reject	engine	expressionWithDefault/defaultLiteral!insert	SELECT a(DEFAULT zzz)
-accept	reject	engine	expressionWithDefault/defaultLiteral!swap	SELECT a(DEFAULT_DATABASE)
-accept	reject	engine	expressionWithDefaultList/expressionWithDefault_(Comma_expressionWithDefault)*	SELECT a(1)
-accept	reject	engine	expressionWithDefaultList(Comma_expressionWithDefault)*/%empty	SELECT a(1)
-accept	reject	engine	expressionWithDefaultList(Comma_expressionWithDefault)*/Comma_expressionWithDefault_(Comma_expressionWithDefault)*	SELECT a(1, 1)
+reject	reject	engine	expressionWithDefault/defaultLiteral!swap	SELECT a(DEFAULT_DATABASE)
+reject	reject	engine	expressionWithDefaultList/expressionWithDefault_(Comma_expressionWithDefault)*	SELECT a(1)
+reject	reject	engine	expressionWithDefaultList(Comma_expressionWithDefault)*/%empty	SELECT a(1)
+reject	reject	engine	expressionWithDefaultList(Comma_expressionWithDefault)*/Comma_expressionWithDefault_(Comma_expressionWithDefault)*	SELECT a(1, 1)
 reject	reject	engine	expressionWithDefaultList(Comma_expressionWithDefault)*/Comma_expressionWithDefault_(Comma_expressionWithDefault)*!drop-1	SELECT a(1 1)
 reject	reject	engine	expressionWithDefaultList(Comma_expressionWithDefault)*/Comma_expressionWithDefault_(Comma_expressionWithDefault)*!drop-2	SELECT a(1,)
 reject	reject	engine	expressionWithDefaultList(Comma_expressionWithDefault)*/Comma_expressionWithDefault_(Comma_expressionWithDefault)*!truncate	SELECT a(1,
@@ -14218,15 +14218,15 @@ accept	accept	engine	partitionFunctionCall(identifier_Dot)?/identifier_Dot	SELEC
 reject	accept	engine	partitionFunctionCall(identifier_Dot)?/identifier_Dot!drop-1	SELECT.$PARTITION.a(1)
 reject	reject	engine	partitionFunctionCall(identifier_Dot)?/identifier_Dot!drop-2	SELECT a $PARTITION.a(1)
 reject	reject	engine	partitionFunctionCall(identifier_Dot)?/identifier_Dot!insert	SELECT a.zzz $PARTITION.a(1)
-accept	reject	engine	userFunctionCall/LeftParenthesis_((expressionWithDefaultList)?|uniqueR~4~07516f0f	SELECT a()
-accept	reject	engine	userFunctionCall((expressionWithDefaultList)?|uniqueR~4d4a97eb)/(expressionWithDefaultList)?	SELECT a()
+reject	reject	engine	userFunctionCall/LeftParenthesis_((expressionWithDefaultList)?|uniqueR~4~07516f0f	SELECT a()
+reject	reject	engine	userFunctionCall((expressionWithDefaultList)?|uniqueR~4d4a97eb)/(expressionWithDefaultList)?	SELECT a()
 reject	reject	engine	userFunctionCall((expressionWithDefaultList)?|uniqueR~4d4a97eb)/uniqueRowFilter_expressionList	SELECT a(ALL 1)
 reject	reject	engine	userFunctionCall((expressionWithDefaultList)?|uniqueR~4d4a97eb)/uniqueRowFilter_expressionList!truncate	SELECT a(ALL
 reject	reject	engine	userFunctionCall((expressionWithDefaultList)?|uniqueR~4d4a97eb)/uniqueRowFilter_expressionList!insert	SELECT a(ALL 1 zzz)
-accept	reject	engine	userFunctionCall(expressionWithDefaultList)?/%empty	SELECT a()
-accept	reject	engine	userFunctionCall(expressionWithDefaultList)?/expressionWithDefaultList	SELECT a(1)
-accept	reject	engine	userFunctionCall(overClauseNoOrderBy)?/%empty	SELECT a()
-accept	reject	engine	userFunctionCall(overClauseNoOrderBy)?/overClauseNoOrderBy	SELECT a() OVER()
+reject	reject	engine	userFunctionCall(expressionWithDefaultList)?/%empty	SELECT a()
+reject	reject	engine	userFunctionCall(expressionWithDefaultList)?/expressionWithDefaultList	SELECT a(1)
+reject	reject	engine	userFunctionCall(overClauseNoOrderBy)?/%empty	SELECT a()
+reject	reject	engine	userFunctionCall(overClauseNoOrderBy)?/overClauseNoOrderBy	SELECT a() OVER()
 accept	accept	engine	columnOrFunctionCall/(multiPartIdentifier_(Dot_specialColu~3635a504)	SELECT a
 accept	accept	engine	columnOrFunctionCall(multiPartIdentifier_(Dot_specialColu~3635a504)/multiPartIdentifier_(Dot_specialColumn|userFunctionCall|)	SELECT a
 accept	accept	engine	columnOrFunctionCall(multiPartIdentifier_(Dot_specialColu~3635a504)/specialColumn	SELECT IDENTITYCOL
@@ -14235,7 +14235,7 @@ reject	reject	engine	columnOrFunctionCall(Dot_specialColumn|userFunctionCall|)/D
 accept	reject	engine	columnOrFunctionCall(Dot_specialColumn|userFunctionCall|)/Dot_specialColumn!drop-2	SELECT a.
 accept	accept	engine	columnOrFunctionCall(Dot_specialColumn|userFunctionCall|)/Dot_specialColumn!insert	SELECT a.IDENTITYCOL zzz
 reject	reject	engine	columnOrFunctionCall(Dot_specialColumn|userFunctionCall|)/Dot_specialColumn!swap	SELECT a.IDENTITY_INSERT
-accept	reject	engine	columnOrFunctionCall(Dot_specialColumn|userFunctionCall|)/userFunctionCall	SELECT a()
+reject	reject	engine	columnOrFunctionCall(Dot_specialColumn|userFunctionCall|)/userFunctionCall	SELECT a()
 accept	accept	engine	columnOrFunctionCall(Dot_specialColumn|userFunctionCall|)/%empty	SELECT a
 accept	accept	engine	starColumn/(multiPartIdentifier_Dot_Star|Star)	IF CONTAINS(*, 'a') SELECT 1
 accept	accept	engine	starColumn(multiPartIdentifier_Dot_Star|Star)/multiPartIdentifier_Dot_Star	IF CONTAINS(a.*, 'a') SELECT 1
@@ -14953,7 +14953,7 @@ accept	reject	engine	alterFederationStatement_FEDERATION/FEDERATION_identifier_(
 accept	reject	engine	alterFederationStatement_FEDERATION(SPLIT_AT_LeftParenthesis|Drop_AT_Lef~e6a517a9)/SPLIT_AT_LeftParenthesis	ALTER FEDERATION a SPLIT AT(a = 1)
 accept	reject	engine	alterFederationStatement_FEDERATION(SPLIT_AT_LeftParenthesis|Drop_AT_Lef~e6a517a9)/SPLIT_AT_LeftParenthesis!truncate	ALTER FEDERATION a SPLIT AT
 accept	reject	engine	alterFederationStatement_FEDERATION(SPLIT_AT_LeftParenthesis|Drop_AT_Lef~e6a517a9)/SPLIT_AT_LeftParenthesis!insert	ALTER FEDERATION a SPLIT AT(zzz a = 1)
-accept	reject	engine	alterFederationStatement_FEDERATION(SPLIT_AT_LeftParenthesis|Drop_AT_Lef~e6a517a9)/SPLIT_AT_LeftParenthesis!swap	ALTER FEDERATION a SQL AT(a = 1)
+reject	reject	engine	alterFederationStatement_FEDERATION(SPLIT_AT_LeftParenthesis|Drop_AT_Lef~e6a517a9)/SPLIT_AT_LeftParenthesis!swap	ALTER FEDERATION a SQL AT(a = 1)
 accept	reject	engine	alterFederationStatement_FEDERATION(SPLIT_AT_LeftParenthesis|Drop_AT_Lef~e6a517a9)/Drop_AT_LeftParenthesis_(LOW|HIGH)	ALTER FEDERATION a DROP AT(LOW a = 1)
 reject	reject	engine	alterFederationStatement_FEDERATION(SPLIT_AT_LeftParenthesis|Drop_AT_Lef~e6a517a9)/Drop_AT_LeftParenthesis_(LOW|HIGH)!drop-1	ALTER FEDERATION a AT(LOW a = 1)
 accept	reject	engine	alterFederationStatement_FEDERATION(SPLIT_AT_LeftParenthesis|Drop_AT_Lef~e6a517a9)/Drop_AT_LeftParenthesis_(LOW|HIGH)!drop-2	ALTER FEDERATION a DROP(LOW a = 1)
@@ -17379,7 +17379,7 @@ reject	reject	engine	columnEncryptionTypeParameter_ENCRYPTION_TYPE(DETERMINISTIC
 reject	reject	engine	columnEncryptionAlgorithmParameter_ALGORITHM/ALGORITHM_EqualsSign_stringLiteral	ALTER TABLE a ADD a a ENCRYPTED WITH(ALGORITHM = 'a', COLUMN_ENCRYPTION_KEY = a, COLUMN_ENCRYPTION_KEY = a)
 reject	reject	engine	graphMatchRecursivePattern_SHORTEST_PATH/SHORTEST_PATH_LeftParenthesis_(graphMatchNodeExpression~60b7a06e	IF MATCH(SHORTEST_PATH(a() +)) SELECT 1
 reject	reject	engine	graphMatchRecursivePattern_SHORTEST_PATH(graphMatchNodeExpression_LeftParenth~a5c4b21d)/graphMatchNodeExpression_LeftParenthesis_graphMatchSPRi~ef19b9e2	IF MATCH(SHORTEST_PATH(a() +)) SELECT 1
-accept	reject	engine	graphMatchRecursivePattern_SHORTEST_PATH(graphMatchNodeExpression_LeftParenth~a5c4b21d)/LeftParenthesis_graphMatchSPLeftRecursivePattern_RightP~ac06a358	IF MATCH(SHORTEST_PATH(() + a)) SELECT 1
+reject	reject	engine	graphMatchRecursivePattern_SHORTEST_PATH(graphMatchNodeExpression_LeftParenth~a5c4b21d)/LeftParenthesis_graphMatchSPLeftRecursivePattern_RightP~ac06a358	IF MATCH(SHORTEST_PATH(() + a)) SELECT 1
 reject	reject	engine	graphMatchRecursivePattern_SHORTEST_PATH(graphMatchNodeExpression_LeftParenth~a5c4b21d)/LeftParenthesis_graphMatchSPLeftRecursivePattern_RightP~ac06a358!drop-1	IF MATCH(SHORTEST_PATH() + a)) SELECT 1
 reject	reject	engine	graphMatchRecursivePattern_SHORTEST_PATH(graphMatchNodeExpression_LeftParenth~a5c4b21d)/LeftParenthesis_graphMatchSPLeftRecursivePattern_RightP~ac06a358!drop-2	IF MATCH(SHORTEST_PATH((+ a)) SELECT 1
 reject	reject	engine	graphMatchRecursivePattern_SHORTEST_PATH(graphMatchNodeExpression_LeftParenth~a5c4b21d)/LeftParenthesis_graphMatchSPLeftRecursivePattern_RightP~ac06a358!drop-3	IF MATCH(SHORTEST_PATH(() a)) SELECT 1
@@ -17389,14 +17389,14 @@ accept	reject	engine	identifier_LAST_NODE/LAST_NODE	IF MATCH(LAST_NODE = a) SELE
 reject	reject	engine	identifier_LAST_NODE/LAST_NODE!truncate	IF MATCH(
 reject	reject	engine	identifier_LAST_NODE/LAST_NODE!insert	IF MATCH(LAST_NODE zzz = a) SELECT 1
 accept	reject	engine	graphMatchNodeExpression_LAST_NODE/(LAST_NODE_LeftParenthesis_identifier~8c2fb27c)	IF MATCH(LAST_NODE = a) SELECT 1
-accept	reject	engine	graphMatchNodeExpression_LAST_NODE(LAST_NODE_LeftParenthesis_identifier~8c2fb27c)/LAST_NODE_LeftParenthesis_identifier_RightParenthesis	IF MATCH(LAST_NODE(a) = a) SELECT 1
+reject	reject	engine	graphMatchNodeExpression_LAST_NODE(LAST_NODE_LeftParenthesis_identifier~8c2fb27c)/LAST_NODE_LeftParenthesis_identifier_RightParenthesis	IF MATCH(LAST_NODE(a) = a) SELECT 1
 accept	reject	engine	graphMatchNodeExpression_LAST_NODE(LAST_NODE_LeftParenthesis_identifier~8c2fb27c)/LAST_NODE_LeftParenthesis_identifier_RightParenthesis!drop-1	IF MATCH((a) = a) SELECT 1
 reject	reject	engine	graphMatchNodeExpression_LAST_NODE(LAST_NODE_LeftParenthesis_identifier~8c2fb27c)/LAST_NODE_LeftParenthesis_identifier_RightParenthesis!drop-2	IF MATCH(LAST_NODE a) = a) SELECT 1
-accept	reject	engine	graphMatchNodeExpression_LAST_NODE(LAST_NODE_LeftParenthesis_identifier~8c2fb27c)/LAST_NODE_LeftParenthesis_identifier_RightParenthesis!drop-3	IF MATCH(LAST_NODE() = a) SELECT 1
+reject	reject	engine	graphMatchNodeExpression_LAST_NODE(LAST_NODE_LeftParenthesis_identifier~8c2fb27c)/LAST_NODE_LeftParenthesis_identifier_RightParenthesis!drop-3	IF MATCH(LAST_NODE() = a) SELECT 1
 reject	reject	engine	graphMatchNodeExpression_LAST_NODE(LAST_NODE_LeftParenthesis_identifier~8c2fb27c)/LAST_NODE_LeftParenthesis_identifier_RightParenthesis!drop-4	IF MATCH(LAST_NODE(a = a) SELECT 1
 reject	reject	engine	graphMatchNodeExpression_LAST_NODE(LAST_NODE_LeftParenthesis_identifier~8c2fb27c)/LAST_NODE_LeftParenthesis_identifier_RightParenthesis!truncate	IF MATCH(LAST_NODE(a
 reject	reject	engine	graphMatchNodeExpression_LAST_NODE(LAST_NODE_LeftParenthesis_identifier~8c2fb27c)/LAST_NODE_LeftParenthesis_identifier_RightParenthesis!insert	IF MATCH(LAST_NODE(a) zzz = a) SELECT 1
-accept	reject	engine	graphMatchNodeExpression_LAST_NODE(LAST_NODE_LeftParenthesis_identifier~8c2fb27c)/LAST_NODE_LeftParenthesis_identifier_RightParenthesis!swap	IF MATCH(LEADING(a) = a) SELECT 1
+reject	reject	engine	graphMatchNodeExpression_LAST_NODE(LAST_NODE_LeftParenthesis_identifier~8c2fb27c)/LAST_NODE_LeftParenthesis_identifier_RightParenthesis!swap	IF MATCH(LEADING(a) = a) SELECT 1
 accept	reject	engine	graphMatchNodeExpression_LAST_NODE(LAST_NODE_LeftParenthesis_identifier~8c2fb27c)/identifier_LAST_NODE	IF MATCH(LAST_NODE = a) SELECT 1
 accept	reject	engine	graphMatchLastNodePattern_LAST_NODE/graphMatchNodeExpression_LAST_NODE_(EqualsSign_graphMat~3f422b6b	IF MATCH(LAST_NODE = a) SELECT 1
 accept	reject	engine	graphMatchLastNodePattern_LAST_NODE(EqualsSign_graphMatchNodeExpression|~8bdf379f)/EqualsSign_graphMatchNodeExpression	IF MATCH(LAST_NODE = a) SELECT 1

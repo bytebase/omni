@@ -237,6 +237,7 @@ func (p *Parser) parseVariableDmlTarget() *nodes.TableVarRef {
 func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 	loc := p.pos()
 	name := p.cur.Str
+	delimited := p.isDelimited(p.cur)
 	p.advance()
 	if p.collectMode() && p.cursorOff <= p.prev.End {
 		p.addRuleCandidate("columnref")
@@ -244,8 +245,15 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 		return nil, errCollecting
 	}
 
-	// Function call: ident(...)
+	// Function call: ident(...). Without a schema it names a built-in, which
+	// SQL Server's parser checks (Msg 195; see builtinFunctions).
 	if p.cur.Type == '(' {
+		// MATCH ( graph pattern ) is a predicate of a search condition, read
+		// here as a call (graphMatchPredicate, TSql160.g).
+		graphMatch := !delimited && p.inSearchCondition() && strings.ToUpper(name) == "MATCH"
+		if !graphMatch && (delimited || !builtinFunctions[strings.ToUpper(name)]) {
+			return nil, &ParseError{Message: fmt.Sprintf("%q is not a recognized built-in function name", name), Position: loc}
+		}
 		if strings.EqualFold(name, "PARSE") || strings.EqualFold(name, "TRY_PARSE") {
 			return p.parseParseExpr(name, loc)
 		}

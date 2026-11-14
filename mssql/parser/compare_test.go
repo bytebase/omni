@@ -262,7 +262,7 @@ func TestParseDateTimeFunctionDatepartArgs(t *testing.T) {
 	}
 
 	t.Run("ordinary function preserves column ref", func(t *testing.T) {
-		result := ParseAndCheck(t, "SELECT MYFUNC(HOUR)")
+		result := ParseAndCheck(t, "SELECT ABS(HOUR)")
 		stmt := result.Items[0].(*ast.SelectStmt)
 		target := stmt.TargetList.Items[0].(*ast.ResTarget)
 		fc := target.Val.(*ast.FuncCallExpr)
@@ -324,7 +324,7 @@ func TestParseSpecialFunctionSyntax(t *testing.T) {
 			})
 		}
 
-		result := ParseAndCheck(t, "SELECT MYFUNC(LEADING)")
+		result := ParseAndCheck(t, "SELECT LEN(LEADING)")
 		stmt := result.Items[0].(*ast.SelectStmt)
 		target := stmt.TargetList.Items[0].(*ast.ResTarget)
 		fc := target.Val.(*ast.FuncCallExpr)
