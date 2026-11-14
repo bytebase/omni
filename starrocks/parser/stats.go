@@ -384,22 +384,18 @@ func (p *Parser) parseDropStats(startLoc ast.Loc, variant string) (ast.Node, err
 // KILL ANALYZE
 // ---------------------------------------------------------------------------
 
-// parseKillAnalyze parses KILL ANALYZE job_id.
+// parseKillAnalyze parses KILL ANALYZE job_id; the id is required
+// (StarRocks.g4:1345 killAnalyzeStatement).
 //
 // KILL has already been consumed; cur is ANALYZE.
 func (p *Parser) parseKillAnalyze(startLoc ast.Loc) (ast.Node, error) {
 	p.advance() // consume ANALYZE
 
-	stmt := &ast.KillAnalyzeStmt{}
-	endLoc := p.prev.Loc
-
-	if p.cur.Kind == tokInt {
-		stmt.JobID = p.cur.Ival
-		endLoc = p.cur.Loc
-		p.advance()
+	if p.cur.Kind != tokInt {
+		return nil, p.syntaxErrorAtCur()
 	}
-
-	stmt.Loc = startLoc.Merge(endLoc)
+	stmt := &ast.KillAnalyzeStmt{JobID: p.cur.Ival, Loc: startLoc.Merge(p.cur.Loc)}
+	p.advance()
 	return stmt, nil
 }
 

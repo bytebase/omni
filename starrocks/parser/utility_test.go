@@ -360,67 +360,17 @@ func TestSetLocValid(t *testing.T) {
 // UNSET
 // ---------------------------------------------------------------------------
 
-func TestUnsetVariable(t *testing.T) {
-	file, errs := parseForTest("UNSET VARIABLE myvar")
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	n, ok := file.Stmts[0].(*ast.UnsetStmt)
-	if !ok {
-		t.Fatalf("expected *ast.UnsetStmt, got %T", file.Stmts[0])
-	}
-	if n.Type != "VARIABLE" {
-		t.Errorf("Type = %q, want VARIABLE", n.Type)
-	}
-	if len(n.Names) != 1 || n.Names[0] != "myvar" {
-		t.Errorf("Names = %v, want [myvar]", n.Names)
-	}
-}
-
-func TestUnsetVariableAll(t *testing.T) {
-	file, errs := parseForTest("UNSET VARIABLE ALL")
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	n := file.Stmts[0].(*ast.UnsetStmt)
-	if !n.All {
-		t.Error("All should be true")
-	}
-}
-
-func TestUnsetGlobalVariable(t *testing.T) {
-	file, errs := parseForTest("UNSET GLOBAL VARIABLE myvar")
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	n := file.Stmts[0].(*ast.UnsetStmt)
-	if n.Scope != "GLOBAL" {
-		t.Errorf("Scope = %q, want GLOBAL", n.Scope)
-	}
-	if len(n.Names) != 1 || n.Names[0] != "myvar" {
-		t.Errorf("Names = %v, want [myvar]", n.Names)
-	}
-}
-
-func TestUnsetSessionVariable(t *testing.T) {
-	file, errs := parseForTest("UNSET SESSION VARIABLE x")
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	n := file.Stmts[0].(*ast.UnsetStmt)
-	if n.Scope != "SESSION" {
-		t.Errorf("Scope = %q, want SESSION", n.Scope)
-	}
-}
-
-func TestUnsetLocValid(t *testing.T) {
-	file, errs := parseForTest("UNSET VARIABLE x")
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	n := file.Stmts[0].(*ast.UnsetStmt)
-	if !n.Loc.IsValid() {
-		t.Error("UnsetStmt.Loc should be valid")
+// UNSET came with the doris fork; StarRocks.g4 has no UNSET statement.
+func TestUnsetRejected(t *testing.T) {
+	for _, sql := range []string{
+		"UNSET VARIABLE myvar",
+		"UNSET GLOBAL VARIABLE ALL",
+		"UNSET DEFAULT STORAGE VAULT",
+		"UNSET TABLES",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q): got nil error, want a syntax error", sql)
+		}
 	}
 }
 
@@ -479,7 +429,6 @@ func TestUtilityNodeTags(t *testing.T) {
 		{"EXPLAIN SELECT 1", ast.T_ExplainStmt},
 		{"USE db", ast.T_UseStmt},
 		{"SET x = 1", ast.T_SetStmt},
-		{"UNSET VARIABLE x", ast.T_UnsetStmt},
 		{"HELP 'x'", ast.T_HelpStmt},
 	}
 	for _, tt := range tests {
