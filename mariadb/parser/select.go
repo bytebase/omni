@@ -1471,6 +1471,14 @@ func (p *Parser) matchJoinType() (nodes.JoinType, bool, error) {
 			}
 			return nodes.JoinNaturalRight, true, nil
 		}
+		// NATURAL inner_join: JOIN, INNER JOIN or STRAIGHT_JOIN. mariadb:11.8.8 runs
+		// NATURAL INNER JOIN and NATURAL STRAIGHT_JOIN, a natural join whose order is
+		// fixed, which the tree keeps as a natural join.
+		// Ref: table_ref NATURAL inner_join table_factor in MariaDB 11.8 sql/sql_yacc.yy.
+		if _, ok := p.match(kwSTRAIGHT_JOIN); ok {
+			return nodes.JoinNatural, true, nil
+		}
+		p.match(kwINNER)
 		if _, err := p.expect(kwJOIN); err != nil {
 			return 0, false, err
 		}
