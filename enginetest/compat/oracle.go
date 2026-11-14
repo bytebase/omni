@@ -151,11 +151,28 @@ var oracleLexer = map[int]bool{1735: true, 1740: true, 1741: true, 1742: true, 1
 
 // oracleResolved are codes among the parser's that Oracle raises after the
 // parse, resolving names and types: an invalid identifier (00904, a column
-// that is not there), a column ambiguously defined (00918), inconsistent
-// datatypes (00932), group functions where none may stand (00934, 00937,
-// 00979), a missing table or view (00942), too few values (00947), a name
-// already used (00955), a column named twice (00957).
-var oracleResolved = map[int]bool{904: true, 918: true, 932: true, 934: true, 937: true, 942: true, 947: true, 955: true, 957: true, 979: true}
+// that is not there), a data type that is no built-in one or type the user
+// has (00902, CREATE TABLE a (a UNITE)), a column ambiguously defined
+// (00918), inconsistent datatypes (00932), group functions where none may
+// stand (00934, 00937, 00979), a missing table or view (00942), a missing
+// cluster (00943) or tablespace (00959), too few or too many values (00947,
+// 00913), a name already used (00955), a column named twice (00957), a
+// table not in the FROM list (00964, SELECT a.a.*), more passwords than
+// users (00989), an expression a view must name (00998), FOR UPDATE where
+// it cannot lock (02014), and a database link that is not there (02019,
+// 02024).
+var oracleResolved = map[int]bool{
+	902: true, 904: true, 913: true, 918: true, 932: true, 934: true, 937: true, 942: true, 943: true, 947: true,
+	955: true, 957: true, 959: true, 964: true, 979: true, 989: true, 998: true, 2014: true, 2019: true, 2024: true,
+}
+
+// oracleLexerOnly is ORA-00911, an invalid character: the probe's ~ when
+// the lexer meets it. Oracle reads some statements' every token before it
+// parses any (ALTER MATERIALIZED VIEW, CREATE TABLE, GRANT, REVOKE), so on
+// those a probe answered with it at the tail says only that the lexer got
+// there, not the parser: ALTER MATERIALIZED VIEW a zzz yyy answers ORA-03049
+// at zzz, and its probe ORA-00911 at the tail.
+const oracleLexerOnly = 911
 
 // oracleAnswer reads what OracleParse raised.
 var oracleAnswer = regexp.MustCompile(`ORA-20999: omni-parse code=(\d+) position=(-?\d+) compile=([A-Z0-9,-]*)`)
@@ -214,7 +231,10 @@ func oracleFailed(err error) bool {
 // Oracle reads all of a statement before it looks anything up, so a
 // statement refused after its parse is answered at the probe's tail, and
 // one its parser refused is answered with the same error at the same byte,
-// which comes before the tail. A rejection carries that byte. A probe that
+// which comes before the tail. A probe the lexer refuses at the tail
+// (ORA-00911) says nothing, since Oracle lexes some statements whole before
+// it parses them: the first answer's code decides. A rejection carries that
+// byte. A probe that
 // stops anywhere else has changed how the parser reads the text before the
 // tail, as ALTER INDEX a UNUSABLE followed by more is refused at UNUSABLE,
 // and says nothing: the first answer's code decides, a rejection when it
@@ -295,6 +315,10 @@ func OracleVerdict(statement string, parse func(text string) error) (string, err
 		return "", probeErr
 	case p.code == e.code && p.position == e.position:
 		return reject, nil
+	case p.position == len(statement)+oracleTail && p.code == oracleLexerOnly:
+		// The lexer reached the tail, which it may do before the parse:
+		// the first answer's code decides.
+		return byCode(), nil
 	case p.position == len(statement)+oracleTail:
 		return Accept, nil
 	}

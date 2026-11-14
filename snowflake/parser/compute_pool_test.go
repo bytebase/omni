@@ -106,6 +106,15 @@ func TestParseComputePoolRejects(t *testing.T) {
 		"ALTER COMPUTE \"POOL\" p SUSPEND",
 		"ALTER COMPUTE POOL p STOP \"ALL\"",
 		"ALTER COMPUTE POOL p UNSET 123",
+		"CREATE COMPUTE POOL p MIN_NODES = () MAX_NODES = (foo) INSTANCE_FAMILY = CPU_X64_XS",
+		"ALTER COMPUTE POOL p SET AUTO_RESUME = ()",
+		"ALTER COMPUTE POOL p SET AUTO_RESUME = MAYBE",
+		"ALTER COMPUTE POOL p SET MIN_NODES = 'one'",
+		"ALTER COMPUTE POOL p SET NOT_A_PROPERTY = 1",
+		"ALTER COMPUTE POOL p SET BACKUP_INSTANCE_FAMILIES = (a)",
+		"ALTER COMPUTE POOL p UNSET MIN_NODES",
+		"CREATE COMPUTE POOL p \"MIN_NODES\" = 1 MAX_NODES = 1 INSTANCE_FAMILY = a",
+		"ALTER COMPUTE POOL p SET C = (\"K\" = 1)",
 		"ALTER COMPUTE POOL p UNSET COMMENT, 1.5",
 		"ALTER COMPUTE POOL p UNSET 'COMMENT'",
 	} {
@@ -127,21 +136,56 @@ func TestAtWords(t *testing.T) {
 	}
 }
 
+// readObjectProperties reads in as a SET's property run, with no object's
+// documented properties to hold it to.
+func readObjectProperties(in string) (*ast.ObjectClause, error) {
+	p := &Parser{lexer: NewLexer(in), input: in}
+	p.advance()
+	c, err := p.parseObjectProperties(&ast.ObjectStmt{}, "SET", true)
+	if err == nil && p.cur.Type != tokEOF {
+		err = p.syntaxErrorAtCur()
+	}
+	return c, err
+}
+
 func TestParseObjectValue(t *testing.T) {
-	s := mustObjectStmt(t, "ALTER COMPUTE POOL p SET A = ('x', 'y') B = (c, d) C = (K = 's', L = (M = 1)) D = ((E = 1), (E = 2)) F = () G = -1")
-	opts := s.Clauses[0].Options
+	c, err := readObjectProperties("A = ('x', 'y') B = (c, d) C = (K = 's', L = (M = 1)) D = ((E = 1), (E = 2)) F = () G = -1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	opts := c.Options
 	if len(opts) != 6 || len(opts[0].List) != 2 || len(opts[1].Group) != 2 || !opts[1].Group[0].Bare ||
 		len(opts[2].Group[1].Group) != 1 || len(opts[3].Group) != 2 || opts[4].Group == nil || opts[5].Lit.Value != "-1" {
 		t.Fatalf("options = %+v", opts)
 	}
 	for _, in := range []string{
-		"ALTER COMPUTE POOL p SET A = ('x' 'y')",
-		"ALTER COMPUTE POOL p SET A = ('x' z)",
-		"ALTER COMPUTE POOL p SET A = (K = )",
-		"ALTER COMPUTE POOL p SET A = (",
-		"ALTER COMPUTE POOL p SET A =",
+		"A = ('x' 'y')",
+		"A = ('x' z)",
+		"A = (K = )",
+		"A = (",
+		"A =",
+		"C = (\"K\" = 1)",
+		"\"A\" = 1",
 	} {
-		mustRejectObject(t, in)
+		if _, err := readObjectProperties(in); err == nil {
+			t.Errorf("%q: want an error", in)
+		}
+	}
+}
+
+func TestObjectValueMatches(t *testing.T) {
+	c, err := readObjectProperties("N = 1 S = 's' W = x B = TRUE L = ('a') M = (a, b) G = (K = 1)")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []objectValue{propNumber, propString, propName, propBool, propStrings, propNames, propGroup}
+	for i, o := range c.Options {
+		for j, v := range want {
+			// propName takes any word, so TRUE matches it too.
+			if got := v.matches(o); got != (i == j || (i == 3 && j == 2)) {
+				t.Errorf("%s matches %d = %v", o.Name, j, got)
+			}
+		}
 	}
 }
 

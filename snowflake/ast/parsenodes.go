@@ -1429,7 +1429,17 @@ type CreateTableStmt struct {
 	AsSelect    Node             // CREATE TABLE ... AS SELECT; nil if absent
 	Like        *ObjectName      // CREATE TABLE ... LIKE source; nil if absent
 	Clone       *CloneSource     // CREATE TABLE ... CLONE source; nil if absent
-	Loc         Loc
+	RowPolicy   *RowAccessPolicy // [WITH] ROW ACCESS POLICY name ON (cols); nil if absent
+
+	// The fields below are set only by CREATE ICEBERG TABLE (Iceberg == true).
+	Iceberg           bool          // CREATE [TRANSIENT] ICEBERG TABLE
+	PartitionBy       []Node        // PARTITION BY ( col | transform(...) , ... ); ColumnRef or FuncCallExpr items; nil if absent
+	Options           []*CopyOption // KEY = value parameters (EXTERNAL_VOLUME, CATALOG, BASE_LOCATION, ...) and COPY = ( ... ); nil if absent
+	CopyTags          bool          // COPY TAGS
+	Purge             bool          // PURGE
+	AggregationPolicy *ObjectName   // [WITH] AGGREGATION POLICY name; nil if absent
+	Contacts          []*CopyOption // WITH CONTACT ( purpose = contact [, ...] ); nil if absent
+	Loc               Loc
 }
 
 func (n *CreateTableStmt) Tag() NodeTag { return T_CreateTableStmt }
@@ -1783,6 +1793,9 @@ type DropStmt struct {
 	ArgTypes []*TypeName
 	Cascade  bool // CASCADE option (mutually exclusive with Restrict)
 	Restrict bool // RESTRICT option (mutually exclusive with Cascade)
+	Iceberg  bool // DROP ICEBERG TABLE (Kind is DropTable)
+	Purge    bool // PURGE (DROP [ICEBERG] TABLE only; mutually exclusive with NoPurge)
+	NoPurge  bool // NOPURGE (DROP [ICEBERG] TABLE only; mutually exclusive with Purge)
 	Loc      Loc
 }
 
@@ -1825,9 +1838,10 @@ func (k UndropObjectKind) String() string {
 // UndropStmt represents an UNDROP <object_type> name statement.
 // DATABASE and SCHEMA are handled by T2.1.
 type UndropStmt struct {
-	Kind UndropObjectKind
-	Name *ObjectName
-	Loc  Loc
+	Kind    UndropObjectKind
+	Iceberg bool // UNDROP ICEBERG TABLE (Kind is UndropTable)
+	Name    *ObjectName
+	Loc     Loc
 }
 
 // Tag implements Node.
@@ -4661,18 +4675,39 @@ func (n *AlterRoleStmt) Tag() NodeTag { return T_AlterRoleStmt }
 type AlterUserAction int
 
 const (
-	AlterUserRename          AlterUserAction = iota // RENAME TO <new_name>
-	AlterUserResetPassword                          // RESET PASSWORD
-	AlterUserAbortQueries                           // ABORT ALL QUERIES
-	AlterUserSet                                    // SET <options>
-	AlterUserUnset                                  // UNSET <property> [ , ... ]
-	AlterUserSetTag                                 // SET TAG <tag> = '<value>' [ , ... ]
-	AlterUserUnsetTag                               // UNSET TAG <tag> [ , ... ]
-	AlterUserAddDelegated                           // ADD DELEGATED AUTHORIZATION ...
-	AlterUserRemoveDelegated                        // REMOVE DELEGATED ... FROM SECURITY INTEGRATION ...
+	AlterUserRename                 AlterUserAction = iota // RENAME TO <new_name>
+	AlterUserResetPassword                                 // RESET PASSWORD
+	AlterUserAbortQueries                                  // ABORT ALL QUERIES
+	AlterUserSet                                           // SET <options>
+	AlterUserUnset                                         // UNSET <property> [ , ... ]
+	AlterUserSetTag                                        // SET TAG <tag> = '<value>' [ , ... ]
+	AlterUserUnsetTag                                      // UNSET TAG <tag> [ , ... ]
+	AlterUserAddDelegated                                  // ADD DELEGATED AUTHORIZATION ...
+	AlterUserRemoveDelegated                               // REMOVE DELEGATED ... FROM SECURITY INTEGRATION ...
+	AlterUserSetPolicy                                     // SET { AUTHENTICATION | PASSWORD | SESSION | INGRESS } POLICY <p> [ FORCE ]
+	AlterUserUnsetPolicy                                   // UNSET { AUTHENTICATION | PASSWORD | SESSION | INGRESS } POLICY
+	AlterUserEnrollMFA                                     // ENROLL MFA
+	AlterUserAddCredential                                 // ADD <credential> <name> [ <options> ]
+	AlterUserRemoveCredential                              // REMOVE <credential> <name>
+	AlterUserRotateCredential                              // ROTATE <credential> <name> [ <options> ]
+	AlterUserModifyCredentialRename                        // MODIFY <credential> <name> RENAME TO <new_name>
+	AlterUserModifyCredentialSet                           // MODIFY <credential> <name> SET <options>
+	AlterUserModifyCredentialUnset                         // MODIFY <credential> <name> UNSET <property> [ , ... ]
 )
 
-// AlterUserStmt represents ALTER USER [ IF EXISTS ] <name> <action>.
+// UserCredentialKind names the per-user sub-object an ALTER USER ADD / MODIFY /
+// REMOVE / ROTATE action works on.
+type UserCredentialKind int
+
+const (
+	UserCredentialKeyPair          UserCredentialKind = iota // KEY PAIR
+	UserCredentialPAT                                        // { PROGRAMMATIC ACCESS TOKEN | PAT }
+	UserCredentialWorkloadIdentity                           // WORKLOAD IDENTITY
+	UserCredentialMFAMethod                                  // MFA METHOD
+)
+
+// AlterUserStmt represents ALTER USER [ IF EXISTS ] [ <name> ] <action>.
+// Name is nil when the statement omits it, which alters the current user.
 //
 //	RENAME TO <new_name>
 //	RESET PASSWORD
@@ -4682,7 +4717,20 @@ const (
 //	SET TAG <tag> = '<value>' [ , ... ]
 //	UNSET TAG <tag> [ , ... ]
 //	ADD DELEGATED AUTHORIZATION OF ROLE <r> TO SECURITY INTEGRATION <i>
-//	REMOVE DELEGATED { AUTHORIZATION OF ROLE <r> | AUTHORIZATIONS } FROM SECURITY INTEGRATION <i>
+//	REMOVE DELEGATED { AUTHORIZATION OF ROLE <r> | AUTHORIZATIONS [ OF ANY ROLE ] } FROM SECURITY INTEGRATION <i>
+//	SET { AUTHENTICATION | PASSWORD | SESSION | INGRESS } POLICY <policy> [ FORCE ]
+//	UNSET { AUTHENTICATION | PASSWORD | SESSION | INGRESS } POLICY
+//	ENROLL MFA
+//	ADD MFA METHOD OTP [ COUNT = <n> ]
+//	{ ADD | ROTATE } <credential> <cred_name> [ <options> ]
+//	REMOVE <credential> <cred_name>
+//	MODIFY <credential> <cred_name> { RENAME TO <new_name> | SET <options> | UNSET <property> [ , ... ] }
+//
+// <credential> is KEY PAIR, PROGRAMMATIC ACCESS TOKEN (PAT), WORKLOAD IDENTITY,
+// or MFA METHOD; Credential names it and CredentialName holds <cred_name> (OTP
+// for ADD MFA METHOD). Their options (PUBLIC_KEY, TYPE, DAYS_TO_EXPIRY, ...)
+// are open-ended KEY = value pairs in Options, and MODIFY ... UNSET names go in
+// UnsetProps.
 //
 // The ADD / REMOVE DELEGATED forms are captured structurally only by Action
 // (their body identifiers are consumed but not modeled), matching the
@@ -4697,7 +4745,15 @@ type AlterUserStmt struct {
 	Tags       []*TagAssignment // SET TAG (...) assignments; for AlterUserSetTag
 	UnsetTags  []*ObjectName    // UNSET TAG names; for AlterUserUnsetTag
 	Raw        string           // verbatim tail for ADD / REMOVE DELEGATED forms
-	Loc        Loc
+	PolicyKind string           // "{ AUTHENTICATION | PASSWORD | SESSION | INGRESS } POLICY", uppercased; for Set/UnsetPolicy
+	PolicyName *ObjectName      // the policy name; for AlterUserSetPolicy
+	Force      bool             // trailing FORCE; for AlterUserSetPolicy
+
+	Credential            UserCredentialKind // the sub-object kind; for the *Credential actions
+	CredentialName        *ObjectName        // the sub-object's name; for the *Credential actions
+	CredentialIfExists    bool               // MODIFY / REMOVE / ROTATE PAT IF EXISTS
+	CredentialIfNotExists bool               // ADD PAT IF NOT EXISTS
+	Loc                   Loc
 }
 
 // Tag implements Node.
