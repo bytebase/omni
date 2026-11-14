@@ -1155,6 +1155,9 @@ func walkChildren(v Visitor, node Node) {
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
+		if n.Table != nil {
+			Walk(v, n.Table)
+		}
 		for _, item := range n.ArgTypes {
 			if item != nil {
 				Walk(v, item)
@@ -1341,6 +1344,9 @@ func walkChildren(v Visitor, node Node) {
 			walkTagAssignment(v, item)
 		}
 		Walk(v, n.Query)
+		if n.Type != nil {
+			Walk(v, n.Type)
+		}
 		if n.TimeTravel != nil {
 			Walk(v, n.TimeTravel)
 		}

@@ -56,6 +56,11 @@ func (w *writer) writeObjectClause(kind string, c *ast.ObjectClause) error {
 		}
 		w.writeObjectNameNoSpace(name)
 	}
+	if c.Type != nil {
+		// A data type: VARIABLE's <data_type>, TYPE's AS <type>.
+		w.buf.WriteByte(' ')
+		w.writeTypeName(c.Type)
+	}
 	if c.Args != nil {
 		// ( <name> => <value> [ , ... ] ): USING ( ... ) of EXECUTE DCM PROJECT.
 		w.buf.WriteString(" (")
@@ -131,7 +136,7 @@ func listsWith(prev, o *ast.CopyOption) bool {
 // its properties with commas, as the object's page writes them.
 func objectOptionCommas(kind, keywords string) bool {
 	switch keywords {
-	case "SET CONTACT":
+	case "SET CONTACT", "SET RULES":
 		return true
 	case "SET":
 		return kind == "TASK GRAPH"

@@ -32,6 +32,8 @@ type objectForm struct {
 	// drop reports whether DROP <kind> [ IF EXISTS ] <name> is documented,
 	// and dropCascade whether a CASCADE may follow the name.
 	drop, dropCascade bool
+	// undrop reports whether UNDROP <kind> <name> is documented.
+	undrop bool
 	// nameParts is how many parts the object's name may have: 1 for an
 	// account-level object (a compute pool), 2 for one a database qualifies,
 	// 0 for a schema object, which db.schema.name may qualify.
