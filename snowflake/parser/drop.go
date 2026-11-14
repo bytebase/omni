@@ -34,6 +34,10 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 		}
 		return ds, nil
 	}
+	// DROP [ <integration kind> ] INTEGRATION (integration.go).
+	if p.acceptDropIntegrationKind() {
+		return p.parseDropIntegrationStmt(start)
+	}
 	// Policies read by their docs pages (policy.go).
 	if d := p.startsDocPolicy(); d != nil {
 		return p.parseDropDocPolicy(start, d)
@@ -164,10 +168,6 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 			return nil, err
 		}
 		return p.parseDropObject(ast.DropFailoverGroup, start, true, false)
-
-	case kwINTEGRATION:
-		p.advance() // consume INTEGRATION
-		return p.parseDropObject(ast.DropIntegration, start, true, false)
 
 	case kwMANAGED:
 		// MANAGED ACCOUNT

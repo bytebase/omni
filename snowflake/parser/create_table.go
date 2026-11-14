@@ -41,6 +41,10 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 	if f := p.matchObjectForm(); f != nil {
 		return p.parseObjectStmt("CREATE", f, start, orReplace, orAlter)
 	}
+	// CATALOG / EXTERNAL ACCESS INTEGRATION (integration.go).
+	if p.startsCatalogOrAccessIntegration() {
+		return p.parseCreateIntegrationStmt(start, orReplace, orAlter)
+	}
 	// Policies and data metric functions read by their docs pages (policy.go,
 	// data_metric_function.go).
 	if d := p.startsDocPolicy(); d != nil {
