@@ -56,10 +56,33 @@ func (w *writer) writeObjectClause(kind string, c *ast.ObjectClause) error {
 		}
 		w.writeObjectNameNoSpace(name)
 	}
-	if c.Type != nil {
+	if c.Params != nil {
+		// A body's signature and type: ( <arg> <type> [ , ... ] ) RETURNS <type>.
+		w.buf.WriteString(" (")
+		for i, a := range c.Params {
+			if i > 0 {
+				w.buf.WriteString(", ")
+			}
+			w.writeIdentNoSpace(a.Name)
+			w.buf.WriteByte(' ')
+			w.writeTypeName(a.DataType)
+		}
+		w.buf.WriteByte(')')
+		if c.Type != nil {
+			w.buf.WriteString(" RETURNS ")
+			w.writeTypeName(c.Type)
+		}
+	} else if c.Type != nil {
 		// A data type: VARIABLE's <data_type>, TYPE's AS <type>.
 		w.buf.WriteByte(' ')
 		w.writeTypeName(c.Type)
+	}
+	if c.Body != nil {
+		// -> <expression>
+		w.buf.WriteString(" -> ")
+		if err := w.writeExpr(c.Body); err != nil {
+			return err
+		}
 	}
 	if c.Args != nil {
 		// ( <name> => <value> [ , ... ] ): USING ( ... ) of EXECUTE DCM PROJECT.

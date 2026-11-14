@@ -148,9 +148,14 @@ func (p *Parser) parseAlterPipeStmt() (ast.Node, error) {
 			stmt.Action = ast.AlterPipeSetTag
 			stmt.Tags = tags
 		} else {
-			opts, err := p.parseRequiredOptions()
+			// The properties may be separated by commas (SET,
+			// https://docs.snowflake.com/en/sql-reference/sql/alter-pipe).
+			opts, err := p.parseCopyOptionsSep(true)
 			if err != nil {
 				return nil, err
+			}
+			if len(opts) == 0 {
+				return nil, p.syntaxErrorAtCur()
 			}
 			stmt.Action = ast.AlterPipeSet
 			stmt.Options = opts
@@ -203,11 +208,13 @@ func (p *Parser) parseAlterPipeStmt() (ast.Node, error) {
 //
 //	CREATE [ OR REPLACE ] STREAM [ IF NOT EXISTS ] <name>
 //	  [ [ WITH ] TAG ( … ) ] [ COPY GRANTS ]
-//	  ON { TABLE | VIEW | STAGE | EXTERNAL TABLE } <object_name>
-//	  [ { AT | BEFORE } ( <key> => <value> ) ]
+//	  ON { TABLE | VIEW | STAGE | EXTERNAL TABLE | EVENT TABLE | DYNAMIC TABLE } <object_name>
+//	  [ { AT | BEFORE } ( <key> => <value> ) ]   -- not ON EVENT or DYNAMIC TABLE
 //	  [ <config options> ]
 //
-//	CREATE [ OR REPLACE ] STREAM <name> CLONE <source> [ COPY GRANTS ]
+//	CREATE [ OR REPLACE ] STREAM <name> CLONE <source> [ COPY GRANTS ] [ COPY = ( GRANTS ) ]
+//
+// https://docs.snowflake.com/en/sql-reference/sql/create-stream
 //
 // The CREATE keyword and OR REPLACE have been consumed; cur is the STREAM
 // keyword. Per the docs the [WITH] TAG clause precedes COPY GRANTS, which
@@ -232,7 +239,8 @@ func (p *Parser) parseCreateStreamStmt(start ast.Loc, orReplace, orAlter bool) (
 	}
 	stmt.Name = name
 
-	// CLONE form: CREATE STREAM <name> CLONE <source> [COPY GRANTS].
+	// CLONE form: CREATE STREAM <name> CLONE <source> [ COPY GRANTS ]
+	// [ COPY = ( GRANTS ) ].
 	if p.cur.Type == kwCLONE {
 		p.advance() // consume CLONE
 		src, err := p.parseObjectName()
@@ -244,6 +252,16 @@ func (p *Parser) parseCreateStreamStmt(start ast.Loc, orReplace, orAlter bool) (
 			p.advance() // consume COPY
 			p.advance() // consume GRANTS
 			stmt.CopyGrants = true
+		}
+		if p.cur.Type == kwCOPY && p.peekNext().Type == '=' {
+			opt, err := p.parseCopyOption()
+			if err != nil {
+				return nil, err
+			}
+			if len(opt.Group) != 1 || !opt.Group[0].Bare || opt.Group[0].Name != "GRANTS" {
+				return nil, &ParseError{Position: opt.Loc.Start, End: opt.Loc.End, Message: "syntax error: COPY takes ( GRANTS )"}
+			}
+			stmt.Options = []*ast.CopyOption{opt}
 		}
 		stmt.Loc.End = p.prev.Loc.End
 		return stmt, nil
@@ -283,12 +301,17 @@ func (p *Parser) parseCreateStreamStmt(start ast.Loc, orReplace, orAlter bool) (
 	case kwSTAGE:
 		p.advance() // consume STAGE
 		stmt.SourceKind = ast.StreamOnStage
-	case kwEXTERNAL:
-		p.advance() // consume EXTERNAL
+	case kwEXTERNAL, kwEVENT, kwDYNAMIC:
+		stmt.SourceKind = ast.StreamOnExternalTable
+		if p.cur.Type == kwEVENT {
+			stmt.SourceKind = ast.StreamOnEventTable
+		} else if p.cur.Type == kwDYNAMIC {
+			stmt.SourceKind = ast.StreamOnDynamicTable
+		}
+		p.advance() // consume EXTERNAL / EVENT / DYNAMIC
 		if _, err := p.expect(kwTABLE); err != nil {
 			return nil, err
 		}
-		stmt.SourceKind = ast.StreamOnExternalTable
 	default:
 		return nil, p.syntaxErrorAtCur()
 	}
@@ -300,7 +323,9 @@ func (p *Parser) parseCreateStreamStmt(start ast.Loc, orReplace, orAlter bool) (
 
 	// Optional { AT | BEFORE } ( <key> => <value> ) time-travel clause. Parsed
 	// inline/open-ended (not via the T5.3 query-clauses node).
-	if p.cur.Type == kwAT || p.cur.Type == kwBEFORE {
+	// A stream on an event or dynamic table takes none.
+	if (p.cur.Type == kwAT || p.cur.Type == kwBEFORE) &&
+		stmt.SourceKind != ast.StreamOnEventTable && stmt.SourceKind != ast.StreamOnDynamicTable {
 		tt, err := p.parseStreamTimeTravel()
 		if err != nil {
 			return nil, err

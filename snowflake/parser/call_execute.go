@@ -44,8 +44,12 @@ import (
 // directly (not through the expression parser) and is therefore self-contained.
 // ---------------------------------------------------------------------------
 
-// parseCallStmt parses `CALL <proc_name> ( [ <arg> [ , ... ] ] )`. The CALL
-// keyword has NOT yet been consumed when this function is called.
+// parseCallStmt parses
+//
+//	CALL <proc_name> ( [ <arg> [ , ... ] ] ) [ INTO :<snowflake_scripting_variable> ]
+//
+// (https://docs.snowflake.com/en/sql-reference/sql/call). The CALL keyword has
+// NOT yet been consumed when this function is called.
 func (p *Parser) parseCallStmt() (ast.Node, error) {
 	callTok := p.advance() // consume CALL
 	stmt := &ast.CallStmt{
@@ -62,32 +66,36 @@ func (p *Parser) parseCallStmt() (ast.Node, error) {
 		return nil, err
 	}
 
-	// Empty argument list: CALL p().
-	if p.cur.Type == ')' {
-		closeTok := p.advance() // consume ')'
-		stmt.Loc.End = closeTok.Loc.End
-		return stmt, nil
-	}
-
-	for {
+	// An empty argument list, CALL p(), has none.
+	for p.cur.Type != ')' || len(stmt.Args) > 0 {
 		arg, err := p.parseCallArg()
 		if err != nil {
 			return nil, err
 		}
 		stmt.Args = append(stmt.Args, arg)
 
-		if p.cur.Type == ',' {
-			p.advance() // consume ','
-			continue
+		if p.cur.Type != ',' {
+			break
 		}
-		break
+		p.advance() // consume ','
 	}
 
-	closeTok, err := p.expect(')')
-	if err != nil {
+	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
-	stmt.Loc.End = closeTok.Loc.End
+	// INTO :<snowflake_scripting_variable>
+	if p.cur.Type == kwINTO {
+		p.advance() // consume INTO
+		if _, err := p.expect(':'); err != nil {
+			return nil, err
+		}
+		v, err := p.parseIdent()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Into = v
+	}
+	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
 }
 

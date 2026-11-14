@@ -1006,6 +1006,9 @@ func (p *Parser) parseSessionParamOptions() ([]*ast.CopyOption, error) {
 			return nil, err
 		}
 		opts = append(opts, opt)
+		// The parameters may be separated "by spaces or commas" (SET,
+		// https://docs.snowflake.com/en/sql-reference/sql/alter-session).
+		p.acceptOptionComma()
 		if p.cur.Loc.Start == before && p.cur.Type != tokEOF {
 			// No forward progress on a non-EOF token: abort rather than spin.
 			return nil, p.syntaxErrorAtCur()

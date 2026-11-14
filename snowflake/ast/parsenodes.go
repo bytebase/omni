@@ -4634,6 +4634,8 @@ const (
 	StreamOnView                                  // ON VIEW <name>
 	StreamOnStage                                 // ON STAGE <name>
 	StreamOnExternalTable                         // ON EXTERNAL TABLE <name>
+	StreamOnEventTable                            // ON EVENT TABLE <name>
+	StreamOnDynamicTable                          // ON DYNAMIC TABLE <name>
 )
 
 // StreamTimeTravel holds a stream's { AT | BEFORE } ( <key> => <value> ) clause.
@@ -4680,7 +4682,7 @@ type CreateStreamStmt struct {
 	SourceKind  StreamSourceKind  // ON { TABLE | VIEW | STAGE | EXTERNAL TABLE }
 	Source      *ObjectName       // the ON <object_name>
 	TimeTravel  *StreamTimeTravel // { AT | BEFORE } (...); nil if absent
-	Options     []*CopyOption     // APPEND_ONLY / INSERT_ONLY / SHOW_INITIAL_ROWS / COMMENT / ...
+	Options     []*CopyOption     // APPEND_ONLY / INSERT_ONLY / SHOW_INITIAL_ROWS / COMMENT / ...; a CLONE's COPY = ( GRANTS )
 	Clone       *ObjectName       // CLONE <source>; non-nil only for the CLONE form
 	Loc         Loc
 }
@@ -5236,6 +5238,8 @@ const (
 	AlterPolicySetTag                            // SET TAG <tag> = '<value>' [ , ... ]
 	AlterPolicyUnsetTag                          // UNSET TAG <tag> [ , ... ]
 	AlterPolicyAs                                // AS '<definition>' (FEATURE / INGRESS)
+	AlterPolicyAdd                               // ADD <rule list> = ( ... ) (NETWORK)
+	AlterPolicyRemove                            // REMOVE <rule list> = ( ... ) (NETWORK)
 )
 
 // AlterPolicyStmt represents the ALTER form of the policy objects (one node,
@@ -5255,7 +5259,7 @@ type AlterPolicyStmt struct {
 	Action     AlterPolicyAction
 	NewName    *ObjectName      // RENAME TO target; for AlterPolicyRename
 	Body       Node             // SET BODY -> <expr>; for AlterPolicySetBody
-	Options    []*CopyOption    // SET <options>; for AlterPolicySet
+	Options    []*CopyOption    // SET <options>; for AlterPolicySet; the rule list for AlterPolicyAdd / AlterPolicyRemove
 	UnsetProps []string         // UNSET <property> names; for AlterPolicyUnset
 	Tags       []*TagAssignment // SET TAG (...) assignments; for AlterPolicySetTag
 	UnsetTags  []*ObjectName    // UNSET TAG names; for AlterPolicyUnsetTag
@@ -6114,6 +6118,9 @@ func (n *CallArg) Tag() NodeTag { return T_CallArg }
 type CallStmt struct {
 	Name *ObjectName
 	Args []Node // each element is a *CallArg
+	// Into is the Snowflake Scripting variable of INTO :<variable>; empty if
+	// absent.
+	Into Ident
 	Loc  Loc
 }
 
@@ -6691,8 +6698,17 @@ type ObjectClause struct {
 	Tags     []*TagAssignment // its tag assignments (SET TAG, [ WITH ] TAG ( ... ))
 	Query    Node             // the query an AS clause holds
 	// Type is the data type a clause names: a VARIABLE's <data_type>, a
-	// TYPE's AS <type>; nil otherwise.
+	// TYPE's AS <type>, the RETURNS <type> of a clause with Params; nil
+	// otherwise.
 	Type *TypeName
+	// Params is the signature ( <arg_name> <arg_type> [ , ... ] ) of a clause
+	// that holds a body: STORAGE LIFECYCLE POLICY's AS ( ... ), DATA MOVEMENT
+	// RULE's MAX_ROWS AS ( ). It is non-nil, and empty for ( ), only then.
+	Params []*PolicyArg
+	// Body is the expression after -> : of a clause with Params, or of SET
+	// BODY. A body the page writes in parentheses, -> ( <expression> ), is a
+	// ParenExpr.
+	Body Node
 	// TimeTravel is the point in time an AT or BEFORE clause names, as a
 	// POSTGRES INSTANCE's FORK writes it.
 	TimeTravel *TimeTravelClause
