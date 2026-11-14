@@ -191,6 +191,21 @@ func (*SetOpStmt) nodeTag()      {}
 func (n *SetOpStmt) GetLoc() Loc { return n.Loc }
 func (*SetOpStmt) stmtNode()     {}
 
+// ExprStmt is an expression standing as a statement: `1 + 1`,
+// `EXISTS(SELECT ...)`. A query is any expression in PartiQL; a SELECT,
+// a set operation or a parenthesised query parses to its own StmtNode
+// instead.
+//
+// Grammar: statement#QueryDql, dql : expr
+type ExprStmt struct {
+	Expr ExprNode
+	Loc  Loc
+}
+
+func (*ExprStmt) nodeTag()      {}
+func (n *ExprStmt) GetLoc() Loc { return n.Loc }
+func (*ExprStmt) stmtNode()     {}
+
 // ExplainStmt wraps any other StmtNode with an EXPLAIN prefix.
 //
 // Grammar: root (EXPLAIN prefix on the root rule)

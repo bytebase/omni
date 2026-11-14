@@ -1,6 +1,11 @@
 package parser
 
-import "github.com/bytebase/omni/partiql/ast"
+import (
+	"fmt"
+	"strings"
+
+	"github.com/bytebase/omni/partiql/ast"
+)
 
 // Parse parses a PartiQL script and returns an *ast.List of statement nodes.
 //
@@ -114,14 +119,18 @@ func (p *Parser) parseRoot() (ast.StmtNode, error) {
 	// not representable in the current AST.
 	if p.cur.Type == tokPAREN_LEFT {
 		p.advance() // consume (
+		var params, values []Token
 		for {
 			// Each option is a pair of identifiers: param=IDENTIFIER value=IDENTIFIER.
-			if _, err := p.expect(tokIDENT); err != nil {
+			param, err := p.expect(tokIDENT)
+			if err != nil {
 				return nil, err
 			}
-			if _, err := p.expect(tokIDENT); err != nil {
+			value, err := p.expect(tokIDENT)
+			if err != nil {
 				return nil, err
 			}
+			params, values = append(params, param), append(values, value)
 			if p.cur.Type != tokCOMMA {
 				break
 			}
@@ -129,6 +138,25 @@ func (p *Parser) parseRoot() (ast.StmtNode, error) {
 		}
 		if _, err := p.expect(tokPAREN_RIGHT); err != nil {
 			return nil, err
+		}
+		// The reference parser's visitor takes TYPE and FORMAT, each once
+		// (PartiQLParserDefault.kt:524, 2298).
+		seen := map[string]bool{}
+		for i, param := range params {
+			name := strings.ToUpper(param.Str)
+			if name != "TYPE" && name != "FORMAT" {
+				return nil, &ParseError{
+					Message:  fmt.Sprintf("unknown EXPLAIN parameter %q", param.Str),
+					Position: param.Loc.Start, End: param.Loc.End,
+				}
+			}
+			if seen[name] {
+				return nil, &ParseError{
+					Message:  fmt.Sprintf("cannot set EXPLAIN parameter %s multiple times", name),
+					Position: values[i].Loc.Start, End: values[i].Loc.End,
+				}
+			}
+			seen[name] = true
 		}
 	}
 
@@ -177,20 +205,6 @@ func (p *Parser) parseRootStatement() (ast.StmtNode, error) {
 		p.advance() // consume EXEC/EXECUTE
 		return p.parseExecCommand()
 	default:
-		// DQL fallback: parse as expression. If the result is a StmtNode
-		// (e.g. SelectStmt via SubLink unwrap), return it. Bare non-statement
-		// expressions (e.g. `1 + 2`) are deferred — the grammar allows them
-		// as dql but there is no ExprStmt wrapper in the AST.
-		expr, err := p.parseExprTop()
-		if err != nil {
-			return nil, err
-		}
-		if sub, ok := expr.(*ast.SubLink); ok {
-			return sub.Stmt, nil
-		}
-		if sn, ok := expr.(ast.StmtNode); ok {
-			return sn, nil
-		}
-		return nil, p.deferredFeature("bare expression as statement", "parse-entry (DAG node 8)")
+		return p.parseDqlStatement()
 	}
 }

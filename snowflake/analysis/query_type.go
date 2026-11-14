@@ -54,7 +54,8 @@ func (q QueryType) String() string {
 //   - SHOW and DESCRIBE are SelectInfoSchema, except that a result pipe
 //     (SHOW ... ->> <query>) and stmt ->> <query> take the piped query's type.
 //   - USE and SET are Select.
-//   - COMMENT and every CREATE, ALTER, DROP and UNDROP node are DDL.
+//   - COMMENT and every CREATE, ALTER, DROP and UNDROP node are DDL,
+//     an ObjectStmt's CREATE and ALTER among them.
 //   - Everything else, including nil, is QueryTypeUnknown: TRUNCATE,
 //     GRANT/REVOKE, COMMIT/ROLLBACK, PUT/GET, LIST/REMOVE, UNSET, scripting
 //     blocks. Mapping them to DDL would let DDL holders run account and stage
@@ -98,6 +99,14 @@ func QueryTypeOf(node ast.Node) QueryType {
 
 	case *ast.CommentStmt:
 		return DDL
+
+	case *ast.ObjectStmt:
+		// A CREATE or ALTER of an object read by its documented shape. Any
+		// other verb (EXECUTE JOB SERVICE) runs something and stays unknown.
+		if n.Verb == "CREATE" || n.Verb == "ALTER" {
+			return DDL
+		}
+		return QueryTypeUnknown
 	}
 
 	// Every omni DDL node is named Create*, Alter*, Drop* or Undrop*.

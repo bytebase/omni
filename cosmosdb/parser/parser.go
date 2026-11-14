@@ -129,14 +129,10 @@ func (p *Parser) pos() int {
 	return p.cur.Loc
 }
 
-// parseIdentifier accepts tokIDENT plus a set of keywords that can be used as identifiers.
+// parseIdentifier accepts a name: a token isIdentLike accepts.
 // Returns (name, location, error).
 func (p *Parser) parseIdentifier() (string, int, error) {
-	switch p.cur.Type {
-	case tokIDENT,
-		tokIN, tokBETWEEN, tokTOP, tokVALUE, tokORDER, tokBY,
-		tokGROUP, tokOFFSET, tokLIMIT, tokASC, tokDESC, tokEXISTS,
-		tokLIKE, tokHAVING, tokJOIN, tokESCAPE, tokARRAY, tokROOT, tokRANK:
+	if isIdentLike(p.cur.Type) {
 		name := p.cur.Str
 		loc := p.cur.Loc
 		p.advance()
@@ -155,6 +151,7 @@ func (p *Parser) parsePropertyName() (string, int, error) {
 		tokIN, tokBETWEEN, tokTOP, tokVALUE, tokORDER, tokBY,
 		tokGROUP, tokOFFSET, tokLIMIT, tokASC, tokDESC, tokEXISTS,
 		tokLIKE, tokHAVING, tokJOIN, tokESCAPE, tokARRAY, tokROOT, tokRANK,
+		tokLEFT, tokRIGHT,
 		// Additional keywords allowed as property names:
 		tokSELECT, tokFROM, tokWHERE, tokNOT, tokAND, tokOR,
 		tokAS, tokTRUE, tokFALSE, tokNULL, tokUNDEFINED, tokUDF, tokDISTINCT:
@@ -204,11 +201,9 @@ func (p *Parser) parseSelect() (*nodes.SelectStmt, error) {
 
 	// TOP n
 	if p.cur.Type == tokTOP {
-		top, err := p.parseTopClause()
-		if err != nil {
+		if err := p.parseTopClause(stmt); err != nil {
 			return nil, err
 		}
-		stmt.Top = top
 	}
 
 	// DISTINCT

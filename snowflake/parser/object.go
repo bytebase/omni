@@ -30,6 +30,12 @@ type objectForm struct {
 	orReplace, orAlter bool
 	// drop reports whether DROP <kind> [ IF EXISTS ] <name> is documented.
 	drop bool
+	// props, when set, are the properties the page documents and the value
+	// each takes. parseObjectStmt then rejects a property of a CREATE's run
+	// or a SET that props does not name or whose value has another shape,
+	// and an UNSET of a name outside unset (or props, when unset is nil).
+	props objectProps
+	unset []string
 }
 
 // objectForms maps an object's first keyword to the objects it starts.
@@ -44,7 +50,7 @@ func registerObject(f *objectForm) {
 // matchObjectForm reports the registered object whose keywords start at cur,
 // preferring the longest. It consumes nothing.
 func (p *Parser) matchObjectForm() *objectForm {
-	if p.cur.Str == "" {
+	if p.cur.Type != tokIdent && p.cur.Type < 700 {
 		return nil
 	}
 	var best *objectForm
@@ -56,17 +62,23 @@ func (p *Parser) matchObjectForm() *objectForm {
 	return best
 }
 
-// atWords reports whether the tokens from cur on spell words, matched by
-// their uppercased text whether they lex as keywords or identifiers. It
-// consumes nothing.
+// isWordToken reports whether t is the word upper as SQL spells it: an
+// unquoted identifier or a keyword whose uppercased text is upper. A string or
+// a quoted identifier never stands for a keyword.
+func isWordToken(t Token, upper string) bool {
+	return (t.Type == tokIdent || t.Type >= 700) && strings.ToUpper(t.Str) == upper
+}
+
+// atWords reports whether the tokens from cur on spell words, each an
+// unquoted identifier or a keyword (isWordToken). It consumes nothing.
 func (p *Parser) atWords(words ...string) bool {
-	if !p.curIsWord(words[0]) {
+	if !isWordToken(p.cur, words[0]) {
 		return false
 	}
 	if len(words) == 1 {
 		return true
 	}
-	if !p.peekIsWord(words[1]) {
+	if !isWordToken(p.peekNext(), words[1]) {
 		return false
 	}
 	if len(words) == 2 {
@@ -77,7 +89,7 @@ func (p *Parser) atWords(words ...string) bool {
 	p.advance()
 	p.advance()
 	for _, w := range words[2:] {
-		if !p.curIsWord(w) {
+		if !isWordToken(p.cur, w) {
 			return false
 		}
 		p.advance()
@@ -100,7 +112,7 @@ func (p *Parser) acceptWords(words ...string) bool {
 // expectWords consumes words, or fails at the first token that differs.
 func (p *Parser) expectWords(words ...string) error {
 	for _, w := range words {
-		if !p.curIsWord(w) {
+		if !isWordToken(p.cur, w) {
 			return p.syntaxErrorAtCur()
 		}
 		p.advance()
@@ -147,15 +159,152 @@ func (p *Parser) parseObjectStmt(verb string, f *objectForm, start ast.Loc, orRe
 	if err := read(p, s); err != nil {
 		return nil, err
 	}
+	if f.props != nil {
+		if err := f.checkClauses(s); err != nil {
+			return nil, err
+		}
+	}
 	s.Loc.End = p.prev.Loc.End
 	return s, nil
 }
 
+// objectValue is the shape of value a documented property takes.
+type objectValue struct {
+	kind  objectValueKind
+	words []string // for valWord: the keywords it may be, uppercased; nil takes any name
+}
+
+type objectValueKind int
+
+const (
+	valNumber  objectValueKind = iota + 1 // <num>, optionally signed
+	valString                             // '<string>'
+	valWord                               // a name, or one of words
+	valStrings                            // ( '<string>' [ , ... ] )
+	valNames                              // ( <name> [ , ... ] )
+	valGroup                              // ( <key> = <value> [ , ... ] ), as the page spells it
+)
+
+// objectProps maps a documented property's name to its value's shape.
+type objectProps map[string]objectValue
+
+var (
+	propNumber  = objectValue{kind: valNumber}
+	propString  = objectValue{kind: valString}
+	propName    = objectValue{kind: valWord}
+	propBool    = objectValue{kind: valWord, words: []string{"TRUE", "FALSE"}}
+	propStrings = objectValue{kind: valStrings}
+	propNames   = objectValue{kind: valNames}
+	propGroup   = objectValue{kind: valGroup}
+)
+
+// propOneOf is a property whose value is one of words.
+func propOneOf(words ...string) objectValue { return objectValue{kind: valWord, words: words} }
+
+// checkClauses holds a statement's property runs, SETs and UNSETs to f's
+// documented properties.
+func (f *objectForm) checkClauses(s *ast.ObjectStmt) error {
+	for _, c := range s.Clauses {
+		switch c.Keywords {
+		case "", "SET":
+			for _, o := range c.Options {
+				v, ok := f.props[o.Name]
+				if !ok || !v.matches(o) {
+					return &ParseError{
+						Position: o.Loc.Start, End: o.Loc.End,
+						Message: "syntax error at or near " + o.Name,
+					}
+				}
+			}
+		case "UNSET":
+			for _, k := range c.Keys {
+				if !f.unsets(k) {
+					return &ParseError{
+						Position: c.Loc.Start, End: c.Loc.End,
+						Message: "syntax error: " + s.Kind + " has no property " + k + " to unset",
+					}
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// unsets reports whether the page documents UNSET of property k.
+func (f *objectForm) unsets(k string) bool {
+	if f.unset == nil {
+		_, ok := f.props[k]
+		return ok
+	}
+	for _, u := range f.unset {
+		if u == k {
+			return true
+		}
+	}
+	return false
+}
+
+// matches reports whether option o holds a value of v's shape.
+func (v objectValue) matches(o *ast.CopyOption) bool {
+	switch v.kind {
+	case valNumber:
+		return o.Lit != nil && (o.Lit.Kind == ast.LitInt || o.Lit.Kind == ast.LitFloat)
+	case valString:
+		return o.Lit != nil && o.Lit.Kind == ast.LitString
+	case valWord:
+		if o.Words == "" {
+			return false
+		}
+		if v.words == nil {
+			return true
+		}
+		for _, w := range v.words {
+			if o.Words == w {
+				return true
+			}
+		}
+		return false
+	case valStrings:
+		return o.List != nil && len(o.List) > 0 && allStrings(o.List)
+	case valNames:
+		if len(o.Group) == 0 {
+			return false
+		}
+		for _, e := range o.Group {
+			if !e.Bare {
+				return false
+			}
+		}
+		return true
+	case valGroup:
+		if len(o.Group) == 0 {
+			return false
+		}
+		for _, e := range o.Group {
+			if e.Bare {
+				return false
+			}
+		}
+		return true
+	}
+	return false
+}
+
+func allStrings(lits []*ast.Literal) bool {
+	for _, l := range lits {
+		if l.Kind != ast.LitString {
+			return false
+		}
+	}
+	return true
+}
+
 // startsObjectProperty reports whether cur begins a `KEY = value` property:
 // a name word followed by '='.
+// The key is an unquoted identifier or a keyword: a property's name is never
+// quoted.
 func (p *Parser) startsObjectProperty() bool {
-	return p.isOptionWord(p.cur.Type) && p.cur.Type != tokInt && p.cur.Type != tokFloat && p.cur.Type != tokReal &&
-		p.peekNext().Type == '='
+	return (p.cur.Type == tokIdent || p.cur.Type >= 700) && p.peekNext().Type == '='
 }
 
 // parseObjectProperties reads a run of `KEY = value` properties and
@@ -248,7 +397,7 @@ func (p *Parser) parseObjectAlterCommon(s *ast.ObjectStmt, allow objectActions) 
 		return true, nil
 	case p.cur.Type == kwUNSET && allow&actUnset != 0:
 		p.advance() // consume UNSET
-		keys, err := p.parseUnsetPropertyNames()
+		keys, err := p.parseObjectUnsetKeys()
 		if err != nil {
 			return true, err
 		}
@@ -457,4 +606,20 @@ func (p *Parser) parseObjectAsQuery(s *ast.ObjectStmt) error {
 	}
 	s.Clauses = append(s.Clauses, &ast.ObjectClause{Keywords: "AS", Query: q, Loc: ast.Loc{Start: start, End: p.prev.Loc.End}})
 	return nil
+}
+
+// parseObjectUnsetKeys reads UNSET's <property> [ , ... ]: each an unquoted
+// identifier or a keyword, never a number, string or quoted name.
+func (p *Parser) parseObjectUnsetKeys() ([]string, error) {
+	var keys []string
+	for {
+		if p.cur.Type != tokIdent && p.cur.Type < 700 {
+			return nil, p.syntaxErrorAtCur()
+		}
+		keys = append(keys, strings.ToUpper(p.advance().Str))
+		if p.cur.Type != ',' {
+			return keys, nil
+		}
+		p.advance() // consume ','
+	}
 }
