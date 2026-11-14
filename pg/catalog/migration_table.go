@@ -117,7 +117,7 @@ func FormatCreateTable(c *Catalog, schemaName string, rel *Relation) string {
 			b.WriteString(",\n")
 		}
 		b.WriteString("    ")
-		b.WriteString(formatColumnDef(c, col))
+		b.WriteString(formatColumnDef(c, rel, col))
 	}
 
 	// Inline constraints: PK, UNIQUE, CHECK (not FK).
@@ -154,13 +154,13 @@ func FormatCreateTable(c *Catalog, schemaName string, rel *Relation) string {
 }
 
 // formatColumnDef formats a single column definition for CREATE TABLE.
-func formatColumnDef(c *Catalog, col *Column) string {
+func formatColumnDef(c *Catalog, rel *Relation, col *Column) string {
 	var parts []string
 	parts = append(parts, quoteIdentAlways(col.Name))
 
 	// Detect serial pattern: integer/bigint/smallint with nextval default owned by this column.
 	// Output "serial"/"bigserial"/"smallserial" instead of "integer DEFAULT nextval(...)".
-	if serialType := detectSerialType(c, col); serialType != "" {
+	if serialType := detectSerialType(c, rel, col); serialType != "" {
 		parts = append(parts, serialType)
 		if col.NotNull {
 			parts = append(parts, "NOT NULL")
@@ -168,7 +168,7 @@ func formatColumnDef(c *Catalog, col *Column) string {
 		return strings.Join(parts, " ")
 	}
 
-	parts = append(parts, c.FormatType(col.TypeOID, col.TypeMod))
+	parts = append(parts, c.FormatType(col.TypeOID, col.TypeMod)+formatCollate(col.CollationName))
 
 	if col.NotNull {
 		parts = append(parts, "NOT NULL")
@@ -198,8 +198,9 @@ func formatColumnDef(c *Catalog, col *Column) string {
 }
 
 // detectSerialType checks if a column should be output as serial/bigserial/smallserial.
-// A serial column has a nextval default on an owned sequence (OwnerRelOID != 0).
-func detectSerialType(c *Catalog, col *Column) string {
+// A serial column has a nextval default on the sequence it owns, named as
+// serial would name it (sequenceManagedByColumn).
+func detectSerialType(c *Catalog, rel *Relation, col *Column) string {
 	if col.Identity != 0 || col.Generated != 0 {
 		return ""
 	}
@@ -230,14 +231,14 @@ func detectSerialType(c *Catalog, col *Column) string {
 		return ""
 	}
 
-	// Look up the sequence in the catalog — check if it's owned (OwnerRelOID != 0)
-	for _, s := range c.UserSchemas() {
-		if seq, ok := s.Sequences[seqName]; ok && seq.OwnerRelOID != 0 {
-			return serialType
-		}
+	if rel.Schema == nil {
+		return ""
 	}
-
-	return ""
+	seq := rel.Schema.Sequences[seqName]
+	if seq == nil || seq.OwnerRelOID != rel.OID || seq.OwnerAttNum != col.AttNum || !sequenceManagedByColumn(c, seq) {
+		return ""
+	}
+	return serialType
 }
 
 // extractSeqNameFromDefault extracts a sequence name from "nextval('seqname'::regclass)".
@@ -258,6 +259,15 @@ func extractSeqNameFromDefault(def string) string {
 		name = name[dot+1:]
 	}
 	return name
+}
+
+// formatCollate returns the COLLATE clause for a column or attribute with an
+// explicit collation, or "" for the type's default.
+func formatCollate(collation string) string {
+	if collation == "" {
+		return ""
+	}
+	return " COLLATE " + quoteIdentAlways(collation)
 }
 
 // formatPKConstraint formats a PRIMARY KEY constraint clause.

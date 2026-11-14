@@ -50,6 +50,7 @@ func walkChildren(v Visitor, node Node) {
 		if n.NewName != nil {
 			Walk(v, n.NewName)
 		}
+		walkDBSchemaProps(v, n.SetProps)
 		for _, item := range n.Tags {
 			walkTagAssignment(v, item)
 		}
@@ -58,6 +59,10 @@ func walkChildren(v Visitor, node Node) {
 				Walk(v, item)
 			}
 		}
+		if n.FeaturePolicy != nil {
+			Walk(v, n.FeaturePolicy)
+		}
+		walkLinkedCatalogUpdate(v, n.LinkedCatalog)
 	case *AlterDynamicTableStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -262,6 +267,7 @@ func walkChildren(v Visitor, node Node) {
 		if n.NewName != nil {
 			Walk(v, n.NewName)
 		}
+		walkDBSchemaProps(v, n.SetProps)
 		for _, item := range n.Tags {
 			walkTagAssignment(v, item)
 		}
@@ -430,6 +436,12 @@ func walkChildren(v Visitor, node Node) {
 				Walk(v, item)
 			}
 		}
+		if n.PolicyName != nil {
+			Walk(v, n.PolicyName)
+		}
+		if n.CredentialName != nil {
+			Walk(v, n.CredentialName)
+		}
 	case *AlterViewStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -526,6 +538,9 @@ func walkChildren(v Visitor, node Node) {
 		if n.MaskingPolicy != nil {
 			Walk(v, n.MaskingPolicy)
 		}
+		if n.ProjectionPolicy != nil {
+			Walk(v, n.ProjectionPolicy)
+		}
 		walkInlineConstraint(v, n.InlineConstraint)
 		for _, item := range n.Tags {
 			walkTagAssignment(v, item)
@@ -621,6 +636,13 @@ func walkChildren(v Visitor, node Node) {
 		if n.FromShare != nil {
 			Walk(v, n.FromShare)
 		}
+		if n.FromBackupSet != nil {
+			Walk(v, n.FromBackupSet)
+		}
+		if n.ReplicaOf != nil {
+			Walk(v, n.ReplicaOf)
+		}
+		walkDBSchemaProps(v, &n.Props)
 		for _, item := range n.Tags {
 			walkTagAssignment(v, item)
 		}
@@ -809,6 +831,10 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Name)
 		}
 		walkCloneSource(v, n.Clone)
+		if n.FromBackupSet != nil {
+			Walk(v, n.FromBackupSet)
+		}
+		walkDBSchemaProps(v, &n.Props)
 		for _, item := range n.Tags {
 			walkTagAssignment(v, item)
 		}
@@ -901,6 +927,21 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Like)
 		}
 		walkCloneSource(v, n.Clone)
+		walkRowAccessPolicy(v, n.RowPolicy)
+		walkNodes(v, n.PartitionBy)
+		for _, item := range n.Options {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		if n.AggregationPolicy != nil {
+			Walk(v, n.AggregationPolicy)
+		}
+		for _, item := range n.Contacts {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 	case *CreateTagStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -1324,6 +1365,7 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Query)
 	case *TableConstraint:
 		walkForeignKeyRef(v, n.References)
+		Walk(v, n.Check)
 	case *TableRef:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -1499,6 +1541,25 @@ func walkColumnAlter(v Visitor, n *ColumnAlter) {
 	Walk(v, n.DefaultExpr)
 }
 
+// walkDBSchemaProps walks the node-bearing fields of the non-Node helper struct
+// DBSchemaProps. The helper itself is not visited (it is not a Node); its child
+// nodes are walked in field order.
+func walkDBSchemaProps(v Visitor, n *DBSchemaProps) {
+	if n == nil {
+		return
+	}
+	for _, item := range n.Options {
+		if item != nil {
+			Walk(v, item)
+		}
+	}
+	for _, item := range n.Contacts {
+		if item != nil {
+			Walk(v, item)
+		}
+	}
+}
+
 // walkFetchClause walks the node-bearing fields of the non-Node helper struct
 // FetchClause. The helper itself is not visited (it is not a Node); its child
 // nodes are walked in field order.
@@ -1539,6 +1600,7 @@ func walkInlineConstraint(v Visitor, n *InlineConstraint) {
 		return
 	}
 	walkForeignKeyRef(v, n.References)
+	Walk(v, n.Check)
 }
 
 // walkInsertMultiBranch walks the node-bearing fields of the non-Node helper struct
@@ -1563,6 +1625,20 @@ func walkKeyValuePair(v Visitor, n *KeyValuePair) {
 		return
 	}
 	Walk(v, n.Value)
+}
+
+// walkLinkedCatalogUpdate walks the node-bearing fields of the non-Node helper struct
+// LinkedCatalogUpdate. The helper itself is not visited (it is not a Node); its child
+// nodes are walked in field order.
+func walkLinkedCatalogUpdate(v Visitor, n *LinkedCatalogUpdate) {
+	if n == nil {
+		return
+	}
+	for _, item := range n.Options {
+		if item != nil {
+			Walk(v, item)
+		}
+	}
 }
 
 // walkMergeWhen walks the node-bearing fields of the non-Node helper struct

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -75,6 +76,13 @@ type Suite struct {
 	// grammar edited by hand, or bumped without its pin, fails. An engine
 	// judged by a server leaves it empty: its digest is the image's.
 	Vendor []string
+	// JudgeRevision counts the changes to how Judge reads the engine's
+	// answers that change a verdict, such as OracleVerdict learning that a
+	// probe answered by the lexer says nothing. A revision above 0 is part
+	// of the pin Path records ("<pin> judge <n>"), so raising it rejudges
+	// every row as a pin bump does, and compatcheck holds the change to a
+	// pin bump's rule: the recording, with no change to omni.
+	JudgeRevision int
 	// Overrides is the engine's grammar-overrides.tsv, for a SourceGrammar
 	// or SourceDocs suite that has one: the statements its recognizer judges
 	// wrongly, each with the engine's verdict, the source that gives it
@@ -159,15 +167,16 @@ func check(t testing.TB, s Suite) {
 		}
 	}
 
-	if f.Pin != pin.String() {
+	if want := s.recordedPin(pin); f.Pin != want {
 		if !recording {
-			t.Errorf("%s was recorded at pin %q, but %s pins %q. Record it:\n  %s", s.Path, f.Pin, s.Pins, pin, record)
+			t.Errorf("%s was recorded at pin %q, but %s pins %q. Record it:\n  %s", s.Path, f.Pin, s.Pins, want, record)
 		} else {
-			// Every expected cell describes the old server: ask again.
+			// Every expected cell describes the old server, or the old
+			// reading of its answers: ask again.
 			for i := range f.Rows {
 				f.Rows[i].Expected, f.Rows[i].Source = Unjudged, noSource
 			}
-			f.Pin = pin.String()
+			f.Pin = want
 			changed = true
 		}
 	}
@@ -278,6 +287,15 @@ func check(t testing.TB, s Suite) {
 		}
 		t.Logf("wrote %s", s.Path)
 	}
+}
+
+// recordedPin is the pin the suite's file records: the engine's default
+// pin, and the judge's revision where it has one.
+func (s Suite) recordedPin(pin enginetest.Pin) string {
+	if s.JudgeRevision > 0 {
+		return pin.String() + " judge " + strconv.Itoa(s.JudgeRevision)
+	}
+	return pin.String()
 }
 
 // repeated returns the first rule and statement rows holds twice, or "".
