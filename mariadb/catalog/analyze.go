@@ -10,6 +10,13 @@ import (
 // AnalyzeSelectStmt performs semantic analysis on a parsed SELECT statement,
 // returning a resolved Query IR.
 func (c *Catalog) AnalyzeSelectStmt(stmt *nodes.SelectStmt) (*Query, error) {
+	// PROCEDURE hands the rows to a server procedure, ANALYSE's statistics in
+	// place of the query's own rows, and the Query IR has no place for it: an
+	// analysis without it would answer for another query. No view or
+	// subquery holds one, so only a statement analyzed whole meets this.
+	if stmt != nil && stmt.Procedure != nil {
+		return nil, fmt.Errorf("SELECT ... PROCEDURE %s() is not supported by query analysis", stmt.Procedure.Name)
+	}
 	return c.analyzeSelectStmtInternal(stmt, nil)
 }
 

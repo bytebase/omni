@@ -1,6 +1,24 @@
 package catalog
 
-import "testing"
+import (
+	"testing"
+
+	nodes "github.com/bytebase/omni/mariadb/ast"
+	"github.com/bytebase/omni/mariadb/parser"
+)
+
+// TestAnalyzeRefusesProcedure checks that a SELECT ... PROCEDURE is refused
+// rather than analyzed as the query without it, whose rows ANALYSE replaces.
+func TestAnalyzeRefusesProcedure(t *testing.T) {
+	c := correlatedCatalog(t, "proc")
+	list, err := parser.Parse("SELECT id FROM employees PROCEDURE ANALYSE()")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.AnalyzeSelectStmt(list.Items[0].(*nodes.SelectStmt)); err == nil {
+		t.Fatal("AnalyzeSelectStmt took SELECT ... PROCEDURE ANALYSE(); it has to refuse it")
+	}
+}
 
 // TestDeparseQueryKeepsWithTies checks that FETCH ... WITH TIES survives
 // analysis: written as a LIMIT, it would drop the rows that tie with the last.

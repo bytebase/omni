@@ -1541,7 +1541,8 @@ func (p *Parser) parenOpensQuery() bool {
 // inner block was looked at.
 func continuesParenQuery(tokenType int) bool {
 	switch tokenType {
-	case ')', kwUNION, kwEXCEPT, kwINTERSECT, kwORDER, kwLIMIT, kwFOR, kwLOCK, tokEOF:
+	// FETCH and OFFSET open the fetch_first_clause that stands in LIMIT's place.
+	case ')', kwUNION, kwEXCEPT, kwINTERSECT, kwORDER, kwLIMIT, kwFETCH, kwOFFSET, kwFOR, kwLOCK, tokEOF:
 		return true
 	default:
 		return false
