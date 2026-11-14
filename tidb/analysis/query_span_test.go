@@ -168,7 +168,7 @@ func TestResolveQuerySpanErrors(t *testing.T) {
 		Catalog:         analysis.Catalog{GetDatabase: func(string) (analysis.Database, error) { return nil, boom }},
 	})
 	require.ErrorIs(t, err, boom)
-	require.EqualError(t, err, `failed to get database metadata for "db": boom`)
+	require.EqualError(t, err, `failed to extract table source from FROM clause: failed to get database metadata for "db": boom`)
 }
 
 func TestResolveQuerySpanNonQueries(t *testing.T) {
