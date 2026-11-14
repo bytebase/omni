@@ -3,6 +3,8 @@ package parser
 import (
 	"strings"
 	"testing"
+
+	nodes "github.com/bytebase/omni/mysql/ast"
 )
 
 // parseExpectError parses sql and asserts that an error is returned whose
@@ -627,5 +629,74 @@ func TestParseError_InvalidIntervalUnit(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			parseExpectError(t, tc.sql, tc.contains)
 		})
+	}
+}
+
+// TestParseBareIntervalAndUserVariable holds the INTERVAL literal to the operand
+// of + and -, and reads a bare @ as a variable with an empty name.
+func TestParseBareIntervalAndUserVariable(t *testing.T) {
+	for _, sql := range []string{
+		"DO @",
+		"DO @ := 1",
+		"SET @ = 1",
+		"SELECT 1 INTO @",
+		"DO - INTERVAL 1 DAY + d",
+		"DO (d, d + INTERVAL 1 DAY)",
+		"LOAD DATA INFILE 'f' INTO TABLE t (`@`)",
+	} {
+		if _, err := Parse(sql); err != nil {
+			t.Errorf("Parse(%q): %v", sql, err)
+		}
+	}
+	for _, sql := range []string{
+		"DO - INTERVAL 1 DAY",
+		"DO + INTERVAL 1 DAY",
+		"DO ~ INTERVAL 1 DAY",
+		"DO (d, INTERVAL 1 DAY)",
+		"DO ROW(d, INTERVAL 1 DAY)",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q): want a syntax error", sql)
+		}
+	}
+	stmts, err := Parse("LOAD DATA INFILE 'f' INTO TABLE t (`@`, @)")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cols := stmts.Items[0].(*nodes.LoadDataStmt).Columns
+	if _, isVar := cols[0].(*nodes.VariableRef); isVar {
+		t.Errorf("a backquoted column named @ read as a variable")
+	}
+	if _, isVar := cols[1].(*nodes.VariableRef); !isVar {
+		t.Errorf("a bare @ read as %T, want a variable", cols[1])
+	}
+}
+
+// TestParseWeightStringNumbersAndCastAtTimeZone holds WEIGHT_STRING's four
+// numbers and CAST ... AT TIME ZONE to function_call_conflict and simple_expr.
+func TestParseWeightStringNumbersAndCastAtTimeZone(t *testing.T) {
+	for _, sql := range []string{
+		"DO WEIGHT_STRING(a, 1, 2, 3)",
+		"DO WEIGHT_STRING(a, 0x1, 1.5, 1e0)",
+		"DO CAST(a AT TIME ZONE 'UTC' AS DATETIME)",
+		"DO CAST(a AT TIME ZONE INTERVAL '+00:00' AS DATETIME(6))",
+	} {
+		if _, err := Parse(sql); err != nil {
+			t.Errorf("Parse(%q): %v", sql, err)
+		}
+	}
+	for _, sql := range []string{
+		"DO WEIGHT_STRING(a, 1, 2)",
+		"DO WEIGHT_STRING(a, 1, 2, 3, 4)",
+		"DO WEIGHT_STRING(a, 'x', 2, 3)",
+		"DO WEIGHT_STRING(a LEVEL 1)",
+		"DO CAST(a AT TIME ZONE 'UTC' AS DATE)",
+		"DO CAST(a AT TIME ZONE INTERVAL 'UTC' AS DATETIME(7))",
+		"DO CAST(a AT TIME ZONE UTC AS DATETIME)",
+		"DO CAST(a AT LOCAL AS DATETIME)",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q): want an error", sql)
+		}
 	}
 }

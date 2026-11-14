@@ -1,0 +1,8 @@
+# The server this engine's committed answers come from. default judges
+# compat.tsv: Doris 3.1.4, released from the source tag 3.1.4-rc02, the
+# release DorisParser.g4, DorisLexer.g4, sql_parser.cup and
+# sql_scanner.flex are read from (fe/fe-core/src/main at the tag, beside
+# this file byte for byte, Apache-2.0). The image is a community build of
+# that release; the server reports doris-3.1.4-rc02-7f5ba43de6.
+# columns: role, image, digest, source tag
+default	dyrnq/doris:3.1.4	sha256:88f99819c0877567b77d78cc8367f0e2dd4b6c1602fe17c6f4b1e332d8e315dd	3.1.4-rc02
