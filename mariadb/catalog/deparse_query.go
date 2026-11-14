@@ -88,14 +88,7 @@ func deparseSimpleQuery(b *strings.Builder, q *deparseScope) {
 		deparseOrderByQ(b, q)
 	}
 
-	if q.LimitCount != nil {
-		b.WriteString(" limit ")
-		writeAnalyzedExpr(b, q.LimitCount, q)
-		if q.LimitOffset != nil {
-			b.WriteString(" offset ")
-			writeAnalyzedExpr(b, q.LimitOffset, q)
-		}
-	}
+	writeLimitQ(b, q)
 }
 
 func deparseCTEsQ(b *strings.Builder, q *deparseScope) {
@@ -310,17 +303,35 @@ func deparseSetOpQuery(b *strings.Builder, setOp *Query, outer *deparseScope) {
 		deparseOrderByQ(b, q)
 	}
 
-	if q.LimitCount != nil {
-		b.WriteString(" limit ")
-		writeAnalyzedExpr(b, q.LimitCount, q)
-		if q.LimitOffset != nil {
-			b.WriteString(" offset ")
-			writeAnalyzedExpr(b, q.LimitOffset, q)
-		}
-	}
+	writeLimitQ(b, q)
 }
 
 // backtickIDQ wraps an identifier in backticks.
 func backtickIDQ(name string) string {
 	return "`" + strings.ReplaceAll(name, "`", "``") + "`"
+}
+
+// writeLimitQ writes a query's LIMIT, or the FETCH ... WITH TIES that keeps
+// the rows tying with the last: no LIMIT says that.
+func writeLimitQ(b *strings.Builder, q *deparseScope) {
+	if q.LimitCount == nil {
+		return
+	}
+	if q.LimitWithTies {
+		if q.LimitOffset != nil {
+			b.WriteString(" offset ")
+			writeAnalyzedExpr(b, q.LimitOffset, q)
+			b.WriteString(" rows")
+		}
+		b.WriteString(" fetch first ")
+		writeAnalyzedExpr(b, q.LimitCount, q)
+		b.WriteString(" rows with ties")
+		return
+	}
+	b.WriteString(" limit ")
+	writeAnalyzedExpr(b, q.LimitCount, q)
+	if q.LimitOffset != nil {
+		b.WriteString(" offset ")
+		writeAnalyzedExpr(b, q.LimitOffset, q)
+	}
 }

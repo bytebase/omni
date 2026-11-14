@@ -554,8 +554,8 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 	case kwDEFAULT:
 		return p.parseDefaultExpr()
 
-	case kwCURRENT_DATE, kwCURRENT_TIME, kwCURRENT_TIMESTAMP, kwCURRENT_USER, kwLOCALTIME, kwLOCALTIMESTAMP,
-		kwUTC_DATE, kwUTC_TIME, kwUTC_TIMESTAMP:
+	case kwCURRENT_DATE, kwCURRENT_TIME, kwCURRENT_TIMESTAMP, kwCURRENT_USER, kwCURRENT_ROLE, kwLOCALTIME,
+		kwLOCALTIMESTAMP, kwUTC_DATE, kwUTC_TIME, kwUTC_TIMESTAMP:
 		// The refusals read the keyword before parseTemporalKeyword consumes it.
 		if err := p.refusePartitionFunction(strings.ToUpper(p.cur.Str), false, p.cur.Loc); err != nil {
 			return nil, err
@@ -665,6 +665,9 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 		if (p.cur.Type == kwDATE || p.cur.Type == kwTIME || p.cur.Type == kwTIMESTAMP) && p.peekNext().Type == tokSCONST {
 			typeTok := p.advance() // consume DATE/TIME/TIMESTAMP keyword
 			valTok := p.advance()  // consume the string literal
+			if err := temporalLiteralRefused(typeTok, valTok); err != nil {
+				return nil, err
+			}
 			return &nodes.TemporalLit{
 				Loc:   nodes.Loc{Start: typeTok.Loc, End: valTok.End},
 				Type:  strings.ToUpper(typeTok.Str),
@@ -698,6 +701,15 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 			}
 			p.foldAdjacentStringLits(lit)
 			return lit, nil
+		}
+
+		// An introducer takes a hex or bit literal too and makes it a string of that
+		// character set (UNDERSCORE_CHARSET hex_or_bin_String in literal):
+		// mariadb:11.8.8 stores _latin1 X'61' as _latin1'a'.
+		if p.cur.Type == tokIDENT && isCharsetIntroducer(p.cur.Str) && !p.backtickQuotedAt(p.cur.Loc) {
+			if next := p.peekNext().Type; next == tokXCONST || next == tokBCONST {
+				return p.parseIntroducedByteString()
+			}
 		}
 
 		// Identifier — could be column ref or function call
@@ -768,6 +780,10 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 			name3, _, err := p.parseIdentifier()
 			if err != nil {
 				return nil, err
+			}
+			// db.package.routine( — a stored package's routine.
+			if p.cur.Type == '(' {
+				return p.parsePackageFuncCall(start, name, name2, name3)
 			}
 			return &nodes.ColumnRef{
 				Loc:    nodes.Loc{Start: start, End: p.prev.End},
@@ -886,6 +902,17 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 		case "TRIM":
 			// TRIM([LEADING|TRAILING|BOTH] [remstr FROM] str)
 			return p.parseTrimFunc(fc)
+		case "TRIM_ORACLE":
+			// TRIM_ORACLE '(' trim_operands ')', the TRIM of sql_mode=ORACLE, which
+			// the server stores as oracle_schema.trim(...): it reads as that call.
+			fc.Schema, fc.Name, fc.RawName = "oracle_schema", "TRIM", "trim"
+			return p.parseTrimFunc(fc)
+		case "COLUMN_ADD", "COLUMN_CREATE", "COLUMN_DELETE", "COLUMN_GET":
+			return p.parseDynColFunc(fc)
+		case "PERCENTILE_CONT", "PERCENTILE_DISC", "MEDIAN":
+			return p.parsePercentileFunc(fc)
+		case "VALUE":
+			return p.parseValueFunc(fc)
 		case "SUBSTRING", "SUBSTR":
 			// SUBSTRING(str, pos, len) or SUBSTRING(str FROM pos FOR len)
 			return p.parseSubstringFunc(fc)
@@ -1300,7 +1327,7 @@ func (p *Parser) finishFuncCall(fc *nodes.FuncCallExpr, builtin bool) (nodes.Exp
 // while the statement parses (make_item_func_call_native_or_parse_error).
 //
 // Ref: function_call_keyword, function_call_keyword_timestamp,
-// function_call_conflict, function_call_generic and MEDIAN in MariaDB 11.8
+// function_call_conflict and function_call_generic in MariaDB 11.8
 // sql/sql_yacc.yy.
 var keywordFuncArity = map[string][2]int{
 	"DATE": {1, 1}, "DAY": {1, 1}, "HOUR": {1, 1}, "INSERT": {4, 4},
@@ -1311,7 +1338,6 @@ var keywordFuncArity = map[string][2]int{
 	"MOD": {2, 2}, "PASSWORD": {1, 1}, "REPEAT": {2, 2}, "REPLACE": {3, 3},
 	"TRUNCATE": {2, 2},
 	"CONTAINS": {2, 2}, "OVERLAPS": {2, 2}, "WITHIN": {2, 2},
-	"MEDIAN": {1, 1},
 }
 
 // windowFuncArity is the inclusive [min, max] argument count each dedicated
@@ -1338,10 +1364,9 @@ var windowFuncArity = map[string][2]int{
 // overEligible reports whether an OVER clause may follow a builtin call. Only
 // the dedicated window functions (window_func) and the aggregate functions
 // (sum_expr: each ends in opt_windowing_clause) carry a windowing clause.
-// MariaDB adds MEDIAN, which takes a bare OVER (`MEDIAN(x) OVER w`), to that
-// set; PERCENTILE_CONT/DISC take OVER only after WITHIN GROUP, so a bare
-// `PERCENTILE_CONT(x) OVER` stays a 1064. Any other builtin with OVER —
-// INTERVAL, GROUPING, a generic builtin — is a 1064 on mariadb:11.8.8.
+// MEDIAN, PERCENTILE_CONT and PERCENTILE_DISC read their own window in
+// parsePercentileFunc. Any other builtin with OVER — INTERVAL, GROUPING, a
+// generic builtin — is a 1064 on mariadb:11.8.8.
 func overEligible(name string) bool {
 	if _, ok := windowFuncArity[name]; ok {
 		return true
@@ -1349,7 +1374,7 @@ func overEligible(name string) bool {
 	if _, ok := aggArgSpecs[name]; ok {
 		return true
 	}
-	return name == "COUNT" || name == "MEDIAN"
+	return name == "COUNT"
 }
 
 // parseOverClause parses OVER (window_spec) or OVER window_name.

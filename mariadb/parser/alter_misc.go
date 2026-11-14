@@ -60,15 +60,11 @@ func (p *Parser) parseAlterViewStmt(start int) (*nodes.AlterViewStmt, error) {
 
 	// SQL SECURITY { DEFINER | INVOKER }
 	if p.cur.Type == kwSQL {
-		p.advance()
-		if p.cur.Type == kwSECURITY {
-			p.advance()
-			name, _, err := p.parseIdentifier()
-			if err != nil {
-				return nil, err
-			}
-			stmt.SqlSecurity = name
+		name, err := p.parseViewSQLSecurity()
+		if err != nil {
+			return nil, err
 		}
+		stmt.SqlSecurity = name
 	}
 
 	// VIEW keyword
@@ -115,19 +111,9 @@ func (p *Parser) parseAlterViewStmt(start int) (*nodes.AlterViewStmt, error) {
 
 	// WITH [CASCADED | LOCAL] CHECK OPTION
 	if p.cur.Type == kwWITH {
-		p.advance()
-		checkOption := "CASCADED" // default
-		if p.cur.Type == kwCASCADED {
-			p.advance()
-		} else if p.cur.Type == kwLOCAL {
-			checkOption = "LOCAL"
-			p.advance()
-		}
-		if p.cur.Type == kwCHECK {
-			p.advance()
-			if p.cur.Type == kwOPTION {
-				p.advance()
-			}
+		checkOption, err := p.parseViewCheckOption()
+		if err != nil {
+			return nil, err
 		}
 		stmt.CheckOption = checkOption
 	}

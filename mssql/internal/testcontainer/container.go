@@ -1,8 +1,9 @@
-// Package testcontainer is how mssql's tests reach SQL Server: the server
-// pinned in mssql/testdata/pins.tsv, started as one testcontainer per pin
-// role and test binary by the first test that needs it, and removed by
-// Terminate, which the package's TestMain calls. Only a recording
-// (OMNI_RECORD=1) starts it.
+// Package testcontainer is how mssql's tests reach SQL Server and ScriptDOM:
+// through a tape (enginetest/tape) that replays the pinned server's answers,
+// or, in a recording (OMNI_RECORD=1), through the pinned server itself. That
+// server is one testcontainer per pin role and test binary, started by the
+// first test that records on it and removed by Terminate, which each
+// package's TestMain calls.
 package testcontainer
 
 import (
@@ -136,8 +137,12 @@ type instance struct {
 	once      sync.Once
 	pin       enginetest.Pin
 	container *tcmssql.MSSQLServerContainer
-	connector *mssql.Connector
+	dsn       string
+	connector *mssql.Connector // to master
 	err       error
+
+	mu      sync.Mutex
+	emptied map[string]bool // the top-level tests the server was emptied for
 }
 
 var shared = struct {
@@ -151,7 +156,7 @@ func started(t testing.TB, pin enginetest.Pin) *instance {
 	shared.Lock()
 	in := shared.byRole[pin.Role]
 	if in == nil {
-		in = &instance{pin: pin}
+		in = &instance{pin: pin, emptied: map[string]bool{}}
 		shared.byRole[pin.Role] = in
 	}
 	shared.Unlock()
@@ -184,11 +189,10 @@ func (in *instance) start(ctx context.Context) (err error) {
 	if err := checkDigest(ctx, c, in.pin.Digest); err != nil {
 		return err
 	}
-	dsn, err := c.ConnectionString(ctx)
-	if err != nil {
+	if in.dsn, err = c.ConnectionString(ctx); err != nil {
 		return err
 	}
-	if in.connector, err = mssql.NewConnector(dsn); err != nil {
+	if in.connector, err = mssql.NewConnector(in.dsn); err != nil {
 		return err
 	}
 	db := sql.OpenDB(in.connector)
@@ -203,8 +207,10 @@ func (in *instance) start(ctx context.Context) (err error) {
 	return nil
 }
 
-// Terminate removes every server this run started.
+// Terminate removes every server this run started, and the ScriptDOM
+// harness.
 func Terminate() {
+	stopHarness()
 	shared.Lock()
 	defer shared.Unlock()
 	for _, in := range shared.byRole {

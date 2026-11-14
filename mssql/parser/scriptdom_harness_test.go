@@ -1,120 +1,42 @@
-// Run with: go test ./mssql/parser/ -run TestScriptDOMDiff. The .NET harness builds
-// and runs inside the dotnet/sdk image (scriptdomImage), so only Docker is needed.
-//
-// This test compares omni's AST shape against SqlScriptDOM by shelling out
-// to the .NET harness at mssql/scriptdom. The harness parses with
-// Microsoft.SqlServer.TransactSql.ScriptDom and emits a compact JSON shape.
-// We normalize omni's AST into the same shape and diff with go-cmp.
+// This test compares omni's AST shape against SqlScriptDOM's: the harness
+// at mssql/scriptdom parses with Microsoft.SqlServer.TransactSql.ScriptDom
+// and emits a compact JSON shape, which testcontainer.OpenScriptDOM replays
+// from the test's tape, or asks of the harness in a recording. We normalize
+// omni's AST into the same shape and diff with go-cmp.
 
 package parser
 
 import (
-	"bufio"
-	"encoding/base64"
+	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
-	"io"
-	"os"
-	"os/exec"
-	"path/filepath"
-	"runtime"
 	"strings"
-	"sync"
 	"testing"
 
 	"github.com/bytebase/omni/mssql/ast"
+	"github.com/bytebase/omni/mssql/internal/testcontainer"
 	"github.com/google/go-cmp/cmp"
 )
 
-// scriptdomImage is pinned: the floating sdk:8.0 tag moved to 8.0.426
-// (runtime 8.0.32) on 2026-10-13, whose first-run NuGet-Migrations mutex
-// fails for a --user uid that has no /etc/passwd entry in the image, which is
-// every host uid. Rerun TestScriptDOMDiff as a non-root user before moving it.
-const scriptdomImage = "mcr.microsoft.com/dotnet/sdk:8.0.425"
+// scriptdomHarness is a test's connection to ScriptDOM.
+type scriptdomHarness struct{ db *sql.DB }
 
-type scriptdomHarness struct {
-	cmd    *exec.Cmd
-	stdin  io.WriteCloser
-	stdout *bufio.Reader
-	mu     sync.Mutex
-}
-
-var (
-	harnessInstance *scriptdomHarness
-	harnessInitErr  error
-	harnessOnce     sync.Once
-)
-
+// getHarness returns t's connection to ScriptDOM: a stream of t's tape.
 func getHarness(t *testing.T) *scriptdomHarness {
 	t.Helper()
-	harnessOnce.Do(func() {
-		_, thisFile, _, _ := runtime.Caller(0)
-		// mssql/parser/scriptdom_harness_test.go → the project is mssql/scriptdom
-		projDir := filepath.Clean(filepath.Join(filepath.Dir(thisFile), "..", "scriptdom"))
-		if _, err := os.Stat(projDir); err != nil {
-			harnessInitErr = fmt.Errorf("harness project not found at %s", projDir)
-			return
-		}
-
-		// Build and run the .NET harness inside the official SDK image, so the
-		// only host requirement is Docker. --user keeps bin/, obj/ and the NuGet
-		// cache owned by the invoking user; the cache dir persists across runs.
-		// It is per uid because CI runners and developers share one host's /tmp,
-		// and a 0755 dir another user created first fails restore here.
-		cache := filepath.Join(os.TempDir(), fmt.Sprintf("omni-scriptdom-nuget-%d", os.Getuid()))
-		if err := os.MkdirAll(cache, 0o755); err != nil {
-			harnessInitErr = err
-			return
-		}
-		cmd := exec.Command("docker", "run", "-i", "--rm",
-			"--user", fmt.Sprintf("%d:%d", os.Getuid(), os.Getgid()),
-			"-v", projDir+":/src", "-v", cache+":/nuget", "-w", "/src",
-			"-e", "HOME=/tmp", "-e", "DOTNET_CLI_HOME=/tmp", "-e", "NUGET_PACKAGES=/nuget",
-			"-e", "DOTNET_CLI_TELEMETRY_OPTOUT=1", "-e", "DOTNET_NOLOGO=1", "-e", "MSSQL_HARNESS_LINE=1",
-			scriptdomImage, "sh", "-c",
-			"dotnet build -c Release -v quiet --nologo 1>&2 && exec dotnet bin/Release/net8.0/mssql-scriptdom-harness.dll")
-		stdin, err := cmd.StdinPipe()
-		if err != nil {
-			harnessInitErr = err
-			return
-		}
-		stdout, err := cmd.StdoutPipe()
-		if err != nil {
-			harnessInitErr = err
-			return
-		}
-		cmd.Stderr = os.Stderr
-		if err := cmd.Start(); err != nil {
-			harnessInitErr = err
-			return
-		}
-		harnessInstance = &scriptdomHarness{
-			cmd:    cmd,
-			stdin:  stdin,
-			stdout: bufio.NewReader(stdout),
-		}
-	})
-	if harnessInitErr != nil {
-		t.Fatalf("harness init: %v", harnessInitErr)
-	}
-	return harnessInstance
+	return &scriptdomHarness{db: testcontainer.OpenScriptDOM(t)}
 }
 
 // Shape returns the SqlScriptDOM shape JSON for the given SQL.
 func (h *scriptdomHarness) Shape(t *testing.T, sql string) map[string]any {
 	t.Helper()
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	enc := base64.StdEncoding.EncodeToString([]byte(sql))
-	if _, err := fmt.Fprintln(h.stdin, enc); err != nil {
-		t.Fatalf("harness write: %v", err)
-	}
-	line, err := h.stdout.ReadBytes('\n')
+	line, err := testcontainer.ScriptDOMShape(context.Background(), h.db, sql)
 	if err != nil {
-		t.Fatalf("harness read: %v", err)
+		t.Fatalf("ScriptDOM: %v", err)
 	}
 	var out map[string]any
-	if err := json.Unmarshal(line, &out); err != nil {
+	if err := json.Unmarshal([]byte(line), &out); err != nil {
 		t.Fatalf("harness json: %v\nline=%s", err, line)
 	}
 	return out

@@ -316,7 +316,7 @@ func (p *Parser) parseDeclareStmt() (nodes.Node, error) {
 
 	// DECLARE name CONDITION FOR ...
 	if p.cur.Type == kwCONDITION {
-		return p.parseDeclareConditionStmt(start, name)
+		return p.parseDeclareConditionStmt(start, name, namePos)
 	}
 
 	// DECLARE name CURSOR FOR ...
@@ -383,7 +383,7 @@ func (p *Parser) parseDeclareVarStmt(start int, firstName string, firstPos int) 
 //
 //	DECLARE condition_name CONDITION FOR condition_value
 //	condition_value: SQLSTATE [VALUE] sqlstate_value | mysql_error_code
-func (p *Parser) parseDeclareConditionStmt(start int, name string) (*nodes.DeclareConditionStmt, error) {
+func (p *Parser) parseDeclareConditionStmt(start int, name string, namePos int) (*nodes.DeclareConditionStmt, error) {
 	p.advance() // consume CONDITION
 
 	// FOR
@@ -402,6 +402,9 @@ func (p *Parser) parseDeclareConditionStmt(start int, name string) (*nodes.Decla
 		return nil, err
 	}
 	stmt.ConditionValue = condVal
+	if err := p.declareSPCondition(name, namePos, condVal); err != nil {
+		return nil, err
+	}
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
@@ -438,8 +441,12 @@ func (p *Parser) parseDeclareHandlerStmt(start int) (*nodes.DeclareHandlerStmt, 
 
 	// condition_value [, condition_value] ...
 	for {
+		condPos := p.cur.Loc
 		condVal, err := p.parseHandlerConditionValue()
 		if err != nil {
+			return nil, err
+		}
+		if err := p.declareSPHandlerCond(condVal, condPos); err != nil {
 			return nil, err
 		}
 		stmt.Conditions = append(stmt.Conditions, condVal)
