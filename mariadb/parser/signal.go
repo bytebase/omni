@@ -237,8 +237,11 @@ func (p *Parser) parseSignalConditionValue() (string, error) {
 	}
 
 	// condition_name (identifier)
-	name, _, err := p.parseIdent()
+	name, namePos, err := p.parseIdent()
 	if err != nil {
+		return "", err
+	}
+	if err := p.checkSPSignalCond(name, namePos); err != nil {
 		return "", err
 	}
 	return name, nil

@@ -293,7 +293,7 @@ reject	reject	engine	verb_clause/reset!truncate	RESET
 reject	reject	engine	verb_clause/reset!insert	RESET SLAVE zzz;
 reject	reject	engine	verb_clause/reset!swap	RESIGNAL SLAVE;
 accept	accept	engine	verb_clause/resignal_stmt	RESIGNAL;
-accept	reject	engine	verb_clause/resignal_stmt!insert	RESIGNAL zzz;
+reject	reject	engine	verb_clause/resignal_stmt!insert	RESIGNAL zzz;
 reject	reject	engine	verb_clause/resignal_stmt!swap	RESTART;
 accept	accept	engine	verb_clause/revoke	REVOKE a FROM a;
 reject	reject	engine	verb_clause/revoke!drop-2	REVOKE FROM a;
@@ -330,7 +330,7 @@ reject	reject	engine	verb_clause/set!drop-3	SET CHARSET;
 reject	reject	engine	verb_clause/set!truncate	SET CHARSET
 reject	reject	engine	verb_clause/set!insert	SET CHARSET utf8mb4 zzz;
 reject	reject	engine	verb_clause/set!swap	SETVAL CHARSET utf8mb4;
-accept	reject	engine	verb_clause/signal_stmt	SIGNAL a;
+reject	reject	engine	verb_clause/signal_stmt	SIGNAL a;
 reject	reject	engine	verb_clause/signal_stmt!drop-2	SIGNAL;
 reject	reject	engine	verb_clause/signal_stmt!truncate	SIGNAL
 reject	reject	engine	verb_clause/signal_stmt!insert	SIGNAL a zzz;
@@ -1358,13 +1358,13 @@ reject	reject	engine	sp_hcond/not_FOUND_SYM!swap	BEGIN NOT ATOMIC DECLARE EXIT H
 reject	accept	engine	sp_hcond/SQLEXCEPTION_SYM	BEGIN NOT ATOMIC DECLARE EXIT HANDLER FOR SQLEXCEPTION COMMIT; END;
 reject	reject	engine	sp_hcond/SQLEXCEPTION_SYM!insert	BEGIN NOT ATOMIC DECLARE EXIT HANDLER FOR SQLEXCEPTION zzz COMMIT; END;
 reject	reject	engine	sp_hcond/SQLEXCEPTION_SYM!swap	BEGIN NOT ATOMIC DECLARE EXIT HANDLER FOR SQLSTATE COMMIT; END;
-accept	reject	engine	signal_stmt/SIGNAL_SYM_signal_value_opt_set_signal_information	SIGNAL a;
-accept	reject	engine	signal_value/ident	RESIGNAL a;
+reject	reject	engine	signal_stmt/SIGNAL_SYM_signal_value_opt_set_signal_information	SIGNAL a;
+reject	reject	engine	signal_value/ident	RESIGNAL a;
 accept	accept	engine	signal_value/ident!truncate	RESIGNAL
 reject	reject	engine	signal_value/ident!insert	RESIGNAL a zzz;
 reject	reject	engine	signal_value/sqlstate	RESIGNAL SQLSTATE 's';
 accept	accept	engine	opt_signal_value/%empty	RESIGNAL;
-accept	reject	engine	opt_signal_value/signal_value	RESIGNAL a;
+reject	reject	engine	opt_signal_value/signal_value	RESIGNAL a;
 accept	accept	engine	opt_set_signal_information/%empty	RESIGNAL;
 accept	accept	engine	opt_set_signal_information/SET_signal_information_item_list	RESIGNAL SET CLASS_ORIGIN = 's';
 reject	reject	engine	opt_set_signal_information/SET_signal_information_item_list!drop-1	RESIGNAL CLASS_ORIGIN = 's';

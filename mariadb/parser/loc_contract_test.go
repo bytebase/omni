@@ -291,7 +291,7 @@ var locSpanCases = []struct {
 	{"ShowStmt", "SHOW TABLES", "SHOW TABLES", 0},
 	{"ShutdownStmt", "SHUTDOWN", "SHUTDOWN", 0},
 	{"SignalInfoItem", "RESIGNAL SET MESSAGE_TEXT = 'Error handled'", "MESSAGE_TEXT = 'Error handled'", 0},
-	{"SignalStmt", "SIGNAL my_error", "SIGNAL my_error", 0},
+	{"SignalStmt", "SIGNAL SQLSTATE '45000'", "SIGNAL SQLSTATE '45000'", 0},
 	{"StarExpr", "SELECT *", "*", 0},
 	{"StartGroupReplicationStmt", "START GROUP_REPLICATION", "START GROUP_REPLICATION", 0},
 	{"StartReplicaStmt", "START SLAVE", "START SLAVE", 0},
