@@ -114,10 +114,15 @@ func TestParser_WrappedTableReference(t *testing.T) {
 			want:  "SelectStmt{Star:true From:JoinExpr{Kind:CROSS Left:JoinExpr{Kind:CROSS Left:VarRef{Name:t1} Right:VarRef{Name:t2}} Right:VarRef{Name:t3}}}",
 		},
 		{
-			// Comma cross-join inside the parens (grammar: COMMA rhs).
-			name:  "comma_cross_join",
+			// `(t1, t2)` is also a valueList (PartiQLParser.g4:651), so the
+			// source reading, TableRefBase, reaches the ')' and is the one
+			// ANTLR takes: it resolves the ambiguity to the lower
+			// alternative, and the reference parser scans a list of t1 and
+			// t2 (visitValueList). A join inside the parens is a wrapped
+			// table reference, as the cases around this one show.
+			name:  "comma_value_list",
 			input: "SELECT * FROM (t1, t2)",
-			want:  "SelectStmt{Star:true From:JoinExpr{Kind:CROSS Left:VarRef{Name:t1} Right:VarRef{Name:t2}}}",
+			want:  "SelectStmt{Star:true From:ExprSource{Expr:ValueList{Items:[VarRef{Name:t1} VarRef{Name:t2}]}}}",
 		},
 		{
 			// Wrapped join as the LEFT operand of an outer join.

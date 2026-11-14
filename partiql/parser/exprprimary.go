@@ -64,14 +64,24 @@ func (p *Parser) parsePrimaryBase() (ast.ExprNode, error) {
 	// ------------------------------------------------------------------
 	case tokQUESTION_MARK:
 		return p.parseParamRef()
-	case tokAT_SIGN, tokIDENT, tokIDENT_QUOTED:
+	case tokAT_SIGN, tokIDENT, tokIDENT_QUOTED, tokEXCLUDED:
 		return p.parseVarRef()
 
-	// ------------------------------------------------------------------
-	// Stub: VALUES row list (no AST node yet).
-	// ------------------------------------------------------------------
+	// CURRENT_USER and CURRENT_DATE are expression terms
+	// (exprTerm#ExprTermCurrentUser, #ExprTermCurrentDate,
+	// PartiQLParser.g4:627-628); CURRENT_TIME and CURRENT_TIMESTAMP are not.
+	case tokCURRENT_USER, tokCURRENT_DATE:
+		loc := p.cur.Loc
+		name := strings.ToUpper(p.cur.Str)
+		p.advance()
+		return &ast.SessionAttribute{Name: name, Loc: loc}, nil
+
 	case tokVALUES:
-		return nil, p.deferredFeature("VALUES", "parser-dml (DAG node 6)")
+		return p.parseValues()
+	case tokPOSITION:
+		return p.parsePositionExpr()
+	case tokOVERLAY:
+		return p.parseOverlayExpr()
 
 	// ------------------------------------------------------------------
 	// Real: CAST family — cast / canCast / canLosslessCast (DAG node 15b).
@@ -141,7 +151,7 @@ func (p *Parser) parsePrimaryBase() (ast.ExprNode, error) {
 	// COUNT(*) / COUNT|SUM|AVG|MIN|MAX([DISTINCT|ALL] expr). Logic lives
 	// in aggregate.go.
 	// ------------------------------------------------------------------
-	case tokCOUNT, tokSUM, tokAVG, tokMIN, tokMAX:
+	case tokCOUNT, tokSUM, tokAVG, tokMIN, tokMAX, tokEVERY, tokANY, tokSOME:
 		return p.parseAggregateExpr()
 
 	// ------------------------------------------------------------------
@@ -164,7 +174,7 @@ func (p *Parser) parsePrimaryBase() (ast.ExprNode, error) {
 //	(expr)             → plain parenthesized expression, returns inner expr
 //	(SELECT ...)       → routes through parseSelectExpr, which returns the
 //	                     parser-select (DAG node 5) stub error
-//	(expr, expr, ...)  → STUB: valueList deferred to parser-dml (DAG node 6)
+//	(expr, expr, ...)  → valueList, an *ast.ValueList
 //	(expr MATCH ...)   → GPML graph match, parsed by parseGraphMatch (graph.go)
 //
 // Grammar: exprTerm#ExprTermWrappedQuery (line 543) + exprGraphMatchMany
@@ -205,9 +215,24 @@ func (p *Parser) parseParenExprBody() (ast.ExprNode, error) {
 		first = match
 	}
 
-	// valueList: (expr, expr, ...) — deferred to parser-dml.
+	// valueList: PAREN_LEFT expr ( COMMA expr )+ PAREN_RIGHT
+	// (PartiQLParser.g4:651-652), which the reference parser reads as a
+	// list (visitValueList).
 	if p.cur.Type == tokCOMMA {
-		return nil, p.deferredFeature("valueList", "parser-dml (DAG node 6)")
+		items := []ast.ExprNode{first}
+		for p.cur.Type == tokCOMMA {
+			p.advance() // consume ,
+			item, err := p.parseExprTop()
+			if err != nil {
+				return nil, err
+			}
+			items = append(items, item)
+		}
+		rp, err := p.expect(tokPAREN_RIGHT)
+		if err != nil {
+			return nil, err
+		}
+		return &ast.ValueList{Items: items, Loc: ast.Loc{Start: start, End: rp.Loc.End}}, nil
 	}
 
 	// Plain (expr): consume the closing paren and return the inner expr.
@@ -780,14 +805,23 @@ func (p *Parser) parseTrimExpr() (ast.ExprNode, error) {
 // token that ends one scan ends every later one with it. open is the
 // offset of the '(' the caller consumed.
 func (p *Parser) trimHasTopLevelFrom(open int) bool {
-	if r, ok := p.trimFroms[open]; ok {
+	return p.hasTopLevelToken(open, tokFROM, tokTRIM, &p.trimFroms)
+}
+
+// hasTopLevelToken is the scan trimHasTopLevelFrom describes, for the
+// argument list of a function whose keyword is fn and whose '(' is at open:
+// it reports whether the list holds target at its top level, and records
+// the result for every list of an fn it reads in *results.
+func (p *Parser) hasTopLevelToken(open, target, fn int, results *map[int]bool) bool {
+	if r, ok := (*results)[open]; ok {
 		return r
 	}
 	snapshot := p.save()
 	defer p.restore(snapshot)
-	if p.trimFroms == nil {
-		p.trimFroms = make(map[int]bool)
+	if *results == nil {
+		*results = make(map[int]bool)
 	}
+	found := *results
 
 	// depth counts the opening tokens read minus the closing ones. scans
 	// holds the offsets of the '(' of the scans in progress, in the order
@@ -801,14 +835,17 @@ func (p *Parser) trimHasTopLevelFrom(open int) bool {
 	end := func(v bool) {
 		top := groups[len(groups)-1]
 		for _, o := range scans[top.first:] {
-			p.trimFroms[o] = v
+			found[o] = v
 		}
 		scans = scans[:top.first]
 		groups = groups[:len(groups)-1]
 	}
-	afterTRIM := false
+	afterFn := false
 	for len(scans) > 0 {
 		top := &groups[len(groups)-1]
+		if p.cur.Type == target && top.low == depth {
+			end(true)
+		}
 		switch p.cur.Type {
 		case tokEOF:
 			// Unterminated argument list (also the lexer-error sentinel):
@@ -818,17 +855,13 @@ func (p *Parser) trimHasTopLevelFrom(open int) bool {
 				end(false)
 			}
 			continue
-		case tokFROM:
-			if top.low == depth {
-				end(true)
-			}
 		case tokPAREN_LEFT, tokBRACKET_LEFT, tokBRACE_LEFT, tokANGLE_DOUBLE_LEFT:
 			depth++
 			// The '(' of a nested TRIM starts its scan, at depth 0. The
 			// parser cannot reach a TRIM nested in more than
 			// maxNestingDepth others, so none is started past that; one
 			// not started here would run its own scan when reached.
-			if p.cur.Type == tokPAREN_LEFT && afterTRIM && len(scans) < maxNestingDepth {
+			if p.cur.Type == tokPAREN_LEFT && afterFn && len(scans) < maxNestingDepth {
 				groups = append(groups, trimScanGroup{low: depth, first: len(scans)})
 				scans = append(scans, p.cur.Loc.Start)
 			}
@@ -852,10 +885,10 @@ func (p *Parser) trimHasTopLevelFrom(open int) bool {
 		if len(scans) == 0 {
 			break
 		}
-		afterTRIM = p.cur.Type == tokTRIM
+		afterFn = p.cur.Type == fn
 		p.advance()
 	}
-	return p.trimFroms[open]
+	return found[open]
 }
 
 // trimScanGroup is a run of the scans in progress in trimHasTopLevelFrom:
@@ -1064,4 +1097,146 @@ func checkDatetimeField(fn string, field Token) error {
 		Message:  fmt.Sprintf("%s field must be one of YEAR, MONTH, DAY, HOUR, MINUTE, SECOND, TIMEZONE_HOUR, TIMEZONE_MINUTE, got %q", fn, field.Str),
 		Position: field.Loc.Start, End: field.Loc.End,
 	}
+}
+
+// parseValues parses
+//
+//	values   : VALUES valueRow ( COMMA valueRow )*
+//	valueRow : PAREN_LEFT expr ( COMMA expr )* PAREN_RIGHT
+//
+// (PartiQLParser.g4:645-649), a bag of rows to the reference parser
+// (visitValues). p.cur is VALUES.
+func (p *Parser) parseValues() (ast.ExprNode, error) {
+	start := p.cur.Loc.Start
+	p.advance() // consume VALUES
+	var rows []*ast.ValueList
+	for {
+		lp, err := p.expect(tokPAREN_LEFT)
+		if err != nil {
+			return nil, err
+		}
+		var items []ast.ExprNode
+		for {
+			item, err := p.parseExprTop()
+			if err != nil {
+				return nil, err
+			}
+			items = append(items, item)
+			if p.cur.Type != tokCOMMA {
+				break
+			}
+			p.advance() // consume ,
+		}
+		rp, err := p.expect(tokPAREN_RIGHT)
+		if err != nil {
+			return nil, err
+		}
+		rows = append(rows, &ast.ValueList{Items: items, Loc: ast.Loc{Start: lp.Loc.Start, End: rp.Loc.End}})
+		if p.cur.Type != tokCOMMA || p.peekNext().Type != tokPAREN_LEFT {
+			break
+		}
+		p.advance() // consume ,
+	}
+	return &ast.ValuesExpr{Rows: rows, Loc: ast.Loc{Start: start, End: p.prev.Loc.End}}, nil
+}
+
+// parsePositionExpr parses
+//
+//	position : POSITION PAREN_LEFT expr COMMA expr PAREN_RIGHT
+//	         | POSITION PAREN_LEFT expr IN expr PAREN_RIGHT
+//
+// (PartiQLParser.g4:666-669) as a FuncCall named POSITION with the two
+// operands in order: the reference parser reads the comma form as a call
+// and the IN form as the same operation (visitPosition).
+//
+// IN is also a predicate, so in the IN form the first operand must not take
+// it: a top-level comma selects the comma form (hasTopLevelToken), and
+// otherwise the first operand is parsed with inStopLevel set, which ends
+// its predicates at an IN of its own level.
+func (p *Parser) parsePositionExpr() (ast.ExprNode, error) {
+	start := p.cur.Loc.Start
+	name := strings.ToUpper(p.cur.Str)
+	p.advance() // consume POSITION
+	lp, err := p.expect(tokPAREN_LEFT)
+	if err != nil {
+		return nil, err
+	}
+	sep := tokCOMMA
+	if !p.hasTopLevelToken(lp.Loc.Start, tokCOMMA, tokPOSITION, &p.positionCommas) {
+		sep = tokIN
+	}
+	var first ast.ExprNode
+	if sep == tokIN {
+		saved := p.inStopLevel
+		p.inStopLevel = p.exprLevel + 1
+		first, err = p.parseExprTop()
+		p.inStopLevel = saved
+	} else {
+		first, err = p.parseExprTop()
+	}
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(sep); err != nil {
+		return nil, err
+	}
+	second, err := p.parseExprTop()
+	if err != nil {
+		return nil, err
+	}
+	rp, err := p.expect(tokPAREN_RIGHT)
+	if err != nil {
+		return nil, err
+	}
+	return &ast.FuncCall{
+		Name: name,
+		Args: []ast.ExprNode{first, second},
+		Loc:  ast.Loc{Start: start, End: rp.Loc.End},
+	}, nil
+}
+
+// parseOverlayExpr parses
+//
+//	overlay : OVERLAY PAREN_LEFT expr COMMA expr COMMA expr (COMMA expr)? PAREN_RIGHT
+//	        | OVERLAY PAREN_LEFT expr PLACING expr FROM expr (FOR expr)? PAREN_RIGHT
+//
+// (PartiQLParser.g4:675-678) as a FuncCall named OVERLAY with the operands
+// in order, which is how the reference parser reads the comma form; it
+// reads the PLACING form as the same operation (visitOverlay).
+func (p *Parser) parseOverlayExpr() (ast.ExprNode, error) {
+	start := p.cur.Loc.Start
+	name := strings.ToUpper(p.cur.Str)
+	p.advance() // consume OVERLAY
+	if _, err := p.expect(tokPAREN_LEFT); err != nil {
+		return nil, err
+	}
+	first, err := p.parseExprTop()
+	if err != nil {
+		return nil, err
+	}
+	// The separators: the comma form's three, or PLACING, FROM and FOR.
+	seps := []int{tokCOMMA, tokCOMMA, tokCOMMA}
+	if p.cur.Type == tokPLACING {
+		seps = []int{tokPLACING, tokFROM, tokFOR}
+	}
+	args := []ast.ExprNode{first}
+	for i, sep := range seps {
+		// The first two separators are required, the last optional.
+		if i == 2 && p.cur.Type != sep {
+			break
+		}
+		if _, err := p.expect(sep); err != nil {
+			return nil, err
+		}
+		arg, err := p.parseExprTop()
+		if err != nil {
+			return nil, err
+		}
+		args = append(args, arg)
+	}
+	rp, err := p.expect(tokPAREN_RIGHT)
+	if err != nil {
+		return nil, err
+	}
+	return &ast.FuncCall{Name: name, Args: args, Loc: ast.Loc{Start: start, End: rp.Loc.End}}, nil
 }

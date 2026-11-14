@@ -98,6 +98,23 @@ func (*TimeLit) nodeTag()      {}
 func (n *TimeLit) GetLoc() Loc { return n.Loc }
 func (*TimeLit) exprNode()     {}
 
+// TimestampLit represents
+// `TIMESTAMP [(p)] [WITH TIME ZONE] 'YYYY-MM-DD[ |T]HH:MM:SS[.frac][zone]'`.
+//
+// Grammar: literal#LiteralTimestamp
+//
+//	TIMESTAMP (PAREN_LEFT LITERAL_INTEGER PAREN_RIGHT)? (WITH TIME ZONE)? LITERAL_STRING
+type TimestampLit struct {
+	Val          string // the string body
+	Precision    *int   // optional fractional-seconds precision
+	WithTimeZone bool   // WITH TIME ZONE clause present
+	Loc          Loc
+}
+
+func (*TimestampLit) nodeTag()      {}
+func (n *TimestampLit) GetLoc() Loc { return n.Loc }
+func (*TimestampLit) exprNode()     {}
+
 // IonLit represents a backtick-delimited inline Ion value: `…`.
 //
 // Text holds the verbatim source between the backticks exactly as
