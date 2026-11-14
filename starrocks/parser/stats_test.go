@@ -33,10 +33,6 @@ func TestAnalyze_Table(t *testing.T) {
 	}
 }
 
-
-
-
-
 func TestAnalyze_TableWithColumns(t *testing.T) {
 	file, errs := parseForTest("ANALYZE TABLE t (col1, col2)")
 	if len(errs) != 0 {
@@ -50,8 +46,6 @@ func TestAnalyze_TableWithColumns(t *testing.T) {
 		t.Errorf("columns = %v, want [col1 col2]", stmt.Columns)
 	}
 }
-
-
 
 // ---------------------------------------------------------------------------
 // SHOW ANALYZE
@@ -255,9 +249,6 @@ func TestDropStats_Table(t *testing.T) {
 	}
 }
 
-
-
-
 // ---------------------------------------------------------------------------
 // KILL ANALYZE
 // ---------------------------------------------------------------------------
@@ -373,8 +364,6 @@ func TestAlterTableDropConstraint(t *testing.T) {
 // Legacy corpus forms (from statistics.sql)
 // ---------------------------------------------------------------------------
 
-
-
 func TestLegacyCorpus_DropStats(t *testing.T) {
 	// DROP STATS table1;
 	file, errs := parseForTest("DROP STATS table1")
@@ -386,7 +375,6 @@ func TestLegacyCorpus_DropStats(t *testing.T) {
 		t.Errorf("Target = %v, want table1", stmt.Target)
 	}
 }
-
 
 func TestLegacyCorpus_ShowTableStats(t *testing.T) {
 	// SHOW TABLE STATS test1;

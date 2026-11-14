@@ -14,8 +14,8 @@ package ast
 //	ALTER TABLE name ADD CONSTRAINT cname FOREIGN KEY (cols) REFERENCES ref_table (cols)
 type AddConstraintStmt struct {
 	Table      *ObjectName
-	Name       string      // constraint name
-	Type       string      // "PRIMARY KEY", "UNIQUE", "FOREIGN KEY"
+	Name       string // constraint name
+	Type       string // "PRIMARY KEY", "UNIQUE", "FOREIGN KEY"
 	Columns    []string
 	RefTable   *ObjectName // for FOREIGN KEY
 	RefColumns []string    // for FOREIGN KEY
@@ -81,7 +81,7 @@ type AnalyzeStmt struct {
 	// marks TEMPORARY. ["*"] for PARTITION(*).
 	Partitions         []string
 	TemporaryPartition bool
-	Loc        Loc
+	Loc                Loc
 }
 
 // Tag implements Node.
@@ -148,7 +148,7 @@ type DropStatsStmt struct {
 	// marks TEMPORARY.
 	Partitions         []string
 	TemporaryPartition bool
-	Loc     Loc
+	Loc                Loc
 }
 
 // Tag implements Node.
