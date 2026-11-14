@@ -67,7 +67,7 @@ var postgresInstanceCreateProps = []string{
 //	  [ COMMENT = '<string>' ] [ [ WITH ] TAG ( <tag_name> = '<tag_value>' [ , ... ] ) ]
 //
 // The FORK clause records the original instance in Names; the AT or BEFORE
-// clause records its TIMESTAMP or OFFSET as its one option.
+// clause records its point in time in TimeTravel.
 //
 // https://docs.snowflake.com/en/sql-reference/sql/create-postgres-instance
 func parseCreatePostgresInstance(p *Parser, s *ast.ObjectStmt) error {
@@ -100,43 +100,49 @@ func parseCreatePostgresInstance(p *Parser, s *ast.ObjectStmt) error {
 
 // parsePostgresInstanceForkPoint reads a fork's point in time,
 //
-//	{ AT | BEFORE } ( { TIMESTAMP => '<timestamp>' | OFFSET => <time_difference> } )
+//	{ AT | BEFORE } ( { TIMESTAMP => <timestamp> | OFFSET => <time_difference> } )
 //
-// into a clause keyed AT or BEFORE whose one option is TIMESTAMP or OFFSET.
+// into a clause keyed AT or BEFORE whose TimeTravel holds it. The page casts
+// the timestamp ('...'::TIMESTAMP_NTZ) and writes the offset -N, where N is a
+// number or an arithmetic expression (-30*60), so each value is an expression.
 // cur is AT or BEFORE.
 func parsePostgresInstanceForkPoint(p *Parser, s *ast.ObjectStmt) error {
 	kw := p.advance() // consume AT or BEFORE
 	c := &ast.ObjectClause{Keywords: "AT", Loc: ast.Loc{Start: kw.Loc.Start}}
+	tt := &ast.TimeTravelClause{Kind: ast.TimeTravelAt, Loc: ast.Loc{Start: kw.Loc.Start}}
 	if kw.Type == kwBEFORE {
 		c.Keywords = "BEFORE"
+		tt.Kind = ast.TimeTravelBefore
 	}
 	if _, err := p.expect('('); err != nil {
 		return err
 	}
-	if p.cur.Type != kwTIMESTAMP && p.cur.Type != kwOFFSET {
+	switch p.cur.Type {
+	case kwTIMESTAMP:
+		tt.Anchor = ast.TimeTravelTimestamp
+	case kwOFFSET:
+		tt.Anchor = ast.TimeTravelOffset
+	default:
 		return p.syntaxErrorAtCur()
 	}
-	anchor := p.advance()
-	opt := &ast.CopyOption{Name: "OFFSET", Loc: ast.Loc{Start: anchor.Loc.Start}}
-	if anchor.Type == kwTIMESTAMP {
-		opt.Name = "TIMESTAMP"
-	}
+	p.advance() // consume TIMESTAMP or OFFSET
 	if _, err := p.expect(tokAssoc); err != nil {
 		return err
 	}
-	// A timestamp is a '<string>'; an offset is - <seconds>, back from now.
-	if anchor.Type == kwTIMESTAMP && p.cur.Type != tokString ||
-		anchor.Type == kwOFFSET && (p.cur.Type != '-' || p.peekNext().Type != tokInt && p.peekNext().Type != tokFloat) {
+	if tt.Anchor == ast.TimeTravelOffset && p.cur.Type != '-' {
+		// An offset counts back from now: -N.
 		return p.syntaxErrorAtCur()
 	}
-	if err := p.parseObjectValue(opt); err != nil {
+	expr, err := p.parseExpr()
+	if err != nil {
 		return err
 	}
-	opt.Loc.End = p.prev.Loc.End
+	tt.Expr = expr
 	if _, err := p.expect(')'); err != nil {
 		return err
 	}
-	c.Options = []*ast.CopyOption{opt}
+	tt.Loc.End = p.prev.Loc.End
+	c.TimeTravel = tt
 	c.Loc.End = p.prev.Loc.End
 	s.Clauses = append(s.Clauses, c)
 	return nil

@@ -47,9 +47,16 @@ func TestParseCreatePostgresInstanceFork(t *testing.T) {
 			t.Errorf("%q: FORK names = %v", in, n)
 		}
 	}
-	s := mustObjectStmt(t, "CREATE POSTGRES INSTANCE a FORK b BEFORE (OFFSET => -60)")
-	if o := s.Clauses[1].Options; len(o) != 1 || o[0].Name != "OFFSET" || o[0].Lit == nil || o[0].Lit.Value != "-60" {
-		t.Errorf("BEFORE options = %+v", o)
+	// The page casts the timestamp and lets the offset be arithmetic.
+	for in, want := range map[string]ast.TimeTravelAnchor{
+		"CREATE POSTGRES INSTANCE a FORK b AT (TIMESTAMP => '2025-01-15 12:00:00'::TIMESTAMP_NTZ)": ast.TimeTravelTimestamp,
+		"CREATE POSTGRES INSTANCE a FORK b BEFORE (OFFSET => -30*60)":                              ast.TimeTravelOffset,
+	} {
+		s := mustObjectStmt(t, in)
+		tt := s.Clauses[1].TimeTravel
+		if tt == nil || tt.Anchor != want || tt.Expr == nil || tt.Loc.Start != s.Clauses[1].Loc.Start || tt.Loc.End != len(in) {
+			t.Errorf("%q: TimeTravel = %+v", in, tt)
+		}
 	}
 }
 
@@ -123,8 +130,7 @@ func TestParsePostgresInstanceRejects(t *testing.T) {
 		"ALTER POSTGRES INSTANCE a SET \"COMMENT\" = 'c'",
 		"ALTER POSTGRES INSTANCE a UNSET POSTGRES_VERSION",
 		"ALTER POSTGRES INSTANCE a SET COMMENT = 'c' TAG t = 'v'", // SET lists no TAG
-		// A timestamp is a string; an offset is a negative number.
-		"CREATE POSTGRES INSTANCE a FORK b AT (TIMESTAMP => 1)",
+		// An offset counts back from now: -N.
 		"CREATE POSTGRES INSTANCE a FORK b AT (OFFSET => 60)",
 		"CREATE POSTGRES INSTANCE a FORK b AT (OFFSET => '-60')",
 	} {

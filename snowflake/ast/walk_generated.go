@@ -1247,6 +1247,9 @@ func walkChildren(v Visitor, node Node) {
 			walkTagAssignment(v, item)
 		}
 		Walk(v, n.Query)
+		if n.TimeTravel != nil {
+			Walk(v, n.TimeTravel)
+		}
 	case *ObjectStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
