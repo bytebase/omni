@@ -6803,7 +6803,7 @@ func TestParseAlterDatabaseScopedConfig(t *testing.T) {
 		// SET ON/OFF option
 		"ALTER DATABASE SCOPED CONFIGURATION SET LEGACY_CARDINALITY_ESTIMATION = ON",
 		// SET with PRIMARY value
-		"ALTER DATABASE SCOPED CONFIGURATION SET MAXDOP = PRIMARY",
+		"ALTER DATABASE SCOPED CONFIGURATION FOR SECONDARY SET MAXDOP = PRIMARY",
 		// SET PARAMETER_SNIFFING
 		"ALTER DATABASE SCOPED CONFIGURATION SET PARAMETER_SNIFFING = OFF",
 		// SET QUERY_OPTIMIZER_HOTFIXES
@@ -16149,7 +16149,7 @@ func TestParseUtilityCetasDbscopedDepth(t *testing.T) {
 			},
 			{
 				name:  "set_primary",
-				sql:   "ALTER DATABASE SCOPED CONFIGURATION SET MAXDOP = PRIMARY",
+				sql:   "ALTER DATABASE SCOPED CONFIGURATION FOR SECONDARY SET MAXDOP = PRIMARY",
 				key:   "MAXDOP",
 				value: "PRIMARY",
 			},
@@ -20332,37 +20332,17 @@ func TestParseDatabaseBnfReview(t *testing.T) {
 		}
 	})
 
-	t.Run("alter_database_perform_cutover", func(t *testing.T) {
-		sql := "ALTER DATABASE mydb PERFORM_CUTOVER"
-		result := ParseAndCheck(t, sql)
-		stmt := result.Items[0].(*ast.AlterDatabaseStmt)
-		if stmt.Action != "PERFORM_CUTOVER" {
-			t.Errorf("Parse(%q): expected Action=PERFORM_CUTOVER, got %q", sql, stmt.Action)
-		}
-	})
-
-	t.Run("alter_database_modify_azure_options", func(t *testing.T) {
-		sqls := []string{
+	// SQL Server 2022 refuses the Azure SQL Database forms (Msg 102).
+	t.Run("alter_database_azure_forms_rejected", func(t *testing.T) {
+		for _, sql := range []string{
+			"ALTER DATABASE mydb PERFORM_CUTOVER",
 			"ALTER DATABASE mydb MODIFY (MAXSIZE = 250 GB)",
 			"ALTER DATABASE mydb MODIFY (EDITION = 'standard', SERVICE_OBJECTIVE = 'S0')",
 			"ALTER DATABASE mydb MODIFY (MAXSIZE = 1 TB) WITH MANUAL_CUTOVER",
-		}
-		for _, sql := range sqls {
-			result := ParseAndCheck(t, sql)
-			stmt := result.Items[0].(*ast.AlterDatabaseStmt)
-			if stmt.Action != "MODIFY" {
-				t.Errorf("Parse(%q): expected Action=MODIFY, got %q", sql, stmt.Action)
+		} {
+			if _, err := Parse(sql); err == nil {
+				t.Errorf("Parse(%q): want error, SQL Server refuses it", sql)
 			}
-			if stmt.SubAction != "AZURE_OPTIONS" {
-				t.Errorf("Parse(%q): expected SubAction=AZURE_OPTIONS, got %q", sql, stmt.SubAction)
-			}
-		}
-		// Test WITH MANUAL_CUTOVER
-		sql := "ALTER DATABASE mydb MODIFY (MAXSIZE = 1 TB) WITH MANUAL_CUTOVER"
-		result := ParseAndCheck(t, sql)
-		stmt := result.Items[0].(*ast.AlterDatabaseStmt)
-		if stmt.Termination != "MANUAL_CUTOVER" {
-			t.Errorf("Parse(%q): expected Termination=MANUAL_CUTOVER, got %q", sql, stmt.Termination)
 		}
 	})
 
@@ -20456,7 +20436,7 @@ func TestParseDatabaseBnfReview(t *testing.T) {
 		sqls := []string{
 			"ALTER DATABASE SCOPED CONFIGURATION SET MAXDOP = 4",
 			"ALTER DATABASE SCOPED CONFIGURATION SET LEGACY_CARDINALITY_ESTIMATION = ON",
-			"ALTER DATABASE SCOPED CONFIGURATION SET LEGACY_CARDINALITY_ESTIMATION = PRIMARY",
+			"ALTER DATABASE SCOPED CONFIGURATION FOR SECONDARY SET LEGACY_CARDINALITY_ESTIMATION = PRIMARY",
 			"ALTER DATABASE SCOPED CONFIGURATION SET PARAMETER_SNIFFING = OFF",
 			"ALTER DATABASE SCOPED CONFIGURATION SET QUERY_OPTIMIZER_HOTFIXES = ON",
 			"ALTER DATABASE SCOPED CONFIGURATION FOR SECONDARY SET MAXDOP = PRIMARY",

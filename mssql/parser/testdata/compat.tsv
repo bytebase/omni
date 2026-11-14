@@ -310,7 +310,7 @@ accept	reject	engine	statement/create2005Statements!insert	CREATE MASTER KEY zzz
 reject	reject	engine	statement/create2005Statements!swap	CREATE_INDEX MASTER KEY
 accept	accept	engine	statement/createDatabaseStatements	CREATE DATABASE a
 reject	reject	engine	statement/createDatabaseStatements!drop-1	DATABASE a
-accept	reject	engine	statement/createDatabaseStatements!drop-3	CREATE DATABASE
+reject	reject	engine	statement/createDatabaseStatements!drop-3	CREATE DATABASE
 reject	reject	engine	statement/createDatabaseStatements!insert	CREATE DATABASE a zzz
 reject	reject	engine	statement/createDatabaseStatements!swap	CREATE_INDEX DATABASE a
 accept	accept	engine	statement/addStatements	ADD SIGNATURE TO a BY CERTIFICATE a
@@ -1724,15 +1724,15 @@ reject	reject	engine	alterDatabaseStatements(alterDatabaseAuditSpecification_AUD
 accept	accept	engine	alterDatabaseStatements(alterDatabaseAuditSpecification_AUDI~c7e359d1)/alterDatabaseScopedCredentialStatement_SCOPED	ALTER DATABASE SCOPED CREDENTIAL a WITH IDENTITY = 'a'
 reject	reject	engine	alterDatabaseStatements(alterDatabaseAuditSpecification_AUDI~c7e359d1)/alterDatabaseScopedCredentialStatement_SCOPED!drop-1	ALTER DATABASE CREDENTIAL a WITH IDENTITY = 'a'
 reject	reject	engine	alterDatabaseStatements(alterDatabaseAuditSpecification_AUDI~c7e359d1)/alterDatabaseScopedCredentialStatement_SCOPED!swap	ALTER DATABASE SEARCH CREDENTIAL a WITH IDENTITY = 'a'
-accept	reject	engine	alterDatabaseStatements(alterDatabaseAuditSpecification_AUDI~c7e359d1)/alterDatabaseScopedConfigurationStatement_SCOPED	ALTER DATABASE SCOPED CONFIGURATION CLEAR a
+reject	reject	engine	alterDatabaseStatements(alterDatabaseAuditSpecification_AUDI~c7e359d1)/alterDatabaseScopedConfigurationStatement_SCOPED	ALTER DATABASE SCOPED CONFIGURATION CLEAR a
 reject	reject	engine	alterDatabaseStatements(alterDatabaseAuditSpecification_AUDI~c7e359d1)/alterDatabaseScopedConfigurationStatement_SCOPED!drop-1	ALTER DATABASE CONFIGURATION CLEAR a
 reject	reject	engine	alterDatabaseStatements(alterDatabaseAuditSpecification_AUDI~c7e359d1)/alterDatabaseScopedConfigurationStatement_SCOPED!drop-2	ALTER DATABASE SCOPED CLEAR a
-accept	reject	engine	alterDatabaseStatements(alterDatabaseAuditSpecification_AUDI~c7e359d1)/alterDatabaseScopedConfigurationStatement_SCOPED!drop-3	ALTER DATABASE SCOPED CONFIGURATION a
-accept	reject	engine	alterDatabaseStatements(alterDatabaseAuditSpecification_AUDI~c7e359d1)/alterDatabaseScopedConfigurationStatement_SCOPED!drop-4	ALTER DATABASE SCOPED CONFIGURATION CLEAR
+reject	reject	engine	alterDatabaseStatements(alterDatabaseAuditSpecification_AUDI~c7e359d1)/alterDatabaseScopedConfigurationStatement_SCOPED!drop-3	ALTER DATABASE SCOPED CONFIGURATION a
+reject	reject	engine	alterDatabaseStatements(alterDatabaseAuditSpecification_AUDI~c7e359d1)/alterDatabaseScopedConfigurationStatement_SCOPED!drop-4	ALTER DATABASE SCOPED CONFIGURATION CLEAR
 reject	reject	engine	alterDatabaseStatements(alterDatabaseAuditSpecification_AUDI~c7e359d1)/alterDatabaseScopedConfigurationStatement_SCOPED!insert	ALTER DATABASE SCOPED CONFIGURATION CLEAR a zzz
 reject	reject	engine	alterDatabaseStatements(alterDatabaseAuditSpecification_AUDI~c7e359d1)/alterDatabaseScopedConfigurationStatement_SCOPED!swap	ALTER DATABASE SEARCH CONFIGURATION CLEAR a
 accept	accept	engine	alterDatabaseStatements(alterDatabaseAuditSpecification_AUDI~c7e359d1)/alterDatabase	ALTER DATABASE a SET RESTRICTED_USER
-accept	reject	engine	alterDatabaseStatements(alterDatabaseAuditSpecification_AUDI~c7e359d1)/alterDatabase!drop-1	ALTER DATABASE SET RESTRICTED_USER
+reject	reject	engine	alterDatabaseStatements(alterDatabaseAuditSpecification_AUDI~c7e359d1)/alterDatabase!drop-1	ALTER DATABASE SET RESTRICTED_USER
 reject	reject	engine	alterDatabaseStatements(alterDatabaseAuditSpecification_AUDI~c7e359d1)/alterDatabase!drop-2	ALTER DATABASE a RESTRICTED_USER
 reject	reject	engine	alterDatabaseStatements(alterDatabaseAuditSpecification_AUDI~c7e359d1)/alterDatabase!drop-3	ALTER DATABASE a SET
 reject	reject	engine	alterDatabaseStatements(alterDatabaseAuditSpecification_AUDI~c7e359d1)/alterDatabase!insert	ALTER DATABASE a SET RESTRICTED_USER zzz
@@ -1747,53 +1747,53 @@ accept	reject	engine	alterDatabaseStatements(alterDatabaseAuditSpecification_AUD
 accept	reject	engine	alterDatabaseStatements(alterDatabaseAuditSpecification_AUDI~c7e359d1)/alterDatabaseEncryptionKey!drop-7	ALTER DATABASE ENCRYPTION KEY REGENERATE WITH ALGORITHM =
 accept	reject	engine	alterDatabaseStatements(alterDatabaseAuditSpecification_AUDI~c7e359d1)/alterDatabaseEncryptionKey!insert	ALTER DATABASE ENCRYPTION KEY REGENERATE WITH ALGORITHM = a zzz
 reject	reject	engine	alterDatabaseStatements(alterDatabaseAuditSpecification_AUDI~c7e359d1)/alterDatabaseEncryptionKey!swap	ALTER DATABASE ENCRYPTION_TYPE KEY REGENERATE WITH ALGORITHM = a
-accept	reject	engine	alterDatabaseScopedConfigClear/CLEAR_databaseConfigurationClearOption	ALTER DATABASE SCOPED CONFIGURATION CLEAR a
-accept	reject	engine	alterDatabaseScopedConfigClear/CLEAR_databaseConfigurationClearOption!swap	ALTER DATABASE SCOPED CONFIGURATION CLEAR_PORT a
-accept	reject	engine	databaseConfigurationClearOption/Identifier_(binary)?	ALTER DATABASE SCOPED CONFIGURATION CLEAR a
-accept	reject	engine	databaseConfigurationClearOption(binary)?/%empty	ALTER DATABASE SCOPED CONFIGURATION CLEAR a
+reject	reject	engine	alterDatabaseScopedConfigClear/CLEAR_databaseConfigurationClearOption	ALTER DATABASE SCOPED CONFIGURATION CLEAR a
+reject	reject	engine	alterDatabaseScopedConfigClear/CLEAR_databaseConfigurationClearOption!swap	ALTER DATABASE SCOPED CONFIGURATION CLEAR_PORT a
+reject	reject	engine	databaseConfigurationClearOption/Identifier_(binary)?	ALTER DATABASE SCOPED CONFIGURATION CLEAR a
+reject	reject	engine	databaseConfigurationClearOption(binary)?/%empty	ALTER DATABASE SCOPED CONFIGURATION CLEAR a
 reject	reject	engine	databaseConfigurationClearOption(binary)?/binary	ALTER DATABASE SCOPED CONFIGURATION CLEAR a 0x00
 reject	reject	engine	databaseConfigurationClearOption(binary)?/binary!insert	ALTER DATABASE SCOPED CONFIGURATION CLEAR a 0x00 zzz
 accept	accept	engine	alterDatabaseScopedConfigSet/Set_(alterDatabaseScopedMaxDopOption_MAXD~c95e6bb4)	ALTER DATABASE SCOPED CONFIGURATION SET MAXDOP = 1
-accept	reject	engine	alterDatabaseScopedConfigSet/Set_(alterDatabaseScopedMaxDopOption_MAXD~c95e6bb4)!drop-1	ALTER DATABASE SCOPED CONFIGURATION MAXDOP = 1
+reject	reject	engine	alterDatabaseScopedConfigSet/Set_(alterDatabaseScopedMaxDopOption_MAXD~c95e6bb4)!drop-1	ALTER DATABASE SCOPED CONFIGURATION MAXDOP = 1
 reject	reject	engine	alterDatabaseScopedConfigSet/Set_(alterDatabaseScopedMaxDopOption_MAXD~c95e6bb4)!drop-2	ALTER DATABASE SCOPED CONFIGURATION SET = 1
 reject	reject	engine	alterDatabaseScopedConfigSet/Set_(alterDatabaseScopedMaxDopOption_MAXD~c95e6bb4)!drop-3	ALTER DATABASE SCOPED CONFIGURATION SET MAXDOP 1
-accept	reject	engine	alterDatabaseScopedConfigSet/Set_(alterDatabaseScopedMaxDopOption_MAXD~c95e6bb4)!drop-4	ALTER DATABASE SCOPED CONFIGURATION SET MAXDOP =
-accept	reject	engine	alterDatabaseScopedConfigSet/Set_(alterDatabaseScopedMaxDopOption_MAXD~c95e6bb4)!insert	ALTER DATABASE SCOPED CONFIGURATION SET MAXDOP = 1 zzz
-accept	reject	engine	alterDatabaseScopedConfigSet/Set_(alterDatabaseScopedMaxDopOption_MAXD~c95e6bb4)!swap	ALTER DATABASE SCOPED CONFIGURATION SETS MAXDOP = 1
+reject	reject	engine	alterDatabaseScopedConfigSet/Set_(alterDatabaseScopedMaxDopOption_MAXD~c95e6bb4)!drop-4	ALTER DATABASE SCOPED CONFIGURATION SET MAXDOP =
+reject	reject	engine	alterDatabaseScopedConfigSet/Set_(alterDatabaseScopedMaxDopOption_MAXD~c95e6bb4)!insert	ALTER DATABASE SCOPED CONFIGURATION SET MAXDOP = 1 zzz
+reject	reject	engine	alterDatabaseScopedConfigSet/Set_(alterDatabaseScopedMaxDopOption_MAXD~c95e6bb4)!swap	ALTER DATABASE SCOPED CONFIGURATION SETS MAXDOP = 1
 accept	accept	engine	alterDatabaseScopedConfigSet(alterDatabaseScopedMaxDopOption_MAXD~c95e6bb4)/alterDatabaseScopedMaxDopOption_MAXDOP	ALTER DATABASE SCOPED CONFIGURATION SET MAXDOP = 1
-accept	reject	engine	alterDatabaseScopedConfigSet(alterDatabaseScopedMaxDopOption_MAXD~c95e6bb4)/alterDatabaseScopedMaxDopOption_MAXDOP!swap	ALTER DATABASE SCOPED CONFIGURATION SET MAXLENGTH = 1
-accept	reject	engine	alterDatabaseScopedConfigSet(alterDatabaseScopedMaxDopOption_MAXD~c95e6bb4)/(alterDatabaseScopedOnOffPrimaryOptio~b229224e)	ALTER DATABASE SCOPED CONFIGURATION SET QUERY_OPTIMIZER_HOTFIXES = PRIMARY
+reject	reject	engine	alterDatabaseScopedConfigSet(alterDatabaseScopedMaxDopOption_MAXD~c95e6bb4)/alterDatabaseScopedMaxDopOption_MAXDOP!swap	ALTER DATABASE SCOPED CONFIGURATION SET MAXLENGTH = 1
+reject	reject	engine	alterDatabaseScopedConfigSet(alterDatabaseScopedMaxDopOption_MAXD~c95e6bb4)/(alterDatabaseScopedOnOffPrimaryOptio~b229224e)	ALTER DATABASE SCOPED CONFIGURATION SET QUERY_OPTIMIZER_HOTFIXES = PRIMARY
 reject	reject	engine	alterDatabaseScopedConfigSet(alterDatabaseScopedMaxDopOption_MAXD~c95e6bb4)/(alterDatabaseScopedOnOffPrimaryOptio~b229224e)!drop-1	ALTER DATABASE SCOPED CONFIGURATION SET = PRIMARY
 reject	reject	engine	alterDatabaseScopedConfigSet(alterDatabaseScopedMaxDopOption_MAXD~c95e6bb4)/(alterDatabaseScopedOnOffPrimaryOptio~b229224e)!drop-2	ALTER DATABASE SCOPED CONFIGURATION SET QUERY_OPTIMIZER_HOTFIXES PRIMARY
-accept	reject	engine	alterDatabaseScopedConfigSet(alterDatabaseScopedMaxDopOption_MAXD~c95e6bb4)/(alterDatabaseScopedOnOffPrimaryOptio~b229224e)!drop-3	ALTER DATABASE SCOPED CONFIGURATION SET QUERY_OPTIMIZER_HOTFIXES =
-accept	reject	engine	alterDatabaseScopedConfigSet(alterDatabaseScopedMaxDopOption_MAXD~c95e6bb4)/(alterDatabaseScopedOnOffPrimaryOptio~b229224e)!insert	ALTER DATABASE SCOPED CONFIGURATION SET QUERY_OPTIMIZER_HOTFIXES = PRIMARY zzz
-accept	reject	engine	alterDatabaseScopedConfigSet(alterDatabaseScopedMaxDopOption_MAXD~c95e6bb4)/(alterDatabaseScopedOnOffPrimaryOptio~b229224e)!swap	ALTER DATABASE SCOPED CONFIGURATION SET QUERY_STORE = PRIMARY
-accept	reject	engine	alterDatabaseScopedConfigSet(alterDatabaseScopedMaxDopOption_MAXD~c95e6bb4)/alterDatabaseScopedGenericOption	ALTER DATABASE SCOPED CONFIGURATION SET a = PRIMARY
+reject	reject	engine	alterDatabaseScopedConfigSet(alterDatabaseScopedMaxDopOption_MAXD~c95e6bb4)/(alterDatabaseScopedOnOffPrimaryOptio~b229224e)!drop-3	ALTER DATABASE SCOPED CONFIGURATION SET QUERY_OPTIMIZER_HOTFIXES =
+reject	reject	engine	alterDatabaseScopedConfigSet(alterDatabaseScopedMaxDopOption_MAXD~c95e6bb4)/(alterDatabaseScopedOnOffPrimaryOptio~b229224e)!insert	ALTER DATABASE SCOPED CONFIGURATION SET QUERY_OPTIMIZER_HOTFIXES = PRIMARY zzz
+reject	reject	engine	alterDatabaseScopedConfigSet(alterDatabaseScopedMaxDopOption_MAXD~c95e6bb4)/(alterDatabaseScopedOnOffPrimaryOptio~b229224e)!swap	ALTER DATABASE SCOPED CONFIGURATION SET QUERY_STORE = PRIMARY
+reject	reject	engine	alterDatabaseScopedConfigSet(alterDatabaseScopedMaxDopOption_MAXD~c95e6bb4)/alterDatabaseScopedGenericOption	ALTER DATABASE SCOPED CONFIGURATION SET a = PRIMARY
 reject	reject	engine	alterDatabaseScopedConfigSet(alterDatabaseScopedMaxDopOption_MAXD~c95e6bb4)/alterDatabaseScopedGenericOption!drop-2	ALTER DATABASE SCOPED CONFIGURATION SET a PRIMARY
-accept	reject	engine	alterDatabaseScopedConfigSet(alterDatabaseScopedMaxDopOption_MAXD~c95e6bb4)/alterDatabaseScopedGenericOption!drop-3	ALTER DATABASE SCOPED CONFIGURATION SET a =
-accept	reject	engine	alterDatabaseScopedConfigSet(alterDatabaseScopedMaxDopOption_MAXD~c95e6bb4)/alterDatabaseScopedGenericOption!insert	ALTER DATABASE SCOPED CONFIGURATION SET a = PRIMARY zzz
-accept	reject	engine	alterDatabaseScopedConfigSet(alterDatabaseScopedMaxDopOption_MAXD~c95e6bb4)/alterDatabaseScopedGenericOption!swap	ALTER DATABASE SCOPED CONFIGURATION SET a = PRIMARY_ROLE
-accept	reject	engine	alterDatabaseScopedConfigSet(alterDatabaseScopedOnOffPrimaryOptio~b229224e)/alterDatabaseScopedOnOffPrimaryOption_QUERY_OPTIMIZER_HOTFIXES	ALTER DATABASE SCOPED CONFIGURATION SET QUERY_OPTIMIZER_HOTFIXES = PRIMARY
-accept	reject	engine	alterDatabaseScopedConfigSet(alterDatabaseScopedOnOffPrimaryOptio~b229224e)/alterDatabaseScopedOnOffPrimaryOption_PARAMETER_SNIFFING	ALTER DATABASE SCOPED CONFIGURATION SET PARAMETER_SNIFFING = PRIMARY
+reject	reject	engine	alterDatabaseScopedConfigSet(alterDatabaseScopedMaxDopOption_MAXD~c95e6bb4)/alterDatabaseScopedGenericOption!drop-3	ALTER DATABASE SCOPED CONFIGURATION SET a =
+reject	reject	engine	alterDatabaseScopedConfigSet(alterDatabaseScopedMaxDopOption_MAXD~c95e6bb4)/alterDatabaseScopedGenericOption!insert	ALTER DATABASE SCOPED CONFIGURATION SET a = PRIMARY zzz
+reject	reject	engine	alterDatabaseScopedConfigSet(alterDatabaseScopedMaxDopOption_MAXD~c95e6bb4)/alterDatabaseScopedGenericOption!swap	ALTER DATABASE SCOPED CONFIGURATION SET a = PRIMARY_ROLE
+reject	reject	engine	alterDatabaseScopedConfigSet(alterDatabaseScopedOnOffPrimaryOptio~b229224e)/alterDatabaseScopedOnOffPrimaryOption_QUERY_OPTIMIZER_HOTFIXES	ALTER DATABASE SCOPED CONFIGURATION SET QUERY_OPTIMIZER_HOTFIXES = PRIMARY
+reject	reject	engine	alterDatabaseScopedConfigSet(alterDatabaseScopedOnOffPrimaryOptio~b229224e)/alterDatabaseScopedOnOffPrimaryOption_PARAMETER_SNIFFING	ALTER DATABASE SCOPED CONFIGURATION SET PARAMETER_SNIFFING = PRIMARY
 reject	reject	engine	alterDatabaseScopedConfigSet(alterDatabaseScopedOnOffPrimaryOptio~b229224e)/alterDatabaseScopedOnOffPrimaryOption_PARAMETER_SNIFFING!drop-2	ALTER DATABASE SCOPED CONFIGURATION SET PARAMETER_SNIFFING PRIMARY
-accept	reject	engine	alterDatabaseScopedConfigSet(alterDatabaseScopedOnOffPrimaryOptio~b229224e)/alterDatabaseScopedOnOffPrimaryOption_PARAMETER_SNIFFING!drop-3	ALTER DATABASE SCOPED CONFIGURATION SET PARAMETER_SNIFFING =
-accept	reject	engine	alterDatabaseScopedConfigSet(alterDatabaseScopedOnOffPrimaryOptio~b229224e)/alterDatabaseScopedOnOffPrimaryOption_PARAMETER_SNIFFING!insert	ALTER DATABASE SCOPED CONFIGURATION SET PARAMETER_SNIFFING = PRIMARY zzz
-accept	reject	engine	alterDatabaseScopedConfigSet(alterDatabaseScopedOnOffPrimaryOptio~b229224e)/alterDatabaseScopedOnOffPrimaryOption_PARAMETER_SNIFFING!swap	ALTER DATABASE SCOPED CONFIGURATION SET PARQUET = PRIMARY
-accept	reject	engine	alterDatabaseScopedConfigSet(alterDatabaseScopedOnOffPrimaryOptio~b229224e)/alterDatabaseScopedOnOffPrimaryOption_LEGACY_CARDINALIT~42de6d45	ALTER DATABASE SCOPED CONFIGURATION SET LEGACY_CARDINALITY_ESTIMATION = PRIMARY
+reject	reject	engine	alterDatabaseScopedConfigSet(alterDatabaseScopedOnOffPrimaryOptio~b229224e)/alterDatabaseScopedOnOffPrimaryOption_PARAMETER_SNIFFING!drop-3	ALTER DATABASE SCOPED CONFIGURATION SET PARAMETER_SNIFFING =
+reject	reject	engine	alterDatabaseScopedConfigSet(alterDatabaseScopedOnOffPrimaryOptio~b229224e)/alterDatabaseScopedOnOffPrimaryOption_PARAMETER_SNIFFING!insert	ALTER DATABASE SCOPED CONFIGURATION SET PARAMETER_SNIFFING = PRIMARY zzz
+reject	reject	engine	alterDatabaseScopedConfigSet(alterDatabaseScopedOnOffPrimaryOptio~b229224e)/alterDatabaseScopedOnOffPrimaryOption_PARAMETER_SNIFFING!swap	ALTER DATABASE SCOPED CONFIGURATION SET PARQUET = PRIMARY
+reject	reject	engine	alterDatabaseScopedConfigSet(alterDatabaseScopedOnOffPrimaryOptio~b229224e)/alterDatabaseScopedOnOffPrimaryOption_LEGACY_CARDINALIT~42de6d45	ALTER DATABASE SCOPED CONFIGURATION SET LEGACY_CARDINALITY_ESTIMATION = PRIMARY
 reject	reject	engine	alterDatabaseScopedConfigSet(alterDatabaseScopedOnOffPrimaryOptio~b229224e)/alterDatabaseScopedOnOffPrimaryOption_LEGACY_CARDINALIT~42de6d45!drop-2	ALTER DATABASE SCOPED CONFIGURATION SET LEGACY_CARDINALITY_ESTIMATION PRIMARY
-accept	reject	engine	alterDatabaseScopedConfigSet(alterDatabaseScopedOnOffPrimaryOptio~b229224e)/alterDatabaseScopedOnOffPrimaryOption_LEGACY_CARDINALIT~42de6d45!drop-3	ALTER DATABASE SCOPED CONFIGURATION SET LEGACY_CARDINALITY_ESTIMATION =
-accept	reject	engine	alterDatabaseScopedConfigSet(alterDatabaseScopedOnOffPrimaryOptio~b229224e)/alterDatabaseScopedOnOffPrimaryOption_LEGACY_CARDINALIT~42de6d45!insert	ALTER DATABASE SCOPED CONFIGURATION SET LEGACY_CARDINALITY_ESTIMATION = PRIMARY zzz
-accept	reject	engine	alterDatabaseScopedConfigSet(alterDatabaseScopedOnOffPrimaryOptio~b229224e)/alterDatabaseScopedOnOffPrimaryOption_LEGACY_CARDINALIT~42de6d45!swap	ALTER DATABASE SCOPED CONFIGURATION SET LEVEL = PRIMARY
-accept	reject	engine	alterDatabaseScopedGenericOption/identifier_EqualsSign_(Primary|stringOrSignedIntegerOrI~59cbca74	ALTER DATABASE SCOPED CONFIGURATION SET a = PRIMARY
-accept	reject	engine	alterDatabaseScopedGenericOption(Primary|stringOrSignedIntegerOrIdent~c8b12936)/Primary	ALTER DATABASE SCOPED CONFIGURATION SET a = PRIMARY
-accept	reject	engine	alterDatabaseScopedGenericOption(Primary|stringOrSignedIntegerOrIdent~c8b12936)/stringOrSignedIntegerOrIdentifier	ALTER DATABASE SCOPED CONFIGURATION SET a = 'a'
-accept	reject	engine	alterDatabaseScopedGenericOption(Primary|stringOrSignedIntegerOrIdent~c8b12936)/stringOrSignedIntegerOrIdentifier!insert	ALTER DATABASE SCOPED CONFIGURATION SET a = 'a' zzz
-accept	reject	engine	alterDatabaseScopedGenericOption(Primary|stringOrSignedIntegerOrIdent~c8b12936)/onOff	ALTER DATABASE SCOPED CONFIGURATION SET a = ON
-accept	reject	engine	alterDatabaseScopedGenericOption(Primary|stringOrSignedIntegerOrIdent~c8b12936)/onOff!insert	ALTER DATABASE SCOPED CONFIGURATION SET a = ON zzz
-accept	reject	engine	alterDatabaseScopedGenericOption(Primary|stringOrSignedIntegerOrIdent~c8b12936)/onOff!swap	ALTER DATABASE SCOPED CONFIGURATION SET a = ONLINE
+reject	reject	engine	alterDatabaseScopedConfigSet(alterDatabaseScopedOnOffPrimaryOptio~b229224e)/alterDatabaseScopedOnOffPrimaryOption_LEGACY_CARDINALIT~42de6d45!drop-3	ALTER DATABASE SCOPED CONFIGURATION SET LEGACY_CARDINALITY_ESTIMATION =
+reject	reject	engine	alterDatabaseScopedConfigSet(alterDatabaseScopedOnOffPrimaryOptio~b229224e)/alterDatabaseScopedOnOffPrimaryOption_LEGACY_CARDINALIT~42de6d45!insert	ALTER DATABASE SCOPED CONFIGURATION SET LEGACY_CARDINALITY_ESTIMATION = PRIMARY zzz
+reject	reject	engine	alterDatabaseScopedConfigSet(alterDatabaseScopedOnOffPrimaryOptio~b229224e)/alterDatabaseScopedOnOffPrimaryOption_LEGACY_CARDINALIT~42de6d45!swap	ALTER DATABASE SCOPED CONFIGURATION SET LEVEL = PRIMARY
+reject	reject	engine	alterDatabaseScopedGenericOption/identifier_EqualsSign_(Primary|stringOrSignedIntegerOrI~59cbca74	ALTER DATABASE SCOPED CONFIGURATION SET a = PRIMARY
+reject	reject	engine	alterDatabaseScopedGenericOption(Primary|stringOrSignedIntegerOrIdent~c8b12936)/Primary	ALTER DATABASE SCOPED CONFIGURATION SET a = PRIMARY
+reject	reject	engine	alterDatabaseScopedGenericOption(Primary|stringOrSignedIntegerOrIdent~c8b12936)/stringOrSignedIntegerOrIdentifier	ALTER DATABASE SCOPED CONFIGURATION SET a = 'a'
+reject	reject	engine	alterDatabaseScopedGenericOption(Primary|stringOrSignedIntegerOrIdent~c8b12936)/stringOrSignedIntegerOrIdentifier!insert	ALTER DATABASE SCOPED CONFIGURATION SET a = 'a' zzz
+reject	reject	engine	alterDatabaseScopedGenericOption(Primary|stringOrSignedIntegerOrIdent~c8b12936)/onOff	ALTER DATABASE SCOPED CONFIGURATION SET a = ON
+reject	reject	engine	alterDatabaseScopedGenericOption(Primary|stringOrSignedIntegerOrIdent~c8b12936)/onOff!insert	ALTER DATABASE SCOPED CONFIGURATION SET a = ON zzz
+reject	reject	engine	alterDatabaseScopedGenericOption(Primary|stringOrSignedIntegerOrIdent~c8b12936)/onOff!swap	ALTER DATABASE SCOPED CONFIGURATION SET a = ONLINE
 accept	accept	engine	alterDatabase/(identifier|sqlCommandIdentifier|Current)_(alterDbAdd|a~ba47b2e1	ALTER DATABASE a SET RESTRICTED_USER
 accept	accept	engine	alterDatabase(identifier|sqlCommandIdentifier|Current)/identifier	ALTER DATABASE a SET RESTRICTED_USER
-accept	reject	engine	alterDatabase(identifier|sqlCommandIdentifier|Current)/identifier!truncate	ALTER DATABASE
+reject	reject	engine	alterDatabase(identifier|sqlCommandIdentifier|Current)/identifier!truncate	ALTER DATABASE
 reject	reject	engine	alterDatabase(identifier|sqlCommandIdentifier|Current)/identifier!insert	ALTER DATABASE a zzz SET RESTRICTED_USER
 reject	reject	engine	alterDatabase(identifier|sqlCommandIdentifier|Current)/sqlCommandIdentifier	ALTER DATABASE $(a) SET RESTRICTED_USER
 reject	reject	engine	alterDatabase(identifier|sqlCommandIdentifier|Current)/sqlCommandIdentifier!insert	ALTER DATABASE $(a) zzz SET RESTRICTED_USER
@@ -1803,20 +1803,20 @@ reject	reject	engine	alterDatabase(identifier|sqlCommandIdentifier|Current)/Curr
 accept	accept	engine	alterDatabase(alterDbAdd|alterDbRemove_REMOVE|alte~a14d6e58)/alterDbAdd	ALTER DATABASE a ADD FILEGROUP a
 reject	reject	engine	alterDatabase(alterDbAdd|alterDbRemove_REMOVE|alte~a14d6e58)/alterDbAdd!drop-1	ALTER DATABASE a FILEGROUP a
 reject	reject	engine	alterDatabase(alterDbAdd|alterDbRemove_REMOVE|alte~a14d6e58)/alterDbAdd!drop-2	ALTER DATABASE a ADD a
-accept	reject	engine	alterDatabase(alterDbAdd|alterDbRemove_REMOVE|alte~a14d6e58)/alterDbAdd!drop-3	ALTER DATABASE a ADD FILEGROUP
+reject	reject	engine	alterDatabase(alterDbAdd|alterDbRemove_REMOVE|alte~a14d6e58)/alterDbAdd!drop-3	ALTER DATABASE a ADD FILEGROUP
 reject	reject	engine	alterDatabase(alterDbAdd|alterDbRemove_REMOVE|alte~a14d6e58)/alterDbAdd!insert	ALTER DATABASE a ADD FILEGROUP a zzz
 reject	reject	engine	alterDatabase(alterDbAdd|alterDbRemove_REMOVE|alte~a14d6e58)/alterDbAdd!swap	ALTER DATABASE a ADMIN FILEGROUP a
 accept	accept	engine	alterDatabase(alterDbAdd|alterDbRemove_REMOVE|alte~a14d6e58)/alterDbRemove_REMOVE	ALTER DATABASE a REMOVE FILE a
 reject	reject	engine	alterDatabase(alterDbAdd|alterDbRemove_REMOVE|alte~a14d6e58)/alterDbRemove_REMOVE!drop-1	ALTER DATABASE a FILE a
 reject	reject	engine	alterDatabase(alterDbAdd|alterDbRemove_REMOVE|alte~a14d6e58)/alterDbRemove_REMOVE!drop-2	ALTER DATABASE a REMOVE a
-accept	reject	engine	alterDatabase(alterDbAdd|alterDbRemove_REMOVE|alte~a14d6e58)/alterDbRemove_REMOVE!drop-3	ALTER DATABASE a REMOVE FILE
+reject	reject	engine	alterDatabase(alterDbAdd|alterDbRemove_REMOVE|alte~a14d6e58)/alterDbRemove_REMOVE!drop-3	ALTER DATABASE a REMOVE FILE
 reject	reject	engine	alterDatabase(alterDbAdd|alterDbRemove_REMOVE|alte~a14d6e58)/alterDbRemove_REMOVE!insert	ALTER DATABASE a REMOVE FILE a zzz
 reject	reject	engine	alterDatabase(alterDbAdd|alterDbRemove_REMOVE|alte~a14d6e58)/alterDbRemove_REMOVE!swap	ALTER DATABASE a RENAME FILE a
 accept	accept	engine	alterDatabase(alterDbAdd|alterDbRemove_REMOVE|alte~a14d6e58)/alterDbModify_MODIFY	ALTER DATABASE a MODIFY NAME = a
 reject	reject	engine	alterDatabase(alterDbAdd|alterDbRemove_REMOVE|alte~a14d6e58)/alterDbModify_MODIFY!drop-1	ALTER DATABASE a NAME = a
 reject	reject	engine	alterDatabase(alterDbAdd|alterDbRemove_REMOVE|alte~a14d6e58)/alterDbModify_MODIFY!drop-2	ALTER DATABASE a MODIFY = a
 reject	reject	engine	alterDatabase(alterDbAdd|alterDbRemove_REMOVE|alte~a14d6e58)/alterDbModify_MODIFY!drop-3	ALTER DATABASE a MODIFY NAME a
-accept	reject	engine	alterDatabase(alterDbAdd|alterDbRemove_REMOVE|alte~a14d6e58)/alterDbModify_MODIFY!drop-4	ALTER DATABASE a MODIFY NAME =
+reject	reject	engine	alterDatabase(alterDbAdd|alterDbRemove_REMOVE|alte~a14d6e58)/alterDbModify_MODIFY!drop-4	ALTER DATABASE a MODIFY NAME =
 reject	reject	engine	alterDatabase(alterDbAdd|alterDbRemove_REMOVE|alte~a14d6e58)/alterDbModify_MODIFY!insert	ALTER DATABASE a MODIFY NAME = a zzz
 reject	reject	engine	alterDatabase(alterDbAdd|alterDbRemove_REMOVE|alte~a14d6e58)/alterDbModify_MODIFY!swap	ALTER DATABASE a MOVE NAME = a
 accept	accept	engine	alterDatabase(alterDbAdd|alterDbRemove_REMOVE|alte~a14d6e58)/alterDbSet	ALTER DATABASE a SET RESTRICTED_USER
@@ -1827,48 +1827,48 @@ reject	accept	engine	alterDatabase(alterDbAdd|alterDbRemove_REMOVE|alte~a14d6e58
 reject	reject	engine	alterDatabase(alterDbAdd|alterDbRemove_REMOVE|alte~a14d6e58)/alterDbCollate!swap	ALTER DATABASE a COLLECTION a
 accept	accept	engine	alterDatabase(alterDbAdd|alterDbRemove_REMOVE|alte~a14d6e58)/alterDbRebuild	ALTER DATABASE a REBUILD LOG
 reject	reject	engine	alterDatabase(alterDbAdd|alterDbRemove_REMOVE|alte~a14d6e58)/alterDbRebuild!drop-1	ALTER DATABASE a LOG
-accept	reject	engine	alterDatabase(alterDbAdd|alterDbRemove_REMOVE|alte~a14d6e58)/alterDbRebuild!drop-2	ALTER DATABASE a REBUILD
+reject	reject	engine	alterDatabase(alterDbAdd|alterDbRemove_REMOVE|alte~a14d6e58)/alterDbRebuild!drop-2	ALTER DATABASE a REBUILD
 reject	reject	engine	alterDatabase(alterDbAdd|alterDbRemove_REMOVE|alte~a14d6e58)/alterDbRebuild!insert	ALTER DATABASE a REBUILD LOG zzz
-accept	reject	engine	alterDatabase(alterDbAdd|alterDbRemove_REMOVE|alte~a14d6e58)/alterDbRebuild!swap	ALTER DATABASE a RECEIVE LOG
+reject	reject	engine	alterDatabase(alterDbAdd|alterDbRemove_REMOVE|alte~a14d6e58)/alterDbRebuild!swap	ALTER DATABASE a RECEIVE LOG
 accept	accept	engine	alterDbCollate/collation	ALTER DATABASE a COLLATE a
 accept	accept	engine	alterDbRebuild/REBUILD_LOG_(On_fileDecl)?	ALTER DATABASE a REBUILD LOG
 accept	accept	engine	alterDbRebuild(On_fileDecl)?/%empty	ALTER DATABASE a REBUILD LOG
-accept	reject	engine	alterDbRebuild(On_fileDecl)?/On_fileDecl	ALTER DATABASE a REBUILD LOG ON(OFFLINE)
+reject	reject	engine	alterDbRebuild(On_fileDecl)?/On_fileDecl	ALTER DATABASE a REBUILD LOG ON(OFFLINE)
 reject	reject	engine	alterDbRebuild(On_fileDecl)?/On_fileDecl!drop-1	ALTER DATABASE a REBUILD LOG(OFFLINE)
 reject	reject	engine	alterDbRebuild(On_fileDecl)?/On_fileDecl!drop-2	ALTER DATABASE a REBUILD LOG ON OFFLINE)
-accept	reject	engine	alterDbRebuild(On_fileDecl)?/On_fileDecl!drop-3	ALTER DATABASE a REBUILD LOG ON()
-accept	reject	engine	alterDbRebuild(On_fileDecl)?/On_fileDecl!drop-4	ALTER DATABASE a REBUILD LOG ON(OFFLINE
+reject	reject	engine	alterDbRebuild(On_fileDecl)?/On_fileDecl!drop-3	ALTER DATABASE a REBUILD LOG ON()
+reject	reject	engine	alterDbRebuild(On_fileDecl)?/On_fileDecl!drop-4	ALTER DATABASE a REBUILD LOG ON(OFFLINE
 reject	reject	engine	alterDbRebuild(On_fileDecl)?/On_fileDecl!insert	ALTER DATABASE a REBUILD LOG ON(OFFLINE) zzz
 reject	reject	engine	alterDbRebuild(On_fileDecl)?/On_fileDecl!swap	ALTER DATABASE a REBUILD LOG ONLINE(OFFLINE)
 accept	accept	engine	alterDbAdd/Add_(alterDbAddFile|alterDbAddFilegroup)	ALTER DATABASE a ADD FILEGROUP a
-accept	reject	engine	alterDbAdd(alterDbAddFile|alterDbAddFilegroup)/alterDbAddFile	ALTER DATABASE a ADD FILE(OFFLINE)
+reject	reject	engine	alterDbAdd(alterDbAddFile|alterDbAddFilegroup)/alterDbAddFile	ALTER DATABASE a ADD FILE(OFFLINE)
 reject	reject	engine	alterDbAdd(alterDbAddFile|alterDbAddFilegroup)/alterDbAddFile!drop-1	ALTER DATABASE a ADD(OFFLINE)
 reject	reject	engine	alterDbAdd(alterDbAddFile|alterDbAddFilegroup)/alterDbAddFile!drop-2	ALTER DATABASE a ADD FILE OFFLINE)
-accept	reject	engine	alterDbAdd(alterDbAddFile|alterDbAddFilegroup)/alterDbAddFile!drop-3	ALTER DATABASE a ADD FILE()
-accept	reject	engine	alterDbAdd(alterDbAddFile|alterDbAddFilegroup)/alterDbAddFile!drop-4	ALTER DATABASE a ADD FILE(OFFLINE
+reject	reject	engine	alterDbAdd(alterDbAddFile|alterDbAddFilegroup)/alterDbAddFile!drop-3	ALTER DATABASE a ADD FILE()
+reject	reject	engine	alterDbAdd(alterDbAddFile|alterDbAddFilegroup)/alterDbAddFile!drop-4	ALTER DATABASE a ADD FILE(OFFLINE
 reject	reject	engine	alterDbAdd(alterDbAddFile|alterDbAddFilegroup)/alterDbAddFile!insert	ALTER DATABASE a ADD FILE(OFFLINE) zzz
 reject	reject	engine	alterDbAdd(alterDbAddFile|alterDbAddFilegroup)/alterDbAddFile!swap	ALTER DATABASE a ADD FILEGROUP(OFFLINE)
 accept	accept	engine	alterDbAdd(alterDbAddFile|alterDbAddFilegroup)/alterDbAddFilegroup	ALTER DATABASE a ADD FILEGROUP a
 reject	reject	engine	alterDbAdd(alterDbAddFile|alterDbAddFilegroup)/alterDbAddFilegroup!swap	ALTER DATABASE a ADD FILEGROWTH a
-accept	reject	engine	alterDbAddFile/(LOG)?_File_fileDeclBodyList_(toFilegroup)?	ALTER DATABASE a ADD FILE(OFFLINE)
-accept	reject	engine	alterDbAddFile(LOG)?/%empty	ALTER DATABASE a ADD FILE(OFFLINE)
+reject	reject	engine	alterDbAddFile/(LOG)?_File_fileDeclBodyList_(toFilegroup)?	ALTER DATABASE a ADD FILE(OFFLINE)
+reject	reject	engine	alterDbAddFile(LOG)?/%empty	ALTER DATABASE a ADD FILE(OFFLINE)
 reject	reject	engine	alterDbAddFile(LOG)?/%empty!insert	ALTER DATABASE a ADD zzz FILE(OFFLINE)
-accept	reject	engine	alterDbAddFile(LOG)?/LOG	ALTER DATABASE a ADD LOG FILE(OFFLINE)
-accept	reject	engine	alterDbAddFile(LOG)?/LOG!truncate	ALTER DATABASE a ADD
+reject	reject	engine	alterDbAddFile(LOG)?/LOG	ALTER DATABASE a ADD LOG FILE(OFFLINE)
+reject	reject	engine	alterDbAddFile(LOG)?/LOG!truncate	ALTER DATABASE a ADD
 reject	reject	engine	alterDbAddFile(LOG)?/LOG!insert	ALTER DATABASE a ADD LOG zzz FILE(OFFLINE)
 reject	reject	engine	alterDbAddFile(LOG)?/LOG!swap	ALTER DATABASE a ADD LOGIN FILE(OFFLINE)
-accept	reject	engine	alterDbAddFile(toFilegroup)?/%empty	ALTER DATABASE a ADD FILE(OFFLINE)
-accept	reject	engine	alterDbAddFile(toFilegroup)?/toFilegroup	ALTER DATABASE a ADD FILE(OFFLINE) TO FILEGROUP a
+reject	reject	engine	alterDbAddFile(toFilegroup)?/%empty	ALTER DATABASE a ADD FILE(OFFLINE)
+reject	reject	engine	alterDbAddFile(toFilegroup)?/toFilegroup	ALTER DATABASE a ADD FILE(OFFLINE) TO FILEGROUP a
 reject	reject	engine	alterDbAddFile(toFilegroup)?/toFilegroup!drop-1	ALTER DATABASE a ADD FILE(OFFLINE) FILEGROUP a
 reject	reject	engine	alterDbAddFile(toFilegroup)?/toFilegroup!drop-2	ALTER DATABASE a ADD FILE(OFFLINE) TO a
-accept	reject	engine	alterDbAddFile(toFilegroup)?/toFilegroup!drop-3	ALTER DATABASE a ADD FILE(OFFLINE) TO FILEGROUP
+reject	reject	engine	alterDbAddFile(toFilegroup)?/toFilegroup!drop-3	ALTER DATABASE a ADD FILE(OFFLINE) TO FILEGROUP
 reject	reject	engine	alterDbAddFile(toFilegroup)?/toFilegroup!insert	ALTER DATABASE a ADD FILE(OFFLINE) TO FILEGROUP a zzz
 reject	reject	engine	alterDbAddFile(toFilegroup)?/toFilegroup!swap	ALTER DATABASE a ADD FILE(OFFLINE) TOP FILEGROUP a
 accept	accept	engine	alterDbAddFilegroup/FILEGROUP_identifier_(Contains_(FILESTREAM|MEMORY_OPTIM~744fd527	ALTER DATABASE a ADD FILEGROUP a
 accept	accept	engine	alterDbAddFilegroup(Contains_(FILESTREAM|MEMORY_OPTIMIZED_DATA))?/%empty	ALTER DATABASE a ADD FILEGROUP a
 accept	accept	engine	alterDbAddFilegroup(Contains_(FILESTREAM|MEMORY_OPTIMIZED_DATA))?/Contains_(FILESTREAM|MEMORY_OPTIMIZED_DATA)	ALTER DATABASE a ADD FILEGROUP a CONTAINS FILESTREAM
 reject	reject	engine	alterDbAddFilegroup(Contains_(FILESTREAM|MEMORY_OPTIMIZED_DATA))?/Contains_(FILESTREAM|MEMORY_OPTIMIZED_DATA)!drop-1	ALTER DATABASE a ADD FILEGROUP a FILESTREAM
-accept	reject	engine	alterDbAddFilegroup(Contains_(FILESTREAM|MEMORY_OPTIMIZED_DATA))?/Contains_(FILESTREAM|MEMORY_OPTIMIZED_DATA)!drop-2	ALTER DATABASE a ADD FILEGROUP a CONTAINS
+reject	reject	engine	alterDbAddFilegroup(Contains_(FILESTREAM|MEMORY_OPTIMIZED_DATA))?/Contains_(FILESTREAM|MEMORY_OPTIMIZED_DATA)!drop-2	ALTER DATABASE a ADD FILEGROUP a CONTAINS
 reject	reject	engine	alterDbAddFilegroup(Contains_(FILESTREAM|MEMORY_OPTIMIZED_DATA))?/Contains_(FILESTREAM|MEMORY_OPTIMIZED_DATA)!insert	ALTER DATABASE a ADD FILEGROUP a CONTAINS FILESTREAM zzz
 reject	reject	engine	alterDbAddFilegroup(Contains_(FILESTREAM|MEMORY_OPTIMIZED_DATA))?/Contains_(FILESTREAM|MEMORY_OPTIMIZED_DATA)!swap	ALTER DATABASE a ADD FILEGROUP a CONTAINSTABLE FILESTREAM
 accept	accept	engine	alterDbAddFilegroup(FILESTREAM|MEMORY_OPTIMIZED_DATA)/FILESTREAM	ALTER DATABASE a ADD FILEGROUP a CONTAINS FILESTREAM
@@ -1876,30 +1876,30 @@ reject	reject	engine	alterDbAddFilegroup(FILESTREAM|MEMORY_OPTIMIZED_DATA)/FILES
 accept	accept	engine	alterDbAddFilegroup(FILESTREAM|MEMORY_OPTIMIZED_DATA)/MEMORY_OPTIMIZED_DATA	ALTER DATABASE a ADD FILEGROUP a CONTAINS MEMORY_OPTIMIZED_DATA
 reject	reject	engine	alterDbAddFilegroup(FILESTREAM|MEMORY_OPTIMIZED_DATA)/MEMORY_OPTIMIZED_DATA!insert	ALTER DATABASE a ADD FILEGROUP a CONTAINS MEMORY_OPTIMIZED_DATA zzz
 reject	reject	engine	alterDbAddFilegroup(FILESTREAM|MEMORY_OPTIMIZED_DATA)/MEMORY_OPTIMIZED_DATA!swap	ALTER DATABASE a ADD FILEGROUP a CONTAINS MEMORY_PARTITION_MODE
-accept	reject	engine	alterDbModifyAzureOptions/azureOptions	ALTER DATABASE a MODIFY(EDITION = 'a')
+reject	reject	engine	alterDbModifyAzureOptions/azureOptions	ALTER DATABASE a MODIFY(EDITION = 'a')
 reject	reject	engine	alterDbModifyAzureOptions/azureOptions!drop-1	ALTER DATABASE a MODIFY EDITION = 'a')
-accept	reject	engine	alterDbModifyAzureOptions/azureOptions!drop-2	ALTER DATABASE a MODIFY(= 'a')
-accept	reject	engine	alterDbModifyAzureOptions/azureOptions!drop-3	ALTER DATABASE a MODIFY(EDITION 'a')
-accept	reject	engine	alterDbModifyAzureOptions/azureOptions!drop-4	ALTER DATABASE a MODIFY(EDITION =)
-accept	reject	engine	alterDbModifyAzureOptions/azureOptions!drop-5	ALTER DATABASE a MODIFY(EDITION = 'a'
+reject	reject	engine	alterDbModifyAzureOptions/azureOptions!drop-2	ALTER DATABASE a MODIFY(= 'a')
+reject	reject	engine	alterDbModifyAzureOptions/azureOptions!drop-3	ALTER DATABASE a MODIFY(EDITION 'a')
+reject	reject	engine	alterDbModifyAzureOptions/azureOptions!drop-4	ALTER DATABASE a MODIFY(EDITION =)
+reject	reject	engine	alterDbModifyAzureOptions/azureOptions!drop-5	ALTER DATABASE a MODIFY(EDITION = 'a'
 reject	reject	engine	alterDbModifyAzureOptions/azureOptions!insert	ALTER DATABASE a MODIFY(EDITION = 'a') zzz
-accept	reject	engine	alterDbModifyAzureOptions/azureOptions!swap	ALTER DATABASE a MODIFY(ELASTIC_POOL = 'a')
+reject	reject	engine	alterDbModifyAzureOptions/azureOptions!swap	ALTER DATABASE a MODIFY(ELASTIC_POOL = 'a')
 accept	accept	engine	alterDbModifyFile/File_fileDecl	ALTER DATABASE a MODIFY FILE(OFFLINE)
-accept	reject	engine	alterDbModifyFile/File_fileDecl!drop-1	ALTER DATABASE a MODIFY(OFFLINE)
+reject	reject	engine	alterDbModifyFile/File_fileDecl!drop-1	ALTER DATABASE a MODIFY(OFFLINE)
 reject	reject	engine	alterDbModifyFile/File_fileDecl!drop-2	ALTER DATABASE a MODIFY FILE OFFLINE)
-accept	reject	engine	alterDbModifyFile/File_fileDecl!drop-3	ALTER DATABASE a MODIFY FILE()
-accept	reject	engine	alterDbModifyFile/File_fileDecl!drop-4	ALTER DATABASE a MODIFY FILE(OFFLINE
+reject	reject	engine	alterDbModifyFile/File_fileDecl!drop-3	ALTER DATABASE a MODIFY FILE()
+reject	reject	engine	alterDbModifyFile/File_fileDecl!drop-4	ALTER DATABASE a MODIFY FILE(OFFLINE
 reject	reject	engine	alterDbModifyFile/File_fileDecl!insert	ALTER DATABASE a MODIFY FILE(OFFLINE) zzz
 reject	reject	engine	alterDbModifyFile/File_fileDecl!swap	ALTER DATABASE a MODIFY FILEGROUP(OFFLINE)
 accept	accept	engine	alterDbModifyFilegroup/identifier_((NAME_EqualsSign_identifier)|Default~48df2f55)	ALTER DATABASE a MODIFY FILEGROUP a DEFAULT
-accept	reject	engine	alterDbModifyFilegroup/identifier_((NAME_EqualsSign_identifier)|Default~48df2f55)!drop-1	ALTER DATABASE a MODIFY FILEGROUP DEFAULT
-accept	reject	engine	alterDbModifyFilegroup/identifier_((NAME_EqualsSign_identifier)|Default~48df2f55)!drop-2	ALTER DATABASE a MODIFY FILEGROUP a
+reject	reject	engine	alterDbModifyFilegroup/identifier_((NAME_EqualsSign_identifier)|Default~48df2f55)!drop-1	ALTER DATABASE a MODIFY FILEGROUP DEFAULT
+reject	reject	engine	alterDbModifyFilegroup/identifier_((NAME_EqualsSign_identifier)|Default~48df2f55)!drop-2	ALTER DATABASE a MODIFY FILEGROUP a
 reject	reject	engine	alterDbModifyFilegroup/identifier_((NAME_EqualsSign_identifier)|Default~48df2f55)!insert	ALTER DATABASE a MODIFY FILEGROUP a DEFAULT zzz
 reject	reject	engine	alterDbModifyFilegroup/identifier_((NAME_EqualsSign_identifier)|Default~48df2f55)!swap	ALTER DATABASE a MODIFY FILEGROUP a DEFAULT_DATABASE
 accept	accept	engine	alterDbModifyFilegroup((NAME_EqualsSign_identifier)|Default~48df2f55)/NAME_EqualsSign_identifier	ALTER DATABASE a MODIFY FILEGROUP a NAME = a
 reject	reject	engine	alterDbModifyFilegroup((NAME_EqualsSign_identifier)|Default~48df2f55)/NAME_EqualsSign_identifier!drop-1	ALTER DATABASE a MODIFY FILEGROUP a = a
 reject	reject	engine	alterDbModifyFilegroup((NAME_EqualsSign_identifier)|Default~48df2f55)/NAME_EqualsSign_identifier!drop-2	ALTER DATABASE a MODIFY FILEGROUP a NAME a
-accept	reject	engine	alterDbModifyFilegroup((NAME_EqualsSign_identifier)|Default~48df2f55)/NAME_EqualsSign_identifier!drop-3	ALTER DATABASE a MODIFY FILEGROUP a NAME =
+reject	reject	engine	alterDbModifyFilegroup((NAME_EqualsSign_identifier)|Default~48df2f55)/NAME_EqualsSign_identifier!drop-3	ALTER DATABASE a MODIFY FILEGROUP a NAME =
 reject	reject	engine	alterDbModifyFilegroup((NAME_EqualsSign_identifier)|Default~48df2f55)/NAME_EqualsSign_identifier!insert	ALTER DATABASE a MODIFY FILEGROUP a NAME = a zzz
 reject	reject	engine	alterDbModifyFilegroup((NAME_EqualsSign_identifier)|Default~48df2f55)/NAME_EqualsSign_identifier!swap	ALTER DATABASE a MODIFY FILEGROUP a NAMESPACE = a
 accept	accept	engine	alterDbModifyFilegroup((NAME_EqualsSign_identifier)|Default~48df2f55)/Default	ALTER DATABASE a MODIFY FILEGROUP a DEFAULT
@@ -1915,21 +1915,21 @@ accept	accept	engine	alterDbSet/Set_dbOptionStateList_(xactTermination)?	ALTER D
 accept	accept	engine	alterDbSet(xactTermination)?/%empty	ALTER DATABASE a SET RESTRICTED_USER
 accept	accept	engine	alterDbSet(xactTermination)?/xactTermination	ALTER DATABASE a SET RESTRICTED_USER WITH NO_WAIT
 reject	reject	engine	alterDbSet(xactTermination)?/xactTermination!drop-1	ALTER DATABASE a SET RESTRICTED_USER NO_WAIT
-accept	reject	engine	alterDbSet(xactTermination)?/xactTermination!drop-2	ALTER DATABASE a SET RESTRICTED_USER WITH
+reject	reject	engine	alterDbSet(xactTermination)?/xactTermination!drop-2	ALTER DATABASE a SET RESTRICTED_USER WITH
 reject	reject	engine	alterDbSet(xactTermination)?/xactTermination!insert	ALTER DATABASE a SET RESTRICTED_USER WITH NO_WAIT zzz
 reject	reject	engine	alterDbSet(xactTermination)?/xactTermination!swap	ALTER DATABASE a SET RESTRICTED_USER WITHIN NO_WAIT
-accept	reject	engine	toFilegroup/To_FILEGROUP_identifier	ALTER DATABASE a ADD FILE(OFFLINE) TO FILEGROUP a
+reject	reject	engine	toFilegroup/To_FILEGROUP_identifier	ALTER DATABASE a ADD FILE(OFFLINE) TO FILEGROUP a
 accept	accept	engine	xactTermination/With_(Rollback_((AFTER_integer_(SECONDS)?)~1ddab269)	ALTER DATABASE a SET RESTRICTED_USER WITH NO_WAIT
 accept	accept	engine	xactTermination(Rollback_((AFTER_integer_(SECONDS)?)~1ddab269)/Rollback_((AFTER_integer_(SECONDS)?)|IMMEDIATE)	ALTER DATABASE a SET RESTRICTED_USER WITH ROLLBACK IMMEDIATE
 reject	reject	engine	xactTermination(Rollback_((AFTER_integer_(SECONDS)?)~1ddab269)/Rollback_((AFTER_integer_(SECONDS)?)|IMMEDIATE)!drop-1	ALTER DATABASE a SET RESTRICTED_USER WITH IMMEDIATE
-accept	reject	engine	xactTermination(Rollback_((AFTER_integer_(SECONDS)?)~1ddab269)/Rollback_((AFTER_integer_(SECONDS)?)|IMMEDIATE)!drop-2	ALTER DATABASE a SET RESTRICTED_USER WITH ROLLBACK
+reject	reject	engine	xactTermination(Rollback_((AFTER_integer_(SECONDS)?)~1ddab269)/Rollback_((AFTER_integer_(SECONDS)?)|IMMEDIATE)!drop-2	ALTER DATABASE a SET RESTRICTED_USER WITH ROLLBACK
 reject	reject	engine	xactTermination(Rollback_((AFTER_integer_(SECONDS)?)~1ddab269)/Rollback_((AFTER_integer_(SECONDS)?)|IMMEDIATE)!insert	ALTER DATABASE a SET RESTRICTED_USER WITH ROLLBACK IMMEDIATE zzz
 reject	reject	engine	xactTermination(Rollback_((AFTER_integer_(SECONDS)?)~1ddab269)/Rollback_((AFTER_integer_(SECONDS)?)|IMMEDIATE)!swap	ALTER DATABASE a SET RESTRICTED_USER WITH ROLLUP IMMEDIATE
 accept	accept	engine	xactTermination(Rollback_((AFTER_integer_(SECONDS)?)~1ddab269)/NO_WAIT	ALTER DATABASE a SET RESTRICTED_USER WITH NO_WAIT
 reject	reject	engine	xactTermination(Rollback_((AFTER_integer_(SECONDS)?)~1ddab269)/NO_WAIT!swap	ALTER DATABASE a SET RESTRICTED_USER WITH NULL
 accept	accept	engine	xactTermination((AFTER_integer_(SECONDS)?)|IMMEDIATE)/AFTER_integer_(SECONDS)?	ALTER DATABASE a SET RESTRICTED_USER WITH ROLLBACK AFTER 1
 reject	reject	engine	xactTermination((AFTER_integer_(SECONDS)?)|IMMEDIATE)/AFTER_integer_(SECONDS)?!drop-1	ALTER DATABASE a SET RESTRICTED_USER WITH ROLLBACK 1
-accept	reject	engine	xactTermination((AFTER_integer_(SECONDS)?)|IMMEDIATE)/AFTER_integer_(SECONDS)?!drop-2	ALTER DATABASE a SET RESTRICTED_USER WITH ROLLBACK AFTER
+reject	reject	engine	xactTermination((AFTER_integer_(SECONDS)?)|IMMEDIATE)/AFTER_integer_(SECONDS)?!drop-2	ALTER DATABASE a SET RESTRICTED_USER WITH ROLLBACK AFTER
 reject	reject	engine	xactTermination((AFTER_integer_(SECONDS)?)|IMMEDIATE)/AFTER_integer_(SECONDS)?!insert	ALTER DATABASE a SET RESTRICTED_USER WITH ROLLBACK AFTER 1 zzz
 reject	reject	engine	xactTermination((AFTER_integer_(SECONDS)?)|IMMEDIATE)/AFTER_integer_(SECONDS)?!swap	ALTER DATABASE a SET RESTRICTED_USER WITH ROLLBACK AGGREGATE 1
 accept	accept	engine	xactTermination((AFTER_integer_(SECONDS)?)|IMMEDIATE)/IMMEDIATE	ALTER DATABASE a SET RESTRICTED_USER WITH ROLLBACK IMMEDIATE
@@ -1943,7 +1943,7 @@ reject	reject	engine	dbOptionStateList/dbOptionStateItem_(Comma_dbOptionStateIte
 accept	accept	engine	dbOptionStateList(Comma_dbOptionStateItem)*/%empty	ALTER DATABASE a SET RESTRICTED_USER
 accept	accept	engine	dbOptionStateList(Comma_dbOptionStateItem)*/Comma_dbOptionStateItem_(Comma_dbOptionStateItem)*	ALTER DATABASE a SET RESTRICTED_USER, RESTRICTED_USER
 reject	reject	engine	dbOptionStateList(Comma_dbOptionStateItem)*/Comma_dbOptionStateItem_(Comma_dbOptionStateItem)*!drop-1	ALTER DATABASE a SET RESTRICTED_USER RESTRICTED_USER
-accept	reject	engine	dbOptionStateList(Comma_dbOptionStateItem)*/Comma_dbOptionStateItem_(Comma_dbOptionStateItem)*!drop-2	ALTER DATABASE a SET RESTRICTED_USER,
+reject	reject	engine	dbOptionStateList(Comma_dbOptionStateItem)*/Comma_dbOptionStateItem_(Comma_dbOptionStateItem)*!drop-2	ALTER DATABASE a SET RESTRICTED_USER,
 reject	reject	engine	dbOptionStateList(Comma_dbOptionStateItem)*/Comma_dbOptionStateItem_(Comma_dbOptionStateItem)*!insert	ALTER DATABASE a SET RESTRICTED_USER, RESTRICTED_USER zzz
 reject	reject	engine	dbOptionStateList(Comma_dbOptionStateItem)*/Comma_dbOptionStateItem_(Comma_dbOptionStateItem)*!swap	ALTER DATABASE a SET RESTRICTED_USER, RESULT
 accept	accept	engine	dbOptionStateItem/cursorDefaultDbOption_CURSOR_DEFAULT	ALTER DATABASE a SET CURSOR_DEFAULT LOCAL
@@ -1959,21 +1959,21 @@ reject	reject	engine	dbOptionStateItem/recoveryDbOption_RECOVERY!swap	ALTER DATA
 reject	reject	engine	dbOptionStateItem/targetRecoveryTimeDbOption_TARGET_RECOVERY_TIME	ALTER DATABASE a SET TARGET_RECOVERY_TIME = 1 a
 reject	reject	engine	dbOptionStateItem/targetRecoveryTimeDbOption_TARGET_RECOVERY_TIME!drop-1	ALTER DATABASE a SET = 1 a
 reject	reject	engine	dbOptionStateItem/targetRecoveryTimeDbOption_TARGET_RECOVERY_TIME!drop-2	ALTER DATABASE a SET TARGET_RECOVERY_TIME 1 a
-accept	reject	engine	dbOptionStateItem/targetRecoveryTimeDbOption_TARGET_RECOVERY_TIME!drop-3	ALTER DATABASE a SET TARGET_RECOVERY_TIME = a
-accept	reject	engine	dbOptionStateItem/targetRecoveryTimeDbOption_TARGET_RECOVERY_TIME!drop-4	ALTER DATABASE a SET TARGET_RECOVERY_TIME = 1
+reject	reject	engine	dbOptionStateItem/targetRecoveryTimeDbOption_TARGET_RECOVERY_TIME!drop-3	ALTER DATABASE a SET TARGET_RECOVERY_TIME = a
+reject	reject	engine	dbOptionStateItem/targetRecoveryTimeDbOption_TARGET_RECOVERY_TIME!drop-4	ALTER DATABASE a SET TARGET_RECOVERY_TIME = 1
 reject	reject	engine	dbOptionStateItem/targetRecoveryTimeDbOption_TARGET_RECOVERY_TIME!insert	ALTER DATABASE a SET TARGET_RECOVERY_TIME = 1 a zzz
 reject	reject	engine	dbOptionStateItem/targetRecoveryTimeDbOption_TARGET_RECOVERY_TIME!swap	ALTER DATABASE a SET TB = 1 a
 reject	reject	engine	dbOptionStateItem/pageVerifyDbOption_PAGE_VERIFY	ALTER DATABASE a SET PAGE_VERIFY a
 reject	reject	engine	dbOptionStateItem/pageVerifyDbOption_PAGE_VERIFY!drop-2	ALTER DATABASE a SET PAGE_VERIFY
 reject	reject	engine	dbOptionStateItem/pageVerifyDbOption_PAGE_VERIFY!insert	ALTER DATABASE a SET PAGE_VERIFY a zzz
 reject	reject	engine	dbOptionStateItem/pageVerifyDbOption_PAGE_VERIFY!swap	ALTER DATABASE a SET PARAM a
-accept	reject	engine	dbOptionStateItem/partnerOption_PARTNER	ALTER DATABASE a SET PARTNER a
-accept	reject	engine	dbOptionStateItem/partnerOption_PARTNER!drop-2	ALTER DATABASE a SET PARTNER
+reject	reject	engine	dbOptionStateItem/partnerOption_PARTNER	ALTER DATABASE a SET PARTNER a
+reject	reject	engine	dbOptionStateItem/partnerOption_PARTNER!drop-2	ALTER DATABASE a SET PARTNER
 reject	reject	engine	dbOptionStateItem/partnerOption_PARTNER!insert	ALTER DATABASE a SET PARTNER a zzz
 reject	reject	engine	dbOptionStateItem/partnerOption_PARTNER!swap	ALTER DATABASE a SET PASSWORD a
 accept	accept	engine	dbOptionStateItem/witnessOption_WITNESS	ALTER DATABASE a SET WITNESS OFF
 reject	reject	engine	dbOptionStateItem/witnessOption_WITNESS!drop-1	ALTER DATABASE a SET OFF
-accept	reject	engine	dbOptionStateItem/witnessOption_WITNESS!drop-2	ALTER DATABASE a SET WITNESS
+reject	reject	engine	dbOptionStateItem/witnessOption_WITNESS!drop-2	ALTER DATABASE a SET WITNESS
 reject	reject	engine	dbOptionStateItem/witnessOption_WITNESS!insert	ALTER DATABASE a SET WITNESS OFF zzz
 reject	reject	engine	dbOptionStateItem/witnessOption_WITNESS!swap	ALTER DATABASE a SET WLM_CONTEXT OFF
 accept	accept	engine	dbOptionStateItem/parameterizationOption_PARAMETERIZATION	ALTER DATABASE a SET PARAMETERIZATION SIMPLE
@@ -1984,42 +1984,42 @@ reject	reject	engine	dbOptionStateItem/parameterizationOption_PARAMETERIZATION!s
 accept	accept	engine	dbOptionStateItem/compatibilityLevelDbOption_COMPATIBILITY_LEVEL	ALTER DATABASE a SET COMPATIBILITY_LEVEL = 1
 reject	reject	engine	dbOptionStateItem/compatibilityLevelDbOption_COMPATIBILITY_LEVEL!drop-1	ALTER DATABASE a SET = 1
 reject	reject	engine	dbOptionStateItem/compatibilityLevelDbOption_COMPATIBILITY_LEVEL!drop-2	ALTER DATABASE a SET COMPATIBILITY_LEVEL 1
-accept	reject	engine	dbOptionStateItem/compatibilityLevelDbOption_COMPATIBILITY_LEVEL!drop-3	ALTER DATABASE a SET COMPATIBILITY_LEVEL =
+reject	reject	engine	dbOptionStateItem/compatibilityLevelDbOption_COMPATIBILITY_LEVEL!drop-3	ALTER DATABASE a SET COMPATIBILITY_LEVEL =
 reject	reject	engine	dbOptionStateItem/compatibilityLevelDbOption_COMPATIBILITY_LEVEL!insert	ALTER DATABASE a SET COMPATIBILITY_LEVEL = 1 zzz
 reject	reject	engine	dbOptionStateItem/compatibilityLevelDbOption_COMPATIBILITY_LEVEL!swap	ALTER DATABASE a SET COMPRESSION_DELAY = 1
 accept	accept	engine	dbOptionStateItem/changeTrackingDbOption_CHANGE_TRACKING	ALTER DATABASE a SET CHANGE_TRACKING = OFF
 reject	reject	engine	dbOptionStateItem/changeTrackingDbOption_CHANGE_TRACKING!drop-1	ALTER DATABASE a SET = OFF
-accept	reject	engine	dbOptionStateItem/changeTrackingDbOption_CHANGE_TRACKING!drop-2	ALTER DATABASE a SET CHANGE_TRACKING OFF
-accept	reject	engine	dbOptionStateItem/changeTrackingDbOption_CHANGE_TRACKING!drop-3	ALTER DATABASE a SET CHANGE_TRACKING =
+reject	reject	engine	dbOptionStateItem/changeTrackingDbOption_CHANGE_TRACKING!drop-2	ALTER DATABASE a SET CHANGE_TRACKING OFF
+reject	reject	engine	dbOptionStateItem/changeTrackingDbOption_CHANGE_TRACKING!drop-3	ALTER DATABASE a SET CHANGE_TRACKING =
 reject	reject	engine	dbOptionStateItem/changeTrackingDbOption_CHANGE_TRACKING!insert	ALTER DATABASE a SET CHANGE_TRACKING = OFF zzz
 reject	reject	engine	dbOptionStateItem/changeTrackingDbOption_CHANGE_TRACKING!swap	ALTER DATABASE a SET CHANGE_TRACKING_CONTEXT = OFF
 accept	accept	engine	dbOptionStateItem/acceleratedDatabaseRecoveryOption_ACCELERATED_DATABASE_RECOVERY	ALTER DATABASE a SET ACCELERATED_DATABASE_RECOVERY = OFF
-accept	reject	engine	dbOptionStateItem/acceleratedDatabaseRecoveryOption_ACCELERATED_DATABASE_RECOVERY!drop-2	ALTER DATABASE a SET ACCELERATED_DATABASE_RECOVERY OFF
-accept	reject	engine	dbOptionStateItem/acceleratedDatabaseRecoveryOption_ACCELERATED_DATABASE_RECOVERY!drop-3	ALTER DATABASE a SET ACCELERATED_DATABASE_RECOVERY =
+reject	reject	engine	dbOptionStateItem/acceleratedDatabaseRecoveryOption_ACCELERATED_DATABASE_RECOVERY!drop-2	ALTER DATABASE a SET ACCELERATED_DATABASE_RECOVERY OFF
+reject	reject	engine	dbOptionStateItem/acceleratedDatabaseRecoveryOption_ACCELERATED_DATABASE_RECOVERY!drop-3	ALTER DATABASE a SET ACCELERATED_DATABASE_RECOVERY =
 reject	reject	engine	dbOptionStateItem/acceleratedDatabaseRecoveryOption_ACCELERATED_DATABASE_RECOVERY!insert	ALTER DATABASE a SET ACCELERATED_DATABASE_RECOVERY = OFF zzz
 reject	reject	engine	dbOptionStateItem/acceleratedDatabaseRecoveryOption_ACCELERATED_DATABASE_RECOVERY!swap	ALTER DATABASE a SET ACCENT_SENSITIVITY = OFF
-accept	reject	engine	dbOptionStateItem/dbContainmentOption_CONTAINMENT	ALTER DATABASE a SET CONTAINMENT = a
+reject	reject	engine	dbOptionStateItem/dbContainmentOption_CONTAINMENT	ALTER DATABASE a SET CONTAINMENT = a
 reject	reject	engine	dbOptionStateItem/dbContainmentOption_CONTAINMENT!drop-1	ALTER DATABASE a SET = a
-accept	reject	engine	dbOptionStateItem/dbContainmentOption_CONTAINMENT!drop-2	ALTER DATABASE a SET CONTAINMENT a
-accept	reject	engine	dbOptionStateItem/dbContainmentOption_CONTAINMENT!drop-3	ALTER DATABASE a SET CONTAINMENT =
+reject	reject	engine	dbOptionStateItem/dbContainmentOption_CONTAINMENT!drop-2	ALTER DATABASE a SET CONTAINMENT a
+reject	reject	engine	dbOptionStateItem/dbContainmentOption_CONTAINMENT!drop-3	ALTER DATABASE a SET CONTAINMENT =
 reject	reject	engine	dbOptionStateItem/dbContainmentOption_CONTAINMENT!insert	ALTER DATABASE a SET CONTAINMENT = a zzz
 reject	reject	engine	dbOptionStateItem/dbContainmentOption_CONTAINMENT!swap	ALTER DATABASE a SET CONTAINS = a
 accept	accept	engine	dbOptionStateItem/hadrDbOption_HADR	ALTER DATABASE a SET HADR RESUME
 reject	reject	engine	dbOptionStateItem/hadrDbOption_HADR!drop-1	ALTER DATABASE a SET RESUME
-accept	reject	engine	dbOptionStateItem/hadrDbOption_HADR!drop-2	ALTER DATABASE a SET HADR
+reject	reject	engine	dbOptionStateItem/hadrDbOption_HADR!drop-2	ALTER DATABASE a SET HADR
 reject	reject	engine	dbOptionStateItem/hadrDbOption_HADR!insert	ALTER DATABASE a SET HADR RESUME zzz
 reject	reject	engine	dbOptionStateItem/hadrDbOption_HADR!swap	ALTER DATABASE a SET HASH RESUME
-accept	reject	engine	dbOptionStateItem/dbDelayedDurabilityOption_DELAYED_DURABILITY	ALTER DATABASE a SET DELAYED_DURABILITY = a
-accept	reject	engine	dbOptionStateItem/dbDelayedDurabilityOption_DELAYED_DURABILITY!drop-2	ALTER DATABASE a SET DELAYED_DURABILITY a
-accept	reject	engine	dbOptionStateItem/dbDelayedDurabilityOption_DELAYED_DURABILITY!drop-3	ALTER DATABASE a SET DELAYED_DURABILITY =
+reject	reject	engine	dbOptionStateItem/dbDelayedDurabilityOption_DELAYED_DURABILITY	ALTER DATABASE a SET DELAYED_DURABILITY = a
+reject	reject	engine	dbOptionStateItem/dbDelayedDurabilityOption_DELAYED_DURABILITY!drop-2	ALTER DATABASE a SET DELAYED_DURABILITY a
+reject	reject	engine	dbOptionStateItem/dbDelayedDurabilityOption_DELAYED_DURABILITY!drop-3	ALTER DATABASE a SET DELAYED_DURABILITY =
 reject	reject	engine	dbOptionStateItem/dbDelayedDurabilityOption_DELAYED_DURABILITY!insert	ALTER DATABASE a SET DELAYED_DURABILITY = a zzz
 reject	reject	engine	dbOptionStateItem/dbDelayedDurabilityOption_DELAYED_DURABILITY!swap	ALTER DATABASE a SET DELETE = a
 accept	accept	engine	dbOptionStateItem/autoCreateStatisticsDbOption_AUTO_CREATE_STATISTICS	ALTER DATABASE a SET AUTO_CREATE_STATISTICS ON
 reject	reject	engine	dbOptionStateItem/autoCreateStatisticsDbOption_AUTO_CREATE_STATISTICS!drop-1	ALTER DATABASE a SET ON
-reject	accept	engine	dbOptionStateItem/autoCreateStatisticsDbOption_AUTO_CREATE_STATISTICS!drop-2	ALTER DATABASE a SET AUTO_CREATE_STATISTICS
+accept	accept	engine	dbOptionStateItem/autoCreateStatisticsDbOption_AUTO_CREATE_STATISTICS!drop-2	ALTER DATABASE a SET AUTO_CREATE_STATISTICS
 reject	reject	engine	dbOptionStateItem/autoCreateStatisticsDbOption_AUTO_CREATE_STATISTICS!insert	ALTER DATABASE a SET AUTO_CREATE_STATISTICS ON zzz
 reject	reject	engine	dbOptionStateItem/autoCreateStatisticsDbOption_AUTO_CREATE_STATISTICS!swap	ALTER DATABASE a SET AUTO_DROP ON
-reject	accept	engine	dbOptionStateItem/remoteDataArchiveDbOption_REMOTE_DATA_ARCHIVE	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE = OFF
+accept	accept	engine	dbOptionStateItem/remoteDataArchiveDbOption_REMOTE_DATA_ARCHIVE	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE = OFF
 reject	reject	engine	dbOptionStateItem/remoteDataArchiveDbOption_REMOTE_DATA_ARCHIVE!drop-2	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE OFF
 reject	reject	engine	dbOptionStateItem/remoteDataArchiveDbOption_REMOTE_DATA_ARCHIVE!drop-3	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE =
 reject	reject	engine	dbOptionStateItem/remoteDataArchiveDbOption_REMOTE_DATA_ARCHIVE!insert	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE = OFF zzz
@@ -2027,15 +2027,15 @@ reject	reject	engine	dbOptionStateItem/remoteDataArchiveDbOption_REMOTE_DATA_ARC
 accept	accept	engine	dbOptionStateItem/createAlterDbOption	ALTER DATABASE a SET RESTRICTED_USER
 accept	accept	engine	dbOptionStateItem/queryStoreDbOption_QUERY_STORE	ALTER DATABASE a SET QUERY_STORE CLEAR
 reject	reject	engine	dbOptionStateItem/queryStoreDbOption_QUERY_STORE!drop-1	ALTER DATABASE a SET CLEAR
-accept	reject	engine	dbOptionStateItem/queryStoreDbOption_QUERY_STORE!drop-2	ALTER DATABASE a SET QUERY_STORE
+reject	reject	engine	dbOptionStateItem/queryStoreDbOption_QUERY_STORE!drop-2	ALTER DATABASE a SET QUERY_STORE
 reject	reject	engine	dbOptionStateItem/queryStoreDbOption_QUERY_STORE!insert	ALTER DATABASE a SET QUERY_STORE CLEAR zzz
 reject	reject	engine	dbOptionStateItem/queryStoreDbOption_QUERY_STORE!swap	ALTER DATABASE a SET QUEUE CLEAR
 accept	accept	engine	dbOptionStateItem/automaticTuningDbOption_AUTOMATIC_TUNING	ALTER DATABASE a SET AUTOMATIC_TUNING = AUTO
 reject	reject	engine	dbOptionStateItem/automaticTuningDbOption_AUTOMATIC_TUNING!drop-1	ALTER DATABASE a SET = AUTO
-accept	reject	engine	dbOptionStateItem/automaticTuningDbOption_AUTOMATIC_TUNING!drop-2	ALTER DATABASE a SET AUTOMATIC_TUNING AUTO
-accept	reject	engine	dbOptionStateItem/automaticTuningDbOption_AUTOMATIC_TUNING!drop-3	ALTER DATABASE a SET AUTOMATIC_TUNING =
+reject	reject	engine	dbOptionStateItem/automaticTuningDbOption_AUTOMATIC_TUNING!drop-2	ALTER DATABASE a SET AUTOMATIC_TUNING AUTO
+reject	reject	engine	dbOptionStateItem/automaticTuningDbOption_AUTOMATIC_TUNING!drop-3	ALTER DATABASE a SET AUTOMATIC_TUNING =
 reject	reject	engine	dbOptionStateItem/automaticTuningDbOption_AUTOMATIC_TUNING!insert	ALTER DATABASE a SET AUTOMATIC_TUNING = AUTO zzz
-accept	reject	engine	dbOptionStateItem/automaticTuningDbOption_AUTOMATIC_TUNING!swap	ALTER DATABASE a SET AUTO_CREATE_STATISTICS = AUTO
+reject	reject	engine	dbOptionStateItem/automaticTuningDbOption_AUTOMATIC_TUNING!swap	ALTER DATABASE a SET AUTO_CREATE_STATISTICS = AUTO
 reject	reject	engine	dbOptionStateItem/dbSingleIdentOption	ALTER DATABASE a SET a
 reject	reject	engine	dbOptionStateItem/dbSingleIdentOption!insert	ALTER DATABASE a SET a zzz
 reject	reject	engine	dbOptionStateItem/alterDbOnOffOption	ALTER DATABASE a SET a ON
@@ -2102,52 +2102,52 @@ reject	reject	engine	queryStoreOneOption/queryStoreDesiredStateOption_OPERATION_
 reject	reject	engine	queryStoreOneOption/queryStoreDesiredStateOption_OPERATION_MODE!truncate	ALTER DATABASE a SET QUERY_STORE(OPERATION_MODE =
 reject	reject	engine	queryStoreOneOption/queryStoreDesiredStateOption_OPERATION_MODE!insert	ALTER DATABASE a SET QUERY_STORE(OPERATION_MODE = a zzz)
 reject	reject	engine	queryStoreOneOption/queryStoreDesiredStateOption_OPERATION_MODE!swap	ALTER DATABASE a SET QUERY_STORE(OPERATION_TYPE_COLUMN_NAME = a)
-reject	accept	engine	queryStoreOneOption/queryStoreCaptureModeOption_QUERY_CAPTURE_MODE	ALTER DATABASE a SET QUERY_STORE(QUERY_CAPTURE_MODE = ALL)
+accept	accept	engine	queryStoreOneOption/queryStoreCaptureModeOption_QUERY_CAPTURE_MODE	ALTER DATABASE a SET QUERY_STORE(QUERY_CAPTURE_MODE = ALL)
 reject	reject	engine	queryStoreOneOption/queryStoreCaptureModeOption_QUERY_CAPTURE_MODE!drop-1	ALTER DATABASE a SET QUERY_STORE(= ALL)
 reject	reject	engine	queryStoreOneOption/queryStoreCaptureModeOption_QUERY_CAPTURE_MODE!drop-2	ALTER DATABASE a SET QUERY_STORE(QUERY_CAPTURE_MODE ALL)
 reject	reject	engine	queryStoreOneOption/queryStoreCaptureModeOption_QUERY_CAPTURE_MODE!drop-3	ALTER DATABASE a SET QUERY_STORE(QUERY_CAPTURE_MODE =)
 reject	reject	engine	queryStoreOneOption/queryStoreCaptureModeOption_QUERY_CAPTURE_MODE!truncate	ALTER DATABASE a SET QUERY_STORE(QUERY_CAPTURE_MODE =
 reject	reject	engine	queryStoreOneOption/queryStoreCaptureModeOption_QUERY_CAPTURE_MODE!insert	ALTER DATABASE a SET QUERY_STORE(QUERY_CAPTURE_MODE = ALL zzz)
 reject	reject	engine	queryStoreOneOption/queryStoreCaptureModeOption_QUERY_CAPTURE_MODE!swap	ALTER DATABASE a SET QUERY_STORE(QUERY_OPTIMIZER_HOTFIXES = ALL)
-reject	accept	engine	queryStoreOneOption/queryStoreSizeCleanupModeOption_SIZE_BASED_CLEANUP_MODE	ALTER DATABASE a SET QUERY_STORE(SIZE_BASED_CLEANUP_MODE = OFF)
+accept	accept	engine	queryStoreOneOption/queryStoreSizeCleanupModeOption_SIZE_BASED_CLEANUP_MODE	ALTER DATABASE a SET QUERY_STORE(SIZE_BASED_CLEANUP_MODE = OFF)
 reject	reject	engine	queryStoreOneOption/queryStoreSizeCleanupModeOption_SIZE_BASED_CLEANUP_MODE!drop-1	ALTER DATABASE a SET QUERY_STORE(= OFF)
 reject	reject	engine	queryStoreOneOption/queryStoreSizeCleanupModeOption_SIZE_BASED_CLEANUP_MODE!drop-2	ALTER DATABASE a SET QUERY_STORE(SIZE_BASED_CLEANUP_MODE OFF)
 reject	reject	engine	queryStoreOneOption/queryStoreSizeCleanupModeOption_SIZE_BASED_CLEANUP_MODE!drop-3	ALTER DATABASE a SET QUERY_STORE(SIZE_BASED_CLEANUP_MODE =)
 reject	reject	engine	queryStoreOneOption/queryStoreSizeCleanupModeOption_SIZE_BASED_CLEANUP_MODE!truncate	ALTER DATABASE a SET QUERY_STORE(SIZE_BASED_CLEANUP_MODE =
 reject	reject	engine	queryStoreOneOption/queryStoreSizeCleanupModeOption_SIZE_BASED_CLEANUP_MODE!insert	ALTER DATABASE a SET QUERY_STORE(SIZE_BASED_CLEANUP_MODE = OFF zzz)
 reject	reject	engine	queryStoreOneOption/queryStoreSizeCleanupModeOption_SIZE_BASED_CLEANUP_MODE!swap	ALTER DATABASE a SET QUERY_STORE(SNAPSHOT = OFF)
-reject	accept	engine	queryStoreOneOption/queryStoreDataFlushIntervalOption_FLUSH_INTERVAL_SECONDS	ALTER DATABASE a SET QUERY_STORE(FLUSH_INTERVAL_SECONDS = 1)
+accept	accept	engine	queryStoreOneOption/queryStoreDataFlushIntervalOption_FLUSH_INTERVAL_SECONDS	ALTER DATABASE a SET QUERY_STORE(FLUSH_INTERVAL_SECONDS = 1)
 reject	reject	engine	queryStoreOneOption/queryStoreDataFlushIntervalOption_FLUSH_INTERVAL_SECONDS!drop-1	ALTER DATABASE a SET QUERY_STORE(= 1)
 reject	reject	engine	queryStoreOneOption/queryStoreDataFlushIntervalOption_FLUSH_INTERVAL_SECONDS!drop-2	ALTER DATABASE a SET QUERY_STORE(FLUSH_INTERVAL_SECONDS 1)
 reject	reject	engine	queryStoreOneOption/queryStoreDataFlushIntervalOption_FLUSH_INTERVAL_SECONDS!drop-3	ALTER DATABASE a SET QUERY_STORE(FLUSH_INTERVAL_SECONDS =)
 reject	reject	engine	queryStoreOneOption/queryStoreDataFlushIntervalOption_FLUSH_INTERVAL_SECONDS!truncate	ALTER DATABASE a SET QUERY_STORE(FLUSH_INTERVAL_SECONDS =
 reject	reject	engine	queryStoreOneOption/queryStoreDataFlushIntervalOption_FLUSH_INTERVAL_SECONDS!insert	ALTER DATABASE a SET QUERY_STORE(FLUSH_INTERVAL_SECONDS = 1 zzz)
 reject	reject	engine	queryStoreOneOption/queryStoreDataFlushIntervalOption_FLUSH_INTERVAL_SECONDS!swap	ALTER DATABASE a SET QUERY_STORE(FN = 1)
-reject	accept	engine	queryStoreOneOption/queryStoreDataFlushIntervalOption_DATA_FLUSH_INTERVAL_SECONDS	ALTER DATABASE a SET QUERY_STORE(DATA_FLUSH_INTERVAL_SECONDS = 1)
+accept	accept	engine	queryStoreOneOption/queryStoreDataFlushIntervalOption_DATA_FLUSH_INTERVAL_SECONDS	ALTER DATABASE a SET QUERY_STORE(DATA_FLUSH_INTERVAL_SECONDS = 1)
 reject	reject	engine	queryStoreOneOption/queryStoreDataFlushIntervalOption_DATA_FLUSH_INTERVAL_SECONDS!drop-2	ALTER DATABASE a SET QUERY_STORE(DATA_FLUSH_INTERVAL_SECONDS 1)
 reject	reject	engine	queryStoreOneOption/queryStoreDataFlushIntervalOption_DATA_FLUSH_INTERVAL_SECONDS!drop-3	ALTER DATABASE a SET QUERY_STORE(DATA_FLUSH_INTERVAL_SECONDS =)
 reject	reject	engine	queryStoreOneOption/queryStoreDataFlushIntervalOption_DATA_FLUSH_INTERVAL_SECONDS!truncate	ALTER DATABASE a SET QUERY_STORE(DATA_FLUSH_INTERVAL_SECONDS =
 reject	reject	engine	queryStoreOneOption/queryStoreDataFlushIntervalOption_DATA_FLUSH_INTERVAL_SECONDS!insert	ALTER DATABASE a SET QUERY_STORE(DATA_FLUSH_INTERVAL_SECONDS = 1 zzz)
 reject	reject	engine	queryStoreOneOption/queryStoreDataFlushIntervalOption_DATA_FLUSH_INTERVAL_SECONDS!swap	ALTER DATABASE a SET QUERY_STORE(DATA_MIRRORING = 1)
-reject	accept	engine	queryStoreOneOption/queryStoreIntervalLengthOption_INTERVAL_LENGTH_MINUTES	ALTER DATABASE a SET QUERY_STORE(INTERVAL_LENGTH_MINUTES = 1)
+accept	accept	engine	queryStoreOneOption/queryStoreIntervalLengthOption_INTERVAL_LENGTH_MINUTES	ALTER DATABASE a SET QUERY_STORE(INTERVAL_LENGTH_MINUTES = 1)
 reject	reject	engine	queryStoreOneOption/queryStoreIntervalLengthOption_INTERVAL_LENGTH_MINUTES!drop-2	ALTER DATABASE a SET QUERY_STORE(INTERVAL_LENGTH_MINUTES 1)
 reject	reject	engine	queryStoreOneOption/queryStoreIntervalLengthOption_INTERVAL_LENGTH_MINUTES!drop-3	ALTER DATABASE a SET QUERY_STORE(INTERVAL_LENGTH_MINUTES =)
 reject	reject	engine	queryStoreOneOption/queryStoreIntervalLengthOption_INTERVAL_LENGTH_MINUTES!truncate	ALTER DATABASE a SET QUERY_STORE(INTERVAL_LENGTH_MINUTES =
 reject	reject	engine	queryStoreOneOption/queryStoreIntervalLengthOption_INTERVAL_LENGTH_MINUTES!insert	ALTER DATABASE a SET QUERY_STORE(INTERVAL_LENGTH_MINUTES = 1 zzz)
 reject	reject	engine	queryStoreOneOption/queryStoreIntervalLengthOption_INTERVAL_LENGTH_MINUTES!swap	ALTER DATABASE a SET QUERY_STORE(INTO = 1)
-reject	accept	engine	queryStoreOneOption/queryStoreMaxQdsSizeOption_MAX_STORAGE_SIZE_MB	ALTER DATABASE a SET QUERY_STORE(MAX_STORAGE_SIZE_MB = 1)
+accept	accept	engine	queryStoreOneOption/queryStoreMaxQdsSizeOption_MAX_STORAGE_SIZE_MB	ALTER DATABASE a SET QUERY_STORE(MAX_STORAGE_SIZE_MB = 1)
 reject	reject	engine	queryStoreOneOption/queryStoreMaxQdsSizeOption_MAX_STORAGE_SIZE_MB!drop-2	ALTER DATABASE a SET QUERY_STORE(MAX_STORAGE_SIZE_MB 1)
 reject	reject	engine	queryStoreOneOption/queryStoreMaxQdsSizeOption_MAX_STORAGE_SIZE_MB!drop-3	ALTER DATABASE a SET QUERY_STORE(MAX_STORAGE_SIZE_MB =)
 reject	reject	engine	queryStoreOneOption/queryStoreMaxQdsSizeOption_MAX_STORAGE_SIZE_MB!truncate	ALTER DATABASE a SET QUERY_STORE(MAX_STORAGE_SIZE_MB =
 reject	reject	engine	queryStoreOneOption/queryStoreMaxQdsSizeOption_MAX_STORAGE_SIZE_MB!insert	ALTER DATABASE a SET QUERY_STORE(MAX_STORAGE_SIZE_MB = 1 zzz)
 reject	reject	engine	queryStoreOneOption/queryStoreMaxQdsSizeOption_MAX_STORAGE_SIZE_MB!swap	ALTER DATABASE a SET QUERY_STORE(MB = 1)
-reject	accept	engine	queryStoreOneOption/queryStoreMaxPlansPerQueryOption_MAX_PLANS_PER_QUERY	ALTER DATABASE a SET QUERY_STORE(MAX_PLANS_PER_QUERY = 1)
+accept	accept	engine	queryStoreOneOption/queryStoreMaxPlansPerQueryOption_MAX_PLANS_PER_QUERY	ALTER DATABASE a SET QUERY_STORE(MAX_PLANS_PER_QUERY = 1)
 reject	reject	engine	queryStoreOneOption/queryStoreMaxPlansPerQueryOption_MAX_PLANS_PER_QUERY!drop-2	ALTER DATABASE a SET QUERY_STORE(MAX_PLANS_PER_QUERY 1)
 reject	reject	engine	queryStoreOneOption/queryStoreMaxPlansPerQueryOption_MAX_PLANS_PER_QUERY!drop-3	ALTER DATABASE a SET QUERY_STORE(MAX_PLANS_PER_QUERY =)
 reject	reject	engine	queryStoreOneOption/queryStoreMaxPlansPerQueryOption_MAX_PLANS_PER_QUERY!truncate	ALTER DATABASE a SET QUERY_STORE(MAX_PLANS_PER_QUERY =
 reject	reject	engine	queryStoreOneOption/queryStoreMaxPlansPerQueryOption_MAX_PLANS_PER_QUERY!insert	ALTER DATABASE a SET QUERY_STORE(MAX_PLANS_PER_QUERY = 1 zzz)
 reject	reject	engine	queryStoreOneOption/queryStoreMaxPlansPerQueryOption_MAX_PLANS_PER_QUERY!swap	ALTER DATABASE a SET QUERY_STORE(MAX_ROLLOVER_FILES = 1)
-reject	accept	engine	queryStoreOneOption/queryStoreTimeCleanupPolicy_CLEANUP_POLICY	ALTER DATABASE a SET QUERY_STORE(CLEANUP_POLICY =(STALE_QUERY_THRESHOLD_DAYS = 1))
+accept	accept	engine	queryStoreOneOption/queryStoreTimeCleanupPolicy_CLEANUP_POLICY	ALTER DATABASE a SET QUERY_STORE(CLEANUP_POLICY =(STALE_QUERY_THRESHOLD_DAYS = 1))
 reject	reject	engine	queryStoreOneOption/queryStoreTimeCleanupPolicy_CLEANUP_POLICY!drop-1	ALTER DATABASE a SET QUERY_STORE(=(STALE_QUERY_THRESHOLD_DAYS = 1))
 reject	reject	engine	queryStoreOneOption/queryStoreTimeCleanupPolicy_CLEANUP_POLICY!drop-2	ALTER DATABASE a SET QUERY_STORE(CLEANUP_POLICY(STALE_QUERY_THRESHOLD_DAYS = 1))
 reject	reject	engine	queryStoreOneOption/queryStoreTimeCleanupPolicy_CLEANUP_POLICY!drop-3	ALTER DATABASE a SET QUERY_STORE(CLEANUP_POLICY = STALE_QUERY_THRESHOLD_DAYS = 1))
@@ -2158,13 +2158,13 @@ reject	reject	engine	queryStoreOneOption/queryStoreTimeCleanupPolicy_CLEANUP_POL
 reject	reject	engine	queryStoreOneOption/queryStoreTimeCleanupPolicy_CLEANUP_POLICY!truncate	ALTER DATABASE a SET QUERY_STORE(CLEANUP_POLICY =(STALE_QUERY_THRESHOLD_DAYS = 1
 reject	reject	engine	queryStoreOneOption/queryStoreTimeCleanupPolicy_CLEANUP_POLICY!insert	ALTER DATABASE a SET QUERY_STORE(CLEANUP_POLICY =(STALE_QUERY_THRESHOLD_DAYS = 1) zzz)
 reject	reject	engine	queryStoreOneOption/queryStoreTimeCleanupPolicy_CLEANUP_POLICY!swap	ALTER DATABASE a SET QUERY_STORE(CLEAR =(STALE_QUERY_THRESHOLD_DAYS = 1))
-reject	accept	engine	queryStoreOneOption/queryStoreWaitStatsCaptureOption_WAIT_STATS_CAPTURE_MODE	ALTER DATABASE a SET QUERY_STORE(WAIT_STATS_CAPTURE_MODE = OFF)
+accept	accept	engine	queryStoreOneOption/queryStoreWaitStatsCaptureOption_WAIT_STATS_CAPTURE_MODE	ALTER DATABASE a SET QUERY_STORE(WAIT_STATS_CAPTURE_MODE = OFF)
 reject	reject	engine	queryStoreOneOption/queryStoreWaitStatsCaptureOption_WAIT_STATS_CAPTURE_MODE!drop-2	ALTER DATABASE a SET QUERY_STORE(WAIT_STATS_CAPTURE_MODE OFF)
 reject	reject	engine	queryStoreOneOption/queryStoreWaitStatsCaptureOption_WAIT_STATS_CAPTURE_MODE!drop-3	ALTER DATABASE a SET QUERY_STORE(WAIT_STATS_CAPTURE_MODE =)
 reject	reject	engine	queryStoreOneOption/queryStoreWaitStatsCaptureOption_WAIT_STATS_CAPTURE_MODE!truncate	ALTER DATABASE a SET QUERY_STORE(WAIT_STATS_CAPTURE_MODE =
 reject	reject	engine	queryStoreOneOption/queryStoreWaitStatsCaptureOption_WAIT_STATS_CAPTURE_MODE!insert	ALTER DATABASE a SET QUERY_STORE(WAIT_STATS_CAPTURE_MODE = OFF zzz)
 reject	reject	engine	queryStoreOneOption/queryStoreWaitStatsCaptureOption_WAIT_STATS_CAPTURE_MODE!swap	ALTER DATABASE a SET QUERY_STORE(WEBMETHOD = OFF)
-reject	accept	engine	automaticTuningOptions/LeftParenthesis_automaticTuningOneOption_(Comma_automat~53cc7e40	ALTER DATABASE a SET AUTOMATIC_TUNING(FORCE_LAST_GOOD_PLAN = ON)
+accept	accept	engine	automaticTuningOptions/LeftParenthesis_automaticTuningOneOption_(Comma_automat~53cc7e40	ALTER DATABASE a SET AUTOMATIC_TUNING(FORCE_LAST_GOOD_PLAN = ON)
 reject	reject	engine	automaticTuningOptions/LeftParenthesis_automaticTuningOneOption_(Comma_automat~53cc7e40!drop-1	ALTER DATABASE a SET AUTOMATIC_TUNING FORCE_LAST_GOOD_PLAN = ON)
 reject	reject	engine	automaticTuningOptions/LeftParenthesis_automaticTuningOneOption_(Comma_automat~53cc7e40!drop-2	ALTER DATABASE a SET AUTOMATIC_TUNING(= ON)
 reject	reject	engine	automaticTuningOptions/LeftParenthesis_automaticTuningOneOption_(Comma_automat~53cc7e40!drop-3	ALTER DATABASE a SET AUTOMATIC_TUNING(FORCE_LAST_GOOD_PLAN ON)
@@ -2172,7 +2172,7 @@ reject	reject	engine	automaticTuningOptions/LeftParenthesis_automaticTuningOneOp
 reject	reject	engine	automaticTuningOptions/LeftParenthesis_automaticTuningOneOption_(Comma_automat~53cc7e40!drop-5	ALTER DATABASE a SET AUTOMATIC_TUNING(FORCE_LAST_GOOD_PLAN = ON
 reject	reject	engine	automaticTuningOptions/LeftParenthesis_automaticTuningOneOption_(Comma_automat~53cc7e40!insert	ALTER DATABASE a SET AUTOMATIC_TUNING(FORCE_LAST_GOOD_PLAN = ON) zzz
 reject	reject	engine	automaticTuningOptions/LeftParenthesis_automaticTuningOneOption_(Comma_automat~53cc7e40!swap	ALTER DATABASE a SET AUTOMATIC_TUNING(FOREIGN = ON)
-reject	accept	engine	automaticTuningOptions(Comma_automaticTuningOneOption)*/%empty	ALTER DATABASE a SET AUTOMATIC_TUNING(FORCE_LAST_GOOD_PLAN = ON)
+accept	accept	engine	automaticTuningOptions(Comma_automaticTuningOneOption)*/%empty	ALTER DATABASE a SET AUTOMATIC_TUNING(FORCE_LAST_GOOD_PLAN = ON)
 reject	reject	engine	automaticTuningOptions(Comma_automaticTuningOneOption)*/%empty!insert	ALTER DATABASE a SET AUTOMATIC_TUNING(FORCE_LAST_GOOD_PLAN = ON zzz)
 reject	reject	engine	automaticTuningOptions(Comma_automaticTuningOneOption)*/Comma_automaticTuningOneOption_(Comma_automaticTuningOneOption)*	ALTER DATABASE a SET AUTOMATIC_TUNING(FORCE_LAST_GOOD_PLAN = ON, FORCE_LAST_GOOD_PLAN = ON)
 reject	reject	engine	automaticTuningOptions(Comma_automaticTuningOneOption)*/Comma_automaticTuningOneOption_(Comma_automaticTuningOneOption)*!drop-1	ALTER DATABASE a SET AUTOMATIC_TUNING(FORCE_LAST_GOOD_PLAN = ON FORCE_LAST_GOOD_PLAN = ON)
@@ -2182,9 +2182,9 @@ reject	reject	engine	automaticTuningOptions(Comma_automaticTuningOneOption)*/Com
 reject	reject	engine	automaticTuningOptions(Comma_automaticTuningOneOption)*/Comma_automaticTuningOneOption_(Comma_automaticTuningOneOption)*!truncate	ALTER DATABASE a SET AUTOMATIC_TUNING(FORCE_LAST_GOOD_PLAN = ON, FORCE_LAST_GOOD_PLAN =
 reject	reject	engine	automaticTuningOptions(Comma_automaticTuningOneOption)*/Comma_automaticTuningOneOption_(Comma_automaticTuningOneOption)*!insert	ALTER DATABASE a SET AUTOMATIC_TUNING(FORCE_LAST_GOOD_PLAN = ON, FORCE_LAST_GOOD_PLAN = ON zzz)
 reject	reject	engine	automaticTuningOptions(Comma_automaticTuningOneOption)*/Comma_automaticTuningOneOption_(Comma_automaticTuningOneOption)*!swap	ALTER DATABASE a SET AUTOMATIC_TUNING(FORCE_LAST_GOOD_PLAN = ON, FOREIGN = ON)
-reject	accept	engine	automaticTuningOneOption/(automaticTuningForceLastGoodPlanOpti~35cdf1d2)	ALTER DATABASE a SET AUTOMATIC_TUNING(FORCE_LAST_GOOD_PLAN = ON)
+accept	accept	engine	automaticTuningOneOption/(automaticTuningForceLastGoodPlanOpti~35cdf1d2)	ALTER DATABASE a SET AUTOMATIC_TUNING(FORCE_LAST_GOOD_PLAN = ON)
 reject	reject	engine	automaticTuningOneOption/(automaticTuningForceLastGoodPlanOpti~35cdf1d2)!truncate	ALTER DATABASE a SET AUTOMATIC_TUNING(FORCE_LAST_GOOD_PLAN =
-reject	accept	engine	automaticTuningOneOption(automaticTuningForceLastGoodPlanOpti~35cdf1d2)/automaticTuningForceLastGoodPlanOption_FORCE_LAST_GOOD_PLAN	ALTER DATABASE a SET AUTOMATIC_TUNING(FORCE_LAST_GOOD_PLAN = ON)
+accept	accept	engine	automaticTuningOneOption(automaticTuningForceLastGoodPlanOpti~35cdf1d2)/automaticTuningForceLastGoodPlanOption_FORCE_LAST_GOOD_PLAN	ALTER DATABASE a SET AUTOMATIC_TUNING(FORCE_LAST_GOOD_PLAN = ON)
 reject	reject	engine	automaticTuningOneOption(automaticTuningForceLastGoodPlanOpti~35cdf1d2)/automaticTuningCreateIndexOption_CREATE_INDEX	ALTER DATABASE a SET AUTOMATIC_TUNING(CREATE_INDEX = ON)
 reject	reject	engine	automaticTuningOneOption(automaticTuningForceLastGoodPlanOpti~35cdf1d2)/automaticTuningCreateIndexOption_CREATE_INDEX!drop-2	ALTER DATABASE a SET AUTOMATIC_TUNING(CREATE_INDEX ON)
 reject	reject	engine	automaticTuningOneOption(automaticTuningForceLastGoodPlanOpti~35cdf1d2)/automaticTuningCreateIndexOption_CREATE_INDEX!drop-3	ALTER DATABASE a SET AUTOMATIC_TUNING(CREATE_INDEX =)
@@ -2203,10 +2203,10 @@ reject	reject	engine	automaticTuningOneOption(automaticTuningForceLastGoodPlanOp
 reject	reject	engine	automaticTuningOneOption(automaticTuningForceLastGoodPlanOpti~35cdf1d2)/automaticTuningMaintainIndexOption_MAINTAIN_INDEX!truncate	ALTER DATABASE a SET AUTOMATIC_TUNING(MAINTAIN_INDEX =
 reject	reject	engine	automaticTuningOneOption(automaticTuningForceLastGoodPlanOpti~35cdf1d2)/automaticTuningMaintainIndexOption_MAINTAIN_INDEX!insert	ALTER DATABASE a SET AUTOMATIC_TUNING(MAINTAIN_INDEX = ON zzz)
 reject	reject	engine	automaticTuningOneOption(automaticTuningForceLastGoodPlanOpti~35cdf1d2)/automaticTuningMaintainIndexOption_MAINTAIN_INDEX!swap	ALTER DATABASE a SET AUTOMATIC_TUNING(MANUAL = ON)
-accept	reject	engine	dbContainmentOption/CONTAINMENT_EqualsSign_Identifier	CREATE DATABASE a CONTAINMENT = a
+reject	reject	engine	dbContainmentOption/CONTAINMENT_EqualsSign_Identifier	CREATE DATABASE a CONTAINMENT = a
 reject	reject	engine	dbContainmentOption/CONTAINMENT_EqualsSign_Identifier!drop-1	CREATE DATABASE a = a
-accept	reject	engine	dbContainmentOption/CONTAINMENT_EqualsSign_Identifier!drop-2	CREATE DATABASE a CONTAINMENT a
-accept	reject	engine	dbContainmentOption/CONTAINMENT_EqualsSign_Identifier!drop-3	CREATE DATABASE a CONTAINMENT =
+reject	reject	engine	dbContainmentOption/CONTAINMENT_EqualsSign_Identifier!drop-2	CREATE DATABASE a CONTAINMENT a
+reject	reject	engine	dbContainmentOption/CONTAINMENT_EqualsSign_Identifier!drop-3	CREATE DATABASE a CONTAINMENT =
 reject	reject	engine	dbContainmentOption/CONTAINMENT_EqualsSign_Identifier!insert	CREATE DATABASE a CONTAINMENT = a zzz
 reject	reject	engine	dbContainmentOption/CONTAINMENT_EqualsSign_Identifier!swap	CREATE DATABASE a CONTAINS = a
 accept	accept	engine	simpleHadrDbOption/(RESUME|SUSPEND)	ALTER DATABASE a SET HADR RESUME
@@ -2302,7 +2302,7 @@ reject	reject	engine	createDatabase(azureOptions)?/azureOptions!drop-5	CREATE DA
 reject	reject	engine	createDatabase(azureOptions)?/azureOptions!insert	CREATE DATABASE a(EDITION = 'a') zzz
 reject	reject	engine	createDatabase(azureOptions)?/azureOptions!swap	CREATE DATABASE a(ELASTIC_POOL = 'a')
 accept	accept	engine	createDatabase(dbContainmentOption)?/%empty	CREATE DATABASE a
-accept	reject	engine	createDatabase(dbContainmentOption)?/dbContainmentOption	CREATE DATABASE a CONTAINMENT = a
+reject	reject	engine	createDatabase(dbContainmentOption)?/dbContainmentOption	CREATE DATABASE a CONTAINMENT = a
 accept	accept	engine	createDatabase(dbAddendums)?/%empty	CREATE DATABASE a
 reject	reject	engine	createDatabase(dbAddendums)?/dbAddendums	CREATE DATABASE a FOR a
 reject	reject	engine	createDatabase(dbAddendums)?/dbAddendums!drop-1	CREATE DATABASE a a
@@ -2310,9 +2310,9 @@ reject	reject	engine	createDatabase(dbAddendums)?/dbAddendums!drop-2	CREATE DATA
 reject	reject	engine	createDatabase(dbAddendums)?/dbAddendums!insert	CREATE DATABASE a FOR a zzz
 reject	reject	engine	createDatabase(dbAddendums)?/dbAddendums!swap	CREATE DATABASE a FORCE a
 accept	accept	engine	createDatabase(withCreateDbOptions)?/%empty	CREATE DATABASE a
-accept	reject	engine	createDatabase(withCreateDbOptions)?/withCreateDbOptions	CREATE DATABASE a WITH RESTRICTED_USER
+reject	reject	engine	createDatabase(withCreateDbOptions)?/withCreateDbOptions	CREATE DATABASE a WITH RESTRICTED_USER
 reject	reject	engine	createDatabase(withCreateDbOptions)?/withCreateDbOptions!drop-1	CREATE DATABASE a RESTRICTED_USER
-accept	reject	engine	createDatabase(withCreateDbOptions)?/withCreateDbOptions!drop-2	CREATE DATABASE a WITH
+reject	reject	engine	createDatabase(withCreateDbOptions)?/withCreateDbOptions!drop-2	CREATE DATABASE a WITH
 reject	reject	engine	createDatabase(withCreateDbOptions)?/withCreateDbOptions!insert	CREATE DATABASE a WITH RESTRICTED_USER zzz
 reject	reject	engine	createDatabase(withCreateDbOptions)?/withCreateDbOptions!swap	CREATE DATABASE a WITHIN RESTRICTED_USER
 reject	reject	engine	azureOptions/LeftParenthesis_azureOption_(Comma_azureOption)*_RightP~6a7e0206	CREATE DATABASE a(EDITION = 'a')
@@ -2359,11 +2359,11 @@ reject	reject	engine	azureElasticPoolServiceObjectiveDatabaseOption/SERVICE_OBJE
 reject	reject	engine	azureAsCopyOf/As_COPY_Of_multiPartIdentifier	CREATE DATABASE a AS COPY OF a
 accept	accept	engine	recoveryUnitList/(onDisk)?_(LOG_On_fileDeclBodyList)?	CREATE DATABASE a
 accept	accept	engine	recoveryUnitList(onDisk)?/%empty	CREATE DATABASE a
-accept	reject	engine	recoveryUnitList(onDisk)?/onDisk	CREATE DATABASE a ON(OFFLINE)
+reject	reject	engine	recoveryUnitList(onDisk)?/onDisk	CREATE DATABASE a ON(OFFLINE)
 reject	reject	engine	recoveryUnitList(onDisk)?/onDisk!drop-1	CREATE DATABASE a(OFFLINE)
 reject	reject	engine	recoveryUnitList(onDisk)?/onDisk!drop-2	CREATE DATABASE a ON OFFLINE)
-accept	reject	engine	recoveryUnitList(onDisk)?/onDisk!drop-3	CREATE DATABASE a ON()
-accept	reject	engine	recoveryUnitList(onDisk)?/onDisk!drop-4	CREATE DATABASE a ON(OFFLINE
+reject	reject	engine	recoveryUnitList(onDisk)?/onDisk!drop-3	CREATE DATABASE a ON()
+reject	reject	engine	recoveryUnitList(onDisk)?/onDisk!drop-4	CREATE DATABASE a ON(OFFLINE
 reject	reject	engine	recoveryUnitList(onDisk)?/onDisk!insert	CREATE DATABASE a ON(OFFLINE) zzz
 reject	reject	engine	recoveryUnitList(onDisk)?/onDisk!swap	CREATE DATABASE a ONLINE(OFFLINE)
 accept	accept	engine	recoveryUnitList(LOG_On_fileDeclBodyList)?/%empty	CREATE DATABASE a
@@ -2374,127 +2374,127 @@ reject	reject	engine	recoveryUnitList(LOG_On_fileDeclBodyList)?/LOG_On_fileDeclB
 reject	reject	engine	recoveryUnitList(LOG_On_fileDeclBodyList)?/LOG_On_fileDeclBodyList!drop-5	CREATE DATABASE a LOG ON(OFFLINE
 reject	reject	engine	recoveryUnitList(LOG_On_fileDeclBodyList)?/LOG_On_fileDeclBodyList!insert	CREATE DATABASE a LOG ON(OFFLINE) zzz
 reject	reject	engine	recoveryUnitList(LOG_On_fileDeclBodyList)?/LOG_On_fileDeclBodyList!swap	CREATE DATABASE a LOGIN ON(OFFLINE)
-accept	reject	engine	onDisk/On_fileDecl_(Comma_(fileDecl|fileGroupDecl))*	CREATE DATABASE a ON(OFFLINE)
-accept	reject	engine	onDisk(Comma_(fileDecl|fileGroupDecl))*/%empty	CREATE DATABASE a ON(OFFLINE)
-accept	reject	engine	onDisk(Comma_(fileDecl|fileGroupDecl))*/Comma_(fileDecl|fileGroupDecl)_(Comma_(fileDecl|fileGroupDecl))*	CREATE DATABASE a ON(OFFLINE),(OFFLINE)
+reject	reject	engine	onDisk/On_fileDecl_(Comma_(fileDecl|fileGroupDecl))*	CREATE DATABASE a ON(OFFLINE)
+reject	reject	engine	onDisk(Comma_(fileDecl|fileGroupDecl))*/%empty	CREATE DATABASE a ON(OFFLINE)
+reject	reject	engine	onDisk(Comma_(fileDecl|fileGroupDecl))*/Comma_(fileDecl|fileGroupDecl)_(Comma_(fileDecl|fileGroupDecl))*	CREATE DATABASE a ON(OFFLINE),(OFFLINE)
 reject	reject	engine	onDisk(Comma_(fileDecl|fileGroupDecl))*/Comma_(fileDecl|fileGroupDecl)_(Comma_(fileDecl|fileGroupDecl))*!drop-1	CREATE DATABASE a ON(OFFLINE)(OFFLINE)
 reject	reject	engine	onDisk(Comma_(fileDecl|fileGroupDecl))*/Comma_(fileDecl|fileGroupDecl)_(Comma_(fileDecl|fileGroupDecl))*!drop-2	CREATE DATABASE a ON(OFFLINE), OFFLINE)
-accept	reject	engine	onDisk(Comma_(fileDecl|fileGroupDecl))*/Comma_(fileDecl|fileGroupDecl)_(Comma_(fileDecl|fileGroupDecl))*!drop-3	CREATE DATABASE a ON(OFFLINE),()
-accept	reject	engine	onDisk(Comma_(fileDecl|fileGroupDecl))*/Comma_(fileDecl|fileGroupDecl)_(Comma_(fileDecl|fileGroupDecl))*!drop-4	CREATE DATABASE a ON(OFFLINE),(OFFLINE
+reject	reject	engine	onDisk(Comma_(fileDecl|fileGroupDecl))*/Comma_(fileDecl|fileGroupDecl)_(Comma_(fileDecl|fileGroupDecl))*!drop-3	CREATE DATABASE a ON(OFFLINE),()
+reject	reject	engine	onDisk(Comma_(fileDecl|fileGroupDecl))*/Comma_(fileDecl|fileGroupDecl)_(Comma_(fileDecl|fileGroupDecl))*!drop-4	CREATE DATABASE a ON(OFFLINE),(OFFLINE
 reject	reject	engine	onDisk(Comma_(fileDecl|fileGroupDecl))*/Comma_(fileDecl|fileGroupDecl)_(Comma_(fileDecl|fileGroupDecl))*!insert	CREATE DATABASE a ON(OFFLINE),(OFFLINE) zzz
-accept	reject	engine	onDisk(Comma_(fileDecl|fileGroupDecl))*/Comma_(fileDecl|fileGroupDecl)_(Comma_(fileDecl|fileGroupDecl))*!swap	CREATE DATABASE a ON(OFFLINE),(OFFSET)
-accept	reject	engine	onDisk(fileDecl|fileGroupDecl)/fileDecl	CREATE DATABASE a ON(OFFLINE),(OFFLINE)
-accept	reject	engine	onDisk(fileDecl|fileGroupDecl)/fileGroupDecl	CREATE DATABASE a ON(OFFLINE), FILEGROUP a(OFFLINE)
+reject	reject	engine	onDisk(Comma_(fileDecl|fileGroupDecl))*/Comma_(fileDecl|fileGroupDecl)_(Comma_(fileDecl|fileGroupDecl))*!swap	CREATE DATABASE a ON(OFFLINE),(OFFSET)
+reject	reject	engine	onDisk(fileDecl|fileGroupDecl)/fileDecl	CREATE DATABASE a ON(OFFLINE),(OFFLINE)
+reject	reject	engine	onDisk(fileDecl|fileGroupDecl)/fileGroupDecl	CREATE DATABASE a ON(OFFLINE), FILEGROUP a(OFFLINE)
 reject	reject	engine	onDisk(fileDecl|fileGroupDecl)/fileGroupDecl!drop-1	CREATE DATABASE a ON(OFFLINE), a(OFFLINE)
-accept	reject	engine	onDisk(fileDecl|fileGroupDecl)/fileGroupDecl!drop-2	CREATE DATABASE a ON(OFFLINE), FILEGROUP(OFFLINE)
+reject	reject	engine	onDisk(fileDecl|fileGroupDecl)/fileGroupDecl!drop-2	CREATE DATABASE a ON(OFFLINE), FILEGROUP(OFFLINE)
 reject	reject	engine	onDisk(fileDecl|fileGroupDecl)/fileGroupDecl!drop-3	CREATE DATABASE a ON(OFFLINE), FILEGROUP a OFFLINE)
-accept	reject	engine	onDisk(fileDecl|fileGroupDecl)/fileGroupDecl!drop-4	CREATE DATABASE a ON(OFFLINE), FILEGROUP a()
-accept	reject	engine	onDisk(fileDecl|fileGroupDecl)/fileGroupDecl!drop-5	CREATE DATABASE a ON(OFFLINE), FILEGROUP a(OFFLINE
+reject	reject	engine	onDisk(fileDecl|fileGroupDecl)/fileGroupDecl!drop-4	CREATE DATABASE a ON(OFFLINE), FILEGROUP a()
+reject	reject	engine	onDisk(fileDecl|fileGroupDecl)/fileGroupDecl!drop-5	CREATE DATABASE a ON(OFFLINE), FILEGROUP a(OFFLINE
 reject	reject	engine	onDisk(fileDecl|fileGroupDecl)/fileGroupDecl!insert	CREATE DATABASE a ON(OFFLINE), FILEGROUP a(OFFLINE) zzz
 reject	reject	engine	onDisk(fileDecl|fileGroupDecl)/fileGroupDecl!swap	CREATE DATABASE a ON(OFFLINE), FILEGROWTH a(OFFLINE)
-accept	reject	engine	fileDeclBodyList/fileDeclBody_(Comma_fileDeclBody)*	ALTER DATABASE a ADD FILE(OFFLINE)
-accept	reject	engine	fileDeclBodyList/fileDeclBody_(Comma_fileDeclBody)*!swap	ALTER DATABASE a ADD FILE(OFFSET)
-accept	reject	engine	fileDeclBodyList(Comma_fileDeclBody)*/%empty	ALTER DATABASE a ADD FILE(OFFLINE)
-accept	reject	engine	fileDeclBodyList(Comma_fileDeclBody)*/Comma_fileDeclBody_(Comma_fileDeclBody)*	ALTER DATABASE a ADD FILE(OFFLINE),(OFFLINE)
+reject	reject	engine	fileDeclBodyList/fileDeclBody_(Comma_fileDeclBody)*	ALTER DATABASE a ADD FILE(OFFLINE)
+reject	reject	engine	fileDeclBodyList/fileDeclBody_(Comma_fileDeclBody)*!swap	ALTER DATABASE a ADD FILE(OFFSET)
+reject	reject	engine	fileDeclBodyList(Comma_fileDeclBody)*/%empty	ALTER DATABASE a ADD FILE(OFFLINE)
+reject	reject	engine	fileDeclBodyList(Comma_fileDeclBody)*/Comma_fileDeclBody_(Comma_fileDeclBody)*	ALTER DATABASE a ADD FILE(OFFLINE),(OFFLINE)
 reject	reject	engine	fileDeclBodyList(Comma_fileDeclBody)*/Comma_fileDeclBody_(Comma_fileDeclBody)*!drop-1	ALTER DATABASE a ADD FILE(OFFLINE)(OFFLINE)
 reject	reject	engine	fileDeclBodyList(Comma_fileDeclBody)*/Comma_fileDeclBody_(Comma_fileDeclBody)*!drop-2	ALTER DATABASE a ADD FILE(OFFLINE), OFFLINE)
-accept	reject	engine	fileDeclBodyList(Comma_fileDeclBody)*/Comma_fileDeclBody_(Comma_fileDeclBody)*!drop-3	ALTER DATABASE a ADD FILE(OFFLINE),()
-accept	reject	engine	fileDeclBodyList(Comma_fileDeclBody)*/Comma_fileDeclBody_(Comma_fileDeclBody)*!drop-4	ALTER DATABASE a ADD FILE(OFFLINE),(OFFLINE
+reject	reject	engine	fileDeclBodyList(Comma_fileDeclBody)*/Comma_fileDeclBody_(Comma_fileDeclBody)*!drop-3	ALTER DATABASE a ADD FILE(OFFLINE),()
+reject	reject	engine	fileDeclBodyList(Comma_fileDeclBody)*/Comma_fileDeclBody_(Comma_fileDeclBody)*!drop-4	ALTER DATABASE a ADD FILE(OFFLINE),(OFFLINE
 reject	reject	engine	fileDeclBodyList(Comma_fileDeclBody)*/Comma_fileDeclBody_(Comma_fileDeclBody)*!insert	ALTER DATABASE a ADD FILE(OFFLINE),(OFFLINE) zzz
-accept	reject	engine	fileDeclBodyList(Comma_fileDeclBody)*/Comma_fileDeclBody_(Comma_fileDeclBody)*!swap	ALTER DATABASE a ADD FILE(OFFLINE),(OFFSET)
-accept	reject	engine	fileDecl/Primary_fileDeclBody	CREATE DATABASE a ON PRIMARY(OFFLINE)
+reject	reject	engine	fileDeclBodyList(Comma_fileDeclBody)*/Comma_fileDeclBody_(Comma_fileDeclBody)*!swap	ALTER DATABASE a ADD FILE(OFFLINE),(OFFSET)
+reject	reject	engine	fileDecl/Primary_fileDeclBody	CREATE DATABASE a ON PRIMARY(OFFLINE)
 reject	reject	engine	fileDecl/Primary_fileDeclBody!drop-2	CREATE DATABASE a ON PRIMARY OFFLINE)
-accept	reject	engine	fileDecl/Primary_fileDeclBody!drop-3	CREATE DATABASE a ON PRIMARY()
-accept	reject	engine	fileDecl/Primary_fileDeclBody!drop-4	CREATE DATABASE a ON PRIMARY(OFFLINE
+reject	reject	engine	fileDecl/Primary_fileDeclBody!drop-3	CREATE DATABASE a ON PRIMARY()
+reject	reject	engine	fileDecl/Primary_fileDeclBody!drop-4	CREATE DATABASE a ON PRIMARY(OFFLINE
 reject	reject	engine	fileDecl/Primary_fileDeclBody!insert	CREATE DATABASE a ON PRIMARY(OFFLINE) zzz
 reject	reject	engine	fileDecl/Primary_fileDeclBody!swap	CREATE DATABASE a ON PRIMARY_ROLE(OFFLINE)
-accept	reject	engine	fileDecl/fileDeclBody	CREATE DATABASE a ON(OFFLINE)
-accept	reject	engine	fileDecl/fileDeclBody!swap	CREATE DATABASE a ON(OFFSET)
-accept	reject	engine	fileGroupDecl/FILEGROUP_identifier_(Contains_(FILESTREAM|MEMORY_OPTIM~e3288d8c	CREATE DATABASE a ON(OFFLINE), FILEGROUP a(OFFLINE)
-accept	reject	engine	fileGroupDecl(Contains_(FILESTREAM|MEMORY_OPTIMIZED_DATA))?/%empty	CREATE DATABASE a ON(OFFLINE), FILEGROUP a(OFFLINE)
+reject	reject	engine	fileDecl/fileDeclBody	CREATE DATABASE a ON(OFFLINE)
+reject	reject	engine	fileDecl/fileDeclBody!swap	CREATE DATABASE a ON(OFFSET)
+reject	reject	engine	fileGroupDecl/FILEGROUP_identifier_(Contains_(FILESTREAM|MEMORY_OPTIM~e3288d8c	CREATE DATABASE a ON(OFFLINE), FILEGROUP a(OFFLINE)
+reject	reject	engine	fileGroupDecl(Contains_(FILESTREAM|MEMORY_OPTIMIZED_DATA))?/%empty	CREATE DATABASE a ON(OFFLINE), FILEGROUP a(OFFLINE)
 reject	reject	engine	fileGroupDecl(Contains_(FILESTREAM|MEMORY_OPTIMIZED_DATA))?/%empty!insert	CREATE DATABASE a ON(OFFLINE), FILEGROUP a zzz(OFFLINE)
-accept	reject	engine	fileGroupDecl(Contains_(FILESTREAM|MEMORY_OPTIMIZED_DATA))?/Contains_(FILESTREAM|MEMORY_OPTIMIZED_DATA)	CREATE DATABASE a ON(OFFLINE), FILEGROUP a CONTAINS FILESTREAM(OFFLINE)
+reject	reject	engine	fileGroupDecl(Contains_(FILESTREAM|MEMORY_OPTIMIZED_DATA))?/Contains_(FILESTREAM|MEMORY_OPTIMIZED_DATA)	CREATE DATABASE a ON(OFFLINE), FILEGROUP a CONTAINS FILESTREAM(OFFLINE)
 reject	reject	engine	fileGroupDecl(Contains_(FILESTREAM|MEMORY_OPTIMIZED_DATA))?/Contains_(FILESTREAM|MEMORY_OPTIMIZED_DATA)!drop-1	CREATE DATABASE a ON(OFFLINE), FILEGROUP a FILESTREAM(OFFLINE)
-accept	reject	engine	fileGroupDecl(Contains_(FILESTREAM|MEMORY_OPTIMIZED_DATA))?/Contains_(FILESTREAM|MEMORY_OPTIMIZED_DATA)!drop-2	CREATE DATABASE a ON(OFFLINE), FILEGROUP a CONTAINS(OFFLINE)
-accept	reject	engine	fileGroupDecl(Contains_(FILESTREAM|MEMORY_OPTIMIZED_DATA))?/Contains_(FILESTREAM|MEMORY_OPTIMIZED_DATA)!truncate	CREATE DATABASE a ON(OFFLINE), FILEGROUP a CONTAINS
+reject	reject	engine	fileGroupDecl(Contains_(FILESTREAM|MEMORY_OPTIMIZED_DATA))?/Contains_(FILESTREAM|MEMORY_OPTIMIZED_DATA)!drop-2	CREATE DATABASE a ON(OFFLINE), FILEGROUP a CONTAINS(OFFLINE)
+reject	reject	engine	fileGroupDecl(Contains_(FILESTREAM|MEMORY_OPTIMIZED_DATA))?/Contains_(FILESTREAM|MEMORY_OPTIMIZED_DATA)!truncate	CREATE DATABASE a ON(OFFLINE), FILEGROUP a CONTAINS
 reject	reject	engine	fileGroupDecl(Contains_(FILESTREAM|MEMORY_OPTIMIZED_DATA))?/Contains_(FILESTREAM|MEMORY_OPTIMIZED_DATA)!insert	CREATE DATABASE a ON(OFFLINE), FILEGROUP a CONTAINS FILESTREAM zzz(OFFLINE)
 reject	reject	engine	fileGroupDecl(Contains_(FILESTREAM|MEMORY_OPTIMIZED_DATA))?/Contains_(FILESTREAM|MEMORY_OPTIMIZED_DATA)!swap	CREATE DATABASE a ON(OFFLINE), FILEGROUP a CONTAINSTABLE FILESTREAM(OFFLINE)
-accept	reject	engine	fileGroupDecl(FILESTREAM|MEMORY_OPTIMIZED_DATA)/FILESTREAM	CREATE DATABASE a ON(OFFLINE), FILEGROUP a CONTAINS FILESTREAM(OFFLINE)
+reject	reject	engine	fileGroupDecl(FILESTREAM|MEMORY_OPTIMIZED_DATA)/FILESTREAM	CREATE DATABASE a ON(OFFLINE), FILEGROUP a CONTAINS FILESTREAM(OFFLINE)
 reject	reject	engine	fileGroupDecl(FILESTREAM|MEMORY_OPTIMIZED_DATA)/FILESTREAM!swap	CREATE DATABASE a ON(OFFLINE), FILEGROUP a CONTAINS FILESTREAM_ON(OFFLINE)
-accept	reject	engine	fileGroupDecl(FILESTREAM|MEMORY_OPTIMIZED_DATA)/MEMORY_OPTIMIZED_DATA	CREATE DATABASE a ON(OFFLINE), FILEGROUP a CONTAINS MEMORY_OPTIMIZED_DATA(OFFLINE)
+reject	reject	engine	fileGroupDecl(FILESTREAM|MEMORY_OPTIMIZED_DATA)/MEMORY_OPTIMIZED_DATA	CREATE DATABASE a ON(OFFLINE), FILEGROUP a CONTAINS MEMORY_OPTIMIZED_DATA(OFFLINE)
 reject	reject	engine	fileGroupDecl(FILESTREAM|MEMORY_OPTIMIZED_DATA)/MEMORY_OPTIMIZED_DATA!insert	CREATE DATABASE a ON(OFFLINE), FILEGROUP a CONTAINS MEMORY_OPTIMIZED_DATA zzz(OFFLINE)
 reject	reject	engine	fileGroupDecl(FILESTREAM|MEMORY_OPTIMIZED_DATA)/MEMORY_OPTIMIZED_DATA!swap	CREATE DATABASE a ON(OFFLINE), FILEGROUP a CONTAINS MEMORY_PARTITION_MODE(OFFLINE)
-accept	reject	engine	fileGroupDecl(Default)?/%empty	CREATE DATABASE a ON(OFFLINE), FILEGROUP a(OFFLINE)
-accept	reject	engine	fileGroupDecl(Default)?/Default	CREATE DATABASE a ON(OFFLINE), FILEGROUP a DEFAULT(OFFLINE)
-accept	reject	engine	fileGroupDecl(Default)?/Default!truncate	CREATE DATABASE a ON(OFFLINE), FILEGROUP a
+reject	reject	engine	fileGroupDecl(Default)?/%empty	CREATE DATABASE a ON(OFFLINE), FILEGROUP a(OFFLINE)
+reject	reject	engine	fileGroupDecl(Default)?/Default	CREATE DATABASE a ON(OFFLINE), FILEGROUP a DEFAULT(OFFLINE)
+reject	reject	engine	fileGroupDecl(Default)?/Default!truncate	CREATE DATABASE a ON(OFFLINE), FILEGROUP a
 reject	reject	engine	fileGroupDecl(Default)?/Default!insert	CREATE DATABASE a ON(OFFLINE), FILEGROUP a DEFAULT zzz(OFFLINE)
 reject	reject	engine	fileGroupDecl(Default)?/Default!swap	CREATE DATABASE a ON(OFFLINE), FILEGROUP a DEFAULT_DATABASE(OFFLINE)
-accept	reject	engine	fileDeclBody/LeftParenthesis_fileOption_(Comma_fileOption)*_RightParenthesis	CREATE DATABASE a ON(OFFLINE)
-accept	reject	engine	fileDeclBody(Comma_fileOption)*/%empty	CREATE DATABASE a ON(OFFLINE)
+reject	reject	engine	fileDeclBody/LeftParenthesis_fileOption_(Comma_fileOption)*_RightParenthesis	CREATE DATABASE a ON(OFFLINE)
+reject	reject	engine	fileDeclBody(Comma_fileOption)*/%empty	CREATE DATABASE a ON(OFFLINE)
 reject	reject	engine	fileDeclBody(Comma_fileOption)*/%empty!insert	CREATE DATABASE a ON(OFFLINE zzz)
-accept	reject	engine	fileDeclBody(Comma_fileOption)*/Comma_fileOption_(Comma_fileOption)*	CREATE DATABASE a ON(OFFLINE, OFFLINE)
+reject	reject	engine	fileDeclBody(Comma_fileOption)*/Comma_fileOption_(Comma_fileOption)*	CREATE DATABASE a ON(OFFLINE, OFFLINE)
 reject	reject	engine	fileDeclBody(Comma_fileOption)*/Comma_fileOption_(Comma_fileOption)*!drop-1	CREATE DATABASE a ON(OFFLINE OFFLINE)
-accept	reject	engine	fileDeclBody(Comma_fileOption)*/Comma_fileOption_(Comma_fileOption)*!drop-2	CREATE DATABASE a ON(OFFLINE,)
-accept	reject	engine	fileDeclBody(Comma_fileOption)*/Comma_fileOption_(Comma_fileOption)*!truncate	CREATE DATABASE a ON(OFFLINE,
+reject	reject	engine	fileDeclBody(Comma_fileOption)*/Comma_fileOption_(Comma_fileOption)*!drop-2	CREATE DATABASE a ON(OFFLINE,)
+reject	reject	engine	fileDeclBody(Comma_fileOption)*/Comma_fileOption_(Comma_fileOption)*!truncate	CREATE DATABASE a ON(OFFLINE,
 reject	reject	engine	fileDeclBody(Comma_fileOption)*/Comma_fileOption_(Comma_fileOption)*!insert	CREATE DATABASE a ON(OFFLINE, OFFLINE zzz)
-accept	reject	engine	fileDeclBody(Comma_fileOption)*/Comma_fileOption_(Comma_fileOption)*!swap	CREATE DATABASE a ON(OFFLINE, OFFSET)
+reject	reject	engine	fileDeclBody(Comma_fileOption)*/Comma_fileOption_(Comma_fileOption)*!swap	CREATE DATABASE a ON(OFFLINE, OFFSET)
 reject	reject	engine	fileOption/nameFileOption_NAME	CREATE DATABASE a ON(NAME = 'a')
 reject	reject	engine	fileOption/nameFileOption_NAME!drop-1	CREATE DATABASE a ON(= 'a')
 reject	reject	engine	fileOption/nameFileOption_NAME!drop-2	CREATE DATABASE a ON(NAME 'a')
-accept	reject	engine	fileOption/nameFileOption_NAME!drop-3	CREATE DATABASE a ON(NAME =)
-accept	reject	engine	fileOption/nameFileOption_NAME!truncate	CREATE DATABASE a ON(NAME =
+reject	reject	engine	fileOption/nameFileOption_NAME!drop-3	CREATE DATABASE a ON(NAME =)
+reject	reject	engine	fileOption/nameFileOption_NAME!truncate	CREATE DATABASE a ON(NAME =
 reject	reject	engine	fileOption/nameFileOption_NAME!insert	CREATE DATABASE a ON(NAME = 'a' zzz)
 reject	reject	engine	fileOption/nameFileOption_NAME!swap	CREATE DATABASE a ON(NAMESPACE = 'a')
 accept	accept	engine	fileOption/fileNameFileOption_FILENAME	CREATE DATABASE a ON(FILENAME = 'a')
-accept	reject	engine	fileOption/fileNameFileOption_FILENAME!drop-2	CREATE DATABASE a ON(FILENAME 'a')
-accept	reject	engine	fileOption/fileNameFileOption_FILENAME!drop-3	CREATE DATABASE a ON(FILENAME =)
-accept	reject	engine	fileOption/fileNameFileOption_FILENAME!truncate	CREATE DATABASE a ON(FILENAME =
+reject	reject	engine	fileOption/fileNameFileOption_FILENAME!drop-2	CREATE DATABASE a ON(FILENAME 'a')
+reject	reject	engine	fileOption/fileNameFileOption_FILENAME!drop-3	CREATE DATABASE a ON(FILENAME =)
+reject	reject	engine	fileOption/fileNameFileOption_FILENAME!truncate	CREATE DATABASE a ON(FILENAME =
 reject	reject	engine	fileOption/fileNameFileOption_FILENAME!insert	CREATE DATABASE a ON(FILENAME = 'a' zzz)
 reject	reject	engine	fileOption/fileNameFileOption_FILENAME!swap	CREATE DATABASE a ON(FILEPATH = 'a')
-accept	reject	engine	fileOption/sizeFileOption_SIZE	CREATE DATABASE a ON(SIZE = 1)
+reject	reject	engine	fileOption/sizeFileOption_SIZE	CREATE DATABASE a ON(SIZE = 1)
 reject	reject	engine	fileOption/sizeFileOption_SIZE!drop-1	CREATE DATABASE a ON(= 1)
-accept	reject	engine	fileOption/sizeFileOption_SIZE!drop-2	CREATE DATABASE a ON(SIZE 1)
-accept	reject	engine	fileOption/sizeFileOption_SIZE!drop-3	CREATE DATABASE a ON(SIZE =)
-accept	reject	engine	fileOption/sizeFileOption_SIZE!truncate	CREATE DATABASE a ON(SIZE =
+reject	reject	engine	fileOption/sizeFileOption_SIZE!drop-2	CREATE DATABASE a ON(SIZE 1)
+reject	reject	engine	fileOption/sizeFileOption_SIZE!drop-3	CREATE DATABASE a ON(SIZE =)
+reject	reject	engine	fileOption/sizeFileOption_SIZE!truncate	CREATE DATABASE a ON(SIZE =
 reject	reject	engine	fileOption/sizeFileOption_SIZE!insert	CREATE DATABASE a ON(SIZE = 1 zzz)
 reject	reject	engine	fileOption/sizeFileOption_SIZE!swap	CREATE DATABASE a ON(SIZE_BASED_CLEANUP_MODE = 1)
-accept	reject	engine	fileOption/maxSizeFileOption_MAXSIZE	CREATE DATABASE a ON(MAXSIZE = 1)
-accept	reject	engine	fileOption/maxSizeFileOption_MAXSIZE!drop-2	CREATE DATABASE a ON(MAXSIZE 1)
-accept	reject	engine	fileOption/maxSizeFileOption_MAXSIZE!drop-3	CREATE DATABASE a ON(MAXSIZE =)
-accept	reject	engine	fileOption/maxSizeFileOption_MAXSIZE!truncate	CREATE DATABASE a ON(MAXSIZE =
+reject	reject	engine	fileOption/maxSizeFileOption_MAXSIZE	CREATE DATABASE a ON(MAXSIZE = 1)
+reject	reject	engine	fileOption/maxSizeFileOption_MAXSIZE!drop-2	CREATE DATABASE a ON(MAXSIZE 1)
+reject	reject	engine	fileOption/maxSizeFileOption_MAXSIZE!drop-3	CREATE DATABASE a ON(MAXSIZE =)
+reject	reject	engine	fileOption/maxSizeFileOption_MAXSIZE!truncate	CREATE DATABASE a ON(MAXSIZE =
 reject	reject	engine	fileOption/maxSizeFileOption_MAXSIZE!insert	CREATE DATABASE a ON(MAXSIZE = 1 zzz)
 reject	reject	engine	fileOption/maxSizeFileOption_MAXSIZE!swap	CREATE DATABASE a ON(MAXVALUE = 1)
-accept	reject	engine	fileOption/fileGrowthFileOption_FILEGROWTH	CREATE DATABASE a ON(FILEGROWTH = 1)
-accept	reject	engine	fileOption/fileGrowthFileOption_FILEGROWTH!drop-2	CREATE DATABASE a ON(FILEGROWTH 1)
-accept	reject	engine	fileOption/fileGrowthFileOption_FILEGROWTH!drop-3	CREATE DATABASE a ON(FILEGROWTH =)
-accept	reject	engine	fileOption/fileGrowthFileOption_FILEGROWTH!truncate	CREATE DATABASE a ON(FILEGROWTH =
+reject	reject	engine	fileOption/fileGrowthFileOption_FILEGROWTH	CREATE DATABASE a ON(FILEGROWTH = 1)
+reject	reject	engine	fileOption/fileGrowthFileOption_FILEGROWTH!drop-2	CREATE DATABASE a ON(FILEGROWTH 1)
+reject	reject	engine	fileOption/fileGrowthFileOption_FILEGROWTH!drop-3	CREATE DATABASE a ON(FILEGROWTH =)
+reject	reject	engine	fileOption/fileGrowthFileOption_FILEGROWTH!truncate	CREATE DATABASE a ON(FILEGROWTH =
 reject	reject	engine	fileOption/fileGrowthFileOption_FILEGROWTH!insert	CREATE DATABASE a ON(FILEGROWTH = 1 zzz)
 reject	reject	engine	fileOption/fileGrowthFileOption_FILEGROWTH!swap	CREATE DATABASE a ON(FILENAME = 1)
 reject	reject	engine	fileOption/newNameFileOption_NEWNAME	CREATE DATABASE a ON(NEWNAME = 'a')
 reject	reject	engine	fileOption/newNameFileOption_NEWNAME!drop-2	CREATE DATABASE a ON(NEWNAME 'a')
-accept	reject	engine	fileOption/newNameFileOption_NEWNAME!drop-3	CREATE DATABASE a ON(NEWNAME =)
-accept	reject	engine	fileOption/newNameFileOption_NEWNAME!truncate	CREATE DATABASE a ON(NEWNAME =
+reject	reject	engine	fileOption/newNameFileOption_NEWNAME!drop-3	CREATE DATABASE a ON(NEWNAME =)
+reject	reject	engine	fileOption/newNameFileOption_NEWNAME!truncate	CREATE DATABASE a ON(NEWNAME =
 reject	reject	engine	fileOption/newNameFileOption_NEWNAME!insert	CREATE DATABASE a ON(NEWNAME = 'a' zzz)
 reject	reject	engine	fileOption/newNameFileOption_NEWNAME!swap	CREATE DATABASE a ON(NEW_ACCOUNT = 'a')
-accept	reject	engine	fileOption/offlineFileOption_OFFLINE	CREATE DATABASE a ON(OFFLINE)
-accept	reject	engine	fileOption/offlineFileOption_OFFLINE!truncate	CREATE DATABASE a ON(
+reject	reject	engine	fileOption/offlineFileOption_OFFLINE	CREATE DATABASE a ON(OFFLINE)
+reject	reject	engine	fileOption/offlineFileOption_OFFLINE!truncate	CREATE DATABASE a ON(
 reject	reject	engine	memUnit/Identifier	CREATE DATABASE a ON(SIZE = 1 a)
-accept	reject	engine	memUnit/Identifier!truncate	CREATE DATABASE a ON(SIZE = 1
+reject	reject	engine	memUnit/Identifier!truncate	CREATE DATABASE a ON(SIZE = 1
 reject	reject	engine	memUnit/Identifier!insert	CREATE DATABASE a ON(SIZE = 1 a zzz)
 reject	reject	engine	dbAddendums/For_Identifier	CREATE DATABASE a FOR a
-reject	accept	engine	dbAddendums/As_SNAPSHOT_Of_identifier	CREATE DATABASE a AS SNAPSHOT OF a
+accept	accept	engine	dbAddendums/As_SNAPSHOT_Of_identifier	CREATE DATABASE a AS SNAPSHOT OF a
 reject	reject	engine	dbAddendums/As_SNAPSHOT_Of_identifier!drop-1	CREATE DATABASE a SNAPSHOT OF a
 reject	reject	engine	dbAddendums/As_SNAPSHOT_Of_identifier!drop-3	CREATE DATABASE a AS SNAPSHOT a
 reject	reject	engine	dbAddendums/As_SNAPSHOT_Of_identifier!drop-4	CREATE DATABASE a AS SNAPSHOT OF
 reject	reject	engine	dbAddendums/As_SNAPSHOT_Of_identifier!insert	CREATE DATABASE a AS SNAPSHOT OF a zzz
 reject	reject	engine	dbAddendums/As_SNAPSHOT_Of_identifier!swap	CREATE DATABASE a ASC SNAPSHOT OF a
-accept	reject	engine	withCreateDbOptions/With_createAlterDbOption_(Comma_createAlterDbOption)*	CREATE DATABASE a WITH RESTRICTED_USER
-accept	reject	engine	withCreateDbOptions(Comma_createAlterDbOption)*/%empty	CREATE DATABASE a WITH RESTRICTED_USER
-accept	reject	engine	withCreateDbOptions(Comma_createAlterDbOption)*/Comma_createAlterDbOption_(Comma_createAlterDbOption)*	CREATE DATABASE a WITH RESTRICTED_USER, RESTRICTED_USER
+reject	reject	engine	withCreateDbOptions/With_createAlterDbOption_(Comma_createAlterDbOption)*	CREATE DATABASE a WITH RESTRICTED_USER
+reject	reject	engine	withCreateDbOptions(Comma_createAlterDbOption)*/%empty	CREATE DATABASE a WITH RESTRICTED_USER
+reject	reject	engine	withCreateDbOptions(Comma_createAlterDbOption)*/Comma_createAlterDbOption_(Comma_createAlterDbOption)*	CREATE DATABASE a WITH RESTRICTED_USER, RESTRICTED_USER
 reject	reject	engine	withCreateDbOptions(Comma_createAlterDbOption)*/Comma_createAlterDbOption_(Comma_createAlterDbOption)*!drop-1	CREATE DATABASE a WITH RESTRICTED_USER RESTRICTED_USER
-accept	reject	engine	withCreateDbOptions(Comma_createAlterDbOption)*/Comma_createAlterDbOption_(Comma_createAlterDbOption)*!drop-2	CREATE DATABASE a WITH RESTRICTED_USER,
+reject	reject	engine	withCreateDbOptions(Comma_createAlterDbOption)*/Comma_createAlterDbOption_(Comma_createAlterDbOption)*!drop-2	CREATE DATABASE a WITH RESTRICTED_USER,
 reject	reject	engine	withCreateDbOptions(Comma_createAlterDbOption)*/Comma_createAlterDbOption_(Comma_createAlterDbOption)*!insert	CREATE DATABASE a WITH RESTRICTED_USER, RESTRICTED_USER zzz
-accept	reject	engine	withCreateDbOptions(Comma_createAlterDbOption)*/Comma_createAlterDbOption_(Comma_createAlterDbOption)*!swap	CREATE DATABASE a WITH RESTRICTED_USER, RESULT
+reject	reject	engine	withCreateDbOptions(Comma_createAlterDbOption)*/Comma_createAlterDbOption_(Comma_createAlterDbOption)*!swap	CREATE DATABASE a WITH RESTRICTED_USER, RESULT
 reject	reject	engine	createDbServiceBrokerOption/Identifier	ALTER DATABASE a SET a
 accept	accept	engine	createAlterDbOption/(restrictedUserCreateDbOption_RESTRIC~bd286b72)	ALTER DATABASE a SET RESTRICTED_USER
 accept	accept	engine	createAlterDbOption(restrictedUserCreateDbOption_RESTRIC~bd286b72)/restrictedUserCreateDbOption_RESTRICTED_USER	ALTER DATABASE a SET RESTRICTED_USER
@@ -2502,13 +2502,13 @@ accept	accept	engine	createAlterDbOption(restrictedUserCreateDbOption_RESTRIC~bd
 reject	reject	engine	createAlterDbOption(restrictedUserCreateDbOption_RESTRIC~bd286b72)/(createDbOnOffOption_DB_CHAINING|crea~32583e58)!drop-2	ALTER DATABASE a SET DB_CHAINING
 reject	reject	engine	createAlterDbOption(restrictedUserCreateDbOption_RESTRIC~bd286b72)/(createDbOnOffOption_DB_CHAINING|crea~32583e58)!insert	ALTER DATABASE a SET DB_CHAINING ON zzz
 reject	reject	engine	createAlterDbOption(restrictedUserCreateDbOption_RESTRIC~bd286b72)/(createDbOnOffOption_DB_CHAINING|crea~32583e58)!swap	ALTER DATABASE a SET DEALLOCATE ON
-accept	reject	engine	createAlterDbOption(restrictedUserCreateDbOption_RESTRIC~bd286b72)/fileStreamCreateAlterDbOption_FILESTREAM	ALTER DATABASE a SET FILESTREAM(a = OFF)
+reject	reject	engine	createAlterDbOption(restrictedUserCreateDbOption_RESTRIC~bd286b72)/fileStreamCreateAlterDbOption_FILESTREAM	ALTER DATABASE a SET FILESTREAM(a = OFF)
 reject	reject	engine	createAlterDbOption(restrictedUserCreateDbOption_RESTRIC~bd286b72)/fileStreamCreateAlterDbOption_FILESTREAM!drop-1	ALTER DATABASE a SET(a = OFF)
 reject	reject	engine	createAlterDbOption(restrictedUserCreateDbOption_RESTRIC~bd286b72)/fileStreamCreateAlterDbOption_FILESTREAM!drop-2	ALTER DATABASE a SET FILESTREAM a = OFF)
-accept	reject	engine	createAlterDbOption(restrictedUserCreateDbOption_RESTRIC~bd286b72)/fileStreamCreateAlterDbOption_FILESTREAM!drop-3	ALTER DATABASE a SET FILESTREAM(= OFF)
-accept	reject	engine	createAlterDbOption(restrictedUserCreateDbOption_RESTRIC~bd286b72)/fileStreamCreateAlterDbOption_FILESTREAM!drop-4	ALTER DATABASE a SET FILESTREAM(a OFF)
-accept	reject	engine	createAlterDbOption(restrictedUserCreateDbOption_RESTRIC~bd286b72)/fileStreamCreateAlterDbOption_FILESTREAM!drop-5	ALTER DATABASE a SET FILESTREAM(a =)
-accept	reject	engine	createAlterDbOption(restrictedUserCreateDbOption_RESTRIC~bd286b72)/fileStreamCreateAlterDbOption_FILESTREAM!drop-6	ALTER DATABASE a SET FILESTREAM(a = OFF
+reject	reject	engine	createAlterDbOption(restrictedUserCreateDbOption_RESTRIC~bd286b72)/fileStreamCreateAlterDbOption_FILESTREAM!drop-3	ALTER DATABASE a SET FILESTREAM(= OFF)
+reject	reject	engine	createAlterDbOption(restrictedUserCreateDbOption_RESTRIC~bd286b72)/fileStreamCreateAlterDbOption_FILESTREAM!drop-4	ALTER DATABASE a SET FILESTREAM(a OFF)
+reject	reject	engine	createAlterDbOption(restrictedUserCreateDbOption_RESTRIC~bd286b72)/fileStreamCreateAlterDbOption_FILESTREAM!drop-5	ALTER DATABASE a SET FILESTREAM(a =)
+reject	reject	engine	createAlterDbOption(restrictedUserCreateDbOption_RESTRIC~bd286b72)/fileStreamCreateAlterDbOption_FILESTREAM!drop-6	ALTER DATABASE a SET FILESTREAM(a = OFF
 reject	reject	engine	createAlterDbOption(restrictedUserCreateDbOption_RESTRIC~bd286b72)/fileStreamCreateAlterDbOption_FILESTREAM!insert	ALTER DATABASE a SET FILESTREAM(a = OFF) zzz
 reject	reject	engine	createAlterDbOption(restrictedUserCreateDbOption_RESTRIC~bd286b72)/fileStreamCreateAlterDbOption_FILESTREAM!swap	ALTER DATABASE a SET FILESTREAM_ON(a = OFF)
 reject	reject	engine	createAlterDbOption(restrictedUserCreateDbOption_RESTRIC~bd286b72)/createDbServiceBrokerOption	ALTER DATABASE a SET a
@@ -2521,8 +2521,8 @@ accept	accept	engine	createAlterDbOption(createDbOnOffOption_DB_CHAINING|crea~32
 reject	reject	engine	createAlterDbOption(createDbOnOffOption_DB_CHAINING|crea~32583e58)/createDbOnOffOption_TRUSTWORTHY!drop-2	ALTER DATABASE a SET TRUSTWORTHY
 reject	reject	engine	createAlterDbOption(createDbOnOffOption_DB_CHAINING|crea~32583e58)/createDbOnOffOption_TRUSTWORTHY!insert	ALTER DATABASE a SET TRUSTWORTHY ON zzz
 reject	reject	engine	createAlterDbOption(createDbOnOffOption_DB_CHAINING|crea~32583e58)/createDbOnOffOption_TRUSTWORTHY!swap	ALTER DATABASE a SET TRY ON
-accept	reject	engine	createAlterDbOption(createDbOnOffOption_DB_CHAINING|crea~32583e58)/createDbOnOffOption_DATA_RETENTION	ALTER DATABASE a SET DATA_RETENTION ON
-accept	reject	engine	createAlterDbOption(createDbOnOffOption_DB_CHAINING|crea~32583e58)/createDbOnOffOption_DATA_RETENTION!drop-2	ALTER DATABASE a SET DATA_RETENTION
+reject	reject	engine	createAlterDbOption(createDbOnOffOption_DB_CHAINING|crea~32583e58)/createDbOnOffOption_DATA_RETENTION	ALTER DATABASE a SET DATA_RETENTION ON
+reject	reject	engine	createAlterDbOption(createDbOnOffOption_DB_CHAINING|crea~32583e58)/createDbOnOffOption_DATA_RETENTION!drop-2	ALTER DATABASE a SET DATA_RETENTION
 reject	reject	engine	createAlterDbOption(createDbOnOffOption_DB_CHAINING|crea~32583e58)/createDbOnOffOption_DATA_RETENTION!insert	ALTER DATABASE a SET DATA_RETENTION ON zzz
 reject	reject	engine	createAlterDbOption(createDbOnOffOption_DB_CHAINING|crea~32583e58)/createDbOnOffOption_DATA_RETENTION!swap	ALTER DATABASE a SET DATA_SOURCE ON
 reject	reject	engine	createAlterDbEqualsSignOption/Identifier_EqualsSign_(createAlterDbLiteralOption|creat~a665ff9a	ALTER DATABASE a SET a = 1
@@ -2536,14 +2536,14 @@ reject	reject	engine	createAlterDbEqualsSignOption(createAlterDbLiteralOption|cr
 reject	reject	engine	createAlterDbOnOffOption/optionOnOff	ALTER DATABASE a SET a = ON
 reject	reject	engine	createAlterDbLiteralOption/integer	ALTER DATABASE a SET a = 1
 reject	reject	engine	createAlterDbIdentifierOption/SQL_LATIN1_GENERAL_CP1_CI_AS	ALTER DATABASE a SET a = SQL_LATIN1_GENERAL_CP1_CI_AS
-accept	reject	engine	databaseConfigurationOptionOnOffPrimary/Primary	ALTER DATABASE SCOPED CONFIGURATION SET QUERY_OPTIMIZER_HOTFIXES = PRIMARY
-accept	reject	engine	databaseConfigurationOptionOnOffPrimary/Primary!swap	ALTER DATABASE SCOPED CONFIGURATION SET QUERY_OPTIMIZER_HOTFIXES = PRIMARY_ROLE
+reject	reject	engine	databaseConfigurationOptionOnOffPrimary/Primary	ALTER DATABASE SCOPED CONFIGURATION SET QUERY_OPTIMIZER_HOTFIXES = PRIMARY
+reject	reject	engine	databaseConfigurationOptionOnOffPrimary/Primary!swap	ALTER DATABASE SCOPED CONFIGURATION SET QUERY_OPTIMIZER_HOTFIXES = PRIMARY_ROLE
 accept	accept	engine	databaseConfigurationOptionOnOffPrimary/On	ALTER DATABASE SCOPED CONFIGURATION SET QUERY_OPTIMIZER_HOTFIXES = ON
-accept	reject	engine	databaseConfigurationOptionOnOffPrimary/On!insert	ALTER DATABASE SCOPED CONFIGURATION SET QUERY_OPTIMIZER_HOTFIXES = ON zzz
-accept	reject	engine	databaseConfigurationOptionOnOffPrimary/On!swap	ALTER DATABASE SCOPED CONFIGURATION SET QUERY_OPTIMIZER_HOTFIXES = ONLINE
+reject	reject	engine	databaseConfigurationOptionOnOffPrimary/On!insert	ALTER DATABASE SCOPED CONFIGURATION SET QUERY_OPTIMIZER_HOTFIXES = ON zzz
+reject	reject	engine	databaseConfigurationOptionOnOffPrimary/On!swap	ALTER DATABASE SCOPED CONFIGURATION SET QUERY_OPTIMIZER_HOTFIXES = ONLINE
 accept	accept	engine	databaseConfigurationOptionOnOffPrimary/Off	ALTER DATABASE SCOPED CONFIGURATION SET QUERY_OPTIMIZER_HOTFIXES = OFF
-accept	reject	engine	databaseConfigurationOptionOnOffPrimary/Off!insert	ALTER DATABASE SCOPED CONFIGURATION SET QUERY_OPTIMIZER_HOTFIXES = OFF zzz
-accept	reject	engine	databaseConfigurationOptionOnOffPrimary/Off!swap	ALTER DATABASE SCOPED CONFIGURATION SET QUERY_OPTIMIZER_HOTFIXES = OFFLINE
+reject	reject	engine	databaseConfigurationOptionOnOffPrimary/Off!insert	ALTER DATABASE SCOPED CONFIGURATION SET QUERY_OPTIMIZER_HOTFIXES = OFF zzz
+reject	reject	engine	databaseConfigurationOptionOnOffPrimary/Off!swap	ALTER DATABASE SCOPED CONFIGURATION SET QUERY_OPTIMIZER_HOTFIXES = OFFLINE
 accept	accept	engine	optionOnOff/On	ALTER DATABASE a SET AUTO_CREATE_STATISTICS ON
 reject	reject	engine	optionOnOff/On!swap	ALTER DATABASE a SET AUTO_CREATE_STATISTICS ONLINE
 accept	accept	engine	optionOnOff/Off	ALTER DATABASE a SET AUTO_CREATE_STATISTICS OFF
@@ -2566,7 +2566,7 @@ reject	reject	engine	fileStreamOption(Off|Full|READ_ONLY)/Full!swap	RESTORE DATA
 reject	reject	engine	fileStreamOption(Off|Full|READ_ONLY)/READ_ONLY	RESTORE DATABASE @a WITH FILESTREAM(a = READ_ONLY)
 reject	reject	engine	fileStreamOption(Off|Full|READ_ONLY)/READ_ONLY!insert	RESTORE DATABASE @a WITH FILESTREAM(a = READ_ONLY zzz)
 reject	reject	engine	fileStreamOption(Off|Full|READ_ONLY)/READ_ONLY!swap	RESTORE DATABASE @a WITH FILESTREAM(a = READ_WRITE)
-reject	accept	engine	remoteDataArchiveDbSettingsList/LeftParenthesis_remoteDataArchiveDbSetting_(Comma_remot~7f2e220a	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE(SERVER = 'a')
+accept	accept	engine	remoteDataArchiveDbSettingsList/LeftParenthesis_remoteDataArchiveDbSetting_(Comma_remot~7f2e220a	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE(SERVER = 'a')
 reject	reject	engine	remoteDataArchiveDbSettingsList/LeftParenthesis_remoteDataArchiveDbSetting_(Comma_remot~7f2e220a!drop-1	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE SERVER = 'a')
 reject	reject	engine	remoteDataArchiveDbSettingsList/LeftParenthesis_remoteDataArchiveDbSetting_(Comma_remot~7f2e220a!drop-2	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE(= 'a')
 reject	reject	engine	remoteDataArchiveDbSettingsList/LeftParenthesis_remoteDataArchiveDbSetting_(Comma_remot~7f2e220a!drop-3	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE(SERVER 'a')
@@ -2574,7 +2574,7 @@ reject	reject	engine	remoteDataArchiveDbSettingsList/LeftParenthesis_remoteDataA
 reject	reject	engine	remoteDataArchiveDbSettingsList/LeftParenthesis_remoteDataArchiveDbSetting_(Comma_remot~7f2e220a!drop-5	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE(SERVER = 'a'
 reject	reject	engine	remoteDataArchiveDbSettingsList/LeftParenthesis_remoteDataArchiveDbSetting_(Comma_remot~7f2e220a!insert	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE(SERVER = 'a') zzz
 reject	reject	engine	remoteDataArchiveDbSettingsList/LeftParenthesis_remoteDataArchiveDbSetting_(Comma_remot~7f2e220a!swap	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE(SERVICE = 'a')
-reject	accept	engine	remoteDataArchiveDbSettingsList(Comma_remoteDataArchiveDbSetting)*/%empty	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE(SERVER = 'a')
+accept	accept	engine	remoteDataArchiveDbSettingsList(Comma_remoteDataArchiveDbSetting)*/%empty	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE(SERVER = 'a')
 reject	reject	engine	remoteDataArchiveDbSettingsList(Comma_remoteDataArchiveDbSetting)*/%empty!insert	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE(SERVER = 'a' zzz)
 reject	reject	engine	remoteDataArchiveDbSettingsList(Comma_remoteDataArchiveDbSetting)*/Comma_remoteDataArchiveDbSetting_(Comma_remoteDataArchi~3013d2ab	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE(SERVER = 'a', SERVER = 'a')
 reject	reject	engine	remoteDataArchiveDbSettingsList(Comma_remoteDataArchiveDbSetting)*/Comma_remoteDataArchiveDbSetting_(Comma_remoteDataArchi~3013d2ab!drop-1	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE(SERVER = 'a' SERVER = 'a')
@@ -2584,16 +2584,16 @@ reject	reject	engine	remoteDataArchiveDbSettingsList(Comma_remoteDataArchiveDbSe
 reject	reject	engine	remoteDataArchiveDbSettingsList(Comma_remoteDataArchiveDbSetting)*/Comma_remoteDataArchiveDbSetting_(Comma_remoteDataArchi~3013d2ab!truncate	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE(SERVER = 'a', SERVER =
 reject	reject	engine	remoteDataArchiveDbSettingsList(Comma_remoteDataArchiveDbSetting)*/Comma_remoteDataArchiveDbSetting_(Comma_remoteDataArchi~3013d2ab!insert	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE(SERVER = 'a', SERVER = 'a' zzz)
 reject	reject	engine	remoteDataArchiveDbSettingsList(Comma_remoteDataArchiveDbSetting)*/Comma_remoteDataArchiveDbSetting_(Comma_remoteDataArchi~3013d2ab!swap	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE(SERVER = 'a', SERVICE = 'a')
-reject	accept	engine	remoteDataArchiveDbSetting/identifier_SERVER_EqualsSign_stringLiteral	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE(SERVER = 'a')
+accept	accept	engine	remoteDataArchiveDbSetting/identifier_SERVER_EqualsSign_stringLiteral	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE(SERVER = 'a')
 reject	reject	engine	remoteDataArchiveDbSetting/identifier_SERVER_EqualsSign_stringLiteral!truncate	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE(SERVER =
-reject	accept	engine	remoteDataArchiveDbSetting/identifier_CREDENTIAL_EqualsSign_identifier	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE(CREDENTIAL = a)
+accept	accept	engine	remoteDataArchiveDbSetting/identifier_CREDENTIAL_EqualsSign_identifier	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE(CREDENTIAL = a)
 reject	reject	engine	remoteDataArchiveDbSetting/identifier_CREDENTIAL_EqualsSign_identifier!drop-1	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE(= a)
 reject	reject	engine	remoteDataArchiveDbSetting/identifier_CREDENTIAL_EqualsSign_identifier!drop-2	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE(CREDENTIAL a)
 reject	reject	engine	remoteDataArchiveDbSetting/identifier_CREDENTIAL_EqualsSign_identifier!drop-3	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE(CREDENTIAL =)
 reject	reject	engine	remoteDataArchiveDbSetting/identifier_CREDENTIAL_EqualsSign_identifier!truncate	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE(CREDENTIAL =
 reject	reject	engine	remoteDataArchiveDbSetting/identifier_CREDENTIAL_EqualsSign_identifier!insert	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE(CREDENTIAL = a zzz)
 reject	reject	engine	remoteDataArchiveDbSetting/identifier_CREDENTIAL_EqualsSign_identifier!swap	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE(CREDENTIAL_NAME = a)
-reject	accept	engine	remoteDataArchiveDbSetting/identifier_FEDERATED_SERVICE_ACCOUNT_EqualsSign_onOffOptionValue	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE(FEDERATED_SERVICE_ACCOUNT = ON)
+accept	accept	engine	remoteDataArchiveDbSetting/identifier_FEDERATED_SERVICE_ACCOUNT_EqualsSign_onOffOptionValue	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE(FEDERATED_SERVICE_ACCOUNT = ON)
 reject	reject	engine	remoteDataArchiveDbSetting/identifier_FEDERATED_SERVICE_ACCOUNT_EqualsSign_onOffOptionValue!drop-1	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE(= ON)
 reject	reject	engine	remoteDataArchiveDbSetting/identifier_FEDERATED_SERVICE_ACCOUNT_EqualsSign_onOffOptionValue!drop-2	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE(FEDERATED_SERVICE_ACCOUNT ON)
 reject	reject	engine	remoteDataArchiveDbSetting/identifier_FEDERATED_SERVICE_ACCOUNT_EqualsSign_onOffOptionValue!drop-3	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE(FEDERATED_SERVICE_ACCOUNT =)
@@ -14339,13 +14339,13 @@ reject	reject	engine	identifierOrInteger/integer!insert	DELETE a WITH(INDEX = 1 
 reject	accept	engine	stringOrIdentifier/stringLiteral	SELECT 1 'a'
 accept	accept	engine	stringOrIdentifier/identifier	SELECT 1 a
 reject	reject	engine	stringOrIdentifier/identifier!insert	SELECT 1 a zzz
-accept	reject	engine	stringOrSignedIntegerOrIdentifier/stringLiteral	ALTER DATABASE SCOPED CONFIGURATION SET a = 'a'
-accept	reject	engine	stringOrSignedIntegerOrIdentifier/signedInteger	ALTER DATABASE SCOPED CONFIGURATION SET a = 1
-accept	reject	engine	stringOrSignedIntegerOrIdentifier/signedInteger!insert	ALTER DATABASE SCOPED CONFIGURATION SET a = 1 zzz
-accept	reject	engine	stringOrSignedIntegerOrIdentifier/identifier	ALTER DATABASE SCOPED CONFIGURATION SET a = a
-accept	reject	engine	stringOrSignedIntegerOrIdentifier/identifier!insert	ALTER DATABASE SCOPED CONFIGURATION SET a = a zzz
+reject	reject	engine	stringOrSignedIntegerOrIdentifier/stringLiteral	ALTER DATABASE SCOPED CONFIGURATION SET a = 'a'
+reject	reject	engine	stringOrSignedIntegerOrIdentifier/signedInteger	ALTER DATABASE SCOPED CONFIGURATION SET a = 1
+reject	reject	engine	stringOrSignedIntegerOrIdentifier/signedInteger!insert	ALTER DATABASE SCOPED CONFIGURATION SET a = 1 zzz
+reject	reject	engine	stringOrSignedIntegerOrIdentifier/identifier	ALTER DATABASE SCOPED CONFIGURATION SET a = a
+reject	reject	engine	stringOrSignedIntegerOrIdentifier/identifier!insert	ALTER DATABASE SCOPED CONFIGURATION SET a = a zzz
 reject	reject	engine	nonEmptyStringOrIdentifier/nonEmptyString	CREATE DATABASE a ON(NAME = 'a')
-accept	reject	engine	nonEmptyStringOrIdentifier/identifier	CREATE DATABASE a ON(NAME = a)
+reject	reject	engine	nonEmptyStringOrIdentifier/identifier	CREATE DATABASE a ON(NAME = a)
 reject	reject	engine	nonEmptyStringOrIdentifier/identifier!insert	CREATE DATABASE a ON(NAME = a zzz)
 accept	reject	engine	nonQuotedIdentifier/Identifier	GOTO a
 reject	reject	engine	sqlCommandIdentifier/SqlCommandIdentifier	ALTER DATABASE $(a) SET RESTRICTED_USER
@@ -14465,10 +14465,10 @@ accept	accept	engine	assignmentWithOp/BitwiseXorEquals	SET @a ^= 1
 reject	reject	engine	assignmentWithOp/BitwiseXorEquals!insert	SET @a ^= zzz 1
 reject	reject	engine	assignmentWithOp/ConcatEquals	SET @a ||= 1
 reject	reject	engine	assignmentWithOp/ConcatEquals!insert	SET @a ||= zzz 1
-accept	reject	engine	onOff/On	ALTER DATABASE SCOPED CONFIGURATION SET a = ON
-accept	reject	engine	onOff/Off	ALTER DATABASE SCOPED CONFIGURATION SET a = OFF
-accept	reject	engine	onOff/Off!insert	ALTER DATABASE SCOPED CONFIGURATION SET a = OFF zzz
-accept	reject	engine	onOff/Off!swap	ALTER DATABASE SCOPED CONFIGURATION SET a = OFFLINE
+reject	reject	engine	onOff/On	ALTER DATABASE SCOPED CONFIGURATION SET a = ON
+reject	reject	engine	onOff/Off	ALTER DATABASE SCOPED CONFIGURATION SET a = OFF
+reject	reject	engine	onOff/Off!insert	ALTER DATABASE SCOPED CONFIGURATION SET a = OFF zzz
+reject	reject	engine	onOff/Off!swap	ALTER DATABASE SCOPED CONFIGURATION SET a = OFFLINE
 accept	reject	engine	securityStatementPermission/Identifier	GRANT a TO PUBLIC
 reject	reject	engine	securityStatementPermission/Add	GRANT ADD TO PUBLIC
 reject	reject	engine	securityStatementPermission/Add!insert	GRANT ADD zzz TO PUBLIC
@@ -15617,29 +15617,29 @@ accept	reject	engine	alterDatabaseAuditSpecification_AUDIT(Comma_auditSpecificat
 reject	reject	engine	alterDatabaseAuditSpecification_AUDIT(Comma_auditSpecificationDetailDb)*/Comma_auditSpecificationDetailDb_(Comma_auditSpecificat~dae1e795!insert	ALTER DATABASE AUDIT SPECIFICATION a ADD(a), ADD(a) zzz
 reject	reject	engine	alterDatabaseAuditSpecification_AUDIT(Comma_auditSpecificationDetailDb)*/Comma_auditSpecificationDetailDb_(Comma_auditSpecificat~dae1e795!swap	ALTER DATABASE AUDIT SPECIFICATION a ADD(a), ADMIN(a)
 accept	accept	engine	alterDatabaseScopedCredentialStatement_SCOPED/SCOPED_credentialStatementBody	ALTER DATABASE SCOPED CREDENTIAL a WITH IDENTITY = 'a'
-accept	reject	engine	alterDatabaseScopedConfigurationStatement_SCOPED/SCOPED_CONFIGURATION_(For_Identifier)?_(alterDatabaseSc~ccfbb3e4	ALTER DATABASE SCOPED CONFIGURATION CLEAR a
-accept	reject	engine	alterDatabaseScopedConfigurationStatement_SCOPED(For_Identifier)?/%empty	ALTER DATABASE SCOPED CONFIGURATION CLEAR a
-accept	reject	engine	alterDatabaseScopedConfigurationStatement_SCOPED(For_Identifier)?/%empty!insert	ALTER DATABASE SCOPED CONFIGURATION zzz CLEAR a
+reject	reject	engine	alterDatabaseScopedConfigurationStatement_SCOPED/SCOPED_CONFIGURATION_(For_Identifier)?_(alterDatabaseSc~ccfbb3e4	ALTER DATABASE SCOPED CONFIGURATION CLEAR a
+reject	reject	engine	alterDatabaseScopedConfigurationStatement_SCOPED(For_Identifier)?/%empty	ALTER DATABASE SCOPED CONFIGURATION CLEAR a
+reject	reject	engine	alterDatabaseScopedConfigurationStatement_SCOPED(For_Identifier)?/%empty!insert	ALTER DATABASE SCOPED CONFIGURATION zzz CLEAR a
 reject	reject	engine	alterDatabaseScopedConfigurationStatement_SCOPED(For_Identifier)?/For_Identifier	ALTER DATABASE SCOPED CONFIGURATION FOR a CLEAR a
-accept	reject	engine	alterDatabaseScopedConfigurationStatement_SCOPED(For_Identifier)?/For_Identifier!drop-1	ALTER DATABASE SCOPED CONFIGURATION a CLEAR a
+reject	reject	engine	alterDatabaseScopedConfigurationStatement_SCOPED(For_Identifier)?/For_Identifier!drop-1	ALTER DATABASE SCOPED CONFIGURATION a CLEAR a
 reject	reject	engine	alterDatabaseScopedConfigurationStatement_SCOPED(For_Identifier)?/For_Identifier!drop-2	ALTER DATABASE SCOPED CONFIGURATION FOR CLEAR a
 reject	reject	engine	alterDatabaseScopedConfigurationStatement_SCOPED(For_Identifier)?/For_Identifier!truncate	ALTER DATABASE SCOPED CONFIGURATION FOR
 reject	reject	engine	alterDatabaseScopedConfigurationStatement_SCOPED(For_Identifier)?/For_Identifier!insert	ALTER DATABASE SCOPED CONFIGURATION FOR a zzz CLEAR a
-accept	reject	engine	alterDatabaseScopedConfigurationStatement_SCOPED(For_Identifier)?/For_Identifier!swap	ALTER DATABASE SCOPED CONFIGURATION FORCE a CLEAR a
+reject	reject	engine	alterDatabaseScopedConfigurationStatement_SCOPED(For_Identifier)?/For_Identifier!swap	ALTER DATABASE SCOPED CONFIGURATION FORCE a CLEAR a
 accept	accept	engine	alterDatabaseScopedConfigurationStatement_SCOPED(alterDatabaseScopedConfigSet|alterDa~72bd059b)/alterDatabaseScopedConfigSet	ALTER DATABASE SCOPED CONFIGURATION SET MAXDOP = 1
-accept	reject	engine	alterDatabaseScopedConfigurationStatement_SCOPED(alterDatabaseScopedConfigSet|alterDa~72bd059b)/alterDatabaseScopedConfigClear	ALTER DATABASE SCOPED CONFIGURATION CLEAR a
+reject	reject	engine	alterDatabaseScopedConfigurationStatement_SCOPED(alterDatabaseScopedConfigSet|alterDa~72bd059b)/alterDatabaseScopedConfigClear	ALTER DATABASE SCOPED CONFIGURATION CLEAR a
 accept	accept	engine	alterDatabaseScopedMaxDopOption_MAXDOP/MAXDOP_EqualsSign_(integer|Primary)	ALTER DATABASE SCOPED CONFIGURATION SET MAXDOP = 1
 accept	accept	engine	alterDatabaseScopedMaxDopOption_MAXDOP(integer|Primary)/integer	ALTER DATABASE SCOPED CONFIGURATION SET MAXDOP = 1
-accept	reject	engine	alterDatabaseScopedMaxDopOption_MAXDOP(integer|Primary)/Primary	ALTER DATABASE SCOPED CONFIGURATION SET MAXDOP = PRIMARY
-accept	reject	engine	alterDatabaseScopedMaxDopOption_MAXDOP(integer|Primary)/Primary!insert	ALTER DATABASE SCOPED CONFIGURATION SET MAXDOP = PRIMARY zzz
-accept	reject	engine	alterDatabaseScopedMaxDopOption_MAXDOP(integer|Primary)/Primary!swap	ALTER DATABASE SCOPED CONFIGURATION SET MAXDOP = PRIMARY_ROLE
-accept	reject	engine	alterDatabaseScopedOnOffPrimaryOption_QUERY_OPTIMIZER_HOTFIXES/QUERY_OPTIMIZER_HOTFIXES_EqualsSign_databaseConfigurati~a3514ede	ALTER DATABASE SCOPED CONFIGURATION SET QUERY_OPTIMIZER_HOTFIXES = PRIMARY
-accept	reject	engine	alterDatabaseScopedOnOffPrimaryOption_PARAMETER_SNIFFING/PARAMETER_SNIFFING_EqualsSign_databaseConfigurationOpti~a3745063	ALTER DATABASE SCOPED CONFIGURATION SET PARAMETER_SNIFFING = PRIMARY
-accept	reject	engine	alterDatabaseScopedOnOffPrimaryOption_LEGACY_CARDINALITY_ESTIMATION/LEGACY_CARDINALITY_ESTIMATION_EqualsSign_databaseConfig~4601990c	ALTER DATABASE SCOPED CONFIGURATION SET LEGACY_CARDINALITY_ESTIMATION = PRIMARY
+reject	reject	engine	alterDatabaseScopedMaxDopOption_MAXDOP(integer|Primary)/Primary	ALTER DATABASE SCOPED CONFIGURATION SET MAXDOP = PRIMARY
+reject	reject	engine	alterDatabaseScopedMaxDopOption_MAXDOP(integer|Primary)/Primary!insert	ALTER DATABASE SCOPED CONFIGURATION SET MAXDOP = PRIMARY zzz
+reject	reject	engine	alterDatabaseScopedMaxDopOption_MAXDOP(integer|Primary)/Primary!swap	ALTER DATABASE SCOPED CONFIGURATION SET MAXDOP = PRIMARY_ROLE
+reject	reject	engine	alterDatabaseScopedOnOffPrimaryOption_QUERY_OPTIMIZER_HOTFIXES/QUERY_OPTIMIZER_HOTFIXES_EqualsSign_databaseConfigurati~a3514ede	ALTER DATABASE SCOPED CONFIGURATION SET QUERY_OPTIMIZER_HOTFIXES = PRIMARY
+reject	reject	engine	alterDatabaseScopedOnOffPrimaryOption_PARAMETER_SNIFFING/PARAMETER_SNIFFING_EqualsSign_databaseConfigurationOpti~a3745063	ALTER DATABASE SCOPED CONFIGURATION SET PARAMETER_SNIFFING = PRIMARY
+reject	reject	engine	alterDatabaseScopedOnOffPrimaryOption_LEGACY_CARDINALITY_ESTIMATION/LEGACY_CARDINALITY_ESTIMATION_EqualsSign_databaseConfig~4601990c	ALTER DATABASE SCOPED CONFIGURATION SET LEGACY_CARDINALITY_ESTIMATION = PRIMARY
 accept	accept	engine	alterDbRemove_REMOVE/REMOVE_(File_identifier|FILEGROUP_identifier)	ALTER DATABASE a REMOVE FILE a
 accept	accept	engine	alterDbRemove_REMOVE(File_identifier|FILEGROUP_identifier)/File_identifier	ALTER DATABASE a REMOVE FILE a
 accept	accept	engine	alterDbRemove_REMOVE(File_identifier|FILEGROUP_identifier)/FILEGROUP_identifier	ALTER DATABASE a REMOVE FILEGROUP a
-accept	reject	engine	alterDbRemove_REMOVE(File_identifier|FILEGROUP_identifier)/FILEGROUP_identifier!drop-2	ALTER DATABASE a REMOVE FILEGROUP
+reject	reject	engine	alterDbRemove_REMOVE(File_identifier|FILEGROUP_identifier)/FILEGROUP_identifier!drop-2	ALTER DATABASE a REMOVE FILEGROUP
 reject	reject	engine	alterDbRemove_REMOVE(File_identifier|FILEGROUP_identifier)/FILEGROUP_identifier!insert	ALTER DATABASE a REMOVE FILEGROUP a zzz
 reject	reject	engine	alterDbRemove_REMOVE(File_identifier|FILEGROUP_identifier)/FILEGROUP_identifier!swap	ALTER DATABASE a REMOVE FILEGROWTH a
 accept	accept	engine	alterDbModify_MODIFY/MODIFY_((NAME_EqualsSign_identifier)|(FILEGR~20f45fc4)	ALTER DATABASE a MODIFY NAME = a
@@ -15649,7 +15649,7 @@ accept	accept	engine	alterDbModify_MODIFY((NAME_EqualsSign_identifier)|(FILEGR~2
 reject	reject	engine	alterDbModify_MODIFY((NAME_EqualsSign_identifier)|(FILEGR~20f45fc4)/FILEGROUP_alterDbModifyFilegroup!drop-1	ALTER DATABASE a MODIFY a DEFAULT
 reject	reject	engine	alterDbModify_MODIFY((NAME_EqualsSign_identifier)|(FILEGR~20f45fc4)/FILEGROUP_alterDbModifyFilegroup!swap	ALTER DATABASE a MODIFY FILEGROWTH a DEFAULT
 accept	accept	engine	alterDbModify_MODIFY((NAME_EqualsSign_identifier)|(FILEGR~20f45fc4)/alterDbModifyFile	ALTER DATABASE a MODIFY FILE(OFFLINE)
-accept	reject	engine	alterDbModify_MODIFY((NAME_EqualsSign_identifier)|(FILEGR~20f45fc4)/alterDbModifyAzureOptions	ALTER DATABASE a MODIFY(EDITION = 'a')
+reject	reject	engine	alterDbModify_MODIFY((NAME_EqualsSign_identifier)|(FILEGR~20f45fc4)/alterDbModifyAzureOptions	ALTER DATABASE a MODIFY(EDITION = 'a')
 accept	accept	engine	cursorDefaultDbOption_CURSOR_DEFAULT/CURSOR_DEFAULT_(LOCAL|GLOBAL)	ALTER DATABASE a SET CURSOR_DEFAULT LOCAL
 accept	accept	engine	cursorDefaultDbOption_CURSOR_DEFAULT(LOCAL|GLOBAL)/LOCAL	ALTER DATABASE a SET CURSOR_DEFAULT LOCAL
 reject	reject	engine	cursorDefaultDbOption_CURSOR_DEFAULT(LOCAL|GLOBAL)/LOCAL!swap	ALTER DATABASE a SET CURSOR_DEFAULT LOCATION
@@ -15663,26 +15663,26 @@ reject	reject	engine	recoveryDbOption_RECOVERY(Full|Identifier)/Identifier	ALTER
 reject	reject	engine	recoveryDbOption_RECOVERY(Full|Identifier)/Identifier!insert	ALTER DATABASE a SET RECOVERY a zzz
 reject	reject	engine	targetRecoveryTimeDbOption_TARGET_RECOVERY_TIME/TARGET_RECOVERY_TIME_EqualsSign_integer_Identifier	ALTER DATABASE a SET TARGET_RECOVERY_TIME = 1 a
 reject	reject	engine	pageVerifyDbOption_PAGE_VERIFY/PAGE_VERIFY_Identifier	ALTER DATABASE a SET PAGE_VERIFY a
-accept	reject	engine	partnerOption_PARTNER/PARTNER_(((TIMEOUT_integer)|(SAFETY_(Full|Off~a2ed4878)	ALTER DATABASE a SET PARTNER a
-accept	reject	engine	partnerOption_PARTNER(((TIMEOUT_integer)|(SAFETY_(Full|Off~a2ed4878)/((TIMEOUT_integer)|(SAFETY_(Full|Off)~bd8002ca)	ALTER DATABASE a SET PARTNER a
+reject	reject	engine	partnerOption_PARTNER/PARTNER_(((TIMEOUT_integer)|(SAFETY_(Full|Off~a2ed4878)	ALTER DATABASE a SET PARTNER a
+reject	reject	engine	partnerOption_PARTNER(((TIMEOUT_integer)|(SAFETY_(Full|Off~a2ed4878)/((TIMEOUT_integer)|(SAFETY_(Full|Off)~bd8002ca)	ALTER DATABASE a SET PARTNER a
 accept	accept	engine	partnerOption_PARTNER(((TIMEOUT_integer)|(SAFETY_(Full|Off~a2ed4878)/Off	ALTER DATABASE a SET PARTNER OFF
 reject	reject	engine	partnerOption_PARTNER(((TIMEOUT_integer)|(SAFETY_(Full|Off~a2ed4878)/Off!insert	ALTER DATABASE a SET PARTNER OFF zzz
-accept	reject	engine	partnerOption_PARTNER(((TIMEOUT_integer)|(SAFETY_(Full|Off~a2ed4878)/Off!swap	ALTER DATABASE a SET PARTNER OFFLINE
+reject	reject	engine	partnerOption_PARTNER(((TIMEOUT_integer)|(SAFETY_(Full|Off~a2ed4878)/Off!swap	ALTER DATABASE a SET PARTNER OFFLINE
 accept	accept	engine	partnerOption_PARTNER(((TIMEOUT_integer)|(SAFETY_(Full|Off~a2ed4878)/EqualsSign_stringLiteral	ALTER DATABASE a SET PARTNER = 'a'
 reject	reject	engine	partnerOption_PARTNER(((TIMEOUT_integer)|(SAFETY_(Full|Off~a2ed4878)/EqualsSign_stringLiteral!drop-1	ALTER DATABASE a SET PARTNER 'a'
-accept	reject	engine	partnerOption_PARTNER(((TIMEOUT_integer)|(SAFETY_(Full|Off~a2ed4878)/EqualsSign_stringLiteral!drop-2	ALTER DATABASE a SET PARTNER =
+reject	reject	engine	partnerOption_PARTNER(((TIMEOUT_integer)|(SAFETY_(Full|Off~a2ed4878)/EqualsSign_stringLiteral!drop-2	ALTER DATABASE a SET PARTNER =
 reject	reject	engine	partnerOption_PARTNER(((TIMEOUT_integer)|(SAFETY_(Full|Off~a2ed4878)/EqualsSign_stringLiteral!insert	ALTER DATABASE a SET PARTNER = 'a' zzz
 accept	accept	engine	partnerOption_PARTNER((TIMEOUT_integer)|(SAFETY_(Full|Off)~bd8002ca)/TIMEOUT_integer	ALTER DATABASE a SET PARTNER TIMEOUT 1
 reject	reject	engine	partnerOption_PARTNER((TIMEOUT_integer)|(SAFETY_(Full|Off)~bd8002ca)/TIMEOUT_integer!drop-1	ALTER DATABASE a SET PARTNER 1
-accept	reject	engine	partnerOption_PARTNER((TIMEOUT_integer)|(SAFETY_(Full|Off)~bd8002ca)/TIMEOUT_integer!drop-2	ALTER DATABASE a SET PARTNER TIMEOUT
+reject	reject	engine	partnerOption_PARTNER((TIMEOUT_integer)|(SAFETY_(Full|Off)~bd8002ca)/TIMEOUT_integer!drop-2	ALTER DATABASE a SET PARTNER TIMEOUT
 reject	reject	engine	partnerOption_PARTNER((TIMEOUT_integer)|(SAFETY_(Full|Off)~bd8002ca)/TIMEOUT_integer!insert	ALTER DATABASE a SET PARTNER TIMEOUT 1 zzz
 reject	reject	engine	partnerOption_PARTNER((TIMEOUT_integer)|(SAFETY_(Full|Off)~bd8002ca)/TIMEOUT_integer!swap	ALTER DATABASE a SET PARTNER TIMER 1
 accept	accept	engine	partnerOption_PARTNER((TIMEOUT_integer)|(SAFETY_(Full|Off)~bd8002ca)/SAFETY_(Full|Off)	ALTER DATABASE a SET PARTNER SAFETY FULL
-accept	reject	engine	partnerOption_PARTNER((TIMEOUT_integer)|(SAFETY_(Full|Off)~bd8002ca)/SAFETY_(Full|Off)!drop-1	ALTER DATABASE a SET PARTNER FULL
-accept	reject	engine	partnerOption_PARTNER((TIMEOUT_integer)|(SAFETY_(Full|Off)~bd8002ca)/SAFETY_(Full|Off)!drop-2	ALTER DATABASE a SET PARTNER SAFETY
+reject	reject	engine	partnerOption_PARTNER((TIMEOUT_integer)|(SAFETY_(Full|Off)~bd8002ca)/SAFETY_(Full|Off)!drop-1	ALTER DATABASE a SET PARTNER FULL
+reject	reject	engine	partnerOption_PARTNER((TIMEOUT_integer)|(SAFETY_(Full|Off)~bd8002ca)/SAFETY_(Full|Off)!drop-2	ALTER DATABASE a SET PARTNER SAFETY
 reject	reject	engine	partnerOption_PARTNER((TIMEOUT_integer)|(SAFETY_(Full|Off)~bd8002ca)/SAFETY_(Full|Off)!insert	ALTER DATABASE a SET PARTNER SAFETY FULL zzz
 reject	reject	engine	partnerOption_PARTNER((TIMEOUT_integer)|(SAFETY_(Full|Off)~bd8002ca)/SAFETY_(Full|Off)!swap	ALTER DATABASE a SET PARTNER SAMPLE FULL
-accept	reject	engine	partnerOption_PARTNER((TIMEOUT_integer)|(SAFETY_(Full|Off)~bd8002ca)/Identifier	ALTER DATABASE a SET PARTNER a
+reject	reject	engine	partnerOption_PARTNER((TIMEOUT_integer)|(SAFETY_(Full|Off)~bd8002ca)/Identifier	ALTER DATABASE a SET PARTNER a
 accept	accept	engine	partnerOption_PARTNER(Full|Off)/Full	ALTER DATABASE a SET PARTNER SAFETY FULL
 reject	reject	engine	partnerOption_PARTNER(Full|Off)/Full!swap	ALTER DATABASE a SET PARTNER SAFETY FULLSCAN
 accept	accept	engine	partnerOption_PARTNER(Full|Off)/Off	ALTER DATABASE a SET PARTNER SAFETY OFF
@@ -15690,10 +15690,10 @@ reject	reject	engine	partnerOption_PARTNER(Full|Off)/Off!insert	ALTER DATABASE a
 reject	reject	engine	partnerOption_PARTNER(Full|Off)/Off!swap	ALTER DATABASE a SET PARTNER SAFETY OFFLINE
 accept	accept	engine	witnessOption_WITNESS/WITNESS_(Off|EqualsSign_stringLiteral)	ALTER DATABASE a SET WITNESS OFF
 accept	accept	engine	witnessOption_WITNESS(Off|EqualsSign_stringLiteral)/Off	ALTER DATABASE a SET WITNESS OFF
-accept	reject	engine	witnessOption_WITNESS(Off|EqualsSign_stringLiteral)/Off!swap	ALTER DATABASE a SET WITNESS OFFLINE
+reject	reject	engine	witnessOption_WITNESS(Off|EqualsSign_stringLiteral)/Off!swap	ALTER DATABASE a SET WITNESS OFFLINE
 accept	accept	engine	witnessOption_WITNESS(Off|EqualsSign_stringLiteral)/EqualsSign_stringLiteral	ALTER DATABASE a SET WITNESS = 'a'
 reject	reject	engine	witnessOption_WITNESS(Off|EqualsSign_stringLiteral)/EqualsSign_stringLiteral!drop-1	ALTER DATABASE a SET WITNESS 'a'
-accept	reject	engine	witnessOption_WITNESS(Off|EqualsSign_stringLiteral)/EqualsSign_stringLiteral!drop-2	ALTER DATABASE a SET WITNESS =
+reject	reject	engine	witnessOption_WITNESS(Off|EqualsSign_stringLiteral)/EqualsSign_stringLiteral!drop-2	ALTER DATABASE a SET WITNESS =
 reject	reject	engine	witnessOption_WITNESS(Off|EqualsSign_stringLiteral)/EqualsSign_stringLiteral!insert	ALTER DATABASE a SET WITNESS = 'a' zzz
 accept	accept	engine	parameterizationOption_PARAMETERIZATION/PARAMETERIZATION_(SIMPLE|FORCED)	ALTER DATABASE a SET PARAMETERIZATION SIMPLE
 accept	accept	engine	parameterizationOption_PARAMETERIZATION(SIMPLE|FORCED)/SIMPLE	ALTER DATABASE a SET PARAMETERIZATION SIMPLE
@@ -15704,42 +15704,42 @@ reject	reject	engine	parameterizationOption_PARAMETERIZATION(SIMPLE|FORCED)/FORC
 accept	accept	engine	compatibilityLevelDbOption_COMPATIBILITY_LEVEL/COMPATIBILITY_LEVEL_EqualsSign_integer	ALTER DATABASE a SET COMPATIBILITY_LEVEL = 1
 accept	accept	engine	changeTrackingDbOption_CHANGE_TRACKING/CHANGE_TRACKING_((EqualsSign_Off)|(EqualsSign_On_(cha~88f7adeb)	ALTER DATABASE a SET CHANGE_TRACKING = OFF
 accept	accept	engine	changeTrackingDbOption_CHANGE_TRACKING((EqualsSign_Off)|(EqualsSign_On_(cha~88f7adeb)/EqualsSign_Off	ALTER DATABASE a SET CHANGE_TRACKING = OFF
-accept	reject	engine	changeTrackingDbOption_CHANGE_TRACKING((EqualsSign_Off)|(EqualsSign_On_(cha~88f7adeb)/EqualsSign_Off!swap	ALTER DATABASE a SET CHANGE_TRACKING = OFFLINE
+reject	reject	engine	changeTrackingDbOption_CHANGE_TRACKING((EqualsSign_Off)|(EqualsSign_On_(cha~88f7adeb)/EqualsSign_Off!swap	ALTER DATABASE a SET CHANGE_TRACKING = OFFLINE
 accept	accept	engine	changeTrackingDbOption_CHANGE_TRACKING((EqualsSign_Off)|(EqualsSign_On_(cha~88f7adeb)/EqualsSign_On_(changeTrackingOnOptions)?	ALTER DATABASE a SET CHANGE_TRACKING = ON
-accept	reject	engine	changeTrackingDbOption_CHANGE_TRACKING((EqualsSign_Off)|(EqualsSign_On_(cha~88f7adeb)/EqualsSign_On_(changeTrackingOnOptions)?!drop-1	ALTER DATABASE a SET CHANGE_TRACKING ON
+reject	reject	engine	changeTrackingDbOption_CHANGE_TRACKING((EqualsSign_Off)|(EqualsSign_On_(cha~88f7adeb)/EqualsSign_On_(changeTrackingOnOptions)?!drop-1	ALTER DATABASE a SET CHANGE_TRACKING ON
 reject	reject	engine	changeTrackingDbOption_CHANGE_TRACKING((EqualsSign_Off)|(EqualsSign_On_(cha~88f7adeb)/EqualsSign_On_(changeTrackingOnOptions)?!insert	ALTER DATABASE a SET CHANGE_TRACKING = ON zzz
-accept	reject	engine	changeTrackingDbOption_CHANGE_TRACKING((EqualsSign_Off)|(EqualsSign_On_(cha~88f7adeb)/EqualsSign_On_(changeTrackingOnOptions)?!swap	ALTER DATABASE a SET CHANGE_TRACKING = ONLINE
+reject	reject	engine	changeTrackingDbOption_CHANGE_TRACKING((EqualsSign_Off)|(EqualsSign_On_(cha~88f7adeb)/EqualsSign_On_(changeTrackingOnOptions)?!swap	ALTER DATABASE a SET CHANGE_TRACKING = ONLINE
 reject	reject	engine	changeTrackingDbOption_CHANGE_TRACKING((EqualsSign_Off)|(EqualsSign_On_(cha~88f7adeb)/changeTrackingOnOptions	ALTER DATABASE a SET CHANGE_TRACKING(a = ON)
 accept	accept	engine	changeTrackingDbOption_CHANGE_TRACKING(changeTrackingOnOptions)?/%empty	ALTER DATABASE a SET CHANGE_TRACKING = ON
-accept	reject	engine	changeTrackingDbOption_CHANGE_TRACKING(changeTrackingOnOptions)?/changeTrackingOnOptions	ALTER DATABASE a SET CHANGE_TRACKING = ON(a = ON)
+reject	reject	engine	changeTrackingDbOption_CHANGE_TRACKING(changeTrackingOnOptions)?/changeTrackingOnOptions	ALTER DATABASE a SET CHANGE_TRACKING = ON(a = ON)
 reject	reject	engine	changeTrackingDbOption_CHANGE_TRACKING(changeTrackingOnOptions)?/changeTrackingOnOptions!drop-1	ALTER DATABASE a SET CHANGE_TRACKING = ON a = ON)
-accept	reject	engine	changeTrackingDbOption_CHANGE_TRACKING(changeTrackingOnOptions)?/changeTrackingOnOptions!drop-2	ALTER DATABASE a SET CHANGE_TRACKING = ON(= ON)
-accept	reject	engine	changeTrackingDbOption_CHANGE_TRACKING(changeTrackingOnOptions)?/changeTrackingOnOptions!drop-3	ALTER DATABASE a SET CHANGE_TRACKING = ON(a ON)
-accept	reject	engine	changeTrackingDbOption_CHANGE_TRACKING(changeTrackingOnOptions)?/changeTrackingOnOptions!drop-4	ALTER DATABASE a SET CHANGE_TRACKING = ON(a =)
-accept	reject	engine	changeTrackingDbOption_CHANGE_TRACKING(changeTrackingOnOptions)?/changeTrackingOnOptions!drop-5	ALTER DATABASE a SET CHANGE_TRACKING = ON(a = ON
+reject	reject	engine	changeTrackingDbOption_CHANGE_TRACKING(changeTrackingOnOptions)?/changeTrackingOnOptions!drop-2	ALTER DATABASE a SET CHANGE_TRACKING = ON(= ON)
+reject	reject	engine	changeTrackingDbOption_CHANGE_TRACKING(changeTrackingOnOptions)?/changeTrackingOnOptions!drop-3	ALTER DATABASE a SET CHANGE_TRACKING = ON(a ON)
+reject	reject	engine	changeTrackingDbOption_CHANGE_TRACKING(changeTrackingOnOptions)?/changeTrackingOnOptions!drop-4	ALTER DATABASE a SET CHANGE_TRACKING = ON(a =)
+reject	reject	engine	changeTrackingDbOption_CHANGE_TRACKING(changeTrackingOnOptions)?/changeTrackingOnOptions!drop-5	ALTER DATABASE a SET CHANGE_TRACKING = ON(a = ON
 reject	reject	engine	changeTrackingDbOption_CHANGE_TRACKING(changeTrackingOnOptions)?/changeTrackingOnOptions!insert	ALTER DATABASE a SET CHANGE_TRACKING = ON(a = ON) zzz
-accept	reject	engine	changeTrackingDbOption_CHANGE_TRACKING(changeTrackingOnOptions)?/changeTrackingOnOptions!swap	ALTER DATABASE a SET CHANGE_TRACKING = ON(a = ONLINE)
+reject	reject	engine	changeTrackingDbOption_CHANGE_TRACKING(changeTrackingOnOptions)?/changeTrackingOnOptions!swap	ALTER DATABASE a SET CHANGE_TRACKING = ON(a = ONLINE)
 accept	accept	engine	acceleratedDatabaseRecoveryOption_ACCELERATED_DATABASE_RECOVERY/ACCELERATED_DATABASE_RECOVERY_((EqualsSign_Off)|(EqualsSign_On))	ALTER DATABASE a SET ACCELERATED_DATABASE_RECOVERY = OFF
 accept	accept	engine	acceleratedDatabaseRecoveryOption_ACCELERATED_DATABASE_RECOVERY((EqualsSign_Off)|(EqualsSign_On))/EqualsSign_Off	ALTER DATABASE a SET ACCELERATED_DATABASE_RECOVERY = OFF
-accept	reject	engine	acceleratedDatabaseRecoveryOption_ACCELERATED_DATABASE_RECOVERY((EqualsSign_Off)|(EqualsSign_On))/EqualsSign_Off!swap	ALTER DATABASE a SET ACCELERATED_DATABASE_RECOVERY = OFFLINE
+reject	reject	engine	acceleratedDatabaseRecoveryOption_ACCELERATED_DATABASE_RECOVERY((EqualsSign_Off)|(EqualsSign_On))/EqualsSign_Off!swap	ALTER DATABASE a SET ACCELERATED_DATABASE_RECOVERY = OFFLINE
 accept	accept	engine	acceleratedDatabaseRecoveryOption_ACCELERATED_DATABASE_RECOVERY((EqualsSign_Off)|(EqualsSign_On))/EqualsSign_On	ALTER DATABASE a SET ACCELERATED_DATABASE_RECOVERY = ON
-accept	reject	engine	acceleratedDatabaseRecoveryOption_ACCELERATED_DATABASE_RECOVERY((EqualsSign_Off)|(EqualsSign_On))/EqualsSign_On!drop-1	ALTER DATABASE a SET ACCELERATED_DATABASE_RECOVERY ON
+reject	reject	engine	acceleratedDatabaseRecoveryOption_ACCELERATED_DATABASE_RECOVERY((EqualsSign_Off)|(EqualsSign_On))/EqualsSign_On!drop-1	ALTER DATABASE a SET ACCELERATED_DATABASE_RECOVERY ON
 reject	reject	engine	acceleratedDatabaseRecoveryOption_ACCELERATED_DATABASE_RECOVERY((EqualsSign_Off)|(EqualsSign_On))/EqualsSign_On!insert	ALTER DATABASE a SET ACCELERATED_DATABASE_RECOVERY = ON zzz
-accept	reject	engine	acceleratedDatabaseRecoveryOption_ACCELERATED_DATABASE_RECOVERY((EqualsSign_Off)|(EqualsSign_On))/EqualsSign_On!swap	ALTER DATABASE a SET ACCELERATED_DATABASE_RECOVERY = ONLINE
-accept	reject	engine	dbContainmentOption_CONTAINMENT/CONTAINMENT_EqualsSign_Identifier	ALTER DATABASE a SET CONTAINMENT = a
+reject	reject	engine	acceleratedDatabaseRecoveryOption_ACCELERATED_DATABASE_RECOVERY((EqualsSign_Off)|(EqualsSign_On))/EqualsSign_On!swap	ALTER DATABASE a SET ACCELERATED_DATABASE_RECOVERY = ONLINE
+reject	reject	engine	dbContainmentOption_CONTAINMENT/CONTAINMENT_EqualsSign_Identifier	ALTER DATABASE a SET CONTAINMENT = a
 accept	accept	engine	hadrDbOption_HADR/HADR_(hadrAvailabilityDbOption_AVAILABILIT~31bb7a24)	ALTER DATABASE a SET HADR RESUME
 accept	accept	engine	hadrDbOption_HADR(hadrAvailabilityDbOption_AVAILABILIT~31bb7a24)/hadrAvailabilityDbOption_AVAILABILITY	ALTER DATABASE a SET HADR AVAILABILITY GROUP = a
 reject	reject	engine	hadrDbOption_HADR(hadrAvailabilityDbOption_AVAILABILIT~31bb7a24)/hadrAvailabilityDbOption_AVAILABILITY!drop-1	ALTER DATABASE a SET HADR GROUP = a
-accept	reject	engine	hadrDbOption_HADR(hadrAvailabilityDbOption_AVAILABILIT~31bb7a24)/hadrAvailabilityDbOption_AVAILABILITY!drop-2	ALTER DATABASE a SET HADR AVAILABILITY = a
+reject	reject	engine	hadrDbOption_HADR(hadrAvailabilityDbOption_AVAILABILIT~31bb7a24)/hadrAvailabilityDbOption_AVAILABILITY!drop-2	ALTER DATABASE a SET HADR AVAILABILITY = a
 reject	reject	engine	hadrDbOption_HADR(hadrAvailabilityDbOption_AVAILABILIT~31bb7a24)/hadrAvailabilityDbOption_AVAILABILITY!drop-3	ALTER DATABASE a SET HADR AVAILABILITY GROUP a
-accept	reject	engine	hadrDbOption_HADR(hadrAvailabilityDbOption_AVAILABILIT~31bb7a24)/hadrAvailabilityDbOption_AVAILABILITY!drop-4	ALTER DATABASE a SET HADR AVAILABILITY GROUP =
+reject	reject	engine	hadrDbOption_HADR(hadrAvailabilityDbOption_AVAILABILIT~31bb7a24)/hadrAvailabilityDbOption_AVAILABILITY!drop-4	ALTER DATABASE a SET HADR AVAILABILITY GROUP =
 reject	reject	engine	hadrDbOption_HADR(hadrAvailabilityDbOption_AVAILABILIT~31bb7a24)/hadrAvailabilityDbOption_AVAILABILITY!insert	ALTER DATABASE a SET HADR AVAILABILITY GROUP = a zzz
 reject	reject	engine	hadrDbOption_HADR(hadrAvailabilityDbOption_AVAILABILIT~31bb7a24)/hadrAvailabilityDbOption_AVAILABILITY!swap	ALTER DATABASE a SET HADR AVAILABILITY_MODE GROUP = a
 accept	accept	engine	hadrDbOption_HADR(hadrAvailabilityDbOption_AVAILABILIT~31bb7a24)/simpleHadrDbOption	ALTER DATABASE a SET HADR RESUME
-accept	reject	engine	dbDelayedDurabilityOption_DELAYED_DURABILITY/DELAYED_DURABILITY_EqualsSign_Identifier	ALTER DATABASE a SET DELAYED_DURABILITY = a
+reject	reject	engine	dbDelayedDurabilityOption_DELAYED_DURABILITY/DELAYED_DURABILITY_EqualsSign_Identifier	ALTER DATABASE a SET DELAYED_DURABILITY = a
 accept	accept	engine	autoCreateStatisticsDbOption_AUTO_CREATE_STATISTICS/AUTO_CREATE_STATISTICS_optionOnOff_(LeftParenthesis_INC~804e035c	ALTER DATABASE a SET AUTO_CREATE_STATISTICS ON
 accept	accept	engine	autoCreateStatisticsDbOption_AUTO_CREATE_STATISTICS(LeftParenthesis_INCREMENTAL_EqualsSi~cd16bcba)?/%empty	ALTER DATABASE a SET AUTO_CREATE_STATISTICS ON
-reject	accept	engine	autoCreateStatisticsDbOption_AUTO_CREATE_STATISTICS(LeftParenthesis_INCREMENTAL_EqualsSi~cd16bcba)?/LeftParenthesis_INCREMENTAL_EqualsSign_optionOnOff_Righ~77e0a474	ALTER DATABASE a SET AUTO_CREATE_STATISTICS ON(INCREMENTAL = ON)
+accept	accept	engine	autoCreateStatisticsDbOption_AUTO_CREATE_STATISTICS(LeftParenthesis_INCREMENTAL_EqualsSi~cd16bcba)?/LeftParenthesis_INCREMENTAL_EqualsSign_optionOnOff_Righ~77e0a474	ALTER DATABASE a SET AUTO_CREATE_STATISTICS ON(INCREMENTAL = ON)
 reject	reject	engine	autoCreateStatisticsDbOption_AUTO_CREATE_STATISTICS(LeftParenthesis_INCREMENTAL_EqualsSi~cd16bcba)?/LeftParenthesis_INCREMENTAL_EqualsSign_optionOnOff_Righ~77e0a474!drop-1	ALTER DATABASE a SET AUTO_CREATE_STATISTICS ON INCREMENTAL = ON)
 reject	reject	engine	autoCreateStatisticsDbOption_AUTO_CREATE_STATISTICS(LeftParenthesis_INCREMENTAL_EqualsSi~cd16bcba)?/LeftParenthesis_INCREMENTAL_EqualsSign_optionOnOff_Righ~77e0a474!drop-2	ALTER DATABASE a SET AUTO_CREATE_STATISTICS ON(= ON)
 reject	reject	engine	autoCreateStatisticsDbOption_AUTO_CREATE_STATISTICS(LeftParenthesis_INCREMENTAL_EqualsSi~cd16bcba)?/LeftParenthesis_INCREMENTAL_EqualsSign_optionOnOff_Righ~77e0a474!drop-3	ALTER DATABASE a SET AUTO_CREATE_STATISTICS ON(INCREMENTAL ON)
@@ -15747,8 +15747,8 @@ reject	reject	engine	autoCreateStatisticsDbOption_AUTO_CREATE_STATISTICS(LeftPar
 reject	reject	engine	autoCreateStatisticsDbOption_AUTO_CREATE_STATISTICS(LeftParenthesis_INCREMENTAL_EqualsSi~cd16bcba)?/LeftParenthesis_INCREMENTAL_EqualsSign_optionOnOff_Righ~77e0a474!drop-5	ALTER DATABASE a SET AUTO_CREATE_STATISTICS ON(INCREMENTAL = ON
 reject	reject	engine	autoCreateStatisticsDbOption_AUTO_CREATE_STATISTICS(LeftParenthesis_INCREMENTAL_EqualsSi~cd16bcba)?/LeftParenthesis_INCREMENTAL_EqualsSign_optionOnOff_Righ~77e0a474!insert	ALTER DATABASE a SET AUTO_CREATE_STATISTICS ON(INCREMENTAL = ON) zzz
 reject	reject	engine	autoCreateStatisticsDbOption_AUTO_CREATE_STATISTICS(LeftParenthesis_INCREMENTAL_EqualsSi~cd16bcba)?/LeftParenthesis_INCREMENTAL_EqualsSign_optionOnOff_Righ~77e0a474!swap	ALTER DATABASE a SET AUTO_CREATE_STATISTICS ON(INDEX = ON)
-reject	accept	engine	remoteDataArchiveDbOption_REMOTE_DATA_ARCHIVE/REMOTE_DATA_ARCHIVE_((EqualsSign_Off)|(EqualsSign_On_(r~2235e52b	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE = OFF
-reject	accept	engine	remoteDataArchiveDbOption_REMOTE_DATA_ARCHIVE((EqualsSign_Off)|(EqualsSign_On_(rem~266ffe7a)/EqualsSign_Off	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE = OFF
+accept	accept	engine	remoteDataArchiveDbOption_REMOTE_DATA_ARCHIVE/REMOTE_DATA_ARCHIVE_((EqualsSign_Off)|(EqualsSign_On_(r~2235e52b	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE = OFF
+accept	accept	engine	remoteDataArchiveDbOption_REMOTE_DATA_ARCHIVE((EqualsSign_Off)|(EqualsSign_On_(rem~266ffe7a)/EqualsSign_Off	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE = OFF
 reject	reject	engine	remoteDataArchiveDbOption_REMOTE_DATA_ARCHIVE((EqualsSign_Off)|(EqualsSign_On_(rem~266ffe7a)/EqualsSign_Off!swap	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE = OFFLINE
 reject	reject	engine	remoteDataArchiveDbOption_REMOTE_DATA_ARCHIVE((EqualsSign_Off)|(EqualsSign_On_(rem~266ffe7a)/EqualsSign_On_remoteDataArchiveDbSettingsList	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE = ON(SERVER = 'a')
 reject	reject	engine	remoteDataArchiveDbOption_REMOTE_DATA_ARCHIVE((EqualsSign_Off)|(EqualsSign_On_(rem~266ffe7a)/EqualsSign_On_remoteDataArchiveDbSettingsList!drop-1	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE ON(SERVER = 'a')
@@ -15760,76 +15760,76 @@ reject	reject	engine	remoteDataArchiveDbOption_REMOTE_DATA_ARCHIVE((EqualsSign_O
 reject	reject	engine	remoteDataArchiveDbOption_REMOTE_DATA_ARCHIVE((EqualsSign_Off)|(EqualsSign_On_(rem~266ffe7a)/EqualsSign_On_remoteDataArchiveDbSettingsList!drop-7	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE = ON(SERVER = 'a'
 reject	reject	engine	remoteDataArchiveDbOption_REMOTE_DATA_ARCHIVE((EqualsSign_Off)|(EqualsSign_On_(rem~266ffe7a)/EqualsSign_On_remoteDataArchiveDbSettingsList!insert	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE = ON(SERVER = 'a') zzz
 reject	reject	engine	remoteDataArchiveDbOption_REMOTE_DATA_ARCHIVE((EqualsSign_Off)|(EqualsSign_On_(rem~266ffe7a)/EqualsSign_On_remoteDataArchiveDbSettingsList!swap	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE = ONLINE(SERVER = 'a')
-reject	accept	engine	remoteDataArchiveDbOption_REMOTE_DATA_ARCHIVE((EqualsSign_Off)|(EqualsSign_On_(rem~266ffe7a)/remoteDataArchiveDbSettingsList	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE(SERVER = 'a')
+accept	accept	engine	remoteDataArchiveDbOption_REMOTE_DATA_ARCHIVE((EqualsSign_Off)|(EqualsSign_On_(rem~266ffe7a)/remoteDataArchiveDbSettingsList	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE(SERVER = 'a')
 accept	accept	engine	queryStoreDbOption_QUERY_STORE/QUERY_STORE_(CLEAR|CLEAR_All|(EqualsSign_Off)|(Eq~87867884)	ALTER DATABASE a SET QUERY_STORE CLEAR
 accept	accept	engine	queryStoreDbOption_QUERY_STORE(CLEAR|CLEAR_All|(EqualsSign_Off)|(Eq~87867884)/CLEAR	ALTER DATABASE a SET QUERY_STORE CLEAR
-accept	reject	engine	queryStoreDbOption_QUERY_STORE(CLEAR|CLEAR_All|(EqualsSign_Off)|(Eq~87867884)/CLEAR!swap	ALTER DATABASE a SET QUERY_STORE CLEAR_PORT
+reject	reject	engine	queryStoreDbOption_QUERY_STORE(CLEAR|CLEAR_All|(EqualsSign_Off)|(Eq~87867884)/CLEAR!swap	ALTER DATABASE a SET QUERY_STORE CLEAR_PORT
 accept	accept	engine	queryStoreDbOption_QUERY_STORE(CLEAR|CLEAR_All|(EqualsSign_Off)|(Eq~87867884)/CLEAR_All	ALTER DATABASE a SET QUERY_STORE CLEAR ALL
-accept	reject	engine	queryStoreDbOption_QUERY_STORE(CLEAR|CLEAR_All|(EqualsSign_Off)|(Eq~87867884)/CLEAR_All!drop-1	ALTER DATABASE a SET QUERY_STORE ALL
+reject	reject	engine	queryStoreDbOption_QUERY_STORE(CLEAR|CLEAR_All|(EqualsSign_Off)|(Eq~87867884)/CLEAR_All!drop-1	ALTER DATABASE a SET QUERY_STORE ALL
 reject	reject	engine	queryStoreDbOption_QUERY_STORE(CLEAR|CLEAR_All|(EqualsSign_Off)|(Eq~87867884)/CLEAR_All!insert	ALTER DATABASE a SET QUERY_STORE CLEAR ALL zzz
 reject	reject	engine	queryStoreDbOption_QUERY_STORE(CLEAR|CLEAR_All|(EqualsSign_Off)|(Eq~87867884)/CLEAR_All!swap	ALTER DATABASE a SET QUERY_STORE CLEAR_PORT ALL
 accept	accept	engine	queryStoreDbOption_QUERY_STORE(CLEAR|CLEAR_All|(EqualsSign_Off)|(Eq~87867884)/EqualsSign_Off	ALTER DATABASE a SET QUERY_STORE = OFF
-accept	reject	engine	queryStoreDbOption_QUERY_STORE(CLEAR|CLEAR_All|(EqualsSign_Off)|(Eq~87867884)/EqualsSign_Off!drop-1	ALTER DATABASE a SET QUERY_STORE OFF
-accept	reject	engine	queryStoreDbOption_QUERY_STORE(CLEAR|CLEAR_All|(EqualsSign_Off)|(Eq~87867884)/EqualsSign_Off!drop-2	ALTER DATABASE a SET QUERY_STORE =
+reject	reject	engine	queryStoreDbOption_QUERY_STORE(CLEAR|CLEAR_All|(EqualsSign_Off)|(Eq~87867884)/EqualsSign_Off!drop-1	ALTER DATABASE a SET QUERY_STORE OFF
+reject	reject	engine	queryStoreDbOption_QUERY_STORE(CLEAR|CLEAR_All|(EqualsSign_Off)|(Eq~87867884)/EqualsSign_Off!drop-2	ALTER DATABASE a SET QUERY_STORE =
 reject	reject	engine	queryStoreDbOption_QUERY_STORE(CLEAR|CLEAR_All|(EqualsSign_Off)|(Eq~87867884)/EqualsSign_Off!insert	ALTER DATABASE a SET QUERY_STORE = OFF zzz
-accept	reject	engine	queryStoreDbOption_QUERY_STORE(CLEAR|CLEAR_All|(EqualsSign_Off)|(Eq~87867884)/EqualsSign_Off!swap	ALTER DATABASE a SET QUERY_STORE = OFFLINE
+reject	reject	engine	queryStoreDbOption_QUERY_STORE(CLEAR|CLEAR_All|(EqualsSign_Off)|(Eq~87867884)/EqualsSign_Off!swap	ALTER DATABASE a SET QUERY_STORE = OFFLINE
 accept	accept	engine	queryStoreDbOption_QUERY_STORE(CLEAR|CLEAR_All|(EqualsSign_Off)|(Eq~87867884)/EqualsSign_On_(queryStoreOnOptions)?	ALTER DATABASE a SET QUERY_STORE = ON
-accept	reject	engine	queryStoreDbOption_QUERY_STORE(CLEAR|CLEAR_All|(EqualsSign_Off)|(Eq~87867884)/EqualsSign_On_(queryStoreOnOptions)?!drop-1	ALTER DATABASE a SET QUERY_STORE ON
+reject	reject	engine	queryStoreDbOption_QUERY_STORE(CLEAR|CLEAR_All|(EqualsSign_Off)|(Eq~87867884)/EqualsSign_On_(queryStoreOnOptions)?!drop-1	ALTER DATABASE a SET QUERY_STORE ON
 reject	reject	engine	queryStoreDbOption_QUERY_STORE(CLEAR|CLEAR_All|(EqualsSign_Off)|(Eq~87867884)/EqualsSign_On_(queryStoreOnOptions)?!insert	ALTER DATABASE a SET QUERY_STORE = ON zzz
-accept	reject	engine	queryStoreDbOption_QUERY_STORE(CLEAR|CLEAR_All|(EqualsSign_Off)|(Eq~87867884)/EqualsSign_On_(queryStoreOnOptions)?!swap	ALTER DATABASE a SET QUERY_STORE = ONLINE
+reject	reject	engine	queryStoreDbOption_QUERY_STORE(CLEAR|CLEAR_All|(EqualsSign_Off)|(Eq~87867884)/EqualsSign_On_(queryStoreOnOptions)?!swap	ALTER DATABASE a SET QUERY_STORE = ONLINE
 reject	reject	engine	queryStoreDbOption_QUERY_STORE(CLEAR|CLEAR_All|(EqualsSign_Off)|(Eq~87867884)/queryStoreOnOptions	ALTER DATABASE a SET QUERY_STORE(DESIRED_STATE = a)
 accept	accept	engine	queryStoreDbOption_QUERY_STORE(queryStoreOnOptions)?/%empty	ALTER DATABASE a SET QUERY_STORE = ON
-accept	reject	engine	queryStoreDbOption_QUERY_STORE(queryStoreOnOptions)?/queryStoreOnOptions	ALTER DATABASE a SET QUERY_STORE = ON(DESIRED_STATE = a)
+reject	reject	engine	queryStoreDbOption_QUERY_STORE(queryStoreOnOptions)?/queryStoreOnOptions	ALTER DATABASE a SET QUERY_STORE = ON(DESIRED_STATE = a)
 reject	reject	engine	queryStoreDbOption_QUERY_STORE(queryStoreOnOptions)?/queryStoreOnOptions!drop-1	ALTER DATABASE a SET QUERY_STORE = ON DESIRED_STATE = a)
-accept	reject	engine	queryStoreDbOption_QUERY_STORE(queryStoreOnOptions)?/queryStoreOnOptions!drop-2	ALTER DATABASE a SET QUERY_STORE = ON(= a)
-accept	reject	engine	queryStoreDbOption_QUERY_STORE(queryStoreOnOptions)?/queryStoreOnOptions!drop-3	ALTER DATABASE a SET QUERY_STORE = ON(DESIRED_STATE a)
-accept	reject	engine	queryStoreDbOption_QUERY_STORE(queryStoreOnOptions)?/queryStoreOnOptions!drop-4	ALTER DATABASE a SET QUERY_STORE = ON(DESIRED_STATE =)
-accept	reject	engine	queryStoreDbOption_QUERY_STORE(queryStoreOnOptions)?/queryStoreOnOptions!drop-5	ALTER DATABASE a SET QUERY_STORE = ON(DESIRED_STATE = a
+reject	reject	engine	queryStoreDbOption_QUERY_STORE(queryStoreOnOptions)?/queryStoreOnOptions!drop-2	ALTER DATABASE a SET QUERY_STORE = ON(= a)
+reject	reject	engine	queryStoreDbOption_QUERY_STORE(queryStoreOnOptions)?/queryStoreOnOptions!drop-3	ALTER DATABASE a SET QUERY_STORE = ON(DESIRED_STATE a)
+reject	reject	engine	queryStoreDbOption_QUERY_STORE(queryStoreOnOptions)?/queryStoreOnOptions!drop-4	ALTER DATABASE a SET QUERY_STORE = ON(DESIRED_STATE =)
+reject	reject	engine	queryStoreDbOption_QUERY_STORE(queryStoreOnOptions)?/queryStoreOnOptions!drop-5	ALTER DATABASE a SET QUERY_STORE = ON(DESIRED_STATE = a
 reject	reject	engine	queryStoreDbOption_QUERY_STORE(queryStoreOnOptions)?/queryStoreOnOptions!insert	ALTER DATABASE a SET QUERY_STORE = ON(DESIRED_STATE = a) zzz
-accept	reject	engine	queryStoreDbOption_QUERY_STORE(queryStoreOnOptions)?/queryStoreOnOptions!swap	ALTER DATABASE a SET QUERY_STORE = ON(DETERMINISTIC = a)
+reject	reject	engine	queryStoreDbOption_QUERY_STORE(queryStoreOnOptions)?/queryStoreOnOptions!swap	ALTER DATABASE a SET QUERY_STORE = ON(DETERMINISTIC = a)
 accept	accept	engine	automaticTuningDbOption_AUTOMATIC_TUNING/AUTOMATIC_TUNING_(EqualsSign_((AUTO)|(INHERIT)|(CUSTOM~0b5c0fce)	ALTER DATABASE a SET AUTOMATIC_TUNING = AUTO
 accept	accept	engine	automaticTuningDbOption_AUTOMATIC_TUNING(EqualsSign_((AUTO)|(INHERIT)|(CUSTOM~0b5c0fce)/EqualsSign_((AUTO)|(INHERIT)|(CUSTOM))	ALTER DATABASE a SET AUTOMATIC_TUNING = AUTO
-accept	reject	engine	automaticTuningDbOption_AUTOMATIC_TUNING(EqualsSign_((AUTO)|(INHERIT)|(CUSTOM~0b5c0fce)/EqualsSign_((AUTO)|(INHERIT)|(CUSTOM))!swap	ALTER DATABASE a SET AUTOMATIC_TUNING = AUTOMATIC
-reject	accept	engine	automaticTuningDbOption_AUTOMATIC_TUNING(EqualsSign_((AUTO)|(INHERIT)|(CUSTOM~0b5c0fce)/automaticTuningOptions	ALTER DATABASE a SET AUTOMATIC_TUNING(FORCE_LAST_GOOD_PLAN = ON)
+reject	reject	engine	automaticTuningDbOption_AUTOMATIC_TUNING(EqualsSign_((AUTO)|(INHERIT)|(CUSTOM~0b5c0fce)/EqualsSign_((AUTO)|(INHERIT)|(CUSTOM))!swap	ALTER DATABASE a SET AUTOMATIC_TUNING = AUTOMATIC
+accept	accept	engine	automaticTuningDbOption_AUTOMATIC_TUNING(EqualsSign_((AUTO)|(INHERIT)|(CUSTOM~0b5c0fce)/automaticTuningOptions	ALTER DATABASE a SET AUTOMATIC_TUNING(FORCE_LAST_GOOD_PLAN = ON)
 accept	accept	engine	automaticTuningDbOption_AUTOMATIC_TUNING((AUTO)|(INHERIT)|(CUSTOM))/AUTO	ALTER DATABASE a SET AUTOMATIC_TUNING = AUTO
-accept	reject	engine	automaticTuningDbOption_AUTOMATIC_TUNING((AUTO)|(INHERIT)|(CUSTOM))/INHERIT	ALTER DATABASE a SET AUTOMATIC_TUNING = INHERIT
+reject	reject	engine	automaticTuningDbOption_AUTOMATIC_TUNING((AUTO)|(INHERIT)|(CUSTOM))/INHERIT	ALTER DATABASE a SET AUTOMATIC_TUNING = INHERIT
 reject	reject	engine	automaticTuningDbOption_AUTOMATIC_TUNING((AUTO)|(INHERIT)|(CUSTOM))/INHERIT!insert	ALTER DATABASE a SET AUTOMATIC_TUNING = INHERIT zzz
-accept	reject	engine	automaticTuningDbOption_AUTOMATIC_TUNING((AUTO)|(INHERIT)|(CUSTOM))/INHERIT!swap	ALTER DATABASE a SET AUTOMATIC_TUNING = INITIATOR
+reject	reject	engine	automaticTuningDbOption_AUTOMATIC_TUNING((AUTO)|(INHERIT)|(CUSTOM))/INHERIT!swap	ALTER DATABASE a SET AUTOMATIC_TUNING = INITIATOR
 accept	accept	engine	automaticTuningDbOption_AUTOMATIC_TUNING((AUTO)|(INHERIT)|(CUSTOM))/CUSTOM	ALTER DATABASE a SET AUTOMATIC_TUNING = CUSTOM
 reject	reject	engine	automaticTuningDbOption_AUTOMATIC_TUNING((AUTO)|(INHERIT)|(CUSTOM))/CUSTOM!insert	ALTER DATABASE a SET AUTOMATIC_TUNING = CUSTOM zzz
-accept	reject	engine	automaticTuningDbOption_AUTOMATIC_TUNING((AUTO)|(INHERIT)|(CUSTOM))/CUSTOM!swap	ALTER DATABASE a SET AUTOMATIC_TUNING = CYCLE
+reject	reject	engine	automaticTuningDbOption_AUTOMATIC_TUNING((AUTO)|(INHERIT)|(CUSTOM))/CUSTOM!swap	ALTER DATABASE a SET AUTOMATIC_TUNING = CYCLE
 reject	reject	engine	queryStoreDesiredStateOption_DESIRED_STATE/DESIRED_STATE_EqualsSign_Identifier	ALTER DATABASE a SET QUERY_STORE(DESIRED_STATE = a)
 reject	reject	engine	queryStoreDesiredStateOption_OPERATION_MODE/OPERATION_MODE_EqualsSign_Identifier	ALTER DATABASE a SET QUERY_STORE(OPERATION_MODE = a)
-reject	accept	engine	queryStoreCaptureModeOption_QUERY_CAPTURE_MODE/QUERY_CAPTURE_MODE_EqualsSign_((All)|(Identifier))	ALTER DATABASE a SET QUERY_STORE(QUERY_CAPTURE_MODE = ALL)
-reject	accept	engine	queryStoreCaptureModeOption_QUERY_CAPTURE_MODE((All)|(Identifier))/All	ALTER DATABASE a SET QUERY_STORE(QUERY_CAPTURE_MODE = ALL)
+accept	accept	engine	queryStoreCaptureModeOption_QUERY_CAPTURE_MODE/QUERY_CAPTURE_MODE_EqualsSign_((All)|(Identifier))	ALTER DATABASE a SET QUERY_STORE(QUERY_CAPTURE_MODE = ALL)
+accept	accept	engine	queryStoreCaptureModeOption_QUERY_CAPTURE_MODE((All)|(Identifier))/All	ALTER DATABASE a SET QUERY_STORE(QUERY_CAPTURE_MODE = ALL)
 reject	reject	engine	queryStoreCaptureModeOption_QUERY_CAPTURE_MODE((All)|(Identifier))/All!swap	ALTER DATABASE a SET QUERY_STORE(QUERY_CAPTURE_MODE = ALLOW_CONNECTIONS)
 reject	reject	engine	queryStoreCaptureModeOption_QUERY_CAPTURE_MODE((All)|(Identifier))/Identifier	ALTER DATABASE a SET QUERY_STORE(QUERY_CAPTURE_MODE = a)
 reject	reject	engine	queryStoreCaptureModeOption_QUERY_CAPTURE_MODE((All)|(Identifier))/Identifier!insert	ALTER DATABASE a SET QUERY_STORE(QUERY_CAPTURE_MODE = a zzz)
-reject	accept	engine	queryStoreSizeCleanupModeOption_SIZE_BASED_CLEANUP_MODE/SIZE_BASED_CLEANUP_MODE_EqualsSign_((Off)|(Identifier))	ALTER DATABASE a SET QUERY_STORE(SIZE_BASED_CLEANUP_MODE = OFF)
-reject	accept	engine	queryStoreSizeCleanupModeOption_SIZE_BASED_CLEANUP_MODE((Off)|(Identifier))/Off	ALTER DATABASE a SET QUERY_STORE(SIZE_BASED_CLEANUP_MODE = OFF)
+accept	accept	engine	queryStoreSizeCleanupModeOption_SIZE_BASED_CLEANUP_MODE/SIZE_BASED_CLEANUP_MODE_EqualsSign_((Off)|(Identifier))	ALTER DATABASE a SET QUERY_STORE(SIZE_BASED_CLEANUP_MODE = OFF)
+accept	accept	engine	queryStoreSizeCleanupModeOption_SIZE_BASED_CLEANUP_MODE((Off)|(Identifier))/Off	ALTER DATABASE a SET QUERY_STORE(SIZE_BASED_CLEANUP_MODE = OFF)
 reject	reject	engine	queryStoreSizeCleanupModeOption_SIZE_BASED_CLEANUP_MODE((Off)|(Identifier))/Off!swap	ALTER DATABASE a SET QUERY_STORE(SIZE_BASED_CLEANUP_MODE = OFFLINE)
 reject	reject	engine	queryStoreSizeCleanupModeOption_SIZE_BASED_CLEANUP_MODE((Off)|(Identifier))/Identifier	ALTER DATABASE a SET QUERY_STORE(SIZE_BASED_CLEANUP_MODE = a)
 reject	reject	engine	queryStoreSizeCleanupModeOption_SIZE_BASED_CLEANUP_MODE((Off)|(Identifier))/Identifier!insert	ALTER DATABASE a SET QUERY_STORE(SIZE_BASED_CLEANUP_MODE = a zzz)
-reject	accept	engine	queryStoreDataFlushIntervalOption_FLUSH_INTERVAL_SECONDS/FLUSH_INTERVAL_SECONDS_EqualsSign_integer	ALTER DATABASE a SET QUERY_STORE(FLUSH_INTERVAL_SECONDS = 1)
-reject	accept	engine	queryStoreDataFlushIntervalOption_DATA_FLUSH_INTERVAL_SECONDS/DATA_FLUSH_INTERVAL_SECONDS_EqualsSign_integer	ALTER DATABASE a SET QUERY_STORE(DATA_FLUSH_INTERVAL_SECONDS = 1)
-reject	accept	engine	queryStoreIntervalLengthOption_INTERVAL_LENGTH_MINUTES/INTERVAL_LENGTH_MINUTES_EqualsSign_integer	ALTER DATABASE a SET QUERY_STORE(INTERVAL_LENGTH_MINUTES = 1)
-reject	accept	engine	queryStoreMaxQdsSizeOption_MAX_STORAGE_SIZE_MB/MAX_STORAGE_SIZE_MB_EqualsSign_integer	ALTER DATABASE a SET QUERY_STORE(MAX_STORAGE_SIZE_MB = 1)
-reject	accept	engine	queryStoreMaxPlansPerQueryOption_MAX_PLANS_PER_QUERY/MAX_PLANS_PER_QUERY_EqualsSign_integer	ALTER DATABASE a SET QUERY_STORE(MAX_PLANS_PER_QUERY = 1)
-reject	accept	engine	queryStoreTimeCleanupPolicy_CLEANUP_POLICY/CLEANUP_POLICY_EqualsSign_LeftParenthesis_STALE_QUERY_T~b249ddee	ALTER DATABASE a SET QUERY_STORE(CLEANUP_POLICY =(STALE_QUERY_THRESHOLD_DAYS = 1))
-reject	accept	engine	queryStoreWaitStatsCaptureOption_WAIT_STATS_CAPTURE_MODE/WAIT_STATS_CAPTURE_MODE_((EqualsSign_Off)|(EqualsSign_On))	ALTER DATABASE a SET QUERY_STORE(WAIT_STATS_CAPTURE_MODE = OFF)
-reject	accept	engine	queryStoreWaitStatsCaptureOption_WAIT_STATS_CAPTURE_MODE((EqualsSign_Off)|(EqualsSign_On))/EqualsSign_Off	ALTER DATABASE a SET QUERY_STORE(WAIT_STATS_CAPTURE_MODE = OFF)
+accept	accept	engine	queryStoreDataFlushIntervalOption_FLUSH_INTERVAL_SECONDS/FLUSH_INTERVAL_SECONDS_EqualsSign_integer	ALTER DATABASE a SET QUERY_STORE(FLUSH_INTERVAL_SECONDS = 1)
+accept	accept	engine	queryStoreDataFlushIntervalOption_DATA_FLUSH_INTERVAL_SECONDS/DATA_FLUSH_INTERVAL_SECONDS_EqualsSign_integer	ALTER DATABASE a SET QUERY_STORE(DATA_FLUSH_INTERVAL_SECONDS = 1)
+accept	accept	engine	queryStoreIntervalLengthOption_INTERVAL_LENGTH_MINUTES/INTERVAL_LENGTH_MINUTES_EqualsSign_integer	ALTER DATABASE a SET QUERY_STORE(INTERVAL_LENGTH_MINUTES = 1)
+accept	accept	engine	queryStoreMaxQdsSizeOption_MAX_STORAGE_SIZE_MB/MAX_STORAGE_SIZE_MB_EqualsSign_integer	ALTER DATABASE a SET QUERY_STORE(MAX_STORAGE_SIZE_MB = 1)
+accept	accept	engine	queryStoreMaxPlansPerQueryOption_MAX_PLANS_PER_QUERY/MAX_PLANS_PER_QUERY_EqualsSign_integer	ALTER DATABASE a SET QUERY_STORE(MAX_PLANS_PER_QUERY = 1)
+accept	accept	engine	queryStoreTimeCleanupPolicy_CLEANUP_POLICY/CLEANUP_POLICY_EqualsSign_LeftParenthesis_STALE_QUERY_T~b249ddee	ALTER DATABASE a SET QUERY_STORE(CLEANUP_POLICY =(STALE_QUERY_THRESHOLD_DAYS = 1))
+accept	accept	engine	queryStoreWaitStatsCaptureOption_WAIT_STATS_CAPTURE_MODE/WAIT_STATS_CAPTURE_MODE_((EqualsSign_Off)|(EqualsSign_On))	ALTER DATABASE a SET QUERY_STORE(WAIT_STATS_CAPTURE_MODE = OFF)
+accept	accept	engine	queryStoreWaitStatsCaptureOption_WAIT_STATS_CAPTURE_MODE((EqualsSign_Off)|(EqualsSign_On))/EqualsSign_Off	ALTER DATABASE a SET QUERY_STORE(WAIT_STATS_CAPTURE_MODE = OFF)
 reject	reject	engine	queryStoreWaitStatsCaptureOption_WAIT_STATS_CAPTURE_MODE((EqualsSign_Off)|(EqualsSign_On))/EqualsSign_Off!swap	ALTER DATABASE a SET QUERY_STORE(WAIT_STATS_CAPTURE_MODE = OFFLINE)
-reject	accept	engine	queryStoreWaitStatsCaptureOption_WAIT_STATS_CAPTURE_MODE((EqualsSign_Off)|(EqualsSign_On))/EqualsSign_On	ALTER DATABASE a SET QUERY_STORE(WAIT_STATS_CAPTURE_MODE = ON)
+accept	accept	engine	queryStoreWaitStatsCaptureOption_WAIT_STATS_CAPTURE_MODE((EqualsSign_Off)|(EqualsSign_On))/EqualsSign_On	ALTER DATABASE a SET QUERY_STORE(WAIT_STATS_CAPTURE_MODE = ON)
 reject	reject	engine	queryStoreWaitStatsCaptureOption_WAIT_STATS_CAPTURE_MODE((EqualsSign_Off)|(EqualsSign_On))/EqualsSign_On!drop-1	ALTER DATABASE a SET QUERY_STORE(WAIT_STATS_CAPTURE_MODE ON)
 reject	reject	engine	queryStoreWaitStatsCaptureOption_WAIT_STATS_CAPTURE_MODE((EqualsSign_Off)|(EqualsSign_On))/EqualsSign_On!insert	ALTER DATABASE a SET QUERY_STORE(WAIT_STATS_CAPTURE_MODE = ON zzz)
 reject	reject	engine	queryStoreWaitStatsCaptureOption_WAIT_STATS_CAPTURE_MODE((EqualsSign_Off)|(EqualsSign_On))/EqualsSign_On!swap	ALTER DATABASE a SET QUERY_STORE(WAIT_STATS_CAPTURE_MODE = ONLINE)
-reject	accept	engine	automaticTuningForceLastGoodPlanOption_FORCE_LAST_GOOD_PLAN/FORCE_LAST_GOOD_PLAN_EqualsSign_(On_()|Off_()|Default_())	ALTER DATABASE a SET AUTOMATIC_TUNING(FORCE_LAST_GOOD_PLAN = ON)
-reject	accept	engine	automaticTuningForceLastGoodPlanOption_FORCE_LAST_GOOD_PLAN(On_()|Off_()|Default_())/On	ALTER DATABASE a SET AUTOMATIC_TUNING(FORCE_LAST_GOOD_PLAN = ON)
+accept	accept	engine	automaticTuningForceLastGoodPlanOption_FORCE_LAST_GOOD_PLAN/FORCE_LAST_GOOD_PLAN_EqualsSign_(On_()|Off_()|Default_())	ALTER DATABASE a SET AUTOMATIC_TUNING(FORCE_LAST_GOOD_PLAN = ON)
+accept	accept	engine	automaticTuningForceLastGoodPlanOption_FORCE_LAST_GOOD_PLAN(On_()|Off_()|Default_())/On	ALTER DATABASE a SET AUTOMATIC_TUNING(FORCE_LAST_GOOD_PLAN = ON)
 reject	reject	engine	automaticTuningForceLastGoodPlanOption_FORCE_LAST_GOOD_PLAN(On_()|Off_()|Default_())/On!swap	ALTER DATABASE a SET AUTOMATIC_TUNING(FORCE_LAST_GOOD_PLAN = ONLINE)
-reject	accept	engine	automaticTuningForceLastGoodPlanOption_FORCE_LAST_GOOD_PLAN(On_()|Off_()|Default_())/Off	ALTER DATABASE a SET AUTOMATIC_TUNING(FORCE_LAST_GOOD_PLAN = OFF)
+accept	accept	engine	automaticTuningForceLastGoodPlanOption_FORCE_LAST_GOOD_PLAN(On_()|Off_()|Default_())/Off	ALTER DATABASE a SET AUTOMATIC_TUNING(FORCE_LAST_GOOD_PLAN = OFF)
 reject	reject	engine	automaticTuningForceLastGoodPlanOption_FORCE_LAST_GOOD_PLAN(On_()|Off_()|Default_())/Off!insert	ALTER DATABASE a SET AUTOMATIC_TUNING(FORCE_LAST_GOOD_PLAN = OFF zzz)
 reject	reject	engine	automaticTuningForceLastGoodPlanOption_FORCE_LAST_GOOD_PLAN(On_()|Off_()|Default_())/Off!swap	ALTER DATABASE a SET AUTOMATIC_TUNING(FORCE_LAST_GOOD_PLAN = OFFLINE)
-reject	accept	engine	automaticTuningForceLastGoodPlanOption_FORCE_LAST_GOOD_PLAN(On_()|Off_()|Default_())/Default	ALTER DATABASE a SET AUTOMATIC_TUNING(FORCE_LAST_GOOD_PLAN = DEFAULT)
+accept	accept	engine	automaticTuningForceLastGoodPlanOption_FORCE_LAST_GOOD_PLAN(On_()|Off_()|Default_())/Default	ALTER DATABASE a SET AUTOMATIC_TUNING(FORCE_LAST_GOOD_PLAN = DEFAULT)
 reject	reject	engine	automaticTuningForceLastGoodPlanOption_FORCE_LAST_GOOD_PLAN(On_()|Off_()|Default_())/Default!insert	ALTER DATABASE a SET AUTOMATIC_TUNING(FORCE_LAST_GOOD_PLAN = DEFAULT zzz)
 reject	reject	engine	automaticTuningForceLastGoodPlanOption_FORCE_LAST_GOOD_PLAN(On_()|Off_()|Default_())/Default!swap	ALTER DATABASE a SET AUTOMATIC_TUNING(FORCE_LAST_GOOD_PLAN = DEFAULT_DATABASE)
 reject	reject	engine	automaticTuningCreateIndexOption_CREATE_INDEX/CREATE_INDEX_EqualsSign_(On_()|Off_()|Default_())	ALTER DATABASE a SET AUTOMATIC_TUNING(CREATE_INDEX = ON)
@@ -15882,31 +15882,31 @@ reject	reject	engine	azureMaxSizeDatabaseOption_MAXSIZE(GB|MB)/MB!swap	CREATE DA
 reject	reject	engine	azureEditionDatabaseOption_EDITION/EDITION_EqualsSign_stringLiteral	CREATE DATABASE a(EDITION = 'a')
 reject	reject	engine	nameFileOption_NAME/NAME_EqualsSign_nonEmptyStringOrIdentifier	CREATE DATABASE a ON(NAME = 'a')
 accept	accept	engine	fileNameFileOption_FILENAME/FILENAME_EqualsSign_nonEmptyString	CREATE DATABASE a ON(FILENAME = 'a')
-accept	reject	engine	sizeFileOption_SIZE/SIZE_EqualsSign_integer_(memUnit)?	CREATE DATABASE a ON(SIZE = 1)
-accept	reject	engine	sizeFileOption_SIZE(memUnit)?/%empty	CREATE DATABASE a ON(SIZE = 1)
+reject	reject	engine	sizeFileOption_SIZE/SIZE_EqualsSign_integer_(memUnit)?	CREATE DATABASE a ON(SIZE = 1)
+reject	reject	engine	sizeFileOption_SIZE(memUnit)?/%empty	CREATE DATABASE a ON(SIZE = 1)
 reject	reject	engine	sizeFileOption_SIZE(memUnit)?/memUnit	CREATE DATABASE a ON(SIZE = 1 a)
-accept	reject	engine	maxSizeFileOption_MAXSIZE/MAXSIZE_EqualsSign_((integer_(memUnit)?)|UNLIMITED)	CREATE DATABASE a ON(MAXSIZE = 1)
-accept	reject	engine	maxSizeFileOption_MAXSIZE((integer_(memUnit)?)|UNLIMITED)/integer_(memUnit)?	CREATE DATABASE a ON(MAXSIZE = 1)
-accept	reject	engine	maxSizeFileOption_MAXSIZE((integer_(memUnit)?)|UNLIMITED)/UNLIMITED	CREATE DATABASE a ON(MAXSIZE = UNLIMITED)
+reject	reject	engine	maxSizeFileOption_MAXSIZE/MAXSIZE_EqualsSign_((integer_(memUnit)?)|UNLIMITED)	CREATE DATABASE a ON(MAXSIZE = 1)
+reject	reject	engine	maxSizeFileOption_MAXSIZE((integer_(memUnit)?)|UNLIMITED)/integer_(memUnit)?	CREATE DATABASE a ON(MAXSIZE = 1)
+reject	reject	engine	maxSizeFileOption_MAXSIZE((integer_(memUnit)?)|UNLIMITED)/UNLIMITED	CREATE DATABASE a ON(MAXSIZE = UNLIMITED)
 reject	reject	engine	maxSizeFileOption_MAXSIZE((integer_(memUnit)?)|UNLIMITED)/UNLIMITED!insert	CREATE DATABASE a ON(MAXSIZE = UNLIMITED zzz)
 reject	reject	engine	maxSizeFileOption_MAXSIZE((integer_(memUnit)?)|UNLIMITED)/UNLIMITED!swap	CREATE DATABASE a ON(MAXSIZE = UNPIVOT)
-accept	reject	engine	maxSizeFileOption_MAXSIZE(memUnit)?/%empty	CREATE DATABASE a ON(MAXSIZE = 1)
+reject	reject	engine	maxSizeFileOption_MAXSIZE(memUnit)?/%empty	CREATE DATABASE a ON(MAXSIZE = 1)
 reject	reject	engine	maxSizeFileOption_MAXSIZE(memUnit)?/memUnit	CREATE DATABASE a ON(MAXSIZE = 1 a)
-accept	reject	engine	maxSizeFileOption_MAXSIZE(memUnit)?/memUnit!truncate	CREATE DATABASE a ON(MAXSIZE = 1
+reject	reject	engine	maxSizeFileOption_MAXSIZE(memUnit)?/memUnit!truncate	CREATE DATABASE a ON(MAXSIZE = 1
 reject	reject	engine	maxSizeFileOption_MAXSIZE(memUnit)?/memUnit!insert	CREATE DATABASE a ON(MAXSIZE = 1 a zzz)
-accept	reject	engine	fileGrowthFileOption_FILEGROWTH/FILEGROWTH_EqualsSign_integer_((memUnit)|PercentSign)?	CREATE DATABASE a ON(FILEGROWTH = 1)
-accept	reject	engine	fileGrowthFileOption_FILEGROWTH((memUnit)|PercentSign)?/%empty	CREATE DATABASE a ON(FILEGROWTH = 1)
+reject	reject	engine	fileGrowthFileOption_FILEGROWTH/FILEGROWTH_EqualsSign_integer_((memUnit)|PercentSign)?	CREATE DATABASE a ON(FILEGROWTH = 1)
+reject	reject	engine	fileGrowthFileOption_FILEGROWTH((memUnit)|PercentSign)?/%empty	CREATE DATABASE a ON(FILEGROWTH = 1)
 reject	reject	engine	fileGrowthFileOption_FILEGROWTH((memUnit)|PercentSign)?/memUnit	CREATE DATABASE a ON(FILEGROWTH = 1 a)
-accept	reject	engine	fileGrowthFileOption_FILEGROWTH((memUnit)|PercentSign)?/memUnit!truncate	CREATE DATABASE a ON(FILEGROWTH = 1
+reject	reject	engine	fileGrowthFileOption_FILEGROWTH((memUnit)|PercentSign)?/memUnit!truncate	CREATE DATABASE a ON(FILEGROWTH = 1
 reject	reject	engine	fileGrowthFileOption_FILEGROWTH((memUnit)|PercentSign)?/memUnit!insert	CREATE DATABASE a ON(FILEGROWTH = 1 a zzz)
-accept	reject	engine	fileGrowthFileOption_FILEGROWTH((memUnit)|PercentSign)?/PercentSign	CREATE DATABASE a ON(FILEGROWTH = 1 %)
+reject	reject	engine	fileGrowthFileOption_FILEGROWTH((memUnit)|PercentSign)?/PercentSign	CREATE DATABASE a ON(FILEGROWTH = 1 %)
 reject	reject	engine	fileGrowthFileOption_FILEGROWTH((memUnit)|PercentSign)?/PercentSign!insert	CREATE DATABASE a ON(FILEGROWTH = 1 % zzz)
 reject	reject	engine	newNameFileOption_NEWNAME/NEWNAME_EqualsSign_nonEmptyStringOrIdentifier	CREATE DATABASE a ON(NEWNAME = 'a')
-accept	reject	engine	offlineFileOption_OFFLINE/OFFLINE	CREATE DATABASE a ON(OFFLINE)
+reject	reject	engine	offlineFileOption_OFFLINE/OFFLINE	CREATE DATABASE a ON(OFFLINE)
 accept	accept	engine	restrictedUserCreateDbOption_RESTRICTED_USER/RESTRICTED_USER	ALTER DATABASE a SET RESTRICTED_USER
 accept	accept	engine	createDbOnOffOption_DB_CHAINING/DB_CHAINING_optionOnOff	ALTER DATABASE a SET DB_CHAINING ON
 accept	accept	engine	createDbOnOffOption_TRUSTWORTHY/TRUSTWORTHY_optionOnOff	ALTER DATABASE a SET TRUSTWORTHY ON
-accept	reject	engine	createDbOnOffOption_DATA_RETENTION/DATA_RETENTION_optionOnOff	ALTER DATABASE a SET DATA_RETENTION ON
+reject	reject	engine	createDbOnOffOption_DATA_RETENTION/DATA_RETENTION_optionOnOff	ALTER DATABASE a SET DATA_RETENTION ON
 reject	reject	engine	fileStreamCreateAlterDbOption_FILESTREAM/FILESTREAM_LeftParenthesis_fileStreamOption_(Comma_file~5eadeebb	RESTORE DATABASE @a WITH FILESTREAM(a = OFF)
 reject	reject	engine	fileStreamCreateAlterDbOption_FILESTREAM(Comma_fileStreamOption)*/%empty	RESTORE DATABASE @a WITH FILESTREAM(a = OFF)
 reject	reject	engine	fileStreamCreateAlterDbOption_FILESTREAM(Comma_fileStreamOption)*/Comma_fileStreamOption_(Comma_fileStreamOption)*	RESTORE DATABASE @a WITH FILESTREAM(a = OFF, a = OFF)
@@ -15917,12 +15917,12 @@ reject	reject	engine	fileStreamCreateAlterDbOption_FILESTREAM(Comma_fileStreamOp
 reject	reject	engine	fileStreamCreateAlterDbOption_FILESTREAM(Comma_fileStreamOption)*/Comma_fileStreamOption_(Comma_fileStreamOption)*!truncate	RESTORE DATABASE @a WITH FILESTREAM(a = OFF, a =
 reject	reject	engine	fileStreamCreateAlterDbOption_FILESTREAM(Comma_fileStreamOption)*/Comma_fileStreamOption_(Comma_fileStreamOption)*!insert	RESTORE DATABASE @a WITH FILESTREAM(a = OFF, a = OFF zzz)
 reject	reject	engine	fileStreamCreateAlterDbOption_FILESTREAM(Comma_fileStreamOption)*/Comma_fileStreamOption_(Comma_fileStreamOption)*!swap	RESTORE DATABASE @a WITH FILESTREAM(a = OFF, a = OFFLINE)
-reject	accept	engine	identifier_SERVER/SERVER	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE(SERVER = 'a')
+accept	accept	engine	identifier_SERVER/SERVER	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE(SERVER = 'a')
 reject	reject	engine	identifier_SERVER/SERVER!truncate	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE(
 reject	reject	engine	identifier_SERVER/SERVER!insert	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE(SERVER zzz = 'a')
-reject	accept	engine	identifier_CREDENTIAL/CREDENTIAL	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE(CREDENTIAL = a)
+accept	accept	engine	identifier_CREDENTIAL/CREDENTIAL	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE(CREDENTIAL = a)
 reject	reject	engine	identifier_CREDENTIAL/CREDENTIAL!insert	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE(CREDENTIAL zzz = a)
-reject	accept	engine	identifier_FEDERATED_SERVICE_ACCOUNT/FEDERATED_SERVICE_ACCOUNT	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE(FEDERATED_SERVICE_ACCOUNT = ON)
+accept	accept	engine	identifier_FEDERATED_SERVICE_ACCOUNT/FEDERATED_SERVICE_ACCOUNT	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE(FEDERATED_SERVICE_ACCOUNT = ON)
 reject	reject	engine	identifier_FEDERATED_SERVICE_ACCOUNT/FEDERATED_SERVICE_ACCOUNT!insert	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE(FEDERATED_SERVICE_ACCOUNT zzz = ON)
 accept	accept	engine	backupCertificateStatement_CERTIFICATE/CERTIFICATE_identifier_To_File_EqualsSign_stringLiteral~e1cd7065	BACKUP CERTIFICATE a TO FILE = 'a'
 accept	accept	engine	backupCertificateStatement_CERTIFICATE(With_privateKeySpec)?/%empty	BACKUP CERTIFICATE a TO FILE = 'a'
