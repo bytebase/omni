@@ -557,6 +557,7 @@ func (p *Parser) parseAlterTableModify() (*nodes.AlterTableCmd, error) {
 	if p.cur.Type == '(' {
 		p.advance() // consume '('
 		cols := &nodes.List{}
+		named := map[string]bool{}
 		var col *nodes.ColumnDef
 		for {
 			var err error
@@ -569,11 +570,10 @@ func (p *Parser) parseAlterTableModify() (*nodes.AlterTableCmd, error) {
 				return nil, p.syntaxErrorAtCur()
 			}
 			// A column stands once in the list (ORA-00957).
-			for _, item := range cols.Items {
-				if item.(*nodes.ColumnDef).Name == col.Name {
-					return nil, p.syntaxErrorAtTok(colTok)
-				}
+			if named[col.Name] {
+				return nil, p.syntaxErrorAtTok(colTok)
 			}
+			named[col.Name] = true
 			cols.Items = append(cols.Items, col)
 			if p.cur.Type != ',' {
 				break
@@ -628,6 +628,9 @@ func (p *Parser) parseATModifyColumn(inList bool) (*nodes.ColumnDef, error) {
 		}
 		if alone {
 			start := p.pos()
+			if err := p.syntaxErrorIfReservedColumnIdentifier(); err != nil {
+				return nil, err
+			}
 			name, err := p.parseATNameString()
 			if err != nil {
 				return nil, err

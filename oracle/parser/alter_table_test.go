@@ -478,4 +478,8 @@ func TestParseAlterTableModifyBareColumn(t *testing.T) {
 	}
 	ParseShouldFail(t, "ALTER TABLE t MODIFY (a, a)")
 	ParseShouldFail(t, "ALTER TABLE t MODIFY (a NUMBER, a NUMBER)")
+	// A bare column takes the column name rules of a defined one.
+	ParseShouldFail(t, `ALTER TABLE t MODIFY "ROWID"`)
+	ParseShouldFail(t, `ALTER TABLE t MODIFY ("ROWID")`)
+	ParseAndCheck(t, `ALTER TABLE t MODIFY ("Rowid")`)
 }
