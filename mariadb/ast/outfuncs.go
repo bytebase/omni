@@ -1158,6 +1158,9 @@ func writeShowStmt(sb *strings.Builder, n *ShowStmt) {
 		sb.WriteString(" :for_query ")
 		writeNode(sb, n.ForQuery)
 	}
+	if n.Format != "" {
+		fmt.Fprintf(sb, " :format %s", n.Format)
+	}
 	if n.ForUser != nil {
 		sb.WriteString(" :for_user ")
 		writeNode(sb, n.ForUser)
