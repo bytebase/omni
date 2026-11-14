@@ -42,6 +42,9 @@ type CreateTableStmt struct {
 	Engine        string             // ENGINE = xxx
 	Comment       string             // COMMENT 'xxx'
 	Like          *ObjectName        // CREATE TABLE ... LIKE other_table
+	LikeRollup    bool               // LIKE ... WITH ROLLUP
+	LikeRollups   []string           // LIKE ... WITH ROLLUP (r1, ...)
+	BrokerProps   []*Property        // BROKER PROPERTIES (...)
 	AsSelect      *RawQuery          // CREATE TABLE ... AS SELECT ...
 	Loc           Loc
 }
