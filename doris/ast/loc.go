@@ -44,6 +44,8 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *MatchExpr:
 		return v.Loc
+	case *DereferenceExpr:
+		return v.Loc
 	case *IsExpr:
 		return v.Loc
 	case *BetweenExpr:

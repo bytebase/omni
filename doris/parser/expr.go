@@ -328,7 +328,20 @@ func (p *Parser) parsePrefixExpr() (ast.Node, error) {
 // bind tighter than any operator. The index and bounds are valueExpressions —
 // comparisons are allowed but AND/OR/NOT are not, hence bpNot+1.
 func (p *Parser) parsePostfixSubscripts(node ast.Node) (ast.Node, error) {
-	for p.cur.Kind == int('[') {
+	for p.cur.Kind == int('[') || (p.cur.Kind == int('.') && isIdentifierTokenQualified(p.peekNext().Kind) && !isKeywordLiteral(node)) {
+		if p.cur.Kind == int('.') {
+			// primaryExpression DOT identifier (DorisParser.g4:1586). A column
+			// name's parts were read with it, so this is a field of another
+			// expression.
+			p.advance() // consume '.'
+			field := p.advance()
+			node = &ast.DereferenceExpr{
+				Expr:  node,
+				Field: field.Str,
+				Loc:   ast.Loc{Start: ast.NodeLoc(node).Start, End: field.Loc.End},
+			}
+			continue
+		}
 		p.advance() // consume '['
 		begin, err := p.parseExprPrec(bpNot + 1)
 		if err != nil {
@@ -1957,4 +1970,11 @@ func (p *Parser) parseCastDataType() (*ast.TypeName, error) {
 		name += " " + strings.ToUpper(p.advance().Str)
 	}
 	return &ast.TypeName{Name: name, Loc: ast.Loc{Start: start.Start, End: p.prev.Loc.End}}, nil
+}
+
+// isKeywordLiteral reports whether node is a keyword omni keeps as a literal
+// (a bare KEY, DEFAULT), which is no primaryExpression and has no fields.
+func isKeywordLiteral(node ast.Node) bool {
+	lit, ok := node.(*ast.Literal)
+	return ok && lit.Kind == ast.LitKeyword
 }

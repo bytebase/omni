@@ -6842,11 +6842,11 @@ reject	reject	engine	primaryExpression/DOUBLEATSIGN_((GLOBAL|SESSION)_DOT)?_iden
 accept	accept	engine	primaryExpression/DOUBLEATSIGN_((GLOBAL|SESSION)_DOT)?_identifier!insert	SELECT @@ a zzz
 accept	accept	engine	primaryExpression/(BINARY)?_identifier	SELECT a
 accept	accept	engine	primaryExpression/(BINARY)?_identifier!insert	SELECT a zzz
-reject	accept	engine	primaryExpression/primaryExpression_DOT_identifier	SELECT CURRENT_DATE.a
+accept	accept	engine	primaryExpression/primaryExpression_DOT_identifier	SELECT CURRENT_DATE.a
 reject	reject	engine	primaryExpression/primaryExpression_DOT_identifier!drop-1	SELECT.a
 reject	reject	engine	primaryExpression/primaryExpression_DOT_identifier!drop-3	SELECT CURRENT_DATE.
-reject	accept	engine	primaryExpression/primaryExpression_DOT_identifier!insert	SELECT CURRENT_DATE.a zzz
-reject	accept	engine	primaryExpression/primaryExpression_DOT_identifier!swap	SELECT CURRENT_TIME.a
+accept	accept	engine	primaryExpression/primaryExpression_DOT_identifier!insert	SELECT CURRENT_DATE.a zzz
+accept	accept	engine	primaryExpression/primaryExpression_DOT_identifier!swap	SELECT CURRENT_TIME.a
 accept	accept	engine	primaryExpression/LEFT_PAREN_expression_RIGHT_PAREN	SELECT(CURRENT_DATE)
 reject	reject	engine	primaryExpression/LEFT_PAREN_expression_RIGHT_PAREN!drop-3	SELECT(CURRENT_DATE
 accept	accept	engine	primaryExpression/LEFT_PAREN_expression_RIGHT_PAREN!insert	SELECT(CURRENT_DATE) zzz
@@ -14366,7 +14366,7 @@ accept	accept	engine	non_pred_expr/@_@_ident	SELECT@@a
 reject	reject	engine	non_pred_expr/@_@_ident!drop-3	SELECT@@
 accept	accept	engine	non_pred_expr/@_@_ident!insert	SELECT@@a zzz
 accept	accept	engine	non_pred_expr/@_@_var_ident_type_ident	SELECT@@GLOBAL.a
-reject	accept	engine	non_pred_expr/@_@_var_ident_type_ident!drop-1	SELECT@GLOBAL.a
+accept	accept	engine	non_pred_expr/@_@_var_ident_type_ident!drop-1	SELECT@GLOBAL.a
 reject	reject	engine	non_pred_expr/@_@_var_ident_type_ident!drop-5	SELECT@@GLOBAL.
 accept	accept	engine	non_pred_expr/@_@_var_ident_type_ident!insert	SELECT@@GLOBAL.a zzz
 accept	accept	engine	non_pred_expr/literal	SELECT 1

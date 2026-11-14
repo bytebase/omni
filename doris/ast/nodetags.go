@@ -642,6 +642,9 @@ const (
 
 	// T_MatchExpr is the tag for *MatchExpr (expr [NOT] MATCH pattern).
 	T_MatchExpr
+
+	// T_DereferenceExpr is the tag for *DereferenceExpr (expr.field).
+	T_DereferenceExpr
 )
 
 // String returns a human-readable representation of the tag.
@@ -683,6 +686,8 @@ func (t NodeTag) String() string {
 		return "CollateExpr"
 	case T_MatchExpr:
 		return "MatchExpr"
+	case T_DereferenceExpr:
+		return "DereferenceExpr"
 	case T_IsExpr:
 		return "IsExpr"
 	case T_BetweenExpr:
