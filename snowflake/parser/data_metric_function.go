@@ -130,6 +130,11 @@ func (p *Parser) parseCreateDataMetricFunction(start ast.Loc, orReplace, orAlter
 	if p.cur.Type != kwAS {
 		return nil, p.syntaxErrorAtCur()
 	}
+	// The body is a quoted expression: a procedure's bare DECLARE / BEGIN
+	// block, which parseRoutineBody also reads, is not one.
+	if next := p.peekNext(); next.Type == kwBEGIN || next.Type == kwDECLARE {
+		return nil, syntaxErrorAtTok(next)
+	}
 	body, dollar, end, err := p.parseRoutineBody()
 	if err != nil {
 		return nil, err
