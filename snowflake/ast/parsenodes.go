@@ -6369,10 +6369,11 @@ var (
 //
 //	CREATE [ OR REPLACE | OR ALTER ] <kind> [ IF NOT EXISTS ] <name> <clause>...
 //	ALTER <kind> [ IF EXISTS ] <name> <clause>...
+//	EXECUTE <kind> <clause>...   (EXECUTE [ INFERENCE ] JOB SERVICE; Name is nil)
 //
-// Loc spans the whole statement, from CREATE or ALTER.
+// Loc spans the whole statement, from CREATE, ALTER or EXECUTE.
 type ObjectStmt struct {
-	Verb        string          // "CREATE" or "ALTER"
+	Verb        string          // "CREATE", "ALTER" or "EXECUTE"
 	Kind        string          // the object's keywords, uppercased and space-joined: "COMPUTE POOL"
 	OrReplace   bool            // CREATE OR REPLACE
 	OrAlter     bool            // CREATE OR ALTER
