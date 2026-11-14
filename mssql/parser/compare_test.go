@@ -5073,9 +5073,9 @@ func TestParseExternalDataSource(t *testing.T) {
 		// CREATE basic with LOCATION only
 		"CREATE EXTERNAL DATA SOURCE MyHadoopCluster WITH (LOCATION = 'hdfs://10.10.10.10:8020')",
 		// CREATE with LOCATION and TYPE
-		"CREATE EXTERNAL DATA SOURCE MyHadoopCluster WITH (LOCATION = 'hdfs://10.10.10.10:8020', TYPE = HADOOP)",
+		"CREATE EXTERNAL DATA SOURCE MyHadoopCluster WITH (LOCATION = 'hdfs://10.10.10.10:8020', TYPE = BLOB_STORAGE)",
 		// CREATE with LOCATION, TYPE, and RESOURCE_MANAGER_LOCATION
-		"CREATE EXTERNAL DATA SOURCE MyHadoopCluster WITH (LOCATION = 'hdfs://10.10.10.10:8020', TYPE = HADOOP, RESOURCE_MANAGER_LOCATION = '10.10.10.10:8032')",
+		"CREATE EXTERNAL DATA SOURCE MyHadoopCluster WITH (LOCATION = 'hdfs://10.10.10.10:8020', TYPE = BLOB_STORAGE, RESOURCE_MANAGER_LOCATION = '10.10.10.10:8032')",
 		// CREATE with CREDENTIAL
 		"CREATE EXTERNAL DATA SOURCE MyAzureStorage WITH (LOCATION = 'wasbs://container@account.blob.core.windows.net', CREDENTIAL = AzureStorageCredential)",
 		// CREATE with TYPE = BLOB_STORAGE
@@ -5087,7 +5087,7 @@ func TestParseExternalDataSource(t *testing.T) {
 		// CREATE SQL Server 2022+ style (no TYPE)
 		"CREATE EXTERNAL DATA SOURCE MyABS WITH (LOCATION = 'abs://account.blob.core.windows.net', CREDENTIAL = AzureStorageCredential)",
 		// ALTER EXTERNAL DATA SOURCE
-		"ALTER EXTERNAL DATA SOURCE hadoop_eds SET LOCATION = 'hdfs://10.10.10.10:8020', RESOURCE_MANAGER_LOCATION = '10.10.10.10:8032'",
+		"ALTER EXTERNAL DATA SOURCE hadoop_eds SET LOCATION = 'hdfs://10.10.10.10:8020'",
 		// ALTER with CREDENTIAL
 		"ALTER EXTERNAL DATA SOURCE hadoop_eds SET CREDENTIAL = new_hadoop_user",
 		// DROP EXTERNAL DATA SOURCE
@@ -5104,6 +5104,85 @@ func TestParseExternalDataSource(t *testing.T) {
 				t.Fatalf("Parse(%q): expected *SecurityStmt, got %T", sql, result.Items[0])
 			}
 			checkLocation(t, sql, "SecurityStmt", stmt.Loc)
+		})
+	}
+}
+
+// TestParseExternalOptionsByWords pins the EXTERNAL statements' option lists
+// to their words. The data source, library, language and resource pool cases
+// are SQL Server 2022's verdicts; the pinned server has no PolyBase and
+// refuses every external table, file format, stream and COPY INTO, so those
+// follow TSql160.g and the learn.microsoft.com syntax.
+func TestParseExternalOptionsByWords(t *testing.T) {
+	accept := []string{
+		"CREATE EXTERNAL DATA SOURCE a WITH ()",
+		"CREATE EXTERNAL DATA SOURCE a WITH (, LOCATION = 'a',)",
+		"CREATE EXTERNAL DATA SOURCE a WITH (TYPE = blob_storage, DATABASE_NAME = N'a', CONNECTION_OPTIONS = 'a')",
+		"ALTER EXTERNAL DATA SOURCE a SET PUSHDOWN = OFF, CONNECTION_OPTIONS = 'a', CREDENTIAL = a",
+		"CREATE EXTERNAL LIBRARY a FROM (PLATFORM = LINUX, CONTENT = 0x00 + 0x01) WITH (LANGUAGE = N'R')",
+		"CREATE EXTERNAL LIBRARY a FROM (CONTENT = 0x00, PLATFORM = WINDOWS), (CONTENT = 0x00, PLATFORM = LINUX) WITH (LANGUAGE = 'R')",
+		"ALTER EXTERNAL LIBRARY a ADD (CONTENT = NONE) WITH (LANGUAGE = 'a')",
+		"ALTER EXTERNAL LIBRARY a SET (PLATFORM = LINUX) WITH (LANGUAGE = 'a')",
+		"CREATE EXTERNAL LANGUAGE a FROM (FILE_NAME = 'a', CONTENT = 0x00, ENVIRONMENT_VARIABLES = N'{\"a\":\"b\"}')",
+		"ALTER EXTERNAL LANGUAGE a ADD (PLATFORM = LINUX)",
+		"ALTER EXTERNAL LANGUAGE a AUTHORIZATION dbo REMOVE PLATFORM WINDOWS",
+		"CREATE EXTERNAL RESOURCE POOL a WITH (AFFINITY CPU = (1 TO 2, 4), MAX_PROCESSES = 0)",
+		"CREATE EXTERNAL RESOURCE POOL a WITH (AFFINITY NUMANODE = (0))",
+		"CREATE EXTERNAL TABLE a WITH (DATA_SOURCE = a, REJECT_VALUE = 1.5) AS SELECT 1",
+		"CREATE EXTERNAL FILE FORMAT a WITH (FORMAT_TYPE = DELIMITEDTEXT, FORMAT_OPTIONS (FIRST_ROW = 2, USE_TYPE_DEFAULT = FALSE), DATA_COMPRESSION = 'a')",
+		"CREATE EXTERNAL STREAM a WITH (DATA_SOURCE = 'a', LOCATION = 'a')",
+		"COPY INTO a (a DEFAULT -1 2) FROM 'a' WITH (FILE_FORMAT = f, ERRORFILE_CREDENTIAL = (IDENTITY = 'a', SECRET = 'b'))",
+		"DROP EXTERNAL LANGUAGE a AUTHORIZATION dbo",
+		"COPY INTO a (a DEFAULT @fallback, b DEFAULT @@SPID 2) FROM 'a'",
+	}
+	for _, sql := range accept {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+	reject := []string{
+		// SQL Server 2022 dropped Hadoop; RDBMS and SHARD_MAP_NAME are Azure SQL's.
+		"CREATE EXTERNAL DATA SOURCE a WITH (TYPE = HADOOP)",
+		"CREATE EXTERNAL DATA SOURCE a WITH (TYPE = [BLOB_STORAGE])",
+		"CREATE EXTERNAL DATA SOURCE a WITH (SHARD_MAP_NAME = 'a')",
+		"CREATE EXTERNAL DATA SOURCE a WITH (LOCATION = 'a', LOCATION = 'b')",
+		"CREATE EXTERNAL DATA SOURCE a WITH (CREDENTIAL = 'a')",
+		"CREATE EXTERNAL DATA SOURCE a WITH (LOCATION = 'a' PUSHDOWN = ON)",
+		"ALTER EXTERNAL DATA SOURCE a SET RESOURCE_MANAGER_LOCATION = 'a'",
+		"ALTER EXTERNAL DATA SOURCE a LOCATION = 'a'",
+		"ALTER EXTERNAL DATA SOURCE a SET LOCATION = 'a',",
+		"CREATE EXTERNAL LIBRARY a FROM (CONTENT = 0x00, PLATFORM = a) WITH (LANGUAGE = 'a')",
+		"CREATE EXTERNAL LIBRARY a FROM (CONTENT = 0x00), (CONTENT = 0x00) WITH (LANGUAGE = 'a')",
+		"CREATE EXTERNAL LIBRARY a FROM (PLATFORM = LINUX) WITH (LANGUAGE = 'a')",
+		"CREATE EXTERNAL LIBRARY a FROM (CONTENT = 0x00) WITH (LANGUAGE = '')",
+		"ALTER EXTERNAL LIBRARY a SET (CONTENT = 0x00)",
+		"CREATE EXTERNAL LANGUAGE a FROM (CONTENT = 0x00)",
+		"CREATE EXTERNAL LANGUAGE a FROM (CONTENT = 0x00, FILE_NAME = 'a', FILE_NAME = 'b')",
+		"ALTER EXTERNAL LANGUAGE a REMOVE PLATFORM a",
+		"ALTER EXTERNAL RESOURCE POOL a",
+		"ALTER EXTERNAL RESOURCE POOL default WITH (MAX_CPU_PERCENT = 50)",
+		"CREATE EXTERNAL RESOURCE POOL a WITH (MAX_CPU_PERCENT = 101)",
+		"CREATE EXTERNAL RESOURCE POOL a WITH (AFFINITY NUMANODE = AUTO)",
+		// A CETAS names its columns; an external table without AS SELECT defines them.
+		"CREATE EXTERNAL TABLE a (id INT) WITH (DATA_SOURCE = a) AS SELECT 1",
+		"CREATE EXTERNAL TABLE a WITH (DATA_SOURCE = a)",
+		"CREATE EXTERNAL TABLE a (id) WITH (DATA_SOURCE = a)",
+		// DISTRIBUTION is Azure SQL Database's elastic query.
+		"CREATE EXTERNAL TABLE a (id INT) WITH (DATA_SOURCE = a, DISTRIBUTION = REPLICATED)",
+		"CREATE EXTERNAL FILE FORMAT a WITH (FORMAT_TYPE = DELIMITEDTEXT, FORMAT_OPTIONS (a = 1))",
+		"CREATE EXTERNAL FILE FORMAT a WITH (DATA_COMPRESSION = 'a')",
+		"CREATE EXTERNAL STREAM a WITH (a = 'a')",
+		"COPY INTO a FROM 'a' WITH (a = a)",
+		"COPY INTO a FROM 'a' WITH (CREDENTIAL = a)",
+		"COPY INTO a (a DEFAULT) FROM 'a'",
+		"DROP EXTERNAL TABLE",
+		"DROP EXTERNAL a",
+	}
+	for _, sql := range reject {
+		t.Run(sql, func(t *testing.T) {
+			if _, err := Parse(sql); err == nil {
+				t.Errorf("Parse(%q): want an error", sql)
+			}
 		})
 	}
 }
@@ -15380,7 +15459,7 @@ func TestParseExternalNestedParensDepth(t *testing.T) {
 
 	// Test SHARDED() structured parsing through external data source options
 	t.Run("sharded_structured", func(t *testing.T) {
-		sql := "CREATE EXTERNAL DATA SOURCE MyDS WITH (LOCATION = 'hdfs://myhost:8020', TYPE = HADOOP)"
+		sql := "CREATE EXTERNAL DATA SOURCE MyDS WITH (LOCATION = 'hdfs://myhost:8020', TYPE = BLOB_STORAGE)"
 		result := ParseAndCheck(t, sql)
 		if result.Len() != 1 {
 			t.Fatalf("Parse(%q): got %d statements, want 1", sql, result.Len())
@@ -15416,8 +15495,7 @@ func TestParseExternalNestedParensDepth(t *testing.T) {
 			WITH (
 				LOCATION = '/data/',
 				DATA_SOURCE = MySource,
-				FILE_FORMAT = CsvFormat,
-				DISTRIBUTION = REPLICATED
+				FILE_FORMAT = CsvFormat
 			)`,
 			`CREATE EXTERNAL TABLE dbo.RoundRobin (
 				col1 BIGINT
@@ -15425,8 +15503,7 @@ func TestParseExternalNestedParensDepth(t *testing.T) {
 			WITH (
 				LOCATION = '/data/',
 				DATA_SOURCE = MySource,
-				FILE_FORMAT = ParquetFormat,
-				DISTRIBUTION = REPLICATED
+				FILE_FORMAT = ParquetFormat
 			)`,
 		}
 		for _, sql := range tests {
@@ -16052,30 +16129,12 @@ func TestParseUtilityCetasDbscopedDepth(t *testing.T) {
 				colNames: []string{"id", "name", "value"},
 			},
 			{
-				name: "typed_columns",
-				sql: `CREATE EXTERNAL TABLE dbo.export_data
-					(id INT, name VARCHAR(100), value FLOAT)
-					WITH (LOCATION = '/out/', DATA_SOURCE = ds, FILE_FORMAT = ff)
-					AS SELECT id, name, value FROM src`,
-				numCols:  3,
-				colNames: []string{"id", "name", "value"},
-			},
-			{
 				name: "single_column",
 				sql: `CREATE EXTERNAL TABLE dbo.export_data (col1)
 					WITH (LOCATION = '/out/', DATA_SOURCE = ds, FILE_FORMAT = ff)
 					AS SELECT 1`,
 				numCols:  1,
 				colNames: []string{"col1"},
-			},
-			{
-				name: "typed_columns_nullable",
-				sql: `CREATE EXTERNAL TABLE dbo.export_data
-					(id INT NOT NULL, name NVARCHAR(50) NULL)
-					WITH (LOCATION = '/out/', DATA_SOURCE = ds, FILE_FORMAT = ff)
-					AS SELECT id, name FROM src`,
-				numCols:  2,
-				colNames: []string{"id", "name"},
 			},
 		}
 		for _, tt := range tests {
@@ -17027,8 +17086,8 @@ func TestParseExternalCleanupDepth(t *testing.T) {
 		if credOpt == nil {
 			t.Fatal("expected ExternalOption with Key=CREDENTIAL")
 		}
-		if credOpt.Value != "NEWCRED" {
-			t.Errorf("expected NEWCRED, got %q", credOpt.Value)
+		if credOpt.Value != "newCred" {
+			t.Errorf("expected newCred, got %q", credOpt.Value)
 		}
 	})
 
@@ -23226,7 +23285,7 @@ func TestParseClrExternalBnfReview(t *testing.T) {
 	t.Run("existing_roundtrip", func(t *testing.T) {
 		tests := []string{
 			// CREATE/ALTER/DROP EXTERNAL DATA SOURCE
-			"CREATE EXTERNAL DATA SOURCE MySource WITH (LOCATION = 'hdfs://10.10.10.10:8020', TYPE = HADOOP)",
+			"CREATE EXTERNAL DATA SOURCE MySource WITH (LOCATION = 'hdfs://10.10.10.10:8020', TYPE = BLOB_STORAGE)",
 			"ALTER EXTERNAL DATA SOURCE MySource SET LOCATION = 'hdfs://newhost:8020'",
 			"DROP EXTERNAL DATA SOURCE MySource",
 			// CREATE/DROP EXTERNAL TABLE
