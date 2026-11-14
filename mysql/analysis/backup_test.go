@@ -69,6 +69,9 @@ var backupDB = &backupDatabase{
 		}},
 		{Name: "parent", Columns: backupColumns("id", "v"), Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Expressions: []string{"id"}}}},
 		{Name: "child", Columns: backupColumns("id", "parent_id"), Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Expressions: []string{"id"}}}, ForeignKeys: []*metadata.ForeignKeyMetadata{{Name: "fk_cascade", Columns: []string{"parent_id"}, ReferencedTable: "parent", ReferencedColumns: []string{"id"}, OnDelete: "CASCADE", OnUpdate: "RESTRICT"}}},
+		{Name: "bumped", Columns: backupColumns("id", "v"), Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Expressions: []string{"id"}}}, Triggers: []*metadata.TriggerMetadata{{Name: "tr_bump", Event: "UPDATE", Timing: "BEFORE"}}},
+		{Name: "logged", Columns: backupColumns("id", "v"), Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Expressions: []string{"id"}}}, Triggers: []*metadata.TriggerMetadata{{Name: "tr_log", Event: "delete", Timing: "AFTER"}}},
+		{Name: "stamped_insert", Columns: backupColumns("id", "v"), Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Expressions: []string{"id"}}}, Triggers: []*metadata.TriggerMetadata{{Name: "tr_insert", Event: "INSERT", Timing: "BEFORE"}}},
 		{Name: "nokey", Columns: []*metadata.ColumnMetadata{{Name: "a", Nullable: true}, {Name: "b"}}, Indexes: []*metadata.IndexMetadata{{Name: "uk", Unique: true, Expressions: []string{"a"}}}},
 		{Name: "tk", Columns: backupColumns("a", "b", "g_c"), Indexes: []*metadata.IndexMetadata{
 			{Name: "uk_generated", Unique: true, Expressions: []string{"g_c"}},
@@ -382,6 +385,25 @@ func TestTransformDMLToSelectRefusesUnsafeScripts(t *testing.T) {
 		{"SELECT 1 INTO @v; UPDATE t SET b = 1 WHERE a = @V", "failed to prepare transformation: prior backup cannot handle a statement that reads @V after an earlier statement sets it"},
 		{"SELECT @v := 2; UPDATE t JOIN t1 ON t1.a = @v SET t.b = 1", "failed to prepare transformation: prior backup cannot handle a statement that reads @v after an earlier statement sets it"},
 		{"SET @v = 1; WITH c AS (SELECT @v AS a) DELETE t FROM t JOIN c ON t.a = c.a", "failed to prepare transformation: prior backup cannot handle a statement that reads @v after an earlier statement sets it"},
+		// A USE before the statement moves its unqualified tables.
+		{"USE other; DELETE FROM t WHERE a = 1", "failed to prepare transformation: prior backup cannot handle a statement after USE other changes the database"},
+		// Two references known by one name.
+		{"UPDATE db.t JOIN db2.t ON db.t.a = db2.t.a SET db.t.b = 1", "failed to prepare transformation: prior backup cannot tell apart the tables named t without aliases"},
+		{"DELETE db.t FROM db.t JOIN db2.t ON db.t.a = db2.t.a", "failed to prepare transformation: prior backup cannot tell apart the tables named t without aliases"},
+		{"DELETE t, t FROM t JOIN t1 ON t.a = t1.a", "failed to prepare transformation: prior backup cannot tell apart the tables named t without aliases"},
+		// The backup would draw other random values.
+		{"DELETE FROM t WHERE RAND() < 0.5", "failed to prepare transformation: prior backup cannot back up a statement whose rows depend on RAND(), whose value can differ when the backup runs"},
+		{"DELETE FROM t ORDER BY rand() LIMIT 1", "failed to prepare transformation: prior backup cannot back up a statement whose rows depend on RAND(), whose value can differ when the backup runs"},
+		{"UPDATE t JOIN t1 ON t1.a = UUID_SHORT() SET t.b = 1", "failed to prepare transformation: prior backup cannot back up a statement whose rows depend on UUID_SHORT(), whose value can differ when the backup runs"},
+		// The clock moves, and the session's last statement is another one.
+		{"DELETE FROM t WHERE a < UNIX_TIMESTAMP() - 60", "failed to prepare transformation: prior backup cannot back up a statement whose rows depend on UNIX_TIMESTAMP(), whose value can differ when the backup runs"},
+		{"UPDATE t SET b = 1 WHERE a < current_timestamp", "failed to prepare transformation: prior backup cannot back up a statement whose rows depend on CURRENT_TIMESTAMP(), whose value can differ when the backup runs"},
+		{"INSERT INTO t1 VALUES (1, 1); DELETE FROM t WHERE a = LAST_INSERT_ID()", "failed to prepare transformation: prior backup cannot back up a statement whose rows depend on LAST_INSERT_ID(), whose value can differ when the backup runs"},
+		// A trigger on the statement's event, or on the INSERT a restore runs.
+		{"UPDATE bumped SET v = 2 WHERE id = 1", "failed to generate SQL for table db.bumped: prior backup cannot back up db.bumped: trigger tr_bump runs on UPDATE, and the backup and its restore do not account for it"},
+		{"DELETE FROM logged WHERE id = 1", "failed to generate SQL for table db.logged: prior backup cannot back up db.logged: trigger tr_log runs on DELETE, and the backup and its restore do not account for it"},
+		{"UPDATE stamped_insert SET v = 2 WHERE id = 1", "failed to generate SQL for table db.stamped_insert: prior backup cannot back up db.stamped_insert: trigger tr_insert runs on INSERT, and the backup and its restore do not account for it"},
+		{"DELETE FROM stamped_insert WHERE id = 1", "failed to generate SQL for table db.stamped_insert: prior backup cannot back up db.stamped_insert: trigger tr_insert runs on INSERT, and the backup and its restore do not account for it"},
 		// Truncation gives both tables' backups one name.
 		{"DELETE FROM `" + strings.Repeat("x", 62) + "1`; DELETE FROM `" + strings.Repeat("x", 62) + "2`", "prior backup cannot name the backups of db." + strings.Repeat("x", 62) + "1 and db." + strings.Repeat("x", 62) + "2 apart: both are pre_" + strings.Repeat("x", 60)},
 	}
@@ -411,6 +433,20 @@ func TestTransformDMLToSelectKeepsSafeScripts(t *testing.T) {
 		"DELETE FROM t WHERE a = @v; SET @v = 1",
 		"SET @@session.v = 1; DELETE FROM t WHERE a = @v",
 		"SET @v = 1; DELETE FROM t WHERE a = @@v",
+		// A USE of the task database, or after the statement.
+		"USE db; DELETE FROM t WHERE a = 1",
+		"USE other; USE DB; DELETE FROM t WHERE a = 1",
+		"DELETE FROM t WHERE a = 1; USE other",
+		// Aliases tell the tables apart, and a CTE is not a table.
+		"UPDATE db.t x JOIN db2.t y ON x.a = y.a SET x.b = 1",
+		"WITH t AS (SELECT 1 AS a) UPDATE db.t JOIN t ON db.t.a = t.a SET db.t.b = 1",
+		// A random value only the SET list draws.
+		"UPDATE t SET b = RAND() WHERE a = 1",
+		"UPDATE t SET b = NOW() WHERE a = 1",
+		"DELETE FROM t WHERE a = UNIX_TIMESTAMP(b)",
+		// A trigger on events neither the statement nor its restore runs.
+		"DELETE FROM bumped WHERE id = 1",
+		"UPDATE logged SET v = 1 WHERE id = 1",
 		// An earlier write to a table the later statement does not read.
 		"UPDATE t1 SET b = 1; DELETE FROM t WHERE a = 1",
 		// The child's RESTRICT key does not cascade an UPDATE.

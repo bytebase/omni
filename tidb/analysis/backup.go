@@ -98,6 +98,8 @@ func prepareTransformation(databaseName, statement string, catalog Catalog, isCa
 	// and assigned the user variables they set.
 	var written []ColumnResource
 	assigned := make(map[string]bool)
+	// used is the database a USE switched to, if not databaseName.
+	var used string
 	for i, segment := range parser.Split(statement) {
 		text := segmentText(statement, segment)
 		if len(text) == 0 || segment.Empty() {
@@ -124,6 +126,15 @@ func prepareTransformation(databaseName, statement string, catalog Catalog, isCa
 				if name := assignedUserVariable(node, text, assigned); name != "" {
 					return nil, fmt.Errorf("prior backup cannot handle a statement that reads @%s after an earlier statement sets it", name)
 				}
+				if used != "" {
+					return nil, fmt.Errorf("prior backup cannot handle a statement after USE %s changes the database", used)
+				}
+				if name := repeatedTableName(node, text, isCaseSensitive); name != "" {
+					return nil, fmt.Errorf("prior backup cannot tell apart the tables named %s without aliases", name)
+				}
+				if name := volatileFunction(node, text); name != "" {
+					return nil, fmt.Errorf("prior backup cannot back up a statement whose rows depend on %s(), whose value can differ when the backup runs", name)
+				}
 				for read := range statementReads(databaseName, node, text, tables, isCaseSensitive) {
 					for _, changed := range written {
 						if equalIdentifier(read.Database, changed.Database, isCaseSensitive) && equalIdentifier(read.Table, changed.Table, isCaseSensitive) {
@@ -134,6 +145,12 @@ func prepareTransformation(databaseName, statement string, catalog Catalog, isCa
 			}
 			written = append(written, statementWrites(databaseName, node, tables)...)
 			assignUserVariables(node, text, assigned)
+			if use, ok := node.(*ast.UseStmt); ok {
+				used = use.Database
+				if equalIdentifier(used, databaseName, isCaseSensitive) {
+					used = ""
+				}
+			}
 			for _, table := range tables {
 				// A BackupStatement carries no source database, and the executor
 				// records the task database for the backed-up table. Reject
@@ -235,6 +252,77 @@ func assignedUserVariable(node ast.Node, fullSQL string, assigned map[string]boo
 		ast.Inspect(n, func(n ast.Node) bool {
 			if v, ok := n.(*ast.VariableRef); ok && !v.System && assigned[strings.ToLower(v.Name)] && found == "" {
 				found = v.Name
+			}
+			return found == ""
+		})
+	}
+	return found
+}
+
+// repeatedTableName returns a name two of a statement's table references are
+// known by, which the backup cannot tell apart, or "" if there is none. A
+// reference to a CTE does not count.
+func repeatedTableName(node ast.Node, fullSQL string, caseSensitive bool) string {
+	var lists [][]ast.TableExpr
+	var loc ast.Loc
+	switch n := node.(type) {
+	case *ast.UpdateStmt:
+		loc, lists = n.Loc, [][]ast.TableExpr{n.Tables}
+	case *ast.DeleteStmt:
+		loc, lists = n.Loc, [][]ast.TableExpr{n.Tables, n.Using}
+	default:
+		return ""
+	}
+	cteNames := collectCTENames(fullSQL, loc)
+	for _, list := range lists {
+		seen := make(map[string]bool)
+		var found string
+		for _, expr := range list {
+			ast.Inspect(expr, func(n ast.Node) bool {
+				ref, ok := n.(*ast.TableRef)
+				if !ok || found != "" {
+					return found == ""
+				}
+				key := ref.Name
+				if ref.Alias != "" {
+					key = ref.Alias
+				} else if ref.Schema == "" && cteNames[strings.ToLower(ref.Name)] {
+					return false
+				}
+				key = identifierKey(key, caseSensitive)
+				if seen[key] {
+					found = key
+				}
+				seen[key] = true
+				return false
+			})
+		}
+		if found != "" {
+			return found
+		}
+	}
+	return ""
+}
+
+// volatileFunctions are the functions whose value can differ when the backup
+// runs: random values, the clock, and the session's last statement. The
+// parser upper-cases a built-in function's name.
+var volatileFunctions = []string{
+	"RAND", "UUID", "UUID_SHORT", "UUID_V4", "UUID_V7", "RANDOM_BYTES", "SYS_GUID", "NEXTVAL",
+	"NOW", "CURRENT_TIMESTAMP", "LOCALTIME", "LOCALTIMESTAMP", "SYSDATE", "CURDATE", "CURRENT_DATE", "CURTIME", "CURRENT_TIME", "UTC_DATE", "UTC_TIME", "UTC_TIMESTAMP",
+	"LAST_INSERT_ID", "ROW_COUNT", "FOUND_ROWS",
+}
+
+// volatileFunction returns a function of volatileFunctions, or UNIX_TIMESTAMP
+// of the clock, that the rows a statement changes depend on, or "" if there
+// is none.
+func volatileFunction(node ast.Node, fullSQL string) string {
+	var found string
+	for _, n := range rowSelection(node, fullSQL) {
+		ast.Inspect(n, func(n ast.Node) bool {
+			call, ok := n.(*ast.FuncCallExpr)
+			if ok && found == "" && (slices.Contains(volatileFunctions, call.Name) || call.Name == "UNIX_TIMESTAMP" && len(call.Args) == 0) {
+				found = call.Name
 			}
 			return found == ""
 		})

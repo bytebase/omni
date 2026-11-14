@@ -260,6 +260,22 @@ var roundTrips = []roundTrip{
 		script: "UPDATE covered_updates SET a = 2 WHERE id = 1; UPDATE covered_updates SET a = 3 WHERE a = 2",
 		tables: []string{"covered_updates"},
 	},
+	{
+		// A random predicate draws other values in the backup than in the
+		// statement.
+		name:         "random",
+		setup:        "CREATE TABLE random_rows (id INT PRIMARY KEY);INSERT INTO random_rows VALUES (1), (2), (3), (4)",
+		script:       "DELETE FROM random_rows WHERE RAND() < 0.5",
+		tables:       []string{"random_rows"},
+		transformErr: "prior backup cannot back up a statement whose rows depend on RAND(), whose value can differ when the backup runs",
+	},
+	{
+		name:         "use_database",
+		setup:        "CREATE TABLE use_target (id INT PRIMARY KEY);INSERT INTO use_target VALUES (1), (2)",
+		script:       "USE mysql; DELETE FROM use_target WHERE id = 1",
+		tables:       []string{"use_target"},
+		transformErr: "prior backup cannot handle a statement after USE mysql changes the database",
+	},
 }
 
 // TestBackupRestoreRoundTrip runs each backup, its statements and their

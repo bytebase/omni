@@ -270,6 +270,35 @@ var roundTrips = []roundTrip{
 		tables:       []string{"history"},
 		transformErr: "prior backup cannot back up DELETE HISTORY, which removes history rows",
 	},
+	{
+		// A random predicate draws other values in the backup than in the
+		// statement.
+		name:         "random",
+		setup:        "CREATE TABLE random_rows (id INT PRIMARY KEY);INSERT INTO random_rows VALUES (1), (2), (3), (4)",
+		script:       "DELETE FROM random_rows WHERE RAND() < 0.5",
+		tables:       []string{"random_rows"},
+		transformErr: "prior backup cannot back up a statement whose rows depend on RAND(), whose value can differ when the backup runs",
+	},
+	{
+		// A trigger changes the row the UPDATE sets, and again the row the
+		// restore writes back.
+		name: "trigger",
+		setup: "CREATE TABLE bumped (id INT PRIMARY KEY, v INT);CREATE TRIGGER tr_bump BEFORE UPDATE ON bumped FOR EACH ROW SET NEW.v = NEW.v + 1;" +
+			"INSERT INTO bumped VALUES (1, 1), (2, 2)",
+		script:       "UPDATE bumped SET v = 2 WHERE id = 1",
+		tables:       []string{"bumped"},
+		transformErr: "trigger tr_bump runs on UPDATE, and the backup and its restore do not account for it",
+	},
+	{
+		// After the USE the unqualified table is the second database's; the
+		// backup would read the first's.
+		name: "use_database",
+		setup: "CREATE DATABASE IF NOT EXISTS " + otherDatabase + ";CREATE TABLE use_target (id INT PRIMARY KEY);CREATE TABLE " + otherDatabase + ".use_target (id INT PRIMARY KEY);" +
+			"INSERT INTO use_target VALUES (1), (2);INSERT INTO " + otherDatabase + ".use_target VALUES (1), (2)",
+		script:       "USE " + otherDatabase + "; DELETE FROM use_target WHERE id = 1",
+		tables:       []string{"use_target", "other.use_target"},
+		transformErr: "prior backup cannot handle a statement after USE " + otherDatabase + " changes the database",
+	},
 }
 
 // TestBackupRestoreRoundTrip runs each backup, its statements and their
@@ -479,6 +508,14 @@ func engineCatalog(t *testing.T, db *sql.DB, databases ...string) analysis.Catal
 			}
 			fk.Columns = append(fk.Columns, column)
 			fk.ReferencedColumns = append(fk.ReferencedColumns, referencedColumn)
+		}
+		require.NoError(t, rows.Close())
+		rows, err = db.Query("SELECT EVENT_OBJECT_TABLE, TRIGGER_NAME, EVENT_MANIPULATION, ACTION_TIMING FROM information_schema.TRIGGERS WHERE EVENT_OBJECT_SCHEMA = ? ORDER BY EVENT_OBJECT_TABLE, TRIGGER_NAME", database)
+		require.NoError(t, err)
+		for rows.Next() {
+			var tableName, name, event, timing string
+			require.NoError(t, rows.Scan(&tableName, &name, &event, &timing))
+			table(tableName).Triggers = append(table(tableName).Triggers, &metadata.TriggerMetadata{Name: name, Event: event, Timing: timing})
 		}
 		require.NoError(t, rows.Close())
 		loaded[database] = &backupDatabase{name: database, tables: order}
