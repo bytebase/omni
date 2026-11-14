@@ -86,6 +86,8 @@ var addIfNotExistsCases = []struct {
 	{name: "column twice", table: "t", sql: "ALTER TABLE t ADD IF NOT EXISTS c INT, ADD IF NOT EXISTS c VARCHAR(5)", has: []string{"`c` int(11)"}, hasNot: []string{"varchar"}},
 	{name: "column plain after IF NOT EXISTS", table: "t", sql: "ALTER TABLE t ADD IF NOT EXISTS c INT, ADD c INT", errCode: 1060},
 	{name: "column IF NOT EXISTS after plain", table: "t", sql: "ALTER TABLE t ADD c INT, ADD IF NOT EXISTS c VARCHAR(5)", has: []string{"`c` int(11)"}, hasNot: []string{"varchar"}},
+	// The column's own PRIMARY KEY counts even where IF NOT EXISTS skips the column.
+	{name: "skipped column's primary key", table: "np", sql: "ALTER TABLE np ADD IF NOT EXISTS a INT PRIMARY KEY, ADD b INT PRIMARY KEY", errCode: 1068},
 	{name: "column list", table: "t", sql: "ALTER TABLE t ADD IF NOT EXISTS (c INT, a VARCHAR(5), d INT)", has: []string{"`a` int(11)", "`c` int(11)", "`d` int(11)"}, hasNot: []string{"varchar"}},
 }
 

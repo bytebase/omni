@@ -488,6 +488,22 @@
 | DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct
 < ok 0 0
 > exec
+| CREATE TABLE pt (a INT COMMENT '\n PARTITION BY x', b INT) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))
+< ok 0 0
+> exec
+| CREATE TABLE ct (a INT COMMENT '\n PARTITION BY x', b VARCHAR(20))
+< ok 0 0
+> exec
+| ALTER TABLE pt CONVERT TABLE ct TO PARTITION p1 VALUES LESS THAN (20)
+< error
+| 1736 HY000 Tables have different definitions
+> exec
+| SET sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct
+< ok 0 0
+> exec
 | CREATE TABLE pt (a INT PRIMARY KEY) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))
 < ok 0 0
 > exec

@@ -2123,6 +2123,34 @@
 | CREATE TABLE f (id INT PRIMARY KEY, a INT, CONSTRAINT fkx FOREIGN KEY (a) REFERENCES r (id))
 < ok 0 0
 > exec
+| ALTER TABLE np ADD IF NOT EXISTS a INT PRIMARY KEY, ADD b INT PRIMARY KEY
+< error
+| 1068 42000 Multiple primary key defined
+> exec
+| DROP TABLE IF EXISTS f
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS np
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS t
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS r
+< ok 0 0
+> exec
+| CREATE TABLE r (id INT PRIMARY KEY)
+< ok 0 0
+> exec
+| CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY a (a), KEY k (b), CONSTRAINT ck CHECK (a > 0))
+< ok 0 0
+> exec
+| CREATE TABLE np (id INT NOT NULL, a INT)
+< ok 0 0
+> exec
+| CREATE TABLE f (id INT PRIMARY KEY, a INT, CONSTRAINT fkx FOREIGN KEY (a) REFERENCES r (id))
+< ok 0 0
+> exec
 | ALTER TABLE t ADD IF NOT EXISTS (c INT, a VARCHAR(5), d INT)
 < ok 0 0
 > query

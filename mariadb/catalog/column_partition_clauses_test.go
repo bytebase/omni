@@ -130,6 +130,12 @@ var columnPartitionClauseCases = []struct {
 		errCode: 1736,
 	},
 	{
+		name:    "CONVERT TABLE of another definition, the clause in a comment",
+		setup:   []string{"CREATE TABLE pt (a INT COMMENT '\\n PARTITION BY x', b INT) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))", "CREATE TABLE ct (a INT COMMENT '\\n PARTITION BY x', b VARCHAR(20))"},
+		sql:     "ALTER TABLE pt CONVERT TABLE ct TO PARTITION p1 VALUES LESS THAN (20)",
+		errCode: 1736,
+	},
+	{
 		name:    "CONVERT TABLE of no table",
 		setup:   []string{"CREATE TABLE pt (a INT PRIMARY KEY) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))"},
 		sql:     "ALTER TABLE pt CONVERT TABLE ct TO PARTITION p1 VALUES LESS THAN (20)",
