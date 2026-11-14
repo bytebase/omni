@@ -783,10 +783,17 @@ func (k *keyManagementClauses) password(external bool) (string, error) {
 		}
 		return externalStore, nil
 	}
-	if !p.isIdentLike() || isOracleSQLReservedKeyword(p.cur) {
+	if !k.isName() {
 		return "", p.syntaxErrorAtCur()
 	}
 	return p.advance().Str, nil
+}
+
+// isName reports whether the current token is a name: a quoted identifier,
+// or a word that is not reserved.
+func (k *keyManagementClauses) isName() bool {
+	p := k.p
+	return p.cur.Type == tokQIDENT || p.isIdentLike() && !isOracleSQLReservedKeyword(p.cur)
 }
 
 // stringValue parses the string literal of a clause that started at
@@ -892,7 +899,7 @@ func (k *keyManagementClauses) withIdentifier() (bool, error) {
 		items.Items = append(items.Items, sub)
 	} else {
 		for {
-			if p.cur.Type != tokSCONST && (!p.isIdentLike() || isOracleSQLReservedKeyword(p.cur)) {
+			if p.cur.Type != tokSCONST && !k.isName() {
 				return false, p.syntaxErrorAtCur()
 			}
 			items.Items = append(items.Items, &nodes.String{Str: p.advance().Str})
