@@ -430,6 +430,12 @@ func walkChildren(v Visitor, node Node) {
 				Walk(v, item)
 			}
 		}
+		if n.PolicyName != nil {
+			Walk(v, n.PolicyName)
+		}
+		if n.CredentialName != nil {
+			Walk(v, n.CredentialName)
+		}
 	case *AlterViewStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
