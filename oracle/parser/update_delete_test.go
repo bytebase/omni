@@ -72,7 +72,10 @@ func TestParseUpdateInlineViewTarget(t *testing.T) {
 }
 
 func TestParseUpdateInlineViewTargetWithRestriction(t *testing.T) {
-	result := ParseAndCheck(t, "UPDATE (SELECT a FROM t WITH CHECK OPTION CONSTRAINT ck_v) v SET a = 1")
+	// Oracle 23ai refuses the documented CONSTRAINT name of a DML
+	// subquery's CHECK OPTION (ORA-00907 at CONSTRAINT).
+	ParseShouldFail(t, "UPDATE (SELECT a FROM t WITH CHECK OPTION CONSTRAINT ck_v) v SET a = 1")
+	result := ParseAndCheck(t, "UPDATE (SELECT a FROM t WITH CHECK OPTION) v SET a = 1")
 	raw := result.Items[0].(*ast.RawStmt)
 	stmt := raw.Stmt.(*ast.UpdateStmt)
 	target, ok := stmt.Target.(*ast.SubqueryRef)
@@ -84,9 +87,6 @@ func TestParseUpdateInlineViewTargetWithRestriction(t *testing.T) {
 	}
 	if !target.Restriction.CheckOption {
 		t.Fatalf("expected CHECK OPTION restriction, got %#v", target.Restriction)
-	}
-	if target.Restriction.ConstraintName == nil || target.Restriction.ConstraintName.Name != "CK_V" {
-		t.Fatalf("expected restriction constraint CK_V, got %#v", target.Restriction.ConstraintName)
 	}
 }
 
@@ -166,7 +166,10 @@ func TestParseDeleteInlineViewTarget(t *testing.T) {
 }
 
 func TestParseDeleteTableCollectionTarget(t *testing.T) {
-	result := ParseAndCheck(t, "DELETE FROM TABLE(items) i WHERE i.id = 1")
+	// The collection a DML statement changes is a subquery's: Oracle 23ai
+	// refuses TABLE(items) there (ORA-00903 at TABLE).
+	ParseShouldFail(t, "DELETE FROM TABLE(items) i WHERE i.id = 1")
+	result := ParseAndCheck(t, "DELETE FROM TABLE(SELECT items FROM t WHERE id = 1) i WHERE i.id = 1")
 	raw := result.Items[0].(*ast.RawStmt)
 	stmt := raw.Stmt.(*ast.DeleteStmt)
 	target, ok := stmt.Target.(*ast.TableCollectionExpr)

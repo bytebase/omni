@@ -50,6 +50,7 @@ func walkChildren(v Visitor, node Node) {
 		if n.NewName != nil {
 			Walk(v, n.NewName)
 		}
+		walkDBSchemaProps(v, n.SetProps)
 		for _, item := range n.Tags {
 			walkTagAssignment(v, item)
 		}
@@ -58,6 +59,10 @@ func walkChildren(v Visitor, node Node) {
 				Walk(v, item)
 			}
 		}
+		if n.FeaturePolicy != nil {
+			Walk(v, n.FeaturePolicy)
+		}
+		walkLinkedCatalogUpdate(v, n.LinkedCatalog)
 	case *AlterDynamicTableStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -79,6 +84,21 @@ func walkChildren(v Visitor, node Node) {
 			}
 		}
 		walkNodes(v, n.ClusterBy)
+		for _, item := range n.MoreNames {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		if n.PolicyName != nil {
+			Walk(v, n.PolicyName)
+		}
+		if n.AddPolicyName != nil {
+			Walk(v, n.AddPolicyName)
+		}
+		for _, item := range n.ColumnActions {
+			walkAlterViewColumnAction(v, item)
+		}
+		Walk(v, n.FrozenWhere)
 	case *AlterExternalTableStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -148,6 +168,7 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.NewName)
 		}
 		walkNodes(v, n.ClusterBy)
+		walkDataMetricAction(v, n.DataMetric)
 	case *AlterNetworkRuleStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -262,6 +283,7 @@ func walkChildren(v Visitor, node Node) {
 		if n.NewName != nil {
 			Walk(v, n.NewName)
 		}
+		walkDBSchemaProps(v, n.SetProps)
 		for _, item := range n.Tags {
 			walkTagAssignment(v, item)
 		}
@@ -463,6 +485,13 @@ func walkChildren(v Visitor, node Node) {
 		if n.AddPolicyName != nil {
 			Walk(v, n.AddPolicyName)
 		}
+		walkDataMetricAction(v, n.DataMetric)
+		if n.ColumnType != nil {
+			Walk(v, n.ColumnType)
+		}
+		if n.ProjectionPolicy != nil {
+			Walk(v, n.ProjectionPolicy)
+		}
 	case *AlterWarehouseStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -630,6 +659,13 @@ func walkChildren(v Visitor, node Node) {
 		if n.FromShare != nil {
 			Walk(v, n.FromShare)
 		}
+		if n.FromBackupSet != nil {
+			Walk(v, n.FromBackupSet)
+		}
+		if n.ReplicaOf != nil {
+			Walk(v, n.ReplicaOf)
+		}
+		walkDBSchemaProps(v, &n.Props)
 		for _, item := range n.Tags {
 			walkTagAssignment(v, item)
 		}
@@ -656,6 +692,9 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.AsQuery)
 		Walk(v, n.RefreshUsing)
 		walkCloneSource(v, n.Clone)
+		walkNodes(v, n.PartitionBy)
+		Walk(v, n.StartAt)
+		walkBackupSource(v, n.FromBackup)
 	case *CreateEventTableStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -669,6 +708,7 @@ func walkChildren(v Visitor, node Node) {
 		for _, item := range n.Tags {
 			walkTagAssignment(v, item)
 		}
+		walkCloneSource(v, n.Clone)
 	case *CreateExternalTableStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -818,6 +858,10 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Name)
 		}
 		walkCloneSource(v, n.Clone)
+		if n.FromBackupSet != nil {
+			Walk(v, n.FromBackupSet)
+		}
+		walkDBSchemaProps(v, &n.Props)
 		for _, item := range n.Tags {
 			walkTagAssignment(v, item)
 		}
@@ -910,13 +954,16 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Like)
 		}
 		walkCloneSource(v, n.Clone)
+		Walk(v, n.UsingTemplate)
+		walkArchiveSource(v, n.FromArchive)
+		walkBackupSource(v, n.FromBackup)
 		walkRowAccessPolicy(v, n.RowPolicy)
-		walkNodes(v, n.PartitionBy)
 		for _, item := range n.Options {
 			if item != nil {
 				Walk(v, item)
 			}
 		}
+		walkNodes(v, n.PartitionBy)
 		if n.AggregationPolicy != nil {
 			Walk(v, n.AggregationPolicy)
 		}
@@ -1490,6 +1537,20 @@ func walkAlterTableAction(v Visitor, n *AlterTableAction) {
 	if n.MaskingPolicy != nil {
 		Walk(v, n.MaskingPolicy)
 	}
+	if n.ProjectionPolicy != nil {
+		Walk(v, n.ProjectionPolicy)
+	}
+	walkDataMetricAction(v, n.DataMetric)
+	for _, item := range n.Options {
+		if item != nil {
+			Walk(v, item)
+		}
+	}
+	Walk(v, n.Partition)
+	Walk(v, n.NewPartition)
+	if n.VersionTag != nil {
+		Walk(v, n.VersionTag)
+	}
 }
 
 // walkAlterViewColumnAction walks the node-bearing fields of the non-Node helper struct
@@ -1502,6 +1563,9 @@ func walkAlterViewColumnAction(v Visitor, n *AlterViewColumnAction) {
 	if n.MaskingPolicy != nil {
 		Walk(v, n.MaskingPolicy)
 	}
+	if n.ProjectionPolicy != nil {
+		Walk(v, n.ProjectionPolicy)
+	}
 	for _, item := range n.Tags {
 		walkTagAssignment(v, item)
 	}
@@ -1509,6 +1573,31 @@ func walkAlterViewColumnAction(v Visitor, n *AlterViewColumnAction) {
 		if item != nil {
 			Walk(v, item)
 		}
+	}
+}
+
+// walkArchiveSource walks the node-bearing fields of the non-Node helper struct
+// ArchiveSource. The helper itself is not visited (it is not a Node); its child
+// nodes are walked in field order.
+func walkArchiveSource(v Visitor, n *ArchiveSource) {
+	if n == nil {
+		return
+	}
+	if n.Table != nil {
+		Walk(v, n.Table)
+	}
+	Walk(v, n.Where)
+}
+
+// walkBackupSource walks the node-bearing fields of the non-Node helper struct
+// BackupSource. The helper itself is not visited (it is not a Node); its child
+// nodes are walked in field order.
+func walkBackupSource(v Visitor, n *BackupSource) {
+	if n == nil {
+		return
+	}
+	if n.BackupSet != nil {
+		Walk(v, n.BackupSet)
 	}
 }
 
@@ -1546,6 +1635,71 @@ func walkColumnAlter(v Visitor, n *ColumnAlter) {
 		Walk(v, n.DataType)
 	}
 	Walk(v, n.DefaultExpr)
+}
+
+// walkDBSchemaProps walks the node-bearing fields of the non-Node helper struct
+// DBSchemaProps. The helper itself is not visited (it is not a Node); its child
+// nodes are walked in field order.
+func walkDBSchemaProps(v Visitor, n *DBSchemaProps) {
+	if n == nil {
+		return
+	}
+	for _, item := range n.Options {
+		if item != nil {
+			Walk(v, item)
+		}
+	}
+	for _, item := range n.Contacts {
+		if item != nil {
+			Walk(v, item)
+		}
+	}
+}
+
+// walkDataMetricAction walks the node-bearing fields of the non-Node helper struct
+// DataMetricAction. The helper itself is not visited (it is not a Node); its child
+// nodes are walked in field order.
+func walkDataMetricAction(v Visitor, n *DataMetricAction) {
+	if n == nil {
+		return
+	}
+	for _, item := range n.Functions {
+		walkDataMetricFunctionClause(v, item)
+	}
+}
+
+// walkDataMetricExpectation walks the node-bearing fields of the non-Node helper struct
+// DataMetricExpectation. The helper itself is not visited (it is not a Node); its child
+// nodes are walked in field order.
+func walkDataMetricExpectation(v Visitor, n *DataMetricExpectation) {
+	if n == nil {
+		return
+	}
+	Walk(v, n.Expr)
+}
+
+// walkDataMetricFunctionClause walks the node-bearing fields of the non-Node helper struct
+// DataMetricFunctionClause. The helper itself is not visited (it is not a Node); its child
+// nodes are walked in field order.
+func walkDataMetricFunctionClause(v Visitor, n *DataMetricFunctionClause) {
+	if n == nil {
+		return
+	}
+	if n.Name != nil {
+		Walk(v, n.Name)
+	}
+	if n.RefTable != nil {
+		Walk(v, n.RefTable)
+	}
+	Walk(v, n.Filter)
+	for _, item := range n.Expectations {
+		walkDataMetricExpectation(v, item)
+	}
+	for _, item := range n.Options {
+		if item != nil {
+			Walk(v, item)
+		}
+	}
 }
 
 // walkFetchClause walks the node-bearing fields of the non-Node helper struct
@@ -1613,6 +1767,20 @@ func walkKeyValuePair(v Visitor, n *KeyValuePair) {
 		return
 	}
 	Walk(v, n.Value)
+}
+
+// walkLinkedCatalogUpdate walks the node-bearing fields of the non-Node helper struct
+// LinkedCatalogUpdate. The helper itself is not visited (it is not a Node); its child
+// nodes are walked in field order.
+func walkLinkedCatalogUpdate(v Visitor, n *LinkedCatalogUpdate) {
+	if n == nil {
+		return
+	}
+	for _, item := range n.Options {
+		if item != nil {
+			Walk(v, item)
+		}
+	}
 }
 
 // walkMergeWhen walks the node-bearing fields of the non-Node helper struct
@@ -1756,6 +1924,9 @@ func walkViewColumn(v Visitor, n *ViewColumn) {
 	}
 	if n.MaskingPolicy != nil {
 		Walk(v, n.MaskingPolicy)
+	}
+	if n.ProjectionPolicy != nil {
+		Walk(v, n.ProjectionPolicy)
 	}
 	for _, item := range n.Tags {
 		walkTagAssignment(v, item)

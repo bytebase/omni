@@ -8,14 +8,15 @@ const (
 
 // Literal token types.
 const (
-	tokIDENT     = iota + 1000 // unquoted identifier
-	tokQUOTED                  // double-quoted identifier
-	tokSTRING                  // single-quoted string
-	tokINTEGER                 // integer constant
-	tokFLOAT                   // float constant
-	tokUUID                    // UUID literal
-	tokHEX                     // hex literal 0xABCD
-	tokCODEBLOCK               // $$...$$ code block
+	tokIDENT       = iota + 1000 // unquoted identifier
+	tokQUOTED                    // double-quoted identifier
+	tokSTRING                    // single-quoted string
+	tokINTEGER                   // integer constant
+	tokFLOAT                     // float constant
+	tokUUID                      // UUID literal
+	tokHEX                       // hex literal 0xABCD
+	tokCODEBLOCK                 // $$...$$ code block
+	tokDURATIONLIT               // duration constant, 1h30m (Lexer.g DURATION)
 )
 
 // Operator / punctuation token types.
@@ -41,6 +42,11 @@ const (
 	tokNE                       // !=
 	tokMINUSMINUS               // --
 	tokQMARK                    // ?
+	tokRANGE                    // .. (Lexer.g RANGE)
+	tokPLUSEQ                   // +=
+	tokMINUSEQ                  // -=
+	tokSLASH                    // /
+	tokPERCENT                  // %
 )
 
 // Keyword token types.

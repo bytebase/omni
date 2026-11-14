@@ -88,7 +88,7 @@ func (p *Parser) parseCheckedRoot() (ast.StmtNode, error) {
 	first := p.cur
 	stmt, err := p.parseRoot()
 	// No later statement parses these tokens again.
-	p.parenMemo, p.tableMemo, p.trimFroms = nil, nil, nil
+	p.parenMemo, p.tableMemo, p.trimFroms, p.positionCommas = nil, nil, nil, nil
 	if err != nil {
 		return nil, err
 	}
@@ -196,13 +196,18 @@ func (p *Parser) parseRootStatement() (ast.StmtNode, error) {
 		return p.parseUpsertStmt()
 	case tokREMOVE:
 		return p.parseRemoveStmt()
+	case tokSET:
+		// A SET command alone is DML: dml#DmlBase (PartiQLParser.g4:125).
+		return p.parseSetStmt()
 	case tokFROM:
 		// FROM-led DML: `FROM fromClause whereClause? dmlBaseCommand+
 		// returningClause?` (dml#DmlBaseWrapper 2nd alt). A leading FROM at
 		// statement position is always DML.
 		return p.parseFromLedDml()
-	case tokEXEC, tokEXECUTE:
-		p.advance() // consume EXEC/EXECUTE
+	case tokEXEC:
+		// execCommand begins with EXEC alone (PartiQLParser.g4:64-65);
+		// EXECUTE is a reserved word no rule uses.
+		p.advance() // consume EXEC
 		return p.parseExecCommand()
 	default:
 		return p.parseDqlStatement()

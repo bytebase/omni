@@ -252,7 +252,8 @@ type objectValueKind int
 const (
 	valNumber  objectValueKind = iota + 1 // <num>, optionally signed
 	valString                             // '<string>'
-	valWord                               // a name, or one of words
+	valWord                               // a one-part name, or one of words
+	valQName                              // a name db.schema.name may qualify
 	valStrings                            // ( '<string>' [ , ... ] )
 	valNames                              // ( <name> [ , ... ] )
 	valGroup                              // ( <key> = <value> [ , ... ] ), as the page spells it
@@ -265,6 +266,7 @@ var (
 	propNumber  = objectValue{kind: valNumber}
 	propString  = objectValue{kind: valString}
 	propName    = objectValue{kind: valWord}
+	propQName   = objectValue{kind: valQName}
 	propBool    = objectValue{kind: valWord, words: []string{"TRUE", "FALSE"}}
 	propStrings = objectValue{kind: valStrings}
 	propNames   = objectValue{kind: valNames}
@@ -328,8 +330,10 @@ func (v objectValue) matches(o *ast.CopyOption) bool {
 		return o.Lit != nil && (o.Lit.Kind == ast.LitInt || o.Lit.Kind == ast.LitFloat)
 	case valString:
 		return o.Lit != nil && o.Lit.Kind == ast.LitString
+	case valQName:
+		return o.Words != "" && nameParts(o.Words) <= 3
 	case valWord:
-		if o.Words == "" {
+		if o.Words == "" || nameParts(o.Words) != 1 {
 			return false
 		}
 		if v.words == nil {
@@ -391,39 +395,54 @@ func (p *Parser) startsObjectProperty() bool {
 // CREATE's run).
 func (p *Parser) parseObjectProperties(s *ast.ObjectStmt, keywords string, need bool) (*ast.ObjectClause, error) {
 	c := &ast.ObjectClause{Keywords: keywords, Loc: ast.Loc{Start: p.cur.Loc.Start}}
+	seen := map[string]bool{}
 	for {
+		tagStart := p.cur
 		switch {
 		case keywords == "" && p.startsWithTags() && (p.cur.Type == kwWITH || p.peekNext().Type == '('):
-			// [ WITH ] TAG ( ... ) is a CREATE's; an ALTER sets tags with
-			// SET TAG <tag> = '<value>'.
-			tags, err := p.parseWithTags()
+			// [ WITH ] TAG ( <tag> = '<value>' [ , ... ] ) is a CREATE's; an
+			// ALTER sets tags with SET TAG <tag> = '<value>'.
+			if c.Tags != nil {
+				return nil, &ParseError{Position: tagStart.Loc.Start, End: tagStart.Loc.End, Message: "syntax error: TAG is set twice"}
+			}
+			p.match(kwWITH)
+			p.advance() // consume TAG
+			if _, err := p.expect('('); err != nil {
+				return nil, err
+			}
+			tags, err := p.parseObjectTagList()
 			if err != nil {
 				return nil, err
 			}
-			c.Tags = append(c.Tags, tags...)
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
+			c.Tags = tags
 		case keywords == "SET" && p.cur.Type == kwTAG && p.peekNext().Type != '(':
 			// Some pages list TAG <tag> = '<value>' [ , ... ] among SET's
 			// properties (ALTER COMPUTE POOL).
+			if c.Tags != nil {
+				return nil, &ParseError{Position: tagStart.Loc.Start, End: tagStart.Loc.End, Message: "syntax error: TAG is set twice"}
+			}
 			p.advance() // consume TAG
 			tags, err := p.parseObjectTagList()
 			if err != nil {
 				return nil, err
 			}
-			c.Tags = append(c.Tags, tags...)
+			c.Tags = tags
 		case p.startsObjectProperty():
 			opt, err := p.parseObjectProperty()
 			if err != nil {
 				return nil, err
 			}
-			for _, prev := range c.Options {
-				if prev.Name == opt.Name {
-					// A property is set once a run.
-					return nil, &ParseError{
-						Position: opt.Loc.Start, End: opt.Loc.End,
-						Message: "syntax error: " + opt.Name + " is set twice",
-					}
+			if seen[opt.Name] {
+				// A property is set once a run.
+				return nil, &ParseError{
+					Position: opt.Loc.Start, End: opt.Loc.End,
+					Message: "syntax error: " + opt.Name + " is set twice",
 				}
 			}
+			seen[opt.Name] = true
 			c.Options = append(c.Options, opt)
 		default:
 			if len(c.Options) == 0 && len(c.Tags) == 0 {
@@ -736,4 +755,19 @@ func (p *Parser) parseObjectUnsetKeys() ([]string, error) {
 		}
 		p.advance() // consume ','
 	}
+}
+
+// nameParts counts the '.'-joined parts of a word value parseObjectWord read,
+// leaving out dots inside a quoted part.
+func nameParts(words string) int {
+	n, quoted := 1, false
+	for _, r := range words {
+		switch {
+		case r == '"':
+			quoted = !quoted
+		case r == '.' && !quoted:
+			n++
+		}
+	}
+	return n
 }

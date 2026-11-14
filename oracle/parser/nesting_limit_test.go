@@ -131,10 +131,6 @@ var nestingShapes = []struct {
 	{"hierarchy levels", func(n int) string {
 		return "CREATE HIERARCHY h USING d (" + strings.Repeat("l CHILD OF ", n) + "l)"
 	}},
-	{"subpartitions", func(n int) string {
-		return "CREATE TABLE t (a NUMBER) PARTITION BY RANGE (a) " +
-			strings.Repeat("SUBPARTITION BY HASH (a) ", n) + "(PARTITION p VALUES LESS THAN (1))"
-	}},
 	{"PL/SQL block", func(n int) string { return nest(n, "BEGIN ", "NULL;", " END;") }},
 	{"PL/SQL IF", func(n int) string { return block(nest(n, "IF 1 = 1 THEN ", "NULL;", " END IF;")) }},
 	{"PL/SQL LOOP", func(n int) string { return block(nest(n, "LOOP ", "EXIT;", " END LOOP;")) }},

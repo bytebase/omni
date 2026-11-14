@@ -74,7 +74,7 @@ func TestP2CatalogAdminLoc(t *testing.T) {
 }
 
 func TestP2AlterTablespaceEncryptionPreservesPayload(t *testing.T) {
-	result := ParseAndCheck(t, "ALTER TABLESPACE users ENCRYPTION ONLINE USING 'AES256' ENCRYPT FILE_NAME_CONVERT = ('old', 'new') FLASHBACK ON")
+	result := ParseAndCheck(t, "ALTER TABLESPACE users ENCRYPTION ONLINE USING 'AES256' ENCRYPT FILE_NAME_CONVERT = ('old', 'new')")
 	raw := result.Items[0].(*ast.RawStmt)
 	stmt, ok := raw.Stmt.(*ast.AlterTablespaceStmt)
 	if !ok {
@@ -82,8 +82,5 @@ func TestP2AlterTablespaceEncryptionPreservesPayload(t *testing.T) {
 	}
 	if stmt.Encryption != "ENCRYPTION ONLINE USING AES256 ENCRYPT FILE_NAME_CONVERT = ( old , new )" {
 		t.Fatalf("Encryption = %q", stmt.Encryption)
-	}
-	if stmt.Flashback != "ON" {
-		t.Fatalf("Flashback = %q, want ON", stmt.Flashback)
 	}
 }

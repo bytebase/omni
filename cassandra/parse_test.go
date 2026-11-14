@@ -895,7 +895,7 @@ func TestParseP2Features(t *testing.T) {
 				t.Fatal("expected DotAccess")
 			}
 		}},
-		{"MBEAN resource", "GRANT SELECT ON MBEAN 'x' TO r", func(t *testing.T, s Statement) {
+		{"MBEAN resource", "GRANT SELECT ON MBEAN 'org.apache.cassandra.db:type=Tables' TO r", func(t *testing.T, s Statement) {
 			if s.AST.(*ast.GrantStmt).Resource.Type != "MBEAN" {
 				t.Fatal("wrong type")
 			}
@@ -912,7 +912,7 @@ func TestParseP2Features(t *testing.T) {
 				t.Fatalf("expected SELECT, got %s", g.Privilege)
 			}
 		}},
-		{"ALL PERMISSION singular", "GRANT ALL PERMISSION ON TABLE t TO r", func(t *testing.T, s Statement) {
+		{"ALL PERMISSIONS", "GRANT ALL PERMISSIONS ON TABLE t TO r", func(t *testing.T, s Statement) {
 			g := s.AST.(*ast.GrantStmt)
 			if g.Privilege != "ALL PERMISSIONS" {
 				t.Fatalf("expected ALL PERMISSIONS, got %s", g.Privilege)
