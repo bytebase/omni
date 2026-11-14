@@ -375,7 +375,7 @@ func (p *Parser) parseSharingClause() (string, error) {
 //	    [ storage_table_clause ]
 //	    [ array_DML_clause ]
 //
-// The statement may end after the name or after USING (see ixEnd).
+// Oracle refuses CREATE INDEXTYPE a with no FOR (ORA-29826).
 func (p *Parser) parseCreateIndextypeStmt(start int, orReplace bool) (*nodes.CreateIndextypeStmt, error) {
 	stmt := &nodes.CreateIndextypeStmt{
 		OrReplace: orReplace,
@@ -397,10 +397,6 @@ func (p *Parser) parseCreateIndextypeStmt(start int, orReplace bool) (*nodes.Cre
 	stmt.Name, err = p.parseOperatorTypeName()
 	if err != nil {
 		return nil, err
-	}
-	if p.ixEnd() {
-		stmt.Loc.End = p.prev.End
-		return stmt, nil
 	}
 
 	if p.isKeywordStr("SHARING") {
@@ -429,10 +425,6 @@ func (p *Parser) parseCreateIndextypeStmt(start int, orReplace bool) (*nodes.Cre
 		return nil, p.syntaxErrorAtCur()
 	}
 	p.advance()
-	if p.ixEnd() {
-		stmt.Loc.End = p.prev.End
-		return stmt, nil
-	}
 	if stmt.UsingType, err = p.parseOperatorTypeName(); err != nil {
 		return nil, err
 	}
@@ -613,10 +605,6 @@ func (p *Parser) parseAlterIndextypeStmt(start int) (*nodes.AlterIndextypeStmt, 
 	// using_type_clause: USING [ schema. ] implementation_type [ array_DML_clause ]
 	if p.cur.Type == kwUSING {
 		p.advance()
-		if p.ixEnd() {
-			stmt.Loc.End = p.prev.End
-			return stmt, nil
-		}
 		if stmt.UsingType, err = p.parseOperatorTypeName(); err != nil {
 			return nil, err
 		}

@@ -1778,10 +1778,10 @@ func (p *Parser) parseIdentListForAudit() ([]string, error) {
 //
 // Oracle takes INDEXES for DOMAIN INDEXES and refuses any other kind
 // (ORA-29813 at the word). It reads USING and the DEFAULT clauses as
-// alternatives (USING a DEFAULT COST (1, 1, 1) is ORA-03048 at DEFAULT),
-// takes integers only in them (ORA-02017), and refuses the storage table
-// clause after USING (ORA-00922). The statement may end after the kind or
-// after the names (see ixEnd).
+// alternatives, one of which must be there (USING a DEFAULT COST (1, 1, 1)
+// is ORA-03048 at DEFAULT, FUNCTIONS a alone ORA-29814), takes integers
+// only in them (ORA-02017), and refuses the storage table clause after
+// USING (ORA-00922).
 func (p *Parser) parseAssociateStatisticsStmt() (nodes.StmtNode, error) {
 	start := p.pos()
 	p.advance() // consume ASSOCIATE
@@ -1803,14 +1803,8 @@ func (p *Parser) parseAssociateStatisticsStmt() (nodes.StmtNode, error) {
 		return nil, err
 	}
 	stmt.ObjectType = kind
-	if !p.ixEnd() {
-		if stmt.Objects, err = p.parseStatisticsObjects(); err != nil {
-			return nil, err
-		}
-	}
-	if p.ixEnd() {
-		stmt.Loc.End = p.prev.End
-		return stmt, nil
+	if stmt.Objects, err = p.parseStatisticsObjects(kind); err != nil {
+		return nil, err
 	}
 
 	// using_statistics_type: USING { [ schema. ] statistics_type | NULL }
@@ -1893,14 +1887,17 @@ func (p *Parser) parseStatisticsObjectKind() (string, error) {
 	return "", p.syntaxErrorAtCur()
 }
 
-// parseStatisticsObjects reads [ schema. ] name [, [ schema. ] name ]...
-// (table . column for COLUMNS).
-func (p *Parser) parseStatisticsObjects() ([]*nodes.ObjectName, error) {
+// parseStatisticsObjects reads [ schema. ] name [, [ schema. ] name ]...,
+// or table . column for COLUMNS (COLUMNS a is ORA-29818 after the a).
+func (p *Parser) parseStatisticsObjects(kind string) ([]*nodes.ObjectName, error) {
 	var objs []*nodes.ObjectName
 	for {
 		name, err := p.ixObjectName()
 		if err != nil {
 			return nil, err
+		}
+		if kind == "COLUMNS" && name.Schema == "" {
+			return nil, p.syntaxErrorAtCur()
 		}
 		objs = append(objs, name)
 		if p.cur.Type != ',' {
@@ -1918,8 +1915,6 @@ func (p *Parser) parseStatisticsObjects() ([]*nodes.ObjectName, error) {
 //	    FROM { COLUMNS | FUNCTIONS | PACKAGES | TYPES | INDEXES | INDEXTYPES }
 //	    [ schema. ] object_name [, [ schema. ] object_name ]...
 //	    [ FORCE ] ;
-//
-// The statement may end after the kind (see ixEnd).
 func (p *Parser) parseDisassociateStatisticsStmt() (nodes.StmtNode, error) {
 	start := p.pos()
 	p.advance() // consume DISASSOCIATE
@@ -1936,19 +1931,13 @@ func (p *Parser) parseDisassociateStatisticsStmt() (nodes.StmtNode, error) {
 		return nil, p.syntaxErrorAtCur()
 	}
 	p.advance()
-	if p.ixEnd() {
-		stmt.Loc.End = p.prev.End
-		return stmt, nil
-	}
 	kind, err := p.parseStatisticsObjectKind()
 	if err != nil {
 		return nil, err
 	}
 	stmt.ObjectType = kind
-	if !p.ixEnd() {
-		if stmt.Objects, err = p.parseStatisticsObjects(); err != nil {
-			return nil, err
-		}
+	if stmt.Objects, err = p.parseStatisticsObjects(kind); err != nil {
+		return nil, err
 	}
 
 	if p.cur.Type == kwFORCE {

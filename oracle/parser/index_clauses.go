@@ -12,14 +12,7 @@ import (
 // differs from the page, the comment beside the reader names the answer
 // (probed on the pinned Oracle Free 23.26.3).
 //
-// A few readers stop quietly when the statement ends inside a clause
-// (ALTER INDEX a SHRINK, ... INITRANS). Oracle refuses those with an error
-// at the end of the statement, but compat.tsv records that answer as accept
-// until the Oracle judge is rejudged; omni keeps the reading it had, and
-// ixEnd marks each such place.
-
-// ixEnd reports whether the statement ends at the current token. See the
-// file comment: it marks a clause omni still lets the statement end inside.
+// ixEnd reports whether the statement ends at the current token.
 func (p *Parser) ixEnd() bool {
 	return p.cur.Type == ';' || p.cur.Type == tokEOF
 }
@@ -40,6 +33,15 @@ func (p *Parser) isIxName() bool {
 		return true
 	}
 	return p.isIdentLike() && !isOracleSQLReservedKeyword(p.cur)
+}
+
+// isIxNameTok reports whether tok can be a name, as isIxName does for the
+// current token.
+func (p *Parser) isIxNameTok(tok Token) bool {
+	if tok.Type == tokQIDENT {
+		return true
+	}
+	return (tok.Type == tokIDENT || tok.Type >= 2000) && !isOracleSQLReservedKeyword(tok)
 }
 
 // ixName reads a required name. A reserved word is not one: ALTER INDEX a
@@ -77,15 +79,6 @@ func (p *Parser) ixInteger() (string, error) {
 		return "", p.syntaxErrorAtCur()
 	}
 	return p.advance().Str, nil
-}
-
-// ixIntegerOrEnd reads the integer of PCTFREE, INITRANS, MAXTRANS or
-// PARTITIONS, which the statement may end before (see ixEnd).
-func (p *Parser) ixIntegerOrEnd() (string, error) {
-	if p.ixEnd() {
-		return "", nil
-	}
-	return p.ixInteger()
 }
 
 // ixSize reads size_clause: integer [ K | M | G | T | P | E ].
@@ -189,18 +182,20 @@ func (p *Parser) isIxLoggingStart() bool {
 	return p.cur.Type == kwLOGGING || p.cur.Type == kwNOLOGGING
 }
 
-// ixTablespaceName reads the name after TABLESPACE, which Oracle lets the
-// clause go without: CREATE INDEX a ON a(a) LOCAL (PARTITION TABLESPACE)
-// parses. DEFAULT is taken where allowDefault is set.
+// ixTablespaceName reads the name after TABLESPACE. Oracle lets the clause
+// go without one before the ',' or ')' that ends a partition description
+// (LOCAL (PARTITION TABLESPACE) parses), but not elsewhere (ALTER INDEX a
+// REBUILD TABLESPACE is ORA-02216). DEFAULT is taken where allowDefault is
+// set.
 func (p *Parser) ixTablespaceName(allowDefault bool) (string, error) {
 	if allowDefault && p.cur.Type == kwDEFAULT {
 		p.advance()
 		return "DEFAULT", nil
 	}
-	if p.isIxName() {
-		return p.advance().Str, nil
+	if p.cur.Type == ',' || p.cur.Type == ')' {
+		return "", nil
 	}
-	return "", nil
+	return p.ixName()
 }
 
 // ixStorageClause reads storage_clause and returns its text after STORAGE.
@@ -691,7 +686,7 @@ func (p *Parser) ixGlobalPartitioned() error {
 		if err := p.ixWord("PARTITIONS"); err != nil {
 			return err
 		}
-		if _, err := p.ixIntegerOrEnd(); err != nil {
+		if _, err := p.ixInteger(); err != nil {
 			return err
 		}
 		if p.isKeywordStr("STORE") {
@@ -932,7 +927,7 @@ func (p *Parser) parseCreateIndexAttributes(stmt *nodes.CreateIndexStmt) error {
 				return err
 			}
 			p.advance()
-			v, err := p.ixIntegerOrEnd()
+			v, err := p.ixInteger()
 			if err != nil {
 				return err
 			}
@@ -983,7 +978,7 @@ func (p *Parser) parseCreateIndexAttributes(stmt *nodes.CreateIndexStmt) error {
 			case p.isKeywordStr("PARTIAL"):
 				stmt.IndexingPartial = true
 				p.advance()
-			case !p.ixEnd():
+			default:
 				return p.syntaxErrorAtCur()
 			}
 		case p.isIxParallelStart():
@@ -1168,9 +1163,6 @@ func (p *Parser) parseAlterIndexStmt(start int) (nodes.StmtNode, error) {
 }
 
 func (p *Parser) parseAlterIndexAction(stmt *nodes.AlterIndexStmt) error {
-	if p.ixEnd() {
-		return nil // ALTER INDEX a: see ixEnd.
-	}
 	word := ""
 	if p.cur.Type != tokQIDENT && p.isIdentLike() {
 		word = p.cur.Str
@@ -1224,9 +1216,6 @@ func (p *Parser) parseAlterIndexAction(stmt *nodes.AlterIndexStmt) error {
 	case "SHRINK":
 		stmt.Action = "SHRINK_SPACE"
 		p.advance()
-		if p.ixEnd() {
-			return nil
-		}
 		if err := p.ixWord("SPACE"); err != nil {
 			return err
 		}
@@ -1255,9 +1244,6 @@ func (p *Parser) parseAlterIndexAction(stmt *nodes.AlterIndexStmt) error {
 		if err := p.ixWord("BLOCK"); err != nil {
 			return err
 		}
-		if p.ixEnd() {
-			return nil
-		}
 		return p.ixWord("REFERENCES")
 	case "INDEXING":
 		stmt.Action = "INDEXING"
@@ -1274,34 +1260,27 @@ func (p *Parser) parseAlterIndexAction(stmt *nodes.AlterIndexStmt) error {
 	case "DROP":
 		stmt.Action = "DROP_PARTITION"
 		p.advance()
-		if p.ixEnd() {
-			return nil
-		}
 		if p.cur.Type != kwPARTITION {
 			return p.syntaxErrorAtCur()
 		}
 		p.advance()
-		if p.ixEnd() {
-			return nil
-		}
 		name, err := p.ixName()
 		stmt.Partition = name
 		return err
 	case "SPLIT":
 		return p.parseAlterIndexSplit(stmt)
 	case "PARTITION":
-		// Oracle reads PARTITION name and NOMAPPING, then refuses them at the
-		// end of the statement (ORA-02243), an answer compat.tsv records as
-		// accept until the rejudge. Anything after them fails here too.
+		// Oracle reads PARTITION partition and NOMAPPING here, then refuses
+		// what follows, the end of the statement too (ORA-02243): ALTER
+		// INDEX a PARTITION a TO a fails at TO.
 		p.advance()
-		if p.ixEnd() {
-			return nil
+		if _, err := p.ixName(); err != nil {
+			return err
 		}
-		_, err := p.ixName()
-		return err
+		return p.syntaxErrorAtCur()
 	case "NOMAPPING":
 		p.advance()
-		return nil
+		return p.syntaxErrorAtCur()
 	}
 	return p.parseAlterIndexOptions(stmt)
 }
@@ -1338,7 +1317,7 @@ func (p *Parser) ixAlterIndexing(stmt *nodes.AlterIndexStmt) error {
 	case p.isKeywordStr("PARTIAL"):
 		stmt.IndexingPartial = true
 		p.advance()
-	case !p.ixEnd():
+	default:
 		return p.syntaxErrorAtCur()
 	}
 	return nil
@@ -1400,7 +1379,7 @@ func (p *Parser) ixAlterSegmentOption(stmt *nodes.AlterIndexStmt, seen map[strin
 		}
 		setAction("PHYSICAL_ATTRIBUTES")
 		p.advance()
-		v, err := p.ixIntegerOrEnd()
+		v, err := p.ixInteger()
 		if err != nil {
 			return false, err
 		}
@@ -1453,9 +1432,6 @@ func (p *Parser) ixDeallocateUnused() (string, error) {
 		return "", nil
 	}
 	p.advance()
-	if p.ixEnd() {
-		return "", nil
-	}
 	return p.ixSize()
 }
 
@@ -1562,7 +1538,7 @@ func (p *Parser) parseAlterIndexRebuild(stmt *nodes.AlterIndexStmt) error {
 			if err = p.ixOnce(seen, word); err == nil {
 				p.advance()
 				var v string
-				v, err = p.ixIntegerOrEnd()
+				v, err = p.ixInteger()
 				switch word {
 				case "PCTFREE":
 					stmt.PctFree = v
@@ -1626,9 +1602,6 @@ func (p *Parser) parseAlterIndexRename(stmt *nodes.AlterIndexStmt) error {
 			stmt.Action = "RENAME_PARTITION"
 		}
 		p.advance()
-		if p.ixEnd() {
-			return nil
-		}
 		name, err := p.ixName()
 		if err != nil {
 			return err
@@ -1638,16 +1611,10 @@ func (p *Parser) parseAlterIndexRename(stmt *nodes.AlterIndexStmt) error {
 		} else {
 			stmt.Partition = name
 		}
-		if p.ixEnd() {
-			return nil
-		}
 		if p.cur.Type != kwTO {
 			return p.syntaxErrorAtCur()
 		}
 		p.advance()
-		if p.ixEnd() {
-			return nil
-		}
 		stmt.NewName, err = p.ixName()
 		return err
 	}
@@ -1668,9 +1635,6 @@ func (p *Parser) parseAlterIndexModify(stmt *nodes.AlterIndexStmt) error {
 		//     { UNUSABLE | allocate_extent_clause | deallocate_unused_clause }
 		stmt.Action = "MODIFY_SUBPARTITION"
 		p.advance()
-		if p.ixEnd() {
-			return nil
-		}
 		name, err := p.ixName()
 		if err != nil {
 			return err
@@ -1704,9 +1668,6 @@ func (p *Parser) parseAlterIndexModify(stmt *nodes.AlterIndexStmt) error {
 func (p *Parser) parseAlterIndexModifyDefault(stmt *nodes.AlterIndexStmt) error {
 	stmt.Action = "MODIFY_DEFAULT_ATTRIBUTES"
 	p.advance() // DEFAULT
-	if p.ixEnd() {
-		return nil
-	}
 	if err := p.ixWord("ATTRIBUTES"); err != nil {
 		return err
 	}
@@ -1716,14 +1677,15 @@ func (p *Parser) parseAlterIndexModifyDefault(stmt *nodes.AlterIndexStmt) error 
 			return p.syntaxErrorAtCur()
 		}
 		p.advance()
-		if p.ixEnd() {
-			return nil
-		}
 		name, err := p.ixName()
 		if err != nil {
 			return err
 		}
 		stmt.ModifyDefaultFor = name
+	}
+	// At least one attribute: MODIFY DEFAULT ATTRIBUTES alone is ORA-02242.
+	if p.ixEnd() {
+		return p.syntaxErrorAtCur()
 	}
 	seen := map[string]bool{}
 	for !p.ixEnd() {
@@ -1734,7 +1696,7 @@ func (p *Parser) parseAlterIndexModifyDefault(stmt *nodes.AlterIndexStmt) error 
 			if err = p.ixOnce(seen, word); err == nil {
 				p.advance()
 				var v string
-				v, err = p.ixIntegerOrEnd()
+				v, err = p.ixInteger()
 				switch word {
 				case "PCTFREE":
 					stmt.PctFree = v
@@ -1784,9 +1746,6 @@ func (p *Parser) parseAlterIndexModifyDefault(stmt *nodes.AlterIndexStmt) error 
 func (p *Parser) parseAlterIndexModifyPartition(stmt *nodes.AlterIndexStmt) error {
 	stmt.Action = "MODIFY_PARTITION"
 	p.advance() // PARTITION
-	if p.ixEnd() {
-		return nil
-	}
 	name, err := p.ixName()
 	if err != nil {
 		return err
@@ -1853,14 +1812,14 @@ func (p *Parser) parseAlterIndexModifyPartition(stmt *nodes.AlterIndexStmt) erro
 func (p *Parser) parseAlterIndexAddPartition(stmt *nodes.AlterIndexStmt) error {
 	stmt.Action = "ADD_PARTITION"
 	p.advance() // ADD
-	if p.ixEnd() {
-		return nil
-	}
 	if p.cur.Type != kwPARTITION {
 		return p.syntaxErrorAtCur()
 	}
 	p.advance()
-	if p.isIxName() && p.cur.Type != kwTABLESPACE && !p.isIxCompressionStart() && !p.isIxParallelStart() {
+	// TABLESPACE not followed by a name is the partition's name: ADD
+	// PARTITION TABLESPACE parses.
+	if p.isIxName() && !p.isIxCompressionStart() && !p.isIxParallelStart() &&
+		(p.cur.Type != kwTABLESPACE || !p.isIxNameTok(p.peekNext())) {
 		stmt.AddPartitionName = p.advance().Str
 	}
 	if p.cur.Type == kwTABLESPACE {

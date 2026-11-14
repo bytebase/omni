@@ -8417,7 +8417,9 @@ func TestBatch104_GraphVectorLockdownOutline(t *testing.T) {
 	// CREATE VECTOR INDEX
 	// ---------------------------------------------------------------
 	t.Run("create_vector_index_basic", func(t *testing.T) {
-		result := ParseAndCheck(t, "CREATE VECTOR INDEX vec_idx ON docs (embedding)")
+		// Oracle requires ORGANIZATION (ORA-51914 without it).
+		ParseShouldFail(t, "CREATE VECTOR INDEX vec_idx ON docs (embedding)")
+		result := ParseAndCheck(t, "CREATE VECTOR INDEX vec_idx ON docs (embedding) ORGANIZATION NEIGHBOR PARTITIONS")
 		raw := result.Items[0].(*ast.RawStmt)
 		stmt, ok := raw.Stmt.(*ast.CreateVectorIndexStmt)
 		if !ok {
@@ -8447,7 +8449,7 @@ func TestBatch104_GraphVectorLockdownOutline(t *testing.T) {
 	})
 
 	t.Run("create_vector_index_with_params", func(t *testing.T) {
-		result := ParseAndCheck(t, "CREATE VECTOR INDEX vec_idx ON docs (embedding) WITH TARGET ACCURACY 95 PARAMETERS (TYPE HNSW, NEIGHBORS 16, EFCONSTRUCTION 200) PARALLEL 4")
+		result := ParseAndCheck(t, "CREATE VECTOR INDEX vec_idx ON docs (embedding) ORGANIZATION INMEMORY NEIGHBOR GRAPH WITH TARGET ACCURACY 95 PARAMETERS (TYPE HNSW, NEIGHBORS 16, EFCONSTRUCTION 200) PARALLEL 4")
 		raw := result.Items[0].(*ast.RawStmt)
 		stmt, ok := raw.Stmt.(*ast.CreateVectorIndexStmt)
 		if !ok {

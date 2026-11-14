@@ -3883,10 +3883,8 @@ func (p *Parser) parseParenIdentList() ([]string, error) {
 // MIN_VECTORS_PER_PARTITION for IVF; RESCORE_FACTOR and QUANTIZATION are
 // ORA-00922, a parameter of the other type ORA-51916.
 //
-// Oracle also answers ORA-51914 (ORGANIZATION clause required) when the
-// organization clause is left out, even at the end of the statement. The
-// page's syntax and text make it optional, and compat.tsv reads the answer
-// at the end as accept, so omni keeps it optional until the rejudge.
+// Oracle requires the organization clause the page shows as optional:
+// without it the statement is ORA-51914 (ORGANIZATION clause required).
 func (p *Parser) parseCreateVectorIndexStmt(start int, ifNotExists bool) (*nodes.CreateVectorIndexStmt, error) {
 	stmt := &nodes.CreateVectorIndexStmt{
 		IfNotExists: ifNotExists,
@@ -3953,27 +3951,27 @@ func (p *Parser) parseCreateVectorIndexStmt(start int, ifNotExists bool) (*nodes
 
 	// ORGANIZATION { INMEMORY [ NEIGHBOR ] GRAPH | NEIGHBOR PARTITIONS }:
 	// Oracle takes INMEMORY GRAPH without NEIGHBOR.
-	if p.isKeywordStr("ORGANIZATION") {
+	if err := p.ixWord("ORGANIZATION"); err != nil {
+		return nil, err
+	}
+	switch {
+	case p.isKeywordStr("INMEMORY"):
 		p.advance()
-		switch {
-		case p.isKeywordStr("INMEMORY"):
+		if p.isKeywordStr("NEIGHBOR") {
 			p.advance()
-			if p.isKeywordStr("NEIGHBOR") {
-				p.advance()
-			}
-			if err := p.ixWord("GRAPH"); err != nil {
-				return nil, err
-			}
-			stmt.Organization = "INMEMORY_NEIGHBOR_GRAPH"
-		case p.isKeywordStr("NEIGHBOR"):
-			p.advance()
-			if err := p.ixWord("PARTITIONS"); err != nil {
-				return nil, err
-			}
-			stmt.Organization = "NEIGHBOR_PARTITIONS"
-		default:
-			return nil, p.syntaxErrorAtCur()
 		}
+		if err := p.ixWord("GRAPH"); err != nil {
+			return nil, err
+		}
+		stmt.Organization = "INMEMORY_NEIGHBOR_GRAPH"
+	case p.isKeywordStr("NEIGHBOR"):
+		p.advance()
+		if err := p.ixWord("PARTITIONS"); err != nil {
+			return nil, err
+		}
+		stmt.Organization = "NEIGHBOR_PARTITIONS"
+	default:
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	seen := map[string]bool{}
@@ -3983,9 +3981,6 @@ func (p *Parser) parseCreateVectorIndexStmt(start int, ifNotExists bool) (*nodes
 				return nil, err
 			}
 			p.advance()
-			if p.ixEnd() {
-				break // see ixEnd
-			}
 			if p.cur.Type == tokQIDENT || !p.isIxName() {
 				return nil, p.syntaxErrorAtCur()
 			}
@@ -4009,7 +4004,7 @@ func (p *Parser) parseCreateVectorIndexStmt(start int, ifNotExists bool) (*nodes
 					return nil, err
 				}
 				stmt.TargetAccuracy = v
-			} else if !p.ixEnd() {
+			} else {
 				return nil, p.syntaxErrorAtCur()
 			}
 			if p.isKeywordStr("PARAMETERS") {
@@ -4080,7 +4075,7 @@ func (p *Parser) parseCreateVectorIndexStmt(start int, ifNotExists bool) (*nodes
 					return nil, err
 				}
 				stmt.Parallel = v
-			} else if !p.ixEnd() {
+			} else {
 				return nil, p.syntaxErrorAtCur()
 			}
 		case p.cur.Type == kwLOCAL:
