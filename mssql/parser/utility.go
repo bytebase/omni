@@ -489,7 +489,7 @@ func (p *Parser) parseWritetextStmt() (*nodes.WritetextStmt, error) {
 	}
 
 	var err error
-	if stmt.Column, stmt.TextPtr, err = p.parseProcTextTarget(); err != nil {
+	if stmt.Column, stmt.TextPtr, stmt.Timestamp, err = p.parseProcTextTarget(); err != nil {
 		return nil, err
 	}
 	if stmt.WithLog, err = p.parseProcTextWithLog(); err != nil {
@@ -525,7 +525,7 @@ func (p *Parser) parseUpdatetextStmt() (*nodes.UpdatetextStmt, error) {
 	}
 
 	var err error
-	if stmt.DestColumn, stmt.DestTextPtr, err = p.parseProcTextTarget(); err != nil {
+	if stmt.DestColumn, stmt.DestTextPtr, stmt.Timestamp, err = p.parseProcTextTarget(); err != nil {
 		return nil, err
 	}
 	offsetKinds := procValueKinds{signedInt: true, variable: true, null: true}
@@ -1348,28 +1348,32 @@ func (p *Parser) parseProcTextColumn() (*nodes.ColumnRef, error) {
 
 // parseProcTextTarget parses modificationTextStatement (TSql160.g:14323):
 // [ BULK ] column text_ptr [ TIMESTAMP = binary ], the text pointer a
-// binary constant, a variable or an integer.
-func (p *Parser) parseProcTextTarget() (*nodes.ColumnRef, nodes.ExprNode, error) {
+// binary constant, a variable or an integer. It returns the column, the text
+// pointer and the timestamp, nil when absent.
+func (p *Parser) parseProcTextTarget() (*nodes.ColumnRef, nodes.ExprNode, nodes.ExprNode, error) {
 	p.match(kwBULK)
 	col, err := p.parseProcTextColumn()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	ptr, err := p.parseProcValue(procValueKinds{binary: true, variable: true, integer: true})
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
+	var ts nodes.ExprNode
 	if p.procIsWord("TIMESTAMP") {
 		p.advance()
 		if _, err := p.expect('='); err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 		if !procIsBinaryConst(p.cur) {
-			return nil, nil, p.syntaxErrorAtCur()
+			return nil, nil, nil, p.syntaxErrorAtCur()
 		}
-		p.advance()
+		if ts, err = p.parseProcValue(procValueKinds{binary: true}); err != nil {
+			return nil, nil, nil, err
+		}
 	}
-	return col, ptr, nil
+	return col, ptr, ts, nil
 }
 
 // parseProcTextWithLog consumes WITH LOG (modificationTextStatementWithLog,

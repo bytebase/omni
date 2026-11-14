@@ -80,6 +80,7 @@ func (p *Parser) parseDbccStmt() (*nodes.DbccStmt, error) {
 			optLoc := p.pos()
 			optName := strings.ToUpper(p.cur.Str)
 			p.advance()
+			var value nodes.ExprNode
 			if optName == "MAXDOP" {
 				if _, err := p.expect('='); err != nil {
 					return nil, err
@@ -87,11 +88,13 @@ func (p *Parser) parseDbccStmt() (*nodes.DbccStmt, error) {
 				if !procIsInteger(p.cur) {
 					return nil, p.syntaxErrorAtCur()
 				}
+				value = &nodes.Literal{Type: nodes.LitInteger, Ival: p.cur.Ival, Str: p.cur.Str, Loc: nodes.Loc{Start: p.cur.Loc, End: p.cur.End}}
 				p.advance()
 			}
 			opts = append(opts, &nodes.DbccOption{
-				Name: optName,
-				Loc:  nodes.Loc{Start: optLoc, End: p.prevEnd()},
+				Name:  optName,
+				Value: value,
+				Loc:   nodes.Loc{Start: optLoc, End: p.prevEnd()},
 			})
 			if _, ok := p.match(','); !ok {
 				break

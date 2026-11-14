@@ -2502,8 +2502,9 @@ func (n *DbccStmt) stmtNode() {}
 //	EXTENDED_LOGICAL_CHECKS, DATA_PURITY, TABLOCK,
 //	ESTIMATEONLY, COUNT_ROWS, TABLERESULTS
 type DbccOption struct {
-	Name string // option name (always uppercase)
-	Loc  Loc
+	Name  string   // option name (always uppercase)
+	Value ExprNode // MAXDOP's integer; nil for the other options
+	Loc   Loc
 }
 
 func (n *DbccOption) nodeTag() {}
@@ -3039,11 +3040,12 @@ func (n *ReadtextStmt) stmtNode() {}
 //
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/queries/writetext-transact-sql
 type WritetextStmt struct {
-	Column  *ColumnRef
-	TextPtr ExprNode
-	WithLog bool
-	Data    ExprNode
-	Loc     Loc
+	Column    *ColumnRef
+	TextPtr   ExprNode
+	Timestamp ExprNode // TIMESTAMP = binary after the text pointer; nil when absent
+	WithLog   bool
+	Data      ExprNode
+	Loc       Loc
 }
 
 func (n *WritetextStmt) nodeTag()  {}
@@ -3055,6 +3057,7 @@ func (n *WritetextStmt) stmtNode() {}
 type UpdatetextStmt struct {
 	DestColumn   *ColumnRef
 	DestTextPtr  ExprNode
+	Timestamp    ExprNode // TIMESTAMP = binary after the text pointer; nil when absent
 	InsertOffset ExprNode
 	DeleteLength ExprNode
 	WithLog      bool

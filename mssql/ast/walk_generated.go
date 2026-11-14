@@ -392,6 +392,8 @@ func walkChildren(v Visitor, node Node) {
 		}
 	case *DatabaseFilegroup:
 		walkList(v, n.Files)
+	case *DbccOption:
+		Walk(v, n.Value)
 	case *DbccStmt:
 		walkList(v, n.Args)
 		walkList(v, n.Options)
@@ -869,6 +871,7 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.DestColumn)
 		}
 		Walk(v, n.DestTextPtr)
+		Walk(v, n.Timestamp)
 		Walk(v, n.InsertOffset)
 		Walk(v, n.DeleteLength)
 		Walk(v, n.InsertedData)
@@ -913,6 +916,7 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Column)
 		}
 		Walk(v, n.TextPtr)
+		Walk(v, n.Timestamp)
 		Walk(v, n.Data)
 	}
 }

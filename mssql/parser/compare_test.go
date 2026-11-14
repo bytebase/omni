@@ -24216,3 +24216,21 @@ func TestParseProceduralForms1070(t *testing.T) {
 		t.Errorf("UPDATETEXT source text pointer = %#v, want @src1", ut.InsertedTextPtr)
 	}
 }
+
+// TestParseProceduralValuesKept pins operands the AST keeps: DBCC's MAXDOP
+// value and the TIMESTAMP of WRITETEXT and UPDATETEXT.
+func TestParseProceduralValuesKept(t *testing.T) {
+	dbcc := ParseAndCheck(t, "DBCC CHECKDB WITH MAXDOP = 4").Items[0].(*ast.DbccStmt)
+	opt := dbcc.Options.Items[0].(*ast.DbccOption)
+	if lit, ok := opt.Value.(*ast.Literal); !ok || lit.Ival != 4 {
+		t.Errorf("MAXDOP value = %#v, want 4", opt.Value)
+	}
+	if ast.NodeToString(ParseAndCheck(t, "WRITETEXT t.c @ptr TIMESTAMP = 0x01 'data'")) ==
+		ast.NodeToString(ParseAndCheck(t, "WRITETEXT t.c @ptr TIMESTAMP = 0x02 'data'")) {
+		t.Error("WRITETEXT keeps no TIMESTAMP")
+	}
+	if ast.NodeToString(ParseAndCheck(t, "UPDATETEXT t.c @ptr TIMESTAMP = 0x01 0 0 'data'")) ==
+		ast.NodeToString(ParseAndCheck(t, "UPDATETEXT t.c @ptr TIMESTAMP = 0x02 0 0 'data'")) {
+		t.Error("UPDATETEXT keeps no TIMESTAMP")
+	}
+}

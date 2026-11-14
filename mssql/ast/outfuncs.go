@@ -3413,6 +3413,10 @@ func writeDbccStmt(sb *strings.Builder, n *DbccStmt) {
 func writeDbccOption(sb *strings.Builder, n *DbccOption) {
 	sb.WriteString("{DBCCOPTION")
 	fmt.Fprintf(sb, " :name \"%s\"", escapeString(n.Name))
+	if n.Value != nil {
+		sb.WriteString(" :value ")
+		writeNode(sb, n.Value)
+	}
 	fmt.Fprintf(sb, " :loc %d %d", n.Loc.Start, n.Loc.End)
 	sb.WriteString("}")
 }
@@ -3908,6 +3912,10 @@ func writeWritetextStmt(sb *strings.Builder, n *WritetextStmt) {
 		sb.WriteString(" :textPtr ")
 		writeNode(sb, n.TextPtr)
 	}
+	if n.Timestamp != nil {
+		sb.WriteString(" :timestamp ")
+		writeNode(sb, n.Timestamp)
+	}
 	if n.Data != nil {
 		sb.WriteString(" :data ")
 		writeNode(sb, n.Data)
@@ -3924,6 +3932,10 @@ func writeUpdatetextStmt(sb *strings.Builder, n *UpdatetextStmt) {
 	if n.DestTextPtr != nil {
 		sb.WriteString(" :destTextPtr ")
 		writeNode(sb, n.DestTextPtr)
+	}
+	if n.Timestamp != nil {
+		sb.WriteString(" :timestamp ")
+		writeNode(sb, n.Timestamp)
 	}
 	if n.InsertOffset != nil {
 		sb.WriteString(" :insertOffset ")
