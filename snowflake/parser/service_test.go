@@ -25,7 +25,7 @@ func TestParseCreateService(t *testing.T) {
 		t.Errorf("specification = %+v", spec)
 	}
 	using := s.Clauses[2].Options
-	if len(using) != 3 || using[0].Name != "X" || using[0].Lit.Value != "v" || using[1].Name != `"Mixed"` ||
+	if len(using) != 3 || using[0].Name != "x" || using[0].Lit.Value != "v" || using[1].Name != `"Mixed"` ||
 		using[1].Lit.Value != "2" || using[2].Words != "TRUE" {
 		t.Errorf("USING = %+v", using)
 	}
@@ -73,6 +73,11 @@ func TestParseExecuteJobService(t *testing.T) {
 	}
 	if w, ok := optWords(s.Clauses[2].Options, "NAME"); !ok || w != "DB.S.JOB" {
 		t.Errorf("NAME = %q", w)
+	}
+	// The usage notes and examples write the properties before the specification.
+	s = mustObjectStmt(t, "EXECUTE JOB SERVICE IN COMPUTE POOL p NAME = j ASYNC = TRUE FROM SPECIFICATION 'spec' REPLICAS = 2")
+	if got := strings.Join(clauseKeywords(s), "|"); got != "IN COMPUTE POOL||FROM SPECIFICATION|" {
+		t.Errorf("clauses = %q", got)
 	}
 	s = mustObjectStmt(t, "execute job service in compute pool p from specification_template 'x' using (a => 'b')")
 	if got := strings.Join(clauseKeywords(s), "|"); got != "IN COMPUTE POOL|FROM SPECIFICATION_TEMPLATE|USING" {
@@ -208,7 +213,9 @@ func TestParseServiceRejects(t *testing.T) {
 		"EXECUTE JOB SERVICE IN COMPUTE POOL db.p FROM SPECIFICATION 'x'",                               // the pool is a single name
 		"CREATE SERVICE s IN COMPUTE POOL p FROM SPECIFICATION 'x' MIN_INSTANCES = 1 MIN_INSTANCES = 2", // set twice
 		"ALTER SERVICE s SET COMMENT = 'c' WITH TAG (t = 'v')",
-		"ALTER SERVICE s SET QUERY_WAREHOUSE = db.wh", // a warehouse is a single name
+		"ALTER SERVICE s SET QUERY_WAREHOUSE = db.wh",                                    // a warehouse is a single name
+		"EXECUTE JOB SERVICE IN COMPUTE POOL p NAME = j FROM SPECIFICATION 's' NAME = k", // set twice
+		"EXECUTE JOB SERVICE IN COMPUTE POOL p NAME = j",
 		"EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL p WITH SPECIFICATION 's' FROM (SELECT 1) MODEL = m VERSION = a.b",
 	} {
 		mustRejectObject(t, in)

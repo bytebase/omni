@@ -141,6 +141,7 @@ func checkServiceSet(s *ast.ObjectStmt) error {
 // parseExecuteJobService reads
 //
 //	EXECUTE JOB SERVICE IN COMPUTE POOL <compute_pool_name>
+//	  [ <property> ... ]   (as the usage notes and examples place them)
 //	  { fromSpecification | fromSpecificationTemplate }
 //	  [ NAME = [<db>.<schema>.]<name> ] [ ASYNC = { TRUE | FALSE } ]
 //	  [ REPLICAS = <num> ] [ QUERY_WAREHOUSE = <warehouse_name> ]
@@ -172,11 +173,32 @@ func (p *Parser) parseExecuteJobService(start ast.Loc) (ast.Node, error) {
 		return nil, err
 	}
 	if !inference {
+		// The Syntax block writes the properties after the specification;
+		// the usage notes and examples write them before it ("specify compute
+		// pool, followed by other properties", then the specification). Both
+		// are read, each property once.
+		before, err := p.parseObjectProperties(s, "", false)
+		if err != nil {
+			return nil, err
+		}
 		if err := p.parseServiceSpecification(s, false); err != nil {
 			return nil, err
 		}
-		if _, err := p.parseObjectProperties(s, "", false); err != nil {
+		after, err := p.parseObjectProperties(s, "", false)
+		if err != nil {
 			return nil, err
+		}
+		if before != nil && after != nil {
+			for _, o := range after.Options {
+				for _, prev := range before.Options {
+					if prev.Name == o.Name {
+						return nil, &ParseError{Position: o.Loc.Start, End: o.Loc.End, Message: "syntax error: " + o.Name + " is set twice"}
+					}
+				}
+			}
+			if len(before.Tags) > 0 && len(after.Tags) > 0 {
+				return nil, &ParseError{Position: after.Loc.Start, End: after.Loc.End, Message: "syntax error: TAG is set twice"}
+			}
 		}
 		if err := executeJobServiceForm.checkClauses(s); err != nil {
 			return nil, err
@@ -330,10 +352,13 @@ func (p *Parser) parseServiceSpecText() (*ast.CopyOption, error) {
 //
 //	USING ( <key> => <value> [ , <key> => <value> [ , ... ] ] )
 //
-// into a USING clause, one option per argument named by its key (uppercased,
-// or a quoted key with its quotes). The page does not say a key may not repeat,
-// so a repeated key is read as written. A value is a string (' or
-// $$), a number, or an alphanumeric word; JSON is written as a string.
+// into a USING clause, one option per argument named by its key exactly as
+// written: a template variable's name is case-sensitive ("Guidelines for
+// passing values for specification variables",
+// https://docs.snowflake.com/en/developer-guide/snowpark-container-services/working-with-services).
+// The page does not say a key may not repeat, so a repeated key is read as
+// written. A value is a string (' or $$), a number, or an alphanumeric word;
+// JSON is written as a string.
 func (p *Parser) parseServiceUsing(s *ast.ObjectStmt) error {
 	start := p.cur.Loc.Start
 	if _, err := p.expect(kwUSING); err != nil {
@@ -354,10 +379,8 @@ func (p *Parser) parseServiceUsing(s *ast.ObjectStmt) error {
 		if p.cur.Type == '(' {
 			return p.syntaxErrorAtCur()
 		}
-		arg := &ast.CopyOption{Name: strings.ToUpper(key.Name), Loc: ast.Loc{Start: key.Loc.Start}}
-		if key.Quoted {
-			arg.Name = p.srcSlice(key.Loc.Start, key.Loc.End)
-		}
+		// A template variable's name is case-sensitive: keep it as written.
+		arg := &ast.CopyOption{Name: p.srcSlice(key.Loc.Start, key.Loc.End), Loc: ast.Loc{Start: key.Loc.Start}}
 
 		if err := p.parseObjectValue(arg); err != nil {
 			return err
