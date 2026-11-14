@@ -3085,6 +3085,9 @@ type ShowStmt struct {
 	HasLimit   bool
 	LimitFrom  string       // LIMIT n FROM '<s>' raw text; "" if absent
 	Privileges []*Privilege // WITH PRIVILEGES <list>; nil if absent
+	// TrueFilters are SHOW AVAILABLE LISTINGS' IS_<x> = TRUE filters
+	// (IS_IMPORTED, IS_ORGANIZATION, IS_SHARED_WITH_ME), in order.
+	TrueFilters []string
 
 	// SHOW GRANTS specifics.
 	IsGrants bool         // SHOW GRANTS ...
@@ -3123,6 +3126,7 @@ type DescribeStmt struct {
 	NameLiteral *Literal    // literal name (DESCRIBE RESULT '<id>' / TRANSACTION <num>); nil otherwise
 	Signature   []*TypeName // FUNCTION/PROCEDURE arg-type list; nil if no ( ... )
 	TypeOption  string      // trailing TYPE = <kw>, uppercased; "" if absent
+	Revision    string      // DESC LISTING's REVISION = { DRAFT | PUBLISHED }, uppercased; "" if absent
 	Loc         Loc
 }
 

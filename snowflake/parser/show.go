@@ -153,6 +153,13 @@ func (p *Parser) parseShowStmt() (ast.Node, error) {
 		}
 	}
 
+	// SHOW AVAILABLE LISTINGS' IS_<x> = TRUE filters (listing.go).
+	if stmt.ObjectClass == "AVAILABLE LISTINGS" {
+		if err := p.parseShowAvailableListingsFilters(stmt); err != nil {
+			return nil, err
+		}
+	}
+
 	// Optional WITH PRIVILEGES <priv> [, ...].
 	if p.cur.Type == kwWITH && p.peekNext().Type == kwPRIVILEGES {
 		p.advance() // consume WITH
@@ -195,6 +202,10 @@ func (p *Parser) parseShowObjectClass() (string, error) {
 func (p *Parser) startsShowClassWord() bool {
 	switch p.cur.Type {
 	case kwHISTORY, kwLIKE, kwIN, kwFOR, kwSTARTS, kwLIMIT, kwWITH, tokFlow, tokEOF:
+		return false
+	}
+	if p.peekNext().Type == '=' {
+		// A filter's name (SHOW AVAILABLE LISTINGS IS_IMPORTED = TRUE).
 		return false
 	}
 	return p.isObjectTypeWord(p.cur.Type)
@@ -259,6 +270,12 @@ func (p *Parser) parseShowScope(stmt *ast.ShowStmt) error {
 		p.advance()
 		stmt.Scope = ast.ShowScopeView
 		return p.parseOptionalScopeName(stmt)
+	case kwEXTERNAL:
+		// FOR EXTERNAL CONSUMER <name> (sharing.go); otherwise a schema
+		// named EXTERNAL.
+		if isWordToken(p.peekNext(), "CONSUMER") {
+			return p.parseShowExternalConsumerScope(stmt)
+		}
 	case kwSESSION, kwUSER, kwWAREHOUSE, kwTASK, kwAPPLICATION, kwCONNECTION:
 		// Non-container scope keyword (SHOW PARAMETERS / SHOW ... contexts).
 		tok := p.advance()
@@ -656,6 +673,13 @@ func (p *Parser) parseDescribeStmt(short bool) (ast.Node, error) {
 		stmt.Signature = sig
 	}
 
+	// DESC LISTING <name> REVISION = { DRAFT | PUBLISHED } (listing.go).
+	if stmt.ObjectType == "LISTING" && p.startsListingRevision() {
+		if err := p.parseDescribeListingRevision(stmt); err != nil {
+			return nil, err
+		}
+	}
+
 	// Optional TYPE = <kw>.
 	if p.cur.Type == kwTYPE {
 		p.advance() // consume TYPE
@@ -680,6 +704,9 @@ func (p *Parser) parseDescribeStmt(short bool) (ast.Node, error) {
 func (p *Parser) startsDescribeNameUnit() bool {
 	switch p.cur.Type {
 	case '(', kwTYPE, kwON, tokString, tokInt, tokFloat, tokEOF, ';':
+		return false
+	}
+	if p.startsListingRevision() {
 		return false
 	}
 	return p.isObjectTypeWord(p.cur.Type)
