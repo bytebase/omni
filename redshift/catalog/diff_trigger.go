@@ -94,7 +94,7 @@ func triggersChanged(fromCat, toCat *Catalog, a, b *Trigger) bool {
 	}
 
 	// Compare UPDATE OF columns.
-	if !int16SliceEqual(a.Columns, b.Columns) {
+	if !sameColumns(fromCat, a.RelOID, a.Columns, toCat, b.RelOID, b.Columns) {
 		return true
 	}
 
