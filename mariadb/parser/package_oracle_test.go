@@ -72,6 +72,7 @@ func TestPackageFormsOracle(t *testing.T) {
 		{"CREATE DEFINER=root@foo$package VIEW v AS SELECT 1", true},
 		{"CREATE DEFINER=foo$package VIEW v AS SELECT 1", true},
 		{"SET STATEMENT sql_mode='' FOR CREATE PACKAGE pk PROCEDURE p(); END", true},
+		{"SET STATEMENT sql_mode='' FOR SET STATEMENT sql_mode='' FOR CREATE PACKAGE pk PROCEDURE p(); END", true},
 		{"CREATE PROCEDURE p() BEGIN DROP PACKAGE pk; END", false},
 		{"CREATE FUNCTION f() RETURNS INT BEGIN DROP PACKAGE BODY pk; RETURN 1; END", false},
 		{"CREATE PROCEDURE p() BEGIN CREATE PACKAGE pk END; END", false},

@@ -50,6 +50,8 @@ func TestSplitCompoundBlocks(t *testing.T) {
 			want: []string{"CREATE DEFINER=foo$package VIEW v AS SELECT 1", " CREATE DEFINER=用户package VIEW w AS SELECT 1", " SELECT 2"}},
 		{name: "CREATE PACKAGE under SET STATEMENT", sql: "SET STATEMENT sql_mode='' FOR CREATE PACKAGE pk PROCEDURE p(); END; SELECT 1;",
 			want: []string{"SET STATEMENT sql_mode='' FOR CREATE PACKAGE pk PROCEDURE p(); END", " SELECT 1"}},
+		{name: "CREATE PACKAGE under nested SET STATEMENT", sql: "SET STATEMENT sql_mode='' FOR SET STATEMENT sql_mode='' FOR CREATE PACKAGE pk PROCEDURE p(); END; SELECT 1;",
+			want: []string{"SET STATEMENT sql_mode='' FOR SET STATEMENT sql_mode='' FOR CREATE PACKAGE pk PROCEDURE p(); END", " SELECT 1"}},
 		{name: "a dotted definer host ending in package", sql: "CREATE DEFINER=root@foo.package VIEW v AS SELECT 1; SELECT 2;",
 			want: []string{"CREATE DEFINER=root@foo.package VIEW v AS SELECT 1", " SELECT 2"}},
 		{name: "a definer host with package after a $", sql: "CREATE DEFINER=root@foo$package VIEW v AS SELECT 1; SELECT 2;",

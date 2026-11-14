@@ -268,6 +268,10 @@
 < ok 0 0
 > exec ^
 : string
+| SET STATEMENT sql_mode='' FOR SET STATEMENT sql_mode='' FOR CREATE PACKAGE pk PROCEDURE p(); END
+< ok 0 0
+> exec ^
+: string
 | CREATE PROCEDURE p() BEGIN DROP PACKAGE pk; END
 < error
 | 1357 HY000 Can't drop or alter a PACKAGE from within another stored routine

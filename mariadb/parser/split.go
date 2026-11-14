@@ -233,7 +233,8 @@ func Split(sql string) []Segment {
 	// WHILE/CASE/LOOP/REPEAT bodies already open unconditionally; only IF needs
 	// this.
 	routineHeaderParen := -1
-	// setTarget is where the statement SET STATEMENT ... FOR wraps starts, -1 before one.
+	// setTarget is where the statement SET STATEMENT ... FOR wraps starts, the innermost one
+	// when they nest, -1 before one.
 	setTarget := -1
 
 	for i < len(sql) {
@@ -338,7 +339,8 @@ func Split(sql string) []Segment {
 				atStmtStart = false
 			} else {
 				atStmtStart = true
-				if depth == 0 && setTarget < 0 {
+				// The last such FOR, so nested wrappers end at the innermost statement.
+				if depth == 0 {
 					setTarget = skipToEndOfWord(sql, i)
 				}
 			}
