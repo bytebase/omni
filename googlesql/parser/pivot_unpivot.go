@@ -22,7 +22,7 @@ import (
 // QUERY-013/014), but the live Cluster Spanner emulator's ZetaSQL ACCEPTS them
 // (parsing them, then feature-rejecting with "PIVOT is not supported") — so the
 // oracle is authoritative for these forms after all (both polarities), and the
-// pivot_unpivot_oracle differential drives the PROVE gate. This is the union
+// suite:pivot-unpivot rows of testdata/compat.tsv drives the PROVE gate. This is the union
 // grammar bytebase needs for BigQuery + Spanner.
 
 // atPivotOrUnpivot reports whether the current token begins a PIVOT or UNPIVOT

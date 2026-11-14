@@ -9,7 +9,7 @@ import (
 // Unit (structural-gate) tests for the parser-ddl-spanner node: CREATE/ALTER/DROP
 // of CHANGE STREAM, SEQUENCE, ROLE, LOCALITY GROUP, PROTO BUNDLE, plus the Spanner
 // role-based GRANT/REVOKE forms. Accept/reject parity with the live Spanner
-// emulator is in spanner_ddl_oracle_test.go.
+// emulator is in the suite:spanner-ddl rows of testdata/compat.tsv.
 
 // --- CHANGE STREAM ---
 

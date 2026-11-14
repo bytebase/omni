@@ -1738,6 +1738,9 @@ func (p *Parser) parseCreateAggregateStmt() (*nodes.CreateAggregateStmt, error) 
 		if err != nil {
 			return nil, err
 		}
+		if stmt.ReturnType == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 	}
 
 	// EXTERNAL NAME assembly_qualified_name

@@ -26,7 +26,7 @@ import (
 // accepts both dialects: the existing parser-dcl code (grant_revoke.go) still
 // handles the ZetaSQL string-grantee form, and the hooks here add the Spanner role
 // forms to that same union path. Verified ACCEPT/REJECT in
-// spanner_ddl_oracle_test.go; the emulator REJECTS a string grantee (`Expecting
+// the suite:spanner-ddl rows of testdata/compat.tsv; the emulator REJECTS a string grantee (`Expecting
 // 'ROLE'`) and ACCEPTS `TO ROLE name [, name]` / `GRANT ROLE …`.
 //
 // `ROLE` lexes as a bare (non-reserved) identifier, so it is matched by spelling.
