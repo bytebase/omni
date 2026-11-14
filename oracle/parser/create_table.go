@@ -23,10 +23,11 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 	ifNotExists := false
 	if p.cur.Type == kwOR {
 		p.advance() // consume OR
-		if p.cur.Type == kwREPLACE {
-			p.advance() // consume REPLACE
-			orReplace = true
+		if p.cur.Type != kwREPLACE {
+			return nil, p.syntaxErrorAtCur()
 		}
+		p.advance() // consume REPLACE
+		orReplace = true
 	} else if p.cur.Type == kwIF {
 		if p.peekNext().Type == kwNOT {
 			p.advance() // consume IF
@@ -135,6 +136,9 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 	case kwMATERIALIZED:
 		return p.parseCreateMaterializedOrView(start, orReplace)
 	case kwFORCE, kwVIEW:
+		if p.cur.Type == kwFORCE && isAnalyticObjectWord(p.peekNext()) {
+			return p.parseCreateForcedAnalyticObject(start, orReplace)
+		}
 		return p.parseCreateViewStmt(start, orReplace)
 	case kwSEQUENCE:
 		return p.parseCreateSequenceStmt(start)
@@ -191,6 +195,9 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 		}
 		return nil, nil
 	default:
+		if p.isKeywordStr("NOFORCE") && isAnalyticObjectWord(p.peekNext()) {
+			return p.parseCreateForcedAnalyticObject(start, orReplace)
+		}
 		// Check for "NO FORCE VIEW"
 		if p.isIdentLikeStr("NO") || p.cur.Type == kwNOT {
 			return p.parseCreateViewStmt(start, orReplace)
@@ -224,15 +231,17 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 				return p.parseCreateOperatorStmt(start, orReplace, false)
 			case "ANALYTIC":
 				p.advance() // consume ANALYTIC
-				if p.cur.Type == kwVIEW {
-					p.advance() // consume VIEW
+				if p.cur.Type != kwVIEW {
+					return nil, p.syntaxErrorAtCur()
 				}
+				p.advance() // consume VIEW
 				return p.parseCreateAnalyticViewStmt(start, orReplace, false, false)
 			case "ATTRIBUTE":
 				p.advance() // consume ATTRIBUTE
-				if p.isIdentLike() && p.cur.Str == "DIMENSION" {
-					p.advance() // consume DIMENSION
+				if !p.isKeywordStr("DIMENSION") {
+					return nil, p.syntaxErrorAtCur()
 				}
+				p.advance() // consume DIMENSION
 				return p.parseCreateAttributeDimensionStmt(start, orReplace, false, false)
 			case "HIERARCHY":
 				p.advance() // consume HIERARCHY

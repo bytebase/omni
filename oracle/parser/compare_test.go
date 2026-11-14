@@ -3528,7 +3528,7 @@ func adminDDLTest(t *testing.T, sql string, wantAction string, wantType ast.Obje
 func TestBatch66_AnalyticViewHierarchy(t *testing.T) {
 	// CREATE/ALTER ANALYTIC VIEW now use dedicated AST types (upgraded in batch 93)
 	t.Run("create_analytic_view", func(t *testing.T) {
-		result := ParseAndCheck(t, "CREATE ANALYTIC VIEW sales_av USING sales_fact DIMENSION BY (time_dim) MEASURES (amount)")
+		result := ParseAndCheck(t, "CREATE ANALYTIC VIEW sales_av USING sales_fact DIMENSION BY (time_dim KEY month_id REFERENCES month_id HIERARCHIES (time_hier)) MEASURES (amount)")
 		raw := result.Items[0].(*ast.RawStmt)
 		_, ok := raw.Stmt.(*ast.CreateAnalyticViewStmt)
 		if !ok {
@@ -7480,7 +7480,7 @@ func TestBatch93_ViewsAllTypes(t *testing.T) {
 
 	// ===== CREATE ANALYTIC VIEW =====
 	t.Run("create_analytic_view_basic", func(t *testing.T) {
-		result := ParseAndCheck(t, "CREATE ANALYTIC VIEW sales_av USING sales_fact DIMENSION BY (time_attr HIERARCHY time_hier) MEASURES (sales)")
+		result := ParseAndCheck(t, "CREATE ANALYTIC VIEW sales_av USING sales_fact DIMENSION BY (time_attr KEY month_id REFERENCES month_id HIERARCHIES (time_hier)) MEASURES (sales)")
 		raw := result.Items[0].(*ast.RawStmt)
 		stmt, ok := raw.Stmt.(*ast.CreateAnalyticViewStmt)
 		if !ok {
@@ -7492,7 +7492,7 @@ func TestBatch93_ViewsAllTypes(t *testing.T) {
 	})
 
 	t.Run("create_analytic_view_with_options", func(t *testing.T) {
-		result := ParseAndCheck(t, "CREATE OR REPLACE ANALYTIC VIEW sales_av USING sales_fact DIMENSION BY (time_attr HIERARCHY time_hier) MEASURES (sales FACT sales)")
+		result := ParseAndCheck(t, "CREATE OR REPLACE ANALYTIC VIEW sales_av USING sales_fact DIMENSION BY (time_attr KEY month_id REFERENCES month_id HIERARCHIES (time_hier)) MEASURES (sales FACT sales)")
 		raw := result.Items[0].(*ast.RawStmt)
 		stmt, ok := raw.Stmt.(*ast.CreateAnalyticViewStmt)
 		if !ok {
@@ -7532,7 +7532,7 @@ func TestBatch93_ViewsAllTypes(t *testing.T) {
 	})
 
 	t.Run("alter_analytic_view_add_cache", func(t *testing.T) {
-		result := ParseAndCheck(t, "ALTER ANALYTIC VIEW sales_av ADD CACHE STORE AS COLUMNSTORE")
+		result := ParseAndCheck(t, "ALTER ANALYTIC VIEW sales_av ADD CACHE MEASURE GROUP (sales) LEVELS (time_hier.month) MATERIALIZED")
 		raw := result.Items[0].(*ast.RawStmt)
 		stmt, ok := raw.Stmt.(*ast.AlterAnalyticViewStmt)
 		if !ok {
@@ -7606,7 +7606,7 @@ func TestBatch93_ViewsAllTypes(t *testing.T) {
 			"ALTER MATERIALIZED VIEW emp_mv SHRINK SPACE COMPACT",
 			"CREATE MATERIALIZED VIEW LOG ON employees WITH PRIMARY KEY INCLUDING NEW VALUES",
 			"ALTER MATERIALIZED VIEW LOG ON employees ADD (salary)",
-			"CREATE ANALYTIC VIEW sales_av USING sales_fact DIMENSION BY (time_attr HIERARCHY time_hier) MEASURES (sales)",
+			"CREATE ANALYTIC VIEW sales_av USING sales_fact DIMENSION BY (time_attr KEY month_id REFERENCES month_id HIERARCHIES (time_hier)) MEASURES (sales)",
 			"ALTER ANALYTIC VIEW sales_av COMPILE",
 			"ALTER ANALYTIC VIEW sales_av RENAME TO sales_av_new",
 			"CREATE JSON RELATIONAL DUALITY VIEW emp_dv AS SELECT employee_id FROM employees",
@@ -7821,17 +7821,17 @@ func TestParseBatch102_AttrDimensionHierarchyDomain(t *testing.T) {
 		// CREATE ATTRIBUTE DIMENSION - OR REPLACE, SHARING, DIMENSION TYPE, classification
 		`CREATE OR REPLACE ATTRIBUTE DIMENSION hr.time_attr_dim
 			SHARING = METADATA
+			DIMENSION TYPE TIME
 			CAPTION 'Time Dimension'
 			DESCRIPTION 'Time-based attribute dimension'
-			DIMENSION TYPE TIME
 			USING time_table
 			ATTRIBUTES (year_id AS yr, quarter_id AS qtr, month_id)
-			LEVEL year LEVEL TYPE YEARS KEY year_id NOT NULL
+			LEVEL year LEVEL TYPE YEARS KEY year_id
 			LEVEL quarter LEVEL TYPE QUARTERS KEY quarter_id
 			LEVEL month LEVEL TYPE MONTHS KEY month_id`,
 		// CREATE ATTRIBUTE DIMENSION - IF NOT EXISTS, JOIN PATH, multiple sources
 		`CREATE ATTRIBUTE DIMENSION IF NOT EXISTS product_dim
-			USING products p, JOIN PATH jp1 ON p.cat_id = categories.cat_id
+			USING products p, categories c JOIN PATH jp1 ON p.cat_id = c.cat_id
 			ATTRIBUTES (prod_name, prod_desc AS description)
 			LEVEL product KEY prod_name
 			LEVEL category KEY (cat_id, subcat_id)`,
@@ -7840,7 +7840,7 @@ func TestParseBatch102_AttrDimensionHierarchyDomain(t *testing.T) {
 			USING geography
 			ATTRIBUTES (country_id, region_id, city_id)
 			LEVEL country
-				KEY country_id NOT NULL
+				KEY country_id
 				ALTERNATE KEY country_code
 				MEMBER NAME country_id
 				MEMBER CAPTION country_id
@@ -7848,13 +7848,13 @@ func TestParseBatch102_AttrDimensionHierarchyDomain(t *testing.T) {
 				DETERMINES (region_id)
 			LEVEL region KEY region_id
 			ALL MEMBER NAME 'ALL_GEO'`,
-		// CREATE ATTRIBUTE DIMENSION - SKIP WHEN NULL, ORDER BY with multiple attrs
+		// CREATE ATTRIBUTE DIMENSION - ORDER BY with multiple attrs
 		`CREATE ATTRIBUTE DIMENSION time_dim
 			USING calendar
 			ATTRIBUTES (year_val, quarter_val, month_val)
-			LEVEL year KEY year_val SKIP WHEN NULL
+			LEVEL year KEY year_val
 			LEVEL quarter KEY quarter_val
-				ORDER BY (quarter_val ASC, year_val DESC)`,
+				ORDER BY quarter_val ASC, MIN year_val DESC NULLS LAST`,
 		// ALTER ATTRIBUTE DIMENSION - COMPILE
 		"ALTER ATTRIBUTE DIMENSION my_dim COMPILE",
 		// ALTER ATTRIBUTE DIMENSION - RENAME TO
