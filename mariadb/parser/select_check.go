@@ -100,6 +100,18 @@ func refuseFromDuplicates(refs []nodes.TableExpr) error {
 	return refuseDuplicateTables(fromEntries(refs))
 }
 
+// refuseRepeatedTables holds a statement's list of table names, table_list and the lists
+// of CACHE INDEX and LOAD INDEX, to refuseDuplicateTables: each name goes through
+// add_table_to_list, so `CHECK TABLE t, t` and `DROP TABLE t, t` are 1066 while they
+// parse.
+func refuseRepeatedTables(refs []*nodes.TableRef) error {
+	entries := make([]fromEntry, 0, len(refs))
+	for _, r := range refs {
+		entries = append(entries, fromEntry{kind: fromTable, schema: r.Schema, name: r.Name, pos: r.Loc.Start})
+	}
+	return refuseDuplicateTables(entries)
+}
+
 // refuseDeleteTargets holds a multi-table DELETE's targets to its table list: 1066 for a
 // target named twice, and 1109, ER_UNKNOWN_TABLE, for one the list has no entry for. A target
 // matches an entry with an alias by the alias alone, written with no database, and an entry

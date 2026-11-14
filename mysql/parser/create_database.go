@@ -1,8 +1,9 @@
 package parser
 
 import (
-	nodes "github.com/bytebase/omni/mysql/ast"
 	"strings"
+
+	nodes "github.com/bytebase/omni/mysql/ast"
 )
 
 // parseCreateDatabaseStmt parses a CREATE DATABASE/SCHEMA statement.
@@ -186,18 +187,21 @@ func (p *Parser) parseDatabaseOption(alter bool) (*nodes.DatabaseOption, bool, e
 		p.advance()    // consume READ
 		p.advance()    // consume ONLY
 		p.matchEqual() // optional =
-		var val string
-		switch {
-		case p.cur.Type == kwDEFAULT:
-			val = "DEFAULT"
-		case p.cur.Type == tokICONST && p.cur.Ival == 0:
+		// The number is ternary_option's ulong_num, read by its whole part, so
+		// 0x1, 1.5 and 1e0 are each 1.
+		val := "DEFAULT"
+		if p.cur.Type == kwDEFAULT {
+			p.advance()
+		} else {
+			n, err := p.consumeBoundedOptionValue(0, 1)
+			if err != nil {
+				return nil, false, err
+			}
 			val = "0"
-		case p.cur.Type == tokICONST && p.cur.Ival == 1:
-			val = "1"
-		default:
-			return nil, false, p.syntaxErrorAtCur()
+			if whole, _, _ := strings.Cut(strings.TrimLeft(n, "0"), "."); whole != "" && whole[0] == '1' {
+				val = "1"
+			}
 		}
-		p.advance()
 		return &nodes.DatabaseOption{
 			Loc:   nodes.Loc{Start: start, End: p.prev.End},
 			Name:  "READ ONLY",

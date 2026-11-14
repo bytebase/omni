@@ -239,6 +239,19 @@ func (f *fileState) write() error {
 	return os.WriteFile(f.path, []byte(out.encode()), 0o644)
 }
 
+// Live skips t outside a recording. It is for the few tests with nothing to
+// replay: a test whose input is the engine's own data that the repo may not
+// hold, as Oracle's PL/SQL dictionary test reads the source Oracle ships
+// with. In a recording it runs against the live server and records nothing.
+// It is the only environment gate (§4.5 of
+// docs/specs/2026-11-11-engine-compatibility-without-servers-design.md).
+func Live(t testing.TB) {
+	t.Helper()
+	if !enginetest.Recording(t) {
+		t.Skipf("tape: %s has nothing to replay and runs only against the pinned server:\n  %s", t.Name(), enginetest.RecordCommand(t))
+	}
+}
+
 // Main runs the package's tests, as TestMain's m.Run does, and returns the
 // exit code. A passing run of every test also accounts for every tape: a
 // replay fails on a tape or stream no test opened, which a deleted or
