@@ -48,9 +48,10 @@ func (q QueryType) String() string {
 //
 //   - SELECT and set operations are Select.
 //   - INSERT (single and multi-table), UPDATE, DELETE, MERGE, CALL,
-//     EXECUTE IMMEDIATE, EXECUTE TASK, EXECUTE [ INFERENCE ] JOB SERVICE and
-//     COPY INTO <table> are DML; a stored procedure, a task or a job can
-//     change data.
+//     EXECUTE IMMEDIATE, EXECUTE TASK, EXECUTE [ INFERENCE ] JOB SERVICE,
+//     EXECUTE of a dbt or DCM project or a code bundle, and COPY INTO <table>
+//     are DML; a stored procedure, a task, a job or a project can change
+//     data.
 //   - EXPLAIN is Explain whatever it plans.
 //   - SHOW and DESCRIBE are SelectInfoSchema, except that a result pipe
 //     (SHOW ... ->> <query>) and stmt ->> <query> take the piped query's type.
@@ -71,7 +72,7 @@ func QueryTypeOf(node ast.Node) QueryType {
 
 	case *ast.InsertStmt, *ast.InsertMultiStmt,
 		*ast.UpdateStmt, *ast.DeleteStmt, *ast.MergeStmt,
-		*ast.CallStmt, *ast.ExecuteImmediateStmt, *ast.ExecuteTaskStmt:
+		*ast.CallStmt, *ast.ExecuteImmediateStmt, *ast.ExecuteTaskStmt, *ast.ExecuteAlertStmt:
 		return DML
 
 	case *ast.ResultScanStmt:
@@ -102,10 +103,11 @@ func QueryTypeOf(node ast.Node) QueryType {
 		return DDL
 
 	case *ast.ObjectStmt:
-		// A CREATE or ALTER of an object read by its documented shape.
-		// EXECUTE [ INFERENCE ] JOB SERVICE runs a job whose containers can
-		// change data, as EXECUTE TASK runs a task, so it is DML. Any other
-		// verb stays unknown.
+		// A CREATE or ALTER of an object read by its documented shape is
+		// DDL. EXECUTE [ INFERENCE ] JOB SERVICE runs a job whose containers
+		// can change data, and EXECUTE of a dbt or DCM project or a code
+		// bundle runs the object, as EXECUTE TASK runs a task, so they are
+		// DML. Any other verb stays unknown.
 		switch n.Verb {
 		case "CREATE", "ALTER":
 			return DDL
