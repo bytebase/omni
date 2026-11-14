@@ -20,7 +20,7 @@ func generateExtensionDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 			ops = append(ops, MigrationOp{
 				Type:          OpCreateExtension,
 				ObjectName:    entry.Name,
-				SQL:           fmt.Sprintf("CREATE EXTENSION %s", quoteIdentAlways(entry.Name)),
+				SQL:           formatCreateExtension(to, entry.Name, entry.To),
 				Transactional: true,
 				Phase:         PhaseMain,
 				ObjType:       'e',
@@ -45,6 +45,18 @@ func generateExtensionDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 			})
 
 		case DiffModify:
+			if entry.From != nil && entry.To != nil && entry.From.Version != "" && entry.To.Version != "" && entry.From.Version != entry.To.Version {
+				ops = append(ops, MigrationOp{
+					Type:          OpAlterExtension,
+					ObjectName:    entry.Name,
+					SQL:           fmt.Sprintf("ALTER EXTENSION %s UPDATE TO %s", quoteIdentAlways(entry.Name), quoteLiteral(entry.To.Version)),
+					Transactional: true,
+					Phase:         PhaseMain,
+					ObjType:       'e',
+					ObjOID:        entry.To.OID,
+					Priority:      PriorityExtension,
+				})
+			}
 			// Schema change: resolve SchemaOID from the target catalog.
 			if entry.From != nil && entry.To != nil && entry.From.SchemaOID != entry.To.SchemaOID {
 				schemaName := ""
@@ -77,6 +89,22 @@ func generateExtensionDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 	})
 
 	return ops
+}
+
+// formatCreateExtension writes CREATE EXTENSION with the schema and version
+// the target catalog records, when it records them.
+func formatCreateExtension(to *Catalog, name string, ext *Extension) string {
+	sql := "CREATE EXTENSION " + quoteIdentAlways(name)
+	if ext == nil {
+		return sql
+	}
+	if s := to.schemas[ext.SchemaOID]; s != nil {
+		sql += " WITH SCHEMA " + quoteIdentAlways(s.Name)
+	}
+	if ext.Version != "" {
+		sql += " VERSION " + quoteLiteral(ext.Version)
+	}
+	return sql
 }
 
 // opTypeOrder returns a sort key for extension op types: drops < creates < alters.

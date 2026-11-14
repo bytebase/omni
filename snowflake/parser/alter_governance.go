@@ -447,7 +447,10 @@ var propertyValues = map[string]propertyValue{
 
 // tableSetProperties and icebergTableSetProperties are the SET properties the
 // ALTER TABLE and ALTER ICEBERG TABLE pages list beyond the ones
-// parseOneTableProp names itself (DATA_RETENTION_TIME_IN_DAYS, COMMENT, ...).
+// parseOneTableProp names itself (DATA_RETENTION_TIME_IN_DAYS, COMMENT, ...):
+//
+//	https://docs.snowflake.com/en/sql-reference/sql/alter-table
+//	https://docs.snowflake.com/en/sql-reference/sql/alter-iceberg-table
 var (
 	tableSetProperties = map[string]bool{
 		"ICEBERG_DEFAULT_DDL_COLLATION": true,
