@@ -1,7 +1,6 @@
 package parser
 
 import (
-	"slices"
 	"strings"
 
 	"github.com/bytebase/omni/snowflake/ast"
@@ -129,20 +128,11 @@ func parseAlterService(p *Parser, s *ast.ObjectStmt) error {
 }
 
 // checkServiceSet holds an ALTER's SET clause to its page: tags are set by a
-// SET TAG of their own, and when names is given, SET takes only those
-// properties (the subset of the CREATE's the ALTER page documents).
-func checkServiceSet(s *ast.ObjectStmt, names ...string) error {
+// SET TAG of their own, never among SET's properties.
+func checkServiceSet(s *ast.ObjectStmt) error {
 	for _, c := range s.Clauses {
-		if c.Keywords != "SET" {
-			continue
-		}
-		if len(c.Tags) > 0 {
+		if c.Keywords == "SET" && len(c.Tags) > 0 {
 			return &ParseError{Position: c.Loc.Start, End: c.Loc.End, Message: "syntax error at or near TAG"}
-		}
-		for _, o := range c.Options {
-			if names != nil && !slices.Contains(names, o.Name) {
-				return &ParseError{Position: o.Loc.Start, End: o.Loc.End, Message: "syntax error at or near " + o.Name}
-			}
 		}
 	}
 	return nil
@@ -200,11 +190,14 @@ func (p *Parser) parseExecuteJobService(start ast.Loc) (ast.Node, error) {
 	if _, err := p.expect(kwWITH); err != nil {
 		return nil, err
 	}
-	spec, err := p.parseServiceSpecText("SPECIFICATION")
+	if err := p.expectWords("SPECIFICATION"); err != nil {
+		return nil, err
+	}
+	spec, err := p.parseServiceSpecText()
 	if err != nil {
 		return nil, err
 	}
-	p.addObjectKeywordsClause(s, "WITH", withStart).Options = []*ast.CopyOption{spec}
+	p.addObjectKeywordsClause(s, "WITH SPECIFICATION", withStart).Options = []*ast.CopyOption{spec}
 
 	// FROM ( <query> )
 	fromStart := p.cur.Loc.Start
@@ -255,7 +248,7 @@ func (p *Parser) parseServiceComputePool(s *ast.ObjectStmt) error {
 	if err := p.expectWords("IN", "COMPUTE", "POOL"); err != nil {
 		return err
 	}
-	name, err := p.parseObjectName()
+	name, err := p.parseObjectSimpleName()
 	if err != nil {
 		return err
 	}
@@ -276,8 +269,10 @@ func (p *Parser) parseServiceComputePool(s *ast.ObjectStmt) error {
 //	  | FROM SPECIFICATION_TEMPLATE <specification_text> }
 //	  USING ( <key> => <value> [ , ... ] )
 //
-// The FROM clause holds the specification as one option (SPECIFICATION,
-// SPECIFICATION_FILE, ...); USING is a clause of its own. bareFile says whether
+// A *_FILE form is a FROM clause holding the property (SPECIFICATION_FILE =
+// '<path>'); an inline form is a FROM SPECIFICATION or FROM
+// SPECIFICATION_TEMPLATE clause holding the text as a nameless option. USING
+// is a clause of its own. bareFile says whether
 // the page documents a *_FILE without a stage (CREATE and ALTER SERVICE do, for
 // a Native App's service; EXECUTE JOB SERVICE does not). The @<stage> forms are
 // not read yet (see the top of this file).
@@ -287,7 +282,7 @@ func (p *Parser) parseServiceSpecification(s *ast.ObjectStmt, bareFile bool) err
 		return err
 	}
 	var spec *ast.CopyOption
-	var err error
+	keywords := "FROM"
 	switch {
 	case bareFile && (p.curIsWord("SPECIFICATION_FILE") || p.curIsWord("SPECIFICATION_TEMPLATE_FILE")) &&
 		p.peekNext().Type == '=':
@@ -303,35 +298,31 @@ func (p *Parser) parseServiceSpecification(s *ast.ObjectStmt, bareFile bool) err
 			Loc:  ast.Loc{Start: key.Loc.Start, End: path.Loc.End},
 		}
 	case p.curIsWord("SPECIFICATION") || p.curIsWord("SPECIFICATION_TEMPLATE"):
-		spec, err = p.parseServiceSpecText(strings.ToUpper(p.cur.Str))
-		if err != nil {
+		keywords += " " + strings.ToUpper(p.advance().Str)
+		var err error
+		if spec, err = p.parseServiceSpecText(); err != nil {
 			return err
 		}
 	default:
 		return p.syntaxErrorAtCur()
 	}
-	p.addObjectKeywordsClause(s, "FROM", start).Options = []*ast.CopyOption{spec}
-	if spec.Name == "SPECIFICATION_TEMPLATE" || spec.Name == "SPECIFICATION_TEMPLATE_FILE" {
+	p.addObjectKeywordsClause(s, keywords, start).Options = []*ast.CopyOption{spec}
+	if keywords == "FROM SPECIFICATION_TEMPLATE" || spec.Name == "SPECIFICATION_TEMPLATE_FILE" {
 		return p.parseServiceUsing(s)
 	}
 	return nil
 }
 
-// parseServiceSpecText reads <word> '<specification_text>' (the text may be a
-// $$ string) into an option named word. cur is word.
-func (p *Parser) parseServiceSpecText(word string) (*ast.CopyOption, error) {
-	key := p.cur
-	if err := p.expectWords(word); err != nil {
-		return nil, err
-	}
+// parseServiceSpecText reads '<specification_text>' (the text may be a $$
+// string) into a nameless option.
+func (p *Parser) parseServiceSpecText() (*ast.CopyOption, error) {
 	text, err := p.expect(tokString)
 	if err != nil {
 		return nil, err
 	}
 	return &ast.CopyOption{
-		Name: word,
-		Lit:  &ast.Literal{Kind: ast.LitString, Value: text.Str, Loc: text.Loc},
-		Loc:  ast.Loc{Start: key.Loc.Start, End: text.Loc.End},
+		Lit: &ast.Literal{Kind: ast.LitString, Value: text.Str, Loc: text.Loc},
+		Loc: text.Loc,
 	}, nil
 }
 
@@ -339,9 +330,10 @@ func (p *Parser) parseServiceSpecText(word string) (*ast.CopyOption, error) {
 //
 //	USING ( <key> => <value> [ , <key> => <value> [ , ... ] ] )
 //
-// into a USING clause, one option per argument named by its key (a quoted key
-// keeps its case). A value is a string (' or $$), a number, or an
-// alphanumeric word; JSON is written as a string.
+// into a USING clause, one option per argument named by its key (uppercased,
+// or a quoted key with its quotes). The page does not say a key may not repeat,
+// so a repeated key is read as written. A value is a string (' or
+// $$), a number, or an alphanumeric word; JSON is written as a string.
 func (p *Parser) parseServiceUsing(s *ast.ObjectStmt) error {
 	start := p.cur.Loc.Start
 	if _, err := p.expect(kwUSING); err != nil {
@@ -362,7 +354,11 @@ func (p *Parser) parseServiceUsing(s *ast.ObjectStmt) error {
 		if p.cur.Type == '(' {
 			return p.syntaxErrorAtCur()
 		}
-		arg := &ast.CopyOption{Name: key.Normalize(), Loc: ast.Loc{Start: key.Loc.Start}}
+		arg := &ast.CopyOption{Name: strings.ToUpper(key.Name), Loc: ast.Loc{Start: key.Loc.Start}}
+		if key.Quoted {
+			arg.Name = p.srcSlice(key.Loc.Start, key.Loc.End)
+		}
+
 		if err := p.parseObjectValue(arg); err != nil {
 			return err
 		}

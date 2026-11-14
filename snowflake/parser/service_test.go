@@ -15,17 +15,17 @@ func TestParseCreateService(t *testing.T) {
 	if s.Verb != "CREATE" || s.Kind != "SERVICE" || !s.IfNotExists || s.Name.String() != "db.s.svc" {
 		t.Fatalf("got %+v", s)
 	}
-	if got := strings.Join(clauseKeywords(s), "|"); got != "IN COMPUTE POOL|FROM|USING|" {
+	if got := strings.Join(clauseKeywords(s), "|"); got != "IN COMPUTE POOL|FROM SPECIFICATION_TEMPLATE|USING|" {
 		t.Fatalf("clauses = %q", got)
 	}
 	if pool := s.Clauses[0].Names; len(pool) != 1 || pool[0].String() != "pool1" {
 		t.Errorf("pool = %+v", pool)
 	}
-	if spec, ok := optLitString(s.Clauses[1].Options, "SPECIFICATION_TEMPLATE"); !ok || spec != "spec: {{ x }}" {
-		t.Errorf("specification = %q", spec)
+	if spec := s.Clauses[1].Options; len(spec) != 1 || spec[0].Name != "" || spec[0].Lit.Value != "spec: {{ x }}" {
+		t.Errorf("specification = %+v", spec)
 	}
 	using := s.Clauses[2].Options
-	if len(using) != 3 || using[0].Name != "X" || using[0].Lit.Value != "v" || using[1].Name != "Mixed" ||
+	if len(using) != 3 || using[0].Name != "X" || using[0].Lit.Value != "v" || using[1].Name != `"Mixed"` ||
 		using[1].Lit.Value != "2" || using[2].Words != "TRUE" {
 		t.Errorf("USING = %+v", using)
 	}
@@ -34,13 +34,13 @@ func TestParseCreateService(t *testing.T) {
 	}
 
 	for in, want := range map[string]string{
-		"CREATE SERVICE s IN COMPUTE POOL p FROM SPECIFICATION 'spec'":                          "SPECIFICATION",
-		"CREATE SERVICE s IN COMPUTE POOL p FROM SPECIFICATION_FILE = 'a.yaml'":                 "SPECIFICATION_FILE",
-		"CREATE SERVICE s IN COMPUTE POOL p FROM SPECIFICATION_TEMPLATE_FILE = 'a' USING(a=>1)": "SPECIFICATION_TEMPLATE_FILE",
+		"CREATE SERVICE s IN COMPUTE POOL p FROM SPECIFICATION 'spec'":                          "FROM SPECIFICATION/",
+		"CREATE SERVICE s IN COMPUTE POOL p FROM SPECIFICATION_FILE = 'a.yaml'":                 "FROM/SPECIFICATION_FILE",
+		"CREATE SERVICE s IN COMPUTE POOL p FROM SPECIFICATION_TEMPLATE_FILE = 'a' USING(a=>1)": "FROM/SPECIFICATION_TEMPLATE_FILE",
 	} {
 		s := mustObjectStmt(t, in)
-		if o := s.Clauses[1].Options; len(o) != 1 || o[0].Name != want {
-			t.Errorf("%q: FROM = %+v", in, o)
+		if c := s.Clauses[1]; len(c.Options) != 1 || c.Keywords+"/"+c.Options[0].Name != want {
+			t.Errorf("%q: FROM = %+v", in, c)
 		}
 	}
 }
@@ -49,8 +49,8 @@ func TestParseAlterService(t *testing.T) {
 	for in, want := range map[string]string{
 		"ALTER SERVICE IF EXISTS s SUSPEND":                                 "SUSPEND",
 		"ALTER SERVICE s RESUME":                                            "RESUME",
-		"ALTER SERVICE s FROM SPECIFICATION 'x'":                            "FROM",
-		"ALTER SERVICE s FROM SPECIFICATION_TEMPLATE 'x' USING (a => 1)":    "FROM|USING",
+		"ALTER SERVICE s FROM SPECIFICATION 'x'":                            "FROM SPECIFICATION",
+		"ALTER SERVICE s FROM SPECIFICATION_TEMPLATE 'x' USING (a => 1)":    "FROM SPECIFICATION_TEMPLATE|USING",
 		"ALTER SERVICE s SET MIN_INSTANCES = 1 QUERY_WAREHOUSE = wh":        "SET",
 		"ALTER SERVICE s SET TAG t = 'v', u = 'w'":                          "SET TAG",
 		"ALTER SERVICE s UNSET MIN_INSTANCES, EXTERNAL_ACCESS_INTEGRATIONS": "UNSET",
@@ -68,14 +68,14 @@ func TestParseExecuteJobService(t *testing.T) {
 	if s.Verb != "EXECUTE" || s.Kind != "JOB SERVICE" || s.Name != nil {
 		t.Fatalf("got %+v", s)
 	}
-	if got := strings.Join(clauseKeywords(s), "|"); got != "IN COMPUTE POOL|FROM|" {
+	if got := strings.Join(clauseKeywords(s), "|"); got != "IN COMPUTE POOL|FROM SPECIFICATION|" {
 		t.Fatalf("clauses = %q", got)
 	}
 	if w, ok := optWords(s.Clauses[2].Options, "NAME"); !ok || w != "DB.S.JOB" {
 		t.Errorf("NAME = %q", w)
 	}
 	s = mustObjectStmt(t, "execute job service in compute pool p from specification_template 'x' using (a => 'b')")
-	if got := strings.Join(clauseKeywords(s), "|"); got != "IN COMPUTE POOL|FROM|USING" {
+	if got := strings.Join(clauseKeywords(s), "|"); got != "IN COMPUTE POOL|FROM SPECIFICATION_TEMPLATE|USING" {
 		t.Errorf("clauses = %q", got)
 	}
 
@@ -85,14 +85,14 @@ func TestParseExecuteJobService(t *testing.T) {
 	if s.Kind != "INFERENCE JOB SERVICE" {
 		t.Fatalf("Kind = %q", s.Kind)
 	}
-	if got := strings.Join(clauseKeywords(s), "|"); got != "IN COMPUTE POOL|WITH|FROM|" {
+	if got := strings.Join(clauseKeywords(s), "|"); got != "IN COMPUTE POOL|WITH SPECIFICATION|FROM|" {
 		t.Fatalf("clauses = %q", got)
 	}
 	if s.Clauses[2].Query == nil {
 		t.Error("FROM has no query")
 	}
-	if _, ok := optLitString(s.Clauses[1].Options, "SPECIFICATION"); !ok {
-		t.Error("WITH has no SPECIFICATION")
+	if o := s.Clauses[1].Options; len(o) != 1 || o[0].Lit == nil || o[0].Lit.Value != "spec" {
+		t.Errorf("WITH SPECIFICATION = %+v", o)
 	}
 	mustObjectStmt(t, "EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL p WITH SPECIFICATION 's' FROM (WITH c AS (SELECT 1) SELECT * FROM c) MODEL = m")
 }
@@ -204,6 +204,10 @@ func TestParseServiceRejects(t *testing.T) {
 		"ALTER ARTIFACT REPOSITORY r SET API_INTEGRATION = 'i'",
 		"ALTER ARTIFACT REPOSITORY r UNSET COMMENT, PACKAGE_RETENTION",
 		"ALTER ARTIFACT REPOSITORY r UNSET INDEX_URL",
+		"CREATE SERVICE s IN COMPUTE POOL db.p FROM SPECIFICATION 'x'",                                  // the pool is a single name
+		"EXECUTE JOB SERVICE IN COMPUTE POOL db.p FROM SPECIFICATION 'x'",                               // the pool is a single name
+		"CREATE SERVICE s IN COMPUTE POOL p FROM SPECIFICATION 'x' MIN_INSTANCES = 1 MIN_INSTANCES = 2", // set twice
+		"ALTER SERVICE s SET COMMENT = 'c' WITH TAG (t = 'v')",
 	} {
 		mustRejectObject(t, in)
 	}

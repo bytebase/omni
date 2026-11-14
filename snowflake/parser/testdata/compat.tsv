@@ -53133,7 +53133,7 @@ reject	undocumented	docs	executeJobService(ID_._ID_.)?/%empty!insert	EXECUTE JOB
 accept	accept	docs	executeJobService(ID_._ID_.)?/ID_._ID_.	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM SPECIFICATION 's' NAME = a.a.a
 reject	undocumented	docs	executeJobService(ID_._ID_.)?/ID_._ID_.!drop-1	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM SPECIFICATION 's' NAME =.a.a
 reject	undocumented	docs	executeJobService(ID_._ID_.)?/ID_._ID_.!drop-2	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM SPECIFICATION 's' NAME = a a.a
-accept	undocumented	docs	executeJobService(ID_._ID_.)?/ID_._ID_.!drop-3	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM SPECIFICATION 's' NAME = a..a
+reject	undocumented	docs	executeJobService(ID_._ID_.)?/ID_._ID_.!drop-3	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM SPECIFICATION 's' NAME = a..a
 reject	undocumented	docs	executeJobService(ID_._ID_.)?/ID_._ID_.!drop-4	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM SPECIFICATION 's' NAME = a.a a
 accept	undocumented	docs	executeJobService(ID_._ID_.)?/ID_._ID_.!truncate	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM SPECIFICATION 's' NAME = a.a
 reject	undocumented	docs	executeJobService(ID_._ID_.)?/ID_._ID_.!insert	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM SPECIFICATION 's' NAME = a.a.zzz a
