@@ -535,7 +535,7 @@ func (p *Parser) parseDeclareConditionStmt(start int, name string, namePos int) 
 		return nil, err
 	}
 	stmt.ConditionValue = condVal
-	if err := p.declareSPCondition(name, condVal, namePos); err != nil {
+	if err := p.declareSPCondition(name, namePos, condVal); err != nil {
 		return nil, err
 	}
 
@@ -574,12 +574,12 @@ func (p *Parser) parseDeclareHandlerStmt(start int) (*nodes.DeclareHandlerStmt, 
 
 	// condition_value [, condition_value] ...
 	for {
-		condPos := p.pos()
+		condPos := p.cur.Loc
 		condVal, err := p.parseHandlerConditionValue()
 		if err != nil {
 			return nil, err
 		}
-		if err := p.declareSPHandlerCondition(condVal, condPos); err != nil {
+		if err := p.declareSPHandlerCond(condVal, condPos); err != nil {
 			return nil, err
 		}
 		stmt.Conditions = append(stmt.Conditions, condVal)

@@ -761,6 +761,11 @@ func walkChildren(v Visitor, node Node) {
 		if n.ForUpdate != nil {
 			Walk(v, n.ForUpdate)
 		}
+		for _, item := range n.MoreLocking {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 		for _, item := range n.WindowClause {
 			if item != nil {
 				Walk(v, item)

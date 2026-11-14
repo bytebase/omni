@@ -9,26 +9,26 @@ import (
 
 // routineParserCodes are the errors other than 1064 that MariaDB raises while it
 // parses a routine body and that omni's parser raises too. MariaDB's other
-// parse-time routine errors (1327 for a name an expression reads, ...) are still
+// parse-time routine errors (1320 a function with no RETURN, ...) are still
 // mariadb/validate's to report, so Parse accepts those bodies.
 var routineParserCodes = map[uint16]bool{
 	1308: true, // ER_SP_LILABEL_MISMATCH: LEAVE or ITERATE with no label in reach
 	1309: true, // ER_SP_LABEL_REDEFINE: a label already in reach
+	1319: true, // ER_SP_COND_MISMATCH: a handler, SIGNAL or RESIGNAL naming no condition in reach
 	1323: true, // ER_SP_BAD_CURSOR_SELECT: a cursor's query that writes INTO
 	1324: true, // ER_SP_CURSOR_MISMATCH: OPEN, FETCH or CLOSE of no cursor in reach
 	1327: true, // ER_SP_UNDECLARED_VAR: FETCH, GET DIAGNOSTICS, SELECT INTO or LIMIT naming no variable in reach
 	1330: true, // ER_SP_DUP_PARAM: two parameters of one name
 	1331: true, // ER_SP_DUP_VAR: two variables of one name in a block
+	1332: true, // ER_SP_DUP_COND: two conditions of one name in a block
 	1333: true, // ER_SP_DUP_CURS: two cursors of one name in a block
+	1413: true, // ER_SP_DUP_HANDLER: a condition value two handlers of a block have
 	1313: true, // ER_SP_BADRETURN: RETURN anywhere but in a function
 	1310: true, // ER_SP_LABEL_MISMATCH: an end label that does not match its begin label
 	1362: true, // ER_TRG_CANT_CHANGE_ROW: an assignment to a row a trigger can't change
 	1363: true, // ER_TRG_NO_SUCH_ROW_IN_TRG: a NEW or OLD row its event does not have
 	1415: true, // ER_SP_NO_RETSET: a result set from a function or a trigger
 	1337: true, // ER_SP_VARCOND_AFTER_CURSHNDLR: a variable or condition declared after a cursor or handler
-	1319: true, // ER_SP_COND_MISMATCH: a handler for a condition no block declares
-	1332: true, // ER_SP_DUP_COND: a condition a block declares twice
-	1413: true, // ER_SP_DUP_HANDLER: two handlers of a block for one condition
 }
 
 // TestRoutineAlignment holds omni's parser to MariaDB 11.8.8 on a CREATE PROCEDURE /

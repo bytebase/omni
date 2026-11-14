@@ -604,6 +604,11 @@ func (p *Parser) parsePrivilegeName() (string, privWord, error) {
 		name = strings.ToUpper(tok.Str)
 		word.keyword = true
 	case tokIDENT:
+		// A user variable or a character set introducer is no role name: mysql:8.0.46
+		// answers 1064 for `GRANT @a TO u`, the '@' of a role's host with no role.
+		if p.curIsVariableOrIntroducer() {
+			return "", word, p.syntaxErrorAtCur()
+		}
 		tok := p.advance()
 		name = strings.ToUpper(tok.Str)
 	default:
@@ -2253,24 +2258,40 @@ func (p *Parser) parseSetResourceGroupStmt(start int) (*nodes.SetResourceGroupSt
 		Name: name,
 	}
 
-	// Optional: FOR thread_id [, thread_id] ...
+	// Optional: FOR thread_id_list, one real_ulong_num or more, a comma between two
+	// optional: mysql:8.0.46 runs `FOR 1 2` and answers 1064 for a bare FOR and for a
+	// trailing comma.
+	//
+	// Ref: thread_id_list and opt_comma in MySQL 8.0 sql/sql_yacc.yy.
 	if p.cur.Type == kwFOR {
 		p.advance() // consume FOR
 		for {
-			if p.cur.Type == tokICONST {
-				id, _ := strconv.ParseInt(p.cur.Str, 10, 64)
-				stmt.ThreadIDs = append(stmt.ThreadIDs, id)
-				p.advance()
-			} else {
+			tok, err := p.parseReplicationNumber(replRealUlong)
+			if err != nil {
+				return nil, err
+			}
+			stmt.ThreadIDs = append(stmt.ThreadIDs, replicationInt(tok))
+			if _, ok := p.match(','); !ok && !p.atThreadIDListNumber() {
 				break
 			}
-			if p.cur.Type != ',' {
-				break
-			}
-			p.advance()
 		}
 	}
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// atThreadIDListNumber reports whether the current token starts another real_ulong_num of
+// SET RESOURCE GROUP's thread_id_list, which takes one with no comma before it. A decimal
+// counts, so that the list refuses it rather than ending at it.
+//
+// Ref: thread_id_list and real_ulong_num in MySQL 8.0 sql/sql_yacc.yy.
+func (p *Parser) atThreadIDListNumber() bool {
+	switch p.cur.Type {
+	case tokICONST, tokFCONST:
+		return true
+	case tokXCONST:
+		return strings.HasPrefix(strings.ToLower(p.cur.Str), "0x")
+	}
+	return false
 }

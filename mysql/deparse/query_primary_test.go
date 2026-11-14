@@ -16,6 +16,7 @@ func TestDeparseQueryPrimaryLocking(t *testing.T) {
 		{"TABLE t LOCK IN SHARE MODE", "table `t` lock in share mode"},
 		{"TABLE t FOR UPDATE NOWAIT", "table `t` for update nowait"},
 		{"TABLE t FOR UPDATE OF t SKIP LOCKED", "table `t` for update of `t` skip locked"},
+		{"TABLE t FOR UPDATE FOR SHARE", "table `t` for update for share"},
 		{"TABLE t ORDER BY a LIMIT 1 FOR UPDATE", "table `t` order by `a` limit 1 for update"},
 		{"VALUES ROW(1,2)", "values row(1,2)"},
 		{"VALUES ROW(1,2) FOR UPDATE", "values row(1,2) for update"},

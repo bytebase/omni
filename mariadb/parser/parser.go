@@ -21,6 +21,9 @@ type Parser struct {
 	routineDepth int
 	// storedExpr is the stored expression around the current token, which holds what it reads.
 	storedExpr storedExprKind
+	// procedureArgs is set while a SELECT's PROCEDURE clause reads its arguments, which
+	// take no subquery.
+	procedureArgs bool
 
 	lexer   *Lexer
 	cur     Token // current token
