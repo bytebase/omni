@@ -3650,7 +3650,7 @@ reject	accept	docs	statement/dropContact	DROP CONTACT a
 reject	undocumented	docs	statement/dropContact!drop-3	DROP CONTACT
 reject	undocumented	docs	statement/dropContact!insert	DROP CONTACT a zzz
 reject	undocumented	docs	statement/dropContact!swap	DROP_FROM_SOURCE_CATALOG CONTACT a
-reject	accept	docs	statement/dropCortexSearch	DROP CORTEX SEARCH SERVICE a
+accept	accept	docs	statement/dropCortexSearch	DROP CORTEX SEARCH SERVICE a
 reject	undocumented	docs	statement/dropCortexSearch!drop-2	DROP SEARCH SERVICE a
 reject	undocumented	docs	statement/dropCortexSearch!drop-3	DROP CORTEX SERVICE a
 reject	undocumented	docs	statement/dropCortexSearch!drop-4	DROP CORTEX SEARCH a
@@ -3702,7 +3702,7 @@ reject	undocumented	docs	statement/dropEventRoutingTable!drop-4	DROP EVENT ROUTI
 reject	undocumented	docs	statement/dropEventRoutingTable!drop-5	DROP EVENT ROUTING TABLE
 reject	undocumented	docs	statement/dropEventRoutingTable!insert	DROP EVENT ROUTING TABLE a zzz
 reject	undocumented	docs	statement/dropEventRoutingTable!swap	DROP_FROM_SOURCE_CATALOG EVENT ROUTING TABLE a
-reject	accept	docs	statement/dropExperiment	DROP EXPERIMENT a
+accept	accept	docs	statement/dropExperiment	DROP EXPERIMENT a
 reject	undocumented	docs	statement/dropExperiment!drop-3	DROP EXPERIMENT
 reject	undocumented	docs	statement/dropExperiment!insert	DROP EXPERIMENT a zzz
 reject	undocumented	docs	statement/dropExperiment!swap	DROP_FROM_SOURCE_CATALOG EXPERIMENT a
@@ -3845,7 +3845,7 @@ reject	undocumented	docs	statement/dropMcpServer!drop-3	DROP MCP a
 reject	undocumented	docs	statement/dropMcpServer!drop-4	DROP MCP SERVER
 reject	undocumented	docs	statement/dropMcpServer!insert	DROP MCP SERVER a zzz
 reject	undocumented	docs	statement/dropMcpServer!swap	DROP_FROM_SOURCE_CATALOG MCP SERVER a
-reject	accept	docs	statement/dropModel	DROP MODEL a
+accept	accept	docs	statement/dropModel	DROP MODEL a
 reject	undocumented	docs	statement/dropModel!drop-1	MODEL a
 reject	undocumented	docs	statement/dropModel!drop-3	DROP MODEL
 reject	undocumented	docs	statement/dropModel!insert	DROP MODEL a zzz
@@ -52008,7 +52008,7 @@ accept	accept	docs	dropConnection(IF_EXISTS)?/IF_EXISTS!truncate	DROP CONNECTION
 reject	undocumented	docs	dropConnection(IF_EXISTS)?/IF_EXISTS!insert	DROP CONNECTION IF EXISTS zzz a
 reject	undocumented	docs	dropConnection(IF_EXISTS)?/IF_EXISTS!swap	DROP CONNECTION IGNORE EXISTS a
 reject	accept	docs	dropContact/DROP_CONTACT_QNAME	DROP CONTACT a
-reject	accept	docs	dropCortexSearch/DROP_CORTEX_SEARCH_SERVICE_QNAME	DROP CORTEX SEARCH SERVICE a
+accept	accept	docs	dropCortexSearch/DROP_CORTEX_SEARCH_SERVICE_QNAME	DROP CORTEX SEARCH SERVICE a
 reject	accept	docs	dropDataMovementPolicy/DROP_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME	DROP DATA MOVEMENT POLICY a
 reject	accept	docs	dropDataMovementPolicy(IF_EXISTS)?/%empty	DROP DATA MOVEMENT POLICY a
 reject	undocumented	docs	dropDataMovementPolicy(IF_EXISTS)?/%empty!insert	DROP DATA MOVEMENT POLICY zzz a
@@ -52080,7 +52080,7 @@ accept	accept	docs	dropDynamicTable(IF_EXISTS)?/IF_EXISTS!truncate	DROP DYNAMIC 
 reject	undocumented	docs	dropDynamicTable(IF_EXISTS)?/IF_EXISTS!insert	DROP DYNAMIC TABLE IF EXISTS zzz a
 reject	undocumented	docs	dropDynamicTable(IF_EXISTS)?/IF_EXISTS!swap	DROP DYNAMIC TABLE IGNORE EXISTS a
 reject	accept	docs	dropEventRoutingTable/DROP_EVENT_ROUTING_TABLE_QNAME	DROP EVENT ROUTING TABLE a
-reject	accept	docs	dropExperiment/DROP_EXPERIMENT_QNAME	DROP EXPERIMENT a
+accept	accept	docs	dropExperiment/DROP_EXPERIMENT_QNAME	DROP EXPERIMENT a
 accept	accept	docs	dropExternalAgent/DROP_EXTERNAL_AGENT_(IF_EXISTS)?_QNAME	DROP EXTERNAL AGENT a
 accept	accept	docs	dropExternalAgent(IF_EXISTS)?/%empty	DROP EXTERNAL AGENT a
 reject	undocumented	docs	dropExternalAgent(IF_EXISTS)?/%empty!insert	DROP EXTERNAL AGENT zzz a
@@ -52338,7 +52338,7 @@ reject	undocumented	docs	dropMcpServer(IF_EXISTS)?/IF_EXISTS!drop-2	DROP MCP SER
 reject	accept	docs	dropMcpServer(IF_EXISTS)?/IF_EXISTS!truncate	DROP MCP SERVER IF
 reject	undocumented	docs	dropMcpServer(IF_EXISTS)?/IF_EXISTS!insert	DROP MCP SERVER IF EXISTS zzz a
 reject	undocumented	docs	dropMcpServer(IF_EXISTS)?/IF_EXISTS!swap	DROP MCP SERVER IGNORE EXISTS a
-reject	accept	docs	dropModel/DROP_MODEL_QNAME	DROP MODEL a
+accept	accept	docs	dropModel/DROP_MODEL_QNAME	DROP MODEL a
 accept	accept	docs	dropModelMonitor/DROP_MODEL_MONITOR_(IF_EXISTS)?_ID	DROP MODEL MONITOR a
 accept	accept	docs	dropModelMonitor(IF_EXISTS)?/%empty	DROP MODEL MONITOR a
 reject	undocumented	docs	dropModelMonitor(IF_EXISTS)?/%empty!insert	DROP MODEL MONITOR zzz a

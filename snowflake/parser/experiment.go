@@ -13,8 +13,10 @@ func init() {
 		alter:     parseAlterExperiment,
 		orReplace: true,
 		// https://docs.snowflake.com/en/sql-reference/sql/drop-experiment
-		// writes DROP EXPERIMENT <name> with no IF EXISTS, which the registry's
-		// DROP always takes, so DROP is not registered.
+		// writes no IF EXISTS, as alter-experiment does not.
+		drop:           true,
+		dropNoIfExists: true,
+		noIfExists:     true,
 		// MODIFY RUN <run> SET STATUS = '<status>' is the one SET.
 		props: objectProps{"STATUS": propString},
 		unset: []string{},
@@ -44,9 +46,6 @@ func parseCreateExperiment(p *Parser, s *ast.ObjectStmt) error {
 //
 // https://docs.snowflake.com/en/sql-reference/sql/alter-experiment
 func parseAlterExperiment(p *Parser, s *ast.ObjectStmt) error {
-	if s.IfExists {
-		return &ParseError{Position: s.Name.Loc.Start, End: s.Name.Loc.End, Message: "syntax error: ALTER EXPERIMENT takes no IF EXISTS"}
-	}
 	start := p.cur.Loc.Start
 	var verb string
 	for _, v := range []string{"ADD", "COMMIT", "MODIFY", "DROP"} {

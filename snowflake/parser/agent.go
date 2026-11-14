@@ -15,6 +15,9 @@ func init() {
 		create:    parseCreateAgent,
 		alter:     parseAlterAgent,
 		orReplace: true,
+		// https://docs.snowflake.com/en/sql-reference/sql/alter-agent writes no
+		// IF EXISTS.
+		noIfExists: true,
 		// https://docs.snowflake.com/en/sql-reference/sql/drop-agent
 		drop:  true,
 		props: objectProps{"SECURE": propBool, "COMMENT": propString, "PROFILE": propString},
@@ -43,7 +46,8 @@ func init() {
 //
 // https://docs.snowflake.com/en/sql-reference/sql/create-agent
 //
-// The FROM clause holds the specification as an option named SPECIFICATION.
+// The FROM SPECIFICATION clause holds the specification as its one nameless
+// option.
 func parseCreateAgent(p *Parser, s *ast.ObjectStmt) error {
 	if start := p.cur.Loc.Start; p.acceptWords("COPY", "GRANTS") {
 		p.addObjectKeywordsClause(s, "COPY GRANTS", start)
@@ -55,30 +59,17 @@ func parseCreateAgent(p *Parser, s *ast.ObjectStmt) error {
 	if _, err := p.expect(kwFROM); err != nil {
 		return err
 	}
-	spec, err := p.parseAgentSpecification()
+	if err := p.expectWords("SPECIFICATION"); err != nil {
+		return err
+	}
+	// The text may be a $$ string.
+	text, err := p.expect(tokString)
 	if err != nil {
 		return err
 	}
-	p.addObjectKeywordsClause(s, "FROM", start).Options = []*ast.CopyOption{spec}
+	spec := &ast.CopyOption{Lit: &ast.Literal{Kind: ast.LitString, Value: text.Str, Loc: text.Loc}, Loc: text.Loc}
+	p.addObjectKeywordsClause(s, "FROM SPECIFICATION", start).Options = []*ast.CopyOption{spec}
 	return nil
-}
-
-// parseAgentSpecification reads SPECIFICATION '<specification_text>' (the
-// text may be a $$ string) into an option named SPECIFICATION.
-func (p *Parser) parseAgentSpecification() (*ast.CopyOption, error) {
-	key := p.cur
-	if err := p.expectWords("SPECIFICATION"); err != nil {
-		return nil, err
-	}
-	text, err := p.expect(tokString)
-	if err != nil {
-		return nil, err
-	}
-	return &ast.CopyOption{
-		Name: "SPECIFICATION",
-		Lit:  &ast.Literal{Kind: ast.LitString, Value: text.Str, Loc: text.Loc},
-		Loc:  ast.Loc{Start: key.Loc.Start, End: text.Loc.End},
-	}, nil
 }
 
 // parseAlterAgent reads what follows the name of
@@ -94,9 +85,6 @@ func (p *Parser) parseAgentSpecification() (*ast.CopyOption, error) {
 //
 // https://docs.snowflake.com/en/sql-reference/sql/alter-agent
 func parseAlterAgent(p *Parser, s *ast.ObjectStmt) error {
-	if s.IfExists {
-		return &ParseError{Position: s.Name.Loc.Start, End: s.Name.Loc.End, Message: "syntax error: ALTER AGENT takes no IF EXISTS"}
-	}
 	start := p.cur.Loc.Start
 	if p.acceptWords("MODIFY", "LIVE", "VERSION", "SET") {
 		if !p.curIsWord("SPECIFICATION") || !p.startsObjectProperty() {
@@ -106,7 +94,10 @@ func parseAlterAgent(p *Parser, s *ast.ObjectStmt) error {
 		if err != nil {
 			return err
 		}
-		if err := aiCheckOptions([]*ast.CopyOption{spec}, objectProps{"SPECIFICATION": propString}); err != nil {
+		if !propString.matches(spec) {
+			return &ParseError{Position: spec.Loc.Start, End: spec.Loc.End, Message: "syntax error: a specification is a string"}
+		}
+		if err := aiCheckOptions([]*ast.CopyOption{spec}, nil); err != nil {
 			return err
 		}
 		p.addObjectKeywordsClause(s, "MODIFY LIVE VERSION SET", start).Options = []*ast.CopyOption{spec}

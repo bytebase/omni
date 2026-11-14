@@ -24,7 +24,7 @@ func TestParseCortexSearch(t *testing.T) {
 		t.Fatalf("got %+v", s)
 	}
 	wantClauses(t, in, s, "ON", "PRIMARY KEY", "ATTRIBUTES", "", "AS")
-	if len(s.Clauses[1].Names) != 2 || len(s.Clauses[2].Names) != 2 || s.Clauses[4].Query == nil {
+	if len(s.Clauses[1].Options[0].Group) != 2 || len(s.Clauses[2].Names) != 2 || s.Clauses[4].Query == nil {
 		t.Errorf("clauses = %+v", s.Clauses)
 	}
 
@@ -68,7 +68,9 @@ func TestParseCortexSearch(t *testing.T) {
 		"ALTER CORTEX SEARCH SERVICE s UNSET COMMENT",
 		"ALTER CORTEX SEARCH SERVICE IF EXISTS s ADD SCORING PROFILE p '{}'",
 		"ALTER CORTEX SEARCH SERVICE s ADD SCORING PROFILE p",
-		"DROP CORTEX SEARCH SERVICE IF EXISTS s",
+		"DROP CORTEX SEARCH SERVICE IF EXISTS s", // the page writes no IF EXISTS
+		"ALTER CORTEX SEARCH SERVICE s SET COMMENT = 'a' COMMENT = 'b'",
+		"CREATE CORTEX SEARCH SERVICE s ON t.a ATTRIBUTES b WAREHOUSE = wh TARGET_LAG = 'x' AS SELECT 1",
 	} {
 		mustRejectObject(t, in)
 	}
@@ -76,8 +78,8 @@ func TestParseCortexSearch(t *testing.T) {
 
 func TestParseAgent(t *testing.T) {
 	for in, want := range map[string][]string{
-		"CREATE OR REPLACE AGENT a COPY GRANTS SECURE = TRUE COMMENT = 'c' FROM SPECIFICATION $$models: {}$$": {"COPY GRANTS", "", "FROM"},
-		"CREATE AGENT IF NOT EXISTS a FROM SPECIFICATION 's'":                                                 {"FROM"},
+		"CREATE OR REPLACE AGENT a COPY GRANTS SECURE = TRUE COMMENT = 'c' FROM SPECIFICATION $$models: {}$$": {"COPY GRANTS", "", "FROM SPECIFICATION"},
+		"CREATE AGENT IF NOT EXISTS a FROM SPECIFICATION 's'":                                                 {"FROM SPECIFICATION"},
 		"ALTER AGENT a SET COMMENT = 'c' PROFILE = '{}'":                                                      {"SET"},
 		"ALTER AGENT a MODIFY LIVE VERSION SET SPECIFICATION = 's'":                                           {"MODIFY LIVE VERSION SET"},
 		"ALTER AGENT a SET TAG t = 'v'":                                                                       {"SET TAG"},
@@ -88,7 +90,7 @@ func TestParseAgent(t *testing.T) {
 		wantClauses(t, in, mustObjectStmt(t, in), want...)
 	}
 	s := mustObjectStmt(t, "CREATE AGENT a FROM SPECIFICATION 's'")
-	if spec := s.Clauses[0].Options[0]; spec.Name != "SPECIFICATION" || spec.Lit.Value != "s" {
+	if spec := s.Clauses[0].Options[0]; spec.Name != "" || spec.Lit.Value != "s" {
 		t.Errorf("FROM = %+v", spec)
 	}
 	for _, in := range []string{"DROP AGENT IF EXISTS a", "DROP EXTERNAL AGENT e"} {
@@ -121,12 +123,12 @@ func TestParseModel(t *testing.T) {
 		"ALTER MODEL IF EXISTS m SET COMMENT = 'c' DEFAULT_VERSION = 'v1'":         {"SET"},
 		"ALTER MODEL m SET TAG t = 'v'":                                            {"SET TAG"},
 		"ALTER MODEL m UNSET TAG t":                                                {"UNSET TAG"},
-		"ALTER MODEL m VERSION v1 SET ALIAS = best":                                {"VERSION SET"},
-		"ALTER MODEL m VERSION v1 UNSET ALIAS":                                     {"VERSION UNSET"},
+		"ALTER MODEL m VERSION v1 SET ALIAS = best":                                {"VERSION", "SET"},
+		"ALTER MODEL m VERSION v1 UNSET ALIAS":                                     {"VERSION", "UNSET"},
 		"ALTER MODEL m RENAME TO n":                                                {"RENAME TO"},
 		"ALTER MODEL m ADD VERSION v2 FROM MODEL src VERSION v0":                   {"ADD VERSION", "FROM MODEL", "VERSION"},
 		"ALTER MODEL IF EXISTS m DROP VERSION v1":                                  {"DROP VERSION"},
-		"ALTER MODEL m MODIFY VERSION v1 SET COMMENT = 'c' METADATA = '{}'":        {"MODIFY VERSION SET"},
+		"ALTER MODEL m MODIFY VERSION v1 SET COMMENT = 'c' METADATA = '{}'":        {"MODIFY VERSION", "SET"},
 		"ALTER MODEL MONITOR IF EXISTS mm SUSPEND":                                 {"SUSPEND"},
 		"ALTER MODEL MONITOR mm SET REFRESH_INTERVAL = '1 day' WAREHOUSE = wh":     {"SET"},
 		"ALTER MODEL MONITOR mm SET BASELINE = 'b'":                                {"SET"},
@@ -142,11 +144,18 @@ func TestParseModel(t *testing.T) {
 		wantClauses(t, in, s, want...)
 	}
 	s := mustObjectStmt(t, "ALTER MODEL m VERSION v1 SET ALIAS = best")
-	if c := s.Clauses[0]; c.Names[0].String() != "v1" || c.Options[0].Words != "BEST" {
-		t.Errorf("VERSION SET = %+v", c)
+	if v, c := s.Clauses[0], s.Clauses[1]; v.Names[0].String() != "v1" || c.Options[0].Words != "BEST" {
+		t.Errorf("VERSION ... SET = %+v, %+v", v, c)
 	}
-	if d, ok := mustParseOne(t, "DROP MODEL MONITOR IF EXISTS mm").(*ast.DropStmt); !ok || d.Object != "MODEL MONITOR" {
-		t.Errorf("DROP MODEL MONITOR: got %+v", d)
+	for in, kind := range map[string]string{
+		"DROP MODEL MONITOR IF EXISTS mm": "MODEL MONITOR",
+		"DROP MODEL db.s.m":               "MODEL",
+		"DROP EXPERIMENT e":               "EXPERIMENT",
+		"DROP CORTEX SEARCH SERVICE s":    "CORTEX SEARCH SERVICE",
+	} {
+		if d, ok := mustParseOne(t, in).(*ast.DropStmt); !ok || d.Object != kind {
+			t.Errorf("%q: got %+v", in, d)
+		}
 	}
 	for _, in := range []string{
 		"CREATE MODEL m",
@@ -160,7 +169,10 @@ func TestParseModel(t *testing.T) {
 		"ALTER MODEL IF EXISTS m RENAME TO n",
 		"ALTER MODEL m UNSET COMMENT",
 		"ALTER MODEL m DROP VERSION",
-		"DROP MODEL IF EXISTS m",
+		"DROP MODEL IF EXISTS m", // the page writes no IF EXISTS
+		"ALTER MODEL m UNSET ALIAS",
+		"ALTER MODEL m MODIFY VERSION v1 SET COMMENT = 'a' COMMENT = 'b'",
+		"ALTER MODEL MONITOR db.s.mm SUSPEND", // a single <monitor_name>
 		"CREATE MODEL MONITOR mm WITH MODEL = m FUNCTION = 'f' WAREHOUSE = wh REFRESH_INTERVAL = 'x' AGGREGATION_WINDOW = 'y'", // SOURCE ... or GATEWAY
 		"CREATE MODEL MONITOR mm WITH MODEL = m GATEWAY = g FUNCTION = f WAREHOUSE = wh REFRESH_INTERVAL = 'x' AGGREGATION_WINDOW = 'y'",
 		"CREATE MODEL MONITOR mm MODEL = m GATEWAY = g FUNCTION = 'f' WAREHOUSE = wh REFRESH_INTERVAL = 'x' AGGREGATION_WINDOW = 'y'",
@@ -193,7 +205,7 @@ func TestParseExperiment(t *testing.T) {
 		"ALTER EXPERIMENT e MODIFY RUN r SET STATUS = PAUSED",
 		"ALTER EXPERIMENT e COMMIT RUN r WITH COMMENT = 'c'",
 		"ALTER EXPERIMENT e SET STATUS = 'x'",
-		"DROP EXPERIMENT IF EXISTS e",
+		"DROP EXPERIMENT IF EXISTS e", // the page writes no IF EXISTS
 	} {
 		mustRejectObject(t, in)
 	}
@@ -201,7 +213,7 @@ func TestParseExperiment(t *testing.T) {
 
 func TestParseOnlineFeatureTable(t *testing.T) {
 	in := "CREATE OR REPLACE ONLINE FEATURE TABLE f PRIMARY KEY (id, k) TARGET_LAG = '1 minute' WAREHOUSE = wh " +
-		"REFRESH_MODE = AUTO WITH COMMENT = 'c' WITH TAG (t = 'v') FROM db.s.src"
+		"REFRESH_MODE = AUTO WITH COMMENT = 'c' WITH TAG (t = 'v') FROM src"
 	s := mustObjectStmt(t, in)
 	wantClauses(t, in, s, "PRIMARY KEY", "", "FROM")
 	if c := s.Clauses[1]; len(c.Options) != 4 || len(c.Tags) != 1 {
@@ -225,6 +237,8 @@ func TestParseOnlineFeatureTable(t *testing.T) {
 		"CREATE ONLINE FEATURE TABLE f PRIMARY KEY (id) TARGET_LAG = '1 day' WAREHOUSE = wh WITH FROM src",
 		"ALTER ONLINE FEATURE TABLE f UNSET COMMENT",
 		"ALTER ONLINE FEATURE TABLE f SET LAG = '1 day'",
+		"CREATE ONLINE FEATURE TABLE f PRIMARY KEY (id) TARGET_LAG = '1 day' WAREHOUSE = wh FROM db.s.src", // a single <source>
+		"CREATE ONLINE FEATURE TABLE f PRIMARY KEY (id) TARGET_LAG = '1 day' WAREHOUSE = wh COMMENT = 'a' WITH COMMENT = 'b' FROM src",
 		"ALTER ONLINE FEATURE TABLE f SET REFRESH_MODE = AUTO", // CREATE's alone
 	} {
 		mustRejectObject(t, in)

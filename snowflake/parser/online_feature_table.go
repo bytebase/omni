@@ -14,6 +14,8 @@ func init() {
 		orReplace: true,
 		// https://docs.snowflake.com/en/sql-reference/sql/drop-online-feature-table
 		drop: true,
+		// The CREATE page writes no IF NOT EXISTS.
+		noIfNotExists: true,
 		props: objectProps{
 			"TARGET_LAG":       propString,
 			"WAREHOUSE":        propName,
@@ -46,24 +48,13 @@ func init() {
 //
 // https://docs.snowflake.com/en/sql-reference/sql/create-online-feature-table
 func parseCreateOnlineFeatureTable(p *Parser, s *ast.ObjectStmt) error {
-	if s.IfNotExists {
-		return &ParseError{Position: s.Name.Loc.Start, End: s.Name.Loc.End, Message: "syntax error: CREATE ONLINE FEATURE TABLE takes no IF NOT EXISTS"}
-	}
 	start := p.cur.Loc.Start
 	if err := p.expectWords("PRIMARY", "KEY"); err != nil {
 		return err
 	}
-	if _, err := p.expect('('); err != nil {
+	if err := p.parseAiParenNames(s, "PRIMARY KEY", start); err != nil {
 		return err
 	}
-	pk, err := p.parseCortexColumnList(s, "PRIMARY KEY", start)
-	if err != nil {
-		return err
-	}
-	if _, err := p.expect(')'); err != nil {
-		return err
-	}
-	pk.Loc.End = p.prev.Loc.End
 
 	// The properties, where COMMENT may follow WITH as TAG may.
 	props := &ast.ObjectClause{Loc: ast.Loc{Start: p.cur.Loc.Start}}
@@ -92,6 +83,9 @@ func parseCreateOnlineFeatureTable(p *Parser, s *ast.ObjectStmt) error {
 	if len(props.Options) == 0 {
 		return p.syntaxErrorAtCur()
 	}
+	if err := aiCheckOptions(props.Options, nil); err != nil {
+		return err
+	}
 	props.Loc.End = p.prev.Loc.End
 	s.Clauses = append(s.Clauses, props)
 	if err := p.requireObjectProperties(props, "TARGET_LAG", "WAREHOUSE"); err != nil {
@@ -102,7 +96,8 @@ func parseCreateOnlineFeatureTable(p *Parser, s *ast.ObjectStmt) error {
 	if _, err := p.expect(kwFROM); err != nil {
 		return err
 	}
-	src, err := p.parseObjectName()
+	// The page writes the source as a single <source>.
+	src, err := p.parseObjectSimpleName()
 	if err != nil {
 		return err
 	}

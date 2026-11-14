@@ -15,17 +15,28 @@ func init() {
 		create:    parseCreateModel,
 		alter:     parseAlterModel,
 		orReplace: true,
-		// https://docs.snowflake.com/en/sql-reference/sql/drop-model writes
-		// DROP MODEL <name> with no IF EXISTS, which the registry's DROP always
-		// takes, so DROP MODEL is not registered.
-		props: objectProps{"COMMENT": propString, "DEFAULT_VERSION": propString},
-		unset: []string{},
+		// https://docs.snowflake.com/en/sql-reference/sql/drop-model writes no
+		// IF EXISTS.
+		drop:           true,
+		dropNoIfExists: true,
+		// ALTER ... SET's properties; a version's SET (VERSION <v> SET ALIAS,
+		// MODIFY VERSION <v> SET ...) takes its own, which parseAlterModel
+		// holds it to.
+		props: objectProps{
+			"COMMENT":         propString,
+			"DEFAULT_VERSION": propString,
+			"ALIAS":           propName,
+			"METADATA":        propString,
+		},
+		unset: []string{"ALIAS"},
 	})
 	registerObject(&objectForm{
 		words:     []string{"MODEL", "MONITOR"},
 		create:    parseCreateModelMonitor,
 		alter:     parseAlterModelMonitor,
 		orReplace: true,
+		// The pages write the monitor's name as a single <monitor_name>.
+		nameParts: 1,
 		// https://docs.snowflake.com/en/sql-reference/sql/drop-model-monitor
 		drop: true,
 		// ALTER ... SET's properties; CREATE's WITH run is held to
@@ -40,9 +51,10 @@ func init() {
 	})
 }
 
-// The properties a model version's SET takes: ALIAS after VERSION, COMMENT
-// and METADATA after MODIFY VERSION.
+// The properties each SET of ALTER MODEL takes: the model's own, ALIAS after
+// VERSION <v>, COMMENT and METADATA after MODIFY VERSION <v>.
 var (
+	modelSetProps           = objectProps{"COMMENT": propString, "DEFAULT_VERSION": propString}
 	modelVersionAliasProps  = objectProps{"ALIAS": propName}
 	modelVersionModifyProps = objectProps{"COMMENT": propString, "METADATA": propString}
 )
@@ -135,11 +147,12 @@ func parseAlterModel(p *Parser, s *ast.ObjectStmt) error {
 	start := p.cur.Loc.Start
 	switch {
 	case p.acceptWords("VERSION"):
-		// VERSION <v> { SET ALIAS = <alias> | UNSET ALIAS }, one clause.
-		version, err := p.parseAiSingleName()
-		if err != nil {
+		// VERSION <v> { SET ALIAS = <alias> | UNSET ALIAS }: a VERSION clause,
+		// then a SET or UNSET one.
+		if err := p.parseAiNameClause(s, "VERSION", start); err != nil {
 			return err
 		}
+		start = p.cur.Loc.Start
 		switch {
 		case p.acceptWords("SET"):
 			if !p.curIsWord("ALIAS") || !p.startsObjectProperty() {
@@ -152,12 +165,10 @@ func parseAlterModel(p *Parser, s *ast.ObjectStmt) error {
 			if err := aiCheckOptions([]*ast.CopyOption{alias}, modelVersionAliasProps); err != nil {
 				return err
 			}
-			c := p.addObjectKeywordsClause(s, "VERSION SET", start)
-			c.Names, c.Options = []*ast.ObjectName{version}, []*ast.CopyOption{alias}
+			p.addObjectKeywordsClause(s, "SET", start).Options = []*ast.CopyOption{alias}
 			return nil
 		case p.acceptWords("UNSET", "ALIAS"):
-			c := p.addObjectKeywordsClause(s, "VERSION UNSET", start)
-			c.Names, c.Keys = []*ast.ObjectName{version}, []string{"ALIAS"}
+			p.addObjectKeywordsClause(s, "UNSET", start).Keys = []string{"ALIAS"}
 			return nil
 		}
 	case p.acceptWords("ADD", "VERSION"):
@@ -168,11 +179,12 @@ func parseAlterModel(p *Parser, s *ast.ObjectStmt) error {
 	case p.acceptWords("DROP", "VERSION"):
 		return p.parseAiNameClause(s, "DROP VERSION", start)
 	case p.acceptWords("MODIFY", "VERSION"):
-		// MODIFY VERSION <v> SET <property> [ ... ], one clause.
-		version, err := p.parseAiSingleName()
-		if err != nil {
+		// MODIFY VERSION <v> SET <property> [ ... ]: a MODIFY VERSION clause,
+		// then a SET one.
+		if err := p.parseAiNameClause(s, "MODIFY VERSION", start); err != nil {
 			return err
 		}
+		start = p.cur.Loc.Start
 		if _, err := p.expect(kwSET); err != nil {
 			return err
 		}
@@ -190,16 +202,22 @@ func parseAlterModel(p *Parser, s *ast.ObjectStmt) error {
 		if err := aiCheckOptions(opts, modelVersionModifyProps); err != nil {
 			return err
 		}
-		c := p.addObjectKeywordsClause(s, "MODIFY VERSION SET", start)
-		c.Names, c.Options = []*ast.ObjectName{version}, opts
+		p.addObjectKeywordsClause(s, "SET", start).Options = opts
 		return nil
 	default:
 		allow := actSet | actTags
 		if !s.IfExists {
 			allow |= actRename
 		}
-		if ok, err := p.parseObjectAlterCommon(s, allow); ok || err != nil {
+		ok, err := p.parseObjectAlterCommon(s, allow)
+		if err != nil {
 			return err
+		}
+		if ok {
+			if c := s.Clauses[len(s.Clauses)-1]; c.Keywords == "SET" {
+				return aiCheckOptions(c.Options, modelSetProps)
+			}
+			return nil
 		}
 	}
 	return p.syntaxErrorAtCur()
@@ -243,6 +261,9 @@ func parseCreateModelMonitor(p *Parser, s *ast.ObjectStmt) error {
 		return err
 	}
 	props.Loc.Start = start
+	if len(props.Tags) > 0 {
+		return &ParseError{Position: props.Loc.Start, End: props.Loc.End, Message: "syntax error: TAG is not documented here"}
+	}
 	if err := aiCheckOptions(props.Options, modelMonitorCreateProps); err != nil {
 		return err
 	}

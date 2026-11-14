@@ -10,8 +10,10 @@ import (
 // CORTEX SEARCH SERVICE, read as an ast.ObjectStmt
 // ---------------------------------------------------------------------------
 //
-// Column lists (ON, TEXT INDEXES, VECTOR INDEXES, PRIMARY KEY, ATTRIBUTES)
-// are clauses whose Names hold one single-part name per column.
+// Column lists (ON, TEXT INDEXES, VECTOR INDEXES, ATTRIBUTES) are clauses
+// whose Names hold one single-part name per column; a parenthesized one
+// (PRIMARY KEY ( ... ), SET ATTRIBUTES ( ... )) is a clause whose one
+// nameless option lists the columns as bare names.
 
 func init() {
 	registerObject(&objectForm{
@@ -20,8 +22,9 @@ func init() {
 		alter:     parseAlterCortexSearch,
 		orReplace: true,
 		// https://docs.snowflake.com/en/sql-reference/sql/drop-cortex-search
-		// writes DROP CORTEX SEARCH SERVICE <name> with no IF EXISTS, which the
-		// registry's DROP always takes, so DROP is not registered.
+		// writes no IF EXISTS.
+		drop:           true,
+		dropNoIfExists: true,
 		// CREATE's properties, then ALTER ... SET's. ALTER's
 		// AUTO_SUSPEND = NULL has no shape here yet.
 		props: objectProps{
@@ -50,9 +53,21 @@ func init() {
 
 // aiCheckOptions holds opts to props, as objectForm.checkClauses holds a
 // CREATE's run and a SET, for the ML/AI clauses that it does not see (a WITH
-// run, a version's SET).
+// run, a version's SET), and rejects a property set twice, as
+// parseObjectProperties does. A nil props checks only the latter.
 func aiCheckOptions(opts []*ast.CopyOption, props objectProps) error {
-	for _, o := range opts {
+	for i, o := range opts {
+		for _, prev := range opts[:i] {
+			if prev.Name == o.Name {
+				return &ParseError{
+					Position: o.Loc.Start, End: o.Loc.End,
+					Message: "syntax error: " + o.Name + " is set twice",
+				}
+			}
+		}
+		if props == nil {
+			continue
+		}
 		if v, ok := props[o.Name]; !ok || !v.matches(o) {
 			return &ParseError{
 				Position: o.Loc.Start, End: o.Loc.End,
@@ -60,6 +75,25 @@ func aiCheckOptions(opts []*ast.CopyOption, props objectProps) error {
 			}
 		}
 	}
+	return nil
+}
+
+// parseAiParenNames reads ( <col_name> [ , ... ] ) into a clause of keywords,
+// begun at start and already consumed, whose one nameless option lists the
+// columns as bare names. cur is '('.
+func (p *Parser) parseAiParenNames(s *ast.ObjectStmt, keywords string, start int) error {
+	if p.cur.Type != '(' {
+		return p.syntaxErrorAtCur()
+	}
+	cols := &ast.CopyOption{Loc: ast.Loc{Start: p.cur.Loc.Start}}
+	if err := p.parseObjectValueParen(cols); err != nil {
+		return err
+	}
+	cols.Loc.End = p.prev.Loc.End
+	if !propNames.matches(cols) {
+		return &ParseError{Position: cols.Loc.Start, End: cols.Loc.End, Message: "syntax error: " + keywords + " lists column names"}
+	}
+	p.addObjectKeywordsClause(s, keywords, start).Options = []*ast.CopyOption{cols}
 	return nil
 }
 
@@ -119,16 +153,9 @@ func parseCreateCortexSearch(p *Parser, s *ast.ObjectStmt) error {
 		return p.syntaxErrorAtCur()
 	}
 	if start := p.cur.Loc.Start; p.acceptWords("PRIMARY", "KEY") {
-		if _, err := p.expect('('); err != nil {
+		if err := p.parseAiParenNames(s, "PRIMARY KEY", start); err != nil {
 			return err
 		}
-		if _, err := p.parseCortexColumnList(s, "PRIMARY KEY", start); err != nil {
-			return err
-		}
-		if _, err := p.expect(')'); err != nil {
-			return err
-		}
-		s.Clauses[len(s.Clauses)-1].Loc.End = p.prev.Loc.End
 	}
 	start = p.cur.Loc.Start
 	if err := p.expectWords("ATTRIBUTES"); err != nil {
@@ -233,16 +260,7 @@ func parseAlterCortexSearch(p *Parser, s *ast.ObjectStmt) error {
 	case p.acceptWords("REFRESH"):
 		p.addObjectKeywordsClause(s, "REFRESH", start)
 	case p.acceptWords("SET", "ATTRIBUTES"):
-		if _, err := p.expect('('); err != nil {
-			return err
-		}
-		if _, err := p.parseCortexColumnList(s, "SET ATTRIBUTES", start); err != nil {
-			return err
-		}
-		if _, err := p.expect(')'); err != nil {
-			return err
-		}
-		s.Clauses[len(s.Clauses)-1].Loc.End = p.prev.Loc.End
+		return p.parseAiParenNames(s, "SET ATTRIBUTES", start)
 	case p.cur.Type == kwSET:
 		return p.parseCortexSet(s)
 	case p.acceptWords("UNSET", "PRIMARY", "KEY"):
@@ -329,6 +347,9 @@ func (p *Parser) parseCortexSet(s *ast.ObjectStmt) error {
 			if len(c.Options) == 0 {
 				return p.syntaxErrorAtCur()
 			}
+			if err := aiCheckOptions(c.Options, nil); err != nil {
+				return err
+			}
 			c.Loc.End = p.prev.Loc.End
 			s.Clauses = append(s.Clauses, c)
 			return nil
@@ -355,12 +376,8 @@ func (p *Parser) parseCortexColumnList(s *ast.ObjectStmt, keywords string, start
 	return c, nil
 }
 
-// parseAiSingleName reads one identifier (a column, profile or version
-// name) as a single-part ObjectName.
+// parseAiSingleName reads a name the page writes as a single <name> (a
+// column, profile, version or run).
 func (p *Parser) parseAiSingleName() (*ast.ObjectName, error) {
-	id, err := p.parseIdent()
-	if err != nil {
-		return nil, err
-	}
-	return &ast.ObjectName{Name: id, Loc: id.Loc}, nil
+	return p.parseObjectSimpleName()
 }
