@@ -155,7 +155,10 @@ func (p *Parser) parseFunctionIdentifier() (*ast.ObjectName, error) {
 		return p.parseIdentifier()
 	}
 	if isIdentifierToken(p.cur.Kind) && p.peekNext().Kind == int('.') {
-		db, dbLoc, _ := p.parseIdentifier()
+		db, dbLoc, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
 		p.advance() // consume '.'
 		fn, fnLoc, err := part()
 		if err != nil {

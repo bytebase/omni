@@ -88,7 +88,7 @@ func mergeAutoIncrementKeyOps(ops []MigrationOp, diff *SchemaDiff, n *Normalizer
 // rescan the whole plan for every AUTO_INCREMENT-bearing table.
 type aiMerger struct {
 	ops        []MigrationOp
-	clauses    [][]string
+	clauses    [][]alterPart
 	consumed   []bool
 	touched    []bool
 	mergedInto []int
@@ -98,7 +98,7 @@ type aiMerger struct {
 func newAIMerger(ops []MigrationOp) *aiMerger {
 	m := &aiMerger{
 		ops:        ops,
-		clauses:    make([][]string, len(ops)),
+		clauses:    make([][]alterPart, len(ops)),
 		consumed:   make([]bool, len(ops)),
 		touched:    make([]bool, len(ops)),
 		mergedInto: make([]int, len(ops)),
@@ -121,15 +121,19 @@ func aiTableKey(database, table string) string {
 }
 
 // clausesOf returns op i's current clause list, initializing it from alterClause.
-func (m *aiMerger) clausesOf(i int) []string {
+func (m *aiMerger) clausesOf(i int) []alterPart {
 	if m.clauses[i] == nil {
-		m.clauses[i] = []string{m.ops[i].alterClause}
+		part := alterPart{clause: m.ops[i].alterClause}
+		if m.ops[i].Type == OpAddColumn {
+			part.addsColumn = m.ops[i].column
+		}
+		m.clauses[i] = []alterPart{part}
 	}
 	return m.clauses[i]
 }
 
 // consume removes op i from the plan and returns its clauses for re-emission elsewhere.
-func (m *aiMerger) consume(i int) []string {
+func (m *aiMerger) consume(i int) []alterPart {
 	cl := m.clausesOf(i)
 	m.consumed[i] = true
 	return cl
@@ -142,7 +146,7 @@ func (m *aiMerger) mergeInto(target int, prepend bool, srcs ...int) {
 		return
 	}
 	cur := m.clausesOf(target)
-	var moved []string
+	var moved []alterPart
 	for _, s := range srcs {
 		moved = append(moved, m.consume(s)...)
 		m.mergedInto[s] = target
@@ -163,13 +167,13 @@ func (m *aiMerger) mergeInto(target int, prepend bool, srcs ...int) {
 
 // appendClause adds a synthesized clause (one not backed by an existing op) to the target.
 func (m *aiMerger) appendClause(target int, clause string) {
-	m.clauses[target] = append(m.clausesOf(target), clause)
+	m.clauses[target] = append(m.clausesOf(target), alterPart{clause: clause})
 	m.touched[target] = true
 }
 
 // result rebuilds the op slice: consumed ops disappear; touched ops re-render their SQL from
 // the merged clause list (the original "ALTER TABLE <ident> " prefix is preserved byte-exactly
-// by trimming the op's own alterClause suffix).
+// by trimming the op's own alterClause suffix) and keep that list in alterParts.
 func (m *aiMerger) result() []MigrationOp {
 	out := make([]MigrationOp, 0, len(m.ops))
 	for i, op := range m.ops {
@@ -178,7 +182,8 @@ func (m *aiMerger) result() []MigrationOp {
 		}
 		if m.touched[i] {
 			prefix := strings.TrimSuffix(op.SQL, op.alterClause)
-			op.SQL = prefix + strings.Join(m.clauses[i], ", ")
+			op.SQL = prefix + joinAlterParts(m.clauses[i])
+			op.alterParts = m.clauses[i]
 		}
 		out = append(out, op)
 	}
@@ -195,9 +200,8 @@ type tableOpRoles struct {
 	idxDrop   map[string]int // lower dropped-index name → op index, PhasePre statements only
 }
 
-// collectRoles gathers the table's ops. Column ops are matched through the diff's column
-// entries (recomputing the op's sortName — MySQL identifiers cannot contain '.', so the dotted
-// key is unambiguous); index ops carry their identity in addsIndex/dropsIndex.
+// collectRoles gathers the table's ops. Column ops carry their column in column, index ops
+// their identity in addsIndex/dropsIndex.
 func (m *aiMerger) collectRoles(entry *TableDiffEntry) *tableOpRoles {
 	r := &tableOpRoles{
 		colAdd:    map[string]int{},
@@ -205,10 +209,6 @@ func (m *aiMerger) collectRoles(entry *TableDiffEntry) *tableOpRoles {
 		colDrop:   map[string]int{},
 		idxAdd:    map[string]int{},
 		idxDrop:   map[string]int{},
-	}
-	colSort := make(map[string]string, len(entry.Columns))
-	for _, ce := range entry.Columns {
-		colSort[columnSortName(entry.Database, entry.Name, ce.Name)] = toLower(ce.Name)
 	}
 	for _, i := range m.byTable[aiTableKey(entry.Database, entry.Name)] {
 		op := m.ops[i]
@@ -220,10 +220,7 @@ func (m *aiMerger) collectRoles(entry *TableDiffEntry) *tableOpRoles {
 		}
 		switch op.Type {
 		case OpAddColumn, OpModifyColumn, OpDropColumn:
-			name, ok := colSort[op.sortName]
-			if !ok {
-				continue
-			}
+			name := op.column
 			switch op.Type {
 			case OpAddColumn:
 				r.colAdd[name] = i
@@ -477,7 +474,8 @@ func (m *aiMerger) opExecutesBefore(i, j int) bool {
 // shape at its end-of-statement:
 //
 //   - ADD COLUMN of every other NEW plain key-part column, then of generated ones (plain
-//     before generated, each name-ordered — matching the column generator's emission order);
+//     before generated, each in target column order — matching the column generator's emission
+//     order);
 //   - MODIFY COLUMN of every EXISTING plain key-part column changed in this plan (a prefix
 //     part over a column widened in-plan would otherwise be validated against the old type —
 //     errno 1089 — because the grouped statement runs at the auto column's name slot, possibly
@@ -534,9 +532,14 @@ func (m *aiMerger) pullReferencedColumnOps(roles *tableOpRoles, target int, idx 
 			}
 		}
 	}
-	sort.Strings(modifies)
-	sort.Strings(plain)
-	sort.Strings(generated)
+	byPosition := func(names []string) {
+		slices.SortFunc(names, func(a, b string) int {
+			return columnPosition(entry.To, a) - columnPosition(entry.To, b)
+		})
+	}
+	byPosition(modifies)
+	byPosition(plain)
+	byPosition(generated)
 	for _, name := range modifies {
 		mi := roles.colModify[name]
 		if !m.consumed[mi] && mi != target {
@@ -549,6 +552,11 @@ func (m *aiMerger) pullReferencedColumnOps(roles *tableOpRoles, target int, idx 
 			m.mergeInto(target, false, ai)
 		}
 	}
+}
+
+// columnPosition returns the index of the named column in t.Columns, or -1.
+func columnPosition(t *Table, name string) int {
+	return slices.IndexFunc(t.Columns, func(c *Column) bool { return strings.EqualFold(c.Name, name) })
 }
 
 // chooseCoveringAddOp picks the plan's best covering key ADD for the auto column: PRIMARY over

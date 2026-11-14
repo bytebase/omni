@@ -1170,7 +1170,7 @@ func (p *Parser) parseInterleaveInParent() (*ast.InterleaveClause, error) {
 	// the original parser-ddl port wrongly REQUIRED ON DELETE, over-rejecting the
 	// documented default — DDL-007 "NO ACTION (default)" — and the emulator-accepted
 	// `INTERLEAVE IN PARENT p`. This closes that over-reject; verified in
-	// spanner_ddl_oracle_test.go.)
+	// the suite:spanner-ddl rows of testdata/compat.tsv.)
 	if p.cur.Type == kwON {
 		p.advance() // ON
 		if _, err := p.expect(kwDELETE); err != nil {

@@ -4,42 +4,352 @@
 package parser
 
 import (
+	"fmt"
+	"math"
+	"slices"
 	"strings"
 
 	nodes "github.com/bytebase/omni/mssql/ast"
 )
 
-// principalFromSources matches the set of FROM source types accepted by
-// CREATE LOGIN / CREATE USER: {WINDOWS | CERTIFICATE | ASYMMETRIC [KEY] |
-// EXTERNAL PROVIDER | LOGIN}.
-var principalFromSources = newOptionSet().withIdents(
-	"WINDOWS", "CERTIFICATE", "ASYMMETRIC", "EXTERNAL", "LOGIN",
+// SQL Server reads the words of these statements by their text and refuses
+// them bracketed or quoted ([PASSWORD], [ENABLE], [MEMBER], [ON]), so the
+// helpers below match words with prinIsWord and option values by the form the
+// grammar gives each option (TSql160.g:9240-9500, 10829-10990, 11097-11150,
+// 11938-12080, 12519-12600, 12776-12880), with the value forms and the option
+// sets that the pinned SQL Server 2022 takes.
+
+// prinIsWord reports whether the current token is word, written without
+// brackets or quotes.
+func (p *Parser) prinIsWord(word string) bool {
+	if kw := lookupKeyword(word); kw != tokIDENT {
+		return p.cur.Type == kw
+	}
+	return p.cur.Type == tokIDENT && !p.isDelimited(p.cur) && strings.ToUpper(p.cur.Str) == word
+}
+
+// prinExpectWord consumes word or returns a syntax error.
+func (p *Parser) prinExpectWord(word string) error {
+	if !p.prinIsWord(word) {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance()
+	return nil
+}
+
+// prinName reads a principal, schema, database, credential, certificate or
+// key name: an identifier, a reserved word only when delimited (TSql160.g
+// identifier), so [default] but not default, 'a' or NULL.
+func (p *Parser) prinName() (string, error) {
+	if !p.isIdentLike() {
+		return "", p.syntaxErrorAtCur()
+	}
+	name := p.cur.Str
+	p.advance()
+	return name, nil
+}
+
+// prinIsString reports whether the current token is a string literal.
+func (p *Parser) prinIsString() bool {
+	return p.cur.Type == tokSCONST || p.cur.Type == tokNSCONST
+}
+
+// prinIsBinary reports whether the current token is a hex literal (TSql160.g
+// binary: HexLiteral), 0x included.
+func (p *Parser) prinIsBinary() bool {
+	return (p.cur.Type == tokICONST || p.cur.Type == tokFCONST) && strings.HasPrefix(strings.ToLower(p.cur.Str), "0x")
+}
+
+// prinValueKind is the form of an option's value.
+type prinValueKind int
+
+const (
+	prinIdent        prinValueKind = iota // identifier
+	prinString                            // string literal
+	prinBinary                            // hex literal
+	prinOnOff                             // ON | OFF
+	prinOnOffOrIdent                      // ON | OFF | identifier
+	prinIdentOrInt                        // identifier | Int32 (a language name or LCID)
+	prinIdentOrNull                       // identifier | NULL
+	prinPassword                          // see prinPasswordForm
+	prinNoCredential                      // NO CREDENTIAL, which has no "="
+)
+
+// prinPasswordForm is what a PASSWORD option takes in a statement.
+type prinPasswordForm struct {
+	binary      bool     // a hex password, which needs HASHED when HASHED is among flags
+	oldPassword bool     // OLD_PASSWORD = 'old' may follow, instead of flags
+	flags       []string // words that may follow, each once
+}
+
+// prinOpt is an option word and the form of its value.
+type prinOpt struct {
+	word     string
+	kind     prinValueKind
+	password prinPasswordForm
+}
+
+// prinValue reads a value of the given form.
+func (p *Parser) prinValue(kind prinValueKind) (string, error) {
+	switch kind {
+	case prinString:
+		if !p.prinIsString() {
+			return "", p.syntaxErrorAtCur()
+		}
+	case prinBinary:
+		if !p.prinIsBinary() {
+			return "", p.syntaxErrorAtCur()
+		}
+	case prinOnOff, prinOnOffOrIdent:
+		if p.prinIsWord("ON") || p.prinIsWord("OFF") {
+			v := strings.ToUpper(p.cur.Str)
+			p.advance()
+			return v, nil
+		}
+		if kind == prinOnOff {
+			return "", p.syntaxErrorAtCur()
+		}
+		return p.prinName()
+	case prinIdentOrInt:
+		if p.cur.Type == tokICONST && !p.prinIsBinary() && p.cur.Ival <= math.MaxInt32 {
+			break
+		}
+		return p.prinName()
+	case prinIdentOrNull:
+		if p.cur.Type == kwNULL {
+			p.advance()
+			return "NULL", nil
+		}
+		return p.prinName()
+	default:
+		return p.prinName()
+	}
+	v := p.cur.Str
+	p.advance()
+	return v, nil
+}
+
+// prinPasswordValue reads what follows PASSWORD =: a string, or a hex literal
+// where form allows one, then OLD_PASSWORD = 'old' or the flags form allows.
+// SQL Server takes a hex password only HASHED where HASHED may follow, each
+// flag once, and OLD_PASSWORD only without flags.
+func (p *Parser) prinPasswordValue(opt *nodes.SecurityPrincipalOption, form prinPasswordForm) error {
+	valLoc := p.pos()
+	isBinary := p.prinIsBinary()
+	if !p.prinIsString() && !(isBinary && form.binary) {
+		return p.syntaxErrorAtCur()
+	}
+	opt.Value = p.cur.Str
+	p.advance()
+	if form.oldPassword && p.prinIsWord("OLD_PASSWORD") {
+		p.advance()
+		if _, err := p.expect('='); err != nil {
+			return err
+		}
+		if !p.prinIsString() {
+			return p.syntaxErrorAtCur()
+		}
+		opt.OldPassword = p.cur.Str
+		p.advance()
+	} else {
+		for {
+			flag := ""
+			for _, f := range form.flags {
+				if p.prinIsWord(f) {
+					flag = f
+					break
+				}
+			}
+			if flag == "" {
+				break
+			}
+			var set *bool
+			switch flag {
+			case "HASHED":
+				set = &opt.Hashed
+			case "MUST_CHANGE":
+				set = &opt.MustChange
+			default:
+				set = &opt.Unlock
+			}
+			if *set {
+				return p.syntaxErrorAtCur()
+			}
+			*set = true
+			p.advance()
+		}
+	}
+	if isBinary && slices.Contains(form.flags, "HASHED") && !opt.Hashed {
+		return p.newParseError(valLoc, "a hex password must be HASHED")
+	}
+	return nil
+}
+
+// prinOptions reads opt [ , opt ]..., each option word one of opts, each at
+// most once (SQL Server refuses a repeat).
+func (p *Parser) prinOptions(opts []prinOpt) ([]nodes.Node, error) {
+	var out []nodes.Node
+	seen := map[string]bool{}
+	for {
+		optLoc := p.pos()
+		var o *prinOpt
+		for i := range opts {
+			if p.prinIsWord(opts[i].word) {
+				o = &opts[i]
+				break
+			}
+		}
+		if o == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		// NO CREDENTIAL and CREDENTIAL = c are one option to SQL Server.
+		key := o.word
+		if o.kind == prinNoCredential {
+			key = "CREDENTIAL"
+		}
+		if seen[key] {
+			return nil, p.newParseError(optLoc, fmt.Sprintf("option '%s' is specified more than once", key))
+		}
+		seen[key] = true
+		p.advance()
+		opt := &nodes.SecurityPrincipalOption{Name: o.word, Loc: nodes.Loc{Start: optLoc, End: -1}}
+		switch o.kind {
+		case prinNoCredential:
+			if err := p.prinExpectWord("CREDENTIAL"); err != nil {
+				return nil, err
+			}
+			opt.Name = "NO CREDENTIAL"
+		case prinPassword:
+			if _, err := p.expect('='); err != nil {
+				return nil, err
+			}
+			if err := p.prinPasswordValue(opt, o.password); err != nil {
+				return nil, err
+			}
+		default:
+			if _, err := p.expect('='); err != nil {
+				return nil, err
+			}
+			v, err := p.prinValue(o.kind)
+			if err != nil {
+				return nil, err
+			}
+			opt.Value = v
+		}
+		opt.Loc.End = p.prevEnd()
+		out = append(out, opt)
+		if p.cur.Type != ',' {
+			return out, nil
+		}
+		p.advance()
+	}
+}
+
+// prinIfExists consumes IF EXISTS, which DROP USER and DROP ROLE take
+// (TSql160.g:15342, 15482).
+func (p *Parser) prinIfExists() {
+	if p.cur.Type == kwIF && p.peekNext().Type == kwEXISTS {
+		p.advance()
+		p.advance()
+	}
+}
+
+// prinFlag returns a valueless option node that spans from start to the
+// previous token.
+func (p *Parser) prinFlag(start int, name, value string) *nodes.SecurityPrincipalOption {
+	return &nodes.SecurityPrincipalOption{Name: name, Value: value, Loc: nodes.Loc{Start: start, End: p.prevEnd()}}
+}
+
+// The option sets SQL Server 2022 takes in each statement.
+var (
+	// CREATE USER (TSql160.g:10911). PASSWORD only for a user with no login
+	// source; DEFAULT_LANGUAGE takes an LCID too; SQL Server reads
+	// ALLOW_ENCRYPTED_VALUE_MODIFICATIONS as any identifier here.
+	prinCreateUserOpts = []prinOpt{
+		{word: "DEFAULT_SCHEMA", kind: prinIdent},
+		{word: "DEFAULT_LANGUAGE", kind: prinIdentOrInt},
+		{word: "SID", kind: prinBinary},
+		{word: "TYPE", kind: prinIdent},
+		{word: "ALLOW_ENCRYPTED_VALUE_MODIFICATIONS", kind: prinOnOffOrIdent},
+	}
+	prinCreateUserPassword = prinOpt{word: "PASSWORD", kind: prinPassword}
+
+	// ALTER USER (TSql160.g:12776-12880).
+	prinAlterUserOpts = []prinOpt{
+		{word: "NAME", kind: prinIdent},
+		{word: "LOGIN", kind: prinIdent},
+		{word: "DEFAULT_SCHEMA", kind: prinIdentOrNull},
+		{word: "DEFAULT_LANGUAGE", kind: prinIdentOrInt},
+		{word: "PASSWORD", kind: prinPassword, password: prinPasswordForm{binary: true, oldPassword: true}},
+		{word: "ALLOW_ENCRYPTED_VALUE_MODIFICATIONS", kind: prinOnOff},
+	}
+
+	// CREATE LOGIN ... WITH PASSWORD = ..., <these> (TSql160.g:9316).
+	prinCreateLoginOpts = []prinOpt{
+		{word: "DEFAULT_DATABASE", kind: prinIdent},
+		{word: "DEFAULT_LANGUAGE", kind: prinIdent},
+		{word: "CHECK_EXPIRATION", kind: prinOnOff},
+		{word: "CHECK_POLICY", kind: prinOnOff},
+		{word: "CREDENTIAL", kind: prinIdent},
+		{word: "SID", kind: prinBinary},
+	}
+	prinCreateLoginPassword = prinPasswordForm{binary: true, flags: []string{"HASHED", "MUST_CHANGE"}}
+
+	// CREATE LOGIN ... FROM WINDOWS WITH (TSql160.g:9383).
+	prinWindowsLoginOpts = []prinOpt{
+		{word: "DEFAULT_DATABASE", kind: prinIdent},
+		{word: "DEFAULT_LANGUAGE", kind: prinIdent},
+	}
+
+	// CREATE LOGIN ... FROM EXTERNAL PROVIDER WITH (TSql160.g:9432), and
+	// OBJECT_ID, which ScriptDOM lacks and SQL Server 2022 takes.
+	prinExternalLoginOpts = []prinOpt{
+		{word: "OBJECT_ID", kind: prinString},
+		{word: "TYPE", kind: prinIdent},
+		{word: "SID", kind: prinBinary},
+		{word: "DEFAULT_DATABASE", kind: prinIdent},
+		{word: "DEFAULT_LANGUAGE", kind: prinIdent},
+	}
+
+	// ALTER LOGIN ... WITH (TSql160.g:12016-12070).
+	prinAlterLoginOpts = []prinOpt{
+		{word: "PASSWORD", kind: prinPassword, password: prinPasswordForm{binary: true, oldPassword: true, flags: []string{"HASHED", "MUST_CHANGE", "UNLOCK"}}},
+		{word: "DEFAULT_DATABASE", kind: prinIdent},
+		{word: "DEFAULT_LANGUAGE", kind: prinIdent},
+		{word: "NAME", kind: prinIdent},
+		{word: "CHECK_POLICY", kind: prinOnOff},
+		{word: "CHECK_EXPIRATION", kind: prinOnOff},
+		{word: "CREDENTIAL", kind: prinIdent},
+		{word: "NO", kind: prinNoCredential},
+	}
+
+	// CREATE APPLICATION ROLE (TSql160.g:11097): PASSWORD and DEFAULT_SCHEMA.
+	prinCreateAppRoleOpts = []prinOpt{
+		{word: "PASSWORD", kind: prinPassword},
+		{word: "DEFAULT_SCHEMA", kind: prinIdent},
+	}
+
+	// ALTER APPLICATION ROLE: NAME and LOGIN as well.
+	prinAlterAppRoleOpts = []prinOpt{
+		{word: "PASSWORD", kind: prinPassword},
+		{word: "DEFAULT_SCHEMA", kind: prinIdent},
+		{word: "NAME", kind: prinIdent},
+		{word: "LOGIN", kind: prinIdent},
+	}
 )
 
 // parseSecurityUserStmt parses CREATE/ALTER/DROP USER.
 //
-// BNF: mssql/parser/bnf/create-user-transact-sql.bnf
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-user-transact-sql
+// Grammar: TSql160.g:10829-10990 (CREATE), 12776-12880 (ALTER), 15482 (DROP).
 //
 //	CREATE USER user_name
-//	    [ { FOR | FROM } LOGIN login_name ]
-//	    [ WITH <option_list> [ ,... ] ]
-//	CREATE USER user_name
-//	    { FOR | FROM } CERTIFICATE cert_name
-//	CREATE USER user_name
-//	    { FOR | FROM } ASYMMETRIC KEY asym_key_name
-//	CREATE USER user_name WITHOUT LOGIN [ WITH <limited_options_list> ]
-//	CREATE USER user_name FROM EXTERNAL PROVIDER [ WITH OBJECT_ID = 'objectid' ]
-//	ALTER USER user_name WITH <option_list> [ ,... ]
+//	    [ { FOR | FROM } { LOGIN login_name | CERTIFICATE cert_name
+//	                     | ASYMMETRIC KEY asym_key_name | EXTERNAL PROVIDER }
+//	    | WITHOUT LOGIN ]
+//	    [ WITH <option> [ ,...n ] ]
+//	ALTER USER user_name WITH <option> [ ,...n ]
 //	DROP USER [ IF EXISTS ] user_name
-//
-//	<option_list> ::=
-//	    PASSWORD = 'password' [ OLD_PASSWORD = 'oldpassword' ]
-//	  | DEFAULT_SCHEMA = { schema_name | NULL }
-//	  | DEFAULT_LANGUAGE = { NONE | lcid | language_name | language_alias }
-//	  | ALLOW_ENCRYPTED_VALUE_MODIFICATIONS = { ON | OFF }
-//	  | NAME = new_user_name
-//	  | LOGIN = new_login_name
-//	  | SID = sid
 func (p *Parser) parseSecurityUserStmt(action string) (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	stmt := &nodes.SecurityStmt{
@@ -48,126 +358,107 @@ func (p *Parser) parseSecurityUserStmt(action string) (*nodes.SecurityStmt, erro
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	// IF EXISTS (DROP only)
 	if action == "DROP" {
-		if p.cur.Type == kwIF {
-			next := p.peekNext()
-			if next.Type == kwEXISTS {
-				p.advance() // IF
-				p.advance() // EXISTS
-			}
-		}
+		p.prinIfExists()
+	}
+	name, err := p.prinName()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Name = name
+	if action == "DROP" {
+		stmt.Loc.End = p.prevEnd()
+		return stmt, nil
 	}
 
-	// user name
-	if name, ok := p.parseIdentifier(); ok {
-		stmt.Name = name
-	}
-
-	// FOR/FROM or WITHOUT LOGIN (CREATE)
 	var opts []nodes.Node
+	hasSource := false
 	if action == "CREATE" {
-		if p.cur.Type == kwFOR || p.cur.Type == kwFROM {
-			optLoc := p.pos()
-			p.advance() // consume FOR / FROM
-			if p.cur.Type == kwCERTIFICATE {
-				p.advance() // consume CERTIFICATE
-				if name, ok := p.parseIdentifier(); ok {
-					opts = append(opts, &nodes.SecurityPrincipalOption{
-						Name:  "CERTIFICATE",
-						Value: name,
-						Loc:   nodes.Loc{Start: optLoc, End: p.prevEnd()},
-					})
+		optLoc := p.pos()
+		switch {
+		case p.cur.Type == kwFOR || p.cur.Type == kwFROM:
+			hasSource = true
+			p.advance()
+			switch {
+			case p.prinIsWord("LOGIN"), p.prinIsWord("CERTIFICATE"):
+				kind := strings.ToUpper(p.cur.Str)
+				p.advance()
+				v, err := p.prinName()
+				if err != nil {
+					return nil, err
 				}
-			} else if p.cur.Type == kwASYMMETRIC {
-				p.advance() // consume ASYMMETRIC
-				if p.cur.Type == kwKEY {
-					p.advance() // consume KEY
+				opts = append(opts, p.prinFlag(optLoc, kind, v))
+			case p.prinIsWord("ASYMMETRIC"):
+				p.advance()
+				if err := p.prinExpectWord("KEY"); err != nil {
+					return nil, err
 				}
-				if name, ok := p.parseIdentifier(); ok {
-					opts = append(opts, &nodes.SecurityPrincipalOption{
-						Name:  "ASYMMETRIC KEY",
-						Value: name,
-						Loc:   nodes.Loc{Start: optLoc, End: p.prevEnd()},
-					})
+				v, err := p.prinName()
+				if err != nil {
+					return nil, err
 				}
-			} else if p.cur.Type == kwEXTERNAL {
-				p.advance() // consume EXTERNAL
-				if p.cur.Type == kwPROVIDER {
-					p.advance() // consume PROVIDER
+				opts = append(opts, p.prinFlag(optLoc, "ASYMMETRIC KEY", v))
+			case p.prinIsWord("EXTERNAL"):
+				p.advance()
+				if err := p.prinExpectWord("PROVIDER"); err != nil {
+					return nil, err
 				}
-				opts = append(opts, &nodes.SecurityPrincipalOption{
-					Name: "EXTERNAL PROVIDER",
-					Loc:  nodes.Loc{Start: optLoc, End: p.prevEnd()},
-				})
-			} else {
-				// LOGIN (explicit or implicit)
-				if p.cur.Type == kwLOGIN {
-					p.advance() // consume LOGIN
-				}
-				if name, ok := p.parseIdentifier(); ok {
-					opts = append(opts, &nodes.SecurityPrincipalOption{
-						Name:  "LOGIN",
-						Value: name,
-						Loc:   nodes.Loc{Start: optLoc, End: p.prevEnd()},
-					})
-				}
+				opts = append(opts, p.prinFlag(optLoc, "EXTERNAL PROVIDER", ""))
+			default:
+				return nil, p.syntaxErrorAtCur()
 			}
-		} else if p.cur.Type == kwWITHOUT {
-			optLoc := p.pos()
-			p.advance() // consume WITHOUT
-			if p.cur.Type == kwLOGIN {
-				p.advance() // consume LOGIN
+		case p.prinIsWord("WITHOUT"):
+			hasSource = true
+			p.advance()
+			if err := p.prinExpectWord("LOGIN"); err != nil {
+				return nil, err
 			}
-			opts = append(opts, &nodes.SecurityPrincipalOption{
-				Name: "WITHOUT LOGIN",
-				Loc:  nodes.Loc{Start: optLoc, End: p.prevEnd()},
-			})
+			opts = append(opts, p.prinFlag(optLoc, "WITHOUT LOGIN", ""))
 		}
 	}
 
-	// WITH options
 	if p.cur.Type == kwWITH {
-		p.advance() // consume WITH
-		opts = append(opts, p.parseSecurityPrincipalWithOptions()...)
+		p.advance()
+		set := prinAlterUserOpts
+		if action == "CREATE" {
+			set = prinCreateUserOpts
+			if !hasSource {
+				set = append([]prinOpt{prinCreateUserPassword}, prinCreateUserOpts...)
+			}
+		}
+		more, err := p.prinOptions(set)
+		if err != nil {
+			return nil, err
+		}
+		opts = append(opts, more...)
+	} else if action == "ALTER" {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	if len(opts) > 0 {
 		stmt.Options = &nodes.List{Items: opts}
 	}
-
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
 // parseSecurityLoginStmt parses CREATE/ALTER/DROP LOGIN.
 //
-// BNF: mssql/parser/bnf/create-login-transact-sql.bnf
-// BNF: mssql/parser/bnf/alter-login-transact-sql.bnf
-// BNF: mssql/parser/bnf/drop-login-transact-sql.bnf
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-login-transact-sql
+// Grammar: TSql160.g:9240-9500 (CREATE), 11938-12070 (ALTER), 15331 (DROP).
 //
 //	CREATE LOGIN login_name
 //	    { WITH PASSWORD = { 'password' | hashed_password HASHED } [ MUST_CHANGE ]
-//	        [ , DEFAULT_DATABASE = database ]
-//	        [ , DEFAULT_LANGUAGE = language ]
-//	        [ , CHECK_EXPIRATION = { ON | OFF } ]
-//	        [ , CHECK_POLICY = { ON | OFF } ]
-//	        [ , CREDENTIAL = credential_name ]
-//	        [ , SID = sid ]
-//	    | FROM WINDOWS [ WITH DEFAULT_DATABASE = database [, DEFAULT_LANGUAGE = language ] ]
-//	    | FROM CERTIFICATE certname
-//	    | FROM ASYMMETRIC KEY asym_key_name
-//	    | FROM EXTERNAL PROVIDER [ WITH OBJECT_ID = 'objectid' ]
+//	        [ , <option> [ ,...n ] ]
+//	    | FROM WINDOWS [ WITH { DEFAULT_DATABASE | DEFAULT_LANGUAGE } = name [ ,...n ] ]
+//	    | FROM EXTERNAL PROVIDER [ WITH <external_option> [ ,...n ] ]
+//	    | FROM CERTIFICATE certname [ WITH CREDENTIAL = credential_name ]
+//	    | FROM ASYMMETRIC KEY asym_key_name [ WITH CREDENTIAL = credential_name ]
 //	    }
 //	ALTER LOGIN login_name
 //	    { ENABLE | DISABLE
-//	    | WITH PASSWORD = 'password' [ OLD_PASSWORD = 'old' | { MUST_CHANGE | UNLOCK } [...] ]
-//	        [ , DEFAULT_DATABASE = database ] [ , DEFAULT_LANGUAGE = language ]
-//	        [ , NAME = login_name ] [ , CHECK_POLICY = { ON | OFF } ]
-//	        [ , CHECK_EXPIRATION = { ON | OFF } ] [ , CREDENTIAL = credential_name ]
-//	        [ , NO CREDENTIAL ]
-//	    | ADD CREDENTIAL credential_name
-//	    | DROP CREDENTIAL credential_name
+//	    | WITH <set_option> [ ,...n ]
+//	    | { ADD | DROP } CREDENTIAL credential_name
 //	    }
 //	DROP LOGIN login_name
 func (p *Parser) parseSecurityLoginStmt(action string) (*nodes.SecurityStmt, error) {
@@ -178,134 +469,177 @@ func (p *Parser) parseSecurityLoginStmt(action string) (*nodes.SecurityStmt, err
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	// login name
-	if name, ok := p.parseIdentifier(); ok {
-		stmt.Name = name
+	name, err := p.prinName()
+	if err != nil {
+		return nil, err
 	}
+	stmt.Name = name
 
 	var opts []nodes.Node
-
-	// ENABLE / DISABLE / ADD CREDENTIAL / DROP CREDENTIAL (ALTER LOGIN)
-	if action == "ALTER" {
-		if p.cur.Type == kwENABLE {
-			optLoc := p.pos()
-			p.advance()
-			opts = append(opts, &nodes.SecurityPrincipalOption{
-				Name: "ENABLE",
-				Loc:  nodes.Loc{Start: optLoc, End: p.prevEnd()},
-			})
-		} else if p.cur.Type == kwDISABLE {
-			optLoc := p.pos()
-			p.advance()
-			opts = append(opts, &nodes.SecurityPrincipalOption{
-				Name: "DISABLE",
-				Loc:  nodes.Loc{Start: optLoc, End: p.prevEnd()},
-			})
-		} else if p.cur.Type == kwADD {
-			optLoc := p.pos()
-			p.advance() // consume ADD
-			if p.cur.Type == kwCREDENTIAL {
-				p.advance() // consume CREDENTIAL
-				if name, ok := p.parseIdentifier(); ok {
-					opts = append(opts, &nodes.SecurityPrincipalOption{
-						Name:  "ADD CREDENTIAL",
-						Value: name,
-						Loc:   nodes.Loc{Start: optLoc, End: p.prevEnd()},
-					})
-				}
-			}
-		} else if p.cur.Type == kwDROP {
-			optLoc := p.pos()
-			p.advance() // consume DROP
-			if p.cur.Type == kwCREDENTIAL {
-				p.advance() // consume CREDENTIAL
-				if name, ok := p.parseIdentifier(); ok {
-					opts = append(opts, &nodes.SecurityPrincipalOption{
-						Name:  "DROP CREDENTIAL",
-						Value: name,
-						Loc:   nodes.Loc{Start: optLoc, End: p.prevEnd()},
-					})
-				}
-			}
-		}
+	switch action {
+	case "CREATE":
+		opts, err = p.prinCreateLoginSource()
+	case "ALTER":
+		opts, err = p.prinAlterLoginAction()
 	}
-
-	// WITH options
-	if p.cur.Type == kwWITH {
-		p.advance() // consume WITH
-		opts = append(opts, p.parseSecurityPrincipalWithOptions()...)
-	} else if p.cur.Type == kwFROM {
-		optLoc := p.pos()
-		p.advance() // consume FROM
-		// CREATE LOGIN / USER FROM source-type dispatch.
-		if p.isValidOption(principalFromSources) {
-			src := strings.ToUpper(p.cur.Str)
-			switch src {
-			case "WINDOWS":
-				p.advance()
-				opts = append(opts, &nodes.SecurityPrincipalOption{
-					Name:  "FROM",
-					Value: "WINDOWS",
-					Loc:   nodes.Loc{Start: optLoc, End: p.prevEnd()},
-				})
-			case "CERTIFICATE":
-				p.advance()
-				certName := ""
-				if id, ok := p.parseIdentifier(); ok {
-					certName = id
-				}
-				opts = append(opts, &nodes.SecurityPrincipalOption{
-					Name:  "FROM",
-					Value: "CERTIFICATE " + certName,
-					Loc:   nodes.Loc{Start: optLoc, End: p.prevEnd()},
-				})
-			case "ASYMMETRIC":
-				p.advance() // consume ASYMMETRIC
-				if p.cur.Type == kwKEY {
-					p.advance() // consume KEY
-				}
-				keyName := ""
-				if id, ok := p.parseIdentifier(); ok {
-					keyName = id
-				}
-				opts = append(opts, &nodes.SecurityPrincipalOption{
-					Name:  "FROM",
-					Value: "ASYMMETRIC KEY " + keyName,
-					Loc:   nodes.Loc{Start: optLoc, End: p.prevEnd()},
-				})
-			case "EXTERNAL":
-				p.advance() // consume EXTERNAL
-				if p.cur.Type == kwPROVIDER {
-					p.advance()
-				}
-				opts = append(opts, &nodes.SecurityPrincipalOption{
-					Name:  "FROM",
-					Value: "EXTERNAL PROVIDER",
-					Loc:   nodes.Loc{Start: optLoc, End: p.prevEnd()},
-				})
-			default:
-				// unknown FROM source
-				p.advance()
-				opts = append(opts, &nodes.SecurityPrincipalOption{
-					Name:  "FROM",
-					Value: src,
-					Loc:   nodes.Loc{Start: optLoc, End: p.prevEnd()},
-				})
-			}
-		}
-		// After FROM WINDOWS, optional WITH clause
-		if p.cur.Type == kwWITH {
-			p.advance()
-			opts = append(opts, p.parseSecurityPrincipalWithOptions()...)
-		}
+	if err != nil {
+		return nil, err
 	}
 
 	if len(opts) > 0 {
 		stmt.Options = &nodes.List{Items: opts}
 	}
-
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
+}
+
+// prinCreateLoginSource reads what follows CREATE LOGIN login_name: WITH
+// PASSWORD, which comes first, or FROM and a source.
+func (p *Parser) prinCreateLoginSource() ([]nodes.Node, error) {
+	if p.cur.Type == kwWITH {
+		p.advance()
+		optLoc := p.pos()
+		if err := p.prinExpectWord("PASSWORD"); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect('='); err != nil {
+			return nil, err
+		}
+		pw := &nodes.SecurityPrincipalOption{Name: "PASSWORD", Loc: nodes.Loc{Start: optLoc, End: -1}}
+		if err := p.prinPasswordValue(pw, prinCreateLoginPassword); err != nil {
+			return nil, err
+		}
+		pw.Loc.End = p.prevEnd()
+		opts := []nodes.Node{pw}
+		if p.cur.Type == ',' {
+			p.advance()
+			more, err := p.prinOptions(prinCreateLoginOpts)
+			if err != nil {
+				return nil, err
+			}
+			opts = append(opts, more...)
+		}
+		return opts, nil
+	}
+
+	optLoc := p.pos()
+	if _, err := p.expect(kwFROM); err != nil {
+		return nil, err
+	}
+	var source string
+	var withOpts []prinOpt
+	switch {
+	case p.prinIsWord("WINDOWS"):
+		p.advance()
+		source = "WINDOWS"
+		withOpts = prinWindowsLoginOpts
+	case p.prinIsWord("EXTERNAL"):
+		p.advance()
+		if err := p.prinExpectWord("PROVIDER"); err != nil {
+			return nil, err
+		}
+		source = "EXTERNAL PROVIDER"
+		withOpts = prinExternalLoginOpts
+	case p.prinIsWord("CERTIFICATE"), p.prinIsWord("ASYMMETRIC"):
+		source = "CERTIFICATE"
+		if p.prinIsWord("ASYMMETRIC") {
+			p.advance()
+			if !p.prinIsWord("KEY") {
+				return nil, p.syntaxErrorAtCur()
+			}
+			source = "ASYMMETRIC KEY"
+		}
+		p.advance()
+		keyName, err := p.prinName()
+		if err != nil {
+			return nil, err
+		}
+		source += " " + keyName
+		withOpts = []prinOpt{{word: "CREDENTIAL", kind: prinIdent}}
+	default:
+		return nil, p.syntaxErrorAtCur()
+	}
+	opts := []nodes.Node{p.prinFlag(optLoc, "FROM", source)}
+	if p.cur.Type == kwWITH {
+		p.advance()
+		more, err := p.prinOptions(withOpts)
+		if err != nil {
+			return nil, err
+		}
+		opts = append(opts, more...)
+	}
+	return opts, nil
+}
+
+// prinAlterLoginAction reads what follows ALTER LOGIN login_name.
+func (p *Parser) prinAlterLoginAction() ([]nodes.Node, error) {
+	optLoc := p.pos()
+	switch {
+	case p.prinIsWord("ENABLE"), p.prinIsWord("DISABLE"):
+		name := strings.ToUpper(p.cur.Str)
+		p.advance()
+		return []nodes.Node{p.prinFlag(optLoc, name, "")}, nil
+	case p.cur.Type == kwADD, p.cur.Type == kwDROP:
+		name := strings.ToUpper(p.cur.Str) + " CREDENTIAL"
+		p.advance()
+		if err := p.prinExpectWord("CREDENTIAL"); err != nil {
+			return nil, err
+		}
+		v, err := p.prinName()
+		if err != nil {
+			return nil, err
+		}
+		return []nodes.Node{p.prinFlag(optLoc, name, v)}, nil
+	case p.cur.Type == kwWITH:
+		p.advance()
+		return p.prinOptions(prinAlterLoginOpts)
+	}
+	return nil, p.syntaxErrorAtCur()
+}
+
+// prinRoleAction reads the action of ALTER ROLE and ALTER SERVER ROLE
+// (TSql160.g:12553-12590): ADD MEMBER name, DROP MEMBER name or WITH NAME =
+// name. It returns the action as ADD MEMBER, DROP MEMBER or NAME.
+func (p *Parser) prinRoleAction() (string, string, error) {
+	var action string
+	switch {
+	case p.cur.Type == kwADD, p.cur.Type == kwDROP:
+		action = strings.ToUpper(p.cur.Str) + " MEMBER"
+		p.advance()
+		if err := p.prinExpectWord("MEMBER"); err != nil {
+			return "", "", err
+		}
+	case p.cur.Type == kwWITH:
+		action = "NAME"
+		p.advance()
+		if err := p.prinExpectWord("NAME"); err != nil {
+			return "", "", err
+		}
+		if _, err := p.expect('='); err != nil {
+			return "", "", err
+		}
+	default:
+		return "", "", p.syntaxErrorAtCur()
+	}
+	v, err := p.prinName()
+	if err != nil {
+		return "", "", err
+	}
+	return action, v, nil
+}
+
+// prinAuthorization reads an optional AUTHORIZATION owner_name (TSql160.g
+// authorizationOpt) and returns the owner, or "" without one.
+func (p *Parser) prinAuthorization() (string, bool, error) {
+	if p.cur.Type != kwAUTHORIZATION {
+		return "", false, nil
+	}
+	p.advance()
+	owner, err := p.prinName()
+	if err != nil {
+		return "", false, err
+	}
+	return owner, true, nil
 }
 
 // parseSecurityRoleStmt parses CREATE/ALTER/DROP ROLE and ADD/DROP ROLE MEMBER.
@@ -313,6 +647,7 @@ func (p *Parser) parseSecurityLoginStmt(action string) (*nodes.SecurityStmt, err
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-role-transact-sql
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-role-transact-sql
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/drop-role-transact-sql
+// Grammar: TSql160.g:10287, 12519, 15342.
 //
 //	CREATE ROLE role_name [ AUTHORIZATION owner_name ]
 //	ALTER  ROLE role_name { ADD MEMBER member_name | DROP MEMBER member_name | WITH NAME = new_name }
@@ -325,73 +660,31 @@ func (p *Parser) parseSecurityRoleStmt(action string) (*nodes.SecurityStmt, erro
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	// IF EXISTS (DROP only)
 	if action == "DROP" {
-		if p.cur.Type == kwIF {
-			next := p.peekNext()
-			if next.Type == kwEXISTS {
-				p.advance() // IF
-				p.advance() // EXISTS
-			}
-		}
+		p.prinIfExists()
 	}
-
-	// role name
-	if name, ok := p.parseIdentifier(); ok {
-		stmt.Name = name
+	name, err := p.prinName()
+	if err != nil {
+		return nil, err
 	}
+	stmt.Name = name
 
-	var opts []nodes.Node
-
-	if action == "CREATE" {
-		// AUTHORIZATION owner_name
-		if p.cur.Type == kwAUTHORIZATION {
-			optLoc := p.pos()
-			p.advance()
-			if owner, ok := p.parseIdentifier(); ok {
-				opts = append(opts, &nodes.SecurityPrincipalOption{
-					Name:  "AUTHORIZATION",
-					Value: owner,
-					Loc:   nodes.Loc{Start: optLoc, End: p.prevEnd()},
-				})
-			}
+	optLoc := p.pos()
+	switch action {
+	case "CREATE":
+		owner, ok, err := p.prinAuthorization()
+		if err != nil {
+			return nil, err
 		}
-	} else if action == "ALTER" {
-		// ADD MEMBER | DROP MEMBER | WITH NAME = new_name
-		if p.cur.Type == kwADD {
-			optLoc := p.pos()
-			p.advance() // consume ADD
-			if p.cur.Type == kwMEMBER {
-				p.advance() // consume MEMBER
-			}
-			if member, ok := p.parseIdentifier(); ok {
-				opts = append(opts, &nodes.SecurityPrincipalOption{
-					Name:  "ADD MEMBER",
-					Value: member,
-					Loc:   nodes.Loc{Start: optLoc, End: p.prevEnd()},
-				})
-			}
-		} else if p.cur.Type == kwDROP {
-			optLoc := p.pos()
-			p.advance() // consume DROP
-			if p.cur.Type == kwMEMBER {
-				p.advance() // consume MEMBER
-			}
-			if member, ok := p.parseIdentifier(); ok {
-				opts = append(opts, &nodes.SecurityPrincipalOption{
-					Name:  "DROP MEMBER",
-					Value: member,
-					Loc:   nodes.Loc{Start: optLoc, End: p.prevEnd()},
-				})
-			}
-		} else if p.cur.Type == kwWITH {
-			p.advance() // consume WITH
-			opts = append(opts, p.parseSecurityPrincipalWithOptions()...)
+		if ok {
+			stmt.Options = &nodes.List{Items: []nodes.Node{p.prinFlag(optLoc, "AUTHORIZATION", owner)}}
 		}
-	}
-
-	if len(opts) > 0 {
-		stmt.Options = &nodes.List{Items: opts}
+	case "ALTER":
+		act, v, err := p.prinRoleAction()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Options = &nodes.List{Items: []nodes.Node{p.prinFlag(optLoc, act, v)}}
 	}
 
 	stmt.Loc.End = p.prevEnd()
@@ -401,16 +694,18 @@ func (p *Parser) parseSecurityRoleStmt(action string) (*nodes.SecurityStmt, erro
 // parseSecurityApplicationRoleStmt parses CREATE/ALTER/DROP APPLICATION ROLE.
 //
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-application-role-transact-sql
+// Grammar: TSql160.g:11097-11150, 15284.
 //
-//	CREATE APPLICATION ROLE role_name WITH PASSWORD = 'password' [ , DEFAULT_SCHEMA = schema_name ]
-//	ALTER  APPLICATION ROLE role_name WITH NAME = new_name | PASSWORD = '...' | DEFAULT_SCHEMA = ...
+//	CREATE APPLICATION ROLE role_name WITH <option> [ ,...n ]
+//	    <option> ::= PASSWORD = 'password' | DEFAULT_SCHEMA = schema_name
+//	ALTER  APPLICATION ROLE role_name WITH <option> [ ,...n ]
+//	    <option> ::= ... | NAME = new_name | LOGIN = login_name
 //	DROP   APPLICATION ROLE role_name
 func (p *Parser) parseSecurityApplicationRoleStmt(action string) (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	// APPLICATION keyword already consumed by caller
-	// Consume ROLE
-	if p.cur.Type == kwROLE {
-		p.advance()
+	if err := p.prinExpectWord("ROLE"); err != nil {
+		return nil, err
 	}
 
 	stmt := &nodes.SecurityStmt{
@@ -419,131 +714,29 @@ func (p *Parser) parseSecurityApplicationRoleStmt(action string) (*nodes.Securit
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	// role name
-	if name, ok := p.parseIdentifier(); ok {
-		stmt.Name = name
+	name, err := p.prinName()
+	if err != nil {
+		return nil, err
 	}
+	stmt.Name = name
 
-	var opts []nodes.Node
-
-	// WITH options
-	if p.cur.Type == kwWITH {
-		p.advance() // consume WITH
-		opts = append(opts, p.parseSecurityPrincipalWithOptions()...)
-	}
-
-	if len(opts) > 0 {
+	if action != "DROP" {
+		if _, err := p.expect(kwWITH); err != nil {
+			return nil, err
+		}
+		set := prinCreateAppRoleOpts
+		if action == "ALTER" {
+			set = prinAlterAppRoleOpts
+		}
+		opts, err := p.prinOptions(set)
+		if err != nil {
+			return nil, err
+		}
 		stmt.Options = &nodes.List{Items: opts}
 	}
 
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
-}
-
-// parseSecurityPrincipalWithOptions parses comma-separated key=value options
-// after WITH has been consumed. Used by CREATE/ALTER USER, LOGIN, ROLE, APPLICATION ROLE.
-//
-//	option ::=
-//	    PASSWORD = 'password' [ HASHED ] [ MUST_CHANGE ] [ OLD_PASSWORD = 'old' ]
-//	  | DEFAULT_SCHEMA = schema_name
-//	  | DEFAULT_LANGUAGE = { NONE | lcid | language_name }
-//	  | DEFAULT_DATABASE = database_name
-//	  | CHECK_EXPIRATION = { ON | OFF }
-//	  | CHECK_POLICY = { ON | OFF }
-//	  | CREDENTIAL = credential_name
-//	  | SID = sid
-//	  | NAME = new_name
-//	  | LOGIN = login_name
-//	  | ALLOW_ENCRYPTED_VALUE_MODIFICATIONS = { ON | OFF }
-func (p *Parser) parseSecurityPrincipalWithOptions() []nodes.Node {
-	var opts []nodes.Node
-
-	for {
-		if !p.isIdentLike() {
-			break
-		}
-
-		optLoc := p.pos()
-		key := strings.ToUpper(p.cur.Str)
-		p.advance() // consume key
-
-		opt := &nodes.SecurityPrincipalOption{
-			Name: key,
-			Loc:  nodes.Loc{Start: optLoc, End: -1},
-		}
-
-		if p.cur.Type == '=' {
-			p.advance() // consume =
-			// Value: string constant, number, identifier, ON/OFF
-			if p.cur.Type == tokSCONST || p.cur.Type == tokNSCONST {
-				opt.Value = p.cur.Str
-				p.advance()
-			} else if p.cur.Type == tokICONST || p.cur.Type == tokFCONST {
-				opt.Value = p.cur.Str
-				p.advance()
-			} else if p.cur.Type == kwON {
-				opt.Value = "ON"
-				p.advance()
-			} else if p.cur.Type == kwOFF {
-				opt.Value = "OFF"
-				p.advance()
-			} else if p.isIdentLike() {
-				upper := strings.ToUpper(p.cur.Str)
-				if upper == "ON" {
-					opt.Value = "ON"
-				} else if upper == "OFF" {
-					opt.Value = "OFF"
-				} else {
-					opt.Value = p.cur.Str
-				}
-				p.advance()
-			}
-		}
-
-		// PASSWORD sub-options: HASHED, MUST_CHANGE, UNLOCK, OLD_PASSWORD
-		if key == "PASSWORD" {
-			for {
-				if p.cur.Type == kwHASHED {
-					opt.Hashed = true
-					p.advance()
-				} else if p.cur.Type == kwMUST_CHANGE {
-					opt.MustChange = true
-					p.advance()
-				} else if p.cur.Type == kwUNLOCK {
-					opt.Unlock = true
-					p.advance()
-				} else if p.cur.Type == kwOLD_PASSWORD {
-					p.advance() // consume OLD_PASSWORD
-					if p.cur.Type == '=' {
-						p.advance()
-						if p.cur.Type == tokSCONST || p.cur.Type == tokNSCONST {
-							opt.OldPassword = p.cur.Str
-							p.advance()
-						}
-					}
-				} else {
-					break
-				}
-			}
-		}
-
-		// Handle NO CREDENTIAL (two-word option in ALTER LOGIN WITH)
-		if key == "NO" && p.cur.Type == kwCREDENTIAL {
-			opt.Name = "NO CREDENTIAL"
-			p.advance() // consume CREDENTIAL
-		}
-
-		opt.Loc.End = p.prevEnd()
-		opts = append(opts, opt)
-
-		if p.cur.Type == ',' {
-			p.advance()
-		} else {
-			break
-		}
-	}
-
-	return opts
 }
 
 // parseExecuteAsStmt parses a standalone EXECUTE AS statement (context switching).
@@ -817,4 +1010,3 @@ func (p *Parser) parseAlterAuthEntityName() string {
 	}
 	return strings.Join(parts, " ")
 }
-

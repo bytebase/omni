@@ -15,10 +15,14 @@ import (
 // equal to googlesql/internal/testcontainer.Image.
 const emulatorImage = "gcr.io/cloud-spanner-emulator/emulator:1.5.54"
 
-// TestMain points the tests at $SPANNER_EMULATOR_HOST when set, and otherwise at
-// an emulator testcontainer it starts and removes.
+// TestMain starts no server outside a recording (OMNI_RECORD=1), where only
+// the harness's pure functions are tested and TestOracleLive skips: the
+// recordings of googlesql/parser and googlesql/analysis run the harness on
+// the pinned emulator end to end, and their tapes hold what it answered. In
+// a recording it points the tests at $SPANNER_EMULATOR_HOST when set, and
+// otherwise at an emulator testcontainer it starts and removes.
 func TestMain(m *testing.M) {
-	if os.Getenv("SPANNER_EMULATOR_HOST") != "" {
+	if !recording() || os.Getenv("SPANNER_EMULATOR_HOST") != "" {
 		os.Exit(m.Run())
 	}
 	c, host, err := startEmulator(context.Background())
@@ -50,4 +54,11 @@ func startEmulator(ctx context.Context) (testcontainers.Container, string, error
 		return c, "", err
 	}
 	return c, host + ":" + port.Port(), nil
+}
+
+// recording reports whether OMNI_RECORD asks for the pinned emulator, as
+// enginetest.Recording does for omni's own tests; this module does not
+// import omni.
+func recording() bool {
+	return os.Getenv("OMNI_RECORD") == "1"
 }

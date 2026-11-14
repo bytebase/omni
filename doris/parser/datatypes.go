@@ -489,7 +489,10 @@ func (p *Parser) parseAggStateType(legacy bool) (*ast.TypeName, error) {
 	p.advance() // consume '<'
 	switch {
 	case isIdentifierToken(p.cur.Kind):
-		name, _, _ := p.parseIdentifier()
+		name, _, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
 		typName.Func = name
 	case !legacy && isFunctionNameKeyword(p.cur.Kind):
 		typName.Func = p.advance().Str

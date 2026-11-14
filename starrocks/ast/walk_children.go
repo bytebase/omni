@@ -485,8 +485,20 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, prop)
 		}
 	case *LoadDataDesc:
+		if n.SourceTable != nil {
+			Walk(v, n.SourceTable)
+		}
 		if n.Target != nil {
 			Walk(v, n.Target)
+		}
+		for _, prop := range n.FormatProps {
+			Walk(v, prop)
+		}
+		for _, e := range n.ColumnMappings {
+			Walk(v, e)
+		}
+		if n.Where != nil {
+			Walk(v, n.Where)
 		}
 	case *LoadDataStmt:
 		for _, desc := range n.DataDescs {

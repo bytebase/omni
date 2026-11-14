@@ -846,13 +846,13 @@
 | CREATE TABLE t (id INT NOT NULL PRIMARY KEY, a INT, e VARCHAR(10))
 < ok 0 0
 > exec
-| ALTER TABLE `pa_aig_add_col_with_other_changes_bab13057`.`t` MODIFY COLUMN `e` varchar(20) DEFAULT NULL
-< ok 0 0
-> exec
 | ALTER TABLE `pa_aig_add_col_with_other_changes_bab13057`.`t` ADD COLUMN `f` int DEFAULT NULL
 < ok 0 0
 > exec
 | ALTER TABLE `pa_aig_add_col_with_other_changes_bab13057`.`t` ADD COLUMN `seq` bigint unsigned NOT NULL AUTO_INCREMENT, ADD UNIQUE KEY `uk_seq` (`seq`)
+< ok 0 0
+> exec
+| ALTER TABLE `pa_aig_add_col_with_other_changes_bab13057`.`t` MODIFY COLUMN `e` varchar(20) DEFAULT NULL
 < ok 0 0
 > query
 | SHOW CREATE TABLE pa_aig_add_col_with_other_changes_bab13057.t

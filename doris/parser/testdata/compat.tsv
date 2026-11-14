@@ -645,7 +645,7 @@ reject	reject	engine	supportedDmlStatement/(explain)?_(cte)?_UPDATE_multipartIde
 reject	reject	engine	supportedDmlStatement/(explain)?_(cte)?_UPDATE_multipartIdentifier_tableAlias~9bc85ba6!insert	UPDATE a SET a = CURRENT_DATE zzz
 reject	reject	engine	supportedDmlStatement/(explain)?_(cte)?_UPDATE_multipartIdentifier_tableAlias~9bc85ba6!swap	USE a SET a = CURRENT_DATE
 accept	accept	engine	supportedDmlStatement/(explain)?_(cte)?_DELETE_FROM_multipartIdentifier_(part~6211e24a	DELETE FROM a
-reject	accept	engine	supportedDmlStatement/LOAD_LABEL_multipartIdentifier_LEFT_PAREN_dataDesc_(COM~772c1dca	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a)
+accept	accept	engine	supportedDmlStatement/LOAD_LABEL_multipartIdentifier_LEFT_PAREN_dataDesc_(COM~772c1dca	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a)
 reject	reject	engine	supportedDmlStatement/LOAD_LABEL_multipartIdentifier_LEFT_PAREN_dataDesc_(COM~772c1dca!drop-1	LABEL a(DATA FROM TABLE a INTO TABLE a)
 reject	reject	engine	supportedDmlStatement/LOAD_LABEL_multipartIdentifier_LEFT_PAREN_dataDesc_(COM~772c1dca!drop-2	LOAD a(DATA FROM TABLE a INTO TABLE a)
 reject	reject	engine	supportedDmlStatement/LOAD_LABEL_multipartIdentifier_LEFT_PAREN_dataDesc_(COM~772c1dca!drop-3	LOAD LABEL(DATA FROM TABLE a INTO TABLE a)
@@ -759,9 +759,9 @@ accept	accept	engine	supportedDmlStatement(USING_relations)?/USING_relations	DEL
 reject	reject	engine	supportedDmlStatement(USING_relations)?/USING_relations!drop-2	DELETE FROM a USING
 accept	accept	engine	supportedDmlStatement(USING_relations)?/USING_relations!insert	DELETE FROM a USING a zzz
 reject	reject	engine	supportedDmlStatement(USING_relations)?/USING_relations!swap	DELETE FROM a VALUE a
-reject	accept	engine	supportedDmlStatement(COMMA_dataDesc)*/%empty	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a)
+accept	accept	engine	supportedDmlStatement(COMMA_dataDesc)*/%empty	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a)
 reject	reject	engine	supportedDmlStatement(COMMA_dataDesc)*/%empty!insert	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a zzz)
-reject	accept	engine	supportedDmlStatement(COMMA_dataDesc)*/COMMA_dataDesc_(COMMA_dataDesc)*	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a, DATA FROM TABLE a INTO TABLE a)
+accept	accept	engine	supportedDmlStatement(COMMA_dataDesc)*/COMMA_dataDesc_(COMMA_dataDesc)*	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a, DATA FROM TABLE a INTO TABLE a)
 reject	reject	engine	supportedDmlStatement(COMMA_dataDesc)*/COMMA_dataDesc_(COMMA_dataDesc)*!drop-1	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a DATA FROM TABLE a INTO TABLE a)
 reject	reject	engine	supportedDmlStatement(COMMA_dataDesc)*/COMMA_dataDesc_(COMMA_dataDesc)*!drop-2	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a, FROM TABLE a INTO TABLE a)
 reject	reject	engine	supportedDmlStatement(COMMA_dataDesc)*/COMMA_dataDesc_(COMMA_dataDesc)*!drop-3	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a, DATA TABLE a INTO TABLE a)
@@ -790,8 +790,8 @@ reject	reject	engine	supportedDmlStatement(propertyClause)?/propertyClause!drop-
 reject	reject	engine	supportedDmlStatement(propertyClause)?/propertyClause!drop-6	EXPORT TABLE a TO 'a' PROPERTIES(a = a
 reject	reject	engine	supportedDmlStatement(propertyClause)?/propertyClause!insert	EXPORT TABLE a TO 'a' PROPERTIES(a = a) zzz
 reject	reject	engine	supportedDmlStatement(propertyClause)?/propertyClause!swap	EXPORT TABLE a TO 'a' PROPERTY(a = a)
-reject	accept	engine	supportedDmlStatement(commentSpec)?/%empty	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a)
-reject	accept	engine	supportedDmlStatement(commentSpec)?/commentSpec	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a) COMMENT 'a'
+accept	accept	engine	supportedDmlStatement(commentSpec)?/%empty	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a)
+accept	accept	engine	supportedDmlStatement(commentSpec)?/commentSpec	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a) COMMENT 'a'
 reject	reject	engine	supportedDmlStatement(commentSpec)?/commentSpec!drop-1	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a) 'a'
 reject	reject	engine	supportedDmlStatement(commentSpec)?/commentSpec!drop-2	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a) COMMENT
 reject	reject	engine	supportedDmlStatement(commentSpec)?/commentSpec!insert	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a) COMMENT 'a' zzz
@@ -2081,7 +2081,7 @@ reject	reject	engine	unsupportedShowStatement(whereClause)?/whereClause!drop-1	S
 reject	reject	engine	unsupportedShowStatement(whereClause)?/whereClause!drop-2	SHOW COPY WHERE
 reject	reject	engine	unsupportedShowStatement(whereClause)?/whereClause!insert	SHOW COPY WHERE CURRENT_DATE zzz
 reject	reject	engine	unsupportedShowStatement(whereClause)?/whereClause!swap	SHOW COPY WHITELIST CURRENT_DATE
-reject	accept	engine	unsupportedLoadStatement/LOAD_mysqlDataDesc_(PROPERTIES_LEFT_PAREN_propertyItemL~694faef2	LOAD DATA INFILE 'a' INTO TABLE a
+accept	accept	engine	unsupportedLoadStatement/LOAD_mysqlDataDesc_(PROPERTIES_LEFT_PAREN_propertyItemL~694faef2	LOAD DATA INFILE 'a' INTO TABLE a
 reject	reject	engine	unsupportedLoadStatement/LOAD_mysqlDataDesc_(PROPERTIES_LEFT_PAREN_propertyItemL~694faef2!drop-1	DATA INFILE 'a' INTO TABLE a
 reject	reject	engine	unsupportedLoadStatement/LOAD_mysqlDataDesc_(PROPERTIES_LEFT_PAREN_propertyItemL~694faef2!drop-2	LOAD INFILE 'a' INTO TABLE a
 reject	reject	engine	unsupportedLoadStatement/LOAD_mysqlDataDesc_(PROPERTIES_LEFT_PAREN_propertyItemL~694faef2!drop-3	LOAD DATA 'a' INTO TABLE a
@@ -2195,7 +2195,7 @@ reject	reject	engine	unsupportedLoadStatement/importColumnsStatement!drop-3	COLU
 reject	reject	engine	unsupportedLoadStatement/importColumnsStatement!drop-4	COLUMNS(a
 reject	reject	engine	unsupportedLoadStatement/importColumnsStatement!insert	COLUMNS(a) zzz
 reject	reject	engine	unsupportedLoadStatement/importColumnsStatement!swap	COMMENT(a)
-reject	accept	engine	unsupportedLoadStatement(PROPERTIES_LEFT_PAREN_propertyItemLi~8610bcdb)?/%empty	LOAD DATA INFILE 'a' INTO TABLE a
+accept	accept	engine	unsupportedLoadStatement(PROPERTIES_LEFT_PAREN_propertyItemLi~8610bcdb)?/%empty	LOAD DATA INFILE 'a' INTO TABLE a
 reject	reject	engine	unsupportedLoadStatement(PROPERTIES_LEFT_PAREN_propertyItemLi~8610bcdb)?/PROPERTIES_LEFT_PAREN_propertyItemList_RIGHT_PAREN	LOAD DATA INFILE 'a' INTO TABLE a PROPERTIES(a = a)
 reject	reject	engine	unsupportedLoadStatement(PROPERTIES_LEFT_PAREN_propertyItemLi~8610bcdb)?/PROPERTIES_LEFT_PAREN_propertyItemList_RIGHT_PAREN!drop-1	LOAD DATA INFILE 'a' INTO TABLE a(a = a)
 reject	reject	engine	unsupportedLoadStatement(PROPERTIES_LEFT_PAREN_propertyItemLi~8610bcdb)?/PROPERTIES_LEFT_PAREN_propertyItemList_RIGHT_PAREN!drop-2	LOAD DATA INFILE 'a' INTO TABLE a PROPERTIES a = a)
@@ -2205,8 +2205,8 @@ reject	reject	engine	unsupportedLoadStatement(PROPERTIES_LEFT_PAREN_propertyItem
 reject	reject	engine	unsupportedLoadStatement(PROPERTIES_LEFT_PAREN_propertyItemLi~8610bcdb)?/PROPERTIES_LEFT_PAREN_propertyItemList_RIGHT_PAREN!drop-6	LOAD DATA INFILE 'a' INTO TABLE a PROPERTIES(a = a
 reject	reject	engine	unsupportedLoadStatement(PROPERTIES_LEFT_PAREN_propertyItemLi~8610bcdb)?/PROPERTIES_LEFT_PAREN_propertyItemList_RIGHT_PAREN!insert	LOAD DATA INFILE 'a' INTO TABLE a PROPERTIES(a = a) zzz
 reject	reject	engine	unsupportedLoadStatement(PROPERTIES_LEFT_PAREN_propertyItemLi~8610bcdb)?/PROPERTIES_LEFT_PAREN_propertyItemList_RIGHT_PAREN!swap	LOAD DATA INFILE 'a' INTO TABLE a PROPERTY(a = a)
-reject	accept	engine	unsupportedLoadStatement(commentSpec)?/%empty	LOAD DATA INFILE 'a' INTO TABLE a
-reject	accept	engine	unsupportedLoadStatement(commentSpec)?/commentSpec	LOAD DATA INFILE 'a' INTO TABLE a COMMENT 'a'
+accept	accept	engine	unsupportedLoadStatement(commentSpec)?/%empty	LOAD DATA INFILE 'a' INTO TABLE a
+accept	accept	engine	unsupportedLoadStatement(commentSpec)?/commentSpec	LOAD DATA INFILE 'a' INTO TABLE a COMMENT 'a'
 reject	reject	engine	unsupportedLoadStatement(commentSpec)?/commentSpec!drop-1	LOAD DATA INFILE 'a' INTO TABLE a 'a'
 reject	reject	engine	unsupportedLoadStatement(commentSpec)?/commentSpec!drop-2	LOAD DATA INFILE 'a' INTO TABLE a COMMENT
 reject	reject	engine	unsupportedLoadStatement(commentSpec)?/commentSpec!insert	LOAD DATA INFILE 'a' INTO TABLE a COMMENT 'a' zzz
@@ -4415,9 +4415,9 @@ accept	accept	engine	unsupportedCreateStatement(CONDITIONS_LEFT_PAREN_workloadPo
 accept	accept	engine	unsupportedCreateStatement(CONDITIONS_LEFT_PAREN_workloadPolicy~ef2130b5)?/CONDITIONS_LEFT_PAREN_workloadPolicyConditions_RIGHT_PAREN	CREATE WORKLOAD POLICY a CONDITIONS(a = 1)
 reject	reject	engine	unsupportedCreateStatement(CONDITIONS_LEFT_PAREN_workloadPolicy~ef2130b5)?/CONDITIONS_LEFT_PAREN_workloadPolicyConditions_RIGHT_PAREN!drop-1	CREATE WORKLOAD POLICY a(a = 1)
 reject	reject	engine	unsupportedCreateStatement(CONDITIONS_LEFT_PAREN_workloadPolicy~ef2130b5)?/CONDITIONS_LEFT_PAREN_workloadPolicyConditions_RIGHT_PAREN!drop-2	CREATE WORKLOAD POLICY a CONDITIONS a = 1)
-accept	reject	engine	unsupportedCreateStatement(CONDITIONS_LEFT_PAREN_workloadPolicy~ef2130b5)?/CONDITIONS_LEFT_PAREN_workloadPolicyConditions_RIGHT_PAREN!drop-3	CREATE WORKLOAD POLICY a CONDITIONS(= 1)
-accept	reject	engine	unsupportedCreateStatement(CONDITIONS_LEFT_PAREN_workloadPolicy~ef2130b5)?/CONDITIONS_LEFT_PAREN_workloadPolicyConditions_RIGHT_PAREN!drop-4	CREATE WORKLOAD POLICY a CONDITIONS(a 1)
-accept	reject	engine	unsupportedCreateStatement(CONDITIONS_LEFT_PAREN_workloadPolicy~ef2130b5)?/CONDITIONS_LEFT_PAREN_workloadPolicyConditions_RIGHT_PAREN!drop-5	CREATE WORKLOAD POLICY a CONDITIONS(a =)
+reject	reject	engine	unsupportedCreateStatement(CONDITIONS_LEFT_PAREN_workloadPolicy~ef2130b5)?/CONDITIONS_LEFT_PAREN_workloadPolicyConditions_RIGHT_PAREN!drop-3	CREATE WORKLOAD POLICY a CONDITIONS(= 1)
+reject	reject	engine	unsupportedCreateStatement(CONDITIONS_LEFT_PAREN_workloadPolicy~ef2130b5)?/CONDITIONS_LEFT_PAREN_workloadPolicyConditions_RIGHT_PAREN!drop-4	CREATE WORKLOAD POLICY a CONDITIONS(a 1)
+reject	reject	engine	unsupportedCreateStatement(CONDITIONS_LEFT_PAREN_workloadPolicy~ef2130b5)?/CONDITIONS_LEFT_PAREN_workloadPolicyConditions_RIGHT_PAREN!drop-5	CREATE WORKLOAD POLICY a CONDITIONS(a =)
 reject	reject	engine	unsupportedCreateStatement(CONDITIONS_LEFT_PAREN_workloadPolicy~ef2130b5)?/CONDITIONS_LEFT_PAREN_workloadPolicyConditions_RIGHT_PAREN!drop-6	CREATE WORKLOAD POLICY a CONDITIONS(a = 1
 reject	reject	engine	unsupportedCreateStatement(CONDITIONS_LEFT_PAREN_workloadPolicy~ef2130b5)?/CONDITIONS_LEFT_PAREN_workloadPolicyConditions_RIGHT_PAREN!insert	CREATE WORKLOAD POLICY a CONDITIONS(a = 1) zzz
 reject	reject	engine	unsupportedCreateStatement(CONDITIONS_LEFT_PAREN_workloadPolicy~ef2130b5)?/CONDITIONS_LEFT_PAREN_workloadPolicyConditions_RIGHT_PAREN!swap	CREATE WORKLOAD POLICY a CONFIG(a = 1)
@@ -4425,7 +4425,7 @@ accept	accept	engine	unsupportedCreateStatement(ACTIONS_LEFT_PAREN_workloadPolic
 accept	accept	engine	unsupportedCreateStatement(ACTIONS_LEFT_PAREN_workloadPolicyAct~f80b7918)?/ACTIONS_LEFT_PAREN_workloadPolicyActions_RIGHT_PAREN	CREATE WORKLOAD POLICY a ACTIONS(a)
 reject	reject	engine	unsupportedCreateStatement(ACTIONS_LEFT_PAREN_workloadPolicyAct~f80b7918)?/ACTIONS_LEFT_PAREN_workloadPolicyActions_RIGHT_PAREN!drop-1	CREATE WORKLOAD POLICY a(a)
 reject	reject	engine	unsupportedCreateStatement(ACTIONS_LEFT_PAREN_workloadPolicyAct~f80b7918)?/ACTIONS_LEFT_PAREN_workloadPolicyActions_RIGHT_PAREN!drop-2	CREATE WORKLOAD POLICY a ACTIONS a)
-accept	reject	engine	unsupportedCreateStatement(ACTIONS_LEFT_PAREN_workloadPolicyAct~f80b7918)?/ACTIONS_LEFT_PAREN_workloadPolicyActions_RIGHT_PAREN!drop-3	CREATE WORKLOAD POLICY a ACTIONS()
+reject	reject	engine	unsupportedCreateStatement(ACTIONS_LEFT_PAREN_workloadPolicyAct~f80b7918)?/ACTIONS_LEFT_PAREN_workloadPolicyActions_RIGHT_PAREN!drop-3	CREATE WORKLOAD POLICY a ACTIONS()
 reject	reject	engine	unsupportedCreateStatement(ACTIONS_LEFT_PAREN_workloadPolicyAct~f80b7918)?/ACTIONS_LEFT_PAREN_workloadPolicyActions_RIGHT_PAREN!drop-4	CREATE WORKLOAD POLICY a ACTIONS(a
 reject	reject	engine	unsupportedCreateStatement(ACTIONS_LEFT_PAREN_workloadPolicyAct~f80b7918)?/ACTIONS_LEFT_PAREN_workloadPolicyActions_RIGHT_PAREN!insert	CREATE WORKLOAD POLICY a ACTIONS(a) zzz
 reject	reject	engine	unsupportedCreateStatement(ACTIONS_LEFT_PAREN_workloadPolicyAct~f80b7918)?/ACTIONS_LEFT_PAREN_workloadPolicyActions_RIGHT_PAREN!swap	CREATE WORKLOAD POLICY a ADD(a)
@@ -4437,38 +4437,38 @@ reject	reject	engine	unsupportedCreateStatement(partitionSpec)?/partitionSpec!in
 reject	reject	engine	unsupportedCreateStatement(partitionSpec)?/partitionSpec!swap	BUILD INDEX a ON a PARTITIONS a
 accept	accept	engine	workloadPolicyActions/workloadPolicyAction_(COMMA_workloadPolicyAction)*	CREATE WORKLOAD POLICY a ACTIONS(a)
 reject	reject	engine	workloadPolicyActions/workloadPolicyAction_(COMMA_workloadPolicyAction)*!truncate	CREATE WORKLOAD POLICY a ACTIONS(
-accept	reject	engine	workloadPolicyActions/workloadPolicyAction_(COMMA_workloadPolicyAction)*!insert	CREATE WORKLOAD POLICY a ACTIONS(a zzz)
+reject	reject	engine	workloadPolicyActions/workloadPolicyAction_(COMMA_workloadPolicyAction)*!insert	CREATE WORKLOAD POLICY a ACTIONS(a zzz)
 accept	accept	engine	workloadPolicyActions(COMMA_workloadPolicyAction)*/%empty	CREATE WORKLOAD POLICY a ACTIONS(a)
 accept	accept	engine	workloadPolicyActions(COMMA_workloadPolicyAction)*/COMMA_workloadPolicyAction_(COMMA_workloadPolicyAction)*	CREATE WORKLOAD POLICY a ACTIONS(a, a)
-accept	reject	engine	workloadPolicyActions(COMMA_workloadPolicyAction)*/COMMA_workloadPolicyAction_(COMMA_workloadPolicyAction)*!drop-1	CREATE WORKLOAD POLICY a ACTIONS(a a)
-accept	reject	engine	workloadPolicyActions(COMMA_workloadPolicyAction)*/COMMA_workloadPolicyAction_(COMMA_workloadPolicyAction)*!drop-2	CREATE WORKLOAD POLICY a ACTIONS(a,)
+reject	reject	engine	workloadPolicyActions(COMMA_workloadPolicyAction)*/COMMA_workloadPolicyAction_(COMMA_workloadPolicyAction)*!drop-1	CREATE WORKLOAD POLICY a ACTIONS(a a)
+reject	reject	engine	workloadPolicyActions(COMMA_workloadPolicyAction)*/COMMA_workloadPolicyAction_(COMMA_workloadPolicyAction)*!drop-2	CREATE WORKLOAD POLICY a ACTIONS(a,)
 reject	reject	engine	workloadPolicyActions(COMMA_workloadPolicyAction)*/COMMA_workloadPolicyAction_(COMMA_workloadPolicyAction)*!truncate	CREATE WORKLOAD POLICY a ACTIONS(a,
-accept	reject	engine	workloadPolicyActions(COMMA_workloadPolicyAction)*/COMMA_workloadPolicyAction_(COMMA_workloadPolicyAction)*!insert	CREATE WORKLOAD POLICY a ACTIONS(a, a zzz)
+reject	reject	engine	workloadPolicyActions(COMMA_workloadPolicyAction)*/COMMA_workloadPolicyAction_(COMMA_workloadPolicyAction)*!insert	CREATE WORKLOAD POLICY a ACTIONS(a, a zzz)
 accept	accept	engine	workloadPolicyAction/SET_SESSION_VARIABLE_STRING_LITERAL	CREATE WORKLOAD POLICY a ACTIONS(SET_SESSION_VARIABLE 'a')
-accept	reject	engine	workloadPolicyAction/SET_SESSION_VARIABLE_STRING_LITERAL!drop-1	CREATE WORKLOAD POLICY a ACTIONS('a')
+reject	reject	engine	workloadPolicyAction/SET_SESSION_VARIABLE_STRING_LITERAL!drop-1	CREATE WORKLOAD POLICY a ACTIONS('a')
 accept	accept	engine	workloadPolicyAction/SET_SESSION_VARIABLE_STRING_LITERAL!drop-2	CREATE WORKLOAD POLICY a ACTIONS(SET_SESSION_VARIABLE)
 reject	reject	engine	workloadPolicyAction/SET_SESSION_VARIABLE_STRING_LITERAL!truncate	CREATE WORKLOAD POLICY a ACTIONS(SET_SESSION_VARIABLE
-accept	reject	engine	workloadPolicyAction/SET_SESSION_VARIABLE_STRING_LITERAL!insert	CREATE WORKLOAD POLICY a ACTIONS(SET_SESSION_VARIABLE 'a' zzz)
+reject	reject	engine	workloadPolicyAction/SET_SESSION_VARIABLE_STRING_LITERAL!insert	CREATE WORKLOAD POLICY a ACTIONS(SET_SESSION_VARIABLE 'a' zzz)
 accept	accept	engine	workloadPolicyAction/SET_SESSION_VARIABLE_STRING_LITERAL!swap	CREATE WORKLOAD POLICY a ACTIONS(SHAPE 'a')
 accept	accept	engine	workloadPolicyAction/identifier_(STRING_LITERAL)?	CREATE WORKLOAD POLICY a ACTIONS(a)
 accept	accept	engine	workloadPolicyAction(STRING_LITERAL)?/%empty	CREATE WORKLOAD POLICY a ACTIONS(a)
 accept	accept	engine	workloadPolicyAction(STRING_LITERAL)?/STRING_LITERAL	CREATE WORKLOAD POLICY a ACTIONS(a 'a')
-accept	reject	engine	workloadPolicyAction(STRING_LITERAL)?/STRING_LITERAL!insert	CREATE WORKLOAD POLICY a ACTIONS(a 'a' zzz)
+reject	reject	engine	workloadPolicyAction(STRING_LITERAL)?/STRING_LITERAL!insert	CREATE WORKLOAD POLICY a ACTIONS(a 'a' zzz)
 accept	accept	engine	workloadPolicyConditions/workloadPolicyCondition_(COMMA_workloadPolicyCondition)*	CREATE WORKLOAD POLICY a CONDITIONS(a = 1)
 reject	reject	engine	workloadPolicyConditions/workloadPolicyCondition_(COMMA_workloadPolicyCondition)*!truncate	CREATE WORKLOAD POLICY a CONDITIONS(a =
-accept	reject	engine	workloadPolicyConditions/workloadPolicyCondition_(COMMA_workloadPolicyCondition)*!insert	CREATE WORKLOAD POLICY a CONDITIONS(a = 1 zzz)
+reject	reject	engine	workloadPolicyConditions/workloadPolicyCondition_(COMMA_workloadPolicyCondition)*!insert	CREATE WORKLOAD POLICY a CONDITIONS(a = 1 zzz)
 accept	accept	engine	workloadPolicyConditions(COMMA_workloadPolicyCondition)*/%empty	CREATE WORKLOAD POLICY a CONDITIONS(a = 1)
 accept	accept	engine	workloadPolicyConditions(COMMA_workloadPolicyCondition)*/COMMA_workloadPolicyCondition_(COMMA_workloadPolicyCondition)*	CREATE WORKLOAD POLICY a CONDITIONS(a = 1, a = 1)
-accept	reject	engine	workloadPolicyConditions(COMMA_workloadPolicyCondition)*/COMMA_workloadPolicyCondition_(COMMA_workloadPolicyCondition)*!drop-1	CREATE WORKLOAD POLICY a CONDITIONS(a = 1 a = 1)
-accept	reject	engine	workloadPolicyConditions(COMMA_workloadPolicyCondition)*/COMMA_workloadPolicyCondition_(COMMA_workloadPolicyCondition)*!drop-2	CREATE WORKLOAD POLICY a CONDITIONS(a = 1, = 1)
-accept	reject	engine	workloadPolicyConditions(COMMA_workloadPolicyCondition)*/COMMA_workloadPolicyCondition_(COMMA_workloadPolicyCondition)*!drop-3	CREATE WORKLOAD POLICY a CONDITIONS(a = 1, a 1)
-accept	reject	engine	workloadPolicyConditions(COMMA_workloadPolicyCondition)*/COMMA_workloadPolicyCondition_(COMMA_workloadPolicyCondition)*!drop-4	CREATE WORKLOAD POLICY a CONDITIONS(a = 1, a =)
+reject	reject	engine	workloadPolicyConditions(COMMA_workloadPolicyCondition)*/COMMA_workloadPolicyCondition_(COMMA_workloadPolicyCondition)*!drop-1	CREATE WORKLOAD POLICY a CONDITIONS(a = 1 a = 1)
+reject	reject	engine	workloadPolicyConditions(COMMA_workloadPolicyCondition)*/COMMA_workloadPolicyCondition_(COMMA_workloadPolicyCondition)*!drop-2	CREATE WORKLOAD POLICY a CONDITIONS(a = 1, = 1)
+reject	reject	engine	workloadPolicyConditions(COMMA_workloadPolicyCondition)*/COMMA_workloadPolicyCondition_(COMMA_workloadPolicyCondition)*!drop-3	CREATE WORKLOAD POLICY a CONDITIONS(a = 1, a 1)
+reject	reject	engine	workloadPolicyConditions(COMMA_workloadPolicyCondition)*/COMMA_workloadPolicyCondition_(COMMA_workloadPolicyCondition)*!drop-4	CREATE WORKLOAD POLICY a CONDITIONS(a = 1, a =)
 reject	reject	engine	workloadPolicyConditions(COMMA_workloadPolicyCondition)*/COMMA_workloadPolicyCondition_(COMMA_workloadPolicyCondition)*!truncate	CREATE WORKLOAD POLICY a CONDITIONS(a = 1, a =
-accept	reject	engine	workloadPolicyConditions(COMMA_workloadPolicyCondition)*/COMMA_workloadPolicyCondition_(COMMA_workloadPolicyCondition)*!insert	CREATE WORKLOAD POLICY a CONDITIONS(a = 1, a = 1 zzz)
+reject	reject	engine	workloadPolicyConditions(COMMA_workloadPolicyCondition)*/COMMA_workloadPolicyCondition_(COMMA_workloadPolicyCondition)*!insert	CREATE WORKLOAD POLICY a CONDITIONS(a = 1, a = 1 zzz)
 accept	accept	engine	workloadPolicyCondition/identifier_comparisonOperator_(number|STRING_LITERAL)	CREATE WORKLOAD POLICY a CONDITIONS(a = 1)
 accept	accept	engine	workloadPolicyCondition(number|STRING_LITERAL)/number	CREATE WORKLOAD POLICY a CONDITIONS(a = 1)
 accept	accept	engine	workloadPolicyCondition(number|STRING_LITERAL)/STRING_LITERAL	CREATE WORKLOAD POLICY a CONDITIONS(a = 'a')
-accept	reject	engine	workloadPolicyCondition(number|STRING_LITERAL)/STRING_LITERAL!insert	CREATE WORKLOAD POLICY a CONDITIONS(a = 'a' zzz)
+reject	reject	engine	workloadPolicyCondition(number|STRING_LITERAL)/STRING_LITERAL!insert	CREATE WORKLOAD POLICY a CONDITIONS(a = 'a' zzz)
 reject	reject	engine	storageBackend/(BROKER|S3|HDFS|LOCAL)_(identifier)?_ON_LOCATION_STRING~f9ad3195	CREATE REPOSITORY a WITH BROKER ON LOCATION 'a'
 reject	reject	engine	storageBackend/(BROKER|S3|HDFS|LOCAL)_(identifier)?_ON_LOCATION_STRING~f9ad3195!swap	CREATE REPOSITORY a WITH BUCKETS ON LOCATION 'a'
 reject	reject	engine	storageBackend(BROKER|S3|HDFS|LOCAL)/BROKER	CREATE REPOSITORY a WITH BROKER ON LOCATION 'a'
@@ -5035,7 +5035,7 @@ accept	accept	engine	dataDesc/((WITH)?_mergeType)?_DATA_INFILE_LEFT_PAREN_STRING
 reject	reject	engine	dataDesc/((WITH)?_mergeType)?_DATA_INFILE_LEFT_PAREN_STRING_LITE~b97aa314!drop-1	LOAD LABEL a(INFILE('a') INTO TABLE a)
 reject	reject	engine	dataDesc/((WITH)?_mergeType)?_DATA_INFILE_LEFT_PAREN_STRING_LITE~b97aa314!drop-2	LOAD LABEL a(DATA('a') INTO TABLE a)
 reject	reject	engine	dataDesc/((WITH)?_mergeType)?_DATA_INFILE_LEFT_PAREN_STRING_LITE~b97aa314!drop-3	LOAD LABEL a(DATA INFILE 'a') INTO TABLE a)
-accept	reject	engine	dataDesc/((WITH)?_mergeType)?_DATA_INFILE_LEFT_PAREN_STRING_LITE~b97aa314!drop-4	LOAD LABEL a(DATA INFILE() INTO TABLE a)
+reject	reject	engine	dataDesc/((WITH)?_mergeType)?_DATA_INFILE_LEFT_PAREN_STRING_LITE~b97aa314!drop-4	LOAD LABEL a(DATA INFILE() INTO TABLE a)
 reject	reject	engine	dataDesc/((WITH)?_mergeType)?_DATA_INFILE_LEFT_PAREN_STRING_LITE~b97aa314!drop-5	LOAD LABEL a(DATA INFILE('a' INTO TABLE a)
 reject	reject	engine	dataDesc/((WITH)?_mergeType)?_DATA_INFILE_LEFT_PAREN_STRING_LITE~b97aa314!drop-6	LOAD LABEL a(DATA INFILE('a') TABLE a)
 reject	reject	engine	dataDesc/((WITH)?_mergeType)?_DATA_INFILE_LEFT_PAREN_STRING_LITE~b97aa314!drop-7	LOAD LABEL a(DATA INFILE('a') INTO a)
@@ -5043,25 +5043,25 @@ reject	reject	engine	dataDesc/((WITH)?_mergeType)?_DATA_INFILE_LEFT_PAREN_STRING
 reject	reject	engine	dataDesc/((WITH)?_mergeType)?_DATA_INFILE_LEFT_PAREN_STRING_LITE~b97aa314!truncate	LOAD LABEL a(DATA INFILE('a') INTO TABLE
 reject	reject	engine	dataDesc/((WITH)?_mergeType)?_DATA_INFILE_LEFT_PAREN_STRING_LITE~b97aa314!insert	LOAD LABEL a(DATA INFILE('a') INTO TABLE a zzz)
 reject	reject	engine	dataDesc/((WITH)?_mergeType)?_DATA_INFILE_LEFT_PAREN_STRING_LITE~b97aa314!swap	LOAD LABEL a(DATABASE INFILE('a') INTO TABLE a)
-reject	accept	engine	dataDesc/((WITH)?_mergeType)?_DATA_FROM_TABLE_identifier_INTO_TA~fd2a4d08	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a)
+accept	accept	engine	dataDesc/((WITH)?_mergeType)?_DATA_FROM_TABLE_identifier_INTO_TA~fd2a4d08	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a)
 reject	reject	engine	dataDesc/((WITH)?_mergeType)?_DATA_FROM_TABLE_identifier_INTO_TA~fd2a4d08!truncate	LOAD LABEL a(DATA FROM TABLE a INTO TABLE
 reject	reject	engine	dataDesc/((WITH)?_mergeType)?_DATA_FROM_TABLE_identifier_INTO_TA~fd2a4d08!swap	LOAD LABEL a(DATABASE FROM TABLE a INTO TABLE a)
-reject	accept	engine	dataDesc((WITH)?_mergeType)?/%empty	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a)
+accept	accept	engine	dataDesc((WITH)?_mergeType)?/%empty	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a)
 reject	reject	engine	dataDesc((WITH)?_mergeType)?/%empty!insert	LOAD LABEL a(zzz DATA FROM TABLE a INTO TABLE a)
-reject	accept	engine	dataDesc((WITH)?_mergeType)?/(WITH)?_mergeType	LOAD LABEL a(APPEND DATA FROM TABLE a INTO TABLE a)
+accept	accept	engine	dataDesc((WITH)?_mergeType)?/(WITH)?_mergeType	LOAD LABEL a(APPEND DATA FROM TABLE a INTO TABLE a)
 reject	reject	engine	dataDesc((WITH)?_mergeType)?/(WITH)?_mergeType!truncate	LOAD LABEL a(
 reject	reject	engine	dataDesc((WITH)?_mergeType)?/(WITH)?_mergeType!insert	LOAD LABEL a(APPEND zzz DATA FROM TABLE a INTO TABLE a)
 reject	reject	engine	dataDesc((WITH)?_mergeType)?/(WITH)?_mergeType!swap	LOAD LABEL a(ARRAY DATA FROM TABLE a INTO TABLE a)
-reject	accept	engine	dataDesc(WITH)?/%empty	LOAD LABEL a(APPEND DATA FROM TABLE a INTO TABLE a)
+accept	accept	engine	dataDesc(WITH)?/%empty	LOAD LABEL a(APPEND DATA FROM TABLE a INTO TABLE a)
 reject	reject	engine	dataDesc(WITH)?/%empty!insert	LOAD LABEL a(zzz APPEND DATA FROM TABLE a INTO TABLE a)
-reject	accept	engine	dataDesc(WITH)?/WITH	LOAD LABEL a(WITH APPEND DATA FROM TABLE a INTO TABLE a)
+accept	accept	engine	dataDesc(WITH)?/WITH	LOAD LABEL a(WITH APPEND DATA FROM TABLE a INTO TABLE a)
 reject	reject	engine	dataDesc(WITH)?/WITH!insert	LOAD LABEL a(WITH zzz APPEND DATA FROM TABLE a INTO TABLE a)
 reject	reject	engine	dataDesc(WITH)?/WITH!swap	LOAD LABEL a(WORK APPEND DATA FROM TABLE a INTO TABLE a)
 accept	accept	engine	dataDesc(COMMA_STRING_LITERAL)*/%empty	LOAD LABEL a(DATA INFILE('a') INTO TABLE a)
 reject	reject	engine	dataDesc(COMMA_STRING_LITERAL)*/%empty!insert	LOAD LABEL a(DATA INFILE('a' zzz) INTO TABLE a)
 accept	accept	engine	dataDesc(COMMA_STRING_LITERAL)*/COMMA_STRING_LITERAL_(COMMA_STRING_LITERAL)*	LOAD LABEL a(DATA INFILE('a', 'a') INTO TABLE a)
-accept	reject	engine	dataDesc(COMMA_STRING_LITERAL)*/COMMA_STRING_LITERAL_(COMMA_STRING_LITERAL)*!drop-1	LOAD LABEL a(DATA INFILE('a' 'a') INTO TABLE a)
-accept	reject	engine	dataDesc(COMMA_STRING_LITERAL)*/COMMA_STRING_LITERAL_(COMMA_STRING_LITERAL)*!drop-2	LOAD LABEL a(DATA INFILE('a',) INTO TABLE a)
+reject	reject	engine	dataDesc(COMMA_STRING_LITERAL)*/COMMA_STRING_LITERAL_(COMMA_STRING_LITERAL)*!drop-1	LOAD LABEL a(DATA INFILE('a' 'a') INTO TABLE a)
+reject	reject	engine	dataDesc(COMMA_STRING_LITERAL)*/COMMA_STRING_LITERAL_(COMMA_STRING_LITERAL)*!drop-2	LOAD LABEL a(DATA INFILE('a',) INTO TABLE a)
 reject	reject	engine	dataDesc(COMMA_STRING_LITERAL)*/COMMA_STRING_LITERAL_(COMMA_STRING_LITERAL)*!truncate	LOAD LABEL a(DATA INFILE('a',
 reject	reject	engine	dataDesc(COMMA_STRING_LITERAL)*/COMMA_STRING_LITERAL_(COMMA_STRING_LITERAL)*!insert	LOAD LABEL a(DATA INFILE('a', 'a' zzz) INTO TABLE a)
 accept	accept	engine	dataDesc(partitionSpec)?/%empty	LOAD LABEL a(DATA INFILE('a') INTO TABLE a)
@@ -5070,9 +5070,9 @@ reject	reject	engine	dataDesc(partitionSpec)?/partitionSpec!drop-1	LOAD LABEL a(
 reject	reject	engine	dataDesc(partitionSpec)?/partitionSpec!drop-2	LOAD LABEL a(DATA INFILE('a') INTO TABLE a PARTITION)
 reject	reject	engine	dataDesc(partitionSpec)?/partitionSpec!truncate	LOAD LABEL a(DATA INFILE('a') INTO TABLE a PARTITION
 reject	reject	engine	dataDesc(partitionSpec)?/partitionSpec!insert	LOAD LABEL a(DATA INFILE('a') INTO TABLE a PARTITION a zzz)
-accept	reject	engine	dataDesc(partitionSpec)?/partitionSpec!swap	LOAD LABEL a(DATA INFILE('a') INTO TABLE a PARTITIONS a)
+reject	reject	engine	dataDesc(partitionSpec)?/partitionSpec!swap	LOAD LABEL a(DATA INFILE('a') INTO TABLE a PARTITIONS a)
 accept	accept	engine	dataDesc(COLUMNS_TERMINATED_BY_STRING_LITERAL)?/%empty	LOAD LABEL a(DATA INFILE('a') INTO TABLE a)
-reject	accept	engine	dataDesc(COLUMNS_TERMINATED_BY_STRING_LITERAL)?/COLUMNS_TERMINATED_BY_STRING_LITERAL	LOAD LABEL a(DATA INFILE('a') INTO TABLE a COLUMNS TERMINATED BY 'a')
+accept	accept	engine	dataDesc(COLUMNS_TERMINATED_BY_STRING_LITERAL)?/COLUMNS_TERMINATED_BY_STRING_LITERAL	LOAD LABEL a(DATA INFILE('a') INTO TABLE a COLUMNS TERMINATED BY 'a')
 reject	reject	engine	dataDesc(COLUMNS_TERMINATED_BY_STRING_LITERAL)?/COLUMNS_TERMINATED_BY_STRING_LITERAL!drop-1	LOAD LABEL a(DATA INFILE('a') INTO TABLE a TERMINATED BY 'a')
 reject	reject	engine	dataDesc(COLUMNS_TERMINATED_BY_STRING_LITERAL)?/COLUMNS_TERMINATED_BY_STRING_LITERAL!drop-2	LOAD LABEL a(DATA INFILE('a') INTO TABLE a COLUMNS BY 'a')
 reject	reject	engine	dataDesc(COLUMNS_TERMINATED_BY_STRING_LITERAL)?/COLUMNS_TERMINATED_BY_STRING_LITERAL!drop-3	LOAD LABEL a(DATA INFILE('a') INTO TABLE a COLUMNS TERMINATED 'a')
@@ -5081,7 +5081,7 @@ reject	reject	engine	dataDesc(COLUMNS_TERMINATED_BY_STRING_LITERAL)?/COLUMNS_TER
 reject	reject	engine	dataDesc(COLUMNS_TERMINATED_BY_STRING_LITERAL)?/COLUMNS_TERMINATED_BY_STRING_LITERAL!insert	LOAD LABEL a(DATA INFILE('a') INTO TABLE a COLUMNS TERMINATED BY 'a' zzz)
 reject	reject	engine	dataDesc(COLUMNS_TERMINATED_BY_STRING_LITERAL)?/COLUMNS_TERMINATED_BY_STRING_LITERAL!swap	LOAD LABEL a(DATA INFILE('a') INTO TABLE a COMMENT TERMINATED BY 'a')
 accept	accept	engine	dataDesc(LINES_TERMINATED_BY_STRING_LITERAL)?/%empty	LOAD LABEL a(DATA INFILE('a') INTO TABLE a)
-reject	accept	engine	dataDesc(LINES_TERMINATED_BY_STRING_LITERAL)?/LINES_TERMINATED_BY_STRING_LITERAL	LOAD LABEL a(DATA INFILE('a') INTO TABLE a LINES TERMINATED BY 'a')
+accept	accept	engine	dataDesc(LINES_TERMINATED_BY_STRING_LITERAL)?/LINES_TERMINATED_BY_STRING_LITERAL	LOAD LABEL a(DATA INFILE('a') INTO TABLE a LINES TERMINATED BY 'a')
 reject	reject	engine	dataDesc(LINES_TERMINATED_BY_STRING_LITERAL)?/LINES_TERMINATED_BY_STRING_LITERAL!drop-2	LOAD LABEL a(DATA INFILE('a') INTO TABLE a LINES BY 'a')
 reject	reject	engine	dataDesc(LINES_TERMINATED_BY_STRING_LITERAL)?/LINES_TERMINATED_BY_STRING_LITERAL!drop-3	LOAD LABEL a(DATA INFILE('a') INTO TABLE a LINES TERMINATED 'a')
 reject	reject	engine	dataDesc(LINES_TERMINATED_BY_STRING_LITERAL)?/LINES_TERMINATED_BY_STRING_LITERAL!drop-4	LOAD LABEL a(DATA INFILE('a') INTO TABLE a LINES TERMINATED BY)
@@ -5089,7 +5089,7 @@ reject	reject	engine	dataDesc(LINES_TERMINATED_BY_STRING_LITERAL)?/LINES_TERMINA
 reject	reject	engine	dataDesc(LINES_TERMINATED_BY_STRING_LITERAL)?/LINES_TERMINATED_BY_STRING_LITERAL!insert	LOAD LABEL a(DATA INFILE('a') INTO TABLE a LINES TERMINATED BY 'a' zzz)
 reject	reject	engine	dataDesc(LINES_TERMINATED_BY_STRING_LITERAL)?/LINES_TERMINATED_BY_STRING_LITERAL!swap	LOAD LABEL a(DATA INFILE('a') INTO TABLE a LINK TERMINATED BY 'a')
 accept	accept	engine	dataDesc(FORMAT_AS_identifierOrText)?/%empty	LOAD LABEL a(DATA INFILE('a') INTO TABLE a)
-reject	accept	engine	dataDesc(FORMAT_AS_identifierOrText)?/FORMAT_AS_identifierOrText	LOAD LABEL a(DATA INFILE('a') INTO TABLE a FORMAT AS a)
+accept	accept	engine	dataDesc(FORMAT_AS_identifierOrText)?/FORMAT_AS_identifierOrText	LOAD LABEL a(DATA INFILE('a') INTO TABLE a FORMAT AS a)
 reject	reject	engine	dataDesc(FORMAT_AS_identifierOrText)?/FORMAT_AS_identifierOrText!drop-1	LOAD LABEL a(DATA INFILE('a') INTO TABLE a AS a)
 reject	reject	engine	dataDesc(FORMAT_AS_identifierOrText)?/FORMAT_AS_identifierOrText!drop-2	LOAD LABEL a(DATA INFILE('a') INTO TABLE a FORMAT a)
 reject	reject	engine	dataDesc(FORMAT_AS_identifierOrText)?/FORMAT_AS_identifierOrText!drop-3	LOAD LABEL a(DATA INFILE('a') INTO TABLE a FORMAT AS)
@@ -5097,14 +5097,14 @@ reject	reject	engine	dataDesc(FORMAT_AS_identifierOrText)?/FORMAT_AS_identifierO
 reject	reject	engine	dataDesc(FORMAT_AS_identifierOrText)?/FORMAT_AS_identifierOrText!insert	LOAD LABEL a(DATA INFILE('a') INTO TABLE a FORMAT AS a zzz)
 reject	reject	engine	dataDesc(FORMAT_AS_identifierOrText)?/FORMAT_AS_identifierOrText!swap	LOAD LABEL a(DATA INFILE('a') INTO TABLE a FREE AS a)
 accept	accept	engine	dataDesc(COMPRESS_TYPE_AS_identifierOrText)?/%empty	LOAD LABEL a(DATA INFILE('a') INTO TABLE a)
-reject	accept	engine	dataDesc(COMPRESS_TYPE_AS_identifierOrText)?/COMPRESS_TYPE_AS_identifierOrText	LOAD LABEL a(DATA INFILE('a') INTO TABLE a COMPRESS_TYPE AS a)
+accept	accept	engine	dataDesc(COMPRESS_TYPE_AS_identifierOrText)?/COMPRESS_TYPE_AS_identifierOrText	LOAD LABEL a(DATA INFILE('a') INTO TABLE a COMPRESS_TYPE AS a)
 reject	reject	engine	dataDesc(COMPRESS_TYPE_AS_identifierOrText)?/COMPRESS_TYPE_AS_identifierOrText!drop-2	LOAD LABEL a(DATA INFILE('a') INTO TABLE a COMPRESS_TYPE a)
 reject	reject	engine	dataDesc(COMPRESS_TYPE_AS_identifierOrText)?/COMPRESS_TYPE_AS_identifierOrText!drop-3	LOAD LABEL a(DATA INFILE('a') INTO TABLE a COMPRESS_TYPE AS)
 reject	reject	engine	dataDesc(COMPRESS_TYPE_AS_identifierOrText)?/COMPRESS_TYPE_AS_identifierOrText!truncate	LOAD LABEL a(DATA INFILE('a') INTO TABLE a COMPRESS_TYPE AS
 reject	reject	engine	dataDesc(COMPRESS_TYPE_AS_identifierOrText)?/COMPRESS_TYPE_AS_identifierOrText!insert	LOAD LABEL a(DATA INFILE('a') INTO TABLE a COMPRESS_TYPE AS a zzz)
 reject	reject	engine	dataDesc(COMPRESS_TYPE_AS_identifierOrText)?/COMPRESS_TYPE_AS_identifierOrText!swap	LOAD LABEL a(DATA INFILE('a') INTO TABLE a COMPUTE AS a)
 accept	accept	engine	dataDesc(identifierList)?/%empty	LOAD LABEL a(DATA INFILE('a') INTO TABLE a)
-reject	accept	engine	dataDesc(identifierList)?/identifierList	LOAD LABEL a(DATA INFILE('a') INTO TABLE a(a))
+accept	accept	engine	dataDesc(identifierList)?/identifierList	LOAD LABEL a(DATA INFILE('a') INTO TABLE a(a))
 reject	reject	engine	dataDesc(identifierList)?/identifierList!drop-1	LOAD LABEL a(DATA INFILE('a') INTO TABLE a a))
 reject	reject	engine	dataDesc(identifierList)?/identifierList!drop-2	LOAD LABEL a(DATA INFILE('a') INTO TABLE a())
 reject	reject	engine	dataDesc(identifierList)?/identifierList!drop-3	LOAD LABEL a(DATA INFILE('a') INTO TABLE a(a)
@@ -5117,13 +5117,13 @@ reject	reject	engine	dataDesc(colFromPath)?/colFromPath!drop-2	LOAD LABEL a(DATA
 reject	reject	engine	dataDesc(colFromPath)?/colFromPath!drop-3	LOAD LABEL a(DATA INFILE('a') INTO TABLE a COLUMNS FROM AS(a))
 reject	reject	engine	dataDesc(colFromPath)?/colFromPath!drop-4	LOAD LABEL a(DATA INFILE('a') INTO TABLE a COLUMNS FROM PATH(a))
 reject	reject	engine	dataDesc(colFromPath)?/colFromPath!drop-5	LOAD LABEL a(DATA INFILE('a') INTO TABLE a COLUMNS FROM PATH AS a))
-accept	reject	engine	dataDesc(colFromPath)?/colFromPath!drop-6	LOAD LABEL a(DATA INFILE('a') INTO TABLE a COLUMNS FROM PATH AS())
+reject	reject	engine	dataDesc(colFromPath)?/colFromPath!drop-6	LOAD LABEL a(DATA INFILE('a') INTO TABLE a COLUMNS FROM PATH AS())
 reject	reject	engine	dataDesc(colFromPath)?/colFromPath!drop-7	LOAD LABEL a(DATA INFILE('a') INTO TABLE a COLUMNS FROM PATH AS(a)
 reject	reject	engine	dataDesc(colFromPath)?/colFromPath!truncate	LOAD LABEL a(DATA INFILE('a') INTO TABLE a COLUMNS FROM PATH AS(a
 reject	reject	engine	dataDesc(colFromPath)?/colFromPath!insert	LOAD LABEL a(DATA INFILE('a') INTO TABLE a COLUMNS FROM PATH AS(a) zzz)
 reject	reject	engine	dataDesc(colFromPath)?/colFromPath!swap	LOAD LABEL a(DATA INFILE('a') INTO TABLE a COMMENT FROM PATH AS(a))
-reject	accept	engine	dataDesc(colMappingList)?/%empty	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a)
-reject	accept	engine	dataDesc(colMappingList)?/colMappingList	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a SET(a = CURRENT_DATE))
+accept	accept	engine	dataDesc(colMappingList)?/%empty	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a)
+accept	accept	engine	dataDesc(colMappingList)?/colMappingList	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a SET(a = CURRENT_DATE))
 reject	reject	engine	dataDesc(colMappingList)?/colMappingList!drop-1	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a(a = CURRENT_DATE))
 reject	reject	engine	dataDesc(colMappingList)?/colMappingList!drop-2	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a SET a = CURRENT_DATE))
 reject	reject	engine	dataDesc(colMappingList)?/colMappingList!drop-3	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a SET(= CURRENT_DATE))
@@ -5134,22 +5134,22 @@ reject	reject	engine	dataDesc(colMappingList)?/colMappingList!truncate	LOAD LABE
 reject	reject	engine	dataDesc(colMappingList)?/colMappingList!insert	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a SET(a = CURRENT_DATE) zzz)
 reject	reject	engine	dataDesc(colMappingList)?/colMappingList!swap	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a SETS(a = CURRENT_DATE))
 accept	accept	engine	dataDesc(preFilterClause)?/%empty	LOAD LABEL a(DATA INFILE('a') INTO TABLE a)
-reject	accept	engine	dataDesc(preFilterClause)?/preFilterClause	LOAD LABEL a(DATA INFILE('a') INTO TABLE a PRECEDING FILTER CURRENT_DATE)
+accept	accept	engine	dataDesc(preFilterClause)?/preFilterClause	LOAD LABEL a(DATA INFILE('a') INTO TABLE a PRECEDING FILTER CURRENT_DATE)
 reject	reject	engine	dataDesc(preFilterClause)?/preFilterClause!drop-1	LOAD LABEL a(DATA INFILE('a') INTO TABLE a FILTER CURRENT_DATE)
 reject	reject	engine	dataDesc(preFilterClause)?/preFilterClause!drop-2	LOAD LABEL a(DATA INFILE('a') INTO TABLE a PRECEDING CURRENT_DATE)
 reject	reject	engine	dataDesc(preFilterClause)?/preFilterClause!drop-3	LOAD LABEL a(DATA INFILE('a') INTO TABLE a PRECEDING FILTER)
 reject	reject	engine	dataDesc(preFilterClause)?/preFilterClause!truncate	LOAD LABEL a(DATA INFILE('a') INTO TABLE a PRECEDING FILTER
 reject	reject	engine	dataDesc(preFilterClause)?/preFilterClause!insert	LOAD LABEL a(DATA INFILE('a') INTO TABLE a PRECEDING FILTER CURRENT_DATE zzz)
 reject	reject	engine	dataDesc(preFilterClause)?/preFilterClause!swap	LOAD LABEL a(DATA INFILE('a') INTO TABLE a PREPARE FILTER CURRENT_DATE)
-reject	accept	engine	dataDesc(whereClause)?/%empty	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a)
-reject	accept	engine	dataDesc(whereClause)?/whereClause	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a WHERE CURRENT_DATE)
+accept	accept	engine	dataDesc(whereClause)?/%empty	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a)
+accept	accept	engine	dataDesc(whereClause)?/whereClause	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a WHERE CURRENT_DATE)
 reject	reject	engine	dataDesc(whereClause)?/whereClause!drop-1	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a CURRENT_DATE)
 reject	reject	engine	dataDesc(whereClause)?/whereClause!drop-2	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a WHERE)
 reject	reject	engine	dataDesc(whereClause)?/whereClause!truncate	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a WHERE
 reject	reject	engine	dataDesc(whereClause)?/whereClause!insert	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a WHERE CURRENT_DATE zzz)
 reject	reject	engine	dataDesc(whereClause)?/whereClause!swap	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a WHITELIST CURRENT_DATE)
-reject	accept	engine	dataDesc(deleteOnClause)?/%empty	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a)
-reject	accept	engine	dataDesc(deleteOnClause)?/deleteOnClause	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a DELETE ON CURRENT_DATE)
+accept	accept	engine	dataDesc(deleteOnClause)?/%empty	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a)
+accept	accept	engine	dataDesc(deleteOnClause)?/deleteOnClause	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a DELETE ON CURRENT_DATE)
 reject	reject	engine	dataDesc(deleteOnClause)?/deleteOnClause!drop-1	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a ON CURRENT_DATE)
 reject	reject	engine	dataDesc(deleteOnClause)?/deleteOnClause!drop-2	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a DELETE CURRENT_DATE)
 reject	reject	engine	dataDesc(deleteOnClause)?/deleteOnClause!drop-3	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a DELETE ON)
@@ -5157,15 +5157,15 @@ reject	reject	engine	dataDesc(deleteOnClause)?/deleteOnClause!truncate	LOAD LABE
 reject	reject	engine	dataDesc(deleteOnClause)?/deleteOnClause!insert	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a DELETE ON CURRENT_DATE zzz)
 reject	reject	engine	dataDesc(deleteOnClause)?/deleteOnClause!swap	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a DEMAND ON CURRENT_DATE)
 accept	accept	engine	dataDesc(sequenceColClause)?/%empty	LOAD LABEL a(DATA INFILE('a') INTO TABLE a)
-reject	accept	engine	dataDesc(sequenceColClause)?/sequenceColClause	LOAD LABEL a(DATA INFILE('a') INTO TABLE a ORDER BY a)
+accept	accept	engine	dataDesc(sequenceColClause)?/sequenceColClause	LOAD LABEL a(DATA INFILE('a') INTO TABLE a ORDER BY a)
 reject	reject	engine	dataDesc(sequenceColClause)?/sequenceColClause!drop-1	LOAD LABEL a(DATA INFILE('a') INTO TABLE a BY a)
 reject	reject	engine	dataDesc(sequenceColClause)?/sequenceColClause!drop-2	LOAD LABEL a(DATA INFILE('a') INTO TABLE a ORDER a)
 reject	reject	engine	dataDesc(sequenceColClause)?/sequenceColClause!drop-3	LOAD LABEL a(DATA INFILE('a') INTO TABLE a ORDER BY)
 reject	reject	engine	dataDesc(sequenceColClause)?/sequenceColClause!truncate	LOAD LABEL a(DATA INFILE('a') INTO TABLE a ORDER BY
 reject	reject	engine	dataDesc(sequenceColClause)?/sequenceColClause!insert	LOAD LABEL a(DATA INFILE('a') INTO TABLE a ORDER BY a zzz)
 reject	reject	engine	dataDesc(sequenceColClause)?/sequenceColClause!swap	LOAD LABEL a(DATA INFILE('a') INTO TABLE a OUTER BY a)
-reject	accept	engine	dataDesc(propertyClause)?/%empty	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a)
-reject	accept	engine	dataDesc(propertyClause)?/propertyClause	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a PROPERTIES(a = a))
+accept	accept	engine	dataDesc(propertyClause)?/%empty	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a)
+accept	accept	engine	dataDesc(propertyClause)?/propertyClause	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a PROPERTIES(a = a))
 reject	reject	engine	dataDesc(propertyClause)?/propertyClause!drop-1	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a(a = a))
 reject	reject	engine	dataDesc(propertyClause)?/propertyClause!drop-2	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a PROPERTIES a = a))
 reject	reject	engine	dataDesc(propertyClause)?/propertyClause!drop-3	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a PROPERTIES(= a))
@@ -5175,8 +5175,8 @@ reject	reject	engine	dataDesc(propertyClause)?/propertyClause!drop-6	LOAD LABEL 
 reject	reject	engine	dataDesc(propertyClause)?/propertyClause!truncate	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a PROPERTIES(a = a
 reject	reject	engine	dataDesc(propertyClause)?/propertyClause!insert	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a PROPERTIES(a = a) zzz)
 reject	reject	engine	dataDesc(propertyClause)?/propertyClause!swap	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a PROPERTY(a = a))
-reject	accept	engine	dataDesc(PARTITION_identifierList)?/%empty	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a)
-reject	accept	engine	dataDesc(PARTITION_identifierList)?/PARTITION_identifierList	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a PARTITION(a))
+accept	accept	engine	dataDesc(PARTITION_identifierList)?/%empty	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a)
+accept	accept	engine	dataDesc(PARTITION_identifierList)?/PARTITION_identifierList	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a PARTITION(a))
 reject	reject	engine	dataDesc(PARTITION_identifierList)?/PARTITION_identifierList!drop-1	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a(a))
 reject	reject	engine	dataDesc(PARTITION_identifierList)?/PARTITION_identifierList!drop-2	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a PARTITION a))
 reject	reject	engine	dataDesc(PARTITION_identifierList)?/PARTITION_identifierList!drop-3	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a PARTITION())
@@ -5339,18 +5339,18 @@ reject	accept	engine	replayType/DUMP_query!insert	PLAN REPLAYER DUMP SELECT CURR
 reject	reject	engine	replayType/DUMP_query!swap	PLAN REPLAYER DUPLICATE SELECT CURRENT_DATE
 reject	accept	engine	replayType/PLAY_STRING_LITERAL	PLAN REPLAYER PLAY 'a'
 reject	reject	engine	replayType/PLAY_STRING_LITERAL!swap	PLAN REPLAYER PLUGIN 'a'
-reject	accept	engine	mergeType/APPEND	LOAD LABEL a(APPEND DATA FROM TABLE a INTO TABLE a)
-reject	accept	engine	mergeType/DELETE	LOAD LABEL a(DELETE DATA FROM TABLE a INTO TABLE a)
+accept	accept	engine	mergeType/APPEND	LOAD LABEL a(APPEND DATA FROM TABLE a INTO TABLE a)
+accept	accept	engine	mergeType/DELETE	LOAD LABEL a(DELETE DATA FROM TABLE a INTO TABLE a)
 reject	reject	engine	mergeType/DELETE!insert	LOAD LABEL a(DELETE zzz DATA FROM TABLE a INTO TABLE a)
 reject	reject	engine	mergeType/DELETE!swap	LOAD LABEL a(DEMAND DATA FROM TABLE a INTO TABLE a)
-reject	accept	engine	mergeType/MERGE	LOAD LABEL a(MERGE DATA FROM TABLE a INTO TABLE a)
+accept	accept	engine	mergeType/MERGE	LOAD LABEL a(MERGE DATA FROM TABLE a INTO TABLE a)
 reject	reject	engine	mergeType/MERGE!insert	LOAD LABEL a(MERGE zzz DATA FROM TABLE a INTO TABLE a)
 reject	reject	engine	mergeType/MERGE!swap	LOAD LABEL a(MIGRATE DATA FROM TABLE a INTO TABLE a)
-reject	accept	engine	preFilterClause/PRECEDING_FILTER_expression	LOAD LABEL a(DATA INFILE('a') INTO TABLE a PRECEDING FILTER CURRENT_DATE)
-reject	accept	engine	deleteOnClause/DELETE_ON_expression	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a DELETE ON CURRENT_DATE)
-reject	accept	engine	sequenceColClause/ORDER_BY_identifier	LOAD LABEL a(DATA INFILE('a') INTO TABLE a ORDER BY a)
+accept	accept	engine	preFilterClause/PRECEDING_FILTER_expression	LOAD LABEL a(DATA INFILE('a') INTO TABLE a PRECEDING FILTER CURRENT_DATE)
+accept	accept	engine	deleteOnClause/DELETE_ON_expression	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a DELETE ON CURRENT_DATE)
+accept	accept	engine	sequenceColClause/ORDER_BY_identifier	LOAD LABEL a(DATA INFILE('a') INTO TABLE a ORDER BY a)
 accept	accept	engine	colFromPath/COLUMNS_FROM_PATH_AS_identifierList	LOAD LABEL a(DATA INFILE('a') INTO TABLE a COLUMNS FROM PATH AS(a))
-reject	accept	engine	colMappingList/SET_LEFT_PAREN_mappingExpr_(COMMA_mappingExpr)*_RIGHT_PAREN	LOAD DATA INFILE 'a' INTO TABLE a SET(a = CURRENT_DATE)
+accept	accept	engine	colMappingList/SET_LEFT_PAREN_mappingExpr_(COMMA_mappingExpr)*_RIGHT_PAREN	LOAD DATA INFILE 'a' INTO TABLE a SET(a = CURRENT_DATE)
 reject	reject	engine	colMappingList/SET_LEFT_PAREN_mappingExpr_(COMMA_mappingExpr)*_RIGHT_PAREN!drop-1	LOAD DATA INFILE 'a' INTO TABLE a(a = CURRENT_DATE)
 reject	reject	engine	colMappingList/SET_LEFT_PAREN_mappingExpr_(COMMA_mappingExpr)*_RIGHT_PAREN!drop-2	LOAD DATA INFILE 'a' INTO TABLE a SET a = CURRENT_DATE)
 reject	reject	engine	colMappingList/SET_LEFT_PAREN_mappingExpr_(COMMA_mappingExpr)*_RIGHT_PAREN!drop-3	LOAD DATA INFILE 'a' INTO TABLE a SET(= CURRENT_DATE)
@@ -5359,19 +5359,19 @@ reject	reject	engine	colMappingList/SET_LEFT_PAREN_mappingExpr_(COMMA_mappingExp
 reject	reject	engine	colMappingList/SET_LEFT_PAREN_mappingExpr_(COMMA_mappingExpr)*_RIGHT_PAREN!drop-6	LOAD DATA INFILE 'a' INTO TABLE a SET(a = CURRENT_DATE
 reject	reject	engine	colMappingList/SET_LEFT_PAREN_mappingExpr_(COMMA_mappingExpr)*_RIGHT_PAREN!insert	LOAD DATA INFILE 'a' INTO TABLE a SET(a = CURRENT_DATE) zzz
 reject	reject	engine	colMappingList/SET_LEFT_PAREN_mappingExpr_(COMMA_mappingExpr)*_RIGHT_PAREN!swap	LOAD DATA INFILE 'a' INTO TABLE a SETS(a = CURRENT_DATE)
-reject	accept	engine	colMappingList(COMMA_mappingExpr)*/%empty	LOAD DATA INFILE 'a' INTO TABLE a SET(a = CURRENT_DATE)
+accept	accept	engine	colMappingList(COMMA_mappingExpr)*/%empty	LOAD DATA INFILE 'a' INTO TABLE a SET(a = CURRENT_DATE)
 reject	reject	engine	colMappingList(COMMA_mappingExpr)*/%empty!insert	LOAD DATA INFILE 'a' INTO TABLE a SET(a = CURRENT_DATE zzz)
-reject	accept	engine	colMappingList(COMMA_mappingExpr)*/COMMA_mappingExpr_(COMMA_mappingExpr)*	LOAD DATA INFILE 'a' INTO TABLE a SET(a = CURRENT_DATE, a = CURRENT_DATE)
+accept	accept	engine	colMappingList(COMMA_mappingExpr)*/COMMA_mappingExpr_(COMMA_mappingExpr)*	LOAD DATA INFILE 'a' INTO TABLE a SET(a = CURRENT_DATE, a = CURRENT_DATE)
 reject	reject	engine	colMappingList(COMMA_mappingExpr)*/COMMA_mappingExpr_(COMMA_mappingExpr)*!drop-1	LOAD DATA INFILE 'a' INTO TABLE a SET(a = CURRENT_DATE a = CURRENT_DATE)
 reject	reject	engine	colMappingList(COMMA_mappingExpr)*/COMMA_mappingExpr_(COMMA_mappingExpr)*!drop-2	LOAD DATA INFILE 'a' INTO TABLE a SET(a = CURRENT_DATE, = CURRENT_DATE)
 reject	reject	engine	colMappingList(COMMA_mappingExpr)*/COMMA_mappingExpr_(COMMA_mappingExpr)*!drop-3	LOAD DATA INFILE 'a' INTO TABLE a SET(a = CURRENT_DATE, a CURRENT_DATE)
 reject	reject	engine	colMappingList(COMMA_mappingExpr)*/COMMA_mappingExpr_(COMMA_mappingExpr)*!drop-4	LOAD DATA INFILE 'a' INTO TABLE a SET(a = CURRENT_DATE, a =)
 reject	reject	engine	colMappingList(COMMA_mappingExpr)*/COMMA_mappingExpr_(COMMA_mappingExpr)*!truncate	LOAD DATA INFILE 'a' INTO TABLE a SET(a = CURRENT_DATE, a =
 reject	reject	engine	colMappingList(COMMA_mappingExpr)*/COMMA_mappingExpr_(COMMA_mappingExpr)*!insert	LOAD DATA INFILE 'a' INTO TABLE a SET(a = CURRENT_DATE, a = CURRENT_DATE zzz)
-reject	accept	engine	colMappingList(COMMA_mappingExpr)*/COMMA_mappingExpr_(COMMA_mappingExpr)*!swap	LOAD DATA INFILE 'a' INTO TABLE a SET(a = CURRENT_DATE, a = CURRENT_TIME)
-reject	accept	engine	mappingExpr/identifier_EQ_expression	LOAD DATA INFILE 'a' INTO TABLE a SET(a = CURRENT_DATE)
+accept	accept	engine	colMappingList(COMMA_mappingExpr)*/COMMA_mappingExpr_(COMMA_mappingExpr)*!swap	LOAD DATA INFILE 'a' INTO TABLE a SET(a = CURRENT_DATE, a = CURRENT_TIME)
+accept	accept	engine	mappingExpr/identifier_EQ_expression	LOAD DATA INFILE 'a' INTO TABLE a SET(a = CURRENT_DATE)
 reject	reject	engine	mappingExpr/identifier_EQ_expression!truncate	LOAD DATA INFILE 'a' INTO TABLE a SET(a =
-reject	accept	engine	mappingExpr/identifier_EQ_expression!swap	LOAD DATA INFILE 'a' INTO TABLE a SET(a = CURRENT_TIME)
+accept	accept	engine	mappingExpr/identifier_EQ_expression!swap	LOAD DATA INFILE 'a' INTO TABLE a SET(a = CURRENT_TIME)
 reject	accept	engine	withRemoteStorageSystem/resourceDesc	EXPORT TABLE a TO 'a' WITH RESOURCE a
 reject	accept	engine	withRemoteStorageSystem/WITH_S3_LEFT_PAREN_propertyItemList_RIGHT_PAREN	EXPORT TABLE a TO 'a' WITH S3(a = a)
 reject	reject	engine	withRemoteStorageSystem/WITH_S3_LEFT_PAREN_propertyItemList_RIGHT_PAREN!drop-1	EXPORT TABLE a TO 'a' S3(a = a)
@@ -5423,55 +5423,55 @@ reject	reject	engine	resourceDesc(LEFT_PAREN_propertyItemList_RIGHT_PAREN)?/LEFT
 reject	reject	engine	resourceDesc(LEFT_PAREN_propertyItemList_RIGHT_PAREN)?/LEFT_PAREN_propertyItemList_RIGHT_PAREN!drop-4	EXPORT TABLE a TO 'a' WITH RESOURCE a(a =)
 reject	reject	engine	resourceDesc(LEFT_PAREN_propertyItemList_RIGHT_PAREN)?/LEFT_PAREN_propertyItemList_RIGHT_PAREN!drop-5	EXPORT TABLE a TO 'a' WITH RESOURCE a(a = a
 reject	reject	engine	resourceDesc(LEFT_PAREN_propertyItemList_RIGHT_PAREN)?/LEFT_PAREN_propertyItemList_RIGHT_PAREN!insert	EXPORT TABLE a TO 'a' WITH RESOURCE a(a = a) zzz
-reject	accept	engine	mysqlDataDesc/DATA_(LOCAL)?_INFILE_STRING_LITERAL_INTO_TABLE_multipar~3fbf83fa	LOAD DATA INFILE 'a' INTO TABLE a
+accept	accept	engine	mysqlDataDesc/DATA_(LOCAL)?_INFILE_STRING_LITERAL_INTO_TABLE_multipar~3fbf83fa	LOAD DATA INFILE 'a' INTO TABLE a
 reject	reject	engine	mysqlDataDesc/DATA_(LOCAL)?_INFILE_STRING_LITERAL_INTO_TABLE_multipar~3fbf83fa!swap	LOAD DATABASE INFILE 'a' INTO TABLE a
-reject	accept	engine	mysqlDataDesc(LOCAL)?/%empty	LOAD DATA INFILE 'a' INTO TABLE a
+accept	accept	engine	mysqlDataDesc(LOCAL)?/%empty	LOAD DATA INFILE 'a' INTO TABLE a
 reject	reject	engine	mysqlDataDesc(LOCAL)?/%empty!insert	LOAD DATA zzz INFILE 'a' INTO TABLE a
-reject	accept	engine	mysqlDataDesc(LOCAL)?/LOCAL	LOAD DATA LOCAL INFILE 'a' INTO TABLE a
+accept	accept	engine	mysqlDataDesc(LOCAL)?/LOCAL	LOAD DATA LOCAL INFILE 'a' INTO TABLE a
 reject	reject	engine	mysqlDataDesc(LOCAL)?/LOCAL!truncate	LOAD DATA
 reject	reject	engine	mysqlDataDesc(LOCAL)?/LOCAL!insert	LOAD DATA LOCAL zzz INFILE 'a' INTO TABLE a
 reject	reject	engine	mysqlDataDesc(LOCAL)?/LOCAL!swap	LOAD DATA LOCALTIME INFILE 'a' INTO TABLE a
-reject	accept	engine	mysqlDataDesc(PARTITION_identifierList)?/%empty	LOAD DATA INFILE 'a' INTO TABLE a
-reject	accept	engine	mysqlDataDesc(PARTITION_identifierList)?/PARTITION_identifierList	LOAD DATA INFILE 'a' INTO TABLE a PARTITION(a)
+accept	accept	engine	mysqlDataDesc(PARTITION_identifierList)?/%empty	LOAD DATA INFILE 'a' INTO TABLE a
+accept	accept	engine	mysqlDataDesc(PARTITION_identifierList)?/PARTITION_identifierList	LOAD DATA INFILE 'a' INTO TABLE a PARTITION(a)
 reject	reject	engine	mysqlDataDesc(PARTITION_identifierList)?/PARTITION_identifierList!drop-2	LOAD DATA INFILE 'a' INTO TABLE a PARTITION a)
 reject	reject	engine	mysqlDataDesc(PARTITION_identifierList)?/PARTITION_identifierList!drop-3	LOAD DATA INFILE 'a' INTO TABLE a PARTITION()
 reject	reject	engine	mysqlDataDesc(PARTITION_identifierList)?/PARTITION_identifierList!drop-4	LOAD DATA INFILE 'a' INTO TABLE a PARTITION(a
 reject	reject	engine	mysqlDataDesc(PARTITION_identifierList)?/PARTITION_identifierList!insert	LOAD DATA INFILE 'a' INTO TABLE a PARTITION(a) zzz
 reject	reject	engine	mysqlDataDesc(PARTITION_identifierList)?/PARTITION_identifierList!swap	LOAD DATA INFILE 'a' INTO TABLE a PARTITIONS(a)
-reject	accept	engine	mysqlDataDesc(COLUMNS_TERMINATED_BY_STRING_LITERAL)?/%empty	LOAD DATA INFILE 'a' INTO TABLE a
-reject	accept	engine	mysqlDataDesc(COLUMNS_TERMINATED_BY_STRING_LITERAL)?/COLUMNS_TERMINATED_BY_STRING_LITERAL	LOAD DATA INFILE 'a' INTO TABLE a COLUMNS TERMINATED BY 'a'
+accept	accept	engine	mysqlDataDesc(COLUMNS_TERMINATED_BY_STRING_LITERAL)?/%empty	LOAD DATA INFILE 'a' INTO TABLE a
+accept	accept	engine	mysqlDataDesc(COLUMNS_TERMINATED_BY_STRING_LITERAL)?/COLUMNS_TERMINATED_BY_STRING_LITERAL	LOAD DATA INFILE 'a' INTO TABLE a COLUMNS TERMINATED BY 'a'
 reject	reject	engine	mysqlDataDesc(COLUMNS_TERMINATED_BY_STRING_LITERAL)?/COLUMNS_TERMINATED_BY_STRING_LITERAL!drop-1	LOAD DATA INFILE 'a' INTO TABLE a TERMINATED BY 'a'
 reject	reject	engine	mysqlDataDesc(COLUMNS_TERMINATED_BY_STRING_LITERAL)?/COLUMNS_TERMINATED_BY_STRING_LITERAL!drop-2	LOAD DATA INFILE 'a' INTO TABLE a COLUMNS BY 'a'
 reject	reject	engine	mysqlDataDesc(COLUMNS_TERMINATED_BY_STRING_LITERAL)?/COLUMNS_TERMINATED_BY_STRING_LITERAL!drop-3	LOAD DATA INFILE 'a' INTO TABLE a COLUMNS TERMINATED 'a'
 reject	reject	engine	mysqlDataDesc(COLUMNS_TERMINATED_BY_STRING_LITERAL)?/COLUMNS_TERMINATED_BY_STRING_LITERAL!drop-4	LOAD DATA INFILE 'a' INTO TABLE a COLUMNS TERMINATED BY
 reject	reject	engine	mysqlDataDesc(COLUMNS_TERMINATED_BY_STRING_LITERAL)?/COLUMNS_TERMINATED_BY_STRING_LITERAL!insert	LOAD DATA INFILE 'a' INTO TABLE a COLUMNS TERMINATED BY 'a' zzz
 reject	reject	engine	mysqlDataDesc(COLUMNS_TERMINATED_BY_STRING_LITERAL)?/COLUMNS_TERMINATED_BY_STRING_LITERAL!swap	LOAD DATA INFILE 'a' INTO TABLE a COMMENT TERMINATED BY 'a'
-reject	accept	engine	mysqlDataDesc(LINES_TERMINATED_BY_STRING_LITERAL)?/%empty	LOAD DATA INFILE 'a' INTO TABLE a
-reject	accept	engine	mysqlDataDesc(LINES_TERMINATED_BY_STRING_LITERAL)?/LINES_TERMINATED_BY_STRING_LITERAL	LOAD DATA INFILE 'a' INTO TABLE a LINES TERMINATED BY 'a'
+accept	accept	engine	mysqlDataDesc(LINES_TERMINATED_BY_STRING_LITERAL)?/%empty	LOAD DATA INFILE 'a' INTO TABLE a
+accept	accept	engine	mysqlDataDesc(LINES_TERMINATED_BY_STRING_LITERAL)?/LINES_TERMINATED_BY_STRING_LITERAL	LOAD DATA INFILE 'a' INTO TABLE a LINES TERMINATED BY 'a'
 reject	reject	engine	mysqlDataDesc(LINES_TERMINATED_BY_STRING_LITERAL)?/LINES_TERMINATED_BY_STRING_LITERAL!drop-2	LOAD DATA INFILE 'a' INTO TABLE a LINES BY 'a'
 reject	reject	engine	mysqlDataDesc(LINES_TERMINATED_BY_STRING_LITERAL)?/LINES_TERMINATED_BY_STRING_LITERAL!drop-3	LOAD DATA INFILE 'a' INTO TABLE a LINES TERMINATED 'a'
 reject	reject	engine	mysqlDataDesc(LINES_TERMINATED_BY_STRING_LITERAL)?/LINES_TERMINATED_BY_STRING_LITERAL!drop-4	LOAD DATA INFILE 'a' INTO TABLE a LINES TERMINATED BY
 reject	reject	engine	mysqlDataDesc(LINES_TERMINATED_BY_STRING_LITERAL)?/LINES_TERMINATED_BY_STRING_LITERAL!insert	LOAD DATA INFILE 'a' INTO TABLE a LINES TERMINATED BY 'a' zzz
 reject	reject	engine	mysqlDataDesc(LINES_TERMINATED_BY_STRING_LITERAL)?/LINES_TERMINATED_BY_STRING_LITERAL!swap	LOAD DATA INFILE 'a' INTO TABLE a LINK TERMINATED BY 'a'
-reject	accept	engine	mysqlDataDesc(skipLines)?/%empty	LOAD DATA INFILE 'a' INTO TABLE a
-reject	accept	engine	mysqlDataDesc(skipLines)?/skipLines	LOAD DATA INFILE 'a' INTO TABLE a IGNORE 1 LINES
+accept	accept	engine	mysqlDataDesc(skipLines)?/%empty	LOAD DATA INFILE 'a' INTO TABLE a
+accept	accept	engine	mysqlDataDesc(skipLines)?/skipLines	LOAD DATA INFILE 'a' INTO TABLE a IGNORE 1 LINES
 reject	reject	engine	mysqlDataDesc(skipLines)?/skipLines!drop-1	LOAD DATA INFILE 'a' INTO TABLE a 1 LINES
 reject	reject	engine	mysqlDataDesc(skipLines)?/skipLines!drop-2	LOAD DATA INFILE 'a' INTO TABLE a IGNORE LINES
 reject	reject	engine	mysqlDataDesc(skipLines)?/skipLines!drop-3	LOAD DATA INFILE 'a' INTO TABLE a IGNORE 1
 reject	reject	engine	mysqlDataDesc(skipLines)?/skipLines!insert	LOAD DATA INFILE 'a' INTO TABLE a IGNORE 1 LINES zzz
 reject	reject	engine	mysqlDataDesc(skipLines)?/skipLines!swap	LOAD DATA INFILE 'a' INTO TABLE a IMMEDIATE 1 LINES
-reject	accept	engine	mysqlDataDesc(identifierList)?/%empty	LOAD DATA INFILE 'a' INTO TABLE a
-reject	accept	engine	mysqlDataDesc(identifierList)?/identifierList	LOAD DATA INFILE 'a' INTO TABLE a(a)
+accept	accept	engine	mysqlDataDesc(identifierList)?/%empty	LOAD DATA INFILE 'a' INTO TABLE a
+accept	accept	engine	mysqlDataDesc(identifierList)?/identifierList	LOAD DATA INFILE 'a' INTO TABLE a(a)
 reject	reject	engine	mysqlDataDesc(identifierList)?/identifierList!drop-1	LOAD DATA INFILE 'a' INTO TABLE a a)
 reject	reject	engine	mysqlDataDesc(identifierList)?/identifierList!drop-2	LOAD DATA INFILE 'a' INTO TABLE a()
 reject	reject	engine	mysqlDataDesc(identifierList)?/identifierList!drop-3	LOAD DATA INFILE 'a' INTO TABLE a(a
 reject	reject	engine	mysqlDataDesc(identifierList)?/identifierList!insert	LOAD DATA INFILE 'a' INTO TABLE a(a) zzz
-reject	accept	engine	mysqlDataDesc(colMappingList)?/%empty	LOAD DATA INFILE 'a' INTO TABLE a
-reject	accept	engine	mysqlDataDesc(colMappingList)?/colMappingList	LOAD DATA INFILE 'a' INTO TABLE a SET(a = CURRENT_DATE)
-reject	accept	engine	mysqlDataDesc(propertyClause)?/%empty	LOAD DATA INFILE 'a' INTO TABLE a
+accept	accept	engine	mysqlDataDesc(colMappingList)?/%empty	LOAD DATA INFILE 'a' INTO TABLE a
+accept	accept	engine	mysqlDataDesc(colMappingList)?/colMappingList	LOAD DATA INFILE 'a' INTO TABLE a SET(a = CURRENT_DATE)
+accept	accept	engine	mysqlDataDesc(propertyClause)?/%empty	LOAD DATA INFILE 'a' INTO TABLE a
 reject	reject	engine	mysqlDataDesc(propertyClause)?/propertyClause	LOAD DATA INFILE 'a' INTO TABLE a PROPERTIES(a = a)
-reject	accept	engine	skipLines/IGNORE_INTEGER_VALUE_LINES	LOAD DATA INFILE 'a' INTO TABLE a IGNORE 1 LINES
-reject	accept	engine	skipLines/IGNORE_INTEGER_VALUE_ROWS	LOAD DATA INFILE 'a' INTO TABLE a IGNORE 1 ROWS
+accept	accept	engine	skipLines/IGNORE_INTEGER_VALUE_LINES	LOAD DATA INFILE 'a' INTO TABLE a IGNORE 1 LINES
+accept	accept	engine	skipLines/IGNORE_INTEGER_VALUE_ROWS	LOAD DATA INFILE 'a' INTO TABLE a IGNORE 1 ROWS
 reject	reject	engine	skipLines/IGNORE_INTEGER_VALUE_ROWS!drop-1	LOAD DATA INFILE 'a' INTO TABLE a 1 ROWS
 reject	reject	engine	skipLines/IGNORE_INTEGER_VALUE_ROWS!drop-2	LOAD DATA INFILE 'a' INTO TABLE a IGNORE ROWS
 reject	reject	engine	skipLines/IGNORE_INTEGER_VALUE_ROWS!insert	LOAD DATA INFILE 'a' INTO TABLE a IGNORE 1 ROWS zzz
@@ -8473,7 +8473,7 @@ accept	accept	engine	stmt/help_stmt	HELP a
 reject	reject	engine	stmt/help_stmt!drop-2	HELP
 reject	reject	engine	stmt/help_stmt!insert	HELP a zzz
 reject	reject	engine	stmt/help_stmt!swap	HISTOGRAM a
-reject	accept	engine	stmt/load_stmt	LOAD DATA INFILE 'a' INTO TABLE a
+accept	accept	engine	stmt/load_stmt	LOAD DATA INFILE 'a' INTO TABLE a
 reject	reject	engine	stmt/load_stmt!drop-1	DATA INFILE 'a' INTO TABLE a
 reject	reject	engine	stmt/load_stmt!drop-2	LOAD INFILE 'a' INTO TABLE a
 reject	reject	engine	stmt/load_stmt!drop-3	LOAD DATA 'a' INTO TABLE a
@@ -10032,7 +10032,7 @@ reject	reject	engine	user_identity/ident_or_text_@_[_ident_or_text_]!drop-5	ALTE
 reject	reject	engine	user_identity/ident_or_text_@_[_ident_or_text_]!insert	ALTER USER a@[ a ] zzz
 accept	accept	engine	help_stmt/HELP_ident_or_text	HELP a
 accept	accept	engine	export_stmt/EXPORT_TABLE_base_table_ref_where_clause_TO_STRING_LITE~ae3e3667	EXPORT TABLE a TO 'a'
-reject	accept	engine	load_stmt/LOAD_LABEL_job_label_(_data_desc_list_)_opt_broker_opt_~05094f3d	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a)
+accept	accept	engine	load_stmt/LOAD_LABEL_job_label_(_data_desc_list_)_opt_broker_opt_~05094f3d	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a)
 reject	reject	engine	load_stmt/LOAD_LABEL_job_label_(_data_desc_list_)_opt_broker_opt_~05094f3d!drop-1	LABEL a(DATA FROM TABLE a INTO TABLE a)
 reject	reject	engine	load_stmt/LOAD_LABEL_job_label_(_data_desc_list_)_opt_broker_opt_~05094f3d!drop-2	LOAD a(DATA FROM TABLE a INTO TABLE a)
 reject	reject	engine	load_stmt/LOAD_LABEL_job_label_(_data_desc_list_)_opt_broker_opt_~05094f3d!drop-3	LOAD LABEL(DATA FROM TABLE a INTO TABLE a)
@@ -10047,7 +10047,7 @@ reject	reject	engine	load_stmt/LOAD_LABEL_job_label_(_data_desc_list_)_opt_broke
 reject	reject	engine	load_stmt/LOAD_LABEL_job_label_(_data_desc_list_)_opt_broker_opt_~05094f3d!drop-12	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a
 reject	reject	engine	load_stmt/LOAD_LABEL_job_label_(_data_desc_list_)_opt_broker_opt_~05094f3d!insert	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a) zzz
 reject	reject	engine	load_stmt/LOAD_LABEL_job_label_(_data_desc_list_)_opt_broker_opt_~05094f3d!swap	LOCAL LABEL a(DATA FROM TABLE a INTO TABLE a)
-reject	accept	engine	load_stmt/LOAD_LABEL_job_label_(_data_desc_list_)_resource_desc_o~68df59d7	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a) WITH RESOURCE a
+accept	accept	engine	load_stmt/LOAD_LABEL_job_label_(_data_desc_list_)_resource_desc_o~68df59d7	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a) WITH RESOURCE a
 reject	reject	engine	load_stmt/LOAD_LABEL_job_label_(_data_desc_list_)_resource_desc_o~68df59d7!drop-1	LABEL a(DATA FROM TABLE a INTO TABLE a) WITH RESOURCE a
 reject	reject	engine	load_stmt/LOAD_LABEL_job_label_(_data_desc_list_)_resource_desc_o~68df59d7!drop-2	LOAD a(DATA FROM TABLE a INTO TABLE a) WITH RESOURCE a
 reject	reject	engine	load_stmt/LOAD_LABEL_job_label_(_data_desc_list_)_resource_desc_o~68df59d7!drop-3	LOAD LABEL(DATA FROM TABLE a INTO TABLE a) WITH RESOURCE a
@@ -10065,7 +10065,7 @@ reject	reject	engine	load_stmt/LOAD_LABEL_job_label_(_data_desc_list_)_resource_
 reject	reject	engine	load_stmt/LOAD_LABEL_job_label_(_data_desc_list_)_resource_desc_o~68df59d7!drop-15	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a) WITH RESOURCE
 reject	reject	engine	load_stmt/LOAD_LABEL_job_label_(_data_desc_list_)_resource_desc_o~68df59d7!insert	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a) WITH RESOURCE a zzz
 reject	reject	engine	load_stmt/LOAD_LABEL_job_label_(_data_desc_list_)_resource_desc_o~68df59d7!swap	LOCAL LABEL a(DATA FROM TABLE a INTO TABLE a) WITH RESOURCE a
-reject	accept	engine	load_stmt/LOAD_mysql_data_desc_opt_properties_opt_comment	LOAD DATA INFILE 'a' INTO TABLE a
+accept	accept	engine	load_stmt/LOAD_mysql_data_desc_opt_properties_opt_comment	LOAD DATA INFILE 'a' INTO TABLE a
 accept	accept	engine	job_label/ident	ALTER ROUTINE LOAD FOR a
 accept	accept	engine	job_label/ident_._ident	ALTER ROUTINE LOAD FOR a.a
 reject	reject	engine	job_label/ident_._ident!drop-1	ALTER ROUTINE LOAD FOR.a
@@ -10111,11 +10111,11 @@ reject	reject	engine	copy_select_expr_list/*!truncate	COPY INTO a FROM(SELECT
 reject	reject	engine	copy_select_expr_list/*!insert	COPY INTO a FROM(SELECT * zzz FROM@a)
 reject	accept	engine	copy_select_expr_list/expr_list	COPY INTO a FROM(SELECT 1 FROM@a)
 reject	reject	engine	copy_select_expr_list/expr_list!insert	COPY INTO a FROM(SELECT 1 zzz FROM@a)
-reject	accept	engine	data_desc_list/data_desc	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a)
+accept	accept	engine	data_desc_list/data_desc	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a)
 reject	reject	engine	data_desc_list/data_desc!truncate	LOAD LABEL a(DATA FROM TABLE a INTO TABLE
 reject	reject	engine	data_desc_list/data_desc!insert	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a zzz)
 reject	reject	engine	data_desc_list/data_desc!swap	LOAD LABEL a(DATABASE FROM TABLE a INTO TABLE a)
-reject	accept	engine	data_desc_list/data_desc_list_,_data_desc	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a, DATA FROM TABLE a INTO TABLE a)
+accept	accept	engine	data_desc_list/data_desc_list_,_data_desc	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a, DATA FROM TABLE a INTO TABLE a)
 reject	reject	engine	data_desc_list/data_desc_list_,_data_desc!drop-1	LOAD LABEL a(FROM TABLE a INTO TABLE a, DATA FROM TABLE a INTO TABLE a)
 reject	reject	engine	data_desc_list/data_desc_list_,_data_desc!drop-2	LOAD LABEL a(DATA TABLE a INTO TABLE a, DATA FROM TABLE a INTO TABLE a)
 reject	reject	engine	data_desc_list/data_desc_list_,_data_desc!drop-3	LOAD LABEL a(DATA FROM a INTO TABLE a, DATA FROM TABLE a INTO TABLE a)
@@ -10134,27 +10134,27 @@ reject	reject	engine	data_desc_list/data_desc_list_,_data_desc!drop-15	LOAD LABE
 reject	reject	engine	data_desc_list/data_desc_list_,_data_desc!truncate	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a, DATA FROM TABLE a INTO TABLE
 reject	reject	engine	data_desc_list/data_desc_list_,_data_desc!insert	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a, DATA FROM TABLE a INTO TABLE a zzz)
 reject	reject	engine	data_desc_list/data_desc_list_,_data_desc!swap	LOAD LABEL a(DATABASE FROM TABLE a INTO TABLE a, DATA FROM TABLE a INTO TABLE a)
-reject	accept	engine	opt_merge_type/%empty	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a)
+accept	accept	engine	opt_merge_type/%empty	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a)
 reject	reject	engine	opt_merge_type/%empty!insert	LOAD LABEL a(zzz DATA FROM TABLE a INTO TABLE a)
-reject	accept	engine	opt_merge_type/APPEND	LOAD LABEL a(APPEND DATA FROM TABLE a INTO TABLE a)
+accept	accept	engine	opt_merge_type/APPEND	LOAD LABEL a(APPEND DATA FROM TABLE a INTO TABLE a)
 reject	reject	engine	opt_merge_type/APPEND!truncate	LOAD LABEL a(
 reject	reject	engine	opt_merge_type/APPEND!insert	LOAD LABEL a(APPEND zzz DATA FROM TABLE a INTO TABLE a)
 reject	reject	engine	opt_merge_type/APPEND!swap	LOAD LABEL a(ARRAY DATA FROM TABLE a INTO TABLE a)
-reject	accept	engine	opt_merge_type/DELETE	LOAD LABEL a(DELETE DATA FROM TABLE a INTO TABLE a)
+accept	accept	engine	opt_merge_type/DELETE	LOAD LABEL a(DELETE DATA FROM TABLE a INTO TABLE a)
 reject	reject	engine	opt_merge_type/DELETE!insert	LOAD LABEL a(DELETE zzz DATA FROM TABLE a INTO TABLE a)
 reject	reject	engine	opt_merge_type/DELETE!swap	LOAD LABEL a(DEMAND DATA FROM TABLE a INTO TABLE a)
-reject	accept	engine	opt_merge_type/MERGE	LOAD LABEL a(MERGE DATA FROM TABLE a INTO TABLE a)
+accept	accept	engine	opt_merge_type/MERGE	LOAD LABEL a(MERGE DATA FROM TABLE a INTO TABLE a)
 reject	reject	engine	opt_merge_type/MERGE!insert	LOAD LABEL a(MERGE zzz DATA FROM TABLE a INTO TABLE a)
 reject	reject	engine	opt_merge_type/MERGE!swap	LOAD LABEL a(MIGRATE DATA FROM TABLE a INTO TABLE a)
-reject	accept	engine	opt_merge_type/WITH_APPEND	LOAD LABEL a(WITH APPEND DATA FROM TABLE a INTO TABLE a)
+accept	accept	engine	opt_merge_type/WITH_APPEND	LOAD LABEL a(WITH APPEND DATA FROM TABLE a INTO TABLE a)
 reject	reject	engine	opt_merge_type/WITH_APPEND!drop-2	LOAD LABEL a(WITH DATA FROM TABLE a INTO TABLE a)
 reject	reject	engine	opt_merge_type/WITH_APPEND!truncate	LOAD LABEL a(WITH
 reject	reject	engine	opt_merge_type/WITH_APPEND!insert	LOAD LABEL a(WITH APPEND zzz DATA FROM TABLE a INTO TABLE a)
 reject	reject	engine	opt_merge_type/WITH_APPEND!swap	LOAD LABEL a(WORK APPEND DATA FROM TABLE a INTO TABLE a)
-reject	accept	engine	opt_merge_type/WITH_DELETE	LOAD LABEL a(WITH DELETE DATA FROM TABLE a INTO TABLE a)
+accept	accept	engine	opt_merge_type/WITH_DELETE	LOAD LABEL a(WITH DELETE DATA FROM TABLE a INTO TABLE a)
 reject	reject	engine	opt_merge_type/WITH_DELETE!insert	LOAD LABEL a(WITH DELETE zzz DATA FROM TABLE a INTO TABLE a)
 reject	reject	engine	opt_merge_type/WITH_DELETE!swap	LOAD LABEL a(WORK DELETE DATA FROM TABLE a INTO TABLE a)
-reject	accept	engine	opt_merge_type/WITH_MERGE	LOAD LABEL a(WITH MERGE DATA FROM TABLE a INTO TABLE a)
+accept	accept	engine	opt_merge_type/WITH_MERGE	LOAD LABEL a(WITH MERGE DATA FROM TABLE a INTO TABLE a)
 reject	reject	engine	opt_merge_type/WITH_MERGE!insert	LOAD LABEL a(WITH MERGE zzz DATA FROM TABLE a INTO TABLE a)
 reject	reject	engine	opt_merge_type/WITH_MERGE!swap	LOAD LABEL a(WORK MERGE DATA FROM TABLE a INTO TABLE a)
 reject	accept	engine	opt_with_merge_type/%empty	CREATE ROUTINE LOAD a FROM a('a' = 'a')
@@ -10177,7 +10177,7 @@ accept	accept	engine	data_desc/opt_merge_type_DATA_INFILE_(_string_list_)_opt_ne
 reject	reject	engine	data_desc/opt_merge_type_DATA_INFILE_(_string_list_)_opt_negative~1b041223!drop-1	LOAD LABEL a(INFILE('a') INTO TABLE a)
 reject	reject	engine	data_desc/opt_merge_type_DATA_INFILE_(_string_list_)_opt_negative~1b041223!drop-2	LOAD LABEL a(DATA('a') INTO TABLE a)
 reject	reject	engine	data_desc/opt_merge_type_DATA_INFILE_(_string_list_)_opt_negative~1b041223!drop-3	LOAD LABEL a(DATA INFILE 'a') INTO TABLE a)
-accept	reject	engine	data_desc/opt_merge_type_DATA_INFILE_(_string_list_)_opt_negative~1b041223!drop-4	LOAD LABEL a(DATA INFILE() INTO TABLE a)
+reject	reject	engine	data_desc/opt_merge_type_DATA_INFILE_(_string_list_)_opt_negative~1b041223!drop-4	LOAD LABEL a(DATA INFILE() INTO TABLE a)
 reject	reject	engine	data_desc/opt_merge_type_DATA_INFILE_(_string_list_)_opt_negative~1b041223!drop-5	LOAD LABEL a(DATA INFILE('a' INTO TABLE a)
 reject	reject	engine	data_desc/opt_merge_type_DATA_INFILE_(_string_list_)_opt_negative~1b041223!drop-6	LOAD LABEL a(DATA INFILE('a') TABLE a)
 reject	reject	engine	data_desc/opt_merge_type_DATA_INFILE_(_string_list_)_opt_negative~1b041223!drop-7	LOAD LABEL a(DATA INFILE('a') INTO a)
@@ -10185,44 +10185,44 @@ reject	reject	engine	data_desc/opt_merge_type_DATA_INFILE_(_string_list_)_opt_ne
 reject	reject	engine	data_desc/opt_merge_type_DATA_INFILE_(_string_list_)_opt_negative~1b041223!truncate	LOAD LABEL a(DATA INFILE('a') INTO TABLE
 reject	reject	engine	data_desc/opt_merge_type_DATA_INFILE_(_string_list_)_opt_negative~1b041223!insert	LOAD LABEL a(DATA INFILE('a') INTO TABLE a zzz)
 reject	reject	engine	data_desc/opt_merge_type_DATA_INFILE_(_string_list_)_opt_negative~1b041223!swap	LOAD LABEL a(DATABASE INFILE('a') INTO TABLE a)
-reject	accept	engine	data_desc/opt_merge_type_DATA_FROM_TABLE_ident_opt_negative_INTO_~f7a94a16	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a)
-reject	accept	engine	mysql_data_desc/DATA_opt_local_INFILE_STRING_LITERAL_INTO_TABLE_table_n~e95e57be	LOAD DATA INFILE 'a' INTO TABLE a
+accept	accept	engine	data_desc/opt_merge_type_DATA_FROM_TABLE_ident_opt_negative_INTO_~f7a94a16	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a)
+accept	accept	engine	mysql_data_desc/DATA_opt_local_INFILE_STRING_LITERAL_INTO_TABLE_table_n~e95e57be	LOAD DATA INFILE 'a' INTO TABLE a
 reject	reject	engine	mysql_data_desc/DATA_opt_local_INFILE_STRING_LITERAL_INTO_TABLE_table_n~e95e57be!swap	LOAD DATABASE INFILE 'a' INTO TABLE a
-reject	accept	engine	opt_negative/%empty	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a)
+accept	accept	engine	opt_negative/%empty	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a)
 reject	reject	engine	opt_negative/%empty!insert	LOAD LABEL a(DATA FROM TABLE a zzz INTO TABLE a)
 reject	reject	engine	opt_negative/NEGATIVE	LOAD LABEL a(DATA FROM TABLE a NEGATIVE INTO TABLE a)
 reject	reject	engine	opt_negative/NEGATIVE!truncate	LOAD LABEL a(DATA FROM TABLE a
 reject	reject	engine	opt_negative/NEGATIVE!insert	LOAD LABEL a(DATA FROM TABLE a NEGATIVE zzz INTO TABLE a)
 reject	reject	engine	opt_negative/NEGATIVE!swap	LOAD LABEL a(DATA FROM TABLE a NEVER INTO TABLE a)
-reject	accept	engine	opt_local/%empty	LOAD DATA INFILE 'a' INTO TABLE a
+accept	accept	engine	opt_local/%empty	LOAD DATA INFILE 'a' INTO TABLE a
 reject	reject	engine	opt_local/%empty!insert	LOAD DATA zzz INFILE 'a' INTO TABLE a
-reject	accept	engine	opt_local/LOCAL	LOAD DATA LOCAL INFILE 'a' INTO TABLE a
+accept	accept	engine	opt_local/LOCAL	LOAD DATA LOCAL INFILE 'a' INTO TABLE a
 reject	reject	engine	opt_local/LOCAL!truncate	LOAD DATA
 reject	reject	engine	opt_local/LOCAL!insert	LOAD DATA LOCAL zzz INFILE 'a' INTO TABLE a
 reject	reject	engine	opt_local/LOCAL!swap	LOAD DATA LOCALTIME INFILE 'a' INTO TABLE a
-reject	accept	engine	opt_field_term/%empty	LOAD DATA INFILE 'a' INTO TABLE a
-reject	accept	engine	opt_field_term/COLUMNS_TERMINATED_BY_STRING_LITERAL	LOAD DATA INFILE 'a' INTO TABLE a COLUMNS TERMINATED BY 'a'
+accept	accept	engine	opt_field_term/%empty	LOAD DATA INFILE 'a' INTO TABLE a
+accept	accept	engine	opt_field_term/COLUMNS_TERMINATED_BY_STRING_LITERAL	LOAD DATA INFILE 'a' INTO TABLE a COLUMNS TERMINATED BY 'a'
 reject	reject	engine	opt_field_term/COLUMNS_TERMINATED_BY_STRING_LITERAL!drop-1	LOAD DATA INFILE 'a' INTO TABLE a TERMINATED BY 'a'
 reject	reject	engine	opt_field_term/COLUMNS_TERMINATED_BY_STRING_LITERAL!drop-2	LOAD DATA INFILE 'a' INTO TABLE a COLUMNS BY 'a'
 reject	reject	engine	opt_field_term/COLUMNS_TERMINATED_BY_STRING_LITERAL!drop-3	LOAD DATA INFILE 'a' INTO TABLE a COLUMNS TERMINATED 'a'
 reject	reject	engine	opt_field_term/COLUMNS_TERMINATED_BY_STRING_LITERAL!drop-4	LOAD DATA INFILE 'a' INTO TABLE a COLUMNS TERMINATED BY
 reject	reject	engine	opt_field_term/COLUMNS_TERMINATED_BY_STRING_LITERAL!insert	LOAD DATA INFILE 'a' INTO TABLE a COLUMNS TERMINATED BY 'a' zzz
 reject	reject	engine	opt_field_term/COLUMNS_TERMINATED_BY_STRING_LITERAL!swap	LOAD DATA INFILE 'a' INTO TABLE a COMMENT TERMINATED BY 'a'
-reject	accept	engine	opt_line_term/%empty	LOAD DATA INFILE 'a' INTO TABLE a
-reject	accept	engine	opt_line_term/LINES_TERMINATED_BY_STRING_LITERAL	LOAD DATA INFILE 'a' INTO TABLE a LINES TERMINATED BY 'a'
+accept	accept	engine	opt_line_term/%empty	LOAD DATA INFILE 'a' INTO TABLE a
+accept	accept	engine	opt_line_term/LINES_TERMINATED_BY_STRING_LITERAL	LOAD DATA INFILE 'a' INTO TABLE a LINES TERMINATED BY 'a'
 reject	reject	engine	opt_line_term/LINES_TERMINATED_BY_STRING_LITERAL!drop-2	LOAD DATA INFILE 'a' INTO TABLE a LINES BY 'a'
 reject	reject	engine	opt_line_term/LINES_TERMINATED_BY_STRING_LITERAL!drop-3	LOAD DATA INFILE 'a' INTO TABLE a LINES TERMINATED 'a'
 reject	reject	engine	opt_line_term/LINES_TERMINATED_BY_STRING_LITERAL!drop-4	LOAD DATA INFILE 'a' INTO TABLE a LINES TERMINATED BY
 reject	reject	engine	opt_line_term/LINES_TERMINATED_BY_STRING_LITERAL!insert	LOAD DATA INFILE 'a' INTO TABLE a LINES TERMINATED BY 'a' zzz
 reject	reject	engine	opt_line_term/LINES_TERMINATED_BY_STRING_LITERAL!swap	LOAD DATA INFILE 'a' INTO TABLE a LINK TERMINATED BY 'a'
-reject	accept	engine	opt_skip_lines/%empty	LOAD DATA INFILE 'a' INTO TABLE a
-reject	accept	engine	opt_skip_lines/IGNORE_INTEGER_VALUE_LINES	LOAD DATA INFILE 'a' INTO TABLE a IGNORE 1 LINES
+accept	accept	engine	opt_skip_lines/%empty	LOAD DATA INFILE 'a' INTO TABLE a
+accept	accept	engine	opt_skip_lines/IGNORE_INTEGER_VALUE_LINES	LOAD DATA INFILE 'a' INTO TABLE a IGNORE 1 LINES
 reject	reject	engine	opt_skip_lines/IGNORE_INTEGER_VALUE_LINES!drop-1	LOAD DATA INFILE 'a' INTO TABLE a 1 LINES
 reject	reject	engine	opt_skip_lines/IGNORE_INTEGER_VALUE_LINES!drop-2	LOAD DATA INFILE 'a' INTO TABLE a IGNORE LINES
 reject	reject	engine	opt_skip_lines/IGNORE_INTEGER_VALUE_LINES!drop-3	LOAD DATA INFILE 'a' INTO TABLE a IGNORE 1
 reject	reject	engine	opt_skip_lines/IGNORE_INTEGER_VALUE_LINES!insert	LOAD DATA INFILE 'a' INTO TABLE a IGNORE 1 LINES zzz
 reject	reject	engine	opt_skip_lines/IGNORE_INTEGER_VALUE_LINES!swap	LOAD DATA INFILE 'a' INTO TABLE a IMMEDIATE 1 LINES
-reject	accept	engine	opt_skip_lines/IGNORE_INTEGER_VALUE_ROWS	LOAD DATA INFILE 'a' INTO TABLE a IGNORE 1 ROWS
+accept	accept	engine	opt_skip_lines/IGNORE_INTEGER_VALUE_ROWS	LOAD DATA INFILE 'a' INTO TABLE a IGNORE 1 ROWS
 reject	reject	engine	opt_skip_lines/IGNORE_INTEGER_VALUE_ROWS!drop-1	LOAD DATA INFILE 'a' INTO TABLE a 1 ROWS
 reject	reject	engine	opt_skip_lines/IGNORE_INTEGER_VALUE_ROWS!drop-2	LOAD DATA INFILE 'a' INTO TABLE a IGNORE ROWS
 reject	reject	engine	opt_skip_lines/IGNORE_INTEGER_VALUE_ROWS!insert	LOAD DATA INFILE 'a' INTO TABLE a IGNORE 1 ROWS zzz
@@ -10244,7 +10244,7 @@ reject	reject	engine	opt_file_format/FORMAT_AS_ident_or_text!drop-3	SELECT 1 INT
 reject	reject	engine	opt_file_format/FORMAT_AS_ident_or_text!insert	SELECT 1 INTO OUTFILE 'a' FORMAT AS a zzz
 reject	reject	engine	opt_file_format/FORMAT_AS_ident_or_text!swap	SELECT 1 INTO OUTFILE 'a' FREE AS a
 accept	accept	engine	opt_file_compress_type/%empty	LOAD LABEL a(DATA INFILE('a') INTO TABLE a)
-reject	accept	engine	opt_file_compress_type/COMPRESS_TYPE_AS_ident_or_text	LOAD LABEL a(DATA INFILE('a') INTO TABLE a COMPRESS_TYPE AS a)
+accept	accept	engine	opt_file_compress_type/COMPRESS_TYPE_AS_ident_or_text	LOAD LABEL a(DATA INFILE('a') INTO TABLE a COMPRESS_TYPE AS a)
 reject	reject	engine	opt_file_compress_type/COMPRESS_TYPE_AS_ident_or_text!drop-1	LOAD LABEL a(DATA INFILE('a') INTO TABLE a AS a)
 reject	reject	engine	opt_file_compress_type/COMPRESS_TYPE_AS_ident_or_text!drop-2	LOAD LABEL a(DATA INFILE('a') INTO TABLE a COMPRESS_TYPE a)
 reject	reject	engine	opt_file_compress_type/COMPRESS_TYPE_AS_ident_or_text!drop-3	LOAD LABEL a(DATA INFILE('a') INTO TABLE a COMPRESS_TYPE AS)
@@ -10258,7 +10258,7 @@ reject	reject	engine	opt_columns_from_path/COLUMNS_FROM_PATH_AS_(_ident_list_)!d
 reject	reject	engine	opt_columns_from_path/COLUMNS_FROM_PATH_AS_(_ident_list_)!drop-3	LOAD LABEL a(DATA INFILE('a') INTO TABLE a COLUMNS FROM AS(a))
 reject	reject	engine	opt_columns_from_path/COLUMNS_FROM_PATH_AS_(_ident_list_)!drop-4	LOAD LABEL a(DATA INFILE('a') INTO TABLE a COLUMNS FROM PATH(a))
 reject	reject	engine	opt_columns_from_path/COLUMNS_FROM_PATH_AS_(_ident_list_)!drop-5	LOAD LABEL a(DATA INFILE('a') INTO TABLE a COLUMNS FROM PATH AS a))
-accept	reject	engine	opt_columns_from_path/COLUMNS_FROM_PATH_AS_(_ident_list_)!drop-6	LOAD LABEL a(DATA INFILE('a') INTO TABLE a COLUMNS FROM PATH AS())
+reject	reject	engine	opt_columns_from_path/COLUMNS_FROM_PATH_AS_(_ident_list_)!drop-6	LOAD LABEL a(DATA INFILE('a') INTO TABLE a COLUMNS FROM PATH AS())
 reject	reject	engine	opt_columns_from_path/COLUMNS_FROM_PATH_AS_(_ident_list_)!drop-7	LOAD LABEL a(DATA INFILE('a') INTO TABLE a COLUMNS FROM PATH AS(a)
 reject	reject	engine	opt_columns_from_path/COLUMNS_FROM_PATH_AS_(_ident_list_)!truncate	LOAD LABEL a(DATA INFILE('a') INTO TABLE a COLUMNS FROM PATH AS(a
 reject	reject	engine	opt_columns_from_path/COLUMNS_FROM_PATH_AS_(_ident_list_)!insert	LOAD LABEL a(DATA INFILE('a') INTO TABLE a COLUMNS FROM PATH AS(a) zzz)
@@ -10288,7 +10288,7 @@ reject	reject	engine	col_with_comment_list/col_with_comment_list_,_col_with_comm
 reject	reject	engine	col_with_comment_list/col_with_comment_list_,_col_with_comment!truncate	ALTER VIEW a(a,
 reject	reject	engine	col_with_comment_list/col_with_comment_list_,_col_with_comment!insert	ALTER VIEW a(a, a zzz) AS SELECT 1
 accept	accept	engine	col_with_comment/ident_opt_comment	ALTER VIEW a(a) AS SELECT 1
-reject	accept	engine	opt_col_mapping_list/%empty	LOAD DATA INFILE 'a' INTO TABLE a
+accept	accept	engine	opt_col_mapping_list/%empty	LOAD DATA INFILE 'a' INTO TABLE a
 reject	reject	engine	opt_col_mapping_list/SET_(_expr_list_)	LOAD DATA INFILE 'a' INTO TABLE a SET(1)
 reject	reject	engine	opt_col_mapping_list/SET_(_expr_list_)!drop-1	LOAD DATA INFILE 'a' INTO TABLE a(1)
 reject	reject	engine	opt_col_mapping_list/SET_(_expr_list_)!drop-2	LOAD DATA INFILE 'a' INTO TABLE a SET 1)
@@ -10342,9 +10342,9 @@ reject	reject	engine	opt_broker/WITH_BROKER_ident_or_text_(_key_value_map_)!drop
 reject	reject	engine	opt_broker/WITH_BROKER_ident_or_text_(_key_value_map_)!drop-8	EXPORT TABLE a TO 'a' WITH BROKER a('a' = 'a'
 reject	reject	engine	opt_broker/WITH_BROKER_ident_or_text_(_key_value_map_)!insert	EXPORT TABLE a TO 'a' WITH BROKER a('a' = 'a') zzz
 reject	reject	engine	opt_broker/WITH_BROKER_ident_or_text_(_key_value_map_)!swap	EXPORT TABLE a TO 'a' WORK BROKER a('a' = 'a')
-reject	accept	engine	resource_desc/WITH_RESOURCE_ident_or_text	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a) WITH RESOURCE a
+accept	accept	engine	resource_desc/WITH_RESOURCE_ident_or_text	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a) WITH RESOURCE a
 reject	reject	engine	resource_desc/WITH_RESOURCE_ident_or_text!swap	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a) WORK RESOURCE a
-reject	accept	engine	resource_desc/WITH_RESOURCE_ident_or_text_(_key_value_map_)	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a) WITH RESOURCE a('a' = 'a')
+accept	accept	engine	resource_desc/WITH_RESOURCE_ident_or_text_(_key_value_map_)	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a) WITH RESOURCE a('a' = 'a')
 reject	reject	engine	resource_desc/WITH_RESOURCE_ident_or_text_(_key_value_map_)!drop-1	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a) RESOURCE a('a' = 'a')
 reject	reject	engine	resource_desc/WITH_RESOURCE_ident_or_text_(_key_value_map_)!drop-2	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a) WITH a('a' = 'a')
 reject	reject	engine	resource_desc/WITH_RESOURCE_ident_or_text_(_key_value_map_)!drop-3	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a) WITH RESOURCE('a' = 'a')
@@ -11439,39 +11439,39 @@ reject	reject	engine	opt_properties/properties!drop-6	SHOW DATA PROPERTIES('a' =
 reject	reject	engine	opt_properties/properties!insert	SHOW DATA PROPERTIES('a' = 'a') zzz
 reject	reject	engine	opt_properties/properties!swap	SHOW DATA PROPERTY('a' = 'a')
 accept	accept	engine	policy_condition_op/=	CREATE WORKLOAD POLICY a CONDITIONS(a = 1)
-accept	reject	engine	policy_condition_op/=!drop-1	CREATE WORKLOAD POLICY a CONDITIONS(a 1)
+reject	reject	engine	policy_condition_op/=!drop-1	CREATE WORKLOAD POLICY a CONDITIONS(a 1)
 reject	reject	engine	policy_condition_op/=!truncate	CREATE WORKLOAD POLICY a CONDITIONS(a
-accept	reject	engine	policy_condition_op/=!insert	CREATE WORKLOAD POLICY a CONDITIONS(a = zzz 1)
+reject	reject	engine	policy_condition_op/=!insert	CREATE WORKLOAD POLICY a CONDITIONS(a = zzz 1)
 accept	accept	engine	policy_condition_op/>	CREATE WORKLOAD POLICY a CONDITIONS(a > 1)
-accept	reject	engine	policy_condition_op/>!insert	CREATE WORKLOAD POLICY a CONDITIONS(a > zzz 1)
+reject	reject	engine	policy_condition_op/>!insert	CREATE WORKLOAD POLICY a CONDITIONS(a > zzz 1)
 accept	accept	engine	policy_condition_op/<	CREATE WORKLOAD POLICY a CONDITIONS(a < 1)
-accept	reject	engine	policy_condition_op/<!insert	CREATE WORKLOAD POLICY a CONDITIONS(a < zzz 1)
-accept	reject	engine	policy_condition_op/>_=	CREATE WORKLOAD POLICY a CONDITIONS(a > = 1)
+reject	reject	engine	policy_condition_op/<!insert	CREATE WORKLOAD POLICY a CONDITIONS(a < zzz 1)
+reject	reject	engine	policy_condition_op/>_=	CREATE WORKLOAD POLICY a CONDITIONS(a > = 1)
 reject	reject	engine	policy_condition_op/>_=!truncate	CREATE WORKLOAD POLICY a CONDITIONS(a >
-accept	reject	engine	policy_condition_op/>_=!insert	CREATE WORKLOAD POLICY a CONDITIONS(a > = zzz 1)
-accept	reject	engine	policy_condition_op/<_=	CREATE WORKLOAD POLICY a CONDITIONS(a < = 1)
+reject	reject	engine	policy_condition_op/>_=!insert	CREATE WORKLOAD POLICY a CONDITIONS(a > = zzz 1)
+reject	reject	engine	policy_condition_op/<_=	CREATE WORKLOAD POLICY a CONDITIONS(a < = 1)
 reject	reject	engine	policy_condition_op/<_=!truncate	CREATE WORKLOAD POLICY a CONDITIONS(a <
-accept	reject	engine	policy_condition_op/<_=!insert	CREATE WORKLOAD POLICY a CONDITIONS(a < = zzz 1)
+reject	reject	engine	policy_condition_op/<_=!insert	CREATE WORKLOAD POLICY a CONDITIONS(a < = zzz 1)
 accept	accept	engine	policy_condition_value/INTEGER_VALUE	CREATE WORKLOAD POLICY a CONDITIONS(a = 1)
-accept	reject	engine	policy_condition_value/INTEGER_VALUE!drop-1	CREATE WORKLOAD POLICY a CONDITIONS(a =)
+reject	reject	engine	policy_condition_value/INTEGER_VALUE!drop-1	CREATE WORKLOAD POLICY a CONDITIONS(a =)
 reject	reject	engine	policy_condition_value/INTEGER_VALUE!truncate	CREATE WORKLOAD POLICY a CONDITIONS(a =
-accept	reject	engine	policy_condition_value/INTEGER_VALUE!insert	CREATE WORKLOAD POLICY a CONDITIONS(a = 1 zzz)
+reject	reject	engine	policy_condition_value/INTEGER_VALUE!insert	CREATE WORKLOAD POLICY a CONDITIONS(a = 1 zzz)
 accept	accept	engine	policy_condition_value/STRING_LITERAL	CREATE WORKLOAD POLICY a CONDITIONS(a = 'a')
-accept	reject	engine	policy_condition_value/STRING_LITERAL!insert	CREATE WORKLOAD POLICY a CONDITIONS(a = 'a' zzz)
+reject	reject	engine	policy_condition_value/STRING_LITERAL!insert	CREATE WORKLOAD POLICY a CONDITIONS(a = 'a' zzz)
 accept	accept	engine	policy_condition_value/DECIMAL_VALUE	CREATE WORKLOAD POLICY a CONDITIONS(a = 1.5)
-accept	reject	engine	policy_condition_value/DECIMAL_VALUE!insert	CREATE WORKLOAD POLICY a CONDITIONS(a = 1.5 zzz)
+reject	reject	engine	policy_condition_value/DECIMAL_VALUE!insert	CREATE WORKLOAD POLICY a CONDITIONS(a = 1.5 zzz)
 accept	accept	engine	workload_policy_condition_list/ident_policy_condition_op_policy_condition_value	CREATE WORKLOAD POLICY a CONDITIONS(a = 1)
-accept	reject	engine	workload_policy_condition_list/ident_policy_condition_op_policy_condition_value!drop-1	CREATE WORKLOAD POLICY a CONDITIONS(= 1)
+reject	reject	engine	workload_policy_condition_list/ident_policy_condition_op_policy_condition_value!drop-1	CREATE WORKLOAD POLICY a CONDITIONS(= 1)
 accept	accept	engine	workload_policy_condition_list/workload_policy_condition_list_,_ident_policy_condition~d3cf42ad	CREATE WORKLOAD POLICY a CONDITIONS(a = 1, a = 1)
-accept	reject	engine	workload_policy_condition_list/workload_policy_condition_list_,_ident_policy_condition~d3cf42ad!drop-1	CREATE WORKLOAD POLICY a CONDITIONS(= 1, a = 1)
-accept	reject	engine	workload_policy_condition_list/workload_policy_condition_list_,_ident_policy_condition~d3cf42ad!drop-2	CREATE WORKLOAD POLICY a CONDITIONS(a 1, a = 1)
-accept	reject	engine	workload_policy_condition_list/workload_policy_condition_list_,_ident_policy_condition~d3cf42ad!drop-3	CREATE WORKLOAD POLICY a CONDITIONS(a =, a = 1)
-accept	reject	engine	workload_policy_condition_list/workload_policy_condition_list_,_ident_policy_condition~d3cf42ad!drop-4	CREATE WORKLOAD POLICY a CONDITIONS(a = 1 a = 1)
-accept	reject	engine	workload_policy_condition_list/workload_policy_condition_list_,_ident_policy_condition~d3cf42ad!drop-5	CREATE WORKLOAD POLICY a CONDITIONS(a = 1, = 1)
-accept	reject	engine	workload_policy_condition_list/workload_policy_condition_list_,_ident_policy_condition~d3cf42ad!drop-6	CREATE WORKLOAD POLICY a CONDITIONS(a = 1, a 1)
-accept	reject	engine	workload_policy_condition_list/workload_policy_condition_list_,_ident_policy_condition~d3cf42ad!drop-7	CREATE WORKLOAD POLICY a CONDITIONS(a = 1, a =)
+reject	reject	engine	workload_policy_condition_list/workload_policy_condition_list_,_ident_policy_condition~d3cf42ad!drop-1	CREATE WORKLOAD POLICY a CONDITIONS(= 1, a = 1)
+reject	reject	engine	workload_policy_condition_list/workload_policy_condition_list_,_ident_policy_condition~d3cf42ad!drop-2	CREATE WORKLOAD POLICY a CONDITIONS(a 1, a = 1)
+reject	reject	engine	workload_policy_condition_list/workload_policy_condition_list_,_ident_policy_condition~d3cf42ad!drop-3	CREATE WORKLOAD POLICY a CONDITIONS(a =, a = 1)
+reject	reject	engine	workload_policy_condition_list/workload_policy_condition_list_,_ident_policy_condition~d3cf42ad!drop-4	CREATE WORKLOAD POLICY a CONDITIONS(a = 1 a = 1)
+reject	reject	engine	workload_policy_condition_list/workload_policy_condition_list_,_ident_policy_condition~d3cf42ad!drop-5	CREATE WORKLOAD POLICY a CONDITIONS(a = 1, = 1)
+reject	reject	engine	workload_policy_condition_list/workload_policy_condition_list_,_ident_policy_condition~d3cf42ad!drop-6	CREATE WORKLOAD POLICY a CONDITIONS(a = 1, a 1)
+reject	reject	engine	workload_policy_condition_list/workload_policy_condition_list_,_ident_policy_condition~d3cf42ad!drop-7	CREATE WORKLOAD POLICY a CONDITIONS(a = 1, a =)
 reject	reject	engine	workload_policy_condition_list/workload_policy_condition_list_,_ident_policy_condition~d3cf42ad!truncate	CREATE WORKLOAD POLICY a CONDITIONS(a = 1, a =
-accept	reject	engine	workload_policy_condition_list/workload_policy_condition_list_,_ident_policy_condition~d3cf42ad!insert	CREATE WORKLOAD POLICY a CONDITIONS(a = 1, a = 1 zzz)
+reject	reject	engine	workload_policy_condition_list/workload_policy_condition_list_,_ident_policy_condition~d3cf42ad!insert	CREATE WORKLOAD POLICY a CONDITIONS(a = 1, a = 1 zzz)
 accept	accept	engine	conditions/CONDITIONS_(_workload_policy_condition_list_)	CREATE WORKLOAD POLICY a CONDITIONS(a = 1)
 reject	reject	engine	conditions/CONDITIONS_(_workload_policy_condition_list_)!drop-1	CREATE WORKLOAD POLICY a(a = 1)
 reject	reject	engine	conditions/CONDITIONS_(_workload_policy_condition_list_)!drop-2	CREATE WORKLOAD POLICY a CONDITIONS a = 1)
@@ -11481,37 +11481,37 @@ reject	reject	engine	conditions/CONDITIONS_(_workload_policy_condition_list_)!sw
 accept	accept	engine	opt_conditions/%empty	CREATE WORKLOAD POLICY a
 accept	accept	engine	opt_conditions/conditions	CREATE WORKLOAD POLICY a CONDITIONS(a = 1)
 accept	accept	engine	workload_policy_action_list/SET_SESSION_VARIABLE_STRING_LITERAL	CREATE WORKLOAD POLICY a ACTIONS(SET_SESSION_VARIABLE 'a')
-accept	reject	engine	workload_policy_action_list/SET_SESSION_VARIABLE_STRING_LITERAL!drop-1	CREATE WORKLOAD POLICY a ACTIONS('a')
+reject	reject	engine	workload_policy_action_list/SET_SESSION_VARIABLE_STRING_LITERAL!drop-1	CREATE WORKLOAD POLICY a ACTIONS('a')
 accept	accept	engine	workload_policy_action_list/SET_SESSION_VARIABLE_STRING_LITERAL!drop-2	CREATE WORKLOAD POLICY a ACTIONS(SET_SESSION_VARIABLE)
 reject	reject	engine	workload_policy_action_list/SET_SESSION_VARIABLE_STRING_LITERAL!truncate	CREATE WORKLOAD POLICY a ACTIONS(SET_SESSION_VARIABLE
-accept	reject	engine	workload_policy_action_list/SET_SESSION_VARIABLE_STRING_LITERAL!insert	CREATE WORKLOAD POLICY a ACTIONS(SET_SESSION_VARIABLE 'a' zzz)
+reject	reject	engine	workload_policy_action_list/SET_SESSION_VARIABLE_STRING_LITERAL!insert	CREATE WORKLOAD POLICY a ACTIONS(SET_SESSION_VARIABLE 'a' zzz)
 accept	accept	engine	workload_policy_action_list/SET_SESSION_VARIABLE_STRING_LITERAL!swap	CREATE WORKLOAD POLICY a ACTIONS(SHAPE 'a')
 accept	accept	engine	workload_policy_action_list/workload_policy_action_list_,_SET_SESSION_VARIABLE_STRI~09505c51	CREATE WORKLOAD POLICY a ACTIONS(a, SET_SESSION_VARIABLE 'a')
-accept	reject	engine	workload_policy_action_list/workload_policy_action_list_,_SET_SESSION_VARIABLE_STRI~09505c51!drop-1	CREATE WORKLOAD POLICY a ACTIONS(, SET_SESSION_VARIABLE 'a')
-accept	reject	engine	workload_policy_action_list/workload_policy_action_list_,_SET_SESSION_VARIABLE_STRI~09505c51!drop-2	CREATE WORKLOAD POLICY a ACTIONS(a SET_SESSION_VARIABLE 'a')
-accept	reject	engine	workload_policy_action_list/workload_policy_action_list_,_SET_SESSION_VARIABLE_STRI~09505c51!drop-3	CREATE WORKLOAD POLICY a ACTIONS(a, 'a')
+reject	reject	engine	workload_policy_action_list/workload_policy_action_list_,_SET_SESSION_VARIABLE_STRI~09505c51!drop-1	CREATE WORKLOAD POLICY a ACTIONS(, SET_SESSION_VARIABLE 'a')
+reject	reject	engine	workload_policy_action_list/workload_policy_action_list_,_SET_SESSION_VARIABLE_STRI~09505c51!drop-2	CREATE WORKLOAD POLICY a ACTIONS(a SET_SESSION_VARIABLE 'a')
+reject	reject	engine	workload_policy_action_list/workload_policy_action_list_,_SET_SESSION_VARIABLE_STRI~09505c51!drop-3	CREATE WORKLOAD POLICY a ACTIONS(a, 'a')
 accept	accept	engine	workload_policy_action_list/workload_policy_action_list_,_SET_SESSION_VARIABLE_STRI~09505c51!drop-4	CREATE WORKLOAD POLICY a ACTIONS(a, SET_SESSION_VARIABLE)
 reject	reject	engine	workload_policy_action_list/workload_policy_action_list_,_SET_SESSION_VARIABLE_STRI~09505c51!truncate	CREATE WORKLOAD POLICY a ACTIONS(a, SET_SESSION_VARIABLE
-accept	reject	engine	workload_policy_action_list/workload_policy_action_list_,_SET_SESSION_VARIABLE_STRI~09505c51!insert	CREATE WORKLOAD POLICY a ACTIONS(a, SET_SESSION_VARIABLE 'a' zzz)
+reject	reject	engine	workload_policy_action_list/workload_policy_action_list_,_SET_SESSION_VARIABLE_STRI~09505c51!insert	CREATE WORKLOAD POLICY a ACTIONS(a, SET_SESSION_VARIABLE 'a' zzz)
 accept	accept	engine	workload_policy_action_list/workload_policy_action_list_,_SET_SESSION_VARIABLE_STRI~09505c51!swap	CREATE WORKLOAD POLICY a ACTIONS(a, SHAPE 'a')
 accept	accept	engine	workload_policy_action_list/ident	CREATE WORKLOAD POLICY a ACTIONS(a)
-accept	reject	engine	workload_policy_action_list/ident!drop-1	CREATE WORKLOAD POLICY a ACTIONS()
+reject	reject	engine	workload_policy_action_list/ident!drop-1	CREATE WORKLOAD POLICY a ACTIONS()
 reject	reject	engine	workload_policy_action_list/ident!truncate	CREATE WORKLOAD POLICY a ACTIONS(
-accept	reject	engine	workload_policy_action_list/ident!insert	CREATE WORKLOAD POLICY a ACTIONS(a zzz)
+reject	reject	engine	workload_policy_action_list/ident!insert	CREATE WORKLOAD POLICY a ACTIONS(a zzz)
 accept	accept	engine	workload_policy_action_list/ident_STRING_LITERAL	CREATE WORKLOAD POLICY a ACTIONS(a 'a')
 reject	reject	engine	workload_policy_action_list/ident_STRING_LITERAL!truncate	CREATE WORKLOAD POLICY a ACTIONS(a
-accept	reject	engine	workload_policy_action_list/ident_STRING_LITERAL!insert	CREATE WORKLOAD POLICY a ACTIONS(a 'a' zzz)
+reject	reject	engine	workload_policy_action_list/ident_STRING_LITERAL!insert	CREATE WORKLOAD POLICY a ACTIONS(a 'a' zzz)
 accept	accept	engine	workload_policy_action_list/workload_policy_action_list_,_ident	CREATE WORKLOAD POLICY a ACTIONS(a, a)
-accept	reject	engine	workload_policy_action_list/workload_policy_action_list_,_ident!drop-1	CREATE WORKLOAD POLICY a ACTIONS(, a)
-accept	reject	engine	workload_policy_action_list/workload_policy_action_list_,_ident!drop-2	CREATE WORKLOAD POLICY a ACTIONS(a a)
-accept	reject	engine	workload_policy_action_list/workload_policy_action_list_,_ident!drop-3	CREATE WORKLOAD POLICY a ACTIONS(a,)
+reject	reject	engine	workload_policy_action_list/workload_policy_action_list_,_ident!drop-1	CREATE WORKLOAD POLICY a ACTIONS(, a)
+reject	reject	engine	workload_policy_action_list/workload_policy_action_list_,_ident!drop-2	CREATE WORKLOAD POLICY a ACTIONS(a a)
+reject	reject	engine	workload_policy_action_list/workload_policy_action_list_,_ident!drop-3	CREATE WORKLOAD POLICY a ACTIONS(a,)
 reject	reject	engine	workload_policy_action_list/workload_policy_action_list_,_ident!truncate	CREATE WORKLOAD POLICY a ACTIONS(a,
-accept	reject	engine	workload_policy_action_list/workload_policy_action_list_,_ident!insert	CREATE WORKLOAD POLICY a ACTIONS(a, a zzz)
+reject	reject	engine	workload_policy_action_list/workload_policy_action_list_,_ident!insert	CREATE WORKLOAD POLICY a ACTIONS(a, a zzz)
 accept	accept	engine	workload_policy_action_list/workload_policy_action_list_,_ident_STRING_LITERAL	CREATE WORKLOAD POLICY a ACTIONS(a, a 'a')
-accept	reject	engine	workload_policy_action_list/workload_policy_action_list_,_ident_STRING_LITERAL!drop-1	CREATE WORKLOAD POLICY a ACTIONS(, a 'a')
-accept	reject	engine	workload_policy_action_list/workload_policy_action_list_,_ident_STRING_LITERAL!drop-2	CREATE WORKLOAD POLICY a ACTIONS(a a 'a')
+reject	reject	engine	workload_policy_action_list/workload_policy_action_list_,_ident_STRING_LITERAL!drop-1	CREATE WORKLOAD POLICY a ACTIONS(, a 'a')
+reject	reject	engine	workload_policy_action_list/workload_policy_action_list_,_ident_STRING_LITERAL!drop-2	CREATE WORKLOAD POLICY a ACTIONS(a a 'a')
 reject	reject	engine	workload_policy_action_list/workload_policy_action_list_,_ident_STRING_LITERAL!truncate	CREATE WORKLOAD POLICY a ACTIONS(a, a
-accept	reject	engine	workload_policy_action_list/workload_policy_action_list_,_ident_STRING_LITERAL!insert	CREATE WORKLOAD POLICY a ACTIONS(a, a 'a' zzz)
+reject	reject	engine	workload_policy_action_list/workload_policy_action_list_,_ident_STRING_LITERAL!insert	CREATE WORKLOAD POLICY a ACTIONS(a, a 'a' zzz)
 accept	accept	engine	actions/ACTIONS_(_workload_policy_action_list_)	CREATE WORKLOAD POLICY a ACTIONS(a)
 reject	reject	engine	actions/ACTIONS_(_workload_policy_action_list_)!drop-1	CREATE WORKLOAD POLICY a(a)
 reject	reject	engine	actions/ACTIONS_(_workload_policy_action_list_)!drop-2	CREATE WORKLOAD POLICY a ACTIONS a)
@@ -13707,8 +13707,8 @@ reject	reject	engine	where_clause/WHERE_expr!drop-1	DELETE FROM a 1
 reject	reject	engine	where_clause/WHERE_expr!drop-2	DELETE FROM a WHERE
 reject	reject	engine	where_clause/WHERE_expr!insert	DELETE FROM a WHERE 1 zzz
 reject	reject	engine	where_clause/WHERE_expr!swap	DELETE FROM a WHITELIST 1
-reject	accept	engine	delete_on_clause/%empty	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a)
-reject	accept	engine	delete_on_clause/DELETE_ON_expr	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a DELETE ON 1)
+accept	accept	engine	delete_on_clause/%empty	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a)
+accept	accept	engine	delete_on_clause/DELETE_ON_expr	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a DELETE ON 1)
 reject	reject	engine	delete_on_clause/DELETE_ON_expr!drop-1	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a ON 1)
 reject	reject	engine	delete_on_clause/DELETE_ON_expr!drop-2	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a DELETE 1)
 reject	reject	engine	delete_on_clause/DELETE_ON_expr!drop-3	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a DELETE ON)
@@ -13716,7 +13716,7 @@ reject	reject	engine	delete_on_clause/DELETE_ON_expr!truncate	LOAD LABEL a(DATA 
 reject	reject	engine	delete_on_clause/DELETE_ON_expr!insert	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a DELETE ON 1 zzz)
 reject	reject	engine	delete_on_clause/DELETE_ON_expr!swap	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a DEMAND ON 1)
 accept	accept	engine	sequence_col_clause/%empty	LOAD LABEL a(DATA INFILE('a') INTO TABLE a)
-reject	accept	engine	sequence_col_clause/ORDER_BY_ident	LOAD LABEL a(DATA INFILE('a') INTO TABLE a ORDER BY a)
+accept	accept	engine	sequence_col_clause/ORDER_BY_ident	LOAD LABEL a(DATA INFILE('a') INTO TABLE a ORDER BY a)
 reject	reject	engine	sequence_col_clause/ORDER_BY_ident!drop-1	LOAD LABEL a(DATA INFILE('a') INTO TABLE a BY a)
 reject	reject	engine	sequence_col_clause/ORDER_BY_ident!drop-2	LOAD LABEL a(DATA INFILE('a') INTO TABLE a ORDER a)
 reject	reject	engine	sequence_col_clause/ORDER_BY_ident!drop-3	LOAD LABEL a(DATA INFILE('a') INTO TABLE a ORDER BY)
@@ -13724,7 +13724,7 @@ reject	reject	engine	sequence_col_clause/ORDER_BY_ident!truncate	LOAD LABEL a(DA
 reject	reject	engine	sequence_col_clause/ORDER_BY_ident!insert	LOAD LABEL a(DATA INFILE('a') INTO TABLE a ORDER BY a zzz)
 reject	reject	engine	sequence_col_clause/ORDER_BY_ident!swap	LOAD LABEL a(DATA INFILE('a') INTO TABLE a OUTER BY a)
 accept	accept	engine	pre_filter_clause/%empty	LOAD LABEL a(DATA INFILE('a') INTO TABLE a)
-reject	accept	engine	pre_filter_clause/PRECEDING_FILTER_expr	LOAD LABEL a(DATA INFILE('a') INTO TABLE a PRECEDING FILTER 1)
+accept	accept	engine	pre_filter_clause/PRECEDING_FILTER_expr	LOAD LABEL a(DATA INFILE('a') INTO TABLE a PRECEDING FILTER 1)
 reject	reject	engine	pre_filter_clause/PRECEDING_FILTER_expr!drop-1	LOAD LABEL a(DATA INFILE('a') INTO TABLE a FILTER 1)
 reject	reject	engine	pre_filter_clause/PRECEDING_FILTER_expr!drop-2	LOAD LABEL a(DATA INFILE('a') INTO TABLE a PRECEDING 1)
 reject	reject	engine	pre_filter_clause/PRECEDING_FILTER_expr!drop-3	LOAD LABEL a(DATA INFILE('a') INTO TABLE a PRECEDING FILTER)
