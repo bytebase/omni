@@ -510,7 +510,9 @@ func (p *Parser) routineParseName(completionRule string) (*nodes.TableRef, error
 
 // routineParseParamList parses procedureParameterList (TSql160.g:25028) or
 // functionParameterList (TSql160.g:13002): at least one parameter, separated
-// by commas, no name twice (Msg 134).
+// by commas, no name twice (Msg 134). Names are compared as written: whether
+// @a and @A are the same variable depends on the collation, which Parse does
+// not know.
 func (p *Parser) routineParseParamList(isProc bool) (*nodes.List, error) {
 	var params []nodes.Node
 	seen := map[string]bool{}
@@ -519,7 +521,7 @@ func (p *Parser) routineParseParamList(isProc bool) (*nodes.List, error) {
 		if err != nil {
 			return nil, err
 		}
-		key := strings.ToLower(param.Name)
+		key := param.Name
 		if seen[key] {
 			return nil, p.newParseError(param.Loc.Start, "the variable name "+param.Name+" has already been declared")
 		}
