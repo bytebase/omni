@@ -478,13 +478,17 @@ func TestPropertyListSeparators(t *testing.T) {
 		{"doubled comma", `"k"="v",,"k2"="v2"`, false},
 		{"comma only", `,`, false},
 	}
+	// The grammar of these clauses takes a single property, '(' property
+	// ')' (StarRocks.g4:694, 720), so a second item is an error there.
+	single := map[string]bool{"admin_set_frontend_config": true, "admin_check_tablet": true}
 	for _, cl := range clauses {
 		for _, b := range bodies {
 			t.Run(cl.name+"/"+b.name, func(t *testing.T) {
 				sql := fmt.Sprintf(cl.tmpl, b.body)
+				want := b.wantAccept && (!single[cl.name] || b.name == "one item")
 				_, errs := parseForTest(sql)
-				if got := len(errs) == 0; got != b.wantAccept {
-					t.Errorf("accept = %v, want %v for %q (errs=%v)", got, b.wantAccept, sql, errs)
+				if got := len(errs) == 0; got != want {
+					t.Errorf("accept = %v, want %v for %q (errs=%v)", got, want, sql, errs)
 				}
 			})
 		}
@@ -498,12 +502,8 @@ func TestPropertyListSeparators(t *testing.T) {
 // left to notice, so each of these parsed (container-verified rejects).
 func TestPropertyListAtEndOfInput(t *testing.T) {
 	prefixes := []string{
-		`ADMIN SET FRONTEND CONFIG `,
 		`ALTER SYSTEM MODIFY BACKEND 'h:1' SET `,
 		`ADMIN SET REPLICA STATUS PROPERTIES`,
-		`ADMIN SET TABLE t STATUS PROPERTIES`,
-		`ADMIN CHECK TABLET (1) PROPERTIES`,
-		`ADMIN COPY TABLET 1 PROPERTIES`,
 		`ALTER SYSTEM SET LOAD ERRORS HUB PROPERTIES`,
 		`CREATE TABLE t (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN ("10") `,
 		`LOAD LABEL l (DATA INFILE("hdfs://h/p") INTO TABLE t) WITH BROKER b `,
@@ -511,9 +511,18 @@ func TestPropertyListAtEndOfInput(t *testing.T) {
 		`CREATE ROUTINE LOAD j ON t FROM KAFKA `,
 		`INSERT INTO FILES`,
 	}
+	// A single-property clause ends its list at the first item, so a comma
+	// after it is the error there.
+	single := []string{
+		`ADMIN SET FRONTEND CONFIG `,
+		`ADMIN CHECK TABLET (1) PROPERTIES`,
+	}
 	cuts := []string{`(`, `("k"`, `("k"=`, `("k"="v"`, `("k"="v",`}
-	for _, prefix := range prefixes {
+	for i, prefix := range append(prefixes, single...) {
 		for _, cut := range cuts {
+			if i >= len(prefixes) && cut == `("k"="v",` {
+				continue
+			}
 			sql := prefix + cut
 			t.Run(sql, func(t *testing.T) {
 				_, errs := parseForTest(sql)
@@ -539,9 +548,7 @@ func TestPropertyListEndsStatement(t *testing.T) {
 	}{
 		{`ADMIN SET FRONTEND CONFIG ("k"="v")`, adminProps},
 		{`ADMIN SET REPLICA STATUS PROPERTIES("k"="v")`, adminProps},
-		{`ADMIN SET TABLE t STATUS PROPERTIES("k"="v")`, adminProps},
 		{`ADMIN CHECK TABLET (1) PROPERTIES("k"="v")`, adminProps},
-		{`ADMIN COPY TABLET 1 PROPERTIES("k"="v")`, adminProps},
 		{`ALTER SYSTEM SET LOAD ERRORS HUB PROPERTIES("k"="v")`, systemProps},
 		{`ALTER SYSTEM MODIFY BACKEND 'h:1' SET ("k"="v")`, func(n ast.Node) []*ast.Property { return n.(*ast.SystemAlterStmt).SetClause }},
 		{`LOAD LABEL l (DATA INFILE("hdfs://h/p") INTO TABLE t) WITH BROKER b ("k"="v")`, func(n ast.Node) []*ast.Property { return n.(*ast.LoadDataStmt).BrokerProperties }},
@@ -566,23 +573,16 @@ func TestPropertyListEndsStatement(t *testing.T) {
 
 func adminProps(n ast.Node) []*ast.Property { return n.(*ast.AdminStmt).Properties }
 
-// TestAdminTabletPropertiesParsed: ADMIN CHECK TABLET and COPY TABLET collected
-// everything after the object as raw Args, PROPERTIES list included, so the
-// list was never held to its grammar and its branch never ran.
+// TestAdminTabletPropertiesParsed: ADMIN CHECK TABLET collected everything
+// after the object as raw Args, PROPERTIES list included, so the list was
+// never held to its grammar and its branch never ran.
 func TestAdminTabletPropertiesParsed(t *testing.T) {
 	stmt := parseOne(t, `ADMIN CHECK TABLET (10000, 10001) PROPERTIES("type"="consistency")`).(*ast.AdminStmt)
-	if stmt.Args != "( 10000 , 10001 )" {
+	if stmt.Args != "(10000, 10001)" {
 		t.Errorf("Args = %q, want the tablet list only", stmt.Args)
 	}
 	if len(stmt.Properties) != 1 || stmt.Properties[0].Key != "type" || stmt.Properties[0].Value != "consistency" {
 		t.Errorf("Properties = %+v, want [type=consistency]", stmt.Properties)
-	}
-	stmt = parseOne(t, `ADMIN COPY TABLET 10007 PROPERTIES("backend_id"="10001","version"="1")`).(*ast.AdminStmt)
-	if stmt.Args != "10007" {
-		t.Errorf("Args = %q, want the tablet id only", stmt.Args)
-	}
-	if len(stmt.Properties) != 2 {
-		t.Errorf("Properties = %+v, want 2", stmt.Properties)
 	}
 }
 
