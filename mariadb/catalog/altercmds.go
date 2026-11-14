@@ -2295,16 +2295,15 @@ func (c *Catalog) alterConvertTableToPartition(db *Database, tbl *Table, cmd *no
 // tableDefinitionText is SHOW CREATE TABLE of the table without its name and its
 // partitioning, which is what CONVERT TABLE holds the two tables to. The table is
 // printed with no partitioning rather than cut at the clause, which a comment can
-// spell too.
+// spell too, and loses the exact head that names it, which a quoted name can make
+// look like anything.
 func (c *Catalog) tableDefinitionText(tbl *Table) string {
 	partitioning := tbl.Partitioning
 	tbl.Partitioning = nil
 	text := c.ShowCreateTable(tbl.Database.Name, tbl.Name)
 	tbl.Partitioning = partitioning
-	if i := strings.Index(text, " ("); i >= 0 {
-		text = text[i:]
-	}
-	return text
+	text = strings.TrimPrefix(text, "CREATE TABLE "+backtickIDQ(tbl.Name))
+	return strings.TrimPrefix(text, "CREATE TEMPORARY TABLE "+backtickIDQ(tbl.Name))
 }
 
 // partitionTypeFromString converts a string partition type to AST PartitionType.

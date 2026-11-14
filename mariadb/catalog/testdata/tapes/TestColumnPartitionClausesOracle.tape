@@ -5,7 +5,7 @@
 | SET sql_mode = DEFAULT
 < ok 0 0
 > exec
-| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct
+| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
 < ok 0 0
 > exec
 | CREATE TABLE p (id INT PRIMARY KEY)
@@ -37,7 +37,7 @@
 | SET sql_mode = DEFAULT
 < ok 0 0
 > exec
-| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct
+| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
 < ok 0 0
 > exec
 | CREATE TABLE n (a INT NOT NULL ENABLE DEFAULT 1, b INT NOT NULL ENABLE)
@@ -59,7 +59,7 @@
 | SET sql_mode = DEFAULT
 < ok 0 0
 > exec
-| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct
+| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
 < ok 0 0
 > exec
 | CREATE TABLE i (a INT COMMENT 'c' INVISIBLE, b INT, c INT AS (b) VIRTUAL COMMENT 'g' INVISIBLE, d INT COMMENT 'd' WITHOUT SYSTEM VERSIONING) WITH SYSTEM VERSIONING
@@ -83,7 +83,7 @@
 | SET sql_mode = DEFAULT
 < ok 0 0
 > exec
-| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct
+| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
 < ok 0 0
 > exec
 | CREATE TABLE v (a INT, s TIMESTAMP(6) AS ROW START KEY, e TIMESTAMP(6) AS ROW END, PERIOD FOR SYSTEM_TIME (s, e)) WITH SYSTEM VERSIONING
@@ -108,7 +108,7 @@
 | SET sql_mode = DEFAULT
 < ok 0 0
 > exec
-| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct
+| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
 < ok 0 0
 > exec
 | CREATE TABLE v (a INT, s TIMESTAMP(6) AS ROW START NOT NULL ENABLE UNIQUE COMMENT 'r', e TIMESTAMP(6) GENERATED ALWAYS AS ROW END INVISIBLE, PERIOD FOR SYSTEM_TIME (s, e)) WITH SYSTEM VERSIONING
@@ -133,7 +133,7 @@
 | SET sql_mode = DEFAULT
 < ok 0 0
 > exec
-| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct
+| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
 < ok 0 0
 > exec
 | CREATE TABLE v (a INT PRIMARY KEY)
@@ -146,7 +146,7 @@
 | SET sql_mode = DEFAULT
 < ok 0 0
 > exec
-| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct
+| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
 < ok 0 0
 > exec
 | CREATE TABLE v (a INT, KEY k (a))
@@ -174,7 +174,7 @@
 | SET sql_mode = DEFAULT
 < ok 0 0
 > exec
-| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct
+| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
 < ok 0 0
 > exec
 | CREATE TABLE o (a INT x = 1)
@@ -184,7 +184,7 @@
 | SET sql_mode = DEFAULT
 < ok 0 0
 > exec
-| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct
+| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
 < ok 0 0
 > exec
 | CREATE TABLE o (a INT)
@@ -197,7 +197,7 @@
 | SET sql_mode = DEFAULT
 < ok 0 0
 > exec
-| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct
+| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
 < ok 0 0
 > exec
 | SET sql_mode = 'IGNORE_BAD_TABLE_OPTIONS'
@@ -224,7 +224,7 @@
 | SET sql_mode = DEFAULT
 < ok 0 0
 > exec
-| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct
+| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
 < ok 0 0
 > exec
 | SET sql_mode = 'IGNORE_BAD_TABLE_OPTIONS'
@@ -252,7 +252,7 @@
 | SET sql_mode = DEFAULT
 < ok 0 0
 > exec
-| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct
+| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
 < ok 0 0
 > exec
 | SET sql_mode = 'IGNORE_BAD_TABLE_OPTIONS'
@@ -284,7 +284,7 @@
 | SET sql_mode = DEFAULT
 < ok 0 0
 > exec
-| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct
+| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
 < ok 0 0
 > exec
 | CREATE TABLE q (a INT, b INT, c INT DEFAULT 1)
@@ -310,7 +310,7 @@
 | SET sql_mode = DEFAULT
 < ok 0 0
 > exec
-| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct
+| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
 < ok 0 0
 > exec
 | CREATE TABLE pr (a INT) PARTITION BY RANGE (a) (p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (20))
@@ -334,7 +334,7 @@
 | SET sql_mode = DEFAULT
 < ok 0 0
 > exec
-| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct
+| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
 < ok 0 0
 > exec
 | CREATE TABLE pr (a INT) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))
@@ -362,7 +362,7 @@
 | SET sql_mode = DEFAULT
 < ok 0 0
 > exec
-| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct
+| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
 < ok 0 0
 > exec
 | CREATE TABLE pr (a INT) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (20))
@@ -390,7 +390,7 @@
 | SET sql_mode = DEFAULT
 < ok 0 0
 > exec
-| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct
+| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
 < ok 0 0
 > exec
 | CREATE TABLE pt (a INT PRIMARY KEY, b VARCHAR(10) COMMENT 'bb') PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (20), PARTITION p2 VALUES LESS THAN (30))
@@ -433,7 +433,7 @@
 | SET sql_mode = DEFAULT
 < ok 0 0
 > exec
-| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct
+| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
 < ok 0 0
 > exec
 | CREATE TABLE pt (a INT PRIMARY KEY, b VARCHAR(10) COMMENT 'bb') PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))
@@ -469,7 +469,42 @@
 | SET sql_mode = DEFAULT
 < ok 0 0
 > exec
-| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct
+| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
+< ok 0 0
+> exec
+| CREATE TABLE `pt (x` (a INT PRIMARY KEY) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))
+< ok 0 0
+> exec
+| CREATE TABLE ct (a INT PRIMARY KEY)
+< ok 0 0
+> exec
+| ALTER TABLE `pt (x` CONVERT TABLE ct TO PARTITION p1 VALUES LESS THAN (20)
+< ok 0 0
+> query
+| SHOW CREATE TABLE `pt (x`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| pt (x
+: bytes
+| CREATE TABLE `pt (x` (
+|   `a` int(11) NOT NULL,
+|   PRIMARY KEY (`a`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE (`a`)
+| (PARTITION `p0` VALUES LESS THAN (10) ENGINE = InnoDB,
+|  PARTITION `p1` VALUES LESS THAN (20) ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE ct
+< error
+| 1146 42S02 Table 'omni_testcolumnpartitionclausesoracle.ct' doesn't exist
+> exec
+| SET sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
 < ok 0 0
 > exec
 | CREATE TABLE pt (a INT PRIMARY KEY) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))
@@ -485,7 +520,7 @@
 | SET sql_mode = DEFAULT
 < ok 0 0
 > exec
-| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct
+| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
 < ok 0 0
 > exec
 | CREATE TABLE pt (a INT COMMENT '\n PARTITION BY x', b INT) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))
@@ -501,7 +536,7 @@
 | SET sql_mode = DEFAULT
 < ok 0 0
 > exec
-| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct
+| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
 < ok 0 0
 > exec
 | CREATE TABLE pt (a INT PRIMARY KEY) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))
@@ -514,7 +549,7 @@
 | SET sql_mode = DEFAULT
 < ok 0 0
 > exec
-| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct
+| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
 < ok 0 0
 > exec
 | CREATE TABLE pt (a INT PRIMARY KEY) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (20))
@@ -527,7 +562,7 @@
 | SET sql_mode = DEFAULT
 < ok 0 0
 > exec
-| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct
+| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
 < ok 0 0
 > exec
 | CREATE TABLE pt (a INT PRIMARY KEY) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (20))
@@ -543,7 +578,7 @@
 | SET sql_mode = DEFAULT
 < ok 0 0
 > exec
-| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct
+| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
 < ok 0 0
 > exec
 | CREATE TABLE pt (a INT) PARTITION BY HASH (a) PARTITIONS 2
@@ -556,7 +591,7 @@
 | SET sql_mode = DEFAULT
 < ok 0 0
 > exec
-| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct
+| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
 < ok 0 0
 > exec
 | CREATE TABLE pt (a INT)
@@ -569,7 +604,7 @@
 | SET sql_mode = DEFAULT
 < ok 0 0
 > exec
-| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct
+| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
 < ok 0 0
 > exec
 | CREATE TABLE pt (a INT)
@@ -585,5 +620,5 @@
 | SET sql_mode = DEFAULT
 < ok 0 0
 > exec
-| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct
+| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
 < ok 0 0

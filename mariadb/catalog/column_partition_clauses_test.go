@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strings"
 	"testing"
 )
 
@@ -13,7 +14,8 @@ import (
 // REFERENCES, NOT NULL ENABLE, a qualified column name, the PARTITION keyword a
 // partition definition may leave off, and CONVERT PARTITION and CONVERT TABLE.
 // Each case runs its setup and then sql on mariadb:11.8.8 and on the catalog, which
-// must answer the same code and print each of tables the same.
+// must answer the same code and print each of tables the same (a table's name
+// backquoted where it needs it).
 var columnPartitionClauseCases = []struct {
 	name    string
 	setup   []string
@@ -124,6 +126,12 @@ var columnPartitionClauseCases = []struct {
 		tables: []string{"pt", "ct"},
 	},
 	{
+		name:   "CONVERT TABLE into a table whose name holds a parenthesis",
+		setup:  []string{"CREATE TABLE `pt (x` (a INT PRIMARY KEY) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))", "CREATE TABLE ct (a INT PRIMARY KEY)"},
+		sql:    "ALTER TABLE `pt (x` CONVERT TABLE ct TO PARTITION p1 VALUES LESS THAN (20)",
+		tables: []string{"`pt (x`", "ct"},
+	},
+	{
 		name:    "CONVERT TABLE of another definition",
 		setup:   []string{"CREATE TABLE pt (a INT PRIMARY KEY) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))", "CREATE TABLE ct (a INT)"},
 		sql:     "ALTER TABLE pt CONVERT TABLE ct TO PARTITION p1 VALUES LESS THAN (20)",
@@ -179,7 +187,7 @@ func TestColumnPartitionClausesOracle(t *testing.T) {
 	ctx := context.Background()
 	conn := mariadbDatabase(t)
 	reset := func() {
-		for _, stmt := range []string{"SET sql_mode = DEFAULT", "DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct"} {
+		for _, stmt := range []string{"SET sql_mode = DEFAULT", "DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`"} {
 			if _, err := conn.ExecContext(ctx, stmt); err != nil {
 				t.Fatal(err)
 			}
@@ -214,7 +222,7 @@ func TestColumnPartitionClausesOracle(t *testing.T) {
 			}
 			for _, table := range tc.tables {
 				eng := showCreateOrNone(t, conn, table)
-				omni := cat.ShowCreateTable("d", table)
+				omni := cat.ShowCreateTable("d", strings.Trim(table, "`"))
 				if normalizeWhitespace(eng) != normalizeWhitespace(omni) {
 					t.Errorf("SHOW CREATE TABLE %s differs:\n--- mariadb ---\n%s\n--- catalog ---\n%s", table, eng, omni)
 				}
