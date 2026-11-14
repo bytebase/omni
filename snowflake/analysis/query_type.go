@@ -48,8 +48,9 @@ func (q QueryType) String() string {
 //
 //   - SELECT and set operations are Select.
 //   - INSERT (single and multi-table), UPDATE, DELETE, MERGE, CALL,
-//     EXECUTE IMMEDIATE, EXECUTE TASK and COPY INTO <table> are DML; a stored
-//     procedure can change data.
+//     EXECUTE IMMEDIATE, EXECUTE TASK, EXECUTE [ INFERENCE ] JOB SERVICE and
+//     COPY INTO <table> are DML; a stored procedure, a task or a job can
+//     change data.
 //   - EXPLAIN is Explain whatever it plans.
 //   - SHOW and DESCRIBE are SelectInfoSchema, except that a result pipe
 //     (SHOW ... ->> <query>) and stmt ->> <query> take the piped query's type.
@@ -101,10 +102,15 @@ func QueryTypeOf(node ast.Node) QueryType {
 		return DDL
 
 	case *ast.ObjectStmt:
-		// A CREATE or ALTER of an object read by its documented shape. Any
-		// other verb (EXECUTE JOB SERVICE) runs something and stays unknown.
-		if n.Verb == "CREATE" || n.Verb == "ALTER" {
+		// A CREATE or ALTER of an object read by its documented shape.
+		// EXECUTE [ INFERENCE ] JOB SERVICE runs a job whose containers can
+		// change data, as EXECUTE TASK runs a task, so it is DML. Any other
+		// verb stays unknown.
+		switch n.Verb {
+		case "CREATE", "ALTER":
 			return DDL
+		case "EXECUTE":
+			return DML
 		}
 		return QueryTypeUnknown
 	}
