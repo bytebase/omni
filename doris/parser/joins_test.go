@@ -208,36 +208,50 @@ func TestJoinRightAnti(t *testing.T) {
 // NATURAL JOIN
 // ---------------------------------------------------------------------------
 
+// TestJoinNatural: joinType (DorisParser.g4:1334) has no NATURAL, and Doris
+// refuses it (testdata/compat.tsv).
 func TestJoinNatural(t *testing.T) {
-	join := mustParseJoin(t, "SELECT * FROM a NATURAL JOIN b")
-	if join.Type != ast.JoinInner {
-		t.Errorf("join.Type = %v, want JoinInner (natural)", join.Type)
-	}
-	if !join.Natural {
-		t.Error("Natural = false, want true")
-	}
-	if join.On != nil {
-		t.Error("On should be nil for NATURAL JOIN")
-	}
-}
-
-func TestJoinNaturalLeft(t *testing.T) {
-	join := mustParseJoin(t, "SELECT * FROM a NATURAL LEFT JOIN b")
-	if join.Type != ast.JoinLeft {
-		t.Errorf("join.Type = %v, want JoinLeft", join.Type)
-	}
-	if !join.Natural {
-		t.Error("Natural = false, want true")
+	for _, sql := range []string{
+		"SELECT * FROM a NATURAL JOIN b",
+		"SELECT * FROM a NATURAL LEFT JOIN b",
+		"SELECT * FROM a NATURAL RIGHT JOIN b",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) succeeded; Doris has no NATURAL join", sql)
+		}
 	}
 }
 
-func TestJoinNaturalRight(t *testing.T) {
-	join := mustParseJoin(t, "SELECT * FROM a NATURAL RIGHT JOIN b")
-	if join.Type != ast.JoinRight {
-		t.Errorf("join.Type = %v, want JoinRight", join.Type)
+// TestFromClauseGrammar holds FROM items to DorisParser.g4's relationPrimary
+// and joinRelation and to what Doris's AST builder refuses beyond them;
+// testdata/compat.tsv has Doris's verdicts.
+func TestFromClauseGrammar(t *testing.T) {
+	cases := []struct {
+		sql string
+		ok  bool
+	}{
+		{"SELECT 1 FROM a LEFT JOIN b", false},
+		{"SELECT 1 FROM a LEFT SEMI JOIN b USING (c)", true},
+		{"SELECT 1 FROM a FULL OUTER JOIN b ON 1", true},
+		{"SELECT 1 FROM a JOIN b", true},
+		{"SELECT 1 FROM a LEFT ANTI", false},
+		{"SELECT 1 FROM a JOIN [shuffle] b ON 1", true},
+		{"SELECT 1 FROM a JOIN [ a ] b", false},
+		{"SELECT 1 FROM (SELECT 1)", false},
+		{"SELECT 1 FROM (SELECT 1) t(c)", true},
+		{"SELECT 1 FROM a t(c)", false},
+		{"SELECT 1 FROM a(1)", false},
+		{"SELECT 1 FROM a('k' = 'v') t", true},
+		{"SELECT 1 FROM a@incr('k' = 'v') INDEX mv FOR VERSION AS OF 1 TEMPORARY PARTITION (p1, p2) TABLET(1) t [h1, h2]", true},
+		{"SELECT 1 FROM a@branch(b1) FOR TIME AS OF '2024-01-01'", true},
+		{"SELECT 1 FROM a PARTITIONS p", false},
+		{"SELECT 1 FROM a [ ]", false},
 	}
-	if !join.Natural {
-		t.Error("Natural = false, want true")
+	for _, c := range cases {
+		_, err := Parse(c.sql)
+		if (err == nil) != c.ok {
+			t.Errorf("Parse(%q): err = %v, want accepted=%v", c.sql, err, c.ok)
+		}
 	}
 }
 

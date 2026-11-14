@@ -646,7 +646,7 @@ reject	reject	engine	statement/showComputeNodesStatement!truncate	SHOW COMPUTE
 reject	reject	engine	statement/showComputeNodesStatement!insert	SHOW COMPUTE NODES zzz;
 reject	reject	engine	statement/showComputeNodesStatement!swap	SIGNED COMPUTE NODES;
 accept	accept	engine	statement/analyzeStatement	ANALYZE TABLE a;
-accept	reject	engine	statement/analyzeStatement!drop-2	ANALYZE a;
+reject	reject	engine	statement/analyzeStatement!drop-2	ANALYZE a;
 reject	reject	engine	statement/analyzeStatement!drop-3	ANALYZE TABLE;
 reject	reject	engine	statement/analyzeStatement!truncate	ANALYZE TABLE
 reject	reject	engine	statement/analyzeStatement!insert	ANALYZE TABLE a zzz;
@@ -657,21 +657,21 @@ reject	reject	engine	statement/dropStatsStatement!drop-3	DROP STATS;
 reject	reject	engine	statement/dropStatsStatement!truncate	DROP STATS
 reject	reject	engine	statement/dropStatsStatement!insert	DROP STATS a zzz;
 reject	reject	engine	statement/dropStatsStatement!swap	DUAL STATS a;
-reject	accept	engine	statement/createAnalyzeStatement	CREATE ANALYZE ALL;
+accept	accept	engine	statement/createAnalyzeStatement	CREATE ANALYZE ALL;
 reject	reject	engine	statement/createAnalyzeStatement!drop-1	ANALYZE ALL;
 reject	reject	engine	statement/createAnalyzeStatement!drop-2	CREATE ALL;
 reject	reject	engine	statement/createAnalyzeStatement!drop-3	CREATE ANALYZE;
 reject	reject	engine	statement/createAnalyzeStatement!truncate	CREATE ANALYZE
 reject	reject	engine	statement/createAnalyzeStatement!insert	CREATE ANALYZE ALL zzz;
 reject	reject	engine	statement/createAnalyzeStatement!swap	CROSS ANALYZE ALL;
-reject	accept	engine	statement/dropAnalyzeJobStatement	DROP ANALYZE 1;
+accept	accept	engine	statement/dropAnalyzeJobStatement	DROP ANALYZE 1;
 reject	reject	engine	statement/dropAnalyzeJobStatement!drop-1	ANALYZE 1;
 reject	reject	engine	statement/dropAnalyzeJobStatement!drop-2	DROP 1;
 reject	reject	engine	statement/dropAnalyzeJobStatement!drop-3	DROP ANALYZE;
 reject	reject	engine	statement/dropAnalyzeJobStatement!truncate	DROP ANALYZE
 reject	reject	engine	statement/dropAnalyzeJobStatement!insert	DROP ANALYZE 1 zzz;
 reject	reject	engine	statement/dropAnalyzeJobStatement!swap	DUAL ANALYZE 1;
-reject	accept	engine	statement/analyzeHistogramStatement	ANALYZE TABLE a UPDATE HISTOGRAM ON a;
+accept	accept	engine	statement/analyzeHistogramStatement	ANALYZE TABLE a UPDATE HISTOGRAM ON a;
 reject	reject	engine	statement/analyzeHistogramStatement!drop-1	TABLE a UPDATE HISTOGRAM ON a;
 reject	reject	engine	statement/analyzeHistogramStatement!drop-2	ANALYZE a UPDATE HISTOGRAM ON a;
 reject	reject	engine	statement/analyzeHistogramStatement!drop-3	ANALYZE TABLE UPDATE HISTOGRAM ON a;
@@ -682,7 +682,7 @@ reject	reject	engine	statement/analyzeHistogramStatement!drop-7	ANALYZE TABLE a 
 reject	reject	engine	statement/analyzeHistogramStatement!truncate	ANALYZE TABLE a UPDATE HISTOGRAM ON
 reject	reject	engine	statement/analyzeHistogramStatement!insert	ANALYZE TABLE a UPDATE HISTOGRAM ON a zzz;
 reject	reject	engine	statement/analyzeHistogramStatement!swap	AND TABLE a UPDATE HISTOGRAM ON a;
-reject	accept	engine	statement/dropHistogramStatement	ANALYZE TABLE a DROP HISTOGRAM ON a;
+accept	accept	engine	statement/dropHistogramStatement	ANALYZE TABLE a DROP HISTOGRAM ON a;
 reject	reject	engine	statement/dropHistogramStatement!drop-1	TABLE a DROP HISTOGRAM ON a;
 reject	reject	engine	statement/dropHistogramStatement!drop-2	ANALYZE a DROP HISTOGRAM ON a;
 reject	reject	engine	statement/dropHistogramStatement!drop-3	ANALYZE TABLE DROP HISTOGRAM ON a;
@@ -693,7 +693,7 @@ reject	reject	engine	statement/dropHistogramStatement!truncate	ANALYZE TABLE a D
 reject	reject	engine	statement/dropHistogramStatement!insert	ANALYZE TABLE a DROP HISTOGRAM ON a zzz;
 reject	reject	engine	statement/dropHistogramStatement!swap	AND TABLE a DROP HISTOGRAM ON a;
 accept	accept	engine	statement/showAnalyzeStatement	SHOW ANALYZE;
-accept	reject	engine	statement/showAnalyzeStatement!drop-1	ANALYZE;
+reject	reject	engine	statement/showAnalyzeStatement!drop-1	ANALYZE;
 reject	reject	engine	statement/showAnalyzeStatement!insert	SHOW ANALYZE zzz;
 reject	reject	engine	statement/showAnalyzeStatement!swap	SIGNED ANALYZE;
 accept	accept	engine	statement/showStatsMetaStatement	SHOW STATS META;
@@ -714,7 +714,7 @@ reject	reject	engine	statement/killAnalyzeStatement!drop-3	KILL ANALYZE;
 reject	reject	engine	statement/killAnalyzeStatement!truncate	KILL ANALYZE
 reject	reject	engine	statement/killAnalyzeStatement!insert	KILL ANALYZE 1 zzz;
 reject	reject	engine	statement/killAnalyzeStatement!swap	LABEL ANALYZE 1;
-reject	accept	engine	statement/analyzeProfileStatement	ANALYZE PROFILE FROM 'a';
+accept	accept	engine	statement/analyzeProfileStatement	ANALYZE PROFILE FROM 'a';
 reject	reject	engine	statement/analyzeProfileStatement!drop-1	PROFILE FROM 'a';
 reject	reject	engine	statement/analyzeProfileStatement!drop-2	ANALYZE FROM 'a';
 reject	reject	engine	statement/analyzeProfileStatement!drop-3	ANALYZE PROFILE 'a';
@@ -1035,7 +1035,7 @@ accept	accept	engine	statement/showRolesStatement	SHOW ROLES;
 reject	reject	engine	statement/showRolesStatement!drop-1	ROLES;
 reject	reject	engine	statement/showRolesStatement!insert	SHOW ROLES zzz;
 reject	reject	engine	statement/showRolesStatement!swap	SIGNED ROLES;
-reject	accept	engine	statement/grantRoleStatement	GRANT a TO a;
+accept	accept	engine	statement/grantRoleStatement	GRANT a TO a;
 reject	reject	engine	statement/grantRoleStatement!drop-1	a TO a;
 reject	reject	engine	statement/grantRoleStatement!drop-2	GRANT TO a;
 reject	reject	engine	statement/grantRoleStatement!drop-3	GRANT a a;
@@ -1043,7 +1043,7 @@ reject	reject	engine	statement/grantRoleStatement!drop-4	GRANT a TO;
 reject	reject	engine	statement/grantRoleStatement!truncate	GRANT a TO
 reject	reject	engine	statement/grantRoleStatement!insert	GRANT a TO a zzz;
 reject	reject	engine	statement/grantRoleStatement!swap	GRANTS a TO a;
-reject	accept	engine	statement/revokeRoleStatement	REVOKE a FROM a;
+accept	accept	engine	statement/revokeRoleStatement	REVOKE a FROM a;
 reject	reject	engine	statement/revokeRoleStatement!drop-1	a FROM a;
 reject	reject	engine	statement/revokeRoleStatement!drop-2	REVOKE FROM a;
 reject	reject	engine	statement/revokeRoleStatement!drop-3	REVOKE a a;
@@ -4954,40 +4954,40 @@ reject	reject	engine	showStreamLoadStatement(limitElement)?/limitElement!swap	SH
 accept	accept	engine	analyzeStatement/ANALYZE_(FULL|SAMPLE)?_TABLE_qualifiedName_((_qualified~5ec05cf9	ANALYZE TABLE a;
 accept	accept	engine	analyzeStatement(FULL|SAMPLE)?/%empty	ANALYZE TABLE a;
 reject	reject	engine	analyzeStatement(FULL|SAMPLE)?/%empty!insert	ANALYZE zzz TABLE a;
-reject	accept	engine	analyzeStatement(FULL|SAMPLE)?/FULL	ANALYZE FULL TABLE a;
-accept	reject	engine	analyzeStatement(FULL|SAMPLE)?/FULL!truncate	ANALYZE
+accept	accept	engine	analyzeStatement(FULL|SAMPLE)?/FULL	ANALYZE FULL TABLE a;
+reject	reject	engine	analyzeStatement(FULL|SAMPLE)?/FULL!truncate	ANALYZE
 reject	reject	engine	analyzeStatement(FULL|SAMPLE)?/FULL!insert	ANALYZE FULL zzz TABLE a;
 reject	reject	engine	analyzeStatement(FULL|SAMPLE)?/FULL!swap	ANALYZE FUNCTION TABLE a;
-reject	accept	engine	analyzeStatement(FULL|SAMPLE)?/SAMPLE	ANALYZE SAMPLE TABLE a;
+accept	accept	engine	analyzeStatement(FULL|SAMPLE)?/SAMPLE	ANALYZE SAMPLE TABLE a;
 reject	reject	engine	analyzeStatement(FULL|SAMPLE)?/SAMPLE!insert	ANALYZE SAMPLE zzz TABLE a;
 reject	reject	engine	analyzeStatement(FULL|SAMPLE)?/SAMPLE!swap	ANALYZE SCHEDULE TABLE a;
 accept	accept	engine	analyzeStatement((_qualifiedName_(,_qualifiedName)*_))?/%empty	ANALYZE TABLE a;
 accept	accept	engine	analyzeStatement((_qualifiedName_(,_qualifiedName)*_))?/(_qualifiedName_(,_qualifiedName)*_)	ANALYZE TABLE a(a);
 reject	reject	engine	analyzeStatement((_qualifiedName_(,_qualifiedName)*_))?/(_qualifiedName_(,_qualifiedName)*_)!drop-1	ANALYZE TABLE a a);
-accept	reject	engine	analyzeStatement((_qualifiedName_(,_qualifiedName)*_))?/(_qualifiedName_(,_qualifiedName)*_)!drop-2	ANALYZE TABLE a();
+reject	reject	engine	analyzeStatement((_qualifiedName_(,_qualifiedName)*_))?/(_qualifiedName_(,_qualifiedName)*_)!drop-2	ANALYZE TABLE a();
 reject	reject	engine	analyzeStatement((_qualifiedName_(,_qualifiedName)*_))?/(_qualifiedName_(,_qualifiedName)*_)!drop-3	ANALYZE TABLE a(a;
 reject	reject	engine	analyzeStatement((_qualifiedName_(,_qualifiedName)*_))?/(_qualifiedName_(,_qualifiedName)*_)!truncate	ANALYZE TABLE a(a
 reject	reject	engine	analyzeStatement((_qualifiedName_(,_qualifiedName)*_))?/(_qualifiedName_(,_qualifiedName)*_)!insert	ANALYZE TABLE a(a) zzz;
 accept	accept	engine	analyzeStatement(,_qualifiedName)*/%empty	ANALYZE TABLE a(a);
-accept	reject	engine	analyzeStatement(,_qualifiedName)*/%empty!insert	ANALYZE TABLE a(a zzz);
+reject	reject	engine	analyzeStatement(,_qualifiedName)*/%empty!insert	ANALYZE TABLE a(a zzz);
 accept	accept	engine	analyzeStatement(,_qualifiedName)*/,_qualifiedName_(,_qualifiedName)*	ANALYZE TABLE a(a, a);
-accept	reject	engine	analyzeStatement(,_qualifiedName)*/,_qualifiedName_(,_qualifiedName)*!drop-1	ANALYZE TABLE a(a a);
-accept	reject	engine	analyzeStatement(,_qualifiedName)*/,_qualifiedName_(,_qualifiedName)*!drop-2	ANALYZE TABLE a(a,);
+reject	reject	engine	analyzeStatement(,_qualifiedName)*/,_qualifiedName_(,_qualifiedName)*!drop-1	ANALYZE TABLE a(a a);
+reject	reject	engine	analyzeStatement(,_qualifiedName)*/,_qualifiedName_(,_qualifiedName)*!drop-2	ANALYZE TABLE a(a,);
 reject	reject	engine	analyzeStatement(,_qualifiedName)*/,_qualifiedName_(,_qualifiedName)*!truncate	ANALYZE TABLE a(a,
-accept	reject	engine	analyzeStatement(,_qualifiedName)*/,_qualifiedName_(,_qualifiedName)*!insert	ANALYZE TABLE a(a, a zzz);
+reject	reject	engine	analyzeStatement(,_qualifiedName)*/,_qualifiedName_(,_qualifiedName)*!insert	ANALYZE TABLE a(a, a zzz);
 accept	accept	engine	analyzeStatement(WITH_(SYNC|ASYNC)_MODE)?/%empty	ANALYZE TABLE a;
-reject	accept	engine	analyzeStatement(WITH_(SYNC|ASYNC)_MODE)?/WITH_(SYNC|ASYNC)_MODE	ANALYZE TABLE a WITH SYNC MODE;
+accept	accept	engine	analyzeStatement(WITH_(SYNC|ASYNC)_MODE)?/WITH_(SYNC|ASYNC)_MODE	ANALYZE TABLE a WITH SYNC MODE;
 reject	reject	engine	analyzeStatement(WITH_(SYNC|ASYNC)_MODE)?/WITH_(SYNC|ASYNC)_MODE!drop-1	ANALYZE TABLE a SYNC MODE;
-accept	reject	engine	analyzeStatement(WITH_(SYNC|ASYNC)_MODE)?/WITH_(SYNC|ASYNC)_MODE!drop-2	ANALYZE TABLE a WITH MODE;
-accept	reject	engine	analyzeStatement(WITH_(SYNC|ASYNC)_MODE)?/WITH_(SYNC|ASYNC)_MODE!drop-3	ANALYZE TABLE a WITH SYNC;
-accept	reject	engine	analyzeStatement(WITH_(SYNC|ASYNC)_MODE)?/WITH_(SYNC|ASYNC)_MODE!truncate	ANALYZE TABLE a WITH SYNC
+reject	reject	engine	analyzeStatement(WITH_(SYNC|ASYNC)_MODE)?/WITH_(SYNC|ASYNC)_MODE!drop-2	ANALYZE TABLE a WITH MODE;
+reject	reject	engine	analyzeStatement(WITH_(SYNC|ASYNC)_MODE)?/WITH_(SYNC|ASYNC)_MODE!drop-3	ANALYZE TABLE a WITH SYNC;
+reject	reject	engine	analyzeStatement(WITH_(SYNC|ASYNC)_MODE)?/WITH_(SYNC|ASYNC)_MODE!truncate	ANALYZE TABLE a WITH SYNC
 reject	reject	engine	analyzeStatement(WITH_(SYNC|ASYNC)_MODE)?/WITH_(SYNC|ASYNC)_MODE!insert	ANALYZE TABLE a WITH SYNC MODE zzz;
 reject	reject	engine	analyzeStatement(WITH_(SYNC|ASYNC)_MODE)?/WITH_(SYNC|ASYNC)_MODE!swap	ANALYZE TABLE a WORK SYNC MODE;
-reject	accept	engine	analyzeStatement(SYNC|ASYNC)/SYNC	ANALYZE TABLE a WITH SYNC MODE;
+accept	accept	engine	analyzeStatement(SYNC|ASYNC)/SYNC	ANALYZE TABLE a WITH SYNC MODE;
 reject	reject	engine	analyzeStatement(SYNC|ASYNC)/SYNC!truncate	ANALYZE TABLE a WITH
 reject	reject	engine	analyzeStatement(SYNC|ASYNC)/SYNC!insert	ANALYZE TABLE a WITH SYNC zzz MODE;
 reject	reject	engine	analyzeStatement(SYNC|ASYNC)/SYNC!swap	ANALYZE TABLE a WITH SYSTEM MODE;
-reject	accept	engine	analyzeStatement(SYNC|ASYNC)/ASYNC	ANALYZE TABLE a WITH ASYNC MODE;
+accept	accept	engine	analyzeStatement(SYNC|ASYNC)/ASYNC	ANALYZE TABLE a WITH ASYNC MODE;
 reject	reject	engine	analyzeStatement(SYNC|ASYNC)/ASYNC!insert	ANALYZE TABLE a WITH ASYNC zzz MODE;
 reject	reject	engine	analyzeStatement(SYNC|ASYNC)/ASYNC!swap	ANALYZE TABLE a WITH AUTHENTICATION MODE;
 accept	accept	engine	analyzeStatement(properties)?/%empty	ANALYZE TABLE a;
@@ -5002,23 +5002,23 @@ reject	reject	engine	analyzeStatement(properties)?/properties!truncate	ANALYZE T
 reject	reject	engine	analyzeStatement(properties)?/properties!insert	ANALYZE TABLE a PROPERTIES('a' = 'a') zzz;
 reject	reject	engine	analyzeStatement(properties)?/properties!swap	ANALYZE TABLE a PROPERTY('a' = 'a');
 accept	accept	engine	dropStatsStatement/DROP_STATS_qualifiedName	DROP STATS a;
-reject	accept	engine	histogramStatement/ANALYZE_TABLE_qualifiedName_UPDATE_HISTOGRAM_ON_qualifi~a1d790b0	ANALYZE TABLE a UPDATE HISTOGRAM ON a;
-reject	accept	engine	histogramStatement(,_qualifiedName)*/%empty	ANALYZE TABLE a UPDATE HISTOGRAM ON a;
-reject	accept	engine	histogramStatement(,_qualifiedName)*/,_qualifiedName_(,_qualifiedName)*	ANALYZE TABLE a UPDATE HISTOGRAM ON a, a;
+accept	accept	engine	histogramStatement/ANALYZE_TABLE_qualifiedName_UPDATE_HISTOGRAM_ON_qualifi~a1d790b0	ANALYZE TABLE a UPDATE HISTOGRAM ON a;
+accept	accept	engine	histogramStatement(,_qualifiedName)*/%empty	ANALYZE TABLE a UPDATE HISTOGRAM ON a;
+accept	accept	engine	histogramStatement(,_qualifiedName)*/,_qualifiedName_(,_qualifiedName)*	ANALYZE TABLE a UPDATE HISTOGRAM ON a, a;
 reject	reject	engine	histogramStatement(,_qualifiedName)*/,_qualifiedName_(,_qualifiedName)*!drop-1	ANALYZE TABLE a UPDATE HISTOGRAM ON a a;
 reject	reject	engine	histogramStatement(,_qualifiedName)*/,_qualifiedName_(,_qualifiedName)*!drop-2	ANALYZE TABLE a UPDATE HISTOGRAM ON a,;
 reject	reject	engine	histogramStatement(,_qualifiedName)*/,_qualifiedName_(,_qualifiedName)*!truncate	ANALYZE TABLE a UPDATE HISTOGRAM ON a,
 reject	reject	engine	histogramStatement(,_qualifiedName)*/,_qualifiedName_(,_qualifiedName)*!insert	ANALYZE TABLE a UPDATE HISTOGRAM ON a, a zzz;
-reject	accept	engine	histogramStatement(WITH_INTEGER_VALUE_BUCKETS)?/%empty	ANALYZE TABLE a UPDATE HISTOGRAM ON a;
-reject	accept	engine	histogramStatement(WITH_INTEGER_VALUE_BUCKETS)?/WITH_INTEGER_VALUE_BUCKETS	ANALYZE TABLE a UPDATE HISTOGRAM ON a WITH 1 BUCKETS;
+accept	accept	engine	histogramStatement(WITH_INTEGER_VALUE_BUCKETS)?/%empty	ANALYZE TABLE a UPDATE HISTOGRAM ON a;
+accept	accept	engine	histogramStatement(WITH_INTEGER_VALUE_BUCKETS)?/WITH_INTEGER_VALUE_BUCKETS	ANALYZE TABLE a UPDATE HISTOGRAM ON a WITH 1 BUCKETS;
 reject	reject	engine	histogramStatement(WITH_INTEGER_VALUE_BUCKETS)?/WITH_INTEGER_VALUE_BUCKETS!drop-1	ANALYZE TABLE a UPDATE HISTOGRAM ON a 1 BUCKETS;
 reject	reject	engine	histogramStatement(WITH_INTEGER_VALUE_BUCKETS)?/WITH_INTEGER_VALUE_BUCKETS!drop-2	ANALYZE TABLE a UPDATE HISTOGRAM ON a WITH BUCKETS;
 reject	reject	engine	histogramStatement(WITH_INTEGER_VALUE_BUCKETS)?/WITH_INTEGER_VALUE_BUCKETS!drop-3	ANALYZE TABLE a UPDATE HISTOGRAM ON a WITH 1;
 reject	reject	engine	histogramStatement(WITH_INTEGER_VALUE_BUCKETS)?/WITH_INTEGER_VALUE_BUCKETS!truncate	ANALYZE TABLE a UPDATE HISTOGRAM ON a WITH 1
 reject	reject	engine	histogramStatement(WITH_INTEGER_VALUE_BUCKETS)?/WITH_INTEGER_VALUE_BUCKETS!insert	ANALYZE TABLE a UPDATE HISTOGRAM ON a WITH 1 BUCKETS zzz;
 reject	reject	engine	histogramStatement(WITH_INTEGER_VALUE_BUCKETS)?/WITH_INTEGER_VALUE_BUCKETS!swap	ANALYZE TABLE a UPDATE HISTOGRAM ON a WORK 1 BUCKETS;
-reject	accept	engine	histogramStatement(properties)?/%empty	ANALYZE TABLE a UPDATE HISTOGRAM ON a;
-reject	accept	engine	histogramStatement(properties)?/properties	ANALYZE TABLE a UPDATE HISTOGRAM ON a PROPERTIES('a' = 'a');
+accept	accept	engine	histogramStatement(properties)?/%empty	ANALYZE TABLE a UPDATE HISTOGRAM ON a;
+accept	accept	engine	histogramStatement(properties)?/properties	ANALYZE TABLE a UPDATE HISTOGRAM ON a PROPERTIES('a' = 'a');
 reject	reject	engine	histogramStatement(properties)?/properties!drop-1	ANALYZE TABLE a UPDATE HISTOGRAM ON a('a' = 'a');
 reject	reject	engine	histogramStatement(properties)?/properties!drop-2	ANALYZE TABLE a UPDATE HISTOGRAM ON a PROPERTIES 'a' = 'a');
 reject	reject	engine	histogramStatement(properties)?/properties!drop-3	ANALYZE TABLE a UPDATE HISTOGRAM ON a PROPERTIES(= 'a');
@@ -5028,43 +5028,43 @@ reject	reject	engine	histogramStatement(properties)?/properties!drop-6	ANALYZE T
 reject	reject	engine	histogramStatement(properties)?/properties!truncate	ANALYZE TABLE a UPDATE HISTOGRAM ON a PROPERTIES('a' = 'a'
 reject	reject	engine	histogramStatement(properties)?/properties!insert	ANALYZE TABLE a UPDATE HISTOGRAM ON a PROPERTIES('a' = 'a') zzz;
 reject	reject	engine	histogramStatement(properties)?/properties!swap	ANALYZE TABLE a UPDATE HISTOGRAM ON a PROPERTY('a' = 'a');
-reject	accept	engine	analyzeHistogramStatement/histogramStatement_(WITH_(SYNC|ASYNC)_MODE)?	ANALYZE TABLE a UPDATE HISTOGRAM ON a;
-reject	accept	engine	analyzeHistogramStatement(WITH_(SYNC|ASYNC)_MODE)?/%empty	ANALYZE TABLE a UPDATE HISTOGRAM ON a;
-reject	accept	engine	analyzeHistogramStatement(WITH_(SYNC|ASYNC)_MODE)?/WITH_(SYNC|ASYNC)_MODE	ANALYZE TABLE a UPDATE HISTOGRAM ON a WITH SYNC MODE;
+accept	accept	engine	analyzeHistogramStatement/histogramStatement_(WITH_(SYNC|ASYNC)_MODE)?	ANALYZE TABLE a UPDATE HISTOGRAM ON a;
+accept	accept	engine	analyzeHistogramStatement(WITH_(SYNC|ASYNC)_MODE)?/%empty	ANALYZE TABLE a UPDATE HISTOGRAM ON a;
+accept	accept	engine	analyzeHistogramStatement(WITH_(SYNC|ASYNC)_MODE)?/WITH_(SYNC|ASYNC)_MODE	ANALYZE TABLE a UPDATE HISTOGRAM ON a WITH SYNC MODE;
 reject	reject	engine	analyzeHistogramStatement(WITH_(SYNC|ASYNC)_MODE)?/WITH_(SYNC|ASYNC)_MODE!drop-1	ANALYZE TABLE a UPDATE HISTOGRAM ON a SYNC MODE;
 reject	reject	engine	analyzeHistogramStatement(WITH_(SYNC|ASYNC)_MODE)?/WITH_(SYNC|ASYNC)_MODE!drop-2	ANALYZE TABLE a UPDATE HISTOGRAM ON a WITH MODE;
 reject	reject	engine	analyzeHistogramStatement(WITH_(SYNC|ASYNC)_MODE)?/WITH_(SYNC|ASYNC)_MODE!drop-3	ANALYZE TABLE a UPDATE HISTOGRAM ON a WITH SYNC;
 reject	reject	engine	analyzeHistogramStatement(WITH_(SYNC|ASYNC)_MODE)?/WITH_(SYNC|ASYNC)_MODE!truncate	ANALYZE TABLE a UPDATE HISTOGRAM ON a WITH SYNC
 reject	reject	engine	analyzeHistogramStatement(WITH_(SYNC|ASYNC)_MODE)?/WITH_(SYNC|ASYNC)_MODE!insert	ANALYZE TABLE a UPDATE HISTOGRAM ON a WITH SYNC MODE zzz;
 reject	reject	engine	analyzeHistogramStatement(WITH_(SYNC|ASYNC)_MODE)?/WITH_(SYNC|ASYNC)_MODE!swap	ANALYZE TABLE a UPDATE HISTOGRAM ON a WORK SYNC MODE;
-reject	accept	engine	analyzeHistogramStatement(SYNC|ASYNC)/SYNC	ANALYZE TABLE a UPDATE HISTOGRAM ON a WITH SYNC MODE;
+accept	accept	engine	analyzeHistogramStatement(SYNC|ASYNC)/SYNC	ANALYZE TABLE a UPDATE HISTOGRAM ON a WITH SYNC MODE;
 reject	reject	engine	analyzeHistogramStatement(SYNC|ASYNC)/SYNC!truncate	ANALYZE TABLE a UPDATE HISTOGRAM ON a WITH
 reject	reject	engine	analyzeHistogramStatement(SYNC|ASYNC)/SYNC!insert	ANALYZE TABLE a UPDATE HISTOGRAM ON a WITH SYNC zzz MODE;
 reject	reject	engine	analyzeHistogramStatement(SYNC|ASYNC)/SYNC!swap	ANALYZE TABLE a UPDATE HISTOGRAM ON a WITH SYSTEM MODE;
-reject	accept	engine	analyzeHistogramStatement(SYNC|ASYNC)/ASYNC	ANALYZE TABLE a UPDATE HISTOGRAM ON a WITH ASYNC MODE;
+accept	accept	engine	analyzeHistogramStatement(SYNC|ASYNC)/ASYNC	ANALYZE TABLE a UPDATE HISTOGRAM ON a WITH ASYNC MODE;
 reject	reject	engine	analyzeHistogramStatement(SYNC|ASYNC)/ASYNC!insert	ANALYZE TABLE a UPDATE HISTOGRAM ON a WITH ASYNC zzz MODE;
 reject	reject	engine	analyzeHistogramStatement(SYNC|ASYNC)/ASYNC!swap	ANALYZE TABLE a UPDATE HISTOGRAM ON a WITH AUTHENTICATION MODE;
-reject	accept	engine	dropHistogramStatement/ANALYZE_TABLE_qualifiedName_DROP_HISTOGRAM_ON_qualified~a20b5dac	ANALYZE TABLE a DROP HISTOGRAM ON a;
-reject	accept	engine	dropHistogramStatement(,_qualifiedName)*/%empty	ANALYZE TABLE a DROP HISTOGRAM ON a;
-reject	accept	engine	dropHistogramStatement(,_qualifiedName)*/,_qualifiedName_(,_qualifiedName)*	ANALYZE TABLE a DROP HISTOGRAM ON a, a;
+accept	accept	engine	dropHistogramStatement/ANALYZE_TABLE_qualifiedName_DROP_HISTOGRAM_ON_qualified~a20b5dac	ANALYZE TABLE a DROP HISTOGRAM ON a;
+accept	accept	engine	dropHistogramStatement(,_qualifiedName)*/%empty	ANALYZE TABLE a DROP HISTOGRAM ON a;
+accept	accept	engine	dropHistogramStatement(,_qualifiedName)*/,_qualifiedName_(,_qualifiedName)*	ANALYZE TABLE a DROP HISTOGRAM ON a, a;
 reject	reject	engine	dropHistogramStatement(,_qualifiedName)*/,_qualifiedName_(,_qualifiedName)*!drop-1	ANALYZE TABLE a DROP HISTOGRAM ON a a;
 reject	reject	engine	dropHistogramStatement(,_qualifiedName)*/,_qualifiedName_(,_qualifiedName)*!drop-2	ANALYZE TABLE a DROP HISTOGRAM ON a,;
 reject	reject	engine	dropHistogramStatement(,_qualifiedName)*/,_qualifiedName_(,_qualifiedName)*!truncate	ANALYZE TABLE a DROP HISTOGRAM ON a,
 reject	reject	engine	dropHistogramStatement(,_qualifiedName)*/,_qualifiedName_(,_qualifiedName)*!insert	ANALYZE TABLE a DROP HISTOGRAM ON a, a zzz;
-reject	accept	engine	createAnalyzeStatement/CREATE_ANALYZE_(FULL|SAMPLE)?_ALL_(properties)?	CREATE ANALYZE ALL;
-reject	accept	engine	createAnalyzeStatement/CREATE_ANALYZE_(FULL|SAMPLE)?_DATABASE_identifier_(properties)?	CREATE ANALYZE DATABASE a;
-accept	reject	engine	createAnalyzeStatement/CREATE_ANALYZE_(FULL|SAMPLE)?_DATABASE_identifier_(properties)?!drop-1	ANALYZE DATABASE a;
+accept	accept	engine	createAnalyzeStatement/CREATE_ANALYZE_(FULL|SAMPLE)?_ALL_(properties)?	CREATE ANALYZE ALL;
+accept	accept	engine	createAnalyzeStatement/CREATE_ANALYZE_(FULL|SAMPLE)?_DATABASE_identifier_(properties)?	CREATE ANALYZE DATABASE a;
+reject	reject	engine	createAnalyzeStatement/CREATE_ANALYZE_(FULL|SAMPLE)?_DATABASE_identifier_(properties)?!drop-1	ANALYZE DATABASE a;
 reject	reject	engine	createAnalyzeStatement/CREATE_ANALYZE_(FULL|SAMPLE)?_DATABASE_identifier_(properties)?!drop-3	CREATE ANALYZE a;
 reject	reject	engine	createAnalyzeStatement/CREATE_ANALYZE_(FULL|SAMPLE)?_DATABASE_identifier_(properties)?!drop-4	CREATE ANALYZE DATABASE;
 reject	reject	engine	createAnalyzeStatement/CREATE_ANALYZE_(FULL|SAMPLE)?_DATABASE_identifier_(properties)?!truncate	CREATE ANALYZE DATABASE
 reject	reject	engine	createAnalyzeStatement/CREATE_ANALYZE_(FULL|SAMPLE)?_DATABASE_identifier_(properties)?!insert	CREATE ANALYZE DATABASE a zzz;
 reject	reject	engine	createAnalyzeStatement/CREATE_ANALYZE_(FULL|SAMPLE)?_DATABASE_identifier_(properties)?!swap	CROSS ANALYZE DATABASE a;
-reject	accept	engine	createAnalyzeStatement/CREATE_ANALYZE_(FULL|SAMPLE)?_TABLE_qualifiedName_((_qu~e7ba4253	CREATE ANALYZE TABLE a;
+accept	accept	engine	createAnalyzeStatement/CREATE_ANALYZE_(FULL|SAMPLE)?_TABLE_qualifiedName_((_qu~e7ba4253	CREATE ANALYZE TABLE a;
 reject	reject	engine	createAnalyzeStatement/CREATE_ANALYZE_(FULL|SAMPLE)?_TABLE_qualifiedName_((_qu~e7ba4253!drop-4	CREATE ANALYZE TABLE;
 reject	reject	engine	createAnalyzeStatement/CREATE_ANALYZE_(FULL|SAMPLE)?_TABLE_qualifiedName_((_qu~e7ba4253!truncate	CREATE ANALYZE TABLE
 reject	reject	engine	createAnalyzeStatement/CREATE_ANALYZE_(FULL|SAMPLE)?_TABLE_qualifiedName_((_qu~e7ba4253!insert	CREATE ANALYZE TABLE a zzz;
 reject	reject	engine	createAnalyzeStatement/CREATE_ANALYZE_(FULL|SAMPLE)?_TABLE_qualifiedName_((_qu~e7ba4253!swap	CROSS ANALYZE TABLE a;
-reject	accept	engine	createAnalyzeStatement/CREATE_histogramStatement	CREATE ANALYZE TABLE a UPDATE HISTOGRAM ON a;
+accept	accept	engine	createAnalyzeStatement/CREATE_histogramStatement	CREATE ANALYZE TABLE a UPDATE HISTOGRAM ON a;
 reject	reject	engine	createAnalyzeStatement/CREATE_histogramStatement!drop-2	CREATE TABLE a UPDATE HISTOGRAM ON a;
 reject	reject	engine	createAnalyzeStatement/CREATE_histogramStatement!drop-3	CREATE ANALYZE a UPDATE HISTOGRAM ON a;
 reject	reject	engine	createAnalyzeStatement/CREATE_histogramStatement!drop-4	CREATE ANALYZE TABLE UPDATE HISTOGRAM ON a;
@@ -5075,16 +5075,16 @@ reject	reject	engine	createAnalyzeStatement/CREATE_histogramStatement!drop-8	CRE
 reject	reject	engine	createAnalyzeStatement/CREATE_histogramStatement!truncate	CREATE ANALYZE TABLE a UPDATE HISTOGRAM ON
 reject	reject	engine	createAnalyzeStatement/CREATE_histogramStatement!insert	CREATE ANALYZE TABLE a UPDATE HISTOGRAM ON a zzz;
 reject	reject	engine	createAnalyzeStatement/CREATE_histogramStatement!swap	CROSS ANALYZE TABLE a UPDATE HISTOGRAM ON a;
-reject	accept	engine	createAnalyzeStatement(FULL|SAMPLE)?/%empty	CREATE ANALYZE ALL;
+accept	accept	engine	createAnalyzeStatement(FULL|SAMPLE)?/%empty	CREATE ANALYZE ALL;
 reject	reject	engine	createAnalyzeStatement(FULL|SAMPLE)?/%empty!insert	CREATE ANALYZE zzz ALL;
-reject	accept	engine	createAnalyzeStatement(FULL|SAMPLE)?/FULL	CREATE ANALYZE FULL ALL;
+accept	accept	engine	createAnalyzeStatement(FULL|SAMPLE)?/FULL	CREATE ANALYZE FULL ALL;
 reject	reject	engine	createAnalyzeStatement(FULL|SAMPLE)?/FULL!insert	CREATE ANALYZE FULL zzz ALL;
 reject	reject	engine	createAnalyzeStatement(FULL|SAMPLE)?/FULL!swap	CREATE ANALYZE FUNCTION ALL;
-reject	accept	engine	createAnalyzeStatement(FULL|SAMPLE)?/SAMPLE	CREATE ANALYZE SAMPLE ALL;
+accept	accept	engine	createAnalyzeStatement(FULL|SAMPLE)?/SAMPLE	CREATE ANALYZE SAMPLE ALL;
 reject	reject	engine	createAnalyzeStatement(FULL|SAMPLE)?/SAMPLE!insert	CREATE ANALYZE SAMPLE zzz ALL;
 reject	reject	engine	createAnalyzeStatement(FULL|SAMPLE)?/SAMPLE!swap	CREATE ANALYZE SCHEDULE ALL;
-reject	accept	engine	createAnalyzeStatement(properties)?/%empty	CREATE ANALYZE ALL;
-reject	accept	engine	createAnalyzeStatement(properties)?/properties	CREATE ANALYZE ALL PROPERTIES('a' = 'a');
+accept	accept	engine	createAnalyzeStatement(properties)?/%empty	CREATE ANALYZE ALL;
+accept	accept	engine	createAnalyzeStatement(properties)?/properties	CREATE ANALYZE ALL PROPERTIES('a' = 'a');
 reject	reject	engine	createAnalyzeStatement(properties)?/properties!drop-1	CREATE ANALYZE ALL('a' = 'a');
 reject	reject	engine	createAnalyzeStatement(properties)?/properties!drop-2	CREATE ANALYZE ALL PROPERTIES 'a' = 'a');
 reject	reject	engine	createAnalyzeStatement(properties)?/properties!drop-3	CREATE ANALYZE ALL PROPERTIES(= 'a');
@@ -5094,21 +5094,21 @@ reject	reject	engine	createAnalyzeStatement(properties)?/properties!drop-6	CREAT
 reject	reject	engine	createAnalyzeStatement(properties)?/properties!truncate	CREATE ANALYZE ALL PROPERTIES('a' = 'a'
 reject	reject	engine	createAnalyzeStatement(properties)?/properties!insert	CREATE ANALYZE ALL PROPERTIES('a' = 'a') zzz;
 reject	reject	engine	createAnalyzeStatement(properties)?/properties!swap	CREATE ANALYZE ALL PROPERTY('a' = 'a');
-reject	accept	engine	createAnalyzeStatement((_qualifiedName_(,_qualifiedName)*_))?/%empty	CREATE ANALYZE TABLE a;
-reject	accept	engine	createAnalyzeStatement((_qualifiedName_(,_qualifiedName)*_))?/(_qualifiedName_(,_qualifiedName)*_)	CREATE ANALYZE TABLE a(a);
+accept	accept	engine	createAnalyzeStatement((_qualifiedName_(,_qualifiedName)*_))?/%empty	CREATE ANALYZE TABLE a;
+accept	accept	engine	createAnalyzeStatement((_qualifiedName_(,_qualifiedName)*_))?/(_qualifiedName_(,_qualifiedName)*_)	CREATE ANALYZE TABLE a(a);
 reject	reject	engine	createAnalyzeStatement((_qualifiedName_(,_qualifiedName)*_))?/(_qualifiedName_(,_qualifiedName)*_)!drop-1	CREATE ANALYZE TABLE a a);
 reject	reject	engine	createAnalyzeStatement((_qualifiedName_(,_qualifiedName)*_))?/(_qualifiedName_(,_qualifiedName)*_)!drop-2	CREATE ANALYZE TABLE a();
 reject	reject	engine	createAnalyzeStatement((_qualifiedName_(,_qualifiedName)*_))?/(_qualifiedName_(,_qualifiedName)*_)!drop-3	CREATE ANALYZE TABLE a(a;
 reject	reject	engine	createAnalyzeStatement((_qualifiedName_(,_qualifiedName)*_))?/(_qualifiedName_(,_qualifiedName)*_)!truncate	CREATE ANALYZE TABLE a(a
 reject	reject	engine	createAnalyzeStatement((_qualifiedName_(,_qualifiedName)*_))?/(_qualifiedName_(,_qualifiedName)*_)!insert	CREATE ANALYZE TABLE a(a) zzz;
-reject	accept	engine	createAnalyzeStatement(,_qualifiedName)*/%empty	CREATE ANALYZE TABLE a(a);
+accept	accept	engine	createAnalyzeStatement(,_qualifiedName)*/%empty	CREATE ANALYZE TABLE a(a);
 reject	reject	engine	createAnalyzeStatement(,_qualifiedName)*/%empty!insert	CREATE ANALYZE TABLE a(a zzz);
-reject	accept	engine	createAnalyzeStatement(,_qualifiedName)*/,_qualifiedName_(,_qualifiedName)*	CREATE ANALYZE TABLE a(a, a);
+accept	accept	engine	createAnalyzeStatement(,_qualifiedName)*/,_qualifiedName_(,_qualifiedName)*	CREATE ANALYZE TABLE a(a, a);
 reject	reject	engine	createAnalyzeStatement(,_qualifiedName)*/,_qualifiedName_(,_qualifiedName)*!drop-1	CREATE ANALYZE TABLE a(a a);
 reject	reject	engine	createAnalyzeStatement(,_qualifiedName)*/,_qualifiedName_(,_qualifiedName)*!drop-2	CREATE ANALYZE TABLE a(a,);
 reject	reject	engine	createAnalyzeStatement(,_qualifiedName)*/,_qualifiedName_(,_qualifiedName)*!truncate	CREATE ANALYZE TABLE a(a,
 reject	reject	engine	createAnalyzeStatement(,_qualifiedName)*/,_qualifiedName_(,_qualifiedName)*!insert	CREATE ANALYZE TABLE a(a, a zzz);
-reject	accept	engine	dropAnalyzeJobStatement/DROP_ANALYZE_INTEGER_VALUE	DROP ANALYZE 1;
+accept	accept	engine	dropAnalyzeJobStatement/DROP_ANALYZE_INTEGER_VALUE	DROP ANALYZE 1;
 accept	accept	engine	showAnalyzeStatement/SHOW_ANALYZE_(JOB|STATUS)?_(WHERE_expression)?	SHOW ANALYZE;
 accept	accept	engine	showAnalyzeStatement(JOB|STATUS)?/%empty	SHOW ANALYZE;
 accept	accept	engine	showAnalyzeStatement(JOB|STATUS)?/JOB	SHOW ANALYZE JOB;
@@ -5142,8 +5142,8 @@ reject	reject	engine	showHistogramMetaStatement(WHERE_expression)?/WHERE_express
 reject	reject	engine	showHistogramMetaStatement(WHERE_expression)?/WHERE_expression!insert	SHOW HISTOGRAM META WHERE CURRENT_USER zzz;
 reject	reject	engine	showHistogramMetaStatement(WHERE_expression)?/WHERE_expression!swap	SHOW HISTOGRAM META WHITELIST CURRENT_USER;
 accept	accept	engine	killAnalyzeStatement/KILL_ANALYZE_INTEGER_VALUE	KILL ANALYZE 1;
-reject	accept	engine	analyzeProfileStatement/ANALYZE_PROFILE_FROM_string	ANALYZE PROFILE FROM 'a';
-reject	accept	engine	analyzeProfileStatement/ANALYZE_PROFILE_FROM_string_,_INTEGER_VALUE_(,_INTEGER_VALUE)*	ANALYZE PROFILE FROM 'a', 1;
+accept	accept	engine	analyzeProfileStatement/ANALYZE_PROFILE_FROM_string	ANALYZE PROFILE FROM 'a';
+accept	accept	engine	analyzeProfileStatement/ANALYZE_PROFILE_FROM_string_,_INTEGER_VALUE_(,_INTEGER_VALUE)*	ANALYZE PROFILE FROM 'a', 1;
 reject	reject	engine	analyzeProfileStatement/ANALYZE_PROFILE_FROM_string_,_INTEGER_VALUE_(,_INTEGER_VALUE)*!drop-1	PROFILE FROM 'a', 1;
 reject	reject	engine	analyzeProfileStatement/ANALYZE_PROFILE_FROM_string_,_INTEGER_VALUE_(,_INTEGER_VALUE)*!drop-2	ANALYZE FROM 'a', 1;
 reject	reject	engine	analyzeProfileStatement/ANALYZE_PROFILE_FROM_string_,_INTEGER_VALUE_(,_INTEGER_VALUE)*!drop-3	ANALYZE PROFILE 'a', 1;
@@ -5153,8 +5153,8 @@ reject	reject	engine	analyzeProfileStatement/ANALYZE_PROFILE_FROM_string_,_INTEG
 reject	reject	engine	analyzeProfileStatement/ANALYZE_PROFILE_FROM_string_,_INTEGER_VALUE_(,_INTEGER_VALUE)*!truncate	ANALYZE PROFILE FROM 'a',
 reject	reject	engine	analyzeProfileStatement/ANALYZE_PROFILE_FROM_string_,_INTEGER_VALUE_(,_INTEGER_VALUE)*!insert	ANALYZE PROFILE FROM 'a', 1 zzz;
 reject	reject	engine	analyzeProfileStatement/ANALYZE_PROFILE_FROM_string_,_INTEGER_VALUE_(,_INTEGER_VALUE)*!swap	AND PROFILE FROM 'a', 1;
-reject	accept	engine	analyzeProfileStatement(,_INTEGER_VALUE)*/%empty	ANALYZE PROFILE FROM 'a', 1;
-reject	accept	engine	analyzeProfileStatement(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*	ANALYZE PROFILE FROM 'a', 1, 1;
+accept	accept	engine	analyzeProfileStatement(,_INTEGER_VALUE)*/%empty	ANALYZE PROFILE FROM 'a', 1;
+accept	accept	engine	analyzeProfileStatement(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*	ANALYZE PROFILE FROM 'a', 1, 1;
 reject	reject	engine	analyzeProfileStatement(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*!drop-1	ANALYZE PROFILE FROM 'a', 1 1;
 reject	reject	engine	analyzeProfileStatement(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*!drop-2	ANALYZE PROFILE FROM 'a', 1,;
 reject	reject	engine	analyzeProfileStatement(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*!truncate	ANALYZE PROFILE FROM 'a', 1,
@@ -6219,32 +6219,32 @@ reject	reject	engine	dropRoleStatement(IF_EXISTS)?/IF_EXISTS!truncate	DROP ROLE 
 reject	reject	engine	dropRoleStatement(IF_EXISTS)?/IF_EXISTS!insert	DROP ROLE IF EXISTS zzz a;
 reject	reject	engine	dropRoleStatement(IF_EXISTS)?/IF_EXISTS!swap	DROP ROLE IGNORE EXISTS a;
 accept	accept	engine	showRolesStatement/SHOW_ROLES	SHOW ROLES;
-reject	accept	engine	grantRoleStatement/GRANT_identifierOrStringList_TO_(USER)?_user	GRANT a TO a;
-reject	accept	engine	grantRoleStatement/GRANT_identifierOrStringList_TO_ROLE_identifierOrString	GRANT a TO ROLE a;
+accept	accept	engine	grantRoleStatement/GRANT_identifierOrStringList_TO_(USER)?_user	GRANT a TO a;
+accept	accept	engine	grantRoleStatement/GRANT_identifierOrStringList_TO_ROLE_identifierOrString	GRANT a TO ROLE a;
 reject	reject	engine	grantRoleStatement/GRANT_identifierOrStringList_TO_ROLE_identifierOrString!drop-1	a TO ROLE a;
 reject	reject	engine	grantRoleStatement/GRANT_identifierOrStringList_TO_ROLE_identifierOrString!drop-2	GRANT TO ROLE a;
 reject	reject	engine	grantRoleStatement/GRANT_identifierOrStringList_TO_ROLE_identifierOrString!drop-3	GRANT a ROLE a;
-reject	accept	engine	grantRoleStatement/GRANT_identifierOrStringList_TO_ROLE_identifierOrString!drop-5	GRANT a TO ROLE;
-reject	accept	engine	grantRoleStatement/GRANT_identifierOrStringList_TO_ROLE_identifierOrString!truncate	GRANT a TO ROLE
+accept	accept	engine	grantRoleStatement/GRANT_identifierOrStringList_TO_ROLE_identifierOrString!drop-5	GRANT a TO ROLE;
+accept	accept	engine	grantRoleStatement/GRANT_identifierOrStringList_TO_ROLE_identifierOrString!truncate	GRANT a TO ROLE
 reject	reject	engine	grantRoleStatement/GRANT_identifierOrStringList_TO_ROLE_identifierOrString!insert	GRANT a TO ROLE a zzz;
 reject	reject	engine	grantRoleStatement/GRANT_identifierOrStringList_TO_ROLE_identifierOrString!swap	GRANTS a TO ROLE a;
-reject	accept	engine	grantRoleStatement(USER)?/%empty	GRANT a TO a;
+accept	accept	engine	grantRoleStatement(USER)?/%empty	GRANT a TO a;
 reject	reject	engine	grantRoleStatement(USER)?/%empty!insert	GRANT a TO zzz a;
-reject	accept	engine	grantRoleStatement(USER)?/USER	GRANT a TO USER a;
+accept	accept	engine	grantRoleStatement(USER)?/USER	GRANT a TO USER a;
 reject	reject	engine	grantRoleStatement(USER)?/USER!insert	GRANT a TO USER zzz a;
 reject	reject	engine	grantRoleStatement(USER)?/USER!swap	GRANT a TO USERS a;
-reject	accept	engine	revokeRoleStatement/REVOKE_identifierOrStringList_FROM_(USER)?_user	REVOKE a FROM a;
-reject	accept	engine	revokeRoleStatement/REVOKE_identifierOrStringList_FROM_ROLE_identifierOrString	REVOKE a FROM ROLE a;
+accept	accept	engine	revokeRoleStatement/REVOKE_identifierOrStringList_FROM_(USER)?_user	REVOKE a FROM a;
+accept	accept	engine	revokeRoleStatement/REVOKE_identifierOrStringList_FROM_ROLE_identifierOrString	REVOKE a FROM ROLE a;
 reject	reject	engine	revokeRoleStatement/REVOKE_identifierOrStringList_FROM_ROLE_identifierOrString!drop-1	a FROM ROLE a;
 reject	reject	engine	revokeRoleStatement/REVOKE_identifierOrStringList_FROM_ROLE_identifierOrString!drop-2	REVOKE FROM ROLE a;
 reject	reject	engine	revokeRoleStatement/REVOKE_identifierOrStringList_FROM_ROLE_identifierOrString!drop-3	REVOKE a ROLE a;
-reject	accept	engine	revokeRoleStatement/REVOKE_identifierOrStringList_FROM_ROLE_identifierOrString!drop-5	REVOKE a FROM ROLE;
-reject	accept	engine	revokeRoleStatement/REVOKE_identifierOrStringList_FROM_ROLE_identifierOrString!truncate	REVOKE a FROM ROLE
+accept	accept	engine	revokeRoleStatement/REVOKE_identifierOrStringList_FROM_ROLE_identifierOrString!drop-5	REVOKE a FROM ROLE;
+accept	accept	engine	revokeRoleStatement/REVOKE_identifierOrStringList_FROM_ROLE_identifierOrString!truncate	REVOKE a FROM ROLE
 reject	reject	engine	revokeRoleStatement/REVOKE_identifierOrStringList_FROM_ROLE_identifierOrString!insert	REVOKE a FROM ROLE a zzz;
 reject	reject	engine	revokeRoleStatement/REVOKE_identifierOrStringList_FROM_ROLE_identifierOrString!swap	REWRITE a FROM ROLE a;
-reject	accept	engine	revokeRoleStatement(USER)?/%empty	REVOKE a FROM a;
+accept	accept	engine	revokeRoleStatement(USER)?/%empty	REVOKE a FROM a;
 reject	reject	engine	revokeRoleStatement(USER)?/%empty!insert	REVOKE a FROM zzz a;
-reject	accept	engine	revokeRoleStatement(USER)?/USER	REVOKE a FROM USER a;
+accept	accept	engine	revokeRoleStatement(USER)?/USER	REVOKE a FROM USER a;
 reject	reject	engine	revokeRoleStatement(USER)?/USER!insert	REVOKE a FROM USER zzz a;
 reject	reject	engine	revokeRoleStatement(USER)?/USER!swap	REVOKE a FROM USERS a;
 accept	accept	engine	setRoleStatement/SET_ROLE_DEFAULT	SET ROLE DEFAULT;
@@ -6281,8 +6281,8 @@ reject	reject	engine	setDefaultRoleStatement(NONE|ALL|roleList)/roleList!insert	
 accept	accept	engine	grantRevokeClause/(USER?_user|ROLE_identifierOrString)	GRANT ALL ON * TO a;
 accept	accept	engine	grantRevokeClause(USER?_user|ROLE_identifierOrString)/(USER)?_user	GRANT ALL ON * TO a;
 accept	accept	engine	grantRevokeClause(USER?_user|ROLE_identifierOrString)/ROLE_identifierOrString	GRANT ALL ON * TO ROLE a;
-reject	accept	engine	grantRevokeClause(USER?_user|ROLE_identifierOrString)/ROLE_identifierOrString!drop-2	GRANT ALL ON * TO ROLE;
-reject	accept	engine	grantRevokeClause(USER?_user|ROLE_identifierOrString)/ROLE_identifierOrString!truncate	GRANT ALL ON * TO ROLE
+accept	accept	engine	grantRevokeClause(USER?_user|ROLE_identifierOrString)/ROLE_identifierOrString!drop-2	GRANT ALL ON * TO ROLE;
+accept	accept	engine	grantRevokeClause(USER?_user|ROLE_identifierOrString)/ROLE_identifierOrString!truncate	GRANT ALL ON * TO ROLE
 reject	reject	engine	grantRevokeClause(USER?_user|ROLE_identifierOrString)/ROLE_identifierOrString!insert	GRANT ALL ON * TO ROLE a zzz;
 reject	reject	engine	grantRevokeClause(USER?_user|ROLE_identifierOrString)/ROLE_identifierOrString!swap	GRANT ALL ON * TO ROLES a;
 accept	accept	engine	grantRevokeClause(USER)?/%empty	GRANT ALL ON * TO a;
@@ -6290,7 +6290,7 @@ reject	reject	engine	grantRevokeClause(USER)?/%empty!insert	GRANT ALL ON * TO zz
 accept	accept	engine	grantRevokeClause(USER)?/USER	GRANT ALL ON * TO USER a;
 reject	reject	engine	grantRevokeClause(USER)?/USER!insert	GRANT ALL ON * TO USER zzz a;
 reject	reject	engine	grantRevokeClause(USER)?/USER!swap	GRANT ALL ON * TO USERS a;
-reject	accept	engine	grantPrivilegeStatement/GRANT_IMPERSONATE_ON_USER_user_(,_user)*_TO_grantRevoke~6c9cf0cb	GRANT IMPERSONATE ON USER a TO a;
+accept	accept	engine	grantPrivilegeStatement/GRANT_IMPERSONATE_ON_USER_user_(,_user)*_TO_grantRevoke~6c9cf0cb	GRANT IMPERSONATE ON USER a TO a;
 reject	reject	engine	grantPrivilegeStatement/GRANT_IMPERSONATE_ON_USER_user_(,_user)*_TO_grantRevoke~6c9cf0cb!drop-1	IMPERSONATE ON USER a TO a;
 reject	reject	engine	grantPrivilegeStatement/GRANT_IMPERSONATE_ON_USER_user_(,_user)*_TO_grantRevoke~6c9cf0cb!drop-2	GRANT ON USER a TO a;
 reject	reject	engine	grantPrivilegeStatement/GRANT_IMPERSONATE_ON_USER_user_(,_user)*_TO_grantRevoke~6c9cf0cb!drop-3	GRANT IMPERSONATE USER a TO a;
@@ -6302,7 +6302,7 @@ reject	reject	engine	grantPrivilegeStatement/GRANT_IMPERSONATE_ON_USER_user_(,_u
 reject	reject	engine	grantPrivilegeStatement/GRANT_IMPERSONATE_ON_USER_user_(,_user)*_TO_grantRevoke~6c9cf0cb!insert	GRANT IMPERSONATE ON USER a TO a zzz;
 reject	reject	engine	grantPrivilegeStatement/GRANT_IMPERSONATE_ON_USER_user_(,_user)*_TO_grantRevoke~6c9cf0cb!swap	GRANTS IMPERSONATE ON USER a TO a;
 accept	accept	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_privObjectNameList_TO_grantR~7a0345b2	GRANT ALL ON * TO a;
-reject	accept	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_(GLOBAL)?_FUNCTION_privFunct~82e4ab89	GRANT ALL ON FUNCTION a() TO a;
+accept	accept	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_(GLOBAL)?_FUNCTION_privFunct~82e4ab89	GRANT ALL ON FUNCTION a() TO a;
 reject	reject	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_(GLOBAL)?_FUNCTION_privFunct~82e4ab89!drop-1	ALL ON FUNCTION a() TO a;
 reject	reject	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_(GLOBAL)?_FUNCTION_privFunct~82e4ab89!drop-2	GRANT ON FUNCTION a() TO a;
 reject	reject	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_(GLOBAL)?_FUNCTION_privFunct~82e4ab89!drop-3	GRANT ALL FUNCTION a() TO a;
@@ -6324,7 +6324,7 @@ reject	reject	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_SYSTEM_T
 reject	reject	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_SYSTEM_TO_grantRevokeClause_~d79208fa!truncate	GRANT ALL ON SYSTEM TO
 reject	reject	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_SYSTEM_TO_grantRevokeClause_~d79208fa!insert	GRANT ALL ON SYSTEM TO a zzz;
 reject	reject	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_SYSTEM_TO_grantRevokeClause_~d79208fa!swap	GRANTS ALL ON SYSTEM TO a;
-reject	accept	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_privObjectType_privObjectNam~4ff0406f	GRANT ALL ON CATALOG * TO a;
+accept	accept	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_privObjectType_privObjectNam~4ff0406f	GRANT ALL ON CATALOG * TO a;
 reject	reject	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_privObjectType_privObjectNam~4ff0406f!drop-1	ALL ON CATALOG * TO a;
 reject	reject	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_privObjectType_privObjectNam~4ff0406f!drop-2	GRANT ON CATALOG * TO a;
 reject	reject	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_privObjectType_privObjectNam~4ff0406f!drop-3	GRANT ALL CATALOG * TO a;
@@ -6334,20 +6334,20 @@ reject	reject	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_privObje
 reject	reject	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_privObjectType_privObjectNam~4ff0406f!truncate	GRANT ALL ON CATALOG * TO
 reject	reject	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_privObjectType_privObjectNam~4ff0406f!insert	GRANT ALL ON CATALOG * TO a zzz;
 reject	reject	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_privObjectType_privObjectNam~4ff0406f!swap	GRANTS ALL ON CATALOG * TO a;
-reject	accept	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_ALL_privObjectTypePlural_(IN~70a31505	GRANT ALL ON ALL CATALOGS TO a;
+accept	accept	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_ALL_privObjectTypePlural_(IN~70a31505	GRANT ALL ON ALL CATALOGS TO a;
 reject	reject	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_ALL_privObjectTypePlural_(IN~70a31505!drop-1	ALL ON ALL CATALOGS TO a;
 reject	reject	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_ALL_privObjectTypePlural_(IN~70a31505!drop-2	GRANT ON ALL CATALOGS TO a;
 reject	reject	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_ALL_privObjectTypePlural_(IN~70a31505!drop-3	GRANT ALL ALL CATALOGS TO a;
 accept	accept	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_ALL_privObjectTypePlural_(IN~70a31505!drop-4	GRANT ALL ON CATALOGS TO a;
-accept	reject	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_ALL_privObjectTypePlural_(IN~70a31505!drop-5	GRANT ALL ON ALL TO a;
+reject	reject	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_ALL_privObjectTypePlural_(IN~70a31505!drop-5	GRANT ALL ON ALL TO a;
 reject	reject	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_ALL_privObjectTypePlural_(IN~70a31505!drop-6	GRANT ALL ON ALL CATALOGS a;
 reject	reject	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_ALL_privObjectTypePlural_(IN~70a31505!drop-7	GRANT ALL ON ALL CATALOGS TO;
 reject	reject	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_ALL_privObjectTypePlural_(IN~70a31505!truncate	GRANT ALL ON ALL CATALOGS TO
 reject	reject	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_ALL_privObjectTypePlural_(IN~70a31505!insert	GRANT ALL ON ALL CATALOGS TO a zzz;
 reject	reject	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_ALL_privObjectTypePlural_(IN~70a31505!swap	GRANTS ALL ON ALL CATALOGS TO a;
-reject	accept	engine	grantPrivilegeStatement(,_user)*/%empty	GRANT IMPERSONATE ON USER a TO a;
+accept	accept	engine	grantPrivilegeStatement(,_user)*/%empty	GRANT IMPERSONATE ON USER a TO a;
 reject	reject	engine	grantPrivilegeStatement(,_user)*/%empty!insert	GRANT IMPERSONATE ON USER a zzz TO a;
-reject	accept	engine	grantPrivilegeStatement(,_user)*/,_user_(,_user)*	GRANT IMPERSONATE ON USER a, a TO a;
+accept	accept	engine	grantPrivilegeStatement(,_user)*/,_user_(,_user)*	GRANT IMPERSONATE ON USER a, a TO a;
 reject	reject	engine	grantPrivilegeStatement(,_user)*/,_user_(,_user)*!drop-1	GRANT IMPERSONATE ON USER a a TO a;
 reject	reject	engine	grantPrivilegeStatement(,_user)*/,_user_(,_user)*!drop-2	GRANT IMPERSONATE ON USER a, TO a;
 reject	reject	engine	grantPrivilegeStatement(,_user)*/,_user_(,_user)*!truncate	GRANT IMPERSONATE ON USER a,
@@ -6356,33 +6356,33 @@ accept	accept	engine	grantPrivilegeStatement(WITH_GRANT_OPTION)?/%empty	GRANT AL
 accept	accept	engine	grantPrivilegeStatement(WITH_GRANT_OPTION)?/WITH_GRANT_OPTION	GRANT ALL ON * TO a WITH GRANT OPTION;
 reject	reject	engine	grantPrivilegeStatement(WITH_GRANT_OPTION)?/WITH_GRANT_OPTION!drop-1	GRANT ALL ON * TO a GRANT OPTION;
 reject	reject	engine	grantPrivilegeStatement(WITH_GRANT_OPTION)?/WITH_GRANT_OPTION!drop-2	GRANT ALL ON * TO a WITH OPTION;
-accept	reject	engine	grantPrivilegeStatement(WITH_GRANT_OPTION)?/WITH_GRANT_OPTION!drop-3	GRANT ALL ON * TO a WITH GRANT;
-accept	reject	engine	grantPrivilegeStatement(WITH_GRANT_OPTION)?/WITH_GRANT_OPTION!truncate	GRANT ALL ON * TO a WITH GRANT
+reject	reject	engine	grantPrivilegeStatement(WITH_GRANT_OPTION)?/WITH_GRANT_OPTION!drop-3	GRANT ALL ON * TO a WITH GRANT;
+reject	reject	engine	grantPrivilegeStatement(WITH_GRANT_OPTION)?/WITH_GRANT_OPTION!truncate	GRANT ALL ON * TO a WITH GRANT
 reject	reject	engine	grantPrivilegeStatement(WITH_GRANT_OPTION)?/WITH_GRANT_OPTION!insert	GRANT ALL ON * TO a WITH GRANT OPTION zzz;
 reject	reject	engine	grantPrivilegeStatement(WITH_GRANT_OPTION)?/WITH_GRANT_OPTION!swap	GRANT ALL ON * TO a WORK GRANT OPTION;
-reject	accept	engine	grantPrivilegeStatement(GLOBAL)?/%empty	GRANT ALL ON FUNCTION a() TO a;
+accept	accept	engine	grantPrivilegeStatement(GLOBAL)?/%empty	GRANT ALL ON FUNCTION a() TO a;
 reject	reject	engine	grantPrivilegeStatement(GLOBAL)?/%empty!insert	GRANT ALL ON zzz FUNCTION a() TO a;
-reject	accept	engine	grantPrivilegeStatement(GLOBAL)?/GLOBAL	GRANT ALL ON GLOBAL FUNCTION a() TO a;
+accept	accept	engine	grantPrivilegeStatement(GLOBAL)?/GLOBAL	GRANT ALL ON GLOBAL FUNCTION a() TO a;
 reject	reject	engine	grantPrivilegeStatement(GLOBAL)?/GLOBAL!truncate	GRANT ALL ON
 reject	reject	engine	grantPrivilegeStatement(GLOBAL)?/GLOBAL!insert	GRANT ALL ON GLOBAL zzz FUNCTION a() TO a;
 reject	reject	engine	grantPrivilegeStatement(GLOBAL)?/GLOBAL!swap	GRANT ALL ON GRANT FUNCTION a() TO a;
-reject	accept	engine	grantPrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/%empty	GRANT ALL ON ALL CATALOGS TO a;
+accept	accept	engine	grantPrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/%empty	GRANT ALL ON ALL CATALOGS TO a;
 reject	reject	engine	grantPrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/%empty!insert	GRANT ALL ON ALL CATALOGS zzz TO a;
-reject	accept	engine	grantPrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/IN_ALL_DATABASES	GRANT ALL ON ALL CATALOGS IN ALL DATABASES TO a;
+accept	accept	engine	grantPrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/IN_ALL_DATABASES	GRANT ALL ON ALL CATALOGS IN ALL DATABASES TO a;
 reject	reject	engine	grantPrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/IN_ALL_DATABASES!drop-1	GRANT ALL ON ALL CATALOGS ALL DATABASES TO a;
 reject	reject	engine	grantPrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/IN_ALL_DATABASES!drop-2	GRANT ALL ON ALL CATALOGS IN DATABASES TO a;
 reject	reject	engine	grantPrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/IN_ALL_DATABASES!drop-3	GRANT ALL ON ALL CATALOGS IN ALL TO a;
 reject	reject	engine	grantPrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/IN_ALL_DATABASES!truncate	GRANT ALL ON ALL CATALOGS IN ALL
 reject	reject	engine	grantPrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/IN_ALL_DATABASES!insert	GRANT ALL ON ALL CATALOGS IN ALL DATABASES zzz TO a;
 reject	reject	engine	grantPrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/IN_ALL_DATABASES!swap	GRANT ALL ON ALL CATALOGS INACTIVE ALL DATABASES TO a;
-reject	accept	engine	grantPrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/IN_DATABASE_identifierOrString	GRANT ALL ON ALL CATALOGS IN DATABASE a TO a;
+accept	accept	engine	grantPrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/IN_DATABASE_identifierOrString	GRANT ALL ON ALL CATALOGS IN DATABASE a TO a;
 reject	reject	engine	grantPrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/IN_DATABASE_identifierOrString!drop-1	GRANT ALL ON ALL CATALOGS DATABASE a TO a;
 reject	reject	engine	grantPrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/IN_DATABASE_identifierOrString!drop-2	GRANT ALL ON ALL CATALOGS IN a TO a;
 reject	reject	engine	grantPrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/IN_DATABASE_identifierOrString!drop-3	GRANT ALL ON ALL CATALOGS IN DATABASE TO a;
 reject	reject	engine	grantPrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/IN_DATABASE_identifierOrString!truncate	GRANT ALL ON ALL CATALOGS IN DATABASE
 reject	reject	engine	grantPrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/IN_DATABASE_identifierOrString!insert	GRANT ALL ON ALL CATALOGS IN DATABASE a zzz TO a;
 reject	reject	engine	grantPrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/IN_DATABASE_identifierOrString!swap	GRANT ALL ON ALL CATALOGS INACTIVE DATABASE a TO a;
-reject	accept	engine	revokePrivilegeStatement/REVOKE_IMPERSONATE_ON_USER_user_(,_user)*_FROM_grantRevokeClause	REVOKE IMPERSONATE ON USER a FROM a;
+accept	accept	engine	revokePrivilegeStatement/REVOKE_IMPERSONATE_ON_USER_user_(,_user)*_FROM_grantRevokeClause	REVOKE IMPERSONATE ON USER a FROM a;
 reject	reject	engine	revokePrivilegeStatement/REVOKE_IMPERSONATE_ON_USER_user_(,_user)*_FROM_grantRevokeClause!drop-1	IMPERSONATE ON USER a FROM a;
 reject	reject	engine	revokePrivilegeStatement/REVOKE_IMPERSONATE_ON_USER_user_(,_user)*_FROM_grantRevokeClause!drop-2	REVOKE ON USER a FROM a;
 reject	reject	engine	revokePrivilegeStatement/REVOKE_IMPERSONATE_ON_USER_user_(,_user)*_FROM_grantRevokeClause!drop-3	REVOKE IMPERSONATE USER a FROM a;
@@ -6394,7 +6394,7 @@ reject	reject	engine	revokePrivilegeStatement/REVOKE_IMPERSONATE_ON_USER_user_(,
 reject	reject	engine	revokePrivilegeStatement/REVOKE_IMPERSONATE_ON_USER_user_(,_user)*_FROM_grantRevokeClause!insert	REVOKE IMPERSONATE ON USER a FROM a zzz;
 reject	reject	engine	revokePrivilegeStatement/REVOKE_IMPERSONATE_ON_USER_user_(,_user)*_FROM_grantRevokeClause!swap	REWRITE IMPERSONATE ON USER a FROM a;
 accept	accept	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_privObjectNameList_FROM_gra~677545f4	REVOKE ALL ON * FROM a;
-reject	accept	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_(GLOBAL)?_FUNCTION_privFunc~6d74e663	REVOKE ALL ON FUNCTION a() FROM a;
+accept	accept	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_(GLOBAL)?_FUNCTION_privFunc~6d74e663	REVOKE ALL ON FUNCTION a() FROM a;
 reject	reject	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_(GLOBAL)?_FUNCTION_privFunc~6d74e663!drop-1	ALL ON FUNCTION a() FROM a;
 reject	reject	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_(GLOBAL)?_FUNCTION_privFunc~6d74e663!drop-2	REVOKE ON FUNCTION a() FROM a;
 reject	reject	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_(GLOBAL)?_FUNCTION_privFunc~6d74e663!drop-3	REVOKE ALL FUNCTION a() FROM a;
@@ -6416,7 +6416,7 @@ reject	reject	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_SYSTEM
 reject	reject	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_SYSTEM_FROM_grantRevokeClause!truncate	REVOKE ALL ON SYSTEM FROM
 reject	reject	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_SYSTEM_FROM_grantRevokeClause!insert	REVOKE ALL ON SYSTEM FROM a zzz;
 reject	reject	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_SYSTEM_FROM_grantRevokeClause!swap	REWRITE ALL ON SYSTEM FROM a;
-reject	accept	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_privObjectType_privObjectNa~08de388c	REVOKE ALL ON CATALOG * FROM a;
+accept	accept	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_privObjectType_privObjectNa~08de388c	REVOKE ALL ON CATALOG * FROM a;
 reject	reject	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_privObjectType_privObjectNa~08de388c!drop-1	ALL ON CATALOG * FROM a;
 reject	reject	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_privObjectType_privObjectNa~08de388c!drop-2	REVOKE ON CATALOG * FROM a;
 reject	reject	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_privObjectType_privObjectNa~08de388c!drop-3	REVOKE ALL CATALOG * FROM a;
@@ -6426,40 +6426,40 @@ reject	reject	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_privOb
 reject	reject	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_privObjectType_privObjectNa~08de388c!truncate	REVOKE ALL ON CATALOG * FROM
 reject	reject	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_privObjectType_privObjectNa~08de388c!insert	REVOKE ALL ON CATALOG * FROM a zzz;
 reject	reject	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_privObjectType_privObjectNa~08de388c!swap	REWRITE ALL ON CATALOG * FROM a;
-reject	accept	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_ALL_privObjectTypePlural_(I~c7e458a0	REVOKE ALL ON ALL CATALOGS FROM a;
+accept	accept	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_ALL_privObjectTypePlural_(I~c7e458a0	REVOKE ALL ON ALL CATALOGS FROM a;
 reject	reject	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_ALL_privObjectTypePlural_(I~c7e458a0!drop-1	ALL ON ALL CATALOGS FROM a;
 reject	reject	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_ALL_privObjectTypePlural_(I~c7e458a0!drop-2	REVOKE ON ALL CATALOGS FROM a;
 reject	reject	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_ALL_privObjectTypePlural_(I~c7e458a0!drop-3	REVOKE ALL ALL CATALOGS FROM a;
 accept	accept	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_ALL_privObjectTypePlural_(I~c7e458a0!drop-4	REVOKE ALL ON CATALOGS FROM a;
-accept	reject	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_ALL_privObjectTypePlural_(I~c7e458a0!drop-5	REVOKE ALL ON ALL FROM a;
+reject	reject	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_ALL_privObjectTypePlural_(I~c7e458a0!drop-5	REVOKE ALL ON ALL FROM a;
 reject	reject	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_ALL_privObjectTypePlural_(I~c7e458a0!drop-6	REVOKE ALL ON ALL CATALOGS a;
 reject	reject	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_ALL_privObjectTypePlural_(I~c7e458a0!drop-7	REVOKE ALL ON ALL CATALOGS FROM;
 reject	reject	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_ALL_privObjectTypePlural_(I~c7e458a0!truncate	REVOKE ALL ON ALL CATALOGS FROM
 reject	reject	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_ALL_privObjectTypePlural_(I~c7e458a0!insert	REVOKE ALL ON ALL CATALOGS FROM a zzz;
 reject	reject	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_ALL_privObjectTypePlural_(I~c7e458a0!swap	REWRITE ALL ON ALL CATALOGS FROM a;
-reject	accept	engine	revokePrivilegeStatement(,_user)*/%empty	REVOKE IMPERSONATE ON USER a FROM a;
+accept	accept	engine	revokePrivilegeStatement(,_user)*/%empty	REVOKE IMPERSONATE ON USER a FROM a;
 reject	reject	engine	revokePrivilegeStatement(,_user)*/%empty!insert	REVOKE IMPERSONATE ON USER a zzz FROM a;
-reject	accept	engine	revokePrivilegeStatement(,_user)*/,_user_(,_user)*	REVOKE IMPERSONATE ON USER a, a FROM a;
+accept	accept	engine	revokePrivilegeStatement(,_user)*/,_user_(,_user)*	REVOKE IMPERSONATE ON USER a, a FROM a;
 reject	reject	engine	revokePrivilegeStatement(,_user)*/,_user_(,_user)*!drop-1	REVOKE IMPERSONATE ON USER a a FROM a;
 reject	reject	engine	revokePrivilegeStatement(,_user)*/,_user_(,_user)*!drop-2	REVOKE IMPERSONATE ON USER a, FROM a;
 reject	reject	engine	revokePrivilegeStatement(,_user)*/,_user_(,_user)*!truncate	REVOKE IMPERSONATE ON USER a,
 reject	reject	engine	revokePrivilegeStatement(,_user)*/,_user_(,_user)*!insert	REVOKE IMPERSONATE ON USER a, a zzz FROM a;
-reject	accept	engine	revokePrivilegeStatement(GLOBAL)?/%empty	REVOKE ALL ON FUNCTION a() FROM a;
+accept	accept	engine	revokePrivilegeStatement(GLOBAL)?/%empty	REVOKE ALL ON FUNCTION a() FROM a;
 reject	reject	engine	revokePrivilegeStatement(GLOBAL)?/%empty!insert	REVOKE ALL ON zzz FUNCTION a() FROM a;
-reject	accept	engine	revokePrivilegeStatement(GLOBAL)?/GLOBAL	REVOKE ALL ON GLOBAL FUNCTION a() FROM a;
+accept	accept	engine	revokePrivilegeStatement(GLOBAL)?/GLOBAL	REVOKE ALL ON GLOBAL FUNCTION a() FROM a;
 reject	reject	engine	revokePrivilegeStatement(GLOBAL)?/GLOBAL!truncate	REVOKE ALL ON
 reject	reject	engine	revokePrivilegeStatement(GLOBAL)?/GLOBAL!insert	REVOKE ALL ON GLOBAL zzz FUNCTION a() FROM a;
 reject	reject	engine	revokePrivilegeStatement(GLOBAL)?/GLOBAL!swap	REVOKE ALL ON GRANT FUNCTION a() FROM a;
-reject	accept	engine	revokePrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/%empty	REVOKE ALL ON ALL CATALOGS FROM a;
+accept	accept	engine	revokePrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/%empty	REVOKE ALL ON ALL CATALOGS FROM a;
 reject	reject	engine	revokePrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/%empty!insert	REVOKE ALL ON ALL CATALOGS zzz FROM a;
-reject	accept	engine	revokePrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/IN_ALL_DATABASES	REVOKE ALL ON ALL CATALOGS IN ALL DATABASES FROM a;
+accept	accept	engine	revokePrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/IN_ALL_DATABASES	REVOKE ALL ON ALL CATALOGS IN ALL DATABASES FROM a;
 reject	reject	engine	revokePrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/IN_ALL_DATABASES!drop-1	REVOKE ALL ON ALL CATALOGS ALL DATABASES FROM a;
 reject	reject	engine	revokePrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/IN_ALL_DATABASES!drop-2	REVOKE ALL ON ALL CATALOGS IN DATABASES FROM a;
 reject	reject	engine	revokePrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/IN_ALL_DATABASES!drop-3	REVOKE ALL ON ALL CATALOGS IN ALL FROM a;
 reject	reject	engine	revokePrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/IN_ALL_DATABASES!truncate	REVOKE ALL ON ALL CATALOGS IN ALL
 reject	reject	engine	revokePrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/IN_ALL_DATABASES!insert	REVOKE ALL ON ALL CATALOGS IN ALL DATABASES zzz FROM a;
 reject	reject	engine	revokePrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/IN_ALL_DATABASES!swap	REVOKE ALL ON ALL CATALOGS INACTIVE ALL DATABASES FROM a;
-reject	accept	engine	revokePrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/IN_DATABASE_identifierOrString	REVOKE ALL ON ALL CATALOGS IN DATABASE a FROM a;
+accept	accept	engine	revokePrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/IN_DATABASE_identifierOrString	REVOKE ALL ON ALL CATALOGS IN DATABASE a FROM a;
 reject	reject	engine	revokePrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/IN_DATABASE_identifierOrString!drop-1	REVOKE ALL ON ALL CATALOGS DATABASE a FROM a;
 reject	reject	engine	revokePrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/IN_DATABASE_identifierOrString!drop-2	REVOKE ALL ON ALL CATALOGS IN a FROM a;
 reject	reject	engine	revokePrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/IN_DATABASE_identifierOrString!drop-3	REVOKE ALL ON ALL CATALOGS IN DATABASE FROM a;
@@ -6524,15 +6524,15 @@ reject	reject	engine	privObjectName(._identifierOrStringOrStar)?/._identifierOrS
 reject	reject	engine	privObjectName(._identifierOrStringOrStar)?/._identifierOrStringOrStar!insert	GRANT ALL ON *.* zzz TO a;
 accept	accept	engine	privObjectNameList/privObjectName_(,_privObjectName)*	GRANT ALL ON * TO a;
 accept	accept	engine	privObjectNameList(,_privObjectName)*/%empty	GRANT ALL ON * TO a;
-reject	accept	engine	privObjectNameList(,_privObjectName)*/,_privObjectName_(,_privObjectName)*	GRANT ALL ON *, * TO a;
+accept	accept	engine	privObjectNameList(,_privObjectName)*/,_privObjectName_(,_privObjectName)*	GRANT ALL ON *, * TO a;
 reject	reject	engine	privObjectNameList(,_privObjectName)*/,_privObjectName_(,_privObjectName)*!drop-2	GRANT ALL ON *, TO a;
 reject	reject	engine	privObjectNameList(,_privObjectName)*/,_privObjectName_(,_privObjectName)*!truncate	GRANT ALL ON *,
 reject	reject	engine	privObjectNameList(,_privObjectName)*/,_privObjectName_(,_privObjectName)*!insert	GRANT ALL ON *, * zzz TO a;
-reject	accept	engine	privFunctionObjectNameList/qualifiedName_(_typeList_)_(,_qualifiedName_(_typeList_))*	GRANT ALL ON FUNCTION a() TO a;
+accept	accept	engine	privFunctionObjectNameList/qualifiedName_(_typeList_)_(,_qualifiedName_(_typeList_))*	GRANT ALL ON FUNCTION a() TO a;
 reject	reject	engine	privFunctionObjectNameList/qualifiedName_(_typeList_)_(,_qualifiedName_(_typeList_))*!truncate	GRANT ALL ON FUNCTION a(
 reject	reject	engine	privFunctionObjectNameList/qualifiedName_(_typeList_)_(,_qualifiedName_(_typeList_))*!insert	GRANT ALL ON FUNCTION a() zzz TO a;
-reject	accept	engine	privFunctionObjectNameList(,_qualifiedName_(_typeList_))*/%empty	GRANT ALL ON FUNCTION a() TO a;
-reject	accept	engine	privFunctionObjectNameList(,_qualifiedName_(_typeList_))*/,_qualifiedName_(_typeList_)_(,_qualifiedName_(_typeList_))*	GRANT ALL ON FUNCTION a(), a() TO a;
+accept	accept	engine	privFunctionObjectNameList(,_qualifiedName_(_typeList_))*/%empty	GRANT ALL ON FUNCTION a() TO a;
+accept	accept	engine	privFunctionObjectNameList(,_qualifiedName_(_typeList_))*/,_qualifiedName_(_typeList_)_(,_qualifiedName_(_typeList_))*	GRANT ALL ON FUNCTION a(), a() TO a;
 reject	reject	engine	privFunctionObjectNameList(,_qualifiedName_(_typeList_))*/,_qualifiedName_(_typeList_)_(,_qualifiedName_(_typeList_))*!drop-1	GRANT ALL ON FUNCTION a() a() TO a;
 reject	reject	engine	privFunctionObjectNameList(,_qualifiedName_(_typeList_))*/,_qualifiedName_(_typeList_)_(,_qualifiedName_(_typeList_))*!drop-2	GRANT ALL ON FUNCTION a(),() TO a;
 reject	reject	engine	privFunctionObjectNameList(,_qualifiedName_(_typeList_))*/,_qualifiedName_(_typeList_)_(,_qualifiedName_(_typeList_))*!drop-3	GRANT ALL ON FUNCTION a(), a) TO a;
@@ -6555,28 +6555,28 @@ reject	reject	engine	privilegeType/ALTER!insert	GRANT ALTER zzz ON * TO a;
 reject	reject	engine	privilegeType/ALTER!swap	GRANT ANALYZE ON * TO a;
 accept	accept	engine	privilegeType/APPLY	GRANT APPLY ON * TO a;
 reject	reject	engine	privilegeType/APPLY!insert	GRANT APPLY zzz ON * TO a;
-accept	reject	engine	privilegeType/APPLY!swap	GRANT ARRAY ON * TO a;
+reject	reject	engine	privilegeType/APPLY!swap	GRANT ARRAY ON * TO a;
 accept	accept	engine	privilegeType/BLACKLIST	GRANT BLACKLIST ON * TO a;
 reject	reject	engine	privilegeType/BLACKLIST!insert	GRANT BLACKLIST zzz ON * TO a;
-accept	reject	engine	privilegeType/BLACKLIST!swap	GRANT BODY ON * TO a;
-reject	accept	engine	privilegeType/CREATE_(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)	GRANT CREATE DATABASE ON * TO a;
+reject	reject	engine	privilegeType/BLACKLIST!swap	GRANT BODY ON * TO a;
+accept	accept	engine	privilegeType/CREATE_(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)	GRANT CREATE DATABASE ON * TO a;
 reject	reject	engine	privilegeType/CREATE_(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)!drop-1	GRANT DATABASE ON * TO a;
-accept	reject	engine	privilegeType/CREATE_(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)!drop-2	GRANT CREATE ON * TO a;
+reject	reject	engine	privilegeType/CREATE_(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)!drop-2	GRANT CREATE ON * TO a;
 reject	reject	engine	privilegeType/CREATE_(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)!truncate	GRANT CREATE
 reject	reject	engine	privilegeType/CREATE_(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)!insert	GRANT CREATE DATABASE zzz ON * TO a;
 reject	reject	engine	privilegeType/CREATE_(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)!swap	GRANT CROSS DATABASE ON * TO a;
 accept	accept	engine	privilegeType/DELETE	GRANT DELETE ON * TO a;
 reject	reject	engine	privilegeType/DELETE!insert	GRANT DELETE zzz ON * TO a;
-accept	reject	engine	privilegeType/DELETE!swap	GRANT DENSE_RANK ON * TO a;
+reject	reject	engine	privilegeType/DELETE!swap	GRANT DENSE_RANK ON * TO a;
 accept	accept	engine	privilegeType/DROP	GRANT DROP ON * TO a;
 reject	reject	engine	privilegeType/DROP!insert	GRANT DROP zzz ON * TO a;
-accept	reject	engine	privilegeType/DROP!swap	GRANT DUAL ON * TO a;
-reject	accept	engine	privilegeType/EXPORT	GRANT EXPORT ON * TO a;
+reject	reject	engine	privilegeType/DROP!swap	GRANT DUAL ON * TO a;
+accept	accept	engine	privilegeType/EXPORT	GRANT EXPORT ON * TO a;
 reject	reject	engine	privilegeType/EXPORT!insert	GRANT EXPORT zzz ON * TO a;
-accept	reject	engine	privilegeType/EXPORT!swap	GRANT EXTERNAL ON * TO a;
+reject	reject	engine	privilegeType/EXPORT!swap	GRANT EXTERNAL ON * TO a;
 accept	accept	engine	privilegeType/FILE	GRANT FILE ON * TO a;
 reject	reject	engine	privilegeType/FILE!insert	GRANT FILE zzz ON * TO a;
-accept	reject	engine	privilegeType/FILE!swap	GRANT FILES ON * TO a;
+reject	reject	engine	privilegeType/FILE!swap	GRANT FILES ON * TO a;
 accept	accept	engine	privilegeType/IMPERSONATE	GRANT IMPERSONATE ON * TO a;
 reject	reject	engine	privilegeType/IMPERSONATE!insert	GRANT IMPERSONATE zzz ON * TO a;
 reject	reject	engine	privilegeType/IMPERSONATE!swap	GRANT IN ON * TO a;
@@ -6588,16 +6588,16 @@ reject	reject	engine	privilegeType/GRANT!insert	GRANT GRANT zzz ON * TO a;
 reject	reject	engine	privilegeType/GRANT!swap	GRANT GRANTS ON * TO a;
 accept	accept	engine	privilegeType/NODE	GRANT NODE ON * TO a;
 reject	reject	engine	privilegeType/NODE!insert	GRANT NODE zzz ON * TO a;
-accept	reject	engine	privilegeType/NODE!swap	GRANT NODES ON * TO a;
+reject	reject	engine	privilegeType/NODE!swap	GRANT NODES ON * TO a;
 accept	accept	engine	privilegeType/OPERATE	GRANT OPERATE ON * TO a;
 reject	reject	engine	privilegeType/OPERATE!insert	GRANT OPERATE zzz ON * TO a;
-accept	reject	engine	privilegeType/OPERATE!swap	GRANT OPTIMIZE ON * TO a;
+reject	reject	engine	privilegeType/OPERATE!swap	GRANT OPTIMIZE ON * TO a;
 accept	accept	engine	privilegeType/PLUGIN	GRANT PLUGIN ON * TO a;
 reject	reject	engine	privilegeType/PLUGIN!insert	GRANT PLUGIN zzz ON * TO a;
-accept	reject	engine	privilegeType/PLUGIN!swap	GRANT PLUGINS ON * TO a;
+reject	reject	engine	privilegeType/PLUGIN!swap	GRANT PLUGINS ON * TO a;
 accept	accept	engine	privilegeType/REPOSITORY	GRANT REPOSITORY ON * TO a;
 reject	reject	engine	privilegeType/REPOSITORY!insert	GRANT REPOSITORY zzz ON * TO a;
-accept	reject	engine	privilegeType/REPOSITORY!swap	GRANT RESOURCE ON * TO a;
+reject	reject	engine	privilegeType/REPOSITORY!swap	GRANT RESOURCE ON * TO a;
 accept	accept	engine	privilegeType/REFRESH	GRANT REFRESH ON * TO a;
 reject	reject	engine	privilegeType/REFRESH!insert	GRANT REFRESH zzz ON * TO a;
 reject	reject	engine	privilegeType/REFRESH!swap	GRANT REGEXP ON * TO a;
@@ -6614,60 +6614,60 @@ accept	accept	engine	privilegeType(PRIVILEGES)?/PRIVILEGES	GRANT ALL PRIVILEGES 
 reject	reject	engine	privilegeType(PRIVILEGES)?/PRIVILEGES!truncate	GRANT ALL
 reject	reject	engine	privilegeType(PRIVILEGES)?/PRIVILEGES!insert	GRANT ALL PRIVILEGES zzz ON * TO a;
 reject	reject	engine	privilegeType(PRIVILEGES)?/PRIVILEGES!swap	GRANT ALL PROBABILITY ON * TO a;
-reject	accept	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/DATABASE	GRANT CREATE DATABASE ON * TO a;
+accept	accept	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/DATABASE	GRANT CREATE DATABASE ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/DATABASE!swap	GRANT CREATE DATABASES ON * TO a;
-reject	accept	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/TABLE	GRANT CREATE TABLE ON * TO a;
+accept	accept	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/TABLE	GRANT CREATE TABLE ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/TABLE!insert	GRANT CREATE TABLE zzz ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/TABLE!swap	GRANT CREATE TABLES ON * TO a;
-reject	accept	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/VIEW	GRANT CREATE VIEW ON * TO a;
+accept	accept	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/VIEW	GRANT CREATE VIEW ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/VIEW!insert	GRANT CREATE VIEW zzz ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/VIEW!swap	GRANT CREATE VIEWS ON * TO a;
-reject	accept	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/FUNCTION	GRANT CREATE FUNCTION ON * TO a;
+accept	accept	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/FUNCTION	GRANT CREATE FUNCTION ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/FUNCTION!insert	GRANT CREATE FUNCTION zzz ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/FUNCTION!swap	GRANT CREATE FUNCTIONS ON * TO a;
-reject	accept	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/GLOBAL_FUNCTION	GRANT CREATE GLOBAL FUNCTION ON * TO a;
+accept	accept	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/GLOBAL_FUNCTION	GRANT CREATE GLOBAL FUNCTION ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/GLOBAL_FUNCTION!drop-2	GRANT CREATE GLOBAL ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/GLOBAL_FUNCTION!truncate	GRANT CREATE GLOBAL
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/GLOBAL_FUNCTION!insert	GRANT CREATE GLOBAL FUNCTION zzz ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/GLOBAL_FUNCTION!swap	GRANT CREATE GRANT FUNCTION ON * TO a;
-reject	accept	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/MATERIALIZED_VIEW	GRANT CREATE MATERIALIZED VIEW ON * TO a;
+accept	accept	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/MATERIALIZED_VIEW	GRANT CREATE MATERIALIZED VIEW ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/MATERIALIZED_VIEW!drop-2	GRANT CREATE MATERIALIZED ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/MATERIALIZED_VIEW!truncate	GRANT CREATE MATERIALIZED
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/MATERIALIZED_VIEW!insert	GRANT CREATE MATERIALIZED VIEW zzz ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/MATERIALIZED_VIEW!swap	GRANT CREATE MAX VIEW ON * TO a;
-reject	accept	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/RESOURCE	GRANT CREATE RESOURCE ON * TO a;
+accept	accept	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/RESOURCE	GRANT CREATE RESOURCE ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/RESOURCE!insert	GRANT CREATE RESOURCE zzz ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/RESOURCE!swap	GRANT CREATE RESOURCES ON * TO a;
-reject	accept	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/RESOURCE_GROUP	GRANT CREATE RESOURCE GROUP ON * TO a;
+accept	accept	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/RESOURCE_GROUP	GRANT CREATE RESOURCE GROUP ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/RESOURCE_GROUP!drop-1	GRANT CREATE GROUP ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/RESOURCE_GROUP!truncate	GRANT CREATE RESOURCE
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/RESOURCE_GROUP!insert	GRANT CREATE RESOURCE GROUP zzz ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/RESOURCE_GROUP!swap	GRANT CREATE RESOURCES GROUP ON * TO a;
-reject	accept	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/EXTERNAL_CATALOG	GRANT CREATE EXTERNAL CATALOG ON * TO a;
+accept	accept	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/EXTERNAL_CATALOG	GRANT CREATE EXTERNAL CATALOG ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/EXTERNAL_CATALOG!drop-1	GRANT CREATE CATALOG ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/EXTERNAL_CATALOG!drop-2	GRANT CREATE EXTERNAL ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/EXTERNAL_CATALOG!truncate	GRANT CREATE EXTERNAL
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/EXTERNAL_CATALOG!insert	GRANT CREATE EXTERNAL CATALOG zzz ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/EXTERNAL_CATALOG!swap	GRANT CREATE EXTRACT CATALOG ON * TO a;
-reject	accept	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/STORAGE_VOLUME	GRANT CREATE STORAGE VOLUME ON * TO a;
+accept	accept	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/STORAGE_VOLUME	GRANT CREATE STORAGE VOLUME ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/STORAGE_VOLUME!drop-1	GRANT CREATE VOLUME ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/STORAGE_VOLUME!drop-2	GRANT CREATE STORAGE ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/STORAGE_VOLUME!truncate	GRANT CREATE STORAGE
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/STORAGE_VOLUME!insert	GRANT CREATE STORAGE VOLUME zzz ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/STORAGE_VOLUME!swap	GRANT CREATE STREAM VOLUME ON * TO a;
-reject	accept	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/WAREHOUSE	GRANT CREATE WAREHOUSE ON * TO a;
+accept	accept	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/WAREHOUSE	GRANT CREATE WAREHOUSE ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/WAREHOUSE!insert	GRANT CREATE WAREHOUSE zzz ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/WAREHOUSE!swap	GRANT CREATE WAREHOUSES ON * TO a;
-reject	accept	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/PIPE	GRANT CREATE PIPE ON * TO a;
+accept	accept	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/PIPE	GRANT CREATE PIPE ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/PIPE!insert	GRANT CREATE PIPE zzz ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/PIPE!swap	GRANT CREATE PIPES ON * TO a;
-reject	accept	engine	privObjectType/CATALOG	GRANT ALL ON CATALOG * TO a;
+accept	accept	engine	privObjectType/CATALOG	GRANT ALL ON CATALOG * TO a;
 reject	reject	engine	privObjectType/CATALOG!insert	GRANT ALL ON CATALOG zzz * TO a;
 reject	reject	engine	privObjectType/CATALOG!swap	GRANT ALL ON CATALOGS * TO a;
 accept	accept	engine	privObjectType/DATABASE	GRANT ALL ON DATABASE * TO a;
 reject	reject	engine	privObjectType/DATABASE!insert	GRANT ALL ON DATABASE zzz * TO a;
 reject	reject	engine	privObjectType/DATABASE!swap	GRANT ALL ON DATABASES * TO a;
-reject	accept	engine	privObjectType/MATERIALIZED_VIEW	GRANT ALL ON MATERIALIZED VIEW * TO a;
+accept	accept	engine	privObjectType/MATERIALIZED_VIEW	GRANT ALL ON MATERIALIZED VIEW * TO a;
 reject	reject	engine	privObjectType/MATERIALIZED_VIEW!drop-2	GRANT ALL ON MATERIALIZED * TO a;
 reject	reject	engine	privObjectType/MATERIALIZED_VIEW!truncate	GRANT ALL ON MATERIALIZED
 reject	reject	engine	privObjectType/MATERIALIZED_VIEW!insert	GRANT ALL ON MATERIALIZED VIEW zzz * TO a;
@@ -6675,82 +6675,82 @@ reject	reject	engine	privObjectType/MATERIALIZED_VIEW!swap	GRANT ALL ON MAX VIEW
 accept	accept	engine	privObjectType/RESOURCE	GRANT ALL ON RESOURCE * TO a;
 reject	reject	engine	privObjectType/RESOURCE!insert	GRANT ALL ON RESOURCE zzz * TO a;
 reject	reject	engine	privObjectType/RESOURCE!swap	GRANT ALL ON RESOURCES * TO a;
-reject	accept	engine	privObjectType/RESOURCE_GROUP	GRANT ALL ON RESOURCE GROUP * TO a;
+accept	accept	engine	privObjectType/RESOURCE_GROUP	GRANT ALL ON RESOURCE GROUP * TO a;
 reject	reject	engine	privObjectType/RESOURCE_GROUP!drop-1	GRANT ALL ON GROUP * TO a;
 reject	reject	engine	privObjectType/RESOURCE_GROUP!truncate	GRANT ALL ON RESOURCE
 reject	reject	engine	privObjectType/RESOURCE_GROUP!insert	GRANT ALL ON RESOURCE GROUP zzz * TO a;
 reject	reject	engine	privObjectType/RESOURCE_GROUP!swap	GRANT ALL ON RESOURCES GROUP * TO a;
-reject	accept	engine	privObjectType/STORAGE_VOLUME	GRANT ALL ON STORAGE VOLUME * TO a;
+accept	accept	engine	privObjectType/STORAGE_VOLUME	GRANT ALL ON STORAGE VOLUME * TO a;
 reject	reject	engine	privObjectType/STORAGE_VOLUME!drop-1	GRANT ALL ON VOLUME * TO a;
-accept	reject	engine	privObjectType/STORAGE_VOLUME!drop-2	GRANT ALL ON STORAGE * TO a;
+reject	reject	engine	privObjectType/STORAGE_VOLUME!drop-2	GRANT ALL ON STORAGE * TO a;
 reject	reject	engine	privObjectType/STORAGE_VOLUME!truncate	GRANT ALL ON STORAGE
 reject	reject	engine	privObjectType/STORAGE_VOLUME!insert	GRANT ALL ON STORAGE VOLUME zzz * TO a;
 reject	reject	engine	privObjectType/STORAGE_VOLUME!swap	GRANT ALL ON STREAM VOLUME * TO a;
-reject	accept	engine	privObjectType/SYSTEM	GRANT ALL ON SYSTEM * TO a;
+accept	accept	engine	privObjectType/SYSTEM	GRANT ALL ON SYSTEM * TO a;
 reject	reject	engine	privObjectType/SYSTEM!insert	GRANT ALL ON SYSTEM zzz * TO a;
 reject	reject	engine	privObjectType/SYSTEM!swap	GRANT ALL ON SYSTEM_TIME * TO a;
-reject	accept	engine	privObjectType/TABLE	GRANT ALL ON TABLE * TO a;
+accept	accept	engine	privObjectType/TABLE	GRANT ALL ON TABLE * TO a;
 reject	reject	engine	privObjectType/TABLE!insert	GRANT ALL ON TABLE zzz * TO a;
 reject	reject	engine	privObjectType/TABLE!swap	GRANT ALL ON TABLES * TO a;
-reject	accept	engine	privObjectType/VIEW	GRANT ALL ON VIEW * TO a;
+accept	accept	engine	privObjectType/VIEW	GRANT ALL ON VIEW * TO a;
 reject	reject	engine	privObjectType/VIEW!insert	GRANT ALL ON VIEW zzz * TO a;
 reject	reject	engine	privObjectType/VIEW!swap	GRANT ALL ON VIEWS * TO a;
-reject	accept	engine	privObjectType/WAREHOUSE	GRANT ALL ON WAREHOUSE * TO a;
+accept	accept	engine	privObjectType/WAREHOUSE	GRANT ALL ON WAREHOUSE * TO a;
 reject	reject	engine	privObjectType/WAREHOUSE!insert	GRANT ALL ON WAREHOUSE zzz * TO a;
 reject	reject	engine	privObjectType/WAREHOUSE!swap	GRANT ALL ON WAREHOUSES * TO a;
-reject	accept	engine	privObjectType/PIPE	GRANT ALL ON PIPE * TO a;
+accept	accept	engine	privObjectType/PIPE	GRANT ALL ON PIPE * TO a;
 reject	reject	engine	privObjectType/PIPE!insert	GRANT ALL ON PIPE zzz * TO a;
 reject	reject	engine	privObjectType/PIPE!swap	GRANT ALL ON PIPES * TO a;
-reject	accept	engine	privObjectTypePlural/CATALOGS	GRANT ALL ON ALL CATALOGS TO a;
+accept	accept	engine	privObjectTypePlural/CATALOGS	GRANT ALL ON ALL CATALOGS TO a;
 reject	reject	engine	privObjectTypePlural/CATALOGS!truncate	GRANT ALL ON ALL
 reject	reject	engine	privObjectTypePlural/CATALOGS!swap	GRANT ALL ON ALL CEIL TO a;
-reject	accept	engine	privObjectTypePlural/DATABASES	GRANT ALL ON ALL DATABASES TO a;
+accept	accept	engine	privObjectTypePlural/DATABASES	GRANT ALL ON ALL DATABASES TO a;
 reject	reject	engine	privObjectTypePlural/DATABASES!insert	GRANT ALL ON ALL DATABASES zzz TO a;
 reject	reject	engine	privObjectTypePlural/DATABASES!swap	GRANT ALL ON ALL DATACACHE TO a;
-reject	accept	engine	privObjectTypePlural/FUNCTIONS	GRANT ALL ON ALL FUNCTIONS TO a;
+accept	accept	engine	privObjectTypePlural/FUNCTIONS	GRANT ALL ON ALL FUNCTIONS TO a;
 reject	reject	engine	privObjectTypePlural/FUNCTIONS!insert	GRANT ALL ON ALL FUNCTIONS zzz TO a;
 reject	reject	engine	privObjectTypePlural/FUNCTIONS!swap	GRANT ALL ON ALL GIN TO a;
-reject	accept	engine	privObjectTypePlural/GLOBAL_FUNCTIONS	GRANT ALL ON ALL GLOBAL FUNCTIONS TO a;
+accept	accept	engine	privObjectTypePlural/GLOBAL_FUNCTIONS	GRANT ALL ON ALL GLOBAL FUNCTIONS TO a;
 reject	reject	engine	privObjectTypePlural/GLOBAL_FUNCTIONS!drop-2	GRANT ALL ON ALL GLOBAL TO a;
 reject	reject	engine	privObjectTypePlural/GLOBAL_FUNCTIONS!truncate	GRANT ALL ON ALL GLOBAL
 reject	reject	engine	privObjectTypePlural/GLOBAL_FUNCTIONS!insert	GRANT ALL ON ALL GLOBAL FUNCTIONS zzz TO a;
 reject	reject	engine	privObjectTypePlural/GLOBAL_FUNCTIONS!swap	GRANT ALL ON ALL GRANT FUNCTIONS TO a;
-reject	accept	engine	privObjectTypePlural/MATERIALIZED_VIEWS	GRANT ALL ON ALL MATERIALIZED VIEWS TO a;
+accept	accept	engine	privObjectTypePlural/MATERIALIZED_VIEWS	GRANT ALL ON ALL MATERIALIZED VIEWS TO a;
 reject	reject	engine	privObjectTypePlural/MATERIALIZED_VIEWS!drop-2	GRANT ALL ON ALL MATERIALIZED TO a;
 reject	reject	engine	privObjectTypePlural/MATERIALIZED_VIEWS!truncate	GRANT ALL ON ALL MATERIALIZED
 reject	reject	engine	privObjectTypePlural/MATERIALIZED_VIEWS!insert	GRANT ALL ON ALL MATERIALIZED VIEWS zzz TO a;
 reject	reject	engine	privObjectTypePlural/MATERIALIZED_VIEWS!swap	GRANT ALL ON ALL MAX VIEWS TO a;
-reject	accept	engine	privObjectTypePlural/POLICIES	GRANT ALL ON ALL POLICIES TO a;
+accept	accept	engine	privObjectTypePlural/POLICIES	GRANT ALL ON ALL POLICIES TO a;
 reject	reject	engine	privObjectTypePlural/POLICIES!insert	GRANT ALL ON ALL POLICIES zzz TO a;
 reject	reject	engine	privObjectTypePlural/POLICIES!swap	GRANT ALL ON ALL POLICY TO a;
-reject	accept	engine	privObjectTypePlural/RESOURCES	GRANT ALL ON ALL RESOURCES TO a;
+accept	accept	engine	privObjectTypePlural/RESOURCES	GRANT ALL ON ALL RESOURCES TO a;
 reject	reject	engine	privObjectTypePlural/RESOURCES!insert	GRANT ALL ON ALL RESOURCES zzz TO a;
 reject	reject	engine	privObjectTypePlural/RESOURCES!swap	GRANT ALL ON ALL RESTORE TO a;
-reject	accept	engine	privObjectTypePlural/RESOURCE_GROUPS	GRANT ALL ON ALL RESOURCE GROUPS TO a;
+accept	accept	engine	privObjectTypePlural/RESOURCE_GROUPS	GRANT ALL ON ALL RESOURCE GROUPS TO a;
 reject	reject	engine	privObjectTypePlural/RESOURCE_GROUPS!drop-1	GRANT ALL ON ALL GROUPS TO a;
 reject	reject	engine	privObjectTypePlural/RESOURCE_GROUPS!drop-2	GRANT ALL ON ALL RESOURCE TO a;
 reject	reject	engine	privObjectTypePlural/RESOURCE_GROUPS!truncate	GRANT ALL ON ALL RESOURCE
 reject	reject	engine	privObjectTypePlural/RESOURCE_GROUPS!insert	GRANT ALL ON ALL RESOURCE GROUPS zzz TO a;
 reject	reject	engine	privObjectTypePlural/RESOURCE_GROUPS!swap	GRANT ALL ON ALL RESOURCES GROUPS TO a;
-reject	accept	engine	privObjectTypePlural/STORAGE_VOLUMES	GRANT ALL ON ALL STORAGE VOLUMES TO a;
+accept	accept	engine	privObjectTypePlural/STORAGE_VOLUMES	GRANT ALL ON ALL STORAGE VOLUMES TO a;
 reject	reject	engine	privObjectTypePlural/STORAGE_VOLUMES!drop-1	GRANT ALL ON ALL VOLUMES TO a;
 reject	reject	engine	privObjectTypePlural/STORAGE_VOLUMES!drop-2	GRANT ALL ON ALL STORAGE TO a;
 reject	reject	engine	privObjectTypePlural/STORAGE_VOLUMES!truncate	GRANT ALL ON ALL STORAGE
 reject	reject	engine	privObjectTypePlural/STORAGE_VOLUMES!insert	GRANT ALL ON ALL STORAGE VOLUMES zzz TO a;
 reject	reject	engine	privObjectTypePlural/STORAGE_VOLUMES!swap	GRANT ALL ON ALL STREAM VOLUMES TO a;
-reject	accept	engine	privObjectTypePlural/TABLES	GRANT ALL ON ALL TABLES TO a;
+accept	accept	engine	privObjectTypePlural/TABLES	GRANT ALL ON ALL TABLES TO a;
 reject	reject	engine	privObjectTypePlural/TABLES!insert	GRANT ALL ON ALL TABLES zzz TO a;
 reject	reject	engine	privObjectTypePlural/TABLES!swap	GRANT ALL ON ALL TABLET TO a;
-reject	accept	engine	privObjectTypePlural/USERS	GRANT ALL ON ALL USERS TO a;
+accept	accept	engine	privObjectTypePlural/USERS	GRANT ALL ON ALL USERS TO a;
 reject	reject	engine	privObjectTypePlural/USERS!insert	GRANT ALL ON ALL USERS zzz TO a;
 reject	reject	engine	privObjectTypePlural/USERS!swap	GRANT ALL ON ALL USING TO a;
-reject	accept	engine	privObjectTypePlural/VIEWS	GRANT ALL ON ALL VIEWS TO a;
+accept	accept	engine	privObjectTypePlural/VIEWS	GRANT ALL ON ALL VIEWS TO a;
 reject	reject	engine	privObjectTypePlural/VIEWS!insert	GRANT ALL ON ALL VIEWS zzz TO a;
 reject	reject	engine	privObjectTypePlural/VIEWS!swap	GRANT ALL ON ALL VOLUME TO a;
-reject	accept	engine	privObjectTypePlural/WAREHOUSES	GRANT ALL ON ALL WAREHOUSES TO a;
+accept	accept	engine	privObjectTypePlural/WAREHOUSES	GRANT ALL ON ALL WAREHOUSES TO a;
 reject	reject	engine	privObjectTypePlural/WAREHOUSES!insert	GRANT ALL ON ALL WAREHOUSES zzz TO a;
 reject	reject	engine	privObjectTypePlural/WAREHOUSES!swap	GRANT ALL ON ALL WARNINGS TO a;
-reject	accept	engine	privObjectTypePlural/PIPES	GRANT ALL ON ALL PIPES TO a;
+accept	accept	engine	privObjectTypePlural/PIPES	GRANT ALL ON ALL PIPES TO a;
 reject	reject	engine	privObjectTypePlural/PIPES!insert	GRANT ALL ON ALL PIPES zzz TO a;
 reject	reject	engine	privObjectTypePlural/PIPES!swap	GRANT ALL ON ALL PIVOT TO a;
 accept	accept	engine	backupStatement/BACKUP_(ALL_EXTERNAL_CATALOGS|EXTERNAL_(CATA~84d82201)?~7e1072bc	BACKUP SNAPSHOT a TO a;
@@ -7786,50 +7786,50 @@ reject	reject	engine	queryNoWith(limitElement)?/limitElement!drop-2	SELECT CURRE
 reject	reject	engine	queryNoWith(limitElement)?/limitElement!truncate	SELECT CURRENT_USER LIMIT
 reject	reject	engine	queryNoWith(limitElement)?/limitElement!insert	SELECT CURRENT_USER LIMIT 1 zzz;
 reject	reject	engine	queryNoWith(limitElement)?/limitElement!swap	SELECT CURRENT_USER LIST 1;
-reject	accept	engine	queryPeriod/(FOR)?_periodType_BETWEEN_expression_AND_expression	SELECT CURRENT_USER FROM a SYSTEM_TIME BETWEEN CURRENT_USER AND CURRENT_USER;
+accept	accept	engine	queryPeriod/(FOR)?_periodType_BETWEEN_expression_AND_expression	SELECT CURRENT_USER FROM a SYSTEM_TIME BETWEEN CURRENT_USER AND CURRENT_USER;
 reject	reject	engine	queryPeriod/(FOR)?_periodType_BETWEEN_expression_AND_expression!drop-1	SELECT CURRENT_USER FROM a BETWEEN CURRENT_USER AND CURRENT_USER;
 reject	reject	engine	queryPeriod/(FOR)?_periodType_BETWEEN_expression_AND_expression!drop-2	SELECT CURRENT_USER FROM a SYSTEM_TIME CURRENT_USER AND CURRENT_USER;
 reject	reject	engine	queryPeriod/(FOR)?_periodType_BETWEEN_expression_AND_expression!drop-3	SELECT CURRENT_USER FROM a SYSTEM_TIME BETWEEN AND CURRENT_USER;
 reject	reject	engine	queryPeriod/(FOR)?_periodType_BETWEEN_expression_AND_expression!drop-4	SELECT CURRENT_USER FROM a SYSTEM_TIME BETWEEN CURRENT_USER CURRENT_USER;
 reject	reject	engine	queryPeriod/(FOR)?_periodType_BETWEEN_expression_AND_expression!drop-5	SELECT CURRENT_USER FROM a SYSTEM_TIME BETWEEN CURRENT_USER AND;
 reject	reject	engine	queryPeriod/(FOR)?_periodType_BETWEEN_expression_AND_expression!truncate	SELECT CURRENT_USER FROM a SYSTEM_TIME BETWEEN CURRENT_USER AND
-reject	accept	engine	queryPeriod/(FOR)?_periodType_BETWEEN_expression_AND_expression!insert	SELECT CURRENT_USER FROM a SYSTEM_TIME BETWEEN CURRENT_USER AND CURRENT_USER zzz;
+accept	accept	engine	queryPeriod/(FOR)?_periodType_BETWEEN_expression_AND_expression!insert	SELECT CURRENT_USER FROM a SYSTEM_TIME BETWEEN CURRENT_USER AND CURRENT_USER zzz;
 reject	reject	engine	queryPeriod/(FOR)?_periodType_BETWEEN_expression_AND_expression!swap	SELECT CURRENT_USER FROM a TABLE BETWEEN CURRENT_USER AND CURRENT_USER;
-reject	accept	engine	queryPeriod/(FOR)?_periodType_FROM_expression_TO_expression	SELECT CURRENT_USER FROM a SYSTEM_TIME FROM CURRENT_USER TO CURRENT_USER;
+accept	accept	engine	queryPeriod/(FOR)?_periodType_FROM_expression_TO_expression	SELECT CURRENT_USER FROM a SYSTEM_TIME FROM CURRENT_USER TO CURRENT_USER;
 reject	reject	engine	queryPeriod/(FOR)?_periodType_FROM_expression_TO_expression!drop-1	SELECT CURRENT_USER FROM a FROM CURRENT_USER TO CURRENT_USER;
 reject	reject	engine	queryPeriod/(FOR)?_periodType_FROM_expression_TO_expression!drop-2	SELECT CURRENT_USER FROM a SYSTEM_TIME CURRENT_USER TO CURRENT_USER;
 reject	reject	engine	queryPeriod/(FOR)?_periodType_FROM_expression_TO_expression!drop-3	SELECT CURRENT_USER FROM a SYSTEM_TIME FROM TO CURRENT_USER;
 reject	reject	engine	queryPeriod/(FOR)?_periodType_FROM_expression_TO_expression!drop-4	SELECT CURRENT_USER FROM a SYSTEM_TIME FROM CURRENT_USER CURRENT_USER;
 reject	reject	engine	queryPeriod/(FOR)?_periodType_FROM_expression_TO_expression!drop-5	SELECT CURRENT_USER FROM a SYSTEM_TIME FROM CURRENT_USER TO;
 reject	reject	engine	queryPeriod/(FOR)?_periodType_FROM_expression_TO_expression!truncate	SELECT CURRENT_USER FROM a SYSTEM_TIME FROM CURRENT_USER TO
-reject	accept	engine	queryPeriod/(FOR)?_periodType_FROM_expression_TO_expression!insert	SELECT CURRENT_USER FROM a SYSTEM_TIME FROM CURRENT_USER TO CURRENT_USER zzz;
+accept	accept	engine	queryPeriod/(FOR)?_periodType_FROM_expression_TO_expression!insert	SELECT CURRENT_USER FROM a SYSTEM_TIME FROM CURRENT_USER TO CURRENT_USER zzz;
 reject	reject	engine	queryPeriod/(FOR)?_periodType_FROM_expression_TO_expression!swap	SELECT CURRENT_USER FROM a TABLE FROM CURRENT_USER TO CURRENT_USER;
-reject	accept	engine	queryPeriod/(FOR)?_periodType_ALL	SELECT CURRENT_USER FROM a SYSTEM_TIME ALL;
+accept	accept	engine	queryPeriod/(FOR)?_periodType_ALL	SELECT CURRENT_USER FROM a SYSTEM_TIME ALL;
 reject	reject	engine	queryPeriod/(FOR)?_periodType_ALL!drop-1	SELECT CURRENT_USER FROM a ALL;
 accept	accept	engine	queryPeriod/(FOR)?_periodType_ALL!drop-2	SELECT CURRENT_USER FROM a SYSTEM_TIME;
 accept	accept	engine	queryPeriod/(FOR)?_periodType_ALL!truncate	SELECT CURRENT_USER FROM a SYSTEM_TIME
-reject	accept	engine	queryPeriod/(FOR)?_periodType_ALL!insert	SELECT CURRENT_USER FROM a SYSTEM_TIME ALL zzz;
+accept	accept	engine	queryPeriod/(FOR)?_periodType_ALL!insert	SELECT CURRENT_USER FROM a SYSTEM_TIME ALL zzz;
 reject	reject	engine	queryPeriod/(FOR)?_periodType_ALL!swap	SELECT CURRENT_USER FROM a TABLE ALL;
-reject	accept	engine	queryPeriod/(FOR)?_periodType_AS_OF_expression	SELECT CURRENT_USER FROM a SYSTEM_TIME AS OF CURRENT_USER;
+accept	accept	engine	queryPeriod/(FOR)?_periodType_AS_OF_expression	SELECT CURRENT_USER FROM a SYSTEM_TIME AS OF CURRENT_USER;
 reject	reject	engine	queryPeriod/(FOR)?_periodType_AS_OF_expression!drop-1	SELECT CURRENT_USER FROM a AS OF CURRENT_USER;
 reject	reject	engine	queryPeriod/(FOR)?_periodType_AS_OF_expression!drop-2	SELECT CURRENT_USER FROM a SYSTEM_TIME OF CURRENT_USER;
 reject	reject	engine	queryPeriod/(FOR)?_periodType_AS_OF_expression!drop-3	SELECT CURRENT_USER FROM a SYSTEM_TIME AS CURRENT_USER;
 reject	reject	engine	queryPeriod/(FOR)?_periodType_AS_OF_expression!drop-4	SELECT CURRENT_USER FROM a SYSTEM_TIME AS OF;
 reject	reject	engine	queryPeriod/(FOR)?_periodType_AS_OF_expression!truncate	SELECT CURRENT_USER FROM a SYSTEM_TIME AS OF
-reject	accept	engine	queryPeriod/(FOR)?_periodType_AS_OF_expression!insert	SELECT CURRENT_USER FROM a SYSTEM_TIME AS OF CURRENT_USER zzz;
+accept	accept	engine	queryPeriod/(FOR)?_periodType_AS_OF_expression!insert	SELECT CURRENT_USER FROM a SYSTEM_TIME AS OF CURRENT_USER zzz;
 reject	reject	engine	queryPeriod/(FOR)?_periodType_AS_OF_expression!swap	SELECT CURRENT_USER FROM a TABLE AS OF CURRENT_USER;
-reject	accept	engine	queryPeriod(FOR)?/%empty	SELECT CURRENT_USER FROM a SYSTEM_TIME ALL;
+accept	accept	engine	queryPeriod(FOR)?/%empty	SELECT CURRENT_USER FROM a SYSTEM_TIME ALL;
 reject	reject	engine	queryPeriod(FOR)?/%empty!insert	SELECT CURRENT_USER FROM a zzz SYSTEM_TIME ALL;
-reject	accept	engine	queryPeriod(FOR)?/FOR	SELECT CURRENT_USER FROM a FOR SYSTEM_TIME ALL;
+accept	accept	engine	queryPeriod(FOR)?/FOR	SELECT CURRENT_USER FROM a FOR SYSTEM_TIME ALL;
 accept	accept	engine	queryPeriod(FOR)?/FOR!truncate	SELECT CURRENT_USER FROM a
 reject	reject	engine	queryPeriod(FOR)?/FOR!insert	SELECT CURRENT_USER FROM a FOR zzz SYSTEM_TIME ALL;
 reject	reject	engine	queryPeriod(FOR)?/FOR!swap	SELECT CURRENT_USER FROM a FORCE SYSTEM_TIME ALL;
-reject	accept	engine	periodType/SYSTEM_TIME	SELECT CURRENT_USER FROM a SYSTEM_TIME ALL;
+accept	accept	engine	periodType/SYSTEM_TIME	SELECT CURRENT_USER FROM a SYSTEM_TIME ALL;
 reject	reject	engine	periodType/SYSTEM_TIME!insert	SELECT CURRENT_USER FROM a SYSTEM_TIME zzz ALL;
-reject	accept	engine	periodType/TIMESTAMP	SELECT CURRENT_USER FROM a TIMESTAMP ALL;
+accept	accept	engine	periodType/TIMESTAMP	SELECT CURRENT_USER FROM a TIMESTAMP ALL;
 reject	reject	engine	periodType/TIMESTAMP!insert	SELECT CURRENT_USER FROM a TIMESTAMP zzz ALL;
 reject	reject	engine	periodType/TIMESTAMP!swap	SELECT CURRENT_USER FROM a TIMESTAMPADD ALL;
-reject	accept	engine	periodType/VERSION	SELECT CURRENT_USER FROM a VERSION ALL;
+accept	accept	engine	periodType/VERSION	SELECT CURRENT_USER FROM a VERSION ALL;
 reject	reject	engine	periodType/VERSION!insert	SELECT CURRENT_USER FROM a VERSION zzz ALL;
 reject	reject	engine	periodType/VERSION!swap	SELECT CURRENT_USER FROM a VIEW ALL;
 accept	accept	engine	queryPrimary/querySpecification	SELECT CURRENT_USER;
@@ -8112,12 +8112,12 @@ accept	accept	engine	relationPrimary/subquery_(AS?_identifier_columnAliases?)?!i
 reject	reject	engine	relationPrimary/subquery_(AS?_identifier_columnAliases?)?!swap	SELECT CURRENT_USER FROM(SEMI CURRENT_USER);
 accept	accept	engine	relationPrimary/qualifiedName_(_expressionList_)_(AS?_identifier_column~e623e79c	SELECT CURRENT_USER FROM a(CURRENT_USER);
 reject	reject	engine	relationPrimary/qualifiedName_(_expressionList_)_(AS?_identifier_column~e623e79c!drop-2	SELECT CURRENT_USER FROM a CURRENT_USER);
-accept	reject	engine	relationPrimary/qualifiedName_(_expressionList_)_(AS?_identifier_column~e623e79c!drop-3	SELECT CURRENT_USER FROM a();
+reject	reject	engine	relationPrimary/qualifiedName_(_expressionList_)_(AS?_identifier_column~e623e79c!drop-3	SELECT CURRENT_USER FROM a();
 reject	reject	engine	relationPrimary/qualifiedName_(_expressionList_)_(AS?_identifier_column~e623e79c!drop-4	SELECT CURRENT_USER FROM a(CURRENT_USER;
 reject	reject	engine	relationPrimary/qualifiedName_(_expressionList_)_(AS?_identifier_column~e623e79c!truncate	SELECT CURRENT_USER FROM a(CURRENT_USER
 accept	accept	engine	relationPrimary/qualifiedName_(_expressionList_)_(AS?_identifier_column~e623e79c!insert	SELECT CURRENT_USER FROM a(CURRENT_USER) zzz;
 accept	accept	engine	relationPrimary/qualifiedName_(_expressionList_)_(AS?_identifier_column~e623e79c!swap	SELECT CURRENT_USER FROM a(DATA);
-reject	accept	engine	relationPrimary/TABLE_(_qualifiedName_(_argumentList_)_)_(AS?_identifie~fbd414f2	SELECT CURRENT_USER FROM TABLE(a(CURRENT_USER));
+accept	accept	engine	relationPrimary/TABLE_(_qualifiedName_(_argumentList_)_)_(AS?_identifie~fbd414f2	SELECT CURRENT_USER FROM TABLE(a(CURRENT_USER));
 accept	accept	engine	relationPrimary/TABLE_(_qualifiedName_(_argumentList_)_)_(AS?_identifie~fbd414f2!drop-1	SELECT CURRENT_USER FROM(a(CURRENT_USER));
 reject	reject	engine	relationPrimary/TABLE_(_qualifiedName_(_argumentList_)_)_(AS?_identifie~fbd414f2!drop-2	SELECT CURRENT_USER FROM TABLE a(CURRENT_USER));
 reject	reject	engine	relationPrimary/TABLE_(_qualifiedName_(_argumentList_)_)_(AS?_identifie~fbd414f2!drop-3	SELECT CURRENT_USER FROM TABLE((CURRENT_USER));
@@ -8125,7 +8125,7 @@ reject	reject	engine	relationPrimary/TABLE_(_qualifiedName_(_argumentList_)_)_(A
 reject	reject	engine	relationPrimary/TABLE_(_qualifiedName_(_argumentList_)_)_(AS?_identifie~fbd414f2!drop-5	SELECT CURRENT_USER FROM TABLE(a());
 reject	reject	engine	relationPrimary/TABLE_(_qualifiedName_(_argumentList_)_)_(AS?_identifie~fbd414f2!drop-6	SELECT CURRENT_USER FROM TABLE(a(CURRENT_USER);
 reject	reject	engine	relationPrimary/TABLE_(_qualifiedName_(_argumentList_)_)_(AS?_identifie~fbd414f2!truncate	SELECT CURRENT_USER FROM TABLE(a(CURRENT_USER)
-reject	accept	engine	relationPrimary/TABLE_(_qualifiedName_(_argumentList_)_)_(AS?_identifie~fbd414f2!insert	SELECT CURRENT_USER FROM TABLE(a(CURRENT_USER)) zzz;
+accept	accept	engine	relationPrimary/TABLE_(_qualifiedName_(_argumentList_)_)_(AS?_identifie~fbd414f2!insert	SELECT CURRENT_USER FROM TABLE(a(CURRENT_USER)) zzz;
 accept	accept	engine	relationPrimary/TABLE_(_qualifiedName_(_argumentList_)_)_(AS?_identifie~fbd414f2!swap	SELECT CURRENT_USER FROM TABLES(a(CURRENT_USER));
 accept	accept	engine	relationPrimary/FILES_propertyList_(AS?_identifier_columnAliases?)?	SELECT CURRENT_USER FROM FILES('a' = 'a');
 reject	reject	engine	relationPrimary/FILES_propertyList_(AS?_identifier_columnAliases?)?!drop-1	SELECT CURRENT_USER FROM('a' = 'a');
@@ -8139,13 +8139,13 @@ accept	accept	engine	relationPrimary/FILES_propertyList_(AS?_identifier_columnAl
 accept	accept	engine	relationPrimary/FILES_propertyList_(AS?_identifier_columnAliases?)?!swap	SELECT CURRENT_USER FROM FILTER('a' = 'a');
 accept	accept	engine	relationPrimary/(_relations_)	SELECT CURRENT_USER FROM(a);
 accept	accept	engine	relationPrimary(queryPeriod)?/%empty	SELECT CURRENT_USER FROM a;
-reject	accept	engine	relationPrimary(queryPeriod)?/queryPeriod	SELECT CURRENT_USER FROM a SYSTEM_TIME ALL;
+accept	accept	engine	relationPrimary(queryPeriod)?/queryPeriod	SELECT CURRENT_USER FROM a SYSTEM_TIME ALL;
 accept	accept	engine	relationPrimary(partitionNames)?/%empty	SELECT CURRENT_USER FROM a;
-reject	accept	engine	relationPrimary(partitionNames)?/partitionNames	SELECT CURRENT_USER FROM a PARTITION a;
+accept	accept	engine	relationPrimary(partitionNames)?/partitionNames	SELECT CURRENT_USER FROM a PARTITION a;
 reject	reject	engine	relationPrimary(partitionNames)?/partitionNames!drop-2	SELECT CURRENT_USER FROM a PARTITION;
 reject	reject	engine	relationPrimary(partitionNames)?/partitionNames!truncate	SELECT CURRENT_USER FROM a PARTITION
-reject	accept	engine	relationPrimary(partitionNames)?/partitionNames!insert	SELECT CURRENT_USER FROM a PARTITION a zzz;
-reject	accept	engine	relationPrimary(partitionNames)?/partitionNames!swap	SELECT CURRENT_USER FROM a PARTITIONS a;
+accept	accept	engine	relationPrimary(partitionNames)?/partitionNames!insert	SELECT CURRENT_USER FROM a PARTITION a zzz;
+accept	accept	engine	relationPrimary(partitionNames)?/partitionNames!swap	SELECT CURRENT_USER FROM a PARTITIONS a;
 accept	accept	engine	relationPrimary(tabletList)?/%empty	SELECT CURRENT_USER FROM a;
 accept	accept	engine	relationPrimary(tabletList)?/tabletList	SELECT CURRENT_USER FROM a TABLET(1);
 accept	accept	engine	relationPrimary(tabletList)?/tabletList!drop-1	SELECT CURRENT_USER FROM a(1);
@@ -8156,12 +8156,12 @@ reject	reject	engine	relationPrimary(tabletList)?/tabletList!truncate	SELECT CUR
 accept	accept	engine	relationPrimary(tabletList)?/tabletList!insert	SELECT CURRENT_USER FROM a TABLET(1) zzz;
 reject	reject	engine	relationPrimary(tabletList)?/tabletList!swap	SELECT CURRENT_USER FROM a TABLETS(1);
 accept	accept	engine	relationPrimary(replicaList)?/%empty	SELECT CURRENT_USER FROM a;
-reject	accept	engine	relationPrimary(replicaList)?/replicaList	SELECT CURRENT_USER FROM a REPLICA(1);
+accept	accept	engine	relationPrimary(replicaList)?/replicaList	SELECT CURRENT_USER FROM a REPLICA(1);
 reject	reject	engine	relationPrimary(replicaList)?/replicaList!drop-2	SELECT CURRENT_USER FROM a REPLICA 1);
 reject	reject	engine	relationPrimary(replicaList)?/replicaList!drop-3	SELECT CURRENT_USER FROM a REPLICA();
 reject	reject	engine	relationPrimary(replicaList)?/replicaList!drop-4	SELECT CURRENT_USER FROM a REPLICA(1;
 reject	reject	engine	relationPrimary(replicaList)?/replicaList!truncate	SELECT CURRENT_USER FROM a REPLICA(1
-reject	accept	engine	relationPrimary(replicaList)?/replicaList!insert	SELECT CURRENT_USER FROM a REPLICA(1) zzz;
+accept	accept	engine	relationPrimary(replicaList)?/replicaList!insert	SELECT CURRENT_USER FROM a REPLICA(1) zzz;
 reject	reject	engine	relationPrimary(replicaList)?/replicaList!swap	SELECT CURRENT_USER FROM a REPOSITORIES(1);
 accept	accept	engine	relationPrimary(AS?_identifier)?/%empty	SELECT CURRENT_USER FROM a;
 accept	accept	engine	relationPrimary(AS?_identifier)?/(AS)?_identifier	SELECT CURRENT_USER FROM a a;
@@ -8172,7 +8172,7 @@ accept	accept	engine	relationPrimary(AS)?/AS	SELECT CURRENT_USER FROM a AS a;
 reject	reject	engine	relationPrimary(AS)?/AS!insert	SELECT CURRENT_USER FROM a AS zzz a;
 reject	reject	engine	relationPrimary(AS)?/AS!swap	SELECT CURRENT_USER FROM a ASC a;
 accept	accept	engine	relationPrimary(bracketHint)?/%empty	SELECT CURRENT_USER FROM a;
-reject	accept	engine	relationPrimary(bracketHint)?/bracketHint	SELECT CURRENT_USER FROM a [ a ];
+accept	accept	engine	relationPrimary(bracketHint)?/bracketHint	SELECT CURRENT_USER FROM a [ a ];
 reject	reject	engine	relationPrimary(bracketHint)?/bracketHint!drop-1	SELECT CURRENT_USER FROM a a ];
 reject	reject	engine	relationPrimary(bracketHint)?/bracketHint!drop-2	SELECT CURRENT_USER FROM a [ ];
 reject	reject	engine	relationPrimary(bracketHint)?/bracketHint!drop-3	SELECT CURRENT_USER FROM a [ a;
@@ -8199,7 +8199,7 @@ accept	accept	engine	relationPrimary(AS?_identifier_columnAliases?)?/(AS)?_ident
 accept	accept	engine	relationPrimary(AS?_identifier_columnAliases?)?/(AS)?_identifier_(columnAliases)?!truncate	SELECT CURRENT_USER FROM(SELECT CURRENT_USER)
 reject	reject	engine	relationPrimary(AS?_identifier_columnAliases?)?/(AS)?_identifier_(columnAliases)?!insert	SELECT CURRENT_USER FROM(SELECT CURRENT_USER) a zzz;
 accept	accept	engine	relationPrimary(columnAliases)?/%empty	SELECT CURRENT_USER FROM(SELECT CURRENT_USER) a;
-reject	accept	engine	relationPrimary(columnAliases)?/columnAliases	SELECT CURRENT_USER FROM(SELECT CURRENT_USER) a(a);
+accept	accept	engine	relationPrimary(columnAliases)?/columnAliases	SELECT CURRENT_USER FROM(SELECT CURRENT_USER) a(a);
 reject	reject	engine	relationPrimary(columnAliases)?/columnAliases!drop-1	SELECT CURRENT_USER FROM(SELECT CURRENT_USER) a a);
 reject	reject	engine	relationPrimary(columnAliases)?/columnAliases!drop-2	SELECT CURRENT_USER FROM(SELECT CURRENT_USER) a();
 reject	reject	engine	relationPrimary(columnAliases)?/columnAliases!drop-3	SELECT CURRENT_USER FROM(SELECT CURRENT_USER) a(a;
@@ -8269,28 +8269,28 @@ reject	reject	engine	pivotValue(AS)?/AS!swap	SELECT CURRENT_USER FROM a PIVOT(CU
 reject	reject	engine	pivotValue(identifier|string)/identifier	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(NULL a));
 reject	reject	engine	pivotValue(identifier|string)/string	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(NULL 'a'));
 reject	reject	engine	pivotValue(identifier|string)/string!insert	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(NULL 'a' zzz));
-reject	accept	engine	argumentList/expressionList	SELECT CURRENT_USER FROM TABLE(a(CURRENT_USER));
+accept	accept	engine	argumentList/expressionList	SELECT CURRENT_USER FROM TABLE(a(CURRENT_USER));
 reject	reject	engine	argumentList/expressionList!truncate	SELECT CURRENT_USER FROM TABLE(a(
 reject	reject	engine	argumentList/expressionList!insert	SELECT CURRENT_USER FROM TABLE(a(CURRENT_USER zzz));
-reject	accept	engine	argumentList/expressionList!swap	SELECT CURRENT_USER FROM TABLE(a(DATA));
-reject	accept	engine	argumentList/namedArgumentList	SELECT CURRENT_USER FROM TABLE(a(a => CURRENT_USER));
+accept	accept	engine	argumentList/expressionList!swap	SELECT CURRENT_USER FROM TABLE(a(DATA));
+accept	accept	engine	argumentList/namedArgumentList	SELECT CURRENT_USER FROM TABLE(a(a => CURRENT_USER));
 reject	reject	engine	argumentList/namedArgumentList!drop-1	SELECT CURRENT_USER FROM TABLE(a(=> CURRENT_USER));
 reject	reject	engine	argumentList/namedArgumentList!drop-2	SELECT CURRENT_USER FROM TABLE(a(a CURRENT_USER));
 reject	reject	engine	argumentList/namedArgumentList!drop-3	SELECT CURRENT_USER FROM TABLE(a(a =>));
 reject	reject	engine	argumentList/namedArgumentList!truncate	SELECT CURRENT_USER FROM TABLE(a(a =>
 reject	reject	engine	argumentList/namedArgumentList!insert	SELECT CURRENT_USER FROM TABLE(a(a => CURRENT_USER zzz));
-reject	accept	engine	argumentList/namedArgumentList!swap	SELECT CURRENT_USER FROM TABLE(a(a => DATA));
-reject	accept	engine	namedArgumentList/namedArgument_(,_namedArgument)*	SELECT CURRENT_USER FROM TABLE(a(a => CURRENT_USER));
-reject	accept	engine	namedArgumentList(,_namedArgument)*/%empty	SELECT CURRENT_USER FROM TABLE(a(a => CURRENT_USER));
-reject	accept	engine	namedArgumentList(,_namedArgument)*/,_namedArgument_(,_namedArgument)*	SELECT CURRENT_USER FROM TABLE(a(a => CURRENT_USER, a => CURRENT_USER));
+accept	accept	engine	argumentList/namedArgumentList!swap	SELECT CURRENT_USER FROM TABLE(a(a => DATA));
+accept	accept	engine	namedArgumentList/namedArgument_(,_namedArgument)*	SELECT CURRENT_USER FROM TABLE(a(a => CURRENT_USER));
+accept	accept	engine	namedArgumentList(,_namedArgument)*/%empty	SELECT CURRENT_USER FROM TABLE(a(a => CURRENT_USER));
+accept	accept	engine	namedArgumentList(,_namedArgument)*/,_namedArgument_(,_namedArgument)*	SELECT CURRENT_USER FROM TABLE(a(a => CURRENT_USER, a => CURRENT_USER));
 reject	reject	engine	namedArgumentList(,_namedArgument)*/,_namedArgument_(,_namedArgument)*!drop-1	SELECT CURRENT_USER FROM TABLE(a(a => CURRENT_USER a => CURRENT_USER));
 reject	reject	engine	namedArgumentList(,_namedArgument)*/,_namedArgument_(,_namedArgument)*!drop-2	SELECT CURRENT_USER FROM TABLE(a(a => CURRENT_USER, => CURRENT_USER));
 reject	reject	engine	namedArgumentList(,_namedArgument)*/,_namedArgument_(,_namedArgument)*!drop-3	SELECT CURRENT_USER FROM TABLE(a(a => CURRENT_USER, a CURRENT_USER));
 reject	reject	engine	namedArgumentList(,_namedArgument)*/,_namedArgument_(,_namedArgument)*!drop-4	SELECT CURRENT_USER FROM TABLE(a(a => CURRENT_USER, a =>));
 reject	reject	engine	namedArgumentList(,_namedArgument)*/,_namedArgument_(,_namedArgument)*!truncate	SELECT CURRENT_USER FROM TABLE(a(a => CURRENT_USER, a =>
 reject	reject	engine	namedArgumentList(,_namedArgument)*/,_namedArgument_(,_namedArgument)*!insert	SELECT CURRENT_USER FROM TABLE(a(a => CURRENT_USER, a => CURRENT_USER zzz));
-reject	accept	engine	namedArgumentList(,_namedArgument)*/,_namedArgument_(,_namedArgument)*!swap	SELECT CURRENT_USER FROM TABLE(a(a => CURRENT_USER, a => DATA));
-reject	accept	engine	namedArgument/identifier_=>_expression	SELECT CURRENT_USER FROM TABLE(a(a => CURRENT_USER));
+accept	accept	engine	namedArgumentList(,_namedArgument)*/,_namedArgument_(,_namedArgument)*!swap	SELECT CURRENT_USER FROM TABLE(a(a => CURRENT_USER, a => DATA));
+accept	accept	engine	namedArgument/identifier_=>_expression	SELECT CURRENT_USER FROM TABLE(a(a => CURRENT_USER));
 accept	accept	engine	joinRelation/crossOrInnerJoinType_(bracketHint)?_(LATERAL)?_relation~f8d93c63	SELECT CURRENT_USER FROM a JOIN a;
 accept	accept	engine	joinRelation/outerAndSemiJoinType_(bracketHint)?_(LATERAL)?_relation~59680e8f	SELECT CURRENT_USER FROM a LEFT JOIN a ON CURRENT_USER;
 reject	reject	engine	joinRelation/outerAndSemiJoinType_(bracketHint)?_(LATERAL)?_relation~59680e8f!drop-2	SELECT CURRENT_USER FROM a LEFT a ON CURRENT_USER;
@@ -8304,7 +8304,7 @@ accept	accept	engine	joinRelation(bracketHint)?/%empty	SELECT CURRENT_USER FROM 
 accept	accept	engine	joinRelation(bracketHint)?/%empty!insert	SELECT CURRENT_USER FROM a JOIN zzz a;
 accept	accept	engine	joinRelation(bracketHint)?/bracketHint	SELECT CURRENT_USER FROM a JOIN [ a ] a;
 reject	reject	engine	joinRelation(bracketHint)?/bracketHint!drop-1	SELECT CURRENT_USER FROM a JOIN a ] a;
-accept	reject	engine	joinRelation(bracketHint)?/bracketHint!drop-2	SELECT CURRENT_USER FROM a JOIN [ ] a;
+reject	reject	engine	joinRelation(bracketHint)?/bracketHint!drop-2	SELECT CURRENT_USER FROM a JOIN [ ] a;
 reject	reject	engine	joinRelation(bracketHint)?/bracketHint!drop-3	SELECT CURRENT_USER FROM a JOIN [ a a;
 reject	reject	engine	joinRelation(bracketHint)?/bracketHint!truncate	SELECT CURRENT_USER FROM a JOIN [ a
 accept	accept	engine	joinRelation(bracketHint)?/bracketHint!insert	SELECT CURRENT_USER FROM a JOIN [ a ] zzz a;
@@ -8325,8 +8325,8 @@ reject	reject	engine	crossOrInnerJoinType/INNER_JOIN!drop-2	SELECT CURRENT_USER 
 reject	reject	engine	crossOrInnerJoinType/INNER_JOIN!truncate	SELECT CURRENT_USER FROM a INNER
 accept	accept	engine	crossOrInnerJoinType/INNER_JOIN!insert	SELECT CURRENT_USER FROM a INNER JOIN zzz a;
 accept	reject	engine	crossOrInnerJoinType/INNER_JOIN!swap	SELECT CURRENT_USER FROM a INSERT JOIN a;
-reject	accept	engine	crossOrInnerJoinType/CROSS	SELECT CURRENT_USER FROM a CROSS a;
-reject	accept	engine	crossOrInnerJoinType/CROSS!insert	SELECT CURRENT_USER FROM a CROSS zzz a;
+accept	accept	engine	crossOrInnerJoinType/CROSS	SELECT CURRENT_USER FROM a CROSS a;
+accept	accept	engine	crossOrInnerJoinType/CROSS!insert	SELECT CURRENT_USER FROM a CROSS zzz a;
 reject	reject	engine	crossOrInnerJoinType/CROSS!swap	SELECT CURRENT_USER FROM a CUBE a;
 accept	accept	engine	crossOrInnerJoinType/CROSS_JOIN	SELECT CURRENT_USER FROM a CROSS JOIN a;
 reject	reject	engine	crossOrInnerJoinType/CROSS_JOIN!truncate	SELECT CURRENT_USER FROM a CROSS
@@ -8348,43 +8348,43 @@ accept	reject	engine	outerAndSemiJoinType/FULL_JOIN!swap	SELECT CURRENT_USER FRO
 accept	accept	engine	outerAndSemiJoinType/LEFT_OUTER_JOIN	SELECT CURRENT_USER FROM a LEFT OUTER JOIN a ON CURRENT_USER;
 reject	reject	engine	outerAndSemiJoinType/LEFT_OUTER_JOIN!drop-1	SELECT CURRENT_USER FROM a OUTER JOIN a ON CURRENT_USER;
 reject	reject	engine	outerAndSemiJoinType/LEFT_OUTER_JOIN!drop-3	SELECT CURRENT_USER FROM a LEFT OUTER a ON CURRENT_USER;
-accept	reject	engine	outerAndSemiJoinType/LEFT_OUTER_JOIN!truncate	SELECT CURRENT_USER FROM a LEFT OUTER
+reject	reject	engine	outerAndSemiJoinType/LEFT_OUTER_JOIN!truncate	SELECT CURRENT_USER FROM a LEFT OUTER
 accept	accept	engine	outerAndSemiJoinType/LEFT_OUTER_JOIN!insert	SELECT CURRENT_USER FROM a LEFT OUTER JOIN zzz a ON CURRENT_USER;
 reject	reject	engine	outerAndSemiJoinType/LEFT_OUTER_JOIN!swap	SELECT CURRENT_USER FROM a LESS OUTER JOIN a ON CURRENT_USER;
 accept	accept	engine	outerAndSemiJoinType/RIGHT_OUTER_JOIN	SELECT CURRENT_USER FROM a RIGHT OUTER JOIN a ON CURRENT_USER;
 reject	reject	engine	outerAndSemiJoinType/RIGHT_OUTER_JOIN!drop-3	SELECT CURRENT_USER FROM a RIGHT OUTER a ON CURRENT_USER;
-accept	reject	engine	outerAndSemiJoinType/RIGHT_OUTER_JOIN!truncate	SELECT CURRENT_USER FROM a RIGHT OUTER
+reject	reject	engine	outerAndSemiJoinType/RIGHT_OUTER_JOIN!truncate	SELECT CURRENT_USER FROM a RIGHT OUTER
 accept	accept	engine	outerAndSemiJoinType/RIGHT_OUTER_JOIN!insert	SELECT CURRENT_USER FROM a RIGHT OUTER JOIN zzz a ON CURRENT_USER;
 reject	reject	engine	outerAndSemiJoinType/RIGHT_OUTER_JOIN!swap	SELECT CURRENT_USER FROM a RLIKE OUTER JOIN a ON CURRENT_USER;
 accept	accept	engine	outerAndSemiJoinType/FULL_OUTER_JOIN	SELECT CURRENT_USER FROM a FULL OUTER JOIN a ON CURRENT_USER;
 reject	reject	engine	outerAndSemiJoinType/FULL_OUTER_JOIN!drop-3	SELECT CURRENT_USER FROM a FULL OUTER a ON CURRENT_USER;
-accept	reject	engine	outerAndSemiJoinType/FULL_OUTER_JOIN!truncate	SELECT CURRENT_USER FROM a FULL OUTER
+reject	reject	engine	outerAndSemiJoinType/FULL_OUTER_JOIN!truncate	SELECT CURRENT_USER FROM a FULL OUTER
 accept	accept	engine	outerAndSemiJoinType/FULL_OUTER_JOIN!insert	SELECT CURRENT_USER FROM a FULL OUTER JOIN zzz a ON CURRENT_USER;
 reject	reject	engine	outerAndSemiJoinType/FULL_OUTER_JOIN!swap	SELECT CURRENT_USER FROM a FUNCTION OUTER JOIN a ON CURRENT_USER;
 accept	accept	engine	outerAndSemiJoinType/LEFT_SEMI_JOIN	SELECT CURRENT_USER FROM a LEFT SEMI JOIN a ON CURRENT_USER;
 reject	accept	engine	outerAndSemiJoinType/LEFT_SEMI_JOIN!drop-1	SELECT CURRENT_USER FROM a SEMI JOIN a ON CURRENT_USER;
 reject	reject	engine	outerAndSemiJoinType/LEFT_SEMI_JOIN!drop-3	SELECT CURRENT_USER FROM a LEFT SEMI a ON CURRENT_USER;
-accept	reject	engine	outerAndSemiJoinType/LEFT_SEMI_JOIN!truncate	SELECT CURRENT_USER FROM a LEFT SEMI
+reject	reject	engine	outerAndSemiJoinType/LEFT_SEMI_JOIN!truncate	SELECT CURRENT_USER FROM a LEFT SEMI
 accept	accept	engine	outerAndSemiJoinType/LEFT_SEMI_JOIN!insert	SELECT CURRENT_USER FROM a LEFT SEMI JOIN zzz a ON CURRENT_USER;
 reject	reject	engine	outerAndSemiJoinType/LEFT_SEMI_JOIN!swap	SELECT CURRENT_USER FROM a LESS SEMI JOIN a ON CURRENT_USER;
 accept	accept	engine	outerAndSemiJoinType/RIGHT_SEMI_JOIN	SELECT CURRENT_USER FROM a RIGHT SEMI JOIN a ON CURRENT_USER;
 reject	reject	engine	outerAndSemiJoinType/RIGHT_SEMI_JOIN!drop-3	SELECT CURRENT_USER FROM a RIGHT SEMI a ON CURRENT_USER;
-accept	reject	engine	outerAndSemiJoinType/RIGHT_SEMI_JOIN!truncate	SELECT CURRENT_USER FROM a RIGHT SEMI
+reject	reject	engine	outerAndSemiJoinType/RIGHT_SEMI_JOIN!truncate	SELECT CURRENT_USER FROM a RIGHT SEMI
 accept	accept	engine	outerAndSemiJoinType/RIGHT_SEMI_JOIN!insert	SELECT CURRENT_USER FROM a RIGHT SEMI JOIN zzz a ON CURRENT_USER;
 reject	reject	engine	outerAndSemiJoinType/RIGHT_SEMI_JOIN!swap	SELECT CURRENT_USER FROM a RLIKE SEMI JOIN a ON CURRENT_USER;
 accept	accept	engine	outerAndSemiJoinType/LEFT_ANTI_JOIN	SELECT CURRENT_USER FROM a LEFT ANTI JOIN a ON CURRENT_USER;
 reject	accept	engine	outerAndSemiJoinType/LEFT_ANTI_JOIN!drop-1	SELECT CURRENT_USER FROM a ANTI JOIN a ON CURRENT_USER;
 reject	reject	engine	outerAndSemiJoinType/LEFT_ANTI_JOIN!drop-3	SELECT CURRENT_USER FROM a LEFT ANTI a ON CURRENT_USER;
-accept	reject	engine	outerAndSemiJoinType/LEFT_ANTI_JOIN!truncate	SELECT CURRENT_USER FROM a LEFT ANTI
+reject	reject	engine	outerAndSemiJoinType/LEFT_ANTI_JOIN!truncate	SELECT CURRENT_USER FROM a LEFT ANTI
 accept	accept	engine	outerAndSemiJoinType/LEFT_ANTI_JOIN!insert	SELECT CURRENT_USER FROM a LEFT ANTI JOIN zzz a ON CURRENT_USER;
 reject	reject	engine	outerAndSemiJoinType/LEFT_ANTI_JOIN!swap	SELECT CURRENT_USER FROM a LESS ANTI JOIN a ON CURRENT_USER;
 accept	accept	engine	outerAndSemiJoinType/RIGHT_ANTI_JOIN	SELECT CURRENT_USER FROM a RIGHT ANTI JOIN a ON CURRENT_USER;
 reject	reject	engine	outerAndSemiJoinType/RIGHT_ANTI_JOIN!drop-3	SELECT CURRENT_USER FROM a RIGHT ANTI a ON CURRENT_USER;
-accept	reject	engine	outerAndSemiJoinType/RIGHT_ANTI_JOIN!truncate	SELECT CURRENT_USER FROM a RIGHT ANTI
+reject	reject	engine	outerAndSemiJoinType/RIGHT_ANTI_JOIN!truncate	SELECT CURRENT_USER FROM a RIGHT ANTI
 accept	accept	engine	outerAndSemiJoinType/RIGHT_ANTI_JOIN!insert	SELECT CURRENT_USER FROM a RIGHT ANTI JOIN zzz a ON CURRENT_USER;
 reject	reject	engine	outerAndSemiJoinType/RIGHT_ANTI_JOIN!swap	SELECT CURRENT_USER FROM a RLIKE ANTI JOIN a ON CURRENT_USER;
-reject	accept	engine	bracketHint/[_identifier_(,_identifier)*_]	SELECT CURRENT_USER FROM a [ a ];
-reject	accept	engine	bracketHint/[_identifier_|_primaryExpression_literalExpressionList_]	SELECT CURRENT_USER FROM a [ a | CURRENT_USER(NULL) ];
+accept	accept	engine	bracketHint/[_identifier_(,_identifier)*_]	SELECT CURRENT_USER FROM a [ a ];
+accept	accept	engine	bracketHint/[_identifier_|_primaryExpression_literalExpressionList_]	SELECT CURRENT_USER FROM a [ a | CURRENT_USER(NULL) ];
 reject	reject	engine	bracketHint/[_identifier_|_primaryExpression_literalExpressionList_]!drop-1	SELECT CURRENT_USER FROM a a | CURRENT_USER(NULL) ];
 reject	reject	engine	bracketHint/[_identifier_|_primaryExpression_literalExpressionList_]!drop-2	SELECT CURRENT_USER FROM a [ | CURRENT_USER(NULL) ];
 reject	reject	engine	bracketHint/[_identifier_|_primaryExpression_literalExpressionList_]!drop-3	SELECT CURRENT_USER FROM a [ a CURRENT_USER(NULL) ];
@@ -8395,10 +8395,10 @@ reject	reject	engine	bracketHint/[_identifier_|_primaryExpression_literalExpress
 reject	reject	engine	bracketHint/[_identifier_|_primaryExpression_literalExpressionList_]!drop-8	SELECT CURRENT_USER FROM a [ a | CURRENT_USER(NULL);
 reject	reject	engine	bracketHint/[_identifier_|_primaryExpression_literalExpressionList_]!truncate	SELECT CURRENT_USER FROM a [ a | CURRENT_USER(NULL)
 reject	reject	engine	bracketHint/[_identifier_|_primaryExpression_literalExpressionList_]!insert	SELECT CURRENT_USER FROM a [ a | CURRENT_USER(NULL) ] zzz;
-reject	accept	engine	bracketHint/[_identifier_|_primaryExpression_literalExpressionList_]!swap	SELECT CURRENT_USER FROM a [ a | DATA(NULL) ];
-reject	accept	engine	bracketHint(,_identifier)*/%empty	SELECT CURRENT_USER FROM a [ a ];
+accept	accept	engine	bracketHint/[_identifier_|_primaryExpression_literalExpressionList_]!swap	SELECT CURRENT_USER FROM a [ a | DATA(NULL) ];
+accept	accept	engine	bracketHint(,_identifier)*/%empty	SELECT CURRENT_USER FROM a [ a ];
 reject	reject	engine	bracketHint(,_identifier)*/%empty!insert	SELECT CURRENT_USER FROM a [ a zzz ];
-reject	accept	engine	bracketHint(,_identifier)*/,_identifier_(,_identifier)*	SELECT CURRENT_USER FROM a [ a, a ];
+accept	accept	engine	bracketHint(,_identifier)*/,_identifier_(,_identifier)*	SELECT CURRENT_USER FROM a [ a, a ];
 reject	reject	engine	bracketHint(,_identifier)*/,_identifier_(,_identifier)*!drop-1	SELECT CURRENT_USER FROM a [ a a ];
 reject	reject	engine	bracketHint(,_identifier)*/,_identifier_(,_identifier)*!drop-2	SELECT CURRENT_USER FROM a [ a, ];
 reject	reject	engine	bracketHint(,_identifier)*/,_identifier_(,_identifier)*!truncate	SELECT CURRENT_USER FROM a [ a,
@@ -8509,10 +8509,10 @@ reject	reject	engine	deallocateStatement(DEALLOCATE|DROP)/DEALLOCATE!insert	DEAL
 reject	accept	engine	deallocateStatement(DEALLOCATE|DROP)/DROP	DROP PREPARE a;
 reject	reject	engine	deallocateStatement(DEALLOCATE|DROP)/DROP!insert	DROP zzz PREPARE a;
 reject	reject	engine	deallocateStatement(DEALLOCATE|DROP)/DROP!swap	DUAL PREPARE a;
-reject	accept	engine	replicaList/REPLICA_(_INTEGER_VALUE_(,_INTEGER_VALUE)*_)	SELECT CURRENT_USER FROM a REPLICA(1);
-reject	accept	engine	replicaList(,_INTEGER_VALUE)*/%empty	SELECT CURRENT_USER FROM a REPLICA(1);
+accept	accept	engine	replicaList/REPLICA_(_INTEGER_VALUE_(,_INTEGER_VALUE)*_)	SELECT CURRENT_USER FROM a REPLICA(1);
+accept	accept	engine	replicaList(,_INTEGER_VALUE)*/%empty	SELECT CURRENT_USER FROM a REPLICA(1);
 reject	reject	engine	replicaList(,_INTEGER_VALUE)*/%empty!insert	SELECT CURRENT_USER FROM a REPLICA(1 zzz);
-reject	accept	engine	replicaList(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*	SELECT CURRENT_USER FROM a REPLICA(1, 1);
+accept	accept	engine	replicaList(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*	SELECT CURRENT_USER FROM a REPLICA(1, 1);
 reject	reject	engine	replicaList(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*!drop-1	SELECT CURRENT_USER FROM a REPLICA(1 1);
 reject	reject	engine	replicaList(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*!drop-2	SELECT CURRENT_USER FROM a REPLICA(1,);
 reject	reject	engine	replicaList(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*!truncate	SELECT CURRENT_USER FROM a REPLICA(1,
@@ -9969,13 +9969,13 @@ reject	reject	engine	stringList(,_string)*/,_string_(,_string)*!drop-1	CREATE ST
 reject	reject	engine	stringList(,_string)*/,_string_(,_string)*!drop-2	CREATE STORAGE VOLUME a TYPE = a LOCATIONS =('a',);
 reject	reject	engine	stringList(,_string)*/,_string_(,_string)*!truncate	CREATE STORAGE VOLUME a TYPE = a LOCATIONS =('a',
 reject	reject	engine	stringList(,_string)*/,_string_(,_string)*!insert	CREATE STORAGE VOLUME a TYPE = a LOCATIONS =('a', 'a' zzz);
-reject	accept	engine	literalExpressionList/(_literalExpression_(,_literalExpression)*_)	SELECT CURRENT_USER FROM a [ a | CURRENT_USER(NULL) ];
+accept	accept	engine	literalExpressionList/(_literalExpression_(,_literalExpression)*_)	SELECT CURRENT_USER FROM a [ a | CURRENT_USER(NULL) ];
 reject	reject	engine	literalExpressionList/(_literalExpression_(,_literalExpression)*_)!truncate	SELECT CURRENT_USER FROM a [ a | CURRENT_USER(NULL
 reject	reject	engine	literalExpressionList/(_literalExpression_(,_literalExpression)*_)!insert	SELECT CURRENT_USER FROM a [ a | CURRENT_USER(NULL) zzz ];
 reject	reject	engine	literalExpressionList/(_literalExpression_(,_literalExpression)*_)!swap	SELECT CURRENT_USER FROM a [ a | CURRENT_USER(NULLS) ];
-reject	accept	engine	literalExpressionList(,_literalExpression)*/%empty	SELECT CURRENT_USER FROM a [ a | CURRENT_USER(NULL) ];
+accept	accept	engine	literalExpressionList(,_literalExpression)*/%empty	SELECT CURRENT_USER FROM a [ a | CURRENT_USER(NULL) ];
 reject	reject	engine	literalExpressionList(,_literalExpression)*/%empty!insert	SELECT CURRENT_USER FROM a [ a | CURRENT_USER(NULL zzz) ];
-reject	accept	engine	literalExpressionList(,_literalExpression)*/,_literalExpression_(,_literalExpression)*	SELECT CURRENT_USER FROM a [ a | CURRENT_USER(NULL, NULL) ];
+accept	accept	engine	literalExpressionList(,_literalExpression)*/,_literalExpression_(,_literalExpression)*	SELECT CURRENT_USER FROM a [ a | CURRENT_USER(NULL, NULL) ];
 reject	reject	engine	literalExpressionList(,_literalExpression)*/,_literalExpression_(,_literalExpression)*!drop-1	SELECT CURRENT_USER FROM a [ a | CURRENT_USER(NULL NULL) ];
 reject	reject	engine	literalExpressionList(,_literalExpression)*/,_literalExpression_(,_literalExpression)*!drop-2	SELECT CURRENT_USER FROM a [ a | CURRENT_USER(NULL,) ];
 reject	reject	engine	literalExpressionList(,_literalExpression)*/,_literalExpression_(,_literalExpression)*!truncate	SELECT CURRENT_USER FROM a [ a | CURRENT_USER(NULL,
@@ -10496,10 +10496,10 @@ reject	reject	engine	identifierList(,_identifier)*/,_identifier_(,_identifier)*!
 accept	accept	engine	identifierOrString/identifier	HELP a;
 accept	accept	engine	identifierOrString/string	HELP 'a';
 reject	reject	engine	identifierOrString/string!insert	HELP 'a' zzz;
-reject	accept	engine	identifierOrStringList/identifierOrString_(,_identifierOrString)*	GRANT a TO a;
+accept	accept	engine	identifierOrStringList/identifierOrString_(,_identifierOrString)*	GRANT a TO a;
 reject	reject	engine	identifierOrStringList/identifierOrString_(,_identifierOrString)*!insert	GRANT a zzz TO a;
-reject	accept	engine	identifierOrStringList(,_identifierOrString)*/%empty	GRANT a TO a;
-reject	accept	engine	identifierOrStringList(,_identifierOrString)*/,_identifierOrString_(,_identifierOrString)*	GRANT a, a TO a;
+accept	accept	engine	identifierOrStringList(,_identifierOrString)*/%empty	GRANT a TO a;
+accept	accept	engine	identifierOrStringList(,_identifierOrString)*/,_identifierOrString_(,_identifierOrString)*	GRANT a, a TO a;
 reject	reject	engine	identifierOrStringList(,_identifierOrString)*/,_identifierOrString_(,_identifierOrString)*!drop-1	GRANT a a TO a;
 reject	reject	engine	identifierOrStringList(,_identifierOrString)*/,_identifierOrString_(,_identifierOrString)*!drop-2	GRANT a, TO a;
 reject	reject	engine	identifierOrStringList(,_identifierOrString)*/,_identifierOrString_(,_identifierOrString)*!truncate	GRANT a,
