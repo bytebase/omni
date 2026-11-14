@@ -142,9 +142,7 @@ func mergeColumnSet(m, n ColumnSet) (ColumnSet, bool) {
 // tableSource is a relation in scope.
 type tableSource interface {
 	GetTableName() string
-	GetSchemaName() string
 	GetDatabaseName() string
-	GetServerName() string
 	// GetQuerySpanResult returns the relation's columns. A pseudoTable and a
 	// physicalView return their own slice, which callers must copy before
 	// modifying.
@@ -158,14 +156,11 @@ type pseudoTable struct {
 }
 
 func (p *pseudoTable) GetTableName() string                  { return p.Name }
-func (*pseudoTable) GetSchemaName() string                   { return "" }
 func (*pseudoTable) GetDatabaseName() string                 { return "" }
-func (*pseudoTable) GetServerName() string                   { return "" }
 func (p *pseudoTable) GetQuerySpanResult() []QuerySpanResult { return p.Columns }
 
 // physicalView is a catalog view with its resolved columns.
 type physicalView struct {
-	Server   string
 	Database string
 	Schema   string
 	Name     string
@@ -173,14 +168,11 @@ type physicalView struct {
 }
 
 func (p *physicalView) GetTableName() string                  { return p.Name }
-func (p *physicalView) GetSchemaName() string                 { return p.Schema }
 func (p *physicalView) GetDatabaseName() string               { return p.Database }
-func (p *physicalView) GetServerName() string                 { return p.Server }
 func (p *physicalView) GetQuerySpanResult() []QuerySpanResult { return p.Columns }
 
 // physicalTable is a catalog table; each column is its own plain source.
 type physicalTable struct {
-	Server   string
 	Database string
 	Schema   string
 	Name     string
@@ -188,9 +180,7 @@ type physicalTable struct {
 }
 
 func (p *physicalTable) GetTableName() string    { return p.Name }
-func (p *physicalTable) GetSchemaName() string   { return p.Schema }
 func (p *physicalTable) GetDatabaseName() string { return p.Database }
-func (p *physicalTable) GetServerName() string   { return p.Server }
 
 func (p *physicalTable) GetQuerySpanResult() []QuerySpanResult {
 	result := make([]QuerySpanResult, 0, len(p.Columns))

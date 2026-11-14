@@ -298,7 +298,6 @@ func (q *querySpanExtractor) findTableSchema(databaseName, tableName string) (ta
 			Name:     tableSchema.Name,
 			Schema:   emptySchema,
 			Database: dbMetadata.Name(),
-			Server:   "",
 			Columns:  columnNames,
 		}, nil
 	}
@@ -323,7 +322,6 @@ func (q *querySpanExtractor) findTableSchema(databaseName, tableName string) (ta
 			Name:     viewSchema.Name,
 			Schema:   emptySchema,
 			Database: dbMetadata.Name(),
-			Server:   "",
 			Columns:  columns,
 		}, nil
 	}
