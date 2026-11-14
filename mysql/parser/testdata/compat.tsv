@@ -873,25 +873,25 @@ accept	accept	engine	prepare/PREPARE_SYM_ident_FROM_prepare_src	PREPARE utf8mb4 
 accept	accept	engine	prepare_src/TEXT_STRING_sys	PREPARE utf8mb4 FROM 's';
 accept	accept	engine	prepare_src/@_ident_or_text	PREPARE utf8mb4 FROM@utf8mb4;
 reject	reject	engine	prepare_src/@_ident_or_text!drop-1	PREPARE utf8mb4 FROM utf8mb4;
-reject	accept	engine	prepare_src/@_ident_or_text!drop-2	PREPARE utf8mb4 FROM@;
-reject	accept	engine	prepare_src/@_ident_or_text!truncate	PREPARE utf8mb4 FROM@
+accept	accept	engine	prepare_src/@_ident_or_text!drop-2	PREPARE utf8mb4 FROM@;
+accept	accept	engine	prepare_src/@_ident_or_text!truncate	PREPARE utf8mb4 FROM@
 reject	reject	engine	prepare_src/@_ident_or_text!insert	PREPARE utf8mb4 FROM@utf8mb4 zzz;
 accept	accept	engine	execute/EXECUTE_SYM_ident_execute_using	EXECUTE utf8mb4;
 accept	accept	engine	execute_using/%empty	EXECUTE utf8mb4;
 accept	accept	engine	execute_using/USING_execute_var_list	EXECUTE utf8mb4 USING@utf8mb4;
 reject	reject	engine	execute_using/USING_execute_var_list!drop-1	EXECUTE utf8mb4@utf8mb4;
 accept	reject	engine	execute_using/USING_execute_var_list!drop-2	EXECUTE utf8mb4 USING utf8mb4;
-reject	accept	engine	execute_using/USING_execute_var_list!drop-3	EXECUTE utf8mb4 USING@;
-reject	accept	engine	execute_using/USING_execute_var_list!truncate	EXECUTE utf8mb4 USING@
+accept	accept	engine	execute_using/USING_execute_var_list!drop-3	EXECUTE utf8mb4 USING@;
+accept	accept	engine	execute_using/USING_execute_var_list!truncate	EXECUTE utf8mb4 USING@
 reject	reject	engine	execute_using/USING_execute_var_list!insert	EXECUTE utf8mb4 USING@utf8mb4 zzz;
 reject	reject	engine	execute_using/USING_execute_var_list!swap	EXECUTE utf8mb4 UTC_DATE@utf8mb4;
 accept	accept	engine	execute_var_list/execute_var_list_,_execute_var_ident	EXECUTE utf8mb4 USING@utf8mb4,@utf8mb4;
 accept	reject	engine	execute_var_list/execute_var_list_,_execute_var_ident!drop-1	EXECUTE utf8mb4 USING utf8mb4,@utf8mb4;
-reject	accept	engine	execute_var_list/execute_var_list_,_execute_var_ident!drop-2	EXECUTE utf8mb4 USING@,@utf8mb4;
+accept	accept	engine	execute_var_list/execute_var_list_,_execute_var_ident!drop-2	EXECUTE utf8mb4 USING@,@utf8mb4;
 reject	reject	engine	execute_var_list/execute_var_list_,_execute_var_ident!drop-3	EXECUTE utf8mb4 USING@utf8mb4@utf8mb4;
 accept	reject	engine	execute_var_list/execute_var_list_,_execute_var_ident!drop-4	EXECUTE utf8mb4 USING@utf8mb4, utf8mb4;
-reject	accept	engine	execute_var_list/execute_var_list_,_execute_var_ident!drop-5	EXECUTE utf8mb4 USING@utf8mb4,@;
-reject	accept	engine	execute_var_list/execute_var_list_,_execute_var_ident!truncate	EXECUTE utf8mb4 USING@utf8mb4,@
+accept	accept	engine	execute_var_list/execute_var_list_,_execute_var_ident!drop-5	EXECUTE utf8mb4 USING@utf8mb4,@;
+accept	accept	engine	execute_var_list/execute_var_list_,_execute_var_ident!truncate	EXECUTE utf8mb4 USING@utf8mb4,@
 reject	reject	engine	execute_var_list/execute_var_list_,_execute_var_ident!insert	EXECUTE utf8mb4 USING@utf8mb4,@utf8mb4 zzz;
 accept	accept	engine	execute_var_list/execute_var_ident	EXECUTE utf8mb4 USING@utf8mb4;
 accept	accept	engine	execute_var_ident/@_ident_or_text	EXECUTE utf8mb4 USING@utf8mb4;
@@ -2096,8 +2096,8 @@ reject	reject	engine	signal_information_item_list/signal_information_item_list_,
 reject	reject	engine	signal_information_item_list/signal_information_item_list_,_signal_condition_information_item_name_EQ_signal_allowed_expr!swap	RESIGNAL SET CLIENT = 's', CLASS_ORIGIN = 's';
 accept	accept	engine	signal_allowed_expr/literal_or_null	RESIGNAL SET CLASS_ORIGIN = 's';
 accept	accept	engine	signal_allowed_expr/rvalue_system_or_user_variable	RESIGNAL SET CLASS_ORIGIN =@utf8mb4;
-reject	accept	engine	signal_allowed_expr/rvalue_system_or_user_variable!drop-2	RESIGNAL SET CLASS_ORIGIN =@;
-reject	accept	engine	signal_allowed_expr/rvalue_system_or_user_variable!truncate	RESIGNAL SET CLASS_ORIGIN =@
+accept	accept	engine	signal_allowed_expr/rvalue_system_or_user_variable!drop-2	RESIGNAL SET CLASS_ORIGIN =@;
+accept	accept	engine	signal_allowed_expr/rvalue_system_or_user_variable!truncate	RESIGNAL SET CLASS_ORIGIN =@
 reject	reject	engine	signal_allowed_expr/rvalue_system_or_user_variable!insert	RESIGNAL SET CLASS_ORIGIN =@utf8mb4 zzz;
 accept	accept	engine	signal_allowed_expr/simple_ident	RESIGNAL SET CLASS_ORIGIN = utf8mb4;
 reject	reject	engine	signal_allowed_expr/simple_ident!insert	RESIGNAL SET CLASS_ORIGIN = utf8mb4 zzz;
@@ -2174,7 +2174,7 @@ accept	reject	engine	simple_target_specification/ident	GET DIAGNOSTICS utf8mb4 =
 reject	reject	engine	simple_target_specification/ident!truncate	GET DIAGNOSTICS
 reject	reject	engine	simple_target_specification/ident!insert	GET DIAGNOSTICS utf8mb4 zzz = NUMBER;
 accept	accept	engine	simple_target_specification/@_ident_or_text	GET DIAGNOSTICS@utf8mb4 = NUMBER;
-reject	accept	engine	simple_target_specification/@_ident_or_text!drop-2	GET DIAGNOSTICS@= NUMBER;
+accept	accept	engine	simple_target_specification/@_ident_or_text!drop-2	GET DIAGNOSTICS@= NUMBER;
 reject	reject	engine	simple_target_specification/@_ident_or_text!truncate	GET DIAGNOSTICS@
 reject	reject	engine	simple_target_specification/@_ident_or_text!insert	GET DIAGNOSTICS@utf8mb4 zzz = NUMBER;
 accept	reject	engine	statement_information_item_name/NUMBER_SYM	GET DIAGNOSTICS utf8mb4 = NUMBER;
@@ -5988,7 +5988,7 @@ reject	reject	engine	bit_expr/bit_expr_+_INTERVAL_SYM_expr_interval!truncate	DO 
 accept	accept	engine	bit_expr/bit_expr_+_INTERVAL_SYM_expr_interval!insert	DO utf8mb4 + INTERVAL utf8mb4 DAY zzz;
 reject	reject	engine	bit_expr/bit_expr_+_INTERVAL_SYM_expr_interval!swap	DO utf8mb4 + INTO utf8mb4 DAY;
 accept	accept	engine	bit_expr/bit_expr_-_INTERVAL_SYM_expr_interval	DO utf8mb4 - INTERVAL utf8mb4 DAY;
-accept	reject	engine	bit_expr/bit_expr_-_INTERVAL_SYM_expr_interval!drop-1	DO - INTERVAL utf8mb4 DAY;
+reject	reject	engine	bit_expr/bit_expr_-_INTERVAL_SYM_expr_interval!drop-1	DO - INTERVAL utf8mb4 DAY;
 accept	accept	engine	bit_expr/bit_expr_-_INTERVAL_SYM_expr_interval!drop-3	DO utf8mb4 - utf8mb4 DAY;
 reject	reject	engine	bit_expr/bit_expr_-_INTERVAL_SYM_expr_interval!drop-4	DO utf8mb4 - INTERVAL DAY;
 reject	reject	engine	bit_expr/bit_expr_-_INTERVAL_SYM_expr_interval!drop-5	DO utf8mb4 - INTERVAL utf8mb4;
@@ -6087,12 +6087,12 @@ accept	accept	engine	simple_expr/literal_or_null!insert	DO 's' zzz;
 accept	accept	engine	simple_expr/param_marker	DO ?;
 accept	accept	engine	simple_expr/param_marker!insert	DO ? zzz;
 accept	accept	engine	simple_expr/rvalue_system_or_user_variable	DO@utf8mb4;
-reject	accept	engine	simple_expr/rvalue_system_or_user_variable!drop-2	DO@;
-reject	accept	engine	simple_expr/rvalue_system_or_user_variable!truncate	DO@
+accept	accept	engine	simple_expr/rvalue_system_or_user_variable!drop-2	DO@;
+accept	accept	engine	simple_expr/rvalue_system_or_user_variable!truncate	DO@
 accept	accept	engine	simple_expr/rvalue_system_or_user_variable!insert	DO@utf8mb4 zzz;
 accept	accept	engine	simple_expr/in_expression_user_variable_assignment	DO@utf8mb4 := utf8mb4;
 reject	reject	engine	simple_expr/in_expression_user_variable_assignment!drop-1	DO utf8mb4 := utf8mb4;
-reject	accept	engine	simple_expr/in_expression_user_variable_assignment!drop-2	DO@:= utf8mb4;
+accept	accept	engine	simple_expr/in_expression_user_variable_assignment!drop-2	DO@:= utf8mb4;
 accept	accept	engine	simple_expr/in_expression_user_variable_assignment!drop-3	DO@utf8mb4 utf8mb4;
 reject	reject	engine	simple_expr/in_expression_user_variable_assignment!drop-4	DO@utf8mb4 :=;
 reject	reject	engine	simple_expr/in_expression_user_variable_assignment!truncate	DO@utf8mb4 :=
@@ -6526,7 +6526,7 @@ reject	reject	engine	function_call_nonkeyword/ADDDATE_SYM_(_expr_,_expr_)!trunca
 accept	accept	engine	function_call_nonkeyword/ADDDATE_SYM_(_expr_,_expr_)!insert	DO ADDDATE(utf8mb4, utf8mb4) zzz;
 reject	reject	engine	function_call_nonkeyword/ADDDATE_SYM_(_expr_,_expr_)!swap	DO ADMIN(utf8mb4, utf8mb4);
 accept	accept	engine	function_call_nonkeyword/ADDDATE_SYM_(_expr_,_INTERVAL_SYM_expr_interval_)	DO ADDDATE(utf8mb4, INTERVAL utf8mb4 DAY);
-accept	reject	engine	function_call_nonkeyword/ADDDATE_SYM_(_expr_,_INTERVAL_SYM_expr_interval_)!drop-1	DO(utf8mb4, INTERVAL utf8mb4 DAY);
+reject	reject	engine	function_call_nonkeyword/ADDDATE_SYM_(_expr_,_INTERVAL_SYM_expr_interval_)!drop-1	DO(utf8mb4, INTERVAL utf8mb4 DAY);
 reject	reject	engine	function_call_nonkeyword/ADDDATE_SYM_(_expr_,_INTERVAL_SYM_expr_interval_)!drop-2	DO ADDDATE utf8mb4, INTERVAL utf8mb4 DAY);
 reject	reject	engine	function_call_nonkeyword/ADDDATE_SYM_(_expr_,_INTERVAL_SYM_expr_interval_)!drop-3	DO ADDDATE(, INTERVAL utf8mb4 DAY);
 reject	reject	engine	function_call_nonkeyword/ADDDATE_SYM_(_expr_,_INTERVAL_SYM_expr_interval_)!drop-4	DO ADDDATE(utf8mb4 INTERVAL utf8mb4 DAY);
@@ -7238,7 +7238,7 @@ accept	accept	engine	param_or_var/param_marker	DO NTILE(?) OVER utf8mb4;
 accept	accept	engine	param_or_var/ident	DO NTILE(utf8mb4) OVER utf8mb4;
 reject	reject	engine	param_or_var/ident!insert	DO NTILE(utf8mb4 zzz) OVER utf8mb4;
 accept	accept	engine	param_or_var/@_ident_or_text	DO NTILE(@utf8mb4) OVER utf8mb4;
-reject	accept	engine	param_or_var/@_ident_or_text!drop-2	DO NTILE(@) OVER utf8mb4;
+accept	accept	engine	param_or_var/@_ident_or_text!drop-2	DO NTILE(@) OVER utf8mb4;
 reject	reject	engine	param_or_var/@_ident_or_text!truncate	DO NTILE(@
 reject	reject	engine	param_or_var/@_ident_or_text!insert	DO NTILE(@utf8mb4 zzz) OVER utf8mb4;
 accept	accept	engine	opt_ll_default/%empty	DO LEAD(utf8mb4, 1) OVER utf8mb4;
@@ -8271,8 +8271,8 @@ accept	reject	engine	select_var_list/select_var_list_,_select_var_ident!truncate
 reject	reject	engine	select_var_list/select_var_list_,_select_var_ident!insert	SELECT utf8mb4 INTO utf8mb4, utf8mb4 zzz;
 accept	accept	engine	select_var_list/select_var_ident	SELECT utf8mb4 INTO utf8mb4;
 accept	accept	engine	select_var_ident/@_ident_or_text	SELECT utf8mb4 INTO@utf8mb4;
-reject	accept	engine	select_var_ident/@_ident_or_text!drop-2	SELECT utf8mb4 INTO@;
-reject	accept	engine	select_var_ident/@_ident_or_text!truncate	SELECT utf8mb4 INTO@
+accept	accept	engine	select_var_ident/@_ident_or_text!drop-2	SELECT utf8mb4 INTO@;
+accept	accept	engine	select_var_ident/@_ident_or_text!truncate	SELECT utf8mb4 INTO@
 reject	reject	engine	select_var_ident/@_ident_or_text!insert	SELECT utf8mb4 INTO@utf8mb4 zzz;
 accept	accept	engine	select_var_ident/ident_or_text	SELECT utf8mb4 INTO utf8mb4;
 accept	accept	engine	into_clause/INTO_into_destination	SELECT utf8mb4 INTO utf8mb4;
@@ -9202,7 +9202,7 @@ accept	accept	engine	fields_or_vars/field_or_var	LOAD DATA INFILE 's' INTO TABLE
 reject	reject	engine	fields_or_vars/field_or_var!insert	LOAD DATA INFILE 's' INTO TABLE utf8mb4(utf8mb4 zzz);
 accept	accept	engine	field_or_var/simple_ident_nospvar	LOAD DATA INFILE 's' INTO TABLE utf8mb4(utf8mb4);
 accept	accept	engine	field_or_var/@_ident_or_text	LOAD DATA INFILE 's' INTO TABLE utf8mb4(@utf8mb4);
-reject	accept	engine	field_or_var/@_ident_or_text!drop-2	LOAD DATA INFILE 's' INTO TABLE utf8mb4(@);
+accept	accept	engine	field_or_var/@_ident_or_text!drop-2	LOAD DATA INFILE 's' INTO TABLE utf8mb4(@);
 reject	reject	engine	field_or_var/@_ident_or_text!truncate	LOAD DATA INFILE 's' INTO TABLE utf8mb4(@
 reject	reject	engine	field_or_var/@_ident_or_text!insert	LOAD DATA INFILE 's' INTO TABLE utf8mb4(@utf8mb4 zzz);
 accept	accept	engine	opt_load_data_set_spec/%empty	LOAD DATA INFILE 's' INTO TABLE utf8mb4;
@@ -10779,7 +10779,7 @@ reject	reject	engine	option_value_no_option_type/lvalue_variable_equal_set_expr_
 reject	reject	engine	option_value_no_option_type/lvalue_variable_equal_set_expr_or_default!truncate	SET utf8mb4 =
 reject	accept	engine	option_value_no_option_type/lvalue_variable_equal_set_expr_or_default!insert	SET utf8mb4 = utf8mb4 zzz;
 accept	accept	engine	option_value_no_option_type/@_ident_or_text_equal_expr	SET@utf8mb4 = utf8mb4;
-reject	accept	engine	option_value_no_option_type/@_ident_or_text_equal_expr!drop-2	SET@= utf8mb4;
+accept	accept	engine	option_value_no_option_type/@_ident_or_text_equal_expr!drop-2	SET@= utf8mb4;
 reject	reject	engine	option_value_no_option_type/@_ident_or_text_equal_expr!drop-3	SET@utf8mb4 utf8mb4;
 reject	reject	engine	option_value_no_option_type/@_ident_or_text_equal_expr!drop-4	SET@utf8mb4 =;
 reject	reject	engine	option_value_no_option_type/@_ident_or_text_equal_expr!truncate	SET@utf8mb4 =
