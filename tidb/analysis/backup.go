@@ -918,6 +918,9 @@ func generateSQL(statementInfoList []statementInfo, opts BackupOptions) ([]Backu
 		if err := checkDependentUpdates(statementInfoList, opts); err != nil {
 			return nil, err
 		}
+		if err := checkSeparateUniqueKeys(statementInfoList, opts); err != nil {
+			return nil, err
+		}
 		return generateSQLForMixedDML(statementInfoList, opts)
 	}
 	return generateSQLForSingleTable(statementInfoList, opts)
@@ -970,6 +973,53 @@ func checkDependentUpdates(statementInfoList []statementInfo, opts BackupOptions
 			if selectsBy(update, changed) {
 				return fmt.Errorf("prior backup cannot back up UPDATEs of %s.%s separately when one picks its rows by a column an earlier one changes", table.Database, table.Table)
 			}
+		}
+	}
+	return nil
+}
+
+// checkSeparateUniqueKeys refuses UPDATEs of one table that together change a
+// unique key as the restore of one backup would refuse them: each backup's
+// restore sees only its own UPDATE.
+func checkSeparateUniqueKeys(statementInfoList []statementInfo, opts BackupOptions) error {
+	for i, item := range statementInfoList {
+		if _, ok := item.node.(*ast.UpdateStmt); !ok || opts.Catalog.GetDatabase == nil {
+			continue
+		}
+		var updates []*ast.UpdateStmt
+		for j, other := range statementInfoList {
+			update, ok := other.node.(*ast.UpdateStmt)
+			if !ok || !equalTable(other.table, item.table, opts.CaseSensitive) {
+				continue
+			}
+			if j < i {
+				// The table's first UPDATE checked them all.
+				updates = nil
+				break
+			}
+			if !slices.Contains(updates, update) {
+				updates = append(updates, update)
+			}
+		}
+		if len(updates) < 2 {
+			continue
+		}
+		table := item.table
+		columns, err := opts.classifyColumns(table.Database, table.Table)
+		if err != nil {
+			return fmt.Errorf("failed to classify columns: %w", err)
+		}
+		db, err := findDatabase(opts.Catalog, opts.CaseSensitive, table.Database)
+		if err != nil {
+			return fmt.Errorf("prior backup cannot read the unique keys of %s.%s: %w", table.Database, table.Table, err)
+		}
+		if db == nil || !db.HasSchema() || db.GetTable(table.Table) == nil {
+			return fmt.Errorf("prior backup cannot read the unique keys of %s.%s: the table has no metadata", table.Database, table.Table)
+		}
+		tableMetadata := db.GetTable(table.Table)
+		updateColumns, assignments := updateChanges(tableMetadata, updates, table.Database, table.Table, columns.Normal)
+		if key := changedUniqueKey(tableMetadata, updateColumns, assignments); key != "" {
+			return fmt.Errorf("prior backup cannot back up UPDATEs of %s.%s separately: together they change unique key %s, so a restore could match another row", table.Database, table.Table, key)
 		}
 	}
 	return nil

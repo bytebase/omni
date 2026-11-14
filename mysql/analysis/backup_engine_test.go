@@ -308,6 +308,14 @@ var roundTrips = []roundTrip{
 		restoreErr: "the UPDATE changes unique key uk_g2",
 	},
 	{
+		// The backup would cut the executable comment open.
+		name:         "executable_comment",
+		setup:        "CREATE TABLE executable_comment (id INT PRIMARY KEY);INSERT INTO executable_comment VALUES (1), (2)",
+		script:       "DELETE FROM executable_comment /*!80000 WHERE id = 1 */",
+		tables:       []string{"executable_comment"},
+		transformErr: "its statement has clauses in an executable comment",
+	},
+	{
 		// After the USE the unqualified table is the second database's; the
 		// backup would read the first's.
 		name: "use_database",

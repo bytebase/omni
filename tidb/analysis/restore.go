@@ -157,45 +157,11 @@ func generateDeleteRestore(originalDatabase, originalTable, backupDatabase, back
 }
 
 func generateUpdateRestore(catalog Catalog, stmts []*ast.UpdateStmt, originalDatabase, originalTable, backupDatabase, backupTable string, normalColumns []string) (string, error) {
-	// Union update columns across every statement: the single-table backup
-	// path bundles more than maxMixedDMLCount same-table DMLs into one backup,
-	// and the restore must roll back every column any of them touches.
-	//
-	// Iteration order is preserved (first-seen-first) for deterministic
-	// ODKU clause output; case-insensitive dedup matches the
-	// hasDisjointUniqueKey lower-case map convention.
-	seen := make(map[string]bool)
-	var updateColumns []string
-	var assignments [][]*ast.Assignment
-	for _, stmt := range stmts {
-		singleTables := extractSingleTablesFromTableExprs(originalDatabase, stmt.Tables)
-		assignments = append(assignments, targetAssignments(stmt.SetList, originalDatabase, originalTable, singleTables, normalColumns))
-		for _, col := range extractUpdateColumns(stmt.SetList, originalDatabase, originalTable, singleTables, normalColumns) {
-			key := strings.ToLower(col)
-			if !seen[key] {
-				seen[key] = true
-				updateColumns = append(updateColumns, col)
-			}
-		}
-	}
-
 	tableProto, err := getTable(catalog, originalDatabase, originalTable)
 	if err != nil {
 		return "", err
 	}
-	// A column the server sets ON UPDATE changed too, and is restored with
-	// the rest.
-	normal := make(map[string]bool)
-	for _, column := range normalColumns {
-		normal[strings.ToLower(column)] = true
-	}
-	for _, column := range tableProto.Columns {
-		key := strings.ToLower(column.GetName())
-		if column.GetOnUpdate() != "" && column.GetGeneration() == nil && normal[key] && !seen[key] {
-			seen[key] = true
-			updateColumns = append(updateColumns, column.GetName())
-		}
-	}
+	updateColumns, assignments := updateChanges(tableProto, stmts, originalDatabase, originalTable, normalColumns)
 
 	if !hasDisjointUniqueKey(tableProto, updateColumns) {
 		return "", fmt.Errorf("no disjoint unique key found for %s.%s", originalDatabase, originalTable)
@@ -218,6 +184,40 @@ func generateUpdateRestore(catalog Catalog, stmts []*ast.UpdateStmt, originalDat
 	}
 	buf.WriteString(";")
 	return buf.String(), nil
+}
+
+// updateChanges returns the columns of the table that UPDATEs change, each
+// once and in first-seen order, and each UPDATE's assignments to them. The
+// single-table backup path bundles several UPDATEs into one backup, so the
+// restore must roll back every column any of them touches, and a column the
+// server sets ON UPDATE changed too.
+func updateChanges(tableProto *metadata.TableMetadata, stmts []*ast.UpdateStmt, database, table string, normalColumns []string) ([]string, [][]*ast.Assignment) {
+	seen := make(map[string]bool)
+	var updateColumns []string
+	var assignments [][]*ast.Assignment
+	for _, stmt := range stmts {
+		singleTables := extractSingleTablesFromTableExprs(database, stmt.Tables)
+		assignments = append(assignments, targetAssignments(stmt.SetList, database, table, singleTables, normalColumns))
+		for _, col := range extractUpdateColumns(stmt.SetList, database, table, singleTables, normalColumns) {
+			key := strings.ToLower(col)
+			if !seen[key] {
+				seen[key] = true
+				updateColumns = append(updateColumns, col)
+			}
+		}
+	}
+	normal := make(map[string]bool)
+	for _, column := range normalColumns {
+		normal[strings.ToLower(column)] = true
+	}
+	for _, column := range tableProto.Columns {
+		key := strings.ToLower(column.GetName())
+		if column.GetOnUpdate() != "" && column.GetGeneration() == nil && normal[key] && !seen[key] {
+			seen[key] = true
+			updateColumns = append(updateColumns, column.GetName())
+		}
+	}
+	return updateColumns, assignments
 }
 
 // extractSingleTablesFromTableExprs walks omni TableExpr nodes and returns

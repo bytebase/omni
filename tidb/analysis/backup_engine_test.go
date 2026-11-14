@@ -302,6 +302,23 @@ var roundTrips = []roundTrip{
 		tables:     []string{"chained_key"},
 		restoreErr: "the UPDATE changes unique key uk_g2",
 	},
+	{
+		// The backup leaves the executable comment open, which TiDB reads to
+		// the end of the statement.
+		name:   "executable_comment",
+		setup:  "CREATE TABLE executable_comment (id INT PRIMARY KEY);INSERT INTO executable_comment VALUES (1), (2)",
+		script: "DELETE FROM executable_comment /*!80000 WHERE id = 1 */",
+		tables: []string{"executable_comment"},
+	},
+	{
+		// The UPDATEs swap uk_u across three backups, each of whose restores
+		// sees one literal.
+		name:         "separate_swap",
+		setup:        "CREATE TABLE separate_swap (id INT PRIMARY KEY, u INT NOT NULL, UNIQUE KEY uk_u (u));INSERT INTO separate_swap VALUES (1, 10), (2, 20)",
+		script:       "UPDATE separate_swap SET u = 30 WHERE id = 1; UPDATE separate_swap SET u = 10 WHERE id = 2; UPDATE separate_swap SET u = 20 WHERE id = 1",
+		tables:       []string{"separate_swap"},
+		transformErr: "together they change unique key uk_u",
+	},
 }
 
 // TestBackupRestoreRoundTrip runs each backup, its statements and their

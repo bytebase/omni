@@ -386,6 +386,8 @@ func TestTransformDMLToSelectRefusesUnsafeScripts(t *testing.T) {
 		{"SELECT 1 INTO @v; UPDATE t SET b = 1 WHERE a = @V", "failed to prepare transformation: prior backup cannot handle a statement that reads @V after an earlier statement sets it"},
 		{"SELECT @v := 2; UPDATE t JOIN t1 ON t1.a = @v SET t.b = 1", "failed to prepare transformation: prior backup cannot handle a statement that reads @v after an earlier statement sets it"},
 		{"SET @v = 1; WITH c AS (SELECT @v AS a) DELETE t FROM t JOIN c ON t.a = c.a", "failed to prepare transformation: prior backup cannot handle a statement that reads @v after an earlier statement sets it"},
+		// A clause in an executable comment.
+		{"DELETE FROM t /*!80000 WHERE a = 1 */", "prior backup cannot back up t: its statement has clauses in an executable comment"},
 		// The backup runs the row selection's := too.
 		{"DELETE FROM t WHERE (@n := COALESCE(@n, 0) + 1) = 2", "failed to prepare transformation: prior backup cannot back up a statement whose row selection sets @n, as the backup sets it too"},
 		// A USE before the statement moves its unqualified tables.
@@ -450,6 +452,11 @@ func TestTransformDMLToSelectKeepsSafeScripts(t *testing.T) {
 		"UPDATE t SET b = RAND() WHERE a = 1",
 		"UPDATE t SET b = (@n := @n + 1) WHERE a = 1",
 		"DELETE FROM t WHERE @n = a",
+		"/*!40000 UPDATE t SET b = 1 */",
+		"DELETE FROM t /* WHERE a = 1 */ WHERE a = 2",
+		"DELETE FROM t WHERE b = '/*'",
+		// MySQL 8.0 does not keep what EXPLAIN ANALYZE changes.
+		"EXPLAIN ANALYZE DELETE t FROM t JOIN t1 ON t.a = t1.a",
 		"UPDATE t SET b = NOW() WHERE a = 1",
 		"DELETE FROM t WHERE a = UNIX_TIMESTAMP(b)",
 		// A trigger on events neither the statement nor its restore runs.

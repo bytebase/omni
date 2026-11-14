@@ -316,6 +316,23 @@ var roundTrips = []roundTrip{
 		restoreErr: "the UPDATE changes unique key uk_g2",
 	},
 	{
+		// The UPDATE in the executable comment runs, and the backup would cut
+		// the comment open.
+		name:         "executable_comment",
+		setup:        "CREATE TABLE executable_comment (id INT PRIMARY KEY);INSERT INTO executable_comment VALUES (1), (2)",
+		script:       "DELETE FROM executable_comment /*M!100000 WHERE id = 1 */",
+		tables:       []string{"executable_comment"},
+		transformErr: "its statement has clauses in an executable comment",
+	},
+	{
+		// ANALYZE runs the DELETE it carries, and no backup covers it.
+		name:         "analyze",
+		setup:        "CREATE TABLE analyzed (id INT PRIMARY KEY);INSERT INTO analyzed VALUES (1), (2)",
+		script:       "ANALYZE DELETE FROM analyzed WHERE id = 1",
+		tables:       []string{"analyzed"},
+		transformErr: "prior backup does not support ANALYZE of an UPDATE or DELETE statement",
+	},
+	{
 		// After the USE the unqualified table is the second database's; the
 		// backup would read the first's.
 		name: "use_database",

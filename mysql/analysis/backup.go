@@ -107,7 +107,18 @@ func TransformDMLToSelect(statement string, opts BackupOptions) ([]BackupStateme
 		return nil, fmt.Errorf("failed to prepare transformation: %w", err)
 	}
 
-	return generateSQL(targets, opts)
+	result, err := generateSQL(targets, opts)
+	if err != nil {
+		return nil, err
+	}
+	// A clause in an executable comment ends before the comment does, so a
+	// copied slice can open a comment it does not close.
+	for _, backup := range result {
+		if unclosedComment(backup.Statement) {
+			return nil, fmt.Errorf("prior backup cannot back up %s: its statement has clauses in an executable comment", backup.SourceTable)
+		}
+	}
+	return result, nil
 }
 
 func prepareTransformation(databaseName, statement string, catalog Catalog, caseSensitive bool) ([]DMLTarget, error) {
@@ -849,6 +860,28 @@ func skipLineComment(s string, i int) int {
 		}
 	}
 	return len(s) - 1
+}
+
+// unclosedComment reports whether s opens a /* */ comment it does not close.
+func unclosedComment(s string) bool {
+	for i := 0; i < len(s); i++ {
+		switch c := s[i]; {
+		case c == '\'' || c == '"' || c == '`':
+			i = skipQuoted(s, i)
+		case c == '/' && i+1 < len(s) && s[i+1] == '*':
+			end := skipBlockComment(s, i)
+			if end < i+3 || s[end-1] != '*' || s[end] != '/' {
+				return true
+			}
+			i = end
+		case c == '-' && i+1 < len(s) && s[i+1] == '-' && (i+2 >= len(s) || isASCIISpace(s[i+2])):
+			i = skipLineComment(s, i)
+		case c == '#':
+			i = skipLineComment(s, i)
+		default:
+		}
+	}
+	return false
 }
 
 func isASCIISpace(c byte) bool {
