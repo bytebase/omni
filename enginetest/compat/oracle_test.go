@@ -49,6 +49,8 @@ func TestOracleVerdictReadsParseErrors(t *testing.T) {
 		{"a unit with SQL on a missing table", "CREATE PROCEDURE a IS BEGIN INSERT INTO zz VALUES (1); END;", &answer{24344, 12, "ORA-00942,PLS-00000"}, nil, Accept},
 		{"a unit with a SQL syntax error", "CREATE PROCEDURE a IS BEGIN INSERT INTO a VALUES (1) a a; END;", &answer{24344, 25, "ORA-03049,PLS-00000"}, nil, Reject},
 		{"a block with SQL on a missing table", "BEGIN INSERT INTO zz VALUES (1); END;", &answer{6550, 18, "ORA-00942"}, nil, Accept},
+		{"a block with SQL of mismatched types", "BEGIN INSERT INTO a SELECT 1 FROM dual UNION ALL SELECT 'x' FROM dual; END;", &answer{6550, 27, "ORA-01790"}, nil, Accept},
+		{"a block calling a procedure named like an error", `BEGIN "PLS-00103"; END;`, &answer{6550, 7, "PLS-00201"}, nil, Accept},
 		{"a block with a SQL syntax error", "BEGIN INSERT INTO a VALUES (1) a a; END;", &answer{6550, 31, "ORA-03049"}, nil, "reject@31"},
 		{"a type with a PL/SQL syntax error", "CREATE TYPE a AS OBJECT (a INT", &answer{24344, 0, "PLS-00103"}, nil, Reject},
 		{"a block with a PL/SQL syntax error", "BEGIN NULL END;", &answer{6550, 11, "PLS-00103"}, nil, "reject@11"},
