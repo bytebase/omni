@@ -4655,7 +4655,7 @@ reject@0	reject@0	engine	CommentStmt/COMMENT_ON_object_type_name_name_IS_comment
 accept	accept	engine	CommentStmt/COMMENT_ON_TYPE_P_Typename_IS_comment_text	COMMENT ON TYPE a IS 's'
 reject@0	reject@0	engine	CommentStmt/COMMENT_ON_TYPE_P_Typename_IS_comment_text!drop-1	ON TYPE a IS 's'
 reject@8	reject@8	engine	CommentStmt/COMMENT_ON_TYPE_P_Typename_IS_comment_text!drop-2	COMMENT TYPE a IS 's'
-reject@16	reject@19	engine	CommentStmt/COMMENT_ON_TYPE_P_Typename_IS_comment_text!drop-4	COMMENT ON TYPE IS 's'
+reject@19	reject@19	engine	CommentStmt/COMMENT_ON_TYPE_P_Typename_IS_comment_text!drop-4	COMMENT ON TYPE IS 's'
 reject@18	reject@18	engine	CommentStmt/COMMENT_ON_TYPE_P_Typename_IS_comment_text!drop-5	COMMENT ON TYPE a 's'
 reject@20	reject@20	engine	CommentStmt/COMMENT_ON_TYPE_P_Typename_IS_comment_text!drop-6	COMMENT ON TYPE a IS
 reject@25	reject@25	engine	CommentStmt/COMMENT_ON_TYPE_P_Typename_IS_comment_text!insert	COMMENT ON TYPE a IS 's' zzz
@@ -4663,7 +4663,7 @@ reject@0	reject@0	engine	CommentStmt/COMMENT_ON_TYPE_P_Typename_IS_comment_text!
 accept	accept	engine	CommentStmt/COMMENT_ON_DOMAIN_P_Typename_IS_comment_text	COMMENT ON DOMAIN a IS 's'
 reject@0	reject@0	engine	CommentStmt/COMMENT_ON_DOMAIN_P_Typename_IS_comment_text!drop-1	ON DOMAIN a IS 's'
 reject@8	reject@8	engine	CommentStmt/COMMENT_ON_DOMAIN_P_Typename_IS_comment_text!drop-2	COMMENT DOMAIN a IS 's'
-reject@18	reject@21	engine	CommentStmt/COMMENT_ON_DOMAIN_P_Typename_IS_comment_text!drop-4	COMMENT ON DOMAIN IS 's'
+reject@21	reject@21	engine	CommentStmt/COMMENT_ON_DOMAIN_P_Typename_IS_comment_text!drop-4	COMMENT ON DOMAIN IS 's'
 reject@20	reject@20	engine	CommentStmt/COMMENT_ON_DOMAIN_P_Typename_IS_comment_text!drop-5	COMMENT ON DOMAIN a 's'
 reject@22	reject@22	engine	CommentStmt/COMMENT_ON_DOMAIN_P_Typename_IS_comment_text!drop-6	COMMENT ON DOMAIN a IS
 reject@27	reject@27	engine	CommentStmt/COMMENT_ON_DOMAIN_P_Typename_IS_comment_text!insert	COMMENT ON DOMAIN a IS 's' zzz
@@ -4834,7 +4834,7 @@ accept	accept	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_TYPE_P_Typename
 reject@0	reject@0	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_TYPE_P_Typename_IS_security_label!drop-1	LABEL ON TYPE a IS 's'
 reject@9	reject@9	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_TYPE_P_Typename_IS_security_label!drop-2	SECURITY ON TYPE a IS 's'
 reject@15	reject@15	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_TYPE_P_Typename_IS_security_label!drop-3	SECURITY LABEL TYPE a IS 's'
-reject@23	reject@26	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_TYPE_P_Typename_IS_security_label!drop-5	SECURITY LABEL ON TYPE IS 's'
+reject@26	reject@26	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_TYPE_P_Typename_IS_security_label!drop-5	SECURITY LABEL ON TYPE IS 's'
 reject@25	reject@25	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_TYPE_P_Typename_IS_security_label!drop-6	SECURITY LABEL ON TYPE a 's'
 reject@27	reject@27	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_TYPE_P_Typename_IS_security_label!drop-7	SECURITY LABEL ON TYPE a IS
 reject@32	reject@32	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_TYPE_P_Typename_IS_security_label!insert	SECURITY LABEL ON TYPE a IS 's' zzz
@@ -4843,7 +4843,7 @@ accept	accept	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_DOMAIN_P_Typena
 reject@0	reject@0	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_DOMAIN_P_Typename_IS_security_label!drop-1	LABEL ON DOMAIN a IS 's'
 reject@9	reject@9	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_DOMAIN_P_Typename_IS_security_label!drop-2	SECURITY ON DOMAIN a IS 's'
 reject@15	reject@15	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_DOMAIN_P_Typename_IS_security_label!drop-3	SECURITY LABEL DOMAIN a IS 's'
-reject@25	reject@28	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_DOMAIN_P_Typename_IS_security_label!drop-5	SECURITY LABEL ON DOMAIN IS 's'
+reject@28	reject@28	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_DOMAIN_P_Typename_IS_security_label!drop-5	SECURITY LABEL ON DOMAIN IS 's'
 reject@27	reject@27	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_DOMAIN_P_Typename_IS_security_label!drop-6	SECURITY LABEL ON DOMAIN a 's'
 reject@29	reject@29	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_DOMAIN_P_Typename_IS_security_label!drop-7	SECURITY LABEL ON DOMAIN a IS
 reject@34	reject@34	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_DOMAIN_P_Typename_IS_security_label!insert	SECURITY LABEL ON DOMAIN a IS 's' zzz

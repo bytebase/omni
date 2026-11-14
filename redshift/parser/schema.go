@@ -444,11 +444,13 @@ func (p *Parser) parseCommentStmt() (nodes.Node, error) {
 	case TYPE_P:
 		p.advance()
 		stmt.Objtype = nodes.OBJECT_TYPE
-		name, err := p.parseAnyName()
+		// gram.y reads a Typename here (COMMENT ON TYPE int IS 's', and
+		// IS itself names a type in COMMENT ON TYPE IS IS 's').
+		tn, err := p.parseCommentTypename()
 		if err != nil {
 			return nil, err
 		}
-		stmt.Object = name
+		stmt.Object = tn
 		if _, err := p.expect(IS); err != nil {
 			return nil, err
 		}
@@ -462,11 +464,13 @@ func (p *Parser) parseCommentStmt() (nodes.Node, error) {
 	case DOMAIN_P:
 		p.advance()
 		stmt.Objtype = nodes.OBJECT_DOMAIN
-		name, err := p.parseAnyName()
+		// gram.y reads a Typename here (COMMENT ON TYPE int IS 's', and
+		// IS itself names a type in COMMENT ON TYPE IS IS 's').
+		tn, err := p.parseCommentTypename()
 		if err != nil {
 			return nil, err
 		}
-		stmt.Object = name
+		stmt.Object = tn
 		if _, err := p.expect(IS); err != nil {
 			return nil, err
 		}
@@ -894,6 +898,18 @@ func (p *Parser) parseCommentStmt() (nodes.Node, error) {
 	}
 }
 
+// parseCommentTypename parses the Typename COMMENT ON and SECURITY LABEL
+// ON TYPE and DOMAIN name, with its location.
+func (p *Parser) parseCommentTypename() (*nodes.TypeName, error) {
+	start := p.pos()
+	tn, err := p.parseTypename()
+	if err != nil {
+		return nil, err
+	}
+	tn.Loc = nodes.Loc{Start: start, End: p.prev.End}
+	return tn, nil
+}
+
 // parseCommentText parses comment_text: Sconst | NULL_P.
 func (p *Parser) parseCommentText() (string, error) {
 	switch p.cur.Type {
@@ -1048,11 +1064,13 @@ func (p *Parser) parseSecLabelStmt() (nodes.Node, error) {
 	case TYPE_P:
 		p.advance()
 		stmt.Objtype = nodes.OBJECT_TYPE
-		name, err := p.parseAnyName()
+		// gram.y reads a Typename here (COMMENT ON TYPE int IS 's', and
+		// IS itself names a type in COMMENT ON TYPE IS IS 's').
+		tn, err := p.parseCommentTypename()
 		if err != nil {
 			return nil, err
 		}
-		stmt.Object = name
+		stmt.Object = tn
 		if _, err := p.expect(IS); err != nil {
 			return nil, err
 		}
@@ -1066,11 +1084,13 @@ func (p *Parser) parseSecLabelStmt() (nodes.Node, error) {
 	case DOMAIN_P:
 		p.advance()
 		stmt.Objtype = nodes.OBJECT_DOMAIN
-		name, err := p.parseAnyName()
+		// gram.y reads a Typename here (COMMENT ON TYPE int IS 's', and
+		// IS itself names a type in COMMENT ON TYPE IS IS 's').
+		tn, err := p.parseCommentTypename()
 		if err != nil {
 			return nil, err
 		}
-		stmt.Object = name
+		stmt.Object = tn
 		if _, err := p.expect(IS); err != nil {
 			return nil, err
 		}
