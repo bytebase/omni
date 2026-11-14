@@ -3474,7 +3474,7 @@ accept	accept	engine	opt_generated_always/%empty	ALTER TABLE utf8mb4 ADD utf8mb4
 reject	reject	engine	opt_generated_always/%empty!insert	ALTER TABLE utf8mb4 ADD utf8mb4 INT zzz AS(utf8mb4);
 accept	accept	engine	opt_generated_always/GENERATED_ALWAYS_SYM	ALTER TABLE utf8mb4 ADD utf8mb4 INT GENERATED ALWAYS AS(utf8mb4);
 reject	reject	engine	opt_generated_always/GENERATED_ALWAYS_SYM!drop-1	ALTER TABLE utf8mb4 ADD utf8mb4 INT ALWAYS AS(utf8mb4);
-accept	reject	engine	opt_generated_always/GENERATED_ALWAYS_SYM!drop-2	ALTER TABLE utf8mb4 ADD utf8mb4 INT GENERATED AS(utf8mb4);
+reject	reject	engine	opt_generated_always/GENERATED_ALWAYS_SYM!drop-2	ALTER TABLE utf8mb4 ADD utf8mb4 INT GENERATED AS(utf8mb4);
 reject	reject	engine	opt_generated_always/GENERATED_ALWAYS_SYM!truncate	ALTER TABLE utf8mb4 ADD utf8mb4 INT GENERATED
 reject	reject	engine	opt_generated_always/GENERATED_ALWAYS_SYM!insert	ALTER TABLE utf8mb4 ADD utf8mb4 INT GENERATED ALWAYS zzz AS(utf8mb4);
 reject	reject	engine	opt_generated_always/GENERATED_ALWAYS_SYM!swap	ALTER TABLE utf8mb4 ADD utf8mb4 INT GEOMETRY ALWAYS AS(utf8mb4);

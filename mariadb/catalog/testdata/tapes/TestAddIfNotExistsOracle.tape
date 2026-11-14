@@ -1899,3 +1899,261 @@
 > exec
 | DROP TABLE IF EXISTS r
 < ok 0 0
+> exec
+| CREATE TABLE r (id INT PRIMARY KEY)
+< ok 0 0
+> exec
+| CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY a (a), KEY k (b), CONSTRAINT ck CHECK (a > 0))
+< ok 0 0
+> exec
+| CREATE TABLE np (id INT NOT NULL, a INT)
+< ok 0 0
+> exec
+| CREATE TABLE f (id INT PRIMARY KEY, a INT, CONSTRAINT fkx FOREIGN KEY (a) REFERENCES r (id))
+< ok 0 0
+> exec
+| ALTER TABLE t ADD IF NOT EXISTS a VARCHAR(5)
+< ok 0 0
+> query
+| SHOW CREATE TABLE t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `id` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `b` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `a` (`a`),
+|   KEY `k` (`b`),
+|   CONSTRAINT `ck` CHECK (`a` > 0)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP TABLE IF EXISTS f
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS np
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS t
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS r
+< ok 0 0
+> exec
+| CREATE TABLE r (id INT PRIMARY KEY)
+< ok 0 0
+> exec
+| CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY a (a), KEY k (b), CONSTRAINT ck CHECK (a > 0))
+< ok 0 0
+> exec
+| CREATE TABLE np (id INT NOT NULL, a INT)
+< ok 0 0
+> exec
+| CREATE TABLE f (id INT PRIMARY KEY, a INT, CONSTRAINT fkx FOREIGN KEY (a) REFERENCES r (id))
+< ok 0 0
+> exec
+| ALTER TABLE t ADD COLUMN IF NOT EXISTS c INT FIRST
+< ok 0 0
+> query
+| SHOW CREATE TABLE t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `c` int(11) DEFAULT NULL,
+|   `id` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `b` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `a` (`a`),
+|   KEY `k` (`b`),
+|   CONSTRAINT `ck` CHECK (`a` > 0)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP TABLE IF EXISTS f
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS np
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS t
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS r
+< ok 0 0
+> exec
+| CREATE TABLE r (id INT PRIMARY KEY)
+< ok 0 0
+> exec
+| CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY a (a), KEY k (b), CONSTRAINT ck CHECK (a > 0))
+< ok 0 0
+> exec
+| CREATE TABLE np (id INT NOT NULL, a INT)
+< ok 0 0
+> exec
+| CREATE TABLE f (id INT PRIMARY KEY, a INT, CONSTRAINT fkx FOREIGN KEY (a) REFERENCES r (id))
+< ok 0 0
+> exec
+| ALTER TABLE t ADD IF NOT EXISTS c INT, ADD IF NOT EXISTS c VARCHAR(5)
+< ok 0 0
+> query
+| SHOW CREATE TABLE t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `id` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `b` int(11) DEFAULT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `a` (`a`),
+|   KEY `k` (`b`),
+|   CONSTRAINT `ck` CHECK (`a` > 0)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP TABLE IF EXISTS f
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS np
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS t
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS r
+< ok 0 0
+> exec
+| CREATE TABLE r (id INT PRIMARY KEY)
+< ok 0 0
+> exec
+| CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY a (a), KEY k (b), CONSTRAINT ck CHECK (a > 0))
+< ok 0 0
+> exec
+| CREATE TABLE np (id INT NOT NULL, a INT)
+< ok 0 0
+> exec
+| CREATE TABLE f (id INT PRIMARY KEY, a INT, CONSTRAINT fkx FOREIGN KEY (a) REFERENCES r (id))
+< ok 0 0
+> exec
+| ALTER TABLE t ADD IF NOT EXISTS c INT, ADD c INT
+< error
+| 1060 42S21 Duplicate column name 'c'
+> exec
+| DROP TABLE IF EXISTS f
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS np
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS t
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS r
+< ok 0 0
+> exec
+| CREATE TABLE r (id INT PRIMARY KEY)
+< ok 0 0
+> exec
+| CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY a (a), KEY k (b), CONSTRAINT ck CHECK (a > 0))
+< ok 0 0
+> exec
+| CREATE TABLE np (id INT NOT NULL, a INT)
+< ok 0 0
+> exec
+| CREATE TABLE f (id INT PRIMARY KEY, a INT, CONSTRAINT fkx FOREIGN KEY (a) REFERENCES r (id))
+< ok 0 0
+> exec
+| ALTER TABLE t ADD c INT, ADD IF NOT EXISTS c VARCHAR(5)
+< ok 0 0
+> query
+| SHOW CREATE TABLE t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `id` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `b` int(11) DEFAULT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `a` (`a`),
+|   KEY `k` (`b`),
+|   CONSTRAINT `ck` CHECK (`a` > 0)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP TABLE IF EXISTS f
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS np
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS t
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS r
+< ok 0 0
+> exec
+| CREATE TABLE r (id INT PRIMARY KEY)
+< ok 0 0
+> exec
+| CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY a (a), KEY k (b), CONSTRAINT ck CHECK (a > 0))
+< ok 0 0
+> exec
+| CREATE TABLE np (id INT NOT NULL, a INT)
+< ok 0 0
+> exec
+| CREATE TABLE f (id INT PRIMARY KEY, a INT, CONSTRAINT fkx FOREIGN KEY (a) REFERENCES r (id))
+< ok 0 0
+> exec
+| ALTER TABLE t ADD IF NOT EXISTS (c INT, a VARCHAR(5), d INT)
+< ok 0 0
+> query
+| SHOW CREATE TABLE t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `id` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `b` int(11) DEFAULT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `a` (`a`),
+|   KEY `k` (`b`),
+|   CONSTRAINT `ck` CHECK (`a` > 0)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP TABLE IF EXISTS f
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS np
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS t
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS r
+< ok 0 0

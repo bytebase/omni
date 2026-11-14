@@ -66,6 +66,9 @@ func walkChildren(v Visitor, node Node) {
 		if n.ExchangeTable != nil {
 			Walk(v, n.ExchangeTable)
 		}
+		if n.ConvertTable != nil {
+			Walk(v, n.ConvertTable)
+		}
 		for _, item := range n.OrderByItems {
 			if item != nil {
 				Walk(v, item)
@@ -230,6 +233,11 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.OnUpdate)
 		if n.Generated != nil {
 			Walk(v, n.Generated)
+		}
+		for _, item := range n.EngineOptions {
+			if item != nil {
+				Walk(v, item)
+			}
 		}
 	case *CommonTableExpr:
 		if n.Select != nil {

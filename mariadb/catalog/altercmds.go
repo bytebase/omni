@@ -70,6 +70,18 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 				return errNotSystemVersioned(tbl.Name)
 			}
 		}
+		// So is a ROW START or ROW END column, unless the statement makes the
+		// table system-versioned too. Measured on mariadb:11.8.8, which answers
+		// 4124 for `ALTER TABLE t ADD s TIMESTAMP(6) AS ROW START` and for MODIFY,
+		// before it looks at the column's name or keys, and runs the ADD of both
+		// columns, the period and SYSTEM VERSIONING in one statement.
+		if !alterAddsSystemVersioning(stmt.Commands) {
+			for _, cmd := range stmt.Commands {
+				if addsRowBoundColumn(cmd) {
+					return errNotSystemVersioned(tbl.Name)
+				}
+			}
+		}
 	} else {
 		// Ordinary column add/drop/modify/change is not allowed on a table that
 		// is already system-versioned at statement start (MariaDB default; it
@@ -257,6 +269,10 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 		return c.alterReorganizePartition(tbl, cmd)
 	case nodes.ATExchangePartition:
 		return c.alterExchangePartition(db, tbl, cmd)
+	case nodes.ATConvertPartitionToTable:
+		return c.alterConvertPartitionToTable(db, tbl, cmd)
+	case nodes.ATConvertTableToPartition:
+		return c.alterConvertTableToPartition(db, tbl, cmd)
 	case nodes.ATRemovePartitioning:
 		tbl.Partitioning = nil
 		return nil
@@ -426,6 +442,33 @@ func addsColumnVersioning(cmd *nodes.AlterTableCmd) bool {
 	return false
 }
 
+// alterAddsSystemVersioning reports whether a command of the statement is ADD
+// SYSTEM VERSIONING.
+func alterAddsSystemVersioning(cmds []*nodes.AlterTableCmd) bool {
+	for _, cmd := range cmds {
+		if cmd.Type == nodes.ATAddSystemVersioning {
+			return true
+		}
+	}
+	return false
+}
+
+// addsRowBoundColumn reports whether an ADD, MODIFY or CHANGE gives a column
+// GENERATED ALWAYS AS ROW START or ROW END.
+func addsRowBoundColumn(cmd *nodes.AlterTableCmd) bool {
+	switch cmd.Type {
+	case nodes.ATAddColumn, nodes.ATModifyColumn, nodes.ATChangeColumn:
+	default:
+		return false
+	}
+	for _, c := range append([]*nodes.ColumnDef{cmd.Column}, cmd.Columns...) {
+		if c != nil && c.Generated != nil && c.Generated.RowBound != nodes.RowBoundNone {
+			return true
+		}
+	}
+	return false
+}
+
 // colDefHasVersioningMeta reports whether a column definition carries
 // system-versioning metadata (a ROW START/END bound or WITH/WITHOUT versioning).
 func colDefHasVersioningMeta(colDef *nodes.ColumnDef) bool {
@@ -447,6 +490,9 @@ func (c *Catalog) alterAddColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	// the primary key for exactly that statement.
 	if len(cmd.Columns) > 0 || len(cmd.Constraints) > 0 {
 		for _, colDef := range cmd.Columns {
+			if cmd.IfNotExists && tableHasColumn(tbl, colDef.Name) {
+				continue
+			}
 			if err := c.addSingleColumn(tbl, colDef, false, ""); err != nil {
 				return err
 			}
@@ -469,8 +515,21 @@ func (c *Catalog) alterAddColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	if colDef == nil {
 		return nil
 	}
+	// ADD IF NOT EXISTS leaves a column already there as it is, with a note
+	// (1060), and so does it for each column of the paren form. A plain ADD
+	// of the name after it still fails: MariaDB 11.8.8 answers 1060 for
+	// `ADD IF NOT EXISTS c INT, ADD c INT` and a note for the other order.
+	if cmd.IfNotExists && tableHasColumn(tbl, colDef.Name) {
+		return nil
+	}
 
 	return c.addSingleColumn(tbl, colDef, cmd.First, cmd.After)
+}
+
+// tableHasColumn reports whether the table has a column of the name.
+func tableHasColumn(tbl *Table, name string) bool {
+	_, ok := tbl.colByName[toLower(name)]
+	return ok
 }
 
 // addSingleColumn adds one column definition to the table.
@@ -484,6 +543,9 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 	}
 
 	col := buildColumnFromDef(tbl, colDef)
+	if err := c.applyColumnEngineOptions(col, colDef); err != nil {
+		return err
+	}
 	if col.AutoIncrement && tableHasOtherAutoIncrementColumn(tbl, "") {
 		return errIncorrectAutoIncrementDefinition()
 	}
@@ -864,6 +926,9 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 	}
 
 	col := buildColumnFromDef(tbl, colDef)
+	if err := c.applyColumnEngineOptions(col, colDef); err != nil {
+		return err
+	}
 	if col.AutoIncrement && tableHasOtherAutoIncrementColumn(tbl, oldName) {
 		return errIncorrectAutoIncrementDefinition()
 	}
@@ -1982,7 +2047,7 @@ var _ = strings.ToLower
 // alterAddPartition adds partition definitions to a partitioned table.
 func (c *Catalog) alterAddPartition(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	if tbl.Partitioning == nil {
-		return fmt.Errorf("ALTER TABLE ADD PARTITION: table '%s' is not partitioned", tbl.Name)
+		return errPartitionMgmtOnNonpartitioned()
 	}
 	if cmd.Number > 0 && len(cmd.PartitionDefs) == 0 {
 		start := len(tbl.Partitioning.Partitions)
@@ -2025,7 +2090,7 @@ func (c *Catalog) alterAddPartition(tbl *Table, cmd *nodes.AlterTableCmd) error 
 // alterDropPartition drops named partitions from a partitioned table.
 func (c *Catalog) alterDropPartition(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	if tbl.Partitioning == nil {
-		return fmt.Errorf("ALTER TABLE DROP PARTITION: table '%s' is not partitioned", tbl.Name)
+		return errPartitionMgmtOnNonpartitioned()
 	}
 	dropSet := make(map[string]bool)
 	for _, name := range cmd.PartitionNames {
@@ -2044,7 +2109,7 @@ func (c *Catalog) alterDropPartition(tbl *Table, cmd *nodes.AlterTableCmd) error
 // alterTruncatePartition truncates named partitions (no-op for metadata catalog).
 func (c *Catalog) alterTruncatePartition(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	if tbl.Partitioning == nil {
-		return fmt.Errorf("ALTER TABLE TRUNCATE PARTITION: table '%s' is not partitioned", tbl.Name)
+		return errPartitionMgmtOnNonpartitioned()
 	}
 	// Truncate is a data operation; for DDL catalog purposes, it's a no-op.
 	return nil
@@ -2053,7 +2118,7 @@ func (c *Catalog) alterTruncatePartition(tbl *Table, cmd *nodes.AlterTableCmd) e
 // alterCoalescePartition reduces the number of partitions for HASH/KEY partitioned tables.
 func (c *Catalog) alterCoalescePartition(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	if tbl.Partitioning == nil {
-		return fmt.Errorf("ALTER TABLE COALESCE PARTITION: table '%s' is not partitioned", tbl.Name)
+		return errPartitionMgmtOnNonpartitioned()
 	}
 	// Determine current partition count.
 	currentCount := len(tbl.Partitioning.Partitions)
@@ -2074,7 +2139,7 @@ func (c *Catalog) alterCoalescePartition(tbl *Table, cmd *nodes.AlterTableCmd) e
 // alterReorganizePartition reorganizes partitions into new definitions.
 func (c *Catalog) alterReorganizePartition(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	if tbl.Partitioning == nil {
-		return fmt.Errorf("ALTER TABLE REORGANIZE PARTITION: table '%s' is not partitioned", tbl.Name)
+		return errPartitionMgmtOnNonpartitioned()
 	}
 	// Remove the old partitions.
 	dropSet := make(map[string]bool)
@@ -2136,7 +2201,7 @@ func (c *Catalog) alterReorganizePartition(tbl *Table, cmd *nodes.AlterTableCmd)
 // alterExchangePartition exchanges a partition with a non-partitioned table.
 func (c *Catalog) alterExchangePartition(db *Database, tbl *Table, cmd *nodes.AlterTableCmd) error {
 	if tbl.Partitioning == nil {
-		return fmt.Errorf("ALTER TABLE EXCHANGE PARTITION: table '%s' is not partitioned", tbl.Name)
+		return errPartitionMgmtOnNonpartitioned()
 	}
 	// For DDL catalog purposes, exchange is primarily a data operation.
 	// We just validate both tables exist.
@@ -2154,6 +2219,90 @@ func (c *Catalog) alterExchangePartition(db *Database, tbl *Table, cmd *nodes.Al
 		}
 	}
 	return nil
+}
+
+// alterConvertPartitionToTable runs CONVERT PARTITION p TO TABLE t: the partition
+// leaves the table and becomes t, a table of the same definition with no
+// partitioning. Measured on mariadb:11.8.8, which answers 1505 on a table with no
+// partitions, 1512 on one partitioned other than by RANGE or LIST, 1507 for a
+// partition it does not have and 1050 for a table t that exists.
+func (c *Catalog) alterConvertPartitionToTable(db *Database, tbl *Table, cmd *nodes.AlterTableCmd) error {
+	if tbl.Partitioning == nil {
+		return errPartitionMgmtOnNonpartitioned()
+	}
+	if !strings.HasPrefix(tbl.Partitioning.Type, "RANGE") && !strings.HasPrefix(tbl.Partitioning.Type, "LIST") {
+		return errOnlyOnRangeListPartitioning("CONVERT PARTITION")
+	}
+	at := -1
+	for i, pd := range tbl.Partitioning.Partitions {
+		if strings.EqualFold(pd.Name, cmd.Name) {
+			at = i
+		}
+	}
+	if at < 0 {
+		return errDropPartitionNonExistent()
+	}
+	target, err := c.resolveDatabase(cmd.ConvertTable.Schema)
+	if err != nil {
+		return err
+	}
+	key := toLower(cmd.ConvertTable.Name)
+	switch {
+	case target.Tables[key] == tbl:
+		// The table itself: MariaDB 11.8.8 runs it, and SHOW CREATE TABLE then
+		// shows the table without the partition and no other table. The
+		// server's files are not right after it (a later DROP TABLE leaves a
+		// table behind), so no oracle test pins it.
+	case target.Tables[key] != nil || target.Views[key] != nil:
+		return errDupTable(cmd.ConvertTable.Name)
+	default:
+		if err := c.createTableLike(target, cmd.ConvertTable.Name, key, tbl, &nodes.CreateTableStmt{}); err != nil {
+			return err
+		}
+	}
+	parts := tbl.Partitioning.Partitions
+	tbl.Partitioning.Partitions = append(parts[:at:at], parts[at+1:]...)
+	tbl.Partitioning.NumParts = len(tbl.Partitioning.Partitions)
+	return nil
+}
+
+// alterConvertTableToPartition runs CONVERT TABLE t TO PARTITION part_definition:
+// t becomes a new partition of the table and is gone. Measured on mariadb:11.8.8,
+// which answers 1505 on a table with no partitions, 1146 for a table t that does
+// not exist and 1736 for one whose definition is not the table's.
+func (c *Catalog) alterConvertTableToPartition(db *Database, tbl *Table, cmd *nodes.AlterTableCmd) error {
+	if tbl.Partitioning == nil {
+		return errPartitionMgmtOnNonpartitioned()
+	}
+	source, err := c.resolveDatabase(cmd.ConvertTable.Schema)
+	if err != nil {
+		return err
+	}
+	src := source.GetTable(cmd.ConvertTable.Name)
+	if src == nil {
+		return errNoSuchTable(source.Name, cmd.ConvertTable.Name)
+	}
+	if c.tableDefinitionText(src) != c.tableDefinitionText(tbl) {
+		return errTablesDifferentMetadata()
+	}
+	if err := c.alterAddPartition(tbl, &nodes.AlterTableCmd{PartitionDefs: cmd.PartitionDefs}); err != nil {
+		return err
+	}
+	c.dropReplacedTable(source, src)
+	return nil
+}
+
+// tableDefinitionText is SHOW CREATE TABLE of the table without its name and its
+// partitioning, which is what CONVERT TABLE holds the two tables to.
+func (c *Catalog) tableDefinitionText(tbl *Table) string {
+	text := c.ShowCreateTable(tbl.Database.Name, tbl.Name)
+	if i := strings.Index(text, "\n"); i >= 0 {
+		text = text[i:]
+	}
+	if i := strings.Index(text, "\n PARTITION BY"); i >= 0 {
+		text = text[:i]
+	}
+	return text
 }
 
 // partitionTypeFromString converts a string partition type to AST PartitionType.

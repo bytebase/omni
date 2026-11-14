@@ -523,14 +523,15 @@ func (p *Parser) parseIndexOption() (*nodes.IndexOption, bool, error) {
 // vector index's M and DISTANCE take and one every index accepts: 11.8.8 parses
 // `CREATE INDEX i ON t (a) FOO=1` and refuses it only when it runs, with 1911.
 //
-// The name is an identifier token and no keyword, even a non-reserved one: STATUS=1 and
-// FORMAT=1 are 1064 while `select`=1 runs. The value is a string, a bare word, DEFAULT
+// The name is ident_options: an identifier token and no keyword, even a non-reserved one,
+// but for READ_ONLY and WRAPPER (keyword_options). STATUS=1 and FORMAT=1 are 1064 while
+// `select`=1 and READ_ONLY=1 run. The value is a string, a bare word, DEFAULT
 // or an unsigned integer that fits in 64 bits: TRUE, NULL, -1, 1.5, X'10' and b'1' are
 // all 1064, and 99999999999999999999 is too with its own message.
 //
 // Ref: engine_defined_option in MariaDB 11.8 sql/sql_yacc.yy.
 func (p *Parser) parseEngineIndexOption(start int) (*nodes.IndexOption, bool, error) {
-	if p.cur.Type != tokIDENT {
+	if p.cur.Type != tokIDENT && p.cur.Type != kwREAD_ONLY && p.cur.Type != kwWRAPPER {
 		return nil, false, nil
 	}
 	if next := p.peekNext(); next.Type != '=' && next.Type != tokAssign {

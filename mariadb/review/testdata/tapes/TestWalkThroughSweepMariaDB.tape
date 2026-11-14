@@ -10638,9 +10638,9 @@
 | USE shop
 < ok 0 0
 > exec
-| CREATE TABLE A LIKE A;
+| CREATE TABLE A LIKE nosuch;
 < error
-| 1066 42000 Not unique table/alias: 'A'
+| 1146 42S02 Table 'shop.nosuch' doesn't exist
 > exec
 | ALTER TABLE v CHANGE x z int;
 < error
@@ -38760,9 +38760,9 @@
 < error
 | 1146 42S02 Table 'q.s' doesn't exist
 > exec
-| CREATE TABLE IF NOT EXISTS s LIKE s;
+| CREATE TABLE IF NOT EXISTS s LIKE nosuch;
 < error
-| 1066 42000 Not unique table/alias: 's'
+| 1146 42S02 Table 'shop.nosuch' doesn't exist
 > exec
 | CREATE TABLE q.a (x int, y int) WITH SYSTEM VERSIONING;
 < error
@@ -55558,9 +55558,9 @@
 : int64 0
 : null
 > exec
-| CREATE TABLE a_ibfk_1 LIKE a_ibfk_1;
+| CREATE TABLE a_ibfk_1 LIKE nosuch;
 < error
-| 1066 42000 Not unique table/alias: 'a_ibfk_1'
+| 1050 42S01 Table 'a_ibfk_1' already exists
 > query
 | SELECT COUNT(*), GROUP_CONCAT(CONCAT_WS('\t', 'temporary', TABLE_SCHEMA, '', TABLE_NAME, TABLE_TYPE) ORDER BY BINARY TABLE_SCHEMA, BINARY TABLE_NAME, TABLE_TYPE SEPARATOR '\n') FROM information_schema.TABLES WHERE TABLE_TYPE LIKE 'TEMPORARY%'
 < result

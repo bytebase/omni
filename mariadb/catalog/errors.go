@@ -51,6 +51,7 @@ const (
 	ErrUnsupportedGeneratedStorageChange = 3106
 	ErrDependentByGenCol                 = 3108
 	ErrWrongArguments                    = 1210
+	ErrUnknownOption                     = 1911
 	ErrWrongNameForIndex                 = 1280
 	ErrInvalidOnUpdate                   = 1294
 	ErrTooBigPrecision                   = 1426
@@ -182,6 +183,35 @@ func errDupTable(name string) error {
 func errNoSuchTable(db, name string) error {
 	return &Error{Code: ErrNoSuchTable, SQLState: sqlState(ErrNoSuchTable),
 		Message: fmt.Sprintf("Table '%s.%s' doesn't exist", db, name)}
+}
+
+// errPartitionMgmtOnNonpartitioned is 1505, a partition action on a table with no
+// partitions.
+func errPartitionMgmtOnNonpartitioned() error {
+	return &Error{Code: 1505, SQLState: "HY000",
+		Message: "Partition management on a not partitioned table is not possible"}
+}
+
+// errOnlyOnRangeListPartitioning is 1512, an action RANGE and LIST partitioning
+// alone take.
+func errOnlyOnRangeListPartitioning(action string) error {
+	return &Error{Code: 1512, SQLState: "HY000",
+		Message: fmt.Sprintf("%s can only be used on RANGE/LIST partitions", action)}
+}
+
+// errDropPartitionNonExistent is 1507, a partition the table does not have.
+func errDropPartitionNonExistent() error {
+	return &Error{Code: 1507, SQLState: "HY000", Message: "Wrong partition name or partition list"}
+}
+
+// errTablesDifferentMetadata is 1736, two tables an action needs alike that are not.
+func errTablesDifferentMetadata() error {
+	return &Error{Code: 1736, SQLState: "HY000", Message: "Tables have different definitions"}
+}
+
+func errUnknownOption(name string) error {
+	return &Error{Code: ErrUnknownOption, SQLState: sqlState(ErrUnknownOption),
+		Message: fmt.Sprintf("Unknown option '%s'", name)}
 }
 
 func errDupColumn(name string) error {

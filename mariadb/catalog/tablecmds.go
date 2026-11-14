@@ -311,6 +311,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		if colDef.Comment != "" {
 			col.Comment = colDef.Comment
 		}
+		if err := c.applyColumnEngineOptions(col, colDef); err != nil {
+			return err
+		}
 		if colDef.DefaultValue != nil {
 			setColumnDefaultFromExpr(col, colDef.DefaultValue)
 		}
@@ -2305,6 +2308,31 @@ func engineOptionText(opt *nodes.IndexOption) string {
 	return ""
 }
 
+// applyColumnEngineOptions gives a column the engine-defined options its definition
+// writes, `a INT x = 1`. InnoDB knows no column option, so each is 1911 unless
+// sql_mode has IGNORE_BAD_TABLE_OPTIONS, under which the column keeps them, last
+// setting of a name winning as an index's do, and SHOW CREATE TABLE writes them.
+// Measured on mariadb:11.8.8.
+func (c *Catalog) applyColumnEngineOptions(col *Column, colDef *nodes.ColumnDef) error {
+	if len(colDef.EngineOptions) == 0 {
+		return nil
+	}
+	if !c.ignoresBadTableOptions() {
+		return errUnknownOption(colDef.EngineOptions[0].Name)
+	}
+	for _, opt := range colDef.EngineOptions {
+		col.EngineOptions = setEngineOption(col.EngineOptions, opt)
+	}
+	return nil
+}
+
+// ignoresBadTableOptions reports whether sql_mode has IGNORE_BAD_TABLE_OPTIONS,
+// which turns an engine-defined option the engine does not know from an error
+// into a warning and keeps it.
+func (c *Catalog) ignoresBadTableOptions() bool {
+	return strings.Contains(strings.ToUpper(c.session.SQLMode), "IGNORE_BAD_TABLE_OPTIONS")
+}
+
 // setEngineOption applies one engine-defined option to the list SHOW CREATE TABLE prints. The
 // last setting of a name wins whatever its case, and moves to where it was written: 11.8.8 prints
 // `DISTANCE`=cosine `M`=7 for M=6 DISTANCE=cosine M=7. DEFAULT clears it: M=6 M=DEFAULT prints
@@ -3452,7 +3480,8 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, srcTbl *T
 			// check comes with it, so the marker has to come as well: without
 			// it a later ALTER reads the column as newly typed and leaves the
 			// check behind when the type moves away from JSON.
-			IsJSON: srcCol.IsJSON,
+			IsJSON:        srcCol.IsJSON,
+			EngineOptions: append([]string(nil), srcCol.EngineOptions...),
 		}
 		if srcCol.Default != nil {
 			def := *srcCol.Default

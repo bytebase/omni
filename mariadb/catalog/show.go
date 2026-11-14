@@ -106,12 +106,13 @@ func (c *Catalog) ShowCreateTable(database, table string) string {
 	// Columns. The CHECK each one carries is indexed once for the whole
 	// rendering, not looked up per column.
 	checks := columnChecks(tbl)
+	plainOptions := c.ignoresBadTableOptions()
 	parts := make([]string, 0, len(tbl.Columns)+len(tbl.Indexes)+len(tbl.Constraints))
 	for _, col := range tbl.Columns {
 		if col.Hidden == ColumnHiddenSystem {
 			continue
 		}
-		parts = append(parts, showColumnWithTable(col, tbl, checks))
+		parts = append(parts, showColumnWithTable(col, tbl, checks, plainOptions))
 	}
 
 	// Application-time period — rendered before SYSTEM_TIME; the name is
@@ -119,12 +120,6 @@ func (c *Catalog) ShowCreateTable(database, table string) string {
 	if tbl.AppPeriodName != "" {
 		parts = append(parts, "PERIOD FOR "+backtickIDQ(tbl.AppPeriodName)+
 			" ("+backtickIDQ(tbl.AppPeriodStartCol)+", "+backtickIDQ(tbl.AppPeriodEndCol)+")")
-	}
-
-	// PERIOD FOR SYSTEM_TIME — after columns, before keys/constraints.
-	if tbl.PeriodStartCol != "" {
-		parts = append(parts, "PERIOD FOR SYSTEM_TIME ("+backtickIDQ(tbl.PeriodStartCol)+
-			", "+backtickIDQ(tbl.PeriodEndCol)+")")
 	}
 
 	// Indexes — MySQL 8.0 orders them in groups:
@@ -155,6 +150,15 @@ func (c *Catalog) ShowCreateTable(database, table string) string {
 		for _, idx := range group {
 			parts = append(parts, showIndex(idx))
 		}
+	}
+
+	// PERIOD FOR SYSTEM_TIME, after the keys and before the foreign keys and
+	// checks, where the application-time period comes before the keys.
+	// Measured on mariadb:11.8.8: PRIMARY KEY (`id`,`re`), KEY `f3` (`a`),
+	// PERIOD FOR SYSTEM_TIME (`rs`, `re`), CONSTRAINT `f3` FOREIGN KEY ...
+	if tbl.PeriodStartCol != "" {
+		parts = append(parts, "PERIOD FOR SYSTEM_TIME ("+backtickIDQ(tbl.PeriodStartCol)+
+			", "+backtickIDQ(tbl.PeriodEndCol)+")")
 	}
 
 	// Constraints (FK and CHECK only — PK/UNIQUE are shown via indexes).
@@ -212,12 +216,13 @@ func (c *Catalog) ShowCreateTable(database, table string) string {
 }
 
 func showColumn(col *Column) string {
-	return showColumnWithTable(col, nil, nil)
+	return showColumnWithTable(col, nil, nil, false)
 }
 
 // showColumnWithTable writes a column definition. checks holds the CHECK each
-// column of the table carries, indexed by columnChecks.
-func showColumnWithTable(col *Column, tbl *Table, checks map[string]*Constraint) string {
+// column of the table carries, indexed by columnChecks. plainOptions says
+// whether the engine-defined options are written bare (see writeColumnTail).
+func showColumnWithTable(col *Column, tbl *Table, checks map[string]*Constraint, plainOptions bool) string {
 	var b strings.Builder
 	b.WriteString(backtickIDQ(col.Name) + " " + col.ColumnType)
 
@@ -271,12 +276,7 @@ func showColumnWithTable(col *Column, tbl *Table, checks map[string]*Constraint)
 			// System-versioning period column: GENERATED ALWAYS AS ROW START/END
 			// (no expression, no VIRTUAL/STORED mode).
 			b.WriteString(fmt.Sprintf(" GENERATED ALWAYS AS %s", col.Generated.RowBound))
-			if col.Comment != "" {
-				b.WriteString(fmt.Sprintf(" COMMENT '%s'", escapeComment(col.Comment)))
-			}
-			if col.Invisible {
-				b.WriteString(" INVISIBLE")
-			}
+			writeColumnTail(&b, col, plainOptions)
 			return b.String()
 		}
 		mode := "VIRTUAL"
@@ -292,12 +292,7 @@ func showColumnWithTable(col *Column, tbl *Table, checks map[string]*Constraint)
 		if !col.Nullable {
 			b.WriteString(" NOT NULL")
 		}
-		if col.Comment != "" {
-			b.WriteString(fmt.Sprintf(" COMMENT '%s'", escapeComment(col.Comment)))
-		}
-		if col.Invisible {
-			b.WriteString(" INVISIBLE")
-		}
+		writeColumnTail(&b, col, plainOptions)
 		return b.String()
 	}
 
@@ -337,21 +332,13 @@ func showColumnWithTable(col *Column, tbl *Table, checks map[string]*Constraint)
 		b.WriteString(fmt.Sprintf(" ON UPDATE %s", formatOnUpdate(col.OnUpdate, col.OnUpdateKind)))
 	}
 
-	// COMMENT.
-	if col.Comment != "" {
-		b.WriteString(fmt.Sprintf(" COMMENT '%s'", escapeComment(col.Comment)))
-	}
-
-	// INVISIBLE. MariaDB writes the keyword bare; MySQL 8.0 hides it in a
-	// version comment. Measured on mariadb:11.8.8.
-	if col.Invisible {
-		b.WriteString(" INVISIBLE")
-	}
-
-	// Column-level WITHOUT SYSTEM VERSIONING (WITH is the implicit default).
+	// Column-level WITHOUT SYSTEM VERSIONING (WITH is the implicit default),
+	// which MariaDB 11.8.8 writes before INVISIBLE.
 	if col.SystemVersioning == "WITHOUT" {
 		b.WriteString(" WITHOUT SYSTEM VERSIONING")
 	}
+
+	writeColumnTail(&b, col, plainOptions)
 
 	// The column's own CHECK, which MariaDB writes on the column and names
 	// after it, last in the definition and after any COMMENT:
@@ -362,6 +349,29 @@ func showColumnWithTable(col *Column, tbl *Table, checks map[string]*Constraint)
 	}
 
 	return b.String()
+}
+
+// writeColumnTail writes what MariaDB 11.8.8 ends a column with before its
+// versioning and its CHECK, in its order: INVISIBLE, the engine-defined options,
+// then COMMENT, as in `a` int(11) DEFAULT NULL INVISIBLE `x`=1 COMMENT 'c'.
+// INVISIBLE is bare, where MySQL 8.0 hides it in a version comment. The options
+// are the engine's to know, and InnoDB knows none, so they are written inside a
+// comment, /* `x`=1 */, unless sql_mode has IGNORE_BAD_TABLE_OPTIONS as SHOW
+// CREATE TABLE runs (plainOptions).
+func writeColumnTail(b *strings.Builder, col *Column, plainOptions bool) {
+	if col.Invisible {
+		b.WriteString(" INVISIBLE")
+	}
+	if len(col.EngineOptions) > 0 {
+		if plainOptions {
+			b.WriteString(" " + strings.Join(col.EngineOptions, " "))
+		} else {
+			b.WriteString(" /* " + strings.Join(col.EngineOptions, " ") + " */")
+		}
+	}
+	if col.Comment != "" {
+		b.WriteString(fmt.Sprintf(" COMMENT '%s'", escapeComment(col.Comment)))
+	}
 }
 
 // columnCheckOf returns the CHECK constraint that belongs to the named column

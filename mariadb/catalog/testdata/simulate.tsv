@@ -21,7 +21,7 @@ ok	1054	engine	one_table@missing	opt_create_select/opt_duplicate_opt_as_create_s
 ok	1054	engine	one_table@missing	opt_as/AS	CREATE TABLE a AS SELECT a;
 1113	1113	engine	one_table@missing	opt_as/AS!truncate	CREATE TABLE a
 1146	1146	engine	one_table@missing	opt_if_not_exists_table_element/%empty	ALTER TABLE a ADD a INT;
-1064	1146	engine	one_table@missing	opt_if_not_exists_table_element/IF_SYM_not_EXISTS	ALTER TABLE a ADD IF NOT EXISTS a INT;
+1146	1146	engine	one_table@missing	opt_if_not_exists_table_element/IF_SYM_not_EXISTS	ALTER TABLE a ADD IF NOT EXISTS a INT;
 1113	1113	engine	one_table@missing	opt_if_not_exists/IF_SYM_not_EXISTS	CREATE TABLE IF NOT EXISTS a;
 1113	1113	engine	one_table@missing	create_or_replace/CREATE_OR_SYM_REPLACE	CREATE OR REPLACE TABLE a;
 1113	1286	engine	one_table@missing	opt_create_table_options/create_table_options	CREATE TABLE a ENGINE a;
@@ -98,19 +98,19 @@ ok	1054	engine	one_table@missing	opt_versioning_option/versioning_option!drop-1	
 1146	1146	engine	one_table@missing	opt_check_constraint/check_constraint	ALTER TABLE a ADD a INT CHECK(a);
 1146	1146	engine	one_table@missing	opt_constraint_no_id/%empty	ALTER TABLE a DROP PRIMARY KEY;
 1146	1146	engine	one_table@missing	opt_constraint_no_id/CONSTRAINT	ALTER TABLE a DROP CONSTRAINT PRIMARY KEY;
-1064	1146	engine	one_table@missing	opt_constraint/constraint	ALTER TABLE a ADD a INT CONSTRAINT REFERENCES a;
+1146	1146	engine	one_table@missing	opt_constraint/constraint	ALTER TABLE a ADD a INT CONSTRAINT REFERENCES a;
 1146	1146	engine	one_table@missing	opt_constraint/constraint!truncate	ALTER TABLE a ADD a INT
-1064	1146	engine	one_table@missing	opt_constraint/constraint!insert	ALTER TABLE a ADD a INT CONSTRAINT zzz REFERENCES a;
+1146	1146	engine	one_table@missing	opt_constraint/constraint!insert	ALTER TABLE a ADD a INT CONSTRAINT zzz REFERENCES a;
 1146	1146	engine	one_table@missing	field_type_or_serial/SERIAL_SYM_opt_serial_attribute	ALTER TABLE a ADD a SERIAL;
 1146	1146	engine	one_table@missing	opt_serial_attribute/opt_serial_attribute_list	ALTER TABLE a ADD a SERIAL KEY;
 1146	1146	engine	one_table@missing	opt_serial_attribute/opt_serial_attribute_list!truncate	ALTER TABLE a ADD a SERIAL
 1146	1146	engine	one_table@missing	opt_serial_attribute_list/opt_serial_attribute_list_serial_attribute	ALTER TABLE a ADD a SERIAL KEY KEY;
 1146	1146	engine	one_table@missing	opt_serial_attribute_list/opt_serial_attribute_list_serial_attribute!truncate	ALTER TABLE a ADD a SERIAL KEY
 1146	1146	engine	one_table@missing	opt_asrow_attribute/%empty	ALTER TABLE a ADD a INT AS ROW START;
-1064	1146	engine	one_table@missing	opt_asrow_attribute/opt_asrow_attribute_list	ALTER TABLE a ADD a INT AS ROW START KEY;
+1146	1146	engine	one_table@missing	opt_asrow_attribute/opt_asrow_attribute_list	ALTER TABLE a ADD a INT AS ROW START KEY;
 1146	1146	engine	one_table@missing	opt_asrow_attribute/opt_asrow_attribute_list!truncate	ALTER TABLE a ADD a INT AS ROW START
-1064	1146	engine	one_table@missing	opt_asrow_attribute_list/opt_asrow_attribute_list_asrow_attribute	ALTER TABLE a ADD a INT AS ROW START KEY KEY;
-1064	1146	engine	one_table@missing	opt_asrow_attribute_list/opt_asrow_attribute_list_asrow_attribute!truncate	ALTER TABLE a ADD a INT AS ROW START KEY
+1146	1146	engine	one_table@missing	opt_asrow_attribute_list/opt_asrow_attribute_list_asrow_attribute	ALTER TABLE a ADD a INT AS ROW START KEY KEY;
+1146	1146	engine	one_table@missing	opt_asrow_attribute_list/opt_asrow_attribute_list_asrow_attribute!truncate	ALTER TABLE a ADD a INT AS ROW START KEY
 1146	1146	engine	one_table@missing	field_def/attribute_list	ALTER TABLE a ADD a INT NULL;
 1146	1146	engine	one_table@missing	field_def/opt_generated_always_AS_virtual_column_func_vcol_opt_specifier_vcol_opt_attribute	ALTER TABLE a ADD a INT AS(a);
 1146	1146	engine	one_table@missing	field_def/opt_generated_always_AS_ROW_SYM_END_opt_asrow_attribute	ALTER TABLE a ADD a INT AS ROW END;
@@ -183,9 +183,9 @@ ok	1054	engine	one_table@missing	opt_versioning_option/versioning_option!drop-1	
 1146	1146	engine	one_table@missing	attribute/COLLATE_SYM_collation_name	ALTER TABLE a ADD a INT COLLATE utf8mb4_bin;
 1146	1146	engine	one_table@missing	attribute/serial_attribute	ALTER TABLE a ADD a INT KEY;
 1146	1146	engine	one_table@missing	opt_enable/%empty	ALTER TABLE a ADD a INT NOT NULL;
-1064	1146	engine	one_table@missing	opt_enable/ENABLE_SYM	ALTER TABLE a ADD a INT NOT NULL ENABLE;
+1146	1146	engine	one_table@missing	opt_enable/ENABLE_SYM	ALTER TABLE a ADD a INT NOT NULL ENABLE;
 1146	1146	engine	one_table@missing	opt_enable/ENABLE_SYM!truncate	ALTER TABLE a ADD a INT NOT NULL
-1064	1146	engine	one_table@missing	serial_attribute/engine_defined_option	ALTER TABLE a ADD a INT a = 's';
+1146	1146	engine	one_table@missing	serial_attribute/engine_defined_option	ALTER TABLE a ADD a INT a = 's';
 1146	1146	engine	one_table@missing	serial_attribute/with_or_without_system_VERSIONING_SYM	ALTER TABLE a ADD a INT WITH SYSTEM VERSIONING;
 1146	1146	engine	one_table@missing	with_or_without_system/WITHOUT_SYSTEM	ALTER TABLE a ADD a INT WITHOUT SYSTEM VERSIONING;
 1146	1146	engine	one_table@missing	charset_or_alias/charset_charset_name	ALTER TABLE a ADD a CHAR CHARSET utf8mb4;
@@ -285,11 +285,11 @@ ok	1054	engine	one_table@missing	opt_versioning_option/versioning_option!drop-1	
 1146	1146	engine	one_table@missing	alter_commands/COALESCE_PARTITION_SYM_opt_no_write_to_binlog_real_ulong_num	ALTER TABLE a COALESCE PARTITION 1;
 1146	1146	engine	one_table@missing	alter_commands/TRUNCATE_SYM_PARTITION_SYM_all_or_alt_part_name_list	ALTER TABLE a TRUNCATE PARTITION ALL;
 1146	1146	engine	one_table@missing	alter_commands/reorg_partition_rule	ALTER TABLE a REORGANIZE PARTITION;
-1064	1146	engine	one_table@missing	alter_commands/CONVERT_SYM_PARTITION_SYM_alt_part_name_item_TO_SYM_TABLE_SYM_table_ident_opt_without_validation_have_partitioning	ALTER TABLE a CONVERT PARTITION a TO TABLE a;
+1146	1146	engine	one_table@missing	alter_commands/CONVERT_SYM_PARTITION_SYM_alt_part_name_item_TO_SYM_TABLE_SYM_table_ident_opt_without_validation_have_partitioning	ALTER TABLE a CONVERT PARTITION a TO TABLE a;
 1146	1146	engine	one_table@missing	all_or_alt_part_name_list/alt_part_name_list	ALTER TABLE a REBUILD PARTITION a;
-1064	1146	engine	one_table@missing	add_part_extra/(_part_def_list_)	ALTER TABLE a ADD PARTITION(a);
+1146	1146	engine	one_table@missing	add_part_extra/(_part_def_list_)	ALTER TABLE a ADD PARTITION(a);
 1146	1146	engine	one_table@missing	add_part_extra/PARTITIONS_SYM_real_ulong_num	ALTER TABLE a ADD PARTITION PARTITIONS 1;
-1064	1146	engine	one_table@missing	reorg_parts_rule/alt_part_name_list_INTO_(_part_def_list_)	ALTER TABLE a REORGANIZE PARTITION a INTO(a);
+1146	1146	engine	one_table@missing	reorg_parts_rule/alt_part_name_list_INTO_(_part_def_list_)	ALTER TABLE a REORGANIZE PARTITION a INTO(a);
 1146	1146	engine	one_table@missing	alt_part_name_list/alt_part_name_list_,_alt_part_name_item	ALTER TABLE a DROP PARTITION a, a;
 1146	1146	engine	one_table@missing	alter_list/alter_list_,_alter_list_item	ALTER TABLE a FORCE, FORCE;
 1146	1146	engine	one_table@missing	alter_list_item/ADD_CONSTRAINT_IF_SYM_not_EXISTS_field_ident_check_constraint	ALTER TABLE a ADD CONSTRAINT IF NOT EXISTS a CHECK(a);
@@ -349,7 +349,7 @@ ok	1054	engine	one_table@missing	opt_versioning_option/versioning_option!drop-1	
 ok	1054	engine	one_table@missing	opt_duplicate/REPLACE	CREATE TABLE a REPLACE SELECT a;
 ok	1054	engine	one_table@missing	opt_duplicate/IGNORE_SYM	CREATE TABLE a IGNORE SELECT a;
 1146	1146	engine	one_table@missing	signed_literal/-_NUM_literal	ALTER TABLE a ADD a INT DEFAULT - 1;
-1064	1146	engine	one_table@missing	field_ident/ident_._ident	ALTER TABLE a DROP a.a;
+1146	1146	engine	one_table@missing	field_ident/ident_._ident	ALTER TABLE a DROP a.a;
 1146	1146	engine	one_table@missing	reserved_keyword_udt_not_param_type/BETWEEN_SYM!swap	ALTER TABLE a ADD a BIGINT;
 1064	1146	engine	one_table@missing	opt_lock_wait_timeout/WAIT_SYM_ulong_num	TRUNCATE a WAIT 1;
 1064	1146	engine	one_table@missing	opt_lock_wait_timeout/NOWAIT_SYM	TRUNCATE a NOWAIT;
@@ -384,7 +384,7 @@ ok	4124	engine	one_table@table	partitioning/PARTITION_SYM_have_partitioning_part
 1050	1050	engine	one_table@table	opt_as/AS	CREATE TABLE a AS SELECT a;
 1050	1050	engine	one_table@table	opt_as/AS!truncate	CREATE TABLE a
 ok:7a4f7436457d	ok:7a4f7436457d	engine	one_table@table	opt_if_not_exists_table_element/%empty	ALTER TABLE a ADD a INT;
-1064	ok:7a4f7436457d	engine	one_table@table	opt_if_not_exists_table_element/IF_SYM_not_EXISTS	ALTER TABLE a ADD IF NOT EXISTS a INT;
+ok:7a4f7436457d	ok:7a4f7436457d	engine	one_table@table	opt_if_not_exists_table_element/IF_SYM_not_EXISTS	ALTER TABLE a ADD IF NOT EXISTS a INT;
 ok:089d5b6fb5b4	ok:089d5b6fb5b4	engine	one_table@table	opt_if_not_exists/IF_SYM_not_EXISTS	CREATE TABLE IF NOT EXISTS a;
 1113	1113	engine	one_table@table	create_or_replace/CREATE_OR_SYM_REPLACE	CREATE OR REPLACE TABLE a;
 1050	1286	engine	one_table@table	opt_create_table_options/create_table_options	CREATE TABLE a ENGINE a;
@@ -461,23 +461,23 @@ ok	1054	engine	one_table@table	constraint_def/opt_constraint_check_constraint	AL
 ok:560fd404bbff	ok:560fd404bbff	engine	one_table@table	opt_check_constraint/check_constraint	ALTER TABLE a ADD a INT CHECK(a);
 ok:db7f7d9a708a	ok:db7f7d9a708a	engine	one_table@table	opt_constraint_no_id/%empty	ALTER TABLE a DROP PRIMARY KEY;
 ok:db7f7d9a708a	ok:db7f7d9a708a	engine	one_table@table	opt_constraint_no_id/CONSTRAINT	ALTER TABLE a DROP CONSTRAINT PRIMARY KEY;
-1064	1005	engine	one_table@table	opt_constraint/constraint	ALTER TABLE a ADD a INT CONSTRAINT REFERENCES a;
+ok	1005	engine	one_table@table	opt_constraint/constraint	ALTER TABLE a ADD a INT CONSTRAINT REFERENCES a;
 ok:7a4f7436457d	ok:7a4f7436457d	engine	one_table@table	opt_constraint/constraint!truncate	ALTER TABLE a ADD a INT
-1064	1005	engine	one_table@table	opt_constraint/constraint!insert	ALTER TABLE a ADD a INT CONSTRAINT zzz REFERENCES a;
+ok	1005	engine	one_table@table	opt_constraint/constraint!insert	ALTER TABLE a ADD a INT CONSTRAINT zzz REFERENCES a;
 ok	ok:d3423eba874a	engine	one_table@table	field_type_or_serial/SERIAL_SYM_opt_serial_attribute	ALTER TABLE a ADD a SERIAL;
 1068	1068	engine	one_table@table	opt_serial_attribute/opt_serial_attribute_list	ALTER TABLE a ADD a SERIAL KEY;
 ok	ok:d3423eba874a	engine	one_table@table	opt_serial_attribute/opt_serial_attribute_list!truncate	ALTER TABLE a ADD a SERIAL
 1068	1068	engine	one_table@table	opt_serial_attribute_list/opt_serial_attribute_list_serial_attribute	ALTER TABLE a ADD a SERIAL KEY KEY;
 1068	1068	engine	one_table@table	opt_serial_attribute_list/opt_serial_attribute_list_serial_attribute!truncate	ALTER TABLE a ADD a SERIAL KEY
-4125	4124	engine	one_table@table	opt_asrow_attribute/%empty	ALTER TABLE a ADD a INT AS ROW START;
-1064	4124	engine	one_table@table	opt_asrow_attribute/opt_asrow_attribute_list	ALTER TABLE a ADD a INT AS ROW START KEY;
-4125	4124	engine	one_table@table	opt_asrow_attribute/opt_asrow_attribute_list!truncate	ALTER TABLE a ADD a INT AS ROW START
-1064	4124	engine	one_table@table	opt_asrow_attribute_list/opt_asrow_attribute_list_asrow_attribute	ALTER TABLE a ADD a INT AS ROW START KEY KEY;
-1064	4124	engine	one_table@table	opt_asrow_attribute_list/opt_asrow_attribute_list_asrow_attribute!truncate	ALTER TABLE a ADD a INT AS ROW START KEY
+4124	4124	engine	one_table@table	opt_asrow_attribute/%empty	ALTER TABLE a ADD a INT AS ROW START;
+4124	4124	engine	one_table@table	opt_asrow_attribute/opt_asrow_attribute_list	ALTER TABLE a ADD a INT AS ROW START KEY;
+4124	4124	engine	one_table@table	opt_asrow_attribute/opt_asrow_attribute_list!truncate	ALTER TABLE a ADD a INT AS ROW START
+4124	4124	engine	one_table@table	opt_asrow_attribute_list/opt_asrow_attribute_list_asrow_attribute	ALTER TABLE a ADD a INT AS ROW START KEY KEY;
+4124	4124	engine	one_table@table	opt_asrow_attribute_list/opt_asrow_attribute_list_asrow_attribute!truncate	ALTER TABLE a ADD a INT AS ROW START KEY
 ok:7a4f7436457d	ok:7a4f7436457d	engine	one_table@table	field_def/attribute_list	ALTER TABLE a ADD a INT NULL;
 ok	4029	engine	one_table@table	field_def/opt_generated_always_AS_virtual_column_func_vcol_opt_specifier_vcol_opt_attribute	ALTER TABLE a ADD a INT AS(a);
-4125	4124	engine	one_table@table	field_def/opt_generated_always_AS_ROW_SYM_END_opt_asrow_attribute	ALTER TABLE a ADD a INT AS ROW END;
-4125	4124	engine	one_table@table	opt_generated_always/GENERATED_SYM_ALWAYS_SYM	ALTER TABLE a ADD a INT GENERATED ALWAYS AS ROW START;
+4124	4124	engine	one_table@table	field_def/opt_generated_always_AS_ROW_SYM_END_opt_asrow_attribute	ALTER TABLE a ADD a INT AS ROW END;
+4124	4124	engine	one_table@table	opt_generated_always/GENERATED_SYM_ALWAYS_SYM	ALTER TABLE a ADD a INT GENERATED ALWAYS AS ROW START;
 ok	4029	engine	one_table@table	vcol_opt_specifier/VIRTUAL_SYM	ALTER TABLE a ADD a INT AS(a) VIRTUAL;
 ok	4029	engine	one_table@table	vcol_opt_specifier/VIRTUAL_SYM!truncate	ALTER TABLE a ADD a INT AS(a)
 ok	4029	engine	one_table@table	vcol_opt_specifier/PERSISTENT_SYM	ALTER TABLE a ADD a INT AS(a) PERSISTENT;
@@ -546,9 +546,9 @@ ok	1054	engine	one_table@table	attribute/SERIAL_SYM_DEFAULT_VALUE_SYM!drop-1	ALT
 ok:7a4f7436457d	ok:7a4f7436457d	engine	one_table@table	attribute/COLLATE_SYM_collation_name	ALTER TABLE a ADD a INT COLLATE utf8mb4_bin;
 1068	1068	engine	one_table@table	attribute/serial_attribute	ALTER TABLE a ADD a INT KEY;
 ok:3bcead0e4528	ok:3bcead0e4528	engine	one_table@table	opt_enable/%empty	ALTER TABLE a ADD a INT NOT NULL;
-1064	ok:3bcead0e4528	engine	one_table@table	opt_enable/ENABLE_SYM	ALTER TABLE a ADD a INT NOT NULL ENABLE;
+ok:3bcead0e4528	ok:3bcead0e4528	engine	one_table@table	opt_enable/ENABLE_SYM	ALTER TABLE a ADD a INT NOT NULL ENABLE;
 ok:3bcead0e4528	ok:3bcead0e4528	engine	one_table@table	opt_enable/ENABLE_SYM!truncate	ALTER TABLE a ADD a INT NOT NULL
-1064	1911	engine	one_table@table	serial_attribute/engine_defined_option	ALTER TABLE a ADD a INT a = 's';
+1911	1911	engine	one_table@table	serial_attribute/engine_defined_option	ALTER TABLE a ADD a INT a = 's';
 4124	4124	engine	one_table@table	serial_attribute/with_or_without_system_VERSIONING_SYM	ALTER TABLE a ADD a INT WITH SYSTEM VERSIONING;
 4124	4124	engine	one_table@table	with_or_without_system/WITHOUT_SYSTEM	ALTER TABLE a ADD a INT WITHOUT SYSTEM VERSIONING;
 ok:55596351ff04	ok:55596351ff04	engine	one_table@table	charset_or_alias/charset_charset_name	ALTER TABLE a ADD a CHAR CHARSET utf8mb4;
@@ -638,22 +638,22 @@ ok:089d5b6fb5b4	ok:089d5b6fb5b4	engine	one_table@table	alter_commands/alter_list
 ok	1505	engine	one_table@table	alter_commands/alter_list_remove_partitioning	ALTER TABLE a FORCE REMOVE PARTITIONING;
 ok	1505	engine	one_table@table	alter_commands/remove_partitioning	ALTER TABLE a REMOVE PARTITIONING;
 ok:9d33bc974f74	ok:9d33bc974f74	engine	one_table@table	alter_commands/remove_partitioning!swap	ALTER TABLE a RENAME PARTITIONING;
-error	1505	engine	one_table@table	alter_commands/add_partition_rule	ALTER TABLE a ADD PARTITION;
-error	1505	engine	one_table@table	alter_commands/DROP_PARTITION_SYM_opt_if_exists_alt_part_name_list	ALTER TABLE a DROP PARTITION a;
+1505	1505	engine	one_table@table	alter_commands/add_partition_rule	ALTER TABLE a ADD PARTITION;
+1505	1505	engine	one_table@table	alter_commands/DROP_PARTITION_SYM_opt_if_exists_alt_part_name_list	ALTER TABLE a DROP PARTITION a;
 ok	1505	engine	one_table@table	alter_commands/REBUILD_SYM_PARTITION_SYM_opt_no_write_to_binlog_all_or_alt_part_name_list	ALTER TABLE a REBUILD PARTITION ALL;
 ok	1505	engine	one_table@table	alter_commands/OPTIMIZE_PARTITION_SYM_opt_no_write_to_binlog_all_or_alt_part_name_list_opt_no_write_to_binlog	ALTER TABLE a OPTIMIZE PARTITION ALL;
 ok	1505	engine	one_table@table	alter_commands/ANALYZE_SYM_PARTITION_SYM_opt_no_write_to_binlog_all_or_alt_part_name_list	ALTER TABLE a ANALYZE PARTITION ALL;
 ok	1505	engine	one_table@table	alter_commands/CHECK_SYM_PARTITION_SYM_all_or_alt_part_name_list_opt_mi_check_type	ALTER TABLE a CHECK PARTITION ALL;
 ok	1505	engine	one_table@table	alter_commands/REPAIR_PARTITION_SYM_opt_no_write_to_binlog_all_or_alt_part_name_list_opt_mi_repair_type	ALTER TABLE a REPAIR PARTITION ALL;
-error	1505	engine	one_table@table	alter_commands/COALESCE_PARTITION_SYM_opt_no_write_to_binlog_real_ulong_num	ALTER TABLE a COALESCE PARTITION 1;
-error	1505	engine	one_table@table	alter_commands/TRUNCATE_SYM_PARTITION_SYM_all_or_alt_part_name_list	ALTER TABLE a TRUNCATE PARTITION ALL;
-error	1505	engine	one_table@table	alter_commands/reorg_partition_rule	ALTER TABLE a REORGANIZE PARTITION;
-1064	1505	engine	one_table@table	alter_commands/CONVERT_SYM_PARTITION_SYM_alt_part_name_item_TO_SYM_TABLE_SYM_table_ident_opt_without_validation_have_partitioning	ALTER TABLE a CONVERT PARTITION a TO TABLE a;
+1505	1505	engine	one_table@table	alter_commands/COALESCE_PARTITION_SYM_opt_no_write_to_binlog_real_ulong_num	ALTER TABLE a COALESCE PARTITION 1;
+1505	1505	engine	one_table@table	alter_commands/TRUNCATE_SYM_PARTITION_SYM_all_or_alt_part_name_list	ALTER TABLE a TRUNCATE PARTITION ALL;
+1505	1505	engine	one_table@table	alter_commands/reorg_partition_rule	ALTER TABLE a REORGANIZE PARTITION;
+1505	1505	engine	one_table@table	alter_commands/CONVERT_SYM_PARTITION_SYM_alt_part_name_item_TO_SYM_TABLE_SYM_table_ident_opt_without_validation_have_partitioning	ALTER TABLE a CONVERT PARTITION a TO TABLE a;
 ok	1505	engine	one_table@table	all_or_alt_part_name_list/alt_part_name_list	ALTER TABLE a REBUILD PARTITION a;
-1064	1505	engine	one_table@table	add_part_extra/(_part_def_list_)	ALTER TABLE a ADD PARTITION(a);
-error	1505	engine	one_table@table	add_part_extra/PARTITIONS_SYM_real_ulong_num	ALTER TABLE a ADD PARTITION PARTITIONS 1;
-1064	1505	engine	one_table@table	reorg_parts_rule/alt_part_name_list_INTO_(_part_def_list_)	ALTER TABLE a REORGANIZE PARTITION a INTO(a);
-error	1505	engine	one_table@table	alt_part_name_list/alt_part_name_list_,_alt_part_name_item	ALTER TABLE a DROP PARTITION a, a;
+1505	1505	engine	one_table@table	add_part_extra/(_part_def_list_)	ALTER TABLE a ADD PARTITION(a);
+1505	1505	engine	one_table@table	add_part_extra/PARTITIONS_SYM_real_ulong_num	ALTER TABLE a ADD PARTITION PARTITIONS 1;
+1505	1505	engine	one_table@table	reorg_parts_rule/alt_part_name_list_INTO_(_part_def_list_)	ALTER TABLE a REORGANIZE PARTITION a INTO(a);
+1505	1505	engine	one_table@table	alt_part_name_list/alt_part_name_list_,_alt_part_name_item	ALTER TABLE a DROP PARTITION a, a;
 ok:089d5b6fb5b4	ok:089d5b6fb5b4	engine	one_table@table	alter_list/alter_list_,_alter_list_item	ALTER TABLE a FORCE, FORCE;
 ok	1054	engine	one_table@table	alter_list_item/ADD_CONSTRAINT_IF_SYM_not_EXISTS_field_ident_check_constraint	ALTER TABLE a ADD CONSTRAINT IF NOT EXISTS a CHECK(a);
 1054	1054	engine	one_table@table	alter_list_item/CHANGE_opt_column_opt_if_exists_table_element_field_ident_field_spec_opt_place	ALTER TABLE a CHANGE a a INT;
@@ -712,7 +712,7 @@ ok:089d5b6fb5b4	ok:089d5b6fb5b4	engine	one_table@table	opt_table_sym/TABLE_SYM	T
 1050	1050	engine	one_table@table	opt_duplicate/REPLACE	CREATE TABLE a REPLACE SELECT a;
 1050	1050	engine	one_table@table	opt_duplicate/IGNORE_SYM	CREATE TABLE a IGNORE SELECT a;
 ok:f988031a1679	ok:f988031a1679	engine	one_table@table	signed_literal/-_NUM_literal	ALTER TABLE a ADD a INT DEFAULT - 1;
-1064	1091	engine	one_table@table	field_ident/ident_._ident	ALTER TABLE a DROP a.a;
+1091	1091	engine	one_table@table	field_ident/ident_._ident	ALTER TABLE a DROP a.a;
 ok:f71f3a78a417	ok:f71f3a78a417	engine	one_table@table	reserved_keyword_udt_not_param_type/BETWEEN_SYM!swap	ALTER TABLE a ADD a BIGINT;
 1064	ok:089d5b6fb5b4	engine	one_table@table	opt_lock_wait_timeout/WAIT_SYM_ulong_num	TRUNCATE a WAIT 1;
 1064	ok:089d5b6fb5b4	engine	one_table@table	opt_lock_wait_timeout/NOWAIT_SYM	TRUNCATE a NOWAIT;
@@ -747,7 +747,7 @@ ok	4124	engine	one_table@column	partitioning/PARTITION_SYM_have_partitioning_par
 1050	1050	engine	one_table@column	opt_as/AS	CREATE TABLE a AS SELECT a;
 1050	1050	engine	one_table@column	opt_as/AS!truncate	CREATE TABLE a
 1060	1060	engine	one_table@column	opt_if_not_exists_table_element/%empty	ALTER TABLE a ADD a INT;
-1064	ok:25f17229f33b	engine	one_table@column	opt_if_not_exists_table_element/IF_SYM_not_EXISTS	ALTER TABLE a ADD IF NOT EXISTS a INT;
+ok:25f17229f33b	ok:25f17229f33b	engine	one_table@column	opt_if_not_exists_table_element/IF_SYM_not_EXISTS	ALTER TABLE a ADD IF NOT EXISTS a INT;
 ok:25f17229f33b	ok:25f17229f33b	engine	one_table@column	opt_if_not_exists/IF_SYM_not_EXISTS	CREATE TABLE IF NOT EXISTS a;
 1113	1113	engine	one_table@column	create_or_replace/CREATE_OR_SYM_REPLACE	CREATE OR REPLACE TABLE a;
 1050	1286	engine	one_table@column	opt_create_table_options/create_table_options	CREATE TABLE a ENGINE a;
@@ -824,23 +824,23 @@ ok:f6938a6a111e	ok:f6938a6a111e	engine	one_table@column	constraint_def/opt_const
 1060	1060	engine	one_table@column	opt_check_constraint/check_constraint	ALTER TABLE a ADD a INT CHECK(a);
 ok:54a7c03caa19	ok:54a7c03caa19	engine	one_table@column	opt_constraint_no_id/%empty	ALTER TABLE a DROP PRIMARY KEY;
 ok:54a7c03caa19	ok:54a7c03caa19	engine	one_table@column	opt_constraint_no_id/CONSTRAINT	ALTER TABLE a DROP CONSTRAINT PRIMARY KEY;
-1064	1060	engine	one_table@column	opt_constraint/constraint	ALTER TABLE a ADD a INT CONSTRAINT REFERENCES a;
+1060	1060	engine	one_table@column	opt_constraint/constraint	ALTER TABLE a ADD a INT CONSTRAINT REFERENCES a;
 1060	1060	engine	one_table@column	opt_constraint/constraint!truncate	ALTER TABLE a ADD a INT
-1064	1060	engine	one_table@column	opt_constraint/constraint!insert	ALTER TABLE a ADD a INT CONSTRAINT zzz REFERENCES a;
+1060	1060	engine	one_table@column	opt_constraint/constraint!insert	ALTER TABLE a ADD a INT CONSTRAINT zzz REFERENCES a;
 1060	1060	engine	one_table@column	field_type_or_serial/SERIAL_SYM_opt_serial_attribute	ALTER TABLE a ADD a SERIAL;
 1060	1060	engine	one_table@column	opt_serial_attribute/opt_serial_attribute_list	ALTER TABLE a ADD a SERIAL KEY;
 1060	1060	engine	one_table@column	opt_serial_attribute/opt_serial_attribute_list!truncate	ALTER TABLE a ADD a SERIAL
 1068	1060	engine	one_table@column	opt_serial_attribute_list/opt_serial_attribute_list_serial_attribute	ALTER TABLE a ADD a SERIAL KEY KEY;
 1060	1060	engine	one_table@column	opt_serial_attribute_list/opt_serial_attribute_list_serial_attribute!truncate	ALTER TABLE a ADD a SERIAL KEY
-1060	4124	engine	one_table@column	opt_asrow_attribute/%empty	ALTER TABLE a ADD a INT AS ROW START;
-1064	4124	engine	one_table@column	opt_asrow_attribute/opt_asrow_attribute_list	ALTER TABLE a ADD a INT AS ROW START KEY;
-1060	4124	engine	one_table@column	opt_asrow_attribute/opt_asrow_attribute_list!truncate	ALTER TABLE a ADD a INT AS ROW START
-1064	4124	engine	one_table@column	opt_asrow_attribute_list/opt_asrow_attribute_list_asrow_attribute	ALTER TABLE a ADD a INT AS ROW START KEY KEY;
-1064	4124	engine	one_table@column	opt_asrow_attribute_list/opt_asrow_attribute_list_asrow_attribute!truncate	ALTER TABLE a ADD a INT AS ROW START KEY
+4124	4124	engine	one_table@column	opt_asrow_attribute/%empty	ALTER TABLE a ADD a INT AS ROW START;
+4124	4124	engine	one_table@column	opt_asrow_attribute/opt_asrow_attribute_list	ALTER TABLE a ADD a INT AS ROW START KEY;
+4124	4124	engine	one_table@column	opt_asrow_attribute/opt_asrow_attribute_list!truncate	ALTER TABLE a ADD a INT AS ROW START
+4124	4124	engine	one_table@column	opt_asrow_attribute_list/opt_asrow_attribute_list_asrow_attribute	ALTER TABLE a ADD a INT AS ROW START KEY KEY;
+4124	4124	engine	one_table@column	opt_asrow_attribute_list/opt_asrow_attribute_list_asrow_attribute!truncate	ALTER TABLE a ADD a INT AS ROW START KEY
 1060	1060	engine	one_table@column	field_def/attribute_list	ALTER TABLE a ADD a INT NULL;
 1060	1060	engine	one_table@column	field_def/opt_generated_always_AS_virtual_column_func_vcol_opt_specifier_vcol_opt_attribute	ALTER TABLE a ADD a INT AS(a);
-1060	4124	engine	one_table@column	field_def/opt_generated_always_AS_ROW_SYM_END_opt_asrow_attribute	ALTER TABLE a ADD a INT AS ROW END;
-1060	4124	engine	one_table@column	opt_generated_always/GENERATED_SYM_ALWAYS_SYM	ALTER TABLE a ADD a INT GENERATED ALWAYS AS ROW START;
+4124	4124	engine	one_table@column	field_def/opt_generated_always_AS_ROW_SYM_END_opt_asrow_attribute	ALTER TABLE a ADD a INT AS ROW END;
+4124	4124	engine	one_table@column	opt_generated_always/GENERATED_SYM_ALWAYS_SYM	ALTER TABLE a ADD a INT GENERATED ALWAYS AS ROW START;
 1060	1060	engine	one_table@column	vcol_opt_specifier/VIRTUAL_SYM	ALTER TABLE a ADD a INT AS(a) VIRTUAL;
 1060	1060	engine	one_table@column	vcol_opt_specifier/VIRTUAL_SYM!truncate	ALTER TABLE a ADD a INT AS(a)
 1060	1060	engine	one_table@column	vcol_opt_specifier/PERSISTENT_SYM	ALTER TABLE a ADD a INT AS(a) PERSISTENT;
@@ -909,9 +909,9 @@ ok:54a7c03caa19	ok:54a7c03caa19	engine	one_table@column	opt_constraint_no_id/CON
 1060	1060	engine	one_table@column	attribute/COLLATE_SYM_collation_name	ALTER TABLE a ADD a INT COLLATE utf8mb4_bin;
 1060	1060	engine	one_table@column	attribute/serial_attribute	ALTER TABLE a ADD a INT KEY;
 1060	1060	engine	one_table@column	opt_enable/%empty	ALTER TABLE a ADD a INT NOT NULL;
-1064	1060	engine	one_table@column	opt_enable/ENABLE_SYM	ALTER TABLE a ADD a INT NOT NULL ENABLE;
+1060	1060	engine	one_table@column	opt_enable/ENABLE_SYM	ALTER TABLE a ADD a INT NOT NULL ENABLE;
 1060	1060	engine	one_table@column	opt_enable/ENABLE_SYM!truncate	ALTER TABLE a ADD a INT NOT NULL
-1064	1060	engine	one_table@column	serial_attribute/engine_defined_option	ALTER TABLE a ADD a INT a = 's';
+1060	1060	engine	one_table@column	serial_attribute/engine_defined_option	ALTER TABLE a ADD a INT a = 's';
 4124	4124	engine	one_table@column	serial_attribute/with_or_without_system_VERSIONING_SYM	ALTER TABLE a ADD a INT WITH SYSTEM VERSIONING;
 4124	4124	engine	one_table@column	with_or_without_system/WITHOUT_SYSTEM	ALTER TABLE a ADD a INT WITHOUT SYSTEM VERSIONING;
 1060	1060	engine	one_table@column	charset_or_alias/charset_charset_name	ALTER TABLE a ADD a CHAR CHARSET utf8mb4;
@@ -1001,22 +1001,22 @@ ok:25f17229f33b	ok:25f17229f33b	engine	one_table@column	alter_commands/alter_lis
 ok	1505	engine	one_table@column	alter_commands/alter_list_remove_partitioning	ALTER TABLE a FORCE REMOVE PARTITIONING;
 ok	1505	engine	one_table@column	alter_commands/remove_partitioning	ALTER TABLE a REMOVE PARTITIONING;
 ok:5db1367ce81a	ok:5db1367ce81a	engine	one_table@column	alter_commands/remove_partitioning!swap	ALTER TABLE a RENAME PARTITIONING;
-error	1505	engine	one_table@column	alter_commands/add_partition_rule	ALTER TABLE a ADD PARTITION;
-error	1505	engine	one_table@column	alter_commands/DROP_PARTITION_SYM_opt_if_exists_alt_part_name_list	ALTER TABLE a DROP PARTITION a;
+1505	1505	engine	one_table@column	alter_commands/add_partition_rule	ALTER TABLE a ADD PARTITION;
+1505	1505	engine	one_table@column	alter_commands/DROP_PARTITION_SYM_opt_if_exists_alt_part_name_list	ALTER TABLE a DROP PARTITION a;
 ok	1505	engine	one_table@column	alter_commands/REBUILD_SYM_PARTITION_SYM_opt_no_write_to_binlog_all_or_alt_part_name_list	ALTER TABLE a REBUILD PARTITION ALL;
 ok	1505	engine	one_table@column	alter_commands/OPTIMIZE_PARTITION_SYM_opt_no_write_to_binlog_all_or_alt_part_name_list_opt_no_write_to_binlog	ALTER TABLE a OPTIMIZE PARTITION ALL;
 ok	1505	engine	one_table@column	alter_commands/ANALYZE_SYM_PARTITION_SYM_opt_no_write_to_binlog_all_or_alt_part_name_list	ALTER TABLE a ANALYZE PARTITION ALL;
 ok	1505	engine	one_table@column	alter_commands/CHECK_SYM_PARTITION_SYM_all_or_alt_part_name_list_opt_mi_check_type	ALTER TABLE a CHECK PARTITION ALL;
 ok	1505	engine	one_table@column	alter_commands/REPAIR_PARTITION_SYM_opt_no_write_to_binlog_all_or_alt_part_name_list_opt_mi_repair_type	ALTER TABLE a REPAIR PARTITION ALL;
-error	1505	engine	one_table@column	alter_commands/COALESCE_PARTITION_SYM_opt_no_write_to_binlog_real_ulong_num	ALTER TABLE a COALESCE PARTITION 1;
-error	1505	engine	one_table@column	alter_commands/TRUNCATE_SYM_PARTITION_SYM_all_or_alt_part_name_list	ALTER TABLE a TRUNCATE PARTITION ALL;
-error	1505	engine	one_table@column	alter_commands/reorg_partition_rule	ALTER TABLE a REORGANIZE PARTITION;
-1064	1505	engine	one_table@column	alter_commands/CONVERT_SYM_PARTITION_SYM_alt_part_name_item_TO_SYM_TABLE_SYM_table_ident_opt_without_validation_have_partitioning	ALTER TABLE a CONVERT PARTITION a TO TABLE a;
+1505	1505	engine	one_table@column	alter_commands/COALESCE_PARTITION_SYM_opt_no_write_to_binlog_real_ulong_num	ALTER TABLE a COALESCE PARTITION 1;
+1505	1505	engine	one_table@column	alter_commands/TRUNCATE_SYM_PARTITION_SYM_all_or_alt_part_name_list	ALTER TABLE a TRUNCATE PARTITION ALL;
+1505	1505	engine	one_table@column	alter_commands/reorg_partition_rule	ALTER TABLE a REORGANIZE PARTITION;
+1505	1505	engine	one_table@column	alter_commands/CONVERT_SYM_PARTITION_SYM_alt_part_name_item_TO_SYM_TABLE_SYM_table_ident_opt_without_validation_have_partitioning	ALTER TABLE a CONVERT PARTITION a TO TABLE a;
 ok	1505	engine	one_table@column	all_or_alt_part_name_list/alt_part_name_list	ALTER TABLE a REBUILD PARTITION a;
-1064	1505	engine	one_table@column	add_part_extra/(_part_def_list_)	ALTER TABLE a ADD PARTITION(a);
-error	1505	engine	one_table@column	add_part_extra/PARTITIONS_SYM_real_ulong_num	ALTER TABLE a ADD PARTITION PARTITIONS 1;
-1064	1505	engine	one_table@column	reorg_parts_rule/alt_part_name_list_INTO_(_part_def_list_)	ALTER TABLE a REORGANIZE PARTITION a INTO(a);
-error	1505	engine	one_table@column	alt_part_name_list/alt_part_name_list_,_alt_part_name_item	ALTER TABLE a DROP PARTITION a, a;
+1505	1505	engine	one_table@column	add_part_extra/(_part_def_list_)	ALTER TABLE a ADD PARTITION(a);
+1505	1505	engine	one_table@column	add_part_extra/PARTITIONS_SYM_real_ulong_num	ALTER TABLE a ADD PARTITION PARTITIONS 1;
+1505	1505	engine	one_table@column	reorg_parts_rule/alt_part_name_list_INTO_(_part_def_list_)	ALTER TABLE a REORGANIZE PARTITION a INTO(a);
+1505	1505	engine	one_table@column	alt_part_name_list/alt_part_name_list_,_alt_part_name_item	ALTER TABLE a DROP PARTITION a, a;
 ok:25f17229f33b	ok:25f17229f33b	engine	one_table@column	alter_list/alter_list_,_alter_list_item	ALTER TABLE a FORCE, FORCE;
 ok:9922b4baf683	ok:9922b4baf683	engine	one_table@column	alter_list_item/ADD_CONSTRAINT_IF_SYM_not_EXISTS_field_ident_check_constraint	ALTER TABLE a ADD CONSTRAINT IF NOT EXISTS a CHECK(a);
 ok:25f17229f33b	ok:25f17229f33b	engine	one_table@column	alter_list_item/CHANGE_opt_column_opt_if_exists_table_element_field_ident_field_spec_opt_place	ALTER TABLE a CHANGE a a INT;
@@ -1075,7 +1075,7 @@ ok:25f17229f33b	ok:25f17229f33b	engine	one_table@column	opt_table_sym/TABLE_SYM	
 1050	1050	engine	one_table@column	opt_duplicate/REPLACE	CREATE TABLE a REPLACE SELECT a;
 1050	1050	engine	one_table@column	opt_duplicate/IGNORE_SYM	CREATE TABLE a IGNORE SELECT a;
 1060	1060	engine	one_table@column	signed_literal/-_NUM_literal	ALTER TABLE a ADD a INT DEFAULT - 1;
-1064	ok:5ad1839727d0	engine	one_table@column	field_ident/ident_._ident	ALTER TABLE a DROP a.a;
+ok:5ad1839727d0	ok:5ad1839727d0	engine	one_table@column	field_ident/ident_._ident	ALTER TABLE a DROP a.a;
 1060	1060	engine	one_table@column	reserved_keyword_udt_not_param_type/BETWEEN_SYM!swap	ALTER TABLE a ADD a BIGINT;
 1064	ok:25f17229f33b	engine	one_table@column	opt_lock_wait_timeout/WAIT_SYM_ulong_num	TRUNCATE a WAIT 1;
 1064	ok:25f17229f33b	engine	one_table@column	opt_lock_wait_timeout/NOWAIT_SYM	TRUNCATE a NOWAIT;
@@ -1110,7 +1110,7 @@ ok	4124	engine	one_table@index	partitioning/PARTITION_SYM_have_partitioning_part
 1050	1050	engine	one_table@index	opt_as/AS	CREATE TABLE a AS SELECT a;
 1050	1050	engine	one_table@index	opt_as/AS!truncate	CREATE TABLE a
 1060	1060	engine	one_table@index	opt_if_not_exists_table_element/%empty	ALTER TABLE a ADD a INT;
-1064	ok:8eb6e8823936	engine	one_table@index	opt_if_not_exists_table_element/IF_SYM_not_EXISTS	ALTER TABLE a ADD IF NOT EXISTS a INT;
+ok:8eb6e8823936	ok:8eb6e8823936	engine	one_table@index	opt_if_not_exists_table_element/IF_SYM_not_EXISTS	ALTER TABLE a ADD IF NOT EXISTS a INT;
 ok:8eb6e8823936	ok:8eb6e8823936	engine	one_table@index	opt_if_not_exists/IF_SYM_not_EXISTS	CREATE TABLE IF NOT EXISTS a;
 1113	1113	engine	one_table@index	create_or_replace/CREATE_OR_SYM_REPLACE	CREATE OR REPLACE TABLE a;
 1050	1286	engine	one_table@index	opt_create_table_options/create_table_options	CREATE TABLE a ENGINE a;
@@ -1187,23 +1187,23 @@ ok:4ef61a87b244	ok:4ef61a87b244	engine	one_table@index	constraint_def/opt_constr
 1060	1060	engine	one_table@index	opt_check_constraint/check_constraint	ALTER TABLE a ADD a INT CHECK(a);
 ok:733164ea26b9	ok:733164ea26b9	engine	one_table@index	opt_constraint_no_id/%empty	ALTER TABLE a DROP PRIMARY KEY;
 ok:733164ea26b9	ok:733164ea26b9	engine	one_table@index	opt_constraint_no_id/CONSTRAINT	ALTER TABLE a DROP CONSTRAINT PRIMARY KEY;
-1064	1060	engine	one_table@index	opt_constraint/constraint	ALTER TABLE a ADD a INT CONSTRAINT REFERENCES a;
+1060	1060	engine	one_table@index	opt_constraint/constraint	ALTER TABLE a ADD a INT CONSTRAINT REFERENCES a;
 1060	1060	engine	one_table@index	opt_constraint/constraint!truncate	ALTER TABLE a ADD a INT
-1064	1060	engine	one_table@index	opt_constraint/constraint!insert	ALTER TABLE a ADD a INT CONSTRAINT zzz REFERENCES a;
+1060	1060	engine	one_table@index	opt_constraint/constraint!insert	ALTER TABLE a ADD a INT CONSTRAINT zzz REFERENCES a;
 1060	1060	engine	one_table@index	field_type_or_serial/SERIAL_SYM_opt_serial_attribute	ALTER TABLE a ADD a SERIAL;
 1060	1060	engine	one_table@index	opt_serial_attribute/opt_serial_attribute_list	ALTER TABLE a ADD a SERIAL KEY;
 1060	1060	engine	one_table@index	opt_serial_attribute/opt_serial_attribute_list!truncate	ALTER TABLE a ADD a SERIAL
 1068	1060	engine	one_table@index	opt_serial_attribute_list/opt_serial_attribute_list_serial_attribute	ALTER TABLE a ADD a SERIAL KEY KEY;
 1060	1060	engine	one_table@index	opt_serial_attribute_list/opt_serial_attribute_list_serial_attribute!truncate	ALTER TABLE a ADD a SERIAL KEY
-1060	4124	engine	one_table@index	opt_asrow_attribute/%empty	ALTER TABLE a ADD a INT AS ROW START;
-1064	4124	engine	one_table@index	opt_asrow_attribute/opt_asrow_attribute_list	ALTER TABLE a ADD a INT AS ROW START KEY;
-1060	4124	engine	one_table@index	opt_asrow_attribute/opt_asrow_attribute_list!truncate	ALTER TABLE a ADD a INT AS ROW START
-1064	4124	engine	one_table@index	opt_asrow_attribute_list/opt_asrow_attribute_list_asrow_attribute	ALTER TABLE a ADD a INT AS ROW START KEY KEY;
-1064	4124	engine	one_table@index	opt_asrow_attribute_list/opt_asrow_attribute_list_asrow_attribute!truncate	ALTER TABLE a ADD a INT AS ROW START KEY
+4124	4124	engine	one_table@index	opt_asrow_attribute/%empty	ALTER TABLE a ADD a INT AS ROW START;
+4124	4124	engine	one_table@index	opt_asrow_attribute/opt_asrow_attribute_list	ALTER TABLE a ADD a INT AS ROW START KEY;
+4124	4124	engine	one_table@index	opt_asrow_attribute/opt_asrow_attribute_list!truncate	ALTER TABLE a ADD a INT AS ROW START
+4124	4124	engine	one_table@index	opt_asrow_attribute_list/opt_asrow_attribute_list_asrow_attribute	ALTER TABLE a ADD a INT AS ROW START KEY KEY;
+4124	4124	engine	one_table@index	opt_asrow_attribute_list/opt_asrow_attribute_list_asrow_attribute!truncate	ALTER TABLE a ADD a INT AS ROW START KEY
 1060	1060	engine	one_table@index	field_def/attribute_list	ALTER TABLE a ADD a INT NULL;
 1060	1060	engine	one_table@index	field_def/opt_generated_always_AS_virtual_column_func_vcol_opt_specifier_vcol_opt_attribute	ALTER TABLE a ADD a INT AS(a);
-1060	4124	engine	one_table@index	field_def/opt_generated_always_AS_ROW_SYM_END_opt_asrow_attribute	ALTER TABLE a ADD a INT AS ROW END;
-1060	4124	engine	one_table@index	opt_generated_always/GENERATED_SYM_ALWAYS_SYM	ALTER TABLE a ADD a INT GENERATED ALWAYS AS ROW START;
+4124	4124	engine	one_table@index	field_def/opt_generated_always_AS_ROW_SYM_END_opt_asrow_attribute	ALTER TABLE a ADD a INT AS ROW END;
+4124	4124	engine	one_table@index	opt_generated_always/GENERATED_SYM_ALWAYS_SYM	ALTER TABLE a ADD a INT GENERATED ALWAYS AS ROW START;
 1060	1060	engine	one_table@index	vcol_opt_specifier/VIRTUAL_SYM	ALTER TABLE a ADD a INT AS(a) VIRTUAL;
 1060	1060	engine	one_table@index	vcol_opt_specifier/VIRTUAL_SYM!truncate	ALTER TABLE a ADD a INT AS(a)
 1060	1060	engine	one_table@index	vcol_opt_specifier/PERSISTENT_SYM	ALTER TABLE a ADD a INT AS(a) PERSISTENT;
@@ -1272,9 +1272,9 @@ ok:733164ea26b9	ok:733164ea26b9	engine	one_table@index	opt_constraint_no_id/CONS
 1060	1060	engine	one_table@index	attribute/COLLATE_SYM_collation_name	ALTER TABLE a ADD a INT COLLATE utf8mb4_bin;
 1060	1060	engine	one_table@index	attribute/serial_attribute	ALTER TABLE a ADD a INT KEY;
 1060	1060	engine	one_table@index	opt_enable/%empty	ALTER TABLE a ADD a INT NOT NULL;
-1064	1060	engine	one_table@index	opt_enable/ENABLE_SYM	ALTER TABLE a ADD a INT NOT NULL ENABLE;
+1060	1060	engine	one_table@index	opt_enable/ENABLE_SYM	ALTER TABLE a ADD a INT NOT NULL ENABLE;
 1060	1060	engine	one_table@index	opt_enable/ENABLE_SYM!truncate	ALTER TABLE a ADD a INT NOT NULL
-1064	1060	engine	one_table@index	serial_attribute/engine_defined_option	ALTER TABLE a ADD a INT a = 's';
+1060	1060	engine	one_table@index	serial_attribute/engine_defined_option	ALTER TABLE a ADD a INT a = 's';
 4124	4124	engine	one_table@index	serial_attribute/with_or_without_system_VERSIONING_SYM	ALTER TABLE a ADD a INT WITH SYSTEM VERSIONING;
 4124	4124	engine	one_table@index	with_or_without_system/WITHOUT_SYSTEM	ALTER TABLE a ADD a INT WITHOUT SYSTEM VERSIONING;
 1060	1060	engine	one_table@index	charset_or_alias/charset_charset_name	ALTER TABLE a ADD a CHAR CHARSET utf8mb4;
@@ -1364,22 +1364,22 @@ ok:8eb6e8823936	ok:8eb6e8823936	engine	one_table@index	alter_commands/alter_list
 ok	1505	engine	one_table@index	alter_commands/alter_list_remove_partitioning	ALTER TABLE a FORCE REMOVE PARTITIONING;
 ok	1505	engine	one_table@index	alter_commands/remove_partitioning	ALTER TABLE a REMOVE PARTITIONING;
 ok:74345f9362fa	ok:74345f9362fa	engine	one_table@index	alter_commands/remove_partitioning!swap	ALTER TABLE a RENAME PARTITIONING;
-error	1505	engine	one_table@index	alter_commands/add_partition_rule	ALTER TABLE a ADD PARTITION;
-error	1505	engine	one_table@index	alter_commands/DROP_PARTITION_SYM_opt_if_exists_alt_part_name_list	ALTER TABLE a DROP PARTITION a;
+1505	1505	engine	one_table@index	alter_commands/add_partition_rule	ALTER TABLE a ADD PARTITION;
+1505	1505	engine	one_table@index	alter_commands/DROP_PARTITION_SYM_opt_if_exists_alt_part_name_list	ALTER TABLE a DROP PARTITION a;
 ok	1505	engine	one_table@index	alter_commands/REBUILD_SYM_PARTITION_SYM_opt_no_write_to_binlog_all_or_alt_part_name_list	ALTER TABLE a REBUILD PARTITION ALL;
 ok	1505	engine	one_table@index	alter_commands/OPTIMIZE_PARTITION_SYM_opt_no_write_to_binlog_all_or_alt_part_name_list_opt_no_write_to_binlog	ALTER TABLE a OPTIMIZE PARTITION ALL;
 ok	1505	engine	one_table@index	alter_commands/ANALYZE_SYM_PARTITION_SYM_opt_no_write_to_binlog_all_or_alt_part_name_list	ALTER TABLE a ANALYZE PARTITION ALL;
 ok	1505	engine	one_table@index	alter_commands/CHECK_SYM_PARTITION_SYM_all_or_alt_part_name_list_opt_mi_check_type	ALTER TABLE a CHECK PARTITION ALL;
 ok	1505	engine	one_table@index	alter_commands/REPAIR_PARTITION_SYM_opt_no_write_to_binlog_all_or_alt_part_name_list_opt_mi_repair_type	ALTER TABLE a REPAIR PARTITION ALL;
-error	1505	engine	one_table@index	alter_commands/COALESCE_PARTITION_SYM_opt_no_write_to_binlog_real_ulong_num	ALTER TABLE a COALESCE PARTITION 1;
-error	1505	engine	one_table@index	alter_commands/TRUNCATE_SYM_PARTITION_SYM_all_or_alt_part_name_list	ALTER TABLE a TRUNCATE PARTITION ALL;
-error	1505	engine	one_table@index	alter_commands/reorg_partition_rule	ALTER TABLE a REORGANIZE PARTITION;
-1064	1505	engine	one_table@index	alter_commands/CONVERT_SYM_PARTITION_SYM_alt_part_name_item_TO_SYM_TABLE_SYM_table_ident_opt_without_validation_have_partitioning	ALTER TABLE a CONVERT PARTITION a TO TABLE a;
+1505	1505	engine	one_table@index	alter_commands/COALESCE_PARTITION_SYM_opt_no_write_to_binlog_real_ulong_num	ALTER TABLE a COALESCE PARTITION 1;
+1505	1505	engine	one_table@index	alter_commands/TRUNCATE_SYM_PARTITION_SYM_all_or_alt_part_name_list	ALTER TABLE a TRUNCATE PARTITION ALL;
+1505	1505	engine	one_table@index	alter_commands/reorg_partition_rule	ALTER TABLE a REORGANIZE PARTITION;
+1505	1505	engine	one_table@index	alter_commands/CONVERT_SYM_PARTITION_SYM_alt_part_name_item_TO_SYM_TABLE_SYM_table_ident_opt_without_validation_have_partitioning	ALTER TABLE a CONVERT PARTITION a TO TABLE a;
 ok	1505	engine	one_table@index	all_or_alt_part_name_list/alt_part_name_list	ALTER TABLE a REBUILD PARTITION a;
-1064	1505	engine	one_table@index	add_part_extra/(_part_def_list_)	ALTER TABLE a ADD PARTITION(a);
-error	1505	engine	one_table@index	add_part_extra/PARTITIONS_SYM_real_ulong_num	ALTER TABLE a ADD PARTITION PARTITIONS 1;
-1064	1505	engine	one_table@index	reorg_parts_rule/alt_part_name_list_INTO_(_part_def_list_)	ALTER TABLE a REORGANIZE PARTITION a INTO(a);
-error	1505	engine	one_table@index	alt_part_name_list/alt_part_name_list_,_alt_part_name_item	ALTER TABLE a DROP PARTITION a, a;
+1505	1505	engine	one_table@index	add_part_extra/(_part_def_list_)	ALTER TABLE a ADD PARTITION(a);
+1505	1505	engine	one_table@index	add_part_extra/PARTITIONS_SYM_real_ulong_num	ALTER TABLE a ADD PARTITION PARTITIONS 1;
+1505	1505	engine	one_table@index	reorg_parts_rule/alt_part_name_list_INTO_(_part_def_list_)	ALTER TABLE a REORGANIZE PARTITION a INTO(a);
+1505	1505	engine	one_table@index	alt_part_name_list/alt_part_name_list_,_alt_part_name_item	ALTER TABLE a DROP PARTITION a, a;
 ok:8eb6e8823936	ok:8eb6e8823936	engine	one_table@index	alter_list/alter_list_,_alter_list_item	ALTER TABLE a FORCE, FORCE;
 ok:9e23907b2b02	ok:9e23907b2b02	engine	one_table@index	alter_list_item/ADD_CONSTRAINT_IF_SYM_not_EXISTS_field_ident_check_constraint	ALTER TABLE a ADD CONSTRAINT IF NOT EXISTS a CHECK(a);
 ok:8eb6e8823936	ok:8eb6e8823936	engine	one_table@index	alter_list_item/CHANGE_opt_column_opt_if_exists_table_element_field_ident_field_spec_opt_place	ALTER TABLE a CHANGE a a INT;
@@ -1438,7 +1438,7 @@ ok:8eb6e8823936	ok:8eb6e8823936	engine	one_table@index	opt_table_sym/TABLE_SYM	T
 1050	1050	engine	one_table@index	opt_duplicate/REPLACE	CREATE TABLE a REPLACE SELECT a;
 1050	1050	engine	one_table@index	opt_duplicate/IGNORE_SYM	CREATE TABLE a IGNORE SELECT a;
 1060	1060	engine	one_table@index	signed_literal/-_NUM_literal	ALTER TABLE a ADD a INT DEFAULT - 1;
-1064	ok:db2f8726731c	engine	one_table@index	field_ident/ident_._ident	ALTER TABLE a DROP a.a;
+ok:db2f8726731c	ok:db2f8726731c	engine	one_table@index	field_ident/ident_._ident	ALTER TABLE a DROP a.a;
 1060	1060	engine	one_table@index	reserved_keyword_udt_not_param_type/BETWEEN_SYM!swap	ALTER TABLE a ADD a BIGINT;
 1064	ok:8eb6e8823936	engine	one_table@index	opt_lock_wait_timeout/WAIT_SYM_ulong_num	TRUNCATE a WAIT 1;
 1064	ok:8eb6e8823936	engine	one_table@index	opt_lock_wait_timeout/NOWAIT_SYM	TRUNCATE a NOWAIT;

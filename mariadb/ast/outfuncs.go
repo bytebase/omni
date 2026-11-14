@@ -2831,6 +2831,16 @@ func writeColumnDef(sb *strings.Builder, n *ColumnDef) {
 	if n.SystemVersioning != ColVersioningNone {
 		fmt.Fprintf(sb, " :system_versioning %d", n.SystemVersioning)
 	}
+	if len(n.EngineOptions) > 0 {
+		sb.WriteString(" :engine_options (")
+		for i, opt := range n.EngineOptions {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, opt)
+		}
+		sb.WriteString(")")
+	}
 	if len(n.Constraints) > 0 {
 		sb.WriteString(" :constraints ")
 		for i, c := range n.Constraints {
@@ -3034,6 +3044,9 @@ func writeAlterTableCmd(sb *strings.Builder, n *AlterTableCmd) {
 	if n.IfExists {
 		sb.WriteString(" :if_exists true")
 	}
+	if n.IfNotExists {
+		sb.WriteString(" :if_not_exists true")
+	}
 	if n.First {
 		sb.WriteString(" :first true")
 	}
@@ -3069,6 +3082,10 @@ func writeAlterTableCmd(sb *strings.Builder, n *AlterTableCmd) {
 	if n.ExchangeTable != nil {
 		sb.WriteString(" :exchange_table ")
 		writeNode(sb, n.ExchangeTable)
+	}
+	if n.ConvertTable != nil {
+		sb.WriteString(" :convert_table ")
+		writeNode(sb, n.ConvertTable)
 	}
 	if n.WithValidation != nil {
 		if *n.WithValidation {

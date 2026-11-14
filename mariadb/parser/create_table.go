@@ -47,6 +47,9 @@ func (p *Parser) parseCreateTableStmt(start int, orReplace, temporary bool) (*no
 		return nil, err
 	}
 	stmt.Table = ref
+	outer := p.ddlTable
+	p.ddlTable = ref
+	defer func() { p.ddlTable = outer }()
 
 	// CREATE TABLE ... LIKE
 	if p.cur.Type == kwLIKE {
@@ -59,6 +62,9 @@ func (p *Parser) parseCreateTableStmt(start int, orReplace, temporary bool) (*no
 		}
 		likeRef, err := p.parseTableRef()
 		if err != nil {
+			return nil, err
+		}
+		if err := p.refuseSameTable(likeRef); err != nil {
 			return nil, err
 		}
 		stmt.Like = likeRef
@@ -114,6 +120,9 @@ func (p *Parser) parseCreateTableStmt(start int, orReplace, temporary bool) (*no
 			p.advance() // consume LIKE
 			likeRef, err := p.parseTableRef()
 			if err != nil {
+				return nil, err
+			}
+			if err := p.refuseSameTable(likeRef); err != nil {
 				return nil, err
 			}
 			stmt.Like = likeRef
@@ -400,6 +409,13 @@ func (p *Parser) parsePeriodForCols() (name, startCol, endCol string, err error)
 	if _, err = p.expect(')'); err != nil {
 		return "", "", "", err
 	}
+	// An application-time period over one column twice is 1110, which
+	// Lex->add_period raises while it parses; the system-versioning period's
+	// columns are checked when the statement runs. Column names compare without
+	// case: MariaDB 11.8.8 answers 1110 for PERIOD FOR p (a, A).
+	if !strings.EqualFold(name, "SYSTEM_TIME") && strings.EqualFold(startCol, endCol) {
+		return "", "", "", &ParseError{Message: "Column '" + startCol + "' specified twice", Position: p.prev.Loc}
+	}
 	return name, startCol, endCol, nil
 }
 
@@ -455,6 +471,71 @@ func (p *Parser) parseRowBound() (nodes.RowBoundKind, error) {
 	}
 }
 
+// parseFieldIdent reads field_ident, the name of a column or of a table element in
+// CREATE and ALTER TABLE, which may carry the statement's table before it and that
+// table's database before that: `ALTER TABLE t DROP t.a` and `ALTER TABLE d.t DROP
+// d.t.a` drop a. The action holds the qualifier to the statement's table as written,
+// case and all, and refuses another while it parses: 1103 for the table, 1102 for the
+// database. A leading dot, `.a`, is the name alone.
+//
+// A database qualifier passes only when the statement's table names its database too:
+// one that does not stands for the current database, which the parser does not know.
+//
+// Ref: field_ident in MariaDB 11.8 sql/sql_yacc.yy.
+func (p *Parser) parseFieldIdent() (string, error) {
+	if p.cur.Type == '.' {
+		p.advance()
+		name, _, err := p.parseIdent()
+		return name, err
+	}
+	pos := p.cur.Loc
+	first, _, err := p.parseIdent()
+	if err != nil || p.cur.Type != '.' {
+		return first, err
+	}
+	p.advance() // .
+	second, _, err := p.parseIdent()
+	if err != nil {
+		return "", err
+	}
+	table := p.ddlTable
+	if p.cur.Type != '.' {
+		if table == nil || table.Name != first {
+			return "", &ParseError{Message: "Incorrect table name '" + first + "'", Position: pos}
+		}
+		return second, nil
+	}
+	p.advance() // .
+	third, _, err := p.parseIdent()
+	if err != nil {
+		return "", err
+	}
+	if table == nil || table.Schema == "" || table.Schema != first {
+		return "", &ParseError{Message: "Incorrect database name '" + first + "'", Position: pos}
+	}
+	if table.Name != second {
+		return "", &ParseError{Message: "Incorrect table name '" + second + "'", Position: pos}
+	}
+	return third, nil
+}
+
+// refuseSameTable is the 1066 MariaDB answers while it parses when a statement names
+// the table it creates or alters a second time: CREATE TABLE t LIKE t, ALTER TABLE t
+// EXCHANGE PARTITION p WITH TABLE t and ALTER TABLE t CONVERT TABLE t TO PARTITION p.
+// Each name goes to the statement's table list, which refuses one it holds already:
+// the same name, compared as written (as lower_case_table_names=0 has it), in the same
+// database. A name without a database is in the current one, which the parser does not
+// know, so a pair of which one names its database and the other does not passes.
+//
+// Ref: st_select_lex::add_table_to_list in MariaDB 11.8 sql/sql_parse.cc.
+func (p *Parser) refuseSameTable(ref *nodes.TableRef) error {
+	t := p.ddlTable
+	if t == nil || ref == nil || t.Name != ref.Name || t.Schema != ref.Schema {
+		return nil
+	}
+	return &ParseError{Message: "Not unique table/alias: '" + ref.Name + "'", Position: ref.Loc.Start}
+}
+
 // parseColumnDef parses a column definition.
 //
 //	col_name data_type [NOT NULL | NULL] [DEFAULT expr] [AUTO_INCREMENT]
@@ -464,7 +545,7 @@ func (p *Parser) parseRowBound() (nodes.RowBoundKind, error) {
 //	    [ON UPDATE expr]
 func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 	start := p.pos()
-	name, _, err := p.parseIdent()
+	name, err := p.parseFieldIdent()
 	if err != nil {
 		return nil, err
 	}
@@ -494,13 +575,21 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 	// vcol_attribute lists, so `b INT NOT NULL AS (a)`, `b INT AS (a) NOT NULL` and
 	// `b INT AS (a) AS (a)` are each a 1064.
 	//
-	// Ref: field_def and vcol_attribute in MariaDB 11.8 sql/sql_yacc.yy.
+	// The attributes end the column but for two clauses that close it in this order:
+	// opt_check_constraint, which ends field_spec, and a reference, which column_def
+	// puts after the whole field_spec with an optional CONSTRAINT [name] before it.
+	// So `a INT CHECK (a > 0) NOT NULL`, `a INT REFERENCES t NOT NULL` and two CHECKs
+	// are each a 1064, and `a INT CHECK (a > 0) CONSTRAINT c REFERENCES t` runs.
+	//
+	// Ref: field_def, field_spec, column_def and vcol_attribute in MariaDB 11.8
+	// sql/sql_yacc.yy.
 	sawAttribute := false
-	for {
-		if col.Generated != nil && !p.startsVcolAttribute() {
+	for p.cur.Type != kwCHECK {
+		if col.Generated != nil && !p.startsGeneratedAttribute(col.Generated) {
 			break
 		}
-		if sawAttribute && (p.cur.Type == kwGENERATED || (p.cur.Type == kwAS && p.peekNext().Type == '(')) {
+		if sawAttribute && (p.cur.Type == kwGENERATED ||
+			(p.cur.Type == kwAS && (p.peekNext().Type == '(' || p.peekNext().Type == kwROW))) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		ok, err := p.parseColumnOption(col)
@@ -511,6 +600,18 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 			break
 		}
 		sawAttribute = true
+	}
+	if p.cur.Type == kwCHECK {
+		if _, err := p.parseColumnOption(col); err != nil {
+			return nil, err
+		}
+	}
+	// A generated column takes no reference: MariaDB 11.8.8 answers 1064 for
+	// `a INT AS (1) REFERENCES t` and `a INT AS ROW START REFERENCES t`.
+	if col.Generated == nil && (p.cur.Type == kwCONSTRAINT || p.cur.Type == kwREFERENCES) {
+		if err := p.parseColumnReference(col); err != nil {
+			return nil, err
+		}
 	}
 
 	if err := vectorColumnRefused(col, start); err != nil {
@@ -558,6 +659,9 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 		if _, err := p.expect(kwNULL); err != nil {
 			return false, err
 		}
+		// asrow_attribute's `not NULL_SYM opt_enable`: an ENABLE after NOT NULL
+		// changes nothing, and comes after no other attribute.
+		p.match(kwENABLE)
 		col.Constraints = append(col.Constraints, &nodes.ColumnConstraint{
 			Loc:  nodes.Loc{Start: start, End: p.prev.End},
 			Type: nodes.ColConstrNotNull,
@@ -688,14 +792,6 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 		})
 		return true, nil
 
-	case kwREFERENCES:
-		constr, err := p.parseReferenceDefinition(start)
-		if err != nil {
-			return false, err
-		}
-		col.Constraints = append(col.Constraints, constr)
-		return true, nil
-
 	// INVISIBLE hides the column from SELECT *. MariaDB has no VISIBLE
 	// attribute to go with it: MariaDB 11.8.8 answers 1064 for `a INT VISIBLE`
 	// in CREATE TABLE, ADD, MODIFY and CHANGE, where MySQL takes it. A column
@@ -734,12 +830,10 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 			Expr: expr,
 		}
 		// [[NOT] ENFORCED]
-		if p.cur.Type == kwNOT {
-			p.advance()
-			if p.cur.Type == kwENFORCED {
-				p.advance()
-				cc.NotEnforced = true
-			}
+		if p.cur.Type == kwNOT && p.peekNext().Type == kwENFORCED {
+			p.advance() // NOT
+			p.advance() // ENFORCED
+			cc.NotEnforced = true
 		} else if p.cur.Type == kwENFORCED {
 			p.advance()
 		}
@@ -917,7 +1011,49 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 		return true, nil
 	}
 
+	// An engine-defined option, `name = value`, serial_attribute's
+	// engine_defined_option, read as an index's is. MariaDB 11.8.8 parses
+	// `a INT x = 1` and refuses the name only when the statement runs (1911),
+	// unless sql_mode has IGNORE_BAD_TABLE_OPTIONS.
+	opt, ok, err := p.parseEngineIndexOption(start)
+	if err != nil {
+		return false, err
+	}
+	if ok {
+		col.EngineOptions = append(col.EngineOptions, opt)
+		return true, nil
+	}
+
 	return false, nil
+}
+
+// parseColumnReference reads the reference column_def puts after a column's
+// field_spec, `opt_constraint references`: REFERENCES with an optional
+// CONSTRAINT [name] before it, the name a field_ident. MariaDB 11.8.8 runs
+// `a INT CONSTRAINT REFERENCES p (id)` and `a INT CONSTRAINT fk REFERENCES
+// p (id)` and answers 1064 for a CONSTRAINT with no REFERENCES after it.
+//
+// Ref: column_def, opt_constraint and constraint in MariaDB 11.8
+// sql/sql_yacc.yy.
+func (p *Parser) parseColumnReference(col *nodes.ColumnDef) error {
+	start := p.pos()
+	name := ""
+	if _, ok := p.match(kwCONSTRAINT); ok && p.cur.Type != kwREFERENCES {
+		var err error
+		if name, err = p.parseFieldIdent(); err != nil {
+			return err
+		}
+	}
+	if p.cur.Type != kwREFERENCES {
+		return p.syntaxErrorAtCur()
+	}
+	constr, err := p.parseReferenceDefinition(start)
+	if err != nil {
+		return err
+	}
+	constr.Name = name
+	col.Constraints = append(col.Constraints, constr)
+	return nil
 }
 
 // refuseColumnValue refuses a bare name as a column's ON UPDATE value, as the grammar's
@@ -1097,9 +1233,11 @@ func (p *Parser) parseGeneratedColumn() (*nodes.GeneratedColumn, error) {
 	start := p.pos()
 	p.advance() // consume GENERATED
 
-	// Optional ALWAYS
-	if p.cur.Type == kwALWAYS {
-		p.advance()
+	// GENERATED is nothing without ALWAYS: opt_generated_always is empty or
+	// GENERATED_SYM ALWAYS_SYM, so MariaDB 11.8.8 answers 1064 for
+	// `a INT GENERATED AS (1)` and `a INT GENERATED AS ROW START`.
+	if _, err := p.expect(kwALWAYS); err != nil {
+		return nil, err
 	}
 
 	// AS
@@ -2528,9 +2666,10 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 // wrote: VALUES, DEFAULT, or HISTORY or CURRENT, one of them or none.
 func (p *Parser) parsePartitionDefAndBound() (*nodes.PartitionDef, partitionBound, error) {
 	start := p.pos()
-	if _, err := p.expect(kwPARTITION); err != nil {
-		return nil, 0, err
-	}
+	// part_definition opens with opt_partition: the PARTITION keyword is optional,
+	// so `PARTITION BY HASH(a) (p0, p1)`, `ADD PARTITION (p2)` and `REORGANIZE
+	// PARTITION p0 INTO (p3)` each name partitions. Measured on mariadb:11.8.8.
+	p.match(kwPARTITION)
 
 	name, _, err := p.parseIdent()
 	if err != nil {

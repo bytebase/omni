@@ -126,6 +126,11 @@ type Column struct {
 	// what DataType and ColumnType hold; this says what it was written as, for
 	// a caller that needs to tell such a column from a plain longtext.
 	IsJSON bool
+	// EngineOptions are the column's engine-defined options as SHOW CREATE
+	// TABLE writes them, `x`=1, in the order it writes them. InnoDB knows
+	// none, so a column carries any only when sql_mode had
+	// IGNORE_BAD_TABLE_OPTIONS as the statement ran.
+	EngineOptions []string
 }
 
 type ColumnDefaultKind int

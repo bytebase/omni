@@ -298,21 +298,29 @@ const (
 	ATDropSystemVersioning
 	ATAddPeriod
 	ATDropPeriod
+	// MariaDB's CONVERT PARTITION p TO TABLE t and CONVERT TABLE t TO
+	// PARTITION part_definition.
+	ATConvertPartitionToTable
+	ATConvertTableToPartition
 )
 
 // AlterTableCmd represents a single ALTER TABLE operation.
 type AlterTableCmd struct {
-	Loc            Loc
-	Type           AlterTableCmdType
-	Name           string       // column/constraint/index name
-	NewName        string       // for RENAME operations
-	NewTable       *TableRef    // for RENAME TABLE
-	Column         *ColumnDef   // for ADD/MODIFY/CHANGE COLUMN
-	Columns        []*ColumnDef // for ADD (col1, col2, ...) multi-column form
-	Constraint     *Constraint  // for ADD CONSTRAINT
-	Option         *TableOption // for table options
-	DefaultExpr    ExprNode     // for ALTER COLUMN SET DEFAULT expr
-	IfExists       bool
+	Loc         Loc
+	Type        AlterTableCmdType
+	Name        string       // column/constraint/index name
+	NewName     string       // for RENAME operations
+	NewTable    *TableRef    // for RENAME TABLE
+	Column      *ColumnDef   // for ADD/MODIFY/CHANGE COLUMN
+	Columns     []*ColumnDef // for ADD (col1, col2, ...) multi-column form
+	Constraint  *Constraint  // for ADD CONSTRAINT
+	Option      *TableOption // for table options
+	DefaultExpr ExprNode     // for ALTER COLUMN SET DEFAULT expr
+	IfExists    bool
+	// IfNotExists is ADD [COLUMN] IF NOT EXISTS, MariaDB's
+	// opt_if_not_exists_table_element before a column: a column already there
+	// is skipped with a note (1060) instead of failing the statement.
+	IfNotExists    bool
 	First          bool            // FIRST positioning
 	After          string          // AFTER column positioning
 	PartitionNames []string        // for partition operations (DROP/TRUNCATE/ANALYZE/CHECK/OPTIMIZE/REBUILD/REPAIR/REORGANIZE/DISCARD/IMPORT)
@@ -324,10 +332,15 @@ type AlterTableCmd struct {
 	// takes after the PARTITION keyword. The grammar folds both spellings to
 	// one value, so the spelling used is not kept.
 	NoWriteToBinlog bool
-	ExchangeTable   *TableRef        // for EXCHANGE PARTITION ... WITH TABLE
-	WithValidation  *bool            // for EXCHANGE PARTITION: true=WITH VALIDATION, false=WITHOUT VALIDATION, nil=not specified
-	OrderByItems    []*OrderByItem   // for ORDER BY operation
-	PartitionBy     *PartitionClause // for PARTITION BY (repartition)
+	ExchangeTable   *TableRef // for EXCHANGE PARTITION ... WITH TABLE
+	// ConvertTable is the table of MariaDB's CONVERT PARTITION p TO TABLE t
+	// (the table the partition becomes, Name the partition) and of CONVERT
+	// TABLE t TO PARTITION part_definition (the table that becomes the
+	// partition, PartitionDefs[0] the partition).
+	ConvertTable   *TableRef
+	WithValidation *bool            // for EXCHANGE PARTITION: true=WITH VALIDATION, false=WITHOUT VALIDATION, nil=not specified
+	OrderByItems   []*OrderByItem   // for ORDER BY operation
+	PartitionBy    *PartitionClause // for PARTITION BY (repartition)
 	// PeriodStartCol / PeriodEndCol carry ADD PERIOD FOR <name> (start, end);
 	// PeriodName is the period name ("SYSTEM_TIME" or an application-time name).
 	PeriodStartCol string
@@ -503,6 +516,10 @@ type ColumnDef struct {
 	// appeared, even if a later WITHOUT on the same column overrode the net
 	// attribute. MariaDB marks the TABLE system-versioned once a WITH is seen.
 	SystemVersioningWithSeen bool
+	// EngineOptions are the column's engine-defined options, `name = value`
+	// (serial_attribute's engine_defined_option), in the order written. Each
+	// is an IndexOption with Engine set, as an index's are.
+	EngineOptions []*IndexOption
 }
 
 func (d *ColumnDef) nodeTag() {}

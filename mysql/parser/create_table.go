@@ -887,9 +887,13 @@ func (p *Parser) parseGeneratedColumn() (*nodes.GeneratedColumn, error) {
 	start := p.pos()
 	p.advance() // consume GENERATED
 
-	// Optional ALWAYS
-	if p.cur.Type == kwALWAYS {
-		p.advance()
+	// GENERATED is nothing without ALWAYS: opt_generated_always is empty or
+	// GENERATED ALWAYS_SYM, so MySQL 8.0.46 answers 1064 for
+	// `a INT GENERATED AS (1)`.
+	//
+	// Ref: opt_generated_always in MySQL 8.0.46 sql/sql_yacc.yy.
+	if _, err := p.expect(kwALWAYS); err != nil {
+		return nil, err
 	}
 
 	// AS
