@@ -573,7 +573,7 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 	}
 
 	col := buildColumnFromDef(tbl, colDef)
-	if err := c.applyColumnEngineOptions(col, colDef); err != nil {
+	if err := c.applyColumnEngineOptions(tbl, col, colDef); err != nil {
 		return err
 	}
 	if col.AutoIncrement && tableHasOtherAutoIncrementColumn(tbl, "") {
@@ -956,7 +956,7 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 	}
 
 	col := buildColumnFromDef(tbl, colDef)
-	if err := c.applyColumnEngineOptions(col, colDef); err != nil {
+	if err := c.applyColumnEngineOptions(tbl, col, colDef); err != nil {
 		return err
 	}
 	if col.AutoIncrement && tableHasOtherAutoIncrementColumn(tbl, oldName) {

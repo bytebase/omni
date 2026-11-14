@@ -333,7 +333,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		if colDef.Comment != "" {
 			col.Comment = colDef.Comment
 		}
-		if err := c.applyColumnEngineOptions(col, colDef); err != nil {
+		if err := c.applyColumnEngineOptions(tbl, col, colDef); err != nil {
 			return err
 		}
 		if colDef.DefaultValue != nil {
@@ -2331,15 +2331,21 @@ func engineOptionText(opt *nodes.IndexOption) string {
 }
 
 // applyColumnEngineOptions gives a column the engine-defined options its definition
-// writes, `a INT x = 1`. InnoDB knows no column option, so each is 1911 unless
-// sql_mode has IGNORE_BAD_TABLE_OPTIONS, under which the column keeps them, last
-// setting of a name winning as an index's do, and SHOW CREATE TABLE writes them.
-// Measured on mariadb:11.8.8.
-func (c *Catalog) applyColumnEngineOptions(col *Column, colDef *nodes.ColumnDef) error {
+// writes, `a INT x = 1`. The engines engineTableOptions lists define no column
+// option, so on them each is 1911 unless sql_mode has IGNORE_BAD_TABLE_OPTIONS,
+// under which the column keeps them, last setting of a name winning as an index's
+// do, and SHOW CREATE TABLE writes them. An engine not listed keeps its own list,
+// which the catalog does not know, so its options are taken as written, as a
+// table's are. Measured on mariadb:11.8.8.
+func (c *Catalog) applyColumnEngineOptions(tbl *Table, col *Column, colDef *nodes.ColumnDef) error {
 	if len(colDef.EngineOptions) == 0 {
 		return nil
 	}
-	if !c.ignoresBadTableOptions() {
+	engine := toLower(tbl.Engine)
+	if engine == "" {
+		engine = "innodb"
+	}
+	if _, known := engineTableOptions[engine]; known && !c.ignoresBadTableOptions() {
 		return errUnknownOption(colDef.EngineOptions[0].Name)
 	}
 	for _, opt := range colDef.EngineOptions {

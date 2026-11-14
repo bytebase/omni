@@ -51,7 +51,6 @@ const (
 	ErrUnsupportedGeneratedStorageChange = 3106
 	ErrDependentByGenCol                 = 3108
 	ErrWrongArguments                    = 1210
-	ErrUnknownOption                     = 1911
 	ErrWrongNameForIndex                 = 1280
 	ErrInvalidOnUpdate                   = 1294
 	ErrTooBigPrecision                   = 1426
@@ -207,11 +206,6 @@ func errDropPartitionNonExistent() error {
 // errTablesDifferentMetadata is 1736, two tables an action needs alike that are not.
 func errTablesDifferentMetadata() error {
 	return &Error{Code: 1736, SQLState: "HY000", Message: "Tables have different definitions"}
-}
-
-func errUnknownOption(name string) error {
-	return &Error{Code: ErrUnknownOption, SQLState: sqlState(ErrUnknownOption),
-		Message: fmt.Sprintf("Unknown option '%s'", name)}
 }
 
 func errDupColumn(name string) error {
