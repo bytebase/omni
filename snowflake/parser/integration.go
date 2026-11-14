@@ -1037,6 +1037,9 @@ type integrationProp struct {
 	group  integrationProps // ( <key> = <value> [ <key> = <value> ... ] )
 	groups bool             // with group: ( ( ... ) [ , ( ... ) ... ] )
 	pairs  bool             // ( '<key>' = '<value>' [ , ... ] )
+	// oneParts holds a list of names to one-part names, as the pages write
+	// a list of account-level objects (grammar ID).
+	oneParts bool
 }
 
 // integrationProps maps a documented property's name to its value.
@@ -1140,7 +1143,7 @@ var catalogIntegrationSetProps = integrationProps{
 // https://docs.snowflake.com/en/sql-reference/sql/alter-external-access-integration
 var accessIntegrationProps = integrationProps{
 	"ALLOWED_NETWORK_RULES":                   intLeaf(propNames),
-	"ALLOWED_API_AUTHENTICATION_INTEGRATIONS": intLeaf(propNames, propOneOf("NONE")),
+	"ALLOWED_API_AUTHENTICATION_INTEGRATIONS": {shapes: []objectValue{propNames, propOneOf("NONE")}, oneParts: true},
 	"ALLOWED_AUTHENTICATION_SECRETS":          intLeaf(propNames, propOneOf("ALL", "NONE")),
 	"ENABLED":                                 intBool,
 	"COMMENT":                                 intString,
@@ -1190,7 +1193,7 @@ var notificationIntegrationProps = integrationProps{
 	}},
 	"ACTIVE":                intString,
 	"WEBHOOK_URL":           intString,
-	"WEBHOOK_SECRET":        intLeaf(propName),
+	"WEBHOOK_SECRET":        intLeaf(propQName),
 	"WEBHOOK_BODY_TEMPLATE": intString,
 	"WEBHOOK_HEADERS":       {pairs: true},
 	"ALLOWED_RECIPIENTS":    intLeaf(propStrings),
@@ -1241,6 +1244,16 @@ func (p *Parser) parseIntegrationProperty(props integrationProps) (*ast.CopyOpti
 	}
 	if err != nil {
 		return nil, err
+	}
+	if spec.oneParts {
+		for _, e := range opt.Group {
+			if nameParts(e.Name) != 1 {
+				return nil, &ParseError{
+					Position: e.Loc.Start, End: e.Loc.End,
+					Message: "syntax error: " + e.Name + " takes no qualifier here",
+				}
+			}
+		}
 	}
 	opt.Loc.End = p.prev.Loc.End
 	return opt, nil

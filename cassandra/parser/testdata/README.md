@@ -12,8 +12,8 @@ grammar, and asks the judge again on every run.
 
 | Rows | Total | Agree | Only the grammar accepts | Only omni accepts |
 | --- | --- | --- | --- | --- |
-| One per alternative | 904 | 601 | 295 | 8 |
-| Near-misses | 2,037 | 1,943 | 20 | 74 |
+| One per alternative | 904 | 904 | 0 | 0 |
+| Near-misses | 2,037 | 2,036 | 1 | 0 |
 
 - **The grammar** is Apache Cassandra's own, `src/antlr/Cql.g`, `Parser.g` and
   `Lexer.g` at `cassandra-5.0.9` (`../../testdata/pins.tsv`), beside it byte
@@ -55,20 +55,11 @@ the `Parser.g` line and the Java it calls.
 
 ## The work list
 
-295 alternatives the grammar accepts and omni rejects:
-
-- **Collection element selection,** `SELECT a['a'] FROM a` (60): it carries
-  the alternatives of every term written inside it.
-- **A materialized view with no `WHERE`** (21), which the grammar allows and
-  Cassandra refuses only when it runs the statement.
-- **`IN ?` and `IN :a`** in `WHERE` (20), `CREATE INDEX ON a()` (14), keyspace
-  options other than `replication` (18), selector literals and casts
-  (`SELECT {}`, `SELECT [ ]`, `SELECT (ASCII) a`, 24), `DESCRIBE` (16+),
-  `ADD IDENTITY` and `DROP IDENTITY` (10), `ALTER TABLE ... ALTER ... TYPE`
-  and `MASKED` (16).
-
-82 rows omni accepts and the grammar rejects, most a reserved keyword as a
-name: `USE KEYSPACE`, `DROP TABLE IF`, `SELECT TRUNCATE FROM a`.
+One row disagrees: `DESCRIBE SCHEMA zzz`, which the grammar derives by reading
+`SCHEMA` as `K_KEYSPACE`'s second spelling (`Lexer.g:91-92`) while omni reads
+it as `K_SCHEMA`, defined first (`Lexer.g:90`). Which token ANTLR 3's lexer
+hands the parser decides the row, and a recognizer cannot tell; an engine
+judge would.
 
 ## What the judge cannot decide
 

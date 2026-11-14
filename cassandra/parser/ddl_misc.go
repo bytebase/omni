@@ -13,7 +13,7 @@ func (p *Parser) parseCreateFunction() (*ast.CreateFunctionStmt, error) {
 		return nil, err
 	}
 
-	name, err := p.parseQualifiedName()
+	name, err := p.parseFunctionQualifiedName()
 	if err != nil {
 		return nil, err
 	}
@@ -126,7 +126,7 @@ func (p *Parser) parseDropFunction() (*ast.DropFunctionStmt, error) {
 
 	ifExists := p.parseIfExists()
 
-	name, err := p.parseQualifiedName()
+	name, err := p.parseFunctionQualifiedName()
 	if err != nil {
 		return nil, err
 	}
@@ -162,26 +162,33 @@ func (p *Parser) parseCreateAggregate() (*ast.CreateAggregateStmt, error) {
 		return nil, err
 	}
 
-	name, err := p.parseQualifiedName()
+	name, err := p.parseFunctionQualifiedName()
 	if err != nil {
 		return nil, err
 	}
 
+	// '(' [comparatorType (',' comparatorType)*] ')' (Parser.g:662)
 	if _, err := p.expect(tokLPAREN); err != nil {
 		return nil, err
 	}
-	paramType, err := p.parseDataType()
-	if err != nil {
-		return nil, err
+	var paramTypes []*ast.DataType
+	if p.cur.Type != tokRPAREN {
+		if paramTypes, err = p.parseTypeList(); err != nil {
+			return nil, err
+		}
 	}
 	if _, err := p.expect(tokRPAREN); err != nil {
 		return nil, err
+	}
+	var paramType *ast.DataType
+	if len(paramTypes) > 0 {
+		paramType = paramTypes[0]
 	}
 
 	if err := p.expectKeyword(tokSFUNC); err != nil {
 		return nil, err
 	}
-	sfunc, err := p.parseIdentifier()
+	sfunc, err := p.parseNameIf(isFunctionNameToken)
 	if err != nil {
 		return nil, err
 	}
@@ -197,7 +204,7 @@ func (p *Parser) parseCreateAggregate() (*ast.CreateAggregateStmt, error) {
 	var finalfunc *ast.Identifier
 	if p.cur.Type == tokFINALFUNC {
 		p.advance()
-		ff, err := p.parseIdentifier()
+		ff, err := p.parseNameIf(isFunctionNameToken)
 		if err != nil {
 			return nil, err
 		}
@@ -218,6 +225,7 @@ func (p *Parser) parseCreateAggregate() (*ast.CreateAggregateStmt, error) {
 		IfNotExists: ifNotExists,
 		Name:        name,
 		ParamType:   paramType,
+		ParamTypes:  paramTypes,
 		SFunc:       sfunc,
 		SType:       stype,
 		FinalFunc:   finalfunc,
@@ -267,7 +275,7 @@ func (p *Parser) parseDropAggregate() (*ast.DropAggregateStmt, error) {
 
 	ifExists := p.parseIfExists()
 
-	name, err := p.parseQualifiedName()
+	name, err := p.parseFunctionQualifiedName()
 	if err != nil {
 		return nil, err
 	}

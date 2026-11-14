@@ -609,16 +609,6 @@ func TestParser_Errors(t *testing.T) {
 			input:     "DELETE FROM t",
 			wantErrIn: "DELETE is deferred to parser-dml (DAG node 6)",
 		},
-		{
-			name:      "values_stub",
-			input:     "VALUES (1, 2)",
-			wantErrIn: "VALUES is deferred to parser-dml (DAG node 6)",
-		},
-		{
-			name:      "valuelist_stub",
-			input:     "(1, 2, 3)",
-			wantErrIn: "valueList is deferred to parser-dml (DAG node 6)",
-		},
 		// Note: the LAG/LEAD window-function deferred-stub case that
 		// previously lived here was removed when DAG node 13 (parser-window)
 		// implemented those forms. Their positive, negative, golden, and

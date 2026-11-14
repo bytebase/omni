@@ -88,7 +88,7 @@ func columnAddOps(to *Catalog, tableName, schemaName, relName string, col Column
 	c := col.To
 	typeName := to.FormatType(c.TypeOID, c.TypeMod)
 
-	ddl := fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", tableName, quoteIdentifier(c.Name), typeName)
+	ddl := fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s%s", tableName, quoteIdentifier(c.Name), typeName, formatCollate(c.CollationName))
 
 	if c.NotNull {
 		ddl += " NOT NULL"
@@ -184,10 +184,10 @@ func columnModifyOps(from, to *Catalog, tableName, schemaName, relName string, c
 		})
 	}
 
-	// --- Type change ---
-	if typeChanged {
+	// --- Type or collation change ---
+	if typeChanged || oldCol.CollationName != newCol.CollationName {
 		newType := to.FormatType(newCol.TypeOID, newCol.TypeMod)
-		alterType := fmt.Sprintf("%s TYPE %s", colRef, newType)
+		alterType := fmt.Sprintf("%s TYPE %s%s", colRef, newType, formatCollate(newCol.CollationName))
 
 		// Check if an implicit (assignment) cast exists.
 		pathway, _ := from.FindCoercionPathway(oldCol.TypeOID, newCol.TypeOID, 'a')

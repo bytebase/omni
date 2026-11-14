@@ -1416,6 +1416,8 @@ type CreateTableStmt struct {
 	Temporary   bool
 	Volatile    bool
 	Hybrid      bool // CREATE HYBRID TABLE (Unistore); mutually exclusive with the temp modifiers
+	Interactive bool // CREATE INTERACTIVE TABLE
+	ReadOnly    bool // TEMP[ORARY] READ ONLY, which the page gives only the CLONE form
 	IfNotExists bool
 	Name        *ObjectName
 	Columns     []*ColumnDef
@@ -1429,17 +1431,44 @@ type CreateTableStmt struct {
 	AsSelect    Node             // CREATE TABLE ... AS SELECT; nil if absent
 	Like        *ObjectName      // CREATE TABLE ... LIKE source; nil if absent
 	Clone       *CloneSource     // CREATE TABLE ... CLONE source; nil if absent
-	RowPolicy   *RowAccessPolicy // [WITH] ROW ACCESS POLICY name ON (cols); nil if absent
+	// UsingTemplate is CREATE TABLE ... USING TEMPLATE ( <query> ); nil if absent.
+	UsingTemplate Node
+	// FromArchive is CREATE TABLE ... FROM ARCHIVE OF <table> [ [ AS ] <alias> ]
+	// WHERE <expr>; nil if absent.
+	FromArchive *ArchiveSource
+	// FromBackup is CREATE TABLE ... FROM BACKUP SET <set> IDENTIFIER '<id>';
+	// nil if absent.
+	FromBackup *BackupSource
+	RowPolicy  *RowAccessPolicy // [WITH] ROW ACCESS POLICY name ON (cols); nil if absent
+	// Options holds KEY = value parameters: an Iceberg table's catalog and
+	// storage parameters (EXTERNAL_VOLUME, CATALOG, BASE_LOCATION, ...) and
+	// COPY = ( ... ), or an interactive table's TARGET_LAG / WAREHOUSE /
+	// INITIALIZATION_WAREHOUSE; nil if absent.
+	Options []*CopyOption
 
 	// The fields below are set only by CREATE ICEBERG TABLE (Iceberg == true).
 	Iceberg           bool          // CREATE [TRANSIENT] ICEBERG TABLE
 	PartitionBy       []Node        // PARTITION BY ( col | transform(...) , ... ); ColumnRef or FuncCallExpr items; nil if absent
-	Options           []*CopyOption // KEY = value parameters (EXTERNAL_VOLUME, CATALOG, BASE_LOCATION, ...) and COPY = ( ... ); nil if absent
 	CopyTags          bool          // COPY TAGS
 	Purge             bool          // PURGE
 	AggregationPolicy *ObjectName   // [WITH] AGGREGATION POLICY name; nil if absent
 	Contacts          []*CopyOption // WITH CONTACT ( purpose = contact [, ...] ); nil if absent
 	Loc               Loc
+}
+
+// ArchiveSource is the FROM ARCHIVE OF clause of CREATE TABLE, which restores
+// the rows of a table's archive that the WHERE predicate selects.
+type ArchiveSource struct {
+	Table *ObjectName
+	Alias Ident // [ AS ] <alias>; zero if absent
+	Where Node
+}
+
+// BackupSource is the FROM BACKUP SET clause of CREATE [DYNAMIC] TABLE, which
+// restores a table from a backup in a backup set.
+type BackupSource struct {
+	BackupSet *ObjectName
+	ID        string // IDENTIFIER '<backup_id>'
 }
 
 func (n *CreateTableStmt) Tag() NodeTag { return T_CreateTableStmt }
@@ -1505,19 +1534,38 @@ var (
 type AlterDatabaseAction int
 
 const (
-	AlterDBRename             AlterDatabaseAction = iota // RENAME TO
-	AlterDBSwap                                          // SWAP WITH
-	AlterDBSet                                           // SET <properties>
-	AlterDBUnset                                         // UNSET <properties>
-	AlterDBSetTag                                        // SET TAG (...)
-	AlterDBUnsetTag                                      // UNSET TAG (...)
-	AlterDBEnableReplication                             // ENABLE REPLICATION ...
-	AlterDBDisableReplication                            // DISABLE REPLICATION ...
-	AlterDBEnableFailover                                // ENABLE FAILOVER ...
-	AlterDBDisableFailover                               // DISABLE FAILOVER ...
-	AlterDBRefresh                                       // REFRESH
-	AlterDBPrimary                                       // PRIMARY
+	AlterDBRename              AlterDatabaseAction = iota // RENAME TO
+	AlterDBSwap                                           // SWAP WITH
+	AlterDBSet                                            // SET <properties>
+	AlterDBUnset                                          // UNSET <properties>
+	AlterDBSetTag                                         // SET TAG (...)
+	AlterDBUnsetTag                                       // UNSET TAG (...)
+	AlterDBEnableReplication                              // ENABLE REPLICATION ...
+	AlterDBDisableReplication                             // DISABLE REPLICATION ...
+	AlterDBEnableFailover                                 // ENABLE FAILOVER ...
+	AlterDBDisableFailover                                // DISABLE FAILOVER ...
+	AlterDBRefresh                                        // REFRESH
+	AlterDBPrimary                                        // PRIMARY
+	AlterDBSetFeaturePolicy                               // SET FEATURE POLICY <name> [FORCE]
+	AlterDBUnsetFeaturePolicy                             // UNSET FEATURE POLICY
+	AlterDBSuspendDiscovery                               // SUSPEND DISCOVERY (catalog-linked database)
+	AlterDBResumeDiscovery                                // RESUME DISCOVERY (catalog-linked database)
+	AlterDBUpdateLinkedCatalog                            // UPDATE LINKED_CATALOG ... (catalog-linked database)
 )
+
+// LinkedCatalogUpdate is the body of ALTER DATABASE ... UPDATE LINKED_CATALOG
+// (https://docs.snowflake.com/en/sql-reference/sql/alter-database-catalog-linked).
+// It is NOT a Node. Op is "ADD", "REMOVE", "SET" or "UNSET":
+//   - ADD ( 'ns' [, ...] ) TO <Target>       → Namespaces, Target
+//   - REMOVE ( 'ns' [, ...] ) FROM <Target>  → Namespaces, Target
+//   - UNSET <Target>                         → Target
+//   - SET <key> = <value> [ ... ]            → Options
+type LinkedCatalogUpdate struct {
+	Op         string        // "ADD" / "REMOVE" / "SET" / "UNSET"
+	Namespaces []string      // ADD / REMOVE namespace list
+	Target     string        // ALLOWED_NAMESPACES / BLOCKED_NAMESPACES (ADD / REMOVE / UNSET)
+	Options    []*CopyOption // SET key = value run (SYNC_INTERVAL_SECONDS, ALLOWED_WRITE_OPERATIONS, ...)
+}
 
 // AlterSchemaAction discriminates the action variants of ALTER SCHEMA.
 type AlterSchemaAction int
@@ -1536,11 +1584,18 @@ const (
 // DBSchemaProps holds the optional settable properties shared by DATABASE and
 // SCHEMA DDL statements.  It is NOT a Node — embedded by value or pointer in
 // the statement nodes that need it.
+//
+// The four long-standing properties keep typed fields; every other property
+// (EXTERNAL_VOLUME, CATALOG, LOG_LEVEL, OBJECT_VISIBILITY, LINKED_CATALOG, ...)
+// is an open-ended `KEY = value` pair in Options, since the documented set
+// keeps growing.
 type DBSchemaProps struct {
-	DataRetention *int64  // DATA_RETENTION_TIME_IN_DAYS = n; nil if absent
-	MaxDataExt    *int64  // MAX_DATA_EXTENSION_TIME_IN_DAYS = n; nil if absent
-	DefaultDDLCol *string // DEFAULT_DDL_COLLATION = 'str'; nil if absent
-	Comment       *string // COMMENT = 'str'; nil if absent
+	DataRetention *int64        // DATA_RETENTION_TIME_IN_DAYS = n; nil if absent
+	MaxDataExt    *int64        // MAX_DATA_EXTENSION_TIME_IN_DAYS = n; nil if absent
+	DefaultDDLCol *string       // DEFAULT_DDL_COLLATION = 'str'; nil if absent
+	Comment       *string       // COMMENT = 'str'; nil if absent
+	Options       []*CopyOption // other KEY = value properties, in source order
+	Contacts      []*CopyOption // CONTACT <purpose> = <contact> pairs (Name = purpose, Words = contact)
 }
 
 // ---------------------------------------------------------------------------
@@ -1549,16 +1604,22 @@ type DBSchemaProps struct {
 
 // CreateDatabaseStmt represents CREATE [OR REPLACE] [TRANSIENT] DATABASE ...
 type CreateDatabaseStmt struct {
-	OrReplace   bool
-	OrAlter     bool // CREATE OR ALTER (mutually exclusive with OrReplace)
-	Transient   bool
-	IfNotExists bool
-	Name        *ObjectName
-	Clone       *CloneSource     // CLONE source [AT|BEFORE (...)]; nil if absent
-	FromShare   *ObjectName      // FROM SHARE <provider>.<share>; nil if absent
-	Props       DBSchemaProps    // optional properties
-	Tags        []*TagAssignment // WITH TAG (...); nil if absent
-	Loc         Loc
+	OrReplace                   bool
+	OrAlter                     bool // CREATE OR ALTER (mutually exclusive with OrReplace)
+	Transient                   bool
+	IfNotExists                 bool
+	Name                        *ObjectName
+	Clone                       *CloneSource // CLONE source [AT|BEFORE (...)]; nil if absent
+	IgnoreInsufficientRetention bool         // CLONE ... IGNORE TABLES WITH INSUFFICIENT DATA RETENTION
+	IgnoreHybridTables          bool         // CLONE ... IGNORE HYBRID TABLES
+	FromShare                   *ObjectName  // FROM SHARE <provider>.<share>; nil if absent
+	FromListing                 *string      // FROM LISTING '<listing>'; nil if absent
+	FromBackupSet               *ObjectName  // FROM BACKUP SET <set> IDENTIFIER '<id>'; nil if absent
+	BackupID                    string       // the IDENTIFIER '<id>' of FROM BACKUP SET
+	ReplicaOf                   *ObjectName  // AS REPLICA OF <account>.<db>; nil if absent
+	Props                       DBSchemaProps
+	Tags                        []*TagAssignment // [WITH] TAG (...); nil if absent
+	Loc                         Loc
 }
 
 func (n *CreateDatabaseStmt) Tag() NodeTag { return T_CreateDatabaseStmt }
@@ -1572,10 +1633,14 @@ type AlterDatabaseStmt struct {
 	Action     AlterDatabaseAction
 	NewName    *ObjectName      // RENAME TO / SWAP WITH target
 	SetProps   *DBSchemaProps   // SET properties; non-nil for AlterDBSet
-	UnsetProps []string         // UNSET property names
-	Tags       []*TagAssignment // SET TAG (...) assignments
-	UnsetTags  []*ObjectName    // UNSET TAG (...) names
-	Loc        Loc
+	UnsetProps []string         // UNSET property names ("CONTACT <PURPOSE>" for UNSET CONTACT <purpose>)
+	Tags       []*TagAssignment // SET TAG assignments
+	UnsetTags  []*ObjectName    // UNSET TAG names
+	// FeaturePolicy is the SET FEATURE POLICY <name> target; Force marks FORCE.
+	FeaturePolicy *ObjectName
+	Force         bool
+	LinkedCatalog *LinkedCatalogUpdate // UPDATE LINKED_CATALOG body; non-nil for AlterDBUpdateLinkedCatalog
+	Loc           Loc
 }
 
 func (n *AlterDatabaseStmt) Tag() NodeTag { return T_AlterDatabaseStmt }
@@ -1611,16 +1676,21 @@ var _ Node = (*UndropDatabaseStmt)(nil)
 
 // CreateSchemaStmt represents CREATE [OR REPLACE] [TRANSIENT] SCHEMA ...
 type CreateSchemaStmt struct {
-	OrReplace     bool
-	OrAlter       bool // CREATE OR ALTER (mutually exclusive with OrReplace)
-	Transient     bool
-	IfNotExists   bool
-	Name          *ObjectName
-	Clone         *CloneSource     // CLONE source [AT|BEFORE (...)]; nil if absent
-	ManagedAccess bool             // WITH MANAGED ACCESS
-	Props         DBSchemaProps    // optional properties
-	Tags          []*TagAssignment // WITH TAG (...); nil if absent
-	Loc           Loc
+	OrReplace                   bool
+	OrAlter                     bool // CREATE OR ALTER (mutually exclusive with OrReplace)
+	Transient                   bool
+	IfNotExists                 bool
+	Name                        *ObjectName
+	Versioned                   bool             // CREATE OR ALTER VERSIONED SCHEMA
+	Clone                       *CloneSource     // CLONE source [AT|BEFORE (...)]; nil if absent
+	IgnoreInsufficientRetention bool             // CLONE ... IGNORE TABLES WITH INSUFFICIENT DATA RETENTION
+	IgnoreHybridTables          bool             // CLONE ... IGNORE HYBRID TABLES
+	FromBackupSet               *ObjectName      // FROM BACKUP SET <set> IDENTIFIER '<id>'; nil if absent
+	BackupID                    string           // the IDENTIFIER '<id>' of FROM BACKUP SET
+	ManagedAccess               bool             // WITH MANAGED ACCESS
+	Props                       DBSchemaProps    // optional properties
+	Tags                        []*TagAssignment // WITH TAG (...); nil if absent
+	Loc                         Loc
 }
 
 func (n *CreateSchemaStmt) Tag() NodeTag { return T_CreateSchemaStmt }
@@ -1634,9 +1704,9 @@ type AlterSchemaStmt struct {
 	Action     AlterSchemaAction
 	NewName    *ObjectName      // RENAME TO / SWAP WITH target
 	SetProps   *DBSchemaProps   // SET properties; non-nil for AlterSchemaSet
-	UnsetProps []string         // UNSET property names
-	Tags       []*TagAssignment // SET TAG (...) assignments
-	UnsetTags  []*ObjectName    // UNSET TAG (...) names
+	UnsetProps []string         // UNSET property names ("CONTACT <PURPOSE>" for UNSET CONTACT <purpose>)
+	Tags       []*TagAssignment // SET TAG assignments
+	UnsetTags  []*ObjectName    // UNSET TAG names
 	Loc        Loc
 }
 
@@ -2081,11 +2151,13 @@ var (
 // Used by both CreateViewStmt and CreateMaterializedViewStmt.
 type ViewColumn struct {
 	Name          Ident
-	MaskingPolicy *ObjectName      // WITH MASKING POLICY p; nil if absent
-	MaskingUsing  []Ident          // USING (col, ...); nil if absent
-	Tags          []*TagAssignment // WITH TAG (...); nil if absent
-	Comment       *string          // COMMENT 'text'; nil if absent
-	Loc           Loc
+	MaskingPolicy *ObjectName // WITH MASKING POLICY p; nil if absent
+	MaskingUsing  []Ident     // USING (col, ...); nil if absent
+	// ProjectionPolicy is [ WITH ] PROJECTION POLICY p; nil if absent.
+	ProjectionPolicy *ObjectName
+	Tags             []*TagAssignment // WITH TAG (...); nil if absent
+	Comment          *string          // COMMENT 'text'; nil if absent
+	Loc              Loc
 }
 
 // RowAccessPolicy holds the policy name and column list from a
@@ -2159,24 +2231,31 @@ var _ Node = (*CreateMaterializedViewStmt)(nil)
 type AlterViewAction int
 
 const (
-	AlterViewRename                   AlterViewAction = iota // RENAME TO
-	AlterViewSetComment                                      // SET COMMENT = '...'
-	AlterViewUnsetComment                                    // UNSET COMMENT
-	AlterViewSetSecure                                       // SET SECURE
-	AlterViewUnsetSecure                                     // UNSET SECURE
-	AlterViewSetTag                                          // SET TAG (...)
-	AlterViewUnsetTag                                        // UNSET TAG (...)
-	AlterViewAddRowAccessPolicy                              // ADD ROW ACCESS POLICY
-	AlterViewDropRowAccessPolicy                             // DROP ROW ACCESS POLICY
-	AlterViewDropAllRowAccessPolicies                        // DROP ALL ROW ACCESS POLICIES
-	AlterViewColumnSetMaskingPolicy                          // ALTER COLUMN col SET MASKING POLICY
-	AlterViewColumnUnsetMaskingPolicy                        // ALTER COLUMN col UNSET MASKING POLICY
-	AlterViewColumnSetTag                                    // ALTER COLUMN col SET TAG (...)
-	AlterViewColumnUnsetTag                                  // ALTER COLUMN col UNSET TAG (...)
-	AlterViewSetAggregationPolicy                            // SET AGGREGATION POLICY name [ ENTITY KEY (...) ] [ FORCE ]
-	AlterViewUnsetAggregationPolicy                          // UNSET AGGREGATION POLICY
-	AlterViewSetJoinPolicy                                   // SET JOIN POLICY name [ ALLOWED/ENFORCED JOIN KEYS (...) ]
-	AlterViewUnsetJoinPolicy                                 // UNSET JOIN POLICY
+	AlterViewRename                      AlterViewAction = iota // RENAME TO
+	AlterViewSetComment                                         // SET COMMENT = '...'
+	AlterViewUnsetComment                                       // UNSET COMMENT
+	AlterViewSetSecure                                          // SET SECURE
+	AlterViewUnsetSecure                                        // UNSET SECURE
+	AlterViewSetTag                                             // SET TAG (...)
+	AlterViewUnsetTag                                           // UNSET TAG (...)
+	AlterViewAddRowAccessPolicy                                 // ADD ROW ACCESS POLICY
+	AlterViewDropRowAccessPolicy                                // DROP ROW ACCESS POLICY
+	AlterViewDropAllRowAccessPolicies                           // DROP ALL ROW ACCESS POLICIES
+	AlterViewColumnSetMaskingPolicy                             // ALTER COLUMN col SET MASKING POLICY
+	AlterViewColumnUnsetMaskingPolicy                           // ALTER COLUMN col UNSET MASKING POLICY
+	AlterViewColumnSetTag                                       // ALTER COLUMN col SET TAG (...)
+	AlterViewColumnUnsetTag                                     // ALTER COLUMN col UNSET TAG (...)
+	AlterViewSetAggregationPolicy                               // SET AGGREGATION POLICY name [ ENTITY KEY (...) ] [ FORCE ]
+	AlterViewUnsetAggregationPolicy                             // UNSET AGGREGATION POLICY
+	AlterViewSetJoinPolicy                                      // SET JOIN POLICY name [ ALLOWED/ENFORCED JOIN KEYS (...) ]
+	AlterViewUnsetJoinPolicy                                    // UNSET JOIN POLICY
+	AlterViewSetChangeTracking                                  // SET CHANGE_TRACKING = { TRUE | FALSE }
+	AlterViewSetContact                                         // SET CONTACT purpose = contact [, ...]
+	AlterViewUnsetContact                                       // UNSET CONTACT purpose
+	AlterViewDataMetric                                         // data metric function action (see DataMetric)
+	AlterViewColumnSetProjectionPolicy                          // ALTER COLUMN col SET PROJECTION POLICY p [FORCE]
+	AlterViewColumnUnsetProjectionPolicy                        // ALTER COLUMN col UNSET PROJECTION POLICY
+	AlterViewAddColumn                                          // ADD [COLUMN] [IF NOT EXISTS] col type [policies] [TAG (...)]
 )
 
 // AlterViewStmt represents ALTER VIEW ... (all action variants).
@@ -2193,8 +2272,8 @@ type AlterViewStmt struct {
 	PolicyCols    []Ident          // ON (col, ...) for ADD ROW ACCESS POLICY
 	PolicyKeyCols []Ident          // ENTITY KEY (...) / ALLOWED|ENFORCED JOIN KEYS (...) for SET {AGGREGATION|JOIN} POLICY
 	PolicyKeyKind string           // "ALLOWED" or "ENFORCED" for SET JOIN POLICY ... JOIN KEYS; "" if no keys clause
-	PolicyForce   bool             // FORCE for SET AGGREGATION POLICY
-	Column        Ident            // ALTER COLUMN col name
+	PolicyForce   bool             // FORCE for SET {AGGREGATION|JOIN} POLICY
+	Column        Ident            // ALTER COLUMN col name; ADD COLUMN col name
 	MaskingPolicy *ObjectName      // SET MASKING POLICY p
 	MaskingUsing  []Ident          // USING (col, ...)
 	// ColumnActions is the full comma-separated MODIFY/ALTER column action
@@ -2210,26 +2289,41 @@ type AlterViewStmt struct {
 	// They are set only when Action == AlterViewDropRowAccessPolicy.
 	AddPolicyName *ObjectName
 	AddPolicyCols []Ident
-	Loc           Loc
+	// ChangeTracking is the SET CHANGE_TRACKING value.
+	ChangeTracking bool
+	// Contact is the verbatim `purpose = contact [, ...]` of SET CONTACT, or
+	// the purpose of UNSET CONTACT.
+	Contact    string
+	DataMetric *DataMetricAction // AlterViewDataMetric
+	// ADD COLUMN: Column, ColumnType, IfNotExists, MaskingPolicy /
+	// MaskingUsing, ProjectionPolicy and Tags.
+	IfNotExists      bool
+	ColumnType       *TypeName
+	ProjectionPolicy *ObjectName
+	Loc              Loc
 }
 
 // AlterViewColumnAction is one element of an ALTER VIEW column action list:
 //
 //	{ALTER|MODIFY} [COLUMN] <col> SET MASKING POLICY <p> [USING (...)] [FORCE]
 //	                        | UNSET MASKING POLICY
+//	                        | SET PROJECTION POLICY <p> [FORCE]
+//	                        | UNSET PROJECTION POLICY
 //	                        | SET TAG <t> = '<v>' [, ...]
 //	                        | UNSET TAG <t> [, ...]
 //
-// Action is one of the AlterViewColumn* values.
+// Action is one of the AlterViewColumn* values. ALTER DYNAMIC TABLE's column
+// actions have the same grammar and use this type too.
 type AlterViewColumnAction struct {
-	Column        Ident
-	Action        AlterViewAction
-	MaskingPolicy *ObjectName      // SET MASKING POLICY p
-	MaskingUsing  []Ident          // USING (col, ...)
-	Force         bool             // FORCE after SET MASKING POLICY
-	Tags          []*TagAssignment // SET TAG (...)
-	UnsetTags     []*ObjectName    // UNSET TAG (...)
-	Loc           Loc
+	Column           Ident
+	Action           AlterViewAction
+	MaskingPolicy    *ObjectName      // SET MASKING POLICY p
+	MaskingUsing     []Ident          // USING (col, ...)
+	ProjectionPolicy *ObjectName      // SET PROJECTION POLICY p
+	Force            bool             // FORCE after SET MASKING / PROJECTION POLICY
+	Tags             []*TagAssignment // SET TAG (...)
+	UnsetTags        []*ObjectName    // UNSET TAG (...)
+	Loc              Loc
 }
 
 // Tag implements Node.
@@ -2256,6 +2350,9 @@ const (
 	AlterMVUnsetSecure                                          // UNSET SECURE
 	AlterMVSetComment                                           // SET COMMENT = '...'
 	AlterMVUnsetComment                                         // UNSET COMMENT
+	AlterMVSetContact                                           // SET CONTACT purpose = contact [, ...] [COMMENT = '...']
+	AlterMVUnsetContact                                         // UNSET CONTACT purpose
+	AlterMVDataMetric                                           // SET / UNSET DATA_METRIC_SCHEDULE (see DataMetric)
 )
 
 // AlterMaterializedViewStmt represents ALTER MATERIALIZED VIEW ... (all action variants).
@@ -2268,7 +2365,11 @@ type AlterMaterializedViewStmt struct {
 	Linear    bool        // CLUSTER BY LINEAR modifier
 	Comment   *string     // SET COMMENT = '...'
 	Secure    bool        // true = SET SECURE; false = UNSET SECURE (check Action)
-	Loc       Loc
+	// Contact is the verbatim `purpose = contact [, ...]` of SET [SECURE]
+	// CONTACT, or the purpose of UNSET CONTACT.
+	Contact    string
+	DataMetric *DataMetricAction // AlterMVDataMetric
+	Loc        Loc
 }
 
 // Tag implements Node.
@@ -2284,46 +2385,69 @@ var _ Node = (*AlterMaterializedViewStmt)(nil)
 type AlterTableActionKind int
 
 const (
-	AlterTableRename                   AlterTableActionKind = iota // RENAME TO new_name
-	AlterTableSwapWith                                             // SWAP WITH other_table
-	AlterTableAddColumn                                            // ADD [COLUMN] [IF NOT EXISTS] col_def [, ...]
-	AlterTableDropColumn                                           // DROP [COLUMN] [IF EXISTS] col [, ...]
-	AlterTableRenameColumn                                         // RENAME COLUMN old TO new
-	AlterTableAlterColumn                                          // ALTER/MODIFY COLUMN col ...
-	AlterTableAddConstraint                                        // ADD [CONSTRAINT name] PK/UK/FK
-	AlterTableDropConstraint                                       // DROP CONSTRAINT name | DROP PRIMARY KEY | DROP UNIQUE
-	AlterTableRenameConstraint                                     // RENAME CONSTRAINT old TO new
-	AlterTableClusterBy                                            // CLUSTER BY [LINEAR] (exprs)
-	AlterTableDropClusterKey                                       // DROP CLUSTERING KEY
-	AlterTableRecluster                                            // RECLUSTER [MAX_SIZE = n] [WHERE expr]
-	AlterTableSuspendRecluster                                     // SUSPEND RECLUSTER
-	AlterTableResumeRecluster                                      // RESUME RECLUSTER
-	AlterTableSet                                                  // SET properties
-	AlterTableUnset                                                // UNSET properties
-	AlterTableSetTag                                               // SET TAG (...)
-	AlterTableUnsetTag                                             // UNSET TAG (...)
-	AlterTableAddRowAccessPolicy                                   // ADD ROW ACCESS POLICY name ON (cols)
-	AlterTableDropRowAccessPolicy                                  // DROP ROW ACCESS POLICY name
-	AlterTableDropAllRowAccessPolicies                             // DROP ALL ROW ACCESS POLICIES
-	AlterTableAddSearchOpt                                         // ADD SEARCH OPTIMIZATION [ON ...]
-	AlterTableDropSearchOpt                                        // DROP SEARCH OPTIMIZATION [ON ...]
-	AlterTableSetMaskingPolicy                                     // ALTER/MODIFY COLUMN col SET MASKING POLICY
-	AlterTableUnsetMaskingPolicy                                   // ALTER/MODIFY COLUMN col UNSET MASKING POLICY
-	AlterTableSetColumnTag                                         // ALTER/MODIFY col SET TAG (...)
-	AlterTableUnsetColumnTag                                       // ALTER/MODIFY col UNSET TAG (...)
+	AlterTableRename                     AlterTableActionKind = iota // RENAME TO new_name
+	AlterTableSwapWith                                               // SWAP WITH other_table
+	AlterTableAddColumn                                              // ADD [COLUMN] [IF NOT EXISTS] col_def [, ...]
+	AlterTableDropColumn                                             // DROP [COLUMN] [IF EXISTS] col [, ...]
+	AlterTableRenameColumn                                           // RENAME COLUMN old TO new
+	AlterTableAlterColumn                                            // ALTER/MODIFY COLUMN col ...
+	AlterTableAddConstraint                                          // ADD [CONSTRAINT name] PK/UK/FK
+	AlterTableDropConstraint                                         // DROP CONSTRAINT name | DROP PRIMARY KEY | DROP UNIQUE
+	AlterTableRenameConstraint                                       // RENAME CONSTRAINT old TO new
+	AlterTableClusterBy                                              // CLUSTER BY [LINEAR] (exprs)
+	AlterTableDropClusterKey                                         // DROP CLUSTERING KEY
+	AlterTableRecluster                                              // RECLUSTER [MAX_SIZE = n] [WHERE expr]
+	AlterTableSuspendRecluster                                       // SUSPEND RECLUSTER
+	AlterTableResumeRecluster                                        // RESUME RECLUSTER
+	AlterTableSet                                                    // SET properties
+	AlterTableUnset                                                  // UNSET properties
+	AlterTableSetTag                                                 // SET TAG (...)
+	AlterTableUnsetTag                                               // UNSET TAG (...)
+	AlterTableAddRowAccessPolicy                                     // ADD ROW ACCESS POLICY name ON (cols)
+	AlterTableDropRowAccessPolicy                                    // DROP ROW ACCESS POLICY name
+	AlterTableDropAllRowAccessPolicies                               // DROP ALL ROW ACCESS POLICIES
+	AlterTableAddSearchOpt                                           // ADD SEARCH OPTIMIZATION [ON ...]
+	AlterTableDropSearchOpt                                          // DROP SEARCH OPTIMIZATION [ON ...]
+	AlterTableSetMaskingPolicy                                       // ALTER/MODIFY COLUMN col SET MASKING POLICY
+	AlterTableUnsetMaskingPolicy                                     // ALTER/MODIFY COLUMN col UNSET MASKING POLICY
+	AlterTableSetColumnTag                                           // ALTER/MODIFY col SET TAG (...)
+	AlterTableUnsetColumnTag                                         // ALTER/MODIFY col UNSET TAG (...)
+	AlterTableAlterConstraint                                        // ALTER/MODIFY {CONSTRAINT n | PRIMARY KEY | UNIQUE | FOREIGN KEY} (cols) props
+	AlterTableSetAggregationPolicy                                   // SET AGGREGATION POLICY p [ENTITY KEY (cols)] [FORCE]
+	AlterTableUnsetAggregationPolicy                                 // UNSET AGGREGATION POLICY
+	AlterTableSetJoinPolicy                                          // SET JOIN POLICY p [FORCE]
+	AlterTableUnsetJoinPolicy                                        // UNSET JOIN POLICY
+	AlterTableSetProjectionPolicy                                    // ALTER/MODIFY [COLUMN] col SET PROJECTION POLICY p [FORCE]
+	AlterTableUnsetProjectionPolicy                                  // ALTER/MODIFY [COLUMN] col UNSET PROJECTION POLICY
+	AlterTableAddStorageLifecyclePolicy                              // ADD STORAGE LIFECYCLE POLICY p ON (cols)
+	AlterTableDropStorageLifecyclePolicy                             // DROP STORAGE LIFECYCLE POLICY
+	AlterTableDataMetric                                             // data metric function action (see DataMetric)
+	AlterTableRefresh                                                // ICEBERG: REFRESH ['<path>']
+	AlterTableConvertToManaged                                       // ICEBERG: CONVERT TO MANAGED [options]
+	AlterTableOptimize                                               // ICEBERG: OPTIMIZE (REMOVE_POSITION_DELETES)
+	AlterTableAddPartitionBy                                         // ICEBERG: ADD PARTITION BY (expr)
+	AlterTableDropPartitionBy                                        // ICEBERG: DROP PARTITION BY (expr)
+	AlterTableReplacePartitionBy                                     // ICEBERG: REPLACE PARTITION BY (expr) WITH (expr)
+	AlterTableCreateVersionTag                                       // ICEBERG: CREATE [OR REPLACE] VERSION_TAG [IF NOT EXISTS] n [AS OF ...]
+	AlterTableAlterVersionTag                                        // ICEBERG: ALTER VERSION_TAG n AS OF ...
+	AlterTableReplaceVersionTag                                      // ICEBERG: REPLACE VERSION_TAG n AS OF ... [RETAIN ...]
+	AlterTableDropVersionTag                                         // ICEBERG: DROP VERSION_TAG [IF EXISTS] n
+	AlterTableUpgradeIcebergVersion                                  // ICEBERG: UPGRADE TO ICEBERG VERSION n
 )
 
 // ColumnAlterKind discriminates the sub-action inside ALTER/MODIFY COLUMN.
 type ColumnAlterKind int
 
 const (
-	ColumnAlterSetDataType  ColumnAlterKind = iota // SET DATA TYPE t | TYPE t | t
-	ColumnAlterSetDefault                          // SET DEFAULT expr
-	ColumnAlterDropDefault                         // DROP DEFAULT
-	ColumnAlterSetNotNull                          // SET NOT NULL
-	ColumnAlterDropNotNull                         // DROP NOT NULL
-	ColumnAlterSetComment                          // COMMENT 'text'
-	ColumnAlterUnsetComment                        // UNSET COMMENT
+	ColumnAlterSetDataType      ColumnAlterKind = iota // SET DATA TYPE t | TYPE t | t
+	ColumnAlterSetDefault                              // SET DEFAULT expr
+	ColumnAlterDropDefault                             // DROP DEFAULT
+	ColumnAlterSetNotNull                              // SET NOT NULL
+	ColumnAlterDropNotNull                             // DROP NOT NULL
+	ColumnAlterSetComment                              // COMMENT 'text'
+	ColumnAlterUnsetComment                            // UNSET COMMENT
+	ColumnAlterSetWriteDefault                         // ICEBERG: SET WRITE DEFAULT expr
+	ColumnAlterDropWriteDefault                        // ICEBERG: DROP WRITE DEFAULT
 )
 
 // ColumnAlter holds the specification for a single ALTER/MODIFY COLUMN
@@ -2334,8 +2458,10 @@ type ColumnAlter struct {
 	Column      Ident // column being altered
 	Kind        ColumnAlterKind
 	DataType    *TypeName // for ColumnAlterSetDataType
-	DefaultExpr Node      // for ColumnAlterSetDefault
+	DefaultExpr Node      // for ColumnAlterSetDefault / ColumnAlterSetWriteDefault
 	Comment     *string   // for ColumnAlterSetComment
+	// RenameFields is the ICEBERG SET DATA TYPE ... RENAME FIELDS suffix.
+	RenameFields bool
 }
 
 // TableProp is a single SET property key=value pair used in ALTER TABLE SET.
@@ -2412,11 +2538,110 @@ type AlterTableAction struct {
 	// --- Column tag (ALTER/MODIFY col SET/UNSET TAG) ---
 	TagColumn Ident // column for SetColumnTag / UnsetColumnTag
 
+	// Continuation marks a column action that continues the previous ALTER /
+	// MODIFY column list without repeating the verb: the second action of
+	// ALTER a SET TAG t = 'v', b UNSET TAG u.
+	Continuation bool
+
+	// --- AlterConstraint ---
+	// ConstraintTarget is "PRIMARY KEY", "UNIQUE" or "FOREIGN KEY"; it is empty
+	// when ConstraintName names the constraint.
+	ConstraintTarget string
+	ConstraintCols   []Ident  // (cols) after the target
+	ConstraintProps  []string // [NOT] ENFORCED, VALIDATE|NOVALIDATE, RELY|NORELY, uppercased
+
+	// --- Aggregation / join policy (PolicyName holds the name) ---
+	PolicyKeyCols []Ident // SET AGGREGATION POLICY ... ENTITY KEY (cols)
+	PolicyForce   bool    // trailing FORCE
+
+	// --- Projection policy (column-level) ---
+	ProjectionColumn Ident       // column for SET/UNSET PROJECTION POLICY
+	ProjectionPolicy *ObjectName // SET PROJECTION POLICY target
+
+	// --- Data metric functions ---
+	DataMetric *DataMetricAction
+
+	// --- ICEBERG ---
+	RefreshPath    *string       // REFRESH '<path>'
+	Options        []*CopyOption // CONVERT TO MANAGED options
+	OptimizeOps    []string      // OPTIMIZE (op, ...), uppercased
+	Partition      Node          // PARTITION BY ( expr ): a ColumnRef or a transform FuncCallExpr
+	NewPartition   Node          // REPLACE PARTITION BY (...) WITH ( new )
+	VersionTag     *ObjectName   // VERSION_TAG name
+	OrReplace      bool          // CREATE OR REPLACE VERSION_TAG
+	AsOfKind       string        // "VERSION" or "TIMESTAMP"; empty without AS OF
+	AsOfValue      string        // raw AS OF value
+	RetainCount    *int64        // RETAIN n
+	RetainUnit     string        // DAYS | HOURS | MINUTES
+	IcebergVersion string        // UPGRADE TO ICEBERG VERSION n
+
 	Loc Loc
+}
+
+// DataMetricActionKind discriminates the data metric function actions that
+// ALTER TABLE, ALTER VIEW, ALTER DYNAMIC TABLE and ALTER MATERIALIZED VIEW share.
+type DataMetricActionKind int
+
+const (
+	DataMetricSetSchedule   DataMetricActionKind = iota // SET DATA_METRIC_SCHEDULE = '...'
+	DataMetricUnsetSchedule                             // UNSET DATA_METRIC_SCHEDULE
+	DataMetricAdd                                       // ADD DATA METRIC FUNCTION ...
+	DataMetricDrop                                      // DROP DATA METRIC FUNCTION ...
+	DataMetricModify                                    // MODIFY DATA METRIC FUNCTION ...
+)
+
+// DataMetricModifyKind is what a MODIFY DATA METRIC FUNCTION clause changes.
+type DataMetricModifyKind int
+
+const (
+	DataMetricModifyNone              DataMetricModifyKind = iota // not a MODIFY clause
+	DataMetricModifySuspend                                       // SUSPEND
+	DataMetricModifyResume                                        // RESUME
+	DataMetricModifyAddExpectation                                // ADD EXPECTATION e (expr) [, ...]
+	DataMetricModifyModifyExpectation                             // MODIFY EXPECTATION e (expr) [, ...]
+	DataMetricModifyDropExpectation                               // DROP EXPECTATION e [, ...]
+	DataMetricModifyFilter                                        // FILTER ( [expr] )
+	DataMetricModifySet                                           // SET ANOMALY_DETECTION = ... | SENSITIVITY = ... | ...
+)
+
+// DataMetricAction is a data metric function action. It is NOT a Node.
+type DataMetricAction struct {
+	Kind      DataMetricActionKind
+	Schedule  string                      // SET DATA_METRIC_SCHEDULE value (string contents)
+	Functions []*DataMetricFunctionClause // ADD / DROP / MODIFY clauses
+	Loc       Loc
+}
+
+// DataMetricFunctionClause is one `<metric> [ ON ( <args> ) ] ...` entry of an
+// ADD, DROP or MODIFY DATA METRIC FUNCTION action. It is NOT a Node.
+type DataMetricFunctionClause struct {
+	Name         *ObjectName
+	HasOn        bool    // an ON ( ... ) argument list was written
+	Columns      []Ident // ON ( col, ... )
+	RefTable     *ObjectName
+	RefColumns   []Ident // ON ( ..., TABLE t ( col, ... ) )
+	WithinGroup  []Ident // WITHIN GROUP ( col, ... )
+	GroupLimit   *int64  // GROUP LIMIT n
+	Filter       Node    // FILTER ( expr ); nil for FILTER ( )
+	HasFilter    bool    // a FILTER clause was written
+	Expectations []*DataMetricExpectation
+	ExecuteAs    Ident         // EXECUTE AS ROLE r
+	Options      []*CopyOption // ANOMALY_DETECTION / SENSITIVITY / DATA_QUALITY_NOTIFICATION
+	Modify       DataMetricModifyKind
+	Loc          Loc
+}
+
+// DataMetricExpectation is one `<name> ( <boolean_expr> )` expectation, or a
+// bare name in DROP EXPECTATION. It is NOT a Node.
+type DataMetricExpectation struct {
+	Name Ident
+	Expr Node // nil for DROP EXPECTATION
+	Loc  Loc
 }
 
 // AlterTableStmt represents ALTER TABLE [IF EXISTS] name action [, action ...].
 type AlterTableStmt struct {
+	Iceberg  bool // ALTER ICEBERG TABLE
 	IfExists bool
 	Name     *ObjectName
 	Actions  []*AlterTableAction
@@ -5034,7 +5259,24 @@ type CreateDynamicTableStmt struct {
 	AsQuery        Node          // AS <query>; nil for the CLONE / REFRESH USING forms
 	RefreshUsing   Node          // REFRESH USING ( <dml_statement> ); nil otherwise
 	Clone          *CloneSource  // CLONE <source>; non-nil only for the CLONE form
-	Loc            Loc
+	// PartitionBy is a dynamic Iceberg table's PARTITION BY ( ... ): each item
+	// a *ColumnRef or a transform *FuncCallExpr (BUCKET / TRUNCATE / YEAR /
+	// MONTH / DAY / HOUR); nil if absent.
+	PartitionBy []Node
+	CopyGrants  bool // COPY GRANTS or COPY = ( ... GRANTS ... )
+	// StartAtKind is START AT's selector, "STREAM" / "TIMESTAMP" /
+	// "STATEMENT" / "OFFSET", and StartAt its value; empty / nil if absent.
+	StartAtKind string
+	StartAt     Node
+	// ExecuteAsUser is EXECUTE AS USER <user>; zero if absent.
+	ExecuteAsUser Ident
+	// USE SECONDARY ROLES { ALL | NONE | <role> [ , ... ] } after EXECUTE AS
+	// USER: SecondaryRolesKeyword is "ALL" or "NONE", or SecondaryRoles the
+	// roles; both empty if absent.
+	SecondaryRolesKeyword string
+	SecondaryRoles        []Ident
+	FromBackup            *BackupSource // FROM BACKUP SET <set> IDENTIFIER '<id>'; nil if absent
+	Loc                   Loc
 }
 
 // Tag implements Node.
@@ -5044,17 +5286,31 @@ func (n *CreateDynamicTableStmt) Tag() NodeTag { return T_CreateDynamicTableStmt
 type AlterDynamicTableAction int
 
 const (
-	AlterDynamicTableSuspend           AlterDynamicTableAction = iota // SUSPEND
-	AlterDynamicTableResume                                           // RESUME
-	AlterDynamicTableRefresh                                          // REFRESH [ COPY SESSION ]
-	AlterDynamicTableRename                                           // RENAME TO <new_name>
-	AlterDynamicTableSwap                                             // SWAP WITH <other_name>
-	AlterDynamicTableSet                                              // SET <settable params>
-	AlterDynamicTableUnset                                            // UNSET <property> [, ...]
-	AlterDynamicTableSetTag                                           // SET TAG <tag> = '<value>' [, ...]
-	AlterDynamicTableUnsetTag                                         // UNSET TAG <tag> [, ...]
-	AlterDynamicTableClusterBy                                        // CLUSTER BY ( exprs )
-	AlterDynamicTableDropClusteringKey                                // DROP CLUSTERING KEY
+	AlterDynamicTableSuspend                    AlterDynamicTableAction = iota // SUSPEND
+	AlterDynamicTableResume                                                    // RESUME
+	AlterDynamicTableRefresh                                                   // REFRESH [ COPY SESSION ]
+	AlterDynamicTableRename                                                    // RENAME TO <new_name>
+	AlterDynamicTableSwap                                                      // SWAP WITH <other_name>
+	AlterDynamicTableSet                                                       // SET <settable params>
+	AlterDynamicTableUnset                                                     // UNSET <property> [, ...]
+	AlterDynamicTableSetTag                                                    // SET TAG <tag> = '<value>' [, ...]
+	AlterDynamicTableUnsetTag                                                  // UNSET TAG <tag> [, ...]
+	AlterDynamicTableClusterBy                                                 // CLUSTER BY ( exprs )
+	AlterDynamicTableDropClusteringKey                                         // DROP CLUSTERING KEY
+	AlterDynamicTableSuspendRecluster                                          // SUSPEND RECLUSTER
+	AlterDynamicTableResumeRecluster                                           // RESUME RECLUSTER
+	AlterDynamicTableAddRowAccessPolicy                                        // ADD ROW ACCESS POLICY p ON (cols)
+	AlterDynamicTableDropRowAccessPolicy                                       // DROP ROW ACCESS POLICY p [, ADD ROW ACCESS POLICY p2 ON (cols)]
+	AlterDynamicTableDropAllRowAccessPolicies                                  // DROP ALL ROW ACCESS POLICIES
+	AlterDynamicTableSetAggregationPolicy                                      // SET AGGREGATION POLICY p [ENTITY KEY (cols)] [FORCE]
+	AlterDynamicTableUnsetAggregationPolicy                                    // UNSET AGGREGATION POLICY
+	AlterDynamicTableColumn                                                    // { ALTER | MODIFY } column policy / tag actions
+	AlterDynamicTableAddSearchOpt                                              // ADD SEARCH OPTIMIZATION [ON ...]
+	AlterDynamicTableDropSearchOpt                                             // DROP SEARCH OPTIMIZATION [ON ...]
+	AlterDynamicTableSuspendSearchOpt                                          // SUSPEND SEARCH OPTIMIZATION [ON ...]
+	AlterDynamicTableResumeSearchOpt                                           // RESUME SEARCH OPTIMIZATION [ON ...]
+	AlterDynamicTableAddStorageLifecyclePolicy                                 // ADD STORAGE LIFECYCLE POLICY p ON (cols)
+	AlterDynamicTableDropStorageLifecyclePolicy                                // DROP STORAGE LIFECYCLE POLICY
 )
 
 // AlterDynamicTableStmt represents ALTER DYNAMIC TABLE [ IF EXISTS ] <name> <action>.
@@ -5083,7 +5339,25 @@ type AlterDynamicTableStmt struct {
 	ClusterBy          []Node           // CLUSTER BY exprs; for AlterDynamicTableClusterBy
 	Linear             bool             // CLUSTER BY LINEAR modifier
 	RefreshCopySession bool             // REFRESH COPY SESSION; for AlterDynamicTableRefresh
-	Loc                Loc
+	// MoreNames are the further tables of ALTER DYNAMIC TABLE a, b REFRESH.
+	MoreNames []*ObjectName
+	// Row access / aggregation / storage lifecycle policies.
+	PolicyName    *ObjectName
+	PolicyCols    []Ident     // ON (cols)
+	AddPolicyName *ObjectName // DROP ROW ACCESS POLICY p, ADD ROW ACCESS POLICY p2 ON (cols)
+	AddPolicyCols []Ident
+	PolicyKeyCols []Ident // ENTITY KEY (cols)
+	PolicyForce   bool
+	// ColumnActions is the comma-separated { ALTER | MODIFY } column action
+	// list; for AlterDynamicTableColumn.
+	ColumnActions []*AlterViewColumnAction
+	SearchOptOn   []string // SEARCH OPTIMIZATION ON targets (verbatim); nil without ON
+	// SET properties that are not KEY = value pairs.
+	Contact        string   // CONTACT ( purpose = contact [, ...] ), verbatim
+	FrozenWhere    Node     // FROZEN WHERE ( expr )
+	ExecuteAsUser  *Ident   // EXECUTE AS USER u
+	SecondaryRoles []string // USE SECONDARY ROLES { ALL | NONE | r [, ...] }
+	Loc            Loc
 }
 
 // Tag implements Node.
@@ -5226,6 +5500,7 @@ type CreateEventTableStmt struct {
 	Options     []*CopyOption    // DATA_RETENTION_TIME_IN_DAYS / CHANGE_TRACKING / COMMENT / ...
 	CopyGrants  bool             // COPY GRANTS
 	Tags        []*TagAssignment // [WITH] TAG (...); nil if absent
+	Clone       *CloneSource     // CLONE <source> [ { AT | BEFORE } ( ... ) ]; nil if absent
 	Loc         Loc
 }
 

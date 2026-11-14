@@ -1575,6 +1575,8 @@ type CreateTableStmt struct {
 	Private          bool             // PRIVATE TEMPORARY
 	Sharded          bool             // SHARDED
 	Duplicated       bool             // DUPLICATED
+	Immutable        bool             // IMMUTABLE
+	Blockchain       bool             // BLOCKCHAIN
 	Name             *ObjectName      // table name
 	Sharing          string           // SHARING = { METADATA | DATA | EXTENDED DATA | NONE }
 	Columns          *List            // column definitions (list of *ColumnDef)
@@ -3616,6 +3618,7 @@ func (n *AlterTablespaceStmt) stmtNode() {}
 // CreateTablespaceSetStmt represents a CREATE TABLESPACE SET statement.
 type CreateTablespaceSetStmt struct {
 	Name          *ObjectName       // tablespace set name
+	IfNotExists   bool              // IF NOT EXISTS
 	Shardspace    string            // IN SHARDSPACE name
 	Datafiles     []*DatafileClause // DATAFILE clauses in USING TEMPLATE
 	Logging       string            // LOGGING / NOLOGGING / FILESYSTEM_LIKE_LOGGING

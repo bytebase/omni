@@ -152,6 +152,16 @@ func (*CodeBlock) nodeTag()      {}
 func (n *CodeBlock) GetLoc() Loc { return n.Loc }
 func (*CodeBlock) exprNode()     {}
 
+// DurationLit is a duration constant such as 1h30m, or -1d after a minus.
+type DurationLit struct {
+	Val string
+	Loc Loc
+}
+
+func (*DurationLit) nodeTag()      {}
+func (n *DurationLit) GetLoc() Loc { return n.Loc }
+func (*DurationLit) exprNode()     {}
+
 // ---------------------------------------------------------------------------
 // Collection literals
 // ---------------------------------------------------------------------------
@@ -230,10 +240,11 @@ func (*BinaryExpr) nodeTag()      {}
 func (n *BinaryExpr) GetLoc() Loc { return n.Loc }
 func (*BinaryExpr) exprNode()     {}
 
-// InExpr represents col IN (val1, val2, ...).
+// InExpr represents col IN (val1, val2, ...), or col IN ? with Marker set.
 type InExpr struct {
 	Column ExprNode
 	Values []ExprNode
+	Marker *BindMarker // IN ? or IN :name; Values is then empty
 	Loc    Loc
 }
 
@@ -253,11 +264,13 @@ func (*ContainsExpr) nodeTag()      {}
 func (n *ContainsExpr) GetLoc() Loc { return n.Loc }
 func (*ContainsExpr) exprNode()     {}
 
-// TupleCompareExpr represents (col1, col2) op (val1, val2).
+// TupleCompareExpr represents (col1, col2) op (val1, val2), or
+// (col1, col2) op ? with Marker set.
 type TupleCompareExpr struct {
 	Columns []ExprNode
 	Op      string
 	Values  []ExprNode
+	Marker  *BindMarker // a marker for the whole tuple; Values is then empty
 	Loc     Loc
 }
 
@@ -265,10 +278,14 @@ func (*TupleCompareExpr) nodeTag()      {}
 func (n *TupleCompareExpr) GetLoc() Loc { return n.Loc }
 func (*TupleCompareExpr) exprNode()     {}
 
-// TupleInExpr represents (col1, col2) IN ((v1, v2), (v3, v4)).
+// TupleInExpr represents (col1, col2) IN ((v1, v2), (v3, v4)), or
+// (col1, col2) IN (?, ?) with Markers set, or (col1, col2) IN ? with Marker
+// set. (col1, col2) IN () sets none of them.
 type TupleInExpr struct {
 	Columns []ExprNode
 	Tuples  []*TupleLit
+	Marker  *BindMarker   // IN ? or IN :name
+	Markers []*BindMarker // IN (?, :name, ...): one marker per tuple
 	Loc     Loc
 }
 
@@ -286,6 +303,65 @@ type IndexAccess struct {
 func (*IndexAccess) nodeTag()      {}
 func (n *IndexAccess) GetLoc() Loc { return n.Loc }
 func (*IndexAccess) exprNode()     {}
+
+// SliceAccess represents a slice of a collection in a selector:
+// col[from..to], col[from..] or col[..to]. From or To is nil when omitted.
+type SliceAccess struct {
+	Collection ExprNode
+	From       ExprNode
+	To         ExprNode
+	Loc        Loc
+}
+
+func (*SliceAccess) nodeTag()      {}
+func (n *SliceAccess) GetLoc() Loc { return n.Loc }
+func (*SliceAccess) exprNode()     {}
+
+// UnaryExpr represents a negation, - expr, of something other than a number
+// literal: a minus before a number is folded into the literal.
+type UnaryExpr struct {
+	Op      string // "-"
+	Operand ExprNode
+	Loc     Loc
+}
+
+func (*UnaryExpr) nodeTag()      {}
+func (n *UnaryExpr) GetLoc() Loc { return n.Loc }
+func (*UnaryExpr) exprNode()     {}
+
+// TypeHintExpr represents (type) expr, which tells Cassandra the type of a
+// term or selector, as in (int) ? or (text) 'a'.
+type TypeHintExpr struct {
+	Type *DataType
+	Expr ExprNode
+	Loc  Loc
+}
+
+func (*TypeHintExpr) nodeTag()      {}
+func (n *TypeHintExpr) GetLoc() Loc { return n.Loc }
+func (*TypeHintExpr) exprNode()     {}
+
+// IsNotNullExpr represents the relation col IS NOT NULL.
+type IsNotNullExpr struct {
+	Column ExprNode
+	Loc    Loc
+}
+
+func (*IsNotNullExpr) nodeTag()      {}
+func (n *IsNotNullExpr) GetLoc() Loc { return n.Loc }
+func (*IsNotNullExpr) exprNode()     {}
+
+// CustomIndexExpr represents expr(index_name, term) in WHERE, a query on a
+// custom index.
+type CustomIndexExpr struct {
+	Index *Identifier
+	Value ExprNode
+	Loc   Loc
+}
+
+func (*CustomIndexExpr) nodeTag()      {}
+func (n *CustomIndexExpr) GetLoc() Loc { return n.Loc }
+func (*CustomIndexExpr) exprNode()     {}
 
 // DotAccess represents keyspace.table or similar dotted access in FROM.
 type DotAccess struct {
@@ -337,6 +413,7 @@ type DataType struct {
 	Name       *Identifier
 	TypeParams []*DataType
 	Dimension  *IntegerLit // for VECTOR<type, dimension>
+	Keyspace   *Identifier // the keyspace of a qualified user-defined type, ks.name
 	Loc        Loc
 }
 
@@ -353,11 +430,23 @@ type ColumnDef struct {
 	Type       *DataType
 	PrimaryKey bool
 	Static     bool
+	Mask       *ColumnMask // MASKED WITH ..., nil when the column has none
 	Loc        Loc
 }
 
 func (*ColumnDef) nodeTag()      {}
 func (n *ColumnDef) GetLoc() Loc { return n.Loc }
+
+// ColumnMask is a column's MASKED WITH DEFAULT or MASKED WITH fn(args).
+type ColumnMask struct {
+	Default  bool           // MASKED WITH DEFAULT
+	Function *QualifiedName // the masking function, nil for DEFAULT
+	Args     []ExprNode
+	Loc      Loc
+}
+
+func (*ColumnMask) nodeTag()      {}
+func (n *ColumnMask) GetLoc() Loc { return n.Loc }
 
 // PrimaryKeyDef represents a PRIMARY KEY definition.
 type PrimaryKeyDef struct {
@@ -422,19 +511,23 @@ func (n *SelectElement) GetLoc() Loc { return n.Loc }
 type AssignmentElement struct {
 	Target   ExprNode
 	Value    ExprNode
-	Operator string // "=", "+=", "-=" (desugared from col = col + val)
+	Operator string // "=", or "+" / "-" for col = col + val, col = val + col, col += val and col -= val
 	Loc      Loc
 }
 
 func (*AssignmentElement) nodeTag()      {}
 func (n *AssignmentElement) GetLoc() Loc { return n.Loc }
 
-// IfCondition represents a LWT condition: col op value, col IN (...), col CONTAINS [KEY] value.
+// IfCondition represents a LWT condition: col op value, col IN (...), col CONTAINS [KEY] value,
+// on a column, an element of one (col[elem]) or a field of one (col.field).
 type IfCondition struct {
 	Column   *Identifier
 	Op       string // comparison operator, "IN", "CONTAINS", "CONTAINS KEY"
 	Value    ExprNode
-	InValues []ExprNode // for IN conditions
+	InValues []ExprNode  // for IN conditions
+	InMarker *BindMarker // for IN ? and IN :name
+	Element  ExprNode    // the element of col[elem] op value
+	Field    *Identifier // the field of col.field op value
 	Loc      Loc
 }
 
@@ -457,9 +550,11 @@ type OrderByElement struct {
 	Direction string // "ASC", "DESC", or ""
 	// ANN OF support
 	IsANN     bool
-	AnnVector ExprNode
-	AnnLimit  ExprNode
-	Loc       Loc
+	AnnVector ExprNode // the term after ANN OF; a list literal is a VectorLit
+	// AnnLimit is never set: a LIMIT after ANN OF is the statement's LIMIT
+	// (Parser.g:466).
+	AnnLimit ExprNode
+	Loc      Loc
 }
 
 func (*OrderByElement) nodeTag()      {}
@@ -578,8 +673,9 @@ func (*UseStmt) stmtNode()     {}
 type CreateKeyspaceStmt struct {
 	IfNotExists   bool
 	Name          *Identifier
-	Replication   *OptionHash
-	DurableWrites *BoolLit
+	Replication   *OptionHash // the value of the replication property, when it is a map
+	DurableWrites *BoolLit    // the value of the durable_writes property, when it is a boolean
+	Options       []*TableOption
 	Loc           Loc
 }
 
@@ -590,8 +686,9 @@ func (*CreateKeyspaceStmt) stmtNode()     {}
 type AlterKeyspaceStmt struct {
 	IfExists      bool
 	Name          *Identifier
-	Replication   *OptionHash
-	DurableWrites *BoolLit
+	Replication   *OptionHash // the value of the replication property, when it is a map
+	DurableWrites *BoolLit    // the value of the durable_writes property, when it is a boolean
+	Options       []*TableOption
 	Loc           Loc
 }
 
@@ -633,6 +730,8 @@ const (
 	AlterTableRename
 	AlterTableWith
 	AlterTableDropCompactStorage
+	AlterTableAlterType // ALTER col TYPE type
+	AlterTableMask      // ALTER [IF EXISTS] col MASKED WITH ... | DROP MASKED
 )
 
 type AlterTableStmt struct {
@@ -646,6 +745,12 @@ type AlterTableStmt struct {
 	RenameIfExists bool
 	RenameItems    []*AlterTableRenameItem
 	Options        []*TableOption
+	AlterColumn    *Identifier // ALTER col TYPE and ALTER col MASKED
+	AlterType      *DataType
+	MaskIfExists   bool
+	Mask           *ColumnMask // nil for DROP MASKED
+	DropMask       bool
+	DropTimestamp  ExprNode // DROP ... USING TIMESTAMP n
 	Loc            Loc
 }
 
@@ -677,9 +782,11 @@ type CreateIndexStmt struct {
 	IfNotExists bool
 	IndexName   *Identifier
 	Table       *QualifiedName
-	Column      ExprNode // Identifier or FunctionCall (e.g., FULL(col))
+	Column      ExprNode   // the first target: Identifier or FunctionCall (e.g., FULL(col)); nil for ON t()
+	Columns     []ExprNode // every target, in order
 	UsingClass  ExprNode
-	Options     *OptionHash
+	Options     *OptionHash // the value of the options property, when it is a map
+	Properties  []*TableOption
 	Loc         Loc
 }
 
@@ -840,7 +947,8 @@ type CreateAggregateStmt struct {
 	OrReplace   bool
 	IfNotExists bool
 	Name        *QualifiedName
-	ParamType   *DataType
+	ParamType   *DataType   // the first argument type, nil for a()
+	ParamTypes  []*DataType // every argument type
 	SFunc       *Identifier
 	SType       *DataType
 	FinalFunc   *Identifier
@@ -968,10 +1076,11 @@ func (n *DropUserStmt) GetLoc() Loc { return n.Loc }
 func (*DropUserStmt) stmtNode()     {}
 
 type GrantStmt struct {
-	Privilege string
-	Resource  *Resource
-	Role      *Identifier
-	Loc       Loc
+	Privilege  string   // the permissions as written, joined by ", "
+	Privileges []string // each permission, or "ALL"
+	Resource   *Resource
+	Role       *Identifier
+	Loc        Loc
 }
 
 func (*GrantStmt) nodeTag()      {}
@@ -979,10 +1088,11 @@ func (n *GrantStmt) GetLoc() Loc { return n.Loc }
 func (*GrantStmt) stmtNode()     {}
 
 type RevokeStmt struct {
-	Privilege string
-	Resource  *Resource
-	Role      *Identifier
-	Loc       Loc
+	Privilege  string   // the permissions as written, joined by ", "
+	Privileges []string // each permission, or "ALL"
+	Resource   *Resource
+	Role       *Identifier
+	Loc        Loc
 }
 
 func (*RevokeStmt) nodeTag()      {}
@@ -1011,7 +1121,7 @@ func (*RevokeRoleStmt) stmtNode()     {}
 
 // Resource represents a CQL resource (ALL KEYSPACES, KEYSPACE ks, TABLE ks.t, etc.)
 type Resource struct {
-	Type     string // "ALL KEYSPACES", "KEYSPACE", "TABLE", "ALL FUNCTIONS", "FUNCTION", "ALL ROLES", "ROLE", "ALL MBEANS", "MBEAN", "MBEANS"
+	Type     string // "ALL KEYSPACES", "KEYSPACE", "TABLE", "ALL TABLES IN KEYSPACE", "ALL FUNCTIONS", "ALL FUNCTIONS IN KEYSPACE", "FUNCTION", "ALL ROLES", "ROLE", "ALL MBEANS", "MBEAN", "MBEANS"
 	Name     *QualifiedName
 	ArgTypes []*DataType // for FUNCTION resource with type signature
 	Loc      Loc
@@ -1021,10 +1131,12 @@ func (*Resource) nodeTag()      {}
 func (n *Resource) GetLoc() Loc { return n.Loc }
 
 type ListPermissionsStmt struct {
-	Privilege string
-	Resource  *Resource
-	Role      *Identifier
-	Loc       Loc
+	Privilege   string   // the permissions as written, joined by ", "
+	Privileges  []string // each permission, or "ALL"
+	Resource    *Resource
+	Role        *Identifier
+	NoRecursive bool
+	Loc         Loc
 }
 
 func (*ListPermissionsStmt) nodeTag()      {}
@@ -1040,3 +1152,70 @@ type ListRolesStmt struct {
 func (*ListRolesStmt) nodeTag()      {}
 func (n *ListRolesStmt) GetLoc() Loc { return n.Loc }
 func (*ListRolesStmt) stmtNode()     {}
+
+// ListUsersStmt is LIST USERS.
+type ListUsersStmt struct {
+	Loc Loc
+}
+
+func (*ListUsersStmt) nodeTag()      {}
+func (n *ListUsersStmt) GetLoc() Loc { return n.Loc }
+func (*ListUsersStmt) stmtNode()     {}
+
+// AddIdentityStmt is ADD IDENTITY [IF NOT EXISTS] identity TO ROLE role.
+type AddIdentityStmt struct {
+	IfNotExists bool
+	Identity    *Identifier // an identifier or a string literal (Quoted)
+	Role        *Identifier
+	Loc         Loc
+}
+
+func (*AddIdentityStmt) nodeTag()      {}
+func (n *AddIdentityStmt) GetLoc() Loc { return n.Loc }
+func (*AddIdentityStmt) stmtNode()     {}
+
+// DropIdentityStmt is DROP IDENTITY [IF EXISTS] identity.
+type DropIdentityStmt struct {
+	IfExists bool
+	Identity *Identifier
+	Loc      Loc
+}
+
+func (*DropIdentityStmt) nodeTag()      {}
+func (n *DropIdentityStmt) GetLoc() Loc { return n.Loc }
+func (*DropIdentityStmt) stmtNode()     {}
+
+// DescribeKind says what a DESCRIBE statement describes.
+type DescribeKind int
+
+const (
+	DescribeName             DescribeKind = iota // DESCRIBE [ks.]name: whatever the name names
+	DescribeCluster                              // DESCRIBE CLUSTER
+	DescribeSchema                               // DESCRIBE [FULL] SCHEMA
+	DescribeKeyspaces                            // DESCRIBE KEYSPACES
+	DescribeKeyspace                             // DESCRIBE [ONLY] KEYSPACE [ks]
+	DescribeTables                               // DESCRIBE TABLES
+	DescribeTable                                // DESCRIBE TABLE [ks.]t
+	DescribeIndex                                // DESCRIBE INDEX [ks.]i
+	DescribeMaterializedView                     // DESCRIBE MATERIALIZED VIEW [ks.]v
+	DescribeTypes                                // DESCRIBE TYPES
+	DescribeType                                 // DESCRIBE TYPE [ks.]t
+	DescribeFunctions                            // DESCRIBE FUNCTIONS
+	DescribeFunction                             // DESCRIBE FUNCTION [ks.]f
+	DescribeAggregates                           // DESCRIBE AGGREGATES
+	DescribeAggregate                            // DESCRIBE AGGREGATE [ks.]a
+)
+
+// DescribeStmt is DESCRIBE (or DESC) in any of its forms.
+type DescribeStmt struct {
+	Kind          DescribeKind
+	Full          bool           // DESCRIBE FULL SCHEMA
+	Only          bool           // DESCRIBE ONLY KEYSPACE
+	Name          *QualifiedName // nil where the form takes no name, or DESCRIBE KEYSPACE has none
+	WithInternals bool
+	Loc           Loc
+}
+
+func (*DescribeStmt) nodeTag()      {}
+func (n *DescribeStmt) GetLoc() Loc { return n.Loc }
+func (*DescribeStmt) stmtNode()     {}

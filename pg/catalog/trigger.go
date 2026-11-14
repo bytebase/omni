@@ -25,6 +25,9 @@ type Trigger struct {
 	Initdeferred      bool     // constraint trigger is INITIALLY DEFERRED
 	ConstraintRelOID  uint32   // referenced relation for FK constraint triggers
 	Args              []string // trigger function arguments
+	// ParentTriggerOID is the partitioned table's trigger a partition's
+	// trigger was cloned from (pg: tgparentid), or 0.
+	ParentTriggerOID uint32
 }
 
 // CreateTriggerStmt creates a new trigger on a relation from a pgparser AST.

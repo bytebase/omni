@@ -21,7 +21,10 @@ func generateTriggerDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 			if rel.To != nil {
 				trigs := to.TriggersOf(rel.To.OID)
 				for _, trig := range trigs {
-					ops = append(ops, buildCreateTriggerOp(to, rel.SchemaName, rel.Name, trig))
+					// A new partition clones its parent's triggers itself.
+					if trig.ParentTriggerOID == 0 {
+						ops = append(ops, buildCreateTriggerOp(to, rel.SchemaName, rel.Name, trig))
+					}
 				}
 			}
 		}
