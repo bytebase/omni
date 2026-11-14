@@ -1887,9 +1887,12 @@ func TestParseAlterTableBnfReview(t *testing.T) {
 		ParseAndCheck(t, sql)
 	})
 
+	// SPARSE comes before NULL: SQL Server 2022 refuses NULL SPARSE (Msg 102).
 	t.Run("alter column sparse", func(t *testing.T) {
-		sql := "ALTER TABLE t ALTER COLUMN col1 int NULL SPARSE"
-		ParseAndCheck(t, sql)
+		ParseAndCheck(t, "ALTER TABLE t ALTER COLUMN col1 int SPARSE NULL")
+		if _, err := Parse("ALTER TABLE t ALTER COLUMN col1 int NULL SPARSE"); err == nil {
+			t.Error("Parse(NULL SPARSE) = nil error, want SQL Server's rejection")
+		}
 	})
 
 	t.Run("drop column if exists", func(t *testing.T) {
@@ -2013,25 +2016,13 @@ func TestParseAlterTableBnfReview(t *testing.T) {
 		ParseAndCheck(t, sql)
 	})
 
-	t.Run("split range", func(t *testing.T) {
-		sql := "ALTER TABLE t SPLIT RANGE (100)"
-		result := ParseAndCheck(t, sql)
-		stmt := result.Items[0].(*ast.AlterTableStmt)
-		action := stmt.Actions.Items[0].(*ast.AlterTableAction)
-		if action.Type != ast.ATSplitRange {
-			t.Errorf("expected ATSplitRange, got %d", action.Type)
+	// SPLIT and MERGE RANGE belong to ALTER PARTITION FUNCTION: SQL Server
+	// 2022 refuses them after ALTER TABLE (Msg 102), as compat.tsv records.
+	for _, sql := range []string{"ALTER TABLE t SPLIT RANGE (100)", "ALTER TABLE t MERGE RANGE (100)"} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) = nil error, want SQL Server's rejection", sql)
 		}
-	})
-
-	t.Run("merge range", func(t *testing.T) {
-		sql := "ALTER TABLE t MERGE RANGE (100)"
-		result := ParseAndCheck(t, sql)
-		stmt := result.Items[0].(*ast.AlterTableStmt)
-		action := stmt.Actions.Items[0].(*ast.AlterTableAction)
-		if action.Type != ast.ATMergeRange {
-			t.Errorf("expected ATMergeRange, got %d", action.Type)
-		}
-	})
+	}
 
 	t.Run("add period for system time", func(t *testing.T) {
 		sql := "ALTER TABLE t ADD PERIOD FOR SYSTEM_TIME (SysStartTime, SysEndTime)"
@@ -2067,9 +2058,12 @@ func TestParseAlterTableBnfReview(t *testing.T) {
 		}
 	})
 
+	// DATA_DELETION is Azure SQL Edge's; SQL Server 2022 refuses it (Msg 102).
 	t.Run("set data deletion", func(t *testing.T) {
 		sql := "ALTER TABLE t SET (DATA_DELETION = ON (FILTER_COLUMN = col1))"
-		ParseAndCheck(t, sql)
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) = nil error, want SQL Server's rejection", sql)
+		}
 	})
 }
 
@@ -5079,9 +5073,9 @@ func TestParseExternalDataSource(t *testing.T) {
 		// CREATE basic with LOCATION only
 		"CREATE EXTERNAL DATA SOURCE MyHadoopCluster WITH (LOCATION = 'hdfs://10.10.10.10:8020')",
 		// CREATE with LOCATION and TYPE
-		"CREATE EXTERNAL DATA SOURCE MyHadoopCluster WITH (LOCATION = 'hdfs://10.10.10.10:8020', TYPE = HADOOP)",
+		"CREATE EXTERNAL DATA SOURCE MyHadoopCluster WITH (LOCATION = 'hdfs://10.10.10.10:8020', TYPE = BLOB_STORAGE)",
 		// CREATE with LOCATION, TYPE, and RESOURCE_MANAGER_LOCATION
-		"CREATE EXTERNAL DATA SOURCE MyHadoopCluster WITH (LOCATION = 'hdfs://10.10.10.10:8020', TYPE = HADOOP, RESOURCE_MANAGER_LOCATION = '10.10.10.10:8032')",
+		"CREATE EXTERNAL DATA SOURCE MyHadoopCluster WITH (LOCATION = 'hdfs://10.10.10.10:8020', TYPE = BLOB_STORAGE, RESOURCE_MANAGER_LOCATION = '10.10.10.10:8032')",
 		// CREATE with CREDENTIAL
 		"CREATE EXTERNAL DATA SOURCE MyAzureStorage WITH (LOCATION = 'wasbs://container@account.blob.core.windows.net', CREDENTIAL = AzureStorageCredential)",
 		// CREATE with TYPE = BLOB_STORAGE
@@ -5093,7 +5087,7 @@ func TestParseExternalDataSource(t *testing.T) {
 		// CREATE SQL Server 2022+ style (no TYPE)
 		"CREATE EXTERNAL DATA SOURCE MyABS WITH (LOCATION = 'abs://account.blob.core.windows.net', CREDENTIAL = AzureStorageCredential)",
 		// ALTER EXTERNAL DATA SOURCE
-		"ALTER EXTERNAL DATA SOURCE hadoop_eds SET LOCATION = 'hdfs://10.10.10.10:8020', RESOURCE_MANAGER_LOCATION = '10.10.10.10:8032'",
+		"ALTER EXTERNAL DATA SOURCE hadoop_eds SET LOCATION = 'hdfs://10.10.10.10:8020'",
 		// ALTER with CREDENTIAL
 		"ALTER EXTERNAL DATA SOURCE hadoop_eds SET CREDENTIAL = new_hadoop_user",
 		// DROP EXTERNAL DATA SOURCE
@@ -5110,6 +5104,85 @@ func TestParseExternalDataSource(t *testing.T) {
 				t.Fatalf("Parse(%q): expected *SecurityStmt, got %T", sql, result.Items[0])
 			}
 			checkLocation(t, sql, "SecurityStmt", stmt.Loc)
+		})
+	}
+}
+
+// TestParseExternalOptionsByWords pins the EXTERNAL statements' option lists
+// to their words. The data source, library, language and resource pool cases
+// are SQL Server 2022's verdicts; the pinned server has no PolyBase and
+// refuses every external table, file format, stream and COPY INTO, so those
+// follow TSql160.g and the learn.microsoft.com syntax.
+func TestParseExternalOptionsByWords(t *testing.T) {
+	accept := []string{
+		"CREATE EXTERNAL DATA SOURCE a WITH ()",
+		"CREATE EXTERNAL DATA SOURCE a WITH (, LOCATION = 'a',)",
+		"CREATE EXTERNAL DATA SOURCE a WITH (TYPE = blob_storage, DATABASE_NAME = N'a', CONNECTION_OPTIONS = 'a')",
+		"ALTER EXTERNAL DATA SOURCE a SET PUSHDOWN = OFF, CONNECTION_OPTIONS = 'a', CREDENTIAL = a",
+		"CREATE EXTERNAL LIBRARY a FROM (PLATFORM = LINUX, CONTENT = 0x00 + 0x01) WITH (LANGUAGE = N'R')",
+		"CREATE EXTERNAL LIBRARY a FROM (CONTENT = 0x00, PLATFORM = WINDOWS), (CONTENT = 0x00, PLATFORM = LINUX) WITH (LANGUAGE = 'R')",
+		"ALTER EXTERNAL LIBRARY a ADD (CONTENT = NONE) WITH (LANGUAGE = 'a')",
+		"ALTER EXTERNAL LIBRARY a SET (PLATFORM = LINUX) WITH (LANGUAGE = 'a')",
+		"CREATE EXTERNAL LANGUAGE a FROM (FILE_NAME = 'a', CONTENT = 0x00, ENVIRONMENT_VARIABLES = N'{\"a\":\"b\"}')",
+		"ALTER EXTERNAL LANGUAGE a ADD (PLATFORM = LINUX)",
+		"ALTER EXTERNAL LANGUAGE a AUTHORIZATION dbo REMOVE PLATFORM WINDOWS",
+		"CREATE EXTERNAL RESOURCE POOL a WITH (AFFINITY CPU = (1 TO 2, 4), MAX_PROCESSES = 0)",
+		"CREATE EXTERNAL RESOURCE POOL a WITH (AFFINITY NUMANODE = (0))",
+		"CREATE EXTERNAL TABLE a WITH (DATA_SOURCE = a, REJECT_VALUE = 1.5) AS SELECT 1",
+		"CREATE EXTERNAL FILE FORMAT a WITH (FORMAT_TYPE = DELIMITEDTEXT, FORMAT_OPTIONS (FIRST_ROW = 2, USE_TYPE_DEFAULT = FALSE), DATA_COMPRESSION = 'a')",
+		"CREATE EXTERNAL STREAM a WITH (DATA_SOURCE = 'a', LOCATION = 'a')",
+		"COPY INTO a (a DEFAULT -1 2) FROM 'a' WITH (FILE_FORMAT = f, ERRORFILE_CREDENTIAL = (IDENTITY = 'a', SECRET = 'b'))",
+		"DROP EXTERNAL LANGUAGE a AUTHORIZATION dbo",
+		"COPY INTO a (a DEFAULT @fallback, b DEFAULT @@SPID 2) FROM 'a'",
+	}
+	for _, sql := range accept {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+	reject := []string{
+		// SQL Server 2022 dropped Hadoop; RDBMS and SHARD_MAP_NAME are Azure SQL's.
+		"CREATE EXTERNAL DATA SOURCE a WITH (TYPE = HADOOP)",
+		"CREATE EXTERNAL DATA SOURCE a WITH (TYPE = [BLOB_STORAGE])",
+		"CREATE EXTERNAL DATA SOURCE a WITH (SHARD_MAP_NAME = 'a')",
+		"CREATE EXTERNAL DATA SOURCE a WITH (LOCATION = 'a', LOCATION = 'b')",
+		"CREATE EXTERNAL DATA SOURCE a WITH (CREDENTIAL = 'a')",
+		"CREATE EXTERNAL DATA SOURCE a WITH (LOCATION = 'a' PUSHDOWN = ON)",
+		"ALTER EXTERNAL DATA SOURCE a SET RESOURCE_MANAGER_LOCATION = 'a'",
+		"ALTER EXTERNAL DATA SOURCE a LOCATION = 'a'",
+		"ALTER EXTERNAL DATA SOURCE a SET LOCATION = 'a',",
+		"CREATE EXTERNAL LIBRARY a FROM (CONTENT = 0x00, PLATFORM = a) WITH (LANGUAGE = 'a')",
+		"CREATE EXTERNAL LIBRARY a FROM (CONTENT = 0x00), (CONTENT = 0x00) WITH (LANGUAGE = 'a')",
+		"CREATE EXTERNAL LIBRARY a FROM (PLATFORM = LINUX) WITH (LANGUAGE = 'a')",
+		"CREATE EXTERNAL LIBRARY a FROM (CONTENT = 0x00) WITH (LANGUAGE = '')",
+		"ALTER EXTERNAL LIBRARY a SET (CONTENT = 0x00)",
+		"CREATE EXTERNAL LANGUAGE a FROM (CONTENT = 0x00)",
+		"CREATE EXTERNAL LANGUAGE a FROM (CONTENT = 0x00, FILE_NAME = 'a', FILE_NAME = 'b')",
+		"ALTER EXTERNAL LANGUAGE a REMOVE PLATFORM a",
+		"ALTER EXTERNAL RESOURCE POOL a",
+		"ALTER EXTERNAL RESOURCE POOL default WITH (MAX_CPU_PERCENT = 50)",
+		"CREATE EXTERNAL RESOURCE POOL a WITH (MAX_CPU_PERCENT = 101)",
+		"CREATE EXTERNAL RESOURCE POOL a WITH (AFFINITY NUMANODE = AUTO)",
+		// A CETAS names its columns; an external table without AS SELECT defines them.
+		"CREATE EXTERNAL TABLE a (id INT) WITH (DATA_SOURCE = a) AS SELECT 1",
+		"CREATE EXTERNAL TABLE a WITH (DATA_SOURCE = a)",
+		"CREATE EXTERNAL TABLE a (id) WITH (DATA_SOURCE = a)",
+		// DISTRIBUTION is Azure SQL Database's elastic query.
+		"CREATE EXTERNAL TABLE a (id INT) WITH (DATA_SOURCE = a, DISTRIBUTION = REPLICATED)",
+		"CREATE EXTERNAL FILE FORMAT a WITH (FORMAT_TYPE = DELIMITEDTEXT, FORMAT_OPTIONS (a = 1))",
+		"CREATE EXTERNAL FILE FORMAT a WITH (DATA_COMPRESSION = 'a')",
+		"CREATE EXTERNAL STREAM a WITH (a = 'a')",
+		"COPY INTO a FROM 'a' WITH (a = a)",
+		"COPY INTO a FROM 'a' WITH (CREDENTIAL = a)",
+		"COPY INTO a (a DEFAULT) FROM 'a'",
+		"DROP EXTERNAL TABLE",
+		"DROP EXTERNAL a",
+	}
+	for _, sql := range reject {
+		t.Run(sql, func(t *testing.T) {
+			if _, err := Parse(sql); err == nil {
+				t.Errorf("Parse(%q): want an error", sql)
+			}
 		})
 	}
 }
@@ -5391,7 +5464,7 @@ func TestParseEncryptionKeys(t *testing.T) {
 		},
 		// ALTER CRYPTOGRAPHIC PROVIDER - FROM FILE
 		{
-			sql:        "ALTER CRYPTOGRAPHIC PROVIDER SecurityProvider FROM FILE = 'c:\\SecurityProvider\\SecurityProvider_v2.dll' ENABLE",
+			sql:        "ALTER CRYPTOGRAPHIC PROVIDER SecurityProvider FROM FILE = 'c:\\SecurityProvider\\SecurityProvider_v2.dll'",
 			action:     "ALTER",
 			objectType: "CRYPTOGRAPHIC PROVIDER",
 			name:       "SecurityProvider",
@@ -5484,13 +5557,6 @@ func TestParseResourceGovernor(t *testing.T) {
 			action:     "CREATE",
 			objectType: "WORKLOAD GROUP",
 			name:       "fullGroup",
-		},
-		// CREATE WORKLOAD GROUP - with GROUP_MAX_TEMPDB_DATA_MB
-		{
-			sql:        "CREATE WORKLOAD GROUP tempGroup WITH (GROUP_MAX_TEMPDB_DATA_MB = 500, GROUP_MAX_TEMPDB_DATA_PERCENT = 25)",
-			action:     "CREATE",
-			objectType: "WORKLOAD GROUP",
-			name:       "tempGroup",
 		},
 		// ALTER WORKLOAD GROUP
 		{
@@ -5878,14 +5944,14 @@ func TestParseServerLevelObjects(t *testing.T) {
 				sql:        "ALTER SERVER CONFIGURATION SET MEMORY_OPTIMIZED HYBRID_BUFFER_POOL = OFF",
 				optionType: "MEMORY_OPTIMIZED",
 			},
-			// HARDWARE_OFFLOAD ON
+			// HARDWARE_OFFLOAD = ON (SQL Server refuses it without the accelerator)
 			{
-				sql:        "ALTER SERVER CONFIGURATION SET HARDWARE_OFFLOAD ON",
+				sql:        "ALTER SERVER CONFIGURATION SET HARDWARE_OFFLOAD = ON (ACCELERATOR = QAT)",
 				optionType: "HARDWARE_OFFLOAD",
 			},
-			// HARDWARE_OFFLOAD OFF
+			// HARDWARE_OFFLOAD = OFF
 			{
-				sql:        "ALTER SERVER CONFIGURATION SET HARDWARE_OFFLOAD OFF",
+				sql:        "ALTER SERVER CONFIGURATION SET HARDWARE_OFFLOAD = OFF (ACCELERATOR = QAT)",
 				optionType: "HARDWARE_OFFLOAD",
 			},
 		}
@@ -5978,6 +6044,35 @@ func TestParseServerLevelObjects(t *testing.T) {
 	})
 }
 
+// TestParseFulltextRefusedForms: SQL Server 2022 refuses each of these at parse
+// time (checked on the pinned server under SET PARSEONLY ON).
+func TestParseFulltextRefusedForms(t *testing.T) {
+	for _, sql := range []string{
+		"CREATE FULLTEXT STOPLIST s",
+		"DROP FULLTEXT STOPLIST s",
+		"ALTER FULLTEXT STOPLIST s DROP ALL",
+		"CREATE SEARCH PROPERTY LIST l",
+		"DROP SEARCH PROPERTY LIST l",
+		"ALTER SEARCH PROPERTY LIST l DROP 'p'",
+		"ALTER SEARCH PROPERTY LIST l ADD 'p' WITH (PROPERTY_INT_ID = 1, PROPERTY_SET_GUID = 'g');",
+		"CREATE FULLTEXT INDEX ON t KEY INDEX i WITH CHANGE_TRACKING OFF, CHANGE_TRACKING AUTO",
+		"CREATE FULLTEXT INDEX ON t KEY INDEX i WITH STOPLIST 'a'",
+		"CREATE FULLTEXT INDEX ON t KEY INDEX i WITH ()",
+		"ALTER FULLTEXT INDEX ON t START FULL",
+		"ALTER FULLTEXT INDEX ON t ENABLE WITH NO POPULATION",
+		"ALTER FULLTEXT INDEX ON a.b.c.d ENABLE",
+		"ALTER FULLTEXT CATALOG c",
+		"ALTER FULLTEXT CATALOG c REORGANIZE WITH ACCENT_SENSITIVITY = ON",
+		"CREATE FULLTEXT CATALOG c AUTHORIZATION o AS DEFAULT",
+		"DROP FULLTEXT CATALOG a, b",
+		"DROP FULLTEXT INDEX ON IF EXISTS t",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q): want an error, SQL Server refuses it", sql)
+		}
+	}
+}
+
 // TestParseFulltextStoplistSearch tests batch 61: FULLTEXT STOPLIST and SEARCH PROPERTY LIST.
 func TestParseFulltextStoplistSearch(t *testing.T) {
 	t.Run("fulltext_stoplist", func(t *testing.T) {
@@ -5986,15 +6081,15 @@ func TestParseFulltextStoplistSearch(t *testing.T) {
 			name string
 		}{
 			// CREATE FULLTEXT STOPLIST - empty
-			{`CREATE FULLTEXT STOPLIST myStoplist`, "myStoplist"},
+			{`CREATE FULLTEXT STOPLIST myStoplist;`, "myStoplist"},
 			// CREATE FULLTEXT STOPLIST FROM existing
-			{`CREATE FULLTEXT STOPLIST myStoplist2 FROM AdventureWorks.otherStoplist`, "myStoplist2"},
+			{`CREATE FULLTEXT STOPLIST myStoplist2 FROM AdventureWorks.otherStoplist;`, "myStoplist2"},
 			// CREATE FULLTEXT STOPLIST FROM SYSTEM STOPLIST
-			{`CREATE FULLTEXT STOPLIST myStoplist3 FROM SYSTEM STOPLIST`, "myStoplist3"},
+			{`CREATE FULLTEXT STOPLIST myStoplist3 FROM SYSTEM STOPLIST;`, "myStoplist3"},
 			// CREATE FULLTEXT STOPLIST with AUTHORIZATION
-			{`CREATE FULLTEXT STOPLIST myStoplist AUTHORIZATION dbo`, "myStoplist"},
+			{`CREATE FULLTEXT STOPLIST myStoplist AUTHORIZATION dbo;`, "myStoplist"},
 			// CREATE FULLTEXT STOPLIST FROM source with AUTHORIZATION
-			{`CREATE FULLTEXT STOPLIST sl1 FROM db1.sl2 AUTHORIZATION admin1`, "sl1"},
+			{`CREATE FULLTEXT STOPLIST sl1 FROM db1.sl2 AUTHORIZATION admin1;`, "sl1"},
 		}
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
@@ -6029,7 +6124,7 @@ func TestParseFulltextStoplistSearch(t *testing.T) {
 			// DROP ALL LANGUAGE
 			{`ALTER FULLTEXT STOPLIST sl1 DROP ALL LANGUAGE 'English'`, "sl1", "DROP"},
 			// DROP ALL
-			{`ALTER FULLTEXT STOPLIST sl1 DROP ALL`, "sl1", "DROP"},
+			{`ALTER FULLTEXT STOPLIST sl1 DROP ALL;`, "sl1", "DROP"},
 		}
 		for _, tt := range tests {
 			t.Run(tt.sql, func(t *testing.T) {
@@ -6053,7 +6148,7 @@ func TestParseFulltextStoplistSearch(t *testing.T) {
 	})
 
 	t.Run("drop_fulltext_stoplist", func(t *testing.T) {
-		sql := `DROP FULLTEXT STOPLIST myStoplist`
+		sql := `DROP FULLTEXT STOPLIST myStoplist;`
 		result := ParseAndCheck(t, sql)
 		if result.Len() != 1 {
 			t.Fatalf("Parse(%q): got %d statements, want 1", sql, result.Len())
@@ -6074,13 +6169,13 @@ func TestParseFulltextStoplistSearch(t *testing.T) {
 			name string
 		}{
 			// CREATE SEARCH PROPERTY LIST - empty
-			{`CREATE SEARCH PROPERTY LIST DocumentPropertyList`, "DocumentPropertyList"},
+			{`CREATE SEARCH PROPERTY LIST DocumentPropertyList;`, "DocumentPropertyList"},
 			// CREATE SEARCH PROPERTY LIST FROM existing
-			{`CREATE SEARCH PROPERTY LIST JobCandidateProperties FROM AdventureWorks2022.DocumentPropertyList`, "JobCandidateProperties"},
+			{`CREATE SEARCH PROPERTY LIST JobCandidateProperties FROM AdventureWorks2022.DocumentPropertyList;`, "JobCandidateProperties"},
 			// CREATE SEARCH PROPERTY LIST FROM same db
-			{`CREATE SEARCH PROPERTY LIST spl2 FROM spl1`, "spl2"},
+			{`CREATE SEARCH PROPERTY LIST spl2 FROM spl1;`, "spl2"},
 			// CREATE SEARCH PROPERTY LIST with AUTHORIZATION
-			{`CREATE SEARCH PROPERTY LIST spl1 AUTHORIZATION dbo`, "spl1"},
+			{`CREATE SEARCH PROPERTY LIST spl1 AUTHORIZATION dbo;`, "spl1"},
 		}
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
@@ -6107,11 +6202,11 @@ func TestParseFulltextStoplistSearch(t *testing.T) {
 			action string
 		}{
 			// ADD property with all options
-			{`ALTER SEARCH PROPERTY LIST DocumentPropertyList ADD 'Title' WITH (PROPERTY_SET_GUID = 'F29F85E0-4FF9-1068-AB91-08002B27B3D9', PROPERTY_INT_ID = 2, PROPERTY_DESCRIPTION = 'Title of the item.')`, "DocumentPropertyList", "ADD"},
+			{`ALTER SEARCH PROPERTY LIST DocumentPropertyList ADD 'Title' WITH (PROPERTY_SET_GUID = 'F29F85E0-4FF9-1068-AB91-08002B27B3D9', PROPERTY_INT_ID = 2, PROPERTY_DESCRIPTION = 'Title of the item.');`, "DocumentPropertyList", "ADD"},
 			// ADD property without description
-			{`ALTER SEARCH PROPERTY LIST spl1 ADD 'Author' WITH (PROPERTY_SET_GUID = 'F29F85E0-4FF9-1068-AB91-08002B27B3D9', PROPERTY_INT_ID = 4)`, "spl1", "ADD"},
+			{`ALTER SEARCH PROPERTY LIST spl1 ADD 'Author' WITH (PROPERTY_SET_GUID = 'F29F85E0-4FF9-1068-AB91-08002B27B3D9', PROPERTY_INT_ID = 4);`, "spl1", "ADD"},
 			// DROP property
-			{`ALTER SEARCH PROPERTY LIST DocumentPropertyList DROP 'Comments'`, "DocumentPropertyList", "DROP"},
+			{`ALTER SEARCH PROPERTY LIST DocumentPropertyList DROP 'Comments';`, "DocumentPropertyList", "DROP"},
 		}
 		for _, tt := range tests {
 			t.Run(tt.sql, func(t *testing.T) {
@@ -6135,7 +6230,7 @@ func TestParseFulltextStoplistSearch(t *testing.T) {
 	})
 
 	t.Run("drop_search_property_list", func(t *testing.T) {
-		sql := `DROP SEARCH PROPERTY LIST JobCandidateProperties`
+		sql := `DROP SEARCH PROPERTY LIST JobCandidateProperties;`
 		result := ParseAndCheck(t, sql)
 		if result.Len() != 1 {
 			t.Fatalf("Parse(%q): got %d statements, want 1", sql, result.Len())
@@ -6612,7 +6707,7 @@ func TestParseCreateAvailabilityGroup(t *testing.T) {
 		// CREATE DISTRIBUTED
 		"CREATE AVAILABILITY GROUP MyDistAG WITH (DISTRIBUTED) AVAILABILITY GROUP ON 'AG1' WITH (LISTENER_URL = 'TCP://server1:5022', AVAILABILITY_MODE = ASYNCHRONOUS_COMMIT, FAILOVER_MODE = MANUAL, SEEDING_MODE = AUTOMATIC), 'AG2' WITH (LISTENER_URL = 'TCP://server2:5022', AVAILABILITY_MODE = ASYNCHRONOUS_COMMIT, FAILOVER_MODE = MANUAL, SEEDING_MODE = AUTOMATIC)",
 		// CREATE with CONFIGURATION_ONLY availability mode
-		"CREATE AVAILABILITY GROUP MyAG FOR DATABASE MyDB REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = CONFIGURATION_ONLY, FAILOVER_MODE = MANUAL)",
+		"CREATE AVAILABILITY GROUP MyAG FOR DATABASE MyDB REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = CONFIGURATION_ONLY)",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
@@ -6673,7 +6768,7 @@ func TestParseAlterAvailabilityGroup(t *testing.T) {
 		// OFFLINE
 		"ALTER AVAILABILITY GROUP MyAG OFFLINE",
 		// SET multiple options
-		"ALTER AVAILABILITY GROUP MyAG SET (DB_FAILOVER = ON, FAILURE_CONDITION_LEVEL = 4, HEALTH_CHECK_TIMEOUT = 60000)",
+		"ALTER AVAILABILITY GROUP MyAG SET (FAILURE_CONDITION_LEVEL = 4)",
 		// MODIFY AVAILABILITY GROUP ON (distributed)
 		"ALTER AVAILABILITY GROUP MyDistAG MODIFY AVAILABILITY GROUP ON 'AG1' WITH (LISTENER_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT)",
 	}
@@ -6803,7 +6898,7 @@ func TestParseAlterDatabaseScopedConfig(t *testing.T) {
 		// SET ON/OFF option
 		"ALTER DATABASE SCOPED CONFIGURATION SET LEGACY_CARDINALITY_ESTIMATION = ON",
 		// SET with PRIMARY value
-		"ALTER DATABASE SCOPED CONFIGURATION SET MAXDOP = PRIMARY",
+		"ALTER DATABASE SCOPED CONFIGURATION FOR SECONDARY SET MAXDOP = PRIMARY",
 		// SET PARAMETER_SNIFFING
 		"ALTER DATABASE SCOPED CONFIGURATION SET PARAMETER_SNIFFING = OFF",
 		// SET QUERY_OPTIMIZER_HOTFIXES
@@ -6885,14 +6980,14 @@ func TestParseIntegrationPhase3(t *testing.T) {
 		"DROP EXTERNAL LANGUAGE MyLang",
 		"DROP EXTERNAL RESOURCE POOL MyPool",
 		// Batch 58: Encryption keys
-		"CREATE COLUMN MASTER KEY MyCMK WITH (KEY_STORE_PROVIDER_NAME = 'MSSQL_CERTIFICATE_STORE')",
+		"CREATE COLUMN MASTER KEY MyCMK WITH (KEY_STORE_PROVIDER_NAME = 'MSSQL_CERTIFICATE_STORE', KEY_PATH = 'CurrentUser/My/A1B2')",
 		// Batch 59: Resource governor
 		"CREATE WORKLOAD GROUP TestGroup USING [default]",
 		"ALTER RESOURCE GOVERNOR RECONFIGURE",
 		// Batch 60: Server-level objects
 		"CREATE SERVER ROLE MyServerRole",
 		// Batch 61: Fulltext extensions
-		"CREATE FULLTEXT STOPLIST MyStoplist",
+		"CREATE FULLTEXT STOPLIST MyStoplist;",
 		// Batch 62: Security policy, classification, signature
 		"CREATE SECURITY POLICY dbo.SecurityFilter ADD FILTER PREDICATE dbo.fn_securitypredicate(TenantId) ON dbo.Sales",
 		// Batch 63: Specialized indexes, aggregate
@@ -7707,6 +7802,20 @@ func TestParseReceiveColumnListDepth(t *testing.T) {
 
 // TestParseWindowFrame tests ROWS/RANGE/GROUPS window frame specification in OVER clause (batch 73).
 func TestParseWindowFrame(t *testing.T) {
+	// SQL Server 2022 has no GROUPS frame and no lone window name in OVER
+	// (Msg 102 on the pinned server).
+	for _, sql := range []string{
+		"SELECT SUM(x) OVER (ORDER BY id GROUPS UNBOUNDED PRECEDING)",
+		"SELECT SUM(x) OVER (ROWS UNBOUNDED PRECEDING)",
+		"SELECT SUM(x) OVER (ORDER BY id ROWS UNBOUNDED FOLLOWING)",
+		"SELECT SUM(x) OVER (ORDER BY id ROWS @n PRECEDING)",
+		"SELECT SUM(x) OVER (w) FROM t WINDOW w AS (ORDER BY id)",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) = nil error, want SQL Server's rejection", sql)
+		}
+	}
+
 	tests := []struct {
 		name string
 		sql  string
@@ -7727,10 +7836,6 @@ func TestParseWindowFrame(t *testing.T) {
 		{"range_between_unbounded_preceding_and_current_row", "SELECT SUM(x) OVER (ORDER BY id RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)"},
 		{"range_between_current_row_and_unbounded_following", "SELECT SUM(x) OVER (ORDER BY id RANGE BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING)"},
 		{"range_between_unbounded_preceding_and_unbounded_following", "SELECT SUM(x) OVER (ORDER BY id RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING)"},
-		// GROUPS frame (SQL Server 2022+)
-		{"groups_unbounded_preceding", "SELECT SUM(x) OVER (ORDER BY id GROUPS UNBOUNDED PRECEDING)"},
-		{"groups_between_n_preceding_and_n_following", "SELECT SUM(x) OVER (ORDER BY id GROUPS BETWEEN 1 PRECEDING AND 1 FOLLOWING)"},
-		{"groups_between_current_row_and_unbounded_following", "SELECT SUM(x) OVER (ORDER BY id GROUPS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING)"},
 		// Combined with PARTITION BY
 		{"partition_and_rows_frame", "SELECT SUM(x) OVER (PARTITION BY dept ORDER BY id ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING)"},
 		{"partition_and_range_frame", "SELECT AVG(salary) OVER (PARTITION BY dept ORDER BY hire_date RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)"},
@@ -8590,89 +8695,89 @@ func TestParseSizeValueStructured(t *testing.T) {
 	})
 }
 
-// TestParseWorkloadClassifier tests CREATE/ALTER/DROP WORKLOAD CLASSIFIER (batch 80).
-func TestParseWorkloadClassifier(t *testing.T) {
-	t.Run("create_workload_classifier", func(t *testing.T) {
-		tests := []struct {
-			name string
-			sql  string
-		}{
-			{
-				"basic",
-				`CREATE WORKLOAD CLASSIFIER wgcELTRole
-				WITH (WORKLOAD_GROUP = 'staticrc20', MEMBERNAME = 'ELTRole')`,
-			},
-			{
-				"with importance",
-				`CREATE WORKLOAD CLASSIFIER wgcELTRole
-				WITH (WORKLOAD_GROUP = 'staticrc20', MEMBERNAME = 'ELTRole', IMPORTANCE = ABOVE_NORMAL)`,
-			},
-			{
-				"with label and context",
-				`CREATE WORKLOAD CLASSIFIER wgcELTRole
-				WITH (WORKLOAD_GROUP = 'wgDataLoad', MEMBERNAME = 'ELTRole', WLM_LABEL = 'dimension_loads', WLM_CONTEXT = 'dim_load')`,
-			},
-			{
-				"with time range",
-				`CREATE WORKLOAD CLASSIFIER wgcNight
-				WITH (WORKLOAD_GROUP = 'wgDataLoads', MEMBERNAME = 'ELTRole', START_TIME = '22:00', END_TIME = '02:00')`,
-			},
-			{
-				"all options",
-				`CREATE WORKLOAD CLASSIFIER wgcAll
-				WITH (WORKLOAD_GROUP = 'wg1', MEMBERNAME = 'user1', WLM_LABEL = 'lbl', WLM_CONTEXT = 'ctx', START_TIME = '08:00', END_TIME = '17:00', IMPORTANCE = HIGH)`,
-			},
-		}
-		for _, tt := range tests {
-			t.Run(tt.name, func(t *testing.T) {
-				result := ParseAndCheck(t, tt.sql)
-				stmt, ok := result.Items[0].(*ast.SecurityStmt)
-				if !ok {
-					t.Fatalf("expected *SecurityStmt, got %T", result.Items[0])
-				}
-				if stmt.Action != "CREATE" {
-					t.Errorf("expected action CREATE, got %s", stmt.Action)
-				}
-				if stmt.ObjectType != "WORKLOAD CLASSIFIER" {
-					t.Errorf("expected objectType WORKLOAD CLASSIFIER, got %s", stmt.ObjectType)
-				}
-			})
-		}
-	})
+// TestParseResourceGovernorRejected checks Resource Governor statements SQL
+// Server 2022 refuses: an option it does not take (GROUP_MAX_TEMPDB_DATA_MB,
+// the Synapse parameters, a bracketed option word), a value out of range
+// (Msg 1080, 1031, 1040), a repeated option or pool (Msg 1039), ALTER with
+// nothing to change (Msg 10917), a one-part classifier function, a bare
+// default, and every WORKLOAD CLASSIFIER statement, which only Azure Synapse
+// Analytics takes (Msg 22487).
+func TestParseResourceGovernorRejected(t *testing.T) {
+	for _, sql := range []string{
+		"CREATE RESOURCE POOL",
+		"CREATE RESOURCE POOL 'a'",
+		"CREATE RESOURCE POOL a WITH ()",
+		"CREATE RESOURCE POOL a WITH (MAX_PROCESSES = 1)",
+		"CREATE RESOURCE POOL a WITH ([MIN_CPU_PERCENT] = 1)",
+		"CREATE RESOURCE POOL a WITH (MAX_CPU_PERCENT = 0)",
+		"CREATE RESOURCE POOL a WITH (MIN_CPU_PERCENT = 101)",
+		"CREATE RESOURCE POOL a WITH (MAX_CPU_PERCENT = 1.5)",
+		"CREATE RESOURCE POOL a WITH (MAX_CPU_PERCENT = 0x1)",
+		"CREATE RESOURCE POOL a WITH (MAX_IOPS_PER_VOLUME = 2147483648)",
+		"CREATE RESOURCE POOL a WITH (MAX_CPU_PERCENT = 1, MAX_CPU_PERCENT = 2)",
+		"CREATE RESOURCE POOL a WITH (AFFINITY NUMANODE = AUTO)",
+		"CREATE RESOURCE POOL a WITH (AFFINITY SCHEDULER = AUTO, AFFINITY NUMANODE = (1))",
+		"CREATE RESOURCE POOL a WITH (AFFINITY SCHEDULER = ())",
+		"ALTER RESOURCE POOL a",
+		"ALTER RESOURCE POOL default WITH (MAX_CPU_PERCENT = 1)",
+		"DROP RESOURCE POOL a, b",
+		"CREATE WORKLOAD a",
+		"CREATE WORKLOAD GROUP a WITH (GROUP_MAX_TEMPDB_DATA_MB = 500, GROUP_MAX_TEMPDB_DATA_PERCENT = 25)",
+		"CREATE WORKLOAD GROUP a WITH (IMPORTANCE = NORMAL)",
+		"CREATE WORKLOAD GROUP a WITH (IMPORTANCE = [LOW])",
+		"CREATE WORKLOAD GROUP a WITH (MAX_DOP = 1.5)",
+		"CREATE WORKLOAD GROUP a WITH (REQUEST_MAX_MEMORY_GRANT_PERCENT = 100.5)",
+		"CREATE WORKLOAD GROUP a WITH (REQUEST_MAX_MEMORY_GRANT_PERCENT = 1.5e0)",
+		"CREATE WORKLOAD GROUP a WITH (MAX_DOP = 1, MAX_DOP = 2)",
+		"CREATE WORKLOAD GROUP a USING a, b",
+		"CREATE WORKLOAD GROUP a USING EXTERNAL b, EXTERNAL c",
+		"CREATE WORKLOAD GROUP a USING default",
+		"CREATE WORKLOAD GROUP a USING a WITH (MAX_DOP = 1)",
+		"ALTER WORKLOAD GROUP a",
+		"ALTER WORKLOAD GROUP [default]",
+		"ALTER RESOURCE GOVERNOR",
+		"ALTER RESOURCE GOVERNOR RESET",
+		"ALTER RESOURCE GOVERNOR [DISABLE]",
+		"ALTER RESOURCE GOVERNOR WITH (CLASSIFIER_FUNCTION = a)",
+		"ALTER RESOURCE GOVERNOR WITH (CLASSIFIER_FUNCTION = a.b.c)",
+		"ALTER RESOURCE GOVERNOR WITH (CLASSIFIER_FUNCTION = NULL, MAX_OUTSTANDING_IO_PER_VOLUME = 10)",
+		"ALTER RESOURCE GOVERNOR WITH (MAX_OUTSTANDING_IO_PER_VOLUME = 0)",
+		"ALTER RESOURCE GOVERNOR WITH (MAX_OUTSTANDING_IO_PER_VOLUME = 101)",
+		"CREATE WORKLOAD CLASSIFIER wgcELTRole WITH (WORKLOAD_GROUP = 'staticrc20', MEMBERNAME = 'ELTRole')",
+		"CREATE WORKLOAD CLASSIFIER wc1 WITH (WORKLOAD_GROUP = 'wg1', MEMBERNAME = 'user1', WLM_LABEL = 'label1', WLM_CONTEXT = 'ctx1', START_TIME = '08:00', END_TIME = '17:00', IMPORTANCE = NORMAL)",
+		"ALTER WORKLOAD CLASSIFIER wgcELTRole WITH (WORKLOAD_GROUP = 'staticrc30', MEMBERNAME = 'ELTRole', IMPORTANCE = HIGH)",
+		"DROP WORKLOAD CLASSIFIER wgcELTRole",
+	} {
+		t.Run(sql, func(t *testing.T) {
+			if _, err := Parse(sql); err == nil {
+				t.Errorf("Parse(%q): want an error, SQL Server refuses it", sql)
+			}
+		})
+	}
+}
 
-	t.Run("alter_workload_classifier", func(t *testing.T) {
-		sql := `ALTER WORKLOAD CLASSIFIER wgcELTRole
-			WITH (WORKLOAD_GROUP = 'staticrc30', MEMBERNAME = 'ELTRole', IMPORTANCE = HIGH)`
-		result := ParseAndCheck(t, sql)
-		stmt, ok := result.Items[0].(*ast.SecurityStmt)
-		if !ok {
-			t.Fatalf("expected *SecurityStmt, got %T", result.Items[0])
-		}
-		if stmt.Action != "ALTER" {
-			t.Errorf("expected action ALTER, got %s", stmt.Action)
-		}
-		if stmt.ObjectType != "WORKLOAD CLASSIFIER" {
-			t.Errorf("expected objectType WORKLOAD CLASSIFIER, got %s", stmt.ObjectType)
-		}
-	})
-
-	t.Run("drop_workload_classifier", func(t *testing.T) {
-		sql := "DROP WORKLOAD CLASSIFIER wgcELTRole"
-		result := ParseAndCheck(t, sql)
-		stmt, ok := result.Items[0].(*ast.SecurityStmt)
-		if !ok {
-			t.Fatalf("expected *SecurityStmt, got %T", result.Items[0])
-		}
-		if stmt.Action != "DROP" {
-			t.Errorf("expected action DROP, got %s", stmt.Action)
-		}
-		if stmt.ObjectType != "WORKLOAD CLASSIFIER" {
-			t.Errorf("expected objectType WORKLOAD CLASSIFIER, got %s", stmt.ObjectType)
-		}
-		if stmt.Name != "wgcELTRole" {
-			t.Errorf("expected name wgcELTRole, got %s", stmt.Name)
-		}
-	})
+// TestParseResourceGovernorAccepted checks forms SQL Server 2022 takes that the
+// rejections above sit beside.
+func TestParseResourceGovernorAccepted(t *testing.T) {
+	for _, sql := range []string{
+		"CREATE RESOURCE POOL [default]",
+		"CREATE RESOURCE POOL a WITH (min_cpu_percent = 0, MAX_CPU_PERCENT = 100, CAP_CPU_PERCENT = 1, MIN_MEMORY_PERCENT = 0, MAX_MEMORY_PERCENT = 1, MIN_IOPS_PER_VOLUME = 0, MAX_IOPS_PER_VOLUME = 2147483647)",
+		"CREATE RESOURCE POOL a WITH (MIN_IO_PERCENT = 0, MAX_IO_PERCENT = 100, CAP_IO_PERCENT = 1, TARGET_MEMORY_PERCENT = 1)",
+		"CREATE RESOURCE POOL a WITH (AFFINITY scheduler = auto, MAX_CPU_PERCENT = 01)",
+		"CREATE RESOURCE POOL a WITH (AFFINITY SCHEDULER = (2 TO 1, 3))",
+		"ALTER RESOURCE POOL [default] WITH (MAX_CPU_PERCENT = 1)",
+		"CREATE WORKLOAD GROUP a WITH (IMPORTANCE = low, REQUEST_MAX_MEMORY_GRANT_PERCENT = .5)",
+		"CREATE WORKLOAD GROUP a WITH (REQUEST_MAX_MEMORY_GRANT_PERCENT = 1., MAX_DOP = 2147483647)",
+		"CREATE WORKLOAD GROUP a USING EXTERNAL b, a",
+		"ALTER WORKLOAD GROUP [default] USING EXTERNAL [default]",
+		"ALTER RESOURCE GOVERNOR reset statistics",
+		"ALTER RESOURCE GOVERNOR WITH (classifier_function = [dbo].[select])",
+		"ALTER RESOURCE GOVERNOR WITH (MAX_OUTSTANDING_IO_PER_VOLUME = 100)",
+	} {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
 }
 
 // TestParseSubqueryComparison tests ANY/SOME/ALL subquery comparison operators (batch 79).
@@ -12254,19 +12359,6 @@ func TestParseResourceGovernorOptionsDepth(t *testing.T) {
 			name: "alter_resource_governor_classifier_null",
 			sql:  "ALTER RESOURCE GOVERNOR WITH (CLASSIFIER_FUNCTION = NULL)",
 		},
-		// Workload classifier structured options
-		{
-			name: "workload_classifier_full",
-			sql:  "CREATE WORKLOAD CLASSIFIER wc1 WITH (WORKLOAD_GROUP = 'wg1', MEMBERNAME = 'user1', IMPORTANCE = HIGH)",
-		},
-		{
-			name: "workload_classifier_all_options",
-			sql:  "CREATE WORKLOAD CLASSIFIER wc1 WITH (WORKLOAD_GROUP = 'wg1', MEMBERNAME = 'user1', WLM_LABEL = 'label1', WLM_CONTEXT = 'ctx1', START_TIME = '08:00', END_TIME = '17:00', IMPORTANCE = NORMAL)",
-		},
-		{
-			name: "alter_workload_classifier",
-			sql:  "ALTER WORKLOAD CLASSIFIER wc1 WITH (IMPORTANCE = LOW)",
-		},
 	}
 
 	for _, tt := range tests {
@@ -12503,12 +12595,13 @@ func TestParseEndpointHTTPOptions(t *testing.T) {
 	tests := []struct {
 		sql string
 	}{
-		// HTTP endpoint with PATH and AUTHENTICATION
-		{sql: "CREATE ENDPOINT MyEndpoint STATE = STARTED AS HTTP (PATH = '/sql/endpoint', AUTHENTICATION = (INTEGRATED), PORTS = (CLEAR)) FOR TSQL ()"},
+		// HTTP endpoint with PATH and AUTHENTICATION. SQL Server takes an HTTP
+		// endpoint only FOR SOAP (Msg 7861).
+		{sql: "CREATE ENDPOINT MyEndpoint STATE = STARTED AS HTTP (PATH = '/sql/endpoint', AUTHENTICATION = (INTEGRATED), PORTS = (CLEAR)) FOR SOAP ()"},
 		// HTTP endpoint with all options
-		{sql: "CREATE ENDPOINT MyEndpoint AS HTTP (PATH = '/sql', AUTHENTICATION = (BASIC, DIGEST, NTLM), PORTS = (CLEAR, SSL), SITE = '*', CLEAR_PORT = 80, SSL_PORT = 443, AUTH_REALM = 'myRealm', DEFAULT_LOGON_DOMAIN = 'MYDOMAIN', COMPRESSION = ENABLED) FOR TSQL ()"},
+		{sql: "CREATE ENDPOINT MyEndpoint AS HTTP (PATH = '/sql', AUTHENTICATION = (BASIC, DIGEST, NTLM), PORTS = (CLEAR, SSL), SITE = '*', CLEAR_PORT = 80, SSL_PORT = 443, AUTH_REALM = 'myRealm', DEFAULT_LOGON_DOMAIN = 'MYDOMAIN', COMPRESSION = ENABLED) FOR SOAP ()"},
 		// HTTP endpoint with KERBEROS
-		{sql: "CREATE ENDPOINT MyEndpoint AS HTTP (PATH = '/sql', AUTHENTICATION = (KERBEROS), PORTS = (SSL)) FOR TSQL ()"},
+		{sql: "CREATE ENDPOINT MyEndpoint AS HTTP (PATH = '/sql', AUTHENTICATION = (KERBEROS), PORTS = (SSL)) FOR SOAP ()"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.sql, func(t *testing.T) {
@@ -12545,78 +12638,67 @@ func TestParseEndpointHTTPOptions(t *testing.T) {
 	}
 }
 
-// TestParseEndpointUnknownProtocolOptions tests batch 116: unknown protocol structured options.
-func TestParseEndpointUnknownProtocolOptions(t *testing.T) {
-	tests := []struct {
-		sql      string
-		wantOpts []string
-	}{
-		// Unknown protocol with key=value options
-		{
-			sql: "CREATE ENDPOINT ep1 AS CUSTOM_PROTO (OPTION_A = value1, OPTION_B = 42) FOR TSQL ()",
-			wantOpts: []string{
-				"AS=CUSTOM_PROTO",
-				"OPTION_A=VALUE1",
-				"OPTION_B=42",
-				"FOR=TSQL",
-			},
-		},
-		// Unknown protocol with string values
-		{
-			sql: "CREATE ENDPOINT ep1 AS MYPROTO (LISTENER_ADDRESS = '10.0.0.1', PORT = 8080) FOR TSQL ()",
-			wantOpts: []string{
-				"AS=MYPROTO",
-				"LISTENER_ADDRESS='10.0.0.1'",
-				"PORT=8080",
-				"FOR=TSQL",
-			},
-		},
-		// Unknown protocol with single option
-		{
-			sql: "CREATE ENDPOINT ep1 AS SOMEPROTO (PARAM1 = enabled) FOR TSQL ()",
-			wantOpts: []string{
-				"AS=SOMEPROTO",
-				"PARAM1=ENABLED",
-				"FOR=TSQL",
-			},
-		},
+// TestParseEndpointRejected checks that Parse refuses ENDPOINT forms SQL
+// Server 2022 refuses: a protocol other than TCP or HTTP, an option its
+// protocol or payload does not take, an HTTP endpoint for a payload other than
+// SOAP (Msg 7861), AFFINITY = ADMIN (Msg 7864), a missing required parameter
+// (Msg 7801), a repeated option (Msg 7816), an ALTER ENDPOINT that changes
+// nothing (Msg 7863), and an out-of-range port (Msg 7810).
+func TestParseEndpointRejected(t *testing.T) {
+	for _, sql := range []string{
+		"CREATE ENDPOINT ep1 AS CUSTOM_PROTO (OPTION_A = value1, OPTION_B = 42) FOR TSQL ()",
+		"CREATE ENDPOINT ep1 AS MYPROTO (LISTENER_ADDRESS = '10.0.0.1', PORT = 8080) FOR TSQL ()",
+		"CREATE ENDPOINT ep1 AS SOMEPROTO (PARAM1 = enabled) FOR TSQL ()",
+		"CREATE ENDPOINT ep1 AS CUSTOM_PROTO (AUTH = (BASIC, DIGEST), PORT = 8080) FOR TSQL ()",
+		"CREATE ENDPOINT ep1 AS CUSTOM_PROTO (VERBOSE) FOR TSQL ()",
+		"CREATE ENDPOINT ep1 AS [TCP] (LISTENER_PORT = 4022) FOR TSQL ()",
+		"CREATE ENDPOINT ep1 AS TCP (LISTENER_PORT = 4022) FOR SERVICE_BROKER (AUTHENTICATION = WINDOWS, CUSTOM_OPT = myval)",
+		"CREATE ENDPOINT ep1 AS TCP (LISTENER_PORT = 4022) FOR SERVICE_BROKER (ROLE = ALL)",
+		"CREATE ENDPOINT ep1 AS TCP (PATH = '/a', LISTENER_PORT = 4022) FOR TSQL ()",
+		"CREATE ENDPOINT ep1 AS HTTP (PATH = '/sql', AUTHENTICATION = (INTEGRATED), PORTS = (CLEAR)) FOR TSQL ()",
+		"CREATE ENDPOINT ep1 AS TCP (LISTENER_PORT = 4022) FOR SOAP ()",
+		"CREATE ENDPOINT ep1 AFFINITY = ADMIN AS TCP (LISTENER_PORT = 4022) FOR TSQL ()",
+		"CREATE ENDPOINT ep1 AS TCP (LISTENER_PORT = 4022)",
+		"CREATE ENDPOINT ep1 AS TCP (LISTENER_IP = ALL) FOR TSQL ()",
+		"CREATE ENDPOINT ep1 AS TCP (LISTENER_PORT = 4022) FOR DATABASE_MIRRORING ()",
+		"CREATE ENDPOINT ep1 AS TCP (LISTENER_PORT = 0) FOR TSQL ()",
+		"CREATE ENDPOINT ep1 AS TCP (LISTENER_PORT = 4022, LISTENER_IP = (1.2.3)) FOR TSQL ()",
+		"CREATE ENDPOINT ep1 AS TCP (LISTENER_PORT = 4022, LISTENER_IP = (1.2.3.256)) FOR TSQL ()",
+		"CREATE ENDPOINT ep1 STATE = STARTED, AS TCP (LISTENER_PORT = 4022) FOR TSQL ()",
+		"ALTER ENDPOINT ep1",
+		"ALTER ENDPOINT ep1 STATE = STARTED, STATE = STOPPED",
+		"ALTER ENDPOINT ep1 STATE = [STARTED]",
+		"ALTER ENDPOINT ep1 AUTHORIZATION sa STATE = STARTED",
+		"ALTER ENDPOINT ep1 FOR SERVICE_BROKER (ENCRYPTION = REQUIRED ALGORITHM AES AES)",
+		"ALTER ENDPOINT ep1 FOR SERVICE_BROKER (ENCRYPTION = DISABLED ALGORITHM AES)",
+		"ALTER ENDPOINT ep1 FOR SOAP (WEBMETHOD 'm' (NAME = 'a.b.c'))",
+		"ALTER ENDPOINT ep1 FOR SOAP (ADD WEBMETHOD 'm' (NAME = 'a.b'))",
+		"DROP ENDPOINT",
+		"DROP ENDPOINT 'ep1'",
+	} {
+		t.Run(sql, func(t *testing.T) {
+			if _, err := Parse(sql); err == nil {
+				t.Errorf("Parse(%q): want an error, SQL Server refuses it", sql)
+			}
+		})
 	}
-	for _, tt := range tests {
-		t.Run(tt.sql, func(t *testing.T) {
-			result := ParseAndCheck(t, tt.sql)
-			if result.Len() != 1 {
-				t.Fatalf("Parse(%q): got %d statements, want 1", tt.sql, result.Len())
-			}
-			stmt, ok := result.Items[0].(*ast.SecurityStmt)
-			if !ok {
-				t.Fatalf("Parse(%q): expected *SecurityStmt, got %T", tt.sql, result.Items[0])
-			}
-			if stmt.Options == nil || len(stmt.Options.Items) < len(tt.wantOpts) {
-				var gotStrs []string
-				if stmt.Options != nil {
-					for _, item := range stmt.Options.Items {
-						gotStrs = append(gotStrs, agOptStr(item))
-					}
-				}
-				t.Fatalf("Parse(%q): got %d options %v, want at least %d %v", tt.sql, len(gotStrs), gotStrs, len(tt.wantOpts), tt.wantOpts)
-			}
-			for _, want := range tt.wantOpts {
-				found := false
-				for _, item := range stmt.Options.Items {
-					if agOptStr(item) == want {
-						found = true
-						break
-					}
-				}
-				if !found {
-					var gotStrs []string
-					for _, item := range stmt.Options.Items {
-						gotStrs = append(gotStrs, agOptStr(item))
-					}
-					t.Errorf("Parse(%q): expected option %q not found in %v", tt.sql, want, gotStrs)
-				}
-			}
-			checkLocation(t, tt.sql, "SecurityStmt", stmt.Loc)
+}
+
+// TestParseEndpointSoapAccepted checks forms SQL Server 2022 takes that the
+// rejections above sit beside.
+func TestParseEndpointSoapAccepted(t *testing.T) {
+	for _, sql := range []string{
+		"CREATE ENDPOINT ep1 AS HTTP (PATH = '/a', PORTS = (CLEAR), AUTHENTICATION = (NTLM)) FOR SOAP (WEBMETHOD 'ns'.'m' (NAME = 'a.b.c', SCHEMA = DEFAULT, FORMAT = ALL_RESULTS), WSDL = DEFAULT, BATCHES = ENABLED, SESSION_TIMEOUT = NEVER, DATABASE = 'a', NAMESPACE = DEFAULT, SCHEMA = NONE, CHARACTER_SET = XML, HEADER_LIMIT = 5, LOGIN_TYPE = MIXED)",
+		"ALTER ENDPOINT ep1 FOR SOAP (ADD WEBMETHOD 'm' (NAME = '[a.b].c.d'), ALTER WEBMETHOD 'n' (NAME = 'a.b.c'), DROP WEBMETHOD 'o')",
+		"ALTER ENDPOINT ep1 FOR DATA_MIRRORING (ROLE = WITNESS)",
+		"ALTER ENDPOINT ep1 FOR DATA_MIRRORING ()",
+		"ALTER ENDPOINT ep1 AFFINITY = NONE, STATE = STOPPED",
+		"ALTER ENDPOINT ep1 AS TCP (LISTENER_IP = (1.2.3.4 : 5.6.7.8))",
+		"ALTER ENDPOINT ep1 AS TCP (LISTENER_IP = (1 .2 .3 .4))",
+		"ALTER ENDPOINT ep1 FOR TSQL (ENCRYPTION = REQUIRED)",
+	} {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
 		})
 	}
 }
@@ -13511,11 +13593,12 @@ func TestParseServerConfigOptionsDepth(t *testing.T) {
 			optionType: "FAILOVER CLUSTER PROPERTY",
 			wantOpts:   []string{"FailureConditionLevel=DEFAULT"},
 		},
-		// FAILOVER CLUSTER PROPERTY ClusterConnectionOptions
+		// FAILOVER CLUSTER PROPERTY SqlDumperDumpTimeOut (SQL Server 2022
+		// refuses ClusterConnectionOptions)
 		{
-			sql:        `ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY ClusterConnectionOptions = 'Encrypt=Strict'`,
+			sql:        `ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY SqlDumperDumpTimeOut = 60`,
 			optionType: "FAILOVER CLUSTER PROPERTY",
-			wantOpts:   []string{`ClusterConnectionOptions='Encrypt=Strict'`},
+			wantOpts:   []string{`SqlDumperDumpTimeOut=60`},
 		},
 		// HADR CLUSTER CONTEXT string
 		{
@@ -13607,17 +13690,17 @@ func TestParseServerConfigOptionsDepth(t *testing.T) {
 			optionType: "MEMORY_OPTIMIZED",
 			wantOpts:   []string{"HYBRID_BUFFER_POOL=OFF"},
 		},
-		// HARDWARE_OFFLOAD ON
+		// HARDWARE_OFFLOAD = ON (SQL Server refuses it without the accelerator)
 		{
-			sql:        "ALTER SERVER CONFIGURATION SET HARDWARE_OFFLOAD ON",
+			sql:        "ALTER SERVER CONFIGURATION SET HARDWARE_OFFLOAD = ON (ACCELERATOR = QAT, MODE = SOFTWARE)",
 			optionType: "HARDWARE_OFFLOAD",
-			wantOpts:   []string{"ON"},
+			wantOpts:   []string{"ON", "ACCELERATOR=QAT", "MODE=SOFTWARE"},
 		},
-		// HARDWARE_OFFLOAD OFF
+		// HARDWARE_OFFLOAD = OFF
 		{
-			sql:        "ALTER SERVER CONFIGURATION SET HARDWARE_OFFLOAD OFF",
+			sql:        "ALTER SERVER CONFIGURATION SET HARDWARE_OFFLOAD = OFF (ACCELERATOR = QAT)",
 			optionType: "HARDWARE_OFFLOAD",
-			wantOpts:   []string{"OFF"},
+			wantOpts:   []string{"OFF", "ACCELERATOR=QAT"},
 		},
 		// SUSPEND_FOR_SNAPSHOT_BACKUP ON
 		{
@@ -13689,9 +13772,9 @@ func TestParseAvailabilityGroupOptionsDepth(t *testing.T) {
 	}{
 		// ag_replica_on_structured: REPLICA ON with all standard options parsed as key=value
 		{
-			sql: "CREATE AVAILABILITY GROUP MyAG REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC)",
+			sql: "CREATE AVAILABILITY GROUP MyAG FOR REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC)",
 			wantOpts: []string{
-				"REPLICA ON", "'server1'", "WITH",
+				"FOR", "REPLICA ON", "'server1'", "WITH",
 				"ENDPOINT_URL='TCP://server1:5022'",
 				"AVAILABILITY_MODE=SYNCHRONOUS_COMMIT",
 				"FAILOVER_MODE=AUTOMATIC",
@@ -13699,9 +13782,9 @@ func TestParseAvailabilityGroupOptionsDepth(t *testing.T) {
 		},
 		// ag_replica_on_structured: REPLICA ON with SEEDING_MODE, BACKUP_PRIORITY, SESSION_TIMEOUT
 		{
-			sql: "CREATE AVAILABILITY GROUP MyAG REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC, SEEDING_MODE = AUTOMATIC, BACKUP_PRIORITY = 50, SESSION_TIMEOUT = 10)",
+			sql: "CREATE AVAILABILITY GROUP MyAG FOR REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC, SEEDING_MODE = AUTOMATIC, BACKUP_PRIORITY = 50, SESSION_TIMEOUT = 10)",
 			wantOpts: []string{
-				"REPLICA ON", "'server1'", "WITH",
+				"FOR", "REPLICA ON", "'server1'", "WITH",
 				"ENDPOINT_URL='TCP://server1:5022'",
 				"AVAILABILITY_MODE=SYNCHRONOUS_COMMIT",
 				"FAILOVER_MODE=AUTOMATIC",
@@ -13712,9 +13795,9 @@ func TestParseAvailabilityGroupOptionsDepth(t *testing.T) {
 		},
 		// ag_replica_options_structured: SECONDARY_ROLE and PRIMARY_ROLE as nested option blocks
 		{
-			sql: "CREATE AVAILABILITY GROUP MyAG REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC, SECONDARY_ROLE (ALLOW_CONNECTIONS = READ_ONLY), PRIMARY_ROLE (ALLOW_CONNECTIONS = ALL))",
+			sql: "CREATE AVAILABILITY GROUP MyAG FOR REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC, SECONDARY_ROLE (ALLOW_CONNECTIONS = READ_ONLY), PRIMARY_ROLE (ALLOW_CONNECTIONS = ALL))",
 			wantOpts: []string{
-				"REPLICA ON", "'server1'", "WITH",
+				"FOR", "REPLICA ON", "'server1'", "WITH",
 				"ENDPOINT_URL='TCP://server1:5022'",
 				"AVAILABILITY_MODE=SYNCHRONOUS_COMMIT",
 				"FAILOVER_MODE=AUTOMATIC",
@@ -13724,9 +13807,9 @@ func TestParseAvailabilityGroupOptionsDepth(t *testing.T) {
 		},
 		// ag_replica_options_structured: PRIMARY_ROLE with READ_ONLY_ROUTING_LIST
 		{
-			sql: "CREATE AVAILABILITY GROUP MyAG REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC, PRIMARY_ROLE (ALLOW_CONNECTIONS = ALL, READ_ONLY_ROUTING_LIST = ('server2', 'server3')))",
+			sql: "CREATE AVAILABILITY GROUP MyAG FOR REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC, PRIMARY_ROLE (ALLOW_CONNECTIONS = ALL, READ_ONLY_ROUTING_LIST = ('server2', 'server3')))",
 			wantOpts: []string{
-				"REPLICA ON", "'server1'", "WITH",
+				"FOR", "REPLICA ON", "'server1'", "WITH",
 				"ENDPOINT_URL='TCP://server1:5022'",
 				"AVAILABILITY_MODE=SYNCHRONOUS_COMMIT",
 				"FAILOVER_MODE=AUTOMATIC",
@@ -13735,9 +13818,9 @@ func TestParseAvailabilityGroupOptionsDepth(t *testing.T) {
 		},
 		// ag_listener_structured: LISTENER with IP and PORT
 		{
-			sql: "CREATE AVAILABILITY GROUP MyAG REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC) LISTENER 'MyListener' (WITH IP (('10.120.19.155', '255.255.254.0')), PORT = 1433)",
+			sql: "CREATE AVAILABILITY GROUP MyAG FOR REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC) LISTENER 'MyListener' (WITH IP (('10.120.19.155', '255.255.254.0')), PORT = 1433)",
 			wantOpts: []string{
-				"REPLICA ON", "'server1'", "WITH",
+				"FOR", "REPLICA ON", "'server1'", "WITH",
 				"ENDPOINT_URL='TCP://server1:5022'",
 				"AVAILABILITY_MODE=SYNCHRONOUS_COMMIT",
 				"FAILOVER_MODE=AUTOMATIC",
@@ -13747,9 +13830,9 @@ func TestParseAvailabilityGroupOptionsDepth(t *testing.T) {
 		},
 		// ag_listener_structured: LISTENER with DHCP
 		{
-			sql: "CREATE AVAILABILITY GROUP MyAG REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC) LISTENER 'MyListener' (WITH DHCP ON ('10.120.19.0', '255.255.254.0'))",
+			sql: "CREATE AVAILABILITY GROUP MyAG FOR REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC) LISTENER 'MyListener' (WITH DHCP ON ('10.120.19.0', '255.255.254.0'))",
 			wantOpts: []string{
-				"REPLICA ON", "'server1'", "WITH",
+				"FOR", "REPLICA ON", "'server1'", "WITH",
 				"ENDPOINT_URL='TCP://server1:5022'",
 				"AVAILABILITY_MODE=SYNCHRONOUS_COMMIT",
 				"FAILOVER_MODE=AUTOMATIC",
@@ -13759,12 +13842,10 @@ func TestParseAvailabilityGroupOptionsDepth(t *testing.T) {
 		},
 		// SET options parsed structurally
 		{
-			sql: "ALTER AVAILABILITY GROUP MyAG SET (AUTOMATED_BACKUP_PREFERENCE = SECONDARY, DB_FAILOVER = ON, HEALTH_CHECK_TIMEOUT = 30000)",
+			sql: "ALTER AVAILABILITY GROUP MyAG SET (AUTOMATED_BACKUP_PREFERENCE = SECONDARY)",
 			wantOpts: []string{
 				"SET",
 				"AUTOMATED_BACKUP_PREFERENCE=SECONDARY",
-				"DB_FAILOVER=ON",
-				"HEALTH_CHECK_TIMEOUT=30000",
 			},
 		},
 		// MODIFY LISTENER with ADD IP
@@ -13841,9 +13922,9 @@ func TestParseAvailabilityRemainingDepth(t *testing.T) {
 		// ag_nested_parens_structured: IP tuples parsed as structured comma-separated values
 		{
 			name: "ag_nested_parens_structured_ip_tuple",
-			sql:  "CREATE AVAILABILITY GROUP MyAG REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC) LISTENER 'MyListener' (WITH IP (('10.0.0.1', '255.255.255.0'), ('10.0.0.2', '255.255.255.0')), PORT = 1433)",
+			sql:  "CREATE AVAILABILITY GROUP MyAG FOR REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC) LISTENER 'MyListener' (WITH IP (('10.0.0.1', '255.255.255.0'), ('10.0.0.2', '255.255.255.0')), PORT = 1433)",
 			wantOpts: []string{
-				"REPLICA ON", "'server1'", "WITH",
+				"FOR", "REPLICA ON", "'server1'", "WITH",
 				"ENDPOINT_URL='TCP://server1:5022'",
 				"AVAILABILITY_MODE=SYNCHRONOUS_COMMIT",
 				"FAILOVER_MODE=AUTOMATIC",
@@ -13854,9 +13935,9 @@ func TestParseAvailabilityRemainingDepth(t *testing.T) {
 		// ag_nested_parens_structured: key = (value_list) uses recursive parsing
 		{
 			name: "ag_nested_parens_structured_value_list",
-			sql:  "CREATE AVAILABILITY GROUP MyAG REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC, PRIMARY_ROLE (READ_ONLY_ROUTING_LIST = ('server2', 'server3', 'server4')))",
+			sql:  "CREATE AVAILABILITY GROUP MyAG FOR REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC, PRIMARY_ROLE (READ_ONLY_ROUTING_LIST = ('server2', 'server3', 'server4')))",
 			wantOpts: []string{
-				"REPLICA ON", "'server1'", "WITH",
+				"FOR", "REPLICA ON", "'server1'", "WITH",
 				"ENDPOINT_URL='TCP://server1:5022'",
 				"AVAILABILITY_MODE=SYNCHRONOUS_COMMIT",
 				"FAILOVER_MODE=AUTOMATIC",
@@ -15395,7 +15476,7 @@ func TestParseExternalNestedParensDepth(t *testing.T) {
 
 	// Test SHARDED() structured parsing through external data source options
 	t.Run("sharded_structured", func(t *testing.T) {
-		sql := "CREATE EXTERNAL DATA SOURCE MyDS WITH (LOCATION = 'hdfs://myhost:8020', TYPE = HADOOP)"
+		sql := "CREATE EXTERNAL DATA SOURCE MyDS WITH (LOCATION = 'hdfs://myhost:8020', TYPE = BLOB_STORAGE)"
 		result := ParseAndCheck(t, sql)
 		if result.Len() != 1 {
 			t.Fatalf("Parse(%q): got %d statements, want 1", sql, result.Len())
@@ -15431,8 +15512,7 @@ func TestParseExternalNestedParensDepth(t *testing.T) {
 			WITH (
 				LOCATION = '/data/',
 				DATA_SOURCE = MySource,
-				FILE_FORMAT = CsvFormat,
-				DISTRIBUTION = REPLICATED
+				FILE_FORMAT = CsvFormat
 			)`,
 			`CREATE EXTERNAL TABLE dbo.RoundRobin (
 				col1 BIGINT
@@ -15440,8 +15520,7 @@ func TestParseExternalNestedParensDepth(t *testing.T) {
 			WITH (
 				LOCATION = '/data/',
 				DATA_SOURCE = MySource,
-				FILE_FORMAT = ParquetFormat,
-				DISTRIBUTION = REPLICATED
+				FILE_FORMAT = ParquetFormat
 			)`,
 		}
 		for _, sql := range tests {
@@ -15478,21 +15557,35 @@ func TestParseExternalNestedParensDepth(t *testing.T) {
 // server config remaining depth issues.
 func TestParseServerConfigRemainingDepth(t *testing.T) {
 	t.Run("server_config_remaining_structured", func(t *testing.T) {
-		// Unknown option type should still parse the statement with detected keyword
-		sql := "ALTER SERVER CONFIGURATION SET UNKNOWN_OPTION = 42"
-		result, _ := Parse(sql)
-		if result.Len() != 1 {
-			t.Fatalf("Parse(%q): got %d statements, want 1", sql, result.Len())
+		// SQL Server refuses an option it does not know, and these forms of
+		// ones it does.
+		for _, sql := range []string{
+			"ALTER SERVER CONFIGURATION SET UNKNOWN_OPTION = 42",
+			"ALTER SERVER CONFIGURATION PROCESS AFFINITY CPU = AUTO",
+			"ALTER SERVER CONFIGURATION SET PROCESS AFFINITY a = 1",
+			"ALTER SERVER CONFIGURATION SET PROCESS AFFINITY NUMANODE = AUTO",
+			"ALTER SERVER CONFIGURATION SET PROCESS AFFINITY CPU = 1 TO 2 TO 3",
+			"ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG MAX_SIZE = 10",
+			"ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG MAX_FILES = 0",
+			"ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY VerboseLogging = '7'",
+			"ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY VerboseLogging = 3",
+			"ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY HealthCheckTimeout = 14999",
+			"ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY ClusterConnectionOptions = 'Encrypt=Strict'",
+			"ALTER SERVER CONFIGURATION SET HADR CLUSTER CONTEXT = ''",
+			"ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON",
+			"ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON (FILENAME = 'cache.bpe', SIZE = 100)",
+			"ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON (FILENAME = 'cache.bpe', SIZE = 1 TB)",
+			"ALTER SERVER CONFIGURATION SET SOFTNUMA",
+			"ALTER SERVER CONFIGURATION SET HARDWARE_OFFLOAD ON",
+			"ALTER SERVER CONFIGURATION SET EXTERNAL AUTHENTICATION ON",
+			"ALTER SERVER CONFIGURATION SET EXTERNAL AUTHENTICATION OFF (USE_IDENTITY)",
+			"ALTER SERVER CONFIGURATION SET MEMORY_OPTIMIZED TEMPDB_METADATA = OFF (RESOURCE_POOL = 'p')",
+			"ALTER SERVER CONFIGURATION SET SUSPEND_FOR_SNAPSHOT_BACKUP = ON (GROUP = (a), GROUP = (b))",
+		} {
+			if _, err := Parse(sql); err == nil {
+				t.Errorf("Parse(%q): want an error, SQL Server refuses it", sql)
+			}
 		}
-		stmt, ok := result.Items[0].(*ast.AlterServerConfigurationStmt)
-		if !ok {
-			t.Fatalf("Parse(%q): expected *AlterServerConfigurationStmt, got %T", sql, result.Items[0])
-		}
-		// Unknown option type should still be detected by the first keyword
-		if stmt.OptionType == "" {
-			t.Errorf("Parse(%q): expected non-empty optionType", sql)
-		}
-		checkLocation(t, sql, "AlterServerConfigurationStmt", stmt.Loc)
 	})
 
 	t.Run("buffer_pool_extension_structured", func(t *testing.T) {
@@ -15504,11 +15597,6 @@ func TestParseServerConfigRemainingDepth(t *testing.T) {
 			{
 				sql:      `ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON (FILENAME = 'D:\cache.bpe', SIZE = 20 GB)`,
 				wantOpts: []string{"ON", `FILENAME='D:\cache.bpe'`, "SIZE=20 GB"},
-			},
-			// SIZE without unit suffix
-			{
-				sql:      `ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON (FILENAME = 'cache.bpe', SIZE = 100)`,
-				wantOpts: []string{"ON", `FILENAME='cache.bpe'`, "SIZE=100"},
 			},
 			// OFF
 			{
@@ -15905,9 +15993,9 @@ func TestParseFulltextAlterDepth(t *testing.T) {
 			name string
 			sql  string
 		}{
-			{"add_with_all_options", "ALTER SEARCH PROPERTY LIST mylist ADD 'Title' WITH (PROPERTY_SET_GUID = 'F29F85E0-4FF9-1068-AB91-08002B27B3D9', PROPERTY_INT_ID = 2, PROPERTY_DESCRIPTION = 'System.Title')"},
-			{"add_with_required_options_only", "ALTER SEARCH PROPERTY LIST mylist ADD 'Author' WITH (PROPERTY_SET_GUID = 'F29F85E0-4FF9-1068-AB91-08002B27B3D9', PROPERTY_INT_ID = 4)"},
-			{"drop_property", "ALTER SEARCH PROPERTY LIST mylist DROP 'Title'"},
+			{"add_with_all_options", "ALTER SEARCH PROPERTY LIST mylist ADD 'Title' WITH (PROPERTY_SET_GUID = 'F29F85E0-4FF9-1068-AB91-08002B27B3D9', PROPERTY_INT_ID = 2, PROPERTY_DESCRIPTION = 'System.Title');"},
+			{"add_with_required_options_only", "ALTER SEARCH PROPERTY LIST mylist ADD 'Author' WITH (PROPERTY_SET_GUID = 'F29F85E0-4FF9-1068-AB91-08002B27B3D9', PROPERTY_INT_ID = 4);"},
+			{"drop_property", "ALTER SEARCH PROPERTY LIST mylist DROP 'Title';"},
 		}
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
@@ -16058,30 +16146,12 @@ func TestParseUtilityCetasDbscopedDepth(t *testing.T) {
 				colNames: []string{"id", "name", "value"},
 			},
 			{
-				name: "typed_columns",
-				sql: `CREATE EXTERNAL TABLE dbo.export_data
-					(id INT, name VARCHAR(100), value FLOAT)
-					WITH (LOCATION = '/out/', DATA_SOURCE = ds, FILE_FORMAT = ff)
-					AS SELECT id, name, value FROM src`,
-				numCols:  3,
-				colNames: []string{"id", "name", "value"},
-			},
-			{
 				name: "single_column",
 				sql: `CREATE EXTERNAL TABLE dbo.export_data (col1)
 					WITH (LOCATION = '/out/', DATA_SOURCE = ds, FILE_FORMAT = ff)
 					AS SELECT 1`,
 				numCols:  1,
 				colNames: []string{"col1"},
-			},
-			{
-				name: "typed_columns_nullable",
-				sql: `CREATE EXTERNAL TABLE dbo.export_data
-					(id INT NOT NULL, name NVARCHAR(50) NULL)
-					WITH (LOCATION = '/out/', DATA_SOURCE = ds, FILE_FORMAT = ff)
-					AS SELECT id, name FROM src`,
-				numCols:  2,
-				colNames: []string{"id", "name"},
 			},
 		}
 		for _, tt := range tests {
@@ -16149,7 +16219,7 @@ func TestParseUtilityCetasDbscopedDepth(t *testing.T) {
 			},
 			{
 				name:  "set_primary",
-				sql:   "ALTER DATABASE SCOPED CONFIGURATION SET MAXDOP = PRIMARY",
+				sql:   "ALTER DATABASE SCOPED CONFIGURATION FOR SECONDARY SET MAXDOP = PRIMARY",
 				key:   "MAXDOP",
 				value: "PRIMARY",
 			},
@@ -16354,49 +16424,10 @@ func TestParseEndpointRemainingDepth(t *testing.T) {
 			wantOpts []string
 		}{
 			{
-				"generic_protocol_parenthesized_value",
-				"CREATE ENDPOINT ep1 AS CUSTOM_PROTO (AUTH = (BASIC, DIGEST), PORT = 8080) FOR TSQL ()",
+				"endpoint_options_affinity_none",
+				"CREATE ENDPOINT ep1 AFFINITY = NONE AS TCP (LISTENER_PORT = 4022) FOR TSQL ()",
 				[]string{
-					"AS=CUSTOM_PROTO",
-					"AUTH=BASIC,DIGEST",
-					"PORT=8080",
-					"FOR=TSQL",
-				},
-			},
-			{
-				"generic_protocol_nested_parens_value",
-				"CREATE ENDPOINT ep1 AS CUSTOM_PROTO (METHODS = (GET, POST, PUT)) FOR TSQL ()",
-				[]string{
-					"AS=CUSTOM_PROTO",
-					"METHODS=GET,POST,PUT",
-					"FOR=TSQL",
-				},
-			},
-			{
-				"generic_protocol_flag_option",
-				"CREATE ENDPOINT ep1 AS CUSTOM_PROTO (VERBOSE) FOR TSQL ()",
-				[]string{
-					"AS=CUSTOM_PROTO",
-					"VERBOSE",
-					"FOR=TSQL",
-				},
-			},
-			{
-				"endpoint_payload_unknown_option_key_value",
-				"CREATE ENDPOINT ep1 AS TCP (LISTENER_PORT = 4022) FOR SERVICE_BROKER (AUTHENTICATION = WINDOWS, CUSTOM_OPT = myval)",
-				[]string{
-					"AS=TCP",
-					"LISTENER_PORT=4022",
-					"FOR=SERVICE_BROKER",
-					"AUTHENTICATION=WINDOWS",
-					"CUSTOM_OPT=MYVAL",
-				},
-			},
-			{
-				"endpoint_options_unknown_toplevel_keyword",
-				"CREATE ENDPOINT ep1 AFFINITY = ADMIN AS TCP (LISTENER_PORT = 4022) FOR TSQL ()",
-				[]string{
-					"AFFINITY=ADMIN",
+					"AFFINITY=NONE",
 					"AS=TCP",
 					"LISTENER_PORT=4022",
 					"FOR=TSQL",
@@ -16494,11 +16525,6 @@ func TestParseEndpointOptionsStringsDepth(t *testing.T) {
 					"MESSAGE_FORWARDING":   "DISABLED",
 					"MESSAGE_FORWARD_SIZE": "5",
 				},
-			},
-			{
-				"sb_unknown_payload_option",
-				"CREATE ENDPOINT ep1 AS TCP (LISTENER_PORT = 4022) FOR SERVICE_BROKER (CUSTOM_OPT = myval)",
-				map[string]string{"CUSTOM_OPT": "MYVAL"},
 			},
 		}
 		for _, tt := range tests {
@@ -16610,7 +16636,7 @@ func TestParseEndpointOptionsStringsDepth(t *testing.T) {
 		tests := []string{
 			"CREATE ENDPOINT ep1 AUTHORIZATION sa STATE = STARTED AS TCP (LISTENER_PORT = 4022, LISTENER_IP = ALL) FOR SERVICE_BROKER (AUTHENTICATION = WINDOWS NEGOTIATE, ENCRYPTION = REQUIRED ALGORITHM AES RC4, MESSAGE_FORWARDING = ENABLED, MESSAGE_FORWARD_SIZE = 10)",
 			"ALTER ENDPOINT ep1 STATE = DISABLED AS TCP (LISTENER_PORT = 7022) FOR DATABASE_MIRRORING (AUTHENTICATION = CERTIFICATE MyCert, ENCRYPTION = SUPPORTED, ROLE = PARTNER)",
-			"CREATE ENDPOINT ep1 AS HTTP (PATH = '/sql', AUTHENTICATION = (INTEGRATED), PORTS = (CLEAR, SSL), SITE = '*', CLEAR_PORT = 80, SSL_PORT = 443, COMPRESSION = ENABLED)",
+			"CREATE ENDPOINT ep1 AS HTTP (PATH = '/sql', AUTHENTICATION = (INTEGRATED), PORTS = (CLEAR, SSL), SITE = '*', CLEAR_PORT = 80, SSL_PORT = 443, COMPRESSION = ENABLED) FOR SOAP ()",
 		}
 		for _, sql := range tests {
 			t.Run(sql[:40], func(t *testing.T) {
@@ -17077,8 +17103,8 @@ func TestParseExternalCleanupDepth(t *testing.T) {
 		if credOpt == nil {
 			t.Fatal("expected ExternalOption with Key=CREDENTIAL")
 		}
-		if credOpt.Value != "NEWCRED" {
-			t.Errorf("expected NEWCRED, got %q", credOpt.Value)
+		if credOpt.Value != "newCred" {
+			t.Errorf("expected newCred, got %q", credOpt.Value)
 		}
 	})
 
@@ -17110,7 +17136,7 @@ func TestParseExternalCleanupDepth(t *testing.T) {
 func TestParseAvailabilitySkipCleanupDepth(t *testing.T) {
 	// Valid AG statements should still parse without UNEXPECTED tokens
 	t.Run("availability_group_unexpected_token_error", func(t *testing.T) {
-		sql := "ALTER AVAILABILITY GROUP myAG MODIFY REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT)"
+		sql := "ALTER AVAILABILITY GROUP myAG ADD REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = MANUAL)"
 		result := ParseAndCheck(t, sql)
 		stmt := result.Items[0].(*ast.SecurityStmt)
 		if stmt.Options == nil {
@@ -17128,7 +17154,7 @@ func TestParseAvailabilitySkipCleanupDepth(t *testing.T) {
 
 	// Verify standard parsing still works
 	t.Run("availability_group_valid_options", func(t *testing.T) {
-		sql := "CREATE AVAILABILITY GROUP myAG WITH (CLUSTER_TYPE = NONE) FOR REPLICA ON 'srv1' WITH (ENDPOINT_URL = 'TCP://srv1:5022')"
+		sql := "CREATE AVAILABILITY GROUP myAG WITH (CLUSTER_TYPE = NONE) FOR REPLICA ON 'srv1' WITH (ENDPOINT_URL = 'TCP://srv1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = EXTERNAL)"
 		result := ParseAndCheck(t, sql)
 		if result.Len() != 1 {
 			t.Fatalf("expected 1 statement, got %d", result.Len())
@@ -17598,12 +17624,12 @@ func TestParseAvailabilityOptionsStringsFinal(t *testing.T) {
 			{"ALTER AVAILABILITY GROUP MyAG SET (DB_FAILOVER = ON)", "SET", "", 0},
 			{"ALTER AVAILABILITY GROUP MyAG ADD DATABASE MyDB", "ADD DATABASE", "MyDB", 0},
 			{"ALTER AVAILABILITY GROUP MyAG REMOVE DATABASE OldDB", "REMOVE DATABASE", "OldDB", 0},
-			{"ALTER AVAILABILITY GROUP MyAG ADD REPLICA ON", "ADD REPLICA ON", "", 0},
-			{"ALTER AVAILABILITY GROUP MyAG MODIFY REPLICA ON", "MODIFY REPLICA ON", "", 0},
-			{"ALTER AVAILABILITY GROUP MyAG REMOVE REPLICA ON", "REMOVE REPLICA ON", "", 0},
+			{"ALTER AVAILABILITY GROUP MyAG ADD REPLICA ON 's2' WITH (ENDPOINT_URL = 'TCP://s2:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = MANUAL)", "ADD REPLICA ON", "", 0},
+			{"ALTER AVAILABILITY GROUP MyAG MODIFY REPLICA ON 's2' WITH (BACKUP_PRIORITY = 10)", "MODIFY REPLICA ON", "", 0},
+			{"ALTER AVAILABILITY GROUP MyAG REMOVE REPLICA ON 's2'", "REMOVE REPLICA ON", "", 0},
 			{"ALTER AVAILABILITY GROUP MyAG JOIN", "JOIN", "", 0},
-			{"ALTER AVAILABILITY GROUP MyAG JOIN AVAILABILITY GROUP ON", "JOIN AVAILABILITY GROUP ON", "", 0},
-			{"ALTER AVAILABILITY GROUP MyAG MODIFY AVAILABILITY GROUP ON", "MODIFY AVAILABILITY GROUP ON", "", 0},
+			{"ALTER AVAILABILITY GROUP MyAG JOIN AVAILABILITY GROUP ON 'AG1' WITH (LISTENER_URL = 'TCP://s1:5022', AVAILABILITY_MODE = ASYNCHRONOUS_COMMIT)", "JOIN AVAILABILITY GROUP ON", "", 0},
+			{"ALTER AVAILABILITY GROUP MyAG MODIFY AVAILABILITY GROUP ON 'AG1' WITH (SEEDING_MODE = MANUAL)", "MODIFY AVAILABILITY GROUP ON", "", 0},
 			{"ALTER AVAILABILITY GROUP MyAG GRANT CREATE ANY DATABASE", "GRANT CREATE ANY DATABASE", "", 0},
 			{"ALTER AVAILABILITY GROUP MyAG DENY CREATE ANY DATABASE", "DENY CREATE ANY DATABASE", "", 0},
 			{"ALTER AVAILABILITY GROUP MyAG FAILOVER", "FAILOVER", "", 0},
@@ -17633,33 +17659,28 @@ func TestParseAvailabilityOptionsStringsFinal(t *testing.T) {
 
 	// ag_key_value_opts_final: key=value options emit typed AvailabilityGroupOption
 	t.Run("ag_key_value_opts_final", func(t *testing.T) {
-		sql := "ALTER AVAILABILITY GROUP MyAG SET (AUTOMATED_BACKUP_PREFERENCE = SECONDARY, DB_FAILOVER = ON, HEALTH_CHECK_TIMEOUT = 30000)"
-		result := ParseAndCheck(t, sql)
-		// SET is option[0], then key=value options from parenthesized block
-		setOpt := getOpt(t, result, 0)
-		if setOpt.Name != "SET" {
-			t.Errorf("option[0] Name = %q, want SET", setOpt.Name)
-		}
-		// AUTOMATED_BACKUP_PREFERENCE=SECONDARY
-		opt1 := getOpt(t, result, 1)
-		if opt1.Name != "AUTOMATED_BACKUP_PREFERENCE" || opt1.Value != "SECONDARY" {
-			t.Errorf("option[1] = %q/%q, want AUTOMATED_BACKUP_PREFERENCE/SECONDARY", opt1.Name, opt1.Value)
-		}
-		// DB_FAILOVER=ON
-		opt2 := getOpt(t, result, 2)
-		if opt2.Name != "DB_FAILOVER" || opt2.Value != "ON" {
-			t.Errorf("option[2] = %q/%q, want DB_FAILOVER/ON", opt2.Name, opt2.Value)
-		}
-		// HEALTH_CHECK_TIMEOUT=30000
-		opt3 := getOpt(t, result, 3)
-		if opt3.Name != "HEALTH_CHECK_TIMEOUT" || opt3.Value != "30000" {
-			t.Errorf("option[3] = %q/%q, want HEALTH_CHECK_TIMEOUT/30000", opt3.Name, opt3.Value)
+		// SET takes one option per statement: SQL Server refuses a comma there.
+		for _, tt := range []struct{ sql, name, value string }{
+			{"ALTER AVAILABILITY GROUP MyAG SET (AUTOMATED_BACKUP_PREFERENCE = SECONDARY)", "AUTOMATED_BACKUP_PREFERENCE", "SECONDARY"},
+			{"ALTER AVAILABILITY GROUP MyAG SET (DB_FAILOVER = ON)", "DB_FAILOVER", "ON"},
+			{"ALTER AVAILABILITY GROUP MyAG SET (HEALTH_CHECK_TIMEOUT = 30000)", "HEALTH_CHECK_TIMEOUT", "30000"},
+		} {
+			result := ParseAndCheck(t, tt.sql)
+			// SET is option[0], then the key=value option from the parenthesized block
+			setOpt := getOpt(t, result, 0)
+			if setOpt.Name != "SET" {
+				t.Errorf("option[0] Name = %q, want SET", setOpt.Name)
+			}
+			opt1 := getOpt(t, result, 1)
+			if opt1.Name != tt.name || opt1.Value != tt.value {
+				t.Errorf("option[1] = %q/%q, want %s/%s", opt1.Name, opt1.Value, tt.name, tt.value)
+			}
 		}
 	})
 
 	// ag_ip_tuples_final: IP tuples emit typed AvailabilityGroupOption
 	t.Run("ag_ip_tuples_final", func(t *testing.T) {
-		sql := "CREATE AVAILABILITY GROUP MyAG REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC) LISTENER 'MyListener' (WITH IP (('10.0.0.1', '255.255.255.0')), PORT = 1433)"
+		sql := "CREATE AVAILABILITY GROUP MyAG FOR REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC) LISTENER 'MyListener' (WITH IP (('10.0.0.1', '255.255.255.0')), PORT = 1433)"
 		result := ParseAndCheck(t, sql)
 		stmt := result.Items[0].(*ast.SecurityStmt)
 		if stmt.Options == nil {
@@ -17718,7 +17739,7 @@ func TestParseAvailabilityOptionsStringsFinal(t *testing.T) {
 
 	// ag_nested_role_opts_final: nested SECONDARY_ROLE/PRIMARY_ROLE options
 	t.Run("ag_nested_role_opts_final", func(t *testing.T) {
-		sql := "CREATE AVAILABILITY GROUP MyAG REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC, SECONDARY_ROLE (ALLOW_CONNECTIONS = READ_ONLY), PRIMARY_ROLE (ALLOW_CONNECTIONS = ALL))"
+		sql := "CREATE AVAILABILITY GROUP MyAG FOR REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC, SECONDARY_ROLE (ALLOW_CONNECTIONS = READ_ONLY), PRIMARY_ROLE (ALLOW_CONNECTIONS = ALL))"
 		result := ParseAndCheck(t, sql)
 		stmt := result.Items[0].(*ast.SecurityStmt)
 		// Find SECONDARY_ROLE option
@@ -17907,11 +17928,11 @@ func TestParseServerConfigStringsDepth(t *testing.T) {
 
 	// server_config_opts_final: FAILOVER CLUSTER PROPERTY key=string
 	t.Run("config_failover_cluster_string", func(t *testing.T) {
-		sql := "ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY VerboseLogging = '7'"
+		sql := "ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY SqlDumperDumpPath = 'dumps'"
 		result := ParseAndCheck(t, sql)
 		opt := getSrvOpt(t, result, 0)
-		if opt.Name != "VerboseLogging" || opt.Value != "'7'" {
-			t.Errorf("option[0] = %q/%q, want VerboseLogging/'7'", opt.Name, opt.Value)
+		if opt.Name != "SqlDumperDumpPath" || opt.Value != "'dumps'" {
+			t.Errorf("option[0] = %q/%q, want SqlDumperDumpPath/'dumps'", opt.Name, opt.Value)
 		}
 	})
 
@@ -20332,37 +20353,17 @@ func TestParseDatabaseBnfReview(t *testing.T) {
 		}
 	})
 
-	t.Run("alter_database_perform_cutover", func(t *testing.T) {
-		sql := "ALTER DATABASE mydb PERFORM_CUTOVER"
-		result := ParseAndCheck(t, sql)
-		stmt := result.Items[0].(*ast.AlterDatabaseStmt)
-		if stmt.Action != "PERFORM_CUTOVER" {
-			t.Errorf("Parse(%q): expected Action=PERFORM_CUTOVER, got %q", sql, stmt.Action)
-		}
-	})
-
-	t.Run("alter_database_modify_azure_options", func(t *testing.T) {
-		sqls := []string{
+	// SQL Server 2022 refuses the Azure SQL Database forms (Msg 102).
+	t.Run("alter_database_azure_forms_rejected", func(t *testing.T) {
+		for _, sql := range []string{
+			"ALTER DATABASE mydb PERFORM_CUTOVER",
 			"ALTER DATABASE mydb MODIFY (MAXSIZE = 250 GB)",
 			"ALTER DATABASE mydb MODIFY (EDITION = 'standard', SERVICE_OBJECTIVE = 'S0')",
 			"ALTER DATABASE mydb MODIFY (MAXSIZE = 1 TB) WITH MANUAL_CUTOVER",
-		}
-		for _, sql := range sqls {
-			result := ParseAndCheck(t, sql)
-			stmt := result.Items[0].(*ast.AlterDatabaseStmt)
-			if stmt.Action != "MODIFY" {
-				t.Errorf("Parse(%q): expected Action=MODIFY, got %q", sql, stmt.Action)
+		} {
+			if _, err := Parse(sql); err == nil {
+				t.Errorf("Parse(%q): want error, SQL Server refuses it", sql)
 			}
-			if stmt.SubAction != "AZURE_OPTIONS" {
-				t.Errorf("Parse(%q): expected SubAction=AZURE_OPTIONS, got %q", sql, stmt.SubAction)
-			}
-		}
-		// Test WITH MANUAL_CUTOVER
-		sql := "ALTER DATABASE mydb MODIFY (MAXSIZE = 1 TB) WITH MANUAL_CUTOVER"
-		result := ParseAndCheck(t, sql)
-		stmt := result.Items[0].(*ast.AlterDatabaseStmt)
-		if stmt.Termination != "MANUAL_CUTOVER" {
-			t.Errorf("Parse(%q): expected Termination=MANUAL_CUTOVER, got %q", sql, stmt.Termination)
 		}
 	})
 
@@ -20456,7 +20457,7 @@ func TestParseDatabaseBnfReview(t *testing.T) {
 		sqls := []string{
 			"ALTER DATABASE SCOPED CONFIGURATION SET MAXDOP = 4",
 			"ALTER DATABASE SCOPED CONFIGURATION SET LEGACY_CARDINALITY_ESTIMATION = ON",
-			"ALTER DATABASE SCOPED CONFIGURATION SET LEGACY_CARDINALITY_ESTIMATION = PRIMARY",
+			"ALTER DATABASE SCOPED CONFIGURATION FOR SECONDARY SET LEGACY_CARDINALITY_ESTIMATION = PRIMARY",
 			"ALTER DATABASE SCOPED CONFIGURATION SET PARAMETER_SNIFFING = OFF",
 			"ALTER DATABASE SCOPED CONFIGURATION SET QUERY_OPTIMIZER_HOTFIXES = ON",
 			"ALTER DATABASE SCOPED CONFIGURATION FOR SECONDARY SET MAXDOP = PRIMARY",
@@ -20787,9 +20788,9 @@ func TestParseCryptoBnfReview(t *testing.T) {
 				sql:  "CREATE SYMMETRIC KEY MySymKey WITH KEY_SOURCE = 'my pass phrase', ALGORITHM = AES_256, IDENTITY_VALUE = 'my identity' ENCRYPTION BY CERTIFICATE MyCert",
 				name: "MySymKey",
 			},
-			// With PROVIDER_KEY_NAME and CREATION_DISPOSITION
+			// FROM PROVIDER with PROVIDER_KEY_NAME and CREATION_DISPOSITION
 			{
-				sql:  "CREATE SYMMETRIC KEY MySymKey WITH ALGORITHM = AES_256, PROVIDER_KEY_NAME = 'MyEKMKey', CREATION_DISPOSITION = CREATE_NEW ENCRYPTION BY CERTIFICATE MyCert",
+				sql:  "CREATE SYMMETRIC KEY MySymKey FROM PROVIDER MyEKMProvider WITH ALGORITHM = AES_256, PROVIDER_KEY_NAME = 'MyEKMKey', CREATION_DISPOSITION = CREATE_NEW ENCRYPTION BY CERTIFICATE MyCert",
 				name: "MySymKey",
 			},
 			// FROM PROVIDER
@@ -20804,12 +20805,12 @@ func TestParseCryptoBnfReview(t *testing.T) {
 			},
 			// ENCRYPTION BY ASYMMETRIC KEY
 			{
-				sql:  "CREATE SYMMETRIC KEY MySymKey WITH ALGORITHM = TRIPLE_DES_3KEY ENCRYPTION BY ASYMMETRIC KEY MyAsymKey",
+				sql:  "CREATE SYMMETRIC KEY MySymKey WITH ALGORITHM = AES_192 ENCRYPTION BY ASYMMETRIC KEY MyAsymKey",
 				name: "MySymKey",
 			},
-			// DES algorithm
+			// DES from an EKM provider (SQL Server refuses DES for a generated key)
 			{
-				sql:  "CREATE SYMMETRIC KEY MySymKey WITH ALGORITHM = DES ENCRYPTION BY PASSWORD = 'secret123'",
+				sql:  "CREATE SYMMETRIC KEY MySymKey FROM PROVIDER MyEKMProvider WITH ALGORITHM = DES ENCRYPTION BY PASSWORD = 'secret123'",
 				name: "MySymKey",
 			},
 		}
@@ -20882,7 +20883,7 @@ func TestParseCryptoBnfReview(t *testing.T) {
 			// WITH ALGORITHM
 			"CREATE ASYMMETRIC KEY MyAsymKey WITH ALGORITHM = RSA_2048",
 			"CREATE ASYMMETRIC KEY MyAsymKey WITH ALGORITHM = RSA_4096",
-			"CREATE ASYMMETRIC KEY MyAsymKey WITH ALGORITHM = RSA_1024",
+			"CREATE ASYMMETRIC KEY MyAsymKey WITH ALGORITHM = RSA_3072",
 			// WITH AUTHORIZATION
 			"CREATE ASYMMETRIC KEY MyAsymKey AUTHORIZATION dbo WITH ALGORITHM = RSA_2048",
 			// FROM FILE
@@ -21029,8 +21030,6 @@ func TestParseCryptoBnfReview(t *testing.T) {
 			action string
 		}{
 			{"CREATE MASTER KEY ENCRYPTION BY PASSWORD = 'StrongPass!'", "CREATE"},
-			// CREATE without password (Azure SQL)
-			{"CREATE MASTER KEY", "CREATE"},
 			// ALTER - REGENERATE
 			{"ALTER MASTER KEY REGENERATE WITH ENCRYPTION BY PASSWORD = 'NewPass!'", "ALTER"},
 			// ALTER - FORCE REGENERATE
@@ -21070,12 +21069,10 @@ func TestParseCryptoBnfReview(t *testing.T) {
 			{"CREATE DATABASE ENCRYPTION KEY WITH ALGORITHM = AES_256 ENCRYPTION BY SERVER CERTIFICATE MyCert", "CREATE"},
 			// CREATE with ASYMMETRIC KEY
 			{"CREATE DATABASE ENCRYPTION KEY WITH ALGORITHM = AES_128 ENCRYPTION BY SERVER ASYMMETRIC KEY MyAsymKey", "CREATE"},
-			// CREATE with TRIPLE_DES_3KEY
-			{"CREATE DATABASE ENCRYPTION KEY WITH ALGORITHM = TRIPLE_DES_3KEY ENCRYPTION BY SERVER CERTIFICATE MyCert", "CREATE"},
+			// CREATE with AES_192
+			{"CREATE DATABASE ENCRYPTION KEY WITH ALGORITHM = AES_192 ENCRYPTION BY SERVER CERTIFICATE MyCert", "CREATE"},
 			// ALTER - REGENERATE
 			{"ALTER DATABASE ENCRYPTION KEY REGENERATE WITH ALGORITHM = AES_256", "ALTER"},
-			// ALTER - REGENERATE with ENCRYPTION BY
-			{"ALTER DATABASE ENCRYPTION KEY REGENERATE WITH ALGORITHM = AES_256 ENCRYPTION BY SERVER CERTIFICATE NewCert", "ALTER"},
 			// ALTER - ENCRYPTION BY
 			{"ALTER DATABASE ENCRYPTION KEY ENCRYPTION BY SERVER CERTIFICATE MyCert", "ALTER"},
 			// DROP
@@ -21322,7 +21319,7 @@ func TestParseCryptoBnfReview(t *testing.T) {
 			{"CREATE CRYPTOGRAPHIC PROVIDER MyProv FROM FILE = 'c:\\providers\\myprov.dll'", "CREATE"},
 			{"ALTER CRYPTOGRAPHIC PROVIDER MyProv ENABLE", "ALTER"},
 			{"ALTER CRYPTOGRAPHIC PROVIDER MyProv DISABLE", "ALTER"},
-			{"ALTER CRYPTOGRAPHIC PROVIDER MyProv FROM FILE = 'c:\\providers\\myprov_v2.dll' ENABLE", "ALTER"},
+			{"ALTER CRYPTOGRAPHIC PROVIDER MyProv FROM FILE = 'c:\\providers\\myprov_v2.dll'", "ALTER"},
 			{"DROP CRYPTOGRAPHIC PROVIDER MyProv", "DROP"},
 		}
 		for _, tt := range sqls {
@@ -21380,46 +21377,17 @@ func TestParseCryptoBnfReview(t *testing.T) {
 
 // TestParseAuditEventBnfReview tests batch 165: BNF review of audit and event session statements.
 func TestParseAuditEventBnfReview(t *testing.T) {
-	// TO URL with parenthesized options (gap: parser previously treated URL as simple target)
-	t.Run("server_audit_to_url_with_options", func(t *testing.T) {
-		sql := "CREATE SERVER AUDIT MyAudit TO URL (FILEPATH = 'https://storage.blob.core.windows.net/audit/', MAXSIZE = 100 MB)"
-		result := ParseAndCheck(t, sql)
-		stmt := result.Items[0].(*ast.SecurityStmt)
-		if stmt.Action != "CREATE" {
-			t.Errorf("expected CREATE, got %q", stmt.Action)
+	// SQL Server 2022 refuses the Azure-only TO URL, TO EXTERNAL_MONITOR and
+	// OPERATOR_AUDIT with Msg 40517 ("not supported in this version").
+	for _, sql := range []string{
+		"CREATE SERVER AUDIT MyAudit TO URL (PATH = 'https://storage.blob.core.windows.net/audit/', RETENTION_DAYS = 7)",
+		"CREATE SERVER AUDIT MyAudit TO EXTERNAL_MONITOR",
+		"CREATE SERVER AUDIT MyAudit TO SECURITY_LOG WITH (QUEUE_DELAY = 1000, OPERATOR_AUDIT = ON)",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q): expected an error", sql)
 		}
-		if stmt.Options == nil || len(stmt.Options.Items) < 2 {
-			t.Fatalf("expected at least 2 options (TO=URL + file options), got %v", stmt.Options)
-		}
-		opt0 := stmt.Options.Items[0].(*ast.String).Str
-		if opt0 != "TO=URL" {
-			t.Errorf("expected TO=URL, got %q", opt0)
-		}
-	})
-
-	// TO EXTERNAL_MONITOR
-	t.Run("server_audit_to_external_monitor", func(t *testing.T) {
-		sql := "CREATE SERVER AUDIT MyAudit TO EXTERNAL_MONITOR"
-		result := ParseAndCheck(t, sql)
-		stmt := result.Items[0].(*ast.SecurityStmt)
-		if stmt.Options == nil {
-			t.Fatal("expected options")
-		}
-		opt0 := stmt.Options.Items[0].(*ast.String).Str
-		if opt0 != "TO=EXTERNAL_MONITOR" {
-			t.Errorf("expected TO=EXTERNAL_MONITOR, got %q", opt0)
-		}
-	})
-
-	// CREATE SERVER AUDIT with OPERATOR_AUDIT option
-	t.Run("server_audit_operator_audit", func(t *testing.T) {
-		sql := "CREATE SERVER AUDIT MyAudit TO SECURITY_LOG WITH (QUEUE_DELAY = 1000, OPERATOR_AUDIT = ON)"
-		result := ParseAndCheck(t, sql)
-		stmt := result.Items[0].(*ast.SecurityStmt)
-		if stmt.Options == nil || len(stmt.Options.Items) < 3 {
-			t.Fatalf("expected at least 3 options, got %v", stmt.Options)
-		}
-	})
+	}
 
 	// CREATE SERVER AUDIT with AUDIT_GUID
 	t.Run("server_audit_guid", func(t *testing.T) {
@@ -21514,13 +21482,11 @@ func TestParseAuditEventBnfReview(t *testing.T) {
 		}
 	})
 
-	// Event session with MAX_DURATION option
+	// MAX_DURATION is SQL Server 2025's: SQL Server 2022 refuses it.
 	t.Run("event_session_max_duration", func(t *testing.T) {
 		sql := "CREATE EVENT SESSION test_session ON SERVER ADD EVENT sqlserver.sql_batch_starting WITH (MAX_DURATION = 60 MINUTES)"
-		result := ParseAndCheck(t, sql)
-		stmt := result.Items[0].(*ast.SecurityStmt)
-		if stmt.Options == nil {
-			t.Fatal("expected options")
+		if _, err := Parse(sql); err == nil {
+			t.Fatalf("Parse(%q): want an error", sql)
 		}
 	})
 
@@ -22823,8 +22789,8 @@ func TestParseHAServerBNFReview(t *testing.T) {
 			"ALTER SERVER CONFIGURATION SET MEMORY_OPTIMIZED TEMPDB_METADATA = ON",
 			"ALTER SERVER CONFIGURATION SET MEMORY_OPTIMIZED TEMPDB_METADATA = ON (RESOURCE_POOL = 'mypool')",
 			"ALTER SERVER CONFIGURATION SET MEMORY_OPTIMIZED HYBRID_BUFFER_POOL = OFF",
-			"ALTER SERVER CONFIGURATION SET HARDWARE_OFFLOAD ON",
-			"ALTER SERVER CONFIGURATION SET EXTERNAL AUTHENTICATION ON",
+			"ALTER SERVER CONFIGURATION SET HARDWARE_OFFLOAD = ON (ACCELERATOR = QAT)",
+			"ALTER SERVER CONFIGURATION SET EXTERNAL AUTHENTICATION ON (USE_IDENTITY)",
 			"ALTER SERVER CONFIGURATION SET EXTERNAL AUTHENTICATION OFF",
 			"ALTER SERVER CONFIGURATION SET EXTERNAL AUTHENTICATION ON (CREDENTIAL_NAME = 'mycred')",
 		}
@@ -22855,7 +22821,7 @@ func TestParseHAServerBNFReview(t *testing.T) {
 	t.Run("alter_resource_pool", func(t *testing.T) {
 		tests := []string{
 			"ALTER RESOURCE POOL mypool WITH (MAX_CPU_PERCENT = 75)",
-			"ALTER RESOURCE POOL default WITH (MAX_MEMORY_PERCENT = 80)",
+			"ALTER RESOURCE POOL [default] WITH (MAX_MEMORY_PERCENT = 80)",
 		}
 		for _, sql := range tests {
 			t.Run(sql, func(t *testing.T) {
@@ -22882,7 +22848,7 @@ func TestParseHAServerBNFReview(t *testing.T) {
 	t.Run("alter_workload_group", func(t *testing.T) {
 		tests := []string{
 			"ALTER WORKLOAD GROUP mygroup WITH (IMPORTANCE = LOW)",
-			"ALTER WORKLOAD GROUP default WITH (MAX_DOP = 8)",
+			"ALTER WORKLOAD GROUP [default] WITH (MAX_DOP = 8)",
 			"ALTER WORKLOAD GROUP mygroup USING newpool",
 		}
 		for _, sql := range tests {
@@ -23325,7 +23291,7 @@ func TestParseClrExternalBnfReview(t *testing.T) {
 	t.Run("existing_roundtrip", func(t *testing.T) {
 		tests := []string{
 			// CREATE/ALTER/DROP EXTERNAL DATA SOURCE
-			"CREATE EXTERNAL DATA SOURCE MySource WITH (LOCATION = 'hdfs://10.10.10.10:8020', TYPE = HADOOP)",
+			"CREATE EXTERNAL DATA SOURCE MySource WITH (LOCATION = 'hdfs://10.10.10.10:8020', TYPE = BLOB_STORAGE)",
 			"ALTER EXTERNAL DATA SOURCE MySource SET LOCATION = 'hdfs://newhost:8020'",
 			"DROP EXTERNAL DATA SOURCE MySource",
 			// CREATE/DROP EXTERNAL TABLE
@@ -24104,4 +24070,57 @@ func TestParseInsertBulkLineno(t *testing.T) {
 			t.Errorf("expected LineNo=9999, got %d", stmt.LineNo)
 		}
 	})
+}
+
+// TestParseTableFormsSQLServerTakes pins forms the pinned SQL Server 2022
+// accepts that a stricter column or ALTER TABLE reading could lose.
+func TestParseTableFormsSQLServerTakes(t *testing.T) {
+	for _, sql := range []string{
+		"CREATE TABLE t (id int, timestamp)",
+		"CREATE TABLE t (id int, timestamp NOT NULL)",
+		"CREATE TABLE t (id int, [timestamp])",
+		"ALTER TABLE a ADD timestamp",
+		"DECLARE @t TABLE (id int, timestamp)",
+		"ALTER TABLE a SET (REMOTE_DATA_ARCHIVE (MIGRATION_STATE = INBOUND))",
+		"ALTER TABLE a SET (REMOTE_DATA_ARCHIVE (MIGRATION_STATE = INBOUND), LOCK_ESCALATION = AUTO)",
+	} {
+		if _, err := Parse(sql); err != nil {
+			t.Errorf("Parse(%q): %v", sql, err)
+		}
+	}
+	for _, sql := range []string{
+		"ALTER TABLE a SET (REMOTE_DATA_ARCHIVE (FILTER_PREDICATE = NULL))",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) = nil error, want SQL Server's rejection", sql)
+		}
+	}
+}
+
+// TestParseGrantColumnLists pins where SQL Server 2022 takes a column list in
+// GRANT, DENY and REVOKE (checked on the pinned server).
+func TestParseGrantColumnLists(t *testing.T) {
+	for _, sql := range []string{
+		"GRANT SELECT, UPDATE ON a(a) TO PUBLIC",
+		"GRANT ALL ON a(a) TO PUBLIC",
+		"GRANT REFERENCES(a) ON a TO PUBLIC",
+		"DENY SELECT ON a(a) TO PUBLIC",
+		"REVOKE UPDATE ON a(a) FROM PUBLIC",
+		"GRANT ALL(a) ON a TO PUBLIC",
+	} {
+		if _, err := Parse(sql); err != nil {
+			t.Errorf("Parse(%q): %v", sql, err)
+		}
+	}
+	for _, sql := range []string{
+		"GRANT SELECT(a) ON a(a) TO PUBLIC",
+		"GRANT SELECT, INSERT ON a(a) TO PUBLIC",
+		"GRANT INSERT(a) ON a TO PUBLIC",
+		"GRANT SELECT(a) TO PUBLIC",
+		"GRANT VIEW DEFINITION(a) ON a TO PUBLIC",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) = nil error, want SQL Server's rejection", sql)
+		}
+	}
 }

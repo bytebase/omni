@@ -1,4 +1,12 @@
-// Package parser - fulltext.go implements T-SQL FULLTEXT INDEX and CATALOG parsing.
+// Package parser - fulltext.go implements T-SQL FULLTEXT INDEX, CATALOG,
+// STOPLIST and SEARCH PROPERTY LIST parsing.
+//
+// Every statement follows ScriptDOM's TSql160.g (mssql/testdata/TSql160.g4 is
+// the conversion; each rule cites its TSql160.g line), checked against the
+// pinned SQL Server 2022, whose verdict wins where the two differ. That server
+// has no full-text search installed, so a full-text statement it reads to the
+// end fails with Msg 7609 or a language lookup (Msg 7678); the judge counts
+// both as acceptances, and the grammar decides what follows such a lookup.
 package parser
 
 import (
@@ -7,49 +15,200 @@ import (
 	nodes "github.com/bytebase/omni/mssql/ast"
 )
 
-// fulltextIndexWithOptions defines valid option names for CREATE FULLTEXT INDEX ... WITH.
-// Matches SqlScriptDOM fulltext index options: CHANGE_TRACKING, STOPLIST, SEARCH (PROPERTY LIST).
-var fulltextIndexWithOptions = newOptionSet(kwCHANGE_TRACKING, kwSTOPLIST, kwSEARCH)
-
 // fulltextPopulationTypes: START { FULL | INCREMENTAL | UPDATE } POPULATION
-// in ALTER FULLTEXT INDEX. FULL is kwFULL (CoreKeyword).
-var fulltextPopulationTypes = newOptionSet(kwFULL).withIdents("FULL", "INCREMENTAL", "UPDATE")
+// in ALTER FULLTEXT INDEX (TSql160.g:11726). FULL and UPDATE are CoreKeywords.
+var fulltextPopulationTypes = newOptionSet(kwFULL, kwUPDATE).withIdents("INCREMENTAL")
 
-// fulltextCatalogWithOptions defines valid option names for CREATE FULLTEXT CATALOG ... WITH.
-// Only ACCENT_SENSITIVITY is valid here.
-var fulltextCatalogWithOptions = newOptionSet(kwACCENT_SENSITIVITY)
+// fulltextIsWord reports whether the current token is the word `word` (upper
+// case): its keyword token when the lexer has one, else an undelimited
+// identifier with that text.
+func (p *Parser) fulltextIsWord(word string) bool {
+	if kw := lookupKeyword(word); kw != tokIDENT {
+		return p.cur.Type == kw
+	}
+	return p.cur.Type == tokIDENT && !p.isDelimited(p.cur) && strings.ToUpper(p.cur.Str) == word
+}
 
-// fulltextCatalogActions defines valid action keywords for ALTER FULLTEXT CATALOG.
-var fulltextCatalogActions = newOptionSet(kwREBUILD, kwREORGANIZE, kwAS)
+// fulltextExpectWord consumes the word `word` or fails at the current token.
+func (p *Parser) fulltextExpectWord(word string) error {
+	if !p.fulltextIsWord(word) {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance()
+	return nil
+}
 
-// searchPropertyListWithOptions defines valid option names for ALTER SEARCH PROPERTY LIST ... WITH.
-var searchPropertyListWithOptions = newOptionSet().withIdents("PROPERTY_SET_GUID", "PROPERTY_INT_ID", "PROPERTY_DESCRIPTION")
+// fulltextExpectIdent consumes an identifier (ScriptDOM's `identifier`).
+func (p *Parser) fulltextExpectIdent() (string, error) {
+	name, ok := p.parseIdentifier()
+	if !ok {
+		return "", p.syntaxErrorAtCur()
+	}
+	return name, nil
+}
+
+// fulltextIsString reports whether the current token is a string literal.
+func (p *Parser) fulltextIsString() bool {
+	return p.cur.Type == tokSCONST || p.cur.Type == tokNSCONST
+}
+
+// fulltextExpectString consumes a string literal (ScriptDOM's `stringLiteral`).
+func (p *Parser) fulltextExpectString() (string, error) {
+	if !p.fulltextIsString() {
+		return "", p.syntaxErrorAtCur()
+	}
+	return p.advance().Str, nil
+}
+
+// fulltextExpectOnOff consumes `= { ON | OFF }`.
+func (p *Parser) fulltextExpectOnOff() (string, error) {
+	if _, err := p.expect('='); err != nil {
+		return "", err
+	}
+	if p.cur.Type != kwON && p.cur.Type != kwOFF {
+		return "", p.syntaxErrorAtCur()
+	}
+	return strings.ToUpper(p.advance().Str), nil
+}
+
+// fulltextParseAuthorization parses authorizationOpt, `( AUTHORIZATION identifier )?`.
+func (p *Parser) fulltextParseAuthorization() (string, error) {
+	if p.cur.Type != kwAUTHORIZATION {
+		return "", nil
+	}
+	p.advance()
+	return p.fulltextExpectIdent()
+}
+
+// fulltextRequireSemicolon enforces requiredSemicolon (TSql160.g:25789,
+// SQL46097): stoplist and search property list statements end with ';'
+// (SQL Server: Msg 10736, Msg 10740). The statement loop consumes it.
+func (p *Parser) fulltextRequireSemicolon() error {
+	if p.cur.Type != ';' {
+		return p.syntaxErrorAtCur()
+	}
+	return nil
+}
+
+// fulltextParseObjectName parses an object name of at most maxParts parts
+// (SQL Server refuses a longer one with Msg 117).
+func (p *Parser) fulltextParseObjectName(maxParts int) (*nodes.TableRef, error) {
+	ref, err := p.parseTableRef()
+	if err != nil {
+		return nil, err
+	}
+	if ref == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	parts := 1
+	switch {
+	case ref.Server != "":
+		parts = 4
+	case ref.Database != "":
+		parts = 3
+	case ref.Schema != "":
+		parts = 2
+	}
+	if parts > maxParts {
+		return nil, &ParseError{Message: "object name contains more than the maximum number of prefixes", Position: ref.Loc.Start, Source: p.source}
+	}
+	return ref, nil
+}
+
+// fulltextParseLanguageTerm parses languageTerm (TSql160.g:8698):
+// LANGUAGE { stringLiteral | integer | identifier | binary }.
+func (p *Parser) fulltextParseLanguageTerm() (string, error) {
+	if _, err := p.expect(kwLANGUAGE); err != nil {
+		return "", err
+	}
+	switch {
+	case p.fulltextIsString(), p.cur.Type == tokICONST, p.isIdentLike():
+		return p.advance().Str, nil
+	case p.cur.Type == tokFCONST && len(p.cur.Str) > 1 && (p.cur.Str[1] == 'x' || p.cur.Str[1] == 'X'):
+		// A binary literal too wide for int64 lexes as tokFCONST.
+		return p.advance().Str, nil
+	}
+	return "", p.syntaxErrorAtCur()
+}
+
+// fulltextParseIndexColumn parses fulltextIndexColumn (TSql160.g:8375):
+//
+//	identifier ( TYPE COLUMN identifier )? ( languageTerm )? ( STATISTICAL_SEMANTICS )?
+func (p *Parser) fulltextParseIndexColumn() (string, error) {
+	col, err := p.fulltextExpectIdent()
+	if err != nil {
+		return "", err
+	}
+	if p.cur.Type == kwTYPE {
+		p.advance()
+		if _, err := p.expect(kwCOLUMN); err != nil {
+			return "", err
+		}
+		if _, err := p.fulltextExpectIdent(); err != nil {
+			return "", err
+		}
+	}
+	if p.cur.Type == kwLANGUAGE {
+		if _, err := p.fulltextParseLanguageTerm(); err != nil {
+			return "", err
+		}
+	}
+	if p.cur.Type == kwSTATISTICAL_SEMANTICS {
+		p.advance()
+	}
+	return col, nil
+}
+
+// fulltextParsePopulationOption parses populationOption (TSql160.g:11688):
+// ( WITH NO POPULATION )?.
+func (p *Parser) fulltextParsePopulationOption() (bool, error) {
+	if p.cur.Type != kwWITH {
+		return false, nil
+	}
+	p.advance()
+	if _, err := p.expect(kwNO); err != nil {
+		return false, err
+	}
+	if _, err := p.expect(kwPOPULATION); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// fulltextParseListValue parses the value of stoplistFulltextIndexOption
+// (TSql160.g:8583) and searchPropertyListFullTextIndexOption (TSql160.g:8608):
+// [ = ] { identifier | OFF }. SYSTEM is the identifier naming the system stoplist.
+func (p *Parser) fulltextParseListValue() (string, error) {
+	p.match('=')
+	if p.cur.Type == kwOFF {
+		p.advance()
+		return "OFF", nil
+	}
+	if p.fulltextIsWord("SYSTEM") {
+		p.advance()
+		return "SYSTEM", nil
+	}
+	return p.fulltextExpectIdent()
+}
 
 // parseCreateFulltextIndexStmt parses a CREATE FULLTEXT INDEX statement.
 //
-// BNF: mssql/parser/bnf/create-fulltext-index-transact-sql.bnf
+// TSql160.g:8410 createFulltextIndexStatement, 8448 fullTextCatalogAndFileGroup
+// and 8500 createFulltextOptions:
 //
-//	CREATE FULLTEXT INDEX ON table_name
-//	    [ ( { column_name
-//	          [ TYPE COLUMN type_column_name ]
-//	          [ LANGUAGE language_term ]
-//	          [ STATISTICAL_SEMANTICS ]
-//	        } [ ,...n ]
-//	      ) ]
-//	    KEY INDEX index_name
-//	    [ ON <catalog_filegroup_option> ]
-//	    [ WITH [ ( ] <with_option> [ ,...n ] [ ) ] ]
+//	CREATE FULLTEXT INDEX ON schemaObjectFourPartName
+//	    ( ( fulltextIndexColumn [ ,...n ] ) )?
+//	    KEY INDEX identifier
+//	    ( ON { identifier
+//	         | ( identifier [ , FILEGROUP identifier ] )
+//	         | ( FILEGROUP identifier [ , identifier ] ) } )?
+//	    ( WITH { option_list | ( option_list ) } )?
 //
-//	<catalog_filegroup_option> ::=
-//	    fulltext_catalog_name
-//	  | ( fulltext_catalog_name , FILEGROUP filegroup_name )
-//	  | ( FILEGROUP filegroup_name , fulltext_catalog_name )
-//	  | ( FILEGROUP filegroup_name )
+//	option ::= CHANGE_TRACKING [ = ] { MANUAL | AUTO | OFF [ , NO POPULATION ] }
+//	         | STOPLIST [ = ] { OFF | SYSTEM | stoplist_name }
+//	         | SEARCH PROPERTY LIST [ = ] { OFF | property_list_name }
 //
-//	<with_option> ::=
-//	    CHANGE_TRACKING [ = ] { MANUAL | AUTO | OFF [ , NO POPULATION ] }
-//	  | STOPLIST [ = ] { OFF | SYSTEM | stoplist_name }
-//	  | SEARCH PROPERTY LIST [ = ] property_list_name
+// SQL Server refuses an option given twice.
 func (p *Parser) parseCreateFulltextIndexStmt() (*nodes.CreateFulltextIndexStmt, error) {
 	loc := p.pos()
 	// INDEX keyword already consumed by caller
@@ -58,140 +217,157 @@ func (p *Parser) parseCreateFulltextIndexStmt() (*nodes.CreateFulltextIndexStmt,
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
 
-	// ON table_name
-	if _, ok := p.match(kwON); ok {
-		stmt.Table, _ = p.parseTableRef()
+	if _, err := p.expect(kwON); err != nil {
+		return nil, err
 	}
+	table, err := p.fulltextParseObjectName(4)
+	if err != nil {
+		return nil, err
+	}
+	stmt.Table = table
 
-	// Column list
 	if p.cur.Type == '(' {
 		p.advance()
 		var cols []nodes.Node
-		for p.cur.Type != ')' && p.cur.Type != tokEOF {
-			if p.isIdentLike() {
-				colLoc := p.pos()
-				col := p.cur.Str
-				p.advance()
-				colRef := &nodes.ColumnRef{
-					Column: col,
-					Loc:    nodes.Loc{Start: colLoc, End: p.prevEnd()},
-				}
-				// TYPE COLUMN type_col_name
-				if p.cur.Type == kwTYPE {
-					p.advance()
-					if p.cur.Type == kwCOLUMN {
-						p.advance()
-					}
-					if p.isIdentLike() {
-						p.advance()
-					}
-				}
-				// LANGUAGE term
-				if p.cur.Type == kwLANGUAGE {
-					p.advance()
-					if p.isIdentLike() || p.cur.Type == tokICONST || p.cur.Type == tokSCONST {
-						p.advance()
-					}
-				}
-				// STATISTICAL_SEMANTICS
-				if p.cur.Type == kwSTATISTICAL_SEMANTICS {
-					p.advance()
-				}
-				cols = append(cols, colRef)
+		for {
+			colLoc := p.pos()
+			col, err := p.fulltextParseIndexColumn()
+			if err != nil {
+				return nil, err
 			}
+			cols = append(cols, &nodes.ColumnRef{Column: col, Loc: nodes.Loc{Start: colLoc, End: p.prevEnd()}})
 			if _, ok := p.match(','); !ok {
 				break
 			}
 		}
-		p.match(')')
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
 		stmt.Columns = &nodes.List{Items: cols}
 	}
 
-	// KEY INDEX index_name
-	if p.cur.Type == kwKEY {
-		p.advance()
-		if p.cur.Type == kwINDEX {
-			p.advance()
-		}
-		if p.isIdentLike() {
-			stmt.KeyIndex = p.cur.Str
-			p.advance()
-		}
+	if _, err := p.expect(kwKEY); err != nil {
+		return nil, err
 	}
+	if _, err := p.expect(kwINDEX); err != nil {
+		return nil, err
+	}
+	keyIndex, err := p.fulltextExpectIdent()
+	if err != nil {
+		return nil, err
+	}
+	stmt.KeyIndex = keyIndex
 
-	// ON <catalog_filegroup_option>
-	//   catalog_name
-	//   | ( catalog_name , FILEGROUP filegroup_name )
-	//   | ( FILEGROUP filegroup_name , catalog_name )
-	//   | ( FILEGROUP filegroup_name )
 	if p.cur.Type == kwON {
 		p.advance()
 		if p.cur.Type == '(' {
-			// Parenthesized form
 			p.advance()
-			if p.cur.Type == kwFILEGROUP {
+			// FILEGROUP followed by a name opens the filegroup form; a bare
+			// FILEGROUP is a catalog of that name.
+			if next := p.peekNext(); p.fulltextIsWord("FILEGROUP") && (next.Type == tokIDENT || isContextKeyword(next.Type)) {
 				p.advance()
-				if p.isIdentLike() {
-					p.advance() // filegroup name (not captured in AST)
+				if _, err := p.fulltextExpectIdent(); err != nil {
+					return nil, err
 				}
 				if _, ok := p.match(','); ok {
-					if p.isIdentLike() {
-						stmt.CatalogName = p.cur.Str
-						p.advance()
+					if stmt.CatalogName, err = p.fulltextExpectIdent(); err != nil {
+						return nil, err
 					}
 				}
-			} else if p.isIdentLike() {
-				stmt.CatalogName = p.cur.Str
-				p.advance()
+			} else {
+				if stmt.CatalogName, err = p.fulltextExpectIdent(); err != nil {
+					return nil, err
+				}
 				if _, ok := p.match(','); ok {
-					if p.cur.Type == kwFILEGROUP {
-						p.advance()
-						if p.isIdentLike() {
-							p.advance() // filegroup name
-						}
+					if err := p.fulltextExpectWord("FILEGROUP"); err != nil {
+						return nil, err
+					}
+					if _, err := p.fulltextExpectIdent(); err != nil {
+						return nil, err
 					}
 				}
 			}
-			p.match(')')
-		} else if p.isIdentLike() {
-			stmt.CatalogName = p.cur.Str
-			p.advance()
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
+		} else {
+			if stmt.CatalogName, err = p.fulltextExpectIdent(); err != nil {
+				return nil, err
+			}
 		}
 	}
 
-	// WITH options (can be WITH (opt) or WITH opt without parens)
 	if p.cur.Type == kwWITH {
 		p.advance()
-		useParens := p.cur.Type == '('
-		if useParens {
+		parens := false
+		if p.cur.Type == '(' {
 			p.advance()
+			parens = true
 		}
 		var opts []nodes.Node
-		for (useParens && p.cur.Type != ')') || (!useParens && p.cur.Type != ';' && p.cur.Type != tokEOF && p.cur.Type != kwGO) {
-			if p.isValidOption(fulltextIndexWithOptions) {
-				opt := strings.ToUpper(p.cur.Str)
-				p.advance()
-				if p.cur.Type == '=' {
-					p.advance()
-					if p.isIdentLike() || p.cur.Type == kwON || p.cur.Type == kwOFF {
-						opt += "=" + strings.ToUpper(p.cur.Str)
-						p.advance()
-					}
-				}
-				opts = append(opts, &nodes.String{Str: opt})
-			} else {
-				break
+		seen := map[string]bool{}
+		for {
+			var name string
+			switch {
+			case p.cur.Type == kwCHANGE_TRACKING:
+				name = "CHANGE_TRACKING"
+			case p.cur.Type == kwSTOPLIST:
+				name = "STOPLIST"
+			case p.fulltextIsWord("SEARCH"):
+				name = "SEARCH PROPERTY LIST"
 			}
+			if name == "" || seen[name] {
+				return nil, p.syntaxErrorAtCur()
+			}
+			seen[name] = true
+			p.advance()
+			var val string
+			switch name {
+			case "CHANGE_TRACKING":
+				// TSql160.g:8544: [ = ] { OFF [ , NO POPULATION ] | MANUAL | AUTO }
+				p.match('=')
+				switch {
+				case p.cur.Type == kwOFF, p.fulltextIsWord("MANUAL"), p.fulltextIsWord("AUTO"):
+					val = strings.ToUpper(p.advance().Str)
+				default:
+					return nil, p.syntaxErrorAtCur()
+				}
+			case "STOPLIST":
+				if val, err = p.fulltextParseListValue(); err != nil {
+					return nil, err
+				}
+			default:
+				if err := p.fulltextExpectWord("PROPERTY"); err != nil {
+					return nil, err
+				}
+				if err := p.fulltextExpectWord("LIST"); err != nil {
+					return nil, err
+				}
+				if val, err = p.fulltextParseListValue(); err != nil {
+					return nil, err
+				}
+			}
+			opts = append(opts, &nodes.String{Str: name + "=" + val})
 			if _, ok := p.match(','); !ok {
 				break
 			}
+			if name == "CHANGE_TRACKING" && val == "OFF" && p.cur.Type == kwNO {
+				p.advance()
+				if _, err := p.expect(kwPOPULATION); err != nil {
+					return nil, err
+				}
+				opts = append(opts, &nodes.String{Str: "NO POPULATION"})
+				if _, ok := p.match(','); !ok {
+					break
+				}
+			}
 		}
-		if useParens {
-			p.match(')')
+		if parens {
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
 		}
-		if len(opts) > 0 {
-			stmt.Options = &nodes.List{Items: opts}
-		}
+		stmt.Options = &nodes.List{Items: opts}
 	}
 
 	stmt.Loc.End = p.prevEnd()
@@ -200,21 +376,17 @@ func (p *Parser) parseCreateFulltextIndexStmt() (*nodes.CreateFulltextIndexStmt,
 
 // parseAlterFulltextIndexStmt parses an ALTER FULLTEXT INDEX ON table action.
 //
-// BNF: mssql/parser/bnf/alter-fulltext-index-transact-sql.bnf
+// TSql160.g:11559 alterFulltextIndexStatement and 11575 alterFulltextIndexAction:
 //
-//	ALTER FULLTEXT INDEX ON table_name
+//	ALTER FULLTEXT INDEX ON schemaObjectThreePartName
 //	    { ENABLE
 //	    | DISABLE
 //	    | SET CHANGE_TRACKING [ = ] { MANUAL | AUTO | OFF }
 //	    | SET STOPLIST [ = ] { OFF | SYSTEM | stoplist_name } [ WITH NO POPULATION ]
 //	    | SET SEARCH PROPERTY LIST [ = ] { OFF | property_list_name } [ WITH NO POPULATION ]
-//	    | ADD ( column_name
-//	          [ TYPE COLUMN type_column_name ]
-//	          [ LANGUAGE language_term ]
-//	          [ STATISTICAL_SEMANTICS ]
-//	        [ ,...n ] ) [ WITH NO POPULATION ]
+//	    | ADD ( fulltextIndexColumn [ ,...n ] ) [ WITH NO POPULATION ]
 //	    | ALTER COLUMN column_name { ADD | DROP } STATISTICAL_SEMANTICS [ WITH NO POPULATION ]
-//	    | DROP ( column_name [,...n] ) [ WITH NO POPULATION ]
+//	    | DROP ( column_name [ ,...n ] ) [ WITH NO POPULATION ]
 //	    | START { FULL | INCREMENTAL | UPDATE } POPULATION
 //	    | { STOP | PAUSE | RESUME } POPULATION
 //	    }
@@ -226,12 +398,15 @@ func (p *Parser) parseAlterFulltextIndexStmt() (*nodes.AlterFulltextIndexStmt, e
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
 
-	// ON table_name
-	if _, ok := p.match(kwON); ok {
-		stmt.Table, _ = p.parseTableRef()
+	if _, err := p.expect(kwON); err != nil {
+		return nil, err
 	}
+	table, err := p.fulltextParseObjectName(3)
+	if err != nil {
+		return nil, err
+	}
+	stmt.Table = table
 
-	// Action dispatch
 	switch {
 	case p.cur.Type == kwENABLE:
 		stmt.Action = "ENABLE"
@@ -244,223 +419,163 @@ func (p *Parser) parseAlterFulltextIndexStmt() (*nodes.AlterFulltextIndexStmt, e
 	case p.cur.Type == kwSET:
 		stmt.Action = "SET"
 		p.advance()
-		if p.cur.Type == kwCHANGE_TRACKING {
-			// SET CHANGE_TRACKING [ = ] { MANUAL | AUTO | OFF }
+		switch {
+		case p.cur.Type == kwCHANGE_TRACKING:
+			// TSql160.g:11638
 			p.advance()
-			p.match('=') // optional =
-			if p.cur.Type == kwMANUAL {
-				stmt.ChangeTracking = "MANUAL"
-				p.advance()
-			} else if p.cur.Type == kwAUTO {
-				stmt.ChangeTracking = "AUTO"
-				p.advance()
-			} else if p.cur.Type == kwOFF {
-				stmt.ChangeTracking = "OFF"
-				p.advance()
+			p.match('=')
+			switch {
+			case p.fulltextIsWord("MANUAL"), p.fulltextIsWord("AUTO"), p.cur.Type == kwOFF:
+				stmt.ChangeTracking = strings.ToUpper(p.advance().Str)
+			default:
+				return nil, p.syntaxErrorAtCur()
 			}
-		} else if p.cur.Type == kwSTOPLIST {
-			// SET STOPLIST [ = ] { OFF | SYSTEM | stoplist_name } [ WITH NO POPULATION ]
+		case p.cur.Type == kwSTOPLIST:
+			// TSql160.g:11599
 			p.advance()
-			p.match('=') // optional =
-			var opts []nodes.Node
-			if p.cur.Type == kwOFF {
-				opts = append(opts, &nodes.String{Str: "STOPLIST=OFF"})
-				p.advance()
-			} else if p.cur.Type == kwSYSTEM {
-				opts = append(opts, &nodes.String{Str: "STOPLIST=SYSTEM"})
-				p.advance()
-			} else if p.isIdentLike() {
-				opts = append(opts, &nodes.String{Str: "STOPLIST=" + p.cur.Str})
-				p.advance()
+			val, err := p.fulltextParseListValue()
+			if err != nil {
+				return nil, err
 			}
-			if len(opts) > 0 {
-				stmt.Options = &nodes.List{Items: opts}
+			stmt.Options = &nodes.List{Items: []nodes.Node{&nodes.String{Str: "STOPLIST=" + val}}}
+			if stmt.WithNoPopulation, err = p.fulltextParsePopulationOption(); err != nil {
+				return nil, err
 			}
-			stmt.WithNoPopulation = p.parseWithNoPopulation()
-		} else if p.cur.Type == kwSEARCH {
-			// SET SEARCH PROPERTY LIST [ = ] { OFF | property_list_name } [ WITH NO POPULATION ]
-			p.advance() // consume SEARCH
-			if p.cur.Type == kwPROPERTY {
-				p.advance()
+		case p.fulltextIsWord("SEARCH"):
+			// TSql160.g:11614
+			p.advance()
+			if err := p.fulltextExpectWord("PROPERTY"); err != nil {
+				return nil, err
 			}
-			if p.cur.Type == kwLIST {
-				p.advance()
+			if err := p.fulltextExpectWord("LIST"); err != nil {
+				return nil, err
 			}
-			p.match('=') // optional =
-			var opts []nodes.Node
-			if p.cur.Type == kwOFF {
-				opts = append(opts, &nodes.String{Str: "SEARCH_PROPERTY_LIST=OFF"})
-				p.advance()
-			} else if p.isIdentLike() {
-				opts = append(opts, &nodes.String{Str: "SEARCH_PROPERTY_LIST=" + p.cur.Str})
-				p.advance()
+			val, err := p.fulltextParseListValue()
+			if err != nil {
+				return nil, err
 			}
-			if len(opts) > 0 {
-				stmt.Options = &nodes.List{Items: opts}
+			stmt.Options = &nodes.List{Items: []nodes.Node{&nodes.String{Str: "SEARCH_PROPERTY_LIST=" + val}}}
+			if stmt.WithNoPopulation, err = p.fulltextParsePopulationOption(); err != nil {
+				return nil, err
 			}
-			stmt.WithNoPopulation = p.parseWithNoPopulation()
+		default:
+			return nil, p.syntaxErrorAtCur()
 		}
 
 	case p.cur.Type == kwADD:
+		// TSql160.g:11664
 		stmt.Action = "ADD"
 		p.advance()
-		// ( column_name [ TYPE COLUMN ... ] [ LANGUAGE ... ] [ STATISTICAL_SEMANTICS ] [,...n] )
-		if p.cur.Type == '(' {
-			p.advance()
-			var cols []nodes.Node
-			for p.cur.Type != ')' && p.cur.Type != tokEOF {
-				if p.isIdentLike() {
-					col := p.cur.Str
-					p.advance()
-					// TYPE COLUMN type_col_name
-					if p.cur.Type == kwTYPE {
-						p.advance()
-						if p.cur.Type == kwCOLUMN {
-							p.advance()
-						}
-						if p.isIdentLike() {
-							p.advance()
-						}
-					}
-					// LANGUAGE term
-					if p.cur.Type == kwLANGUAGE {
-						p.advance()
-						if p.isIdentLike() || p.cur.Type == tokICONST || p.cur.Type == tokSCONST {
-							p.advance()
-						}
-					}
-					// STATISTICAL_SEMANTICS
-					if p.cur.Type == kwSTATISTICAL_SEMANTICS {
-						p.advance()
-					}
-					cols = append(cols, &nodes.String{Str: col})
-				}
-				if _, ok := p.match(','); !ok {
-					break
-				}
+		if _, err := p.expect('('); err != nil {
+			return nil, err
+		}
+		var cols []nodes.Node
+		for {
+			col, err := p.fulltextParseIndexColumn()
+			if err != nil {
+				return nil, err
 			}
-			p.match(')')
-			if len(cols) > 0 {
-				stmt.Columns = &nodes.List{Items: cols}
+			cols = append(cols, &nodes.String{Str: col})
+			if _, ok := p.match(','); !ok {
+				break
 			}
 		}
-		// WITH NO POPULATION
-		stmt.WithNoPopulation = p.parseWithNoPopulation()
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		stmt.Columns = &nodes.List{Items: cols}
+		if stmt.WithNoPopulation, err = p.fulltextParsePopulationOption(); err != nil {
+			return nil, err
+		}
 
 	case p.cur.Type == kwALTER:
+		// TSql160.g:11769 and 11788
 		stmt.Action = "ALTER"
 		p.advance()
-		// COLUMN column_name { ADD | DROP } STATISTICAL_SEMANTICS
-		if p.cur.Type == kwCOLUMN {
-			p.advance()
-			if p.isIdentLike() {
-				stmt.ColumnName = p.cur.Str
-				p.advance()
-			}
-			if p.cur.Type == kwADD {
-				stmt.ColumnAction = "ADD"
-				p.advance()
-			} else if p.cur.Type == kwDROP {
-				stmt.ColumnAction = "DROP"
-				p.advance()
-			}
-			// STATISTICAL_SEMANTICS
-			if p.cur.Type == kwSTATISTICAL_SEMANTICS {
-				p.advance()
-			}
+		if _, err := p.expect(kwCOLUMN); err != nil {
+			return nil, err
 		}
-		// WITH NO POPULATION
-		stmt.WithNoPopulation = p.parseWithNoPopulation()
+		if stmt.ColumnName, err = p.fulltextExpectIdent(); err != nil {
+			return nil, err
+		}
+		switch p.cur.Type {
+		case kwADD:
+			stmt.ColumnAction = "ADD"
+		case kwDROP:
+			stmt.ColumnAction = "DROP"
+		default:
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		if _, err := p.expect(kwSTATISTICAL_SEMANTICS); err != nil {
+			return nil, err
+		}
+		if stmt.WithNoPopulation, err = p.fulltextParsePopulationOption(); err != nil {
+			return nil, err
+		}
 
 	case p.cur.Type == kwDROP:
+		// TSql160.g:11702
 		stmt.Action = "DROP"
 		p.advance()
-		// ( column_name [,...n] )
-		if p.cur.Type == '(' {
-			p.advance()
-			var cols []nodes.Node
-			for p.cur.Type != ')' && p.cur.Type != tokEOF {
-				if p.isIdentLike() {
-					cols = append(cols, &nodes.String{Str: p.cur.Str})
-					p.advance()
-				}
-				if _, ok := p.match(','); !ok {
-					break
-				}
+		if _, err := p.expect('('); err != nil {
+			return nil, err
+		}
+		var cols []nodes.Node
+		for {
+			col, err := p.fulltextExpectIdent()
+			if err != nil {
+				return nil, err
 			}
-			p.match(')')
-			if len(cols) > 0 {
-				stmt.Columns = &nodes.List{Items: cols}
+			cols = append(cols, &nodes.String{Str: col})
+			if _, ok := p.match(','); !ok {
+				break
 			}
 		}
-		// WITH NO POPULATION
-		stmt.WithNoPopulation = p.parseWithNoPopulation()
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		stmt.Columns = &nodes.List{Items: cols}
+		if stmt.WithNoPopulation, err = p.fulltextParsePopulationOption(); err != nil {
+			return nil, err
+		}
 
 	case p.cur.Type == kwSTART:
+		// TSql160.g:11726
 		stmt.Action = "START"
 		p.advance()
-		// { FULL | INCREMENTAL | UPDATE } POPULATION
-		if p.isValidOption(fulltextPopulationTypes) {
-			stmt.PopulationType = strings.ToUpper(p.cur.Str)
-			p.advance()
+		if stmt.PopulationType, err = p.expectOption(fulltextPopulationTypes); err != nil {
+			return nil, err
 		}
-		// POPULATION
-		if p.cur.Type == kwPOPULATION {
-			p.advance()
+		if _, err := p.expect(kwPOPULATION); err != nil {
+			return nil, err
 		}
 
-	case p.cur.Type == kwSTOP:
-		stmt.Action = "STOP"
-		p.advance()
-		if p.cur.Type == kwPOPULATION {
-			p.advance()
+	case p.cur.Type == kwSTOP, p.cur.Type == kwPAUSE, p.cur.Type == kwRESUME:
+		// TSql160.g:11752
+		stmt.Action = strings.ToUpper(p.advance().Str)
+		if _, err := p.expect(kwPOPULATION); err != nil {
+			return nil, err
 		}
 
-	case p.cur.Type == kwPAUSE:
-		stmt.Action = "PAUSE"
-		p.advance()
-		if p.cur.Type == kwPOPULATION {
-			p.advance()
-		}
-
-	case p.cur.Type == kwRESUME:
-		stmt.Action = "RESUME"
-		p.advance()
-		if p.cur.Type == kwPOPULATION {
-			p.advance()
-		}
+	default:
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
-// parseWithNoPopulation checks for and consumes WITH NO POPULATION.
-func (p *Parser) parseWithNoPopulation() bool {
-	if p.cur.Type == kwWITH {
-		next := p.peekNext()
-		if next.Type == kwNO {
-			p.advance() // consume WITH
-			p.advance() // consume NO
-			if p.cur.Type == kwPOPULATION {
-				p.advance()
-			}
-			return true
-		}
-	}
-	return false
-}
-
 // parseCreateFulltextCatalogStmt parses a CREATE FULLTEXT CATALOG statement.
 //
-// BNF: mssql/parser/bnf/create-fulltext-catalog-transact-sql.bnf
+// TSql160.g:8322 createFulltextCatalogStatement and 8363 accentSensitivity:
 //
-//	CREATE FULLTEXT CATALOG catalog_name
-//	    [ ON FILEGROUP filegroup ]
-//	    [ IN PATH 'rootpath' ]
-//	    [ WITH ACCENT_SENSITIVITY = { ON | OFF } ]
-//	    [ AS DEFAULT ]
-//	    [ AUTHORIZATION owner_name ]
+//	CREATE FULLTEXT CATALOG identifier
+//	    ( ON FILEGROUP identifier )?
+//	    ( IN PATH stringLiteral )?
+//	    ( WITH ACCENT_SENSITIVITY = { ON | OFF } )?
+//	    ( AS DEFAULT )?
+//	    ( AUTHORIZATION identifier )?
 func (p *Parser) parseCreateFulltextCatalogStmt() (*nodes.CreateFulltextCatalogStmt, error) {
 	loc := p.pos()
 	// CATALOG keyword already consumed by caller
@@ -469,71 +584,64 @@ func (p *Parser) parseCreateFulltextCatalogStmt() (*nodes.CreateFulltextCatalogS
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
 
-	// catalog name
-	if p.isIdentLike() {
-		stmt.Name = p.cur.Str
-		p.advance()
+	name, err := p.fulltextExpectIdent()
+	if err != nil {
+		return nil, err
 	}
+	stmt.Name = name
 
 	var opts []nodes.Node
 
-	// ON FILEGROUP
 	if p.cur.Type == kwON {
 		p.advance()
-		if p.cur.Type == kwFILEGROUP {
-			p.advance()
-			if p.isIdentLike() {
-				opts = append(opts, &nodes.String{Str: "FILEGROUP=" + p.cur.Str})
-				p.advance()
-			}
+		if err := p.fulltextExpectWord("FILEGROUP"); err != nil {
+			return nil, err
 		}
+		fg, err := p.fulltextExpectIdent()
+		if err != nil {
+			return nil, err
+		}
+		opts = append(opts, &nodes.String{Str: "FILEGROUP=" + fg})
 	}
 
-	// IN PATH
 	if p.cur.Type == kwIN {
 		p.advance()
-		if p.cur.Type == kwPATH {
-			p.advance()
+		if err := p.fulltextExpectWord("PATH"); err != nil {
+			return nil, err
 		}
-		if p.cur.Type == tokSCONST {
-			opts = append(opts, &nodes.String{Str: "PATH=" + p.cur.Str})
-			p.advance()
+		path, err := p.fulltextExpectString()
+		if err != nil {
+			return nil, err
 		}
+		opts = append(opts, &nodes.String{Str: "PATH=" + path})
 	}
 
-	// WITH ACCENT_SENSITIVITY
 	if p.cur.Type == kwWITH {
 		p.advance()
-		if p.isValidOption(fulltextCatalogWithOptions) {
-			opt := strings.ToUpper(p.cur.Str)
-			p.advance()
-			if p.cur.Type == '=' {
-				p.advance()
-				if p.cur.Type == kwON || p.cur.Type == kwOFF {
-					opt += "=" + strings.ToUpper(p.cur.Str)
-					p.advance()
-				}
-			}
-			opts = append(opts, &nodes.String{Str: opt})
+		if _, err := p.expect(kwACCENT_SENSITIVITY); err != nil {
+			return nil, err
 		}
+		val, err := p.fulltextExpectOnOff()
+		if err != nil {
+			return nil, err
+		}
+		opts = append(opts, &nodes.String{Str: "ACCENT_SENSITIVITY=" + val})
 	}
 
-	// AS DEFAULT
 	if p.cur.Type == kwAS {
 		p.advance()
-		if p.cur.Type == kwDEFAULT {
-			p.advance()
-			opts = append(opts, &nodes.String{Str: "AS DEFAULT"})
+		if _, err := p.expect(kwDEFAULT); err != nil {
+			return nil, err
 		}
+		opts = append(opts, &nodes.String{Str: "AS DEFAULT"})
 	}
 
-	// AUTHORIZATION
-	if p.cur.Type == kwAUTHORIZATION {
-		p.advance()
-		if p.isIdentLike() {
-			opts = append(opts, &nodes.String{Str: "AUTHORIZATION=" + p.cur.Str})
-			p.advance()
-		}
+	owner, err := p.fulltextParseAuthorization()
+	if err != nil {
+		return nil, err
+	}
+	if owner != "" {
+		opts = append(opts, &nodes.String{Str: "AUTHORIZATION=" + owner})
 	}
 
 	if len(opts) > 0 {
@@ -546,11 +654,12 @@ func (p *Parser) parseCreateFulltextCatalogStmt() (*nodes.CreateFulltextCatalogS
 
 // parseCreateFulltextStoplistStmt parses a CREATE FULLTEXT STOPLIST statement.
 //
-// BNF: mssql/parser/bnf/create-fulltext-stoplist-transact-sql.bnf
+// TSql160.g:8634 createFulltextStoplistStatement:
 //
-//	CREATE FULLTEXT STOPLIST stoplist_name
-//	    [ FROM { [ database_name . ] source_stoplist_name } | SYSTEM STOPLIST ]
-//	    [ AUTHORIZATION owner_name ]
+//	CREATE FULLTEXT STOPLIST identifier
+//	    ( FROM { ( identifier . )? identifier | SYSTEM STOPLIST } )?
+//	    ( AUTHORIZATION identifier )?
+//	    ;
 func (p *Parser) parseCreateFulltextStoplistStmt() (*nodes.CreateFulltextStoplistStmt, error) {
 	loc := p.pos()
 	// STOPLIST keyword already consumed by caller
@@ -559,46 +668,33 @@ func (p *Parser) parseCreateFulltextStoplistStmt() (*nodes.CreateFulltextStoplis
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
 
-	// stoplist_name
-	if p.isIdentLike() {
-		stmt.Name = p.cur.Str
-		p.advance()
+	name, err := p.fulltextExpectIdent()
+	if err != nil {
+		return nil, err
 	}
+	stmt.Name = name
 
-	// FROM clause
 	if p.cur.Type == kwFROM {
 		p.advance()
-		// SYSTEM STOPLIST
-		if p.cur.Type == kwSYSTEM {
-			p.advance()
-			if p.cur.Type == kwSTOPLIST {
-				p.advance()
-			}
+		if p.fulltextIsWord("SYSTEM") && p.peekNext().Type == kwSTOPLIST {
+			p.advance() // SYSTEM
+			p.advance() // STOPLIST
 			stmt.SystemStoplist = true
-		} else if p.isIdentLike() {
-			// [ database_name . ] source_stoplist_name
-			name1 := p.cur.Str
-			p.advance()
-			if p.cur.Type == '.' {
-				p.advance()
-				stmt.SourceDB = name1
-				if p.isIdentLike() {
-					stmt.SourceList = p.cur.Str
-					p.advance()
-				}
-			} else {
-				stmt.SourceList = name1
+		} else {
+			ref, err := p.fulltextParseObjectName(2)
+			if err != nil {
+				return nil, err
 			}
+			stmt.SourceDB = ref.Schema
+			stmt.SourceList = ref.Object
 		}
 	}
 
-	// AUTHORIZATION owner_name
-	if p.cur.Type == kwAUTHORIZATION {
-		p.advance()
-		if p.isIdentLike() {
-			stmt.Authorization = p.cur.Str
-			p.advance()
-		}
+	if stmt.Authorization, err = p.fulltextParseAuthorization(); err != nil {
+		return nil, err
+	}
+	if err := p.fulltextRequireSemicolon(); err != nil {
+		return nil, err
 	}
 
 	stmt.Loc.End = p.prevEnd()
@@ -607,18 +703,13 @@ func (p *Parser) parseCreateFulltextStoplistStmt() (*nodes.CreateFulltextStoplis
 
 // parseAlterFulltextStoplistStmt parses an ALTER FULLTEXT STOPLIST statement.
 //
-// BNF: mssql/parser/bnf/alter-fulltext-stoplist-transact-sql.bnf
+// TSql160.g:8672 alterFulltextStoplistStatement, 8735 addFulltextStoplistAction
+// and 8757 dropFulltextStoplistAction:
 //
-//	ALTER FULLTEXT STOPLIST stoplist_name
-//	{
-//	    ADD [N] 'stopword' LANGUAGE language_term
-//	  | DROP
-//	    {
-//	        'stopword' LANGUAGE language_term
-//	      | ALL LANGUAGE language_term
-//	      | ALL
-//	    }
-//	}
+//	ALTER FULLTEXT STOPLIST identifier
+//	    { ADD stringLiteral languageTerm
+//	    | DROP { stringLiteral languageTerm | ALL ( languageTerm )? } }
+//	    ;
 func (p *Parser) parseAlterFulltextStoplistStmt() (*nodes.AlterFulltextStoplistStmt, error) {
 	loc := p.pos()
 	// STOPLIST keyword already consumed by caller
@@ -627,64 +718,55 @@ func (p *Parser) parseAlterFulltextStoplistStmt() (*nodes.AlterFulltextStoplistS
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
 
-	// stoplist_name
-	if p.isIdentLike() {
-		stmt.Name = p.cur.Str
-		p.advance()
+	name, err := p.fulltextExpectIdent()
+	if err != nil {
+		return nil, err
 	}
+	stmt.Name = name
 
-	// ADD or DROP
-	if p.cur.Type == kwADD {
+	switch p.cur.Type {
+	case kwADD:
 		stmt.Action = "ADD"
 		p.advance()
-
-		// 'stopword' or N'stopword'
-		if p.cur.Type == tokNSCONST {
-			stmt.IsNStr = true
-			stmt.Stopword = p.cur.Str
-			p.advance()
-		} else if p.cur.Type == tokSCONST {
-			stmt.Stopword = p.cur.Str
-			p.advance()
+		stmt.IsNStr = p.cur.Type == tokNSCONST
+		if stmt.Stopword, err = p.fulltextExpectString(); err != nil {
+			return nil, err
 		}
-
-		// LANGUAGE language_term
-		if p.cur.Type == kwLANGUAGE {
-			p.advance()
-			if p.isIdentLike() || p.cur.Type == tokSCONST || p.cur.Type == tokICONST {
-				stmt.Language = p.cur.Str
-				p.advance()
-			}
+		if stmt.Language, err = p.fulltextParseLanguageTerm(); err != nil {
+			return nil, err
 		}
-	} else if p.cur.Type == kwDROP {
+	case kwDROP:
 		stmt.Action = "DROP"
 		p.advance()
-
-		if p.cur.Type == tokSCONST || p.cur.Type == tokNSCONST {
-			// DROP [N]'stopword' LANGUAGE language_term
-			if p.cur.Type == tokNSCONST {
-				stmt.IsNStr = true
-			}
-			stmt.Stopword = p.cur.Str
-			p.advance()
-			if p.cur.Type == kwLANGUAGE {
-				p.advance()
-				if p.isIdentLike() || p.cur.Type == tokSCONST || p.cur.Type == tokICONST {
-					stmt.Language = p.cur.Str
-					p.advance()
-				}
-			}
-		} else if p.cur.Type == kwALL {
+		if p.cur.Type == kwALL {
 			p.advance()
 			stmt.DropAll = true
-			// ALL LANGUAGE language_term  or just ALL
 			if p.cur.Type == kwLANGUAGE {
-				p.advance()
-				if p.isIdentLike() || p.cur.Type == tokSCONST || p.cur.Type == tokICONST {
-					stmt.Language = p.cur.Str
-					p.advance()
+				if stmt.Language, err = p.fulltextParseLanguageTerm(); err != nil {
+					return nil, err
 				}
 			}
+		} else {
+			stmt.IsNStr = p.cur.Type == tokNSCONST
+			if stmt.Stopword, err = p.fulltextExpectString(); err != nil {
+				return nil, err
+			}
+			if stmt.Language, err = p.fulltextParseLanguageTerm(); err != nil {
+				return nil, err
+			}
+		}
+	default:
+		return nil, p.syntaxErrorAtCur()
+	}
+	// requiredSemicolon applies to every form, but the pinned server, having
+	// no full-text search, stops at the language lookup (Msg 7609, 7678)
+	// before it checks for ';', and compat.tsv records those forms without
+	// ';' as accepted. Parse keeps accepting them until a judge with
+	// full-text search installed says otherwise; DROP ALL has no lookup, and
+	// the server refuses it without ';' (Msg 10736).
+	if stmt.Language == "" {
+		if err := p.fulltextRequireSemicolon(); err != nil {
+			return nil, err
 		}
 	}
 
@@ -694,9 +776,7 @@ func (p *Parser) parseAlterFulltextStoplistStmt() (*nodes.AlterFulltextStoplistS
 
 // parseDropFulltextStoplistStmt parses a DROP FULLTEXT STOPLIST statement.
 //
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/drop-fulltext-stoplist-transact-sql
-//
-//	DROP FULLTEXT STOPLIST stoplist_name
+// TSql160.g:8793 dropFulltextStoplistStatement: STOPLIST identifier ;
 func (p *Parser) parseDropFulltextStoplistStmt() (*nodes.DropFulltextStoplistStmt, error) {
 	loc := p.pos()
 	// STOPLIST keyword already consumed by caller
@@ -705,22 +785,66 @@ func (p *Parser) parseDropFulltextStoplistStmt() (*nodes.DropFulltextStoplistStm
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
 
-	if p.isIdentLike() {
-		stmt.Name = p.cur.Str
-		p.advance()
+	name, err := p.fulltextExpectIdent()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Name = name
+	if err := p.fulltextRequireSemicolon(); err != nil {
+		return nil, err
 	}
 
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
+// parseDropFulltextIndexOrCatalogStmt parses DROP FULLTEXT INDEX and DROP
+// FULLTEXT CATALOG, DROP FULLTEXT already consumed.
+//
+// TSql160.g:15321 dropFulltextIndexStatement: INDEX ON dropObject (one
+// object; SQL Server refuses a list and IF EXISTS), and TSql160.g:15310
+// dropFulltextCatalogStatement: CATALOG identifier.
+func (p *Parser) parseDropFulltextIndexOrCatalogStmt(loc int) (*nodes.DropStmt, error) {
+	dropStmt := &nodes.DropStmt{
+		Loc: nodes.Loc{Start: loc, End: -1},
+	}
+	switch p.cur.Type {
+	case kwINDEX:
+		dropStmt.ObjectType = nodes.DropFulltextIndex
+		p.advance()
+		if _, err := p.expect(kwON); err != nil {
+			return nil, err
+		}
+		ref, err := p.fulltextParseObjectName(4)
+		if err != nil {
+			return nil, err
+		}
+		dropStmt.Names = &nodes.List{Items: []nodes.Node{ref}}
+	case kwCATALOG:
+		dropStmt.ObjectType = nodes.DropFulltextCatalog
+		p.advance()
+		ref, err := p.fulltextParseObjectName(1)
+		if err != nil {
+			return nil, err
+		}
+		dropStmt.Names = &nodes.List{Items: []nodes.Node{ref}}
+	default:
+		return nil, p.syntaxErrorAtCur()
+	}
+	dropStmt.Loc.End = p.prevEnd()
+	return dropStmt, nil
+}
+
 // parseCreateSearchPropertyListStmt parses a CREATE SEARCH PROPERTY LIST statement.
 //
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-search-property-list-transact-sql
+// TSql160.g:8804 createSearchPropertyListStatement:
 //
-//	CREATE SEARCH PROPERTY LIST new_list_name
-//	    [ FROM [ database_name . ] source_list_name ]
-//	    [ AUTHORIZATION owner_name ]
+//	CREATE SEARCH PROPERTY LIST identifier
+//	    ( FROM multiPartIdentifier )?
+//	    ( AUTHORIZATION identifier )?
+//	    ;
+//
+// SQL Server takes the source as [ database_name . ] source_list_name.
 func (p *Parser) parseCreateSearchPropertyListStmt() (*nodes.CreateSearchPropertyListStmt, error) {
 	loc := p.pos()
 	// LIST keyword already consumed by caller
@@ -729,38 +853,27 @@ func (p *Parser) parseCreateSearchPropertyListStmt() (*nodes.CreateSearchPropert
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
 
-	// list name
-	if p.isIdentLike() {
-		stmt.Name = p.cur.Str
-		p.advance()
+	name, err := p.fulltextExpectIdent()
+	if err != nil {
+		return nil, err
 	}
+	stmt.Name = name
 
-	// FROM clause
 	if p.cur.Type == kwFROM {
 		p.advance()
-		if p.isIdentLike() {
-			name1 := p.cur.Str
-			p.advance()
-			if p.cur.Type == '.' {
-				p.advance()
-				stmt.SourceDB = name1
-				if p.isIdentLike() {
-					stmt.SourceList = p.cur.Str
-					p.advance()
-				}
-			} else {
-				stmt.SourceList = name1
-			}
+		ref, err := p.fulltextParseObjectName(2)
+		if err != nil {
+			return nil, err
 		}
+		stmt.SourceDB = ref.Schema
+		stmt.SourceList = ref.Object
 	}
 
-	// AUTHORIZATION owner_name
-	if p.cur.Type == kwAUTHORIZATION {
-		p.advance()
-		if p.isIdentLike() {
-			stmt.Authorization = p.cur.Str
-			p.advance()
-		}
+	if stmt.Authorization, err = p.fulltextParseAuthorization(); err != nil {
+		return nil, err
+	}
+	if err := p.fulltextRequireSemicolon(); err != nil {
+		return nil, err
 	}
 
 	stmt.Loc.End = p.prevEnd()
@@ -769,19 +882,15 @@ func (p *Parser) parseCreateSearchPropertyListStmt() (*nodes.CreateSearchPropert
 
 // parseAlterSearchPropertyListStmt parses an ALTER SEARCH PROPERTY LIST statement.
 //
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-search-property-list-transact-sql
+// TSql160.g:8826 alterSearchPropertyListStatement, 8851
+// addSearchPropertyListAction and 8885 dropSearchPropertyListAction:
 //
-//	ALTER SEARCH PROPERTY LIST list_name
-//	{
-//	    ADD 'property_name'
-//	      WITH
-//	      (
-//	          PROPERTY_SET_GUID = 'property_set_guid'
-//	        , PROPERTY_INT_ID = property_int_id
-//	        [ , PROPERTY_DESCRIPTION = 'property_description' ]
-//	      )
-//	  | DROP 'property_name'
-//	}
+//	ALTER SEARCH PROPERTY LIST identifier
+//	    { ADD stringLiteral WITH ( PROPERTY_SET_GUID = stringLiteral ,
+//	                               PROPERTY_INT_ID = integer
+//	                               [ , PROPERTY_DESCRIPTION = stringLiteral ] )
+//	    | DROP stringLiteral }
+//	    ;
 func (p *Parser) parseAlterSearchPropertyListStmt() (*nodes.AlterSearchPropertyListStmt, error) {
 	loc := p.pos()
 	// LIST keyword already consumed by caller
@@ -790,71 +899,72 @@ func (p *Parser) parseAlterSearchPropertyListStmt() (*nodes.AlterSearchPropertyL
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
 
-	// list name
-	if p.isIdentLike() {
-		stmt.Name = p.cur.Str
-		p.advance()
+	name, err := p.fulltextExpectIdent()
+	if err != nil {
+		return nil, err
 	}
+	stmt.Name = name
 
-	// ADD or DROP
-	if p.cur.Type == kwADD {
+	switch p.cur.Type {
+	case kwADD:
 		stmt.Action = "ADD"
 		p.advance()
-
-		// 'property_name'
-		if p.cur.Type == tokSCONST {
-			stmt.PropertyName = p.cur.Str
-			p.advance()
+		if stmt.PropertyName, err = p.fulltextExpectString(); err != nil {
+			return nil, err
 		}
-
-		// WITH ( ... )
-		if p.cur.Type == kwWITH {
-			p.advance()
-			if p.cur.Type == '(' {
-				p.advance()
-				for p.cur.Type != ')' && p.cur.Type != tokEOF {
-					if p.isValidOption(searchPropertyListWithOptions) {
-						key := strings.ToUpper(p.cur.Str)
-						p.advance()
-						if p.cur.Type == '=' {
-							p.advance()
-						}
-						switch key {
-						case "PROPERTY_SET_GUID":
-							if p.cur.Type == tokSCONST {
-								stmt.PropertySetGUID = p.cur.Str
-								p.advance()
-							}
-						case "PROPERTY_INT_ID":
-							if p.cur.Type == tokICONST || p.isIdentLike() {
-								stmt.PropertyIntID = p.cur.Str
-								p.advance()
-							}
-						case "PROPERTY_DESCRIPTION":
-							if p.cur.Type == tokSCONST {
-								stmt.PropertyDesc = p.cur.Str
-								p.advance()
-							}
-						default:
-							// unknown option - break out rather than silently skipping
-						}
-					}
-					if _, ok := p.match(','); !ok {
-						break
-					}
-				}
-				p.match(')')
+		if _, err := p.expect(kwWITH); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect('('); err != nil {
+			return nil, err
+		}
+		if err := p.fulltextExpectWord("PROPERTY_SET_GUID"); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect('='); err != nil {
+			return nil, err
+		}
+		if stmt.PropertySetGUID, err = p.fulltextExpectString(); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(','); err != nil {
+			return nil, err
+		}
+		if err := p.fulltextExpectWord("PROPERTY_INT_ID"); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect('='); err != nil {
+			return nil, err
+		}
+		if p.cur.Type != tokICONST {
+			return nil, p.syntaxErrorAtCur()
+		}
+		stmt.PropertyIntID = p.advance().Str
+		if _, ok := p.match(','); ok {
+			if err := p.fulltextExpectWord("PROPERTY_DESCRIPTION"); err != nil {
+				return nil, err
+			}
+			if _, err := p.expect('='); err != nil {
+				return nil, err
+			}
+			if stmt.PropertyDesc, err = p.fulltextExpectString(); err != nil {
+				return nil, err
 			}
 		}
-	} else if p.cur.Type == kwDROP {
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+	case kwDROP:
 		stmt.Action = "DROP"
 		p.advance()
-
-		// 'property_name'
-		if p.cur.Type == tokSCONST {
-			stmt.PropertyName = p.cur.Str
-			p.advance()
+		if stmt.PropertyName, err = p.fulltextExpectString(); err != nil {
+			return nil, err
 		}
+	default:
+		return nil, p.syntaxErrorAtCur()
+	}
+	if err := p.fulltextRequireSemicolon(); err != nil {
+		return nil, err
 	}
 
 	stmt.Loc.End = p.prevEnd()
@@ -863,9 +973,7 @@ func (p *Parser) parseAlterSearchPropertyListStmt() (*nodes.AlterSearchPropertyL
 
 // parseDropSearchPropertyListStmt parses a DROP SEARCH PROPERTY LIST statement.
 //
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/drop-search-property-list-transact-sql
-//
-//	DROP SEARCH PROPERTY LIST property_list_name
+// TSql160.g:8896 dropSearchPropertyListStatement: SEARCH PROPERTY LIST identifier ;
 func (p *Parser) parseDropSearchPropertyListStmt() (*nodes.DropSearchPropertyListStmt, error) {
 	loc := p.pos()
 	// LIST keyword already consumed by caller
@@ -874,9 +982,13 @@ func (p *Parser) parseDropSearchPropertyListStmt() (*nodes.DropSearchPropertyLis
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
 
-	if p.isIdentLike() {
-		stmt.Name = p.cur.Str
-		p.advance()
+	name, err := p.fulltextExpectIdent()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Name = name
+	if err := p.fulltextRequireSemicolon(); err != nil {
+		return nil, err
 	}
 
 	stmt.Loc.End = p.prevEnd()
@@ -885,13 +997,14 @@ func (p *Parser) parseDropSearchPropertyListStmt() (*nodes.DropSearchPropertyLis
 
 // parseAlterFulltextCatalogStmt parses an ALTER FULLTEXT CATALOG statement.
 //
-// BNF: mssql/parser/bnf/alter-fulltext-catalog-transact-sql.bnf
+// TSql160.g:11512 alterFulltextCatalogStatement:
 //
-//	ALTER FULLTEXT CATALOG catalog_name
-//	    { REBUILD [ WITH ACCENT_SENSITIVITY = { ON | OFF } ]
+//	ALTER FULLTEXT CATALOG identifier
+//	    { REBUILD ( WITH ACCENT_SENSITIVITY = { ON | OFF } )?
 //	    | REORGANIZE
-//	    | AS DEFAULT
-//	    }
+//	    | AS DEFAULT }
+//
+// The grammar lets REORGANIZE take the WITH too; SQL Server refuses it.
 func (p *Parser) parseAlterFulltextCatalogStmt() (*nodes.AlterFulltextCatalogStmt, error) {
 	loc := p.pos()
 	// CATALOG keyword already consumed by caller
@@ -900,38 +1013,38 @@ func (p *Parser) parseAlterFulltextCatalogStmt() (*nodes.AlterFulltextCatalogStm
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
 
-	// catalog name
-	if p.isIdentLike() {
-		stmt.Name = p.cur.Str
-		p.advance()
+	name, err := p.fulltextExpectIdent()
+	if err != nil {
+		return nil, err
 	}
+	stmt.Name = name
 
-	// Action: REBUILD, REORGANIZE, AS DEFAULT
-	if p.isValidOption(fulltextCatalogActions) {
-		action := strings.ToUpper(p.cur.Str)
+	switch p.cur.Type {
+	case kwREBUILD:
+		stmt.Action = "REBUILD"
 		p.advance()
-		if action == "AS" && p.cur.Type == kwDEFAULT {
-			action = "AS DEFAULT"
+		if p.cur.Type == kwWITH {
 			p.advance()
-		} else if action == "REBUILD" {
-			// WITH ACCENT_SENSITIVITY = { ON | OFF }
-			if p.cur.Type == kwWITH {
-				p.advance()
-				if p.cur.Type == kwACCENT_SENSITIVITY {
-					optName := strings.ToUpper(p.cur.Str)
-					p.advance()
-					if p.cur.Type == '=' {
-						p.advance()
-						if p.cur.Type == kwON || p.cur.Type == kwOFF {
-							optName += "=" + strings.ToUpper(p.cur.Str)
-							p.advance()
-						}
-					}
-					stmt.Options = &nodes.List{Items: []nodes.Node{&nodes.String{Str: optName}}}
-				}
+			if _, err := p.expect(kwACCENT_SENSITIVITY); err != nil {
+				return nil, err
 			}
+			val, err := p.fulltextExpectOnOff()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Options = &nodes.List{Items: []nodes.Node{&nodes.String{Str: "ACCENT_SENSITIVITY=" + val}}}
 		}
-		stmt.Action = action
+	case kwREORGANIZE:
+		stmt.Action = "REORGANIZE"
+		p.advance()
+	case kwAS:
+		p.advance()
+		if _, err := p.expect(kwDEFAULT); err != nil {
+			return nil, err
+		}
+		stmt.Action = "AS DEFAULT"
+	default:
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	stmt.Loc.End = p.prevEnd()

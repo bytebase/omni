@@ -3,7 +3,6 @@ package parser
 
 import (
 	"fmt"
-	"strings"
 
 	nodes "github.com/bytebase/omni/mssql/ast"
 )
@@ -186,17 +185,13 @@ func (p *Parser) parseAlterTableStmt() (*nodes.AlterTableStmt, error) {
 		if err != nil {
 			return nil, err
 		}
-		if action != nil {
-			actions = append(actions, action)
-		}
+		actions = append(actions, action)
 	case p.cur.Type == kwDISABLE:
 		action, err := p.parseAlterTableEnableDisable(false)
 		if err != nil {
 			return nil, err
 		}
-		if action != nil {
-			actions = append(actions, action)
-		}
+		actions = append(actions, action)
 	case p.cur.Type == kwSWITCH:
 		action, err := p.parseAlterTableSwitch()
 		if err != nil {
@@ -209,20 +204,12 @@ func (p *Parser) parseAlterTableStmt() (*nodes.AlterTableStmt, error) {
 			return nil, err
 		}
 		actions = append(actions, action)
-	case p.cur.Type == kwSPLIT:
-		action, err := p.parseAlterTableSplitMergeRange(true)
-		if err != nil {
-			return nil, err
-		}
-		actions = append(actions, action)
-	case p.cur.Type == kwMERGE:
-		action, err := p.parseAlterTableSplitMergeRange(false)
-		if err != nil {
-			return nil, err
-		}
-		actions = append(actions, action)
 	default:
-		// Unrecognized ALTER TABLE action - skip
+		// SQL Server takes no other action, and none at all is an error.
+		// SPLIT and MERGE RANGE are ALTER PARTITION FUNCTION's: SQL Server
+		// refuses them here (Msg 102) though ScriptDOM's
+		// alterTableAlterPartitionStatement (TSql160.g:27985) takes them.
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	stmt.Actions = &nodes.List{Items: actions}
@@ -295,7 +282,7 @@ func (p *Parser) parseAlterTableAdd(withCheck string) ([]nodes.Node, error) {
 			}
 			action.Type = nodes.ATAddColumn
 			var err error
-			action.Column, err = p.parseColumnDef()
+			action.Column, err = p.parseTypedColumnDef()
 			if err != nil {
 				return nil, err
 			}
@@ -323,12 +310,11 @@ func (p *Parser) parseAlterTableAdd(withCheck string) ([]nodes.Node, error) {
 func (p *Parser) parseAlterTableAddPeriod() ([]nodes.Node, error) {
 	loc := p.pos()
 	p.advance() // consume PERIOD
-	if p.cur.Type == kwFOR {
-		p.advance() // consume FOR
+	if _, err := p.expect(kwFOR); err != nil {
+		return nil, err
 	}
-	// SYSTEM_TIME
-	if p.cur.Type == kwSYSTEM_TIME {
-		p.advance()
+	if _, err := p.expect(kwSYSTEM_TIME); err != nil {
+		return nil, err
 	}
 
 	action := &nodes.AlterTableAction{
@@ -337,19 +323,24 @@ func (p *Parser) parseAlterTableAddPeriod() ([]nodes.Node, error) {
 	}
 
 	// ( start_col , end_col )
-	if p.cur.Type == '(' {
-		p.advance()
-		var names []nodes.Node
-		startCol, _ := p.parseIdentifier()
-		names = append(names, &nodes.String{Str: startCol})
-		p.match(',')
-		endCol, _ := p.parseIdentifier()
-		names = append(names, &nodes.String{Str: endCol})
-		if _, err := p.expect(')'); err != nil {
-			return nil, err
-		}
-		action.Names = &nodes.List{Items: names}
+	if _, err := p.expect('('); err != nil {
+		return nil, err
 	}
+	startCol, ok := p.parseIdentifier()
+	if !ok {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if _, err := p.expect(','); err != nil {
+		return nil, err
+	}
+	endCol, ok := p.parseIdentifier()
+	if !ok {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	action.Names = &nodes.List{Items: []nodes.Node{&nodes.String{Str: startCol}, &nodes.String{Str: endCol}}}
 
 	action.Loc.End = p.prevEnd()
 	return []nodes.Node{action}, nil
@@ -494,7 +485,7 @@ func (p *Parser) parseAlterTableDropItem(kind *nodes.AlterTableActionType) (*nod
 			return nil, p.unexpectedToken()
 		}
 		var err error
-		action.Options, err = p.parseKeyValueOptionList()
+		action.Options, err = p.parseAlterTableDropOptions()
 		if err != nil {
 			return nil, err
 		}
@@ -530,8 +521,10 @@ func (p *Parser) parseAlterTableAlterColumn() (*nodes.AlterTableAction, error) {
 	loc := p.pos()
 	p.advance() // consume ALTER
 
-	if p.cur.Type == kwCOLUMN {
-		p.advance() // consume COLUMN
+	// ALTER COLUMN (alterTableAlterColumnStatement, TSql160.g:28194): SQL
+	// Server reads ALTER a a as an error.
+	if _, err := p.expect(kwCOLUMN); err != nil {
+		return nil, err
 	}
 
 	// Completion: after ALTER TABLE t ALTER COLUMN → columnref
@@ -581,24 +574,23 @@ func (p *Parser) parseAlterTableAlterColumn() (*nodes.AlterTableAction, error) {
 		col.Collation = collation
 	}
 
-	// NULL / NOT NULL
-	if p.cur.Type == kwNULL {
-		col.Nullable = &nodes.NullableSpec{NotNull: false, Loc: nodes.Loc{Start: p.pos(), End: p.prevEnd()}}
-		p.advance()
-	} else if p.cur.Type == kwNOT {
-		next := p.peekNext()
-		if next.Type == kwNULL {
-			nullLoc := p.pos()
-			p.advance() // NOT
-			p.advance() // NULL
-			col.Nullable = &nodes.NullableSpec{NotNull: true, Loc: nodes.Loc{Start: nullLoc, End: p.prevEnd()}}
-		}
+	// Then, as in a column definition: GENERATED ALWAYS ... [ HIDDEN ], or
+	// else SPARSE, FILESTREAM or COLUMN_SET FOR ALL_SPARSE_COLUMNS and then
+	// MASKED WITH or ENCRYPTED WITH; and last NULL or NOT NULL. SQL Server
+	// refuses NULL SPARSE and a bare HIDDEN (Msg 102).
+	if err := p.parseAlterColumnTypeOptions(col); err != nil {
+		return nil, err
 	}
 
-	// SPARSE (optional after NULL/NOT NULL)
-	if p.cur.Type == kwSPARSE {
-		col.Sparse = true
+	// NULL / NOT NULL
+	if p.cur.Type == kwNULL {
+		col.Nullable = &nodes.NullableSpec{NotNull: false, Loc: nodes.Loc{Start: p.pos(), End: p.cur.End}}
 		p.advance()
+	} else if p.cur.Type == kwNOT && p.peekNext().Type == kwNULL {
+		nullLoc := p.pos()
+		p.advance() // NOT
+		p.advance() // NULL
+		col.Nullable = &nodes.NullableSpec{NotNull: true, Loc: nodes.Loc{Start: nullLoc, End: p.prevEnd()}}
 	}
 
 	col.Loc.End = p.prevEnd()
@@ -615,11 +607,9 @@ func (p *Parser) parseAlterTableAlterColumn() (*nodes.AlterTableAction, error) {
 	// [ WITH ( ONLINE = ON | OFF ) ]
 	if p.cur.Type == kwWITH {
 		p.advance() // consume WITH
-		if p.cur.Type == '(' {
-			action.Options, err = p.parseKeyValueOptionList()
-			if err != nil {
-				return nil, err
-			}
+		action.Options, err = p.parseAlterTableAlterColumnOptions()
+		if err != nil {
+			return nil, err
 		}
 	}
 
@@ -647,7 +637,9 @@ func (p *Parser) parseAlterColumnAddDrop(loc int, colName string) (*nodes.AlterT
 		Loc:    nodes.Loc{Start: optLoc, End: -1},
 	}
 
-	// Determine what's being added/dropped
+	// { ADD | DROP } { ROWGUIDCOL | PERSISTED | NOT FOR REPLICATION | SPARSE
+	// | HIDDEN | MASKED }, ADD MASKED taking WITH ( FUNCTION = '...' ), which
+	// DROP MASKED refuses (alterTableAlterColumnStatement, TSql160.g:28194).
 	switch {
 	case p.cur.Type == kwROWGUIDCOL:
 		opt.Option = "ROWGUIDCOL"
@@ -664,54 +656,38 @@ func (p *Parser) parseAlterColumnAddDrop(loc int, colName string) (*nodes.AlterT
 	case p.cur.Type == kwMASKED:
 		opt.Option = "MASKED"
 		p.advance()
-		// WITH ( FUNCTION = 'mask_function' )
-		if p.cur.Type == kwWITH {
-			p.advance() // consume WITH
-			if p.cur.Type == '(' {
-				p.advance() // consume (
-				// Parse FUNCTION = 'mask_function'
-				for p.cur.Type != ')' && p.cur.Type != tokEOF {
-					if p.cur.Type == kwFUNCTION {
-						p.advance() // consume FUNCTION
-						if p.cur.Type == '=' {
-							p.advance() // consume =
-						}
-						if p.cur.Type == tokSCONST || p.cur.Type == tokNSCONST {
-							opt.MaskFunction = p.cur.Str
-							p.advance()
-						}
-					} else {
-						p.advance()
-					}
-					if _, ok := p.match(','); !ok {
-						break
-					}
-				}
-				if _, err := p.expect(')'); err != nil {
-					return nil, err
-				}
+		if addOrDrop == "ADD" {
+			fn, err := p.parseMaskedWithFunction()
+			if err != nil {
+				return nil, err
 			}
+			opt.MaskFunction = fn
 		}
 	case p.cur.Type == kwNOT:
-		// NOT FOR REPLICATION
 		p.advance() // NOT
-		if p.cur.Type == kwFOR {
-			p.advance() // FOR
+		if _, err := p.expect(kwFOR); err != nil {
+			return nil, err
 		}
-		if p.cur.Type == kwREPLICATION {
-			p.advance() // REPLICATION
+		if _, err := p.expect(kwREPLICATION); err != nil {
+			return nil, err
 		}
 		opt.Option = "NOT FOR REPLICATION"
 	default:
-		// Unknown option, consume as normalized uppercase identifier
-		if p.isIdentLike() {
-			opt.Option = strings.ToUpper(p.cur.Str)
-			p.advance()
-		}
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	opt.Loc.End = p.prevEnd()
 	action.Options = &nodes.List{Items: []nodes.Node{opt}}
+	// SQL Server takes WITH ( ONLINE = ... ) after ADD or DROP MASKED and
+	// refuses it after the others (Msg 11425).
+	if opt.Option == "MASKED" && p.cur.Type == kwWITH {
+		p.advance() // WITH
+		online, err := p.parseAlterTableAlterColumnOptions()
+		if err != nil {
+			return nil, err
+		}
+		action.Options.Items = append(action.Options.Items, online.Items...)
+	}
 	action.Loc.End = p.prevEnd()
 	return action, nil
 }
@@ -731,26 +707,16 @@ func (p *Parser) parseAlterTableCheckConstraint(withCheck string, isCheck bool) 
 	}
 	p.advance() // consume CHECK/NOCHECK
 
-	// CONSTRAINT keyword
-	if p.cur.Type == kwCONSTRAINT {
-		p.advance()
+	// CONSTRAINT { ALL | name [ ,...n ] }
+	// (alterTableConstraintModificationStatement, TSql160.g:28592)
+	if _, err := p.expect(kwCONSTRAINT); err != nil {
+		return nil, err
 	}
-
-	// ALL or constraint_name list
-	var names []nodes.Node
-	if p.cur.Type == kwALL {
-		names = append(names, &nodes.String{Str: "ALL"})
-		p.advance()
-	} else {
-		for {
-			name, _ := p.parseIdentifier()
-			names = append(names, &nodes.String{Str: name})
-			if _, ok := p.match(','); !ok {
-				break
-			}
-		}
+	names, err := p.parseAlterTableAllOrNames()
+	if err != nil {
+		return nil, err
 	}
-	action.Names = &nodes.List{Items: names}
+	action.Names = names
 
 	action.Loc.End = p.prevEnd()
 	return action, nil
@@ -778,7 +744,7 @@ func (p *Parser) parseAlterTableEnableDisable(enable bool) (*nodes.AlterTableAct
 		return p.parseAlterTableFiletableNamespace(loc, enable)
 	}
 
-	return nil, nil
+	return nil, p.syntaxErrorAtCur()
 }
 
 // parseAlterTableEnableDisableTrigger parses ENABLE/DISABLE TRIGGER { ALL | name [,...n] }.
@@ -801,21 +767,12 @@ func (p *Parser) parseAlterTableEnableDisableTrigger(loc int, enable bool) (*nod
 		return nil, errCollecting
 	}
 
-	// ALL or trigger_name list
-	var names []nodes.Node
-	if p.cur.Type == kwALL {
-		names = append(names, &nodes.String{Str: "ALL"})
-		p.advance()
-	} else {
-		for {
-			name, _ := p.parseIdentifier()
-			names = append(names, &nodes.String{Str: name})
-			if _, ok := p.match(','); !ok {
-				break
-			}
-		}
+	// ALL or trigger_name list (alterTableTriggerModificationStatement)
+	names, err := p.parseAlterTableAllOrNames()
+	if err != nil {
+		return nil, err
 	}
-	action.Names = &nodes.List{Items: names}
+	action.Names = names
 
 	action.Loc.End = p.prevEnd()
 	return action, nil
@@ -834,16 +791,24 @@ func (p *Parser) parseAlterTableChangeTracking(loc int, enable bool) (*nodes.Alt
 	}
 	p.advance() // consume CHANGE_TRACKING
 
-	// WITH ( TRACK_COLUMNS_UPDATED = { ON | OFF } )
-	if p.cur.Type == kwWITH {
+	// WITH ( TRACK_COLUMNS_UPDATED = { ON | OFF } ), after ENABLE only
+	// (alterTableChangeTrackingModificationStatement, TSql160.g:28016).
+	if enable && p.cur.Type == kwWITH {
 		p.advance() // consume WITH
-		if p.cur.Type == '(' {
-			var err error
-			action.Options, err = p.parseKeyValueOptionList()
-			if err != nil {
-				return nil, err
-			}
+		if _, err := p.expect('('); err != nil {
+			return nil, err
 		}
+		if _, err := p.tableOptionName(nil, "TRACK_COLUMNS_UPDATED"); err != nil {
+			return nil, err
+		}
+		v, err := p.tableExpectOnOff()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		action.Options = &nodes.List{Items: []nodes.Node{&nodes.String{Str: "TRACK_COLUMNS_UPDATED"}, &nodes.String{Str: v}}}
 	}
 
 	action.Loc.End = p.prevEnd()
@@ -859,43 +824,37 @@ func (p *Parser) parseAlterTableSwitch() (*nodes.AlterTableAction, error) {
 	}
 	p.advance() // consume SWITCH
 
-	// Optional PARTITION source_partition_number
+	// SWITCH [ PARTITION expression ] TO table [ PARTITION expression ]
+	// [ WITH ( <low_priority_lock_wait> ) ] (alterTableSwitchStatement,
+	// TSql160.g:27957).
+	var err error
 	if p.cur.Type == kwPARTITION {
 		p.advance() // consume PARTITION
-		var err error
-		action.Partition, err = p.parseExpr()
-		if err != nil {
+		if action.Partition, err = p.parseAlterTablePartitionNumber(); err != nil {
 			return nil, err
 		}
 	}
-
-	// TO target_table
-	if p.cur.Type == kwTO {
-		p.advance() // consume TO
+	if _, err := p.expect(kwTO); err != nil {
+		return nil, err
 	}
-	var err error
 	action.TargetName, err = p.parseTableRef()
 	if err != nil {
 		return nil, err
 	}
-
-	// Optional PARTITION target_partition_number
+	if action.TargetName == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
 	if p.cur.Type == kwPARTITION {
 		p.advance() // consume PARTITION
-		action.TargetPart, err = p.parseExpr()
-		if err != nil {
+		if action.TargetPart, err = p.parseAlterTablePartitionNumber(); err != nil {
 			return nil, err
 		}
 	}
-
-	// Optional WITH ( <low_priority_lock_wait> )
 	if p.cur.Type == kwWITH {
 		p.advance() // consume WITH
-		if p.cur.Type == '(' {
-			action.Options, err = p.parseKeyValueOptionList()
-			if err != nil {
-				return nil, err
-			}
+		action.Options, err = p.parseAlterTableSwitchOptions()
+		if err != nil {
+			return nil, err
 		}
 	}
 
@@ -912,19 +871,18 @@ func (p *Parser) parseAlterTableRebuild() (*nodes.AlterTableAction, error) {
 	}
 	p.advance() // consume REBUILD
 
-	// Optional PARTITION = { ALL | partition_number }
+	// Optional PARTITION = { ALL | partition_number } (partitionSpecifier)
 	if p.cur.Type == kwPARTITION {
 		p.advance() // consume PARTITION
-		if p.cur.Type == '=' {
-			p.advance() // consume =
+		if _, err := p.expect('='); err != nil {
+			return nil, err
 		}
 		if p.cur.Type == kwALL {
 			action.ColName = "ALL" // reuse ColName to indicate PARTITION = ALL
 			p.advance()
 		} else {
 			var err error
-			action.Partition, err = p.parseExpr()
-			if err != nil {
+			if action.Partition, err = p.parseAlterTablePartitionNumber(); err != nil {
 				return nil, err
 			}
 		}
@@ -933,12 +891,10 @@ func (p *Parser) parseAlterTableRebuild() (*nodes.AlterTableAction, error) {
 	// Optional WITH ( rebuild_option [,...n] )
 	if p.cur.Type == kwWITH {
 		p.advance() // consume WITH
-		if p.cur.Type == '(' {
-			var err error
-			action.Options, err = p.parseOptionList()
-			if err != nil {
-				return nil, err
-			}
+		var err error
+		action.Options, err = p.parseAlterTableRebuildOptions()
+		if err != nil {
+			return nil, err
 		}
 	}
 
@@ -946,41 +902,17 @@ func (p *Parser) parseAlterTableRebuild() (*nodes.AlterTableAction, error) {
 	return action, nil
 }
 
-// parseAlterTableSplitMergeRange parses { SPLIT | MERGE } RANGE ( boundary_value ).
-//
-//	{ SPLIT | MERGE } RANGE ( boundary_value )
-func (p *Parser) parseAlterTableSplitMergeRange(isSplit bool) (*nodes.AlterTableAction, error) {
-	loc := p.pos()
-	action := &nodes.AlterTableAction{
-		Loc: nodes.Loc{Start: loc, End: -1},
+// parseAlterTablePartitionNumber parses the partition expression after
+// PARTITION, which SQL Server requires.
+func (p *Parser) parseAlterTablePartitionNumber() (nodes.ExprNode, error) {
+	e, err := p.parseExpr()
+	if err != nil {
+		return nil, err
 	}
-	if isSplit {
-		action.Type = nodes.ATSplitRange
-	} else {
-		action.Type = nodes.ATMergeRange
+	if e == nil {
+		return nil, p.syntaxErrorAtCur()
 	}
-	p.advance() // consume SPLIT/MERGE
-
-	// RANGE keyword
-	if p.cur.Type == kwRANGE {
-		p.advance()
-	}
-
-	// ( boundary_value )
-	if p.cur.Type == '(' {
-		p.advance() // consume (
-		var err error
-		action.Partition, err = p.parseExpr()
-		if err != nil {
-			return nil, err
-		}
-		if _, err := p.expect(')'); err != nil {
-			return nil, err
-		}
-	}
-
-	action.Loc.End = p.prevEnd()
-	return action, nil
+	return e, nil
 }
 
 // parseAlterTableSet parses SET ( option = value [,...] ).
@@ -998,12 +930,10 @@ func (p *Parser) parseAlterTableSet() (*nodes.AlterTableAction, error) {
 	}
 	p.advance() // consume SET
 
-	if p.cur.Type == '(' {
-		var err error
-		action.Options, err = p.parseKeyValueOptionList()
-		if err != nil {
-			return nil, err
-		}
+	var err error
+	action.Options, err = p.parseAlterTableSetOptions()
+	if err != nil {
+		return nil, err
 	}
 
 	action.Loc.End = p.prevEnd()
@@ -1137,4 +1067,72 @@ func (p *Parser) consumeAnyIdent() string {
 		s = s + "." + part
 	}
 	return s
+}
+
+// parseAlterColumnTypeOptions parses what may follow ALTER COLUMN's type and
+// collation before NULL or NOT NULL, the order of a column definition.
+func (p *Parser) parseAlterColumnTypeOptions(col *nodes.ColumnDef) error {
+	if p.cur.Type == kwGENERATED {
+		g, err := p.parseGeneratedAlways()
+		if err != nil {
+			return err
+		}
+		col.GeneratedAlways = g
+		if p.cur.Type == kwHIDDEN {
+			col.Hidden = true
+			p.advance()
+		}
+		return nil
+	}
+	if p.cur.Type == kwCOLUMN_SET {
+		p.advance() // COLUMN_SET
+		if _, err := p.expect(kwFOR); err != nil {
+			return err
+		}
+		if _, err := p.expect(kwALL_SPARSE_COLUMNS); err != nil {
+			return err
+		}
+		col.IsColumnSet = true
+		return nil
+	}
+	if err := p.parseColumnStorage(col); err != nil {
+		return err
+	}
+	switch {
+	case p.cur.Type == kwMASKED:
+		p.advance()
+		fn, err := p.parseMaskedWithFunction()
+		if err != nil {
+			return err
+		}
+		col.MaskFunction = fn
+	case p.cur.Type == kwENCRYPTED && !col.Filestream:
+		enc, err := p.parseEncryptedWith()
+		if err != nil {
+			return err
+		}
+		col.EncryptedWith = enc
+	}
+	return nil
+}
+
+// parseAlterTableAllOrNames parses ALL or a list of one or more names, as
+// CHECK CONSTRAINT and ENABLE TRIGGER take.
+func (p *Parser) parseAlterTableAllOrNames() (*nodes.List, error) {
+	if p.cur.Type == kwALL {
+		p.advance()
+		return &nodes.List{Items: []nodes.Node{&nodes.String{Str: "ALL"}}}, nil
+	}
+	var names []nodes.Node
+	for {
+		name, ok := p.parseIdentifier()
+		if !ok {
+			return nil, p.syntaxErrorAtCur()
+		}
+		names = append(names, &nodes.String{Str: name})
+		if _, ok := p.match(','); !ok {
+			break
+		}
+	}
+	return &nodes.List{Items: names}, nil
 }

@@ -2,6 +2,8 @@
 package parser
 
 import (
+	"strings"
+
 	nodes "github.com/bytebase/omni/mssql/ast"
 )
 
@@ -24,15 +26,27 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 		return nil, errCollecting
 	}
 
-	// Get type name - could be keyword (INT, VARCHAR, etc.) or identifier
-	var name string
-	if p.isKeywordOrIdent() {
-		// Accept identifiers and any keyword as a type name (e.g., INT, VARCHAR, etc.)
-		name = p.cur.Str
-		p.advance()
-	} else {
+	national := false
+	// A type name is an identifier, which a reserved word is not unless
+	// quoted (scalarDataType, TSql160.g:30159): SQL Server reads
+	// `ADD a NULL` as a column with no type (Msg 173). DOUBLE PRECISION and
+	// NATIONAL { CHAR | CHARACTER | TEXT } [ VARYING ] start with reserved
+	// words (doubleDataType, TSql160.g:30283; sqlDataTypeWithNational,
+	// TSql160.g:30192).
+	switch {
+	case p.cur.Type == kwDOUBLE:
+		return p.parseDoublePrecisionType(loc)
+	case p.cur.Type == kwNATIONAL:
+		p.advance() // NATIONAL
+		if !p.isIdentLike() {
+			return nil, p.syntaxErrorAtCur()
+		}
+		national = true
+	case !p.isIdentLike():
 		return nil, nil
 	}
+	name := p.cur.Str
+	p.advance()
 
 	dt := &nodes.DataType{
 		Name: name,
@@ -47,6 +61,26 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 			dt.Name = p.cur.Str
 			p.advance()
 		}
+	}
+
+	// NATIONAL takes CHAR, CHARACTER and TEXT, and VARYING follows CHAR,
+	// CHARACTER, NCHAR and BINARY; SQL Server refuses NATIONAL VARCHAR and
+	// VARCHAR VARYING (Msg 102). The actions of sqlDataTypeWithNational and
+	// sqlDataTypeWithoutNational (TSql160.g:30192, TSql160.g:30224) check
+	// the name.
+	base := strings.ToUpper(dt.Name)
+	if national {
+		if base != "CHAR" && base != "CHARACTER" && base != "TEXT" {
+			return nil, p.syntaxErrorAtCur()
+		}
+		dt.Name = "NATIONAL " + dt.Name
+	}
+	if p.cur.Type == kwVARYING {
+		if base != "CHAR" && base != "CHARACTER" && (national || base != "NCHAR" && base != "BINARY") {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		dt.Name += " VARYING"
 	}
 
 	// Check for (precision[, scale]) or (MAX) or (length)
@@ -76,6 +110,35 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 		}
 	}
 
+	dt.Loc.End = p.prevEnd()
+	return dt, nil
+}
+
+// parseDoublePrecisionType parses DOUBLE PRECISION [ ( { MAX | integer } ) ]
+// (doubleDataType, TSql160.g:30283), with DOUBLE the current token.
+func (p *Parser) parseDoublePrecisionType(loc int) (*nodes.DataType, error) {
+	p.advance() // DOUBLE
+	if p.cur.Type != kwPRECISION {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance() // PRECISION
+	dt := &nodes.DataType{Name: "DOUBLE PRECISION", Loc: nodes.Loc{Start: loc, End: -1}}
+	if p.cur.Type == '(' {
+		p.advance()
+		switch p.cur.Type {
+		case kwMAX:
+			dt.MaxLength = true
+			p.advance()
+		case tokICONST:
+			dt.Length = &nodes.Literal{Type: nodes.LitInteger, Ival: p.cur.Ival, Str: p.cur.Str, Loc: nodes.Loc{Start: p.cur.Loc, End: p.cur.End}}
+			p.advance()
+		default:
+			return nil, p.syntaxErrorAtCur()
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+	}
 	dt.Loc.End = p.prevEnd()
 	return dt, nil
 }

@@ -326,7 +326,7 @@ func (p *Parser) parseCreateFunctionStmt(orAlter bool) (*nodes.CreateFunctionStm
 				p.advance()
 				var cols []nodes.Node
 				for p.cur.Type != ')' && p.cur.Type != tokEOF {
-					col, err := p.parseColumnDef()
+					col, err := p.parseTypedColumnDef()
 					if err != nil {
 						return nil, err
 					}
@@ -357,7 +357,7 @@ func (p *Parser) parseCreateFunctionStmt(orAlter bool) (*nodes.CreateFunctionStm
 					p.advance()
 					var cols []nodes.Node
 					for p.cur.Type != ')' && p.cur.Type != tokEOF {
-						col, err := p.parseColumnDef()
+						col, err := p.parseTypedColumnDef()
 						if err != nil {
 							return nil, err
 						}
@@ -379,6 +379,9 @@ func (p *Parser) parseCreateFunctionStmt(orAlter bool) (*nodes.CreateFunctionStm
 			dt, err := p.parseDataType()
 			if err != nil {
 				return nil, err
+			}
+			if dt == nil {
+				return nil, p.syntaxErrorAtCur()
 			}
 			stmt.ReturnType = dt
 		}
@@ -498,10 +501,18 @@ func (p *Parser) parseParamDef() (*nodes.ParamDef, error) {
 	// Optional AS keyword (for function parameters)
 	p.match(kwAS)
 
-	// Data type
-	dt, err := p.parseDataType()
-	if err != nil {
-		return nil, err
+	// Data type. CURSOR, a reserved word, types an OUTPUT parameter of a
+	// procedure (procedureParameter, TSql160.g; cursorDataType, TSql160.g:30123).
+	var dt *nodes.DataType
+	var err error
+	if p.cur.Type == kwCURSOR {
+		dt = &nodes.DataType{Name: "CURSOR", Loc: nodes.Loc{Start: p.cur.Loc, End: p.cur.End}}
+		p.advance()
+	} else {
+		dt, err = p.parseDataType()
+		if err != nil {
+			return nil, err
+		}
 	}
 	param.DataType = dt
 

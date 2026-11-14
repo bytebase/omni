@@ -553,7 +553,7 @@ func (p *Parser) parseAlterColumnDef() (*ast.ColumnDef, error) {
 	if err != nil {
 		return nil, err
 	}
-	typ, err := p.parseDataType()
+	typ, err := p.parseLegacyDataType()
 	if err != nil {
 		return nil, err
 	}

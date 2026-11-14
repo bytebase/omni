@@ -704,9 +704,16 @@ var _ Node = (*DropWorkloadGroupStmt)(nil)
 // WORKLOAD POLICY DDL nodes (T5.4)
 // ---------------------------------------------------------------------------
 
-// WorkloadPolicyItem holds a raw-text capture of one condition or action item
-// from a WORKLOAD POLICY CONDITIONS/ACTIONS clause.
+// WorkloadPolicyItem is one condition or action of a WORKLOAD POLICY:
+//
+//	metric op value          (a condition: Name, Op, Value)
+//	action ['argument']      (an action: Name, and Value when given)
+//
+// RawText holds the item's source text.
 type WorkloadPolicyItem struct {
+	Name    string // the metric or action name
+	Op      string // a condition's =, <, >, <= or >=; "" for an action
+	Value   string // the value or argument, unquoted; "" when an action has none
 	RawText string
 	Loc     Loc
 }

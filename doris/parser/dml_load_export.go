@@ -195,24 +195,24 @@ func isIdentText(p *Parser, lower string) bool {
 	return false
 }
 
-// parseStringList parses ('str1', 'str2', ...).
+// parseStringList parses '(' STRING_LITERAL (',' STRING_LITERAL)* ')': at
+// least one string, comma-separated, as the grammars' file lists
+// (DorisParser.g4:984, the CUP parser's string_list) have it.
 func (p *Parser) parseStringList() ([]string, error) {
 	if _, err := p.expect(int('(')); err != nil {
 		return nil, err
 	}
-
 	var strs []string
-	for p.cur.Kind != int(')') && p.cur.Kind != tokEOF {
+	for {
 		if p.cur.Kind != tokString {
 			return nil, p.syntaxErrorAtCur()
 		}
-		strs = append(strs, p.cur.Str)
-		p.advance()
-		if p.cur.Kind == int(',') {
-			p.advance() // consume ','
+		strs = append(strs, p.advance().Str)
+		if p.cur.Kind != int(',') {
+			break
 		}
+		p.advance() // consume ','
 	}
-
 	if _, err := p.expect(int(')')); err != nil {
 		return nil, err
 	}
@@ -223,114 +223,142 @@ func (p *Parser) parseStringList() ([]string, error) {
 // LOAD (T6.1)
 // ---------------------------------------------------------------------------
 
-// parseLoad parses:
+// parseLoad parses the two LOAD statements of DorisParser.g4:
 //
-//	LOAD LABEL [db.]label_name
-//	    (DATA INFILE('path') [NEGATIVE] INTO TABLE t [PARTITION(...)]
-//	         [COLUMNS FROM PATH AS (col, ...)]
-//	         [COLUMNS (c1, c2, ...)]
-//	         [SET (...)]
-//	         [WHERE expr]
-//	    [, DATA INFILE...])
-//	    [WITH BROKER broker_name [(key=val, ...)]]
-//	    [PROPERTIES(...)]
-//	    [COMMENT 'text']
+//	LOAD LABEL lableName=multipartIdentifier
+//	    LEFT_PAREN dataDesc (COMMA dataDesc)* RIGHT_PAREN
+//	    withRemoteStorageSystem? propertyClause? commentSpec?          (:153)
+//	LOAD mysqlDataDesc (PROPERTIES LEFT_PAREN propertyItemList RIGHT_PAREN)?
+//	    commentSpec?                                                   (:378)
+//
+// LOAD DATA is an unsupportedStatement, so Doris also parses it with the CUP
+// parser's load_stmt (DorisLegacyParser.g4:588), and reads it here as both
+// do. LOAD LABEL builds a LoadCommand, which hands its text to the CUP parser
+// only for a broker load when it runs (testdata/README.md): Doris takes
+// PROPERTIES (a = a) in a data description, which the CUP parser's string
+// pairs refuse, but not WITH BROKER b (k = 'v').
 //
 // The LOAD keyword has NOT yet been consumed when this is called.
 func (p *Parser) parseLoad() (ast.Node, error) {
 	loadTok := p.advance() // consume LOAD
+	stmt := &ast.LoadDataStmt{Loc: ast.Loc{Start: loadTok.Loc.Start}}
 
-	stmt := &ast.LoadDataStmt{
-		Loc: ast.Loc{Start: loadTok.Loc.Start},
+	if p.cur.Kind == kwDATA {
+		desc, err := p.parseMysqlDataDesc()
+		if err != nil {
+			return nil, err
+		}
+		stmt.DataDescs = []*ast.LoadDataDesc{desc}
+		if p.cur.Kind == kwPROPERTIES {
+			if stmt.Properties, err = p.parseProperties(); err != nil {
+				return nil, err
+			}
+		}
+		if err := p.parseLoadComment(stmt); err != nil {
+			return nil, err
+		}
+		stmt.Loc.End = p.prev.Loc.End
+		return stmt, nil
 	}
 
-	// LABEL label_name (required)
 	if _, err := p.expect(kwLABEL); err != nil {
 		return nil, err
 	}
-
-	// Label: may be db_name.label_name
-	labelParts, err := p.parseLoadLabel()
+	label, err := p.parseLoadLabel()
 	if err != nil {
 		return nil, err
 	}
-	stmt.Label = labelParts
+	stmt.Label = label
 
-	// Required '(' to open data desc list
 	if _, err := p.expect(int('(')); err != nil {
 		return nil, err
 	}
-
-	// Parse one or more data descriptions separated by ','
-	desc, err := p.parseLoadDataDesc()
-	if err != nil {
-		return nil, err
-	}
-	stmt.DataDescs = append(stmt.DataDescs, desc)
-
-	for p.cur.Kind == int(',') {
-		p.advance() // consume ','
-		desc, err = p.parseLoadDataDesc()
+	for {
+		desc, err := p.parseLoadDataDesc()
 		if err != nil {
 			return nil, err
 		}
 		stmt.DataDescs = append(stmt.DataDescs, desc)
+		if p.cur.Kind != int(',') {
+			break
+		}
+		p.advance() // consume ','
 	}
-
 	if _, err := p.expect(int(')')); err != nil {
 		return nil, err
 	}
 
-	// Optional WITH BROKER broker_name [(key=val, ...)]
 	if p.cur.Kind == kwWITH {
-		p.advance() // consume WITH
-		if _, err := p.expect(kwBROKER); err != nil {
+		if err := p.parseLoadStorage(stmt); err != nil {
 			return nil, err
-		}
-		brokerName, _, err := p.parseIdentifier()
-		if err != nil {
-			return nil, err
-		}
-		stmt.BrokerName = brokerName
-
-		// Optional broker properties (...). The grammar gives them as a
-		// propertyItemList, whose items may take an identifier or any
-		// constant on either side, but the engine holds a broker load to a
-		// string on both: (username = "u"), ("k" = 1) and ("k" = v) are
-		// rejects, reported by its legacy parser ("Syntax error ...
-		// Encountered: IDENTIFIER"), while EXPORT's list takes all three
-		// (container-verified both ways).
-		if p.cur.Kind == int('(') {
-			p.advance() // consume '('
-			props, err := p.parsePropertyItems(p.parseStringProperty)
-			if err != nil {
-				return nil, err
-			}
-			stmt.BrokerProperties = props
 		}
 	}
-
-	// Optional PROPERTIES(...)
 	if p.cur.Kind == kwPROPERTIES {
-		props, err := p.parseProperties()
-		if err != nil {
+		if stmt.Properties, err = p.parseProperties(); err != nil {
 			return nil, err
 		}
-		stmt.Properties = props
 	}
-
-	// Optional COMMENT 'text'
-	if p.cur.Kind == kwCOMMENT {
-		p.advance() // consume COMMENT
-		if p.cur.Kind != tokString {
-			return nil, p.syntaxErrorAtCur()
-		}
-		stmt.Comment = p.cur.Str
-		p.advance()
+	if err := p.parseLoadComment(stmt); err != nil {
+		return nil, err
 	}
-
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
+}
+
+// parseLoadComment reads an optional COMMENT STRING_LITERAL.
+func (p *Parser) parseLoadComment(stmt *ast.LoadDataStmt) error {
+	if p.cur.Kind != kwCOMMENT {
+		return nil
+	}
+	p.advance() // consume COMMENT
+	if p.cur.Kind != tokString {
+		return p.syntaxErrorAtCur()
+	}
+	stmt.Comment = p.advance().Str
+	return nil
+}
+
+// parseLoadStorage reads withRemoteStorageSystem (DorisParser.g4:1121):
+//
+//	WITH RESOURCE identifierOrText (LEFT_PAREN propertyItemList RIGHT_PAREN)?
+//	| WITH (S3 | HDFS | LOCAL) LEFT_PAREN propertyItemList RIGHT_PAREN
+//	| WITH BROKER identifierOrText (LEFT_PAREN propertyItemList RIGHT_PAREN)?
+//
+// The engine holds a broker load's list to strings on both sides, as the CUP
+// parser's key_value_map does: (username = "u"), ("k" = 1) and ("k" = v) are
+// refused by its legacy parser ("Syntax error ... Encountered: IDENTIFIER"),
+// while EXPORT's list takes all three (container-verified both ways). The
+// other storage systems' lists are read the same way, failing closed.
+func (p *Parser) parseLoadStorage(stmt *ast.LoadDataStmt) error {
+	p.advance() // consume WITH
+	needList := false
+	switch p.cur.Kind {
+	case kwRESOURCE, kwBROKER:
+		stmt.StorageType = strings.ToUpper(p.advance().Str)
+		name, _, err := p.parseIdentifierOrString()
+		if err != nil {
+			return err
+		}
+		stmt.BrokerName = name
+	case kwS3, kwHDFS, kwLOCAL:
+		stmt.StorageType = strings.ToUpper(p.advance().Str)
+		needList = true
+	default:
+		return p.syntaxErrorAtCur()
+	}
+	if p.cur.Kind != int('(') {
+		if needList {
+			return p.syntaxErrorAtCur()
+		}
+		return nil
+	}
+	p.advance() // consume '('
+	props, err := p.parsePropertyItems(p.parseStringProperty)
+	if err != nil {
+		return err
+	}
+	stmt.BrokerProperties = props
+	return nil
 }
 
 // parseLoadLabel parses the load label, which may be db_name.label_name or
@@ -351,45 +379,206 @@ func (p *Parser) parseLoadLabel() (string, error) {
 	return first, nil
 }
 
-// parseLoadDataDesc parses one DATA INFILE(...) INTO TABLE t ... clause.
+// parseLoadMergeType reads ((WITH)? mergeType)? before DATA (DorisParser.g4:984).
+func (p *Parser) parseLoadMergeType(desc *ast.LoadDataDesc) error {
+	withTok := p.cur.Kind == kwWITH
+	if withTok {
+		p.advance() // consume WITH
+	}
+	switch p.cur.Kind {
+	case kwAPPEND, kwDELETE, kwMERGE:
+		desc.MergeType = strings.ToUpper(p.advance().Str)
+	default:
+		if withTok {
+			return p.syntaxErrorAtCur()
+		}
+	}
+	return nil
+}
+
+// parseLoadDataDesc parses one dataDesc of LOAD LABEL (DorisParser.g4:983):
+//
+//	((WITH)? mergeType)? DATA INFILE LEFT_PAREN STRING_LITERAL (COMMA STRING_LITERAL)* RIGHT_PAREN
+//	    INTO TABLE identifier partitionSpec?
+//	    (COLUMNS TERMINATED BY STRING_LITERAL)? (LINES TERMINATED BY STRING_LITERAL)?
+//	    (FORMAT AS identifierOrText)? (COMPRESS_TYPE AS identifierOrText)?
+//	    identifierList? colFromPath? colMappingList? preFilterClause?
+//	    whereClause? deleteOnClause? sequenceColClause? propertyClause?
+//	| ((WITH)? mergeType)? DATA FROM TABLE identifier INTO TABLE identifier
+//	    (PARTITION identifierList)? colMappingList? whereClause?
+//	    deleteOnClause? propertyClause?
 func (p *Parser) parseLoadDataDesc() (*ast.LoadDataDesc, error) {
 	desc := &ast.LoadDataDesc{}
 	startLoc := p.cur.Loc
-
-	// Optional NEGATIVE keyword before DATA
-	if p.cur.Kind == kwNEGATIVE {
-		p.advance() // consume NEGATIVE
-		desc.Negative = true
+	if err := p.parseLoadMergeType(desc); err != nil {
+		return nil, err
 	}
-
-	// Required DATA keyword
 	if _, err := p.expect(kwDATA); err != nil {
 		return nil, err
 	}
 
-	// Required INFILE('path', ...)
-	if _, err := p.expect(kwINFILE); err != nil {
-		return nil, err
+	fromTable := p.cur.Kind == kwFROM
+	if fromTable {
+		p.advance() // consume FROM
+		if _, err := p.expect(kwTABLE); err != nil {
+			return nil, err
+		}
+		src, err := p.parseLoadTableName()
+		if err != nil {
+			return nil, err
+		}
+		desc.SourceTable = src
+	} else {
+		if _, err := p.expect(kwINFILE); err != nil {
+			return nil, err
+		}
+		files, err := p.parseStringList()
+		if err != nil {
+			return nil, err
+		}
+		desc.SourceFiles = files
 	}
 
-	files, err := p.parseStringList()
+	if _, err := p.expect(kwINTO); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(kwTABLE); err != nil {
+		return nil, err
+	}
+	target, err := p.parseLoadTableName()
 	if err != nil {
 		return nil, err
 	}
-	desc.SourceFiles = files
+	desc.Target = target
 
-	// Optional FORMAT AS format_name
-	if p.cur.Kind == kwFORMAT {
-		p.advance() // consume FORMAT
-		// optional AS keyword
-		p.match(kwAS)
-		if isIdentifierToken(p.cur.Kind) {
-			desc.Format = p.cur.Str
-			p.advance()
+	if fromTable {
+		if p.cur.Kind == kwPARTITION {
+			p.advance() // consume PARTITION
+			if desc.Partition, err = p.parseLoadIdentifierList(); err != nil {
+				return nil, err
+			}
+		}
+	} else {
+		if err := p.parseLoadPartitionSpec(desc); err != nil {
+			return nil, err
+		}
+		if desc.ColumnSeparator, err = p.parseTerminatedBy(kwCOLUMNS); err != nil {
+			return nil, err
+		}
+		if desc.LineDelimiter, err = p.parseTerminatedBy(kwLINES); err != nil {
+			return nil, err
+		}
+		if desc.Format, err = p.parseLoadAsName(kwFORMAT); err != nil {
+			return nil, err
+		}
+		if desc.CompressType, err = p.parseLoadAsName(kwCOMPRESS_TYPE); err != nil {
+			return nil, err
+		}
+		if p.cur.Kind == int('(') {
+			if desc.ColumnList, err = p.parseLoadIdentifierList(); err != nil {
+				return nil, err
+			}
+		}
+		if p.cur.Kind == kwCOLUMNS {
+			// colFromPath (:1109): COLUMNS FROM PATH AS identifierList
+			p.advance() // consume COLUMNS
+			for _, kw := range []int{kwFROM, kwPATH, kwAS} {
+				if _, err := p.expect(kw); err != nil {
+					return nil, err
+				}
+			}
+			if desc.ColumnsFromPath, err = p.parseLoadIdentifierList(); err != nil {
+				return nil, err
+			}
 		}
 	}
 
-	// Required INTO TABLE target
+	if p.cur.Kind == kwSET {
+		// colMappingList (:1113): SET LEFT_PAREN mappingExpr (COMMA mappingExpr)* RIGHT_PAREN
+		p.advance() // consume SET
+		if _, err := p.expect(int('(')); err != nil {
+			return nil, err
+		}
+		if desc.ColumnMappings, err = p.parseLoadMappings(); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(int(')')); err != nil {
+			return nil, err
+		}
+	}
+	if !fromTable && p.cur.Kind == kwPRECEDING {
+		p.advance() // consume PRECEDING
+		if _, err := p.expect(kwFILTER); err != nil {
+			return nil, err
+		}
+		if desc.PrecedingFilter, err = p.parseExpr(); err != nil {
+			return nil, err
+		}
+	}
+	if p.cur.Kind == kwWHERE {
+		p.advance() // consume WHERE
+		if desc.Where, err = p.parseExpr(); err != nil {
+			return nil, err
+		}
+	}
+	if p.cur.Kind == kwDELETE {
+		p.advance() // consume DELETE
+		if _, err := p.expect(kwON); err != nil {
+			return nil, err
+		}
+		if desc.DeleteOn, err = p.parseExpr(); err != nil {
+			return nil, err
+		}
+	}
+	if !fromTable && p.cur.Kind == kwORDER {
+		p.advance() // consume ORDER
+		if _, err := p.expect(kwBY); err != nil {
+			return nil, err
+		}
+		if desc.SequenceColumn, _, err = p.parseIdentifier(); err != nil {
+			return nil, err
+		}
+	}
+	if p.cur.Kind == kwPROPERTIES {
+		// propertyClause (:1377), in the grammar's full item form.
+		p.advance() // consume PROPERTIES
+		if _, err := p.expect(int('(')); err != nil {
+			return nil, err
+		}
+		if desc.Properties, err = p.parsePropertyItems(p.parsePropertyItem); err != nil {
+			return nil, err
+		}
+	}
+
+	desc.Loc = ast.Loc{Start: startLoc.Start, End: p.prev.Loc.End}
+	return desc, nil
+}
+
+// parseMysqlDataDesc parses LOAD DATA's mysqlDataDesc (DorisParser.g4:1142)
+// as the CUP parser's mysql_data_desc (DorisLegacyParser.g4:663) also
+// takes it:
+//
+//	DATA LOCAL? INFILE STRING_LITERAL INTO TABLE multipartIdentifier
+//	    (PARTITION identifierList)?
+//	    (COLUMNS TERMINATED BY STRING_LITERAL)? (LINES TERMINATED BY STRING_LITERAL)?
+//	    (IGNORE INTEGER_VALUE (LINES | ROWS))? identifierList? colMappingList?
+//	    propertyClause?
+//
+// whose properties are the CUP parser's 'k' = 'v' pairs.
+func (p *Parser) parseMysqlDataDesc() (*ast.LoadDataDesc, error) {
+	desc := &ast.LoadDataDesc{}
+	startLoc := p.advance().Loc // consume DATA
+	if p.cur.Kind == kwLOCAL {
+		desc.Local = true
+		p.advance()
+	}
+	if _, err := p.expect(kwINFILE); err != nil {
+		return nil, err
+	}
+	if p.cur.Kind != tokString {
+		return nil, p.syntaxErrorAtCur()
+	}
+	desc.SourceFiles = []string{p.advance().Str}
 	if _, err := p.expect(kwINTO); err != nil {
 		return nil, err
 	}
@@ -401,146 +590,183 @@ func (p *Parser) parseLoadDataDesc() (*ast.LoadDataDesc, error) {
 		return nil, err
 	}
 	desc.Target = target
-
-	// Parse optional modifiers after the table name
-	for p.cur.Kind != tokEOF && p.cur.Kind != int(',') && p.cur.Kind != int(')') {
-		switch p.cur.Kind {
-		case kwPARTITION, kwPARTITIONS:
-			p.advance() // consume PARTITION/PARTITIONS
-			parts, err := p.parsePartitionNameList()
-			if err != nil {
-				return nil, err
-			}
-			desc.Partition = parts
-
-		case kwCOLUMNS:
-			p.advance() // consume COLUMNS
-			if p.cur.Kind == kwFROM {
-				// COLUMNS FROM PATH AS (col1, col2, ...)
-				p.advance() // consume FROM
-				if _, err := p.expect(kwPATH); err != nil {
-					return nil, err
-				}
-				if _, err := p.expect(kwAS); err != nil {
-					return nil, err
-				}
-				if _, err := p.expect(int('(')); err != nil {
-					return nil, err
-				}
-				var pathCols []string
-				for p.cur.Kind != int(')') && p.cur.Kind != tokEOF {
-					col, _, err := p.parseIdentifier()
-					if err != nil {
-						return nil, err
-					}
-					pathCols = append(pathCols, col)
-					if p.cur.Kind == int(',') {
-						p.advance()
-					}
-				}
-				if _, err := p.expect(int(')')); err != nil {
-					return nil, err
-				}
-				desc.ColumnsFromPath = pathCols
-			} else if p.cur.Kind == int('(') {
-				// COLUMNS (c1, c2, ...)
-				p.advance() // consume '('
-				var cols []string
-				for p.cur.Kind != int(')') && p.cur.Kind != tokEOF {
-					col, _, err := p.parseIdentifier()
-					if err != nil {
-						return nil, err
-					}
-					cols = append(cols, col)
-					if p.cur.Kind == int(',') {
-						p.advance()
-					}
-				}
-				if _, err := p.expect(int(')')); err != nil {
-					return nil, err
-				}
-				desc.ColumnList = cols
-			} else {
-				return nil, p.syntaxErrorAtCur()
-			}
-
-		case kwSET:
-			p.advance() // consume SET
-			// Capture raw SET(...) as best-effort text
-			raw, err := p.captureParenthesized()
-			if err != nil {
-				return nil, err
-			}
-			desc.SetExpr = raw
-
-		case kwWHERE:
-			p.advance() // consume WHERE
-			// Capture raw WHERE expr as best-effort text (until next clause keyword)
-			raw := p.captureUntilLoadClauseEnd()
-			desc.Where = raw
-
-		default:
-			// Unknown modifier — stop parsing this desc
-			goto done
+	if p.cur.Kind == kwPARTITION {
+		p.advance() // consume PARTITION
+		if desc.Partition, err = p.parseLoadIdentifierList(); err != nil {
+			return nil, err
 		}
 	}
-done:
+	if desc.ColumnSeparator, err = p.parseTerminatedBy(kwCOLUMNS); err != nil {
+		return nil, err
+	}
+	if desc.LineDelimiter, err = p.parseTerminatedBy(kwLINES); err != nil {
+		return nil, err
+	}
+	if p.cur.Kind == kwIGNORE {
+		// skipLines (:1155): IGNORE INTEGER_VALUE (LINES | ROWS)
+		p.advance() // consume IGNORE
+		if p.cur.Kind != tokInt {
+			return nil, p.syntaxErrorAtCur()
+		}
+		desc.SkipLines = int(p.advance().Ival)
+		if p.cur.Kind != kwLINES && p.cur.Kind != kwROWS {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+	}
+	if p.cur.Kind == int('(') {
+		if desc.ColumnList, err = p.parseLoadIdentifierList(); err != nil {
+			return nil, err
+		}
+	}
+	if p.cur.Kind == kwSET {
+		p.advance() // consume SET
+		if _, err := p.expect(int('(')); err != nil {
+			return nil, err
+		}
+		if desc.ColumnMappings, err = p.parseLoadMappings(); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(int(')')); err != nil {
+			return nil, err
+		}
+	}
+	if p.cur.Kind == kwPROPERTIES {
+		if desc.Properties, err = p.parseProperties(); err != nil {
+			return nil, err
+		}
+	}
 	desc.Loc = ast.Loc{Start: startLoc.Start, End: p.prev.Loc.End}
 	return desc, nil
 }
 
-// captureParenthesized reads '(' ... ')' and returns the raw text including parens.
-func (p *Parser) captureParenthesized() (string, error) {
-	if _, err := p.expect(int('(')); err != nil {
-		return "", err
+// parseLoadTableName reads a data description's table: an identifier, which
+// both grammars take (DorisParser.g4:986; the CUP parser's ident).
+func (p *Parser) parseLoadTableName() (*ast.ObjectName, error) {
+	name, loc, err := p.parseIdentifier()
+	if err != nil {
+		return nil, err
 	}
-	var sb strings.Builder
-	sb.WriteByte('(')
-	depth := 1
-	for depth > 0 && p.cur.Kind != tokEOF {
-		switch p.cur.Kind {
-		case int('('):
-			depth++
-			sb.WriteString(p.cur.Str)
-			if p.cur.Str == "" {
-				sb.WriteByte('(')
-			}
-		case int(')'):
-			depth--
-			if depth > 0 {
-				sb.WriteByte(')')
-			}
-		default:
-			if p.cur.Str != "" {
-				sb.WriteString(p.cur.Str)
-			}
-		}
-		p.advance()
-	}
-	sb.WriteByte(')')
-	return sb.String(), nil
+	return &ast.ObjectName{Parts: []string{name}, Loc: loc}, nil
 }
 
-// captureUntilLoadClauseEnd captures raw tokens until the next LOAD clause
-// boundary (PARTITION, COLUMNS, SET, WHERE, or end-of-desc markers).
-func (p *Parser) captureUntilLoadClauseEnd() string {
-	var sb strings.Builder
-	for p.cur.Kind != tokEOF && p.cur.Kind != int(',') && p.cur.Kind != int(')') {
-		switch p.cur.Kind {
-		case kwPARTITION, kwPARTITIONS, kwCOLUMNS, kwSET, kwWHERE:
-			return sb.String()
-		}
-		if sb.Len() > 0 {
-			sb.WriteByte(' ')
-		}
-		if p.cur.Str != "" {
-			sb.WriteString(p.cur.Str)
-		} else {
-			sb.WriteString(TokenName(p.cur.Kind))
-		}
+// parseLoadPartitionSpec reads a data description's partitionSpec.
+func (p *Parser) parseLoadPartitionSpec(desc *ast.LoadDataDesc) error {
+	names, temporary, err := p.parsePartitionSpec()
+	desc.Partition, desc.TemporaryPart = names, temporary
+	return err
+}
+
+// parsePartitionSpec reads an optional partitionSpec (DorisParser.g4:962):
+//
+//	TEMPORARY? (PARTITION | PARTITIONS) identifierList
+//	| TEMPORARY? PARTITION errorCapturingIdentifier
+//	| (PARTITION | PARTITIONS) LEFT_PAREN ASTERISK RIGHT_PAREN
+//
+// which the CUP parser's partition_names (DorisLegacyParser.g4:2311) also
+// takes. It returns the names, ["*"] for (*), and whether TEMPORARY was
+// given; nil when no PARTITION or PARTITIONS is at cur.
+func (p *Parser) parsePartitionSpec() ([]string, bool, error) {
+	temporary := false
+	if p.cur.Kind == kwTEMPORARY {
+		temporary = true
 		p.advance()
+		if p.cur.Kind != kwPARTITION && p.cur.Kind != kwPARTITIONS {
+			return nil, true, p.syntaxErrorAtCur()
+		}
 	}
-	return sb.String()
+	if p.cur.Kind != kwPARTITION && p.cur.Kind != kwPARTITIONS {
+		return nil, false, nil
+	}
+	plural := p.advance().Kind == kwPARTITIONS
+	if p.cur.Kind == int('(') && p.peekNext().Kind == int('*') && !temporary {
+		p.advance() // consume '('
+		p.advance() // consume '*'
+		_, err := p.expect(int(')'))
+		return []string{"*"}, false, err
+	}
+	if p.cur.Kind == int('(') || plural {
+		parts, err := p.parseLoadIdentifierList()
+		return parts, temporary, err
+	}
+	name, _, err := p.parseIdentifier()
+	return []string{name}, temporary, err
+}
+
+// parseLoadIdentifierList reads identifierList: '(' identifier (',' identifier)* ')'.
+func (p *Parser) parseLoadIdentifierList() ([]string, error) {
+	if _, err := p.expect(int('(')); err != nil {
+		return nil, err
+	}
+	names, err := p.parseIdentifierList()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(int(')')); err != nil {
+		return nil, err
+	}
+	return names, nil
+}
+
+// parseTerminatedBy reads an optional (COLUMNS | LINES) TERMINATED BY
+// STRING_LITERAL whose first word is kw. COLUMNS FROM PATH is left for its
+// own clause.
+func (p *Parser) parseTerminatedBy(kw int) (string, error) {
+	if p.cur.Kind != kw || p.peekNext().Kind != kwTERMINATED {
+		return "", nil
+	}
+	p.advance() // consume COLUMNS / LINES
+	p.advance() // consume TERMINATED
+	if _, err := p.expect(kwBY); err != nil {
+		return "", err
+	}
+	if p.cur.Kind != tokString {
+		return "", p.syntaxErrorAtCur()
+	}
+	return p.advance().Str, nil
+}
+
+// parseLoadAsName reads an optional (FORMAT | COMPRESS_TYPE) AS
+// identifierOrText whose first word is kw.
+func (p *Parser) parseLoadAsName(kw int) (string, error) {
+	if p.cur.Kind != kw {
+		return "", nil
+	}
+	p.advance() // consume FORMAT / COMPRESS_TYPE
+	if _, err := p.expect(kwAS); err != nil {
+		return "", err
+	}
+	name, _, err := p.parseIdentifierOrString()
+	return name, err
+}
+
+// parseLoadMappings reads mappingExpr (COMMA mappingExpr)*, where
+// mappingExpr is identifier EQ expression (DorisParser.g4:1117).
+func (p *Parser) parseLoadMappings() ([]*ast.Assignment, error) {
+	var out []*ast.Assignment
+	for {
+		start := p.cur.Loc
+		name, loc, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(int('=')); err != nil {
+			return nil, err
+		}
+		val, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, &ast.Assignment{
+			Column: &ast.ObjectName{Parts: []string{name}, Loc: loc},
+			Value:  val,
+			Loc:    ast.Loc{Start: start.Start, End: p.prev.Loc.End},
+		})
+		if p.cur.Kind != int(',') {
+			return out, nil
+		}
+		p.advance() // consume ','
+	}
 }
 
 // ---------------------------------------------------------------------------

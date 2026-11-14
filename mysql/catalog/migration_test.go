@@ -196,6 +196,79 @@ func TestMigration_AddColumn(t *testing.T) {
 	}
 }
 
+func TestMigration_AddColumnPlacement(t *testing.T) {
+	cases := []struct {
+		name     string
+		from, to string
+		want     []string
+	}{
+		{
+			name: "first",
+			from: "CREATE TABLE category (category_id int, name varchar(25));",
+			to:   "CREATE TABLE category (is_featured tinyint(1) NOT NULL DEFAULT '0', category_id int, name varchar(25));",
+			want: []string{"ALTER TABLE `app`.`category` ADD COLUMN `is_featured` tinyint(1) NOT NULL DEFAULT '0' FIRST"},
+		},
+		{
+			name: "trailing columns keep target order and need no clause",
+			from: "CREATE TABLE p (id int, price decimal(10,2), name varchar(100));",
+			to: "CREATE TABLE p (id int, price decimal(10,2), name varchar(100), " +
+				"price_with_tax decimal(10,2) GENERATED ALWAYS AS (price*1.1) STORED, " +
+				"name_upper varchar(100) GENERATED ALWAYS AS (upper(name)) VIRTUAL);",
+			want: []string{
+				"ALTER TABLE `app`.`p` ADD COLUMN `price_with_tax` decimal(10,2) GENERATED ALWAYS AS ((`price` * 1.1)) STORED",
+				"ALTER TABLE `app`.`p` ADD COLUMN `name_upper` varchar(100) GENERATED ALWAYS AS (upper(`name`)) VIRTUAL",
+			},
+		},
+		{
+			name: "consecutive middle columns chain",
+			from: "CREATE TABLE t (a int, d int);",
+			to:   "CREATE TABLE t (a int, b int, c int, d int);",
+			want: []string{
+				"ALTER TABLE `app`.`t` ADD COLUMN `b` int AFTER `a`",
+				"ALTER TABLE `app`.`t` ADD COLUMN `c` int AFTER `b`",
+			},
+		},
+		{
+			// Generated adds run after plain ones, so the plain `c` cannot follow `g` yet.
+			name: "generated column added after the plain column that follows it",
+			from: "CREATE TABLE t (a int, d int);",
+			to:   "CREATE TABLE t (a int, b int, g int GENERATED ALWAYS AS (b+1) VIRTUAL, c int, d int);",
+			want: []string{
+				"ALTER TABLE `app`.`t` ADD COLUMN `b` int AFTER `a`",
+				"ALTER TABLE `app`.`t` ADD COLUMN `c` int AFTER `b`",
+				"ALTER TABLE `app`.`t` ADD COLUMN `g` int GENERATED ALWAYS AS ((`b` + 1)) VIRTUAL AFTER `b`",
+			},
+		},
+		{
+			// The MODIFY reads the added column, so the add runs first whatever the names.
+			name: "plain add before a modify that reads it",
+			from: "CREATE TABLE t (a int, g int GENERATED ALWAYS AS (a+1) VIRTUAL);",
+			to:   "CREATE TABLE t (a int, g int GENERATED ALWAYS AS (z+1) VIRTUAL, z int);",
+			want: []string{
+				"ALTER TABLE `app`.`t` ADD COLUMN `z` int",
+				"ALTER TABLE `app`.`t` MODIFY COLUMN `g` int GENERATED ALWAYS AS ((`z` + 1)) VIRTUAL",
+			},
+		},
+		{
+			// The AUTO_INCREMENT column, its key, and the key's other new column share one statement.
+			name: "grouped AUTO_INCREMENT statement",
+			from: "CREATE TABLE t (a int);",
+			to:   "CREATE TABLE t (id int NOT NULL AUTO_INCREMENT, x int, a int, KEY k (id, x));",
+			want: []string{
+				"ALTER TABLE `app`.`t` ADD COLUMN `id` int NOT NULL AUTO_INCREMENT FIRST, ADD COLUMN `x` int AFTER `id`, ADD KEY `k` (`id`,`x`)",
+			},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			plan := planFor(t, dbDDL+tc.from, dbDDL+tc.to, NormalizerFor(MySQL80))
+			if got, want := plan.SQL(), strings.Join(tc.want, ";\n"); got != want {
+				t.Errorf("plan:\n%s\nwant:\n%s", got, want)
+			}
+		})
+	}
+}
+
 func TestMigration_DropColumn(t *testing.T) {
 	from := dbDDL + "CREATE TABLE t (id INT PRIMARY KEY, name VARCHAR(20));"
 	to := dbDDL + "CREATE TABLE t (id INT PRIMARY KEY);"
