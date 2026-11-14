@@ -33,6 +33,9 @@ type Parser struct {
 	// when this depth is > 0, matching SqlScriptDOM's separation of
 	// booleanExpressionWithFlags from expressionWithFlags.
 	searchCondDepth int
+	// graphMatchDepth is non-zero inside the pattern of a graph MATCH
+	// predicate, where LAST_NODE is graph syntax.
+	graphMatchDepth int
 
 	depth int // nesting depth of the productions being parsed (see enterNesting)
 }

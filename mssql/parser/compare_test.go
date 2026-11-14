@@ -262,7 +262,7 @@ func TestParseDateTimeFunctionDatepartArgs(t *testing.T) {
 	}
 
 	t.Run("ordinary function preserves column ref", func(t *testing.T) {
-		result := ParseAndCheck(t, "SELECT MYFUNC(HOUR)")
+		result := ParseAndCheck(t, "SELECT ABS(HOUR)")
 		stmt := result.Items[0].(*ast.SelectStmt)
 		target := stmt.TargetList.Items[0].(*ast.ResTarget)
 		fc := target.Val.(*ast.FuncCallExpr)
@@ -324,7 +324,7 @@ func TestParseSpecialFunctionSyntax(t *testing.T) {
 			})
 		}
 
-		result := ParseAndCheck(t, "SELECT MYFUNC(LEADING)")
+		result := ParseAndCheck(t, "SELECT LEN(LEADING)")
 		stmt := result.Items[0].(*ast.SelectStmt)
 		target := stmt.TargetList.Items[0].(*ast.ResTarget)
 		fc := target.Val.(*ast.FuncCallExpr)
@@ -24096,6 +24096,27 @@ func TestParseGrantColumnLists(t *testing.T) {
 		"GRANT SELECT(a) TO PUBLIC",
 		"GRANT VIEW DEFINITION(a) ON a TO PUBLIC",
 	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) = nil error, want SQL Server's rejection", sql)
+		}
+	}
+}
+
+// TestParseBuiltinCallsInContext pins calls the built-in check must not
+// refuse (checked on the pinned server).
+func TestParseBuiltinCallsInContext(t *testing.T) {
+	for _, sql := range []string{
+		"SELECT a FROM a GROUP BY ROLLUP(([a], a))",
+		"SELECT a FROM a GROUP BY CUBE((\"a\", /* , */ a), (a))",
+		"SELECT a, b, c FROM t GROUP BY ROLLUP((a /* outer /* inner */ , */ + b) * c)",
+		"SELECT a, b, c FROM t GROUP BY CUBE(((a + b), c), ('x,y'))",
+		"SELECT 1 FROM a WHERE MATCH(LAST_NODE(a) = LAST_NODE(a))",
+	} {
+		if _, err := Parse(sql); err != nil {
+			t.Errorf("Parse(%q): %v", sql, err)
+		}
+	}
+	for _, sql := range []string{"SELECT LAST_NODE(a)", "SELECT a()", "SELECT [getdate]()"} {
 		if _, err := Parse(sql); err == nil {
 			t.Errorf("Parse(%q) = nil error, want SQL Server's rejection", sql)
 		}
