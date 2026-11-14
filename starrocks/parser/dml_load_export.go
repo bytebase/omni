@@ -195,24 +195,23 @@ func isIdentText(p *Parser, lower string) bool {
 	return false
 }
 
-// parseStringList parses ('str1', 'str2', ...).
+// parseStringList parses stringList (StarRocks.g4:2633):
+// '(' string (',' string)* ')'.
 func (p *Parser) parseStringList() ([]string, error) {
 	if _, err := p.expect(int('(')); err != nil {
 		return nil, err
 	}
-
 	var strs []string
-	for p.cur.Kind != int(')') && p.cur.Kind != tokEOF {
+	for {
 		if p.cur.Kind != tokString {
 			return nil, p.syntaxErrorAtCur()
 		}
-		strs = append(strs, p.cur.Str)
-		p.advance()
-		if p.cur.Kind == int(',') {
-			p.advance() // consume ','
+		strs = append(strs, p.advance().Str)
+		if p.cur.Kind != int(',') {
+			break
 		}
+		p.advance() // consume ','
 	}
-
 	if _, err := p.expect(int(')')); err != nil {
 		return nil, err
 	}
@@ -223,112 +222,91 @@ func (p *Parser) parseStringList() ([]string, error) {
 // LOAD (T6.1)
 // ---------------------------------------------------------------------------
 
-// parseLoad parses:
+// parseLoad parses loadStatement (StarRocks.g4:1427):
 //
-//	LOAD LABEL [db.]label_name
-//	    (DATA INFILE('path') [NEGATIVE] INTO TABLE t [PARTITION(...)]
-//	         [COLUMNS FROM PATH AS (col, ...)]
-//	         [COLUMNS (c1, c2, ...)]
-//	         [SET (...)]
-//	         [WHERE expr]
-//	    [, DATA INFILE...])
-//	    [WITH BROKER broker_name [(key=val, ...)]]
-//	    [PROPERTIES(...)]
-//	    [COMMENT 'text']
+//	LOAD LABEL labelName dataDescList? brokerDesc?
+//	    (BY identifierOrString)? (PROPERTIES propertyList)?
+//	| LOAD LABEL labelName dataDescList? resourceDesc (PROPERTIES propertyList)?
+//	brokerDesc   : WITH BROKER propertyList? | WITH BROKER identifierOrString propertyList?
+//	resourceDesc : WITH RESOURCE identifierOrString propertyList?
 //
 // The LOAD keyword has NOT yet been consumed when this is called.
 func (p *Parser) parseLoad() (ast.Node, error) {
 	loadTok := p.advance() // consume LOAD
+	stmt := &ast.LoadDataStmt{Loc: ast.Loc{Start: loadTok.Loc.Start}}
 
-	stmt := &ast.LoadDataStmt{
-		Loc: ast.Loc{Start: loadTok.Loc.Start},
-	}
-
-	// LABEL label_name (required)
 	if _, err := p.expect(kwLABEL); err != nil {
 		return nil, err
 	}
-
-	// Label: may be db_name.label_name
-	labelParts, err := p.parseLoadLabel()
+	label, err := p.parseLoadLabel()
 	if err != nil {
 		return nil, err
 	}
-	stmt.Label = labelParts
+	stmt.Label = label
 
-	// Required '(' to open data desc list
-	if _, err := p.expect(int('(')); err != nil {
-		return nil, err
-	}
-
-	// Parse one or more data descriptions separated by ','
-	desc, err := p.parseLoadDataDesc()
-	if err != nil {
-		return nil, err
-	}
-	stmt.DataDescs = append(stmt.DataDescs, desc)
-
-	for p.cur.Kind == int(',') {
-		p.advance() // consume ','
-		desc, err = p.parseLoadDataDesc()
-		if err != nil {
-			return nil, err
-		}
-		stmt.DataDescs = append(stmt.DataDescs, desc)
-	}
-
-	if _, err := p.expect(int(')')); err != nil {
-		return nil, err
-	}
-
-	// Optional WITH BROKER broker_name [(key=val, ...)]
-	if p.cur.Kind == kwWITH {
-		p.advance() // consume WITH
-		if _, err := p.expect(kwBROKER); err != nil {
-			return nil, err
-		}
-		brokerName, _, err := p.parseIdentifier()
-		if err != nil {
-			return nil, err
-		}
-		stmt.BrokerName = brokerName
-
-		// Optional broker properties: brokerDesc's props=propertyList?, each
-		// item a string on both sides.
-		if p.cur.Kind == int('(') {
-			props, err := p.parsePropertyList()
+	if p.cur.Kind == int('(') {
+		// dataDescList (:1442): '(' dataDesc (',' dataDesc)* ')'
+		p.advance() // consume '('
+		for {
+			desc, err := p.parseLoadDataDesc()
 			if err != nil {
 				return nil, err
 			}
-			stmt.BrokerProperties = props
+			stmt.DataDescs = append(stmt.DataDescs, desc)
+			if p.cur.Kind != int(',') {
+				break
+			}
+			p.advance() // consume ','
 		}
-	}
-
-	// Optional PROPERTIES(...)
-	if p.cur.Kind == kwPROPERTIES {
-		props, err := p.parseProperties()
-		if err != nil {
+		if _, err := p.expect(int(')')); err != nil {
 			return nil, err
 		}
-		stmt.Properties = props
 	}
 
-	// Optional COMMENT 'text'
-	if p.cur.Kind == kwCOMMENT {
-		p.advance() // consume COMMENT
-		if p.cur.Kind != tokString {
+	if p.cur.Kind == kwWITH {
+		p.advance() // consume WITH
+		switch p.cur.Kind {
+		case kwBROKER:
+			stmt.StorageType = "BROKER"
+			p.advance()
+			if p.cur.Kind != int('(') && p.cur.Kind != kwBY && p.cur.Kind != kwPROPERTIES &&
+				p.cur.Kind != tokEOF && p.cur.Kind != int(';') {
+				if stmt.BrokerName, _, err = p.parseIdentifierOrString(); err != nil {
+					return nil, err
+				}
+			}
+		case kwRESOURCE:
+			stmt.StorageType = "RESOURCE"
+			p.advance()
+			if stmt.BrokerName, _, err = p.parseIdentifierOrString(); err != nil {
+				return nil, err
+			}
+		default:
 			return nil, p.syntaxErrorAtCur()
 		}
-		stmt.Comment = p.cur.Str
-		p.advance()
+		if p.cur.Kind == int('(') {
+			if stmt.BrokerProperties, err = p.parsePropertyList(); err != nil {
+				return nil, err
+			}
+		}
+	}
+	if p.cur.Kind == kwBY && stmt.StorageType != "RESOURCE" {
+		p.advance() // consume BY
+		if stmt.System, _, err = p.parseIdentifierOrString(); err != nil {
+			return nil, err
+		}
+	}
+	if p.cur.Kind == kwPROPERTIES {
+		if stmt.Properties, err = p.parseProperties(); err != nil {
+			return nil, err
+		}
 	}
 
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
 }
 
-// parseLoadLabel parses the load label, which may be db_name.label_name or
-// just label_name.
+// parseLoadLabel parses labelName (StarRocks.g4:1438): (identifier '.')? identifier.
 func (p *Parser) parseLoadLabel() (string, error) {
 	first, _, err := p.parseIdentifier()
 	if err != nil {
@@ -345,196 +323,269 @@ func (p *Parser) parseLoadLabel() (string, error) {
 	return first, nil
 }
 
-// parseLoadDataDesc parses one DATA INFILE(...) INTO TABLE t ... clause.
+// parseLoadDataDesc parses one dataDesc (StarRocks.g4:1447):
+//
+//	DATA INFILE stringList NEGATIVE? INTO TABLE identifier partitionNames?
+//	    (COLUMNS TERMINATED BY string)? (ROWS TERMINATED BY string)?
+//	    fileFormat? formatProps? columnAliases?
+//	    (COLUMNS FROM PATH AS identifierList)? (SET classifier)? (WHERE expression)?
+//	| DATA FROM TABLE identifier NEGATIVE? INTO TABLE identifier partitionNames?
+//	    (SET classifier)? (WHERE expression)?
 func (p *Parser) parseLoadDataDesc() (*ast.LoadDataDesc, error) {
 	desc := &ast.LoadDataDesc{}
 	startLoc := p.cur.Loc
-
-	// Optional NEGATIVE keyword before DATA
-	if p.cur.Kind == kwNEGATIVE {
-		p.advance() // consume NEGATIVE
-		desc.Negative = true
-	}
-
-	// Required DATA keyword
 	if _, err := p.expect(kwDATA); err != nil {
 		return nil, err
 	}
 
-	// Required INFILE('path', ...)
-	if _, err := p.expect(kwINFILE); err != nil {
-		return nil, err
-	}
-
-	files, err := p.parseStringList()
-	if err != nil {
-		return nil, err
-	}
-	desc.SourceFiles = files
-
-	// Optional FORMAT AS format_name
-	if p.cur.Kind == kwFORMAT {
-		p.advance() // consume FORMAT
-		// optional AS keyword
-		p.match(kwAS)
-		if isIdentifierToken(p.cur.Kind) {
-			desc.Format = p.cur.Str
-			p.advance()
+	fromTable := p.cur.Kind == kwFROM
+	if fromTable {
+		p.advance() // consume FROM
+		if _, err := p.expect(kwTABLE); err != nil {
+			return nil, err
 		}
+		src, err := p.parseLoadTableName()
+		if err != nil {
+			return nil, err
+		}
+		desc.SourceTable = src
+	} else {
+		if _, err := p.expect(kwINFILE); err != nil {
+			return nil, err
+		}
+		files, err := p.parseStringList()
+		if err != nil {
+			return nil, err
+		}
+		desc.SourceFiles = files
 	}
-
-	// Required INTO TABLE target
+	if p.cur.Kind == kwNEGATIVE {
+		desc.Negative = true
+		p.advance()
+	}
 	if _, err := p.expect(kwINTO); err != nil {
 		return nil, err
 	}
 	if _, err := p.expect(kwTABLE); err != nil {
 		return nil, err
 	}
-	target, err := p.parseMultipartIdentifier()
+	target, err := p.parseLoadTableName()
 	if err != nil {
 		return nil, err
 	}
 	desc.Target = target
 
-	// Parse optional modifiers after the table name
-	for p.cur.Kind != tokEOF && p.cur.Kind != int(',') && p.cur.Kind != int(')') {
-		switch p.cur.Kind {
-		case kwPARTITION, kwPARTITIONS:
-			p.advance() // consume PARTITION/PARTITIONS
-			parts, err := p.parsePartitionNameList()
-			if err != nil {
-				return nil, err
-			}
-			desc.Partition = parts
-
-		case kwCOLUMNS:
-			p.advance() // consume COLUMNS
-			if p.cur.Kind == kwFROM {
-				// COLUMNS FROM PATH AS (col1, col2, ...)
-				p.advance() // consume FROM
-				if _, err := p.expect(kwPATH); err != nil {
-					return nil, err
-				}
-				if _, err := p.expect(kwAS); err != nil {
-					return nil, err
-				}
-				if _, err := p.expect(int('(')); err != nil {
-					return nil, err
-				}
-				var pathCols []string
-				for p.cur.Kind != int(')') && p.cur.Kind != tokEOF {
-					col, _, err := p.parseIdentifier()
-					if err != nil {
-						return nil, err
-					}
-					pathCols = append(pathCols, col)
-					if p.cur.Kind == int(',') {
-						p.advance()
-					}
-				}
-				if _, err := p.expect(int(')')); err != nil {
-					return nil, err
-				}
-				desc.ColumnsFromPath = pathCols
-			} else if p.cur.Kind == int('(') {
-				// COLUMNS (c1, c2, ...)
-				p.advance() // consume '('
-				var cols []string
-				for p.cur.Kind != int(')') && p.cur.Kind != tokEOF {
-					col, _, err := p.parseIdentifier()
-					if err != nil {
-						return nil, err
-					}
-					cols = append(cols, col)
-					if p.cur.Kind == int(',') {
-						p.advance()
-					}
-				}
-				if _, err := p.expect(int(')')); err != nil {
-					return nil, err
-				}
-				desc.ColumnList = cols
-			} else {
-				return nil, p.syntaxErrorAtCur()
-			}
-
-		case kwSET:
-			p.advance() // consume SET
-			// Capture raw SET(...) as best-effort text
-			raw, err := p.captureParenthesized()
-			if err != nil {
-				return nil, err
-			}
-			desc.SetExpr = raw
-
-		case kwWHERE:
-			p.advance() // consume WHERE
-			// Capture raw WHERE expr as best-effort text (until next clause keyword)
-			raw := p.captureUntilLoadClauseEnd()
-			desc.Where = raw
-
-		default:
-			// Unknown modifier — stop parsing this desc
-			goto done
+	if k := p.cur.Kind; k == kwTEMPORARY || k == kwPARTITION || k == kwPARTITIONS {
+		var names ast.AlterTableAction
+		if err := p.parseAlterPartitionNames(&names); err != nil {
+			return nil, err
+		}
+		desc.TemporaryPart = names.Temporary
+		desc.Partition = names.PartitionList
+		if names.PartitionName != "" {
+			desc.Partition = []string{names.PartitionName}
 		}
 	}
-done:
+
+	if !fromTable {
+		if desc.ColumnSeparator, err = p.parseTerminatedBy(kwCOLUMNS); err != nil {
+			return nil, err
+		}
+		if desc.RowDelimiter, err = p.parseTerminatedBy(kwROWS); err != nil {
+			return nil, err
+		}
+		if p.cur.Kind == kwFORMAT {
+			// fileFormat (:2742): FORMAT AS (identifier | string)
+			p.advance() // consume FORMAT
+			if _, err := p.expect(kwAS); err != nil {
+				return nil, err
+			}
+			if desc.Format, _, err = p.parseIdentifierOrString(); err != nil {
+				return nil, err
+			}
+		}
+		// formatProps? columnAliases?: both open with '(', and the token
+		// after it decides (isLoadFormatPropsStart).
+		if p.cur.Kind == int('(') {
+			p.advance() // consume '('
+			if p.isLoadFormatPropsStart() {
+				if desc.FormatProps, err = p.parseLoadFormatProps(); err != nil {
+					return nil, err
+				}
+				if p.cur.Kind == int('(') {
+					p.advance() // consume '('
+					if desc.ColumnList, err = p.parseLoadColumnAliases(); err != nil {
+						return nil, err
+					}
+				}
+			} else if desc.ColumnList, err = p.parseLoadColumnAliases(); err != nil {
+				return nil, err
+			}
+		}
+		if p.cur.Kind == kwCOLUMNS {
+			p.advance() // consume COLUMNS
+			for _, kw := range []int{kwFROM, kwPATH, kwAS} {
+				if _, err := p.expect(kw); err != nil {
+					return nil, err
+				}
+			}
+			if desc.ColumnsFromPath, err = p.parseLoadIdentifierList(); err != nil {
+				return nil, err
+			}
+		}
+	}
+	if p.cur.Kind == kwSET {
+		// classifier (:1400): '(' expressionList ')'
+		p.advance() // consume SET
+		if _, err := p.expect(int('(')); err != nil {
+			return nil, err
+		}
+		if desc.ColumnMappings, err = p.parseExprList(); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(int(')')); err != nil {
+			return nil, err
+		}
+	}
+	if p.cur.Kind == kwWHERE {
+		p.advance() // consume WHERE
+		if desc.Where, err = p.parseExpr(); err != nil {
+			return nil, err
+		}
+	}
+
 	desc.Loc = ast.Loc{Start: startLoc.Start, End: p.prev.Loc.End}
 	return desc, nil
 }
 
-// captureParenthesized reads '(' ... ')' and returns the raw text including parens.
-func (p *Parser) captureParenthesized() (string, error) {
-	if _, err := p.expect(int('(')); err != nil {
-		return "", err
+// isLoadFormatPropsStart reports whether the token after a data
+// description's '(' begins formatProps (StarRocks.g4:1474) rather than
+// columnAliases: ')' (every property is optional, and columnAliases needs
+// one name), or SKIP_HEADER, TRIM_SPACE, ENCLOSE or ESCAPE followed by '='.
+// A column may be named SKIP_HEADER, so the word alone does not decide.
+func (p *Parser) isLoadFormatPropsStart() bool {
+	if p.cur.Kind == int(')') {
+		return true
 	}
-	var sb strings.Builder
-	sb.WriteByte('(')
-	depth := 1
-	for depth > 0 && p.cur.Kind != tokEOF {
-		switch p.cur.Kind {
-		case int('('):
-			depth++
-			sb.WriteString(p.cur.Str)
-			if p.cur.Str == "" {
-				sb.WriteByte('(')
-			}
-		case int(')'):
-			depth--
-			if depth > 0 {
-				sb.WriteByte(')')
-			}
-		default:
-			if p.cur.Str != "" {
-				sb.WriteString(p.cur.Str)
-			}
-		}
-		p.advance()
-	}
-	sb.WriteByte(')')
-	return sb.String(), nil
+	return loadFormatPropWord(p.cur) != "" && p.peekNext().Kind == int('=')
 }
 
-// captureUntilLoadClauseEnd captures raw tokens until the next LOAD clause
-// boundary (PARTITION, COLUMNS, SET, WHERE, or end-of-desc markers).
-func (p *Parser) captureUntilLoadClauseEnd() string {
-	var sb strings.Builder
-	for p.cur.Kind != tokEOF && p.cur.Kind != int(',') && p.cur.Kind != int(')') {
-		switch p.cur.Kind {
-		case kwPARTITION, kwPARTITIONS, kwCOLUMNS, kwSET, kwWHERE:
-			return sb.String()
-		}
-		if sb.Len() > 0 {
-			sb.WriteByte(' ')
-		}
-		if p.cur.Str != "" {
-			sb.WriteString(p.cur.Str)
-		} else {
-			sb.WriteString(TokenName(p.cur.Kind))
-		}
-		p.advance()
+// loadFormatPropWord returns the formatProps word tok spells, or "".
+func loadFormatPropWord(tok Token) string {
+	if tok.Kind == kwESCAPE {
+		return "ESCAPE"
 	}
-	return sb.String()
+	if tok.Kind == tokIdent {
+		switch w := strings.ToUpper(tok.Str); w {
+		case "SKIP_HEADER", "TRIM_SPACE", "ENCLOSE":
+			return w
+		}
+	}
+	return ""
+}
+
+// parseLoadFormatProps reads formatProps (StarRocks.g4:1474):
+//
+//	'(' (SKIP_HEADER '=' INTEGER_VALUE)? (TRIM_SPACE '=' booleanValue)?
+//	    (ENCLOSE '=' string)? (ESCAPE '=' string)? ')'
+//
+// in that order, each at most once, with no commas. The '(' has been
+// consumed.
+func (p *Parser) parseLoadFormatProps() ([]*ast.Property, error) {
+	var props []*ast.Property
+	order := []string{"SKIP_HEADER", "TRIM_SPACE", "ENCLOSE", "ESCAPE"}
+	next := 0
+	for p.cur.Kind != int(')') {
+		word := loadFormatPropWord(p.cur)
+		i := next
+		for i < len(order) && order[i] != word {
+			i++
+		}
+		if word == "" || i == len(order) || p.peekNext().Kind != int('=') {
+			return nil, p.syntaxErrorAtCur()
+		}
+		next = i + 1
+		start := p.advance().Loc // consume the word
+		p.advance()              // consume '='
+		ok := false
+		switch word {
+		case "SKIP_HEADER":
+			ok = p.cur.Kind == tokInt
+		case "TRIM_SPACE":
+			ok = p.cur.Kind == kwTRUE || p.cur.Kind == kwFALSE
+		default:
+			ok = p.cur.Kind == tokString
+		}
+		if !ok {
+			return nil, p.syntaxErrorAtCur()
+		}
+		val := p.advance()
+		value := val.Str
+		if val.Kind != tokString {
+			value = p.input[val.Loc.Start-p.baseOffset : val.Loc.End-p.baseOffset]
+		}
+		props = append(props, &ast.Property{
+			Key:   word,
+			Value: value,
+			Loc:   ast.Loc{Start: start.Start, End: val.Loc.End},
+		})
+	}
+	p.advance() // consume ')'
+	return props, nil
+}
+
+// parseLoadColumnAliases reads the rest of columnAliases (StarRocks.g4:2263)
+// after its '(': identifier (',' identifier)* ')'.
+func (p *Parser) parseLoadColumnAliases() ([]string, error) {
+	names, err := p.parseIdentifierList()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(int(')')); err != nil {
+		return nil, err
+	}
+	return names, nil
+}
+
+// parseLoadTableName reads a data description's table: an identifier.
+func (p *Parser) parseLoadTableName() (*ast.ObjectName, error) {
+	name, loc, err := p.parseIdentifier()
+	if err != nil {
+		return nil, err
+	}
+	return &ast.ObjectName{Parts: []string{name}, Loc: loc}, nil
+}
+
+// parseLoadIdentifierList reads '(' identifier (',' identifier)* ')'.
+func (p *Parser) parseLoadIdentifierList() ([]string, error) {
+	if _, err := p.expect(int('(')); err != nil {
+		return nil, err
+	}
+	names, err := p.parseIdentifierList()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(int(')')); err != nil {
+		return nil, err
+	}
+	return names, nil
+}
+
+// parseTerminatedBy reads an optional (COLUMNS | ROWS) TERMINATED BY string
+// whose first word is kw. COLUMNS FROM PATH is left for its own clause.
+func (p *Parser) parseTerminatedBy(kw int) (string, error) {
+	if p.cur.Kind != kw || p.peekNext().Kind != kwTERMINATED {
+		return "", nil
+	}
+	p.advance() // consume COLUMNS / ROWS
+	p.advance() // consume TERMINATED
+	if _, err := p.expect(kwBY); err != nil {
+		return "", err
+	}
+	if p.cur.Kind != tokString {
+		return "", p.syntaxErrorAtCur()
+	}
+	return p.advance().Str, nil
 }
 
 // ---------------------------------------------------------------------------

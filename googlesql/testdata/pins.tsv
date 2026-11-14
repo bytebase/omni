@@ -1,0 +1,10 @@
+# The server this engine's committed answers come from. default judges
+# compat.tsv and records the tapes: the Cloud Spanner emulator 1.5.54,
+# released from the source tag v1.5.54 of
+# GoogleCloudPlatform/cloud-spanner-emulator, which builds against GoogleSQL
+# 2026.01.1 (its MODULE.bazel). googlesql.tm, which the rows are generated
+# from through GoogleSQL.g4, is googlesql/parser/googlesql.tm at that
+# GoogleSQL tag, beside this file byte for byte, Apache-2.0
+# (GoogleSQL.LICENSE). The emulator reads DDL with a parser of its own.
+# columns: role, image, digest, source tag
+default	gcr.io/cloud-spanner-emulator/emulator:1.5.54	sha256:caf1bd24c081e005837b5977bae5a250e25cb4da9f25ec1abc91936ad67e4de2	v1.5.54
