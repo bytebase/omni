@@ -4793,9 +4793,7 @@ func TestParseServiceBrokerAlterDrop(t *testing.T) {
 		"ALTER REMOTE SERVICE BINDING MyBinding WITH USER = NewUser",
 		"ALTER REMOTE SERVICE BINDING MyBinding WITH USER = NewUser, ANONYMOUS = ON",
 		// ALTER MESSAGE TYPE
-		"ALTER MESSAGE TYPE MyMessageType",
-		// ALTER CONTRACT
-		"ALTER CONTRACT MyContract",
+		"ALTER MESSAGE TYPE MyMessageType VALIDATION = NONE",
 		// DROP MESSAGE TYPE
 		"DROP MESSAGE TYPE MyMessageType",
 		// DROP CONTRACT
@@ -6911,7 +6909,7 @@ func TestParseIntegrationPhase3(t *testing.T) {
 		"CREATE RULE range_rule AS @range >= 1000 AND @range < 20000",
 		"ALTER DATABASE SCOPED CONFIGURATION SET MAXDOP = 4",
 		// BEGIN DIALOG (service broker, newly wired)
-		"BEGIN DIALOG @dialog FROM SERVICE 'InitiatorService' TO SERVICE 'TargetService' ON CONTRACT 'MyContract'",
+		"BEGIN DIALOG @dialog FROM SERVICE InitiatorService TO SERVICE 'TargetService' ON CONTRACT MyContract",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
@@ -12038,23 +12036,6 @@ func TestParseServiceBrokerAlterOptionsDepth(t *testing.T) {
 		{
 			name: "alter_message_type_validation_valid_xml_schema",
 			sql:  "ALTER MESSAGE TYPE MyMessageType VALIDATION = VALID_XML WITH SCHEMA COLLECTION MySchemaCollection",
-		},
-		// ALTER CONTRACT with message type modifications (ADD/DROP)
-		{
-			name: "alter_contract_add_message_type",
-			sql:  "ALTER CONTRACT MyContract ADD MESSAGE TYPE MyMsgType SENT BY INITIATOR",
-		},
-		{
-			name: "alter_contract_drop_message_type",
-			sql:  "ALTER CONTRACT MyContract DROP MESSAGE TYPE MyMsgType",
-		},
-		{
-			name: "alter_contract_add_sent_by_target",
-			sql:  "ALTER CONTRACT MyContract ADD MESSAGE TYPE ResponseMsg SENT BY TARGET",
-		},
-		{
-			name: "alter_contract_add_sent_by_any",
-			sql:  "ALTER CONTRACT MyContract ADD MESSAGE TYPE AnyMsg SENT BY ANY",
 		},
 		// ALTER ROUTE with structured WITH options
 		{
@@ -17506,12 +17487,32 @@ func TestParseServiceBrokerOptionsStringsDepth(t *testing.T) {
 		}
 	})
 
-	t.Run("alter_contract_add_drop", func(t *testing.T) {
-		sql := "ALTER CONTRACT MyContract ADD MESSAGE TYPE MyMsgType SENT BY INITIATOR"
-		result := ParseAndCheck(t, sql)
-		opt := getOpt(t, result, 0)
-		if opt.Name != "ADD" || opt.Value != "MyMsgType SENT BY INITIATOR" {
-			t.Errorf("expected ADD=MyMsgType SENT BY INITIATOR, got %s=%s", opt.Name, opt.Value)
+	// SQL Server 2022 refuses each of these at parse time (checked on the
+	// pinned server under SET PARSEONLY ON).
+	t.Run("refused_forms", func(t *testing.T) {
+		for _, sql := range []string{
+			"ALTER CONTRACT MyContract ADD MESSAGE TYPE MyMsgType SENT BY INITIATOR",
+			"ALTER MESSAGE TYPE MyMsg",
+			"CREATE MESSAGE TYPE MyMsg VALIDATION = VALID_XML",
+			"CREATE QUEUE q WITH STATUS = ON, STATUS = OFF",
+			"CREATE QUEUE q WITH ACTIVATION (DROP)",
+			"CREATE QUEUE q WITH ACTIVATION (PROCEDURE_NAME = p, MAX_QUEUE_READERS = 1)",
+			"ALTER QUEUE q WITH ACTIVATION (DROP, STATUS = ON)",
+			"ALTER QUEUE q WITH ACTIVATION (EXECUTE AS CALLER)",
+			"CREATE SERVICE s ON QUEUE a.b.c",
+			"CREATE ROUTE r WITH SERVICE_NAME = 'a'",
+			"CREATE ROUTE r WITH ADDRESS = 'a', ADDRESS = 'b'",
+			"CREATE REMOTE SERVICE BINDING b TO SERVICE 's' WITH ANONYMOUS = ON",
+			"ALTER BROKER PRIORITY p FOR CONVERSATION",
+			"ALTER BROKER PRIORITY p FOR CONVERSATION SET (PRIORITY_LEVEL = ANY)",
+			"ALTER BROKER PRIORITY p FOR CONVERSATION SET (REMOTE_SERVICE_NAME = s)",
+			"BEGIN DIALOG @h FROM SERVICE s TO SERVICE 't' WITH LIFETIME = 1, LIFETIME = 2",
+			"END CONVERSATION @h WITH ERROR = 1",
+			"DROP SERVICE a.b",
+		} {
+			if _, err := Parse(sql); err == nil {
+				t.Errorf("Parse(%q): want an error, SQL Server refuses it", sql)
+			}
 		}
 	})
 
