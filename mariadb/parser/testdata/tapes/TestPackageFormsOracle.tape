@@ -212,6 +212,34 @@
 < ok 0 0
 > exec ^
 : string
+| CREATE DEFINER = CURRENT_USER( PACKAGE pk END
+< error
+| 1064 42000 …near 'PACKAGE pk END' at line 1
+> exec ^
+: string
+| CREATE DEFINER PACKAGE pk END
+< error
+| 1064 42000 …near 'PACKAGE pk END' at line 1
+> exec ^
+: string
+| CREATE DEFINER = PACKAGE pk END
+< error
+| 1064 42000 …near 'pk END' at line 1
+> exec ^
+: string
+| CREATE DEFINER = root@ PACKAGE pk END
+< ok 0 0
+> exec ^
+: string
+| CREATE DEFINER = root@ 'h' VIEW v AS SELECT 1
+< error
+| 1064 42000 …near ''h' VIEW v AS SELECT 1' at line 1
+> exec ^
+: string
+| CREATE DEFINER = 'root'@ VIEW v AS SELECT 1
+< ok 0 0
+> exec ^
+: string
 | CREATE PACKAGE pk PROCEDURE `p.q`(); END
 < error
 | 1458 42000 Incorrect routine name 'p.q'
