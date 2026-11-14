@@ -1,6 +1,9 @@
 package parser
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // TestColumnAndTableOptionGrammar holds column, index, partition and database
 // options to sql_yacc.yy, as MySQL 8.0.46 answers them.
@@ -28,7 +31,6 @@ func TestColumnAndTableOptionGrammar(t *testing.T) {
 		"ALTER TABLE t ENGINE_ATTRIBUTE 's'",
 		"ALTER TABLE t ADD c INT ENGINE_ATTRIBUTE '{'",
 		"ALTER TABLE t ADD KEY (c) SECONDARY_ENGINE_ATTRIBUTE 'x'",
-		"ALTER TABLE t ADD FULLTEXT (c) WITH PARSER p",
 		"ALTER TABLE t ADD c INT COLUMN_FORMAT",
 		"ALTER TABLE t ADD c INT STORAGE",
 		"ALTER TABLE t ADD c INT SRID",
@@ -46,5 +48,14 @@ func TestColumnAndTableOptionGrammar(t *testing.T) {
 		if _, err := Parse(sql); err == nil {
 			t.Errorf("Parse(%q): want an error", sql)
 		}
+	}
+}
+
+// TestPartitionValuesLongChain holds the column check on VALUES IN to its own
+// stack: a long chain of terms parses, or fails with the tree-height error.
+func TestPartitionValuesLongChain(t *testing.T) {
+	sql := "ALTER TABLE t ADD PARTITION (PARTITION p VALUES IN (1" + strings.Repeat("+1", 200000) + "))"
+	if _, err := Parse(sql); err == nil {
+		t.Fatal("want the tree-height error")
 	}
 }

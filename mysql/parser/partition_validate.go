@@ -170,16 +170,37 @@ func checkPartitionInValues(items []nodes.Node, pos int) (bool, error) {
 	return false, nil
 }
 
-// refersColumn reports whether a value names a column anywhere in it.
+// refersColumn reports whether a value names a column anywhere in it. It keeps
+// its own stack, since it runs before the parser measures the tree's height and a
+// long chain of terms would otherwise overflow the Go stack.
 func refersColumn(n nodes.Node) bool {
-	found := false
-	nodes.Inspect(n, func(n nodes.Node) bool {
-		if _, ok := n.(*nodes.ColumnRef); ok {
-			found = true
+	stack := []nodes.Node{n}
+	for len(stack) > 0 {
+		top := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		if _, ok := top.(*nodes.ColumnRef); ok {
+			return true
 		}
-		return !found
-	})
-	return found
+		nodes.Walk(childCollector{root: top, out: &stack}, top)
+	}
+	return false
+}
+
+// childCollector gathers a node's children onto out without walking below them.
+type childCollector struct {
+	root nodes.Node
+	out  *[]nodes.Node
+}
+
+func (c childCollector) Visit(n nodes.Node) nodes.Visitor {
+	if n == nil {
+		return nil
+	}
+	if n == c.root {
+		return c
+	}
+	*c.out = append(*c.out, n)
+	return nil
 }
 
 // validatePartitionInRows is part_values_in: VALUES IN takes values, of which a later

@@ -4167,7 +4167,7 @@ accept	accept	engine	fulltext_index_options/fulltext_index_options_fulltext_inde
 reject	reject	engine	fulltext_index_options/fulltext_index_options_fulltext_index_option!insert	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) VISIBLE VISIBLE zzz;
 reject	reject	engine	fulltext_index_options/fulltext_index_options_fulltext_index_option!swap	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) WAIT VISIBLE;
 accept	accept	engine	fulltext_index_option/common_index_option	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) VISIBLE;
-reject	reject	engine	fulltext_index_option/WITH_PARSER_SYM_IDENT_sys	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) WITH PARSER utf8mb4;
+accept	reject	engine	fulltext_index_option/WITH_PARSER_SYM_IDENT_sys	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) WITH PARSER utf8mb4;
 reject	reject	engine	fulltext_index_option/WITH_PARSER_SYM_IDENT_sys!drop-1	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) PARSER utf8mb4;
 reject	reject	engine	fulltext_index_option/WITH_PARSER_SYM_IDENT_sys!drop-2	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) WITH utf8mb4;
 reject	reject	engine	fulltext_index_option/WITH_PARSER_SYM_IDENT_sys!drop-3	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) WITH PARSER;

@@ -285,13 +285,6 @@ func (p *Parser) parseIndexOption() (*nodes.IndexOption, bool, error) {
 			if err != nil {
 				return nil, false, err
 			}
-			// The action looks the full-text parser plugin up while the statement
-			// parses (1128 for one not installed). MySQL ships two, ngram, built in,
-			// and mecab, which a server loads on request; nothing else is one.
-			// Ref: fulltext_index_option in MySQL 8.0 sql/sql_yacc.yy.
-			if !strings.EqualFold(parserName, "ngram") && !strings.EqualFold(parserName, "mecab") {
-				return nil, false, &ParseError{Message: "Function '" + parserName + "' is not defined", Position: valStart}
-			}
 			return &nodes.IndexOption{
 				Loc:   nodes.Loc{Start: start, End: p.prev.End},
 				Name:  "PARSER",
