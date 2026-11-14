@@ -9,6 +9,8 @@ func TestExecuteUsingUserVariables(t *testing.T) {
 		"EXECUTE s",
 		"EXECUTE s USING @a",
 		"EXECUTE s USING @a, @`b`, @'c'",
+		"EXECUTE s USING @''",
+		"EXECUTE s USING @``",
 	} {
 		if _, err := Parse(sql); err != nil {
 			t.Errorf("Parse(%q): %v", sql, err)

@@ -73,7 +73,7 @@ func (p *Parser) parseExecuteStmt() (*nodes.ExecuteStmt, error) {
 	if p.cur.Type == kwUSING {
 		p.advance()
 		for {
-			if !p.isUserVariable() {
+			if !p.atUsingVariable() {
 				return nil, p.syntaxErrorAtCur()
 			}
 			ref, err := p.parseVariableRef()
@@ -119,4 +119,15 @@ func (p *Parser) parseDeallocateStmt() (*nodes.DeallocateStmt, error) {
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// atUsingVariable reports whether p.cur is a user variable as singleAtIdentifier
+// spells one, an empty quoted name (`@”`, "@“") included: the lexer folds that
+// into a token whose text is "@" alone, and its source text says it was quoted.
+func (p *Parser) atUsingVariable() bool {
+	if p.isUserVariable() {
+		return true
+	}
+	src := p.inputText(p.cur.Loc, p.cur.End)
+	return p.cur.Type == tokIDENT && p.cur.Str == "@" && len(src) > 1 && src[0] == '@'
 }
