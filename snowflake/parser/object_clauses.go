@@ -72,16 +72,27 @@ func (p *Parser) parseObjectFromStage(s *ast.ObjectStmt) error {
 	if p.cur.Type != '@' {
 		return p.syntaxErrorAtCur()
 	}
-	loc, err := p.parseStageRef()
-	if err != nil {
-		return err
-	}
-	if loc.Raw == "@" {
+	raw, loc := p.parseObjectStageLocation()
+	if raw == "@" {
 		// A stage location names its stage.
 		return p.syntaxErrorAtCur()
 	}
-	p.addObjectKeywordsClause(s, "FROM", start).Options = []*ast.CopyOption{{Words: loc.Raw, Loc: loc.Loc}}
+	p.addObjectKeywordsClause(s, "FROM", start).Options = []*ast.CopyOption{{Words: raw, Loc: loc}}
 	return nil
+}
+
+// parseObjectStageLocation reads a manifest's stage location, @<stage>[/<path>],
+// verbatim: the tokens source-adjacent to '@' that a stage path takes
+// (isStagePathToken), and '-', which a Git repository clone's branch or
+// directory may hold (@repo/branches/my-branch/). cur is '@'.
+func (p *Parser) parseObjectStageLocation() (string, ast.Loc) {
+	at := p.advance() // consume '@'
+	loc := ast.Loc{Start: at.Loc.Start, End: at.Loc.End}
+	for p.cur.Loc.Start == loc.End && (p.isStagePathToken(p.cur.Type) || p.cur.Type == '-') {
+		loc.End = p.cur.Loc.End
+		p.advance()
+	}
+	return p.srcSlice(loc.Start, loc.End), loc
 }
 
 // parseObjectAddVersion reads the [ [ IF NOT EXISTS ] <version_name> ] after

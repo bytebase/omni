@@ -68,9 +68,15 @@ func TestParseOrganizationObjects(t *testing.T) {
 	if c := s.Clauses[0]; len(c.Options) != 2 || c.Options[1].Lit.Value != "y" {
 		t.Errorf("REGION GROUPS = %+v", c.Options)
 	}
-	s = mustObjectStmt(t, "CREATE ORGANIZATION PROFILE p FROM @db.s.st/dir")
-	if o := s.Clauses[0].Options[0]; o.Words != "@db.s.st/dir" {
-		t.Errorf("FROM = %q", o.Words)
+	for in, want := range map[string]string{
+		"CREATE ORGANIZATION PROFILE p FROM @db.s.st/dir":                           "@db.s.st/dir",
+		"CREATE ORGANIZATION PROFILE p FROM @repo/branches/profile-config/":         "@repo/branches/profile-config/",
+		"ALTER ORGANIZATION PROFILE p ADD VERSION v FROM @repo/branches/my-branch/": "@repo/branches/my-branch/",
+	} {
+		s = mustObjectStmt(t, in)
+		if o := s.Clauses[len(s.Clauses)-1].Options[0]; o.Words != want {
+			t.Errorf("%q: FROM = %q", in, o.Words)
+		}
 	}
 }
 
