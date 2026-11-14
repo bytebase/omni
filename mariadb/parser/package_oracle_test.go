@@ -1,7 +1,9 @@
 package parser
 
 import (
+	"strings"
 	"testing"
+	"time"
 
 	nodes "github.com/bytebase/omni/mariadb/ast"
 )
@@ -49,6 +51,8 @@ func TestPackageFormsOracle(t *testing.T) {
 		{"CREATE /* c */ PACKAGE pk PROCEDURE p(); END", true},
 		{"CREATE DEFINER = 'a b'@'localhost' PACKAGE pk PROCEDURE p(); END", true},
 		{"CREATE OR /* x */ REPLACE DEFINER = CURRENT_USER ( ) PACKAGE pk PROCEDURE p(); END", true},
+		{"CREATE DEFINER = 用户 PACKAGE pk PROCEDURE p(); END", true},
+		{"CREATE DEFINER = a$b@localhost PACKAGE pk PROCEDURE p(); END", true},
 
 		{"DROP PACKAGE pk", true},
 		{"DROP PACKAGE IF EXISTS d.pk", true},
@@ -112,5 +116,19 @@ func TestPackageTree(t *testing.T) {
 	}
 	if show, ok := list.Items[3].(*nodes.ShowStmt); !ok || show.Type != "PACKAGE BODY STATUS" {
 		t.Errorf("SHOW PACKAGE BODY STATUS = %+v", list.Items[3])
+	}
+}
+
+// TestSplitPackageWordsStayLinear holds Split to linear time on a statement that names
+// package many times: each PACKAGE asks whether the statement's head is CREATE PACKAGE, and
+// that question reads a few tokens, not the whole statement again.
+func TestSplitPackageWordsStayLinear(t *testing.T) {
+	sql := strings.Repeat("SELECT package UNION ALL ", 16000) + "SELECT package"
+	start := time.Now()
+	if segs := Split(sql); len(segs) != 1 {
+		t.Fatalf("Split gave %d segments, want 1", len(segs))
+	}
+	if d := time.Since(start); d > 5*time.Second {
+		t.Fatalf("Split of 16001 package words took %v, over 5s", d)
 	}
 }

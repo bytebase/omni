@@ -544,13 +544,22 @@ func createsPackage(head string) bool {
 	return i == len(toks)
 }
 
+// maxPackageHeadTokens is the most tokens a CREATE PACKAGE head holds:
+// CREATE OR REPLACE DEFINER = user @ host, eight.
+const maxPackageHeadTokens = 8
+
 // packageHeadTokens cuts a statement's head into words, quoted names and strings, and the
 // characters @ = ( ), dropping whitespace and comments. It returns nil for anything else,
-// which no CREATE PACKAGE head holds.
+// which no CREATE PACKAGE head holds: a first word other than CREATE, more tokens than
+// maxPackageHeadTokens, or another character. It stops there, so a statement that names
+// package many times is not scanned again from its start at each one.
 func packageHeadTokens(head string) []string {
 	var toks []string
 	i := 0
 	for i < len(head) {
+		if len(toks) > maxPackageHeadTokens || (len(toks) == 1 && !strings.EqualFold(toks[0], "CREATE")) {
+			return nil
+		}
 		c := head[i]
 		switch {
 		case c == ' ' || c == '\t' || c == '\n' || c == '\r':
@@ -576,15 +585,27 @@ func packageHeadTokens(head string) []string {
 		case c == '@' || c == '=' || c == '(' || c == ')':
 			toks = append(toks, string(c))
 			i++
-		case isIdentByte(c):
-			j := skipToEndOfWord(head, i)
+		case isPackageHeadIdentByte(c):
+			j := i
+			for j < len(head) && isPackageHeadIdentByte(head[j]) {
+				j++
+			}
 			toks = append(toks, head[i:j])
 			i = j
 		default:
 			return nil
 		}
 	}
+	if len(toks) > maxPackageHeadTokens {
+		return nil
+	}
 	return toks
+}
+
+// isPackageHeadIdentByte reports a byte of an unquoted name as the lexer reads one: a
+// letter, a digit, _ and $, and any byte of a multi-byte UTF-8 character.
+func isPackageHeadIdentByte(b byte) bool {
+	return isIdentByte(b) || b == '$' || b >= 0x80
 }
 
 // skipSingleQuoteMySQL skips a single-quoted string starting at position i.

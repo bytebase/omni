@@ -173,6 +173,14 @@
 < ok 0 0
 > exec ^
 : string
+| CREATE DEFINER = 用户 PACKAGE pk PROCEDURE p(); END
+< ok 0 0
+> exec ^
+: string
+| CREATE DEFINER = a$b@localhost PACKAGE pk PROCEDURE p(); END
+< ok 0 0
+> exec ^
+: string
 | DROP PACKAGE pk
 < ok 0 0
 > exec ^
