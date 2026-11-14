@@ -3569,7 +3569,7 @@ accept	undocumented	docs	statement/descView!insert	DESC VIEW a zzz
 accept	accept	docs	statement/descWarehouse	DESC WAREHOUSE a
 reject	undocumented	docs	statement/descWarehouse!drop-3	DESC WAREHOUSE
 accept	undocumented	docs	statement/descWarehouse!insert	DESC WAREHOUSE a zzz
-reject	accept	docs	statement/dropAccount	DROP ACCOUNT a GRACE_PERIOD_IN_DAYS = 1
+accept	accept	docs	statement/dropAccount	DROP ACCOUNT a GRACE_PERIOD_IN_DAYS = 1
 reject	undocumented	docs	statement/dropAccount!drop-1	ACCOUNT a GRACE_PERIOD_IN_DAYS = 1
 reject	undocumented	docs	statement/dropAccount!drop-2	DROP a GRACE_PERIOD_IN_DAYS = 1
 reject	undocumented	docs	statement/dropAccount!drop-3	DROP ACCOUNT GRACE_PERIOD_IN_DAYS = 1
@@ -3616,7 +3616,7 @@ reject	undocumented	docs	statement/dropArtifactRepository!drop-3	DROP ARTIFACT a
 reject	undocumented	docs	statement/dropArtifactRepository!drop-4	DROP ARTIFACT REPOSITORY
 reject	undocumented	docs	statement/dropArtifactRepository!insert	DROP ARTIFACT REPOSITORY a zzz
 reject	undocumented	docs	statement/dropArtifactRepository!swap	DROP_FROM_SOURCE_CATALOG ARTIFACT REPOSITORY a
-reject	accept	docs	statement/dropAuthenticationPolicy	DROP AUTHENTICATION POLICY a
+accept	accept	docs	statement/dropAuthenticationPolicy	DROP AUTHENTICATION POLICY a
 reject	undocumented	docs	statement/dropAuthenticationPolicy!drop-3	DROP AUTHENTICATION a
 reject	undocumented	docs	statement/dropAuthenticationPolicy!drop-4	DROP AUTHENTICATION POLICY
 reject	undocumented	docs	statement/dropAuthenticationPolicy!insert	DROP AUTHENTICATION POLICY a zzz
@@ -3721,7 +3721,7 @@ reject	undocumented	docs	statement/dropExternalTable!drop-1	EXTERNAL TABLE a
 reject	undocumented	docs	statement/dropExternalTable!drop-4	DROP EXTERNAL TABLE
 reject	undocumented	docs	statement/dropExternalTable!insert	DROP EXTERNAL TABLE a zzz
 reject	undocumented	docs	statement/dropExternalTable!swap	DROP_FROM_SOURCE_CATALOG EXTERNAL TABLE a
-reject	accept	docs	statement/dropExternalVolume	DROP EXTERNAL VOLUME a
+accept	accept	docs	statement/dropExternalVolume	DROP EXTERNAL VOLUME a
 reject	undocumented	docs	statement/dropExternalVolume!drop-2	DROP VOLUME a
 reject	undocumented	docs	statement/dropExternalVolume!drop-4	DROP EXTERNAL VOLUME
 reject	undocumented	docs	statement/dropExternalVolume!insert	DROP EXTERNAL VOLUME a zzz
@@ -3772,7 +3772,7 @@ accept	accept	docs	statement/dropGateway	DROP GATEWAY a
 reject	undocumented	docs	statement/dropGateway!drop-3	DROP GATEWAY
 reject	undocumented	docs	statement/dropGateway!insert	DROP GATEWAY a zzz
 reject	undocumented	docs	statement/dropGateway!swap	DROP_FROM_SOURCE_CATALOG GATEWAY a
-reject	accept	docs	statement/dropGitRepository	DROP GIT REPOSITORY a
+accept	accept	docs	statement/dropGitRepository	DROP GIT REPOSITORY a
 reject	undocumented	docs	statement/dropGitRepository!drop-3	DROP GIT a
 reject	undocumented	docs	statement/dropGitRepository!drop-4	DROP GIT REPOSITORY
 reject	undocumented	docs	statement/dropGitRepository!insert	DROP GIT REPOSITORY a zzz
@@ -3926,7 +3926,7 @@ reject	undocumented	docs	statement/dropPackagesPolicy!drop-3	DROP PACKAGES a
 reject	undocumented	docs	statement/dropPackagesPolicy!drop-4	DROP PACKAGES POLICY
 reject	undocumented	docs	statement/dropPackagesPolicy!insert	DROP PACKAGES POLICY a zzz
 reject	undocumented	docs	statement/dropPackagesPolicy!swap	DROP_FROM_SOURCE_CATALOG PACKAGES POLICY a
-reject	accept	docs	statement/dropPasswordPolicy	DROP PASSWORD POLICY a
+accept	accept	docs	statement/dropPasswordPolicy	DROP PASSWORD POLICY a
 reject	undocumented	docs	statement/dropPasswordPolicy!drop-3	DROP PASSWORD a
 reject	undocumented	docs	statement/dropPasswordPolicy!drop-4	DROP PASSWORD POLICY
 reject	undocumented	docs	statement/dropPasswordPolicy!insert	DROP PASSWORD POLICY a zzz
@@ -3987,11 +3987,11 @@ accept	accept	docs	statement/dropSchema	DROP SCHEMA a
 reject	undocumented	docs	statement/dropSchema!drop-3	DROP SCHEMA
 reject	undocumented	docs	statement/dropSchema!insert	DROP SCHEMA a zzz
 reject	undocumented	docs	statement/dropSchema!swap	DROP_FROM_SOURCE_CATALOG SCHEMA a
-reject	accept	docs	statement/dropSecret	DROP SECRET a
+accept	accept	docs	statement/dropSecret	DROP SECRET a
 reject	undocumented	docs	statement/dropSecret!drop-3	DROP SECRET
 reject	undocumented	docs	statement/dropSecret!insert	DROP SECRET a zzz
 reject	undocumented	docs	statement/dropSecret!swap	DROP_FROM_SOURCE_CATALOG SECRET a
-reject	accept	docs	statement/dropSemanticView	DROP SEMANTIC VIEW a
+accept	accept	docs	statement/dropSemanticView	DROP SEMANTIC VIEW a
 reject	undocumented	docs	statement/dropSemanticView!drop-3	DROP SEMANTIC a
 reject	undocumented	docs	statement/dropSemanticView!drop-4	DROP SEMANTIC VIEW
 reject	undocumented	docs	statement/dropSemanticView!insert	DROP SEMANTIC VIEW a zzz
@@ -4114,7 +4114,7 @@ reject	undocumented	docs	statement/executeImmediateFrom!drop-3	EXECUTE IMMEDIATE
 reject	undocumented	docs	statement/executeImmediateFrom!drop-4	EXECUTE IMMEDIATE FROM
 reject	undocumented	docs	statement/executeImmediateFrom!insert	EXECUTE IMMEDIATE FROM @a zzz
 reject	undocumented	docs	statement/executeImmediateFrom!swap	EXECUTE_AS_ROLE IMMEDIATE FROM @a
-reject	accept	docs	statement/executeInferenceJobService	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a
+accept	accept	docs	statement/executeInferenceJobService	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a
 reject	undocumented	docs	statement/executeInferenceJobService!drop-1	INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a
 reject	undocumented	docs	statement/executeInferenceJobService!drop-2	EXECUTE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a
 reject	undocumented	docs	statement/executeInferenceJobService!drop-3	EXECUTE INFERENCE SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a
@@ -21985,7 +21985,7 @@ reject	undocumented	docs	alterService/ALTER_SERVICE_(IF_EXISTS)?_QNAME_(alterSer
 reject	undocumented	docs	alterService/ALTER_SERVICE_(IF_EXISTS)?_QNAME_(alterService_fromSpec~14bd7c49!drop-6	ALTER SERVICE a FROM SPECIFICATION
 reject	undocumented	docs	alterService/ALTER_SERVICE_(IF_EXISTS)?_QNAME_(alterService_fromSpec~14bd7c49!insert	ALTER SERVICE a FROM SPECIFICATION 's' zzz
 reject	undocumented	docs	alterService/ALTER_SERVICE_(IF_EXISTS)?_QNAME_(alterService_fromSpec~14bd7c49!swap	ALWAYS SERVICE a FROM SPECIFICATION 's'
-reject	accept	docs	alterService/ALTER_SERVICE_(IF_EXISTS)?_QNAME_RESTORE_VOLUME_ID_INST~f735ebc3	ALTER SERVICE a RESTORE VOLUME a INSTANCES 1 FROM SNAPSHOT a
+accept	accept	docs	alterService/ALTER_SERVICE_(IF_EXISTS)?_QNAME_RESTORE_VOLUME_ID_INST~f735ebc3	ALTER SERVICE a RESTORE VOLUME a INSTANCES 1 FROM SNAPSHOT a
 reject	undocumented	docs	alterService/ALTER_SERVICE_(IF_EXISTS)?_QNAME_RESTORE_VOLUME_ID_INST~f735ebc3!drop-1	SERVICE a RESTORE VOLUME a INSTANCES 1 FROM SNAPSHOT a
 reject	undocumented	docs	alterService/ALTER_SERVICE_(IF_EXISTS)?_QNAME_RESTORE_VOLUME_ID_INST~f735ebc3!drop-2	ALTER a RESTORE VOLUME a INSTANCES 1 FROM SNAPSHOT a
 reject	undocumented	docs	alterService/ALTER_SERVICE_(IF_EXISTS)?_QNAME_RESTORE_VOLUME_ID_INST~f735ebc3!drop-3	ALTER SERVICE RESTORE VOLUME a INSTANCES 1 FROM SNAPSHOT a
@@ -22054,9 +22054,9 @@ reject	undocumented	docs	alterService(alterService_fromSpecification|alter~f5ac7
 reject	undocumented	docs	alterService(alterService_fromSpecification|alter~f5ac7273)/alterService_fromSpecificationTemplate!drop-9	ALTER SERVICE a FROM SPECIFICATION_TEMPLATE 's' USING(a => 1
 reject	undocumented	docs	alterService(alterService_fromSpecification|alter~f5ac7273)/alterService_fromSpecificationTemplate!insert	ALTER SERVICE a FROM SPECIFICATION_TEMPLATE 's' USING(a => 1) zzz
 reject	undocumented	docs	alterService(alterService_fromSpecification|alter~f5ac7273)/alterService_fromSpecificationTemplate!swap	ALTER SERVICE a FROZEN SPECIFICATION_TEMPLATE 's' USING(a => 1)
-reject	accept	docs	alterService(,_NUMBER)*/%empty	ALTER SERVICE a RESTORE VOLUME a INSTANCES 1 FROM SNAPSHOT a
+accept	accept	docs	alterService(,_NUMBER)*/%empty	ALTER SERVICE a RESTORE VOLUME a INSTANCES 1 FROM SNAPSHOT a
 reject	undocumented	docs	alterService(,_NUMBER)*/%empty!insert	ALTER SERVICE a RESTORE VOLUME a INSTANCES 1 zzz FROM SNAPSHOT a
-reject	accept	docs	alterService(,_NUMBER)*/,_NUMBER_(,_NUMBER)*	ALTER SERVICE a RESTORE VOLUME a INSTANCES 1, 1 FROM SNAPSHOT a
+accept	accept	docs	alterService(,_NUMBER)*/,_NUMBER_(,_NUMBER)*	ALTER SERVICE a RESTORE VOLUME a INSTANCES 1, 1 FROM SNAPSHOT a
 reject	undocumented	docs	alterService(,_NUMBER)*/,_NUMBER_(,_NUMBER)*!drop-1	ALTER SERVICE a RESTORE VOLUME a INSTANCES 1 1 FROM SNAPSHOT a
 reject	undocumented	docs	alterService(,_NUMBER)*/,_NUMBER_(,_NUMBER)*!drop-2	ALTER SERVICE a RESTORE VOLUME a INSTANCES 1, FROM SNAPSHOT a
 reject	undocumented	docs	alterService(,_NUMBER)*/,_NUMBER_(,_NUMBER)*!truncate	ALTER SERVICE a RESTORE VOLUME a INSTANCES 1,
@@ -22223,7 +22223,7 @@ reject	undocumented	docs	alterService_fromSpecification(FROM_SPECIFICATION_FILE_
 reject	undocumented	docs	alterService_fromSpecification(FROM_SPECIFICATION_FILE_=_STRING|FRO~dc144846)/FROM_SPECIFICATION_FILE_=_STRING!drop-4	ALTER SERVICE a FROM SPECIFICATION_FILE =
 reject	undocumented	docs	alterService_fromSpecification(FROM_SPECIFICATION_FILE_=_STRING|FRO~dc144846)/FROM_SPECIFICATION_FILE_=_STRING!insert	ALTER SERVICE a FROM SPECIFICATION_FILE = 's' zzz
 reject	undocumented	docs	alterService_fromSpecification(FROM_SPECIFICATION_FILE_=_STRING|FRO~dc144846)/FROM_SPECIFICATION_FILE_=_STRING!swap	ALTER SERVICE a FROZEN SPECIFICATION_FILE = 's'
-reject	accept	docs	alterService_fromSpecification(FROM_SPECIFICATION_FILE_=_STRING|FRO~dc144846)/FROM_STAGE_SPECIFICATION_FILE_=_STRING	ALTER SERVICE a FROM @a SPECIFICATION_FILE = 's'
+accept	accept	docs	alterService_fromSpecification(FROM_SPECIFICATION_FILE_=_STRING|FRO~dc144846)/FROM_STAGE_SPECIFICATION_FILE_=_STRING	ALTER SERVICE a FROM @a SPECIFICATION_FILE = 's'
 reject	undocumented	docs	alterService_fromSpecification(FROM_SPECIFICATION_FILE_=_STRING|FRO~dc144846)/FROM_STAGE_SPECIFICATION_FILE_=_STRING!drop-1	ALTER SERVICE a @a SPECIFICATION_FILE = 's'
 reject	undocumented	docs	alterService_fromSpecification(FROM_SPECIFICATION_FILE_=_STRING|FRO~dc144846)/FROM_STAGE_SPECIFICATION_FILE_=_STRING!drop-3	ALTER SERVICE a FROM @a = 's'
 reject	undocumented	docs	alterService_fromSpecification(FROM_SPECIFICATION_FILE_=_STRING|FRO~dc144846)/FROM_STAGE_SPECIFICATION_FILE_=_STRING!drop-4	ALTER SERVICE a FROM @a SPECIFICATION_FILE 's'
@@ -22240,7 +22240,7 @@ reject	undocumented	docs	alterService_fromSpecificationTemplate(FROM_SPECIFICATI
 reject	undocumented	docs	alterService_fromSpecificationTemplate(FROM_SPECIFICATION_TEMPLATE_FILE_=_S~fe1e7b11)/FROM_SPECIFICATION_TEMPLATE_FILE_=_STRING!truncate	ALTER SERVICE a FROM SPECIFICATION_TEMPLATE_FILE =
 reject	undocumented	docs	alterService_fromSpecificationTemplate(FROM_SPECIFICATION_TEMPLATE_FILE_=_S~fe1e7b11)/FROM_SPECIFICATION_TEMPLATE_FILE_=_STRING!insert	ALTER SERVICE a FROM SPECIFICATION_TEMPLATE_FILE = 's' zzz USING(a => 1)
 reject	undocumented	docs	alterService_fromSpecificationTemplate(FROM_SPECIFICATION_TEMPLATE_FILE_=_S~fe1e7b11)/FROM_SPECIFICATION_TEMPLATE_FILE_=_STRING!swap	ALTER SERVICE a FROZEN SPECIFICATION_TEMPLATE_FILE = 's' USING(a => 1)
-reject	accept	docs	alterService_fromSpecificationTemplate(FROM_SPECIFICATION_TEMPLATE_FILE_=_S~fe1e7b11)/FROM_STAGE_SPECIFICATION_TEMPLATE_FILE_=_STRING	ALTER SERVICE a FROM @a SPECIFICATION_TEMPLATE_FILE = 's' USING(a => 1)
+accept	accept	docs	alterService_fromSpecificationTemplate(FROM_SPECIFICATION_TEMPLATE_FILE_=_S~fe1e7b11)/FROM_STAGE_SPECIFICATION_TEMPLATE_FILE_=_STRING	ALTER SERVICE a FROM @a SPECIFICATION_TEMPLATE_FILE = 's' USING(a => 1)
 reject	undocumented	docs	alterService_fromSpecificationTemplate(FROM_SPECIFICATION_TEMPLATE_FILE_=_S~fe1e7b11)/FROM_STAGE_SPECIFICATION_TEMPLATE_FILE_=_STRING!drop-1	ALTER SERVICE a @a SPECIFICATION_TEMPLATE_FILE = 's' USING(a => 1)
 reject	undocumented	docs	alterService_fromSpecificationTemplate(FROM_SPECIFICATION_TEMPLATE_FILE_=_S~fe1e7b11)/FROM_STAGE_SPECIFICATION_TEMPLATE_FILE_=_STRING!drop-3	ALTER SERVICE a FROM @a = 's' USING(a => 1)
 reject	undocumented	docs	alterService_fromSpecificationTemplate(FROM_SPECIFICATION_TEMPLATE_FILE_=_S~fe1e7b11)/FROM_STAGE_SPECIFICATION_TEMPLATE_FILE_=_STRING!drop-4	ALTER SERVICE a FROM @a SPECIFICATION_TEMPLATE_FILE 's' USING(a => 1)
@@ -29583,14 +29583,14 @@ reject	undocumented	docs	copyIntoLocation_externalLocation/'gcsCOLONSLASHSLASHbu
 accept	accept	docs	copyIntoLocation_externalLocation/'azureCOLONSLASHSLASHaccount.blob.core.windows.netSLASH~acedb867	COPY INTO 'azure://account.blob.core.windows.net/container/path/' FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation/'azureCOLONSLASHSLASHaccount.blob.core.windows.netSLASH~acedb867!insert	COPY INTO 'azure://account.blob.core.windows.net/container/path/' zzz FROM a
 accept	accept	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/%empty	COPY INTO 's3://bucket/path/' FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/STORAGE_INTEGRATION_=_ID	COPY INTO 's3://bucket/path/' STORAGE_INTEGRATION = a FROM a
+accept	accept	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/STORAGE_INTEGRATION_=_ID	COPY INTO 's3://bucket/path/' STORAGE_INTEGRATION = a FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/STORAGE_INTEGRATION_=_ID!drop-1	COPY INTO 's3://bucket/path/' = a FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/STORAGE_INTEGRATION_=_ID!drop-2	COPY INTO 's3://bucket/path/' STORAGE_INTEGRATION a FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/STORAGE_INTEGRATION_=_ID!drop-3	COPY INTO 's3://bucket/path/' STORAGE_INTEGRATION = FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/STORAGE_INTEGRATION_=_ID!truncate	COPY INTO 's3://bucket/path/' STORAGE_INTEGRATION =
 reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/STORAGE_INTEGRATION_=_ID!insert	COPY INTO 's3://bucket/path/' STORAGE_INTEGRATION = a zzz FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/STORAGE_INTEGRATION_=_ID!swap	COPY INTO 's3://bucket/path/' STORAGE_LOCATION = a FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2	COPY INTO 's3://bucket/path/' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's') FROM a
+accept	accept	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2	COPY INTO 's3://bucket/path/' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's') FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2!drop-1	COPY INTO 's3://bucket/path/' =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's') FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2!drop-2	COPY INTO 's3://bucket/path/' CREDENTIALS(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's') FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2!drop-3	COPY INTO 's3://bucket/path/' CREDENTIALS = AWS_KEY_ID = 's' AWS_SECRET_KEY = 's') FROM a
@@ -29604,9 +29604,9 @@ reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=
 reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2!truncate	COPY INTO 's3://bucket/path/' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's'
 reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2!insert	COPY INTO 's3://bucket/path/' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's') zzz FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2!swap	COPY INTO 's3://bucket/path/' CREDIT_QUOTA =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's') FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(AWS_TOKEN_=_STRING)?/%empty	COPY INTO 's3://bucket/path/' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's') FROM a
+accept	accept	docs	copyIntoLocation_externalLocation(AWS_TOKEN_=_STRING)?/%empty	COPY INTO 's3://bucket/path/' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's') FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(AWS_TOKEN_=_STRING)?/%empty!insert	COPY INTO 's3://bucket/path/' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's' zzz) FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(AWS_TOKEN_=_STRING)?/AWS_TOKEN_=_STRING	COPY INTO 's3://bucket/path/' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's' AWS_TOKEN = 's') FROM a
+accept	accept	docs	copyIntoLocation_externalLocation(AWS_TOKEN_=_STRING)?/AWS_TOKEN_=_STRING	COPY INTO 's3://bucket/path/' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's' AWS_TOKEN = 's') FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(AWS_TOKEN_=_STRING)?/AWS_TOKEN_=_STRING!drop-1	COPY INTO 's3://bucket/path/' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's' = 's') FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(AWS_TOKEN_=_STRING)?/AWS_TOKEN_=_STRING!drop-2	COPY INTO 's3://bucket/path/' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's' AWS_TOKEN 's') FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(AWS_TOKEN_=_STRING)?/AWS_TOKEN_=_STRING!drop-3	COPY INTO 's3://bucket/path/' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's' AWS_TOKEN =) FROM a
@@ -29614,7 +29614,7 @@ reject	undocumented	docs	copyIntoLocation_externalLocation(AWS_TOKEN_=_STRING)?/
 reject	undocumented	docs	copyIntoLocation_externalLocation(AWS_TOKEN_=_STRING)?/AWS_TOKEN_=_STRING!insert	COPY INTO 's3://bucket/path/' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's' AWS_TOKEN = 's' zzz) FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(AWS_TOKEN_=_STRING)?/AWS_TOKEN_=_STRING!swap	COPY INTO 's3://bucket/path/' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's' AZURE = 's') FROM a
 accept	accept	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~199ced99)?/%empty	COPY INTO 's3://bucket/path/' FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~199ced99)?/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)_)	COPY INTO 's3://bucket/path/' ENCRYPTION =() FROM a
+accept	accept	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~199ced99)?/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)_)	COPY INTO 's3://bucket/path/' ENCRYPTION =() FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~199ced99)?/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)_)!drop-1	COPY INTO 's3://bucket/path/' =() FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~199ced99)?/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)_)!drop-2	COPY INTO 's3://bucket/path/' ENCRYPTION() FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~199ced99)?/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)_)!drop-3	COPY INTO 's3://bucket/path/' ENCRYPTION =) FROM a
@@ -29622,56 +29622,56 @@ reject	undocumented	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_((TYPE
 reject	undocumented	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~199ced99)?/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)_)!truncate	COPY INTO 's3://bucket/path/' ENCRYPTION =(
 reject	undocumented	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~199ced99)?/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)_)!insert	COPY INTO 's3://bucket/path/' ENCRYPTION =() zzz FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~199ced99)?/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)_)!swap	COPY INTO 's3://bucket/path/' ENDPOINT =() FROM a
-reject	accept	docs	copyIntoLocation_externalLocation((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)/(TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_STRING)?	COPY INTO 's3://bucket/path/' ENCRYPTION =() FROM a
+accept	accept	docs	copyIntoLocation_externalLocation((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)/(TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_STRING)?	COPY INTO 's3://bucket/path/' ENCRYPTION =() FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)/(TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_STRING)?!insert	COPY INTO 's3://bucket/path/' ENCRYPTION =(zzz) FROM a
-reject	accept	docs	copyIntoLocation_externalLocation((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)/(TYPE_=_'AWS_SSE_S3')?	COPY INTO 's3://bucket/path/' ENCRYPTION =() FROM a
-reject	accept	docs	copyIntoLocation_externalLocation((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)/(TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?)?	COPY INTO 's3://bucket/path/' ENCRYPTION =() FROM a
-reject	accept	docs	copyIntoLocation_externalLocation((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)/(TYPE_=_'NONE')?	COPY INTO 's3://bucket/path/' ENCRYPTION =() FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_CSE')?/%empty	COPY INTO 's3://bucket/path/' ENCRYPTION =() FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_CSE')?/TYPE_=_'AWS_CSE'	COPY INTO 's3://bucket/path/' ENCRYPTION =(TYPE = 'AWS_CSE') FROM a
+accept	accept	docs	copyIntoLocation_externalLocation((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)/(TYPE_=_'AWS_SSE_S3')?	COPY INTO 's3://bucket/path/' ENCRYPTION =() FROM a
+accept	accept	docs	copyIntoLocation_externalLocation((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)/(TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?)?	COPY INTO 's3://bucket/path/' ENCRYPTION =() FROM a
+accept	accept	docs	copyIntoLocation_externalLocation((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)/(TYPE_=_'NONE')?	COPY INTO 's3://bucket/path/' ENCRYPTION =() FROM a
+accept	accept	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_CSE')?/%empty	COPY INTO 's3://bucket/path/' ENCRYPTION =() FROM a
+accept	accept	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_CSE')?/TYPE_=_'AWS_CSE'	COPY INTO 's3://bucket/path/' ENCRYPTION =(TYPE = 'AWS_CSE') FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_CSE')?/TYPE_=_'AWS_CSE'!drop-1	COPY INTO 's3://bucket/path/' ENCRYPTION =(= 'AWS_CSE') FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_CSE')?/TYPE_=_'AWS_CSE'!drop-2	COPY INTO 's3://bucket/path/' ENCRYPTION =(TYPE 'AWS_CSE') FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_CSE')?/TYPE_=_'AWS_CSE'!drop-3	COPY INTO 's3://bucket/path/' ENCRYPTION =(TYPE =) FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_CSE')?/TYPE_=_'AWS_CSE'!truncate	COPY INTO 's3://bucket/path/' ENCRYPTION =(TYPE =
 reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_CSE')?/TYPE_=_'AWS_CSE'!insert	COPY INTO 's3://bucket/path/' ENCRYPTION =(TYPE = 'AWS_CSE' zzz) FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_CSE')?/TYPE_=_'AWS_CSE'!swap	COPY INTO 's3://bucket/path/' ENCRYPTION =(TYPES = 'AWS_CSE') FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(MASTER_KEY_=_STRING)?/%empty	COPY INTO 's3://bucket/path/' ENCRYPTION =() FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(MASTER_KEY_=_STRING)?/MASTER_KEY_=_STRING	COPY INTO 's3://bucket/path/' ENCRYPTION =(MASTER_KEY = 's') FROM a
+accept	accept	docs	copyIntoLocation_externalLocation(MASTER_KEY_=_STRING)?/%empty	COPY INTO 's3://bucket/path/' ENCRYPTION =() FROM a
+accept	accept	docs	copyIntoLocation_externalLocation(MASTER_KEY_=_STRING)?/MASTER_KEY_=_STRING	COPY INTO 's3://bucket/path/' ENCRYPTION =(MASTER_KEY = 's') FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(MASTER_KEY_=_STRING)?/MASTER_KEY_=_STRING!drop-1	COPY INTO 's3://bucket/path/' ENCRYPTION =(= 's') FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(MASTER_KEY_=_STRING)?/MASTER_KEY_=_STRING!drop-2	COPY INTO 's3://bucket/path/' ENCRYPTION =(MASTER_KEY 's') FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(MASTER_KEY_=_STRING)?/MASTER_KEY_=_STRING!drop-3	COPY INTO 's3://bucket/path/' ENCRYPTION =(MASTER_KEY =) FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(MASTER_KEY_=_STRING)?/MASTER_KEY_=_STRING!truncate	COPY INTO 's3://bucket/path/' ENCRYPTION =(MASTER_KEY =
 reject	undocumented	docs	copyIntoLocation_externalLocation(MASTER_KEY_=_STRING)?/MASTER_KEY_=_STRING!insert	COPY INTO 's3://bucket/path/' ENCRYPTION =(MASTER_KEY = 's' zzz) FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(MASTER_KEY_=_STRING)?/MASTER_KEY_=_STRING!swap	COPY INTO 's3://bucket/path/' ENCRYPTION =(MATCH = 's') FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_SSE_S3')?/%empty	COPY INTO 's3://bucket/path/' ENCRYPTION =() FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_SSE_S3')?/TYPE_=_'AWS_SSE_S3'	COPY INTO 's3://bucket/path/' ENCRYPTION =(TYPE = 'AWS_SSE_S3') FROM a
+accept	accept	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_SSE_S3')?/%empty	COPY INTO 's3://bucket/path/' ENCRYPTION =() FROM a
+accept	accept	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_SSE_S3')?/TYPE_=_'AWS_SSE_S3'	COPY INTO 's3://bucket/path/' ENCRYPTION =(TYPE = 'AWS_SSE_S3') FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_SSE_S3')?/TYPE_=_'AWS_SSE_S3'!drop-1	COPY INTO 's3://bucket/path/' ENCRYPTION =(= 'AWS_SSE_S3') FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_SSE_S3')?/TYPE_=_'AWS_SSE_S3'!drop-2	COPY INTO 's3://bucket/path/' ENCRYPTION =(TYPE 'AWS_SSE_S3') FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_SSE_S3')?/TYPE_=_'AWS_SSE_S3'!insert	COPY INTO 's3://bucket/path/' ENCRYPTION =(TYPE = 'AWS_SSE_S3' zzz) FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_SSE_S3')?/TYPE_=_'AWS_SSE_S3'!swap	COPY INTO 's3://bucket/path/' ENCRYPTION =(TYPES = 'AWS_SSE_S3') FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?)?/%empty	COPY INTO 's3://bucket/path/' ENCRYPTION =() FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?)?/TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?	COPY INTO 's3://bucket/path/' ENCRYPTION =(TYPE = 'AWS_SSE_KMS') FROM a
+accept	accept	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?)?/%empty	COPY INTO 's3://bucket/path/' ENCRYPTION =() FROM a
+accept	accept	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?)?/TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?	COPY INTO 's3://bucket/path/' ENCRYPTION =(TYPE = 'AWS_SSE_KMS') FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?)?/TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?!drop-1	COPY INTO 's3://bucket/path/' ENCRYPTION =(= 'AWS_SSE_KMS') FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?)?/TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?!drop-2	COPY INTO 's3://bucket/path/' ENCRYPTION =(TYPE 'AWS_SSE_KMS') FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?)?/TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?!insert	COPY INTO 's3://bucket/path/' ENCRYPTION =(TYPE = 'AWS_SSE_KMS' zzz) FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?)?/TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?!swap	COPY INTO 's3://bucket/path/' ENCRYPTION =(TYPES = 'AWS_SSE_KMS') FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(KMS_KEY_ID_=_STRING)?/%empty	COPY INTO 'gcs://bucket/path/' ENCRYPTION =() FROM a
+accept	accept	docs	copyIntoLocation_externalLocation(KMS_KEY_ID_=_STRING)?/%empty	COPY INTO 'gcs://bucket/path/' ENCRYPTION =() FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(KMS_KEY_ID_=_STRING)?/%empty!insert	COPY INTO 'gcs://bucket/path/' ENCRYPTION =(zzz) FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(KMS_KEY_ID_=_STRING)?/KMS_KEY_ID_=_STRING	COPY INTO 'gcs://bucket/path/' ENCRYPTION =(KMS_KEY_ID = 's') FROM a
+accept	accept	docs	copyIntoLocation_externalLocation(KMS_KEY_ID_=_STRING)?/KMS_KEY_ID_=_STRING	COPY INTO 'gcs://bucket/path/' ENCRYPTION =(KMS_KEY_ID = 's') FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(KMS_KEY_ID_=_STRING)?/KMS_KEY_ID_=_STRING!drop-1	COPY INTO 'gcs://bucket/path/' ENCRYPTION =(= 's') FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(KMS_KEY_ID_=_STRING)?/KMS_KEY_ID_=_STRING!drop-2	COPY INTO 'gcs://bucket/path/' ENCRYPTION =(KMS_KEY_ID 's') FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(KMS_KEY_ID_=_STRING)?/KMS_KEY_ID_=_STRING!drop-3	COPY INTO 'gcs://bucket/path/' ENCRYPTION =(KMS_KEY_ID =) FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(KMS_KEY_ID_=_STRING)?/KMS_KEY_ID_=_STRING!truncate	COPY INTO 'gcs://bucket/path/' ENCRYPTION =(KMS_KEY_ID =
 reject	undocumented	docs	copyIntoLocation_externalLocation(KMS_KEY_ID_=_STRING)?/KMS_KEY_ID_=_STRING!insert	COPY INTO 'gcs://bucket/path/' ENCRYPTION =(KMS_KEY_ID = 's' zzz) FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(KMS_KEY_ID_=_STRING)?/KMS_KEY_ID_=_STRING!swap	COPY INTO 'gcs://bucket/path/' ENCRYPTION =(LABEL = 's') FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(TYPE_=_'NONE')?/%empty	COPY INTO 's3://bucket/path/' ENCRYPTION =() FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(TYPE_=_'NONE')?/TYPE_=_'NONE'	COPY INTO 's3://bucket/path/' ENCRYPTION =(TYPE = 'NONE') FROM a
+accept	accept	docs	copyIntoLocation_externalLocation(TYPE_=_'NONE')?/%empty	COPY INTO 's3://bucket/path/' ENCRYPTION =() FROM a
+accept	accept	docs	copyIntoLocation_externalLocation(TYPE_=_'NONE')?/TYPE_=_'NONE'	COPY INTO 's3://bucket/path/' ENCRYPTION =(TYPE = 'NONE') FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'NONE')?/TYPE_=_'NONE'!drop-1	COPY INTO 's3://bucket/path/' ENCRYPTION =(= 'NONE') FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'NONE')?/TYPE_=_'NONE'!drop-2	COPY INTO 's3://bucket/path/' ENCRYPTION =(TYPE 'NONE') FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'NONE')?/TYPE_=_'NONE'!insert	COPY INTO 's3://bucket/path/' ENCRYPTION =(TYPE = 'NONE' zzz) FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'NONE')?/TYPE_=_'NONE'!swap	COPY INTO 's3://bucket/path/' ENCRYPTION =(TYPES = 'NONE') FROM a
 accept	accept	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID)?/%empty	COPY INTO 'gcs://bucket/path/' FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID)?/STORAGE_INTEGRATION_=_ID	COPY INTO 'gcs://bucket/path/' STORAGE_INTEGRATION = a FROM a
+accept	accept	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID)?/STORAGE_INTEGRATION_=_ID	COPY INTO 'gcs://bucket/path/' STORAGE_INTEGRATION = a FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID)?/STORAGE_INTEGRATION_=_ID!drop-1	COPY INTO 'gcs://bucket/path/' = a FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID)?/STORAGE_INTEGRATION_=_ID!drop-2	COPY INTO 'gcs://bucket/path/' STORAGE_INTEGRATION a FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID)?/STORAGE_INTEGRATION_=_ID!drop-3	COPY INTO 'gcs://bucket/path/' STORAGE_INTEGRATION = FROM a
@@ -29679,7 +29679,7 @@ reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=
 reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID)?/STORAGE_INTEGRATION_=_ID!insert	COPY INTO 'gcs://bucket/path/' STORAGE_INTEGRATION = a zzz FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID)?/STORAGE_INTEGRATION_=_ID!swap	COPY INTO 'gcs://bucket/path/' STORAGE_LOCATION = a FROM a
 accept	accept	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_((TYPE_=_'GCS_SSE_KMS~c96c1507)?/%empty	COPY INTO 'gcs://bucket/path/' FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_((TYPE_=_'GCS_SSE_KMS~c96c1507)?/ENCRYPTION_=_(_((TYPE_=_'GCS_SSE_KMS')?_(KMS_KEY_ID_~1b776b0b)_)	COPY INTO 'gcs://bucket/path/' ENCRYPTION =() FROM a
+accept	accept	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_((TYPE_=_'GCS_SSE_KMS~c96c1507)?/ENCRYPTION_=_(_((TYPE_=_'GCS_SSE_KMS')?_(KMS_KEY_ID_~1b776b0b)_)	COPY INTO 'gcs://bucket/path/' ENCRYPTION =() FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_((TYPE_=_'GCS_SSE_KMS~c96c1507)?/ENCRYPTION_=_(_((TYPE_=_'GCS_SSE_KMS')?_(KMS_KEY_ID_~1b776b0b)_)!drop-1	COPY INTO 'gcs://bucket/path/' =() FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_((TYPE_=_'GCS_SSE_KMS~c96c1507)?/ENCRYPTION_=_(_((TYPE_=_'GCS_SSE_KMS')?_(KMS_KEY_ID_~1b776b0b)_)!drop-2	COPY INTO 'gcs://bucket/path/' ENCRYPTION() FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_((TYPE_=_'GCS_SSE_KMS~c96c1507)?/ENCRYPTION_=_(_((TYPE_=_'GCS_SSE_KMS')?_(KMS_KEY_ID_~1b776b0b)_)!drop-3	COPY INTO 'gcs://bucket/path/' ENCRYPTION =) FROM a
@@ -29687,10 +29687,10 @@ reject	undocumented	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_((TYPE
 reject	undocumented	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_((TYPE_=_'GCS_SSE_KMS~c96c1507)?/ENCRYPTION_=_(_((TYPE_=_'GCS_SSE_KMS')?_(KMS_KEY_ID_~1b776b0b)_)!truncate	COPY INTO 'gcs://bucket/path/' ENCRYPTION =(
 reject	undocumented	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_((TYPE_=_'GCS_SSE_KMS~c96c1507)?/ENCRYPTION_=_(_((TYPE_=_'GCS_SSE_KMS')?_(KMS_KEY_ID_~1b776b0b)_)!insert	COPY INTO 'gcs://bucket/path/' ENCRYPTION =() zzz FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_((TYPE_=_'GCS_SSE_KMS~c96c1507)?/ENCRYPTION_=_(_((TYPE_=_'GCS_SSE_KMS')?_(KMS_KEY_ID_~1b776b0b)_)!swap	COPY INTO 'gcs://bucket/path/' ENDPOINT =() FROM a
-reject	accept	docs	copyIntoLocation_externalLocation((TYPE_=_'GCS_SSE_KMS')?_(KMS_KEY_ID_~1b776b0b)/(TYPE_=_'GCS_SSE_KMS')?_(KMS_KEY_ID_=_STRING)?	COPY INTO 'gcs://bucket/path/' ENCRYPTION =() FROM a
-reject	accept	docs	copyIntoLocation_externalLocation((TYPE_=_'GCS_SSE_KMS')?_(KMS_KEY_ID_~1b776b0b)/(TYPE_=_'NONE')?	COPY INTO 'gcs://bucket/path/' ENCRYPTION =() FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(TYPE_=_'GCS_SSE_KMS')?/%empty	COPY INTO 'gcs://bucket/path/' ENCRYPTION =() FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(TYPE_=_'GCS_SSE_KMS')?/TYPE_=_'GCS_SSE_KMS'	COPY INTO 'gcs://bucket/path/' ENCRYPTION =(TYPE = 'GCS_SSE_KMS') FROM a
+accept	accept	docs	copyIntoLocation_externalLocation((TYPE_=_'GCS_SSE_KMS')?_(KMS_KEY_ID_~1b776b0b)/(TYPE_=_'GCS_SSE_KMS')?_(KMS_KEY_ID_=_STRING)?	COPY INTO 'gcs://bucket/path/' ENCRYPTION =() FROM a
+accept	accept	docs	copyIntoLocation_externalLocation((TYPE_=_'GCS_SSE_KMS')?_(KMS_KEY_ID_~1b776b0b)/(TYPE_=_'NONE')?	COPY INTO 'gcs://bucket/path/' ENCRYPTION =() FROM a
+accept	accept	docs	copyIntoLocation_externalLocation(TYPE_=_'GCS_SSE_KMS')?/%empty	COPY INTO 'gcs://bucket/path/' ENCRYPTION =() FROM a
+accept	accept	docs	copyIntoLocation_externalLocation(TYPE_=_'GCS_SSE_KMS')?/TYPE_=_'GCS_SSE_KMS'	COPY INTO 'gcs://bucket/path/' ENCRYPTION =(TYPE = 'GCS_SSE_KMS') FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'GCS_SSE_KMS')?/TYPE_=_'GCS_SSE_KMS'!drop-1	COPY INTO 'gcs://bucket/path/' ENCRYPTION =(= 'GCS_SSE_KMS') FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'GCS_SSE_KMS')?/TYPE_=_'GCS_SSE_KMS'!drop-2	COPY INTO 'gcs://bucket/path/' ENCRYPTION =(TYPE 'GCS_SSE_KMS') FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'GCS_SSE_KMS')?/TYPE_=_'GCS_SSE_KMS'!drop-3	COPY INTO 'gcs://bucket/path/' ENCRYPTION =(TYPE =) FROM a
@@ -29698,14 +29698,14 @@ reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'GCS_SSE_KMS')
 reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'GCS_SSE_KMS')?/TYPE_=_'GCS_SSE_KMS'!insert	COPY INTO 'gcs://bucket/path/' ENCRYPTION =(TYPE = 'GCS_SSE_KMS' zzz) FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'GCS_SSE_KMS')?/TYPE_=_'GCS_SSE_KMS'!swap	COPY INTO 'gcs://bucket/path/' ENCRYPTION =(TYPES = 'GCS_SSE_KMS') FROM a
 accept	accept	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/%empty	COPY INTO 'azure://account.blob.core.windows.net/container/path/' FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/STORAGE_INTEGRATION_=_ID	COPY INTO 'azure://account.blob.core.windows.net/container/path/' STORAGE_INTEGRATION = a FROM a
+accept	accept	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/STORAGE_INTEGRATION_=_ID	COPY INTO 'azure://account.blob.core.windows.net/container/path/' STORAGE_INTEGRATION = a FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/STORAGE_INTEGRATION_=_ID!drop-1	COPY INTO 'azure://account.blob.core.windows.net/container/path/' = a FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/STORAGE_INTEGRATION_=_ID!drop-2	COPY INTO 'azure://account.blob.core.windows.net/container/path/' STORAGE_INTEGRATION a FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/STORAGE_INTEGRATION_=_ID!drop-3	COPY INTO 'azure://account.blob.core.windows.net/container/path/' STORAGE_INTEGRATION = FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/STORAGE_INTEGRATION_=_ID!truncate	COPY INTO 'azure://account.blob.core.windows.net/container/path/' STORAGE_INTEGRATION =
 reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/STORAGE_INTEGRATION_=_ID!insert	COPY INTO 'azure://account.blob.core.windows.net/container/path/' STORAGE_INTEGRATION = a zzz FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/STORAGE_INTEGRATION_=_ID!swap	COPY INTO 'azure://account.blob.core.windows.net/container/path/' STORAGE_LOCATION = a FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/CREDENTIALS_=_(_(AZURE_SAS_TOKEN_=_STRING)?_)	COPY INTO 'azure://account.blob.core.windows.net/container/path/' CREDENTIALS =() FROM a
+accept	accept	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/CREDENTIALS_=_(_(AZURE_SAS_TOKEN_=_STRING)?_)	COPY INTO 'azure://account.blob.core.windows.net/container/path/' CREDENTIALS =() FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/CREDENTIALS_=_(_(AZURE_SAS_TOKEN_=_STRING)?_)!drop-1	COPY INTO 'azure://account.blob.core.windows.net/container/path/' =() FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/CREDENTIALS_=_(_(AZURE_SAS_TOKEN_=_STRING)?_)!drop-2	COPY INTO 'azure://account.blob.core.windows.net/container/path/' CREDENTIALS() FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/CREDENTIALS_=_(_(AZURE_SAS_TOKEN_=_STRING)?_)!drop-3	COPY INTO 'azure://account.blob.core.windows.net/container/path/' CREDENTIALS =) FROM a
@@ -29713,9 +29713,9 @@ reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=
 reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/CREDENTIALS_=_(_(AZURE_SAS_TOKEN_=_STRING)?_)!truncate	COPY INTO 'azure://account.blob.core.windows.net/container/path/' CREDENTIALS =(
 reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/CREDENTIALS_=_(_(AZURE_SAS_TOKEN_=_STRING)?_)!insert	COPY INTO 'azure://account.blob.core.windows.net/container/path/' CREDENTIALS =() zzz FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/CREDENTIALS_=_(_(AZURE_SAS_TOKEN_=_STRING)?_)!swap	COPY INTO 'azure://account.blob.core.windows.net/container/path/' CREDIT_QUOTA =() FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(AZURE_SAS_TOKEN_=_STRING)?/%empty	COPY INTO 'azure://account.blob.core.windows.net/container/path/' CREDENTIALS =() FROM a
+accept	accept	docs	copyIntoLocation_externalLocation(AZURE_SAS_TOKEN_=_STRING)?/%empty	COPY INTO 'azure://account.blob.core.windows.net/container/path/' CREDENTIALS =() FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(AZURE_SAS_TOKEN_=_STRING)?/%empty!insert	COPY INTO 'azure://account.blob.core.windows.net/container/path/' CREDENTIALS =(zzz) FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(AZURE_SAS_TOKEN_=_STRING)?/AZURE_SAS_TOKEN_=_STRING	COPY INTO 'azure://account.blob.core.windows.net/container/path/' CREDENTIALS =(AZURE_SAS_TOKEN = 's') FROM a
+accept	accept	docs	copyIntoLocation_externalLocation(AZURE_SAS_TOKEN_=_STRING)?/AZURE_SAS_TOKEN_=_STRING	COPY INTO 'azure://account.blob.core.windows.net/container/path/' CREDENTIALS =(AZURE_SAS_TOKEN = 's') FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(AZURE_SAS_TOKEN_=_STRING)?/AZURE_SAS_TOKEN_=_STRING!drop-1	COPY INTO 'azure://account.blob.core.windows.net/container/path/' CREDENTIALS =(= 's') FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(AZURE_SAS_TOKEN_=_STRING)?/AZURE_SAS_TOKEN_=_STRING!drop-2	COPY INTO 'azure://account.blob.core.windows.net/container/path/' CREDENTIALS =(AZURE_SAS_TOKEN 's') FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(AZURE_SAS_TOKEN_=_STRING)?/AZURE_SAS_TOKEN_=_STRING!drop-3	COPY INTO 'azure://account.blob.core.windows.net/container/path/' CREDENTIALS =(AZURE_SAS_TOKEN =) FROM a
@@ -29723,24 +29723,24 @@ reject	undocumented	docs	copyIntoLocation_externalLocation(AZURE_SAS_TOKEN_=_STR
 reject	undocumented	docs	copyIntoLocation_externalLocation(AZURE_SAS_TOKEN_=_STRING)?/AZURE_SAS_TOKEN_=_STRING!insert	COPY INTO 'azure://account.blob.core.windows.net/container/path/' CREDENTIALS =(AZURE_SAS_TOKEN = 's' zzz) FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(AZURE_SAS_TOKEN_=_STRING)?/AZURE_SAS_TOKEN_=_STRING!swap	COPY INTO 'azure://account.blob.core.windows.net/container/path/' CREDENTIALS =(AZURE_STORAGE_QUEUE = 's') FROM a
 accept	accept	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_(TYPE_=_('AZURE_CSE'|~8085ade8)?/%empty	COPY INTO 'azure://account.blob.core.windows.net/container/path/' FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_(TYPE_=_('AZURE_CSE'|~8085ade8)?/ENCRYPTION_=_(_(TYPE_=_('AZURE_CSE'|'NONE'))?_(MASTER_K~c65f08a5	COPY INTO 'azure://account.blob.core.windows.net/container/path/' ENCRYPTION =() FROM a
+accept	accept	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_(TYPE_=_('AZURE_CSE'|~8085ade8)?/ENCRYPTION_=_(_(TYPE_=_('AZURE_CSE'|'NONE'))?_(MASTER_K~c65f08a5	COPY INTO 'azure://account.blob.core.windows.net/container/path/' ENCRYPTION =() FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_(TYPE_=_('AZURE_CSE'|~8085ade8)?/ENCRYPTION_=_(_(TYPE_=_('AZURE_CSE'|'NONE'))?_(MASTER_K~c65f08a5!drop-2	COPY INTO 'azure://account.blob.core.windows.net/container/path/' ENCRYPTION() FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_(TYPE_=_('AZURE_CSE'|~8085ade8)?/ENCRYPTION_=_(_(TYPE_=_('AZURE_CSE'|'NONE'))?_(MASTER_K~c65f08a5!drop-3	COPY INTO 'azure://account.blob.core.windows.net/container/path/' ENCRYPTION =) FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_(TYPE_=_('AZURE_CSE'|~8085ade8)?/ENCRYPTION_=_(_(TYPE_=_('AZURE_CSE'|'NONE'))?_(MASTER_K~c65f08a5!drop-4	COPY INTO 'azure://account.blob.core.windows.net/container/path/' ENCRYPTION =(FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_(TYPE_=_('AZURE_CSE'|~8085ade8)?/ENCRYPTION_=_(_(TYPE_=_('AZURE_CSE'|'NONE'))?_(MASTER_K~c65f08a5!truncate	COPY INTO 'azure://account.blob.core.windows.net/container/path/' ENCRYPTION =(
 reject	undocumented	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_(TYPE_=_('AZURE_CSE'|~8085ade8)?/ENCRYPTION_=_(_(TYPE_=_('AZURE_CSE'|'NONE'))?_(MASTER_K~c65f08a5!insert	COPY INTO 'azure://account.blob.core.windows.net/container/path/' ENCRYPTION =() zzz FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_(TYPE_=_('AZURE_CSE'|~8085ade8)?/ENCRYPTION_=_(_(TYPE_=_('AZURE_CSE'|'NONE'))?_(MASTER_K~c65f08a5!swap	COPY INTO 'azure://account.blob.core.windows.net/container/path/' ENDPOINT =() FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(TYPE_=_('AZURE_CSE'|'NONE'))?/%empty	COPY INTO 'azure://account.blob.core.windows.net/container/path/' ENCRYPTION =() FROM a
+accept	accept	docs	copyIntoLocation_externalLocation(TYPE_=_('AZURE_CSE'|'NONE'))?/%empty	COPY INTO 'azure://account.blob.core.windows.net/container/path/' ENCRYPTION =() FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_('AZURE_CSE'|'NONE'))?/%empty!insert	COPY INTO 'azure://account.blob.core.windows.net/container/path/' ENCRYPTION =(zzz) FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(TYPE_=_('AZURE_CSE'|'NONE'))?/TYPE_=_('AZURE_CSE'|'NONE')	COPY INTO 'azure://account.blob.core.windows.net/container/path/' ENCRYPTION =(TYPE = 'AZURE_CSE') FROM a
+accept	accept	docs	copyIntoLocation_externalLocation(TYPE_=_('AZURE_CSE'|'NONE'))?/TYPE_=_('AZURE_CSE'|'NONE')	COPY INTO 'azure://account.blob.core.windows.net/container/path/' ENCRYPTION =(TYPE = 'AZURE_CSE') FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_('AZURE_CSE'|'NONE'))?/TYPE_=_('AZURE_CSE'|'NONE')!drop-1	COPY INTO 'azure://account.blob.core.windows.net/container/path/' ENCRYPTION =(= 'AZURE_CSE') FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_('AZURE_CSE'|'NONE'))?/TYPE_=_('AZURE_CSE'|'NONE')!drop-2	COPY INTO 'azure://account.blob.core.windows.net/container/path/' ENCRYPTION =(TYPE 'AZURE_CSE') FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_('AZURE_CSE'|'NONE'))?/TYPE_=_('AZURE_CSE'|'NONE')!drop-3	COPY INTO 'azure://account.blob.core.windows.net/container/path/' ENCRYPTION =(TYPE =) FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_('AZURE_CSE'|'NONE'))?/TYPE_=_('AZURE_CSE'|'NONE')!truncate	COPY INTO 'azure://account.blob.core.windows.net/container/path/' ENCRYPTION =(TYPE =
 reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_('AZURE_CSE'|'NONE'))?/TYPE_=_('AZURE_CSE'|'NONE')!insert	COPY INTO 'azure://account.blob.core.windows.net/container/path/' ENCRYPTION =(TYPE = 'AZURE_CSE' zzz) FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_('AZURE_CSE'|'NONE'))?/TYPE_=_('AZURE_CSE'|'NONE')!swap	COPY INTO 'azure://account.blob.core.windows.net/container/path/' ENCRYPTION =(TYPES = 'AZURE_CSE') FROM a
-reject	accept	docs	copyIntoLocation_externalLocation('AZURE_CSE'|'NONE')/'AZURE_CSE'	COPY INTO 'azure://account.blob.core.windows.net/container/path/' ENCRYPTION =(TYPE = 'AZURE_CSE') FROM a
-reject	accept	docs	copyIntoLocation_externalLocation('AZURE_CSE'|'NONE')/'NONE'	COPY INTO 'azure://account.blob.core.windows.net/container/path/' ENCRYPTION =(TYPE = 'NONE') FROM a
+accept	accept	docs	copyIntoLocation_externalLocation('AZURE_CSE'|'NONE')/'AZURE_CSE'	COPY INTO 'azure://account.blob.core.windows.net/container/path/' ENCRYPTION =(TYPE = 'AZURE_CSE') FROM a
+accept	accept	docs	copyIntoLocation_externalLocation('AZURE_CSE'|'NONE')/'NONE'	COPY INTO 'azure://account.blob.core.windows.net/container/path/' ENCRYPTION =(TYPE = 'NONE') FROM a
 reject	undocumented	docs	copyIntoLocation_externalLocation('AZURE_CSE'|'NONE')/'NONE'!insert	COPY INTO 'azure://account.blob.core.windows.net/container/path/' ENCRYPTION =(TYPE = 'NONE' zzz) FROM a
 accept	accept	docs	copyIntoLocation_formatTypeOptions_CSV/(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~8adb387b)_(,?_(CO~fca1836f	COPY INTO @a FROM a FILE_FORMAT =(TYPE = CSV COMPRESSION = AUTO)
 accept	accept	docs	copyIntoLocation_formatTypeOptions_CSV(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~8adb387b)/COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|ZSTD|DEFLATE|RA~ec9870d1)	COPY INTO @a FROM a FILE_FORMAT =(TYPE = CSV COMPRESSION = AUTO)
@@ -46400,7 +46400,7 @@ reject	undocumented	docs	createService_fromSpecification(FROM_SPECIFICATION_FILE
 reject	undocumented	docs	createService_fromSpecification(FROM_SPECIFICATION_FILE_=_STRING|FRO~dc144846)/FROM_SPECIFICATION_FILE_=_STRING!drop-4	CREATE SERVICE a IN COMPUTE POOL a FROM SPECIFICATION_FILE =
 reject	undocumented	docs	createService_fromSpecification(FROM_SPECIFICATION_FILE_=_STRING|FRO~dc144846)/FROM_SPECIFICATION_FILE_=_STRING!insert	CREATE SERVICE a IN COMPUTE POOL a FROM SPECIFICATION_FILE = 's' zzz
 reject	undocumented	docs	createService_fromSpecification(FROM_SPECIFICATION_FILE_=_STRING|FRO~dc144846)/FROM_SPECIFICATION_FILE_=_STRING!swap	CREATE SERVICE a IN COMPUTE POOL a FROZEN SPECIFICATION_FILE = 's'
-reject	accept	docs	createService_fromSpecification(FROM_SPECIFICATION_FILE_=_STRING|FRO~dc144846)/FROM_STAGE_SPECIFICATION_FILE_=_STRING	CREATE SERVICE a IN COMPUTE POOL a FROM @a SPECIFICATION_FILE = 's'
+accept	accept	docs	createService_fromSpecification(FROM_SPECIFICATION_FILE_=_STRING|FRO~dc144846)/FROM_STAGE_SPECIFICATION_FILE_=_STRING	CREATE SERVICE a IN COMPUTE POOL a FROM @a SPECIFICATION_FILE = 's'
 reject	undocumented	docs	createService_fromSpecification(FROM_SPECIFICATION_FILE_=_STRING|FRO~dc144846)/FROM_STAGE_SPECIFICATION_FILE_=_STRING!drop-1	CREATE SERVICE a IN COMPUTE POOL a @a SPECIFICATION_FILE = 's'
 reject	undocumented	docs	createService_fromSpecification(FROM_SPECIFICATION_FILE_=_STRING|FRO~dc144846)/FROM_STAGE_SPECIFICATION_FILE_=_STRING!drop-3	CREATE SERVICE a IN COMPUTE POOL a FROM @a = 's'
 reject	undocumented	docs	createService_fromSpecification(FROM_SPECIFICATION_FILE_=_STRING|FRO~dc144846)/FROM_STAGE_SPECIFICATION_FILE_=_STRING!drop-4	CREATE SERVICE a IN COMPUTE POOL a FROM @a SPECIFICATION_FILE 's'
@@ -46417,7 +46417,7 @@ reject	undocumented	docs	createService_fromSpecificationTemplate(FROM_SPECIFICAT
 reject	undocumented	docs	createService_fromSpecificationTemplate(FROM_SPECIFICATION_TEMPLATE_FILE_=_S~fe1e7b11)/FROM_SPECIFICATION_TEMPLATE_FILE_=_STRING!truncate	CREATE SERVICE a IN COMPUTE POOL a FROM SPECIFICATION_TEMPLATE_FILE =
 reject	undocumented	docs	createService_fromSpecificationTemplate(FROM_SPECIFICATION_TEMPLATE_FILE_=_S~fe1e7b11)/FROM_SPECIFICATION_TEMPLATE_FILE_=_STRING!insert	CREATE SERVICE a IN COMPUTE POOL a FROM SPECIFICATION_TEMPLATE_FILE = 's' zzz USING(a => 1)
 reject	undocumented	docs	createService_fromSpecificationTemplate(FROM_SPECIFICATION_TEMPLATE_FILE_=_S~fe1e7b11)/FROM_SPECIFICATION_TEMPLATE_FILE_=_STRING!swap	CREATE SERVICE a IN COMPUTE POOL a FROZEN SPECIFICATION_TEMPLATE_FILE = 's' USING(a => 1)
-reject	accept	docs	createService_fromSpecificationTemplate(FROM_SPECIFICATION_TEMPLATE_FILE_=_S~fe1e7b11)/FROM_STAGE_SPECIFICATION_TEMPLATE_FILE_=_STRING	CREATE SERVICE a IN COMPUTE POOL a FROM @a SPECIFICATION_TEMPLATE_FILE = 's' USING(a => 1)
+accept	accept	docs	createService_fromSpecificationTemplate(FROM_SPECIFICATION_TEMPLATE_FILE_=_S~fe1e7b11)/FROM_STAGE_SPECIFICATION_TEMPLATE_FILE_=_STRING	CREATE SERVICE a IN COMPUTE POOL a FROM @a SPECIFICATION_TEMPLATE_FILE = 's' USING(a => 1)
 reject	undocumented	docs	createService_fromSpecificationTemplate(FROM_SPECIFICATION_TEMPLATE_FILE_=_S~fe1e7b11)/FROM_STAGE_SPECIFICATION_TEMPLATE_FILE_=_STRING!drop-1	CREATE SERVICE a IN COMPUTE POOL a @a SPECIFICATION_TEMPLATE_FILE = 's' USING(a => 1)
 reject	undocumented	docs	createService_fromSpecificationTemplate(FROM_SPECIFICATION_TEMPLATE_FILE_=_S~fe1e7b11)/FROM_STAGE_SPECIFICATION_TEMPLATE_FILE_=_STRING!drop-3	CREATE SERVICE a IN COMPUTE POOL a FROM @a = 's' USING(a => 1)
 reject	undocumented	docs	createService_fromSpecificationTemplate(FROM_SPECIFICATION_TEMPLATE_FILE_=_S~fe1e7b11)/FROM_STAGE_SPECIFICATION_TEMPLATE_FILE_=_STRING!drop-4	CREATE SERVICE a IN COMPUTE POOL a FROM @a SPECIFICATION_TEMPLATE_FILE 's' USING(a => 1)
@@ -51922,10 +51922,10 @@ accept	undocumented	docs	descWarehouse(DESC|DESCRIBE)/DESC!insert	DESC zzz WAREH
 accept	accept	docs	descWarehouse(DESC|DESCRIBE)/DESCRIBE	DESCRIBE WAREHOUSE a
 accept	undocumented	docs	descWarehouse(DESC|DESCRIBE)/DESCRIBE!insert	DESCRIBE zzz WAREHOUSE a
 reject	undocumented	docs	descWarehouse(DESC|DESCRIBE)/DESCRIBE!swap	DESCRIPTION WAREHOUSE a
-reject	accept	docs	dropAccount/DROP_ACCOUNT_(IF_EXISTS)?_ID_GRACE_PERIOD_IN_DAYS_=_NUMBER	DROP ACCOUNT a GRACE_PERIOD_IN_DAYS = 1
-reject	accept	docs	dropAccount(IF_EXISTS)?/%empty	DROP ACCOUNT a GRACE_PERIOD_IN_DAYS = 1
+accept	accept	docs	dropAccount/DROP_ACCOUNT_(IF_EXISTS)?_ID_GRACE_PERIOD_IN_DAYS_=_NUMBER	DROP ACCOUNT a GRACE_PERIOD_IN_DAYS = 1
+accept	accept	docs	dropAccount(IF_EXISTS)?/%empty	DROP ACCOUNT a GRACE_PERIOD_IN_DAYS = 1
 reject	undocumented	docs	dropAccount(IF_EXISTS)?/%empty!insert	DROP ACCOUNT zzz a GRACE_PERIOD_IN_DAYS = 1
-reject	accept	docs	dropAccount(IF_EXISTS)?/IF_EXISTS	DROP ACCOUNT IF EXISTS a GRACE_PERIOD_IN_DAYS = 1
+accept	accept	docs	dropAccount(IF_EXISTS)?/IF_EXISTS	DROP ACCOUNT IF EXISTS a GRACE_PERIOD_IN_DAYS = 1
 reject	undocumented	docs	dropAccount(IF_EXISTS)?/IF_EXISTS!drop-1	DROP ACCOUNT EXISTS a GRACE_PERIOD_IN_DAYS = 1
 reject	undocumented	docs	dropAccount(IF_EXISTS)?/IF_EXISTS!drop-2	DROP ACCOUNT IF a GRACE_PERIOD_IN_DAYS = 1
 reject	undocumented	docs	dropAccount(IF_EXISTS)?/IF_EXISTS!truncate	DROP ACCOUNT IF
@@ -51999,13 +51999,13 @@ reject	undocumented	docs	dropArtifactRepository(IF_EXISTS)?/IF_EXISTS!drop-2	DRO
 accept	accept	docs	dropArtifactRepository(IF_EXISTS)?/IF_EXISTS!truncate	DROP ARTIFACT REPOSITORY IF
 reject	undocumented	docs	dropArtifactRepository(IF_EXISTS)?/IF_EXISTS!insert	DROP ARTIFACT REPOSITORY IF EXISTS zzz a
 reject	undocumented	docs	dropArtifactRepository(IF_EXISTS)?/IF_EXISTS!swap	DROP ARTIFACT REPOSITORY IGNORE EXISTS a
-reject	accept	docs	dropAuthenticationPolicy/DROP_AUTHENTICATION_POLICY_(IF_EXISTS)?_QNAME	DROP AUTHENTICATION POLICY a
-reject	accept	docs	dropAuthenticationPolicy(IF_EXISTS)?/%empty	DROP AUTHENTICATION POLICY a
+accept	accept	docs	dropAuthenticationPolicy/DROP_AUTHENTICATION_POLICY_(IF_EXISTS)?_QNAME	DROP AUTHENTICATION POLICY a
+accept	accept	docs	dropAuthenticationPolicy(IF_EXISTS)?/%empty	DROP AUTHENTICATION POLICY a
 reject	undocumented	docs	dropAuthenticationPolicy(IF_EXISTS)?/%empty!insert	DROP AUTHENTICATION POLICY zzz a
-reject	accept	docs	dropAuthenticationPolicy(IF_EXISTS)?/IF_EXISTS	DROP AUTHENTICATION POLICY IF EXISTS a
+accept	accept	docs	dropAuthenticationPolicy(IF_EXISTS)?/IF_EXISTS	DROP AUTHENTICATION POLICY IF EXISTS a
 reject	undocumented	docs	dropAuthenticationPolicy(IF_EXISTS)?/IF_EXISTS!drop-1	DROP AUTHENTICATION POLICY EXISTS a
 reject	undocumented	docs	dropAuthenticationPolicy(IF_EXISTS)?/IF_EXISTS!drop-2	DROP AUTHENTICATION POLICY IF a
-reject	accept	docs	dropAuthenticationPolicy(IF_EXISTS)?/IF_EXISTS!truncate	DROP AUTHENTICATION POLICY IF
+accept	accept	docs	dropAuthenticationPolicy(IF_EXISTS)?/IF_EXISTS!truncate	DROP AUTHENTICATION POLICY IF
 reject	undocumented	docs	dropAuthenticationPolicy(IF_EXISTS)?/IF_EXISTS!insert	DROP AUTHENTICATION POLICY IF EXISTS zzz a
 reject	undocumented	docs	dropAuthenticationPolicy(IF_EXISTS)?/IF_EXISTS!swap	DROP AUTHENTICATION POLICY IGNORE EXISTS a
 accept	accept	docs	dropBackupPolicy/DROP_BACKUP_POLICY_QNAME	DROP BACKUP POLICY a
@@ -52103,7 +52103,7 @@ reject	undocumented	docs	dropDcmProject(IF_EXISTS)?/IF_EXISTS!swap	DROP DCM PROJ
 accept	accept	docs	dropDynamicTable/DROP_DYNAMIC_TABLE_(IF_EXISTS)?_QNAME	DROP DYNAMIC TABLE a
 accept	accept	docs	dropDynamicTable(IF_EXISTS)?/%empty	DROP DYNAMIC TABLE a
 reject	undocumented	docs	dropDynamicTable(IF_EXISTS)?/%empty!insert	DROP DYNAMIC TABLE zzz a
-reject	accept	docs	dropDynamicTable(IF_EXISTS)?/IF_EXISTS	DROP DYNAMIC TABLE IF EXISTS a
+accept	accept	docs	dropDynamicTable(IF_EXISTS)?/IF_EXISTS	DROP DYNAMIC TABLE IF EXISTS a
 reject	undocumented	docs	dropDynamicTable(IF_EXISTS)?/IF_EXISTS!drop-1	DROP DYNAMIC TABLE EXISTS a
 reject	undocumented	docs	dropDynamicTable(IF_EXISTS)?/IF_EXISTS!drop-2	DROP DYNAMIC TABLE IF a
 accept	accept	docs	dropDynamicTable(IF_EXISTS)?/IF_EXISTS!truncate	DROP DYNAMIC TABLE IF
@@ -52145,13 +52145,13 @@ reject	undocumented	docs	dropExternalTable(CASCADE|RESTRICT)?/CASCADE!swap	DROP 
 accept	accept	docs	dropExternalTable(CASCADE|RESTRICT)?/RESTRICT	DROP EXTERNAL TABLE a RESTRICT
 reject	undocumented	docs	dropExternalTable(CASCADE|RESTRICT)?/RESTRICT!insert	DROP EXTERNAL TABLE a RESTRICT zzz
 reject	undocumented	docs	dropExternalTable(CASCADE|RESTRICT)?/RESTRICT!swap	DROP EXTERNAL TABLE a RESTRICTED
-reject	accept	docs	dropExternalVolume/DROP_EXTERNAL_VOLUME_(IF_EXISTS)?_ID	DROP EXTERNAL VOLUME a
-reject	accept	docs	dropExternalVolume(IF_EXISTS)?/%empty	DROP EXTERNAL VOLUME a
+accept	accept	docs	dropExternalVolume/DROP_EXTERNAL_VOLUME_(IF_EXISTS)?_ID	DROP EXTERNAL VOLUME a
+accept	accept	docs	dropExternalVolume(IF_EXISTS)?/%empty	DROP EXTERNAL VOLUME a
 reject	undocumented	docs	dropExternalVolume(IF_EXISTS)?/%empty!insert	DROP EXTERNAL VOLUME zzz a
-reject	accept	docs	dropExternalVolume(IF_EXISTS)?/IF_EXISTS	DROP EXTERNAL VOLUME IF EXISTS a
+accept	accept	docs	dropExternalVolume(IF_EXISTS)?/IF_EXISTS	DROP EXTERNAL VOLUME IF EXISTS a
 reject	undocumented	docs	dropExternalVolume(IF_EXISTS)?/IF_EXISTS!drop-1	DROP EXTERNAL VOLUME EXISTS a
 reject	undocumented	docs	dropExternalVolume(IF_EXISTS)?/IF_EXISTS!drop-2	DROP EXTERNAL VOLUME IF a
-reject	accept	docs	dropExternalVolume(IF_EXISTS)?/IF_EXISTS!truncate	DROP EXTERNAL VOLUME IF
+accept	accept	docs	dropExternalVolume(IF_EXISTS)?/IF_EXISTS!truncate	DROP EXTERNAL VOLUME IF
 reject	undocumented	docs	dropExternalVolume(IF_EXISTS)?/IF_EXISTS!insert	DROP EXTERNAL VOLUME IF EXISTS zzz a
 reject	undocumented	docs	dropExternalVolume(IF_EXISTS)?/IF_EXISTS!swap	DROP EXTERNAL VOLUME IGNORE EXISTS a
 accept	accept	docs	undropExternalVolume/UNDROP_EXTERNAL_VOLUME_ID	UNDROP EXTERNAL VOLUME a
@@ -52238,13 +52238,13 @@ reject	undocumented	docs	dropGateway(IF_EXISTS)?/IF_EXISTS!drop-2	DROP GATEWAY I
 accept	accept	docs	dropGateway(IF_EXISTS)?/IF_EXISTS!truncate	DROP GATEWAY IF
 reject	undocumented	docs	dropGateway(IF_EXISTS)?/IF_EXISTS!insert	DROP GATEWAY IF EXISTS zzz a
 reject	undocumented	docs	dropGateway(IF_EXISTS)?/IF_EXISTS!swap	DROP GATEWAY IGNORE EXISTS a
-reject	accept	docs	dropGitRepository/DROP_GIT_REPOSITORY_(IF_EXISTS)?_QNAME	DROP GIT REPOSITORY a
-reject	accept	docs	dropGitRepository(IF_EXISTS)?/%empty	DROP GIT REPOSITORY a
+accept	accept	docs	dropGitRepository/DROP_GIT_REPOSITORY_(IF_EXISTS)?_QNAME	DROP GIT REPOSITORY a
+accept	accept	docs	dropGitRepository(IF_EXISTS)?/%empty	DROP GIT REPOSITORY a
 reject	undocumented	docs	dropGitRepository(IF_EXISTS)?/%empty!insert	DROP GIT REPOSITORY zzz a
-reject	accept	docs	dropGitRepository(IF_EXISTS)?/IF_EXISTS	DROP GIT REPOSITORY IF EXISTS a
+accept	accept	docs	dropGitRepository(IF_EXISTS)?/IF_EXISTS	DROP GIT REPOSITORY IF EXISTS a
 reject	undocumented	docs	dropGitRepository(IF_EXISTS)?/IF_EXISTS!drop-1	DROP GIT REPOSITORY EXISTS a
 reject	undocumented	docs	dropGitRepository(IF_EXISTS)?/IF_EXISTS!drop-2	DROP GIT REPOSITORY IF a
-reject	accept	docs	dropGitRepository(IF_EXISTS)?/IF_EXISTS!truncate	DROP GIT REPOSITORY IF
+accept	accept	docs	dropGitRepository(IF_EXISTS)?/IF_EXISTS!truncate	DROP GIT REPOSITORY IF
 reject	undocumented	docs	dropGitRepository(IF_EXISTS)?/IF_EXISTS!insert	DROP GIT REPOSITORY IF EXISTS zzz a
 reject	undocumented	docs	dropGitRepository(IF_EXISTS)?/IF_EXISTS!swap	DROP GIT REPOSITORY IGNORE EXISTS a
 accept	accept	docs	dropIcebergTable/DROP_(ICEBERG)?_TABLE_(IF_EXISTS)?_QNAME_(CASCADE|RESTR~b24a8cde	DROP TABLE a
@@ -52475,13 +52475,13 @@ reject	undocumented	docs	dropPackagesPolicy(IF_EXISTS)?/IF_EXISTS!drop-2	DROP PA
 accept	accept	docs	dropPackagesPolicy(IF_EXISTS)?/IF_EXISTS!truncate	DROP PACKAGES POLICY IF
 reject	undocumented	docs	dropPackagesPolicy(IF_EXISTS)?/IF_EXISTS!insert	DROP PACKAGES POLICY IF EXISTS zzz a
 reject	undocumented	docs	dropPackagesPolicy(IF_EXISTS)?/IF_EXISTS!swap	DROP PACKAGES POLICY IGNORE EXISTS a
-reject	accept	docs	dropPasswordPolicy/DROP_PASSWORD_POLICY_(IF_EXISTS)?_QNAME	DROP PASSWORD POLICY a
-reject	accept	docs	dropPasswordPolicy(IF_EXISTS)?/%empty	DROP PASSWORD POLICY a
+accept	accept	docs	dropPasswordPolicy/DROP_PASSWORD_POLICY_(IF_EXISTS)?_QNAME	DROP PASSWORD POLICY a
+accept	accept	docs	dropPasswordPolicy(IF_EXISTS)?/%empty	DROP PASSWORD POLICY a
 reject	undocumented	docs	dropPasswordPolicy(IF_EXISTS)?/%empty!insert	DROP PASSWORD POLICY zzz a
-reject	accept	docs	dropPasswordPolicy(IF_EXISTS)?/IF_EXISTS	DROP PASSWORD POLICY IF EXISTS a
+accept	accept	docs	dropPasswordPolicy(IF_EXISTS)?/IF_EXISTS	DROP PASSWORD POLICY IF EXISTS a
 reject	undocumented	docs	dropPasswordPolicy(IF_EXISTS)?/IF_EXISTS!drop-1	DROP PASSWORD POLICY EXISTS a
 reject	undocumented	docs	dropPasswordPolicy(IF_EXISTS)?/IF_EXISTS!drop-2	DROP PASSWORD POLICY IF a
-reject	accept	docs	dropPasswordPolicy(IF_EXISTS)?/IF_EXISTS!truncate	DROP PASSWORD POLICY IF
+accept	accept	docs	dropPasswordPolicy(IF_EXISTS)?/IF_EXISTS!truncate	DROP PASSWORD POLICY IF
 reject	undocumented	docs	dropPasswordPolicy(IF_EXISTS)?/IF_EXISTS!insert	DROP PASSWORD POLICY IF EXISTS zzz a
 reject	undocumented	docs	dropPasswordPolicy(IF_EXISTS)?/IF_EXISTS!swap	DROP PASSWORD POLICY IGNORE EXISTS a
 accept	accept	docs	dropPipe/DROP_PIPE_(IF_EXISTS)?_QNAME	DROP PIPE a
@@ -52594,22 +52594,22 @@ reject	undocumented	docs	dropSchema(CASCADE|RESTRICT)?/CASCADE!swap	DROP SCHEMA 
 accept	accept	docs	dropSchema(CASCADE|RESTRICT)?/RESTRICT	DROP SCHEMA a RESTRICT
 reject	undocumented	docs	dropSchema(CASCADE|RESTRICT)?/RESTRICT!insert	DROP SCHEMA a RESTRICT zzz
 reject	undocumented	docs	dropSchema(CASCADE|RESTRICT)?/RESTRICT!swap	DROP SCHEMA a RESTRICTED
-reject	accept	docs	dropSecret/DROP_SECRET_(IF_EXISTS)?_QNAME	DROP SECRET a
-reject	accept	docs	dropSecret(IF_EXISTS)?/%empty	DROP SECRET a
+accept	accept	docs	dropSecret/DROP_SECRET_(IF_EXISTS)?_QNAME	DROP SECRET a
+accept	accept	docs	dropSecret(IF_EXISTS)?/%empty	DROP SECRET a
 reject	undocumented	docs	dropSecret(IF_EXISTS)?/%empty!insert	DROP SECRET zzz a
-reject	accept	docs	dropSecret(IF_EXISTS)?/IF_EXISTS	DROP SECRET IF EXISTS a
+accept	accept	docs	dropSecret(IF_EXISTS)?/IF_EXISTS	DROP SECRET IF EXISTS a
 reject	undocumented	docs	dropSecret(IF_EXISTS)?/IF_EXISTS!drop-1	DROP SECRET EXISTS a
 reject	undocumented	docs	dropSecret(IF_EXISTS)?/IF_EXISTS!drop-2	DROP SECRET IF a
-reject	accept	docs	dropSecret(IF_EXISTS)?/IF_EXISTS!truncate	DROP SECRET IF
+accept	accept	docs	dropSecret(IF_EXISTS)?/IF_EXISTS!truncate	DROP SECRET IF
 reject	undocumented	docs	dropSecret(IF_EXISTS)?/IF_EXISTS!insert	DROP SECRET IF EXISTS zzz a
 reject	undocumented	docs	dropSecret(IF_EXISTS)?/IF_EXISTS!swap	DROP SECRET IGNORE EXISTS a
-reject	accept	docs	dropSemanticView/DROP_SEMANTIC_VIEW_(IF_EXISTS)?_QNAME	DROP SEMANTIC VIEW a
-reject	accept	docs	dropSemanticView(IF_EXISTS)?/%empty	DROP SEMANTIC VIEW a
+accept	accept	docs	dropSemanticView/DROP_SEMANTIC_VIEW_(IF_EXISTS)?_QNAME	DROP SEMANTIC VIEW a
+accept	accept	docs	dropSemanticView(IF_EXISTS)?/%empty	DROP SEMANTIC VIEW a
 reject	undocumented	docs	dropSemanticView(IF_EXISTS)?/%empty!insert	DROP SEMANTIC VIEW zzz a
-reject	accept	docs	dropSemanticView(IF_EXISTS)?/IF_EXISTS	DROP SEMANTIC VIEW IF EXISTS a
+accept	accept	docs	dropSemanticView(IF_EXISTS)?/IF_EXISTS	DROP SEMANTIC VIEW IF EXISTS a
 reject	undocumented	docs	dropSemanticView(IF_EXISTS)?/IF_EXISTS!drop-1	DROP SEMANTIC VIEW EXISTS a
 reject	undocumented	docs	dropSemanticView(IF_EXISTS)?/IF_EXISTS!drop-2	DROP SEMANTIC VIEW IF a
-reject	accept	docs	dropSemanticView(IF_EXISTS)?/IF_EXISTS!truncate	DROP SEMANTIC VIEW IF
+accept	accept	docs	dropSemanticView(IF_EXISTS)?/IF_EXISTS!truncate	DROP SEMANTIC VIEW IF
 reject	undocumented	docs	dropSemanticView(IF_EXISTS)?/IF_EXISTS!insert	DROP SEMANTIC VIEW IF EXISTS zzz a
 reject	undocumented	docs	dropSemanticView(IF_EXISTS)?/IF_EXISTS!swap	DROP SEMANTIC VIEW IGNORE EXISTS a
 accept	accept	docs	dropSequence/DROP_SEQUENCE_(IF_EXISTS)?_QNAME_(CASCADE|RESTRICT)?	DROP SEQUENCE a
@@ -52638,7 +52638,7 @@ accept	accept	docs	dropService(IF_EXISTS)?/IF_EXISTS!truncate	DROP SERVICE IF
 reject	undocumented	docs	dropService(IF_EXISTS)?/IF_EXISTS!insert	DROP SERVICE IF EXISTS zzz a
 reject	undocumented	docs	dropService(IF_EXISTS)?/IF_EXISTS!swap	DROP SERVICE IGNORE EXISTS a
 accept	accept	docs	dropService(FORCE)?/%empty	DROP SERVICE a
-reject	accept	docs	dropService(FORCE)?/FORCE	DROP SERVICE a FORCE
+accept	accept	docs	dropService(FORCE)?/FORCE	DROP SERVICE a FORCE
 reject	undocumented	docs	dropService(FORCE)?/FORCE!insert	DROP SERVICE a FORCE zzz
 reject	undocumented	docs	dropService(FORCE)?/FORCE!swap	DROP SERVICE a FORECAST
 accept	accept	docs	dropSessionPolicy/DROP_SESSION_POLICY_(IF_EXISTS)?_QNAME	DROP SESSION POLICY a
@@ -53078,59 +53078,59 @@ reject	undocumented	docs	executeImmediateFrom(TRUE|FALSE)/FALSE!insert	EXECUTE I
 reject	undocumented	docs	executeImmediateFrom(TRUE|FALSE)/FALSE!swap	EXECUTE IMMEDIATE FROM @a DRY_RUN = FAMILIES
 accept	accept	docs	executeImmediateFrom_absoluteFilePath/STAGE	EXECUTE IMMEDIATE FROM @a
 accept	accept	docs	executeImmediateFrom_relativeFilePath/STRING	EXECUTE IMMEDIATE FROM 's'
-reject	accept	docs	executeInferenceJobService/EXECUTE_INFERENCE_JOB_SERVICE_IN_COMPUTE_POOL_ID_WITH_S~8ad64ce7	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a
+accept	accept	docs	executeInferenceJobService/EXECUTE_INFERENCE_JOB_SERVICE_IN_COMPUTE_POOL_ID_WITH_S~8ad64ce7	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a
 accept	accept	docs	executeInferenceJobService((_QUERY_)|STAGE)/(_QUERY_)	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM(SELECT 1) MODEL = a
 reject	undocumented	docs	executeInferenceJobService((_QUERY_)|STAGE)/(_QUERY_)!drop-1	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM SELECT 1) MODEL = a
 reject	undocumented	docs	executeInferenceJobService((_QUERY_)|STAGE)/(_QUERY_)!drop-2	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM() MODEL = a
 reject	undocumented	docs	executeInferenceJobService((_QUERY_)|STAGE)/(_QUERY_)!drop-3	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM(SELECT 1 MODEL = a
 reject	undocumented	docs	executeInferenceJobService((_QUERY_)|STAGE)/(_QUERY_)!truncate	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM(SELECT 1
 reject	undocumented	docs	executeInferenceJobService((_QUERY_)|STAGE)/(_QUERY_)!insert	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM(SELECT 1) zzz MODEL = a
-reject	accept	docs	executeInferenceJobService((_QUERY_)|STAGE)/STAGE	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a
+accept	accept	docs	executeInferenceJobService((_QUERY_)|STAGE)/STAGE	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a
 reject	undocumented	docs	executeInferenceJobService((_QUERY_)|STAGE)/STAGE!truncate	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM
 reject	undocumented	docs	executeInferenceJobService((_QUERY_)|STAGE)/STAGE!insert	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a zzz MODEL = a
-reject	accept	docs	executeInferenceJobService(ID_._ID_.)?/%empty	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a
+accept	accept	docs	executeInferenceJobService(ID_._ID_.)?/%empty	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a
 reject	undocumented	docs	executeInferenceJobService(ID_._ID_.)?/%empty!insert	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = zzz a
-reject	accept	docs	executeInferenceJobService(ID_._ID_.)?/ID_._ID_.	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a.a.a
+accept	accept	docs	executeInferenceJobService(ID_._ID_.)?/ID_._ID_.	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a.a.a
 reject	undocumented	docs	executeInferenceJobService(ID_._ID_.)?/ID_._ID_.!drop-1	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL =.a.a
 reject	undocumented	docs	executeInferenceJobService(ID_._ID_.)?/ID_._ID_.!drop-2	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a a.a
 reject	undocumented	docs	executeInferenceJobService(ID_._ID_.)?/ID_._ID_.!drop-3	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a..a
 reject	undocumented	docs	executeInferenceJobService(ID_._ID_.)?/ID_._ID_.!drop-4	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a.a a
-reject	undocumented	docs	executeInferenceJobService(ID_._ID_.)?/ID_._ID_.!truncate	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a.a
+accept	undocumented	docs	executeInferenceJobService(ID_._ID_.)?/ID_._ID_.!truncate	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a.a
 reject	undocumented	docs	executeInferenceJobService(ID_._ID_.)?/ID_._ID_.!insert	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a.a.zzz a
-reject	accept	docs	executeInferenceJobService(VERSION_=_ID)?/%empty	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a
-reject	accept	docs	executeInferenceJobService(VERSION_=_ID)?/VERSION_=_ID	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a VERSION = a
+accept	accept	docs	executeInferenceJobService(VERSION_=_ID)?/%empty	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a
+accept	accept	docs	executeInferenceJobService(VERSION_=_ID)?/VERSION_=_ID	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a VERSION = a
 reject	undocumented	docs	executeInferenceJobService(VERSION_=_ID)?/VERSION_=_ID!drop-1	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a = a
 reject	undocumented	docs	executeInferenceJobService(VERSION_=_ID)?/VERSION_=_ID!drop-2	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a VERSION a
 reject	undocumented	docs	executeInferenceJobService(VERSION_=_ID)?/VERSION_=_ID!drop-3	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a VERSION =
 reject	undocumented	docs	executeInferenceJobService(VERSION_=_ID)?/VERSION_=_ID!insert	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a VERSION = a zzz
 reject	undocumented	docs	executeInferenceJobService(VERSION_=_ID)?/VERSION_=_ID!swap	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a VERSIONED = a
-reject	accept	docs	executeInferenceJobService(FUNCTION_=_STRING)?/%empty	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a
-reject	accept	docs	executeInferenceJobService(FUNCTION_=_STRING)?/FUNCTION_=_STRING	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a FUNCTION = 's'
+accept	accept	docs	executeInferenceJobService(FUNCTION_=_STRING)?/%empty	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a
+accept	accept	docs	executeInferenceJobService(FUNCTION_=_STRING)?/FUNCTION_=_STRING	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a FUNCTION = 's'
 reject	undocumented	docs	executeInferenceJobService(FUNCTION_=_STRING)?/FUNCTION_=_STRING!drop-1	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a = 's'
 reject	undocumented	docs	executeInferenceJobService(FUNCTION_=_STRING)?/FUNCTION_=_STRING!drop-2	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a FUNCTION 's'
 reject	undocumented	docs	executeInferenceJobService(FUNCTION_=_STRING)?/FUNCTION_=_STRING!drop-3	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a FUNCTION =
 reject	undocumented	docs	executeInferenceJobService(FUNCTION_=_STRING)?/FUNCTION_=_STRING!insert	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a FUNCTION = 's' zzz
 reject	undocumented	docs	executeInferenceJobService(FUNCTION_=_STRING)?/FUNCTION_=_STRING!swap	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a FUNCTIONS = 's'
-reject	accept	docs	executeInferenceJobService(NAME_=_(ID_._ID_.)?_ID)?/%empty	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a
-reject	accept	docs	executeInferenceJobService(NAME_=_(ID_._ID_.)?_ID)?/NAME_=_(ID_._ID_.)?_ID	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a NAME = a
+accept	accept	docs	executeInferenceJobService(NAME_=_(ID_._ID_.)?_ID)?/%empty	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a
+accept	accept	docs	executeInferenceJobService(NAME_=_(ID_._ID_.)?_ID)?/NAME_=_(ID_._ID_.)?_ID	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a NAME = a
 reject	undocumented	docs	executeInferenceJobService(NAME_=_(ID_._ID_.)?_ID)?/NAME_=_(ID_._ID_.)?_ID!drop-2	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a NAME a
 reject	undocumented	docs	executeInferenceJobService(NAME_=_(ID_._ID_.)?_ID)?/NAME_=_(ID_._ID_.)?_ID!drop-3	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a NAME =
 reject	undocumented	docs	executeInferenceJobService(NAME_=_(ID_._ID_.)?_ID)?/NAME_=_(ID_._ID_.)?_ID!insert	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a NAME = a zzz
 reject	undocumented	docs	executeInferenceJobService(NAME_=_(ID_._ID_.)?_ID)?/NAME_=_(ID_._ID_.)?_ID!swap	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a NAMESPACE_FLATTEN_DELIMITER = a
-reject	accept	docs	executeInferenceJobService(ASYNC_=_(TRUE|FALSE))?/%empty	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a
-reject	accept	docs	executeInferenceJobService(ASYNC_=_(TRUE|FALSE))?/ASYNC_=_(TRUE|FALSE)	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a ASYNC = TRUE
+accept	accept	docs	executeInferenceJobService(ASYNC_=_(TRUE|FALSE))?/%empty	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a
+accept	accept	docs	executeInferenceJobService(ASYNC_=_(TRUE|FALSE))?/ASYNC_=_(TRUE|FALSE)	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a ASYNC = TRUE
 reject	undocumented	docs	executeInferenceJobService(ASYNC_=_(TRUE|FALSE))?/ASYNC_=_(TRUE|FALSE)!drop-1	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a = TRUE
 reject	undocumented	docs	executeInferenceJobService(ASYNC_=_(TRUE|FALSE))?/ASYNC_=_(TRUE|FALSE)!drop-2	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a ASYNC TRUE
 reject	undocumented	docs	executeInferenceJobService(ASYNC_=_(TRUE|FALSE))?/ASYNC_=_(TRUE|FALSE)!drop-3	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a ASYNC =
 reject	undocumented	docs	executeInferenceJobService(ASYNC_=_(TRUE|FALSE))?/ASYNC_=_(TRUE|FALSE)!insert	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a ASYNC = TRUE zzz
 reject	undocumented	docs	executeInferenceJobService(ASYNC_=_(TRUE|FALSE))?/ASYNC_=_(TRUE|FALSE)!swap	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a AT = TRUE
-reject	accept	docs	executeInferenceJobService(TRUE|FALSE)/TRUE	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a ASYNC = TRUE
+accept	accept	docs	executeInferenceJobService(TRUE|FALSE)/TRUE	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a ASYNC = TRUE
 reject	undocumented	docs	executeInferenceJobService(TRUE|FALSE)/TRUE!swap	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a ASYNC = TRUNCATE
-reject	accept	docs	executeInferenceJobService(TRUE|FALSE)/FALSE	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a ASYNC = FALSE
+accept	accept	docs	executeInferenceJobService(TRUE|FALSE)/FALSE	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a ASYNC = FALSE
 reject	undocumented	docs	executeInferenceJobService(TRUE|FALSE)/FALSE!insert	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a ASYNC = FALSE zzz
 reject	undocumented	docs	executeInferenceJobService(TRUE|FALSE)/FALSE!swap	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a ASYNC = FAMILIES
-reject	accept	docs	executeInferenceJobService(REPLICAS_=_NUMBER)?/%empty	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a
-reject	accept	docs	executeInferenceJobService(REPLICAS_=_NUMBER)?/REPLICAS_=_NUMBER	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a REPLICAS = 1
+accept	accept	docs	executeInferenceJobService(REPLICAS_=_NUMBER)?/%empty	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a
+accept	accept	docs	executeInferenceJobService(REPLICAS_=_NUMBER)?/REPLICAS_=_NUMBER	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a REPLICAS = 1
 reject	undocumented	docs	executeInferenceJobService(REPLICAS_=_NUMBER)?/REPLICAS_=_NUMBER!drop-1	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a = 1
 reject	undocumented	docs	executeInferenceJobService(REPLICAS_=_NUMBER)?/REPLICAS_=_NUMBER!drop-2	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a REPLICAS 1
 reject	undocumented	docs	executeInferenceJobService(REPLICAS_=_NUMBER)?/REPLICAS_=_NUMBER!drop-3	EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL a WITH SPECIFICATION 's' FROM @a MODEL = a REPLICAS =
@@ -53216,7 +53216,7 @@ reject	undocumented	docs	executeJobService(,_ID)*/,_ID_(,_ID)*!drop-2	EXECUTE JO
 reject	undocumented	docs	executeJobService(,_ID)*/,_ID_(,_ID)*!truncate	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM SPECIFICATION 's' EXTERNAL_ACCESS_INTEGRATIONS =(a,
 reject	undocumented	docs	executeJobService(,_ID)*/,_ID_(,_ID)*!insert	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM SPECIFICATION 's' EXTERNAL_ACCESS_INTEGRATIONS =(a, a zzz)
 accept	accept	docs	executeJobService_fromSpecification/(FROM_STAGE_SPECIFICATION_FILE_=_STRI~fd758dc7)	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM SPECIFICATION 's'
-reject	accept	docs	executeJobService_fromSpecification(FROM_STAGE_SPECIFICATION_FILE_=_STRI~fd758dc7)/FROM_STAGE_SPECIFICATION_FILE_=_STRING	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM @a SPECIFICATION_FILE = 's'
+accept	accept	docs	executeJobService_fromSpecification(FROM_STAGE_SPECIFICATION_FILE_=_STRI~fd758dc7)/FROM_STAGE_SPECIFICATION_FILE_=_STRING	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM @a SPECIFICATION_FILE = 's'
 reject	undocumented	docs	executeJobService_fromSpecification(FROM_STAGE_SPECIFICATION_FILE_=_STRI~fd758dc7)/FROM_STAGE_SPECIFICATION_FILE_=_STRING!drop-1	EXECUTE JOB SERVICE IN COMPUTE POOL a @a SPECIFICATION_FILE = 's'
 reject	undocumented	docs	executeJobService_fromSpecification(FROM_STAGE_SPECIFICATION_FILE_=_STRI~fd758dc7)/FROM_STAGE_SPECIFICATION_FILE_=_STRING!drop-2	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM SPECIFICATION_FILE = 's'
 reject	undocumented	docs	executeJobService_fromSpecification(FROM_STAGE_SPECIFICATION_FILE_=_STRI~fd758dc7)/FROM_STAGE_SPECIFICATION_FILE_=_STRING!drop-3	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM @a = 's'
@@ -53226,7 +53226,7 @@ reject	undocumented	docs	executeJobService_fromSpecification(FROM_STAGE_SPECIFIC
 reject	undocumented	docs	executeJobService_fromSpecification(FROM_STAGE_SPECIFICATION_FILE_=_STRI~fd758dc7)/FROM_STAGE_SPECIFICATION_FILE_=_STRING!swap	EXECUTE JOB SERVICE IN COMPUTE POOL a FROZEN @a SPECIFICATION_FILE = 's'
 accept	accept	docs	executeJobService_fromSpecification(FROM_STAGE_SPECIFICATION_FILE_=_STRI~fd758dc7)/FROM_SPECIFICATION_STRING	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM SPECIFICATION 's'
 accept	accept	docs	executeJobService_fromSpecificationTemplate/(FROM_STAGE_SPECIFICATION_TEMPLATE_FI~14ba9077)_USING_(~560052d6	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM SPECIFICATION_TEMPLATE 's' USING(a => 1)
-reject	accept	docs	executeJobService_fromSpecificationTemplate(FROM_STAGE_SPECIFICATION_TEMPLATE_FI~14ba9077)/FROM_STAGE_SPECIFICATION_TEMPLATE_FILE_=_STRING	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM @a SPECIFICATION_TEMPLATE_FILE = 's' USING(a => 1)
+accept	accept	docs	executeJobService_fromSpecificationTemplate(FROM_STAGE_SPECIFICATION_TEMPLATE_FI~14ba9077)/FROM_STAGE_SPECIFICATION_TEMPLATE_FILE_=_STRING	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM @a SPECIFICATION_TEMPLATE_FILE = 's' USING(a => 1)
 reject	undocumented	docs	executeJobService_fromSpecificationTemplate(FROM_STAGE_SPECIFICATION_TEMPLATE_FI~14ba9077)/FROM_STAGE_SPECIFICATION_TEMPLATE_FILE_=_STRING!drop-1	EXECUTE JOB SERVICE IN COMPUTE POOL a @a SPECIFICATION_TEMPLATE_FILE = 's' USING(a => 1)
 reject	undocumented	docs	executeJobService_fromSpecificationTemplate(FROM_STAGE_SPECIFICATION_TEMPLATE_FI~14ba9077)/FROM_STAGE_SPECIFICATION_TEMPLATE_FILE_=_STRING!drop-2	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM SPECIFICATION_TEMPLATE_FILE = 's' USING(a => 1)
 reject	undocumented	docs	executeJobService_fromSpecificationTemplate(FROM_STAGE_SPECIFICATION_TEMPLATE_FI~14ba9077)/FROM_STAGE_SPECIFICATION_TEMPLATE_FILE_=_STRING!drop-3	EXECUTE JOB SERVICE IN COMPUTE POOL a FROM @a = 's' USING(a => 1)

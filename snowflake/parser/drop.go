@@ -32,6 +32,11 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 			ds.Cascade = true
 			ds.Loc.End = p.prev.Loc.End
 		}
+		if f.dropForce && p.cur.Type == kwFORCE {
+			p.advance() // consume FORCE
+			ds.Force = true
+			ds.Loc.End = p.prev.Loc.End
+		}
 		return ds, nil
 	}
 	// DROP INDEX [ IF EXISTS ] <table_name>.<index_name> (index.go).
@@ -46,6 +51,10 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 	// Policies read by their docs pages (policy.go).
 	if d := p.startsDocPolicy(); d != nil {
 		return p.parseDropDocPolicy(start, d)
+	}
+	// Objects created and altered on other paths (drop_docs.go).
+	if d := p.startsDocDrop(); d != nil {
+		return p.parseDocDrop(start, d)
 	}
 
 	switch p.cur.Type {
@@ -94,12 +103,13 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 		return p.parseDropObject(ast.DropMaterializedView, start, true, false)
 
 	case kwDYNAMIC:
-		// DYNAMIC TABLE — no IF EXISTS in legacy grammar
+		// DROP DYNAMIC TABLE [ IF EXISTS ] <name>
+		// (https://docs.snowflake.com/en/sql-reference/sql/drop-dynamic-table)
 		p.advance() // consume DYNAMIC
 		if _, err := p.expect(kwTABLE); err != nil {
 			return nil, err
 		}
-		return p.parseDropObject(ast.DropDynamicTable, start, false, false)
+		return p.parseDropObject(ast.DropDynamicTable, start, true, false)
 
 	case kwEXTERNAL:
 		// EXTERNAL TABLE

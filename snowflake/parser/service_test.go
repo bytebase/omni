@@ -264,3 +264,59 @@ func TestParseShowServiceScopes(t *testing.T) {
 		mustRejectObject(t, in)
 	}
 }
+
+func TestParseServiceStageAndRestore(t *testing.T) {
+	for in, want := range map[string]string{
+		"CREATE SERVICE s IN COMPUTE POOL p FROM @tutorial_stage SPECIFICATION_FILE = 'echo_spec.yaml' MIN_INSTANCES = 2": "@tutorial_stage/SPECIFICATION_FILE",
+		"CREATE SERVICE s IN COMPUTE POOL p FROM @db.s.st/dir SPECIFICATION_TEMPLATE_FILE = 't.yaml' USING (a => 1)":      "@db.s.st/dir/SPECIFICATION_TEMPLATE_FILE",
+		"ALTER SERVICE s FROM @st SPECIFICATION_FILE = 'a.yaml'":                                                          "@st/SPECIFICATION_FILE",
+		"EXECUTE JOB SERVICE IN COMPUTE POOL p FROM @st SPECIFICATION_FILE = 'a.yaml' NAME = j":                           "@st/SPECIFICATION_FILE",
+	} {
+		s := mustObjectStmt(t, in)
+		var from *ast.ObjectClause
+		for _, c := range s.Clauses {
+			if c.Keywords == "FROM" {
+				from = c
+			}
+		}
+		if from == nil || len(from.Options) != 2 || from.Options[0].Words+"/"+from.Options[1].Name != want {
+			t.Errorf("%q: FROM = %+v", in, from)
+		}
+	}
+
+	in := "EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL p WITH SPECIFICATION $$x$$ FROM @db.s.input_stage/images/ MODEL = db.s.m ASYNC = FALSE"
+	s := mustObjectStmt(t, in)
+	if from := s.Clauses[2]; from.Keywords != "FROM" || from.Query != nil || len(from.Options) != 1 ||
+		from.Options[0].Words != "@db.s.input_stage/images/" {
+		t.Errorf("inference FROM = %+v", from)
+	}
+
+	s = mustObjectStmt(t, "ALTER SERVICE IF EXISTS s RESTORE VOLUME v INSTANCES 0, 2 FROM SNAPSHOT snap")
+	if got := strings.Join(clauseKeywords(s), "|"); got != "RESTORE VOLUME|INSTANCES|FROM SNAPSHOT" {
+		t.Fatalf("clauses = %q", got)
+	}
+	if ids := s.Clauses[1].Options; len(ids) != 2 || ids[0].Lit.Ival != 0 || ids[1].Lit.Ival != 2 {
+		t.Errorf("INSTANCES = %+v", ids)
+	}
+	if s.Clauses[0].Names[0].String() != "v" || s.Clauses[2].Names[0].String() != "snap" {
+		t.Errorf("names = %+v / %+v", s.Clauses[0].Names, s.Clauses[2].Names)
+	}
+
+	for _, in := range []string{
+		"CREATE SERVICE s IN COMPUTE POOL p FROM @st",                                   // the file is required
+		"CREATE SERVICE s IN COMPUTE POOL p FROM @ SPECIFICATION_FILE = 'a'",            // no stage
+		"CREATE SERVICE s IN COMPUTE POOL p FROM @st SPECIFICATION 'x'",                 // inline text takes no stage
+		"CREATE SERVICE s IN COMPUTE POOL p FROM @st SPECIFICATION_TEMPLATE_FILE = 'a'", // USING is required
+		"CREATE SERVICE s IN COMPUTE POOL p FROM @st \"SPECIFICATION_FILE\" = 'a'",
+		"EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL p WITH SPECIFICATION 's' FROM @ MODEL = m",
+		"EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL p WITH SPECIFICATION 's' FROM @st",
+		"ALTER SERVICE s RESTORE VOLUME v INSTANCES FROM SNAPSHOT snap",
+		"ALTER SERVICE s RESTORE VOLUME v INSTANCES a FROM SNAPSHOT snap",
+		"ALTER SERVICE s RESTORE VOLUME v INSTANCES 1, FROM SNAPSHOT snap",
+		"ALTER SERVICE s RESTORE VOLUME v INSTANCES 1 FROM snap",
+		"ALTER SERVICE s RESTORE VOLUME db.v INSTANCES 1 FROM SNAPSHOT snap",
+		"ALTER SERVICE s RESTORE VOLUME v INSTANCES 1",
+	} {
+		mustRejectObject(t, in)
+	}
+}

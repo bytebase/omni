@@ -661,6 +661,11 @@ func walkChildren(v Visitor, node Node) {
 		if n.Into != nil {
 			Walk(v, n.Into)
 		}
+		for _, item := range n.IntoOptions {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 		if n.FromTable != nil {
 			Walk(v, n.FromTable)
 		}
@@ -1199,6 +1204,9 @@ func walkChildren(v Visitor, node Node) {
 		}
 		for _, item := range n.TableArgs {
 			walkRoutineTableArgType(v, item)
+		}
+		if n.GracePeriodInDays != nil {
+			Walk(v, n.GracePeriodInDays)
 		}
 	case *ExecuteAlertStmt:
 		if n.Name != nil {

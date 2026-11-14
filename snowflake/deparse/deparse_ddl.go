@@ -795,6 +795,13 @@ func (w *writer) writeDropStmt(n *ast.DropStmt) error {
 	} else if n.NoPurge {
 		w.buf.WriteString(" NOPURGE")
 	}
+	if n.Force {
+		w.buf.WriteString(" FORCE")
+	}
+	if n.GracePeriodInDays != nil {
+		w.buf.WriteString(" GRACE_PERIOD_IN_DAYS = ")
+		return w.writeCopyOptionLiteral(n.GracePeriodInDays)
+	}
 	return nil
 }
 
