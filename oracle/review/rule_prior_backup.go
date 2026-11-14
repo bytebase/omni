@@ -82,7 +82,7 @@ type backupDML struct {
 	alias *ast.Alias
 	where ast.ExprNode
 	// from is the FROM list of an UPDATE, which the backup copies only
-	// with a WHERE clause.
+	// with a WHERE clause, or of a DELETE, which it always copies.
 	from *ast.List
 }
 
@@ -105,7 +105,7 @@ func backupDMLs(stmts []statement) []backupDML {
 			}
 		case *ast.DeleteStmt:
 			if v.Table != nil && v.Table.Name != "" {
-				out = append(out, backupDML{pos: i, stmt: s, kind: "DELETE", table: v.Table, alias: v.Alias, where: v.WhereClause})
+				out = append(out, backupDML{pos: i, stmt: s, kind: "DELETE", table: v.Table, alias: v.Alias, where: v.WhereClause, from: v.FromClause})
 			}
 		}
 	}

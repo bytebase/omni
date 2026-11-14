@@ -685,7 +685,9 @@ func TestParseExprStar(t *testing.T) {
 	if e != nil {
 		t.Fatalf("expected no expression, got %T", e)
 	}
-	for _, sql := range []string{"UPDATE t SET a = *", "DELETE FROM t WHERE *", "SELECT 1 WHERE *", "SELECT 1,,2 FROM dual"} {
+	for _, sql := range []string{"UPDATE t SET a = *", "DELETE FROM t WHERE *", "SELECT 1 WHERE *", "SELECT 1,,2 FROM dual", "SELECT * c FROM t", "SELECT t.* c FROM t"} {
 		ParseShouldFail(t, sql)
 	}
+	// A quoted "*" names a column, which takes an alias.
+	ParseAndCheck(t, `SELECT "*" AS c, t."*" d FROM t`)
 }

@@ -786,7 +786,7 @@ func (p *Parser) parseResTarget() (*nodes.ResTarget, error) {
 	}
 
 	// * and t.* take no alias (ORA-00923 at it).
-	if isSelectStarExpr(expr) {
+	if p.isWildcard(expr) {
 		rt.Loc.End = p.prev.End
 		return rt, nil
 	}

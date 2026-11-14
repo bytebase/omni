@@ -19,17 +19,6 @@ func (p *Parser) takeSelectStar() *nodes.Star {
 	return &nodes.Star{Loc: nodes.Loc{Start: start, End: p.prev.End}}
 }
 
-// isSelectStarExpr reports whether expr is a select list's * or t.*.
-func isSelectStarExpr(expr nodes.ExprNode) bool {
-	switch e := expr.(type) {
-	case *nodes.Star:
-		return true
-	case *nodes.ColumnRef:
-		return e.Column == "*"
-	}
-	return false
-}
-
 // parseSelectWindowSpec parses the parenthesized window_specification of a
 // WINDOW clause.
 //
