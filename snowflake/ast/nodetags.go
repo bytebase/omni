@@ -140,6 +140,7 @@ const (
 	T_CreateSemanticViewStmt
 	T_AlterSemanticViewStmt
 	T_CreateDatasetStmt
+	T_AlterDatasetStmt
 
 	// Data-pipeline DDL tags (T4.3)
 	T_CreatePipeStmt
@@ -153,6 +154,7 @@ const (
 
 	// Routine DDL tags (T4.5)
 	T_CreateRoutineStmt
+	T_CreateAiFunctionStmt
 	T_AlterRoutineStmt
 
 	// TCL (transaction control) tags (T6.2)
@@ -454,6 +456,8 @@ func (t NodeTag) String() string {
 		return "AlterShareStmt"
 	case T_CreateRoutineStmt:
 		return "CreateRoutineStmt"
+	case T_CreateAiFunctionStmt:
+		return "CreateAiFunctionStmt"
 	case T_AlterRoutineStmt:
 		return "AlterRoutineStmt"
 	case T_BeginStmt:
@@ -514,6 +518,8 @@ func (t NodeTag) String() string {
 		return "AlterSemanticViewStmt"
 	case T_CreateDatasetStmt:
 		return "CreateDatasetStmt"
+	case T_AlterDatasetStmt:
+		return "AlterDatasetStmt"
 	case T_CallArg:
 		return "CallArg"
 	case T_CallStmt:

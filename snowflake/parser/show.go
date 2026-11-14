@@ -208,6 +208,11 @@ func (p *Parser) startsShowClassWord() bool {
 func (p *Parser) parseShowScope(stmt *ast.ShowStmt) error {
 	p.advance() // consume IN/FOR
 
+	// IN { MODEL | DATASET | EXPERIMENT | GATEWAY } <name> (model.go).
+	if word := p.startsShowModelScope(); word != "" {
+		return p.parseShowModelScope(stmt, word)
+	}
+
 	switch p.cur.Type {
 	case kwACCOUNT:
 		p.advance()

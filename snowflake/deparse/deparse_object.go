@@ -67,7 +67,11 @@ func (w *writer) writeObjectClause(c *ast.ObjectClause) error {
 		w.buf.WriteByte(' ')
 		w.buf.WriteString(strings.Join(c.Keys, ", "))
 	}
-	for _, o := range c.Options {
+	for i, o := range c.Options {
+		if i > 0 && o.Bare && c.Options[i-1].Bare {
+			// A clause's bare entries are a list (VECTOR INDEXES).
+			w.buf.WriteByte(',')
+		}
 		w.buf.WriteByte(' ')
 		if err := w.writeObjectOption(o); err != nil {
 			return err
@@ -95,8 +99,10 @@ func (w *writer) writeObjectClause(c *ast.ObjectClause) error {
 }
 
 // writeObjectOption writes a property as `NAME = value`, or its value alone
-// when it has no name (an element of a list of groups), then AS '<alias>'
-// when the element has one.
+// when it has no name (an element of a list of groups). A bare entry is its
+// name alone, followed by its Group in parentheses when it has one
+// (VECTOR INDEXES' <column> ( model = '<model>' )). An element with an alias
+// is followed by AS '<alias>'.
 func (w *writer) writeObjectOption(o *ast.CopyOption) error {
 	if err := w.writeObjectOptionValue(o); err != nil {
 		return err
@@ -113,6 +119,18 @@ func (w *writer) writeObjectOptionValue(o *ast.CopyOption) error {
 	if o.Name != "" {
 		w.buf.WriteString(o.Name)
 		if o.Bare {
+			if o.Group != nil {
+				w.buf.WriteString(" (")
+				for i, e := range o.Group {
+					if i > 0 {
+						w.buf.WriteString(", ")
+					}
+					if err := w.writeObjectOption(e); err != nil {
+						return err
+					}
+				}
+				w.buf.WriteByte(')')
+			}
 			return nil
 		}
 		w.buf.WriteString(" = ")
