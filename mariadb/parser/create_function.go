@@ -213,6 +213,13 @@ func (p *Parser) parseCreateFunctionStmt(start int, orReplace, isProcedure bool)
 	if err != nil {
 		return nil, err
 	}
+	// A function's body must hold a RETURN somewhere: 1320, ER_SP_NORETURN, when none was
+	// read.
+	//
+	// Ref: LEX::sp_body_finalize_function in MariaDB 11.8 sql/sql_lex.cc.
+	if !isProcedure && !p.routine.hasReturn && !p.completing {
+		return nil, &ParseError{Message: "No RETURN found in FUNCTION " + stmt.Name.Name, Position: bodyStart}
+	}
 	bodyEnd := p.pos()
 	stmt.Body = body
 	stmt.BodyText = p.inputText(bodyStart, bodyEnd)
