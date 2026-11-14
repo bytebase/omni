@@ -146,11 +146,21 @@ func (p *Parser) parsePackageRoutineSpec() (*nodes.PackageRoutineSpec, error) {
 		return nil, err
 	}
 	if p.cur.Type != ')' {
+		// The parameters are sp_parameters' and sf_parameters', named once each (1330).
+		var names []string
 		for {
+			namePos := p.cur.Loc
+			if routine.IsProcedure && (p.cur.Type == kwIN || p.cur.Type == kwOUT || p.cur.Type == kwINOUT) {
+				namePos = p.peekNext().Loc
+			}
 			param, err := p.parseFuncParam(routine.IsProcedure)
 			if err != nil {
 				return nil, err
 			}
+			if err := p.checkSPParam(names, param.Name, namePos); err != nil {
+				return nil, err
+			}
+			names = append(names, param.Name)
 			routine.Params = append(routine.Params, param)
 			if _, ok := p.match(','); !ok {
 				break

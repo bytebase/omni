@@ -193,6 +193,32 @@
 < ok 0 0
 > exec ^
 : string
+| CREATE /*! /*! DEFINER = root */ PACKAGE pk PROCEDURE p(); END
+< ok 0 0
+> exec ^
+: string
+| CREATE PACKAGE pk PROCEDURE p(x INT, x INT); END
+< error
+| 1330 42000 Duplicate parameter: x
+> exec ^
+: string
+| CREATE PACKAGE pk PROCEDURE p(x INT, x INT); END
+| ; SELECT FROM
+< error
+| 1330 42000 Duplicate parameter: x
+> exec ^
+: string
+| CREATE PACKAGE pk FUNCTION f(x INT, X INT) RETURNS INT; END
+< error
+| 1330 42000 Duplicate parameter: X
+> exec ^
+: string
+| CREATE PACKAGE pk FUNCTION f(x INT, X INT) RETURNS INT; END
+| ; SELECT FROM
+< error
+| 1330 42000 Duplicate parameter: X
+> exec ^
+: string
 | CREATE PACKAGE pk PROCEDURE p() CONTAINS; END
 < error
 | 1064 42000 …near '; END' at line 1

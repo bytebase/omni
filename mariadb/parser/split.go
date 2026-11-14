@@ -556,69 +556,74 @@ const maxPackageHeadTokens = 8
 // again from its start at each one.
 func packageHeadTokens(head string) []string {
 	var toks []string
-	if !appendPackageHeadTokens(head, &toks) || len(toks) > maxPackageHeadTokens {
-		return nil
-	}
-	return toks
-}
-
-// appendPackageHeadTokens appends text's tokens to toks, reporting false where
-// packageHeadTokens gives up.
-func appendPackageHeadTokens(text string, toks *[]string) bool {
+	// execClose is where the executable comment being read closes, -1 outside one. Executable
+	// comments do not nest: an opener inside one is dropped, as the lexer drops it.
+	execClose := -1
 	i := 0
-	for i < len(text) {
-		if len(*toks) > maxPackageHeadTokens || (len(*toks) == 1 && !strings.EqualFold((*toks)[0], "CREATE")) {
-			return false
+	for i < len(head) {
+		if len(toks) > maxPackageHeadTokens || (len(toks) == 1 && !strings.EqualFold(toks[0], "CREATE")) {
+			return nil
 		}
-		c := text[i]
+		if i == execClose {
+			i += 2
+			execClose = -1
+			continue
+		}
+		c := head[i]
 		switch {
 		case c == ' ' || c == '\t' || c == '\n' || c == '\r':
 			i++
-		case isDashComment(text, i):
-			i = skipDashComment(text, i)
+		case isDashComment(head, i):
+			i = skipDashComment(head, i)
 		case c == '#':
-			i = skipHashComment(text, i)
-		case c == '/' && i+1 < len(text) && text[i+1] == '*':
-			end := skipBlockCommentMySQL(text, i)
-			if bodyStart, ok := execOpener(text, i); ok {
-				// The server reads an executable comment's text, /*! ... */ and /*M! ... */,
-				// as the statement's; a versioned one it skips is an ordinary comment.
-				bodyEnd := end
-				if bodyEnd-2 >= bodyStart && text[bodyEnd-2:bodyEnd] == "*/" {
-					bodyEnd -= 2
+			i = skipHashComment(head, i)
+		case c == '/' && i+1 < len(head) && head[i+1] == '*':
+			bodyStart, ok := execOpener(head, i)
+			switch {
+			case !ok:
+				// An ordinary comment, or a versioned one the server skips.
+				i = skipBlockCommentMySQL(head, i)
+			case execClose >= 0:
+				i = bodyStart
+			default:
+				// The server reads the text of /*! ... */ and /*M! ... */ as the statement's.
+				end, closed := skipExecutableComment(head, i)
+				execClose = len(head)
+				if closed {
+					execClose = end - 2
 				}
-				if !appendPackageHeadTokens(text[bodyStart:bodyEnd], toks) {
-					return false
-				}
+				i = bodyStart
 			}
-			i = end
 		case c == '\'':
-			j := skipSingleQuoteMySQL(text, i)
-			*toks = append(*toks, text[i:j])
+			j := skipSingleQuoteMySQL(head, i)
+			toks = append(toks, head[i:j])
 			i = j
 		case c == '"':
-			j := skipDoubleQuoteMySQL(text, i)
-			*toks = append(*toks, text[i:j])
+			j := skipDoubleQuoteMySQL(head, i)
+			toks = append(toks, head[i:j])
 			i = j
 		case c == '`':
-			j := skipBacktick(text, i)
-			*toks = append(*toks, text[i:j])
+			j := skipBacktick(head, i)
+			toks = append(toks, head[i:j])
 			i = j
 		case c == '@' || c == '=' || c == '(' || c == ')':
-			*toks = append(*toks, string(c))
+			toks = append(toks, string(c))
 			i++
 		case isPackageHeadIdentByte(c):
 			j := i
-			for j < len(text) && isPackageHeadIdentByte(text[j]) {
+			for j < len(head) && isPackageHeadIdentByte(head[j]) && j != execClose {
 				j++
 			}
-			*toks = append(*toks, text[i:j])
+			toks = append(toks, head[i:j])
 			i = j
 		default:
-			return false
+			return nil
 		}
 	}
-	return true
+	if len(toks) > maxPackageHeadTokens {
+		return nil
+	}
+	return toks
 }
 
 // isPackageHeadIdentByte reports a byte of an unquoted name as the lexer reads one: a

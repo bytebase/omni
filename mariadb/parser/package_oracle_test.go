@@ -56,6 +56,9 @@ func TestPackageFormsOracle(t *testing.T) {
 		{"CREATE /*! DEFINER = root */ PACKAGE pk PROCEDURE p(); END", true},
 		{"CREATE /*M!100000 OR REPLACE */ PACKAGE pk PROCEDURE p(); END", true},
 		{"CREATE PACKAGE pk PROCEDURE p() LANGUAGE SQL; END", true},
+		{"CREATE /*! /*! DEFINER = root */ PACKAGE pk PROCEDURE p(); END", true},
+		{"CREATE PACKAGE pk PROCEDURE p(x INT, x INT); END", false},
+		{"CREATE PACKAGE pk FUNCTION f(x INT, X INT) RETURNS INT; END", false},
 		{"CREATE PACKAGE pk PROCEDURE p() CONTAINS; END", false},
 		{"CREATE PACKAGE pk PROCEDURE p() READS DATA; END", false},
 		{"CREATE PACKAGE pk PROCEDURE p() SQL SECURITY garbage; END", false},
@@ -136,5 +139,18 @@ func TestSplitPackageWordsStayLinear(t *testing.T) {
 	}
 	if d := time.Since(start); d > 5*time.Second {
 		t.Fatalf("Split of 16001 package words took %v, over 5s", d)
+	}
+}
+
+// TestSplitPackageExecOpenersStayLinear holds the CREATE PACKAGE head check to linear time
+// on executable-comment openers inside one, which the lexer drops rather than nests.
+func TestSplitPackageExecOpenersStayLinear(t *testing.T) {
+	sql := "CREATE " + strings.Repeat("/*! ", 16000) + " DEFINER = root */ PACKAGE pk PROCEDURE p(); END; SELECT 1"
+	start := time.Now()
+	if segs := Split(sql); len(segs) != 2 {
+		t.Fatalf("Split gave %d segments, want 2", len(segs))
+	}
+	if d := time.Since(start); d > 5*time.Second {
+		t.Fatalf("Split of 16000 nested openers took %v, over 5s", d)
 	}
 }
