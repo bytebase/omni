@@ -25,7 +25,7 @@ import (
 // DIALECT NOTE — like CHANGE STREAM, none of these is a first-class rule in the
 // legacy ANTLR grammar; the omni parser models them directly. The authoritative
 // oracle is the live Cloud Spanner emulator, which ACCEPTS each form
-// (spanner_ddl_oracle_test.go). `SEQUENCE` is a (non-reserved) keyword token;
+// (the suite:spanner-ddl rows of testdata/compat.tsv). `SEQUENCE` is a (non-reserved) keyword token;
 // `LOCALITY` lexes as a bare identifier and `GROUP` as a reserved keyword, so the
 // dispatcher recognizes LOCALITY by spelling; `PROTO` is a reserved keyword and
 // `BUNDLE` a bare identifier.
@@ -169,7 +169,7 @@ func (p *Parser) parseCreateLocalityGroup(create Token, orReplace bool, scope st
 // found"), unlike ALTER SEQUENCE / ALTER CHANGE STREAM whose action is required
 // (those REJECT a bare form). When present, the clause must be `SET OPTIONS` (a
 // `SET` with no `OPTIONS`, or any other trailing token, REJECTS — emulator-
-// verified). See spanner_ddl_oracle_test.go.
+// verified). See the suite:spanner-ddl rows of testdata/compat.tsv.
 func (p *Parser) parseAlterLocalityGroup(alter Token) (ast.Node, error) {
 	p.advance() // LOCALITY
 	p.advance() // GROUP
@@ -254,7 +254,7 @@ func (p *Parser) parseCreateProtoBundle(create Token, orReplace bool, scope stri
 // The three groups are OPTIONAL, appear AT MOST ONCE EACH, in the FIXED order
 // INSERT → UPDATE → DELETE, SPACE-separated (NO commas between groups), and at
 // least one must be present. This is exactly the emulator's grammar (verified in
-// spanner_ddl_oracle_test.go): a repeated group (`INSERT (…) INSERT (…)`), an
+// the suite:spanner-ddl rows of testdata/compat.tsv): a repeated group (`INSERT (…) INSERT (…)`), an
 // out-of-order group (`UPDATE (…) INSERT (…)`), and a comma between groups
 // (`INSERT (…), UPDATE (…)`) all REJECT — so a naive "any order, any repeat,
 // optional comma" loop would be over-permissive.
@@ -313,7 +313,7 @@ func (p *Parser) parseAlterProtoBundle(alter Token) (ast.Node, error) {
 // at '('. Requires at least one type name (an empty `()` rejects), but a TRAILING
 // comma is allowed: the emulator ACCEPTS `CREATE PROTO BUNDLE (\`a.B\`,)` and
 // `ALTER PROTO BUNDLE INSERT (\`a.B\`,)` (unlike a change-stream column list, which
-// rejects a trailing comma). Verified in spanner_ddl_oracle_test.go.
+// rejects a trailing comma). Verified in the suite:spanner-ddl rows of testdata/compat.tsv.
 func (p *Parser) parseProtoTypeNameListWithParens() ([]ast.NamePath, error) {
 	if _, err := p.expect(int('(')); err != nil {
 		return nil, err
