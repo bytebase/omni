@@ -2320,9 +2320,9 @@ func TestParseAlterDatabase(t *testing.T) {
 		{"backup_controlfile_trace", "ALTER DATABASE BACKUP CONTROLFILE TO TRACE"},
 		{"add_logfile", "ALTER DATABASE ADD LOGFILE GROUP 3 '/u01/redo03.log' SIZE 50M"},
 		{"drop_logfile", "ALTER DATABASE DROP LOGFILE GROUP 2"},
-		{"add_datafile", "ALTER DATABASE ADD DATAFILE '/u01/data02.dbf' SIZE 500M"},
+		{"create_datafile", "ALTER DATABASE CREATE DATAFILE '/u01/data02.dbf' AS '/u02/data02.dbf' SIZE 500M"},
 		{"recover", "ALTER DATABASE RECOVER AUTOMATIC"},
-		{"set_default_tablespace", "ALTER DATABASE SET DEFAULT TABLESPACE users"},
+		{"default_tablespace", "ALTER DATABASE DEFAULT TABLESPACE users"},
 		{"flashback_on", "ALTER DATABASE FLASHBACK ON"},
 		{"flashback_off", "ALTER DATABASE FLASHBACK OFF"},
 		{"named", "ALTER DATABASE mydb MOUNT"},
@@ -5076,7 +5076,7 @@ func TestParseAlterDatabaseProper(t *testing.T) {
 		{"drop_standby_logfile", "ALTER DATABASE DROP STANDBY LOGFILE GROUP 10"},
 		{"clear_logfile", "ALTER DATABASE CLEAR LOGFILE GROUP 3"},
 		{"clear_unarchived_logfile", "ALTER DATABASE CLEAR UNARCHIVED LOGFILE GROUP 3"},
-		{"switch_logfile", "ALTER DATABASE SWITCH ALL LOGFILE"},
+		{"switch_logfile", "ALTER DATABASE SWITCH ALL LOGFILES TO BLOCKSIZE 4096"},
 
 		// controlfile_clauses
 		{"backup_controlfile_to", "ALTER DATABASE BACKUP CONTROLFILE TO '/u01/backup.ctl'"},
@@ -5101,7 +5101,7 @@ func TestParseAlterDatabaseProper(t *testing.T) {
 		{"flashback_on", "ALTER DATABASE FLASHBACK ON"},
 		{"flashback_off", "ALTER DATABASE FLASHBACK OFF"},
 		{"set_time_zone", "ALTER DATABASE SET TIME_ZONE = '+08:00'"},
-		{"default_edition", "ALTER DATABASE DEFAULT EDITION myedition"},
+		{"default_edition", "ALTER DATABASE DEFAULT EDITION = myedition"},
 
 		// security_clause
 		{"guard_all", "ALTER DATABASE GUARD ALL"},
@@ -5121,8 +5121,6 @@ func TestParseAlterDatabaseProper(t *testing.T) {
 		{"drop_supplemental_log", "ALTER DATABASE DROP SUPPLEMENTAL LOG DATA"},
 
 		// lost write protection / suspend resume
-		{"suspend", "ALTER DATABASE SUSPEND"},
-		{"resume", "ALTER DATABASE RESUME"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -5275,10 +5273,10 @@ func TestParseDatabaseControlfileBatch94(t *testing.T) {
 
 		// commit_switchover_clause
 		{"alter_db_prepare_switchover_logical", "ALTER DATABASE PREPARE TO SWITCHOVER TO LOGICAL STANDBY"},
-		{"alter_db_prepare_switchover_primary", "ALTER DATABASE PREPARE TO SWITCHOVER TO PRIMARY DATABASE"},
+		{"alter_db_prepare_switchover_primary", "ALTER DATABASE PREPARE TO SWITCHOVER TO PRIMARY"},
 		{"alter_db_commit_switchover_standby", "ALTER DATABASE COMMIT TO SWITCHOVER TO STANDBY"},
 		{"alter_db_commit_switchover_logical", "ALTER DATABASE COMMIT TO SWITCHOVER TO LOGICAL STANDBY"},
-		{"alter_db_commit_switchover_primary", "ALTER DATABASE COMMIT TO SWITCHOVER TO PRIMARY DATABASE"},
+		{"alter_db_commit_switchover_primary", "ALTER DATABASE COMMIT TO SWITCHOVER TO PRIMARY"},
 
 		// start/stop standby apply
 		{"alter_db_start_standby_apply", "ALTER DATABASE START LOGICAL STANDBY APPLY"},
@@ -5286,22 +5284,22 @@ func TestParseDatabaseControlfileBatch94(t *testing.T) {
 		{"alter_db_stop_standby_apply", "ALTER DATABASE STOP LOGICAL STANDBY APPLY"},
 
 		// switchover/failover clause
-		{"alter_db_switchover_to", "ALTER DATABASE SWITCHOVER TO PRIMARY VERIFY FORCE mydb"},
-		{"alter_db_failover_to", "ALTER DATABASE FAILOVER TO PHYSICAL STANDBY FORCE mydb"},
+		{"alter_db_switchover_to", "ALTER DATABASE SWITCHOVER TO mydb VERIFY FORCE"},
+		{"alter_db_failover_to", "ALTER DATABASE FAILOVER TO mydb FORCE"},
 
 		// instance_clauses: ENABLE/DISABLE RESTRICTED SESSION
-		{"alter_db_enable_restricted", "ALTER DATABASE ENABLE RESTRICTED SESSION"},
-		{"alter_db_disable_restricted", "ALTER DATABASE DISABLE RESTRICTED SESSION"},
+		{"alter_db_enable_thread", "ALTER DATABASE ENABLE PUBLIC THREAD 2"},
+		{"alter_db_disable_thread", "ALTER DATABASE DISABLE THREAD 2"},
 
 		// cdb_fleet_clauses
-		{"alter_db_set_lead_cdb", "ALTER DATABASE SET LEAD_CDB = mydb"},
-		{"alter_db_set_lead_cdb_none", "ALTER DATABASE SET LEAD_CDB = NONE"},
+		{"alter_db_set_lead_cdb", "ALTER DATABASE SET LEAD_CDB = TRUE"},
+		{"alter_db_set_lead_cdb_none", "ALTER DATABASE SET LEAD_CDB = FALSE"},
 		{"alter_db_set_lead_cdb_uri", "ALTER DATABASE SET LEAD_CDB_URI = 'jdbc:oracle:thin:@//host:1521/mydb'"},
-		{"alter_db_set_property", "ALTER DATABASE SET PROPERTY myprop = myval"},
+		{"alter_db_property_set", "ALTER DATABASE PROPERTY SET myprop = 'myval'"},
 
 		// replay_upgrade_clause
-		{"alter_db_start_replay", "ALTER DATABASE START REPLAY"},
-		{"alter_db_stop_replay", "ALTER DATABASE STOP REPLAY"},
+		{"alter_db_start_logical_apply", "ALTER DATABASE START LOGICAL STANDBY APPLY IMMEDIATE NODELAY"},
+		{"alter_db_abort_logical_apply", "ALTER DATABASE ABORT LOGICAL STANDBY APPLY"},
 
 		// ENCRYPT/DECRYPT for datafile
 		{"alter_db_datafile_encrypt", "ALTER DATABASE DATAFILE '/u01/data01.dbf' ENCRYPT"},
@@ -5319,16 +5317,16 @@ func TestParseDatabaseControlfileBatch94(t *testing.T) {
 		{"alter_db_set_standby_nologging_load", "ALTER DATABASE SET STANDBY NOLOGGING FOR LOAD PERFORMANCE"},
 
 		// supplemental_db_logging sub-clauses
-		{"alter_db_add_supp_log_pk", "ALTER DATABASE ADD SUPPLEMENTAL LOG DATA (PRIMARY KEY COLUMNS)"},
-		{"alter_db_add_supp_log_unique", "ALTER DATABASE ADD SUPPLEMENTAL LOG DATA (UNIQUE COLUMNS)"},
-		{"alter_db_add_supp_log_fk", "ALTER DATABASE ADD SUPPLEMENTAL LOG DATA (FOREIGN KEY COLUMNS)"},
-		{"alter_db_add_supp_log_all", "ALTER DATABASE ADD SUPPLEMENTAL LOG DATA (ALL COLUMNS)"},
-		{"alter_db_drop_supp_log_pk", "ALTER DATABASE DROP SUPPLEMENTAL LOG DATA (PRIMARY KEY COLUMNS)"},
+		{"alter_db_add_supp_log_pk", "ALTER DATABASE ADD SUPPLEMENTAL LOG DATA (PRIMARY KEY) COLUMNS"},
+		{"alter_db_add_supp_log_unique", "ALTER DATABASE ADD SUPPLEMENTAL LOG DATA (UNIQUE) COLUMNS"},
+		{"alter_db_add_supp_log_fk", "ALTER DATABASE ADD SUPPLEMENTAL LOG DATA (FOREIGN KEY) COLUMNS"},
+		{"alter_db_add_supp_log_all", "ALTER DATABASE ADD SUPPLEMENTAL LOG DATA (ALL) COLUMNS"},
+		{"alter_db_drop_supp_log_pk", "ALTER DATABASE DROP SUPPLEMENTAL LOG DATA (PRIMARY KEY) COLUMNS"},
 		{"alter_db_add_supp_log_subset", "ALTER DATABASE ADD SUPPLEMENTAL LOG DATA SUBSET DATABASE REPLICATION"},
 		{"alter_db_drop_supp_log_subset", "ALTER DATABASE DROP SUPPLEMENTAL LOG DATA SUBSET DATABASE REPLICATION"},
 
 		// SWITCH LOGFILE TO BLOCK SIZE
-		{"alter_db_switch_logfile_blocksize", "ALTER DATABASE SWITCH LOGFILE TO BLOCK SIZE 4096"},
+		{"alter_db_switch_logfile_blocksize", "ALTER DATABASE SWITCH ALL LOGFILES TO BLOCKSIZE 4096"},
 
 		// CLEAR LOGFILE with UNRECOVERABLE DATAFILE
 		{"alter_db_clear_logfile_unrecoverable", "ALTER DATABASE CLEAR LOGFILE GROUP 3 UNRECOVERABLE DATAFILE"},
@@ -5341,7 +5339,7 @@ func TestParseDatabaseControlfileBatch94(t *testing.T) {
 		{"alter_db_default_local_temp", "ALTER DATABASE DEFAULT LOCAL TEMPORARY TABLESPACE localtemp"},
 
 		// SET UNDO TABLESPACE
-		{"alter_db_set_undo_tablespace", "ALTER DATABASE SET UNDO TABLESPACE = undots2"},
+		{"alter_db_default_local_temp_tablespace", "ALTER DATABASE DEFAULT LOCAL TEMPORARY TABLESPACE temp2"},
 
 		// ENABLE/DISABLE LOST WRITE PROTECTION
 		{"alter_db_enable_lost_write", "ALTER DATABASE ENABLE LOST WRITE PROTECTION"},
@@ -5349,7 +5347,7 @@ func TestParseDatabaseControlfileBatch94(t *testing.T) {
 
 		// PREPARE MIRROR COPY / DROP MIRROR COPY
 		{"alter_db_prepare_mirror", "ALTER DATABASE PREPARE MIRROR COPY mirrorname"},
-		{"alter_db_drop_mirror", "ALTER DATABASE DROP MIRROR COPY"},
+		{"alter_db_drop_mirror", "ALTER DATABASE DROP MIRROR COPY mc1"},
 
 		// ENABLE BLOCK CHANGE TRACKING USING FILE '+diskgroup'
 		{"alter_db_enable_bct_asm", "ALTER DATABASE ENABLE BLOCK CHANGE TRACKING USING FILE '+DATA/bct.f'"},
@@ -5370,7 +5368,7 @@ func TestParseDatabaseControlfileBatch94(t *testing.T) {
 		{"alter_db_managed_standby_finish_force", "ALTER DATABASE RECOVER MANAGED STANDBY DATABASE FINISH FORCE"},
 
 		// REGISTER LOGFILE from managed standby context
-		{"alter_db_register_logfile_or_replace", "ALTER DATABASE REGISTER LOGFILE '/u01/arch01.log' OR REPLACE"},
+		{"alter_db_register_logfile_or_replace", "ALTER DATABASE REGISTER OR REPLACE LOGFILE '/u01/arch01.log'"},
 	}
 
 	for _, tc := range tests {
@@ -5991,33 +5989,34 @@ func TestParseCreateTableFull(t *testing.T) {
 			name: "default_collation",
 			sql:  "CREATE TABLE t1 (id NUMBER, name VARCHAR2(100)) DEFAULT COLLATION USING_NLS_COMP",
 		},
-		// Immutable table: NO DROP
+		// Immutable table: NO DROP, which Oracle 23ai refuses on a plain
+		// CREATE TABLE (ORA-00922)
 		{
 			name: "immutable_no_drop",
-			sql:  "CREATE TABLE t1 (id NUMBER) NO DROP",
+			sql:  "CREATE IMMUTABLE TABLE t1 (id NUMBER) NO DROP",
 		},
 		{
 			name: "immutable_no_drop_until",
-			sql:  "CREATE TABLE t1 (id NUMBER) NO DROP UNTIL 30 DAYS IDLE",
+			sql:  "CREATE IMMUTABLE TABLE t1 (id NUMBER) NO DROP UNTIL 30 DAYS IDLE",
 		},
 		// Immutable table: NO DELETE
 		{
 			name: "immutable_no_delete_locked",
-			sql:  "CREATE TABLE t1 (id NUMBER) NO DELETE LOCKED",
+			sql:  "CREATE IMMUTABLE TABLE t1 (id NUMBER) NO DELETE LOCKED",
 		},
 		{
 			name: "immutable_no_delete_until",
-			sql:  "CREATE TABLE t1 (id NUMBER) NO DELETE UNTIL 365 DAYS AFTER INSERT",
+			sql:  "CREATE IMMUTABLE TABLE t1 (id NUMBER) NO DELETE UNTIL 365 DAYS AFTER INSERT",
 		},
 		// Immutable table: NO DROP + NO DELETE combined
 		{
 			name: "immutable_no_drop_no_delete",
-			sql:  "CREATE TABLE t1 (id NUMBER) NO DROP UNTIL 16 DAYS IDLE NO DELETE UNTIL 16 DAYS AFTER INSERT",
+			sql:  "CREATE IMMUTABLE TABLE t1 (id NUMBER) NO DROP UNTIL 16 DAYS IDLE NO DELETE UNTIL 16 DAYS AFTER INSERT",
 		},
 		// Blockchain: HASHING USING / VERSION
 		{
 			name: "blockchain_hash_version",
-			sql:  "CREATE TABLE t1 (id NUMBER) NO DROP UNTIL 16 DAYS IDLE NO DELETE UNTIL 16 DAYS AFTER INSERT HASHING USING 'SHA2_512' VERSION 'v2'",
+			sql:  "CREATE BLOCKCHAIN TABLE t1 (id NUMBER) NO DROP UNTIL 16 DAYS IDLE NO DELETE UNTIL 16 DAYS AFTER INSERT HASHING USING 'SHA2_512' VERSION 'v2'",
 		},
 		// MEMOPTIMIZE FOR READ
 		{
