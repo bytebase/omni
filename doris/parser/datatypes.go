@@ -211,7 +211,9 @@ func (p *Parser) parsePrimitiveType(legacy bool) (*ast.TypeName, error) {
 	case p.cur.Kind == int('*') && (!legacy || tok.Kind == kwVARCHAR):
 		typName.Star = true
 		p.advance()
-		maxParams = 1
+		if legacy {
+			maxParams = 0 // the CUP parser takes VARCHAR(*) alone
+		}
 	case p.cur.Kind == tokInt:
 		typName.Params = append(typName.Params, int(p.advance().Ival))
 	default:
@@ -419,7 +421,10 @@ func (p *Parser) parseVariantType(legacy bool) (*ast.TypeName, error) {
 		return typName, nil
 	}
 	p.advance() // consume '<'
-	if p.cur.Kind != kwPROPERTIES {
+	// variantSubColTypeList COMMA propertyClause: properties after the
+	// sub-columns need the comma.
+	propsAllowed := p.cur.Kind == kwPROPERTIES
+	if !propsAllowed {
 		for {
 			start := p.cur.Loc
 			var match string
@@ -441,11 +446,12 @@ func (p *Parser) parseVariantType(legacy bool) (*ast.TypeName, error) {
 			}
 			p.advance() // consume ','
 			if p.cur.Kind == kwPROPERTIES {
+				propsAllowed = true
 				break
 			}
 		}
 	}
-	if p.cur.Kind == kwPROPERTIES {
+	if propsAllowed {
 		parseItem := p.parsePropertyItem
 		if legacy {
 			parseItem = p.parseStringProperty

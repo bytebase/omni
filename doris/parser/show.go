@@ -283,7 +283,7 @@ func (p *Parser) parseShowCreateFunction(stmt *ast.ShowStmt) (ast.Node, error) {
 	if _, err := p.expect(kwFUNCTION); err != nil {
 		return nil, err
 	}
-	target, err := p.parseMultipartIdentifier()
+	target, err := p.parseFunctionIdentifier()
 	if err != nil {
 		return nil, err
 	}

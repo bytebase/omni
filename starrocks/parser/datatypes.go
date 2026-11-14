@@ -40,6 +40,20 @@ func isPrimitiveTypeKeyword(kind TokenKind) bool {
 	}
 }
 
+// isDecimalAliasWord reports whether tok is one of decimalType's names
+// (StarRocks.g4:2845) that omni lexes as an identifier: DECIMAL32,
+// DECIMAL64, DECIMAL128, NUMERIC and NUMBER.
+func isDecimalAliasWord(tok Token) bool {
+	if tok.Kind != tokIdent {
+		return false
+	}
+	switch strings.ToUpper(tok.Str) {
+	case "DECIMAL32", "DECIMAL64", "DECIMAL128", "NUMERIC", "NUMBER":
+		return true
+	}
+	return false
+}
+
 // typeKeywordName returns the canonical uppercase name for a type keyword.
 // Falls back to the token's Str field (which may be lowercase from the lexer)
 // uppercased.
@@ -171,7 +185,7 @@ func (p *Parser) parseDataTypeUnrecorded() (*ast.TypeName, error) {
 	case kwSTRUCT:
 		return p.parseStructType()
 	default:
-		if isPrimitiveTypeKeyword(tok.Kind) {
+		if isPrimitiveTypeKeyword(tok.Kind) || tok.Kind == kwBINARY || isDecimalAliasWord(tok) {
 			return p.parsePrimitiveType()
 		}
 		return nil, &ParseError{

@@ -59,7 +59,7 @@ func (p *Parser) parseCreateFunction(createLoc ast.Loc) (ast.Node, error) {
 		}
 		stmt.IfNotExists = true
 	}
-	name, err := p.parseMultipartIdentifier()
+	name, err := p.parseFunctionIdentifier()
 	if err != nil {
 		return nil, err
 	}
@@ -139,6 +139,37 @@ func (p *Parser) parseAliasFunctionBody(stmt *ast.CreateFunctionStmt) error {
 	return nil
 }
 
+// parseFunctionIdentifier reads a function's name as both grammars take it:
+// DorisParser.g4's functionIdentifier, (identifier DOT)?
+// functionNameIdentifier (:1609), and the CUP parser's function_name,
+// type_function_name or ident '.' type_function_name, whose
+// type_function_name is an ident, LEFT or RIGHT (DorisLegacyParser.g4:2206,
+// :2212, :3105). So the name may be the reserved LEFT or RIGHT; the other
+// reserved words functionNameIdentifier lists the CUP parser refuses.
+func (p *Parser) parseFunctionIdentifier() (*ast.ObjectName, error) {
+	part := func() (string, ast.Loc, error) {
+		if p.cur.Kind == kwLEFT || p.cur.Kind == kwRIGHT {
+			tok := p.advance()
+			return tok.Str, tok.Loc, nil
+		}
+		return p.parseIdentifier()
+	}
+	if isIdentifierToken(p.cur.Kind) && p.peekNext().Kind == int('.') {
+		db, dbLoc, _ := p.parseIdentifier()
+		p.advance() // consume '.'
+		fn, fnLoc, err := part()
+		if err != nil {
+			return nil, err
+		}
+		return &ast.ObjectName{Parts: []string{db, fn}, Loc: ast.Loc{Start: dbLoc.Start, End: fnLoc.End}}, nil
+	}
+	fn, loc, err := part()
+	if err != nil {
+		return nil, err
+	}
+	return &ast.ObjectName{Parts: []string{fn}, Loc: loc}, nil
+}
+
 // parseFunctionArguments reads a function signature's argument list, from
 // its '(' through its ')': what DorisParser.g4's
 //
@@ -207,7 +238,7 @@ func (p *Parser) parseDropFunction(dropLoc ast.Loc) (ast.Node, error) {
 		}
 		stmt.IfExists = true
 	}
-	name, err := p.parseMultipartIdentifier()
+	name, err := p.parseFunctionIdentifier()
 	if err != nil {
 		return nil, err
 	}
