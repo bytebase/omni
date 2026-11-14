@@ -40,6 +40,10 @@ var (
 // db.schema.name may qualify: <table_name>, <masking_policy_name>.
 var qualifiedName = regexp.MustCompile(`(^|_)(table|view|stage|stream|task|pipe|policy|tag|function|procedure|seq|sequence|model|secret|service|alert|format|repository|notebook|streamlit|dataset|experiment|gateway|bundle|schema|project|semantic)(_|$)`)
 
+// objectWord is a placeholder that ends in a schema object's kind, without
+// saying name: <target_table>, <additional_tables>, <source_schema>.
+var objectWord = regexp.MustCompile(`(^|_)(table|view|stage|stream|task|schema|alert|pipe|sequence)s?$`)
+
 // singleName is a placeholder for a name of one part, as a column's is,
 // whatever object its other words name.
 var singleName = regexp.MustCompile(`(^|_)(col[0-9]*|column|arg|alias|param|property)(_|$)`)
@@ -109,6 +113,11 @@ func placeholderClass(name string) string {
 		return nameClass(n)
 	case numberName.MatchString(n):
 		return tNumber
+	}
+	if objectWord.MatchString(n) && !singleName.MatchString(n) {
+		// <target_table>, <source_stream>: a schema object, a QNAME,
+		// though it says no name.
+		return tQName
 	}
 	return tName
 }
