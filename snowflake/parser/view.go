@@ -1,6 +1,10 @@
 package parser
 
-import "github.com/bytebase/omni/snowflake/ast"
+import (
+	"strings"
+
+	"github.com/bytebase/omni/snowflake/ast"
+)
 
 // ---------------------------------------------------------------------------
 // CREATE VIEW
@@ -86,8 +90,13 @@ func (p *Parser) parseViewQuery() (ast.Node, error) {
 	return p.parseQueryExpr()
 }
 
-// parseViewColumnList parses ( col_name [COMMENT 'text'], ... ).
-// Used by both CREATE VIEW and CREATE MATERIALIZED VIEW.
+// parseViewColumnList parses the column list of CREATE VIEW and CREATE
+// MATERIALIZED VIEW, each column with its optional comment and policies
+// (https://docs.snowflake.com/en/sql-reference/sql/create-view,
+// https://docs.snowflake.com/en/sql-reference/sql/create-materialized-view):
+//
+//	( <col> [ COMMENT '<text>' ] [ [ WITH ] MASKING POLICY <p> [ USING ( <col> , <col> [ , ... ] ) ] ]
+//	  [ [ WITH ] PROJECTION POLICY <p> ] [ [ WITH ] TAG ( ... ) ] [ , ... ] )
 func (p *Parser) parseViewColumnList() ([]*ast.ViewColumn, error) {
 	if _, err := p.expect('('); err != nil {
 		return nil, err
@@ -102,15 +111,8 @@ func (p *Parser) parseViewColumnList() ([]*ast.ViewColumn, error) {
 		}
 		col.Name = name
 
-		// Optional COMMENT 'text'
-		if p.cur.Type == kwCOMMENT {
-			p.advance() // consume COMMENT
-			tok, err := p.expect(tokString)
-			if err != nil {
-				return nil, err
-			}
-			s := tok.Str
-			col.Comment = &s
+		if err := p.parseViewColumnProperties(col); err != nil {
+			return nil, err
 		}
 
 		col.Loc.End = p.prev.Loc.End
@@ -127,6 +129,50 @@ func (p *Parser) parseViewColumnList() ([]*ast.ViewColumn, error) {
 		return nil, err
 	}
 	return cols, nil
+}
+
+// parseViewColumnProperties parses the comment and policies of one column in
+// a view's column list, in any order.
+func (p *Parser) parseViewColumnProperties(col *ast.ViewColumn) error {
+	for {
+		// A WITH here leads only to MASKING, PROJECTION or TAG.
+		next := p.cur
+		if p.cur.Type == kwWITH {
+			next = p.peekNext()
+		}
+		switch {
+		case p.cur.Type == kwCOMMENT:
+			p.advance() // consume COMMENT
+			tok, err := p.expect(tokString)
+			if err != nil {
+				return err
+			}
+			s := tok.Str
+			col.Comment = &s
+		case next.Type == kwMASKING || next.Type == kwTAG:
+			if p.cur.Type == kwWITH {
+				p.advance() // consume WITH
+			}
+			if err := p.parseViewColChain(col); err != nil {
+				return err
+			}
+		case next.Type == tokIdent && strings.EqualFold(next.Str, "PROJECTION"):
+			if p.cur.Type == kwWITH {
+				p.advance() // consume WITH
+			}
+			p.advance() // consume PROJECTION
+			if _, err := p.expect(kwPOLICY); err != nil {
+				return err
+			}
+			name, err := p.parseObjectName()
+			if err != nil {
+				return err
+			}
+			col.ProjectionPolicy = name
+		default:
+			return nil
+		}
+	}
 }
 
 // parseViewCols parses zero or more view_col entries:
@@ -217,24 +263,11 @@ func (p *Parser) parseViewColChain(col *ast.ViewColumn) error {
 			// Optional USING (col [, col ...])
 			if p.cur.Type == kwUSING {
 				p.advance() // consume USING
-				if _, err := p.expect('('); err != nil {
+				using, err := p.parseIdentListInParens()
+				if err != nil {
 					return err
 				}
-				for p.cur.Type != ')' && p.cur.Type != tokEOF {
-					id, err := p.parseIdent()
-					if err != nil {
-						return err
-					}
-					col.MaskingUsing = append(col.MaskingUsing, id)
-					if p.cur.Type == ',' {
-						p.advance() // consume ','
-					} else {
-						break
-					}
-				}
-				if _, err := p.expect(')'); err != nil {
-					return err
-				}
+				col.MaskingUsing = using
 			}
 
 			// Check for optional WITH TAG following
@@ -272,24 +305,35 @@ func (p *Parser) parseViewColChain(col *ast.ViewColumn) error {
 // The stmt parameter is an interface — use type switch to set fields on either
 // CreateViewStmt or CreateMaterializedViewStmt.
 func (p *Parser) parseViewProperties(stmt interface{}) error {
+	// The governance clauses each page lists
+	// (https://docs.snowflake.com/en/sql-reference/sql/create-view,
+	// https://docs.snowflake.com/en/sql-reference/sql/create-materialized-view);
+	// a materialized view has no join policy and copies only grants.
+	clauses := clauseRowAccess | clauseAggregation | clauseJoin | clauseContact
+	_, materialized := stmt.(*ast.CreateMaterializedViewStmt)
+	if materialized {
+		clauses &^= clauseJoin
+	}
 	for {
-		switch p.cur.Type {
-		case kwWITH:
-			next := p.peekNext()
-			switch next.Type {
-			case kwROW:
-				// WITH ROW ACCESS POLICY name ON (cols)
-				p.advance() // consume WITH
-				rp, err := p.parseRowAccessPolicyClause()
-				if err != nil {
-					return err
-				}
+		if c := p.startsObjectClause(clauses); c != 0 {
+			res, err := p.parseObjectClause(c)
+			if err != nil {
+				return err
+			}
+			if rp := res.RowPolicy; rp != nil {
 				switch s := stmt.(type) {
 				case *ast.CreateViewStmt:
 					s.RowPolicy = rp
 				case *ast.CreateMaterializedViewStmt:
 					s.RowPolicy = rp
 				}
+			}
+			continue
+		}
+		switch p.cur.Type {
+		case kwWITH:
+			next := p.peekNext()
+			switch next.Type {
 			case kwTAG:
 				// WITH TAG (name = 'val', ...)
 				p.advance() // consume WITH
@@ -321,17 +365,21 @@ func (p *Parser) parseViewProperties(stmt interface{}) error {
 			}
 
 		case kwCOPY:
-			if p.peekNext().Type == kwGRANTS {
-				p.advance() // consume COPY
-				p.advance() // consume GRANTS
+			// COPY GRANTS | COPY TAGS | COPY = ( ... )
+			if !p.startsCopyClause() {
+				return nil
+			}
+			grants, err := p.parseCopyClause(materialized)
+			if err != nil {
+				return err
+			}
+			if grants {
 				switch s := stmt.(type) {
 				case *ast.CreateViewStmt:
 					s.CopyGrants = true
 				case *ast.CreateMaterializedViewStmt:
 					s.CopyGrants = true
 				}
-			} else {
-				return nil
 			}
 
 		case kwCOMMENT:
@@ -393,27 +441,15 @@ func (p *Parser) parseRowAccessPolicyClause() (*ast.RowAccessPolicy, error) {
 
 	rp := &ast.RowAccessPolicy{PolicyName: policyName}
 
-	// ON (col [, col ...]): at least one column, no trailing comma.
-	if p.cur.Type == kwON {
-		p.advance() // consume ON
-		if _, err := p.expect('('); err != nil {
-			return nil, err
-		}
-		for {
-			id, err := p.parseIdent()
-			if err != nil {
-				return nil, err
-			}
-			rp.Columns = append(rp.Columns, id)
-			if p.cur.Type != ',' {
-				break
-			}
-			p.advance() // consume ','
-		}
-		if _, err := p.expect(')'); err != nil {
-			return nil, err
-		}
+	// ON ( col [, col ...] ), which every page that lists the clause requires.
+	if _, err := p.expect(kwON); err != nil {
+		return nil, err
 	}
+	cols, err := p.parseIdentListInParens()
+	if err != nil {
+		return nil, err
+	}
+	rp.Columns = cols
 
 	return rp, nil
 }

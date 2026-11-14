@@ -1416,6 +1416,8 @@ type CreateTableStmt struct {
 	Temporary   bool
 	Volatile    bool
 	Hybrid      bool // CREATE HYBRID TABLE (Unistore); mutually exclusive with the temp modifiers
+	Interactive bool // CREATE INTERACTIVE TABLE
+	ReadOnly    bool // TEMP[ORARY] READ ONLY, which the page gives only the CLONE form
 	IfNotExists bool
 	Name        *ObjectName
 	Columns     []*ColumnDef
@@ -1429,17 +1431,44 @@ type CreateTableStmt struct {
 	AsSelect    Node             // CREATE TABLE ... AS SELECT; nil if absent
 	Like        *ObjectName      // CREATE TABLE ... LIKE source; nil if absent
 	Clone       *CloneSource     // CREATE TABLE ... CLONE source; nil if absent
-	RowPolicy   *RowAccessPolicy // [WITH] ROW ACCESS POLICY name ON (cols); nil if absent
+	// UsingTemplate is CREATE TABLE ... USING TEMPLATE ( <query> ); nil if absent.
+	UsingTemplate Node
+	// FromArchive is CREATE TABLE ... FROM ARCHIVE OF <table> [ [ AS ] <alias> ]
+	// WHERE <expr>; nil if absent.
+	FromArchive *ArchiveSource
+	// FromBackup is CREATE TABLE ... FROM BACKUP SET <set> IDENTIFIER '<id>';
+	// nil if absent.
+	FromBackup *BackupSource
+	RowPolicy  *RowAccessPolicy // [WITH] ROW ACCESS POLICY name ON (cols); nil if absent
+	// Options holds KEY = value parameters: an Iceberg table's catalog and
+	// storage parameters (EXTERNAL_VOLUME, CATALOG, BASE_LOCATION, ...) and
+	// COPY = ( ... ), or an interactive table's TARGET_LAG / WAREHOUSE /
+	// INITIALIZATION_WAREHOUSE; nil if absent.
+	Options []*CopyOption
 
 	// The fields below are set only by CREATE ICEBERG TABLE (Iceberg == true).
 	Iceberg           bool          // CREATE [TRANSIENT] ICEBERG TABLE
 	PartitionBy       []Node        // PARTITION BY ( col | transform(...) , ... ); ColumnRef or FuncCallExpr items; nil if absent
-	Options           []*CopyOption // KEY = value parameters (EXTERNAL_VOLUME, CATALOG, BASE_LOCATION, ...) and COPY = ( ... ); nil if absent
 	CopyTags          bool          // COPY TAGS
 	Purge             bool          // PURGE
 	AggregationPolicy *ObjectName   // [WITH] AGGREGATION POLICY name; nil if absent
 	Contacts          []*CopyOption // WITH CONTACT ( purpose = contact [, ...] ); nil if absent
 	Loc               Loc
+}
+
+// ArchiveSource is the FROM ARCHIVE OF clause of CREATE TABLE, which restores
+// the rows of a table's archive that the WHERE predicate selects.
+type ArchiveSource struct {
+	Table *ObjectName
+	Alias Ident // [ AS ] <alias>; zero if absent
+	Where Node
+}
+
+// BackupSource is the FROM BACKUP SET clause of CREATE [DYNAMIC] TABLE, which
+// restores a table from a backup in a backup set.
+type BackupSource struct {
+	BackupSet *ObjectName
+	ID        string // IDENTIFIER '<backup_id>'
 }
 
 func (n *CreateTableStmt) Tag() NodeTag { return T_CreateTableStmt }
@@ -2111,11 +2140,13 @@ var (
 // Used by both CreateViewStmt and CreateMaterializedViewStmt.
 type ViewColumn struct {
 	Name          Ident
-	MaskingPolicy *ObjectName      // WITH MASKING POLICY p; nil if absent
-	MaskingUsing  []Ident          // USING (col, ...); nil if absent
-	Tags          []*TagAssignment // WITH TAG (...); nil if absent
-	Comment       *string          // COMMENT 'text'; nil if absent
-	Loc           Loc
+	MaskingPolicy *ObjectName // WITH MASKING POLICY p; nil if absent
+	MaskingUsing  []Ident     // USING (col, ...); nil if absent
+	// ProjectionPolicy is [ WITH ] PROJECTION POLICY p; nil if absent.
+	ProjectionPolicy *ObjectName
+	Tags             []*TagAssignment // WITH TAG (...); nil if absent
+	Comment          *string          // COMMENT 'text'; nil if absent
+	Loc              Loc
 }
 
 // RowAccessPolicy holds the policy name and column list from a
@@ -5047,7 +5078,24 @@ type CreateDynamicTableStmt struct {
 	AsQuery        Node          // AS <query>; nil for the CLONE / REFRESH USING forms
 	RefreshUsing   Node          // REFRESH USING ( <dml_statement> ); nil otherwise
 	Clone          *CloneSource  // CLONE <source>; non-nil only for the CLONE form
-	Loc            Loc
+	// PartitionBy is a dynamic Iceberg table's PARTITION BY ( ... ): each item
+	// a *ColumnRef or a transform *FuncCallExpr (BUCKET / TRUNCATE / YEAR /
+	// MONTH / DAY / HOUR); nil if absent.
+	PartitionBy []Node
+	CopyGrants  bool // COPY GRANTS or COPY = ( ... GRANTS ... )
+	// StartAtKind is START AT's selector, "STREAM" / "TIMESTAMP" /
+	// "STATEMENT" / "OFFSET", and StartAt its value; empty / nil if absent.
+	StartAtKind string
+	StartAt     Node
+	// ExecuteAsUser is EXECUTE AS USER <user>; zero if absent.
+	ExecuteAsUser Ident
+	// USE SECONDARY ROLES { ALL | NONE | <role> [ , ... ] } after EXECUTE AS
+	// USER: SecondaryRolesKeyword is "ALL" or "NONE", or SecondaryRoles the
+	// roles; both empty if absent.
+	SecondaryRolesKeyword string
+	SecondaryRoles        []Ident
+	FromBackup            *BackupSource // FROM BACKUP SET <set> IDENTIFIER '<id>'; nil if absent
+	Loc                   Loc
 }
 
 // Tag implements Node.
@@ -5239,6 +5287,7 @@ type CreateEventTableStmt struct {
 	Options     []*CopyOption    // DATA_RETENTION_TIME_IN_DAYS / CHANGE_TRACKING / COMMENT / ...
 	CopyGrants  bool             // COPY GRANTS
 	Tags        []*TagAssignment // [WITH] TAG (...); nil if absent
+	Clone       *CloneSource     // CLONE <source> [ { AT | BEFORE } ( ... ) ]; nil if absent
 	Loc         Loc
 }
 
