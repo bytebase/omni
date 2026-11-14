@@ -272,8 +272,8 @@ accept	accept	engine	statement/alterDatabaseStatements	ALTER DATABASE AUDIT SPEC
 reject	reject	engine	statement/alterDatabaseStatements!drop-1	DATABASE AUDIT SPECIFICATION a
 reject	reject	engine	statement/alterDatabaseStatements!drop-2	ALTER AUDIT SPECIFICATION a
 reject	reject	engine	statement/alterDatabaseStatements!drop-3	ALTER DATABASE SPECIFICATION a
-accept	reject	engine	statement/alterDatabaseStatements!drop-4	ALTER DATABASE AUDIT a
-accept	reject	engine	statement/alterDatabaseStatements!drop-5	ALTER DATABASE AUDIT SPECIFICATION
+reject	reject	engine	statement/alterDatabaseStatements!drop-4	ALTER DATABASE AUDIT a
+reject	reject	engine	statement/alterDatabaseStatements!drop-5	ALTER DATABASE AUDIT SPECIFICATION
 reject	reject	engine	statement/alterDatabaseStatements!insert	ALTER DATABASE AUDIT SPECIFICATION a zzz
 reject	reject	engine	statement/alterDatabaseStatements!swap	ALWAYS DATABASE AUDIT SPECIFICATION a
 accept	accept	engine	statement/executeStatement	EXECUTE a
@@ -1381,19 +1381,19 @@ accept	reject	engine	credentialStatementBody(Comma_SECRET_EqualsSign_stringLiter
 accept	reject	engine	credentialStatementBody(Comma_SECRET_EqualsSign_stringLiteral)?/Comma_SECRET_EqualsSign_stringLiteral!insert	ALTER DATABASE SCOPED CREDENTIAL a WITH IDENTITY = 'a', SECRET = 'a' zzz
 accept	reject	engine	credentialStatementBody(Comma_SECRET_EqualsSign_stringLiteral)?/Comma_SECRET_EqualsSign_stringLiteral!swap	ALTER DATABASE SCOPED CREDENTIAL a WITH IDENTITY = 'a', SECURITY = 'a'
 accept	accept	engine	createServerAuditStatement/identifier_auditTargetClause_(auditCreateWithClause)?_(~9dec463d	CREATE SERVER AUDIT a TO APPLICATION_LOG
-accept	reject	engine	createServerAuditStatement/identifier_auditTargetClause_(auditCreateWithClause)?_(~9dec463d!drop-1	CREATE SERVER AUDIT TO APPLICATION_LOG
+reject	reject	engine	createServerAuditStatement/identifier_auditTargetClause_(auditCreateWithClause)?_(~9dec463d!drop-1	CREATE SERVER AUDIT TO APPLICATION_LOG
 reject	reject	engine	createServerAuditStatement/identifier_auditTargetClause_(auditCreateWithClause)?_(~9dec463d!drop-2	CREATE SERVER AUDIT a APPLICATION_LOG
-accept	reject	engine	createServerAuditStatement/identifier_auditTargetClause_(auditCreateWithClause)?_(~9dec463d!drop-3	CREATE SERVER AUDIT a TO
+reject	reject	engine	createServerAuditStatement/identifier_auditTargetClause_(auditCreateWithClause)?_(~9dec463d!drop-3	CREATE SERVER AUDIT a TO
 reject	reject	engine	createServerAuditStatement/identifier_auditTargetClause_(auditCreateWithClause)?_(~9dec463d!insert	CREATE SERVER AUDIT a TO APPLICATION_LOG zzz
 reject	reject	engine	createServerAuditStatement/identifier_auditTargetClause_(auditCreateWithClause)?_(~9dec463d!swap	CREATE SERVER AUDIT a TOP APPLICATION_LOG
 accept	accept	engine	createServerAuditStatement(auditCreateWithClause)?/%empty	CREATE SERVER AUDIT a TO APPLICATION_LOG
-accept	reject	engine	createServerAuditStatement(auditCreateWithClause)?/auditCreateWithClause	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a = 1)
+reject	reject	engine	createServerAuditStatement(auditCreateWithClause)?/auditCreateWithClause	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a = 1)
 reject	reject	engine	createServerAuditStatement(auditCreateWithClause)?/auditCreateWithClause!drop-1	CREATE SERVER AUDIT a TO APPLICATION_LOG(a = 1)
 reject	reject	engine	createServerAuditStatement(auditCreateWithClause)?/auditCreateWithClause!drop-2	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH a = 1)
-accept	reject	engine	createServerAuditStatement(auditCreateWithClause)?/auditCreateWithClause!drop-3	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(= 1)
-accept	reject	engine	createServerAuditStatement(auditCreateWithClause)?/auditCreateWithClause!drop-4	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a 1)
-accept	reject	engine	createServerAuditStatement(auditCreateWithClause)?/auditCreateWithClause!drop-5	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a =)
-accept	reject	engine	createServerAuditStatement(auditCreateWithClause)?/auditCreateWithClause!drop-6	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a = 1
+reject	reject	engine	createServerAuditStatement(auditCreateWithClause)?/auditCreateWithClause!drop-3	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(= 1)
+reject	reject	engine	createServerAuditStatement(auditCreateWithClause)?/auditCreateWithClause!drop-4	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a 1)
+reject	reject	engine	createServerAuditStatement(auditCreateWithClause)?/auditCreateWithClause!drop-5	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a =)
+reject	reject	engine	createServerAuditStatement(auditCreateWithClause)?/auditCreateWithClause!drop-6	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a = 1
 reject	reject	engine	createServerAuditStatement(auditCreateWithClause)?/auditCreateWithClause!insert	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a = 1) zzz
 reject	reject	engine	createServerAuditStatement(auditCreateWithClause)?/auditCreateWithClause!swap	CREATE SERVER AUDIT a TO APPLICATION_LOG WITHIN(a = 1)
 accept	accept	engine	createServerAuditStatement(Where_eventBooleanExpression)?/%empty	CREATE SERVER AUDIT a TO APPLICATION_LOG
@@ -1401,220 +1401,220 @@ accept	accept	engine	createServerAuditStatement(Where_eventBooleanExpression)?/W
 reject	reject	engine	createServerAuditStatement(Where_eventBooleanExpression)?/Where_eventBooleanExpression!drop-1	CREATE SERVER AUDIT a TO APPLICATION_LOG a = 1
 reject	reject	engine	createServerAuditStatement(Where_eventBooleanExpression)?/Where_eventBooleanExpression!drop-2	CREATE SERVER AUDIT a TO APPLICATION_LOG WHERE = 1
 reject	reject	engine	createServerAuditStatement(Where_eventBooleanExpression)?/Where_eventBooleanExpression!drop-3	CREATE SERVER AUDIT a TO APPLICATION_LOG WHERE a 1
-accept	reject	engine	createServerAuditStatement(Where_eventBooleanExpression)?/Where_eventBooleanExpression!drop-4	CREATE SERVER AUDIT a TO APPLICATION_LOG WHERE a =
+reject	reject	engine	createServerAuditStatement(Where_eventBooleanExpression)?/Where_eventBooleanExpression!drop-4	CREATE SERVER AUDIT a TO APPLICATION_LOG WHERE a =
 reject	reject	engine	createServerAuditStatement(Where_eventBooleanExpression)?/Where_eventBooleanExpression!insert	CREATE SERVER AUDIT a TO APPLICATION_LOG WHERE a = 1 zzz
 reject	reject	engine	createServerAuditStatement(Where_eventBooleanExpression)?/Where_eventBooleanExpression!swap	CREATE SERVER AUDIT a TO APPLICATION_LOG WHILE a = 1
 accept	accept	engine	auditTargetClause/To_((File_LeftParenthesis_auditFileOptio~6c045e1f)	ALTER SERVER AUDIT a TO APPLICATION_LOG
 reject	reject	engine	auditTargetClause/To_((File_LeftParenthesis_auditFileOptio~6c045e1f)!drop-1	ALTER SERVER AUDIT a APPLICATION_LOG
-accept	reject	engine	auditTargetClause/To_((File_LeftParenthesis_auditFileOptio~6c045e1f)!drop-2	ALTER SERVER AUDIT a TO
+reject	reject	engine	auditTargetClause/To_((File_LeftParenthesis_auditFileOptio~6c045e1f)!drop-2	ALTER SERVER AUDIT a TO
 reject	reject	engine	auditTargetClause/To_((File_LeftParenthesis_auditFileOptio~6c045e1f)!insert	ALTER SERVER AUDIT a TO APPLICATION_LOG zzz
 reject	reject	engine	auditTargetClause/To_((File_LeftParenthesis_auditFileOptio~6c045e1f)!swap	ALTER SERVER AUDIT a TOP APPLICATION_LOG
 accept	accept	engine	auditTargetClause((File_LeftParenthesis_auditFileOptio~6c045e1f)/(File_LeftParenthesis_auditFileOption~24e800d7)_RightParenthesis	ALTER SERVER AUDIT a TO FILE(MAXSIZE = UNLIMITED)
 reject	reject	engine	auditTargetClause((File_LeftParenthesis_auditFileOptio~6c045e1f)/(File_LeftParenthesis_auditFileOption~24e800d7)_RightParenthesis!drop-1	ALTER SERVER AUDIT a TO(MAXSIZE = UNLIMITED)
 reject	reject	engine	auditTargetClause((File_LeftParenthesis_auditFileOptio~6c045e1f)/(File_LeftParenthesis_auditFileOption~24e800d7)_RightParenthesis!drop-2	ALTER SERVER AUDIT a TO FILE MAXSIZE = UNLIMITED)
-accept	reject	engine	auditTargetClause((File_LeftParenthesis_auditFileOptio~6c045e1f)/(File_LeftParenthesis_auditFileOption~24e800d7)_RightParenthesis!drop-3	ALTER SERVER AUDIT a TO FILE(= UNLIMITED)
-accept	reject	engine	auditTargetClause((File_LeftParenthesis_auditFileOptio~6c045e1f)/(File_LeftParenthesis_auditFileOption~24e800d7)_RightParenthesis!drop-4	ALTER SERVER AUDIT a TO FILE(MAXSIZE UNLIMITED)
-accept	reject	engine	auditTargetClause((File_LeftParenthesis_auditFileOptio~6c045e1f)/(File_LeftParenthesis_auditFileOption~24e800d7)_RightParenthesis!drop-5	ALTER SERVER AUDIT a TO FILE(MAXSIZE =)
-accept	reject	engine	auditTargetClause((File_LeftParenthesis_auditFileOptio~6c045e1f)/(File_LeftParenthesis_auditFileOption~24e800d7)_RightParenthesis!drop-6	ALTER SERVER AUDIT a TO FILE(MAXSIZE = UNLIMITED
+reject	reject	engine	auditTargetClause((File_LeftParenthesis_auditFileOptio~6c045e1f)/(File_LeftParenthesis_auditFileOption~24e800d7)_RightParenthesis!drop-3	ALTER SERVER AUDIT a TO FILE(= UNLIMITED)
+reject	reject	engine	auditTargetClause((File_LeftParenthesis_auditFileOptio~6c045e1f)/(File_LeftParenthesis_auditFileOption~24e800d7)_RightParenthesis!drop-4	ALTER SERVER AUDIT a TO FILE(MAXSIZE UNLIMITED)
+reject	reject	engine	auditTargetClause((File_LeftParenthesis_auditFileOptio~6c045e1f)/(File_LeftParenthesis_auditFileOption~24e800d7)_RightParenthesis!drop-5	ALTER SERVER AUDIT a TO FILE(MAXSIZE =)
+reject	reject	engine	auditTargetClause((File_LeftParenthesis_auditFileOptio~6c045e1f)/(File_LeftParenthesis_auditFileOption~24e800d7)_RightParenthesis!drop-6	ALTER SERVER AUDIT a TO FILE(MAXSIZE = UNLIMITED
 reject	reject	engine	auditTargetClause((File_LeftParenthesis_auditFileOptio~6c045e1f)/(File_LeftParenthesis_auditFileOption~24e800d7)_RightParenthesis!insert	ALTER SERVER AUDIT a TO FILE(MAXSIZE = UNLIMITED) zzz
 reject	reject	engine	auditTargetClause((File_LeftParenthesis_auditFileOptio~6c045e1f)/(File_LeftParenthesis_auditFileOption~24e800d7)_RightParenthesis!swap	ALTER SERVER AUDIT a TO FILEGROUP(MAXSIZE = UNLIMITED)
 accept	accept	engine	auditTargetClause((File_LeftParenthesis_auditFileOptio~6c045e1f)/(APPLICATION_LOG|SECURITY_LOG|EXTERNAL_MONITOR)	ALTER SERVER AUDIT a TO APPLICATION_LOG
-accept	reject	engine	auditTargetClause((File_LeftParenthesis_auditFileOptio~6c045e1f)/(APPLICATION_LOG|SECURITY_LOG|EXTERNAL_MONITOR)!swap	ALTER SERVER AUDIT a TO APPLY
+reject	reject	engine	auditTargetClause((File_LeftParenthesis_auditFileOptio~6c045e1f)/(APPLICATION_LOG|SECURITY_LOG|EXTERNAL_MONITOR)!swap	ALTER SERVER AUDIT a TO APPLY
 accept	accept	engine	auditTargetClause(File_LeftParenthesis_auditFileOption~24e800d7)/File_LeftParenthesis_auditFileOption_(Comma_auditFileOption)*	ALTER SERVER AUDIT a TO FILE(MAXSIZE = UNLIMITED)
-accept	reject	engine	auditTargetClause(File_LeftParenthesis_auditFileOption~24e800d7)/File_LeftParenthesis_auditFileOption_(Comma_auditFileOption)*!truncate	ALTER SERVER AUDIT a TO FILE(MAXSIZE =
-accept	reject	engine	auditTargetClause(File_LeftParenthesis_auditFileOption~24e800d7)/File_LeftParenthesis_auditFileOption_(Comma_auditFileOption)*!insert	ALTER SERVER AUDIT a TO FILE(MAXSIZE = UNLIMITED zzz)
-accept	reject	engine	auditTargetClause(File_LeftParenthesis_auditFileOption~24e800d7)/URL_LeftParenthesis_auditUrlOption_(Comma_auditUrlOption)?	ALTER SERVER AUDIT a TO URL(RETENTION_DAYS = 1)
+reject	reject	engine	auditTargetClause(File_LeftParenthesis_auditFileOption~24e800d7)/File_LeftParenthesis_auditFileOption_(Comma_auditFileOption)*!truncate	ALTER SERVER AUDIT a TO FILE(MAXSIZE =
+reject	reject	engine	auditTargetClause(File_LeftParenthesis_auditFileOption~24e800d7)/File_LeftParenthesis_auditFileOption_(Comma_auditFileOption)*!insert	ALTER SERVER AUDIT a TO FILE(MAXSIZE = UNLIMITED zzz)
+reject	reject	engine	auditTargetClause(File_LeftParenthesis_auditFileOption~24e800d7)/URL_LeftParenthesis_auditUrlOption_(Comma_auditUrlOption)?	ALTER SERVER AUDIT a TO URL(RETENTION_DAYS = 1)
 reject	reject	engine	auditTargetClause(File_LeftParenthesis_auditFileOption~24e800d7)/URL_LeftParenthesis_auditUrlOption_(Comma_auditUrlOption)?!drop-1	ALTER SERVER AUDIT a TO(RETENTION_DAYS = 1)
 reject	reject	engine	auditTargetClause(File_LeftParenthesis_auditFileOption~24e800d7)/URL_LeftParenthesis_auditUrlOption_(Comma_auditUrlOption)?!drop-2	ALTER SERVER AUDIT a TO URL RETENTION_DAYS = 1)
-accept	reject	engine	auditTargetClause(File_LeftParenthesis_auditFileOption~24e800d7)/URL_LeftParenthesis_auditUrlOption_(Comma_auditUrlOption)?!drop-3	ALTER SERVER AUDIT a TO URL(= 1)
-accept	reject	engine	auditTargetClause(File_LeftParenthesis_auditFileOption~24e800d7)/URL_LeftParenthesis_auditUrlOption_(Comma_auditUrlOption)?!drop-4	ALTER SERVER AUDIT a TO URL(RETENTION_DAYS 1)
-accept	reject	engine	auditTargetClause(File_LeftParenthesis_auditFileOption~24e800d7)/URL_LeftParenthesis_auditUrlOption_(Comma_auditUrlOption)?!drop-5	ALTER SERVER AUDIT a TO URL(RETENTION_DAYS =)
-accept	reject	engine	auditTargetClause(File_LeftParenthesis_auditFileOption~24e800d7)/URL_LeftParenthesis_auditUrlOption_(Comma_auditUrlOption)?!truncate	ALTER SERVER AUDIT a TO URL(RETENTION_DAYS =
-accept	reject	engine	auditTargetClause(File_LeftParenthesis_auditFileOption~24e800d7)/URL_LeftParenthesis_auditUrlOption_(Comma_auditUrlOption)?!insert	ALTER SERVER AUDIT a TO URL(RETENTION_DAYS = 1 zzz)
+reject	reject	engine	auditTargetClause(File_LeftParenthesis_auditFileOption~24e800d7)/URL_LeftParenthesis_auditUrlOption_(Comma_auditUrlOption)?!drop-3	ALTER SERVER AUDIT a TO URL(= 1)
+reject	reject	engine	auditTargetClause(File_LeftParenthesis_auditFileOption~24e800d7)/URL_LeftParenthesis_auditUrlOption_(Comma_auditUrlOption)?!drop-4	ALTER SERVER AUDIT a TO URL(RETENTION_DAYS 1)
+reject	reject	engine	auditTargetClause(File_LeftParenthesis_auditFileOption~24e800d7)/URL_LeftParenthesis_auditUrlOption_(Comma_auditUrlOption)?!drop-5	ALTER SERVER AUDIT a TO URL(RETENTION_DAYS =)
+reject	reject	engine	auditTargetClause(File_LeftParenthesis_auditFileOption~24e800d7)/URL_LeftParenthesis_auditUrlOption_(Comma_auditUrlOption)?!truncate	ALTER SERVER AUDIT a TO URL(RETENTION_DAYS =
+reject	reject	engine	auditTargetClause(File_LeftParenthesis_auditFileOption~24e800d7)/URL_LeftParenthesis_auditUrlOption_(Comma_auditUrlOption)?!insert	ALTER SERVER AUDIT a TO URL(RETENTION_DAYS = 1 zzz)
 reject	reject	engine	auditTargetClause(File_LeftParenthesis_auditFileOption~24e800d7)/URL_LeftParenthesis_auditUrlOption_(Comma_auditUrlOption)?!swap	ALTER SERVER AUDIT a TO USE(RETENTION_DAYS = 1)
 accept	accept	engine	auditTargetClause(Comma_auditFileOption)*/%empty	ALTER SERVER AUDIT a TO FILE(MAXSIZE = UNLIMITED)
 accept	accept	engine	auditTargetClause(Comma_auditFileOption)*/Comma_auditFileOption_(Comma_auditFileOption)*	ALTER SERVER AUDIT a TO FILE(MAXSIZE = UNLIMITED, MAXSIZE = UNLIMITED)
-accept	reject	engine	auditTargetClause(Comma_auditFileOption)*/Comma_auditFileOption_(Comma_auditFileOption)*!drop-1	ALTER SERVER AUDIT a TO FILE(MAXSIZE = UNLIMITED MAXSIZE = UNLIMITED)
-accept	reject	engine	auditTargetClause(Comma_auditFileOption)*/Comma_auditFileOption_(Comma_auditFileOption)*!drop-2	ALTER SERVER AUDIT a TO FILE(MAXSIZE = UNLIMITED, = UNLIMITED)
-accept	reject	engine	auditTargetClause(Comma_auditFileOption)*/Comma_auditFileOption_(Comma_auditFileOption)*!drop-3	ALTER SERVER AUDIT a TO FILE(MAXSIZE = UNLIMITED, MAXSIZE UNLIMITED)
-accept	reject	engine	auditTargetClause(Comma_auditFileOption)*/Comma_auditFileOption_(Comma_auditFileOption)*!drop-4	ALTER SERVER AUDIT a TO FILE(MAXSIZE = UNLIMITED, MAXSIZE =)
-accept	reject	engine	auditTargetClause(Comma_auditFileOption)*/Comma_auditFileOption_(Comma_auditFileOption)*!truncate	ALTER SERVER AUDIT a TO FILE(MAXSIZE = UNLIMITED, MAXSIZE =
-accept	reject	engine	auditTargetClause(Comma_auditFileOption)*/Comma_auditFileOption_(Comma_auditFileOption)*!insert	ALTER SERVER AUDIT a TO FILE(MAXSIZE = UNLIMITED, MAXSIZE = UNLIMITED zzz)
-accept	reject	engine	auditTargetClause(Comma_auditFileOption)*/Comma_auditFileOption_(Comma_auditFileOption)*!swap	ALTER SERVER AUDIT a TO FILE(MAXSIZE = UNLIMITED, MAXVALUE = UNLIMITED)
-accept	reject	engine	auditTargetClause(Comma_auditUrlOption)?/%empty	ALTER SERVER AUDIT a TO URL(RETENTION_DAYS = 1)
-accept	reject	engine	auditTargetClause(Comma_auditUrlOption)?/Comma_auditUrlOption	ALTER SERVER AUDIT a TO URL(RETENTION_DAYS = 1, RETENTION_DAYS = 1)
-accept	reject	engine	auditTargetClause(Comma_auditUrlOption)?/Comma_auditUrlOption!drop-1	ALTER SERVER AUDIT a TO URL(RETENTION_DAYS = 1 RETENTION_DAYS = 1)
-accept	reject	engine	auditTargetClause(Comma_auditUrlOption)?/Comma_auditUrlOption!drop-2	ALTER SERVER AUDIT a TO URL(RETENTION_DAYS = 1, = 1)
-accept	reject	engine	auditTargetClause(Comma_auditUrlOption)?/Comma_auditUrlOption!drop-3	ALTER SERVER AUDIT a TO URL(RETENTION_DAYS = 1, RETENTION_DAYS 1)
-accept	reject	engine	auditTargetClause(Comma_auditUrlOption)?/Comma_auditUrlOption!drop-4	ALTER SERVER AUDIT a TO URL(RETENTION_DAYS = 1, RETENTION_DAYS =)
-accept	reject	engine	auditTargetClause(Comma_auditUrlOption)?/Comma_auditUrlOption!truncate	ALTER SERVER AUDIT a TO URL(RETENTION_DAYS = 1, RETENTION_DAYS =
-accept	reject	engine	auditTargetClause(Comma_auditUrlOption)?/Comma_auditUrlOption!insert	ALTER SERVER AUDIT a TO URL(RETENTION_DAYS = 1, RETENTION_DAYS = 1 zzz)
-accept	reject	engine	auditTargetClause(Comma_auditUrlOption)?/Comma_auditUrlOption!swap	ALTER SERVER AUDIT a TO URL(RETENTION_DAYS = 1, RETENTION_PERIOD = 1)
+reject	reject	engine	auditTargetClause(Comma_auditFileOption)*/Comma_auditFileOption_(Comma_auditFileOption)*!drop-1	ALTER SERVER AUDIT a TO FILE(MAXSIZE = UNLIMITED MAXSIZE = UNLIMITED)
+reject	reject	engine	auditTargetClause(Comma_auditFileOption)*/Comma_auditFileOption_(Comma_auditFileOption)*!drop-2	ALTER SERVER AUDIT a TO FILE(MAXSIZE = UNLIMITED, = UNLIMITED)
+reject	reject	engine	auditTargetClause(Comma_auditFileOption)*/Comma_auditFileOption_(Comma_auditFileOption)*!drop-3	ALTER SERVER AUDIT a TO FILE(MAXSIZE = UNLIMITED, MAXSIZE UNLIMITED)
+reject	reject	engine	auditTargetClause(Comma_auditFileOption)*/Comma_auditFileOption_(Comma_auditFileOption)*!drop-4	ALTER SERVER AUDIT a TO FILE(MAXSIZE = UNLIMITED, MAXSIZE =)
+reject	reject	engine	auditTargetClause(Comma_auditFileOption)*/Comma_auditFileOption_(Comma_auditFileOption)*!truncate	ALTER SERVER AUDIT a TO FILE(MAXSIZE = UNLIMITED, MAXSIZE =
+reject	reject	engine	auditTargetClause(Comma_auditFileOption)*/Comma_auditFileOption_(Comma_auditFileOption)*!insert	ALTER SERVER AUDIT a TO FILE(MAXSIZE = UNLIMITED, MAXSIZE = UNLIMITED zzz)
+reject	reject	engine	auditTargetClause(Comma_auditFileOption)*/Comma_auditFileOption_(Comma_auditFileOption)*!swap	ALTER SERVER AUDIT a TO FILE(MAXSIZE = UNLIMITED, MAXVALUE = UNLIMITED)
+reject	reject	engine	auditTargetClause(Comma_auditUrlOption)?/%empty	ALTER SERVER AUDIT a TO URL(RETENTION_DAYS = 1)
+reject	reject	engine	auditTargetClause(Comma_auditUrlOption)?/Comma_auditUrlOption	ALTER SERVER AUDIT a TO URL(RETENTION_DAYS = 1, RETENTION_DAYS = 1)
+reject	reject	engine	auditTargetClause(Comma_auditUrlOption)?/Comma_auditUrlOption!drop-1	ALTER SERVER AUDIT a TO URL(RETENTION_DAYS = 1 RETENTION_DAYS = 1)
+reject	reject	engine	auditTargetClause(Comma_auditUrlOption)?/Comma_auditUrlOption!drop-2	ALTER SERVER AUDIT a TO URL(RETENTION_DAYS = 1, = 1)
+reject	reject	engine	auditTargetClause(Comma_auditUrlOption)?/Comma_auditUrlOption!drop-3	ALTER SERVER AUDIT a TO URL(RETENTION_DAYS = 1, RETENTION_DAYS 1)
+reject	reject	engine	auditTargetClause(Comma_auditUrlOption)?/Comma_auditUrlOption!drop-4	ALTER SERVER AUDIT a TO URL(RETENTION_DAYS = 1, RETENTION_DAYS =)
+reject	reject	engine	auditTargetClause(Comma_auditUrlOption)?/Comma_auditUrlOption!truncate	ALTER SERVER AUDIT a TO URL(RETENTION_DAYS = 1, RETENTION_DAYS =
+reject	reject	engine	auditTargetClause(Comma_auditUrlOption)?/Comma_auditUrlOption!insert	ALTER SERVER AUDIT a TO URL(RETENTION_DAYS = 1, RETENTION_DAYS = 1 zzz)
+reject	reject	engine	auditTargetClause(Comma_auditUrlOption)?/Comma_auditUrlOption!swap	ALTER SERVER AUDIT a TO URL(RETENTION_DAYS = 1, RETENTION_PERIOD = 1)
 accept	accept	engine	auditTargetClause(APPLICATION_LOG|SECURITY_LOG|EXTERNAL_MONITOR)/APPLICATION_LOG	ALTER SERVER AUDIT a TO APPLICATION_LOG
 accept	accept	engine	auditTargetClause(APPLICATION_LOG|SECURITY_LOG|EXTERNAL_MONITOR)/SECURITY_LOG	ALTER SERVER AUDIT a TO SECURITY_LOG
 reject	reject	engine	auditTargetClause(APPLICATION_LOG|SECURITY_LOG|EXTERNAL_MONITOR)/SECURITY_LOG!insert	ALTER SERVER AUDIT a TO SECURITY_LOG zzz
 reject	reject	engine	auditTargetClause(APPLICATION_LOG|SECURITY_LOG|EXTERNAL_MONITOR)/SECURITY_LOG!swap	ALTER SERVER AUDIT a TO SELECT
-accept	reject	engine	auditTargetClause(APPLICATION_LOG|SECURITY_LOG|EXTERNAL_MONITOR)/EXTERNAL_MONITOR	ALTER SERVER AUDIT a TO EXTERNAL_MONITOR
+reject	reject	engine	auditTargetClause(APPLICATION_LOG|SECURITY_LOG|EXTERNAL_MONITOR)/EXTERNAL_MONITOR	ALTER SERVER AUDIT a TO EXTERNAL_MONITOR
 reject	reject	engine	auditTargetClause(APPLICATION_LOG|SECURITY_LOG|EXTERNAL_MONITOR)/EXTERNAL_MONITOR!insert	ALTER SERVER AUDIT a TO EXTERNAL_MONITOR zzz
-accept	reject	engine	auditTargetClause(APPLICATION_LOG|SECURITY_LOG|EXTERNAL_MONITOR)/EXTERNAL_MONITOR!swap	ALTER SERVER AUDIT a TO EXTRACT
+reject	reject	engine	auditTargetClause(APPLICATION_LOG|SECURITY_LOG|EXTERNAL_MONITOR)/EXTERNAL_MONITOR!swap	ALTER SERVER AUDIT a TO EXTRACT
 accept	accept	engine	auditFileOption/maxSizeAuditFileOption_MAXSIZE	ALTER SERVER AUDIT a TO FILE(MAXSIZE = UNLIMITED)
-accept	reject	engine	auditFileOption/maxSizeAuditFileOption_MAXSIZE!swap	ALTER SERVER AUDIT a TO FILE(MAXVALUE = UNLIMITED)
+reject	reject	engine	auditFileOption/maxSizeAuditFileOption_MAXSIZE!swap	ALTER SERVER AUDIT a TO FILE(MAXVALUE = UNLIMITED)
 accept	accept	engine	auditFileOption/maxRolloverFilesAuditFileOption_MAX_ROLLOVER_FILES	ALTER SERVER AUDIT a TO FILE(MAX_ROLLOVER_FILES = 1)
-accept	reject	engine	auditFileOption/maxRolloverFilesAuditFileOption_MAX_ROLLOVER_FILES!drop-1	ALTER SERVER AUDIT a TO FILE(= 1)
-accept	reject	engine	auditFileOption/maxRolloverFilesAuditFileOption_MAX_ROLLOVER_FILES!drop-2	ALTER SERVER AUDIT a TO FILE(MAX_ROLLOVER_FILES 1)
-accept	reject	engine	auditFileOption/maxRolloverFilesAuditFileOption_MAX_ROLLOVER_FILES!drop-3	ALTER SERVER AUDIT a TO FILE(MAX_ROLLOVER_FILES =)
-accept	reject	engine	auditFileOption/maxRolloverFilesAuditFileOption_MAX_ROLLOVER_FILES!truncate	ALTER SERVER AUDIT a TO FILE(MAX_ROLLOVER_FILES =
-accept	reject	engine	auditFileOption/maxRolloverFilesAuditFileOption_MAX_ROLLOVER_FILES!insert	ALTER SERVER AUDIT a TO FILE(MAX_ROLLOVER_FILES = 1 zzz)
-accept	reject	engine	auditFileOption/maxRolloverFilesAuditFileOption_MAX_ROLLOVER_FILES!swap	ALTER SERVER AUDIT a TO FILE(MAX_SIZE = 1)
+reject	reject	engine	auditFileOption/maxRolloverFilesAuditFileOption_MAX_ROLLOVER_FILES!drop-1	ALTER SERVER AUDIT a TO FILE(= 1)
+reject	reject	engine	auditFileOption/maxRolloverFilesAuditFileOption_MAX_ROLLOVER_FILES!drop-2	ALTER SERVER AUDIT a TO FILE(MAX_ROLLOVER_FILES 1)
+reject	reject	engine	auditFileOption/maxRolloverFilesAuditFileOption_MAX_ROLLOVER_FILES!drop-3	ALTER SERVER AUDIT a TO FILE(MAX_ROLLOVER_FILES =)
+reject	reject	engine	auditFileOption/maxRolloverFilesAuditFileOption_MAX_ROLLOVER_FILES!truncate	ALTER SERVER AUDIT a TO FILE(MAX_ROLLOVER_FILES =
+reject	reject	engine	auditFileOption/maxRolloverFilesAuditFileOption_MAX_ROLLOVER_FILES!insert	ALTER SERVER AUDIT a TO FILE(MAX_ROLLOVER_FILES = 1 zzz)
+reject	reject	engine	auditFileOption/maxRolloverFilesAuditFileOption_MAX_ROLLOVER_FILES!swap	ALTER SERVER AUDIT a TO FILE(MAX_SIZE = 1)
 accept	accept	engine	auditFileOption/reserveDiskSpaceAuditFileOption_RESERVE_DISK_SPACE	ALTER SERVER AUDIT a TO FILE(RESERVE_DISK_SPACE = ON)
-accept	reject	engine	auditFileOption/reserveDiskSpaceAuditFileOption_RESERVE_DISK_SPACE!drop-1	ALTER SERVER AUDIT a TO FILE(= ON)
-accept	reject	engine	auditFileOption/reserveDiskSpaceAuditFileOption_RESERVE_DISK_SPACE!drop-2	ALTER SERVER AUDIT a TO FILE(RESERVE_DISK_SPACE ON)
-accept	reject	engine	auditFileOption/reserveDiskSpaceAuditFileOption_RESERVE_DISK_SPACE!drop-3	ALTER SERVER AUDIT a TO FILE(RESERVE_DISK_SPACE =)
-accept	reject	engine	auditFileOption/reserveDiskSpaceAuditFileOption_RESERVE_DISK_SPACE!truncate	ALTER SERVER AUDIT a TO FILE(RESERVE_DISK_SPACE =
-accept	reject	engine	auditFileOption/reserveDiskSpaceAuditFileOption_RESERVE_DISK_SPACE!insert	ALTER SERVER AUDIT a TO FILE(RESERVE_DISK_SPACE = ON zzz)
-accept	reject	engine	auditFileOption/reserveDiskSpaceAuditFileOption_RESERVE_DISK_SPACE!swap	ALTER SERVER AUDIT a TO FILE(RESET = ON)
+reject	reject	engine	auditFileOption/reserveDiskSpaceAuditFileOption_RESERVE_DISK_SPACE!drop-1	ALTER SERVER AUDIT a TO FILE(= ON)
+reject	reject	engine	auditFileOption/reserveDiskSpaceAuditFileOption_RESERVE_DISK_SPACE!drop-2	ALTER SERVER AUDIT a TO FILE(RESERVE_DISK_SPACE ON)
+reject	reject	engine	auditFileOption/reserveDiskSpaceAuditFileOption_RESERVE_DISK_SPACE!drop-3	ALTER SERVER AUDIT a TO FILE(RESERVE_DISK_SPACE =)
+reject	reject	engine	auditFileOption/reserveDiskSpaceAuditFileOption_RESERVE_DISK_SPACE!truncate	ALTER SERVER AUDIT a TO FILE(RESERVE_DISK_SPACE =
+reject	reject	engine	auditFileOption/reserveDiskSpaceAuditFileOption_RESERVE_DISK_SPACE!insert	ALTER SERVER AUDIT a TO FILE(RESERVE_DISK_SPACE = ON zzz)
+reject	reject	engine	auditFileOption/reserveDiskSpaceAuditFileOption_RESERVE_DISK_SPACE!swap	ALTER SERVER AUDIT a TO FILE(RESET = ON)
 accept	accept	engine	auditFileOption/maxFilesAuditFileOption_MAX_FILES	ALTER SERVER AUDIT a TO FILE(MAX_FILES = 1)
-accept	reject	engine	auditFileOption/maxFilesAuditFileOption_MAX_FILES!drop-2	ALTER SERVER AUDIT a TO FILE(MAX_FILES 1)
-accept	reject	engine	auditFileOption/maxFilesAuditFileOption_MAX_FILES!drop-3	ALTER SERVER AUDIT a TO FILE(MAX_FILES =)
-accept	reject	engine	auditFileOption/maxFilesAuditFileOption_MAX_FILES!truncate	ALTER SERVER AUDIT a TO FILE(MAX_FILES =
-accept	reject	engine	auditFileOption/maxFilesAuditFileOption_MAX_FILES!insert	ALTER SERVER AUDIT a TO FILE(MAX_FILES = 1 zzz)
-accept	reject	engine	auditFileOption/maxFilesAuditFileOption_MAX_FILES!swap	ALTER SERVER AUDIT a TO FILE(MAX_MEMORY = 1)
+reject	reject	engine	auditFileOption/maxFilesAuditFileOption_MAX_FILES!drop-2	ALTER SERVER AUDIT a TO FILE(MAX_FILES 1)
+reject	reject	engine	auditFileOption/maxFilesAuditFileOption_MAX_FILES!drop-3	ALTER SERVER AUDIT a TO FILE(MAX_FILES =)
+reject	reject	engine	auditFileOption/maxFilesAuditFileOption_MAX_FILES!truncate	ALTER SERVER AUDIT a TO FILE(MAX_FILES =
+reject	reject	engine	auditFileOption/maxFilesAuditFileOption_MAX_FILES!insert	ALTER SERVER AUDIT a TO FILE(MAX_FILES = 1 zzz)
+reject	reject	engine	auditFileOption/maxFilesAuditFileOption_MAX_FILES!swap	ALTER SERVER AUDIT a TO FILE(MAX_MEMORY = 1)
 accept	accept	engine	auditFileOption/pathAuditFileOption	ALTER SERVER AUDIT a TO FILE(FILEPATH = 'a')
-accept	reject	engine	auditFileOption/pathAuditFileOption!drop-1	ALTER SERVER AUDIT a TO FILE(= 'a')
-accept	reject	engine	auditFileOption/pathAuditFileOption!drop-2	ALTER SERVER AUDIT a TO FILE(FILEPATH 'a')
-accept	reject	engine	auditFileOption/pathAuditFileOption!drop-3	ALTER SERVER AUDIT a TO FILE(FILEPATH =)
-accept	reject	engine	auditFileOption/pathAuditFileOption!truncate	ALTER SERVER AUDIT a TO FILE(FILEPATH =
-accept	reject	engine	auditFileOption/pathAuditFileOption!insert	ALTER SERVER AUDIT a TO FILE(FILEPATH = 'a' zzz)
-accept	reject	engine	auditFileOption/pathAuditFileOption!swap	ALTER SERVER AUDIT a TO FILE(FILESTREAM = 'a')
-accept	reject	engine	auditUrlOption/retentionDaysAuditUrlOption_RETENTION_DAYS	ALTER SERVER AUDIT a TO URL(RETENTION_DAYS = 1)
-accept	reject	engine	auditUrlOption/retentionDaysAuditUrlOption_RETENTION_DAYS!swap	ALTER SERVER AUDIT a TO URL(RETENTION_PERIOD = 1)
-accept	reject	engine	auditUrlOption/pathAuditFileOption	ALTER SERVER AUDIT a TO URL(FILEPATH = 'a')
-accept	reject	engine	auditUrlOption/pathAuditFileOption!drop-1	ALTER SERVER AUDIT a TO URL(= 'a')
-accept	reject	engine	auditUrlOption/pathAuditFileOption!drop-2	ALTER SERVER AUDIT a TO URL(FILEPATH 'a')
-accept	reject	engine	auditUrlOption/pathAuditFileOption!drop-3	ALTER SERVER AUDIT a TO URL(FILEPATH =)
-accept	reject	engine	auditUrlOption/pathAuditFileOption!truncate	ALTER SERVER AUDIT a TO URL(FILEPATH =
-accept	reject	engine	auditUrlOption/pathAuditFileOption!insert	ALTER SERVER AUDIT a TO URL(FILEPATH = 'a' zzz)
-accept	reject	engine	auditUrlOption/pathAuditFileOption!swap	ALTER SERVER AUDIT a TO URL(FILESTREAM = 'a')
+reject	reject	engine	auditFileOption/pathAuditFileOption!drop-1	ALTER SERVER AUDIT a TO FILE(= 'a')
+reject	reject	engine	auditFileOption/pathAuditFileOption!drop-2	ALTER SERVER AUDIT a TO FILE(FILEPATH 'a')
+reject	reject	engine	auditFileOption/pathAuditFileOption!drop-3	ALTER SERVER AUDIT a TO FILE(FILEPATH =)
+reject	reject	engine	auditFileOption/pathAuditFileOption!truncate	ALTER SERVER AUDIT a TO FILE(FILEPATH =
+reject	reject	engine	auditFileOption/pathAuditFileOption!insert	ALTER SERVER AUDIT a TO FILE(FILEPATH = 'a' zzz)
+reject	reject	engine	auditFileOption/pathAuditFileOption!swap	ALTER SERVER AUDIT a TO FILE(FILESTREAM = 'a')
+reject	reject	engine	auditUrlOption/retentionDaysAuditUrlOption_RETENTION_DAYS	ALTER SERVER AUDIT a TO URL(RETENTION_DAYS = 1)
+reject	reject	engine	auditUrlOption/retentionDaysAuditUrlOption_RETENTION_DAYS!swap	ALTER SERVER AUDIT a TO URL(RETENTION_PERIOD = 1)
+reject	reject	engine	auditUrlOption/pathAuditFileOption	ALTER SERVER AUDIT a TO URL(FILEPATH = 'a')
+reject	reject	engine	auditUrlOption/pathAuditFileOption!drop-1	ALTER SERVER AUDIT a TO URL(= 'a')
+reject	reject	engine	auditUrlOption/pathAuditFileOption!drop-2	ALTER SERVER AUDIT a TO URL(FILEPATH 'a')
+reject	reject	engine	auditUrlOption/pathAuditFileOption!drop-3	ALTER SERVER AUDIT a TO URL(FILEPATH =)
+reject	reject	engine	auditUrlOption/pathAuditFileOption!truncate	ALTER SERVER AUDIT a TO URL(FILEPATH =
+reject	reject	engine	auditUrlOption/pathAuditFileOption!insert	ALTER SERVER AUDIT a TO URL(FILEPATH = 'a' zzz)
+reject	reject	engine	auditUrlOption/pathAuditFileOption!swap	ALTER SERVER AUDIT a TO URL(FILESTREAM = 'a')
 accept	accept	engine	pathAuditFileOption/(FILEPATH|PATH)_EqualsSign_stringLiteral	ALTER SERVER AUDIT a TO FILE(FILEPATH = 'a')
 accept	accept	engine	pathAuditFileOption(FILEPATH|PATH)/FILEPATH	ALTER SERVER AUDIT a TO FILE(FILEPATH = 'a')
-accept	reject	engine	pathAuditFileOption(FILEPATH|PATH)/FILEPATH!truncate	ALTER SERVER AUDIT a TO FILE(
-accept	reject	engine	pathAuditFileOption(FILEPATH|PATH)/FILEPATH!insert	ALTER SERVER AUDIT a TO FILE(FILEPATH zzz = 'a')
-accept	reject	engine	pathAuditFileOption(FILEPATH|PATH)/PATH	ALTER SERVER AUDIT a TO FILE(PATH = 'a')
-accept	reject	engine	pathAuditFileOption(FILEPATH|PATH)/PATH!insert	ALTER SERVER AUDIT a TO FILE(PATH zzz = 'a')
-accept	reject	engine	pathAuditFileOption(FILEPATH|PATH)/PATH!swap	ALTER SERVER AUDIT a TO FILE(PAUSE = 'a')
-accept	reject	engine	auditCreateWithClause/With_LeftParenthesis_auditCreateOption_(Comma_auditCrea~d25d00f2	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a = 1)
-accept	reject	engine	auditCreateWithClause(Comma_auditCreateOption)*/%empty	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a = 1)
-accept	reject	engine	auditCreateWithClause(Comma_auditCreateOption)*/%empty!insert	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a = 1 zzz)
-accept	reject	engine	auditCreateWithClause(Comma_auditCreateOption)*/Comma_auditCreateOption_(Comma_auditCreateOption)*	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a = 1, a = 1)
-accept	reject	engine	auditCreateWithClause(Comma_auditCreateOption)*/Comma_auditCreateOption_(Comma_auditCreateOption)*!drop-1	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a = 1 a = 1)
-accept	reject	engine	auditCreateWithClause(Comma_auditCreateOption)*/Comma_auditCreateOption_(Comma_auditCreateOption)*!drop-2	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a = 1, = 1)
-accept	reject	engine	auditCreateWithClause(Comma_auditCreateOption)*/Comma_auditCreateOption_(Comma_auditCreateOption)*!drop-3	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a = 1, a 1)
-accept	reject	engine	auditCreateWithClause(Comma_auditCreateOption)*/Comma_auditCreateOption_(Comma_auditCreateOption)*!drop-4	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a = 1, a =)
-accept	reject	engine	auditCreateWithClause(Comma_auditCreateOption)*/Comma_auditCreateOption_(Comma_auditCreateOption)*!truncate	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a = 1, a =
-accept	reject	engine	auditCreateWithClause(Comma_auditCreateOption)*/Comma_auditCreateOption_(Comma_auditCreateOption)*!insert	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a = 1, a = 1 zzz)
-accept	reject	engine	auditWithClause/With_LeftParenthesis_auditOption_(Comma_auditOption)*_R~73507d14	ALTER SERVER AUDIT a WITH(a = 1)
+reject	reject	engine	pathAuditFileOption(FILEPATH|PATH)/FILEPATH!truncate	ALTER SERVER AUDIT a TO FILE(
+reject	reject	engine	pathAuditFileOption(FILEPATH|PATH)/FILEPATH!insert	ALTER SERVER AUDIT a TO FILE(FILEPATH zzz = 'a')
+reject	reject	engine	pathAuditFileOption(FILEPATH|PATH)/PATH	ALTER SERVER AUDIT a TO FILE(PATH = 'a')
+reject	reject	engine	pathAuditFileOption(FILEPATH|PATH)/PATH!insert	ALTER SERVER AUDIT a TO FILE(PATH zzz = 'a')
+reject	reject	engine	pathAuditFileOption(FILEPATH|PATH)/PATH!swap	ALTER SERVER AUDIT a TO FILE(PAUSE = 'a')
+reject	reject	engine	auditCreateWithClause/With_LeftParenthesis_auditCreateOption_(Comma_auditCrea~d25d00f2	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a = 1)
+reject	reject	engine	auditCreateWithClause(Comma_auditCreateOption)*/%empty	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a = 1)
+reject	reject	engine	auditCreateWithClause(Comma_auditCreateOption)*/%empty!insert	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a = 1 zzz)
+reject	reject	engine	auditCreateWithClause(Comma_auditCreateOption)*/Comma_auditCreateOption_(Comma_auditCreateOption)*	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a = 1, a = 1)
+reject	reject	engine	auditCreateWithClause(Comma_auditCreateOption)*/Comma_auditCreateOption_(Comma_auditCreateOption)*!drop-1	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a = 1 a = 1)
+reject	reject	engine	auditCreateWithClause(Comma_auditCreateOption)*/Comma_auditCreateOption_(Comma_auditCreateOption)*!drop-2	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a = 1, = 1)
+reject	reject	engine	auditCreateWithClause(Comma_auditCreateOption)*/Comma_auditCreateOption_(Comma_auditCreateOption)*!drop-3	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a = 1, a 1)
+reject	reject	engine	auditCreateWithClause(Comma_auditCreateOption)*/Comma_auditCreateOption_(Comma_auditCreateOption)*!drop-4	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a = 1, a =)
+reject	reject	engine	auditCreateWithClause(Comma_auditCreateOption)*/Comma_auditCreateOption_(Comma_auditCreateOption)*!truncate	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a = 1, a =
+reject	reject	engine	auditCreateWithClause(Comma_auditCreateOption)*/Comma_auditCreateOption_(Comma_auditCreateOption)*!insert	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a = 1, a = 1 zzz)
+reject	reject	engine	auditWithClause/With_LeftParenthesis_auditOption_(Comma_auditOption)*_R~73507d14	ALTER SERVER AUDIT a WITH(a = 1)
 reject	reject	engine	auditWithClause/With_LeftParenthesis_auditOption_(Comma_auditOption)*_R~73507d14!drop-1	ALTER SERVER AUDIT a(a = 1)
 reject	reject	engine	auditWithClause/With_LeftParenthesis_auditOption_(Comma_auditOption)*_R~73507d14!drop-2	ALTER SERVER AUDIT a WITH a = 1)
-accept	reject	engine	auditWithClause/With_LeftParenthesis_auditOption_(Comma_auditOption)*_R~73507d14!drop-3	ALTER SERVER AUDIT a WITH(= 1)
-accept	reject	engine	auditWithClause/With_LeftParenthesis_auditOption_(Comma_auditOption)*_R~73507d14!drop-4	ALTER SERVER AUDIT a WITH(a 1)
-accept	reject	engine	auditWithClause/With_LeftParenthesis_auditOption_(Comma_auditOption)*_R~73507d14!drop-5	ALTER SERVER AUDIT a WITH(a =)
-accept	reject	engine	auditWithClause/With_LeftParenthesis_auditOption_(Comma_auditOption)*_R~73507d14!drop-6	ALTER SERVER AUDIT a WITH(a = 1
+reject	reject	engine	auditWithClause/With_LeftParenthesis_auditOption_(Comma_auditOption)*_R~73507d14!drop-3	ALTER SERVER AUDIT a WITH(= 1)
+reject	reject	engine	auditWithClause/With_LeftParenthesis_auditOption_(Comma_auditOption)*_R~73507d14!drop-4	ALTER SERVER AUDIT a WITH(a 1)
+reject	reject	engine	auditWithClause/With_LeftParenthesis_auditOption_(Comma_auditOption)*_R~73507d14!drop-5	ALTER SERVER AUDIT a WITH(a =)
+reject	reject	engine	auditWithClause/With_LeftParenthesis_auditOption_(Comma_auditOption)*_R~73507d14!drop-6	ALTER SERVER AUDIT a WITH(a = 1
 reject	reject	engine	auditWithClause/With_LeftParenthesis_auditOption_(Comma_auditOption)*_R~73507d14!insert	ALTER SERVER AUDIT a WITH(a = 1) zzz
 reject	reject	engine	auditWithClause/With_LeftParenthesis_auditOption_(Comma_auditOption)*_R~73507d14!swap	ALTER SERVER AUDIT a WITHIN(a = 1)
-accept	reject	engine	auditWithClause(Comma_auditOption)*/%empty	ALTER SERVER AUDIT a WITH(a = 1)
-accept	reject	engine	auditWithClause(Comma_auditOption)*/%empty!insert	ALTER SERVER AUDIT a WITH(a = 1 zzz)
-accept	reject	engine	auditWithClause(Comma_auditOption)*/Comma_auditOption_(Comma_auditOption)*	ALTER SERVER AUDIT a WITH(a = 1, a = 1)
-accept	reject	engine	auditWithClause(Comma_auditOption)*/Comma_auditOption_(Comma_auditOption)*!drop-1	ALTER SERVER AUDIT a WITH(a = 1 a = 1)
-accept	reject	engine	auditWithClause(Comma_auditOption)*/Comma_auditOption_(Comma_auditOption)*!drop-2	ALTER SERVER AUDIT a WITH(a = 1, = 1)
-accept	reject	engine	auditWithClause(Comma_auditOption)*/Comma_auditOption_(Comma_auditOption)*!drop-3	ALTER SERVER AUDIT a WITH(a = 1, a 1)
-accept	reject	engine	auditWithClause(Comma_auditOption)*/Comma_auditOption_(Comma_auditOption)*!drop-4	ALTER SERVER AUDIT a WITH(a = 1, a =)
-accept	reject	engine	auditWithClause(Comma_auditOption)*/Comma_auditOption_(Comma_auditOption)*!truncate	ALTER SERVER AUDIT a WITH(a = 1, a =
-accept	reject	engine	auditWithClause(Comma_auditOption)*/Comma_auditOption_(Comma_auditOption)*!insert	ALTER SERVER AUDIT a WITH(a = 1, a = 1 zzz)
-accept	reject	engine	auditCreateOption/Identifier_EqualsSign_(queueDelayAuditOption|onFailureA~00ec38f8	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a = 1)
-accept	reject	engine	auditCreateOption/Identifier_EqualsSign_(queueDelayAuditOption|onFailureA~00ec38f8!truncate	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a =
-accept	reject	engine	auditCreateOption(queueDelayAuditOption|onFailureAudit~33c18951)/queueDelayAuditOption	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a = 1)
-accept	reject	engine	auditCreateOption(queueDelayAuditOption|onFailureAudit~33c18951)/onFailureAuditOption	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a = CONTINUE)
-accept	reject	engine	auditCreateOption(queueDelayAuditOption|onFailureAudit~33c18951)/onFailureAuditOption!insert	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a = CONTINUE zzz)
-accept	reject	engine	auditCreateOption(queueDelayAuditOption|onFailureAudit~33c18951)/onFailureAuditOption!swap	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a = CONTRACT)
-accept	reject	engine	auditCreateOption(queueDelayAuditOption|onFailureAudit~33c18951)/auditGuidAuditOption	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a = 'a')
-accept	reject	engine	auditCreateOption(queueDelayAuditOption|onFailureAudit~33c18951)/auditGuidAuditOption!insert	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a = 'a' zzz)
-accept	reject	engine	auditCreateOption(queueDelayAuditOption|onFailureAudit~33c18951)/operatorAuditOption	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a = ON)
-accept	reject	engine	auditCreateOption(queueDelayAuditOption|onFailureAudit~33c18951)/operatorAuditOption!insert	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a = ON zzz)
-accept	reject	engine	auditCreateOption(queueDelayAuditOption|onFailureAudit~33c18951)/operatorAuditOption!swap	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a = ONLINE)
-accept	reject	engine	auditOption/Identifier_EqualsSign_(queueDelayAuditOption|onFailureA~cf61ca08	ALTER SERVER AUDIT a WITH(a = 1)
-accept	reject	engine	auditOption/Identifier_EqualsSign_(queueDelayAuditOption|onFailureA~cf61ca08!truncate	ALTER SERVER AUDIT a WITH(a =
-accept	reject	engine	auditOption(queueDelayAuditOption|onFailureAudit~cd3a63e3)/queueDelayAuditOption	ALTER SERVER AUDIT a WITH(a = 1)
-accept	reject	engine	auditOption(queueDelayAuditOption|onFailureAudit~cd3a63e3)/onFailureAuditOption	ALTER SERVER AUDIT a WITH(a = CONTINUE)
-accept	reject	engine	auditOption(queueDelayAuditOption|onFailureAudit~cd3a63e3)/onFailureAuditOption!insert	ALTER SERVER AUDIT a WITH(a = CONTINUE zzz)
-accept	reject	engine	auditOption(queueDelayAuditOption|onFailureAudit~cd3a63e3)/onFailureAuditOption!swap	ALTER SERVER AUDIT a WITH(a = CONTRACT)
-accept	reject	engine	auditOption(queueDelayAuditOption|onFailureAudit~cd3a63e3)/operatorAuditOption	ALTER SERVER AUDIT a WITH(a = ON)
-accept	reject	engine	auditOption(queueDelayAuditOption|onFailureAudit~cd3a63e3)/operatorAuditOption!insert	ALTER SERVER AUDIT a WITH(a = ON zzz)
-accept	reject	engine	auditOption(queueDelayAuditOption|onFailureAudit~cd3a63e3)/operatorAuditOption!swap	ALTER SERVER AUDIT a WITH(a = ONLINE)
-accept	reject	engine	auditOption(queueDelayAuditOption|onFailureAudit~cd3a63e3)/stateAuditOption	ALTER SERVER AUDIT a WITH(a = ON)
-accept	reject	engine	queueDelayAuditOption/integer	ALTER SERVER AUDIT a WITH(a = 1)
-accept	reject	engine	onFailureAuditOption/(Continue|Shutdown|FAIL_OPERATION)	ALTER SERVER AUDIT a WITH(a = CONTINUE)
-accept	reject	engine	onFailureAuditOption(Continue|Shutdown|FAIL_OPERATION)/Continue	ALTER SERVER AUDIT a WITH(a = CONTINUE)
-accept	reject	engine	onFailureAuditOption(Continue|Shutdown|FAIL_OPERATION)/Shutdown	ALTER SERVER AUDIT a WITH(a = SHUTDOWN)
-accept	reject	engine	onFailureAuditOption(Continue|Shutdown|FAIL_OPERATION)/Shutdown!insert	ALTER SERVER AUDIT a WITH(a = SHUTDOWN zzz)
-accept	reject	engine	onFailureAuditOption(Continue|Shutdown|FAIL_OPERATION)/Shutdown!swap	ALTER SERVER AUDIT a WITH(a = SID)
-accept	reject	engine	onFailureAuditOption(Continue|Shutdown|FAIL_OPERATION)/FAIL_OPERATION	ALTER SERVER AUDIT a WITH(a = FAIL_OPERATION)
-accept	reject	engine	onFailureAuditOption(Continue|Shutdown|FAIL_OPERATION)/FAIL_OPERATION!insert	ALTER SERVER AUDIT a WITH(a = FAIL_OPERATION zzz)
-accept	reject	engine	onFailureAuditOption(Continue|Shutdown|FAIL_OPERATION)/FAIL_OPERATION!swap	ALTER SERVER AUDIT a WITH(a = FALSE)
-accept	reject	engine	auditGuidAuditOption/stringLiteral	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a = 'a')
-accept	reject	engine	operatorAuditOption/optionOnOff	ALTER SERVER AUDIT a WITH(a = ON)
-accept	reject	engine	stateAuditOption/optionOnOff	ALTER SERVER AUDIT a WITH(a = ON)
+reject	reject	engine	auditWithClause(Comma_auditOption)*/%empty	ALTER SERVER AUDIT a WITH(a = 1)
+reject	reject	engine	auditWithClause(Comma_auditOption)*/%empty!insert	ALTER SERVER AUDIT a WITH(a = 1 zzz)
+reject	reject	engine	auditWithClause(Comma_auditOption)*/Comma_auditOption_(Comma_auditOption)*	ALTER SERVER AUDIT a WITH(a = 1, a = 1)
+reject	reject	engine	auditWithClause(Comma_auditOption)*/Comma_auditOption_(Comma_auditOption)*!drop-1	ALTER SERVER AUDIT a WITH(a = 1 a = 1)
+reject	reject	engine	auditWithClause(Comma_auditOption)*/Comma_auditOption_(Comma_auditOption)*!drop-2	ALTER SERVER AUDIT a WITH(a = 1, = 1)
+reject	reject	engine	auditWithClause(Comma_auditOption)*/Comma_auditOption_(Comma_auditOption)*!drop-3	ALTER SERVER AUDIT a WITH(a = 1, a 1)
+reject	reject	engine	auditWithClause(Comma_auditOption)*/Comma_auditOption_(Comma_auditOption)*!drop-4	ALTER SERVER AUDIT a WITH(a = 1, a =)
+reject	reject	engine	auditWithClause(Comma_auditOption)*/Comma_auditOption_(Comma_auditOption)*!truncate	ALTER SERVER AUDIT a WITH(a = 1, a =
+reject	reject	engine	auditWithClause(Comma_auditOption)*/Comma_auditOption_(Comma_auditOption)*!insert	ALTER SERVER AUDIT a WITH(a = 1, a = 1 zzz)
+reject	reject	engine	auditCreateOption/Identifier_EqualsSign_(queueDelayAuditOption|onFailureA~00ec38f8	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a = 1)
+reject	reject	engine	auditCreateOption/Identifier_EqualsSign_(queueDelayAuditOption|onFailureA~00ec38f8!truncate	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a =
+reject	reject	engine	auditCreateOption(queueDelayAuditOption|onFailureAudit~33c18951)/queueDelayAuditOption	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a = 1)
+reject	reject	engine	auditCreateOption(queueDelayAuditOption|onFailureAudit~33c18951)/onFailureAuditOption	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a = CONTINUE)
+reject	reject	engine	auditCreateOption(queueDelayAuditOption|onFailureAudit~33c18951)/onFailureAuditOption!insert	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a = CONTINUE zzz)
+reject	reject	engine	auditCreateOption(queueDelayAuditOption|onFailureAudit~33c18951)/onFailureAuditOption!swap	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a = CONTRACT)
+reject	reject	engine	auditCreateOption(queueDelayAuditOption|onFailureAudit~33c18951)/auditGuidAuditOption	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a = 'a')
+reject	reject	engine	auditCreateOption(queueDelayAuditOption|onFailureAudit~33c18951)/auditGuidAuditOption!insert	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a = 'a' zzz)
+reject	reject	engine	auditCreateOption(queueDelayAuditOption|onFailureAudit~33c18951)/operatorAuditOption	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a = ON)
+reject	reject	engine	auditCreateOption(queueDelayAuditOption|onFailureAudit~33c18951)/operatorAuditOption!insert	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a = ON zzz)
+reject	reject	engine	auditCreateOption(queueDelayAuditOption|onFailureAudit~33c18951)/operatorAuditOption!swap	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a = ONLINE)
+reject	reject	engine	auditOption/Identifier_EqualsSign_(queueDelayAuditOption|onFailureA~cf61ca08	ALTER SERVER AUDIT a WITH(a = 1)
+reject	reject	engine	auditOption/Identifier_EqualsSign_(queueDelayAuditOption|onFailureA~cf61ca08!truncate	ALTER SERVER AUDIT a WITH(a =
+reject	reject	engine	auditOption(queueDelayAuditOption|onFailureAudit~cd3a63e3)/queueDelayAuditOption	ALTER SERVER AUDIT a WITH(a = 1)
+reject	reject	engine	auditOption(queueDelayAuditOption|onFailureAudit~cd3a63e3)/onFailureAuditOption	ALTER SERVER AUDIT a WITH(a = CONTINUE)
+reject	reject	engine	auditOption(queueDelayAuditOption|onFailureAudit~cd3a63e3)/onFailureAuditOption!insert	ALTER SERVER AUDIT a WITH(a = CONTINUE zzz)
+reject	reject	engine	auditOption(queueDelayAuditOption|onFailureAudit~cd3a63e3)/onFailureAuditOption!swap	ALTER SERVER AUDIT a WITH(a = CONTRACT)
+reject	reject	engine	auditOption(queueDelayAuditOption|onFailureAudit~cd3a63e3)/operatorAuditOption	ALTER SERVER AUDIT a WITH(a = ON)
+reject	reject	engine	auditOption(queueDelayAuditOption|onFailureAudit~cd3a63e3)/operatorAuditOption!insert	ALTER SERVER AUDIT a WITH(a = ON zzz)
+reject	reject	engine	auditOption(queueDelayAuditOption|onFailureAudit~cd3a63e3)/operatorAuditOption!swap	ALTER SERVER AUDIT a WITH(a = ONLINE)
+reject	reject	engine	auditOption(queueDelayAuditOption|onFailureAudit~cd3a63e3)/stateAuditOption	ALTER SERVER AUDIT a WITH(a = ON)
+reject	reject	engine	queueDelayAuditOption/integer	ALTER SERVER AUDIT a WITH(a = 1)
+reject	reject	engine	onFailureAuditOption/(Continue|Shutdown|FAIL_OPERATION)	ALTER SERVER AUDIT a WITH(a = CONTINUE)
+reject	reject	engine	onFailureAuditOption(Continue|Shutdown|FAIL_OPERATION)/Continue	ALTER SERVER AUDIT a WITH(a = CONTINUE)
+reject	reject	engine	onFailureAuditOption(Continue|Shutdown|FAIL_OPERATION)/Shutdown	ALTER SERVER AUDIT a WITH(a = SHUTDOWN)
+reject	reject	engine	onFailureAuditOption(Continue|Shutdown|FAIL_OPERATION)/Shutdown!insert	ALTER SERVER AUDIT a WITH(a = SHUTDOWN zzz)
+reject	reject	engine	onFailureAuditOption(Continue|Shutdown|FAIL_OPERATION)/Shutdown!swap	ALTER SERVER AUDIT a WITH(a = SID)
+reject	reject	engine	onFailureAuditOption(Continue|Shutdown|FAIL_OPERATION)/FAIL_OPERATION	ALTER SERVER AUDIT a WITH(a = FAIL_OPERATION)
+reject	reject	engine	onFailureAuditOption(Continue|Shutdown|FAIL_OPERATION)/FAIL_OPERATION!insert	ALTER SERVER AUDIT a WITH(a = FAIL_OPERATION zzz)
+reject	reject	engine	onFailureAuditOption(Continue|Shutdown|FAIL_OPERATION)/FAIL_OPERATION!swap	ALTER SERVER AUDIT a WITH(a = FALSE)
+reject	reject	engine	auditGuidAuditOption/stringLiteral	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a = 'a')
+reject	reject	engine	operatorAuditOption/optionOnOff	ALTER SERVER AUDIT a WITH(a = ON)
+reject	reject	engine	stateAuditOption/optionOnOff	ALTER SERVER AUDIT a WITH(a = ON)
 accept	accept	engine	createServerAuditSpecificationStatement/SPECIFICATION_identifier_auditSpecificationForClause_(c~18d51fe0	CREATE SERVER AUDIT SPECIFICATION a FOR SERVER AUDIT a
 reject	reject	engine	createServerAuditSpecificationStatement/SPECIFICATION_identifier_auditSpecificationForClause_(c~18d51fe0!drop-1	CREATE SERVER AUDIT a FOR SERVER AUDIT a
-accept	reject	engine	createServerAuditSpecificationStatement/SPECIFICATION_identifier_auditSpecificationForClause_(c~18d51fe0!drop-2	CREATE SERVER AUDIT SPECIFICATION FOR SERVER AUDIT a
+reject	reject	engine	createServerAuditSpecificationStatement/SPECIFICATION_identifier_auditSpecificationForClause_(c~18d51fe0!drop-2	CREATE SERVER AUDIT SPECIFICATION FOR SERVER AUDIT a
 reject	reject	engine	createServerAuditSpecificationStatement/SPECIFICATION_identifier_auditSpecificationForClause_(c~18d51fe0!drop-3	CREATE SERVER AUDIT SPECIFICATION a SERVER AUDIT a
-accept	reject	engine	createServerAuditSpecificationStatement/SPECIFICATION_identifier_auditSpecificationForClause_(c~18d51fe0!drop-4	CREATE SERVER AUDIT SPECIFICATION a FOR AUDIT a
-accept	reject	engine	createServerAuditSpecificationStatement/SPECIFICATION_identifier_auditSpecificationForClause_(c~18d51fe0!drop-5	CREATE SERVER AUDIT SPECIFICATION a FOR SERVER a
-accept	reject	engine	createServerAuditSpecificationStatement/SPECIFICATION_identifier_auditSpecificationForClause_(c~18d51fe0!drop-6	CREATE SERVER AUDIT SPECIFICATION a FOR SERVER AUDIT
+reject	reject	engine	createServerAuditSpecificationStatement/SPECIFICATION_identifier_auditSpecificationForClause_(c~18d51fe0!drop-4	CREATE SERVER AUDIT SPECIFICATION a FOR AUDIT a
+reject	reject	engine	createServerAuditSpecificationStatement/SPECIFICATION_identifier_auditSpecificationForClause_(c~18d51fe0!drop-5	CREATE SERVER AUDIT SPECIFICATION a FOR SERVER a
+reject	reject	engine	createServerAuditSpecificationStatement/SPECIFICATION_identifier_auditSpecificationForClause_(c~18d51fe0!drop-6	CREATE SERVER AUDIT SPECIFICATION a FOR SERVER AUDIT
 reject	reject	engine	createServerAuditSpecificationStatement/SPECIFICATION_identifier_auditSpecificationForClause_(c~18d51fe0!insert	CREATE SERVER AUDIT SPECIFICATION a FOR SERVER AUDIT a zzz
 reject	reject	engine	createServerAuditSpecificationStatement/SPECIFICATION_identifier_auditSpecificationForClause_(c~18d51fe0!swap	CREATE SERVER AUDIT SPLIT a FOR SERVER AUDIT a
 accept	accept	engine	createServerAuditSpecificationStatement(createAuditSpecificationDetail_(Comm~4a93a8d9)?/%empty	CREATE SERVER AUDIT SPECIFICATION a FOR SERVER AUDIT a
-accept	reject	engine	createServerAuditSpecificationStatement(createAuditSpecificationDetail_(Comm~4a93a8d9)?/createAuditSpecificationDetail_(Comma_createAuditSpecif~68790497	CREATE SERVER AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(a)
+reject	reject	engine	createServerAuditSpecificationStatement(createAuditSpecificationDetail_(Comm~4a93a8d9)?/createAuditSpecificationDetail_(Comma_createAuditSpecif~68790497	CREATE SERVER AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(a)
 reject	reject	engine	createServerAuditSpecificationStatement(createAuditSpecificationDetail_(Comm~4a93a8d9)?/createAuditSpecificationDetail_(Comma_createAuditSpecif~68790497!drop-1	CREATE SERVER AUDIT SPECIFICATION a FOR SERVER AUDIT a(a)
 reject	reject	engine	createServerAuditSpecificationStatement(createAuditSpecificationDetail_(Comm~4a93a8d9)?/createAuditSpecificationDetail_(Comma_createAuditSpecif~68790497!drop-2	CREATE SERVER AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD a)
-accept	reject	engine	createServerAuditSpecificationStatement(createAuditSpecificationDetail_(Comm~4a93a8d9)?/createAuditSpecificationDetail_(Comma_createAuditSpecif~68790497!drop-3	CREATE SERVER AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD()
-accept	reject	engine	createServerAuditSpecificationStatement(createAuditSpecificationDetail_(Comm~4a93a8d9)?/createAuditSpecificationDetail_(Comma_createAuditSpecif~68790497!drop-4	CREATE SERVER AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(a
+reject	reject	engine	createServerAuditSpecificationStatement(createAuditSpecificationDetail_(Comm~4a93a8d9)?/createAuditSpecificationDetail_(Comma_createAuditSpecif~68790497!drop-3	CREATE SERVER AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD()
+reject	reject	engine	createServerAuditSpecificationStatement(createAuditSpecificationDetail_(Comm~4a93a8d9)?/createAuditSpecificationDetail_(Comma_createAuditSpecif~68790497!drop-4	CREATE SERVER AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(a
 reject	reject	engine	createServerAuditSpecificationStatement(createAuditSpecificationDetail_(Comm~4a93a8d9)?/createAuditSpecificationDetail_(Comma_createAuditSpecif~68790497!insert	CREATE SERVER AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(a) zzz
 reject	reject	engine	createServerAuditSpecificationStatement(createAuditSpecificationDetail_(Comm~4a93a8d9)?/createAuditSpecificationDetail_(Comma_createAuditSpecif~68790497!swap	CREATE SERVER AUDIT SPECIFICATION a FOR SERVER AUDIT a ADMIN(a)
-accept	reject	engine	createServerAuditSpecificationStatement(Comma_createAuditSpecificationDetail)*/%empty	CREATE SERVER AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(a)
-accept	reject	engine	createServerAuditSpecificationStatement(Comma_createAuditSpecificationDetail)*/Comma_createAuditSpecificationDetail_(Comma_createAudit~55e3179e	CREATE SERVER AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(a), ADD(a)
-accept	reject	engine	createServerAuditSpecificationStatement(Comma_createAuditSpecificationDetail)*/Comma_createAuditSpecificationDetail_(Comma_createAudit~55e3179e!drop-1	CREATE SERVER AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(a) ADD(a)
+reject	reject	engine	createServerAuditSpecificationStatement(Comma_createAuditSpecificationDetail)*/%empty	CREATE SERVER AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(a)
+reject	reject	engine	createServerAuditSpecificationStatement(Comma_createAuditSpecificationDetail)*/Comma_createAuditSpecificationDetail_(Comma_createAudit~55e3179e	CREATE SERVER AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(a), ADD(a)
+reject	reject	engine	createServerAuditSpecificationStatement(Comma_createAuditSpecificationDetail)*/Comma_createAuditSpecificationDetail_(Comma_createAudit~55e3179e!drop-1	CREATE SERVER AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(a) ADD(a)
 reject	reject	engine	createServerAuditSpecificationStatement(Comma_createAuditSpecificationDetail)*/Comma_createAuditSpecificationDetail_(Comma_createAudit~55e3179e!drop-2	CREATE SERVER AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(a),(a)
 reject	reject	engine	createServerAuditSpecificationStatement(Comma_createAuditSpecificationDetail)*/Comma_createAuditSpecificationDetail_(Comma_createAudit~55e3179e!drop-3	CREATE SERVER AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(a), ADD a)
-accept	reject	engine	createServerAuditSpecificationStatement(Comma_createAuditSpecificationDetail)*/Comma_createAuditSpecificationDetail_(Comma_createAudit~55e3179e!drop-4	CREATE SERVER AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(a), ADD()
-accept	reject	engine	createServerAuditSpecificationStatement(Comma_createAuditSpecificationDetail)*/Comma_createAuditSpecificationDetail_(Comma_createAudit~55e3179e!drop-5	CREATE SERVER AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(a), ADD(a
+reject	reject	engine	createServerAuditSpecificationStatement(Comma_createAuditSpecificationDetail)*/Comma_createAuditSpecificationDetail_(Comma_createAudit~55e3179e!drop-4	CREATE SERVER AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(a), ADD()
+reject	reject	engine	createServerAuditSpecificationStatement(Comma_createAuditSpecificationDetail)*/Comma_createAuditSpecificationDetail_(Comma_createAudit~55e3179e!drop-5	CREATE SERVER AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(a), ADD(a
 reject	reject	engine	createServerAuditSpecificationStatement(Comma_createAuditSpecificationDetail)*/Comma_createAuditSpecificationDetail_(Comma_createAudit~55e3179e!insert	CREATE SERVER AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(a), ADD(a) zzz
 reject	reject	engine	createServerAuditSpecificationStatement(Comma_createAuditSpecificationDetail)*/Comma_createAuditSpecificationDetail_(Comma_createAudit~55e3179e!swap	CREATE SERVER AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(a), ADMIN(a)
-accept	reject	engine	alterServerAuditStatement/identifier_(MODIFY_NAME_EqualsSign_identifier|(a~f69ba7bf)	ALTER SERVER AUDIT a
-accept	reject	engine	alterServerAuditStatement/identifier_(MODIFY_NAME_EqualsSign_identifier|(a~f69ba7bf)!drop-1	ALTER SERVER AUDIT
+reject	reject	engine	alterServerAuditStatement/identifier_(MODIFY_NAME_EqualsSign_identifier|(a~f69ba7bf)	ALTER SERVER AUDIT a
+reject	reject	engine	alterServerAuditStatement/identifier_(MODIFY_NAME_EqualsSign_identifier|(a~f69ba7bf)!drop-1	ALTER SERVER AUDIT
 reject	reject	engine	alterServerAuditStatement/identifier_(MODIFY_NAME_EqualsSign_identifier|(a~f69ba7bf)!insert	ALTER SERVER AUDIT a zzz
 accept	accept	engine	alterServerAuditStatement(MODIFY_NAME_EqualsSign_identifier|(a~f69ba7bf)/MODIFY_NAME_EqualsSign_identifier	ALTER SERVER AUDIT a MODIFY NAME = a
 reject	reject	engine	alterServerAuditStatement(MODIFY_NAME_EqualsSign_identifier|(a~f69ba7bf)/MODIFY_NAME_EqualsSign_identifier!drop-1	ALTER SERVER AUDIT a NAME = a
-accept	reject	engine	alterServerAuditStatement(MODIFY_NAME_EqualsSign_identifier|(a~f69ba7bf)/MODIFY_NAME_EqualsSign_identifier!drop-2	ALTER SERVER AUDIT a MODIFY = a
-accept	reject	engine	alterServerAuditStatement(MODIFY_NAME_EqualsSign_identifier|(a~f69ba7bf)/MODIFY_NAME_EqualsSign_identifier!drop-3	ALTER SERVER AUDIT a MODIFY NAME a
-accept	reject	engine	alterServerAuditStatement(MODIFY_NAME_EqualsSign_identifier|(a~f69ba7bf)/MODIFY_NAME_EqualsSign_identifier!drop-4	ALTER SERVER AUDIT a MODIFY NAME =
+reject	reject	engine	alterServerAuditStatement(MODIFY_NAME_EqualsSign_identifier|(a~f69ba7bf)/MODIFY_NAME_EqualsSign_identifier!drop-2	ALTER SERVER AUDIT a MODIFY = a
+reject	reject	engine	alterServerAuditStatement(MODIFY_NAME_EqualsSign_identifier|(a~f69ba7bf)/MODIFY_NAME_EqualsSign_identifier!drop-3	ALTER SERVER AUDIT a MODIFY NAME a
+reject	reject	engine	alterServerAuditStatement(MODIFY_NAME_EqualsSign_identifier|(a~f69ba7bf)/MODIFY_NAME_EqualsSign_identifier!drop-4	ALTER SERVER AUDIT a MODIFY NAME =
 reject	reject	engine	alterServerAuditStatement(MODIFY_NAME_EqualsSign_identifier|(a~f69ba7bf)/MODIFY_NAME_EqualsSign_identifier!insert	ALTER SERVER AUDIT a MODIFY NAME = a zzz
 reject	reject	engine	alterServerAuditStatement(MODIFY_NAME_EqualsSign_identifier|(a~f69ba7bf)/MODIFY_NAME_EqualsSign_identifier!swap	ALTER SERVER AUDIT a MOVE NAME = a
-accept	reject	engine	alterServerAuditStatement(MODIFY_NAME_EqualsSign_identifier|(a~f69ba7bf)/(auditTargetClause)?_(auditWithClause)?_(Where_eventBoo~1f84c3fb	ALTER SERVER AUDIT a
+reject	reject	engine	alterServerAuditStatement(MODIFY_NAME_EqualsSign_identifier|(a~f69ba7bf)/(auditTargetClause)?_(auditWithClause)?_(Where_eventBoo~1f84c3fb	ALTER SERVER AUDIT a
 accept	accept	engine	alterServerAuditStatement(MODIFY_NAME_EqualsSign_identifier|(a~f69ba7bf)/REMOVE_Where	ALTER SERVER AUDIT a REMOVE WHERE
-accept	reject	engine	alterServerAuditStatement(MODIFY_NAME_EqualsSign_identifier|(a~f69ba7bf)/REMOVE_Where!drop-1	ALTER SERVER AUDIT a WHERE
-accept	reject	engine	alterServerAuditStatement(MODIFY_NAME_EqualsSign_identifier|(a~f69ba7bf)/REMOVE_Where!drop-2	ALTER SERVER AUDIT a REMOVE
+reject	reject	engine	alterServerAuditStatement(MODIFY_NAME_EqualsSign_identifier|(a~f69ba7bf)/REMOVE_Where!drop-1	ALTER SERVER AUDIT a WHERE
+reject	reject	engine	alterServerAuditStatement(MODIFY_NAME_EqualsSign_identifier|(a~f69ba7bf)/REMOVE_Where!drop-2	ALTER SERVER AUDIT a REMOVE
 reject	reject	engine	alterServerAuditStatement(MODIFY_NAME_EqualsSign_identifier|(a~f69ba7bf)/REMOVE_Where!insert	ALTER SERVER AUDIT a REMOVE WHERE zzz
 reject	reject	engine	alterServerAuditStatement(MODIFY_NAME_EqualsSign_identifier|(a~f69ba7bf)/REMOVE_Where!swap	ALTER SERVER AUDIT a RENAME WHERE
-accept	reject	engine	alterServerAuditStatement(auditTargetClause)?/%empty	ALTER SERVER AUDIT a
+reject	reject	engine	alterServerAuditStatement(auditTargetClause)?/%empty	ALTER SERVER AUDIT a
 accept	accept	engine	alterServerAuditStatement(auditTargetClause)?/auditTargetClause	ALTER SERVER AUDIT a TO APPLICATION_LOG
-accept	reject	engine	alterServerAuditStatement(auditWithClause)?/%empty	ALTER SERVER AUDIT a
-accept	reject	engine	alterServerAuditStatement(auditWithClause)?/auditWithClause	ALTER SERVER AUDIT a WITH(a = 1)
-accept	reject	engine	alterServerAuditStatement(Where_eventBooleanExpression)?/%empty	ALTER SERVER AUDIT a
+reject	reject	engine	alterServerAuditStatement(auditWithClause)?/%empty	ALTER SERVER AUDIT a
+reject	reject	engine	alterServerAuditStatement(auditWithClause)?/auditWithClause	ALTER SERVER AUDIT a WITH(a = 1)
+reject	reject	engine	alterServerAuditStatement(Where_eventBooleanExpression)?/%empty	ALTER SERVER AUDIT a
 accept	accept	engine	alterServerAuditStatement(Where_eventBooleanExpression)?/Where_eventBooleanExpression	ALTER SERVER AUDIT a WHERE a = 1
 reject	reject	engine	alterServerAuditStatement(Where_eventBooleanExpression)?/Where_eventBooleanExpression!drop-1	ALTER SERVER AUDIT a a = 1
 reject	reject	engine	alterServerAuditStatement(Where_eventBooleanExpression)?/Where_eventBooleanExpression!drop-2	ALTER SERVER AUDIT a WHERE = 1
 reject	reject	engine	alterServerAuditStatement(Where_eventBooleanExpression)?/Where_eventBooleanExpression!drop-3	ALTER SERVER AUDIT a WHERE a 1
-accept	reject	engine	alterServerAuditStatement(Where_eventBooleanExpression)?/Where_eventBooleanExpression!drop-4	ALTER SERVER AUDIT a WHERE a =
+reject	reject	engine	alterServerAuditStatement(Where_eventBooleanExpression)?/Where_eventBooleanExpression!drop-4	ALTER SERVER AUDIT a WHERE a =
 reject	reject	engine	alterServerAuditStatement(Where_eventBooleanExpression)?/Where_eventBooleanExpression!insert	ALTER SERVER AUDIT a WHERE a = 1 zzz
 reject	reject	engine	alterServerAuditStatement(Where_eventBooleanExpression)?/Where_eventBooleanExpression!swap	ALTER SERVER AUDIT a WHILE a = 1
 accept	reject	engine	alterServerConfigurationExternalAuthenticationContainerOption/onOffOptionValue_(LeftParenthesis_(alterServerConfigur~f0b7948e)	ALTER SERVER CONFIGURATION SET EXTERNAL AUTHENTICATION ON
@@ -2250,12 +2250,12 @@ reject	reject	engine	sensitivityClassificationOption(nonEmptyString|Identifier)/
 accept	accept	engine	createDatabaseStatements/Create_Database_(createDatabaseAuditSpecification_AUD~57ee26f2)	CREATE DATABASE a
 accept	accept	engine	createDatabaseStatements(createDatabaseAuditSpecification_AUD~57ee26f2)/createDatabaseAuditSpecification_AUDIT	CREATE DATABASE AUDIT SPECIFICATION a FOR SERVER AUDIT a
 reject	reject	engine	createDatabaseStatements(createDatabaseAuditSpecification_AUD~57ee26f2)/createDatabaseAuditSpecification_AUDIT!drop-1	CREATE DATABASE SPECIFICATION a FOR SERVER AUDIT a
-accept	reject	engine	createDatabaseStatements(createDatabaseAuditSpecification_AUD~57ee26f2)/createDatabaseAuditSpecification_AUDIT!drop-2	CREATE DATABASE AUDIT a FOR SERVER AUDIT a
-accept	reject	engine	createDatabaseStatements(createDatabaseAuditSpecification_AUD~57ee26f2)/createDatabaseAuditSpecification_AUDIT!drop-3	CREATE DATABASE AUDIT SPECIFICATION FOR SERVER AUDIT a
+reject	reject	engine	createDatabaseStatements(createDatabaseAuditSpecification_AUD~57ee26f2)/createDatabaseAuditSpecification_AUDIT!drop-2	CREATE DATABASE AUDIT a FOR SERVER AUDIT a
+reject	reject	engine	createDatabaseStatements(createDatabaseAuditSpecification_AUD~57ee26f2)/createDatabaseAuditSpecification_AUDIT!drop-3	CREATE DATABASE AUDIT SPECIFICATION FOR SERVER AUDIT a
 reject	reject	engine	createDatabaseStatements(createDatabaseAuditSpecification_AUD~57ee26f2)/createDatabaseAuditSpecification_AUDIT!drop-4	CREATE DATABASE AUDIT SPECIFICATION a SERVER AUDIT a
-accept	reject	engine	createDatabaseStatements(createDatabaseAuditSpecification_AUD~57ee26f2)/createDatabaseAuditSpecification_AUDIT!drop-5	CREATE DATABASE AUDIT SPECIFICATION a FOR AUDIT a
-accept	reject	engine	createDatabaseStatements(createDatabaseAuditSpecification_AUD~57ee26f2)/createDatabaseAuditSpecification_AUDIT!drop-6	CREATE DATABASE AUDIT SPECIFICATION a FOR SERVER a
-accept	reject	engine	createDatabaseStatements(createDatabaseAuditSpecification_AUD~57ee26f2)/createDatabaseAuditSpecification_AUDIT!drop-7	CREATE DATABASE AUDIT SPECIFICATION a FOR SERVER AUDIT
+reject	reject	engine	createDatabaseStatements(createDatabaseAuditSpecification_AUD~57ee26f2)/createDatabaseAuditSpecification_AUDIT!drop-5	CREATE DATABASE AUDIT SPECIFICATION a FOR AUDIT a
+reject	reject	engine	createDatabaseStatements(createDatabaseAuditSpecification_AUD~57ee26f2)/createDatabaseAuditSpecification_AUDIT!drop-6	CREATE DATABASE AUDIT SPECIFICATION a FOR SERVER a
+reject	reject	engine	createDatabaseStatements(createDatabaseAuditSpecification_AUD~57ee26f2)/createDatabaseAuditSpecification_AUDIT!drop-7	CREATE DATABASE AUDIT SPECIFICATION a FOR SERVER AUDIT
 reject	reject	engine	createDatabaseStatements(createDatabaseAuditSpecification_AUD~57ee26f2)/createDatabaseAuditSpecification_AUDIT!insert	CREATE DATABASE AUDIT SPECIFICATION a FOR SERVER AUDIT a zzz
 reject	reject	engine	createDatabaseStatements(createDatabaseAuditSpecification_AUD~57ee26f2)/createDatabaseAuditSpecification_AUDIT!swap	CREATE DATABASE AUTHENTICATION SPECIFICATION a FOR SERVER AUDIT a
 accept	accept	engine	createDatabaseStatements(createDatabaseAuditSpecification_AUD~57ee26f2)/createDatabaseScopedCredentialStatement_SCOPED	CREATE DATABASE SCOPED CREDENTIAL a WITH IDENTITY = 'a'
@@ -2602,115 +2602,115 @@ reject	reject	engine	remoteDataArchiveDbSetting/identifier_FEDERATED_SERVICE_ACC
 reject	reject	engine	remoteDataArchiveDbSetting/identifier_FEDERATED_SERVICE_ACCOUNT_EqualsSign_onOffOptionValue!swap	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE(FEDERATION = ON)
 accept	accept	engine	auditSpecificationForClause/For_SERVER_AUDIT_identifier	ALTER DATABASE AUDIT SPECIFICATION a FOR SERVER AUDIT a
 reject	reject	engine	auditSpecificationForClause/For_SERVER_AUDIT_identifier!drop-1	ALTER DATABASE AUDIT SPECIFICATION a SERVER AUDIT a
-accept	reject	engine	auditSpecificationForClause/For_SERVER_AUDIT_identifier!drop-2	ALTER DATABASE AUDIT SPECIFICATION a FOR AUDIT a
-accept	reject	engine	auditSpecificationForClause/For_SERVER_AUDIT_identifier!drop-3	ALTER DATABASE AUDIT SPECIFICATION a FOR SERVER a
-accept	reject	engine	auditSpecificationForClause/For_SERVER_AUDIT_identifier!drop-4	ALTER DATABASE AUDIT SPECIFICATION a FOR SERVER AUDIT
+reject	reject	engine	auditSpecificationForClause/For_SERVER_AUDIT_identifier!drop-2	ALTER DATABASE AUDIT SPECIFICATION a FOR AUDIT a
+reject	reject	engine	auditSpecificationForClause/For_SERVER_AUDIT_identifier!drop-3	ALTER DATABASE AUDIT SPECIFICATION a FOR SERVER a
+reject	reject	engine	auditSpecificationForClause/For_SERVER_AUDIT_identifier!drop-4	ALTER DATABASE AUDIT SPECIFICATION a FOR SERVER AUDIT
 reject	reject	engine	auditSpecificationForClause/For_SERVER_AUDIT_identifier!insert	ALTER DATABASE AUDIT SPECIFICATION a FOR SERVER AUDIT a zzz
 reject	reject	engine	auditSpecificationForClause/For_SERVER_AUDIT_identifier!swap	ALTER DATABASE AUDIT SPECIFICATION a FORCE SERVER AUDIT a
-accept	reject	engine	createAuditSpecificationDetailDb/Add_LeftParenthesis_(auditActionSpecification|databaseA~c67437e8	CREATE DATABASE AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(a)
+reject	reject	engine	createAuditSpecificationDetailDb/Add_LeftParenthesis_(auditActionSpecification|databaseA~c67437e8	CREATE DATABASE AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(a)
 reject	reject	engine	createAuditSpecificationDetailDb/Add_LeftParenthesis_(auditActionSpecification|databaseA~c67437e8!drop-1	CREATE DATABASE AUDIT SPECIFICATION a FOR SERVER AUDIT a(a)
 reject	reject	engine	createAuditSpecificationDetailDb/Add_LeftParenthesis_(auditActionSpecification|databaseA~c67437e8!drop-2	CREATE DATABASE AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD a)
-accept	reject	engine	createAuditSpecificationDetailDb/Add_LeftParenthesis_(auditActionSpecification|databaseA~c67437e8!drop-3	CREATE DATABASE AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD()
-accept	reject	engine	createAuditSpecificationDetailDb/Add_LeftParenthesis_(auditActionSpecification|databaseA~c67437e8!drop-4	CREATE DATABASE AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(a
+reject	reject	engine	createAuditSpecificationDetailDb/Add_LeftParenthesis_(auditActionSpecification|databaseA~c67437e8!drop-3	CREATE DATABASE AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD()
+reject	reject	engine	createAuditSpecificationDetailDb/Add_LeftParenthesis_(auditActionSpecification|databaseA~c67437e8!drop-4	CREATE DATABASE AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(a
 reject	reject	engine	createAuditSpecificationDetailDb/Add_LeftParenthesis_(auditActionSpecification|databaseA~c67437e8!insert	CREATE DATABASE AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(a) zzz
 reject	reject	engine	createAuditSpecificationDetailDb/Add_LeftParenthesis_(auditActionSpecification|databaseA~c67437e8!swap	CREATE DATABASE AUDIT SPECIFICATION a FOR SERVER AUDIT a ADMIN(a)
 accept	accept	engine	createAuditSpecificationDetailDb(auditActionSpecification|databaseAud~4d793c13)/auditActionSpecification	CREATE DATABASE AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(SELECT ON a BY PUBLIC)
-accept	reject	engine	createAuditSpecificationDetailDb(auditActionSpecification|databaseAud~4d793c13)/auditActionSpecification!drop-1	CREATE DATABASE AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(ON a BY PUBLIC)
+reject	reject	engine	createAuditSpecificationDetailDb(auditActionSpecification|databaseAud~4d793c13)/auditActionSpecification!drop-1	CREATE DATABASE AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(ON a BY PUBLIC)
 reject	reject	engine	createAuditSpecificationDetailDb(auditActionSpecification|databaseAud~4d793c13)/auditActionSpecification!drop-2	CREATE DATABASE AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(SELECT a BY PUBLIC)
 reject	reject	engine	createAuditSpecificationDetailDb(auditActionSpecification|databaseAud~4d793c13)/auditActionSpecification!drop-3	CREATE DATABASE AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(SELECT ON BY PUBLIC)
 reject	reject	engine	createAuditSpecificationDetailDb(auditActionSpecification|databaseAud~4d793c13)/auditActionSpecification!drop-4	CREATE DATABASE AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(SELECT ON a PUBLIC)
-accept	reject	engine	createAuditSpecificationDetailDb(auditActionSpecification|databaseAud~4d793c13)/auditActionSpecification!drop-5	CREATE DATABASE AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(SELECT ON a BY)
-accept	reject	engine	createAuditSpecificationDetailDb(auditActionSpecification|databaseAud~4d793c13)/auditActionSpecification!truncate	CREATE DATABASE AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(SELECT ON a BY
+reject	reject	engine	createAuditSpecificationDetailDb(auditActionSpecification|databaseAud~4d793c13)/auditActionSpecification!drop-5	CREATE DATABASE AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(SELECT ON a BY)
+reject	reject	engine	createAuditSpecificationDetailDb(auditActionSpecification|databaseAud~4d793c13)/auditActionSpecification!truncate	CREATE DATABASE AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(SELECT ON a BY
 reject	reject	engine	createAuditSpecificationDetailDb(auditActionSpecification|databaseAud~4d793c13)/auditActionSpecification!insert	CREATE DATABASE AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(SELECT ON a BY PUBLIC zzz)
-accept	reject	engine	createAuditSpecificationDetailDb(auditActionSpecification|databaseAud~4d793c13)/auditActionSpecification!swap	CREATE DATABASE AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(SELECTIVE ON a BY PUBLIC)
-accept	reject	engine	createAuditSpecificationDetailDb(auditActionSpecification|databaseAud~4d793c13)/databaseAuditActionGroup	CREATE DATABASE AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(a)
-accept	reject	engine	createAuditSpecificationDetailDb(auditActionSpecification|databaseAud~4d793c13)/databaseAuditActionGroup!truncate	CREATE DATABASE AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(
-accept	reject	engine	createAuditSpecificationDetailDb(auditActionSpecification|databaseAud~4d793c13)/databaseAuditActionGroup!insert	CREATE DATABASE AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(a zzz)
-accept	reject	engine	createAuditSpecificationDetail/Add_LeftParenthesis_serverAuditActionGroup_RightParenthesis	CREATE SERVER AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(a)
-accept	reject	engine	auditSpecificationDetailDb/(Add|Drop)_LeftParenthesis_(auditActionSpecification|da~33a50d66	ALTER DATABASE AUDIT SPECIFICATION a ADD(a)
+reject	reject	engine	createAuditSpecificationDetailDb(auditActionSpecification|databaseAud~4d793c13)/auditActionSpecification!swap	CREATE DATABASE AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(SELECTIVE ON a BY PUBLIC)
+reject	reject	engine	createAuditSpecificationDetailDb(auditActionSpecification|databaseAud~4d793c13)/databaseAuditActionGroup	CREATE DATABASE AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(a)
+reject	reject	engine	createAuditSpecificationDetailDb(auditActionSpecification|databaseAud~4d793c13)/databaseAuditActionGroup!truncate	CREATE DATABASE AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(
+reject	reject	engine	createAuditSpecificationDetailDb(auditActionSpecification|databaseAud~4d793c13)/databaseAuditActionGroup!insert	CREATE DATABASE AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(a zzz)
+reject	reject	engine	createAuditSpecificationDetail/Add_LeftParenthesis_serverAuditActionGroup_RightParenthesis	CREATE SERVER AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(a)
+reject	reject	engine	auditSpecificationDetailDb/(Add|Drop)_LeftParenthesis_(auditActionSpecification|da~33a50d66	ALTER DATABASE AUDIT SPECIFICATION a ADD(a)
 reject	reject	engine	auditSpecificationDetailDb/(Add|Drop)_LeftParenthesis_(auditActionSpecification|da~33a50d66!drop-1	ALTER DATABASE AUDIT SPECIFICATION a(a)
 reject	reject	engine	auditSpecificationDetailDb/(Add|Drop)_LeftParenthesis_(auditActionSpecification|da~33a50d66!drop-2	ALTER DATABASE AUDIT SPECIFICATION a ADD a)
-accept	reject	engine	auditSpecificationDetailDb/(Add|Drop)_LeftParenthesis_(auditActionSpecification|da~33a50d66!drop-3	ALTER DATABASE AUDIT SPECIFICATION a ADD()
-accept	reject	engine	auditSpecificationDetailDb/(Add|Drop)_LeftParenthesis_(auditActionSpecification|da~33a50d66!drop-4	ALTER DATABASE AUDIT SPECIFICATION a ADD(a
+reject	reject	engine	auditSpecificationDetailDb/(Add|Drop)_LeftParenthesis_(auditActionSpecification|da~33a50d66!drop-3	ALTER DATABASE AUDIT SPECIFICATION a ADD()
+reject	reject	engine	auditSpecificationDetailDb/(Add|Drop)_LeftParenthesis_(auditActionSpecification|da~33a50d66!drop-4	ALTER DATABASE AUDIT SPECIFICATION a ADD(a
 reject	reject	engine	auditSpecificationDetailDb/(Add|Drop)_LeftParenthesis_(auditActionSpecification|da~33a50d66!insert	ALTER DATABASE AUDIT SPECIFICATION a ADD(a) zzz
 reject	reject	engine	auditSpecificationDetailDb/(Add|Drop)_LeftParenthesis_(auditActionSpecification|da~33a50d66!swap	ALTER DATABASE AUDIT SPECIFICATION a ADMIN(a)
-accept	reject	engine	auditSpecificationDetailDb(Add|Drop)/Add	ALTER DATABASE AUDIT SPECIFICATION a ADD(a)
+reject	reject	engine	auditSpecificationDetailDb(Add|Drop)/Add	ALTER DATABASE AUDIT SPECIFICATION a ADD(a)
 reject	reject	engine	auditSpecificationDetailDb(Add|Drop)/Add!insert	ALTER DATABASE AUDIT SPECIFICATION a ADD zzz(a)
-accept	reject	engine	auditSpecificationDetailDb(Add|Drop)/Drop	ALTER DATABASE AUDIT SPECIFICATION a DROP(a)
+reject	reject	engine	auditSpecificationDetailDb(Add|Drop)/Drop	ALTER DATABASE AUDIT SPECIFICATION a DROP(a)
 reject	reject	engine	auditSpecificationDetailDb(Add|Drop)/Drop!insert	ALTER DATABASE AUDIT SPECIFICATION a DROP zzz(a)
 reject	reject	engine	auditSpecificationDetailDb(Add|Drop)/Drop!swap	ALTER DATABASE AUDIT SPECIFICATION a DROP_INDEX(a)
 accept	accept	engine	auditSpecificationDetailDb(auditActionSpecification|databaseAud~4d793c13)/auditActionSpecification	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECT ON a BY PUBLIC)
-accept	reject	engine	auditSpecificationDetailDb(auditActionSpecification|databaseAud~4d793c13)/auditActionSpecification!drop-1	ALTER DATABASE AUDIT SPECIFICATION a ADD(ON a BY PUBLIC)
+reject	reject	engine	auditSpecificationDetailDb(auditActionSpecification|databaseAud~4d793c13)/auditActionSpecification!drop-1	ALTER DATABASE AUDIT SPECIFICATION a ADD(ON a BY PUBLIC)
 reject	reject	engine	auditSpecificationDetailDb(auditActionSpecification|databaseAud~4d793c13)/auditActionSpecification!drop-2	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECT a BY PUBLIC)
 reject	reject	engine	auditSpecificationDetailDb(auditActionSpecification|databaseAud~4d793c13)/auditActionSpecification!drop-3	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECT ON BY PUBLIC)
 reject	reject	engine	auditSpecificationDetailDb(auditActionSpecification|databaseAud~4d793c13)/auditActionSpecification!drop-4	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECT ON a PUBLIC)
-accept	reject	engine	auditSpecificationDetailDb(auditActionSpecification|databaseAud~4d793c13)/auditActionSpecification!drop-5	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECT ON a BY)
-accept	reject	engine	auditSpecificationDetailDb(auditActionSpecification|databaseAud~4d793c13)/auditActionSpecification!truncate	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECT ON a BY
+reject	reject	engine	auditSpecificationDetailDb(auditActionSpecification|databaseAud~4d793c13)/auditActionSpecification!drop-5	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECT ON a BY)
+reject	reject	engine	auditSpecificationDetailDb(auditActionSpecification|databaseAud~4d793c13)/auditActionSpecification!truncate	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECT ON a BY
 reject	reject	engine	auditSpecificationDetailDb(auditActionSpecification|databaseAud~4d793c13)/auditActionSpecification!insert	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECT ON a BY PUBLIC zzz)
-accept	reject	engine	auditSpecificationDetailDb(auditActionSpecification|databaseAud~4d793c13)/auditActionSpecification!swap	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECTIVE ON a BY PUBLIC)
-accept	reject	engine	auditSpecificationDetailDb(auditActionSpecification|databaseAud~4d793c13)/databaseAuditActionGroup	ALTER DATABASE AUDIT SPECIFICATION a ADD(a)
-accept	reject	engine	auditSpecificationDetailDb(auditActionSpecification|databaseAud~4d793c13)/databaseAuditActionGroup!truncate	ALTER DATABASE AUDIT SPECIFICATION a ADD(
-accept	reject	engine	auditSpecificationDetailDb(auditActionSpecification|databaseAud~4d793c13)/databaseAuditActionGroup!insert	ALTER DATABASE AUDIT SPECIFICATION a ADD(a zzz)
-accept	reject	engine	auditSpecificationDetail/(Add|Drop)_LeftParenthesis_serverAuditActionGroup_Right~fc454ee9	ALTER SERVER AUDIT SPECIFICATION a ADD(a)
+reject	reject	engine	auditSpecificationDetailDb(auditActionSpecification|databaseAud~4d793c13)/auditActionSpecification!swap	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECTIVE ON a BY PUBLIC)
+reject	reject	engine	auditSpecificationDetailDb(auditActionSpecification|databaseAud~4d793c13)/databaseAuditActionGroup	ALTER DATABASE AUDIT SPECIFICATION a ADD(a)
+reject	reject	engine	auditSpecificationDetailDb(auditActionSpecification|databaseAud~4d793c13)/databaseAuditActionGroup!truncate	ALTER DATABASE AUDIT SPECIFICATION a ADD(
+reject	reject	engine	auditSpecificationDetailDb(auditActionSpecification|databaseAud~4d793c13)/databaseAuditActionGroup!insert	ALTER DATABASE AUDIT SPECIFICATION a ADD(a zzz)
+reject	reject	engine	auditSpecificationDetail/(Add|Drop)_LeftParenthesis_serverAuditActionGroup_Right~fc454ee9	ALTER SERVER AUDIT SPECIFICATION a ADD(a)
 reject	reject	engine	auditSpecificationDetail/(Add|Drop)_LeftParenthesis_serverAuditActionGroup_Right~fc454ee9!drop-1	ALTER SERVER AUDIT SPECIFICATION a(a)
 reject	reject	engine	auditSpecificationDetail/(Add|Drop)_LeftParenthesis_serverAuditActionGroup_Right~fc454ee9!drop-2	ALTER SERVER AUDIT SPECIFICATION a ADD a)
-accept	reject	engine	auditSpecificationDetail/(Add|Drop)_LeftParenthesis_serverAuditActionGroup_Right~fc454ee9!drop-3	ALTER SERVER AUDIT SPECIFICATION a ADD()
-accept	reject	engine	auditSpecificationDetail/(Add|Drop)_LeftParenthesis_serverAuditActionGroup_Right~fc454ee9!drop-4	ALTER SERVER AUDIT SPECIFICATION a ADD(a
+reject	reject	engine	auditSpecificationDetail/(Add|Drop)_LeftParenthesis_serverAuditActionGroup_Right~fc454ee9!drop-3	ALTER SERVER AUDIT SPECIFICATION a ADD()
+reject	reject	engine	auditSpecificationDetail/(Add|Drop)_LeftParenthesis_serverAuditActionGroup_Right~fc454ee9!drop-4	ALTER SERVER AUDIT SPECIFICATION a ADD(a
 reject	reject	engine	auditSpecificationDetail/(Add|Drop)_LeftParenthesis_serverAuditActionGroup_Right~fc454ee9!insert	ALTER SERVER AUDIT SPECIFICATION a ADD(a) zzz
 reject	reject	engine	auditSpecificationDetail/(Add|Drop)_LeftParenthesis_serverAuditActionGroup_Right~fc454ee9!swap	ALTER SERVER AUDIT SPECIFICATION a ADMIN(a)
-accept	reject	engine	auditSpecificationDetail(Add|Drop)/Add	ALTER SERVER AUDIT SPECIFICATION a ADD(a)
+reject	reject	engine	auditSpecificationDetail(Add|Drop)/Add	ALTER SERVER AUDIT SPECIFICATION a ADD(a)
 reject	reject	engine	auditSpecificationDetail(Add|Drop)/Add!insert	ALTER SERVER AUDIT SPECIFICATION a ADD zzz(a)
-accept	reject	engine	auditSpecificationDetail(Add|Drop)/Drop	ALTER SERVER AUDIT SPECIFICATION a DROP(a)
+reject	reject	engine	auditSpecificationDetail(Add|Drop)/Drop	ALTER SERVER AUDIT SPECIFICATION a DROP(a)
 reject	reject	engine	auditSpecificationDetail(Add|Drop)/Drop!insert	ALTER SERVER AUDIT SPECIFICATION a DROP zzz(a)
 reject	reject	engine	auditSpecificationDetail(Add|Drop)/Drop!swap	ALTER SERVER AUDIT SPECIFICATION a DROP_INDEX(a)
-accept	reject	engine	databaseAuditActionGroup/Identifier	ALTER DATABASE AUDIT SPECIFICATION a ADD(a)
-accept	reject	engine	serverAuditActionGroup/Identifier	ALTER SERVER AUDIT SPECIFICATION a ADD(a)
-accept	reject	engine	serverAuditActionGroup/Identifier!truncate	ALTER SERVER AUDIT SPECIFICATION a ADD(
-accept	reject	engine	serverAuditActionGroup/Identifier!insert	ALTER SERVER AUDIT SPECIFICATION a ADD(a zzz)
+reject	reject	engine	databaseAuditActionGroup/Identifier	ALTER DATABASE AUDIT SPECIFICATION a ADD(a)
+reject	reject	engine	serverAuditActionGroup/Identifier	ALTER SERVER AUDIT SPECIFICATION a ADD(a)
+reject	reject	engine	serverAuditActionGroup/Identifier!truncate	ALTER SERVER AUDIT SPECIFICATION a ADD(
+reject	reject	engine	serverAuditActionGroup/Identifier!insert	ALTER SERVER AUDIT SPECIFICATION a ADD(a zzz)
 accept	accept	engine	auditActionSpecification/actionWithQual_(Comma_actionWithQual)*_securityTargetOb~8a5ff565	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECT ON a BY PUBLIC)
 accept	accept	engine	auditActionSpecification(Comma_actionWithQual)*/%empty	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECT ON a BY PUBLIC)
-accept	reject	engine	auditActionSpecification(Comma_actionWithQual)*/%empty!insert	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECT zzz ON a BY PUBLIC)
+reject	reject	engine	auditActionSpecification(Comma_actionWithQual)*/%empty!insert	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECT zzz ON a BY PUBLIC)
 accept	accept	engine	auditActionSpecification(Comma_actionWithQual)*/Comma_actionWithQual_(Comma_actionWithQual)*	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECT, SELECT ON a BY PUBLIC)
-accept	reject	engine	auditActionSpecification(Comma_actionWithQual)*/Comma_actionWithQual_(Comma_actionWithQual)*!drop-1	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECT SELECT ON a BY PUBLIC)
-accept	reject	engine	auditActionSpecification(Comma_actionWithQual)*/Comma_actionWithQual_(Comma_actionWithQual)*!drop-2	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECT, ON a BY PUBLIC)
-accept	reject	engine	auditActionSpecification(Comma_actionWithQual)*/Comma_actionWithQual_(Comma_actionWithQual)*!truncate	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECT,
-accept	reject	engine	auditActionSpecification(Comma_actionWithQual)*/Comma_actionWithQual_(Comma_actionWithQual)*!insert	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECT, SELECT zzz ON a BY PUBLIC)
-accept	reject	engine	auditActionSpecification(Comma_actionWithQual)*/Comma_actionWithQual_(Comma_actionWithQual)*!swap	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECT, SELECTIVE ON a BY PUBLIC)
+reject	reject	engine	auditActionSpecification(Comma_actionWithQual)*/Comma_actionWithQual_(Comma_actionWithQual)*!drop-1	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECT SELECT ON a BY PUBLIC)
+reject	reject	engine	auditActionSpecification(Comma_actionWithQual)*/Comma_actionWithQual_(Comma_actionWithQual)*!drop-2	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECT, ON a BY PUBLIC)
+reject	reject	engine	auditActionSpecification(Comma_actionWithQual)*/Comma_actionWithQual_(Comma_actionWithQual)*!truncate	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECT,
+reject	reject	engine	auditActionSpecification(Comma_actionWithQual)*/Comma_actionWithQual_(Comma_actionWithQual)*!insert	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECT, SELECT zzz ON a BY PUBLIC)
+reject	reject	engine	auditActionSpecification(Comma_actionWithQual)*/Comma_actionWithQual_(Comma_actionWithQual)*!swap	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECT, SELECTIVE ON a BY PUBLIC)
 accept	accept	engine	auditActionSpecification(Comma_principal)*/%empty	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECT ON a BY PUBLIC)
 accept	accept	engine	auditActionSpecification(Comma_principal)*/Comma_principal_(Comma_principal)*	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECT ON a BY PUBLIC, PUBLIC)
 reject	reject	engine	auditActionSpecification(Comma_principal)*/Comma_principal_(Comma_principal)*!drop-1	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECT ON a BY PUBLIC PUBLIC)
-accept	reject	engine	auditActionSpecification(Comma_principal)*/Comma_principal_(Comma_principal)*!drop-2	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECT ON a BY PUBLIC,)
-accept	reject	engine	auditActionSpecification(Comma_principal)*/Comma_principal_(Comma_principal)*!truncate	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECT ON a BY PUBLIC,
+reject	reject	engine	auditActionSpecification(Comma_principal)*/Comma_principal_(Comma_principal)*!drop-2	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECT ON a BY PUBLIC,)
+reject	reject	engine	auditActionSpecification(Comma_principal)*/Comma_principal_(Comma_principal)*!truncate	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECT ON a BY PUBLIC,
 reject	reject	engine	auditActionSpecification(Comma_principal)*/Comma_principal_(Comma_principal)*!insert	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECT ON a BY PUBLIC, PUBLIC zzz)
 accept	accept	engine	auditActionSpecification(Comma_principal)*/Comma_principal_(Comma_principal)*!swap	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECT ON a BY PUBLIC, PUSHDOWN)
 accept	accept	engine	actionWithQual/Select	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECT ON a BY PUBLIC)
 accept	accept	engine	actionWithQual/Update	ALTER DATABASE AUDIT SPECIFICATION a ADD(UPDATE ON a BY PUBLIC)
-accept	reject	engine	actionWithQual/Update!insert	ALTER DATABASE AUDIT SPECIFICATION a ADD(UPDATE zzz ON a BY PUBLIC)
+reject	reject	engine	actionWithQual/Update!insert	ALTER DATABASE AUDIT SPECIFICATION a ADD(UPDATE zzz ON a BY PUBLIC)
 reject	reject	engine	actionWithQual/Update!swap	ALTER DATABASE AUDIT SPECIFICATION a ADD(UPDATETEXT ON a BY PUBLIC)
 accept	accept	engine	actionWithQual/Insert	ALTER DATABASE AUDIT SPECIFICATION a ADD(INSERT ON a BY PUBLIC)
-accept	reject	engine	actionWithQual/Insert!insert	ALTER DATABASE AUDIT SPECIFICATION a ADD(INSERT zzz ON a BY PUBLIC)
-accept	reject	engine	actionWithQual/Insert!swap	ALTER DATABASE AUDIT SPECIFICATION a ADD(INSTEAD ON a BY PUBLIC)
+reject	reject	engine	actionWithQual/Insert!insert	ALTER DATABASE AUDIT SPECIFICATION a ADD(INSERT zzz ON a BY PUBLIC)
+reject	reject	engine	actionWithQual/Insert!swap	ALTER DATABASE AUDIT SPECIFICATION a ADD(INSTEAD ON a BY PUBLIC)
 accept	accept	engine	actionWithQual/Delete	ALTER DATABASE AUDIT SPECIFICATION a ADD(DELETE ON a BY PUBLIC)
-accept	reject	engine	actionWithQual/Delete!insert	ALTER DATABASE AUDIT SPECIFICATION a ADD(DELETE zzz ON a BY PUBLIC)
-accept	reject	engine	actionWithQual/Delete!swap	ALTER DATABASE AUDIT SPECIFICATION a ADD(DELIMITEDTEXT ON a BY PUBLIC)
+reject	reject	engine	actionWithQual/Delete!insert	ALTER DATABASE AUDIT SPECIFICATION a ADD(DELETE zzz ON a BY PUBLIC)
+reject	reject	engine	actionWithQual/Delete!swap	ALTER DATABASE AUDIT SPECIFICATION a ADD(DELIMITEDTEXT ON a BY PUBLIC)
 accept	accept	engine	actionWithQual/Execute	ALTER DATABASE AUDIT SPECIFICATION a ADD(EXECUTE ON a BY PUBLIC)
-accept	reject	engine	actionWithQual/Execute!insert	ALTER DATABASE AUDIT SPECIFICATION a ADD(EXECUTE zzz ON a BY PUBLIC)
+reject	reject	engine	actionWithQual/Execute!insert	ALTER DATABASE AUDIT SPECIFICATION a ADD(EXECUTE zzz ON a BY PUBLIC)
 reject	reject	engine	actionWithQual/Execute!swap	ALTER DATABASE AUDIT SPECIFICATION a ADD(EXISTS ON a BY PUBLIC)
 accept	accept	engine	actionWithQual/RECEIVE	ALTER DATABASE AUDIT SPECIFICATION a ADD(RECEIVE ON a BY PUBLIC)
-accept	reject	engine	actionWithQual/RECEIVE!insert	ALTER DATABASE AUDIT SPECIFICATION a ADD(RECEIVE zzz ON a BY PUBLIC)
-accept	reject	engine	actionWithQual/RECEIVE!swap	ALTER DATABASE AUDIT SPECIFICATION a ADD(RECOMPILE ON a BY PUBLIC)
-reject	accept	engine	actionWithQual/References	ALTER DATABASE AUDIT SPECIFICATION a ADD(REFERENCES ON a BY PUBLIC)
+reject	reject	engine	actionWithQual/RECEIVE!insert	ALTER DATABASE AUDIT SPECIFICATION a ADD(RECEIVE zzz ON a BY PUBLIC)
+reject	reject	engine	actionWithQual/RECEIVE!swap	ALTER DATABASE AUDIT SPECIFICATION a ADD(RECOMPILE ON a BY PUBLIC)
+accept	accept	engine	actionWithQual/References	ALTER DATABASE AUDIT SPECIFICATION a ADD(REFERENCES ON a BY PUBLIC)
 reject	reject	engine	actionWithQual/References!insert	ALTER DATABASE AUDIT SPECIFICATION a ADD(REFERENCES zzz ON a BY PUBLIC)
-accept	reject	engine	actionWithQual/References!swap	ALTER DATABASE AUDIT SPECIFICATION a ADD(REGENERATE ON a BY PUBLIC)
+reject	reject	engine	actionWithQual/References!swap	ALTER DATABASE AUDIT SPECIFICATION a ADD(REGENERATE ON a BY PUBLIC)
 accept	accept	engine	auditSpecificationStateOpt/(With_LeftParenthesis_STATE_EqualsSig~f02b3db1)?	ALTER DATABASE AUDIT SPECIFICATION a
 accept	accept	engine	auditSpecificationStateOpt(With_LeftParenthesis_STATE_EqualsSig~f02b3db1)?/%empty	ALTER DATABASE AUDIT SPECIFICATION a
 accept	accept	engine	auditSpecificationStateOpt(With_LeftParenthesis_STATE_EqualsSig~f02b3db1)?/With_LeftParenthesis_STATE_EqualsSign_optionOnOff_Right~757e38a7	ALTER DATABASE AUDIT SPECIFICATION a WITH(STATE = ON)
 reject	reject	engine	auditSpecificationStateOpt(With_LeftParenthesis_STATE_EqualsSig~f02b3db1)?/With_LeftParenthesis_STATE_EqualsSign_optionOnOff_Right~757e38a7!drop-1	ALTER DATABASE AUDIT SPECIFICATION a(STATE = ON)
 reject	reject	engine	auditSpecificationStateOpt(With_LeftParenthesis_STATE_EqualsSig~f02b3db1)?/With_LeftParenthesis_STATE_EqualsSign_optionOnOff_Right~757e38a7!drop-2	ALTER DATABASE AUDIT SPECIFICATION a WITH STATE = ON)
-accept	reject	engine	auditSpecificationStateOpt(With_LeftParenthesis_STATE_EqualsSig~f02b3db1)?/With_LeftParenthesis_STATE_EqualsSign_optionOnOff_Right~757e38a7!drop-3	ALTER DATABASE AUDIT SPECIFICATION a WITH(= ON)
-accept	reject	engine	auditSpecificationStateOpt(With_LeftParenthesis_STATE_EqualsSig~f02b3db1)?/With_LeftParenthesis_STATE_EqualsSign_optionOnOff_Right~757e38a7!drop-4	ALTER DATABASE AUDIT SPECIFICATION a WITH(STATE ON)
-accept	reject	engine	auditSpecificationStateOpt(With_LeftParenthesis_STATE_EqualsSig~f02b3db1)?/With_LeftParenthesis_STATE_EqualsSign_optionOnOff_Right~757e38a7!drop-5	ALTER DATABASE AUDIT SPECIFICATION a WITH(STATE =)
-accept	reject	engine	auditSpecificationStateOpt(With_LeftParenthesis_STATE_EqualsSig~f02b3db1)?/With_LeftParenthesis_STATE_EqualsSign_optionOnOff_Right~757e38a7!drop-6	ALTER DATABASE AUDIT SPECIFICATION a WITH(STATE = ON
+reject	reject	engine	auditSpecificationStateOpt(With_LeftParenthesis_STATE_EqualsSig~f02b3db1)?/With_LeftParenthesis_STATE_EqualsSign_optionOnOff_Right~757e38a7!drop-3	ALTER DATABASE AUDIT SPECIFICATION a WITH(= ON)
+reject	reject	engine	auditSpecificationStateOpt(With_LeftParenthesis_STATE_EqualsSig~f02b3db1)?/With_LeftParenthesis_STATE_EqualsSign_optionOnOff_Right~757e38a7!drop-4	ALTER DATABASE AUDIT SPECIFICATION a WITH(STATE ON)
+reject	reject	engine	auditSpecificationStateOpt(With_LeftParenthesis_STATE_EqualsSig~f02b3db1)?/With_LeftParenthesis_STATE_EqualsSign_optionOnOff_Right~757e38a7!drop-5	ALTER DATABASE AUDIT SPECIFICATION a WITH(STATE =)
+reject	reject	engine	auditSpecificationStateOpt(With_LeftParenthesis_STATE_EqualsSig~f02b3db1)?/With_LeftParenthesis_STATE_EqualsSign_optionOnOff_Right~757e38a7!drop-6	ALTER DATABASE AUDIT SPECIFICATION a WITH(STATE = ON
 reject	reject	engine	auditSpecificationStateOpt(With_LeftParenthesis_STATE_EqualsSig~f02b3db1)?/With_LeftParenthesis_STATE_EqualsSign_optionOnOff_Right~757e38a7!insert	ALTER DATABASE AUDIT SPECIFICATION a WITH(STATE = ON) zzz
 reject	reject	engine	auditSpecificationStateOpt(With_LeftParenthesis_STATE_EqualsSig~f02b3db1)?/With_LeftParenthesis_STATE_EqualsSign_optionOnOff_Right~757e38a7!swap	ALTER DATABASE AUDIT SPECIFICATION a WITHIN(STATE = ON)
 accept	reject	engine	createDatabaseEncryptionKey/ENCRYPTION_Key_With_ALGORITHM_EqualsSign_Identifier_ENC~8208c613	CREATE DATABASE ENCRYPTION KEY WITH ALGORITHM = a ENCRYPTION BY SERVER CERTIFICATE a
@@ -3805,12 +3805,12 @@ accept	accept	engine	onOffSessionOption/EqualsSign_optionOnOff	ALTER EVENT SESSI
 accept	reject	engine	onOffSessionOption/EqualsSign_optionOnOff!swap	ALTER EVENT SESSION a ON DATABASE WITH(TRACK_CAUSALITY = ONLINE)
 accept	accept	engine	eventDeclarationSetParameter/identifier_EqualsSign_eventDeclarationValue	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(SET a = 1)
 accept	accept	engine	eventDeclarationValue/Minus_integerOrRealOrNumeric	ALTER SERVER AUDIT a WHERE a = - 1
-accept	reject	engine	eventDeclarationValue/Minus_integerOrRealOrNumeric!drop-2	ALTER SERVER AUDIT a WHERE a = -
+reject	reject	engine	eventDeclarationValue/Minus_integerOrRealOrNumeric!drop-2	ALTER SERVER AUDIT a WHERE a = -
 reject	reject	engine	eventDeclarationValue/Minus_integerOrRealOrNumeric!insert	ALTER SERVER AUDIT a WHERE a = - 1 zzz
 accept	accept	engine	eventDeclarationValue/eventSessionExpressionParenthesis	ALTER SERVER AUDIT a WHERE a =(1)
 reject	reject	engine	eventDeclarationValue/eventSessionExpressionParenthesis!drop-1	ALTER SERVER AUDIT a WHERE a = 1)
-accept	reject	engine	eventDeclarationValue/eventSessionExpressionParenthesis!drop-2	ALTER SERVER AUDIT a WHERE a =()
-accept	reject	engine	eventDeclarationValue/eventSessionExpressionParenthesis!drop-3	ALTER SERVER AUDIT a WHERE a =(1
+reject	reject	engine	eventDeclarationValue/eventSessionExpressionParenthesis!drop-2	ALTER SERVER AUDIT a WHERE a =()
+reject	reject	engine	eventDeclarationValue/eventSessionExpressionParenthesis!drop-3	ALTER SERVER AUDIT a WHERE a =(1
 reject	reject	engine	eventDeclarationValue/eventSessionExpressionParenthesis!insert	ALTER SERVER AUDIT a WHERE a =(1) zzz
 accept	accept	engine	eventDeclarationValue/eventSessionLiteral	ALTER SERVER AUDIT a WHERE a = 1
 accept	accept	engine	eventSessionLiteral/integer	ALTER SERVER AUDIT a WHERE a = 1
@@ -3828,7 +3828,7 @@ accept	accept	engine	eventBooleanExpressionOr(Or_eventBooleanExpressionAnd)*/Or_
 reject	reject	engine	eventBooleanExpressionOr(Or_eventBooleanExpressionAnd)*/Or_eventBooleanExpressionAnd_(Or_eventBooleanExpressionAnd)*!drop-1	ALTER SERVER AUDIT a WHERE a = 1 a = 1
 reject	reject	engine	eventBooleanExpressionOr(Or_eventBooleanExpressionAnd)*/Or_eventBooleanExpressionAnd_(Or_eventBooleanExpressionAnd)*!drop-2	ALTER SERVER AUDIT a WHERE a = 1 OR = 1
 reject	reject	engine	eventBooleanExpressionOr(Or_eventBooleanExpressionAnd)*/Or_eventBooleanExpressionAnd_(Or_eventBooleanExpressionAnd)*!drop-3	ALTER SERVER AUDIT a WHERE a = 1 OR a 1
-accept	reject	engine	eventBooleanExpressionOr(Or_eventBooleanExpressionAnd)*/Or_eventBooleanExpressionAnd_(Or_eventBooleanExpressionAnd)*!drop-4	ALTER SERVER AUDIT a WHERE a = 1 OR a =
+reject	reject	engine	eventBooleanExpressionOr(Or_eventBooleanExpressionAnd)*/Or_eventBooleanExpressionAnd_(Or_eventBooleanExpressionAnd)*!drop-4	ALTER SERVER AUDIT a WHERE a = 1 OR a =
 reject	reject	engine	eventBooleanExpressionOr(Or_eventBooleanExpressionAnd)*/Or_eventBooleanExpressionAnd_(Or_eventBooleanExpressionAnd)*!insert	ALTER SERVER AUDIT a WHERE a = 1 OR a = 1 zzz
 reject	reject	engine	eventBooleanExpressionOr(Or_eventBooleanExpressionAnd)*/Or_eventBooleanExpressionAnd_(Or_eventBooleanExpressionAnd)*!swap	ALTER SERVER AUDIT a WHERE a = 1 ORC a = 1
 accept	accept	engine	eventBooleanExpressionAnd/eventBooleanExpressionUnary_(And_eventBooleanExpressionUnary)*	ALTER SERVER AUDIT a WHERE a = 1
@@ -3836,38 +3836,38 @@ accept	accept	engine	eventBooleanExpressionAnd(And_eventBooleanExpressionUnary)*
 accept	accept	engine	eventBooleanExpressionAnd(And_eventBooleanExpressionUnary)*/And_eventBooleanExpressionUnary_(And_eventBooleanExpres~482a2c49	ALTER SERVER AUDIT a WHERE a = 1 AND a = 1
 reject	reject	engine	eventBooleanExpressionAnd(And_eventBooleanExpressionUnary)*/And_eventBooleanExpressionUnary_(And_eventBooleanExpres~482a2c49!drop-2	ALTER SERVER AUDIT a WHERE a = 1 AND = 1
 reject	reject	engine	eventBooleanExpressionAnd(And_eventBooleanExpressionUnary)*/And_eventBooleanExpressionUnary_(And_eventBooleanExpres~482a2c49!drop-3	ALTER SERVER AUDIT a WHERE a = 1 AND a 1
-accept	reject	engine	eventBooleanExpressionAnd(And_eventBooleanExpressionUnary)*/And_eventBooleanExpressionUnary_(And_eventBooleanExpres~482a2c49!drop-4	ALTER SERVER AUDIT a WHERE a = 1 AND a =
+reject	reject	engine	eventBooleanExpressionAnd(And_eventBooleanExpressionUnary)*/And_eventBooleanExpressionUnary_(And_eventBooleanExpres~482a2c49!drop-4	ALTER SERVER AUDIT a WHERE a = 1 AND a =
 reject	reject	engine	eventBooleanExpressionAnd(And_eventBooleanExpressionUnary)*/And_eventBooleanExpressionUnary_(And_eventBooleanExpres~482a2c49!insert	ALTER SERVER AUDIT a WHERE a = 1 AND a = 1 zzz
 reject	reject	engine	eventBooleanExpressionAnd(And_eventBooleanExpressionUnary)*/And_eventBooleanExpressionUnary_(And_eventBooleanExpres~482a2c49!swap	ALTER SERVER AUDIT a WHERE a = 1 ANONYMOUS a = 1
 accept	accept	engine	eventBooleanExpressionUnary/Not_eventBooleanExpressionUnary	ALTER SERVER AUDIT a WHERE NOT a = 1
 reject	reject	engine	eventBooleanExpressionUnary/Not_eventBooleanExpressionUnary!drop-2	ALTER SERVER AUDIT a WHERE NOT = 1
 reject	reject	engine	eventBooleanExpressionUnary/Not_eventBooleanExpressionUnary!drop-3	ALTER SERVER AUDIT a WHERE NOT a 1
-accept	reject	engine	eventBooleanExpressionUnary/Not_eventBooleanExpressionUnary!drop-4	ALTER SERVER AUDIT a WHERE NOT a =
+reject	reject	engine	eventBooleanExpressionUnary/Not_eventBooleanExpressionUnary!drop-4	ALTER SERVER AUDIT a WHERE NOT a =
 reject	reject	engine	eventBooleanExpressionUnary/Not_eventBooleanExpressionUnary!insert	ALTER SERVER AUDIT a WHERE NOT a = 1 zzz
 reject	reject	engine	eventBooleanExpressionUnary/Not_eventBooleanExpressionUnary!swap	ALTER SERVER AUDIT a WHERE NOTIFICATION a = 1
 accept	accept	engine	eventBooleanExpressionUnary/eventBooleanExpressionParenthesis	ALTER SERVER AUDIT a WHERE(a = 1)
 reject	reject	engine	eventBooleanExpressionUnary/eventBooleanExpressionParenthesis!drop-2	ALTER SERVER AUDIT a WHERE(= 1)
 reject	reject	engine	eventBooleanExpressionUnary/eventBooleanExpressionParenthesis!drop-3	ALTER SERVER AUDIT a WHERE(a 1)
 reject	reject	engine	eventBooleanExpressionUnary/eventBooleanExpressionParenthesis!drop-4	ALTER SERVER AUDIT a WHERE(a =)
-accept	reject	engine	eventBooleanExpressionUnary/eventBooleanExpressionParenthesis!drop-5	ALTER SERVER AUDIT a WHERE(a = 1
+reject	reject	engine	eventBooleanExpressionUnary/eventBooleanExpressionParenthesis!drop-5	ALTER SERVER AUDIT a WHERE(a = 1
 reject	reject	engine	eventBooleanExpressionUnary/eventBooleanExpressionParenthesis!insert	ALTER SERVER AUDIT a WHERE(a = 1) zzz
 accept	accept	engine	eventBooleanExpressionUnary/eventDeclarationPredicateParameter	ALTER SERVER AUDIT a WHERE a = 1
 accept	accept	engine	eventBooleanExpressionParenthesis/LeftParenthesis_eventBooleanExpression_RightParenthesis	ALTER SERVER AUDIT a WHERE(a = 1)
 accept	accept	engine	eventDeclarationPredicateParameter/eventSessionOneOrTwoOrThreePartObjectName_((LeftParenth~538b5656	ALTER SERVER AUDIT a WHERE a = 1
-accept	reject	engine	eventDeclarationPredicateParameter((LeftParenthesis_(eventDeclarationCo~f93963bf)/LeftParenthesis_eventDeclarationCompareFunction_RightParenthesis	ALTER SERVER AUDIT a WHERE a(a, 1)
+reject	reject	engine	eventDeclarationPredicateParameter((LeftParenthesis_(eventDeclarationCo~f93963bf)/LeftParenthesis_eventDeclarationCompareFunction_RightParenthesis	ALTER SERVER AUDIT a WHERE a(a, 1)
 reject	reject	engine	eventDeclarationPredicateParameter((LeftParenthesis_(eventDeclarationCo~f93963bf)/LeftParenthesis_eventDeclarationCompareFunction_RightParenthesis!drop-1	ALTER SERVER AUDIT a WHERE a a, 1)
 reject	reject	engine	eventDeclarationPredicateParameter((LeftParenthesis_(eventDeclarationCo~f93963bf)/LeftParenthesis_eventDeclarationCompareFunction_RightParenthesis!drop-2	ALTER SERVER AUDIT a WHERE a(, 1)
 reject	reject	engine	eventDeclarationPredicateParameter((LeftParenthesis_(eventDeclarationCo~f93963bf)/LeftParenthesis_eventDeclarationCompareFunction_RightParenthesis!drop-3	ALTER SERVER AUDIT a WHERE a(a 1)
 reject	reject	engine	eventDeclarationPredicateParameter((LeftParenthesis_(eventDeclarationCo~f93963bf)/LeftParenthesis_eventDeclarationCompareFunction_RightParenthesis!drop-4	ALTER SERVER AUDIT a WHERE a(a,)
-accept	reject	engine	eventDeclarationPredicateParameter((LeftParenthesis_(eventDeclarationCo~f93963bf)/LeftParenthesis_eventDeclarationCompareFunction_RightParenthesis!drop-5	ALTER SERVER AUDIT a WHERE a(a, 1
+reject	reject	engine	eventDeclarationPredicateParameter((LeftParenthesis_(eventDeclarationCo~f93963bf)/LeftParenthesis_eventDeclarationCompareFunction_RightParenthesis!drop-5	ALTER SERVER AUDIT a WHERE a(a, 1
 reject	reject	engine	eventDeclarationPredicateParameter((LeftParenthesis_(eventDeclarationCo~f93963bf)/LeftParenthesis_eventDeclarationCompareFunction_RightParenthesis!insert	ALTER SERVER AUDIT a WHERE a(a, 1) zzz
 accept	accept	engine	eventDeclarationPredicateParameter((LeftParenthesis_(eventDeclarationCo~f93963bf)/eventDeclarationComparisonPredicate	ALTER SERVER AUDIT a WHERE a = 1
-accept	reject	engine	eventDeclarationCompareFunction/eventSessionOneOrTwoOrThreePartObjectName_Comma_eventDe~e0f59355	ALTER SERVER AUDIT a WHERE a(a, 1)
-accept	reject	engine	eventDeclarationCompareFunction/eventSessionOneOrTwoOrThreePartObjectName_Comma_eventDe~e0f59355!truncate	ALTER SERVER AUDIT a WHERE a(a,
+reject	reject	engine	eventDeclarationCompareFunction/eventSessionOneOrTwoOrThreePartObjectName_Comma_eventDe~e0f59355	ALTER SERVER AUDIT a WHERE a(a, 1)
+reject	reject	engine	eventDeclarationCompareFunction/eventSessionOneOrTwoOrThreePartObjectName_Comma_eventDe~e0f59355!truncate	ALTER SERVER AUDIT a WHERE a(a,
 reject	reject	engine	eventDeclarationCompareFunction/eventSessionOneOrTwoOrThreePartObjectName_Comma_eventDe~e0f59355!insert	ALTER SERVER AUDIT a WHERE a(a, 1 zzz)
 accept	accept	engine	eventDeclarationComparisonPredicate/(comparisonOperator|Not_Like)_eventDeclarationValue	ALTER SERVER AUDIT a WHERE a = 1
 accept	accept	engine	eventDeclarationComparisonPredicate(comparisonOperator|Not_Like)/comparisonOperator	ALTER SERVER AUDIT a WHERE a = 1
-accept	reject	engine	eventDeclarationComparisonPredicate(comparisonOperator|Not_Like)/comparisonOperator!truncate	ALTER SERVER AUDIT a WHERE a
+reject	reject	engine	eventDeclarationComparisonPredicate(comparisonOperator|Not_Like)/comparisonOperator!truncate	ALTER SERVER AUDIT a WHERE a
 reject	reject	engine	eventDeclarationComparisonPredicate(comparisonOperator|Not_Like)/comparisonOperator!insert	ALTER SERVER AUDIT a WHERE a = zzz 1
 accept	accept	engine	eventDeclarationComparisonPredicate(comparisonOperator|Not_Like)/Not_Like	ALTER SERVER AUDIT a WHERE a NOT LIKE 1
 accept	accept	engine	eventDeclarationComparisonPredicate(comparisonOperator|Not_Like)/Not_Like!drop-1	ALTER SERVER AUDIT a WHERE a LIKE 1
@@ -5173,7 +5173,7 @@ accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8
 accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterSymmetricKeyStatement_SYMMETRIC!drop-3	ALTER SYMMETRIC KEY ADD ENCRYPTION BY CERTIFICATE a
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterSymmetricKeyStatement_SYMMETRIC!drop-4	ALTER SYMMETRIC KEY a ENCRYPTION BY CERTIFICATE a
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterSymmetricKeyStatement_SYMMETRIC!swap	ALTER SYNCHRONOUS_COMMIT KEY a ADD ENCRYPTION BY CERTIFICATE a
-accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterServerStatements_SERVER	ALTER SERVER AUDIT a
+reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterServerStatements_SERVER	ALTER SERVER AUDIT a
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterServerStatements_SERVER!drop-1	ALTER AUDIT a
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterServerStatements_SERVER!drop-2	ALTER SERVER a
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterServerStatements_SERVER!swap	ALTER SERVICE AUDIT a
@@ -6787,9 +6787,9 @@ accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e448
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSensitivityClassificationStatement_SENSITIVITY!insert	DROP SENSITIVITY CLASSIFICATION FROM a zzz
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSensitivityClassificationStatement_SENSITIVITY!swap	DROP SENT CLASSIFICATION FROM a
 accept	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropServerStatements	DROP SERVER AUDIT a
-reject	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropServerStatements!drop-1	DROP AUDIT a
+accept	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropServerStatements!drop-1	DROP AUDIT a
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropServerStatements!drop-2	DROP SERVER a
-accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropServerStatements!drop-3	DROP SERVER AUDIT
+reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropServerStatements!drop-3	DROP SERVER AUDIT
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropServerStatements!insert	DROP SERVER AUDIT a zzz
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropServerStatements!swap	DROP SERVICE AUDIT a
 accept	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropUserStatement	DROP USER a
@@ -6820,7 +6820,7 @@ accept	reject	engine	dropServerStatements((AUDIT_(dropServerAuditSpecification~3
 reject	reject	engine	dropServerStatements((AUDIT_(dropServerAuditSpecification~3b4ec644)/dropServerRoleStatement!insert	DROP SERVER ROLE a zzz
 reject	reject	engine	dropServerStatements((AUDIT_(dropServerAuditSpecification~3b4ec644)/dropServerRoleStatement!swap	DROP SERVER ROLLBACK a
 accept	accept	engine	dropServerStatements(dropServerAuditSpecificationStatemen~0daf37bb)/dropServerAuditSpecificationStatement_SPECIFICATION	DROP SERVER AUDIT SPECIFICATION a
-accept	reject	engine	dropServerStatements(dropServerAuditSpecificationStatemen~0daf37bb)/dropServerAuditSpecificationStatement_SPECIFICATION!drop-2	DROP SERVER AUDIT SPECIFICATION
+reject	reject	engine	dropServerStatements(dropServerAuditSpecificationStatemen~0daf37bb)/dropServerAuditSpecificationStatement_SPECIFICATION!drop-2	DROP SERVER AUDIT SPECIFICATION
 reject	reject	engine	dropServerStatements(dropServerAuditSpecificationStatemen~0daf37bb)/dropServerAuditSpecificationStatement_SPECIFICATION!insert	DROP SERVER AUDIT SPECIFICATION a zzz
 reject	reject	engine	dropServerStatements(dropServerAuditSpecificationStatemen~0daf37bb)/dropServerAuditSpecificationStatement_SPECIFICATION!swap	DROP SERVER AUDIT SPLIT a
 accept	accept	engine	dropServerStatements(dropServerAuditSpecificationStatemen~0daf37bb)/dropServerAuditStatement	DROP SERVER AUDIT a
@@ -6829,8 +6829,8 @@ accept	accept	engine	dropServerAuditStatement/identifier	DROP SERVER AUDIT a
 accept	accept	engine	dropDatabaseStatements/Database_(dropDatabaseAuditSpecificationStatem~f8ece285)	DROP DATABASE a
 accept	accept	engine	dropDatabaseStatements(dropDatabaseAuditSpecificationStatem~f8ece285)/dropDatabaseAuditSpecificationStatement_AUDIT	DROP DATABASE AUDIT SPECIFICATION a
 reject	reject	engine	dropDatabaseStatements(dropDatabaseAuditSpecificationStatem~f8ece285)/dropDatabaseAuditSpecificationStatement_AUDIT!drop-1	DROP DATABASE SPECIFICATION a
-accept	reject	engine	dropDatabaseStatements(dropDatabaseAuditSpecificationStatem~f8ece285)/dropDatabaseAuditSpecificationStatement_AUDIT!drop-2	DROP DATABASE AUDIT a
-accept	reject	engine	dropDatabaseStatements(dropDatabaseAuditSpecificationStatem~f8ece285)/dropDatabaseAuditSpecificationStatement_AUDIT!drop-3	DROP DATABASE AUDIT SPECIFICATION
+reject	reject	engine	dropDatabaseStatements(dropDatabaseAuditSpecificationStatem~f8ece285)/dropDatabaseAuditSpecificationStatement_AUDIT!drop-2	DROP DATABASE AUDIT a
+reject	reject	engine	dropDatabaseStatements(dropDatabaseAuditSpecificationStatem~f8ece285)/dropDatabaseAuditSpecificationStatement_AUDIT!drop-3	DROP DATABASE AUDIT SPECIFICATION
 reject	reject	engine	dropDatabaseStatements(dropDatabaseAuditSpecificationStatem~f8ece285)/dropDatabaseAuditSpecificationStatement_AUDIT!insert	DROP DATABASE AUDIT SPECIFICATION a zzz
 reject	reject	engine	dropDatabaseStatements(dropDatabaseAuditSpecificationStatem~f8ece285)/dropDatabaseAuditSpecificationStatement_AUDIT!swap	DROP DATABASE AUTHENTICATION SPECIFICATION a
 accept	accept	engine	dropDatabaseStatements(dropDatabaseAuditSpecificationStatem~f8ece285)/dropDatabaseScopedCredentialStatement_SCOPED	DROP DATABASE SCOPED CREDENTIAL a
@@ -13151,14 +13151,14 @@ accept	accept	engine	oneOrTwoOrThreePartObjectName/identifier_(Dot_identifier_(D
 accept	accept	engine	oneOrTwoOrThreePartObjectName(Dot_identifier_(Dot_identifier)?)?/%empty	ALTER SERVER AUDIT a WHERE a = 1
 accept	accept	engine	oneOrTwoOrThreePartObjectName(Dot_identifier_(Dot_identifier)?)?/Dot_identifier_(Dot_identifier)?	ALTER SERVER AUDIT a WHERE a.a = 1
 reject	reject	engine	oneOrTwoOrThreePartObjectName(Dot_identifier_(Dot_identifier)?)?/Dot_identifier_(Dot_identifier)?!drop-1	ALTER SERVER AUDIT a WHERE a a = 1
-accept	reject	engine	oneOrTwoOrThreePartObjectName(Dot_identifier_(Dot_identifier)?)?/Dot_identifier_(Dot_identifier)?!drop-2	ALTER SERVER AUDIT a WHERE a.= 1
-accept	reject	engine	oneOrTwoOrThreePartObjectName(Dot_identifier_(Dot_identifier)?)?/Dot_identifier_(Dot_identifier)?!truncate	ALTER SERVER AUDIT a WHERE a.
+reject	reject	engine	oneOrTwoOrThreePartObjectName(Dot_identifier_(Dot_identifier)?)?/Dot_identifier_(Dot_identifier)?!drop-2	ALTER SERVER AUDIT a WHERE a.= 1
+reject	reject	engine	oneOrTwoOrThreePartObjectName(Dot_identifier_(Dot_identifier)?)?/Dot_identifier_(Dot_identifier)?!truncate	ALTER SERVER AUDIT a WHERE a.
 reject	reject	engine	oneOrTwoOrThreePartObjectName(Dot_identifier_(Dot_identifier)?)?/Dot_identifier_(Dot_identifier)?!insert	ALTER SERVER AUDIT a WHERE a.a zzz = 1
 accept	accept	engine	oneOrTwoOrThreePartObjectName(Dot_identifier)?/%empty	ALTER SERVER AUDIT a WHERE a.a = 1
 accept	accept	engine	oneOrTwoOrThreePartObjectName(Dot_identifier)?/Dot_identifier	ALTER SERVER AUDIT a WHERE a.a.a = 1
 reject	reject	engine	oneOrTwoOrThreePartObjectName(Dot_identifier)?/Dot_identifier!drop-1	ALTER SERVER AUDIT a WHERE a.a a = 1
-accept	reject	engine	oneOrTwoOrThreePartObjectName(Dot_identifier)?/Dot_identifier!drop-2	ALTER SERVER AUDIT a WHERE a.a.= 1
-accept	reject	engine	oneOrTwoOrThreePartObjectName(Dot_identifier)?/Dot_identifier!truncate	ALTER SERVER AUDIT a WHERE a.a.
+reject	reject	engine	oneOrTwoOrThreePartObjectName(Dot_identifier)?/Dot_identifier!drop-2	ALTER SERVER AUDIT a WHERE a.a.= 1
+reject	reject	engine	oneOrTwoOrThreePartObjectName(Dot_identifier)?/Dot_identifier!truncate	ALTER SERVER AUDIT a WHERE a.a.
 reject	reject	engine	oneOrTwoOrThreePartObjectName(Dot_identifier)?/Dot_identifier!insert	ALTER SERVER AUDIT a WHERE a.a.a zzz = 1
 reject	accept	engine	schemaObjectFourPartName/identifierList	a
 accept	accept	engine	booleanExpression/booleanExpressionWithFlags	IF 1 = 1 SELECT 1
@@ -15491,35 +15491,35 @@ accept	accept	engine	createServerAuditStatements_AUDIT(createServerAuditSpecific
 accept	accept	engine	createServerRoleStatement_ROLE/ROLE_identifier_authorizationOpt	CREATE SERVER ROLE a
 accept	accept	engine	maxSizeAuditFileOption_MAXSIZE/MAXSIZE_EqualsSign_(integer_(GB|TB|MB)|UNLIMITED)	ALTER SERVER AUDIT a TO FILE(MAXSIZE = UNLIMITED)
 accept	accept	engine	maxSizeAuditFileOption_MAXSIZE(integer_(GB|TB|MB)|UNLIMITED)/integer_(GB|TB|MB)	ALTER SERVER AUDIT a TO FILE(MAXSIZE = 1 GB)
-accept	reject	engine	maxSizeAuditFileOption_MAXSIZE(integer_(GB|TB|MB)|UNLIMITED)/integer_(GB|TB|MB)!drop-1	ALTER SERVER AUDIT a TO FILE(MAXSIZE = GB)
-accept	reject	engine	maxSizeAuditFileOption_MAXSIZE(integer_(GB|TB|MB)|UNLIMITED)/integer_(GB|TB|MB)!drop-2	ALTER SERVER AUDIT a TO FILE(MAXSIZE = 1)
-accept	reject	engine	maxSizeAuditFileOption_MAXSIZE(integer_(GB|TB|MB)|UNLIMITED)/integer_(GB|TB|MB)!truncate	ALTER SERVER AUDIT a TO FILE(MAXSIZE = 1
-accept	reject	engine	maxSizeAuditFileOption_MAXSIZE(integer_(GB|TB|MB)|UNLIMITED)/integer_(GB|TB|MB)!insert	ALTER SERVER AUDIT a TO FILE(MAXSIZE = 1 GB zzz)
-accept	reject	engine	maxSizeAuditFileOption_MAXSIZE(integer_(GB|TB|MB)|UNLIMITED)/integer_(GB|TB|MB)!swap	ALTER SERVER AUDIT a TO FILE(MAXSIZE = 1 GENERATED)
+reject	reject	engine	maxSizeAuditFileOption_MAXSIZE(integer_(GB|TB|MB)|UNLIMITED)/integer_(GB|TB|MB)!drop-1	ALTER SERVER AUDIT a TO FILE(MAXSIZE = GB)
+reject	reject	engine	maxSizeAuditFileOption_MAXSIZE(integer_(GB|TB|MB)|UNLIMITED)/integer_(GB|TB|MB)!drop-2	ALTER SERVER AUDIT a TO FILE(MAXSIZE = 1)
+reject	reject	engine	maxSizeAuditFileOption_MAXSIZE(integer_(GB|TB|MB)|UNLIMITED)/integer_(GB|TB|MB)!truncate	ALTER SERVER AUDIT a TO FILE(MAXSIZE = 1
+reject	reject	engine	maxSizeAuditFileOption_MAXSIZE(integer_(GB|TB|MB)|UNLIMITED)/integer_(GB|TB|MB)!insert	ALTER SERVER AUDIT a TO FILE(MAXSIZE = 1 GB zzz)
+reject	reject	engine	maxSizeAuditFileOption_MAXSIZE(integer_(GB|TB|MB)|UNLIMITED)/integer_(GB|TB|MB)!swap	ALTER SERVER AUDIT a TO FILE(MAXSIZE = 1 GENERATED)
 accept	accept	engine	maxSizeAuditFileOption_MAXSIZE(integer_(GB|TB|MB)|UNLIMITED)/UNLIMITED	ALTER SERVER AUDIT a TO FILE(MAXSIZE = UNLIMITED)
-accept	reject	engine	maxSizeAuditFileOption_MAXSIZE(integer_(GB|TB|MB)|UNLIMITED)/UNLIMITED!swap	ALTER SERVER AUDIT a TO FILE(MAXSIZE = UNPIVOT)
+reject	reject	engine	maxSizeAuditFileOption_MAXSIZE(integer_(GB|TB|MB)|UNLIMITED)/UNLIMITED!swap	ALTER SERVER AUDIT a TO FILE(MAXSIZE = UNPIVOT)
 accept	accept	engine	maxSizeAuditFileOption_MAXSIZE(GB|TB|MB)/GB	ALTER SERVER AUDIT a TO FILE(MAXSIZE = 1 GB)
 accept	accept	engine	maxSizeAuditFileOption_MAXSIZE(GB|TB|MB)/TB	ALTER SERVER AUDIT a TO FILE(MAXSIZE = 1 TB)
-accept	reject	engine	maxSizeAuditFileOption_MAXSIZE(GB|TB|MB)/TB!insert	ALTER SERVER AUDIT a TO FILE(MAXSIZE = 1 TB zzz)
-accept	reject	engine	maxSizeAuditFileOption_MAXSIZE(GB|TB|MB)/TB!swap	ALTER SERVER AUDIT a TO FILE(MAXSIZE = 1 TEXTIMAGE_ON)
+reject	reject	engine	maxSizeAuditFileOption_MAXSIZE(GB|TB|MB)/TB!insert	ALTER SERVER AUDIT a TO FILE(MAXSIZE = 1 TB zzz)
+reject	reject	engine	maxSizeAuditFileOption_MAXSIZE(GB|TB|MB)/TB!swap	ALTER SERVER AUDIT a TO FILE(MAXSIZE = 1 TEXTIMAGE_ON)
 accept	accept	engine	maxSizeAuditFileOption_MAXSIZE(GB|TB|MB)/MB	ALTER SERVER AUDIT a TO FILE(MAXSIZE = 1 MB)
-accept	reject	engine	maxSizeAuditFileOption_MAXSIZE(GB|TB|MB)/MB!insert	ALTER SERVER AUDIT a TO FILE(MAXSIZE = 1 MB zzz)
-accept	reject	engine	maxSizeAuditFileOption_MAXSIZE(GB|TB|MB)/MB!swap	ALTER SERVER AUDIT a TO FILE(MAXSIZE = 1 MEMBER)
+reject	reject	engine	maxSizeAuditFileOption_MAXSIZE(GB|TB|MB)/MB!insert	ALTER SERVER AUDIT a TO FILE(MAXSIZE = 1 MB zzz)
+reject	reject	engine	maxSizeAuditFileOption_MAXSIZE(GB|TB|MB)/MB!swap	ALTER SERVER AUDIT a TO FILE(MAXSIZE = 1 MEMBER)
 accept	accept	engine	maxRolloverFilesAuditFileOption_MAX_ROLLOVER_FILES/MAX_ROLLOVER_FILES_EqualsSign_(integer|UNLIMITED)	ALTER SERVER AUDIT a TO FILE(MAX_ROLLOVER_FILES = 1)
 accept	accept	engine	maxRolloverFilesAuditFileOption_MAX_ROLLOVER_FILES(integer|UNLIMITED)/integer	ALTER SERVER AUDIT a TO FILE(MAX_ROLLOVER_FILES = 1)
 accept	accept	engine	maxRolloverFilesAuditFileOption_MAX_ROLLOVER_FILES(integer|UNLIMITED)/UNLIMITED	ALTER SERVER AUDIT a TO FILE(MAX_ROLLOVER_FILES = UNLIMITED)
-accept	reject	engine	maxRolloverFilesAuditFileOption_MAX_ROLLOVER_FILES(integer|UNLIMITED)/UNLIMITED!insert	ALTER SERVER AUDIT a TO FILE(MAX_ROLLOVER_FILES = UNLIMITED zzz)
-accept	reject	engine	maxRolloverFilesAuditFileOption_MAX_ROLLOVER_FILES(integer|UNLIMITED)/UNLIMITED!swap	ALTER SERVER AUDIT a TO FILE(MAX_ROLLOVER_FILES = UNPIVOT)
+reject	reject	engine	maxRolloverFilesAuditFileOption_MAX_ROLLOVER_FILES(integer|UNLIMITED)/UNLIMITED!insert	ALTER SERVER AUDIT a TO FILE(MAX_ROLLOVER_FILES = UNLIMITED zzz)
+reject	reject	engine	maxRolloverFilesAuditFileOption_MAX_ROLLOVER_FILES(integer|UNLIMITED)/UNLIMITED!swap	ALTER SERVER AUDIT a TO FILE(MAX_ROLLOVER_FILES = UNPIVOT)
 accept	accept	engine	reserveDiskSpaceAuditFileOption_RESERVE_DISK_SPACE/RESERVE_DISK_SPACE_EqualsSign_optionOnOff	ALTER SERVER AUDIT a TO FILE(RESERVE_DISK_SPACE = ON)
 accept	accept	engine	maxFilesAuditFileOption_MAX_FILES/MAX_FILES_EqualsSign_integer	ALTER SERVER AUDIT a TO FILE(MAX_FILES = 1)
-accept	reject	engine	retentionDaysAuditUrlOption_RETENTION_DAYS/RETENTION_DAYS_EqualsSign_integer	ALTER SERVER AUDIT a TO URL(RETENTION_DAYS = 1)
-accept	reject	engine	alterServerAuditStatements_AUDIT/AUDIT_(alterServerAuditSpecificationStateme~97d2dbe6)	ALTER SERVER AUDIT a
+reject	reject	engine	retentionDaysAuditUrlOption_RETENTION_DAYS/RETENTION_DAYS_EqualsSign_integer	ALTER SERVER AUDIT a TO URL(RETENTION_DAYS = 1)
+reject	reject	engine	alterServerAuditStatements_AUDIT/AUDIT_(alterServerAuditSpecificationStateme~97d2dbe6)	ALTER SERVER AUDIT a
 reject	reject	engine	alterServerAuditStatements_AUDIT/AUDIT_(alterServerAuditSpecificationStateme~97d2dbe6)!swap	ALTER SERVER AUTHENTICATION a
 accept	accept	engine	alterServerAuditStatements_AUDIT(alterServerAuditSpecificationStateme~97d2dbe6)/alterServerAuditSpecificationStatement_SPECIFICATION	ALTER SERVER AUDIT SPECIFICATION a
-accept	reject	engine	alterServerAuditStatements_AUDIT(alterServerAuditSpecificationStateme~97d2dbe6)/alterServerAuditSpecificationStatement_SPECIFICATION!drop-2	ALTER SERVER AUDIT SPECIFICATION
+reject	reject	engine	alterServerAuditStatements_AUDIT(alterServerAuditSpecificationStateme~97d2dbe6)/alterServerAuditSpecificationStatement_SPECIFICATION!drop-2	ALTER SERVER AUDIT SPECIFICATION
 reject	reject	engine	alterServerAuditStatements_AUDIT(alterServerAuditSpecificationStateme~97d2dbe6)/alterServerAuditSpecificationStatement_SPECIFICATION!insert	ALTER SERVER AUDIT SPECIFICATION a zzz
 reject	reject	engine	alterServerAuditStatements_AUDIT(alterServerAuditSpecificationStateme~97d2dbe6)/alterServerAuditSpecificationStatement_SPECIFICATION!swap	ALTER SERVER AUDIT SPLIT a
-accept	reject	engine	alterServerAuditStatements_AUDIT(alterServerAuditSpecificationStateme~97d2dbe6)/alterServerAuditStatement	ALTER SERVER AUDIT a
+reject	reject	engine	alterServerAuditStatements_AUDIT(alterServerAuditSpecificationStateme~97d2dbe6)/alterServerAuditStatement	ALTER SERVER AUDIT a
 accept	accept	engine	alterServerConfigurationStatement_CONFIGURATION/CONFIGURATION_Set_(alterServerConfigurationSetProcessAf~a19290c7	ALTER SERVER CONFIGURATION SET SOFTNUMA ON
 reject	reject	engine	alterServerConfigurationStatement_CONFIGURATION/CONFIGURATION_Set_(alterServerConfigurationSetProcessAf~a19290c7!drop-1	ALTER SERVER SET SOFTNUMA ON
 accept	reject	engine	alterServerConfigurationStatement_CONFIGURATION/CONFIGURATION_Set_(alterServerConfigurationSetProcessAf~a19290c7!drop-2	ALTER SERVER CONFIGURATION SOFTNUMA ON
@@ -15567,20 +15567,20 @@ accept	accept	engine	alterServerAuditSpecificationStatement_SPECIFICATION/SPECIF
 accept	accept	engine	alterServerAuditSpecificationStatement_SPECIFICATION(auditSpecificationForClause)?/%empty	ALTER SERVER AUDIT SPECIFICATION a
 accept	accept	engine	alterServerAuditSpecificationStatement_SPECIFICATION(auditSpecificationForClause)?/auditSpecificationForClause	ALTER SERVER AUDIT SPECIFICATION a FOR SERVER AUDIT a
 reject	reject	engine	alterServerAuditSpecificationStatement_SPECIFICATION(auditSpecificationForClause)?/auditSpecificationForClause!drop-1	ALTER SERVER AUDIT SPECIFICATION a SERVER AUDIT a
-accept	reject	engine	alterServerAuditSpecificationStatement_SPECIFICATION(auditSpecificationForClause)?/auditSpecificationForClause!drop-2	ALTER SERVER AUDIT SPECIFICATION a FOR AUDIT a
-accept	reject	engine	alterServerAuditSpecificationStatement_SPECIFICATION(auditSpecificationForClause)?/auditSpecificationForClause!drop-3	ALTER SERVER AUDIT SPECIFICATION a FOR SERVER a
-accept	reject	engine	alterServerAuditSpecificationStatement_SPECIFICATION(auditSpecificationForClause)?/auditSpecificationForClause!drop-4	ALTER SERVER AUDIT SPECIFICATION a FOR SERVER AUDIT
+reject	reject	engine	alterServerAuditSpecificationStatement_SPECIFICATION(auditSpecificationForClause)?/auditSpecificationForClause!drop-2	ALTER SERVER AUDIT SPECIFICATION a FOR AUDIT a
+reject	reject	engine	alterServerAuditSpecificationStatement_SPECIFICATION(auditSpecificationForClause)?/auditSpecificationForClause!drop-3	ALTER SERVER AUDIT SPECIFICATION a FOR SERVER a
+reject	reject	engine	alterServerAuditSpecificationStatement_SPECIFICATION(auditSpecificationForClause)?/auditSpecificationForClause!drop-4	ALTER SERVER AUDIT SPECIFICATION a FOR SERVER AUDIT
 reject	reject	engine	alterServerAuditSpecificationStatement_SPECIFICATION(auditSpecificationForClause)?/auditSpecificationForClause!insert	ALTER SERVER AUDIT SPECIFICATION a FOR SERVER AUDIT a zzz
 reject	reject	engine	alterServerAuditSpecificationStatement_SPECIFICATION(auditSpecificationForClause)?/auditSpecificationForClause!swap	ALTER SERVER AUDIT SPECIFICATION a FORCE SERVER AUDIT a
 accept	accept	engine	alterServerAuditSpecificationStatement_SPECIFICATION(auditSpecificationDetail_(Comma_audi~97a9ada1)?/%empty	ALTER SERVER AUDIT SPECIFICATION a
-accept	reject	engine	alterServerAuditSpecificationStatement_SPECIFICATION(auditSpecificationDetail_(Comma_audi~97a9ada1)?/auditSpecificationDetail_(Comma_auditSpecificationDetail)*	ALTER SERVER AUDIT SPECIFICATION a ADD(a)
-accept	reject	engine	alterServerAuditSpecificationStatement_SPECIFICATION(Comma_auditSpecificationDetail)*/%empty	ALTER SERVER AUDIT SPECIFICATION a ADD(a)
-accept	reject	engine	alterServerAuditSpecificationStatement_SPECIFICATION(Comma_auditSpecificationDetail)*/Comma_auditSpecificationDetail_(Comma_auditSpecificationDetail)*	ALTER SERVER AUDIT SPECIFICATION a ADD(a), ADD(a)
-accept	reject	engine	alterServerAuditSpecificationStatement_SPECIFICATION(Comma_auditSpecificationDetail)*/Comma_auditSpecificationDetail_(Comma_auditSpecificationDetail)*!drop-1	ALTER SERVER AUDIT SPECIFICATION a ADD(a) ADD(a)
+reject	reject	engine	alterServerAuditSpecificationStatement_SPECIFICATION(auditSpecificationDetail_(Comma_audi~97a9ada1)?/auditSpecificationDetail_(Comma_auditSpecificationDetail)*	ALTER SERVER AUDIT SPECIFICATION a ADD(a)
+reject	reject	engine	alterServerAuditSpecificationStatement_SPECIFICATION(Comma_auditSpecificationDetail)*/%empty	ALTER SERVER AUDIT SPECIFICATION a ADD(a)
+reject	reject	engine	alterServerAuditSpecificationStatement_SPECIFICATION(Comma_auditSpecificationDetail)*/Comma_auditSpecificationDetail_(Comma_auditSpecificationDetail)*	ALTER SERVER AUDIT SPECIFICATION a ADD(a), ADD(a)
+reject	reject	engine	alterServerAuditSpecificationStatement_SPECIFICATION(Comma_auditSpecificationDetail)*/Comma_auditSpecificationDetail_(Comma_auditSpecificationDetail)*!drop-1	ALTER SERVER AUDIT SPECIFICATION a ADD(a) ADD(a)
 reject	reject	engine	alterServerAuditSpecificationStatement_SPECIFICATION(Comma_auditSpecificationDetail)*/Comma_auditSpecificationDetail_(Comma_auditSpecificationDetail)*!drop-2	ALTER SERVER AUDIT SPECIFICATION a ADD(a),(a)
 reject	reject	engine	alterServerAuditSpecificationStatement_SPECIFICATION(Comma_auditSpecificationDetail)*/Comma_auditSpecificationDetail_(Comma_auditSpecificationDetail)*!drop-3	ALTER SERVER AUDIT SPECIFICATION a ADD(a), ADD a)
-accept	reject	engine	alterServerAuditSpecificationStatement_SPECIFICATION(Comma_auditSpecificationDetail)*/Comma_auditSpecificationDetail_(Comma_auditSpecificationDetail)*!drop-4	ALTER SERVER AUDIT SPECIFICATION a ADD(a), ADD()
-accept	reject	engine	alterServerAuditSpecificationStatement_SPECIFICATION(Comma_auditSpecificationDetail)*/Comma_auditSpecificationDetail_(Comma_auditSpecificationDetail)*!drop-5	ALTER SERVER AUDIT SPECIFICATION a ADD(a), ADD(a
+reject	reject	engine	alterServerAuditSpecificationStatement_SPECIFICATION(Comma_auditSpecificationDetail)*/Comma_auditSpecificationDetail_(Comma_auditSpecificationDetail)*!drop-4	ALTER SERVER AUDIT SPECIFICATION a ADD(a), ADD()
+reject	reject	engine	alterServerAuditSpecificationStatement_SPECIFICATION(Comma_auditSpecificationDetail)*/Comma_auditSpecificationDetail_(Comma_auditSpecificationDetail)*!drop-5	ALTER SERVER AUDIT SPECIFICATION a ADD(a), ADD(a
 reject	reject	engine	alterServerAuditSpecificationStatement_SPECIFICATION(Comma_auditSpecificationDetail)*/Comma_auditSpecificationDetail_(Comma_auditSpecificationDetail)*!insert	ALTER SERVER AUDIT SPECIFICATION a ADD(a), ADD(a) zzz
 reject	reject	engine	alterServerAuditSpecificationStatement_SPECIFICATION(Comma_auditSpecificationDetail)*/Comma_auditSpecificationDetail_(Comma_auditSpecificationDetail)*!swap	ALTER SERVER AUDIT SPECIFICATION a ADD(a), ADMIN(a)
 accept	reject	engine	alterServerConfigurationSetProcessAffinityStatement_PROCESS/PROCESS_AFFINITY_Identifier_EqualsSign_(affinityRangeList|AUTO)	ALTER SERVER CONFIGURATION SET PROCESS AFFINITY a = 1
@@ -15606,14 +15606,14 @@ accept	accept	engine	alterDatabaseAuditSpecification_AUDIT/AUDIT_SPECIFICATION_i
 accept	accept	engine	alterDatabaseAuditSpecification_AUDIT(auditSpecificationForClause)?/%empty	ALTER DATABASE AUDIT SPECIFICATION a
 accept	accept	engine	alterDatabaseAuditSpecification_AUDIT(auditSpecificationForClause)?/auditSpecificationForClause	ALTER DATABASE AUDIT SPECIFICATION a FOR SERVER AUDIT a
 accept	accept	engine	alterDatabaseAuditSpecification_AUDIT(auditSpecificationDetailDb_(Comma_au~52685b2b)?/%empty	ALTER DATABASE AUDIT SPECIFICATION a
-accept	reject	engine	alterDatabaseAuditSpecification_AUDIT(auditSpecificationDetailDb_(Comma_au~52685b2b)?/auditSpecificationDetailDb_(Comma_auditSpecificationDetailDb)*	ALTER DATABASE AUDIT SPECIFICATION a ADD(a)
-accept	reject	engine	alterDatabaseAuditSpecification_AUDIT(Comma_auditSpecificationDetailDb)*/%empty	ALTER DATABASE AUDIT SPECIFICATION a ADD(a)
-accept	reject	engine	alterDatabaseAuditSpecification_AUDIT(Comma_auditSpecificationDetailDb)*/Comma_auditSpecificationDetailDb_(Comma_auditSpecificat~dae1e795	ALTER DATABASE AUDIT SPECIFICATION a ADD(a), ADD(a)
-accept	reject	engine	alterDatabaseAuditSpecification_AUDIT(Comma_auditSpecificationDetailDb)*/Comma_auditSpecificationDetailDb_(Comma_auditSpecificat~dae1e795!drop-1	ALTER DATABASE AUDIT SPECIFICATION a ADD(a) ADD(a)
+reject	reject	engine	alterDatabaseAuditSpecification_AUDIT(auditSpecificationDetailDb_(Comma_au~52685b2b)?/auditSpecificationDetailDb_(Comma_auditSpecificationDetailDb)*	ALTER DATABASE AUDIT SPECIFICATION a ADD(a)
+reject	reject	engine	alterDatabaseAuditSpecification_AUDIT(Comma_auditSpecificationDetailDb)*/%empty	ALTER DATABASE AUDIT SPECIFICATION a ADD(a)
+reject	reject	engine	alterDatabaseAuditSpecification_AUDIT(Comma_auditSpecificationDetailDb)*/Comma_auditSpecificationDetailDb_(Comma_auditSpecificat~dae1e795	ALTER DATABASE AUDIT SPECIFICATION a ADD(a), ADD(a)
+reject	reject	engine	alterDatabaseAuditSpecification_AUDIT(Comma_auditSpecificationDetailDb)*/Comma_auditSpecificationDetailDb_(Comma_auditSpecificat~dae1e795!drop-1	ALTER DATABASE AUDIT SPECIFICATION a ADD(a) ADD(a)
 reject	reject	engine	alterDatabaseAuditSpecification_AUDIT(Comma_auditSpecificationDetailDb)*/Comma_auditSpecificationDetailDb_(Comma_auditSpecificat~dae1e795!drop-2	ALTER DATABASE AUDIT SPECIFICATION a ADD(a),(a)
 reject	reject	engine	alterDatabaseAuditSpecification_AUDIT(Comma_auditSpecificationDetailDb)*/Comma_auditSpecificationDetailDb_(Comma_auditSpecificat~dae1e795!drop-3	ALTER DATABASE AUDIT SPECIFICATION a ADD(a), ADD a)
-accept	reject	engine	alterDatabaseAuditSpecification_AUDIT(Comma_auditSpecificationDetailDb)*/Comma_auditSpecificationDetailDb_(Comma_auditSpecificat~dae1e795!drop-4	ALTER DATABASE AUDIT SPECIFICATION a ADD(a), ADD()
-accept	reject	engine	alterDatabaseAuditSpecification_AUDIT(Comma_auditSpecificationDetailDb)*/Comma_auditSpecificationDetailDb_(Comma_auditSpecificat~dae1e795!drop-5	ALTER DATABASE AUDIT SPECIFICATION a ADD(a), ADD(a
+reject	reject	engine	alterDatabaseAuditSpecification_AUDIT(Comma_auditSpecificationDetailDb)*/Comma_auditSpecificationDetailDb_(Comma_auditSpecificat~dae1e795!drop-4	ALTER DATABASE AUDIT SPECIFICATION a ADD(a), ADD()
+reject	reject	engine	alterDatabaseAuditSpecification_AUDIT(Comma_auditSpecificationDetailDb)*/Comma_auditSpecificationDetailDb_(Comma_auditSpecificat~dae1e795!drop-5	ALTER DATABASE AUDIT SPECIFICATION a ADD(a), ADD(a
 reject	reject	engine	alterDatabaseAuditSpecification_AUDIT(Comma_auditSpecificationDetailDb)*/Comma_auditSpecificationDetailDb_(Comma_auditSpecificat~dae1e795!insert	ALTER DATABASE AUDIT SPECIFICATION a ADD(a), ADD(a) zzz
 reject	reject	engine	alterDatabaseAuditSpecification_AUDIT(Comma_auditSpecificationDetailDb)*/Comma_auditSpecificationDetailDb_(Comma_auditSpecificat~dae1e795!swap	ALTER DATABASE AUDIT SPECIFICATION a ADD(a), ADMIN(a)
 accept	accept	engine	alterDatabaseScopedCredentialStatement_SCOPED/SCOPED_credentialStatementBody	ALTER DATABASE SCOPED CREDENTIAL a WITH IDENTITY = 'a'
@@ -15862,14 +15862,14 @@ reject	reject	engine	automaticTuningMaintainIndexOption_MAINTAIN_INDEX(On_()|Off
 accept	accept	engine	hadrAvailabilityDbOption_AVAILABILITY/AVAILABILITY_Group_EqualsSign_identifier	ALTER DATABASE a SET HADR AVAILABILITY GROUP = a
 accept	accept	engine	createDatabaseAuditSpecification_AUDIT/AUDIT_SPECIFICATION_identifier_auditSpecificationForCla~a0e4067d	CREATE DATABASE AUDIT SPECIFICATION a FOR SERVER AUDIT a
 accept	accept	engine	createDatabaseAuditSpecification_AUDIT(createAuditSpecificationDetailDb_(Co~78290ec5)?/%empty	CREATE DATABASE AUDIT SPECIFICATION a FOR SERVER AUDIT a
-accept	reject	engine	createDatabaseAuditSpecification_AUDIT(createAuditSpecificationDetailDb_(Co~78290ec5)?/createAuditSpecificationDetailDb_(Comma_createAuditSpec~4bf9d9f6	CREATE DATABASE AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(a)
-accept	reject	engine	createDatabaseAuditSpecification_AUDIT(Comma_createAuditSpecificationDetailDb)*/%empty	CREATE DATABASE AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(a)
-accept	reject	engine	createDatabaseAuditSpecification_AUDIT(Comma_createAuditSpecificationDetailDb)*/Comma_createAuditSpecificationDetailDb_(Comma_createAud~1b25a5a6	CREATE DATABASE AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(a), ADD(a)
-accept	reject	engine	createDatabaseAuditSpecification_AUDIT(Comma_createAuditSpecificationDetailDb)*/Comma_createAuditSpecificationDetailDb_(Comma_createAud~1b25a5a6!drop-1	CREATE DATABASE AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(a) ADD(a)
+reject	reject	engine	createDatabaseAuditSpecification_AUDIT(createAuditSpecificationDetailDb_(Co~78290ec5)?/createAuditSpecificationDetailDb_(Comma_createAuditSpec~4bf9d9f6	CREATE DATABASE AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(a)
+reject	reject	engine	createDatabaseAuditSpecification_AUDIT(Comma_createAuditSpecificationDetailDb)*/%empty	CREATE DATABASE AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(a)
+reject	reject	engine	createDatabaseAuditSpecification_AUDIT(Comma_createAuditSpecificationDetailDb)*/Comma_createAuditSpecificationDetailDb_(Comma_createAud~1b25a5a6	CREATE DATABASE AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(a), ADD(a)
+reject	reject	engine	createDatabaseAuditSpecification_AUDIT(Comma_createAuditSpecificationDetailDb)*/Comma_createAuditSpecificationDetailDb_(Comma_createAud~1b25a5a6!drop-1	CREATE DATABASE AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(a) ADD(a)
 reject	reject	engine	createDatabaseAuditSpecification_AUDIT(Comma_createAuditSpecificationDetailDb)*/Comma_createAuditSpecificationDetailDb_(Comma_createAud~1b25a5a6!drop-2	CREATE DATABASE AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(a),(a)
 reject	reject	engine	createDatabaseAuditSpecification_AUDIT(Comma_createAuditSpecificationDetailDb)*/Comma_createAuditSpecificationDetailDb_(Comma_createAud~1b25a5a6!drop-3	CREATE DATABASE AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(a), ADD a)
-accept	reject	engine	createDatabaseAuditSpecification_AUDIT(Comma_createAuditSpecificationDetailDb)*/Comma_createAuditSpecificationDetailDb_(Comma_createAud~1b25a5a6!drop-4	CREATE DATABASE AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(a), ADD()
-accept	reject	engine	createDatabaseAuditSpecification_AUDIT(Comma_createAuditSpecificationDetailDb)*/Comma_createAuditSpecificationDetailDb_(Comma_createAud~1b25a5a6!drop-5	CREATE DATABASE AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(a), ADD(a
+reject	reject	engine	createDatabaseAuditSpecification_AUDIT(Comma_createAuditSpecificationDetailDb)*/Comma_createAuditSpecificationDetailDb_(Comma_createAud~1b25a5a6!drop-4	CREATE DATABASE AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(a), ADD()
+reject	reject	engine	createDatabaseAuditSpecification_AUDIT(Comma_createAuditSpecificationDetailDb)*/Comma_createAuditSpecificationDetailDb_(Comma_createAud~1b25a5a6!drop-5	CREATE DATABASE AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(a), ADD(a
 reject	reject	engine	createDatabaseAuditSpecification_AUDIT(Comma_createAuditSpecificationDetailDb)*/Comma_createAuditSpecificationDetailDb_(Comma_createAud~1b25a5a6!insert	CREATE DATABASE AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(a), ADD(a) zzz
 reject	reject	engine	createDatabaseAuditSpecification_AUDIT(Comma_createAuditSpecificationDetailDb)*/Comma_createAuditSpecificationDetailDb_(Comma_createAud~1b25a5a6!swap	CREATE DATABASE AUDIT SPECIFICATION a FOR SERVER AUDIT a ADD(a), ADMIN(a)
 accept	accept	engine	createDatabaseScopedCredentialStatement_SCOPED/SCOPED_credentialStatementBody	CREATE DATABASE SCOPED CREDENTIAL a WITH IDENTITY = 'a'
@@ -16550,8 +16550,8 @@ reject	reject	engine	alterSymmetricKeyStatement_SYMMETRIC(Add|Drop)/Add!swap	ALT
 accept	accept	engine	alterSymmetricKeyStatement_SYMMETRIC(Add|Drop)/Drop	ALTER SYMMETRIC KEY a DROP ENCRYPTION BY CERTIFICATE a
 reject	reject	engine	alterSymmetricKeyStatement_SYMMETRIC(Add|Drop)/Drop!insert	ALTER SYMMETRIC KEY a DROP zzz ENCRYPTION BY CERTIFICATE a
 reject	reject	engine	alterSymmetricKeyStatement_SYMMETRIC(Add|Drop)/Drop!swap	ALTER SYMMETRIC KEY a DROP_INDEX ENCRYPTION BY CERTIFICATE a
-accept	reject	engine	alterServerStatements_SERVER/SERVER_(alterServerAuditStatements_AUDIT|alt~ad48ba47)	ALTER SERVER AUDIT a
-accept	reject	engine	alterServerStatements_SERVER(alterServerAuditStatements_AUDIT|alt~ad48ba47)/alterServerAuditStatements_AUDIT	ALTER SERVER AUDIT a
+reject	reject	engine	alterServerStatements_SERVER/SERVER_(alterServerAuditStatements_AUDIT|alt~ad48ba47)	ALTER SERVER AUDIT a
+reject	reject	engine	alterServerStatements_SERVER(alterServerAuditStatements_AUDIT|alt~ad48ba47)/alterServerAuditStatements_AUDIT	ALTER SERVER AUDIT a
 accept	accept	engine	alterServerStatements_SERVER(alterServerAuditStatements_AUDIT|alt~ad48ba47)/alterServerConfigurationStatement_CONFIGURATION	ALTER SERVER CONFIGURATION SET SOFTNUMA ON
 accept	accept	engine	alterServerStatements_SERVER(alterServerAuditStatements_AUDIT|alt~ad48ba47)/alterServerRoleStatement_ROLE	ALTER SERVER ROLE a ADD MEMBER a
 accept	accept	engine	alterXmlSchemaCollectionStatement_XML/XML_Schema_COLLECTION_schemaObjectNonEmptyTwoPartName_A~3b0299d7	ALTER XML SCHEMA COLLECTION a ADD 1

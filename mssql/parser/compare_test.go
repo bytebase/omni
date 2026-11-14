@@ -21380,46 +21380,17 @@ func TestParseCryptoBnfReview(t *testing.T) {
 
 // TestParseAuditEventBnfReview tests batch 165: BNF review of audit and event session statements.
 func TestParseAuditEventBnfReview(t *testing.T) {
-	// TO URL with parenthesized options (gap: parser previously treated URL as simple target)
-	t.Run("server_audit_to_url_with_options", func(t *testing.T) {
-		sql := "CREATE SERVER AUDIT MyAudit TO URL (FILEPATH = 'https://storage.blob.core.windows.net/audit/', MAXSIZE = 100 MB)"
-		result := ParseAndCheck(t, sql)
-		stmt := result.Items[0].(*ast.SecurityStmt)
-		if stmt.Action != "CREATE" {
-			t.Errorf("expected CREATE, got %q", stmt.Action)
+	// SQL Server 2022 refuses the Azure-only TO URL, TO EXTERNAL_MONITOR and
+	// OPERATOR_AUDIT with Msg 40517 ("not supported in this version").
+	for _, sql := range []string{
+		"CREATE SERVER AUDIT MyAudit TO URL (PATH = 'https://storage.blob.core.windows.net/audit/', RETENTION_DAYS = 7)",
+		"CREATE SERVER AUDIT MyAudit TO EXTERNAL_MONITOR",
+		"CREATE SERVER AUDIT MyAudit TO SECURITY_LOG WITH (QUEUE_DELAY = 1000, OPERATOR_AUDIT = ON)",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q): expected an error", sql)
 		}
-		if stmt.Options == nil || len(stmt.Options.Items) < 2 {
-			t.Fatalf("expected at least 2 options (TO=URL + file options), got %v", stmt.Options)
-		}
-		opt0 := stmt.Options.Items[0].(*ast.String).Str
-		if opt0 != "TO=URL" {
-			t.Errorf("expected TO=URL, got %q", opt0)
-		}
-	})
-
-	// TO EXTERNAL_MONITOR
-	t.Run("server_audit_to_external_monitor", func(t *testing.T) {
-		sql := "CREATE SERVER AUDIT MyAudit TO EXTERNAL_MONITOR"
-		result := ParseAndCheck(t, sql)
-		stmt := result.Items[0].(*ast.SecurityStmt)
-		if stmt.Options == nil {
-			t.Fatal("expected options")
-		}
-		opt0 := stmt.Options.Items[0].(*ast.String).Str
-		if opt0 != "TO=EXTERNAL_MONITOR" {
-			t.Errorf("expected TO=EXTERNAL_MONITOR, got %q", opt0)
-		}
-	})
-
-	// CREATE SERVER AUDIT with OPERATOR_AUDIT option
-	t.Run("server_audit_operator_audit", func(t *testing.T) {
-		sql := "CREATE SERVER AUDIT MyAudit TO SECURITY_LOG WITH (QUEUE_DELAY = 1000, OPERATOR_AUDIT = ON)"
-		result := ParseAndCheck(t, sql)
-		stmt := result.Items[0].(*ast.SecurityStmt)
-		if stmt.Options == nil || len(stmt.Options.Items) < 3 {
-			t.Fatalf("expected at least 3 options, got %v", stmt.Options)
-		}
-	})
+	}
 
 	// CREATE SERVER AUDIT with AUDIT_GUID
 	t.Run("server_audit_guid", func(t *testing.T) {
