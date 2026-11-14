@@ -372,6 +372,11 @@ func (p *Parser) parseIndexColumnList() (*nodes.List, error) {
 // OR, NOT, NOT IN, BETWEEN and LIKE are refused (Msg 156). IS [NOT]
 // DISTINCT FROM (TSql160.g:17080) is not read: the AST has no node for it.
 func (p *Parser) indexFilterExpression() (nodes.ExprNode, error) {
+	// A parenthesized predicate recurses through here (indexFilterPrimary).
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	left, err := p.indexFilterPrimary()
 	if err != nil {
 		return nil, err
@@ -901,6 +906,10 @@ func (p *Parser) indexLegacyOptionList() (*nodes.List, error) {
 			v, err := p.indexExpectInteger()
 			if err != nil {
 				return nil, err
+			}
+			if n, convErr := strconv.Atoi(v); convErr != nil || n < 1 || n > 100 {
+				// Msg 129: fillfactor must be between 1 and 100.
+				return nil, p.newParseError(p.prev.Loc, fmt.Sprintf("fillfactor %s is not between 1 and 100", v))
 			}
 			return &nodes.String{Str: "FILLFACTOR=" + v}, nil
 		case "PAD_INDEX", "SORT_IN_TEMPDB", "IGNORE_DUP_KEY", "DROP_EXISTING", "STATISTICS_NORECOMPUTE":

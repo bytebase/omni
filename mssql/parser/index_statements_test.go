@@ -328,3 +328,16 @@ func TestIndexStatementsAgainstServer(t *testing.T) {
 		}
 	}
 }
+
+// TestParseIndexLegacyFillfactorRange holds WITH FILLFACTOR = n, the form
+// without parentheses, to SQL Server's 1 to 100 (Msg 129).
+func TestParseIndexLegacyFillfactorRange(t *testing.T) {
+	if _, err := Parse("CREATE INDEX i ON t (c) WITH FILLFACTOR = 100"); err != nil {
+		t.Errorf("FILLFACTOR = 100: %v", err)
+	}
+	for _, sql := range []string{"CREATE INDEX i ON t (c) WITH FILLFACTOR = 101", "CREATE INDEX i ON t (c) WITH FILLFACTOR = 0"} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) = nil error, want SQL Server's rejection", sql)
+		}
+	}
+}
