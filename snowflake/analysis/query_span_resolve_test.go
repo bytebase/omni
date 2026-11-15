@@ -6,10 +6,12 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/bytebase/omni/enginetest/cputime"
 	"github.com/bytebase/omni/snowflake/analysis"
 )
 
@@ -104,6 +106,31 @@ func TestResolveQuerySpanResults(t *testing.T) {
 		}
 		assert.Equalf(t, analysis.Select, span.Type, "%s", tc.sql)
 		assert.Equalf(t, tc.want, render(span), "%s", tc.sql)
+	}
+}
+
+func TestResolveQuerySpanNestedExpressionsLinear(t *testing.T) {
+	const depth = 60
+	nest := func(open, leaf, closing string) string {
+		return strings.Repeat(open, depth) + leaf + strings.Repeat(closing, depth)
+	}
+	for _, tc := range []struct {
+		name string
+		expr string
+	}{
+		{"CASE WHEN", nest("CASE WHEN A > 0 THEN ", "B", " END")},
+		{"CASE condition", nest("CASE WHEN ", "B", " > 0 THEN A END > 0")},
+		{"window ORDER BY", nest("SUM(A) OVER (ORDER BY ", "B", ")")},
+		{"WITHIN GROUP", nest("LISTAGG(A) WITHIN GROUP (ORDER BY ", "B", ")")},
+	} {
+		sql := "SELECT " + tc.expr + " AS X FROM T1"
+		var span *analysis.ResolvedSpan
+		var err error
+		cputime.Within(t, 2*time.Second, fmt.Sprintf("%s nested %d deep", tc.name, depth), func() {
+			span, err = resolveSpan(t, sql)
+		})
+		require.NoErrorf(t, err, "%s", tc.name)
+		require.Equalf(t, []string{"X<-DB.PUBLIC.T1.A,DB.PUBLIC.T1.B"}, render(span), "%s", tc.name)
 	}
 }
 
