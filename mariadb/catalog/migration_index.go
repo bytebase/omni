@@ -118,14 +118,15 @@ func indexOpsForModifiedTable(entry *TableDiffEntry, n *Normalizer) []MigrationO
 	return ops
 }
 
-// ignoredKeysToRelease returns the retained IGNORED unique keys that replacing or
-// dropping other keys would, at some intermediate point, leave as the first
-// eligible implicit primary key (4174). MariaDB enforces that invariant within a
-// statement, so an atomic DROP+ADD does not help; these keys are instead dropped
-// before the replaced keys and re-added afterwards. It reads the source columns,
-// which the index changes do not touch, and covers any number of candidates and
-// simultaneous drops. Keys the diff already changes, and keys the plan only adds,
-// are left to their own operations.
+// ignoredKeysToRelease returns the retained IGNORED unique keys that other changes
+// would, at some intermediate point, leave as the first eligible implicit primary
+// key (4174) — whether a replaced or dropped key exposes them, or a nullable-to-NOT
+// NULL column change makes them eligible before a new primary key is added. MariaDB
+// enforces that invariant within a statement, so an atomic DROP+ADD does not help;
+// these keys are instead dropped before the other changes and re-added afterwards,
+// in target order. It covers any number of candidates and simultaneous drops. Keys
+// the diff already changes, and keys the plan only adds, are left to their own
+// operations.
 func ignoredKeysToRelease(entry *TableDiffEntry) []*Index {
 	if entry.From == nil || entry.To == nil {
 		return nil
@@ -135,7 +136,9 @@ func ignoredKeysToRelease(entry *TableDiffEntry) []*Index {
 	for _, ie := range entry.Indexes {
 		if ie.From != nil {
 			changed[toLower(ie.From.Name)] = true
-			if (ie.Action == DiffModify || ie.Action == DiffDrop) && !ie.From.Primary {
+			// An outright-dropped key leaves a window without it; a replaced
+			// primary key does not, since its DROP+ADD is one statement.
+			if ie.Action == DiffDrop || ie.Action == DiffModify && !ie.From.Primary {
 				removed[toLower(ie.From.Name)] = true
 			}
 		}
@@ -143,10 +146,12 @@ func ignoredKeysToRelease(entry *TableDiffEntry) []*Index {
 			changed[toLower(ie.To.Name)] = true
 		}
 	}
-	if len(removed) == 0 {
-		return nil
-	}
-	intermediate := *entry.From
+	// The intermediate state: a column is NOT NULL if it is in either schema, so a
+	// nullability change in either direction that makes an IGNORED key eligible is
+	// seen, with the source keys that survive. A primary key the plan adds or drops
+	// — which would otherwise protect the ignored one — is absent.
+	intermediate := *entry.To
+	intermediate.Columns = worstCaseNullability(entry.From, entry.To)
 	intermediate.Indexes = nil
 	for _, idx := range entry.From.Indexes {
 		if !removed[toLower(idx.Name)] {
@@ -166,6 +171,29 @@ func ignoredKeysToRelease(entry *TableDiffEntry) []*Index {
 		}
 	}
 	return release
+}
+
+// worstCaseNullability returns to's columns with each one marked NOT NULL if it is
+// NOT NULL in either from or to, the state an IGNORED key is most likely eligible in
+// at some point during the migration.
+func worstCaseNullability(from, to *Table) []*Column {
+	notNull := make(map[string]bool)
+	for _, c := range from.Columns {
+		if !c.Nullable {
+			notNull[toLower(c.Name)] = true
+		}
+	}
+	cols := make([]*Column, len(to.Columns))
+	for i, c := range to.Columns {
+		if c.Nullable && notNull[toLower(c.Name)] {
+			clone := *c
+			clone.Nullable = false
+			cols[i] = &clone
+			continue
+		}
+		cols[i] = c
+	}
+	return cols
 }
 
 // addIndexOp builds an ALTER TABLE ... ADD <index> op.
