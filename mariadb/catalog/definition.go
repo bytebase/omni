@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"slices"
 	"strconv"
 	"strings"
@@ -591,7 +592,7 @@ func writeCreateTable(buf *strings.Builder, table *metadata.TableMetadata, dbNam
 	}
 	writeSystemTimePeriod(buf, table)
 
-	if err := printPrimaryKeyClause(buf, table.Indexes, table.Engine); err != nil {
+	if err := printPrimaryKeyClause(buf, table); err != nil {
 		return err
 	}
 
@@ -609,7 +610,7 @@ func writeCreateTable(buf *strings.Builder, table *metadata.TableMetadata, dbNam
 		slices.SortFunc(checks, func(a, b *metadata.CheckConstraintMetadata) int { return cmp.Compare(a.Name, b.Name) })
 	}
 	for _, index := range secondaryIndexes {
-		if err := printIndexClause(buf, index, table.Engine); err != nil {
+		if err := printIndexClause(buf, index, table); err != nil {
 			return err
 		}
 	}
@@ -959,7 +960,8 @@ func printForeignKeyClause(buf *strings.Builder, fk *metadata.ForeignKeyMetadata
 	return nil
 }
 
-func printIndexClause(buf *strings.Builder, index *metadata.IndexMetadata, engine string) error {
+func printIndexClause(buf *strings.Builder, index *metadata.IndexMetadata, table *metadata.TableMetadata) error {
+	engine := table.GetEngine()
 	if index.Primary {
 		return nil
 	}
@@ -1010,7 +1012,7 @@ func printIndexClause(buf *strings.Builder, index *metadata.IndexMetadata, engin
 		// records SUB_PART for spatial parts (e.g. 32 for a POINT) even though SHOW CREATE
 		// renders none; emitting `(32)` would diverge from the user form and DROP+ADD the
 		// index on every no-op. Suppress the prefix for those index types.
-		if err := printIndexKeyPart(buf, expr, keyLength, descending, isSpatial || isFullText); err != nil {
+		if err := printIndexKeyPart(buf, table, expr, keyLength, descending, isSpatial || isFullText); err != nil {
 			return err
 		}
 	}
@@ -1035,11 +1037,12 @@ func printIndexClause(buf *strings.Builder, index *metadata.IndexMetadata, engin
 	return nil
 }
 
-func printIndexKeyPart(buf *strings.Builder, expr string, length int64, descending bool, suppressPrefix bool) error {
+func printIndexKeyPart(buf *strings.Builder, table *metadata.TableMetadata, expr string, length int64, descending bool, suppressPrefix bool) error {
 	if len(expr) == 0 {
 		return errors.New("index key part expression is empty")
 	}
-	if expr[0] == '(' && expr[len(expr)-1] == ')' {
+	// A column's name may itself be parenthesized, as `(n)` is.
+	if expr[0] == '(' && expr[len(expr)-1] == ')' && !hasColumn(table, expr) {
 		if _, err := buf.WriteString(normalizeFunctionalIndexExpr(expr)); err != nil {
 			return err
 		}
@@ -1201,7 +1204,8 @@ func isCharsetNameByte(c byte) bool {
 	return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9'
 }
 
-func printPrimaryKeyClause(buf *strings.Builder, indexes []*metadata.IndexMetadata, engine string) error {
+func printPrimaryKeyClause(buf *strings.Builder, table *metadata.TableMetadata) error {
+	indexes, engine := table.GetIndexes(), table.GetEngine()
 	for _, index := range indexes {
 		if index.Primary {
 			if _, err := fmt.Fprint(buf, ",\n  PRIMARY KEY ("); err != nil {
@@ -1222,7 +1226,7 @@ func printPrimaryKeyClause(buf *strings.Builder, indexes []*metadata.IndexMetada
 					descending = index.Descending[i]
 				}
 				// Primary keys are never SPATIAL/FULLTEXT, so prefix lengths are valid here.
-				if err := printIndexKeyPart(buf, column, keyLength, descending, false); err != nil {
+				if err := printIndexKeyPart(buf, table, column, keyLength, descending, false); err != nil {
 					return err
 				}
 			}
@@ -1672,7 +1676,7 @@ func writeViewSDL(buf *strings.Builder, dbName string, view *metadata.ViewMetada
 }
 
 // stripViewBodyDatabaseQualifier removes the dumped database's own qualifier from the
-// table, column, and function references of a view body.
+// table and column references of a view body.
 //
 // information_schema.VIEWS qualifies the references of a view body with their
 // database, while users write them unqualified. The omni SDL diff folds only the
@@ -1681,12 +1685,15 @@ func writeViewSDL(buf *strings.Builder, dbName string, view *metadata.ViewMetada
 // position goes: a table alias or table spelled like the database is a qualifier of
 // its columns and stays. A body that does not parse is returned unchanged.
 func stripViewBodyDatabaseQualifier(body, dbName string) string {
-	return stripBodyQualifier(body, dbName, true)
+	return stripBodyQualifier(body, dbName, dbName)
 }
 
-// stripBodyQualifier is stripViewBodyDatabaseQualifier, leaving the qualifier
-// of a function call where functions is false.
-func stripBodyQualifier(body, dbName string, functions bool) string {
+// stripBodyQualifier is stripViewBodyDatabaseQualifier, with the function calls
+// dbName qualifies qualified with functionDB instead. A call keeps a qualifier:
+// MariaDB stores a call as it was written, and an unqualified one may name a
+// builtin. Measured on mariadb:11.8.8: `db`.`upper`(1) stays the stored function
+// and upper(1) is stored as ucase(1).
+func stripBodyQualifier(body, dbName, functionDB string) string {
 	if dbName == "" || body == "" {
 		return body
 	}
@@ -1700,9 +1707,9 @@ func stripBodyQualifier(body, dbName string, functions bool) string {
 	if err != nil || len(list.Items) != 1 {
 		return body
 	}
-	var starts []int
+	replacements := make(map[int]string)
 	nodes.Inspect(list.Items[0], func(n nodes.Node) bool {
-		var schema string
+		var schema, replacement string
 		var loc nodes.Loc
 		switch n := n.(type) {
 		case *nodes.TableRef:
@@ -1710,27 +1717,26 @@ func stripBodyQualifier(body, dbName string, functions bool) string {
 		case *nodes.ColumnRef:
 			schema, loc = n.Schema, n.Loc
 		case *nodes.FuncCallExpr:
-			if !functions {
+			if functionDB == "" || functionDB == dbName {
 				return true
 			}
-			schema, loc = n.Schema, n.Loc
+			schema, loc, replacement = n.Schema, n.Loc, quoteIdent(functionDB)+"."
 		default:
 			return true
 		}
 		start := loc.Start - len(prefix)
 		if schema == dbName && start >= 0 && strings.HasPrefix(body[start:], qualifier) {
-			starts = append(starts, start)
+			replacements[start] = replacement
 		}
 		return true
 	})
-	slices.Sort(starts)
-	starts = slices.Compact(starts)
 
 	var out strings.Builder
 	out.Grow(len(body))
 	prev := 0
-	for _, start := range starts {
+	for _, start := range slices.Sorted(maps.Keys(replacements)) {
 		out.WriteString(body[prev:start])
+		out.WriteString(replacements[start])
 		prev = start + len(qualifier)
 	}
 	out.WriteString(body[prev:])
@@ -1896,4 +1902,13 @@ func scanAccountPart(s string, pos int) (int, bool) {
 		}
 		return i, true
 	}
+}
+
+func hasColumn(table *metadata.TableMetadata, name string) bool {
+	for _, col := range table.GetColumns() {
+		if strings.EqualFold(col.GetName(), name) {
+			return true
+		}
+	}
+	return false
 }
