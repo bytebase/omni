@@ -251,7 +251,10 @@ func triggerPlacement(to *Catalog, diff *SchemaDiff, trig *Trigger) *TriggerOrde
 	// The immediate predecessor in effective order, kept or itself created:
 	// FOLLOWS it. The creates run in effective order, so it exists first. When
 	// trig is first, PRECEDES the next trigger if that one is kept.
-	var before, after *Trigger
+	// FOLLOWS the immediate predecessor in effective order, kept or itself
+	// created earlier; with none, PRECEDES the nearest kept successor, which
+	// anchors a leading chain of new triggers.
+	var before, keptAfter *Trigger
 	for _, peer := range db.Triggers {
 		if peer == trig {
 			continue
@@ -260,18 +263,18 @@ func triggerPlacement(to *Catalog, diff *SchemaDiff, trig *Trigger) *TriggerOrde
 		if !ok {
 			continue
 		}
-		switch {
-		case pp < pos && (before == nil || pp > order[toLower(before.Name)]):
+		if pp < pos && (before == nil || pp > order[toLower(before.Name)]) {
 			before = peer
-		case pp > pos && (after == nil || pp < order[toLower(after.Name)]):
-			after = peer
+		}
+		if pp > pos && !created[toLower(peer.Name)] && (keptAfter == nil || pp < order[toLower(keptAfter.Name)]) {
+			keptAfter = peer
 		}
 	}
 	switch {
 	case before != nil:
 		return &TriggerOrderInfo{Follows: true, TriggerName: before.Name}
-	case after != nil && !created[toLower(after.Name)]:
-		return &TriggerOrderInfo{TriggerName: after.Name}
+	case keptAfter != nil:
+		return &TriggerOrderInfo{TriggerName: keptAfter.Name}
 	}
 	return nil
 }
