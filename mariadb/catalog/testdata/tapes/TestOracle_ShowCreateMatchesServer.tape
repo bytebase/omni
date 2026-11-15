@@ -57,6 +57,51 @@
 | SET foreign_key_checks = 0
 < ok 0 0
 > exec
+| CREATE TABLE t (a INT, g INT DEFAULT (a), k INT DEFAULT ((a)), b INT DEFAULT (a + 1), c INT DEFAULT (-1), d INT DEFAULT ((1 + 1)))
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_showcreatematchesserver" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL,
+|   `g` int(11) DEFAULT `a`,
+|   `k` int(11) DEFAULT `a`,
+|   `b` int(11) DEFAULT (`a` + 1),
+|   `c` int(11) DEFAULT -1,
+|   `d` int(11) DEFAULT (1 + 1)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_showcreatematchesserver`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_showcreatematchesserver`
+< ok 1 0
+> exec
+| USE `omni_testoracle_showcreatematchesserver`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
 | CREATE TABLE t (a TIME DEFAULT '1:2', b TIME(1) DEFAULT '-1 2:3:4.56', c DATETIME(3) DEFAULT '2020-1-2 3:4:5.6789', d DATE DEFAULT '2020-1-2', e DATETIME DEFAULT '2020-01-02', f TIMESTAMP(2) NULL DEFAULT '2020-01-02 03:04:05', g TIME DEFAULT '10:00:00.9', h DATETIME(1) DEFAULT '2020-01-02T03:04:05.15')
 < ok 0 0
 > exec

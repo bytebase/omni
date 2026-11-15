@@ -231,6 +231,7 @@ func assertNotContains(t *testing.T, s, substr string) {
 func TestOracle_ShowCreateMatchesServer(t *testing.T) {
 	scripts := []struct{ name, sql string }{
 		{"function defaults", "CREATE TABLE t (d DATE DEFAULT curdate(), u VARCHAR(20) DEFAULT concat('a', 'b'), z DATE DEFAULT DATE '2020-01-02', x INT DEFAULT (1 + 1))"},
+		{"column defaults", "CREATE TABLE t (a INT, g INT DEFAULT (a), k INT DEFAULT ((a)), b INT DEFAULT (a + 1), c INT DEFAULT (-1), d INT DEFAULT ((1 + 1)))"},
 		{"temporal defaults", "CREATE TABLE t (a TIME DEFAULT '1:2', b TIME(1) DEFAULT '-1 2:3:4.56', c DATETIME(3) DEFAULT '2020-1-2 3:4:5.6789', d DATE DEFAULT '2020-1-2', e DATETIME DEFAULT '2020-01-02', f TIMESTAMP(2) NULL DEFAULT '2020-01-02 03:04:05', g TIME DEFAULT '10:00:00.9', h DATETIME(1) DEFAULT '2020-01-02T03:04:05.15')"},
 		{"zerofill defaults", "CREATE TABLE t (a INT(5) ZEROFILL DEFAULT 3, b INT ZEROFILL DEFAULT 42, c DECIMAL(6,2) ZEROFILL DEFAULT 1.5, d FLOAT(7,3) ZEROFILL DEFAULT 1.5, g INT(3) ZEROFILL DEFAULT 12345, h DOUBLE ZEROFILL DEFAULT 2)"},
 		{"comments", "CREATE TABLE t (a INT COMMENT 'x\ny\rz\\\\w''q', b INT COMMENT 'emoji \xf0\x9f\x93\x9d here', KEY k (a) COMMENT 'k\xf0\x9f\x94\xa5') COMMENT 'line1\nline2 \xf0\x9f\x94\xa5'"},

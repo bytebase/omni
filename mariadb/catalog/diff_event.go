@@ -288,12 +288,16 @@ func canonicalizeInterval(s string) string {
 
 // canonicalizeIntervalValue strips leading zeros from every maximal digit run of
 // an EVERY interval value, then unquotes a value that collapsed to a single bare
-// integer.
+// integer. Only a number or a quoted interval literal ('1:05') is rewritten; an
+// expression keeps its text, whose string literals are values of their own.
 func canonicalizeIntervalValue(v string) string {
 	quoted := len(v) >= 2 && (v[0] == '\'' || v[0] == '"') && v[len(v)-1] == v[0]
 	inner := v
 	if quoted {
 		inner = v[1 : len(v)-1]
+	}
+	if strings.Trim(inner, "0123456789:.- ") != "" {
+		return v
 	}
 
 	stripped := stripFieldLeadingZeros(inner)
