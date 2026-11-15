@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/go-sql-driver/mysql"
@@ -87,4 +88,26 @@ func errorCode(err error) int {
 		return -1
 	}
 	return 0
+}
+
+func TestSequenceUnsignedLimits(t *testing.T) {
+	c := New()
+	_, err := c.Exec("CREATE DATABASE d; USE d; CREATE SEQUENCE su AS BIGINT UNSIGNED MAXVALUE 18446744073709551614 START WITH 18446744073709551600; CREATE OR REPLACE TABLE su (a INT); CREATE SEQUENCE s; CREATE TABLE t (a INT DEFAULT (NEXTVAL(s) + 1));", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.GetDatabase("d").Sequences["su"] != nil || c.GetDatabase("d").Tables["su"] == nil {
+		t.Error("CREATE OR REPLACE TABLE must replace the sequence of its name")
+	}
+	if got := c.ShowCreateTable("d", "t"); !strings.Contains(got, "DEFAULT (nextval(`d`.`s`) + 1)") {
+		t.Errorf("sequence call inside an expression default not qualified:\n%s", got)
+	}
+	c2 := New()
+	if _, err := c2.Exec("CREATE DATABASE d; USE d; CREATE SEQUENCE su AS BIGINT UNSIGNED MAXVALUE 18446744073709551614 START WITH 18446744073709551600;", nil); err != nil {
+		t.Fatal(err)
+	}
+	want := "CREATE SEQUENCE `su` as bigint unsigned start with 18446744073709551600 minvalue 1 maxvalue 18446744073709551614 increment by 1 cache 1000 nocycle ENGINE=InnoDB"
+	if got := c2.ShowCreateSequence("d", "su"); got != want {
+		t.Errorf("got  %s\nwant %s", got, want)
+	}
 }
