@@ -1501,8 +1501,8 @@ func getSequences(txn *sql.Tx, tableOidMap map[int]*tableKeyWithColumns, extensi
 		if columnOidKey, ok := sequenceOwnerMap[oid]; ok {
 			if tableKey, ok := tableOidMap[columnOidKey.TableOid]; ok {
 				sequence.OwnerTable = tableKey.Table
-				// ColumnID is the column's attnum, which a dropped column
-				// before it keeps from being its place among the columns.
+				// ColumnID is the column's attnum: a dropped column before it
+				// leaves a gap, so it is not the column's index in Columns.
 				for _, column := range tableKey.Columns {
 					if int(column.Position) == columnOidKey.ColumnID {
 						sequence.OwnerColumn = column.Name
