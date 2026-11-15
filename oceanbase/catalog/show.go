@@ -12,7 +12,7 @@ func charsetForCollation(collation string) string {
 	collation = toLower(collation)
 	// Try known charsets from longest to shortest to handle prefixes like utf8mb4 vs utf8.
 	knownCharsets := []string{
-		"utf8mb4", "utf8mb3", "utf16le", "gb18030", "geostd8", "armscii8",
+		"gb18030_2022", "utf8mb4", "utf8mb3", "utf16le", "gb18030", "geostd8", "armscii8",
 		"eucjpms", "cp1252", "gb2312", "euckr", "utf16", "utf32",
 		"latin1", "ascii", "binary", "cp932", "tis620", "hebrew",
 		"greek", "sjis", "big5", "ucs2", "utf8", "gbk",
@@ -29,32 +29,35 @@ func charsetForCollation(collation string) string {
 	return ""
 }
 
-// defaultCollationForCharset returns the default collation for common MySQL charsets.
+// defaultCollationForCharset is each charset's default collation, as SHOW CHARACTER
+// SET answers on OceanBase 4.3.5. utf8 and utf8mb3 are utf8mb4 there.
 var defaultCollationForCharset = map[string]string{
-	"utf8mb4":  "utf8mb4_0900_ai_ci",
-	"utf8mb3":  "utf8mb3_general_ci",
-	"utf8":     "utf8mb3_general_ci",
-	"latin1":   "latin1_swedish_ci",
-	"ascii":    "ascii_general_ci",
-	"binary":   "binary",
-	"gbk":      "gbk_chinese_ci",
-	"big5":     "big5_chinese_ci",
-	"euckr":    "euckr_korean_ci",
-	"gb2312":   "gb2312_chinese_ci",
-	"sjis":     "sjis_japanese_ci",
-	"cp1252":   "cp1252_general_ci",
-	"ucs2":     "ucs2_general_ci",
-	"utf16":    "utf16_general_ci",
-	"utf16le":  "utf16le_general_ci",
-	"utf32":    "utf32_general_ci",
-	"cp932":    "cp932_japanese_ci",
-	"eucjpms":  "eucjpms_japanese_ci",
-	"gb18030":  "gb18030_chinese_ci",
-	"geostd8":  "geostd8_general_ci",
-	"tis620":   "tis620_thai_ci",
-	"hebrew":   "hebrew_general_ci",
-	"greek":    "greek_general_ci",
-	"armscii8": "armscii8_general_ci",
+	"binary":       "binary",
+	"utf8mb4":      "utf8mb4_general_ci",
+	"utf8mb3":      "utf8mb4_general_ci",
+	"utf8":         "utf8mb4_general_ci",
+	"gbk":          "gbk_chinese_ci",
+	"utf16":        "utf16_general_ci",
+	"gb18030":      "gb18030_chinese_ci",
+	"latin1":       "latin1_swedish_ci",
+	"gb2312":       "gb2312_chinese_ci",
+	"gb18030_2022": "gb18030_2022_chinese_ci",
+	"ascii":        "ascii_general_ci",
+	"tis620":       "tis620_thai_ci",
+	"ujis":         "ujis_japanese_ci",
+	"euckr":        "euckr_korean_ci",
+	"eucjpms":      "eucjpms_japanese_ci",
+	"cp932":        "cp932_japanese_ci",
+	"utf16le":      "utf16le_general_ci",
+	"sjis":         "sjis_japanese_ci",
+	"big5":         "big5_chinese_ci",
+	"hkscs":        "hkscs_bin",
+	"hkscs31":      "hkscs31_bin",
+	"dec8":         "dec8_swedish_ci",
+	"cp850":        "cp850_general_ci",
+	"hp8":          "hp8_english_ci",
+	"macroman":     "macroman_general_ci",
+	"swe7":         "swe7_swedish_ci",
 }
 
 // ShowCreateTable produces MySQL 8.0-compatible SHOW CREATE TABLE output.
@@ -537,23 +540,11 @@ func showTableOptions(tbl *Table) string {
 		parts = append(parts, fmt.Sprintf("DEFAULT CHARSET=%s", tbl.Charset))
 	}
 
-	// MySQL 8.0 shows COLLATE when:
-	// - The collation differs from the charset's default, OR
-	// - The collation was explicitly specified, OR
-	// - The charset is utf8mb4 (MySQL 8.0 always shows collation for utf8mb4)
-	if tbl.Charset != "" {
-		effectiveCollation := tbl.Collation
-		if effectiveCollation == "" {
-			effectiveCollation = defaultCollationForCharset[toLower(tbl.Charset)]
-		}
-		defColl := defaultCollationForCharset[toLower(tbl.Charset)]
-		isNonDefaultCollation := effectiveCollation != "" && !eqFoldStr(effectiveCollation, defColl)
-		isUtf8mb4 := eqFoldStr(tbl.Charset, "utf8mb4")
-		if isNonDefaultCollation || isUtf8mb4 {
-			if effectiveCollation != "" {
-				parts = append(parts, fmt.Sprintf("COLLATE=%s", effectiveCollation))
-			}
-		}
+	// OceanBase shows COLLATE only when it is not the charset's default; MySQL 8.0
+	// also shows utf8mb4's default.
+	if tbl.Charset != "" && tbl.Collation != "" &&
+		!eqFoldStr(tbl.Collation, defaultCollationForCharset[toLower(tbl.Charset)]) {
+		parts = append(parts, fmt.Sprintf("COLLATE=%s", tbl.Collation))
 	}
 
 	// KEY_BLOCK_SIZE — shown when non-zero.

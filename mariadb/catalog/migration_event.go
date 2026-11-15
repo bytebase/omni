@@ -109,22 +109,24 @@ func scheduleHasEnds(raw string) bool {
 
 // renderCreateEvent renders a CREATE EVENT statement in SHOW CREATE EVENT clause order, without
 // DEFINER. Defaults (ON COMPLETION NOT PRESERVE, ENABLE) are emitted explicitly.
-func renderCreateEvent(e *Event) string {
+func renderCreateEvent(e *Event, noBackslash bool) string {
 	var b strings.Builder
 	b.WriteString("CREATE EVENT ")
 	b.WriteString(eventIdent(e))
-	writeEventBodyClauses(&b, e)
+	writeEventBodyClauses(&b, e, noBackslash)
 	return b.String()
 }
 
 // renderCreateEventWithContext renders the target event's CREATE, framed by frameEventWithContext.
 func renderCreateEventWithContext(to, from *Event) string {
-	return frameEventWithContext(renderCreateEvent(to), to, from)
+	nb := eventNoBackslashEscapes(to, from)
+	return frameEventWithContext(renderCreateEvent(to, nb), to, from)
 }
 
 // renderAlterEventWithContext renders the target event's ALTER, framed by frameEventWithContext.
 func renderAlterEventWithContext(to, from *Event) string {
-	return frameEventWithContext(renderAlterEvent(to), to, from)
+	nb := eventNoBackslashEscapes(to, from)
+	return frameEventWithContext(renderAlterEvent(to, nb), to, from)
 }
 
 // frameEventWithContext wraps an event statement in a save/restore of the session context it
@@ -139,6 +141,17 @@ func frameEventWithContext(stmtSQL string, to, from *Event) string {
 	return stmtSQL
 }
 
+// eventNoBackslashEscapes reports whether an event's comment literal must be escaped
+// for NO_BACKSLASH_ESCAPES: under the target's captured mode when it has one, else
+// under the old event's, which frameEventWithContext then establishes.
+func eventNoBackslashEscapes(to, from *Event) bool {
+	ctx := to
+	if to == nil || !to.HasSessionContext {
+		ctx = from
+	}
+	return ctx != nil && ctx.HasSessionContext && noBackslashEscapes(ctx.SQLMode)
+}
+
 // eventSessionContext bundles an event's captured session context, including time_zone.
 func eventSessionContext(e *Event) SessionContext {
 	return SessionContext{
@@ -151,11 +164,11 @@ func eventSessionContext(e *Event) SessionContext {
 
 // renderAlterEvent renders an ALTER EVENT that re-states every mutable aspect of the target
 // event, so the event matches the target regardless of its prior state.
-func renderAlterEvent(e *Event) string {
+func renderAlterEvent(e *Event, noBackslash bool) string {
 	var b strings.Builder
 	b.WriteString("ALTER EVENT ")
 	b.WriteString(eventIdent(e))
-	writeEventBodyClauses(&b, e)
+	writeEventBodyClauses(&b, e, noBackslash)
 	return b.String()
 }
 
@@ -177,7 +190,7 @@ func eventIdent(e *Event) string {
 // ON COMPLETION, status, COMMENT, DO body. Every clause but the schedule is emitted
 // unconditionally, including defaults and an empty COMMENT, because ALTER EVENT keeps a clause
 // it does not name.
-func writeEventBodyClauses(b *strings.Builder, e *Event) {
+func writeEventBodyClauses(b *strings.Builder, e *Event, noBackslash bool) {
 	if sched := strings.TrimSpace(e.Schedule); sched != "" {
 		b.WriteString(" ON SCHEDULE ")
 		b.WriteString(sched)
@@ -198,7 +211,7 @@ func writeEventBodyClauses(b *strings.Builder, e *Event) {
 		b.WriteString(" ENABLE")
 	}
 
-	fmt.Fprintf(b, " COMMENT '%s'", escapeCommentMode(e.Comment, e.HasSessionContext && noBackslashEscapes(e.SQLMode)))
+	fmt.Fprintf(b, " COMMENT '%s'", escapeCommentMode(e.Comment, noBackslash))
 
 	if body := strings.TrimSpace(e.Body); body != "" {
 		b.WriteString(" DO ")

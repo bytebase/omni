@@ -2,7 +2,14 @@
 # and records the tapes: PostgreSQL 17, the release the parser's grammar is read from
 # (gram.y, src/backend/parser/gram.y at the source tag). pg18 serves the tests that
 # ask the next major: the analyzer's (pg_proc_generated.go is generated from 18) and
-# the review walk's second run.
+# the review walk's second run. pg12 to pg16 serve pg/driver's sync, so that
+# every major release Bytebase supports (12 and later) answers its catalog
+# queries.
 # columns: role, image, digest, source tag
 default	postgres:17.12-alpine	sha256:34261f594522cf41dfcb76aefd42b9d201098b0e6b23c9c68733f169e4218b6f	REL_17_12
 pg18	postgres:18.7-alpine	sha256:75dcac3dfb1cd01ca3536910bbc84128759362f8b118bf8c55b38a94f68f3b73	REL_18_7
+pg12	postgres:12.22-alpine	sha256:7c8f4870583184ebadf7f17a6513620aac5f365a7938dc6a6911c1d5df2f481a	REL_12_22
+pg13	postgres:13.23-alpine	sha256:fb9065b6e3e213bdc07edd372a5b2a26245840b7fb65d1fd8b6700106d51805c	REL_13_23
+pg14	postgres:14.25-alpine	sha256:14078c4aa0db8e2e8492866138cafd796fc39afd5ecb5b1c6f26a912b07529f5	REL_14_25
+pg15	postgres:15.20-alpine	sha256:5cb339462bde5e6b617acedf6c2a3008f3aadc44a3c0507dd22226ee1279aee8	REL_15_20
+pg16	postgres:16.16-alpine	sha256:0adbf25a9e96d38823bb813f3ac0ed41fadb665c88f1df7fe6dbfb060cbdc106	REL_16_16

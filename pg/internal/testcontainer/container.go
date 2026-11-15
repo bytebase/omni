@@ -68,6 +68,61 @@ func OpenRole(t testing.TB, role string) *sql.DB {
 	return tape.Open(t, server, role)
 }
 
+// OpenRoleNumberingOIDs is OpenRole for a test that reads OIDs as numbers,
+// as a sync of system catalogs does to join them. A user object's OID
+// (16384 and up) is the server's next free one when the object was made, so
+// it differs with what the server made before; in a recording each such
+// value of a result column of type oid becomes a stand-in, 2^32 plus the
+// order in which the test first read that OID, the same in every
+// connection of the test. Stand-ins keep equality and are never sent back.
+func OpenRoleNumberingOIDs(t testing.TB, role string) *sql.DB {
+	t.Helper()
+	s := &tape.Server{Pins: Pins, Codec: Codec{}, Live: func(t testing.TB, pin enginetest.Pin) driver.Connector {
+		t.Helper()
+		c := live(t, pin).(connector)
+		c.oids = oidNumbering(enginetest.TopName(t.Name()))
+		return c
+	}}
+	return tape.Open(t, s, role)
+}
+
+// firstUserOID is FirstNormalObjectId: the server numbers its own objects
+// below it, the same in every run of an image.
+const firstUserOID = 16384
+
+// oidNumbers holds each top-level test's stand-ins.
+var oidNumbers = struct {
+	sync.Mutex
+	byTest map[string]*oids
+}{byTest: map[string]*oids{}}
+
+type oids struct {
+	sync.Mutex
+	standIn map[int64]int64
+}
+
+func oidNumbering(top string) *oids {
+	oidNumbers.Lock()
+	defer oidNumbers.Unlock()
+	o := oidNumbers.byTest[top]
+	if o == nil {
+		o = &oids{standIn: map[int64]int64{}}
+		oidNumbers.byTest[top] = o
+	}
+	return o
+}
+
+func (o *oids) number(v int64) int64 {
+	o.Lock()
+	defer o.Unlock()
+	n, ok := o.standIn[v]
+	if !ok {
+		n = 1<<32 + int64(len(o.standIn)) + 1
+		o.standIn[v] = n
+	}
+	return n
+}
+
 // OpenDatabase is OpenRole on a database of the given name, for a test whose
 // SQL names its database. A recording creates it empty on the test's first
 // connection to it.
@@ -76,6 +131,21 @@ func OpenDatabase(t testing.TB, role, name string) *sql.DB {
 	s := &tape.Server{Pins: Pins, Codec: Codec{}, Live: func(t testing.TB, pin enginetest.Pin) driver.Connector {
 		t.Helper()
 		return liveDatabase(t, pin, name)
+	}}
+	return tape.Open(t, s, role)
+}
+
+// OpenDatabaseNumberingOIDs is OpenDatabase for a test that reads OIDs as
+// numbers: it gives the named database's connection OID stand-ins, as
+// OpenRoleNumberingOIDs does for the role's own database, so a sync of its
+// system catalogs records a reproducible tape.
+func OpenDatabaseNumberingOIDs(t testing.TB, role, name string) *sql.DB {
+	t.Helper()
+	s := &tape.Server{Pins: Pins, Codec: Codec{}, Live: func(t testing.TB, pin enginetest.Pin) driver.Connector {
+		t.Helper()
+		c := liveDatabase(t, pin, name).(connector)
+		c.oids = oidNumbering(enginetest.TopName(t.Name()))
+		return c
 	}}
 	return tape.Open(t, s, role)
 }
@@ -136,6 +206,7 @@ type instance struct {
 	err       error
 
 	roles []string // the roles the image starts with
+	major int      // the server's major version
 
 	mu      sync.Mutex
 	emptied map[string]bool // the top-level tests the server was emptied for
@@ -190,7 +261,8 @@ func liveDatabase(t testing.TB, pin enginetest.Pin, name string) driver.Connecto
 			stmts = in.emptying(t, db)
 			in.emptied[top] = true
 		}
-		stmts = append(stmts, "DROP DATABASE IF EXISTS "+quote(name)+" WITH (FORCE)", "CREATE DATABASE "+quote(name))
+		stmts = append(stmts, in.dropDatabase(name, "IF EXISTS ")...)
+		stmts = append(stmts, "CREATE DATABASE "+quote(name))
 		for _, stmt := range stmts {
 			if _, err := db.ExecContext(context.Background(), stmt); err != nil {
 				t.Fatalf("%s: %v", stmt, err)
@@ -198,7 +270,7 @@ func liveDatabase(t testing.TB, pin enginetest.Pin, name string) driver.Connecto
 		}
 		in.created[top+"\x00"+name] = true
 	}
-	return connector{stdlib.GetConnector(*in.config(name))}
+	return connector{Connector: stdlib.GetConnector(*in.config(name))}
 }
 
 // emptying returns the statements that drop every database but the image's
@@ -208,7 +280,7 @@ func (in *instance) emptying(t testing.TB, db *sql.DB) []string {
 	t.Helper()
 	var stmts []string
 	for _, d := range names(t, db, "SELECT datname FROM pg_database WHERE datname NOT IN ('postgres', 'template0', 'template1') ORDER BY 1") {
-		stmts = append(stmts, "DROP DATABASE "+quote(d)+" WITH (FORCE)")
+		stmts = append(stmts, in.dropDatabase(d, "")...)
 	}
 	for _, r := range names(t, db, "SELECT rolname FROM pg_roles ORDER BY 1") {
 		if !slices.Contains(in.roles, r) {
@@ -216,6 +288,19 @@ func (in *instance) emptying(t testing.TB, db *sql.DB) []string {
 		}
 	}
 	return stmts
+}
+
+// dropDatabase returns the statements that drop a database its sessions
+// still hold. PostgreSQL 12, which has no DROP DATABASE ... WITH (FORCE),
+// ends the sessions first.
+func (in *instance) dropDatabase(name, ifExists string) []string {
+	if in.major >= 13 {
+		return []string{"DROP DATABASE " + ifExists + quote(name) + " WITH (FORCE)"}
+	}
+	return []string{
+		"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '" + strings.ReplaceAll(name, "'", "''") + "' AND pid <> pg_backend_pid()",
+		"DROP DATABASE " + ifExists + quote(name),
+	}
 }
 
 // names reads a query's one column of names.
@@ -316,6 +401,10 @@ func (in *instance) start(ctx context.Context) (err error) {
 	if want := Version(in.pin.Tag); version != want {
 		return fmt.Errorf("the server reports %q, but pins.tsv pins PostgreSQL %s (%s)", version, want, in.pin.Tag)
 	}
+	major, _, _ := strings.Cut(version, ".")
+	if in.major, err = strconv.Atoi(major); err != nil {
+		return fmt.Errorf("the server reports version %q: %w", version, err)
+	}
 	rows, err := db.QueryContext(ctx, "SELECT rolname FROM pg_roles ORDER BY 1")
 	if err != nil {
 		return err
@@ -372,18 +461,24 @@ func CheckDigest(ctx context.Context, c testcontainers.Container, digest string)
 }
 
 // connector is pgx's, with one change to what its rows report: see rows.
-type connector struct{ driver.Connector }
+type connector struct {
+	driver.Connector
+	oids *oids // nil unless the test asked for OID stand-ins
+}
 
 func (c connector) Connect(ctx context.Context) (driver.Conn, error) {
 	dc, err := c.Connector.Connect(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return conn{dc}, nil
+	return conn{dc, c.oids}, nil
 }
 
 // conn passes the tape what it calls on a connection, and wraps the rows.
-type conn struct{ driver.Conn }
+type conn struct {
+	driver.Conn
+	oids *oids
+}
 
 func (c conn) ExecContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
 	return c.Conn.(driver.ExecerContext).ExecContext(ctx, query, args)
@@ -394,7 +489,7 @@ func (c conn) QueryContext(ctx context.Context, query string, args []driver.Name
 	if err != nil {
 		return nil, err
 	}
-	return rows{r}, nil
+	return rows{Rows: r, oids: c.oids}, nil
 }
 
 func (c conn) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx, error) {
@@ -410,7 +505,27 @@ func (c conn) ResetSession(ctx context.Context) error {
 // rows names a column's type as pgx does, except a type pgx does not know:
 // pgx names that by its OID, which is the server's next free one when the
 // type was made, and so differs from run to run. A tape holds - for it.
-type rows struct{ driver.Rows }
+// With oids set it also replaces user OIDs (see OpenRoleNumberingOIDs).
+type rows struct {
+	driver.Rows
+	oids *oids
+}
+
+func (r rows) Next(dest []driver.Value) error {
+	if err := r.Rows.Next(dest); err != nil {
+		return err
+	}
+	if r.oids == nil {
+		return nil
+	}
+	typed := r.Rows.(driver.RowsColumnTypeDatabaseTypeName)
+	for i, v := range dest {
+		if n, ok := v.(int64); ok && n >= firstUserOID && typed.ColumnTypeDatabaseTypeName(i) == "OID" {
+			dest[i] = r.oids.number(n)
+		}
+	}
+	return nil
+}
 
 func (r rows) ColumnTypeDatabaseTypeName(i int) string {
 	name := r.Rows.(driver.RowsColumnTypeDatabaseTypeName).ColumnTypeDatabaseTypeName(i)

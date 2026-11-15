@@ -1003,7 +1003,7 @@ func (c *Catalog) alterRenameTable(db *Database, tbl *Table, cmd *nodes.AlterTab
 	newKey := toLower(newName)
 	oldKey := toLower(tbl.Name)
 
-	if (newDB != oldDB || newKey != oldKey) && newDB.Tables[newKey] != nil {
+	if (newDB != oldDB || newKey != oldKey) && (newDB.Tables[newKey] != nil || newDB.Sequences[newKey] != nil) {
 		return errDupTable(newName)
 	}
 
@@ -1245,7 +1245,7 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) (*Column, error) {
 	}
 	if colDef.Generated != nil {
 		col.Generated = &GeneratedColumnInfo{
-			Expr:   nodeToSQLGenerated(colDef.Generated.Expr, tbl.Charset),
+			Expr:   generationExpr(colDef.Generated.Expr),
 			Stored: colDef.Generated.Stored,
 		}
 	}

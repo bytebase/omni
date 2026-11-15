@@ -68,12 +68,16 @@ func routineOps(e *RoutineDiffEntry, n *Normalizer) []MigrationOp {
 // session context it is created under (renderWithSessionContext): r's own where it is known,
 // else that of `from`, the routine it recreates. The sql_mode a routine is created under is
 // part of what its body computes, PIPES_AS_CONCAT for one.
-func createRoutineOp(e *RoutineDiffEntry, r, from *Routine, n *Normalizer) MigrationOp {
-	sql := renderCreateRoutine(e.Database, r, n)
-	if ctx := r; ctx.HasSessionContext || (from != nil && from.HasSessionContext) {
-		if !ctx.HasSessionContext {
-			ctx = from
-		}
+func createRoutineOp(e *RoutineDiffEntry, r, from *Routine, _ *Normalizer) MigrationOp {
+	// The context the statement executes under — r's own, else that of the routine
+	// it recreates — governs both the framing and how its comment literal is
+	// escaped, so the two cannot disagree (a backslash under NO_BACKSLASH_ESCAPES).
+	ctx := r
+	if !r.HasSessionContext && from != nil {
+		ctx = from
+	}
+	sql := renderCreateRoutine(e.Database, r, ctx.HasSessionContext && noBackslashEscapes(ctx.SQLMode))
+	if ctx.HasSessionContext {
 		sql = renderWithSessionContext(sql, routineSessionContext(ctx), false)
 	}
 	return MigrationOp{
@@ -156,7 +160,7 @@ func alterRoutineOp(e *RoutineDiffEntry, to *Routine) MigrationOp {
 //   - DATA ACCESS only when not CONTAINS SQL.
 //   - SQL SECURITY only when INVOKER.
 //   - COMMENT only when non-empty.
-func renderCreateRoutine(database string, r *Routine, _ *Normalizer) string {
+func renderCreateRoutine(database string, r *Routine, noBackslash bool) string {
 	var b strings.Builder
 	kw := "FUNCTION"
 	if r.IsProcedure {
@@ -193,7 +197,7 @@ func renderCreateRoutine(database string, r *Routine, _ *Normalizer) string {
 		b.WriteString("\n    SQL SECURITY INVOKER")
 	}
 	if cmt := r.Characteristics["COMMENT"]; cmt != "" {
-		fmt.Fprintf(&b, "\n    COMMENT '%s'", escapeCommentMode(cmt, r.HasSessionContext && noBackslashEscapes(r.SQLMode)))
+		fmt.Fprintf(&b, "\n    COMMENT '%s'", escapeCommentMode(cmt, noBackslash))
 	}
 
 	if r.Body != "" {

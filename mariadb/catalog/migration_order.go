@@ -176,7 +176,10 @@ func modifyPeriodBoundsTogether(ops []MigrationOp, e *TableDiffEntry) []Migratio
 	if start < 0 || end < 0 {
 		return ops
 	}
-	ops[start].alterParts = []alterPart{{clause: ops[start].alterClause}, {clause: ops[end].alterClause}}
+	ops[start].alterParts = []alterPart{
+		{clause: ops[start].alterClause, modifiesColumn: ops[start].column},
+		{clause: ops[end].alterClause, modifiesColumn: ops[end].column},
+	}
 	ops[start].SQL = "ALTER TABLE " + tableIdent(to) + " " + joinAlterParts(ops[start].alterParts)
 	return slices.Delete(ops, end, end+1)
 }
@@ -300,6 +303,9 @@ func rebuildReadersOfReplacedColumns(ops []MigrationOp, e *TableDiffEntry, n *No
 				Type: OpModifyColumn, Database: e.Database, ObjectName: e.Name, ParentObject: e.Name,
 				SQL: "ALTER TABLE " + table + " " + restore, Phase: PhaseMain, Priority: priorityColumn + 3,
 				sortName: columnSortName(e.Database, e.Name, name), alterClause: restore,
+				// Its column identity lets reorderAddsAfterMerge run this
+				// restoration after the merged adds its target definition reads.
+				column: name,
 			})
 		}
 	}
@@ -344,6 +350,13 @@ func rebuildKeysOverFlippedColumns(ops []MigrationOp, e *TableDiffEntry, n *Norm
 	changed := make(map[string]bool)
 	for _, ie := range e.Indexes {
 		changed[toLower(ie.Name)] = true
+	}
+	// An index an earlier pass already rebuilds (over a replaced period) is not
+	// rebuilt again here, which would drop it twice (1091) and add it twice.
+	for _, op := range ops {
+		if op.Type == OpDropIndex && opOfTable(op, e) && op.dropsIndex != "" {
+			changed[op.dropsIndex] = true
+		}
 	}
 	table := tableIdent(e.To)
 	for _, idx := range e.From.Indexes {
@@ -631,20 +644,16 @@ func dropLastColumnsAfterAdds(ops []MigrationOp, e *TableDiffEntry) []MigrationO
 	if len(dropped) == 0 {
 		return ops
 	}
-	if len(dropped) < len(diffableColumns(e.From)) {
-		// A table keeps a versioned (4123) and a visible (1113) column.
-		if e.From.SystemVersioned && e.To.SystemVersioned && everyDropped(e, dropped, isVersionedColumn) && !addFirst(ops, e, dropped, isVersionedColumn) {
-			return atomicReplaceLast(ops, e, isVersionedColumn)
-		}
-		if everyDropped(e, dropped, isVisibleColumn) && !addFirst(ops, e, dropped, isVisibleColumn) {
-			return atomicReplaceLast(ops, e, isVisibleColumn)
-		}
-		return ops
+	// A table keeps a versioned (4123) and a visible (1113) column, and so at
+	// least one column (1090): a column the plan only adds goes first, else a
+	// MODIFY that makes a retained one qualify runs before the drops, else the
+	// last such column is replaced in one statement. Both invariants are
+	// repaired, since one dropped column can be the last of each kind, and the
+	// repair holds whether or not other columns survive.
+	if e.From.SystemVersioned && e.To.SystemVersioned {
+		ops = keepQualifyingColumn(ops, e, dropped, isVersionedColumn, becomesVersioned, makeVersioned)
 	}
-	if addFirst(ops, e, dropped, func(*Column) bool { return true }) {
-		return ops
-	}
-	return atomicReplaceLast(ops, e, func(*Column) bool { return true })
+	return keepQualifyingColumn(ops, e, dropped, isVisibleColumn, becomesVisible, makeVisible)
 }
 
 // atomicReplaceLast merges, into one ALTER, the drop and add of the column
@@ -983,6 +992,66 @@ func invalidatingModifiesLast(ops []MigrationOp, e *TableDiffEntry) []MigrationO
 	return ops
 }
 
+// modifiedColumns returns the columns a MODIFY op changes: its own, or those a
+// grouped statement (a period's two bounds) names in its parts.
+func modifiedColumns(op MigrationOp) []string {
+	if op.alterParts == nil {
+		if op.column != "" {
+			return []string{op.column}
+		}
+		return nil
+	}
+	var names []string
+	for _, part := range op.alterParts {
+		if part.modifiesColumn != "" {
+			names = append(names, part.modifiesColumn)
+		}
+	}
+	return names
+}
+
+// opAddsColumnWhere reports whether op adds a column the target has that pick
+// accepts, directly or as one of a grouped statement's parts.
+func opAddsColumnWhere(op MigrationOp, to *Table, pick func(*Column) bool) bool {
+	add := func(name string) bool {
+		c := to.GetColumn(name)
+		return c != nil && pick(c)
+	}
+	if op.Type == OpAddColumn && op.column != "" && add(op.column) {
+		return true
+	}
+	for _, part := range op.alterParts {
+		if part.addsColumn != "" && add(part.addsColumn) {
+			return true
+		}
+	}
+	return false
+}
+
+// bumpInvalidatingModify runs a MODIFY that invalidates a kept-column invariant
+// (pick no longer holds for the column) after the latest statement that adds a
+// replacement column pick accepts, which the AUTO_INCREMENT merge may have placed
+// past the MODIFY (1113/4123).
+func bumpInvalidatingModify(ops []MigrationOp, e *TableDiffEntry, pick func(*Column) bool, invalidates func(from, to *Column) bool) {
+	latest := 0
+	for j := range ops {
+		if opOfTable(ops[j], e) && opAddsColumnWhere(ops[j], e.To, pick) && ops[j].Priority > latest {
+			latest = ops[j].Priority
+		}
+	}
+	if latest == 0 {
+		return
+	}
+	for j := range ops {
+		if ops[j].Type != OpModifyColumn || !opOfTable(ops[j], e) || ops[j].column == "" || ops[j].Priority > latest {
+			continue
+		}
+		if from, to := e.From.GetColumn(ops[j].column), e.To.GetColumn(ops[j].column); from != nil && to != nil && invalidates(from, to) {
+			ops[j].Priority = latest + 1
+		}
+	}
+}
+
 // reorderAddsAfterMerge runs an added column after the columns it reads that the
 // AUTO_INCREMENT merger pulled into a statement of a higher priority: the merge
 // moves a column's add into the auto-increment statement without moving the adds
@@ -1006,11 +1075,15 @@ func reorderAddsAfterMerge(ops []MigrationOp, diff *SchemaDiff) []MigrationOp {
 				}
 			}
 		}
-		// A modified reader is ordered too, from its own priority.
+		// A modified reader is ordered too, from its own priority — its own
+		// column, and the columns of a grouped statement (a period's two bounds).
 		for _, op := range ops {
-			if op.Type == OpModifyColumn && opOfTable(op, e) && op.column != "" {
-				if _, ok := priority[op.column]; !ok {
-					priority[op.column] = op.Priority
+			if op.Type != OpModifyColumn || !opOfTable(op, e) {
+				continue
+			}
+			for _, name := range modifiedColumns(op) {
+				if _, ok := priority[name]; !ok {
+					priority[name] = op.Priority
 				}
 			}
 		}
@@ -1026,11 +1099,41 @@ func reorderAddsAfterMerge(ops []MigrationOp, diff *SchemaDiff) []MigrationOp {
 			}
 		}
 		for j := range ops {
-			if (ops[j].Type == OpAddColumn || ops[j].Type == OpModifyColumn) && opOfTable(ops[j], e) && ops[j].alterParts == nil {
+			if !opOfTable(ops[j], e) {
+				continue
+			}
+			// A grouped statement takes the latest priority of its columns.
+			if ops[j].alterParts != nil {
+				for _, part := range ops[j].alterParts {
+					for _, name := range []string{part.addsColumn, part.modifiesColumn} {
+						if p, ok := priority[name]; ok && p > ops[j].Priority {
+							ops[j].Priority = p
+						}
+					}
+				}
+				continue
+			}
+			if ops[j].Type == OpAddColumn || ops[j].Type == OpModifyColumn {
 				if p, ok := priority[ops[j].column]; ok && p > ops[j].Priority {
 					ops[j].Priority = p
 				}
 			}
+			// An op runs after the statements that add the columns it reads, such
+			// as an ADD PERIOD after its bound columns the merge may have moved.
+			for _, name := range ops[j].readsColumns {
+				if p, ok := priority[name]; ok && p >= ops[j].Priority {
+					ops[j].Priority = p + 1
+				}
+			}
+		}
+		// A MODIFY that invalidates a kept-column invariant runs after the
+		// statements that add a replacement qualifying column, which the merge may
+		// have moved past the priority invalidatingModifiesLast gave it: a visible
+		// column must remain (1113) and, on a versioned table, a versioned one
+		// (4123).
+		bumpInvalidatingModify(ops, e, isVisibleColumn, func(from, to *Column) bool { return !from.Invisible && to.Invisible })
+		if e.To.SystemVersioned {
+			bumpInvalidatingModify(ops, e, isVersionedColumn, func(from, to *Column) bool { return isVersionedColumn(from) && !isVersionedColumn(to) })
 		}
 		// A postponed drop runs after every op that reads it, a modify the
 		// bump above moved later or a drop that in turn moved, to a fixpoint:
@@ -1042,18 +1145,22 @@ func reorderAddsAfterMerge(ops []MigrationOp, diff *SchemaDiff) []MigrationOp {
 		readers := make(map[string][]int) // lower column -> ops that read it
 		dropOf := make(map[string]int)    // lower column -> its PhaseMain drop op
 		for j := range ops {
-			if !opOfTable(ops[j], e) || ops[j].column == "" {
+			if !opOfTable(ops[j], e) {
 				continue
 			}
 			postponedDrop := ops[j].Type == OpDropColumn && ops[j].Phase == PhaseMain
 			if ops[j].Type != OpModifyColumn && !postponedDrop {
 				continue
 			}
-			if postponedDrop {
+			if postponedDrop && ops[j].column != "" {
 				dropOf[ops[j].column] = j
 			}
-			for _, ref := range sourceReads[ops[j].column] {
-				readers[toLower(ref)] = append(readers[toLower(ref)], j)
+			// Every column a grouped MODIFY changes, not just its representative,
+			// so a released dependency of either period bound is carried.
+			for _, col := range modifiedColumns(ops[j]) {
+				for _, ref := range sourceReads[col] {
+					readers[toLower(ref)] = append(readers[toLower(ref)], j)
+				}
 			}
 		}
 		for changed := true; changed; {
@@ -1069,4 +1176,89 @@ func reorderAddsAfterMerge(ops []MigrationOp, diff *SchemaDiff) []MigrationOp {
 		}
 	}
 	return ops
+}
+
+// qualifyingModifyFirst runs a MODIFY that makes a retained column satisfy
+// becomes (visible, or versioned) before the drops, so a column of that kind
+// remains throughout. It reports whether it moved one.
+// keepQualifyingColumn repairs one kept-column invariant (visible 1113, versioned
+// 4123) when the plan drops every source column of that kind: a column the plan
+// only adds runs first, else a MODIFY that makes a retained column qualify runs
+// before the drops, else the last such column is replaced in one statement. It
+// returns ops unchanged when the invariant is not at risk.
+func keepQualifyingColumn(ops []MigrationOp, e *TableDiffEntry, dropped map[string]bool, pick func(*Column) bool, becomes func(from, to *Column) bool, qualify func(*Column)) []MigrationOp {
+	if !everyDropped(e, dropped, pick) || addFirst(ops, e, dropped, pick) {
+		return ops
+	}
+	if out, moved := qualifyingModifyFirst(ops, e, becomes, qualify); moved {
+		return out
+	}
+	return atomicReplaceLast(ops, e, pick)
+}
+
+// qualifyingModifyFirst runs a retained column's MODIFY that makes it satisfy
+// the kept-column invariant (visible 1113, versioned 4123) before the drops, so
+// the table never loses its last qualifying column. When the target definition
+// reads a column this plan only adds, promoting the full MODIFY would place it
+// ahead of that add (1054/4029); in that case it keeps the full MODIFY in
+// PhaseMain (where modifyGeneratedAfterAddedReads ordered it after the adds) and
+// instead emits a stripped PhasePre MODIFY that only flips the qualifying
+// attribute, using the source definition, which reads no added column.
+func qualifyingModifyFirst(ops []MigrationOp, e *TableDiffEntry, becomes func(from, to *Column) bool, qualify func(*Column)) ([]MigrationOp, bool) {
+	targetReads := columnReads(e.To)
+	moved := false
+	for i := range ops {
+		if ops[i].Type != OpModifyColumn || !opOfTable(ops[i], e) || ops[i].column == "" || ops[i].alterParts != nil {
+			continue
+		}
+		from, to := e.From.GetColumn(ops[i].column), e.To.GetColumn(ops[i].column)
+		if from == nil || to == nil || !becomes(from, to) {
+			continue
+		}
+		if readsAddedColumn(e, targetReads[ops[i].column]) {
+			ops = append(ops, strippedQualifyOp(e, from, qualify))
+			moved = true
+			continue
+		}
+		// Below the column drops (priorityColumn-1) so it runs before them.
+		ops[i].Phase, ops[i].Priority = PhasePre, priorityColumn-2
+		moved = true
+	}
+	return ops, moved
+}
+
+// readsAddedColumn reports whether any read refers to a column this plan adds,
+// one absent from the source.
+func readsAddedColumn(e *TableDiffEntry, refs []string) bool {
+	for _, ref := range refs {
+		if e.From.GetColumn(ref) == nil {
+			return true
+		}
+	}
+	return false
+}
+
+// strippedQualifyOp renders a PhasePre MODIFY that makes col qualify while
+// keeping its source definition, which reads no added column.
+func strippedQualifyOp(e *TableDiffEntry, col *Column, qualify func(*Column)) MigrationOp {
+	context := *e.From
+	context.Charset, context.Collation = "", ""
+	qualified := *col
+	qualify(&qualified)
+	clause := "MODIFY COLUMN " + showColumnWithTable(&qualified, &context, nil, false)
+	// A bare column name is left off so no column-dependency pass reorders this
+	// leading op by it; it shares the name with the full MODIFY kept in PhaseMain.
+	return MigrationOp{
+		Type: OpModifyColumn, Database: e.Database, ObjectName: e.Name, ParentObject: e.Name,
+		SQL: "ALTER TABLE " + tableIdent(e.To) + " " + clause, Phase: PhasePre, Priority: priorityColumn - 2,
+		sortName: columnSortName(e.Database, e.Name, toLower(col.Name)), alterClause: clause,
+	}
+}
+
+func makeVisible(c *Column)   { c.Invisible = false }
+func makeVersioned(c *Column) { c.SystemVersioning = "" }
+
+func becomesVisible(from, to *Column) bool { return from.Invisible && !to.Invisible }
+func becomesVersioned(from, to *Column) bool {
+	return !isVersionedColumn(from) && isVersionedColumn(to)
 }

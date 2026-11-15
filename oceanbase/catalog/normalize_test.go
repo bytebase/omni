@@ -40,13 +40,13 @@ func baseTypeOf(columnType string) string {
 func TestResolveColumnCharsetCollation_80_KeepsRedundantPair(t *testing.T) {
 	// 8.0 readback: when the user specifies charset OR collation, 8.0 echoes BOTH as a
 	// pair even if it equals the table default. A bare column collapses to varchar(10).
-	tbl := &Table{Name: "c1", Charset: "utf8mb4", Collation: "utf8mb4_0900_ai_ci"}
+	tbl := &Table{Name: "c1", Charset: "utf8mb4", Collation: "utf8mb4_general_ci"}
 
 	// `c` -> CHARACTER SET utf8mb4 (no collate). Stored as the resolved pair.
 	userCol := &Column{Name: "c", DataType: "varchar", ColumnType: "varchar(10)",
 		Charset: "utf8mb4", CharsetExplicit: true, Nullable: true}
 	storedCol := &Column{Name: "c", DataType: "varchar", ColumnType: "varchar(10)",
-		Charset: "utf8mb4", CharsetExplicit: true, Collation: "utf8mb4_0900_ai_ci", CollationExplicit: true, Nullable: true}
+		Charset: "utf8mb4", CharsetExplicit: true, Collation: "utf8mb4_general_ci", CollationExplicit: true, Nullable: true}
 
 	n := NormalizerFor(MySQL80)
 	uc, ucol := n.ResolveColumnCharsetCollation(tbl, userCol)
@@ -54,7 +54,7 @@ func TestResolveColumnCharsetCollation_80_KeepsRedundantPair(t *testing.T) {
 	if uc != sc || ucol != scol {
 		t.Fatalf("8.0 pair must resolve identically: user=(%q,%q) stored=(%q,%q)", uc, ucol, sc, scol)
 	}
-	if ucol != "utf8mb4_0900_ai_ci" {
+	if ucol != "utf8mb4_general_ci" {
 		t.Fatalf("8.0 must resolve missing collation to charset default, got %q", ucol)
 	}
 }
@@ -62,12 +62,12 @@ func TestResolveColumnCharsetCollation_80_KeepsRedundantPair(t *testing.T) {
 func TestResolveColumnCharsetCollation_80_BareInheritsTable(t *testing.T) {
 	// 8.0 readback: a fully-bare column (`d`) collapses to varchar(10) — it inherits
 	// the table's charset+collation. The resolved pair equals the table's.
-	tbl := &Table{Name: "c1", Charset: "utf8mb4", Collation: "utf8mb4_0900_ai_ci"}
+	tbl := &Table{Name: "c1", Charset: "utf8mb4", Collation: "utf8mb4_general_ci"}
 	bare := &Column{Name: "d", DataType: "varchar", ColumnType: "varchar(10)", Nullable: true}
 
 	n := NormalizerFor(MySQL80)
 	cs, coll := n.ResolveColumnCharsetCollation(tbl, bare)
-	if cs != "utf8mb4" || coll != "utf8mb4_0900_ai_ci" {
+	if cs != "utf8mb4" || coll != "utf8mb4_general_ci" {
 		t.Fatalf("bare column must inherit table pair, got (%q,%q)", cs, coll)
 	}
 }
@@ -75,15 +75,15 @@ func TestResolveColumnCharsetCollation_80_BareInheritsTable(t *testing.T) {
 func TestResolveColumnCharsetCollation_80_CharsetOnlyResolvesFromCharsetDefault(t *testing.T) {
 	// entry column-charset-only-collation-resolution: under a table collated
 	// utf8mb4_unicode_ci, a column with only CHARACTER SET utf8mb4 resolves its
-	// collation from the CHARSET default (utf8mb4_0900_ai_ci on 8.0), NOT the table COLLATE.
+	// collation from the CHARSET default (utf8mb4_general_ci on OceanBase), NOT the table COLLATE.
 	tbl := &Table{Name: "t_d1", Charset: "utf8mb4", Collation: "utf8mb4_unicode_ci"}
 	userCol := &Column{Name: "a", DataType: "varchar", ColumnType: "varchar(10)",
 		Charset: "utf8mb4", CharsetExplicit: true, Nullable: true}
 
 	n := NormalizerFor(MySQL80)
 	_, coll := n.ResolveColumnCharsetCollation(tbl, userCol)
-	if coll != "utf8mb4_0900_ai_ci" {
-		t.Fatalf("charset-only column must resolve to charset default utf8mb4_0900_ai_ci, not table COLLATE; got %q", coll)
+	if coll != "utf8mb4_general_ci" {
+		t.Fatalf("charset-only column must resolve to charset default utf8mb4_general_ci, not table COLLATE; got %q", coll)
 	}
 }
 
@@ -568,7 +568,7 @@ func TestCanonicalColumnType_EnumSetQuoting(t *testing.T) {
 func TestCanonicalColumn_8080PhantomDiffEliminated(t *testing.T) {
 	// 8.0: user writes `INT(11)` with redundant explicit charset; synced readback is
 	// `int` bare. The aggregate keys must be equal — no phantom diff.
-	tbl := &Table{Name: "t", Charset: "utf8mb4", Collation: "utf8mb4_0900_ai_ci"}
+	tbl := &Table{Name: "t", Charset: "utf8mb4", Collation: "utf8mb4_general_ci"}
 	n := NormalizerFor(MySQL80)
 
 	user := &Column{Name: "a", DataType: "int", ColumnType: "int(11)", Nullable: true}
@@ -581,7 +581,7 @@ func TestCanonicalColumn_8080PhantomDiffEliminated(t *testing.T) {
 
 func TestCanonicalColumn_GenuineDifferenceDetected(t *testing.T) {
 	// The firewall must still detect a REAL change (int → bigint).
-	tbl := &Table{Name: "t", Charset: "utf8mb4", Collation: "utf8mb4_0900_ai_ci"}
+	tbl := &Table{Name: "t", Charset: "utf8mb4", Collation: "utf8mb4_general_ci"}
 	n := NormalizerFor(MySQL80)
 	a := &Column{Name: "a", DataType: "int", ColumnType: "int", Nullable: true}
 	b := &Column{Name: "a", DataType: "bigint", ColumnType: "bigint", Nullable: true}
@@ -621,7 +621,7 @@ func TestIdempotence_GeneratedExpr(t *testing.T) {
 }
 
 func TestIdempotence_CharsetCollation(t *testing.T) {
-	tbl := &Table{Charset: "utf8mb4", Collation: "utf8mb4_0900_ai_ci"}
+	tbl := &Table{Charset: "utf8mb4", Collation: "utf8mb4_general_ci"}
 	for _, v := range []Version{MySQL80} {
 		n := NormalizerFor(v)
 		in := &Column{Name: "a", DataType: "varchar", ColumnType: "varchar(10)", Charset: "utf8", Nullable: true}
@@ -843,7 +843,7 @@ func TestExpressionTokenizers_NoPanicOnMalformedInput(t *testing.T) {
 func TestCanonicalColumn_NoKeyInjectionViaComment(t *testing.T) {
 	// A column whose comment contains the field-delimiter syntax must not collide with a
 	// genuinely different column (length-delimited field encoding prevents injection).
-	tbl := &Table{Name: "t", Charset: "utf8mb4", Collation: "utf8mb4_0900_ai_ci"}
+	tbl := &Table{Name: "t", Charset: "utf8mb4", Collation: "utf8mb4_general_ci"}
 	n := NormalizerFor(MySQL80)
 
 	withComment := &Column{Name: "a", DataType: "int", ColumnType: "int", Nullable: true,
@@ -900,7 +900,7 @@ func TestCanonicalGeneratedExpr_SpaceBeforeBacktickPreserved(t *testing.T) {
 func TestResolveColumnCharsetCollation_CollateOnlyDerivesCharset(t *testing.T) {
 	// A column with only COLLATE (no CHARACTER SET) under a different-charset table: the
 	// effective charset is the collation's charset, not the table's.
-	tbl := &Table{Name: "t", Charset: "utf8mb4", Collation: "utf8mb4_0900_ai_ci"}
+	tbl := &Table{Name: "t", Charset: "utf8mb4", Collation: "utf8mb4_general_ci"}
 	// Loader derives col.Charset=latin1 from the collation and sets CollationExplicit.
 	c := &Column{Name: "a", DataType: "varchar", ColumnType: "varchar(10)",
 		Charset: "latin1", Collation: "latin1_german1_ci", CollationExplicit: true, Nullable: true}

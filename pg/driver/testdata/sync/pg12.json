@@ -1,0 +1,3272 @@
+{
+  "name":  "omni_testsyncdatabase",
+  "schemas":  [
+    {
+      "name":  "Mixed Case",
+      "tables":  [
+        {
+          "name":  "Table",
+          "columns":  [
+            {
+              "name":  "Id",
+              "position":  1,
+              "type":  "integer"
+            },
+            {
+              "name":  "Value",
+              "position":  2,
+              "nullable":  true,
+              "type":  "text"
+            }
+          ],
+          "indexes":  [
+            {
+              "name":  "Table_pkey",
+              "expressions":  [
+                "\"Id\""
+              ],
+              "descending":  [
+                false
+              ],
+              "type":  "btree",
+              "unique":  true,
+              "primary":  true,
+              "definition":  "CREATE UNIQUE INDEX \"Table_pkey\" ON \"Mixed Case\".\"Table\" USING btree (\"Id\");",
+              "isConstraint":  true,
+              "opclassNames":  [
+                "int4_ops"
+              ],
+              "opclassDefaults":  [
+                true
+              ]
+            }
+          ],
+          "dataSize":  "8192",
+          "indexSize":  "8192",
+          "owner":  "postgres"
+        }
+      ],
+      "owner":  "postgres"
+    },
+    {
+      "name":  "app",
+      "tables":  [
+        {
+          "name":  "animal",
+          "columns":  [
+            {
+              "name":  "name",
+              "position":  1,
+              "nullable":  true,
+              "type":  "text"
+            },
+            {
+              "name":  "legs",
+              "position":  2,
+              "nullable":  true,
+              "type":  "integer"
+            }
+          ],
+          "dataSize":  "8192",
+          "checkConstraints":  [
+            {
+              "name":  "animal_legs_check",
+              "expression":  "(legs >= 0)"
+            }
+          ],
+          "owner":  "postgres"
+        },
+        {
+          "name":  "booking",
+          "columns":  [
+            {
+              "name":  "room",
+              "position":  1,
+              "nullable":  true,
+              "type":  "integer"
+            },
+            {
+              "name":  "during",
+              "position":  2,
+              "nullable":  true,
+              "type":  "tstzrange"
+            }
+          ],
+          "indexes":  [
+            {
+              "name":  "booking_no_overlap",
+              "expressions":  [
+                "room",
+                "during"
+              ],
+              "descending":  [
+                false,
+                false
+              ],
+              "type":  "gist",
+              "definition":  "CREATE INDEX booking_no_overlap ON app.booking USING gist (room, during);",
+              "isConstraint":  true,
+              "opclassNames":  [
+                "gist_int4_ops",
+                "range_ops"
+              ],
+              "opclassDefaults":  [
+                true,
+                true
+              ]
+            }
+          ],
+          "dataSize":  "8192",
+          "indexSize":  "8192",
+          "owner":  "postgres",
+          "excludeConstraints":  [
+            {
+              "name":  "booking_no_overlap",
+              "expression":  "EXCLUDE USING gist (room WITH =, during WITH &&)"
+            }
+          ]
+        },
+        {
+          "name":  "customer",
+          "columns":  [
+            {
+              "name":  "id",
+              "position":  1,
+              "type":  "bigint",
+              "identityGeneration":  "ALWAYS"
+            },
+            {
+              "name":  "alt_id",
+              "position":  2,
+              "type":  "integer",
+              "identityGeneration":  "BY_DEFAULT"
+            },
+            {
+              "name":  "email",
+              "position":  3,
+              "type":  "public.citext",
+              "comment":  "unique email"
+            },
+            {
+              "name":  "name",
+              "position":  4,
+              "default":  "'anon'::text",
+              "type":  "text",
+              "collation":  "C"
+            },
+            {
+              "name":  "nick",
+              "position":  5,
+              "nullable":  true,
+              "type":  "text",
+              "collation":  "ci"
+            },
+            {
+              "name":  "mood",
+              "position":  6,
+              "default":  "'happy'::app.mood",
+              "nullable":  true,
+              "type":  "app.mood"
+            },
+            {
+              "name":  "home",
+              "position":  7,
+              "nullable":  true,
+              "type":  "app.address"
+            },
+            {
+              "name":  "tags",
+              "position":  8,
+              "default":  "'{}'::text[]",
+              "nullable":  true,
+              "type":  "_text"
+            },
+            {
+              "name":  "matrix",
+              "position":  9,
+              "nullable":  true,
+              "type":  "_int4"
+            },
+            {
+              "name":  "attrs",
+              "position":  10,
+              "nullable":  true,
+              "type":  "public.hstore"
+            },
+            {
+              "name":  "doc",
+              "position":  11,
+              "default":  "'{\"a\": [1, 2]}'::jsonb",
+              "nullable":  true,
+              "type":  "jsonb"
+            },
+            {
+              "name":  "balance",
+              "position":  12,
+              "default":  "0",
+              "nullable":  true,
+              "type":  "numeric(12,2)"
+            },
+            {
+              "name":  "ratio",
+              "position":  13,
+              "nullable":  true,
+              "type":  "double precision"
+            },
+            {
+              "name":  "score",
+              "position":  14,
+              "nullable":  true,
+              "type":  "real"
+            },
+            {
+              "name":  "small",
+              "position":  15,
+              "nullable":  true,
+              "type":  "smallint"
+            },
+            {
+              "name":  "flag",
+              "position":  16,
+              "default":  "true",
+              "nullable":  true,
+              "type":  "boolean"
+            },
+            {
+              "name":  "ts",
+              "position":  17,
+              "default":  "now()",
+              "nullable":  true,
+              "type":  "timestamp(3) without time zone"
+            },
+            {
+              "name":  "tstz",
+              "position":  18,
+              "nullable":  true,
+              "type":  "timestamp(6) with time zone"
+            },
+            {
+              "name":  "born",
+              "position":  19,
+              "nullable":  true,
+              "type":  "date"
+            },
+            {
+              "name":  "alarm",
+              "position":  20,
+              "nullable":  true,
+              "type":  "time(2) with time zone"
+            },
+            {
+              "name":  "span",
+              "position":  21,
+              "nullable":  true,
+              "type":  "interval"
+            },
+            {
+              "name":  "bits",
+              "position":  22,
+              "nullable":  true,
+              "type":  "bit(3)"
+            },
+            {
+              "name":  "vbits",
+              "position":  23,
+              "nullable":  true,
+              "type":  "bit varying(8)"
+            },
+            {
+              "name":  "ip",
+              "position":  24,
+              "nullable":  true,
+              "type":  "inet"
+            },
+            {
+              "name":  "mac",
+              "position":  25,
+              "nullable":  true,
+              "type":  "macaddr"
+            },
+            {
+              "name":  "pt",
+              "position":  26,
+              "nullable":  true,
+              "type":  "point"
+            },
+            {
+              "name":  "words",
+              "position":  27,
+              "nullable":  true,
+              "type":  "tsvector"
+            },
+            {
+              "name":  "uid",
+              "position":  28,
+              "nullable":  true,
+              "type":  "uuid"
+            },
+            {
+              "name":  "raw",
+              "position":  29,
+              "default":  "'\\xdeadbeef'::bytea",
+              "nullable":  true,
+              "type":  "bytea"
+            },
+            {
+              "name":  "counter",
+              "position":  30,
+              "default":  "nextval('app.counter'::regclass)",
+              "nullable":  true,
+              "type":  "integer"
+            },
+            {
+              "name":  "owned",
+              "position":  31,
+              "default":  "nextval('app.owned_seq'::regclass)",
+              "nullable":  true,
+              "type":  "bigint"
+            },
+            {
+              "name":  "full_name",
+              "position":  32,
+              "nullable":  true,
+              "type":  "text",
+              "generation":  {
+                "type":  "TYPE_STORED",
+                "expression":  "(((name || ' <'::text) || (email)::text) || '>'::text)"
+              }
+            },
+            {
+              "name":  "Quoted Col",
+              "position":  33,
+              "nullable":  true,
+              "type":  "text"
+            },
+            {
+              "name":  "updated_at",
+              "position":  34,
+              "nullable":  true,
+              "type":  "timestamp(6) with time zone"
+            },
+            {
+              "name":  "moods",
+              "position":  36,
+              "nullable":  true,
+              "type":  "app._mood"
+            }
+          ],
+          "indexes":  [
+            {
+              "name":  "customer_brin",
+              "expressions":  [
+                "ts"
+              ],
+              "descending":  [
+                false
+              ],
+              "type":  "brin",
+              "definition":  "CREATE INDEX customer_brin ON app.customer USING brin (ts) WITH (pages_per_range='16');",
+              "opclassNames":  [
+                "timestamp_minmax_ops"
+              ],
+              "opclassDefaults":  [
+                true
+              ]
+            },
+            {
+              "name":  "customer_email_key",
+              "expressions":  [
+                "email"
+              ],
+              "descending":  [
+                false
+              ],
+              "type":  "btree",
+              "unique":  true,
+              "definition":  "CREATE UNIQUE INDEX customer_email_key ON app.customer USING btree (email);",
+              "isConstraint":  true,
+              "opclassNames":  [
+                "citext_ops"
+              ],
+              "opclassDefaults":  [
+                true
+              ]
+            },
+            {
+              "name":  "customer_include",
+              "expressions":  [
+                "alt_id"
+              ],
+              "descending":  [
+                false
+              ],
+              "type":  "btree",
+              "definition":  "CREATE INDEX customer_include ON app.customer USING btree (alt_id) INCLUDE (name, mood);",
+              "opclassNames":  [
+                "int4_ops"
+              ],
+              "opclassDefaults":  [
+                true
+              ]
+            },
+            {
+              "name":  "customer_lower_name",
+              "expressions":  [
+                "lower(name)"
+              ],
+              "descending":  [
+                true
+              ],
+              "type":  "btree",
+              "definition":  "CREATE INDEX customer_lower_name ON app.customer USING btree (lower(name) DESC NULLS LAST);",
+              "opclassNames":  [
+                "text_ops"
+              ],
+              "opclassDefaults":  [
+                true
+              ]
+            },
+            {
+              "name":  "customer_opclass",
+              "expressions":  [
+                "name",
+                "nick"
+              ],
+              "descending":  [
+                false,
+                false
+              ],
+              "type":  "btree",
+              "definition":  "CREATE INDEX customer_opclass ON app.customer USING btree (name text_pattern_ops, nick);",
+              "opclassNames":  [
+                "text_pattern_ops",
+                "text_ops"
+              ],
+              "opclassDefaults":  [
+                false,
+                true
+              ]
+            },
+            {
+              "name":  "customer_partial",
+              "expressions":  [
+                "mood",
+                "id"
+              ],
+              "descending":  [
+                false,
+                false
+              ],
+              "type":  "btree",
+              "comment":  "happy flags",
+              "definition":  "CREATE INDEX customer_partial ON app.customer USING btree (mood, id) WHERE flag;",
+              "opclassNames":  [
+                "enum_ops",
+                "int8_ops"
+              ],
+              "opclassDefaults":  [
+                true,
+                true
+              ]
+            },
+            {
+              "name":  "customer_pkey",
+              "expressions":  [
+                "id"
+              ],
+              "descending":  [
+                false
+              ],
+              "type":  "btree",
+              "unique":  true,
+              "primary":  true,
+              "definition":  "CREATE UNIQUE INDEX customer_pkey ON app.customer USING btree (id);",
+              "isConstraint":  true,
+              "opclassNames":  [
+                "int8_ops"
+              ],
+              "opclassDefaults":  [
+                true
+              ]
+            },
+            {
+              "name":  "customer_tags",
+              "expressions":  [
+                "tags"
+              ],
+              "descending":  [
+                false
+              ],
+              "type":  "gin",
+              "definition":  "CREATE INDEX customer_tags ON app.customer USING gin (tags);",
+              "opclassNames":  [
+                "array_ops"
+              ],
+              "opclassDefaults":  [
+                true
+              ]
+            }
+          ],
+          "dataSize":  "8192",
+          "indexSize":  "114688",
+          "comment":  "who buys",
+          "checkConstraints":  [
+            {
+              "name":  "customer_balance_check",
+              "expression":  "(balance >= 0::numeric)"
+            },
+            {
+              "name":  "customer_name_check",
+              "expression":  "(length(name) > 0)"
+            }
+          ],
+          "owner":  "corpus_owner",
+          "triggers":  [
+            {
+              "name":  "customer_touch",
+              "body":  "CREATE TRIGGER customer_touch BEFORE UPDATE ON app.customer FOR EACH ROW WHEN ((old.name IS DISTINCT FROM new.name)) EXECUTE FUNCTION app.touch()",
+              "comment":  "keeps updated_at"
+            }
+          ]
+        },
+        {
+          "name":  "dog",
+          "columns":  [
+            {
+              "name":  "name",
+              "position":  1,
+              "nullable":  true,
+              "type":  "text"
+            },
+            {
+              "name":  "legs",
+              "position":  2,
+              "nullable":  true,
+              "type":  "integer"
+            },
+            {
+              "name":  "breed",
+              "position":  3,
+              "nullable":  true,
+              "type":  "text"
+            }
+          ],
+          "dataSize":  "8192",
+          "checkConstraints":  [
+            {
+              "name":  "animal_legs_check",
+              "expression":  "(legs >= 0)"
+            }
+          ],
+          "owner":  "postgres"
+        },
+        {
+          "name":  "measurement",
+          "columns":  [
+            {
+              "name":  "city_id",
+              "position":  1,
+              "type":  "integer"
+            },
+            {
+              "name":  "logdate",
+              "position":  2,
+              "type":  "date"
+            },
+            {
+              "name":  "region",
+              "position":  3,
+              "type":  "text"
+            },
+            {
+              "name":  "peak",
+              "position":  4,
+              "nullable":  true,
+              "type":  "integer"
+            }
+          ],
+          "indexes":  [
+            {
+              "name":  "measurement_city",
+              "expressions":  [
+                "city_id",
+                "logdate"
+              ],
+              "descending":  [
+                false,
+                false
+              ],
+              "type":  "btree",
+              "definition":  "CREATE INDEX measurement_city ON ONLY app.measurement USING btree (city_id, logdate);",
+              "opclassNames":  [
+                "int4_ops",
+                "date_ops"
+              ],
+              "opclassDefaults":  [
+                true,
+                true
+              ]
+            },
+            {
+              "name":  "measurement_key",
+              "expressions":  [
+                "city_id",
+                "logdate",
+                "region"
+              ],
+              "descending":  [
+                false,
+                false,
+                false
+              ],
+              "type":  "btree",
+              "unique":  true,
+              "definition":  "CREATE UNIQUE INDEX measurement_key ON ONLY app.measurement USING btree (city_id, logdate, region);",
+              "opclassNames":  [
+                "int4_ops",
+                "date_ops",
+                "text_ops"
+              ],
+              "opclassDefaults":  [
+                true,
+                true,
+                true
+              ]
+            }
+          ],
+          "partitions":  [
+            {
+              "name":  "measurement_2025",
+              "type":  "RANGE",
+              "expression":  "RANGE (logdate)",
+              "value":  "FOR VALUES FROM ('2025-01-01') TO ('2026-01-01')",
+              "subpartitions":  [
+                {
+                  "name":  "measurement_2025_eu",
+                  "type":  "LIST",
+                  "expression":  "LIST (region)",
+                  "value":  "FOR VALUES IN ('eu')",
+                  "indexes":  [
+                    {
+                      "name":  "measurement_2025_eu_city_id_logdate_idx",
+                      "expressions":  [
+                        "city_id",
+                        "logdate"
+                      ],
+                      "descending":  [
+                        false,
+                        false
+                      ],
+                      "type":  "btree",
+                      "definition":  "CREATE INDEX measurement_2025_eu_city_id_logdate_idx ON app.measurement_2025_eu USING btree (city_id, logdate);",
+                      "parentIndexSchema":  "app",
+                      "parentIndexName":  "measurement_2025_city_id_logdate_idx",
+                      "opclassNames":  [
+                        "int4_ops",
+                        "date_ops"
+                      ],
+                      "opclassDefaults":  [
+                        true,
+                        true
+                      ]
+                    },
+                    {
+                      "name":  "measurement_2025_eu_city_id_logdate_region_idx",
+                      "expressions":  [
+                        "city_id",
+                        "logdate",
+                        "region"
+                      ],
+                      "descending":  [
+                        false,
+                        false,
+                        false
+                      ],
+                      "type":  "btree",
+                      "unique":  true,
+                      "definition":  "CREATE UNIQUE INDEX measurement_2025_eu_city_id_logdate_region_idx ON app.measurement_2025_eu USING btree (city_id, logdate, region);",
+                      "parentIndexSchema":  "app",
+                      "parentIndexName":  "measurement_2025_city_id_logdate_region_idx",
+                      "opclassNames":  [
+                        "int4_ops",
+                        "date_ops",
+                        "text_ops"
+                      ],
+                      "opclassDefaults":  [
+                        true,
+                        true,
+                        true
+                      ]
+                    }
+                  ],
+                  "checkConstraints":  [
+                    {
+                      "name":  "measurement_peak_check",
+                      "expression":  "(peak > '-100'::integer)"
+                    }
+                  ]
+                },
+                {
+                  "name":  "measurement_2025_other",
+                  "type":  "LIST",
+                  "expression":  "LIST (region)",
+                  "value":  "DEFAULT",
+                  "indexes":  [
+                    {
+                      "name":  "measurement_2025_other_city_id_logdate_idx",
+                      "expressions":  [
+                        "city_id",
+                        "logdate"
+                      ],
+                      "descending":  [
+                        false,
+                        false
+                      ],
+                      "type":  "btree",
+                      "definition":  "CREATE INDEX measurement_2025_other_city_id_logdate_idx ON app.measurement_2025_other USING btree (city_id, logdate);",
+                      "parentIndexSchema":  "app",
+                      "parentIndexName":  "measurement_2025_city_id_logdate_idx",
+                      "opclassNames":  [
+                        "int4_ops",
+                        "date_ops"
+                      ],
+                      "opclassDefaults":  [
+                        true,
+                        true
+                      ]
+                    },
+                    {
+                      "name":  "measurement_2025_other_city_id_logdate_region_idx",
+                      "expressions":  [
+                        "city_id",
+                        "logdate",
+                        "region"
+                      ],
+                      "descending":  [
+                        false,
+                        false,
+                        false
+                      ],
+                      "type":  "btree",
+                      "unique":  true,
+                      "definition":  "CREATE UNIQUE INDEX measurement_2025_other_city_id_logdate_region_idx ON app.measurement_2025_other USING btree (city_id, logdate, region);",
+                      "parentIndexSchema":  "app",
+                      "parentIndexName":  "measurement_2025_city_id_logdate_region_idx",
+                      "opclassNames":  [
+                        "int4_ops",
+                        "date_ops",
+                        "text_ops"
+                      ],
+                      "opclassDefaults":  [
+                        true,
+                        true,
+                        true
+                      ]
+                    }
+                  ],
+                  "checkConstraints":  [
+                    {
+                      "name":  "measurement_peak_check",
+                      "expression":  "(peak > '-100'::integer)"
+                    }
+                  ]
+                }
+              ],
+              "indexes":  [
+                {
+                  "name":  "measurement_2025_city_id_logdate_idx",
+                  "expressions":  [
+                    "city_id",
+                    "logdate"
+                  ],
+                  "descending":  [
+                    false,
+                    false
+                  ],
+                  "type":  "btree",
+                  "definition":  "CREATE INDEX measurement_2025_city_id_logdate_idx ON ONLY app.measurement_2025 USING btree (city_id, logdate);",
+                  "parentIndexSchema":  "app",
+                  "parentIndexName":  "measurement_city",
+                  "opclassNames":  [
+                    "int4_ops",
+                    "date_ops"
+                  ],
+                  "opclassDefaults":  [
+                    true,
+                    true
+                  ]
+                },
+                {
+                  "name":  "measurement_2025_city_id_logdate_region_idx",
+                  "expressions":  [
+                    "city_id",
+                    "logdate",
+                    "region"
+                  ],
+                  "descending":  [
+                    false,
+                    false,
+                    false
+                  ],
+                  "type":  "btree",
+                  "unique":  true,
+                  "definition":  "CREATE UNIQUE INDEX measurement_2025_city_id_logdate_region_idx ON ONLY app.measurement_2025 USING btree (city_id, logdate, region);",
+                  "parentIndexSchema":  "app",
+                  "parentIndexName":  "measurement_key",
+                  "opclassNames":  [
+                    "int4_ops",
+                    "date_ops",
+                    "text_ops"
+                  ],
+                  "opclassDefaults":  [
+                    true,
+                    true,
+                    true
+                  ]
+                }
+              ],
+              "checkConstraints":  [
+                {
+                  "name":  "measurement_peak_check",
+                  "expression":  "(peak > '-100'::integer)"
+                }
+              ]
+            },
+            {
+              "name":  "measurement_2026",
+              "type":  "RANGE",
+              "expression":  "RANGE (logdate)",
+              "value":  "FOR VALUES FROM ('2026-01-01') TO ('2027-01-01')",
+              "indexes":  [
+                {
+                  "name":  "measurement_2026_city_id_logdate_idx",
+                  "expressions":  [
+                    "city_id",
+                    "logdate"
+                  ],
+                  "descending":  [
+                    false,
+                    false
+                  ],
+                  "type":  "btree",
+                  "definition":  "CREATE INDEX measurement_2026_city_id_logdate_idx ON app.measurement_2026 USING btree (city_id, logdate);",
+                  "parentIndexSchema":  "app",
+                  "parentIndexName":  "measurement_city",
+                  "opclassNames":  [
+                    "int4_ops",
+                    "date_ops"
+                  ],
+                  "opclassDefaults":  [
+                    true,
+                    true
+                  ]
+                },
+                {
+                  "name":  "measurement_2026_city_id_logdate_region_idx",
+                  "expressions":  [
+                    "city_id",
+                    "logdate",
+                    "region"
+                  ],
+                  "descending":  [
+                    false,
+                    false,
+                    false
+                  ],
+                  "type":  "btree",
+                  "unique":  true,
+                  "definition":  "CREATE UNIQUE INDEX measurement_2026_city_id_logdate_region_idx ON app.measurement_2026 USING btree (city_id, logdate, region);",
+                  "parentIndexSchema":  "app",
+                  "parentIndexName":  "measurement_key",
+                  "opclassNames":  [
+                    "int4_ops",
+                    "date_ops",
+                    "text_ops"
+                  ],
+                  "opclassDefaults":  [
+                    true,
+                    true,
+                    true
+                  ]
+                }
+              ],
+              "checkConstraints":  [
+                {
+                  "name":  "measurement_peak_check",
+                  "expression":  "(peak > '-100'::integer)"
+                }
+              ]
+            }
+          ],
+          "checkConstraints":  [
+            {
+              "name":  "measurement_peak_check",
+              "expression":  "(peak > '-100'::integer)"
+            }
+          ],
+          "owner":  "postgres"
+        },
+        {
+          "name":  "orders",
+          "columns":  [
+            {
+              "name":  "id",
+              "position":  1,
+              "default":  "nextval('app.orders_id_seq'::regclass)",
+              "type":  "bigint"
+            },
+            {
+              "name":  "customer_id",
+              "position":  2,
+              "type":  "bigint"
+            },
+            {
+              "name":  "placed_on",
+              "position":  3,
+              "type":  "date"
+            },
+            {
+              "name":  "total",
+              "position":  4,
+              "nullable":  true,
+              "type":  "numeric"
+            }
+          ],
+          "indexes":  [
+            {
+              "name":  "orders_pkey",
+              "expressions":  [
+                "id",
+                "placed_on"
+              ],
+              "descending":  [
+                false,
+                false
+              ],
+              "type":  "btree",
+              "unique":  true,
+              "primary":  true,
+              "definition":  "CREATE UNIQUE INDEX orders_pkey ON app.orders USING btree (id, placed_on);",
+              "isConstraint":  true,
+              "opclassNames":  [
+                "int8_ops",
+                "date_ops"
+              ],
+              "opclassDefaults":  [
+                true,
+                true
+              ]
+            }
+          ],
+          "dataSize":  "8192",
+          "indexSize":  "8192",
+          "foreignKeys":  [
+            {
+              "name":  "orders_customer_fk",
+              "columns":  [
+                "customer_id"
+              ],
+              "referencedSchema":  "app",
+              "referencedTable":  "customer",
+              "referencedColumns":  [
+                "id"
+              ],
+              "onDelete":  "CASCADE",
+              "onUpdate":  "SET NULL",
+              "matchType":  "SIMPLE"
+            }
+          ],
+          "owner":  "postgres"
+        },
+        {
+          "name":  "ref_source",
+          "columns":  [
+            {
+              "name":  "x",
+              "position":  1,
+              "nullable":  true,
+              "type":  "integer"
+            },
+            {
+              "name":  "y",
+              "position":  2,
+              "nullable":  true,
+              "type":  "integer"
+            }
+          ],
+          "foreignKeys":  [
+            {
+              "name":  "ref_source_x_y_fkey",
+              "columns":  [
+                "x",
+                "y"
+              ],
+              "referencedSchema":  "app",
+              "referencedTable":  "ref_target",
+              "referencedColumns":  [
+                "a",
+                "b"
+              ],
+              "onDelete":  "SET DEFAULT",
+              "onUpdate":  "NO ACTION",
+              "matchType":  "FULL"
+            }
+          ],
+          "owner":  "postgres"
+        },
+        {
+          "name":  "ref_target",
+          "columns":  [
+            {
+              "name":  "a",
+              "position":  1,
+              "nullable":  true,
+              "type":  "integer"
+            },
+            {
+              "name":  "b",
+              "position":  2,
+              "nullable":  true,
+              "type":  "integer"
+            }
+          ],
+          "indexes":  [
+            {
+              "name":  "ref_target_a_b_key",
+              "expressions":  [
+                "a",
+                "b"
+              ],
+              "descending":  [
+                false,
+                false
+              ],
+              "type":  "btree",
+              "unique":  true,
+              "definition":  "CREATE UNIQUE INDEX ref_target_a_b_key ON app.ref_target USING btree (a, b);",
+              "isConstraint":  true,
+              "opclassNames":  [
+                "int4_ops",
+                "int4_ops"
+              ],
+              "opclassDefaults":  [
+                true,
+                true
+              ]
+            }
+          ],
+          "indexSize":  "8192",
+          "owner":  "postgres"
+        },
+        {
+          "name":  "seq_owner",
+          "columns":  [
+            {
+              "name":  "id",
+              "position":  2,
+              "default":  "nextval('app.seq_owner_id_seq'::regclass)",
+              "type":  "integer"
+            },
+            {
+              "name":  "payload",
+              "position":  3,
+              "nullable":  true,
+              "type":  "text"
+            }
+          ],
+          "dataSize":  "8192",
+          "owner":  "postgres"
+        },
+        {
+          "name":  "sharded",
+          "columns":  [
+            {
+              "name":  "id",
+              "position":  1,
+              "nullable":  true,
+              "type":  "integer"
+            },
+            {
+              "name":  "v",
+              "position":  2,
+              "nullable":  true,
+              "type":  "text"
+            }
+          ],
+          "partitions":  [
+            {
+              "name":  "sharded_0",
+              "type":  "HASH",
+              "expression":  "HASH (id)",
+              "value":  "FOR VALUES WITH (modulus 2, remainder 0)"
+            },
+            {
+              "name":  "sharded_1",
+              "type":  "HASH",
+              "expression":  "HASH (id)",
+              "value":  "FOR VALUES WITH (modulus 2, remainder 1)"
+            }
+          ],
+          "owner":  "postgres"
+        }
+      ],
+      "views":  [
+        {
+          "name":  "customer_names",
+          "definition":  " SELECT customer.id,\n    customer.name\n   FROM app.customer;",
+          "dependencyColumns":  [
+            {
+              "schema":  "app",
+              "table":  "customer",
+              "column":  "id"
+            },
+            {
+              "schema":  "app",
+              "table":  "customer",
+              "column":  "name"
+            }
+          ],
+          "columns":  [
+            {
+              "name":  "id",
+              "position":  1,
+              "nullable":  true,
+              "type":  "bigint"
+            },
+            {
+              "name":  "name",
+              "position":  2,
+              "nullable":  true,
+              "type":  "text",
+              "collation":  "C"
+            }
+          ],
+          "triggers":  [
+            {
+              "name":  "names_insert",
+              "body":  "CREATE TRIGGER names_insert INSTEAD OF INSERT ON app.customer_names FOR EACH ROW EXECUTE FUNCTION app.names_insert()"
+            }
+          ]
+        },
+        {
+          "name":  "happy_customer",
+          "definition":  " SELECT c.id,\n    c.name,\n    o.total\n   FROM (app.customer c\n     JOIN app.orders o ON ((o.customer_id = c.id)))\n  WHERE (c.mood = 'happy'::app.mood);",
+          "comment":  "happy ones",
+          "dependencyColumns":  [
+            {
+              "schema":  "app",
+              "table":  "customer",
+              "column":  "id"
+            },
+            {
+              "schema":  "app",
+              "table":  "customer",
+              "column":  "mood"
+            },
+            {
+              "schema":  "app",
+              "table":  "customer",
+              "column":  "name"
+            },
+            {
+              "schema":  "app",
+              "table":  "orders",
+              "column":  "customer_id"
+            },
+            {
+              "schema":  "app",
+              "table":  "orders",
+              "column":  "total"
+            }
+          ],
+          "columns":  [
+            {
+              "name":  "id",
+              "position":  1,
+              "nullable":  true,
+              "type":  "bigint"
+            },
+            {
+              "name":  "name",
+              "position":  2,
+              "nullable":  true,
+              "type":  "text",
+              "collation":  "C"
+            },
+            {
+              "name":  "total",
+              "position":  3,
+              "nullable":  true,
+              "type":  "numeric"
+            }
+          ]
+        },
+        {
+          "name":  "owner's view",
+          "definition":  " SELECT customer.id\n   FROM app.customer;",
+          "dependencyColumns":  [
+            {
+              "schema":  "app",
+              "table":  "customer",
+              "column":  "id"
+            }
+          ],
+          "columns":  [
+            {
+              "name":  "id",
+              "position":  1,
+              "nullable":  true,
+              "type":  "bigint"
+            }
+          ]
+        },
+        {
+          "name":  "view_on_view",
+          "definition":  " SELECT happy_customer.name\n   FROM app.happy_customer;",
+          "dependencyColumns":  [
+            {
+              "schema":  "app",
+              "table":  "happy_customer",
+              "column":  "name"
+            }
+          ],
+          "columns":  [
+            {
+              "name":  "name",
+              "position":  1,
+              "nullable":  true,
+              "type":  "text",
+              "collation":  "C"
+            }
+          ]
+        }
+      ],
+      "functions":  [
+        {
+          "name":  "add",
+          "definition":  "CREATE OR REPLACE FUNCTION app.add(a integer, b integer DEFAULT 1)\n RETURNS integer\n LANGUAGE sql\n IMMUTABLE STRICT\nAS $function$ SELECT a + b $function$\n",
+          "signature":  "add(a integer, b integer)",
+          "comment":  "adds integers"
+        },
+        {
+          "name":  "add",
+          "definition":  "CREATE OR REPLACE FUNCTION app.add(a numeric, b numeric)\n RETURNS numeric\n LANGUAGE sql\n IMMUTABLE\nAS $function$ SELECT a + b $function$\n",
+          "signature":  "add(a numeric, b numeric)"
+        },
+        {
+          "name":  "customer_count",
+          "definition":  "CREATE OR REPLACE FUNCTION app.customer_count()\n RETURNS bigint\n LANGUAGE sql\n STABLE\nAS $function$SELECT count(*) FROM app.customer$function$\n",
+          "signature":  "customer_count()"
+        },
+        {
+          "name":  "float_range",
+          "definition":  "range_constructor2",
+          "signature":  "float_range(double precision, double precision)"
+        },
+        {
+          "name":  "float_range",
+          "definition":  "range_constructor3",
+          "signature":  "float_range(double precision, double precision, text)"
+        },
+        {
+          "name":  "items_named",
+          "definition":  "CREATE OR REPLACE FUNCTION app.items_named(p text)\n RETURNS SETOF text\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO 'app'\nAS $function$ SELECT p $function$\n",
+          "signature":  "items_named(p text)"
+        },
+        {
+          "name":  "names_insert",
+          "definition":  "CREATE OR REPLACE FUNCTION app.names_insert()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nBEGIN\n    RETURN NEW;\nEND\n$function$\n",
+          "signature":  "names_insert()"
+        },
+        {
+          "name":  "reset",
+          "definition":  "CREATE OR REPLACE PROCEDURE app.reset(n integer)\n LANGUAGE plpgsql\nAS $procedure$\nBEGIN\n    PERFORM setval('app.counter', n);\nEND\n$procedure$\n",
+          "signature":  "reset(n integer)"
+        },
+        {
+          "name":  "touch",
+          "definition":  "CREATE OR REPLACE FUNCTION app.touch()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nBEGIN\n    NEW.updated_at := now();\n    RETURN NEW;\nEND\n$function$\n",
+          "signature":  "touch()"
+        }
+      ],
+      "materializedViews":  [
+        {
+          "name":  "order_totals",
+          "definition":  " SELECT orders.customer_id,\n    sum(orders.total) AS total\n   FROM app.orders\n  GROUP BY orders.customer_id;",
+          "comment":  "per customer",
+          "dependencyColumns":  [
+            {
+              "schema":  "app",
+              "table":  "orders",
+              "column":  "customer_id"
+            },
+            {
+              "schema":  "app",
+              "table":  "orders",
+              "column":  "total"
+            }
+          ],
+          "indexes":  [
+            {
+              "name":  "order_totals_customer",
+              "expressions":  [
+                "customer_id"
+              ],
+              "descending":  [
+                false
+              ],
+              "type":  "btree",
+              "unique":  true,
+              "definition":  "CREATE UNIQUE INDEX order_totals_customer ON app.order_totals USING btree (customer_id);",
+              "opclassNames":  [
+                "int8_ops"
+              ],
+              "opclassDefaults":  [
+                true
+              ]
+            }
+          ]
+        }
+      ],
+      "sequences":  [
+        {
+          "name":  "counter",
+          "dataType":  "integer",
+          "start":  "10",
+          "minValue":  "-100",
+          "maxValue":  "1000",
+          "increment":  "5",
+          "cycle":  true,
+          "cacheSize":  "3",
+          "comment":  "counts by five"
+        },
+        {
+          "name":  "customer_alt_id_seq",
+          "dataType":  "integer",
+          "start":  "1",
+          "minValue":  "1",
+          "maxValue":  "2147483647",
+          "increment":  "1",
+          "cacheSize":  "1",
+          "ownerTable":  "customer",
+          "ownerColumn":  "alt_id"
+        },
+        {
+          "name":  "customer_id_seq",
+          "dataType":  "bigint",
+          "start":  "100",
+          "minValue":  "1",
+          "maxValue":  "9223372036854775807",
+          "increment":  "2",
+          "cacheSize":  "1",
+          "ownerTable":  "customer",
+          "ownerColumn":  "id"
+        },
+        {
+          "name":  "orders_id_seq",
+          "dataType":  "bigint",
+          "start":  "1",
+          "minValue":  "1",
+          "maxValue":  "9223372036854775807",
+          "increment":  "1",
+          "cacheSize":  "1",
+          "ownerTable":  "orders",
+          "ownerColumn":  "id"
+        },
+        {
+          "name":  "owned_seq",
+          "dataType":  "bigint",
+          "start":  "1",
+          "minValue":  "1",
+          "maxValue":  "9223372036854775807",
+          "increment":  "1",
+          "cacheSize":  "1",
+          "ownerTable":  "customer",
+          "ownerColumn":  "owned"
+        },
+        {
+          "name":  "seq_owner_id_seq",
+          "dataType":  "integer",
+          "start":  "1",
+          "minValue":  "1",
+          "maxValue":  "2147483647",
+          "increment":  "1",
+          "cacheSize":  "1",
+          "ownerTable":  "seq_owner",
+          "ownerColumn":  "id"
+        }
+      ],
+      "owner":  "corpus_owner",
+      "comment":  "the application",
+      "enumTypes":  [
+        {
+          "name":  "mood",
+          "values":  [
+            "happy",
+            "sad",
+            "it's complicated"
+          ],
+          "comment":  "how it feels"
+        }
+      ],
+      "compositeTypes":  [
+        {
+          "name":  "address",
+          "attributes":  [
+            {
+              "name":  "street",
+              "type":  "text",
+              "collation":  "\"C\"",
+              "comment":  "street line"
+            },
+            {
+              "name":  "city",
+              "type":  "character varying(50)"
+            },
+            {
+              "name":  "zip",
+              "type":  "integer"
+            }
+          ],
+          "comment":  "postal address"
+        },
+        {
+          "name":  "addresses",
+          "attributes":  [
+            {
+              "name":  "home",
+              "type":  "app.address"
+            },
+            {
+              "name":  "others",
+              "type":  "app.address[]"
+            }
+          ]
+        },
+        {
+          "name":  "empty_type"
+        }
+      ]
+    },
+    {
+      "name":  "audit",
+      "tables":  [
+        {
+          "name":  "scratch",
+          "columns":  [
+            {
+              "name":  "note",
+              "position":  1,
+              "nullable":  true,
+              "type":  "text"
+            }
+          ],
+          "dataSize":  "16384",
+          "owner":  "postgres"
+        }
+      ],
+      "externalTables":  [
+        {
+          "name":  "remote_orders",
+          "externalServerName":  "loopback",
+          "externalDatabaseName":  "omni_testsyncdatabase",
+          "columns":  [
+            {
+              "name":  "id",
+              "position":  1,
+              "type":  "integer"
+            },
+            {
+              "name":  "note",
+              "position":  2,
+              "nullable":  true,
+              "type":  "character varying(30)"
+            }
+          ]
+        }
+      ],
+      "functions":  [
+        {
+          "name":  "on_ddl",
+          "definition":  "CREATE OR REPLACE FUNCTION audit.on_ddl()\n RETURNS event_trigger\n LANGUAGE plpgsql\nAS $function$\nBEGIN\n    RAISE NOTICE 'ddl: %', tg_tag;\nEND\n$function$\n",
+          "signature":  "on_ddl()"
+        }
+      ],
+      "sequences":  [
+        {
+          "name":  "big_seq",
+          "dataType":  "bigint",
+          "start":  "1",
+          "minValue":  "1",
+          "maxValue":  "9223372036854775807",
+          "increment":  "1",
+          "cacheSize":  "1"
+        }
+      ],
+      "owner":  "postgres"
+    },
+    {
+      "name":  "public",
+      "tables":  [
+        {
+          "name":  "plain",
+          "columns":  [
+            {
+              "name":  "a",
+              "position":  1,
+              "default":  "nextval('public.plain_a_seq'::regclass)",
+              "type":  "integer"
+            },
+            {
+              "name":  "b",
+              "position":  2,
+              "nullable":  true,
+              "type":  "text"
+            }
+          ],
+          "dataSize":  "8192",
+          "owner":  "postgres",
+          "rules":  [
+            {
+              "name":  "plain_log",
+              "event":  "INSERT",
+              "condition":  "new.b IS NOT NULL",
+              "action":  "CREATE RULE plain_log AS\n    ON INSERT TO public.plain\n   WHERE new.b IS NOT NULL DO  INSERT INTO audit.scratch (note)\n  VALUES (new.b);",
+              "isEnabled":  true,
+              "definition":  "CREATE RULE plain_log AS\n    ON INSERT TO public.plain\n   WHERE new.b IS NOT NULL DO  INSERT INTO audit.scratch (note)\n  VALUES (new.b);"
+            },
+            {
+              "name":  "plain_nothing",
+              "event":  "DELETE",
+              "action":  "CREATE RULE plain_nothing AS\n    ON DELETE TO public.plain DO INSTEAD NOTHING;",
+              "isInstead":  true,
+              "isEnabled":  true,
+              "definition":  "CREATE RULE plain_nothing AS\n    ON DELETE TO public.plain DO INSTEAD NOTHING;"
+            }
+          ]
+        },
+        {
+          "name":  "z_source",
+          "columns":  [
+            {
+              "name":  "v",
+              "position":  1,
+              "nullable":  true,
+              "type":  "integer"
+            }
+          ],
+          "owner":  "postgres"
+        }
+      ],
+      "views":  [
+        {
+          "name":  "a_count",
+          "definition":  " SELECT count(*) AS n\n   FROM public.z_source;",
+          "dependencyColumns":  [
+            {
+              "schema":  "public",
+              "table":  "z_source"
+            }
+          ],
+          "columns":  [
+            {
+              "name":  "n",
+              "position":  1,
+              "nullable":  true,
+              "type":  "bigint"
+            }
+          ]
+        }
+      ],
+      "functions":  [
+        {
+          "name":  "akeys",
+          "definition":  "CREATE OR REPLACE FUNCTION public.akeys(public.hstore)\n RETURNS text[]\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/hstore', $function$hstore_akeys$function$\n",
+          "signature":  "akeys(public.hstore)",
+          "skipDump":  true
+        },
+        {
+          "name":  "avals",
+          "definition":  "CREATE OR REPLACE FUNCTION public.avals(public.hstore)\n RETURNS text[]\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/hstore', $function$hstore_avals$function$\n",
+          "signature":  "avals(public.hstore)",
+          "skipDump":  true
+        },
+        {
+          "name":  "cash_dist",
+          "definition":  "CREATE OR REPLACE FUNCTION public.cash_dist(money, money)\n RETURNS money\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$cash_dist$function$\n",
+          "signature":  "cash_dist(money, money)",
+          "skipDump":  true
+        },
+        {
+          "name":  "citext",
+          "definition":  "booltext",
+          "signature":  "citext(boolean)",
+          "skipDump":  true
+        },
+        {
+          "name":  "citext",
+          "definition":  "rtrim1",
+          "signature":  "citext(character)",
+          "skipDump":  true
+        },
+        {
+          "name":  "citext",
+          "definition":  "network_show",
+          "signature":  "citext(inet)",
+          "skipDump":  true
+        },
+        {
+          "name":  "citext_cmp",
+          "definition":  "CREATE OR REPLACE FUNCTION public.citext_cmp(public.citext, public.citext)\n RETURNS integer\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/citext', $function$citext_cmp$function$\n",
+          "signature":  "citext_cmp(public.citext, public.citext)",
+          "skipDump":  true
+        },
+        {
+          "name":  "citext_eq",
+          "definition":  "CREATE OR REPLACE FUNCTION public.citext_eq(public.citext, public.citext)\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/citext', $function$citext_eq$function$\n",
+          "signature":  "citext_eq(public.citext, public.citext)",
+          "skipDump":  true
+        },
+        {
+          "name":  "citext_ge",
+          "definition":  "CREATE OR REPLACE FUNCTION public.citext_ge(public.citext, public.citext)\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/citext', $function$citext_ge$function$\n",
+          "signature":  "citext_ge(public.citext, public.citext)",
+          "skipDump":  true
+        },
+        {
+          "name":  "citext_gt",
+          "definition":  "CREATE OR REPLACE FUNCTION public.citext_gt(public.citext, public.citext)\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/citext', $function$citext_gt$function$\n",
+          "signature":  "citext_gt(public.citext, public.citext)",
+          "skipDump":  true
+        },
+        {
+          "name":  "citext_hash",
+          "definition":  "CREATE OR REPLACE FUNCTION public.citext_hash(public.citext)\n RETURNS integer\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/citext', $function$citext_hash$function$\n",
+          "signature":  "citext_hash(public.citext)",
+          "skipDump":  true
+        },
+        {
+          "name":  "citext_hash_extended",
+          "definition":  "CREATE OR REPLACE FUNCTION public.citext_hash_extended(public.citext, bigint)\n RETURNS bigint\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/citext', $function$citext_hash_extended$function$\n",
+          "signature":  "citext_hash_extended(public.citext, bigint)",
+          "skipDump":  true
+        },
+        {
+          "name":  "citext_larger",
+          "definition":  "CREATE OR REPLACE FUNCTION public.citext_larger(public.citext, public.citext)\n RETURNS public.citext\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/citext', $function$citext_larger$function$\n",
+          "signature":  "citext_larger(public.citext, public.citext)",
+          "skipDump":  true
+        },
+        {
+          "name":  "citext_le",
+          "definition":  "CREATE OR REPLACE FUNCTION public.citext_le(public.citext, public.citext)\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/citext', $function$citext_le$function$\n",
+          "signature":  "citext_le(public.citext, public.citext)",
+          "skipDump":  true
+        },
+        {
+          "name":  "citext_lt",
+          "definition":  "CREATE OR REPLACE FUNCTION public.citext_lt(public.citext, public.citext)\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/citext', $function$citext_lt$function$\n",
+          "signature":  "citext_lt(public.citext, public.citext)",
+          "skipDump":  true
+        },
+        {
+          "name":  "citext_ne",
+          "definition":  "CREATE OR REPLACE FUNCTION public.citext_ne(public.citext, public.citext)\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/citext', $function$citext_ne$function$\n",
+          "signature":  "citext_ne(public.citext, public.citext)",
+          "skipDump":  true
+        },
+        {
+          "name":  "citext_pattern_cmp",
+          "definition":  "CREATE OR REPLACE FUNCTION public.citext_pattern_cmp(public.citext, public.citext)\n RETURNS integer\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/citext', $function$citext_pattern_cmp$function$\n",
+          "signature":  "citext_pattern_cmp(public.citext, public.citext)",
+          "skipDump":  true
+        },
+        {
+          "name":  "citext_pattern_ge",
+          "definition":  "CREATE OR REPLACE FUNCTION public.citext_pattern_ge(public.citext, public.citext)\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/citext', $function$citext_pattern_ge$function$\n",
+          "signature":  "citext_pattern_ge(public.citext, public.citext)",
+          "skipDump":  true
+        },
+        {
+          "name":  "citext_pattern_gt",
+          "definition":  "CREATE OR REPLACE FUNCTION public.citext_pattern_gt(public.citext, public.citext)\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/citext', $function$citext_pattern_gt$function$\n",
+          "signature":  "citext_pattern_gt(public.citext, public.citext)",
+          "skipDump":  true
+        },
+        {
+          "name":  "citext_pattern_le",
+          "definition":  "CREATE OR REPLACE FUNCTION public.citext_pattern_le(public.citext, public.citext)\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/citext', $function$citext_pattern_le$function$\n",
+          "signature":  "citext_pattern_le(public.citext, public.citext)",
+          "skipDump":  true
+        },
+        {
+          "name":  "citext_pattern_lt",
+          "definition":  "CREATE OR REPLACE FUNCTION public.citext_pattern_lt(public.citext, public.citext)\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/citext', $function$citext_pattern_lt$function$\n",
+          "signature":  "citext_pattern_lt(public.citext, public.citext)",
+          "skipDump":  true
+        },
+        {
+          "name":  "citext_smaller",
+          "definition":  "CREATE OR REPLACE FUNCTION public.citext_smaller(public.citext, public.citext)\n RETURNS public.citext\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/citext', $function$citext_smaller$function$\n",
+          "signature":  "citext_smaller(public.citext, public.citext)",
+          "skipDump":  true
+        },
+        {
+          "name":  "citextin",
+          "definition":  "textin",
+          "signature":  "citextin(cstring)",
+          "skipDump":  true
+        },
+        {
+          "name":  "citextout",
+          "definition":  "textout",
+          "signature":  "citextout(public.citext)",
+          "skipDump":  true
+        },
+        {
+          "name":  "citextrecv",
+          "definition":  "textrecv",
+          "signature":  "citextrecv(internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "citextsend",
+          "definition":  "textsend",
+          "signature":  "citextsend(public.citext)",
+          "skipDump":  true
+        },
+        {
+          "name":  "date_dist",
+          "definition":  "CREATE OR REPLACE FUNCTION public.date_dist(date, date)\n RETURNS integer\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$date_dist$function$\n",
+          "signature":  "date_dist(date, date)",
+          "skipDump":  true
+        },
+        {
+          "name":  "defined",
+          "definition":  "CREATE OR REPLACE FUNCTION public.defined(public.hstore, text)\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/hstore', $function$hstore_defined$function$\n",
+          "signature":  "defined(public.hstore, text)",
+          "skipDump":  true
+        },
+        {
+          "name":  "delete",
+          "definition":  "CREATE OR REPLACE FUNCTION public.delete(public.hstore, public.hstore)\n RETURNS public.hstore\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/hstore', $function$hstore_delete_hstore$function$\n",
+          "signature":  "delete(public.hstore, public.hstore)",
+          "skipDump":  true
+        },
+        {
+          "name":  "delete",
+          "definition":  "CREATE OR REPLACE FUNCTION public.delete(public.hstore, text)\n RETURNS public.hstore\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/hstore', $function$hstore_delete$function$\n",
+          "signature":  "delete(public.hstore, text)",
+          "skipDump":  true
+        },
+        {
+          "name":  "delete",
+          "definition":  "CREATE OR REPLACE FUNCTION public.delete(public.hstore, text[])\n RETURNS public.hstore\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/hstore', $function$hstore_delete_array$function$\n",
+          "signature":  "delete(public.hstore, text[])",
+          "skipDump":  true
+        },
+        {
+          "name":  "each",
+          "definition":  "CREATE OR REPLACE FUNCTION public.each(hs public.hstore, OUT key text, OUT value text)\n RETURNS SETOF record\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/hstore', $function$hstore_each$function$\n",
+          "signature":  "each(hs public.hstore, OUT key text, OUT value text)",
+          "skipDump":  true
+        },
+        {
+          "name":  "exist",
+          "definition":  "CREATE OR REPLACE FUNCTION public.exist(public.hstore, text)\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/hstore', $function$hstore_exists$function$\n",
+          "signature":  "exist(public.hstore, text)",
+          "skipDump":  true
+        },
+        {
+          "name":  "exists_all",
+          "definition":  "CREATE OR REPLACE FUNCTION public.exists_all(public.hstore, text[])\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/hstore', $function$hstore_exists_all$function$\n",
+          "signature":  "exists_all(public.hstore, text[])",
+          "skipDump":  true
+        },
+        {
+          "name":  "exists_any",
+          "definition":  "CREATE OR REPLACE FUNCTION public.exists_any(public.hstore, text[])\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/hstore', $function$hstore_exists_any$function$\n",
+          "signature":  "exists_any(public.hstore, text[])",
+          "skipDump":  true
+        },
+        {
+          "name":  "fetchval",
+          "definition":  "CREATE OR REPLACE FUNCTION public.fetchval(public.hstore, text)\n RETURNS text\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/hstore', $function$hstore_fetchval$function$\n",
+          "signature":  "fetchval(public.hstore, text)",
+          "skipDump":  true
+        },
+        {
+          "name":  "float4_dist",
+          "definition":  "CREATE OR REPLACE FUNCTION public.float4_dist(real, real)\n RETURNS real\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$float4_dist$function$\n",
+          "signature":  "float4_dist(real, real)",
+          "skipDump":  true
+        },
+        {
+          "name":  "float8_dist",
+          "definition":  "CREATE OR REPLACE FUNCTION public.float8_dist(double precision, double precision)\n RETURNS double precision\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$float8_dist$function$\n",
+          "signature":  "float8_dist(double precision, double precision)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_bit_compress",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_bit_compress(internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_bit_compress$function$\n",
+          "signature":  "gbt_bit_compress(internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_bit_consistent",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_bit_consistent(internal, bit, smallint, oid, internal)\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_bit_consistent$function$\n",
+          "signature":  "gbt_bit_consistent(internal, bit, smallint, oid, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_bit_penalty",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_bit_penalty(internal, internal, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_bit_penalty$function$\n",
+          "signature":  "gbt_bit_penalty(internal, internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_bit_picksplit",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_bit_picksplit(internal, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_bit_picksplit$function$\n",
+          "signature":  "gbt_bit_picksplit(internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_bit_same",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_bit_same(public.gbtreekey_var, public.gbtreekey_var, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_bit_same$function$\n",
+          "signature":  "gbt_bit_same(public.gbtreekey_var, public.gbtreekey_var, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_bit_union",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_bit_union(internal, internal)\n RETURNS public.gbtreekey_var\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_bit_union$function$\n",
+          "signature":  "gbt_bit_union(internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_bpchar_compress",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_bpchar_compress(internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_bpchar_compress$function$\n",
+          "signature":  "gbt_bpchar_compress(internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_bpchar_consistent",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_bpchar_consistent(internal, character, smallint, oid, internal)\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_bpchar_consistent$function$\n",
+          "signature":  "gbt_bpchar_consistent(internal, character, smallint, oid, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_bytea_compress",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_bytea_compress(internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_bytea_compress$function$\n",
+          "signature":  "gbt_bytea_compress(internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_bytea_consistent",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_bytea_consistent(internal, bytea, smallint, oid, internal)\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_bytea_consistent$function$\n",
+          "signature":  "gbt_bytea_consistent(internal, bytea, smallint, oid, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_bytea_penalty",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_bytea_penalty(internal, internal, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_bytea_penalty$function$\n",
+          "signature":  "gbt_bytea_penalty(internal, internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_bytea_picksplit",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_bytea_picksplit(internal, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_bytea_picksplit$function$\n",
+          "signature":  "gbt_bytea_picksplit(internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_bytea_same",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_bytea_same(public.gbtreekey_var, public.gbtreekey_var, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_bytea_same$function$\n",
+          "signature":  "gbt_bytea_same(public.gbtreekey_var, public.gbtreekey_var, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_bytea_union",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_bytea_union(internal, internal)\n RETURNS public.gbtreekey_var\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_bytea_union$function$\n",
+          "signature":  "gbt_bytea_union(internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_cash_compress",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_cash_compress(internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_cash_compress$function$\n",
+          "signature":  "gbt_cash_compress(internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_cash_consistent",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_cash_consistent(internal, money, smallint, oid, internal)\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_cash_consistent$function$\n",
+          "signature":  "gbt_cash_consistent(internal, money, smallint, oid, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_cash_distance",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_cash_distance(internal, money, smallint, oid, internal)\n RETURNS double precision\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_cash_distance$function$\n",
+          "signature":  "gbt_cash_distance(internal, money, smallint, oid, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_cash_fetch",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_cash_fetch(internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_cash_fetch$function$\n",
+          "signature":  "gbt_cash_fetch(internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_cash_penalty",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_cash_penalty(internal, internal, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_cash_penalty$function$\n",
+          "signature":  "gbt_cash_penalty(internal, internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_cash_picksplit",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_cash_picksplit(internal, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_cash_picksplit$function$\n",
+          "signature":  "gbt_cash_picksplit(internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_cash_same",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_cash_same(public.gbtreekey16, public.gbtreekey16, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_cash_same$function$\n",
+          "signature":  "gbt_cash_same(public.gbtreekey16, public.gbtreekey16, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_cash_union",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_cash_union(internal, internal)\n RETURNS public.gbtreekey16\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_cash_union$function$\n",
+          "signature":  "gbt_cash_union(internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_date_compress",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_date_compress(internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_date_compress$function$\n",
+          "signature":  "gbt_date_compress(internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_date_consistent",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_date_consistent(internal, date, smallint, oid, internal)\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_date_consistent$function$\n",
+          "signature":  "gbt_date_consistent(internal, date, smallint, oid, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_date_distance",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_date_distance(internal, date, smallint, oid, internal)\n RETURNS double precision\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_date_distance$function$\n",
+          "signature":  "gbt_date_distance(internal, date, smallint, oid, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_date_fetch",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_date_fetch(internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_date_fetch$function$\n",
+          "signature":  "gbt_date_fetch(internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_date_penalty",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_date_penalty(internal, internal, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_date_penalty$function$\n",
+          "signature":  "gbt_date_penalty(internal, internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_date_picksplit",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_date_picksplit(internal, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_date_picksplit$function$\n",
+          "signature":  "gbt_date_picksplit(internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_date_same",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_date_same(public.gbtreekey8, public.gbtreekey8, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_date_same$function$\n",
+          "signature":  "gbt_date_same(public.gbtreekey8, public.gbtreekey8, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_date_union",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_date_union(internal, internal)\n RETURNS public.gbtreekey8\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_date_union$function$\n",
+          "signature":  "gbt_date_union(internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_decompress",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_decompress(internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_decompress$function$\n",
+          "signature":  "gbt_decompress(internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_enum_compress",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_enum_compress(internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_enum_compress$function$\n",
+          "signature":  "gbt_enum_compress(internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_enum_consistent",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_enum_consistent(internal, anyenum, smallint, oid, internal)\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_enum_consistent$function$\n",
+          "signature":  "gbt_enum_consistent(internal, anyenum, smallint, oid, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_enum_fetch",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_enum_fetch(internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_enum_fetch$function$\n",
+          "signature":  "gbt_enum_fetch(internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_enum_penalty",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_enum_penalty(internal, internal, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_enum_penalty$function$\n",
+          "signature":  "gbt_enum_penalty(internal, internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_enum_picksplit",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_enum_picksplit(internal, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_enum_picksplit$function$\n",
+          "signature":  "gbt_enum_picksplit(internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_enum_same",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_enum_same(public.gbtreekey8, public.gbtreekey8, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_enum_same$function$\n",
+          "signature":  "gbt_enum_same(public.gbtreekey8, public.gbtreekey8, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_enum_union",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_enum_union(internal, internal)\n RETURNS public.gbtreekey8\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_enum_union$function$\n",
+          "signature":  "gbt_enum_union(internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_float4_compress",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_float4_compress(internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_float4_compress$function$\n",
+          "signature":  "gbt_float4_compress(internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_float4_consistent",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_float4_consistent(internal, real, smallint, oid, internal)\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_float4_consistent$function$\n",
+          "signature":  "gbt_float4_consistent(internal, real, smallint, oid, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_float4_distance",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_float4_distance(internal, real, smallint, oid, internal)\n RETURNS double precision\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_float4_distance$function$\n",
+          "signature":  "gbt_float4_distance(internal, real, smallint, oid, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_float4_fetch",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_float4_fetch(internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_float4_fetch$function$\n",
+          "signature":  "gbt_float4_fetch(internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_float4_penalty",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_float4_penalty(internal, internal, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_float4_penalty$function$\n",
+          "signature":  "gbt_float4_penalty(internal, internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_float4_picksplit",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_float4_picksplit(internal, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_float4_picksplit$function$\n",
+          "signature":  "gbt_float4_picksplit(internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_float4_same",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_float4_same(public.gbtreekey8, public.gbtreekey8, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_float4_same$function$\n",
+          "signature":  "gbt_float4_same(public.gbtreekey8, public.gbtreekey8, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_float4_union",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_float4_union(internal, internal)\n RETURNS public.gbtreekey8\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_float4_union$function$\n",
+          "signature":  "gbt_float4_union(internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_float8_compress",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_float8_compress(internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_float8_compress$function$\n",
+          "signature":  "gbt_float8_compress(internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_float8_consistent",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_float8_consistent(internal, double precision, smallint, oid, internal)\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_float8_consistent$function$\n",
+          "signature":  "gbt_float8_consistent(internal, double precision, smallint, oid, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_float8_distance",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_float8_distance(internal, double precision, smallint, oid, internal)\n RETURNS double precision\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_float8_distance$function$\n",
+          "signature":  "gbt_float8_distance(internal, double precision, smallint, oid, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_float8_fetch",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_float8_fetch(internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_float8_fetch$function$\n",
+          "signature":  "gbt_float8_fetch(internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_float8_penalty",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_float8_penalty(internal, internal, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_float8_penalty$function$\n",
+          "signature":  "gbt_float8_penalty(internal, internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_float8_picksplit",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_float8_picksplit(internal, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_float8_picksplit$function$\n",
+          "signature":  "gbt_float8_picksplit(internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_float8_same",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_float8_same(public.gbtreekey16, public.gbtreekey16, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_float8_same$function$\n",
+          "signature":  "gbt_float8_same(public.gbtreekey16, public.gbtreekey16, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_float8_union",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_float8_union(internal, internal)\n RETURNS public.gbtreekey16\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_float8_union$function$\n",
+          "signature":  "gbt_float8_union(internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_inet_compress",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_inet_compress(internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_inet_compress$function$\n",
+          "signature":  "gbt_inet_compress(internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_inet_consistent",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_inet_consistent(internal, inet, smallint, oid, internal)\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_inet_consistent$function$\n",
+          "signature":  "gbt_inet_consistent(internal, inet, smallint, oid, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_inet_penalty",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_inet_penalty(internal, internal, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_inet_penalty$function$\n",
+          "signature":  "gbt_inet_penalty(internal, internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_inet_picksplit",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_inet_picksplit(internal, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_inet_picksplit$function$\n",
+          "signature":  "gbt_inet_picksplit(internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_inet_same",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_inet_same(public.gbtreekey16, public.gbtreekey16, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_inet_same$function$\n",
+          "signature":  "gbt_inet_same(public.gbtreekey16, public.gbtreekey16, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_inet_union",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_inet_union(internal, internal)\n RETURNS public.gbtreekey16\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_inet_union$function$\n",
+          "signature":  "gbt_inet_union(internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_int2_compress",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_int2_compress(internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_int2_compress$function$\n",
+          "signature":  "gbt_int2_compress(internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_int2_consistent",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_int2_consistent(internal, smallint, smallint, oid, internal)\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_int2_consistent$function$\n",
+          "signature":  "gbt_int2_consistent(internal, smallint, smallint, oid, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_int2_distance",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_int2_distance(internal, smallint, smallint, oid, internal)\n RETURNS double precision\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_int2_distance$function$\n",
+          "signature":  "gbt_int2_distance(internal, smallint, smallint, oid, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_int2_fetch",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_int2_fetch(internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_int2_fetch$function$\n",
+          "signature":  "gbt_int2_fetch(internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_int2_penalty",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_int2_penalty(internal, internal, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_int2_penalty$function$\n",
+          "signature":  "gbt_int2_penalty(internal, internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_int2_picksplit",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_int2_picksplit(internal, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_int2_picksplit$function$\n",
+          "signature":  "gbt_int2_picksplit(internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_int2_same",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_int2_same(public.gbtreekey4, public.gbtreekey4, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_int2_same$function$\n",
+          "signature":  "gbt_int2_same(public.gbtreekey4, public.gbtreekey4, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_int2_union",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_int2_union(internal, internal)\n RETURNS public.gbtreekey4\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_int2_union$function$\n",
+          "signature":  "gbt_int2_union(internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_int4_compress",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_int4_compress(internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_int4_compress$function$\n",
+          "signature":  "gbt_int4_compress(internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_int4_consistent",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_int4_consistent(internal, integer, smallint, oid, internal)\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_int4_consistent$function$\n",
+          "signature":  "gbt_int4_consistent(internal, integer, smallint, oid, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_int4_distance",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_int4_distance(internal, integer, smallint, oid, internal)\n RETURNS double precision\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_int4_distance$function$\n",
+          "signature":  "gbt_int4_distance(internal, integer, smallint, oid, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_int4_fetch",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_int4_fetch(internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_int4_fetch$function$\n",
+          "signature":  "gbt_int4_fetch(internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_int4_penalty",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_int4_penalty(internal, internal, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_int4_penalty$function$\n",
+          "signature":  "gbt_int4_penalty(internal, internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_int4_picksplit",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_int4_picksplit(internal, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_int4_picksplit$function$\n",
+          "signature":  "gbt_int4_picksplit(internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_int4_same",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_int4_same(public.gbtreekey8, public.gbtreekey8, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_int4_same$function$\n",
+          "signature":  "gbt_int4_same(public.gbtreekey8, public.gbtreekey8, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_int4_union",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_int4_union(internal, internal)\n RETURNS public.gbtreekey8\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_int4_union$function$\n",
+          "signature":  "gbt_int4_union(internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_int8_compress",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_int8_compress(internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_int8_compress$function$\n",
+          "signature":  "gbt_int8_compress(internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_int8_consistent",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_int8_consistent(internal, bigint, smallint, oid, internal)\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_int8_consistent$function$\n",
+          "signature":  "gbt_int8_consistent(internal, bigint, smallint, oid, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_int8_distance",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_int8_distance(internal, bigint, smallint, oid, internal)\n RETURNS double precision\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_int8_distance$function$\n",
+          "signature":  "gbt_int8_distance(internal, bigint, smallint, oid, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_int8_fetch",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_int8_fetch(internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_int8_fetch$function$\n",
+          "signature":  "gbt_int8_fetch(internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_int8_penalty",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_int8_penalty(internal, internal, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_int8_penalty$function$\n",
+          "signature":  "gbt_int8_penalty(internal, internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_int8_picksplit",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_int8_picksplit(internal, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_int8_picksplit$function$\n",
+          "signature":  "gbt_int8_picksplit(internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_int8_same",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_int8_same(public.gbtreekey16, public.gbtreekey16, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_int8_same$function$\n",
+          "signature":  "gbt_int8_same(public.gbtreekey16, public.gbtreekey16, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_int8_union",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_int8_union(internal, internal)\n RETURNS public.gbtreekey16\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_int8_union$function$\n",
+          "signature":  "gbt_int8_union(internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_intv_compress",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_intv_compress(internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_intv_compress$function$\n",
+          "signature":  "gbt_intv_compress(internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_intv_consistent",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_intv_consistent(internal, interval, smallint, oid, internal)\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_intv_consistent$function$\n",
+          "signature":  "gbt_intv_consistent(internal, interval, smallint, oid, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_intv_decompress",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_intv_decompress(internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_intv_decompress$function$\n",
+          "signature":  "gbt_intv_decompress(internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_intv_distance",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_intv_distance(internal, interval, smallint, oid, internal)\n RETURNS double precision\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_intv_distance$function$\n",
+          "signature":  "gbt_intv_distance(internal, interval, smallint, oid, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_intv_fetch",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_intv_fetch(internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_intv_fetch$function$\n",
+          "signature":  "gbt_intv_fetch(internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_intv_penalty",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_intv_penalty(internal, internal, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_intv_penalty$function$\n",
+          "signature":  "gbt_intv_penalty(internal, internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_intv_picksplit",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_intv_picksplit(internal, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_intv_picksplit$function$\n",
+          "signature":  "gbt_intv_picksplit(internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_intv_same",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_intv_same(public.gbtreekey32, public.gbtreekey32, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_intv_same$function$\n",
+          "signature":  "gbt_intv_same(public.gbtreekey32, public.gbtreekey32, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_intv_union",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_intv_union(internal, internal)\n RETURNS public.gbtreekey32\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_intv_union$function$\n",
+          "signature":  "gbt_intv_union(internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_macad8_compress",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_macad8_compress(internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_macad8_compress$function$\n",
+          "signature":  "gbt_macad8_compress(internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_macad8_consistent",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_macad8_consistent(internal, macaddr8, smallint, oid, internal)\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_macad8_consistent$function$\n",
+          "signature":  "gbt_macad8_consistent(internal, macaddr8, smallint, oid, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_macad8_fetch",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_macad8_fetch(internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_macad8_fetch$function$\n",
+          "signature":  "gbt_macad8_fetch(internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_macad8_penalty",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_macad8_penalty(internal, internal, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_macad8_penalty$function$\n",
+          "signature":  "gbt_macad8_penalty(internal, internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_macad8_picksplit",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_macad8_picksplit(internal, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_macad8_picksplit$function$\n",
+          "signature":  "gbt_macad8_picksplit(internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_macad8_same",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_macad8_same(public.gbtreekey16, public.gbtreekey16, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_macad8_same$function$\n",
+          "signature":  "gbt_macad8_same(public.gbtreekey16, public.gbtreekey16, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_macad8_union",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_macad8_union(internal, internal)\n RETURNS public.gbtreekey16\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_macad8_union$function$\n",
+          "signature":  "gbt_macad8_union(internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_macad_compress",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_macad_compress(internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_macad_compress$function$\n",
+          "signature":  "gbt_macad_compress(internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_macad_consistent",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_macad_consistent(internal, macaddr, smallint, oid, internal)\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_macad_consistent$function$\n",
+          "signature":  "gbt_macad_consistent(internal, macaddr, smallint, oid, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_macad_fetch",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_macad_fetch(internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_macad_fetch$function$\n",
+          "signature":  "gbt_macad_fetch(internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_macad_penalty",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_macad_penalty(internal, internal, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_macad_penalty$function$\n",
+          "signature":  "gbt_macad_penalty(internal, internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_macad_picksplit",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_macad_picksplit(internal, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_macad_picksplit$function$\n",
+          "signature":  "gbt_macad_picksplit(internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_macad_same",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_macad_same(public.gbtreekey16, public.gbtreekey16, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_macad_same$function$\n",
+          "signature":  "gbt_macad_same(public.gbtreekey16, public.gbtreekey16, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_macad_union",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_macad_union(internal, internal)\n RETURNS public.gbtreekey16\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_macad_union$function$\n",
+          "signature":  "gbt_macad_union(internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_numeric_compress",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_numeric_compress(internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_numeric_compress$function$\n",
+          "signature":  "gbt_numeric_compress(internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_numeric_consistent",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_numeric_consistent(internal, numeric, smallint, oid, internal)\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_numeric_consistent$function$\n",
+          "signature":  "gbt_numeric_consistent(internal, numeric, smallint, oid, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_numeric_penalty",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_numeric_penalty(internal, internal, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_numeric_penalty$function$\n",
+          "signature":  "gbt_numeric_penalty(internal, internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_numeric_picksplit",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_numeric_picksplit(internal, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_numeric_picksplit$function$\n",
+          "signature":  "gbt_numeric_picksplit(internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_numeric_same",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_numeric_same(public.gbtreekey_var, public.gbtreekey_var, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_numeric_same$function$\n",
+          "signature":  "gbt_numeric_same(public.gbtreekey_var, public.gbtreekey_var, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_numeric_union",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_numeric_union(internal, internal)\n RETURNS public.gbtreekey_var\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_numeric_union$function$\n",
+          "signature":  "gbt_numeric_union(internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_oid_compress",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_oid_compress(internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_oid_compress$function$\n",
+          "signature":  "gbt_oid_compress(internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_oid_consistent",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_oid_consistent(internal, oid, smallint, oid, internal)\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_oid_consistent$function$\n",
+          "signature":  "gbt_oid_consistent(internal, oid, smallint, oid, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_oid_distance",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_oid_distance(internal, oid, smallint, oid, internal)\n RETURNS double precision\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_oid_distance$function$\n",
+          "signature":  "gbt_oid_distance(internal, oid, smallint, oid, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_oid_fetch",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_oid_fetch(internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_oid_fetch$function$\n",
+          "signature":  "gbt_oid_fetch(internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_oid_penalty",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_oid_penalty(internal, internal, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_oid_penalty$function$\n",
+          "signature":  "gbt_oid_penalty(internal, internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_oid_picksplit",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_oid_picksplit(internal, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_oid_picksplit$function$\n",
+          "signature":  "gbt_oid_picksplit(internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_oid_same",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_oid_same(public.gbtreekey8, public.gbtreekey8, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_oid_same$function$\n",
+          "signature":  "gbt_oid_same(public.gbtreekey8, public.gbtreekey8, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_oid_union",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_oid_union(internal, internal)\n RETURNS public.gbtreekey8\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_oid_union$function$\n",
+          "signature":  "gbt_oid_union(internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_text_compress",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_text_compress(internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_text_compress$function$\n",
+          "signature":  "gbt_text_compress(internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_text_consistent",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_text_consistent(internal, text, smallint, oid, internal)\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_text_consistent$function$\n",
+          "signature":  "gbt_text_consistent(internal, text, smallint, oid, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_text_penalty",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_text_penalty(internal, internal, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_text_penalty$function$\n",
+          "signature":  "gbt_text_penalty(internal, internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_text_picksplit",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_text_picksplit(internal, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_text_picksplit$function$\n",
+          "signature":  "gbt_text_picksplit(internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_text_same",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_text_same(public.gbtreekey_var, public.gbtreekey_var, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_text_same$function$\n",
+          "signature":  "gbt_text_same(public.gbtreekey_var, public.gbtreekey_var, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_text_union",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_text_union(internal, internal)\n RETURNS public.gbtreekey_var\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_text_union$function$\n",
+          "signature":  "gbt_text_union(internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_time_compress",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_time_compress(internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_time_compress$function$\n",
+          "signature":  "gbt_time_compress(internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_time_consistent",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_time_consistent(internal, time without time zone, smallint, oid, internal)\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_time_consistent$function$\n",
+          "signature":  "gbt_time_consistent(internal, time without time zone, smallint, oid, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_time_distance",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_time_distance(internal, time without time zone, smallint, oid, internal)\n RETURNS double precision\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_time_distance$function$\n",
+          "signature":  "gbt_time_distance(internal, time without time zone, smallint, oid, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_time_fetch",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_time_fetch(internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_time_fetch$function$\n",
+          "signature":  "gbt_time_fetch(internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_time_penalty",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_time_penalty(internal, internal, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_time_penalty$function$\n",
+          "signature":  "gbt_time_penalty(internal, internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_time_picksplit",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_time_picksplit(internal, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_time_picksplit$function$\n",
+          "signature":  "gbt_time_picksplit(internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_time_same",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_time_same(public.gbtreekey16, public.gbtreekey16, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_time_same$function$\n",
+          "signature":  "gbt_time_same(public.gbtreekey16, public.gbtreekey16, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_time_union",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_time_union(internal, internal)\n RETURNS public.gbtreekey16\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_time_union$function$\n",
+          "signature":  "gbt_time_union(internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_timetz_compress",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_timetz_compress(internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_timetz_compress$function$\n",
+          "signature":  "gbt_timetz_compress(internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_timetz_consistent",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_timetz_consistent(internal, time with time zone, smallint, oid, internal)\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_timetz_consistent$function$\n",
+          "signature":  "gbt_timetz_consistent(internal, time with time zone, smallint, oid, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_ts_compress",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_ts_compress(internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_ts_compress$function$\n",
+          "signature":  "gbt_ts_compress(internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_ts_consistent",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_ts_consistent(internal, timestamp without time zone, smallint, oid, internal)\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_ts_consistent$function$\n",
+          "signature":  "gbt_ts_consistent(internal, timestamp without time zone, smallint, oid, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_ts_distance",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_ts_distance(internal, timestamp without time zone, smallint, oid, internal)\n RETURNS double precision\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_ts_distance$function$\n",
+          "signature":  "gbt_ts_distance(internal, timestamp without time zone, smallint, oid, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_ts_fetch",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_ts_fetch(internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_ts_fetch$function$\n",
+          "signature":  "gbt_ts_fetch(internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_ts_penalty",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_ts_penalty(internal, internal, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_ts_penalty$function$\n",
+          "signature":  "gbt_ts_penalty(internal, internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_ts_picksplit",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_ts_picksplit(internal, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_ts_picksplit$function$\n",
+          "signature":  "gbt_ts_picksplit(internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_ts_same",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_ts_same(public.gbtreekey16, public.gbtreekey16, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_ts_same$function$\n",
+          "signature":  "gbt_ts_same(public.gbtreekey16, public.gbtreekey16, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_ts_union",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_ts_union(internal, internal)\n RETURNS public.gbtreekey16\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_ts_union$function$\n",
+          "signature":  "gbt_ts_union(internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_tstz_compress",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_tstz_compress(internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_tstz_compress$function$\n",
+          "signature":  "gbt_tstz_compress(internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_tstz_consistent",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_tstz_consistent(internal, timestamp with time zone, smallint, oid, internal)\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_tstz_consistent$function$\n",
+          "signature":  "gbt_tstz_consistent(internal, timestamp with time zone, smallint, oid, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_tstz_distance",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_tstz_distance(internal, timestamp with time zone, smallint, oid, internal)\n RETURNS double precision\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_tstz_distance$function$\n",
+          "signature":  "gbt_tstz_distance(internal, timestamp with time zone, smallint, oid, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_uuid_compress",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_uuid_compress(internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_uuid_compress$function$\n",
+          "signature":  "gbt_uuid_compress(internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_uuid_consistent",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_uuid_consistent(internal, uuid, smallint, oid, internal)\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_uuid_consistent$function$\n",
+          "signature":  "gbt_uuid_consistent(internal, uuid, smallint, oid, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_uuid_fetch",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_uuid_fetch(internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_uuid_fetch$function$\n",
+          "signature":  "gbt_uuid_fetch(internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_uuid_penalty",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_uuid_penalty(internal, internal, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_uuid_penalty$function$\n",
+          "signature":  "gbt_uuid_penalty(internal, internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_uuid_picksplit",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_uuid_picksplit(internal, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_uuid_picksplit$function$\n",
+          "signature":  "gbt_uuid_picksplit(internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_uuid_same",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_uuid_same(public.gbtreekey32, public.gbtreekey32, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_uuid_same$function$\n",
+          "signature":  "gbt_uuid_same(public.gbtreekey32, public.gbtreekey32, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_uuid_union",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_uuid_union(internal, internal)\n RETURNS public.gbtreekey32\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_uuid_union$function$\n",
+          "signature":  "gbt_uuid_union(internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_var_decompress",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_var_decompress(internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_var_decompress$function$\n",
+          "signature":  "gbt_var_decompress(internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbt_var_fetch",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbt_var_fetch(internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbt_var_fetch$function$\n",
+          "signature":  "gbt_var_fetch(internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbtreekey16_in",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbtreekey16_in(cstring)\n RETURNS public.gbtreekey16\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbtreekey_in$function$\n",
+          "signature":  "gbtreekey16_in(cstring)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbtreekey16_out",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbtreekey16_out(public.gbtreekey16)\n RETURNS cstring\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbtreekey_out$function$\n",
+          "signature":  "gbtreekey16_out(public.gbtreekey16)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbtreekey32_in",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbtreekey32_in(cstring)\n RETURNS public.gbtreekey32\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbtreekey_in$function$\n",
+          "signature":  "gbtreekey32_in(cstring)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbtreekey32_out",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbtreekey32_out(public.gbtreekey32)\n RETURNS cstring\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbtreekey_out$function$\n",
+          "signature":  "gbtreekey32_out(public.gbtreekey32)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbtreekey4_in",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbtreekey4_in(cstring)\n RETURNS public.gbtreekey4\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbtreekey_in$function$\n",
+          "signature":  "gbtreekey4_in(cstring)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbtreekey4_out",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbtreekey4_out(public.gbtreekey4)\n RETURNS cstring\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbtreekey_out$function$\n",
+          "signature":  "gbtreekey4_out(public.gbtreekey4)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbtreekey8_in",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbtreekey8_in(cstring)\n RETURNS public.gbtreekey8\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbtreekey_in$function$\n",
+          "signature":  "gbtreekey8_in(cstring)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbtreekey8_out",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbtreekey8_out(public.gbtreekey8)\n RETURNS cstring\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbtreekey_out$function$\n",
+          "signature":  "gbtreekey8_out(public.gbtreekey8)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbtreekey_var_in",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbtreekey_var_in(cstring)\n RETURNS public.gbtreekey_var\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbtreekey_in$function$\n",
+          "signature":  "gbtreekey_var_in(cstring)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gbtreekey_var_out",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gbtreekey_var_out(public.gbtreekey_var)\n RETURNS cstring\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$gbtreekey_out$function$\n",
+          "signature":  "gbtreekey_var_out(public.gbtreekey_var)",
+          "skipDump":  true
+        },
+        {
+          "name":  "ghstore_compress",
+          "definition":  "CREATE OR REPLACE FUNCTION public.ghstore_compress(internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/hstore', $function$ghstore_compress$function$\n",
+          "signature":  "ghstore_compress(internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "ghstore_consistent",
+          "definition":  "CREATE OR REPLACE FUNCTION public.ghstore_consistent(internal, public.hstore, smallint, oid, internal)\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/hstore', $function$ghstore_consistent$function$\n",
+          "signature":  "ghstore_consistent(internal, public.hstore, smallint, oid, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "ghstore_decompress",
+          "definition":  "CREATE OR REPLACE FUNCTION public.ghstore_decompress(internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/hstore', $function$ghstore_decompress$function$\n",
+          "signature":  "ghstore_decompress(internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "ghstore_in",
+          "definition":  "CREATE OR REPLACE FUNCTION public.ghstore_in(cstring)\n RETURNS public.ghstore\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/hstore', $function$ghstore_in$function$\n",
+          "signature":  "ghstore_in(cstring)",
+          "skipDump":  true
+        },
+        {
+          "name":  "ghstore_out",
+          "definition":  "CREATE OR REPLACE FUNCTION public.ghstore_out(public.ghstore)\n RETURNS cstring\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/hstore', $function$ghstore_out$function$\n",
+          "signature":  "ghstore_out(public.ghstore)",
+          "skipDump":  true
+        },
+        {
+          "name":  "ghstore_penalty",
+          "definition":  "CREATE OR REPLACE FUNCTION public.ghstore_penalty(internal, internal, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/hstore', $function$ghstore_penalty$function$\n",
+          "signature":  "ghstore_penalty(internal, internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "ghstore_picksplit",
+          "definition":  "CREATE OR REPLACE FUNCTION public.ghstore_picksplit(internal, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/hstore', $function$ghstore_picksplit$function$\n",
+          "signature":  "ghstore_picksplit(internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "ghstore_same",
+          "definition":  "CREATE OR REPLACE FUNCTION public.ghstore_same(public.ghstore, public.ghstore, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/hstore', $function$ghstore_same$function$\n",
+          "signature":  "ghstore_same(public.ghstore, public.ghstore, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "ghstore_union",
+          "definition":  "CREATE OR REPLACE FUNCTION public.ghstore_union(internal, internal)\n RETURNS public.ghstore\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/hstore', $function$ghstore_union$function$\n",
+          "signature":  "ghstore_union(internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gin_consistent_hstore",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gin_consistent_hstore(internal, smallint, public.hstore, integer, internal, internal)\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/hstore', $function$gin_consistent_hstore$function$\n",
+          "signature":  "gin_consistent_hstore(internal, smallint, public.hstore, integer, internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gin_extract_hstore",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gin_extract_hstore(public.hstore, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/hstore', $function$gin_extract_hstore$function$\n",
+          "signature":  "gin_extract_hstore(public.hstore, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "gin_extract_hstore_query",
+          "definition":  "CREATE OR REPLACE FUNCTION public.gin_extract_hstore_query(public.hstore, internal, smallint, internal, internal)\n RETURNS internal\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/hstore', $function$gin_extract_hstore_query$function$\n",
+          "signature":  "gin_extract_hstore_query(public.hstore, internal, smallint, internal, internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "hs_concat",
+          "definition":  "CREATE OR REPLACE FUNCTION public.hs_concat(public.hstore, public.hstore)\n RETURNS public.hstore\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/hstore', $function$hstore_concat$function$\n",
+          "signature":  "hs_concat(public.hstore, public.hstore)",
+          "skipDump":  true
+        },
+        {
+          "name":  "hs_contained",
+          "definition":  "CREATE OR REPLACE FUNCTION public.hs_contained(public.hstore, public.hstore)\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/hstore', $function$hstore_contained$function$\n",
+          "signature":  "hs_contained(public.hstore, public.hstore)",
+          "skipDump":  true
+        },
+        {
+          "name":  "hs_contains",
+          "definition":  "CREATE OR REPLACE FUNCTION public.hs_contains(public.hstore, public.hstore)\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/hstore', $function$hstore_contains$function$\n",
+          "signature":  "hs_contains(public.hstore, public.hstore)",
+          "skipDump":  true
+        },
+        {
+          "name":  "hstore",
+          "definition":  "CREATE OR REPLACE FUNCTION public.hstore(record)\n RETURNS public.hstore\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE\nAS '$libdir/hstore', $function$hstore_from_record$function$\n",
+          "signature":  "hstore(record)",
+          "skipDump":  true
+        },
+        {
+          "name":  "hstore",
+          "definition":  "CREATE OR REPLACE FUNCTION public.hstore(text, text)\n RETURNS public.hstore\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE\nAS '$libdir/hstore', $function$hstore_from_text$function$\n",
+          "signature":  "hstore(text, text)",
+          "skipDump":  true
+        },
+        {
+          "name":  "hstore",
+          "definition":  "CREATE OR REPLACE FUNCTION public.hstore(text[])\n RETURNS public.hstore\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/hstore', $function$hstore_from_array$function$\n",
+          "signature":  "hstore(text[])",
+          "skipDump":  true
+        },
+        {
+          "name":  "hstore",
+          "definition":  "CREATE OR REPLACE FUNCTION public.hstore(text[], text[])\n RETURNS public.hstore\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE\nAS '$libdir/hstore', $function$hstore_from_arrays$function$\n",
+          "signature":  "hstore(text[], text[])",
+          "skipDump":  true
+        },
+        {
+          "name":  "hstore_cmp",
+          "definition":  "CREATE OR REPLACE FUNCTION public.hstore_cmp(public.hstore, public.hstore)\n RETURNS integer\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/hstore', $function$hstore_cmp$function$\n",
+          "signature":  "hstore_cmp(public.hstore, public.hstore)",
+          "skipDump":  true
+        },
+        {
+          "name":  "hstore_eq",
+          "definition":  "CREATE OR REPLACE FUNCTION public.hstore_eq(public.hstore, public.hstore)\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/hstore', $function$hstore_eq$function$\n",
+          "signature":  "hstore_eq(public.hstore, public.hstore)",
+          "skipDump":  true
+        },
+        {
+          "name":  "hstore_ge",
+          "definition":  "CREATE OR REPLACE FUNCTION public.hstore_ge(public.hstore, public.hstore)\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/hstore', $function$hstore_ge$function$\n",
+          "signature":  "hstore_ge(public.hstore, public.hstore)",
+          "skipDump":  true
+        },
+        {
+          "name":  "hstore_gt",
+          "definition":  "CREATE OR REPLACE FUNCTION public.hstore_gt(public.hstore, public.hstore)\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/hstore', $function$hstore_gt$function$\n",
+          "signature":  "hstore_gt(public.hstore, public.hstore)",
+          "skipDump":  true
+        },
+        {
+          "name":  "hstore_hash",
+          "definition":  "CREATE OR REPLACE FUNCTION public.hstore_hash(public.hstore)\n RETURNS integer\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/hstore', $function$hstore_hash$function$\n",
+          "signature":  "hstore_hash(public.hstore)",
+          "skipDump":  true
+        },
+        {
+          "name":  "hstore_hash_extended",
+          "definition":  "CREATE OR REPLACE FUNCTION public.hstore_hash_extended(public.hstore, bigint)\n RETURNS bigint\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/hstore', $function$hstore_hash_extended$function$\n",
+          "signature":  "hstore_hash_extended(public.hstore, bigint)",
+          "skipDump":  true
+        },
+        {
+          "name":  "hstore_in",
+          "definition":  "CREATE OR REPLACE FUNCTION public.hstore_in(cstring)\n RETURNS public.hstore\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/hstore', $function$hstore_in$function$\n",
+          "signature":  "hstore_in(cstring)",
+          "skipDump":  true
+        },
+        {
+          "name":  "hstore_le",
+          "definition":  "CREATE OR REPLACE FUNCTION public.hstore_le(public.hstore, public.hstore)\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/hstore', $function$hstore_le$function$\n",
+          "signature":  "hstore_le(public.hstore, public.hstore)",
+          "skipDump":  true
+        },
+        {
+          "name":  "hstore_lt",
+          "definition":  "CREATE OR REPLACE FUNCTION public.hstore_lt(public.hstore, public.hstore)\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/hstore', $function$hstore_lt$function$\n",
+          "signature":  "hstore_lt(public.hstore, public.hstore)",
+          "skipDump":  true
+        },
+        {
+          "name":  "hstore_ne",
+          "definition":  "CREATE OR REPLACE FUNCTION public.hstore_ne(public.hstore, public.hstore)\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/hstore', $function$hstore_ne$function$\n",
+          "signature":  "hstore_ne(public.hstore, public.hstore)",
+          "skipDump":  true
+        },
+        {
+          "name":  "hstore_out",
+          "definition":  "CREATE OR REPLACE FUNCTION public.hstore_out(public.hstore)\n RETURNS cstring\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/hstore', $function$hstore_out$function$\n",
+          "signature":  "hstore_out(public.hstore)",
+          "skipDump":  true
+        },
+        {
+          "name":  "hstore_recv",
+          "definition":  "CREATE OR REPLACE FUNCTION public.hstore_recv(internal)\n RETURNS public.hstore\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/hstore', $function$hstore_recv$function$\n",
+          "signature":  "hstore_recv(internal)",
+          "skipDump":  true
+        },
+        {
+          "name":  "hstore_send",
+          "definition":  "CREATE OR REPLACE FUNCTION public.hstore_send(public.hstore)\n RETURNS bytea\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/hstore', $function$hstore_send$function$\n",
+          "signature":  "hstore_send(public.hstore)",
+          "skipDump":  true
+        },
+        {
+          "name":  "hstore_to_array",
+          "definition":  "CREATE OR REPLACE FUNCTION public.hstore_to_array(public.hstore)\n RETURNS text[]\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/hstore', $function$hstore_to_array$function$\n",
+          "signature":  "hstore_to_array(public.hstore)",
+          "skipDump":  true
+        },
+        {
+          "name":  "hstore_to_json",
+          "definition":  "CREATE OR REPLACE FUNCTION public.hstore_to_json(public.hstore)\n RETURNS json\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/hstore', $function$hstore_to_json$function$\n",
+          "signature":  "hstore_to_json(public.hstore)",
+          "skipDump":  true
+        },
+        {
+          "name":  "hstore_to_json_loose",
+          "definition":  "CREATE OR REPLACE FUNCTION public.hstore_to_json_loose(public.hstore)\n RETURNS json\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/hstore', $function$hstore_to_json_loose$function$\n",
+          "signature":  "hstore_to_json_loose(public.hstore)",
+          "skipDump":  true
+        },
+        {
+          "name":  "hstore_to_jsonb",
+          "definition":  "CREATE OR REPLACE FUNCTION public.hstore_to_jsonb(public.hstore)\n RETURNS jsonb\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/hstore', $function$hstore_to_jsonb$function$\n",
+          "signature":  "hstore_to_jsonb(public.hstore)",
+          "skipDump":  true
+        },
+        {
+          "name":  "hstore_to_jsonb_loose",
+          "definition":  "CREATE OR REPLACE FUNCTION public.hstore_to_jsonb_loose(public.hstore)\n RETURNS jsonb\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/hstore', $function$hstore_to_jsonb_loose$function$\n",
+          "signature":  "hstore_to_jsonb_loose(public.hstore)",
+          "skipDump":  true
+        },
+        {
+          "name":  "hstore_to_matrix",
+          "definition":  "CREATE OR REPLACE FUNCTION public.hstore_to_matrix(public.hstore)\n RETURNS text[]\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/hstore', $function$hstore_to_matrix$function$\n",
+          "signature":  "hstore_to_matrix(public.hstore)",
+          "skipDump":  true
+        },
+        {
+          "name":  "hstore_version_diag",
+          "definition":  "CREATE OR REPLACE FUNCTION public.hstore_version_diag(public.hstore)\n RETURNS integer\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/hstore', $function$hstore_version_diag$function$\n",
+          "signature":  "hstore_version_diag(public.hstore)",
+          "skipDump":  true
+        },
+        {
+          "name":  "int2_dist",
+          "definition":  "CREATE OR REPLACE FUNCTION public.int2_dist(smallint, smallint)\n RETURNS smallint\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$int2_dist$function$\n",
+          "signature":  "int2_dist(smallint, smallint)",
+          "skipDump":  true
+        },
+        {
+          "name":  "int4_dist",
+          "definition":  "CREATE OR REPLACE FUNCTION public.int4_dist(integer, integer)\n RETURNS integer\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$int4_dist$function$\n",
+          "signature":  "int4_dist(integer, integer)",
+          "skipDump":  true
+        },
+        {
+          "name":  "int8_dist",
+          "definition":  "CREATE OR REPLACE FUNCTION public.int8_dist(bigint, bigint)\n RETURNS bigint\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$int8_dist$function$\n",
+          "signature":  "int8_dist(bigint, bigint)",
+          "skipDump":  true
+        },
+        {
+          "name":  "interval_dist",
+          "definition":  "CREATE OR REPLACE FUNCTION public.interval_dist(interval, interval)\n RETURNS interval\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$interval_dist$function$\n",
+          "signature":  "interval_dist(interval, interval)",
+          "skipDump":  true
+        },
+        {
+          "name":  "isdefined",
+          "definition":  "CREATE OR REPLACE FUNCTION public.isdefined(public.hstore, text)\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/hstore', $function$hstore_defined$function$\n",
+          "signature":  "isdefined(public.hstore, text)",
+          "skipDump":  true
+        },
+        {
+          "name":  "isexists",
+          "definition":  "CREATE OR REPLACE FUNCTION public.isexists(public.hstore, text)\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/hstore', $function$hstore_exists$function$\n",
+          "signature":  "isexists(public.hstore, text)",
+          "skipDump":  true
+        },
+        {
+          "name":  "oid_dist",
+          "definition":  "CREATE OR REPLACE FUNCTION public.oid_dist(oid, oid)\n RETURNS oid\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$oid_dist$function$\n",
+          "signature":  "oid_dist(oid, oid)",
+          "skipDump":  true
+        },
+        {
+          "name":  "populate_record",
+          "definition":  "CREATE OR REPLACE FUNCTION public.populate_record(anyelement, public.hstore)\n RETURNS anyelement\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE\nAS '$libdir/hstore', $function$hstore_populate_record$function$\n",
+          "signature":  "populate_record(anyelement, public.hstore)",
+          "skipDump":  true
+        },
+        {
+          "name":  "postgres_fdw_handler",
+          "definition":  "CREATE OR REPLACE FUNCTION public.postgres_fdw_handler()\n RETURNS fdw_handler\n LANGUAGE c\n STRICT\nAS '$libdir/postgres_fdw', $function$postgres_fdw_handler$function$\n",
+          "signature":  "postgres_fdw_handler()",
+          "skipDump":  true
+        },
+        {
+          "name":  "postgres_fdw_validator",
+          "definition":  "CREATE OR REPLACE FUNCTION public.postgres_fdw_validator(text[], oid)\n RETURNS void\n LANGUAGE c\n STRICT\nAS '$libdir/postgres_fdw', $function$postgres_fdw_validator$function$\n",
+          "signature":  "postgres_fdw_validator(text[], oid)",
+          "skipDump":  true
+        },
+        {
+          "name":  "skeys",
+          "definition":  "CREATE OR REPLACE FUNCTION public.skeys(public.hstore)\n RETURNS SETOF text\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/hstore', $function$hstore_skeys$function$\n",
+          "signature":  "skeys(public.hstore)",
+          "skipDump":  true
+        },
+        {
+          "name":  "slice",
+          "definition":  "CREATE OR REPLACE FUNCTION public.slice(public.hstore, text[])\n RETURNS public.hstore\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/hstore', $function$hstore_slice_to_hstore$function$\n",
+          "signature":  "slice(public.hstore, text[])",
+          "skipDump":  true
+        },
+        {
+          "name":  "slice_array",
+          "definition":  "CREATE OR REPLACE FUNCTION public.slice_array(public.hstore, text[])\n RETURNS text[]\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/hstore', $function$hstore_slice_to_array$function$\n",
+          "signature":  "slice_array(public.hstore, text[])",
+          "skipDump":  true
+        },
+        {
+          "name":  "svals",
+          "definition":  "CREATE OR REPLACE FUNCTION public.svals(public.hstore)\n RETURNS SETOF text\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/hstore', $function$hstore_svals$function$\n",
+          "signature":  "svals(public.hstore)",
+          "skipDump":  true
+        },
+        {
+          "name":  "tconvert",
+          "definition":  "CREATE OR REPLACE FUNCTION public.tconvert(text, text)\n RETURNS public.hstore\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE\nAS '$libdir/hstore', $function$hstore_from_text$function$\n",
+          "signature":  "tconvert(text, text)",
+          "skipDump":  true
+        },
+        {
+          "name":  "texticlike",
+          "definition":  "texticlike",
+          "signature":  "texticlike(public.citext, public.citext)",
+          "skipDump":  true
+        },
+        {
+          "name":  "texticlike",
+          "definition":  "texticlike",
+          "signature":  "texticlike(public.citext, text)",
+          "skipDump":  true
+        },
+        {
+          "name":  "texticnlike",
+          "definition":  "texticnlike",
+          "signature":  "texticnlike(public.citext, public.citext)",
+          "skipDump":  true
+        },
+        {
+          "name":  "texticnlike",
+          "definition":  "texticnlike",
+          "signature":  "texticnlike(public.citext, text)",
+          "skipDump":  true
+        },
+        {
+          "name":  "texticregexeq",
+          "definition":  "texticregexeq",
+          "signature":  "texticregexeq(public.citext, public.citext)",
+          "skipDump":  true
+        },
+        {
+          "name":  "texticregexeq",
+          "definition":  "texticregexeq",
+          "signature":  "texticregexeq(public.citext, text)",
+          "skipDump":  true
+        },
+        {
+          "name":  "texticregexne",
+          "definition":  "texticregexne",
+          "signature":  "texticregexne(public.citext, public.citext)",
+          "skipDump":  true
+        },
+        {
+          "name":  "texticregexne",
+          "definition":  "texticregexne",
+          "signature":  "texticregexne(public.citext, text)",
+          "skipDump":  true
+        },
+        {
+          "name":  "time_dist",
+          "definition":  "CREATE OR REPLACE FUNCTION public.time_dist(time without time zone, time without time zone)\n RETURNS interval\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$time_dist$function$\n",
+          "signature":  "time_dist(time without time zone, time without time zone)",
+          "skipDump":  true
+        },
+        {
+          "name":  "ts_dist",
+          "definition":  "CREATE OR REPLACE FUNCTION public.ts_dist(timestamp without time zone, timestamp without time zone)\n RETURNS interval\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$ts_dist$function$\n",
+          "signature":  "ts_dist(timestamp without time zone, timestamp without time zone)",
+          "skipDump":  true
+        },
+        {
+          "name":  "tstz_dist",
+          "definition":  "CREATE OR REPLACE FUNCTION public.tstz_dist(timestamp with time zone, timestamp with time zone)\n RETURNS interval\n LANGUAGE c\n IMMUTABLE STRICT\nAS '$libdir/btree_gist', $function$tstz_dist$function$\n",
+          "signature":  "tstz_dist(timestamp with time zone, timestamp with time zone)",
+          "skipDump":  true
+        }
+      ],
+      "sequences":  [
+        {
+          "name":  "plain_a_seq",
+          "dataType":  "integer",
+          "start":  "1",
+          "minValue":  "1",
+          "maxValue":  "2147483647",
+          "increment":  "1",
+          "cacheSize":  "1",
+          "ownerTable":  "plain",
+          "ownerColumn":  "a"
+        }
+      ],
+      "owner":  "postgres",
+      "comment":  "standard public schema"
+    }
+  ],
+  "characterSet":  "UTF8",
+  "collation":  "en_US.utf8",
+  "extensions":  [
+    {
+      "name":  "btree_gist",
+      "schema":  "public",
+      "version":  "1.5",
+      "description":  "support for indexing common datatypes in GiST"
+    },
+    {
+      "name":  "citext",
+      "schema":  "public",
+      "version":  "1.6",
+      "description":  "data type for case-insensitive character strings"
+    },
+    {
+      "name":  "hstore",
+      "schema":  "public",
+      "version":  "1.6",
+      "description":  "key/value pairs"
+    },
+    {
+      "name":  "postgres_fdw",
+      "schema":  "public",
+      "version":  "1.0",
+      "description":  "foreign-data wrapper for remote PostgreSQL servers"
+    }
+  ],
+  "owner":  "postgres",
+  "searchPath":  "\"$user\", public",
+  "eventTriggers":  [
+    {
+      "name":  "corpus_ddl",
+      "event":  "ddl_command_end",
+      "tags":  [
+        "CREATE TABLE",
+        "ALTER TABLE"
+      ],
+      "functionSchema":  "audit",
+      "functionName":  "on_ddl",
+      "enabled":  true,
+      "definition":  "CREATE EVENT TRIGGER \"corpus_ddl\" ON ddl_command_end\n  WHEN TAG IN ('CREATE TABLE', 'ALTER TABLE')\n  EXECUTE FUNCTION \"audit\".\"on_ddl\"()",
+      "comment":  "logs DDL"
+    },
+    {
+      "name":  "corpus_drop",
+      "event":  "sql_drop",
+      "functionSchema":  "audit",
+      "functionName":  "on_ddl",
+      "definition":  "CREATE EVENT TRIGGER \"corpus_drop\" ON sql_drop\n  EXECUTE FUNCTION \"audit\".\"on_ddl\"()"
+    }
+  ]
+}

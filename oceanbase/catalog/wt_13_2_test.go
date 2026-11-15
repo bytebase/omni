@@ -22,7 +22,7 @@ func TestWalkThrough_13_2_ShowCreateTableFidelity(t *testing.T) {
 		got := c.ShowCreateTable("testdb", "t")
 		assertContains(t, got, "ENGINE=InnoDB")
 		assertContains(t, got, "DEFAULT CHARSET=utf8mb4")
-		assertContains(t, got, "COLLATE=utf8mb4_0900_ai_ci")
+		assertNotContains(t, got, "COLLATE")
 	})
 
 	// Scenario 2: Table with ROW_FORMAT=DYNAMIC

@@ -456,12 +456,37 @@ func foldEngineIntoAutoKey(ops []MigrationOp, diff *SchemaDiff, n *Normalizer) [
 		if engineAllowsNonFirstAutoKey(e.From.Engine) == engineAllowsNonFirstAutoKey(e.To.Engine) {
 			continue
 		}
-		if leadsEveryKey(e.From, autoCol) && leadsEveryKey(e.To, autoCol) {
+		// The conversion is blocked if an auto column sits in a non-leading key
+		// position at some point: the target's, or the source's own before it is
+		// de-attributed — which a standalone engine change would hit first (1075).
+		blocked := func(col string) bool {
+			return col != "" && !(leadsEveryKey(e.From, col) && leadsEveryKey(e.To, col))
+		}
+		if !blocked(autoCol) && !blocked(autoIncrementColumnName(e.From)) {
 			continue
+		}
+		// The engine must change in the statement that establishes the auto
+		// column under the target engine's rules (1075): the statement that adds
+		// it — where the merger also placed its backing key — or, when the column
+		// already exists, the one adding its backing key (its primary key when
+		// autoIncSupportingIndex reports none separately). A later index statement
+		// that merely also lists the column is a fallback.
+		supporting := autoIncSupportingIndex(e.To)
+		addsAuto := func(op MigrationOp) bool {
+			return opAddsColumnWhere(op, e.To, func(c *Column) bool { return toLower(c.Name) == autoCol })
 		}
 		key := -1
 		for j := range ops {
-			if ops[j].Type == OpAddIndex && opOfTable(ops[j], e) && ops[j].addsIndex != nil && indexHasPlainColumn(ops[j].addsIndex, autoCol) {
+			if !opOfTable(ops[j], e) {
+				continue
+			}
+			backsKey := ops[j].Type == OpAddIndex && ops[j].addsIndex != nil && indexHasPlainColumn(ops[j].addsIndex, autoCol) &&
+				(ops[j].addsIndex.Primary && supporting == nil || supporting != nil && toLower(ops[j].addsIndex.Name) == toLower(supporting.Name))
+			if addsAuto(ops[j]) || backsKey {
+				key = j
+				break
+			}
+			if key < 0 && ops[j].Type == OpAddIndex && ops[j].addsIndex != nil && indexHasPlainColumn(ops[j].addsIndex, autoCol) {
 				key = j
 			}
 		}
@@ -478,7 +503,7 @@ func foldEngineIntoAutoKey(ops []MigrationOp, diff *SchemaDiff, n *Normalizer) [
 		for _, op := range ops {
 			// Only the standalone table-option op, not a PARTITION BY or REMOVE
 			// PARTITIONING ALTER of the same table.
-			if op.Type == OpAlterTable && op.Database == e.Database && toLower(op.ObjectName) == toLower(e.Name) && op.alterParts == nil && !strings.Contains(op.SQL, "PARTITION") {
+			if op.Type == OpAlterTable && op.Database == e.Database && toLower(op.ObjectName) == toLower(e.Name) && op.alterParts == nil && !op.partition {
 				if !remains {
 					continue
 				}

@@ -158,7 +158,7 @@ func fkBackingIndexOp(entry *TableDiffEntry, table string, con *Constraint, n *N
 		if userIndexNameSet(entry.From)[toLower(idx.Name)] {
 			return MigrationOp{}, false
 		}
-		if fromIdx := tableIndexByName(entry.From, idx.Name); fromIdx != nil && fkBackingIndexStillNeeded(entry.To, fromIdx) {
+		if fromIdx := tableIndexByName(entry.From, idx.Name); fromIdx != nil && fkBackingIndexStillNeeded(entry, fromIdx) {
 			return MigrationOp{}, false
 		}
 	}
@@ -279,7 +279,7 @@ func leftoverBackingIndexToDrop(entry *TableDiffEntry, con *Constraint) (string,
 		return "", false
 	}
 	// A surviving FK still needs it.
-	if fkBackingIndexStillNeeded(entry.To, backing) {
+	if fkBackingIndexStillNeeded(entry, backing) {
 		return "", false
 	}
 	// The index generator owns a user index of that name.
@@ -289,15 +289,22 @@ func leftoverBackingIndexToDrop(entry *TableDiffEntry, con *Constraint) (string,
 	return backing.Name, true
 }
 
-// fkBackingIndexStillNeeded reports whether any FOREIGN KEY surviving in `to` has columns `idx`
-// covers as a left-prefix, so dropping `idx` would break it. A nil `to` needs nothing.
-func fkBackingIndexStillNeeded(to *Table, idx *Index) bool {
+// fkBackingIndexStillNeeded reports whether any FOREIGN KEY retained in `entry.To` has columns
+// `idx` covers as a left-prefix, so dropping `idx` would break it. A foreign key the plan only
+// adds is excluded: it creates its own backing index, so it never keeps a differently named one
+// alive. A nil target needs nothing.
+func fkBackingIndexStillNeeded(entry *TableDiffEntry, idx *Index) bool {
+	to := entry.To
 	if to == nil || idx == nil {
 		return false
 	}
+	retained := foreignKeyNameSet(entry.From)
 	backing := fkImplicitBackingIndexes(to)
 	for _, con := range to.Constraints {
 		if con == nil || con.Type != ConForeignKey || len(con.Columns) == 0 {
+			continue
+		}
+		if !retained[toLower(con.Name)] {
 			continue
 		}
 		// A key of the name that the target makes over other columns, as a
@@ -310,6 +317,20 @@ func fkBackingIndexStillNeeded(to *Table, idx *Index) bool {
 		}
 	}
 	return false
+}
+
+// foreignKeyNameSet returns the lower-cased names of a table's foreign keys. A nil table has none.
+func foreignKeyNameSet(t *Table) map[string]bool {
+	set := make(map[string]bool)
+	if t == nil {
+		return set
+	}
+	for _, con := range t.Constraints {
+		if con != nil && con.Type == ConForeignKey {
+			set[toLower(con.Name)] = true
+		}
+	}
+	return set
 }
 
 func sameKeyColumns(a, b *Index) bool {

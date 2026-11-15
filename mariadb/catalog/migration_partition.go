@@ -63,8 +63,8 @@ func generatePartitionDDL(_, _ *Catalog, diff *SchemaDiff, n *Normalizer) []Migr
 
 // partitionModifyOps renders the partition change for a modified table: a PhasePre REMOVE
 // PARTITIONING when the target is unpartitioned, otherwise a PhaseMain PARTITION BY, preceded by
-// a REMOVE PARTITIONING when the same plan drops a column the old partition function references
-// or adds a unique key.
+// a REMOVE PARTITIONING when the same plan drops, retypes or replaces a column the old partition
+// function references, or adds a unique key.
 func partitionModifyOps(entry *TableDiffEntry, n *Normalizer) []MigrationOp {
 	if entry.To == nil {
 		return nil
@@ -76,7 +76,7 @@ func partitionModifyOps(entry *TableDiffEntry, n *Normalizer) []MigrationOp {
 	if !ok {
 		return nil
 	}
-	if oldPartitionColumnDropped(entry) || uniqueKeyAdded(entry) || partitionColumnTypeChanged(entry) {
+	if oldPartitionColumnDropped(entry) || uniqueKeyAdded(entry) || partitionColumnTypeChanged(entry) || partitionColumnReplaced(entry) {
 		return []MigrationOp{removePartitioningOp(entry, entry.To), op}
 	}
 	return []MigrationOp{op}
@@ -205,6 +205,7 @@ func partitionByOp(entry *TableDiffEntry, tbl *Table, n *Normalizer) (MigrationO
 		Phase:        PhaseMain,
 		Priority:     priorityPartition,
 		sortName:     tableSortName(entry.Database, entry.Name),
+		partition:    true,
 	}, true
 }
 
@@ -220,6 +221,7 @@ func removePartitioningOp(entry *TableDiffEntry, tbl *Table) MigrationOp {
 		Phase:        PhasePre,
 		Priority:     priorityRemovePartitioning,
 		sortName:     tableSortName(entry.Database, entry.Name),
+		partition:    true,
 	}
 }
 

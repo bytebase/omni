@@ -675,6 +675,15 @@ func TestDatabaseDefinitionRestoresSnapshot(t *testing.T) {
 		}},
 	}
 
+	// The sync keeps QUOTE()'s escapes in a comment, and LoadMetadata reads
+	// the comment back as the server holds it.
+	loaded := New()
+	_, err := loaded.LoadMetadataInto(ctx, meta, "src")
+	require.NoError(t, err)
+	loadedTable := loaded.GetDatabase("src").GetTable("a`b")
+	require.Equal(t, "table's \\ comment", loadedTable.Comment)
+	require.Equal(t, "it's a \\ path", loadedTable.GetColumn("c`d").Comment)
+
 	script, err := DatabaseDefinition(meta, DefinitionOptions{PrintHeader: true})
 	require.NoError(t, err)
 	exec(t, "CREATE DATABASE dump", "USE dump")

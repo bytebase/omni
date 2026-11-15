@@ -50,8 +50,8 @@ func LoadSDL(sql string) (*Catalog, error) {
 
 // LoadSDLWithVersion is LoadSDL with an explicit target MySQL version recorded on the
 // returned catalog's session. The version does not change how the SDL is parsed or how
-// objects are stored (the loader always bakes the static 8.0 default collation for a
-// bare CHARSET); it is the version the later Diff/GenerateMigration canonicalize
+// objects are stored (the loader always bakes the charset's OceanBase default collation
+// for a bare CHARSET); it is the version the later Diff/GenerateMigration canonicalize
 // against. MySQL80 is the only one, and LoadSDL delegates here with it.
 //
 // Setting the version also seeds the session's explicit_defaults_for_timestamp to that

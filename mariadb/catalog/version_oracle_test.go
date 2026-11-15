@@ -58,6 +58,7 @@ var refusedPairs = map[string]string{
 	"10.7.8/kept column checking a replaced one":              refusesCheckOnGenerated107,
 	"10.7.8/every column replaced, checks reading each other": refusesCheckOnGenerated107,
 	"10.7.8/only column replaced by a group":                  refusesCheckOnGenerated107,
+	"10.7.8/restore a reader check after a merged add":        refusesCheckOnGenerated107,
 }
 
 const refusesCheckOnGenerated107 = "10.7 refuses a column CHECK that reads a generated column, wherever it stands (4029)"

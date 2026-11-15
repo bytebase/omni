@@ -35,7 +35,7 @@ func TestCreateTableOptionsCatalog(t *testing.T) {
 				"  `c2` set('a','b') DEFAULT NULL,\n" +
 				"  `c3` enum('a') DEFAULT NULL,\n" +
 				"  `c4` enum('ab') DEFAULT NULL\n" +
-				") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+				") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
 		},
 		{
 			// A name that begins with a digit is the name, backquoted on the
@@ -47,7 +47,7 @@ func TestCreateTableOptionsCatalog(t *testing.T) {
 				"  `123a1` int(11) DEFAULT NULL,\n" +
 				"  `1_2` int(11) DEFAULT NULL,\n" +
 				"  `12e` int(11) DEFAULT NULL\n" +
-				") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+				") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

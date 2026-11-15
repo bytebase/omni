@@ -671,7 +671,7 @@ CREATE TABLE ex (id int PRIMARY KEY, j json, name varchar(20),
   KEY ix_array ((cast(j->'$.tags' as unsigned array))));
 `},
 	{"views and foreign keys", `
-CREATE TABLE parent (id int PRIMARY KEY, k int, a int, b int, UNIQUE KEY uk (k), UNIQUE KEY uab (a, b));
+CREATE TABLE parent (id int PRIMARY KEY, k int COMMENT 'it''s a \\ path', a int, b int, UNIQUE KEY uk (k), UNIQUE KEY uab (a, b)) COMMENT 'table''s \\ comment';
 CREATE TABLE child (id int PRIMARY KEY, pid int, k int, a int, b int,
   CONSTRAINT fk_cascade FOREIGN KEY (pid) REFERENCES parent (id) ON DELETE CASCADE,
   CONSTRAINT fk_qualified FOREIGN KEY (k) REFERENCES omni_mdload.parent (k) ON UPDATE SET NULL,
@@ -693,6 +693,8 @@ CREATE TABLE defaults (id int PRIMARY KEY,
   i decimal(10,2) DEFAULT '1.50' COMMENT 'price');
 CREATE TABLE gen_cols (a int, b int GENERATED ALWAYS AS (a * 2) VIRTUAL, c varchar(10) GENERATED ALWAYS AS (concat('it''s', a)) STORED);
 `},
+	{"generation expressions", generationExpressionsTable},
+	{"bit defaults", "CREATE TABLE bits (id int PRIMARY KEY, b1 bit(1) NOT NULL DEFAULT b'0', b8 bit(8) DEFAULT b'101', b16 bit(16) DEFAULT 5, b64 bit(64));"},
 }
 
 const (
@@ -708,7 +710,6 @@ var metadataLoadGaps = map[string]string{
 	"table:ex":       "key expressions deparse as MySQL writes them: no space after a comma, CAST AS CHAR with its charset, 'it\\'s'",
 	"table:ck":       "CHECK expressions deparse as MySQL writes them: each comparison parenthesized, <> for !=, 'it\\'s'",
 	"table:defaults": "a string default with a quote is written 'it\\'s', not 'it''s'",
-	"table:gen_cols": "a generation expression writes a quote in a string unescaped: 'it's'",
 }
 
 // TestContainerLoadMetadataMatchesTiDB runs each script on TiDB, builds the

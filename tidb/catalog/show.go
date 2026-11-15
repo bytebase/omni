@@ -45,7 +45,10 @@ func (c *Catalog) ShowCreateTable(database, table string) string {
 	if tbl == nil {
 		return ""
 	}
+	return showCreateTable(tbl)
+}
 
+func showCreateTable(tbl *Table) string {
 	tblCharset := tbl.Charset
 	if tblCharset == "" {
 		tblCharset = "utf8mb4"
@@ -97,11 +100,7 @@ func (c *Catalog) ShowCreateTable(database, table string) string {
 	}
 	for _, con := range tbl.Constraints {
 		if con.Type == ConCheck {
-			s := fmt.Sprintf("CONSTRAINT %s CHECK ((%s))", quoteIdent(con.Name), stripOuterParens(con.CheckExpr))
-			if con.NotEnforced {
-				s += " /*!80016 NOT ENFORCED */"
-			}
-			parts = append(parts, s)
+			parts = append(parts, showCheck(con))
 		}
 	}
 
@@ -131,6 +130,14 @@ func (c *Catalog) ShowCreateTable(database, table string) string {
 		b.WriteString(tbl.OnCommit)
 	}
 	return b.String()
+}
+
+func showCheck(con *Constraint) string {
+	s := fmt.Sprintf("CONSTRAINT %s CHECK ((%s))", quoteIdent(con.Name), stripOuterParens(con.CheckExpr))
+	if con.NotEnforced {
+		s += " /*!80016 NOT ENFORCED */"
+	}
+	return s
 }
 
 // quoteIdent backquotes a name, doubling any backquote in it.
@@ -679,25 +686,33 @@ func showPartitioning(pi *PartitionInfo) string {
 		if i > 0 {
 			b.WriteString(",\n ")
 		}
-		fmt.Fprintf(&b, "PARTITION %s", quoteIdent(pd.Name))
-		// The catalog keeps a partition's values bare, joined by bare commas
-		// (partitionValueToString), so each list takes one pair of
-		// parentheses here and a LIST COLUMNS tuple keeps its own.
-		switch {
-		case strings.HasPrefix(pi.Type, "RANGE"):
-			fmt.Fprintf(&b, " VALUES LESS THAN (%s)", strings.TrimSpace(pd.ValueExpr))
-		case strings.HasPrefix(pi.Type, "LIST"):
-			if v := strings.TrimSpace(pd.ValueExpr); v == "" || strings.EqualFold(v, "DEFAULT") {
-				b.WriteString(" DEFAULT")
-			} else {
-				fmt.Fprintf(&b, " VALUES IN (%s)", v)
-			}
-		}
-		if pd.Comment != "" {
-			fmt.Fprintf(&b, " COMMENT '%s'", outputFormat(pd.Comment))
-		}
+		b.WriteString(showPartitionDefinition(pi, pd))
 	}
 	b.WriteString(")")
+	return b.String()
+}
+
+// showPartitionDefinition writes one partition of a RANGE or LIST
+// partitioning, or a named HASH or KEY one.
+func showPartitionDefinition(pi *PartitionInfo, pd *PartitionDefInfo) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "PARTITION %s", quoteIdent(pd.Name))
+	// The catalog keeps a partition's values bare, joined by bare commas
+	// (partitionValueToString), so each list takes one pair of parentheses
+	// here and a LIST COLUMNS tuple keeps its own.
+	switch {
+	case strings.HasPrefix(pi.Type, "RANGE"):
+		fmt.Fprintf(&b, " VALUES LESS THAN (%s)", strings.TrimSpace(pd.ValueExpr))
+	case strings.HasPrefix(pi.Type, "LIST"):
+		if v := strings.TrimSpace(pd.ValueExpr); v == "" || strings.EqualFold(v, "DEFAULT") {
+			b.WriteString(" DEFAULT")
+		} else {
+			fmt.Fprintf(&b, " VALUES IN (%s)", v)
+		}
+	}
+	if pd.Comment != "" {
+		fmt.Fprintf(&b, " COMMENT '%s'", outputFormat(pd.Comment))
+	}
 	return b.String()
 }
 

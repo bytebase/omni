@@ -14,7 +14,7 @@ import (
 // The catalog records a server version, and Diff/GenerateMigration canonicalize against that
 // version's stored form. MySQL80 is the only version: MySQL 5.7 is end-of-life and its form is
 // no longer reproduced. These lock in what the dispatch still owes on 8.0: a synced dump that
-// spells the default collation out (`DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci`, as
+// spells the default collation out (`DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci`, as
 // bytebase MetadataToSDL emits) and the user's bare `DEFAULT CHARSET=utf8mb4` do not
 // phantom-diff, and the generated DDL names no collation for a bare charset.
 
@@ -57,7 +57,7 @@ func TestVersionDispatch_BareCharsetNoPhantom(t *testing.T) {
 	}{
 		{
 			version:    MySQL80,
-			syncedDump: "CREATE TABLE t (id INT NOT NULL, name VARCHAR(50) DEFAULT NULL, PRIMARY KEY (id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+			syncedDump: "CREATE TABLE t (id INT NOT NULL, name VARCHAR(50) DEFAULT NULL, PRIMARY KEY (id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci",
 		},
 	}
 
@@ -152,7 +152,7 @@ func versionName(Version) string { return "8.0" }
 // nullable and the user's bare `TIMESTAMP` target does not phantom-diff against the stored
 // form (nullable, no implicit default).
 func TestVersionDispatch_BareTimestampNoPhantom(t *testing.T) {
-	synced := "CREATE TABLE t (id INT NOT NULL, ts TIMESTAMP NULL DEFAULT NULL, PRIMARY KEY (id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci"
+	synced := "CREATE TABLE t (id INT NOT NULL, ts TIMESTAMP NULL DEFAULT NULL, PRIMARY KEY (id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci"
 	target := "CREATE TABLE t (id INT PRIMARY KEY, ts TIMESTAMP) DEFAULT CHARSET=utf8mb4"
 
 	from, err := LoadSDLWithVersion("CREATE DATABASE d; USE d;\n"+synced, MySQL80)
