@@ -198,7 +198,7 @@ func writeEventBodyClauses(b *strings.Builder, e *Event) {
 		b.WriteString(" ENABLE")
 	}
 
-	fmt.Fprintf(b, " COMMENT '%s'", escapeComment(e.Comment))
+	fmt.Fprintf(b, " COMMENT '%s'", escapeCommentMode(e.Comment, e.HasSessionContext && noBackslashEscapes(e.SQLMode)))
 
 	if body := strings.TrimSpace(e.Body); body != "" {
 		b.WriteString(" DO ")

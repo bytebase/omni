@@ -949,6 +949,42 @@ func eqFoldStr(a, b string) bool {
 // sql_show.cc): a backslash, NUL, newline, carriage return and Ctrl-Z take a
 // backslash escape, a quote is doubled, and anything else, a tab included, is
 // written as it is. Measured on mariadb:11.8.8.
+// escapeCommentMode escapes a comment for a session with the given
+// NO_BACKSLASH_ESCAPES setting: with it on, a backslash is a literal byte and
+// cannot escape, so only the single quote doubles and a newline or control byte
+// is written as itself; off, it is escapeComment.
+func escapeCommentMode(s string, noBackslashEscapes bool) string {
+	if !noBackslashEscapes {
+		return escapeComment(s)
+	}
+	var b strings.Builder
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c == '\'' {
+			b.WriteString("''")
+			continue
+		}
+		if c >= 0xF0 && c <= 0xF4 && i+3 < len(s) {
+			b.WriteByte('?')
+			i += 3
+			continue
+		}
+		b.WriteByte(c)
+	}
+	return b.String()
+}
+
+// noBackslashEscapes reports whether a captured sql_mode disables backslash
+// escapes.
+func noBackslashEscapes(sqlMode string) bool {
+	for _, m := range strings.Split(strings.ToUpper(sqlMode), ",") {
+		if strings.TrimSpace(m) == "NO_BACKSLASH_ESCAPES" {
+			return true
+		}
+	}
+	return false
+}
+
 func escapeComment(s string) string {
 	var b strings.Builder
 	for i := 0; i < len(s); i++ {

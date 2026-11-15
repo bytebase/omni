@@ -291,3 +291,45 @@ func setSession(t *testing.T, conn *sql.Conn, assignment string) {
 		t.Fatal(err)
 	}
 }
+
+// TestOracle_MigrationEscapesCommentsForSQLMode generates a migration that
+// creates a routine and an event whose comments hold a backslash, captured
+// under NO_BACKSLASH_ESCAPES, applies it to the server, and requires the stored
+// comments to hold one backslash, not two.
+func TestOracle_MigrationEscapesCommentsForSQLMode(t *testing.T) {
+	conn, err := testcontainer.OpenDatabase(t).Conn(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	database := testcontainer.DatabaseName(t)
+	resetDatabase(t, conn, database)
+
+	to := New()
+	if _, err := to.Exec("CREATE DATABASE "+quoteIdent(database)+"; USE "+quoteIdent(database)+
+		`; CREATE FUNCTION f() RETURNS INT DETERMINISTIC COMMENT 'a\\b' RETURN 1`+
+		`; CREATE EVENT e ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' COMMENT 'c\\d' DO SELECT 1;`, nil); err != nil {
+		t.Fatal(err)
+	}
+	ctx := SessionContext{SQLMode: "NO_BACKSLASH_ESCAPES"}
+	to.ApplySessionContext(SessionContextMap{
+		Functions: map[string]SessionContext{"f": ctx},
+		Events:    map[string]SessionContext{"e": ctx},
+	})
+	plan := GenerateMigration(New(), to, Diff(New(), to))
+	if err := applyPlan(conn, plan); err != nil {
+		t.Fatalf("apply: %v\n%s", err, plan.SQL())
+	}
+	for query, want := range map[string]string{
+		"SELECT ROUTINE_COMMENT FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_NAME = 'f'": `a\b`,
+		"SELECT EVENT_COMMENT FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE() AND EVENT_NAME = 'e'":         `c\d`,
+	} {
+		var got string
+		if err := conn.QueryRowContext(context.Background(), query).Scan(&got); err != nil {
+			t.Fatal(err)
+		}
+		if got != want {
+			t.Errorf("comment = %q, want %q\n%s", got, want, plan.SQL())
+		}
+	}
+}
