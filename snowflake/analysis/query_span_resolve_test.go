@@ -107,6 +107,31 @@ func TestResolveQuerySpanResults(t *testing.T) {
 	}
 }
 
+func TestResolveQuerySpanSubqueryScope(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want []string
+	}{
+		// T1 and T2 both have A: the subquery's own FROM answers first.
+		{"SELECT (SELECT A FROM T2) AS X FROM T1", []string{"X<-DB.PUBLIC.T2.A"}},
+		{"SELECT (SELECT * FROM OTHER.T1) AS X FROM T1", []string{"X<-DB.OTHER.T1.Z"}},
+		{"SELECT (SELECT $1 FROM T3) AS X FROM T1", []string{"X<-DB.PUBLIC.T3.E"}},
+		{"SELECT (SELECT T.A FROM T2 T) AS X FROM T1 T", []string{"X<-DB.PUBLIC.T2.A"}},
+		{"SELECT (SELECT T.A FROM T3 JOIN T2 T ON TRUE) AS X FROM T1 T", []string{"X<-DB.PUBLIC.T2.A"}},
+		// A name the subquery's FROM lacks is a correlated reference.
+		{"SELECT (SELECT B FROM T3) AS X FROM T1", []string{"X<-DB.PUBLIC.T1.B"}},
+		{"SELECT (SELECT T.B + E FROM T3) AS X FROM T1 T", []string{"X<-DB.PUBLIC.T1.B,DB.PUBLIC.T3.E"}},
+		{"SELECT (SELECT U.B FROM T3 JOIN T2 ON TRUE) AS X FROM T1 U", []string{"X<-DB.PUBLIC.T1.B"}},
+	}
+	for _, tc := range tests {
+		span, err := resolveSpan(t, tc.sql)
+		if !assert.NoErrorf(t, err, "%s", tc.sql) {
+			continue
+		}
+		assert.Equalf(t, tc.want, render(span), "%s", tc.sql)
+	}
+}
+
 func TestResolveQuerySpanAccessTables(t *testing.T) {
 	span, err := resolveSpan(t, "WITH C AS (SELECT A FROM T1) SELECT * FROM C WHERE EXISTS (SELECT 1 FROM OTHER.T1)")
 	require.NoError(t, err)

@@ -178,19 +178,35 @@ type querySpanExtractor struct {
 	// It should be shrunk to 0 after each query span extraction.
 	ctes []*derivedTable
 
-	// tableSourcesFrom is used to record the table sources from the query.
-	tableSourcesFrom []tableSource
+	// fromScopes holds the FROM clause of each enclosing SELECT, outermost
+	// first. A column reference resolves in the innermost scope that has it,
+	// so an outer scope answers only a correlated reference.
+	fromScopes []fromScope
 
 	// statementText is the single statement being extracted; expression result
 	// names slice it by node Loc.
 	statementText string
 
-	// joinMemberSources records the individual relations inside JOIN trees of
-	// the current FROM scope. tableSourcesFrom holds one (unnamed, merged)
-	// pseudo-table per FROM item, so qualified references like T2.B or T2.*
-	// inside a join could not resolve by table name; lookups fall back to this
-	// list. Scoped/truncated together with tableSourcesFrom.
+	// joinMemberSources collects the named relations inside the JOIN trees and
+	// comma lists of the FROM clause being extracted, which become its scope's
+	// members.
 	joinMemberSources []tableSource
+}
+
+// fromScope is one SELECT's FROM clause. relations[0] is the relation the
+// clause produces, merged and unnamed when it joins several; the rest are the
+// named relations inside it, which only a qualified reference (T2.B, T2.*)
+// can reach.
+type fromScope struct {
+	relations []tableSource
+}
+
+// candidates returns the relations a reference can resolve against in s.
+func (s fromScope) candidates(qualified bool) []tableSource {
+	if qualified {
+		return s.relations
+	}
+	return s.relations[:1]
 }
 
 func newQuerySpanExtractor(defaultDatabase, defaultSchema string, resolveTable TableResolver, ignoreCaseSensitive bool) *querySpanExtractor {
@@ -583,10 +599,10 @@ func (q *querySpanExtractor) extractPseudoTableFromSelectStmt(ctx *ast.SelectStm
 		// appends JOIN member relations to q.joinMemberSources as it walks join
 		// trees, so a later snapshot would bake those into the restore point and
 		// leak them into sibling/outer scopes.
-		originalFromFieldsLength := len(q.tableSourcesFrom)
+		originalScopeCount := len(q.fromScopes)
 		originalJoinMemberLength := len(q.joinMemberSources)
 		defer func() {
-			q.tableSourcesFrom = q.tableSourcesFrom[:originalFromFieldsLength]
+			q.fromScopes = q.fromScopes[:originalScopeCount]
 			q.joinMemberSources = q.joinMemberSources[:originalJoinMemberLength]
 		}()
 		tableSourceFrom, err := q.extractTableSourceFromFrom(ctx.From)
@@ -594,7 +610,8 @@ func (q *querySpanExtractor) extractPseudoTableFromSelectStmt(ctx *ast.SelectStm
 			return nil, err
 		}
 		if tableSourceFrom != nil {
-			q.tableSourcesFrom = append(q.tableSourcesFrom, tableSourceFrom)
+			relations := append([]tableSource{tableSourceFrom}, q.joinMemberSources[originalJoinMemberLength:]...)
+			q.fromScopes = append(q.fromScopes, fromScope{relations: relations})
 		}
 	}
 
@@ -1194,32 +1211,15 @@ func (q *querySpanExtractor) getAllFieldsOfTableInFromOrOuterCTE(normalizedDatab
 		}
 	}
 
-	for _, tableSource := range q.tableSourcesFrom {
-		if mask&maskDatabaseName != 0 && normalizedDatabaseName != tableSource.databaseName() {
-			continue
-		}
-		if mask&maskSchemaName != 0 && normalizedSchemaName != tableSource.schemaName() {
-			continue
-		}
-		if mask&maskTableName != 0 && normalizedTableName != tableSource.tableName() {
-			continue
-		}
-		result = append(result, tableSource.querySpanResult()...)
-		return result, nil
-	}
-
-	// Qualified reference that did not match a FROM item: it may name a
-	// relation inside a JOIN tree (tableSourcesFrom holds only the merged,
-	// unnamed join pseudo-table).
-	if mask&maskTableName != 0 {
-		for _, tableSource := range q.joinMemberSources {
+	for i := len(q.fromScopes) - 1; i >= 0; i-- {
+		for _, tableSource := range q.fromScopes[i].candidates(mask&maskTableName != 0) {
 			if mask&maskDatabaseName != 0 && normalizedDatabaseName != tableSource.databaseName() {
 				continue
 			}
 			if mask&maskSchemaName != 0 && normalizedSchemaName != tableSource.schemaName() {
 				continue
 			}
-			if normalizedTableName != tableSource.tableName() {
+			if mask&maskTableName != 0 && normalizedTableName != tableSource.tableName() {
 				continue
 			}
 			result = append(result, tableSource.querySpanResult()...)
@@ -1230,7 +1230,8 @@ func (q *querySpanExtractor) getAllFieldsOfTableInFromOrOuterCTE(normalizedDatab
 	return nil, fmt.Errorf(`no matching table %q.%q.%q`, normalizedDatabaseName, normalizedSchemaName, normalizedTableName)
 }
 
-// getField iterates through the tableSourcesFrom sequentially until we find the first matching object and return the column name, and returns the fieldInfo.
+// getField returns the first column matching the reference, searching the FROM
+// scopes from the innermost out.
 func (q *querySpanExtractor) getField(normalizedDatabaseName, normalizedSchemaName, normalizedTableName, normalizedColumnName string) (QuerySpanResult, error) {
 	type maskType = uint8
 	const (
@@ -1267,9 +1268,7 @@ func (q *querySpanExtractor) getField(normalizedDatabaseName, normalizedSchemaNa
 		return QuerySpanResult{}, fmt.Errorf(`no object name is specified`)
 	}
 
-	// We just need to iterate through the tableSourcesFrom sequentially until we find the first matching object.
-
-	// It is safe if there are two or more objects in the tableSourcesFrom have the same column name, because the executor
+	// Within one scope the first match wins. It is safe if two relations of a scope have the same column name, because the executor
 	// will throw a compilation error if the column name is ambiguous.
 	// For example, there are two tables T1 and T2, and both of them have a column named "C1". The following query will throw
 	// a compilation error:
@@ -1281,34 +1280,15 @@ func (q *querySpanExtractor) getField(normalizedDatabaseName, normalizedSchemaNa
 	// Further more, users can not use the original table name if they specify the alias name:
 	// SELECT T1.C1 FROM T1 AS T3, T2; -- invalid identifier 'ADDRESS.ID'
 
-	for _, tableSource := range q.tableSourcesFrom {
-		if mask&maskDatabaseName != 0 && normalizedDatabaseName != tableSource.databaseName() {
-			continue
-		}
-		if mask&maskSchemaName != 0 && normalizedSchemaName != tableSource.schemaName() {
-			continue
-		}
-		if mask&maskTableName != 0 && normalizedTableName != tableSource.tableName() {
-			continue
-		}
-		for _, field := range tableSource.querySpanResult() {
-			if mask&maskColumnName != 0 && normalizedColumnName != field.Name {
-				continue
-			}
-			return field, nil
-		}
-	}
-	// Qualified reference into a JOIN tree: tableSourcesFrom holds only the
-	// merged, unnamed join pseudo-table, so match the member relations.
-	if mask&maskTableName != 0 {
-		for _, tableSource := range q.joinMemberSources {
+	for i := len(q.fromScopes) - 1; i >= 0; i-- {
+		for _, tableSource := range q.fromScopes[i].candidates(mask&maskTableName != 0) {
 			if mask&maskDatabaseName != 0 && normalizedDatabaseName != tableSource.databaseName() {
 				continue
 			}
 			if mask&maskSchemaName != 0 && normalizedSchemaName != tableSource.schemaName() {
 				continue
 			}
-			if normalizedTableName != tableSource.tableName() {
+			if mask&maskTableName != 0 && normalizedTableName != tableSource.tableName() {
 				continue
 			}
 			for _, field := range tableSource.querySpanResult() {
