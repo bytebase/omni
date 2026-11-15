@@ -82,11 +82,11 @@ func (e *querySpanExtractor) collectPredicateColumnsInStack(queryStack []*catalo
 			if filters && branch != nil {
 				for _, te := range branch.TargetList {
 					if te != nil && !te.ResJunk {
-						e.walkExprWithVisited(appendQuery(queryStack, branch), te.Expr, e.predicateColumns, make(map[queryExprKey]bool))
+						e.walkExprWithVisited(pushQuery(queryStack, branch), te.Expr, e.predicateColumns, make(map[queryExprKey]bool))
 					}
 				}
 			}
-			e.collectPredicateColumnsInStack(appendQuery(queryStack, branch), visited)
+			e.collectPredicateColumnsInStack(pushQuery(queryStack, branch), visited)
 		}
 		return
 	}

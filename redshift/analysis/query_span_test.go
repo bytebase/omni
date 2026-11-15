@@ -270,6 +270,9 @@ CREATE TABLE o (id int);
 	// A column of the enclosing query.
 	span = mustQuerySpan(t, c, `SELECT (SELECT t.ssn FROM o LIMIT 1) AS y FROM t`)
 	assertResult(t, span.Results[0], "y", false, []ColumnResource{ssn})
+	// A recursive CTE's reference to itself ends the walk.
+	span = mustQuerySpan(t, c, `WITH RECURSIVE c(x) AS (SELECT ssn FROM t UNION ALL SELECT x FROM c) SELECT x FROM c`)
+	assertResult(t, span.Results[0], "x", true, []ColumnResource{ssn})
 	// A CTE of the set operation a branch belongs to.
 	span = mustQuerySpan(t, c, `WITH c AS (SELECT ssn FROM t) SELECT ssn FROM c UNION ALL SELECT email FROM t`)
 	assertResult(t, span.Results[0], "ssn", true, []ColumnResource{ssn, email})

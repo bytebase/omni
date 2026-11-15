@@ -473,7 +473,7 @@ func (e *querySpanExtractor) extractLineageWithVisited(parents []*catalog.Query,
 			continue
 		}
 		sourceColSet := make(ColumnSet)
-		e.walkExprWithVisited(appendQuery(parents, q), te.Expr, sourceColSet, make(map[queryExprKey]bool))
+		e.walkExprWithVisited(pushQuery(parents, q), te.Expr, sourceColSet, make(map[queryExprKey]bool))
 		isPlain := idx < len(plainMask) && plainMask[idx]
 		// Even if the parse tree says this came from *, the underlying
 		// expression through CTEs/subqueries may not be a simple column ref.
@@ -710,7 +710,7 @@ func (e *querySpanExtractor) extractSetOpLineageWithVisited(parents []*catalog.Q
 		lSelStmt = selStmt.Larg
 		rSelStmt = selStmt.Rarg
 	}
-	branchParents := appendQuery(parents, q)
+	branchParents := pushQuery(parents, q)
 	lResults := e.extractLineageWithVisited(branchParents, q.LArg, lSelStmt, visited)
 	rResults := e.extractLineageWithVisited(branchParents, q.RArg, rSelStmt, visited)
 
@@ -808,6 +808,13 @@ func currentQuery(queryStack []*catalog.Query) *catalog.Query {
 		return nil
 	}
 	return queryStack[len(queryStack)-1]
+}
+
+// pushQuery returns queryStack with q appended, reusing its array. The caller
+// passes its whole stack and is done with the result before it pushes
+// another query, so no stack in use shares the slot q takes.
+func pushQuery(queryStack []*catalog.Query, q *catalog.Query) []*catalog.Query {
+	return append(queryStack, q)
 }
 
 func appendQuery(queryStack []*catalog.Query, q *catalog.Query) []*catalog.Query {
