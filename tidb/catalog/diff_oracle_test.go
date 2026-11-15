@@ -70,6 +70,7 @@ var diffOraclePairs = []struct {
 	{name: "check expression", a: "CREATE TABLE t (a int, CONSTRAINT c CHECK (a > 0))", b: "CREATE TABLE t (a int, CONSTRAINT c CHECK (a > 1))"},
 	{name: "check enforcement", a: "CREATE TABLE t (a int, CONSTRAINT c CHECK (a > 0))", b: "CREATE TABLE t (a int, CONSTRAINT c CHECK (a > 0) NOT ENFORCED)", syncDrops: "NOT ENFORCED"},
 	{name: "view body", a: "CREATE TABLE t (a int, b int); CREATE VIEW v AS SELECT a FROM t", b: "CREATE TABLE t (a int, b int); CREATE VIEW v AS SELECT b AS a FROM t"},
+	{name: "view check option", a: "CREATE TABLE t (a int); CREATE VIEW v AS SELECT a FROM t WITH CASCADED CHECK OPTION", b: "CREATE TABLE t (a int); CREATE VIEW v AS SELECT a FROM t WITH LOCAL CHECK OPTION", syncDrops: "view CHECK OPTION"},
 	{name: "added view", a: "CREATE TABLE t (a int)", b: "CREATE TABLE t (a int); CREATE VIEW v AS SELECT a FROM t"},
 	{name: "sequence increment", a: "CREATE SEQUENCE s", b: "CREATE SEQUENCE s INCREMENT 2"},
 	{name: "sequence cache", a: "CREATE SEQUENCE s", b: "CREATE SEQUENCE s NOCACHE"},
@@ -232,9 +233,9 @@ func describeDiff(d *SchemaDiff) string {
 }
 
 // storedSchema is what TiDB stores for a database: SHOW CREATE of every
-// table, view and sequence by name, with the database's own name, the
-// AUTO_INCREMENT and AUTO_RANDOM_BASE counters, and the order of keys left
-// out.
+// table, view and sequence by name, and a view's CHECK_OPTION, which SHOW
+// CREATE VIEW leaves out. The database's own name, the AUTO_INCREMENT and
+// AUTO_RANDOM_BASE counters, and the order of keys are left out.
 func storedSchema(t *testing.T, ctr *mysqlContainer, db string) string {
 	t.Helper()
 	rows, err := ctr.db.QueryContext(ctr.ctx, "SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME", db)
@@ -256,7 +257,11 @@ func storedSchema(t *testing.T, ctr *mysqlContainer, db string) string {
 		var text string
 		switch o.kind {
 		case "VIEW":
-			text = showCreateOnTiDB(t, ctr, "view:"+o.name)
+			var checkOption string
+			if err := ctr.db.QueryRowContext(ctr.ctx, "SELECT CHECK_OPTION FROM information_schema.VIEWS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?", db, o.name).Scan(&checkOption); err != nil {
+				t.Fatal(err)
+			}
+			text = showCreateOnTiDB(t, ctr, "view:"+o.name) + " CHECK_OPTION=" + checkOption
 		case "SEQUENCE":
 			text = showCreateSequenceOnTiDB(t, ctr, o.name)
 		default:

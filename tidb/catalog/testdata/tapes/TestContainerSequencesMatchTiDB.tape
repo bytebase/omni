@@ -3326,6 +3326,358 @@
 : bytes
 | s_opts
 > exec
+| RENAME TABLE t TO s_default
+< error
+| 1050 42S01 Table 'omni_sequences.s_default' already exists
+> query
+| SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
+: string
+| omni_sequences
+< result
+< column "SEQUENCE_NAME" "VARCHAR"
+< row
+: bytes
+| s_all_three
+< row
+: bytes
+| s_default
+< row
+: bytes
+| s_desc
+< row
+: bytes
+| s_desc_max
+< row
+: bytes
+| s_desc_start
+< row
+: bytes
+| s_engine
+< row
+: bytes
+| s_min
+< row
+: bytes
+| s_no
+< row
+: bytes
+| s_nocache
+< row
+: bytes
+| s_opts
+> query
+| SHOW CREATE SEQUENCE `s_all_three`
+< result
+< column "Sequence" "VARCHAR"
+< column "Create Sequence" "VARCHAR"
+< row
+: bytes
+| s_all_three
+: bytes
+| CREATE SEQUENCE `s_all_three` start with 1 minvalue -10 maxvalue 10 increment by -1 cache 1000 nocycle ENGINE=InnoDB
+> query
+| SHOW CREATE SEQUENCE `s_default`
+< result
+< column "Sequence" "VARCHAR"
+< column "Create Sequence" "VARCHAR"
+< row
+: bytes
+| s_default
+: bytes
+| CREATE SEQUENCE `s_default` start with 1 minvalue 1 maxvalue 9223372036854775806 increment by 1 cache 1000 nocycle ENGINE=InnoDB
+> query
+| SHOW CREATE SEQUENCE `s_desc`
+< result
+< column "Sequence" "VARCHAR"
+< column "Create Sequence" "VARCHAR"
+< row
+: bytes
+| s_desc
+: bytes
+| CREATE SEQUENCE `s_desc` start with -1 minvalue -9223372036854775807 maxvalue -1 increment by -1 cache 1000 nocycle ENGINE=InnoDB
+> query
+| SHOW CREATE SEQUENCE `s_desc_max`
+< result
+< column "Sequence" "VARCHAR"
+< column "Create Sequence" "VARCHAR"
+< row
+: bytes
+| s_desc_max
+: bytes
+| CREATE SEQUENCE `s_desc_max` start with -5 minvalue -9223372036854775807 maxvalue -5 increment by -1 cache 1000 nocycle ENGINE=InnoDB
+> query
+| SHOW CREATE SEQUENCE `s_desc_start`
+< result
+< column "Sequence" "VARCHAR"
+< column "Create Sequence" "VARCHAR"
+< row
+: bytes
+| s_desc_start
+: bytes
+| CREATE SEQUENCE `s_desc_start` start with -10 minvalue -9223372036854775807 maxvalue -1 increment by -2 cache 1000 nocycle ENGINE=InnoDB
+> query
+| SHOW CREATE SEQUENCE `s_engine`
+< result
+< column "Sequence" "VARCHAR"
+< column "Create Sequence" "VARCHAR"
+< row
+: bytes
+| s_engine
+: bytes
+| CREATE SEQUENCE `s_engine` start with 1 minvalue 1 maxvalue 9223372036854775806 increment by 1 cache 1000 nocycle ENGINE=InnoDB
+> query
+| SHOW CREATE SEQUENCE `s_min`
+< result
+< column "Sequence" "VARCHAR"
+< column "Create Sequence" "VARCHAR"
+< row
+: bytes
+| s_min
+: bytes
+| CREATE SEQUENCE `s_min` start with 5 minvalue 5 maxvalue 9223372036854775806 increment by 1 cache 1000 nocycle ENGINE=InnoDB
+> query
+| SHOW CREATE SEQUENCE `s_no`
+< result
+< column "Sequence" "VARCHAR"
+< column "Create Sequence" "VARCHAR"
+< row
+: bytes
+| s_no
+: bytes
+| CREATE SEQUENCE `s_no` start with 3 minvalue 1 maxvalue 9223372036854775806 increment by 4 cache 1000 nocycle ENGINE=InnoDB
+> query
+| SHOW CREATE SEQUENCE `s_nocache`
+< result
+< column "Sequence" "VARCHAR"
+< column "Create Sequence" "VARCHAR"
+< row
+: bytes
+| s_nocache
+: bytes
+| CREATE SEQUENCE `s_nocache` start with 1 minvalue 1 maxvalue 9223372036854775806 increment by 1 nocache nocycle ENGINE=InnoDB
+> query
+| SHOW CREATE SEQUENCE `s_opts`
+< result
+< column "Sequence" "VARCHAR"
+< column "Create Sequence" "VARCHAR"
+< row
+: bytes
+| s_opts
+: bytes
+| CREATE SEQUENCE `s_opts` start with 10 minvalue 5 maxvalue 1000 increment by 2 cache 20 cycle ENGINE=InnoDB COMMENT='it''s'
+> query
+| SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
+: string
+| omni_sequences
+< result
+< column "SEQUENCE_NAME" "VARCHAR"
+< row
+: bytes
+| s_all_three
+< row
+: bytes
+| s_default
+< row
+: bytes
+| s_desc
+< row
+: bytes
+| s_desc_max
+< row
+: bytes
+| s_desc_start
+< row
+: bytes
+| s_engine
+< row
+: bytes
+| s_min
+< row
+: bytes
+| s_no
+< row
+: bytes
+| s_nocache
+< row
+: bytes
+| s_opts
+> exec
+| ALTER TABLE t RENAME TO s_default
+< error
+| 1050 42S01 Table 'omni_sequences.s_default' already exists
+> query
+| SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
+: string
+| omni_sequences
+< result
+< column "SEQUENCE_NAME" "VARCHAR"
+< row
+: bytes
+| s_all_three
+< row
+: bytes
+| s_default
+< row
+: bytes
+| s_desc
+< row
+: bytes
+| s_desc_max
+< row
+: bytes
+| s_desc_start
+< row
+: bytes
+| s_engine
+< row
+: bytes
+| s_min
+< row
+: bytes
+| s_no
+< row
+: bytes
+| s_nocache
+< row
+: bytes
+| s_opts
+> query
+| SHOW CREATE SEQUENCE `s_all_three`
+< result
+< column "Sequence" "VARCHAR"
+< column "Create Sequence" "VARCHAR"
+< row
+: bytes
+| s_all_three
+: bytes
+| CREATE SEQUENCE `s_all_three` start with 1 minvalue -10 maxvalue 10 increment by -1 cache 1000 nocycle ENGINE=InnoDB
+> query
+| SHOW CREATE SEQUENCE `s_default`
+< result
+< column "Sequence" "VARCHAR"
+< column "Create Sequence" "VARCHAR"
+< row
+: bytes
+| s_default
+: bytes
+| CREATE SEQUENCE `s_default` start with 1 minvalue 1 maxvalue 9223372036854775806 increment by 1 cache 1000 nocycle ENGINE=InnoDB
+> query
+| SHOW CREATE SEQUENCE `s_desc`
+< result
+< column "Sequence" "VARCHAR"
+< column "Create Sequence" "VARCHAR"
+< row
+: bytes
+| s_desc
+: bytes
+| CREATE SEQUENCE `s_desc` start with -1 minvalue -9223372036854775807 maxvalue -1 increment by -1 cache 1000 nocycle ENGINE=InnoDB
+> query
+| SHOW CREATE SEQUENCE `s_desc_max`
+< result
+< column "Sequence" "VARCHAR"
+< column "Create Sequence" "VARCHAR"
+< row
+: bytes
+| s_desc_max
+: bytes
+| CREATE SEQUENCE `s_desc_max` start with -5 minvalue -9223372036854775807 maxvalue -5 increment by -1 cache 1000 nocycle ENGINE=InnoDB
+> query
+| SHOW CREATE SEQUENCE `s_desc_start`
+< result
+< column "Sequence" "VARCHAR"
+< column "Create Sequence" "VARCHAR"
+< row
+: bytes
+| s_desc_start
+: bytes
+| CREATE SEQUENCE `s_desc_start` start with -10 minvalue -9223372036854775807 maxvalue -1 increment by -2 cache 1000 nocycle ENGINE=InnoDB
+> query
+| SHOW CREATE SEQUENCE `s_engine`
+< result
+< column "Sequence" "VARCHAR"
+< column "Create Sequence" "VARCHAR"
+< row
+: bytes
+| s_engine
+: bytes
+| CREATE SEQUENCE `s_engine` start with 1 minvalue 1 maxvalue 9223372036854775806 increment by 1 cache 1000 nocycle ENGINE=InnoDB
+> query
+| SHOW CREATE SEQUENCE `s_min`
+< result
+< column "Sequence" "VARCHAR"
+< column "Create Sequence" "VARCHAR"
+< row
+: bytes
+| s_min
+: bytes
+| CREATE SEQUENCE `s_min` start with 5 minvalue 5 maxvalue 9223372036854775806 increment by 1 cache 1000 nocycle ENGINE=InnoDB
+> query
+| SHOW CREATE SEQUENCE `s_no`
+< result
+< column "Sequence" "VARCHAR"
+< column "Create Sequence" "VARCHAR"
+< row
+: bytes
+| s_no
+: bytes
+| CREATE SEQUENCE `s_no` start with 3 minvalue 1 maxvalue 9223372036854775806 increment by 4 cache 1000 nocycle ENGINE=InnoDB
+> query
+| SHOW CREATE SEQUENCE `s_nocache`
+< result
+< column "Sequence" "VARCHAR"
+< column "Create Sequence" "VARCHAR"
+< row
+: bytes
+| s_nocache
+: bytes
+| CREATE SEQUENCE `s_nocache` start with 1 minvalue 1 maxvalue 9223372036854775806 increment by 1 nocache nocycle ENGINE=InnoDB
+> query
+| SHOW CREATE SEQUENCE `s_opts`
+< result
+< column "Sequence" "VARCHAR"
+< column "Create Sequence" "VARCHAR"
+< row
+: bytes
+| s_opts
+: bytes
+| CREATE SEQUENCE `s_opts` start with 10 minvalue 5 maxvalue 1000 increment by 2 cache 20 cycle ENGINE=InnoDB COMMENT='it''s'
+> query
+| SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
+: string
+| omni_sequences
+< result
+< column "SEQUENCE_NAME" "VARCHAR"
+< row
+: bytes
+| s_all_three
+< row
+: bytes
+| s_default
+< row
+: bytes
+| s_desc
+< row
+: bytes
+| s_desc_max
+< row
+: bytes
+| s_desc_start
+< row
+: bytes
+| s_engine
+< row
+: bytes
+| s_min
+< row
+: bytes
+| s_no
+< row
+: bytes
+| s_nocache
+< row
+: bytes
+| s_opts
+> exec
 | ALTER SEQUENCE s_desc MINVALUE -100
 < ok 0 0
 > query

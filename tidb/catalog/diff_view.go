@@ -2,9 +2,8 @@ package catalog
 
 import "strings"
 
-// diffViews compares the views of two catalogs by what SHOW CREATE VIEW
-// writes, less the definer, which is an environment's account rather than
-// schema.
+// diffViews compares the views of two catalogs by canonicalView. The
+// definer is left out: it is an environment's account rather than schema.
 func diffViews(from, to *Catalog) []ViewDiffEntry {
 	return diffObjects(viewsOf(from), viewsOf(to),
 		func(a, b *View) bool { return canonicalView(a) != canonicalView(b) },
@@ -35,12 +34,17 @@ func viewsOf(c *Catalog) map[objectKey]*View {
 	return m
 }
 
+// canonicalView is SHOW CREATE VIEW less the definer, with the CHECK OPTION,
+// which TiDB stores but SHOW CREATE VIEW leaves out.
 func canonicalView(v *View) string {
 	definer := v.Definer
 	if definer == "" {
 		definer = "`root`@`%`"
 	}
-	return strings.Replace(showCreateView(v), " DEFINER="+formatDefiner(definer), "", 1)
+	return encodeKeyFields(
+		"view", strings.Replace(showCreateView(v), " DEFINER="+formatDefiner(definer), "", 1),
+		"check option", strings.ToUpper(v.CheckOption),
+	)
 }
 
 // diffSequences compares the sequences of two catalogs by what SHOW CREATE

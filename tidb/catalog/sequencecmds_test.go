@@ -35,6 +35,8 @@ var sequenceScript = []string{
 	"CREATE TABLE t (a int)",
 	"CREATE SEQUENCE t",
 	"CREATE SEQUENCE IF NOT EXISTS t",
+	"RENAME TABLE t TO s_default",
+	"ALTER TABLE t RENAME TO s_default",
 	"ALTER SEQUENCE s_desc MINVALUE -100",
 	"ALTER SEQUENCE s_desc CACHE 5 INCREMENT 1",
 	"ALTER SEQUENCE s_desc MAXVALUE 1000",
