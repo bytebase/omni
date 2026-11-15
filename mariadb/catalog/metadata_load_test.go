@@ -978,3 +978,21 @@ func TestLoadMetadataIntoRebasesViewFunctionQualifiers(t *testing.T) {
 		t.Errorf("want upper qualified with other:\n%s", got)
 	}
 }
+
+func TestLoadMetadataReadsBackquotedColumnNamesAsColumns(t *testing.T) {
+	// A key part is the column's name as it is, here four characters.
+	c, report := loadMySQLSnapshot(t, snapshotWithTables(&metadata.TableMetadata{
+		Name:    "t",
+		Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int"}, {Name: "`id`", Type: "int"}},
+		Indexes: []*metadata.IndexMetadata{
+			{Name: "ix", Type: "BTREE", Expressions: []string{"`id`"}, Visible: true},
+			{Name: "iy", Type: "BTREE", Expressions: []string{"`id`"}, KeyLength: []int64{0}, Descending: []bool{true}, Visible: true},
+		},
+	}))
+	requireReport(t, report, nil, nil)
+	requireIncomplete(t, report, nil)
+	got := c.ShowCreateTable(snapshotDB, "t")
+	if !strings.Contains(got, "KEY `ix` (```id```)") || !strings.Contains(got, "KEY `iy` (```id``` DESC)") {
+		t.Errorf("want the keys on the column named `id` in backquotes:\n%s", got)
+	}
+}
