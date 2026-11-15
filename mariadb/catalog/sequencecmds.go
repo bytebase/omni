@@ -3,6 +3,7 @@ package catalog
 import (
 	"fmt"
 	"math/big"
+	"strconv"
 	"strings"
 
 	nodes "github.com/bytebase/omni/mariadb/ast"
@@ -39,7 +40,7 @@ var sequenceTypes = map[string][2]string{
 
 const defaultSequenceCache = "1000"
 
-func (c *Catalog) createSequence(stmt *nodes.CreateSequenceStmt, source string) error {
+func (c *Catalog) createSequence(stmt *nodes.CreateSequenceStmt) error {
 	db, err := c.resolveDatabase(stmt.Name.Schema)
 	if err != nil {
 		return err
@@ -65,7 +66,7 @@ func (c *Catalog) createSequence(stmt *nodes.CreateSequenceStmt, source string) 
 		start: stmt.Start, increment: stmt.Increment, min: stmt.MinValue, max: stmt.MaxValue,
 		noMin: stmt.NoMinValue, noMax: stmt.NoMaxValue, cache: stmt.Cache, noCache: stmt.NoCache, cycle: stmt.Cycle,
 	}
-	if err := seq.apply(opts, true, source); err != nil {
+	if err := seq.apply(opts, true); err != nil {
 		return err
 	}
 	for _, opt := range stmt.Options {
@@ -81,7 +82,7 @@ func (c *Catalog) createSequence(stmt *nodes.CreateSequenceStmt, source string) 
 	return nil
 }
 
-func (c *Catalog) alterSequence(stmt *nodes.AlterSequenceStmt, source string) error {
+func (c *Catalog) alterSequence(stmt *nodes.AlterSequenceStmt) error {
 	db, err := c.resolveDatabase(stmt.Name.Schema)
 	if err != nil {
 		return err
@@ -107,13 +108,13 @@ func (c *Catalog) alterSequence(stmt *nodes.AlterSequenceStmt, source string) er
 		start: stmt.Start, increment: stmt.Increment, min: stmt.MinValue, max: stmt.MaxValue,
 		noMin: stmt.NoMinValue, noMax: stmt.NoMaxValue, cache: stmt.Cache, noCache: stmt.NoCache, cycle: stmt.Cycle,
 	}
-	if err := next.apply(opts, false, source); err != nil {
+	if err := next.apply(opts, false); err != nil {
 		return err
 	}
 	// RESTART WITH sets the next value, which has to lie within the limits,
 	// though SHOW CREATE SEQUENCE does not show it.
 	if stmt.RestartWith != nil {
-		restart, ok := sequenceNumber(stmt.RestartWith, source)
+		restart, ok := sequenceNumber(stmt.RestartWith)
 		v, _ := new(big.Int).SetString(restart, 10)
 		minV, _ := new(big.Int).SetString(next.MinValue, 10)
 		maxV, _ := new(big.Int).SetString(next.MaxValue, 10)
@@ -160,13 +161,13 @@ type sequenceOptions struct {
 // sequence_definition::check_and_adjust does (sql/sql_sequence.cc): an option
 // CREATE leaves unset takes the value the type and the increment's sign give
 // it, while ALTER keeps the sequence's own.
-func (seq *Sequence) apply(o sequenceOptions, create bool, source string) error {
+func (seq *Sequence) apply(o sequenceOptions, create bool) error {
 	outOfRange := errSequenceOutOfRange(seq.Database.Name, seq.Name)
 	value := func(e nodes.ExprNode, into *string) bool {
 		if e == nil {
 			return true
 		}
-		n, ok := sequenceNumber(e, source)
+		n, ok := sequenceNumber(e)
 		if !ok {
 			return false
 		}
@@ -281,42 +282,35 @@ func sequenceTypeRange(dataType string) (*big.Int, *big.Int) {
 	return lo, hi
 }
 
-// sequenceNumber reads an integer option value: a literal, optionally negated.
-// An IntLit saturates past int64, so its digits are read from source, the text
-// the statement was parsed from, where there is one.
-func sequenceNumber(e nodes.ExprNode, source string) (string, bool) {
+// sequenceNumber reads an integer option value, a literal optionally negated,
+// in the canonical decimal form the server stores: START WITH 001 is 1.
+func sequenceNumber(e nodes.ExprNode) (string, bool) {
+	var text string
 	switch n := e.(type) {
 	case *nodes.IntLit:
-		if n.Loc.Start >= 0 && n.Loc.End <= len(source) && n.Loc.Start < n.Loc.End {
-			if text := source[n.Loc.Start:n.Loc.End]; strings.Trim(text, "0123456789") == "" {
-				return text, true
-			}
+		text = n.Text
+		if text == "" {
+			text = strconv.FormatInt(n.Value, 10)
 		}
-		return fmt.Sprint(n.Value), true
 	case *nodes.FloatLit:
-		if _, ok := new(big.Int).SetString(n.Value, 10); ok {
-			return n.Value, true
-		}
-		return "", false
+		text = n.Value
 	case *nodes.UnaryExpr:
 		if n.Op != nodes.UnaryMinus {
 			return "", false
 		}
-		v, ok := sequenceNumber(n.Operand, source)
+		v, ok := sequenceNumber(n.Operand)
 		if !ok {
 			return "", false
 		}
-		if strings.HasPrefix(v, "-") {
-			return v[1:], true
-		}
-		return "-" + v, true
+		text = "-" + v
 	default:
-		text := strings.TrimSpace(nodeToSQL(e))
-		if _, ok := new(big.Int).SetString(text, 10); ok {
-			return text, true
-		}
+		text = strings.TrimSpace(nodeToSQL(e))
+	}
+	v, ok := new(big.Int).SetString(text, 10)
+	if !ok {
 		return "", false
 	}
+	return v.String(), true
 }
 
 // ShowCreateSequence renders a sequence as MariaDB 11.8.8's SHOW CREATE
