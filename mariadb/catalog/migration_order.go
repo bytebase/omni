@@ -281,7 +281,7 @@ func rebuildKeysOverFlippedColumns(ops []MigrationOp, e *TableDiffEntry, n *Norm
 	}
 	table := tableIdent(e.To)
 	for _, idx := range e.From.Indexes {
-		if idx.Primary || changed[toLower(idx.Name)] || !indexReadsAny(idx, flipped) {
+		if changed[toLower(idx.Name)] || !indexReadsAny(idx, flipped) {
 			continue
 		}
 		to := tableIndexByName(e.To, idx.Name)
