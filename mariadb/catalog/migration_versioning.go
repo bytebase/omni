@@ -59,17 +59,21 @@ func generateVersioningDDL(diff *SchemaDiff, n *Normalizer) []MigrationOp {
 		switch {
 		case from.SystemVersioned && !to.SystemVersioned:
 			clauses := []string{"DROP SYSTEM VERSIONING"}
+			// A ROW START or ROW END column kept as a plain one is dropped
+			// here and added again by the column generator.
 			for _, ce := range e.Columns {
-				if ce.Action == DiffDrop && ce.From != nil && droppedWithVersioning(e, ce.From) {
+				if (ce.Action == DiffDrop || ce.Action == DiffModify && generatedShapeChanged(ce.From, ce.To)) && ce.From != nil && droppedWithVersioning(e, ce.From) {
 					clauses = append(clauses, "DROP COLUMN "+backtickIDQ(ce.From.Name))
 				}
 			}
 			op(fmt.Sprintf("ALTER TABLE %s %s", table, strings.Join(clauses, ", ")), PhasePre, priorityVersioningDrop)
 			ops[len(ops)-1].dropsVersionedColumns = len(clauses) > 1
 		case !from.SystemVersioned && to.SystemVersioned:
+			// A column that becomes ROW START or ROW END is added here too,
+			// after its plain self is dropped.
 			added := make(map[string]bool)
 			for _, ce := range e.Columns {
-				if ce.Action == DiffAdd {
+				if ce.Action == DiffAdd || ce.Action == DiffModify && generatedShapeChanged(ce.From, ce.To) {
 					added[toLower(ce.Name)] = true
 				}
 			}

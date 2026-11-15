@@ -44,8 +44,12 @@ func generateColumnDDL(_, to *Catalog, diff *SchemaDiff, n *Normalizer) []Migrat
 				// A change of generated storage mode, or between plain and generated, is a
 				// DROP + ADD rather than an in-place MODIFY.
 				if generatedShapeChanged(col.From, col.To) {
-					ops = append(ops, dropColumnOp(entry, table, col.Name, col.From))
-					ops = append(ops, addColumnOp(entry, table, col.To, n))
+					if !droppedWithVersioning(entry, col.From) {
+						ops = append(ops, dropColumnOp(entry, table, col.Name, col.From))
+					}
+					if !addedWithVersioning(entry, col.To) {
+						ops = append(ops, addColumnOp(entry, table, col.To, n))
+					}
 					continue
 				}
 				clause := fmt.Sprintf("MODIFY COLUMN %s", formatColumnDefinition(entry.To, col.To, n))
