@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 
@@ -202,7 +203,7 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata) []*metadataOb
 
 func (c *Catalog) installMetadataObject(o *metadataObject) error {
 	if o.kind == metadataView {
-		stmt, err := metadataViewStmt(o.view, o.snapshotDatabase)
+		stmt, err := metadataViewStmt(o.view, o.snapshotDatabase, c.CurrentDatabase())
 		if err != nil {
 			return err
 		}
@@ -220,7 +221,20 @@ func (c *Catalog) installMetadataObject(o *metadataObject) error {
 		return err
 	}
 	o.incomplete = omitted
-	return c.DefineTable(stmt)
+	err = c.DefineTable(stmt)
+	if err != nil && stmt.Partitions != nil {
+		// The partitioning parsed but the catalog refuses it, as it does a RANGE
+		// whose MAXVALUE partition sync lists before another. The rest of the
+		// table still installs.
+		stmt.Partitions = nil
+		if retry := c.DefineTable(stmt); retry == nil {
+			if o.incomplete == nil {
+				o.incomplete = fmt.Errorf("partitioning: %w", err)
+			}
+			return nil
+		}
+	}
+	return err
 }
 
 // --- Statements ---
@@ -588,8 +602,8 @@ func referenceAction(action string) nodes.ReferenceAction {
 // DefineView installs a view whose body does not analyze, so a view may name
 // one that installs after it; reanalyzeViews retries it then. nameViewColumns
 // names the columns once the body resolves.
-func metadataViewStmt(v *metadata.ViewMetadata, database string) (*nodes.CreateViewStmt, error) {
-	body := stripViewBodyDatabaseQualifier(v.GetDefinition(), database)
+func metadataViewStmt(v *metadata.ViewMetadata, database, target string) (*nodes.CreateViewStmt, error) {
+	body := stripViewBodyDatabaseQualifier(v.GetDefinition(), database, target)
 	sel, err := parseFirstStatement[*nodes.SelectStmt](body)
 	if err != nil {
 		return nil, err
@@ -601,7 +615,9 @@ func metadataViewStmt(v *metadata.ViewMetadata, database string) (*nodes.CreateV
 // a view body. The body is parsed so that only a qualifier in the database
 // position goes: a table alias or table spelled like the database qualifies
 // its columns and stays. A body that does not parse is returned unchanged.
-func stripViewBodyDatabaseQualifier(body, dbName string) string {
+// A table the body also names as a CTE keeps a qualifier, target's, since
+// without one it would resolve to the CTE.
+func stripViewBodyDatabaseQualifier(body, dbName, target string) string {
 	if dbName == "" || body == "" {
 		return body
 	}
@@ -615,15 +631,22 @@ func stripViewBodyDatabaseQualifier(body, dbName string) string {
 	if err != nil || list == nil || len(list.Items) != 1 {
 		return body
 	}
-	var starts []int
+	ctes := map[string]bool{}
 	nodes.Inspect(list.Items[0], func(n nodes.Node) bool {
-		var schema string
+		if cte, ok := n.(*nodes.CommonTableExpr); ok {
+			ctes[strings.ToLower(cte.Name)] = true
+		}
+		return true
+	})
+	replacement := make(map[int]string)
+	nodes.Inspect(list.Items[0], func(n nodes.Node) bool {
+		var schema, table string
 		var loc nodes.Loc
 		switch n := n.(type) {
 		case *nodes.TableRef:
-			schema, loc = n.Schema, n.Loc
+			schema, table, loc = n.Schema, n.Name, n.Loc
 		case *nodes.ColumnRef:
-			schema, loc = n.Schema, n.Loc
+			schema, table, loc = n.Schema, n.Table, n.Loc
 		case *nodes.FuncCallExpr:
 			schema, loc = n.Schema, n.Loc
 		default:
@@ -631,18 +654,21 @@ func stripViewBodyDatabaseQualifier(body, dbName string) string {
 		}
 		start := loc.Start - len(prefix)
 		if schema == dbName && start >= 0 && strings.HasPrefix(body[start:], qualifier) {
-			starts = append(starts, start)
+			replacement[start] = ""
+			if table != "" && ctes[strings.ToLower(table)] {
+				replacement[start] = quoteIdent(target) + "."
+			}
 		}
 		return true
 	})
-	slices.Sort(starts)
-	starts = slices.Compact(starts)
+	starts := slices.Sorted(maps.Keys(replacement))
 
 	var out strings.Builder
 	out.Grow(len(body))
 	prev := 0
 	for _, start := range starts {
 		out.WriteString(body[prev:start])
+		out.WriteString(replacement[start])
 		prev = start + len(qualifier)
 	}
 	out.WriteString(body[prev:])

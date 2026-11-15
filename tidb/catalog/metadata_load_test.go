@@ -524,8 +524,8 @@ func TestLoadMetadataIntoAnotherDatabase(t *testing.T) {
 	if v == nil || v.AnalyzedQuery == nil {
 		t.Fatalf("v = %+v, want an analyzed body", v)
 	}
-	if want := "SELECT `testdb`.`id` AS `id`,`p`.`k` AS `k` FROM `parent` AS `testdb` JOIN `parent` AS `p` ON `testdb`.`id`=`p`.`id`"; stripViewBodyDatabaseQualifier(meta.Schemas[0].Views[0].Definition, snapshotDB) != want {
-		t.Errorf("stripped body = %q, want %q", stripViewBodyDatabaseQualifier(meta.Schemas[0].Views[0].Definition, snapshotDB), want)
+	if want := "SELECT `testdb`.`id` AS `id`,`p`.`k` AS `k` FROM `parent` AS `testdb` JOIN `parent` AS `p` ON `testdb`.`id`=`p`.`id`"; stripViewBodyDatabaseQualifier(meta.Schemas[0].Views[0].Definition, snapshotDB, "other") != want {
+		t.Errorf("stripped body = %q, want %q", stripViewBodyDatabaseQualifier(meta.Schemas[0].Views[0].Definition, snapshotDB, "other"), want)
 	}
 	refs := map[string]*Constraint{}
 	for _, con := range c.GetDatabase("other").Tables["child"].Constraints {
@@ -551,8 +551,11 @@ func TestStripViewBodyDatabaseQualifier(t *testing.T) {
 		{"SELECT `a` FROM `other`.`t` JOIN `testdb`.`u`", "SELECT `a` FROM `other`.`t` JOIN `u`"},
 		{"SELECT `testdb`.`f`(1) AS `x`", "SELECT `f`(1) AS `x`"},
 		{"SELECT `a` FROM `testdb`.`t` WITH CASCADED CHECK OPTION", "SELECT `a` FROM `t` WITH CASCADED CHECK OPTION"},
+		// A table the body also names as a CTE keeps a qualifier, the target's.
+		{"WITH `t` AS (SELECT 1 AS `id`) SELECT `testdb`.`t`.`id` AS `id` FROM `testdb`.`t` JOIN `t` `c` JOIN `testdb`.`u`",
+			"WITH `t` AS (SELECT 1 AS `id`) SELECT `other`.`t`.`id` AS `id` FROM `other`.`t` JOIN `t` `c` JOIN `u`"},
 	} {
-		if got := stripViewBodyDatabaseQualifier(tc.body, snapshotDB); got != tc.want {
+		if got := stripViewBodyDatabaseQualifier(tc.body, snapshotDB, "other"); got != tc.want {
 			t.Errorf("stripViewBodyDatabaseQualifier(%q) = %q, want %q", tc.body, got, tc.want)
 		}
 	}
@@ -1099,4 +1102,25 @@ func unquoteSyncedString(s string) string {
 		b.WriteByte(s[i])
 	}
 	return b.String()
+}
+
+func TestLoadMetadataKeepsTableWhosePartitioningIsRefused(t *testing.T) {
+	// Sync lists partitions by name, which can put MAXVALUE before another
+	// partition; the catalog refuses that order.
+	c, report := loadTiDBSnapshot(t, snapshot(&metadata.SchemaMetadata{Tables: []*metadata.TableMetadata{{
+		Name:    "sales",
+		Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int"}, {Name: "sold_on", Type: "date"}},
+		Indexes: []*metadata.IndexMetadata{{Name: "k", Expressions: []string{"id"}, Visible: true}},
+		Partitions: []*metadata.TablePartitionMetadata{
+			{Name: "a2", Type: metadata.TablePartitionMetadata_RANGE, Expression: "YEAR(`sold_on`)", Value: "2022"},
+			{Name: "pmax", Type: metadata.TablePartitionMetadata_RANGE, Expression: "YEAR(`sold_on`)", Value: "MAXVALUE"},
+			{Name: "z1", Type: metadata.TablePartitionMetadata_RANGE, Expression: "YEAR(`sold_on`)", Value: "2021"},
+		},
+	}}}))
+	requireReport(t, report)
+	requireIncomplete(t, report, "table:sales")
+	tbl := requireTable(t, c, "sales")
+	if tbl.Partitioning != nil || len(tbl.Indexes) != 1 || tbl.Columns[1].DataType != "date" {
+		t.Errorf("sales = partitioning %+v, %d indexes, sold_on %s; want no partitioning, the index and a date column", tbl.Partitioning, len(tbl.Indexes), tbl.Columns[1].DataType)
+	}
 }
