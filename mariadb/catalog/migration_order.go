@@ -678,7 +678,6 @@ func atomicReplaceLast(ops []MigrationOp, e *TableDiffEntry, pick func(*Column) 
 	return slices.Delete(ops, last, last+1)
 }
 
-
 func releaseForeignKeysOfReplacedKeys(ops []MigrationOp, e *TableDiffEntry) []MigrationOp {
 	replaced := make(map[string]bool)
 	for _, ie := range e.Indexes {
