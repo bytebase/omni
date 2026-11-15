@@ -34,6 +34,8 @@ type roundTrip struct {
 	script string
 	schema string
 	table  string
+	// transformErr, when set, is the error prior backup refuses with.
+	transformErr string
 }
 
 var roundTrips = []roundTrip{
@@ -80,6 +82,22 @@ var roundTrips = []roundTrip{
 		table:  "people",
 	},
 	{
+		// The backup's name is longer than PostgreSQL's 63 bytes, and its
+		// characters take three bytes each.
+		name:   "long_multibyte_name",
+		setup:  `CREATE TABLE "` + strings.Repeat("表", 20) + `" (id INT PRIMARY KEY); INSERT INTO "` + strings.Repeat("表", 20) + `" VALUES (1), (2)`,
+		script: `DELETE FROM "` + strings.Repeat("表", 20) + `" WHERE id = 1`,
+		schema: "public",
+		table:  strings.Repeat("表", 20),
+	},
+	{
+		// Both backups would be named _bb__a_b_c.
+		name:         "colliding_names",
+		setup:        "CREATE SCHEMA c; CREATE TABLE c.a_b (id INT PRIMARY KEY); CREATE SCHEMA b_c; CREATE TABLE b_c.a (id INT PRIMARY KEY)",
+		script:       "DELETE FROM c.a_b; DELETE FROM b_c.a",
+		transformErr: `prior backup cannot back up both "b_c"."a" and "c"."a_b": their backup tables would both be named "_bb__a_b_c"`,
+	},
+	{
 		// Every name the backup and restore write holds a '"'.
 		name: "quoted_delete",
 		setup: `CREATE SCHEMA "s""q"; CREATE TABLE "s""q"."t""q" ("i""d" INT CONSTRAINT "p""k" PRIMARY KEY, "a""b" INT);` +
@@ -107,7 +125,6 @@ func TestBackupRestoreRoundTrip(t *testing.T) {
 	exec(t, db, "CREATE TABLE canary (id INT)")
 	for _, rt := range roundTrips {
 		exec(t, db, rt.setup)
-		before := tableRows(t, db, rt.schema, rt.table)
 
 		stmts, err := omnipg.Parse(rt.script)
 		require.NoError(t, err, rt.name)
@@ -117,11 +134,17 @@ func TestBackupRestoreRoundTrip(t *testing.T) {
 			TargetSchema:   backupSchema,
 			TablePrefix:    "_bb_",
 		})
+		if rt.transformErr != "" {
+			require.EqualError(t, err, rt.transformErr, rt.name)
+			continue
+		}
 		require.NoError(t, err, rt.name)
+		before := tableRows(t, db, rt.schema, rt.table)
 		require.Len(t, backups, 1, rt.name)
 		require.Equal(t, rt.schema, backups[0].SourceSchema, rt.name)
 		require.Equal(t, rt.table, backups[0].SourceTableName, rt.name)
 		exec(t, db, backups[0].Statement)
+		require.True(t, tableExists(t, db, backupSchema, backups[0].TargetTableName), rt.name)
 		exec(t, db, rt.script)
 		require.NotEqual(t, before, tableRows(t, db, rt.schema, rt.table), rt.name)
 
@@ -151,6 +174,14 @@ func exec(t *testing.T, db *sql.DB, script string) {
 	require.NoError(t, err, script)
 }
 
+// tableExists reports whether schema holds a table named exactly name.
+func tableExists(t *testing.T, db *sql.DB, schema, name string) bool {
+	t.Helper()
+	var found bool
+	require.NoError(t, db.QueryRow("SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_tables WHERE schemaname::text = $1 AND tablename::text = $2)", schema, name).Scan(&found))
+	return found
+}
+
 // relation returns name if a relation of that name is on the search path.
 func relation(t *testing.T, db *sql.DB, name string) string {
 	t.Helper()
@@ -167,7 +198,7 @@ func searchRelation(t *testing.T, db *sql.DB, searchPath []string, name string) 
 	t.Helper()
 	for _, schema := range searchPath {
 		var found bool
-		err := db.QueryRow("SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_tables WHERE schemaname = $1 AND tablename = $2)", schema, name).Scan(&found)
+		err := db.QueryRow("SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_tables WHERE schemaname::text = $1 AND tablename::text = $2)", schema, name).Scan(&found)
 		require.NoError(t, err)
 		if found {
 			return schema
