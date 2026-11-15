@@ -304,11 +304,8 @@ func formatInlinePrimaryKey(tbl *Table) string {
 		if !idx.Primary {
 			continue
 		}
-		cols := make([]string, 0, len(idx.Columns))
-		for _, ic := range idx.Columns {
-			cols = append(cols, migrationIndexColumn(ic))
-		}
-		return "PRIMARY KEY (" + strings.Join(cols, ",") + ")"
+		// As SHOW CREATE writes it, so a part WITHOUT OVERLAPS keeps it.
+		return showIndex(idx)
 	}
 	for _, con := range tbl.Constraints {
 		if con.Type != ConPrimaryKey {
