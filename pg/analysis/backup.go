@@ -4,12 +4,15 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"unicode/utf8"
 
 	omnipg "github.com/bytebase/omni/pg"
 	"github.com/bytebase/omni/pg/ast"
 )
 
 const (
+	// maxTableNameLength is PostgreSQL's identifier limit (NAMEDATALEN - 1),
+	// in bytes.
 	maxTableNameLength = 63
 )
 
@@ -130,6 +133,20 @@ func generateSQL(statementInfoList []statementInfo, targetSchema string, tablePr
 		result = append(result, *backupStatement)
 	}
 
+	// Two source tables can come out with one backup name, as in c.a_b and
+	// b_c.a, or once truncated; the second backup would then fail to create.
+	names := make(map[string]BackupStatement)
+	for _, backup := range result {
+		if other, ok := names[backup.TargetTableName]; ok {
+			first, second := other, backup
+			if fmt.Sprintf("%s.%s", second.SourceSchema, second.SourceTableName) < fmt.Sprintf("%s.%s", first.SourceSchema, first.SourceTableName) {
+				first, second = second, first
+			}
+			return nil, fmt.Errorf("prior backup cannot back up both %q.%q and %q.%q: their backup tables would both be named %q", first.SourceSchema, first.SourceTableName, second.SourceSchema, second.SourceTableName, backup.TargetTableName)
+		}
+		names[backup.TargetTableName] = backup
+	}
+
 	slices.SortFunc(result, func(a, b BackupStatement) int {
 		if a.StartOffset != b.StartOffset {
 			if a.StartOffset < b.StartOffset {
@@ -153,7 +170,7 @@ func generateSQLForTable(statementInfoList []statementInfo, targetSchema string,
 	table := statementInfoList[0].table
 
 	targetTable := fmt.Sprintf("%s_%s_%s", tablePrefix, table.Table, table.Schema)
-	targetTable, _ = truncateString(targetTable, maxTableNameLength)
+	targetTable = truncateIdentifier(targetTable, maxTableNameLength)
 	var buf strings.Builder
 	if _, err := fmt.Fprintf(&buf, "CREATE TABLE %s.%s AS\n", quoteIdentifier(targetSchema), quoteIdentifier(targetTable)); err != nil {
 		return nil, fmt.Errorf("failed to write to buffer: %w", err)
@@ -464,15 +481,15 @@ func extractTableReferenceFromRangeVar(rv *ast.RangeVar, searchRelation func(sea
 	return &table, nil
 }
 
-// truncateString truncates str to at most limit runes and reports whether it
-// did.
-func truncateString(str string, limit int) (string, bool) {
-	chars := 0
-	for i := range str {
-		if chars >= limit {
-			return str[:i], true
-		}
-		chars++
+// truncateIdentifier cuts name to at most limit bytes, on a character
+// boundary, as PostgreSQL itself shortens an identifier that is too long.
+func truncateIdentifier(name string, limit int) string {
+	if len(name) <= limit {
+		return name
 	}
-	return str, false
+	end := limit
+	for end > 0 && !utf8.RuneStart(name[end]) {
+		end--
+	}
+	return name[:end]
 }
