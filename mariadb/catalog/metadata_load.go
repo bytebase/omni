@@ -587,7 +587,6 @@ func metadataPartitionClause(t *metadata.TableMetadata) (*nodes.PartitionClause,
 	return stmt.Partitions, nil
 }
 
-
 // metadataColumnDef fails on a type that does not parse. A default, ON UPDATE,
 // generation, or check expression that does not parse is left out, and
 // omitted is the first such error. check is the column's own check, if any.

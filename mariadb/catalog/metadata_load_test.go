@@ -899,4 +899,3 @@ func metadataFixture(t *testing.T, m map[string]any) *metadata.DatabaseSchemaMet
 	}
 	return meta
 }
-
