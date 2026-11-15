@@ -354,6 +354,8 @@ func TestGetQuerySpanOutputParameterLineage(t *testing.T) {
 		{Name: "next_assign", Definition: "CREATE FUNCTION public.next_assign() RETURNS TABLE(i int, value text) LANGUAGE plpgsql AS $$ BEGIN i := 1; BEGIN value := (SELECT ssn FROM t LIMIT 1); END; RETURN NEXT; END; $$"},
 		// A set-returning function's bare RETURN ends it without a row.
 		{Name: "srf_return", Definition: "CREATE FUNCTION public.srf_return() RETURNS TABLE(value text) LANGUAGE plpgsql AS $$ BEGIN SELECT ssn INTO value FROM t LIMIT 1; RETURN; END; $$"},
+		{Name: "next_shadowed", Definition: "CREATE FUNCTION public.next_shadowed() RETURNS TABLE(value text) LANGUAGE plpgsql AS $$ BEGIN value := 'public'; DECLARE value text; BEGIN SELECT ssn INTO value FROM t LIMIT 1; END; RETURN NEXT; END; $$"},
+		{Name: "next_alias", Definition: "CREATE FUNCTION public.next_alias() RETURNS TABLE(value text) LANGUAGE plpgsql AS $$ DECLARE v ALIAS FOR value; BEGIN SELECT ssn INTO v FROM t LIMIT 1; RETURN NEXT; END; $$"},
 		{Name: "out_implicit", Definition: "CREATE FUNCTION public.out_implicit(OUT a text, OUT b text) LANGUAGE plpgsql AS $$ BEGIN SELECT email, ssn INTO a, b FROM t LIMIT 1; END; $$"},
 		{Name: "out_return", Definition: "CREATE FUNCTION public.out_return(OUT a text, OUT b text) RETURNS record LANGUAGE plpgsql AS $$ BEGIN SELECT email, ssn INTO a, b FROM t LIMIT 1; RETURN; END; $$"},
 	}
@@ -365,6 +367,8 @@ func TestGetQuerySpanOutputParameterLineage(t *testing.T) {
 		{"SELECT value FROM next_loop()", [][]string{{"t.ssn"}}},
 		{"SELECT i, value FROM next_assign()", [][]string{{}, {"t.ssn"}}},
 		{"SELECT value FROM srf_return()", [][]string{{}}},
+		{"SELECT value FROM next_shadowed()", [][]string{{}}},
+		{"SELECT value FROM next_alias()", [][]string{{"t.ssn"}}},
 		{"SELECT a, b FROM out_implicit()", [][]string{{"t.email"}, {"t.ssn"}}},
 		{"SELECT a, b FROM out_return()", [][]string{{"t.email"}, {"t.ssn"}}},
 	}

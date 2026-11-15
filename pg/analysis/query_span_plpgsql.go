@@ -251,14 +251,18 @@ func (e *querySpanExtractor) extractFuncLineage(q *catalog.Query) []ColumnSet {
 
 // variableScope tracks PL/pgSQL variable source columns with nested scoping.
 type variableScope struct {
-	vars   map[string]ColumnSet
-	parent *variableScope
+	vars map[string]ColumnSet
+	// declared maps each name the block declares to "", or for an ALIAS to
+	// the lowercase name it stands for.
+	declared map[string]string
+	parent   *variableScope
 }
 
 func newVariableScope(parent *variableScope) *variableScope {
 	return &variableScope{
-		vars:   make(map[string]ColumnSet),
-		parent: parent,
+		vars:     make(map[string]ColumnSet),
+		declared: make(map[string]string),
+		parent:   parent,
 	}
 }
 
@@ -299,8 +303,8 @@ type plpgsqlAnalyzer struct {
 	// returnResults collects per-column source sets from all RETURN QUERY paths.
 	returnResults [][]ColumnSet
 	// outputs holds what each output parameter (OUT, INOUT, TABLE) was
-	// assigned, keyed by lowercase name or by $n for an unnamed one, and
-	// outputNames lists those keys in declared order.
+	// assigned, keyed by $n and by its lowercase name, and outputNames lists
+	// the $n keys in declared order.
 	outputs     map[string]ColumnSet
 	outputNames []string
 	// returnsOutputs is set by a bare RETURN NEXT, which returns the output
@@ -342,11 +346,12 @@ func (e *querySpanExtractor) analyzePLpgSQLBody(proc *catalog.UserProc, body str
 			continue
 		}
 		setReturning = setReturning || mode == 't'
+		// $n refers to a parameter whether or not it has a name.
 		key := fmt.Sprintf("$%d", i+1)
-		if i < len(proc.ArgNames) && proc.ArgNames[i] != "" {
-			key = strings.ToLower(proc.ArgNames[i])
-		}
 		analyzer.outputs[key] = make(ColumnSet)
+		if i < len(proc.ArgNames) && proc.ArgNames[i] != "" {
+			analyzer.outputs[strings.ToLower(proc.ArgNames[i])] = analyzer.outputs[key]
+		}
 		analyzer.outputNames = append(analyzer.outputNames, key)
 	}
 
@@ -401,9 +406,11 @@ func (a *plpgsqlAnalyzer) walkBlock(block *plpgsqlast.PLBlock) {
 				sources = a.analyzeEmbeddedExpr(d.Default)
 			}
 			a.scope.set(d.Name, sources)
+			a.scope.declared[strings.ToLower(d.Name)] = ""
 		case *plpgsqlast.PLCursorDecl:
 			// A cursor carries the columns of its query to what FETCH reads.
 			a.scope.set(d.Name, a.analyzeQuerySources(d.Query))
+			a.scope.declared[strings.ToLower(d.Name)] = ""
 		case *plpgsqlast.PLAliasDecl:
 			// Alias references another variable — copy its sources.
 			if sources, ok := a.scope.get(d.RefName); ok {
@@ -411,6 +418,7 @@ func (a *plpgsqlAnalyzer) walkBlock(block *plpgsqlast.PLBlock) {
 			} else {
 				a.scope.set(d.Name, make(ColumnSet))
 			}
+			a.scope.declared[strings.ToLower(d.Name)] = strings.ToLower(d.RefName)
 		default:
 		}
 	}
@@ -604,9 +612,36 @@ func (a *plpgsqlAnalyzer) handleAssign(stmt *plpgsqlast.PLAssign) {
 // parameter it names, if any.
 func (a *plpgsqlAnalyzer) assign(name string, sources ColumnSet) {
 	a.scope.merge(name, sources)
-	if out, ok := a.outputs[strings.ToLower(extractBaseVarName(name))]; ok {
+	if out, ok := a.outputParam(name); ok {
 		mergeSourceColumnSetInto(out, sources)
 	}
+}
+
+// outputParam returns the output parameter that name refers to. A variable a
+// block declares shadows a parameter of its name; an ALIAS refers to what it
+// stands for.
+func (a *plpgsqlAnalyzer) outputParam(name string) (ColumnSet, bool) {
+	name = strings.ToLower(extractBaseVarName(name))
+	scope := a.scope
+	// The bound stops a cycle of aliases.
+	for range 100 {
+		for scope != nil {
+			if _, ok := scope.declared[name]; ok {
+				break
+			}
+			scope = scope.parent
+		}
+		if scope == nil {
+			out, ok := a.outputs[name]
+			return out, ok
+		}
+		target := scope.declared[name]
+		if target == "" || target == name {
+			return nil, false
+		}
+		name = target
+	}
+	return nil, false
 }
 
 func (a *plpgsqlAnalyzer) handleReturnQuery(stmt *plpgsqlast.PLReturnQuery) {
