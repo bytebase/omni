@@ -18,6 +18,8 @@ func TestGetDatabaseInCreateDatabaseStatement(t *testing.T) {
 		wantErr bool
 	}{
 		{`CREATE DATABASE "hello" ENCODING "UTF8";`, "hello", false},
+		{"CREATE DATABASE \"new_db\"\nWITH ENCODING 'UTF8';", "new_db", false},
+		{`CREATE DATABASE "he""llo";`, `he"llo`, false},
 		{`CREATE DATABASE "hello";`, "hello", false},
 		{`CREATE DATABASE hello;`, "hello", false},
 		{`CREATE DATABASE hello ENCODING "UTF8";`, "hello", false},
@@ -121,9 +123,11 @@ func TestExecute(t *testing.T) {
 				t.Fatalf("rolled-back row persisted: count=%d err=%v", count, err)
 			}
 
-			// 3. Auto-commit mode commits earlier statements before a failure.
+			// 3. Auto-commit mode preserves script order (including non-transactional DDL)
+			// and commits earlier statements before a failure; string literals naming
+			// SET ROLE or VACUUM are never misclassified or duplicated.
 			acLog := &stepLogger{}
-			acAffected, err := d.Execute(ctx, "INSERT INTO exec_t VALUES (20, 'kept');\nSELECT 1 / 0;", driver.ExecuteOptions{
+			acAffected, err := d.Execute(ctx, "CREATE TABLE ac_order (id int);\nCREATE INDEX CONCURRENTLY idx_ac_order ON ac_order (id);\nINSERT INTO exec_t VALUES (20, 'SET ROLE reader; VACUUM');\nSELECT 1 / 0;", driver.ExecuteOptions{
 				Transaction: driver.AutoCommit,
 				Log:         acLog,
 			})
@@ -139,7 +143,14 @@ func TestExecute(t *testing.T) {
 				}
 			}
 			if err := d.db.QueryRowContext(ctx, "SELECT count(*) FROM exec_t WHERE id = 20").Scan(&count); err != nil || count != 1 {
-				t.Fatalf("auto-commit row missing: count=%d err=%v", count, err)
+				t.Fatalf("auto-commit row count = %d (want 1, not duplicated), err=%v", count, err)
+			}
+
+			// A syntax error anywhere in the script fails before any statement runs.
+			if _, err := d.Execute(ctx, "INSERT INTO exec_t VALUES (25, 'unreached');\nSELECT FROM WHERE;", driver.ExecuteOptions{
+				Transaction: driver.AutoCommit,
+			}); err == nil {
+				t.Fatal("expected parse error before auto-commit execution")
 			}
 
 			// 4. Single PL/pgSQL DO block runs outside an outer BEGIN/COMMIT.
@@ -183,7 +194,7 @@ func TestExecuteCreateDatabase(t *testing.T) {
 			d := openQueryDriver(t, role)
 			mustExec(t, d.db, "CREATE ROLE created_db_owner NOLOGIN;")
 
-			stmt := "CREATE DATABASE \"omni_new_db\" ENCODING \"UTF8\";\nALTER DATABASE \"omni_new_db\" OWNER TO \"created_db_owner\";"
+			stmt := "CREATE DATABASE \"omni_new_db\"\nENCODING \"UTF8\";\nALTER DATABASE \"omni_new_db\" OWNER TO \"created_db_owner\";"
 			if _, err := d.Execute(ctx, stmt, driver.ExecuteOptions{CreateDatabase: true}); err != nil {
 				t.Fatal(err)
 			}

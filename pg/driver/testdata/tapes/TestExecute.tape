@@ -49,7 +49,15 @@
 < row
 : int64 0
 > exec
-| INSERT INTO exec_t VALUES (20, 'kept');
+| CREATE TABLE ac_order (id int);
+< ok 0 -
+> exec
+|
+| CREATE INDEX CONCURRENTLY idx_ac_order ON ac_order (id);
+< ok 0 -
+> exec
+|
+| INSERT INTO exec_t VALUES (20, 'SET ROLE reader; VACUUM');
 < ok 1 -
 > exec
 |
@@ -161,7 +169,15 @@
 < row
 : int64 0
 > exec
-| INSERT INTO exec_t VALUES (20, 'kept');
+| CREATE TABLE ac_order (id int);
+< ok 0 -
+> exec
+|
+| CREATE INDEX CONCURRENTLY idx_ac_order ON ac_order (id);
+< ok 0 -
+> exec
+|
+| INSERT INTO exec_t VALUES (20, 'SET ROLE reader; VACUUM');
 < ok 1 -
 > exec
 |
@@ -273,7 +289,15 @@
 < row
 : int64 0
 > exec
-| INSERT INTO exec_t VALUES (20, 'kept');
+| CREATE TABLE ac_order (id int);
+< ok 0 -
+> exec
+|
+| CREATE INDEX CONCURRENTLY idx_ac_order ON ac_order (id);
+< ok 0 -
+> exec
+|
+| INSERT INTO exec_t VALUES (20, 'SET ROLE reader; VACUUM');
 < ok 1 -
 > exec
 |

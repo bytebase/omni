@@ -633,7 +633,14 @@ func TestActivity(t *testing.T) {
 			},
 			rows: [][][]byte{
 				{
-					[]byte("100"), []byte("{200}"), []byte("ALTER TABLE t ADD COLUMN c int"),
+					[]byte("50"), []byte("{}"), []byte("LOCK TABLE t IN ACCESS EXCLUSIVE MODE"),
+					[]byte("idle in transaction"), nil, nil,
+					[]byte("sales"), []byte("older_holder"), []byte("psql"),
+					nil, nil,
+					[]byte("2026-03-04 04:50:00+00"), []byte("2026-03-04 04:51:00+00"), nil,
+				},
+				{
+					[]byte("100"), []byte("{50,200}"), []byte("ALTER TABLE t ADD COLUMN c int"),
 					[]byte("active"), []byte("Lock"), []byte("relation"),
 					[]byte("sales"), []byte("dba"), []byte("bytebase-taskrun-42"),
 					[]byte("10.0.0.1"), []byte("51234"),
@@ -654,7 +661,7 @@ func TestActivity(t *testing.T) {
 					[]byte("2026-03-04 05:02:00+00"), nil, []byte("2026-03-04 05:02:01+00"),
 				},
 			},
-			tags: []string{"SELECT 3"},
+			tags: []string{"SELECT 4"},
 		}
 	})
 
@@ -668,10 +675,10 @@ func TestActivity(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if act.Session == nil || act.Session.PID != "100" || !slices.Equal(act.Session.BlockedByPIDs, []string{"200"}) {
+	if act.Session == nil || act.Session.PID != "100" || !slices.Equal(act.Session.BlockedByPIDs, []string{"50", "200"}) {
 		t.Fatalf("Session = %+v", act.Session)
 	}
-	if len(act.BlockingSessions) != 1 || act.BlockingSessions[0].PID != "200" || !slices.Equal(act.BlockingSessions[0].BlockedByPIDs, []string{}) {
+	if len(act.BlockingSessions) != 2 || act.BlockingSessions[0].PID != "50" || act.BlockingSessions[1].PID != "200" {
 		t.Fatalf("BlockingSessions = %+v", act.BlockingSessions)
 	}
 	if len(act.BlockedSessions) != 1 || act.BlockedSessions[0].PID != "300" {
