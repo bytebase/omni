@@ -29,7 +29,9 @@ func findTable(d *SchemaDiff, name string) *TableDiffEntry {
 
 // diffPairs are two spellings of a schema each. The server decides whether
 // they are one schema, by what it stores for each.
-var diffPairs = []struct{ name, a, b string }{
+type diffPair struct{ name, a, b string }
+
+var diffPairs = []diffPair{
 	// Spellings MariaDB stores alike.
 	{"int display width", "CREATE TABLE t (a INT, b BIGINT)", "CREATE TABLE t (a INT(11), b BIGINT(20))"},
 	{"boolean", "CREATE TABLE t (a BOOLEAN DEFAULT TRUE)", "CREATE TABLE t (a TINYINT(1) DEFAULT 1)"},
@@ -144,6 +146,14 @@ var diffPairs = []struct{ name, a, b string }{
 // same tables, views and sequences for both, and Diff must then be empty in
 // both directions and otherwise non-empty in both.
 func TestOracle_DiffMatchesServer(t *testing.T) {
+	refused := make(map[string]bool)
+	defer func() {
+		for key := range refusedPairs {
+			if !refused[key] {
+				t.Errorf("refused pair %q names no pair", key)
+			}
+		}
+	}()
 	forEachServer(t, func(t *testing.T, srv oracleServer, conn *sql.Conn, database string) {
 		stored := func(t *testing.T, schema string) map[string]string {
 			resetDatabase(t, conn, database)
@@ -152,6 +162,9 @@ func TestOracle_DiffMatchesServer(t *testing.T) {
 		}
 		for _, p := range diffPairs {
 			t.Run(p.name, func(t *testing.T) {
+				if pairRefused(t, srv, conn, database, p, refused) {
+					return
+				}
 				a, b := stored(t, p.a), stored(t, p.b)
 				same := len(a) == len(b)
 				for k, v := range a {

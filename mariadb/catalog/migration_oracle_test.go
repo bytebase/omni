@@ -92,6 +92,9 @@ func TestOracle_MigrationConverges(t *testing.T) {
 				migration{tc.Description + "/backward", new, old})
 		}
 		for _, p := range diffPairs {
+			if _, refused := refusedPairs[srv.name+"/"+p.name]; refused {
+				continue // TestOracle_DiffMatchesServer holds the server to refusing it
+			}
 			a, b := side{schema: p.a + ";"}, side{schema: p.b + ";"}
 			migrations = append(migrations,
 				migration{"pair " + p.name + "/forward", a, b},
