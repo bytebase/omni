@@ -250,6 +250,7 @@ func showColumnWithTable(col *Column, tbl *Table, checks map[string]*Constraint,
 			b.WriteString(" NOT NULL")
 		}
 		writeColumnTail(&b, col, plainOptions)
+		writeColumnCheck(&b, col, checks)
 		return b.String()
 	}
 
@@ -296,16 +297,19 @@ func showColumnWithTable(col *Column, tbl *Table, checks map[string]*Constraint,
 	}
 
 	writeColumnTail(&b, col, plainOptions)
+	writeColumnCheck(&b, col, checks)
+	return b.String()
+}
 
-	// The column's own CHECK, which MariaDB writes on the column and names
-	// after it, last in the definition and after any COMMENT:
-	// `a` int(11) DEFAULT 5 COMMENT 'hi' CHECK (`a` > 0). MySQL 8.0 writes
-	// every check as a table-level constraint. Measured on mariadb:11.8.8.
+// writeColumnCheck writes the column's own CHECK, which MariaDB writes on the
+// column, a generated one included, and names after it, last in the
+// definition and after any COMMENT: `a` int(11) DEFAULT 5 COMMENT 'hi' CHECK
+// (`a` > 0). MySQL 8.0 writes every check as a table-level constraint.
+// Measured on mariadb:11.8.8.
+func writeColumnCheck(b *strings.Builder, col *Column, checks map[string]*Constraint) {
 	if con := checks[toLower(col.Name)]; con != nil {
 		b.WriteString(fmt.Sprintf(" CHECK (%s)", con.CheckExpr))
 	}
-
-	return b.String()
 }
 
 // writeColumnTail writes what MariaDB 11.8.8 ends a column with before its
@@ -364,8 +368,7 @@ func columnChecks(tbl *Table) map[string]*Constraint {
 		if _, seen := out[key]; seen {
 			continue // the first one the table holds is the one written
 		}
-		// A generated column's CHECK is not written on it.
-		if owner := tbl.GetColumn(con.Column); owner == nil || owner.Generated != nil {
+		if tbl.GetColumn(con.Column) == nil {
 			continue
 		}
 		out[key] = con
