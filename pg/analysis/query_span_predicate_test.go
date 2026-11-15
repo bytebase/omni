@@ -311,3 +311,37 @@ func TestGetQuerySpanReadsFunctionsOutsideTheOutput(t *testing.T) {
 		})
 	}
 }
+
+func TestGetQuerySpanOutputParameterLineage(t *testing.T) {
+	schema := healthySchema()
+	schema.Schemas[0].Functions = []*metadatapb.FunctionMetadata{
+		{Name: "next_out", Definition: "CREATE FUNCTION public.next_out() RETURNS TABLE(value text) LANGUAGE plpgsql AS $$ BEGIN SELECT ssn INTO value FROM t LIMIT 1; RETURN NEXT; END; $$"},
+		{Name: "next_loop", Definition: "CREATE FUNCTION public.next_loop() RETURNS TABLE(value text) LANGUAGE plpgsql AS $$ BEGIN FOR value IN SELECT ssn FROM t LOOP RETURN NEXT; END LOOP; END; $$"},
+		{Name: "next_assign", Definition: "CREATE FUNCTION public.next_assign() RETURNS TABLE(i int, value text) LANGUAGE plpgsql AS $$ BEGIN i := 1; BEGIN value := (SELECT ssn FROM t LIMIT 1); END; RETURN NEXT; END; $$"},
+		// A set-returning function's bare RETURN ends it without a row.
+		{Name: "srf_return", Definition: "CREATE FUNCTION public.srf_return() RETURNS TABLE(value text) LANGUAGE plpgsql AS $$ BEGIN SELECT ssn INTO value FROM t LIMIT 1; RETURN; END; $$"},
+		{Name: "out_implicit", Definition: "CREATE FUNCTION public.out_implicit(OUT a text, OUT b text) LANGUAGE plpgsql AS $$ BEGIN SELECT email, ssn INTO a, b FROM t LIMIT 1; END; $$"},
+		{Name: "out_return", Definition: "CREATE FUNCTION public.out_return(OUT a text, OUT b text) RETURNS record LANGUAGE plpgsql AS $$ BEGIN SELECT email, ssn INTO a, b FROM t LIMIT 1; RETURN; END; $$"},
+	}
+	testCases := []struct {
+		statement string
+		want      [][]string
+	}{
+		{"SELECT value FROM next_out()", [][]string{{"t.ssn"}}},
+		{"SELECT value FROM next_loop()", [][]string{{"t.ssn"}}},
+		{"SELECT i, value FROM next_assign()", [][]string{{}, {"t.ssn"}}},
+		{"SELECT value FROM srf_return()", [][]string{{}}},
+		{"SELECT a, b FROM out_implicit()", [][]string{{"t.email"}, {"t.ssn"}}},
+		{"SELECT a, b FROM out_return()", [][]string{{"t.email"}, {"t.ssn"}}},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.statement, func(t *testing.T) {
+			span := spanFor(t, tc.statement, schema)
+			var got [][]string
+			for _, result := range span.Results {
+				got = append(got, predicateColumnNames(result.SourceColumns))
+			}
+			require.Equal(t, tc.want, got)
+		})
+	}
+}

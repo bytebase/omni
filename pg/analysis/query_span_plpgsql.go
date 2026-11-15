@@ -298,6 +298,14 @@ type plpgsqlAnalyzer struct {
 	scope     *variableScope
 	// returnResults collects per-column source sets from all RETURN QUERY paths.
 	returnResults [][]ColumnSet
+	// outputs holds what each output parameter (OUT, INOUT, TABLE) was
+	// assigned, keyed by lowercase name or by $n for an unnamed one, and
+	// outputNames lists those keys in declared order.
+	outputs     map[string]ColumnSet
+	outputNames []string
+	// returnsOutputs is set by a bare RETURN NEXT, which returns the output
+	// parameters as a row.
+	returnsOutputs bool
 	// cteMap holds CTE definitions for resolving column refs through CTEs.
 	cteMap       map[string]*ast.SelectStmt
 	resolvingCTE map[cteResolveKey]bool
@@ -326,6 +334,20 @@ func (e *querySpanExtractor) analyzePLpgSQLBody(proc *catalog.UserProc, body str
 	analyzer := &plpgsqlAnalyzer{
 		extractor: e,
 		scope:     newVariableScope(nil),
+		outputs:   make(map[string]ColumnSet),
+	}
+	setReturning := proc.RetSet
+	for i, mode := range proc.ArgModes {
+		if mode != 'o' && mode != 't' && mode != 'b' {
+			continue
+		}
+		setReturning = setReturning || mode == 't'
+		key := fmt.Sprintf("$%d", i+1)
+		if i < len(proc.ArgNames) && proc.ArgNames[i] != "" {
+			key = strings.ToLower(proc.ArgNames[i])
+		}
+		analyzer.outputs[key] = make(ColumnSet)
+		analyzer.outputNames = append(analyzer.outputNames, key)
 	}
 
 	// Add function input parameters to scope so they can be substituted in
@@ -346,6 +368,16 @@ func (e *querySpanExtractor) analyzePLpgSQLBody(proc *catalog.UserProc, body str
 	}
 
 	analyzer.walkBlock(block)
+
+	// A function with output parameters that returns no set returns them when
+	// it ends; a set-returning one returns them at each bare RETURN NEXT.
+	if len(analyzer.outputNames) > 0 && (analyzer.returnsOutputs || !setReturning) {
+		row := make([]ColumnSet, len(analyzer.outputNames))
+		for i, key := range analyzer.outputNames {
+			row[i] = analyzer.outputs[key]
+		}
+		analyzer.returnResults = append(analyzer.returnResults, row)
+	}
 
 	nCols := countOutputParams(proc)
 	if nCols == 0 {
@@ -434,7 +466,7 @@ func (a *plpgsqlAnalyzer) walkStmt(node plpgsqlast.Node) {
 		a.handleForS(stmt)
 	case *plpgsqlast.PLForC:
 		if sources, ok := a.scope.get(stmt.CursorVar); ok {
-			a.scope.merge(stmt.Var, sources)
+			a.assign(stmt.Var, sources)
 		}
 		for _, s := range stmt.Body {
 			a.walkStmt(s)
@@ -463,7 +495,7 @@ func (a *plpgsqlAnalyzer) walkStmt(node plpgsqlast.Node) {
 	case *plpgsqlast.PLFetch:
 		if sources, ok := a.scope.get(stmt.CursorVar); ok {
 			for _, varName := range stmt.Into {
-				a.scope.merge(varName, sources)
+				a.assign(varName, sources)
 			}
 		}
 	case *plpgsqlast.PLCall:
@@ -565,7 +597,16 @@ func (a *plpgsqlAnalyzer) handleCall(stmt *plpgsqlast.PLCall) {
 func (a *plpgsqlAnalyzer) handleAssign(stmt *plpgsqlast.PLAssign) {
 	varName := extractBaseVarName(stmt.Target)
 	sources := a.analyzeEmbeddedExpr(stmt.Expr)
-	a.scope.merge(varName, sources)
+	a.assign(varName, sources)
+}
+
+// assign merges sources into the variable name, and into the output
+// parameter it names, if any.
+func (a *plpgsqlAnalyzer) assign(name string, sources ColumnSet) {
+	a.scope.merge(name, sources)
+	if out, ok := a.outputs[strings.ToLower(extractBaseVarName(name))]; ok {
+		mergeSourceColumnSetInto(out, sources)
+	}
 }
 
 func (a *plpgsqlAnalyzer) handleReturnQuery(stmt *plpgsqlast.PLReturnQuery) {
@@ -588,6 +629,7 @@ func (a *plpgsqlAnalyzer) handleReturn(stmt *plpgsqlast.PLReturn) {
 
 func (a *plpgsqlAnalyzer) handleReturnNext(stmt *plpgsqlast.PLReturnNext) {
 	if stmt.Expr == "" {
+		a.returnsOutputs = true
 		return
 	}
 	sources := a.analyzeEmbeddedExpr(stmt.Expr)
@@ -611,7 +653,7 @@ func (a *plpgsqlAnalyzer) handleExecSQL(stmt *plpgsqlast.PLExecSQL) {
 	}
 	for i, varName := range stmt.Into {
 		if i < len(results) {
-			a.scope.merge(varName, results[i])
+			a.assign(varName, results[i])
 		}
 	}
 }
@@ -673,7 +715,7 @@ func (a *plpgsqlAnalyzer) handleForS(stmt *plpgsqlast.PLForS) {
 			merged[k] = v
 		}
 	}
-	a.scope.merge(stmt.Var, merged)
+	a.assign(stmt.Var, merged)
 	for _, s := range stmt.Body {
 		a.walkStmt(s)
 	}
