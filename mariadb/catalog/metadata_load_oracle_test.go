@@ -61,6 +61,7 @@ const (
 	lossView       = "sync: a view's ALGORITHM and SQL SECURITY"
 	lossVector     = "sync: a vector key's M and DISTANCE"
 	gapCompressed  = "omni: the parser does not read a column's COMPRESSED attribute"
+	gapForRange    = "omni: the parser reads no FOR loop over an integer range (FOR k IN 1..n)"
 	gapQuoting     = "omni: SHOW CREATE VIEW backquotes a stored function's name, which the catalog does not yet tell from a builtin's"
 )
 
