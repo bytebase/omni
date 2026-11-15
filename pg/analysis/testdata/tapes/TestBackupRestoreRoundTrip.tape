@@ -507,6 +507,34 @@
 | CREATE TABLE alias_t (id INT PRIMARY KEY, v INT); INSERT INTO alias_t VALUES (1, 0), (2, 0), (3, 0)
 < ok 3 -
 > query
+| SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_tables WHERE schemaname::text = $1 AND tablename::text = $2)
+: string
+| public
+: string
+| alias_t
+< result
+< column "exists" "BOOL"
+< row
+: bool true
+> query ^
+: string
+| public
+: string
+| alias_t
+< result
+< column "exists" "BOOL"
+< row
+: bool true
+> query ^
+: string
+| public
+: string
+| alias_t
+< result
+< column "exists" "BOOL"
+< row
+: bool true
+> query
 | SELECT x::text FROM "public"."alias_t" AS x ORDER BY 1
 < result
 < column "x" "TEXT"
@@ -519,34 +547,6 @@
 < row
 : string
 | (3,0)
-> query
-| SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_tables WHERE schemaname = $1 AND tablename = $2)
-: string
-| public
-: string
-| alias_t
-< result
-< column "exists" "BOOL"
-< row
-: bool true
-> query ^
-: string
-| public
-: string
-| alias_t
-< result
-< column "exists" "BOOL"
-< row
-: bool true
-> query ^
-: string
-| public
-: string
-| alias_t
-< result
-< column "exists" "BOOL"
-< row
-: bool true
 > exec
 | CREATE TABLE "bbdataarchive"."_bb__alias_t_public" AS
 |   SELECT "a".* FROM alias_t AS a WHERE a.id = 1
@@ -555,6 +555,16 @@
 |   UNION
 |   SELECT "public"."alias_t".* FROM alias_t WHERE id = 3;
 < ok 3 -
+> query
+| SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_tables WHERE schemaname::text = $1 AND tablename::text = $2)
+: string
+| bbdataarchive
+: string
+| _bb__alias_t_public
+< result
+< column "exists" "BOOL"
+< row
+: bool true
 > exec
 | UPDATE alias_t AS a SET v = 1 WHERE a.id = 1; UPDATE alias_t AS b SET v = 2 WHERE b.id = 2; UPDATE alias_t SET v = 3 WHERE id = 3
 < ok 1 -
