@@ -120,6 +120,7 @@ var diffPairs = []struct{ name, a, b string }{
 	{"every column replaced with a reader", "CREATE TABLE t (a INT)", "CREATE TABLE t (a INT AS (1) VIRTUAL, b INT AS (a) VIRTUAL)"},
 	{"new table with page checksum and a key", "CREATE TABLE x (i INT)", "CREATE TABLE x (i INT); CREATE TABLE t (a INT, KEY k (a)) PAGE_CHECKSUM=1"},
 	{"foreign key losing a column", "CREATE TABLE p (a INT, b INT, PRIMARY KEY (a, b)); CREATE TABLE ch (a INT, b INT, CONSTRAINT f FOREIGN KEY (a, b) REFERENCES p (a, b))", "CREATE TABLE p (a INT, b INT, PRIMARY KEY (a, b)); CREATE TABLE ch (a INT, b INT, CONSTRAINT f FOREIGN KEY (a) REFERENCES p (a))"},
+	{"column checks reading each other", "CREATE TABLE t (x INT)", "CREATE TABLE t (x INT, a INT CHECK (a > b), b INT CHECK (b < a))"},
 	{"timestamps without defaults", "CREATE TABLE x (i INT)", "CREATE TABLE x (i INT, ts TIMESTAMP NOT NULL); CREATE TABLE t (u TIMESTAMP NOT NULL)"},
 	{"sequence limits leaving out the start", "CREATE SEQUENCE s", "CREATE SEQUENCE s START WITH 100 MINVALUE 10"},
 }

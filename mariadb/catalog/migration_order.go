@@ -289,118 +289,184 @@ func indexReadsAny(idx *Index, columns map[string]bool) bool {
 }
 
 // orderColumnDrops runs the column drops of a table that precede its adds
-// after every dropped generated column that reads them, directly or through
-// another: MariaDB drops no column a generated one still reads (1054, 4029).
-// The order holds across permanent drops, replaced columns and their rebuilt
-// readers, within one priority above the key drops.
+// after every dropped column that reads them through its generated expression
+// or column CHECK, directly or through another: MariaDB drops no column such a
+// column still reads (1054, 4029). Columns that read each other drop in one
+// ALTER. The order holds across permanent drops, replaced columns and their
+// rebuilt readers, within one priority above the key drops.
 func orderColumnDrops(ops []MigrationOp, e *TableDiffEntry) []MigrationOp {
-	dropped := make(map[string]bool)
-	for _, op := range ops {
-		if op.Type == OpDropColumn && op.Phase == PhasePre && opOfTable(op, e) {
-			dropped[op.column] = true
-		}
+	in := func(op MigrationOp) bool {
+		return op.Type == OpDropColumn && op.Phase == PhasePre && opOfTable(op, e)
 	}
-	readers := make(map[string][]string)
-	for name := range dropped {
-		if col := e.From.GetColumn(name); col != nil && col.Generated != nil {
-			for _, ref := range col.Generated.Refs {
-				if r := toLower(ref); dropped[r] && r != name {
-					readers[r] = append(readers[r], name)
-				}
+	reads := columnReads(e.From)
+	// A column drops after the columns that read it.
+	after := make(map[string][]string)
+	for _, op := range ops {
+		if in(op) {
+			for _, ref := range reads[op.column] {
+				after[ref] = append(after[ref], op.column)
 			}
 		}
 	}
-	// rank is the length of the longest chain of dropped readers above name.
-	ranks := make(map[string]int)
-	var rank func(name string, seen map[string]bool) int
-	rank = func(name string, seen map[string]bool) int {
-		if r, ok := ranks[name]; ok {
-			return r
-		}
-		if seen[name] {
-			return 0
-		}
-		seen[name] = true
-		r := 0
-		for _, reader := range readers[name] {
-			r = max(r, rank(reader, seen)+1)
-		}
-		ranks[name] = r
-		return r
-	}
-	for i := range ops {
-		if ops[i].Type == OpDropColumn && ops[i].Phase == PhasePre && opOfTable(ops[i], e) {
-			ops[i].Priority = priorityColumn - 1
-			ops[i].sortName = rankedColumnSortName(e, rank(ops[i].column, map[string]bool{}), ops[i].column)
-		}
-	}
-	return ops
+	return rankColumnOps(ops, e, in, after, func(op *MigrationOp, rank int) {
+		op.Priority = priorityColumn - 1
+		op.sortName = rankedColumnSortName(e, rank, op.column)
+	})
 }
 
 // orderColumnAdds adds a table's columns after the added columns their
 // generated expression or column CHECK reads (1054 otherwise): a column CHECK
-// may read a column the target places after it. Otherwise the adds keep their
-// priority and the target's column order.
+// may read a column the target places after it. A column takes the latest
+// priority among them; columns that read each other are added in one ALTER.
+// Otherwise the adds keep their priority and the target's column order.
 func orderColumnAdds(ops []MigrationOp, e *TableDiffEntry) []MigrationOp {
+	in := func(op MigrationOp) bool {
+		return op.Type == OpAddColumn && op.Phase == PhaseMain && opOfTable(op, e)
+	}
 	priority := make(map[string]int)
 	for _, op := range ops {
-		if op.Type == OpAddColumn && opOfTable(op, e) && op.Phase == PhaseMain {
+		if in(op) {
 			priority[op.column] = op.Priority
 		}
 	}
-	reads := make(map[string][]string)
-	for name, refs := range columnAddReads(e) {
-		if _, ok := priority[name]; !ok {
+	reads := columnReads(e.To)
+	return rankColumnOps(ops, e, in, reads, func(op *MigrationOp, rank int) {
+		for _, ref := range reads[op.column] {
+			if p, ok := priority[ref]; ok && p > op.Priority {
+				op.Priority = p
+			}
+		}
+		op.sortName = rankedColumnSortName(e, rank, fmt.Sprintf("%04d", columnPosition(e.To, op.column)))
+	})
+}
+
+// rankColumnOps ranks the ops in selects by the longest chain of their columns'
+// edges among them (a column runs after every column it has an edge to),
+// merges the columns that reach each other into the one statement of the
+// cycle, and hands each remaining op its rank. A cycle's members share a rank.
+func rankColumnOps(ops []MigrationOp, e *TableDiffEntry, selects func(MigrationOp) bool, edges map[string][]string, set func(op *MigrationOp, rank int)) []MigrationOp {
+	member := make(map[string]bool)
+	for _, op := range ops {
+		if selects(op) && op.alterParts == nil {
+			member[op.column] = true
+		}
+	}
+	reaches := func(from, to string) bool {
+		seen := map[string]bool{from: true}
+		stack := []string{from}
+		for len(stack) > 0 {
+			name := stack[len(stack)-1]
+			stack = stack[:len(stack)-1]
+			for _, next := range edges[name] {
+				if next == to {
+					return true
+				}
+				if member[next] && !seen[next] {
+					seen[next] = true
+					stack = append(stack, next)
+				}
+			}
+		}
+		return false
+	}
+	// comp maps each column to the first column, in the target's order, of
+	// the cycle it is in, or to itself.
+	names := slices.Sorted(maps.Keys(member))
+	slices.SortStableFunc(names, func(a, b string) int { return columnPosition(e.To, a) - columnPosition(e.To, b) })
+	comp := make(map[string]string)
+	for _, a := range names {
+		if _, ok := comp[a]; ok {
 			continue
 		}
-		for _, ref := range refs {
-			if _, ok := priority[ref]; ok && ref != name {
-				reads[name] = append(reads[name], ref)
+		comp[a] = a
+		for _, b := range names {
+			if _, ok := comp[b]; !ok && reaches(a, b) && reaches(b, a) {
+				comp[b] = a
 			}
 		}
 	}
-	if len(reads) == 0 {
-		return ops
-	}
-	// rank is the longest chain of added columns name reads; a column takes
-	// the latest priority among them.
-	ranks, final := make(map[string]int), make(map[string]int)
-	var walk func(name string, seen map[string]bool) (int, int)
-	walk = func(name string, seen map[string]bool) (int, int) {
-		if r, ok := ranks[name]; ok {
-			return r, final[name]
+	ranks := make(map[string]int)
+	var rank func(c string, seen map[string]bool) int
+	rank = func(c string, seen map[string]bool) int {
+		if r, ok := ranks[c]; ok {
+			return r
 		}
-		r, p := 0, priority[name]
-		if !seen[name] {
-			seen[name] = true
-			for _, ref := range reads[name] {
-				rr, rp := walk(ref, seen)
-				r, p = max(r, rr+1), max(p, rp)
+		if seen[c] {
+			return 0
+		}
+		seen[c] = true
+		r := 0
+		for _, name := range names {
+			if comp[name] != c {
+				continue
+			}
+			for _, next := range edges[name] {
+				if member[next] && comp[next] != c {
+					r = max(r, rank(comp[next], seen)+1)
+				}
 			}
 		}
-		ranks[name], final[name] = r, p
-		return r, p
+		ranks[c] = r
+		return r
 	}
 	for i := range ops {
-		if ops[i].Type != OpAddColumn || !opOfTable(ops[i], e) || ops[i].Phase != PhaseMain {
+		if selects(ops[i]) && ops[i].alterParts == nil {
+			set(&ops[i], rank(comp[ops[i].column], map[string]bool{}))
+		}
+	}
+	// One statement per cycle, at its first member, in the target's order.
+	for _, c := range names {
+		if comp[c] != c {
 			continue
 		}
-		if _, ok := priority[ops[i].column]; !ok {
+		var cycle []int
+		for _, name := range names {
+			if comp[name] == c {
+				for i := range ops {
+					if selects(ops[i]) && ops[i].alterParts == nil && ops[i].column == name {
+						cycle = append(cycle, i)
+					}
+				}
+			}
+		}
+		if len(cycle) < 2 {
 			continue
 		}
-		r, p := walk(ops[i].column, map[string]bool{})
-		ops[i].Priority = p
-		ops[i].sortName = rankedColumnSortName(e, r, fmt.Sprintf("%04d", columnPosition(e.To, ops[i].column)))
+		first := cycle[0]
+		parts := make([]alterPart, 0, len(cycle))
+		for _, i := range cycle {
+			part := alterPart{clause: ops[i].alterClause}
+			if ops[i].Type == OpAddColumn {
+				part.addsColumn = ops[i].column
+			}
+			parts = append(parts, part)
+			if ops[i].Priority > ops[first].Priority {
+				ops[first].Priority = ops[i].Priority
+			}
+		}
+		ops[first].alterParts = parts
+		ops[first].SQL = "ALTER TABLE " + tableIdent(e.To) + " " + joinAlterParts(parts)
+		drop := make(map[int]bool)
+		for _, i := range cycle[1:] {
+			drop[i] = true
+		}
+		kept := ops[:0]
+		for i, op := range ops {
+			if !drop[i] {
+				kept = append(kept, op)
+			}
+		}
+		ops = kept
 	}
 	return ops
 }
 
-// columnAddReads maps each column of the target to the lower-cased columns its
-// generated expression or column CHECK reads.
-func columnAddReads(e *TableDiffEntry) map[string][]string {
+// columnReads maps each column of t to the lower-cased columns its generated
+// expression or column CHECK reads, itself left out.
+func columnReads(t *Table) map[string][]string {
 	out := make(map[string][]string)
-	checks := columnChecks(e.To)
-	for _, col := range e.To.Columns {
+	checks := columnChecks(t)
+	for _, col := range t.Columns {
 		name := toLower(col.Name)
 		var refs []string
 		if col.Generated != nil {
@@ -410,7 +476,9 @@ func columnAddReads(e *TableDiffEntry) map[string][]string {
 			refs = append(refs, exprColumnRefs(con.CheckExpr)...)
 		}
 		for _, ref := range refs {
-			out[name] = append(out[name], toLower(ref))
+			if ref := toLower(ref); ref != name {
+				out[name] = append(out[name], ref)
+			}
 		}
 	}
 	return out
@@ -457,7 +525,7 @@ func dropLastColumnsAfterAdds(ops []MigrationOp, e *TableDiffEntry) []MigrationO
 	}
 	// A column only added can go first unless it reads a column added later,
 	// a replaced one among them, directly or through another.
-	reads := columnAddReads(e)
+	reads := columnReads(e.To)
 	early := make(map[string]bool)
 	for i := range ops {
 		if ops[i].Type == OpAddColumn && opOfTable(ops[i], e) && !dropped[ops[i].column] {
