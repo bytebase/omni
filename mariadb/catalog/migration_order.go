@@ -303,6 +303,9 @@ func rebuildReadersOfReplacedColumns(ops []MigrationOp, e *TableDiffEntry, n *No
 				Type: OpModifyColumn, Database: e.Database, ObjectName: e.Name, ParentObject: e.Name,
 				SQL: "ALTER TABLE " + table + " " + restore, Phase: PhaseMain, Priority: priorityColumn + 3,
 				sortName: columnSortName(e.Database, e.Name, name), alterClause: restore,
+				// Its column identity lets reorderAddsAfterMerge run this
+				// restoration after the merged adds its target definition reads.
+				column: name,
 			})
 		}
 	}
@@ -1000,12 +1003,12 @@ func modifiedColumns(op MigrationOp) []string {
 	return names
 }
 
-// opAddsVisibleColumn reports whether op adds a column that is visible in the
-// target, directly or as one of a grouped statement's parts.
-func opAddsVisibleColumn(op MigrationOp, to *Table) bool {
+// opAddsColumnWhere reports whether op adds a column the target has that pick
+// accepts, directly or as one of a grouped statement's parts.
+func opAddsColumnWhere(op MigrationOp, to *Table, pick func(*Column) bool) bool {
 	add := func(name string) bool {
 		c := to.GetColumn(name)
-		return c != nil && !c.Invisible
+		return c != nil && pick(c)
 	}
 	if op.Type == OpAddColumn && op.column != "" && add(op.column) {
 		return true
@@ -1016,6 +1019,30 @@ func opAddsVisibleColumn(op MigrationOp, to *Table) bool {
 		}
 	}
 	return false
+}
+
+// bumpInvalidatingModify runs a MODIFY that invalidates a kept-column invariant
+// (pick no longer holds for the column) after the latest statement that adds a
+// replacement column pick accepts, which the AUTO_INCREMENT merge may have placed
+// past the MODIFY (1113/4123).
+func bumpInvalidatingModify(ops []MigrationOp, e *TableDiffEntry, pick func(*Column) bool, invalidates func(from, to *Column) bool) {
+	latest := 0
+	for j := range ops {
+		if opOfTable(ops[j], e) && opAddsColumnWhere(ops[j], e.To, pick) && ops[j].Priority > latest {
+			latest = ops[j].Priority
+		}
+	}
+	if latest == 0 {
+		return
+	}
+	for j := range ops {
+		if ops[j].Type != OpModifyColumn || !opOfTable(ops[j], e) || ops[j].column == "" || ops[j].Priority > latest {
+			continue
+		}
+		if from, to := e.From.GetColumn(ops[j].column), e.To.GetColumn(ops[j].column); from != nil && to != nil && invalidates(from, to) {
+			ops[j].Priority = latest + 1
+		}
+	}
 }
 
 // reorderAddsAfterMerge runs an added column after the columns it reads that the
@@ -1092,24 +1119,14 @@ func reorderAddsAfterMerge(ops []MigrationOp, diff *SchemaDiff) []MigrationOp {
 				}
 			}
 		}
-		// A MODIFY that hides a column runs after the statements that add the
-		// visible columns, which the merge may have moved past the priority
-		// invalidatingModifiesLast gave it, so a visible column always remains
-		// (1113).
-		visibleAdd := 0
-		for j := range ops {
-			if opOfTable(ops[j], e) && opAddsVisibleColumn(ops[j], e.To) && ops[j].Priority > visibleAdd {
-				visibleAdd = ops[j].Priority
-			}
-		}
-		if visibleAdd > 0 {
-			for j := range ops {
-				if ops[j].Type == OpModifyColumn && opOfTable(ops[j], e) && ops[j].column != "" && ops[j].Priority <= visibleAdd {
-					if from, to := e.From.GetColumn(ops[j].column), e.To.GetColumn(ops[j].column); from != nil && to != nil && !from.Invisible && to.Invisible {
-						ops[j].Priority = visibleAdd + 1
-					}
-				}
-			}
+		// A MODIFY that invalidates a kept-column invariant runs after the
+		// statements that add a replacement qualifying column, which the merge may
+		// have moved past the priority invalidatingModifiesLast gave it: a visible
+		// column must remain (1113) and, on a versioned table, a versioned one
+		// (4123).
+		bumpInvalidatingModify(ops, e, isVisibleColumn, func(from, to *Column) bool { return !from.Invisible && to.Invisible })
+		if e.To.SystemVersioned {
+			bumpInvalidatingModify(ops, e, isVersionedColumn, func(from, to *Column) bool { return isVersionedColumn(from) && !isVersionedColumn(to) })
 		}
 		// A postponed drop runs after every op that reads it, a modify the
 		// bump above moved later or a drop that in turn moved, to a fixpoint:
