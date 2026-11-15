@@ -321,16 +321,17 @@ func TestOracle_MigrationEscapesCommentsForSQLMode(t *testing.T) {
 	if err := applyPlan(conn, GenerateMigration(to, after, Diff(to, after))); err != nil {
 		t.Fatalf("alter: %v", err)
 	}
-	for query, want := range map[string]string{
-		"SELECT ROUTINE_COMMENT FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_NAME = 'f'": `z\y`,
-		"SELECT EVENT_COMMENT FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE() AND EVENT_NAME = 'e'":         `c\d`,
+	// A fixed order, not a map: the tape replays the queries in the order issued.
+	for _, c := range []struct{ query, want string }{
+		{"SELECT ROUTINE_COMMENT FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_NAME = 'f'", `z\y`},
+		{"SELECT EVENT_COMMENT FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE() AND EVENT_NAME = 'e'", `c\d`},
 	} {
 		var got string
-		if err := conn.QueryRowContext(context.Background(), query).Scan(&got); err != nil {
+		if err := conn.QueryRowContext(context.Background(), c.query).Scan(&got); err != nil {
 			t.Fatal(err)
 		}
-		if got != want {
-			t.Errorf("comment = %q, want %q\n%s", got, want, plan.SQL())
+		if got != c.want {
+			t.Errorf("comment = %q, want %q\n%s", got, c.want, plan.SQL())
 		}
 	}
 }
