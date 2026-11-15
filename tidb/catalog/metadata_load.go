@@ -615,7 +615,7 @@ func metadataViewStmt(v *metadata.ViewMetadata, database, target string) (*nodes
 // a view body. The body is parsed so that only a qualifier in the database
 // position goes: a table alias or table spelled like the database qualifies
 // its columns and stays. A body that does not parse is returned unchanged.
-// A table whose name a CTE, another table's alias or another database's table
+// A table whose name a CTE, another table's or a derived table's alias or another database's table
 // also has keeps a qualifier, target's, since without one a reference to it
 // would resolve to the CTE or the alias, or be ambiguous.
 func stripViewBodyDatabaseQualifier(body, dbName, target string) string {
@@ -632,7 +632,7 @@ func stripViewBodyDatabaseQualifier(body, dbName, target string) string {
 	if err != nil || list == nil || len(list.Items) != 1 {
 		return body
 	}
-	// A name a CTE, another table's alias or another database's table also has stays
+	// A name a CTE, another table's or a derived table's alias or another database's table also has stays
 	// qualified: without the qualifier a reference would resolve to the CTE or the
 	// alias, or be ambiguous.
 	keep := map[string]bool{}
@@ -648,6 +648,10 @@ func stripViewBodyDatabaseQualifier(body, dbName, target string) string {
 			} else {
 				local[strings.ToLower(n.Name)] = true
 			}
+			if n.Alias != "" {
+				aliases = append(aliases, strings.ToLower(n.Alias))
+			}
+		case *nodes.SubqueryExpr:
 			if n.Alias != "" {
 				aliases = append(aliases, strings.ToLower(n.Alias))
 			}
