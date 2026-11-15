@@ -5,6 +5,9 @@
 | CREATE SCHEMA bbdataarchive
 < ok 0 -
 > exec
+| CREATE TABLE canary (id INT)
+< ok 0 -
+> exec
 | CREATE TABLE plain (id INT PRIMARY KEY, a INT); INSERT INTO plain VALUES (1, 1), (2, 2)
 < ok 2 -
 > query
@@ -103,6 +106,15 @@
 < row
 : string
 | (2,2)
+> query
+| SELECT to_regclass($1)::text
+: string
+| canary
+< result
+< column "to_regclass" "TEXT"
+< row
+: string
+| canary
 > exec
 | CREATE TABLE plain_update (id INT PRIMARY KEY, a INT); INSERT INTO plain_update VALUES (1, 1), (2, 2)
 < ok 2 -
@@ -205,6 +217,15 @@
 < row
 : string
 | (2,2)
+> query
+| SELECT to_regclass($1)::text
+: string
+| canary
+< result
+< column "to_regclass" "TEXT"
+< row
+: string
+| canary
 > exec
 | CREATE TABLE cte_t (id INT PRIMARY KEY); INSERT INTO cte_t VALUES (1), (2), (3)
 < ok 3 -
@@ -319,6 +340,129 @@
 < row
 : string
 | (3)
+> query
+| SELECT to_regclass($1)::text
+: string
+| canary
+< result
+< column "to_regclass" "TEXT"
+< row
+: string
+| canary
+> exec
+| CREATE TABLE notes (id INT PRIMARY KEY, note TEXT); INSERT INTO notes VALUES (1, '*/'), (2, '/*'), (3, 'x')
+< ok 3 -
+> query
+| SELECT x::text FROM "public"."notes" AS x ORDER BY 1
+< result
+< column "x" "TEXT"
+< row
+: string
+| (1,*/)
+< row
+: string
+| (2,/*)
+< row
+: string
+| (3,x)
+> query
+| SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_tables WHERE schemaname = $1 AND tablename = $2)
+: string
+| public
+: string
+| notes
+< result
+< column "exists" "BOOL"
+< row
+: bool true
+> exec
+| CREATE TABLE "bbdataarchive"."_bb__notes_public" AS
+|   SELECT "public"."notes".* FROM notes WHERE note IN ('*/ DROP TABLE canary; /*', '/*/') OR id < 3;
+< ok 2 -
+> exec
+| DELETE FROM notes WHERE note IN ('*/ DROP TABLE canary; /*', '/*/') OR id < 3
+< ok 2 -
+> query
+| SELECT x::text FROM "public"."notes" AS x ORDER BY 1
+< result
+< column "x" "TEXT"
+< row
+: string
+| (3,x)
+> query
+| SELECT a.attname, a.attgenerated <> '' FROM pg_catalog.pg_attribute a
+| 		JOIN pg_catalog.pg_class c ON c.oid = a.attrelid JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+| 		WHERE n.nspname = $1 AND c.relname = $2 AND a.attnum > 0 AND NOT a.attisdropped ORDER BY a.attnum
+: string
+| public
+: string
+| notes
+< result
+< column "attname" "NAME"
+< column "?column?" "BOOL"
+< row
+: string
+| id
+: bool false
+< row
+: string
+| note
+: bool false
+> query
+| SELECT i.relname, x.indisprimary, x.indisunique, con.oid IS NOT NULL,
+| 		(SELECT string_agg(a.attname, E'\x1f' ORDER BY k.n) FROM unnest(x.indkey) WITH ORDINALITY AS k(attnum, n)
+| 			JOIN pg_catalog.pg_attribute a ON a.attrelid = x.indrelid AND a.attnum = k.attnum)
+| 		FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 		JOIN pg_catalog.pg_class c ON c.oid = x.indrelid JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+| 		LEFT JOIN pg_catalog.pg_constraint con ON con.conindid = x.indexrelid
+| 		WHERE n.nspname = $1 AND c.relname = $2 ORDER BY i.relname
+: string
+| public
+: string
+| notes
+< result
+< column "relname" "NAME"
+< column "indisprimary" "BOOL"
+< column "indisunique" "BOOL"
+< column "?column?" "BOOL"
+< column "string_agg" "TEXT"
+< row
+: string
+| notes_pkey
+: bool true
+: bool true
+: bool true
+: string
+| id
+> exec
+| /*
+| Original SQL:
+| DELETE FROM notes WHERE note IN ('* / DROP TABLE canary; / *', '/ * /') OR id < 3
+| */
+| INSERT INTO "public"."notes" ("id", "note") SELECT "id", "note" FROM "bbdataarchive"."_bb__notes_public";
+< ok 2 -
+> query
+| SELECT x::text FROM "public"."notes" AS x ORDER BY 1
+< result
+< column "x" "TEXT"
+< row
+: string
+| (1,*/)
+< row
+: string
+| (2,/*)
+< row
+: string
+| (3,x)
+> query
+| SELECT to_regclass($1)::text
+: string
+| canary
+< result
+< column "to_regclass" "TEXT"
+< row
+: string
+| canary
 > exec
 | CREATE SCHEMA "s""q"; CREATE TABLE "s""q"."t""q" ("i""d" INT CONSTRAINT "p""k" PRIMARY KEY, "a""b" INT);INSERT INTO "s""q"."t""q" VALUES (1, 1), (2, 2)
 < ok 2 -
@@ -408,6 +552,15 @@
 < row
 : string
 | (2,2)
+> query
+| SELECT to_regclass($1)::text
+: string
+| canary
+< result
+< column "to_regclass" "TEXT"
+< row
+: string
+| canary
 > exec
 | CREATE SCHEMA "u""q"; CREATE TABLE "u""q"."t""q" ("i""d" INT CONSTRAINT "p""k2" PRIMARY KEY, "a""b" INT);INSERT INTO "u""q"."t""q" VALUES (1, 1), (2, 2)
 < ok 2 -
@@ -500,3 +653,12 @@
 < row
 : string
 | (2,2)
+> query
+| SELECT to_regclass($1)::text
+: string
+| canary
+< result
+< column "to_regclass" "TEXT"
+< row
+: string
+| canary

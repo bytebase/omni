@@ -69,6 +69,7 @@ func RestoreSQL(node ast.Node, opts RestoreOptions) (string, error) {
 	if truncated {
 		sqlForComment += "..."
 	}
+	sqlForComment = commentText(sqlForComment)
 	g := &generator{
 		backupDatabase:   opts.BackupDatabase,
 		backupTable:      opts.BackupTable,
@@ -350,4 +351,18 @@ func isRestorableDML(node ast.Node) bool {
 	default:
 		return false
 	}
+}
+
+// commentText returns s for the inside of a block comment: a space goes
+// between every adjacent "/*" and "*/", since the engine nests block comments
+// and either would move where the comment ends.
+func commentText(s string) string {
+	var b strings.Builder
+	for i := 0; i < len(s); i++ {
+		b.WriteByte(s[i])
+		if i+1 < len(s) && (s[i] == '/' && s[i+1] == '*' || s[i] == '*' && s[i+1] == '/') {
+			b.WriteByte(' ')
+		}
+	}
+	return b.String()
 }

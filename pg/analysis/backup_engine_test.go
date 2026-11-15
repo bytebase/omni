@@ -61,6 +61,15 @@ var roundTrips = []roundTrip{
 		table:  "cte_t",
 	},
 	{
+		// The restore quotes the statement in a block comment, which
+		// PostgreSQL nests: neither "*/" nor "/*" may end or extend it.
+		name:   "comment_delimiters",
+		setup:  "CREATE TABLE notes (id INT PRIMARY KEY, note TEXT); INSERT INTO notes VALUES (1, '*/'), (2, '/*'), (3, 'x')",
+		script: "DELETE FROM notes WHERE note IN ('*/ DROP TABLE canary; /*', '/*/') OR id < 3",
+		schema: "public",
+		table:  "notes",
+	},
+	{
 		// Every name the backup and restore write holds a '"'.
 		name: "quoted_delete",
 		setup: `CREATE SCHEMA "s""q"; CREATE TABLE "s""q"."t""q" ("i""d" INT CONSTRAINT "p""k" PRIMARY KEY, "a""b" INT);` +
@@ -84,6 +93,8 @@ var roundTrips = []roundTrip{
 func TestBackupRestoreRoundTrip(t *testing.T) {
 	db := testcontainer.Open(t)
 	exec(t, db, "CREATE SCHEMA "+backupSchema)
+	// No restore may drop it.
+	exec(t, db, "CREATE TABLE canary (id INT)")
 	for _, rt := range roundTrips {
 		exec(t, db, rt.setup)
 		before := tableRows(t, db, rt.schema, rt.table)
@@ -120,6 +131,7 @@ func TestBackupRestoreRoundTrip(t *testing.T) {
 		require.NoError(t, err, rt.name)
 		exec(t, db, restore)
 		require.Equal(t, before, tableRows(t, db, rt.schema, rt.table), rt.name)
+		require.Equal(t, "canary", relation(t, db, "canary"), rt.name)
 	}
 }
 
@@ -127,6 +139,14 @@ func exec(t *testing.T, db *sql.DB, script string) {
 	t.Helper()
 	_, err := db.Exec(script)
 	require.NoError(t, err, script)
+}
+
+// relation returns name if a relation of that name is on the search path.
+func relation(t *testing.T, db *sql.DB, name string) string {
+	t.Helper()
+	var found sql.NullString
+	require.NoError(t, db.QueryRow("SELECT to_regclass($1)::text", name).Scan(&found))
+	return found.String
 }
 
 func quote(name string) string { return `"` + strings.ReplaceAll(name, `"`, `""`) + `"` }
