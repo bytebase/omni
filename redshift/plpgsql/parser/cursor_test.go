@@ -340,3 +340,10 @@ func TestMoveAbsolute(t *testing.T) {
 		t.Errorf("Count = %q, want %q", node.Count, "0")
 	}
 }
+
+func TestFetchIntoParameter(t *testing.T) {
+	node := parseOK(t, `BEGIN FETCH cur INTO $1, x; END`).Body[0].(*ast.PLFetch)
+	if len(node.Into) != 2 || node.Into[0] != "$1" || node.Into[1] != "x" {
+		t.Errorf("Into = %v, want [$1 x]", node.Into)
+	}
+}

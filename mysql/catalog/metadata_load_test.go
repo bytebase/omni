@@ -976,3 +976,44 @@ func loadMetadataFixture(t *testing.T, m map[string]any) *Catalog {
 	}
 	return c
 }
+
+func TestLoadMetadataIntoKeepsCTEShadowedQualifier(t *testing.T) {
+	meta := snapshot(&metadata.SchemaMetadata{
+		Tables: []*metadata.TableMetadata{{Name: "t", Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int"}}}},
+		Views: []*metadata.ViewMetadata{{
+			Name:       "v",
+			Definition: "with `t` as (select 2 AS `id`) select `testdb`.`t`.`id` AS `id` from `testdb`.`t`",
+		}},
+	})
+	c := New()
+	if _, err := c.LoadMetadataInto(context.Background(), meta, "other"); err != nil {
+		t.Fatal(err)
+	}
+	v := c.GetDatabase("other").Views["v"]
+	if v == nil {
+		t.Fatal("view v not installed")
+	}
+	const want = "with `t` as (select 2 AS `id`) select `other`.`t`.`id` AS `id` from `other`.`t`"
+	if !strings.Contains(c.ShowCreateView("other", "v"), "from `other`.`t`") {
+		t.Errorf("view v:\n%s\nwant its body to read %s", c.ShowCreateView("other", "v"), want)
+	}
+}
+
+func TestLoadMetadataKeepsTableWhosePartitioningIsRefused(t *testing.T) {
+	c, report := loadMySQLSnapshot(t, snapshot(&metadata.SchemaMetadata{Tables: []*metadata.TableMetadata{{
+		Name:    "sales",
+		Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int"}, {Name: "sold_on", Type: "date"}},
+		Indexes: []*metadata.IndexMetadata{{Name: "k", Expressions: []string{"id"}, Visible: true}},
+		// MAXVALUE before another partition, which the catalog refuses.
+		Partitions: []*metadata.TablePartitionMetadata{
+			{Name: "a2", Type: metadata.TablePartitionMetadata_RANGE, Expression: "YEAR(`sold_on`)", Value: "2022"},
+			{Name: "pmax", Type: metadata.TablePartitionMetadata_RANGE, Expression: "YEAR(`sold_on`)", Value: "MAXVALUE"},
+			{Name: "z1", Type: metadata.TablePartitionMetadata_RANGE, Expression: "YEAR(`sold_on`)", Value: "2021"},
+		},
+	}}}))
+	requireReport(t, report, nil, nil)
+	requireIncomplete(t, report, []string{"table:sales"})
+	if tbl := requireTable(t, c, "sales"); tbl.Partitioning != nil || len(tbl.Indexes) != 1 {
+		t.Errorf("sales = partitioning %+v, %d indexes; want no partitioning and the index", tbl.Partitioning, len(tbl.Indexes))
+	}
+}

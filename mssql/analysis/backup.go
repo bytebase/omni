@@ -90,14 +90,21 @@ func TransformDMLToSelect(stmts []ParsedStatement, sourceDatabase, targetDatabas
 }
 
 func generateSQL(statementInfoList []statementInfo, targetDatabase string, tablePrefix string) ([]BackupStatement, error) {
+	// Tables are visited in the order the script first changes them, so an
+	// error names the same table on every run.
 	groupByTable := make(map[string][]statementInfo)
+	var tableOrder []string
 	for _, item := range statementInfoList {
 		key := fmt.Sprintf("%s.%s.%s", item.table.Database, item.table.Schema, item.table.Table)
+		if _, ok := groupByTable[key]; !ok {
+			tableOrder = append(tableOrder, key)
+		}
 		groupByTable[key] = append(groupByTable[key], item)
 	}
 
 	// Check if the statement type is the same for all statements on the same table.
-	for key, list := range groupByTable {
+	for _, key := range tableOrder {
+		list := groupByTable[key]
 		statementType := dmlTypeUnknown
 		for _, item := range list {
 			if statementType == dmlTypeUnknown {
@@ -110,7 +117,8 @@ func generateSQL(statementInfoList []statementInfo, targetDatabase string, table
 	}
 
 	var result []BackupStatement
-	for key, list := range groupByTable {
+	for _, key := range tableOrder {
+		list := groupByTable[key]
 		backupStatement, err := generateSQLForTable(list, targetDatabase, tablePrefix)
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate SQL for table %s: %w", key, err)
@@ -268,9 +276,20 @@ func extractSuffixSelectStatement(node ast.Node, source string) (string, string,
 
 func prepareTransformation(databaseName string, parsedStatements []ParsedStatement, caseSensitive bool) ([]statementInfo, error) {
 	var dmls []statementInfo
+	// otherDatabase is the database a USE switched to, when it is not
+	// databaseName: the backup reads databaseName's tables, so a later DML,
+	// which runs in the other one, cannot be backed up.
+	otherDatabase := ""
 	for _, parsedStatement := range parsedStatements {
 		node := parsedStatement.Node
 		if node == nil {
+			continue
+		}
+		if use, ok := node.(*ast.UseStmt); ok {
+			otherDatabase = use.Database
+			if use.Database == databaseName || !caseSensitive && strings.EqualFold(use.Database, databaseName) {
+				otherDatabase = ""
+			}
 			continue
 		}
 		var (
@@ -297,6 +316,9 @@ func prepareTransformation(databaseName string, parsedStatements []ParsedStateme
 		}
 		if strings.HasPrefix(table.Table, "#") {
 			continue
+		}
+		if otherDatabase != "" {
+			return nil, fmt.Errorf("prior backup does not support a DML after USE %s, as the backup reads the tables of %s; remove the USE, or disable or skip prior backup", otherDatabase, databaseName)
 		}
 		if isCTETarget(targetRef, dmlWithClause(node), caseSensitive) {
 			return nil, fmt.Errorf("prior backup does not support DML targeting CTE %q, target the base table directly", table.Table)

@@ -1,7 +1,9 @@
 package analysis
 
 import (
+	"errors"
 	"fmt"
+	"strings"
 
 	omniast "github.com/bytebase/omni/tidb/ast"
 	omnideparse "github.com/bytebase/omni/tidb/deparse"
@@ -14,8 +16,12 @@ import (
 // with no LIMIT gets one. A statement that is not a SELECT is returned
 // unchanged.
 //
-// An error (a parse error, other than one statement) means the caller should
-// wrap the statement instead.
+// The restore writes no locking clause, so the outermost SELECT's own one is
+// written back after it. A statement with a locking clause anywhere else
+// returns errNestedLock.
+//
+// An error (a parse error, other than one statement, a nested locking clause)
+// means the caller should wrap the statement instead.
 func RewriteResultLimit(statement string, limit int) (string, error) {
 	list, err := parser.Parse(statement)
 	if err != nil {
@@ -31,6 +37,9 @@ func RewriteResultLimit(statement string, limit int) (string, error) {
 	if !ok {
 		return statement, nil
 	}
+	if hasNestedLock(stmt) {
+		return "", errNestedLock
+	}
 	if stmt.Limit != nil && stmt.Limit.Count != nil {
 		if v, ok := stmt.Limit.Count.(*omniast.IntLit); ok {
 			userLimit := int(v.Value)
@@ -45,5 +54,64 @@ func RewriteResultLimit(statement string, limit int) (string, error) {
 		}
 	}
 	// String literals are restored without a charset introducer.
-	return omnideparse.RestoreSelectWith(stmt, omnideparse.RestoreStringWithoutCharset), nil
+	restored := omnideparse.RestoreSelectWith(stmt, omnideparse.RestoreStringWithoutCharset)
+	if stmt.ForUpdate != nil {
+		// The restore ends in the space before the clause it leaves out.
+		restored += lockingClause(stmt.ForUpdate)
+	}
+	return restored, nil
+}
+
+// errNestedLock is RewriteResultLimit's error for a locking clause it cannot
+// write back. TiDB takes the lock wherever the clause is, in a subquery, a CTE,
+// a set operation's operand or parentheses, and keeps it when the caller wraps
+// the statement.
+var errNestedLock = errors.New("cannot restore a locking clause below the outermost SELECT")
+
+// hasNestedLock reports whether a query block other than stmt itself has a
+// locking clause. A set operation or a parenthesized query has none of its
+// own: the clause belongs to an operand.
+func hasNestedLock(stmt *omniast.SelectStmt) bool {
+	nested := false
+	omniast.Inspect(stmt, func(n omniast.Node) bool {
+		if lock, ok := n.(*omniast.ForUpdate); ok && lock != stmt.ForUpdate {
+			nested = true
+		}
+		return !nested
+	})
+	return nested || (stmt.ForUpdate != nil && (stmt.SetOp != omniast.SetOpNone || stmt.ParenSource != nil))
+}
+
+// lockingClause writes a locking clause as TiDB's SelectLockInfo.Restore does.
+func lockingClause(lock *omniast.ForUpdate) string {
+	if lock.LockInShareMode {
+		return "LOCK IN SHARE MODE"
+	}
+	var b strings.Builder
+	if lock.Share {
+		b.WriteString("FOR SHARE")
+	} else {
+		b.WriteString("FOR UPDATE")
+	}
+	for i, table := range lock.Tables {
+		if i == 0 {
+			b.WriteString(" OF ")
+		} else {
+			b.WriteString(", ")
+		}
+		if table.Schema != "" {
+			b.WriteString(quoteIdentifier(table.Schema))
+			b.WriteByte('.')
+		}
+		b.WriteString(quoteIdentifier(table.Name))
+	}
+	switch {
+	case lock.NoWait:
+		b.WriteString(" NOWAIT")
+	case lock.HasWait:
+		b.WriteString(" WAIT " + lock.WaitSeconds)
+	case lock.SkipLocked:
+		b.WriteString(" SKIP LOCKED")
+	}
+	return b.String()
 }

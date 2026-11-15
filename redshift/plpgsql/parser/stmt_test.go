@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/bytebase/omni/redshift/plpgsql/ast"
@@ -323,6 +324,30 @@ func TestSelectIntoStrict(t *testing.T) {
 	}
 	if exec.SQLText != "SELECT a FROM t WHERE id = 1" {
 		t.Errorf("sql = %q, want %q", exec.SQLText, "SELECT a FROM t WHERE id = 1")
+	}
+}
+
+// A parameter is an INTO target by its $n reference.
+func TestSelectIntoParameter(t *testing.T) {
+	for _, tc := range []struct {
+		body, sql string
+		into      []string
+	}{
+		{`BEGIN SELECT ssn INTO $1 FROM t; END`, "SELECT ssn FROM t", []string{"$1"}},
+		{`BEGIN SELECT ssn, email INTO $1, $2 FROM t; END`, "SELECT ssn, email FROM t", []string{"$1", "$2"}},
+		{`BEGIN SELECT INTO $1, $2 ssn, email FROM t; END`, "SELECT ssn, email FROM t", []string{"$1", "$2"}},
+		{`BEGIN SELECT ssn, email INTO x, $2 FROM t; END`, "SELECT ssn, email FROM t", []string{"x", "$2"}},
+		{`BEGIN SELECT ssn INTO STRICT $2 FROM t WHERE id = $1; END`, "SELECT ssn FROM t WHERE id = $1", []string{"$2"}},
+	} {
+		t.Run(tc.body, func(t *testing.T) {
+			exec := parseOK(t, tc.body).Body[0].(*ast.PLExecSQL)
+			if !slices.Equal(exec.Into, tc.into) {
+				t.Errorf("into = %v, want %v", exec.Into, tc.into)
+			}
+			if exec.SQLText != tc.sql {
+				t.Errorf("sql = %q, want %q", exec.SQLText, tc.sql)
+			}
+		})
 	}
 }
 

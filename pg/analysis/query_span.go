@@ -3,6 +3,8 @@ package analysis
 import (
 	"context"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 
 	omnipg "github.com/bytebase/omni/pg"
@@ -64,6 +66,11 @@ type querySpanExtractor struct {
 	// fallbackCTEAliases holds CTE column aliases (e.g., WITH t1(cc1, cc2) AS (...)).
 	// Keyed by lowercase CTE name.
 	fallbackCTEAliases map[string][]string
+	// fromColumns caches the fallback's fromItemColumns by FROM item, for
+	// every analyzer of the statement; nil marks an item being resolved, so
+	// an item reached again through itself, as a recursive CTE's reference
+	// is, reads nothing.
+	fromColumns map[ast.Node][]QuerySpanResult
 }
 
 func newQuerySpanExtractor(defaultDatabase string, searchPath []string, cat Catalog) *querySpanExtractor {
@@ -183,7 +190,7 @@ func findDollarQuotedBody(definition string) (tag string, bodyStart int, bodyEnd
 func (e *querySpanExtractor) unresolvedColumnsError(accesses ColumnSet) *UnresolvedColumnsError {
 	seen := make(map[ColumnResource]bool, len(accesses))
 	var unresolved []ColumnResource
-	for access := range accesses {
+	for _, access := range accesses.sorted() {
 		relation := ColumnResource{
 			Database: access.Database,
 			Schema:   access.Schema,
@@ -359,7 +366,55 @@ func (e *querySpanExtractor) mergeFunctionAccesses(accesses ColumnSet) {
 // define, such as one from an extension, stays an opaque call over its
 // arguments instead of failing the statement into the parse-tree fallback.
 func (e *querySpanExtractor) analyzeSelect(sel *ast.SelectStmt) (*catalog.Query, error) {
+	rewriteValuesLists(sel)
 	return e.cat.AnalyzeSelectStmtWithOptions(sel, catalog.AnalyzeOptions{OpaqueUnknownFunctions: true})
+}
+
+// rewriteValuesLists rewrites, in place, every VALUES list in node into a
+// one-row SELECT with PostgreSQL's column names (column1, ...), whose column
+// is the row's expression, or for several rows the COALESCE of every row's
+// expression at that position. COALESCE resolves its type over all the
+// expressions at once, as VALUES does, so the rewrite analyzes whenever the
+// VALUES list does. The catalog analyzes a VALUES list as a query with no
+// output, which would leave its expressions without lineage and its
+// subqueries' conditions unread. An INSERT's VALUES is left alone, since it
+// may hold DEFAULT.
+func rewriteValuesLists(node ast.Node) {
+	ast.Inspect(node, func(n ast.Node) bool {
+		switch v := n.(type) {
+		case *ast.InsertStmt:
+			return false
+		case *ast.SelectStmt:
+			if v.ValuesLists == nil {
+				return true
+			}
+			var columns [][]ast.Node
+			for _, item := range v.ValuesLists.Items {
+				row, ok := item.(*ast.List)
+				if !ok {
+					continue
+				}
+				for i, expr := range row.Items {
+					if i == len(columns) {
+						columns = append(columns, nil)
+					}
+					columns[i] = append(columns[i], expr)
+				}
+			}
+			v.ValuesLists = nil
+			targets := &ast.List{}
+			for i, exprs := range columns {
+				val := exprs[0]
+				if len(exprs) > 1 {
+					val = &ast.CoalesceExpr{Args: &ast.List{Items: exprs}, Loc: ast.NoLoc()}
+				}
+				targets.Items = append(targets.Items, &ast.ResTarget{Name: fmt.Sprintf("column%d", i+1), Val: val, Loc: ast.NoLoc()})
+			}
+			v.TargetList = targets
+		default:
+		}
+		return true
+	})
 }
 
 // outputColumn returns the target entry of q's attNum-th output column. Junk
@@ -375,10 +430,13 @@ func outputColumn(q *catalog.Query, attNum int) *catalog.TargetEntry {
 // selStmt is the original parse tree, used to determine IsPlainField
 // (which is true only for columns that came from * expansion).
 func (e *querySpanExtractor) extractLineage(q *catalog.Query, selStmt *ast.SelectStmt) []QuerySpanResult {
-	return e.extractLineageWithVisited(q, selStmt, make(map[*catalog.Query]bool))
+	return e.extractLineageWithVisited(nil, q, selStmt, make(map[*catalog.Query]bool))
 }
 
-func (e *querySpanExtractor) extractLineageWithVisited(q *catalog.Query, selStmt *ast.SelectStmt, visited map[*catalog.Query]bool) []QuerySpanResult {
+// extractLineageWithVisited extracts the lineage of q, nested in the queries
+// of parents, the set operations whose branch it is, which may define the
+// CTEs it reads.
+func (e *querySpanExtractor) extractLineageWithVisited(parents []*catalog.Query, q *catalog.Query, selStmt *ast.SelectStmt, visited map[*catalog.Query]bool) []QuerySpanResult {
 	if q == nil {
 		return nil
 	}
@@ -390,7 +448,7 @@ func (e *querySpanExtractor) extractLineageWithVisited(q *catalog.Query, selStmt
 
 	// Handle set operations (UNION/INTERSECT/EXCEPT).
 	if q.SetOp != catalog.SetOpNone {
-		return e.extractSetOpLineageWithVisited(q, selStmt, visited)
+		return e.extractSetOpLineageWithVisited(parents, q, selStmt, visited)
 	}
 
 	// Build a plain-field mask from the parse tree's target list.
@@ -422,7 +480,7 @@ func (e *querySpanExtractor) extractLineageWithVisited(q *catalog.Query, selStmt
 			continue
 		}
 		sourceColSet := make(ColumnSet)
-		e.walkExpr(q, te.Expr, sourceColSet)
+		e.walkExprWithVisited(pushQuery(parents, q), te.Expr, sourceColSet, make(map[queryExprKey]bool))
 		isPlain := idx < len(plainMask) && plainMask[idx]
 		// Even if the parse tree says this came from *, the underlying
 		// expression through CTEs/subqueries may not be a simple column ref.
@@ -492,7 +550,9 @@ func isUltimatelyPlainColumnWithVisited(q *catalog.Query, expr catalog.AnalyzedE
 			return isUltimatelyPlainColumnWithVisited(rte.Subquery, te.Expr, visited)
 		}
 	case catalog.RTECTE:
-		if rte.CTEIndex >= 0 && rte.CTEIndex < len(q.CTEList) {
+		// Without the enclosing queries a CTE defined outside q is unknown,
+		// so its columns are not plain.
+		if rte.CTEIndex >= 0 && rte.CTEIndex < len(q.CTEList) && q.CTEList[rte.CTEIndex].Name == rte.CTEName {
 			cte := q.CTEList[rte.CTEIndex]
 			if te := outputColumn(cte.Query, int(v.AttNum)); te != nil {
 				return isUltimatelyPlainColumnWithVisited(cte.Query, te.Expr, visited)
@@ -596,8 +656,9 @@ func countStarColumnsFromRTE(q *catalog.Query, targets []*catalog.TargetEntry, s
 	}
 
 	if tableName != "" {
-		// Qualified star: count consecutive entries from the named RTE.
-		count := 0
+		// Qualified star: count the named RTE's columns in order, 1, 2, ...,
+		// so an explicit reference to it that follows is not counted.
+		count, first := 0, 0
 		for i := startPos; i < len(targets); i++ {
 			v, ok := targets[i].Expr.(*catalog.VarExpr)
 			if !ok {
@@ -608,6 +669,12 @@ func countStarColumnsFromRTE(q *catalog.Query, targets []*catalog.TargetEntry, s
 			}
 			rte := q.RangeTable[v.RangeIdx]
 			if rte.ERef != tableName && rte.Alias != tableName {
+				break
+			}
+			if count == 0 {
+				first = v.RangeIdx
+			}
+			if v.RangeIdx != first || int(v.AttNum) != count+1 {
 				break
 			}
 			count++
@@ -648,7 +715,7 @@ func countStarColumnsFromRTE(q *catalog.Query, targets []*catalog.TargetEntry, s
 	return count
 }
 
-func (e *querySpanExtractor) extractSetOpLineageWithVisited(q *catalog.Query, selStmt *ast.SelectStmt, visited map[*catalog.Query]bool) []QuerySpanResult {
+func (e *querySpanExtractor) extractSetOpLineageWithVisited(parents []*catalog.Query, q *catalog.Query, selStmt *ast.SelectStmt, visited map[*catalog.Query]bool) []QuerySpanResult {
 	if q.LArg == nil || q.RArg == nil {
 		return nil
 	}
@@ -657,8 +724,9 @@ func (e *querySpanExtractor) extractSetOpLineageWithVisited(q *catalog.Query, se
 		lSelStmt = selStmt.Larg
 		rSelStmt = selStmt.Rarg
 	}
-	lResults := e.extractLineageWithVisited(q.LArg, lSelStmt, visited)
-	rResults := e.extractLineageWithVisited(q.RArg, rSelStmt, visited)
+	branchParents := pushQuery(parents, q)
+	lResults := e.extractLineageWithVisited(branchParents, q.LArg, lSelStmt, visited)
+	rResults := e.extractLineageWithVisited(branchParents, q.RArg, rSelStmt, visited)
 
 	// For EXCEPT, output rows come only from the left branch — do not
 	// merge right-side lineage into the result columns.
@@ -756,6 +824,13 @@ func currentQuery(queryStack []*catalog.Query) *catalog.Query {
 	return queryStack[len(queryStack)-1]
 }
 
+// pushQuery returns queryStack with q appended, reusing its array. The caller
+// passes its whole stack and is done with the result before it pushes
+// another query, so no stack in use shares the slot q takes.
+func pushQuery(queryStack []*catalog.Query, q *catalog.Query) []*catalog.Query {
+	return append(queryStack, q)
+}
+
 func appendQuery(queryStack []*catalog.Query, q *catalog.Query) []*catalog.Query {
 	nextStack := make([]*catalog.Query, 0, len(queryStack)+1)
 	nextStack = append(nextStack, queryStack...)
@@ -797,9 +872,10 @@ func (e *querySpanExtractor) resolveVar(queryStack []*catalog.Query, v *catalog.
 		if rel.RelKind == 'c' {
 			return
 		}
+		// The table's own column name, which an alias column list may hide.
 		colName := ""
-		if colIdx >= 0 && colIdx < len(rte.ColNames) {
-			colName = rte.ColNames[colIdx]
+		if colIdx >= 0 && colIdx < len(rel.Columns) {
+			colName = rel.Columns[colIdx].Name
 		}
 		result[ColumnResource{
 			Database: e.defaultDatabase,
@@ -814,9 +890,10 @@ func (e *querySpanExtractor) resolveVar(queryStack []*catalog.Query, v *catalog.
 		}
 
 	case catalog.RTECTE:
-		if cte := findCTEForRangeTableEntry(effectiveStack, rte); cte != nil {
+		if cte, level := findCTEForRangeTableEntry(effectiveStack, rte); cte != nil {
 			if te := outputColumn(cte.Query, int(v.AttNum)); te != nil {
-				e.walkExprWithVisited(appendQuery(effectiveStack, cte.Query), te.Expr, result, visited)
+				// The CTE's query sees the scopes of the query that defines it.
+				e.walkExprWithVisited(appendQuery(effectiveStack[:level+1], cte.Query), te.Expr, result, visited)
 			}
 		}
 
@@ -827,23 +904,19 @@ func (e *querySpanExtractor) resolveVar(queryStack []*catalog.Query, v *catalog.
 		}
 
 	case catalog.RTEFunction:
-		// Trace lineage through user-defined function body.
-		if len(rte.FuncExprs) > 0 {
-			if fc, ok := rte.FuncExprs[0].(*catalog.FuncCallExpr); ok {
-				if procs := e.userProcsCalled(fc); len(procs) > 0 {
-					for _, proc := range procs {
-						bodySets := e.analyzeFunctionBody(proc)
-						if colIdx >= 0 && colIdx < len(bodySets) {
-							for k, val := range bodySets[colIdx] {
-								result[k] = val
-							}
-						}
-					}
-				} else {
-					// Built-in function (no user proc) — trace lineage through
-					// the function's arguments. E.g., jsonb_each(a) depends on column a.
-					for _, arg := range fc.Args {
-						e.walkExprWithVisited(effectiveStack, arg, result, visited)
+		// An output reads the arguments of the call that produces it, as
+		// jsonb_each(a) reads a, and for a user function also what its body
+		// returns there. The body's parameters carry no lineage, so the
+		// arguments stand in for them.
+		if fc, localIdx := functionColumn(rte, colIdx); fc != nil {
+			for _, arg := range fc.Args {
+				e.walkExprWithVisited(effectiveStack, arg, result, visited)
+			}
+			for _, proc := range e.userProcsCalled(fc) {
+				bodySets := e.analyzeFunctionBody(proc)
+				if localIdx >= 0 && localIdx < len(bodySets) {
+					for k, val := range bodySets[localIdx] {
+						result[k] = val
 					}
 				}
 			}
@@ -854,27 +927,51 @@ func (e *querySpanExtractor) resolveVar(queryStack []*catalog.Query, v *catalog.
 	}
 }
 
-func findCTEForRangeTableEntry(queryStack []*catalog.Query, rte *catalog.RangeTableEntry) *catalog.CommonTableExprQ {
-	if len(queryStack) == 0 || rte == nil {
-		return nil
+// functionColumn returns the call of a function RTE that produces its
+// colIdx-th column (0-based) and the column's position among that call's
+// columns. ROWS FROM and a multi-argument unnest place each call's columns
+// after the previous call's; ORDINALITY's column belongs to none.
+func functionColumn(rte *catalog.RangeTableEntry, colIdx int) (*catalog.FuncCallExpr, int) {
+	if rte.FuncColCounts == nil {
+		if len(rte.FuncExprs) != 1 {
+			return nil, -1
+		}
+		fc, _ := rte.FuncExprs[0].(*catalog.FuncCallExpr)
+		return fc, colIdx
 	}
-
-	current := currentQuery(queryStack)
-	if current != nil && rte.CTEIndex >= 0 && rte.CTEIndex < len(current.CTEList) {
-		return current.CTEList[rte.CTEIndex]
+	for i, count := range rte.FuncColCounts {
+		if colIdx < count {
+			if i >= len(rte.FuncExprs) {
+				return nil, -1
+			}
+			fc, _ := rte.FuncExprs[i].(*catalog.FuncCallExpr)
+			return fc, colIdx
+		}
+		colIdx -= count
 	}
+	return nil, -1
+}
 
-	if rte.CTEName == "" {
-		return nil
+// findCTEForRangeTableEntry returns the CTE that rte, an entry of the last
+// query of queryStack, references, and the stack index of the query that
+// defines it. rte.CTEIndex indexes the defining query's list, which may be an
+// enclosing query's, so the name is matched from the innermost query out, as
+// PostgreSQL scopes WITH names.
+func findCTEForRangeTableEntry(queryStack []*catalog.Query, rte *catalog.RangeTableEntry) (*catalog.CommonTableExprQ, int) {
+	if rte == nil || rte.CTEName == "" {
+		return nil, -1
 	}
 	for i := len(queryStack) - 1; i >= 0; i-- {
+		if queryStack[i] == nil {
+			continue
+		}
 		for _, cte := range queryStack[i].CTEList {
-			if strings.EqualFold(cte.Name, rte.CTEName) {
-				return cte
+			if cte != nil && cte.Name == rte.CTEName {
+				return cte, i
 			}
 		}
 	}
-	return nil
+	return nil, -1
 }
 
 // extractFallbackColumns attempts to extract column names and lineage from the parse tree
@@ -959,6 +1056,23 @@ func figureResTargetName(rt *ast.ResTarget) string {
 	if rt == nil || rt.Val == nil {
 		return ""
 	}
+	// A cast or collation keeps its operand's name.
+	// pg: src/backend/parser/parse_target.c — FigureColnameInternal
+	switch v := rt.Val.(type) {
+	case *ast.TypeCast:
+		if name := figureResTargetName(&ast.ResTarget{Val: v.Arg}); name != "" {
+			return name
+		}
+		if v.TypeName != nil && v.TypeName.Names != nil && len(v.TypeName.Names.Items) > 0 {
+			if s, ok := v.TypeName.Names.Items[len(v.TypeName.Names.Items)-1].(*ast.String); ok {
+				return s.Str
+			}
+		}
+		return ""
+	case *ast.CollateClause:
+		return figureResTargetName(&ast.ResTarget{Val: v.Arg})
+	default:
+	}
 	if cr, ok := rt.Val.(*ast.ColumnRef); ok && cr.Fields != nil {
 		// Use the last String field — for "ia.approver_emails", return "approver_emails".
 		// For unqualified "col", return "col". Skip A_Star nodes.
@@ -1001,63 +1115,72 @@ func (e *querySpanExtractor) extractColumnsFromFromItem(item ast.Node, analyzer 
 	}
 
 	switch v := item.(type) {
-	case *ast.RangeVar:
-		return e.extractColumnsFromRangeVar(v)
+	case *ast.RangeVar, *ast.RangeSubselect:
+		if analyzer == nil {
+			analyzer = &plpgsqlAnalyzer{extractor: e, scope: newVariableScope(nil)}
+		}
+		return analyzer.fromItemColumns(item, fromTables)
 	case *ast.RangeFunction:
 		return e.extractColumnsFromRangeFunction(v, analyzer, fromTables)
-	case *ast.RangeSubselect:
-		if v.Alias != nil && v.Alias.Colnames != nil && len(v.Alias.Colnames.Items) > 0 {
-			return extractColnamesFromAlias(v.Alias)
-		}
-		// No explicit column aliases — extract column names from subquery's target list
-		// (only when the target list has explicit columns, not SELECT *).
-		if subSel, ok := v.Subquery.(*ast.SelectStmt); ok && subSel.TargetList != nil {
-			var results []QuerySpanResult
-			hasStar := false
-			for _, item := range subSel.TargetList.Items {
-				rt, ok := item.(*ast.ResTarget)
-				if !ok {
-					continue
-				}
-				if isStarTarget(rt) {
-					hasStar = true
-					break
-				}
-				name := rt.Name
-				if name == "" {
-					name = figureResTargetName(rt)
-				}
-				if name == "" {
-					name = "?column?"
-				}
-				results = append(results, QuerySpanResult{
-					Name:          name,
-					SourceColumns: ColumnSet{},
-				})
-			}
-			if !hasStar && len(results) > 0 {
-				return results
-			}
-			// For SELECT * in subquery, try to resolve columns from the subquery's FROM tables.
-			if hasStar && subSel.FromClause != nil {
-				var starResults []QuerySpanResult
-				for _, fromItem := range subSel.FromClause.Items {
-					starResults = append(starResults, e.extractColumnsFromFromItem(fromItem, analyzer, fromTables)...)
-				}
-				if len(starResults) > 0 {
-					return starResults
-				}
-			}
-		}
-		return nil
 	case *ast.JoinExpr:
-		var results []QuerySpanResult
-		results = append(results, e.extractColumnsFromFromItem(v.Larg, analyzer, fromTables)...)
-		results = append(results, e.extractColumnsFromFromItem(v.Rarg, analyzer, fromTables)...)
-		return results
+		return joinColumns(v, e.extractColumnsFromFromItem(v.Larg, analyzer, fromTables), e.extractColumnsFromFromItem(v.Rarg, analyzer, fromTables))
 	default:
 		return nil
 	}
+}
+
+// joinColumns returns the columns of a join of left and right: each USING
+// (or NATURAL) column once, reading both sides, then the other columns of
+// the left and of the right.
+//
+// pg: src/backend/parser/parse_clause.c — transformFromClauseItem (JoinExpr)
+func joinColumns(join *ast.JoinExpr, left, right []QuerySpanResult) []QuerySpanResult {
+	var using []string
+	if join.IsNatural {
+		for _, l := range left {
+			if slices.ContainsFunc(right, func(r QuerySpanResult) bool { return r.Name == l.Name }) {
+				using = append(using, l.Name)
+			}
+		}
+	} else {
+		using = astStrings(join.UsingClause)
+	}
+	if len(using) == 0 {
+		return append(left, right...)
+	}
+	leftUsed, rightUsed := make([]bool, len(left)), make([]bool, len(right))
+	take := func(columns []QuerySpanResult, used []bool, name string) *QuerySpanResult {
+		for i := range columns {
+			if !used[i] && columns[i].Name == name {
+				used[i] = true
+				return &columns[i]
+			}
+		}
+		return nil
+	}
+	var columns []QuerySpanResult
+	for _, name := range using {
+		merged := QuerySpanResult{Name: name, SourceColumns: make(ColumnSet)}
+		if l := take(left, leftUsed, name); l != nil {
+			maps.Copy(merged.SourceColumns, l.SourceColumns)
+			merged.IsPlainField = l.IsPlainField
+		}
+		if r := take(right, rightUsed, name); r != nil {
+			maps.Copy(merged.SourceColumns, r.SourceColumns)
+		}
+		columns = append(columns, merged)
+	}
+	for i, column := range left {
+		if !leftUsed[i] {
+			columns = append(columns, column)
+		}
+	}
+	for i, column := range right {
+		if !rightUsed[i] {
+			columns = append(columns, column)
+		}
+	}
+	return columns
 }
 
 // extractColumnsFromRangeVar looks up a table in the catalog and returns its columns with lineage.
@@ -1353,12 +1476,14 @@ func (e *querySpanExtractor) extractColumnsFromRangeFunction(rf *ast.RangeFuncti
 						SourceColumns: colSet,
 					})
 				}
+				e.enrichFuncResultsWithArgLineage(rf, analyzer, fromTables, results)
 				return results
 			}
 		}
 		// Catalog lookup failed — try metadata (for RETURNS TABLE functions).
 		dummyAccesses := make(ColumnSet)
 		if metaResults := e.tryMetadataFuncLookup(funcName, dummyAccesses); metaResults != nil {
+			e.enrichFuncResultsWithArgLineage(rf, analyzer, fromTables, metaResults)
 			return metaResults
 		}
 	}
@@ -1480,6 +1605,9 @@ func (e *querySpanExtractor) tryUserFuncTableSource(selStmt *ast.SelectStmt, acc
 		return nil
 	}
 
+	analyzer := &plpgsqlAnalyzer{extractor: e, scope: newVariableScope(nil)}
+	fromTables := analyzer.collectFromTables(selStmt)
+
 	// Look for a single RangeFunction in the FROM clause.
 	for _, item := range selStmt.FromClause.Items {
 		rf, ok := item.(*ast.RangeFunction)
@@ -1502,12 +1630,15 @@ func (e *querySpanExtractor) tryUserFuncTableSource(selStmt *ast.SelectStmt, acc
 				continue
 			}
 			bodySets := e.analyzeFunctionBody(proc)
-			return e.buildFuncResults(outNames, bodySets, accessesMap)
+			results := e.buildFuncResults(outNames, bodySets, accessesMap)
+			e.enrichFuncResultsWithArgLineage(rf, analyzer, fromTables, results)
+			return results
 		}
 
 		// Catalog lookup failed — try metadata. This handles cases where
 		// the metadata function name differs from the name in the DDL definition.
 		if results := e.tryMetadataFuncLookup(funcName, accessesMap); results != nil {
+			e.enrichFuncResultsWithArgLineage(rf, analyzer, fromTables, results)
 			return results
 		}
 	}

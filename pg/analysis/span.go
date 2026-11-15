@@ -4,6 +4,7 @@
 package analysis
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"slices"
@@ -53,6 +54,24 @@ func (c ColumnResource) String() string {
 
 // ColumnSet is a set of columns.
 type ColumnSet map[ColumnResource]bool
+
+// sorted returns the set's resources in order, for walks whose answer must
+// not depend on map iteration order.
+func (s ColumnSet) sorted() []ColumnResource {
+	resources := make([]ColumnResource, 0, len(s))
+	for resource := range s {
+		resources = append(resources, resource)
+	}
+	slices.SortFunc(resources, func(a, b ColumnResource) int {
+		return cmp.Or(
+			cmp.Compare(a.Database, b.Database),
+			cmp.Compare(a.Schema, b.Schema),
+			cmp.Compare(a.Table, b.Table),
+			cmp.Compare(a.Column, b.Column),
+		)
+	})
+	return resources
+}
 
 // QuerySpanResult is one result column of a query and the columns it reads.
 type QuerySpanResult struct {

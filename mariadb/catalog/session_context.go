@@ -147,3 +147,38 @@ func reverse(s []string) {
 		s[i], s[j] = s[j], s[i]
 	}
 }
+
+// explicitTimestampDefaults runs a plan that creates, adds or changes a
+// TIMESTAMP column with explicit_defaults_for_timestamp ON, restoring the
+// session's setting after it. Every column is written with the default it
+// has, and OFF, which 10.7 has by default, would give the first NOT NULL
+// TIMESTAMP DEFAULT current_timestamp() ON UPDATE current_timestamp().
+func explicitTimestampDefaults(ops []MigrationOp, diff *SchemaDiff) []MigrationOp {
+	if !touchesTimestamps(diff) {
+		return ops
+	}
+	set := MigrationOp{Type: OpAlterTable, SQL: "SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1", Phase: PhasePre}
+	restore := MigrationOp{Type: OpAlterTable, SQL: "SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp", Phase: PhasePost}
+	return append(append([]MigrationOp{set}, ops...), restore)
+}
+
+func touchesTimestamps(diff *SchemaDiff) bool {
+	isTimestamp := func(c *Column) bool { return c != nil && toLower(c.DataType) == "timestamp" }
+	for _, e := range diff.Tables {
+		switch e.Action {
+		case DiffAdd:
+			for _, c := range e.To.Columns {
+				if isTimestamp(c) {
+					return true
+				}
+			}
+		case DiffModify:
+			for _, ce := range e.Columns {
+				if ce.Action != DiffDrop && isTimestamp(ce.To) {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}

@@ -41,14 +41,11 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			return err
 		}
 	} else {
-		// Check for duplicate table or view with the same name.
-		if db.Tables[key] != nil {
+		// Tables, views and sequences share one name space.
+		if db.Tables[key] != nil || db.Views[key] != nil || db.Sequences[key] != nil {
 			if stmt.IfNotExists {
 				return nil
 			}
-			return errDupTable(tableName)
-		}
-		if db.Views[key] != nil || db.Sequences[key] != nil {
 			return errDupTable(tableName)
 		}
 		if stmt.Like != nil {

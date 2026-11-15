@@ -80,9 +80,12 @@ const (
 	NaturalRightOuterJoin
 )
 
-// joinTableSources returns the columns a join exposes. A column merged by
-// USING or NATURAL is COALESCE(left, right), and in matched rows both sides
-// hold its value, so it carries both sides' sources.
+// joinTableSources returns the columns a join exposes, in the order MySQL
+// returns them. A column merged by USING or NATURAL is COALESCE(left, right),
+// and in matched rows both sides hold its value, so it carries both sides'
+// sources. Merged columns come first, in the order of the join's first table
+// (the right one for RIGHT JOIN), then that table's other columns, then the
+// other table's.
 func joinTableSources(l, r tableSource, tp joinType, using []string) tableSource {
 	switch tp {
 	case Join, InnerJoin, CrossJoin, StraightJoin, LeftOuterJoin, RightOuterJoin,
@@ -90,23 +93,33 @@ func joinTableSources(l, r tableSource, tp joinType, using []string) tableSource
 	default:
 		return nil
 	}
+	first, second := l.GetQuerySpanResult(), r.GetQuerySpanResult()
+	names := joinedColumnNames(l, r, tp, using)
+	if len(names) == 0 {
+		return &pseudoTable{Columns: append(append([]QuerySpanResult{}, first...), second...)}
+	}
+	if tp == RightOuterJoin || tp == NaturalRightOuterJoin {
+		first, second = second, first
+	}
 	joined := make(map[string]bool)
-	for _, name := range joinedColumnNames(l, r, tp, using) {
+	for _, name := range names {
 		joined[strings.ToLower(name)] = true
 	}
-	rightColumns := r.GetQuerySpanResult()
 	var columns []QuerySpanResult
-	for _, field := range l.GetQuerySpanResult() {
-		if joined[strings.ToLower(field.Name)] {
-			if rightField, ok := querySpanResultNamed(rightColumns, field.Name); ok {
-				field.SourceColumns, _ = mergeColumnSet(field.SourceColumns, rightField.SourceColumns)
-			}
+	for _, field := range first {
+		if !joined[strings.ToLower(field.Name)] {
+			continue
+		}
+		if other, ok := querySpanResultNamed(second, field.Name); ok {
+			field.SourceColumns, _ = mergeColumnSet(field.SourceColumns, other.SourceColumns)
 		}
 		columns = append(columns, field)
 	}
-	for _, field := range rightColumns {
-		if !joined[strings.ToLower(field.Name)] {
-			columns = append(columns, field)
+	for _, side := range [][]QuerySpanResult{first, second} {
+		for _, field := range side {
+			if !joined[strings.ToLower(field.Name)] {
+				columns = append(columns, field)
+			}
 		}
 	}
 	return &pseudoTable{
@@ -155,23 +168,23 @@ func (q *querySpanExtractor) getAllTableColumnSources(databaseName, tableName st
 // getFieldColumnSource resolves a column reference as MySQL does: the current
 // SELECT first, by the rules of the clause the reference is in, then each
 // enclosing SELECT outward, its tables before the select list it exposes.
-func (q *querySpanExtractor) getFieldColumnSource(databaseName, tableName, fieldName string) (ColumnSet, error) {
-	if sourceColumnSet, ok := q.resolveInCurrentSelect(databaseName, tableName, fieldName); ok {
-		return sourceColumnSet, nil
+func (q *querySpanExtractor) getFieldColumnSource(databaseName, tableName, fieldName string) (QuerySpanResult, error) {
+	if source, ok := q.resolveInCurrentSelect(databaseName, tableName, fieldName); ok {
+		return source, nil
 	}
 	for i := len(q.outerScopes) - 1; i >= 0; i-- {
 		scope := q.outerScopes[i]
-		if sourceColumnSet, ok := q.findColumnInTables(scope.tables, databaseName, tableName, fieldName); ok {
-			return sourceColumnSet, nil
+		if source, ok := q.findColumnInTables(scope.tables, databaseName, tableName, fieldName); ok {
+			return source, nil
 		}
 		if databaseName == "" && tableName == "" {
-			if sourceColumnSet, ok := selectItemsNamed(scope.items, fieldName); ok {
-				return sourceColumnSet, nil
+			if source, ok := selectItemsNamed(scope.items, fieldName); ok {
+				return source, nil
 			}
 		}
 	}
 
-	return nil, &NotFoundError{
+	return QuerySpanResult{}, &NotFoundError{
 		Database: &databaseName,
 		Table:    &tableName,
 		Column:   &fieldName,
@@ -208,18 +221,18 @@ func (q *querySpanExtractor) tableSourceMatches(tableSource tableSource, databas
 
 // findColumnInTables searches tables last to first, so a join's merged
 // columns, appended after its operands, win for an unqualified name.
-func (q *querySpanExtractor) findColumnInTables(tables []tableSource, databaseName, tableName, fieldName string) (ColumnSet, bool) {
+func (q *querySpanExtractor) findColumnInTables(tables []tableSource, databaseName, tableName, fieldName string) (QuerySpanResult, bool) {
 	for i := len(tables) - 1; i >= 0; i-- {
 		if !q.tableSourceMatches(tables[i], databaseName, tableName) {
 			continue
 		}
 		for _, column := range tables[i].GetQuerySpanResult() {
 			if strings.EqualFold(column.Name, fieldName) {
-				return column.SourceColumns, true
+				return column, true
 			}
 		}
 	}
-	return nil, false
+	return QuerySpanResult{}, false
 }
 
 func (q *querySpanExtractor) findTableSchema(databaseName, tableName string) (tableSource, error) {
@@ -1060,14 +1073,16 @@ func (q *querySpanExtractor) extractExpr(expr ast.ExprNode) (QuerySpanResult, er
 		if e.Star {
 			return QuerySpanResult{}, fmt.Errorf("asterisk is not a scalar expression")
 		}
-		sourceColumns, err := q.getFieldColumnSource(e.Schema, e.Table, e.Column)
+		// A column of a view, derived table or CTE is plain only if that
+		// query's column is.
+		source, err := q.getFieldColumnSource(e.Schema, e.Table, e.Column)
 		if err != nil {
 			return QuerySpanResult{}, err
 		}
 		return QuerySpanResult{
 			Name:          e.Column,
-			SourceColumns: sourceColumns,
-			IsPlainField:  true,
+			SourceColumns: source.SourceColumns,
+			IsPlainField:  source.IsPlainField,
 		}, nil
 	case *ast.StarExpr:
 		return QuerySpanResult{}, fmt.Errorf("asterisk is not a scalar expression")
