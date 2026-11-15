@@ -55,7 +55,7 @@
 : string
 | (2,2)
 > query
-| SELECT a.attname, a.attgenerated <> '' FROM pg_catalog.pg_attribute a
+| SELECT a.attname, a.attgenerated <> '', a.attidentity FROM pg_catalog.pg_attribute a
 | 		JOIN pg_catalog.pg_class c ON c.oid = a.attrelid JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
 | 		WHERE n.nspname = $1 AND c.relname = $2 AND a.attnum > 0 AND NOT a.attisdropped ORDER BY a.attnum
 : string
@@ -65,14 +65,19 @@
 < result
 < column "attname" "NAME"
 < column "?column?" "BOOL"
+< column "attidentity" "CHAR"
 < row
 : string
 | id
 : bool false
+: string
+|
 < row
 : string
 | a
 : bool false
+: string
+|
 > query
 | SELECT i.relname, x.indisprimary, x.indisunique, con.oid IS NOT NULL, pg_get_indexdef(i.oid),
 | 		(SELECT string_agg(pg_get_indexdef(i.oid, k + 1, true), E'\x1f' ORDER BY k) FROM generate_subscripts(x.indkey, 1) AS k WHERE k < x.indnkeyatts)
@@ -178,7 +183,7 @@
 : string
 | (2,10)
 > query
-| SELECT a.attname, a.attgenerated <> '' FROM pg_catalog.pg_attribute a
+| SELECT a.attname, a.attgenerated <> '', a.attidentity FROM pg_catalog.pg_attribute a
 | 		JOIN pg_catalog.pg_class c ON c.oid = a.attrelid JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
 | 		WHERE n.nspname = $1 AND c.relname = $2 AND a.attnum > 0 AND NOT a.attisdropped ORDER BY a.attnum
 : string
@@ -188,14 +193,19 @@
 < result
 < column "attname" "NAME"
 < column "?column?" "BOOL"
+< column "attidentity" "CHAR"
 < row
 : string
 | id
 : bool false
+: string
+|
 < row
 : string
 | a
 : bool false
+: string
+|
 > query
 | SELECT i.relname, x.indisprimary, x.indisunique, con.oid IS NOT NULL, pg_get_indexdef(i.oid),
 | 		(SELECT string_agg(pg_get_indexdef(i.oid, k + 1, true), E'\x1f' ORDER BY k) FROM generate_subscripts(x.indkey, 1) AS k WHERE k < x.indnkeyatts)
@@ -314,7 +324,7 @@
 : string
 | (3)
 > query
-| SELECT a.attname, a.attgenerated <> '' FROM pg_catalog.pg_attribute a
+| SELECT a.attname, a.attgenerated <> '', a.attidentity FROM pg_catalog.pg_attribute a
 | 		JOIN pg_catalog.pg_class c ON c.oid = a.attrelid JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
 | 		WHERE n.nspname = $1 AND c.relname = $2 AND a.attnum > 0 AND NOT a.attisdropped ORDER BY a.attnum
 : string
@@ -324,10 +334,13 @@
 < result
 < column "attname" "NAME"
 < column "?column?" "BOOL"
+< column "attidentity" "CHAR"
 < row
 : string
 | id
 : bool false
+: string
+|
 > query
 | SELECT i.relname, x.indisprimary, x.indisunique, con.oid IS NOT NULL, pg_get_indexdef(i.oid),
 | 		(SELECT string_agg(pg_get_indexdef(i.oid, k + 1, true), E'\x1f' ORDER BY k) FROM generate_subscripts(x.indkey, 1) AS k WHERE k < x.indnkeyatts)
@@ -436,7 +449,7 @@
 : string
 | (3,x)
 > query
-| SELECT a.attname, a.attgenerated <> '' FROM pg_catalog.pg_attribute a
+| SELECT a.attname, a.attgenerated <> '', a.attidentity FROM pg_catalog.pg_attribute a
 | 		JOIN pg_catalog.pg_class c ON c.oid = a.attrelid JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
 | 		WHERE n.nspname = $1 AND c.relname = $2 AND a.attnum > 0 AND NOT a.attisdropped ORDER BY a.attnum
 : string
@@ -446,14 +459,19 @@
 < result
 < column "attname" "NAME"
 < column "?column?" "BOOL"
+< column "attidentity" "CHAR"
 < row
 : string
 | id
 : bool false
+: string
+|
 < row
 : string
 | note
 : bool false
+: string
+|
 > query
 | SELECT i.relname, x.indisprimary, x.indisunique, con.oid IS NOT NULL, pg_get_indexdef(i.oid),
 | 		(SELECT string_agg(pg_get_indexdef(i.oid, k + 1, true), E'\x1f' ORDER BY k) FROM generate_subscripts(x.indkey, 1) AS k WHERE k < x.indnkeyatts)
@@ -562,7 +580,7 @@
 : string
 | (2,20,0)
 > query
-| SELECT a.attname, a.attgenerated <> '' FROM pg_catalog.pg_attribute a
+| SELECT a.attname, a.attgenerated <> '', a.attidentity FROM pg_catalog.pg_attribute a
 | 		JOIN pg_catalog.pg_class c ON c.oid = a.attrelid JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
 | 		WHERE n.nspname = $1 AND c.relname = $2 AND a.attnum > 0 AND NOT a.attisdropped ORDER BY a.attnum
 : string
@@ -572,18 +590,25 @@
 < result
 < column "attname" "NAME"
 < column "?column?" "BOOL"
+< column "attidentity" "CHAR"
 < row
 : string
 | id
 : bool false
+: string
+|
 < row
 : string
 | code
 : bool false
+: string
+|
 < row
 : string
 | v
 : bool false
+: string
+|
 > query
 | SELECT i.relname, x.indisprimary, x.indisunique, con.oid IS NOT NULL, pg_get_indexdef(i.oid),
 | 		(SELECT string_agg(pg_get_indexdef(i.oid, k + 1, true), E'\x1f' ORDER BY k) FROM generate_subscripts(x.indkey, 1) AS k WHERE k < x.indnkeyatts)
@@ -709,7 +734,7 @@
 : string
 | (2,20,0)
 > query
-| SELECT a.attname, a.attgenerated <> '' FROM pg_catalog.pg_attribute a
+| SELECT a.attname, a.attgenerated <> '', a.attidentity FROM pg_catalog.pg_attribute a
 | 		JOIN pg_catalog.pg_class c ON c.oid = a.attrelid JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
 | 		WHERE n.nspname = $1 AND c.relname = $2 AND a.attnum > 0 AND NOT a.attisdropped ORDER BY a.attnum
 : string
@@ -719,18 +744,25 @@
 < result
 < column "attname" "NAME"
 < column "?column?" "BOOL"
+< column "attidentity" "CHAR"
 < row
 : string
 | Id
 : bool false
+: string
+|
 < row
 : string
 | code
 : bool false
+: string
+|
 < row
 : string
 | v
 : bool false
+: string
+|
 > query
 | SELECT i.relname, x.indisprimary, x.indisunique, con.oid IS NOT NULL, pg_get_indexdef(i.oid),
 | 		(SELECT string_agg(pg_get_indexdef(i.oid, k + 1, true), E'\x1f' ORDER BY k) FROM generate_subscripts(x.indkey, 1) AS k WHERE k < x.indnkeyatts)
@@ -874,7 +906,7 @@
 : string
 | (3,3)
 > query
-| SELECT a.attname, a.attgenerated <> '' FROM pg_catalog.pg_attribute a
+| SELECT a.attname, a.attgenerated <> '', a.attidentity FROM pg_catalog.pg_attribute a
 | 		JOIN pg_catalog.pg_class c ON c.oid = a.attrelid JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
 | 		WHERE n.nspname = $1 AND c.relname = $2 AND a.attnum > 0 AND NOT a.attisdropped ORDER BY a.attnum
 : string
@@ -884,14 +916,19 @@
 < result
 < column "attname" "NAME"
 < column "?column?" "BOOL"
+< column "attidentity" "CHAR"
 < row
 : string
 | id
 : bool false
+: string
+|
 < row
 : string
 | v
 : bool false
+: string
+|
 > query
 | SELECT i.relname, x.indisprimary, x.indisunique, con.oid IS NOT NULL, pg_get_indexdef(i.oid),
 | 		(SELECT string_agg(pg_get_indexdef(i.oid, k + 1, true), E'\x1f' ORDER BY k) FROM generate_subscripts(x.indkey, 1) AS k WHERE k < x.indnkeyatts)
@@ -1000,7 +1037,7 @@
 : string
 | (2,"(c,d)",{3})
 > query
-| SELECT a.attname, a.attgenerated <> '' FROM pg_catalog.pg_attribute a
+| SELECT a.attname, a.attgenerated <> '', a.attidentity FROM pg_catalog.pg_attribute a
 | 		JOIN pg_catalog.pg_class c ON c.oid = a.attrelid JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
 | 		WHERE n.nspname = $1 AND c.relname = $2 AND a.attnum > 0 AND NOT a.attisdropped ORDER BY a.attnum
 : string
@@ -1010,18 +1047,25 @@
 < result
 < column "attname" "NAME"
 < column "?column?" "BOOL"
+< column "attidentity" "CHAR"
 < row
 : string
 | id
 : bool false
+: string
+|
 < row
 : string
 | fn
 : bool false
+: string
+|
 < row
 : string
 | tags
 : bool false
+: string
+|
 > query
 | SELECT i.relname, x.indisprimary, x.indisunique, con.oid IS NOT NULL, pg_get_indexdef(i.oid),
 | 		(SELECT string_agg(pg_get_indexdef(i.oid, k + 1, true), E'\x1f' ORDER BY k) FROM generate_subscripts(x.indkey, 1) AS k WHERE k < x.indnkeyatts)
@@ -1124,7 +1168,7 @@
 : string
 | (2)
 > query
-| SELECT a.attname, a.attgenerated <> '' FROM pg_catalog.pg_attribute a
+| SELECT a.attname, a.attgenerated <> '', a.attidentity FROM pg_catalog.pg_attribute a
 | 		JOIN pg_catalog.pg_class c ON c.oid = a.attrelid JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
 | 		WHERE n.nspname = $1 AND c.relname = $2 AND a.attnum > 0 AND NOT a.attisdropped ORDER BY a.attnum
 : string
@@ -1134,10 +1178,13 @@
 < result
 < column "attname" "NAME"
 < column "?column?" "BOOL"
+< column "attidentity" "CHAR"
 < row
 : string
 | id
 : bool false
+: string
+|
 > query
 | SELECT i.relname, x.indisprimary, x.indisunique, con.oid IS NOT NULL, pg_get_indexdef(i.oid),
 | 		(SELECT string_agg(pg_get_indexdef(i.oid, k + 1, true), E'\x1f' ORDER BY k) FROM generate_subscripts(x.indkey, 1) AS k WHERE k < x.indnkeyatts)
@@ -1196,6 +1243,384 @@
 | CREATE SCHEMA c; CREATE TABLE c.a_b (id INT PRIMARY KEY); CREATE SCHEMA b_c; CREATE TABLE b_c.a (id INT PRIMARY KEY)
 < ok 0 -
 > exec
+| CREATE TABLE ident_d (id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY, v INT); INSERT INTO ident_d (v) VALUES (1), (2)
+< ok 2 -
+> query
+| SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_tables WHERE schemaname::text = $1 AND tablename::text = $2)
+: string
+| public
+: string
+| ident_d
+< result
+< column "exists" "BOOL"
+< row
+: bool true
+> query
+| SELECT x::text FROM "public"."ident_d" AS x ORDER BY 1
+< result
+< column "x" "TEXT"
+< row
+: string
+| (1,1)
+< row
+: string
+| (2,2)
+> exec
+| CREATE TABLE "bbdataarchive"."_bb__ident_d_public" AS
+|   SELECT "public"."ident_d".* FROM ident_d WHERE id = 1;
+< ok 1 -
+> query
+| SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_tables WHERE schemaname::text = $1 AND tablename::text = $2)
+: string
+| bbdataarchive
+: string
+| _bb__ident_d_public
+< result
+< column "exists" "BOOL"
+< row
+: bool true
+> exec
+| DELETE FROM ident_d WHERE id = 1
+< ok 1 -
+> query
+| SELECT x::text FROM "public"."ident_d" AS x ORDER BY 1
+< result
+< column "x" "TEXT"
+< row
+: string
+| (2,2)
+> query
+| SELECT a.attname, a.attgenerated <> '', a.attidentity FROM pg_catalog.pg_attribute a
+| 		JOIN pg_catalog.pg_class c ON c.oid = a.attrelid JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+| 		WHERE n.nspname = $1 AND c.relname = $2 AND a.attnum > 0 AND NOT a.attisdropped ORDER BY a.attnum
+: string
+| public
+: string
+| ident_d
+< result
+< column "attname" "NAME"
+< column "?column?" "BOOL"
+< column "attidentity" "CHAR"
+< row
+: string
+| id
+: bool false
+: string
+| a
+< row
+: string
+| v
+: bool false
+: string
+|
+> query
+| SELECT i.relname, x.indisprimary, x.indisunique, con.oid IS NOT NULL, pg_get_indexdef(i.oid),
+| 		(SELECT string_agg(pg_get_indexdef(i.oid, k + 1, true), E'\x1f' ORDER BY k) FROM generate_subscripts(x.indkey, 1) AS k WHERE k < x.indnkeyatts)
+| 		FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 		JOIN pg_catalog.pg_class c ON c.oid = x.indrelid JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+| 		LEFT JOIN pg_catalog.pg_constraint con ON con.conindid = x.indexrelid
+| 		WHERE n.nspname = $1 AND c.relname = $2 ORDER BY i.relname
+: string
+| public
+: string
+| ident_d
+< result
+< column "relname" "NAME"
+< column "indisprimary" "BOOL"
+< column "indisunique" "BOOL"
+< column "?column?" "BOOL"
+< column "pg_get_indexdef" "TEXT"
+< column "string_agg" "TEXT"
+< row
+: string
+| ident_d_pkey
+: bool true
+: bool true
+: bool true
+: string
+| CREATE UNIQUE INDEX ident_d_pkey ON public.ident_d USING btree (id)
+: string
+| id
+> exec
+| /*
+| Original SQL:
+| DELETE FROM ident_d WHERE id = 1
+| */
+| INSERT INTO "public"."ident_d" ("id", "v") OVERRIDING SYSTEM VALUE SELECT "id", "v" FROM "bbdataarchive"."_bb__ident_d_public";
+< ok 1 -
+> query
+| SELECT x::text FROM "public"."ident_d" AS x ORDER BY 1
+< result
+< column "x" "TEXT"
+< row
+: string
+| (1,1)
+< row
+: string
+| (2,2)
+> query
+| SELECT to_regclass($1)::text
+: string
+| canary
+< result
+< column "to_regclass" "TEXT"
+< row
+: string
+| canary
+> exec
+| CREATE TABLE ident_u (id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY, v INT); INSERT INTO ident_u (v) VALUES (1), (2)
+< ok 2 -
+> query
+| SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_tables WHERE schemaname::text = $1 AND tablename::text = $2)
+: string
+| public
+: string
+| ident_u
+< result
+< column "exists" "BOOL"
+< row
+: bool true
+> query
+| SELECT x::text FROM "public"."ident_u" AS x ORDER BY 1
+< result
+< column "x" "TEXT"
+< row
+: string
+| (1,1)
+< row
+: string
+| (2,2)
+> exec
+| CREATE TABLE "bbdataarchive"."_bb__ident_u_public" AS
+|   SELECT "public"."ident_u".* FROM ident_u WHERE id = 2;
+< ok 1 -
+> query
+| SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_tables WHERE schemaname::text = $1 AND tablename::text = $2)
+: string
+| bbdataarchive
+: string
+| _bb__ident_u_public
+< result
+< column "exists" "BOOL"
+< row
+: bool true
+> exec
+| UPDATE ident_u SET v = 5 WHERE id = 2
+< ok 1 -
+> query
+| SELECT x::text FROM "public"."ident_u" AS x ORDER BY 1
+< result
+< column "x" "TEXT"
+< row
+: string
+| (1,1)
+< row
+: string
+| (2,5)
+> query
+| SELECT a.attname, a.attgenerated <> '', a.attidentity FROM pg_catalog.pg_attribute a
+| 		JOIN pg_catalog.pg_class c ON c.oid = a.attrelid JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+| 		WHERE n.nspname = $1 AND c.relname = $2 AND a.attnum > 0 AND NOT a.attisdropped ORDER BY a.attnum
+: string
+| public
+: string
+| ident_u
+< result
+< column "attname" "NAME"
+< column "?column?" "BOOL"
+< column "attidentity" "CHAR"
+< row
+: string
+| id
+: bool false
+: string
+| a
+< row
+: string
+| v
+: bool false
+: string
+|
+> query
+| SELECT i.relname, x.indisprimary, x.indisunique, con.oid IS NOT NULL, pg_get_indexdef(i.oid),
+| 		(SELECT string_agg(pg_get_indexdef(i.oid, k + 1, true), E'\x1f' ORDER BY k) FROM generate_subscripts(x.indkey, 1) AS k WHERE k < x.indnkeyatts)
+| 		FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 		JOIN pg_catalog.pg_class c ON c.oid = x.indrelid JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+| 		LEFT JOIN pg_catalog.pg_constraint con ON con.conindid = x.indexrelid
+| 		WHERE n.nspname = $1 AND c.relname = $2 ORDER BY i.relname
+: string
+| public
+: string
+| ident_u
+< result
+< column "relname" "NAME"
+< column "indisprimary" "BOOL"
+< column "indisunique" "BOOL"
+< column "?column?" "BOOL"
+< column "pg_get_indexdef" "TEXT"
+< column "string_agg" "TEXT"
+< row
+: string
+| ident_u_pkey
+: bool true
+: bool true
+: bool true
+: string
+| CREATE UNIQUE INDEX ident_u_pkey ON public.ident_u USING btree (id)
+: string
+| id
+> exec
+| /*
+| Original SQL:
+| UPDATE ident_u SET v = 5 WHERE id = 2
+| */
+| INSERT INTO "public"."ident_u" ("id", "v") OVERRIDING SYSTEM VALUE SELECT "id", "v" FROM "bbdataarchive"."_bb__ident_u_public" ON CONFLICT ON CONSTRAINT "ident_u_pkey" DO UPDATE SET "v" = EXCLUDED."v";
+< ok 1 -
+> query
+| SELECT x::text FROM "public"."ident_u" AS x ORDER BY 1
+< result
+< column "x" "TEXT"
+< row
+: string
+| (1,1)
+< row
+: string
+| (2,2)
+> query
+| SELECT to_regclass($1)::text
+: string
+| canary
+< result
+< column "to_regclass" "TEXT"
+< row
+: string
+| canary
+> exec
+| CREATE TABLE ident_b (id INT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY, v INT); INSERT INTO ident_b (v) VALUES (1), (2)
+< ok 2 -
+> query
+| SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_tables WHERE schemaname::text = $1 AND tablename::text = $2)
+: string
+| public
+: string
+| ident_b
+< result
+< column "exists" "BOOL"
+< row
+: bool true
+> query
+| SELECT x::text FROM "public"."ident_b" AS x ORDER BY 1
+< result
+< column "x" "TEXT"
+< row
+: string
+| (1,1)
+< row
+: string
+| (2,2)
+> exec
+| CREATE TABLE "bbdataarchive"."_bb__ident_b_public" AS
+|   SELECT "public"."ident_b".* FROM ident_b WHERE id = 2;
+< ok 1 -
+> query
+| SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_tables WHERE schemaname::text = $1 AND tablename::text = $2)
+: string
+| bbdataarchive
+: string
+| _bb__ident_b_public
+< result
+< column "exists" "BOOL"
+< row
+: bool true
+> exec
+| DELETE FROM ident_b WHERE id = 2
+< ok 1 -
+> query
+| SELECT x::text FROM "public"."ident_b" AS x ORDER BY 1
+< result
+< column "x" "TEXT"
+< row
+: string
+| (1,1)
+> query
+| SELECT a.attname, a.attgenerated <> '', a.attidentity FROM pg_catalog.pg_attribute a
+| 		JOIN pg_catalog.pg_class c ON c.oid = a.attrelid JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+| 		WHERE n.nspname = $1 AND c.relname = $2 AND a.attnum > 0 AND NOT a.attisdropped ORDER BY a.attnum
+: string
+| public
+: string
+| ident_b
+< result
+< column "attname" "NAME"
+< column "?column?" "BOOL"
+< column "attidentity" "CHAR"
+< row
+: string
+| id
+: bool false
+: string
+| d
+< row
+: string
+| v
+: bool false
+: string
+|
+> query
+| SELECT i.relname, x.indisprimary, x.indisunique, con.oid IS NOT NULL, pg_get_indexdef(i.oid),
+| 		(SELECT string_agg(pg_get_indexdef(i.oid, k + 1, true), E'\x1f' ORDER BY k) FROM generate_subscripts(x.indkey, 1) AS k WHERE k < x.indnkeyatts)
+| 		FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 		JOIN pg_catalog.pg_class c ON c.oid = x.indrelid JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+| 		LEFT JOIN pg_catalog.pg_constraint con ON con.conindid = x.indexrelid
+| 		WHERE n.nspname = $1 AND c.relname = $2 ORDER BY i.relname
+: string
+| public
+: string
+| ident_b
+< result
+< column "relname" "NAME"
+< column "indisprimary" "BOOL"
+< column "indisunique" "BOOL"
+< column "?column?" "BOOL"
+< column "pg_get_indexdef" "TEXT"
+< column "string_agg" "TEXT"
+< row
+: string
+| ident_b_pkey
+: bool true
+: bool true
+: bool true
+: string
+| CREATE UNIQUE INDEX ident_b_pkey ON public.ident_b USING btree (id)
+: string
+| id
+> exec
+| /*
+| Original SQL:
+| DELETE FROM ident_b WHERE id = 2
+| */
+| INSERT INTO "public"."ident_b" ("id", "v") SELECT "id", "v" FROM "bbdataarchive"."_bb__ident_b_public";
+< ok 1 -
+> query
+| SELECT x::text FROM "public"."ident_b" AS x ORDER BY 1
+< result
+< column "x" "TEXT"
+< row
+: string
+| (1,1)
+< row
+: string
+| (2,2)
+> query
+| SELECT to_regclass($1)::text
+: string
+| canary
+< result
+< column "to_regclass" "TEXT"
+< row
+: string
+| canary
+> exec
 | CREATE SCHEMA "s""q"; CREATE TABLE "s""q"."t""q" ("i""d" INT CONSTRAINT "p""k" PRIMARY KEY, "a""b" INT);INSERT INTO "s""q"."t""q" VALUES (1, 1), (2, 2)
 < ok 2 -
 > query
@@ -1233,7 +1658,7 @@
 : string
 | (2,2)
 > query
-| SELECT a.attname, a.attgenerated <> '' FROM pg_catalog.pg_attribute a
+| SELECT a.attname, a.attgenerated <> '', a.attidentity FROM pg_catalog.pg_attribute a
 | 		JOIN pg_catalog.pg_class c ON c.oid = a.attrelid JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
 | 		WHERE n.nspname = $1 AND c.relname = $2 AND a.attnum > 0 AND NOT a.attisdropped ORDER BY a.attnum
 : string
@@ -1243,14 +1668,19 @@
 < result
 < column "attname" "NAME"
 < column "?column?" "BOOL"
+< column "attidentity" "CHAR"
 < row
 : string
 | i"d
 : bool false
+: string
+|
 < row
 : string
 | a"b
 : bool false
+: string
+|
 > query
 | SELECT i.relname, x.indisprimary, x.indisunique, con.oid IS NOT NULL, pg_get_indexdef(i.oid),
 | 		(SELECT string_agg(pg_get_indexdef(i.oid, k + 1, true), E'\x1f' ORDER BY k) FROM generate_subscripts(x.indkey, 1) AS k WHERE k < x.indnkeyatts)
@@ -1346,7 +1776,7 @@
 : string
 | (2,10)
 > query
-| SELECT a.attname, a.attgenerated <> '' FROM pg_catalog.pg_attribute a
+| SELECT a.attname, a.attgenerated <> '', a.attidentity FROM pg_catalog.pg_attribute a
 | 		JOIN pg_catalog.pg_class c ON c.oid = a.attrelid JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
 | 		WHERE n.nspname = $1 AND c.relname = $2 AND a.attnum > 0 AND NOT a.attisdropped ORDER BY a.attnum
 : string
@@ -1356,14 +1786,19 @@
 < result
 < column "attname" "NAME"
 < column "?column?" "BOOL"
+< column "attidentity" "CHAR"
 < row
 : string
 | i"d
 : bool false
+: string
+|
 < row
 : string
 | a"b
 : bool false
+: string
+|
 > query
 | SELECT i.relname, x.indisprimary, x.indisunique, con.oid IS NOT NULL, pg_get_indexdef(i.oid),
 | 		(SELECT string_agg(pg_get_indexdef(i.oid, k + 1, true), E'\x1f' ORDER BY k) FROM generate_subscripts(x.indkey, 1) AS k WHERE k < x.indnkeyatts)

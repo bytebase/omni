@@ -67,20 +67,32 @@ func RestoreSQL(node ast.Node, opts RestoreOptions) (string, error) {
 	originalSchema := opts.OriginalSchema
 	originalTable := opts.OriginalTable
 	quotedColumnList := quotePGColumns(restorableColumns(opts.Table))
+	// PostgreSQL takes a value for a GENERATED ALWAYS identity column only
+	// with OVERRIDING SYSTEM VALUE.
+	overriding := ""
+	if len(alwaysIdentityColumns(opts.Table)) > 0 {
+		overriding = " OVERRIDING SYSTEM VALUE"
+	}
 
 	var result string
 	switch n := node.(type) {
 	case *ast.DeleteStmt:
-		result = fmt.Sprintf(`INSERT INTO %s.%s (%s) SELECT %s FROM %s.%s;`, quoteIdentifier(originalSchema), quoteIdentifier(originalTable), quotedColumnList, quotedColumnList, quoteIdentifier(backupSchema), quoteIdentifier(backupTable))
+		result = fmt.Sprintf(`INSERT INTO %s.%s (%s)%s SELECT %s FROM %s.%s;`, quoteIdentifier(originalSchema), quoteIdentifier(originalTable), quotedColumnList, overriding, quotedColumnList, quoteIdentifier(backupSchema), quoteIdentifier(backupTable))
 	case *ast.UpdateStmt:
 		fields := extractSetFieldNames(n)
+		// ON CONFLICT DO UPDATE can set such a column only to DEFAULT.
+		for _, column := range alwaysIdentityColumns(opts.Table) {
+			if slices.Contains(fields, column) {
+				return "", fmt.Errorf("cannot restore an UPDATE of %q, a GENERATED ALWAYS identity column", column)
+			}
+		}
 		conflictTarget, err := findDisjointUniqueKey(opts.Table, opts.PrimaryKey, fields)
 		if err != nil {
 			return "", err
 		}
 
 		var buf strings.Builder
-		if _, err := fmt.Fprintf(&buf, `INSERT INTO %s.%s (%s) SELECT %s FROM %s.%s ON CONFLICT %s DO UPDATE SET `, quoteIdentifier(originalSchema), quoteIdentifier(originalTable), quotedColumnList, quotedColumnList, quoteIdentifier(backupSchema), quoteIdentifier(backupTable), conflictTarget); err != nil {
+		if _, err := fmt.Fprintf(&buf, `INSERT INTO %s.%s (%s)%s SELECT %s FROM %s.%s ON CONFLICT %s DO UPDATE SET `, quoteIdentifier(originalSchema), quoteIdentifier(originalTable), quotedColumnList, overriding, quotedColumnList, quoteIdentifier(backupSchema), quoteIdentifier(backupTable), conflictTarget); err != nil {
 			return "", fmt.Errorf("failed to generate update statement: %w", err)
 		}
 		for i, field := range fields {
@@ -119,6 +131,16 @@ func restorableColumns(table *metadata.TableMetadata) []string {
 			continue
 		}
 		columns = append(columns, column.Name)
+	}
+	return columns
+}
+
+func alwaysIdentityColumns(table *metadata.TableMetadata) []string {
+	var columns []string
+	for _, column := range table.GetColumns() {
+		if column.GetGeneration() == nil && column.GetIdentityGeneration() == metadata.ColumnMetadata_ALWAYS {
+			columns = append(columns, column.Name)
+		}
 	}
 	return columns
 }
