@@ -70,6 +70,14 @@ var roundTrips = []roundTrip{
 		table:  "notes",
 	},
 	{
+		// Each statement names the table by its own alias.
+		name:   "alias_per_statement",
+		setup:  "CREATE TABLE alias_t (id INT PRIMARY KEY, v INT); INSERT INTO alias_t VALUES (1, 0), (2, 0), (3, 0)",
+		script: "UPDATE alias_t AS a SET v = 1 WHERE a.id = 1; UPDATE alias_t AS b SET v = 2 WHERE b.id = 2; UPDATE alias_t SET v = 3 WHERE id = 3",
+		schema: "public",
+		table:  "alias_t",
+	},
+	{
 		// Every name the backup and restore write holds a '"'.
 		name: "quoted_delete",
 		setup: `CREATE SCHEMA "s""q"; CREATE TABLE "s""q"."t""q" ("i""d" INT CONSTRAINT "p""k" PRIMARY KEY, "a""b" INT);` +

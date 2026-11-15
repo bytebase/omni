@@ -464,6 +464,148 @@
 : string
 | canary
 > exec
+| CREATE TABLE alias_t (id INT PRIMARY KEY, v INT); INSERT INTO alias_t VALUES (1, 0), (2, 0), (3, 0)
+< ok 3 -
+> query
+| SELECT x::text FROM "public"."alias_t" AS x ORDER BY 1
+< result
+< column "x" "TEXT"
+< row
+: string
+| (1,0)
+< row
+: string
+| (2,0)
+< row
+: string
+| (3,0)
+> query
+| SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_tables WHERE schemaname = $1 AND tablename = $2)
+: string
+| public
+: string
+| alias_t
+< result
+< column "exists" "BOOL"
+< row
+: bool true
+> query ^
+: string
+| public
+: string
+| alias_t
+< result
+< column "exists" "BOOL"
+< row
+: bool true
+> query ^
+: string
+| public
+: string
+| alias_t
+< result
+< column "exists" "BOOL"
+< row
+: bool true
+> exec
+| CREATE TABLE "bbdataarchive"."_bb__alias_t_public" AS
+|   SELECT "a".* FROM alias_t AS a WHERE a.id = 1
+|   UNION
+|   SELECT "b".* FROM alias_t AS b WHERE b.id = 2
+|   UNION
+|   SELECT "public"."alias_t".* FROM alias_t WHERE id = 3;
+< ok 3 -
+> exec
+| UPDATE alias_t AS a SET v = 1 WHERE a.id = 1; UPDATE alias_t AS b SET v = 2 WHERE b.id = 2; UPDATE alias_t SET v = 3 WHERE id = 3
+< ok 1 -
+> query
+| SELECT x::text FROM "public"."alias_t" AS x ORDER BY 1
+< result
+< column "x" "TEXT"
+< row
+: string
+| (1,1)
+< row
+: string
+| (2,2)
+< row
+: string
+| (3,3)
+> query
+| SELECT a.attname, a.attgenerated <> '' FROM pg_catalog.pg_attribute a
+| 		JOIN pg_catalog.pg_class c ON c.oid = a.attrelid JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+| 		WHERE n.nspname = $1 AND c.relname = $2 AND a.attnum > 0 AND NOT a.attisdropped ORDER BY a.attnum
+: string
+| public
+: string
+| alias_t
+< result
+< column "attname" "NAME"
+< column "?column?" "BOOL"
+< row
+: string
+| id
+: bool false
+< row
+: string
+| v
+: bool false
+> query
+| SELECT i.relname, x.indisprimary, x.indisunique, con.oid IS NOT NULL,
+| 		(SELECT string_agg(a.attname, E'\x1f' ORDER BY k.n) FROM unnest(x.indkey) WITH ORDINALITY AS k(attnum, n)
+| 			JOIN pg_catalog.pg_attribute a ON a.attrelid = x.indrelid AND a.attnum = k.attnum)
+| 		FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 		JOIN pg_catalog.pg_class c ON c.oid = x.indrelid JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+| 		LEFT JOIN pg_catalog.pg_constraint con ON con.conindid = x.indexrelid
+| 		WHERE n.nspname = $1 AND c.relname = $2 ORDER BY i.relname
+: string
+| public
+: string
+| alias_t
+< result
+< column "relname" "NAME"
+< column "indisprimary" "BOOL"
+< column "indisunique" "BOOL"
+< column "?column?" "BOOL"
+< column "string_agg" "TEXT"
+< row
+: string
+| alias_t_pkey
+: bool true
+: bool true
+: bool true
+: string
+| id
+> exec
+| /*
+| Original SQL:
+| UPDATE alias_t AS a SET v = 1 WHERE a.id = 1; UPDATE alias_t AS b SET v = 2 WHERE b.id = 2; UPDATE alias_t SET v = 3 WHERE id = 3
+| */
+| INSERT INTO "public"."alias_t" ("id", "v") SELECT "id", "v" FROM "bbdataarchive"."_bb__alias_t_public" ON CONFLICT ON CONSTRAINT "alias_t_pkey" DO UPDATE SET "v" = EXCLUDED."v";
+< ok 3 -
+> query
+| SELECT x::text FROM "public"."alias_t" AS x ORDER BY 1
+< result
+< column "x" "TEXT"
+< row
+: string
+| (1,0)
+< row
+: string
+| (2,0)
+< row
+: string
+| (3,0)
+> query
+| SELECT to_regclass($1)::text
+: string
+| canary
+< result
+< column "to_regclass" "TEXT"
+< row
+: string
+| canary
+> exec
 | CREATE SCHEMA "s""q"; CREATE TABLE "s""q"."t""q" ("i""d" INT CONSTRAINT "p""k" PRIMARY KEY, "a""b" INT);INSERT INTO "s""q"."t""q" VALUES (1, 1), (2, 2)
 < ok 2 -
 > query
