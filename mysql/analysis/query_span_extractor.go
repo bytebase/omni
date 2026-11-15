@@ -81,9 +81,12 @@ const (
 	NaturalRightOuterJoin
 )
 
-// joinTableSources returns the columns a join exposes. A column merged by
-// USING or NATURAL is COALESCE(left, right), and in matched rows both sides
-// hold its value, so it carries both sides' sources.
+// joinTableSources returns the columns a join exposes, in the order MySQL
+// returns them. A column merged by USING or NATURAL is COALESCE(left, right),
+// and in matched rows both sides hold its value, so it carries both sides'
+// sources. Merged columns come first, in the order of the join's first table
+// (the right one for RIGHT JOIN), then that table's other columns, then the
+// other table's.
 func joinTableSources(l, r tableSource, tp joinType, using []string) tableSource {
 	switch tp {
 	case Join, InnerJoin, CrossJoin, StraightJoin, LeftOuterJoin, RightOuterJoin,
@@ -91,23 +94,33 @@ func joinTableSources(l, r tableSource, tp joinType, using []string) tableSource
 	default:
 		return nil
 	}
+	first, second := l.GetQuerySpanResult(), r.GetQuerySpanResult()
+	names := joinedColumnNames(l, r, tp, using)
+	if len(names) == 0 {
+		return &pseudoTable{Columns: append(append([]QuerySpanResult{}, first...), second...)}
+	}
+	if tp == RightOuterJoin || tp == NaturalRightOuterJoin {
+		first, second = second, first
+	}
 	joined := make(map[string]bool)
-	for _, name := range joinedColumnNames(l, r, tp, using) {
+	for _, name := range names {
 		joined[strings.ToLower(name)] = true
 	}
-	rightColumns := r.GetQuerySpanResult()
 	var columns []QuerySpanResult
-	for _, field := range l.GetQuerySpanResult() {
-		if joined[strings.ToLower(field.Name)] {
-			if rightField, ok := querySpanResultNamed(rightColumns, field.Name); ok {
-				field.SourceColumns, _ = mergeColumnSet(field.SourceColumns, rightField.SourceColumns)
-			}
+	for _, field := range first {
+		if !joined[strings.ToLower(field.Name)] {
+			continue
+		}
+		if other, ok := querySpanResultNamed(second, field.Name); ok {
+			field.SourceColumns, _ = mergeColumnSet(field.SourceColumns, other.SourceColumns)
 		}
 		columns = append(columns, field)
 	}
-	for _, field := range rightColumns {
-		if !joined[strings.ToLower(field.Name)] {
-			columns = append(columns, field)
+	for _, side := range [][]QuerySpanResult{first, second} {
+		for _, field := range side {
+			if !joined[strings.ToLower(field.Name)] {
+				columns = append(columns, field)
+			}
 		}
 	}
 	return &pseudoTable{
