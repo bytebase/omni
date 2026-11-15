@@ -280,20 +280,20 @@ func (s *variableScope) get(name string) (ColumnSet, bool) {
 	return nil, false
 }
 
+// merge adds sources to the variable name in the scope that holds it, or in
+// s when none does, so an assignment in a nested block or loop outlives it.
 func (s *variableScope) merge(name string, sources ColumnSet) {
 	lower := strings.ToLower(name)
-	existing, ok := s.get(lower)
-	if !ok {
-		existing = make(ColumnSet)
+	owner := s
+	for scope := s; scope != nil; scope = scope.parent {
+		if _, ok := scope.vars[lower]; ok {
+			owner = scope
+			break
+		}
 	}
-	merged := make(ColumnSet)
-	for k, v := range existing {
-		merged[k] = v
-	}
-	for k, v := range sources {
-		merged[k] = v
-	}
-	s.vars[lower] = merged
+	merged := cloneSourceColumnSet(owner.vars[lower])
+	mergeSourceColumnSetInto(merged, sources)
+	owner.vars[lower] = merged
 }
 
 // plpgsqlAnalyzer holds state for analyzing a single PL/pgSQL function body.

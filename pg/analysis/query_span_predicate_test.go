@@ -184,6 +184,8 @@ func TestGetQuerySpanResultLineageOfFunctionBodies(t *testing.T) {
 		{Name: "loop_cursor", Definition: "CREATE FUNCTION public.loop_cursor() RETURNS SETOF text LANGUAGE plpgsql AS $$ DECLARE c CURSOR FOR SELECT ssn FROM t; BEGIN FOR r IN c LOOP RETURN NEXT r.ssn; END LOOP; END; $$"},
 		{Name: "returning_sql", Definition: "CREATE FUNCTION public.returning_sql() RETURNS SETOF text LANGUAGE sql AS $$ UPDATE t SET id = id RETURNING ssn $$"},
 		{Name: "returning_table", Definition: "CREATE FUNCTION public.returning_table() RETURNS TABLE(i int, e text, s text) LANGUAGE sql AS $$ DELETE FROM t WHERE false RETURNING * $$"},
+		{Name: "loop_outer", Definition: "CREATE FUNCTION public.loop_outer() RETURNS text LANGUAGE plpgsql AS $$ DECLARE v text; BEGIN FOR i IN 1..1 LOOP SELECT ssn INTO v FROM t LIMIT 1; END LOOP; RETURN v; END; $$"},
+		{Name: "block_outer", Definition: "CREATE FUNCTION public.block_outer() RETURNS text LANGUAGE plpgsql AS $$ DECLARE v text; BEGIN BEGIN SELECT ssn INTO v FROM t LIMIT 1; END; RETURN v; END; $$"},
 		{Name: "returning_pl", Definition: "CREATE FUNCTION public.returning_pl() RETURNS text LANGUAGE plpgsql AS $$ DECLARE v text; BEGIN UPDATE t SET id = id WHERE id = 1 RETURNING ssn INTO v; RETURN v; END; $$"},
 	}
 	testCases := []struct {
@@ -194,6 +196,8 @@ func TestGetQuerySpanResultLineageOfFunctionBodies(t *testing.T) {
 		{"SELECT loop_cursor() AS x", []string{"t.ssn"}},
 		{"SELECT returning_sql() AS x", []string{"t.ssn"}},
 		{"SELECT returning_pl() AS x", []string{"t.ssn"}},
+		{"SELECT loop_outer() AS x", []string{"t.ssn"}},
+		{"SELECT block_outer() AS x", []string{"t.ssn"}},
 		{"SELECT r.s FROM returning_table() r", []string{"t.ssn"}},
 	}
 	for _, tc := range testCases {
