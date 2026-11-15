@@ -351,6 +351,13 @@ func rebuildKeysOverFlippedColumns(ops []MigrationOp, e *TableDiffEntry, n *Norm
 	for _, ie := range e.Indexes {
 		changed[toLower(ie.Name)] = true
 	}
+	// An index an earlier pass already rebuilds (over a replaced period) is not
+	// rebuilt again here, which would drop it twice (1091) and add it twice.
+	for _, op := range ops {
+		if op.Type == OpDropIndex && opOfTable(op, e) && op.dropsIndex != "" {
+			changed[op.dropsIndex] = true
+		}
+	}
 	table := tableIdent(e.To)
 	for _, idx := range e.From.Indexes {
 		if changed[toLower(idx.Name)] || !indexReadsAny(idx, flipped) {
