@@ -102,6 +102,51 @@
 | SET foreign_key_checks = 0
 < ok 0 0
 > exec
+| CREATE TABLE t (a BIGINT UNSIGNED DEFAULT 18446744073709551614, b BIGINT DEFAULT -9223372036854775808, c DECIMAL(30,0) DEFAULT 99999999999999999999, g DECIMAL(30,0) AS (c + 99999999999999999999) VIRTUAL, h BIGINT UNSIGNED AS (a + 9223372036854775808) VIRTUAL, CHECK (a < 18446744073709551615))
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_showcreatematchesserver" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` bigint(20) unsigned DEFAULT 18446744073709551614,
+|   `b` bigint(20) DEFAULT -9223372036854775808,
+|   `c` decimal(30,0) DEFAULT 99999999999999999999,
+|   `g` decimal(30,0) GENERATED ALWAYS AS (`c` + 99999999999999999999) VIRTUAL,
+|   `h` bigint(20) unsigned GENERATED ALWAYS AS (`a` + 9223372036854775808) VIRTUAL,
+|   CONSTRAINT `CONSTRAINT_1` CHECK (`a` < 18446744073709551615)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_showcreatematchesserver`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_showcreatematchesserver`
+< ok 1 0
+> exec
+| USE `omni_testoracle_showcreatematchesserver`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
 | CREATE TABLE t (a TIME DEFAULT '1:2', b TIME(1) DEFAULT '-1 2:3:4.56', c DATETIME(3) DEFAULT '2020-1-2 3:4:5.6789', d DATE DEFAULT '2020-1-2', e DATETIME DEFAULT '2020-01-02', f TIMESTAMP(2) NULL DEFAULT '2020-01-02 03:04:05', g TIME DEFAULT '10:00:00.9', h DATETIME(1) DEFAULT '2020-01-02T03:04:05.15')
 < ok 0 0
 > exec

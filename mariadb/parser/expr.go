@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"strconv"
 	"strings"
 
 	nodes "github.com/bytebase/omni/mariadb/ast"
@@ -515,7 +516,11 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 	switch p.cur.Type {
 	case tokICONST:
 		tok := p.advance()
-		return &nodes.IntLit{Loc: nodes.Loc{Start: tok.Loc, End: p.prev.End}, Value: tok.Ival}, nil
+		lit := &nodes.IntLit{Loc: nodes.Loc{Start: tok.Loc, End: p.prev.End}, Value: tok.Ival}
+		if _, err := strconv.ParseInt(tok.Str, 10, 64); err != nil {
+			lit.Text = tok.Str
+		}
+		return lit, nil
 
 	case tokFCONST:
 		tok := p.advance()
