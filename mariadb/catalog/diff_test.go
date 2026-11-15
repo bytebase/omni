@@ -85,6 +85,7 @@ var diffPairs = []struct{ name, a, b string }{
 	{"event interval string spacing", "CREATE EVENT e ON SCHEDULE EVERY LENGTH('a  b') HOUR STARTS '2030-01-01 00:00:00' DO SELECT 1", "CREATE EVENT e ON SCHEDULE EVERY LENGTH('a b') HOUR STARTS '2030-01-01 00:00:00' DO SELECT 1"},
 	{"event schedule spacing", "CREATE EVENT e ON SCHEDULE EVERY   2  HOUR STARTS '2030-01-01 00:00:00' DO SELECT 1", "CREATE EVENT e ON SCHEDULE EVERY 2 HOUR STARTS '2030-01-01 00:00:00' DO SELECT 1"},
 	{"generated column check", "CREATE TABLE t (a INT, b INT AS (a + 1) VIRTUAL CHECK (b > 0))", "CREATE TABLE t (a INT, b INT AS (a + 1) VIRTUAL CHECK (b > 1))"},
+	{"event decimal interval", "CREATE EVENT e ON SCHEDULE EVERY 1.05 HOUR STARTS '2030-01-01 00:00:00' DO SELECT 1", "CREATE EVENT e ON SCHEDULE EVERY 1.5 HOUR STARTS '2030-01-01 00:00:00' DO SELECT 1"},
 	{"event body", "CREATE EVENT e ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DO SELECT 1", "CREATE EVENT e ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DO SELECT 2"},
 	{"trigger body", "CREATE TABLE t (a INT); CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 1", "CREATE TABLE t (a INT); CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 2"},
 	{"function body", "CREATE FUNCTION f(x INT) RETURNS INT DETERMINISTIC RETURN x", "CREATE FUNCTION f(x INT) RETURNS INT DETERMINISTIC RETURN x + 1"},
@@ -179,6 +180,14 @@ func TestDiffComparesKnownSQLModes(t *testing.T) {
 	}
 	if d := Diff(loadCat(t, text), load("PIPES_AS_CONCAT")); !d.IsEmpty() {
 		t.Errorf("an unknown mode diffs against a known one:\n%s", describeDiff(d))
+	}
+	zoned := func(zone string) *Catalog {
+		c := loadCat(t, text)
+		c.ApplySessionContext(SessionContextMap{Events: map[string]SessionContext{"e": {TimeZone: zone}}})
+		return c
+	}
+	if d := Diff(zoned("+00:00"), zoned("+08:00")); len(d.Events) != 1 {
+		t.Errorf("want the event changed with its time zone:\n%s", describeDiff(d))
 	}
 }
 
