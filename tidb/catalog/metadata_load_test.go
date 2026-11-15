@@ -554,6 +554,9 @@ func TestStripViewBodyDatabaseQualifier(t *testing.T) {
 		// A table the body also names as a CTE keeps a qualifier, the target's.
 		{"WITH `t` AS (SELECT 1 AS `id`) SELECT `testdb`.`t`.`id` AS `id` FROM `testdb`.`t` JOIN `t` `c` JOIN `testdb`.`u`",
 			"WITH `t` AS (SELECT 1 AS `id`) SELECT `other`.`t`.`id` AS `id` FROM `other`.`t` JOIN `t` `c` JOIN `u`"},
+		// So does one another database's table also has.
+		{"SELECT `testdb`.`t`.`id` AS `id` FROM `testdb`.`t` JOIN `ext`.`t` JOIN `testdb`.`u`",
+			"SELECT `other`.`t`.`id` AS `id` FROM `other`.`t` JOIN `ext`.`t` JOIN `u`"},
 	} {
 		if got := stripViewBodyDatabaseQualifier(tc.body, snapshotDB, "other"); got != tc.want {
 			t.Errorf("stripViewBodyDatabaseQualifier(%q) = %q, want %q", tc.body, got, tc.want)
