@@ -1,6 +1,9 @@
 package catalog
 
-import "strings"
+import (
+	"strconv"
+	"strings"
+)
 
 // diffTables compares the base tables of two catalogs. Temporary tables are
 // left out: they last for the session and are no part of a schema.
@@ -80,7 +83,8 @@ func tableCharsetCollation(tbl *Table) (charset, collation string) {
 
 // canonicalTableOptions is the option list SHOW CREATE TABLE ends a table
 // with, less the AUTO_INCREMENT and AUTO_RANDOM_BASE counters, which are data
-// rather than schema, then TTL and a global temporary table's ON COMMIT.
+// rather than schema, then TTL, a global temporary table's ON COMMIT, and the
+// TiFlash replicas, which SHOW CREATE TABLE leaves out.
 func canonicalTableOptions(tbl *Table) string {
 	withoutCounters := *tbl
 	withoutCounters.AutoIncrement = 0
@@ -94,7 +98,24 @@ func canonicalTableOptions(tbl *Table) string {
 	if tbl.GlobalTemporary {
 		b.WriteString(" GLOBAL TEMPORARY ON COMMIT " + tbl.OnCommit)
 	}
+	b.WriteString(tiflashReplica(tbl))
 	return b.String()
+}
+
+// tiflashReplica is the table's SET TIFLASH REPLICA clause, "" for none.
+func tiflashReplica(tbl *Table) string {
+	if tbl.TiFlashReplica == 0 && len(tbl.TiFlashLocationLabels) == 0 {
+		return ""
+	}
+	s := " SET TIFLASH REPLICA " + strconv.Itoa(tbl.TiFlashReplica)
+	if len(tbl.TiFlashLocationLabels) > 0 {
+		labels := make([]string, len(tbl.TiFlashLocationLabels))
+		for i, l := range tbl.TiFlashLocationLabels {
+			labels[i] = "'" + outputFormat(l) + "'"
+		}
+		s += " LOCATION LABELS " + strings.Join(labels, ", ")
+	}
+	return s
 }
 
 // canonicalPartitioning is the partition clause SHOW CREATE TABLE writes, ""

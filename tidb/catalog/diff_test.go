@@ -54,3 +54,17 @@ func TestDiffLeavesOutTemporaryTables(t *testing.T) {
 		t.Errorf("temporary table diffed: %s", describeDiff(d))
 	}
 }
+
+// TiDB keeps a table's TiFlash replicas outside SHOW CREATE TABLE.
+func TestDiffComparesTiFlashReplicas(t *testing.T) {
+	from := execCatalog(t, "CREATE TABLE t (a int)")
+	for _, stmt := range []string{
+		"ALTER TABLE t SET TIFLASH REPLICA 2",
+		"ALTER TABLE t SET TIFLASH REPLICA 2 LOCATION LABELS 'zone'",
+	} {
+		to := execCatalog(t, "CREATE TABLE t (a int); "+stmt)
+		if got, want := describeDiff(Diff(from, to)), "MODIFY table t; options"; got != want {
+			t.Errorf("%s: got %q, want %q", stmt, got, want)
+		}
+	}
+}
