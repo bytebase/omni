@@ -1708,8 +1708,9 @@ func writeViewSDL(buf *strings.Builder, dbName string, view *metadata.ViewMetada
 // would differ from the user's forever. The body is parsed so that only a qualifier in the database
 // position goes: a table alias or table spelled like the database is a qualifier of
 // its columns and stays. A body that does not parse is returned unchanged. A table
-// whose name a CTE or another database's table also has keeps its qualifier,
-// since without one a reference to it would resolve to the CTE or be ambiguous.
+// whose name a CTE, another table's alias or another database's table also has keeps its
+// qualifier, since without one a reference to it would resolve to the CTE or the
+// alias, or be ambiguous.
 func stripViewBodyDatabaseQualifier(body, dbName string) string {
 	return rebaseViewBodyDatabaseQualifier(body, dbName, dbName)
 }
@@ -1731,9 +1732,12 @@ func rebaseViewBodyDatabaseQualifier(body, dbName, target string) string {
 	if err != nil || len(list.Items) != 1 {
 		return body
 	}
-	// A name a CTE or another database's table also has stays qualified: without
-	// the qualifier a reference would resolve to the CTE, or be ambiguous.
+	// A name a CTE, another table's alias or another database's table also has stays
+	// qualified: without the qualifier a reference would resolve to the CTE or the
+	// alias, or be ambiguous.
 	keep := map[string]bool{}
+	local := map[string]bool{}
+	var aliases []string
 	nodes.Inspect(list.Items[0], func(n nodes.Node) bool {
 		switch n := n.(type) {
 		case *nodes.CommonTableExpr:
@@ -1741,10 +1745,20 @@ func rebaseViewBodyDatabaseQualifier(body, dbName, target string) string {
 		case *nodes.TableRef:
 			if n.Schema != dbName {
 				keep[strings.ToLower(n.Name)] = true
+			} else {
+				local[strings.ToLower(n.Name)] = true
+			}
+			if n.Alias != "" {
+				aliases = append(aliases, strings.ToLower(n.Alias))
 			}
 		}
 		return true
 	})
+	for _, alias := range aliases {
+		if local[alias] {
+			keep[alias] = true
+		}
+	}
 	replacement := make(map[int]string)
 	nodes.Inspect(list.Items[0], func(n nodes.Node) bool {
 		var schema, table string

@@ -15,45 +15,53 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// migrationGap is why a case does not converge. refusal is part of the error
+// OceanBase answers a statement of the plan with, when that is the gap; otherwise
+// the plan applies and the stored schema differs.
+type migrationGap struct {
+	reason  string
+	refusal string
+}
+
 // metadataMigrationGaps lists the cases of testdata/metadata_migration.yaml whose plan
 // applied to OceanBase does not store what newSchema stores, and why. A case that
 // converges while listed fails, so a fix removes its entry. "sync" names what
 // Bytebase's OceanBase sync leaves out of the snapshot or reports wrongly, so no plan
 // can restore it.
-var metadataMigrationGaps = map[string]string{
+var metadataMigrationGaps = map[string]migrationGap{
 	// OceanBase refuses MODIFY COLUMN on a table that has a CHECK constraint (1235).
-	"Alter table with column additions, type changes, and constraints":                                                      "MODIFY COLUMN refused next to a CHECK",
-	"Drop and recreate constraints with different definitions":                                                              "MODIFY COLUMN refused next to a CHECK",
-	"Verify no migration generated for identical schemas (tests primary key, index, check constraints, DEFAULT NULL fixes)": "MODIFY COLUMN refused next to a CHECK",
+	"Alter table with column additions, type changes, and constraints":                                                      {reason: "MODIFY COLUMN refused next to a CHECK", refusal: "Error 1235 (0A000): Alter column with check constraint not supported"},
+	"Drop and recreate constraints with different definitions":                                                              {reason: "MODIFY COLUMN refused next to a CHECK", refusal: "Error 1235 (0A000): Alter column with check constraint not supported"},
+	"Verify no migration generated for identical schemas (tests primary key, index, check constraints, DEFAULT NULL fixes)": {reason: "MODIFY COLUMN refused next to a CHECK", refusal: "Error 1235 (0A000): Alter column with check constraint not supported"},
 	// sync: no CHECK constraints come back.
-	"Basic table operations with columns, constraints, and indexes": "sync: CHECK constraints",
-	"Drop indexes and constraints from tables":                      "sync: CHECK constraints",
-	"Reverse: Basic table operations":                               "sync: CHECK constraints",
-	"Reverse: Add indexes and constraints":                          "sync: CHECK constraints",
+	"Basic table operations with columns, constraints, and indexes": {reason: "sync: CHECK constraints"},
+	"Drop indexes and constraints from tables":                      {reason: "sync: CHECK constraints"},
+	"Reverse: Basic table operations":                               {reason: "sync: CHECK constraints"},
+	"Reverse: Add indexes and constraints":                          {reason: "sync: CHECK constraints"},
 	// sync: no partitions come back.
-	"Operations on partitioned tables":                                                  "sync: partitions and CHECK constraints",
-	"Re-adding a primary key and an overlapping secondary index on a partitioned table": "sync: partitions",
-	"Recreating a partitioned table from metadata":                                      "sync: partitions",
+	"Operations on partitioned tables":                                                  {reason: "sync: partitions and CHECK constraints"},
+	"Re-adding a primary key and an overlapping secondary index on a partitioned table": {reason: "sync: partitions"},
+	"Recreating a partitioned table from metadata":                                      {reason: "sync: partitions"},
 	// sync: FULLTEXT, SPATIAL and functional keys name OceanBase's hidden columns, so
 	// the table stands in.
-	"FULLTEXT and SPATIAL indexes":               "sync: hidden key columns",
-	"Reverse: Drop FULLTEXT and SPATIAL indexes": "sync: hidden key columns",
-	"Reverse: Drop JSON columns and indexes":     "sync: hidden key columns",
+	"FULLTEXT and SPATIAL indexes":               {reason: "sync: hidden key columns", refusal: "Error 1138 (22004): Invalid use of NULL value"},
+	"Reverse: Drop FULLTEXT and SPATIAL indexes": {reason: "sync: hidden key columns"},
+	"Reverse: Drop JSON columns and indexes":     {reason: "sync: hidden key columns"},
 	// sync: a trigger's body is OceanBase's ACTION_STATEMENT, which repeats the header.
-	"Reverse: Views and triggers":      "sync: trigger body",
-	"Reverse: Drop triggers and views": "sync: trigger body",
+	"Reverse: Views and triggers":      {reason: "sync: trigger body", refusal: "near 'TRIGGER"},
+	"Reverse: Drop triggers and views": {reason: "sync: trigger body", refusal: "near 'TRIGGER"},
 	// sync: events come back without a definition, so the plan creates a stand-in.
-	"Reverse: Drop events and advanced features": "sync: event definition",
+	"Reverse: Drop events and advanced features": {reason: "sync: event definition", refusal: "near 'COMPLETION"},
 	// sync: ON UPDATE CURRENT_TIMESTAMP is not read.
-	"Reverse: Alter table columns": "sync: ON UPDATE and CHECK constraints",
+	"Reverse: Alter table columns": {reason: "sync: ON UPDATE and CHECK constraints"},
 	// The catalog takes utf8mb4's default collation to be MySQL's utf8mb4_0900_ai_ci;
 	// OceanBase's is utf8mb4_general_ci, so the plan leaves out the COLLATE the
 	// target needs.
-	"Reverse: Drop tables with foreign key dependencies": "default utf8mb4 collation, and sync: CHECK constraints",
+	"Reverse: Drop tables with foreign key dependencies": {reason: "default utf8mb4 collation, and sync: CHECK constraints"},
 	// The plan writes count(*) as count(0) and function names in lower case;
 	// OceanBase stores view and generation text as written.
-	"Drop views and stored routines":  "count(*) written as count(0)",
-	"Reverse: Drop generated columns": "UPPER written as upper",
+	"Drop views and stored routines":  {reason: "count(*) written as count(0)"},
+	"Reverse: Drop generated columns": {reason: "UPPER written as upper"},
 }
 
 // TestOracle_MetadataMigrationApplyCorrectness applies each fixture's plan, generated
@@ -91,7 +99,7 @@ func TestOracle_MetadataMigrationApplyCorrectness(t *testing.T) {
 			gap, listed := metadataMigrationGaps[tc.Description]
 			for _, op := range plan.Ops {
 				if _, err := conn.ExecContext(context.Background(), op.SQL); err != nil {
-					if listed {
+					if listed && gap.refusal != "" && strings.Contains(err.Error(), gap.refusal) {
 						return
 					}
 					t.Fatalf("apply %q: %v\nplan:\n%s", op.SQL, err, plan.SQL())
@@ -102,10 +110,12 @@ func TestOracle_MetadataMigrationApplyCorrectness(t *testing.T) {
 			got := storedSchema(t, conn, applyDB)
 			want := storedSchema(t, conn, applyDB+"_to")
 			switch {
+			case listed && gap.refusal != "":
+				t.Errorf("listed as refused (%s) but the plan applies: correct the entry", gap.refusal)
 			case got != want && !listed:
 				t.Errorf("stored schema differs\nplan:\n%s\n--- got\n%s\n--- want\n%s", plan.SQL(), got, want)
 			case got == want && listed:
-				t.Errorf("listed as a gap (%s) but converges: remove the entry", gap)
+				t.Errorf("listed as a gap (%s) but converges: remove the entry", gap.reason)
 			}
 		})
 	}
