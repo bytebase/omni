@@ -301371,7 +301371,7 @@
 | SET foreign_key_checks = 0
 < ok 0 0
 > exec
-| CREATE TABLE t (x INT, a INT CHECK (a > b), b INT CHECK (b > g), g INT AS (x + 1) VIRTUAL)
+| CREATE TABLE t (x INT, a INT CHECK (a > b), g INT AS (x + 1) VIRTUAL, b INT CHECK (b > g))
 < ok 0 0
 > exec
 | SET foreign_key_checks = 1
@@ -301398,8 +301398,8 @@
 | CREATE TABLE `t` (
 |   `x` int(11) DEFAULT NULL,
 |   `a` int(11) DEFAULT NULL CHECK (`a` > `b`),
-|   `b` int(11) DEFAULT NULL CHECK (`b` > `g`),
-|   `g` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL
+|   `g` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL,
+|   `b` int(11) DEFAULT NULL CHECK (`b` > `g`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
 > query
 | SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
@@ -301459,7 +301459,7 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `g` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL
 < ok 0 0
 > exec
-| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `b` int(11) DEFAULT NULL CHECK (`b` > `g`) AFTER `x`
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `b` int(11) DEFAULT NULL CHECK (`b` > `g`)
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `a` int(11) DEFAULT NULL CHECK (`a` > `b`) AFTER `x`
@@ -301492,8 +301492,8 @@
 | CREATE TABLE `t` (
 |   `x` int(11) DEFAULT NULL,
 |   `a` int(11) DEFAULT NULL CHECK (`a` > `b`),
-|   `b` int(11) DEFAULT NULL CHECK (`b` > `g`),
-|   `g` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL
+|   `g` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL,
+|   `b` int(11) DEFAULT NULL CHECK (`b` > `g`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
 > query
 | SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
@@ -301608,7 +301608,7 @@
 | SET foreign_key_checks = 0
 < ok 0 0
 > exec
-| CREATE TABLE t (x INT, a INT CHECK (a > b), b INT CHECK (b > g), g INT AS (x + 1) VIRTUAL)
+| CREATE TABLE t (x INT, a INT CHECK (a > b), g INT AS (x + 1) VIRTUAL, b INT CHECK (b > g))
 < ok 0 0
 > exec
 | SET foreign_key_checks = 1
@@ -302017,7 +302017,7 @@
 | SET foreign_key_checks = 0
 < ok 0 0
 > exec
-| CREATE TABLE t (x INT, a INT CHECK (a > b), b INT AS (x + 1) VIRTUAL)
+| CREATE TABLE t (x INT, b INT AS (x + 1) VIRTUAL, a INT CHECK (a > b))
 < ok 0 0
 > exec
 | SET foreign_key_checks = 1
@@ -302043,8 +302043,8 @@
 : bytes
 | CREATE TABLE `t` (
 |   `x` int(11) DEFAULT NULL,
-|   `a` int(11) DEFAULT NULL CHECK (`a` > `b`),
-|   `b` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL
+|   `b` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL,
+|   `a` int(11) DEFAULT NULL CHECK (`a` > `b`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
 > query
 | SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
@@ -302101,7 +302101,7 @@
 | SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
-| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `b` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `b` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL AFTER `x`
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `a` int(11) DEFAULT NULL CHECK (`a` > `b`)
@@ -302133,8 +302133,8 @@
 : bytes
 | CREATE TABLE `t` (
 |   `x` int(11) DEFAULT NULL,
-|   `a` int(11) DEFAULT NULL CHECK (`a` > `b`),
-|   `b` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL
+|   `b` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL,
+|   `a` int(11) DEFAULT NULL CHECK (`a` > `b`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
 > query
 | SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
@@ -302250,7 +302250,7 @@
 | SET foreign_key_checks = 0
 < ok 0 0
 > exec
-| CREATE TABLE t (x INT, a INT CHECK (a > b), b INT AS (x + 1) VIRTUAL)
+| CREATE TABLE t (x INT, b INT AS (x + 1) VIRTUAL, a INT CHECK (a > b))
 < ok 0 0
 > exec
 | SET foreign_key_checks = 1

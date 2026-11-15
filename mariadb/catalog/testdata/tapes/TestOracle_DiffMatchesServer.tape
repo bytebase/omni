@@ -50645,7 +50645,7 @@
 | SET foreign_key_checks = 0
 < ok 0 0
 > exec
-| CREATE TABLE t (x INT, a INT CHECK (a > b), b INT CHECK (b > g), g INT AS (x + 1) VIRTUAL)
+| CREATE TABLE t (x INT, a INT CHECK (a > b), g INT AS (x + 1) VIRTUAL, b INT CHECK (b > g))
 < ok 0 0
 > exec
 | SET foreign_key_checks = 1
@@ -50672,8 +50672,8 @@
 | CREATE TABLE `t` (
 |   `x` int(11) DEFAULT NULL,
 |   `a` int(11) DEFAULT NULL CHECK (`a` > `b`),
-|   `b` int(11) DEFAULT NULL CHECK (`b` > `g`),
-|   `g` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL
+|   `g` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL,
+|   `b` int(11) DEFAULT NULL CHECK (`b` > `g`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
 > query
 | SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
@@ -50878,7 +50878,7 @@
 | SET foreign_key_checks = 0
 < ok 0 0
 > exec
-| CREATE TABLE t (x INT, a INT CHECK (a > b), b INT AS (x + 1) VIRTUAL)
+| CREATE TABLE t (x INT, b INT AS (x + 1) VIRTUAL, a INT CHECK (a > b))
 < ok 0 0
 > exec
 | SET foreign_key_checks = 1
@@ -50904,8 +50904,8 @@
 : bytes
 | CREATE TABLE `t` (
 |   `x` int(11) DEFAULT NULL,
-|   `a` int(11) DEFAULT NULL CHECK (`a` > `b`),
-|   `b` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL
+|   `b` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL,
+|   `a` int(11) DEFAULT NULL CHECK (`a` > `b`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
 > query
 | SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
