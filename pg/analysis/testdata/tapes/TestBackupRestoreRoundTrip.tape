@@ -64,9 +64,8 @@
 | a
 : bool false
 > query
-| SELECT i.relname, x.indisprimary, x.indisunique, con.oid IS NOT NULL,
-| 		(SELECT string_agg(a.attname, E'\x1f' ORDER BY k.n) FROM unnest(x.indkey) WITH ORDINALITY AS k(attnum, n)
-| 			JOIN pg_catalog.pg_attribute a ON a.attrelid = x.indrelid AND a.attnum = k.attnum)
+| SELECT i.relname, x.indisprimary, x.indisunique, con.oid IS NOT NULL, pg_get_indexdef(i.oid),
+| 		(SELECT string_agg(pg_get_indexdef(i.oid, k + 1, true), E'\x1f' ORDER BY k) FROM generate_subscripts(x.indkey, 1) AS k WHERE k < x.indnkeyatts)
 | 		FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
 | 		JOIN pg_catalog.pg_class c ON c.oid = x.indrelid JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
 | 		LEFT JOIN pg_catalog.pg_constraint con ON con.conindid = x.indexrelid
@@ -80,6 +79,7 @@
 < column "indisprimary" "BOOL"
 < column "indisunique" "BOOL"
 < column "?column?" "BOOL"
+< column "pg_get_indexdef" "TEXT"
 < column "string_agg" "TEXT"
 < row
 : string
@@ -87,6 +87,8 @@
 : bool true
 : bool true
 : bool true
+: string
+| CREATE UNIQUE INDEX plain_pkey ON public.plain USING btree (id)
 : string
 | id
 > exec
@@ -175,9 +177,8 @@
 | a
 : bool false
 > query
-| SELECT i.relname, x.indisprimary, x.indisunique, con.oid IS NOT NULL,
-| 		(SELECT string_agg(a.attname, E'\x1f' ORDER BY k.n) FROM unnest(x.indkey) WITH ORDINALITY AS k(attnum, n)
-| 			JOIN pg_catalog.pg_attribute a ON a.attrelid = x.indrelid AND a.attnum = k.attnum)
+| SELECT i.relname, x.indisprimary, x.indisunique, con.oid IS NOT NULL, pg_get_indexdef(i.oid),
+| 		(SELECT string_agg(pg_get_indexdef(i.oid, k + 1, true), E'\x1f' ORDER BY k) FROM generate_subscripts(x.indkey, 1) AS k WHERE k < x.indnkeyatts)
 | 		FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
 | 		JOIN pg_catalog.pg_class c ON c.oid = x.indrelid JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
 | 		LEFT JOIN pg_catalog.pg_constraint con ON con.conindid = x.indexrelid
@@ -191,6 +192,7 @@
 < column "indisprimary" "BOOL"
 < column "indisunique" "BOOL"
 < column "?column?" "BOOL"
+< column "pg_get_indexdef" "TEXT"
 < column "string_agg" "TEXT"
 < row
 : string
@@ -198,6 +200,8 @@
 : bool true
 : bool true
 : bool true
+: string
+| CREATE UNIQUE INDEX plain_update_pkey ON public.plain_update USING btree (id)
 : string
 | id
 > exec
@@ -295,9 +299,8 @@
 | id
 : bool false
 > query
-| SELECT i.relname, x.indisprimary, x.indisunique, con.oid IS NOT NULL,
-| 		(SELECT string_agg(a.attname, E'\x1f' ORDER BY k.n) FROM unnest(x.indkey) WITH ORDINALITY AS k(attnum, n)
-| 			JOIN pg_catalog.pg_attribute a ON a.attrelid = x.indrelid AND a.attnum = k.attnum)
+| SELECT i.relname, x.indisprimary, x.indisunique, con.oid IS NOT NULL, pg_get_indexdef(i.oid),
+| 		(SELECT string_agg(pg_get_indexdef(i.oid, k + 1, true), E'\x1f' ORDER BY k) FROM generate_subscripts(x.indkey, 1) AS k WHERE k < x.indnkeyatts)
 | 		FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
 | 		JOIN pg_catalog.pg_class c ON c.oid = x.indrelid JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
 | 		LEFT JOIN pg_catalog.pg_constraint con ON con.conindid = x.indexrelid
@@ -311,6 +314,7 @@
 < column "indisprimary" "BOOL"
 < column "indisunique" "BOOL"
 < column "?column?" "BOOL"
+< column "pg_get_indexdef" "TEXT"
 < column "string_agg" "TEXT"
 < row
 : string
@@ -318,6 +322,8 @@
 : bool true
 : bool true
 : bool true
+: string
+| CREATE UNIQUE INDEX cte_t_pkey ON public.cte_t USING btree (id)
 : string
 | id
 > exec
@@ -409,9 +415,8 @@
 | note
 : bool false
 > query
-| SELECT i.relname, x.indisprimary, x.indisunique, con.oid IS NOT NULL,
-| 		(SELECT string_agg(a.attname, E'\x1f' ORDER BY k.n) FROM unnest(x.indkey) WITH ORDINALITY AS k(attnum, n)
-| 			JOIN pg_catalog.pg_attribute a ON a.attrelid = x.indrelid AND a.attnum = k.attnum)
+| SELECT i.relname, x.indisprimary, x.indisunique, con.oid IS NOT NULL, pg_get_indexdef(i.oid),
+| 		(SELECT string_agg(pg_get_indexdef(i.oid, k + 1, true), E'\x1f' ORDER BY k) FROM generate_subscripts(x.indkey, 1) AS k WHERE k < x.indnkeyatts)
 | 		FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
 | 		JOIN pg_catalog.pg_class c ON c.oid = x.indrelid JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
 | 		LEFT JOIN pg_catalog.pg_constraint con ON con.conindid = x.indexrelid
@@ -425,6 +430,7 @@
 < column "indisprimary" "BOOL"
 < column "indisunique" "BOOL"
 < column "?column?" "BOOL"
+< column "pg_get_indexdef" "TEXT"
 < column "string_agg" "TEXT"
 < row
 : string
@@ -432,6 +438,8 @@
 : bool true
 : bool true
 : bool true
+: string
+| CREATE UNIQUE INDEX notes_pkey ON public.notes USING btree (id)
 : string
 | id
 > exec
@@ -454,6 +462,270 @@
 < row
 : string
 | (3,x)
+> query
+| SELECT to_regclass($1)::text
+: string
+| canary
+< result
+< column "to_regclass" "TEXT"
+< row
+: string
+| canary
+> exec
+| CREATE TABLE ui (id INT PRIMARY KEY, code INT, v INT); CREATE UNIQUE INDEX ui_code ON ui (code);CREATE UNIQUE INDEX ui_lower ON ui ((code + 1)); INSERT INTO ui VALUES (1, 10, 0), (2, 20, 0)
+< ok 2 -
+> query
+| SELECT x::text FROM "public"."ui" AS x ORDER BY 1
+< result
+< column "x" "TEXT"
+< row
+: string
+| (1,10,0)
+< row
+: string
+| (2,20,0)
+> query
+| SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_tables WHERE schemaname = $1 AND tablename = $2)
+: string
+| public
+: string
+| ui
+< result
+< column "exists" "BOOL"
+< row
+: bool true
+> exec
+| CREATE TABLE "bbdataarchive"."_bb__ui_public" AS
+|   SELECT "public"."ui".* FROM ui WHERE id = 1;
+< ok 1 -
+> exec
+| UPDATE ui SET id = id + 100, v = 1 WHERE id = 1
+< ok 1 -
+> query
+| SELECT x::text FROM "public"."ui" AS x ORDER BY 1
+< result
+< column "x" "TEXT"
+< row
+: string
+| (101,10,1)
+< row
+: string
+| (2,20,0)
+> query
+| SELECT a.attname, a.attgenerated <> '' FROM pg_catalog.pg_attribute a
+| 		JOIN pg_catalog.pg_class c ON c.oid = a.attrelid JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+| 		WHERE n.nspname = $1 AND c.relname = $2 AND a.attnum > 0 AND NOT a.attisdropped ORDER BY a.attnum
+: string
+| public
+: string
+| ui
+< result
+< column "attname" "NAME"
+< column "?column?" "BOOL"
+< row
+: string
+| id
+: bool false
+< row
+: string
+| code
+: bool false
+< row
+: string
+| v
+: bool false
+> query
+| SELECT i.relname, x.indisprimary, x.indisunique, con.oid IS NOT NULL, pg_get_indexdef(i.oid),
+| 		(SELECT string_agg(pg_get_indexdef(i.oid, k + 1, true), E'\x1f' ORDER BY k) FROM generate_subscripts(x.indkey, 1) AS k WHERE k < x.indnkeyatts)
+| 		FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 		JOIN pg_catalog.pg_class c ON c.oid = x.indrelid JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+| 		LEFT JOIN pg_catalog.pg_constraint con ON con.conindid = x.indexrelid
+| 		WHERE n.nspname = $1 AND c.relname = $2 ORDER BY i.relname
+: string
+| public
+: string
+| ui
+< result
+< column "relname" "NAME"
+< column "indisprimary" "BOOL"
+< column "indisunique" "BOOL"
+< column "?column?" "BOOL"
+< column "pg_get_indexdef" "TEXT"
+< column "string_agg" "TEXT"
+< row
+: string
+| ui_code
+: bool false
+: bool true
+: bool false
+: string
+| CREATE UNIQUE INDEX ui_code ON public.ui USING btree (code)
+: string
+| code
+< row
+: string
+| ui_lower
+: bool false
+: bool true
+: bool false
+: string
+| CREATE UNIQUE INDEX ui_lower ON public.ui USING btree (((code + 1)))
+: string
+| (code + 1)
+< row
+: string
+| ui_pkey
+: bool true
+: bool true
+: bool true
+: string
+| CREATE UNIQUE INDEX ui_pkey ON public.ui USING btree (id)
+: string
+| id
+> exec
+| /*
+| Original SQL:
+| UPDATE ui SET id = id + 100, v = 1 WHERE id = 1
+| */
+| INSERT INTO "public"."ui" ("id", "code", "v") SELECT "id", "code", "v" FROM "bbdataarchive"."_bb__ui_public" ON CONFLICT ("code") DO UPDATE SET "id" = EXCLUDED."id", "v" = EXCLUDED."v";
+< ok 1 -
+> query
+| SELECT x::text FROM "public"."ui" AS x ORDER BY 1
+< result
+< column "x" "TEXT"
+< row
+: string
+| (1,10,0)
+< row
+: string
+| (2,20,0)
+> query
+| SELECT to_regclass($1)::text
+: string
+| canary
+< result
+< column "to_regclass" "TEXT"
+< row
+: string
+| canary
+> exec
+| CREATE TABLE mk ("Id" INT PRIMARY KEY, code INT UNIQUE, v INT); INSERT INTO mk VALUES (1, 10, 0), (2, 20, 0)
+< ok 2 -
+> query
+| SELECT x::text FROM "public"."mk" AS x ORDER BY 1
+< result
+< column "x" "TEXT"
+< row
+: string
+| (1,10,0)
+< row
+: string
+| (2,20,0)
+> query
+| SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_tables WHERE schemaname = $1 AND tablename = $2)
+: string
+| public
+: string
+| mk
+< result
+< column "exists" "BOOL"
+< row
+: bool true
+> exec
+| CREATE TABLE "bbdataarchive"."_bb__mk_public" AS
+|   SELECT "public"."mk".* FROM mk WHERE "Id" = 1;
+< ok 1 -
+> exec
+| UPDATE mk SET "Id" = "Id" + 100, v = 1 WHERE "Id" = 1
+< ok 1 -
+> query
+| SELECT x::text FROM "public"."mk" AS x ORDER BY 1
+< result
+< column "x" "TEXT"
+< row
+: string
+| (101,10,1)
+< row
+: string
+| (2,20,0)
+> query
+| SELECT a.attname, a.attgenerated <> '' FROM pg_catalog.pg_attribute a
+| 		JOIN pg_catalog.pg_class c ON c.oid = a.attrelid JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+| 		WHERE n.nspname = $1 AND c.relname = $2 AND a.attnum > 0 AND NOT a.attisdropped ORDER BY a.attnum
+: string
+| public
+: string
+| mk
+< result
+< column "attname" "NAME"
+< column "?column?" "BOOL"
+< row
+: string
+| Id
+: bool false
+< row
+: string
+| code
+: bool false
+< row
+: string
+| v
+: bool false
+> query
+| SELECT i.relname, x.indisprimary, x.indisunique, con.oid IS NOT NULL, pg_get_indexdef(i.oid),
+| 		(SELECT string_agg(pg_get_indexdef(i.oid, k + 1, true), E'\x1f' ORDER BY k) FROM generate_subscripts(x.indkey, 1) AS k WHERE k < x.indnkeyatts)
+| 		FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 		JOIN pg_catalog.pg_class c ON c.oid = x.indrelid JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+| 		LEFT JOIN pg_catalog.pg_constraint con ON con.conindid = x.indexrelid
+| 		WHERE n.nspname = $1 AND c.relname = $2 ORDER BY i.relname
+: string
+| public
+: string
+| mk
+< result
+< column "relname" "NAME"
+< column "indisprimary" "BOOL"
+< column "indisunique" "BOOL"
+< column "?column?" "BOOL"
+< column "pg_get_indexdef" "TEXT"
+< column "string_agg" "TEXT"
+< row
+: string
+| mk_code_key
+: bool false
+: bool true
+: bool true
+: string
+| CREATE UNIQUE INDEX mk_code_key ON public.mk USING btree (code)
+: string
+| code
+< row
+: string
+| mk_pkey
+: bool true
+: bool true
+: bool true
+: string
+| CREATE UNIQUE INDEX mk_pkey ON public.mk USING btree ("Id")
+: string
+| "Id"
+> exec
+| /*
+| Original SQL:
+| UPDATE mk SET "Id" = "Id" + 100, v = 1 WHERE "Id" = 1
+| */
+| INSERT INTO "public"."mk" ("Id", "code", "v") SELECT "Id", "code", "v" FROM "bbdataarchive"."_bb__mk_public" ON CONFLICT ON CONSTRAINT "mk_code_key" DO UPDATE SET "Id" = EXCLUDED."Id", "v" = EXCLUDED."v";
+< ok 1 -
+> query
+| SELECT x::text FROM "public"."mk" AS x ORDER BY 1
+< result
+< column "x" "TEXT"
+< row
+: string
+| (1,10,0)
+< row
+: string
+| (2,20,0)
 > query
 | SELECT to_regclass($1)::text
 : string
@@ -510,9 +782,8 @@
 | a"b
 : bool false
 > query
-| SELECT i.relname, x.indisprimary, x.indisunique, con.oid IS NOT NULL,
-| 		(SELECT string_agg(a.attname, E'\x1f' ORDER BY k.n) FROM unnest(x.indkey) WITH ORDINALITY AS k(attnum, n)
-| 			JOIN pg_catalog.pg_attribute a ON a.attrelid = x.indrelid AND a.attnum = k.attnum)
+| SELECT i.relname, x.indisprimary, x.indisunique, con.oid IS NOT NULL, pg_get_indexdef(i.oid),
+| 		(SELECT string_agg(pg_get_indexdef(i.oid, k + 1, true), E'\x1f' ORDER BY k) FROM generate_subscripts(x.indkey, 1) AS k WHERE k < x.indnkeyatts)
 | 		FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
 | 		JOIN pg_catalog.pg_class c ON c.oid = x.indrelid JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
 | 		LEFT JOIN pg_catalog.pg_constraint con ON con.conindid = x.indexrelid
@@ -526,6 +797,7 @@
 < column "indisprimary" "BOOL"
 < column "indisunique" "BOOL"
 < column "?column?" "BOOL"
+< column "pg_get_indexdef" "TEXT"
 < column "string_agg" "TEXT"
 < row
 : string
@@ -534,7 +806,9 @@
 : bool true
 : bool true
 : string
-| i"d
+| CREATE UNIQUE INDEX "p""k" ON "s""q"."t""q" USING btree ("i""d")
+: string
+| "i""d"
 > exec
 | /*
 | Original SQL:
@@ -611,9 +885,8 @@
 | a"b
 : bool false
 > query
-| SELECT i.relname, x.indisprimary, x.indisunique, con.oid IS NOT NULL,
-| 		(SELECT string_agg(a.attname, E'\x1f' ORDER BY k.n) FROM unnest(x.indkey) WITH ORDINALITY AS k(attnum, n)
-| 			JOIN pg_catalog.pg_attribute a ON a.attrelid = x.indrelid AND a.attnum = k.attnum)
+| SELECT i.relname, x.indisprimary, x.indisunique, con.oid IS NOT NULL, pg_get_indexdef(i.oid),
+| 		(SELECT string_agg(pg_get_indexdef(i.oid, k + 1, true), E'\x1f' ORDER BY k) FROM generate_subscripts(x.indkey, 1) AS k WHERE k < x.indnkeyatts)
 | 		FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
 | 		JOIN pg_catalog.pg_class c ON c.oid = x.indrelid JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
 | 		LEFT JOIN pg_catalog.pg_constraint con ON con.conindid = x.indexrelid
@@ -627,6 +900,7 @@
 < column "indisprimary" "BOOL"
 < column "indisunique" "BOOL"
 < column "?column?" "BOOL"
+< column "pg_get_indexdef" "TEXT"
 < column "string_agg" "TEXT"
 < row
 : string
@@ -635,7 +909,9 @@
 : bool true
 : bool true
 : string
-| i"d
+| CREATE UNIQUE INDEX "p""k2" ON "u""q"."t""q" USING btree ("i""d")
+: string
+| "i""d"
 > exec
 | /*
 | Original SQL:

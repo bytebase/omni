@@ -117,3 +117,36 @@ func TestRestoreSQL(t *testing.T) {
 	_, err = RestoreSQL(dmls[2].Node, options)
 	require.EqualError(t, err, "no disjoint unique key found for table")
 }
+
+func TestRestoreSQLConflictTarget(t *testing.T) {
+	table := func(indexes ...*metadata.IndexMetadata) *metadata.TableMetadata {
+		return &metadata.TableMetadata{Name: "t", Columns: []*metadata.ColumnMetadata{{Name: "Id"}, {Name: "a"}, {Name: "b"}}, Indexes: indexes}
+	}
+	pk := &metadata.IndexMetadata{Name: "t_pkey", Primary: true, Unique: true, IsConstraint: true, Expressions: []string{`"Id"`}}
+	update := BackedUpDMLs(parseScript(t, `UPDATE t SET "Id" = 2, b = 3`))[0].Node
+	restore := func(table *metadata.TableMetadata) (string, error) {
+		return RestoreSQL(update, RestoreOptions{OriginalSchema: "public", OriginalTable: "t", BackupSchema: "bb", BackupTable: "b", Table: table, PrimaryKey: pk})
+	}
+	const plainIndex = "CREATE UNIQUE INDEX t_a ON public.t USING btree (a)"
+
+	// The UPDATE changes the quoted primary key column, so a unique index on a
+	// decides, matched by its column.
+	got, err := restore(table(pk, &metadata.IndexMetadata{Name: "t_a", Unique: true, Definition: plainIndex, Expressions: []string{"a"}}))
+	require.NoError(t, err)
+	require.Contains(t, got, ` ON CONFLICT ("a") DO UPDATE SET "Id" = EXCLUDED."Id", "b" = EXCLUDED."b";`)
+
+	got, err = restore(table(pk, &metadata.IndexMetadata{Name: "t_a_key", Unique: true, IsConstraint: true, Expressions: []string{"a"}}))
+	require.NoError(t, err)
+	require.Contains(t, got, ` ON CONFLICT ON CONSTRAINT "t_a_key" DO UPDATE`)
+
+	// No key the UPDATE leaves alone can be named: a partial index, an index
+	// on an expression, or one whose definition is unknown.
+	for _, index := range []*metadata.IndexMetadata{
+		{Name: "t_a", Unique: true, Definition: plainIndex + " WHERE (a > 0)", Expressions: []string{"a"}},
+		{Name: "t_lower", Unique: true, Definition: "CREATE UNIQUE INDEX t_lower ON public.t USING btree (lower(a))", Expressions: []string{"lower(a)"}},
+		{Name: "t_a", Unique: true, Expressions: []string{"a"}},
+	} {
+		_, err = restore(table(pk, index))
+		require.EqualError(t, err, "no disjoint unique key found for table", index.Expressions)
+	}
+}
