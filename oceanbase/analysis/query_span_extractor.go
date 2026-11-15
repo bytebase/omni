@@ -3,6 +3,7 @@ package analysis
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -126,61 +127,64 @@ func (q *querySpanExtractor) getAllTableColumnSources(databaseName, tableName st
 		return tableSource.GetQuerySpanResult(), true
 	}
 
-	for i := len(q.outerTableSources) - 1; i >= 0; i-- {
-		if querySpanResult, ok := findInTableSource(q.outerTableSources[i]); ok {
+	// The subquery's own FROM first, then enclosing queries, nearest first.
+	for i := len(q.tableSourceFrom) - 1; i >= 0; i-- {
+		if querySpanResult, ok := findInTableSource(q.tableSourceFrom[i]); ok {
 			return querySpanResult, true
 		}
 	}
-	for i := len(q.tableSourceFrom) - 1; i >= 0; i-- {
-		if querySpanResult, ok := findInTableSource(q.tableSourceFrom[i]); ok {
+	for i := len(q.outerTableSources) - 1; i >= 0; i-- {
+		if querySpanResult, ok := findInTableSource(q.outerTableSources[i]); ok {
 			return querySpanResult, true
 		}
 	}
 	return nil, false
 }
 
-func (q *querySpanExtractor) getFieldColumnSource(databaseName, tableName, fieldName string) (ColumnSet, error) {
-	findInTableSource := func(tableSource tableSource) (ColumnSet, bool) {
+func (q *querySpanExtractor) getFieldColumnSource(databaseName, tableName, fieldName string) (QuerySpanResult, error) {
+	findInTableSource := func(tableSource tableSource) (QuerySpanResult, bool) {
 		if q.ignoreCaseSensitive {
 			if databaseName != "" && !strings.EqualFold(databaseName, tableSource.GetDatabaseName()) {
-				return nil, false
+				return QuerySpanResult{}, false
 			}
 			if tableName != "" && !strings.EqualFold(tableName, tableSource.GetTableName()) {
-				return nil, false
+				return QuerySpanResult{}, false
 			}
 		} else {
 			if databaseName != "" && databaseName != tableSource.GetDatabaseName() {
-				return nil, false
+				return QuerySpanResult{}, false
 			}
 			if tableName != "" && tableName != tableSource.GetTableName() {
-				return nil, false
+				return QuerySpanResult{}, false
 			}
 		}
 		for _, column := range tableSource.GetQuerySpanResult() {
 			if strings.EqualFold(column.Name, fieldName) {
-				return column.SourceColumns, true
+				return column, true
 			}
 		}
-		return nil, false
+		return QuerySpanResult{}, false
 	}
 
-	for i := len(q.outerTableSources) - 1; i >= 0; i-- {
-		if sourceColumnSet, ok := findInTableSource(q.outerTableSources[i]); ok {
-			return sourceColumnSet, nil
-		}
-	}
+	// A column resolves in the subquery's own FROM first, then in enclosing
+	// queries, nearest first, as a correlated reference.
 	for i := len(q.tableSourceFrom) - 1; i >= 0; i-- {
-		if sourceColumnSet, ok := findInTableSource(q.tableSourceFrom[i]); ok {
-			return sourceColumnSet, nil
+		if source, ok := findInTableSource(q.tableSourceFrom[i]); ok {
+			return source, nil
 		}
 	}
 	for i := len(q.priorTableInFrom) - 1; i >= 0; i-- {
-		if sourceColumnSet, ok := findInTableSource(q.priorTableInFrom[i]); ok {
-			return sourceColumnSet, nil
+		if source, ok := findInTableSource(q.priorTableInFrom[i]); ok {
+			return source, nil
+		}
+	}
+	for i := len(q.outerTableSources) - 1; i >= 0; i-- {
+		if source, ok := findInTableSource(q.outerTableSources[i]); ok {
+			return source, nil
 		}
 	}
 
-	return nil, &NotFoundError{
+	return QuerySpanResult{}, &NotFoundError{
 		Database: &databaseName,
 		Table:    &tableName,
 		Column:   &fieldName,
@@ -816,7 +820,7 @@ func (q *querySpanExtractor) cloneForSubquery() *querySpanExtractor {
 		defaultDatabase:     q.defaultDatabase,
 		catalog:             q.catalog,
 		ctes:                q.ctes,
-		outerTableSources:   append(q.outerTableSources, q.tableSourceFrom...),
+		outerTableSources:   append(slices.Clone(q.outerTableSources), q.tableSourceFrom...),
 		tableSourceFrom:     []tableSource{},
 		ignoreCaseSensitive: q.ignoreCaseSensitive,
 		viewResolutionStack: cloneViewResolutionStack(q.viewResolutionStack),
@@ -900,14 +904,16 @@ func (q *querySpanExtractor) extractExpr(expr ast.ExprNode) (QuerySpanResult, er
 		if e.Star {
 			return QuerySpanResult{}, fmt.Errorf("asterisk is not a scalar expression")
 		}
-		sourceColumns, err := q.getFieldColumnSource(e.Schema, e.Table, e.Column)
+		// A column of a view, derived table or CTE is plain only if that
+		// query's column is.
+		source, err := q.getFieldColumnSource(e.Schema, e.Table, e.Column)
 		if err != nil {
 			return QuerySpanResult{}, err
 		}
 		return QuerySpanResult{
 			Name:          e.Column,
-			SourceColumns: sourceColumns,
-			IsPlainField:  true,
+			SourceColumns: source.SourceColumns,
+			IsPlainField:  source.IsPlainField,
 		}, nil
 	case *ast.StarExpr:
 		return QuerySpanResult{}, fmt.Errorf("asterisk is not a scalar expression")

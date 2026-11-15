@@ -71,8 +71,8 @@ func (q *querySpanExtractor) selectItemsVisibleToSubquery() []QuerySpanResult {
 }
 
 // resolveInCurrentSelect resolves a name in the SELECT being extracted.
-func (q *querySpanExtractor) resolveInCurrentSelect(databaseName, tableName, fieldName string) (ColumnSet, bool) {
-	fromClause := func(databaseName, tableName string) (ColumnSet, bool) {
+func (q *querySpanExtractor) resolveInCurrentSelect(databaseName, tableName, fieldName string) (QuerySpanResult, bool) {
+	fromClause := func(databaseName, tableName string) (QuerySpanResult, bool) {
 		if columns, ok := q.findColumnInTables(q.tableSourceFrom, databaseName, tableName, fieldName); ok {
 			return columns, true
 		}
@@ -113,18 +113,20 @@ func (q *querySpanExtractor) groupByColumnNamed(name string) *ast.ColumnRef {
 	return nil
 }
 
-// selectItemsNamed returns the sources of every select item called name. Two
-// different items with one name make MySQL refuse the query.
-func selectItemsNamed(items []QuerySpanResult, name string) (ColumnSet, bool) {
-	columns := make(ColumnSet)
+// selectItemsNamed returns the sources of every select item called name, a
+// plain field only if each item is. Two different items with one name make
+// MySQL refuse the query.
+func selectItemsNamed(items []QuerySpanResult, name string) (QuerySpanResult, bool) {
+	result := QuerySpanResult{Name: name, SourceColumns: make(ColumnSet), IsPlainField: true}
 	found := false
 	for _, item := range items {
 		if strings.EqualFold(item.Name, name) {
-			mergeSourceColumnSetInto(columns, item.SourceColumns)
+			mergeSourceColumnSetInto(result.SourceColumns, item.SourceColumns)
+			result.IsPlainField = result.IsPlainField && item.IsPlainField
 			found = true
 		}
 	}
-	return columns, found
+	return result, found
 }
 
 // collectConditionColumns records the columns expr reads, where the database
@@ -227,11 +229,11 @@ func (q *querySpanExtractor) recordColumnsNamed(databaseName, tableName, fieldNa
 		recordTables(tables)
 	}
 	if databaseName == "" && tableName == "" {
-		columns, _ := selectItemsNamed(q.selectItems, fieldName)
-		mergeSourceColumnSetInto(q.predicateColumns, columns)
+		items, _ := selectItemsNamed(q.selectItems, fieldName)
+		mergeSourceColumnSetInto(q.predicateColumns, items.SourceColumns)
 		for _, scope := range q.outerScopes {
-			columns, _ := selectItemsNamed(scope.items, fieldName)
-			mergeSourceColumnSetInto(q.predicateColumns, columns)
+			items, _ := selectItemsNamed(scope.items, fieldName)
+			mergeSourceColumnSetInto(q.predicateColumns, items.SourceColumns)
 		}
 	}
 

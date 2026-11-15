@@ -372,3 +372,39 @@ func TestGetQuerySpanMultiFunctionLineage(t *testing.T) {
 		})
 	}
 }
+
+func TestGetQuerySpanValuesLineage(t *testing.T) {
+	testCases := []struct {
+		statement  string
+		results    map[string][]string
+		predicates []string
+	}{
+		{"VALUES ((SELECT ssn FROM t LIMIT 1))", map[string][]string{"column1": {"t.ssn"}}, []string{}},
+		{
+			"VALUES (1, (SELECT email FROM t WHERE ssn = 'guess')), ((SELECT id FROM t LIMIT 1), 'x')",
+			map[string][]string{"column1": {"t.id"}, "column2": {"t.email"}},
+			[]string{"t.ssn"},
+		},
+		{"VALUES ('a'), ('b'), ('c'), ((SELECT ssn FROM t LIMIT 1)), ('e')", map[string][]string{"column1": {"t.ssn"}}, []string{}},
+		{"SELECT * FROM (VALUES ((SELECT ssn FROM t LIMIT 1))) v", map[string][]string{"column1": {"t.ssn"}}, []string{}},
+		{"WITH c(x) AS (VALUES ((SELECT ssn FROM t LIMIT 1))) SELECT x FROM c", map[string][]string{"x": {"t.ssn"}}, []string{}},
+		{"VALUES (NULL), (NULL), (1), ((SELECT id FROM t LIMIT 1))", map[string][]string{"column1": {"t.id"}}, []string{}},
+		{"SELECT s.ssn FROM (SELECT ssn FROM t) s WHERE EXISTS (VALUES (NULL), (NULL), (1), (2))", map[string][]string{"ssn": {"t.ssn"}}, []string{}},
+		{"SELECT 'a' AS x UNION ALL VALUES ((SELECT ssn FROM t LIMIT 1))", map[string][]string{"x": {"t.ssn"}}, []string{}},
+		{"SELECT (VALUES ((SELECT ssn FROM t WHERE id = 1))) AS x", map[string][]string{"x": {"t.ssn"}}, []string{"t.id"}},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.statement, func(t *testing.T) {
+			span := spanFor(t, tc.statement, healthySchema())
+			got := map[string][]string{}
+			for _, result := range span.Results {
+				got[result.Name] = predicateColumnNames(result.SourceColumns)
+			}
+			require.Equal(t, tc.results, got)
+			require.Equal(t, tc.predicates, predicateColumnNames(span.PredicateColumns))
+		})
+	}
+
+	span := spanFor(t, "EXPLAIN ANALYZE VALUES ((SELECT email FROM t WHERE ssn = 'guess'))", healthySchema())
+	require.Equal(t, []string{"t.ssn"}, predicateColumnNames(span.PredicateColumns))
+}

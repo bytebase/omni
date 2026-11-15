@@ -6,10 +6,12 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/bytebase/omni/enginetest/cputime"
 	"github.com/bytebase/omni/snowflake/analysis"
 )
 
@@ -98,6 +100,11 @@ func TestResolveQuerySpanResults(t *testing.T) {
 		{"WITH C (X) AS (SELECT A FROM T1) SELECT * FROM C", []string{"X<-DB.PUBLIC.T1.A plain"}},
 		{"WITH T1 AS (SELECT E FROM T3) SELECT * FROM T1", []string{"E<-DB.PUBLIC.T3.E plain"}},
 		{"WITH RECURSIVE R (X, Y) AS (SELECT A, B FROM T1 UNION ALL SELECT Y, X FROM R) SELECT * FROM R", []string{"X<-DB.PUBLIC.T1.A,DB.PUBLIC.T1.B plain", "Y<-DB.PUBLIC.T1.A,DB.PUBLIC.T1.B plain"}},
+		// A derived column list renames the relation's columns in order.
+		{"SELECT X FROM (SELECT A, B FROM T1) AS D(X, Y)", []string{"X<-DB.PUBLIC.T1.A plain"}},
+		{"SELECT * FROM (SELECT A, B FROM T1) AS D(X, Y)", []string{"X<-DB.PUBLIC.T1.A plain", "Y<-DB.PUBLIC.T1.B plain"}},
+		{"SELECT D.X, E.Q FROM (SELECT A FROM T1) AS D(X) JOIN (SELECT * FROM T3) AS E(Q, R) ON TRUE", []string{"X<-DB.PUBLIC.T1.A plain", "Q<-DB.PUBLIC.T3.E plain"}},
+		{"SELECT * FROM (SELECT A FROM T1) AS D(X) NATURAL JOIN (SELECT E FROM T3) AS E(X)", []string{"X<-DB.PUBLIC.T1.A,DB.PUBLIC.T3.E plain"}},
 		// A table function exposes no columns.
 		{"SELECT 1 AS ONE FROM TABLE(FLATTEN(input => PARSE_JSON('[1]')))", []string{"ONE<-"}},
 	}
@@ -107,6 +114,59 @@ func TestResolveQuerySpanResults(t *testing.T) {
 			continue
 		}
 		assert.Equalf(t, analysis.Select, span.Type, "%s", tc.sql)
+		assert.Equalf(t, tc.want, render(span), "%s", tc.sql)
+	}
+}
+
+func TestResolveQuerySpanNestedExpressionsLinear(t *testing.T) {
+	const depth = 60
+	nest := func(open, leaf, closing string) string {
+		return strings.Repeat(open, depth) + leaf + strings.Repeat(closing, depth)
+	}
+	for _, tc := range []struct {
+		name string
+		expr string
+	}{
+		{"CASE WHEN", nest("CASE WHEN A > 0 THEN ", "B", " END")},
+		{"CASE condition", nest("CASE WHEN ", "B", " > 0 THEN A END > 0")},
+		{"window ORDER BY", nest("SUM(A) OVER (ORDER BY ", "B", ")")},
+		{"WITHIN GROUP", nest("LISTAGG(A) WITHIN GROUP (ORDER BY ", "B", ")")},
+	} {
+		sql := "SELECT " + tc.expr + " AS X FROM T1"
+		var span *analysis.ResolvedSpan
+		var err error
+		cputime.Within(t, 2*time.Second, fmt.Sprintf("%s nested %d deep", tc.name, depth), func() {
+			span, err = resolveSpan(t, sql)
+		})
+		require.NoErrorf(t, err, "%s", tc.name)
+		require.Equalf(t, []string{"X<-DB.PUBLIC.T1.A,DB.PUBLIC.T1.B"}, render(span), "%s", tc.name)
+	}
+}
+
+func TestResolveQuerySpanSubqueryScope(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want []string
+	}{
+		// T1 and T2 both have A: the subquery's own FROM answers first.
+		{"SELECT (SELECT A FROM T2) AS X FROM T1", []string{"X<-DB.PUBLIC.T2.A"}},
+		{"SELECT (SELECT * FROM OTHER.T1) AS X FROM T1", []string{"X<-DB.OTHER.T1.Z"}},
+		{"SELECT (SELECT $1 FROM T3) AS X FROM T1", []string{"X<-DB.PUBLIC.T3.E"}},
+		{"SELECT (SELECT T.A FROM T2 T) AS X FROM T1 T", []string{"X<-DB.PUBLIC.T2.A"}},
+		{"SELECT (SELECT T.A FROM T3 JOIN T2 T ON TRUE) AS X FROM T1 T", []string{"X<-DB.PUBLIC.T2.A"}},
+		// A name the subquery's FROM lacks is a correlated reference.
+		{"SELECT (SELECT B FROM T3) AS X FROM T1", []string{"X<-DB.PUBLIC.T1.B"}},
+		{"SELECT (SELECT T.B + E FROM T3) AS X FROM T1 T", []string{"X<-DB.PUBLIC.T1.B,DB.PUBLIC.T3.E"}},
+		{"SELECT (SELECT U.B FROM T3 JOIN T2 ON TRUE) AS X FROM T1 U", []string{"X<-DB.PUBLIC.T1.B"}},
+		// A LATERAL item on a JOIN's right side names the left side.
+		{"SELECT S.X FROM T1 T JOIN LATERAL (SELECT T.A AS X) S ON TRUE", []string{"X<-DB.PUBLIC.T1.A plain"}},
+		{"SELECT S.X FROM T1 T JOIN LATERAL (SELECT T.A AS X FROM T2 T) S ON TRUE", []string{"X<-DB.PUBLIC.T2.A plain"}},
+	}
+	for _, tc := range tests {
+		span, err := resolveSpan(t, tc.sql)
+		if !assert.NoErrorf(t, err, "%s", tc.sql) {
+			continue
+		}
 		assert.Equalf(t, tc.want, render(span), "%s", tc.sql)
 	}
 }

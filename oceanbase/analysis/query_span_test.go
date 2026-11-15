@@ -114,7 +114,16 @@ func TestResolveQuerySpanLineage(t *testing.T) {
 		{"SELECT * FROM t1", []string{"a<-db.t1.a plain", "b<-db.t1.b plain", "c<-db.t1.c plain"}, ""},
 		{"SELECT a + b AS s FROM t1 WHERE c > 0", []string{"s<-db.t1.a,db.t1.b"}, ""},
 		{"SELECT * FROM t1 JOIN t2 USING (a)", []string{"a<-db.t1.a plain", "b<-db.t1.b plain", "c<-db.t1.c plain", "d<-db.t2.d plain"}, ""},
-		{"SELECT bc FROM v", []string{"bc<-db.t1.b,db.t1.c plain"}, ""},
+		// A subquery's own tables come before the enclosing query's.
+		{"SELECT (SELECT a FROM t2 LIMIT 1) AS x FROM t1", []string{"x<-db.t2.a plain"}, ""},
+		{"SELECT (SELECT y.a FROM t2 AS y LIMIT 1) AS x FROM t1 AS y", []string{"x<-db.t2.a plain"}, ""},
+		{"SELECT (SELECT d FROM t2 WHERE t2.a = t1.b LIMIT 1) AS x FROM t1", []string{"x<-db.t2.d plain"}, ""},
+		{"SELECT (SELECT b FROM t2 LIMIT 1) AS x FROM t1", []string{"x<-db.t1.b plain"}, ""},
+		{"SELECT bc FROM v", []string{"bc<-db.t1.b,db.t1.c"}, ""},
+		{"SELECT a, v.bc FROM v", []string{"a<-db.t1.a plain", "bc<-db.t1.b,db.t1.c"}, ""},
+		{"SELECT s FROM (SELECT a + b AS s, c FROM t1) AS d", []string{"s<-db.t1.a,db.t1.b"}, ""},
+		{"SELECT d.c FROM (SELECT a + b AS s, c FROM t1) AS d", []string{"c<-db.t1.c plain"}, ""},
+		{"WITH x AS (SELECT a + b AS s FROM t1) SELECT s FROM x", []string{"s<-db.t1.a,db.t1.b"}, ""},
 		{"WITH x(k) AS (SELECT d FROM t2) SELECT k FROM x", []string{"k<-db.t2.d plain"}, ""},
 		{"SELECT a FROM t1 UNION SELECT d FROM t2", []string{"a<-db.t1.a,db.t2.d"}, ""},
 	}
