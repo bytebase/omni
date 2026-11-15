@@ -56,3 +56,15 @@ func TestGenerateMigrationSetsTiFlashReplicas(t *testing.T) {
 		t.Errorf("got %s, want %s", got, want)
 	}
 }
+
+func TestGenerateMigrationWarnsOnGlobalTemporaryFlip(t *testing.T) {
+	from := execCatalogIn(t, "db", "CREATE TABLE t (a int)")
+	to := execCatalogIn(t, "db", "CREATE GLOBAL TEMPORARY TABLE t (a int) ON COMMIT DELETE ROWS")
+	plan := GenerateMigration(from, to, Diff(from, to))
+	if len(plan.Warnings()) != len(plan.Ops) || len(plan.Ops) != 2 {
+		t.Fatalf("want 2 warned ops, got %d ops (%d warned)", len(plan.Ops), len(plan.Warnings()))
+	}
+	if plan.Ops[0].Type != OpDropTable || plan.Ops[1].Type != OpCreateTable {
+		t.Errorf("plan is %s", plan.SQL())
+	}
+}

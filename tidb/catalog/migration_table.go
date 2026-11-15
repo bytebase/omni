@@ -172,6 +172,15 @@ func (g *generator) createTable(tbl *Table) {
 // checks, keys (and those an expression key over a changing column needs
 // rebuilt), then columns.
 func (g *generator) dropTableParts(e *TableDiffEntry) {
+	// A retained generated column whose expression stops reading a dropped
+	// column is modified before the drop, so the drop no longer fails on the
+	// old expression (3108/3837).
+	preDrop := preDropModifies(e)
+	for _, c := range e.Columns {
+		if preDrop[toLower(c.Name)] {
+			g.add(OpModifyColumn, e.To, alterTable(e.To, "MODIFY COLUMN "+canonicalColumn(c.To)), modifyColumnWarning(e.From, e.To, c.From, c.To))
+		}
+	}
 	for _, c := range e.Checks {
 		if c.Action != DiffAdd {
 			g.add(OpDropCheck, e.From, alterTable(e.From, "DROP CHECK "+quoteIdent(c.Name)), "")
@@ -294,6 +303,14 @@ func (t *Table) indexNamed(name string) *Index {
 // keys, checks, then partitioning, which TiDB checks against the keys.
 func (g *generator) alterTable(e *TableDiffEntry) {
 	from, to := e.From, e.To
+	// Changing a table between ordinary and global temporary has no ALTER:
+	// the table is recreated, which empties it, so the op carries a warning.
+	if from.GlobalTemporary != to.GlobalTemporary || from.OnCommit != to.OnCommit {
+		warn := "TiDB cannot change a table to or from GLOBAL TEMPORARY in place; the table is recreated, losing its rows"
+		g.add(OpDropTable, from, "DROP TABLE "+tableIdent(from), warn)
+		g.createTableWithWarning(to, warn)
+		return
+	}
 	if e.OptionsChanged {
 		g.alterTableOptions(from, to)
 	}
@@ -301,11 +318,14 @@ func (g *generator) alterTable(e *TableDiffEntry) {
 	if _, last := droppedColumns(e); last != nil {
 		g.add(OpDropColumn, from, alterTable(from, "DROP COLUMN "+quoteIdent(last.Name)), "")
 	}
+	preDrop := preDropModifies(e)
 	for _, c := range e.Columns {
-		if c.Action == DiffModify {
+		if c.Action == DiffModify && !preDrop[toLower(c.Name)] {
 			g.add(OpModifyColumn, to, alterTable(to, "MODIFY COLUMN "+canonicalColumn(c.To)), modifyColumnWarning(from, to, c.From, c.To))
 		}
 	}
+	// TTL after the columns it references exist and have their target type.
+	g.alterTTL(from, to, func(clause, warning string) { g.add(OpAlterTable, to, alterTable(to, clause), warning) })
 	for _, idx := range e.Indexes {
 		if idx.Action != DiffDrop {
 			g.addIndex(e, idx.To)
@@ -339,6 +359,63 @@ func checkDefinition(con *Constraint) string {
 		s += " NOT ENFORCED"
 	}
 	return s
+}
+
+// createTableWithWarning creates a table like createTable, but every op it
+// emits carries warning.
+func (g *generator) createTableWithWarning(tbl *Table, warning string) {
+	start := len(g.plan.Ops)
+	g.createTable(tbl)
+	for i := start; i < len(g.plan.Ops); i++ {
+		g.plan.Ops[i].Warning = warning
+	}
+}
+
+// preDropModifies names the modified columns whose MODIFY must run before the
+// table's columns are dropped: a retained generated column whose old
+// expression reads a column the diff drops. Its new expression must not read a
+// column the diff adds, which would not exist yet; such a column keeps the
+// normal order.
+func preDropModifies(e *TableDiffEntry) map[string]bool {
+	dropped := make(map[string]bool)
+	added := make(map[string]bool)
+	for _, c := range e.Columns {
+		switch c.Action {
+		case DiffDrop:
+			dropped[toLower(c.Name)] = true
+		case DiffAdd:
+			added[toLower(c.Name)] = true
+		}
+	}
+	out := make(map[string]bool)
+	for _, c := range e.Columns {
+		if c.Action != DiffModify || c.From.Generated == nil {
+			continue
+		}
+		if exprReadsAny(c.From.Generated.Expr, dropped) && !exprReadsAny(colGenExpr(c.To), added) {
+			out[toLower(c.Name)] = true
+		}
+	}
+	return out
+}
+
+func colGenExpr(c *Column) string {
+	if c.Generated == nil {
+		return ""
+	}
+	return c.Generated.Expr
+}
+
+// exprReadsAny reports whether a generation expression reads any of the
+// lower-cased column names, matched as a backquoted identifier.
+func exprReadsAny(expr string, names map[string]bool) bool {
+	low := toLower(expr)
+	for name := range names {
+		if strings.Contains(low, "`"+name+"`") {
+			return true
+		}
+	}
+	return false
 }
 
 func (g *generator) addIndex(e *TableDiffEntry, idx *Index) {
@@ -493,7 +570,6 @@ func (g *generator) alterTableOptions(from, to *Table) {
 		}
 		set("PLACEMENT POLICY="+policy, "")
 	}
-	g.alterTTL(from, to, set)
 	if tiflashReplica(from) != tiflashReplica(to) {
 		clause := tiflashReplica(to)
 		if clause == "" {

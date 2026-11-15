@@ -48,6 +48,10 @@ var migrationOraclePairs = []struct{ name, a, b, syncDrops string }{
 	{"view aliased like the view that reads it", "CREATE TABLE t (a int)", "CREATE TABLE t (a int); CREATE VIEW vb AS SELECT a AS va FROM t; CREATE VIEW va AS SELECT va FROM vb", ""},
 	{"partitioning removed for a unique key", "CREATE TABLE t (a int, b int) PARTITION BY HASH (a) PARTITIONS 2", "CREATE TABLE t (a int, b int, UNIQUE KEY uk (b))", ""},
 	{"partitioning replaced with a unique key", "CREATE TABLE t (a int, b int) PARTITION BY HASH (a) PARTITIONS 2", "CREATE TABLE t (a int, b int, UNIQUE KEY uk (b)) PARTITION BY HASH (b) PARTITIONS 3", ""},
+	{"generated column retargeted off a dropped column", "CREATE TABLE t (a int, z int AS (a + 1) VIRTUAL, keep int)", "CREATE TABLE t (z int AS (keep + 1) VIRTUAL, keep int)", ""},
+	{"ttl on a newly added column", "CREATE TABLE t (id int)", "CREATE TABLE t (id int, ts datetime) TTL = ts + INTERVAL 1 DAY", "TTL"},
+	{"ordinary to global temporary", "CREATE TABLE t (a int)", "CREATE GLOBAL TEMPORARY TABLE t (a int) ON COMMIT DELETE ROWS", "global temporary (no metadata field)"},
+	{"global temporary to ordinary", "CREATE GLOBAL TEMPORARY TABLE t (a int) ON COMMIT DELETE ROWS", "CREATE TABLE t (a int)", "global temporary (no metadata field)"},
 	{"generated column added", "CREATE TABLE t (a int)", "CREATE TABLE t (a int, b int AS (a * 2) VIRTUAL, KEY kb (b))", ""},
 
 	// Changes TiDB makes only by rebuilding the table.
