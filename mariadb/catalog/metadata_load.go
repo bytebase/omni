@@ -324,7 +324,7 @@ func (c *Catalog) installMetadataObject(o *metadataObject) error {
 		if err != nil {
 			return err
 		}
-		return c.createSequence(stmt, "")
+		return c.createSequence(stmt)
 	case metadataTable:
 		stmt, omitted, err := metadataTableStmt(o.table, o.snapshotDatabase, o.database)
 		if err != nil {

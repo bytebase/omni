@@ -19,7 +19,12 @@ import (
 //   - a foreign key whose only supporting key is dropped or replaced is dropped
 //     first and added again at the end (1553 otherwise);
 //   - so is a foreign key the plan keeps over a column whose type it changes,
-//     on either side (1832, 1833).
+//     on either side (1832, 1833), and one in another table whose referenced
+//     key the plan drops or replaces;
+//   - a generated column whose new expression reads a generated column the
+//     plan adds is modified after the add (1054 otherwise);
+//   - a key the plan keeps over an application-time period it replaces is
+//     dropped before the period and added after it (4156 otherwise).
 func reorderTableChanges(ops []MigrationOp, from, to *Catalog, diff *SchemaDiff, n *Normalizer) []MigrationOp {
 	for i := range diff.Tables {
 		e := &diff.Tables[i]
@@ -28,11 +33,13 @@ func reorderTableChanges(ops []MigrationOp, from, to *Catalog, diff *SchemaDiff,
 		}
 		ops = orderGeneratedDrops(ops, e)
 		ops = dropColumnsAfterGeneratedReads(ops, e)
+		ops = modifyGeneratedAfterAddedReads(ops, e)
+		ops = rebuildKeysOverReplacedPeriod(ops, e, n)
 		ops = rebuildKeysOverFlippedColumns(ops, e, n)
 		ops = dropLastColumnsAfterAdds(ops, e)
 		ops = releaseForeignKeysOfReplacedKeys(ops, e)
 	}
-	return releaseForeignKeysOfRetypedColumns(ops, from, to, diff)
+	return releaseForeignKeysAcrossTables(ops, from, to, diff)
 }
 
 func opOfTable(op MigrationOp, e *TableDiffEntry) bool {
@@ -94,10 +101,71 @@ func dropColumnsAfterGeneratedReads(ops []MigrationOp, e *TableDiffEntry) []Migr
 	}
 	for i := range ops {
 		if ops[i].Type == OpDropColumn && opOfTable(ops[i], e) && read[ops[i].column] {
-			ops[i].Phase, ops[i].Priority = PhaseMain, priorityColumn+1
+			// After every modify, modifyGeneratedAfterAddedReads's included.
+			ops[i].Phase, ops[i].Priority = PhaseMain, priorityColumn+3
 		}
 	}
 	return ops
+}
+
+func modifyGeneratedAfterAddedReads(ops []MigrationOp, e *TableDiffEntry) []MigrationOp {
+	added := make(map[string]bool)
+	for _, ce := range e.Columns {
+		if ce.Action == DiffAdd && ce.To != nil && ce.To.Generated != nil {
+			added[toLower(ce.Name)] = true
+		}
+	}
+	if len(added) == 0 {
+		return ops
+	}
+	reads := make(map[string]bool)
+	for _, ce := range e.Columns {
+		if ce.Action != DiffModify || ce.To == nil || ce.To.Generated == nil {
+			continue
+		}
+		for _, ref := range ce.To.Generated.Refs {
+			if added[toLower(ref)] {
+				reads[toLower(ce.Name)] = true
+			}
+		}
+	}
+	for i := range ops {
+		if ops[i].Type == OpModifyColumn && opOfTable(ops[i], e) && reads[ops[i].column] {
+			// After the generated adds, at priorityColumn+1 (columnAddPriority).
+			ops[i].Priority = priorityColumn + 2
+		}
+	}
+	return ops
+}
+
+func rebuildKeysOverReplacedPeriod(ops []MigrationOp, e *TableDiffEntry, n *Normalizer) []MigrationOp {
+	from, to := e.From, e.To
+	if from.AppPeriodName == "" || to.AppPeriodName == "" || !appPeriodChanged(from, to) {
+		return ops
+	}
+	changed := make(map[string]bool)
+	for _, ie := range e.Indexes {
+		changed[toLower(ie.Name)] = true
+	}
+	table := tableIdent(to)
+	for _, idx := range from.Indexes {
+		if changed[toLower(idx.Name)] || !indexOverPeriod(idx, from.AppPeriodName) {
+			continue
+		}
+		if target := tableIndexByName(to, idx.Name); target != nil {
+			ops = append(ops, dropIndexOp(e, table, idx), addIndexOp(e, table, target, n))
+		}
+	}
+	return ops
+}
+
+func indexOverPeriod(idx *Index, period string) bool {
+	for _, ic := range idx.Columns {
+		if ic.WithoutOverlaps && toLower(ic.Name) == toLower(period) {
+			return true
+		}
+	}
+	return false
 }
 
 func rebuildKeysOverFlippedColumns(ops []MigrationOp, e *TableDiffEntry, n *Normalizer) []MigrationOp {
@@ -203,7 +271,7 @@ func foreignKeyOf(t *Table, name string) *Constraint {
 	return nil
 }
 
-func releaseForeignKeysOfRetypedColumns(ops []MigrationOp, from, to *Catalog, diff *SchemaDiff) []MigrationOp {
+func releaseForeignKeysAcrossTables(ops []MigrationOp, from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 	retyped := make(map[string]bool)
 	entries := make(map[string]*TableDiffEntry)
 	key := func(db, table, column string) string {
@@ -221,8 +289,37 @@ func releaseForeignKeysOfRetypedColumns(ops []MigrationOp, from, to *Catalog, di
 			}
 		}
 	}
-	if len(retyped) == 0 || from == nil || to == nil {
+	if from == nil || to == nil {
 		return ops
+	}
+	// parentKeyReplaced reports whether the plan drops or replaces every key of
+	// the referenced table that the foreign key can use.
+	parentKeyReplaced := func(con *Constraint, db string) bool {
+		refDB := con.RefDatabase
+		if refDB == "" {
+			refDB = db
+		}
+		e := entries[key(refDB, con.RefTable, "")]
+		if e == nil || e.Action != DiffModify || e.From == nil {
+			return false
+		}
+		replaced := make(map[string]bool)
+		for _, ie := range e.Indexes {
+			if ie.Action == DiffDrop || ie.Action == DiffModify {
+				replaced[toLower(ie.Name)] = true
+			}
+		}
+		needsReplaced := false
+		for _, idx := range e.From.Indexes {
+			if !indexCoversColumns(idx, con.RefColumns) {
+				continue
+			}
+			if !replaced[toLower(idx.Name)] {
+				return false
+			}
+			needsReplaced = true
+		}
+		return needsReplaced
 	}
 	planned := make(map[string]bool)
 	for _, op := range ops {
@@ -244,9 +341,16 @@ func releaseForeignKeysOfRetypedColumns(ops []MigrationOp, from, to *Catalog, di
 			if e == nil {
 				e = &TableDiffEntry{Action: DiffModify, Database: db.Name, Name: tbl.Name, From: tbl, To: toTbl}
 			}
+			changedFK := make(map[string]bool)
+			for _, fe := range e.ForeignKeys {
+				changedFK[toLower(fe.Name)] = true
+			}
 			for _, con := range orderedForeignKeys(tbl) {
 				toCon := foreignKeyOf(toTbl, con.Name)
-				if toCon == nil || !foreignKeyOverRetyped(con, db.Name, tbl.Name, retyped, key) {
+				if toCon == nil || changedFK[toLower(con.Name)] {
+					continue
+				}
+				if !foreignKeyOverRetyped(con, db.Name, tbl.Name, retyped, key) && !parentKeyReplaced(con, db.Name) {
 					continue
 				}
 				drop := dropForeignKeyOps(e, con, map[string]bool{})

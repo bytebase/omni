@@ -135,8 +135,41 @@ func trimSQLSpace(s string) string {
 
 // collapseSpaces lower-cases nothing but collapses internal runs of ASCII whitespace to a single
 // space and trims the ends, so "DISABLE   ON  SLAVE" and "DISABLE ON SLAVE" compare equal.
+// Whitespace inside a quoted string or identifier is part of its value and stays.
 func collapseSpaces(s string) string {
-	return strings.Join(strings.Fields(s), " ")
+	var b strings.Builder
+	var quote byte
+	space := false
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if quote != 0 {
+			b.WriteByte(c)
+			switch {
+			case c == '\\' && quote != '`' && i+1 < len(s):
+				i++
+				b.WriteByte(s[i])
+			case c == quote && i+1 < len(s) && s[i+1] == quote:
+				i++
+				b.WriteByte(s[i])
+			case c == quote:
+				quote = 0
+			}
+			continue
+		}
+		if c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f' || c == '\v' {
+			space = true
+			continue
+		}
+		if space && b.Len() > 0 {
+			b.WriteByte(' ')
+		}
+		space = false
+		if c == '\'' || c == '"' || c == '`' {
+			quote = c
+		}
+		b.WriteByte(c)
+	}
+	return b.String()
 }
 
 // canonicalizeSchedule folds an event's schedule text (e.g. "EVERY 1 HOUR STARTS
@@ -276,13 +309,14 @@ func canonicalizeInterval(s string) string {
 	if s == "" {
 		return ""
 	}
-	fields := strings.Fields(s)
-	if len(fields) < 2 {
+	// s has been through collapseSpaces, and the unit is a bare word.
+	at := strings.LastIndexByte(s, ' ')
+	if at < 0 {
 		// No unit token to split on; return upper-cased as a defensive fallback.
 		return strings.ToUpper(s)
 	}
-	unit := strings.ToUpper(fields[len(fields)-1])
-	value := strings.TrimSpace(strings.Join(fields[:len(fields)-1], " "))
+	unit := strings.ToUpper(s[at+1:])
+	value := strings.TrimSpace(s[:at])
 	return canonicalizeIntervalValue(value) + " " + unit
 }
 

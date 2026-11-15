@@ -98,6 +98,10 @@ func TestOracle_MigrationConverges(t *testing.T) {
 				migration{"pair " + p.name + "/backward", b, a})
 		}
 
+		otherDatabase := database + "_other"
+		if _, err := conn.ExecContext(context.Background(), "CREATE DATABASE IF NOT EXISTS "+quoteIdent(otherDatabase)); err != nil {
+			t.Fatal(err)
+		}
 		for _, m := range migrations {
 			t.Run(m.name, func(t *testing.T) {
 				startsWritten := writtenStarts.MatchString(m.from.schema + m.to.schema)
@@ -136,7 +140,11 @@ func TestOracle_MigrationConverges(t *testing.T) {
 
 					resetDatabase(t, conn, database)
 					applySchema(t, conn, m.from.schema)
+					// The plan names each object with its database, so it runs
+					// from another one.
+					useDatabase(t, conn, otherDatabase)
 					applyErr := applyPlan(conn, plan)
+					useDatabase(t, conn, database)
 					var got map[string]string
 					if applyErr == nil {
 						got = migrationObjects(t, conn, startsWritten)
@@ -262,4 +270,11 @@ func migrationObjects(t *testing.T, conn *sql.Conn, startsWritten bool) map[stri
 		out[kind+" "+name] = body.String
 	}
 	return out
+}
+
+func useDatabase(t *testing.T, conn *sql.Conn, database string) {
+	t.Helper()
+	if _, err := conn.ExecContext(context.Background(), "USE "+quoteIdent(database)); err != nil {
+		t.Fatal(err)
+	}
 }

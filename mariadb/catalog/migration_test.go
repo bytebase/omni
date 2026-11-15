@@ -41,6 +41,13 @@ func TestMigration_SequenceLimitsLeavingOutTheStartWarn(t *testing.T) {
 	}
 }
 
+func TestMigration_ViewBodyQualifiesItsRelations(t *testing.T) {
+	got := planFor(t, "", "CREATE TABLE t (a INT); CREATE VIEW v AS WITH c AS (SELECT a FROM t) SELECT c.a FROM c JOIN t ON c.a = t.a;").SQL()
+	if strings.Count(got, "`app`.`t`") < 2 || strings.Contains(got, "`app`.`c`") {
+		t.Errorf("want t qualified with app and the CTE c bare:\n%s", got)
+	}
+}
+
 func TestMigration_MariaDBStatements(t *testing.T) {
 	for _, tc := range []struct{ name, from, to, want string }{
 		{"sequence create", "", "CREATE SEQUENCE s START WITH 5;", "CREATE SEQUENCE `app`.`s` start with 5 minvalue 1 maxvalue 9223372036854775806 increment by 1 cache 1000 nocycle ENGINE=InnoDB"},
