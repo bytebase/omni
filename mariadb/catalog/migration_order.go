@@ -1024,8 +1024,8 @@ func reorderAddsAfterMerge(ops []MigrationOp, diff *SchemaDiff) []MigrationOp {
 			continue
 		}
 		sourceReads := columnReads(e.From)
-		readers := make(map[string][]int)  // lower column -> ops that read it
-		dropOf := make(map[string]int)     // lower column -> its PhaseMain drop op
+		readers := make(map[string][]int) // lower column -> ops that read it
+		dropOf := make(map[string]int)    // lower column -> its PhaseMain drop op
 		for j := range ops {
 			if !opOfTable(ops[j], e) || ops[j].column == "" {
 				continue
