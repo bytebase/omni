@@ -105,6 +105,10 @@ type MigrationOp struct {
 	// columns of a versioned table, as a DROP SYSTEM VERSIONING that drops the ROW
 	// START and ROW END columns with it, which needs keepVersionedHistory.
 	changesVersionedColumns bool
+
+	// triggerRef is the trigger a CREATE TRIGGER op names in its FOLLOWS or
+	// PRECEDES clause, which must exist first; "" when it names none.
+	triggerRef string
 }
 
 // alterPart is one clause of a grouped ALTER TABLE statement. addsColumn is the lower-cased column

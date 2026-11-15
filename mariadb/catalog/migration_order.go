@@ -1017,26 +1017,37 @@ func reorderAddsAfterMerge(ops []MigrationOp, diff *SchemaDiff) []MigrationOp {
 				}
 			}
 		}
-		// A postponed drop runs after the modify that releases it, which the
-		// bump above may have moved later.
-		modifyPriority := make(map[string]int)
-		for _, op := range ops {
-			if op.Type == OpModifyColumn && opOfTable(op, e) && op.column != "" {
-				modifyPriority[op.column] = op.Priority
-			}
-		}
+		// A postponed drop runs after every op that reads it, a modify the
+		// bump above moved later or a drop that in turn moved, to a fixpoint:
+		// a drop reads through the source column it removed.
 		if e.From == nil {
 			continue
 		}
 		sourceReads := columnReads(e.From)
+		readers := make(map[string][]int) // lower column -> ops that read it
+		dropOf := make(map[string]int)    // lower column -> its PhaseMain drop op
 		for j := range ops {
-			if ops[j].Type != OpDropColumn || !opOfTable(ops[j], e) || ops[j].Phase != PhaseMain {
+			if !opOfTable(ops[j], e) || ops[j].column == "" {
 				continue
 			}
-			for name, mp := range modifyPriority {
-				for _, ref := range sourceReads[name] {
-					if ref == ops[j].column && mp >= ops[j].Priority {
-						ops[j].Priority = mp + 1
+			postponedDrop := ops[j].Type == OpDropColumn && ops[j].Phase == PhaseMain
+			if ops[j].Type != OpModifyColumn && !postponedDrop {
+				continue
+			}
+			if postponedDrop {
+				dropOf[ops[j].column] = j
+			}
+			for _, ref := range sourceReads[ops[j].column] {
+				readers[toLower(ref)] = append(readers[toLower(ref)], j)
+			}
+		}
+		for changed := true; changed; {
+			changed = false
+			for col, dj := range dropOf {
+				for _, rj := range readers[col] {
+					if ops[rj].Priority >= ops[dj].Priority {
+						ops[dj].Priority = ops[rj].Priority + 1
+						changed = true
 					}
 				}
 			}
