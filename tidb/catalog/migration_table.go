@@ -8,6 +8,9 @@ import (
 
 // --- Foreign keys ---
 
+// tableKey is a table's identity, (database, table) lower-cased.
+type tableKey struct{ db, name string }
+
 // dropForeignKeys drops the foreign keys of dropped tables, those that go or
 // change, and those over a column whose type changes, which TiDB checks
 // against the referenced column's type (3780) even when both change.
@@ -31,19 +34,72 @@ func (g *generator) dropForeignKeys(diff *SchemaDiff, to *Catalog) {
 		default:
 		}
 	}
-	if len(retyped) == 0 {
-		return
-	}
 	changed := changedForeignKeys(diff)
+	byTable := modifiedTableByName(diff)
 	for _, tbl := range sortedTables(to) {
+		e := byTable[tableKeyOf(tbl)]
 		for _, con := range tbl.Constraints {
-			if con.Type != ConForeignKey || changed[con] || !foreignKeyReadsRetyped(tbl, con, retyped) {
+			if con.Type != ConForeignKey || changed[con] {
 				continue
 			}
-			g.readdOrder = append(g.readdOrder, con)
-			g.add(OpDropForeignKey, tbl, alterTable(tbl, "DROP FOREIGN KEY "+quoteIdent(con.Name)), "")
+			// A retained foreign key is dropped and re-added when a column it
+			// reads is retyped (3780), or when the index that backs it is
+			// dropped or rebuilt (1553): TiDB refuses to drop that index while
+			// the key needs it.
+			if foreignKeyReadsRetyped(tbl, con, retyped) || backingIndexChanges(e, con) {
+				g.readdOrder = append(g.readdOrder, con)
+				g.add(OpDropForeignKey, tbl, alterTable(tbl, "DROP FOREIGN KEY "+quoteIdent(con.Name)), "")
+			}
 		}
 	}
+}
+
+// modifiedTableByName indexes the modified-table entries by (database, table).
+func modifiedTableByName(diff *SchemaDiff) map[tableKey]*TableDiffEntry {
+	out := make(map[tableKey]*TableDiffEntry)
+	for i := range diff.Tables {
+		if e := &diff.Tables[i]; e.Action == DiffModify {
+			out[tableKey{toLower(e.Database), toLower(e.Name)}] = e
+		}
+	}
+	return out
+}
+
+func tableKeyOf(tbl *Table) tableKey {
+	return tableKey{toLower(databaseName(tbl.Database)), toLower(tbl.Name)}
+}
+
+// backingIndexChanges reports whether the diff drops or modifies an index that
+// covers con's columns as a left prefix -- the index TiDB may be using to back
+// the foreign key, which cannot be dropped while the key stands (1553).
+func backingIndexChanges(e *TableDiffEntry, con *Constraint) bool {
+	if e == nil {
+		return false
+	}
+	for _, idx := range e.Indexes {
+		if idx.Action == DiffAdd || idx.From == nil {
+			continue
+		}
+		if indexCoversAsPrefix(idx.From, con.Columns) {
+			return true
+		}
+	}
+	return false
+}
+
+// indexCoversAsPrefix reports whether cols are the leading key parts of idx,
+// each a plain column (no prefix length, no expression).
+func indexCoversAsPrefix(idx *Index, cols []string) bool {
+	if len(idx.Columns) < len(cols) {
+		return false
+	}
+	for i, c := range cols {
+		ic := idx.Columns[i]
+		if ic.Expr != "" || !strings.EqualFold(ic.Name, c) {
+			return false
+		}
+	}
+	return true
 }
 
 // retypedColumns names the columns of changed tables whose type, charset or
@@ -175,6 +231,9 @@ func (g *generator) dropTableParts(e *TableDiffEntry) {
 	// A retained generated column whose expression stops reading a dropped
 	// column is modified before the drop, so the drop no longer fails on the
 	// old expression (3108/3837).
+	if ttlRemovedEarly(e) {
+		g.add(OpAlterTable, e.From, alterTable(e.From, "REMOVE TTL"), "")
+	}
 	preDrop := preDropModifies(e)
 	for _, c := range e.Columns {
 		if preDrop[toLower(c.Name)] {
@@ -232,6 +291,24 @@ func droppedColumns(e *TableDiffEntry) (now []*Column, last *Column) {
 		return now[:len(now)-1], now[len(now)-1]
 	}
 	return now, nil
+}
+
+// ttlRemovedEarly reports whether the old TTL must be removed before the
+// table's columns are dropped: the table had a TTL and either loses it or has
+// its TTL column dropped (8149 otherwise).
+func ttlRemovedEarly(e *TableDiffEntry) bool {
+	if e.From.TTLColumn == "" {
+		return false
+	}
+	if e.To.TTLColumn == "" {
+		return true
+	}
+	for _, c := range e.Columns {
+		if c.Action == DiffDrop && strings.EqualFold(c.Name, e.From.TTLColumn) {
+			return true
+		}
+	}
+	return false
 }
 
 func addsUniqueKey(e *TableDiffEntry) bool {
@@ -325,7 +402,13 @@ func (g *generator) alterTable(e *TableDiffEntry) {
 		}
 	}
 	// TTL after the columns it references exist and have their target type.
-	g.alterTTL(from, to, func(clause, warning string) { g.add(OpAlterTable, to, alterTable(to, clause), warning) })
+	// When the old TTL was removed before the column drops (ttlRemovedEarly),
+	// the source is treated as having none, so only the target TTL is set.
+	ttlFrom := from
+	if ttlRemovedEarly(e) {
+		ttlFrom = &Table{}
+	}
+	g.alterTTL(ttlFrom, to, func(clause, warning string) { g.add(OpAlterTable, to, alterTable(to, clause), warning) })
 	for _, idx := range e.Indexes {
 		if idx.Action != DiffDrop {
 			g.addIndex(e, idx.To)

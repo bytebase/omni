@@ -68,3 +68,25 @@ func TestGenerateMigrationWarnsOnGlobalTemporaryFlip(t *testing.T) {
 		t.Errorf("plan is %s", plan.SQL())
 	}
 }
+
+func TestGenerateMigrationRebuildsForeignKeyBackingIndex(t *testing.T) {
+	from := execCatalogIn(t, "db", "CREATE TABLE par (id int PRIMARY KEY); CREATE TABLE ch (a int, b int, KEY k (a), CONSTRAINT fk FOREIGN KEY (a) REFERENCES par (id))")
+	to := execCatalogIn(t, "db", "CREATE TABLE par (id int PRIMARY KEY); CREATE TABLE ch (a int, b int, KEY k (a, b), CONSTRAINT fk FOREIGN KEY (a) REFERENCES par (id))")
+	want := "ALTER TABLE `db`.`ch` DROP FOREIGN KEY `fk`;\n" +
+		"ALTER TABLE `db`.`ch` DROP INDEX `k`;\n" +
+		"ALTER TABLE `db`.`ch` ADD KEY `k` (`a`,`b`);\n" +
+		"ALTER TABLE `db`.`ch` ADD CONSTRAINT `fk` FOREIGN KEY (`a`) REFERENCES `par` (`id`)"
+	if got := GenerateMigration(from, to, Diff(from, to)).SQL(); got != want {
+		t.Errorf("got\n%s\nwant\n%s", got, want)
+	}
+}
+
+func TestGenerateMigrationRemovesTTLBeforeDroppingItsColumn(t *testing.T) {
+	from := execCatalogIn(t, "db", "CREATE TABLE t (id int, ts datetime) TTL = ts + INTERVAL 1 DAY")
+	to := execCatalogIn(t, "db", "CREATE TABLE t (id int)")
+	want := "ALTER TABLE `db`.`t` REMOVE TTL;\n" +
+		"ALTER TABLE `db`.`t` DROP COLUMN `ts`"
+	if got := GenerateMigration(from, to, Diff(from, to)).SQL(); got != want {
+		t.Errorf("got\n%s\nwant\n%s", got, want)
+	}
+}

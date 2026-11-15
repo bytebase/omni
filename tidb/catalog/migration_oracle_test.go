@@ -52,6 +52,11 @@ var migrationOraclePairs = []struct{ name, a, b, syncDrops string }{
 	{"ttl on a newly added column", "CREATE TABLE t (id int)", "CREATE TABLE t (id int, ts datetime) TTL = ts + INTERVAL 1 DAY", "TTL"},
 	{"ordinary to global temporary", "CREATE TABLE t (a int)", "CREATE GLOBAL TEMPORARY TABLE t (a int) ON COMMIT DELETE ROWS", "global temporary (no metadata field)"},
 	{"global temporary to ordinary", "CREATE GLOBAL TEMPORARY TABLE t (a int) ON COMMIT DELETE ROWS", "CREATE TABLE t (a int)", "global temporary (no metadata field)"},
+	{"ttl column dropped with its ttl", "CREATE TABLE t (id int, ts datetime) TTL = ts + INTERVAL 1 DAY", "CREATE TABLE t (id int)", "TTL"},
+	{"ttl removed keeping its column", "CREATE TABLE t (id int, ts datetime) TTL = ts + INTERVAL 1 DAY", "CREATE TABLE t (id int, ts datetime)", "TTL"},
+	{"ttl retargeted off a dropped column", "CREATE TABLE t (id int, ts datetime, ts2 datetime) TTL = ts + INTERVAL 1 DAY", "CREATE TABLE t (id int, ts2 datetime) TTL = ts2 + INTERVAL 2 DAY", "TTL"},
+	{"fk backing index widened", "CREATE TABLE par (id int PRIMARY KEY); CREATE TABLE ch (a int, b int, KEY k (a), CONSTRAINT fk FOREIGN KEY (a) REFERENCES par (id))", "CREATE TABLE par (id int PRIMARY KEY); CREATE TABLE ch (a int, b int, KEY k (a, b), CONSTRAINT fk FOREIGN KEY (a) REFERENCES par (id))", ""},
+	{"fk backing index dropped for another", "CREATE TABLE par (id int PRIMARY KEY); CREATE TABLE ch (a int, b int, KEY k (a), CONSTRAINT fk FOREIGN KEY (a) REFERENCES par (id))", "CREATE TABLE par (id int PRIMARY KEY); CREATE TABLE ch (a int, b int, KEY k2 (a, b), CONSTRAINT fk FOREIGN KEY (a) REFERENCES par (id))", ""},
 	{"generated column added", "CREATE TABLE t (a int)", "CREATE TABLE t (a int, b int AS (a * 2) VIRTUAL, KEY kb (b))", ""},
 
 	// Changes TiDB makes only by rebuilding the table.
