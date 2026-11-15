@@ -161,3 +161,13 @@ func TestRestoreSQL(t *testing.T) {
 		t.Error("update of every unique key: got no error")
 	}
 }
+
+func TestTransformDMLToSelectReportsTheFirstFailingTable(t *testing.T) {
+	stmts := parseScript(t, "UPDATE t1 SET a = 1; DELETE FROM t1; UPDATE t2 SET a = 1; DELETE FROM t2;")
+	for range 50 {
+		_, err := TransformDMLToSelect(stmts, "db", "bbarchive", "pre", false)
+		if err == nil || !strings.Contains(err.Error(), "t1") || strings.Contains(err.Error(), "t2") {
+			t.Fatalf("got %v, want the error of t1", err)
+		}
+	}
+}
