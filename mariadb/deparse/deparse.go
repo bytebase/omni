@@ -11,6 +11,7 @@ package deparse
 import (
 	"fmt"
 	"math/big"
+	"strconv"
 	"strings"
 
 	ast "github.com/bytebase/omni/mariadb/ast"
@@ -579,7 +580,7 @@ func autoAlias(expr ast.ExprNode, exprStr string, position int) string {
 	case *ast.ColumnRef:
 		return n.Column
 	case *ast.IntLit:
-		return fmt.Sprintf("%d", n.Value)
+		return intLitText(n)
 	case *ast.FloatLit:
 		return n.Value
 	case *ast.StringLit:
@@ -643,7 +644,7 @@ func writeExprAlias(b *strings.Builder, node ast.ExprNode) {
 		}
 		b.WriteString(n.Column)
 	case *ast.IntLit:
-		fmt.Fprintf(b, "%d", n.Value)
+		b.WriteString(intLitText(n))
 	case *ast.FloatLit:
 		b.WriteString(n.Value)
 	case *ast.StringLit:
@@ -1439,7 +1440,7 @@ func systemTimeBound(expr ast.ExprNode, transaction bool) string {
 func writeExpr(b *strings.Builder, node ast.ExprNode) {
 	switch n := node.(type) {
 	case *ast.IntLit:
-		fmt.Fprintf(b, "%d", n.Value)
+		b.WriteString(intLitText(n))
 	case *ast.FloatLit:
 		b.WriteString(n.Value)
 	case *ast.BoolLit:
@@ -2833,4 +2834,13 @@ func writeCharUsing(b *strings.Builder, cs string) {
 	}
 	b.WriteString(" using ")
 	b.WriteString(cs)
+}
+
+// intLitText is an integer literal's digits, which Value does not hold past
+// math.MaxInt64.
+func intLitText(n *ast.IntLit) string {
+	if n.Text != "" {
+		return n.Text
+	}
+	return strconv.FormatInt(n.Value, 10)
 }

@@ -244,7 +244,7 @@ func TestPrintIndexClauseFunctionalExprNormalized(t *testing.T) {
 		Visible:     true,
 		Expressions: []string{"(cast(json_extract(`tags`,_utf8mb4\\'$.ids\\') as unsigned array))"},
 	}
-	require.NoError(t, printIndexClause(&buf, index, "InnoDB"))
+	require.NoError(t, printIndexClause(&buf, index, &metadata.TableMetadata{Engine: "InnoDB"}))
 	require.Equal(t, ",\n  KEY `idx_tags` ((cast(json_extract(`tags`,'$.ids') as unsigned array)))", buf.String())
 	require.NotContains(t, buf.String(), "_utf8mb4")
 	require.NotContains(t, buf.String(), `\'`)
@@ -338,10 +338,10 @@ func TestStripViewBodyDatabaseQualifier(t *testing.T) {
 			want:   "select `db`.`id` AS `id` from (`t` `db` join `u` on((`db`.`id` = `u`.`id`)))",
 		},
 		{
-			name:   "function_qualifier_stripped",
+			name:   "function_qualifier_kept",
 			body:   "select `mydb`.`f`(`mydb`.`t`.`a`) AS `x` from `mydb`.`t`",
 			dbName: "mydb",
-			want:   "select `f`(`t`.`a`) AS `x` from `t`",
+			want:   "select `mydb`.`f`(`t`.`a`) AS `x` from `t`",
 		},
 		{
 			name:   "check_option_suffix",
@@ -615,4 +615,18 @@ func TestForeignKeyClauseKeepsNoAction(t *testing.T) {
 	require.NoError(t, printForeignKeyClause(&buf, &metadata.ForeignKeyMetadata{Name: "f", Columns: []string{"a"}, ReferencedTable: "p", ReferencedColumns: []string{"id"}, OnDelete: "NO ACTION", OnUpdate: "RESTRICT"}, ""))
 	require.Contains(t, buf.String(), "ON DELETE NO ACTION")
 	require.NotContains(t, buf.String(), "ON UPDATE")
+}
+
+func TestTableDefinitionKeepsParenthesizedColumnKeys(t *testing.T) {
+	got, err := TableDefinition(&metadata.TableMetadata{
+		Name:    "t",
+		Columns: []*metadata.ColumnMetadata{{Name: "(n)", Type: "int(11)"}, {Name: "n", Type: "int(11)"}},
+		Indexes: []*metadata.IndexMetadata{
+			{Name: "PRIMARY", Primary: true, Unique: true, Type: "BTREE", Expressions: []string{"(n)"}, Visible: true},
+			{Name: "ix", Type: "BTREE", Expressions: []string{"(n)", "n"}, Visible: true},
+		},
+	})
+	require.NoError(t, err)
+	require.Contains(t, got, "PRIMARY KEY (`(n)`)")
+	require.Contains(t, got, "KEY `ix` (`(n)`, `n`)")
 }
