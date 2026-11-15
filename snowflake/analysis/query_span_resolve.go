@@ -560,27 +560,27 @@ func mergeSetOperatorColumns(left, right *derivedTable, byName bool) error {
 
 	if byName {
 		// UNION [ALL] BY NAME (Snowflake-specific) aligns the branches by
-		// case-insensitive column name instead of by position, and the column
-		// counts may differ (columns missing on one side are NULL-filled by the
-		// engine). Mirror omni's own snowflake/analysis by-name merge: keep the
+		// column name instead of by position, and the column counts may differ
+		// (columns missing on one side are NULL-filled by the engine). Keep the
 		// left columns in order, merging in the lineage of the same-named right
-		// column, then append the right-only columns.
+		// column, then append the right-only columns. Names are already
+		// normalized, so comparing them exactly folds unquoted identifiers and
+		// keeps quoted ones case-sensitive, as Snowflake matches them.
 		rightByName := make(map[string]QuerySpanResult, len(rightColumns))
 		for _, rightColumn := range rightColumns {
-			rightByName[strings.ToUpper(rightColumn.Name)] = rightColumn
+			rightByName[rightColumn.Name] = rightColumn
 		}
 		seen := make(map[string]bool, len(leftColumns))
 		merged := make([]QuerySpanResult, 0, len(leftColumns))
 		for _, leftColumn := range leftColumns {
-			key := strings.ToUpper(leftColumn.Name)
-			seen[key] = true
-			if rightColumn, ok := rightByName[key]; ok {
+			seen[leftColumn.Name] = true
+			if rightColumn, ok := rightByName[leftColumn.Name]; ok {
 				leftColumn.SourceColumns, _ = mergeColumnSet(leftColumn.SourceColumns, rightColumn.SourceColumns)
 			}
 			merged = append(merged, leftColumn)
 		}
 		for _, rightColumn := range rightColumns {
-			if !seen[strings.ToUpper(rightColumn.Name)] {
+			if !seen[rightColumn.Name] {
 				merged = append(merged, rightColumn)
 			}
 		}
@@ -1093,6 +1093,14 @@ func (q *querySpanExtractor) extractTableSourceFromTableRef(ref *ast.TableRef) (
 	// error makes the caller degrade explicitly instead.
 	if ref.Pivot != nil || ref.Unpivot != nil || ref.Nested != nil {
 		return nil, errors.New("PIVOT/UNPIVOT table sources are not supported for query span extraction yet")
+	}
+	// MATCH_RECOGNIZE replaces the relation's columns with its PARTITION BY
+	// expressions and MEASURES (ONE ROW PER MATCH, the default), or appends
+	// the MEASURES to them (ALL ROWS PER MATCH), which the resolver does not
+	// model; fail closed like PIVOT.
+	// https://docs.snowflake.com/en/sql-reference/constructs/match_recognize
+	if ref.MatchRecognize != nil {
+		return nil, errors.New("MATCH_RECOGNIZE table sources are not supported for query span extraction yet")
 	}
 
 	var result []QuerySpanResult
