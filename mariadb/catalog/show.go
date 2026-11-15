@@ -929,10 +929,10 @@ func eqFoldStr(a, b string) bool {
 	return strings.EqualFold(a, b)
 }
 
-// escapeComment writes s as SHOW CREATE writes a quoted string
-// (append_unescaped in sql_show.cc): a backslash, NUL, newline, carriage
-// return and Ctrl-Z take a backslash escape, a quote is doubled, and anything
-// else, a tab included, is written as it is. Measured on mariadb:11.8.8.
+// escapeComment writes a comment as SHOW CREATE writes it (append_unescaped in
+// sql_show.cc): a backslash, NUL, newline, carriage return and Ctrl-Z take a
+// backslash escape, a quote is doubled, and anything else, a tab included, is
+// written as it is. Measured on mariadb:11.8.8.
 func escapeComment(s string) string {
 	var b strings.Builder
 	for i := 0; i < len(s); i++ {
@@ -950,6 +950,13 @@ func escapeComment(s string) string {
 		case '\'':
 			b.WriteString("''")
 		default:
+			// A character outside the BMP is stored as '?': MariaDB keeps
+			// comments in utf8mb3. Measured on mariadb:11.8.8 and 10.7.8.
+			if c >= 0xF0 && c <= 0xF4 && i+3 < len(s) {
+				b.WriteByte('?')
+				i += 3
+				continue
+			}
 			b.WriteByte(c)
 		}
 	}
@@ -1221,6 +1228,11 @@ func formatBinaryDefault(val string, col *Column) (string, bool) {
 			return "0x" + hexOf(raw), true
 		default:
 			return val, true // a string default keeps its quotes
+		}
+	}
+	if family == familyTemporal && kind == literalString {
+		if lit, ok := temporalStringDefault(string(raw), col); ok {
+			return lit, true
 		}
 	}
 	if (family == familyString || family == familyNumber || family == familyTemporal) &&
@@ -2750,4 +2762,95 @@ func truncateWholeNumber(digits string) string {
 		return "0"
 	}
 	return whole
+}
+
+// temporalStringDefault writes a quoted DATE, DATETIME, TIMESTAMP or TIME
+// default in the form the server stores it: every field two digits (the year
+// four, the hours as many as they need), days folded into the hours, and the
+// fraction cut, not rounded, to the column's precision and padded to it.
+// Measured on mariadb:11.8.8: TIME DEFAULT '1:2' is '01:02:00', TIME(1)
+// '-1 2:3:4.56' is '-26:03:04.5', DATETIME(3) '2020-1-2 3:4:5.6789' is
+// '2020-01-02 03:04:05.678', DATETIME '2020-01-02' is '2020-01-02 00:00:00'
+// and TIME '10:00:00.9' is '10:00:00'. ok is false for a form it does not
+// read, which is then written as it stands.
+func temporalStringDefault(text string, col *Column) (string, bool) {
+	fsp := declaredTypeLength(col.ColumnType)
+	fraction := func(f string) string {
+		if fsp == 0 {
+			return ""
+		}
+		if len(f) > fsp {
+			f = f[:fsp]
+		}
+		return "." + f + strings.Repeat("0", fsp-len(f))
+	}
+	fields := func(s, sep string) ([]int, bool) {
+		var out []int
+		for _, part := range strings.Split(s, sep) {
+			n, err := strconv.Atoi(part)
+			if err != nil || part == "" || n < 0 {
+				return nil, false
+			}
+			out = append(out, n)
+		}
+		return out, true
+	}
+	switch normalizedTypeName(col.DataType) {
+	case "date", "datetime", "timestamp":
+		datePart, timePart, hasTime := strings.Cut(text, " ")
+		if !hasTime {
+			datePart, timePart, hasTime = strings.Cut(text, "T")
+		}
+		ymd, ok := fields(datePart, "-")
+		if !ok || len(ymd) != 3 || len(strings.Split(datePart, "-")[0]) != 4 {
+			return "", false
+		}
+		date := fmt.Sprintf("%04d-%02d-%02d", ymd[0], ymd[1], ymd[2])
+		if normalizedTypeName(col.DataType) == "date" {
+			if hasTime {
+				return "", false
+			}
+			return "'" + date + "'", true
+		}
+		hms := []int{0, 0, 0}
+		frac := ""
+		if hasTime {
+			clock, f, _ := strings.Cut(timePart, ".")
+			parts, ok := fields(clock, ":")
+			if !ok || len(parts) != 3 {
+				return "", false
+			}
+			hms, frac = parts, f
+		}
+		if _, err := strconv.Atoi("0" + frac); err != nil {
+			return "", false
+		}
+		return fmt.Sprintf("'%s %02d:%02d:%02d%s'", date, hms[0], hms[1], hms[2], fraction(frac)), true
+	case "time":
+		sign := ""
+		if strings.HasPrefix(text, "-") {
+			sign, text = "-", text[1:]
+		}
+		days := 0
+		if d, rest, ok := strings.Cut(text, " "); ok {
+			n, err := strconv.Atoi(d)
+			if err != nil || n < 0 {
+				return "", false
+			}
+			days, text = n, rest
+		}
+		clock, frac, _ := strings.Cut(text, ".")
+		parts, ok := fields(clock, ":")
+		if !ok || len(parts) < 2 || len(parts) > 3 {
+			return "", false
+		}
+		if len(parts) == 2 {
+			parts = append(parts, 0)
+		}
+		if _, err := strconv.Atoi("0" + frac); err != nil {
+			return "", false
+		}
+		return fmt.Sprintf("'%s%02d:%02d:%02d%s'", sign, days*24+parts[0], parts[1], parts[2], fraction(frac)), true
+	}
+	return "", false
 }

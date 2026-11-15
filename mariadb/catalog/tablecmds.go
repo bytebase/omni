@@ -337,7 +337,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			return err
 		}
 		if colDef.DefaultValue != nil {
-			setColumnDefaultFromExpr(col, colDef.DefaultValue)
+			setColumnDefaultFromExpr(col, qualifySequenceCalls(colDef.DefaultValue, tbl))
 		}
 		if colDef.OnUpdate != nil {
 			setColumnOnUpdateFromExpr(col, colDef.OnUpdate)
@@ -376,7 +376,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				col.Nullable = true
 			case nodes.ColConstrDefault:
 				if cc.Expr != nil {
-					setColumnDefaultFromExpr(col, cc.Expr)
+					setColumnDefaultFromExpr(col, qualifySequenceCalls(cc.Expr, tbl))
 				}
 			case nodes.ColConstrPrimaryKey:
 				if hasPK {

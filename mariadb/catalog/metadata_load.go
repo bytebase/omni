@@ -587,16 +587,6 @@ func metadataPartitionClause(t *metadata.TableMetadata) (*nodes.PartitionClause,
 	return stmt.Partitions, nil
 }
 
-// createOption returns the value of one CREATE_OPTIONS entry; sync keeps them
-// as space-separated name=value pairs.
-func createOption(options, name string) string {
-	for _, opt := range strings.Fields(options) {
-		if k, v, ok := strings.Cut(opt, "="); ok && strings.EqualFold(k, name) {
-			return v
-		}
-	}
-	return ""
-}
 
 // metadataColumnDef fails on a type that does not parse. A default, ON UPDATE,
 // generation, or check expression that does not parse is left out, and
@@ -697,7 +687,7 @@ func columnDefault(col *metadata.ColumnMetadata, snapshotDatabase, database stri
 		return nil, nil
 	}
 	if inner, expr, ok := syncedDefault(value); ok {
-		if rebased := rebaseSequenceReference(inner, snapshotDatabase, database); rebased != inner {
+		if rebased := requalifySequences(inner, snapshotDatabase, database); rebased != inner {
 			if e, err := parseExpr(rebased); err == nil {
 				expr = e
 			}
@@ -773,14 +763,51 @@ func unquoteSQLString(s string) (string, bool) {
 	return b.String(), true
 }
 
-// rebaseSequenceReference moves the sequence a default reads from the
-// snapshot's database to the one the table installs into: MariaDB qualifies
-// it, as in nextval(`db`.`s`).
-func rebaseSequenceReference(expr, snapshotDatabase, database string) string {
-	if snapshotDatabase == "" || database == "" || snapshotDatabase == database {
+// requalifySequences rewrites the database the sequence calls of a default
+// name, nextval(`from`.`s`) and the like, to the database to, or leaves it out
+// where to is empty. MariaDB stores those calls qualified. Only a call's
+// sequence changes: a string that spells the qualifier keeps it.
+func requalifySequences(expr, from, to string) string {
+	if from == "" || from == to || !strings.Contains(expr, quoteIdent(from)+".") {
 		return expr
 	}
-	return strings.ReplaceAll(expr, quoteIdent(snapshotDatabase)+".", quoteIdent(database)+".")
+	const prefix = "SELECT ("
+	list, err := mariadbparser.Parse(prefix + expr + ")")
+	if err != nil || len(list.Items) != 1 {
+		return expr
+	}
+	qualifier := quoteIdent(from) + "."
+	var starts []int
+	nodes.Inspect(list.Items[0], func(n nodes.Node) bool {
+		call, ok := n.(*nodes.FuncCallExpr)
+		if !ok || call.Schema != "" || len(call.Args) == 0 {
+			return true
+		}
+		switch strings.ToUpper(call.Name) {
+		case "NEXTVAL", "LASTVAL", "SETVAL":
+		default:
+			return true
+		}
+		if ref, ok := call.Args[0].(*nodes.ColumnRef); ok && ref.Table == from {
+			if start := ref.Loc.Start - len(prefix); start >= 0 && strings.HasPrefix(expr[start:], qualifier) {
+				starts = append(starts, start)
+			}
+		}
+		return true
+	})
+	replacement := ""
+	if to != "" {
+		replacement = quoteIdent(to) + "."
+	}
+	var out strings.Builder
+	prev := 0
+	for _, start := range starts {
+		out.WriteString(expr[prev:start])
+		out.WriteString(replacement)
+		prev = start + len(qualifier)
+	}
+	out.WriteString(expr[prev:])
+	return out.String()
 }
 
 // metadataIndexConstraint builds an index from its key parts. The index type

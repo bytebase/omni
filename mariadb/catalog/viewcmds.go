@@ -764,7 +764,11 @@ func (c *Catalog) deparseViewSelect(sel *nodes.SelectStmt, rawText, source strin
 	applyExplicitViewColumns(sel, explicitCols)
 
 	// Deparse: AST → canonical SQL text.
-	return deparse.DeparseSelect(sel), derivedCols
+	// MariaDB stores a table or column of the view's own database without the
+	// database, and a function call with it. Measured on mariadb:11.8.8: `select
+	// test.t.a, test.f(1) from test.t` in database test is stored select
+	// `t`.`a` AS `a`,`test`.`f`(1) AS `test.f(1)` from `t`.
+	return stripBodyQualifier(deparse.DeparseSelect(sel), db.Name, false), derivedCols
 }
 
 // applyExplicitViewColumns renames the output aliases of the SELECT that

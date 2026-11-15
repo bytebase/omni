@@ -35,13 +35,6 @@ const (
 	delimiterDoubleSemi   = "DELIMITER ;;\n"
 	delimiterSemi         = "DELIMITER ;\n"
 
-	mysqlTypeBlob       = "blob"
-	mysqlTypeTinyBob    = "tinyblob"
-	mysqlTypeMediumBlob = "mediumblob"
-	mysqlTypeLongBlob   = "longblob"
-	mysqlTypeJSON       = "json"
-	mysqlTypeGeometry   = "geometry"
-
 	mysqlIndexFullText = "FULLTEXT"
 	mysqlIndexSpatial  = "SPATIAL"
 
@@ -968,6 +961,10 @@ func printIndexClause(buf *strings.Builder, index *metadata.IndexMetadata, engin
 		if _, err := fmt.Fprint(buf, "SPATIAL "); err != nil {
 			return err
 		}
+	} else if strings.EqualFold(index.Type, "VECTOR") {
+		if _, err := fmt.Fprint(buf, "VECTOR "); err != nil {
+			return err
+		}
 	}
 
 	if _, err := fmt.Fprintf(buf, "KEY %s (", quoteIdent(index.Name)); err != nil {
@@ -999,6 +996,12 @@ func printIndexClause(buf *strings.Builder, index *metadata.IndexMetadata, engin
 
 	if _, err := fmt.Fprint(buf, ")", indexUsingClause(index.Type, engine)); err != nil {
 		return err
+	}
+
+	if index.Comment != "" {
+		if _, err := fmt.Fprintf(buf, " COMMENT '%s'", strings.ReplaceAll(index.Comment, "'", "''")); err != nil {
+			return err
+		}
 	}
 
 	// MariaDB's invisible index is an IGNORED one.
@@ -1328,13 +1331,10 @@ func printDefaultClause(buf *strings.Builder, column *metadata.ColumnMetadata, d
 	if column.Generation != nil && column.Generation.Expression != "" {
 		return nil
 	}
-	text := renderColumnDefault(column)
-	if dbName != "" {
-		// MariaDB qualifies the sequence a default reads with its database;
-		// the dump leaves that out so the default follows it into the
-		// database it restores to.
-		text = strings.ReplaceAll(text, quoteIdent(dbName)+".", "")
-	}
+	// MariaDB qualifies the sequence a default reads with its database; the
+	// dump leaves that out so the default follows it into the database it
+	// restores to.
+	text := requalifySequences(renderColumnDefault(column), dbName, "")
 	if strings.EqualFold(text, "NULL") && !column.Nullable {
 		return nil
 	}
@@ -1440,7 +1440,9 @@ func writeAdditionalEventsIfSet(out io.Writer, characterSetClient, characterSetR
 			}
 		}
 	}
-	if sqlMode != "" {
+	// An empty sql_mode is a mode too: a synced object carries its character
+	// set with it, and restores under exactly the mode it was created with.
+	if sqlMode != "" || characterSetClient != "" {
 		if _, err := io.WriteString(out, setSQLMode); err != nil {
 			return err
 		}
@@ -1651,6 +1653,12 @@ func writeViewSDL(buf *strings.Builder, dbName string, view *metadata.ViewMetada
 // position goes: a table alias or table spelled like the database is a qualifier of
 // its columns and stays. A body that does not parse is returned unchanged.
 func stripViewBodyDatabaseQualifier(body, dbName string) string {
+	return stripBodyQualifier(body, dbName, true)
+}
+
+// stripBodyQualifier is stripViewBodyDatabaseQualifier, leaving the qualifier
+// of a function call where functions is false.
+func stripBodyQualifier(body, dbName string, functions bool) string {
 	if dbName == "" || body == "" {
 		return body
 	}
@@ -1674,6 +1682,9 @@ func stripViewBodyDatabaseQualifier(body, dbName string) string {
 		case *nodes.ColumnRef:
 			schema, loc = n.Schema, n.Loc
 		case *nodes.FuncCallExpr:
+			if !functions {
+				return true
+			}
 			schema, loc = n.Schema, n.Loc
 		default:
 			return true

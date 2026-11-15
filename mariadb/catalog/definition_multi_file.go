@@ -44,6 +44,25 @@ func MultiFileDefinition(meta *metadata.DatabaseSchemaMetadata) ([]DefinitionFil
 	var files []DefinitionFile
 	names := newFileNameAllocator()
 
+	// Sequences (sorted by name), ahead of the tables whose defaults may read them.
+	sequences := make([]*metadata.SequenceMetadata, 0, len(sm.Sequences))
+	for _, sequence := range sm.Sequences {
+		if !sequence.SkipDump {
+			sequences = append(sequences, sequence)
+		}
+	}
+	slices.SortFunc(sequences, func(a, b *metadata.SequenceMetadata) int { return cmp.Compare(a.Name, b.Name) })
+	for _, sequence := range sequences {
+		var buf strings.Builder
+		if err := writeCreateSequence(&buf, sequence); err != nil {
+			return nil, err
+		}
+		files = append(files, DefinitionFile{
+			Name:    names.alloc("sequences", sequence.Name),
+			Content: buf.String(),
+		})
+	}
+
 	// Tables (sorted by name). Each file is the writeTableSDL output — CREATE TABLE with
 	// inline indexes / foreign keys / checks / generated columns / partitions / options.
 	tables := make([]*metadata.TableMetadata, 0, len(sm.Tables))

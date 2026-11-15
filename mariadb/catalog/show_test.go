@@ -1,8 +1,11 @@
 package catalog
 
 import (
+	"context"
 	"strings"
 	"testing"
+
+	"github.com/bytebase/omni/mariadb/internal/testcontainer"
 )
 
 func TestShowCreateTableBasic(t *testing.T) {
@@ -219,5 +222,56 @@ func assertNotContains(t *testing.T, s, substr string) {
 	t.Helper()
 	if strings.Contains(s, substr) {
 		t.Errorf("expected output NOT to contain %q\ngot:\n%s", substr, s)
+	}
+}
+
+// TestOracle_ShowCreateMatchesServer runs each script on the pinned server and
+// on the catalog, and compares what SHOW CREATE writes for every table and view
+// it leaves.
+func TestOracle_ShowCreateMatchesServer(t *testing.T) {
+	scripts := []struct{ name, sql string }{
+		{"function defaults", "CREATE TABLE t (d DATE DEFAULT curdate(), u VARCHAR(20) DEFAULT concat('a', 'b'), z DATE DEFAULT DATE '2020-01-02', x INT DEFAULT (1 + 1))"},
+		{"temporal defaults", "CREATE TABLE t (a TIME DEFAULT '1:2', b TIME(1) DEFAULT '-1 2:3:4.56', c DATETIME(3) DEFAULT '2020-1-2 3:4:5.6789', d DATE DEFAULT '2020-1-2', e DATETIME DEFAULT '2020-01-02', f TIMESTAMP(2) NULL DEFAULT '2020-01-02 03:04:05', g TIME DEFAULT '10:00:00.9', h DATETIME(1) DEFAULT '2020-01-02T03:04:05.15')"},
+		{"zerofill defaults", "CREATE TABLE t (a INT(5) ZEROFILL DEFAULT 3, b INT ZEROFILL DEFAULT 42, c DECIMAL(6,2) ZEROFILL DEFAULT 1.5, d FLOAT(7,3) ZEROFILL DEFAULT 1.5, g INT(3) ZEROFILL DEFAULT 12345, h DOUBLE ZEROFILL DEFAULT 2)"},
+		{"comments", "CREATE TABLE t (a INT COMMENT 'x\ny\rz\\\\w''q', b INT COMMENT 'emoji \xf0\x9f\x93\x9d here', KEY k (a) COMMENT 'k\xf0\x9f\x94\xa5') COMMENT 'line1\nline2 \xf0\x9f\x94\xa5'"},
+		{"table option order", "CREATE TABLE t (id INT PRIMARY KEY) ENGINE=myisam COMMENT='c' ROW_FORMAT=FIXED CHECKSUM=1 DELAY_KEY_WRITE=1 PACK_KEYS=1 AVG_ROW_LENGTH=10 MAX_ROWS=100 MIN_ROWS=5 STATS_SAMPLE_PAGES=7 STATS_AUTO_RECALC=1 STATS_PERSISTENT=0 PAGE_CHECKSUM=1"},
+		{"hash keys", "CREATE TABLE t (id INT PRIMARY KEY, b INT, KEY b (b) USING HASH) ENGINE=InnoDB; CREATE INDEX c ON t (id) USING HASH"},
+		{"long unique", "CREATE TABLE t (id INT PRIMARY KEY, a TEXT, b BLOB, c VARCHAR(10), UNIQUE KEY ua (a), UNIQUE KEY ub (b(10)), UNIQUE KEY uab (a, c)); CREATE TABLE u (a TEXT UNIQUE); CREATE UNIQUE INDEX ux ON t (b)"},
+		{"generated columns", "CREATE TABLE t (a INT, b INT, s VARCHAR(10), price DECIMAL(10,2), tax DECIMAL(5,2), g1 DECIMAL(10,2) AS (price * (1 + tax / 100)) STORED, g2 INT AS (a + b * 2 - (a - b)) VIRTUAL, g3 VARCHAR(30) AS (concat(s, '-', a)) VIRTUAL, g4 INT AS (a and b) VIRTUAL, g5 INT AS (not (a = 1)) VIRTUAL, g6 INT AS (if(a > b, a, b)) VIRTUAL, g7 INT AS (a between 1 and 10) VIRTUAL, g8 INT AS (a << 2 | b & 1) VIRTUAL)"},
+		{"sequence defaults", "CREATE SEQUENCE s1; CREATE TABLE t (a INT DEFAULT nextval(s1), b INT DEFAULT (NEXT VALUE FOR s1), c INT DEFAULT lastval(s1), d INT DEFAULT (PREVIOUS VALUE FOR s1), e INT DEFAULT setval(s1, 5))"},
+		{"view qualifiers", "CREATE TABLE t (a INT, b INT); CREATE FUNCTION f(x INT) RETURNS INT DETERMINISTIC RETURN x; CREATE VIEW v AS SELECT " + "DATABASE_NAME.t.a, DATABASE_NAME.f(1) AS one FROM DATABASE_NAME.t"},
+	}
+	conn, err := testcontainer.OpenDatabase(t).Conn(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	database := testcontainer.DatabaseName(t)
+	for _, sc := range scripts {
+		t.Run(sc.name, func(t *testing.T) {
+			sql := strings.ReplaceAll(sc.sql, "DATABASE_NAME", quoteIdent(database))
+			resetDatabase(t, conn, database)
+			applySchema(t, conn, sql)
+			want := serverObjects(t, conn)
+			c := New()
+			results, err := c.Exec("CREATE DATABASE "+quoteIdent(database)+"; USE "+quoteIdent(database)+";\n"+sql, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, r := range results {
+				if r.Error != nil {
+					t.Fatalf("line %d: %v", r.Line, r.Error)
+				}
+			}
+			got := catalogObjects(c, database)
+			for name, w := range want {
+				if got[name] != w {
+					t.Errorf("%s\n--- catalog\n%s\n--- server\n%s", name, got[name], w)
+				}
+			}
+			if len(got) != len(want) {
+				t.Errorf("catalog holds %d objects, server %d", len(got), len(want))
+			}
+		})
 	}
 }

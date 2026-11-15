@@ -566,3 +566,40 @@ func TestIndexUsingClause(t *testing.T) {
 		require.Equal(t, tc.want, indexUsingClause(tc.indexType, tc.engine), "%s on %s", tc.indexType, tc.engine)
 	}
 }
+
+func TestRequalifySequences(t *testing.T) {
+	for _, tc := range []struct{ expr, from, to, want string }{
+		{"nextval(`app`.`s`)", "app", "", "nextval(`s`)"},
+		{"nextval(`app`.`s`)", "app", "other", "nextval(`other`.`s`)"},
+		{"setval(`app`.`s`,5,1,0)", "app", "", "setval(`s`,5,1,0)"},
+		// A string that spells the qualifier is a value, not a sequence.
+		{"'`app`.item'", "app", "", "'`app`.item'"},
+		{"concat('`app`.', nextval(`app`.`s`))", "app", "", "concat('`app`.', nextval(`s`))"},
+		{"nextval(`elsewhere`.`s`)", "app", "", "nextval(`elsewhere`.`s`)"},
+	} {
+		require.Equal(t, tc.want, requalifySequences(tc.expr, tc.from, tc.to), tc.expr)
+	}
+}
+
+func TestMultiFileDefinitionWritesSequences(t *testing.T) {
+	meta := &metadata.DatabaseSchemaMetadata{Name: "app", Schemas: []*metadata.SchemaMetadata{{
+		Sequences: []*metadata.SequenceMetadata{{Name: "s", Start: "1", MinValue: "1", MaxValue: "9223372036854775806", Increment: "1", CacheSize: "1000"}},
+		Tables:    []*metadata.TableMetadata{{Name: "t", Columns: []*metadata.ColumnMetadata{{Name: "a", Type: "int", Default: "'nextval(`app`.`s`)'"}}}},
+	}}}
+	files, err := MultiFileDefinition(meta)
+	require.NoError(t, err)
+	require.Len(t, files, 2)
+	require.Equal(t, "CREATE SEQUENCE `s` start with 1 minvalue 1 maxvalue 9223372036854775806 increment by 1 cache 1000 nocycle;\n\n", files[0].Content)
+	require.Contains(t, files[1].Content, "DEFAULT nextval(`s`)")
+}
+
+func TestFunctionDefinitionRestoresEmptySQLMode(t *testing.T) {
+	got, err := FunctionDefinition(&metadata.FunctionMetadata{
+		Name:                "f",
+		Definition:          "CREATE FUNCTION `f`() RETURNS int(11)\nRETURN 1",
+		CharacterSetClient:  "utf8mb4",
+		CollationConnection: "utf8mb4_general_ci",
+	})
+	require.NoError(t, err)
+	require.Contains(t, got, "SET sql_mode = '';\n")
+}

@@ -900,17 +900,3 @@ func metadataFixture(t *testing.T, m map[string]any) *metadata.DatabaseSchemaMet
 	return meta
 }
 
-// loadMetadataFixture installs a snapshot written as YAML-shaped protojson and
-// fails on anything LoadMetadata could not install as defined.
-func loadMetadataFixture(t *testing.T, m map[string]any) *Catalog {
-	t.Helper()
-	c := New()
-	report, err := c.LoadMetadata(context.Background(), metadataFixture(t, m))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(report.Degraded)+len(report.Missing)+len(report.Incomplete) > 0 {
-		t.Fatalf("snapshot did not load as defined: %+v", report)
-	}
-	return c
-}

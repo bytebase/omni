@@ -1791,7 +1791,7 @@ func (c *Catalog) alterColumnDefault(tbl *Table, cmd *nodes.AlterTableCmd) error
 		if err := validateDefaultExprForExistingColumn(col, cmd.DefaultExpr); err != nil {
 			return err
 		}
-		setColumnDefaultFromExpr(col, cmd.DefaultExpr)
+		setColumnDefaultFromExpr(col, qualifySequenceCalls(cmd.DefaultExpr, tbl))
 	} else {
 		// DROP DEFAULT — MySQL shows no default at all (not even DEFAULT NULL).
 		col.Default = nil
@@ -1910,7 +1910,7 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 		col.Comment = colDef.Comment
 	}
 	if colDef.DefaultValue != nil {
-		setColumnDefaultFromExpr(col, colDef.DefaultValue)
+		setColumnDefaultFromExpr(col, qualifySequenceCalls(colDef.DefaultValue, tbl))
 	}
 	if colDef.OnUpdate != nil {
 		setColumnOnUpdateFromExpr(col, colDef.OnUpdate)
@@ -1935,7 +1935,7 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 			col.Nullable = true
 		case nodes.ColConstrDefault:
 			if cc.Expr != nil {
-				setColumnDefaultFromExpr(col, cc.Expr)
+				setColumnDefaultFromExpr(col, qualifySequenceCalls(cc.Expr, tbl))
 			}
 		case nodes.ColConstrAutoIncrement:
 			col.AutoIncrement = true

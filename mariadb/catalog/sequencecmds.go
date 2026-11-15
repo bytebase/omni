@@ -370,3 +370,48 @@ func quoteIdent(name string) string {
 func quoteStringLiteral(s string) string {
 	return "'" + escapeComment(s) + "'"
 }
+
+// qualifySequenceCalls returns expr with each sequence it reads named by its
+// database, the table's where the call names none, in the form MariaDB stores a
+// default in: NEXT VALUE FOR s and PREVIOUS VALUE FOR s become nextval and
+// lastval, and setval takes its optional arguments. Measured on
+// mariadb:11.8.8: DEFAULT (NEXT VALUE FOR s1) is stored nextval(`db`.`s1`),
+// and setval(s1, 5) setval(`db`.`s1`,5,1,0).
+func qualifySequenceCalls(expr nodes.ExprNode, tbl *Table) nodes.ExprNode {
+	db := ""
+	if tbl != nil && tbl.Database != nil {
+		db = tbl.Database.Name
+	}
+	ref := func(schema, name string) nodes.ExprNode {
+		if schema == "" {
+			schema = db
+		}
+		return &nodes.ColumnRef{Table: schema, Column: name}
+	}
+	switch e := expr.(type) {
+	case *nodes.ParenExpr:
+		return &nodes.ParenExpr{Loc: e.Loc, Expr: qualifySequenceCalls(e.Expr, tbl)}
+	case *nodes.NextValueForExpr:
+		return &nodes.FuncCallExpr{Loc: e.Loc, Name: "NEXTVAL", RawName: "nextval", Args: []nodes.ExprNode{ref(e.Sequence.Schema, e.Sequence.Name)}}
+	case *nodes.PreviousValueForExpr:
+		return &nodes.FuncCallExpr{Loc: e.Loc, Name: "LASTVAL", RawName: "lastval", Args: []nodes.ExprNode{ref(e.Sequence.Schema, e.Sequence.Name)}}
+	case *nodes.FuncCallExpr:
+		name := strings.ToUpper(e.Name)
+		if e.Schema != "" || (name != "NEXTVAL" && name != "LASTVAL" && name != "SETVAL") || len(e.Args) == 0 {
+			return expr
+		}
+		seq, ok := e.Args[0].(*nodes.ColumnRef)
+		if !ok || seq.Schema != "" {
+			return expr
+		}
+		out := *e
+		out.Args = append([]nodes.ExprNode{ref(seq.Table, seq.Column)}, e.Args[1:]...)
+		if name == "SETVAL" {
+			for len(out.Args) < 4 {
+				out.Args = append(out.Args, &nodes.IntLit{Value: []int64{1, 0}[len(out.Args)-2]})
+			}
+		}
+		return &out
+	}
+	return expr
+}

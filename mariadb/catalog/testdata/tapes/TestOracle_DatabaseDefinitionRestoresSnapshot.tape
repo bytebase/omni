@@ -28367,7 +28367,7 @@
 |   KEY `idx_hash` (`b`) USING HASH,
 |   KEY `idx_ignored` (`b`),
 |   SPATIAL KEY `sp_g` (`g`),
-|   UNIQUE KEY `uk_ab` (`a`, `b`)
+|   UNIQUE KEY `uk_ab` (`a`, `b`) COMMENT 'uk comment'
 | ) ENGINE=InnoDB COLLATE=utf8mb4_uca1400_ai_ci
 < ok 0 0
 > exec
@@ -28402,7 +28402,7 @@
 |   `c` text DEFAULT NULL,
 |   `g` geometry NOT NULL,
 |   PRIMARY KEY (`id`),
-|   UNIQUE KEY `uk_ab` (`a`,`b`),
+|   UNIQUE KEY `uk_ab` (`a`,`b`) COMMENT 'uk comment',
 |   KEY `idx_a_prefix` (`a`(10)),
 |   KEY `idx_desc` (`b` DESC,`a`),
 |   KEY `idx_hash` (`b`) USING HASH,
@@ -28453,7 +28453,7 @@
 |   KEY `idx_hash` (`b`) USING HASH,
 |   KEY `idx_ignored` (`b`),
 |   SPATIAL KEY `sp_g` (`g`),
-|   UNIQUE KEY `uk_ab` (`a`, `b`)
+|   UNIQUE KEY `uk_ab` (`a`, `b`) COMMENT 'uk comment'
 | ) ENGINE=InnoDB COLLATE=utf8mb4_uca1400_ai_ci
 < ok 0 0
 > exec
@@ -28485,7 +28485,7 @@
 |   `c` text DEFAULT NULL,
 |   `g` geometry NOT NULL,
 |   PRIMARY KEY (`id`),
-|   UNIQUE KEY `uk_ab` (`a`,`b`),
+|   UNIQUE KEY `uk_ab` (`a`,`b`) COMMENT 'uk comment',
 |   KEY `idx_a_prefix` (`a`(10)),
 |   KEY `idx_desc` (`b` DESC,`a`),
 |   KEY `idx_hash` (`b`) USING HASH,
@@ -33876,7 +33876,7 @@
 |   `id` int NOT NULL,
 |   `v` vector(3) NOT NULL,
 |   PRIMARY KEY (`id`),
-|   KEY `idx_v` (`v`)
+|   VECTOR KEY `idx_v` (`v`)
 | ) ENGINE=InnoDB COLLATE=utf8mb4_uca1400_ai_ci
 < ok 0 0
 > exec
@@ -33908,7 +33908,7 @@
 |   `id` int(11) NOT NULL,
 |   `v` vector(3) NOT NULL,
 |   PRIMARY KEY (`id`),
-|   KEY `idx_v` (`v`)
+|   VECTOR KEY `idx_v` (`v`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
 > query
 | SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
@@ -33944,7 +33944,7 @@
 |   `id` int NOT NULL,
 |   `v` vector(3) NOT NULL,
 |   PRIMARY KEY (`id`),
-|   KEY `idx_v` (`v`)
+|   VECTOR KEY `idx_v` (`v`)
 | ) ENGINE=InnoDB COLLATE=utf8mb4_uca1400_ai_ci
 < ok 0 0
 > exec
@@ -33973,7 +33973,7 @@
 |   `id` int(11) NOT NULL,
 |   `v` vector(3) NOT NULL,
 |   PRIMARY KEY (`id`),
-|   KEY `idx_v` (`v`)
+|   VECTOR KEY `idx_v` (`v`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
 > query
 | SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
