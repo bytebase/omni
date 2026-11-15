@@ -78186,6 +78186,4770 @@
 | SET foreign_key_checks = 0
 < ok 0 0
 > exec
+| CREATE TABLE t (a INT WITHOUT SYSTEM VERSIONING, b INT) WITH SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL WITHOUT SYSTEM VERSIONING,
+|   `b` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci WITH SYSTEM VERSIONING
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT, b INT WITHOUT SYSTEM VERSIONING) WITH SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @@system_versioning_alter_history = KEEP
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `b` int(11) DEFAULT NULL
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `a` int(11) DEFAULT NULL WITHOUT SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL WITHOUT SYSTEM VERSIONING,
+|   `b` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci WITH SYSTEM VERSIONING
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT, b INT WITHOUT SYSTEM VERSIONING) WITH SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL,
+|   `b` int(11) DEFAULT NULL WITHOUT SYSTEM VERSIONING
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci WITH SYSTEM VERSIONING
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT WITHOUT SYSTEM VERSIONING, b INT) WITH SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @@system_versioning_alter_history = KEEP
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `a` int(11) DEFAULT NULL
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `b` int(11) DEFAULT NULL WITHOUT SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL,
+|   `b` int(11) DEFAULT NULL WITHOUT SYSTEM VERSIONING
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci WITH SYSTEM VERSIONING
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (v INT INVISIBLE DEFAULT 0, z INT)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `v` int(11) INVISIBLE DEFAULT 0,
+|   `z` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (id INT, v INT DEFAULT (id + 1), z INT INVISIBLE)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `z` int(11) DEFAULT NULL
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `v` int(11) DEFAULT 0 INVISIBLE
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `id`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `v` int(11) INVISIBLE DEFAULT 0,
+|   `z` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (id INT, v INT DEFAULT (id + 1), z INT INVISIBLE)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `id` int(11) DEFAULT NULL,
+|   `v` int(11) DEFAULT (`id` + 1),
+|   `z` int(11) INVISIBLE DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (v INT INVISIBLE DEFAULT 0, z INT)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `id` int(11) DEFAULT NULL FIRST
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `v` int(11) DEFAULT (`id` + 1)
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `z` int(11) DEFAULT NULL INVISIBLE
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `id` int(11) DEFAULT NULL,
+|   `v` int(11) DEFAULT (`id` + 1),
+|   `z` int(11) INVISIBLE DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (b), UNIQUE KEY u (b) IGNORED)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) NOT NULL,
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`),
+|   UNIQUE KEY `u` (`b`) IGNORED
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (a), UNIQUE KEY u (b) IGNORED)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP PRIMARY KEY, ADD PRIMARY KEY (`b`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) NOT NULL,
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`),
+|   UNIQUE KEY `u` (`b`) IGNORED
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (a), UNIQUE KEY u (b) IGNORED)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) NOT NULL,
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`a`),
+|   UNIQUE KEY `u` (`b`) IGNORED
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (b), UNIQUE KEY u (b) IGNORED)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP PRIMARY KEY, ADD PRIMARY KEY (`a`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) NOT NULL,
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`a`),
+|   UNIQUE KEY `u` (`b`) IGNORED
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, id INT AUTO_INCREMENT, b INT, g INT AS (b + 1) VIRTUAL, KEY k (id, b))
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `id` int(11) NOT NULL AUTO_INCREMENT,
+|   `b` int(11) DEFAULT NULL,
+|   `g` int(11) GENERATED ALWAYS AS (`b` + 1) VIRTUAL,
+|   KEY `k` (`id`,`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `id` int(11) NOT NULL AUTO_INCREMENT, ADD COLUMN `b` int(11) DEFAULT NULL, ADD KEY `k` (`id`,`b`)
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `g` int(11) GENERATED ALWAYS AS (`b` + 1) VIRTUAL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `id` int(11) NOT NULL AUTO_INCREMENT,
+|   `b` int(11) DEFAULT NULL,
+|   `g` int(11) GENERATED ALWAYS AS (`b` + 1) VIRTUAL,
+|   KEY `k` (`id`,`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, id INT AUTO_INCREMENT, b INT, g INT AS (b + 1) VIRTUAL, KEY k (id, b))
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `g`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP INDEX `k`, DROP COLUMN `id`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `b`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, a INT AS (x) STORED) PARTITION BY HASH (a) PARTITIONS 2
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `a` int(11) GENERATED ALWAYS AS (`x`) STORED
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+|  PARTITION BY HASH (`a`)
+| PARTITIONS 2
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, a INT) PARTITION BY HASH (a) PARTITIONS 2
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` REMOVE PARTITIONING
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `a`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `a` int(11) GENERATED ALWAYS AS (`x`) STORED
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t`  PARTITION BY HASH (`a`)
+| PARTITIONS 2
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `a` int(11) GENERATED ALWAYS AS (`x`) STORED
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+|  PARTITION BY HASH (`a`)
+| PARTITIONS 2
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, a INT) PARTITION BY HASH (a) PARTITIONS 2
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `a` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+|  PARTITION BY HASH (`a`)
+| PARTITIONS 2
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, a INT AS (x) STORED) PARTITION BY HASH (a) PARTITIONS 2
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` REMOVE PARTITIONING
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `a`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `a` int(11) DEFAULT NULL
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t`  PARTITION BY HASH (`a`)
+| PARTITIONS 2
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `a` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+|  PARTITION BY HASH (`a`)
+| PARTITIONS 2
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (g INT NOT NULL, id INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (id, g)) ENGINE=InnoDB
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `g` int(11) NOT NULL,
+|   `id` int(11) NOT NULL AUTO_INCREMENT,
+|   PRIMARY KEY (`id`,`g`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (g INT NOT NULL, id INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (g, id)) ENGINE=MyISAM
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP PRIMARY KEY, ADD PRIMARY KEY (`id`,`g`), ENGINE=InnoDB
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `g` int(11) NOT NULL,
+|   `id` int(11) NOT NULL AUTO_INCREMENT,
+|   PRIMARY KEY (`id`,`g`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (g INT NOT NULL, id INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (g, id)) ENGINE=MyISAM
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `g` int(11) NOT NULL,
+|   `id` int(11) NOT NULL AUTO_INCREMENT,
+|   PRIMARY KEY (`g`,`id`)
+| ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (g INT NOT NULL, id INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (id, g)) ENGINE=InnoDB
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP PRIMARY KEY, ADD PRIMARY KEY (`g`,`id`), ENGINE=MyISAM
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `g` int(11) NOT NULL,
+|   `id` int(11) NOT NULL AUTO_INCREMENT,
+|   PRIMARY KEY (`g`,`id`)
+| ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE p (a VARCHAR(100), KEY kp (a))
+< ok 0 0
+> exec
+| CREATE TABLE ch (a VARCHAR(100), KEY short_key (a(10)), KEY replacement_key (a), CONSTRAINT f FOREIGN KEY (a) REFERENCES p (a))
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ch
+: bytes
+| BASE TABLE
+< row
+: bytes
+| p
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ch`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ch
+: bytes
+| CREATE TABLE `ch` (
+|   `a` varchar(100) DEFAULT NULL,
+|   KEY `short_key` (`a`(10)),
+|   KEY `replacement_key` (`a`),
+|   CONSTRAINT `f` FOREIGN KEY (`a`) REFERENCES `p` (`a`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `p`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| p
+: bytes
+| CREATE TABLE `p` (
+|   `a` varchar(100) DEFAULT NULL,
+|   KEY `kp` (`a`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 2 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE p (a VARCHAR(100), KEY kp (a))
+< ok 0 0
+> exec
+| CREATE TABLE ch (a VARCHAR(100), KEY short_key (a(10)), KEY full_key (a), CONSTRAINT f FOREIGN KEY (a) REFERENCES p (a))
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`ch` DROP FOREIGN KEY `f`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`ch` DROP INDEX `full_key`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`ch` ADD KEY `replacement_key` (`a`)
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`ch` ADD CONSTRAINT `f` FOREIGN KEY (`a`) REFERENCES `p` (`a`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ch
+: bytes
+| BASE TABLE
+< row
+: bytes
+| p
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ch`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ch
+: bytes
+| CREATE TABLE `ch` (
+|   `a` varchar(100) DEFAULT NULL,
+|   KEY `short_key` (`a`(10)),
+|   KEY `replacement_key` (`a`),
+|   CONSTRAINT `f` FOREIGN KEY (`a`) REFERENCES `p` (`a`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `p`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| p
+: bytes
+| CREATE TABLE `p` (
+|   `a` varchar(100) DEFAULT NULL,
+|   KEY `kp` (`a`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 2 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE p (a VARCHAR(100), KEY kp (a))
+< ok 0 0
+> exec
+| CREATE TABLE ch (a VARCHAR(100), KEY short_key (a(10)), KEY full_key (a), CONSTRAINT f FOREIGN KEY (a) REFERENCES p (a))
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ch
+: bytes
+| BASE TABLE
+< row
+: bytes
+| p
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ch`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ch
+: bytes
+| CREATE TABLE `ch` (
+|   `a` varchar(100) DEFAULT NULL,
+|   KEY `short_key` (`a`(10)),
+|   KEY `full_key` (`a`),
+|   CONSTRAINT `f` FOREIGN KEY (`a`) REFERENCES `p` (`a`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `p`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| p
+: bytes
+| CREATE TABLE `p` (
+|   `a` varchar(100) DEFAULT NULL,
+|   KEY `kp` (`a`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 2 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE p (a VARCHAR(100), KEY kp (a))
+< ok 0 0
+> exec
+| CREATE TABLE ch (a VARCHAR(100), KEY short_key (a(10)), KEY replacement_key (a), CONSTRAINT f FOREIGN KEY (a) REFERENCES p (a))
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`ch` DROP FOREIGN KEY `f`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`ch` DROP INDEX `replacement_key`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`ch` ADD KEY `full_key` (`a`)
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`ch` ADD CONSTRAINT `f` FOREIGN KEY (`a`) REFERENCES `p` (`a`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ch
+: bytes
+| BASE TABLE
+< row
+: bytes
+| p
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ch`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ch
+: bytes
+| CREATE TABLE `ch` (
+|   `a` varchar(100) DEFAULT NULL,
+|   KEY `short_key` (`a`(10)),
+|   KEY `full_key` (`a`),
+|   CONSTRAINT `f` FOREIGN KEY (`a`) REFERENCES `p` (`a`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `p`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| p
+: bytes
+| CREATE TABLE `p` (
+|   `a` varchar(100) DEFAULT NULL,
+|   KEY `kp` (`a`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 2 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT AS (1) STORED, b INT INVISIBLE)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) GENERATED ALWAYS AS (1) STORED,
+|   `b` int(11) INVISIBLE DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT, b INT INVISIBLE)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `a`, ADD COLUMN `a` int(11) GENERATED ALWAYS AS (1) STORED FIRST
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) GENERATED ALWAYS AS (1) STORED,
+|   `b` int(11) INVISIBLE DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT, b INT INVISIBLE)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL,
+|   `b` int(11) INVISIBLE DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT AS (1) STORED, b INT INVISIBLE)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `a`, ADD COLUMN `a` int(11) DEFAULT NULL FIRST
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL,
+|   `b` int(11) INVISIBLE DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT AS (1) STORED)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) GENERATED ALWAYS AS (1) STORED
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT AUTO_INCREMENT PRIMARY KEY)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP PRIMARY KEY, DROP COLUMN `a`, ADD COLUMN `a` int(11) GENERATED ALWAYS AS (1) STORED
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) GENERATED ALWAYS AS (1) STORED
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT AUTO_INCREMENT PRIMARY KEY)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) NOT NULL AUTO_INCREMENT,
+|   PRIMARY KEY (`a`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT AS (1) STORED)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `a`, ADD COLUMN `a` int(11) NOT NULL AUTO_INCREMENT, ADD PRIMARY KEY (`a`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) NOT NULL AUTO_INCREMENT,
+|   PRIMARY KEY (`a`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, id INT AUTO_INCREMENT, g1 INT AS (x + 1) VIRTUAL, g2 INT AS (g1 + 1) VIRTUAL, g3 INT AS (g2 + 1) VIRTUAL, KEY k (id, g2))
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `id` int(11) NOT NULL AUTO_INCREMENT,
+|   `g1` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL,
+|   `g2` int(11) GENERATED ALWAYS AS (`g1` + 1) VIRTUAL,
+|   `g3` int(11) GENERATED ALWAYS AS (`g2` + 1) VIRTUAL,
+|   KEY `k` (`id`,`g2`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `g1` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `id` int(11) NOT NULL AUTO_INCREMENT AFTER `x`, ADD COLUMN `g2` int(11) GENERATED ALWAYS AS (`g1` + 1) VIRTUAL, ADD KEY `k` (`id`,`g2`)
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `g3` int(11) GENERATED ALWAYS AS (`g2` + 1) VIRTUAL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `id` int(11) NOT NULL AUTO_INCREMENT,
+|   `g1` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL,
+|   `g2` int(11) GENERATED ALWAYS AS (`g1` + 1) VIRTUAL,
+|   `g3` int(11) GENERATED ALWAYS AS (`g2` + 1) VIRTUAL,
+|   KEY `k` (`id`,`g2`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, id INT AUTO_INCREMENT, g1 INT AS (x + 1) VIRTUAL, g2 INT AS (g1 + 1) VIRTUAL, g3 INT AS (g2 + 1) VIRTUAL, KEY k (id, g2))
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `g3`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP INDEX `k`, DROP COLUMN `id`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `g2`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `g1`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT)
+< ok 0 0
+> exec
+| CREATE TRIGGER z BEFORE INSERT ON t FOR EACH ROW SET NEW.x = NEW.x + 2
+< ok 0 0
+> exec
+| CREATE TRIGGER a BEFORE INSERT ON t FOR EACH ROW SET NEW.x = NEW.x * 2
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+< row
+: bytes
+| z
+: bytes
+| BEFORE
+| INSERT
+| t
+| 1
+| STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+| SET NEW.x = NEW.x + 2
+< row
+: bytes
+| a
+: bytes
+| BEFORE
+| INSERT
+| t
+| 2
+| STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+| SET NEW.x = NEW.x * 2
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT)
+< ok 0 0
+> exec
+| CREATE TRIGGER z BEFORE INSERT ON t FOR EACH ROW SET NEW.x = NEW.x + 1
+< ok 0 0
+> exec
+| CREATE TRIGGER a BEFORE INSERT ON t FOR EACH ROW SET NEW.x = NEW.x * 2
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| DROP TRIGGER `omni_testoracle_migrationconverges`.`z`
+< ok 0 0
+> exec
+| CREATE TRIGGER `omni_testoracle_migrationconverges`.`z` BEFORE INSERT ON `omni_testoracle_migrationconverges`.`t` FOR EACH ROW PRECEDES `a` SET NEW.x = NEW.x + 2
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+< row
+: bytes
+| z
+: bytes
+| BEFORE
+| INSERT
+| t
+| 1
+| STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+| SET NEW.x = NEW.x + 2
+< row
+: bytes
+| a
+: bytes
+| BEFORE
+| INSERT
+| t
+| 2
+| STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+| SET NEW.x = NEW.x * 2
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT)
+< ok 0 0
+> exec
+| CREATE TRIGGER z BEFORE INSERT ON t FOR EACH ROW SET NEW.x = NEW.x + 1
+< ok 0 0
+> exec
+| CREATE TRIGGER a BEFORE INSERT ON t FOR EACH ROW SET NEW.x = NEW.x * 2
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+< row
+: bytes
+| z
+: bytes
+| BEFORE
+| INSERT
+| t
+| 1
+| STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+| SET NEW.x = NEW.x + 1
+< row
+: bytes
+| a
+: bytes
+| BEFORE
+| INSERT
+| t
+| 2
+| STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+| SET NEW.x = NEW.x * 2
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT)
+< ok 0 0
+> exec
+| CREATE TRIGGER z BEFORE INSERT ON t FOR EACH ROW SET NEW.x = NEW.x + 2
+< ok 0 0
+> exec
+| CREATE TRIGGER a BEFORE INSERT ON t FOR EACH ROW SET NEW.x = NEW.x * 2
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| DROP TRIGGER `omni_testoracle_migrationconverges`.`z`
+< ok 0 0
+> exec
+| CREATE TRIGGER `omni_testoracle_migrationconverges`.`z` BEFORE INSERT ON `omni_testoracle_migrationconverges`.`t` FOR EACH ROW PRECEDES `a` SET NEW.x = NEW.x + 1
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+< row
+: bytes
+| z
+: bytes
+| BEFORE
+| INSERT
+| t
+| 1
+| STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+| SET NEW.x = NEW.x + 1
+< row
+: bytes
+| a
+: bytes
+| BEFORE
+| INSERT
+| t
+| 2
+| STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+| SET NEW.x = NEW.x * 2
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, id INT AUTO_INCREMENT, b INT, g INT AS (b + 1) VIRTUAL, KEY k (id, b))
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `id` int(11) NOT NULL AUTO_INCREMENT,
+|   `b` int(11) DEFAULT NULL,
+|   `g` int(11) GENERATED ALWAYS AS (`b` + 1) VIRTUAL,
+|   KEY `k` (`id`,`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, g INT AS (x + 1) VIRTUAL)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `id` int(11) NOT NULL AUTO_INCREMENT AFTER `x`, ADD COLUMN `b` int(11) DEFAULT NULL AFTER `id`, ADD KEY `k` (`id`,`b`)
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `g` int(11) GENERATED ALWAYS AS (`b` + 1) VIRTUAL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `id` int(11) NOT NULL AUTO_INCREMENT,
+|   `b` int(11) DEFAULT NULL,
+|   `g` int(11) GENERATED ALWAYS AS (`b` + 1) VIRTUAL,
+|   KEY `k` (`id`,`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, g INT AS (x + 1) VIRTUAL)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `g` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, id INT AUTO_INCREMENT, b INT, g INT AS (b + 1) VIRTUAL, KEY k (id, b))
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP INDEX `k`, DROP COLUMN `id`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `g` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `b`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `g` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, b INT WITHOUT SYSTEM VERSIONING) WITH SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `b` int(11) DEFAULT NULL WITHOUT SYSTEM VERSIONING
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci WITH SYSTEM VERSIONING
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, b INT AS (x + 1) VIRTUAL)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @@system_versioning_alter_history = KEEP
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `b`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `b` int(11) DEFAULT NULL
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD SYSTEM VERSIONING
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `b` int(11) DEFAULT NULL WITHOUT SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `b` int(11) DEFAULT NULL WITHOUT SYSTEM VERSIONING
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci WITH SYSTEM VERSIONING
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, b INT AS (x + 1) VIRTUAL)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `b` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, b INT WITHOUT SYSTEM VERSIONING) WITH SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @@system_versioning_alter_history = KEEP
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP SYSTEM VERSIONING
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `b`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `b` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `b` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a VARCHAR(10)) PARTITION BY KEY (a) PARTITIONS 2
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` varchar(10) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+|  PARTITION BY KEY (`a`)
+| PARTITIONS 2
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT) PARTITION BY HASH (a) PARTITIONS 2
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` REMOVE PARTITIONING
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `a` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t`  PARTITION BY KEY (`a`)
+| PARTITIONS 2
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` varchar(10) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+|  PARTITION BY KEY (`a`)
+| PARTITIONS 2
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT) PARTITION BY HASH (a) PARTITIONS 2
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+|  PARTITION BY HASH (`a`)
+| PARTITIONS 2
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a VARCHAR(10)) PARTITION BY KEY (a) PARTITIONS 2
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` REMOVE PARTITIONING
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `a` int(11) DEFAULT NULL
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t`  PARTITION BY HASH (`a`)
+| PARTITIONS 2
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+|  PARTITION BY HASH (`a`)
+| PARTITIONS 2
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
 | CREATE TABLE x (i INT, ts TIMESTAMP NOT NULL)
 < ok 0 0
 > exec
@@ -154700,6 +159464,4770 @@
 |   `a` int(11) DEFAULT NULL,
 |   `z` int(11) INVISIBLE DEFAULT NULL
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT WITHOUT SYSTEM VERSIONING, b INT) WITH SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL WITHOUT SYSTEM VERSIONING,
+|   `b` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci WITH SYSTEM VERSIONING
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT, b INT WITHOUT SYSTEM VERSIONING) WITH SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @@system_versioning_alter_history = KEEP
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `b` int(11) DEFAULT NULL
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `a` int(11) DEFAULT NULL WITHOUT SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL WITHOUT SYSTEM VERSIONING,
+|   `b` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci WITH SYSTEM VERSIONING
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT, b INT WITHOUT SYSTEM VERSIONING) WITH SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL,
+|   `b` int(11) DEFAULT NULL WITHOUT SYSTEM VERSIONING
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci WITH SYSTEM VERSIONING
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT WITHOUT SYSTEM VERSIONING, b INT) WITH SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @@system_versioning_alter_history = KEEP
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `a` int(11) DEFAULT NULL
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `b` int(11) DEFAULT NULL WITHOUT SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL,
+|   `b` int(11) DEFAULT NULL WITHOUT SYSTEM VERSIONING
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci WITH SYSTEM VERSIONING
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (v INT INVISIBLE DEFAULT 0, z INT)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `v` int(11) INVISIBLE DEFAULT 0,
+|   `z` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (id INT, v INT DEFAULT (id + 1), z INT INVISIBLE)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `z` int(11) DEFAULT NULL
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `v` int(11) DEFAULT 0 INVISIBLE
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `id`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `v` int(11) INVISIBLE DEFAULT 0,
+|   `z` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (id INT, v INT DEFAULT (id + 1), z INT INVISIBLE)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `id` int(11) DEFAULT NULL,
+|   `v` int(11) DEFAULT (`id` + 1),
+|   `z` int(11) INVISIBLE DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (v INT INVISIBLE DEFAULT 0, z INT)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `id` int(11) DEFAULT NULL FIRST
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `v` int(11) DEFAULT (`id` + 1)
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `z` int(11) DEFAULT NULL INVISIBLE
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `id` int(11) DEFAULT NULL,
+|   `v` int(11) DEFAULT (`id` + 1),
+|   `z` int(11) INVISIBLE DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (b), UNIQUE KEY u (b) IGNORED)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) NOT NULL,
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`),
+|   UNIQUE KEY `u` (`b`) IGNORED
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (a), UNIQUE KEY u (b) IGNORED)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP PRIMARY KEY, ADD PRIMARY KEY (`b`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) NOT NULL,
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`),
+|   UNIQUE KEY `u` (`b`) IGNORED
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (a), UNIQUE KEY u (b) IGNORED)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) NOT NULL,
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`a`),
+|   UNIQUE KEY `u` (`b`) IGNORED
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (b), UNIQUE KEY u (b) IGNORED)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP PRIMARY KEY, ADD PRIMARY KEY (`a`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) NOT NULL,
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`a`),
+|   UNIQUE KEY `u` (`b`) IGNORED
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, id INT AUTO_INCREMENT, b INT, g INT AS (b + 1) VIRTUAL, KEY k (id, b))
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `id` int(11) NOT NULL AUTO_INCREMENT,
+|   `b` int(11) DEFAULT NULL,
+|   `g` int(11) GENERATED ALWAYS AS (`b` + 1) VIRTUAL,
+|   KEY `k` (`id`,`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `id` int(11) NOT NULL AUTO_INCREMENT, ADD COLUMN `b` int(11) DEFAULT NULL, ADD KEY `k` (`id`,`b`)
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `g` int(11) GENERATED ALWAYS AS (`b` + 1) VIRTUAL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `id` int(11) NOT NULL AUTO_INCREMENT,
+|   `b` int(11) DEFAULT NULL,
+|   `g` int(11) GENERATED ALWAYS AS (`b` + 1) VIRTUAL,
+|   KEY `k` (`id`,`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, id INT AUTO_INCREMENT, b INT, g INT AS (b + 1) VIRTUAL, KEY k (id, b))
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `g`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP INDEX `k`, DROP COLUMN `id`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `b`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, a INT AS (x) STORED) PARTITION BY HASH (a) PARTITIONS 2
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `a` int(11) GENERATED ALWAYS AS (`x`) STORED
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+|  PARTITION BY HASH (`a`)
+| PARTITIONS 2
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, a INT) PARTITION BY HASH (a) PARTITIONS 2
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` REMOVE PARTITIONING
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `a`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `a` int(11) GENERATED ALWAYS AS (`x`) STORED
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t`  PARTITION BY HASH (`a`)
+| PARTITIONS 2
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `a` int(11) GENERATED ALWAYS AS (`x`) STORED
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+|  PARTITION BY HASH (`a`)
+| PARTITIONS 2
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, a INT) PARTITION BY HASH (a) PARTITIONS 2
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `a` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+|  PARTITION BY HASH (`a`)
+| PARTITIONS 2
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, a INT AS (x) STORED) PARTITION BY HASH (a) PARTITIONS 2
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` REMOVE PARTITIONING
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `a`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `a` int(11) DEFAULT NULL
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t`  PARTITION BY HASH (`a`)
+| PARTITIONS 2
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `a` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+|  PARTITION BY HASH (`a`)
+| PARTITIONS 2
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (g INT NOT NULL, id INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (id, g)) ENGINE=InnoDB
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `g` int(11) NOT NULL,
+|   `id` int(11) NOT NULL AUTO_INCREMENT,
+|   PRIMARY KEY (`id`,`g`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (g INT NOT NULL, id INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (g, id)) ENGINE=MyISAM
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP PRIMARY KEY, ADD PRIMARY KEY (`id`,`g`), ENGINE=InnoDB
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `g` int(11) NOT NULL,
+|   `id` int(11) NOT NULL AUTO_INCREMENT,
+|   PRIMARY KEY (`id`,`g`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (g INT NOT NULL, id INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (g, id)) ENGINE=MyISAM
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `g` int(11) NOT NULL,
+|   `id` int(11) NOT NULL AUTO_INCREMENT,
+|   PRIMARY KEY (`g`,`id`)
+| ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (g INT NOT NULL, id INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (id, g)) ENGINE=InnoDB
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP PRIMARY KEY, ADD PRIMARY KEY (`g`,`id`), ENGINE=MyISAM
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `g` int(11) NOT NULL,
+|   `id` int(11) NOT NULL AUTO_INCREMENT,
+|   PRIMARY KEY (`g`,`id`)
+| ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE p (a VARCHAR(100), KEY kp (a))
+< ok 0 0
+> exec
+| CREATE TABLE ch (a VARCHAR(100), KEY short_key (a(10)), KEY replacement_key (a), CONSTRAINT f FOREIGN KEY (a) REFERENCES p (a))
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ch
+: bytes
+| BASE TABLE
+< row
+: bytes
+| p
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ch`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ch
+: bytes
+| CREATE TABLE `ch` (
+|   `a` varchar(100) DEFAULT NULL,
+|   KEY `short_key` (`a`(10)),
+|   KEY `replacement_key` (`a`),
+|   CONSTRAINT `f` FOREIGN KEY (`a`) REFERENCES `p` (`a`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `p`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| p
+: bytes
+| CREATE TABLE `p` (
+|   `a` varchar(100) DEFAULT NULL,
+|   KEY `kp` (`a`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 2 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE p (a VARCHAR(100), KEY kp (a))
+< ok 0 0
+> exec
+| CREATE TABLE ch (a VARCHAR(100), KEY short_key (a(10)), KEY full_key (a), CONSTRAINT f FOREIGN KEY (a) REFERENCES p (a))
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`ch` DROP FOREIGN KEY `f`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`ch` DROP INDEX `full_key`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`ch` ADD KEY `replacement_key` (`a`)
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`ch` ADD CONSTRAINT `f` FOREIGN KEY (`a`) REFERENCES `p` (`a`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ch
+: bytes
+| BASE TABLE
+< row
+: bytes
+| p
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ch`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ch
+: bytes
+| CREATE TABLE `ch` (
+|   `a` varchar(100) DEFAULT NULL,
+|   KEY `short_key` (`a`(10)),
+|   KEY `replacement_key` (`a`),
+|   CONSTRAINT `f` FOREIGN KEY (`a`) REFERENCES `p` (`a`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `p`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| p
+: bytes
+| CREATE TABLE `p` (
+|   `a` varchar(100) DEFAULT NULL,
+|   KEY `kp` (`a`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 2 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE p (a VARCHAR(100), KEY kp (a))
+< ok 0 0
+> exec
+| CREATE TABLE ch (a VARCHAR(100), KEY short_key (a(10)), KEY full_key (a), CONSTRAINT f FOREIGN KEY (a) REFERENCES p (a))
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ch
+: bytes
+| BASE TABLE
+< row
+: bytes
+| p
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ch`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ch
+: bytes
+| CREATE TABLE `ch` (
+|   `a` varchar(100) DEFAULT NULL,
+|   KEY `short_key` (`a`(10)),
+|   KEY `full_key` (`a`),
+|   CONSTRAINT `f` FOREIGN KEY (`a`) REFERENCES `p` (`a`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `p`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| p
+: bytes
+| CREATE TABLE `p` (
+|   `a` varchar(100) DEFAULT NULL,
+|   KEY `kp` (`a`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 2 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE p (a VARCHAR(100), KEY kp (a))
+< ok 0 0
+> exec
+| CREATE TABLE ch (a VARCHAR(100), KEY short_key (a(10)), KEY replacement_key (a), CONSTRAINT f FOREIGN KEY (a) REFERENCES p (a))
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`ch` DROP FOREIGN KEY `f`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`ch` DROP INDEX `replacement_key`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`ch` ADD KEY `full_key` (`a`)
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`ch` ADD CONSTRAINT `f` FOREIGN KEY (`a`) REFERENCES `p` (`a`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ch
+: bytes
+| BASE TABLE
+< row
+: bytes
+| p
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ch`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ch
+: bytes
+| CREATE TABLE `ch` (
+|   `a` varchar(100) DEFAULT NULL,
+|   KEY `short_key` (`a`(10)),
+|   KEY `full_key` (`a`),
+|   CONSTRAINT `f` FOREIGN KEY (`a`) REFERENCES `p` (`a`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `p`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| p
+: bytes
+| CREATE TABLE `p` (
+|   `a` varchar(100) DEFAULT NULL,
+|   KEY `kp` (`a`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 2 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT AS (1) STORED, b INT INVISIBLE)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) GENERATED ALWAYS AS (1) STORED,
+|   `b` int(11) INVISIBLE DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT, b INT INVISIBLE)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `a`, ADD COLUMN `a` int(11) GENERATED ALWAYS AS (1) STORED FIRST
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) GENERATED ALWAYS AS (1) STORED,
+|   `b` int(11) INVISIBLE DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT, b INT INVISIBLE)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL,
+|   `b` int(11) INVISIBLE DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT AS (1) STORED, b INT INVISIBLE)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `a`, ADD COLUMN `a` int(11) DEFAULT NULL FIRST
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL,
+|   `b` int(11) INVISIBLE DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT AS (1) STORED)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) GENERATED ALWAYS AS (1) STORED
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT AUTO_INCREMENT PRIMARY KEY)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP PRIMARY KEY, DROP COLUMN `a`, ADD COLUMN `a` int(11) GENERATED ALWAYS AS (1) STORED
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) GENERATED ALWAYS AS (1) STORED
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT AUTO_INCREMENT PRIMARY KEY)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) NOT NULL AUTO_INCREMENT,
+|   PRIMARY KEY (`a`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT AS (1) STORED)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `a`, ADD COLUMN `a` int(11) NOT NULL AUTO_INCREMENT, ADD PRIMARY KEY (`a`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) NOT NULL AUTO_INCREMENT,
+|   PRIMARY KEY (`a`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, id INT AUTO_INCREMENT, g1 INT AS (x + 1) VIRTUAL, g2 INT AS (g1 + 1) VIRTUAL, g3 INT AS (g2 + 1) VIRTUAL, KEY k (id, g2))
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `id` int(11) NOT NULL AUTO_INCREMENT,
+|   `g1` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL,
+|   `g2` int(11) GENERATED ALWAYS AS (`g1` + 1) VIRTUAL,
+|   `g3` int(11) GENERATED ALWAYS AS (`g2` + 1) VIRTUAL,
+|   KEY `k` (`id`,`g2`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `g1` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `id` int(11) NOT NULL AUTO_INCREMENT AFTER `x`, ADD COLUMN `g2` int(11) GENERATED ALWAYS AS (`g1` + 1) VIRTUAL, ADD KEY `k` (`id`,`g2`)
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `g3` int(11) GENERATED ALWAYS AS (`g2` + 1) VIRTUAL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `id` int(11) NOT NULL AUTO_INCREMENT,
+|   `g1` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL,
+|   `g2` int(11) GENERATED ALWAYS AS (`g1` + 1) VIRTUAL,
+|   `g3` int(11) GENERATED ALWAYS AS (`g2` + 1) VIRTUAL,
+|   KEY `k` (`id`,`g2`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, id INT AUTO_INCREMENT, g1 INT AS (x + 1) VIRTUAL, g2 INT AS (g1 + 1) VIRTUAL, g3 INT AS (g2 + 1) VIRTUAL, KEY k (id, g2))
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `g3`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP INDEX `k`, DROP COLUMN `id`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `g2`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `g1`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT)
+< ok 0 0
+> exec
+| CREATE TRIGGER z BEFORE INSERT ON t FOR EACH ROW SET NEW.x = NEW.x + 2
+< ok 0 0
+> exec
+| CREATE TRIGGER a BEFORE INSERT ON t FOR EACH ROW SET NEW.x = NEW.x * 2
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+< row
+: bytes
+| z
+: bytes
+| BEFORE
+| INSERT
+| t
+| 1
+| STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+| SET NEW.x = NEW.x + 2
+< row
+: bytes
+| a
+: bytes
+| BEFORE
+| INSERT
+| t
+| 2
+| STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+| SET NEW.x = NEW.x * 2
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT)
+< ok 0 0
+> exec
+| CREATE TRIGGER z BEFORE INSERT ON t FOR EACH ROW SET NEW.x = NEW.x + 1
+< ok 0 0
+> exec
+| CREATE TRIGGER a BEFORE INSERT ON t FOR EACH ROW SET NEW.x = NEW.x * 2
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| DROP TRIGGER `omni_testoracle_migrationconverges`.`z`
+< ok 0 0
+> exec
+| CREATE TRIGGER `omni_testoracle_migrationconverges`.`z` BEFORE INSERT ON `omni_testoracle_migrationconverges`.`t` FOR EACH ROW PRECEDES `a` SET NEW.x = NEW.x + 2
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+< row
+: bytes
+| z
+: bytes
+| BEFORE
+| INSERT
+| t
+| 1
+| STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+| SET NEW.x = NEW.x + 2
+< row
+: bytes
+| a
+: bytes
+| BEFORE
+| INSERT
+| t
+| 2
+| STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+| SET NEW.x = NEW.x * 2
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT)
+< ok 0 0
+> exec
+| CREATE TRIGGER z BEFORE INSERT ON t FOR EACH ROW SET NEW.x = NEW.x + 1
+< ok 0 0
+> exec
+| CREATE TRIGGER a BEFORE INSERT ON t FOR EACH ROW SET NEW.x = NEW.x * 2
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+< row
+: bytes
+| z
+: bytes
+| BEFORE
+| INSERT
+| t
+| 1
+| STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+| SET NEW.x = NEW.x + 1
+< row
+: bytes
+| a
+: bytes
+| BEFORE
+| INSERT
+| t
+| 2
+| STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+| SET NEW.x = NEW.x * 2
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT)
+< ok 0 0
+> exec
+| CREATE TRIGGER z BEFORE INSERT ON t FOR EACH ROW SET NEW.x = NEW.x + 2
+< ok 0 0
+> exec
+| CREATE TRIGGER a BEFORE INSERT ON t FOR EACH ROW SET NEW.x = NEW.x * 2
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| DROP TRIGGER `omni_testoracle_migrationconverges`.`z`
+< ok 0 0
+> exec
+| CREATE TRIGGER `omni_testoracle_migrationconverges`.`z` BEFORE INSERT ON `omni_testoracle_migrationconverges`.`t` FOR EACH ROW PRECEDES `a` SET NEW.x = NEW.x + 1
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+< row
+: bytes
+| z
+: bytes
+| BEFORE
+| INSERT
+| t
+| 1
+| STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+| SET NEW.x = NEW.x + 1
+< row
+: bytes
+| a
+: bytes
+| BEFORE
+| INSERT
+| t
+| 2
+| STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+| SET NEW.x = NEW.x * 2
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, id INT AUTO_INCREMENT, b INT, g INT AS (b + 1) VIRTUAL, KEY k (id, b))
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `id` int(11) NOT NULL AUTO_INCREMENT,
+|   `b` int(11) DEFAULT NULL,
+|   `g` int(11) GENERATED ALWAYS AS (`b` + 1) VIRTUAL,
+|   KEY `k` (`id`,`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, g INT AS (x + 1) VIRTUAL)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `id` int(11) NOT NULL AUTO_INCREMENT AFTER `x`, ADD COLUMN `b` int(11) DEFAULT NULL AFTER `id`, ADD KEY `k` (`id`,`b`)
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `g` int(11) GENERATED ALWAYS AS (`b` + 1) VIRTUAL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `id` int(11) NOT NULL AUTO_INCREMENT,
+|   `b` int(11) DEFAULT NULL,
+|   `g` int(11) GENERATED ALWAYS AS (`b` + 1) VIRTUAL,
+|   KEY `k` (`id`,`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, g INT AS (x + 1) VIRTUAL)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `g` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, id INT AUTO_INCREMENT, b INT, g INT AS (b + 1) VIRTUAL, KEY k (id, b))
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP INDEX `k`, DROP COLUMN `id`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `g` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `b`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `g` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, b INT WITHOUT SYSTEM VERSIONING) WITH SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `b` int(11) DEFAULT NULL WITHOUT SYSTEM VERSIONING
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci WITH SYSTEM VERSIONING
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, b INT AS (x + 1) VIRTUAL)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @@system_versioning_alter_history = KEEP
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `b`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `b` int(11) DEFAULT NULL
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD SYSTEM VERSIONING
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `b` int(11) DEFAULT NULL WITHOUT SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `b` int(11) DEFAULT NULL WITHOUT SYSTEM VERSIONING
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci WITH SYSTEM VERSIONING
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, b INT AS (x + 1) VIRTUAL)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `b` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, b INT WITHOUT SYSTEM VERSIONING) WITH SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @@system_versioning_alter_history = KEEP
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP SYSTEM VERSIONING
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `b`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `b` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `b` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a VARCHAR(10)) PARTITION BY KEY (a) PARTITIONS 2
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` varchar(10) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+|  PARTITION BY KEY (`a`)
+| PARTITIONS 2
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT) PARTITION BY HASH (a) PARTITIONS 2
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` REMOVE PARTITIONING
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `a` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t`  PARTITION BY KEY (`a`)
+| PARTITIONS 2
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` varchar(10) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+|  PARTITION BY KEY (`a`)
+| PARTITIONS 2
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT) PARTITION BY HASH (a) PARTITIONS 2
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+|  PARTITION BY HASH (`a`)
+| PARTITIONS 2
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a VARCHAR(10)) PARTITION BY KEY (a) PARTITIONS 2
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` REMOVE PARTITIONING
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `a` int(11) DEFAULT NULL
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t`  PARTITION BY HASH (`a`)
+| PARTITIONS 2
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+|  PARTITION BY HASH (`a`)
+| PARTITIONS 2
 > query
 | SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
 < result
@@ -244415,6 +253943,4770 @@
 |   `a` int(11) DEFAULT NULL,
 |   `z` int(11) INVISIBLE DEFAULT NULL
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT WITHOUT SYSTEM VERSIONING, b INT) WITH SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL WITHOUT SYSTEM VERSIONING,
+|   `b` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci WITH SYSTEM VERSIONING
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT, b INT WITHOUT SYSTEM VERSIONING) WITH SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @@system_versioning_alter_history = KEEP
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `b` int(11) DEFAULT NULL
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `a` int(11) DEFAULT NULL WITHOUT SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL WITHOUT SYSTEM VERSIONING,
+|   `b` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci WITH SYSTEM VERSIONING
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT, b INT WITHOUT SYSTEM VERSIONING) WITH SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL,
+|   `b` int(11) DEFAULT NULL WITHOUT SYSTEM VERSIONING
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci WITH SYSTEM VERSIONING
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT WITHOUT SYSTEM VERSIONING, b INT) WITH SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @@system_versioning_alter_history = KEEP
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `a` int(11) DEFAULT NULL
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `b` int(11) DEFAULT NULL WITHOUT SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL,
+|   `b` int(11) DEFAULT NULL WITHOUT SYSTEM VERSIONING
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci WITH SYSTEM VERSIONING
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (v INT INVISIBLE DEFAULT 0, z INT)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `v` int(11) INVISIBLE DEFAULT 0,
+|   `z` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (id INT, v INT DEFAULT (id + 1), z INT INVISIBLE)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `z` int(11) DEFAULT NULL
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `v` int(11) DEFAULT 0 INVISIBLE
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `id`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `v` int(11) INVISIBLE DEFAULT 0,
+|   `z` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (id INT, v INT DEFAULT (id + 1), z INT INVISIBLE)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `id` int(11) DEFAULT NULL,
+|   `v` int(11) DEFAULT (`id` + 1),
+|   `z` int(11) INVISIBLE DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (v INT INVISIBLE DEFAULT 0, z INT)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `id` int(11) DEFAULT NULL FIRST
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `v` int(11) DEFAULT (`id` + 1)
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `z` int(11) DEFAULT NULL INVISIBLE
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `id` int(11) DEFAULT NULL,
+|   `v` int(11) DEFAULT (`id` + 1),
+|   `z` int(11) INVISIBLE DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (b), UNIQUE KEY u (b) IGNORED)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) NOT NULL,
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`),
+|   UNIQUE KEY `u` (`b`) IGNORED
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (a), UNIQUE KEY u (b) IGNORED)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP PRIMARY KEY, ADD PRIMARY KEY (`b`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) NOT NULL,
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`),
+|   UNIQUE KEY `u` (`b`) IGNORED
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (a), UNIQUE KEY u (b) IGNORED)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) NOT NULL,
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`a`),
+|   UNIQUE KEY `u` (`b`) IGNORED
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (b), UNIQUE KEY u (b) IGNORED)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP PRIMARY KEY, ADD PRIMARY KEY (`a`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) NOT NULL,
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`a`),
+|   UNIQUE KEY `u` (`b`) IGNORED
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, id INT AUTO_INCREMENT, b INT, g INT AS (b + 1) VIRTUAL, KEY k (id, b))
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `id` int(11) NOT NULL AUTO_INCREMENT,
+|   `b` int(11) DEFAULT NULL,
+|   `g` int(11) GENERATED ALWAYS AS (`b` + 1) VIRTUAL,
+|   KEY `k` (`id`,`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `id` int(11) NOT NULL AUTO_INCREMENT, ADD COLUMN `b` int(11) DEFAULT NULL, ADD KEY `k` (`id`,`b`)
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `g` int(11) GENERATED ALWAYS AS (`b` + 1) VIRTUAL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `id` int(11) NOT NULL AUTO_INCREMENT,
+|   `b` int(11) DEFAULT NULL,
+|   `g` int(11) GENERATED ALWAYS AS (`b` + 1) VIRTUAL,
+|   KEY `k` (`id`,`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, id INT AUTO_INCREMENT, b INT, g INT AS (b + 1) VIRTUAL, KEY k (id, b))
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `g`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP INDEX `k`, DROP COLUMN `id`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `b`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, a INT AS (x) STORED) PARTITION BY HASH (a) PARTITIONS 2
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `a` int(11) GENERATED ALWAYS AS (`x`) STORED
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY HASH (`a`)
+| PARTITIONS 2
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, a INT) PARTITION BY HASH (a) PARTITIONS 2
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` REMOVE PARTITIONING
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `a`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `a` int(11) GENERATED ALWAYS AS (`x`) STORED
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t`  PARTITION BY HASH (`a`)
+| PARTITIONS 2
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `a` int(11) GENERATED ALWAYS AS (`x`) STORED
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY HASH (`a`)
+| PARTITIONS 2
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, a INT) PARTITION BY HASH (a) PARTITIONS 2
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `a` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY HASH (`a`)
+| PARTITIONS 2
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, a INT AS (x) STORED) PARTITION BY HASH (a) PARTITIONS 2
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` REMOVE PARTITIONING
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `a`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `a` int(11) DEFAULT NULL
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t`  PARTITION BY HASH (`a`)
+| PARTITIONS 2
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `a` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY HASH (`a`)
+| PARTITIONS 2
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (g INT NOT NULL, id INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (id, g)) ENGINE=InnoDB
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `g` int(11) NOT NULL,
+|   `id` int(11) NOT NULL AUTO_INCREMENT,
+|   PRIMARY KEY (`id`,`g`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (g INT NOT NULL, id INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (g, id)) ENGINE=MyISAM
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP PRIMARY KEY, ADD PRIMARY KEY (`id`,`g`), ENGINE=InnoDB
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `g` int(11) NOT NULL,
+|   `id` int(11) NOT NULL AUTO_INCREMENT,
+|   PRIMARY KEY (`id`,`g`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (g INT NOT NULL, id INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (g, id)) ENGINE=MyISAM
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `g` int(11) NOT NULL,
+|   `id` int(11) NOT NULL AUTO_INCREMENT,
+|   PRIMARY KEY (`g`,`id`)
+| ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (g INT NOT NULL, id INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (id, g)) ENGINE=InnoDB
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP PRIMARY KEY, ADD PRIMARY KEY (`g`,`id`), ENGINE=MyISAM
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `g` int(11) NOT NULL,
+|   `id` int(11) NOT NULL AUTO_INCREMENT,
+|   PRIMARY KEY (`g`,`id`)
+| ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE p (a VARCHAR(100), KEY kp (a))
+< ok 0 0
+> exec
+| CREATE TABLE ch (a VARCHAR(100), KEY short_key (a(10)), KEY replacement_key (a), CONSTRAINT f FOREIGN KEY (a) REFERENCES p (a))
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ch
+: bytes
+| BASE TABLE
+< row
+: bytes
+| p
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ch`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ch
+: bytes
+| CREATE TABLE `ch` (
+|   `a` varchar(100) DEFAULT NULL,
+|   KEY `short_key` (`a`(10)),
+|   KEY `replacement_key` (`a`),
+|   CONSTRAINT `f` FOREIGN KEY (`a`) REFERENCES `p` (`a`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE `p`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| p
+: bytes
+| CREATE TABLE `p` (
+|   `a` varchar(100) DEFAULT NULL,
+|   KEY `kp` (`a`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 2 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE p (a VARCHAR(100), KEY kp (a))
+< ok 0 0
+> exec
+| CREATE TABLE ch (a VARCHAR(100), KEY short_key (a(10)), KEY full_key (a), CONSTRAINT f FOREIGN KEY (a) REFERENCES p (a))
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`ch` DROP FOREIGN KEY `f`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`ch` DROP INDEX `full_key`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`ch` ADD KEY `replacement_key` (`a`)
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`ch` ADD CONSTRAINT `f` FOREIGN KEY (`a`) REFERENCES `p` (`a`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ch
+: bytes
+| BASE TABLE
+< row
+: bytes
+| p
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ch`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ch
+: bytes
+| CREATE TABLE `ch` (
+|   `a` varchar(100) DEFAULT NULL,
+|   KEY `short_key` (`a`(10)),
+|   KEY `replacement_key` (`a`),
+|   CONSTRAINT `f` FOREIGN KEY (`a`) REFERENCES `p` (`a`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE `p`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| p
+: bytes
+| CREATE TABLE `p` (
+|   `a` varchar(100) DEFAULT NULL,
+|   KEY `kp` (`a`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 2 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE p (a VARCHAR(100), KEY kp (a))
+< ok 0 0
+> exec
+| CREATE TABLE ch (a VARCHAR(100), KEY short_key (a(10)), KEY full_key (a), CONSTRAINT f FOREIGN KEY (a) REFERENCES p (a))
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ch
+: bytes
+| BASE TABLE
+< row
+: bytes
+| p
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ch`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ch
+: bytes
+| CREATE TABLE `ch` (
+|   `a` varchar(100) DEFAULT NULL,
+|   KEY `short_key` (`a`(10)),
+|   KEY `full_key` (`a`),
+|   CONSTRAINT `f` FOREIGN KEY (`a`) REFERENCES `p` (`a`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE `p`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| p
+: bytes
+| CREATE TABLE `p` (
+|   `a` varchar(100) DEFAULT NULL,
+|   KEY `kp` (`a`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 2 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE p (a VARCHAR(100), KEY kp (a))
+< ok 0 0
+> exec
+| CREATE TABLE ch (a VARCHAR(100), KEY short_key (a(10)), KEY replacement_key (a), CONSTRAINT f FOREIGN KEY (a) REFERENCES p (a))
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`ch` DROP FOREIGN KEY `f`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`ch` DROP INDEX `replacement_key`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`ch` ADD KEY `full_key` (`a`)
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`ch` ADD CONSTRAINT `f` FOREIGN KEY (`a`) REFERENCES `p` (`a`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ch
+: bytes
+| BASE TABLE
+< row
+: bytes
+| p
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ch`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ch
+: bytes
+| CREATE TABLE `ch` (
+|   `a` varchar(100) DEFAULT NULL,
+|   KEY `short_key` (`a`(10)),
+|   KEY `full_key` (`a`),
+|   CONSTRAINT `f` FOREIGN KEY (`a`) REFERENCES `p` (`a`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE `p`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| p
+: bytes
+| CREATE TABLE `p` (
+|   `a` varchar(100) DEFAULT NULL,
+|   KEY `kp` (`a`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 2 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT AS (1) STORED, b INT INVISIBLE)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) GENERATED ALWAYS AS (1) STORED,
+|   `b` int(11) INVISIBLE DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT, b INT INVISIBLE)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `a`, ADD COLUMN `a` int(11) GENERATED ALWAYS AS (1) STORED FIRST
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) GENERATED ALWAYS AS (1) STORED,
+|   `b` int(11) INVISIBLE DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT, b INT INVISIBLE)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL,
+|   `b` int(11) INVISIBLE DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT AS (1) STORED, b INT INVISIBLE)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `a`, ADD COLUMN `a` int(11) DEFAULT NULL FIRST
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL,
+|   `b` int(11) INVISIBLE DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT AS (1) STORED)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) GENERATED ALWAYS AS (1) STORED
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT AUTO_INCREMENT PRIMARY KEY)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP PRIMARY KEY, DROP COLUMN `a`, ADD COLUMN `a` int(11) GENERATED ALWAYS AS (1) STORED
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) GENERATED ALWAYS AS (1) STORED
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT AUTO_INCREMENT PRIMARY KEY)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) NOT NULL AUTO_INCREMENT,
+|   PRIMARY KEY (`a`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT AS (1) STORED)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `a`, ADD COLUMN `a` int(11) NOT NULL AUTO_INCREMENT, ADD PRIMARY KEY (`a`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) NOT NULL AUTO_INCREMENT,
+|   PRIMARY KEY (`a`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, id INT AUTO_INCREMENT, g1 INT AS (x + 1) VIRTUAL, g2 INT AS (g1 + 1) VIRTUAL, g3 INT AS (g2 + 1) VIRTUAL, KEY k (id, g2))
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `id` int(11) NOT NULL AUTO_INCREMENT,
+|   `g1` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL,
+|   `g2` int(11) GENERATED ALWAYS AS (`g1` + 1) VIRTUAL,
+|   `g3` int(11) GENERATED ALWAYS AS (`g2` + 1) VIRTUAL,
+|   KEY `k` (`id`,`g2`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `g1` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `id` int(11) NOT NULL AUTO_INCREMENT AFTER `x`, ADD COLUMN `g2` int(11) GENERATED ALWAYS AS (`g1` + 1) VIRTUAL, ADD KEY `k` (`id`,`g2`)
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `g3` int(11) GENERATED ALWAYS AS (`g2` + 1) VIRTUAL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `id` int(11) NOT NULL AUTO_INCREMENT,
+|   `g1` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL,
+|   `g2` int(11) GENERATED ALWAYS AS (`g1` + 1) VIRTUAL,
+|   `g3` int(11) GENERATED ALWAYS AS (`g2` + 1) VIRTUAL,
+|   KEY `k` (`id`,`g2`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, id INT AUTO_INCREMENT, g1 INT AS (x + 1) VIRTUAL, g2 INT AS (g1 + 1) VIRTUAL, g3 INT AS (g2 + 1) VIRTUAL, KEY k (id, g2))
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `g3`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP INDEX `k`, DROP COLUMN `id`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `g2`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `g1`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT)
+< ok 0 0
+> exec
+| CREATE TRIGGER z BEFORE INSERT ON t FOR EACH ROW SET NEW.x = NEW.x + 2
+< ok 0 0
+> exec
+| CREATE TRIGGER a BEFORE INSERT ON t FOR EACH ROW SET NEW.x = NEW.x * 2
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+< row
+: bytes
+| z
+: bytes
+| BEFORE
+| INSERT
+| t
+| 1
+| STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+| SET NEW.x = NEW.x + 2
+< row
+: bytes
+| a
+: bytes
+| BEFORE
+| INSERT
+| t
+| 2
+| STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+| SET NEW.x = NEW.x * 2
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT)
+< ok 0 0
+> exec
+| CREATE TRIGGER z BEFORE INSERT ON t FOR EACH ROW SET NEW.x = NEW.x + 1
+< ok 0 0
+> exec
+| CREATE TRIGGER a BEFORE INSERT ON t FOR EACH ROW SET NEW.x = NEW.x * 2
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| DROP TRIGGER `omni_testoracle_migrationconverges`.`z`
+< ok 0 0
+> exec
+| CREATE TRIGGER `omni_testoracle_migrationconverges`.`z` BEFORE INSERT ON `omni_testoracle_migrationconverges`.`t` FOR EACH ROW PRECEDES `a` SET NEW.x = NEW.x + 2
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+< row
+: bytes
+| z
+: bytes
+| BEFORE
+| INSERT
+| t
+| 1
+| STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+| SET NEW.x = NEW.x + 2
+< row
+: bytes
+| a
+: bytes
+| BEFORE
+| INSERT
+| t
+| 2
+| STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+| SET NEW.x = NEW.x * 2
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT)
+< ok 0 0
+> exec
+| CREATE TRIGGER z BEFORE INSERT ON t FOR EACH ROW SET NEW.x = NEW.x + 1
+< ok 0 0
+> exec
+| CREATE TRIGGER a BEFORE INSERT ON t FOR EACH ROW SET NEW.x = NEW.x * 2
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+< row
+: bytes
+| z
+: bytes
+| BEFORE
+| INSERT
+| t
+| 1
+| STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+| SET NEW.x = NEW.x + 1
+< row
+: bytes
+| a
+: bytes
+| BEFORE
+| INSERT
+| t
+| 2
+| STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+| SET NEW.x = NEW.x * 2
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT)
+< ok 0 0
+> exec
+| CREATE TRIGGER z BEFORE INSERT ON t FOR EACH ROW SET NEW.x = NEW.x + 2
+< ok 0 0
+> exec
+| CREATE TRIGGER a BEFORE INSERT ON t FOR EACH ROW SET NEW.x = NEW.x * 2
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| DROP TRIGGER `omni_testoracle_migrationconverges`.`z`
+< ok 0 0
+> exec
+| CREATE TRIGGER `omni_testoracle_migrationconverges`.`z` BEFORE INSERT ON `omni_testoracle_migrationconverges`.`t` FOR EACH ROW PRECEDES `a` SET NEW.x = NEW.x + 1
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+< row
+: bytes
+| z
+: bytes
+| BEFORE
+| INSERT
+| t
+| 1
+| STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+| SET NEW.x = NEW.x + 1
+< row
+: bytes
+| a
+: bytes
+| BEFORE
+| INSERT
+| t
+| 2
+| STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+| SET NEW.x = NEW.x * 2
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, id INT AUTO_INCREMENT, b INT, g INT AS (b + 1) VIRTUAL, KEY k (id, b))
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `id` int(11) NOT NULL AUTO_INCREMENT,
+|   `b` int(11) DEFAULT NULL,
+|   `g` int(11) GENERATED ALWAYS AS (`b` + 1) VIRTUAL,
+|   KEY `k` (`id`,`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, g INT AS (x + 1) VIRTUAL)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `id` int(11) NOT NULL AUTO_INCREMENT AFTER `x`, ADD COLUMN `b` int(11) DEFAULT NULL AFTER `id`, ADD KEY `k` (`id`,`b`)
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `g` int(11) GENERATED ALWAYS AS (`b` + 1) VIRTUAL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `id` int(11) NOT NULL AUTO_INCREMENT,
+|   `b` int(11) DEFAULT NULL,
+|   `g` int(11) GENERATED ALWAYS AS (`b` + 1) VIRTUAL,
+|   KEY `k` (`id`,`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, g INT AS (x + 1) VIRTUAL)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `g` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, id INT AUTO_INCREMENT, b INT, g INT AS (b + 1) VIRTUAL, KEY k (id, b))
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP INDEX `k`, DROP COLUMN `id`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `g` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `b`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `g` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, b INT WITHOUT SYSTEM VERSIONING) WITH SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `b` int(11) DEFAULT NULL WITHOUT SYSTEM VERSIONING
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci WITH SYSTEM VERSIONING
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, b INT AS (x + 1) VIRTUAL)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @@system_versioning_alter_history = KEEP
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `b`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `b` int(11) DEFAULT NULL
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD SYSTEM VERSIONING
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `b` int(11) DEFAULT NULL WITHOUT SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `b` int(11) DEFAULT NULL WITHOUT SYSTEM VERSIONING
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci WITH SYSTEM VERSIONING
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, b INT AS (x + 1) VIRTUAL)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `b` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, b INT WITHOUT SYSTEM VERSIONING) WITH SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @@system_versioning_alter_history = KEEP
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP SYSTEM VERSIONING
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `b`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `b` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `b` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a VARCHAR(10)) PARTITION BY KEY (a) PARTITIONS 2
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` varchar(10) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY KEY (`a`)
+| PARTITIONS 2
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT) PARTITION BY HASH (a) PARTITIONS 2
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` REMOVE PARTITIONING
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `a` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci DEFAULT NULL
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t`  PARTITION BY KEY (`a`)
+| PARTITIONS 2
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` varchar(10) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY KEY (`a`)
+| PARTITIONS 2
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT) PARTITION BY HASH (a) PARTITIONS 2
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY HASH (`a`)
+| PARTITIONS 2
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a VARCHAR(10)) PARTITION BY KEY (a) PARTITIONS 2
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` REMOVE PARTITIONING
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `a` int(11) DEFAULT NULL
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t`  PARTITION BY HASH (`a`)
+| PARTITIONS 2
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY HASH (`a`)
+| PARTITIONS 2
 > query
 | SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
 < result
