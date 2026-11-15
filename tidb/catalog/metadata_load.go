@@ -379,7 +379,7 @@ func metadataTableStmt(t *metadata.TableMetadata, snapshotDatabase string) (stmt
 		{"ENGINE", t.GetEngine()},
 		{"CHARSET", t.GetCharset()},
 		{"COLLATE", t.GetCollation()},
-		{"COMMENT", t.GetComment()},
+		{"COMMENT", syncedComment(t.GetComment())},
 		{"SHARD_ROW_ID_BITS", shardRowIDBits(t.GetShardingInfo())},
 	} {
 		if opt.value != "" {
@@ -433,7 +433,7 @@ func metadataColumnDef(col *metadata.ColumnMetadata) (def *nodes.ColumnDef, omit
 	if typeName.Collate == "" {
 		typeName.Collate = col.GetCollation()
 	}
-	def = &nodes.ColumnDef{Name: col.GetName(), TypeName: typeName, Comment: col.GetComment()}
+	def = &nodes.ColumnDef{Name: col.GetName(), TypeName: typeName, Comment: syncedComment(col.GetComment())}
 	if !col.GetNullable() {
 		def.Constraints = append(def.Constraints, &nodes.ColumnConstraint{Type: nodes.ColConstrNotNull})
 	}
@@ -895,6 +895,32 @@ func parseTypeName(typ string) (*nodes.DataType, error) {
 		return nil, fmt.Errorf("type %q: no type parsed", typ)
 	}
 	return stmt.Columns[0].TypeName, nil
+}
+
+// syncedComment is a table's or column's comment as sync records it: escaped
+// by QUOTE(), which writes a backslash before a backslash and a quote, NUL as
+// \0 and Ctrl-Z as \Z, without the quotes around it.
+func syncedComment(s string) string {
+	if !strings.Contains(s, `\`) {
+		return s
+	}
+	var b strings.Builder
+	for i := 0; i < len(s); i++ {
+		if s[i] != '\\' || i+1 == len(s) {
+			b.WriteByte(s[i])
+			continue
+		}
+		i++
+		switch s[i] {
+		case '0':
+			b.WriteByte(0)
+		case 'Z':
+			b.WriteByte(26)
+		default:
+			b.WriteByte(s[i])
+		}
+	}
+	return b.String()
 }
 
 // parseExpr parses a default, ON UPDATE, generation, or CHECK expression.
