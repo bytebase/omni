@@ -71,7 +71,7 @@ func addIndexOpsForNewTable(entry *TableDiffEntry, n *Normalizer) []MigrationOp 
 // indexOpsForModifiedTable emits ADD / DROP / (DROP+ADD) ops from the per-index diff of a
 // modified table.
 func indexOpsForModifiedTable(entry *TableDiffEntry, n *Normalizer) []MigrationOp {
-	if entry.To == nil || len(entry.Indexes) == 0 {
+	if entry.To == nil {
 		return nil
 	}
 	table := tableIdent(entry.To)
@@ -146,46 +146,69 @@ func ignoredKeysToRelease(entry *TableDiffEntry) []*Index {
 			changed[toLower(ie.To.Name)] = true
 		}
 	}
-	// The intermediate state: a column is NOT NULL if it is in either schema, so a
-	// nullability change in either direction that makes an IGNORED key eligible is
-	// seen, with the source keys that survive. A primary key the plan adds or drops
-	// — which would otherwise protect the ignored one — is absent.
-	intermediate := *entry.To
-	intermediate.Columns = worstCaseNullability(entry.From, entry.To)
-	intermediate.Indexes = nil
-	for _, idx := range entry.From.Indexes {
-		if !removed[toLower(idx.Name)] {
-			intermediate.Indexes = append(intermediate.Indexes, idx)
+	// A column can be NOT NULL at some step if it is NOT NULL in either schema.
+	everNotNull := make(map[string]bool)
+	for _, t := range []*Table{entry.From, entry.To} {
+		for _, c := range t.Columns {
+			if !c.Nullable {
+				everNotNull[toLower(c.Name)] = true
+			}
 		}
 	}
-	if validateIgnoredPrimaryKey(&intermediate, false) == nil {
-		return nil
+	// The source keys that survive the drops: a key the plan adds or drops outright
+	// — which would otherwise protect the ignored one — is absent.
+	var surviving []*Index
+	for _, idx := range entry.From.Indexes {
+		if !removed[toLower(idx.Name)] {
+			surviving = append(surviving, idx)
+		}
 	}
 	var release []*Index
-	for _, idx := range intermediate.Indexes {
+	for _, idx := range surviving {
 		if idx.Primary || idx.Visible || !idx.Unique || changed[toLower(idx.Name)] {
 			continue
 		}
-		if target := tableIndexByName(entry.To, idx.Name); target != nil {
-			release = append(release, target)
+		// This ignored key can become eligible only if all its columns can be NOT
+		// NULL; test the worst step: its columns NOT NULL while the others keep
+		// their source nullability, so a protector that needs a target-only NOT
+		// NULL column is not yet eligible. If the ignored key is then the sole
+		// implicit-primary-key candidate, release it.
+		if !keyColumnsEverNotNull(idx, everNotNull) {
+			continue
+		}
+		if isolatedIgnoredPromotion(entry.From, surviving, idx) {
+			if target := tableIndexByName(entry.To, idx.Name); target != nil {
+				release = append(release, target)
+			}
 		}
 	}
 	return release
 }
 
-// worstCaseNullability returns to's columns with each one marked NOT NULL if it is
-// NOT NULL in either from or to, the state an IGNORED key is most likely eligible in
-// at some point during the migration.
-func worstCaseNullability(from, to *Table) []*Column {
-	notNull := make(map[string]bool)
-	for _, c := range from.Columns {
-		if !c.Nullable {
-			notNull[toLower(c.Name)] = true
+// keyColumnsEverNotNull reports whether every plain column of idx is NOT NULL in at
+// least one schema.
+func keyColumnsEverNotNull(idx *Index, everNotNull map[string]bool) bool {
+	for _, kc := range idx.Columns {
+		if kc.Expr == "" && !everNotNull[toLower(kc.Name)] {
+			return false
 		}
 	}
-	cols := make([]*Column, len(to.Columns))
-	for i, c := range to.Columns {
-		if c.Nullable && notNull[toLower(c.Name)] {
+	return true
+}
+
+// isolatedIgnoredPromotion reports whether, with only u's columns forced NOT NULL
+// and every other column at its source nullability, u is the first eligible implicit
+// primary key over source keys that survive — i.e. an ordering of the column changes
+// exposes it (4174).
+func isolatedIgnoredPromotion(from *Table, surviving []*Index, u *Index) bool {
+	uCols := make(map[string]bool)
+	for _, kc := range u.Columns {
+		uCols[toLower(kc.Name)] = true
+	}
+	inter := *from
+	cols := make([]*Column, len(from.Columns))
+	for i, c := range from.Columns {
+		if c.Nullable && uCols[toLower(c.Name)] {
 			clone := *c
 			clone.Nullable = false
 			cols[i] = &clone
@@ -193,7 +216,9 @@ func worstCaseNullability(from, to *Table) []*Column {
 		}
 		cols[i] = c
 	}
-	return cols
+	inter.Columns = cols
+	inter.Indexes = surviving
+	return validateIgnoredPrimaryKey(&inter, false) != nil
 }
 
 // addIndexOp builds an ALTER TABLE ... ADD <index> op.

@@ -196,6 +196,7 @@ var diffPairs = []struct{ name, a, b string }{
 	{"last column is both last visible and last versioned", "CREATE TABLE t (a INT, b INT INVISIBLE WITHOUT SYSTEM VERSIONING) WITH SYSTEM VERSIONING", "CREATE TABLE t (b INT INVISIBLE, c INT WITHOUT SYSTEM VERSIONING) WITH SYSTEM VERSIONING"},
 	{"replace the only column with a generated one reading an invisible add", "CREATE TABLE t (a INT)", "CREATE TABLE t (a INT AS(b+1) STORED, b INT INVISIBLE)"},
 	{"not null change promotes an ignored key before the new primary key", "CREATE TABLE t (a INT, b INT NOT NULL, UNIQUE KEY u (a) IGNORED)", "CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (b), UNIQUE KEY u (a) IGNORED)"},
+	{"column-only not null change promotes an ignored key", "CREATE TABLE t (a INT, z INT, UNIQUE KEY v (z), UNIQUE KEY u (a) IGNORED)", "CREATE TABLE t (a INT NOT NULL, z INT NOT NULL, UNIQUE KEY v (z), UNIQUE KEY u (a) IGNORED)"},
 	{"timestamps without defaults", "CREATE TABLE x (i INT)", "CREATE TABLE x (i INT, ts TIMESTAMP NOT NULL); CREATE TABLE t (u TIMESTAMP NOT NULL)"},
 	{"sequence limits leaving out the start", "CREATE SEQUENCE s", "CREATE SEQUENCE s START WITH 100 MINVALUE 10"},
 }
