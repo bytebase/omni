@@ -875,23 +875,20 @@ func (e *querySpanExtractor) resolveVar(queryStack []*catalog.Query, v *catalog.
 		}
 
 	case catalog.RTEFunction:
-		// Trace lineage through user-defined function body.
+		// An output reads the call's arguments, as jsonb_each(a) reads a, and
+		// for a user function also what its body returns there. The body's
+		// parameters carry no lineage, so the arguments stand in for them.
 		if len(rte.FuncExprs) > 0 {
 			if fc, ok := rte.FuncExprs[0].(*catalog.FuncCallExpr); ok {
-				if procs := e.userProcsCalled(fc); len(procs) > 0 {
-					for _, proc := range procs {
-						bodySets := e.analyzeFunctionBody(proc)
-						if colIdx >= 0 && colIdx < len(bodySets) {
-							for k, val := range bodySets[colIdx] {
-								result[k] = val
-							}
+				for _, arg := range fc.Args {
+					e.walkExprWithVisited(effectiveStack, arg, result, visited)
+				}
+				for _, proc := range e.userProcsCalled(fc) {
+					bodySets := e.analyzeFunctionBody(proc)
+					if colIdx >= 0 && colIdx < len(bodySets) {
+						for k, val := range bodySets[colIdx] {
+							result[k] = val
 						}
-					}
-				} else {
-					// Built-in function (no user proc) — trace lineage through
-					// the function's arguments. E.g., jsonb_each(a) depends on column a.
-					for _, arg := range fc.Args {
-						e.walkExprWithVisited(effectiveStack, arg, result, visited)
 					}
 				}
 			}
@@ -1401,12 +1398,14 @@ func (e *querySpanExtractor) extractColumnsFromRangeFunction(rf *ast.RangeFuncti
 						SourceColumns: colSet,
 					})
 				}
+				e.enrichFuncResultsWithArgLineage(rf, analyzer, fromTables, results)
 				return results
 			}
 		}
 		// Catalog lookup failed — try metadata (for RETURNS TABLE functions).
 		dummyAccesses := make(ColumnSet)
 		if metaResults := e.tryMetadataFuncLookup(funcName, dummyAccesses); metaResults != nil {
+			e.enrichFuncResultsWithArgLineage(rf, analyzer, fromTables, metaResults)
 			return metaResults
 		}
 	}
@@ -1528,6 +1527,9 @@ func (e *querySpanExtractor) tryUserFuncTableSource(selStmt *ast.SelectStmt, acc
 		return nil
 	}
 
+	analyzer := &plpgsqlAnalyzer{extractor: e, scope: newVariableScope(nil)}
+	fromTables := analyzer.collectFromTables(selStmt)
+
 	// Look for a single RangeFunction in the FROM clause.
 	for _, item := range selStmt.FromClause.Items {
 		rf, ok := item.(*ast.RangeFunction)
@@ -1550,12 +1552,15 @@ func (e *querySpanExtractor) tryUserFuncTableSource(selStmt *ast.SelectStmt, acc
 				continue
 			}
 			bodySets := e.analyzeFunctionBody(proc)
-			return e.buildFuncResults(outNames, bodySets, accessesMap)
+			results := e.buildFuncResults(outNames, bodySets, accessesMap)
+			e.enrichFuncResultsWithArgLineage(rf, analyzer, fromTables, results)
+			return results
 		}
 
 		// Catalog lookup failed — try metadata. This handles cases where
 		// the metadata function name differs from the name in the DDL definition.
 		if results := e.tryMetadataFuncLookup(funcName, accessesMap); results != nil {
+			e.enrichFuncResultsWithArgLineage(rf, analyzer, fromTables, results)
 			return results
 		}
 	}
