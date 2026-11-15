@@ -462,6 +462,42 @@
 | CREATE SEQUENCE s
 < ok 0 0
 > exec
+| CREATE TABLE t (a INT)
+< ok 0 0
+> exec
+| ALTER TABLE t RENAME TO s
+< error
+| 1050 42S01 Table 's' already exists
+> exec
+| CREATE VIEW v AS SELECT 1
+< ok 0 0
+> exec
+| ALTER TABLE t RENAME TO v
+< error
+| 1050 42S01 Table 'v' already exists
+> exec
+| DROP TABLE s
+< ok 0 0
+> exec
+| ALTER TABLE t RENAME TO s
+< ok 0 0
+> exec
+| DROP SEQUENCE s
+< error
+| 4090 42S02 'omni_testoracle_sequences.s' is not a SEQUENCE
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_sequences`
+< ok 2 0
+> exec
+| CREATE DATABASE `omni_testoracle_sequences`
+< ok 1 0
+> exec
+| USE `omni_testoracle_sequences`
+< ok 0 0
+> exec
+| CREATE SEQUENCE s
+< ok 0 0
+> exec
 | CREATE OR REPLACE SEQUENCE s START WITH 7
 < ok 0 0
 > exec
