@@ -96,7 +96,11 @@ func orderGeneratedDrops(ops []MigrationOp, e *TableDiffEntry) []MigrationOp {
 
 func dropColumnsAfterGeneratedReads(ops []MigrationOp, e *TableDiffEntry) []MigrationOp {
 	read := make(map[string]bool)
+	removed := make(map[string]bool)
 	for _, ce := range e.Columns {
+		if ce.Action == DiffDrop {
+			removed[toLower(ce.Name)] = true
+		}
 		if ce.Action == DiffModify && ce.From != nil && ce.From.Generated != nil {
 			for _, ref := range ce.From.Generated.Refs {
 				read[toLower(ref)] = true
@@ -106,8 +110,10 @@ func dropColumnsAfterGeneratedReads(ops []MigrationOp, e *TableDiffEntry) []Migr
 	if len(read) == 0 {
 		return ops
 	}
+	// Only a column the plan removes for good: a replaced one drops ahead of
+	// its own add (see replacedColumns).
 	for i := range ops {
-		if ops[i].Type == OpDropColumn && opOfTable(ops[i], e) && read[ops[i].column] {
+		if ops[i].Type == OpDropColumn && opOfTable(ops[i], e) && read[ops[i].column] && removed[ops[i].column] {
 			// After every modify, modifyGeneratedAfterAddedReads's included.
 			ops[i].Phase, ops[i].Priority = PhaseMain, priorityColumn+3
 		}
@@ -176,15 +182,18 @@ func indexOverPeriod(idx *Index, period string) bool {
 }
 
 // replacedColumns returns the columns the plan drops and adds again: those
-// that flip between VIRTUAL, STORED and plain, and the kept generated columns
-// that read one, directly or through another, which MariaDB will not leave
-// reading a dropped column (1054, 4029). Each maps to its depth, 0 for a
-// flipped column and n for a reader n steps from one.
+// that flip between VIRTUAL, STORED and plain, and the generated columns, kept
+// or modified, whose definition in from reads one, directly or through
+// another, which MariaDB will not leave reading a dropped column (1054, 4029).
+// Each maps to its depth, 0 for a flipped column and n for a reader n steps
+// from one.
 func replacedColumns(e *TableDiffEntry) map[string]int {
 	gone := make(map[string]int)
 	changed := make(map[string]bool)
 	for _, ce := range e.Columns {
-		changed[toLower(ce.Name)] = true
+		if ce.Action != DiffModify {
+			changed[toLower(ce.Name)] = true
+		}
 		if ce.Action == DiffModify && generatedShapeChanged(ce.From, ce.To) {
 			gone[toLower(ce.Name)] = 0
 		}
@@ -210,14 +219,19 @@ func replacedColumns(e *TableDiffEntry) map[string]int {
 	return gone
 }
 
-// rebuildReadersOfReplacedColumns drops the kept generated columns and table
+// rebuildReadersOfReplacedColumns drops the generated columns and kept table
 // checks that read a replaced column ahead of it, and adds them again after
-// it, deeper readers dropped first and added last.
+// it, deeper readers dropped first and added last. A modified reader is
+// added with its new definition in place of its MODIFY.
 func rebuildReadersOfReplacedColumns(ops []MigrationOp, e *TableDiffEntry, n *Normalizer) []MigrationOp {
 	gone := replacedColumns(e)
 	if len(gone) == 0 {
 		return ops
 	}
+	ops = slices.DeleteFunc(ops, func(op MigrationOp) bool {
+		d, ok := gone[op.column]
+		return ok && d > 0 && op.Type == OpModifyColumn && opOfTable(op, e)
+	})
 	table := tableIdent(e.To)
 	maxDepth := 0
 	for _, d := range gone {

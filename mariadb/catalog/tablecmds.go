@@ -2137,6 +2137,12 @@ func validateKeyPartPrefixes(cols []*nodes.IndexColumn, spatial bool) error {
 }
 
 func validateIndexColumns(tbl *Table, idxCols []*IndexColumn, fulltext, spatial bool) error {
+	return validateKeyParts(tbl, idxCols, fulltext, spatial, false)
+}
+
+// validateKeyParts is validateIndexColumns, where wholeTextBlob lets a BLOB or
+// TEXT part go without a length, as a long unique key's does.
+func validateKeyParts(tbl *Table, idxCols []*IndexColumn, fulltext, spatial, wholeTextBlob bool) error {
 	for _, ic := range idxCols {
 		if ic.Name == "" {
 			continue
@@ -2167,7 +2173,7 @@ func validateIndexColumns(tbl *Table, idxCols []*IndexColumn, fulltext, spatial 
 			}
 			continue
 		}
-		if !fulltext && isTextBlobType(col.DataType) && ic.Length == 0 {
+		if !fulltext && !wholeTextBlob && isTextBlobType(col.DataType) && ic.Length == 0 {
 			return &Error{Code: 1170, SQLState: "42000", Message: "BLOB/TEXT column used in key specification without a key length"}
 		}
 		if ic.Length > 0 {
@@ -2215,15 +2221,12 @@ func longUniqueIndexType(col *Column) string {
 // Measured on mariadb:11.8.8: `UNIQUE KEY (a)` over `a TEXT` is written
 // UNIQUE KEY `a` (`a`) USING HASH, while a PRIMARY KEY over it is still 1170.
 func validateUniqueIndexColumns(tbl *Table, cols []*IndexColumn) (long bool, err error) {
-	var checked []*IndexColumn
 	for _, ic := range cols {
 		if col := tbl.GetColumn(ic.Name); ic.Name != "" && col != nil && isTextBlobType(col.DataType) && ic.Length == 0 {
 			long = true
-			continue
 		}
-		checked = append(checked, ic)
 	}
-	return long, validateIndexColumns(tbl, checked, false, false)
+	return long, validateKeyParts(tbl, cols, false, false, true)
 }
 
 func constraintNameExistsInTable(tbl *Table, typ ConstraintType, name string) bool {
