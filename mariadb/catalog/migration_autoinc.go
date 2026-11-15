@@ -363,6 +363,14 @@ func (m *aiMerger) mergeAddHazard(entry *TableDiffEntry, roles *tableOpRoles, fr
 		}
 	}
 
+	// An add that runs ahead of the drops (dropLastColumnsAfterAdds) takes
+	// the previous auto column's drop with it: a table holds one auto column.
+	if fromAI != "" && fromAI != toAI && m.ops[target].Phase == PhasePre {
+		if di, ok := roles.colDrop[fromAI]; ok && !m.consumed[di] && di != target {
+			m.mergeInto(target, true, di)
+		}
+	}
+
 	if m.addSideCovered(entry, roles, toAI, target) {
 		return
 	}

@@ -77,9 +77,13 @@ func generateVersioningDDL(diff *SchemaDiff, n *Normalizer) []MigrationOp {
 			clauses := []string{"DROP SYSTEM VERSIONING"}
 			// A ROW START or ROW END column kept as a plain one is dropped
 			// here and added again by the column generator.
-			for _, ce := range e.Columns {
-				if (ce.Action == DiffDrop || ce.Action == DiffModify && generatedShapeChanged(ce.From, ce.To)) && ce.From != nil && droppedWithVersioning(e, ce.From) {
-					clauses = append(clauses, "DROP COLUMN "+backtickIDQ(ce.From.Name))
+			// A replaced period takes both of its columns, the one kept as it
+			// is too.
+			for _, col := range from.Columns {
+				ce := columnEntry(e, toLower(col.Name))
+				changed := ce != nil && (ce.Action == DiffDrop || ce.Action == DiffModify && generatedShapeChanged(ce.From, ce.To))
+				if (changed || replaced && ce == nil) && droppedWithVersioning(e, col) {
+					clauses = append(clauses, "DROP COLUMN "+backtickIDQ(col.Name))
 				}
 			}
 			op(fmt.Sprintf("ALTER TABLE %s %s", table, strings.Join(clauses, ", ")), PhasePre, priorityVersioningDrop)
@@ -116,7 +120,7 @@ func generateVersioningDDL(diff *SchemaDiff, n *Normalizer) []MigrationOp {
 						verb = "MODIFY"
 					}
 					attributed = append(attributed, verb+" COLUMN "+formatColumnDefinition(to, col, n))
-				case added[name]:
+				case added[name] || replaced && columnEntry(e, toLower(col.Name)) == nil:
 					clauses = append(clauses, "ADD COLUMN "+formatColumnDefinition(to, col, n))
 				}
 			}

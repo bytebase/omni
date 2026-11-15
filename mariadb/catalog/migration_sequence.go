@@ -6,11 +6,16 @@ import (
 	"strings"
 )
 
-// Sequences are created ahead of tables, since CREATE TABLE refuses a default
-// that reads a sequence it cannot find (1146), and dropped after them.
+// A sequence is created ahead of everything that may read one and dropped
+// after the column drops that may stop reading it: CREATE TABLE and ALTER
+// TABLE refuse a default that reads a sequence they cannot find (1146), an ADD
+// COLUMN that runs ahead of the drops (dropLastColumnsAfterAdds) included. A
+// sequence the plan keeps is altered with the tables. A table and a sequence
+// of one name trade it after the table drops and before the table creates.
 const (
-	prioritySequence     = priorityTable - 5
-	prioritySequenceDrop = priorityTable + 1
+	prioritySequence       = priorityTable - 5
+	prioritySequenceCreate = priorityTable + 2
+	prioritySequenceDrop   = priorityColumn + 5
 )
 
 func generateSequenceDDL(diff *SchemaDiff) []MigrationOp {
@@ -21,8 +26,8 @@ func generateSequenceDDL(diff *SchemaDiff) []MigrationOp {
 			ops = append(ops, MigrationOp{
 				Type: OpCreateSequence, Database: e.Database, ObjectName: e.Name,
 				SQL:      createSequenceSQL(e.To),
-				Phase:    PhaseMain,
-				Priority: prioritySequence,
+				Phase:    PhasePre,
+				Priority: prioritySequenceCreate,
 				sortName: e.Database + "." + toLower(e.Name),
 			})
 		case DiffDrop:
