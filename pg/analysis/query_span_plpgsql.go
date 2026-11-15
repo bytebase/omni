@@ -323,6 +323,17 @@ type plpgsqlAnalyzer struct {
 	// search path for them. Reset per fallback statement; nested subquery
 	// collection during one statement accumulates into the same scope.
 	qualifiedFrom map[string]bool
+	// fromItems maps a FROM name whose columns are not its table's, the
+	// alias of a subquery or a join or a table alias with a column list, to
+	// that FROM item. It is scoped as qualifiedFrom is.
+	fromItems map[string]fromItem
+}
+
+// fromItem is a FROM item and the tables of the query whose FROM holds it,
+// which a LATERAL subquery reads.
+type fromItem struct {
+	node   ast.Node
+	tables map[string]ColumnResource
 }
 
 type cteResolveKey struct {
@@ -1046,6 +1057,7 @@ func (a *plpgsqlAnalyzer) fallbackExtractLineage(origSQL string, selStmt *ast.Se
 	// markers are scoped to this statement — a previous fallback query's
 	// qualified FROM must not pin a later query's unqualified reference.
 	a.qualifiedFrom = make(map[string]bool)
+	a.fromItems = make(map[string]fromItem)
 	fromTables := a.collectFromTables(selStmt)
 
 	var results []ColumnSet
@@ -1115,13 +1127,255 @@ func (a *plpgsqlAnalyzer) collectFromTables(selStmt *ast.SelectStmt) map[string]
 // function reinstates the caller's scope; the returned map is the nested
 // scope for selective exports.
 func (a *plpgsqlAnalyzer) pushMarkerScope() (func(), map[string]bool) {
-	outer := a.qualifiedFrom
+	outer, outerItems := a.qualifiedFrom, a.fromItems
 	nested := make(map[string]bool, len(outer))
 	for k, v := range outer {
 		nested[k] = v
 	}
 	a.qualifiedFrom = nested
-	return func() { a.qualifiedFrom = outer }, nested
+	a.fromItems = maps.Clone(outerItems)
+	return func() { a.qualifiedFrom, a.fromItems = outer, outerItems }, nested
+}
+
+// setFromItem records the FROM item a name refers to when its columns are
+// not its table's, and forgets any outer item of that name otherwise.
+func (a *plpgsqlAnalyzer) setFromItem(name string, item ast.Node, tables map[string]ColumnResource) {
+	if a.fromItems == nil {
+		a.fromItems = make(map[string]fromItem)
+	}
+	if item == nil {
+		delete(a.fromItems, name)
+		return
+	}
+	a.fromItems[name] = fromItem{node: item, tables: tables}
+}
+
+// fromItemColumns returns the columns of a subquery, a join or a table with
+// an alias column list, named as the query sees them, with what each reads.
+// fromTables are the tables of the query the item is in, which a LATERAL
+// subquery can reference.
+func (a *plpgsqlAnalyzer) fromItemColumns(item ast.Node, fromTables map[string]ColumnResource) []QuerySpanResult {
+	cache := &a.extractor.fromColumns
+	if columns, ok := (*cache)[item]; ok {
+		return cloneResults(columns)
+	}
+	if *cache == nil {
+		*cache = make(map[ast.Node][]QuerySpanResult)
+	}
+	(*cache)[item] = nil
+
+	var columns []QuerySpanResult
+	var alias *ast.Alias
+	switch v := item.(type) {
+	case *ast.RangeVar:
+		columns, alias = a.extractor.extractColumnsFromRangeVar(v), v.Alias
+	case *ast.RangeSubselect:
+		// Only a LATERAL subquery sees the other items of its FROM.
+		var outer map[string]ColumnResource
+		if v.Lateral {
+			outer = fromTables
+		}
+		if sel, ok := v.Subquery.(*ast.SelectStmt); ok {
+			columns = a.selectOutputColumns(sel, outer)
+		}
+		alias = v.Alias
+	case *ast.JoinExpr:
+		columns, alias = a.extractor.extractColumnsFromFromItem(v, a, fromTables), v.Alias
+	default:
+	}
+	// pg: src/backend/parser/parse_relation.c — buildRelationAliases
+	if alias != nil {
+		for i, name := range astStrings(alias.Colnames) {
+			if i < len(columns) {
+				columns[i].Name = name
+			}
+		}
+	}
+	(*cache)[item] = columns
+	return cloneResults(columns)
+}
+
+func cloneResults(results []QuerySpanResult) []QuerySpanResult {
+	clones := slices.Clone(results)
+	for i := range clones {
+		clones[i].SourceColumns = maps.Clone(clones[i].SourceColumns)
+	}
+	return clones
+}
+
+// selectOutputColumns returns the output columns of a query in FROM, with
+// what each reads.
+func (a *plpgsqlAnalyzer) selectOutputColumns(sel *ast.SelectStmt, outerTables map[string]ColumnResource) []QuerySpanResult {
+	if sel == nil {
+		return nil
+	}
+	if sel.Op != ast.SETOP_NONE {
+		// A set operation's columns are named by its first branch and read
+		// what every branch puts in that position, except that EXCEPT
+		// returns only its left branch's rows.
+		columns := a.selectOutputColumns(sel.Larg, outerTables)
+		if sel.Op == ast.SETOP_EXCEPT {
+			return columns
+		}
+		for i, column := range a.selectOutputColumns(sel.Rarg, outerTables) {
+			if i < len(columns) {
+				maps.Copy(columns[i].SourceColumns, column.SourceColumns)
+			}
+		}
+		return columns
+	}
+	if sel.TargetList == nil {
+		return nil
+	}
+	restore, _ := a.pushMarkerScope()
+	defer restore()
+	defer a.pushCTEs(sel)()
+	if outerTables == nil {
+		a.fromItems = make(map[string]fromItem)
+	}
+	tables := a.collectFromTables(sel)
+	for k, v := range outerTables {
+		if _, exists := tables[k]; !exists {
+			tables[k] = v
+		}
+	}
+	var columns []QuerySpanResult
+	for _, item := range sel.TargetList.Items {
+		rt, ok := item.(*ast.ResTarget)
+		if !ok {
+			continue
+		}
+		if isStarTarget(rt) {
+			columns = append(columns, a.starColumns(sel, starTableName(rt), tables)...)
+			continue
+		}
+		name := rt.Name
+		if name == "" {
+			name = figureResTargetName(rt)
+		}
+		if name == "" {
+			name = "?column?"
+		}
+		sources := make(ColumnSet)
+		a.extractColumnRefsFromExpr(rt.Val, tables, sources)
+		columns = append(columns, QuerySpanResult{Name: name, SourceColumns: sources})
+	}
+	return columns
+}
+
+// starColumns returns the columns * expands to in sel, or those of the FROM
+// item named table for table.*.
+func (a *plpgsqlAnalyzer) starColumns(sel *ast.SelectStmt, table string, tables map[string]ColumnResource) []QuerySpanResult {
+	if sel.FromClause == nil {
+		return nil
+	}
+	var columns []QuerySpanResult
+	var expand func(node ast.Node)
+	expand = func(node ast.Node) {
+		if table == "" || fromItemName(node) == table {
+			columns = append(columns, a.extractor.extractColumnsFromFromItem(node, a, tables)...)
+			return
+		}
+		if join, ok := node.(*ast.JoinExpr); ok {
+			expand(join.Larg)
+			expand(join.Rarg)
+		}
+	}
+	for _, item := range sel.FromClause.Items {
+		expand(item)
+	}
+	return columns
+}
+
+// fromItemName is the name a query refers to a FROM item by.
+func fromItemName(node ast.Node) string {
+	switch v := node.(type) {
+	case *ast.RangeVar:
+		if v.Alias != nil && v.Alias.Aliasname != "" {
+			return v.Alias.Aliasname
+		}
+		return v.Relname
+	case *ast.RangeSubselect:
+		if v.Alias != nil {
+			return v.Alias.Aliasname
+		}
+	case *ast.RangeFunction:
+		if v.Alias != nil {
+			return v.Alias.Aliasname
+		}
+	case *ast.JoinExpr:
+		if v.Alias != nil {
+			return v.Alias.Aliasname
+		}
+	default:
+	}
+	return ""
+}
+
+// fromItemColumn adds what the column named colName of a FROM item reads.
+// It reports whether the item has such a column. Names compare exactly: the
+// parser has folded unquoted names already.
+func (a *plpgsqlAnalyzer) fromItemColumn(item fromItem, colName string, result ColumnSet) bool {
+	found := false
+	for _, column := range a.fromItemColumns(item.node, item.tables) {
+		if column.Name == colName {
+			maps.Copy(result, column.SourceColumns)
+			found = true
+			break
+		}
+	}
+	// Outputs resolved from the parse tree can miss what an expression
+	// reads, so a subquery's column also reads its tables' columns of that
+	// name, as a failsafe: what the fallback reported before it resolved
+	// outputs.
+	if rs, ok := item.node.(*ast.RangeSubselect); ok {
+		if sel, ok := rs.Subquery.(*ast.SelectStmt); ok {
+			before := len(result)
+			a.innerColumnsNamed(sel, colName, result)
+			found = found || len(result) > before
+		}
+	}
+	return found
+}
+
+// pushCTEs makes the CTEs of sel's WITH clause visible to the fallback
+// until the returned function restores the enclosing ones.
+func (a *plpgsqlAnalyzer) pushCTEs(sel *ast.SelectStmt) func() {
+	local := collectCTEDefinitions(sel)
+	if len(local) == 0 {
+		return func() {}
+	}
+	outer, outerFallback := a.cteMap, a.extractor.fallbackCTEMap
+	a.cteMap = maps.Clone(outer)
+	a.extractor.fallbackCTEMap = maps.Clone(outerFallback)
+	if a.cteMap == nil {
+		a.cteMap = make(map[string]*ast.SelectStmt)
+	}
+	if a.extractor.fallbackCTEMap == nil {
+		a.extractor.fallbackCTEMap = make(map[string]*ast.SelectStmt)
+	}
+	maps.Copy(a.cteMap, local)
+	maps.Copy(a.extractor.fallbackCTEMap, local)
+	return func() { a.cteMap, a.extractor.fallbackCTEMap = outer, outerFallback }
+}
+
+// innerColumnsNamed adds the columns named colName of the tables that sel,
+// or any branch of it, reads.
+func (a *plpgsqlAnalyzer) innerColumnsNamed(sel *ast.SelectStmt, colName string, result ColumnSet) {
+	if sel == nil {
+		return
+	}
+	if sel.Op != ast.SETOP_NONE {
+		a.innerColumnsNamed(sel.Larg, colName, result)
+		a.innerColumnsNamed(sel.Rarg, colName, result)
+		return
+	}
+	restore, _ := a.pushMarkerScope()
+	defer restore()
+	defer a.pushCTEs(sel)()
+	a.fromItems = make(map[string]fromItem)
+	tables := a.collectFromTables(sel)
+	a.resolveColumnRef(&ast.ColumnRef{Fields: &ast.List{Items: []ast.Node{&ast.String{Str: colName}}}}, tables, result)
 }
 
 func (a *plpgsqlAnalyzer) resolveFallbackRelation(fromKey, schemaName, tableName string) *catalog.Relation {
@@ -1165,6 +1419,7 @@ func (a *plpgsqlAnalyzer) collectTablesFromNode(node ast.Node, tables map[string
 		} else {
 			delete(a.qualifiedFrom, strings.ToLower(v.Relname))
 		}
+		a.setFromItem(strings.ToLower(v.Relname), nil, nil)
 		if v.Alias != nil && v.Alias.Aliasname != "" {
 			tables[strings.ToLower(v.Alias.Aliasname)] = resource
 			if v.Schemaname != "" {
@@ -1172,6 +1427,11 @@ func (a *plpgsqlAnalyzer) collectTablesFromNode(node ast.Node, tables map[string
 			} else {
 				delete(a.qualifiedFrom, strings.ToLower(v.Alias.Aliasname))
 			}
+			var item ast.Node
+			if v.Alias.Colnames != nil {
+				item = v
+			}
+			a.setFromItem(strings.ToLower(v.Alias.Aliasname), item, tables)
 		}
 	case *ast.RangeSubselect:
 		// For subquery aliases like (SELECT * FROM t) result, collect inner tables
@@ -1202,6 +1462,7 @@ func (a *plpgsqlAnalyzer) collectTablesFromNode(node ast.Node, tables map[string
 				// columns as accessible through the alias.
 				if v.Alias != nil && v.Alias.Aliasname != "" {
 					alias := strings.ToLower(v.Alias.Aliasname)
+					a.setFromItem(alias, v, tables)
 					for k, res := range innerTables {
 						tables[alias] = res
 						if nested[k] {
@@ -1220,6 +1481,9 @@ func (a *plpgsqlAnalyzer) collectTablesFromNode(node ast.Node, tables map[string
 		}
 		if v.Rarg != nil {
 			a.collectTablesFromNode(v.Rarg, tables)
+		}
+		if v.Alias != nil && v.Alias.Aliasname != "" {
+			a.setFromItem(strings.ToLower(v.Alias.Aliasname), v, tables)
 		}
 	default:
 	}
@@ -1253,34 +1517,10 @@ func (a *plpgsqlAnalyzer) extractColumnRefsFromExpr(node ast.Node, fromTables ma
 		a.extractColumnRefsFromExpr(v.Lexpr, fromTables, result)
 		a.extractColumnRefsFromExpr(v.Rexpr, fromTables, result)
 	case *ast.SubLink:
-		if v.Subselect != nil {
-			if subSel, ok := v.Subselect.(*ast.SelectStmt); ok {
-				// The subquery's qualification markers apply only within its
-				// own resolution scope.
-				restore, _ := a.pushMarkerScope()
-				defer restore()
-				subTables := a.collectFromTables(subSel)
-				for k, val := range fromTables {
-					if _, exists := subTables[k]; !exists {
-						subTables[k] = val
-					}
-				}
-				if subSel.TargetList != nil {
-					for _, item := range subSel.TargetList.Items {
-						if rt, ok := item.(*ast.ResTarget); ok {
-							a.extractColumnRefsFromExpr(rt.Val, subTables, result)
-						}
-					}
-				}
-				// Also collect from subquery WHERE clause for predicate tracking.
-				if subSel.WhereClause != nil {
-					whereColSet := make(ColumnSet)
-					a.extractColumnRefsFromExpr(subSel.WhereClause, subTables, whereColSet)
-					for k, val := range whereColSet {
-						a.extractor.predicateColumns[k] = val
-					}
-				}
-			}
+		// The left operand of IN, ANY, ALL or a row comparison.
+		a.extractColumnRefsFromExpr(v.Testexpr, fromTables, result)
+		if subSel, ok := v.Subselect.(*ast.SelectStmt); ok {
+			a.extractSubqueryRefs(subSel, fromTables, result)
 		}
 	case *ast.TypeCast:
 		a.extractColumnRefsFromExpr(v.Arg, fromTables, result)
@@ -1323,6 +1563,7 @@ func (a *plpgsqlAnalyzer) extractColumnRefsFromExpr(node ast.Node, fromTables ma
 		if v.Exprs != nil {
 			for _, item := range v.Exprs.Items {
 				if kv, ok := item.(*ast.JsonKeyValue); ok {
+					a.extractColumnRefsFromExpr(kv.Key, fromTables, result)
 					if kv.Value != nil {
 						a.extractColumnRefsFromExpr(kv.Value.RawExpr, fromTables, result)
 					}
@@ -1344,6 +1585,64 @@ func (a *plpgsqlAnalyzer) extractColumnRefsFromExpr(node ast.Node, fromTables ma
 			a.extractColumnRefsFromExpr(item, fromTables, result)
 		}
 	default:
+		// Any other expression (GREATEST, ROW, ARRAY, a collation, ...)
+		// reads what its children read.
+		ast.Inspect(node, func(child ast.Node) bool {
+			if child == node {
+				return true
+			}
+			a.extractColumnRefsFromExpr(child, fromTables, result)
+			return false
+		})
+	}
+}
+
+// extractSubqueryRefs adds what the outputs of a subquery in an expression
+// read, from each branch of a set operation that returns rows, and collects
+// its WHERE columns as predicates.
+func (a *plpgsqlAnalyzer) extractSubqueryRefs(subSel *ast.SelectStmt, fromTables map[string]ColumnResource, result ColumnSet) {
+	if subSel == nil {
+		return
+	}
+	if subSel.Op != ast.SETOP_NONE {
+		a.extractSubqueryRefs(subSel.Larg, fromTables, result)
+		if subSel.Op != ast.SETOP_EXCEPT {
+			a.extractSubqueryRefs(subSel.Rarg, fromTables, result)
+		}
+		return
+	}
+	// The subquery's qualification markers apply only within its own
+	// resolution scope.
+	restore, _ := a.pushMarkerScope()
+	defer restore()
+	defer a.pushCTEs(subSel)()
+	subTables := a.collectFromTables(subSel)
+	for k, val := range fromTables {
+		if _, exists := subTables[k]; !exists {
+			subTables[k] = val
+		}
+	}
+	if subSel.TargetList != nil {
+		for _, item := range subSel.TargetList.Items {
+			rt, ok := item.(*ast.ResTarget)
+			if !ok {
+				continue
+			}
+			if isStarTarget(rt) {
+				for _, column := range a.starColumns(subSel, starTableName(rt), subTables) {
+					maps.Copy(result, column.SourceColumns)
+				}
+				continue
+			}
+			a.extractColumnRefsFromExpr(rt.Val, subTables, result)
+		}
+	}
+	if subSel.WhereClause != nil {
+		whereColSet := make(ColumnSet)
+		a.extractColumnRefsFromExpr(subSel.WhereClause, subTables, whereColSet)
+		for k, val := range whereColSet {
+			a.extractor.predicateColumns[k] = val
+		}
 	}
 }
 
@@ -1394,6 +1693,40 @@ func (a *plpgsqlAnalyzer) resolveColumnRef(cr *ast.ColumnRef, fromTables map[str
 		if found {
 			return
 		}
+		// An unqualified FROM name may be a CTE, whose columns are its
+		// query's outputs.
+		for _, fromKey := range slices.Sorted(maps.Keys(fromTables)) {
+			resource := fromTables[fromKey]
+			cteSel, ok := a.cteMap[strings.ToLower(resource.Table)]
+			if !ok || a.qualifiedFrom[fromKey] {
+				continue
+			}
+			sources := make(ColumnSet)
+			a.resolveThroughCTE(cteSel, colName, fromTables, sources)
+			if len(sources) > 0 {
+				maps.Copy(result, sources)
+				found = true
+			}
+		}
+		if found {
+			return
+		}
+		for _, name := range slices.Sorted(maps.Keys(a.fromItems)) {
+			if a.fromItemColumn(a.fromItems[name], colName, result) {
+				found = true
+			}
+		}
+		if found {
+			return
+		}
+		// A whole-row reference to a subquery, join or aliased table reads
+		// all of its columns.
+		if item, ok := a.fromItems[strings.ToLower(colName)]; ok {
+			for _, column := range a.fromItemColumns(item.node, item.tables) {
+				maps.Copy(result, column.SourceColumns)
+			}
+			return
+		}
 		// Check if it's a whole-row reference (table alias used as value, e.g., to_jsonb(t1)).
 		if resource, ok := fromTables[strings.ToLower(colName)]; ok {
 			rel := a.resolveFallbackRelation(strings.ToLower(colName), resource.Schema, resource.Table)
@@ -1416,6 +1749,10 @@ func (a *plpgsqlAnalyzer) resolveColumnRef(cr *ast.ColumnRef, fromTables map[str
 	case 2:
 		tableName := strings.ToLower(parts[0])
 		colName := parts[1]
+		if item, ok := a.fromItems[tableName]; ok {
+			a.fromItemColumn(item, colName, result)
+			return
+		}
 		if resource, ok := fromTables[tableName]; ok {
 			// Check if this table is actually a CTE — trace through to real sources.
 			// The CTE name is the original table name (resource.Table), not the alias.

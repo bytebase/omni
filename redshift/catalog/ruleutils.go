@@ -453,6 +453,41 @@ func (d *deparseCtx) getFromClause(query *Query) {
 	}
 }
 
+// relationColumnsRenamed reports whether a table's alias renamed any of its
+// columns, which is when PostgreSQL prints the alias column list of a table.
+//
+// pg: src/backend/utils/adt/ruleutils.c — set_relation_column_names (printaliases)
+func (d *deparseCtx) relationColumnsRenamed(rte *RangeTableEntry) bool {
+	if rte.aliasColumns == 0 {
+		return false
+	}
+	rel := d.catalog.relationByOID[rte.RelOID]
+	if rel == nil {
+		return true
+	}
+	for i, name := range rte.ColNames[:rte.aliasColumns] {
+		if i >= len(rel.Columns) || rel.Columns[i].Name != name {
+			return true
+		}
+	}
+	return false
+}
+
+// writeColumnAliasList prints a FROM item's column alias list, which names
+// every column of the item.
+//
+// pg: src/backend/utils/adt/ruleutils.c — get_column_alias_list
+func (d *deparseCtx) writeColumnAliasList(colNames []string) {
+	d.buf.WriteByte('(')
+	for i, cn := range colNames {
+		if i > 0 {
+			d.buf.WriteString(", ")
+		}
+		d.buf.WriteString(quoteIdentifier(cn))
+	}
+	d.buf.WriteByte(')')
+}
+
 // getFromClauseItem deparses a single FROM clause item.
 //
 // pg: src/backend/utils/adt/ruleutils.c — get_from_clause_item
@@ -472,6 +507,9 @@ func (d *deparseCtx) getFromClauseItem(jn JoinNode, query *Query) {
 			if rte.Alias != "" {
 				d.buf.WriteByte(' ')
 				d.buf.WriteString(quoteIdentifier(rte.Alias))
+				if d.relationColumnsRenamed(rte) {
+					d.writeColumnAliasList(rte.ColNames)
+				}
 			}
 			if rte.Tablesample != nil {
 				d.getTablesample(rte.Tablesample)
@@ -486,12 +524,18 @@ func (d *deparseCtx) getFromClauseItem(jn JoinNode, query *Query) {
 			if rte.Alias != "" {
 				d.buf.WriteByte(' ')
 				d.buf.WriteString(quoteIdentifier(rte.Alias))
+				if rte.aliasColumns > 0 {
+					d.writeColumnAliasList(rte.ColNames)
+				}
 			}
 		case RTECTE:
 			d.buf.WriteString(quoteIdentifier(rte.CTEName))
-			if rte.Alias != "" && rte.Alias != rte.CTEName {
+			if rte.Alias != "" && (rte.Alias != rte.CTEName || rte.aliasColumns > 0) {
 				d.buf.WriteByte(' ')
 				d.buf.WriteString(quoteIdentifier(rte.Alias))
+				if rte.aliasColumns > 0 {
+					d.writeColumnAliasList(rte.ColNames)
+				}
 			}
 		case RTEFunction:
 			// pg: src/backend/utils/adt/ruleutils.c — get_from_clause_item RTE_FUNCTION case

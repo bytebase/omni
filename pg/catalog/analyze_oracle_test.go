@@ -160,6 +160,20 @@ func TestAnalyzeViewsMatchPostgres(t *testing.T) {
 		{"filter_unknown_literal", `SELECT sum(id) FILTER (WHERE 'true') AS s, count(*) FILTER (WHERE NULL) AS c FROM t`},
 		{"agg_order_unknown_literal", `SELECT array_agg(1 ORDER BY 'a') AS a FROM t`},
 		{"agg_order_matches_arg", `SELECT string_agg(v, ',' ORDER BY v) AS s, string_agg(v, ',' ORDER BY v || '') AS s2, array_agg(id ORDER BY id + 1) AS a FROM vc, t`},
+		{"subquery_column_alias", `SELECT s.a, masked FROM (SELECT id, masked FROM t) s(a)`},
+		{"subquery_column_alias_star", `SELECT * FROM (SELECT id, masked FROM t) s(a)`},
+		{"subquery_column_alias_unchanged", `SELECT id FROM (SELECT id FROM t) s(id)`},
+		{"subquery_column_alias_lateral", `SELECT t.id, s.n FROM t, LATERAL (SELECT t.id + 1) s(n)`},
+		{"subquery_column_alias_where", `SELECT s.a FROM (SELECT masked FROM t) s(a) WHERE s.a = 'x'`},
+		{"table_column_alias", `SELECT a, masked FROM t AS s(a)`},
+		{"table_column_alias_star", `SELECT * FROM t AS s(a, b)`},
+		{"table_column_alias_unchanged", `SELECT id FROM t AS s(id)`},
+		{"table_column_alias_join", `SELECT s.a, u.y FROM t AS s(a) JOIN u ON s.a = u.id`},
+		{"table_column_alias_quoted", `SELECT "A b" FROM t AS s("A b")`},
+		{"cte_column_alias", `WITH c AS (SELECT id, masked FROM t) SELECT a FROM c AS s(a)`},
+		{"cte_column_alias_star", `WITH c AS (SELECT id, masked FROM t) SELECT * FROM c AS s(a)`},
+		{"cte_column_alias_own_name", `WITH c AS (SELECT id, masked FROM t) SELECT a FROM c AS c(a)`},
+		{"table_column_alias_own_name", `SELECT a FROM t AS t(a)`},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ddl := analyzeOracleSchema + "CREATE VIEW v AS " + tc.query + ";"
@@ -324,6 +338,15 @@ func TestAnalyzeErrorsMatchPostgres(t *testing.T) {
 		`SELECT ntile(num_buckets => 2) OVER () FROM t`,
 		`SELECT array_agg(b ORDER BY b) FROM bx`,
 		`SELECT array_agg(1 ORDER BY ARRAY[b]) FROM bx`,
+		`SELECT a FROM (SELECT id FROM t) s(a)`,
+		`SELECT * FROM (SELECT id FROM t) s(a, b)`,
+		`SELECT id FROM (SELECT id FROM t) s(a)`,
+		`SELECT a FROM t AS s(a)`,
+		`SELECT * FROM t AS s(a, b, c, d)`,
+		`SELECT s.id FROM t AS s(a)`,
+		`SELECT t.id FROM t AS s(a)`,
+		`WITH c AS (SELECT id FROM t) SELECT a FROM c AS s(a)`,
+		`WITH c AS (SELECT id FROM t) SELECT * FROM c AS s(a, b)`,
 	} {
 		t.Run(query, func(t *testing.T) {
 			// EXPLAIN analyzes and plans the query without running it.

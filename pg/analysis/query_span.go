@@ -3,6 +3,8 @@ package analysis
 import (
 	"context"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 
 	omnipg "github.com/bytebase/omni/pg"
@@ -64,6 +66,11 @@ type querySpanExtractor struct {
 	// fallbackCTEAliases holds CTE column aliases (e.g., WITH t1(cc1, cc2) AS (...)).
 	// Keyed by lowercase CTE name.
 	fallbackCTEAliases map[string][]string
+	// fromColumns caches the fallback's fromItemColumns by FROM item, for
+	// every analyzer of the statement; nil marks an item being resolved, so
+	// an item reached again through itself, as a recursive CTE's reference
+	// is, reads nothing.
+	fromColumns map[ast.Node][]QuerySpanResult
 }
 
 func newQuerySpanExtractor(defaultDatabase string, searchPath []string, cat Catalog) *querySpanExtractor {
@@ -865,9 +872,10 @@ func (e *querySpanExtractor) resolveVar(queryStack []*catalog.Query, v *catalog.
 		if rel.RelKind == 'c' {
 			return
 		}
+		// The table's own column name, which an alias column list may hide.
 		colName := ""
-		if colIdx >= 0 && colIdx < len(rte.ColNames) {
-			colName = rte.ColNames[colIdx]
+		if colIdx >= 0 && colIdx < len(rel.Columns) {
+			colName = rel.Columns[colIdx].Name
 		}
 		result[ColumnResource{
 			Database: e.defaultDatabase,
@@ -1048,6 +1056,23 @@ func figureResTargetName(rt *ast.ResTarget) string {
 	if rt == nil || rt.Val == nil {
 		return ""
 	}
+	// A cast or collation keeps its operand's name.
+	// pg: src/backend/parser/parse_target.c — FigureColnameInternal
+	switch v := rt.Val.(type) {
+	case *ast.TypeCast:
+		if name := figureResTargetName(&ast.ResTarget{Val: v.Arg}); name != "" {
+			return name
+		}
+		if v.TypeName != nil && v.TypeName.Names != nil && len(v.TypeName.Names.Items) > 0 {
+			if s, ok := v.TypeName.Names.Items[len(v.TypeName.Names.Items)-1].(*ast.String); ok {
+				return s.Str
+			}
+		}
+		return ""
+	case *ast.CollateClause:
+		return figureResTargetName(&ast.ResTarget{Val: v.Arg})
+	default:
+	}
 	if cr, ok := rt.Val.(*ast.ColumnRef); ok && cr.Fields != nil {
 		// Use the last String field — for "ia.approver_emails", return "approver_emails".
 		// For unqualified "col", return "col". Skip A_Star nodes.
@@ -1090,63 +1115,72 @@ func (e *querySpanExtractor) extractColumnsFromFromItem(item ast.Node, analyzer 
 	}
 
 	switch v := item.(type) {
-	case *ast.RangeVar:
-		return e.extractColumnsFromRangeVar(v)
+	case *ast.RangeVar, *ast.RangeSubselect:
+		if analyzer == nil {
+			analyzer = &plpgsqlAnalyzer{extractor: e, scope: newVariableScope(nil)}
+		}
+		return analyzer.fromItemColumns(item, fromTables)
 	case *ast.RangeFunction:
 		return e.extractColumnsFromRangeFunction(v, analyzer, fromTables)
-	case *ast.RangeSubselect:
-		if v.Alias != nil && v.Alias.Colnames != nil && len(v.Alias.Colnames.Items) > 0 {
-			return extractColnamesFromAlias(v.Alias)
-		}
-		// No explicit column aliases — extract column names from subquery's target list
-		// (only when the target list has explicit columns, not SELECT *).
-		if subSel, ok := v.Subquery.(*ast.SelectStmt); ok && subSel.TargetList != nil {
-			var results []QuerySpanResult
-			hasStar := false
-			for _, item := range subSel.TargetList.Items {
-				rt, ok := item.(*ast.ResTarget)
-				if !ok {
-					continue
-				}
-				if isStarTarget(rt) {
-					hasStar = true
-					break
-				}
-				name := rt.Name
-				if name == "" {
-					name = figureResTargetName(rt)
-				}
-				if name == "" {
-					name = "?column?"
-				}
-				results = append(results, QuerySpanResult{
-					Name:          name,
-					SourceColumns: ColumnSet{},
-				})
-			}
-			if !hasStar && len(results) > 0 {
-				return results
-			}
-			// For SELECT * in subquery, try to resolve columns from the subquery's FROM tables.
-			if hasStar && subSel.FromClause != nil {
-				var starResults []QuerySpanResult
-				for _, fromItem := range subSel.FromClause.Items {
-					starResults = append(starResults, e.extractColumnsFromFromItem(fromItem, analyzer, fromTables)...)
-				}
-				if len(starResults) > 0 {
-					return starResults
-				}
-			}
-		}
-		return nil
 	case *ast.JoinExpr:
-		var results []QuerySpanResult
-		results = append(results, e.extractColumnsFromFromItem(v.Larg, analyzer, fromTables)...)
-		results = append(results, e.extractColumnsFromFromItem(v.Rarg, analyzer, fromTables)...)
-		return results
+		return joinColumns(v, e.extractColumnsFromFromItem(v.Larg, analyzer, fromTables), e.extractColumnsFromFromItem(v.Rarg, analyzer, fromTables))
 	default:
 		return nil
 	}
+}
+
+// joinColumns returns the columns of a join of left and right: each USING
+// (or NATURAL) column once, reading both sides, then the other columns of
+// the left and of the right.
+//
+// pg: src/backend/parser/parse_clause.c — transformFromClauseItem (JoinExpr)
+func joinColumns(join *ast.JoinExpr, left, right []QuerySpanResult) []QuerySpanResult {
+	var using []string
+	if join.IsNatural {
+		for _, l := range left {
+			if slices.ContainsFunc(right, func(r QuerySpanResult) bool { return r.Name == l.Name }) {
+				using = append(using, l.Name)
+			}
+		}
+	} else {
+		using = astStrings(join.UsingClause)
+	}
+	if len(using) == 0 {
+		return append(left, right...)
+	}
+	leftUsed, rightUsed := make([]bool, len(left)), make([]bool, len(right))
+	take := func(columns []QuerySpanResult, used []bool, name string) *QuerySpanResult {
+		for i := range columns {
+			if !used[i] && columns[i].Name == name {
+				used[i] = true
+				return &columns[i]
+			}
+		}
+		return nil
+	}
+	var columns []QuerySpanResult
+	for _, name := range using {
+		merged := QuerySpanResult{Name: name, SourceColumns: make(ColumnSet)}
+		if l := take(left, leftUsed, name); l != nil {
+			maps.Copy(merged.SourceColumns, l.SourceColumns)
+			merged.IsPlainField = l.IsPlainField
+		}
+		if r := take(right, rightUsed, name); r != nil {
+			maps.Copy(merged.SourceColumns, r.SourceColumns)
+		}
+		columns = append(columns, merged)
+	}
+	for i, column := range left {
+		if !leftUsed[i] {
+			columns = append(columns, column)
+		}
+	}
+	for i, column := range right {
+		if !rightUsed[i] {
+			columns = append(columns, column)
+		}
+	}
+	return columns
 }
 
 // extractColumnsFromRangeVar looks up a table in the catalog and returns its columns with lineage.
