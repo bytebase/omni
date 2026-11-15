@@ -151,6 +151,13 @@ func TestDiffLeavesTemporarySequencesOut(t *testing.T) {
 	}
 }
 
+func TestDiffComparesRoutinesWithNonASCIITypes(t *testing.T) {
+	c := loadCat(t, dbDDL+"CREATE PROCEDURE p(IN r ROW(`\u212a` INT)) SELECT 1;")
+	if d := Diff(c, c); !d.IsEmpty() {
+		t.Errorf("a catalog diffs against itself:\n%s", describeDiff(d))
+	}
+}
+
 func TestCanonicalTableOptionsKeepsCommentSpacing(t *testing.T) {
 	a := loadCat(t, dbDDL+"CREATE TABLE t (a INT) COMMENT 'a  b';")
 	b := loadCat(t, dbDDL+"CREATE TABLE t (a INT) COMMENT 'a b';")

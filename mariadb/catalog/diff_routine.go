@@ -195,7 +195,7 @@ func splitRoutineTypeCharset(typeStr string) (base, suffix string) {
 	s := strings.TrimSpace(typeStr)
 	// Search for the suffix keyword only past any member/argument list.
 	searchFrom := strings.LastIndexByte(s, ')') + 1 // 0 when there is no ')'
-	low := strings.ToLower(s)
+	low := asciiLower(s)
 	rel := strings.Index(low[searchFrom:], " charset ")
 	if rel < 0 {
 		// COLLATE may appear without an explicit CHARSET in rare forms; handle it too.
@@ -280,4 +280,16 @@ func boolKey(b bool) string {
 		return "1"
 	}
 	return "0"
+}
+
+// asciiLower lower-cases ASCII letters only, so every byte offset into s holds
+// in the result: strings.ToLower folds the three-byte Kelvin sign to "k".
+func asciiLower(s string) string {
+	b := []byte(s)
+	for i, c := range b {
+		if 'A' <= c && c <= 'Z' {
+			b[i] = c + 'a' - 'A'
+		}
+	}
+	return string(b)
 }
