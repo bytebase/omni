@@ -89,3 +89,12 @@ func TestReferencesTable(t *testing.T) {
 	_, err = ReferencesTable("UPDATE", "DB", "T")
 	require.ErrorContains(t, err, "failed to parse PLSQL")
 }
+
+func TestTransformDMLToSelectReportsTheFirstFailingTable(t *testing.T) {
+	opts := BackupOptions{SourceDatabase: "DB", TargetDatabase: "BACKUP", TablePrefix: "rollback"}
+	script := "UPDATE t1 SET a = 1; DELETE FROM t1; UPDATE t2 SET a = 1; DELETE FROM t2;"
+	for range 50 {
+		_, err := TransformDMLToSelect(script, opts)
+		require.EqualError(t, err, "prior backup cannot handle statements with different types on the same table: DB.T1@")
+	}
+}

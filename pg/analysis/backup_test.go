@@ -67,6 +67,13 @@ func TestTransformDMLToSelectTruncatesNamesByBytes(t *testing.T) {
 	require.Equal(t, "_bb__"+strings.Repeat("表", 19), backups[0].TargetTableName)
 }
 
+func TestTransformDMLToSelectReportsTheFirstFailingTable(t *testing.T) {
+	for range 50 {
+		_, err := backupsOf(t, "UPDATE t SET a = 1; DELETE FROM t; UPDATE o SET a = 1; DELETE FROM o", nil)
+		require.EqualError(t, err, `The statement type is not the same for all statements on the same table "public.t"`)
+	}
+}
+
 func TestTransformDMLToSelectSearchPath(t *testing.T) {
 	backups, err := backupsOf(t, "SET search_path TO app; DELETE FROM only_app", []string{"public"})
 	require.NoError(t, err)

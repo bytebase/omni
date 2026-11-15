@@ -105,14 +105,21 @@ func TransformDMLToSelect(stmts []omnipg.Statement, statement string, opts Backu
 }
 
 func generateSQL(statementInfoList []statementInfo, targetSchema string, tablePrefix string) ([]BackupStatement, error) {
+	// Tables are visited in the order the script first changes them, so an
+	// error names the same table on every run.
 	groupByTable := make(map[string][]statementInfo)
+	var tableOrder []string
 	for _, item := range statementInfoList {
 		key := fmt.Sprintf("%s.%s", item.table.Schema, item.table.Table)
+		if _, ok := groupByTable[key]; !ok {
+			tableOrder = append(tableOrder, key)
+		}
 		groupByTable[key] = append(groupByTable[key], item)
 	}
 
 	// Check if the statement type is the same for all statements on the same table.
-	for key, list := range groupByTable {
+	for _, key := range tableOrder {
+		list := groupByTable[key]
 		statementType := dmlTypeUnknown
 		for _, item := range list {
 			if statementType == dmlTypeUnknown {
@@ -125,7 +132,8 @@ func generateSQL(statementInfoList []statementInfo, targetSchema string, tablePr
 	}
 
 	var result []BackupStatement
-	for key, list := range groupByTable {
+	for _, key := range tableOrder {
+		list := groupByTable[key]
 		backupStatement, err := generateSQLForTable(list, targetSchema, tablePrefix)
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate SQL for table %q: %w", key, err)
