@@ -578,3 +578,26 @@ func TestAnalyzeOpaqueFunctionsInFrom(t *testing.T) {
 		}
 	}
 }
+
+func TestAnalyzeFunctionColumnCounts(t *testing.T) {
+	c := newAnalyzeClausesCatalog(t)
+	opaque := AnalyzeOptions{OpaqueUnknownFunctions: true}
+	for _, tc := range []struct {
+		sql  string
+		want []int
+	}{
+		{`SELECT * FROM generate_series(1, 2) WITH ORDINALITY`, []int{1}},
+		{`SELECT * FROM unnest(ARRAY[1], ARRAY['a']) AS f(a, b)`, []int{1, 1}},
+		{`SELECT * FROM ROWS FROM (json_each('{}'), generate_series(1, 2)) WITH ORDINALITY AS f`, []int{2, 1}},
+		{`SELECT * FROM ROWS FROM (unknown_rows() AS (a int, b int), generate_series(1, 2)) AS z`, []int{2, 1}},
+		{`SELECT f.a FROM unknown_rows() f`, nil},
+	} {
+		q, err := analyzeWithOptions(t, c, tc.sql, opaque)
+		if err != nil {
+			t.Fatalf("%s: %v", tc.sql, err)
+		}
+		if got := q.RangeTable[0].FuncColCounts; !slices.Equal(got, tc.want) {
+			t.Errorf("%s: FuncColCounts %v, want %v", tc.sql, got, tc.want)
+		}
+	}
+}

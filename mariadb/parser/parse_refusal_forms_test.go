@@ -13,6 +13,17 @@ var parseRefusalForms = []struct {
 	sql    string
 	accept bool
 }{
+	// A WITH clause starts only a query (query_expression); a DML takes one in
+	// its subqueries or INSERT's source.
+	{"WITH cte AS (SELECT id FROM t2) UPDATE t1 SET col1 = 1 WHERE id IN (SELECT id FROM cte)", false},
+	{"WITH cte AS (SELECT id, val FROM t2) UPDATE t1 JOIN cte ON t1.id = cte.id SET t1.val = cte.val", false},
+	{"WITH cte AS (SELECT id FROM t2) DELETE FROM t1 WHERE id IN (SELECT id FROM cte)", false},
+	{"WITH cte AS (SELECT id FROM t2) DELETE t1 FROM t1 JOIN cte ON t1.id = cte.id", false},
+	{"WITH cte AS (SELECT 1 AS x) INSERT INTO t SELECT * FROM cte", false},
+	{"WITH cte AS (SELECT 1 AS x) REPLACE INTO t SELECT * FROM cte", false},
+	{"INSERT INTO t WITH cte AS (SELECT 1 AS x) SELECT * FROM cte", true},
+	{"DELETE FROM t1 WHERE id IN (WITH cte AS (SELECT id FROM t2) SELECT id FROM cte)", true},
+	{"UPDATE t1 SET col1 = 1 WHERE id IN (WITH cte AS (SELECT id FROM t2) SELECT id FROM cte)", true},
 	{"CREATE TRIGGER tr BEFORE INSERT ON src FOR EACH ROW UPDATE old.t SET old.t.id = 1", true},
 	{"CREATE TRIGGER tr BEFORE INSERT ON src FOR EACH ROW SET @a = (SELECT old.t.id FROM old.t LIMIT 1)", true},
 	{"CREATE TRIGGER tr BEFORE INSERT ON src FOR EACH ROW SET @a = old.id", false},

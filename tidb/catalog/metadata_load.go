@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 
@@ -22,6 +23,11 @@ type LoadMetadataReport struct {
 	// Missing maps each object the catalog has nothing for to the error that
 	// left it out.
 	Missing map[string]error
+	// Incomplete maps each table installed without part of its definition to
+	// the error of the first part left out: a default, AUTO_RANDOM, ON UPDATE,
+	// generation, or CHECK expression, an index key expression, or the
+	// partitioning.
+	Incomplete map[string]error
 }
 
 // LoadMetadata installs a Bytebase schema snapshot of a TiDB database into the
@@ -32,22 +38,32 @@ type LoadMetadataReport struct {
 //
 // An object that fails to install does not stop the load: a table is replaced
 // by a stand-in with the same column names, all TEXT, and a view by one that
-// selects NULL under each of its column names. The error is non-nil only when
+// selects NULL under each of its column names. A table that installs without
+// part of its definition is reported Incomplete. The error is non-nil only when
 // ctx is done.
 func (c *Catalog) LoadMetadata(ctx context.Context, meta *metadata.DatabaseSchemaMetadata) (*LoadMetadataReport, error) {
+	return c.LoadMetadataInto(ctx, meta, meta.GetName())
+}
+
+// LoadMetadataInto is LoadMetadata into the database named database rather
+// than meta.Name, so that two snapshots of differently named databases can be
+// loaded under one name and diffed. View bodies and foreign keys drop the
+// qualifier of meta.Name, which TiDB puts on every table a view reads.
+func (c *Catalog) LoadMetadataInto(ctx context.Context, meta *metadata.DatabaseSchemaMetadata, database string) (*LoadMetadataReport, error) {
 	report := &LoadMetadataReport{
-		Degraded: make(map[string]error),
-		Missing:  make(map[string]error),
+		Degraded:   make(map[string]error),
+		Missing:    make(map[string]error),
+		Incomplete: make(map[string]error),
 	}
 	if err := ctx.Err(); err != nil {
 		return report, err
 	}
-	if name := meta.GetName(); name != "" {
+	if name := database; name != "" {
 		// A database already in the catalog keeps its own character set and
 		// collation otherwise, and a table that overrides neither would resolve
 		// its columns differently than the same snapshot loaded into an empty
 		// catalog.
-		stmt := metadataDatabaseStmt(meta)
+		stmt := metadataDatabaseStmt(meta, name)
 		if c.GetDatabase(name) == nil {
 			_ = c.DefineDatabase(stmt)
 		} else if len(stmt.Options) > 0 {
@@ -71,6 +87,9 @@ func (c *Catalog) LoadMetadata(ctx context.Context, meta *metadata.DatabaseSchem
 		}
 		err := c.installMetadataObject(o)
 		if err == nil {
+			if o.incomplete != nil {
+				report.Incomplete[o.key()] = o.incomplete
+			}
 			if o.kind == metadataView {
 				views = append(views, o)
 			}
@@ -135,10 +154,17 @@ const (
 // metadataObject is one install step. The metadata pointer matching kind is
 // set.
 type metadataObject struct {
-	kind  metadataObjectKind
-	name  string
+	kind metadataObjectKind
+	name string
+	// snapshotDatabase is the database the snapshot's references qualify
+	// with: a view's body, and a table's foreign keys.
+	snapshotDatabase string
+
 	table *metadata.TableMetadata
 	view  *metadata.ViewMetadata
+
+	// incomplete is the first part of a table's definition its install left out.
+	incomplete error
 }
 
 // key names the object in the report.
@@ -158,12 +184,12 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata) []*metadataOb
 	for _, s := range meta.GetSchemas() {
 		for _, t := range s.GetTables() {
 			if t.GetName() != "" {
-				out = append(out, &metadataObject{kind: metadataTable, name: t.GetName(), table: t})
+				out = append(out, &metadataObject{kind: metadataTable, name: t.GetName(), table: t, snapshotDatabase: meta.GetName()})
 			}
 		}
 		for _, v := range s.GetViews() {
 			if v.GetName() != "" {
-				out = append(out, &metadataObject{kind: metadataView, name: v.GetName(), view: v})
+				out = append(out, &metadataObject{kind: metadataView, name: v.GetName(), view: v, snapshotDatabase: meta.GetName()})
 			}
 		}
 	}
@@ -177,7 +203,7 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata) []*metadataOb
 
 func (c *Catalog) installMetadataObject(o *metadataObject) error {
 	if o.kind == metadataView {
-		stmt, err := metadataViewStmt(o.view)
+		stmt, err := metadataViewStmt(o.view, o.snapshotDatabase, c.CurrentDatabase())
 		if err != nil {
 			return err
 		}
@@ -190,11 +216,25 @@ func (c *Catalog) installMetadataObject(o *metadataObject) error {
 		nameViewColumns(c.installedView(o.name), metadataViewColumnNames(o.view))
 		return nil
 	}
-	stmt, err := metadataTableStmt(o.table)
+	stmt, omitted, err := metadataTableStmt(o.table, o.snapshotDatabase)
 	if err != nil {
 		return err
 	}
-	return c.DefineTable(stmt)
+	o.incomplete = omitted
+	err = c.DefineTable(stmt)
+	if err != nil && stmt.Partitions != nil {
+		// The partitioning parsed but the catalog refuses it, as it does a RANGE
+		// whose MAXVALUE partition sync lists before another. The rest of the
+		// table still installs.
+		stmt.Partitions = nil
+		if retry := c.DefineTable(stmt); retry == nil {
+			if o.incomplete == nil {
+				o.incomplete = fmt.Errorf("partitioning: %w", err)
+			}
+			return nil
+		}
+	}
+	return err
 }
 
 // --- Statements ---
@@ -207,8 +247,8 @@ func (c *Catalog) installMetadataObject(o *metadataObject) error {
 // AUTO_INCREMENT column.
 const autoIncrementDefault = "AUTO_INCREMENT"
 
-func metadataDatabaseStmt(meta *metadata.DatabaseSchemaMetadata) *nodes.CreateDatabaseStmt {
-	stmt := &nodes.CreateDatabaseStmt{Name: meta.GetName()}
+func metadataDatabaseStmt(meta *metadata.DatabaseSchemaMetadata, name string) *nodes.CreateDatabaseStmt {
+	stmt := &nodes.CreateDatabaseStmt{Name: name}
 	for _, opt := range []*nodes.DatabaseOption{
 		{Name: "CHARACTER SET", Value: meta.GetCharacterSet()},
 		{Name: "COLLATE", Value: meta.GetCollation()},
@@ -221,18 +261,28 @@ func metadataDatabaseStmt(meta *metadata.DatabaseSchemaMetadata) *nodes.CreateDa
 }
 
 // metadataTableStmt fails on a column whose type does not parse, so the table
-// gets a stand-in rather than a partial definition. A default, ON UPDATE,
-// generation, or CHECK expression that does not parse is dropped instead.
-// Partitions are left out: they do not change what the columns resolve to.
-func metadataTableStmt(t *metadata.TableMetadata) (*nodes.CreateTableStmt, error) {
-	stmt := &nodes.CreateTableStmt{Table: &nodes.TableRef{Name: t.GetName()}}
+// gets a stand-in rather than a partial definition. A default, AUTO_RANDOM, ON
+// UPDATE, generation, or CHECK expression, or a partitioning that does not
+// parse is left out instead, as is an index with a key expression that does not
+// parse, since TiDB has no column to key in its place; omitted is the first such
+// error.
+func metadataTableStmt(t *metadata.TableMetadata, snapshotDatabase string) (stmt *nodes.CreateTableStmt, omitted error, err error) {
+	omit := func(e error) {
+		if omitted == nil {
+			omitted = e
+		}
+	}
+	stmt = &nodes.CreateTableStmt{Table: &nodes.TableRef{Name: t.GetName()}}
 	for _, col := range t.GetColumns() {
 		if col.GetName() == "" {
 			continue
 		}
-		def, err := metadataColumnDef(col)
+		def, colOmitted, err := metadataColumnDef(col)
 		if err != nil {
-			return nil, fmt.Errorf("column %q: %w", col.GetName(), err)
+			return nil, nil, fmt.Errorf("column %q: %w", col.GetName(), err)
+		}
+		if colOmitted != nil {
+			omit(fmt.Errorf("column %q: %w", col.GetName(), colOmitted))
 		}
 		stmt.Columns = append(stmt.Columns, def)
 	}
@@ -240,7 +290,11 @@ func metadataTableStmt(t *metadata.TableMetadata) (*nodes.CreateTableStmt, error
 		if len(idx.GetExpressions()) == 0 {
 			continue
 		}
-		con := metadataIndexConstraint(idx)
+		con, err := metadataIndexConstraint(idx)
+		if err != nil {
+			omit(fmt.Errorf("index %q: %w", idx.GetName(), err))
+			continue
+		}
 		// Sync reports TIDB_PK_TYPE, CLUSTERED or NONCLUSTERED.
 		if idx.GetPrimary() && t.GetPrimaryKeyType() != "" {
 			clustered := strings.EqualFold(t.GetPrimaryKeyType(), "CLUSTERED")
@@ -249,30 +303,73 @@ func metadataTableStmt(t *metadata.TableMetadata) (*nodes.CreateTableStmt, error
 		stmt.Constraints = append(stmt.Constraints, con)
 	}
 	for _, fk := range t.GetForeignKeys() {
-		stmt.Constraints = append(stmt.Constraints, metadataForeignKey(fk))
+		stmt.Constraints = append(stmt.Constraints, metadataForeignKey(fk, snapshotDatabase))
 	}
 	for _, check := range t.GetCheckConstraints() {
-		if expr, err := parseExpr(check.GetExpression()); err == nil {
-			stmt.Constraints = append(stmt.Constraints, &nodes.Constraint{Type: nodes.ConstrCheck, Name: check.GetName(), Expr: expr})
+		expr, err := parseExpr(check.GetExpression())
+		if err != nil {
+			omit(fmt.Errorf("check %q: %w", check.GetName(), err))
+			continue
 		}
+		stmt.Constraints = append(stmt.Constraints, &nodes.Constraint{Type: nodes.ConstrCheck, Name: check.GetName(), Expr: expr})
+	}
+	if len(t.GetPartitions()) > 0 {
+		partitions, err := metadataPartitionClause(t)
+		if err != nil {
+			omit(fmt.Errorf("partitioning: %w", err))
+		}
+		stmt.Partitions = partitions
 	}
 	for _, opt := range []struct{ name, value string }{
 		{"ENGINE", t.GetEngine()},
 		{"CHARSET", t.GetCharset()},
 		{"COLLATE", t.GetCollation()},
 		{"COMMENT", t.GetComment()},
+		{"SHARD_ROW_ID_BITS", shardRowIDBits(t.GetShardingInfo())},
 	} {
 		if opt.value != "" {
 			stmt.Options = append(stmt.Options, &nodes.TableOption{Name: opt.name, Value: opt.value})
 		}
 	}
-	return stmt, nil
+	return stmt, omitted, nil
 }
 
-func metadataColumnDef(col *metadata.ColumnMetadata) (*nodes.ColumnDef, error) {
-	typeName, err := parseTypeName(col.GetType())
+// shardRowIDBits returns n from the TIDB_ROW_ID_SHARDING_INFO sync records for
+// a table created with SHARD_ROW_ID_BITS=n, "SHARD_BITS=n", and "" for any
+// other: NOT_SHARDED, NOT_SHARDED(PK_IS_HANDLE), or PK_AUTO_RANDOM_BITS=n,
+// which the AUTO_RANDOM column carries.
+func shardRowIDBits(info string) string {
+	bits, ok := strings.CutPrefix(info, "SHARD_BITS=")
+	if !ok || bits == "0" {
+		return ""
+	}
+	return bits
+}
+
+// metadataPartitionClause parses the partitioning the snapshot records, as the
+// definition renderer prints it.
+func metadataPartitionClause(t *metadata.TableMetadata) (*nodes.PartitionClause, error) {
+	var buf strings.Builder
+	if err := printPartitionClause(&buf, t.GetPartitions()); err != nil {
+		return nil, err
+	}
+	stmt, err := parseFirstStatement[*nodes.CreateTableStmt]("CREATE TABLE `probe` (`c` int)" + buf.String())
 	if err != nil {
 		return nil, err
+	}
+	if stmt.Partitions == nil {
+		return nil, fmt.Errorf("no partitioning parsed from %q", buf.String())
+	}
+	return stmt.Partitions, nil
+}
+
+// metadataColumnDef fails on a type that does not parse. A default,
+// AUTO_RANDOM, ON UPDATE, or generation expression that does not parse is left
+// out, and omitted is the first such error.
+func metadataColumnDef(col *metadata.ColumnMetadata) (def *nodes.ColumnDef, omitted error, err error) {
+	typeName, err := parseTypeName(col.GetType())
+	if err != nil {
+		return nil, nil, err
 	}
 	// The type text may carry its own character set and collation.
 	if typeName.Charset == "" {
@@ -281,7 +378,7 @@ func metadataColumnDef(col *metadata.ColumnMetadata) (*nodes.ColumnDef, error) {
 	if typeName.Collate == "" {
 		typeName.Collate = col.GetCollation()
 	}
-	def := &nodes.ColumnDef{Name: col.GetName(), TypeName: typeName, Comment: col.GetComment()}
+	def = &nodes.ColumnDef{Name: col.GetName(), TypeName: typeName, Comment: col.GetComment()}
 	if !col.GetNullable() {
 		def.Constraints = append(def.Constraints, &nodes.ColumnConstraint{Type: nodes.ColConstrNotNull})
 	}
@@ -291,39 +388,70 @@ func metadataColumnDef(col *metadata.ColumnMetadata) (*nodes.ColumnDef, error) {
 	// sync never sets the flag. Keeping it would make SHOW CREATE TABLE write
 	// text TiDB refuses.
 	def.AutoIncrement = strings.EqualFold(col.GetDefault(), autoIncrementDefault)
-	def.DefaultValue = columnDefault(col)
+	if isAutoRandomDefault(col.GetDefault()) {
+		if omitted = setAutoRandom(def, col.GetDefault()); omitted != nil {
+			omitted = fmt.Errorf("AUTO_RANDOM: %w", omitted)
+		}
+	} else {
+		def.DefaultValue, omitted = columnDefault(col)
+	}
 	if col.GetOnUpdate() != "" {
 		if expr, err := parseExpr(col.GetOnUpdate()); err == nil {
 			def.OnUpdate = expr
+		} else if omitted == nil {
+			omitted = fmt.Errorf("ON UPDATE: %w", err)
 		}
 	}
 	if gen := col.GetGeneration(); gen.GetExpression() != "" {
 		if expr, err := parseExpr(gen.GetExpression()); err == nil {
 			def.Generated = &nodes.GeneratedColumn{Expr: expr, Stored: gen.GetType() == metadata.GenerationMetadata_TYPE_STORED}
+		} else if omitted == nil {
+			omitted = fmt.Errorf("generation: %w", err)
 		}
 	}
-	return def, nil
+	return def, omitted, nil
+}
+
+// isAutoRandomDefault reports whether a default is the AUTO_RANDOM attribute
+// sync stores there: AUTO_RANDOM(shard_bits) or AUTO_RANDOM(shard_bits,
+// range_bits), from the table's PK_AUTO_RANDOM_BITS and RANGE BITS.
+func isAutoRandomDefault(value string) bool {
+	return len(value) >= len(autoRandomSymbol) && strings.EqualFold(value[:len(autoRandomSymbol)], autoRandomSymbol)
+}
+
+// setAutoRandom gives def the AUTO_RANDOM attribute value spells.
+func setAutoRandom(def *nodes.ColumnDef, value string) error {
+	stmt, err := parseFirstStatement[*nodes.CreateTableStmt]("CREATE TABLE `probe` (`c` bigint " + value + ")")
+	if err != nil {
+		return err
+	}
+	if len(stmt.Columns) != 1 || !stmt.Columns[0].AutoRandom {
+		return fmt.Errorf("no AUTO_RANDOM parsed from %q", value)
+	}
+	probe := stmt.Columns[0]
+	def.AutoRandom, def.AutoRandomShardBits, def.AutoRandomRangeBits = true, probe.AutoRandomShardBits, probe.AutoRandomRangeBits
+	return nil
 }
 
 // columnDefault parses the default the snapshot records for a column, or
 // returns nil where the catalog takes none: AUTO_INCREMENT is a flag rather
 // than a default, a generated column has no default, and sync reports DEFAULT
 // NULL even for the types that show no default.
-func columnDefault(col *metadata.ColumnMetadata) nodes.ExprNode {
+func columnDefault(col *metadata.ColumnMetadata) (nodes.ExprNode, error) {
 	value := col.GetDefault()
 	switch {
 	case value == "" || col.GetGeneration() != nil:
-		return nil
+		return nil, nil
 	case strings.EqualFold(value, autoIncrementDefault):
-		return nil
+		return nil, nil
 	case strings.EqualFold(value, "NULL") && !typeTakesDefault(col.GetType()):
-		return nil
+		return nil, nil
 	}
 	expr, err := parseExpr(value)
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("default: %w", err)
 	}
-	return expr
+	return expr, nil
 }
 
 // typeTakesDefault reports whether a column type shows a DEFAULT NULL clause,
@@ -344,8 +472,8 @@ func typeTakesDefault(typ string) bool {
 // metadataIndexConstraint builds an index from its key parts. The index type
 // holds either the kind, FULLTEXT, or the access method. Sync reports the
 // access method a key without USING gets too, and TiDB's is BTREE, so that one
-// stays unwritten.
-func metadataIndexConstraint(idx *metadata.IndexMetadata) *nodes.Constraint {
+// stays unwritten. It fails on a key expression that does not parse.
+func metadataIndexConstraint(idx *metadata.IndexMetadata) (*nodes.Constraint, error) {
 	indexType := strings.ToUpper(strings.TrimSpace(idx.GetType()))
 	if indexType == "BTREE" {
 		indexType = ""
@@ -366,7 +494,10 @@ func metadataIndexConstraint(idx *metadata.IndexMetadata) *nodes.Constraint {
 	default:
 		c.Type, c.IndexType = nodes.ConstrIndex, indexType
 	}
-	c.Columns, c.IndexColumns = indexKeyParts(idx)
+	var err error
+	if c.Columns, c.IndexColumns, err = indexKeyParts(idx); err != nil {
+		return nil, err
+	}
 	// A primary key is always visible.
 	if !idx.GetVisible() && !idx.GetPrimary() {
 		c.IndexOptions = append(c.IndexOptions, &nodes.IndexOption{Name: "INVISIBLE"})
@@ -374,12 +505,13 @@ func metadataIndexConstraint(idx *metadata.IndexMetadata) *nodes.Constraint {
 	if idx.GetComment() != "" {
 		c.IndexOptions = append(c.IndexOptions, &nodes.IndexOption{Name: "COMMENT", Value: &nodes.StringLit{Value: idx.GetComment()}})
 	}
-	return c
+	return c, nil
 }
 
 // indexKeyParts splits an index's key parts: plain column names, or, where a
 // part is an expression or has a length or descends, an IndexColumn for each.
-func indexKeyParts(idx *metadata.IndexMetadata) ([]string, []*nodes.IndexColumn) {
+// It fails on a key expression that does not parse.
+func indexKeyParts(idx *metadata.IndexMetadata) ([]string, []*nodes.IndexColumn, error) {
 	length := func(i int) int {
 		if i < len(idx.GetKeyLength()) {
 			return int(idx.GetKeyLength()[i])
@@ -398,7 +530,7 @@ func indexKeyParts(idx *metadata.IndexMetadata) ([]string, []*nodes.IndexColumn)
 		for _, expr := range idx.GetExpressions() {
 			columns = append(columns, unquoteIdent(expr))
 		}
-		return columns, nil
+		return columns, nil, nil
 	}
 	var keys []*nodes.IndexColumn
 	for i, expr := range idx.GetExpressions() {
@@ -407,15 +539,17 @@ func indexKeyParts(idx *metadata.IndexMetadata) ([]string, []*nodes.IndexColumn)
 			key.Length = l
 		}
 		if isExpressionKey(expr) {
-			key.Functional = true
-			// On a parse failure the key stays a column, so the index still installs.
-			if parsed, err := parseExpr(expr); err == nil {
-				key.Expr = parsed
+			// Unlike MySQL's, TiDB's EXPRESSION is SQL as written: quotes are
+			// doubled, not backslash-escaped, so it parses as it is.
+			parsed, err := parseExpr(expr)
+			if err != nil {
+				return nil, nil, err
 			}
+			key.Expr, key.Functional = parsed, true
 		}
 		keys = append(keys, key)
 	}
-	return nil, keys
+	return nil, keys, nil
 }
 
 // isExpressionKey reports whether a key part is a functional expression, as
@@ -424,12 +558,18 @@ func isExpressionKey(s string) bool {
 	return strings.Contains(s, "(")
 }
 
-func metadataForeignKey(fk *metadata.ForeignKeyMetadata) *nodes.Constraint {
+// metadataForeignKey leaves a reference to the snapshot's own database
+// unqualified, so it follows the snapshot into the database it installs into.
+func metadataForeignKey(fk *metadata.ForeignKeyMetadata, snapshotDatabase string) *nodes.Constraint {
+	refSchema := fk.GetReferencedSchema()
+	if refSchema == snapshotDatabase {
+		refSchema = ""
+	}
 	return &nodes.Constraint{
 		Type:       nodes.ConstrForeignKey,
 		Name:       fk.GetName(),
 		Columns:    fk.GetColumns(),
-		RefTable:   &nodes.TableRef{Schema: fk.GetReferencedSchema(), Name: fk.GetReferencedTable()},
+		RefTable:   &nodes.TableRef{Schema: refSchema, Name: fk.GetReferencedTable()},
 		RefColumns: fk.GetReferencedColumns(),
 		OnUpdate:   referenceAction(fk.GetOnUpdate()),
 		OnDelete:   referenceAction(fk.GetOnDelete()),
@@ -437,6 +577,10 @@ func metadataForeignKey(fk *metadata.ForeignKeyMetadata) *nodes.Constraint {
 	}
 }
 
+// referenceAction maps a synced rule to the action written. information_schema
+// reports NO ACTION for a foreign key without the clause too, which is the far
+// more common one, so NO ACTION stays unwritten, as the definition renderer
+// leaves it; TiDB's SHOW CREATE TABLE writes it only where it was written.
 func referenceAction(action string) nodes.ReferenceAction {
 	switch strings.ToUpper(strings.TrimSpace(action)) {
 	case "RESTRICT":
@@ -447,23 +591,135 @@ func referenceAction(action string) nodes.ReferenceAction {
 		return nodes.RefActSetNull
 	case "SET DEFAULT":
 		return nodes.RefActSetDefault
-	case "NO ACTION":
-		return nodes.RefActNoAction
 	default:
 		return nodes.RefActNone
 	}
 }
 
-// metadataViewStmt keeps the view's text as it is along with its parsed body.
+// metadataViewStmt keeps the view's text, less the qualifier of the snapshot's
+// database, along with its parsed body. TiDB's VIEW_DEFINITION qualifies every
+// table with that database, which the view resolves to without it.
 // DefineView installs a view whose body does not analyze, so a view may name
 // one that installs after it; reanalyzeViews retries it then. nameViewColumns
 // names the columns once the body resolves.
-func metadataViewStmt(v *metadata.ViewMetadata) (*nodes.CreateViewStmt, error) {
-	sel, err := parseFirstStatement[*nodes.SelectStmt](v.GetDefinition())
+func metadataViewStmt(v *metadata.ViewMetadata, database, target string) (*nodes.CreateViewStmt, error) {
+	body := stripViewBodyDatabaseQualifier(v.GetDefinition(), database, target)
+	sel, err := parseFirstStatement[*nodes.SelectStmt](body)
 	if err != nil {
 		return nil, err
 	}
-	return &nodes.CreateViewStmt{OrReplace: true, Name: &nodes.TableRef{Name: v.GetName()}, Select: sel, SelectText: v.GetDefinition()}, nil
+	return &nodes.CreateViewStmt{OrReplace: true, Name: &nodes.TableRef{Name: v.GetName()}, Select: sel, SelectText: body}, nil
+}
+
+// stripViewBodyDatabaseQualifier removes the qualifier of database dbName from
+// a view body. The body is parsed so that only a qualifier in the database
+// position goes: a table alias or table spelled like the database qualifies
+// its columns and stays. A body that does not parse is returned unchanged.
+// A table whose name a CTE, another table's or a derived table's alias or another database's table
+// also has keeps a qualifier, target's, since without one a reference to it
+// would resolve to the CTE or the alias, or be ambiguous.
+func stripViewBodyDatabaseQualifier(body, dbName, target string) string {
+	if dbName == "" || body == "" {
+		return body
+	}
+	qualifier := quoteIdent(dbName) + "."
+	if !strings.Contains(body, qualifier) {
+		return body
+	}
+	// A stored body may end in WITH CHECK OPTION, so it parses only as a whole view.
+	const prefix = "CREATE VIEW v AS "
+	list, err := tidbparser.Parse(prefix + body)
+	if err != nil || list == nil || len(list.Items) != 1 {
+		return body
+	}
+	// Each relation the body names is known by its alias, or else by its name. A
+	// reference through dbName stays qualified when another relation, or a CTE, is
+	// known by the same name: without the qualifier it would resolve to that one,
+	// or be ambiguous.
+	exposed := map[string]int{}
+	ctes := map[string]bool{}
+	expose := func(name string) {
+		if name != "" {
+			exposed[strings.ToLower(name)]++
+		}
+	}
+	nodes.Inspect(list.Items[0], func(n nodes.Node) bool {
+		switch n := n.(type) {
+		case *nodes.CommonTableExpr:
+			ctes[strings.ToLower(n.Name)] = true
+			expose(n.Name)
+		case *nodes.TableRef:
+			switch {
+			case n.Loc.Start < len(prefix):
+				// The view's own name, in the prefix.
+			case n.Alias != "":
+				expose(n.Alias)
+			default:
+				expose(n.Name)
+			}
+		case *nodes.SubqueryExpr:
+			expose(n.Alias)
+		}
+		return true
+	})
+	// keepQualifier reports whether a reference through dbName to table, by its
+	// name in a FROM clause (tableRef) or as a column's qualifier, needs one.
+	keepQualifier := func(table string, tableRef bool) bool {
+		table = strings.ToLower(table)
+		if tableRef && ctes[table] {
+			return true
+		}
+		return exposed[table] > 1
+	}
+	replacement := make(map[int]string)
+	nodes.Inspect(list.Items[0], func(n nodes.Node) bool {
+		var schema, table string
+		var loc nodes.Loc
+		tableRef := false
+		switch n := n.(type) {
+		case *nodes.TableRef:
+			schema, table, loc, tableRef = n.Schema, n.Name, n.Loc, true
+			if n.Alias != "" && !ctes[strings.ToLower(n.Name)] {
+				// Aliased, the table is known by its alias, which nothing else
+				// can shadow here.
+				table = ""
+			}
+		case *nodes.ColumnRef:
+			schema, table, loc = n.Schema, n.Table, n.Loc
+		case *nodes.FuncCallExpr:
+			schema, loc = n.Schema, n.Loc
+		case *nodes.DefaultExpr:
+			// The node starts at DEFAULT; its qualifier is the first inside it.
+			schema, table, loc = n.Schema, n.Table, n.Loc
+			if begin, end := loc.Start-len(prefix), loc.End-len(prefix); schema == dbName && begin >= 0 && end <= len(body) && begin < end {
+				if i := strings.Index(body[begin:end], qualifier); i >= 0 {
+					loc.Start += i
+				}
+			}
+		default:
+			return true
+		}
+		start := loc.Start - len(prefix)
+		if schema == dbName && start >= 0 && strings.HasPrefix(body[start:], qualifier) {
+			replacement[start] = ""
+			if table != "" && keepQualifier(table, tableRef) {
+				replacement[start] = quoteIdent(target) + "."
+			}
+		}
+		return true
+	})
+	starts := slices.Sorted(maps.Keys(replacement))
+
+	var out strings.Builder
+	out.Grow(len(body))
+	prev := 0
+	for _, start := range starts {
+		out.WriteString(body[prev:start])
+		out.WriteString(replacement[start])
+		prev = start + len(qualifier)
+	}
+	out.WriteString(body[prev:])
+	return out.String()
 }
 
 // metadataViewColumnNames lists the column names the snapshot records for a

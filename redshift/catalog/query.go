@@ -688,7 +688,7 @@ type RangeTableEntry struct {
 	// no column definition list. ColNames then holds only the columns the
 	// query has named, its alias columns first, all of unknown type.
 	UnknownColumns bool
-	aliasColumns   int // for UnknownColumns: how many of ColNames the alias gave
+	aliasColumns   int // how many of ColNames the FROM item's alias named
 	// inferredCols marks, for UnknownColumns, the columns added only
 	// because a reference named them, as opposed to an alias or USING.
 	inferredCols []bool

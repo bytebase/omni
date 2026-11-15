@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/bytebase/omni/mariadb/parser"
 )
 
 func TestRewriteResultLimit(t *testing.T) {
@@ -288,5 +290,33 @@ func TestRewriteResultLimitMariaDBForms(t *testing.T) {
 	} {
 		_, err := RewriteResultLimit(stmt, 10)
 		require.Error(t, err, stmt)
+	}
+}
+
+// MariaDB 11.8.8 accepts each rewrite and rejects LIMIT after the locking clause
+// or after a trailing INTO.
+func TestRewriteResultLimitBeforeLockingClauseAndInto(t *testing.T) {
+	testCases := []struct {
+		stmt string
+		want string
+	}{
+		{"SELECT a FROM t FOR UPDATE INTO @x", "SELECT a FROM t LIMIT 10 FOR UPDATE INTO @x"},
+		{"SELECT a FROM t LOCK IN SHARE MODE INTO @x", "SELECT a FROM t LIMIT 10 LOCK IN SHARE MODE INTO @x"},
+		{"SELECT a FROM t FOR UPDATE NOWAIT INTO OUTFILE '/tmp/a'", "SELECT a FROM t LIMIT 10 FOR UPDATE NOWAIT INTO OUTFILE '/tmp/a'"},
+		{"SELECT a FROM t INTO @x FOR UPDATE", "SELECT a FROM t LIMIT 10 INTO @x FOR UPDATE"},
+		{"SELECT a FROM t2 UNION SELECT a FROM t INTO @x", "SELECT a FROM t2 UNION SELECT a FROM t LIMIT 10 INTO @x"},
+		{"SELECT a FROM t2 UNION SELECT a FROM t FOR UPDATE", "SELECT a FROM t2 UNION SELECT a FROM t LIMIT 10 FOR UPDATE"},
+		{"SELECT a FROM t2 UNION SELECT a FROM t3 UNION SELECT a FROM t FOR UPDATE INTO @x", "SELECT a FROM t2 UNION SELECT a FROM t3 UNION SELECT a FROM t LIMIT 10 FOR UPDATE INTO @x"},
+		{"SELECT a FROM t2 UNION (SELECT a FROM t FOR UPDATE)", "SELECT a FROM t2 UNION (SELECT a FROM t FOR UPDATE) LIMIT 10"},
+		{"SELECT a FROM (SELECT a FROM t) d INTO @x", "SELECT a FROM (SELECT a FROM t) d LIMIT 10 INTO @x"},
+		{"SELECT 1 UNION SELECT 1 INTO @x ORDER BY 1", "SELECT 1 UNION SELECT 1 INTO @x ORDER BY 1 LIMIT 10"},
+		{"SELECT a FROM t2 UNION SELECT a INTO @x FROM t ORDER BY a", "SELECT a FROM t2 UNION SELECT a INTO @x FROM t ORDER BY a LIMIT 10"},
+	}
+	for _, tc := range testCases {
+		got, err := RewriteResultLimit(tc.stmt, 10)
+		require.NoError(t, err, tc.stmt)
+		require.Equal(t, tc.want, got, tc.stmt)
+		_, err = parser.Parse(got)
+		require.NoError(t, err, got)
 	}
 }

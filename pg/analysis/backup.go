@@ -4,12 +4,15 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"unicode/utf8"
 
 	omnipg "github.com/bytebase/omni/pg"
 	"github.com/bytebase/omni/pg/ast"
 )
 
 const (
+	// maxTableNameLength is PostgreSQL's identifier limit (NAMEDATALEN - 1),
+	// in bytes.
 	maxTableNameLength = 63
 )
 
@@ -33,14 +36,19 @@ type tableReference struct {
 
 func (t *tableReference) String() string {
 	if t.Database != "" {
-		return fmt.Sprintf(`"%s"."%s"."%s"`, t.Database, t.Schema, t.Table)
+		return quoteIdentifier(t.Database) + "." + quoteIdentifier(t.Schema) + "." + quoteIdentifier(t.Table)
 	}
 
 	if t.Schema != "" {
-		return fmt.Sprintf(`"%s"."%s"`, t.Schema, t.Table)
+		return quoteIdentifier(t.Schema) + "." + quoteIdentifier(t.Table)
 	}
 
-	return fmt.Sprintf(`"%s"`, t.Table)
+	return quoteIdentifier(t.Table)
+}
+
+// quoteIdentifier writes name as a quoted identifier, doubling any '"' in it.
+func quoteIdentifier(name string) string {
+	return `"` + strings.ReplaceAll(name, `"`, `""`) + `"`
 }
 
 type statementInfo struct {
@@ -97,14 +105,21 @@ func TransformDMLToSelect(stmts []omnipg.Statement, statement string, opts Backu
 }
 
 func generateSQL(statementInfoList []statementInfo, targetSchema string, tablePrefix string) ([]BackupStatement, error) {
+	// Tables are visited in the order the script first changes them, so an
+	// error names the same table on every run.
 	groupByTable := make(map[string][]statementInfo)
+	var tableOrder []string
 	for _, item := range statementInfoList {
 		key := fmt.Sprintf("%s.%s", item.table.Schema, item.table.Table)
+		if _, ok := groupByTable[key]; !ok {
+			tableOrder = append(tableOrder, key)
+		}
 		groupByTable[key] = append(groupByTable[key], item)
 	}
 
 	// Check if the statement type is the same for all statements on the same table.
-	for key, list := range groupByTable {
+	for _, key := range tableOrder {
+		list := groupByTable[key]
 		statementType := dmlTypeUnknown
 		for _, item := range list {
 			if statementType == dmlTypeUnknown {
@@ -117,12 +132,27 @@ func generateSQL(statementInfoList []statementInfo, targetSchema string, tablePr
 	}
 
 	var result []BackupStatement
-	for key, list := range groupByTable {
+	for _, key := range tableOrder {
+		list := groupByTable[key]
 		backupStatement, err := generateSQLForTable(list, targetSchema, tablePrefix)
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate SQL for table %q: %w", key, err)
 		}
 		result = append(result, *backupStatement)
+	}
+
+	// Two source tables can come out with one backup name, as in c.a_b and
+	// b_c.a, or once truncated; the second backup would then fail to create.
+	names := make(map[string]BackupStatement)
+	for _, backup := range result {
+		if other, ok := names[backup.TargetTableName]; ok {
+			first, second := other, backup
+			if fmt.Sprintf("%s.%s", second.SourceSchema, second.SourceTableName) < fmt.Sprintf("%s.%s", first.SourceSchema, first.SourceTableName) {
+				first, second = second, first
+			}
+			return nil, fmt.Errorf("prior backup cannot back up both %q.%q and %q.%q: their backup tables would both be named %q", first.SourceSchema, first.SourceTableName, second.SourceSchema, second.SourceTableName, backup.TargetTableName)
+		}
+		names[backup.TargetTableName] = backup
 	}
 
 	slices.SortFunc(result, func(a, b BackupStatement) int {
@@ -148,18 +178,10 @@ func generateSQLForTable(statementInfoList []statementInfo, targetSchema string,
 	table := statementInfoList[0].table
 
 	targetTable := fmt.Sprintf("%s_%s_%s", tablePrefix, table.Table, table.Schema)
-	targetTable, _ = truncateString(targetTable, maxTableNameLength)
+	targetTable = truncateIdentifier(targetTable, maxTableNameLength)
 	var buf strings.Builder
-	if _, err := fmt.Fprintf(&buf, `CREATE TABLE "%s"."%s" AS`+"\n", targetSchema, targetTable); err != nil {
+	if _, err := fmt.Fprintf(&buf, "CREATE TABLE %s.%s AS\n", quoteIdentifier(targetSchema), quoteIdentifier(targetTable)); err != nil {
 		return nil, fmt.Errorf("failed to write to buffer: %w", err)
-	}
-
-	// In PostgreSQL, WITH clause must appear once before the first SELECT.
-	cteClause := extractCTE(statementInfoList[0].node, statementInfoList[0].fullSQL)
-	if cteClause != "" {
-		if _, err := fmt.Fprintf(&buf, "%s\n", cteClause); err != nil {
-			return nil, fmt.Errorf("failed to write to buffer: %w", err)
-		}
 	}
 
 	for i, item := range statementInfoList {
@@ -168,18 +190,37 @@ func generateSQLForTable(statementInfoList []statementInfo, targetSchema string,
 				return nil, fmt.Errorf("failed to write to buffer: %w", err)
 			}
 		}
-		if table.Alias != "" {
-			if _, err := fmt.Fprintf(&buf, `  SELECT "%s".* `, table.Alias); err != nil {
+		// Each statement's WITH clause scopes only its own SELECT, so with
+		// several statements an arm that has one is parenthesized with it.
+		cteClause := extractCTE(item.node, item.fullSQL)
+		parenthesized := cteClause != "" && len(statementInfoList) > 1
+		if parenthesized {
+			if _, err := fmt.Fprintf(&buf, "  (%s\n", cteClause); err != nil {
+				return nil, fmt.Errorf("failed to write to buffer: %w", err)
+			}
+		} else if cteClause != "" {
+			if _, err := fmt.Fprintf(&buf, "%s\n", cteClause); err != nil {
+				return nil, fmt.Errorf("failed to write to buffer: %w", err)
+			}
+		}
+		// Each arm selects through its own statement's name for the table.
+		if item.table.Alias != "" {
+			if _, err := fmt.Fprintf(&buf, "  SELECT %s.* ", quoteIdentifier(item.table.Alias)); err != nil {
 				return nil, fmt.Errorf("failed to write to buffer: %w", err)
 			}
 		} else {
-			if _, err := fmt.Fprintf(&buf, `  SELECT %s.* `, table.String()); err != nil {
+			if _, err := fmt.Fprintf(&buf, `  SELECT %s.* `, item.table.String()); err != nil {
 				return nil, fmt.Errorf("failed to write to buffer: %w", err)
 			}
 		}
 
 		if err := writeSuffixSelectClause(&buf, item.node, item.fullSQL); err != nil {
 			return nil, fmt.Errorf("failed to write string with new line: %w", err)
+		}
+		if parenthesized {
+			if _, err := buf.WriteString(")"); err != nil {
+				return nil, fmt.Errorf("failed to write to buffer: %w", err)
+			}
 		}
 	}
 
@@ -448,15 +489,15 @@ func extractTableReferenceFromRangeVar(rv *ast.RangeVar, searchRelation func(sea
 	return &table, nil
 }
 
-// truncateString truncates str to at most limit runes and reports whether it
-// did.
-func truncateString(str string, limit int) (string, bool) {
-	chars := 0
-	for i := range str {
-		if chars >= limit {
-			return str[:i], true
-		}
-		chars++
+// truncateIdentifier cuts name to at most limit bytes, on a character
+// boundary, as PostgreSQL itself shortens an identifier that is too long.
+func truncateIdentifier(name string, limit int) string {
+	if len(name) <= limit {
+		return name
 	}
-	return str, false
+	end := limit
+	for end > 0 && !utf8.RuneStart(name[end]) {
+		end--
+	}
+	return name[:end]
 }

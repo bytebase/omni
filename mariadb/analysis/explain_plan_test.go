@@ -80,8 +80,8 @@ func TestAffectedRowsQuery(t *testing.T) {
 		},
 		{
 			name:      "update with a CTE",
-			statement: "WITH x AS (SELECT id FROM s WHERE flag = 1) UPDATE t SET v = 'y' WHERE grp IN (SELECT id FROM x);",
-			want:      "WITH x AS (SELECT id FROM s WHERE flag = 1) SELECT 1 FROM t WHERE grp IN (SELECT id FROM x)",
+			statement: "UPDATE t SET v = 'y' WHERE grp IN (WITH x AS (SELECT id FROM s WHERE flag = 1) SELECT id FROM x);",
+			want:      "SELECT 1 FROM t WHERE grp IN (WITH x AS (SELECT id FROM s WHERE flag = 1) SELECT id FROM x)",
 		},
 		{
 			name:      "delete from a partition",
@@ -238,7 +238,7 @@ func TestEstimateAffectedRowsFromExplainJSON(t *testing.T) {
 		{
 			// The materialization scan prints no rows, and the target's 113 is per materialized row: 113 * 10.
 			fixture:   "delete_cte_semijoin_materialization_scan.json",
-			statement: "WITH x AS (SELECT id FROM s WHERE flag = 1) DELETE FROM big WHERE s_id IN (SELECT id FROM x);",
+			statement: "DELETE FROM big WHERE s_id IN (WITH x AS (SELECT id FROM s WHERE flag = 1) SELECT id FROM x);",
 			want:      1130,
 		},
 		{

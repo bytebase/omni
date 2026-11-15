@@ -62,11 +62,34 @@ func TestTransformDMLToSelect(t *testing.T) {
 	}
 }
 
+func TestTransformDMLToSelectUse(t *testing.T) {
+	// A USE of the task database changes nothing, nor does a USE after the
+	// last DML, nor a temp table's DML.
+	for _, script := range []string{
+		"USE db; DELETE FROM t",
+		"USE [DB]; DELETE FROM t",
+		"USE other; USE db; DELETE FROM t",
+		"DELETE FROM t; USE other",
+		"USE other; DELETE FROM #tmp",
+	} {
+		if _, err := TransformDMLToSelect(parseScript(t, script), "db", "bbarchive", "pre", false); err != nil {
+			t.Errorf("%q: %v", script, err)
+		}
+	}
+	// Under a case-sensitive collation, DB is another database.
+	if _, err := TransformDMLToSelect(parseScript(t, "USE DB; DELETE FROM t"), "db", "bbarchive", "pre", true); err == nil {
+		t.Error("USE DB under a case-sensitive collation: got no error")
+	}
+}
+
 func TestTransformDMLToSelectRefuses(t *testing.T) {
 	for _, script := range []string{
 		"UPDATE t SET a = 1; DELETE FROM t",
 		"WITH c AS (SELECT a FROM t) UPDATE c SET a = 1",
 		"UPDATE t SET a = 1 WHERE CURRENT OF cur",
+		"USE other; DELETE FROM t",
+		"USE other\nGO\nUPDATE db.dbo.t SET a = 1",
+		"USE db; USE other; DELETE FROM t",
 	} {
 		if _, err := TransformDMLToSelect(parseScript(t, script), "db", "bbarchive", "pre", false); err == nil {
 			t.Errorf("%q: got no error", script)
@@ -122,8 +145,29 @@ func TestRestoreSQL(t *testing.T) {
 		t.Errorf("delete:\ngot  %q\nwant %q", got, want)
 	}
 
+	// SQL Server nests block comments: the quoted statement must neither close
+	// the comment nor open another.
+	opts.OriginalSQL = "DELETE FROM t WHERE a IN ('*/ DROP TABLE x; /*', '/*/')"
+	got, err = RestoreSQL(dmls[1].Node, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "/*\nOriginal SQL:\nDELETE FROM t WHERE a IN ('* / DROP TABLE x; / *', '/ * /')\n*/\nINSERT INTO [db].[dbo].[t] ([a]) SELECT [a] FROM [bbarchive].[dbo].[pre_t_db];"; got != want {
+		t.Errorf("comment delimiters:\ngot  %q\nwant %q", got, want)
+	}
+
 	opts.PrimaryKey = nil
 	if _, err := RestoreSQL(parseScript(t, "UPDATE t SET a = 1")[0].Node, opts); err == nil {
 		t.Error("update of every unique key: got no error")
+	}
+}
+
+func TestTransformDMLToSelectReportsTheFirstFailingTable(t *testing.T) {
+	stmts := parseScript(t, "UPDATE t1 SET a = 1; DELETE FROM t1; UPDATE t2 SET a = 1; DELETE FROM t2;")
+	for range 50 {
+		_, err := TransformDMLToSelect(stmts, "db", "bbarchive", "pre", false)
+		if err == nil || !strings.Contains(err.Error(), "t1") || strings.Contains(err.Error(), "t2") {
+			t.Fatalf("got %v, want the error of t1", err)
+		}
 	}
 }

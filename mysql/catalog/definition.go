@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"slices"
 	"strconv"
 	"strings"
@@ -1706,8 +1707,18 @@ func writeViewSDL(buf *strings.Builder, dbName string, view *metadata.ViewMetada
 // qualifier of the database it loads into, so a body still naming the synced database
 // would differ from the user's forever. The body is parsed so that only a qualifier in the database
 // position goes: a table alias or table spelled like the database is a qualifier of
-// its columns and stays. A body that does not parse is returned unchanged.
+// its columns and stays. A body that does not parse is returned unchanged. A table
+// known by a name another relation of the body (a CTE, an alias, a derived table,
+// another database's table) also has keeps its qualifier, since without one a
+// reference to it would resolve to that relation, or be ambiguous.
 func stripViewBodyDatabaseQualifier(body, dbName string) string {
+	return rebaseViewBodyDatabaseQualifier(body, dbName, dbName)
+}
+
+// rebaseViewBodyDatabaseQualifier is stripViewBodyDatabaseQualifier for a body
+// installed into database target: a table that keeps a qualifier is qualified
+// with target instead.
+func rebaseViewBodyDatabaseQualifier(body, dbName, target string) string {
 	if dbName == "" || body == "" {
 		return body
 	}
@@ -1721,15 +1732,62 @@ func stripViewBodyDatabaseQualifier(body, dbName string) string {
 	if err != nil || len(list.Items) != 1 {
 		return body
 	}
-	var starts []int
+	// Each relation the body names is known by its alias, or else by its name. A
+	// reference through dbName stays qualified when another relation, or a CTE, is
+	// known by the same name: without the qualifier it would resolve to that one,
+	// or be ambiguous.
+	exposed := map[string]int{}
+	ctes := map[string]bool{}
+	expose := func(name string) {
+		if name != "" {
+			exposed[strings.ToLower(name)]++
+		}
+	}
 	nodes.Inspect(list.Items[0], func(n nodes.Node) bool {
-		var schema string
+		switch n := n.(type) {
+		case *nodes.CommonTableExpr:
+			ctes[strings.ToLower(n.Name)] = true
+			expose(n.Name)
+		case *nodes.TableRef:
+			switch {
+			case n.Loc.Start < len(prefix):
+				// The view's own name, in the prefix.
+			case n.Alias != "":
+				expose(n.Alias)
+			default:
+				expose(n.Name)
+			}
+		case *nodes.SubqueryExpr:
+			expose(n.Alias)
+		case *nodes.JsonTableExpr:
+			expose(n.Alias)
+		}
+		return true
+	})
+	// keepQualifier reports whether a reference through dbName to table, by its
+	// name in a FROM clause (tableRef) or as a column's qualifier, needs one.
+	keepQualifier := func(table string, tableRef bool) bool {
+		table = strings.ToLower(table)
+		if tableRef && ctes[table] {
+			return true
+		}
+		return exposed[table] > 1
+	}
+	replacement := make(map[int]string)
+	nodes.Inspect(list.Items[0], func(n nodes.Node) bool {
+		var schema, table string
 		var loc nodes.Loc
+		tableRef := false
 		switch n := n.(type) {
 		case *nodes.TableRef:
-			schema, loc = n.Schema, n.Loc
+			schema, table, loc, tableRef = n.Schema, n.Name, n.Loc, true
+			if n.Alias != "" && !ctes[strings.ToLower(n.Name)] {
+				// Aliased, the table is known by its alias, which nothing else
+				// can shadow here.
+				table = ""
+			}
 		case *nodes.ColumnRef:
-			schema, loc = n.Schema, n.Loc
+			schema, table, loc = n.Schema, n.Table, n.Loc
 		case *nodes.FuncCallExpr:
 			schema, loc = n.Schema, n.Loc
 		default:
@@ -1737,18 +1795,21 @@ func stripViewBodyDatabaseQualifier(body, dbName string) string {
 		}
 		start := loc.Start - len(prefix)
 		if schema == dbName && start >= 0 && strings.HasPrefix(body[start:], qualifier) {
-			starts = append(starts, start)
+			replacement[start] = ""
+			if table != "" && keepQualifier(table, tableRef) {
+				replacement[start] = quoteIdent(target) + "."
+			}
 		}
 		return true
 	})
-	slices.Sort(starts)
-	starts = slices.Compact(starts)
+	starts := slices.Sorted(maps.Keys(replacement))
 
 	var out strings.Builder
 	out.Grow(len(body))
 	prev := 0
 	for _, start := range starts {
 		out.WriteString(body[prev:start])
+		out.WriteString(replacement[start])
 		prev = start + len(qualifier)
 	}
 	out.WriteString(body[prev:])

@@ -1,13 +1,19 @@
 package catalog
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"maps"
+	"os"
 	"slices"
 	"strings"
 	"testing"
 
 	"github.com/bytebase/omni/metadata"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
+	"gopkg.in/yaml.v3"
 )
 
 const snapshotDB = "testdb"
@@ -41,6 +47,17 @@ func requireReport(t *testing.T, report *LoadMetadataReport, degraded, missing [
 	}
 	if got := keys(report.Missing); !slices.Equal(got, missing) {
 		t.Errorf("missing = %v, want %v (errors %v)", got, missing, report.Missing)
+	}
+}
+
+// requireIncomplete fails unless exactly the given objects were installed
+// without part of their definition.
+func requireIncomplete(t *testing.T, report *LoadMetadataReport, incomplete []string) {
+	t.Helper()
+	got := slices.Sorted(maps.Keys(report.Incomplete))
+	slices.Sort(incomplete)
+	if !slices.Equal(got, incomplete) {
+		t.Errorf("incomplete = %v, want %v (errors %v)", got, incomplete, report.Incomplete)
 	}
 }
 
@@ -333,6 +350,147 @@ func TestLoadMetadataInstallsForeignKeysInAnyOrder(t *testing.T) {
 	}
 	if !strings.EqualFold(fk.OnDelete, "CASCADE") || !strings.EqualFold(fk.OnUpdate, "RESTRICT") {
 		t.Errorf("fk actions = ON DELETE %q ON UPDATE %q", fk.OnDelete, fk.OnUpdate)
+	}
+}
+
+func TestLoadMetadataInstallsSyncedIndexKeyParts(t *testing.T) {
+	c, report := loadMySQLSnapshot(t, snapshotWithTables(&metadata.TableMetadata{
+		Name: "t",
+		Columns: []*metadata.ColumnMetadata{
+			{Name: "details", Type: "json"},
+			{Name: "location", Type: "geometry", Srid: proto.Uint32(0)},
+		},
+		Indexes: []*metadata.IndexMetadata{
+			// information_schema.STATISTICS.EXPRESSION escapes quotes and keeps
+			// the charset introducer.
+			{Name: "idx_brand", Type: "BTREE", Expressions: []string{`(cast(json_unquote(json_extract(` + "`details`" + `,_utf8mb4\'$.brand\')) as char(50) charset utf8mb4))`}, Visible: true},
+			// Sync reports a SPATIAL key part with length 32, which MySQL rejects.
+			{Name: "sp_location", Type: "SPATIAL", Expressions: []string{"location"}, KeyLength: []int64{32}, Visible: true},
+		},
+	}))
+	requireReport(t, report, nil, nil)
+	requireIncomplete(t, report, nil)
+
+	indexes := make(map[string]*Index)
+	for _, idx := range requireTable(t, c, "t").Indexes {
+		indexes[idx.Name] = idx
+	}
+	if idx := indexes["idx_brand"]; idx == nil || len(idx.Columns) != 1 || !strings.Contains(idx.Columns[0].Expr, "json_extract") {
+		t.Errorf("idx_brand = %+v, want the cast expression as its key part", idx)
+	}
+	if idx := indexes["sp_location"]; idx == nil || len(idx.Columns) != 1 || idx.Columns[0].Length != 0 {
+		t.Errorf("sp_location = %+v, want location without a length", idx)
+	}
+}
+
+func TestLoadMetadataKeepsFunctionalKeyCharsetIntroducers(t *testing.T) {
+	// _binary makes CONCAT return a binary string, so CHAR_LENGTH counts bytes.
+	c, report := loadMySQLSnapshot(t, snapshotWithTables(&metadata.TableMetadata{
+		Name:    "t",
+		Columns: []*metadata.ColumnMetadata{{Name: "name", Type: "varchar(64)"}},
+		Indexes: []*metadata.IndexMetadata{
+			{Name: "idx_len", Type: "BTREE", Expressions: []string{"(char_length(concat(`name`,_binary\\'a\\')))"}, Visible: true},
+		},
+	}))
+	requireReport(t, report, nil, nil)
+	requireIncomplete(t, report, nil)
+	idx := requireTable(t, c, "t").Indexes[0]
+	if len(idx.Columns) != 1 || !strings.Contains(idx.Columns[0].Expr, "_binary") {
+		t.Errorf("idx_len key parts = %+v, want the _binary introducer kept", idx.Columns)
+	}
+}
+
+func TestLoadMetadataIntoRebasesSameDatabaseForeignKeys(t *testing.T) {
+	meta := snapshotWithTables(
+		&metadata.TableMetadata{Name: "parent", Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int"}},
+			Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Type: "BTREE", Primary: true, Unique: true, Expressions: []string{"id"}}}},
+		&metadata.TableMetadata{Name: "child", Columns: []*metadata.ColumnMetadata{{Name: "pid", Type: "int"}, {Name: "oid", Type: "int"}},
+			ForeignKeys: []*metadata.ForeignKeyMetadata{
+				{Name: "fk_same", Columns: []string{"pid"}, ReferencedSchema: snapshotDB, ReferencedTable: "parent", ReferencedColumns: []string{"id"}},
+				{Name: "fk_other", Columns: []string{"oid"}, ReferencedSchema: "elsewhere", ReferencedTable: "parent", ReferencedColumns: []string{"id"}},
+			}},
+	)
+	c := New()
+	if _, err := c.LoadMetadataInto(context.Background(), meta, "other"); err != nil {
+		t.Fatal(err)
+	}
+	refs := map[string]string{}
+	for _, con := range c.GetDatabase("other").Tables["child"].Constraints {
+		if con.Type == ConForeignKey {
+			refs[con.Name] = con.RefDatabase
+		}
+	}
+	// An unqualified reference is to the table's own database.
+	if refs["fk_same"] != "" || refs["fk_other"] != "elsewhere" {
+		t.Errorf("referenced databases = %v, want fk_same unqualified and fk_other in elsewhere", refs)
+	}
+}
+
+func TestLoadMetadataInstallsPartitioning(t *testing.T) {
+	c, report := loadMySQLSnapshot(t, snapshotWithTables(&metadata.TableMetadata{
+		Name:    "sales",
+		Engine:  "InnoDB",
+		Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int"}, {Name: "sold_on", Type: "date"}},
+		Partitions: []*metadata.TablePartitionMetadata{
+			{Name: "p2020", Type: metadata.TablePartitionMetadata_RANGE, Expression: "year(`sold_on`)", Value: "2021"},
+			{Name: "p_future", Type: metadata.TablePartitionMetadata_RANGE, Expression: "year(`sold_on`)", Value: "MAXVALUE"},
+		},
+	}))
+	requireReport(t, report, nil, nil)
+	requireIncomplete(t, report, nil)
+	p := requireTable(t, c, "sales").Partitioning
+	if p == nil || len(p.Partitions) != 2 || p.Partitions[1].Name != "p_future" {
+		t.Fatalf("partitioning = %+v, want two RANGE partitions", p)
+	}
+}
+
+func TestLoadMetadataReportsWhatATableLeftOut(t *testing.T) {
+	c, report := loadMySQLSnapshot(t, snapshotWithTables(
+		&metadata.TableMetadata{
+			Name:    "bad_default",
+			Columns: []*metadata.ColumnMetadata{{Name: "a", Type: "int", Default: "((("}},
+		},
+		&metadata.TableMetadata{
+			Name:             "bad_check",
+			Columns:          []*metadata.ColumnMetadata{{Name: "a", Type: "int"}},
+			CheckConstraints: []*metadata.CheckConstraintMetadata{{Name: "chk", Expression: "a >>> 0"}},
+		},
+		&metadata.TableMetadata{
+			Name:    "bad_index",
+			Columns: []*metadata.ColumnMetadata{{Name: "a", Type: "int"}},
+			Indexes: []*metadata.IndexMetadata{{Name: "idx", Type: "BTREE", Expressions: []string{"(lower(((a)"}}},
+		},
+		&metadata.TableMetadata{
+			Name:       "bad_partitions",
+			Columns:    []*metadata.ColumnMetadata{{Name: "a", Type: "int"}},
+			Partitions: []*metadata.TablePartitionMetadata{{Name: "p0", Type: metadata.TablePartitionMetadata_RANGE, Expression: "a +", Value: "1"}},
+		},
+	))
+	requireReport(t, report, nil, nil)
+	requireIncomplete(t, report, []string{"table:bad_default", "table:bad_check", "table:bad_index", "table:bad_partitions"})
+	// The catalog rejects the key part as a column, so the index is left out.
+	if tbl := requireTable(t, c, "bad_index"); len(tbl.Indexes) != 0 {
+		t.Errorf("bad_index indexes = %+v, want none", tbl.Indexes)
+	}
+}
+
+func TestLoadMetadataIntoAnotherDatabase(t *testing.T) {
+	meta := snapshot(&metadata.SchemaMetadata{
+		Tables: []*metadata.TableMetadata{{Name: "users", Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int"}}}},
+		Views:  []*metadata.ViewMetadata{{Name: "v", Definition: "select `testdb`.`users`.`id` AS `id` from `testdb`.`users`"}},
+	})
+	c := New()
+	report, err := c.LoadMetadataInto(context.Background(), meta, "other")
+	if err != nil {
+		t.Fatalf("LoadMetadataInto: %v", err)
+	}
+	requireReport(t, report, nil, nil)
+	if c.CurrentDatabase() != "other" || c.GetDatabase(snapshotDB) != nil {
+		t.Fatalf("current database = %q, want only other", c.CurrentDatabase())
+	}
+	v := c.GetDatabase("other").Views["v"]
+	if v == nil || v.AnalyzedQuery == nil || strings.Contains(v.Definition, "testdb") {
+		t.Errorf("v = %+v, want an analyzed body without the testdb qualifier", v)
 	}
 }
 
@@ -748,5 +906,182 @@ func TestLoadMetadataTheNamePrimary(t *testing.T) {
 	tbl := requireTable(t, c, "t")
 	if len(tbl.Indexes) != 1 || tbl.Indexes[0].Name != "PRIMARY" || tbl.Indexes[0].Primary || !tbl.Indexes[0].Unique {
 		t.Errorf("indexes %+v, want the unique key PRIMARY", tbl.Indexes)
+	}
+}
+
+// metadataMigrationCase is one fixture of testdata/metadata_migration.yaml:
+// two Bytebase schema snapshots, synced from MySQL 8.0 after applying
+// oldSchema and newSchema, and the migration between them.
+type metadataMigrationCase struct {
+	Description string         `yaml:"description"`
+	OldSchema   string         `yaml:"oldSchema"`
+	NewSchema   string         `yaml:"newSchema"`
+	Source      string         `yaml:"source"`
+	OldMetadata map[string]any `yaml:"oldMetadata"`
+	NewMetadata map[string]any `yaml:"newMetadata"`
+	Expected    string         `yaml:"expected"`
+}
+
+// TestMetadataMigration pins the migration LoadMetadata, Diff, and
+// GenerateMigration produce between two snapshots. Each schema pair appears in
+// both directions, so an object is covered as a create and as a drop. To
+// regenerate, set record, run this test, and set it back; recording rewrites
+// expected only.
+func TestMetadataMigration(t *testing.T) {
+	const (
+		record   = false
+		filename = "testdata/metadata_migration.yaml"
+	)
+	content, err := os.ReadFile(filename)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var cases []metadataMigrationCase
+	if err := yaml.Unmarshal(content, &cases); err != nil {
+		t.Fatal(err)
+	}
+	for i, tc := range cases {
+		t.Run(tc.Description, func(t *testing.T) {
+			from := loadSyncedFixture(t, tc.Description+" (old)", tc.OldMetadata)
+			to := loadSyncedFixture(t, tc.Description+" (new)", tc.NewMetadata)
+			got := GenerateMigration(from, to, Diff(from, to)).SQL()
+			if record {
+				cases[i].Expected = got
+				return
+			}
+			if got != tc.Expected {
+				t.Errorf("migration mismatch\n--- got\n%s\n--- want\n%s", got, tc.Expected)
+			}
+		})
+	}
+	if record {
+		var buf bytes.Buffer
+		enc := yaml.NewEncoder(&buf)
+		enc.SetIndent(2)
+		if err := enc.Encode(cases); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filename, buf.Bytes(), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+// syncedSnapshotGaps lists, by fixture and snapshot, the tables Bytebase's OceanBase sync reports
+// in a form LoadMetadata cannot install as defined. A listed table that installs fails,
+// so a sync fix removes its entry.
+var syncedSnapshotGaps = map[string][]string{
+	// Index key parts name the hidden columns OceanBase builds the index on.
+	"FULLTEXT and SPATIAL indexes (old)":               {"table:articles", "table:locations"},
+	"Reverse: Drop FULLTEXT and SPATIAL indexes (new)": {"table:articles", "table:locations"},
+	"JSON columns and functional indexes (old)":        {"table:products"},
+	"Reverse: Drop JSON columns and indexes (new)":     {"table:products"},
+}
+
+// loadSyncedFixture is loadMetadataFixture for a snapshot synced from OceanBase. Events
+// stand in by name, since the sync never reads their definition, and the tables
+// syncedSnapshotGaps lists under label (the fixture's description and which
+// snapshot) must degrade.
+func loadSyncedFixture(t *testing.T, label string, m map[string]any) *Catalog {
+	t.Helper()
+	meta := metadataFixture(t, m)
+	return loadSyncedFixtureInto(t, label, meta, meta.GetName())
+}
+
+// loadSyncedFixtureInto is loadSyncedFixture into the database named database.
+func loadSyncedFixtureInto(t *testing.T, label string, meta *metadata.DatabaseSchemaMetadata, database string) *Catalog {
+	t.Helper()
+	c := New()
+	report, err := c.LoadMetadataInto(context.Background(), meta, database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gaps := syncedSnapshotGaps[label]
+	for key := range report.Degraded {
+		if !strings.HasPrefix(key, "event:") && !slices.Contains(gaps, key) {
+			t.Errorf("%s did not load as defined: %v", key, report.Degraded[key])
+		}
+	}
+	for _, s := range meta.GetSchemas() {
+		for _, table := range s.GetTables() {
+			key := "table:" + table.GetName()
+			if _, degraded := report.Degraded[key]; slices.Contains(gaps, key) && !degraded {
+				t.Errorf("%s is listed in syncedSnapshotGaps but loads as defined: remove the entry", key)
+			}
+		}
+	}
+	if len(report.Missing)+len(report.Incomplete) > 0 {
+		t.Errorf("snapshot did not load as defined: %+v", report)
+	}
+	return c
+}
+
+// metadataFixture reads a snapshot written as YAML-shaped protojson.
+func metadataFixture(t *testing.T, m map[string]any) *metadata.DatabaseSchemaMetadata {
+	t.Helper()
+	raw, err := json.Marshal(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	meta := &metadata.DatabaseSchemaMetadata{}
+	if err := protojson.Unmarshal(raw, meta); err != nil {
+		t.Fatal(err)
+	}
+	return meta
+}
+
+// loadMetadataFixture installs a snapshot written as YAML-shaped protojson and
+// fails on anything LoadMetadata could not install as defined.
+func loadMetadataFixture(t *testing.T, m map[string]any) *Catalog {
+	t.Helper()
+	c := New()
+	report, err := c.LoadMetadata(context.Background(), metadataFixture(t, m))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(report.Degraded)+len(report.Missing)+len(report.Incomplete) > 0 {
+		t.Fatalf("snapshot did not load as defined: %+v", report)
+	}
+	return c
+}
+
+func TestLoadMetadataIntoKeepsCTEShadowedQualifier(t *testing.T) {
+	meta := snapshot(&metadata.SchemaMetadata{
+		Tables: []*metadata.TableMetadata{{Name: "t", Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int"}}}},
+		Views: []*metadata.ViewMetadata{{
+			Name:       "v",
+			Definition: "with `t` as (select 2 AS `id`) select `testdb`.`t`.`id` AS `id` from `testdb`.`t`",
+		}},
+	})
+	c := New()
+	if _, err := c.LoadMetadataInto(context.Background(), meta, "other"); err != nil {
+		t.Fatal(err)
+	}
+	v := c.GetDatabase("other").Views["v"]
+	if v == nil {
+		t.Fatal("view v not installed")
+	}
+	const want = "with `t` as (select 2 AS `id`) select `other`.`t`.`id` AS `id` from `other`.`t`"
+	if !strings.Contains(c.ShowCreateView("other", "v"), "from `other`.`t`") {
+		t.Errorf("view v:\n%s\nwant its body to read %s", c.ShowCreateView("other", "v"), want)
+	}
+}
+
+func TestLoadMetadataKeepsTableWhosePartitioningIsRefused(t *testing.T) {
+	c, report := loadMySQLSnapshot(t, snapshot(&metadata.SchemaMetadata{Tables: []*metadata.TableMetadata{{
+		Name:    "sales",
+		Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int"}, {Name: "sold_on", Type: "date"}},
+		Indexes: []*metadata.IndexMetadata{{Name: "k", Expressions: []string{"id"}, Visible: true}},
+		// MAXVALUE before another partition, which the catalog refuses.
+		Partitions: []*metadata.TablePartitionMetadata{
+			{Name: "a2", Type: metadata.TablePartitionMetadata_RANGE, Expression: "YEAR(`sold_on`)", Value: "2022"},
+			{Name: "pmax", Type: metadata.TablePartitionMetadata_RANGE, Expression: "YEAR(`sold_on`)", Value: "MAXVALUE"},
+			{Name: "z1", Type: metadata.TablePartitionMetadata_RANGE, Expression: "YEAR(`sold_on`)", Value: "2021"},
+		},
+	}}}))
+	requireReport(t, report, nil, nil)
+	requireIncomplete(t, report, []string{"table:sales"})
+	if tbl := requireTable(t, c, "sales"); tbl.Partitioning != nil || len(tbl.Indexes) != 1 {
+		t.Errorf("sales = partitioning %+v, %d indexes; want no partitioning and the index", tbl.Partitioning, len(tbl.Indexes))
 	}
 }

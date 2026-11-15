@@ -62,6 +62,14 @@ func TestRestoreSQL(t *testing.T) {
 	_, err = restore(t, "UPDATE t SET id = 1, b = 2")
 	require.ErrorContains(t, err, "no disjoint unique key found for DB.T")
 
+	// A unique key on a nullable column cannot match its rows' NULLs.
+	node, err := FindFirstDML("UPDATE t SET id = 1")
+	require.NoError(t, err)
+	table, pk := restoreTable()
+	table.Columns[2].Nullable = true
+	_, err = RestoreSQL("UPDATE t SET id = 1", node, RestoreOptions{SourceDatabase: "DB", SourceTable: "T", BackupDatabase: "BB", BackupTable: "B", Table: table, PrimaryKey: pk})
+	require.EqualError(t, err, "no disjoint unique key found for DB.T")
+
 	// SET VALUE (t) replaces whole rows, whose columns the restore cannot
 	// list.
 	_, err = restore(t, "UPDATE t x SET VALUE(x) = typ(1, 2)")
@@ -70,6 +78,11 @@ func TestRestoreSQL(t *testing.T) {
 	got, err = restore(t, "DELETE FROM t WHERE a = '"+strings.Repeat("x", 1200)+"'")
 	require.NoError(t, err)
 	require.Contains(t, got, "...\n*/\n")
+
+	// A "*/" in the statement must not end the comment.
+	got, err = restore(t, "DELETE FROM t WHERE a = '*/ DROP TABLE x; /*'")
+	require.NoError(t, err)
+	require.Equal(t, "/*\nOriginal SQL:\nDELETE FROM t WHERE a = '* / DROP TABLE x; /*'\n*/\n"+`INSERT INTO "DB"."T" ("ID", "A", "B") SELECT "ID", "A", "B" FROM "BB"."B";`, got)
 }
 
 func TestFindFirstDML(t *testing.T) {
