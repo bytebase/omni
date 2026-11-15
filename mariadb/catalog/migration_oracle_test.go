@@ -48,6 +48,9 @@ var migrationGaps = map[string]string{
 	"MariaDB compressed columns/forward/snapshot":                                                         gapCompressed,
 	"MariaDB compressed columns/backward/text":                                                            gapCompressed,
 	"MariaDB compressed columns/backward/snapshot":                                                        gapCompressed,
+	"MariaDB sequences/forward/text":                                                                      gapSequenceRestart,
+	"MariaDB sequences/forward/snapshot":                                                                  gapSequenceRestart,
+	"pair sequence limits leaving out the start/forward/text":                                             gapSequenceRestart,
 	"MariaDB column renames and reorders/forward/text":                                                    gapColumnOrder,
 	"MariaDB column renames and reorders/forward/snapshot":                                                gapColumnOrder,
 	"MariaDB column renames and reorders/backward/text":                                                   gapColumnOrder,
@@ -55,8 +58,9 @@ var migrationGaps = map[string]string{
 }
 
 const (
-	lossAggregate  = "sync: the AGGREGATE of an aggregate function"
-	gapColumnOrder = "omni: the diff does not compare column order, so a plan moves no column"
+	gapSequenceRestart = "plan: the new limits leave out the sequence's next value, which ALTER SEQUENCE refuses (4085); the plan warns rather than restart a sequence whose next value it cannot see"
+	lossAggregate      = "sync: the AGGREGATE of an aggregate function"
+	gapColumnOrder     = "omni: the diff does not compare column order, so a plan moves no column"
 )
 
 // TestOracle_MigrationConverges applies each plan GenerateMigration writes

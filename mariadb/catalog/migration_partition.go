@@ -22,8 +22,9 @@ import (
 // priorityRemovePartitioning, before any column DROP, because a column the live partition
 // function references cannot be dropped.
 //
-// A repartition that drops a column of the old partition function is split into a PhasePre
-// REMOVE PARTITIONING and a PhaseMain PARTITION BY (see partitionModifyOps).
+// A repartition that drops a column of the old partition function, or adds a unique key, is
+// split into a PhasePre REMOVE PARTITIONING and a PhaseMain PARTITION BY (see
+// partitionModifyOps).
 func generatePartitionDDL(_, _ *Catalog, diff *SchemaDiff, n *Normalizer) []MigrationOp {
 	var ops []MigrationOp
 
@@ -54,7 +55,8 @@ func generatePartitionDDL(_, _ *Catalog, diff *SchemaDiff, n *Normalizer) []Migr
 
 // partitionModifyOps renders the partition change for a modified table: a PhasePre REMOVE
 // PARTITIONING when the target is unpartitioned, otherwise a PhaseMain PARTITION BY, preceded by
-// a REMOVE PARTITIONING when the same plan drops a column the old partition function references.
+// a REMOVE PARTITIONING when the same plan drops a column the old partition function references
+// or adds a unique key.
 func partitionModifyOps(entry *TableDiffEntry, n *Normalizer) []MigrationOp {
 	if entry.To == nil {
 		return nil
@@ -66,10 +68,25 @@ func partitionModifyOps(entry *TableDiffEntry, n *Normalizer) []MigrationOp {
 	if !ok {
 		return nil
 	}
-	if oldPartitionColumnDropped(entry) {
+	if oldPartitionColumnDropped(entry) || uniqueKeyAdded(entry) {
 		return []MigrationOp{removePartitioningOp(entry, entry.To), op}
 	}
 	return []MigrationOp{op}
+}
+
+// uniqueKeyAdded reports whether the plan adds or replaces a primary or unique
+// key, which the old partitioning would have to cover while it is in force
+// (1503). An unneeded REMOVE PARTITIONING is harmless, as above.
+func uniqueKeyAdded(entry *TableDiffEntry) bool {
+	if entry.From == nil || entry.From.Partitioning == nil {
+		return false
+	}
+	for _, ie := range entry.Indexes {
+		if (ie.Action == DiffAdd || ie.Action == DiffModify) && ie.To != nil && (ie.To.Primary || ie.To.Unique) {
+			return true
+		}
+	}
+	return false
 }
 
 // oldPartitionColumnDropped reports whether dropping a column in this diff could be blocked by

@@ -92,6 +92,12 @@ var diffPairs = []struct{ name, a, b string }{
 	{"every column replaced", "CREATE TABLE t (a INT, b INT)", "CREATE TABLE t (c INT, d INT)"},
 	{"key a foreign key needs", "CREATE TABLE p (id INT PRIMARY KEY); CREATE TABLE t (a INT, b INT, KEY k (a), CONSTRAINT f FOREIGN KEY (a) REFERENCES p (id))", "CREATE TABLE p (id INT PRIMARY KEY); CREATE TABLE t (a INT, b INT, KEY k (a, b), CONSTRAINT f FOREIGN KEY (a) REFERENCES p (id))"},
 	{"application period", "CREATE TABLE t (s DATE NOT NULL, e DATE NOT NULL)", "CREATE TABLE t (s DATE NOT NULL, e DATE NOT NULL, PERIOD FOR p (s, e))"},
+	{"generated column leaving a dropped column", "CREATE TABLE t (x INT, y INT, g INT AS (x + 1) VIRTUAL)", "CREATE TABLE t (y INT, g INT AS (y + 1) VIRTUAL)"},
+	{"primary key and partitioning moved together", "CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (a)) PARTITION BY HASH (a) PARTITIONS 2", "CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (b)) PARTITION BY HASH (b) PARTITIONS 2"},
+	{"foreign key columns retyped", "CREATE TABLE p (id INT PRIMARY KEY); CREATE TABLE ch (pid INT, CONSTRAINT f FOREIGN KEY (pid) REFERENCES p (id))", "CREATE TABLE p (id BIGINT PRIMARY KEY); CREATE TABLE ch (pid BIGINT, CONSTRAINT f FOREIGN KEY (pid) REFERENCES p (id))"},
+	{"foreign key over an unchanged table", "CREATE TABLE p (id INT PRIMARY KEY, n INT); CREATE TABLE ch (pid INT, CONSTRAINT f FOREIGN KEY (pid) REFERENCES p (id))", "CREATE TABLE p (id INT PRIMARY KEY, n BIGINT); CREATE TABLE ch (pid INT, CONSTRAINT f FOREIGN KEY (pid) REFERENCES p (id))"},
+	{"versioning with its period columns", "CREATE TABLE t (x INT)", "CREATE TABLE t (x INT, s TIMESTAMP(6) AS ROW START, e TIMESTAMP(6) AS ROW END, PERIOD FOR SYSTEM_TIME (s, e)) WITH SYSTEM VERSIONING"},
+	{"sequence limits leaving out the start", "CREATE SEQUENCE s", "CREATE SEQUENCE s START WITH 100 MINVALUE 10"},
 }
 
 // TestOracle_DiffMatchesServer holds Diff to the server's own verdict on each

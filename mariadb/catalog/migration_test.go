@@ -31,12 +31,21 @@ func TestMigration_Deterministic(t *testing.T) {
 	}
 }
 
+func TestMigration_SequenceLimitsLeavingOutTheStartWarn(t *testing.T) {
+	plan := planFor(t, "CREATE SEQUENCE s;", "CREATE SEQUENCE s START WITH 100 MINVALUE 10;")
+	if strings.Contains(plan.SQL(), "RESTART") {
+		t.Errorf("the plan restarts the sequence:\n%s", plan.SQL())
+	}
+	if !plan.HasWarnings() {
+		t.Errorf("no warning that the next value may lie outside the new limits:\n%s", plan.SQL())
+	}
+}
+
 func TestMigration_MariaDBStatements(t *testing.T) {
 	for _, tc := range []struct{ name, from, to, want string }{
 		{"sequence create", "", "CREATE SEQUENCE s START WITH 5;", "CREATE SEQUENCE `app`.`s` start with 5 minvalue 1 maxvalue 9223372036854775806 increment by 1 cache 1000 nocycle ENGINE=InnoDB"},
 		{"sequence drop", "CREATE SEQUENCE s;", "", "DROP SEQUENCE `app`.`s`"},
 		{"sequence alter", "CREATE SEQUENCE s;", "CREATE SEQUENCE s INCREMENT BY 2 COMMENT 'c';", "ALTER SEQUENCE `app`.`s` INCREMENT BY 2;\nALTER TABLE `app`.`s` COMMENT='c'"},
-		{"sequence restart", "CREATE SEQUENCE s;", "CREATE SEQUENCE s START WITH 100 MINVALUE 10;", "RESTART WITH 100"},
 		{"check drop", "CREATE TABLE t (a INT, CONSTRAINT c CHECK (a > 0));", "CREATE TABLE t (a INT);", "ALTER TABLE `app`.`t` DROP CONSTRAINT `c`"},
 		{"column check", "CREATE TABLE t (a INT);", "CREATE TABLE t (a INT CHECK (a > 0));", "MODIFY COLUMN `a` int(11) DEFAULT NULL CHECK (`a` > 0)"},
 		{"versioning", "CREATE TABLE t (a INT);", "CREATE TABLE t (a INT) WITH SYSTEM VERSIONING;", "ALTER TABLE `app`.`t` ADD SYSTEM VERSIONING"},
