@@ -179,7 +179,7 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 			tableID := getObjectID(schema.Name, table.Name)
 			tableMap[tableID] = table
 			graph.AddNode(tableID)
-			addColumnFunctionEdges(graph, functionIDsByName, tableID, table.Columns)
+			addColumnFunctionEdges(graph, functionMap, functionIDsByName, schema.Name, table)
 		}
 
 		for _, view := range schema.Views {
@@ -1605,8 +1605,15 @@ func metadataFuncIdentity(f *metadatapb.FunctionMetadata) string {
 // and TopologicalSort otherwise orders a table before a function it needs
 // whenever the table's id sorts first. Built-in functions and unparsable
 // expressions add no edge.
-func addColumnFunctionEdges(graph *definitionGraph, functionIDsByName map[string][]string, tableID string, columns []*metadatapb.ColumnMetadata) {
-	for _, column := range columns {
+//
+// The call's exact overload is not resolved, so an edge is added for every
+// function sharing the referenced name — except an overload that itself
+// depends on this table (for example one taking the table's row type), which
+// the referenced overload never is and which would make a cycle that drops
+// the sort to its all-tables-then-all-functions fallback.
+func addColumnFunctionEdges(graph *definitionGraph, functionMap map[string]*metadatapb.FunctionMetadata, functionIDsByName map[string][]string, schema string, table *metadatapb.TableMetadata) {
+	tableID := getObjectID(schema, table.Name)
+	for _, column := range table.Columns {
 		var exprs []string
 		if column.Default != "" {
 			exprs = append(exprs, column.Default)
@@ -1622,11 +1629,28 @@ func addColumnFunctionEdges(graph *definitionGraph, functionIDsByName map[string
 			funcRefs, _, _ := collectExprDeps(node)
 			for _, ref := range funcRefs {
 				for _, funcID := range functionIDsByName[ref] {
+					if functionDependsOnTable(functionMap[funcID], schema, table.Name) {
+						continue
+					}
 					graph.AddEdge(funcID, tableID)
 				}
 			}
 		}
 	}
+}
+
+// functionDependsOnTable reports whether function lists (schema, table) among
+// its dependency tables.
+func functionDependsOnTable(function *metadatapb.FunctionMetadata, schema, table string) bool {
+	if function == nil {
+		return false
+	}
+	for _, dependency := range function.DependencyTables {
+		if dependency.Schema == schema && dependency.Table == table {
+			return true
+		}
+	}
+	return false
 }
 
 func getObjectID(schema string, object string) string {

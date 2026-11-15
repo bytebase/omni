@@ -82,6 +82,20 @@ func TestDumpRestoresGeneratedColumnFunction(t *testing.T) {
 	}
 }
 
+// TestDumpRestoresOverloadedFunctionDefault checks that a column default
+// calling an overloaded function restores even when another overload takes
+// the table's own row type: the dump must create the integer overload before
+// the table without making the table depend on the row-type overload.
+func TestDumpRestoresOverloadedFunctionDefault(t *testing.T) {
+	setup := "CREATE FUNCTION public.aa_f(n integer) RETURNS integer LANGUAGE sql IMMUTABLE AS $$ SELECT n $$;\n" +
+		"CREATE TABLE public.zz_t (id integer DEFAULT public.aa_f(1));\n" +
+		"CREATE FUNCTION public.aa_f(r public.zz_t) RETURNS integer LANGUAGE sql IMMUTABLE AS $$ SELECT 1 $$;"
+	source, restored := restoreDump(t, testcontainer.Default, "omni_overload_fn", setup)
+	if diff := restoreDiff(source, restored); diff != "" {
+		t.Errorf("the restored database differs from the source (-source +restored):\n%s", diff)
+	}
+}
+
 // restoreDiff compares a source database and its dump's restore, ignoring
 // what a restore cannot carry: the database name, a table's physical sizes
 // and row estimate, and the column positions the source's dropped columns
