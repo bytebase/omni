@@ -341,6 +341,121 @@
 : string
 | canary
 > exec
+| CREATE TYPE fullname AS (first text, last text);CREATE TABLE people (id INT PRIMARY KEY, fn fullname, tags INT[]);INSERT INTO people VALUES (1, ('a', 'b'), '{1,2}'), (2, ('c', 'd'), '{3}')
+< ok 2 -
+> query
+| SELECT x::text FROM "public"."people" AS x ORDER BY 1
+< result
+< column "x" "TEXT"
+< row
+: string
+| (1,"(a,b)","{1,2}")
+< row
+: string
+| (2,"(c,d)",{3})
+> query
+| SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_tables WHERE schemaname = $1 AND tablename = $2)
+: string
+| public
+: string
+| people
+< result
+< column "exists" "BOOL"
+< row
+: bool true
+> exec
+| CREATE TABLE "bbdataarchive"."_bb__people_public" AS
+|   SELECT "public"."people".* FROM people WHERE id = 1;
+< ok 1 -
+> exec
+| UPDATE people SET fn.first = 'x', fn.last = 'y', tags[1] = 9 WHERE id = 1
+< ok 1 -
+> query
+| SELECT x::text FROM "public"."people" AS x ORDER BY 1
+< result
+< column "x" "TEXT"
+< row
+: string
+| (1,"(x,y)","{9,2}")
+< row
+: string
+| (2,"(c,d)",{3})
+> query
+| SELECT a.attname, a.attgenerated <> '' FROM pg_catalog.pg_attribute a
+| 		JOIN pg_catalog.pg_class c ON c.oid = a.attrelid JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+| 		WHERE n.nspname = $1 AND c.relname = $2 AND a.attnum > 0 AND NOT a.attisdropped ORDER BY a.attnum
+: string
+| public
+: string
+| people
+< result
+< column "attname" "NAME"
+< column "?column?" "BOOL"
+< row
+: string
+| id
+: bool false
+< row
+: string
+| fn
+: bool false
+< row
+: string
+| tags
+: bool false
+> query
+| SELECT i.relname, x.indisprimary, x.indisunique, con.oid IS NOT NULL,
+| 		(SELECT string_agg(a.attname, E'\x1f' ORDER BY k.n) FROM unnest(x.indkey) WITH ORDINALITY AS k(attnum, n)
+| 			JOIN pg_catalog.pg_attribute a ON a.attrelid = x.indrelid AND a.attnum = k.attnum)
+| 		FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 		JOIN pg_catalog.pg_class c ON c.oid = x.indrelid JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+| 		LEFT JOIN pg_catalog.pg_constraint con ON con.conindid = x.indexrelid
+| 		WHERE n.nspname = $1 AND c.relname = $2 ORDER BY i.relname
+: string
+| public
+: string
+| people
+< result
+< column "relname" "NAME"
+< column "indisprimary" "BOOL"
+< column "indisunique" "BOOL"
+< column "?column?" "BOOL"
+< column "string_agg" "TEXT"
+< row
+: string
+| people_pkey
+: bool true
+: bool true
+: bool true
+: string
+| id
+> exec
+| /*
+| Original SQL:
+| UPDATE people SET fn.first = 'x', fn.last = 'y', tags[1] = 9 WHERE id = 1
+| */
+| INSERT INTO "public"."people" ("id", "fn", "tags") SELECT "id", "fn", "tags" FROM "bbdataarchive"."_bb__people_public" ON CONFLICT ON CONSTRAINT "people_pkey" DO UPDATE SET "fn" = EXCLUDED."fn", "tags" = EXCLUDED."tags";
+< ok 1 -
+> query
+| SELECT x::text FROM "public"."people" AS x ORDER BY 1
+< result
+< column "x" "TEXT"
+< row
+: string
+| (1,"(a,b)","{1,2}")
+< row
+: string
+| (2,"(c,d)",{3})
+> query
+| SELECT to_regclass($1)::text
+: string
+| canary
+< result
+< column "to_regclass" "TEXT"
+< row
+: string
+| canary
+> exec
 | CREATE SCHEMA "s""q"; CREATE TABLE "s""q"."t""q" ("i""d" INT CONSTRAINT "p""k" PRIMARY KEY, "a""b" INT);INSERT INTO "s""q"."t""q" VALUES (1, 1), (2, 2)
 < ok 2 -
 > query
