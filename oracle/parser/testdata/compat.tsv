@@ -1,4 +1,4 @@
-# pin: default gvenzl/oracle-free:23.26.3-slim-faststart sha256:f5ff19033860d662c821cb04eb10483fa94f14f78eae252d054291ea07028093 23.26.3.0.0 judge 2
+# pin: default gvenzl/oracle-free:23.26.3-slim-faststart sha256:f5ff19033860d662c821cb04eb10483fa94f14f78eae252d054291ea07028093 23.26.3.0.0 judge 3
 # columns: omni, expected, source, rule, statement
 accept	accept	engine	statement/administerKeyManagement	ADMINISTER KEY MANAGEMENT SET KEYSTORE CLOSE
 reject@0	reject@0	engine	statement/administerKeyManagement!drop-1	KEY MANAGEMENT SET KEYSTORE CLOSE
@@ -2496,7 +2496,7 @@ reject@41	reject@41	engine	alterCluster_size_clause(K|M|G|T|P)?/G!swap	ALTER CLU
 accept	accept	engine	alterCluster_size_clause(K|M|G|T|P)?/T	ALTER CLUSTER a DEALLOCATE UNUSED KEEP 1 T
 reject@43	reject@43	engine	alterCluster_size_clause(K|M|G|T|P)?/T!insert	ALTER CLUSTER a DEALLOCATE UNUSED KEEP 1 T zzz
 reject@41	reject@41	engine	alterCluster_size_clause(K|M|G|T|P)?/T!swap	ALTER CLUSTER a DEALLOCATE UNUSED KEEP 1 TABLE
-accept	accept	engine	alterCluster_size_clause(K|M|G|T|P)?/P	ALTER CLUSTER a DEALLOCATE UNUSED KEEP 1 P
+accept	reject@39	engine	alterCluster_size_clause(K|M|G|T|P)?/P	ALTER CLUSTER a DEALLOCATE UNUSED KEEP 1 P
 reject@43	reject@39	engine	alterCluster_size_clause(K|M|G|T|P)?/P!insert	ALTER CLUSTER a DEALLOCATE UNUSED KEEP 1 P zzz
 reject@41	reject@41	engine	alterCluster_size_clause(K|M|G|T|P)?/P!swap	ALTER CLUSTER a DEALLOCATE UNUSED KEEP 1 PACKAGE
 accept	accept	engine	alterDatabaseDictionary/ALTER_DATABASE_DICTIONARY_(ENCRYPT_CREDENTIALS|REKEY_CR~65d1843a	ALTER DATABASE DICTIONARY ENCRYPT CREDENTIALS
@@ -3644,10 +3644,10 @@ reject@53	reject@0	engine	alterDatabase_full_database_recovery(UNTIL_(CANCEL|TIM
 reject@40	reject@0	engine	alterDatabase_full_database_recovery(UNTIL_(CANCEL|TIME_'YYYY-MM-DDCOLONH~4db6c04f)?/UNTIL_(CANCEL|TIME_'YYYY-MM-DDCOLONHH24COLO~a55c0327)!swap	ALTER DATABASE RECOVER STANDBY DATABASE UNUSABLE CANCEL
 accept	accept	engine	alterDatabase_full_database_recovery(CANCEL|TIME_'YYYY-MM-DDCOLONHH24COLO~a55c0327)/CANCEL	ALTER DATABASE RECOVER STANDBY DATABASE UNTIL CANCEL
 reject@46	reject@0	engine	alterDatabase_full_database_recovery(CANCEL|TIME_'YYYY-MM-DDCOLONHH24COLO~a55c0327)/CANCEL!swap	ALTER DATABASE RECOVER STANDBY DATABASE UNTIL CAPACITY
-accept	reject@53	engine	alterDatabase_full_database_recovery(CANCEL|TIME_'YYYY-MM-DDCOLONHH24COLO~a55c0327)/TIME_'YYYY-MM-DDCOLONHH24COLONMICOLONSS'	ALTER DATABASE RECOVER STANDBY DATABASE UNTIL TIME 'YYYY-MM-DD:HH24:MI:SS'
+accept	reject@23	engine	alterDatabase_full_database_recovery(CANCEL|TIME_'YYYY-MM-DDCOLONHH24COLO~a55c0327)/TIME_'YYYY-MM-DDCOLONHH24COLONMICOLONSS'	ALTER DATABASE RECOVER STANDBY DATABASE UNTIL TIME 'YYYY-MM-DD:HH24:MI:SS'
 reject@46	reject@0	engine	alterDatabase_full_database_recovery(CANCEL|TIME_'YYYY-MM-DDCOLONHH24COLO~a55c0327)/TIME_'YYYY-MM-DDCOLONHH24COLONMICOLONSS'!drop-1	ALTER DATABASE RECOVER STANDBY DATABASE UNTIL 'YYYY-MM-DD:HH24:MI:SS'
 accept	accept	engine	alterDatabase_full_database_recovery(CANCEL|TIME_'YYYY-MM-DDCOLONHH24COLO~a55c0327)/TIME_'YYYY-MM-DDCOLONHH24COLONMICOLONSS'!drop-2	ALTER DATABASE RECOVER STANDBY DATABASE UNTIL TIME
-reject@75	reject@53	engine	alterDatabase_full_database_recovery(CANCEL|TIME_'YYYY-MM-DDCOLONHH24COLO~a55c0327)/TIME_'YYYY-MM-DDCOLONHH24COLONMICOLONSS'!insert	ALTER DATABASE RECOVER STANDBY DATABASE UNTIL TIME 'YYYY-MM-DD:HH24:MI:SS' zzz
+reject@75	reject@23	engine	alterDatabase_full_database_recovery(CANCEL|TIME_'YYYY-MM-DDCOLONHH24COLO~a55c0327)/TIME_'YYYY-MM-DDCOLONHH24COLONMICOLONSS'!insert	ALTER DATABASE RECOVER STANDBY DATABASE UNTIL TIME 'YYYY-MM-DD:HH24:MI:SS' zzz
 reject@46	reject@0	engine	alterDatabase_full_database_recovery(CANCEL|TIME_'YYYY-MM-DDCOLONHH24COLO~a55c0327)/TIME_'YYYY-MM-DDCOLONHH24COLONMICOLONSS'!swap	ALTER DATABASE RECOVER STANDBY DATABASE UNTIL TIMEOUT 'YYYY-MM-DD:HH24:MI:SS'
 accept	accept	engine	alterDatabase_full_database_recovery(CANCEL|TIME_'YYYY-MM-DDCOLONHH24COLO~a55c0327)/CHANGE_NUMBER	ALTER DATABASE RECOVER STANDBY DATABASE UNTIL CHANGE 1
 reject@46	reject@0	engine	alterDatabase_full_database_recovery(CANCEL|TIME_'YYYY-MM-DDCOLONHH24COLO~a55c0327)/CHANGE_NUMBER!drop-1	ALTER DATABASE RECOVER STANDBY DATABASE UNTIL 1
@@ -5322,7 +5322,7 @@ reject@39	reject@39	engine	alterIndex_size_clause(K|M|G|T|P)?/G!swap	ALTER INDEX
 accept	accept	engine	alterIndex_size_clause(K|M|G|T|P)?/T	ALTER INDEX a DEALLOCATE UNUSED KEEP 1 T
 reject@41	reject@41	engine	alterIndex_size_clause(K|M|G|T|P)?/T!insert	ALTER INDEX a DEALLOCATE UNUSED KEEP 1 T zzz
 reject@39	reject@39	engine	alterIndex_size_clause(K|M|G|T|P)?/T!swap	ALTER INDEX a DEALLOCATE UNUSED KEEP 1 TABLE
-accept	accept	engine	alterIndex_size_clause(K|M|G|T|P)?/P	ALTER INDEX a DEALLOCATE UNUSED KEEP 1 P
+accept	reject@37	engine	alterIndex_size_clause(K|M|G|T|P)?/P	ALTER INDEX a DEALLOCATE UNUSED KEEP 1 P
 reject@41	reject@37	engine	alterIndex_size_clause(K|M|G|T|P)?/P!insert	ALTER INDEX a DEALLOCATE UNUSED KEEP 1 P zzz
 reject@39	reject@39	engine	alterIndex_size_clause(K|M|G|T|P)?/P!swap	ALTER INDEX a DEALLOCATE UNUSED KEEP 1 PACKAGE
 accept	accept	engine	alterIndex_index_compression/(alterIndex_prefix_compression|alterI~2b40f609)	ALTER INDEX a REBUILD COMPRESS
@@ -8342,7 +8342,7 @@ reject@41	reject@41	engine	alterMaterializedView(alterMaterializedView_physical_
 reject@43	reject@43	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_annotations_clause!drop-5	ALTER MATERIALIZED VIEW a ANNOTATIONS(ADD a
 reject@45	reject@45	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_annotations_clause!insert	ALTER MATERIALIZED VIEW a ANNOTATIONS(ADD a) zzz
 reject@26	reject@26	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_annotations_clause!swap	ALTER MATERIALIZED VIEW a ANY(ADD a)
-reject@35	accept	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_alter_iot_clauses	ALTER MATERIALIZED VIEW a NOMAPPING
+reject@35	reject@0	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_alter_iot_clauses	ALTER MATERIALIZED VIEW a NOMAPPING
 reject@36	reject@36	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_alter_iot_clauses!insert	ALTER MATERIALIZED VIEW a NOMAPPING zzz
 reject@26	reject@26	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_alter_iot_clauses!swap	ALTER MATERIALIZED VIEW a NOMAXVALUE
 accept	accept	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/MODIFY_alterMaterializedView_scoped_table_ref_constraint	ALTER MATERIALIZED VIEW a MODIFY SCOPE FOR(a) IS a
@@ -8359,7 +8359,7 @@ reject@26	reject@26	engine	alterMaterializedView(alterMaterializedView_physical_
 accept	accept	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_alter_mv_refresh	ALTER MATERIALIZED VIEW a REFRESH FAST
 reject@26	reject@26	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_alter_mv_refresh!drop-1	ALTER MATERIALIZED VIEW a FAST
 reject@33	reject@33	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_alter_mv_refresh!drop-2	ALTER MATERIALIZED VIEW a REFRESH
-reject@39	accept	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_alter_mv_refresh!insert	ALTER MATERIALIZED VIEW a REFRESH FAST zzz
+reject@39	reject@39	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_alter_mv_refresh!insert	ALTER MATERIALIZED VIEW a REFRESH FAST zzz
 reject@26	reject@26	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_alter_mv_refresh!swap	ALTER MATERIALIZED VIEW a REGISTER FAST
 accept	accept	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_evaluation_edition_clause	ALTER MATERIALIZED VIEW a EVALUATE USING EDITION a
 reject@26	reject@32	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_evaluation_edition_clause!drop-1	ALTER MATERIALIZED VIEW a USING EDITION a
@@ -8373,7 +8373,7 @@ reject@26	reject@26	engine	alterMaterializedView(alterMaterializedView_physical_
 reject@39	reject@39	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/(ENABLE|DISABLE)_ON_QUERY_COMPUTATION!drop-2	ALTER MATERIALIZED VIEW a ENABLE QUERY COMPUTATION
 reject@36	reject@36	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/(ENABLE|DISABLE)_ON_QUERY_COMPUTATION!drop-3	ALTER MATERIALIZED VIEW a ENABLE ON COMPUTATION
 reject@41	reject@41	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/(ENABLE|DISABLE)_ON_QUERY_COMPUTATION!drop-4	ALTER MATERIALIZED VIEW a ENABLE ON QUERY
-reject@54	accept	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/(ENABLE|DISABLE)_ON_QUERY_COMPUTATION!insert	ALTER MATERIALIZED VIEW a ENABLE ON QUERY COMPUTATION zzz
+reject@54	reject@54	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/(ENABLE|DISABLE)_ON_QUERY_COMPUTATION!insert	ALTER MATERIALIZED VIEW a ENABLE ON QUERY COMPUTATION zzz
 reject@26	reject@26	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/(ENABLE|DISABLE)_ON_QUERY_COMPUTATION!swap	ALTER MATERIALIZED VIEW a ENABLE_ALL ON QUERY COMPUTATION
 reject@46	reject@46	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_alter_query_rewrite_clause	ALTER MATERIALIZED VIEW a QUERY REWRITE ENABLE
 reject@26	reject@26	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_alter_query_rewrite_clause!drop-1	ALTER MATERIALIZED VIEW a REWRITE ENABLE
@@ -8382,12 +8382,12 @@ reject@39	reject@39	engine	alterMaterializedView(alterMaterializedView_physical_
 reject@47	reject@47	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_alter_query_rewrite_clause!insert	ALTER MATERIALIZED VIEW a QUERY REWRITE ENABLE zzz
 reject@26	reject@26	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/alterMaterializedView_alter_query_rewrite_clause!swap	ALTER MATERIALIZED VIEW a QUIESCE REWRITE ENABLE
 accept	accept	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/COMPILE	ALTER MATERIALIZED VIEW a COMPILE
-reject@34	accept	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/COMPILE!insert	ALTER MATERIALIZED VIEW a COMPILE zzz
+reject@34	reject@34	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/COMPILE!insert	ALTER MATERIALIZED VIEW a COMPILE zzz
 reject@26	reject@26	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/COMPILE!swap	ALTER MATERIALIZED VIEW a COMPLETE
 accept	accept	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/CONSIDER_FRESH	ALTER MATERIALIZED VIEW a CONSIDER FRESH
 reject@26	reject@26	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/CONSIDER_FRESH!drop-1	ALTER MATERIALIZED VIEW a FRESH
 reject@34	reject@34	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/CONSIDER_FRESH!drop-2	ALTER MATERIALIZED VIEW a CONSIDER
-reject@41	accept	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/CONSIDER_FRESH!insert	ALTER MATERIALIZED VIEW a CONSIDER FRESH zzz
+reject@41	reject@41	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/CONSIDER_FRESH!insert	ALTER MATERIALIZED VIEW a CONSIDER FRESH zzz
 reject@26	reject@26	engine	alterMaterializedView(alterMaterializedView_physical_attri~f15e51ac)/CONSIDER_FRESH!swap	ALTER MATERIALIZED VIEW a CONSISTENT FRESH
 accept	accept	engine	alterMaterializedView(CACHE|NOCACHE)/CACHE	ALTER MATERIALIZED VIEW a CACHE
 accept	accept	engine	alterMaterializedView(CACHE|NOCACHE)/NOCACHE	ALTER MATERIALIZED VIEW a NOCACHE
@@ -8493,7 +8493,7 @@ reject@38	reject@39	engine	alterMaterializedView_modify_lob_storage_clause(,_ID)
 reject@39	reject@39	engine	alterMaterializedView_modify_lob_storage_clause(,_ID)*/,_ID_(,_ID)*!truncate	ALTER MATERIALIZED VIEW a MODIFY LOB(a,
 reject@38	reject@40	engine	alterMaterializedView_modify_lob_storage_clause(,_ID)*/,_ID_(,_ID)*!insert	ALTER MATERIALIZED VIEW a MODIFY LOB(a, a zzz)()
 accept	accept	engine	alterMaterializedView_alter_table_partitioning/(alterMaterializedView_modify_table_d~62f7450e)	ALTER MATERIALIZED VIEW a ADD PARTITION
-reject@51	accept	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_modify_table_default_attrs	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES
+reject@51	reject@0	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_modify_table_default_attrs	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES
 reject@26	reject@26	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_modify_table_default_attrs!drop-1	ALTER MATERIALIZED VIEW a DEFAULT ATTRIBUTES
 accept	accept	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_modify_table_default_attrs!drop-2	ALTER MATERIALIZED VIEW a MODIFY ATTRIBUTES
 reject@40	reject@40	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_modify_table_default_attrs!drop-3	ALTER MATERIALIZED VIEW a MODIFY DEFAULT
@@ -8640,7 +8640,7 @@ reject@42	reject@42	engine	alterMaterializedView_allocate_extent_clause(SIZE_alt
 reject@42	reject@42	engine	alterMaterializedView_allocate_extent_clause(SIZE_alterMaterializedView_size_clause)?/%empty!insert	ALTER MATERIALIZED VIEW a ALLOCATE EXTENT(zzz)
 accept	accept	engine	alterMaterializedView_allocate_extent_clause(SIZE_alterMaterializedView_size_clause)?/SIZE_alterMaterializedView_size_clause	ALTER MATERIALIZED VIEW a ALLOCATE EXTENT(SIZE 1)
 reject@42	reject@42	engine	alterMaterializedView_allocate_extent_clause(SIZE_alterMaterializedView_size_clause)?/SIZE_alterMaterializedView_size_clause!drop-1	ALTER MATERIALIZED VIEW a ALLOCATE EXTENT(1)
-accept	accept	engine	alterMaterializedView_allocate_extent_clause(SIZE_alterMaterializedView_size_clause)?/SIZE_alterMaterializedView_size_clause!drop-2	ALTER MATERIALIZED VIEW a ALLOCATE EXTENT(SIZE)
+accept	reject@46	engine	alterMaterializedView_allocate_extent_clause(SIZE_alterMaterializedView_size_clause)?/SIZE_alterMaterializedView_size_clause!drop-2	ALTER MATERIALIZED VIEW a ALLOCATE EXTENT(SIZE)
 reject@46	reject@46	engine	alterMaterializedView_allocate_extent_clause(SIZE_alterMaterializedView_size_clause)?/SIZE_alterMaterializedView_size_clause!truncate	ALTER MATERIALIZED VIEW a ALLOCATE EXTENT(SIZE
 reject@49	reject@49	engine	alterMaterializedView_allocate_extent_clause(SIZE_alterMaterializedView_size_clause)?/SIZE_alterMaterializedView_size_clause!insert	ALTER MATERIALIZED VIEW a ALLOCATE EXTENT(SIZE 1 zzz)
 reject@42	reject@42	engine	alterMaterializedView_allocate_extent_clause(SIZE_alterMaterializedView_size_clause)?/SIZE_alterMaterializedView_size_clause!swap	ALTER MATERIALIZED VIEW a ALLOCATE EXTENT(SKIP 1)
@@ -8695,8 +8695,8 @@ reject@45	reject@45	engine	alterMaterializedView_annotations_clause(,_ID)*/,_ID_
 reject@45	reject@45	engine	alterMaterializedView_annotations_clause(,_ID)*/,_ID_(,_ID)*!drop-2	ALTER MATERIALIZED VIEW a ANNOTATIONS(DROP a,)
 reject@45	reject@45	engine	alterMaterializedView_annotations_clause(,_ID)*/,_ID_(,_ID)*!truncate	ALTER MATERIALIZED VIEW a ANNOTATIONS(DROP a,
 reject@48	reject@48	engine	alterMaterializedView_annotations_clause(,_ID)*/,_ID_(,_ID)*!insert	ALTER MATERIALIZED VIEW a ANNOTATIONS(DROP a, a zzz)
-reject@35	accept	engine	alterMaterializedView_alter_iot_clauses/(alterMaterializedView_index_org_tabl~7cefa925)	ALTER MATERIALIZED VIEW a NOMAPPING
-reject@35	accept	engine	alterMaterializedView_alter_iot_clauses(alterMaterializedView_index_org_tabl~7cefa925)/alterMaterializedView_index_org_table_clause	ALTER MATERIALIZED VIEW a NOMAPPING
+reject@35	reject@0	engine	alterMaterializedView_alter_iot_clauses/(alterMaterializedView_index_org_tabl~7cefa925)	ALTER MATERIALIZED VIEW a NOMAPPING
+reject@35	reject@0	engine	alterMaterializedView_alter_iot_clauses(alterMaterializedView_index_org_tabl~7cefa925)/alterMaterializedView_index_org_table_clause	ALTER MATERIALIZED VIEW a NOMAPPING
 accept	accept	engine	alterMaterializedView_alter_iot_clauses(alterMaterializedView_index_org_tabl~7cefa925)/alterMaterializedView_alter_overflow_clause	ALTER MATERIALIZED VIEW a OVERFLOW
 reject@35	reject@35	engine	alterMaterializedView_alter_iot_clauses(alterMaterializedView_index_org_tabl~7cefa925)/alterMaterializedView_alter_overflow_clause!insert	ALTER MATERIALIZED VIEW a OVERFLOW zzz
 reject@26	reject@26	engine	alterMaterializedView_alter_iot_clauses(alterMaterializedView_index_org_tabl~7cefa925)/alterMaterializedView_alter_overflow_clause!swap	ALTER MATERIALIZED VIEW a OWNER
@@ -8712,62 +8712,62 @@ accept	accept	engine	alterMaterializedView_alter_mv_refresh/REFRESH_(FAST|COMPLE
 accept	accept	engine	alterMaterializedView_alter_mv_refresh(FAST|COMPLETE|FORCE)/FAST	ALTER MATERIALIZED VIEW a REFRESH FAST
 reject@34	reject@34	engine	alterMaterializedView_alter_mv_refresh(FAST|COMPLETE|FORCE)/FAST!swap	ALTER MATERIALIZED VIEW a REFRESH FEATURE
 accept	accept	engine	alterMaterializedView_alter_mv_refresh(FAST|COMPLETE|FORCE)/COMPLETE	ALTER MATERIALIZED VIEW a REFRESH COMPLETE
-reject@43	accept	engine	alterMaterializedView_alter_mv_refresh(FAST|COMPLETE|FORCE)/COMPLETE!insert	ALTER MATERIALIZED VIEW a REFRESH COMPLETE zzz
+reject@43	reject@43	engine	alterMaterializedView_alter_mv_refresh(FAST|COMPLETE|FORCE)/COMPLETE!insert	ALTER MATERIALIZED VIEW a REFRESH COMPLETE zzz
 reject@34	reject@34	engine	alterMaterializedView_alter_mv_refresh(FAST|COMPLETE|FORCE)/COMPLETE!swap	ALTER MATERIALIZED VIEW a REFRESH COMPONENT
 accept	accept	engine	alterMaterializedView_alter_mv_refresh(FAST|COMPLETE|FORCE)/FORCE	ALTER MATERIALIZED VIEW a REFRESH FORCE
-reject@40	accept	engine	alterMaterializedView_alter_mv_refresh(FAST|COMPLETE|FORCE)/FORCE!insert	ALTER MATERIALIZED VIEW a REFRESH FORCE zzz
+reject@40	reject@40	engine	alterMaterializedView_alter_mv_refresh(FAST|COMPLETE|FORCE)/FORCE!insert	ALTER MATERIALIZED VIEW a REFRESH FORCE zzz
 reject@34	reject@34	engine	alterMaterializedView_alter_mv_refresh(FAST|COMPLETE|FORCE)/FORCE!swap	ALTER MATERIALIZED VIEW a REFRESH FOREIGN
 accept	accept	engine	alterMaterializedView_alter_mv_refresh((ON_COMMIT|ON_DEMAND))?/%empty	ALTER MATERIALIZED VIEW a REFRESH FAST
 accept	accept	engine	alterMaterializedView_alter_mv_refresh((ON_COMMIT|ON_DEMAND))?/(ON_COMMIT|ON_DEMAND)	ALTER MATERIALIZED VIEW a REFRESH FAST ON COMMIT
-reject@39	accept	engine	alterMaterializedView_alter_mv_refresh((ON_COMMIT|ON_DEMAND))?/(ON_COMMIT|ON_DEMAND)!drop-1	ALTER MATERIALIZED VIEW a REFRESH FAST COMMIT
+reject@39	reject@39	engine	alterMaterializedView_alter_mv_refresh((ON_COMMIT|ON_DEMAND))?/(ON_COMMIT|ON_DEMAND)!drop-1	ALTER MATERIALIZED VIEW a REFRESH FAST COMMIT
 reject@41	reject@41	engine	alterMaterializedView_alter_mv_refresh((ON_COMMIT|ON_DEMAND))?/(ON_COMMIT|ON_DEMAND)!drop-2	ALTER MATERIALIZED VIEW a REFRESH FAST ON
-reject@49	accept	engine	alterMaterializedView_alter_mv_refresh((ON_COMMIT|ON_DEMAND))?/(ON_COMMIT|ON_DEMAND)!insert	ALTER MATERIALIZED VIEW a REFRESH FAST ON COMMIT zzz
-reject@39	accept	engine	alterMaterializedView_alter_mv_refresh((ON_COMMIT|ON_DEMAND))?/(ON_COMMIT|ON_DEMAND)!swap	ALTER MATERIALIZED VIEW a REFRESH FAST ONE COMMIT
+reject@49	reject@49	engine	alterMaterializedView_alter_mv_refresh((ON_COMMIT|ON_DEMAND))?/(ON_COMMIT|ON_DEMAND)!insert	ALTER MATERIALIZED VIEW a REFRESH FAST ON COMMIT zzz
+reject@39	reject@39	engine	alterMaterializedView_alter_mv_refresh((ON_COMMIT|ON_DEMAND))?/(ON_COMMIT|ON_DEMAND)!swap	ALTER MATERIALIZED VIEW a REFRESH FAST ONE COMMIT
 accept	accept	engine	alterMaterializedView_alter_mv_refresh(ON_COMMIT|ON_DEMAND)/ON_COMMIT	ALTER MATERIALIZED VIEW a REFRESH FAST ON COMMIT
 accept	accept	engine	alterMaterializedView_alter_mv_refresh(ON_COMMIT|ON_DEMAND)/ON_DEMAND	ALTER MATERIALIZED VIEW a REFRESH FAST ON DEMAND
-reject@39	accept	engine	alterMaterializedView_alter_mv_refresh(ON_COMMIT|ON_DEMAND)/ON_DEMAND!drop-1	ALTER MATERIALIZED VIEW a REFRESH FAST DEMAND
-reject@49	accept	engine	alterMaterializedView_alter_mv_refresh(ON_COMMIT|ON_DEMAND)/ON_DEMAND!insert	ALTER MATERIALIZED VIEW a REFRESH FAST ON DEMAND zzz
-reject@39	accept	engine	alterMaterializedView_alter_mv_refresh(ON_COMMIT|ON_DEMAND)/ON_DEMAND!swap	ALTER MATERIALIZED VIEW a REFRESH FAST ONE DEMAND
+reject@39	reject@39	engine	alterMaterializedView_alter_mv_refresh(ON_COMMIT|ON_DEMAND)/ON_DEMAND!drop-1	ALTER MATERIALIZED VIEW a REFRESH FAST DEMAND
+reject@49	reject@49	engine	alterMaterializedView_alter_mv_refresh(ON_COMMIT|ON_DEMAND)/ON_DEMAND!insert	ALTER MATERIALIZED VIEW a REFRESH FAST ON DEMAND zzz
+reject@39	reject@39	engine	alterMaterializedView_alter_mv_refresh(ON_COMMIT|ON_DEMAND)/ON_DEMAND!swap	ALTER MATERIALIZED VIEW a REFRESH FAST ONE DEMAND
 accept	accept	engine	alterMaterializedView_alter_mv_refresh(START_WITH_EXPR)?/%empty	ALTER MATERIALIZED VIEW a REFRESH FAST
 accept	accept	engine	alterMaterializedView_alter_mv_refresh(START_WITH_EXPR)?/START_WITH_EXPR	ALTER MATERIALIZED VIEW a REFRESH FAST START WITH 1
 reject@44	reject@44	engine	alterMaterializedView_alter_mv_refresh(START_WITH_EXPR)?/START_WITH_EXPR!drop-1	ALTER MATERIALIZED VIEW a REFRESH FAST WITH 1
 reject@45	reject@45	engine	alterMaterializedView_alter_mv_refresh(START_WITH_EXPR)?/START_WITH_EXPR!drop-2	ALTER MATERIALIZED VIEW a REFRESH FAST START 1
 reject@49	reject@49	engine	alterMaterializedView_alter_mv_refresh(START_WITH_EXPR)?/START_WITH_EXPR!drop-3	ALTER MATERIALIZED VIEW a REFRESH FAST START WITH
-reject@52	accept	engine	alterMaterializedView_alter_mv_refresh(START_WITH_EXPR)?/START_WITH_EXPR!insert	ALTER MATERIALIZED VIEW a REFRESH FAST START WITH 1 zzz
-reject@39	accept	engine	alterMaterializedView_alter_mv_refresh(START_WITH_EXPR)?/START_WITH_EXPR!swap	ALTER MATERIALIZED VIEW a REFRESH FAST STATE WITH 1
+reject@52	reject@52	engine	alterMaterializedView_alter_mv_refresh(START_WITH_EXPR)?/START_WITH_EXPR!insert	ALTER MATERIALIZED VIEW a REFRESH FAST START WITH 1 zzz
+reject@39	reject@39	engine	alterMaterializedView_alter_mv_refresh(START_WITH_EXPR)?/START_WITH_EXPR!swap	ALTER MATERIALIZED VIEW a REFRESH FAST STATE WITH 1
 accept	accept	engine	alterMaterializedView_alter_mv_refresh(NEXT_EXPR)?/%empty	ALTER MATERIALIZED VIEW a REFRESH FAST
 accept	accept	engine	alterMaterializedView_alter_mv_refresh(NEXT_EXPR)?/NEXT_EXPR	ALTER MATERIALIZED VIEW a REFRESH FAST NEXT 1
-reject@39	accept	engine	alterMaterializedView_alter_mv_refresh(NEXT_EXPR)?/NEXT_EXPR!drop-1	ALTER MATERIALIZED VIEW a REFRESH FAST 1
+reject@39	reject@39	engine	alterMaterializedView_alter_mv_refresh(NEXT_EXPR)?/NEXT_EXPR!drop-1	ALTER MATERIALIZED VIEW a REFRESH FAST 1
 reject@43	reject@43	engine	alterMaterializedView_alter_mv_refresh(NEXT_EXPR)?/NEXT_EXPR!drop-2	ALTER MATERIALIZED VIEW a REFRESH FAST NEXT
-reject@46	accept	engine	alterMaterializedView_alter_mv_refresh(NEXT_EXPR)?/NEXT_EXPR!insert	ALTER MATERIALIZED VIEW a REFRESH FAST NEXT 1 zzz
-reject@39	accept	engine	alterMaterializedView_alter_mv_refresh(NEXT_EXPR)?/NEXT_EXPR!swap	ALTER MATERIALIZED VIEW a REFRESH FAST NO 1
+reject@46	reject@46	engine	alterMaterializedView_alter_mv_refresh(NEXT_EXPR)?/NEXT_EXPR!insert	ALTER MATERIALIZED VIEW a REFRESH FAST NEXT 1 zzz
+reject@39	reject@39	engine	alterMaterializedView_alter_mv_refresh(NEXT_EXPR)?/NEXT_EXPR!swap	ALTER MATERIALIZED VIEW a REFRESH FAST NO 1
 accept	accept	engine	alterMaterializedView_alter_mv_refresh(USING_ROLLBACK_SEGMENT_ID)?/%empty	ALTER MATERIALIZED VIEW a REFRESH FAST
-accept	accept	engine	alterMaterializedView_alter_mv_refresh(USING_ROLLBACK_SEGMENT_ID)?/USING_ROLLBACK_SEGMENT_ID	ALTER MATERIALIZED VIEW a REFRESH FAST USING ROLLBACK SEGMENT a
-reject@39	accept	engine	alterMaterializedView_alter_mv_refresh(USING_ROLLBACK_SEGMENT_ID)?/USING_ROLLBACK_SEGMENT_ID!drop-1	ALTER MATERIALIZED VIEW a REFRESH FAST ROLLBACK SEGMENT a
+accept	reject@45	engine	alterMaterializedView_alter_mv_refresh(USING_ROLLBACK_SEGMENT_ID)?/USING_ROLLBACK_SEGMENT_ID	ALTER MATERIALIZED VIEW a REFRESH FAST USING ROLLBACK SEGMENT a
+reject@39	reject@39	engine	alterMaterializedView_alter_mv_refresh(USING_ROLLBACK_SEGMENT_ID)?/USING_ROLLBACK_SEGMENT_ID!drop-1	ALTER MATERIALIZED VIEW a REFRESH FAST ROLLBACK SEGMENT a
 reject@45	reject@45	engine	alterMaterializedView_alter_mv_refresh(USING_ROLLBACK_SEGMENT_ID)?/USING_ROLLBACK_SEGMENT_ID!drop-2	ALTER MATERIALIZED VIEW a REFRESH FAST USING SEGMENT a
-accept	accept	engine	alterMaterializedView_alter_mv_refresh(USING_ROLLBACK_SEGMENT_ID)?/USING_ROLLBACK_SEGMENT_ID!drop-3	ALTER MATERIALIZED VIEW a REFRESH FAST USING ROLLBACK a
-accept	accept	engine	alterMaterializedView_alter_mv_refresh(USING_ROLLBACK_SEGMENT_ID)?/USING_ROLLBACK_SEGMENT_ID!drop-4	ALTER MATERIALIZED VIEW a REFRESH FAST USING ROLLBACK SEGMENT
-reject@64	accept	engine	alterMaterializedView_alter_mv_refresh(USING_ROLLBACK_SEGMENT_ID)?/USING_ROLLBACK_SEGMENT_ID!insert	ALTER MATERIALIZED VIEW a REFRESH FAST USING ROLLBACK SEGMENT a zzz
-reject@39	accept	engine	alterMaterializedView_alter_mv_refresh(USING_ROLLBACK_SEGMENT_ID)?/USING_ROLLBACK_SEGMENT_ID!swap	ALTER MATERIALIZED VIEW a REFRESH FAST VALIDATE ROLLBACK SEGMENT a
+accept	reject@45	engine	alterMaterializedView_alter_mv_refresh(USING_ROLLBACK_SEGMENT_ID)?/USING_ROLLBACK_SEGMENT_ID!drop-3	ALTER MATERIALIZED VIEW a REFRESH FAST USING ROLLBACK a
+accept	reject@45	engine	alterMaterializedView_alter_mv_refresh(USING_ROLLBACK_SEGMENT_ID)?/USING_ROLLBACK_SEGMENT_ID!drop-4	ALTER MATERIALIZED VIEW a REFRESH FAST USING ROLLBACK SEGMENT
+reject@64	reject@45	engine	alterMaterializedView_alter_mv_refresh(USING_ROLLBACK_SEGMENT_ID)?/USING_ROLLBACK_SEGMENT_ID!insert	ALTER MATERIALIZED VIEW a REFRESH FAST USING ROLLBACK SEGMENT a zzz
+reject@39	reject@39	engine	alterMaterializedView_alter_mv_refresh(USING_ROLLBACK_SEGMENT_ID)?/USING_ROLLBACK_SEGMENT_ID!swap	ALTER MATERIALIZED VIEW a REFRESH FAST VALIDATE ROLLBACK SEGMENT a
 accept	accept	engine	alterMaterializedView_alter_mv_refresh(WITH_PRIMARY_KEY)?/%empty	ALTER MATERIALIZED VIEW a REFRESH FAST
 accept	accept	engine	alterMaterializedView_alter_mv_refresh(WITH_PRIMARY_KEY)?/WITH_PRIMARY_KEY	ALTER MATERIALIZED VIEW a REFRESH FAST WITH PRIMARY KEY
-reject@39	accept	engine	alterMaterializedView_alter_mv_refresh(WITH_PRIMARY_KEY)?/WITH_PRIMARY_KEY!drop-1	ALTER MATERIALIZED VIEW a REFRESH FAST PRIMARY KEY
+reject@39	reject@39	engine	alterMaterializedView_alter_mv_refresh(WITH_PRIMARY_KEY)?/WITH_PRIMARY_KEY!drop-1	ALTER MATERIALIZED VIEW a REFRESH FAST PRIMARY KEY
 reject@44	reject@44	engine	alterMaterializedView_alter_mv_refresh(WITH_PRIMARY_KEY)?/WITH_PRIMARY_KEY!drop-2	ALTER MATERIALIZED VIEW a REFRESH FAST WITH KEY
 reject@51	reject@51	engine	alterMaterializedView_alter_mv_refresh(WITH_PRIMARY_KEY)?/WITH_PRIMARY_KEY!drop-3	ALTER MATERIALIZED VIEW a REFRESH FAST WITH PRIMARY
-reject@56	accept	engine	alterMaterializedView_alter_mv_refresh(WITH_PRIMARY_KEY)?/WITH_PRIMARY_KEY!insert	ALTER MATERIALIZED VIEW a REFRESH FAST WITH PRIMARY KEY zzz
-reject@39	accept	engine	alterMaterializedView_alter_mv_refresh(WITH_PRIMARY_KEY)?/WITH_PRIMARY_KEY!swap	ALTER MATERIALIZED VIEW a REFRESH FAST WITHOUT PRIMARY KEY
+reject@56	reject@56	engine	alterMaterializedView_alter_mv_refresh(WITH_PRIMARY_KEY)?/WITH_PRIMARY_KEY!insert	ALTER MATERIALIZED VIEW a REFRESH FAST WITH PRIMARY KEY zzz
+reject@39	reject@39	engine	alterMaterializedView_alter_mv_refresh(WITH_PRIMARY_KEY)?/WITH_PRIMARY_KEY!swap	ALTER MATERIALIZED VIEW a REFRESH FAST WITHOUT PRIMARY KEY
 accept	accept	engine	alterMaterializedView_alter_mv_refresh((ENABLE|DISABLE)_CONCURRENT_REFRESH)?/%empty	ALTER MATERIALIZED VIEW a REFRESH FAST
 accept	accept	engine	alterMaterializedView_alter_mv_refresh((ENABLE|DISABLE)_CONCURRENT_REFRESH)?/(ENABLE|DISABLE)_CONCURRENT_REFRESH	ALTER MATERIALIZED VIEW a REFRESH FAST ENABLE CONCURRENT REFRESH
-reject@39	accept	engine	alterMaterializedView_alter_mv_refresh((ENABLE|DISABLE)_CONCURRENT_REFRESH)?/(ENABLE|DISABLE)_CONCURRENT_REFRESH!drop-1	ALTER MATERIALIZED VIEW a REFRESH FAST CONCURRENT REFRESH
+reject@39	reject@39	engine	alterMaterializedView_alter_mv_refresh((ENABLE|DISABLE)_CONCURRENT_REFRESH)?/(ENABLE|DISABLE)_CONCURRENT_REFRESH!drop-1	ALTER MATERIALIZED VIEW a REFRESH FAST CONCURRENT REFRESH
 reject@46	reject@46	engine	alterMaterializedView_alter_mv_refresh((ENABLE|DISABLE)_CONCURRENT_REFRESH)?/(ENABLE|DISABLE)_CONCURRENT_REFRESH!drop-2	ALTER MATERIALIZED VIEW a REFRESH FAST ENABLE REFRESH
 reject@56	reject@56	engine	alterMaterializedView_alter_mv_refresh((ENABLE|DISABLE)_CONCURRENT_REFRESH)?/(ENABLE|DISABLE)_CONCURRENT_REFRESH!drop-3	ALTER MATERIALIZED VIEW a REFRESH FAST ENABLE CONCURRENT
-reject@65	accept	engine	alterMaterializedView_alter_mv_refresh((ENABLE|DISABLE)_CONCURRENT_REFRESH)?/(ENABLE|DISABLE)_CONCURRENT_REFRESH!insert	ALTER MATERIALIZED VIEW a REFRESH FAST ENABLE CONCURRENT REFRESH zzz
-reject@39	accept	engine	alterMaterializedView_alter_mv_refresh((ENABLE|DISABLE)_CONCURRENT_REFRESH)?/(ENABLE|DISABLE)_CONCURRENT_REFRESH!swap	ALTER MATERIALIZED VIEW a REFRESH FAST ENABLE_ALL CONCURRENT REFRESH
+reject@65	reject@65	engine	alterMaterializedView_alter_mv_refresh((ENABLE|DISABLE)_CONCURRENT_REFRESH)?/(ENABLE|DISABLE)_CONCURRENT_REFRESH!insert	ALTER MATERIALIZED VIEW a REFRESH FAST ENABLE CONCURRENT REFRESH zzz
+reject@39	reject@39	engine	alterMaterializedView_alter_mv_refresh((ENABLE|DISABLE)_CONCURRENT_REFRESH)?/(ENABLE|DISABLE)_CONCURRENT_REFRESH!swap	ALTER MATERIALIZED VIEW a REFRESH FAST ENABLE_ALL CONCURRENT REFRESH
 accept	accept	engine	alterMaterializedView_alter_mv_refresh(ENABLE|DISABLE)/ENABLE	ALTER MATERIALIZED VIEW a REFRESH FAST ENABLE CONCURRENT REFRESH
 reject@46	reject@46	engine	alterMaterializedView_alter_mv_refresh(ENABLE|DISABLE)/ENABLE!insert	ALTER MATERIALIZED VIEW a REFRESH FAST ENABLE zzz CONCURRENT REFRESH
 accept	accept	engine	alterMaterializedView_alter_mv_refresh(ENABLE|DISABLE)/DISABLE	ALTER MATERIALIZED VIEW a REFRESH FAST DISABLE CONCURRENT REFRESH
 reject@47	reject@47	engine	alterMaterializedView_alter_mv_refresh(ENABLE|DISABLE)/DISABLE!insert	ALTER MATERIALIZED VIEW a REFRESH FAST DISABLE zzz CONCURRENT REFRESH
-reject@39	accept	engine	alterMaterializedView_alter_mv_refresh(ENABLE|DISABLE)/DISABLE!swap	ALTER MATERIALIZED VIEW a REFRESH FAST DISABLE_ALL CONCURRENT REFRESH
+reject@39	reject@39	engine	alterMaterializedView_alter_mv_refresh(ENABLE|DISABLE)/DISABLE!swap	ALTER MATERIALIZED VIEW a REFRESH FAST DISABLE_ALL CONCURRENT REFRESH
 accept	accept	engine	alterMaterializedView_evaluation_edition_clause/EVALUATE_USING_EDITION_ID_(CONSIDER_FRESH)?	ALTER MATERIALIZED VIEW a EVALUATE USING EDITION a
 accept	accept	engine	alterMaterializedView_evaluation_edition_clause(CONSIDER_FRESH)?/%empty	ALTER MATERIALIZED VIEW a EVALUATE USING EDITION a
 accept	accept	engine	alterMaterializedView_evaluation_edition_clause(CONSIDER_FRESH)?/CONSIDER_FRESH	ALTER MATERIALIZED VIEW a EVALUATE USING EDITION a CONSIDER FRESH
@@ -8998,46 +8998,46 @@ reject@47	reject@47	engine	alterMaterializedView_modify_lob_parameters(ENCRYPT_I
 reject@48	reject@48	engine	alterMaterializedView_modify_lob_parameters(ENCRYPT_ID|DECRYPT)/ENCRYPT_ID!insert	ALTER MATERIALIZED VIEW a MODIFY LOB(a)(ENCRYPT a zzz)
 reject@40	reject@40	engine	alterMaterializedView_modify_lob_parameters(ENCRYPT_ID|DECRYPT)/ENCRYPT_ID!swap	ALTER MATERIALIZED VIEW a MODIFY LOB(a)(ENCRYPTION a)
 accept	accept	engine	alterMaterializedView_modify_lob_parameters(ENCRYPT_ID|DECRYPT)/DECRYPT	ALTER MATERIALIZED VIEW a MODIFY LOB(a)(DECRYPT)
-reject@51	accept	engine	alterMaterializedView_modify_table_default_attrs/MODIFY_DEFAULT_ATTRIBUTES_(FOR_PARTITION_ID)?_(alterMat~d71af084	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES
-reject@51	accept	engine	alterMaterializedView_modify_table_default_attrs(FOR_PARTITION_ID)?/%empty	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES
-reject@67	accept	engine	alterMaterializedView_modify_table_default_attrs(FOR_PARTITION_ID)?/FOR_PARTITION_ID	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES FOR PARTITION a
+reject@51	reject@0	engine	alterMaterializedView_modify_table_default_attrs/MODIFY_DEFAULT_ATTRIBUTES_(FOR_PARTITION_ID)?_(alterMat~d71af084	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES
+reject@51	reject@0	engine	alterMaterializedView_modify_table_default_attrs(FOR_PARTITION_ID)?/%empty	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES
+reject@67	reject@0	engine	alterMaterializedView_modify_table_default_attrs(FOR_PARTITION_ID)?/FOR_PARTITION_ID	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES FOR PARTITION a
 reject@52	reject@52	engine	alterMaterializedView_modify_table_default_attrs(FOR_PARTITION_ID)?/FOR_PARTITION_ID!drop-1	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES PARTITION a
 reject@56	reject@56	engine	alterMaterializedView_modify_table_default_attrs(FOR_PARTITION_ID)?/FOR_PARTITION_ID!drop-2	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES FOR a
 reject@65	reject@65	engine	alterMaterializedView_modify_table_default_attrs(FOR_PARTITION_ID)?/FOR_PARTITION_ID!drop-3	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES FOR PARTITION
 reject@68	reject@68	engine	alterMaterializedView_modify_table_default_attrs(FOR_PARTITION_ID)?/FOR_PARTITION_ID!insert	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES FOR PARTITION a zzz
 reject@52	reject@52	engine	alterMaterializedView_modify_table_default_attrs(FOR_PARTITION_ID)?/FOR_PARTITION_ID!swap	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES FORCE PARTITION a
-reject@51	accept	engine	alterMaterializedView_modify_table_default_attrs(alterMaterializedView_deferred_segme~1395c906)?/%empty	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES
+reject@51	reject@0	engine	alterMaterializedView_modify_table_default_attrs(alterMaterializedView_deferred_segme~1395c906)?/%empty	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES
 reject@52	reject@52	engine	alterMaterializedView_modify_table_default_attrs(alterMaterializedView_deferred_segme~1395c906)?/alterMaterializedView_deferred_segment_creation	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES SEGMENT CREATION IMMEDIATE
 reject@52	reject@52	engine	alterMaterializedView_modify_table_default_attrs(alterMaterializedView_deferred_segme~1395c906)?/alterMaterializedView_deferred_segment_creation!drop-1	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES CREATION IMMEDIATE
 reject@52	reject@52	engine	alterMaterializedView_modify_table_default_attrs(alterMaterializedView_deferred_segme~1395c906)?/alterMaterializedView_deferred_segment_creation!drop-2	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES SEGMENT IMMEDIATE
 reject@52	reject@52	engine	alterMaterializedView_modify_table_default_attrs(alterMaterializedView_deferred_segme~1395c906)?/alterMaterializedView_deferred_segment_creation!drop-3	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES SEGMENT CREATION
 reject@52	reject@52	engine	alterMaterializedView_modify_table_default_attrs(alterMaterializedView_deferred_segme~1395c906)?/alterMaterializedView_deferred_segment_creation!insert	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES SEGMENT CREATION IMMEDIATE zzz
 reject@52	reject@52	engine	alterMaterializedView_modify_table_default_attrs(alterMaterializedView_deferred_segme~1395c906)?/alterMaterializedView_deferred_segment_creation!swap	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES SELECT CREATION IMMEDIATE
-reject@51	accept	engine	alterMaterializedView_modify_table_default_attrs(alterMaterializedView_read_only_clause)?/%empty	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES
+reject@51	reject@0	engine	alterMaterializedView_modify_table_default_attrs(alterMaterializedView_read_only_clause)?/%empty	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES
 reject@52	reject@52	engine	alterMaterializedView_modify_table_default_attrs(alterMaterializedView_read_only_clause)?/alterMaterializedView_read_only_clause	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES READ ONLY
 reject@52	reject@52	engine	alterMaterializedView_modify_table_default_attrs(alterMaterializedView_read_only_clause)?/alterMaterializedView_read_only_clause!drop-1	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES ONLY
 reject@52	reject@52	engine	alterMaterializedView_modify_table_default_attrs(alterMaterializedView_read_only_clause)?/alterMaterializedView_read_only_clause!drop-2	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES READ
 reject@52	reject@52	engine	alterMaterializedView_modify_table_default_attrs(alterMaterializedView_read_only_clause)?/alterMaterializedView_read_only_clause!insert	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES READ ONLY zzz
 reject@52	reject@52	engine	alterMaterializedView_modify_table_default_attrs(alterMaterializedView_read_only_clause)?/alterMaterializedView_read_only_clause!swap	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES READS ONLY
-reject@51	accept	engine	alterMaterializedView_modify_table_default_attrs(alterMaterializedView_indexing_clause)?/%empty	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES
+reject@51	reject@0	engine	alterMaterializedView_modify_table_default_attrs(alterMaterializedView_indexing_clause)?/%empty	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES
 reject@52	reject@52	engine	alterMaterializedView_modify_table_default_attrs(alterMaterializedView_indexing_clause)?/alterMaterializedView_indexing_clause	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES INDEXING ON
 reject@52	reject@52	engine	alterMaterializedView_modify_table_default_attrs(alterMaterializedView_indexing_clause)?/alterMaterializedView_indexing_clause!drop-1	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES ON
 reject@52	reject@52	engine	alterMaterializedView_modify_table_default_attrs(alterMaterializedView_indexing_clause)?/alterMaterializedView_indexing_clause!drop-2	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES INDEXING
 reject@52	reject@52	engine	alterMaterializedView_modify_table_default_attrs(alterMaterializedView_indexing_clause)?/alterMaterializedView_indexing_clause!insert	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES INDEXING ON zzz
 reject@52	reject@52	engine	alterMaterializedView_modify_table_default_attrs(alterMaterializedView_indexing_clause)?/alterMaterializedView_indexing_clause!swap	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES INDEXTYPE ON
-reject@51	accept	engine	alterMaterializedView_modify_table_default_attrs(alterMaterializedView_segment_attrib~5725044e)?/%empty	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES
-reject@51	accept	engine	alterMaterializedView_modify_table_default_attrs(alterMaterializedView_segment_attrib~5725044e)?/alterMaterializedView_segment_attributes_clause	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES
-reject@51	accept	engine	alterMaterializedView_modify_table_default_attrs(alterMaterializedView_table_compression)?/%empty	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES
+reject@51	reject@0	engine	alterMaterializedView_modify_table_default_attrs(alterMaterializedView_segment_attrib~5725044e)?/%empty	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES
+reject@51	reject@0	engine	alterMaterializedView_modify_table_default_attrs(alterMaterializedView_segment_attrib~5725044e)?/alterMaterializedView_segment_attributes_clause	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES
+reject@51	reject@0	engine	alterMaterializedView_modify_table_default_attrs(alterMaterializedView_table_compression)?/%empty	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES
 accept	accept	engine	alterMaterializedView_modify_table_default_attrs(alterMaterializedView_table_compression)?/alterMaterializedView_table_compression	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES COMPRESS
 reject@61	reject@61	engine	alterMaterializedView_modify_table_default_attrs(alterMaterializedView_table_compression)?/alterMaterializedView_table_compression!insert	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES COMPRESS zzz
 reject@52	reject@52	engine	alterMaterializedView_modify_table_default_attrs(alterMaterializedView_table_compression)?/alterMaterializedView_table_compression!swap	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES COMPUTATION
-reject@51	accept	engine	alterMaterializedView_modify_table_default_attrs(alterMaterializedView_inmemory_clause)?/%empty	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES
+reject@51	reject@0	engine	alterMaterializedView_modify_table_default_attrs(alterMaterializedView_inmemory_clause)?/%empty	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES
 accept	accept	engine	alterMaterializedView_modify_table_default_attrs(alterMaterializedView_inmemory_clause)?/alterMaterializedView_inmemory_clause	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES INMEMORY
 reject@61	reject@61	engine	alterMaterializedView_modify_table_default_attrs(alterMaterializedView_inmemory_clause)?/alterMaterializedView_inmemory_clause!insert	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES INMEMORY zzz
 reject@52	reject@52	engine	alterMaterializedView_modify_table_default_attrs(alterMaterializedView_inmemory_clause)?/alterMaterializedView_inmemory_clause!swap	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES INNER
-reject@51	accept	engine	alterMaterializedView_modify_table_default_attrs(alterMaterializedView_prefix_compression)?/%empty	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES
+reject@51	reject@0	engine	alterMaterializedView_modify_table_default_attrs(alterMaterializedView_prefix_compression)?/%empty	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES
 accept	accept	engine	alterMaterializedView_modify_table_default_attrs(alterMaterializedView_prefix_compression)?/alterMaterializedView_prefix_compression	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES COMPRESS
-reject@51	accept	engine	alterMaterializedView_modify_table_default_attrs(OVERFLOW_alterMaterializedView_segme~e7d86284)?/%empty	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES
+reject@51	reject@0	engine	alterMaterializedView_modify_table_default_attrs(OVERFLOW_alterMaterializedView_segme~e7d86284)?/%empty	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES
 accept	accept	engine	alterMaterializedView_modify_table_default_attrs(OVERFLOW_alterMaterializedView_segme~e7d86284)?/OVERFLOW_alterMaterializedView_segment_attributes_clause	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES OVERFLOW
 reject@61	reject@61	engine	alterMaterializedView_modify_table_default_attrs(OVERFLOW_alterMaterializedView_segme~e7d86284)?/OVERFLOW_alterMaterializedView_segment_attributes_clause!insert	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES OVERFLOW zzz
 reject@52	reject@52	engine	alterMaterializedView_modify_table_default_attrs(OVERFLOW_alterMaterializedView_segme~e7d86284)?/OVERFLOW_alterMaterializedView_segment_attributes_clause!swap	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES OWNER
@@ -9851,15 +9851,15 @@ reject@51	reject@51	engine	alterMaterializedView_size_clause(K|M|G|T|P)?/G!swap	
 accept	accept	engine	alterMaterializedView_size_clause(K|M|G|T|P)?/T	ALTER MATERIALIZED VIEW a DEALLOCATE UNUSED KEEP 1 T
 reject@53	reject@53	engine	alterMaterializedView_size_clause(K|M|G|T|P)?/T!insert	ALTER MATERIALIZED VIEW a DEALLOCATE UNUSED KEEP 1 T zzz
 reject@51	reject@51	engine	alterMaterializedView_size_clause(K|M|G|T|P)?/T!swap	ALTER MATERIALIZED VIEW a DEALLOCATE UNUSED KEEP 1 TABLE
-accept	accept	engine	alterMaterializedView_size_clause(K|M|G|T|P)?/P	ALTER MATERIALIZED VIEW a DEALLOCATE UNUSED KEEP 1 P
-reject@53	accept	engine	alterMaterializedView_size_clause(K|M|G|T|P)?/P!insert	ALTER MATERIALIZED VIEW a DEALLOCATE UNUSED KEEP 1 P zzz
+accept	reject@49	engine	alterMaterializedView_size_clause(K|M|G|T|P)?/P	ALTER MATERIALIZED VIEW a DEALLOCATE UNUSED KEEP 1 P
+reject@53	reject@49	engine	alterMaterializedView_size_clause(K|M|G|T|P)?/P!insert	ALTER MATERIALIZED VIEW a DEALLOCATE UNUSED KEEP 1 P zzz
 reject@51	reject@51	engine	alterMaterializedView_size_clause(K|M|G|T|P)?/P!swap	ALTER MATERIALIZED VIEW a DEALLOCATE UNUSED KEEP 1 PACKAGE
 accept	accept	engine	alterMaterializedView_annotation/ID_(STRING)?	ALTER MATERIALIZED VIEW a ANNOTATIONS(ADD a)
 accept	accept	engine	alterMaterializedView_annotation(STRING)?/%empty	ALTER MATERIALIZED VIEW a ANNOTATIONS(ADD a)
 accept	accept	engine	alterMaterializedView_annotation(STRING)?/STRING	ALTER MATERIALIZED VIEW a ANNOTATIONS(ADD a 's')
 reject@48	reject@48	engine	alterMaterializedView_annotation(STRING)?/STRING!insert	ALTER MATERIALIZED VIEW a ANNOTATIONS(ADD a 's' zzz)
-reject@35	accept	engine	alterMaterializedView_index_org_table_clause/(alterMaterializedView_mapping_table_~db7a8674)	ALTER MATERIALIZED VIEW a NOMAPPING
-reject@35	accept	engine	alterMaterializedView_index_org_table_clause(alterMaterializedView_mapping_table_~db7a8674)/alterMaterializedView_mapping_table_clauses	ALTER MATERIALIZED VIEW a NOMAPPING
+reject@35	reject@0	engine	alterMaterializedView_index_org_table_clause/(alterMaterializedView_mapping_table_~db7a8674)	ALTER MATERIALIZED VIEW a NOMAPPING
+reject@35	reject@0	engine	alterMaterializedView_index_org_table_clause(alterMaterializedView_mapping_table_~db7a8674)/alterMaterializedView_mapping_table_clauses	ALTER MATERIALIZED VIEW a NOMAPPING
 accept	accept	engine	alterMaterializedView_index_org_table_clause(alterMaterializedView_mapping_table_~db7a8674)/PCTTHRESHOLD_NUMBER	ALTER MATERIALIZED VIEW a PCTTHRESHOLD 1
 reject@38	reject@38	engine	alterMaterializedView_index_org_table_clause(alterMaterializedView_mapping_table_~db7a8674)/PCTTHRESHOLD_NUMBER!drop-2	ALTER MATERIALIZED VIEW a PCTTHRESHOLD
 reject@41	reject@41	engine	alterMaterializedView_index_org_table_clause(alterMaterializedView_mapping_table_~db7a8674)/PCTTHRESHOLD_NUMBER!insert	ALTER MATERIALIZED VIEW a PCTTHRESHOLD 1 zzz
@@ -10561,13 +10561,13 @@ reject@35	reject@35	engine	alterMaterializedView_exceptions_clause(ID_.)?/ID_.	A
 reject@35	reject@35	engine	alterMaterializedView_exceptions_clause(ID_.)?/ID_.!drop-1	ALTER MATERIALIZED VIEW a EXCHANGE PARTITION a WITH TABLE a EXCEPTIONS INTO.a
 reject@35	reject@35	engine	alterMaterializedView_exceptions_clause(ID_.)?/ID_.!drop-2	ALTER MATERIALIZED VIEW a EXCHANGE PARTITION a WITH TABLE a EXCEPTIONS INTO a a
 reject@35	reject@35	engine	alterMaterializedView_exceptions_clause(ID_.)?/ID_.!insert	ALTER MATERIALIZED VIEW a EXCHANGE PARTITION a WITH TABLE a EXCEPTIONS INTO a.zzz a
-reject@35	accept	engine	alterMaterializedView_mapping_table_clauses/(MAPPING_TABLE|NOMAPPING)	ALTER MATERIALIZED VIEW a NOMAPPING
-reject@39	accept	engine	alterMaterializedView_mapping_table_clauses(MAPPING_TABLE|NOMAPPING)/MAPPING_TABLE	ALTER MATERIALIZED VIEW a MAPPING TABLE
+reject@35	reject@0	engine	alterMaterializedView_mapping_table_clauses/(MAPPING_TABLE|NOMAPPING)	ALTER MATERIALIZED VIEW a NOMAPPING
+reject@39	reject@0	engine	alterMaterializedView_mapping_table_clauses(MAPPING_TABLE|NOMAPPING)/MAPPING_TABLE	ALTER MATERIALIZED VIEW a MAPPING TABLE
 reject@26	reject@26	engine	alterMaterializedView_mapping_table_clauses(MAPPING_TABLE|NOMAPPING)/MAPPING_TABLE!drop-1	ALTER MATERIALIZED VIEW a TABLE
 reject@33	reject@33	engine	alterMaterializedView_mapping_table_clauses(MAPPING_TABLE|NOMAPPING)/MAPPING_TABLE!drop-2	ALTER MATERIALIZED VIEW a MAPPING
 reject@40	reject@40	engine	alterMaterializedView_mapping_table_clauses(MAPPING_TABLE|NOMAPPING)/MAPPING_TABLE!insert	ALTER MATERIALIZED VIEW a MAPPING TABLE zzz
 reject@26	reject@26	engine	alterMaterializedView_mapping_table_clauses(MAPPING_TABLE|NOMAPPING)/MAPPING_TABLE!swap	ALTER MATERIALIZED VIEW a MASTER TABLE
-reject@35	accept	engine	alterMaterializedView_mapping_table_clauses(MAPPING_TABLE|NOMAPPING)/NOMAPPING	ALTER MATERIALIZED VIEW a NOMAPPING
+reject@35	reject@0	engine	alterMaterializedView_mapping_table_clauses(MAPPING_TABLE|NOMAPPING)/NOMAPPING	ALTER MATERIALIZED VIEW a NOMAPPING
 accept	accept	engine	alterMaterializedView_index_org_overflow_clause/(INCLUDING_ID)?_OVERFLOW_(alterMaterializedView_segment~8fe83e3f	ALTER MATERIALIZED VIEW a OVERFLOW
 accept	accept	engine	alterMaterializedView_index_org_overflow_clause(INCLUDING_ID)?/%empty	ALTER MATERIALIZED VIEW a OVERFLOW
 reject@26	reject@26	engine	alterMaterializedView_index_org_overflow_clause(INCLUDING_ID)?/%empty!insert	ALTER MATERIALIZED VIEW a zzz OVERFLOW
@@ -16046,7 +16046,7 @@ reject@39	reject@39	engine	alterTable_size_clause(K|M|G|T|P)?/G!swap	ALTER TABLE
 accept	accept	engine	alterTable_size_clause(K|M|G|T|P)?/T	ALTER TABLE a DEALLOCATE UNUSED KEEP 1 T
 reject@41	reject@41	engine	alterTable_size_clause(K|M|G|T|P)?/T!insert	ALTER TABLE a DEALLOCATE UNUSED KEEP 1 T zzz
 reject@39	reject@39	engine	alterTable_size_clause(K|M|G|T|P)?/T!swap	ALTER TABLE a DEALLOCATE UNUSED KEEP 1 TABLE
-accept	accept	engine	alterTable_size_clause(K|M|G|T|P)?/P	ALTER TABLE a DEALLOCATE UNUSED KEEP 1 P
+accept	reject@37	engine	alterTable_size_clause(K|M|G|T|P)?/P	ALTER TABLE a DEALLOCATE UNUSED KEEP 1 P
 reject@41	reject@37	engine	alterTable_size_clause(K|M|G|T|P)?/P!insert	ALTER TABLE a DEALLOCATE UNUSED KEEP 1 P zzz
 reject@39	reject@39	engine	alterTable_size_clause(K|M|G|T|P)?/P!swap	ALTER TABLE a DEALLOCATE UNUSED KEEP 1 PACKAGE
 reject@32	reject@32	engine	alterTable_zonemap_clause/(WITH_MATERIALIZED_ZONEMAP_((_ID_))?|~cee92229)	ALTER TABLE a MODIFY CLUSTERING CLUSTERING BY(a) WITH MATERIALIZED ZONEMAP
