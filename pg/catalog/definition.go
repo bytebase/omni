@@ -67,6 +67,9 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 		if err := writeSchema(&buf, schema); err != nil {
 			return "", err
 		}
+		if err := writeSchemaOwnerAndComment(&buf, schema); err != nil {
+			return "", err
+		}
 	}
 
 	// Construct extensions.
@@ -305,6 +308,9 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 func SchemaDefinition(schema *metadatapb.SchemaMetadata) (string, error) {
 	var buf strings.Builder
 	if err := writeSchema(&buf, schema); err != nil {
+		return "", err
+	}
+	if err := writeSchemaOwnerAndComment(&buf, schema); err != nil {
 		return "", err
 	}
 
@@ -742,6 +748,13 @@ func writeEventTrigger(out io.Writer, eventTrigger *metadatapb.EventTriggerMetad
 			return err
 		}
 		if _, err := io.WriteString(out, `"();\n\n`); err != nil {
+			return err
+		}
+	}
+
+	// A disabled event trigger is created enabled; restore its disabled state.
+	if !eventTrigger.Enabled {
+		if _, err := fmt.Fprintf(out, "ALTER EVENT TRIGGER \"%s\" DISABLE;\n\n", eventTrigger.Name); err != nil {
 			return err
 		}
 	}
@@ -1468,6 +1481,14 @@ func writeCreateSequence(out io.Writer, schema string, sequence *metadatapb.Sequ
 	if _, err := io.WriteString(out, sequence.MaxValue); err != nil {
 		return err
 	}
+	if sequence.CacheSize != "" {
+		if _, err := io.WriteString(out, "\n	CACHE "); err != nil {
+			return err
+		}
+		if _, err := io.WriteString(out, sequence.CacheSize); err != nil {
+			return err
+		}
+	}
 	if sequence.Cycle {
 		if _, err := io.WriteString(out, "\n	CYCLE"); err != nil {
 			return err
@@ -1631,8 +1652,25 @@ func writeCreateTable(out io.Writer, schema string, tableName string, columns []
 			return err
 		}
 
-		// Handle default values
-		if column.Default != "" {
+		// The collation is a bare name; a user-defined collation would need
+		// its schema, which the metadata does not carry, so only a built-in
+		// collation (pg_catalog, such as "C") round-trips.
+		if column.Collation != "" {
+			if _, err := fmt.Fprintf(out, ` COLLATE "%s"`, column.Collation); err != nil {
+				return err
+			}
+		}
+
+		// A generated column carries its expression in place of a default.
+		if column.Generation != nil {
+			storage := "STORED"
+			if column.Generation.Type == metadatapb.GenerationMetadata_TYPE_VIRTUAL {
+				storage = "VIRTUAL"
+			}
+			if _, err := fmt.Fprintf(out, " GENERATED ALWAYS AS (%s) %s", column.Generation.Expression, storage); err != nil {
+				return err
+			}
+		} else if column.Default != "" {
 			if _, err := io.WriteString(out, ` DEFAULT `); err != nil {
 				return err
 			}
@@ -1908,6 +1946,15 @@ func writeTable(out io.Writer, schema string, table *metadatapb.TableMetadata, s
 		}
 	}
 
+	// Set the owner after linking OWNED BY sequences, so the change cascades
+	// to them: PostgreSQL requires an owned sequence to share its table's
+	// owner. Identity sequences are created below, under this owner.
+	if table.Owner != "" {
+		if _, err := fmt.Fprintf(out, "ALTER TABLE \"%s\".\"%s\" OWNER TO \"%s\";\n\n", schema, table.Name, table.Owner); err != nil {
+			return err
+		}
+	}
+
 	// Construct comments.
 	if len(table.Comment) > 0 {
 		if err := writeTableComment(out, schema, table); err != nil {
@@ -2073,6 +2120,19 @@ func writeForeignKey(out io.Writer, schema string, table string, fk *metadatapb.
 		return err
 	}
 
+	// MATCH SIMPLE is the default and PostgreSQL omits it; FULL and PARTIAL
+	// are written.
+	switch fk.MatchType {
+	case "FULL":
+		if _, err := io.WriteString(out, "\n    MATCH FULL"); err != nil {
+			return err
+		}
+	case "PARTIAL":
+		if _, err := io.WriteString(out, "\n    MATCH PARTIAL"); err != nil {
+			return err
+		}
+	}
+
 	// Add ON DELETE clause if specified
 	if fk.OnDelete != "" && fk.OnDelete != "NO ACTION" {
 		if _, err := io.WriteString(out, "\n    ON DELETE "); err != nil {
@@ -2171,6 +2231,10 @@ func writeIndexKeyList(out io.Writer, index *metadatapb.IndexMetadata) error {
 		return err
 	}
 
+	// NULLS ordering is not stored on IndexMetadata; it is read back from the
+	// index definition, which pg_get_indexdef writes only when non-default.
+	nulls := indexKeyNulls(index.Definition)
+
 	for i, expression := range index.Expressions {
 		if i > 0 {
 			if _, err := io.WriteString(out, ", "); err != nil {
@@ -2203,12 +2267,47 @@ func writeIndexKeyList(out io.Writer, index *metadatapb.IndexMetadata) error {
 				return err
 			}
 		}
-		// Note: NULLS ordering information is not available in IndexMetadata
-		// so we omit it in the generated DDL
+
+		if i < len(nulls) {
+			switch nulls[i] {
+			case ast.SORTBY_NULLS_FIRST:
+				if _, err := io.WriteString(out, " NULLS FIRST"); err != nil {
+					return err
+				}
+			case ast.SORTBY_NULLS_LAST:
+				if _, err := io.WriteString(out, " NULLS LAST"); err != nil {
+					return err
+				}
+			}
+		}
 	}
 
 	_, err := io.WriteString(out, ")")
 	return err
+}
+
+// indexKeyNulls returns the per-key NULLS ordering of a CREATE INDEX
+// definition, aligned with its key expressions. A definition that does not
+// parse yields no orderings, so the key list renders without them.
+func indexKeyNulls(definition string) []ast.SortByNulls {
+	if definition == "" {
+		return nil
+	}
+	stmts, err := parseDefinition(definition)
+	if err != nil || len(stmts) == 0 {
+		return nil
+	}
+	idx, ok := stmts[0].(*ast.IndexStmt)
+	if !ok || idx == nil || idx.IndexParams == nil {
+		return nil
+	}
+	var out []ast.SortByNulls
+	for _, item := range idx.IndexParams.Items {
+		if elem, ok := item.(*ast.IndexElem); ok {
+			out = append(out, elem.NullsOrdering)
+		}
+	}
+	return out
 }
 
 func writeIndexComment(out io.Writer, schema string, index *metadatapb.IndexMetadata) error {
@@ -2753,11 +2852,17 @@ func writeIndexInternal(out io.Writer, schema string, table string, index *metad
 		return err
 	}
 
-	// Write INCLUDE and WHERE clauses from the full index definition (from pg_get_indexdef).
+	// Write INCLUDE, WITH and WHERE clauses from the full index definition
+	// (from pg_get_indexdef), in that order.
 	if index.Definition != "" {
 		includeClause, whereClause := extractIndexClauses(index.Definition)
 		if includeClause != "" {
 			if _, err := fmt.Fprintf(out, " %s", includeClause); err != nil {
+				return err
+			}
+		}
+		if withClause := extractIndexWith(index.Definition); withClause != "" {
+			if _, err := fmt.Fprintf(out, " %s", withClause); err != nil {
 				return err
 			}
 		}
@@ -2802,6 +2907,23 @@ func writeSchema(out io.Writer, schema *metadatapb.SchemaMetadata) error {
 
 	_, err := io.WriteString(out, "\n\n")
 	return err
+}
+
+// writeSchemaOwnerAndComment restores a schema's owner and comment in a dump.
+// The public schema already exists and keeps its owner, so only its comment
+// is written.
+func writeSchemaOwnerAndComment(out io.Writer, schema *metadatapb.SchemaMetadata) error {
+	if schema.Name != "public" && schema.Owner != "" {
+		if _, err := fmt.Fprintf(out, "ALTER SCHEMA \"%s\" OWNER TO \"%s\";\n\n", schema.Name, schema.Owner); err != nil {
+			return err
+		}
+	}
+	if schema.Comment != "" {
+		if _, err := fmt.Fprintf(out, "COMMENT ON SCHEMA \"%s\" IS '%s';\n\n", schema.Name, escapeSingleQuote(schema.Comment)); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // extractIndexClauses parses a CREATE INDEX statement using the omni parser and
@@ -2849,6 +2971,40 @@ func extractIndexClauses(definition string) (includeClause, whereClause string) 
 	}
 
 	return includeClause, whereClause
+}
+
+// extractIndexWith returns the storage-parameter clause of a CREATE INDEX
+// definition, such as `WITH (pages_per_range='16')`, or "" when the index
+// has none. It reads the clause verbatim from the definition, which
+// pg_get_indexdef writes between the key list and any WHERE clause.
+func extractIndexWith(definition string) string {
+	stmts, err := parseDefinition(definition)
+	if err != nil || len(stmts) == 0 {
+		return ""
+	}
+	idx, ok := stmts[0].(*ast.IndexStmt)
+	if !ok || idx == nil || idx.Options == nil || len(idx.Options.Items) == 0 {
+		return ""
+	}
+	const marker = " WITH ("
+	i := strings.Index(definition, marker)
+	if i < 0 {
+		return ""
+	}
+	open := i + len(marker) - 1 // the '(' of the clause
+	depth := 0
+	for j := open; j < len(definition); j++ {
+		switch definition[j] {
+		case '(':
+			depth++
+		case ')':
+			depth--
+			if depth == 0 {
+				return "WITH " + definition[open:j+1]
+			}
+		}
+	}
+	return ""
 }
 
 // isBalancedParens checks if a string has balanced parentheses.

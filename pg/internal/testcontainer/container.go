@@ -135,6 +135,21 @@ func OpenDatabase(t testing.TB, role, name string) *sql.DB {
 	return tape.Open(t, s, role)
 }
 
+// OpenDatabaseNumberingOIDs is OpenDatabase for a test that reads OIDs as
+// numbers: it gives the named database's connection OID stand-ins, as
+// OpenRoleNumberingOIDs does for the role's own database, so a sync of its
+// system catalogs records a reproducible tape.
+func OpenDatabaseNumberingOIDs(t testing.TB, role, name string) *sql.DB {
+	t.Helper()
+	s := &tape.Server{Pins: Pins, Codec: Codec{}, Live: func(t testing.TB, pin enginetest.Pin) driver.Connector {
+		t.Helper()
+		c := liveDatabase(t, pin, name).(connector)
+		c.oids = oidNumbering(enginetest.TopName(t.Name()))
+		return c
+	}}
+	return tape.Open(t, s, role)
+}
+
 // Reset runs fn on the default server before a test opens its connection,
 // in a recording only: it puts what databases share (roles, tablespaces)
 // into the state the test's tape starts from, so a replay needs nothing.

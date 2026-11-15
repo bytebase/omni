@@ -167,6 +167,8 @@
 | 	information_schema._pg_datetime_precision(information_schema._pg_truetypid(a.*, t.*), information_schema._pg_truetypmod(a.*, t.*)) AS datetime_precision,
 | 	a.attnum AS ordinal_position,
 | 	CASE WHEN a.attgenerated = '' THEN pg_catalog.pg_get_expr(ad.adbin, ad.adrelid) END AS column_default,
+| 	CASE WHEN a.attgenerated <> '' THEN 'ALWAYS' ELSE 'NEVER' END AS is_generated,
+| 	CASE WHEN a.attgenerated <> '' THEN pg_catalog.pg_get_expr(ad.adbin, ad.adrelid) END AS generation_expression,
 | 	CASE WHEN a.attnotnull OR (t.typtype = 'd' AND t.typnotnull) THEN 'NO' ELSE 'YES' END AS is_nullable,
 | 	co.collname AS collation_name,
 | 	COALESCE(nbt.nspname, nt.nspname) AS udt_schema,
@@ -201,6 +203,8 @@
 < column "datetime_precision" "INT4"
 < column "ordinal_position" "INT2"
 < column "column_default" "TEXT"
+< column "is_generated" "TEXT"
+< column "generation_expression" "TEXT"
 < column "is_nullable" "TEXT"
 < column "collation_name" "NAME"
 < column "udt_schema" "NAME"
@@ -221,6 +225,9 @@
 : int64 0
 : null
 : int64 1
+: null
+: string
+| NEVER
 : null
 : string
 | YES
@@ -245,6 +252,9 @@
 : null
 : null
 : int64 2
+: null
+: string
+| NEVER
 : null
 : string
 | YES
@@ -272,6 +282,9 @@
 : string
 | 'hello'::character varying
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -296,6 +309,9 @@
 : int64 4
 : string
 | 42
+: string
+| NEVER
+: null
 : string
 | YES
 : null
@@ -322,6 +338,9 @@
 : string
 | true
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -346,6 +365,9 @@
 : int64 6
 : string
 | now()
+: string
+| NEVER
+: null
 : string
 | YES
 : null
@@ -372,6 +394,9 @@
 : string
 | (10 + 20)
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -396,6 +421,9 @@
 : int64 8
 : string
 | nextval('public.test_defaults_col_serial_seq'::regclass)
+: string
+| NEVER
+: null
 : string
 | NO
 : null
@@ -422,6 +450,9 @@
 : string
 | 'medium'::public.test_size
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -446,6 +477,9 @@
 : int64 10
 : string
 | nextval('public.test_sequence'::regclass)
+: string
+| NEVER
+: null
 : string
 | YES
 : null
@@ -472,6 +506,9 @@
 : string
 | '{1,2,3}'::integer[]
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -496,6 +533,9 @@
 : int64 12
 : string
 | '{"key": "value"}'::jsonb
+: string
+| NEVER
+: null
 : string
 | YES
 : null
@@ -522,6 +562,9 @@
 : string
 | '\xdeadbeef'::bytea
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -546,6 +589,9 @@
 : int64 14
 : string
 | 'active'::custom_schema.status_type
+: string
+| NEVER
+: null
 : string
 | YES
 : null
@@ -572,6 +618,9 @@
 : string
 | nextval('custom_schema.my_sequence'::regclass)
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -596,6 +645,9 @@
 : int64 16
 : string
 | custom_schema.get_prefix()
+: string
+| NEVER
+: null
 : string
 | YES
 : null
@@ -976,7 +1028,7 @@
 |   AND n.nspname NOT LIKE 'pg_temp%'
 |   AND n.nspname NOT LIKE 'pg_toast%'
 |   AND p.prokind <> 'a'
-| order by function_schema, function_name;
+| order by function_schema, function_name, arguments;
 < result
 < column "oid" "OID"
 < column "function_schema" "NAME"

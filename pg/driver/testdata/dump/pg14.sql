@@ -12,9 +12,19 @@ SET row_security = off;
 
 CREATE SCHEMA IF NOT EXISTS "Mixed Case";
 
+ALTER SCHEMA "Mixed Case" OWNER TO "postgres";
+
 CREATE SCHEMA IF NOT EXISTS "app";
 
+ALTER SCHEMA "app" OWNER TO "corpus_owner";
+
+COMMENT ON SCHEMA "app" IS 'the application';
+
 CREATE SCHEMA IF NOT EXISTS "audit";
+
+ALTER SCHEMA "audit" OWNER TO "postgres";
+
+COMMENT ON SCHEMA "public" IS 'standard public schema';
 
 CREATE EXTENSION IF NOT EXISTS "btree_gist" WITH SCHEMA "public" VERSION '1.6';
 
@@ -65,6 +75,7 @@ CREATE SEQUENCE "app"."counter"
 	INCREMENT BY 5
 	MINVALUE -100
 	MAXVALUE 1000
+	CACHE 3
 	CYCLE;
 
 COMMENT ON SEQUENCE "app"."counter" IS 'counts by five';
@@ -75,6 +86,7 @@ CREATE SEQUENCE "app"."orders_id_seq"
 	INCREMENT BY 1
 	MINVALUE 1
 	MAXVALUE 9223372036854775807
+	CACHE 1
 	NO CYCLE;
 
 CREATE SEQUENCE "app"."owned_seq"
@@ -83,6 +95,7 @@ CREATE SEQUENCE "app"."owned_seq"
 	INCREMENT BY 1
 	MINVALUE 1
 	MAXVALUE 9223372036854775807
+	CACHE 1
 	NO CYCLE;
 
 CREATE SEQUENCE "app"."seq_owner_id_seq"
@@ -91,6 +104,7 @@ CREATE SEQUENCE "app"."seq_owner_id_seq"
 	INCREMENT BY 1
 	MINVALUE 1
 	MAXVALUE 2147483647
+	CACHE 1
 	NO CYCLE;
 
 CREATE SEQUENCE "audit"."big_seq"
@@ -99,6 +113,7 @@ CREATE SEQUENCE "audit"."big_seq"
 	INCREMENT BY 1
 	MINVALUE 1
 	MAXVALUE 9223372036854775807
+	CACHE 1
 	NO CYCLE;
 
 CREATE SEQUENCE "public"."plain_a_seq"
@@ -107,6 +122,7 @@ CREATE SEQUENCE "public"."plain_a_seq"
 	INCREMENT BY 1
 	MINVALUE 1
 	MAXVALUE 2147483647
+	CACHE 1
 	NO CYCLE;
 
 SET default_tablespace = '';
@@ -115,6 +131,8 @@ CREATE TABLE "Mixed Case"."Table" (
     "Id" integer NOT NULL,
     "Value" text
 );
+
+ALTER TABLE "Mixed Case"."Table" OWNER TO "postgres";
 
 ALTER TABLE ONLY "Mixed Case"."Table" ADD CONSTRAINT "Table_pkey" PRIMARY KEY ("Id");
 
@@ -140,18 +158,22 @@ CREATE TABLE "app"."animal" (
     CONSTRAINT "animal_legs_check" CHECK (legs >= 0)
 );
 
+ALTER TABLE "app"."animal" OWNER TO "postgres";
+
 CREATE TABLE "app"."booking" (
     "room" integer,
     "during" tstzrange,
     CONSTRAINT "booking_no_overlap" EXCLUDE USING gist (room WITH =, during WITH &&)
 );
 
+ALTER TABLE "app"."booking" OWNER TO "postgres";
+
 CREATE TABLE "app"."customer" (
     "id" bigint NOT NULL,
     "alt_id" integer NOT NULL,
     "email" public.citext NOT NULL,
-    "name" text DEFAULT 'anon'::text NOT NULL,
-    "nick" text,
+    "name" text COLLATE "C" DEFAULT 'anon'::text NOT NULL,
+    "nick" text COLLATE "ci",
     "mood" app.mood DEFAULT 'happy'::app.mood,
     "home" app.address,
     "tags" _text DEFAULT '{}'::text[],
@@ -178,7 +200,7 @@ CREATE TABLE "app"."customer" (
     "raw" bytea DEFAULT '\xdeadbeef'::bytea,
     "counter" integer DEFAULT nextval('app.counter'::regclass),
     "owned" bigint DEFAULT nextval('app.owned_seq'::regclass),
-    "full_name" text,
+    "full_name" text GENERATED ALWAYS AS ((((name || ' <'::text) || (email)::text) || '>'::text)) STORED,
     "Quoted Col" text,
     "updated_at" timestamp(6) with time zone,
     "moods" app._mood,
@@ -187,6 +209,8 @@ CREATE TABLE "app"."customer" (
 );
 
 ALTER SEQUENCE "app"."owned_seq" OWNED BY "app"."customer"."owned";
+
+ALTER TABLE "app"."customer" OWNER TO "corpus_owner";
 
 COMMENT ON TABLE "app"."customer" IS 'who buys';
 
@@ -214,11 +238,11 @@ ALTER TABLE ONLY "app"."customer" ADD CONSTRAINT "customer_pkey" PRIMARY KEY (id
 
 ALTER TABLE ONLY "app"."customer" ADD CONSTRAINT "customer_email_key" UNIQUE (email);
 
-CREATE INDEX "customer_brin" ON "app"."customer" USING BRIN (ts);
+CREATE INDEX "customer_brin" ON "app"."customer" USING BRIN (ts) WITH (pages_per_range='16');
 
 CREATE INDEX "customer_include" ON "app"."customer" (alt_id) INCLUDE (name, mood);
 
-CREATE INDEX "customer_lower_name" ON "app"."customer" (lower(name) DESC);
+CREATE INDEX "customer_lower_name" ON "app"."customer" (lower(name) DESC NULLS LAST);
 
 CREATE INDEX "customer_opclass" ON "app"."customer" (name text_pattern_ops, nick);
 
@@ -241,6 +265,8 @@ CREATE TABLE "app"."dog" (
     "breed" text,
     CONSTRAINT "animal_legs_check" CHECK (legs >= 0)
 );
+
+ALTER TABLE "app"."dog" OWNER TO "postgres";
 
 multirange_constructor0;
 
@@ -267,6 +293,8 @@ CREATE TABLE "app"."measurement" (
     "peak" integer,
     CONSTRAINT "measurement_peak_check" CHECK (peak > '-100'::integer)
 ) PARTITION BY RANGE (logdate);
+
+ALTER TABLE "app"."measurement" OWNER TO "postgres";
 
 CREATE TABLE "app"."measurement_2025" (
     "city_id" integer NOT NULL,
@@ -363,6 +391,8 @@ CREATE TABLE "app"."orders" (
 
 ALTER SEQUENCE "app"."orders_id_seq" OWNED BY "app"."orders"."id";
 
+ALTER TABLE "app"."orders" OWNER TO "postgres";
+
 ALTER TABLE ONLY "app"."orders" ADD CONSTRAINT "orders_pkey" PRIMARY KEY (id, placed_on);
 
 CREATE TABLE "app"."ref_source" (
@@ -370,10 +400,14 @@ CREATE TABLE "app"."ref_source" (
     "y" integer
 );
 
+ALTER TABLE "app"."ref_source" OWNER TO "postgres";
+
 CREATE TABLE "app"."ref_target" (
     "a" integer,
     "b" integer
 );
+
+ALTER TABLE "app"."ref_target" OWNER TO "postgres";
 
 ALTER TABLE ONLY "app"."ref_target" ADD CONSTRAINT "ref_target_a_b_key" UNIQUE (a, b);
 
@@ -393,10 +427,14 @@ CREATE TABLE "app"."seq_owner" (
 
 ALTER SEQUENCE "app"."seq_owner_id_seq" OWNED BY "app"."seq_owner"."id";
 
+ALTER TABLE "app"."seq_owner" OWNER TO "postgres";
+
 CREATE TABLE "app"."sharded" (
     "id" integer,
     "v" text
 ) PARTITION BY HASH (id);
+
+ALTER TABLE "app"."sharded" OWNER TO "postgres";
 
 CREATE TABLE "app"."sharded_0" (
     "id" integer,
@@ -437,6 +475,8 @@ CREATE TABLE "audit"."scratch" (
     "note" text
 );
 
+ALTER TABLE "audit"."scratch" OWNER TO "postgres";
+
 CREATE TABLE "public"."plain" (
     "a" integer DEFAULT nextval('public.plain_a_seq'::regclass) NOT NULL,
     "b" text
@@ -444,9 +484,13 @@ CREATE TABLE "public"."plain" (
 
 ALTER SEQUENCE "public"."plain_a_seq" OWNED BY "public"."plain"."a";
 
+ALTER TABLE "public"."plain" OWNER TO "postgres";
+
 CREATE TABLE "public"."z_source" (
     "v" integer
 );
+
+ALTER TABLE "public"."z_source" OWNER TO "postgres";
 
 CREATE VIEW "app"."customer_names" AS 
  SELECT customer.id,
@@ -509,6 +553,7 @@ ALTER TABLE "app"."orders"
 ALTER TABLE "app"."ref_source"
     ADD CONSTRAINT "ref_source_x_y_fkey" FOREIGN KEY ("x", "y")
     REFERENCES "app"."ref_target" ("a", "b")
+    MATCH FULL
     ON DELETE SET DEFAULT;
 
 CREATE EVENT TRIGGER "corpus_ddl" ON ddl_command_end
@@ -519,4 +564,6 @@ COMMENT ON EVENT TRIGGER "corpus_ddl" IS 'logs DDL';
 
 CREATE EVENT TRIGGER "corpus_drop" ON sql_drop
   EXECUTE FUNCTION "audit"."on_ddl"();
+
+ALTER EVENT TRIGGER "corpus_drop" DISABLE;
 

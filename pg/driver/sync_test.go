@@ -341,6 +341,8 @@ SELECT
 	cols.datetime_precision,
 	cols.ordinal_position,
 	cols.column_default,
+	cols.is_generated,
+	cols.generation_expression,
 	cols.is_nullable,
 	cols.collation_name,
 	cols.udt_schema,

@@ -97,6 +97,8 @@
 | 	cols.datetime_precision,
 | 	cols.ordinal_position,
 | 	cols.column_default,
+| 	cols.is_generated,
+| 	cols.generation_expression,
 | 	cols.is_nullable,
 | 	cols.collation_name,
 | 	cols.udt_schema,
@@ -121,6 +123,8 @@
 < column "datetime_precision" "INT4"
 < column "ordinal_position" "INT4"
 < column "column_default" "VARCHAR"
+< column "is_generated" "VARCHAR"
+< column "generation_expression" "VARCHAR"
 < column "is_nullable" "VARCHAR"
 < column "collation_name" "NAME"
 < column "udt_schema" "NAME"
@@ -141,6 +145,9 @@
 : int64 0
 : null
 : int64 1
+: null
+: string
+| NEVER
 : null
 : string
 | NO
@@ -168,6 +175,9 @@
 : int64 2
 : null
 : string
+| NEVER
+: null
+: string
 | NO
 : null
 : string
@@ -191,6 +201,9 @@
 : int64 0
 : null
 : int64 3
+: null
+: string
+| NEVER
 : null
 : string
 | YES
@@ -218,6 +231,9 @@
 : string
 | 42
 : string
+| NEVER
+: null
+: string
 | NO
 : null
 : string
@@ -244,6 +260,9 @@
 : string
 | nextval('app.seq1'::regclass)
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -266,6 +285,9 @@
 : null
 : null
 : int64 6
+: null
+: string
+| NEVER
 : null
 : string
 | YES
@@ -292,6 +314,9 @@
 : int64 7
 : null
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -314,6 +339,9 @@
 : int64 0
 : null
 : int64 8
+: null
+: string
+| NEVER
 : null
 : string
 | YES
@@ -340,6 +368,9 @@
 : int64 9
 : null
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -362,6 +393,9 @@
 : null
 : null
 : int64 10
+: null
+: string
+| NEVER
 : null
 : string
 | YES
@@ -388,6 +422,9 @@
 : int64 11
 : null
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -410,6 +447,9 @@
 : null
 : null
 : int64 12
+: null
+: string
+| NEVER
 : null
 : string
 | YES
@@ -436,6 +476,9 @@
 : int64 13
 : null
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -460,6 +503,9 @@
 : int64 14
 : null
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -482,6 +528,9 @@
 : null
 : null
 : int64 15
+: null
+: string
+| NEVER
 : null
 : string
 | YES
@@ -509,6 +558,9 @@
 : string
 | 'hello'::character varying
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -531,6 +583,9 @@
 : null
 : null
 : int64 17
+: null
+: string
+| NEVER
 : null
 : string
 | YES
@@ -558,6 +613,9 @@
 : int64 18
 : null
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -583,6 +641,9 @@
 : string
 | true
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -605,6 +666,9 @@
 : null
 : int64 0
 : int64 20
+: null
+: string
+| NEVER
 : null
 : string
 | YES
@@ -631,6 +695,9 @@
 : int64 21
 : null
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -653,6 +720,9 @@
 : null
 : int64 3
 : int64 22
+: null
+: string
+| NEVER
 : null
 : string
 | YES
@@ -679,6 +749,9 @@
 : int64 23
 : null
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -701,6 +774,9 @@
 : null
 : int64 5
 : int64 24
+: null
+: string
+| NEVER
 : null
 : string
 | YES
@@ -727,6 +803,9 @@
 : int64 25
 : null
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -749,6 +828,9 @@
 : null
 : int64 2
 : int64 26
+: null
+: string
+| NEVER
 : null
 : string
 | YES
@@ -776,6 +858,9 @@
 : string
 | now()
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -798,6 +883,9 @@
 : null
 : int64 4
 : int64 28
+: null
+: string
+| NEVER
 : null
 : string
 | YES
@@ -824,6 +912,9 @@
 : int64 29
 : null
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -846,6 +937,9 @@
 : null
 : int64 3
 : int64 30
+: null
+: string
+| NEVER
 : null
 : string
 | YES
@@ -872,6 +966,9 @@
 : int64 31
 : null
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -894,6 +991,9 @@
 : null
 : null
 : int64 32
+: null
+: string
+| NEVER
 : null
 : string
 | YES
@@ -921,6 +1021,9 @@
 : string
 | '{}'::jsonb
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -943,6 +1046,9 @@
 : null
 : null
 : int64 34
+: null
+: string
+| NEVER
 : null
 : string
 | YES
@@ -969,6 +1075,9 @@
 : int64 35
 : null
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -991,6 +1100,9 @@
 : null
 : null
 : int64 36
+: null
+: string
+| NEVER
 : null
 : string
 | YES
@@ -1017,6 +1129,9 @@
 : int64 37
 : null
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -1039,6 +1154,9 @@
 : null
 : null
 : int64 38
+: null
+: string
+| NEVER
 : null
 : string
 | YES
@@ -1065,6 +1183,9 @@
 : int64 39
 : null
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -1087,6 +1208,9 @@
 : null
 : null
 : int64 40
+: null
+: string
+| NEVER
 : null
 : string
 | YES
@@ -1113,6 +1237,9 @@
 : int64 41
 : null
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -1135,6 +1262,9 @@
 : null
 : null
 : int64 42
+: null
+: string
+| NEVER
 : null
 : string
 | YES
@@ -1161,6 +1291,9 @@
 : int64 43
 : null
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -1183,6 +1316,9 @@
 : null
 : null
 : int64 44
+: null
+: string
+| NEVER
 : null
 : string
 | YES
@@ -1210,6 +1346,9 @@
 : string
 | 'happy'::app.mood
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -1232,6 +1371,9 @@
 : null
 : null
 : int64 46
+: null
+: string
+| NEVER
 : null
 : string
 | YES
@@ -1258,6 +1400,9 @@
 : int64 47
 : null
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -1280,6 +1425,9 @@
 : int64 0
 : null
 : int64 48
+: null
+: string
+| NEVER
 : null
 : string
 | NO
@@ -1307,6 +1455,9 @@
 : string
 | 'x'::character varying
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -1329,6 +1480,9 @@
 : null
 : null
 : int64 50
+: null
+: string
+| NEVER
 : null
 : string
 | YES
@@ -1355,6 +1509,9 @@
 : int64 51
 : null
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -1377,6 +1534,9 @@
 : null
 : null
 : int64 52
+: null
+: string
+| NEVER
 : null
 : string
 | YES
@@ -1403,6 +1563,9 @@
 : int64 53
 : null
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -1427,6 +1590,9 @@
 : int64 54
 : null
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -1449,6 +1615,9 @@
 : null
 : null
 : int64 55
+: null
+: string
+| NEVER
 : null
 : string
 | YES
@@ -1476,6 +1645,9 @@
 : int64 56
 : null
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -1499,6 +1671,10 @@
 : null
 : int64 57
 : null
+: string
+| ALWAYS
+: string
+| (c_int * 2)
 : string
 | YES
 : null
@@ -1524,6 +1700,9 @@
 : int64 1
 : null
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -1546,6 +1725,9 @@
 : null
 : null
 : int64 2
+: null
+: string
+| NEVER
 : null
 : string
 | NO
@@ -1572,6 +1754,9 @@
 : int64 1
 : null
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -1594,6 +1779,9 @@
 : null
 : null
 : int64 2
+: null
+: string
+| NEVER
 : null
 : string
 | NO
@@ -1620,6 +1808,9 @@
 : int64 1
 : null
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -1644,6 +1835,9 @@
 : int64 2
 : null
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -1666,6 +1860,9 @@
 : null
 : null
 : int64 3
+: null
+: string
+| NEVER
 : null
 : string
 | YES
@@ -1694,6 +1891,9 @@
 : string
 | nextval('public.plain_a_seq'::regclass)
 : string
+| NEVER
+: null
+: string
 | NO
 : null
 : string
@@ -1716,6 +1916,9 @@
 : null
 : null
 : int64 2
+: null
+: string
+| NEVER
 : null
 : string
 | YES
@@ -1752,6 +1955,8 @@
 | 	information_schema._pg_datetime_precision(information_schema._pg_truetypid(a.*, t.*), information_schema._pg_truetypmod(a.*, t.*)) AS datetime_precision,
 | 	a.attnum AS ordinal_position,
 | 	CASE WHEN a.attgenerated = '' THEN pg_catalog.pg_get_expr(ad.adbin, ad.adrelid) END AS column_default,
+| 	CASE WHEN a.attgenerated <> '' THEN 'ALWAYS' ELSE 'NEVER' END AS is_generated,
+| 	CASE WHEN a.attgenerated <> '' THEN pg_catalog.pg_get_expr(ad.adbin, ad.adrelid) END AS generation_expression,
 | 	CASE WHEN a.attnotnull OR (t.typtype = 'd' AND t.typnotnull) THEN 'NO' ELSE 'YES' END AS is_nullable,
 | 	co.collname AS collation_name,
 | 	COALESCE(nbt.nspname, nt.nspname) AS udt_schema,
@@ -1786,6 +1991,8 @@
 < column "datetime_precision" "INT4"
 < column "ordinal_position" "INT2"
 < column "column_default" "TEXT"
+< column "is_generated" "TEXT"
+< column "generation_expression" "TEXT"
 < column "is_nullable" "TEXT"
 < column "collation_name" "NAME"
 < column "udt_schema" "NAME"
@@ -1806,6 +2013,9 @@
 : int64 0
 : null
 : int64 1
+: null
+: string
+| NEVER
 : null
 : string
 | NO
@@ -1833,6 +2043,9 @@
 : int64 2
 : null
 : string
+| NEVER
+: null
+: string
 | NO
 : null
 : string
@@ -1856,6 +2069,9 @@
 : int64 0
 : null
 : int64 3
+: null
+: string
+| NEVER
 : null
 : string
 | YES
@@ -1883,6 +2099,9 @@
 : string
 | 42
 : string
+| NEVER
+: null
+: string
 | NO
 : null
 : string
@@ -1909,6 +2128,9 @@
 : string
 | nextval('app.seq1'::regclass)
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -1931,6 +2153,9 @@
 : null
 : null
 : int64 6
+: null
+: string
+| NEVER
 : null
 : string
 | YES
@@ -1957,6 +2182,9 @@
 : int64 7
 : null
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -1979,6 +2207,9 @@
 : int64 0
 : null
 : int64 8
+: null
+: string
+| NEVER
 : null
 : string
 | YES
@@ -2005,6 +2236,9 @@
 : int64 9
 : null
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -2027,6 +2261,9 @@
 : null
 : null
 : int64 10
+: null
+: string
+| NEVER
 : null
 : string
 | YES
@@ -2053,6 +2290,9 @@
 : int64 11
 : null
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -2075,6 +2315,9 @@
 : null
 : null
 : int64 12
+: null
+: string
+| NEVER
 : null
 : string
 | YES
@@ -2101,6 +2344,9 @@
 : int64 13
 : null
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -2125,6 +2371,9 @@
 : int64 14
 : null
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -2147,6 +2396,9 @@
 : null
 : null
 : int64 15
+: null
+: string
+| NEVER
 : null
 : string
 | YES
@@ -2174,6 +2426,9 @@
 : string
 | 'hello'::character varying
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -2196,6 +2451,9 @@
 : null
 : null
 : int64 17
+: null
+: string
+| NEVER
 : null
 : string
 | YES
@@ -2223,6 +2481,9 @@
 : int64 18
 : null
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -2248,6 +2509,9 @@
 : string
 | true
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -2270,6 +2534,9 @@
 : null
 : int64 0
 : int64 20
+: null
+: string
+| NEVER
 : null
 : string
 | YES
@@ -2296,6 +2563,9 @@
 : int64 21
 : null
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -2318,6 +2588,9 @@
 : null
 : int64 3
 : int64 22
+: null
+: string
+| NEVER
 : null
 : string
 | YES
@@ -2344,6 +2617,9 @@
 : int64 23
 : null
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -2366,6 +2642,9 @@
 : null
 : int64 5
 : int64 24
+: null
+: string
+| NEVER
 : null
 : string
 | YES
@@ -2392,6 +2671,9 @@
 : int64 25
 : null
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -2414,6 +2696,9 @@
 : null
 : int64 2
 : int64 26
+: null
+: string
+| NEVER
 : null
 : string
 | YES
@@ -2441,6 +2726,9 @@
 : string
 | now()
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -2463,6 +2751,9 @@
 : null
 : int64 4
 : int64 28
+: null
+: string
+| NEVER
 : null
 : string
 | YES
@@ -2489,6 +2780,9 @@
 : int64 29
 : null
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -2511,6 +2805,9 @@
 : null
 : int64 3
 : int64 30
+: null
+: string
+| NEVER
 : null
 : string
 | YES
@@ -2537,6 +2834,9 @@
 : int64 31
 : null
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -2559,6 +2859,9 @@
 : null
 : null
 : int64 32
+: null
+: string
+| NEVER
 : null
 : string
 | YES
@@ -2586,6 +2889,9 @@
 : string
 | '{}'::jsonb
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -2608,6 +2914,9 @@
 : null
 : null
 : int64 34
+: null
+: string
+| NEVER
 : null
 : string
 | YES
@@ -2634,6 +2943,9 @@
 : int64 35
 : null
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -2656,6 +2968,9 @@
 : null
 : null
 : int64 36
+: null
+: string
+| NEVER
 : null
 : string
 | YES
@@ -2682,6 +2997,9 @@
 : int64 37
 : null
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -2704,6 +3022,9 @@
 : null
 : null
 : int64 38
+: null
+: string
+| NEVER
 : null
 : string
 | YES
@@ -2730,6 +3051,9 @@
 : int64 39
 : null
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -2752,6 +3076,9 @@
 : null
 : null
 : int64 40
+: null
+: string
+| NEVER
 : null
 : string
 | YES
@@ -2778,6 +3105,9 @@
 : int64 41
 : null
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -2800,6 +3130,9 @@
 : null
 : null
 : int64 42
+: null
+: string
+| NEVER
 : null
 : string
 | YES
@@ -2826,6 +3159,9 @@
 : int64 43
 : null
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -2848,6 +3184,9 @@
 : null
 : null
 : int64 44
+: null
+: string
+| NEVER
 : null
 : string
 | YES
@@ -2875,6 +3214,9 @@
 : string
 | 'happy'::app.mood
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -2897,6 +3239,9 @@
 : null
 : null
 : int64 46
+: null
+: string
+| NEVER
 : null
 : string
 | YES
@@ -2923,6 +3268,9 @@
 : int64 47
 : null
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -2945,6 +3293,9 @@
 : int64 0
 : null
 : int64 48
+: null
+: string
+| NEVER
 : null
 : string
 | NO
@@ -2972,6 +3323,9 @@
 : string
 | 'x'::character varying
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -2994,6 +3348,9 @@
 : null
 : null
 : int64 50
+: null
+: string
+| NEVER
 : null
 : string
 | YES
@@ -3020,6 +3377,9 @@
 : int64 51
 : null
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -3042,6 +3402,9 @@
 : null
 : null
 : int64 52
+: null
+: string
+| NEVER
 : null
 : string
 | YES
@@ -3068,6 +3431,9 @@
 : int64 53
 : null
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -3092,6 +3458,9 @@
 : int64 54
 : null
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -3114,6 +3483,9 @@
 : null
 : null
 : int64 55
+: null
+: string
+| NEVER
 : null
 : string
 | YES
@@ -3141,6 +3513,9 @@
 : int64 56
 : null
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -3164,6 +3539,10 @@
 : null
 : int64 57
 : null
+: string
+| ALWAYS
+: string
+| (c_int * 2)
 : string
 | YES
 : null
@@ -3189,6 +3568,9 @@
 : int64 1
 : null
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -3211,6 +3593,9 @@
 : null
 : null
 : int64 2
+: null
+: string
+| NEVER
 : null
 : string
 | NO
@@ -3237,6 +3622,9 @@
 : int64 1
 : null
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -3259,6 +3647,9 @@
 : null
 : null
 : int64 2
+: null
+: string
+| NEVER
 : null
 : string
 | NO
@@ -3285,6 +3676,9 @@
 : int64 1
 : null
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -3309,6 +3703,9 @@
 : int64 2
 : null
 : string
+| NEVER
+: null
+: string
 | YES
 : null
 : string
@@ -3331,6 +3728,9 @@
 : null
 : null
 : int64 3
+: null
+: string
+| NEVER
 : null
 : string
 | YES
@@ -3359,6 +3759,9 @@
 : string
 | nextval('public.plain_a_seq'::regclass)
 : string
+| NEVER
+: null
+: string
 | NO
 : null
 : string
@@ -3381,6 +3784,9 @@
 : null
 : null
 : int64 2
+: null
+: string
+| NEVER
 : null
 : string
 | YES
