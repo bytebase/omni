@@ -188,6 +188,11 @@ var diffPairs = []struct{ name, a, b string }{
 	{"visible modify reads added column", "CREATE TABLE t (a INT, z INT INVISIBLE)", "CREATE TABLE t (z INT CHECK (z > b), b INT INVISIBLE)"},
 	{"grouped readers after merge", "CREATE TABLE t (x INT)", "CREATE TABLE t (x INT, id INT AUTO_INCREMENT, b INT, a INT CHECK (a > z AND a > b), z INT CHECK (z > a), KEY k (id, b))"},
 	{"repartition replaces partition column", "CREATE TABLE t (x INT, a INT) PARTITION BY HASH(a) PARTITIONS 2", "CREATE TABLE t (x INT, a INT AS(x) STORED) PARTITION BY HASH(a) PARTITIONS 3"},
+	{"replace a unique key with two ignored candidates kept", "CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, c INT NOT NULL, UNIQUE KEY v (a), UNIQUE KEY w (b) IGNORED, UNIQUE KEY z (c) IGNORED)", "CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, c INT NOT NULL, UNIQUE KEY v (a) COMMENT 'x', UNIQUE KEY w (b) IGNORED, UNIQUE KEY z (c) IGNORED)"},
+	{"replace two unique keys leaving an ignored key", "CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, c INT NOT NULL, UNIQUE KEY v (a), UNIQUE KEY w (b), UNIQUE KEY z (c) IGNORED)", "CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, c INT NOT NULL, UNIQUE KEY v (a) COMMENT 'x', UNIQUE KEY w (b) COMMENT 'y', UNIQUE KEY z (c) IGNORED)"},
+	{"replace a unique key while adding an ignored key", "CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, UNIQUE KEY v (b))", "CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, UNIQUE KEY v (b) COMMENT 'x', UNIQUE KEY w (a) IGNORED)"},
+	{"engine change with a partition-literal comment", "CREATE TABLE t (g INT NOT NULL, id INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (g, id)) ENGINE=MyISAM", "CREATE TABLE t (g INT NOT NULL, id INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (id, g)) ENGINE=InnoDB COMMENT='PARTITION'"},
+	{"foreign key renamed over the same column", "CREATE TABLE p (a INT PRIMARY KEY); CREATE TABLE t (a INT, CONSTRAINT f FOREIGN KEY (a) REFERENCES p (a))", "CREATE TABLE p (a INT PRIMARY KEY); CREATE TABLE t (a INT, CONSTRAINT g FOREIGN KEY (a) REFERENCES p (a))"},
 	{"timestamps without defaults", "CREATE TABLE x (i INT)", "CREATE TABLE x (i INT, ts TIMESTAMP NOT NULL); CREATE TABLE t (u TIMESTAMP NOT NULL)"},
 	{"sequence limits leaving out the start", "CREATE SEQUENCE s", "CREATE SEQUENCE s START WITH 100 MINVALUE 10"},
 }

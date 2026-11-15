@@ -106,6 +106,10 @@ type MigrationOp struct {
 	// START and ROW END columns with it, which needs keepVersionedHistory.
 	changesVersionedColumns bool
 
+	// partition marks a PARTITION BY or REMOVE PARTITIONING ALTER, so passes that
+	// fold the standalone table-option ALTER do not match it by scanning its SQL.
+	partition bool
+
 	// triggerRef is the trigger a CREATE TRIGGER op names in its FOLLOWS or
 	// PRECEDES clause, which must exist first; "" when it names none.
 	triggerRef string

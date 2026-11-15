@@ -205,6 +205,7 @@ func partitionByOp(entry *TableDiffEntry, tbl *Table, n *Normalizer) (MigrationO
 		Phase:        PhaseMain,
 		Priority:     priorityPartition,
 		sortName:     tableSortName(entry.Database, entry.Name),
+		partition:    true,
 	}, true
 }
 
@@ -220,6 +221,7 @@ func removePartitioningOp(entry *TableDiffEntry, tbl *Table) MigrationOp {
 		Phase:        PhasePre,
 		Priority:     priorityRemovePartitioning,
 		sortName:     tableSortName(entry.Database, entry.Name),
+		partition:    true,
 	}
 }
 

@@ -478,7 +478,7 @@ func foldEngineIntoAutoKey(ops []MigrationOp, diff *SchemaDiff, n *Normalizer) [
 		for _, op := range ops {
 			// Only the standalone table-option op, not a PARTITION BY or REMOVE
 			// PARTITIONING ALTER of the same table.
-			if op.Type == OpAlterTable && op.Database == e.Database && toLower(op.ObjectName) == toLower(e.Name) && op.alterParts == nil && !strings.Contains(op.SQL, "PARTITION") {
+			if op.Type == OpAlterTable && op.Database == e.Database && toLower(op.ObjectName) == toLower(e.Name) && op.alterParts == nil && !op.partition {
 				if !remains {
 					continue
 				}

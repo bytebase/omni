@@ -76,6 +76,14 @@ func indexOpsForModifiedTable(entry *TableDiffEntry, n *Normalizer) []MigrationO
 	}
 	table := tableIdent(entry.To)
 	var ops []MigrationOp
+	// Release the retained IGNORED keys a replacement would otherwise promote to
+	// the implicit primary key (4174): drop them before the replaced keys' drops
+	// and re-add them, in target order, after the visible keys are back.
+	for _, released := range ignoredKeysToRelease(entry) {
+		drop := dropIndexOp(entry, table, released)
+		drop.Priority = priorityIndexDrop - 2
+		ops = append(ops, drop, addIndexOp(entry, table, released, n))
+	}
 	for _, ie := range entry.Indexes {
 		switch ie.Action {
 		case DiffAdd:
@@ -87,7 +95,13 @@ func indexOpsForModifiedTable(entry *TableDiffEntry, n *Normalizer) []MigrationO
 			if ie.From == nil {
 				continue
 			}
-			ops = append(ops, dropIndexOp(entry, table, ie.From))
+			drop := dropIndexOp(entry, table, ie.From)
+			// An IGNORED unique key drops before visible-key drops, so dropping a
+			// visible key never leaves it as the sole implicit-PK candidate (4174).
+			if !ie.From.Primary && ie.From.Unique && !ie.From.Visible {
+				drop.Priority = priorityIndexDrop - 2
+			}
+			ops = append(ops, drop)
 		case DiffModify:
 			if ie.From == nil || ie.To == nil {
 				continue
@@ -97,20 +111,6 @@ func indexOpsForModifiedTable(entry *TableDiffEntry, n *Normalizer) []MigrationO
 				ops = append(ops, primaryKeyModifyOps(entry, table, ie.To, n)...)
 				continue
 			}
-			// A standalone DROP INDEX that would promote a retained IGNORED
-			// key to the implicit primary key (4174): drop and re-add that key
-			// too, after the replacement, so the implicit primary key stays the
-			// target's and the IGNORED one lands second.
-			if promoted := ignoredKeyPromotedByDrop(entry, ie.From); promoted != nil {
-				dropPromoted := dropIndexOp(entry, table, promoted)
-				dropPromoted.Priority = priorityIndexDrop - 2 // before the replaced key's drop
-				ops = append(ops,
-					dropPromoted,
-					dropIndexOp(entry, table, ie.From),
-					addIndexOp(entry, table, ie.To, n),
-					addIndexOp(entry, table, promoted, n))
-				continue
-			}
 			ops = append(ops, dropIndexOp(entry, table, ie.From))
 			ops = append(ops, addIndexOp(entry, table, ie.To, n))
 		}
@@ -118,27 +118,54 @@ func indexOpsForModifiedTable(entry *TableDiffEntry, n *Normalizer) []MigrationO
 	return ops
 }
 
-// ignoredKeyPromotedByDrop returns the IGNORED key that dropping idx on its
-// own, before its replacement is added, would make the implicit primary key
-// (4174), or nil.
-func ignoredKeyPromotedByDrop(entry *TableDiffEntry, idx *Index) *Index {
-	if entry.To == nil {
+// ignoredKeysToRelease returns the retained IGNORED unique keys that replacing or
+// dropping other keys would, at some intermediate point, leave as the first
+// eligible implicit primary key (4174). MariaDB enforces that invariant within a
+// statement, so an atomic DROP+ADD does not help; these keys are instead dropped
+// before the replaced keys and re-added afterwards. It reads the source columns,
+// which the index changes do not touch, and covers any number of candidates and
+// simultaneous drops. Keys the diff already changes, and keys the plan only adds,
+// are left to their own operations.
+func ignoredKeysToRelease(entry *TableDiffEntry) []*Index {
+	if entry.From == nil || entry.To == nil {
 		return nil
 	}
-	withoutIdx := *entry.To
-	withoutIdx.Indexes = nil
-	for _, i := range entry.To.Indexes {
-		if toLower(i.Name) != toLower(idx.Name) {
-			withoutIdx.Indexes = append(withoutIdx.Indexes, i)
+	removed := make(map[string]bool)
+	changed := make(map[string]bool)
+	for _, ie := range entry.Indexes {
+		if ie.From != nil {
+			changed[toLower(ie.From.Name)] = true
+			if (ie.Action == DiffModify || ie.Action == DiffDrop) && !ie.From.Primary {
+				removed[toLower(ie.From.Name)] = true
+			}
+		}
+		if ie.To != nil {
+			changed[toLower(ie.To.Name)] = true
 		}
 	}
-	if validateIgnoredPrimaryKey(&withoutIdx, false) == nil {
+	if len(removed) == 0 {
 		return nil
 	}
-	if pk := tablePrimaryKey(&withoutIdx, false); pk != nil && !pk.Visible {
-		return pk
+	intermediate := *entry.From
+	intermediate.Indexes = nil
+	for _, idx := range entry.From.Indexes {
+		if !removed[toLower(idx.Name)] {
+			intermediate.Indexes = append(intermediate.Indexes, idx)
+		}
 	}
-	return nil
+	if validateIgnoredPrimaryKey(&intermediate, false) == nil {
+		return nil
+	}
+	var release []*Index
+	for _, idx := range intermediate.Indexes {
+		if idx.Primary || idx.Visible || !idx.Unique || changed[toLower(idx.Name)] {
+			continue
+		}
+		if target := tableIndexByName(entry.To, idx.Name); target != nil {
+			release = append(release, target)
+		}
+	}
+	return release
 }
 
 // addIndexOp builds an ALTER TABLE ... ADD <index> op.
