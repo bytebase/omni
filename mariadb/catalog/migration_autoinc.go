@@ -135,6 +135,11 @@ func (m *aiMerger) mergeInto(target int, prepend bool, srcs ...int) {
 	for _, s := range srcs {
 		moved = append(moved, m.consume(s)...)
 		m.mergedInto[s] = target
+		// The statement runs where the latest of its parts would, after what
+		// each of them reads (orderColumnAdds).
+		if src, dst := &m.ops[s], &m.ops[target]; src.Phase == dst.Phase && (src.Priority > dst.Priority || src.Priority == dst.Priority && src.sortName > dst.sortName) {
+			dst.Priority, dst.sortName = src.Priority, src.sortName
+		}
 		if w := m.ops[s].Warning; w != "" && !strings.Contains(m.ops[target].Warning, w) {
 			if m.ops[target].Warning != "" {
 				m.ops[target].Warning += "; "

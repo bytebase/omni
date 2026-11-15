@@ -71,9 +71,24 @@ func dropColumnsAfterGeneratedReads(ops []MigrationOp, e *TableDiffEntry) []Migr
 		return ops
 	}
 	// Only a column the plan removes for good: a replaced one drops ahead of
-	// its own add (see replacedColumns).
+	// its own add (see replacedColumns). A postponed column keeps the removed
+	// columns it reads in turn; orderColumnDrops orders them.
+	postponed := make(map[string]bool)
+	var postpone func(name string)
+	postpone = func(name string) {
+		if !removed[name] || postponed[name] {
+			return
+		}
+		postponed[name] = true
+		for _, ref := range sourceReads[name] {
+			postpone(ref)
+		}
+	}
+	for name := range read {
+		postpone(name)
+	}
 	for i := range ops {
-		if ops[i].Type == OpDropColumn && opOfTable(ops[i], e) && read[ops[i].column] && removed[ops[i].column] {
+		if ops[i].Type == OpDropColumn && opOfTable(ops[i], e) && postponed[ops[i].column] {
 			// After every modify, modifyGeneratedAfterAddedReads's included.
 			ops[i].Phase, ops[i].Priority = PhaseMain, priorityColumn+3
 		}
@@ -241,6 +256,37 @@ func rebuildReadersOfReplacedColumns(ops []MigrationOp, e *TableDiffEntry, n *No
 		drop, add := dropColumnOp(e, table, col.Name, col), addColumnOp(e, table, e.To.GetColumn(col.Name), n)
 		ops = append(ops, drop, add)
 	}
+	// A column's own CHECK cannot be dropped by name (1091): a column whose
+	// check reads a replaced column is modified without it first and back to
+	// its target definition after the adds.
+	columnCheck := columnChecks(e.From)
+	for _, col := range e.From.Columns {
+		name := toLower(col.Name)
+		con := columnCheck[name]
+		if _, replaced := gone[name]; replaced || con == nil || !checkReadsAny(con, gone) {
+			continue
+		}
+		target := e.To.GetColumn(col.Name)
+		if target == nil {
+			continue
+		}
+		context := *e.From
+		context.Charset, context.Collation = "", ""
+		strip := "MODIFY COLUMN " + showColumnWithTable(col, &context, nil, false)
+		ops = append(ops, MigrationOp{
+			Type: OpModifyColumn, Database: e.Database, ObjectName: e.Name, ParentObject: e.Name,
+			SQL: "ALTER TABLE " + table + " " + strip, Phase: PhasePre, Priority: priorityCheckDrop,
+			sortName: columnSortName(e.Database, e.Name, name), alterClause: strip,
+		})
+		if columnEntry(e, name) == nil {
+			restore := "MODIFY COLUMN " + formatColumnDefinition(e.To, target, n)
+			ops = append(ops, MigrationOp{
+				Type: OpModifyColumn, Database: e.Database, ObjectName: e.Name, ParentObject: e.Name,
+				SQL: "ALTER TABLE " + table + " " + restore, Phase: PhaseMain, Priority: priorityColumn + 3,
+				sortName: columnSortName(e.Database, e.Name, name), alterClause: restore,
+			})
+		}
+	}
 	changedChecks := make(map[string]bool)
 	for _, ce := range e.Checks {
 		changedChecks[toLower(ce.Name)] = true
@@ -310,7 +356,7 @@ func indexReadsAny(idx *Index, columns map[string]bool) bool {
 // rebuilt readers, within one priority above the key drops.
 func orderColumnDrops(ops []MigrationOp, e *TableDiffEntry) []MigrationOp {
 	in := func(op MigrationOp) bool {
-		return op.Type == OpDropColumn && op.Phase == PhasePre && opOfTable(op, e)
+		return op.Type == OpDropColumn && opOfTable(op, e)
 	}
 	reads := columnReads(e.From)
 	// A column drops after the columns that read it.
@@ -323,7 +369,9 @@ func orderColumnDrops(ops []MigrationOp, e *TableDiffEntry) []MigrationOp {
 		}
 	}
 	return rankColumnOps(ops, e, in, after, func(op *MigrationOp, rank int) {
-		op.Priority = priorityColumn - 1
+		if op.Phase == PhasePre {
+			op.Priority = priorityColumn - 1
+		}
 		op.sortName = rankedColumnSortName(e, rank, op.column)
 	})
 }
@@ -536,7 +584,9 @@ func exprColumnRefs(text string) []string {
 // dropLastColumnsAfterAdds keeps a table from losing its last column (1090)
 // where the plan drops every column it has, permanently or to add it again.
 // The columns it only adds go first; where there are none, the first replaced
-// column is dropped and added in one statement.
+// column is dropped and added in one statement. A table that stays
+// system-versioned likewise keeps a versioned column (4123): the versioned
+// columns it only adds go first.
 func dropLastColumnsAfterAdds(ops []MigrationOp, e *TableDiffEntry) []MigrationOp {
 	dropped := make(map[string]bool)
 	for _, op := range ops {
@@ -555,60 +605,40 @@ func dropLastColumnsAfterAdds(ops []MigrationOp, e *TableDiffEntry) []MigrationO
 			dropped[toLower(col.Name)] = true
 		}
 	}
-	if len(dropped) == 0 || len(dropped) < len(diffableColumns(e.From)) {
+	if len(dropped) == 0 {
 		return ops
 	}
-	// A column only added can go first unless it reads a column added later,
-	// a replaced one among them, directly or through another.
-	reads := columnReads(e.To)
-	early := make(map[string]bool)
-	for i := range ops {
-		if ops[i].Type == OpAddColumn && opOfTable(ops[i], e) && !dropped[ops[i].column] {
-			early[ops[i].column] = true
+	if len(dropped) < len(diffableColumns(e.From)) {
+		if e.From.SystemVersioned && e.To.SystemVersioned && everyVersionedColumnDropped(e, dropped) {
+			addFirst(ops, e, dropped, func(col *Column) bool { return isVersionedColumn(col) })
 		}
+		return ops
 	}
-	for changed := true; changed; {
-		changed = false
-		for name := range early {
-			for _, ref := range reads[name] {
-				if !early[ref] && ref != name && isAdded(ops, e, ref) {
-					delete(early, name)
-					changed = true
-					break
-				}
-			}
-		}
-	}
-	if len(early) > 0 {
-		for i := range ops {
-			if ops[i].Type == OpAddColumn && opOfTable(ops[i], e) && early[ops[i].column] {
-				// Ahead of the drops, in the order orderColumnAdds gave them:
-				// their sort names start where rankedColumnSortName's do not.
-				ops[i].Phase, ops[i].Priority = PhasePre, priorityColumn-1
-				ops[i].sortName = strings.Replace(ops[i].sortName, "\x01", "\x00", 1)
-			}
-		}
+	if addFirst(ops, e, dropped, func(*Column) bool { return true }) {
 		return ops
 	}
 	// The replaced column the drop order takes last, which no other dropped
-	// column reads.
+	// column reads, is dropped and added in one statement, together with the
+	// columns grouped with it.
 	last, add := -1, -1
 	for d := range ops {
-		if ops[d].Type != OpDropColumn || !opOfTable(ops[d], e) || ops[d].alterParts != nil {
+		if ops[d].Type != OpDropColumn || !opOfTable(ops[d], e) {
 			continue
 		}
+		drops := partsOf(ops[d])
 		for a := range ops {
-			if ops[a].Type == OpAddColumn && opOfTable(ops[a], e) && ops[a].column == ops[d].column && ops[a].alterParts == nil {
-				if last < 0 || ops[d].Phase > ops[last].Phase || ops[d].Phase == ops[last].Phase && (ops[d].Priority > ops[last].Priority || ops[d].Priority == ops[last].Priority && ops[d].sortName > ops[last].sortName) {
-					last, add = d, a
-				}
+			if ops[a].Type != OpAddColumn || !opOfTable(ops[a], e) || !sharesColumn(drops, partsOf(ops[a])) {
+				continue
+			}
+			if last < 0 || ops[d].Phase > ops[last].Phase || ops[d].Phase == ops[last].Phase && (ops[d].Priority > ops[last].Priority || ops[d].Priority == ops[last].Priority && ops[d].sortName > ops[last].sortName) {
+				last, add = d, a
 			}
 		}
 	}
 	if last < 0 {
 		return ops
 	}
-	ops[add].alterParts = []alterPart{{clause: ops[last].alterClause, dropsColumn: ops[last].column}, {clause: ops[add].alterClause, addsColumn: ops[add].column}}
+	ops[add].alterParts = append(partsOf(ops[last]), partsOf(ops[add])...)
 	ops[add].SQL = "ALTER TABLE " + tableIdent(e.To) + " " + joinAlterParts(ops[add].alterParts)
 	return slices.Delete(ops, last, last+1)
 }
@@ -793,4 +823,86 @@ func foreignKeyOverRetyped(con *Constraint, db, table string, retyped map[string
 // by key.
 func rankedColumnSortName(e *TableDiffEntry, rank int, key string) string {
 	return columnSortName(e.Database, e.Name, fmt.Sprintf("\x01%04d\x00%s", rank, toLower(key)))
+}
+
+// addFirst moves ahead of the drops the adds of the columns pick takes that the
+// plan only adds, unless a column reads one added after it, a replaced one
+// among them, directly or through another. It reports whether it moved any.
+func addFirst(ops []MigrationOp, e *TableDiffEntry, dropped map[string]bool, pick func(*Column) bool) bool {
+	reads := columnReads(e.To)
+	early := make(map[string]bool)
+	for i := range ops {
+		if ops[i].Type == OpAddColumn && opOfTable(ops[i], e) && !dropped[ops[i].column] {
+			if col := e.To.GetColumn(ops[i].column); col != nil && pick(col) {
+				early[ops[i].column] = true
+			}
+		}
+	}
+	for changed := true; changed; {
+		changed = false
+		for name := range early {
+			for _, ref := range reads[name] {
+				if !early[ref] && ref != name && isAdded(ops, e, ref) {
+					delete(early, name)
+					changed = true
+					break
+				}
+			}
+		}
+	}
+	for i := range ops {
+		if ops[i].Type == OpAddColumn && opOfTable(ops[i], e) && early[ops[i].column] {
+			// Ahead of the drops, in the order orderColumnAdds gave them:
+			// their sort names start where rankedColumnSortName's do not.
+			ops[i].Phase, ops[i].Priority = PhasePre, priorityColumn-1
+			ops[i].sortName = strings.Replace(ops[i].sortName, "\x01", "\x00", 1)
+		}
+	}
+	return len(early) > 0
+}
+
+// isVersionedColumn reports whether a column of a system-versioned table keeps
+// history: one not marked WITHOUT SYSTEM VERSIONING, other than ROW START and
+// ROW END.
+func isVersionedColumn(col *Column) bool {
+	return col.SystemVersioning != "WITHOUT" && (col.Generated == nil || col.Generated.RowBound == "")
+}
+
+func everyVersionedColumnDropped(e *TableDiffEntry, dropped map[string]bool) bool {
+	found := false
+	for _, col := range e.From.Columns {
+		if isVersionedColumn(col) {
+			if !dropped[toLower(col.Name)] {
+				return false
+			}
+			found = true
+		}
+	}
+	return found
+}
+
+// partsOf returns the clauses of a column op's statement.
+func partsOf(op MigrationOp) []alterPart {
+	if op.alterParts != nil {
+		return append([]alterPart(nil), op.alterParts...)
+	}
+	part := alterPart{clause: op.alterClause}
+	if op.Type == OpAddColumn {
+		part.addsColumn = op.column
+	} else {
+		part.dropsColumn = op.column
+	}
+	return []alterPart{part}
+}
+
+// sharesColumn reports whether a column the drops drop is one the adds add.
+func sharesColumn(drops, adds []alterPart) bool {
+	for _, d := range drops {
+		for _, a := range adds {
+			if d.dropsColumn != "" && d.dropsColumn == a.addsColumn {
+				return true
+			}
+		}
+	}
+	return false
 }

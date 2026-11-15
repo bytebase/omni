@@ -62,7 +62,9 @@ func (c *Catalog) createTrigger(stmt *nodes.CreateTriggerStmt, source string) er
 		return err
 	}
 
+	c.triggersCreated++
 	trigger := &Trigger{
+		created:             c.triggersCreated,
 		Name:                name,
 		Database:            db,
 		Table:               tableName,
