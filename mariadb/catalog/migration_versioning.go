@@ -110,23 +110,26 @@ func generateVersioningDDL(diff *SchemaDiff, n *Normalizer) []MigrationOp {
 			}
 			// A column's WITH or WITHOUT SYSTEM VERSIONING follows in an ALTER
 			// of its own: not even the ALTER that adds the versioning takes it.
-			var clauses, attributed []string
+			var clauses, attributed, deferredDeps []string
 			for _, col := range to.Columns {
 				name := toLower(col.Name)
 				switch {
 				case !addedWithVersioning(e, col):
 				case col.SystemVersioning != "" && (added[name] || modified[name]):
 					attributed = append(attributed, "MODIFY COLUMN "+formatColumnDefinition(to, col, n))
+					// The deferred MODIFY touches this column, so it must exist first.
+					if added[name] {
+						deferredDeps = append(deferredDeps, name)
+					}
 				case added[name] || replaced:
 					clauses = append(clauses, "ADD COLUMN "+formatColumnDefinition(to, col, n))
 				}
 			}
-			// The versioned columns this plan adds, wherever they are added — the
-			// unversioning MODIFY below must run after them (4123).
-			var addedVersioned []string
+			// The deferred MODIFY also runs after every versioned column this plan
+			// adds, so unversioning one never leaves the table without one (4123).
 			for _, col := range to.Columns {
 				if added[toLower(col.Name)] && isVersionedColumn(col) {
-					addedVersioned = append(addedVersioned, toLower(col.Name))
+					deferredDeps = append(deferredDeps, toLower(col.Name))
 				}
 			}
 			if len(clauses) > 0 && to.PeriodStartCol != "" {
@@ -137,10 +140,11 @@ func generateVersioningDDL(diff *SchemaDiff, n *Normalizer) []MigrationOp {
 			if len(attributed) > 0 {
 				op(fmt.Sprintf("ALTER TABLE %s %s", table, strings.Join(attributed, ", ")), PhaseMain, priorityVersioningAdd)
 				ops[len(ops)-1].changesVersionedColumns = true
-				// A WITHOUT SYSTEM VERSIONING attribute removes a column's history;
-				// it runs after the added versioned columns, which the merge may
-				// have moved later, so a versioned column always remains (4123).
-				ops[len(ops)-1].readsColumns = addedVersioned
+				// The deferred MODIFY runs after the columns it touches and the
+				// versioned columns the plan adds, which the merge may have moved
+				// later: it must not reference an absent column or leave the table
+				// without a versioned one (4123).
+				ops[len(ops)-1].readsColumns = deferredDeps
 			}
 		}
 	}
