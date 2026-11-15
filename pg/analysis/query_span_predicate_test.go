@@ -290,3 +290,24 @@ func TestGetQuerySpanFallbackKeepsPredicateColumns(t *testing.T) {
 	span := spanFor(t, statement, healthySchema())
 	require.Equal(t, []string{"o.id", "t.id", "t.ssn"}, predicateColumnNames(span.PredicateColumns))
 }
+
+func TestGetQuerySpanReadsFunctionsOutsideTheOutput(t *testing.T) {
+	schema := healthySchema()
+	schema.Schemas[0].Functions = []*metadatapb.FunctionMetadata{
+		{Name: "probe", Definition: "CREATE FUNCTION public.probe() RETURNS int LANGUAGE sql AS $$ SELECT count(*)::int FROM t WHERE ssn = 'guess' $$"},
+	}
+	for _, statement := range []string{
+		"SELECT id FROM o ORDER BY probe()",
+		"SELECT id FROM o GROUP BY id, probe()",
+		"SELECT DISTINCT ON (probe()) id FROM o",
+		"SELECT row_number() OVER (ORDER BY probe()) AS n FROM o",
+		"SELECT row_number() OVER (PARTITION BY probe()) AS n FROM o",
+		"SELECT s.id FROM (SELECT id FROM o ORDER BY probe() LIMIT 1) s",
+	} {
+		t.Run(statement, func(t *testing.T) {
+			span := spanFor(t, statement, schema)
+			require.Contains(t, span.SourceColumns, ColumnResource{Database: "db", Schema: "public", Table: "t"})
+			require.Equal(t, []string{"t.ssn"}, predicateColumnNames(span.PredicateColumns))
+		})
+	}
+}
