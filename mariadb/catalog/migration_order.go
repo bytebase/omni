@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"fmt"
 	"maps"
 	"slices"
 
@@ -85,7 +86,9 @@ func orderGeneratedDrops(ops []MigrationOp, e *TableDiffEntry) []MigrationOp {
 			continue
 		}
 		if _, ok := dropped[ops[i].column]; ok {
-			ops[i].Priority = priorityColumn - 1 - len(dropped) + rank(ops[i].column, map[string]bool{})
+			// The rank orders the drops within their priority, which stays
+			// above the index drops (a drop takes the column out of its keys).
+			ops[i].sortName = rankedColumnSortName(e, rank(ops[i].column, map[string]bool{}), ops[i].column)
 		}
 	}
 	return ops
@@ -216,13 +219,19 @@ func rebuildReadersOfReplacedColumns(ops []MigrationOp, e *TableDiffEntry, n *No
 		return ops
 	}
 	table := tableIdent(e.To)
+	maxDepth := 0
+	for _, d := range gone {
+		maxDepth = max(maxDepth, d)
+	}
 	for _, col := range e.From.Columns {
 		depth := gone[toLower(col.Name)]
 		if depth == 0 {
 			continue
 		}
 		drop, add := dropColumnOp(e, table, col.Name, col), addColumnOp(e, table, e.To.GetColumn(col.Name), n)
-		drop.Priority, add.Priority = priorityColumn-1-depth, priorityColumn+1+depth
+		drop.Priority, add.Priority = priorityColumn-2, priorityColumn+2
+		drop.sortName = rankedColumnSortName(e, maxDepth-depth, col.Name)
+		add.sortName = rankedColumnSortName(e, depth, fmt.Sprintf("%04d", columnPosition(e.To, col.Name)))
 		ops = append(ops, drop, add)
 	}
 	changedChecks := make(map[string]bool)
@@ -479,4 +488,10 @@ func foreignKeyOverRetyped(con *Constraint, db, table string, retyped map[string
 		}
 	}
 	return false
+}
+
+// rankedColumnSortName orders a table's column ops of one priority by rank, then
+// by key.
+func rankedColumnSortName(e *TableDiffEntry, rank int, key string) string {
+	return columnSortName(e.Database, e.Name, fmt.Sprintf("\x00%04d\x00%s", rank, toLower(key)))
 }
