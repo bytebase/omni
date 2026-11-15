@@ -275,6 +275,12 @@ func TestStripViewBodyDatabaseQualifier(t *testing.T) {
 			want:   "select `db`.`t`.`id` AS `id` from ((`db`.`t` join `ext`.`t`) join `u`)",
 		},
 		{
+			name:   "table_named_like_an_alias_keeps_qualifier",
+			body:   "select `db`.`t`.`id` AS `id` from `db`.`t` where exists(select 1 from `ext`.`u` `t` where (`t`.`id` = `db`.`t`.`id`))",
+			dbName: "db",
+			want:   "select `db`.`t`.`id` AS `id` from `db`.`t` where exists(select 1 from `ext`.`u` `t` where (`t`.`id` = `db`.`t`.`id`))",
+		},
+		{
 			name:   "table_named_like_database_keeps_table_qualifier",
 			body:   "select `db`.`db`.`col` AS `col` from `db`.`db`",
 			dbName: "db",
