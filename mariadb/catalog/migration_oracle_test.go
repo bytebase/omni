@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/bytebase/omni/mariadb/internal/testcontainer"
 	mariadbparser "github.com/bytebase/omni/mariadb/parser"
 )
 
