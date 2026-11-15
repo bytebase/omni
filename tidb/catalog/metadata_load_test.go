@@ -561,6 +561,14 @@ func TestStripViewBodyDatabaseQualifier(t *testing.T) {
 		{"SELECT `testdb`.`t`.`id` FROM `testdb`.`t` WHERE EXISTS (SELECT 1 FROM `ext`.`u` AS `t` WHERE `t`.`id` = `testdb`.`t`.`id`)",
 			"SELECT `other`.`t`.`id` FROM `other`.`t` WHERE EXISTS (SELECT 1 FROM `ext`.`u` AS `t` WHERE `t`.`id` = `other`.`t`.`id`)"},
 		{"SELECT DEFAULT(`testdb`.`t`.`id`) AS `d` FROM `testdb`.`t`", "SELECT DEFAULT(`t`.`id`) AS `d` FROM `t`"},
+		// A local table's alias another relation also has.
+		{"SELECT `testdb`.`a`.`id` FROM `testdb`.`t` AS `a` WHERE EXISTS (SELECT 1 FROM `ext`.`u` AS `a` WHERE `a`.`id` = `testdb`.`a`.`id`)",
+			"SELECT `other`.`a`.`id` FROM `t` AS `a` WHERE EXISTS (SELECT 1 FROM `ext`.`u` AS `a` WHERE `a`.`id` = `other`.`a`.`id`)"},
+		// An aliased table a CTE shadows.
+		{"WITH `t` AS (SELECT 1 AS `id`) SELECT `x`.`id` FROM `testdb`.`t` AS `x`",
+			"WITH `t` AS (SELECT 1 AS `id`) SELECT `x`.`id` FROM `other`.`t` AS `x`"},
+		// A table named like the view itself is not shadowed by it.
+		{"SELECT `testdb`.`v`.`id` FROM `testdb`.`v`", "SELECT `v`.`id` FROM `v`"},
 		{"WITH `t` AS (SELECT 1 AS `id`) SELECT DEFAULT(`testdb`.`t`.`id`) AS `d` FROM `testdb`.`t`",
 			"WITH `t` AS (SELECT 1 AS `id`) SELECT DEFAULT(`other`.`t`.`id`) AS `d` FROM `other`.`t`"},
 		{"SELECT `testdb`.`t`.`id` FROM `testdb`.`t` WHERE EXISTS (SELECT 1 FROM (SELECT 1 AS `id`) AS `t` WHERE `t`.`id` = `testdb`.`t`.`id`)",

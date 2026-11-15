@@ -632,44 +632,58 @@ func stripViewBodyDatabaseQualifier(body, dbName, target string) string {
 	if err != nil || list == nil || len(list.Items) != 1 {
 		return body
 	}
-	// A name a CTE, another table's or a derived table's alias or another database's table also has stays
-	// qualified: without the qualifier a reference would resolve to the CTE or the
-	// alias, or be ambiguous.
-	keep := map[string]bool{}
-	local := map[string]bool{}
-	var aliases []string
+	// Each relation the body names is known by its alias, or else by its name. A
+	// reference through dbName stays qualified when another relation, or a CTE, is
+	// known by the same name: without the qualifier it would resolve to that one,
+	// or be ambiguous.
+	exposed := map[string]int{}
+	ctes := map[string]bool{}
+	expose := func(name string) {
+		if name != "" {
+			exposed[strings.ToLower(name)]++
+		}
+	}
 	nodes.Inspect(list.Items[0], func(n nodes.Node) bool {
 		switch n := n.(type) {
 		case *nodes.CommonTableExpr:
-			keep[strings.ToLower(n.Name)] = true
+			ctes[strings.ToLower(n.Name)] = true
+			expose(n.Name)
 		case *nodes.TableRef:
-			if n.Schema != dbName {
-				keep[strings.ToLower(n.Name)] = true
-			} else {
-				local[strings.ToLower(n.Name)] = true
-			}
-			if n.Alias != "" {
-				aliases = append(aliases, strings.ToLower(n.Alias))
+			switch {
+			case n.Loc.Start < len(prefix):
+				// The view's own name, in the prefix.
+			case n.Alias != "":
+				expose(n.Alias)
+			default:
+				expose(n.Name)
 			}
 		case *nodes.SubqueryExpr:
-			if n.Alias != "" {
-				aliases = append(aliases, strings.ToLower(n.Alias))
-			}
+			expose(n.Alias)
 		}
 		return true
 	})
-	for _, alias := range aliases {
-		if local[alias] {
-			keep[alias] = true
+	// keepQualifier reports whether a reference through dbName to table, by its
+	// name in a FROM clause (tableRef) or as a column's qualifier, needs one.
+	keepQualifier := func(table string, tableRef bool) bool {
+		table = strings.ToLower(table)
+		if tableRef && ctes[table] {
+			return true
 		}
+		return exposed[table] > 1
 	}
 	replacement := make(map[int]string)
 	nodes.Inspect(list.Items[0], func(n nodes.Node) bool {
 		var schema, table string
 		var loc nodes.Loc
+		tableRef := false
 		switch n := n.(type) {
 		case *nodes.TableRef:
-			schema, table, loc = n.Schema, n.Name, n.Loc
+			schema, table, loc, tableRef = n.Schema, n.Name, n.Loc, true
+			if n.Alias != "" && !ctes[strings.ToLower(n.Name)] {
+				// Aliased, the table is known by its alias, which nothing else
+				// can shadow here.
+				table = ""
+			}
 		case *nodes.ColumnRef:
 			schema, table, loc = n.Schema, n.Table, n.Loc
 		case *nodes.FuncCallExpr:
@@ -688,7 +702,7 @@ func stripViewBodyDatabaseQualifier(body, dbName, target string) string {
 		start := loc.Start - len(prefix)
 		if schema == dbName && start >= 0 && strings.HasPrefix(body[start:], qualifier) {
 			replacement[start] = ""
-			if table != "" && keep[strings.ToLower(table)] {
+			if table != "" && keepQualifier(table, tableRef) {
 				replacement[start] = quoteIdent(target) + "."
 			}
 		}
