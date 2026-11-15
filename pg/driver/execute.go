@@ -36,8 +36,6 @@ func (d *Driver) Execute(ctx context.Context, script string, opts driver.Execute
 	}
 
 	segments := omnipg.Split(script)
-	isPlsql := len(segments) == 1 && isPlsqlBlock(segments[0].Text)
-
 	var allCommands []driver.Command
 	var txCommands []driver.Command
 	var postTxCommands []driver.Command
@@ -48,21 +46,29 @@ func (d *Driver) Execute(ctx context.Context, script string, opts driver.Execute
 		kind stmtExecClass
 	}
 	var annotated []annotatedCmd
+	var singleDo bool
 	for _, seg := range segments {
 		if seg.Empty() {
 			continue
+		}
+		cls, err := classifyExecStmt(seg.Text)
+		if err != nil {
+			return 0, err
+		}
+		if len(segments) == 1 && cls.plpgsqlDo {
+			singleDo = true
+		}
+		if cls.nonTransactional {
+			hasNonTx = true
 		}
 		cmd := driver.Command{
 			Text:      seg.Text,
 			ByteStart: seg.ByteStart,
 			ByteEnd:   seg.ByteEnd,
 		}
-		cls := classifyExecStmt(cmd.Text)
-		if cls.nonTransactional {
-			hasNonTx = true
-		}
 		annotated = append(annotated, annotatedCmd{cmd: cmd, kind: cls})
 	}
+	isPlsql := singleDo
 
 	for _, item := range annotated {
 		cmd := item.cmd
@@ -374,6 +380,11 @@ func (d *Driver) createDatabaseExecute(ctx context.Context, script string) error
 	if err != nil {
 		return err
 	}
+	for _, stmt := range statements[1:] {
+		if _, err := omnipg.Parse(stmt); err != nil {
+			return err
+		}
+	}
 	databases, err := d.getDatabases(ctx)
 	if err != nil {
 		return err
@@ -392,71 +403,62 @@ func (d *Driver) createDatabaseExecute(ctx context.Context, script string) error
 }
 
 func getDatabaseInCreateDatabaseStatement(createDatabaseStatement string) (string, error) {
-	if stmts, err := omnipg.Parse(createDatabaseStatement); err == nil && len(stmts) == 1 {
-		if createDB, ok := stmts[0].AST.(*ast.CreatedbStmt); ok && createDB.Dbname != "" {
-			return createDB.Dbname, nil
-		}
+	stmts, err := omnipg.Parse(createDatabaseStatement)
+	if err != nil {
+		return "", err
 	}
-	raw := strings.TrimRight(createDatabaseStatement, ";")
-	raw = strings.TrimSpace(raw)
-	if len(raw) >= len("CREATE DATABASE") && strings.EqualFold(raw[:len("CREATE DATABASE")], "CREATE DATABASE") {
-		raw = raw[len("CREATE DATABASE"):]
-	}
-	tokens := strings.Fields(raw)
-	if len(tokens) == 0 {
+	if len(stmts) != 1 {
 		return "", errors.New("database name not found")
 	}
-	if strings.HasPrefix(tokens[0], `"`) && strings.HasSuffix(tokens[0], `"`) && len(tokens[0]) >= 2 {
-		return strings.ReplaceAll(tokens[0][1:len(tokens[0])-1], `""`, `"`), nil
+	createDB, ok := stmts[0].AST.(*ast.CreatedbStmt)
+	if !ok || createDB.Dbname == "" {
+		return "", errors.New("database name not found")
 	}
-	return tokens[0], nil
-}
-
-func isPlsqlBlock(stmt string) bool {
-	stmts, err := omnipg.Parse(stmt)
-	if err != nil || len(stmts) != 1 {
-		return false
-	}
-	_, ok := stmts[0].AST.(*ast.DoStmt)
-	return ok
+	return createDB.Dbname, nil
 }
 
 type stmtExecClass struct {
+	plpgsqlDo        bool
 	nonTransactional bool
 	sessionRole      bool
 	superuser        bool
 }
 
-func classifyExecStmt(stmt string) stmtExecClass {
+func classifyExecStmt(stmt string) (stmtExecClass, error) {
 	stmts, err := omnipg.Parse(stmt)
-	if err != nil || len(stmts) != 1 {
-		return stmtExecClass{}
+	if err != nil {
+		return stmtExecClass{}, err
+	}
+	if len(stmts) != 1 {
+		return stmtExecClass{}, nil
 	}
 	switch n := stmts[0].AST.(type) {
+	case *ast.DoStmt:
+		return stmtExecClass{plpgsqlDo: true}, nil
 	case *ast.DropdbStmt:
-		return stmtExecClass{nonTransactional: true}
+		return stmtExecClass{nonTransactional: true}, nil
 	case *ast.IndexStmt:
-		return stmtExecClass{nonTransactional: n.Concurrent}
+		return stmtExecClass{nonTransactional: n.Concurrent}, nil
 	case *ast.DropStmt:
-		return stmtExecClass{nonTransactional: n.Concurrent}
+		return stmtExecClass{nonTransactional: n.Concurrent}, nil
 	case *ast.VacuumStmt:
-		return stmtExecClass{nonTransactional: n.IsVacuumCmd}
+		return stmtExecClass{nonTransactional: n.IsVacuumCmd}, nil
 	case *ast.VariableSetStmt:
 		if strings.EqualFold(n.Name, "role") && !n.IsLocal {
-			return stmtExecClass{sessionRole: true}
+			return stmtExecClass{sessionRole: true}, nil
 		}
 	case *ast.GrantStmt:
-		return stmtExecClass{superuser: n.IsGrant}
+		return stmtExecClass{superuser: n.IsGrant}, nil
 	case *ast.GrantRoleStmt:
-		return stmtExecClass{superuser: n.IsGrant}
+		return stmtExecClass{superuser: n.IsGrant}, nil
 	case *ast.CreateExtensionStmt, *ast.CreateEventTrigStmt:
-		return stmtExecClass{superuser: true}
+		return stmtExecClass{superuser: true}, nil
 	case *ast.CommentStmt:
 		if n.Objtype == ast.OBJECT_EVENT_TRIGGER || n.Objtype == ast.OBJECT_EXTENSION {
-			return stmtExecClass{superuser: true}
+			return stmtExecClass{superuser: true}, nil
 		}
 	}
-	return stmtExecClass{}
+	return stmtExecClass{}, nil
 }
 
 func logCommandExecute(log driver.ExecuteLogger, cmd driver.Command) {

@@ -146,6 +146,13 @@ func TestExecute(t *testing.T) {
 				t.Fatalf("auto-commit row count = %d (want 1, not duplicated), err=%v", count, err)
 			}
 
+			// A syntax error anywhere in the script fails before any statement runs.
+			if _, err := d.Execute(ctx, "INSERT INTO exec_t VALUES (25, 'unreached');\nSELECT FROM WHERE;", driver.ExecuteOptions{
+				Transaction: driver.AutoCommit,
+			}); err == nil {
+				t.Fatal("expected parse error before auto-commit execution")
+			}
+
 			// 4. Single PL/pgSQL DO block runs outside an outer BEGIN/COMMIT.
 			doLog := &stepLogger{}
 			const doScript = "DO $$ BEGIN INSERT INTO exec_t VALUES (30, 'do'); COMMIT; INSERT INTO exec_t VALUES (31, 'do2'); END $$;"
