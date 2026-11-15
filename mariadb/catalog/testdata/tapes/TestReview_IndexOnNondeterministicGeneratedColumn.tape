@@ -59,6 +59,38 @@
 | USE testdb
 < ok 0 0
 > exec
+| CREATE TABLE t (a TEXT AS (UUID()) VIRTUAL)
+< ok 0 0
+> exec
+| CREATE UNIQUE INDEX u ON t(a)
+< error
+| 1901 HY000 Function or expression 'uuid()' cannot be used in the GENERATED ALWAYS AS clause of `a`
+> exec
+| DROP DATABASE IF EXISTS testdb
+< ok 1 0
+> exec
+| CREATE DATABASE testdb
+< ok 1 0
+> exec
+| USE testdb
+< ok 0 0
+> exec
+| CREATE TABLE t (a TEXT AS (UUID()) VIRTUAL)
+< ok 0 0
+> exec
+| ALTER TABLE t ADD UNIQUE u(a)
+< error
+| 1901 HY000 Function or expression 'uuid()' cannot be used in the GENERATED ALWAYS AS clause of `a`
+> exec
+| DROP DATABASE IF EXISTS testdb
+< ok 1 0
+> exec
+| CREATE DATABASE testdb
+< ok 1 0
+> exec
+| USE testdb
+< ok 0 0
+> exec
 | CREATE TABLE t (b INT, a DOUBLE AS (RAND()) VIRTUAL)
 < ok 0 0
 > exec
