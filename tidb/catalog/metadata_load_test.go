@@ -671,7 +671,7 @@ CREATE TABLE ex (id int PRIMARY KEY, j json, name varchar(20),
   KEY ix_array ((cast(j->'$.tags' as unsigned array))));
 `},
 	{"views and foreign keys", `
-CREATE TABLE parent (id int PRIMARY KEY, k int, a int, b int, UNIQUE KEY uk (k), UNIQUE KEY uab (a, b));
+CREATE TABLE parent (id int PRIMARY KEY, k int COMMENT 'it''s a \\ path', a int, b int, UNIQUE KEY uk (k), UNIQUE KEY uab (a, b)) COMMENT 'table''s \\ comment';
 CREATE TABLE child (id int PRIMARY KEY, pid int, k int, a int, b int,
   CONSTRAINT fk_cascade FOREIGN KEY (pid) REFERENCES parent (id) ON DELETE CASCADE,
   CONSTRAINT fk_qualified FOREIGN KEY (k) REFERENCES omni_mdload.parent (k) ON UPDATE SET NULL,
