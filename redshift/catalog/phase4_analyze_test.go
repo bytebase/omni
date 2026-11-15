@@ -337,6 +337,7 @@ func TestPhase4_ColumnAliasLists(t *testing.T) {
 		{"CREATE VIEW v AS SELECT a, name FROM t1 AS s(a)", "FROM t1 s(a, name, val)"},
 		{"CREATE VIEW v AS SELECT id FROM t1 AS s(id)", "FROM t1 s"},
 		{"CREATE VIEW v AS WITH c AS (SELECT id, name FROM t1) SELECT a FROM c AS s(a)", "FROM c s(a, name)"},
+		{"CREATE VIEW v AS WITH c AS (SELECT id, name FROM t1) SELECT a FROM c AS c(a)", "FROM c c(a, name)"},
 	} {
 		t.Run(tc.view, func(t *testing.T) {
 			def := viewDef(t, setupPhase4(t), tc.view)

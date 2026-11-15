@@ -1121,7 +1121,7 @@ func joinColumns(join *ast.JoinExpr, left, right []QuerySpanResult) []QuerySpanR
 	var using []string
 	if join.IsNatural {
 		for _, l := range left {
-			if slices.ContainsFunc(right, func(r QuerySpanResult) bool { return strings.EqualFold(r.Name, l.Name) }) {
+			if slices.ContainsFunc(right, func(r QuerySpanResult) bool { return r.Name == l.Name }) {
 				using = append(using, l.Name)
 			}
 		}
@@ -1134,7 +1134,7 @@ func joinColumns(join *ast.JoinExpr, left, right []QuerySpanResult) []QuerySpanR
 	leftUsed, rightUsed := make([]bool, len(left)), make([]bool, len(right))
 	take := func(columns []QuerySpanResult, used []bool, name string) *QuerySpanResult {
 		for i := range columns {
-			if !used[i] && strings.EqualFold(columns[i].Name, name) {
+			if !used[i] && columns[i].Name == name {
 				used[i] = true
 				return &columns[i]
 			}

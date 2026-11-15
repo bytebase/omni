@@ -530,12 +530,12 @@ func (d *deparseCtx) getFromClauseItem(jn JoinNode, query *Query) {
 			}
 		case RTECTE:
 			d.buf.WriteString(quoteIdentifier(rte.CTEName))
-			if rte.Alias != "" && rte.Alias != rte.CTEName {
+			if rte.Alias != "" && (rte.Alias != rte.CTEName || rte.aliasColumns > 0) {
 				d.buf.WriteByte(' ')
 				d.buf.WriteString(quoteIdentifier(rte.Alias))
-			}
-			if rte.Alias != "" && rte.aliasColumns > 0 {
-				d.writeColumnAliasList(rte.ColNames)
+				if rte.aliasColumns > 0 {
+					d.writeColumnAliasList(rte.ColNames)
+				}
 			}
 		case RTEFunction:
 			// pg: src/backend/utils/adt/ruleutils.c — get_from_clause_item RTE_FUNCTION case

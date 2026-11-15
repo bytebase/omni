@@ -1254,7 +1254,7 @@ func (a *plpgsqlAnalyzer) starColumns(sel *ast.SelectStmt, table string, tables 
 	var columns []QuerySpanResult
 	var expand func(node ast.Node)
 	expand = func(node ast.Node) {
-		if table == "" || strings.EqualFold(fromItemName(node), table) {
+		if table == "" || fromItemName(node) == table {
 			columns = append(columns, a.extractor.extractColumnsFromFromItem(node, a, tables)...)
 			return
 		}
@@ -1295,10 +1295,11 @@ func fromItemName(node ast.Node) string {
 }
 
 // fromItemColumn adds what the column named colName of a FROM item reads.
-// It reports whether the item has such a column.
+// It reports whether the item has such a column. Names compare exactly: the
+// parser has folded unquoted names already.
 func (a *plpgsqlAnalyzer) fromItemColumn(item ast.Node, colName string, fromTables map[string]ColumnResource, result ColumnSet) bool {
 	for _, column := range a.fromItemColumns(item, fromTables) {
-		if strings.EqualFold(column.Name, colName) {
+		if column.Name == colName {
 			maps.Copy(result, column.SourceColumns)
 			return true
 		}
@@ -1445,6 +1446,8 @@ func (a *plpgsqlAnalyzer) extractColumnRefsFromExpr(node ast.Node, fromTables ma
 		a.extractColumnRefsFromExpr(v.Lexpr, fromTables, result)
 		a.extractColumnRefsFromExpr(v.Rexpr, fromTables, result)
 	case *ast.SubLink:
+		// The left operand of IN, ANY, ALL or a row comparison.
+		a.extractColumnRefsFromExpr(v.Testexpr, fromTables, result)
 		if v.Subselect != nil {
 			if subSel, ok := v.Subselect.(*ast.SelectStmt); ok {
 				// The subquery's qualification markers apply only within its
@@ -1515,6 +1518,7 @@ func (a *plpgsqlAnalyzer) extractColumnRefsFromExpr(node ast.Node, fromTables ma
 		if v.Exprs != nil {
 			for _, item := range v.Exprs.Items {
 				if kv, ok := item.(*ast.JsonKeyValue); ok {
+					a.extractColumnRefsFromExpr(kv.Key, fromTables, result)
 					if kv.Value != nil {
 						a.extractColumnRefsFromExpr(kv.Value.RawExpr, fromTables, result)
 					}

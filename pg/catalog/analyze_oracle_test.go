@@ -172,6 +172,8 @@ func TestAnalyzeViewsMatchPostgres(t *testing.T) {
 		{"table_column_alias_quoted", `SELECT "A b" FROM t AS s("A b")`},
 		{"cte_column_alias", `WITH c AS (SELECT id, masked FROM t) SELECT a FROM c AS s(a)`},
 		{"cte_column_alias_star", `WITH c AS (SELECT id, masked FROM t) SELECT * FROM c AS s(a)`},
+		{"cte_column_alias_own_name", `WITH c AS (SELECT id, masked FROM t) SELECT a FROM c AS c(a)`},
+		{"table_column_alias_own_name", `SELECT a FROM t AS t(a)`},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ddl := analyzeOracleSchema + "CREATE VIEW v AS " + tc.query + ";"
