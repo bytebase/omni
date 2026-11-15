@@ -72,7 +72,7 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 	}
 	isAtLeastPG10 := isAtLeastMajorVersion(engineVersion, 10)
 	isAtLeastPG12 := isAtLeastMajorVersion(engineVersion, 12)
-	searchPath, err := d.getSearchPath(ctx)
+	searchPath, err := d.SearchPath(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get search path for database %q: %w", d.databaseName, err)
 	}

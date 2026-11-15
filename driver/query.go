@@ -36,6 +36,11 @@ type QueryOptions struct {
 	// MaxResultBytes stops reading a statement's rows once their size
 	// passes it, and sets Result.Truncated; 0 is no cap.
 	MaxResultBytes int64
+	// MaskingEnabled reports that the caller masks columns by tracing them
+	// through the statement, so a driver must withhold rows the statement
+	// does not trace to columns (such as a SQL Server procedure call or
+	// OUTPUT clause).
+	MaskingEnabled bool
 }
 
 // Result is what one statement returned.
@@ -45,8 +50,10 @@ type Result struct {
 	Statement string
 	Columns   []Column
 	Rows      [][]Value
-	// AffectedRows is the count a statement that returns no rows reports.
-	AffectedRows int64
+	// AffectedRows is the count a statement that returns no rows reports,
+	// nil when the statement returned a result set (even one with no
+	// columns) or reported no count (such as SQL Server under NOCOUNT ON).
+	AffectedRows *int64
 	// Truncated reports that reading stopped at QueryOptions.MaxResultBytes.
 	Truncated bool
 	// Err is the statement's error. Each engine package documents the

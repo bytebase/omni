@@ -1,6 +1,7 @@
 // Package driver is PostgreSQL's implementation of the driver contract in
 // github.com/bytebase/omni/driver: it connects through pgx, syncs a
-// server's metadata into omni/metadata, and dumps it as DDL.
+// server's metadata into omni/metadata, dumps it as DDL, and runs interactive
+// queries and change scripts.
 package driver
 
 import (
@@ -9,6 +10,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -20,10 +22,21 @@ import (
 )
 
 var (
-	_ driver.Driver = (*Driver)(nil)
-	_ driver.Syncer = (*Driver)(nil)
-	_ driver.Dumper = (*Driver)(nil)
+	_ driver.Driver   = (*Driver)(nil)
+	_ driver.Syncer   = (*Driver)(nil)
+	_ driver.Dumper   = (*Driver)(nil)
+	_ driver.Querier  = (*Driver)(nil)
+	_ driver.Executor = (*Driver)(nil)
 )
+
+// Options are PostgreSQL-specific settings for Open.
+type Options struct {
+	// TenantMode runs statements as the database's owner role rather than
+	// the login role, switching back to superuser only for statements
+	// PostgreSQL refuses a non-superuser (GRANT, CREATE EXTENSION, CREATE
+	// EVENT TRIGGER, COMMENT ON EXTENSION/EVENT TRIGGER).
+	TenantMode bool
+}
 
 // Driver is an open PostgreSQL driver: a pool of connections to one
 // database.
@@ -31,23 +44,46 @@ type Driver struct {
 	db            *sql.DB
 	databaseName  string
 	engineVersion string
+	tenantMode    bool
+
+	noticesMu sync.Mutex
+	notices   map[*pgconn.PgConn]*[]driver.Message
 }
 
 // defaultDatabase is the database a Config with none connects to.
 const defaultDatabase = "postgres"
 
-// Open returns a driver for the server and database cfg names. It does not
-// reach the server; Ping does.
-func Open(_ context.Context, cfg driver.Config) (*Driver, error) {
+// Open returns a driver for the server and database cfg names. Unless
+// Options.TenantMode is set, Open does not reach the server; Ping does.
+func Open(ctx context.Context, cfg driver.Config, opts ...Options) (*Driver, error) {
+	var opt Options
+	if len(opts) > 0 {
+		opt = opts[0]
+	}
 	pgxConfig, err := connConfig(cfg)
 	if err != nil {
 		return nil, err
 	}
-	return &Driver{
-		db:            stdlib.OpenDB(*pgxConfig),
+	d := &Driver{
 		databaseName:  pgxConfig.Database,
 		engineVersion: cfg.EngineVersion,
-	}, nil
+		tenantMode:    opt.TenantMode,
+		notices:       make(map[*pgconn.PgConn]*[]driver.Message),
+	}
+	pgxConfig.OnNotice = d.onNotice
+	d.db = stdlib.OpenDB(*pgxConfig)
+	if d.tenantMode {
+		owner, err := d.CurrentDatabaseOwner(ctx)
+		if err != nil {
+			_ = d.db.Close()
+			return nil, fmt.Errorf("failed to get database owner: %w", err)
+		}
+		if _, err := d.db.ExecContext(ctx, fmt.Sprintf("SET ROLE %s;", quoteIdent(owner))); err != nil {
+			_ = d.db.Close()
+			return nil, fmt.Errorf("failed to set role to database owner %q: %w", owner, err)
+		}
+	}
+	return d, nil
 }
 
 // connConfig is the pgx configuration Open connects with.
@@ -177,15 +213,72 @@ func (d *Driver) getDatabases(ctx context.Context) ([]*metadatapb.DatabaseSchema
 	return databases, nil
 }
 
-// getSearchPath reads the session's search_path as written, a
-// comma-separated list of schema names.
-func (d *Driver) getSearchPath(ctx context.Context) (string, error) {
+// SearchPath reads the session's search_path as written, a comma-separated
+// list of schema names.
+func (d *Driver) SearchPath(ctx context.Context) (string, error) {
 	const query = "SHOW search_path"
 	var searchPath string
 	if err := d.db.QueryRowContext(ctx, query).Scan(&searchPath); err != nil {
 		return "", fmt.Errorf("failed to execute query %q: %w", query, err)
 	}
 	return strings.TrimSpace(searchPath), nil
+}
+
+// CurrentDatabaseOwner returns the owner role of the current database.
+func (d *Driver) CurrentDatabaseOwner(ctx context.Context) (string, error) {
+	const query = `
+		SELECT
+			u.rolname
+		FROM
+			pg_roles AS u JOIN pg_database AS d ON (d.datdba = u.oid)
+		WHERE
+			d.datname = current_database();
+		`
+	var owner string
+	if err := d.db.QueryRowContext(ctx, query).Scan(&owner); err != nil {
+		return "", err
+	}
+	return owner, nil
+}
+
+// CurrentUser returns the session's effective role (CURRENT_USER).
+func (d *Driver) CurrentUser(ctx context.Context) (string, error) {
+	var user string
+	if err := d.db.QueryRowContext(ctx, "SELECT CURRENT_USER").Scan(&user); err != nil {
+		return "", err
+	}
+	return user, nil
+}
+
+func (d *Driver) onNotice(pc *pgconn.PgConn, n *pgconn.Notice) {
+	if pc == nil || n == nil {
+		return
+	}
+	d.noticesMu.Lock()
+	defer d.noticesMu.Unlock()
+	if buf, ok := d.notices[pc]; ok {
+		*buf = append(*buf, driver.Message{
+			Level:   noticeLevel(n.Severity),
+			Content: n.Message,
+		})
+	}
+}
+
+func noticeLevel(severity string) string {
+	switch severity {
+	case "DEBUG", "INFO", "NOTICE", "WARNING", "EXCEPTION", "LOG":
+		return severity
+	default:
+		return ""
+	}
+}
+
+func quoteIdent(name string) string {
+	return `"` + strings.ReplaceAll(name, `"`, `""`) + `"`
+}
+
+func quoteLiteral(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", "''") + "'"
 }
 
 // getVersion reads the server version as major.minor.patch from
