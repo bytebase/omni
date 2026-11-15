@@ -48,7 +48,7 @@ func generateVersioningDDL(diff *SchemaDiff, n *Normalizer) []MigrationOp {
 				SQL: sql, Phase: phase, Priority: priority, sortName: tableSortName(e.Database, e.Name),
 			})
 		}
-		if !eqFoldStr(from.AppPeriodName, to.AppPeriodName) || !eqFoldStr(from.AppPeriodStartCol, to.AppPeriodStartCol) || !eqFoldStr(from.AppPeriodEndCol, to.AppPeriodEndCol) {
+		if appPeriodChanged(from, to) {
 			if from.AppPeriodName != "" {
 				op(fmt.Sprintf("ALTER TABLE %s DROP PERIOD FOR %s", table, backtickIDQ(from.AppPeriodName)), PhasePre, priorityPeriodDrop)
 			}
@@ -111,4 +111,8 @@ func keepVersionedHistory(ops []MigrationOp, diff *SchemaDiff) []MigrationOp {
 		}
 	}
 	return ops
+}
+
+func appPeriodChanged(from, to *Table) bool {
+	return !eqFoldStr(from.AppPeriodName, to.AppPeriodName) || !eqFoldStr(from.AppPeriodStartCol, to.AppPeriodStartCol) || !eqFoldStr(from.AppPeriodEndCol, to.AppPeriodEndCol)
 }

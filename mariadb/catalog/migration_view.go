@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	nodes "github.com/bytebase/omni/mariadb/ast"
@@ -86,6 +87,12 @@ func dropViewOp(entry *ViewDiffEntry) MigrationOp {
 func formatCreateOrReplaceView(v *View) string {
 	var b strings.Builder
 
+	// CREATE VIEW looks a bare stored function call up in the session's
+	// database (1305 otherwise), and the call has to stay bare: MariaDB stores
+	// it as written. Measured on mariadb:11.8.8.
+	if callsOwnFunctionsBare(v) {
+		fmt.Fprintf(&b, "USE %s;\n", quoteIdent(v.databaseName()))
+	}
 	b.WriteString("CREATE OR REPLACE")
 
 	algorithm := v.Algorithm
@@ -111,7 +118,7 @@ func formatCreateOrReplaceView(v *View) string {
 	}
 
 	b.WriteString(" AS ")
-	b.WriteString(v.Definition)
+	b.WriteString(qualifyViewRelations(v.Definition, v.databaseName()))
 
 	if v.CheckOption != "" {
 		fmt.Fprintf(&b, " WITH %s CHECK OPTION", strings.ToUpper(v.CheckOption))
@@ -255,4 +262,66 @@ func viewSortName(database, name string) string {
 // referenced view sorts before its referrer.
 func viewCreateSortName(depth int, database, name string) string {
 	return fmt.Sprintf("%05d.%s", depth, viewSortName(database, name))
+}
+
+// qualifyViewRelations qualifies with db the tables and views a stored view
+// body names bare, CTEs aside. The catalog stores the body without its own
+// database's qualifier, as the server does, while CREATE VIEW resolves a bare
+// name against the session's database, not the view's. A body that does not
+// parse is returned unchanged.
+func qualifyViewRelations(body, db string) string {
+	if db == "" || body == "" {
+		return body
+	}
+	const prefix = "CREATE VIEW v AS "
+	list, err := mariadbparser.Parse(prefix + body)
+	if err != nil || len(list.Items) != 1 {
+		return body
+	}
+	stmt, ok := list.Items[0].(*nodes.CreateViewStmt)
+	if !ok {
+		return body
+	}
+	var starts []int
+	for _, ref := range selectTableRefs(stmt.Select) {
+		start := ref.Loc.Start - len(prefix)
+		if ref.Schema != "" || start < 0 || start >= len(body) {
+			continue
+		}
+		if rest := body[start:]; strings.HasPrefix(rest, quoteIdent(ref.Name)) || hasPrefixFold(rest, ref.Name) {
+			starts = append(starts, start)
+		}
+	}
+	slices.Sort(starts)
+	starts = slices.Compact(starts)
+	var out strings.Builder
+	prev := 0
+	for _, start := range starts {
+		out.WriteString(body[prev:start])
+		out.WriteString(quoteIdent(db) + ".")
+		prev = start
+	}
+	out.WriteString(body[prev:])
+	return out.String()
+}
+
+// callsOwnFunctionsBare reports whether a view's body calls a stored function of
+// its own database without qualifying it.
+func callsOwnFunctionsBare(v *View) bool {
+	if v.Database == nil || len(v.Database.Functions) == 0 {
+		return false
+	}
+	const prefix = "CREATE VIEW v AS "
+	list, err := mariadbparser.Parse(prefix + v.Definition)
+	if err != nil || len(list.Items) != 1 {
+		return false
+	}
+	found := false
+	nodes.Inspect(list.Items[0], func(n nodes.Node) bool {
+		if call, ok := n.(*nodes.FuncCallExpr); ok && call.Schema == "" && v.Database.Functions[toLower(call.Name)] != nil {
+			found = true
+		}
+		return !found
+	})
+	return found
 }
