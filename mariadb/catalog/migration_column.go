@@ -26,7 +26,18 @@ func generateColumnDDL(_, to *Catalog, diff *SchemaDiff, n *Normalizer) []Migrat
 		for _, col := range entry.Columns {
 			switch col.Action {
 			case DiffAdd:
-				if col.To == nil || addedWithVersioning(entry, col.To) {
+				if col.To == nil {
+					continue
+				}
+				if addedWithVersioning(entry, col.To) {
+					// A column WITH or WITHOUT SYSTEM VERSIONING is added
+					// without it, in its place among the adds, and takes it
+					// once the table is versioned.
+					if col.To.Generated == nil || col.To.Generated.RowBound == "" {
+						plain := *col.To
+						plain.SystemVersioning = ""
+						ops = append(ops, addColumnOp(entry, table, &plain, n))
+					}
 					continue
 				}
 				ops = append(ops, addColumnOp(entry, table, col.To, n))

@@ -534,7 +534,7 @@ func rankColumnOps(ops []MigrationOp, e *TableDiffEntry, selects func(MigrationO
 }
 
 // columnReads maps each column of t to the lower-cased columns its generated
-// expression or column CHECK reads, itself left out.
+// expression, column CHECK or expression DEFAULT reads, itself left out.
 func columnReads(t *Table) map[string][]string {
 	out := make(map[string][]string)
 	checks := columnChecks(t)
@@ -546,6 +546,9 @@ func columnReads(t *Table) map[string][]string {
 		}
 		if con := checks[name]; con != nil {
 			refs = append(refs, exprColumnRefs(con.CheckExpr)...)
+		}
+		if col.Default != nil && col.DefaultKind == ColumnDefaultExpression {
+			refs = append(refs, exprColumnRefs(*col.Default)...)
 		}
 		for _, ref := range refs {
 			if ref := toLower(ref); ref != name {
@@ -609,8 +612,12 @@ func dropLastColumnsAfterAdds(ops []MigrationOp, e *TableDiffEntry) []MigrationO
 		return ops
 	}
 	if len(dropped) < len(diffableColumns(e.From)) {
-		if e.From.SystemVersioned && e.To.SystemVersioned && everyVersionedColumnDropped(e, dropped) {
-			addFirst(ops, e, dropped, func(col *Column) bool { return isVersionedColumn(col) })
+		if e.From.SystemVersioned && e.To.SystemVersioned && everyDropped(e, dropped, isVersionedColumn) {
+			addFirst(ops, e, dropped, isVersionedColumn)
+		}
+		// A table keeps a visible column too (1113).
+		if everyDropped(e, dropped, isVisibleColumn) {
+			addFirst(ops, e, dropped, isVisibleColumn)
 		}
 		return ops
 	}
@@ -868,10 +875,14 @@ func isVersionedColumn(col *Column) bool {
 	return col.SystemVersioning != "WITHOUT" && (col.Generated == nil || col.Generated.RowBound == "")
 }
 
-func everyVersionedColumnDropped(e *TableDiffEntry, dropped map[string]bool) bool {
+func isVisibleColumn(col *Column) bool { return !col.Invisible }
+
+// everyDropped reports whether the plan drops every column of the source that
+// is picks, there being one.
+func everyDropped(e *TableDiffEntry, dropped map[string]bool, is func(*Column) bool) bool {
 	found := false
 	for _, col := range e.From.Columns {
-		if isVersionedColumn(col) {
+		if is(col) {
 			if !dropped[toLower(col.Name)] {
 				return false
 			}

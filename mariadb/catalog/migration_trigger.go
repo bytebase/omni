@@ -28,7 +28,7 @@ func generateTriggerDDL(_, to *Catalog, diff *SchemaDiff, _ *Normalizer) []Migra
 				continue
 			}
 			// No original session context to preserve.
-			ops = append(ops, buildCreateTriggerOp(te.Database, te.To, nil))
+			ops = append(ops, buildCreateTriggerOp(te.Database, te.To, nil, triggerPlacement(to, diff, te.To)))
 		case DiffDrop:
 			if te.From == nil || dropTriggerSuppressed(to, te.From) {
 				continue
@@ -42,7 +42,7 @@ func generateTriggerDDL(_, to *Catalog, diff *SchemaDiff, _ *Normalizer) []Migra
 			}
 			if te.To != nil {
 				// The recreate runs under the old trigger's session context.
-				ops = append(ops, buildCreateTriggerOp(te.Database, te.To, te.From))
+				ops = append(ops, buildCreateTriggerOp(te.Database, te.To, te.From, triggerPlacement(to, diff, te.To)))
 			}
 		}
 	}
@@ -120,7 +120,7 @@ func dropTriggerSuppressed(to *Catalog, trig *Trigger) bool {
 // is wrapped in a save/restore of the session context it is created under
 // (renderWithSessionContext): trig's own where it is known, else that of `from`, the trigger it
 // recreates.
-func buildCreateTriggerOp(database string, trig, from *Trigger) MigrationOp {
+func buildCreateTriggerOp(database string, trig, from *Trigger, placement *TriggerOrderInfo) MigrationOp {
 	dbName := triggerDatabaseName(trig)
 	trigIdent := qualifiedTriggerIdent(dbName, trig.Name)
 	onTableIdent := qualifiedTriggerIdent(dbName, trig.Table)
@@ -130,7 +130,11 @@ func buildCreateTriggerOp(database string, trig, from *Trigger) MigrationOp {
 		trigIdent, strings.ToUpper(trig.Timing), strings.ToUpper(trig.Event), onTableIdent)
 	// The order among a table's triggers of one timing and event is what
 	// FOLLOWS or PRECEDES set: they run in it.
-	if o := trig.Order; o != nil && o.TriggerName != "" {
+	o := trig.Order
+	if o == nil {
+		o = placement
+	}
+	if o != nil && o.TriggerName != "" {
 		verb := "PRECEDES"
 		if o.Follows {
 			verb = "FOLLOWS"
@@ -216,4 +220,45 @@ func triggerOpRank(t MigrationOpType) int {
 // triggerSortName is the stable secondary sort key for a trigger op: lower-cased database.name.
 func triggerSortName(database, name string) string {
 	return strings.ToLower(database) + "." + strings.ToLower(name)
+}
+
+// triggerPlacement places a trigger the plan creates, and which names no
+// FOLLOWS or PRECEDES of its own, among the triggers of its table, timing and
+// event the plan keeps: PRECEDES the first of them the target created after
+// it, else FOLLOWS the last created before it. With no kept peer, creation
+// order alone places it (orderTriggerCreates).
+func triggerPlacement(to *Catalog, diff *SchemaDiff, trig *Trigger) *TriggerOrderInfo {
+	if to == nil || trig.Database == nil || trig.Order != nil {
+		return nil
+	}
+	db := to.GetDatabase(trig.Database.Name)
+	if db == nil {
+		return nil
+	}
+	created := make(map[string]bool)
+	for _, te := range diff.Triggers {
+		if te.To != nil && te.Action != DiffDrop && toLower(te.Database) == toLower(trig.Database.Name) {
+			created[toLower(te.To.Name)] = true
+		}
+	}
+	var before, after *Trigger
+	for _, peer := range db.Triggers {
+		if peer == trig || created[toLower(peer.Name)] || !eqFoldStr(peer.Table, trig.Table) ||
+			!eqFoldStr(peer.Timing, trig.Timing) || !eqFoldStr(peer.Event, trig.Event) {
+			continue
+		}
+		switch {
+		case peer.created > trig.created && (after == nil || peer.created < after.created):
+			after = peer
+		case peer.created < trig.created && (before == nil || peer.created > before.created):
+			before = peer
+		}
+	}
+	switch {
+	case after != nil:
+		return &TriggerOrderInfo{TriggerName: after.Name}
+	case before != nil:
+		return &TriggerOrderInfo{Follows: true, TriggerName: before.Name}
+	}
+	return nil
 }
