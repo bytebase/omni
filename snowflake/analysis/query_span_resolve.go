@@ -1077,6 +1077,14 @@ func (q *querySpanExtractor) extractTableSourceFromTableRef(ref *ast.TableRef) (
 	if ref.Pivot != nil || ref.Unpivot != nil || ref.Nested != nil {
 		return nil, errors.New("PIVOT/UNPIVOT table sources are not supported for query span extraction yet")
 	}
+	// MATCH_RECOGNIZE replaces the relation's columns with its PARTITION BY
+	// expressions and MEASURES (ONE ROW PER MATCH, the default), or appends
+	// the MEASURES to them (ALL ROWS PER MATCH), which the resolver does not
+	// model; fail closed like PIVOT.
+	// https://docs.snowflake.com/en/sql-reference/constructs/match_recognize
+	if ref.MatchRecognize != nil {
+		return nil, errors.New("MATCH_RECOGNIZE table sources are not supported for query span extraction yet")
+	}
 
 	var result []QuerySpanResult
 	// underlying keeps the resolved (named) table source so an unaliased
