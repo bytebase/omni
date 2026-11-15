@@ -60,5 +60,5 @@ func writeSystemTimePeriod(buf *strings.Builder, table *metadata.TableMetadata) 
 	if start == "" || end == "" {
 		return
 	}
-	_, _ = buf.WriteString(",\n  PERIOD FOR SYSTEM_TIME (`" + start + "`, `" + end + "`)")
+	_, _ = buf.WriteString(",\n  PERIOD FOR SYSTEM_TIME (" + quoteIdent(start) + ", " + quoteIdent(end) + ")")
 }
