@@ -343,6 +343,12 @@
               "position": 34,
               "nullable": true,
               "type": "timestamp(6) with time zone"
+            },
+            {
+              "name": "moods",
+              "position": 36,
+              "nullable": true,
+              "type": "app._mood"
             }
           ],
           "indexes": [
@@ -1049,6 +1055,25 @@
           "owner": "postgres"
         },
         {
+          "name": "seq_owner",
+          "columns": [
+            {
+              "name": "id",
+              "position": 2,
+              "default": "nextval('app.seq_owner_id_seq'::regclass)",
+              "type": "integer"
+            },
+            {
+              "name": "payload",
+              "position": 3,
+              "nullable": true,
+              "type": "text"
+            }
+          ],
+          "dataSize": "8192",
+          "owner": "postgres"
+        },
+        {
           "name": "sharded",
           "columns": [
             {
@@ -1169,6 +1194,25 @@
               "position": 3,
               "nullable": true,
               "type": "numeric"
+            }
+          ]
+        },
+        {
+          "name": "owner's view",
+          "definition": " SELECT customer.id\n   FROM app.customer;",
+          "dependencyColumns": [
+            {
+              "schema": "app",
+              "table": "customer",
+              "column": "id"
+            }
+          ],
+          "columns": [
+            {
+              "name": "id",
+              "position": 1,
+              "nullable": true,
+              "type": "bigint"
             }
           ]
         },
@@ -1350,6 +1394,17 @@
           "cacheSize": "1",
           "ownerTable": "customer",
           "ownerColumn": "owned"
+        },
+        {
+          "name": "seq_owner_id_seq",
+          "dataType": "integer",
+          "start": "1",
+          "minValue": "1",
+          "maxValue": "2147483647",
+          "increment": "1",
+          "cacheSize": "1",
+          "ownerTable": "seq_owner",
+          "ownerColumn": "id"
         }
       ],
       "owner": "corpus_owner",
@@ -1498,6 +1553,38 @@
               "isInstead": true,
               "isEnabled": true,
               "definition": "CREATE RULE plain_nothing AS\n    ON DELETE TO public.plain DO INSTEAD NOTHING;"
+            }
+          ]
+        },
+        {
+          "name": "z_source",
+          "columns": [
+            {
+              "name": "v",
+              "position": 1,
+              "nullable": true,
+              "type": "integer"
+            }
+          ],
+          "owner": "postgres"
+        }
+      ],
+      "views": [
+        {
+          "name": "a_count",
+          "definition": " SELECT count(*) AS n\n   FROM public.z_source;",
+          "dependencyColumns": [
+            {
+              "schema": "public",
+              "table": "z_source"
+            }
+          ],
+          "columns": [
+            {
+              "name": "n",
+              "position": 1,
+              "nullable": true,
+              "type": "bigint"
             }
           ]
         }

@@ -253,6 +253,34 @@ CREATE TABLE test_defaults (
 	}
 }
 
+// TestSyncSequenceOwner: a sequence's owner column is the one its attnum
+// names, even after a column before it was dropped.
+func TestSyncSequenceOwner(t *testing.T) {
+	d := openDriver(t, testcontainer.Default)
+	mustExec(t, d.db, `
+CREATE TABLE seq_owner (removed text, id serial, payload text);
+ALTER TABLE seq_owner DROP COLUMN removed;
+CREATE TABLE identity_owner (gone int, other int, id int GENERATED ALWAYS AS IDENTITY);
+ALTER TABLE identity_owner DROP COLUMN gone;`)
+	m, err := d.SyncDatabase(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]string{}
+	for _, s := range m.Schemas {
+		for _, seq := range s.Sequences {
+			got[seq.Name] = seq.OwnerTable + "." + seq.OwnerColumn
+		}
+	}
+	want := map[string]string{
+		"seq_owner_id_seq":      "seq_owner.id",
+		"identity_owner_id_seq": "identity_owner.id",
+	}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("sequence owners (-want +got):\n%s", diff)
+	}
+}
+
 // TestSyncCompositeTypes pins composite types exactly: the definition
 // round trip compares two syncs with each other, which a sync wrong the same
 // way on both sides passes.

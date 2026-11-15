@@ -4,7 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"maps"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -878,7 +880,13 @@ func getTableColumns(txn *sql.Tx, isAtLeastPG12 bool) (map[tableKey][]*metadatap
 		case "USER-DEFINED":
 			column.Type = fmt.Sprintf("%s.%s", udtSchema.String, udtName.String)
 		case "ARRAY":
+			// The array type's own name, such as _int4. A user type's array
+			// lives in that type's schema, which a dump's empty search_path
+			// needs written.
 			column.Type = udtName.String
+			if udtSchema.String != "pg_catalog" {
+				column.Type = fmt.Sprintf("%s.%s", udtSchema.String, udtName.String)
+			}
 		case "character", "character varying", "bit", "bit varying":
 			if characterMaxLength.Valid {
 				// For character varying(n), the character maximum length is n.
@@ -995,7 +1003,10 @@ func getMaterializedViews(txn *sql.Tx, indexMap map[tableKey][]*metadatapb.Index
 		return nil, nil, err
 	}
 
-	for schemaName, list := range matviewMap {
+	// In schema order, so that the server is asked the same questions in the
+	// same order every run.
+	for _, schemaName := range slices.Sorted(maps.Keys(matviewMap)) {
+		list := matviewMap[schemaName]
 		for _, matview := range list {
 			dependencies, err := getViewDependencies(txn, schemaName, matview.Name)
 			if err != nil {
@@ -1065,7 +1076,10 @@ func getViews(txn *sql.Tx, columnMap map[tableKey][]*metadatapb.ColumnMetadata, 
 		return nil, nil, err
 	}
 
-	for schemaName, list := range viewMap {
+	// In schema order, so that the server is asked the same questions in the
+	// same order every run.
+	for _, schemaName := range slices.Sorted(maps.Keys(viewMap)) {
+		list := viewMap[schemaName]
 		for _, view := range list {
 			dependencies, err := getViewDependencies(txn, schemaName, view.Name)
 			if err != nil {
@@ -1082,28 +1096,33 @@ func getViews(txn *sql.Tx, columnMap map[tableKey][]*metadatapb.ColumnMetadata, 
 func getViewDependencies(txn *sql.Tx, schemaName, viewName string) ([]*metadatapb.DependencyColumn, error) {
 	var result []*metadatapb.DependencyColumn
 
-	query := fmt.Sprintf(`
+	// A view depends on a column it reads, and on a relation as a whole where
+	// it reads no column of it (SELECT count(*) FROM t); the latter has an
+	// empty Column. The view's own rule depends on the view, which is left out.
+	const query = `
 		SELECT source_ns.nspname as source_schema,
-	  		source_table.relname as source_table,
-	  		pg_attribute.attname as column_name
-	  	FROM pg_depend 
-	  		JOIN pg_rewrite ON pg_depend.objid = pg_rewrite.oid 
-	  		JOIN pg_class as dependency_view ON pg_rewrite.ev_class = dependency_view.oid 
-	  		JOIN pg_class as source_table ON pg_depend.refobjid = source_table.oid 
-	  		JOIN pg_attribute ON pg_depend.refobjid = pg_attribute.attrelid 
-	  		    AND pg_depend.refobjsubid = pg_attribute.attnum 
-	  		JOIN pg_namespace dependency_ns ON dependency_ns.oid = dependency_view.relnamespace
-	  		JOIN pg_namespace source_ns ON source_ns.oid = source_table.relnamespace
-	  	WHERE 
-	  		dependency_ns.nspname = '%s'
-	  		AND dependency_view.relname = '%s'
-	  		AND pg_attribute.attnum > 0
-	  		-- Only consider SELECT rules (view definitions), not INSERT/UPDATE/DELETE rules
-	  		AND pg_rewrite.ev_type = '1'
-	  	ORDER BY 1,2,3;
-	`, schemaName, viewName)
+			source_table.relname as source_table,
+			COALESCE(pg_attribute.attname, '') as column_name
+		FROM pg_depend
+			JOIN pg_rewrite ON pg_depend.objid = pg_rewrite.oid
+			JOIN pg_class as dependency_view ON pg_rewrite.ev_class = dependency_view.oid
+			JOIN pg_class as source_table ON pg_depend.refobjid = source_table.oid
+			LEFT JOIN pg_attribute ON pg_depend.refobjid = pg_attribute.attrelid
+				AND pg_depend.refobjsubid = pg_attribute.attnum
+				AND pg_attribute.attnum > 0
+			JOIN pg_namespace dependency_ns ON dependency_ns.oid = dependency_view.relnamespace
+			JOIN pg_namespace source_ns ON source_ns.oid = source_table.relnamespace
+		WHERE
+			dependency_ns.nspname = $1
+			AND dependency_view.relname = $2
+			AND (pg_depend.refobjsubid = 0 OR pg_attribute.attnum IS NOT NULL)
+			AND source_table.oid <> dependency_view.oid
+			-- Only consider SELECT rules (view definitions), not INSERT/UPDATE/DELETE rules
+			AND pg_rewrite.ev_type = '1'
+		ORDER BY 1,2,3;
+	`
 
-	rows, err := txn.Query(query)
+	rows, err := txn.Query(query, schemaName, viewName)
 	if err != nil {
 		return nil, err
 	}
@@ -1482,9 +1501,13 @@ func getSequences(txn *sql.Tx, tableOidMap map[int]*tableKeyWithColumns, extensi
 		if columnOidKey, ok := sequenceOwnerMap[oid]; ok {
 			if tableKey, ok := tableOidMap[columnOidKey.TableOid]; ok {
 				sequence.OwnerTable = tableKey.Table
-				// PostgreSQL column ID is 1-based.
-				if len(tableKey.Columns) > columnOidKey.ColumnID-1 {
-					sequence.OwnerColumn = tableKey.Columns[columnOidKey.ColumnID-1].Name
+				// ColumnID is the column's attnum, which a dropped column
+				// before it keeps from being its place among the columns.
+				for _, column := range tableKey.Columns {
+					if int(column.Position) == columnOidKey.ColumnID {
+						sequence.OwnerColumn = column.Name
+						break
+					}
 				}
 			}
 		}
