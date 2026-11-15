@@ -22,6 +22,9 @@ type SessionState struct {
 	CollationConnection          string
 	ExplicitDefaultsForTimestamp bool
 	SQLMode                      string
+	// Version is the release whose stored form the diff and the generated
+	// migration reproduce.
+	Version Version
 }
 
 func New() *Catalog {

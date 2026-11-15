@@ -58,17 +58,8 @@ func (c *Catalog) Exec(sql string, opts *ExecOptions) ([]ExecResult, error) {
 			continue
 		}
 
-		// A `?` parameter marker binds a value only in a prepared statement, so
-		// it is never valid in catalog DDL. The parser accepts it as a general
-		// operand (a default, generated-column or CHECK expression, a view
-		// body), so refuse it here before processUtility stores the expression.
-		// Parse has already bounded the tree height, so the walk is safe.
-		if containsParamMarker(item) {
-			result.Error = &Error{
-				Code:     0,
-				SQLState: "HY000",
-				Message:  "parameter marker (?) is not allowed in a DDL statement",
-			}
+		if err := validateDDL(item); err != nil {
+			result.Error = err
 			results = append(results, result)
 			if !continueOnError {
 				break
@@ -85,6 +76,22 @@ func (c *Catalog) Exec(sql string, opts *ExecOptions) ([]ExecResult, error) {
 		}
 	}
 	return results, nil
+}
+
+// validateDDL refuses a DDL statement the server would not take that the parser
+// does. A `?` parameter marker binds a value only in a prepared statement, so
+// it is never valid in catalog DDL, though the parser accepts it as a general
+// operand (a default, generated-column or CHECK expression, a view body). Parse
+// has already bounded the tree height, so the walk is safe.
+func validateDDL(stmt nodes.Node) error {
+	if containsParamMarker(stmt) {
+		return &Error{
+			Code:     0,
+			SQLState: "HY000",
+			Message:  "parameter marker (?) is not allowed in a DDL statement",
+		}
+	}
+	return nil
 }
 
 func LoadSQL(sql string) (*Catalog, error) {
