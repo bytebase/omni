@@ -62,20 +62,23 @@ func GetQuerySpan(c *catalog.Catalog, sql string) (*QuerySpan, error) {
 
 func buildQuerySpan(c *catalog.Catalog, q *catalog.Query) *QuerySpan {
 	span := &QuerySpan{
-		Results:          collectResults(c, q),
+		Results:          collectResults(c, nil, q),
 		SourceColumns:    collectAllSourceColumns(c, q),
 		PredicateColumns: collectPredicateColumns(c, q),
 	}
 	return span
 }
 
-func collectResults(c *catalog.Catalog, q *catalog.Query) []QuerySpanResult {
+// collectResults returns the output columns of q, nested in the queries of
+// parents: the set operations whose branch it is, whose CTEs it may read.
+func collectResults(c *catalog.Catalog, parents []*catalog.Query, q *catalog.Query) []QuerySpanResult {
 	if q == nil {
 		return nil
 	}
 	if q.SetOp != catalog.SetOpNone {
-		return collectSetOpResults(c, q)
+		return collectSetOpResults(c, parents, q)
 	}
+	stack := appendQuery(parents, q)
 	var results []QuerySpanResult
 	for _, te := range q.TargetList {
 		if te == nil || te.ResJunk {
@@ -84,16 +87,17 @@ func collectResults(c *catalog.Catalog, q *catalog.Query) []QuerySpanResult {
 		_, isVar := te.Expr.(*catalog.VarExpr)
 		results = append(results, QuerySpanResult{
 			Name:          te.ResName,
-			SourceColumns: collectExprColumns(c, q, te.Expr),
+			SourceColumns: collectExprColumns(c, stack, te.Expr),
 			IsPlainField:  isVar,
 		})
 	}
 	return results
 }
 
-func collectSetOpResults(c *catalog.Catalog, q *catalog.Query) []QuerySpanResult {
-	left := collectResults(c, q.LArg)
-	right := collectResults(c, q.RArg)
+func collectSetOpResults(c *catalog.Catalog, parents []*catalog.Query, q *catalog.Query) []QuerySpanResult {
+	branchParents := appendQuery(parents, q)
+	left := collectResults(c, branchParents, q.LArg)
+	right := collectResults(c, branchParents, q.RArg)
 	resultCount := len(left)
 	if len(q.TargetList) > resultCount {
 		resultCount = len(q.TargetList)
@@ -122,7 +126,7 @@ func collectSetOpResults(c *catalog.Catalog, q *catalog.Query) []QuerySpanResult
 func collectAllSourceColumns(c *catalog.Catalog, q *catalog.Query) []ColumnResource {
 	seen := make(map[ColumnResource]bool)
 	var cols []ColumnResource
-	for _, result := range collectResults(c, q) {
+	for _, result := range collectResults(c, nil, q) {
 		appendSeenColumns(&cols, seen, result.SourceColumns...)
 	}
 	appendSeenColumns(&cols, seen, collectPredicateColumns(c, q)...)
@@ -132,64 +136,74 @@ func collectAllSourceColumns(c *catalog.Catalog, q *catalog.Query) []ColumnResou
 func collectPredicateColumns(c *catalog.Catalog, q *catalog.Query) []ColumnResource {
 	seen := make(map[ColumnResource]bool)
 	var cols []ColumnResource
-	collectPredicateColumnsInto(c, q, seen, &cols)
+	collectPredicateColumnsInto(c, []*catalog.Query{q}, seen, &cols)
 	return sortedColumns(cols)
 }
 
-func collectPredicateColumnsInto(c *catalog.Catalog, q *catalog.Query, seen map[ColumnResource]bool, cols *[]ColumnResource) {
+// collectPredicateColumnsInto collects the predicate columns of the last
+// query of stack.
+func collectPredicateColumnsInto(c *catalog.Catalog, stack []*catalog.Query, seen map[ColumnResource]bool, cols *[]ColumnResource) {
+	q := currentQuery(stack)
 	if q == nil {
 		return
 	}
 	if q.SetOp != catalog.SetOpNone {
-		collectPredicateColumnsInto(c, q.LArg, seen, cols)
-		collectPredicateColumnsInto(c, q.RArg, seen, cols)
+		collectPredicateColumnsInto(c, appendQuery(stack, q.LArg), seen, cols)
+		collectPredicateColumnsInto(c, appendQuery(stack, q.RArg), seen, cols)
 		return
 	}
 	if q.JoinTree != nil {
-		appendSeenColumns(cols, seen, collectExprColumns(c, q, q.JoinTree.Quals)...)
+		appendSeenColumns(cols, seen, collectExprColumns(c, stack, q.JoinTree.Quals)...)
 		for _, node := range q.JoinTree.FromList {
-			collectJoinPredicateColumns(c, q, node, seen, cols)
+			collectJoinPredicateColumns(c, stack, node, seen, cols)
 		}
 	}
-	appendSeenColumns(cols, seen, collectExprColumns(c, q, q.HavingQual)...)
-	appendSeenColumns(cols, seen, collectExprColumns(c, q, q.QualifyQual)...)
+	appendSeenColumns(cols, seen, collectExprColumns(c, stack, q.HavingQual)...)
+	appendSeenColumns(cols, seen, collectExprColumns(c, stack, q.QualifyQual)...)
 }
 
-func collectJoinPredicateColumns(c *catalog.Catalog, q *catalog.Query, node catalog.JoinNode, seen map[ColumnResource]bool, cols *[]ColumnResource) {
+func collectJoinPredicateColumns(c *catalog.Catalog, stack []*catalog.Query, node catalog.JoinNode, seen map[ColumnResource]bool, cols *[]ColumnResource) {
 	switch n := node.(type) {
 	case *catalog.JoinExprNode:
-		appendSeenColumns(cols, seen, collectExprColumns(c, q, n.Quals)...)
-		collectJoinPredicateColumns(c, q, n.Left, seen, cols)
-		collectJoinPredicateColumns(c, q, n.Right, seen, cols)
+		appendSeenColumns(cols, seen, collectExprColumns(c, stack, n.Quals)...)
+		collectJoinPredicateColumns(c, stack, n.Left, seen, cols)
+		collectJoinPredicateColumns(c, stack, n.Right, seen, cols)
 	}
 }
 
-func collectExprColumns(c *catalog.Catalog, q *catalog.Query, expr catalog.AnalyzedExpr) []ColumnResource {
+// collectExprColumns returns the columns expr, an expression of the last
+// query of stack, reads. The queries before it enclose it, so an outer
+// reference or a CTE an enclosing query defines resolves against them.
+func collectExprColumns(c *catalog.Catalog, stack []*catalog.Query, expr catalog.AnalyzedExpr) []ColumnResource {
 	seen := make(map[ColumnResource]bool)
 	var cols []ColumnResource
-	walkExpr(c, q, expr, seen, &cols)
+	walkExpr(c, stack, expr, seen, &cols)
 	return sortedColumns(cols)
 }
 
-func walkExpr(c *catalog.Catalog, q *catalog.Query, expr catalog.AnalyzedExpr, seen map[ColumnResource]bool, cols *[]ColumnResource) {
+func walkExpr(c *catalog.Catalog, stack []*catalog.Query, expr catalog.AnalyzedExpr, seen map[ColumnResource]bool, cols *[]ColumnResource) {
+	q := currentQuery(stack)
 	catalog.WalkAnalyzedExpr(expr, func(e catalog.AnalyzedExpr) bool {
 		switch v := e.(type) {
 		case *catalog.VarExpr:
-			resolveVar(c, q, v, seen, cols)
+			resolveVar(c, stack, v, seen, cols)
 		case *catalog.SetOpColumnExpr:
 			// An output column of a set operation reads that column of
 			// both branches.
+			if q == nil {
+				return true
+			}
 			for _, branch := range []*catalog.Query{q.LArg, q.RArg} {
 				if te := outputEntry(branch, int(v.ResNo)); te != nil {
-					walkExpr(c, branch, te.Expr, seen, cols)
+					walkExpr(c, appendQuery(stack, branch), te.Expr, seen, cols)
 				}
 			}
 		case *catalog.SubLinkExpr:
-			walkExpr(c, q, v.TestExpr, seen, cols)
+			walkExpr(c, stack, v.TestExpr, seen, cols)
 			if v.SubQuery != nil {
 				for _, te := range v.SubQuery.TargetList {
 					if te != nil && !te.ResJunk {
-						walkExpr(c, v.SubQuery, te.Expr, seen, cols)
+						walkExpr(c, appendQuery(stack, v.SubQuery), te.Expr, seen, cols)
 					}
 				}
 			}
@@ -216,7 +230,14 @@ func outputEntry(q *catalog.Query, resNo int) *catalog.TargetEntry {
 	return nil
 }
 
-func resolveVar(c *catalog.Catalog, q *catalog.Query, v *catalog.VarExpr, seen map[ColumnResource]bool, cols *[]ColumnResource) {
+func resolveVar(c *catalog.Catalog, stack []*catalog.Query, v *catalog.VarExpr, seen map[ColumnResource]bool, cols *[]ColumnResource) {
+	// A Var LevelsUp levels out reads the query that many levels up.
+	level := len(stack) - 1 - v.LevelsUp
+	if level < 0 || level >= len(stack) {
+		return
+	}
+	stack = stack[:level+1]
+	q := stack[level]
 	if q == nil || v.RangeIdx < 0 || v.RangeIdx >= len(q.RangeTable) {
 		return
 	}
@@ -229,7 +250,7 @@ func resolveVar(c *catalog.Catalog, q *catalog.Query, v *catalog.VarExpr, seen m
 			return
 		}
 		if rel.AnalyzedQuery != nil && colIdx >= 0 && colIdx < len(rel.AnalyzedQuery.TargetList) {
-			walkExpr(c, rel.AnalyzedQuery, rel.AnalyzedQuery.TargetList[colIdx].Expr, seen, cols)
+			walkExpr(c, []*catalog.Query{rel.AnalyzedQuery}, rel.AnalyzedQuery.TargetList[colIdx].Expr, seen, cols)
 			return
 		}
 		colName := ""
@@ -239,22 +260,44 @@ func resolveVar(c *catalog.Catalog, q *catalog.Query, v *catalog.VarExpr, seen m
 		appendSeenColumns(cols, seen, ColumnResource{Schema: rel.Schema.Name, Table: rel.Name, Column: colName})
 	case catalog.RTESubquery:
 		if rte.Subquery != nil && colIdx >= 0 && colIdx < len(rte.Subquery.TargetList) {
-			walkExpr(c, rte.Subquery, rte.Subquery.TargetList[colIdx].Expr, seen, cols)
+			walkExpr(c, appendQuery(stack, rte.Subquery), rte.Subquery.TargetList[colIdx].Expr, seen, cols)
 		}
 	case catalog.RTECTE:
-		if rte.CTEIndex >= 0 && rte.CTEIndex < len(q.CTEList) {
-			cte := q.CTEList[rte.CTEIndex]
-			if cte.Query != nil && colIdx >= 0 && colIdx < len(cte.Query.TargetList) {
-				walkExpr(c, cte.Query, cte.Query.TargetList[colIdx].Expr, seen, cols)
+		// rte.CTEIndex indexes the list of the query that defines the CTE,
+		// which may enclose q, so the name is matched from q outward.
+		for i := level; i >= 0; i-- {
+			if stack[i] == nil {
+				continue
+			}
+			for _, cte := range stack[i].CTEList {
+				if cte == nil || cte.Name != rte.CTEName {
+					continue
+				}
+				if cte.Query != nil && colIdx >= 0 && colIdx < len(cte.Query.TargetList) {
+					walkExpr(c, appendQuery(stack[:i+1], cte.Query), cte.Query.TargetList[colIdx].Expr, seen, cols)
+				}
+				return
 			}
 		}
 	case catalog.RTEJoin:
 		// Only a FULL JOIN USING column references the join itself; it
 		// reads both inputs.
 		if colIdx >= 0 && colIdx < len(rte.JoinAliasVars) {
-			walkExpr(c, q, rte.JoinAliasVars[colIdx], seen, cols)
+			walkExpr(c, stack, rte.JoinAliasVars[colIdx], seen, cols)
 		}
 	}
+}
+
+func currentQuery(stack []*catalog.Query) *catalog.Query {
+	if len(stack) == 0 {
+		return nil
+	}
+	return stack[len(stack)-1]
+}
+
+// appendQuery returns stack with q appended, leaving stack's array alone.
+func appendQuery(stack []*catalog.Query, q *catalog.Query) []*catalog.Query {
+	return append(stack[:len(stack):len(stack)], q)
 }
 
 func appendUniqueColumns(cols []ColumnResource, items ...ColumnResource) []ColumnResource {

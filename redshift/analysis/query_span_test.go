@@ -252,3 +252,25 @@ func TestQuerySpanSubqueryColumnAfterWindow(t *testing.T) {
 	span := mustQuerySpan(t, c, `SELECT s.v FROM (SELECT id, sum(id) OVER (PARTITION BY name) AS w, secret AS v FROM left_t) s`)
 	assertColumnsEqual(t, span.Results[0].SourceColumns, ColumnResource{Schema: "public", Table: "left_t", Column: "secret"})
 }
+
+func TestQuerySpanOuterQueryReferences(t *testing.T) {
+	c := catalog.New()
+	if _, err := c.Exec(`
+CREATE TABLE t (id int, email text, ssn text);
+CREATE TABLE o (id int);
+`, nil); err != nil {
+		t.Fatal(err)
+	}
+	ssn := ColumnResource{Schema: "public", Table: "t", Column: "ssn"}
+	email := ColumnResource{Schema: "public", Table: "t", Column: "email"}
+
+	// A CTE of the enclosing query, not the nested query's own.
+	span := mustQuerySpan(t, c, `WITH c AS (SELECT ssn AS x FROM t) SELECT (WITH d AS (SELECT email AS x FROM t) SELECT x FROM c LIMIT 1) AS y`)
+	assertResult(t, span.Results[0], "y", false, []ColumnResource{ssn})
+	// A column of the enclosing query.
+	span = mustQuerySpan(t, c, `SELECT (SELECT t.ssn FROM o LIMIT 1) AS y FROM t`)
+	assertResult(t, span.Results[0], "y", false, []ColumnResource{ssn})
+	// A CTE of the set operation a branch belongs to.
+	span = mustQuerySpan(t, c, `WITH c AS (SELECT ssn FROM t) SELECT ssn FROM c UNION ALL SELECT email FROM t`)
+	assertResult(t, span.Results[0], "ssn", true, []ColumnResource{ssn, email})
+}
