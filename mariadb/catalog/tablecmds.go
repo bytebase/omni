@@ -10,7 +10,7 @@ import (
 )
 
 func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
-	defer c.ignoreDescendingKeys()
+	defer c.ignoreDescendingKeys(stmt.Table)()
 	// Resolve database.
 	dbName := ""
 	if stmt.Table != nil {

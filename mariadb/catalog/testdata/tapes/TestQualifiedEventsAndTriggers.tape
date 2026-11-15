@@ -584,10 +584,10 @@
 < column "CONCAT('event ', EVENT_SCHEMA, '.', EVENT_NAME, ' ', EVENT_COMMENT)" "VARCHAR"
 < row
 : bytes
-| trigger b.tr on t
+| trigger b.tr2 on only_b
 < row
 : bytes
-| trigger b.tr2 on only_b
+| trigger b.tr on t
 > exec
 | DROP DATABASE IF EXISTS a
 < ok 1 0

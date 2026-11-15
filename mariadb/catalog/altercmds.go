@@ -9,7 +9,7 @@ import (
 )
 
 func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
-	defer c.ignoreDescendingKeys()
+	defer c.ignoreDescendingKeys(stmt.Table)()
 	// Resolve database.
 	dbName := ""
 	if stmt.Table != nil {

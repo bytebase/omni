@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	nodes "github.com/bytebase/omni/mariadb/ast"
 	"strconv"
 	"strings"
 )
@@ -104,22 +105,37 @@ func (c *Catalog) SetVersion(v Version) {
 	}
 }
 
-// ignoreDescendingKeys makes every key part ascending on a release before 10.8,
-// which takes DESC and stores the part ascending. Measured on mariadb:10.7.8:
-// KEY ix (b DESC) is stored KEY `ix` (`b`).
-func (c *Catalog) ignoreDescendingKeys() {
-	if c.session.Version.release() >= 1008 {
-		return
+// ignoreDescendingKeys makes every key part of the table ref names ascending on
+// a release before 10.8, which takes DESC and stores the part ascending.
+// Measured on mariadb:10.7.8: KEY ix (b DESC) is stored KEY `ix` (`b`). A
+// statement calls it, deferred, for the one table it changes; the table's
+// pointer, resolved first, follows an ALTER that renames it.
+func (c *Catalog) ignoreDescendingKeys(ref *nodes.TableRef) func() {
+	if c.session.Version.release() >= 1008 || ref == nil {
+		return func() {}
 	}
-	for _, db := range c.databases {
-		for _, tbl := range db.Tables {
-			for _, idx := range tbl.Indexes {
-				for _, ic := range idx.Columns {
-					ic.Descending = false
-				}
+	tbl := c.tableOf(ref)
+	return func() {
+		if tbl == nil {
+			tbl = c.tableOf(ref)
+		}
+		if tbl == nil {
+			return
+		}
+		for _, idx := range tbl.Indexes {
+			for _, ic := range idx.Columns {
+				ic.Descending = false
 			}
 		}
 	}
+}
+
+func (c *Catalog) tableOf(ref *nodes.TableRef) *Table {
+	db, err := c.resolveDatabase(ref.Schema)
+	if err != nil {
+		return nil
+	}
+	return db.Tables[toLower(ref.Name)]
 }
 
 // charsetCollation is the collation a character set takes where none is named,
