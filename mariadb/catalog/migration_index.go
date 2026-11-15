@@ -111,7 +111,7 @@ func addIndexOp(entry *TableDiffEntry, table string, idx *Index, n *Normalizer) 
 		SQL:          fmt.Sprintf("ALTER TABLE %s %s", table, clause),
 		Phase:        PhaseMain,
 		Priority:     priorityIndex,
-		sortName:     indexSortName(entry.Database, entry.Name, idx.Name),
+		sortName:     indexAddSortName(entry, idx),
 		alterClause:  clause,
 		addsIndex:    idx,
 	}
@@ -278,6 +278,21 @@ func indexOpRank(t MigrationOpType) int {
 		return 0
 	}
 	return 1
+}
+
+// indexAddSortName sorts the keys a table gains in the target's order: the first
+// UNIQUE key over NOT NULL columns is the table's implicit primary key, which
+// an IGNORED key cannot be (4174), so the order which one that is depends on
+// has to hold.
+func indexAddSortName(entry *TableDiffEntry, idx *Index) string {
+	position := len(entry.To.Indexes)
+	for i, other := range entry.To.Indexes {
+		if other == idx || toLower(other.Name) == toLower(idx.Name) {
+			position = i
+			break
+		}
+	}
+	return indexSortName(entry.Database, entry.Name, fmt.Sprintf("\x00%04d", position))
 }
 
 // indexSortName is the stable secondary sort key for an index op: lower-cased

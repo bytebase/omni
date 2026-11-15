@@ -47,6 +47,7 @@ func generateTriggerDDL(_, to *Catalog, diff *SchemaDiff, _ *Normalizer) []Migra
 		}
 	}
 
+	orderTriggerCreates(ops, diff)
 	sort.SliceStable(ops, func(i, j int) bool {
 		if ri, rj := triggerOpRank(ops[i].Type), triggerOpRank(ops[j].Type); ri != rj {
 			return ri < rj
@@ -55,6 +56,40 @@ func generateTriggerDDL(_, to *Catalog, diff *SchemaDiff, _ *Normalizer) []Migra
 	})
 
 	return ops
+}
+
+// orderTriggerCreates creates a trigger after the trigger its FOLLOWS or
+// PRECEDES names, where the plan creates that one too: the clause names a
+// trigger that exists.
+func orderTriggerCreates(ops []MigrationOp, diff *SchemaDiff) {
+	targets := make(map[string]string)
+	for _, te := range diff.Triggers {
+		if te.To != nil && te.Action != DiffDrop && te.To.Order != nil {
+			targets[triggerSortName(te.Database, te.To.Name)] = triggerSortName(te.Database, te.To.Order.TriggerName)
+		}
+	}
+	created := make(map[string]bool)
+	for _, op := range ops {
+		if op.Type == OpCreateTrigger {
+			created[op.sortName] = true
+		}
+	}
+	var depth func(key string, seen map[string]bool) int
+	depth = func(key string, seen map[string]bool) int {
+		target, ok := targets[key]
+		if !ok || !created[target] || seen[key] {
+			return 0
+		}
+		seen[key] = true
+		return depth(target, seen) + 1
+	}
+	for i := range ops {
+		if ops[i].Type == OpCreateTrigger {
+			if d := depth(ops[i].sortName, map[string]bool{}); d > 0 {
+				ops[i].Priority = priorityTrigger + d
+			}
+		}
+	}
 }
 
 // dropTriggerSuppressed reports whether an explicit DROP TRIGGER for `trig` must be skipped
@@ -83,6 +118,15 @@ func buildCreateTriggerOp(database string, trig, from *Trigger) MigrationOp {
 	var b strings.Builder
 	fmt.Fprintf(&b, "CREATE TRIGGER %s %s %s ON %s FOR EACH ROW",
 		trigIdent, strings.ToUpper(trig.Timing), strings.ToUpper(trig.Event), onTableIdent)
+	// The order among a table's triggers of one timing and event is what
+	// FOLLOWS or PRECEDES set: they run in it.
+	if o := trig.Order; o != nil && o.TriggerName != "" {
+		verb := "PRECEDES"
+		if o.Follows {
+			verb = "FOLLOWS"
+		}
+		fmt.Fprintf(&b, " %s %s", verb, migrationQuoteIdent(o.TriggerName))
+	}
 	if body := strings.TrimSpace(trig.Body); body != "" {
 		b.WriteString(" ")
 		b.WriteString(body)

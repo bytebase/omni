@@ -133,9 +133,24 @@ func tableOptionAlterOp(database, name string, from, to *Table, n *Normalizer) (
 		SQL: fmt.Sprintf("ALTER TABLE %s %s",
 			tableIdent(to), strings.Join(clauses, " ")),
 		Phase:    PhaseMain,
-		Priority: priorityTable,
+		Priority: tableOptionPriority(from, to),
 		sortName: tableSortName(database, name),
 	}, true
+}
+
+// tableOptionPriority runs a table's option ALTER ahead of its column changes,
+// unless it changes the engine while a column gives up AUTO_INCREMENT: the
+// target engine may refuse the column as the source holds it, as InnoDB
+// refuses an AUTO_INCREMENT column that does not lead a key (1075).
+func tableOptionPriority(from, to *Table) int {
+	if !eqFoldStr(from.Engine, to.Engine) {
+		for _, col := range from.Columns {
+			if target := to.GetColumn(col.Name); col.AutoIncrement && (target == nil || !target.AutoIncrement) {
+				return priorityColumn + 4
+			}
+		}
+	}
+	return priorityTable
 }
 
 // engineOptionClauses sets each engine-defined option of the target that differs and resets
@@ -227,7 +242,7 @@ func autoIncSupportingIndex(tbl *Table) *Index {
 	if autoCol == "" {
 		return nil
 	}
-	if pk := primaryKeyIndex(tbl); pk != nil && indexFirstColumnIs(pk, autoCol) {
+	if pk := primaryKeyIndex(tbl); pk != nil && indexBacksAutoColumn(pk, autoCol, tbl.Engine) {
 		return nil
 	}
 	skip := fkImplicitIndexNames(tbl)
@@ -236,7 +251,8 @@ func autoIncSupportingIndex(tbl *Table) *Index {
 		if idx == nil || idx.Primary {
 			continue
 		}
-		if !indexFirstColumnIs(idx, autoCol) {
+		// MyISAM and Aria take a key the column is any plain part of.
+		if !indexBacksAutoColumn(idx, autoCol, tbl.Engine) {
 			continue
 		}
 		if skip[toLower(idx.Name)] {

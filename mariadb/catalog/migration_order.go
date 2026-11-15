@@ -4,14 +4,15 @@ import (
 	"fmt"
 	"maps"
 	"slices"
+	"strings"
 
 	nodes "github.com/bytebase/omni/mariadb/ast"
 )
 
 // reorderTableChanges adjusts the ops of each modified table for what MariaDB
 // refuses or loses otherwise:
-//   - a column read by a generated column the plan modifies drops after the
-//     modify, where the plan removes it for good (1054);
+//   - a column read by the expression or CHECK of a column the plan modifies
+//     drops after the modify, where the plan removes it for good (1054);
 //   - a generated column whose new expression reads a generated column the
 //     plan adds is modified after the add (1054);
 //   - a key the plan keeps over an application-time period it replaces is
@@ -55,13 +56,14 @@ func opOfTable(op MigrationOp, e *TableDiffEntry) bool {
 func dropColumnsAfterGeneratedReads(ops []MigrationOp, e *TableDiffEntry) []MigrationOp {
 	read := make(map[string]bool)
 	removed := make(map[string]bool)
+	sourceReads := columnReads(e.From)
 	for _, ce := range e.Columns {
 		if ce.Action == DiffDrop {
 			removed[toLower(ce.Name)] = true
 		}
-		if ce.Action == DiffModify && ce.From != nil && ce.From.Generated != nil {
-			for _, ref := range ce.From.Generated.Refs {
-				read[toLower(ref)] = true
+		if ce.Action == DiffModify {
+			for _, ref := range sourceReads[toLower(ce.Name)] {
+				read[ref] = true
 			}
 		}
 	}
@@ -82,27 +84,29 @@ func dropColumnsAfterGeneratedReads(ops []MigrationOp, e *TableDiffEntry) []Migr
 func modifyGeneratedAfterAddedReads(ops []MigrationOp, e *TableDiffEntry) []MigrationOp {
 	added := make(map[string]bool)
 	for _, ce := range e.Columns {
-		if ce.Action == DiffAdd && ce.To != nil && ce.To.Generated != nil {
+		if ce.Action == DiffAdd {
 			added[toLower(ce.Name)] = true
 		}
 	}
 	if len(added) == 0 {
 		return ops
 	}
+	targetReads := columnReads(e.To)
 	reads := make(map[string]bool)
 	for _, ce := range e.Columns {
-		if ce.Action != DiffModify || ce.To == nil || ce.To.Generated == nil {
+		if ce.Action != DiffModify || ce.To == nil {
 			continue
 		}
-		for _, ref := range ce.To.Generated.Refs {
-			if added[toLower(ref)] {
+		for _, ref := range targetReads[toLower(ce.Name)] {
+			if added[ref] {
 				reads[toLower(ce.Name)] = true
 			}
 		}
 	}
 	for i := range ops {
 		if ops[i].Type == OpModifyColumn && opOfTable(ops[i], e) && reads[ops[i].column] {
-			// After the generated adds, at priorityColumn+1 (columnAddPriority).
+			// After every add, which runs at priorityColumn or, generated or
+			// reading a generated one, priorityColumn+1.
 			ops[i].Priority = priorityColumn + 2
 		}
 	}
@@ -330,12 +334,20 @@ func orderColumnAdds(ops []MigrationOp, e *TableDiffEntry) []MigrationOp {
 		}
 	}
 	reads := columnReads(e.To)
-	return rankColumnOps(ops, e, in, reads, func(op *MigrationOp, rank int) {
-		for _, ref := range reads[op.column] {
-			if p, ok := priority[ref]; ok && p > op.Priority {
-				op.Priority = p
+	// A column takes the latest priority of the added columns it reads,
+	// directly or through another.
+	for changed := true; changed; {
+		changed = false
+		for name, p := range priority {
+			for _, ref := range reads[name] {
+				if q, ok := priority[ref]; ok && q > p {
+					priority[name], p, changed = q, q, true
+				}
 			}
 		}
+	}
+	return rankColumnOps(ops, e, in, reads, func(op *MigrationOp, rank int) {
+		op.Priority = priority[op.column]
 		op.sortName = rankedColumnSortName(e, rank, fmt.Sprintf("%04d", columnPosition(e.To, op.column)))
 	})
 }
@@ -438,6 +450,8 @@ func rankColumnOps(ops []MigrationOp, e *TableDiffEntry, selects func(MigrationO
 			part := alterPart{clause: ops[i].alterClause}
 			if ops[i].Type == OpAddColumn {
 				part.addsColumn = ops[i].column
+			} else {
+				part.dropsColumn = ops[i].column
 			}
 			parts = append(parts, part)
 			if ops[i].Priority > ops[first].Priority {
@@ -518,6 +532,11 @@ func dropLastColumnsAfterAdds(ops []MigrationOp, e *TableDiffEntry) []MigrationO
 	for _, op := range ops {
 		if op.Type == OpDropColumn && opOfTable(op, e) {
 			dropped[op.column] = true
+			for _, part := range op.alterParts {
+				if part.dropsColumn != "" {
+					dropped[part.dropsColumn] = true
+				}
+			}
 		}
 	}
 	if len(dropped) == 0 || len(dropped) < len(diffableColumns(e.From)) {
@@ -547,27 +566,35 @@ func dropLastColumnsAfterAdds(ops []MigrationOp, e *TableDiffEntry) []MigrationO
 	if len(early) > 0 {
 		for i := range ops {
 			if ops[i].Type == OpAddColumn && opOfTable(ops[i], e) && early[ops[i].column] {
-				// Ahead of the drops, whose sort names rankedColumnSortName
-				// starts after an add's.
+				// Ahead of the drops, in the order orderColumnAdds gave them:
+				// their sort names start where rankedColumnSortName's do not.
 				ops[i].Phase, ops[i].Priority = PhasePre, priorityColumn-1
-				ops[i].sortName = columnAddSortName(e, e.To.GetColumn(ops[i].column))
+				ops[i].sortName = strings.Replace(ops[i].sortName, "\x01", "\x00", 1)
 			}
 		}
 		return ops
 	}
+	// The replaced column the drop order takes last, which no other dropped
+	// column reads.
+	last, add := -1, -1
 	for d := range ops {
-		if ops[d].Type != OpDropColumn || !opOfTable(ops[d], e) {
+		if ops[d].Type != OpDropColumn || !opOfTable(ops[d], e) || ops[d].alterParts != nil {
 			continue
 		}
 		for a := range ops {
 			if ops[a].Type == OpAddColumn && opOfTable(ops[a], e) && ops[a].column == ops[d].column && ops[a].alterParts == nil {
-				ops[a].alterParts = []alterPart{{clause: ops[d].alterClause}, {clause: ops[a].alterClause, addsColumn: ops[a].column}}
-				ops[a].SQL = "ALTER TABLE " + tableIdent(e.To) + " " + joinAlterParts(ops[a].alterParts)
-				return slices.Delete(ops, d, d+1)
+				if last < 0 || ops[d].Phase > ops[last].Phase || ops[d].Phase == ops[last].Phase && (ops[d].Priority > ops[last].Priority || ops[d].Priority == ops[last].Priority && ops[d].sortName > ops[last].sortName) {
+					last, add = d, a
+				}
 			}
 		}
 	}
-	return ops
+	if last < 0 {
+		return ops
+	}
+	ops[add].alterParts = []alterPart{{clause: ops[last].alterClause, dropsColumn: ops[last].column}, {clause: ops[add].alterClause, addsColumn: ops[add].column}}
+	ops[add].SQL = "ALTER TABLE " + tableIdent(e.To) + " " + joinAlterParts(ops[add].alterParts)
+	return slices.Delete(ops, last, last+1)
 }
 
 func releaseForeignKeysOfReplacedKeys(ops []MigrationOp, e *TableDiffEntry) []MigrationOp {
