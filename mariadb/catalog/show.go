@@ -250,6 +250,7 @@ func showColumnWithTable(col *Column, tbl *Table, checks map[string]*Constraint,
 			b.WriteString(" NOT NULL")
 		}
 		writeColumnTail(&b, col, plainOptions)
+		writeColumnCheck(&b, col, checks)
 		return b.String()
 	}
 
@@ -296,16 +297,19 @@ func showColumnWithTable(col *Column, tbl *Table, checks map[string]*Constraint,
 	}
 
 	writeColumnTail(&b, col, plainOptions)
+	writeColumnCheck(&b, col, checks)
+	return b.String()
+}
 
-	// The column's own CHECK, which MariaDB writes on the column and names
-	// after it, last in the definition and after any COMMENT:
-	// `a` int(11) DEFAULT 5 COMMENT 'hi' CHECK (`a` > 0). MySQL 8.0 writes
-	// every check as a table-level constraint. Measured on mariadb:11.8.8.
+// writeColumnCheck writes the column's own CHECK, which MariaDB writes on the
+// column, a generated one included, and names after it, last in the
+// definition and after any COMMENT: `a` int(11) DEFAULT 5 COMMENT 'hi' CHECK
+// (`a` > 0). MySQL 8.0 writes every check as a table-level constraint.
+// Measured on mariadb:11.8.8.
+func writeColumnCheck(b *strings.Builder, col *Column, checks map[string]*Constraint) {
 	if con := checks[toLower(col.Name)]; con != nil {
 		b.WriteString(fmt.Sprintf(" CHECK (%s)", con.CheckExpr))
 	}
-
-	return b.String()
 }
 
 // writeColumnTail writes what MariaDB 11.8.8 ends a column with before its
@@ -364,8 +368,7 @@ func columnChecks(tbl *Table) map[string]*Constraint {
 		if _, seen := out[key]; seen {
 			continue // the first one the table holds is the one written
 		}
-		// A generated column's CHECK is not written on it.
-		if owner := tbl.GetColumn(con.Column); owner == nil || owner.Generated != nil {
+		if tbl.GetColumn(con.Column) == nil {
 			continue
 		}
 		out[key] = con
@@ -385,11 +388,26 @@ func writtenOnColumn(checks map[string]*Constraint, con *Constraint) bool {
 // parentheses the DEFAULT grammar requires for an operator expression.
 // Measured on mariadb:11.8.8 — see formatDefault.
 func formatExpressionDefault(val string) string {
+	if name := stripAllOuterParens(val); isColumnName(name) {
+		return name
+	}
 	inner := stripOuterParens(val)
 	if isBareFunctionCall(inner) {
 		return inner
 	}
 	return "(" + inner + ")"
+}
+
+// isColumnName reports whether expr is one backquoted column name. MariaDB
+// writes a default that reads a column bare: measured on mariadb:10.7.8
+// through 11.8.8, DEFAULT (a) and DEFAULT ((a)) are written DEFAULT `a`.
+func isColumnName(expr string) bool {
+	if len(expr) < 2 || expr[0] != '`' {
+		return false
+	}
+	outside := false
+	closed := scanOutsideQuotes(expr, func(int, byte) { outside = true })
+	return closed && !outside
 }
 
 // scanOutsideQuotes calls f for each byte of expr that is not inside a quoted
@@ -829,25 +847,19 @@ func showTableOptions(tbl *Table) string {
 		}
 	}
 
-	// KEY_BLOCK_SIZE — shown when non-zero.
-	if tbl.KeyBlockSize > 0 {
-		parts = append(parts, fmt.Sprintf("KEY_BLOCK_SIZE=%d", tbl.KeyBlockSize))
+	// The options follow in the order store_create_info writes them, whatever
+	// order the statement gave them in. Measured on mariadb:11.8.8.
+	if tbl.MinRows != "" && tbl.MinRows != "0" {
+		parts = append(parts, fmt.Sprintf("MIN_ROWS=%s", tbl.MinRows))
 	}
-
-	// ROW_FORMAT — shown when explicitly set.
-	if tbl.RowFormat != "" {
-		parts = append(parts, fmt.Sprintf("ROW_FORMAT=%s", strings.ToUpper(tbl.RowFormat)))
+	if tbl.MaxRows != "" && tbl.MaxRows != "0" {
+		parts = append(parts, fmt.Sprintf("MAX_ROWS=%s", tbl.MaxRows))
 	}
-
-	if tbl.Comment != "" {
-		parts = append(parts, fmt.Sprintf("COMMENT='%s'", escapeComment(tbl.Comment)))
+	if tbl.AvgRowLength != "" && tbl.AvgRowLength != "0" {
+		parts = append(parts, fmt.Sprintf("AVG_ROW_LENGTH=%s", tbl.AvgRowLength))
 	}
-
-	if tbl.Compression != "" {
-		parts = append(parts, fmt.Sprintf("COMPRESSION='%s'", escapeComment(unquoteTableOption(tbl.Compression))))
-	}
-	if tbl.Encryption != "" {
-		parts = append(parts, fmt.Sprintf("ENCRYPTION='%s'", escapeComment(unquoteTableOption(tbl.Encryption))))
+	if tbl.PackKeys != "" && !eqFoldStr(tbl.PackKeys, "DEFAULT") {
+		parts = append(parts, fmt.Sprintf("PACK_KEYS=%s", tbl.PackKeys))
 	}
 	if tbl.StatsPersistent != "" && !eqFoldStr(tbl.StatsPersistent, "DEFAULT") {
 		parts = append(parts, fmt.Sprintf("STATS_PERSISTENT=%s", tbl.StatsPersistent))
@@ -858,21 +870,6 @@ func showTableOptions(tbl *Table) string {
 	if tbl.StatsSamplePages != "" && !eqFoldStr(tbl.StatsSamplePages, "DEFAULT") {
 		parts = append(parts, fmt.Sprintf("STATS_SAMPLE_PAGES=%s", tbl.StatsSamplePages))
 	}
-	if tbl.MinRows != "" && tbl.MinRows != "0" {
-		parts = append(parts, fmt.Sprintf("MIN_ROWS=%s", tbl.MinRows))
-	}
-	if tbl.MaxRows != "" && tbl.MaxRows != "0" {
-		parts = append(parts, fmt.Sprintf("MAX_ROWS=%s", tbl.MaxRows))
-	}
-	if tbl.AvgRowLength != "" && tbl.AvgRowLength != "0" {
-		parts = append(parts, fmt.Sprintf("AVG_ROW_LENGTH=%s", tbl.AvgRowLength))
-	}
-	if tbl.Tablespace != "" {
-		parts = append(parts, fmt.Sprintf("/*!50100 TABLESPACE `%s` */", unquoteTableOption(tbl.Tablespace)))
-	}
-	if tbl.PackKeys != "" && !eqFoldStr(tbl.PackKeys, "DEFAULT") {
-		parts = append(parts, fmt.Sprintf("PACK_KEYS=%s", tbl.PackKeys))
-	}
 	if tbl.Checksum != "" && tbl.Checksum != "0" {
 		parts = append(parts, fmt.Sprintf("CHECKSUM=%s", tbl.Checksum))
 	}
@@ -882,8 +879,26 @@ func showTableOptions(tbl *Table) string {
 	if tbl.DelayKeyWrite != "" && tbl.DelayKeyWrite != "0" {
 		parts = append(parts, fmt.Sprintf("DELAY_KEY_WRITE=%s", tbl.DelayKeyWrite))
 	}
+	if tbl.RowFormat != "" {
+		parts = append(parts, fmt.Sprintf("ROW_FORMAT=%s", strings.ToUpper(tbl.RowFormat)))
+	}
 	if tbl.Transactional != "" {
 		parts = append(parts, fmt.Sprintf("TRANSACTIONAL=%s", tbl.Transactional))
+	}
+	if tbl.KeyBlockSize > 0 {
+		parts = append(parts, fmt.Sprintf("KEY_BLOCK_SIZE=%d", tbl.KeyBlockSize))
+	}
+	if tbl.Comment != "" {
+		parts = append(parts, fmt.Sprintf("COMMENT='%s'", escapeComment(tbl.Comment)))
+	}
+	if tbl.Compression != "" {
+		parts = append(parts, fmt.Sprintf("COMPRESSION='%s'", escapeComment(unquoteTableOption(tbl.Compression))))
+	}
+	if tbl.Encryption != "" {
+		parts = append(parts, fmt.Sprintf("ENCRYPTION='%s'", escapeComment(unquoteTableOption(tbl.Encryption))))
+	}
+	if tbl.Tablespace != "" {
+		parts = append(parts, fmt.Sprintf("/*!50100 TABLESPACE `%s` */", unquoteTableOption(tbl.Tablespace)))
 	}
 	for _, o := range tbl.EngineOptions {
 		value := o.Value
@@ -932,10 +947,38 @@ func eqFoldStr(a, b string) bool {
 	return strings.EqualFold(a, b)
 }
 
+// escapeComment writes a comment as SHOW CREATE writes it (append_unescaped in
+// sql_show.cc): a backslash, NUL, newline, carriage return and Ctrl-Z take a
+// backslash escape, a quote is doubled, and anything else, a tab included, is
+// written as it is. Measured on mariadb:11.8.8.
 func escapeComment(s string) string {
-	s = strings.ReplaceAll(s, "\\", "\\\\")
-	s = strings.ReplaceAll(s, "'", "''")
-	return s
+	var b strings.Builder
+	for i := 0; i < len(s); i++ {
+		switch c := s[i]; c {
+		case '\\':
+			b.WriteString("\\\\")
+		case 0:
+			b.WriteString("\\0")
+		case '\n':
+			b.WriteString("\\n")
+		case '\r':
+			b.WriteString("\\r")
+		case 26:
+			b.WriteString("\\Z")
+		case '\'':
+			b.WriteString("''")
+		default:
+			// A character outside the BMP is stored as '?': MariaDB keeps
+			// comments in utf8mb3. Measured on mariadb:11.8.8 and 10.7.8.
+			if c >= 0xF0 && c <= 0xF4 && i+3 < len(s) {
+				b.WriteByte('?')
+				i += 3
+				continue
+			}
+			b.WriteByte(c)
+		}
+	}
+	return b.String()
 }
 
 // showPartitioning renders the partition clause for SHOW CREATE TABLE.
@@ -1203,6 +1246,11 @@ func formatBinaryDefault(val string, col *Column) (string, bool) {
 			return "0x" + hexOf(raw), true
 		default:
 			return val, true // a string default keeps its quotes
+		}
+	}
+	if family == familyTemporal && kind == literalString {
+		if lit, ok := temporalStringDefault(string(raw), col); ok {
+			return lit, true
 		}
 	}
 	if (family == familyString || family == familyNumber || family == familyTemporal) &&
@@ -1684,6 +1732,50 @@ func numberDefaultOf(kind literalKind, raw []byte, col *Column) (string, bool) {
 // YEAR does not come through here: its value is more than its digits, and
 // yearDefaultOf writes it.
 func scaleNumberDefault(text string, approximate bool, col *Column) (string, bool) {
+	out, ok := scaleNumberDefaultUnpadded(text, approximate, col)
+	if !ok || !strings.Contains(toLower(col.ColumnType), "zerofill") {
+		return out, ok
+	}
+	return zerofillPad(out, col), true
+}
+
+// zerofillPad pads a ZEROFILL column's default with zeros to the column's
+// display width, as the value itself would be shown. Measured on
+// mariadb:11.8.8: INT(5) ZEROFILL DEFAULT 3 is 00003, DECIMAL(6,2) ZEROFILL
+// DEFAULT 1.5 is 0001.50 (the precision and the point), FLOAT(7,3) ZEROFILL
+// DEFAULT 1.5 is 001.500, DOUBLE ZEROFILL DEFAULT 2 is 22 wide, and a value
+// wider than the width, INT(3) ZEROFILL DEFAULT 12345, stays as it is.
+func zerofillPad(value string, col *Column) string {
+	width := 0
+	if open := strings.IndexByte(col.ColumnType, '('); open >= 0 {
+		for _, c := range []byte(col.ColumnType[open+1:]) {
+			if c < '0' || c > '9' {
+				break
+			}
+			width = width*10 + int(c-'0')
+		}
+	}
+	switch normalizedTypeName(col.DataType) {
+	case "decimal":
+		if scale, _ := declaredScaleOf(col.ColumnType); scale > 0 {
+			width++
+		}
+	case "double":
+		if width <= 0 {
+			width = 22
+		}
+	case "float":
+		if width <= 0 {
+			width = 12
+		}
+	}
+	if len(value) >= width {
+		return value
+	}
+	return strings.Repeat("0", width-len(value)) + value
+}
+
+func scaleNumberDefaultUnpadded(text string, approximate bool, col *Column) (string, bool) {
 	digits, ok := normalizeNumberText(text)
 	if !ok {
 		return "", false
@@ -2688,4 +2780,95 @@ func truncateWholeNumber(digits string) string {
 		return "0"
 	}
 	return whole
+}
+
+// temporalStringDefault writes a quoted DATE, DATETIME, TIMESTAMP or TIME
+// default in the form the server stores it: every field two digits (the year
+// four, the hours as many as they need), days folded into the hours, and the
+// fraction cut, not rounded, to the column's precision and padded to it.
+// Measured on mariadb:11.8.8: TIME DEFAULT '1:2' is '01:02:00', TIME(1)
+// '-1 2:3:4.56' is '-26:03:04.5', DATETIME(3) '2020-1-2 3:4:5.6789' is
+// '2020-01-02 03:04:05.678', DATETIME '2020-01-02' is '2020-01-02 00:00:00'
+// and TIME '10:00:00.9' is '10:00:00'. ok is false for a form it does not
+// read, which is then written as it stands.
+func temporalStringDefault(text string, col *Column) (string, bool) {
+	fsp := declaredTypeLength(col.ColumnType)
+	fraction := func(f string) string {
+		if fsp == 0 {
+			return ""
+		}
+		if len(f) > fsp {
+			f = f[:fsp]
+		}
+		return "." + f + strings.Repeat("0", fsp-len(f))
+	}
+	fields := func(s, sep string) ([]int, bool) {
+		var out []int
+		for _, part := range strings.Split(s, sep) {
+			n, err := strconv.Atoi(part)
+			if err != nil || part == "" || n < 0 {
+				return nil, false
+			}
+			out = append(out, n)
+		}
+		return out, true
+	}
+	switch normalizedTypeName(col.DataType) {
+	case "date", "datetime", "timestamp":
+		datePart, timePart, hasTime := strings.Cut(text, " ")
+		if !hasTime {
+			datePart, timePart, hasTime = strings.Cut(text, "T")
+		}
+		ymd, ok := fields(datePart, "-")
+		if !ok || len(ymd) != 3 || len(strings.Split(datePart, "-")[0]) != 4 {
+			return "", false
+		}
+		date := fmt.Sprintf("%04d-%02d-%02d", ymd[0], ymd[1], ymd[2])
+		if normalizedTypeName(col.DataType) == "date" {
+			if hasTime {
+				return "", false
+			}
+			return "'" + date + "'", true
+		}
+		hms := []int{0, 0, 0}
+		frac := ""
+		if hasTime {
+			clock, f, _ := strings.Cut(timePart, ".")
+			parts, ok := fields(clock, ":")
+			if !ok || len(parts) != 3 {
+				return "", false
+			}
+			hms, frac = parts, f
+		}
+		if _, err := strconv.Atoi("0" + frac); err != nil {
+			return "", false
+		}
+		return fmt.Sprintf("'%s %02d:%02d:%02d%s'", date, hms[0], hms[1], hms[2], fraction(frac)), true
+	case "time":
+		sign := ""
+		if strings.HasPrefix(text, "-") {
+			sign, text = "-", text[1:]
+		}
+		days := 0
+		if d, rest, ok := strings.Cut(text, " "); ok {
+			n, err := strconv.Atoi(d)
+			if err != nil || n < 0 {
+				return "", false
+			}
+			days, text = n, rest
+		}
+		clock, frac, _ := strings.Cut(text, ".")
+		parts, ok := fields(clock, ":")
+		if !ok || len(parts) < 2 || len(parts) > 3 {
+			return "", false
+		}
+		if len(parts) == 2 {
+			parts = append(parts, 0)
+		}
+		if _, err := strconv.Atoi("0" + frac); err != nil {
+			return "", false
+		}
+		return fmt.Sprintf("'%s%02d:%02d:%02d%s'", sign, days*24+parts[0], parts[1], parts[2], fraction(frac)), true
+	}
+	return "", false
 }

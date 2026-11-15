@@ -654,7 +654,7 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 				Table:     tbl,
 				Columns:   []*IndexColumn{{Name: colDef.Name}},
 				Unique:    true,
-				IndexType: "",
+				IndexType: longUniqueIndexType(tbl.GetColumn(colDef.Name)),
 				Visible:   true,
 			})
 			tbl.Constraints = append(tbl.Constraints, &Constraint{
@@ -1231,7 +1231,8 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 			}
 		}
 		idxCols := buildIndexColumns(con)
-		if err := validateIndexColumns(tbl, idxCols, false, false); err != nil {
+		long, err := validateUniqueIndexColumns(tbl, idxCols)
+		if err != nil {
 			return err
 		}
 		uqIdx := &Index{
@@ -1241,6 +1242,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 			Unique:    true,
 			IndexType: resolveConstraintIndexType(con),
 			Visible:   true,
+		}
+		if long {
+			uqIdx.IndexType = "HASH"
 		}
 		applyIndexOptions(uqIdx, con.IndexOptions)
 		tbl.Indexes = append(tbl.Indexes, uqIdx)
@@ -1344,7 +1348,6 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 		// The CREATE TABLE path reads these; this one used to drop them, so an index
 		// added by ALTER lost its comment and block size.
 		applyIndexOptions(keyIdx, con.IndexOptions)
-		coerceInnoDBHashIndex(tbl, keyIdx)
 		tbl.Indexes = append(tbl.Indexes, keyIdx)
 
 	case nodes.ConstrFulltextIndex:
@@ -1698,7 +1701,8 @@ func (c *Catalog) alterRenameTable(db *Database, tbl *Table, cmd *nodes.AlterTab
 	newKey := toLower(newName)
 	oldKey := toLower(tbl.Name)
 
-	if (newDB != oldDB || newKey != oldKey) && newDB.Tables[newKey] != nil {
+	// Tables, views and sequences share one name space.
+	if (newDB != oldDB || newKey != oldKey) && (newDB.Tables[newKey] != nil || newDB.Views[newKey] != nil || newDB.Sequences[newKey] != nil) {
 		return errDupTable(newName)
 	}
 
@@ -1722,7 +1726,7 @@ func (c *Catalog) alterTableOption(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	}
 	switch toLower(opt.Name) {
 	case "engine":
-		tbl.Engine = opt.Value
+		tbl.Engine = canonicalEngineName(opt.Value)
 	case "charset", "character set", "default charset", "default character set":
 		tbl.Charset = normalizeCharsetName(opt.Value)
 		// Update collation to the default for this charset.
@@ -1788,7 +1792,7 @@ func (c *Catalog) alterColumnDefault(tbl *Table, cmd *nodes.AlterTableCmd) error
 		if err := validateDefaultExprForExistingColumn(col, cmd.DefaultExpr); err != nil {
 			return err
 		}
-		setColumnDefaultFromExpr(col, cmd.DefaultExpr)
+		setColumnDefaultFromExpr(col, qualifySequenceCalls(cmd.DefaultExpr, tbl))
 	} else {
 		// DROP DEFAULT — MySQL shows no default at all (not even DEFAULT NULL).
 		col.Default = nil
@@ -1907,14 +1911,14 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 		col.Comment = colDef.Comment
 	}
 	if colDef.DefaultValue != nil {
-		setColumnDefaultFromExpr(col, colDef.DefaultValue)
+		setColumnDefaultFromExpr(col, qualifySequenceCalls(colDef.DefaultValue, tbl))
 	}
 	if colDef.OnUpdate != nil {
 		setColumnOnUpdateFromExpr(col, colDef.OnUpdate)
 	}
 	if colDef.Generated != nil {
 		col.Generated = &GeneratedColumnInfo{
-			Expr:             nodeToSQLGenerated(colDef.Generated.Expr, tbl.Charset),
+			Expr:             nodeToSQL(colDef.Generated.Expr),
 			Stored:           colDef.Generated.Stored,
 			RowBound:         rowBoundSQL(colDef.Generated.RowBound),
 			Nondeterministic: nondeterministicFuncIn(colDef.Generated.Expr),
@@ -1932,7 +1936,7 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 			col.Nullable = true
 		case nodes.ColConstrDefault:
 			if cc.Expr != nil {
-				setColumnDefaultFromExpr(col, cc.Expr)
+				setColumnDefaultFromExpr(col, qualifySequenceCalls(cc.Expr, tbl))
 			}
 		case nodes.ColConstrAutoIncrement:
 			col.AutoIncrement = true
@@ -2128,7 +2132,7 @@ func (c *Catalog) alterAddPartition(tbl *Table, cmd *nodes.AlterTableCmd) error 
 			// STORAGE ENGINE is the other spelling of ENGINE, and names the
 			// same engine.
 			case "engine", "storage engine":
-				pdi.Engine = opt.Value
+				pdi.Engine = canonicalEngineName(opt.Value)
 			case "comment":
 				pdi.Comment = opt.Value
 			}
@@ -2230,7 +2234,7 @@ func (c *Catalog) alterReorganizePartition(tbl *Table, cmd *nodes.AlterTableCmd)
 			// STORAGE ENGINE is the other spelling of ENGINE, and names the
 			// same engine.
 			case "engine", "storage engine":
-				pdi.Engine = opt.Value
+				pdi.Engine = canonicalEngineName(opt.Value)
 			case "comment":
 				pdi.Comment = opt.Value
 			}

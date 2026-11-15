@@ -1146,6 +1146,11 @@ const (
 type IntLit struct {
 	Loc   Loc
 	Value int64
+	// Text is the literal's digits where they do not fit Value, which then
+	// holds math.MaxInt64: an unsigned BIGINT's 18446744073709551615, or the
+	// 9223372036854775808 that a minus makes the least BIGINT. It is "" for
+	// every other literal.
+	Text string
 }
 
 func (l *IntLit) nodeTag()  {}
@@ -3516,6 +3521,9 @@ type CreateSequenceStmt struct {
 	Cache       ExprNode  // CACHE n
 	NoCache     bool      // NOCACHE
 	Cycle       *bool     // CYCLE (true) / NOCYCLE (false) / nil unset
+	// Options are the table options that may follow the sequence options
+	// (opt_create_table_options in sql_yacc.yy), such as ENGINE and COMMENT.
+	Options []*TableOption
 }
 
 func (n *CreateSequenceStmt) nodeTag()  {}

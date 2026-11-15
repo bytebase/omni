@@ -8,6 +8,23 @@
 | CREATE SEQUENCE IF NOT EXISTS sq
 < ok 0 0
 > exec
+| CREATE OR REPLACE SEQUENCE cs_opt1 COMMENT 'c'
+< ok 0 0
+> exec
+| CREATE OR REPLACE SEQUENCE cs_opt2 START WITH 1 COMMENT='x' ENGINE=InnoDB
+< ok 0 0
+> exec
+| CREATE OR REPLACE SEQUENCE cs_opt3 ENGINE=MyISAM, COMMENT 'c'
+< ok 0 0
+> exec
+| CREATE OR REPLACE SEQUENCE cs_opt4 ENGINE=Aria COMMENT 'q' INCREMENT BY 2
+< error
+| 1064 42000 …near 'INCREMENT BY 2' at line 1
+> exec
+| ALTER SEQUENCE sq COMMENT 'y'
+< error
+| 1064 42000 …near 'COMMENT 'y'' at line 1
+> exec
 | CREATE SEQUENCE cs_plain
 < ok 0 0
 > exec

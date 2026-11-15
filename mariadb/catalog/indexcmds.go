@@ -54,7 +54,13 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 	if err := validateKeyPartPrefixes(stmt.Columns, stmt.Spatial); err != nil {
 		return err
 	}
-	if err := validateIndexColumns(tbl, idxCols, stmt.Fulltext, stmt.Spatial); err != nil {
+	long := false
+	if stmt.Unique && !stmt.Fulltext && !stmt.Spatial && !stmt.Vector {
+		var err error
+		if long, err = validateUniqueIndexColumns(tbl, idxCols); err != nil {
+			return err
+		}
+	} else if err := validateIndexColumns(tbl, idxCols, stmt.Fulltext, stmt.Spatial); err != nil {
 		return err
 	}
 
@@ -84,6 +90,9 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 		// after the column list; reading only the first dropped the second.
 		idx.IndexType = resolveIndexUsingType(stmt.IndexType, stmt.Options)
 		idx.Unique = stmt.Unique
+		if long {
+			idx.IndexType = "HASH"
+		}
 	}
 
 	applyIndexOptions(idx, stmt.Options)

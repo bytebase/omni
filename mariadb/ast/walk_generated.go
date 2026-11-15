@@ -336,6 +336,11 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.MinValue)
 		Walk(v, n.MaxValue)
 		Walk(v, n.Cache)
+		for _, item := range n.Options {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 	case *CreateTableStmt:
 		if n.Table != nil {
 			Walk(v, n.Table)

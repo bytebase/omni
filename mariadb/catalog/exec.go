@@ -292,6 +292,12 @@ func (c *Catalog) processUtility(stmt nodes.Node, source string) error {
 		return c.alterEvent(s)
 	case *nodes.DropEventStmt:
 		return c.dropEvent(s)
+	case *nodes.CreateSequenceStmt:
+		return c.createSequence(s)
+	case *nodes.AlterSequenceStmt:
+		return c.alterSequence(s)
+	case *nodes.DropSequenceStmt:
+		return c.dropSequence(s)
 	case *nodes.SetStmt:
 		return c.execSet(s)
 	case *nodes.SetStatementStmt:
@@ -387,6 +393,12 @@ func stmtLocStart(node nodes.Node) int {
 	case *nodes.AlterEventStmt:
 		return s.Loc.Start
 	case *nodes.DropEventStmt:
+		return s.Loc.Start
+	case *nodes.CreateSequenceStmt:
+		return s.Loc.Start
+	case *nodes.AlterSequenceStmt:
+		return s.Loc.Start
+	case *nodes.DropSequenceStmt:
 		return s.Loc.Start
 	case *nodes.SetStmt:
 		return s.Loc.Start

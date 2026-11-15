@@ -110,9 +110,10 @@ CREATE TABLE c (a INT, CONSTRAINT c_ibfk_1 FOREIGN KEY (a) REFERENCES p(id));`)
 			t.Errorf("omni: index a missing")
 			return
 		}
-		got2 := strings.ToUpper(idx.IndexType)
-		if got2 != "" && got2 != "BTREE" {
-			t.Errorf("omni: expected empty or BTREE (HASH coercion), got %q", idx.IndexType)
+		// MariaDB keeps the HASH an InnoDB key was declared with, in
+		// information_schema as above and in SHOW CREATE TABLE.
+		if got2 := strings.ToUpper(idx.IndexType); got2 != "HASH" {
+			t.Errorf("omni: expected HASH, got %q", idx.IndexType)
 		}
 	})
 

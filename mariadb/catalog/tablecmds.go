@@ -40,14 +40,11 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			return err
 		}
 	} else {
-		// Check for duplicate table or view with the same name.
-		if db.Tables[key] != nil {
+		// Tables, views and sequences share one name space.
+		if db.Tables[key] != nil || db.Views[key] != nil || db.Sequences[key] != nil {
 			if stmt.IfNotExists {
 				return nil
 			}
-			return errDupTable(tableName)
-		}
-		if db.Views[key] != nil {
 			return errDupTable(tableName)
 		}
 		if stmt.Like != nil {
@@ -60,6 +57,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	// CREATE TABLE ... LIKE
 	if stmt.Like != nil {
 		c.dropReplacedTable(db, replaced)
+		dropReplacedSequence(db, key, stmt)
 		return c.createTableLike(db, tableName, key, srcTbl, stmt)
 	}
 
@@ -70,6 +68,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	// longer has.
 	if stmt.Select != nil && len(stmt.Columns) == 0 {
 		c.dropReplacedTable(db, replaced)
+		dropReplacedSequence(db, key, stmt)
 		return nil
 	}
 
@@ -104,7 +103,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			tbl.SystemVersioned = true
 			tableOptionVersioned = true
 		case "engine":
-			tbl.Engine = opt.Value
+			tbl.Engine = canonicalEngineName(opt.Value)
 		case "charset", "character set", "default charset", "default character set":
 			tbl.Charset = normalizeCharsetName(opt.Value)
 			tblCharsetExplicit = true
@@ -191,6 +190,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		}
 		c.dropReplacedTable(db, replaced)
 	}
+	dropReplacedSequence(db, key, stmt)
 	// A definition without columns, CREATE TABLE r or one of only keys or
 	// checks, is 1113 in MariaDB, after OR REPLACE has dropped the old table.
 	if len(stmt.Columns) == 0 {
@@ -337,14 +337,14 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			return err
 		}
 		if colDef.DefaultValue != nil {
-			setColumnDefaultFromExpr(col, colDef.DefaultValue)
+			setColumnDefaultFromExpr(col, qualifySequenceCalls(colDef.DefaultValue, tbl))
 		}
 		if colDef.OnUpdate != nil {
 			setColumnOnUpdateFromExpr(col, colDef.OnUpdate)
 		}
 		if colDef.Generated != nil {
 			col.Generated = &GeneratedColumnInfo{
-				Expr:             nodeToSQLGenerated(colDef.Generated.Expr, tbl.Charset),
+				Expr:             nodeToSQL(colDef.Generated.Expr),
 				Stored:           colDef.Generated.Stored,
 				RowBound:         rowBoundSQL(colDef.Generated.RowBound),
 				Nondeterministic: nondeterministicFuncIn(colDef.Generated.Expr),
@@ -376,7 +376,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				col.Nullable = true
 			case nodes.ColConstrDefault:
 				if cc.Expr != nil {
-					setColumnDefaultFromExpr(col, cc.Expr)
+					setColumnDefaultFromExpr(col, qualifySequenceCalls(cc.Expr, tbl))
 				}
 			case nodes.ColConstrPrimaryKey:
 				if hasPK {
@@ -588,7 +588,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 					Table:     tbl,
 					Columns:   []*IndexColumn{{Name: colDef.Name}},
 					Unique:    true,
-					IndexType: "",
+					IndexType: longUniqueIndexType(tbl.GetColumn(colDef.Name)),
 					Visible:   true,
 				})
 				tbl.Constraints = append(tbl.Constraints, &Constraint{
@@ -671,7 +671,8 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 					return errDupKeyName(idxName)
 				}
 			}
-			if err := validateIndexColumns(tbl, idxCols, false, false); err != nil {
+			long, err := validateUniqueIndexColumns(tbl, idxCols)
+			if err != nil {
 				return err
 			}
 			uqIdx := &Index{
@@ -681,6 +682,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				Unique:    true,
 				IndexType: resolveConstraintIndexType(con),
 				Visible:   true,
+			}
+			if long {
+				uqIdx.IndexType = "HASH"
 			}
 			applyIndexOptions(uqIdx, con.IndexOptions)
 			if err := synthesizeFunctionalIndexColumns(tbl, uqIdx); err != nil {
@@ -772,7 +776,6 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				Visible:   true,
 			}
 			applyIndexOptions(keyIdx, con.IndexOptions)
-			coerceInnoDBHashIndex(tbl, keyIdx)
 			if err := synthesizeFunctionalIndexColumns(tbl, keyIdx); err != nil {
 				return err
 			}
@@ -1175,7 +1178,7 @@ func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause) *PartitionInfo {
 		for _, opt := range pd.Options {
 			switch toLower(opt.Name) {
 			case "engine":
-				pdi.Engine = opt.Value
+				pdi.Engine = canonicalEngineName(opt.Value)
 			case "comment":
 				pdi.Comment = opt.Value
 			}
@@ -1196,7 +1199,7 @@ func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause) *PartitionInfo {
 			for _, opt := range spd.Options {
 				switch toLower(opt.Name) {
 				case "engine":
-					spdi.Engine = opt.Value
+					spdi.Engine = canonicalEngineName(opt.Value)
 				case "comment":
 					spdi.Comment = opt.Value
 				}
@@ -1359,10 +1362,19 @@ func columnDefaultValue(expr nodes.ExprNode) (string, ColumnDefaultKind) {
 		return "0", ColumnDefaultConstant
 	case *nodes.BitLit:
 		return canonicalBitLiteral(e.Value), ColumnDefaultConstant
-	default:
+	case *nodes.TemporalLit:
+		// DATE '2020-01-01' is the constant it spells. Measured on
+		// mariadb:11.8.8: SHOW CREATE TABLE writes DEFAULT '2020-01-01'.
+		return "'" + e.Value + "'", ColumnDefaultConstant
+	case *nodes.FuncCallExpr:
 		if ts, ok := currentTimestampExpr(expr); ok {
 			return ts, ColumnDefaultCurrentTimestamp
 		}
+		// A function call needs no parentheses in DEFAULT and is an
+		// expression all the same. Measured on mariadb:11.8.8: DEFAULT
+		// curdate() is written DEFAULT curdate().
+		return nodeToSQL(expr), ColumnDefaultExpression
+	default:
 		return nodeToSQL(expr), ColumnDefaultConstant
 	}
 }
@@ -2121,6 +2133,12 @@ func validateKeyPartPrefixes(cols []*nodes.IndexColumn, spatial bool) error {
 }
 
 func validateIndexColumns(tbl *Table, idxCols []*IndexColumn, fulltext, spatial bool) error {
+	return validateKeyParts(tbl, idxCols, fulltext, spatial, false)
+}
+
+// validateKeyParts is validateIndexColumns, where wholeTextBlob lets a BLOB or
+// TEXT part go without a length, as a long unique key's does.
+func validateKeyParts(tbl *Table, idxCols []*IndexColumn, fulltext, spatial, wholeTextBlob bool) error {
 	for _, ic := range idxCols {
 		if ic.Name == "" {
 			continue
@@ -2151,7 +2169,7 @@ func validateIndexColumns(tbl *Table, idxCols []*IndexColumn, fulltext, spatial 
 			}
 			continue
 		}
-		if !fulltext && isTextBlobType(col.DataType) && ic.Length == 0 {
+		if !fulltext && !wholeTextBlob && isTextBlobType(col.DataType) && ic.Length == 0 {
 			return &Error{Code: 1170, SQLState: "42000", Message: "BLOB/TEXT column used in key specification without a key length"}
 		}
 		if ic.Length > 0 {
@@ -2184,10 +2202,27 @@ func fixedLengthStringColumnLimit(col *Column) (int, bool) {
 	return n, n > 0
 }
 
-func coerceInnoDBHashIndex(tbl *Table, idx *Index) {
-	if strings.EqualFold(tbl.Engine, "InnoDB") && strings.EqualFold(idx.IndexType, "HASH") {
-		idx.IndexType = "BTREE"
+// longUniqueIndexType is the type of a column's own UNIQUE: HASH, a long
+// unique key, over a BLOB or TEXT column, which it covers whole.
+func longUniqueIndexType(col *Column) string {
+	if col != nil && isTextBlobType(col.DataType) {
+		return "HASH"
 	}
+	return ""
+}
+
+// validateUniqueIndexColumns is validateIndexColumns for a unique key, which
+// may cover a BLOB or TEXT column whole: MariaDB then keeps the key as a long
+// unique one, USING HASH over the values, and long reports that it is one.
+// Measured on mariadb:11.8.8: `UNIQUE KEY (a)` over `a TEXT` is written
+// UNIQUE KEY `a` (`a`) USING HASH, while a PRIMARY KEY over it is still 1170.
+func validateUniqueIndexColumns(tbl *Table, cols []*IndexColumn) (long bool, err error) {
+	for _, ic := range cols {
+		if col := tbl.GetColumn(ic.Name); ic.Name != "" && col != nil && isTextBlobType(col.DataType) && ic.Length == 0 {
+			long = true
+		}
+	}
+	return long, validateKeyParts(tbl, cols, false, false, true)
 }
 
 func constraintNameExistsInTable(tbl *Table, typ ConstraintType, name string) bool {
@@ -2572,9 +2607,6 @@ func applyBinaryModifierCollation(col *Column, dt *nodes.DataType) {
 	col.Collation = fmt.Sprintf("%s_bin", normalizeCharsetName(col.Charset))
 }
 
-// nodeToSQLGenerated converts an AST expression to SQL for use in a generated
-// column definition.
-
 // isRowColumnType reports whether a column has a type valid for a
 // system-versioning ROW START/END column: TIMESTAMP(6) for timestamp-precise
 // versioning, or BIGINT UNSIGNED for transaction-precise versioning.
@@ -2785,113 +2817,6 @@ func colVersioningSQL(v nodes.ColVersioning) string {
 		return "WITHOUT"
 	default:
 		return ""
-	}
-}
-
-func nodeToSQLGenerated(node nodes.ExprNode, charset string) string {
-	if node == nil {
-		return ""
-	}
-	switch n := node.(type) {
-	case *nodes.ColumnRef:
-		if n.Table != "" {
-			return backtickIDQ(n.Table) + "." + backtickIDQ(n.Column)
-		}
-		return backtickIDQ(n.Column)
-	case *nodes.IntLit:
-		return fmt.Sprintf("%d", n.Value)
-	case *nodes.StringLit:
-		// MariaDB writes a string literal plainly in a generated column's
-		// expression: concat(`a`,' ',`b`). MySQL 8.0 prefixes it with a charset
-		// introducer, _utf8mb4' '. Measured on mariadb:11.8.8.
-		return "'" + n.Value + "'"
-	case *nodes.FuncCallExpr:
-		funcName := strings.ToLower(n.Name)
-		if n.Star {
-			return funcName + "(*)"
-		}
-		var args []string
-		for _, a := range n.Args {
-			args = append(args, nodeToSQLGenerated(a, charset))
-		}
-		return funcName + "(" + strings.Join(args, ",") + ")"
-	case *nodes.NullLit:
-		return "NULL"
-	case *nodes.BoolLit:
-		if n.Value {
-			return "1"
-		}
-		return "0"
-	case *nodes.FloatLit:
-		return n.Value
-	case *nodes.BitLit:
-		val := strings.TrimLeft(n.Value, "0")
-		if val == "" {
-			val = "0"
-		}
-		return "b'" + val + "'"
-	case *nodes.ParenExpr:
-		return "(" + nodeToSQLGenerated(n.Expr, charset) + ")"
-	case *nodes.KeywordArg:
-		// Bare keyword argument (timestampdiff unit, get_format type) —
-		// stored unquoted in generated-column bodies exactly like view bodies.
-		return n.Keyword
-	case *nodes.ExtractExpr:
-		// Oracle mariadb:11.8.8 stored form: extract(day_hour from `a`).
-		return "extract(" + strings.ToLower(n.Unit) + " from " + nodeToSQLGenerated(n.Expr, charset) + ")"
-	case *nodes.PositionExpr:
-		// Oracle mariadb:11.8.8 stored form: locate('x',`s`) — the engine
-		// keeps the function under its other name.
-		return "locate(" + nodeToSQLGenerated(n.Substr, charset) + "," + nodeToSQLGenerated(n.Str, charset) + ")"
-	case *nodes.BinaryExpr:
-		left := nodeToSQLGenerated(n.Left, charset)
-		right := nodeToSQLGenerated(n.Right, charset)
-		// MySQL rewrites JSON operators to function calls in generated column expressions.
-		switch n.Op {
-		case nodes.BinOpJsonExtract:
-			return "json_extract(" + left + "," + right + ")"
-		case nodes.BinOpJsonUnquote:
-			return "json_unquote(json_extract(" + left + "," + right + "))"
-		}
-		op := binaryOpToString(n.Op)
-		return "(" + left + " " + op + " " + right + ")"
-	case *nodes.UnaryExpr:
-		operand := nodeToSQLGenerated(n.Operand, charset)
-		switch n.Op {
-		case nodes.UnaryMinus:
-			return "-" + operand
-		case nodes.UnaryNot:
-			return "NOT " + operand
-		case nodes.UnaryBitNot:
-			return "~" + operand
-		case nodes.UnaryBinary:
-			// The server stores the cast the operator stands for, with no
-			// parentheses of its own around the argument: measured on
-			// mariadb:11.8.8, `b INT AS (BINARY (1 + 2))` comes back
-			// cast(1 + 2 as char charset binary), where writing the operand
-			// bare dropped the operator and left the grouping behind.
-			// This writer parenthesizes every binary expression, and the
-			// argument of a cast carries none, so the pair around it goes.
-			return "cast(" +
-				stripOuterParens(nodeToSQLGenerated(unwrapParens(n.Operand), charset)) +
-				" as char charset binary)"
-		default:
-			return operand
-		}
-	default:
-		return "(?)"
-	}
-}
-
-// unwrapParens strips the parentheses around an expression, which a position
-// that brings its own does not need.
-func unwrapParens(node nodes.ExprNode) nodes.ExprNode {
-	for {
-		p, ok := node.(*nodes.ParenExpr)
-		if !ok {
-			return node
-		}
-		node = p.Expr
 	}
 }
 
