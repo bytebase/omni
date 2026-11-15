@@ -302,10 +302,25 @@ func extractSDLDeps(stmts []nodes.Node) []sdlDep {
 		}
 	}
 
+	// The indexes declared apart from their table, so that CREATE TABLE ...
+	// LIKE copies them too.
+	indexesOf := make(map[objectKey][]int)
+	for i, stmt := range stmts {
+		if s, ok := stmt.(*nodes.CreateIndexStmt); ok && s.Table != nil {
+			key := resolveTableRef(s.Table, dbAt[i])
+			indexesOf[key] = append(indexesOf[key], i)
+		}
+	}
+
 	var deps []sdlDep
 	for i, stmt := range stmts {
 		for _, ref := range sdlRefs(stmt, dbAt[i]) {
 			if j, ok := keyToIdx[ref]; ok && j != i {
+				deps = append(deps, sdlDep{from: i, to: j})
+			}
+		}
+		if s, ok := stmt.(*nodes.CreateTableStmt); ok && s.Like != nil {
+			for _, j := range indexesOf[resolveTableRef(s.Like, dbAt[i])] {
 				deps = append(deps, sdlDep{from: i, to: j})
 			}
 		}
@@ -373,7 +388,13 @@ func collectSelectTableRefs(sel *nodes.SelectStmt, scope map[string]bool, refs *
 	if inner == nil {
 		inner = make(map[string]bool)
 	}
-	collectTopLevelCTENames(sel, inner)
+	// A query's own WITH binds in it and below it; a parenthesized set
+	// operand's WITH binds in that operand alone, which its own call handles.
+	for _, cte := range sel.CTEs {
+		if cte != nil && cte.Name != "" {
+			inner[toLower(cte.Name)] = true
+		}
+	}
 	nodes.Inspect(sel, func(n nodes.Node) bool {
 		switch n := n.(type) {
 		case *nodes.SelectStmt:
@@ -403,27 +424,6 @@ func collectSelectTableRefs(sel *nodes.SelectStmt, scope map[string]bool, refs *
 		}
 		return true
 	})
-}
-
-// collectTopLevelCTENames adds the CTE names declared in the top-level scope of a
-// query into names. The top-level scope spans the query's own WITH clause plus the
-// set-operation branches and parenthesized wrapper that share that scope; it does
-// not descend into FROM-clause subqueries or CTE bodies (those open their own
-// scopes).
-func collectTopLevelCTENames(sel *nodes.SelectStmt, names map[string]bool) {
-	if sel == nil {
-		return
-	}
-	for _, cte := range sel.CTEs {
-		if cte != nil && cte.Name != "" {
-			names[toLower(cte.Name)] = true
-		}
-	}
-	// UNION/INTERSECT/EXCEPT branches and a parenthesized wrapper share the
-	// enclosing WITH scope.
-	collectTopLevelCTENames(sel.Left, names)
-	collectTopLevelCTENames(sel.Right, names)
-	collectTopLevelCTENames(sel.ParenSource, names)
 }
 
 // ---------------------------------------------------------------------------

@@ -44,3 +44,23 @@ func TestLoadSDLEndsInTheLastSelectedDatabase(t *testing.T) {
 		t.Error("u not created in b, the database the SDL last selects")
 	}
 }
+
+func TestLoadSDLKeepsOperandCTEsInTheirOperand(t *testing.T) {
+	c, err := LoadSDL(dbDDL + "CREATE VIEW a AS SELECT * FROM b UNION ALL (WITH b AS (SELECT 1 AS x) SELECT * FROM b); CREATE VIEW b AS SELECT 2 AS x;")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := c.ShowCreateView("app", "a"); !strings.Contains(got, "AS select `b`.`x` AS `x` from `b` union all") {
+		t.Errorf("view a defined before b:\n%s", got)
+	}
+}
+
+func TestLoadSDLCopiesSeparateIndexesWithLike(t *testing.T) {
+	c, err := LoadSDL(dbDDL + "CREATE TABLE dst LIKE src; CREATE TABLE src (a INT); CREATE UNIQUE INDEX k ON src (a);")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := c.ShowCreateTable("app", "dst"); !strings.Contains(got, "UNIQUE KEY `k` (`a`)") {
+		t.Errorf("dst lost src's index:\n%s", got)
+	}
+}

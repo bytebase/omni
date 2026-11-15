@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"slices"
 	"sort"
 	"strings"
 )
@@ -113,7 +114,30 @@ func routineEntries(c *Catalog, isProcedure bool) map[string]routineRef {
 // routinesChanged reports whether two same-identity routines differ by
 // canonicalRoutine.
 func routinesChanged(a, b *Routine, n *Normalizer) bool {
-	return canonicalRoutine(a, n) != canonicalRoutine(b, n)
+	return canonicalRoutine(a, n) != canonicalRoutine(b, n) || routineModesDiffer(a, b)
+}
+
+// routineModesDiffer reports whether both routines carry a known session
+// context with different sql_modes. The mode a routine was created under is
+// part of what its body computes, PIPES_AS_CONCAT for one, and only a
+// recreate changes it.
+func routineModesDiffer(a, b *Routine) bool {
+	return a != nil && b != nil && a.HasSessionContext && b.HasSessionContext && !sameSQLMode(a.SQLMode, b.SQLMode)
+}
+
+// sameSQLMode compares two sql_mode lists as sets of modes.
+func sameSQLMode(a, b string) bool {
+	set := func(s string) string {
+		var modes []string
+		for _, m := range strings.Split(strings.ToUpper(s), ",") {
+			if m = strings.TrimSpace(m); m != "" {
+				modes = append(modes, m)
+			}
+		}
+		slices.Sort(modes)
+		return strings.Join(slices.Compact(modes), ",")
+	}
+	return set(a) == set(b)
 }
 
 // canonicalRoutine is the comparison key of a routine: its parameters in order,
@@ -195,7 +219,7 @@ func splitRoutineTypeCharset(typeStr string) (base, suffix string) {
 	s := strings.TrimSpace(typeStr)
 	// Search for the suffix keyword only past any member/argument list.
 	searchFrom := strings.LastIndexByte(s, ')') + 1 // 0 when there is no ')'
-	low := strings.ToLower(s)
+	low := asciiLower(s)
 	rel := strings.Index(low[searchFrom:], " charset ")
 	if rel < 0 {
 		// COLLATE may appear without an explicit CHARSET in rare forms; handle it too.
@@ -246,7 +270,7 @@ func canonicalRoutineCharacteristics(r *Routine, n *Normalizer) string {
 // SECURITY, COMMENT and DATA ACCESS, so it suffices when the routines are equal
 // once those three are masked out of both keys.
 func routineAlterSuffices(from, to *Routine, n *Normalizer) bool {
-	return canonicalRoutineExceptAlterable(from, n) == canonicalRoutineExceptAlterable(to, n)
+	return canonicalRoutineExceptAlterable(from, n) == canonicalRoutineExceptAlterable(to, n) && !routineModesDiffer(from, to)
 }
 
 // canonicalRoutineExceptAlterable is canonicalRoutine with the ALTER-able characteristics
@@ -280,4 +304,16 @@ func boolKey(b bool) string {
 		return "1"
 	}
 	return "0"
+}
+
+// asciiLower lower-cases ASCII letters only, so every byte offset into s holds
+// in the result: strings.ToLower folds the three-byte Kelvin sign to "k".
+func asciiLower(s string) string {
+	b := []byte(s)
+	for i, c := range b {
+		if 'A' <= c && c <= 'Z' {
+			b[i] = c + 'a' - 'A'
+		}
+	}
+	return string(b)
 }
