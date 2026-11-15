@@ -282,6 +282,8 @@ func TestResolveQuerySpanColumnAliases(t *testing.T) {
 		{statement: "SELECT *, v.x FROM t AS v(x) CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"x", []string{"db.public.t.id"}}}},
 		{statement: "SELECT *, v.x FROM (SELECT ssn FROM t) v(x) CROSS JOIN unknown_rows() u WHERE v.x = '1'", fallback: true, results: []result{{"x", []string{"db.public.t.ssn"}}}, predicates: []string{"db.public.t.ssn"}},
 		{statement: "SELECT * FROM (SELECT ssn, email FROM t) v(x) CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"x", []string{"db.public.t.ssn"}}, {"email", []string{"db.public.t.email"}}, {"unknown_rows", []string{}}}},
+		{statement: "SELECT *, v.ssn FROM (SELECT greatest(ssn, '') AS ssn FROM t) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"ssn", []string{"db.public.t.ssn"}}}},
+		{statement: "SELECT *, v.x FROM (SELECT ROW(ssn, email) AS x FROM t) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"x", []string{"db.public.t.email", "db.public.t.ssn"}}}},
 		{statement: "SELECT * FROM t AS v(x) CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"x", []string{"db.public.t.id"}}, {"email", []string{"db.public.t.email"}}, {"ssn", []string{"db.public.t.ssn"}}, {"unknown_rows", []string{}}}},
 	} {
 		t.Run(tc.statement, func(t *testing.T) {
@@ -649,4 +651,12 @@ func TestFallbackResolvesEachSubqueryOnce(t *testing.T) {
 	span := spanFor(t, "SELECT *, a FROM ("+inner+") v CROSS JOIN unknown_rows() u", healthySchema())
 	require.Len(t, span.Results, 1)
 	require.Equal(t, []string{"db.public.t.ssn"}, columnNames(span.Results[0].SourceColumns))
+}
+
+// A recursive CTE's reference to itself through an alias column list
+// resolves to nothing in the fallback instead of recursing.
+func TestFallbackStopsOnARecursiveCTEAliasList(t *testing.T) {
+	mustNotOverflow(t, func() {
+		spanFor(t, "WITH RECURSIVE c(ssn) AS (SELECT ssn FROM t UNION ALL SELECT v.ssn FROM c AS v(ssn) WHERE false) SELECT * FROM c CROSS JOIN unknown_rows() u", healthySchema())
+	})
 }

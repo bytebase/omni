@@ -327,9 +327,6 @@ type plpgsqlAnalyzer struct {
 	// subquery's alias or a table alias with a column list, to that FROM
 	// item. It is scoped as qualifiedFrom is.
 	fromItems map[string]ast.Node
-	// fromColumns caches fromItemColumns by FROM item; nil marks an item
-	// being resolved.
-	fromColumns map[ast.Node][]QuerySpanResult
 }
 
 type cteResolveKey struct {
@@ -1054,7 +1051,6 @@ func (a *plpgsqlAnalyzer) fallbackExtractLineage(origSQL string, selStmt *ast.Se
 	// qualified FROM must not pin a later query's unqualified reference.
 	a.qualifiedFrom = make(map[string]bool)
 	a.fromItems = make(map[string]ast.Node)
-	a.fromColumns = nil
 	fromTables := a.collectFromTables(selStmt)
 
 	var results []ColumnSet
@@ -1152,13 +1148,14 @@ func (a *plpgsqlAnalyzer) setFromItem(name string, item ast.Node) {
 // fromTables are the tables of the query the item is in, which a LATERAL
 // subquery can reference.
 func (a *plpgsqlAnalyzer) fromItemColumns(item ast.Node, fromTables map[string]ColumnResource) []QuerySpanResult {
-	if columns, ok := a.fromColumns[item]; ok {
+	cache := &a.extractor.fromColumns
+	if columns, ok := (*cache)[item]; ok {
 		return cloneResults(columns)
 	}
-	if a.fromColumns == nil {
-		a.fromColumns = make(map[ast.Node][]QuerySpanResult)
+	if *cache == nil {
+		*cache = make(map[ast.Node][]QuerySpanResult)
 	}
-	a.fromColumns[item] = nil
+	(*cache)[item] = nil
 
 	var columns []QuerySpanResult
 	var alias *ast.Alias
@@ -1180,7 +1177,7 @@ func (a *plpgsqlAnalyzer) fromItemColumns(item ast.Node, fromTables map[string]C
 			}
 		}
 	}
-	a.fromColumns[item] = columns
+	(*cache)[item] = columns
 	return cloneResults(columns)
 }
 
@@ -1530,6 +1527,15 @@ func (a *plpgsqlAnalyzer) extractColumnRefsFromExpr(node ast.Node, fromTables ma
 			a.extractColumnRefsFromExpr(item, fromTables, result)
 		}
 	default:
+		// Any other expression (GREATEST, ROW, ARRAY, a collation, ...)
+		// reads what its children read.
+		ast.Inspect(node, func(child ast.Node) bool {
+			if child == node {
+				return true
+			}
+			a.extractColumnRefsFromExpr(child, fromTables, result)
+			return false
+		})
 	}
 }
 

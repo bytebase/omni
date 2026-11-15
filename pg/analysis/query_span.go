@@ -64,6 +64,11 @@ type querySpanExtractor struct {
 	// fallbackCTEAliases holds CTE column aliases (e.g., WITH t1(cc1, cc2) AS (...)).
 	// Keyed by lowercase CTE name.
 	fallbackCTEAliases map[string][]string
+	// fromColumns caches the fallback's fromItemColumns by FROM item, for
+	// every analyzer of the statement; nil marks an item being resolved, so
+	// an item reached again through itself, as a recursive CTE's reference
+	// is, reads nothing.
+	fromColumns map[ast.Node][]QuerySpanResult
 }
 
 func newQuerySpanExtractor(defaultDatabase string, searchPath []string, cat Catalog) *querySpanExtractor {
