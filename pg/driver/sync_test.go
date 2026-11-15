@@ -341,6 +341,8 @@ SELECT
 	cols.datetime_precision,
 	cols.ordinal_position,
 	cols.column_default,
+	pa.attgenerated AS generation_kind,
+	cols.generation_expression,
 	cols.is_nullable,
 	cols.collation_name,
 	cols.udt_schema,
@@ -349,7 +351,8 @@ SELECT
 	pg_catalog.col_description(c.oid, cols.ordinal_position::int) as column_comment
 FROM INFORMATION_SCHEMA.COLUMNS AS cols
 LEFT JOIN pg_namespace n ON n.nspname = cols.table_schema
-LEFT JOIN pg_class c ON c.relname = cols.table_name AND c.relnamespace = n.oid AND c.relkind IN ('r', 'v', 'm', 'p', 'f')` + fmt.Sprintf(`
+LEFT JOIN pg_class c ON c.relname = cols.table_name AND c.relnamespace = n.oid AND c.relkind IN ('r', 'v', 'm', 'p', 'f')
+LEFT JOIN pg_attribute pa ON pa.attrelid = c.oid AND pa.attname = cols.column_name AND NOT pa.attisdropped` + fmt.Sprintf(`
 WHERE cols.table_schema NOT IN (%s)
   AND cols.table_schema NOT LIKE 'pg_temp%%'
   AND cols.table_schema NOT LIKE 'pg_toast%%'

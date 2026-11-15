@@ -67,6 +67,9 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 		if err := writeSchema(&buf, schema); err != nil {
 			return "", err
 		}
+		if err := writeSchemaOwnerAndComment(&buf, schema); err != nil {
+			return "", err
+		}
 	}
 
 	// Construct extensions.
@@ -110,6 +113,7 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 	materializedViewMap := make(map[string]*metadatapb.MaterializedViewMetadata)
 
 	// Construct functions.
+	functionIDsByName := make(map[string][]string)
 	for _, schema := range metadata.Schemas {
 		for _, function := range schema.Functions {
 			if function.SkipDump {
@@ -117,6 +121,8 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 			}
 			funcID := getObjectID(schema.Name, metadataFuncIdentity(function))
 			functionMap[funcID] = function
+			qualified := schema.Name + "." + function.Name
+			functionIDsByName[qualified] = append(functionIDsByName[qualified], funcID)
 			graph.AddNode(funcID)
 			for _, dependency := range function.DependencyTables {
 				dependencyID := getObjectID(dependency.Schema, dependency.Table)
@@ -173,6 +179,7 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 			tableID := getObjectID(schema.Name, table.Name)
 			tableMap[tableID] = table
 			graph.AddNode(tableID)
+			addColumnFunctionEdges(graph, functionMap, functionIDsByName, schema.Name, table)
 		}
 
 		for _, view := range schema.Views {
@@ -305,6 +312,9 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 func SchemaDefinition(schema *metadatapb.SchemaMetadata) (string, error) {
 	var buf strings.Builder
 	if err := writeSchema(&buf, schema); err != nil {
+		return "", err
+	}
+	if err := writeSchemaOwnerAndComment(&buf, schema); err != nil {
 		return "", err
 	}
 
@@ -746,6 +756,13 @@ func writeEventTrigger(out io.Writer, eventTrigger *metadatapb.EventTriggerMetad
 		}
 	}
 
+	// A disabled event trigger is created enabled; restore its disabled state.
+	if !eventTrigger.Enabled {
+		if _, err := fmt.Fprintf(out, "ALTER EVENT TRIGGER \"%s\" DISABLE;\n\n", eventTrigger.Name); err != nil {
+			return err
+		}
+	}
+
 	// Write event trigger comment if present
 	if eventTrigger.Comment != "" {
 		if err := writeEventTriggerComment(out, eventTrigger); err != nil {
@@ -823,6 +840,12 @@ func writeEnum(out io.Writer, schema string, enum *metadatapb.EnumTypeMetadata) 
 
 func escapeSingleQuote(s string) string {
 	return strings.ReplaceAll(s, "'", "''")
+}
+
+// escapeIdentifier doubles the double quotes in a name so it is safe inside a
+// quoted identifier, as a role name with a double quote would otherwise be.
+func escapeIdentifier(s string) string {
+	return strings.ReplaceAll(s, `"`, `""`)
 }
 
 func writeCompositeType(out io.Writer, schema string, composite *metadatapb.CompositeTypeMetadata) error {
@@ -1468,6 +1491,14 @@ func writeCreateSequence(out io.Writer, schema string, sequence *metadatapb.Sequ
 	if _, err := io.WriteString(out, sequence.MaxValue); err != nil {
 		return err
 	}
+	if sequence.CacheSize != "" {
+		if _, err := io.WriteString(out, "\n	CACHE "); err != nil {
+			return err
+		}
+		if _, err := io.WriteString(out, sequence.CacheSize); err != nil {
+			return err
+		}
+	}
 	if sequence.Cycle {
 		if _, err := io.WriteString(out, "\n	CYCLE"); err != nil {
 			return err
@@ -1567,6 +1598,61 @@ func metadataFuncIdentity(f *metadatapb.FunctionMetadata) string {
 	return f.Name
 }
 
+// addColumnFunctionEdges adds an edge from each user function a column's
+// default or generation expression calls to the column's table, so the
+// function is created first. A STORED generated column's expression and a
+// column default are validated against their functions at CREATE TABLE time,
+// and TopologicalSort otherwise orders a table before a function it needs
+// whenever the table's id sorts first. Built-in functions and unparsable
+// expressions add no edge.
+//
+// The call's exact overload is not resolved, so an edge is added for every
+// function sharing the referenced name — except an overload that itself
+// depends on this table (for example one taking the table's row type), which
+// the referenced overload never is and which would make a cycle that drops
+// the sort to its all-tables-then-all-functions fallback.
+func addColumnFunctionEdges(graph *definitionGraph, functionMap map[string]*metadatapb.FunctionMetadata, functionIDsByName map[string][]string, schema string, table *metadatapb.TableMetadata) {
+	tableID := getObjectID(schema, table.Name)
+	for _, column := range table.Columns {
+		var exprs []string
+		if column.Default != "" {
+			exprs = append(exprs, column.Default)
+		}
+		if column.Generation != nil && column.Generation.Expression != "" {
+			exprs = append(exprs, column.Generation.Expression)
+		}
+		for _, expr := range exprs {
+			node, err := parseScalar("SELECT " + expr)
+			if err != nil {
+				continue
+			}
+			funcRefs, _, _ := collectExprDeps(node)
+			for _, ref := range funcRefs {
+				for _, funcID := range functionIDsByName[ref] {
+					if functionDependsOnTable(functionMap[funcID], schema, table.Name) {
+						continue
+					}
+					graph.AddEdge(funcID, tableID)
+				}
+			}
+		}
+	}
+}
+
+// functionDependsOnTable reports whether function lists (schema, table) among
+// its dependency tables.
+func functionDependsOnTable(function *metadatapb.FunctionMetadata, schema, table string) bool {
+	if function == nil {
+		return false
+	}
+	for _, dependency := range function.DependencyTables {
+		if dependency.Schema == schema && dependency.Table == table {
+			return true
+		}
+	}
+	return false
+}
+
 func getObjectID(schema string, object string) string {
 	var buf strings.Builder
 	_, _ = buf.WriteString(schema)
@@ -1631,8 +1717,25 @@ func writeCreateTable(out io.Writer, schema string, tableName string, columns []
 			return err
 		}
 
-		// Handle default values
-		if column.Default != "" {
+		// The collation is a bare name; a user-defined collation would need
+		// its schema, which the metadata does not carry, so only a built-in
+		// collation (pg_catalog, such as "C") round-trips.
+		if column.Collation != "" {
+			if _, err := fmt.Fprintf(out, ` COLLATE "%s"`, column.Collation); err != nil {
+				return err
+			}
+		}
+
+		// A generated column carries its expression in place of a default.
+		if column.Generation != nil {
+			storage := "STORED"
+			if column.Generation.Type == metadatapb.GenerationMetadata_TYPE_VIRTUAL {
+				storage = "VIRTUAL"
+			}
+			if _, err := fmt.Fprintf(out, " GENERATED ALWAYS AS (%s) %s", column.Generation.Expression, storage); err != nil {
+				return err
+			}
+		} else if column.Default != "" {
 			if _, err := io.WriteString(out, ` DEFAULT `); err != nil {
 				return err
 			}
@@ -1908,6 +2011,15 @@ func writeTable(out io.Writer, schema string, table *metadatapb.TableMetadata, s
 		}
 	}
 
+	// Set the owner after linking OWNED BY sequences, so the change cascades
+	// to them: PostgreSQL requires an owned sequence to share its table's
+	// owner. Identity sequences are created below, under this owner.
+	if table.Owner != "" {
+		if _, err := fmt.Fprintf(out, "ALTER TABLE \"%s\".\"%s\" OWNER TO \"%s\";\n\n", escapeIdentifier(schema), escapeIdentifier(table.Name), escapeIdentifier(table.Owner)); err != nil {
+			return err
+		}
+	}
+
 	// Construct comments.
 	if len(table.Comment) > 0 {
 		if err := writeTableComment(out, schema, table); err != nil {
@@ -2073,6 +2185,19 @@ func writeForeignKey(out io.Writer, schema string, table string, fk *metadatapb.
 		return err
 	}
 
+	// MATCH SIMPLE is the default and PostgreSQL omits it; FULL and PARTIAL
+	// are written.
+	switch fk.MatchType {
+	case "FULL":
+		if _, err := io.WriteString(out, "\n    MATCH FULL"); err != nil {
+			return err
+		}
+	case "PARTIAL":
+		if _, err := io.WriteString(out, "\n    MATCH PARTIAL"); err != nil {
+			return err
+		}
+	}
+
 	// Add ON DELETE clause if specified
 	if fk.OnDelete != "" && fk.OnDelete != "NO ACTION" {
 		if _, err := io.WriteString(out, "\n    ON DELETE "); err != nil {
@@ -2171,6 +2296,10 @@ func writeIndexKeyList(out io.Writer, index *metadatapb.IndexMetadata) error {
 		return err
 	}
 
+	// NULLS ordering is not stored on IndexMetadata; it is read back from the
+	// index definition, which pg_get_indexdef writes only when non-default.
+	nulls := indexKeyNulls(index.Definition)
+
 	for i, expression := range index.Expressions {
 		if i > 0 {
 			if _, err := io.WriteString(out, ", "); err != nil {
@@ -2203,12 +2332,47 @@ func writeIndexKeyList(out io.Writer, index *metadatapb.IndexMetadata) error {
 				return err
 			}
 		}
-		// Note: NULLS ordering information is not available in IndexMetadata
-		// so we omit it in the generated DDL
+
+		if i < len(nulls) {
+			switch nulls[i] {
+			case ast.SORTBY_NULLS_FIRST:
+				if _, err := io.WriteString(out, " NULLS FIRST"); err != nil {
+					return err
+				}
+			case ast.SORTBY_NULLS_LAST:
+				if _, err := io.WriteString(out, " NULLS LAST"); err != nil {
+					return err
+				}
+			}
+		}
 	}
 
 	_, err := io.WriteString(out, ")")
 	return err
+}
+
+// indexKeyNulls returns the per-key NULLS ordering of a CREATE INDEX
+// definition, aligned with its key expressions. A definition that does not
+// parse yields no orderings, so the key list renders without them.
+func indexKeyNulls(definition string) []ast.SortByNulls {
+	if definition == "" {
+		return nil
+	}
+	stmts, err := parseDefinition(definition)
+	if err != nil || len(stmts) == 0 {
+		return nil
+	}
+	idx, ok := stmts[0].(*ast.IndexStmt)
+	if !ok || idx == nil || idx.IndexParams == nil {
+		return nil
+	}
+	var out []ast.SortByNulls
+	for _, item := range idx.IndexParams.Items {
+		if elem, ok := item.(*ast.IndexElem); ok {
+			out = append(out, elem.NullsOrdering)
+		}
+	}
+	return out
 }
 
 func writeIndexComment(out io.Writer, schema string, index *metadatapb.IndexMetadata) error {
@@ -2753,11 +2917,17 @@ func writeIndexInternal(out io.Writer, schema string, table string, index *metad
 		return err
 	}
 
-	// Write INCLUDE and WHERE clauses from the full index definition (from pg_get_indexdef).
+	// Write INCLUDE, WITH and WHERE clauses from the full index definition
+	// (from pg_get_indexdef), in that order.
 	if index.Definition != "" {
 		includeClause, whereClause := extractIndexClauses(index.Definition)
 		if includeClause != "" {
 			if _, err := fmt.Fprintf(out, " %s", includeClause); err != nil {
+				return err
+			}
+		}
+		if withClause := extractIndexWith(index.Definition); withClause != "" {
+			if _, err := fmt.Fprintf(out, " %s", withClause); err != nil {
 				return err
 			}
 		}
@@ -2802,6 +2972,23 @@ func writeSchema(out io.Writer, schema *metadatapb.SchemaMetadata) error {
 
 	_, err := io.WriteString(out, "\n\n")
 	return err
+}
+
+// writeSchemaOwnerAndComment restores a schema's owner and comment in a dump.
+// The public schema already exists and keeps its owner, so only its comment
+// is written.
+func writeSchemaOwnerAndComment(out io.Writer, schema *metadatapb.SchemaMetadata) error {
+	if schema.Name != "public" && schema.Owner != "" {
+		if _, err := fmt.Fprintf(out, "ALTER SCHEMA \"%s\" OWNER TO \"%s\";\n\n", escapeIdentifier(schema.Name), escapeIdentifier(schema.Owner)); err != nil {
+			return err
+		}
+	}
+	if schema.Comment != "" {
+		if _, err := fmt.Fprintf(out, "COMMENT ON SCHEMA \"%s\" IS '%s';\n\n", schema.Name, escapeSingleQuote(schema.Comment)); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // extractIndexClauses parses a CREATE INDEX statement using the omni parser and
@@ -2849,6 +3036,77 @@ func extractIndexClauses(definition string) (includeClause, whereClause string) 
 	}
 
 	return includeClause, whereClause
+}
+
+// extractIndexWith returns the storage-parameter clause of a CREATE INDEX
+// definition, such as `WITH (pages_per_range='16')`, or "" when the index has
+// none. It reads the clause verbatim from the definition, which
+// pg_get_indexdef writes between the key list and any WHERE clause. The clause
+// is the `WITH (` keyword at bracket depth zero and outside any quotes, so a
+// `WITH (` inside the quoted index name, a key expression, or an INCLUDE
+// column is not mistaken for it.
+func extractIndexWith(definition string) string {
+	stmts, err := parseDefinition(definition)
+	if err != nil || len(stmts) == 0 {
+		return ""
+	}
+	idx, ok := stmts[0].(*ast.IndexStmt)
+	if !ok || idx == nil || idx.Options == nil || len(idx.Options.Items) == 0 {
+		return ""
+	}
+	inSingle, inDouble, depth := false, false, 0
+	for i := 0; i < len(definition); i++ {
+		c := definition[i]
+		switch {
+		case inSingle:
+			if c == '\'' {
+				inSingle = false
+			}
+		case inDouble:
+			if c == '"' {
+				inDouble = false
+			}
+		case c == '\'':
+			inSingle = true
+		case c == '"':
+			inDouble = true
+		case c == '(':
+			depth++
+		case c == ')':
+			if depth > 0 {
+				depth--
+			}
+		case depth == 0 && (c == 'W' || c == 'w') && (i == 0 || definition[i-1] == ' ') && strings.HasPrefix(definition[i:], "WITH ("):
+			return indexWithClause(definition, i)
+		}
+	}
+	return ""
+}
+
+// indexWithClause returns the `WITH (...)` clause of definition that begins at
+// start, with its parentheses balanced and single-quoted values skipped.
+func indexWithClause(definition string, start int) string {
+	open := start + len("WITH ") // the '(' of the clause
+	depth, inSingle := 0, false
+	for j := open; j < len(definition); j++ {
+		c := definition[j]
+		switch {
+		case inSingle:
+			if c == '\'' {
+				inSingle = false
+			}
+		case c == '\'':
+			inSingle = true
+		case c == '(':
+			depth++
+		case c == ')':
+			depth--
+			if depth == 0 {
+				return definition[start : j+1]
+			}
+		}
+	}
+	return ""
 }
 
 // isBalancedParens checks if a string has balanced parentheses.
