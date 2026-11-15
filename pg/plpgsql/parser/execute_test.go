@@ -144,3 +144,10 @@ func TestExecuteDuplicateUsingError(t *testing.T) {
 	// Duplicate USING produces error
 	parseErr(t, `BEGIN EXECUTE 'SELECT $1' USING a USING b; END`, "duplicate USING")
 }
+
+func TestExecuteIntoParameter(t *testing.T) {
+	node := parseOK(t, `BEGIN EXECUTE 'SELECT ssn FROM t' INTO $1; END`).Body[0].(*ast.PLDynExecute)
+	if len(node.Into) != 1 || node.Into[0] != "$1" {
+		t.Errorf("Into = %v, want [$1]", node.Into)
+	}
+}

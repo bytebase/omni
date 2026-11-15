@@ -263,6 +263,54 @@ func TestStripViewBodyDatabaseQualifier(t *testing.T) {
 		want   string
 	}{
 		{
+			name:   "table_shadowed_by_cte_keeps_qualifier",
+			body:   "with `t` as (select 1 AS `id`) select `db`.`t`.`id` AS `id` from (`db`.`t` join `db`.`u`)",
+			dbName: "db",
+			want:   "with `t` as (select 1 AS `id`) select `db`.`t`.`id` AS `id` from (`db`.`t` join `u`)",
+		},
+		{
+			name:   "table_named_like_another_databases_keeps_qualifier",
+			body:   "select `db`.`t`.`id` AS `id` from ((`db`.`t` join `ext`.`t`) join `db`.`u`)",
+			dbName: "db",
+			want:   "select `db`.`t`.`id` AS `id` from ((`db`.`t` join `ext`.`t`) join `u`)",
+		},
+		{
+			name:   "table_named_like_an_alias_keeps_qualifier",
+			body:   "select `db`.`t`.`id` AS `id` from `db`.`t` where exists(select 1 from `ext`.`u` `t` where (`t`.`id` = `db`.`t`.`id`))",
+			dbName: "db",
+			want:   "select `db`.`t`.`id` AS `id` from `db`.`t` where exists(select 1 from `ext`.`u` `t` where (`t`.`id` = `db`.`t`.`id`))",
+		},
+		{
+			name:   "table_named_like_a_derived_tables_alias_keeps_qualifier",
+			body:   "select `db`.`t`.`id` AS `id` from `db`.`t` where exists(select 1 from (select 2 AS `id`) `t` where (`t`.`id` = `db`.`t`.`id`))",
+			dbName: "db",
+			want:   "select `db`.`t`.`id` AS `id` from `db`.`t` where exists(select 1 from (select 2 AS `id`) `t` where (`t`.`id` = `db`.`t`.`id`))",
+		},
+		{
+			name:   "local_alias_another_alias_repeats_keeps_qualifier",
+			body:   "select `db`.`a`.`id` AS `id` from `db`.`t` `a` where exists(select 1 from `ext`.`u` `a` where (`a`.`id` = `db`.`a`.`id`))",
+			dbName: "db",
+			want:   "select `db`.`a`.`id` AS `id` from `t` `a` where exists(select 1 from `ext`.`u` `a` where (`a`.`id` = `db`.`a`.`id`))",
+		},
+		{
+			name:   "aliased_table_a_cte_shadows_keeps_qualifier",
+			body:   "with `t` as (select 1 AS `id`) select `x`.`id` AS `id` from `db`.`t` `x`",
+			dbName: "db",
+			want:   "with `t` as (select 1 AS `id`) select `x`.`id` AS `id` from `db`.`t` `x`",
+		},
+		{
+			name:   "table_named_like_the_view_is_stripped",
+			body:   "select `db`.`v`.`id` AS `id` from `db`.`v`",
+			dbName: "db",
+			want:   "select `v`.`id` AS `id` from `v`",
+		},
+		{
+			name:   "table_named_like_a_json_tables_alias_keeps_qualifier",
+			body:   "select `db`.`t`.`id` AS `id` from `db`.`t` where exists(select 1 from json_table('[1]', '$[*]' columns (`id` int path '$')) `t` where (`t`.`id` = `db`.`t`.`id`))",
+			dbName: "db",
+			want:   "select `db`.`t`.`id` AS `id` from `db`.`t` where exists(select 1 from json_table('[1]', '$[*]' columns (`id` int path '$')) `t` where (`t`.`id` = `db`.`t`.`id`))",
+		},
+		{
 			name:   "table_named_like_database_keeps_table_qualifier",
 			body:   "select `db`.`db`.`col` AS `col` from `db`.`db`",
 			dbName: "db",

@@ -12,13 +12,13 @@ import (
 // is rebuilt around the statement it plans; one whose planned statement cannot
 // be located is returned as written.
 func ExplainStatement(statement string, json bool) (string, error) {
-	node, err := singleStatement(statement)
+	node, text, err := singleStatement(statement)
 	if err != nil {
 		return "", err
 	}
-	planned := statement
+	planned := text
 	if explain, ok := node.(*ast.ExplainStmt); ok {
-		inner, ok := explainedText(explain, statement)
+		inner, ok := explainedText(explain, text)
 		if !ok {
 			return statement, nil
 		}
@@ -35,7 +35,7 @@ func ExplainStatement(statement string, json bool) (string, error) {
 // EXPLAIN compiles a statement without running it, so executed is always
 // false. ok is false when statement is not one EXPLAIN.
 func DescribeExplain(statement string) (format string, executed bool, ok bool) {
-	node, err := singleStatement(statement)
+	node, _, err := singleStatement(statement)
 	if err != nil {
 		return "", false, false
 	}
@@ -52,9 +52,10 @@ func DescribeExplain(statement string) (format string, executed bool, ok bool) {
 
 var errNoStatement = errors.New("EXPLAIN needs a statement to plan")
 
-// singleStatement returns the one statement in text: an explain request plans
+// singleStatement returns the one statement in text and that statement's own
+// text, which its node's positions are relative to: an explain request plans
 // one statement at a time.
-func singleStatement(text string) (ast.Node, error) {
+func singleStatement(text string) (ast.Node, string, error) {
 	var stmts []Statement
 	for _, stmt := range SplitStatements(text) {
 		if !stmt.Empty {
@@ -62,19 +63,19 @@ func singleStatement(text string) (ast.Node, error) {
 		}
 	}
 	if len(stmts) == 0 {
-		return nil, errNoStatement
+		return nil, "", errNoStatement
 	}
 	if len(stmts) > 1 {
-		return nil, errors.New("EXPLAIN plans a single statement")
+		return nil, "", errors.New("EXPLAIN plans a single statement")
 	}
 	file, err := parser.Parse(stmts[0].Text)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	if file == nil || len(file.Stmts) == 0 {
-		return nil, errNoStatement
+		return nil, "", errNoStatement
 	}
-	return file.Stmts[0], nil
+	return file.Stmts[0], stmts[0].Text, nil
 }
 
 // explainedText returns the text of the statement explain plans, and whether

@@ -2,6 +2,7 @@ package analysis
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/bytebase/omni/metadata"
@@ -66,20 +67,32 @@ func RestoreSQL(node ast.Node, opts RestoreOptions) (string, error) {
 	originalSchema := opts.OriginalSchema
 	originalTable := opts.OriginalTable
 	quotedColumnList := quotePGColumns(restorableColumns(opts.Table))
+	// PostgreSQL takes a value for a GENERATED ALWAYS identity column only
+	// with OVERRIDING SYSTEM VALUE.
+	overriding := ""
+	if len(alwaysIdentityColumns(opts.Table)) > 0 {
+		overriding = " OVERRIDING SYSTEM VALUE"
+	}
 
 	var result string
 	switch n := node.(type) {
 	case *ast.DeleteStmt:
-		result = fmt.Sprintf(`INSERT INTO "%s"."%s" (%s) SELECT %s FROM "%s"."%s";`, originalSchema, originalTable, quotedColumnList, quotedColumnList, backupSchema, backupTable)
+		result = fmt.Sprintf(`INSERT INTO %s.%s (%s)%s SELECT %s FROM %s.%s;`, quoteIdentifier(originalSchema), quoteIdentifier(originalTable), quotedColumnList, overriding, quotedColumnList, quoteIdentifier(backupSchema), quoteIdentifier(backupTable))
 	case *ast.UpdateStmt:
 		fields := extractSetFieldNames(n)
-		uk, err := findDisjointUniqueKey(opts.Table, opts.PrimaryKey, fields)
+		// ON CONFLICT DO UPDATE can set such a column only to DEFAULT.
+		for _, column := range alwaysIdentityColumns(opts.Table) {
+			if slices.Contains(fields, column) {
+				return "", fmt.Errorf("cannot restore an UPDATE of %q, a GENERATED ALWAYS identity column", column)
+			}
+		}
+		conflictTarget, err := findDisjointUniqueKey(opts.Table, opts.PrimaryKey, fields)
 		if err != nil {
 			return "", err
 		}
 
 		var buf strings.Builder
-		if _, err := fmt.Fprintf(&buf, `INSERT INTO "%s"."%s" (%s) SELECT %s FROM "%s"."%s" ON CONFLICT ON CONSTRAINT "%s" DO UPDATE SET `, originalSchema, originalTable, quotedColumnList, quotedColumnList, backupSchema, backupTable, uk); err != nil {
+		if _, err := fmt.Fprintf(&buf, `INSERT INTO %s.%s (%s)%s SELECT %s FROM %s.%s ON CONFLICT %s DO UPDATE SET `, quoteIdentifier(originalSchema), quoteIdentifier(originalTable), quotedColumnList, overriding, quotedColumnList, quoteIdentifier(backupSchema), quoteIdentifier(backupTable), conflictTarget); err != nil {
 			return "", fmt.Errorf("failed to generate update statement: %w", err)
 		}
 		for i, field := range fields {
@@ -88,7 +101,7 @@ func RestoreSQL(node ast.Node, opts RestoreOptions) (string, error) {
 					return "", fmt.Errorf("failed to generate update statement: %w", err)
 				}
 			}
-			if _, err := fmt.Fprintf(&buf, `"%s" = EXCLUDED."%s"`, field, field); err != nil {
+			if _, err := fmt.Fprintf(&buf, `%s = EXCLUDED.%s`, quoteIdentifier(field), quoteIdentifier(field)); err != nil {
 				return "", fmt.Errorf("failed to generate update statement: %w", err)
 			}
 		}
@@ -100,6 +113,7 @@ func RestoreSQL(node ast.Node, opts RestoreOptions) (string, error) {
 		return "", fmt.Errorf("unexpected statement type: %T", node)
 	}
 
+	sqlForComment = commentText(sqlForComment)
 	if len(prependStatements) > 0 {
 		// Ensure prependStatements ends with semicolon
 		if !strings.HasSuffix(prependStatements, ";") {
@@ -121,15 +135,28 @@ func restorableColumns(table *metadata.TableMetadata) []string {
 	return columns
 }
 
+func alwaysIdentityColumns(table *metadata.TableMetadata) []string {
+	var columns []string
+	for _, column := range table.GetColumns() {
+		if column.GetGeneration() == nil && column.GetIdentityGeneration() == metadata.ColumnMetadata_ALWAYS {
+			columns = append(columns, column.Name)
+		}
+	}
+	return columns
+}
+
 func quotePGColumns(columns []string) string {
 	var quotedColumns []string
 	for _, column := range columns {
-		quotedColumns = append(quotedColumns, fmt.Sprintf(`"%s"`, column))
+		quotedColumns = append(quotedColumns, quoteIdentifier(column))
 	}
 	return strings.Join(quotedColumns, ", ")
 }
 
-// extractSetFieldNames extracts the target column names from an UPDATE SET clause.
+// extractSetFieldNames returns the columns an UPDATE's SET clause assigns,
+// each once. PostgreSQL does not allow a SET target qualified by its table, so
+// in "SET fn.first = 1" and "SET arr[1] = 1" the column is the first name, fn
+// or arr; the rest picks a field or element of it.
 func extractSetFieldNames(stmt *ast.UpdateStmt) []string {
 	if stmt.TargetList == nil {
 		return nil
@@ -137,25 +164,8 @@ func extractSetFieldNames(stmt *ast.UpdateStmt) []string {
 	var fields []string
 	for _, item := range stmt.TargetList.Items {
 		rt, ok := item.(*ast.ResTarget)
-		if !ok || rt.Name == "" {
+		if !ok || rt.Name == "" || slices.Contains(fields, rt.Name) {
 			continue
-		}
-		// Take the last name component (the actual column name).
-		// For "SET test.c1 = 1", Name="test", Indirection=["c1"] → want "c1".
-		// For "SET c1 = 1", Name="c1", Indirection=nil → want "c1".
-		// For "SET schema.col[1] = val", Indirection=["col", integer] → want "col".
-		if rt.Indirection != nil && rt.Indirection.Len() > 0 {
-			found := false
-			for j := rt.Indirection.Len() - 1; j >= 0; j-- {
-				if s, ok := rt.Indirection.Items[j].(*ast.String); ok {
-					fields = append(fields, s.Str)
-					found = true
-					break
-				}
-			}
-			if found {
-				continue
-			}
 		}
 		fields = append(fields, rt.Name)
 	}
@@ -171,29 +181,61 @@ func disjoint(a []string, b map[string]bool) bool {
 	return true
 }
 
+// findDisjointUniqueKey returns the ON CONFLICT target of the first unique
+// key whose columns the UPDATE leaves alone: the primary key or a unique
+// constraint by name, or a unique index, which is no constraint, by its
+// columns. A unique index on an expression or with a predicate is passed
+// over: inference by columns cannot name it, and whether the UPDATE changes
+// an expression's value is not known.
 func findDisjointUniqueKey(table *metadata.TableMetadata, pk *metadata.IndexMetadata, fields []string) (string, error) {
 	columnMap := make(map[string]bool)
 	for _, field := range fields {
 		columnMap[field] = true
 	}
 	if pk != nil {
-		if disjoint(pk.Expressions, columnMap) {
-			return pk.Name, nil
+		if columns, ok := keyColumns(table, pk); ok && disjoint(columns, columnMap) {
+			return "ON CONSTRAINT " + quoteIdentifier(pk.Name), nil
 		}
 	}
 	for _, index := range table.GetIndexes() {
-		if index.Primary {
+		if index.Primary || !index.Unique {
 			continue
 		}
-		if !index.Unique {
+		columns, ok := keyColumns(table, index)
+		if !ok || !disjoint(columns, columnMap) {
 			continue
 		}
-		if disjoint(index.Expressions, columnMap) {
-			return index.Name, nil
+		if index.IsConstraint {
+			return "ON CONSTRAINT " + quoteIdentifier(index.Name), nil
 		}
+		if index.Definition == "" || strings.Contains(index.Definition, " WHERE ") {
+			continue
+		}
+		return "(" + quotePGColumns(columns) + ")", nil
 	}
 
 	return "", fmt.Errorf("no disjoint unique key found for table")
+}
+
+// keyColumns returns the columns of key's parts, or false when a part is an
+// expression. A part is recorded as pg_get_indexdef writes it: a column's
+// name, quoted when it needs to be.
+func keyColumns(table *metadata.TableMetadata, key *metadata.IndexMetadata) ([]string, bool) {
+	var columns []string
+	for _, part := range key.Expressions {
+		found := false
+		for _, column := range table.GetColumns() {
+			if part == column.Name || part == quoteIdentifier(column.Name) {
+				columns = append(columns, column.Name)
+				found = true
+				break
+			}
+		}
+		if !found {
+			return nil, false
+		}
+	}
+	return columns, true
 }
 
 // PrependStatements returns the first SET role or SET search_path of a parsed
@@ -215,4 +257,18 @@ func PrependStatements(stmts []omnipg.Statement) string {
 	}
 
 	return ""
+}
+
+// commentText returns s for the inside of a block comment: a space goes
+// between every adjacent "/*" and "*/", since the engine nests block comments
+// and either would move where the comment ends.
+func commentText(s string) string {
+	var b strings.Builder
+	for i := 0; i < len(s); i++ {
+		b.WriteByte(s[i])
+		if i+1 < len(s) && (s[i] == '/' && s[i+1] == '*' || s[i] == '*' && s[i+1] == '/') {
+			b.WriteByte(' ')
+		}
+	}
+	return b.String()
 }

@@ -682,14 +682,10 @@ func (ac *analyzeCtx) transformRangeVar(rv *nodes.RangeVar) (JoinNode, error) {
 	// pg: src/backend/parser/parse_clause.c — getRTEForSpecialRelationTypes
 	if rv.Schemaname == "" {
 		if cte, idx, current := ac.lookupCTE(rv.Relname); cte != nil {
-			alias := ""
-			if rv.Alias != nil {
-				alias = rv.Alias.Aliasname
-			}
 			if current {
-				return ac.transformCTERef(rv.Relname, alias, idx)
+				return ac.transformCTERef(rv.Relname, rv.Alias, idx)
 			}
-			return ac.transformVisibleCTERef(cte, rv.Relname, alias, idx)
+			return ac.transformVisibleCTERef(cte, rv.Relname, rv.Alias, idx)
 		}
 	}
 
@@ -718,6 +714,10 @@ func (ac *analyzeCtx) transformRangeVar(rv *nodes.RangeVar) (JoinNode, error) {
 		colTypMods[i] = col.TypeMod
 		colCollations[i] = col.Collation
 	}
+	aliasColumns, err := applyColumnAliases(rv.Alias, eref, colNames)
+	if err != nil {
+		return nil, err
+	}
 
 	rtIdx := len(ac.query.RangeTable)
 	rte := &RangeTableEntry{
@@ -731,6 +731,7 @@ func (ac *analyzeCtx) transformRangeVar(rv *nodes.RangeVar) (JoinNode, error) {
 		ColTypes:      colTypes,
 		ColTypMods:    colTypMods,
 		ColCollations: colCollations,
+		aliasColumns:  aliasColumns,
 	}
 	ac.query.RangeTable = append(ac.query.RangeTable, rte)
 
@@ -1056,6 +1057,10 @@ func (ac *analyzeCtx) transformRangeSubselect(rs *nodes.RangeSubselect) (JoinNod
 		colTypMods[i] = -1 // typmod lost through subquery
 		colCollations[i] = te.Expr.exprCollation()
 	}
+	aliasColumns, err := applyColumnAliases(rs.Alias, alias, colNames)
+	if err != nil {
+		return nil, err
+	}
 
 	rtIdx := len(ac.query.RangeTable)
 	rte := &RangeTableEntry{
@@ -1068,10 +1073,30 @@ func (ac *analyzeCtx) transformRangeSubselect(rs *nodes.RangeSubselect) (JoinNod
 		ColCollations: colCollations,
 		Subquery:      subQuery,
 		Lateral:       rs.Lateral,
+		aliasColumns:  aliasColumns,
 	}
 	ac.query.RangeTable = append(ac.query.RangeTable, rte)
 
 	return &RangeTableRef{RTIndex: rtIdx}, nil
+}
+
+// applyColumnAliases renames the first columns of a FROM item to the names
+// its alias lists and returns how many it named. A list longer than the
+// item's columns is an error.
+//
+// pg: src/backend/parser/parse_relation.c — buildRelationAliases
+func applyColumnAliases(alias *nodes.Alias, eref string, colNames []string) (int, error) {
+	if alias == nil || alias.Colnames == nil {
+		return 0, nil
+	}
+	n := len(alias.Colnames.Items)
+	if n > len(colNames) {
+		return 0, &Error{Code: CodeInvalidColumnReference, Message: fmt.Sprintf("table %q has %d columns available but %d columns specified", eref, len(colNames), n)}
+	}
+	for i, item := range alias.Colnames.Items {
+		colNames[i] = stringVal(item)
+	}
+	return n, nil
 }
 
 // transformRangeFunction processes a function call in FROM clause.
@@ -4460,10 +4485,14 @@ func validateCTEAliasCount(name string, aliases []string, query *Query) error {
 // transformCTERef creates a range table entry for a CTE reference.
 //
 // pg: src/backend/parser/parse_clause.c — getRTEForSpecialRelationTypes (CTE case)
-func (ac *analyzeCtx) transformCTERef(cteName, alias string, cteIdx int) (JoinNode, error) {
+func (ac *analyzeCtx) transformCTERef(cteName string, aliasNode *nodes.Alias, cteIdx int) (JoinNode, error) {
 	cte := ac.query.CTEList[cteIdx]
 	subQuery := cte.Query
 
+	alias := ""
+	if aliasNode != nil {
+		alias = aliasNode.Aliasname
+	}
 	eref := cteName
 	if alias != "" {
 		eref = alias
@@ -4486,6 +4515,10 @@ func (ac *analyzeCtx) transformCTERef(cteName, alias string, cteIdx int) (JoinNo
 		colTypMods = append(colTypMods, int32(-1))
 		colCollations = append(colCollations, te.Expr.exprCollation())
 	}
+	aliasColumns, err := applyColumnAliases(aliasNode, eref, colNames)
+	if err != nil {
+		return nil, err
+	}
 
 	rtIdx := len(ac.query.RangeTable)
 	rte := &RangeTableEntry{
@@ -4498,6 +4531,7 @@ func (ac *analyzeCtx) transformCTERef(cteName, alias string, cteIdx int) (JoinNo
 		ColCollations: colCollations,
 		CTEName:       cteName,
 		CTEIndex:      cteIdx,
+		aliasColumns:  aliasColumns,
 	}
 	ac.query.RangeTable = append(ac.query.RangeTable, rte)
 
@@ -4509,9 +4543,13 @@ func (ac *analyzeCtx) transformCTERef(cteName, alias string, cteIdx int) (JoinNo
 //
 // (pgddl helper — bridges the gap when the recursive term is analyzed in a
 // fresh analyzeCtx that doesn't have the parent's CTEList.)
-func (ac *analyzeCtx) transformVisibleCTERef(cte *CommonTableExprQ, cteName, alias string, cteIdx int) (JoinNode, error) {
+func (ac *analyzeCtx) transformVisibleCTERef(cte *CommonTableExprQ, cteName string, aliasNode *nodes.Alias, cteIdx int) (JoinNode, error) {
 	subQuery := cte.Query
 
+	alias := ""
+	if aliasNode != nil {
+		alias = aliasNode.Aliasname
+	}
 	eref := cteName
 	if alias != "" {
 		eref = alias
@@ -4534,6 +4572,10 @@ func (ac *analyzeCtx) transformVisibleCTERef(cte *CommonTableExprQ, cteName, ali
 		colTypMods = append(colTypMods, int32(-1))
 		colCollations = append(colCollations, te.Expr.exprCollation())
 	}
+	aliasColumns, err := applyColumnAliases(aliasNode, eref, colNames)
+	if err != nil {
+		return nil, err
+	}
 
 	rtIdx := len(ac.query.RangeTable)
 	rte := &RangeTableEntry{
@@ -4546,6 +4588,7 @@ func (ac *analyzeCtx) transformVisibleCTERef(cte *CommonTableExprQ, cteName, ali
 		ColCollations: colCollations,
 		CTEName:       cteName,
 		CTEIndex:      cteIdx,
+		aliasColumns:  aliasColumns,
 	}
 	ac.query.RangeTable = append(ac.query.RangeTable, rte)
 

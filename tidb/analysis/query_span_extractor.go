@@ -1002,68 +1002,59 @@ func (q *querySpanExtractor) extractJoin(node *ast.JoinClause) (tableSource, err
 	return joined, nil
 }
 
+// mergeJoinTableSource returns the columns a join exposes, in the order TiDB
+// returns them. A column merged by USING or NATURAL carries both sides'
+// sources, as in matched rows both sides hold its value. Merged columns come
+// first, in the order of the join's first table (the right one for RIGHT
+// JOIN), then that table's other columns, then the other table's.
 func (*querySpanExtractor) mergeJoinTableSource(node *ast.JoinClause, leftTableSource, rightTableSource tableSource) *pseudoTable {
-	leftSpanResult, rightSpanResult := leftTableSource.GetQuerySpanResult(), rightTableSource.GetQuerySpanResult()
-
+	first, second := leftTableSource.GetQuerySpanResult(), rightTableSource.GetQuerySpanResult()
+	// Column names in TiDB are case insensitive.
+	joined := make(map[string]bool)
+	switch node.Type {
+	case ast.JoinNatural, ast.JoinNaturalLeft, ast.JoinNaturalRight:
+		names := make(map[string]bool)
+		for _, field := range second {
+			names[strings.ToLower(field.Name)] = true
+		}
+		for _, field := range first {
+			if names[strings.ToLower(field.Name)] {
+				joined[strings.ToLower(field.Name)] = true
+			}
+		}
+	default:
+		if usingCondition, ok := node.Condition.(*ast.UsingCondition); ok && usingCondition != nil {
+			for _, column := range usingCondition.Columns {
+				joined[strings.ToLower(column)] = true
+			}
+		}
+	}
+	if len(joined) == 0 {
+		return &pseudoTable{Columns: append(append([]QuerySpanResult{}, first...), second...)}
+	}
+	if node.Type == ast.JoinRight || node.Type == ast.JoinNaturalRight {
+		first, second = second, first
+	}
 	result := new(pseudoTable)
-
-	leftSpanResultIdx, rightSpanResultIdx := make(map[string]int), make(map[string]int)
-	for i, spanResult := range leftSpanResult {
-		// Column name in TiDB is case insensitive.
-		leftSpanResultIdx[strings.ToLower(spanResult.Name)] = i
-	}
-	for i, spanResult := range rightSpanResult {
-		rightSpanResultIdx[strings.ToLower(spanResult.Name)] = i
-	}
-
-	natural := node.Type == ast.JoinNatural || node.Type == ast.JoinNaturalLeft || node.Type == ast.JoinNaturalRight
-	var using []string
-	if usingCondition, ok := node.Condition.(*ast.UsingCondition); ok && usingCondition != nil {
-		using = usingCondition.Columns
-	}
-
-	if natural {
-		// Natural Join will merge the same column name field.
-		for _, spanResult := range leftSpanResult {
-			if rightIdx, exists := rightSpanResultIdx[strings.ToLower(spanResult.Name)]; exists {
-				spanResult.SourceColumns, _ = mergeColumnSet(spanResult.SourceColumns, rightSpanResult[rightIdx].SourceColumns)
-			}
-			result.Columns = append(result.Columns, spanResult)
+	for _, field := range first {
+		if !joined[strings.ToLower(field.Name)] {
+			continue
 		}
-		for _, spanResult := range rightSpanResult {
-			if _, exists := leftSpanResultIdx[strings.ToLower(spanResult.Name)]; !exists {
-				result.Columns = append(result.Columns, spanResult)
+		for _, other := range second {
+			if strings.EqualFold(other.Name, field.Name) {
+				field.SourceColumns, _ = mergeColumnSet(field.SourceColumns, other.SourceColumns)
+				break
 			}
 		}
-	} else if len(using) != 0 {
-		// ... JOIN ... USING (...) will merge the column in USING.
-		usingMap := make(map[string]bool)
-		for _, column := range using {
-			usingMap[strings.ToLower(column)] = true
-		}
-
-		for _, spanResult := range leftSpanResult {
-			_, existsInUsingMap := usingMap[strings.ToLower(spanResult.Name)]
-			rightIdx, existsInRightField := rightSpanResultIdx[strings.ToLower(spanResult.Name)]
-			if existsInUsingMap && existsInRightField {
-				rightSpanResult[rightIdx].SourceColumns, _ = mergeColumnSet(spanResult.SourceColumns, rightSpanResult[rightIdx].SourceColumns)
-			}
-			result.Columns = append(result.Columns, spanResult)
-		}
-
-		for _, spanResult := range rightSpanResult {
-			_, existsInUsing := usingMap[strings.ToLower(spanResult.Name)]
-			_, existsInLeftField := leftSpanResultIdx[strings.ToLower(spanResult.Name)]
-			if existsInUsing && existsInLeftField {
-				continue
-			}
-			result.Columns = append(result.Columns, spanResult)
-		}
-	} else {
-		result.Columns = append(result.Columns, leftSpanResult...)
-		result.Columns = append(result.Columns, rightSpanResult...)
+		result.Columns = append(result.Columns, field)
 	}
-
+	for _, side := range [][]QuerySpanResult{first, second} {
+		for _, field := range side {
+			if !joined[strings.ToLower(field.Name)] {
+				result.Columns = append(result.Columns, field)
+			}
+		}
+	}
 	return result
 }
 

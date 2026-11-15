@@ -312,9 +312,21 @@ func (c *Catalog) installMetadataObject(o *metadataObject) error {
 			return err
 		}
 		o.incomplete = omitted
-		return c.DefineTable(stmt)
+		err = c.DefineTable(stmt)
+		if err != nil && stmt.Partitions != nil {
+			// The partitioning parsed but the catalog refuses it. The rest of the
+			// table still installs.
+			stmt.Partitions = nil
+			if retry := c.DefineTable(stmt); retry == nil {
+				if o.incomplete == nil {
+					o.incomplete = fmt.Errorf("partitioning: %w", err)
+				}
+				return nil
+			}
+		}
+		return err
 	case metadataView:
-		stmt, err := metadataViewStmt(o.view, o.snapshotDatabase)
+		stmt, err := metadataViewStmt(o.view, o.snapshotDatabase, c.CurrentDatabase())
 		if err != nil {
 			return err
 		}
@@ -687,8 +699,8 @@ func referenceAction(action string) nodes.ReferenceAction {
 // DefineView installs a view whose body does not analyze, so a view may name
 // one that installs after it; reanalyzeViews retries it then. nameViewColumns
 // names the columns once the body resolves.
-func metadataViewStmt(v *metadata.ViewMetadata, database string) (*nodes.CreateViewStmt, error) {
-	body := stripViewBodyDatabaseQualifier(v.GetDefinition(), database)
+func metadataViewStmt(v *metadata.ViewMetadata, database, target string) (*nodes.CreateViewStmt, error) {
+	body := rebaseViewBodyDatabaseQualifier(v.GetDefinition(), database, target)
 	sel, err := parseFirstStatement[*nodes.SelectStmt](body)
 	if err != nil {
 		return nil, err

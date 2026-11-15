@@ -114,7 +114,16 @@ func TestResolveQuerySpanLineage(t *testing.T) {
 		{"SELECT * FROM t1", []string{"a<-db.t1.a plain", "b<-db.t1.b plain", "c<-db.t1.c plain"}, ""},
 		{"SELECT a + b AS s FROM t1 WHERE c > 0", []string{"s<-db.t1.a,db.t1.b"}, "db.t1.c"},
 		{"SELECT * FROM t1 JOIN t2 USING (a)", []string{"a<-db.t1.a,db.t2.a plain", "b<-db.t1.b plain", "c<-db.t1.c plain", "d<-db.t2.d plain"}, "db.t1.a,db.t2.a"},
-		{"SELECT bc FROM v", []string{"bc<-db.t1.b,db.t1.c plain"}, ""},
+		// MySQL returns the merged columns first, in the first table's order; RIGHT JOIN's first table is the right one.
+		{"SELECT * FROM (SELECT b, a FROM t1) AS x JOIN t2 USING (a)", []string{"a<-db.t1.a,db.t2.a plain", "b<-db.t1.b plain", "d<-db.t2.d plain"}, "db.t1.a,db.t2.a"},
+		{"SELECT * FROM (SELECT b, a FROM t1) AS x RIGHT JOIN t2 USING (a)", []string{"a<-db.t1.a,db.t2.a plain", "d<-db.t2.d plain", "b<-db.t1.b plain"}, "db.t1.a,db.t2.a"},
+		{"SELECT * FROM (SELECT b, a FROM t1) AS x NATURAL RIGHT JOIN t2", []string{"a<-db.t1.a,db.t2.a plain", "d<-db.t2.d plain", "b<-db.t1.b plain"}, "db.t1.a,db.t2.a"},
+		{"SELECT * FROM (SELECT b, a FROM t1) AS x NATURAL LEFT JOIN t2", []string{"a<-db.t1.a,db.t2.a plain", "b<-db.t1.b plain", "d<-db.t2.d plain"}, "db.t1.a,db.t2.a"},
+		{"SELECT bc FROM v", []string{"bc<-db.t1.b,db.t1.c"}, ""},
+		{"SELECT a, v.bc FROM v", []string{"a<-db.t1.a plain", "bc<-db.t1.b,db.t1.c"}, ""},
+		{"SELECT s FROM (SELECT a + b AS s, c FROM t1) AS d", []string{"s<-db.t1.a,db.t1.b"}, ""},
+		{"SELECT d.c FROM (SELECT a + b AS s, c FROM t1) AS d", []string{"c<-db.t1.c plain"}, ""},
+		{"WITH x AS (SELECT a + b AS s FROM t1) SELECT s FROM x", []string{"s<-db.t1.a,db.t1.b"}, ""},
 		{"WITH x(k) AS (SELECT d FROM t2) SELECT k FROM x", []string{"k<-db.t2.d plain"}, ""},
 		{"SELECT a FROM t1 UNION SELECT d FROM t2", []string{"a<-db.t1.a,db.t2.d"}, ""},
 	}

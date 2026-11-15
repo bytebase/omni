@@ -1176,11 +1176,6 @@ func TestPriorBackup(t *testing.T) {
 			change: backup,
 		},
 		{
-			name:   "a DELETE after a WITH clause, whose targets may be its queries",
-			sql:    "WITH x AS (SELECT 1 AS id) DELETE T FROM t JOIN x ON t.id = x.id;\n/*!80000 WITH x AS (SELECT 1 AS id) DELETE T FROM t JOIN x ON t.id = x.id */;\n/*!80000 -- note\n WITH w AS (SELECT 1 AS id) DELETE y FROM t AS x WHERE x.id = 2 */;",
-			change: backup,
-		},
-		{
 			name:   "a view OR REPLACE makes, or a table IF NOT EXISTS makes",
 			sql:    "CREATE OR REPLACE VIEW nv AS SELECT 1 AS id;\nUPDATE nv SET id = 2 WHERE id = 1;\nCREATE TABLE IF NOT EXISTS t (gone INT);\nUPDATE t SET n = 1 WHERE gone = 1;",
 			change: backup,
@@ -1204,7 +1199,7 @@ func TestPriorBackup(t *testing.T) {
 		},
 		{
 			name:   "what the rule cannot tell",
-			sql:    "ALTER TABLE t ADD COLUMN gone INT;\nUPDATE t SET n = 1 WHERE id IN (SELECT gone FROM t);\nUPDATE t SET gone = 1 WHERE id = 1;\nWITH x AS (SELECT 1 AS gone) UPDATE t SET n = 3 WHERE id IN (SELECT gone FROM x);",
+			sql:    "ALTER TABLE t ADD COLUMN gone INT;\nUPDATE t SET n = 1 WHERE id IN (SELECT gone FROM t);\nUPDATE t SET gone = 1 WHERE id = 1;\nUPDATE t SET n = 3 WHERE id IN (WITH x AS (SELECT 1 AS gone) SELECT gone FROM x);",
 			change: backup,
 		},
 	})

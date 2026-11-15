@@ -86,14 +86,14 @@ func (p *Parser) parseDynExecute() (ast.Node, error) {
 	}, nil
 }
 
-// parseIntoTargets parses one or more comma-separated identifiers for an INTO clause.
+// parseIntoTargets parses one or more comma-separated targets for an INTO clause.
 func (p *Parser) parseIntoTargets() ([]string, error) {
 	var targets []string
 	for {
-		if !p.isIdent() && !p.isAnyKeywordAsIdent() {
+		if !p.isIntoTarget() {
 			return nil, p.errorf("syntax error at or near %q, expected identifier", p.tokenText(p.cur))
 		}
-		targets = append(targets, p.identText())
+		targets = append(targets, p.intoTargetText())
 		p.advance()
 
 		if p.cur.Type != ',' {

@@ -82,11 +82,11 @@ func (e *querySpanExtractor) collectPredicateColumnsInStack(queryStack []*catalo
 			if filters && branch != nil {
 				for _, te := range branch.TargetList {
 					if te != nil && !te.ResJunk {
-						e.walkExprWithVisited(appendQuery(queryStack, branch), te.Expr, e.predicateColumns, make(map[queryExprKey]bool))
+						e.walkExprWithVisited(pushQuery(queryStack, branch), te.Expr, e.predicateColumns, make(map[queryExprKey]bool))
 					}
 				}
 			}
-			e.collectPredicateColumnsInStack(appendQuery(queryStack, branch), visited)
+			e.collectPredicateColumnsInStack(pushQuery(queryStack, branch), visited)
 		}
 		return
 	}
@@ -150,8 +150,10 @@ func (e *querySpanExtractor) collectConditionColumns(queryStack []*catalog.Query
 
 // collectNestedPredicateColumns records the conditions nested in expr: the
 // FILTER of an aggregate or window function, the arguments of a set-returning
-// function, which decide how many rows it returns, and the conditions of its
-// subqueries.
+// function, which decide how many rows it returns, the conditions of its
+// subqueries, and those in the body of each user function it calls. It also
+// runs for target entries that are not output, as for ORDER BY or GROUP BY,
+// whose function calls lineage extraction never reaches.
 func (e *querySpanExtractor) collectNestedPredicateColumns(queryStack []*catalog.Query, expr catalog.AnalyzedExpr, visited map[*catalog.Query]bool) {
 	catalog.WalkAnalyzedExpr(expr, func(n catalog.AnalyzedExpr) bool {
 		var inputs []catalog.AnalyzedExpr
@@ -165,6 +167,9 @@ func (e *querySpanExtractor) collectNestedPredicateColumns(queryStack []*catalog
 		case *catalog.WindowFuncExpr:
 			inputs = []catalog.AnalyzedExpr{v.AggFilter}
 		case *catalog.FuncCallExpr:
+			for _, proc := range e.userProcsCalled(v) {
+				e.analyzeFunctionBody(proc)
+			}
 			if e.returnsSet(v.FuncOID) {
 				inputs = v.Args
 			}
@@ -337,7 +342,7 @@ func (e *querySpanExtractor) returningLineage(stmt ast.Node, accesses ColumnSet)
 		}
 		if isStarTarget(rt) && target != nil {
 			// RETURNING * outputs every column of the target table in order.
-			for resource := range accesses {
+			for _, resource := range accesses.sorted() {
 				if !strings.EqualFold(resource.Table, target.Relname) {
 					continue
 				}
