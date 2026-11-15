@@ -268,9 +268,20 @@ func extractSuffixSelectStatement(node ast.Node, source string) (string, string,
 
 func prepareTransformation(databaseName string, parsedStatements []ParsedStatement, caseSensitive bool) ([]statementInfo, error) {
 	var dmls []statementInfo
+	// otherDatabase is the database a USE switched to, when it is not
+	// databaseName: the backup reads databaseName's tables, so a later DML,
+	// which runs in the other one, cannot be backed up.
+	otherDatabase := ""
 	for _, parsedStatement := range parsedStatements {
 		node := parsedStatement.Node
 		if node == nil {
+			continue
+		}
+		if use, ok := node.(*ast.UseStmt); ok {
+			otherDatabase = use.Database
+			if use.Database == databaseName || !caseSensitive && strings.EqualFold(use.Database, databaseName) {
+				otherDatabase = ""
+			}
 			continue
 		}
 		var (
@@ -297,6 +308,9 @@ func prepareTransformation(databaseName string, parsedStatements []ParsedStateme
 		}
 		if strings.HasPrefix(table.Table, "#") {
 			continue
+		}
+		if otherDatabase != "" {
+			return nil, fmt.Errorf("prior backup does not support a DML after USE %s, as the backup reads the tables of %s; remove the USE, or disable or skip prior backup", otherDatabase, databaseName)
 		}
 		if isCTETarget(targetRef, dmlWithClause(node), caseSensitive) {
 			return nil, fmt.Errorf("prior backup does not support DML targeting CTE %q, target the base table directly", table.Table)
