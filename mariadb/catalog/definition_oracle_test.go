@@ -259,3 +259,44 @@ func TestOracle_DatabaseDefinitionRestoresSessionAfterRoutines(t *testing.T) {
 		t.Errorf("view reads %q, want %q:\n%s", x, `a\b`, dump)
 	}
 }
+
+// TestOracle_DatabaseDefinitionRestoresTimestampsWithoutImplicitDefaults
+// restores a NOT NULL TIMESTAMP with no default on a session with
+// explicit_defaults_for_timestamp OFF, and requires it to stay without one.
+func TestOracle_DatabaseDefinitionRestoresTimestampsWithoutImplicitDefaults(t *testing.T) {
+	conn, err := testcontainer.OpenDatabase(t).Conn(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	database := testcontainer.DatabaseName(t)
+	resetDatabase(t, conn, database)
+	dump, err := DatabaseDefinition(&metadata.DatabaseSchemaMetadata{
+		Name: database,
+		Schemas: []*metadata.SchemaMetadata{{Tables: []*metadata.TableMetadata{{
+			Name:    "t",
+			Engine:  "InnoDB",
+			Columns: []*metadata.ColumnMetadata{{Name: "ts", Type: "timestamp"}},
+		}}}},
+	}, DefinitionOptions{PrintHeader: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	stmts := append([]string{"SET explicit_defaults_for_timestamp = OFF"}, splitLikeMySQLClient(dump)...)
+	for _, stmt := range stmts {
+		if _, err := conn.ExecContext(context.Background(), stmt); err != nil {
+			t.Fatalf("restore %q: %v", stmt, err)
+		}
+	}
+	var name, got string
+	if err := conn.QueryRowContext(context.Background(), "SHOW CREATE TABLE t").Scan(&name, &got); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(got, "`ts` timestamp NOT NULL,") && !strings.Contains(got, "`ts` timestamp NOT NULL\n") {
+		t.Errorf("ts took an implicit default:\n%s\n%s", got, dump)
+	}
+	var explicit int
+	if err := conn.QueryRowContext(context.Background(), "SELECT @@explicit_defaults_for_timestamp").Scan(&explicit); err != nil || explicit != 0 {
+		t.Errorf("the script left explicit_defaults_for_timestamp %d (%v), want the session's 0", explicit, err)
+	}
+}
