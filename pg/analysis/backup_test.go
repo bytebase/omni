@@ -172,3 +172,24 @@ func TestRestoreSQLConflictTarget(t *testing.T) {
 		require.EqualError(t, err, "no disjoint unique key found for table", index.Expressions)
 	}
 }
+
+func TestRestoreSQLIdentityAlways(t *testing.T) {
+	table := &metadata.TableMetadata{Name: "t", Columns: []*metadata.ColumnMetadata{
+		{Name: "id", IdentityGeneration: metadata.ColumnMetadata_ALWAYS}, {Name: "a"},
+	}}
+	pk := &metadata.IndexMetadata{Name: "t_pkey", Primary: true, Unique: true, IsConstraint: true, Expressions: []string{"id"}}
+	options := RestoreOptions{OriginalSchema: "public", OriginalTable: "t", BackupSchema: "bb", BackupTable: "b", Table: table, PrimaryKey: pk}
+	dmls := BackedUpDMLs(parseScript(t, "DELETE FROM t; UPDATE t SET a = 1; UPDATE t SET id = DEFAULT"))
+
+	got, err := RestoreSQL(dmls[0].Node, options)
+	require.NoError(t, err)
+	require.Contains(t, got, `INSERT INTO "public"."t" ("id", "a") OVERRIDING SYSTEM VALUE SELECT "id", "a" FROM "bb"."b";`)
+
+	got, err = RestoreSQL(dmls[1].Node, options)
+	require.NoError(t, err)
+	require.Contains(t, got, `INSERT INTO "public"."t" ("id", "a") OVERRIDING SYSTEM VALUE SELECT "id", "a" FROM "bb"."b" ON CONFLICT ON CONSTRAINT "t_pkey" DO UPDATE SET "a" = EXCLUDED."a";`)
+
+	// DO UPDATE can set the column only to DEFAULT.
+	_, err = RestoreSQL(dmls[2].Node, options)
+	require.EqualError(t, err, `cannot restore an UPDATE of "id", a GENERATED ALWAYS identity column`)
+}
