@@ -234,6 +234,41 @@
 | USE `omni_testoracle_sequences`
 < ok 0 0
 > exec
+| CREATE SEQUENCE s START WITH 001 INCREMENT BY 02 MINVALUE 0001 MAXVALUE 0100 CACHE 010
+< ok 0 0
+> exec
+| CREATE SEQUENCE u START WITH -005 MINVALUE -010 MAXVALUE 010 INCREMENT BY -1
+< ok 0 0
+> query
+| SHOW CREATE SEQUENCE `s`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| s
+: bytes
+| CREATE SEQUENCE `s` start with 1 minvalue 1 maxvalue 100 increment by 2 cache 10 nocycle ENGINE=InnoDB
+> query
+| SHOW CREATE SEQUENCE `u`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| u
+: bytes
+| CREATE SEQUENCE `u` start with -5 minvalue -10 maxvalue 10 increment by -1 cache 1000 nocycle ENGINE=InnoDB
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_sequences`
+< ok 2 0
+> exec
+| CREATE DATABASE `omni_testoracle_sequences`
+< ok 1 0
+> exec
+| USE `omni_testoracle_sequences`
+< ok 0 0
+> exec
 | CREATE SEQUENCE z AS TINYINT UNSIGNED MINVALUE 0 START WITH 1
 < ok 0 0
 > exec
