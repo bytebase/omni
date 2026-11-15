@@ -5,6 +5,7 @@ import (
 
 	omnipg "github.com/bytebase/omni/pg"
 	"github.com/bytebase/omni/pg/ast"
+	"github.com/bytebase/omni/pg/parser"
 )
 
 // SDLCode names the condition an SDL check found.
@@ -44,16 +45,24 @@ const (
 )
 
 // SDLSyntaxError: the text has unbalanced parentheses or does not parse.
-// Detail is the error text; Line is 0. Both checks report it alone.
+// Detail is the error text; Start is the unmatched parenthesis or the
+// parser's error position, -1 when the parser gave none. Both checks report
+// it alone.
 const SDLSyntaxError SDLCode = "SYNTAX_ERROR"
 
 // SDLFinding is one problem an SDL check found. Code names it, and each code's
 // comment lists the fields it sets; the others are zero.
 type SDLFinding struct {
 	Code SDLCode
-	// Line is the 1-based line in the checked text the finding is reported
-	// at, 0 when it has none.
-	Line int
+	// Start is the byte offset, in the text the finding belongs to, of the
+	// node it is about, -1 when that node has no location. CheckSDLStyle's
+	// findings about a statement's object set -1 and are anchored at
+	// StatementStart.
+	Start int
+	// StatementStart is the byte offset of the first non-space byte of the
+	// CheckSDLStyle statement holding the node, where any leading comment
+	// starts. CheckSDLIntegrity leaves it 0.
+	StatementStart int
 
 	Schema string
 	Table  string
@@ -91,7 +100,8 @@ type SDLDefinition struct {
 	Name           string
 	Table          string
 	ConstraintType string
-	Line           int
+	// Start is the definition's byte offset in its file, -1 when unknown.
+	Start int
 }
 
 // CheckSDLStyle checks one declarative schema (SDL) file for the conventions
@@ -103,17 +113,17 @@ type SDLDefinition struct {
 // is not checked.
 //
 // Only top-level statements are judged. A table, index, view, sequence or
-// function finding is reported at its statement's first line (where any
-// leading comment starts); a constraint finding at the constraint's own line,
-// and a column finding at its first disallowed constraint. A function's schema
-// is the first part of a name of two or more parts, so in a.b.c it is "a".
+// function finding is anchored at its statement; a constraint finding at the
+// constraint, and a column finding at its first disallowed constraint. A
+// function's schema is the first part of a name of two or more parts, so in
+// a.b.c it is "a".
 //
 // Unbalanced parentheses outside literals and comments, or a parse error,
 // yield one SDLSyntaxError and nothing else.
 func CheckSDLStyle(sql string) []SDLFinding {
-	stmts, err := parseSDL(sql)
-	if err != nil {
-		return []SDLFinding{{Code: SDLSyntaxError, Detail: err.Error()}}
+	stmts, syntaxError := parseSDL(sql)
+	if syntaxError != nil {
+		return []SDLFinding{*syntaxError}
 	}
 
 	var findings []SDLFinding
@@ -121,20 +131,20 @@ func CheckSDLStyle(sql string) []SDLFinding {
 		if stmt.AST == nil {
 			continue
 		}
-		line := stmt.Start.Line
+		anchor := sdlStatementAnchor(sql, stmt)
 
 		switch n := stmt.AST.(type) {
 		case *ast.CreateStmt:
-			findings = checkSDLCreateStmt(sql, n, line, findings)
+			findings = checkSDLCreateStmt(n, anchor, findings)
 		case *ast.IndexStmt:
-			findings = checkSDLIndexStmt(n, line, findings)
+			findings = checkSDLIndexStmt(n, anchor, findings)
 		case *ast.ViewStmt:
 			if n.View != nil && n.View.Schemaname == "" {
-				findings = append(findings, SDLFinding{Code: SDLViewWithoutSchema, Line: line, Name: n.View.Relname})
+				findings = append(findings, anchor.with(SDLFinding{Code: SDLViewWithoutSchema, Name: n.View.Relname}))
 			}
 		case *ast.CreateSeqStmt:
 			if n.Sequence != nil && n.Sequence.Schemaname == "" {
-				findings = append(findings, SDLFinding{Code: SDLSequenceWithoutSchema, Line: line, Name: n.Sequence.Relname})
+				findings = append(findings, anchor.with(SDLFinding{Code: SDLSequenceWithoutSchema, Name: n.Sequence.Relname}))
 			}
 		case *ast.CreateFunctionStmt:
 			parts := sdlListStrings(n.Funcname)
@@ -143,11 +153,11 @@ func CheckSDLStyle(sql string) []SDLFinding {
 				if len(parts) > 0 {
 					name = parts[len(parts)-1]
 				}
-				findings = append(findings, SDLFinding{Code: SDLFunctionWithoutSchema, Line: line, Name: name})
+				findings = append(findings, anchor.with(SDLFinding{Code: SDLFunctionWithoutSchema, Name: name}))
 			}
 		case *ast.AlterSeqStmt:
 			if n.Sequence != nil && n.Sequence.Schemaname == "" {
-				findings = append(findings, SDLFinding{Code: SDLAlterSequenceWithoutSchema, Line: line, Name: n.Sequence.Relname})
+				findings = append(findings, anchor.with(SDLFinding{Code: SDLAlterSequenceWithoutSchema, Name: n.Sequence.Relname}))
 			}
 		default:
 		}
@@ -156,15 +166,54 @@ func CheckSDLStyle(sql string) []SDLFinding {
 }
 
 // parseSDL rejects unbalanced parentheses, which the parser may recover from
-// silently, then parses.
-func parseSDL(sql string) ([]omnipg.Statement, error) {
-	if err := validateSDLParenBalance(sql); err != nil {
-		return nil, err
+// silently, then parses. A failure is returned as an SDLSyntaxError finding.
+func parseSDL(sql string) ([]omnipg.Statement, *SDLFinding) {
+	if pos, err := validateSDLParenBalance(sql); err != nil {
+		return nil, &SDLFinding{Code: SDLSyntaxError, Start: pos, Detail: err.Error()}
 	}
-	return omnipg.Parse(sql)
+	stmts, err := omnipg.Parse(sql)
+	if err != nil {
+		start := -1
+		var parseErr *parser.ParseError
+		if errors.As(err, &parseErr) {
+			start = parseErr.Position
+		}
+		return nil, &SDLFinding{Code: SDLSyntaxError, Start: start, Detail: err.Error()}
+	}
+	return stmts, nil
 }
 
-func checkSDLCreateStmt(sql string, n *ast.CreateStmt, stmtLine int, findings []SDLFinding) []SDLFinding {
+// sdlAnchor is the statement a CheckSDLStyle finding belongs to.
+type sdlAnchor struct {
+	statementStart int
+}
+
+func sdlStatementAnchor(sql string, stmt omnipg.Statement) sdlAnchor {
+	start := stmt.ByteStart
+	for start < stmt.ByteEnd && sdlIsSpace(sql[start]) {
+		start++
+	}
+	return sdlAnchor{statementStart: start}
+}
+
+func sdlIsSpace(c byte) bool {
+	return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f' || c == '\v'
+}
+
+// with anchors f at the statement itself.
+func (a sdlAnchor) with(f SDLFinding) SDLFinding {
+	return a.at(-1, f)
+}
+
+// at anchors f at the node starting at byte offset start, or at the
+// statement when start is -1.
+func (a sdlAnchor) at(start int, f SDLFinding) SDLFinding {
+	f.Start = start
+	f.StatementStart = a.statementStart
+	return f
+}
+
+func checkSDLCreateStmt(n *ast.CreateStmt, stmt sdlAnchor, findings []SDLFinding) []SDLFinding {
 	tableName := ""
 	schemaName := ""
 	if n.Relation != nil {
@@ -172,7 +221,7 @@ func checkSDLCreateStmt(sql string, n *ast.CreateStmt, stmtLine int, findings []
 		schemaName = n.Relation.Schemaname
 	}
 	if schemaName == "" {
-		findings = append(findings, SDLFinding{Code: SDLTableWithoutSchema, Line: stmtLine, Table: tableName})
+		findings = append(findings, stmt.with(SDLFinding{Code: SDLTableWithoutSchema, Table: tableName}))
 	}
 
 	var cols []*ast.ColumnDef
@@ -191,7 +240,7 @@ func checkSDLCreateStmt(sql string, n *ast.CreateStmt, stmtLine int, findings []
 
 	for _, col := range cols {
 		var disallowed []string
-		firstLine := 0
+		firstStart := -1
 		if col.Constraints != nil {
 			for _, item := range col.Constraints.Items {
 				c, ok := item.(*ast.Constraint)
@@ -203,93 +252,60 @@ func checkSDLCreateStmt(sql string, n *ast.CreateStmt, stmtLine int, findings []
 					continue
 				}
 				if disallowed == nil {
-					firstLine = sdlNodeLine(sql, c.Loc.Start, stmtLine)
+					firstStart = c.Loc.Start
 				}
 				disallowed = append(disallowed, typeName)
 				if c.Contype == ast.CONSTR_FOREIGN && c.Pktable != nil && c.Pktable.Schemaname == "" {
-					findings = append(findings, SDLFinding{
+					findings = append(findings, stmt.at(c.Loc.Start, SDLFinding{
 						Code:     SDLColumnForeignKeyWithoutSchema,
-						Line:     sdlNodeLine(sql, c.Loc.Start, stmtLine),
 						Table:    tableName,
 						Column:   col.Colname,
 						RefTable: c.Pktable.Relname,
-					})
+					}))
 				}
 			}
 		}
 		if len(disallowed) > 0 {
-			findings = append(findings, SDLFinding{
+			findings = append(findings, stmt.at(firstStart, SDLFinding{
 				Code:            SDLColumnConstraint,
-				Line:            firstLine,
 				Table:           tableName,
 				Column:          col.Colname,
 				ConstraintTypes: disallowed,
-			})
+			}))
 		}
 	}
 
 	for _, c := range tableConstraints {
 		if c.Conname == "" {
-			findings = append(findings, SDLFinding{
+			findings = append(findings, stmt.at(c.Loc.Start, SDLFinding{
 				Code:           SDLUnnamedConstraint,
-				Line:           sdlNodeLine(sql, c.Loc.Start, stmtLine),
 				Table:          tableName,
 				ConstraintType: sdlTableConstraintType(c.Contype),
-			})
+			}))
 		}
 		if c.Contype == ast.CONSTR_FOREIGN && c.Pktable != nil && c.Pktable.Schemaname == "" {
-			findings = append(findings, SDLFinding{
+			findings = append(findings, stmt.at(c.Loc.Start, SDLFinding{
 				Code:     SDLForeignKeyWithoutSchema,
-				Line:     sdlNodeLine(sql, c.Loc.Start, stmtLine),
 				Table:    tableName,
 				RefTable: c.Pktable.Relname,
-			})
+			}))
 		}
 	}
 	return findings
 }
 
-func checkSDLIndexStmt(n *ast.IndexStmt, stmtLine int, findings []SDLFinding) []SDLFinding {
+func checkSDLIndexStmt(n *ast.IndexStmt, stmt sdlAnchor, findings []SDLFinding) []SDLFinding {
 	if n.Idxname == "" {
-		findings = append(findings, SDLFinding{Code: SDLUnnamedIndex, Line: stmtLine})
+		findings = append(findings, stmt.with(SDLFinding{Code: SDLUnnamedIndex}))
 	}
 	if n.Relation != nil && n.Relation.Schemaname == "" {
-		findings = append(findings, SDLFinding{
+		findings = append(findings, stmt.with(SDLFinding{
 			Code:  SDLIndexWithoutSchema,
-			Line:  stmtLine,
 			Name:  n.Idxname,
 			Table: n.Relation.Relname,
-		})
+		}))
 	}
 	return findings
-}
-
-// sdlNodeLine is the line of a node starting at byte offset start, or
-// defaultLine when the node has no location.
-func sdlNodeLine(sql string, start int, defaultLine int) int {
-	if start >= 0 {
-		return sdlLineAt(sql, start)
-	}
-	return defaultLine
-}
-
-// sdlLineAt is the 1-based line of byte offset in text, clamped to the text.
-// "\r", "\n" and "\r\n" each end a line.
-func sdlLineAt(text string, offset int) int {
-	offset = max(0, min(offset, len(text)))
-	line := 1
-	for i := 0; i < offset; i++ {
-		switch text[i] {
-		case '\r':
-			line++
-		case '\n':
-			if i == 0 || text[i-1] != '\r' {
-				line++
-			}
-		default:
-		}
-	}
-	return line
 }
 
 // sdlColumnConstraintType names the column-level constraint kinds SDL
@@ -330,10 +346,11 @@ func sdlListStrings(list *ast.List) []string {
 }
 
 // validateSDLParenBalance reports unmatched parentheses outside single-quoted
-// strings, dollar-quoted strings and comments. Block comments do not nest, and
-// a single-quoted string ignores backslash escapes.
-func validateSDLParenBalance(sql string) error {
-	depth := 0
+// strings, dollar-quoted strings and comments, with the byte offset of the
+// first unmatched ")" or the innermost unclosed "(". Block comments do not
+// nest, and a single-quoted string ignores backslash escapes.
+func validateSDLParenBalance(sql string) (int, error) {
+	var open []int
 	i := 0
 	for i < len(sql) {
 		ch := sql[i]
@@ -382,20 +399,20 @@ func validateSDLParenBalance(sql string) error {
 				i++
 			}
 		case ch == '(':
-			depth++
+			open = append(open, i)
 			i++
 		case ch == ')':
-			depth--
-			if depth < 0 {
-				return errors.New("syntax error: unmatched closing parenthesis")
+			if len(open) == 0 {
+				return i, errors.New("syntax error: unmatched closing parenthesis")
 			}
+			open = open[:len(open)-1]
 			i++
 		default:
 			i++
 		}
 	}
-	if depth != 0 {
-		return errors.New("syntax error: unmatched opening parenthesis")
+	if len(open) != 0 {
+		return open[len(open)-1], errors.New("syntax error: unmatched opening parenthesis")
 	}
-	return nil
+	return 0, nil
 }

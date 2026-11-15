@@ -1,13 +1,50 @@
 package analysis
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
 
+// checkSDLIntegrityLines runs CheckSDLIntegrity and turns every Start into a
+// 1-based line of the file it belongs to, so expectations read as lines.
+func checkSDLIntegrityLines(files []SDLFile) map[string][]SDLFinding {
+	texts := make(map[string]string)
+	for _, f := range files {
+		texts[f.Path] = f.Text
+	}
+	line := func(path string, start int) int {
+		if start < 0 {
+			return start
+		}
+		return strings.Count(texts[path][:start], "\n") + 1
+	}
+	got := CheckSDLIntegrity(files)
+	for path, findings := range got {
+		for i := range findings {
+			f := &findings[i]
+			if f.Code == SDLSyntaxError {
+				continue
+			}
+			f.Start = line(path, f.Start)
+			if f.First != nil {
+				firstPath := f.First.Path
+				if firstPath == "" {
+					firstPath = path
+				}
+				f.First.Start = line(firstPath, f.First.Start)
+			}
+			for j := range f.PrimaryKeys {
+				f.PrimaryKeys[j].Start = line(path, f.PrimaryKeys[j].Start)
+			}
+		}
+	}
+	return got
+}
+
 func checkOneSDLFile(text string) []SDLFinding {
-	return CheckSDLIntegrity([]SDLFile{{Path: "f.sql", Text: text}})["f.sql"]
+	return checkSDLIntegrityLines([]SDLFile{{Path: "f.sql", Text: text}})["f.sql"]
 }
 
 func TestCheckSDLIntegrityFile(t *testing.T) {
@@ -29,19 +66,19 @@ func TestCheckSDLIntegrityFile(t *testing.T) {
 				"CREATE TABLE u (a int, CONSTRAINT k PRIMARY KEY (a));\n" +
 				"CREATE INDEX i ON t (a);\nCREATE INDEX i ON public.u (a);\nCREATE INDEX ON t (a);\nCREATE INDEX ON u (a);",
 			want: []SDLFinding{
-				{Code: SDLDuplicateColumn, Line: 1, Schema: "public", Table: "t", Column: "a"},
-				{Code: SDLDuplicateConstraint, Line: 1, Schema: "public", Table: "t", Name: "c", ConstraintType: "CHECK", First: &SDLDefinition{Table: "t", ConstraintType: "CHECK", Line: 1}},
-				{Code: SDLDuplicateTable, Line: 2, Schema: "public", Table: "t", First: &SDLDefinition{Line: 1}},
-				{Code: SDLDuplicateConstraint, Line: 3, Schema: "public", Table: "u", Name: "k", ConstraintType: "PRIMARY KEY", First: &SDLDefinition{Table: "t", ConstraintType: "UNIQUE", Line: 1}},
-				{Code: SDLDuplicateIndex, Line: 5, Schema: "public", Name: "i", First: &SDLDefinition{Line: 4}},
+				{Code: SDLDuplicateColumn, Start: 1, Schema: "public", Table: "t", Column: "a"},
+				{Code: SDLDuplicateConstraint, Start: 1, Schema: "public", Table: "t", Name: "c", ConstraintType: "CHECK", First: &SDLDefinition{Table: "t", ConstraintType: "CHECK", Start: 1}},
+				{Code: SDLDuplicateTable, Start: 2, Schema: "public", Table: "t", First: &SDLDefinition{Start: 1}},
+				{Code: SDLDuplicateConstraint, Start: 3, Schema: "public", Table: "u", Name: "k", ConstraintType: "PRIMARY KEY", First: &SDLDefinition{Table: "t", ConstraintType: "UNIQUE", Start: 1}},
+				{Code: SDLDuplicateIndex, Start: 5, Schema: "public", Name: "i", First: &SDLDefinition{Start: 4}},
 			},
 		},
 		{
 			name: "multiple primary keys, reported at the second; column-level keys are not counted",
 			sql:  "CREATE TABLE s.t (\n  a int PRIMARY KEY,\n  PRIMARY KEY (a),\n  CONSTRAINT p2 PRIMARY KEY (a)\n);",
 			want: []SDLFinding{{
-				Code: SDLMultiplePrimaryKeys, Line: 4, Schema: "s", Table: "t",
-				PrimaryKeys: []SDLDefinition{{Line: 3}, {Name: "p2", Line: 4}},
+				Code: SDLMultiplePrimaryKeys, Start: 4, Schema: "s", Table: "t",
+				PrimaryKeys: []SDLDefinition{{Start: 3}, {Name: "p2", Start: 4}},
 			}},
 		},
 		{
@@ -53,8 +90,8 @@ func TestCheckSDLIntegrityFile(t *testing.T) {
 				"  FOREIGN KEY (a, b) REFERENCES s.u(zz),\n" +
 				"  FOREIGN KEY (nope) REFERENCES s.u(zz)\n);",
 			want: []SDLFinding{
-				{Code: SDLForeignKeyTableNotFound, Line: 5, Schema: "s", Table: "t", Name: "f1", RefSchema: "public", RefTable: "missing", Columns: []string{"a"}},
-				{Code: SDLForeignKeyColumnNotFound, Line: 6, Schema: "s", Table: "t", Column: "b", RefSchema: "s", RefTable: "u", RefColumn: "zz", Columns: []string{"x", "y"}},
+				{Code: SDLForeignKeyTableNotFound, Start: 5, Schema: "s", Table: "t", Name: "f1", RefSchema: "public", RefTable: "missing", Columns: []string{"a"}},
+				{Code: SDLForeignKeyColumnNotFound, Start: 6, Schema: "s", Table: "t", Column: "b", RefSchema: "s", RefTable: "u", RefColumn: "zz", Columns: []string{"x", "y"}},
 			},
 		},
 		{
@@ -63,8 +100,8 @@ func TestCheckSDLIntegrityFile(t *testing.T) {
 				"CREATE VIEW s.v AS SELECT * FROM t, public.t, (WITH d AS (SELECT 1) SELECT * FROM d) x;\n" +
 				"CREATE VIEW w AS SELECT * FROM v3;\nCREATE VIEW w AS SELECT * FROM s.v;",
 			want: []SDLFinding{
-				{Code: SDLViewDependencyNotFound, Line: 2, Schema: "s", Name: "v", RefSchema: "public", RefTable: "t"},
-				{Code: SDLViewDependencyNotFound, Line: 2, Schema: "s", Name: "v", RefSchema: "s", RefTable: "d"},
+				{Code: SDLViewDependencyNotFound, Start: 2, Schema: "s", Name: "v", RefSchema: "public", RefTable: "t"},
+				{Code: SDLViewDependencyNotFound, Start: 2, Schema: "s", Name: "v", RefSchema: "s", RefTable: "d"},
 			},
 		},
 		{
@@ -91,20 +128,20 @@ func TestCheckSDLIntegrityFiles(t *testing.T) {
 		{Path: "b.sql", Text: "\nCREATE TABLE s.t (b int, CONSTRAINT pk UNIQUE (b), CONSTRAINT c CHECK (b > 0));\nCREATE INDEX i ON s.t (b);\nCREATE VIEW s.v AS SELECT * FROM s.t;"},
 		{Path: "c.sql", Text: "CREATE TABLE s.r (x int, CONSTRAINT fk FOREIGN KEY (x) REFERENCES s.t(b), CONSTRAINT c CHECK (x > 0));"},
 	}
-	first := &SDLDefinition{Path: "a.sql", Line: 1}
+	first := &SDLDefinition{Path: "a.sql", Start: 1}
 	require.Equal(t, map[string][]SDLFinding{
 		"a.sql": {},
 		"b.sql": {
-			{Code: SDLDuplicateTableAcrossFiles, Line: 2, Schema: "s", Table: "t", First: first},
-			{Code: SDLDuplicateIndexAcrossFiles, Line: 3, Schema: "s", Name: "i", First: &SDLDefinition{Path: "a.sql", Line: 2}},
-			{Code: SDLDuplicateViewAcrossFiles, Line: 4, Schema: "s", Name: "v", First: &SDLDefinition{Path: "a.sql", Line: 3}},
-			{Code: SDLDuplicateConstraintAcrossFiles, Line: 2, Schema: "s", Table: "t", Name: "pk", ConstraintType: "UNIQUE", First: &SDLDefinition{Path: "a.sql", Table: "t", ConstraintType: "PRIMARY KEY", Line: 1}},
+			{Code: SDLDuplicateTableAcrossFiles, Start: 2, Schema: "s", Table: "t", First: first},
+			{Code: SDLDuplicateIndexAcrossFiles, Start: 3, Schema: "s", Name: "i", First: &SDLDefinition{Path: "a.sql", Start: 2}},
+			{Code: SDLDuplicateViewAcrossFiles, Start: 4, Schema: "s", Name: "v", First: &SDLDefinition{Path: "a.sql", Start: 3}},
+			{Code: SDLDuplicateConstraintAcrossFiles, Start: 2, Schema: "s", Table: "t", Name: "pk", ConstraintType: "UNIQUE", First: &SDLDefinition{Path: "a.sql", Table: "t", ConstraintType: "PRIMARY KEY", Start: 1}},
 		},
 		// The foreign key resolves against a.sql's s.t, the first definition.
 		"c.sql": {
-			{Code: SDLForeignKeyColumnNotFound, Line: 1, Schema: "s", Table: "r", Name: "fk", Column: "x", RefSchema: "s", RefTable: "t", RefColumn: "b", Columns: []string{"a"}},
+			{Code: SDLForeignKeyColumnNotFound, Start: 1, Schema: "s", Table: "r", Name: "fk", Column: "x", RefSchema: "s", RefTable: "t", RefColumn: "b", Columns: []string{"a"}},
 		},
-	}, CheckSDLIntegrity(files))
+	}, checkSDLIntegrityLines(files))
 
 	// A syntax error returns only the first failing file's finding.
 	got := CheckSDLIntegrity([]SDLFile{
@@ -113,7 +150,7 @@ func TestCheckSDLIntegrityFiles(t *testing.T) {
 		{Path: "bad2.sql", Text: "CREATE TABLEX t (a int);"},
 	})
 	require.Equal(t, map[string][]SDLFinding{
-		"bad1.sql": {{Code: SDLSyntaxError, Detail: "syntax error: unmatched opening parenthesis"}},
+		"bad1.sql": {{Code: SDLSyntaxError, Start: 15, Detail: "syntax error: unmatched opening parenthesis"}},
 	}, got)
 
 	require.Empty(t, CheckSDLIntegrity(nil))

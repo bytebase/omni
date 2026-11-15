@@ -6,11 +6,11 @@ import (
 )
 
 // Conditions CheckSDLIntegrity reports, besides SDLSyntaxError. Schemas are
-// "public" where the SQL names none. Line is the line of the later definition
-// or the offending object; First is the earlier definition.
+// "public" where the SQL names none. Start is the later definition or the
+// offending object; First is the earlier definition.
 const (
 	// SDLDuplicateTable: a file creates a table twice. Schema, Table,
-	// First.Line.
+	// First.Start.
 	SDLDuplicateTable SDLCode = "DUPLICATE_TABLE"
 	// SDLDuplicateColumn: a table defines a column twice. Schema, Table,
 	// Column.
@@ -18,26 +18,26 @@ const (
 	// SDLDuplicateConstraint: a file reuses a PRIMARY KEY or UNIQUE name within
 	// a schema, or a CHECK or FOREIGN KEY name within a table. Name,
 	// ConstraintType, Schema, Table, First.ConstraintType, First.Table,
-	// First.Line.
+	// First.Start.
 	SDLDuplicateConstraint SDLCode = "DUPLICATE_CONSTRAINT"
 	// SDLDuplicateIndex: a file creates an index name twice within a schema.
-	// Schema, Name, First.Line.
+	// Schema, Name, First.Start.
 	SDLDuplicateIndex SDLCode = "DUPLICATE_INDEX"
 	// SDLDuplicateTableAcrossFiles: an earlier file creates the same table.
-	// Schema, Table, First.Path, First.Line.
+	// Schema, Table, First.Path, First.Start.
 	SDLDuplicateTableAcrossFiles SDLCode = "DUPLICATE_TABLE_ACROSS_FILES"
 	// SDLDuplicateIndexAcrossFiles: an earlier file creates the same index.
-	// Schema, Name, First.Path, First.Line.
+	// Schema, Name, First.Path, First.Start.
 	SDLDuplicateIndexAcrossFiles SDLCode = "DUPLICATE_INDEX_ACROSS_FILES"
 	// SDLDuplicateViewAcrossFiles: an earlier file creates the same view.
-	// Schema, Name, First.Path, First.Line.
+	// Schema, Name, First.Path, First.Start.
 	SDLDuplicateViewAcrossFiles SDLCode = "DUPLICATE_VIEW_ACROSS_FILES"
 	// SDLDuplicateConstraintAcrossFiles: an earlier file uses the same PRIMARY
 	// KEY or UNIQUE name in the schema. Name, Schema, ConstraintType, Table,
-	// First.Path, First.ConstraintType, First.Table, First.Line.
+	// First.Path, First.ConstraintType, First.Table, First.Start.
 	SDLDuplicateConstraintAcrossFiles SDLCode = "DUPLICATE_CONSTRAINT_ACROSS_FILES"
 	// SDLMultiplePrimaryKeys: a table has more than one table-level PRIMARY
-	// KEY. Schema, Table, PrimaryKeys (Name, Line); Line is the second one's.
+	// KEY. Schema, Table, PrimaryKeys (Name, Start); Start is the second one's.
 	SDLMultiplePrimaryKeys SDLCode = "MULTIPLE_PRIMARY_KEYS"
 	// SDLForeignKeyTableNotFound: no file creates the referenced table. Name
 	// (the constraint, empty when unnamed), Schema, Table, RefSchema, RefTable,
@@ -79,7 +79,6 @@ type SDLFile struct {
 //     names of the top-level WITH's CTEs, resolved against the view's schema
 //     when unqualified; system schemas, and system table and view names in
 //     any schema, are skipped.
-//   - Line is the line a node's location starts at, or 1 when unknown.
 //
 // If a file fails parseSDL, the result holds only that file's SDLSyntaxError.
 func CheckSDLIntegrity(files []SDLFile) map[string][]SDLFinding {
@@ -89,11 +88,9 @@ func CheckSDLIntegrity(files []SDLFile) map[string][]SDLFinding {
 
 	symbols := make([]*sdlSymbols, 0, len(files))
 	for _, file := range files {
-		stmts, err := parseSDL(file.Text)
-		if err != nil {
-			return map[string][]SDLFinding{
-				file.Path: {{Code: SDLSyntaxError, Detail: err.Error()}},
-			}
+		stmts, syntaxError := parseSDL(file.Text)
+		if syntaxError != nil {
+			return map[string][]SDLFinding{file.Path: {*syntaxError}}
 		}
 		symbols = append(symbols, buildSDLSymbols(file, stmts))
 	}
@@ -115,7 +112,6 @@ func CheckSDLIntegrity(files []SDLFile) map[string][]SDLFinding {
 
 type sdlSymbols struct {
 	path string
-	text string
 
 	tables     map[string]*sdlTable
 	tableOrder []*sdlTable
@@ -140,20 +136,20 @@ type sdlTable struct {
 	columnOrder []string
 	primaryKeys []*sdlConstraint
 	constraints []*sdlConstraint
-	line        int
+	start       int
 }
 
 type sdlIndex struct {
 	schema string
 	name   string
-	line   int
+	start  int
 }
 
 type sdlView struct {
 	schema string
 	name   string
 	query  ast.Node
-	line   int
+	start  int
 }
 
 type sdlConstraint struct {
@@ -161,7 +157,7 @@ type sdlConstraint struct {
 	constraintType string
 	schema         string
 	table          string
-	line           int
+	start          int
 	refSchema      string
 	refTable       string
 	columns        []string
@@ -187,17 +183,9 @@ func sdlSchemaOrPublic(schema string) string {
 	return schema
 }
 
-func sdlFileLine(text string, loc ast.Loc) int {
-	if loc.Start < 0 || text == "" {
-		return 1
-	}
-	return sdlLineAt(text, loc.Start)
-}
-
 func buildSDLSymbols(file SDLFile, stmts []omnipg.Statement) *sdlSymbols {
 	st := &sdlSymbols{
 		path:              file.Path,
-		text:              file.Text,
 		tables:            make(map[string]*sdlTable),
 		indexes:           make(map[string]*sdlIndex),
 		views:             make(map[string]*sdlView),
@@ -224,16 +212,16 @@ func (st *sdlSymbols) addCreateStmt(n *ast.CreateStmt) {
 	}
 	tableName := n.Relation.Relname
 	schemaName := sdlSchemaOrPublic(n.Relation.Schemaname)
-	line := sdlFileLine(st.text, n.Loc)
+	start := n.Loc.Start
 
 	key := sdlQualifiedName(schemaName, tableName)
 	if existing := st.tables[key]; existing != nil {
 		st.findings = append(st.findings, SDLFinding{
 			Code:   SDLDuplicateTable,
-			Line:   line,
+			Start:  start,
 			Schema: schemaName,
 			Table:  tableName,
-			First:  &SDLDefinition{Line: existing.line},
+			First:  &SDLDefinition{Start: existing.start},
 		})
 		return
 	}
@@ -241,7 +229,7 @@ func (st *sdlSymbols) addCreateStmt(n *ast.CreateStmt) {
 		schema:  schemaName,
 		name:    tableName,
 		columns: make(map[string]bool),
-		line:    line,
+		start:   start,
 	}
 	st.tables[key] = table
 	st.tableOrder = append(st.tableOrder, table)
@@ -270,7 +258,7 @@ func (st *sdlSymbols) addColumn(table *sdlTable, col *ast.ColumnDef) {
 	if table.columns[col.Colname] {
 		st.findings = append(st.findings, SDLFinding{
 			Code:   SDLDuplicateColumn,
-			Line:   sdlFileLine(st.text, col.Loc),
+			Start:  col.Loc.Start,
 			Schema: table.schema,
 			Table:  table.name,
 			Column: col.Colname,
@@ -286,7 +274,7 @@ func (st *sdlSymbols) addConstraint(table *sdlTable, c *ast.Constraint) {
 		name:   c.Conname,
 		schema: table.schema,
 		table:  table.name,
-		line:   sdlFileLine(st.text, c.Loc),
+		start:  c.Loc.Start,
 	}
 	switch c.Contype {
 	case ast.CONSTR_PRIMARY:
@@ -325,7 +313,7 @@ func (st *sdlSymbols) addConstraint(table *sdlTable, c *ast.Constraint) {
 		if existing, ok := names[constraint.name]; ok {
 			st.findings = append(st.findings, SDLFinding{
 				Code:           SDLDuplicateConstraint,
-				Line:           constraint.line,
+				Start:          constraint.start,
 				Schema:         table.schema,
 				Table:          table.name,
 				Name:           constraint.name,
@@ -333,7 +321,7 @@ func (st *sdlSymbols) addConstraint(table *sdlTable, c *ast.Constraint) {
 				First: &SDLDefinition{
 					Table:          existing.table,
 					ConstraintType: existing.constraintType,
-					Line:           existing.line,
+					Start:          existing.start,
 				},
 			})
 		} else {
@@ -362,20 +350,20 @@ func (st *sdlSymbols) addIndexStmt(n *ast.IndexStmt) {
 	if n.Idxname == "" {
 		return
 	}
-	line := sdlFileLine(st.text, n.Loc)
+	start := n.Loc.Start
 
 	key := sdlQualifiedName(schemaName, n.Idxname)
 	if existing, ok := st.indexes[key]; ok {
 		st.findings = append(st.findings, SDLFinding{
 			Code:   SDLDuplicateIndex,
-			Line:   line,
+			Start:  start,
 			Schema: schemaName,
 			Name:   n.Idxname,
-			First:  &SDLDefinition{Line: existing.line},
+			First:  &SDLDefinition{Start: existing.start},
 		})
 		return
 	}
-	index := &sdlIndex{schema: schemaName, name: n.Idxname, line: line}
+	index := &sdlIndex{schema: schemaName, name: n.Idxname, start: start}
 	st.indexes[key] = index
 	st.indexOrder = append(st.indexOrder, index)
 }
@@ -393,7 +381,7 @@ func (st *sdlSymbols) addViewStmt(n *ast.ViewStmt) {
 		schema: schemaName,
 		name:   n.View.Relname,
 		query:  n.Query,
-		line:   sdlFileLine(st.text, n.Loc),
+		start:  n.Loc.Start,
 	}
 }
 
@@ -430,13 +418,13 @@ func sdlCrossFileDuplicates(symbols []*sdlSymbols) map[int][]SDLFinding {
 			if first, ok := seenTables[key]; ok {
 				findings[i] = append(findings[i], SDLFinding{
 					Code:   SDLDuplicateTableAcrossFiles,
-					Line:   table.line,
+					Start:  table.start,
 					Schema: table.schema,
 					Table:  table.name,
 					First:  &first,
 				})
 			} else {
-				seenTables[key] = SDLDefinition{Path: st.path, Line: table.line}
+				seenTables[key] = SDLDefinition{Path: st.path, Start: table.start}
 			}
 		}
 		for _, index := range st.indexOrder {
@@ -444,13 +432,13 @@ func sdlCrossFileDuplicates(symbols []*sdlSymbols) map[int][]SDLFinding {
 			if first, ok := seenIndexes[key]; ok {
 				findings[i] = append(findings[i], SDLFinding{
 					Code:   SDLDuplicateIndexAcrossFiles,
-					Line:   index.line,
+					Start:  index.start,
 					Schema: index.schema,
 					Name:   index.name,
 					First:  &first,
 				})
 			} else {
-				seenIndexes[key] = SDLDefinition{Path: st.path, Line: index.line}
+				seenIndexes[key] = SDLDefinition{Path: st.path, Start: index.start}
 			}
 		}
 		for _, key := range st.viewOrder {
@@ -458,13 +446,13 @@ func sdlCrossFileDuplicates(symbols []*sdlSymbols) map[int][]SDLFinding {
 			if first, ok := seenViews[key]; ok {
 				findings[i] = append(findings[i], SDLFinding{
 					Code:   SDLDuplicateViewAcrossFiles,
-					Line:   view.line,
+					Start:  view.start,
 					Schema: view.schema,
 					Name:   view.name,
 					First:  &first,
 				})
 			} else {
-				seenViews[key] = SDLDefinition{Path: st.path, Line: view.line}
+				seenViews[key] = SDLDefinition{Path: st.path, Start: view.start}
 			}
 		}
 		for _, constraint := range st.schemaConstraintOrder {
@@ -472,7 +460,7 @@ func sdlCrossFileDuplicates(symbols []*sdlSymbols) map[int][]SDLFinding {
 			if first, ok := seenConstraints[key]; ok {
 				findings[i] = append(findings[i], SDLFinding{
 					Code:           SDLDuplicateConstraintAcrossFiles,
-					Line:           constraint.line,
+					Start:          constraint.start,
 					Schema:         constraint.schema,
 					Table:          constraint.table,
 					Name:           constraint.name,
@@ -484,7 +472,7 @@ func sdlCrossFileDuplicates(symbols []*sdlSymbols) map[int][]SDLFinding {
 					Path:           st.path,
 					Table:          constraint.table,
 					ConstraintType: constraint.constraintType,
-					Line:           constraint.line,
+					Start:          constraint.start,
 				}
 			}
 		}
@@ -499,11 +487,11 @@ func (st *sdlSymbols) appendMultiplePrimaryKeys(findings []SDLFinding) []SDLFind
 		}
 		keys := make([]SDLDefinition, 0, len(table.primaryKeys))
 		for _, pk := range table.primaryKeys {
-			keys = append(keys, SDLDefinition{Name: pk.name, Line: pk.line})
+			keys = append(keys, SDLDefinition{Name: pk.name, Start: pk.start})
 		}
 		findings = append(findings, SDLFinding{
 			Code:        SDLMultiplePrimaryKeys,
-			Line:        table.primaryKeys[1].line,
+			Start:       table.primaryKeys[1].start,
 			Schema:      table.schema,
 			Table:       table.name,
 			PrimaryKeys: keys,
@@ -522,7 +510,7 @@ func (st *sdlSymbols) appendForeignKeys(findings []SDLFinding, merged *sdlMerged
 			if refTable == nil {
 				findings = append(findings, SDLFinding{
 					Code:      SDLForeignKeyTableNotFound,
-					Line:      constraint.line,
+					Start:     constraint.start,
 					Schema:    table.schema,
 					Table:     table.name,
 					Name:      constraint.name,
@@ -542,7 +530,7 @@ func (st *sdlSymbols) appendForeignKeys(findings []SDLFinding, merged *sdlMerged
 				}
 				findings = append(findings, SDLFinding{
 					Code:      SDLForeignKeyColumnNotFound,
-					Line:      constraint.line,
+					Start:     constraint.start,
 					Schema:    table.schema,
 					Table:     table.name,
 					Name:      constraint.name,
@@ -574,7 +562,7 @@ func (st *sdlSymbols) appendViewDependencies(findings []SDLFinding, merged *sdlM
 			}
 			findings = append(findings, SDLFinding{
 				Code:      SDLViewDependencyNotFound,
-				Line:      view.line,
+				Start:     view.start,
 				Schema:    view.schema,
 				Name:      view.name,
 				RefSchema: dep.schema,

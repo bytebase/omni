@@ -1,16 +1,23 @@
 package analysis
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
 
 func TestCheckSDLStyle(t *testing.T) {
+	// node and stmt name the text a finding's Start and StatementStart point
+	// at (its first occurrence); an empty node means Start is -1.
+	type want struct {
+		SDLFinding
+		node, stmt string
+	}
 	tests := []struct {
 		name string
 		sql  string
-		want []SDLFinding
+		want []want
 	}{
 		{
 			name: "conforming table",
@@ -23,40 +30,40 @@ func TestCheckSDLStyle(t *testing.T) {
 			);`,
 		},
 		{
-			name: "table without schema at the statement's first line, leading comment included",
-			sql:  "\n-- users\nCREATE TABLE users (id int);",
-			want: []SDLFinding{{Code: SDLTableWithoutSchema, Line: 2, Table: "users"}},
+			name: "a statement starts at its leading comment",
+			sql:  "SELECT 1;\n-- users\nCREATE TABLE users (id int);",
+			want: []want{{SDLFinding{Code: SDLTableWithoutSchema, Table: "users"}, "", "-- users"}},
 		},
 		{
 			name: "column constraints: references finding first, column finding at its first disallowed constraint",
 			sql:  "CREATE TABLE public.t (\n  a int NOT NULL\n    CHECK (a > 0)\n    REFERENCES u(id)\n);",
-			want: []SDLFinding{
-				{Code: SDLColumnForeignKeyWithoutSchema, Line: 4, Table: "t", Column: "a", RefTable: "u"},
-				{Code: SDLColumnConstraint, Line: 3, Table: "t", Column: "a", ConstraintTypes: []string{"CHECK", "FOREIGN KEY"}},
+			want: []want{
+				{SDLFinding{Code: SDLColumnForeignKeyWithoutSchema, Table: "t", Column: "a", RefTable: "u"}, "REFERENCES", "CREATE"},
+				{SDLFinding{Code: SDLColumnConstraint, Table: "t", Column: "a", ConstraintTypes: []string{"CHECK", "FOREIGN KEY"}}, "CHECK", "CREATE"},
 			},
 		},
 		{
 			name: "column references with a schema is still a column constraint",
 			sql:  "CREATE TABLE public.t (a int REFERENCES public.u(id));",
-			want: []SDLFinding{{Code: SDLColumnConstraint, Line: 1, Table: "t", Column: "a", ConstraintTypes: []string{"FOREIGN KEY"}}},
+			want: []want{{SDLFinding{Code: SDLColumnConstraint, Table: "t", Column: "a", ConstraintTypes: []string{"FOREIGN KEY"}}, "REFERENCES", "CREATE"}},
 		},
 		{
 			name: "unnamed table constraints, and a foreign key without schema",
 			sql:  "CREATE TABLE public.t (\n  a int,\n  PRIMARY KEY (a),\n  FOREIGN KEY (a) REFERENCES u(id),\n  EXCLUDE USING gist (a WITH =)\n);",
-			want: []SDLFinding{
-				{Code: SDLUnnamedConstraint, Line: 3, Table: "t", ConstraintType: "PRIMARY KEY"},
-				{Code: SDLUnnamedConstraint, Line: 4, Table: "t", ConstraintType: "FOREIGN KEY"},
-				{Code: SDLForeignKeyWithoutSchema, Line: 4, Table: "t", RefTable: "u"},
-				{Code: SDLUnnamedConstraint, Line: 5, Table: "t", ConstraintType: "CONSTRAINT"},
+			want: []want{
+				{SDLFinding{Code: SDLUnnamedConstraint, Table: "t", ConstraintType: "PRIMARY KEY"}, "PRIMARY", "CREATE"},
+				{SDLFinding{Code: SDLUnnamedConstraint, Table: "t", ConstraintType: "FOREIGN KEY"}, "FOREIGN", "CREATE"},
+				{SDLFinding{Code: SDLForeignKeyWithoutSchema, Table: "t", RefTable: "u"}, "FOREIGN", "CREATE"},
+				{SDLFinding{Code: SDLUnnamedConstraint, Table: "t", ConstraintType: "CONSTRAINT"}, "EXCLUDE", "CREATE"},
 			},
 		},
 		{
 			name: "index without name and schema",
 			sql:  "CREATE INDEX ON t (a);\nCREATE INDEX i ON t (a);\nCREATE INDEX i2 ON public.t (a);",
-			want: []SDLFinding{
-				{Code: SDLUnnamedIndex, Line: 1},
-				{Code: SDLIndexWithoutSchema, Line: 1, Table: "t"},
-				{Code: SDLIndexWithoutSchema, Line: 2, Name: "i", Table: "t"},
+			want: []want{
+				{SDLFinding{Code: SDLUnnamedIndex}, "", "CREATE INDEX ON"},
+				{SDLFinding{Code: SDLIndexWithoutSchema, Table: "t"}, "", "CREATE INDEX ON"},
+				{SDLFinding{Code: SDLIndexWithoutSchema, Name: "i", Table: "t"}, "", "CREATE INDEX i "},
 			},
 		},
 		{
@@ -65,11 +72,11 @@ func TestCheckSDLStyle(t *testing.T) {
 				"CREATE FUNCTION f() RETURNS int AS $$ SELECT 1 $$ LANGUAGE sql;\n" +
 				"CREATE VIEW public.v2 AS SELECT 1;\nCREATE SEQUENCE public.s2;\nALTER SEQUENCE public.s2 RESTART;\n" +
 				"CREATE FUNCTION public.f2() RETURNS int AS $$ SELECT 1 $$ LANGUAGE sql;",
-			want: []SDLFinding{
-				{Code: SDLViewWithoutSchema, Line: 1, Name: "v"},
-				{Code: SDLSequenceWithoutSchema, Line: 2, Name: "seq"},
-				{Code: SDLAlterSequenceWithoutSchema, Line: 3, Name: "seq"},
-				{Code: SDLFunctionWithoutSchema, Line: 4, Name: "f"},
+			want: []want{
+				{SDLFinding{Code: SDLViewWithoutSchema, Name: "v"}, "", "CREATE VIEW v "},
+				{SDLFinding{Code: SDLSequenceWithoutSchema, Name: "seq"}, "", "CREATE SEQUENCE seq"},
+				{SDLFinding{Code: SDLAlterSequenceWithoutSchema, Name: "seq"}, "", "ALTER SEQUENCE seq"},
+				{SDLFinding{Code: SDLFunctionWithoutSchema, Name: "f"}, "", "CREATE FUNCTION f("},
 			},
 		},
 		{
@@ -77,23 +84,27 @@ func TestCheckSDLStyle(t *testing.T) {
 			sql:  "CREATE FUNCTION c.s.f() RETURNS int AS $$ SELECT 1 $$ LANGUAGE sql;",
 		},
 		{
-			name: "a CreateStmt's separate Constraints list and other statements are not judged",
+			name: "other statements are not judged",
 			sql:  "CREATE MATERIALIZED VIEW mv AS SELECT 1;\nDROP TABLE t;\nALTER TABLE t ADD COLUMN x int PRIMARY KEY;",
-		},
-		{
-			name: "statement lines count only LF, constraint lines count CR, LF and CRLF",
-			sql:  "CREATE TABLE public.a (x int);\rCREATE TABLE public.t (\r\n  a int,\r  PRIMARY KEY (a)\n);\nCREATE TABLE b (x int);",
-			want: []SDLFinding{
-				{Code: SDLUnnamedConstraint, Line: 4, Table: "t", ConstraintType: "PRIMARY KEY"},
-				{Code: SDLTableWithoutSchema, Line: 4, Table: "b"},
-			},
 		},
 		{name: "empty", sql: ""},
 		{name: "comment only", sql: "-- nothing\n"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			require.Equal(t, tc.want, CheckSDLStyle(tc.sql))
+			var expected []SDLFinding
+			for _, w := range tc.want {
+				f := w.SDLFinding
+				f.Start = -1
+				if w.node != "" {
+					f.Start = strings.Index(tc.sql, w.node)
+					require.GreaterOrEqual(t, f.Start, 0, w.node)
+				}
+				f.StatementStart = strings.Index(tc.sql, w.stmt)
+				require.GreaterOrEqual(t, f.StatementStart, 0, w.stmt)
+				expected = append(expected, f)
+			}
+			require.Equal(t, expected, CheckSDLStyle(tc.sql))
 		})
 	}
 }
@@ -102,15 +113,16 @@ func TestCheckSDLStyleSyntaxError(t *testing.T) {
 	tests := []struct {
 		sql    string
 		detail string
+		start  int
 	}{
-		{"CREATE TABLE public.t (a int;", "syntax error: unmatched opening parenthesis"},
-		{"CREATE TABLE public.t (a int));", "syntax error: unmatched closing parenthesis"},
+		{"CREATE TABLE public.t (a int;", "syntax error: unmatched opening parenthesis", 22},
+		{"CREATE TABLE public.t (a int));", "syntax error: unmatched closing parenthesis", 29},
 		// The balance check skips strings, dollar quotes and comments, but
 		// ignores backslash escapes and does not nest block comments.
-		{"CREATE TABLE public.t (a text DEFAULT E'\\'(');", "syntax error: unmatched opening parenthesis"},
-		{"/* /* */ ( */ CREATE TABLE public.t (a int);", "syntax error: unmatched opening parenthesis"},
-		{"CREATE TABLE public.t (a text DEFAULT '(', b text DEFAULT $x$)$x$); -- (", ""},
-		{"CREATE TABLEX public.t (a int);", `syntax error at or near "TABLEX"`},
+		{"CREATE TABLE public.t (a text DEFAULT E'\\'(');", "syntax error: unmatched opening parenthesis", 42},
+		{"/* /* */ ( */ CREATE TABLE public.t (a int);", "syntax error: unmatched opening parenthesis", 9},
+		{"CREATE TABLE public.t (a text DEFAULT '(', b text DEFAULT $x$)$x$); -- (", "", 0},
+		{"CREATE TABLEX public.t (a int);", `syntax error at or near "TABLEX"`, 7},
 	}
 	for _, tc := range tests {
 		got := CheckSDLStyle(tc.sql)
@@ -121,6 +133,6 @@ func TestCheckSDLStyleSyntaxError(t *testing.T) {
 		require.Len(t, got, 1, tc.sql)
 		require.Equal(t, SDLSyntaxError, got[0].Code, tc.sql)
 		require.Contains(t, got[0].Detail, tc.detail, tc.sql)
-		require.Zero(t, got[0].Line, tc.sql)
+		require.Equal(t, tc.start, got[0].Start, tc.sql)
 	}
 }
