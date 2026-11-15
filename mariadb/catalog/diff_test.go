@@ -158,6 +158,30 @@ func TestDiffComparesRoutinesWithNonASCIITypes(t *testing.T) {
 	}
 }
 
+func TestDiffComparesKnownSQLModes(t *testing.T) {
+	text := dbDDL + "CREATE TABLE t (a VARCHAR(10)); CREATE FUNCTION f() RETURNS VARCHAR(10) DETERMINISTIC RETURN 'a' || 'b'; CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 'x' || 'y'; CREATE EVENT e ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DO SELECT 'a' || 'b';"
+	load := func(mode string) *Catalog {
+		c := loadCat(t, text)
+		ctx := SessionContext{SQLMode: mode}
+		c.ApplySessionContext(SessionContextMap{
+			Functions: map[string]SessionContext{"f": ctx},
+			Triggers:  map[string]SessionContext{"tr": ctx},
+			Events:    map[string]SessionContext{"e": ctx},
+		})
+		return c
+	}
+	d := Diff(load("STRICT_TRANS_TABLES"), load("PIPES_AS_CONCAT,STRICT_TRANS_TABLES"))
+	if len(d.Functions) != 1 || len(d.Triggers) != 1 || len(d.Events) != 1 {
+		t.Errorf("want the function, trigger and event changed:\n%s", describeDiff(d))
+	}
+	if d := Diff(load("STRICT_TRANS_TABLES,PIPES_AS_CONCAT"), load("pipes_as_concat,STRICT_TRANS_TABLES")); !d.IsEmpty() {
+		t.Errorf("one mode spelled two ways diffs:\n%s", describeDiff(d))
+	}
+	if d := Diff(loadCat(t, text), load("PIPES_AS_CONCAT")); !d.IsEmpty() {
+		t.Errorf("an unknown mode diffs against a known one:\n%s", describeDiff(d))
+	}
+}
+
 func TestCanonicalTableOptionsKeepsCommentSpacing(t *testing.T) {
 	a := loadCat(t, dbDDL+"CREATE TABLE t (a INT) COMMENT 'a  b';")
 	b := loadCat(t, dbDDL+"CREATE TABLE t (a INT) COMMENT 'a b';")
