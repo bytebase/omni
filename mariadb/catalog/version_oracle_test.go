@@ -52,8 +52,12 @@ func newCatalogAt(v Version) *Catalog {
 // to create, and why. The oracles require the server to refuse the pair's
 // second schema there and skip it; an entry the server takes fails.
 var refusedPairs = map[string]string{
-	"10.7.8/checks reading through to a generated column": refusesCheckOnGenerated107,
-	"10.7.8/kept column checking an added generated one":  refusesCheckOnGenerated107,
+	"10.7.8/checks reading through to a generated column":     refusesCheckOnGenerated107,
+	"10.7.8/kept column checking an added generated one":      refusesCheckOnGenerated107,
+	"10.7.8/auto key over a column checking a generated one":  refusesCheckOnGenerated107,
+	"10.7.8/kept column checking a replaced one":              refusesCheckOnGenerated107,
+	"10.7.8/every column replaced, checks reading each other": refusesCheckOnGenerated107,
+	"10.7.8/only column replaced by a group":                  refusesCheckOnGenerated107,
 }
 
 const refusesCheckOnGenerated107 = "10.7 refuses a column CHECK that reads a generated column, wherever it stands (4029)"

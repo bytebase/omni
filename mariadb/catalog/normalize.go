@@ -108,16 +108,18 @@ func (c *Catalog) SetVersion(v Version) {
 // ignoreDescendingKeys makes every key part of the table ref names ascending on
 // a release before 10.8, which takes DESC and stores the part ascending.
 // Measured on mariadb:10.7.8: KEY ix (b DESC) is stored KEY `ix` (`b`). A
-// statement calls it, deferred, for the one table it changes; the table's
-// pointer, resolved first, follows an ALTER that renames it.
+// statement calls it, deferred, for the one table it changes.
 func (c *Catalog) ignoreDescendingKeys(ref *nodes.TableRef) func() {
 	if c.session.Version.release() >= 1008 || ref == nil {
 		return func() {}
 	}
-	tbl := c.tableOf(ref)
+	before := c.tableOf(ref)
 	return func() {
+		// The table of that name now, which CREATE OR REPLACE makes anew,
+		// else the one an ALTER renamed.
+		tbl := c.tableOf(ref)
 		if tbl == nil {
-			tbl = c.tableOf(ref)
+			tbl = before
 		}
 		if tbl == nil {
 			return

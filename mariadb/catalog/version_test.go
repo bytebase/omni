@@ -51,3 +51,16 @@ func TestVersionDefaults(t *testing.T) {
 		}
 	}
 }
+
+func TestVersionAppliesToReplacedTablesAndRoutines(t *testing.T) {
+	c, err := LoadSDLWithVersion("CREATE DATABASE d; USE d; CREATE TABLE t (a INT); CREATE OR REPLACE TABLE t (a INT, KEY k (a DESC)); CREATE FUNCTION f() RETURNS VARCHAR(10) CHARACTER SET utf8mb4 DETERMINISTIC RETURN 'x';", MariaDB107)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := c.ShowCreateTable("d", "t"); !strings.Contains(got, "KEY `k` (`a`)") {
+		t.Errorf("10.7 stores a DESC part ascending, in a replaced table too:\n%s", got)
+	}
+	if got := c.GetDatabase("d").Functions["f"].Returns; !strings.Contains(got, "utf8mb4_general_ci") {
+		t.Errorf("10.7's utf8mb4 default is utf8mb4_general_ci, got RETURNS %s", got)
+	}
+}
