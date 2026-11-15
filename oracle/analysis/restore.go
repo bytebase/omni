@@ -33,6 +33,8 @@ func RestoreSQL(originalSQL string, node ast.StmtNode, opts RestoreOptions) (str
 	if truncated {
 		sqlForComment += "..."
 	}
+	// A "*/" in the statement would end the comment early.
+	sqlForComment = strings.ReplaceAll(sqlForComment, "*/", "* /")
 	g := &generator{
 		backupDatabase:   opts.BackupDatabase,
 		backupTable:      opts.BackupTable,
