@@ -184,6 +184,8 @@ func TestGetQuerySpanResultLineageOfFunctionBodies(t *testing.T) {
 		{Name: "loop_cursor", Definition: "CREATE FUNCTION public.loop_cursor() RETURNS SETOF text LANGUAGE plpgsql AS $$ DECLARE c CURSOR FOR SELECT ssn FROM t; BEGIN FOR r IN c LOOP RETURN NEXT r.ssn; END LOOP; END; $$"},
 		{Name: "returning_sql", Definition: "CREATE FUNCTION public.returning_sql() RETURNS SETOF text LANGUAGE sql AS $$ UPDATE t SET id = id RETURNING ssn $$"},
 		{Name: "returning_table", Definition: "CREATE FUNCTION public.returning_table() RETURNS TABLE(i int, e text, s text) LANGUAGE sql AS $$ DELETE FROM t WHERE false RETURNING * $$"},
+		{Name: "loop_outer", Definition: "CREATE FUNCTION public.loop_outer() RETURNS text LANGUAGE plpgsql AS $$ DECLARE v text; BEGIN FOR i IN 1..1 LOOP SELECT ssn INTO v FROM t LIMIT 1; END LOOP; RETURN v; END; $$"},
+		{Name: "block_outer", Definition: "CREATE FUNCTION public.block_outer() RETURNS text LANGUAGE plpgsql AS $$ DECLARE v text; BEGIN BEGIN SELECT ssn INTO v FROM t LIMIT 1; END; RETURN v; END; $$"},
 		{Name: "returning_pl", Definition: "CREATE FUNCTION public.returning_pl() RETURNS text LANGUAGE plpgsql AS $$ DECLARE v text; BEGIN UPDATE t SET id = id WHERE id = 1 RETURNING ssn INTO v; RETURN v; END; $$"},
 	}
 	testCases := []struct {
@@ -194,6 +196,8 @@ func TestGetQuerySpanResultLineageOfFunctionBodies(t *testing.T) {
 		{"SELECT loop_cursor() AS x", []string{"t.ssn"}},
 		{"SELECT returning_sql() AS x", []string{"t.ssn"}},
 		{"SELECT returning_pl() AS x", []string{"t.ssn"}},
+		{"SELECT loop_outer() AS x", []string{"t.ssn"}},
+		{"SELECT block_outer() AS x", []string{"t.ssn"}},
 		{"SELECT r.s FROM returning_table() r", []string{"t.ssn"}},
 	}
 	for _, tc := range testCases {
@@ -346,20 +350,42 @@ func TestGetQuerySpanReadsFunctionsOutsideTheOutput(t *testing.T) {
 	}
 }
 
-func TestGetQuerySpanMultiFunctionLineage(t *testing.T) {
+func TestGetQuerySpanOutputParameterLineage(t *testing.T) {
 	schema := healthySchema()
 	schema.Schemas[0].Functions = []*metadatapb.FunctionMetadata{
-		{Name: "echo", Definition: "CREATE FUNCTION public.echo(x text) RETURNS TABLE(value text) LANGUAGE sql AS $$ SELECT x $$"},
-		{Name: "pair", Definition: "CREATE FUNCTION public.pair(k int) RETURNS TABLE(p text, q text) LANGUAGE sql AS $$ SELECT email, email FROM t WHERE id = k $$"},
+		{Name: "next_out", Definition: "CREATE FUNCTION public.next_out() RETURNS TABLE(value text) LANGUAGE plpgsql AS $$ BEGIN SELECT ssn INTO value FROM t LIMIT 1; RETURN NEXT; END; $$"},
+		{Name: "next_loop", Definition: "CREATE FUNCTION public.next_loop() RETURNS TABLE(value text) LANGUAGE plpgsql AS $$ BEGIN FOR value IN SELECT ssn FROM t LOOP RETURN NEXT; END LOOP; END; $$"},
+		{Name: "next_assign", Definition: "CREATE FUNCTION public.next_assign() RETURNS TABLE(i int, value text) LANGUAGE plpgsql AS $$ BEGIN i := 1; BEGIN value := (SELECT ssn FROM t LIMIT 1); END; RETURN NEXT; END; $$"},
+		// A set-returning function's bare RETURN ends it without a row.
+		{Name: "srf_return", Definition: "CREATE FUNCTION public.srf_return() RETURNS TABLE(value text) LANGUAGE plpgsql AS $$ BEGIN SELECT ssn INTO value FROM t LIMIT 1; RETURN; END; $$"},
+		{Name: "next_shadowed", Definition: "CREATE FUNCTION public.next_shadowed() RETURNS TABLE(value text) LANGUAGE plpgsql AS $$ BEGIN value := 'public'; DECLARE value text; BEGIN SELECT ssn INTO value FROM t LIMIT 1; END; RETURN NEXT; END; $$"},
+		{Name: "next_alias", Definition: "CREATE FUNCTION public.next_alias() RETURNS TABLE(value text) LANGUAGE plpgsql AS $$ DECLARE v ALIAS FOR value; BEGIN SELECT ssn INTO v FROM t LIMIT 1; RETURN NEXT; END; $$"},
+		{Name: "next_targets", Definition: "CREATE FUNCTION public.next_targets() RETURNS TABLE(a text, b text) LANGUAGE plpgsql AS $$ BEGIN FOR a, b IN SELECT email, ssn FROM t LOOP RETURN NEXT; END LOOP; END; $$"},
+		{Name: "next_int_loop", Definition: "CREATE FUNCTION public.next_int_loop() RETURNS TABLE(value int) LANGUAGE plpgsql AS $$ BEGIN value := 0; FOR value IN 1..1 LOOP value := (SELECT id FROM t LIMIT 1); END LOOP; RETURN NEXT; END; $$"},
+		// The second iteration returns the value the first assigned.
+		{Name: "next_before_assign", Definition: "CREATE FUNCTION public.next_before_assign() RETURNS TABLE(value text) LANGUAGE plpgsql AS $$ BEGIN FOR i IN 1..2 LOOP RETURN NEXT; SELECT ssn INTO value FROM t LIMIT 1; END LOOP; END; $$"},
+		{Name: "query_after_loop", Definition: "CREATE FUNCTION public.query_after_loop() RETURNS TABLE(value text) LANGUAGE plpgsql AS $$ BEGIN FOR i IN 1..1 LOOP SELECT ssn INTO value FROM t LIMIT 1; END LOOP; RETURN QUERY SELECT value; END; $$"},
+		{Name: "next_cursor_loop", Definition: "CREATE FUNCTION public.next_cursor_loop() RETURNS TABLE(value text) LANGUAGE plpgsql AS $$ DECLARE c CURSOR FOR SELECT ssn FROM t; BEGIN value := 'public'; FOR value IN c LOOP RETURN NEXT; END LOOP; END; $$"},
+		{Name: "out_implicit", Definition: "CREATE FUNCTION public.out_implicit(OUT a text, OUT b text) LANGUAGE plpgsql AS $$ BEGIN SELECT email, ssn INTO a, b FROM t LIMIT 1; END; $$"},
+		{Name: "out_return", Definition: "CREATE FUNCTION public.out_return(OUT a text, OUT b text) RETURNS record LANGUAGE plpgsql AS $$ BEGIN SELECT email, ssn INTO a, b FROM t LIMIT 1; RETURN; END; $$"},
 	}
 	testCases := []struct {
 		statement string
 		want      [][]string
 	}{
-		{"SELECT f.a, f.b FROM t CROSS JOIN LATERAL unnest(ARRAY[t.email], ARRAY[t.ssn]) AS f(a, b)", [][]string{{"t.email"}, {"t.ssn"}}},
-		{"SELECT f.a, f.b, f.n FROM t CROSS JOIN LATERAL unnest(ARRAY[t.email], ARRAY[t.ssn]) WITH ORDINALITY AS f(a, b, n)", [][]string{{"t.email"}, {"t.ssn"}, {}}},
-		{"SELECT f.a, f.b FROM t CROSS JOIN LATERAL ROWS FROM (unnest(ARRAY[t.email]), echo(t.ssn)) AS f(a, b)", [][]string{{"t.email"}, {"t.ssn"}}},
-		{"SELECT f.x, f.y, f.z FROM t CROSS JOIN LATERAL ROWS FROM (pair(t.id), unnest(ARRAY[t.ssn])) AS f(x, y, z)", [][]string{{"t.email", "t.id"}, {"t.email", "t.id"}, {"t.ssn"}}},
+		{"SELECT value FROM next_out()", [][]string{{"t.ssn"}}},
+		{"SELECT value FROM next_loop()", [][]string{{"t.ssn"}}},
+		{"SELECT i, value FROM next_assign()", [][]string{{}, {"t.ssn"}}},
+		{"SELECT value FROM srf_return()", [][]string{{}}},
+		{"SELECT value FROM next_shadowed()", [][]string{{}}},
+		{"SELECT value FROM next_alias()", [][]string{{"t.ssn"}}},
+		{"SELECT a, b FROM next_targets()", [][]string{{"t.email"}, {"t.ssn"}}},
+		{"SELECT value FROM next_int_loop()", [][]string{{}}},
+		{"SELECT value FROM next_before_assign()", [][]string{{"t.ssn"}}},
+		{"SELECT value FROM query_after_loop()", [][]string{{"t.ssn"}}},
+		{"SELECT value FROM next_cursor_loop()", [][]string{{}}},
+		{"SELECT a, b FROM out_implicit()", [][]string{{"t.email"}, {"t.ssn"}}},
+		{"SELECT a, b FROM out_return()", [][]string{{"t.email"}, {"t.ssn"}}},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.statement, func(t *testing.T) {
@@ -407,6 +433,33 @@ func TestGetQuerySpanValuesLineage(t *testing.T) {
 
 	span := spanFor(t, "EXPLAIN ANALYZE VALUES ((SELECT email FROM t WHERE ssn = 'guess'))", healthySchema())
 	require.Equal(t, []string{"t.ssn"}, predicateColumnNames(span.PredicateColumns))
+}
+
+func TestGetQuerySpanMultiFunctionLineage(t *testing.T) {
+	schema := healthySchema()
+	schema.Schemas[0].Functions = []*metadatapb.FunctionMetadata{
+		{Name: "echo", Definition: "CREATE FUNCTION public.echo(x text) RETURNS TABLE(value text) LANGUAGE sql AS $$ SELECT x $$"},
+		{Name: "pair", Definition: "CREATE FUNCTION public.pair(k int) RETURNS TABLE(p text, q text) LANGUAGE sql AS $$ SELECT email, email FROM t WHERE id = k $$"},
+	}
+	testCases := []struct {
+		statement string
+		want      [][]string
+	}{
+		{"SELECT f.a, f.b FROM t CROSS JOIN LATERAL unnest(ARRAY[t.email], ARRAY[t.ssn]) AS f(a, b)", [][]string{{"t.email"}, {"t.ssn"}}},
+		{"SELECT f.a, f.b, f.n FROM t CROSS JOIN LATERAL unnest(ARRAY[t.email], ARRAY[t.ssn]) WITH ORDINALITY AS f(a, b, n)", [][]string{{"t.email"}, {"t.ssn"}, {}}},
+		{"SELECT f.a, f.b FROM t CROSS JOIN LATERAL ROWS FROM (unnest(ARRAY[t.email]), echo(t.ssn)) AS f(a, b)", [][]string{{"t.email"}, {"t.ssn"}}},
+		{"SELECT f.x, f.y, f.z FROM t CROSS JOIN LATERAL ROWS FROM (pair(t.id), unnest(ARRAY[t.ssn])) AS f(x, y, z)", [][]string{{"t.email", "t.id"}, {"t.email", "t.id"}, {"t.ssn"}}},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.statement, func(t *testing.T) {
+			span := spanFor(t, tc.statement, schema)
+			var got [][]string
+			for _, result := range span.Results {
+				got = append(got, predicateColumnNames(result.SourceColumns))
+			}
+			require.Equal(t, tc.want, got)
+		})
+	}
 }
 
 func TestGetQuerySpanOuterCTELineage(t *testing.T) {

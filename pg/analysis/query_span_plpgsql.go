@@ -253,14 +253,18 @@ func (e *querySpanExtractor) extractFuncLineage(q *catalog.Query) []ColumnSet {
 
 // variableScope tracks PL/pgSQL variable source columns with nested scoping.
 type variableScope struct {
-	vars   map[string]ColumnSet
-	parent *variableScope
+	vars map[string]ColumnSet
+	// declared maps each name the block declares to "", or for an ALIAS to
+	// the lowercase name it stands for.
+	declared map[string]string
+	parent   *variableScope
 }
 
 func newVariableScope(parent *variableScope) *variableScope {
 	return &variableScope{
-		vars:   make(map[string]ColumnSet),
-		parent: parent,
+		vars:     make(map[string]ColumnSet),
+		declared: make(map[string]string),
+		parent:   parent,
 	}
 }
 
@@ -278,20 +282,23 @@ func (s *variableScope) get(name string) (ColumnSet, bool) {
 	return nil, false
 }
 
+// merge adds sources to the variable name in the scope that holds it, so an
+// assignment in a nested block or loop outlives it. A name no scope holds,
+// such as an output parameter, lives as long as the function, in the
+// outermost scope.
 func (s *variableScope) merge(name string, sources ColumnSet) {
 	lower := strings.ToLower(name)
-	existing, ok := s.get(lower)
-	if !ok {
-		existing = make(ColumnSet)
+	var owner *variableScope
+	for scope := s; scope != nil; scope = scope.parent {
+		if _, ok := scope.vars[lower]; ok {
+			owner = scope
+			break
+		}
+		owner = scope
 	}
-	merged := make(ColumnSet)
-	for k, v := range existing {
-		merged[k] = v
-	}
-	for k, v := range sources {
-		merged[k] = v
-	}
-	s.vars[lower] = merged
+	merged := cloneSourceColumnSet(owner.vars[lower])
+	mergeSourceColumnSetInto(merged, sources)
+	owner.vars[lower] = merged
 }
 
 // plpgsqlAnalyzer holds state for analyzing a single PL/pgSQL function body.
@@ -300,6 +307,14 @@ type plpgsqlAnalyzer struct {
 	scope     *variableScope
 	// returnResults collects per-column source sets from all RETURN QUERY paths.
 	returnResults [][]ColumnSet
+	// outputs holds what each output parameter (OUT, INOUT, TABLE) was
+	// assigned, keyed by $n and by its lowercase name, and outputNames lists
+	// the $n keys in declared order.
+	outputs     map[string]ColumnSet
+	outputNames []string
+	// returnsOutputs is set by a bare RETURN NEXT, which returns the output
+	// parameters as a row.
+	returnsOutputs bool
 	// cteMap holds CTE definitions for resolving column refs through CTEs.
 	cteMap       map[string]*ast.SelectStmt
 	resolvingCTE map[cteResolveKey]bool
@@ -328,6 +343,21 @@ func (e *querySpanExtractor) analyzePLpgSQLBody(proc *catalog.UserProc, body str
 	analyzer := &plpgsqlAnalyzer{
 		extractor: e,
 		scope:     newVariableScope(nil),
+		outputs:   make(map[string]ColumnSet),
+	}
+	setReturning := proc.RetSet
+	for i, mode := range proc.ArgModes {
+		if mode != 'o' && mode != 't' && mode != 'b' {
+			continue
+		}
+		setReturning = setReturning || mode == 't'
+		// $n refers to a parameter whether or not it has a name.
+		key := fmt.Sprintf("$%d", i+1)
+		analyzer.outputs[key] = make(ColumnSet)
+		if i < len(proc.ArgNames) && proc.ArgNames[i] != "" {
+			analyzer.outputs[strings.ToLower(proc.ArgNames[i])] = analyzer.outputs[key]
+		}
+		analyzer.outputNames = append(analyzer.outputNames, key)
 	}
 
 	// Add function input parameters to scope so they can be substituted in
@@ -348,6 +378,16 @@ func (e *querySpanExtractor) analyzePLpgSQLBody(proc *catalog.UserProc, body str
 	}
 
 	analyzer.walkBlock(block)
+
+	// A function with output parameters that returns no set returns them when
+	// it ends; a set-returning one returns them at each bare RETURN NEXT.
+	if len(analyzer.outputNames) > 0 && (analyzer.returnsOutputs || !setReturning) {
+		row := make([]ColumnSet, len(analyzer.outputNames))
+		for i, key := range analyzer.outputNames {
+			row[i] = analyzer.outputs[key]
+		}
+		analyzer.returnResults = append(analyzer.returnResults, row)
+	}
 
 	nCols := countOutputParams(proc)
 	if nCols == 0 {
@@ -371,9 +411,11 @@ func (a *plpgsqlAnalyzer) walkBlock(block *plpgsqlast.PLBlock) {
 				sources = a.analyzeEmbeddedExpr(d.Default)
 			}
 			a.scope.set(d.Name, sources)
+			a.scope.declared[strings.ToLower(d.Name)] = ""
 		case *plpgsqlast.PLCursorDecl:
 			// A cursor carries the columns of its query to what FETCH reads.
 			a.scope.set(d.Name, a.analyzeQuerySources(d.Query))
+			a.scope.declared[strings.ToLower(d.Name)] = ""
 		case *plpgsqlast.PLAliasDecl:
 			// Alias references another variable — copy its sources.
 			if sources, ok := a.scope.get(d.RefName); ok {
@@ -381,6 +423,7 @@ func (a *plpgsqlAnalyzer) walkBlock(block *plpgsqlast.PLBlock) {
 			} else {
 				a.scope.set(d.Name, make(ColumnSet))
 			}
+			a.scope.declared[strings.ToLower(d.Name)] = strings.ToLower(d.RefName)
 		default:
 		}
 	}
@@ -429,18 +472,27 @@ func (a *plpgsqlAnalyzer) walkStmt(node plpgsqlast.Node) {
 		a.handleCondition(stmt.Lower)
 		a.handleCondition(stmt.Upper)
 		a.handleCondition(stmt.Step)
+		// The loop declares its integer variable, which shadows any other
+		// of its name inside the loop.
+		a.scope = newVariableScope(a.scope)
+		a.scope.set(stmt.Var, make(ColumnSet))
+		a.scope.declared[strings.ToLower(stmt.Var)] = ""
 		for _, s := range stmt.Body {
 			a.walkStmt(s)
 		}
+		a.scope = a.scope.parent
 	case *plpgsqlast.PLForS:
 		a.handleForS(stmt)
 	case *plpgsqlast.PLForC:
-		if sources, ok := a.scope.get(stmt.CursorVar); ok {
-			a.scope.merge(stmt.Var, sources)
-		}
+		// The loop declares its record variable, as an integer loop does.
+		sources, _ := a.scope.get(stmt.CursorVar)
+		a.scope = newVariableScope(a.scope)
+		a.scope.set(stmt.Var, cloneSourceColumnSet(sources))
+		a.scope.declared[strings.ToLower(stmt.Var)] = ""
 		for _, s := range stmt.Body {
 			a.walkStmt(s)
 		}
+		a.scope = a.scope.parent
 	case *plpgsqlast.PLForDynS:
 		for _, s := range stmt.Body {
 			a.walkStmt(s)
@@ -465,7 +517,7 @@ func (a *plpgsqlAnalyzer) walkStmt(node plpgsqlast.Node) {
 	case *plpgsqlast.PLFetch:
 		if sources, ok := a.scope.get(stmt.CursorVar); ok {
 			for _, varName := range stmt.Into {
-				a.scope.merge(varName, sources)
+				a.assign(varName, sources)
 			}
 		}
 	case *plpgsqlast.PLCall:
@@ -567,7 +619,43 @@ func (a *plpgsqlAnalyzer) handleCall(stmt *plpgsqlast.PLCall) {
 func (a *plpgsqlAnalyzer) handleAssign(stmt *plpgsqlast.PLAssign) {
 	varName := extractBaseVarName(stmt.Target)
 	sources := a.analyzeEmbeddedExpr(stmt.Expr)
-	a.scope.merge(varName, sources)
+	a.assign(varName, sources)
+}
+
+// assign merges sources into the variable name, and into the output
+// parameter it names, if any.
+func (a *plpgsqlAnalyzer) assign(name string, sources ColumnSet) {
+	a.scope.merge(name, sources)
+	if out, ok := a.outputParam(name); ok {
+		mergeSourceColumnSetInto(out, sources)
+	}
+}
+
+// outputParam returns the output parameter that name refers to. A variable a
+// block declares shadows a parameter of its name; an ALIAS refers to what it
+// stands for.
+func (a *plpgsqlAnalyzer) outputParam(name string) (ColumnSet, bool) {
+	name = strings.ToLower(extractBaseVarName(name))
+	scope := a.scope
+	// The bound stops a cycle of aliases.
+	for range 100 {
+		for scope != nil {
+			if _, ok := scope.declared[name]; ok {
+				break
+			}
+			scope = scope.parent
+		}
+		if scope == nil {
+			out, ok := a.outputs[name]
+			return out, ok
+		}
+		target := scope.declared[name]
+		if target == "" || target == name {
+			return nil, false
+		}
+		name = target
+	}
+	return nil, false
 }
 
 func (a *plpgsqlAnalyzer) handleReturnQuery(stmt *plpgsqlast.PLReturnQuery) {
@@ -590,6 +678,7 @@ func (a *plpgsqlAnalyzer) handleReturn(stmt *plpgsqlast.PLReturn) {
 
 func (a *plpgsqlAnalyzer) handleReturnNext(stmt *plpgsqlast.PLReturnNext) {
 	if stmt.Expr == "" {
+		a.returnsOutputs = true
 		return
 	}
 	sources := a.analyzeEmbeddedExpr(stmt.Expr)
@@ -613,7 +702,7 @@ func (a *plpgsqlAnalyzer) handleExecSQL(stmt *plpgsqlast.PLExecSQL) {
 	}
 	for i, varName := range stmt.Into {
 		if i < len(results) {
-			a.scope.merge(varName, results[i])
+			a.assign(varName, results[i])
 		}
 	}
 }
@@ -669,13 +758,21 @@ func constantString(node ast.Node) (string, bool) {
 
 func (a *plpgsqlAnalyzer) handleForS(stmt *plpgsqlast.PLForS) {
 	results := a.analyzeEmbeddedSQL(stmt.Query)
-	merged := make(ColumnSet)
-	for _, colSet := range results {
-		for k, v := range colSet {
-			merged[k] = v
+	// A list of scalar targets takes the columns in order; a single record
+	// or row target takes them all.
+	if targets := strings.Split(stmt.Var, ","); len(targets) > 1 {
+		for i, target := range targets {
+			if i < len(results) {
+				a.assign(strings.TrimSpace(target), results[i])
+			}
 		}
+	} else {
+		merged := make(ColumnSet)
+		for _, colSet := range results {
+			mergeSourceColumnSetInto(merged, colSet)
+		}
+		a.assign(stmt.Var, merged)
 	}
-	a.scope.merge(stmt.Var, merged)
 	for _, s := range stmt.Body {
 		a.walkStmt(s)
 	}
