@@ -98,6 +98,11 @@ func TestResolveQuerySpanResults(t *testing.T) {
 		{"WITH C (X) AS (SELECT A FROM T1) SELECT * FROM C", []string{"X<-DB.PUBLIC.T1.A plain"}},
 		{"WITH T1 AS (SELECT E FROM T3) SELECT * FROM T1", []string{"E<-DB.PUBLIC.T3.E plain"}},
 		{"WITH RECURSIVE R (X, Y) AS (SELECT A, B FROM T1 UNION ALL SELECT Y, X FROM R) SELECT * FROM R", []string{"X<-DB.PUBLIC.T1.A,DB.PUBLIC.T1.B plain", "Y<-DB.PUBLIC.T1.A,DB.PUBLIC.T1.B plain"}},
+		// A derived column list renames the relation's columns in order.
+		{"SELECT X FROM (SELECT A, B FROM T1) AS D(X, Y)", []string{"X<-DB.PUBLIC.T1.A plain"}},
+		{"SELECT * FROM (SELECT A, B FROM T1) AS D(X, Y)", []string{"X<-DB.PUBLIC.T1.A plain", "Y<-DB.PUBLIC.T1.B plain"}},
+		{"SELECT D.X, E.Q FROM (SELECT A FROM T1) AS D(X) JOIN (SELECT * FROM T3) AS E(Q, R) ON TRUE", []string{"X<-DB.PUBLIC.T1.A plain", "Q<-DB.PUBLIC.T3.E plain"}},
+		{"SELECT * FROM (SELECT A FROM T1) AS D(X) NATURAL JOIN (SELECT E FROM T3) AS E(X)", []string{"X<-DB.PUBLIC.T1.A,DB.PUBLIC.T3.E plain"}},
 		// A table function exposes no columns.
 		{"SELECT 1 AS ONE FROM TABLE(FLATTEN(input => PARSE_JSON('[1]')))", []string{"ONE<-"}},
 	}
