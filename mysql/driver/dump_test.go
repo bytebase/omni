@@ -83,6 +83,38 @@ func TestDumpRestores(t *testing.T) {
 	}
 }
 
+func TestDumpRestoresStringDefaultsAndPartitionComments(t *testing.T) {
+	const setup = `CREATE TABLE literal_defaults (
+	id INT PRIMARY KEY,
+	a VARCHAR(40) NOT NULL DEFAULT 'CURRENT_TIMESTAMP',
+	b VARCHAR(40) NOT NULL DEFAULT 'current_date_label',
+	ts DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+) COMMENT='PARTITIONS 9 SUBPARTITIONS 7';
+
+CREATE TABLE hash_commented (
+	id INT NOT NULL PRIMARY KEY COMMENT 'PARTITIONS 9'
+) COMMENT='PARTITIONS 11' PARTITION BY HASH (id) PARTITIONS 2;
+
+CREATE TABLE range_commented (
+	id INT NOT NULL PRIMARY KEY
+) COMMENT='PARTITIONS 9 SUBPARTITIONS 7'
+PARTITION BY RANGE (id) SUBPARTITION BY HASH (id) SUBPARTITIONS 2 (
+	PARTITION p0 VALUES LESS THAN (100),
+	PARTITION p1 VALUES LESS THAN (MAXVALUE)
+);`
+	for _, role := range []string{testcontainer.Default, testcontainer.MySQL84} {
+		t.Run(role, func(t *testing.T) {
+			source, restored, err := dumpAndRestore(t, role, "omni_sync_defect_roundtrip", setup)
+			if err != nil {
+				t.Fatalf("restoring dump on %s: %v", role, err)
+			}
+			if diff := restoreDiff(source, restored); diff != "" {
+				t.Errorf("restored database on %s differs from source (-source +restored):\n%s", role, diff)
+			}
+		})
+	}
+}
+
 // TestDumpGaps holds what a dump cannot faithfully restore yet; each entry
 // fails once its gap closes so its corpus line moves into TestDumpRestores.
 func TestDumpGaps(t *testing.T) {
