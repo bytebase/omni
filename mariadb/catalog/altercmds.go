@@ -1725,7 +1725,7 @@ func (c *Catalog) alterTableOption(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	}
 	switch toLower(opt.Name) {
 	case "engine":
-		tbl.Engine = opt.Value
+		tbl.Engine = canonicalEngineName(opt.Value)
 	case "charset", "character set", "default charset", "default character set":
 		tbl.Charset = normalizeCharsetName(opt.Value)
 		// Update collation to the default for this charset.
@@ -2131,7 +2131,7 @@ func (c *Catalog) alterAddPartition(tbl *Table, cmd *nodes.AlterTableCmd) error 
 			// STORAGE ENGINE is the other spelling of ENGINE, and names the
 			// same engine.
 			case "engine", "storage engine":
-				pdi.Engine = opt.Value
+				pdi.Engine = canonicalEngineName(opt.Value)
 			case "comment":
 				pdi.Comment = opt.Value
 			}
@@ -2233,7 +2233,7 @@ func (c *Catalog) alterReorganizePartition(tbl *Table, cmd *nodes.AlterTableCmd)
 			// STORAGE ENGINE is the other spelling of ENGINE, and names the
 			// same engine.
 			case "engine", "storage engine":
-				pdi.Engine = opt.Value
+				pdi.Engine = canonicalEngineName(opt.Value)
 			case "comment":
 				pdi.Comment = opt.Value
 			}

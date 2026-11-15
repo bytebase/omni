@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"context"
 	"slices"
 	"strings"
 	"testing"
@@ -639,4 +640,15 @@ func TestTableDefinitionWritesPrimaryKeyComment(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Contains(t, got, "PRIMARY KEY (`id`) COMMENT 'identity'")
+}
+
+func TestSequenceDefinitionWritesTheSyncedComment(t *testing.T) {
+	// Sync stores a comment as QUOTE() escapes it, without the outer quotes.
+	got, err := SequenceDefinition(&metadata.SequenceMetadata{Name: "s", Start: "1", Increment: "1", MinValue: "1", MaxValue: "9223372036854775806", CacheSize: "1000", Comment: `owner\'s counter`})
+	require.NoError(t, err)
+	require.Contains(t, got, `COMMENT='owner\'s counter'`)
+	c := New()
+	_, err = c.LoadMetadata(context.Background(), &metadata.DatabaseSchemaMetadata{Name: "d", Schemas: []*metadata.SchemaMetadata{{Sequences: []*metadata.SequenceMetadata{{Name: "s", Comment: `owner\'s counter`}}}}})
+	require.NoError(t, err)
+	require.Equal(t, "owner's counter", c.GetDatabase("d").Sequences["s"].Comment)
 }
