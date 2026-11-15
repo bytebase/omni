@@ -1253,7 +1253,7 @@
 | USE omni_diff_b
 < ok 0 0
 > exec
-| CREATE TABLE t (a int DEFAULT '5', b decimal(5,2) DEFAULT '1.50')
+| CREATE TABLE t (a int DEFAULT '5', b decimal(5,2) DEFAULT '1.5')
 < ok 0 0
 > query
 | SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
@@ -1278,7 +1278,7 @@
 : bytes
 | CREATE TABLE `t` (
 |   `a` int DEFAULT '5',
-|   `b` decimal(5,2) DEFAULT '1.50'
+|   `b` decimal(5,2) DEFAULT '1.5'
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
@@ -1522,7 +1522,7 @@
 | b
 : int64 2
 : bytes
-| '1.50'
+| '1.5'
 : bytes
 | YES
 : bytes
@@ -5495,7 +5495,7 @@
 | USE omni_diff_b
 < ok 0 0
 > exec
-| CREATE TABLE t (a int, CONSTRAINT c CHECK ((a > 0)))
+| CREATE TABLE t (a int, CONSTRAINT c CHECK (`a` > 0))
 < ok 0 0
 > query
 | SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
@@ -5520,7 +5520,7 @@
 : bytes
 | CREATE TABLE `t` (
 |   `a` int DEFAULT NULL,
-|   CONSTRAINT `c` CHECK (((`a` > 0)))
+|   CONSTRAINT `c` CHECK ((`a` > 0))
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
@@ -5782,7 +5782,7 @@
 : bytes
 | c
 : bytes
-| ((`a` > 0))
+| (`a` > 0)
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -7389,6 +7389,42 @@
 < column "CACHE_VALUE" "BIGINT"
 < column "IFNULL(COMMENT, '')" "VARCHAR"
 > exec
+| DROP DATABASE IF EXISTS omni_diff_a
+< ok 0 0
+> exec
+| CREATE DATABASE omni_diff_a
+< ok 0 0
+> exec
+| USE omni_diff_a
+< ok 0 0
+> exec
+| CREATE TABLE t (a decimal(5,2) DEFAULT 1.5)
+< ok 0 0
+> query
+| SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_diff_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` decimal(5,2) DEFAULT '1.5'
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
 | DROP DATABASE IF EXISTS omni_diff_b
 < ok 0 0
 > exec
@@ -7398,7 +7434,7 @@
 | USE omni_diff_b
 < ok 0 0
 > exec
-| CREATE TABLE t (a bigint)
+| CREATE TABLE t (a decimal(5,2) DEFAULT 1.50)
 < ok 0 0
 > query
 | SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
@@ -7422,8 +7458,324 @@
 | t
 : bytes
 | CREATE TABLE `t` (
-|   `a` bigint DEFAULT NULL
+|   `a` decimal(5,2) DEFAULT '1.50'
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> query
+| SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
+| 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
+: string
+| omni_diff_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "KEY_NAME" "VARCHAR"
+< column "COLUMN_NAME" "VARCHAR"
+< column "NON_UNIQUE" "BIGINT"
+< column "INDEX_COMMENT" "VARCHAR"
+< column "SUB_PART" "BIGINT"
+< column "EXPRESSION" "VARCHAR"
+> query
+| SELECT TABLE_NAME, IFNULL(COLUMN_NAME, ''), ORDINAL_POSITION,
+| 			CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END,
+| 			IS_NULLABLE, COLUMN_TYPE, IFNULL(CHARACTER_SET_NAME, ''), IFNULL(COLLATION_NAME, ''),
+| 			QUOTE(COLUMN_COMMENT), GENERATION_EXPRESSION, EXTRA
+| 		FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, ORDINAL_POSITION
+: string
+| omni_diff_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "ORDINAL_POSITION" "BIGINT"
+< column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
+< column "IS_NULLABLE" "VARCHAR"
+< column "COLUMN_TYPE" "TEXT"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
+< column "GENERATION_EXPRESSION" "TEXT"
+< column "EXTRA" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| a
+: int64 1
+: bytes
+| '1.5'
+: bytes
+| YES
+: bytes
+| decimal(5,2)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+> query
+| SELECT TABLE_NAME, VIEW_DEFINITION FROM information_schema.VIEWS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_diff_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "VIEW_DEFINITION" "TEXT"
+> query
+| SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
+| 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
+| 		FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS fks
+| 			JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu
+| 			ON fks.CONSTRAINT_SCHEMA = kcu.TABLE_SCHEMA AND fks.TABLE_NAME = kcu.TABLE_NAME AND fks.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
+| 		WHERE kcu.POSITION_IN_UNIQUE_CONSTRAINT IS NOT NULL AND fks.CONSTRAINT_SCHEMA = ?
+| 		ORDER BY fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.ORDINAL_POSITION
+: string
+| omni_diff_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR"
+< column "COLUMN_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_COLUMN_NAME" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR"
+< column "UPDATE_RULE" "VARCHAR"
+< column "MATCH_OPTION" "VARCHAR"
+> query
+| SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
+| 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
+: string
+| omni_diff_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CHECK_CLAUSE" "TEXT"
+> query
+| SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
+| 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
+| 		ORDER BY TABLE_NAME, PARTITION_ORDINAL_POSITION
+: string
+| omni_diff_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "PARTITION_NAME" "VARCHAR"
+< column "PARTITION_METHOD" "VARCHAR"
+< column "PARTITION_EXPRESSION" "TEXT"
+< column "PARTITION_DESCRIPTION" "TEXT"
+> query
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TABLE_COLLATION, ''), QUOTE(IFNULL(TABLE_COMMENT, '')),
+| 			IFNULL(TIDB_ROW_ID_SHARDING_INFO, ''), IFNULL(TIDB_PK_TYPE, '')
+| 		FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_diff_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_bin
+: bytes
+| ''
+: bytes
+| NOT_SHARDED
+: bytes
+| NONCLUSTERED
+> query
+| SELECT DEFAULT_CHARACTER_SET_NAME, DEFAULT_COLLATION_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = ?
+: string
+| omni_diff_a
+< result
+< column "DEFAULT_CHARACTER_SET_NAME" "VARCHAR"
+< column "DEFAULT_COLLATION_NAME" "VARCHAR"
+< row
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_bin
+> query
+| SELECT SEQUENCE_NAME, START, MIN_VALUE, MAX_VALUE, INCREMENT, CYCLE, CACHE_VALUE, IFNULL(COMMENT, '')
+| 		FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
+: string
+| omni_diff_a
+< result
+< column "SEQUENCE_NAME" "VARCHAR"
+< column "START" "BIGINT"
+< column "MIN_VALUE" "BIGINT"
+< column "MAX_VALUE" "BIGINT"
+< column "INCREMENT" "BIGINT"
+< column "CYCLE" "TINYINT"
+< column "CACHE_VALUE" "BIGINT"
+< column "IFNULL(COMMENT, '')" "VARCHAR"
+> query
+| SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
+| 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
+: string
+| omni_diff_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "KEY_NAME" "VARCHAR"
+< column "COLUMN_NAME" "VARCHAR"
+< column "NON_UNIQUE" "BIGINT"
+< column "INDEX_COMMENT" "VARCHAR"
+< column "SUB_PART" "BIGINT"
+< column "EXPRESSION" "VARCHAR"
+> query
+| SELECT TABLE_NAME, IFNULL(COLUMN_NAME, ''), ORDINAL_POSITION,
+| 			CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END,
+| 			IS_NULLABLE, COLUMN_TYPE, IFNULL(CHARACTER_SET_NAME, ''), IFNULL(COLLATION_NAME, ''),
+| 			QUOTE(COLUMN_COMMENT), GENERATION_EXPRESSION, EXTRA
+| 		FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, ORDINAL_POSITION
+: string
+| omni_diff_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "ORDINAL_POSITION" "BIGINT"
+< column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
+< column "IS_NULLABLE" "VARCHAR"
+< column "COLUMN_TYPE" "TEXT"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
+< column "GENERATION_EXPRESSION" "TEXT"
+< column "EXTRA" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| a
+: int64 1
+: bytes
+| '1.50'
+: bytes
+| YES
+: bytes
+| decimal(5,2)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+> query
+| SELECT TABLE_NAME, VIEW_DEFINITION FROM information_schema.VIEWS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_diff_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "VIEW_DEFINITION" "TEXT"
+> query
+| SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
+| 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
+| 		FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS fks
+| 			JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu
+| 			ON fks.CONSTRAINT_SCHEMA = kcu.TABLE_SCHEMA AND fks.TABLE_NAME = kcu.TABLE_NAME AND fks.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
+| 		WHERE kcu.POSITION_IN_UNIQUE_CONSTRAINT IS NOT NULL AND fks.CONSTRAINT_SCHEMA = ?
+| 		ORDER BY fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.ORDINAL_POSITION
+: string
+| omni_diff_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR"
+< column "COLUMN_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_COLUMN_NAME" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR"
+< column "UPDATE_RULE" "VARCHAR"
+< column "MATCH_OPTION" "VARCHAR"
+> query
+| SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
+| 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
+: string
+| omni_diff_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CHECK_CLAUSE" "TEXT"
+> query
+| SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
+| 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
+| 		ORDER BY TABLE_NAME, PARTITION_ORDINAL_POSITION
+: string
+| omni_diff_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "PARTITION_NAME" "VARCHAR"
+< column "PARTITION_METHOD" "VARCHAR"
+< column "PARTITION_EXPRESSION" "TEXT"
+< column "PARTITION_DESCRIPTION" "TEXT"
+> query
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TABLE_COLLATION, ''), QUOTE(IFNULL(TABLE_COMMENT, '')),
+| 			IFNULL(TIDB_ROW_ID_SHARDING_INFO, ''), IFNULL(TIDB_PK_TYPE, '')
+| 		FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_diff_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_bin
+: bytes
+| ''
+: bytes
+| NOT_SHARDED
+: bytes
+| NONCLUSTERED
+> query
+| SELECT DEFAULT_CHARACTER_SET_NAME, DEFAULT_COLLATION_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = ?
+: string
+| omni_diff_b
+< result
+< column "DEFAULT_CHARACTER_SET_NAME" "VARCHAR"
+< column "DEFAULT_COLLATION_NAME" "VARCHAR"
+< row
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_bin
+> query
+| SELECT SEQUENCE_NAME, START, MIN_VALUE, MAX_VALUE, INCREMENT, CYCLE, CACHE_VALUE, IFNULL(COMMENT, '')
+| 		FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
+: string
+| omni_diff_b
+< result
+< column "SEQUENCE_NAME" "VARCHAR"
+< column "START" "BIGINT"
+< column "MIN_VALUE" "BIGINT"
+< column "MAX_VALUE" "BIGINT"
+< column "INCREMENT" "BIGINT"
+< column "CYCLE" "TINYINT"
+< column "CACHE_VALUE" "BIGINT"
+< column "IFNULL(COMMENT, '')" "VARCHAR"
 > exec
 | DROP DATABASE IF EXISTS omni_diff_a
 < ok 0 0
@@ -7459,6 +7811,42 @@
 : bytes
 | CREATE TABLE `t` (
 |   `a` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| DROP DATABASE IF EXISTS omni_diff_b
+< ok 0 0
+> exec
+| CREATE DATABASE omni_diff_b
+< ok 0 0
+> exec
+| USE omni_diff_b
+< ok 0 0
+> exec
+| CREATE TABLE t (a bigint)
+< ok 0 0
+> query
+| SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_diff_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` bigint DEFAULT NULL
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
@@ -8549,42 +8937,6 @@
 < column "CACHE_VALUE" "BIGINT"
 < column "IFNULL(COMMENT, '')" "VARCHAR"
 > exec
-| DROP DATABASE IF EXISTS omni_diff_b
-< ok 0 0
-> exec
-| CREATE DATABASE omni_diff_b
-< ok 0 0
-> exec
-| USE omni_diff_b
-< ok 0 0
-> exec
-| CREATE TABLE t (a int COMMENT 'it''s')
-< ok 0 0
-> query
-| SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
-: string
-| omni_diff_b
-< result
-< column "TABLE_NAME" "VARCHAR"
-< column "TABLE_TYPE" "VARCHAR"
-< row
-: bytes
-| t
-: bytes
-| BASE TABLE
-> query
-| SHOW CREATE TABLE `t`
-< result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
-< row
-: bytes
-| t
-: bytes
-| CREATE TABLE `t` (
-|   `a` int DEFAULT NULL COMMENT 'it''s'
-| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
-> exec
 | DROP DATABASE IF EXISTS omni_diff_a
 < ok 0 0
 > exec
@@ -8619,6 +8971,42 @@
 : bytes
 | CREATE TABLE `t` (
 |   `a` int DEFAULT NULL COMMENT 'x'
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| DROP DATABASE IF EXISTS omni_diff_b
+< ok 0 0
+> exec
+| CREATE DATABASE omni_diff_b
+< ok 0 0
+> exec
+| USE omni_diff_b
+< ok 0 0
+> exec
+| CREATE TABLE t (a int COMMENT 'it''s')
+< ok 0 0
+> query
+| SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_diff_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int DEFAULT NULL COMMENT 'it''s'
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
@@ -15059,42 +15447,6 @@
 < column "CACHE_VALUE" "BIGINT"
 < column "IFNULL(COMMENT, '')" "VARCHAR"
 > exec
-| DROP DATABASE IF EXISTS omni_diff_b
-< ok 0 0
-> exec
-| CREATE DATABASE omni_diff_b
-< ok 0 0
-> exec
-| USE omni_diff_b
-< ok 0 0
-> exec
-| CREATE TABLE t (a int) COMMENT 'y'
-< ok 0 0
-> query
-| SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
-: string
-| omni_diff_b
-< result
-< column "TABLE_NAME" "VARCHAR"
-< column "TABLE_TYPE" "VARCHAR"
-< row
-: bytes
-| t
-: bytes
-| BASE TABLE
-> query
-| SHOW CREATE TABLE `t`
-< result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
-< row
-: bytes
-| t
-: bytes
-| CREATE TABLE `t` (
-|   `a` int DEFAULT NULL
-| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='y'
-> exec
 | DROP DATABASE IF EXISTS omni_diff_a
 < ok 0 0
 > exec
@@ -15130,6 +15482,42 @@
 | CREATE TABLE `t` (
 |   `a` int DEFAULT NULL
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='x'
+> exec
+| DROP DATABASE IF EXISTS omni_diff_b
+< ok 0 0
+> exec
+| CREATE DATABASE omni_diff_b
+< ok 0 0
+> exec
+| USE omni_diff_b
+< ok 0 0
+> exec
+| CREATE TABLE t (a int) COMMENT 'y'
+< ok 0 0
+> query
+| SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_diff_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='y'
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -15831,43 +16219,6 @@
 < column "CACHE_VALUE" "BIGINT"
 < column "IFNULL(COMMENT, '')" "VARCHAR"
 > exec
-| DROP DATABASE IF EXISTS omni_diff_b
-< ok 0 0
-> exec
-| CREATE DATABASE omni_diff_b
-< ok 0 0
-> exec
-| USE omni_diff_b
-< ok 0 0
-> exec
-| CREATE TABLE t (a int) PARTITION BY HASH (a) PARTITIONS 8
-< ok 0 0
-> query
-| SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
-: string
-| omni_diff_b
-< result
-< column "TABLE_NAME" "VARCHAR"
-< column "TABLE_TYPE" "VARCHAR"
-< row
-: bytes
-| t
-: bytes
-| BASE TABLE
-> query
-| SHOW CREATE TABLE `t`
-< result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
-< row
-: bytes
-| t
-: bytes
-| CREATE TABLE `t` (
-|   `a` int DEFAULT NULL
-| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
-| PARTITION BY HASH (`a`) PARTITIONS 8
-> exec
 | DROP DATABASE IF EXISTS omni_diff_a
 < ok 0 0
 > exec
@@ -15904,6 +16255,43 @@
 |   `a` int DEFAULT NULL
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
 | PARTITION BY HASH (`a`) PARTITIONS 4
+> exec
+| DROP DATABASE IF EXISTS omni_diff_b
+< ok 0 0
+> exec
+| CREATE DATABASE omni_diff_b
+< ok 0 0
+> exec
+| USE omni_diff_b
+< ok 0 0
+> exec
+| CREATE TABLE t (a int) PARTITION BY HASH (a) PARTITIONS 8
+< ok 0 0
+> query
+| SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_diff_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+| PARTITION BY HASH (`a`) PARTITIONS 8
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -18717,6 +19105,42 @@
 < column "CACHE_VALUE" "BIGINT"
 < column "IFNULL(COMMENT, '')" "VARCHAR"
 > exec
+| DROP DATABASE IF EXISTS omni_diff_a
+< ok 0 0
+> exec
+| CREATE DATABASE omni_diff_a
+< ok 0 0
+> exec
+| USE omni_diff_a
+< ok 0 0
+> exec
+| CREATE TABLE t (a int)
+< ok 0 0
+> query
+| SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_diff_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
 | DROP DATABASE IF EXISTS omni_diff_b
 < ok 0 0
 > exec
@@ -18776,42 +19200,6 @@
 | utf8mb4
 : bytes
 | utf8mb4_general_ci
-> exec
-| DROP DATABASE IF EXISTS omni_diff_a
-< ok 0 0
-> exec
-| CREATE DATABASE omni_diff_a
-< ok 0 0
-> exec
-| USE omni_diff_a
-< ok 0 0
-> exec
-| CREATE TABLE t (a int)
-< ok 0 0
-> query
-| SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
-: string
-| omni_diff_a
-< result
-< column "TABLE_NAME" "VARCHAR"
-< column "TABLE_TYPE" "VARCHAR"
-< row
-: bytes
-| t
-: bytes
-| BASE TABLE
-> query
-| SHOW CREATE TABLE `t`
-< result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
-< row
-: bytes
-| t
-: bytes
-| CREATE TABLE `t` (
-|   `a` int DEFAULT NULL
-| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -19168,40 +19556,6 @@
 < column "CACHE_VALUE" "BIGINT"
 < column "IFNULL(COMMENT, '')" "VARCHAR"
 > exec
-| DROP DATABASE IF EXISTS omni_diff_b
-< ok 0 0
-> exec
-| CREATE DATABASE omni_diff_b
-< ok 0 0
-> exec
-| USE omni_diff_b
-< ok 0 0
-> exec
-| CREATE SEQUENCE s INCREMENT 2
-< ok 0 0
-> query
-| SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
-: string
-| omni_diff_b
-< result
-< column "TABLE_NAME" "VARCHAR"
-< column "TABLE_TYPE" "VARCHAR"
-< row
-: bytes
-| s
-: bytes
-| SEQUENCE
-> query
-| SHOW CREATE SEQUENCE `s`
-< result
-< column "Sequence" "VARCHAR"
-< column "Create Sequence" "VARCHAR"
-< row
-: bytes
-| s
-: bytes
-| CREATE SEQUENCE `s` start with 1 minvalue 1 maxvalue 9223372036854775806 increment by 2 cache 1000 nocycle ENGINE=InnoDB
-> exec
 | DROP DATABASE IF EXISTS omni_diff_a
 < ok 0 0
 > exec
@@ -19235,6 +19589,40 @@
 | s
 : bytes
 | CREATE SEQUENCE `s` start with 1 minvalue 1 maxvalue 9223372036854775806 increment by 1 cache 1000 nocycle ENGINE=InnoDB
+> exec
+| DROP DATABASE IF EXISTS omni_diff_b
+< ok 0 0
+> exec
+| CREATE DATABASE omni_diff_b
+< ok 0 0
+> exec
+| USE omni_diff_b
+< ok 0 0
+> exec
+| CREATE SEQUENCE s INCREMENT 2
+< ok 0 0
+> query
+| SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_diff_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR"
+< row
+: bytes
+| s
+: bytes
+| SEQUENCE
+> query
+| SHOW CREATE SEQUENCE `s`
+< result
+< column "Sequence" "VARCHAR"
+< column "Create Sequence" "VARCHAR"
+< row
+: bytes
+| s
+: bytes
+| CREATE SEQUENCE `s` start with 1 minvalue 1 maxvalue 9223372036854775806 increment by 2 cache 1000 nocycle ENGINE=InnoDB
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -19530,40 +19918,6 @@
 : bytes
 |
 > exec
-| DROP DATABASE IF EXISTS omni_diff_b
-< ok 0 0
-> exec
-| CREATE DATABASE omni_diff_b
-< ok 0 0
-> exec
-| USE omni_diff_b
-< ok 0 0
-> exec
-| CREATE SEQUENCE s NOCACHE
-< ok 0 0
-> query
-| SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
-: string
-| omni_diff_b
-< result
-< column "TABLE_NAME" "VARCHAR"
-< column "TABLE_TYPE" "VARCHAR"
-< row
-: bytes
-| s
-: bytes
-| SEQUENCE
-> query
-| SHOW CREATE SEQUENCE `s`
-< result
-< column "Sequence" "VARCHAR"
-< column "Create Sequence" "VARCHAR"
-< row
-: bytes
-| s
-: bytes
-| CREATE SEQUENCE `s` start with 1 minvalue 1 maxvalue 9223372036854775806 increment by 1 nocache nocycle ENGINE=InnoDB
-> exec
 | DROP DATABASE IF EXISTS omni_diff_a
 < ok 0 0
 > exec
@@ -19597,6 +19951,40 @@
 | s
 : bytes
 | CREATE SEQUENCE `s` start with 1 minvalue 1 maxvalue 9223372036854775806 increment by 1 cache 1000 nocycle ENGINE=InnoDB
+> exec
+| DROP DATABASE IF EXISTS omni_diff_b
+< ok 0 0
+> exec
+| CREATE DATABASE omni_diff_b
+< ok 0 0
+> exec
+| USE omni_diff_b
+< ok 0 0
+> exec
+| CREATE SEQUENCE s NOCACHE
+< ok 0 0
+> query
+| SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_diff_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR"
+< row
+: bytes
+| s
+: bytes
+| SEQUENCE
+> query
+| SHOW CREATE SEQUENCE `s`
+< result
+< column "Sequence" "VARCHAR"
+< column "Create Sequence" "VARCHAR"
+< row
+: bytes
+| s
+: bytes
+| CREATE SEQUENCE `s` start with 1 minvalue 1 maxvalue 9223372036854775806 increment by 1 nocache nocycle ENGINE=InnoDB
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX

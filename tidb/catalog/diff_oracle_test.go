@@ -26,7 +26,7 @@ var diffOraclePairs = []struct {
 	{name: "display width", a: "CREATE TABLE t (a int(11), b tinyint(4))", b: "CREATE TABLE t (a int, b tinyint)"},
 	{name: "boolean", a: "CREATE TABLE t (a boolean)", b: "CREATE TABLE t (a tinyint(1))"},
 	{name: "charset echo", a: "CREATE TABLE t (a varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin)", b: "CREATE TABLE t (a varchar(10)) DEFAULT CHARSET=utf8mb4"},
-	{name: "numeric default quoting", a: "CREATE TABLE t (a int DEFAULT 5, b decimal(5,2) DEFAULT 1.5)", b: "CREATE TABLE t (a int DEFAULT '5', b decimal(5,2) DEFAULT '1.50')"},
+	{name: "numeric default quoting", a: "CREATE TABLE t (a int DEFAULT 5, b decimal(5,2) DEFAULT 1.5)", b: "CREATE TABLE t (a int DEFAULT '5', b decimal(5,2) DEFAULT '1.5')"},
 	{name: "default null", a: "CREATE TABLE t (a int DEFAULT NULL, b varchar(3) NULL)", b: "CREATE TABLE t (a int, b varchar(3))"},
 	{name: "key name", a: "CREATE TABLE t (a int, KEY (a))", b: "CREATE TABLE t (a int, KEY a (a))"},
 	{name: "key order", a: "CREATE TABLE t (a int, b int, KEY ka (a), KEY kb (b))", b: "CREATE TABLE t (a int, b int, KEY kb (b), KEY ka (a))"},
@@ -36,12 +36,13 @@ var diffOraclePairs = []struct {
 	{name: "fulltext kept as nothing", a: "CREATE TABLE t (a text, FULLTEXT KEY ft (a))", b: "CREATE TABLE t (a text)"},
 	{name: "linear hash", a: "CREATE TABLE t (a int) PARTITION BY LINEAR HASH (a) PARTITIONS 4", b: "CREATE TABLE t (a int) PARTITION BY HASH (a) PARTITIONS 4"},
 	{name: "auto increment counter", a: "CREATE TABLE t (id int AUTO_INCREMENT PRIMARY KEY) AUTO_INCREMENT=100", b: "CREATE TABLE t (id int AUTO_INCREMENT PRIMARY KEY)"},
-	{name: "check spelling", a: "CREATE TABLE t (a int, CONSTRAINT c CHECK (a>0))", b: "CREATE TABLE t (a int, CONSTRAINT c CHECK ((a > 0)))"},
+	{name: "check spelling", a: "CREATE TABLE t (a int, CONSTRAINT c CHECK (a>0))", b: "CREATE TABLE t (a int, CONSTRAINT c CHECK (`a` > 0))"},
 	{name: "view qualifier", a: "CREATE TABLE t (a int); CREATE VIEW v AS SELECT a FROM t", b: "CREATE TABLE t (a int); CREATE VIEW v AS SELECT t.a FROM omni_diff_b.t"},
 	{name: "sequence defaults", a: "CREATE SEQUENCE s", b: "CREATE SEQUENCE s START 1 MINVALUE 1 INCREMENT 1 CACHE 1000 NOCYCLE"},
 	{name: "foreign key backing index", a: "CREATE TABLE p (id int PRIMARY KEY); CREATE TABLE c (id int PRIMARY KEY, pid int, CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p (id))", b: "CREATE TABLE p (id int PRIMARY KEY); CREATE TABLE c (id int PRIMARY KEY, pid int, KEY fk (pid), CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p (id))"},
 
 	// Two schemas.
+	{name: "decimal default scale", a: "CREATE TABLE t (a decimal(5,2) DEFAULT 1.5)", b: "CREATE TABLE t (a decimal(5,2) DEFAULT 1.50)"},
 	{name: "column type", a: "CREATE TABLE t (a int)", b: "CREATE TABLE t (a bigint)"},
 	{name: "nullability", a: "CREATE TABLE t (a int)", b: "CREATE TABLE t (a int NOT NULL)"},
 	{name: "column default", a: "CREATE TABLE t (a int DEFAULT 1)", b: "CREATE TABLE t (a int DEFAULT 2)"},
@@ -52,7 +53,7 @@ var diffOraclePairs = []struct {
 	{name: "added column", a: "CREATE TABLE t (a int)", b: "CREATE TABLE t (a int, b int)"},
 	{name: "key columns", a: "CREATE TABLE t (a int, b int, KEY k (a))", b: "CREATE TABLE t (a int, b int, KEY k (a, b))"},
 	{name: "key uniqueness", a: "CREATE TABLE t (a int, KEY k (a))", b: "CREATE TABLE t (a int, UNIQUE KEY k (a))"},
-	{name: "key visibility", a: "CREATE TABLE t (a int, KEY k (a))", b: "CREATE TABLE t (a int, KEY k (a) INVISIBLE)"},
+	{name: "key visibility", a: "CREATE TABLE t (a int, KEY k (a))", b: "CREATE TABLE t (a int, KEY k (a) INVISIBLE)", syncDrops: "index visibility"},
 	{name: "key comment", a: "CREATE TABLE t (a int, KEY k (a))", b: "CREATE TABLE t (a int, KEY k (a) COMMENT 'c')"},
 	{name: "key prefix", a: "CREATE TABLE t (a varchar(20), KEY k (a))", b: "CREATE TABLE t (a varchar(20), KEY k (a(5)))"},
 	{name: "expression key", a: "CREATE TABLE t (a int, KEY k ((a + 1)))", b: "CREATE TABLE t (a int, KEY k ((a + 2)))"},
@@ -100,7 +101,8 @@ func TestOracle_DiffMatchesServer(t *testing.T) {
 	for _, p := range diffOraclePairs {
 		t.Run(p.name, func(t *testing.T) {
 			stored := map[string]string{}
-			for db, script := range map[string]string{diffOracleDBA: p.a, diffOracleDBB: p.b} {
+			for _, side := range [][2]string{{diffOracleDBA, p.a}, {diffOracleDBB, p.b}} {
+				db, script := side[0], side[1]
 				exec(t, "DROP DATABASE IF EXISTS "+db)
 				exec(t, "CREATE DATABASE "+db)
 				exec(t, "USE "+db)

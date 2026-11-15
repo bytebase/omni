@@ -156,3 +156,23 @@ func syncSequences(t *testing.T, ctr *mysqlContainer, db string) []*metadata.Seq
 	}
 	return out
 }
+
+func TestLoadMetadataInstallsSequences(t *testing.T) {
+	c := New()
+	report, err := c.LoadMetadataInto(context.Background(), &metadata.DatabaseSchemaMetadata{
+		Name: "src",
+		Schemas: []*metadata.SchemaMetadata{{Sequences: []*metadata.SequenceMetadata{
+			{Name: "s", Start: "10", MinValue: "5", MaxValue: "1000", Increment: "2", CacheSize: "0", Cycle: true, Comment: "it's"},
+			{Name: "bad", Start: "x", MinValue: "1", MaxValue: "10", Increment: "1", CacheSize: "1"},
+		}}},
+	}, "db")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := c.ShowCreateSequence("db", "s"), "CREATE SEQUENCE `s` start with 10 minvalue 5 maxvalue 1000 increment by 2 nocache cycle ENGINE=InnoDB COMMENT='it''s'"; got != want {
+		t.Errorf("got  %s\nwant %s", got, want)
+	}
+	if _, ok := report.Missing["sequence:bad"]; !ok || len(report.Missing) != 1 {
+		t.Errorf("missing %v, want sequence:bad", report.Missing)
+	}
+}

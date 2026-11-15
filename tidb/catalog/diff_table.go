@@ -142,8 +142,7 @@ func canonicalColumn(col *Column) string {
 // diffIndexes compares the keys of two versions of a table by the line SHOW
 // CREATE TABLE writes for each, the primary key named PRIMARY. A key that
 // backs a foreign key is compared like any other: TiDB keeps it when the
-// foreign key is dropped. FULLTEXT and SPATIAL keys are left out, since TiDB
-// parses them and keeps nothing.
+// foreign key is dropped.
 func diffIndexes(from, to *Table) []IndexDiffEntry {
 	return diffNamed(indexesOf(from), indexesOf(to),
 		func(a, b *Index) bool { return showIndex(from, a) != showIndex(to, b) },
@@ -162,9 +161,6 @@ func diffIndexes(from, to *Table) []IndexDiffEntry {
 func indexesOf(t *Table) map[string]*Index {
 	m := make(map[string]*Index, len(t.Indexes))
 	for _, idx := range t.Indexes {
-		if idx.Fulltext || idx.Spatial {
-			continue
-		}
 		name := idx.Name
 		if idx.Primary {
 			name = "PRIMARY"
