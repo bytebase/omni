@@ -694,6 +694,7 @@ CREATE TABLE defaults (id int PRIMARY KEY,
 CREATE TABLE gen_cols (a int, b int GENERATED ALWAYS AS (a * 2) VIRTUAL, c varchar(10) GENERATED ALWAYS AS (concat('it''s', a)) STORED);
 `},
 	{"generation expressions", generationExpressionsTable},
+	{"bit defaults", "CREATE TABLE bits (id int PRIMARY KEY, b1 bit(1) NOT NULL DEFAULT b'0', b8 bit(8) DEFAULT b'101', b16 bit(16) DEFAULT 5, b64 bit(64));"},
 }
 
 const (

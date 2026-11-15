@@ -3783,5 +3783,279 @@
 | USE test
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS omni_mdload
+< ok 0 0
+> exec
+| CREATE DATABASE omni_mdload
+< ok 0 0
+> exec
+| USE omni_mdload
+< ok 0 0
+> exec
+| CREATE TABLE bits (id int PRIMARY KEY, b1 bit(1) NOT NULL DEFAULT b'0', b8 bit(8) DEFAULT b'101', b16 bit(16) DEFAULT 5, b64 bit(64))
+< ok 0 0
+> query
+| SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
+| 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
+: string
+| omni_mdload
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "KEY_NAME" "VARCHAR"
+< column "COLUMN_NAME" "VARCHAR"
+< column "NON_UNIQUE" "BIGINT"
+< column "INDEX_COMMENT" "VARCHAR"
+< column "SUB_PART" "BIGINT"
+< column "EXPRESSION" "VARCHAR"
+< row
+: bytes
+| bits
+: bytes
+| PRIMARY
+: bytes
+| id
+: int64 0
+: bytes
+|
+: null
+: null
+> query
+| SELECT TABLE_NAME, IFNULL(COLUMN_NAME, ''), ORDINAL_POSITION,
+| 			CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END,
+| 			IS_NULLABLE, COLUMN_TYPE, IFNULL(CHARACTER_SET_NAME, ''), IFNULL(COLLATION_NAME, ''),
+| 			QUOTE(COLUMN_COMMENT), GENERATION_EXPRESSION, EXTRA
+| 		FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, ORDINAL_POSITION
+: string
+| omni_mdload
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "ORDINAL_POSITION" "BIGINT"
+< column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
+< column "IS_NULLABLE" "VARCHAR"
+< column "COLUMN_TYPE" "TEXT"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
+< column "GENERATION_EXPRESSION" "TEXT"
+< column "EXTRA" "VARCHAR"
+< row
+: bytes
+| bits
+: bytes
+| id
+: int64 1
+: null
+: bytes
+| NO
+: bytes
+| int
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+< row
+: bytes
+| bits
+: bytes
+| b1
+: int64 2
+: bytes
+| 'b\'0\''
+: bytes
+| NO
+: bytes
+| bit(1)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+< row
+: bytes
+| bits
+: bytes
+| b8
+: int64 3
+: bytes
+| 'b\'101\''
+: bytes
+| YES
+: bytes
+| bit(8)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+< row
+: bytes
+| bits
+: bytes
+| b16
+: int64 4
+: bytes
+| 'b\'101\''
+: bytes
+| YES
+: bytes
+| bit(16)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+< row
+: bytes
+| bits
+: bytes
+| b64
+: int64 5
+: null
+: bytes
+| YES
+: bytes
+| bit(64)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+> query
+| SELECT TABLE_NAME, VIEW_DEFINITION FROM information_schema.VIEWS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_mdload
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "VIEW_DEFINITION" "TEXT"
+> query
+| SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
+| 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
+| 		FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS fks
+| 			JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu
+| 			ON fks.CONSTRAINT_SCHEMA = kcu.TABLE_SCHEMA AND fks.TABLE_NAME = kcu.TABLE_NAME AND fks.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
+| 		WHERE kcu.POSITION_IN_UNIQUE_CONSTRAINT IS NOT NULL AND fks.CONSTRAINT_SCHEMA = ?
+| 		ORDER BY fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.ORDINAL_POSITION
+: string
+| omni_mdload
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR"
+< column "COLUMN_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_COLUMN_NAME" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR"
+< column "UPDATE_RULE" "VARCHAR"
+< column "MATCH_OPTION" "VARCHAR"
+> query
+| SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
+| 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
+: string
+| omni_mdload
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CHECK_CLAUSE" "TEXT"
+> query
+| SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
+| 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
+| 		ORDER BY TABLE_NAME, PARTITION_ORDINAL_POSITION
+: string
+| omni_mdload
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "PARTITION_NAME" "VARCHAR"
+< column "PARTITION_METHOD" "VARCHAR"
+< column "PARTITION_EXPRESSION" "TEXT"
+< column "PARTITION_DESCRIPTION" "TEXT"
+> query
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TABLE_COLLATION, ''), QUOTE(IFNULL(TABLE_COMMENT, '')),
+| 			IFNULL(TIDB_ROW_ID_SHARDING_INFO, ''), IFNULL(TIDB_PK_TYPE, '')
+| 		FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_mdload
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< row
+: bytes
+| bits
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_bin
+: bytes
+| ''
+: bytes
+| NOT_SHARDED(PK_IS_HANDLE)
+: bytes
+| CLUSTERED
+> query
+| SELECT DEFAULT_CHARACTER_SET_NAME, DEFAULT_COLLATION_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = ?
+: string
+| omni_mdload
+< result
+< column "DEFAULT_CHARACTER_SET_NAME" "VARCHAR"
+< column "DEFAULT_COLLATION_NAME" "VARCHAR"
+< row
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_bin
+> query
+| SHOW CREATE TABLE `bits`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| bits
+: bytes
+| CREATE TABLE `bits` (
+|   `id` int NOT NULL,
+|   `b1` bit(1) NOT NULL DEFAULT b'0',
+|   `b8` bit(8) DEFAULT b'101',
+|   `b16` bit(16) DEFAULT b'101',
+|   `b64` bit(64) DEFAULT NULL,
+|   PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| USE test
+< ok 0 0
+> exec
 | SET GLOBAL tidb_enable_check_constraint = OFF
 < ok 0 0

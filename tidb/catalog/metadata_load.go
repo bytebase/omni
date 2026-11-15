@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -506,8 +507,15 @@ func columnDefault(col *metadata.ColumnMetadata) (nodes.ExprNode, error) {
 	if err != nil {
 		return nil, fmt.Errorf("default: %w", err)
 	}
+	// information_schema reports a BIT default as its literal, b'101', which
+	// sync quotes like any other text.
+	if lit, ok := expr.(*nodes.StringLit); ok && strings.HasPrefix(strings.ToLower(strings.TrimSpace(col.GetType())), "bit") && bitLiteralText.MatchString(lit.Value) {
+		return parseExpr(lit.Value)
+	}
 	return expr, nil
 }
+
+var bitLiteralText = regexp.MustCompile(`^[bB]'[01]*'$`)
 
 // typeTakesDefault reports whether a column type shows a DEFAULT NULL clause,
 // which the BLOB, TEXT, and JSON types never do.
