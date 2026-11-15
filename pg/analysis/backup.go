@@ -33,14 +33,19 @@ type tableReference struct {
 
 func (t *tableReference) String() string {
 	if t.Database != "" {
-		return fmt.Sprintf(`"%s"."%s"."%s"`, t.Database, t.Schema, t.Table)
+		return quoteIdentifier(t.Database) + "." + quoteIdentifier(t.Schema) + "." + quoteIdentifier(t.Table)
 	}
 
 	if t.Schema != "" {
-		return fmt.Sprintf(`"%s"."%s"`, t.Schema, t.Table)
+		return quoteIdentifier(t.Schema) + "." + quoteIdentifier(t.Table)
 	}
 
-	return fmt.Sprintf(`"%s"`, t.Table)
+	return quoteIdentifier(t.Table)
+}
+
+// quoteIdentifier writes name as a quoted identifier, doubling any '"' in it.
+func quoteIdentifier(name string) string {
+	return `"` + strings.ReplaceAll(name, `"`, `""`) + `"`
 }
 
 type statementInfo struct {
@@ -150,7 +155,7 @@ func generateSQLForTable(statementInfoList []statementInfo, targetSchema string,
 	targetTable := fmt.Sprintf("%s_%s_%s", tablePrefix, table.Table, table.Schema)
 	targetTable, _ = truncateString(targetTable, maxTableNameLength)
 	var buf strings.Builder
-	if _, err := fmt.Fprintf(&buf, `CREATE TABLE "%s"."%s" AS`+"\n", targetSchema, targetTable); err != nil {
+	if _, err := fmt.Fprintf(&buf, "CREATE TABLE %s.%s AS\n", quoteIdentifier(targetSchema), quoteIdentifier(targetTable)); err != nil {
 		return nil, fmt.Errorf("failed to write to buffer: %w", err)
 	}
 
@@ -169,7 +174,7 @@ func generateSQLForTable(statementInfoList []statementInfo, targetSchema string,
 			}
 		}
 		if table.Alias != "" {
-			if _, err := fmt.Fprintf(&buf, `  SELECT "%s".* `, table.Alias); err != nil {
+			if _, err := fmt.Fprintf(&buf, "  SELECT %s.* ", quoteIdentifier(table.Alias)); err != nil {
 				return nil, fmt.Errorf("failed to write to buffer: %w", err)
 			}
 		} else {
