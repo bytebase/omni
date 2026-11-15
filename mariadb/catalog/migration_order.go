@@ -632,27 +632,35 @@ func dropLastColumnsAfterAdds(ops []MigrationOp, e *TableDiffEntry) []MigrationO
 		return ops
 	}
 	if len(dropped) < len(diffableColumns(e.From)) {
-		if e.From.SystemVersioned && e.To.SystemVersioned && everyDropped(e, dropped, isVersionedColumn) {
-			addFirst(ops, e, dropped, isVersionedColumn)
+		// A table keeps a versioned (4123) and a visible (1113) column.
+		if e.From.SystemVersioned && e.To.SystemVersioned && everyDropped(e, dropped, isVersionedColumn) && !addFirst(ops, e, dropped, isVersionedColumn) {
+			return atomicReplaceLast(ops, e, isVersionedColumn)
 		}
-		// A table keeps a visible column too (1113).
-		if everyDropped(e, dropped, isVisibleColumn) {
-			addFirst(ops, e, dropped, isVisibleColumn)
+		if everyDropped(e, dropped, isVisibleColumn) && !addFirst(ops, e, dropped, isVisibleColumn) {
+			return atomicReplaceLast(ops, e, isVisibleColumn)
 		}
 		return ops
 	}
 	if addFirst(ops, e, dropped, func(*Column) bool { return true }) {
 		return ops
 	}
-	// The replaced column the drop order takes last, which no other dropped
-	// column reads, is dropped and added in one statement, together with the
-	// columns grouped with it.
+	return atomicReplaceLast(ops, e, func(*Column) bool { return true })
+}
+
+// atomicReplaceLast merges, into one ALTER, the drop and add of the column
+// matching pick that the drop order takes last, so the table keeps a column of
+// that kind throughout (1090, 1113, 4123). It merges the columns grouped with
+// each.
+func atomicReplaceLast(ops []MigrationOp, e *TableDiffEntry, pick func(*Column) bool) []MigrationOp {
 	last, add := -1, -1
 	for d := range ops {
 		if ops[d].Type != OpDropColumn || !opOfTable(ops[d], e) {
 			continue
 		}
 		drops := partsOf(ops[d])
+		if col := e.From.GetColumn(ops[d].column); col == nil || !pick(col) {
+			continue
+		}
 		for a := range ops {
 			if ops[a].Type != OpAddColumn || !opOfTable(ops[a], e) || !sharesColumn(drops, partsOf(ops[a])) {
 				continue
@@ -669,6 +677,7 @@ func dropLastColumnsAfterAdds(ops []MigrationOp, e *TableDiffEntry) []MigrationO
 	ops[add].SQL = "ALTER TABLE " + tableIdent(e.To) + " " + joinAlterParts(ops[add].alterParts)
 	return slices.Delete(ops, last, last+1)
 }
+
 
 func releaseForeignKeysOfReplacedKeys(ops []MigrationOp, e *TableDiffEntry) []MigrationOp {
 	replaced := make(map[string]bool)

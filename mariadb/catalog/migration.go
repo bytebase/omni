@@ -235,6 +235,7 @@ func GenerateMigrationWithNormalizer(from, to *Catalog, diff *SchemaDiff, n *Nor
 	ops = reorderTableChanges(ops, from, to, diff, n)
 	ops = mergeAutoIncrementKeyOps(ops, diff, n)
 	ops = reorderAddsAfterMerge(ops, diff)
+	ops = foldEngineIntoAutoKey(ops, diff)
 
 	ops = sortMigrationOps(ops)
 	ops = positionColumnAdds(ops, diff)

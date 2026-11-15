@@ -38,6 +38,14 @@ func generatePartitionDDL(_, _ *Catalog, diff *SchemaDiff, n *Normalizer) []Migr
 			}
 		case DiffModify:
 			if !entry.PartitionChanged {
+				// A partition column the plan drops and adds again, to flip
+				// its generated shape, needs the partitioning off while it is
+				// gone (1054), then restored.
+				if entry.To != nil && entry.To.Partitioning != nil && partitionColumnReplaced(entry) {
+					if op, ok := partitionByOp(entry, entry.To, n); ok {
+						ops = append(ops, removePartitioningOp(entry, entry.To), op)
+					}
+				}
 				continue
 			}
 			ops = append(ops, partitionModifyOps(entry, n)...)
@@ -109,6 +117,29 @@ func oldPartitionColumnDropped(entry *TableDiffEntry) bool {
 	}
 	for _, col := range append(append([]string{}, pi.Columns...), pi.SubColumns...) {
 		if dropped[toLower(col)] {
+			return true
+		}
+	}
+	return false
+}
+
+// partitionColumnReplaced reports whether the partitioning references a column
+// the plan drops and adds again (replacedColumns). An EXPRESSION partitioning
+// embeds columns in text, so any replacement counts.
+func partitionColumnReplaced(entry *TableDiffEntry) bool {
+	if entry.From == nil || entry.From.Partitioning == nil {
+		return false
+	}
+	gone := replacedColumns(entry)
+	if len(gone) == 0 {
+		return false
+	}
+	pi := entry.From.Partitioning
+	if pi.Expr != "" || pi.SubExpr != "" {
+		return true
+	}
+	for _, col := range append(append([]string{}, pi.Columns...), pi.SubColumns...) {
+		if _, ok := gone[toLower(col)]; ok {
 			return true
 		}
 	}
