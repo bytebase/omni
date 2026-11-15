@@ -145,6 +145,9 @@ var diffPairs = []struct{ name, a, b string }{
 	{"auto column keyed with grouped columns", "CREATE TABLE t (x INT)", "CREATE TABLE t (x INT, id INT AUTO_INCREMENT, a INT CHECK (a > b), b INT CHECK (b < a), KEY k (id, a))"},
 	{"system period moved under a key on the kept bound", "CREATE TABLE t (x INT, s TIMESTAMP(6) AS ROW START, e TIMESTAMP(6) AS ROW END, PERIOD FOR SYSTEM_TIME (s, e), KEY k (e)) WITH SYSTEM VERSIONING", "CREATE TABLE t (x INT, s2 TIMESTAMP(6) AS ROW START, e TIMESTAMP(6) AS ROW END, PERIOD FOR SYSTEM_TIME (s2, e), KEY k (e)) WITH SYSTEM VERSIONING"},
 	{"system period moved under a primary key on the kept bound", "CREATE TABLE t (id INT NOT NULL, s TIMESTAMP(6) AS ROW START, e TIMESTAMP(6) AS ROW END, PERIOD FOR SYSTEM_TIME (s, e), PRIMARY KEY (id, e)) WITH SYSTEM VERSIONING", "CREATE TABLE t (id INT NOT NULL, s2 TIMESTAMP(6) AS ROW START, e TIMESTAMP(6) AS ROW END, PERIOD FOR SYSTEM_TIME (s2, e), PRIMARY KEY (id, e)) WITH SYSTEM VERSIONING"},
+	{"postponed drop reading another removed column", "CREATE TABLE t (x INT, d INT AS (x + 1) VIRTUAL, g INT AS (d + 1) VIRTUAL)", "CREATE TABLE t (y INT, g INT AS (y + 1) VIRTUAL)"},
+	{"auto key over a column checking a generated one", "CREATE TABLE t (x INT)", "CREATE TABLE t (x INT, id INT AUTO_INCREMENT, g INT AS (x + 1) VIRTUAL, a INT CHECK (a > g), KEY k (id, a))"},
+	{"last versioned column replaced", "CREATE TABLE t (a INT, b INT WITHOUT SYSTEM VERSIONING) WITH SYSTEM VERSIONING", "CREATE TABLE t (b INT WITHOUT SYSTEM VERSIONING, c INT) WITH SYSTEM VERSIONING"},
 	{"timestamps without defaults", "CREATE TABLE x (i INT)", "CREATE TABLE x (i INT, ts TIMESTAMP NOT NULL); CREATE TABLE t (u TIMESTAMP NOT NULL)"},
 	{"sequence limits leaving out the start", "CREATE SEQUENCE s", "CREATE SEQUENCE s START WITH 100 MINVALUE 10"},
 }
