@@ -62,6 +62,14 @@ func TestRestoreSQL(t *testing.T) {
 	_, err = restore(t, "UPDATE t SET id = 1, b = 2")
 	require.ErrorContains(t, err, "no disjoint unique key found for DB.T")
 
+	// A unique key on a nullable column cannot match its rows' NULLs.
+	node, err := FindFirstDML("UPDATE t SET id = 1")
+	require.NoError(t, err)
+	table, pk := restoreTable()
+	table.Columns[2].Nullable = true
+	_, err = RestoreSQL("UPDATE t SET id = 1", node, RestoreOptions{SourceDatabase: "DB", SourceTable: "T", BackupDatabase: "BB", BackupTable: "B", Table: table, PrimaryKey: pk})
+	require.EqualError(t, err, "no disjoint unique key found for DB.T")
+
 	// SET VALUE (t) replaces whole rows, whose columns the restore cannot
 	// list.
 	_, err = restore(t, "UPDATE t x SET VALUE(x) = typ(1, 2)")
