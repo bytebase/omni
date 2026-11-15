@@ -462,6 +462,41 @@
 | CREATE SEQUENCE s
 < ok 0 0
 > exec
+| CREATE TABLE IF NOT EXISTS s (a INT)
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT 1
+< ok 0 0
+> exec
+| CREATE TABLE IF NOT EXISTS v (a INT)
+< ok 0 0
+> exec
+| CREATE TABLE v (a INT)
+< error
+| 1050 42S01 Table 'v' already exists
+> query
+| SHOW CREATE SEQUENCE `s`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| s
+: bytes
+| CREATE SEQUENCE `s` start with 1 minvalue 1 maxvalue 9223372036854775806 increment by 1 cache 1000 nocycle ENGINE=InnoDB
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_sequences`
+< ok 2 0
+> exec
+| CREATE DATABASE `omni_testoracle_sequences`
+< ok 1 0
+> exec
+| USE `omni_testoracle_sequences`
+< ok 0 0
+> exec
+| CREATE SEQUENCE s
+< ok 0 0
+> exec
 | CREATE TABLE t (a INT)
 < ok 0 0
 > exec
