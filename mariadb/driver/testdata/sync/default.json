@@ -1,0 +1,479 @@
+{
+  "name": "omni_sync_corpus",
+  "schemas": [
+    {
+      "tables": [
+        {
+          "name": "accounts",
+          "columns": [
+            {
+              "name": "id",
+              "position": 1,
+              "default": "AUTO_INCREMENT",
+              "type": "bigint"
+            },
+            {
+              "name": "email",
+              "position": 2,
+              "type": "varchar(190)",
+              "characterSet": "utf8mb4",
+              "collation": "utf8mb4_unicode_ci"
+            },
+            {
+              "name": "bio",
+              "position": 3,
+              "default": "'NULL'",
+              "nullable": true,
+              "type": "text",
+              "characterSet": "utf8mb4",
+              "collation": "utf8mb4_unicode_ci"
+            },
+            {
+              "name": "status",
+              "position": 4,
+              "default": "'\\'open\\''",
+              "type": "enum('open','closed')",
+              "characterSet": "utf8mb4",
+              "collation": "utf8mb4_unicode_ci"
+            },
+            {
+              "name": "balance",
+              "position": 5,
+              "default": "'0.0000'",
+              "type": "decimal(12,4)"
+            },
+            {
+              "name": "email_lower",
+              "position": 6,
+              "default": "'NULL'",
+              "nullable": true,
+              "type": "varchar(190)",
+              "characterSet": "utf8mb4",
+              "collation": "utf8mb4_unicode_ci",
+              "generation": {
+                "type": "TYPE_VIRTUAL",
+                "expression": "lcase(`email`)"
+              }
+            },
+            {
+              "name": "display_tag",
+              "position": 7,
+              "default": "'NULL'",
+              "nullable": true,
+              "type": "varchar(220)",
+              "characterSet": "utf8mb4",
+              "collation": "utf8mb4_unicode_ci",
+              "generation": {
+                "type": "TYPE_STORED",
+                "expression": "concat(`email`,':','v1')"
+              }
+            },
+            {
+              "name": "created_at",
+              "position": 8,
+              "default": "current_timestamp()",
+              "type": "datetime"
+            },
+            {
+              "name": "updated_at",
+              "position": 9,
+              "default": "current_timestamp(6)",
+              "type": "datetime(6)"
+            },
+            {
+              "name": "note",
+              "position": 10,
+              "default": "'NULL'",
+              "nullable": true,
+              "type": "varchar(100)",
+              "characterSet": "utf8mb4",
+              "collation": "utf8mb4_unicode_ci",
+              "comment": "owner\\'s note"
+            }
+          ],
+          "indexes": [
+            {
+              "name": "PRIMARY",
+              "expressions": [
+                "id"
+              ],
+              "keyLength": [
+                "-1"
+              ],
+              "descending": [
+                false
+              ],
+              "type": "BTREE",
+              "unique": true,
+              "primary": true,
+              "visible": true
+            },
+            {
+              "name": "idx_bio_prefix",
+              "expressions": [
+                "bio"
+              ],
+              "keyLength": [
+                "32"
+              ],
+              "descending": [
+                false
+              ],
+              "type": "BTREE",
+              "visible": true
+            },
+            {
+              "name": "uk_email",
+              "expressions": [
+                "email"
+              ],
+              "keyLength": [
+                "-1"
+              ],
+              "descending": [
+                false
+              ],
+              "type": "BTREE",
+              "unique": true,
+              "visible": true
+            }
+          ],
+          "engine": "InnoDB",
+          "collation": "utf8mb4_unicode_ci",
+          "charset": "utf8mb4",
+          "dataSize": "16384",
+          "indexSize": "32768",
+          "comment": "customer accounts",
+          "checkConstraints": [
+            {
+              "name": "chk_balance",
+              "expression": "`balance` >= 0"
+            }
+          ]
+        },
+        {
+          "name": "explicit_period",
+          "columns": [
+            {
+              "name": "id",
+              "position": 1,
+              "type": "int"
+            },
+            {
+              "name": "valid_from",
+              "position": 2,
+              "type": "timestamp(6)",
+              "generation": {
+                "type": "TYPE_STORED",
+                "expression": "ROW START"
+              }
+            },
+            {
+              "name": "valid_to",
+              "position": 3,
+              "type": "timestamp(6)",
+              "generation": {
+                "type": "TYPE_STORED",
+                "expression": "ROW END"
+              }
+            }
+          ],
+          "indexes": [
+            {
+              "name": "PRIMARY",
+              "expressions": [
+                "id",
+                "valid_to"
+              ],
+              "keyLength": [
+                "-1",
+                "-1"
+              ],
+              "descending": [
+                false,
+                false
+              ],
+              "type": "BTREE",
+              "unique": true,
+              "primary": true,
+              "visible": true
+            }
+          ],
+          "engine": "InnoDB",
+          "collation": "utf8mb4_unicode_ci",
+          "charset": "utf8mb4",
+          "dataSize": "16384",
+          "createOptions": "WITH SYSTEM VERSIONING"
+        },
+        {
+          "name": "history",
+          "columns": [
+            {
+              "name": "id",
+              "position": 1,
+              "type": "int"
+            },
+            {
+              "name": "amount",
+              "position": 2,
+              "default": "'NULL'",
+              "nullable": true,
+              "type": "int"
+            },
+            {
+              "name": "account_id",
+              "position": 3,
+              "default": "'NULL'",
+              "nullable": true,
+              "type": "bigint"
+            }
+          ],
+          "indexes": [
+            {
+              "name": "PRIMARY",
+              "expressions": [
+                "id"
+              ],
+              "keyLength": [
+                "-1"
+              ],
+              "descending": [
+                false
+              ],
+              "type": "BTREE",
+              "unique": true,
+              "primary": true,
+              "visible": true
+            },
+            {
+              "name": "fk_history_account",
+              "expressions": [
+                "account_id"
+              ],
+              "keyLength": [
+                "-1"
+              ],
+              "descending": [
+                false
+              ],
+              "type": "BTREE",
+              "visible": true
+            },
+            {
+              "name": "idx_amount",
+              "expressions": [
+                "amount"
+              ],
+              "keyLength": [
+                "-1"
+              ],
+              "descending": [
+                false
+              ],
+              "type": "BTREE",
+              "visible": true
+            }
+          ],
+          "engine": "InnoDB",
+          "collation": "utf8mb4_unicode_ci",
+          "charset": "utf8mb4",
+          "dataSize": "16384",
+          "indexSize": "32768",
+          "createOptions": "WITH SYSTEM VERSIONING",
+          "comment": "versioned",
+          "foreignKeys": [
+            {
+              "name": "fk_history_account",
+              "columns": [
+                "account_id"
+              ],
+              "referencedTable": "accounts",
+              "referencedColumns": [
+                "id"
+              ],
+              "onDelete": "RESTRICT",
+              "onUpdate": "RESTRICT",
+              "matchType": "NONE"
+            }
+          ],
+          "checkConstraints": [
+            {
+              "name": "chk_amount",
+              "expression": "`amount` > 0"
+            }
+          ]
+        },
+        {
+          "name": "orders",
+          "columns": [
+            {
+              "name": "id",
+              "position": 1,
+              "default": "AUTO_INCREMENT",
+              "type": "bigint"
+            },
+            {
+              "name": "account_id",
+              "position": 2,
+              "type": "bigint"
+            },
+            {
+              "name": "total",
+              "position": 3,
+              "type": "int"
+            }
+          ],
+          "indexes": [
+            {
+              "name": "PRIMARY",
+              "expressions": [
+                "id"
+              ],
+              "keyLength": [
+                "-1"
+              ],
+              "descending": [
+                false
+              ],
+              "type": "BTREE",
+              "unique": true,
+              "primary": true,
+              "visible": true
+            },
+            {
+              "name": "idx_account",
+              "expressions": [
+                "account_id"
+              ],
+              "keyLength": [
+                "-1"
+              ],
+              "descending": [
+                false
+              ],
+              "type": "BTREE",
+              "visible": true
+            }
+          ],
+          "engine": "InnoDB",
+          "collation": "utf8mb4_unicode_ci",
+          "charset": "utf8mb4",
+          "dataSize": "16384",
+          "indexSize": "16384",
+          "foreignKeys": [
+            {
+              "name": "fk_orders_account",
+              "columns": [
+                "account_id"
+              ],
+              "referencedTable": "accounts",
+              "referencedColumns": [
+                "id"
+              ],
+              "onDelete": "CASCADE",
+              "onUpdate": "RESTRICT",
+              "matchType": "NONE"
+            }
+          ],
+          "triggers": [
+            {
+              "name": "trg_orders_bi",
+              "event": "INSERT",
+              "timing": "BEFORE",
+              "body": "BEGIN\n\tIF NEW.total < 0 THEN\n\t\tSET NEW.total = 0;\n\tEND IF;\nEND",
+              "sqlMode": "STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION",
+              "characterSetClient": "utf8mb4",
+              "collationConnection": "utf8mb4_uca1400_ai_ci"
+            }
+          ]
+        }
+      ],
+      "views": [
+        {
+          "name": "v_open_accounts",
+          "definition": "select `accounts`.`id` AS `acct_id`,`accounts`.`email` AS `acct_email` from `accounts` where `accounts`.`status` = 'open'",
+          "columns": [
+            {
+              "name": "acct_id",
+              "position": 1,
+              "default": "'0'",
+              "type": "bigint"
+            },
+            {
+              "name": "acct_email",
+              "position": 2,
+              "type": "varchar(190)",
+              "characterSet": "utf8mb4",
+              "collation": "utf8mb4_unicode_ci"
+            }
+          ]
+        }
+      ],
+      "functions": [
+        {
+          "name": "fn_format_tag",
+          "definition": "CREATE FUNCTION `fn_format_tag`(p_prefix VARCHAR(16) CHARSET utf8mb4, p_id BIGINT) RETURNS varchar(64)\n    NO SQL\n    DETERMINISTIC\n    COMMENT 'formats a tag'\nBEGIN\n\tRETURN CONCAT(p_prefix, '-', p_id);\nEND",
+          "characterSetClient": "utf8mb4",
+          "collationConnection": "utf8mb4_uca1400_ai_ci",
+          "databaseCollation": "utf8mb4_uca1400_ai_ci",
+          "sqlMode": "STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION",
+          "comment": "formats a tag"
+        }
+      ],
+      "procedures": [
+        {
+          "name": "sp_touch_order",
+          "definition": "CREATE PROCEDURE `sp_touch_order`(IN p_id BIGINT, OUT p_total INT)\n    COMMENT 'reads order total'\nBEGIN\n\tSELECT total INTO p_total FROM orders WHERE id = p_id;\nEND",
+          "characterSetClient": "utf8mb4",
+          "collationConnection": "utf8mb4_uca1400_ai_ci",
+          "databaseCollation": "utf8mb4_uca1400_ai_ci",
+          "sqlMode": "STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION",
+          "comment": "reads order total"
+        }
+      ],
+      "sequences": [
+        {
+          "name": "seq_custom",
+          "dataType": "bigint",
+          "start": "100",
+          "minValue": "10",
+          "maxValue": "1000",
+          "increment": "5",
+          "cycle": true,
+          "cacheSize": "20",
+          "comment": "sequence comment"
+        },
+        {
+          "name": "seq_default",
+          "dataType": "bigint",
+          "start": "1",
+          "minValue": "1",
+          "maxValue": "9223372036854775806",
+          "increment": "1",
+          "cacheSize": "1000"
+        },
+        {
+          "name": "seq_typed",
+          "dataType": "int unsigned",
+          "start": "7",
+          "minValue": "1",
+          "maxValue": "4000000000",
+          "increment": "1",
+          "cacheSize": "1000"
+        }
+      ],
+      "events": [
+        {
+          "name": "ev_daily_check",
+          "definition": "CREATE DEFINER=`root`@`%` EVENT `ev_daily_check` ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE DISABLE DO BEGIN\n\tDELETE FROM orders WHERE total < 0;\nEND",
+          "timeZone": "SYSTEM",
+          "sqlMode": "STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION",
+          "characterSetClient": "utf8mb4",
+          "collationConnection": "utf8mb4_uca1400_ai_ci"
+        }
+      ]
+    }
+  ],
+  "characterSet": "utf8mb4",
+  "collation": "utf8mb4_uca1400_ai_ci"
+}

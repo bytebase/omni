@@ -1,0 +1,8 @@
+{
+  "database": "sync_inst_db utf8mb4 utf8mb4_general_ci",
+  "lowerCaseTableNames": 1,
+  "roles": [
+    "'sync_reader'@'%': GRANT USAGE ON *.* TO 'sync_reader'\nGRANT SELECT ON `sync_inst_db`.* TO 'sync_reader'"
+  ],
+  "version": "5.7.25"
+}

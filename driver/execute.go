@@ -13,6 +13,9 @@ type Executor interface {
 type ExecuteOptions struct {
 	// Transaction is how the script's statements share transactions.
 	Transaction TransactionMode
+	// Isolation is the transaction isolation level when Transaction is
+	// Transactional; empty uses the engine's default.
+	Isolation IsolationLevel
 	// CreateDatabase runs script as a database-creation step: outside any
 	// transaction, idempotent where the engine checks existing databases
 	// first (pg, Redshift), or through the engine's admin API (Spanner).
@@ -23,6 +26,18 @@ type ExecuteOptions struct {
 	// Log receives each step. Nil logs nothing.
 	Log ExecuteLogger
 }
+
+// IsolationLevel is a transaction isolation level Execute applies when
+// Transaction is Transactional.
+type IsolationLevel string
+
+// The transaction isolation levels.
+const (
+	ReadUncommitted IsolationLevel = "READ UNCOMMITTED"
+	ReadCommitted   IsolationLevel = "READ COMMITTED"
+	RepeatableRead  IsolationLevel = "REPEATABLE READ"
+	Serializable    IsolationLevel = "SERIALIZABLE"
+)
 
 // TransactionMode is how Execute groups a script's statements.
 type TransactionMode string

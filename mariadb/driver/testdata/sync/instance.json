@@ -1,0 +1,34 @@
+{
+  "mariadb107": {
+    "database": "sync_inst_db utf8mb4 utf8mb4_unicode_ci",
+    "lowerCaseTableNames": 0,
+    "roles": [
+      "'sync_reader'@'%': GRANT USAGE ON *.* TO `sync_reader`@`%` IDENTIFIED BY PASSWORD '*0EB931DD0E0457476ABFBD89F6B34EA17B7C84C5'\nGRANT SELECT ON `sync_inst_db`.* TO `sync_reader`@`%`"
+    ],
+    "version": "10.7.8"
+  },
+  "mariadb1011": {
+    "database": "sync_inst_db utf8mb4 utf8mb4_unicode_ci",
+    "lowerCaseTableNames": 0,
+    "roles": [
+      "'sync_reader'@'%': GRANT USAGE ON *.* TO `sync_reader`@`%` IDENTIFIED BY PASSWORD '*0EB931DD0E0457476ABFBD89F6B34EA17B7C84C5'\nGRANT SELECT ON `sync_inst_db`.* TO `sync_reader`@`%`"
+    ],
+    "version": "10.11.19"
+  },
+  "mariadb114": {
+    "database": "sync_inst_db utf8mb4 utf8mb4_unicode_ci",
+    "lowerCaseTableNames": 0,
+    "roles": [
+      "'sync_reader'@'%': GRANT USAGE ON *.* TO `sync_reader`@`%` IDENTIFIED BY PASSWORD '*0EB931DD0E0457476ABFBD89F6B34EA17B7C84C5'\nGRANT SELECT ON `sync_inst_db`.* TO `sync_reader`@`%`"
+    ],
+    "version": "11.4.13"
+  },
+  "default": {
+    "database": "sync_inst_db utf8mb4 utf8mb4_unicode_ci",
+    "lowerCaseTableNames": 0,
+    "roles": [
+      "'sync_reader'@'%': GRANT USAGE ON *.* TO `sync_reader`@`%` IDENTIFIED BY PASSWORD '*0EB931DD0E0457476ABFBD89F6B34EA17B7C84C5'\nGRANT SELECT ON `sync_inst_db`.* TO `sync_reader`@`%`"
+    ],
+    "version": "11.8.8"
+  }
+}
