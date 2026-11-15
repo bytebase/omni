@@ -1701,7 +1701,8 @@ func (c *Catalog) alterRenameTable(db *Database, tbl *Table, cmd *nodes.AlterTab
 	newKey := toLower(newName)
 	oldKey := toLower(tbl.Name)
 
-	if (newDB != oldDB || newKey != oldKey) && newDB.Tables[newKey] != nil {
+	// Tables, views and sequences share one name space.
+	if (newDB != oldDB || newKey != oldKey) && (newDB.Tables[newKey] != nil || newDB.Views[newKey] != nil || newDB.Sequences[newKey] != nil) {
 		return errDupTable(newName)
 	}
 
