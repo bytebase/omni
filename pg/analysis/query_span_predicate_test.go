@@ -408,3 +408,26 @@ func TestGetQuerySpanValuesLineage(t *testing.T) {
 	span := spanFor(t, "EXPLAIN ANALYZE VALUES ((SELECT email FROM t WHERE ssn = 'guess'))", healthySchema())
 	require.Equal(t, []string{"t.ssn"}, predicateColumnNames(span.PredicateColumns))
 }
+
+func TestGetQuerySpanOuterCTELineage(t *testing.T) {
+	testCases := []struct {
+		statement  string
+		want       []string
+		predicates []string
+	}{
+		{"WITH c AS (SELECT ssn AS x FROM t) SELECT (WITH d AS (SELECT email AS x FROM t) SELECT x FROM c LIMIT 1) AS y", []string{"t.ssn"}, []string{}},
+		{"WITH c AS (SELECT ssn AS x FROM t) SELECT s.x FROM (WITH d AS (SELECT email AS x FROM t) SELECT x FROM c) s", []string{"t.ssn"}, []string{}},
+		{"WITH c AS (SELECT id, ssn AS x FROM t) SELECT (WITH d AS (SELECT id, email AS x FROM t) SELECT id FROM c WHERE c.x = 'guess' LIMIT 1) AS y", []string{"t.id"}, []string{"t.ssn"}},
+		{"WITH c AS (SELECT ssn FROM t) SELECT ssn FROM c UNION ALL SELECT email FROM t", []string{"t.email", "t.ssn"}, []string{}},
+		// The b that c reads is the outer one, not the b where c is referenced.
+		{"WITH b AS (SELECT ssn AS x FROM t), c AS (SELECT x FROM b) SELECT s.x FROM (WITH b AS (SELECT email AS x FROM t) SELECT x FROM c) s", []string{"t.ssn"}, []string{}},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.statement, func(t *testing.T) {
+			span := spanFor(t, tc.statement, healthySchema())
+			require.Len(t, span.Results, 1)
+			require.Equal(t, tc.want, predicateColumnNames(span.Results[0].SourceColumns))
+			require.Equal(t, tc.predicates, predicateColumnNames(span.PredicateColumns))
+		})
+	}
+}
