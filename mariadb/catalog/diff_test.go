@@ -206,6 +206,7 @@ var diffPairs = []struct{ name, a, b string }{
 	{"restore a reader check after a merged add", "CREATE TABLE t (x INT, a INT, b INT CHECK (b > a))", "CREATE TABLE t (x INT, a INT AS (x + 1) STORED, b INT CHECK (b > a), id INT AUTO_INCREMENT, KEY k (id, a))"},
 	{"engine change when the auto attribute moves columns", "CREATE TABLE t (g INT NOT NULL, oldid INT AUTO_INCREMENT, KEY k (g, oldid)) ENGINE=MyISAM", "CREATE TABLE t (g INT NOT NULL, oldid INT, newid INT AUTO_INCREMENT PRIMARY KEY) ENGINE=InnoDB"},
 	{"key over a replaced period and column rebuilt once", "CREATE TABLE t (x INT, g INT, s DATE NOT NULL, e DATE NOT NULL, PERIOD FOR p (s, e), UNIQUE KEY u (g, p WITHOUT OVERLAPS))", "CREATE TABLE t (x INT, g INT AS (x) STORED, s2 DATE NOT NULL, e2 DATE NOT NULL, PERIOD FOR p (s2, e2), UNIQUE KEY u (g, p WITHOUT OVERLAPS))"},
+	{"deferred unversioning after a merged versioned add", "CREATE TABLE t (a INT)", "CREATE TABLE t (a INT WITHOUT SYSTEM VERSIONING, id INT AUTO_INCREMENT PRIMARY KEY) WITH SYSTEM VERSIONING"},
 	{"timestamps without defaults", "CREATE TABLE x (i INT)", "CREATE TABLE x (i INT, ts TIMESTAMP NOT NULL); CREATE TABLE t (u TIMESTAMP NOT NULL)"},
 	{"sequence limits leaving out the start", "CREATE SEQUENCE s", "CREATE SEQUENCE s START WITH 100 MINVALUE 10"},
 }

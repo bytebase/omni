@@ -121,6 +121,14 @@ func generateVersioningDDL(diff *SchemaDiff, n *Normalizer) []MigrationOp {
 					clauses = append(clauses, "ADD COLUMN "+formatColumnDefinition(to, col, n))
 				}
 			}
+			// The versioned columns this plan adds, wherever they are added — the
+			// unversioning MODIFY below must run after them (4123).
+			var addedVersioned []string
+			for _, col := range to.Columns {
+				if added[toLower(col.Name)] && isVersionedColumn(col) {
+					addedVersioned = append(addedVersioned, toLower(col.Name))
+				}
+			}
 			if len(clauses) > 0 && to.PeriodStartCol != "" {
 				clauses = append(clauses, fmt.Sprintf("ADD PERIOD FOR SYSTEM_TIME (%s, %s)", backtickIDQ(to.PeriodStartCol), backtickIDQ(to.PeriodEndCol)))
 			}
@@ -129,6 +137,10 @@ func generateVersioningDDL(diff *SchemaDiff, n *Normalizer) []MigrationOp {
 			if len(attributed) > 0 {
 				op(fmt.Sprintf("ALTER TABLE %s %s", table, strings.Join(attributed, ", ")), PhaseMain, priorityVersioningAdd)
 				ops[len(ops)-1].changesVersionedColumns = true
+				// A WITHOUT SYSTEM VERSIONING attribute removes a column's history;
+				// it runs after the added versioned columns, which the merge may
+				// have moved later, so a versioned column always remains (4123).
+				ops[len(ops)-1].readsColumns = addedVersioned
 			}
 		}
 	}
