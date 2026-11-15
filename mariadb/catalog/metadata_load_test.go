@@ -899,3 +899,56 @@ func metadataFixture(t *testing.T, m map[string]any) *metadata.DatabaseSchemaMet
 	}
 	return meta
 }
+
+func TestLoadMetadataKeepsExpressionDefaults(t *testing.T) {
+	// QUOTE(COLUMN_DEFAULT) as sync records it, measured on mariadb:11.8.8.
+	c, report := loadMySQLSnapshot(t, snapshotWithTables(&metadata.TableMetadata{
+		Name: "t",
+		Columns: []*metadata.ColumnMetadata{
+			{Name: "a", Type: "int(11)", Nullable: true, Default: "'1'"},
+			{Name: "b", Type: "int(11)", Nullable: true, Default: "'(`a` + 1)'"},
+			{Name: "c", Type: "int(11)", Nullable: true, Default: "'-1'"},
+			{Name: "g", Type: "int(11)", Nullable: true, Default: "'`a`'"},
+		},
+	}))
+	requireReport(t, report, nil, nil)
+	got := c.ShowCreateTable(snapshotDB, "t")
+	for _, want := range []string{"`a` int(11) DEFAULT 1,", "`b` int(11) DEFAULT (`a` + 1),", "`c` int(11) DEFAULT -1,", "`g` int(11) DEFAULT `a`\n"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("want %q in\n%s", want, got)
+		}
+	}
+	if col := requireTable(t, c, "t").GetColumn("g"); col.DefaultKind != ColumnDefaultExpression {
+		t.Errorf("default of g is kind %v, want an expression", col.DefaultKind)
+	}
+}
+
+func TestLoadMetadataReadsParenthesizedColumnNamesAsColumns(t *testing.T) {
+	c, report := loadMySQLSnapshot(t, snapshotWithTables(&metadata.TableMetadata{
+		Name:    "t",
+		Columns: []*metadata.ColumnMetadata{{Name: "price(usd)", Type: "int"}, {Name: "usd", Type: "int"}},
+		Indexes: []*metadata.IndexMetadata{{Name: "ix", Type: "BTREE", Expressions: []string{"price(usd)"}, Visible: true}},
+	}))
+	requireReport(t, report, nil, nil)
+	requireIncomplete(t, report, nil)
+	if got := c.ShowCreateTable(snapshotDB, "t"); !strings.Contains(got, "KEY `ix` (`price(usd)`)") {
+		t.Errorf("want the key on column price(usd):\n%s", got)
+	}
+}
+
+func TestLoadMetadataInstallsListDefaultPartition(t *testing.T) {
+	c, report := loadMySQLSnapshot(t, snapshotWithTables(&metadata.TableMetadata{
+		Name:    "pl",
+		Engine:  "InnoDB",
+		Columns: []*metadata.ColumnMetadata{{Name: "a", Type: "int(11)", Nullable: true}},
+		Partitions: []*metadata.TablePartitionMetadata{
+			{Name: "p1", Type: metadata.TablePartitionMetadata_LIST, Expression: "`a`", Value: "1"},
+			{Name: "pd", Type: metadata.TablePartitionMetadata_LIST, Expression: "`a`", Value: "DEFAULT"},
+		},
+	}))
+	requireReport(t, report, nil, nil)
+	requireIncomplete(t, report, nil)
+	if got := c.ShowCreateTable(snapshotDB, "pl"); !strings.Contains(got, "PARTITION `pd` DEFAULT ENGINE = InnoDB") {
+		t.Errorf("want the catch-all partition:\n%s", got)
+	}
+}
