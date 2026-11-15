@@ -137,6 +137,9 @@ var diffPairs = []struct{ name, a, b string }{
 	{"myisam auto column inside a key", "CREATE TABLE x (i INT)", "CREATE TABLE x (i INT); CREATE TABLE t (a INT, b INT AUTO_INCREMENT, KEY k (a, b)) ENGINE=MyISAM"},
 	{"auto column replaced", "CREATE TABLE t (a INT AUTO_INCREMENT PRIMARY KEY)", "CREATE TABLE t (b INT AUTO_INCREMENT PRIMARY KEY)"},
 	{"ignored unique key after the implicit primary key", "CREATE TABLE x (i INT)", "CREATE TABLE x (i INT); CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, UNIQUE KEY z (b), UNIQUE KEY aa (a) IGNORED)"},
+	{"modified reader of a replaced column", "CREATE TABLE t (x INT, h INT, g INT AS (x + 1) VIRTUAL)", "CREATE TABLE t (x INT, h INT AS (x + 1) STORED, g INT AS (h + 1) VIRTUAL)"},
+	{"system period moved with the kept bound changed", "CREATE TABLE t (x INT, s TIMESTAMP(6) AS ROW START, e TIMESTAMP(6) AS ROW END, PERIOD FOR SYSTEM_TIME (s, e)) WITH SYSTEM VERSIONING", "CREATE TABLE t (x INT, s2 TIMESTAMP(6) AS ROW START, e TIMESTAMP(6) AS ROW END COMMENT 'changed', PERIOD FOR SYSTEM_TIME (s2, e)) WITH SYSTEM VERSIONING"},
+	{"view replaced by a sequence", "CREATE VIEW s AS SELECT 1 AS n", "CREATE SEQUENCE s"},
 	{"timestamps without defaults", "CREATE TABLE x (i INT)", "CREATE TABLE x (i INT, ts TIMESTAMP NOT NULL); CREATE TABLE t (u TIMESTAMP NOT NULL)"},
 	{"sequence limits leaving out the start", "CREATE SEQUENCE s", "CREATE SEQUENCE s START WITH 100 MINVALUE 10"},
 }

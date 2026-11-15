@@ -82,9 +82,10 @@ func dropColumnsAfterGeneratedReads(ops []MigrationOp, e *TableDiffEntry) []Migr
 }
 
 func modifyGeneratedAfterAddedReads(ops []MigrationOp, e *TableDiffEntry) []MigrationOp {
+	// A column the plan replaces, dropping and adding it again, is added too.
 	added := make(map[string]bool)
 	for _, ce := range e.Columns {
-		if ce.Action == DiffAdd {
+		if ce.Action == DiffAdd || ce.Action == DiffModify && generatedShapeChanged(ce.From, ce.To) {
 			added[toLower(ce.Name)] = true
 		}
 	}
