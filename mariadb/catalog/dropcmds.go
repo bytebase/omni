@@ -14,7 +14,8 @@ func (c *Catalog) dropTable(stmt *nodes.DropTableStmt) error {
 		}
 		key := toLower(ref.Name)
 		// DROP TABLE drops a sequence too. Measured on mariadb:11.8.8.
-		if db.Sequences[key] != nil && db.Tables[key] == nil {
+		// DROP TEMPORARY TABLE drops only a temporary one.
+		if seq := db.Sequences[key]; seq != nil && db.Tables[key] == nil && (!stmt.Temporary || seq.Temporary) {
 			delete(db.Sequences, key)
 			continue
 		}

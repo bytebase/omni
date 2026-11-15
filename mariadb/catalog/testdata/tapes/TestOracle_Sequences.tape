@@ -462,6 +462,77 @@
 | CREATE SEQUENCE s
 < ok 0 0
 > exec
+| CREATE TABLE IF NOT EXISTS s (a INT)
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT 1
+< ok 0 0
+> exec
+| CREATE TABLE IF NOT EXISTS v (a INT)
+< ok 0 0
+> exec
+| CREATE TABLE v (a INT)
+< error
+| 1050 42S01 Table 'v' already exists
+> query
+| SHOW CREATE SEQUENCE `s`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| s
+: bytes
+| CREATE SEQUENCE `s` start with 1 minvalue 1 maxvalue 9223372036854775806 increment by 1 cache 1000 nocycle ENGINE=InnoDB
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_sequences`
+< ok 2 0
+> exec
+| CREATE DATABASE `omni_testoracle_sequences`
+< ok 1 0
+> exec
+| USE `omni_testoracle_sequences`
+< ok 0 0
+> exec
+| CREATE SEQUENCE s
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT)
+< ok 0 0
+> exec
+| ALTER TABLE t RENAME TO s
+< error
+| 1050 42S01 Table 's' already exists
+> exec
+| CREATE VIEW v AS SELECT 1
+< ok 0 0
+> exec
+| ALTER TABLE t RENAME TO v
+< error
+| 1050 42S01 Table 'v' already exists
+> exec
+| DROP TABLE s
+< ok 0 0
+> exec
+| ALTER TABLE t RENAME TO s
+< ok 0 0
+> exec
+| DROP SEQUENCE s
+< error
+| 4090 42S02 'omni_testoracle_sequences.s' is not a SEQUENCE
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_sequences`
+< ok 2 0
+> exec
+| CREATE DATABASE `omni_testoracle_sequences`
+< ok 1 0
+> exec
+| USE `omni_testoracle_sequences`
+< ok 0 0
+> exec
+| CREATE SEQUENCE s
+< ok 0 0
+> exec
 | CREATE OR REPLACE SEQUENCE s START WITH 7
 < ok 0 0
 > exec
@@ -531,6 +602,16 @@
 | USE `omni_testoracle_sequences`
 < ok 0 0
 > exec
+| CREATE SEQUENCE k
+< ok 0 0
+> exec
+| DROP TEMPORARY TABLE IF EXISTS k
+< ok 0 0
+> exec
+| DROP TEMPORARY TABLE k
+< error
+| 1051 42S02 Unknown table 'omni_testoracle_sequences.k'
+> exec
 | CREATE TEMPORARY SEQUENCE s START WITH 3
 < ok 0 0
 > exec
@@ -548,6 +629,12 @@
 | 4091 42S02 Unknown SEQUENCE: 'omni_testoracle_sequences.p'
 > exec
 | DROP TEMPORARY SEQUENCE IF EXISTS p
+< ok 0 0
+> exec
+| CREATE TEMPORARY SEQUENCE q
+< ok 0 0
+> exec
+| DROP TEMPORARY TABLE q
 < ok 0 0
 > query
 | SHOW CREATE SEQUENCE `s`
@@ -569,3 +656,13 @@
 | p
 : bytes
 | CREATE SEQUENCE `p` start with 1 minvalue 1 maxvalue 9223372036854775806 increment by 1 cache 1000 nocycle ENGINE=InnoDB
+> query
+| SHOW CREATE SEQUENCE `k`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| k
+: bytes
+| CREATE SEQUENCE `k` start with 1 minvalue 1 maxvalue 9223372036854775806 increment by 1 cache 1000 nocycle ENGINE=InnoDB
