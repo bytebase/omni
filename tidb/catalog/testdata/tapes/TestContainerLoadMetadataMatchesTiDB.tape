@@ -3156,5 +3156,632 @@
 | USE test
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS omni_mdload
+< ok 0 0
+> exec
+| CREATE DATABASE omni_mdload
+< ok 0 0
+> exec
+| USE omni_mdload
+< ok 0 0
+> exec
+| CREATE TABLE gen_exprs (a int, b int, s varchar(20), j json,
+|  g1 int AS (a * (b + 1)),
+|  g2 int AS ((a + b) * 2),
+|  g3 int AS (a + b * 2),
+|  g4 varchar(30) AS (concat('it''s', s)),
+|  g5 varchar(30) AS (CASE WHEN a < 5 THEN 'x' WHEN a IS NULL THEN 'n' ELSE 'y' END) STORED,
+|  g6 int AS (a IN (1, 2, 3)),
+|  g7 int AS (s LIKE 'a%'),
+|  g8 int AS (a BETWEEN 1 AND 5),
+|  g9 char(10) AS (CAST(a AS char)),
+|  g10 int AS (IF(a > 0, a, -a)),
+|  g11 varchar(20) AS (concat('a\\b', s)),
+|  g12 int AS (NOT (a > 1)),
+|  g13 int AS (a IS NOT NULL),
+|  g14 varchar(40) AS (j->>'$.x'),
+|  g15 int AS (-a + 1),
+|  g16 int AS (a DIV 2 MOD 3),
+|  g17 int AS (coalesce(a, b, 0)))
+< ok 0 0
+> query
+| SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
+| 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
+: string
+| omni_mdload
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "KEY_NAME" "VARCHAR"
+< column "COLUMN_NAME" "VARCHAR"
+< column "NON_UNIQUE" "BIGINT"
+< column "INDEX_COMMENT" "VARCHAR"
+< column "SUB_PART" "BIGINT"
+< column "EXPRESSION" "VARCHAR"
+> query
+| SELECT TABLE_NAME, IFNULL(COLUMN_NAME, ''), ORDINAL_POSITION,
+| 			CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END,
+| 			IS_NULLABLE, COLUMN_TYPE, IFNULL(CHARACTER_SET_NAME, ''), IFNULL(COLLATION_NAME, ''),
+| 			QUOTE(COLUMN_COMMENT), GENERATION_EXPRESSION, EXTRA
+| 		FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, ORDINAL_POSITION
+: string
+| omni_mdload
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "ORDINAL_POSITION" "BIGINT"
+< column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
+< column "IS_NULLABLE" "VARCHAR"
+< column "COLUMN_TYPE" "TEXT"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
+< column "GENERATION_EXPRESSION" "TEXT"
+< column "EXTRA" "VARCHAR"
+< row
+: bytes
+| gen_exprs
+: bytes
+| a
+: int64 1
+: null
+: bytes
+| YES
+: bytes
+| int
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+< row
+: bytes
+| gen_exprs
+: bytes
+| b
+: int64 2
+: null
+: bytes
+| YES
+: bytes
+| int
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+< row
+: bytes
+| gen_exprs
+: bytes
+| s
+: int64 3
+: null
+: bytes
+| YES
+: bytes
+| varchar(20)
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_bin
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+< row
+: bytes
+| gen_exprs
+: bytes
+| j
+: int64 4
+: null
+: bytes
+| YES
+: bytes
+| json
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+< row
+: bytes
+| gen_exprs
+: bytes
+| g1
+: int64 5
+: null
+: bytes
+| YES
+: bytes
+| int
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+| `a` * (`b` + 1)
+: bytes
+| VIRTUAL GENERATED
+< row
+: bytes
+| gen_exprs
+: bytes
+| g2
+: int64 6
+: null
+: bytes
+| YES
+: bytes
+| int
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+| (`a` + `b`) * 2
+: bytes
+| VIRTUAL GENERATED
+< row
+: bytes
+| gen_exprs
+: bytes
+| g3
+: int64 7
+: null
+: bytes
+| YES
+: bytes
+| int
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+| `a` + `b` * 2
+: bytes
+| VIRTUAL GENERATED
+< row
+: bytes
+| gen_exprs
+: bytes
+| g4
+: int64 8
+: null
+: bytes
+| YES
+: bytes
+| varchar(30)
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_bin
+: bytes
+| ''
+: bytes
+| concat(_utf8mb4'it''s', `s`)
+: bytes
+| VIRTUAL GENERATED
+< row
+: bytes
+| gen_exprs
+: bytes
+| g5
+: int64 9
+: null
+: bytes
+| YES
+: bytes
+| varchar(30)
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_bin
+: bytes
+| ''
+: bytes
+| case when `a` < 5 then _utf8mb4'x' when `a` is null then _utf8mb4'n' else _utf8mb4'y' end
+: bytes
+| STORED GENERATED
+< row
+: bytes
+| gen_exprs
+: bytes
+| g6
+: int64 10
+: null
+: bytes
+| YES
+: bytes
+| int
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+| `a` in (1,2,3)
+: bytes
+| VIRTUAL GENERATED
+< row
+: bytes
+| gen_exprs
+: bytes
+| g7
+: int64 11
+: null
+: bytes
+| YES
+: bytes
+| int
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+| `s` like _utf8mb4'a%'
+: bytes
+| VIRTUAL GENERATED
+< row
+: bytes
+| gen_exprs
+: bytes
+| g8
+: int64 12
+: null
+: bytes
+| YES
+: bytes
+| int
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+| `a` between 1 and 5
+: bytes
+| VIRTUAL GENERATED
+< row
+: bytes
+| gen_exprs
+: bytes
+| g9
+: int64 13
+: null
+: bytes
+| YES
+: bytes
+| char(10)
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_bin
+: bytes
+| ''
+: bytes
+| cast(`a` as char)
+: bytes
+| VIRTUAL GENERATED
+< row
+: bytes
+| gen_exprs
+: bytes
+| g10
+: int64 14
+: null
+: bytes
+| YES
+: bytes
+| int
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+| if(`a` > 0, `a`, -`a`)
+: bytes
+| VIRTUAL GENERATED
+< row
+: bytes
+| gen_exprs
+: bytes
+| g11
+: int64 15
+: null
+: bytes
+| YES
+: bytes
+| varchar(20)
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_bin
+: bytes
+| ''
+: bytes
+| concat(_utf8mb4'a\\b', `s`)
+: bytes
+| VIRTUAL GENERATED
+< row
+: bytes
+| gen_exprs
+: bytes
+| g12
+: int64 16
+: null
+: bytes
+| YES
+: bytes
+| int
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+| not (`a` > 1)
+: bytes
+| VIRTUAL GENERATED
+< row
+: bytes
+| gen_exprs
+: bytes
+| g13
+: int64 17
+: null
+: bytes
+| YES
+: bytes
+| int
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+| `a` is not null
+: bytes
+| VIRTUAL GENERATED
+< row
+: bytes
+| gen_exprs
+: bytes
+| g14
+: int64 18
+: null
+: bytes
+| YES
+: bytes
+| varchar(40)
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_bin
+: bytes
+| ''
+: bytes
+| json_unquote(json_extract(`j`, _utf8mb4'$.x'))
+: bytes
+| VIRTUAL GENERATED
+< row
+: bytes
+| gen_exprs
+: bytes
+| g15
+: int64 19
+: null
+: bytes
+| YES
+: bytes
+| int
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+| -`a` + 1
+: bytes
+| VIRTUAL GENERATED
+< row
+: bytes
+| gen_exprs
+: bytes
+| g16
+: int64 20
+: null
+: bytes
+| YES
+: bytes
+| int
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+| `a` div 2 % 3
+: bytes
+| VIRTUAL GENERATED
+< row
+: bytes
+| gen_exprs
+: bytes
+| g17
+: int64 21
+: null
+: bytes
+| YES
+: bytes
+| int
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+| coalesce(`a`, `b`, 0)
+: bytes
+| VIRTUAL GENERATED
+> query
+| SELECT TABLE_NAME, VIEW_DEFINITION FROM information_schema.VIEWS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_mdload
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "VIEW_DEFINITION" "TEXT"
+> query
+| SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
+| 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
+| 		FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS fks
+| 			JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu
+| 			ON fks.CONSTRAINT_SCHEMA = kcu.TABLE_SCHEMA AND fks.TABLE_NAME = kcu.TABLE_NAME AND fks.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
+| 		WHERE kcu.POSITION_IN_UNIQUE_CONSTRAINT IS NOT NULL AND fks.CONSTRAINT_SCHEMA = ?
+| 		ORDER BY fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.ORDINAL_POSITION
+: string
+| omni_mdload
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR"
+< column "COLUMN_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_COLUMN_NAME" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR"
+< column "UPDATE_RULE" "VARCHAR"
+< column "MATCH_OPTION" "VARCHAR"
+> query
+| SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
+| 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
+: string
+| omni_mdload
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CHECK_CLAUSE" "TEXT"
+> query
+| SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
+| 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
+| 		ORDER BY TABLE_NAME, PARTITION_ORDINAL_POSITION
+: string
+| omni_mdload
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "PARTITION_NAME" "VARCHAR"
+< column "PARTITION_METHOD" "VARCHAR"
+< column "PARTITION_EXPRESSION" "TEXT"
+< column "PARTITION_DESCRIPTION" "TEXT"
+> query
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TABLE_COLLATION, ''), QUOTE(IFNULL(TABLE_COMMENT, '')),
+| 			IFNULL(TIDB_ROW_ID_SHARDING_INFO, ''), IFNULL(TIDB_PK_TYPE, '')
+| 		FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_mdload
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< row
+: bytes
+| gen_exprs
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_bin
+: bytes
+| ''
+: bytes
+| NOT_SHARDED
+: bytes
+| NONCLUSTERED
+> query
+| SELECT DEFAULT_CHARACTER_SET_NAME, DEFAULT_COLLATION_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = ?
+: string
+| omni_mdload
+< result
+< column "DEFAULT_CHARACTER_SET_NAME" "VARCHAR"
+< column "DEFAULT_COLLATION_NAME" "VARCHAR"
+< row
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_bin
+> query
+| SHOW CREATE TABLE `gen_exprs`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| gen_exprs
+: bytes
+| CREATE TABLE `gen_exprs` (
+|   `a` int DEFAULT NULL,
+|   `b` int DEFAULT NULL,
+|   `s` varchar(20) DEFAULT NULL,
+|   `j` json DEFAULT NULL,
+|   `g1` int GENERATED ALWAYS AS (`a` * (`b` + 1)) VIRTUAL,
+|   `g2` int GENERATED ALWAYS AS ((`a` + `b`) * 2) VIRTUAL,
+|   `g3` int GENERATED ALWAYS AS (`a` + `b` * 2) VIRTUAL,
+|   `g4` varchar(30) GENERATED ALWAYS AS (concat(_utf8mb4'it''s', `s`)) VIRTUAL,
+|   `g5` varchar(30) GENERATED ALWAYS AS (case when `a` < 5 then _utf8mb4'x' when `a` is null then _utf8mb4'n' else _utf8mb4'y' end) STORED,
+|   `g6` int GENERATED ALWAYS AS (`a` in (1,2,3)) VIRTUAL,
+|   `g7` int GENERATED ALWAYS AS (`s` like _utf8mb4'a%') VIRTUAL,
+|   `g8` int GENERATED ALWAYS AS (`a` between 1 and 5) VIRTUAL,
+|   `g9` char(10) GENERATED ALWAYS AS (cast(`a` as char)) VIRTUAL,
+|   `g10` int GENERATED ALWAYS AS (if(`a` > 0, `a`, -`a`)) VIRTUAL,
+|   `g11` varchar(20) GENERATED ALWAYS AS (concat(_utf8mb4'a\\b', `s`)) VIRTUAL,
+|   `g12` int GENERATED ALWAYS AS (not (`a` > 1)) VIRTUAL,
+|   `g13` int GENERATED ALWAYS AS (`a` is not null) VIRTUAL,
+|   `g14` varchar(40) GENERATED ALWAYS AS (json_unquote(json_extract(`j`, _utf8mb4'$.x'))) VIRTUAL,
+|   `g15` int GENERATED ALWAYS AS (-`a` + 1) VIRTUAL,
+|   `g16` int GENERATED ALWAYS AS (`a` div 2 % 3) VIRTUAL,
+|   `g17` int GENERATED ALWAYS AS (coalesce(`a`, `b`, 0)) VIRTUAL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| USE test
+< ok 0 0
+> exec
 | SET GLOBAL tidb_enable_check_constraint = OFF
 < ok 0 0
