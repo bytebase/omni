@@ -27,7 +27,7 @@ CREATE TYPE app.addresses AS (home app.address, others app.address[]);
 CREATE TYPE app.empty_type AS ();
 CREATE DOMAIN app.positive_int AS integer NOT NULL CHECK (VALUE > 0);
 CREATE DOMAIN app.email AS citext CHECK (VALUE ~ '@');
-CREATE TYPE app.float_range AS RANGE (subtype = float8);
+CREATE TYPE app.float_range AS RANGE (subtype = float8); -- not restorable: TestDumpGaps
 CREATE COLLATION app.ci (provider = icu, locale = 'und-u-ks-level2', deterministic = false);
 
 -- Sequences.
@@ -203,6 +203,16 @@ COMMENT ON MATERIALIZED VIEW app.order_totals IS 'per customer';
 CREATE SERVER loopback FOREIGN DATA WRAPPER postgres_fdw OPTIONS (host 'localhost', dbname 'postgres');
 CREATE FOREIGN TABLE audit.remote_orders (id int NOT NULL, note varchar(30))
     SERVER loopback OPTIONS (schema_name 'public', table_name 'orders');
+
+-- Shapes Bytebase's sync got wrong before the move: a sequence owned by a
+-- column after a dropped one, a view of a relation it reads no column of, a
+-- name with an apostrophe, an array of a user type.
+CREATE TABLE app.seq_owner (removed text, id serial, payload text);
+ALTER TABLE app.seq_owner DROP COLUMN removed;
+CREATE TABLE public.z_source (v int);
+CREATE VIEW public.a_count AS SELECT count(*) AS n FROM public.z_source;
+CREATE VIEW app."owner's view" AS SELECT id FROM app.customer;
+ALTER TABLE app.customer ADD COLUMN moods app.mood[];
 
 -- Event triggers.
 CREATE EVENT TRIGGER corpus_ddl ON ddl_command_end WHEN TAG IN ('CREATE TABLE', 'ALTER TABLE')

@@ -85,6 +85,14 @@ CREATE SEQUENCE "app"."owned_seq"
 	MAXVALUE 9223372036854775807
 	NO CYCLE;
 
+CREATE SEQUENCE "app"."seq_owner_id_seq"
+    AS integer
+	START WITH 1
+	INCREMENT BY 1
+	MINVALUE 1
+	MAXVALUE 2147483647
+	NO CYCLE;
+
 CREATE SEQUENCE "audit"."big_seq"
     AS bigint
 	START WITH 1
@@ -173,6 +181,7 @@ CREATE TABLE "app"."customer" (
     "full_name" text,
     "Quoted Col" text,
     "updated_at" timestamp(6) with time zone,
+    "moods" app._mood,
     CONSTRAINT "customer_balance_check" CHECK (balance >= 0::numeric),
     CONSTRAINT "customer_name_check" CHECK (length(name) > 0)
 );
@@ -371,6 +380,13 @@ END
 $procedure$
 ;
 
+CREATE TABLE "app"."seq_owner" (
+    "id" integer DEFAULT nextval('app.seq_owner_id_seq'::regclass) NOT NULL,
+    "payload" text
+);
+
+ALTER SEQUENCE "app"."seq_owner_id_seq" OWNED BY "app"."seq_owner"."id";
+
 CREATE TABLE "app"."sharded" (
     "id" integer,
     "v" text
@@ -422,9 +438,17 @@ CREATE TABLE "public"."plain" (
 
 ALTER SEQUENCE "public"."plain_a_seq" OWNED BY "public"."plain"."a";
 
+CREATE TABLE "public"."z_source" (
+    "v" integer
+);
+
 CREATE VIEW "app"."customer_names" AS 
  SELECT customer.id,
     customer.name
+   FROM app.customer;
+
+CREATE VIEW "app"."owner's view" AS 
+ SELECT customer.id
    FROM app.customer;
 
 CREATE VIEW "app"."happy_customer" AS 
@@ -447,6 +471,10 @@ CREATE MATERIALIZED VIEW "app"."order_totals" AS
 CREATE UNIQUE INDEX "order_totals_customer" ON "app"."order_totals" (customer_id);
 
 COMMENT ON MATERIALIZED VIEW "app"."order_totals" IS 'per customer';
+
+CREATE VIEW "public"."a_count" AS 
+ SELECT count(*) AS n
+   FROM public.z_source;
 
 CREATE VIEW "app"."view_on_view" AS 
  SELECT happy_customer.name
