@@ -24,7 +24,7 @@ func generateEventDDL(_, _ *Catalog, diff *SchemaDiff, _ *Normalizer) []Migratio
 				Type:       OpCreateEvent,
 				Database:   e.Database,
 				ObjectName: e.Name,
-				SQL:        renderCreateEvent(e.To),
+				SQL:        renderCreateEventWithContext(e.To, nil),
 				Phase:      PhaseMain,
 				Priority:   priorityEvent,
 				sortName:   eventSortName(e.Database, e.Name),
@@ -117,21 +117,23 @@ func renderCreateEvent(e *Event) string {
 	return b.String()
 }
 
-// renderCreateEventWithContext renders the target event's CREATE, wrapped in a save/restore of
-// the old event's session context (including time_zone) when `from` carries one.
+// renderCreateEventWithContext renders the target event's CREATE, framed by frameEventWithContext.
 func renderCreateEventWithContext(to, from *Event) string {
-	return frameEventWithContext(renderCreateEvent(to), from)
+	return frameEventWithContext(renderCreateEvent(to), to, from)
 }
 
-// renderAlterEventWithContext renders the target event's ALTER, wrapped in the same save/restore.
+// renderAlterEventWithContext renders the target event's ALTER, framed by frameEventWithContext.
 func renderAlterEventWithContext(to, from *Event) string {
-	return frameEventWithContext(renderAlterEvent(to), from)
+	return frameEventWithContext(renderAlterEvent(to), to, from)
 }
 
-// frameEventWithContext wraps an event statement in a save/restore of the old event's session
-// context when it is present.
-func frameEventWithContext(stmtSQL string, from *Event) string {
-	if from != nil && from.HasSessionContext {
+// frameEventWithContext wraps an event statement in a save/restore of the session context it
+// runs under: the target event's own where it is known, else the old event's.
+func frameEventWithContext(stmtSQL string, to, from *Event) string {
+	switch {
+	case to != nil && to.HasSessionContext:
+		return renderWithSessionContext(stmtSQL, eventSessionContext(to), true)
+	case from != nil && from.HasSessionContext:
 		return renderWithSessionContext(stmtSQL, eventSessionContext(from), true)
 	}
 	return stmtSQL

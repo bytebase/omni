@@ -48,6 +48,25 @@ func TestMigration_ViewBodyQualifiesItsRelations(t *testing.T) {
 	}
 }
 
+func TestMigration_AddedObjectsKeepTheirSessionContext(t *testing.T) {
+	a := loadCat(t, dbDDL+"CREATE TABLE t (a VARCHAR(10));")
+	b := loadCat(t, dbDDL+"CREATE TABLE t (a VARCHAR(10)); CREATE FUNCTION f() RETURNS VARCHAR(10) DETERMINISTIC RETURN 'a' || 'b'; CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 'x' || 'y'; CREATE EVENT e ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DO SELECT 'a' || 'b';")
+	ctx := SessionContext{SQLMode: "PIPES_AS_CONCAT"}
+	b.ApplySessionContext(SessionContextMap{
+		Functions: map[string]SessionContext{"f": ctx},
+		Triggers:  map[string]SessionContext{"tr": ctx},
+		Events:    map[string]SessionContext{"e": ctx},
+	})
+	for _, op := range GenerateMigration(a, b, Diff(a, b)).Ops {
+		switch op.Type {
+		case OpCreateFunction, OpCreateTrigger, OpCreateEvent:
+			if !strings.Contains(op.SQL, "SET sql_mode = 'PIPES_AS_CONCAT'") {
+				t.Errorf("%s created without its sql_mode:\n%s", op.ObjectName, op.SQL)
+			}
+		}
+	}
+}
+
 func TestMigration_MariaDBStatements(t *testing.T) {
 	for _, tc := range []struct{ name, from, to, want string }{
 		{"sequence create", "", "CREATE SEQUENCE s START WITH 5;", "CREATE SEQUENCE `app`.`s` start with 5 minvalue 1 maxvalue 9223372036854775806 increment by 1 cache 1000 nocycle ENGINE=InnoDB"},

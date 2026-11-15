@@ -71,9 +71,10 @@ func dropTriggerSuppressed(to *Catalog, trig *Trigger) bool {
 }
 
 // buildCreateTriggerOp renders a CREATE TRIGGER op with the trigger name and its ON table
-// qualified by the trigger's own database, in original case, and the body verbatim. When `from`
-// carries session context, the CREATE is wrapped in a save/restore of that context
-// (renderWithSessionContext) so a recreate keeps the old sql_mode, charset, and collation.
+// qualified by the trigger's own database, in original case, and the body verbatim. The CREATE
+// is wrapped in a save/restore of the session context it is created under
+// (renderWithSessionContext): trig's own where it is known, else that of `from`, the trigger it
+// recreates.
 func buildCreateTriggerOp(database string, trig, from *Trigger) MigrationOp {
 	dbName := triggerDatabaseName(trig)
 	trigIdent := qualifiedTriggerIdent(dbName, trig.Name)
@@ -88,7 +89,10 @@ func buildCreateTriggerOp(database string, trig, from *Trigger) MigrationOp {
 	}
 
 	sql := b.String()
-	if from != nil && from.HasSessionContext {
+	switch {
+	case trig.HasSessionContext:
+		sql = renderWithSessionContext(sql, triggerSessionContext(trig), false)
+	case from != nil && from.HasSessionContext:
 		sql = renderWithSessionContext(sql, triggerSessionContext(from), false)
 	}
 

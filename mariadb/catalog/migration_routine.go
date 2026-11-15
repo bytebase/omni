@@ -46,7 +46,6 @@ func routineOps(e *RoutineDiffEntry, n *Normalizer) []MigrationOp {
 		if e.To == nil {
 			return nil
 		}
-		// No original session context to preserve.
 		return []MigrationOp{createRoutineOp(e, e.To, nil, n)}
 	case DiffDrop:
 		if e.From == nil {
@@ -60,19 +59,22 @@ func routineOps(e *RoutineDiffEntry, n *Normalizer) []MigrationOp {
 		if routineAlterSuffices(e.From, e.To, n) {
 			return []MigrationOp{alterRoutineOp(e, e.To)}
 		}
-		// The recreate runs under the old routine's session context.
 		return []MigrationOp{dropRoutineOp(e, e.From), createRoutineOp(e, e.To, e.From, n)}
 	}
 	return nil
 }
 
-// createRoutineOp builds a CREATE FUNCTION/PROCEDURE op. When `from` carries session context,
-// the CREATE is wrapped in a save/restore of that context (renderWithSessionContext) so a
-// recreate keeps the old sql_mode, charset, and collation.
+// createRoutineOp builds a CREATE FUNCTION/PROCEDURE op, wrapped in a save/restore of the
+// session context it is created under (renderWithSessionContext): r's own where it is known,
+// else that of `from`, the routine it recreates. The sql_mode a routine is created under is
+// part of what its body computes, PIPES_AS_CONCAT for one.
 func createRoutineOp(e *RoutineDiffEntry, r, from *Routine, n *Normalizer) MigrationOp {
 	sql := renderCreateRoutine(e.Database, r, n)
-	if from != nil && from.HasSessionContext {
-		sql = renderWithSessionContext(sql, routineSessionContext(from), false)
+	if ctx := r; ctx.HasSessionContext || (from != nil && from.HasSessionContext) {
+		if !ctx.HasSessionContext {
+			ctx = from
+		}
+		sql = renderWithSessionContext(sql, routineSessionContext(ctx), false)
 	}
 	return MigrationOp{
 		Type:       createRoutineOpType(e.IsProcedure),

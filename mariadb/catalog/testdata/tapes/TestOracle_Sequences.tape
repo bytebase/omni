@@ -269,6 +269,75 @@
 | USE `omni_testoracle_sequences`
 < ok 0 0
 > exec
+| CREATE SEQUENCE s9 MAXVALUE 1.5
+< ok 0 0
+> exec
+| CREATE SEQUENCE s8 MINVALUE -1.5 INCREMENT BY -1
+< ok 0 0
+> query
+| SHOW CREATE SEQUENCE `s9`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| s9
+: bytes
+| CREATE SEQUENCE `s9` start with 1 minvalue 1 maxvalue 9223372036854775806 increment by 1 cache 1000 nocycle ENGINE=InnoDB
+> query
+| SHOW CREATE SEQUENCE `s8`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| s8
+: bytes
+| CREATE SEQUENCE `s8` start with -1 minvalue -9223372036854775807 maxvalue -1 increment by -1 cache 1000 nocycle ENGINE=InnoDB
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_sequences`
+< ok 2 0
+> exec
+| CREATE DATABASE `omni_testoracle_sequences`
+< ok 1 0
+> exec
+| USE `omni_testoracle_sequences`
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT)
+< ok 0 0
+> exec
+| CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 1
+< ok 0 0
+> exec
+| CREATE OR REPLACE SEQUENCE t
+< ok 0 0
+> exec
+| CREATE TABLE u (a INT)
+< ok 0 0
+> exec
+| CREATE TRIGGER tr BEFORE INSERT ON u FOR EACH ROW SET NEW.a = 1
+< ok 0 0
+> query
+| SHOW CREATE SEQUENCE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE SEQUENCE `t` start with 1 minvalue 1 maxvalue 9223372036854775806 increment by 1 cache 1000 nocycle ENGINE=InnoDB
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_sequences`
+< ok 2 0
+> exec
+| CREATE DATABASE `omni_testoracle_sequences`
+< ok 1 0
+> exec
+| USE `omni_testoracle_sequences`
+< ok 0 0
+> exec
 | CREATE SEQUENCE z AS TINYINT UNSIGNED MINVALUE 0 START WITH 1
 < ok 0 0
 > exec
@@ -452,3 +521,51 @@
 | w
 : bytes
 | CREATE SEQUENCE `w` start with 1 minvalue 1 maxvalue 9223372036854775806 increment by 1 cache 1000 nocycle ENGINE=InnoDB
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_sequences`
+< ok 2 0
+> exec
+| CREATE DATABASE `omni_testoracle_sequences`
+< ok 1 0
+> exec
+| USE `omni_testoracle_sequences`
+< ok 0 0
+> exec
+| CREATE TEMPORARY SEQUENCE s START WITH 3
+< ok 0 0
+> exec
+| DROP TEMPORARY SEQUENCE s
+< ok 0 0
+> exec
+| CREATE TEMPORARY SEQUENCE s START WITH 4
+< ok 0 0
+> exec
+| CREATE SEQUENCE p
+< ok 0 0
+> exec
+| DROP TEMPORARY SEQUENCE p
+< error
+| 4091 42S02 Unknown SEQUENCE: 'omni_testoracle_sequences.p'
+> exec
+| DROP TEMPORARY SEQUENCE IF EXISTS p
+< ok 0 0
+> query
+| SHOW CREATE SEQUENCE `s`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| s
+: bytes
+| CREATE SEQUENCE `s` start with 4 minvalue 1 maxvalue 9223372036854775806 increment by 1 cache 1000 nocycle ENGINE=InnoDB
+> query
+| SHOW CREATE SEQUENCE `p`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| p
+: bytes
+| CREATE SEQUENCE `p` start with 1 minvalue 1 maxvalue 9223372036854775806 increment by 1 cache 1000 nocycle ENGINE=InnoDB
