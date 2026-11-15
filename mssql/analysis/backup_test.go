@@ -122,6 +122,17 @@ func TestRestoreSQL(t *testing.T) {
 		t.Errorf("delete:\ngot  %q\nwant %q", got, want)
 	}
 
+	// SQL Server nests block comments: the quoted statement must neither close
+	// the comment nor open another.
+	opts.OriginalSQL = "DELETE FROM t WHERE a IN ('*/ DROP TABLE x; /*', '/*/')"
+	got, err = RestoreSQL(dmls[1].Node, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "/*\nOriginal SQL:\nDELETE FROM t WHERE a IN ('* / DROP TABLE x; / *', '/ * /')\n*/\nINSERT INTO [db].[dbo].[t] ([a]) SELECT [a] FROM [bbarchive].[dbo].[pre_t_db];"; got != want {
+		t.Errorf("comment delimiters:\ngot  %q\nwant %q", got, want)
+	}
+
 	opts.PrimaryKey = nil
 	if _, err := RestoreSQL(parseScript(t, "UPDATE t SET a = 1")[0].Node, opts); err == nil {
 		t.Error("update of every unique key: got no error")

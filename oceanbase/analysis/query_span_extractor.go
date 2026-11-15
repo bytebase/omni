@@ -58,53 +58,78 @@ const (
 	NaturalRightOuterJoin
 )
 
+// joinTableSources returns the columns a join exposes, in the order MySQL
+// returns them. A column merged by USING or NATURAL is COALESCE(left, right),
+// and in matched rows both sides hold its value, so it carries both sides'
+// sources. Merged columns come first, in the order of the join's first table
+// (the right one for RIGHT JOIN), then that table's other columns, then the
+// other table's.
 func joinTableSources(l, r tableSource, tp joinType, using []string) tableSource {
 	switch tp {
-	case Join, InnerJoin, CrossJoin, StraightJoin, LeftOuterJoin, RightOuterJoin:
-		var columns []QuerySpanResult
-		rightFieldsMap := make(map[string]bool)
-		for _, field := range r.GetQuerySpanResult() {
-			rightFieldsMap[strings.ToLower(field.Name)] = true
-		}
-		lowercaseUsingFields := make(map[string]bool)
-		for _, field := range using {
-			lowercaseUsingFields[strings.ToLower(field)] = true
-		}
-		for _, field := range l.GetQuerySpanResult() {
-			columns = append(columns, field)
-			if _, ok := lowercaseUsingFields[strings.ToLower(field.Name)]; ok {
-				delete(rightFieldsMap, strings.ToLower(field.Name))
-			}
-		}
-		for _, field := range r.GetQuerySpanResult() {
-			if _, ok := rightFieldsMap[strings.ToLower(field.Name)]; ok {
-				columns = append(columns, field)
-			}
-		}
-		return &pseudoTable{
-			Columns: columns,
-		}
-	case NaturalInnerJoin, NaturalLeftOuterJoin, NaturalRightOuterJoin:
-		rightFieldsMap := make(map[string]bool)
-		for _, field := range r.GetQuerySpanResult() {
-			rightFieldsMap[strings.ToLower(field.Name)] = true
-		}
-		var columns []QuerySpanResult
-		for _, field := range l.GetQuerySpanResult() {
-			columns = append(columns, field)
-			delete(rightFieldsMap, strings.ToLower(field.Name))
-		}
-		for _, field := range r.GetQuerySpanResult() {
-			if _, ok := rightFieldsMap[strings.ToLower(field.Name)]; ok {
-				columns = append(columns, field)
-			}
-		}
-		return &pseudoTable{
-			Columns: columns,
-		}
+	case Join, InnerJoin, CrossJoin, StraightJoin, LeftOuterJoin, RightOuterJoin,
+		NaturalInnerJoin, NaturalLeftOuterJoin, NaturalRightOuterJoin:
 	default:
 		return nil
 	}
+	first, second := l.GetQuerySpanResult(), r.GetQuerySpanResult()
+	names := joinedColumnNames(l, r, tp, using)
+	if len(names) == 0 {
+		return &pseudoTable{Columns: append(append([]QuerySpanResult{}, first...), second...)}
+	}
+	if tp == RightOuterJoin || tp == NaturalRightOuterJoin {
+		first, second = second, first
+	}
+	joined := make(map[string]bool)
+	for _, name := range names {
+		joined[strings.ToLower(name)] = true
+	}
+	var columns []QuerySpanResult
+	for _, field := range first {
+		if !joined[strings.ToLower(field.Name)] {
+			continue
+		}
+		if other, ok := querySpanResultNamed(second, field.Name); ok {
+			field.SourceColumns, _ = mergeColumnSet(field.SourceColumns, other.SourceColumns)
+		}
+		columns = append(columns, field)
+	}
+	for _, side := range [][]QuerySpanResult{first, second} {
+		for _, field := range side {
+			if !joined[strings.ToLower(field.Name)] {
+				columns = append(columns, field)
+			}
+		}
+	}
+	return &pseudoTable{
+		Columns: columns,
+	}
+}
+
+// joinedColumnNames returns the columns a join merges: the USING list, or for
+// a NATURAL join every column name both sides share.
+func joinedColumnNames(l, r tableSource, tp joinType, using []string) []string {
+	switch tp {
+	case NaturalInnerJoin, NaturalLeftOuterJoin, NaturalRightOuterJoin:
+		var names []string
+		rightColumns := r.GetQuerySpanResult()
+		for _, field := range l.GetQuerySpanResult() {
+			if _, ok := querySpanResultNamed(rightColumns, field.Name); ok {
+				names = append(names, field.Name)
+			}
+		}
+		return names
+	default:
+		return using
+	}
+}
+
+func querySpanResultNamed(results []QuerySpanResult, name string) (QuerySpanResult, bool) {
+	for _, result := range results {
+		if strings.EqualFold(result.Name, name) {
+			return result, true
+		}
+	}
+	return QuerySpanResult{}, false
 }
 
 func (q *querySpanExtractor) getAllTableColumnSources(databaseName, tableName string) ([]QuerySpanResult, bool) {

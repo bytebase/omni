@@ -713,14 +713,7 @@ func (q *querySpanExtractor) collectSourceColumnsFromExpr(expr ast.Node) (Column
 	}
 
 	var walkErr error
-	// walk is the ast.Inspect callback. It is a named closure so the manual
-	// recursions below — for sub-trees that omni's GENERATED walker does not
-	// descend into because they are non-Node embedded structs — can re-enter
-	// the same traversal. Collecting into a set keeps the manual recursion
-	// idempotent: it stays correct (merely redundant) if the upstream walker
-	// later learns to visit these children itself.
-	var walk func(node ast.Node) bool
-	walk = func(node ast.Node) bool {
+	ast.Inspect(expr, func(node ast.Node) bool {
 		if node == nil || walkErr != nil {
 			return false
 		}
@@ -771,52 +764,10 @@ func (q *querySpanExtractor) collectSourceColumnsFromExpr(expr ast.Node) (Column
 			// COUNT(*) and similar: a star with no resolvable column contributes no
 			// specific source column.
 			return false
-		case *ast.CaseExpr:
-			// omni's generated walker only visits CaseExpr.Operand and
-			// CaseExpr.Else; the WHEN branches are []*WhenClause — a non-Node
-			// embedded struct — so without this manual recursion
-			// `CASE WHEN A > 0 THEN B END` would contribute no lineage at all.
-			for _, when := range n.Whens {
-				if when == nil {
-					continue
-				}
-				ast.Inspect(when.Cond, walk)
-				ast.Inspect(when.Result, walk)
-			}
-			// Continue the normal traversal for Operand and Else.
-			return true
-		case *ast.FuncCallExpr:
-			// omni's generated walker only visits FuncCallExpr.Args; the
-			// WITHIN GROUP (ORDER BY ...) items and the OVER (...) window
-			// specification are non-Node embedded structs, so
-			// `ROW_NUMBER() OVER (ORDER BY A)` would otherwise contribute no
-			// lineage at all.
-			for _, item := range n.OrderBy {
-				if item != nil {
-					ast.Inspect(item.Expr, walk)
-				}
-			}
-			if n.Over != nil {
-				for _, partition := range n.Over.PartitionBy {
-					ast.Inspect(partition, walk)
-				}
-				for _, item := range n.Over.OrderBy {
-					if item != nil {
-						ast.Inspect(item.Expr, walk)
-					}
-				}
-				if n.Over.Frame != nil {
-					ast.Inspect(n.Over.Frame.Start.Offset, walk)
-					ast.Inspect(n.Over.Frame.End.Offset, walk)
-				}
-			}
-			// Continue the normal traversal for Args.
-			return true
 		default:
 		}
 		return true
-	}
-	ast.Inspect(expr, walk)
+	})
 	if walkErr != nil {
 		return nil, walkErr
 	}
@@ -1137,6 +1088,15 @@ func (q *querySpanExtractor) extractTableSourceFromTableRef(ref *ast.TableRef) (
 	// name so qualified column references (alias.column) resolve to it.
 	if !ref.Alias.IsEmpty() {
 		aliasName := normalizeIdentifier(ref.Alias)
+		// A derived column list (AS D(X, Y)) renames the columns in order,
+		// keeping their lineage. result is this reference's own copy, so
+		// renaming it in place is safe.
+		for i, column := range ref.Columns {
+			if i >= len(result) {
+				break
+			}
+			result[i].Name = normalizeIdentifier(column)
+		}
 		return &derivedTable{
 			Name:    aliasName,
 			Columns: result,

@@ -70,6 +70,11 @@ func TestRestoreSQL(t *testing.T) {
 	got, err = restore(t, "DELETE FROM t WHERE a = '"+strings.Repeat("x", 1200)+"'")
 	require.NoError(t, err)
 	require.Contains(t, got, "...\n*/\n")
+
+	// A "*/" in the statement must not end the comment.
+	got, err = restore(t, "DELETE FROM t WHERE a = '*/ DROP TABLE x; /*'")
+	require.NoError(t, err)
+	require.Equal(t, "/*\nOriginal SQL:\nDELETE FROM t WHERE a = '* / DROP TABLE x; /*'\n*/\n"+`INSERT INTO "DB"."T" ("ID", "A", "B") SELECT "ID", "A", "B" FROM "BB"."B";`, got)
 }
 
 func TestFindFirstDML(t *testing.T) {

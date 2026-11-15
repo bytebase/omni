@@ -6,10 +6,12 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/bytebase/omni/enginetest/cputime"
 	"github.com/bytebase/omni/snowflake/analysis"
 )
 
@@ -98,6 +100,11 @@ func TestResolveQuerySpanResults(t *testing.T) {
 		{"WITH C (X) AS (SELECT A FROM T1) SELECT * FROM C", []string{"X<-DB.PUBLIC.T1.A plain"}},
 		{"WITH T1 AS (SELECT E FROM T3) SELECT * FROM T1", []string{"E<-DB.PUBLIC.T3.E plain"}},
 		{"WITH RECURSIVE R (X, Y) AS (SELECT A, B FROM T1 UNION ALL SELECT Y, X FROM R) SELECT * FROM R", []string{"X<-DB.PUBLIC.T1.A,DB.PUBLIC.T1.B plain", "Y<-DB.PUBLIC.T1.A,DB.PUBLIC.T1.B plain"}},
+		// A derived column list renames the relation's columns in order.
+		{"SELECT X FROM (SELECT A, B FROM T1) AS D(X, Y)", []string{"X<-DB.PUBLIC.T1.A plain"}},
+		{"SELECT * FROM (SELECT A, B FROM T1) AS D(X, Y)", []string{"X<-DB.PUBLIC.T1.A plain", "Y<-DB.PUBLIC.T1.B plain"}},
+		{"SELECT D.X, E.Q FROM (SELECT A FROM T1) AS D(X) JOIN (SELECT * FROM T3) AS E(Q, R) ON TRUE", []string{"X<-DB.PUBLIC.T1.A plain", "Q<-DB.PUBLIC.T3.E plain"}},
+		{"SELECT * FROM (SELECT A FROM T1) AS D(X) NATURAL JOIN (SELECT E FROM T3) AS E(X)", []string{"X<-DB.PUBLIC.T1.A,DB.PUBLIC.T3.E plain"}},
 		// A table function exposes no columns.
 		{"SELECT 1 AS ONE FROM TABLE(FLATTEN(input => PARSE_JSON('[1]')))", []string{"ONE<-"}},
 	}
@@ -108,6 +115,31 @@ func TestResolveQuerySpanResults(t *testing.T) {
 		}
 		assert.Equalf(t, analysis.Select, span.Type, "%s", tc.sql)
 		assert.Equalf(t, tc.want, render(span), "%s", tc.sql)
+	}
+}
+
+func TestResolveQuerySpanNestedExpressionsLinear(t *testing.T) {
+	const depth = 60
+	nest := func(open, leaf, closing string) string {
+		return strings.Repeat(open, depth) + leaf + strings.Repeat(closing, depth)
+	}
+	for _, tc := range []struct {
+		name string
+		expr string
+	}{
+		{"CASE WHEN", nest("CASE WHEN A > 0 THEN ", "B", " END")},
+		{"CASE condition", nest("CASE WHEN ", "B", " > 0 THEN A END > 0")},
+		{"window ORDER BY", nest("SUM(A) OVER (ORDER BY ", "B", ")")},
+		{"WITHIN GROUP", nest("LISTAGG(A) WITHIN GROUP (ORDER BY ", "B", ")")},
+	} {
+		sql := "SELECT " + tc.expr + " AS X FROM T1"
+		var span *analysis.ResolvedSpan
+		var err error
+		cputime.Within(t, 2*time.Second, fmt.Sprintf("%s nested %d deep", tc.name, depth), func() {
+			span, err = resolveSpan(t, sql)
+		})
+		require.NoErrorf(t, err, "%s", tc.name)
+		require.Equalf(t, []string{"X<-DB.PUBLIC.T1.A,DB.PUBLIC.T1.B"}, render(span), "%s", tc.name)
 	}
 }
 
