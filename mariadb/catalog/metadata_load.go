@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"slices"
 	"strconv"
 	"strings"
@@ -386,7 +387,8 @@ func sequenceLiteral(text string) (nodes.ExprNode, error) {
 	if digits == "" || strings.Trim(digits, "0123456789") != "" {
 		return nil, fmt.Errorf("sequence value %q is no integer", text)
 	}
-	var lit nodes.ExprNode = &nodes.FloatLit{Value: digits}
+	// Digits past int64, an unsigned BIGINT's, are kept as the parser keeps them.
+	var lit nodes.ExprNode = &nodes.IntLit{Value: math.MaxInt64, Text: digits}
 	if n, err := strconv.ParseInt(digits, 10, 64); err == nil {
 		lit = &nodes.IntLit{Value: n}
 	}
