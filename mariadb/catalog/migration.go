@@ -118,9 +118,10 @@ type MigrationOp struct {
 // alterPart is one clause of a grouped ALTER TABLE statement. addsColumn is the lower-cased column
 // an ADD COLUMN clause adds, empty for any other clause.
 type alterPart struct {
-	clause      string
-	addsColumn  string
-	dropsColumn string
+	clause         string
+	addsColumn     string
+	dropsColumn    string
+	modifiesColumn string
 }
 
 // joinAlterParts renders a clause list as it follows "ALTER TABLE <ident> ".

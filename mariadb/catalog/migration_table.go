@@ -459,9 +459,23 @@ func foldEngineIntoAutoKey(ops []MigrationOp, diff *SchemaDiff, n *Normalizer) [
 		if leadsEveryKey(e.From, autoCol) && leadsEveryKey(e.To, autoCol) {
 			continue
 		}
+		// The engine must change in the statement that adds the auto column's
+		// backing key — its primary key when autoIncSupportingIndex reports none
+		// separately — so that key is built under the target engine's rules (1075).
+		// A later index statement that merely also lists the column is a fallback.
+		supporting := autoIncSupportingIndex(e.To)
 		key := -1
 		for j := range ops {
-			if ops[j].Type == OpAddIndex && opOfTable(ops[j], e) && ops[j].addsIndex != nil && indexHasPlainColumn(ops[j].addsIndex, autoCol) {
+			if ops[j].Type != OpAddIndex || !opOfTable(ops[j], e) || ops[j].addsIndex == nil || !indexHasPlainColumn(ops[j].addsIndex, autoCol) {
+				continue
+			}
+			backing := ops[j].addsIndex.Primary && supporting == nil ||
+				supporting != nil && toLower(ops[j].addsIndex.Name) == toLower(supporting.Name)
+			if backing {
+				key = j
+				break
+			}
+			if key < 0 {
 				key = j
 			}
 		}

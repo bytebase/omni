@@ -197,6 +197,9 @@ var diffPairs = []struct{ name, a, b string }{
 	{"replace the only column with a generated one reading an invisible add", "CREATE TABLE t (a INT)", "CREATE TABLE t (a INT AS(b+1) STORED, b INT INVISIBLE)"},
 	{"not null change promotes an ignored key before the new primary key", "CREATE TABLE t (a INT, b INT NOT NULL, UNIQUE KEY u (a) IGNORED)", "CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (b), UNIQUE KEY u (a) IGNORED)"},
 	{"column-only not null change promotes an ignored key", "CREATE TABLE t (a INT, z INT, UNIQUE KEY v (z), UNIQUE KEY u (a) IGNORED)", "CREATE TABLE t (a INT NOT NULL, z INT NOT NULL, UNIQUE KEY v (z), UNIQUE KEY u (a) IGNORED)"},
+	{"engine change folds into the auto backing key replacement", "CREATE TABLE t (id INT AUTO_INCREMENT, h INT NOT NULL, g INT NOT NULL, PRIMARY KEY (id, h)) ENGINE=InnoDB", "CREATE TABLE t (id INT AUTO_INCREMENT, h INT, g INT NOT NULL, PRIMARY KEY (g, id), KEY z (g, id, h)) ENGINE=MyISAM"},
+	{"hide last visible column after a merged auto add", "CREATE TABLE t (a INT)", "CREATE TABLE t (a INT INVISIBLE, id INT AUTO_INCREMENT PRIMARY KEY)"},
+	{"period bound check reads a merged auto add", "CREATE TABLE t (s DATE NOT NULL, e DATE NOT NULL, PERIOD FOR p (s, e))", "CREATE TABLE t (id INT AUTO_INCREMENT, b DATETIME, s DATETIME NOT NULL, e DATETIME NOT NULL CHECK (e > b), PERIOD FOR p (s, e), KEY k (id, b))"},
 	{"timestamps without defaults", "CREATE TABLE x (i INT)", "CREATE TABLE x (i INT, ts TIMESTAMP NOT NULL); CREATE TABLE t (u TIMESTAMP NOT NULL)"},
 	{"sequence limits leaving out the start", "CREATE SEQUENCE s", "CREATE SEQUENCE s START WITH 100 MINVALUE 10"},
 }

@@ -176,7 +176,10 @@ func modifyPeriodBoundsTogether(ops []MigrationOp, e *TableDiffEntry) []Migratio
 	if start < 0 || end < 0 {
 		return ops
 	}
-	ops[start].alterParts = []alterPart{{clause: ops[start].alterClause}, {clause: ops[end].alterClause}}
+	ops[start].alterParts = []alterPart{
+		{clause: ops[start].alterClause, modifiesColumn: ops[start].column},
+		{clause: ops[end].alterClause, modifiesColumn: ops[end].column},
+	}
 	ops[start].SQL = "ALTER TABLE " + tableIdent(to) + " " + joinAlterParts(ops[start].alterParts)
 	return slices.Delete(ops, end, end+1)
 }
@@ -979,6 +982,42 @@ func invalidatingModifiesLast(ops []MigrationOp, e *TableDiffEntry) []MigrationO
 	return ops
 }
 
+// modifiedColumns returns the columns a MODIFY op changes: its own, or those a
+// grouped statement (a period's two bounds) names in its parts.
+func modifiedColumns(op MigrationOp) []string {
+	if op.alterParts == nil {
+		if op.column != "" {
+			return []string{op.column}
+		}
+		return nil
+	}
+	var names []string
+	for _, part := range op.alterParts {
+		if part.modifiesColumn != "" {
+			names = append(names, part.modifiesColumn)
+		}
+	}
+	return names
+}
+
+// opAddsVisibleColumn reports whether op adds a column that is visible in the
+// target, directly or as one of a grouped statement's parts.
+func opAddsVisibleColumn(op MigrationOp, to *Table) bool {
+	add := func(name string) bool {
+		c := to.GetColumn(name)
+		return c != nil && !c.Invisible
+	}
+	if op.Type == OpAddColumn && op.column != "" && add(op.column) {
+		return true
+	}
+	for _, part := range op.alterParts {
+		if part.addsColumn != "" && add(part.addsColumn) {
+			return true
+		}
+	}
+	return false
+}
+
 // reorderAddsAfterMerge runs an added column after the columns it reads that the
 // AUTO_INCREMENT merger pulled into a statement of a higher priority: the merge
 // moves a column's add into the auto-increment statement without moving the adds
@@ -1002,11 +1041,15 @@ func reorderAddsAfterMerge(ops []MigrationOp, diff *SchemaDiff) []MigrationOp {
 				}
 			}
 		}
-		// A modified reader is ordered too, from its own priority.
+		// A modified reader is ordered too, from its own priority — its own
+		// column, and the columns of a grouped statement (a period's two bounds).
 		for _, op := range ops {
-			if op.Type == OpModifyColumn && opOfTable(op, e) && op.column != "" {
-				if _, ok := priority[op.column]; !ok {
-					priority[op.column] = op.Priority
+			if op.Type != OpModifyColumn || !opOfTable(op, e) {
+				continue
+			}
+			for _, name := range modifiedColumns(op) {
+				if _, ok := priority[name]; !ok {
+					priority[name] = op.Priority
 				}
 			}
 		}
@@ -1028,8 +1071,10 @@ func reorderAddsAfterMerge(ops []MigrationOp, diff *SchemaDiff) []MigrationOp {
 			// A grouped statement takes the latest priority of its columns.
 			if ops[j].alterParts != nil {
 				for _, part := range ops[j].alterParts {
-					if p, ok := priority[part.addsColumn]; ok && p > ops[j].Priority {
-						ops[j].Priority = p
+					for _, name := range []string{part.addsColumn, part.modifiesColumn} {
+						if p, ok := priority[name]; ok && p > ops[j].Priority {
+							ops[j].Priority = p
+						}
 					}
 				}
 				continue
@@ -1037,6 +1082,25 @@ func reorderAddsAfterMerge(ops []MigrationOp, diff *SchemaDiff) []MigrationOp {
 			if ops[j].Type == OpAddColumn || ops[j].Type == OpModifyColumn {
 				if p, ok := priority[ops[j].column]; ok && p > ops[j].Priority {
 					ops[j].Priority = p
+				}
+			}
+		}
+		// A MODIFY that hides a column runs after the statements that add the
+		// visible columns, which the merge may have moved past the priority
+		// invalidatingModifiesLast gave it, so a visible column always remains
+		// (1113).
+		visibleAdd := 0
+		for j := range ops {
+			if opOfTable(ops[j], e) && opAddsVisibleColumn(ops[j], e.To) && ops[j].Priority > visibleAdd {
+				visibleAdd = ops[j].Priority
+			}
+		}
+		if visibleAdd > 0 {
+			for j := range ops {
+				if ops[j].Type == OpModifyColumn && opOfTable(ops[j], e) && ops[j].column != "" && ops[j].Priority <= visibleAdd {
+					if from, to := e.From.GetColumn(ops[j].column), e.To.GetColumn(ops[j].column); from != nil && to != nil && !from.Invisible && to.Invisible {
+						ops[j].Priority = visibleAdd + 1
+					}
 				}
 			}
 		}
