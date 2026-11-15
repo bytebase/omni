@@ -180,6 +180,9 @@ func DiffWithNormalizer(from, to *Catalog, n *Normalizer) *SchemaDiff {
 	if n == nil {
 		n = defaultNormalizer(to)
 	}
+	// The cache holds for one comparison: a catalog may change between two.
+	n.checks = nil
+	defer func() { n.checks = nil }()
 	return &SchemaDiff{
 		Tables: diffTables(from, to, n),
 		// Database-level objects.
