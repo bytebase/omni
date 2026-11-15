@@ -637,11 +637,17 @@ func dropLastColumnsAfterAdds(ops []MigrationOp, e *TableDiffEntry) []MigrationO
 		// retained one qualify runs before the drops, else the last such
 		// column is replaced in one statement.
 		if e.From.SystemVersioned && e.To.SystemVersioned && everyDropped(e, dropped, isVersionedColumn) &&
-			!addFirst(ops, e, dropped, isVersionedColumn) && !qualifyingModifyFirst(ops, e, becomesVersioned) {
+			!addFirst(ops, e, dropped, isVersionedColumn) {
+			if out, moved := qualifyingModifyFirst(ops, e, becomesVersioned, makeVersioned); moved {
+				return out
+			}
 			return atomicReplaceLast(ops, e, isVersionedColumn)
 		}
 		if everyDropped(e, dropped, isVisibleColumn) &&
-			!addFirst(ops, e, dropped, isVisibleColumn) && !qualifyingModifyFirst(ops, e, becomesVisible) {
+			!addFirst(ops, e, dropped, isVisibleColumn) {
+			if out, moved := qualifyingModifyFirst(ops, e, becomesVisible, makeVisible); moved {
+				return out
+			}
 			return atomicReplaceLast(ops, e, isVisibleColumn)
 		}
 		return ops
@@ -1091,22 +1097,67 @@ func reorderAddsAfterMerge(ops []MigrationOp, diff *SchemaDiff) []MigrationOp {
 // qualifyingModifyFirst runs a MODIFY that makes a retained column satisfy
 // becomes (visible, or versioned) before the drops, so a column of that kind
 // remains throughout. It reports whether it moved one.
-func qualifyingModifyFirst(ops []MigrationOp, e *TableDiffEntry, becomes func(from, to *Column) bool) bool {
+// qualifyingModifyFirst runs a retained column's MODIFY that makes it satisfy
+// the kept-column invariant (visible 1113, versioned 4123) before the drops, so
+// the table never loses its last qualifying column. When the target definition
+// reads a column this plan only adds, promoting the full MODIFY would place it
+// ahead of that add (1054/4029); in that case it keeps the full MODIFY in
+// PhaseMain (where modifyGeneratedAfterAddedReads ordered it after the adds) and
+// instead emits a stripped PhasePre MODIFY that only flips the qualifying
+// attribute, using the source definition, which reads no added column.
+func qualifyingModifyFirst(ops []MigrationOp, e *TableDiffEntry, becomes func(from, to *Column) bool, qualify func(*Column)) ([]MigrationOp, bool) {
+	targetReads := columnReads(e.To)
 	moved := false
 	for i := range ops {
 		if ops[i].Type != OpModifyColumn || !opOfTable(ops[i], e) || ops[i].column == "" || ops[i].alterParts != nil {
 			continue
 		}
 		from, to := e.From.GetColumn(ops[i].column), e.To.GetColumn(ops[i].column)
-		if from != nil && to != nil && becomes(from, to) {
-			// Below the column drops (priorityColumn-1) so it runs before them,
-			// keeping a qualifying column throughout (1113/4123).
-			ops[i].Phase, ops[i].Priority = PhasePre, priorityColumn-2
+		if from == nil || to == nil || !becomes(from, to) {
+			continue
+		}
+		if readsAddedColumn(e, targetReads[ops[i].column]) {
+			ops = append(ops, strippedQualifyOp(e, from, qualify))
 			moved = true
+			continue
+		}
+		// Below the column drops (priorityColumn-1) so it runs before them.
+		ops[i].Phase, ops[i].Priority = PhasePre, priorityColumn-2
+		moved = true
+	}
+	return ops, moved
+}
+
+// readsAddedColumn reports whether any read refers to a column this plan adds,
+// one absent from the source.
+func readsAddedColumn(e *TableDiffEntry, refs []string) bool {
+	for _, ref := range refs {
+		if e.From.GetColumn(ref) == nil {
+			return true
 		}
 	}
-	return moved
+	return false
 }
+
+// strippedQualifyOp renders a PhasePre MODIFY that makes col qualify while
+// keeping its source definition, which reads no added column.
+func strippedQualifyOp(e *TableDiffEntry, col *Column, qualify func(*Column)) MigrationOp {
+	context := *e.From
+	context.Charset, context.Collation = "", ""
+	qualified := *col
+	qualify(&qualified)
+	clause := "MODIFY COLUMN " + showColumnWithTable(&qualified, &context, nil, false)
+	// A bare column name is left off so no column-dependency pass reorders this
+	// leading op by it; it shares the name with the full MODIFY kept in PhaseMain.
+	return MigrationOp{
+		Type: OpModifyColumn, Database: e.Database, ObjectName: e.Name, ParentObject: e.Name,
+		SQL: "ALTER TABLE " + tableIdent(e.To) + " " + clause, Phase: PhasePre, Priority: priorityColumn - 2,
+		sortName: columnSortName(e.Database, e.Name, toLower(col.Name)), alterClause: clause,
+	}
+}
+
+func makeVisible(c *Column)   { c.Invisible = false }
+func makeVersioned(c *Column) { c.SystemVersioning = "" }
 
 func becomesVisible(from, to *Column) bool { return from.Invisible && !to.Invisible }
 func becomesVersioned(from, to *Column) bool {

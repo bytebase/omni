@@ -185,7 +185,9 @@ var diffPairs = []struct{ name, a, b string }{
 	{"new table auto column with an ignored key", "CREATE TABLE x (i INT)", "CREATE TABLE x (i INT); CREATE TABLE t (a INT NOT NULL, b INT AUTO_INCREMENT, UNIQUE KEY u (a), UNIQUE KEY v (b) IGNORED)"},
 	{"secondary key replaced with an ignored key kept", "CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, UNIQUE KEY v (b), UNIQUE KEY w (a) IGNORED)", "CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, UNIQUE KEY v (b) COMMENT 'x', UNIQUE KEY w (a) IGNORED)"},
 	{"last visible dropped as another becomes visible", "CREATE TABLE t (a INT, z INT INVISIBLE)", "CREATE TABLE t (z INT)"},
+	{"visible modify reads added column", "CREATE TABLE t (a INT, z INT INVISIBLE)", "CREATE TABLE t (z INT CHECK (z > b), b INT INVISIBLE)"},
 	{"grouped readers after merge", "CREATE TABLE t (x INT)", "CREATE TABLE t (x INT, id INT AUTO_INCREMENT, b INT, a INT CHECK (a > z AND a > b), z INT CHECK (z > a), KEY k (id, b))"},
+	{"repartition replaces partition column", "CREATE TABLE t (x INT, a INT) PARTITION BY HASH(a) PARTITIONS 2", "CREATE TABLE t (x INT, a INT AS(x) STORED) PARTITION BY HASH(a) PARTITIONS 3"},
 	{"timestamps without defaults", "CREATE TABLE x (i INT)", "CREATE TABLE x (i INT, ts TIMESTAMP NOT NULL); CREATE TABLE t (u TIMESTAMP NOT NULL)"},
 	{"sequence limits leaving out the start", "CREATE SEQUENCE s", "CREATE SEQUENCE s START WITH 100 MINVALUE 10"},
 }
