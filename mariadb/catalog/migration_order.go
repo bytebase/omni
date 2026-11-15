@@ -189,6 +189,15 @@ func replacedColumns(e *TableDiffEntry) map[string]int {
 			gone[toLower(ce.Name)] = 0
 		}
 	}
+	// A replaced system-time period drops and adds both of its columns, the
+	// one the target keeps as it is too.
+	if systemPeriodReplaced(e) {
+		for _, col := range e.From.Columns {
+			if col.Generated != nil && col.Generated.RowBound != "" && e.To.GetColumn(col.Name) != nil {
+				gone[toLower(col.Name)] = 0
+			}
+		}
+	}
 	for depth := 1; len(gone) > 0; depth++ {
 		added := false
 		for _, col := range e.From.Columns {
