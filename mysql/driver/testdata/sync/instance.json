@@ -1,0 +1,38 @@
+{
+  "default": {
+    "databases": [
+      "sync_extra utf8mb4 utf8mb4_general_ci",
+      "test utf8mb4 utf8mb4_0900_ai_ci"
+    ],
+    "lowerCaseTableNames": 0,
+    "roles": [
+      "'sync'quote'@'%': GRANT USAGE ON *.* TO `sync'quote`@`%`",
+      "'sync_reader'@'%': GRANT USAGE ON *.* TO `sync_reader`@`%`\nGRANT SELECT ON `sync_extra`.* TO `sync_reader`@`%`"
+    ],
+    "version": "8.0.46"
+  },
+  "lctn1": {
+    "databases": [
+      "sync_extra utf8mb4 utf8mb4_general_ci",
+      "test utf8mb4 utf8mb4_0900_ai_ci"
+    ],
+    "lowerCaseTableNames": 1,
+    "roles": [
+      "'sync'quote'@'%': GRANT USAGE ON *.* TO `sync'quote`@`%`",
+      "'sync_reader'@'%': GRANT USAGE ON *.* TO `sync_reader`@`%`\nGRANT SELECT ON `sync_extra`.* TO `sync_reader`@`%`"
+    ],
+    "version": "8.0.46"
+  },
+  "mysql84": {
+    "databases": [
+      "sync_extra utf8mb4 utf8mb4_general_ci",
+      "test utf8mb4 utf8mb4_0900_ai_ci"
+    ],
+    "lowerCaseTableNames": 0,
+    "roles": [
+      "'sync'quote'@'%': GRANT USAGE ON *.* TO `sync'quote`@`%`",
+      "'sync_reader'@'%': GRANT USAGE ON *.* TO `sync_reader`@`%`\nGRANT SELECT ON `sync_extra`.* TO `sync_reader`@`%`"
+    ],
+    "version": "8.4.13"
+  }
+}
