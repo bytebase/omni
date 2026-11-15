@@ -136,20 +136,41 @@ func rewriteMySQLSelectLimit(sql string, stmt *ast.SelectStmt, limitCount int) (
 	return sql[:insertPos] + fmt.Sprintf(" LIMIT %d", limitCount) + sql[insertPos:], nil
 }
 
+// findMySQLLimitInsertPosition returns where LIMIT goes: before the first of a
+// trailing INTO and the locking clause, which the engine takes only after
+// LIMIT, or else at the end. A set operation's trailing clauses can sit on
+// its last operand.
 func findMySQLLimitInsertPosition(sql string, stmt *ast.SelectStmt) (int, bool) {
-	if stmt.Into != nil && stmt.Into.Loc.Start > 0 {
-		intoStart := findMySQLKeywordBefore(sql, stmt.Into.Loc.Start, "INTO")
-		if intoStart >= maxMySQLLocEndBeforeTailClauses(stmt) {
-			return intoStart, true
+	last := stmt
+	for last.SetOp != ast.SetOpNone && last.Right != nil {
+		last = last.Right
+	}
+	insertPos := -1
+	for _, owner := range []*ast.SelectStmt{stmt, last} {
+		if owner.Into != nil && owner.Into.Loc.Start > 0 {
+			intoStart := findMySQLKeywordBefore(sql, owner.Into.Loc.Start, "INTO")
+			if intoStart >= maxMySQLLocEndBeforeTailClauses(owner) {
+				insertPos = earlierLoc(insertPos, intoStart)
+			}
+		}
+		if owner.ForUpdate != nil && owner.ForUpdate.Loc.Start > 0 {
+			insertPos = earlierLoc(insertPos, owner.ForUpdate.Loc.Start)
 		}
 	}
-	if stmt.ForUpdate != nil && stmt.ForUpdate.Loc.Start > 0 {
-		return stmt.ForUpdate.Loc.Start, true
+	if insertPos >= 0 {
+		return insertPos, true
 	}
 	if stmt.Loc.End > 0 {
 		return stmt.Loc.End, false
 	}
 	return -1, false
+}
+
+func earlierLoc(current, candidate int) int {
+	if current < 0 || candidate < current {
+		return candidate
+	}
+	return current
 }
 
 func extractMySQLLimit(node ast.Node) int {
@@ -188,6 +209,11 @@ func maxMySQLLocEndBeforeTailClauses(node ast.Node) int {
 		}
 		if _, ok := n.(*ast.ForUpdate); ok {
 			return false
+		}
+		// A query block's location runs past its own INTO and locking
+		// clause; what it holds is counted on its own.
+		if _, ok := n.(*ast.SelectStmt); ok {
+			return true
 		}
 		if loc := mysqlNodeLoc(n); loc.End > maxEnd {
 			maxEnd = loc.End

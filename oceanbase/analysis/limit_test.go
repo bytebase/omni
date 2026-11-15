@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/bytebase/omni/oceanbase/parser"
 )
 
 func TestRewriteResultLimit(t *testing.T) {
@@ -263,4 +265,29 @@ func TestRewriteResultLimitUnicodeBeforeInto(t *testing.T) {
 	got, err := RewriteResultLimit("SELECT 'ı' FROM t INTO OUTFILE '/tmp/a';", 10)
 	require.NoError(t, err)
 	require.Equal(t, "SELECT 'ı' FROM t LIMIT 10 INTO OUTFILE '/tmp/a';", got)
+}
+
+// OceanBase takes LIMIT before the locking clause and INTO last; omni's parser
+// holds that order, so each rewrite must parse again.
+func TestRewriteResultLimitBeforeLockingClauseAndInto(t *testing.T) {
+	testCases := []struct {
+		stmt string
+		want string
+	}{
+		{"SELECT a FROM t FOR UPDATE INTO @x", "SELECT a FROM t LIMIT 10 FOR UPDATE INTO @x"},
+		{"SELECT a FROM t LOCK IN SHARE MODE INTO @x", "SELECT a FROM t LIMIT 10 LOCK IN SHARE MODE INTO @x"},
+		{"SELECT a FROM t FOR UPDATE NOWAIT INTO OUTFILE '/tmp/a'", "SELECT a FROM t LIMIT 10 FOR UPDATE NOWAIT INTO OUTFILE '/tmp/a'"},
+		{"SELECT a FROM t2 UNION SELECT a FROM t INTO @x", "SELECT a FROM t2 UNION SELECT a FROM t LIMIT 10 INTO @x"},
+		{"SELECT a FROM t2 UNION SELECT a FROM t FOR UPDATE", "SELECT a FROM t2 UNION SELECT a FROM t LIMIT 10 FOR UPDATE"},
+		{"SELECT a FROM t2 UNION SELECT a FROM t3 UNION SELECT a FROM t FOR UPDATE INTO @x", "SELECT a FROM t2 UNION SELECT a FROM t3 UNION SELECT a FROM t LIMIT 10 FOR UPDATE INTO @x"},
+		{"SELECT a FROM t2 UNION (SELECT a FROM t FOR UPDATE)", "SELECT a FROM t2 UNION (SELECT a FROM t FOR UPDATE) LIMIT 10"},
+		{"SELECT a FROM (SELECT a FROM t) d INTO @x", "SELECT a FROM (SELECT a FROM t) d LIMIT 10 INTO @x"},
+	}
+	for _, tc := range testCases {
+		got, err := RewriteResultLimit(tc.stmt, 10)
+		require.NoError(t, err, tc.stmt)
+		require.Equal(t, tc.want, got, tc.stmt)
+		_, err = parser.Parse(got)
+		require.NoError(t, err, got)
+	}
 }
