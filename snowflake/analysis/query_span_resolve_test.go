@@ -157,12 +157,15 @@ func TestResolveQuerySpanErrors(t *testing.T) {
 	require.Equal(t, "DB.PUBLIC.NOPE: table not found", err.Error())
 
 	for sql, want := range map[string]string{
-		"SELECT NOPE FROM T1":                                                       `failed to check whether the column "NOPE" is sensitive: no matching column`,
-		"SELECT $5 FROM T3":                                                         "column position $5 is invalid: the FROM clause only returns 2 columns",
-		"SELECT A FROM T1 UNION SELECT * FROM T3":                                   "the number of columns in the left part of the set operation returns 1 fields, but the right part returns 2 fields",
-		"SELECT A FROM T1 UNION SELECT NOPE FROM T3":                                "failed to extract the right part of the set operation",
-		"WITH C (X, Y) AS (SELECT A FROM T1) SELECT * FROM C":                       `the number of columns in the CTE "C" returns 1 fields, but the column list returns 2 fields`,
-		"SELECT * FROM T1 PIVOT (SUM(A) FOR B IN ('x')) AS P":                       "PIVOT/UNPIVOT table sources are not supported",
+		"SELECT NOPE FROM T1":                                 `failed to check whether the column "NOPE" is sensitive: no matching column`,
+		"SELECT $5 FROM T3":                                   "column position $5 is invalid: the FROM clause only returns 2 columns",
+		"SELECT A FROM T1 UNION SELECT * FROM T3":             "the number of columns in the left part of the set operation returns 1 fields, but the right part returns 2 fields",
+		"SELECT A FROM T1 UNION SELECT NOPE FROM T3":          "failed to extract the right part of the set operation",
+		"WITH C (X, Y) AS (SELECT A FROM T1) SELECT * FROM C": `the number of columns in the CTE "C" returns 1 fields, but the column list returns 2 fields`,
+		"SELECT * FROM T1 PIVOT (SUM(A) FOR B IN ('x')) AS P": "PIVOT/UNPIVOT table sources are not supported",
+		"SELECT * FROM T1 MATCH_RECOGNIZE (MEASURES FIRST(A) AS SECRET ONE ROW PER MATCH PATTERN (X) DEFINE X AS TRUE)":                  "MATCH_RECOGNIZE table sources are not supported",
+		"SELECT A FROM T1 MATCH_RECOGNIZE (MEASURES FIRST(A) AS SECRET ALL ROWS PER MATCH PATTERN (X) DEFINE X AS TRUE) M":               "MATCH_RECOGNIZE table sources are not supported",
+		"SELECT * FROM (SELECT A, B FROM T1) MATCH_RECOGNIZE (PARTITION BY B MEASURES LAST(A) AS SECRET PATTERN (X+) DEFINE X AS A > 0)": "MATCH_RECOGNIZE table sources are not supported",
 		"SHOW TABLES ->> SELECT * FROM $1":                                          "result-pipe (->>) statements are not supported",
 		"WITH R AS (SELECT A FROM T1 UNION ALL SELECT A, B FROM R) SELECT * FROM R": "recursive clause",
 	} {
