@@ -359,7 +359,55 @@ func (e *querySpanExtractor) mergeFunctionAccesses(accesses ColumnSet) {
 // define, such as one from an extension, stays an opaque call over its
 // arguments instead of failing the statement into the parse-tree fallback.
 func (e *querySpanExtractor) analyzeSelect(sel *ast.SelectStmt) (*catalog.Query, error) {
+	rewriteValuesLists(sel)
 	return e.cat.AnalyzeSelectStmtWithOptions(sel, catalog.AnalyzeOptions{OpaqueUnknownFunctions: true})
+}
+
+// rewriteValuesLists rewrites, in place, every VALUES list in node into a
+// one-row SELECT with PostgreSQL's column names (column1, ...), whose column
+// is the row's expression, or for several rows the COALESCE of every row's
+// expression at that position. COALESCE resolves its type over all the
+// expressions at once, as VALUES does, so the rewrite analyzes whenever the
+// VALUES list does. The catalog analyzes a VALUES list as a query with no
+// output, which would leave its expressions without lineage and its
+// subqueries' conditions unread. An INSERT's VALUES is left alone, since it
+// may hold DEFAULT.
+func rewriteValuesLists(node ast.Node) {
+	ast.Inspect(node, func(n ast.Node) bool {
+		switch v := n.(type) {
+		case *ast.InsertStmt:
+			return false
+		case *ast.SelectStmt:
+			if v.ValuesLists == nil {
+				return true
+			}
+			var columns [][]ast.Node
+			for _, item := range v.ValuesLists.Items {
+				row, ok := item.(*ast.List)
+				if !ok {
+					continue
+				}
+				for i, expr := range row.Items {
+					if i == len(columns) {
+						columns = append(columns, nil)
+					}
+					columns[i] = append(columns[i], expr)
+				}
+			}
+			v.ValuesLists = nil
+			targets := &ast.List{}
+			for i, exprs := range columns {
+				val := exprs[0]
+				if len(exprs) > 1 {
+					val = &ast.CoalesceExpr{Args: &ast.List{Items: exprs}, Loc: ast.NoLoc()}
+				}
+				targets.Items = append(targets.Items, &ast.ResTarget{Name: fmt.Sprintf("column%d", i+1), Val: val, Loc: ast.NoLoc()})
+			}
+			v.TargetList = targets
+		default:
+		}
+		return true
+	})
 }
 
 // outputColumn returns the target entry of q's attNum-th output column. Junk
@@ -827,23 +875,20 @@ func (e *querySpanExtractor) resolveVar(queryStack []*catalog.Query, v *catalog.
 		}
 
 	case catalog.RTEFunction:
-		// Trace lineage through user-defined function body.
+		// An output reads the call's arguments, as jsonb_each(a) reads a, and
+		// for a user function also what its body returns there. The body's
+		// parameters carry no lineage, so the arguments stand in for them.
 		if len(rte.FuncExprs) > 0 {
 			if fc, ok := rte.FuncExprs[0].(*catalog.FuncCallExpr); ok {
-				if procs := e.userProcsCalled(fc); len(procs) > 0 {
-					for _, proc := range procs {
-						bodySets := e.analyzeFunctionBody(proc)
-						if colIdx >= 0 && colIdx < len(bodySets) {
-							for k, val := range bodySets[colIdx] {
-								result[k] = val
-							}
+				for _, arg := range fc.Args {
+					e.walkExprWithVisited(effectiveStack, arg, result, visited)
+				}
+				for _, proc := range e.userProcsCalled(fc) {
+					bodySets := e.analyzeFunctionBody(proc)
+					if colIdx >= 0 && colIdx < len(bodySets) {
+						for k, val := range bodySets[colIdx] {
+							result[k] = val
 						}
-					}
-				} else {
-					// Built-in function (no user proc) — trace lineage through
-					// the function's arguments. E.g., jsonb_each(a) depends on column a.
-					for _, arg := range fc.Args {
-						e.walkExprWithVisited(effectiveStack, arg, result, visited)
 					}
 				}
 			}
@@ -1353,12 +1398,14 @@ func (e *querySpanExtractor) extractColumnsFromRangeFunction(rf *ast.RangeFuncti
 						SourceColumns: colSet,
 					})
 				}
+				e.enrichFuncResultsWithArgLineage(rf, analyzer, fromTables, results)
 				return results
 			}
 		}
 		// Catalog lookup failed — try metadata (for RETURNS TABLE functions).
 		dummyAccesses := make(ColumnSet)
 		if metaResults := e.tryMetadataFuncLookup(funcName, dummyAccesses); metaResults != nil {
+			e.enrichFuncResultsWithArgLineage(rf, analyzer, fromTables, metaResults)
 			return metaResults
 		}
 	}
@@ -1480,6 +1527,9 @@ func (e *querySpanExtractor) tryUserFuncTableSource(selStmt *ast.SelectStmt, acc
 		return nil
 	}
 
+	analyzer := &plpgsqlAnalyzer{extractor: e, scope: newVariableScope(nil)}
+	fromTables := analyzer.collectFromTables(selStmt)
+
 	// Look for a single RangeFunction in the FROM clause.
 	for _, item := range selStmt.FromClause.Items {
 		rf, ok := item.(*ast.RangeFunction)
@@ -1502,12 +1552,15 @@ func (e *querySpanExtractor) tryUserFuncTableSource(selStmt *ast.SelectStmt, acc
 				continue
 			}
 			bodySets := e.analyzeFunctionBody(proc)
-			return e.buildFuncResults(outNames, bodySets, accessesMap)
+			results := e.buildFuncResults(outNames, bodySets, accessesMap)
+			e.enrichFuncResultsWithArgLineage(rf, analyzer, fromTables, results)
+			return results
 		}
 
 		// Catalog lookup failed — try metadata. This handles cases where
 		// the metadata function name differs from the name in the DDL definition.
 		if results := e.tryMetadataFuncLookup(funcName, accessesMap); results != nil {
+			e.enrichFuncResultsWithArgLineage(rf, analyzer, fromTables, results)
 			return results
 		}
 	}

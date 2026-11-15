@@ -169,23 +169,23 @@ func (q *querySpanExtractor) getAllTableColumnSources(databaseName, tableName st
 // getFieldColumnSource resolves a column reference as MySQL does: the current
 // SELECT first, by the rules of the clause the reference is in, then each
 // enclosing SELECT outward, its tables before the select list it exposes.
-func (q *querySpanExtractor) getFieldColumnSource(databaseName, tableName, fieldName string) (ColumnSet, error) {
-	if sourceColumnSet, ok := q.resolveInCurrentSelect(databaseName, tableName, fieldName); ok {
-		return sourceColumnSet, nil
+func (q *querySpanExtractor) getFieldColumnSource(databaseName, tableName, fieldName string) (QuerySpanResult, error) {
+	if source, ok := q.resolveInCurrentSelect(databaseName, tableName, fieldName); ok {
+		return source, nil
 	}
 	for i := len(q.outerScopes) - 1; i >= 0; i-- {
 		scope := q.outerScopes[i]
-		if sourceColumnSet, ok := q.findColumnInTables(scope.tables, databaseName, tableName, fieldName); ok {
-			return sourceColumnSet, nil
+		if source, ok := q.findColumnInTables(scope.tables, databaseName, tableName, fieldName); ok {
+			return source, nil
 		}
 		if databaseName == "" && tableName == "" {
-			if sourceColumnSet, ok := selectItemsNamed(scope.items, fieldName); ok {
-				return sourceColumnSet, nil
+			if source, ok := selectItemsNamed(scope.items, fieldName); ok {
+				return source, nil
 			}
 		}
 	}
 
-	return nil, &NotFoundError{
+	return QuerySpanResult{}, &NotFoundError{
 		Database: &databaseName,
 		Table:    &tableName,
 		Column:   &fieldName,
@@ -222,18 +222,18 @@ func (q *querySpanExtractor) tableSourceMatches(tableSource tableSource, databas
 
 // findColumnInTables searches tables last to first, so a join's merged
 // columns, appended after its operands, win for an unqualified name.
-func (q *querySpanExtractor) findColumnInTables(tables []tableSource, databaseName, tableName, fieldName string) (ColumnSet, bool) {
+func (q *querySpanExtractor) findColumnInTables(tables []tableSource, databaseName, tableName, fieldName string) (QuerySpanResult, bool) {
 	for i := len(tables) - 1; i >= 0; i-- {
 		if !q.tableSourceMatches(tables[i], databaseName, tableName) {
 			continue
 		}
 		for _, column := range tables[i].GetQuerySpanResult() {
 			if strings.EqualFold(column.Name, fieldName) {
-				return column.SourceColumns, true
+				return column, true
 			}
 		}
 	}
-	return nil, false
+	return QuerySpanResult{}, false
 }
 
 func (q *querySpanExtractor) findTableSchema(databaseName, tableName string) (tableSource, error) {
@@ -1064,14 +1064,16 @@ func (q *querySpanExtractor) extractExpr(expr ast.ExprNode) (QuerySpanResult, er
 		if e.Star {
 			return QuerySpanResult{}, fmt.Errorf("asterisk is not a scalar expression")
 		}
-		sourceColumns, err := q.getFieldColumnSource(e.Schema, e.Table, e.Column)
+		// A column of a view, derived table or CTE is plain only if that
+		// query's column is.
+		source, err := q.getFieldColumnSource(e.Schema, e.Table, e.Column)
 		if err != nil {
 			return QuerySpanResult{}, err
 		}
 		return QuerySpanResult{
 			Name:          e.Column,
-			SourceColumns: sourceColumns,
-			IsPlainField:  true,
+			SourceColumns: source.SourceColumns,
+			IsPlainField:  source.IsPlainField,
 		}, nil
 	case *ast.StarExpr:
 		return QuerySpanResult{}, fmt.Errorf("asterisk is not a scalar expression")

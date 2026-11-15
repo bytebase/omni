@@ -291,6 +291,40 @@ func TestGetQuerySpanFallbackKeepsPredicateColumns(t *testing.T) {
 	require.Equal(t, []string{"o.id", "t.id", "t.ssn"}, predicateColumnNames(span.PredicateColumns))
 }
 
+func TestGetQuerySpanTableFunctionArgumentLineage(t *testing.T) {
+	schema := healthySchema()
+	schema.Schemas[0].Functions = []*metadatapb.FunctionMetadata{
+		{Name: "echo", Definition: "CREATE FUNCTION public.echo(x text) RETURNS TABLE(value text) LANGUAGE sql AS $$ SELECT x $$"},
+		// A missing column type makes the catalog install a stand-in without
+		// output parameters, so the outputs come from the definition text.
+		{Name: "echo_stand_in", Definition: "CREATE FUNCTION public.echo_stand_in(x text) RETURNS TABLE(value missing_type) LANGUAGE sql AS $$ SELECT x $$"},
+		{Name: "echo_pl", Definition: "CREATE FUNCTION public.echo_pl(x text) RETURNS TABLE(value text) LANGUAGE plpgsql AS $$ BEGIN RETURN QUERY SELECT x; END; $$"},
+	}
+	testCases := []struct {
+		statement string
+		want      []string
+	}{
+		{"SELECT f.value FROM t CROSS JOIN LATERAL echo(t.ssn) f", []string{"t.ssn"}},
+		{"SELECT f.value FROM t CROSS JOIN LATERAL echo_pl(t.ssn) f", []string{"t.ssn"}},
+		{"SELECT f.value FROM t, echo(upper(t.email)) f", []string{"t.email"}},
+		// * over an unknown function sends the statement to the fallback.
+		{"SELECT * FROM echo('x') f CROSS JOIN LATERAL echo((SELECT ssn FROM t LIMIT 1)) g CROSS JOIN unknown_rows() u", []string{"t.ssn"}},
+		{"SELECT * FROM echo((SELECT ssn FROM t LIMIT 1)) f, unknown_rows() u", []string{"t.ssn"}},
+		{"SELECT * FROM echo_stand_in((SELECT ssn FROM t LIMIT 1)) f CROSS JOIN unknown_rows() u", []string{"t.ssn"}},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.statement, func(t *testing.T) {
+			span := spanFor(t, tc.statement, schema)
+			require.NotEmpty(t, span.Results)
+			got := ColumnSet{}
+			for _, result := range span.Results {
+				mergeSourceColumnSetInto(got, result.SourceColumns)
+			}
+			require.Equal(t, tc.want, predicateColumnNames(got))
+		})
+	}
+}
+
 func TestGetQuerySpanReadsFunctionsOutsideTheOutput(t *testing.T) {
 	schema := healthySchema()
 	schema.Schemas[0].Functions = []*metadatapb.FunctionMetadata{
@@ -310,4 +344,40 @@ func TestGetQuerySpanReadsFunctionsOutsideTheOutput(t *testing.T) {
 			require.Equal(t, []string{"t.ssn"}, predicateColumnNames(span.PredicateColumns))
 		})
 	}
+}
+
+func TestGetQuerySpanValuesLineage(t *testing.T) {
+	testCases := []struct {
+		statement  string
+		results    map[string][]string
+		predicates []string
+	}{
+		{"VALUES ((SELECT ssn FROM t LIMIT 1))", map[string][]string{"column1": {"t.ssn"}}, []string{}},
+		{
+			"VALUES (1, (SELECT email FROM t WHERE ssn = 'guess')), ((SELECT id FROM t LIMIT 1), 'x')",
+			map[string][]string{"column1": {"t.id"}, "column2": {"t.email"}},
+			[]string{"t.ssn"},
+		},
+		{"VALUES ('a'), ('b'), ('c'), ((SELECT ssn FROM t LIMIT 1)), ('e')", map[string][]string{"column1": {"t.ssn"}}, []string{}},
+		{"SELECT * FROM (VALUES ((SELECT ssn FROM t LIMIT 1))) v", map[string][]string{"column1": {"t.ssn"}}, []string{}},
+		{"WITH c(x) AS (VALUES ((SELECT ssn FROM t LIMIT 1))) SELECT x FROM c", map[string][]string{"x": {"t.ssn"}}, []string{}},
+		{"VALUES (NULL), (NULL), (1), ((SELECT id FROM t LIMIT 1))", map[string][]string{"column1": {"t.id"}}, []string{}},
+		{"SELECT s.ssn FROM (SELECT ssn FROM t) s WHERE EXISTS (VALUES (NULL), (NULL), (1), (2))", map[string][]string{"ssn": {"t.ssn"}}, []string{}},
+		{"SELECT 'a' AS x UNION ALL VALUES ((SELECT ssn FROM t LIMIT 1))", map[string][]string{"x": {"t.ssn"}}, []string{}},
+		{"SELECT (VALUES ((SELECT ssn FROM t WHERE id = 1))) AS x", map[string][]string{"x": {"t.ssn"}}, []string{"t.id"}},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.statement, func(t *testing.T) {
+			span := spanFor(t, tc.statement, healthySchema())
+			got := map[string][]string{}
+			for _, result := range span.Results {
+				got[result.Name] = predicateColumnNames(result.SourceColumns)
+			}
+			require.Equal(t, tc.results, got)
+			require.Equal(t, tc.predicates, predicateColumnNames(span.PredicateColumns))
+		})
+	}
+
+	span := spanFor(t, "EXPLAIN ANALYZE VALUES ((SELECT email FROM t WHERE ssn = 'guess'))", healthySchema())
+	require.Equal(t, []string{"t.ssn"}, predicateColumnNames(span.PredicateColumns))
 }
