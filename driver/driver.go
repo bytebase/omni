@@ -65,12 +65,13 @@ type Config struct {
 	// protocol, TLS included, over what Dial returns.
 	Dial func(ctx context.Context, network, address string) (net.Conn, error)
 
-	// Params are connection parameters in the engine's own vocabulary,
-	// applied after the settings above so a caller can override them: pg
-	// takes libpq keywords (sslmode, target_session_attrs) and pgx's
-	// (default_query_exec_mode, statement_cache_capacity); a name the
-	// engine does not know reaches the server as a session parameter where
-	// the protocol has one.
+	// Params are connection parameters in the engine's own vocabulary and
+	// syntax, applied after the settings above so a caller can override
+	// them: pg takes libpq keywords (sslmode, target_session_attrs) and
+	// pgx's (default_query_exec_mode, statement_cache_capacity), each value
+	// written as a libpq connection string writes it, quoted where it holds
+	// a space; a name the engine does not know reaches the server as a
+	// session parameter where the protocol has one.
 	Params map[string]string
 
 	// ApplicationName identifies the session to the server, where the
