@@ -46,7 +46,8 @@ func diffEvents(from, to *Catalog, n *Normalizer) []EventDiffEntry {
 			continue
 		}
 		if eventCanonicalKey(fromEvent, n) != eventCanonicalKey(toEvent, n) ||
-			fromEvent.HasSessionContext && toEvent.HasSessionContext && !sameSQLMode(fromEvent.SQLMode, toEvent.SQLMode) {
+			fromEvent.HasSessionContext && toEvent.HasSessionContext &&
+				(!sameSQLMode(fromEvent.SQLMode, toEvent.SQLMode) || !strings.EqualFold(strings.TrimSpace(fromEvent.TimeZone), strings.TrimSpace(toEvent.TimeZone))) {
 			result = append(result, EventDiffEntry{
 				Action:   DiffModify,
 				Database: key.db,
@@ -370,6 +371,11 @@ func stripFieldLeadingZeros(s string) string {
 		trimmed := strings.TrimLeft(run, "0")
 		if trimmed == "" {
 			trimmed = "0"
+		}
+		// The digits after a decimal point are a fraction, whose zeros count:
+		// 1.05 is not 1.5.
+		if i > 0 && s[i-1] == '.' {
+			trimmed = run
 		}
 		b.WriteString(trimmed)
 		i = j

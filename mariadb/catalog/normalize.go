@@ -29,6 +29,10 @@ const (
 type Normalizer struct {
 	Version                      Version
 	ExplicitDefaultsForTimestamp bool
+
+	// checks caches columnChecks per table for one comparison, which renders
+	// every column of a table: the map is the table's whole constraint list.
+	checks map[*Table]map[string]*Constraint
 }
 
 // NormalizerFor returns the Normalizer of a release at its server defaults.
@@ -55,7 +59,21 @@ func (n *Normalizer) CanonicalColumn(table *Table, c *Column) string {
 		context = *table
 	}
 	context.Charset, context.Collation = "", ""
-	return showColumnWithTable(c, &context, columnChecks(table), false)
+	return showColumnWithTable(c, &context, n.columnChecks(table), false)
+}
+
+func (n *Normalizer) columnChecks(t *Table) map[string]*Constraint {
+	if t == nil {
+		return nil
+	}
+	if checks, ok := n.checks[t]; ok {
+		return checks
+	}
+	if n.checks == nil {
+		n.checks = make(map[*Table]map[string]*Constraint)
+	}
+	n.checks[t] = columnChecks(t)
+	return n.checks[t]
 }
 
 // CanonicalIndex is a key as SHOW CREATE TABLE writes it.
