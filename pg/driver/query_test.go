@@ -183,8 +183,9 @@ func TestQuery(t *testing.T) {
 			if !bytes.Equal(checkVal(7, driver.Bytes).Bytes, []byte{0xde, 0xad, 0xbe, 0xef}) {
 				t.Errorf("bin = %x", row[7].Bytes)
 			}
-			// Parity with Bytebase db/pg: empty bytea decodes as Null.
-			checkVal(8, driver.Null)
+			if len(checkVal(8, driver.Bytes).Bytes) != 0 {
+				t.Errorf("empty_bin = %x, want empty byte slice", row[8].Bytes)
+			}
 			if checkVal(9, driver.String).String != "2026-03-04" {
 				t.Errorf("dt = %q", row[9].String)
 			}

@@ -49,9 +49,11 @@
 : string
 | postgres
 > exec
-| CREATE DATABASE "omni_new_db" ENCODING "UTF8";
+| CREATE DATABASE "omni_new_db"
+| ENCODING "UTF8";
 < ok 0 -
 > exec
+|
 | ALTER DATABASE "omni_new_db" OWNER TO "created_db_owner";
 < ok 0 -
 > query
@@ -162,9 +164,11 @@
 : string
 | postgres
 > exec
-| CREATE DATABASE "omni_new_db" ENCODING "UTF8";
+| CREATE DATABASE "omni_new_db"
+| ENCODING "UTF8";
 < ok 0 -
 > exec
+|
 | ALTER DATABASE "omni_new_db" OWNER TO "created_db_owner";
 < ok 0 -
 > query

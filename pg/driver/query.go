@@ -275,7 +275,7 @@ func convertValue(typeName string, columnType *sql.ColumnType, value any, locati
 			return driver.Value{Kind: driver.Int64, Int64: raw.Int64}
 		}
 	case *[]byte:
-		if len(*raw) > 0 {
+		if *raw != nil {
 			return driver.Value{Kind: driver.Bytes, Bytes: *raw}
 		}
 	case *sql.NullBool:

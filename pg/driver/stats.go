@@ -182,7 +182,8 @@ func (d *Driver) Activity(ctx context.Context, applicationName string) (*Activit
 	defer rows.Close()
 
 	types := pgtype.NewMap()
-	out := &Activity{}
+	var sessions []*BackendSession
+	var target *BackendSession
 	for rows.Next() {
 		var s BackendSession
 		var blockedBy []int32
@@ -214,19 +215,27 @@ func (d *Driver) Activity(ctx context.Context, applicationName string) (*Activit
 				s.BlockedByPIDs[i] = strconv.FormatInt(int64(pid), 10)
 			}
 		}
-
 		if s.ApplicationName == applicationName {
-			out.Session = &s
-		} else if out.Session != nil {
-			if slices.Contains(s.BlockedByPIDs, out.Session.PID) {
-				out.BlockedSessions = append(out.BlockedSessions, &s)
-			} else if slices.Contains(out.Session.BlockedByPIDs, s.PID) {
-				out.BlockingSessions = append(out.BlockingSessions, &s)
-			}
+			target = &s
 		}
+		sessions = append(sessions, &s)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("failed to scan rows: %w", err)
+	}
+
+	out := &Activity{Session: target}
+	if target != nil {
+		for _, s := range sessions {
+			if s == target {
+				continue
+			}
+			if slices.Contains(s.BlockedByPIDs, target.PID) {
+				out.BlockedSessions = append(out.BlockedSessions, s)
+			} else if slices.Contains(target.BlockedByPIDs, s.PID) {
+				out.BlockingSessions = append(out.BlockingSessions, s)
+			}
+		}
 	}
 	return out, nil
 }
