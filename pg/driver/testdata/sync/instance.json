@@ -1,0 +1,93 @@
+{
+  "default": {
+    "databases": [
+      "omni_testsyncinstance UTF8 en_US.utf8 postgres",
+      "postgres UTF8 en_US.utf8 postgres"
+    ],
+    "roles": [
+      "postgres: Superuser Create role Create DB Replication Bypass RLS+",
+      "sync_admin: Superuser No inheritance Create role Create DB Replication Password valid until 2030-06-01T12:00:00Z Bypass RLS+",
+      "sync_nologin: Cannot login",
+      "sync_plain: "
+    ],
+    "version": "17.0.12"
+  },
+  "pg12": {
+    "databases": [
+      "omni_testsyncinstance UTF8 en_US.utf8 postgres",
+      "postgres UTF8 en_US.utf8 postgres"
+    ],
+    "roles": [
+      "postgres: Superuser Create role Create DB Replication Bypass RLS+",
+      "sync_admin: Superuser No inheritance Create role Create DB Replication Password valid until 2030-06-01T12:00:00Z Bypass RLS+",
+      "sync_nologin: Cannot login",
+      "sync_plain: "
+    ],
+    "version": "12.0.22"
+  },
+  "pg13": {
+    "databases": [
+      "omni_testsyncinstance UTF8 en_US.utf8 postgres",
+      "postgres UTF8 en_US.utf8 postgres"
+    ],
+    "roles": [
+      "postgres: Superuser Create role Create DB Replication Bypass RLS+",
+      "sync_admin: Superuser No inheritance Create role Create DB Replication Password valid until 2030-06-01T12:00:00Z Bypass RLS+",
+      "sync_nologin: Cannot login",
+      "sync_plain: "
+    ],
+    "version": "13.0.23"
+  },
+  "pg14": {
+    "databases": [
+      "omni_testsyncinstance UTF8 en_US.utf8 postgres",
+      "postgres UTF8 en_US.utf8 postgres"
+    ],
+    "roles": [
+      "postgres: Superuser Create role Create DB Replication Bypass RLS+",
+      "sync_admin: Superuser No inheritance Create role Create DB Replication Password valid until 2030-06-01T12:00:00Z Bypass RLS+",
+      "sync_nologin: Cannot login",
+      "sync_plain: "
+    ],
+    "version": "14.0.25"
+  },
+  "pg15": {
+    "databases": [
+      "omni_testsyncinstance UTF8 en_US.utf8 postgres",
+      "postgres UTF8 en_US.utf8 postgres"
+    ],
+    "roles": [
+      "postgres: Superuser Create role Create DB Replication Bypass RLS+",
+      "sync_admin: Superuser No inheritance Create role Create DB Replication Password valid until 2030-06-01T12:00:00Z Bypass RLS+",
+      "sync_nologin: Cannot login",
+      "sync_plain: "
+    ],
+    "version": "15.0.20"
+  },
+  "pg16": {
+    "databases": [
+      "omni_testsyncinstance UTF8 en_US.utf8 postgres",
+      "postgres UTF8 en_US.utf8 postgres"
+    ],
+    "roles": [
+      "postgres: Superuser Create role Create DB Replication Bypass RLS+",
+      "sync_admin: Superuser No inheritance Create role Create DB Replication Password valid until 2030-06-01T12:00:00Z Bypass RLS+",
+      "sync_nologin: Cannot login",
+      "sync_plain: "
+    ],
+    "version": "16.0.16"
+  },
+  "pg18": {
+    "databases": [
+      "omni_testsyncinstance UTF8 en_US.utf8 postgres",
+      "postgres UTF8 en_US.utf8 postgres"
+    ],
+    "roles": [
+      "postgres: Superuser Create role Create DB Replication Bypass RLS+",
+      "sync_admin: Superuser No inheritance Create role Create DB Replication Password valid until 2030-06-01T12:00:00Z Bypass RLS+",
+      "sync_nologin: Cannot login",
+      "sync_plain: "
+    ],
+    "version": "18.0.7"
+  }
+}

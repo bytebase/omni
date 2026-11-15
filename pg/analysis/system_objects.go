@@ -2,6 +2,8 @@ package analysis
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 )
 
@@ -856,10 +858,11 @@ var (
 		"pg_stat_slru":               true,
 	}
 
-	// SystemSchemaWhereClause is an optimization for getting less schema objects.
+	// SystemSchemaWhereClause lists systemSchemas as SQL string literals, in
+	// name order so that a query built from it is the same text every run.
 	SystemSchemaWhereClause = func() string {
 		var schemas []string
-		for schema := range systemSchemas {
+		for _, schema := range slices.Sorted(maps.Keys(systemSchemas)) {
 			schemas = append(schemas, fmt.Sprintf("'%s'", schema))
 		}
 		return strings.Join(schemas, ",")
