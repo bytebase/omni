@@ -88,3 +88,42 @@ func TestMigration_MariaDBStatements(t *testing.T) {
 		})
 	}
 }
+
+func TestMigration_RecreateInheritsSourceCommentEscaping(t *testing.T) {
+	// The target has no captured context; the recreate inherits the source's
+	// NO_BACKSLASH_ESCAPES, so the comment's backslash must render literally
+	// (single backslash), matching the mode the statement is framed with.
+	from := loadCat(t, dbDDL+`CREATE FUNCTION f() RETURNS INT DETERMINISTIC COMMENT 'a\\b' RETURN 1;`)
+	from.ApplySessionContext(SessionContextMap{Functions: map[string]SessionContext{"f": {SQLMode: "NO_BACKSLASH_ESCAPES"}}})
+	to := loadCat(t, dbDDL+`CREATE FUNCTION f() RETURNS INT DETERMINISTIC COMMENT 'c\\d' RETURN 2;`)
+	var create string
+	for _, op := range GenerateMigration(from, to, Diff(from, to)).Ops {
+		if op.Type == OpCreateFunction {
+			create = op.SQL
+		}
+	}
+	if !strings.Contains(create, "SET sql_mode = 'NO_BACKSLASH_ESCAPES'") {
+		t.Fatalf("recreate not framed with the source mode:\n%s", create)
+	}
+	if !strings.Contains(create, `COMMENT 'c\d'`) || strings.Contains(create, `COMMENT 'c\\d'`) {
+		t.Errorf("comment not escaped for NO_BACKSLASH_ESCAPES:\n%s", create)
+	}
+}
+
+func TestMigration_EventInheritsSourceCommentEscaping(t *testing.T) {
+	from := loadCat(t, dbDDL+`CREATE EVENT e ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' COMMENT 'a\\b' DO SELECT 1;`)
+	from.ApplySessionContext(SessionContextMap{Events: map[string]SessionContext{"e": {SQLMode: "NO_BACKSLASH_ESCAPES"}}})
+	to := loadCat(t, dbDDL+`CREATE EVENT e ON SCHEDULE EVERY 2 DAY STARTS '2030-01-01 00:00:00' COMMENT 'c\\d' DO SELECT 1;`)
+	var stmt string
+	for _, op := range GenerateMigration(from, to, Diff(from, to)).Ops {
+		if op.Type == OpCreateEvent {
+			stmt = op.SQL
+		}
+	}
+	if !strings.Contains(stmt, "SET sql_mode = 'NO_BACKSLASH_ESCAPES'") {
+		t.Fatalf("event statement not framed with the source mode:\n%s", stmt)
+	}
+	if !strings.Contains(stmt, `COMMENT 'c\d'`) || strings.Contains(stmt, `COMMENT 'c\\d'`) {
+		t.Errorf("event comment not escaped for NO_BACKSLASH_ESCAPES:\n%s", stmt)
+	}
+}
