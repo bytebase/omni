@@ -19,7 +19,7 @@ func (c *Catalog) renameTable(stmt *nodes.RenameTableStmt) error {
 			return err
 		}
 		newKey := toLower(pair.New.Name)
-		if newDB.Tables[newKey] != nil {
+		if newDB.Tables[newKey] != nil || newDB.Sequences[newKey] != nil {
 			return errDupTable(pair.New.Name)
 		}
 
