@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"maps"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/bytebase/omni/metadata"
@@ -15,7 +16,8 @@ import (
 )
 
 // LoadMetadataReport lists the snapshot objects LoadMetadata could not install
-// as the snapshot defines them. Keys are "table:<name>" and "view:<name>".
+// as the snapshot defines them. Keys are "table:<name>", "view:<name>" and
+// "sequence:<name>".
 type LoadMetadataReport struct {
 	// Degraded maps each object replaced by a stand-in to the error its
 	// definition failed with.
@@ -95,6 +97,11 @@ func (c *Catalog) LoadMetadataInto(ctx context.Context, meta *metadata.DatabaseS
 			}
 			continue
 		}
+		if o.kind == metadataSequence {
+			// A sequence has no stand-in.
+			report.Missing[o.key()] = err
+			continue
+		}
 		if standInErr := c.installStandIn(o); standInErr != nil {
 			report.Missing[o.key()] = standInErr
 			continue
@@ -147,7 +154,8 @@ func (c *Catalog) installedView(name string) *View {
 type metadataObjectKind int
 
 const (
-	metadataTable metadataObjectKind = iota
+	metadataSequence metadataObjectKind = iota
+	metadataTable
 	metadataView
 )
 
@@ -160,8 +168,9 @@ type metadataObject struct {
 	// with: a view's body, and a table's foreign keys.
 	snapshotDatabase string
 
-	table *metadata.TableMetadata
-	view  *metadata.ViewMetadata
+	table    *metadata.TableMetadata
+	view     *metadata.ViewMetadata
+	sequence *metadata.SequenceMetadata
 
 	// incomplete is the first part of a table's definition its install left out.
 	incomplete error
@@ -169,10 +178,14 @@ type metadataObject struct {
 
 // key names the object in the report.
 func (o *metadataObject) key() string {
-	if o.kind == metadataTable {
+	switch o.kind {
+	case metadataSequence:
+		return "sequence:" + o.name
+	case metadataTable:
 		return "table:" + o.name
+	default:
+		return "view:" + o.name
 	}
-	return "view:" + o.name
 }
 
 // --- Collecting ---
@@ -192,6 +205,11 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata) []*metadataOb
 				out = append(out, &metadataObject{kind: metadataView, name: v.GetName(), view: v, snapshotDatabase: meta.GetName()})
 			}
 		}
+		for _, q := range s.GetSequences() {
+			if q.GetName() != "" {
+				out = append(out, &metadataObject{kind: metadataSequence, name: q.GetName(), sequence: q})
+			}
+		}
 	}
 	slices.SortFunc(out, func(a, b *metadataObject) int {
 		return cmp.Or(cmp.Compare(a.kind, b.kind), cmp.Compare(a.name, b.name))
@@ -202,6 +220,9 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata) []*metadataOb
 // --- Installing ---
 
 func (c *Catalog) installMetadataObject(o *metadataObject) error {
+	if o.kind == metadataSequence {
+		return c.installMetadataSequence(o.sequence)
+	}
 	if o.kind == metadataView {
 		stmt, err := metadataViewStmt(o.view, o.snapshotDatabase, c.CurrentDatabase())
 		if err != nil {
@@ -235,6 +256,40 @@ func (c *Catalog) installMetadataObject(o *metadataObject) error {
 		}
 	}
 	return err
+}
+
+// installMetadataSequence installs a synced sequence as information_schema
+// reports it. The values are the server's own, so they are not validated
+// again; a value that is not an integer leaves the sequence out.
+func (c *Catalog) installMetadataSequence(q *metadata.SequenceMetadata) error {
+	db, err := c.resolveDatabase("")
+	if err != nil {
+		return err
+	}
+	key := toLower(q.GetName())
+	if db.nameTaken(key) {
+		return errDupTableQualified(db.Name, q.GetName())
+	}
+	seq := &Sequence{Name: q.GetName(), Database: db, Cycle: q.GetCycle(), Comment: q.GetComment()}
+	for _, f := range []struct {
+		name  string
+		value string
+		into  *int64
+	}{
+		{"start", q.GetStart(), &seq.Start},
+		{"minimum value", q.GetMinValue(), &seq.MinValue},
+		{"maximum value", q.GetMaxValue(), &seq.MaxValue},
+		{"increment", q.GetIncrement(), &seq.Increment},
+		{"cache size", q.GetCacheSize(), &seq.Cache},
+	} {
+		n, err := strconv.ParseInt(strings.TrimSpace(f.value), 10, 64)
+		if err != nil {
+			return fmt.Errorf("sequence %s: %s %q is not an integer", q.GetName(), f.name, f.value)
+		}
+		*f.into = n
+	}
+	db.Sequences[key] = seq
+	return nil
 }
 
 // --- Statements ---

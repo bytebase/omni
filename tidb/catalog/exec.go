@@ -187,6 +187,12 @@ func (c *Catalog) processUtility(stmt nodes.Node, source string) error {
 		return c.dropPlacementPolicy(s)
 	case *nodes.AlterRangeStmt:
 		return c.alterRange(s)
+	case *nodes.CreateSequenceStmt:
+		return c.createSequence(s)
+	case *nodes.AlterSequenceStmt:
+		return c.alterSequence(s)
+	case *nodes.DropSequenceStmt:
+		return c.dropSequence(s)
 	case *nodes.DropTableStmt:
 		return c.dropTable(s)
 	case *nodes.DropDatabaseStmt:

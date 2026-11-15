@@ -6,12 +6,13 @@ type Database struct {
 	Name       string
 	Charset    string
 	Collation  string
-	Tables     map[string]*Table   // lowered name -> Table
+	Tables     map[string]*Table // lowered name -> Table
 	Views      map[string]*View
 	Functions  map[string]*Routine // lowered name -> stored function
 	Procedures map[string]*Routine // lowered name -> stored procedure
 	Triggers   map[string]*Trigger // lowered name -> trigger
 	Events     map[string]*Event   // lowered name -> event
+	Sequences  map[string]*Sequence
 
 	// TiDB-specific: database-level placement policy. Empty when unset.
 	PlacementPolicy string
@@ -36,6 +37,7 @@ func newDatabase(name, charset, collation string) *Database {
 		Procedures: make(map[string]*Routine),
 		Triggers:   make(map[string]*Trigger),
 		Events:     make(map[string]*Event),
+		Sequences:  make(map[string]*Sequence),
 	}
 }
 

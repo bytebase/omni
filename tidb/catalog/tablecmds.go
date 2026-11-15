@@ -33,7 +33,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 		}
 		return errDupTableQualified(db.Name, tableName)
 	}
-	if db.Views[key] != nil {
+	if db.Views[key] != nil || db.Sequences[key] != nil {
 		return errDupTableQualified(db.Name, tableName)
 	}
 
