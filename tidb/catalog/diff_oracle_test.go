@@ -1,7 +1,6 @@
 package catalog
 
 import (
-	"context"
 	"regexp"
 	"slices"
 	"strings"
@@ -179,15 +178,7 @@ func execCatalog(t *testing.T, script string) *Catalog {
 
 func loadSnapshot(t *testing.T, meta *metadata.DatabaseSchemaMetadata) *Catalog {
 	t.Helper()
-	c := New()
-	report, err := c.LoadMetadataInto(context.Background(), meta, diffOracleDB)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if n := len(report.Degraded) + len(report.Missing) + len(report.Incomplete); n > 0 {
-		t.Fatalf("snapshot %s: degraded %v, missing %v, incomplete %v", meta.GetName(), report.Degraded, report.Missing, report.Incomplete)
-	}
-	return c
+	return loadSnapshotIn(t, meta, diffOracleDB)
 }
 
 // syncTiDBSnapshotWithSequences is syncTiDBSnapshot with the database's
