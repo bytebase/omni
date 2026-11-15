@@ -567,6 +567,16 @@
 | USE `omni_testoracle_sequences`
 < ok 0 0
 > exec
+| CREATE SEQUENCE k
+< ok 0 0
+> exec
+| DROP TEMPORARY TABLE IF EXISTS k
+< ok 0 0
+> exec
+| DROP TEMPORARY TABLE k
+< error
+| 1051 42S02 Unknown table 'omni_testoracle_sequences.k'
+> exec
 | CREATE TEMPORARY SEQUENCE s START WITH 3
 < ok 0 0
 > exec
@@ -584,6 +594,12 @@
 | 4091 42S02 Unknown SEQUENCE: 'omni_testoracle_sequences.p'
 > exec
 | DROP TEMPORARY SEQUENCE IF EXISTS p
+< ok 0 0
+> exec
+| CREATE TEMPORARY SEQUENCE q
+< ok 0 0
+> exec
+| DROP TEMPORARY TABLE q
 < ok 0 0
 > query
 | SHOW CREATE SEQUENCE `s`
@@ -605,3 +621,13 @@
 | p
 : bytes
 | CREATE SEQUENCE `p` start with 1 minvalue 1 maxvalue 9223372036854775806 increment by 1 cache 1000 nocycle ENGINE=InnoDB
+> query
+| SHOW CREATE SEQUENCE `k`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| k
+: bytes
+| CREATE SEQUENCE `k` start with 1 minvalue 1 maxvalue 9223372036854775806 increment by 1 cache 1000 nocycle ENGINE=InnoDB

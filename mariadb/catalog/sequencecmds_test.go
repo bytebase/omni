@@ -39,7 +39,7 @@ func TestOracle_Sequences(t *testing.T) {
 		{"replace", []string{"CREATE SEQUENCE s", "CREATE OR REPLACE SEQUENCE s START WITH 7", "CREATE SEQUENCE IF NOT EXISTS s START WITH 9"}, []string{"s"}},
 		{"drop and rename", []string{"CREATE SEQUENCE s", "CREATE SEQUENCE u", "DROP TABLE s", "RENAME TABLE u TO w", "CREATE SEQUENCE s START WITH 2"}, []string{"s", "w"}},
 		// Last: a temporary sequence outlasts the database reset, on this connection.
-		{"temporary", []string{"CREATE TEMPORARY SEQUENCE s START WITH 3", "DROP TEMPORARY SEQUENCE s", "CREATE TEMPORARY SEQUENCE s START WITH 4", "CREATE SEQUENCE p", "DROP TEMPORARY SEQUENCE p", "DROP TEMPORARY SEQUENCE IF EXISTS p"}, []string{"s", "p"}},
+		{"temporary", []string{"CREATE SEQUENCE k", "DROP TEMPORARY TABLE IF EXISTS k", "DROP TEMPORARY TABLE k", "CREATE TEMPORARY SEQUENCE s START WITH 3", "DROP TEMPORARY SEQUENCE s", "CREATE TEMPORARY SEQUENCE s START WITH 4", "CREATE SEQUENCE p", "DROP TEMPORARY SEQUENCE p", "DROP TEMPORARY SEQUENCE IF EXISTS p", "CREATE TEMPORARY SEQUENCE q", "DROP TEMPORARY TABLE q"}, []string{"s", "p", "k"}},
 	}
 	conn, err := testcontainer.OpenDatabase(t).Conn(context.Background())
 	if err != nil {
