@@ -194,6 +194,7 @@ var diffPairs = []struct{ name, a, b string }{
 	{"engine change with a partition-literal comment", "CREATE TABLE t (g INT NOT NULL, id INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (g, id)) ENGINE=MyISAM", "CREATE TABLE t (g INT NOT NULL, id INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (id, g)) ENGINE=InnoDB COMMENT='PARTITION'"},
 	{"foreign key renamed over the same column", "CREATE TABLE p (a INT PRIMARY KEY); CREATE TABLE t (a INT, CONSTRAINT f FOREIGN KEY (a) REFERENCES p (a))", "CREATE TABLE p (a INT PRIMARY KEY); CREATE TABLE t (a INT, CONSTRAINT g FOREIGN KEY (a) REFERENCES p (a))"},
 	{"last column is both last visible and last versioned", "CREATE TABLE t (a INT, b INT INVISIBLE WITHOUT SYSTEM VERSIONING) WITH SYSTEM VERSIONING", "CREATE TABLE t (b INT INVISIBLE, c INT WITHOUT SYSTEM VERSIONING) WITH SYSTEM VERSIONING"},
+	{"replace the only column with a generated one reading an invisible add", "CREATE TABLE t (a INT)", "CREATE TABLE t (a INT AS(b+1) STORED, b INT INVISIBLE)"},
 	{"timestamps without defaults", "CREATE TABLE x (i INT)", "CREATE TABLE x (i INT, ts TIMESTAMP NOT NULL); CREATE TABLE t (u TIMESTAMP NOT NULL)"},
 	{"sequence limits leaving out the start", "CREATE SEQUENCE s", "CREATE SEQUENCE s START WITH 100 MINVALUE 10"},
 }

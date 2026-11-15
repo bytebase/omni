@@ -631,21 +631,16 @@ func dropLastColumnsAfterAdds(ops []MigrationOp, e *TableDiffEntry) []MigrationO
 	if len(dropped) == 0 {
 		return ops
 	}
-	if len(dropped) < len(diffableColumns(e.From)) {
-		// A table keeps a versioned (4123) and a visible (1113) column: a column
-		// the plan only adds goes first, else a MODIFY that makes a retained one
-		// qualify runs before the drops, else the last such column is replaced in
-		// one statement. Both invariants are repaired, since one dropped column
-		// can be the last of each kind.
-		if e.From.SystemVersioned && e.To.SystemVersioned {
-			ops = keepQualifyingColumn(ops, e, dropped, isVersionedColumn, becomesVersioned, makeVersioned)
-		}
-		return keepQualifyingColumn(ops, e, dropped, isVisibleColumn, becomesVisible, makeVisible)
+	// A table keeps a versioned (4123) and a visible (1113) column, and so at
+	// least one column (1090): a column the plan only adds goes first, else a
+	// MODIFY that makes a retained one qualify runs before the drops, else the
+	// last such column is replaced in one statement. Both invariants are
+	// repaired, since one dropped column can be the last of each kind, and the
+	// repair holds whether or not other columns survive.
+	if e.From.SystemVersioned && e.To.SystemVersioned {
+		ops = keepQualifyingColumn(ops, e, dropped, isVersionedColumn, becomesVersioned, makeVersioned)
 	}
-	if addFirst(ops, e, dropped, func(*Column) bool { return true }) {
-		return ops
-	}
-	return atomicReplaceLast(ops, e, func(*Column) bool { return true })
+	return keepQualifyingColumn(ops, e, dropped, isVisibleColumn, becomesVisible, makeVisible)
 }
 
 // atomicReplaceLast merges, into one ALTER, the drop and add of the column
