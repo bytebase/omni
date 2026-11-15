@@ -122,6 +122,9 @@ func TestResolveQuerySpanSubqueryScope(t *testing.T) {
 		{"SELECT (SELECT B FROM T3) AS X FROM T1", []string{"X<-DB.PUBLIC.T1.B"}},
 		{"SELECT (SELECT T.B + E FROM T3) AS X FROM T1 T", []string{"X<-DB.PUBLIC.T1.B,DB.PUBLIC.T3.E"}},
 		{"SELECT (SELECT U.B FROM T3 JOIN T2 ON TRUE) AS X FROM T1 U", []string{"X<-DB.PUBLIC.T1.B"}},
+		// A LATERAL item on a JOIN's right side names the left side.
+		{"SELECT S.X FROM T1 T JOIN LATERAL (SELECT T.A AS X) S ON TRUE", []string{"X<-DB.PUBLIC.T1.A plain"}},
+		{"SELECT S.X FROM T1 T JOIN LATERAL (SELECT T.A AS X FROM T2 T) S ON TRUE", []string{"X<-DB.PUBLIC.T2.A plain"}},
 	}
 	for _, tc := range tests {
 		span, err := resolveSpan(t, tc.sql)

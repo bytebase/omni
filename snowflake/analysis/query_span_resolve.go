@@ -186,27 +186,35 @@ type querySpanExtractor struct {
 	// statementText is the single statement being extracted; expression result
 	// names slice it by node Loc.
 	statementText string
-
-	// joinMemberSources collects the named relations inside the JOIN trees and
-	// comma lists of the FROM clause being extracted, which become its scope's
-	// members.
-	joinMemberSources []tableSource
 }
 
-// fromScope is one SELECT's FROM clause. relations[0] is the relation the
-// clause produces, merged and unnamed when it joins several; the rest are the
-// named relations inside it, which only a qualified reference (T2.B, T2.*)
-// can reach.
+// fromScope is one SELECT's FROM clause. source is the relation the clause
+// produces, merged and unnamed when it joins several, and is nil while the
+// clause is being extracted. members are the named relations inside its
+// JOIN trees and comma lists, which only a qualified reference (T2.B, T2.*)
+// can reach; they are visible as soon as they are extracted, so a LATERAL
+// item on a JOIN's right side can name its left side.
 type fromScope struct {
-	relations []tableSource
+	source  tableSource
+	members []tableSource
 }
 
 // candidates returns the relations a reference can resolve against in s.
 func (s fromScope) candidates(qualified bool) []tableSource {
-	if qualified {
-		return s.relations
+	var relations []tableSource
+	if s.source != nil {
+		relations = append(relations, s.source)
 	}
-	return s.relations[:1]
+	if qualified {
+		relations = append(relations, s.members...)
+	}
+	return relations
+}
+
+// addJoinMember records a named relation of the FROM clause being extracted.
+func (q *querySpanExtractor) addJoinMember(member tableSource) {
+	scope := &q.fromScopes[len(q.fromScopes)-1]
+	scope.members = append(scope.members, member)
 }
 
 func newQuerySpanExtractor(defaultDatabase, defaultSchema string, resolveTable TableResolver, ignoreCaseSensitive bool) *querySpanExtractor {
@@ -595,24 +603,16 @@ func (q *querySpanExtractor) extractPseudoTableFromSelectStmt(ctx *ast.SelectStm
 	}
 
 	if len(ctx.From) > 0 {
-		// Snapshot BEFORE extracting the FROM scope: extractTableSourceFromFrom
-		// appends JOIN member relations to q.joinMemberSources as it walks join
-		// trees, so a later snapshot would bake those into the restore point and
-		// leak them into sibling/outer scopes.
 		originalScopeCount := len(q.fromScopes)
-		originalJoinMemberLength := len(q.joinMemberSources)
+		q.fromScopes = append(q.fromScopes, fromScope{})
 		defer func() {
 			q.fromScopes = q.fromScopes[:originalScopeCount]
-			q.joinMemberSources = q.joinMemberSources[:originalJoinMemberLength]
 		}()
 		tableSourceFrom, err := q.extractTableSourceFromFrom(ctx.From)
 		if err != nil {
 			return nil, err
 		}
-		if tableSourceFrom != nil {
-			relations := append([]tableSource{tableSourceFrom}, q.joinMemberSources[originalJoinMemberLength:]...)
-			q.fromScopes = append(q.fromScopes, fromScope{relations: relations})
-		}
+		q.fromScopes[originalScopeCount].source = tableSourceFrom
 	}
 
 	result := &derivedTable{
@@ -916,14 +916,14 @@ func (q *querySpanExtractor) extractTableSourceFromFrom(froms []ast.Node) (table
 			continue
 		}
 		// Comma-list FROM items merge into one unnamed scope for positional/star
-		// purposes; record each named item in joinMemberSources so qualified
+		// purposes; record each named item as a scope member so qualified
 		// references (alias.col, table.col) keep resolving — the same fallback
 		// JOIN trees use.
 		if !merged {
-			q.joinMemberSources = append(q.joinMemberSources, result)
+			q.addJoinMember(result)
 			merged = true
 		}
-		q.joinMemberSources = append(q.joinMemberSources, tableSource)
+		q.addJoinMember(tableSource)
 		result = &derivedTable{
 			Name:    "",
 			Columns: append(result.querySpanResult(), tableSource.querySpanResult()...),
@@ -952,14 +952,14 @@ func (q *querySpanExtractor) extractTableSourceFromJoin(join *ast.JoinExpr) (tab
 		return nil, fmt.Errorf("failed to extract sensitive fields of the left part of the join: %w", err)
 	}
 	if left != nil {
-		q.joinMemberSources = append(q.joinMemberSources, left)
+		q.addJoinMember(left)
 	}
 	right, err := q.extractTableSourceFromItem(join.Right)
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract sensitive fields of the right part of the join: %w", err)
 	}
 	if right != nil {
-		q.joinMemberSources = append(q.joinMemberSources, right)
+		q.addJoinMember(right)
 	}
 
 	var leftColumns, rightColumns []QuerySpanResult
