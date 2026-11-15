@@ -293,6 +293,11 @@ func TestResolveQuerySpanColumnAliases(t *testing.T) {
 		{statement: "SELECT *, v.ssn FROM (SELECT ssn IN (SELECT ''::text) AS ssn FROM t) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"ssn", []string{"db.public.t.ssn"}}}},
 		{statement: `SELECT *, v.ssn FROM (SELECT email AS "SSN", ssn FROM t) v CROSS JOIN unknown_rows() u`, fallback: true, results: []result{{"ssn", []string{"db.public.t.ssn"}}}},
 		{statement: "SELECT *, v.j FROM (SELECT json_object(ssn : 1) AS j FROM t) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"j", []string{"db.public.t.ssn"}}}},
+		{statement: "SELECT *, v.ssn FROM (SELECT (SELECT ssn FROM t UNION ALL SELECT ssn FROM t LIMIT 1) AS ssn FROM t) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"ssn", []string{"db.public.t.ssn"}}}},
+		{statement: "SELECT *, v.id FROM (SELECT id FROM t) v CROSS JOIN o CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"id", []string{"db.public.t.id"}}}},
+		{statement: "SELECT *, v.x FROM o CROSS JOIN LATERAL (SELECT amt AS x FROM t) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"x", []string{"db.public.o.amt"}}}},
+		{statement: "WITH c AS (SELECT ssn FROM t) SELECT *, v.ssn FROM (SELECT ssn FROM c) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"ssn", []string{"db.public.t.ssn"}}}},
+		{statement: "WITH c AS (SELECT ssn FROM t) SELECT *, ssn FROM c CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"ssn", []string{"db.public.t.ssn"}}}},
 		{statement: "SELECT * FROM t AS v(x) CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"x", []string{"db.public.t.id"}}, {"email", []string{"db.public.t.email"}}, {"ssn", []string{"db.public.t.ssn"}}, {"unknown_rows", []string{}}}},
 	} {
 		t.Run(tc.statement, func(t *testing.T) {

@@ -1163,8 +1163,13 @@ func (a *plpgsqlAnalyzer) fromItemColumns(item ast.Node, fromTables map[string]C
 	case *ast.RangeVar:
 		columns, alias = a.extractor.extractColumnsFromRangeVar(v), v.Alias
 	case *ast.RangeSubselect:
+		// Only a LATERAL subquery sees the other items of its FROM.
+		var outer map[string]ColumnResource
+		if v.Lateral {
+			outer = fromTables
+		}
 		if sel, ok := v.Subquery.(*ast.SelectStmt); ok {
-			columns = a.selectOutputColumns(sel, fromTables)
+			columns = a.selectOutputColumns(sel, outer)
 		}
 		alias = v.Alias
 	case *ast.JoinExpr:
@@ -1213,7 +1218,6 @@ func (a *plpgsqlAnalyzer) selectOutputColumns(sel *ast.SelectStmt, outerTables m
 	}
 	restore, _ := a.pushMarkerScope()
 	defer restore()
-	// A subquery in FROM does not see the other items of its FROM.
 	a.fromItems = make(map[string]ast.Node)
 	tables := a.collectFromTables(sel)
 	for k, v := range outerTables {
@@ -1448,34 +1452,8 @@ func (a *plpgsqlAnalyzer) extractColumnRefsFromExpr(node ast.Node, fromTables ma
 	case *ast.SubLink:
 		// The left operand of IN, ANY, ALL or a row comparison.
 		a.extractColumnRefsFromExpr(v.Testexpr, fromTables, result)
-		if v.Subselect != nil {
-			if subSel, ok := v.Subselect.(*ast.SelectStmt); ok {
-				// The subquery's qualification markers apply only within its
-				// own resolution scope.
-				restore, _ := a.pushMarkerScope()
-				defer restore()
-				subTables := a.collectFromTables(subSel)
-				for k, val := range fromTables {
-					if _, exists := subTables[k]; !exists {
-						subTables[k] = val
-					}
-				}
-				if subSel.TargetList != nil {
-					for _, item := range subSel.TargetList.Items {
-						if rt, ok := item.(*ast.ResTarget); ok {
-							a.extractColumnRefsFromExpr(rt.Val, subTables, result)
-						}
-					}
-				}
-				// Also collect from subquery WHERE clause for predicate tracking.
-				if subSel.WhereClause != nil {
-					whereColSet := make(ColumnSet)
-					a.extractColumnRefsFromExpr(subSel.WhereClause, subTables, whereColSet)
-					for k, val := range whereColSet {
-						a.extractor.predicateColumns[k] = val
-					}
-				}
-			}
+		if subSel, ok := v.Subselect.(*ast.SelectStmt); ok {
+			a.extractSubqueryRefs(subSel, fromTables, result)
 		}
 	case *ast.TypeCast:
 		a.extractColumnRefsFromExpr(v.Arg, fromTables, result)
@@ -1552,6 +1530,44 @@ func (a *plpgsqlAnalyzer) extractColumnRefsFromExpr(node ast.Node, fromTables ma
 	}
 }
 
+// extractSubqueryRefs adds what the outputs of a subquery in an expression
+// read, from every branch of a set operation, and collects its WHERE
+// columns as predicates.
+func (a *plpgsqlAnalyzer) extractSubqueryRefs(subSel *ast.SelectStmt, fromTables map[string]ColumnResource, result ColumnSet) {
+	if subSel == nil {
+		return
+	}
+	if subSel.Op != ast.SETOP_NONE {
+		a.extractSubqueryRefs(subSel.Larg, fromTables, result)
+		a.extractSubqueryRefs(subSel.Rarg, fromTables, result)
+		return
+	}
+	// The subquery's qualification markers apply only within its own
+	// resolution scope.
+	restore, _ := a.pushMarkerScope()
+	defer restore()
+	subTables := a.collectFromTables(subSel)
+	for k, val := range fromTables {
+		if _, exists := subTables[k]; !exists {
+			subTables[k] = val
+		}
+	}
+	if subSel.TargetList != nil {
+		for _, item := range subSel.TargetList.Items {
+			if rt, ok := item.(*ast.ResTarget); ok {
+				a.extractColumnRefsFromExpr(rt.Val, subTables, result)
+			}
+		}
+	}
+	if subSel.WhereClause != nil {
+		whereColSet := make(ColumnSet)
+		a.extractColumnRefsFromExpr(subSel.WhereClause, subTables, whereColSet)
+		for k, val := range whereColSet {
+			a.extractor.predicateColumns[k] = val
+		}
+	}
+}
+
 // resolveColumnRef resolves a ColumnRef to a source column using known tables.
 // If the table is a CTE, it traces through the CTE to find real source columns.
 func (a *plpgsqlAnalyzer) resolveColumnRef(cr *ast.ColumnRef, fromTables map[string]ColumnResource, result ColumnSet) {
@@ -1593,6 +1609,24 @@ func (a *plpgsqlAnalyzer) resolveColumnRef(cr *ast.ColumnRef, fromTables map[str
 					Table:    emitTable,
 					Column:   colName,
 				}] = true
+				found = true
+			}
+		}
+		if found {
+			return
+		}
+		// An unqualified FROM name may be a CTE, whose columns are its
+		// query's outputs.
+		for _, fromKey := range slices.Sorted(maps.Keys(fromTables)) {
+			resource := fromTables[fromKey]
+			cteSel, ok := a.cteMap[strings.ToLower(resource.Table)]
+			if !ok || a.qualifiedFrom[fromKey] {
+				continue
+			}
+			sources := make(ColumnSet)
+			a.resolveThroughCTE(cteSel, colName, fromTables, sources)
+			if len(sources) > 0 {
+				maps.Copy(result, sources)
 				found = true
 			}
 		}
