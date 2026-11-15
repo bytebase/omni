@@ -3,6 +3,8 @@ package catalog
 import (
 	"maps"
 	"slices"
+
+	nodes "github.com/bytebase/omni/mariadb/ast"
 )
 
 // reorderTableChanges adjusts the ops of each modified table for what MariaDB
@@ -11,7 +13,8 @@ import (
 //     (1054 otherwise);
 //   - a key over a column the plan drops and adds again, to flip VIRTUAL and
 //     STORED, is dropped and added around it, since the drop takes the column
-//     out of the key;
+//     out of the key, and so are the kept generated columns and checks that
+//     read the column (1054, 4029);
 //   - where every column of a table is dropped, the drops run after the adds,
 //     since a table cannot lose its last column (1090);
 //   - a column read by a generated column the plan keeps drops after that
@@ -36,6 +39,7 @@ func reorderTableChanges(ops []MigrationOp, from, to *Catalog, diff *SchemaDiff,
 		ops = modifyGeneratedAfterAddedReads(ops, e)
 		ops = rebuildKeysOverReplacedPeriod(ops, e, n)
 		ops = rebuildKeysOverFlippedColumns(ops, e, n)
+		ops = rebuildReadersOfReplacedColumns(ops, e, n)
 		ops = dropLastColumnsAfterAdds(ops, e)
 		ops = releaseForeignKeysOfReplacedKeys(ops, e)
 	}
@@ -168,12 +172,97 @@ func indexOverPeriod(idx *Index, period string) bool {
 	return false
 }
 
+// replacedColumns returns the columns the plan drops and adds again: those
+// that flip between VIRTUAL, STORED and plain, and the kept generated columns
+// that read one, directly or through another, which MariaDB will not leave
+// reading a dropped column (1054, 4029). Each maps to its depth, 0 for a
+// flipped column and n for a reader n steps from one.
+func replacedColumns(e *TableDiffEntry) map[string]int {
+	gone := make(map[string]int)
+	changed := make(map[string]bool)
+	for _, ce := range e.Columns {
+		changed[toLower(ce.Name)] = true
+		if ce.Action == DiffModify && generatedShapeChanged(ce.From, ce.To) {
+			gone[toLower(ce.Name)] = 0
+		}
+	}
+	for depth := 1; len(gone) > 0; depth++ {
+		added := false
+		for _, col := range e.From.Columns {
+			name := toLower(col.Name)
+			if _, ok := gone[name]; ok || changed[name] || col.Generated == nil || e.To.GetColumn(col.Name) == nil {
+				continue
+			}
+			for _, ref := range col.Generated.Refs {
+				if d, ok := gone[toLower(ref)]; ok && d < depth {
+					gone[name], added = depth, true
+					break
+				}
+			}
+		}
+		if !added {
+			break
+		}
+	}
+	return gone
+}
+
+// rebuildReadersOfReplacedColumns drops the kept generated columns and table
+// checks that read a replaced column ahead of it, and adds them again after
+// it, deeper readers dropped first and added last.
+func rebuildReadersOfReplacedColumns(ops []MigrationOp, e *TableDiffEntry, n *Normalizer) []MigrationOp {
+	gone := replacedColumns(e)
+	if len(gone) == 0 {
+		return ops
+	}
+	table := tableIdent(e.To)
+	for _, col := range e.From.Columns {
+		depth := gone[toLower(col.Name)]
+		if depth == 0 {
+			continue
+		}
+		drop, add := dropColumnOp(e, table, col.Name, col), addColumnOp(e, table, e.To.GetColumn(col.Name), n)
+		drop.Priority, add.Priority = priorityColumn-1-depth, priorityColumn+1+depth
+		ops = append(ops, drop, add)
+	}
+	changedChecks := make(map[string]bool)
+	for _, ce := range e.Checks {
+		changedChecks[toLower(ce.Name)] = true
+	}
+	for _, con := range orderedChecks(e.From) {
+		if changedChecks[toLower(con.Name)] || !checkReadsAny(con, gone) {
+			continue
+		}
+		for _, to := range orderedChecks(e.To) {
+			if toLower(to.Name) == toLower(con.Name) {
+				ops = append(ops, dropCheckOp(e, table, con), addCheckOp(e, table, to))
+			}
+		}
+	}
+	return ops
+}
+
+func checkReadsAny(con *Constraint, columns map[string]int) bool {
+	expr, err := parseExpr(con.CheckExpr)
+	if err != nil {
+		return false
+	}
+	found := false
+	nodes.Inspect(expr, func(node nodes.Node) bool {
+		if ref, ok := node.(*nodes.ColumnRef); ok {
+			if _, gone := columns[toLower(ref.Column)]; gone {
+				found = true
+			}
+		}
+		return !found
+	})
+	return found
+}
+
 func rebuildKeysOverFlippedColumns(ops []MigrationOp, e *TableDiffEntry, n *Normalizer) []MigrationOp {
 	flipped := make(map[string]bool)
-	for _, ce := range e.Columns {
-		if ce.Action == DiffModify && generatedShapeChanged(ce.From, ce.To) {
-			flipped[toLower(ce.Name)] = true
-		}
+	for name := range replacedColumns(e) {
+		flipped[name] = true
 	}
 	if len(flipped) == 0 {
 		return ops

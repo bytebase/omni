@@ -3381,11 +3381,38 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET @saved_sql_mode = @@sql_mode
+< ok 0 0
+> exec
+| SET sql_mode = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION'
+< ok 0 0
+> exec
+| SET @saved_cs_client = @@character_set_client
+< ok 0 0
+> exec
+| SET character_set_client = utf8mb4
+< ok 0 0
+> exec
+| SET @saved_coll_conn = @@collation_connection
+< ok 0 0
+> exec
+| SET collation_connection = utf8mb4_uca1400_ai_ci
+< ok 0 0
+> exec
 | CREATE PROCEDURE `omni_testoracle_migrationconverges`.`GetProductInventory`(IN `product_name` VARCHAR(100))
 | BEGIN
 |     SELECT * FROM product_inventory
 |     WHERE name LIKE CONCAT('%', product_name, '%');
 | END
+< ok 0 0
+> exec
+| SET collation_connection = @saved_coll_conn
+< ok 0 0
+> exec
+| SET character_set_client = @saved_cs_client
+< ok 0 0
+> exec
+| SET sql_mode = @saved_sql_mode
 < ok 0 0
 > exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`low_stock_products` AS select `products`.`id` AS `id`,`products`.`name` AS `name`,`products`.`price` AS `price`,`products`.`stock` AS `stock` from `omni_testoracle_migrationconverges`.`products` where `products`.`stock` < 10
@@ -3394,11 +3421,38 @@
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`product_inventory` AS select `p`.`id` AS `id`,`p`.`name` AS `name`,`p`.`price` AS `price`,`p`.`stock` AS `stock`,coalesce(sum(`o`.`quantity`),0) AS `total_ordered` from (`omni_testoracle_migrationconverges`.`products` `p` left join `omni_testoracle_migrationconverges`.`orders` `o` on(`p`.`id` = `o`.`product_id`)) group by `p`.`id`,`p`.`name`,`p`.`price`,`p`.`stock`
 < ok 0 0
 > exec
+| SET @saved_sql_mode = @@sql_mode
+< ok 0 0
+> exec
+| SET sql_mode = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION'
+< ok 0 0
+> exec
+| SET @saved_cs_client = @@character_set_client
+< ok 0 0
+> exec
+| SET character_set_client = utf8mb4
+< ok 0 0
+> exec
+| SET @saved_coll_conn = @@collation_connection
+< ok 0 0
+> exec
+| SET collation_connection = utf8mb4_uca1400_ai_ci
+< ok 0 0
+> exec
 | CREATE TRIGGER `omni_testoracle_migrationconverges`.`update_order_total` BEFORE INSERT ON `omni_testoracle_migrationconverges`.`orders` FOR EACH ROW BEGIN
 |     DECLARE product_price DECIMAL(10, 2);
 |     SELECT price INTO product_price FROM products WHERE id = NEW.product_id;
 |     SET NEW.total = NEW.quantity * product_price;
 | END
+< ok 0 0
+> exec
+| SET collation_connection = @saved_coll_conn
+< ok 0 0
+> exec
+| SET character_set_client = @saved_cs_client
+< ok 0 0
+> exec
+| SET sql_mode = @saved_sql_mode
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -4486,6 +4540,24 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`sales_summary` ADD UNIQUE KEY `uk_product_month` (`product_id`,`month_year`)
 < ok 0 0
 > exec
+| SET @saved_sql_mode = @@sql_mode
+< ok 0 0
+> exec
+| SET sql_mode = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION'
+< ok 0 0
+> exec
+| SET @saved_cs_client = @@character_set_client
+< ok 0 0
+> exec
+| SET character_set_client = utf8mb4
+< ok 0 0
+> exec
+| SET @saved_coll_conn = @@collation_connection
+< ok 0 0
+> exec
+| SET collation_connection = utf8mb4_uca1400_ai_ci
+< ok 0 0
+> exec
 | CREATE FUNCTION `omni_testoracle_migrationconverges`.`CalculateTotalSales`(`p_product_id` INT, `p_start_date` DATE, `p_end_date` DATE) RETURNS decimal(10,2)
 |     DETERMINISTIC
 |     READS SQL DATA
@@ -4501,12 +4573,48 @@
 | END
 < ok 0 0
 > exec
+| SET collation_connection = @saved_coll_conn
+< ok 0 0
+> exec
+| SET character_set_client = @saved_cs_client
+< ok 0 0
+> exec
+| SET sql_mode = @saved_sql_mode
+< ok 0 0
+> exec
+| SET @saved_sql_mode = @@sql_mode
+< ok 0 0
+> exec
+| SET sql_mode = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION'
+< ok 0 0
+> exec
+| SET @saved_cs_client = @@character_set_client
+< ok 0 0
+> exec
+| SET character_set_client = utf8mb4
+< ok 0 0
+> exec
+| SET @saved_coll_conn = @@collation_connection
+< ok 0 0
+> exec
+| SET collation_connection = utf8mb4_uca1400_ai_ci
+< ok 0 0
+> exec
 | CREATE FUNCTION `omni_testoracle_migrationconverges`.`GetTaxAmount`(`amount` DECIMAL(10,2), `tax_rate` DECIMAL(5,2)) RETURNS decimal(10,2)
 |     DETERMINISTIC
 |     NO SQL
 | BEGIN
 |     RETURN amount * (tax_rate / 100);
 | END
+< ok 0 0
+> exec
+| SET collation_connection = @saved_coll_conn
+< ok 0 0
+> exec
+| SET character_set_client = @saved_cs_client
+< ok 0 0
+> exec
+| SET sql_mode = @saved_sql_mode
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -5856,10 +5964,55 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET @saved_sql_mode = @@sql_mode
+< ok 0 0
+> exec
+| SET sql_mode = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION'
+< ok 0 0
+> exec
+| SET @saved_cs_client = @@character_set_client
+< ok 0 0
+> exec
+| SET character_set_client = utf8mb4
+< ok 0 0
+> exec
+| SET @saved_coll_conn = @@collation_connection
+< ok 0 0
+> exec
+| SET collation_connection = utf8mb4_uca1400_ai_ci
+< ok 0 0
+> exec
 | CREATE PROCEDURE `omni_testoracle_migrationconverges`.`CalculateDiscount`(IN `amount` DECIMAL(10,2), OUT `discount` DECIMAL(10,2))
 | BEGIN
 |     SET discount = amount * 0.1;
 | END
+< ok 0 0
+> exec
+| SET collation_connection = @saved_coll_conn
+< ok 0 0
+> exec
+| SET character_set_client = @saved_cs_client
+< ok 0 0
+> exec
+| SET sql_mode = @saved_sql_mode
+< ok 0 0
+> exec
+| SET @saved_sql_mode = @@sql_mode
+< ok 0 0
+> exec
+| SET sql_mode = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION'
+< ok 0 0
+> exec
+| SET @saved_cs_client = @@character_set_client
+< ok 0 0
+> exec
+| SET character_set_client = utf8mb4
+< ok 0 0
+> exec
+| SET @saved_coll_conn = @@collation_connection
+< ok 0 0
+> exec
+| SET collation_connection = utf8mb4_uca1400_ai_ci
 < ok 0 0
 > exec
 | CREATE FUNCTION `omni_testoracle_migrationconverges`.`GetMonthlySalesTotal`(`year` INT, `month` INT) RETURNS decimal(10,2)
@@ -5872,6 +6025,15 @@
 |     WHERE YEAR(sale_date) = year AND MONTH(sale_date) = month;
 |     RETURN total;
 | END
+< ok 0 0
+> exec
+| SET collation_connection = @saved_coll_conn
+< ok 0 0
+> exec
+| SET character_set_client = @saved_cs_client
+< ok 0 0
+> exec
+| SET sql_mode = @saved_sql_mode
 < ok 0 0
 > exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`monthly_sales` AS select year(`sales`.`sale_date`) AS `year`,month(`sales`.`sale_date`) AS `month`,sum(`sales`.`sale_amount`) AS `total_sales` from `omni_testoracle_migrationconverges`.`sales` group by year(`sales`.`sale_date`),month(`sales`.`sale_date`)
@@ -10920,6 +11082,24 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`order_items` ADD KEY `idx_order` (`order_id`)
 < ok 0 0
 > exec
+| SET @saved_sql_mode = @@sql_mode
+< ok 0 0
+> exec
+| SET sql_mode = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION'
+< ok 0 0
+> exec
+| SET @saved_cs_client = @@character_set_client
+< ok 0 0
+> exec
+| SET character_set_client = utf8mb4
+< ok 0 0
+> exec
+| SET @saved_coll_conn = @@collation_connection
+< ok 0 0
+> exec
+| SET collation_connection = utf8mb4_uca1400_ai_ci
+< ok 0 0
+> exec
 | CREATE TRIGGER `omni_testoracle_migrationconverges`.`trg_update_order_total` AFTER INSERT ON `omni_testoracle_migrationconverges`.`order_items` FOR EACH ROW BEGIN
 |     UPDATE orders
 |     SET total_amount = (
@@ -10929,6 +11109,15 @@
 |     )
 |     WHERE id = NEW.order_id;
 | END
+< ok 0 0
+> exec
+| SET collation_connection = @saved_coll_conn
+< ok 0 0
+> exec
+| SET character_set_client = @saved_cs_client
+< ok 0 0
+> exec
+| SET sql_mode = @saved_sql_mode
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`customers` ADD CONSTRAINT `fk_preferred_order` FOREIGN KEY (`preferred_order_id`) REFERENCES `orders` (`id`) ON DELETE SET NULL
@@ -14587,10 +14776,55 @@
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`inventory_changes` AS select `inventory_log`.`product_id` AS `product_id`,count(0) AS `change_count`,max(`inventory_log`.`changed_at`) AS `last_changed` from `omni_testoracle_migrationconverges`.`inventory_log` group by `inventory_log`.`product_id`
 < ok 0 0
 > exec
+| SET @saved_sql_mode = @@sql_mode
+< ok 0 0
+> exec
+| SET sql_mode = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION'
+< ok 0 0
+> exec
+| SET @saved_cs_client = @@character_set_client
+< ok 0 0
+> exec
+| SET character_set_client = utf8mb4
+< ok 0 0
+> exec
+| SET @saved_coll_conn = @@collation_connection
+< ok 0 0
+> exec
+| SET collation_connection = utf8mb4_uca1400_ai_ci
+< ok 0 0
+> exec
 | CREATE TRIGGER `omni_testoracle_migrationconverges`.`trg_inventory_delete` BEFORE DELETE ON `omni_testoracle_migrationconverges`.`inventory` FOR EACH ROW BEGIN
 |     INSERT INTO inventory_log (product_id, old_quantity, new_quantity, change_type)
 |     VALUES (OLD.product_id, OLD.quantity, NULL, 'DELETE');
 | END
+< ok 0 0
+> exec
+| SET collation_connection = @saved_coll_conn
+< ok 0 0
+> exec
+| SET character_set_client = @saved_cs_client
+< ok 0 0
+> exec
+| SET sql_mode = @saved_sql_mode
+< ok 0 0
+> exec
+| SET @saved_sql_mode = @@sql_mode
+< ok 0 0
+> exec
+| SET sql_mode = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION'
+< ok 0 0
+> exec
+| SET @saved_cs_client = @@character_set_client
+< ok 0 0
+> exec
+| SET character_set_client = utf8mb4
+< ok 0 0
+> exec
+| SET @saved_coll_conn = @@collation_connection
+< ok 0 0
+> exec
+| SET collation_connection = utf8mb4_uca1400_ai_ci
 < ok 0 0
 > exec
 | CREATE TRIGGER `omni_testoracle_migrationconverges`.`trg_inventory_insert` AFTER INSERT ON `omni_testoracle_migrationconverges`.`inventory` FOR EACH ROW BEGIN
@@ -14599,12 +14833,48 @@
 | END
 < ok 0 0
 > exec
+| SET collation_connection = @saved_coll_conn
+< ok 0 0
+> exec
+| SET character_set_client = @saved_cs_client
+< ok 0 0
+> exec
+| SET sql_mode = @saved_sql_mode
+< ok 0 0
+> exec
+| SET @saved_sql_mode = @@sql_mode
+< ok 0 0
+> exec
+| SET sql_mode = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION'
+< ok 0 0
+> exec
+| SET @saved_cs_client = @@character_set_client
+< ok 0 0
+> exec
+| SET character_set_client = utf8mb4
+< ok 0 0
+> exec
+| SET @saved_coll_conn = @@collation_connection
+< ok 0 0
+> exec
+| SET collation_connection = utf8mb4_uca1400_ai_ci
+< ok 0 0
+> exec
 | CREATE TRIGGER `omni_testoracle_migrationconverges`.`trg_inventory_update` AFTER UPDATE ON `omni_testoracle_migrationconverges`.`inventory` FOR EACH ROW BEGIN
 |     IF OLD.quantity != NEW.quantity THEN
 |         INSERT INTO inventory_log (product_id, old_quantity, new_quantity, change_type)
 |         VALUES (NEW.product_id, OLD.quantity, NEW.quantity, 'UPDATE');
 |     END IF;
 | END
+< ok 0 0
+> exec
+| SET collation_connection = @saved_coll_conn
+< ok 0 0
+> exec
+| SET character_set_client = @saved_cs_client
+< ok 0 0
+> exec
+| SET sql_mode = @saved_sql_mode
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -16373,6 +16643,24 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET @saved_sql_mode = @@sql_mode
+< ok 0 0
+> exec
+| SET sql_mode = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION'
+< ok 0 0
+> exec
+| SET @saved_cs_client = @@character_set_client
+< ok 0 0
+> exec
+| SET character_set_client = utf8mb4
+< ok 0 0
+> exec
+| SET @saved_coll_conn = @@collation_connection
+< ok 0 0
+> exec
+| SET collation_connection = utf8mb4_uca1400_ai_ci
+< ok 0 0
+> exec
 | CREATE FUNCTION `omni_testoracle_migrationconverges`.`GetAverageStat`(`p_stat_name` VARCHAR(100)) RETURNS decimal(10,2)
 |     DETERMINISTIC
 |     READS SQL DATA
@@ -16386,6 +16674,33 @@
 |
 |     RETURN COALESCE(avg_value, 0);
 | END
+< ok 0 0
+> exec
+| SET collation_connection = @saved_coll_conn
+< ok 0 0
+> exec
+| SET character_set_client = @saved_cs_client
+< ok 0 0
+> exec
+| SET sql_mode = @saved_sql_mode
+< ok 0 0
+> exec
+| SET @saved_sql_mode = @@sql_mode
+< ok 0 0
+> exec
+| SET sql_mode = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION'
+< ok 0 0
+> exec
+| SET @saved_cs_client = @@character_set_client
+< ok 0 0
+> exec
+| SET character_set_client = utf8mb4
+< ok 0 0
+> exec
+| SET @saved_coll_conn = @@collation_connection
+< ok 0 0
+> exec
+| SET collation_connection = utf8mb4_uca1400_ai_ci
 < ok 0 0
 > exec
 | CREATE PROCEDURE `omni_testoracle_migrationconverges`.`RecordSystemStat`(IN `p_stat_name` VARCHAR(100), IN `p_stat_value` DECIMAL(10,2))
@@ -16405,10 +16720,55 @@
 | END
 < ok 0 0
 > exec
+| SET collation_connection = @saved_coll_conn
+< ok 0 0
+> exec
+| SET character_set_client = @saved_cs_client
+< ok 0 0
+> exec
+| SET sql_mode = @saved_sql_mode
+< ok 0 0
+> exec
+| SET @saved_sql_mode = @@sql_mode
+< ok 0 0
+> exec
+| SET sql_mode = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION'
+< ok 0 0
+> exec
+| SET @saved_cs_client = @@character_set_client
+< ok 0 0
+> exec
+| SET character_set_client = utf8mb4
+< ok 0 0
+> exec
+| SET @saved_coll_conn = @@collation_connection
+< ok 0 0
+> exec
+| SET collation_connection = utf8mb4_uca1400_ai_ci
+< ok 0 0
+> exec
+| SET @saved_time_zone = @@time_zone
+< ok 0 0
+> exec
+| SET time_zone = 'SYSTEM'
+< ok 0 0
+> exec
 | CREATE EVENT `omni_testoracle_migrationconverges`.`evt_cleanup_old_stats` ON SCHEDULE EVERY 1 DAY STARTS '2026-11-15 03:44:31' ON COMPLETION NOT PRESERVE ENABLE COMMENT '' DO BEGIN
 |     DELETE FROM system_stats
 |     WHERE recorded_at < DATE_SUB(NOW(), INTERVAL 30 DAY);
 | END
+< ok 0 0
+> exec
+| SET time_zone = @saved_time_zone
+< ok 0 0
+> exec
+| SET collation_connection = @saved_coll_conn
+< ok 0 0
+> exec
+| SET character_set_client = @saved_cs_client
+< ok 0 0
+> exec
+| SET sql_mode = @saved_sql_mode
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -22441,11 +22801,38 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET @saved_sql_mode = @@sql_mode
+< ok 0 0
+> exec
+| SET sql_mode = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION'
+< ok 0 0
+> exec
+| SET @saved_cs_client = @@character_set_client
+< ok 0 0
+> exec
+| SET character_set_client = utf8mb4
+< ok 0 0
+> exec
+| SET @saved_coll_conn = @@collation_connection
+< ok 0 0
+> exec
+| SET collation_connection = utf8mb4_uca1400_ai_ci
+< ok 0 0
+> exec
 | CREATE PROCEDURE `omni_testoracle_migrationconverges`.`GetProductInventory`(IN `product_name` VARCHAR(100))
 | BEGIN
 |     SELECT * FROM product_inventory
 |     WHERE name LIKE CONCAT('%', product_name, '%');
 | END
+< ok 0 0
+> exec
+| SET collation_connection = @saved_coll_conn
+< ok 0 0
+> exec
+| SET character_set_client = @saved_cs_client
+< ok 0 0
+> exec
+| SET sql_mode = @saved_sql_mode
 < ok 0 0
 > exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`low_stock_products` AS select `products`.`id` AS `id`,`products`.`name` AS `name`,`products`.`price` AS `price`,`products`.`stock` AS `stock` from `omni_testoracle_migrationconverges`.`products` where `products`.`stock` < 10
@@ -22454,11 +22841,38 @@
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`product_inventory` AS select `p`.`id` AS `id`,`p`.`name` AS `name`,`p`.`price` AS `price`,`p`.`stock` AS `stock`,coalesce(sum(`o`.`quantity`),0) AS `total_ordered` from (`omni_testoracle_migrationconverges`.`products` `p` left join `omni_testoracle_migrationconverges`.`orders` `o` on(`p`.`id` = `o`.`product_id`)) group by `p`.`id`,`p`.`name`,`p`.`price`,`p`.`stock`
 < ok 0 0
 > exec
+| SET @saved_sql_mode = @@sql_mode
+< ok 0 0
+> exec
+| SET sql_mode = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION'
+< ok 0 0
+> exec
+| SET @saved_cs_client = @@character_set_client
+< ok 0 0
+> exec
+| SET character_set_client = utf8mb4
+< ok 0 0
+> exec
+| SET @saved_coll_conn = @@collation_connection
+< ok 0 0
+> exec
+| SET collation_connection = utf8mb4_uca1400_ai_ci
+< ok 0 0
+> exec
 | CREATE TRIGGER `omni_testoracle_migrationconverges`.`update_order_total` BEFORE INSERT ON `omni_testoracle_migrationconverges`.`orders` FOR EACH ROW BEGIN
 |     DECLARE product_price DECIMAL(10, 2);
 |     SELECT price INTO product_price FROM products WHERE id = NEW.product_id;
 |     SET NEW.total = NEW.quantity * product_price;
 | END
+< ok 0 0
+> exec
+| SET collation_connection = @saved_coll_conn
+< ok 0 0
+> exec
+| SET character_set_client = @saved_cs_client
+< ok 0 0
+> exec
+| SET sql_mode = @saved_sql_mode
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -23645,6 +24059,24 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`sales_summary` ADD UNIQUE KEY `uk_product_month` (`product_id`,`month_year`)
 < ok 0 0
 > exec
+| SET @saved_sql_mode = @@sql_mode
+< ok 0 0
+> exec
+| SET sql_mode = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION'
+< ok 0 0
+> exec
+| SET @saved_cs_client = @@character_set_client
+< ok 0 0
+> exec
+| SET character_set_client = utf8mb4
+< ok 0 0
+> exec
+| SET @saved_coll_conn = @@collation_connection
+< ok 0 0
+> exec
+| SET collation_connection = utf8mb4_uca1400_ai_ci
+< ok 0 0
+> exec
 | CREATE FUNCTION `omni_testoracle_migrationconverges`.`CalculateTotalSales`(`p_product_id` INT, `p_start_date` DATE, `p_end_date` DATE) RETURNS decimal(10,2)
 |     DETERMINISTIC
 |     READS SQL DATA
@@ -23660,12 +24092,48 @@
 | END
 < ok 0 0
 > exec
+| SET collation_connection = @saved_coll_conn
+< ok 0 0
+> exec
+| SET character_set_client = @saved_cs_client
+< ok 0 0
+> exec
+| SET sql_mode = @saved_sql_mode
+< ok 0 0
+> exec
+| SET @saved_sql_mode = @@sql_mode
+< ok 0 0
+> exec
+| SET sql_mode = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION'
+< ok 0 0
+> exec
+| SET @saved_cs_client = @@character_set_client
+< ok 0 0
+> exec
+| SET character_set_client = utf8mb4
+< ok 0 0
+> exec
+| SET @saved_coll_conn = @@collation_connection
+< ok 0 0
+> exec
+| SET collation_connection = utf8mb4_uca1400_ai_ci
+< ok 0 0
+> exec
 | CREATE FUNCTION `omni_testoracle_migrationconverges`.`GetTaxAmount`(`amount` DECIMAL(10,2), `tax_rate` DECIMAL(5,2)) RETURNS decimal(10,2)
 |     DETERMINISTIC
 |     NO SQL
 | BEGIN
 |     RETURN amount * (tax_rate / 100);
 | END
+< ok 0 0
+> exec
+| SET collation_connection = @saved_coll_conn
+< ok 0 0
+> exec
+| SET character_set_client = @saved_cs_client
+< ok 0 0
+> exec
+| SET sql_mode = @saved_sql_mode
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -27523,10 +27991,55 @@
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`inventory_changes` AS select `inventory_log`.`product_id` AS `product_id`,count(0) AS `change_count`,max(`inventory_log`.`changed_at`) AS `last_changed` from `omni_testoracle_migrationconverges`.`inventory_log` group by `inventory_log`.`product_id`
 < ok 0 0
 > exec
+| SET @saved_sql_mode = @@sql_mode
+< ok 0 0
+> exec
+| SET sql_mode = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION'
+< ok 0 0
+> exec
+| SET @saved_cs_client = @@character_set_client
+< ok 0 0
+> exec
+| SET character_set_client = utf8mb4
+< ok 0 0
+> exec
+| SET @saved_coll_conn = @@collation_connection
+< ok 0 0
+> exec
+| SET collation_connection = utf8mb4_uca1400_ai_ci
+< ok 0 0
+> exec
 | CREATE TRIGGER `omni_testoracle_migrationconverges`.`trg_inventory_delete` BEFORE DELETE ON `omni_testoracle_migrationconverges`.`inventory` FOR EACH ROW BEGIN
 |     INSERT INTO inventory_log (product_id, old_quantity, new_quantity, change_type)
 |     VALUES (OLD.product_id, OLD.quantity, NULL, 'DELETE');
 | END
+< ok 0 0
+> exec
+| SET collation_connection = @saved_coll_conn
+< ok 0 0
+> exec
+| SET character_set_client = @saved_cs_client
+< ok 0 0
+> exec
+| SET sql_mode = @saved_sql_mode
+< ok 0 0
+> exec
+| SET @saved_sql_mode = @@sql_mode
+< ok 0 0
+> exec
+| SET sql_mode = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION'
+< ok 0 0
+> exec
+| SET @saved_cs_client = @@character_set_client
+< ok 0 0
+> exec
+| SET character_set_client = utf8mb4
+< ok 0 0
+> exec
+| SET @saved_coll_conn = @@collation_connection
+< ok 0 0
+> exec
+| SET collation_connection = utf8mb4_uca1400_ai_ci
 < ok 0 0
 > exec
 | CREATE TRIGGER `omni_testoracle_migrationconverges`.`trg_inventory_insert` AFTER INSERT ON `omni_testoracle_migrationconverges`.`inventory` FOR EACH ROW BEGIN
@@ -27535,12 +28048,48 @@
 | END
 < ok 0 0
 > exec
+| SET collation_connection = @saved_coll_conn
+< ok 0 0
+> exec
+| SET character_set_client = @saved_cs_client
+< ok 0 0
+> exec
+| SET sql_mode = @saved_sql_mode
+< ok 0 0
+> exec
+| SET @saved_sql_mode = @@sql_mode
+< ok 0 0
+> exec
+| SET sql_mode = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION'
+< ok 0 0
+> exec
+| SET @saved_cs_client = @@character_set_client
+< ok 0 0
+> exec
+| SET character_set_client = utf8mb4
+< ok 0 0
+> exec
+| SET @saved_coll_conn = @@collation_connection
+< ok 0 0
+> exec
+| SET collation_connection = utf8mb4_uca1400_ai_ci
+< ok 0 0
+> exec
 | CREATE TRIGGER `omni_testoracle_migrationconverges`.`trg_inventory_update` AFTER UPDATE ON `omni_testoracle_migrationconverges`.`inventory` FOR EACH ROW BEGIN
 |     IF OLD.quantity != NEW.quantity THEN
 |         INSERT INTO inventory_log (product_id, old_quantity, new_quantity, change_type)
 |         VALUES (NEW.product_id, OLD.quantity, NEW.quantity, 'UPDATE');
 |     END IF;
 | END
+< ok 0 0
+> exec
+| SET collation_connection = @saved_coll_conn
+< ok 0 0
+> exec
+| SET character_set_client = @saved_cs_client
+< ok 0 0
+> exec
+| SET sql_mode = @saved_sql_mode
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -28741,6 +29290,24 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET @saved_sql_mode = @@sql_mode
+< ok 0 0
+> exec
+| SET sql_mode = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION'
+< ok 0 0
+> exec
+| SET @saved_cs_client = @@character_set_client
+< ok 0 0
+> exec
+| SET character_set_client = utf8mb4
+< ok 0 0
+> exec
+| SET @saved_coll_conn = @@collation_connection
+< ok 0 0
+> exec
+| SET collation_connection = utf8mb4_uca1400_ai_ci
+< ok 0 0
+> exec
 | CREATE FUNCTION `omni_testoracle_migrationconverges`.`GetAverageStat`(`p_stat_name` VARCHAR(100)) RETURNS decimal(10,2)
 |     DETERMINISTIC
 |     READS SQL DATA
@@ -28754,6 +29321,33 @@
 |
 |     RETURN COALESCE(avg_value, 0);
 | END
+< ok 0 0
+> exec
+| SET collation_connection = @saved_coll_conn
+< ok 0 0
+> exec
+| SET character_set_client = @saved_cs_client
+< ok 0 0
+> exec
+| SET sql_mode = @saved_sql_mode
+< ok 0 0
+> exec
+| SET @saved_sql_mode = @@sql_mode
+< ok 0 0
+> exec
+| SET sql_mode = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION'
+< ok 0 0
+> exec
+| SET @saved_cs_client = @@character_set_client
+< ok 0 0
+> exec
+| SET character_set_client = utf8mb4
+< ok 0 0
+> exec
+| SET @saved_coll_conn = @@collation_connection
+< ok 0 0
+> exec
+| SET collation_connection = utf8mb4_uca1400_ai_ci
 < ok 0 0
 > exec
 | CREATE PROCEDURE `omni_testoracle_migrationconverges`.`RecordSystemStat`(IN `p_stat_name` VARCHAR(100), IN `p_stat_value` DECIMAL(10,2))
@@ -28773,10 +29367,55 @@
 | END
 < ok 0 0
 > exec
+| SET collation_connection = @saved_coll_conn
+< ok 0 0
+> exec
+| SET character_set_client = @saved_cs_client
+< ok 0 0
+> exec
+| SET sql_mode = @saved_sql_mode
+< ok 0 0
+> exec
+| SET @saved_sql_mode = @@sql_mode
+< ok 0 0
+> exec
+| SET sql_mode = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION'
+< ok 0 0
+> exec
+| SET @saved_cs_client = @@character_set_client
+< ok 0 0
+> exec
+| SET character_set_client = utf8mb4
+< ok 0 0
+> exec
+| SET @saved_coll_conn = @@collation_connection
+< ok 0 0
+> exec
+| SET collation_connection = utf8mb4_uca1400_ai_ci
+< ok 0 0
+> exec
+| SET @saved_time_zone = @@time_zone
+< ok 0 0
+> exec
+| SET time_zone = 'SYSTEM'
+< ok 0 0
+> exec
 | CREATE EVENT `omni_testoracle_migrationconverges`.`evt_cleanup_old_stats` ON SCHEDULE EVERY 1 DAY STARTS '2026-11-15 03:44:32' ON COMPLETION NOT PRESERVE ENABLE COMMENT '' DO BEGIN
 |     DELETE FROM system_stats
 |     WHERE recorded_at < DATE_SUB(NOW(), INTERVAL 30 DAY);
 | END
+< ok 0 0
+> exec
+| SET time_zone = @saved_time_zone
+< ok 0 0
+> exec
+| SET collation_connection = @saved_coll_conn
+< ok 0 0
+> exec
+| SET character_set_client = @saved_cs_client
+< ok 0 0
+> exec
+| SET sql_mode = @saved_sql_mode
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -40015,15 +40654,69 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET @saved_sql_mode = @@sql_mode
+< ok 0 0
+> exec
+| SET sql_mode = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION'
+< ok 0 0
+> exec
+| SET @saved_cs_client = @@character_set_client
+< ok 0 0
+> exec
+| SET character_set_client = utf8mb4
+< ok 0 0
+> exec
+| SET @saved_coll_conn = @@collation_connection
+< ok 0 0
+> exec
+| SET collation_connection = utf8mb4_uca1400_ai_ci
+< ok 0 0
+> exec
 | CREATE FUNCTION `omni_testoracle_migrationconverges`.`f_add`(`a` INT, `b` INT) RETURNS int(11)
 |     DETERMINISTIC
 | RETURN a + b
+< ok 0 0
+> exec
+| SET collation_connection = @saved_coll_conn
+< ok 0 0
+> exec
+| SET character_set_client = @saved_cs_client
+< ok 0 0
+> exec
+| SET sql_mode = @saved_sql_mode
+< ok 0 0
+> exec
+| SET @saved_sql_mode = @@sql_mode
+< ok 0 0
+> exec
+| SET sql_mode = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION'
+< ok 0 0
+> exec
+| SET @saved_cs_client = @@character_set_client
+< ok 0 0
+> exec
+| SET character_set_client = utf8mb4
+< ok 0 0
+> exec
+| SET @saved_coll_conn = @@collation_connection
+< ok 0 0
+> exec
+| SET collation_connection = utf8mb4_uca1400_ai_ci
 < ok 0 0
 > exec
 | CREATE PROCEDURE `omni_testoracle_migrationconverges`.`p_ins`(IN `x` INT, OUT `n` INT)
 |     MODIFIES SQL DATA
 |     COMMENT 'inserts'
 | BEGIN INSERT INTO r VALUES (x); SELECT COUNT(*) INTO n FROM r; END
+< ok 0 0
+> exec
+| SET collation_connection = @saved_coll_conn
+< ok 0 0
+> exec
+| SET character_set_client = @saved_cs_client
+< ok 0 0
+> exec
+| SET sql_mode = @saved_sql_mode
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -40778,16 +41471,133 @@
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
 < ok 0 0
 > exec
+| SET @saved_sql_mode = @@sql_mode
+< ok 0 0
+> exec
+| SET sql_mode = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION'
+< ok 0 0
+> exec
+| SET @saved_cs_client = @@character_set_client
+< ok 0 0
+> exec
+| SET character_set_client = utf8mb4
+< ok 0 0
+> exec
+| SET @saved_coll_conn = @@collation_connection
+< ok 0 0
+> exec
+| SET collation_connection = utf8mb4_uca1400_ai_ci
+< ok 0 0
+> exec
 | CREATE TRIGGER `omni_testoracle_migrationconverges`.`trg_au` AFTER UPDATE ON `omni_testoracle_migrationconverges`.`tr` FOR EACH ROW BEGIN INSERT INTO tr_log (msg) VALUES (CONCAT('updated ', NEW.id)); END
+< ok 0 0
+> exec
+| SET collation_connection = @saved_coll_conn
+< ok 0 0
+> exec
+| SET character_set_client = @saved_cs_client
+< ok 0 0
+> exec
+| SET sql_mode = @saved_sql_mode
+< ok 0 0
+> exec
+| SET @saved_sql_mode = @@sql_mode
+< ok 0 0
+> exec
+| SET sql_mode = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION'
+< ok 0 0
+> exec
+| SET @saved_cs_client = @@character_set_client
+< ok 0 0
+> exec
+| SET character_set_client = utf8mb4
+< ok 0 0
+> exec
+| SET @saved_coll_conn = @@collation_connection
+< ok 0 0
+> exec
+| SET collation_connection = utf8mb4_uca1400_ai_ci
 < ok 0 0
 > exec
 | CREATE TRIGGER `omni_testoracle_migrationconverges`.`trg_bi` BEFORE INSERT ON `omni_testoracle_migrationconverges`.`tr` FOR EACH ROW SET NEW.updated = NOW()
 < ok 0 0
 > exec
+| SET collation_connection = @saved_coll_conn
+< ok 0 0
+> exec
+| SET character_set_client = @saved_cs_client
+< ok 0 0
+> exec
+| SET sql_mode = @saved_sql_mode
+< ok 0 0
+> exec
+| SET @saved_sql_mode = @@sql_mode
+< ok 0 0
+> exec
+| SET sql_mode = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION'
+< ok 0 0
+> exec
+| SET @saved_cs_client = @@character_set_client
+< ok 0 0
+> exec
+| SET character_set_client = utf8mb4
+< ok 0 0
+> exec
+| SET @saved_coll_conn = @@collation_connection
+< ok 0 0
+> exec
+| SET collation_connection = utf8mb4_uca1400_ai_ci
+< ok 0 0
+> exec
 | CREATE TRIGGER `omni_testoracle_migrationconverges`.`trg_bi2` BEFORE INSERT ON `omni_testoracle_migrationconverges`.`tr` FOR EACH ROW SET NEW.n = COALESCE(NEW.n, 0)
 < ok 0 0
 > exec
+| SET collation_connection = @saved_coll_conn
+< ok 0 0
+> exec
+| SET character_set_client = @saved_cs_client
+< ok 0 0
+> exec
+| SET sql_mode = @saved_sql_mode
+< ok 0 0
+> exec
+| SET @saved_sql_mode = @@sql_mode
+< ok 0 0
+> exec
+| SET sql_mode = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION'
+< ok 0 0
+> exec
+| SET @saved_cs_client = @@character_set_client
+< ok 0 0
+> exec
+| SET character_set_client = utf8mb4
+< ok 0 0
+> exec
+| SET @saved_coll_conn = @@collation_connection
+< ok 0 0
+> exec
+| SET collation_connection = utf8mb4_uca1400_ai_ci
+< ok 0 0
+> exec
+| SET @saved_time_zone = @@time_zone
+< ok 0 0
+> exec
+| SET time_zone = 'SYSTEM'
+< ok 0 0
+> exec
 | CREATE EVENT `omni_testoracle_migrationconverges`.`ev_purge` ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ON COMPLETION PRESERVE DISABLE COMMENT 'purge' DO DELETE FROM tr_log
+< ok 0 0
+> exec
+| SET time_zone = @saved_time_zone
+< ok 0 0
+> exec
+| SET collation_connection = @saved_coll_conn
+< ok 0 0
+> exec
+| SET character_set_client = @saved_cs_client
+< ok 0 0
+> exec
+| SET sql_mode = @saved_sql_mode
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -67313,6 +68123,378 @@
 |   `e2` date NOT NULL,
 |   PERIOD FOR `p` (`s`, `e`),
 |   UNIQUE KEY `k` (`id`,`p` WITHOUT OVERLAPS)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, h INT AS (x + 1) STORED, g INT AS (h + 1) VIRTUAL, k INT AS (g * 2) VIRTUAL, CONSTRAINT ck CHECK (h > 0), KEY kg (g))
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `h` int(11) GENERATED ALWAYS AS (`x` + 1) STORED,
+|   `g` int(11) GENERATED ALWAYS AS (`h` + 1) VIRTUAL,
+|   `k` int(11) GENERATED ALWAYS AS (`g` * 2) VIRTUAL,
+|   KEY `kg` (`g`),
+|   CONSTRAINT `ck` CHECK (`h` > 0)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, h INT AS (x + 1) VIRTUAL, g INT AS (h + 1) VIRTUAL, k INT AS (g * 2) VIRTUAL, CONSTRAINT ck CHECK (h > 0), KEY kg (g))
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP CONSTRAINT `ck`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP INDEX `kg`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `k`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `g`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `h`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `h` int(11) GENERATED ALWAYS AS (`x` + 1) STORED
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `g` int(11) GENERATED ALWAYS AS (`h` + 1) VIRTUAL
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `k` int(11) GENERATED ALWAYS AS (`g` * 2) VIRTUAL
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD KEY `kg` (`g`)
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD CONSTRAINT `ck` CHECK (`h` > 0)
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `h` int(11) GENERATED ALWAYS AS (`x` + 1) STORED,
+|   `g` int(11) GENERATED ALWAYS AS (`h` + 1) VIRTUAL,
+|   `k` int(11) GENERATED ALWAYS AS (`g` * 2) VIRTUAL,
+|   KEY `kg` (`g`),
+|   CONSTRAINT `ck` CHECK (`h` > 0)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, h INT AS (x + 1) VIRTUAL, g INT AS (h + 1) VIRTUAL, k INT AS (g * 2) VIRTUAL, CONSTRAINT ck CHECK (h > 0), KEY kg (g))
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `h` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL,
+|   `g` int(11) GENERATED ALWAYS AS (`h` + 1) VIRTUAL,
+|   `k` int(11) GENERATED ALWAYS AS (`g` * 2) VIRTUAL,
+|   KEY `kg` (`g`),
+|   CONSTRAINT `ck` CHECK (`h` > 0)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, h INT AS (x + 1) STORED, g INT AS (h + 1) VIRTUAL, k INT AS (g * 2) VIRTUAL, CONSTRAINT ck CHECK (h > 0), KEY kg (g))
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP CONSTRAINT `ck`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP INDEX `kg`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `k`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `g`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `h`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `h` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `g` int(11) GENERATED ALWAYS AS (`h` + 1) VIRTUAL
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `k` int(11) GENERATED ALWAYS AS (`g` * 2) VIRTUAL
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD KEY `kg` (`g`)
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD CONSTRAINT `ck` CHECK (`h` > 0)
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `h` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL,
+|   `g` int(11) GENERATED ALWAYS AS (`h` + 1) VIRTUAL,
+|   `k` int(11) GENERATED ALWAYS AS (`g` * 2) VIRTUAL,
+|   KEY `kg` (`g`),
+|   CONSTRAINT `ck` CHECK (`h` > 0)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
 > query
 | SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'

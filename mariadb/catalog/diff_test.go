@@ -102,6 +102,7 @@ var diffPairs = []struct{ name, a, b string }{
 	{"generated column reading an added one", "CREATE TABLE t (x INT, g INT AS (x + 1) VIRTUAL)", "CREATE TABLE t (x INT, h INT AS (x + 1) VIRTUAL, g INT AS (h + 1) VIRTUAL)"},
 	{"referenced key replaced", "CREATE TABLE p (id INT, KEY k (id)); CREATE TABLE ch (pid INT, CONSTRAINT f FOREIGN KEY (pid) REFERENCES p (id))", "CREATE TABLE p (id INT, KEY k (id) COMMENT 'c'); CREATE TABLE ch (pid INT, CONSTRAINT f FOREIGN KEY (pid) REFERENCES p (id))"},
 	{"period moved under an overlap key", "CREATE TABLE t (id INT, s DATE NOT NULL, e DATE NOT NULL, s2 DATE NOT NULL, e2 DATE NOT NULL, PERIOD FOR p (s, e), UNIQUE KEY k (id, p WITHOUT OVERLAPS))", "CREATE TABLE t (id INT, s DATE NOT NULL, e DATE NOT NULL, s2 DATE NOT NULL, e2 DATE NOT NULL, PERIOD FOR p (s2, e2), UNIQUE KEY k (id, p WITHOUT OVERLAPS))"},
+	{"flipped column with readers", "CREATE TABLE t (x INT, h INT AS (x + 1) VIRTUAL, g INT AS (h + 1) VIRTUAL, k INT AS (g * 2) VIRTUAL, CONSTRAINT ck CHECK (h > 0), KEY kg (g))", "CREATE TABLE t (x INT, h INT AS (x + 1) STORED, g INT AS (h + 1) VIRTUAL, k INT AS (g * 2) VIRTUAL, CONSTRAINT ck CHECK (h > 0), KEY kg (g))"},
 	{"sequence limits leaving out the start", "CREATE SEQUENCE s", "CREATE SEQUENCE s START WITH 100 MINVALUE 10"},
 }
 
