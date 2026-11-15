@@ -188,7 +188,7 @@
 |   KEY `idx_author` (`author_id`),
 |   KEY `idx_year` (`published_year`),
 |   UNIQUE KEY `uk_isbn` (`isbn`),
-|   CONSTRAINT `fk_author` FOREIGN KEY (`author_id`) REFERENCES `authors` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT,
+|   CONSTRAINT `fk_author` FOREIGN KEY (`author_id`) REFERENCES `authors` (`id`),
 |   CONSTRAINT `chk_price_positive` CHECK (`price` > 0),
 |   CONSTRAINT `chk_year_valid` CHECK (`published_year` >= 1000 and `published_year` <= 2100)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
@@ -342,7 +342,7 @@
 |   KEY `idx_author` (`author_id`),
 |   KEY `idx_year` (`published_year`),
 |   UNIQUE KEY `uk_isbn` (`isbn`),
-|   CONSTRAINT `fk_author` FOREIGN KEY (`author_id`) REFERENCES `authors` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT,
+|   CONSTRAINT `fk_author` FOREIGN KEY (`author_id`) REFERENCES `authors` (`id`),
 |   CONSTRAINT `chk_price_positive` CHECK (`price` > 0),
 |   CONSTRAINT `chk_year_valid` CHECK (`published_year` >= 1000 and `published_year` <= 2100)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
@@ -825,7 +825,7 @@
 |   `published_at` datetime DEFAULT NULL,
 |   PRIMARY KEY (`id`),
 |   KEY `idx_user_id` (`user_id`),
-|   CONSTRAINT `fk_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT
+|   CONSTRAINT `fk_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 < ok 0 0
 > exec
@@ -833,7 +833,7 @@
 |   `id` int NOT NULL AUTO_INCREMENT,
 |   `username` varchar(50) NOT NULL,
 |   `email` varchar(100) NOT NULL,
-|   `created_at` timestamp DEFAULT current_timestamp(),
+|   `created_at` timestamp NULL DEFAULT current_timestamp(),
 |   PRIMARY KEY (`id`),
 |   KEY `idx_username` (`username`),
 |   UNIQUE KEY `uk_email` (`email`)
@@ -935,7 +935,7 @@
 |   `published_at` datetime DEFAULT NULL,
 |   PRIMARY KEY (`id`),
 |   KEY `idx_user_id` (`user_id`),
-|   CONSTRAINT `fk_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT
+|   CONSTRAINT `fk_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 < ok 0 0
 > exec
@@ -943,7 +943,7 @@
 |   `id` int NOT NULL AUTO_INCREMENT,
 |   `username` varchar(50) NOT NULL,
 |   `email` varchar(100) NOT NULL,
-|   `created_at` timestamp DEFAULT current_timestamp(),
+|   `created_at` timestamp NULL DEFAULT current_timestamp(),
 |   PRIMARY KEY (`id`),
 |   KEY `idx_username` (`username`),
 |   UNIQUE KEY `uk_email` (`email`)
@@ -1194,12 +1194,12 @@
 |   `post_id` int NOT NULL,
 |   `user_id` int NOT NULL,
 |   `content` text NOT NULL,
-|   `created_at` timestamp DEFAULT current_timestamp(),
+|   `created_at` timestamp NULL DEFAULT current_timestamp(),
 |   PRIMARY KEY (`id`),
 |   KEY `fk_comment_user` (`user_id`),
 |   KEY `idx_post_user` (`post_id`, `user_id`),
-|   CONSTRAINT `fk_comment_post` FOREIGN KEY (`post_id`) REFERENCES `posts` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT,
-|   CONSTRAINT `fk_comment_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT
+|   CONSTRAINT `fk_comment_post` FOREIGN KEY (`post_id`) REFERENCES `posts` (`id`) ON DELETE CASCADE,
+|   CONSTRAINT `fk_comment_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 < ok 0 0
 > exec
@@ -1211,7 +1211,7 @@
 |   `published_at` datetime DEFAULT NULL,
 |   PRIMARY KEY (`id`),
 |   KEY `idx_user_id` (`user_id`),
-|   CONSTRAINT `fk_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT,
+|   CONSTRAINT `fk_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
 |   CONSTRAINT `chk_title_length` CHECK (char_length(`title`) > 0)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 < ok 0 0
@@ -1220,7 +1220,7 @@
 |   `id` int NOT NULL AUTO_INCREMENT,
 |   `username` varchar(50) NOT NULL,
 |   `email` varchar(100) NOT NULL,
-|   `created_at` timestamp DEFAULT current_timestamp(),
+|   `created_at` timestamp NULL DEFAULT current_timestamp(),
 |   `is_active` tinyint(1) DEFAULT 1,
 |   PRIMARY KEY (`id`),
 |   KEY `idx_email_active` (`email`, `is_active`),
@@ -1350,12 +1350,12 @@
 |   `post_id` int NOT NULL,
 |   `user_id` int NOT NULL,
 |   `content` text NOT NULL,
-|   `created_at` timestamp DEFAULT current_timestamp(),
+|   `created_at` timestamp NULL DEFAULT current_timestamp(),
 |   PRIMARY KEY (`id`),
 |   KEY `fk_comment_user` (`user_id`),
 |   KEY `idx_post_user` (`post_id`, `user_id`),
-|   CONSTRAINT `fk_comment_post` FOREIGN KEY (`post_id`) REFERENCES `posts` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT,
-|   CONSTRAINT `fk_comment_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT
+|   CONSTRAINT `fk_comment_post` FOREIGN KEY (`post_id`) REFERENCES `posts` (`id`) ON DELETE CASCADE,
+|   CONSTRAINT `fk_comment_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 < ok 0 0
 > exec
@@ -1367,7 +1367,7 @@
 |   `published_at` datetime DEFAULT NULL,
 |   PRIMARY KEY (`id`),
 |   KEY `idx_user_id` (`user_id`),
-|   CONSTRAINT `fk_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT,
+|   CONSTRAINT `fk_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
 |   CONSTRAINT `chk_title_length` CHECK (char_length(`title`) > 0)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 < ok 0 0
@@ -1376,7 +1376,7 @@
 |   `id` int NOT NULL AUTO_INCREMENT,
 |   `username` varchar(50) NOT NULL,
 |   `email` varchar(100) NOT NULL,
-|   `created_at` timestamp DEFAULT current_timestamp(),
+|   `created_at` timestamp NULL DEFAULT current_timestamp(),
 |   `is_active` tinyint(1) DEFAULT 1,
 |   PRIMARY KEY (`id`),
 |   KEY `idx_email_active` (`email`, `is_active`),
@@ -1616,7 +1616,7 @@
 |   `published_at` datetime DEFAULT NULL,
 |   PRIMARY KEY (`id`),
 |   KEY `idx_user_id` (`user_id`),
-|   CONSTRAINT `fk_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT
+|   CONSTRAINT `fk_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 < ok 0 0
 > exec
@@ -1624,7 +1624,7 @@
 |   `id` int NOT NULL AUTO_INCREMENT,
 |   `username` varchar(50) NOT NULL,
 |   `email` varchar(100) NOT NULL,
-|   `created_at` timestamp DEFAULT current_timestamp(),
+|   `created_at` timestamp NULL DEFAULT current_timestamp(),
 |   PRIMARY KEY (`id`),
 |   KEY `idx_username` (`username`),
 |   UNIQUE KEY `uk_email` (`email`)
@@ -1726,7 +1726,7 @@
 |   `published_at` datetime DEFAULT NULL,
 |   PRIMARY KEY (`id`),
 |   KEY `idx_user_id` (`user_id`),
-|   CONSTRAINT `fk_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT
+|   CONSTRAINT `fk_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 < ok 0 0
 > exec
@@ -1734,7 +1734,7 @@
 |   `id` int NOT NULL AUTO_INCREMENT,
 |   `username` varchar(50) NOT NULL,
 |   `email` varchar(100) NOT NULL,
-|   `created_at` timestamp DEFAULT current_timestamp(),
+|   `created_at` timestamp NULL DEFAULT current_timestamp(),
 |   PRIMARY KEY (`id`),
 |   KEY `idx_username` (`username`),
 |   UNIQUE KEY `uk_email` (`email`)
@@ -2073,7 +2073,7 @@
 |   `order_date` datetime DEFAULT current_timestamp(),
 |   PRIMARY KEY (`id`),
 |   KEY `fk_product` (`product_id`),
-|   CONSTRAINT `fk_product` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT
+|   CONSTRAINT `fk_product` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`)
 | ) ENGINE=InnoDB COLLATE=utf8mb4_uca1400_ai_ci
 < ok 0 0
 > exec
@@ -2312,7 +2312,7 @@
 |   `order_date` datetime DEFAULT current_timestamp(),
 |   PRIMARY KEY (`id`),
 |   KEY `fk_product` (`product_id`),
-|   CONSTRAINT `fk_product` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT
+|   CONSTRAINT `fk_product` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`)
 | ) ENGINE=InnoDB COLLATE=utf8mb4_uca1400_ai_ci
 < ok 0 0
 > exec
@@ -2646,7 +2646,7 @@
 |   `order_date` datetime DEFAULT current_timestamp(),
 |   PRIMARY KEY (`id`),
 |   KEY `fk_product` (`product_id`),
-|   CONSTRAINT `fk_product` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT
+|   CONSTRAINT `fk_product` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`)
 | ) ENGINE=InnoDB COLLATE=utf8mb4_uca1400_ai_ci
 < ok 0 0
 > exec
@@ -2754,7 +2754,7 @@
 |   `order_date` datetime DEFAULT current_timestamp(),
 |   PRIMARY KEY (`id`),
 |   KEY `fk_product` (`product_id`),
-|   CONSTRAINT `fk_product` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT
+|   CONSTRAINT `fk_product` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`)
 | ) ENGINE=InnoDB COLLATE=utf8mb4_uca1400_ai_ci
 < ok 0 0
 > exec
@@ -5111,8 +5111,8 @@
 |   `description` text NOT NULL,
 |   `category` varchar(50) DEFAULT NULL,
 |   `is_active` tinyint(1) DEFAULT 1,
-|   `created_at` timestamp DEFAULT current_timestamp(),
-|   `updated_at` timestamp DEFAULT current_timestamp(),
+|   `created_at` timestamp NULL DEFAULT current_timestamp(),
+|   `updated_at` timestamp NULL DEFAULT current_timestamp(),
 |   `stock_quantity` int DEFAULT 0,
 |   `weight` decimal(5,2) DEFAULT NULL,
 |   PRIMARY KEY (`id`),
@@ -5205,8 +5205,8 @@
 |   `description` text NOT NULL,
 |   `category` varchar(50) DEFAULT NULL,
 |   `is_active` tinyint(1) DEFAULT 1,
-|   `created_at` timestamp DEFAULT current_timestamp(),
-|   `updated_at` timestamp DEFAULT current_timestamp(),
+|   `created_at` timestamp NULL DEFAULT current_timestamp(),
+|   `updated_at` timestamp NULL DEFAULT current_timestamp(),
 |   `stock_quantity` int DEFAULT 0,
 |   `weight` decimal(5,2) DEFAULT NULL,
 |   PRIMARY KEY (`id`),
@@ -6013,7 +6013,7 @@
 |   KEY `idx_author` (`author_id`),
 |   KEY `idx_year` (`published_year`),
 |   UNIQUE KEY `uk_isbn` (`isbn`),
-|   CONSTRAINT `fk_author` FOREIGN KEY (`author_id`) REFERENCES `authors` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT,
+|   CONSTRAINT `fk_author` FOREIGN KEY (`author_id`) REFERENCES `authors` (`id`),
 |   CONSTRAINT `chk_year_valid` CHECK (`published_year` >= 1000 and `published_year` <= 2100),
 |   CONSTRAINT `chk_price_positive` CHECK (`price` > 0)
 | ) ENGINE=InnoDB COLLATE=utf8mb4_uca1400_ai_ci
@@ -6129,7 +6129,7 @@
 |   KEY `idx_author` (`author_id`),
 |   KEY `idx_year` (`published_year`),
 |   UNIQUE KEY `uk_isbn` (`isbn`),
-|   CONSTRAINT `fk_author` FOREIGN KEY (`author_id`) REFERENCES `authors` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT,
+|   CONSTRAINT `fk_author` FOREIGN KEY (`author_id`) REFERENCES `authors` (`id`),
 |   CONSTRAINT `chk_price_positive` CHECK (`price` > 0),
 |   CONSTRAINT `chk_year_valid` CHECK (`published_year` >= 1000 and `published_year` <= 2100)
 | ) ENGINE=InnoDB COLLATE=utf8mb4_uca1400_ai_ci
@@ -7074,7 +7074,7 @@
 |   `manager_id` int DEFAULT NULL,
 |   PRIMARY KEY (`id`),
 |   KEY `fk_manager` (`manager_id`),
-|   CONSTRAINT `fk_manager` FOREIGN KEY (`manager_id`) REFERENCES `employees` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT
+|   CONSTRAINT `fk_manager` FOREIGN KEY (`manager_id`) REFERENCES `employees` (`id`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 < ok 0 0
 > exec
@@ -7086,7 +7086,7 @@
 |   `hire_date` date DEFAULT NULL,
 |   PRIMARY KEY (`id`),
 |   KEY `idx_dept` (`department_id`),
-|   CONSTRAINT `fk_dept` FOREIGN KEY (`department_id`) REFERENCES `departments` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT
+|   CONSTRAINT `fk_dept` FOREIGN KEY (`department_id`) REFERENCES `departments` (`id`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 < ok 0 0
 > exec
@@ -7254,7 +7254,7 @@
 |   `manager_id` int DEFAULT NULL,
 |   PRIMARY KEY (`id`),
 |   KEY `fk_manager` (`manager_id`),
-|   CONSTRAINT `fk_manager` FOREIGN KEY (`manager_id`) REFERENCES `employees` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT
+|   CONSTRAINT `fk_manager` FOREIGN KEY (`manager_id`) REFERENCES `employees` (`id`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 < ok 0 0
 > exec
@@ -7266,7 +7266,7 @@
 |   `hire_date` date DEFAULT NULL,
 |   PRIMARY KEY (`id`),
 |   KEY `idx_dept` (`department_id`),
-|   CONSTRAINT `fk_dept` FOREIGN KEY (`department_id`) REFERENCES `departments` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT
+|   CONSTRAINT `fk_dept` FOREIGN KEY (`department_id`) REFERENCES `departments` (`id`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 < ok 0 0
 > exec
@@ -7578,7 +7578,7 @@
 |   `manager_id` int DEFAULT NULL,
 |   PRIMARY KEY (`id`),
 |   KEY `fk_manager` (`manager_id`),
-|   CONSTRAINT `fk_manager` FOREIGN KEY (`manager_id`) REFERENCES `employees` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT
+|   CONSTRAINT `fk_manager` FOREIGN KEY (`manager_id`) REFERENCES `employees` (`id`)
 | ) ENGINE=InnoDB COLLATE=utf8mb4_uca1400_ai_ci
 < ok 0 0
 > exec
@@ -7590,7 +7590,7 @@
 |   `hire_date` date DEFAULT NULL,
 |   PRIMARY KEY (`id`),
 |   KEY `idx_dept` (`department_id`),
-|   CONSTRAINT `fk_dept` FOREIGN KEY (`department_id`) REFERENCES `departments` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT
+|   CONSTRAINT `fk_dept` FOREIGN KEY (`department_id`) REFERENCES `departments` (`id`)
 | ) ENGINE=InnoDB COLLATE=utf8mb4_uca1400_ai_ci
 < ok 0 0
 > exec
@@ -7686,7 +7686,7 @@
 |   `manager_id` int DEFAULT NULL,
 |   PRIMARY KEY (`id`),
 |   KEY `fk_manager` (`manager_id`),
-|   CONSTRAINT `fk_manager` FOREIGN KEY (`manager_id`) REFERENCES `employees` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT
+|   CONSTRAINT `fk_manager` FOREIGN KEY (`manager_id`) REFERENCES `employees` (`id`)
 | ) ENGINE=InnoDB COLLATE=utf8mb4_uca1400_ai_ci
 < ok 0 0
 > exec
@@ -7698,7 +7698,7 @@
 |   `hire_date` date DEFAULT NULL,
 |   PRIMARY KEY (`id`),
 |   KEY `idx_dept` (`department_id`),
-|   CONSTRAINT `fk_dept` FOREIGN KEY (`department_id`) REFERENCES `departments` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT
+|   CONSTRAINT `fk_dept` FOREIGN KEY (`department_id`) REFERENCES `departments` (`id`)
 | ) ENGINE=InnoDB COLLATE=utf8mb4_uca1400_ai_ci
 < ok 0 0
 > exec
@@ -7973,7 +7973,7 @@
 |   `preferred_order_id` int DEFAULT NULL,
 |   PRIMARY KEY (`id`),
 |   KEY `fk_preferred_order` (`preferred_order_id`),
-|   CONSTRAINT `fk_preferred_order` FOREIGN KEY (`preferred_order_id`) REFERENCES `orders` (`id`) ON DELETE SET NULL ON UPDATE RESTRICT
+|   CONSTRAINT `fk_preferred_order` FOREIGN KEY (`preferred_order_id`) REFERENCES `orders` (`id`) ON DELETE SET NULL
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 < ok 0 0
 > exec
@@ -7984,7 +7984,7 @@
 |   `total_amount` decimal(10,2) DEFAULT NULL,
 |   PRIMARY KEY (`id`),
 |   KEY `fk_customer` (`customer_id`),
-|   CONSTRAINT `fk_customer` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT
+|   CONSTRAINT `fk_customer` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE CASCADE
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 < ok 0 0
 > exec
@@ -7996,7 +7996,7 @@
 |   `unit_price` decimal(10,2) NOT NULL,
 |   PRIMARY KEY (`id`),
 |   KEY `idx_order` (`order_id`),
-|   CONSTRAINT `fk_order_item` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT
+|   CONSTRAINT `fk_order_item` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 < ok 0 0
 > exec
@@ -8158,7 +8158,7 @@
 |   `preferred_order_id` int DEFAULT NULL,
 |   PRIMARY KEY (`id`),
 |   KEY `fk_preferred_order` (`preferred_order_id`),
-|   CONSTRAINT `fk_preferred_order` FOREIGN KEY (`preferred_order_id`) REFERENCES `orders` (`id`) ON DELETE SET NULL ON UPDATE RESTRICT
+|   CONSTRAINT `fk_preferred_order` FOREIGN KEY (`preferred_order_id`) REFERENCES `orders` (`id`) ON DELETE SET NULL
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 < ok 0 0
 > exec
@@ -8170,7 +8170,7 @@
 |   `unit_price` decimal(10,2) NOT NULL,
 |   PRIMARY KEY (`id`),
 |   KEY `idx_order` (`order_id`),
-|   CONSTRAINT `fk_order_item` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT
+|   CONSTRAINT `fk_order_item` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 < ok 0 0
 > exec
@@ -8181,7 +8181,7 @@
 |   `total_amount` decimal(10,2) DEFAULT NULL,
 |   PRIMARY KEY (`id`),
 |   KEY `fk_customer` (`customer_id`),
-|   CONSTRAINT `fk_customer` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT
+|   CONSTRAINT `fk_customer` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE CASCADE
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 < ok 0 0
 > exec
@@ -10731,7 +10731,7 @@
 |   `id` int NOT NULL AUTO_INCREMENT,
 |   `product_id` int NOT NULL,
 |   `quantity` int NOT NULL DEFAULT 0,
-|   `last_updated` timestamp DEFAULT current_timestamp(),
+|   `last_updated` timestamp NULL DEFAULT current_timestamp(),
 |   PRIMARY KEY (`id`),
 |   UNIQUE KEY `uk_product` (`product_id`)
 | ) ENGINE=InnoDB COLLATE=utf8mb4_uca1400_ai_ci
@@ -10743,7 +10743,7 @@
 |   `old_quantity` int DEFAULT NULL,
 |   `new_quantity` int DEFAULT NULL,
 |   `change_type` varchar(20) DEFAULT NULL,
-|   `changed_at` timestamp DEFAULT current_timestamp(),
+|   `changed_at` timestamp NULL DEFAULT current_timestamp(),
 |   PRIMARY KEY (`id`)
 | ) ENGINE=InnoDB COLLATE=utf8mb4_uca1400_ai_ci
 < ok 0 0
@@ -10964,7 +10964,7 @@
 |   `id` int NOT NULL AUTO_INCREMENT,
 |   `product_id` int NOT NULL,
 |   `quantity` int NOT NULL DEFAULT 0,
-|   `last_updated` timestamp DEFAULT current_timestamp(),
+|   `last_updated` timestamp NULL DEFAULT current_timestamp(),
 |   PRIMARY KEY (`id`),
 |   UNIQUE KEY `uk_product` (`product_id`)
 | ) ENGINE=InnoDB COLLATE=utf8mb4_uca1400_ai_ci
@@ -10976,7 +10976,7 @@
 |   `old_quantity` int DEFAULT NULL,
 |   `new_quantity` int DEFAULT NULL,
 |   `change_type` varchar(20) DEFAULT NULL,
-|   `changed_at` timestamp DEFAULT current_timestamp(),
+|   `changed_at` timestamp NULL DEFAULT current_timestamp(),
 |   PRIMARY KEY (`id`)
 | ) ENGINE=InnoDB COLLATE=utf8mb4_uca1400_ai_ci
 < ok 0 0
@@ -11267,7 +11267,7 @@
 |   `id` int NOT NULL AUTO_INCREMENT,
 |   `product_id` int NOT NULL,
 |   `quantity` int NOT NULL DEFAULT 0,
-|   `last_updated` timestamp DEFAULT current_timestamp(),
+|   `last_updated` timestamp NULL DEFAULT current_timestamp(),
 |   PRIMARY KEY (`id`),
 |   UNIQUE KEY `uk_product` (`product_id`)
 | ) ENGINE=InnoDB COLLATE=utf8mb4_uca1400_ai_ci
@@ -11279,7 +11279,7 @@
 |   `old_quantity` int DEFAULT NULL,
 |   `new_quantity` int DEFAULT NULL,
 |   `change_type` varchar(20) DEFAULT NULL,
-|   `changed_at` timestamp DEFAULT current_timestamp(),
+|   `changed_at` timestamp NULL DEFAULT current_timestamp(),
 |   PRIMARY KEY (`id`)
 | ) ENGINE=InnoDB COLLATE=utf8mb4_uca1400_ai_ci
 < ok 0 0
@@ -11373,7 +11373,7 @@
 |   `id` int NOT NULL AUTO_INCREMENT,
 |   `product_id` int NOT NULL,
 |   `quantity` int NOT NULL DEFAULT 0,
-|   `last_updated` timestamp DEFAULT current_timestamp(),
+|   `last_updated` timestamp NULL DEFAULT current_timestamp(),
 |   PRIMARY KEY (`id`),
 |   UNIQUE KEY `uk_product` (`product_id`)
 | ) ENGINE=InnoDB COLLATE=utf8mb4_uca1400_ai_ci
@@ -11385,7 +11385,7 @@
 |   `old_quantity` int DEFAULT NULL,
 |   `new_quantity` int DEFAULT NULL,
 |   `change_type` varchar(20) DEFAULT NULL,
-|   `changed_at` timestamp DEFAULT current_timestamp(),
+|   `changed_at` timestamp NULL DEFAULT current_timestamp(),
 |   PRIMARY KEY (`id`)
 | ) ENGINE=InnoDB COLLATE=utf8mb4_uca1400_ai_ci
 < ok 0 0
@@ -12206,7 +12206,7 @@
 |   `id` int NOT NULL AUTO_INCREMENT,
 |   `stat_name` varchar(100) NOT NULL,
 |   `stat_value` decimal(10,2) DEFAULT NULL,
-|   `recorded_at` timestamp DEFAULT current_timestamp(),
+|   `recorded_at` timestamp NULL DEFAULT current_timestamp(),
 |   PRIMARY KEY (`id`)
 | ) ENGINE=InnoDB COLLATE=utf8mb4_uca1400_ai_ci
 < ok 0 0
@@ -12466,7 +12466,7 @@
 |   `id` int NOT NULL AUTO_INCREMENT,
 |   `stat_name` varchar(100) NOT NULL,
 |   `stat_value` decimal(10,2) DEFAULT NULL,
-|   `recorded_at` timestamp DEFAULT current_timestamp(),
+|   `recorded_at` timestamp NULL DEFAULT current_timestamp(),
 |   PRIMARY KEY (`id`)
 | ) ENGINE=InnoDB COLLATE=utf8mb4_uca1400_ai_ci
 < ok 0 0
@@ -12754,7 +12754,7 @@
 |   `id` int NOT NULL AUTO_INCREMENT,
 |   `stat_name` varchar(100) NOT NULL,
 |   `stat_value` decimal(10,2) DEFAULT NULL,
-|   `recorded_at` timestamp DEFAULT current_timestamp(),
+|   `recorded_at` timestamp NULL DEFAULT current_timestamp(),
 |   PRIMARY KEY (`id`)
 | ) ENGINE=InnoDB COLLATE=utf8mb4_uca1400_ai_ci
 < ok 0 0
@@ -12824,7 +12824,7 @@
 |   `id` int NOT NULL AUTO_INCREMENT,
 |   `stat_name` varchar(100) NOT NULL,
 |   `stat_value` decimal(10,2) DEFAULT NULL,
-|   `recorded_at` timestamp DEFAULT current_timestamp(),
+|   `recorded_at` timestamp NULL DEFAULT current_timestamp(),
 |   PRIMARY KEY (`id`)
 | ) ENGINE=InnoDB COLLATE=utf8mb4_uca1400_ai_ci
 < ok 0 0
@@ -13059,7 +13059,7 @@
 |   `contact_email` varchar(100) DEFAULT NULL COMMENT 'Primary contact email address',
 |   `phone` varchar(20) DEFAULT NULL COMMENT 'Business phone number',
 |   `address` text DEFAULT NULL COMMENT 'Full business address',
-|   `created_at` timestamp DEFAULT current_timestamp() COMMENT 'Record creation timestamp',
+|   `created_at` timestamp NULL DEFAULT current_timestamp() COMMENT 'Record creation timestamp',
 |   PRIMARY KEY (`id`),
 |   UNIQUE KEY `uk_email` (`contact_email`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Supplier information and contact details'
@@ -13197,7 +13197,7 @@
 |   `contact_email` varchar(100) DEFAULT NULL COMMENT 'Primary contact email address',
 |   `phone` varchar(20) DEFAULT NULL COMMENT 'Business phone number',
 |   `address` text DEFAULT NULL COMMENT 'Full business address',
-|   `created_at` timestamp DEFAULT current_timestamp() COMMENT 'Record creation timestamp',
+|   `created_at` timestamp NULL DEFAULT current_timestamp() COMMENT 'Record creation timestamp',
 |   PRIMARY KEY (`id`),
 |   UNIQUE KEY `uk_email` (`contact_email`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Supplier information and contact details'
@@ -14444,7 +14444,7 @@
 |   `ip_address` varchar(45) DEFAULT NULL COMMENT 'Client IP address (IPv4: xxx.xxx.xxx.xxx or IPv6: xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx)',
 |   `user_agent` text DEFAULT NULL COMMENT 'Browser user agent string - may contain "Mozilla/5.0", various browser/OS info',
 |   `referrer` varchar(500) DEFAULT NULL COMMENT 'HTTP referrer URL - where user came from (can be NULL)',
-|   `created_at` timestamp DEFAULT current_timestamp() COMMENT 'Event timestamp - UTC timezone',
+|   `created_at` timestamp NULL DEFAULT current_timestamp() COMMENT 'Event timestamp - UTC timezone',
 |   `processed` tinyint(1) DEFAULT 0 COMMENT 'Processing status: TRUE = processed, FALSE = pending',
 |   PRIMARY KEY (`id`),
 |   KEY `idx_event_date` (`event_name`, `created_at`),
@@ -14596,7 +14596,7 @@
 |   `ip_address` varchar(45) DEFAULT NULL COMMENT 'Client IP address (IPv4: xxx.xxx.xxx.xxx or IPv6: xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx)',
 |   `user_agent` text DEFAULT NULL COMMENT 'Browser user agent string - may contain "Mozilla/5.0", various browser/OS info',
 |   `referrer` varchar(500) DEFAULT NULL COMMENT 'HTTP referrer URL - where user came from (can be NULL)',
-|   `created_at` timestamp DEFAULT current_timestamp() COMMENT 'Event timestamp - UTC timezone',
+|   `created_at` timestamp NULL DEFAULT current_timestamp() COMMENT 'Event timestamp - UTC timezone',
 |   `processed` tinyint(1) DEFAULT 0 COMMENT 'Processing status: TRUE = processed, FALSE = pending',
 |   PRIMARY KEY (`id`),
 |   KEY `idx_event_date` (`event_name`, `created_at`),
@@ -15350,7 +15350,7 @@
 |   KEY `idx_author` (`author_id`),
 |   KEY `idx_year` (`published_year`),
 |   UNIQUE KEY `uk_isbn` (`isbn`),
-|   CONSTRAINT `fk_author` FOREIGN KEY (`author_id`) REFERENCES `authors` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT,
+|   CONSTRAINT `fk_author` FOREIGN KEY (`author_id`) REFERENCES `authors` (`id`),
 |   CONSTRAINT `chk_price_positive` CHECK (`price` > 0),
 |   CONSTRAINT `chk_year_valid` CHECK (`published_year` >= 1000 and `published_year` <= 2100)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
@@ -15504,7 +15504,7 @@
 |   KEY `idx_author` (`author_id`),
 |   KEY `idx_year` (`published_year`),
 |   UNIQUE KEY `uk_isbn` (`isbn`),
-|   CONSTRAINT `fk_author` FOREIGN KEY (`author_id`) REFERENCES `authors` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT,
+|   CONSTRAINT `fk_author` FOREIGN KEY (`author_id`) REFERENCES `authors` (`id`),
 |   CONSTRAINT `chk_price_positive` CHECK (`price` > 0),
 |   CONSTRAINT `chk_year_valid` CHECK (`published_year` >= 1000 and `published_year` <= 2100)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
@@ -15753,7 +15753,7 @@
 |   `published_at` datetime DEFAULT NULL,
 |   PRIMARY KEY (`id`),
 |   KEY `idx_user_id` (`user_id`),
-|   CONSTRAINT `fk_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT
+|   CONSTRAINT `fk_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 < ok 0 0
 > exec
@@ -15761,7 +15761,7 @@
 |   `id` int NOT NULL AUTO_INCREMENT,
 |   `username` varchar(50) NOT NULL,
 |   `email` varchar(100) NOT NULL,
-|   `created_at` timestamp DEFAULT current_timestamp(),
+|   `created_at` timestamp NULL DEFAULT current_timestamp(),
 |   PRIMARY KEY (`id`),
 |   KEY `idx_username` (`username`),
 |   UNIQUE KEY `uk_email` (`email`)
@@ -15863,7 +15863,7 @@
 |   `published_at` datetime DEFAULT NULL,
 |   PRIMARY KEY (`id`),
 |   KEY `idx_user_id` (`user_id`),
-|   CONSTRAINT `fk_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT
+|   CONSTRAINT `fk_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 < ok 0 0
 > exec
@@ -15871,7 +15871,7 @@
 |   `id` int NOT NULL AUTO_INCREMENT,
 |   `username` varchar(50) NOT NULL,
 |   `email` varchar(100) NOT NULL,
-|   `created_at` timestamp DEFAULT current_timestamp(),
+|   `created_at` timestamp NULL DEFAULT current_timestamp(),
 |   PRIMARY KEY (`id`),
 |   KEY `idx_username` (`username`),
 |   UNIQUE KEY `uk_email` (`email`)
@@ -16197,7 +16197,7 @@
 |   `published_at` datetime DEFAULT NULL,
 |   PRIMARY KEY (`id`),
 |   KEY `idx_user_id` (`user_id`),
-|   CONSTRAINT `fk_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT
+|   CONSTRAINT `fk_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 < ok 0 0
 > exec
@@ -16205,7 +16205,7 @@
 |   `id` int NOT NULL AUTO_INCREMENT,
 |   `username` varchar(50) NOT NULL,
 |   `email` varchar(100) NOT NULL,
-|   `created_at` timestamp DEFAULT current_timestamp(),
+|   `created_at` timestamp NULL DEFAULT current_timestamp(),
 |   PRIMARY KEY (`id`),
 |   KEY `idx_username` (`username`),
 |   UNIQUE KEY `uk_email` (`email`)
@@ -16307,7 +16307,7 @@
 |   `published_at` datetime DEFAULT NULL,
 |   PRIMARY KEY (`id`),
 |   KEY `idx_user_id` (`user_id`),
-|   CONSTRAINT `fk_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT
+|   CONSTRAINT `fk_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 < ok 0 0
 > exec
@@ -16315,7 +16315,7 @@
 |   `id` int NOT NULL AUTO_INCREMENT,
 |   `username` varchar(50) NOT NULL,
 |   `email` varchar(100) NOT NULL,
-|   `created_at` timestamp DEFAULT current_timestamp(),
+|   `created_at` timestamp NULL DEFAULT current_timestamp(),
 |   PRIMARY KEY (`id`),
 |   KEY `idx_username` (`username`),
 |   UNIQUE KEY `uk_email` (`email`)
@@ -16566,12 +16566,12 @@
 |   `post_id` int NOT NULL,
 |   `user_id` int NOT NULL,
 |   `content` text NOT NULL,
-|   `created_at` timestamp DEFAULT current_timestamp(),
+|   `created_at` timestamp NULL DEFAULT current_timestamp(),
 |   PRIMARY KEY (`id`),
 |   KEY `fk_comment_user` (`user_id`),
 |   KEY `idx_post_user` (`post_id`, `user_id`),
-|   CONSTRAINT `fk_comment_post` FOREIGN KEY (`post_id`) REFERENCES `posts` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT,
-|   CONSTRAINT `fk_comment_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT
+|   CONSTRAINT `fk_comment_post` FOREIGN KEY (`post_id`) REFERENCES `posts` (`id`) ON DELETE CASCADE,
+|   CONSTRAINT `fk_comment_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 < ok 0 0
 > exec
@@ -16583,7 +16583,7 @@
 |   `published_at` datetime DEFAULT NULL,
 |   PRIMARY KEY (`id`),
 |   KEY `idx_user_id` (`user_id`),
-|   CONSTRAINT `fk_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT,
+|   CONSTRAINT `fk_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
 |   CONSTRAINT `chk_title_length` CHECK (char_length(`title`) > 0)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 < ok 0 0
@@ -16592,7 +16592,7 @@
 |   `id` int NOT NULL AUTO_INCREMENT,
 |   `username` varchar(50) NOT NULL,
 |   `email` varchar(100) NOT NULL,
-|   `created_at` timestamp DEFAULT current_timestamp(),
+|   `created_at` timestamp NULL DEFAULT current_timestamp(),
 |   `is_active` tinyint(1) DEFAULT 1,
 |   PRIMARY KEY (`id`),
 |   KEY `idx_email_active` (`email`, `is_active`),
@@ -16722,12 +16722,12 @@
 |   `post_id` int NOT NULL,
 |   `user_id` int NOT NULL,
 |   `content` text NOT NULL,
-|   `created_at` timestamp DEFAULT current_timestamp(),
+|   `created_at` timestamp NULL DEFAULT current_timestamp(),
 |   PRIMARY KEY (`id`),
 |   KEY `fk_comment_user` (`user_id`),
 |   KEY `idx_post_user` (`post_id`, `user_id`),
-|   CONSTRAINT `fk_comment_post` FOREIGN KEY (`post_id`) REFERENCES `posts` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT,
-|   CONSTRAINT `fk_comment_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT
+|   CONSTRAINT `fk_comment_post` FOREIGN KEY (`post_id`) REFERENCES `posts` (`id`) ON DELETE CASCADE,
+|   CONSTRAINT `fk_comment_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 < ok 0 0
 > exec
@@ -16739,7 +16739,7 @@
 |   `published_at` datetime DEFAULT NULL,
 |   PRIMARY KEY (`id`),
 |   KEY `idx_user_id` (`user_id`),
-|   CONSTRAINT `fk_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT,
+|   CONSTRAINT `fk_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
 |   CONSTRAINT `chk_title_length` CHECK (char_length(`title`) > 0)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 < ok 0 0
@@ -16748,7 +16748,7 @@
 |   `id` int NOT NULL AUTO_INCREMENT,
 |   `username` varchar(50) NOT NULL,
 |   `email` varchar(100) NOT NULL,
-|   `created_at` timestamp DEFAULT current_timestamp(),
+|   `created_at` timestamp NULL DEFAULT current_timestamp(),
 |   `is_active` tinyint(1) DEFAULT 1,
 |   PRIMARY KEY (`id`),
 |   KEY `idx_email_active` (`email`, `is_active`),
@@ -16985,7 +16985,7 @@
 |   `order_date` datetime DEFAULT current_timestamp(),
 |   PRIMARY KEY (`id`),
 |   KEY `fk_product` (`product_id`),
-|   CONSTRAINT `fk_product` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT
+|   CONSTRAINT `fk_product` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`)
 | ) ENGINE=InnoDB COLLATE=utf8mb4_uca1400_ai_ci
 < ok 0 0
 > exec
@@ -17093,7 +17093,7 @@
 |   `order_date` datetime DEFAULT current_timestamp(),
 |   PRIMARY KEY (`id`),
 |   KEY `fk_product` (`product_id`),
-|   CONSTRAINT `fk_product` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT
+|   CONSTRAINT `fk_product` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`)
 | ) ENGINE=InnoDB COLLATE=utf8mb4_uca1400_ai_ci
 < ok 0 0
 > exec
@@ -17438,7 +17438,7 @@
 |   `order_date` datetime DEFAULT current_timestamp(),
 |   PRIMARY KEY (`id`),
 |   KEY `fk_product` (`product_id`),
-|   CONSTRAINT `fk_product` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT
+|   CONSTRAINT `fk_product` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`)
 | ) ENGINE=InnoDB COLLATE=utf8mb4_uca1400_ai_ci
 < ok 0 0
 > exec
@@ -17677,7 +17677,7 @@
 |   `order_date` datetime DEFAULT current_timestamp(),
 |   PRIMARY KEY (`id`),
 |   KEY `fk_product` (`product_id`),
-|   CONSTRAINT `fk_product` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT
+|   CONSTRAINT `fk_product` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`)
 | ) ENGINE=InnoDB COLLATE=utf8mb4_uca1400_ai_ci
 < ok 0 0
 > exec
@@ -19526,8 +19526,8 @@
 |   `description` text NOT NULL,
 |   `category` varchar(50) DEFAULT NULL,
 |   `is_active` tinyint(1) DEFAULT 1,
-|   `created_at` timestamp DEFAULT current_timestamp(),
-|   `updated_at` timestamp DEFAULT current_timestamp(),
+|   `created_at` timestamp NULL DEFAULT current_timestamp(),
+|   `updated_at` timestamp NULL DEFAULT current_timestamp(),
 |   `stock_quantity` int DEFAULT 0,
 |   `weight` decimal(5,2) DEFAULT NULL,
 |   PRIMARY KEY (`id`),
@@ -19620,8 +19620,8 @@
 |   `description` text NOT NULL,
 |   `category` varchar(50) DEFAULT NULL,
 |   `is_active` tinyint(1) DEFAULT 1,
-|   `created_at` timestamp DEFAULT current_timestamp(),
-|   `updated_at` timestamp DEFAULT current_timestamp(),
+|   `created_at` timestamp NULL DEFAULT current_timestamp(),
+|   `updated_at` timestamp NULL DEFAULT current_timestamp(),
 |   `stock_quantity` int DEFAULT 0,
 |   `weight` decimal(5,2) DEFAULT NULL,
 |   PRIMARY KEY (`id`),
@@ -20978,7 +20978,7 @@
 |   `id` int NOT NULL AUTO_INCREMENT,
 |   `product_id` int NOT NULL,
 |   `quantity` int NOT NULL DEFAULT 0,
-|   `last_updated` timestamp DEFAULT current_timestamp(),
+|   `last_updated` timestamp NULL DEFAULT current_timestamp(),
 |   PRIMARY KEY (`id`),
 |   UNIQUE KEY `uk_product` (`product_id`)
 | ) ENGINE=InnoDB COLLATE=utf8mb4_uca1400_ai_ci
@@ -20990,7 +20990,7 @@
 |   `old_quantity` int DEFAULT NULL,
 |   `new_quantity` int DEFAULT NULL,
 |   `change_type` varchar(20) DEFAULT NULL,
-|   `changed_at` timestamp DEFAULT current_timestamp(),
+|   `changed_at` timestamp NULL DEFAULT current_timestamp(),
 |   PRIMARY KEY (`id`)
 | ) ENGINE=InnoDB COLLATE=utf8mb4_uca1400_ai_ci
 < ok 0 0
@@ -21084,7 +21084,7 @@
 |   `id` int NOT NULL AUTO_INCREMENT,
 |   `product_id` int NOT NULL,
 |   `quantity` int NOT NULL DEFAULT 0,
-|   `last_updated` timestamp DEFAULT current_timestamp(),
+|   `last_updated` timestamp NULL DEFAULT current_timestamp(),
 |   PRIMARY KEY (`id`),
 |   UNIQUE KEY `uk_product` (`product_id`)
 | ) ENGINE=InnoDB COLLATE=utf8mb4_uca1400_ai_ci
@@ -21096,7 +21096,7 @@
 |   `old_quantity` int DEFAULT NULL,
 |   `new_quantity` int DEFAULT NULL,
 |   `change_type` varchar(20) DEFAULT NULL,
-|   `changed_at` timestamp DEFAULT current_timestamp(),
+|   `changed_at` timestamp NULL DEFAULT current_timestamp(),
 |   PRIMARY KEY (`id`)
 | ) ENGINE=InnoDB COLLATE=utf8mb4_uca1400_ai_ci
 < ok 0 0
@@ -21399,7 +21399,7 @@
 |   `id` int NOT NULL AUTO_INCREMENT,
 |   `product_id` int NOT NULL,
 |   `quantity` int NOT NULL DEFAULT 0,
-|   `last_updated` timestamp DEFAULT current_timestamp(),
+|   `last_updated` timestamp NULL DEFAULT current_timestamp(),
 |   PRIMARY KEY (`id`),
 |   UNIQUE KEY `uk_product` (`product_id`)
 | ) ENGINE=InnoDB COLLATE=utf8mb4_uca1400_ai_ci
@@ -21411,7 +21411,7 @@
 |   `old_quantity` int DEFAULT NULL,
 |   `new_quantity` int DEFAULT NULL,
 |   `change_type` varchar(20) DEFAULT NULL,
-|   `changed_at` timestamp DEFAULT current_timestamp(),
+|   `changed_at` timestamp NULL DEFAULT current_timestamp(),
 |   PRIMARY KEY (`id`)
 | ) ENGINE=InnoDB COLLATE=utf8mb4_uca1400_ai_ci
 < ok 0 0
@@ -21632,7 +21632,7 @@
 |   `id` int NOT NULL AUTO_INCREMENT,
 |   `product_id` int NOT NULL,
 |   `quantity` int NOT NULL DEFAULT 0,
-|   `last_updated` timestamp DEFAULT current_timestamp(),
+|   `last_updated` timestamp NULL DEFAULT current_timestamp(),
 |   PRIMARY KEY (`id`),
 |   UNIQUE KEY `uk_product` (`product_id`)
 | ) ENGINE=InnoDB COLLATE=utf8mb4_uca1400_ai_ci
@@ -21644,7 +21644,7 @@
 |   `old_quantity` int DEFAULT NULL,
 |   `new_quantity` int DEFAULT NULL,
 |   `change_type` varchar(20) DEFAULT NULL,
-|   `changed_at` timestamp DEFAULT current_timestamp(),
+|   `changed_at` timestamp NULL DEFAULT current_timestamp(),
 |   PRIMARY KEY (`id`)
 | ) ENGINE=InnoDB COLLATE=utf8mb4_uca1400_ai_ci
 < ok 0 0
@@ -21899,7 +21899,7 @@
 |   `id` int NOT NULL AUTO_INCREMENT,
 |   `stat_name` varchar(100) NOT NULL,
 |   `stat_value` decimal(10,2) DEFAULT NULL,
-|   `recorded_at` timestamp DEFAULT current_timestamp(),
+|   `recorded_at` timestamp NULL DEFAULT current_timestamp(),
 |   PRIMARY KEY (`id`)
 | ) ENGINE=InnoDB COLLATE=utf8mb4_uca1400_ai_ci
 < ok 0 0
@@ -21969,7 +21969,7 @@
 |   `id` int NOT NULL AUTO_INCREMENT,
 |   `stat_name` varchar(100) NOT NULL,
 |   `stat_value` decimal(10,2) DEFAULT NULL,
-|   `recorded_at` timestamp DEFAULT current_timestamp(),
+|   `recorded_at` timestamp NULL DEFAULT current_timestamp(),
 |   PRIMARY KEY (`id`)
 | ) ENGINE=InnoDB COLLATE=utf8mb4_uca1400_ai_ci
 < ok 0 0
@@ -22262,7 +22262,7 @@
 |   `id` int NOT NULL AUTO_INCREMENT,
 |   `stat_name` varchar(100) NOT NULL,
 |   `stat_value` decimal(10,2) DEFAULT NULL,
-|   `recorded_at` timestamp DEFAULT current_timestamp(),
+|   `recorded_at` timestamp NULL DEFAULT current_timestamp(),
 |   PRIMARY KEY (`id`)
 | ) ENGINE=InnoDB COLLATE=utf8mb4_uca1400_ai_ci
 < ok 0 0
@@ -22522,7 +22522,7 @@
 |   `id` int NOT NULL AUTO_INCREMENT,
 |   `stat_name` varchar(100) NOT NULL,
 |   `stat_value` decimal(10,2) DEFAULT NULL,
-|   `recorded_at` timestamp DEFAULT current_timestamp(),
+|   `recorded_at` timestamp NULL DEFAULT current_timestamp(),
 |   PRIMARY KEY (`id`)
 | ) ENGINE=InnoDB COLLATE=utf8mb4_uca1400_ai_ci
 < ok 0 0
@@ -29288,7 +29288,7 @@
 |   PRIMARY KEY (`id`),
 |   KEY `fk_code` (`pcode`),
 |   KEY `fk_p` (`pid`),
-|   CONSTRAINT `fk_code` FOREIGN KEY (`pcode`) REFERENCES `p` (`code`) ON DELETE RESTRICT ON UPDATE RESTRICT,
+|   CONSTRAINT `fk_code` FOREIGN KEY (`pcode`) REFERENCES `p` (`code`),
 |   CONSTRAINT `fk_p` FOREIGN KEY (`pid`) REFERENCES `p` (`id`) ON DELETE CASCADE ON UPDATE SET NULL
 | ) ENGINE=InnoDB COLLATE=utf8mb4_uca1400_ai_ci
 < ok 0 0
@@ -29392,7 +29392,7 @@
 |   PRIMARY KEY (`id`),
 |   KEY `fk_code` (`pcode`),
 |   KEY `fk_p` (`pid`),
-|   CONSTRAINT `fk_code` FOREIGN KEY (`pcode`) REFERENCES `p` (`code`) ON DELETE RESTRICT ON UPDATE RESTRICT,
+|   CONSTRAINT `fk_code` FOREIGN KEY (`pcode`) REFERENCES `p` (`code`),
 |   CONSTRAINT `fk_p` FOREIGN KEY (`pid`) REFERENCES `p` (`id`) ON DELETE CASCADE ON UPDATE SET NULL
 | ) ENGINE=InnoDB COLLATE=utf8mb4_uca1400_ai_ci
 < ok 0 0
@@ -33481,7 +33481,7 @@
 | CREATE TABLE `ts` (
 |   `id` int NOT NULL,
 |   `t1` timestamp NOT NULL DEFAULT current_timestamp(),
-|   `t2` timestamp DEFAULT NULL,
+|   `t2` timestamp NULL DEFAULT NULL,
 |   `t3` timestamp(6) NOT NULL DEFAULT '2000-01-01 00:00:00.000000',
 |   `d1` datetime DEFAULT current_timestamp(),
 |   `d2` datetime(6) DEFAULT NULL,
@@ -33555,7 +33555,7 @@
 | CREATE TABLE `ts` (
 |   `id` int NOT NULL,
 |   `t1` timestamp NOT NULL DEFAULT current_timestamp(),
-|   `t2` timestamp DEFAULT NULL,
+|   `t2` timestamp NULL DEFAULT NULL,
 |   `t3` timestamp(6) NOT NULL DEFAULT '2000-01-01 00:00:00.000000',
 |   `d1` datetime DEFAULT current_timestamp(),
 |   `d2` datetime(6) DEFAULT NULL,

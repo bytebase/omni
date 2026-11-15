@@ -60,6 +60,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	// CREATE TABLE ... LIKE
 	if stmt.Like != nil {
 		c.dropReplacedTable(db, replaced)
+		dropReplacedSequence(db, key, stmt)
 		return c.createTableLike(db, tableName, key, srcTbl, stmt)
 	}
 
@@ -70,6 +71,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	// longer has.
 	if stmt.Select != nil && len(stmt.Columns) == 0 {
 		c.dropReplacedTable(db, replaced)
+		dropReplacedSequence(db, key, stmt)
 		return nil
 	}
 
@@ -191,6 +193,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		}
 		c.dropReplacedTable(db, replaced)
 	}
+	dropReplacedSequence(db, key, stmt)
 	// A definition without columns, CREATE TABLE r or one of only keys or
 	// checks, is 1113 in MariaDB, after OR REPLACE has dropped the old table.
 	if len(stmt.Columns) == 0 {

@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -71,14 +72,10 @@ func (n *Normalizer) CanonicalIndexColumn(ic *IndexColumn) string {
 // CanonicalTableOptions is the option list SHOW CREATE TABLE ends a table
 // with, less AUTO_INCREMENT=N: the next value is data, not schema.
 func (n *Normalizer) CanonicalTableOptions(t *Table) string {
-	var kept []string
-	for _, part := range strings.Fields(showTableOptions(t)) {
-		if !strings.HasPrefix(part, "AUTO_INCREMENT=") {
-			kept = append(kept, part)
-		}
-	}
-	return strings.Join(kept, " ")
+	return autoIncrementOption.ReplaceAllString(showTableOptions(t), "")
 }
+
+var autoIncrementOption = regexp.MustCompile(` AUTO_INCREMENT=\d+`)
 
 // CanonicalPartitionExpr and CanonicalPartitionValue are a partitioning
 // expression and a bound as the catalog stores them, which the loader has

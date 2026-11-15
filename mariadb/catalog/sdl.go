@@ -40,8 +40,8 @@ import (
 // Session statements are positional: USE selects the current database and SET
 // configures the session. The topological sort may freely reorder object
 // statements, so rather than rely on the sorted position of USE, LoadSDL records
-// the current database at each statement's original position and restores it
-// before executing that statement. foreign_key_checks is likewise held off for
+// the current database and session at each statement's original position and
+// restores them before executing that statement. foreign_key_checks is likewise held off for
 // the entire load regardless of any SET inside the SDL.
 func LoadSDL(sql string) (*Catalog, error) {
 	return LoadSDLWithVersion(sql, MariaDB118)
@@ -91,17 +91,50 @@ func LoadSDLWithVersion(sql string, version Version) (*Catalog, error) {
 		return c, err
 	}
 
+	sessions, final := sessionPerStatement(c, stmts, sql)
 	for _, idx := range order {
-		// Restore the database current at this statement's original position, and
-		// keep FK checks off (a SET inside the SDL must not re-arm validation).
+		// Restore the database and session current at this statement's original
+		// position, and keep FK checks off (a SET inside the SDL must not re-arm
+		// validation).
 		c.SetCurrentDatabase(dbAtIndex[idx])
+		sessions[idx].restore(c)
 		c.SetForeignKeyChecks(false)
 		if err := c.processUtility(stmts[idx], sql); err != nil {
 			return c, err
 		}
 	}
-
+	final.restore(c)
 	return c, nil
+}
+
+// sdlSession is the session a statement of an SDL text runs under.
+type sdlSession struct {
+	session       SessionState
+	charsetClient string
+	collationConn string
+}
+
+func (s sdlSession) restore(c *Catalog) {
+	c.session, c.charsetClient, c.collationConn = s.session, s.charsetClient, s.collationConn
+}
+
+// sessionPerStatement runs the SDL's SET statements in their written order on
+// a copy of c's session, and returns the session each statement starts under
+// and the one the text ends with: a SET governs the objects written after it,
+// wherever the sort puts them.
+func sessionPerStatement(c *Catalog, stmts []nodes.Node, sql string) ([]sdlSession, sdlSession) {
+	scratch := New()
+	current := sdlSession{c.session, c.charsetClient, c.collationConn}
+	sessions := make([]sdlSession, len(stmts))
+	for i, stmt := range stmts {
+		sessions[i] = current
+		if set, ok := stmt.(*nodes.SetStmt); ok {
+			current.restore(scratch)
+			_ = scratch.processUtility(set, sql)
+			current = sdlSession{scratch.session, scratch.charsetClient, scratch.collationConn}
+		}
+	}
+	return sessions, current
 }
 
 // ---------------------------------------------------------------------------

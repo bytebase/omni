@@ -39,7 +39,7 @@ var sequenceTypes = map[string][2]string{
 
 const defaultSequenceCache = "1000"
 
-func (c *Catalog) createSequence(stmt *nodes.CreateSequenceStmt) error {
+func (c *Catalog) createSequence(stmt *nodes.CreateSequenceStmt, source string) error {
 	db, err := c.resolveDatabase(stmt.Name.Schema)
 	if err != nil {
 		return err
@@ -65,7 +65,7 @@ func (c *Catalog) createSequence(stmt *nodes.CreateSequenceStmt) error {
 		start: stmt.Start, increment: stmt.Increment, min: stmt.MinValue, max: stmt.MaxValue,
 		noMin: stmt.NoMinValue, noMax: stmt.NoMaxValue, cache: stmt.Cache, noCache: stmt.NoCache, cycle: stmt.Cycle,
 	}
-	if err := seq.apply(opts, true); err != nil {
+	if err := seq.apply(opts, true, source); err != nil {
 		return err
 	}
 	for _, opt := range stmt.Options {
@@ -81,7 +81,7 @@ func (c *Catalog) createSequence(stmt *nodes.CreateSequenceStmt) error {
 	return nil
 }
 
-func (c *Catalog) alterSequence(stmt *nodes.AlterSequenceStmt) error {
+func (c *Catalog) alterSequence(stmt *nodes.AlterSequenceStmt, source string) error {
 	db, err := c.resolveDatabase(stmt.Name.Schema)
 	if err != nil {
 		return err
@@ -107,13 +107,13 @@ func (c *Catalog) alterSequence(stmt *nodes.AlterSequenceStmt) error {
 		start: stmt.Start, increment: stmt.Increment, min: stmt.MinValue, max: stmt.MaxValue,
 		noMin: stmt.NoMinValue, noMax: stmt.NoMaxValue, cache: stmt.Cache, noCache: stmt.NoCache, cycle: stmt.Cycle,
 	}
-	if err := next.apply(opts, false); err != nil {
+	if err := next.apply(opts, false, source); err != nil {
 		return err
 	}
 	// RESTART WITH sets the next value, which has to lie within the limits,
 	// though SHOW CREATE SEQUENCE does not show it.
 	if stmt.RestartWith != nil {
-		restart, ok := sequenceNumber(stmt.RestartWith)
+		restart, ok := sequenceNumber(stmt.RestartWith, source)
 		v, _ := new(big.Int).SetString(restart, 10)
 		minV, _ := new(big.Int).SetString(next.MinValue, 10)
 		maxV, _ := new(big.Int).SetString(next.MaxValue, 10)
@@ -160,13 +160,13 @@ type sequenceOptions struct {
 // sequence_definition::check_and_adjust does (sql/sql_sequence.cc): an option
 // CREATE leaves unset takes the value the type and the increment's sign give
 // it, while ALTER keeps the sequence's own.
-func (seq *Sequence) apply(o sequenceOptions, create bool) error {
+func (seq *Sequence) apply(o sequenceOptions, create bool, source string) error {
 	outOfRange := errSequenceOutOfRange(seq.Database.Name, seq.Name)
 	value := func(e nodes.ExprNode, into *string) bool {
 		if e == nil {
 			return true
 		}
-		n, ok := sequenceNumber(e)
+		n, ok := sequenceNumber(e, source)
 		if !ok {
 			return false
 		}
@@ -282,15 +282,27 @@ func sequenceTypeRange(dataType string) (*big.Int, *big.Int) {
 }
 
 // sequenceNumber reads an integer option value: a literal, optionally negated.
-func sequenceNumber(e nodes.ExprNode) (string, bool) {
+// An IntLit saturates past int64, so its digits are read from source, the text
+// the statement was parsed from, where there is one.
+func sequenceNumber(e nodes.ExprNode, source string) (string, bool) {
 	switch n := e.(type) {
 	case *nodes.IntLit:
+		if n.Loc.Start >= 0 && n.Loc.End <= len(source) && n.Loc.Start < n.Loc.End {
+			if text := source[n.Loc.Start:n.Loc.End]; strings.Trim(text, "0123456789") == "" {
+				return text, true
+			}
+		}
 		return fmt.Sprint(n.Value), true
+	case *nodes.FloatLit:
+		if _, ok := new(big.Int).SetString(n.Value, 10); ok {
+			return n.Value, true
+		}
+		return "", false
 	case *nodes.UnaryExpr:
 		if n.Op != nodes.UnaryMinus {
 			return "", false
 		}
-		v, ok := sequenceNumber(n.Operand)
+		v, ok := sequenceNumber(n.Operand, source)
 		if !ok {
 			return "", false
 		}
@@ -388,30 +400,51 @@ func qualifySequenceCalls(expr nodes.ExprNode, tbl *Table) nodes.ExprNode {
 		}
 		return &nodes.ColumnRef{Table: schema, Column: name}
 	}
-	switch e := expr.(type) {
-	case *nodes.ParenExpr:
-		return &nodes.ParenExpr{Loc: e.Loc, Expr: qualifySequenceCalls(e.Expr, tbl)}
-	case *nodes.NextValueForExpr:
-		return &nodes.FuncCallExpr{Loc: e.Loc, Name: "NEXTVAL", RawName: "nextval", Args: []nodes.ExprNode{ref(e.Sequence.Schema, e.Sequence.Name)}}
-	case *nodes.PreviousValueForExpr:
-		return &nodes.FuncCallExpr{Loc: e.Loc, Name: "LASTVAL", RawName: "lastval", Args: []nodes.ExprNode{ref(e.Sequence.Schema, e.Sequence.Name)}}
-	case *nodes.FuncCallExpr:
-		name := strings.ToUpper(e.Name)
-		if e.Schema != "" || (name != "NEXTVAL" && name != "LASTVAL" && name != "SETVAL") || len(e.Args) == 0 {
-			return expr
-		}
-		seq, ok := e.Args[0].(*nodes.ColumnRef)
-		if !ok || seq.Schema != "" {
-			return expr
-		}
-		out := *e
-		out.Args = append([]nodes.ExprNode{ref(seq.Table, seq.Column)}, e.Args[1:]...)
-		if name == "SETVAL" {
-			for len(out.Args) < 4 {
-				out.Args = append(out.Args, &nodes.IntLit{Value: []int64{1, 0}[len(out.Args)-2]})
+	var rewrite func(nodes.ExprNode) nodes.ExprNode
+	rewrite = func(expr nodes.ExprNode) nodes.ExprNode {
+		switch e := expr.(type) {
+		case *nodes.ParenExpr:
+			return &nodes.ParenExpr{Loc: e.Loc, Expr: rewrite(e.Expr)}
+		case *nodes.BinaryExpr:
+			out := *e
+			out.Left, out.Right = rewrite(e.Left), rewrite(e.Right)
+			return &out
+		case *nodes.UnaryExpr:
+			out := *e
+			out.Operand = rewrite(e.Operand)
+			return &out
+		case *nodes.NextValueForExpr:
+			return &nodes.FuncCallExpr{Loc: e.Loc, Name: "NEXTVAL", RawName: "nextval", Args: []nodes.ExprNode{ref(e.Sequence.Schema, e.Sequence.Name)}}
+		case *nodes.PreviousValueForExpr:
+			return &nodes.FuncCallExpr{Loc: e.Loc, Name: "LASTVAL", RawName: "lastval", Args: []nodes.ExprNode{ref(e.Sequence.Schema, e.Sequence.Name)}}
+		case *nodes.FuncCallExpr:
+			out := *e
+			out.Args = make([]nodes.ExprNode, len(e.Args))
+			for i, a := range e.Args {
+				out.Args[i] = rewrite(a)
 			}
+			switch name := strings.ToUpper(e.Name); {
+			case e.Schema != "" || len(e.Args) == 0:
+			case name == "NEXTVAL" || name == "LASTVAL" || name == "SETVAL":
+				if seq, ok := e.Args[0].(*nodes.ColumnRef); ok && seq.Schema == "" {
+					out.Args[0] = ref(seq.Table, seq.Column)
+					for name == "SETVAL" && len(out.Args) < 4 {
+						out.Args = append(out.Args, &nodes.IntLit{Value: []int64{1, 0}[len(out.Args)-2]})
+					}
+				}
+			}
+			return &out
 		}
-		return &out
+		return expr
 	}
-	return expr
+	return rewrite(expr)
+}
+
+// dropReplacedSequence drops the sequence CREATE OR REPLACE TABLE replaces: the
+// two share a name space, and the table takes the name. Measured on
+// mariadb:11.8.8.
+func dropReplacedSequence(db *Database, key string, stmt *nodes.CreateTableStmt) {
+	if stmt.OrReplace && !stmt.Temporary {
+		delete(db.Sequences, key)
+	}
 }

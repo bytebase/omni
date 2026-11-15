@@ -38,8 +38,6 @@ const (
 	mysqlIndexFullText = "FULLTEXT"
 	mysqlIndexSpatial  = "SPATIAL"
 
-	mysqlNoAction = "NO ACTION"
-
 	autoIncrementSymbol = "AUTO_INCREMENT"
 )
 
@@ -923,13 +921,14 @@ func printForeignKeyClause(buf *strings.Builder, fk *metadata.ForeignKeyMetadata
 		return err
 	}
 
-	if fk.OnDelete != "" && !strings.EqualFold(fk.OnDelete, mysqlNoAction) {
+	// RESTRICT is what an unwritten action is; NO ACTION is stored apart.
+	if fk.OnDelete != "" && !strings.EqualFold(fk.OnDelete, "RESTRICT") {
 		if _, err := fmt.Fprintf(buf, " ON DELETE %s", fk.OnDelete); err != nil {
 			return err
 		}
 	}
 
-	if fk.OnUpdate != "" && !strings.EqualFold(fk.OnUpdate, mysqlNoAction) {
+	if fk.OnUpdate != "" && !strings.EqualFold(fk.OnUpdate, "RESTRICT") {
 		if _, err := fmt.Fprintf(buf, " ON UPDATE %s", fk.OnUpdate); err != nil {
 			return err
 		}
@@ -999,7 +998,7 @@ func printIndexClause(buf *strings.Builder, index *metadata.IndexMetadata, engin
 	}
 
 	if index.Comment != "" {
-		if _, err := fmt.Fprintf(buf, " COMMENT '%s'", strings.ReplaceAll(index.Comment, "'", "''")); err != nil {
+		if _, err := fmt.Fprintf(buf, " COMMENT '%s'", escapeComment(index.Comment)); err != nil {
 			return err
 		}
 	}
@@ -1275,6 +1274,13 @@ func printColumnClause(buf *strings.Builder, column *metadata.ColumnMetadata, ta
 
 	if !column.Nullable {
 		if _, err := fmt.Fprint(buf, " NOT NULL"); err != nil {
+			return err
+		}
+	} else if strings.HasPrefix(strings.ToLower(strings.TrimSpace(column.Type)), "timestamp") {
+		// A nullable TIMESTAMP says NULL, as SHOW CREATE TABLE writes it, so a
+		// session with explicit_defaults_for_timestamp off does not make it
+		// NOT NULL.
+		if _, err := fmt.Fprint(buf, " NULL"); err != nil {
 			return err
 		}
 	}

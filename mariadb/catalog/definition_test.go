@@ -603,3 +603,16 @@ func TestFunctionDefinitionRestoresEmptySQLMode(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, got, "SET sql_mode = '';\n")
 }
+
+func TestPrintColumnClauseNullableTimestamp(t *testing.T) {
+	var buf strings.Builder
+	require.NoError(t, printColumnClause(&buf, &metadata.ColumnMetadata{Name: "ts", Type: "timestamp(6)", Nullable: true, Default: "NULL"}, &metadata.TableMetadata{}, nil, ""))
+	require.Equal(t, "  `ts` timestamp(6) NULL DEFAULT NULL", buf.String())
+}
+
+func TestForeignKeyClauseKeepsNoAction(t *testing.T) {
+	var buf strings.Builder
+	require.NoError(t, printForeignKeyClause(&buf, &metadata.ForeignKeyMetadata{Name: "f", Columns: []string{"a"}, ReferencedTable: "p", ReferencedColumns: []string{"id"}, OnDelete: "NO ACTION", OnUpdate: "RESTRICT"}, ""))
+	require.Contains(t, buf.String(), "ON DELETE NO ACTION")
+	require.NotContains(t, buf.String(), "ON UPDATE")
+}
