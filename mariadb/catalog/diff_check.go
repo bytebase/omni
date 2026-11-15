@@ -58,17 +58,20 @@ func diffChecks(from, to *Table, n *Normalizer) []CheckDiffEntry {
 	return result
 }
 
-// checkMap indexes a table's table-level CHECK constraints by lower-cased name,
-// leaving out a column's own check (see isColumnCheck).
+// checkMap indexes the CHECK constraints a table writes with its constraints by
+// lower-cased name.
 func checkMap(t *Table) map[string]*Constraint {
 	m := make(map[string]*Constraint)
 	if t == nil {
 		return m
 	}
+	// A column's check, a JSON column's json_valid among them, is part of the
+	// column's definition where SHOW CREATE TABLE writes it on the column (see
+	// CanonicalColumn). A generated column's, which it writes with the table's
+	// constraints, is compared here.
+	onColumn := columnChecks(t)
 	for _, con := range t.Constraints {
-		// A column's check, a JSON column's json_valid among them, is part of
-		// the column's definition (see CanonicalColumn).
-		if con == nil || con.Type != ConCheck || isColumnCheck(con) {
+		if con == nil || con.Type != ConCheck || (isColumnCheck(con) && onColumn[toLower(con.Column)] == con) {
 			continue
 		}
 		name := toLower(con.Name)

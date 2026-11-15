@@ -1182,7 +1182,7 @@ func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause) *PartitionInfo {
 		for _, opt := range pd.Options {
 			switch toLower(opt.Name) {
 			case "engine":
-				pdi.Engine = opt.Value
+				pdi.Engine = canonicalEngineName(opt.Value)
 			case "comment":
 				pdi.Comment = opt.Value
 			}
@@ -1203,7 +1203,7 @@ func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause) *PartitionInfo {
 			for _, opt := range spd.Options {
 				switch toLower(opt.Name) {
 				case "engine":
-					spdi.Engine = opt.Value
+					spdi.Engine = canonicalEngineName(opt.Value)
 				case "comment":
 					spdi.Comment = opt.Value
 				}

@@ -147,6 +147,114 @@
 | SET foreign_key_checks = 0
 < ok 0 0
 > exec
+| CREATE TABLE t (a INT) ENGINE=myisam
+< ok 0 0
+> exec
+| ALTER TABLE t ENGINE=innodb
+< ok 0 0
+> exec
+| CREATE TABLE p (a INT) PARTITION BY HASH (a) (PARTITION p0 ENGINE=innodb, PARTITION p1 ENGINE=INNODB)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_showcreatematchesserver" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| p
+: bytes
+| BASE TABLE
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `p`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| p
+: bytes
+| CREATE TABLE `p` (
+|   `a` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY HASH (`a`)
+| (PARTITION `p0` ENGINE = InnoDB,
+|  PARTITION `p1` ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_showcreatematchesserver`
+< ok 2 0
+> exec
+| CREATE DATABASE `omni_testoracle_showcreatematchesserver`
+< ok 1 0
+> exec
+| USE `omni_testoracle_showcreatematchesserver`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT, b INT AS (a + 1) VIRTUAL CHECK (b > 0), c INT AS (a * 2) STORED COMMENT 'c' CHECK (c < 100))
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_showcreatematchesserver" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL,
+|   `b` int(11) GENERATED ALWAYS AS (`a` + 1) VIRTUAL CHECK (`b` > 0),
+|   `c` int(11) GENERATED ALWAYS AS (`a` * 2) STORED COMMENT 'c' CHECK (`c` < 100)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_showcreatematchesserver`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_showcreatematchesserver`
+< ok 1 0
+> exec
+| USE `omni_testoracle_showcreatematchesserver`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
 | CREATE TABLE t (a TIME DEFAULT '1:2', b TIME(1) DEFAULT '-1 2:3:4.56', c DATETIME(3) DEFAULT '2020-1-2 3:4:5.6789', d DATE DEFAULT '2020-1-2', e DATETIME DEFAULT '2020-01-02', f TIMESTAMP(2) NULL DEFAULT '2020-01-02 03:04:05', g TIME DEFAULT '10:00:00.9', h DATETIME(1) DEFAULT '2020-01-02T03:04:05.15')
 < ok 0 0
 > exec
