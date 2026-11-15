@@ -58,8 +58,16 @@ func generateColumnDDL(_, to *Catalog, diff *SchemaDiff, n *Normalizer) []Migrat
 					if !droppedWithVersioning(entry, col.From) {
 						ops = append(ops, dropColumnOp(entry, table, col.Name, col.From))
 					}
-					if !addedWithVersioning(entry, col.To) {
+					switch {
+					case !addedWithVersioning(entry, col.To):
 						ops = append(ops, addColumnOp(entry, table, col.To, n))
+					case col.To.Generated == nil || col.To.Generated.RowBound == "":
+						// A plain column WITH or WITHOUT SYSTEM VERSIONING is
+						// added without the attribute, which a later MODIFY
+						// applies once the table is versioned.
+						plain := *col.To
+						plain.SystemVersioning = ""
+						ops = append(ops, addColumnOp(entry, table, &plain, n))
 					}
 					continue
 				}

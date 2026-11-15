@@ -331,7 +331,9 @@ func indexCoversColumns(idx *Index, fkCols []string) bool {
 		return false
 	}
 	for i, c := range fkCols {
-		if !strings.EqualFold(idx.Columns[i].Name, c) {
+		// A prefix key part does not back a foreign key (1553), so it never
+		// supplies surviving coverage.
+		if !strings.EqualFold(idx.Columns[i].Name, c) || idx.Columns[i].Length > 0 {
 			return false
 		}
 	}

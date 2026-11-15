@@ -38,6 +38,14 @@ func generatePartitionDDL(_, _ *Catalog, diff *SchemaDiff, n *Normalizer) []Migr
 			}
 		case DiffModify:
 			if !entry.PartitionChanged {
+				// A partition column the plan drops and adds again, to flip
+				// its generated shape, needs the partitioning off while it is
+				// gone (1054), then restored.
+				if entry.To != nil && entry.To.Partitioning != nil && partitionColumnReplaced(entry) {
+					if op, ok := partitionByOp(entry, entry.To, n); ok {
+						ops = append(ops, removePartitioningOp(entry, entry.To), op)
+					}
+				}
 				continue
 			}
 			ops = append(ops, partitionModifyOps(entry, n)...)
@@ -68,7 +76,7 @@ func partitionModifyOps(entry *TableDiffEntry, n *Normalizer) []MigrationOp {
 	if !ok {
 		return nil
 	}
-	if oldPartitionColumnDropped(entry) || uniqueKeyAdded(entry) {
+	if oldPartitionColumnDropped(entry) || uniqueKeyAdded(entry) || partitionColumnTypeChanged(entry) {
 		return []MigrationOp{removePartitioningOp(entry, entry.To), op}
 	}
 	return []MigrationOp{op}
@@ -109,6 +117,58 @@ func oldPartitionColumnDropped(entry *TableDiffEntry) bool {
 	}
 	for _, col := range append(append([]string{}, pi.Columns...), pi.SubColumns...) {
 		if dropped[toLower(col)] {
+			return true
+		}
+	}
+	return false
+}
+
+// partitionColumnTypeChanged reports whether the old partitioning references a
+// column whose type the plan changes, which the old partition function may not
+// accept (for example HASH over a column turned VARCHAR). An EXPRESSION
+// partitioning embeds columns in text, so any type change counts.
+func partitionColumnTypeChanged(entry *TableDiffEntry) bool {
+	if entry.From == nil || entry.From.Partitioning == nil {
+		return false
+	}
+	retyped := make(map[string]bool)
+	for _, ce := range entry.Columns {
+		if ce.Action == DiffModify && ce.From != nil && ce.To != nil && columnRetyped(ce.From, ce.To) {
+			retyped[toLower(ce.Name)] = true
+		}
+	}
+	if len(retyped) == 0 {
+		return false
+	}
+	pi := entry.From.Partitioning
+	if pi.Expr != "" || pi.SubExpr != "" {
+		return true
+	}
+	for _, col := range append(append([]string{}, pi.Columns...), pi.SubColumns...) {
+		if retyped[toLower(col)] {
+			return true
+		}
+	}
+	return false
+}
+
+// partitionColumnReplaced reports whether the partitioning references a column
+// the plan drops and adds again (replacedColumns). An EXPRESSION partitioning
+// embeds columns in text, so any replacement counts.
+func partitionColumnReplaced(entry *TableDiffEntry) bool {
+	if entry.From == nil || entry.From.Partitioning == nil {
+		return false
+	}
+	gone := replacedColumns(entry)
+	if len(gone) == 0 {
+		return false
+	}
+	pi := entry.From.Partitioning
+	if pi.Expr != "" || pi.SubExpr != "" {
+		return true
+	}
+	for _, col := range append(append([]string{}, pi.Columns...), pi.SubColumns...) {
+		if _, ok := gone[toLower(col)]; ok {
 			return true
 		}
 	}

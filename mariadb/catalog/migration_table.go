@@ -141,7 +141,9 @@ func tableOptionAlterOp(database, name string, from, to *Table, n *Normalizer) (
 // tableOptionPriority runs a table's option ALTER ahead of its column changes,
 // unless it changes the engine while a column gives up AUTO_INCREMENT: the
 // target engine may refuse the column as the source holds it, as InnoDB
-// refuses an AUTO_INCREMENT column that does not lead a key (1075).
+// refuses an AUTO_INCREMENT column that does not lead a key (1075). An engine
+// change that instead needs the key the plan builds is folded into that
+// statement (foldEngineIntoAutoKey).
 func tableOptionPriority(from, to *Table) int {
 	if !eqFoldStr(from.Engine, to.Engine) {
 		for _, col := range from.Columns {
@@ -420,4 +422,82 @@ func restatePageChecksum(ops []MigrationOp, diff *SchemaDiff) []MigrationOp {
 		ops = slices.Insert(ops, last+1, restate)
 	}
 	return ops
+}
+
+// foldEngineIntoAutoKey folds an ENGINE change into the single ALTER that
+// defines the AUTO_INCREMENT column's key, when the engines differ on whether
+// that column may be a non-leading key part (MyISAM allows it, InnoDB does
+// not). The whole ALTER is then checked once against the target engine with the
+// final key, which neither an engine-first nor an engine-last order achieves in
+// both directions. Measured on mariadb:11.8.8 and mariadb (MyISAM): 1075.
+func foldEngineIntoAutoKey(ops []MigrationOp, diff *SchemaDiff) []MigrationOp {
+	for i := range diff.Tables {
+		e := &diff.Tables[i]
+		if e.Action != DiffModify || e.From == nil || e.To == nil || eqFoldStr(e.From.Engine, e.To.Engine) {
+			continue
+		}
+		autoCol := autoIncrementColumnName(e.To)
+		if autoCol == "" {
+			continue
+		}
+		// Only when the AI column's non-leading status is allowed by one
+		// engine and not the other, and it is non-leading somewhere.
+		if engineAllowsNonFirstAutoKey(e.From.Engine) == engineAllowsNonFirstAutoKey(e.To.Engine) {
+			continue
+		}
+		if leadsEveryKey(e.From, autoCol) && leadsEveryKey(e.To, autoCol) {
+			continue
+		}
+		key := -1
+		for j := range ops {
+			if ops[j].Type == OpAddIndex && opOfTable(ops[j], e) && ops[j].addsIndex != nil && indexHasPlainColumn(ops[j].addsIndex, autoCol) {
+				key = j
+			}
+		}
+		if key < 0 {
+			continue
+		}
+		engine := "ENGINE=" + tableEngineName(e.To)
+		ops[key].alterParts = append(partsOf(ops[key]), alterPart{clause: engine})
+		ops[key].SQL = "ALTER TABLE " + tableIdent(e.To) + " " + joinAlterParts(ops[key].alterParts)
+		// Drop the ENGINE clause from the standalone option op.
+		var kept []MigrationOp
+		for _, op := range ops {
+			if op.Type == OpAlterTable && op.Database == e.Database && toLower(op.ObjectName) == toLower(e.Name) && op.alterParts == nil {
+				var remains bool
+				if op, remains = stripEngineClause(op, e); !remains {
+					continue
+				}
+			}
+			kept = append(kept, op)
+		}
+		ops = kept
+	}
+	return ops
+}
+
+// leadsEveryKey reports whether col leads every key it is a part of.
+func leadsEveryKey(tbl *Table, col string) bool {
+	for _, idx := range tbl.Indexes {
+		if indexHasPlainColumn(idx, col) && !indexFirstColumnIs(idx, col) {
+			return false
+		}
+	}
+	return true
+}
+
+// stripEngineClause removes the " ENGINE=..." clause from a table-option op,
+// dropping the op when nothing else remains.
+func stripEngineClause(op MigrationOp, e *TableDiffEntry) (MigrationOp, bool) {
+	var kept []string
+	for _, c := range strings.Split(strings.TrimPrefix(op.SQL, "ALTER TABLE "+tableIdent(e.To)+" "), ", ") {
+		if !strings.HasPrefix(c, "ENGINE=") {
+			kept = append(kept, c)
+		}
+	}
+	if len(kept) == 0 {
+		return op, false
+	}
+	op.SQL = "ALTER TABLE " + tableIdent(e.To) + " " + strings.Join(kept, ", ")
+	return op, true
 }

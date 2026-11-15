@@ -170,7 +170,14 @@ func (m *aiMerger) result() []MigrationOp {
 			continue
 		}
 		if m.touched[i] {
-			prefix := strings.TrimSuffix(op.SQL, op.alterClause)
+			// An op already grouped (dropLastColumnsAfterAdds) renders its SQL
+			// from alterParts, not alterClause, so strip that to keep the
+			// prefix.
+			rendered := op.alterClause
+			if len(op.alterParts) > 0 {
+				rendered = joinAlterParts(op.alterParts)
+			}
+			prefix := strings.TrimSuffix(op.SQL, rendered)
 			op.SQL = prefix + joinAlterParts(m.clauses[i])
 			op.alterParts = m.clauses[i]
 		}
