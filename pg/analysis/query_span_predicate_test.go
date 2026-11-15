@@ -290,3 +290,37 @@ func TestGetQuerySpanFallbackKeepsPredicateColumns(t *testing.T) {
 	span := spanFor(t, statement, healthySchema())
 	require.Equal(t, []string{"o.id", "t.id", "t.ssn"}, predicateColumnNames(span.PredicateColumns))
 }
+
+func TestGetQuerySpanTableFunctionArgumentLineage(t *testing.T) {
+	schema := healthySchema()
+	schema.Schemas[0].Functions = []*metadatapb.FunctionMetadata{
+		{Name: "echo", Definition: "CREATE FUNCTION public.echo(x text) RETURNS TABLE(value text) LANGUAGE sql AS $$ SELECT x $$"},
+		// A missing column type makes the catalog install a stand-in without
+		// output parameters, so the outputs come from the definition text.
+		{Name: "echo_stand_in", Definition: "CREATE FUNCTION public.echo_stand_in(x text) RETURNS TABLE(value missing_type) LANGUAGE sql AS $$ SELECT x $$"},
+		{Name: "echo_pl", Definition: "CREATE FUNCTION public.echo_pl(x text) RETURNS TABLE(value text) LANGUAGE plpgsql AS $$ BEGIN RETURN QUERY SELECT x; END; $$"},
+	}
+	testCases := []struct {
+		statement string
+		want      []string
+	}{
+		{"SELECT f.value FROM t CROSS JOIN LATERAL echo(t.ssn) f", []string{"t.ssn"}},
+		{"SELECT f.value FROM t CROSS JOIN LATERAL echo_pl(t.ssn) f", []string{"t.ssn"}},
+		{"SELECT f.value FROM t, echo(upper(t.email)) f", []string{"t.email"}},
+		// * over an unknown function sends the statement to the fallback.
+		{"SELECT * FROM echo('x') f CROSS JOIN LATERAL echo((SELECT ssn FROM t LIMIT 1)) g CROSS JOIN unknown_rows() u", []string{"t.ssn"}},
+		{"SELECT * FROM echo((SELECT ssn FROM t LIMIT 1)) f, unknown_rows() u", []string{"t.ssn"}},
+		{"SELECT * FROM echo_stand_in((SELECT ssn FROM t LIMIT 1)) f CROSS JOIN unknown_rows() u", []string{"t.ssn"}},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.statement, func(t *testing.T) {
+			span := spanFor(t, tc.statement, schema)
+			require.NotEmpty(t, span.Results)
+			got := ColumnSet{}
+			for _, result := range span.Results {
+				mergeSourceColumnSetInto(got, result.SourceColumns)
+			}
+			require.Equal(t, tc.want, predicateColumnNames(got))
+		})
+	}
+}
