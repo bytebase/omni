@@ -327,6 +327,8 @@ func TestGetQuerySpanValuesLineage(t *testing.T) {
 		{"VALUES ('a'), ('b'), ('c'), ((SELECT ssn FROM t LIMIT 1)), ('e')", map[string][]string{"column1": {"t.ssn"}}, []string{}},
 		{"SELECT * FROM (VALUES ((SELECT ssn FROM t LIMIT 1))) v", map[string][]string{"column1": {"t.ssn"}}, []string{}},
 		{"WITH c(x) AS (VALUES ((SELECT ssn FROM t LIMIT 1))) SELECT x FROM c", map[string][]string{"x": {"t.ssn"}}, []string{}},
+		{"VALUES (NULL), (NULL), (1), ((SELECT id FROM t LIMIT 1))", map[string][]string{"column1": {"t.id"}}, []string{}},
+		{"SELECT s.ssn FROM (SELECT ssn FROM t) s WHERE EXISTS (VALUES (NULL), (NULL), (1), (2))", map[string][]string{"ssn": {"t.ssn"}}, []string{}},
 		{"SELECT 'a' AS x UNION ALL VALUES ((SELECT ssn FROM t LIMIT 1))", map[string][]string{"x": {"t.ssn"}}, []string{}},
 		{"SELECT (VALUES ((SELECT ssn FROM t WHERE id = 1))) AS x", map[string][]string{"x": {"t.ssn"}}, []string{"t.id"}},
 	}

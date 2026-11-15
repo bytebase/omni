@@ -364,58 +364,50 @@ func (e *querySpanExtractor) analyzeSelect(sel *ast.SelectStmt) (*catalog.Query,
 }
 
 // rewriteValuesLists rewrites, in place, every VALUES list in node into a
-// UNION ALL of one-row SELECTs with PostgreSQL's column names (column1, ...).
-// The catalog analyzes a VALUES list as a query with no output, which would
-// leave its expressions without lineage and its subqueries' conditions
-// unread. An INSERT's VALUES is left alone, since it may hold DEFAULT.
+// one-row SELECT with PostgreSQL's column names (column1, ...), whose column
+// is the row's expression, or for several rows the COALESCE of every row's
+// expression at that position. COALESCE resolves its type over all the
+// expressions at once, as VALUES does, so the rewrite analyzes whenever the
+// VALUES list does. The catalog analyzes a VALUES list as a query with no
+// output, which would leave its expressions without lineage and its
+// subqueries' conditions unread. An INSERT's VALUES is left alone, since it
+// may hold DEFAULT.
 func rewriteValuesLists(node ast.Node) {
 	ast.Inspect(node, func(n ast.Node) bool {
 		switch v := n.(type) {
 		case *ast.InsertStmt:
 			return false
 		case *ast.SelectStmt:
-			if v.ValuesLists == nil || len(v.ValuesLists.Items) == 0 {
+			if v.ValuesLists == nil {
 				return true
 			}
-			var rows []*ast.SelectStmt
+			var columns [][]ast.Node
 			for _, item := range v.ValuesLists.Items {
 				row, ok := item.(*ast.List)
 				if !ok {
 					continue
 				}
-				targets := &ast.List{}
 				for i, expr := range row.Items {
-					targets.Items = append(targets.Items, &ast.ResTarget{Name: fmt.Sprintf("column%d", i+1), Val: expr, Loc: ast.NodeLoc(expr)})
+					if i == len(columns) {
+						columns = append(columns, nil)
+					}
+					columns[i] = append(columns[i], expr)
 				}
-				rows = append(rows, &ast.SelectStmt{TargetList: targets, Loc: ast.NodeLoc(row)})
 			}
 			v.ValuesLists = nil
-			switch len(rows) {
-			case 0:
-			case 1:
-				v.TargetList = rows[0].TargetList
-			default:
-				// A balanced tree keeps the depth logarithmic in the row count.
-				v.Op, v.All = ast.SETOP_UNION, true
-				v.Larg, v.Rarg = unionAllOf(rows[:len(rows)/2]), unionAllOf(rows[len(rows)/2:])
+			targets := &ast.List{}
+			for i, exprs := range columns {
+				val := exprs[0]
+				if len(exprs) > 1 {
+					val = &ast.CoalesceExpr{Args: &ast.List{Items: exprs}, Loc: ast.NoLoc()}
+				}
+				targets.Items = append(targets.Items, &ast.ResTarget{Name: fmt.Sprintf("column%d", i+1), Val: val, Loc: ast.NoLoc()})
 			}
+			v.TargetList = targets
 		default:
 		}
 		return true
 	})
-}
-
-func unionAllOf(rows []*ast.SelectStmt) *ast.SelectStmt {
-	if len(rows) == 1 {
-		return rows[0]
-	}
-	return &ast.SelectStmt{
-		Op:   ast.SETOP_UNION,
-		All:  true,
-		Larg: unionAllOf(rows[:len(rows)/2]),
-		Rarg: unionAllOf(rows[len(rows)/2:]),
-		Loc:  ast.NoLoc(),
-	}
 }
 
 // outputColumn returns the target entry of q's attNum-th output column. Junk
