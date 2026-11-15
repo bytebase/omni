@@ -214,7 +214,11 @@ func formatCreateTable(tbl *Table, n *Normalizer) string {
 		lines = append(lines, "  "+pk)
 	}
 	// A follow-up ADD INDEX runs after the CREATE, which MariaDB rejects for an AUTO_INCREMENT
-	// column without a key; the index generator skips this same index.
+	// column without a key; the index generator skips this same index. When that key is IGNORED,
+	// inline the implicit primary key too, else the IGNORED key is promoted to it (4174).
+	if pk := inlineImplicitPrimaryKey(tbl); pk != nil {
+		lines = append(lines, "  "+formatIndexDefinition(pk, n))
+	}
 	if idx := autoIncSupportingIndex(tbl); idx != nil {
 		lines = append(lines, "  "+formatIndexDefinition(idx, n))
 	}
@@ -495,4 +499,20 @@ func leadsEveryKey(tbl *Table, col string) bool {
 		}
 	}
 	return true
+}
+
+// inlineImplicitPrimaryKey returns the unique key formatCreateTable must inline
+// as the implicit primary key, when the AUTO_INCREMENT supporting key it inlines
+// is IGNORED and a non-ignored unique key over NOT NULL columns precedes it: on
+// its own the IGNORED key would be promoted to the implicit primary key (4174).
+func inlineImplicitPrimaryKey(tbl *Table) *Index {
+	ai := autoIncSupportingIndex(tbl)
+	if ai == nil || ai.Visible || formatInlinePrimaryKey(tbl) != "" {
+		return nil
+	}
+	pk := tablePrimaryKey(tbl, true)
+	if pk == nil || pk == ai || pk.Primary || !pk.Visible {
+		return nil
+	}
+	return pk
 }

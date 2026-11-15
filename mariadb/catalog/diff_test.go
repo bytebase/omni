@@ -181,6 +181,8 @@ var diffPairs = []struct{ name, a, b string }{
 	{"merge delaying a transitive drop", "CREATE TABLE t (x INT, d INT AS (x + 1) VIRTUAL, g INT AS (d + 1) VIRTUAL)", "CREATE TABLE t (id INT AUTO_INCREMENT PRIMARY KEY, b INT, g INT AS (b + 1) VIRTUAL, KEY k (id, b))"},
 	{"visible column reading an added invisible one", "CREATE TABLE t (a INT, hidden INT INVISIBLE)", "CREATE TABLE t (b INT CHECK (b > c), c INT INVISIBLE, hidden INT INVISIBLE)"},
 	{"engine fold keeping partitions", "CREATE TABLE t (g INT NOT NULL, id INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (g, id)) ENGINE=MyISAM PARTITION BY HASH (g) PARTITIONS 2", "CREATE TABLE t (g INT NOT NULL, id INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (id, g)) ENGINE=InnoDB PARTITION BY HASH (g) PARTITIONS 3"},
+	{"two new triggers before a kept one", "CREATE TABLE t (x INT); CREATE TRIGGER c BEFORE INSERT ON t FOR EACH ROW SET NEW.x = NEW.x + 3", "CREATE TABLE t (x INT); CREATE TRIGGER a BEFORE INSERT ON t FOR EACH ROW PRECEDES c SET NEW.x = NEW.x + 1; CREATE TRIGGER b BEFORE INSERT ON t FOR EACH ROW PRECEDES c SET NEW.x = NEW.x * 2; CREATE TRIGGER c BEFORE INSERT ON t FOR EACH ROW SET NEW.x = NEW.x + 3"},
+	{"new table auto column with an ignored key", "CREATE TABLE x (i INT)", "CREATE TABLE x (i INT); CREATE TABLE t (a INT NOT NULL, b INT AUTO_INCREMENT, UNIQUE KEY u (a), UNIQUE KEY v (b) IGNORED)"},
 	{"timestamps without defaults", "CREATE TABLE x (i INT)", "CREATE TABLE x (i INT, ts TIMESTAMP NOT NULL); CREATE TABLE t (u TIMESTAMP NOT NULL)"},
 	{"sequence limits leaving out the start", "CREATE SEQUENCE s", "CREATE SEQUENCE s START WITH 100 MINVALUE 10"},
 }

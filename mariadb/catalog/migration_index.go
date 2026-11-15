@@ -49,8 +49,9 @@ func addIndexOpsForNewTable(entry *TableDiffEntry, n *Normalizer) []MigrationOp 
 		return nil
 	}
 	table := tableIdent(entry.To)
-	// formatCreateTable renders this index inline; adding it again would be a duplicate key name.
+	// formatCreateTable renders these inline; adding again would be a duplicate key name.
 	inlined := autoIncSupportingIndex(entry.To)
+	inlinedPK := inlineImplicitPrimaryKey(entry.To)
 	var ops []MigrationOp
 	for _, idx := range orderedDiffableIndexes(entry.To) {
 		if idx.Primary {
@@ -58,6 +59,9 @@ func addIndexOpsForNewTable(entry *TableDiffEntry, n *Normalizer) []MigrationOp 
 		}
 		if inlined != nil && idx == inlined {
 			continue // inline in CREATE TABLE (AUTO_INCREMENT supporting key)
+		}
+		if inlinedPK != nil && idx == inlinedPK {
+			continue // inline in CREATE TABLE (implicit primary key)
 		}
 		ops = append(ops, addIndexOp(entry, table, idx, n))
 	}
