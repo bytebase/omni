@@ -5642,6 +5642,120 @@
 | SET foreign_key_checks = 0
 < ok 0 0
 > exec
+| CREATE TABLE t (a INT) COMMENT 'counter AUTO_INCREMENT=10'
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_diffmatchesserver" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci COMMENT='counter AUTO_INCREMENT=10'
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_diffmatchesserver`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_diffmatchesserver`
+< ok 1 0
+> exec
+| USE `omni_testoracle_diffmatchesserver`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT) COMMENT 'counter AUTO_INCREMENT=20'
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_diffmatchesserver" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci COMMENT='counter AUTO_INCREMENT=20'
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_diffmatchesserver`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_diffmatchesserver`
+< ok 1 0
+> exec
+| USE `omni_testoracle_diffmatchesserver`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
 | CREATE EVENT e ON SCHEDULE EVERY LENGTH('01') HOUR STARTS '2030-01-01 00:00:00' DO SELECT 1
 < ok 0 0
 > exec

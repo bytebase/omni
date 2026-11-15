@@ -31,3 +31,16 @@ func TestLoadSDLRefusesParameterMarkers(t *testing.T) {
 		}
 	}
 }
+
+func TestLoadSDLEndsInTheLastSelectedDatabase(t *testing.T) {
+	c, err := LoadSDL("CREATE DATABASE a; CREATE DATABASE b; USE a; CREATE TABLE t (x INT); USE b;")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.Exec("CREATE TABLE u (x INT);", nil); err != nil {
+		t.Fatal(err)
+	}
+	if c.GetDatabase("b").Tables["u"] == nil {
+		t.Error("u not created in b, the database the SDL last selects")
+	}
+}

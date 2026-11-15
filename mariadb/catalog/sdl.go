@@ -109,6 +109,7 @@ func LoadSDLWithVersion(sql string, version Version) (*Catalog, error) {
 			return c, err
 		}
 	}
+	c.SetCurrentDatabase(dbAtIndex[len(stmts)-1])
 	final.restore(c)
 	return c, nil
 }
