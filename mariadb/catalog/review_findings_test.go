@@ -1809,6 +1809,16 @@ func TestReview_IndexOnNondeterministicGeneratedColumn(t *testing.T) {
 			add:   "ALTER TABLE t ADD UNIQUE idx(a)",
 		},
 		{
+			name:  "long_unique_over_text",
+			setup: "CREATE TABLE t (a TEXT AS (UUID()) VIRTUAL)",
+			add:   "CREATE UNIQUE INDEX u ON t(a)",
+		},
+		{
+			name:  "alter_add_long_unique_over_text",
+			setup: "CREATE TABLE t (a TEXT AS (UUID()) VIRTUAL)",
+			add:   "ALTER TABLE t ADD UNIQUE u(a)",
+		},
+		{
 			name:  "covered_second",
 			setup: "CREATE TABLE t (b INT, a DOUBLE AS (RAND()) VIRTUAL)",
 			add:   "CREATE INDEX idx ON t(b,a)",
