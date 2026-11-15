@@ -1245,7 +1245,7 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) (*Column, error) {
 	}
 	if colDef.Generated != nil {
 		col.Generated = &GeneratedColumnInfo{
-			Expr:   nodeToSQLGenerated(colDef.Generated.Expr, tbl.Charset),
+			Expr:   generationExpr(colDef.Generated.Expr),
 			Stored: colDef.Generated.Stored,
 		}
 	}
