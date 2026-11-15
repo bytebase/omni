@@ -154,6 +154,10 @@ var diffPairs = []diffPair{
 	{"only column replaced by a group", "CREATE TABLE t (a INT)", "CREATE TABLE t (a INT AS (1) STORED CHECK (a >= b), b INT CHECK (b >= a))"},
 	{"triggers in creation order", "CREATE TABLE t (x INT)", "CREATE TABLE t (x INT); CREATE TRIGGER z BEFORE INSERT ON t FOR EACH ROW SET NEW.x = NEW.x + 1; CREATE TRIGGER a BEFORE INSERT ON t FOR EACH ROW SET NEW.x = NEW.x * 2"},
 	{"auto key over a generated chain", "CREATE TABLE t (x INT)", "CREATE TABLE t (x INT, id INT AUTO_INCREMENT, g1 INT AS (x + 1) VIRTUAL, g2 INT AS (g1 + 1) VIRTUAL, KEY k (id, g2))"},
+	{"versioning-attributed column a check reads", "CREATE TABLE t (x INT)", "CREATE TABLE t (x INT, b INT WITHOUT SYSTEM VERSIONING, a INT CHECK (a > b)) WITH SYSTEM VERSIONING"},
+	{"kept default reading a removed column", "CREATE TABLE t (id INT, v INT DEFAULT (id + 1))", "CREATE TABLE t (v INT DEFAULT 0)"},
+	{"last visible column replaced", "CREATE TABLE t (a INT, b INT INVISIBLE)", "CREATE TABLE t (b INT INVISIBLE, c INT)"},
+	{"recreated trigger keeps its place", "CREATE TABLE t (x INT); CREATE TRIGGER a BEFORE INSERT ON t FOR EACH ROW SET NEW.x = NEW.x * 2; CREATE TRIGGER b BEFORE INSERT ON t FOR EACH ROW SET NEW.x = NEW.x + 1", "CREATE TABLE t (x INT); CREATE TRIGGER a BEFORE INSERT ON t FOR EACH ROW SET NEW.x = NEW.x * 3; CREATE TRIGGER b BEFORE INSERT ON t FOR EACH ROW SET NEW.x = NEW.x + 1"},
 	{"timestamps without defaults", "CREATE TABLE x (i INT)", "CREATE TABLE x (i INT, ts TIMESTAMP NOT NULL); CREATE TABLE t (u TIMESTAMP NOT NULL)"},
 	{"sequence limits leaving out the start", "CREATE SEQUENCE s", "CREATE SEQUENCE s START WITH 100 MINVALUE 10"},
 }

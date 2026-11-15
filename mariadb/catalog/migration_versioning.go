@@ -115,11 +115,7 @@ func generateVersioningDDL(diff *SchemaDiff, n *Normalizer) []MigrationOp {
 				switch {
 				case !addedWithVersioning(e, col):
 				case col.SystemVersioning != "" && (added[name] || modified[name]):
-					verb := "ADD"
-					if modified[name] {
-						verb = "MODIFY"
-					}
-					attributed = append(attributed, verb+" COLUMN "+formatColumnDefinition(to, col, n))
+					attributed = append(attributed, "MODIFY COLUMN "+formatColumnDefinition(to, col, n))
 				case added[name] || replaced:
 					clauses = append(clauses, "ADD COLUMN "+formatColumnDefinition(to, col, n))
 				}
