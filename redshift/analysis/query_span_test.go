@@ -161,6 +161,28 @@ func TestQuerySpanRejectsMutatingOrUnsupportedRedshiftSelect(t *testing.T) {
 	}
 }
 
+// A FROM item's alias column list renames its first columns, so a renamed
+// column still reads the column beneath it.
+func TestQuerySpanColumnAliases(t *testing.T) {
+	c := catalog.New()
+	if _, err := c.Exec(`CREATE TABLE t (id int, email text, ssn text);`, nil); err != nil {
+		t.Fatal(err)
+	}
+	col := func(name string) ColumnResource { return ColumnResource{Schema: "public", Table: "t", Column: name} }
+
+	span := mustQuerySpan(t, c, `SELECT v.x, email FROM (SELECT ssn, email FROM t) v(x) WHERE v.x = '1'`)
+	assertResult(t, span.Results[0], "x", true, []ColumnResource{col("ssn")})
+	assertResult(t, span.Results[1], "email", true, []ColumnResource{col("email")})
+	assertColumnsEqual(t, span.PredicateColumns, col("ssn"))
+
+	span = mustQuerySpan(t, c, `SELECT x FROM t AS v(x, y) WHERE y = 'a'`)
+	assertResult(t, span.Results[0], "x", true, []ColumnResource{col("id")})
+	assertColumnsEqual(t, span.PredicateColumns, col("email"))
+
+	span = mustQuerySpan(t, c, `WITH c AS (SELECT ssn FROM t) SELECT x FROM c AS v(x)`)
+	assertResult(t, span.Results[0], "x", true, []ColumnResource{col("ssn")})
+}
+
 func mustQuerySpan(t *testing.T, c *catalog.Catalog, sql string) *QuerySpan {
 	t.Helper()
 	span, err := GetQuerySpan(c, sql)

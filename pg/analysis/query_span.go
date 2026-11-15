@@ -865,9 +865,10 @@ func (e *querySpanExtractor) resolveVar(queryStack []*catalog.Query, v *catalog.
 		if rel.RelKind == 'c' {
 			return
 		}
+		// The table's own column name, which an alias column list may hide.
 		colName := ""
-		if colIdx >= 0 && colIdx < len(rte.ColNames) {
-			colName = rte.ColNames[colIdx]
+		if colIdx >= 0 && colIdx < len(rel.Columns) {
+			colName = rel.Columns[colIdx].Name
 		}
 		result[ColumnResource{
 			Database: e.defaultDatabase,
@@ -1090,55 +1091,13 @@ func (e *querySpanExtractor) extractColumnsFromFromItem(item ast.Node, analyzer 
 	}
 
 	switch v := item.(type) {
-	case *ast.RangeVar:
-		return e.extractColumnsFromRangeVar(v)
+	case *ast.RangeVar, *ast.RangeSubselect:
+		if analyzer == nil {
+			analyzer = &plpgsqlAnalyzer{extractor: e, scope: newVariableScope(nil)}
+		}
+		return analyzer.fromItemColumns(item, fromTables)
 	case *ast.RangeFunction:
 		return e.extractColumnsFromRangeFunction(v, analyzer, fromTables)
-	case *ast.RangeSubselect:
-		if v.Alias != nil && v.Alias.Colnames != nil && len(v.Alias.Colnames.Items) > 0 {
-			return extractColnamesFromAlias(v.Alias)
-		}
-		// No explicit column aliases — extract column names from subquery's target list
-		// (only when the target list has explicit columns, not SELECT *).
-		if subSel, ok := v.Subquery.(*ast.SelectStmt); ok && subSel.TargetList != nil {
-			var results []QuerySpanResult
-			hasStar := false
-			for _, item := range subSel.TargetList.Items {
-				rt, ok := item.(*ast.ResTarget)
-				if !ok {
-					continue
-				}
-				if isStarTarget(rt) {
-					hasStar = true
-					break
-				}
-				name := rt.Name
-				if name == "" {
-					name = figureResTargetName(rt)
-				}
-				if name == "" {
-					name = "?column?"
-				}
-				results = append(results, QuerySpanResult{
-					Name:          name,
-					SourceColumns: ColumnSet{},
-				})
-			}
-			if !hasStar && len(results) > 0 {
-				return results
-			}
-			// For SELECT * in subquery, try to resolve columns from the subquery's FROM tables.
-			if hasStar && subSel.FromClause != nil {
-				var starResults []QuerySpanResult
-				for _, fromItem := range subSel.FromClause.Items {
-					starResults = append(starResults, e.extractColumnsFromFromItem(fromItem, analyzer, fromTables)...)
-				}
-				if len(starResults) > 0 {
-					return starResults
-				}
-			}
-		}
-		return nil
 	case *ast.JoinExpr:
 		var results []QuerySpanResult
 		results = append(results, e.extractColumnsFromFromItem(v.Larg, analyzer, fromTables)...)

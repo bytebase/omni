@@ -278,9 +278,10 @@ func (w *exprWalker) resolveVar(stack []*catalog.Query, v *catalog.VarExpr) {
 			w.walkExpr([]*catalog.Query{rel.AnalyzedQuery}, rel.AnalyzedQuery.TargetList[colIdx].Expr)
 			return
 		}
+		// The table's own column name, which an alias column list may hide.
 		colName := ""
-		if colIdx >= 0 && colIdx < len(rte.ColNames) {
-			colName = rte.ColNames[colIdx]
+		if colIdx >= 0 && colIdx < len(rel.Columns) {
+			colName = rel.Columns[colIdx].Name
 		}
 		appendSeenColumns(&w.cols, w.seen, ColumnResource{Schema: rel.Schema.Name, Table: rel.Name, Column: colName})
 	case catalog.RTESubquery:

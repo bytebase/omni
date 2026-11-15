@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
@@ -325,5 +326,37 @@ func TestPhase4_WindowClauseAnalysis(t *testing.T) {
 	}
 	if len(rel.AnalyzedQuery.WindowClause) == 0 {
 		t.Error("expected WindowClause to be populated")
+	}
+}
+
+// --- Alias column lists ---
+
+func TestPhase4_ColumnAliasLists(t *testing.T) {
+	for _, tc := range []struct{ view, from string }{
+		{"CREATE VIEW v AS SELECT s.a, name FROM (SELECT id, name FROM t1) s(a)", "FROM t1) s(a, name)"},
+		{"CREATE VIEW v AS SELECT a, name FROM t1 AS s(a)", "FROM t1 s(a, name, val)"},
+		{"CREATE VIEW v AS SELECT id FROM t1 AS s(id)", "FROM t1 s"},
+		{"CREATE VIEW v AS WITH c AS (SELECT id, name FROM t1) SELECT a FROM c AS s(a)", "FROM c s(a, name)"},
+	} {
+		t.Run(tc.view, func(t *testing.T) {
+			def := viewDef(t, setupPhase4(t), tc.view)
+			if !strings.HasSuffix(strings.TrimSuffix(def, ";"), tc.from) {
+				t.Errorf("view def %q does not end with %q", def, tc.from)
+			}
+		})
+	}
+	for _, query := range []string{
+		"SELECT * FROM (SELECT id FROM t1) s(a, b)",
+		"SELECT * FROM t1 AS s(a, b, c, d)",
+		"WITH c AS (SELECT id FROM t1) SELECT * FROM c AS s(a, b)",
+	} {
+		t.Run(query, func(t *testing.T) {
+			stmts := parseStmts(t, "CREATE VIEW v AS "+query)
+			err := setupPhase4(t).ProcessUtility(stmts[0])
+			var catErr *Error
+			if !errors.As(err, &catErr) || catErr.Code != CodeInvalidColumnReference {
+				t.Errorf("got %v, want SQLSTATE %s", err, CodeInvalidColumnReference)
+			}
+		})
 	}
 }

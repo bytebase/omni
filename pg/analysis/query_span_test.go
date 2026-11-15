@@ -251,6 +251,59 @@ func TestResolveQuerySpanThroughViews(t *testing.T) {
 	require.Equal(t, []string{"db.public.mv.ssn"}, columnNames(span.Results[0].SourceColumns))
 }
 
+// A FROM item's alias column list renames its first columns, so a renamed
+// column still reads the column beneath it.
+func TestResolveQuerySpanColumnAliases(t *testing.T) {
+	type result struct {
+		name    string
+		sources []string
+	}
+	for _, tc := range []struct {
+		statement  string
+		fallback   bool
+		results    []result
+		predicates []string
+	}{
+		{statement: "SELECT v.x FROM (SELECT ssn FROM t) v(x)", results: []result{{"x", []string{"db.public.t.ssn"}}}},
+		{statement: "SELECT x, email FROM (SELECT ssn, email FROM t) v(x)", results: []result{{"x", []string{"db.public.t.ssn"}}, {"email", []string{"db.public.t.email"}}}},
+		{statement: "SELECT * FROM (SELECT ssn, email FROM t) v(x)", results: []result{{"x", []string{"db.public.t.ssn"}}, {"email", []string{"db.public.t.email"}}}},
+		{statement: "SELECT v.x FROM (SELECT ssn FROM t) v(x) WHERE v.x = '1'", results: []result{{"x", []string{"db.public.t.ssn"}}}, predicates: []string{"db.public.t.ssn"}},
+		{statement: "SELECT x FROM t AS v(x)", results: []result{{"x", []string{"db.public.t.id"}}}},
+		{statement: "SELECT v.x FROM t AS v(x, y) WHERE y = 'a'", results: []result{{"x", []string{"db.public.t.id"}}}, predicates: []string{"db.public.t.email"}},
+		{statement: "WITH c AS (SELECT ssn FROM t) SELECT x FROM c AS v(x)", results: []result{{"x", []string{"db.public.t.ssn"}}}},
+		// * over an unknown function sends these to the parse-tree fallback,
+		// which reports only the other outputs.
+		{statement: "SELECT *, v.x FROM (SELECT ssn FROM t) v(x) CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"x", []string{"db.public.t.ssn"}}}},
+		{statement: "SELECT *, x FROM (SELECT ssn FROM t) v(x) CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"x", []string{"db.public.t.ssn"}}}},
+		{statement: "SELECT *, v.e FROM (SELECT ssn AS e FROM t) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"e", []string{"db.public.t.ssn"}}}},
+		{statement: "SELECT *, v.b FROM (SELECT * FROM t) v(a, b) CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"b", []string{"db.public.t.email"}}}},
+		{statement: "SELECT *, v.x FROM (SELECT ssn FROM t UNION SELECT email FROM t) v(x) CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"x", []string{"db.public.t.email", "db.public.t.ssn"}}}},
+		{statement: "SELECT *, v.x FROM (SELECT o.amt FROM t JOIN o ON o.id = t.id) v(x) CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"x", []string{"db.public.o.amt"}}}, predicates: []string{"db.public.o.id", "db.public.t.id"}},
+		{statement: "SELECT *, v.x FROM t AS v(x) CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"x", []string{"db.public.t.id"}}}},
+		{statement: "SELECT *, v.x FROM (SELECT ssn FROM t) v(x) CROSS JOIN unknown_rows() u WHERE v.x = '1'", fallback: true, results: []result{{"x", []string{"db.public.t.ssn"}}}, predicates: []string{"db.public.t.ssn"}},
+		{statement: "SELECT * FROM (SELECT ssn, email FROM t) v(x) CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"x", []string{"db.public.t.ssn"}}, {"email", []string{"db.public.t.email"}}, {"unknown_rows", []string{}}}},
+		{statement: "SELECT * FROM t AS v(x) CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"x", []string{"db.public.t.id"}}, {"email", []string{"db.public.t.email"}}, {"ssn", []string{"db.public.t.ssn"}}, {"unknown_rows", []string{}}}},
+	} {
+		t.Run(tc.statement, func(t *testing.T) {
+			stmts, err := omnipg.Parse(tc.statement)
+			require.NoError(t, err)
+			_, err = newFallbackTestExtractor(t).analyzeSelect(stmts[0].AST.(*ast.SelectStmt))
+			require.Equal(t, tc.fallback, err != nil, "analysis error: %v", err)
+
+			span := spanFor(t, tc.statement, healthySchema())
+			var got []result
+			for _, r := range span.Results {
+				got = append(got, result{r.Name, columnNames(r.SourceColumns)})
+			}
+			require.Equal(t, tc.results, got)
+			if tc.predicates == nil {
+				tc.predicates = []string{}
+			}
+			require.Equal(t, tc.predicates, columnNames(span.PredicateColumns))
+		})
+	}
+}
+
 func TestResolveQuerySpanStatements(t *testing.T) {
 	testCases := []struct {
 		statement string
@@ -584,4 +637,16 @@ func TestRangeVarFallbackSkipsCompositeTypes(t *testing.T) {
 	if results := e.extractColumnsFromRangeVar(&ast.RangeVar{Schemaname: "public", Relname: "t"}); len(results) != 1 {
 		t.Errorf("real table must still expand, got %d columns", len(results))
 	}
+}
+
+// The fallback resolves each subquery in FROM once, however many references
+// reach it, so nested subqueries cost linear time, not exponential.
+func TestFallbackResolvesEachSubqueryOnce(t *testing.T) {
+	inner := "SELECT ssn AS a, email AS b, id AS c FROM t"
+	for range 30 {
+		inner = "SELECT a, b, c FROM (" + inner + ") v1, (SELECT 1 AS z) v2"
+	}
+	span := spanFor(t, "SELECT *, a FROM ("+inner+") v CROSS JOIN unknown_rows() u", healthySchema())
+	require.Len(t, span.Results, 1)
+	require.Equal(t, []string{"db.public.t.ssn"}, columnNames(span.Results[0].SourceColumns))
 }

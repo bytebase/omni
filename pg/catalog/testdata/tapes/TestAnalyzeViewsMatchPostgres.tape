@@ -3825,3 +3825,738 @@
 > exec
 | DROP SCHEMA analyze_58 CASCADE
 < ok 0 -
+> exec
+| CREATE SCHEMA analyze_59; SET search_path TO analyze_59
+< ok 0 -
+> exec
+|
+| 	CREATE TABLE t (id int, masked text, x text);
+| 	CREATE TABLE u (id int, y text);
+| 	CREATE TABLE w (id int, x text, z int);
+| 	CREATE TABLE p (a int, b text, c int);
+| 	CREATE TABLE q (c int, b text, d int);
+| 	CREATE VIEW cc AS SELECT x COLLATE "C" AS c, y AS d FROM t, u;
+| 	CREATE VIEW cp AS SELECT y COLLATE "POSIX" AS p FROM u;
+| 	CREATE FUNCTION os_sfunc(int, int) RETURNS int LANGUAGE sql AS 'select 1';
+| 	CREATE AGGREGATE my_os(float8 ORDER BY int) (sfunc = os_sfunc, stype = int);
+| 	CREATE FUNCTION two_sfunc(int, int, int) RETURNS int LANGUAGE sql AS 'select 1';
+| 	CREATE AGGREGATE two_arg(int, int) (sfunc = two_sfunc, stype = int);
+| 	CREATE FUNCTION poly_def(a int, b anyelement DEFAULT NULL::int) RETURNS anyelement LANGUAGE sql AS 'select $2';
+| 	CREATE FUNCTION f2(a int, b int DEFAULT 1) RETURNS int LANGUAGE sql AS 'select $1';
+| 	CREATE FUNCTION f3(a int, b int) RETURNS int LANGUAGE sql AS 'select $1';
+| 	CREATE TABLE tt (id text);
+| 	CREATE TABLE b8 (id bigint, q text);
+| 	CREATE TABLE js1 (j json);
+| 	CREATE TABLE js2 (j json);
+| 	CREATE TABLE vc (v varchar);
+| 	CREATE TABLE bx (b box);
+| 	CREATE TABLE v1 (k varchar(10), a int);
+| 	CREATE TABLE v2 (k varchar(10), b int);
+| 	CREATE TABLE v3 (k varchar(20), c int);
+| CREATE VIEW v AS SELECT s.a, masked FROM (SELECT id, masked FROM t) s(a);
+< ok 0 -
+> query
+| SELECT pg_get_viewdef('v'::regclass, true)
+< result
+< column "pg_get_viewdef" "TEXT"
+< row
+: string
+|  SELECT a,
+|     masked
+|    FROM ( SELECT t.id,
+|             t.masked
+|            FROM t) s(a, masked);
+> query
+| SELECT attname, atttypid, atttypmod, attcollation FROM pg_attribute
+| 				WHERE attrelid = 'v'::regclass AND attnum > 0 ORDER BY attnum
+< result
+< column "attname" "NAME"
+< column "atttypid" "OID"
+< column "atttypmod" "INT4"
+< column "attcollation" "OID"
+< row
+: string
+| a
+: int64 23
+: int64 -1
+: int64 0
+< row
+: string
+| masked
+: int64 25
+: int64 -1
+: int64 100
+> exec
+| DROP SCHEMA analyze_59 CASCADE
+< ok 0 -
+> exec
+| CREATE SCHEMA analyze_60; SET search_path TO analyze_60
+< ok 0 -
+> exec
+|
+| 	CREATE TABLE t (id int, masked text, x text);
+| 	CREATE TABLE u (id int, y text);
+| 	CREATE TABLE w (id int, x text, z int);
+| 	CREATE TABLE p (a int, b text, c int);
+| 	CREATE TABLE q (c int, b text, d int);
+| 	CREATE VIEW cc AS SELECT x COLLATE "C" AS c, y AS d FROM t, u;
+| 	CREATE VIEW cp AS SELECT y COLLATE "POSIX" AS p FROM u;
+| 	CREATE FUNCTION os_sfunc(int, int) RETURNS int LANGUAGE sql AS 'select 1';
+| 	CREATE AGGREGATE my_os(float8 ORDER BY int) (sfunc = os_sfunc, stype = int);
+| 	CREATE FUNCTION two_sfunc(int, int, int) RETURNS int LANGUAGE sql AS 'select 1';
+| 	CREATE AGGREGATE two_arg(int, int) (sfunc = two_sfunc, stype = int);
+| 	CREATE FUNCTION poly_def(a int, b anyelement DEFAULT NULL::int) RETURNS anyelement LANGUAGE sql AS 'select $2';
+| 	CREATE FUNCTION f2(a int, b int DEFAULT 1) RETURNS int LANGUAGE sql AS 'select $1';
+| 	CREATE FUNCTION f3(a int, b int) RETURNS int LANGUAGE sql AS 'select $1';
+| 	CREATE TABLE tt (id text);
+| 	CREATE TABLE b8 (id bigint, q text);
+| 	CREATE TABLE js1 (j json);
+| 	CREATE TABLE js2 (j json);
+| 	CREATE TABLE vc (v varchar);
+| 	CREATE TABLE bx (b box);
+| 	CREATE TABLE v1 (k varchar(10), a int);
+| 	CREATE TABLE v2 (k varchar(10), b int);
+| 	CREATE TABLE v3 (k varchar(20), c int);
+| CREATE VIEW v AS SELECT * FROM (SELECT id, masked FROM t) s(a);
+< ok 0 -
+> query
+| SELECT pg_get_viewdef('v'::regclass, true)
+< result
+< column "pg_get_viewdef" "TEXT"
+< row
+: string
+|  SELECT a,
+|     masked
+|    FROM ( SELECT t.id,
+|             t.masked
+|            FROM t) s(a, masked);
+> query
+| SELECT attname, atttypid, atttypmod, attcollation FROM pg_attribute
+| 				WHERE attrelid = 'v'::regclass AND attnum > 0 ORDER BY attnum
+< result
+< column "attname" "NAME"
+< column "atttypid" "OID"
+< column "atttypmod" "INT4"
+< column "attcollation" "OID"
+< row
+: string
+| a
+: int64 23
+: int64 -1
+: int64 0
+< row
+: string
+| masked
+: int64 25
+: int64 -1
+: int64 100
+> exec
+| DROP SCHEMA analyze_60 CASCADE
+< ok 0 -
+> exec
+| CREATE SCHEMA analyze_61; SET search_path TO analyze_61
+< ok 0 -
+> exec
+|
+| 	CREATE TABLE t (id int, masked text, x text);
+| 	CREATE TABLE u (id int, y text);
+| 	CREATE TABLE w (id int, x text, z int);
+| 	CREATE TABLE p (a int, b text, c int);
+| 	CREATE TABLE q (c int, b text, d int);
+| 	CREATE VIEW cc AS SELECT x COLLATE "C" AS c, y AS d FROM t, u;
+| 	CREATE VIEW cp AS SELECT y COLLATE "POSIX" AS p FROM u;
+| 	CREATE FUNCTION os_sfunc(int, int) RETURNS int LANGUAGE sql AS 'select 1';
+| 	CREATE AGGREGATE my_os(float8 ORDER BY int) (sfunc = os_sfunc, stype = int);
+| 	CREATE FUNCTION two_sfunc(int, int, int) RETURNS int LANGUAGE sql AS 'select 1';
+| 	CREATE AGGREGATE two_arg(int, int) (sfunc = two_sfunc, stype = int);
+| 	CREATE FUNCTION poly_def(a int, b anyelement DEFAULT NULL::int) RETURNS anyelement LANGUAGE sql AS 'select $2';
+| 	CREATE FUNCTION f2(a int, b int DEFAULT 1) RETURNS int LANGUAGE sql AS 'select $1';
+| 	CREATE FUNCTION f3(a int, b int) RETURNS int LANGUAGE sql AS 'select $1';
+| 	CREATE TABLE tt (id text);
+| 	CREATE TABLE b8 (id bigint, q text);
+| 	CREATE TABLE js1 (j json);
+| 	CREATE TABLE js2 (j json);
+| 	CREATE TABLE vc (v varchar);
+| 	CREATE TABLE bx (b box);
+| 	CREATE TABLE v1 (k varchar(10), a int);
+| 	CREATE TABLE v2 (k varchar(10), b int);
+| 	CREATE TABLE v3 (k varchar(20), c int);
+| CREATE VIEW v AS SELECT id FROM (SELECT id FROM t) s(id);
+< ok 0 -
+> query
+| SELECT pg_get_viewdef('v'::regclass, true)
+< result
+< column "pg_get_viewdef" "TEXT"
+< row
+: string
+|  SELECT id
+|    FROM ( SELECT t.id
+|            FROM t) s(id);
+> query
+| SELECT attname, atttypid, atttypmod, attcollation FROM pg_attribute
+| 				WHERE attrelid = 'v'::regclass AND attnum > 0 ORDER BY attnum
+< result
+< column "attname" "NAME"
+< column "atttypid" "OID"
+< column "atttypmod" "INT4"
+< column "attcollation" "OID"
+< row
+: string
+| id
+: int64 23
+: int64 -1
+: int64 0
+> exec
+| DROP SCHEMA analyze_61 CASCADE
+< ok 0 -
+> exec
+| CREATE SCHEMA analyze_62; SET search_path TO analyze_62
+< ok 0 -
+> exec
+|
+| 	CREATE TABLE t (id int, masked text, x text);
+| 	CREATE TABLE u (id int, y text);
+| 	CREATE TABLE w (id int, x text, z int);
+| 	CREATE TABLE p (a int, b text, c int);
+| 	CREATE TABLE q (c int, b text, d int);
+| 	CREATE VIEW cc AS SELECT x COLLATE "C" AS c, y AS d FROM t, u;
+| 	CREATE VIEW cp AS SELECT y COLLATE "POSIX" AS p FROM u;
+| 	CREATE FUNCTION os_sfunc(int, int) RETURNS int LANGUAGE sql AS 'select 1';
+| 	CREATE AGGREGATE my_os(float8 ORDER BY int) (sfunc = os_sfunc, stype = int);
+| 	CREATE FUNCTION two_sfunc(int, int, int) RETURNS int LANGUAGE sql AS 'select 1';
+| 	CREATE AGGREGATE two_arg(int, int) (sfunc = two_sfunc, stype = int);
+| 	CREATE FUNCTION poly_def(a int, b anyelement DEFAULT NULL::int) RETURNS anyelement LANGUAGE sql AS 'select $2';
+| 	CREATE FUNCTION f2(a int, b int DEFAULT 1) RETURNS int LANGUAGE sql AS 'select $1';
+| 	CREATE FUNCTION f3(a int, b int) RETURNS int LANGUAGE sql AS 'select $1';
+| 	CREATE TABLE tt (id text);
+| 	CREATE TABLE b8 (id bigint, q text);
+| 	CREATE TABLE js1 (j json);
+| 	CREATE TABLE js2 (j json);
+| 	CREATE TABLE vc (v varchar);
+| 	CREATE TABLE bx (b box);
+| 	CREATE TABLE v1 (k varchar(10), a int);
+| 	CREATE TABLE v2 (k varchar(10), b int);
+| 	CREATE TABLE v3 (k varchar(20), c int);
+| CREATE VIEW v AS SELECT t.id, s.n FROM t, LATERAL (SELECT t.id + 1) s(n);
+< ok 0 -
+> query
+| SELECT pg_get_viewdef('v'::regclass, true)
+< result
+< column "pg_get_viewdef" "TEXT"
+< row
+: string
+|  SELECT t.id,
+|     s.n
+|    FROM t,
+|     LATERAL ( SELECT t.id + 1 AS "?column?") s(n);
+> query
+| SELECT attname, atttypid, atttypmod, attcollation FROM pg_attribute
+| 				WHERE attrelid = 'v'::regclass AND attnum > 0 ORDER BY attnum
+< result
+< column "attname" "NAME"
+< column "atttypid" "OID"
+< column "atttypmod" "INT4"
+< column "attcollation" "OID"
+< row
+: string
+| id
+: int64 23
+: int64 -1
+: int64 0
+< row
+: string
+| n
+: int64 23
+: int64 -1
+: int64 0
+> exec
+| DROP SCHEMA analyze_62 CASCADE
+< ok 0 -
+> exec
+| CREATE SCHEMA analyze_63; SET search_path TO analyze_63
+< ok 0 -
+> exec
+|
+| 	CREATE TABLE t (id int, masked text, x text);
+| 	CREATE TABLE u (id int, y text);
+| 	CREATE TABLE w (id int, x text, z int);
+| 	CREATE TABLE p (a int, b text, c int);
+| 	CREATE TABLE q (c int, b text, d int);
+| 	CREATE VIEW cc AS SELECT x COLLATE "C" AS c, y AS d FROM t, u;
+| 	CREATE VIEW cp AS SELECT y COLLATE "POSIX" AS p FROM u;
+| 	CREATE FUNCTION os_sfunc(int, int) RETURNS int LANGUAGE sql AS 'select 1';
+| 	CREATE AGGREGATE my_os(float8 ORDER BY int) (sfunc = os_sfunc, stype = int);
+| 	CREATE FUNCTION two_sfunc(int, int, int) RETURNS int LANGUAGE sql AS 'select 1';
+| 	CREATE AGGREGATE two_arg(int, int) (sfunc = two_sfunc, stype = int);
+| 	CREATE FUNCTION poly_def(a int, b anyelement DEFAULT NULL::int) RETURNS anyelement LANGUAGE sql AS 'select $2';
+| 	CREATE FUNCTION f2(a int, b int DEFAULT 1) RETURNS int LANGUAGE sql AS 'select $1';
+| 	CREATE FUNCTION f3(a int, b int) RETURNS int LANGUAGE sql AS 'select $1';
+| 	CREATE TABLE tt (id text);
+| 	CREATE TABLE b8 (id bigint, q text);
+| 	CREATE TABLE js1 (j json);
+| 	CREATE TABLE js2 (j json);
+| 	CREATE TABLE vc (v varchar);
+| 	CREATE TABLE bx (b box);
+| 	CREATE TABLE v1 (k varchar(10), a int);
+| 	CREATE TABLE v2 (k varchar(10), b int);
+| 	CREATE TABLE v3 (k varchar(20), c int);
+| CREATE VIEW v AS SELECT s.a FROM (SELECT masked FROM t) s(a) WHERE s.a = 'x';
+< ok 0 -
+> query
+| SELECT pg_get_viewdef('v'::regclass, true)
+< result
+< column "pg_get_viewdef" "TEXT"
+< row
+: string
+|  SELECT a
+|    FROM ( SELECT t.masked
+|            FROM t) s(a)
+|   WHERE a = 'x'::text;
+> query
+| SELECT attname, atttypid, atttypmod, attcollation FROM pg_attribute
+| 				WHERE attrelid = 'v'::regclass AND attnum > 0 ORDER BY attnum
+< result
+< column "attname" "NAME"
+< column "atttypid" "OID"
+< column "atttypmod" "INT4"
+< column "attcollation" "OID"
+< row
+: string
+| a
+: int64 25
+: int64 -1
+: int64 100
+> exec
+| DROP SCHEMA analyze_63 CASCADE
+< ok 0 -
+> exec
+| CREATE SCHEMA analyze_64; SET search_path TO analyze_64
+< ok 0 -
+> exec
+|
+| 	CREATE TABLE t (id int, masked text, x text);
+| 	CREATE TABLE u (id int, y text);
+| 	CREATE TABLE w (id int, x text, z int);
+| 	CREATE TABLE p (a int, b text, c int);
+| 	CREATE TABLE q (c int, b text, d int);
+| 	CREATE VIEW cc AS SELECT x COLLATE "C" AS c, y AS d FROM t, u;
+| 	CREATE VIEW cp AS SELECT y COLLATE "POSIX" AS p FROM u;
+| 	CREATE FUNCTION os_sfunc(int, int) RETURNS int LANGUAGE sql AS 'select 1';
+| 	CREATE AGGREGATE my_os(float8 ORDER BY int) (sfunc = os_sfunc, stype = int);
+| 	CREATE FUNCTION two_sfunc(int, int, int) RETURNS int LANGUAGE sql AS 'select 1';
+| 	CREATE AGGREGATE two_arg(int, int) (sfunc = two_sfunc, stype = int);
+| 	CREATE FUNCTION poly_def(a int, b anyelement DEFAULT NULL::int) RETURNS anyelement LANGUAGE sql AS 'select $2';
+| 	CREATE FUNCTION f2(a int, b int DEFAULT 1) RETURNS int LANGUAGE sql AS 'select $1';
+| 	CREATE FUNCTION f3(a int, b int) RETURNS int LANGUAGE sql AS 'select $1';
+| 	CREATE TABLE tt (id text);
+| 	CREATE TABLE b8 (id bigint, q text);
+| 	CREATE TABLE js1 (j json);
+| 	CREATE TABLE js2 (j json);
+| 	CREATE TABLE vc (v varchar);
+| 	CREATE TABLE bx (b box);
+| 	CREATE TABLE v1 (k varchar(10), a int);
+| 	CREATE TABLE v2 (k varchar(10), b int);
+| 	CREATE TABLE v3 (k varchar(20), c int);
+| CREATE VIEW v AS SELECT a, masked FROM t AS s(a);
+< ok 0 -
+> query
+| SELECT pg_get_viewdef('v'::regclass, true)
+< result
+< column "pg_get_viewdef" "TEXT"
+< row
+: string
+|  SELECT a,
+|     masked
+|    FROM t s(a, masked, x);
+> query
+| SELECT attname, atttypid, atttypmod, attcollation FROM pg_attribute
+| 				WHERE attrelid = 'v'::regclass AND attnum > 0 ORDER BY attnum
+< result
+< column "attname" "NAME"
+< column "atttypid" "OID"
+< column "atttypmod" "INT4"
+< column "attcollation" "OID"
+< row
+: string
+| a
+: int64 23
+: int64 -1
+: int64 0
+< row
+: string
+| masked
+: int64 25
+: int64 -1
+: int64 100
+> exec
+| DROP SCHEMA analyze_64 CASCADE
+< ok 0 -
+> exec
+| CREATE SCHEMA analyze_65; SET search_path TO analyze_65
+< ok 0 -
+> exec
+|
+| 	CREATE TABLE t (id int, masked text, x text);
+| 	CREATE TABLE u (id int, y text);
+| 	CREATE TABLE w (id int, x text, z int);
+| 	CREATE TABLE p (a int, b text, c int);
+| 	CREATE TABLE q (c int, b text, d int);
+| 	CREATE VIEW cc AS SELECT x COLLATE "C" AS c, y AS d FROM t, u;
+| 	CREATE VIEW cp AS SELECT y COLLATE "POSIX" AS p FROM u;
+| 	CREATE FUNCTION os_sfunc(int, int) RETURNS int LANGUAGE sql AS 'select 1';
+| 	CREATE AGGREGATE my_os(float8 ORDER BY int) (sfunc = os_sfunc, stype = int);
+| 	CREATE FUNCTION two_sfunc(int, int, int) RETURNS int LANGUAGE sql AS 'select 1';
+| 	CREATE AGGREGATE two_arg(int, int) (sfunc = two_sfunc, stype = int);
+| 	CREATE FUNCTION poly_def(a int, b anyelement DEFAULT NULL::int) RETURNS anyelement LANGUAGE sql AS 'select $2';
+| 	CREATE FUNCTION f2(a int, b int DEFAULT 1) RETURNS int LANGUAGE sql AS 'select $1';
+| 	CREATE FUNCTION f3(a int, b int) RETURNS int LANGUAGE sql AS 'select $1';
+| 	CREATE TABLE tt (id text);
+| 	CREATE TABLE b8 (id bigint, q text);
+| 	CREATE TABLE js1 (j json);
+| 	CREATE TABLE js2 (j json);
+| 	CREATE TABLE vc (v varchar);
+| 	CREATE TABLE bx (b box);
+| 	CREATE TABLE v1 (k varchar(10), a int);
+| 	CREATE TABLE v2 (k varchar(10), b int);
+| 	CREATE TABLE v3 (k varchar(20), c int);
+| CREATE VIEW v AS SELECT * FROM t AS s(a, b);
+< ok 0 -
+> query
+| SELECT pg_get_viewdef('v'::regclass, true)
+< result
+< column "pg_get_viewdef" "TEXT"
+< row
+: string
+|  SELECT a,
+|     b,
+|     x
+|    FROM t s(a, b, x);
+> query
+| SELECT attname, atttypid, atttypmod, attcollation FROM pg_attribute
+| 				WHERE attrelid = 'v'::regclass AND attnum > 0 ORDER BY attnum
+< result
+< column "attname" "NAME"
+< column "atttypid" "OID"
+< column "atttypmod" "INT4"
+< column "attcollation" "OID"
+< row
+: string
+| a
+: int64 23
+: int64 -1
+: int64 0
+< row
+: string
+| b
+: int64 25
+: int64 -1
+: int64 100
+< row
+: string
+| x
+: int64 25
+: int64 -1
+: int64 100
+> exec
+| DROP SCHEMA analyze_65 CASCADE
+< ok 0 -
+> exec
+| CREATE SCHEMA analyze_66; SET search_path TO analyze_66
+< ok 0 -
+> exec
+|
+| 	CREATE TABLE t (id int, masked text, x text);
+| 	CREATE TABLE u (id int, y text);
+| 	CREATE TABLE w (id int, x text, z int);
+| 	CREATE TABLE p (a int, b text, c int);
+| 	CREATE TABLE q (c int, b text, d int);
+| 	CREATE VIEW cc AS SELECT x COLLATE "C" AS c, y AS d FROM t, u;
+| 	CREATE VIEW cp AS SELECT y COLLATE "POSIX" AS p FROM u;
+| 	CREATE FUNCTION os_sfunc(int, int) RETURNS int LANGUAGE sql AS 'select 1';
+| 	CREATE AGGREGATE my_os(float8 ORDER BY int) (sfunc = os_sfunc, stype = int);
+| 	CREATE FUNCTION two_sfunc(int, int, int) RETURNS int LANGUAGE sql AS 'select 1';
+| 	CREATE AGGREGATE two_arg(int, int) (sfunc = two_sfunc, stype = int);
+| 	CREATE FUNCTION poly_def(a int, b anyelement DEFAULT NULL::int) RETURNS anyelement LANGUAGE sql AS 'select $2';
+| 	CREATE FUNCTION f2(a int, b int DEFAULT 1) RETURNS int LANGUAGE sql AS 'select $1';
+| 	CREATE FUNCTION f3(a int, b int) RETURNS int LANGUAGE sql AS 'select $1';
+| 	CREATE TABLE tt (id text);
+| 	CREATE TABLE b8 (id bigint, q text);
+| 	CREATE TABLE js1 (j json);
+| 	CREATE TABLE js2 (j json);
+| 	CREATE TABLE vc (v varchar);
+| 	CREATE TABLE bx (b box);
+| 	CREATE TABLE v1 (k varchar(10), a int);
+| 	CREATE TABLE v2 (k varchar(10), b int);
+| 	CREATE TABLE v3 (k varchar(20), c int);
+| CREATE VIEW v AS SELECT id FROM t AS s(id);
+< ok 0 -
+> query
+| SELECT pg_get_viewdef('v'::regclass, true)
+< result
+< column "pg_get_viewdef" "TEXT"
+< row
+: string
+|  SELECT id
+|    FROM t s;
+> query
+| SELECT attname, atttypid, atttypmod, attcollation FROM pg_attribute
+| 				WHERE attrelid = 'v'::regclass AND attnum > 0 ORDER BY attnum
+< result
+< column "attname" "NAME"
+< column "atttypid" "OID"
+< column "atttypmod" "INT4"
+< column "attcollation" "OID"
+< row
+: string
+| id
+: int64 23
+: int64 -1
+: int64 0
+> exec
+| DROP SCHEMA analyze_66 CASCADE
+< ok 0 -
+> exec
+| CREATE SCHEMA analyze_67; SET search_path TO analyze_67
+< ok 0 -
+> exec
+|
+| 	CREATE TABLE t (id int, masked text, x text);
+| 	CREATE TABLE u (id int, y text);
+| 	CREATE TABLE w (id int, x text, z int);
+| 	CREATE TABLE p (a int, b text, c int);
+| 	CREATE TABLE q (c int, b text, d int);
+| 	CREATE VIEW cc AS SELECT x COLLATE "C" AS c, y AS d FROM t, u;
+| 	CREATE VIEW cp AS SELECT y COLLATE "POSIX" AS p FROM u;
+| 	CREATE FUNCTION os_sfunc(int, int) RETURNS int LANGUAGE sql AS 'select 1';
+| 	CREATE AGGREGATE my_os(float8 ORDER BY int) (sfunc = os_sfunc, stype = int);
+| 	CREATE FUNCTION two_sfunc(int, int, int) RETURNS int LANGUAGE sql AS 'select 1';
+| 	CREATE AGGREGATE two_arg(int, int) (sfunc = two_sfunc, stype = int);
+| 	CREATE FUNCTION poly_def(a int, b anyelement DEFAULT NULL::int) RETURNS anyelement LANGUAGE sql AS 'select $2';
+| 	CREATE FUNCTION f2(a int, b int DEFAULT 1) RETURNS int LANGUAGE sql AS 'select $1';
+| 	CREATE FUNCTION f3(a int, b int) RETURNS int LANGUAGE sql AS 'select $1';
+| 	CREATE TABLE tt (id text);
+| 	CREATE TABLE b8 (id bigint, q text);
+| 	CREATE TABLE js1 (j json);
+| 	CREATE TABLE js2 (j json);
+| 	CREATE TABLE vc (v varchar);
+| 	CREATE TABLE bx (b box);
+| 	CREATE TABLE v1 (k varchar(10), a int);
+| 	CREATE TABLE v2 (k varchar(10), b int);
+| 	CREATE TABLE v3 (k varchar(20), c int);
+| CREATE VIEW v AS SELECT s.a, u.y FROM t AS s(a) JOIN u ON s.a = u.id;
+< ok 0 -
+> query
+| SELECT pg_get_viewdef('v'::regclass, true)
+< result
+< column "pg_get_viewdef" "TEXT"
+< row
+: string
+|  SELECT s.a,
+|     u.y
+|    FROM t s(a, masked, x)
+|      JOIN u ON s.a = u.id;
+> query
+| SELECT attname, atttypid, atttypmod, attcollation FROM pg_attribute
+| 				WHERE attrelid = 'v'::regclass AND attnum > 0 ORDER BY attnum
+< result
+< column "attname" "NAME"
+< column "atttypid" "OID"
+< column "atttypmod" "INT4"
+< column "attcollation" "OID"
+< row
+: string
+| a
+: int64 23
+: int64 -1
+: int64 0
+< row
+: string
+| y
+: int64 25
+: int64 -1
+: int64 100
+> exec
+| DROP SCHEMA analyze_67 CASCADE
+< ok 0 -
+> exec
+| CREATE SCHEMA analyze_68; SET search_path TO analyze_68
+< ok 0 -
+> exec
+|
+| 	CREATE TABLE t (id int, masked text, x text);
+| 	CREATE TABLE u (id int, y text);
+| 	CREATE TABLE w (id int, x text, z int);
+| 	CREATE TABLE p (a int, b text, c int);
+| 	CREATE TABLE q (c int, b text, d int);
+| 	CREATE VIEW cc AS SELECT x COLLATE "C" AS c, y AS d FROM t, u;
+| 	CREATE VIEW cp AS SELECT y COLLATE "POSIX" AS p FROM u;
+| 	CREATE FUNCTION os_sfunc(int, int) RETURNS int LANGUAGE sql AS 'select 1';
+| 	CREATE AGGREGATE my_os(float8 ORDER BY int) (sfunc = os_sfunc, stype = int);
+| 	CREATE FUNCTION two_sfunc(int, int, int) RETURNS int LANGUAGE sql AS 'select 1';
+| 	CREATE AGGREGATE two_arg(int, int) (sfunc = two_sfunc, stype = int);
+| 	CREATE FUNCTION poly_def(a int, b anyelement DEFAULT NULL::int) RETURNS anyelement LANGUAGE sql AS 'select $2';
+| 	CREATE FUNCTION f2(a int, b int DEFAULT 1) RETURNS int LANGUAGE sql AS 'select $1';
+| 	CREATE FUNCTION f3(a int, b int) RETURNS int LANGUAGE sql AS 'select $1';
+| 	CREATE TABLE tt (id text);
+| 	CREATE TABLE b8 (id bigint, q text);
+| 	CREATE TABLE js1 (j json);
+| 	CREATE TABLE js2 (j json);
+| 	CREATE TABLE vc (v varchar);
+| 	CREATE TABLE bx (b box);
+| 	CREATE TABLE v1 (k varchar(10), a int);
+| 	CREATE TABLE v2 (k varchar(10), b int);
+| 	CREATE TABLE v3 (k varchar(20), c int);
+| CREATE VIEW v AS SELECT "A b" FROM t AS s("A b");
+< ok 0 -
+> query
+| SELECT pg_get_viewdef('v'::regclass, true)
+< result
+< column "pg_get_viewdef" "TEXT"
+< row
+: string
+|  SELECT "A b"
+|    FROM t s("A b", masked, x);
+> query
+| SELECT attname, atttypid, atttypmod, attcollation FROM pg_attribute
+| 				WHERE attrelid = 'v'::regclass AND attnum > 0 ORDER BY attnum
+< result
+< column "attname" "NAME"
+< column "atttypid" "OID"
+< column "atttypmod" "INT4"
+< column "attcollation" "OID"
+< row
+: string
+| A b
+: int64 23
+: int64 -1
+: int64 0
+> exec
+| DROP SCHEMA analyze_68 CASCADE
+< ok 0 -
+> exec
+| CREATE SCHEMA analyze_69; SET search_path TO analyze_69
+< ok 0 -
+> exec
+|
+| 	CREATE TABLE t (id int, masked text, x text);
+| 	CREATE TABLE u (id int, y text);
+| 	CREATE TABLE w (id int, x text, z int);
+| 	CREATE TABLE p (a int, b text, c int);
+| 	CREATE TABLE q (c int, b text, d int);
+| 	CREATE VIEW cc AS SELECT x COLLATE "C" AS c, y AS d FROM t, u;
+| 	CREATE VIEW cp AS SELECT y COLLATE "POSIX" AS p FROM u;
+| 	CREATE FUNCTION os_sfunc(int, int) RETURNS int LANGUAGE sql AS 'select 1';
+| 	CREATE AGGREGATE my_os(float8 ORDER BY int) (sfunc = os_sfunc, stype = int);
+| 	CREATE FUNCTION two_sfunc(int, int, int) RETURNS int LANGUAGE sql AS 'select 1';
+| 	CREATE AGGREGATE two_arg(int, int) (sfunc = two_sfunc, stype = int);
+| 	CREATE FUNCTION poly_def(a int, b anyelement DEFAULT NULL::int) RETURNS anyelement LANGUAGE sql AS 'select $2';
+| 	CREATE FUNCTION f2(a int, b int DEFAULT 1) RETURNS int LANGUAGE sql AS 'select $1';
+| 	CREATE FUNCTION f3(a int, b int) RETURNS int LANGUAGE sql AS 'select $1';
+| 	CREATE TABLE tt (id text);
+| 	CREATE TABLE b8 (id bigint, q text);
+| 	CREATE TABLE js1 (j json);
+| 	CREATE TABLE js2 (j json);
+| 	CREATE TABLE vc (v varchar);
+| 	CREATE TABLE bx (b box);
+| 	CREATE TABLE v1 (k varchar(10), a int);
+| 	CREATE TABLE v2 (k varchar(10), b int);
+| 	CREATE TABLE v3 (k varchar(20), c int);
+| CREATE VIEW v AS WITH c AS (SELECT id, masked FROM t) SELECT a FROM c AS s(a);
+< ok 0 -
+> query
+| SELECT pg_get_viewdef('v'::regclass, true)
+< result
+< column "pg_get_viewdef" "TEXT"
+< row
+: string
+|  WITH c AS (
+|          SELECT t.id,
+|             t.masked
+|            FROM t
+|         )
+|  SELECT a
+|    FROM c s(a, masked);
+> query
+| SELECT attname, atttypid, atttypmod, attcollation FROM pg_attribute
+| 				WHERE attrelid = 'v'::regclass AND attnum > 0 ORDER BY attnum
+< result
+< column "attname" "NAME"
+< column "atttypid" "OID"
+< column "atttypmod" "INT4"
+< column "attcollation" "OID"
+< row
+: string
+| a
+: int64 23
+: int64 -1
+: int64 0
+> exec
+| DROP SCHEMA analyze_69 CASCADE
+< ok 0 -
+> exec
+| CREATE SCHEMA analyze_70; SET search_path TO analyze_70
+< ok 0 -
+> exec
+|
+| 	CREATE TABLE t (id int, masked text, x text);
+| 	CREATE TABLE u (id int, y text);
+| 	CREATE TABLE w (id int, x text, z int);
+| 	CREATE TABLE p (a int, b text, c int);
+| 	CREATE TABLE q (c int, b text, d int);
+| 	CREATE VIEW cc AS SELECT x COLLATE "C" AS c, y AS d FROM t, u;
+| 	CREATE VIEW cp AS SELECT y COLLATE "POSIX" AS p FROM u;
+| 	CREATE FUNCTION os_sfunc(int, int) RETURNS int LANGUAGE sql AS 'select 1';
+| 	CREATE AGGREGATE my_os(float8 ORDER BY int) (sfunc = os_sfunc, stype = int);
+| 	CREATE FUNCTION two_sfunc(int, int, int) RETURNS int LANGUAGE sql AS 'select 1';
+| 	CREATE AGGREGATE two_arg(int, int) (sfunc = two_sfunc, stype = int);
+| 	CREATE FUNCTION poly_def(a int, b anyelement DEFAULT NULL::int) RETURNS anyelement LANGUAGE sql AS 'select $2';
+| 	CREATE FUNCTION f2(a int, b int DEFAULT 1) RETURNS int LANGUAGE sql AS 'select $1';
+| 	CREATE FUNCTION f3(a int, b int) RETURNS int LANGUAGE sql AS 'select $1';
+| 	CREATE TABLE tt (id text);
+| 	CREATE TABLE b8 (id bigint, q text);
+| 	CREATE TABLE js1 (j json);
+| 	CREATE TABLE js2 (j json);
+| 	CREATE TABLE vc (v varchar);
+| 	CREATE TABLE bx (b box);
+| 	CREATE TABLE v1 (k varchar(10), a int);
+| 	CREATE TABLE v2 (k varchar(10), b int);
+| 	CREATE TABLE v3 (k varchar(20), c int);
+| CREATE VIEW v AS WITH c AS (SELECT id, masked FROM t) SELECT * FROM c AS s(a);
+< ok 0 -
+> query
+| SELECT pg_get_viewdef('v'::regclass, true)
+< result
+< column "pg_get_viewdef" "TEXT"
+< row
+: string
+|  WITH c AS (
+|          SELECT t.id,
+|             t.masked
+|            FROM t
+|         )
+|  SELECT a,
+|     masked
+|    FROM c s(a, masked);
+> query
+| SELECT attname, atttypid, atttypmod, attcollation FROM pg_attribute
+| 				WHERE attrelid = 'v'::regclass AND attnum > 0 ORDER BY attnum
+< result
+< column "attname" "NAME"
+< column "atttypid" "OID"
+< column "atttypmod" "INT4"
+< column "attcollation" "OID"
+< row
+: string
+| a
+: int64 23
+: int64 -1
+: int64 0
+< row
+: string
+| masked
+: int64 25
+: int64 -1
+: int64 100
+> exec
+| DROP SCHEMA analyze_70 CASCADE
+< ok 0 -

@@ -1198,6 +1198,55 @@
 | 42883 could not identify an ordering operator for type box[]
 | position: 37
 | hint: Use an explicit ordering operator or modify the query.
+> query
+| EXPLAIN SELECT a FROM (SELECT id FROM t) s(a)
+< result
+< column "QUERY PLAN" "TEXT"
+< row
+: string
+| Seq Scan on t  (cost=0.00..18.50 rows=850 width=4)
+> query
+| EXPLAIN SELECT * FROM (SELECT id FROM t) s(a, b)
+< error
+| 42P10 table "s" has 1 columns available but 2 columns specified
+> query
+| EXPLAIN SELECT id FROM (SELECT id FROM t) s(a)
+< error
+| 42703 column "id" does not exist
+| position: 16
+> query
+| EXPLAIN SELECT a FROM t AS s(a)
+< result
+< column "QUERY PLAN" "TEXT"
+< row
+: string
+| Seq Scan on t s  (cost=0.00..18.50 rows=850 width=4)
+> query
+| EXPLAIN SELECT * FROM t AS s(a, b, c, d)
+< error
+| 42P10 table "s" has 3 columns available but 4 columns specified
+> query
+| EXPLAIN SELECT s.id FROM t AS s(a)
+< error
+| 42703 column s.id does not exist
+| position: 16
+> query
+| EXPLAIN SELECT t.id FROM t AS s(a)
+< error
+| 42P01 invalid reference to FROM-clause entry for table "t"
+| position: 16
+| hint: Perhaps you meant to reference the table alias "s".
+> query
+| EXPLAIN WITH c AS (SELECT id FROM t) SELECT a FROM c AS s(a)
+< result
+< column "QUERY PLAN" "TEXT"
+< row
+: string
+| Seq Scan on t  (cost=0.00..18.50 rows=850 width=4)
+> query
+| EXPLAIN WITH c AS (SELECT id FROM t) SELECT * FROM c AS s(a, b)
+< error
+| 42P10 table "s" has 1 columns available but 2 columns specified
 > exec
 | DROP SCHEMA analyze_1 CASCADE
 < ok 0 -
