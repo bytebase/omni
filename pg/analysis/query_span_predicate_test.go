@@ -431,3 +431,30 @@ func TestGetQuerySpanOuterCTELineage(t *testing.T) {
 		})
 	}
 }
+
+// The fallback resolves names without scopes; its answer must not depend on
+// map iteration order, so each statement runs many times.
+func TestGetQuerySpanFallbackIsDeterministic(t *testing.T) {
+	unsynced := &metadatapb.DatabaseSchemaMetadata{Name: "db", Schemas: []*metadatapb.SchemaMetadata{{
+		Name:   "public",
+		Tables: []*metadatapb.TableMetadata{{Name: "t"}, {Name: "o"}},
+	}}}
+	t.Run("unqualified column of several tables", func(t *testing.T) {
+		// * over an unknown function sends the statement to the fallback.
+		for range 50 {
+			span := spanFor(t, "SELECT id FROM t, o CROSS JOIN unknown_rows() u", healthySchema())
+			require.Len(t, span.Results, 1)
+			require.Equal(t, []string{"o.id", "t.id"}, predicateColumnNames(span.Results[0].SourceColumns))
+		}
+	})
+	t.Run("unresolved relations", func(t *testing.T) {
+		for range 50 {
+			span := spanFor(t, "SELECT * FROM t, o", unsynced)
+			require.NotNil(t, span.UnresolvedColumnsError)
+			require.Equal(t, []ColumnResource{
+				{Database: "db", Schema: "public", Table: "o"},
+				{Database: "db", Schema: "public", Table: "t"},
+			}, span.UnresolvedColumnsError.Relations)
+		}
+	})
+}

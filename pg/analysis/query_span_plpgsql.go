@@ -2,6 +2,8 @@ package analysis
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 
 	omnipg "github.com/bytebase/omni/pg"
@@ -843,7 +845,7 @@ func (a *plpgsqlAnalyzer) substituteVariables(sql string) string {
 
 	result := sql
 	for scope := a.scope; scope != nil; scope = scope.parent {
-		for varName := range scope.vars {
+		for _, varName := range slices.Sorted(maps.Keys(scope.vars)) {
 			result = replaceWholeWord(result, varName, "NULL::text")
 		}
 	}
@@ -1268,8 +1270,11 @@ func (a *plpgsqlAnalyzer) resolveColumnRef(cr *ast.ColumnRef, fromTables map[str
 		if _, ok := a.scope.get(colName); ok {
 			return
 		}
-		// Check if it's a column name in any FROM table.
-		for fromKey, resource := range fromTables {
+		// Without scopes the table a name binds to is unknown, so it reads
+		// the column of every FROM table that has one.
+		found := false
+		for _, fromKey := range slices.Sorted(maps.Keys(fromTables)) {
+			resource := fromTables[fromKey]
 			rel := a.resolveFallbackRelation(fromKey, resource.Schema, resource.Table)
 			// Standalone composite types are not FROM-able.
 			if rel != nil && rel.RelKind != 'c' && relationHasColumn(rel, colName) {
@@ -1286,8 +1291,11 @@ func (a *plpgsqlAnalyzer) resolveColumnRef(cr *ast.ColumnRef, fromTables map[str
 					Table:    emitTable,
 					Column:   colName,
 				}] = true
-				return
+				found = true
 			}
+		}
+		if found {
+			return
 		}
 		// Check if it's a whole-row reference (table alias used as value, e.g., to_jsonb(t1)).
 		if resource, ok := fromTables[strings.ToLower(colName)]; ok {

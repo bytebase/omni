@@ -183,7 +183,7 @@ func findDollarQuotedBody(definition string) (tag string, bodyStart int, bodyEnd
 func (e *querySpanExtractor) unresolvedColumnsError(accesses ColumnSet) *UnresolvedColumnsError {
 	seen := make(map[ColumnResource]bool, len(accesses))
 	var unresolved []ColumnResource
-	for access := range accesses {
+	for _, access := range accesses.sorted() {
 		relation := ColumnResource{
 			Database: access.Database,
 			Schema:   access.Schema,
