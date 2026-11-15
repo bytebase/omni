@@ -1708,15 +1708,15 @@ func writeViewSDL(buf *strings.Builder, dbName string, view *metadata.ViewMetada
 // would differ from the user's forever. The body is parsed so that only a qualifier in the database
 // position goes: a table alias or table spelled like the database is a qualifier of
 // its columns and stays. A body that does not parse is returned unchanged. A table
-// the body also names as a CTE keeps its qualifier, since without one it would
-// resolve to the CTE.
+// whose name a CTE or another database's table also has keeps its qualifier,
+// since without one a reference to it would resolve to the CTE or be ambiguous.
 func stripViewBodyDatabaseQualifier(body, dbName string) string {
 	return rebaseViewBodyDatabaseQualifier(body, dbName, dbName)
 }
 
 // rebaseViewBodyDatabaseQualifier is stripViewBodyDatabaseQualifier for a body
-// installed into database target: a table the body also names as a CTE is
-// qualified with target instead.
+// installed into database target: a table that keeps a qualifier is qualified
+// with target instead.
 func rebaseViewBodyDatabaseQualifier(body, dbName, target string) string {
 	if dbName == "" || body == "" {
 		return body
@@ -1731,10 +1731,17 @@ func rebaseViewBodyDatabaseQualifier(body, dbName, target string) string {
 	if err != nil || len(list.Items) != 1 {
 		return body
 	}
-	ctes := map[string]bool{}
+	// A name a CTE or another database's table also has stays qualified: without
+	// the qualifier a reference would resolve to the CTE, or be ambiguous.
+	keep := map[string]bool{}
 	nodes.Inspect(list.Items[0], func(n nodes.Node) bool {
-		if cte, ok := n.(*nodes.CommonTableExpr); ok {
-			ctes[strings.ToLower(cte.Name)] = true
+		switch n := n.(type) {
+		case *nodes.CommonTableExpr:
+			keep[strings.ToLower(n.Name)] = true
+		case *nodes.TableRef:
+			if n.Schema != dbName {
+				keep[strings.ToLower(n.Name)] = true
+			}
 		}
 		return true
 	})
@@ -1755,7 +1762,7 @@ func rebaseViewBodyDatabaseQualifier(body, dbName, target string) string {
 		start := loc.Start - len(prefix)
 		if schema == dbName && start >= 0 && strings.HasPrefix(body[start:], qualifier) {
 			replacement[start] = ""
-			if table != "" && ctes[strings.ToLower(table)] {
+			if table != "" && keep[strings.ToLower(table)] {
 				replacement[start] = quoteIdent(target) + "."
 			}
 		}
