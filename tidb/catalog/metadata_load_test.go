@@ -557,6 +557,9 @@ func TestStripViewBodyDatabaseQualifier(t *testing.T) {
 		// So does one another database's table also has.
 		{"SELECT `testdb`.`t`.`id` AS `id` FROM `testdb`.`t` JOIN `ext`.`t` JOIN `testdb`.`u`",
 			"SELECT `other`.`t`.`id` AS `id` FROM `other`.`t` JOIN `ext`.`t` JOIN `u`"},
+		// And one an alias also has.
+		{"SELECT `testdb`.`t`.`id` FROM `testdb`.`t` WHERE EXISTS (SELECT 1 FROM `ext`.`u` AS `t` WHERE `t`.`id` = `testdb`.`t`.`id`)",
+			"SELECT `other`.`t`.`id` FROM `other`.`t` WHERE EXISTS (SELECT 1 FROM `ext`.`u` AS `t` WHERE `t`.`id` = `other`.`t`.`id`)"},
 	} {
 		if got := stripViewBodyDatabaseQualifier(tc.body, snapshotDB, "other"); got != tc.want {
 			t.Errorf("stripViewBodyDatabaseQualifier(%q) = %q, want %q", tc.body, got, tc.want)
