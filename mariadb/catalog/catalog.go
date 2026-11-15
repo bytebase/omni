@@ -3,6 +3,7 @@ package catalog
 // Catalog is the in-memory MariaDB catalog.
 type Catalog struct {
 	databases        map[string]*Database // lowered name -> Database
+	triggersCreated  int
 	currentDB        string
 	defaultCharset   string
 	defaultCollation string

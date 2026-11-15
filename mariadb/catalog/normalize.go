@@ -49,12 +49,11 @@ func (c *Catalog) Version() Version { return c.session.Version }
 func (c *Catalog) SetVersion(v Version) { c.session.Version = v }
 
 // CanonicalColumn is a column as SHOW CREATE TABLE writes it, with the check
-// it carries: MariaDB writes a column's check on the column, and it changes
-// only with the column's definition.
+// it carries, since MariaDB writes a column's check on the column and changes
+// it only with the column's definition, and with its character set and
+// collation written out: a table's default changes the default of columns
+// added later and leaves the existing ones as they were.
 func (n *Normalizer) CanonicalColumn(table *Table, c *Column) string {
-	// The column's character set and collation are written out: a table's
-	// default changes the default of columns added later and leaves the
-	// existing ones as they were.
 	context := Table{}
 	if table != nil {
 		context = *table

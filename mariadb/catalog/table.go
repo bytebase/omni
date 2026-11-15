@@ -256,6 +256,9 @@ type Trigger struct {
 	SQLMode           string
 	HasSessionContext bool
 	Order             *TriggerOrderInfo
+	// created orders a table's triggers of one timing and event that name no
+	// FOLLOWS or PRECEDES: they run in the order they were created.
+	created int
 }
 
 // TriggerOrderInfo represents FOLLOWS/PRECEDES ordering.
