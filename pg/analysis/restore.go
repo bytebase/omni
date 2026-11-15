@@ -70,7 +70,7 @@ func RestoreSQL(node ast.Node, opts RestoreOptions) (string, error) {
 	var result string
 	switch n := node.(type) {
 	case *ast.DeleteStmt:
-		result = fmt.Sprintf(`INSERT INTO "%s"."%s" (%s) SELECT %s FROM "%s"."%s";`, originalSchema, originalTable, quotedColumnList, quotedColumnList, backupSchema, backupTable)
+		result = fmt.Sprintf(`INSERT INTO %s.%s (%s) SELECT %s FROM %s.%s;`, quoteIdentifier(originalSchema), quoteIdentifier(originalTable), quotedColumnList, quotedColumnList, quoteIdentifier(backupSchema), quoteIdentifier(backupTable))
 	case *ast.UpdateStmt:
 		fields := extractSetFieldNames(n)
 		uk, err := findDisjointUniqueKey(opts.Table, opts.PrimaryKey, fields)
@@ -79,7 +79,7 @@ func RestoreSQL(node ast.Node, opts RestoreOptions) (string, error) {
 		}
 
 		var buf strings.Builder
-		if _, err := fmt.Fprintf(&buf, `INSERT INTO "%s"."%s" (%s) SELECT %s FROM "%s"."%s" ON CONFLICT ON CONSTRAINT "%s" DO UPDATE SET `, originalSchema, originalTable, quotedColumnList, quotedColumnList, backupSchema, backupTable, uk); err != nil {
+		if _, err := fmt.Fprintf(&buf, `INSERT INTO %s.%s (%s) SELECT %s FROM %s.%s ON CONFLICT ON CONSTRAINT %s DO UPDATE SET `, quoteIdentifier(originalSchema), quoteIdentifier(originalTable), quotedColumnList, quotedColumnList, quoteIdentifier(backupSchema), quoteIdentifier(backupTable), quoteIdentifier(uk)); err != nil {
 			return "", fmt.Errorf("failed to generate update statement: %w", err)
 		}
 		for i, field := range fields {
@@ -88,7 +88,7 @@ func RestoreSQL(node ast.Node, opts RestoreOptions) (string, error) {
 					return "", fmt.Errorf("failed to generate update statement: %w", err)
 				}
 			}
-			if _, err := fmt.Fprintf(&buf, `"%s" = EXCLUDED."%s"`, field, field); err != nil {
+			if _, err := fmt.Fprintf(&buf, `%s = EXCLUDED.%s`, quoteIdentifier(field), quoteIdentifier(field)); err != nil {
 				return "", fmt.Errorf("failed to generate update statement: %w", err)
 			}
 		}
@@ -124,7 +124,7 @@ func restorableColumns(table *metadata.TableMetadata) []string {
 func quotePGColumns(columns []string) string {
 	var quotedColumns []string
 	for _, column := range columns {
-		quotedColumns = append(quotedColumns, fmt.Sprintf(`"%s"`, column))
+		quotedColumns = append(quotedColumns, quoteIdentifier(column))
 	}
 	return strings.Join(quotedColumns, ", ")
 }
