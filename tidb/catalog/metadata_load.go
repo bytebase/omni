@@ -674,6 +674,14 @@ func stripViewBodyDatabaseQualifier(body, dbName, target string) string {
 			schema, table, loc = n.Schema, n.Table, n.Loc
 		case *nodes.FuncCallExpr:
 			schema, loc = n.Schema, n.Loc
+		case *nodes.DefaultExpr:
+			// The node starts at DEFAULT; its qualifier is the first inside it.
+			schema, table, loc = n.Schema, n.Table, n.Loc
+			if begin, end := loc.Start-len(prefix), loc.End-len(prefix); schema == dbName && begin >= 0 && end <= len(body) && begin < end {
+				if i := strings.Index(body[begin:end], qualifier); i >= 0 {
+					loc.Start += i
+				}
+			}
 		default:
 			return true
 		}

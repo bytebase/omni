@@ -560,6 +560,9 @@ func TestStripViewBodyDatabaseQualifier(t *testing.T) {
 		// And one an alias also has.
 		{"SELECT `testdb`.`t`.`id` FROM `testdb`.`t` WHERE EXISTS (SELECT 1 FROM `ext`.`u` AS `t` WHERE `t`.`id` = `testdb`.`t`.`id`)",
 			"SELECT `other`.`t`.`id` FROM `other`.`t` WHERE EXISTS (SELECT 1 FROM `ext`.`u` AS `t` WHERE `t`.`id` = `other`.`t`.`id`)"},
+		{"SELECT DEFAULT(`testdb`.`t`.`id`) AS `d` FROM `testdb`.`t`", "SELECT DEFAULT(`t`.`id`) AS `d` FROM `t`"},
+		{"WITH `t` AS (SELECT 1 AS `id`) SELECT DEFAULT(`testdb`.`t`.`id`) AS `d` FROM `testdb`.`t`",
+			"WITH `t` AS (SELECT 1 AS `id`) SELECT DEFAULT(`other`.`t`.`id`) AS `d` FROM `other`.`t`"},
 		{"SELECT `testdb`.`t`.`id` FROM `testdb`.`t` WHERE EXISTS (SELECT 1 FROM (SELECT 1 AS `id`) AS `t` WHERE `t`.`id` = `testdb`.`t`.`id`)",
 			"SELECT `other`.`t`.`id` FROM `other`.`t` WHERE EXISTS (SELECT 1 FROM (SELECT 1 AS `id`) AS `t` WHERE `t`.`id` = `other`.`t`.`id`)"},
 	} {
