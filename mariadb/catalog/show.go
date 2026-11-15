@@ -385,11 +385,26 @@ func writtenOnColumn(checks map[string]*Constraint, con *Constraint) bool {
 // parentheses the DEFAULT grammar requires for an operator expression.
 // Measured on mariadb:11.8.8 — see formatDefault.
 func formatExpressionDefault(val string) string {
+	if name := stripAllOuterParens(val); isColumnName(name) {
+		return name
+	}
 	inner := stripOuterParens(val)
 	if isBareFunctionCall(inner) {
 		return inner
 	}
 	return "(" + inner + ")"
+}
+
+// isColumnName reports whether expr is one backquoted column name. MariaDB
+// writes a default that reads a column bare: measured on mariadb:10.7.8
+// through 11.8.8, DEFAULT (a) and DEFAULT ((a)) are written DEFAULT `a`.
+func isColumnName(expr string) bool {
+	if len(expr) < 2 || expr[0] != '`' {
+		return false
+	}
+	outside := false
+	closed := scanOutsideQuotes(expr, func(int, byte) { outside = true })
+	return closed && !outside
 }
 
 // scanOutsideQuotes calls f for each byte of expr that is not inside a quoted

@@ -234,6 +234,36 @@
 | USE `omni_testoracle_sequences`
 < ok 0 0
 > exec
+| CREATE SEQUENCE z AS TINYINT UNSIGNED MINVALUE 0 START WITH 1
+< ok 0 0
+> exec
+| CREATE SEQUENCE z0 AS TINYINT UNSIGNED MINVALUE 0 START WITH 0
+< error
+| 4085 HY000 Sequence 'omni_testoracle_sequences.z0' has out of range value for options
+> exec
+| CREATE SEQUENCE z1 AS INT UNSIGNED START WITH 0
+< error
+| 4085 HY000 Sequence 'omni_testoracle_sequences.z1' has out of range value for options
+> query
+| SHOW CREATE SEQUENCE `z`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| z
+: bytes
+| CREATE SEQUENCE `z` as tinyint unsigned start with 1 minvalue 1 maxvalue 254 increment by 1 cache 1000 nocycle ENGINE=InnoDB
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_sequences`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_sequences`
+< ok 1 0
+> exec
+| USE `omni_testoracle_sequences`
+< ok 0 0
+> exec
 | CREATE SEQUENCE s START WITH 100 INCREMENT BY 5 MINVALUE 10 MAXVALUE 1000
 < ok 0 0
 > exec
