@@ -302,6 +302,12 @@ func TestResolveQuerySpanColumnAliases(t *testing.T) {
 		{statement: "SELECT *, v.ssn FROM t x(id, email, secret) CROSS JOIN LATERAL (SELECT x.secret AS ssn FROM t) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"ssn", []string{"db.public.t.ssn"}}}},
 		{statement: "SELECT *, v.ssn FROM (SELECT ssn FROM t EXCEPT SELECT email FROM t) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"ssn", []string{"db.public.t.ssn"}}}, predicates: []string{"db.public.t.email", "db.public.t.ssn"}},
 		{statement: "SELECT *, v.x FROM (SELECT (SELECT ssn FROM t EXCEPT SELECT email FROM t) AS x) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"x", []string{"db.public.t.ssn"}}}, predicates: []string{"db.public.t.email", "db.public.t.ssn"}},
+		{statement: "SELECT *, to_jsonb(v) AS j FROM (SELECT o.amt, t.ssn FROM t JOIN o ON o.id = t.id) v(x) CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"j", []string{"db.public.o.amt", "db.public.t.ssn"}}}, predicates: []string{"db.public.o.id", "db.public.t.id"}},
+		{statement: "SELECT *, v.ssn FROM (SELECT (SELECT s.ssn FROM (SELECT t.ssn) s) AS ssn FROM t) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"ssn", []string{"db.public.t.ssn"}}}},
+		{statement: "SELECT *, (SELECT v.ssn FROM o x LIMIT 1) AS s, v.ssn FROM t x CROSS JOIN LATERAL (SELECT x.ssn FROM t) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"s", []string{"db.public.t.ssn"}}, {"ssn", []string{"db.public.t.ssn"}}}},
+		{statement: "SELECT *, v.ssn FROM (SELECT public.t.ssn FROM t) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"ssn", []string{"db.public.t.ssn"}}}},
+		{statement: "SELECT *, v.ssn FROM (SELECT ssn::text FROM t) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"ssn", []string{"db.public.t.ssn"}}}},
+		{statement: "SELECT *, ssn::text, 1::int4 FROM t CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"ssn", []string{"db.public.t.ssn"}}, {"int4", []string{}}}},
 		{statement: "SELECT * FROM t AS v(x) CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"x", []string{"db.public.t.id"}}, {"email", []string{"db.public.t.email"}}, {"ssn", []string{"db.public.t.ssn"}}, {"unknown_rows", []string{}}}},
 	} {
 		t.Run(tc.statement, func(t *testing.T) {

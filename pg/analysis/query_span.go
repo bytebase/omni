@@ -1056,6 +1056,23 @@ func figureResTargetName(rt *ast.ResTarget) string {
 	if rt == nil || rt.Val == nil {
 		return ""
 	}
+	// A cast or collation keeps its operand's name.
+	// pg: src/backend/parser/parse_target.c — FigureColnameInternal
+	switch v := rt.Val.(type) {
+	case *ast.TypeCast:
+		if name := figureResTargetName(&ast.ResTarget{Val: v.Arg}); name != "" {
+			return name
+		}
+		if v.TypeName != nil && v.TypeName.Names != nil && len(v.TypeName.Names.Items) > 0 {
+			if s, ok := v.TypeName.Names.Items[len(v.TypeName.Names.Items)-1].(*ast.String); ok {
+				return s.Str
+			}
+		}
+		return ""
+	case *ast.CollateClause:
+		return figureResTargetName(&ast.ResTarget{Val: v.Arg})
+	default:
+	}
 	if cr, ok := rt.Val.(*ast.ColumnRef); ok && cr.Fields != nil {
 		// Use the last String field — for "ia.approver_emails", return "approver_emails".
 		// For unqualified "col", return "col". Skip A_Star nodes.
