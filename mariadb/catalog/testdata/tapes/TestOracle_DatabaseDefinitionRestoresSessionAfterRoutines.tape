@@ -17,6 +17,9 @@
 | SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0
 < ok 0 0
 > exec
+| SET @OLD_EXPLICIT_DEFAULTS_FOR_TIMESTAMP=@@EXPLICIT_DEFAULTS_FOR_TIMESTAMP, EXPLICIT_DEFAULTS_FOR_TIMESTAMP=1
+< ok 0 0
+> exec
 | SET @saved_cs_client = @@character_set_client, @saved_cs_results = @@character_set_results, @saved_col_connection = @@collation_connection, @saved_sql_mode = @@sql_mode
 < ok 0 0
 > exec
@@ -40,6 +43,9 @@
 < ok 0 0
 > exec
 | CREATE OR REPLACE VIEW `v` AS select 'a\\b' AS `x`
+< ok 0 0
+> exec
+| SET EXPLICIT_DEFAULTS_FOR_TIMESTAMP=@OLD_EXPLICIT_DEFAULTS_FOR_TIMESTAMP
 < ok 0 0
 > exec
 | SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS
