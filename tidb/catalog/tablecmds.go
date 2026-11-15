@@ -297,7 +297,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 		}
 		if colDef.Generated != nil {
 			col.Generated = &GeneratedColumnInfo{
-				Expr:   nodeToSQLGenerated(colDef.Generated.Expr, tbl.Charset),
+				Expr:   generationExpr(colDef.Generated.Expr),
 				Stored: colDef.Generated.Stored,
 			}
 		}
@@ -1438,92 +1438,12 @@ func convertToBinaryType(col *Column, dt *nodes.DataType) *Column {
 	return col
 }
 
-// nodeToSQLGenerated converts an AST expression to SQL for use in a generated
-// column definition. MySQL prefixes string literals with a charset introducer
-// (e.g., _utf8mb4'value') in generated column expressions.
-func nodeToSQLGenerated(node nodes.ExprNode, charset string) string {
-	if node == nil {
-		return ""
-	}
-	switch n := node.(type) {
-	case *nodes.ColumnRef:
-		if n.Table != "" {
-			return "`" + n.Table + "`.`" + n.Column + "`"
-		}
-		return "`" + n.Column + "`"
-	case *nodes.IntLit:
-		return fmt.Sprintf("%d", n.Value)
-	case *nodes.StringLit:
-		// MySQL adds charset introducer for string literals in generated columns.
-		if charset != "" {
-			return "_" + charset + "'" + n.Value + "'"
-		}
-		return "'" + n.Value + "'"
-	case *nodes.FuncCallExpr:
-		funcName := strings.ToLower(n.Name)
-		if n.Star {
-			return funcName + "(*)"
-		}
-		var args []string
-		for _, a := range n.Args {
-			args = append(args, nodeToSQLGenerated(a, charset))
-		}
-		return funcName + "(" + strings.Join(args, ", ") + ")"
-	case *nodes.NullLit:
-		return "NULL"
-	case *nodes.BoolLit:
-		if n.Value {
-			return "1"
-		}
-		return "0"
-	case *nodes.FloatLit:
-		return n.Value
-	case *nodes.BitLit:
-		val := strings.TrimLeft(n.Value, "0")
-		if val == "" {
-			val = "0"
-		}
-		return "b'" + val + "'"
-	case *nodes.ParenExpr:
-		return "(" + nodeToSQLGenerated(n.Expr, charset) + ")"
-	case *nodes.KeywordArg:
-		// Bare keyword argument (timestampdiff unit, get_format type) —
-		// stored unquoted in generated-column bodies exactly like view bodies.
-		return n.Keyword
-	case *nodes.ExtractExpr:
-		// Oracle TiDB v8.5.5 stored form: extract(day_hour from `a`).
-		return "extract(" + strings.ToLower(n.Unit) + " from " + nodeToSQLGenerated(n.Expr, charset) + ")"
-	case *nodes.PositionExpr:
-		// Oracle TiDB v8.5.5 stored form: position(_utf8mb4'x' in `s`) — the
-		// keyword, where MySQL 8.0 stores locate(_utf8mb4'x',`s`).
-		return "position(" + nodeToSQLGenerated(n.Substr, charset) + " in " + nodeToSQLGenerated(n.Str, charset) + ")"
-	case *nodes.BinaryExpr:
-		left := nodeToSQLGenerated(n.Left, charset)
-		right := nodeToSQLGenerated(n.Right, charset)
-		// MySQL rewrites JSON operators to function calls in generated column expressions.
-		switch n.Op {
-		case nodes.BinOpJsonExtract:
-			return "json_extract(" + left + ", " + right + ")"
-		case nodes.BinOpJsonUnquote:
-			return "json_unquote(json_extract(" + left + ", " + right + "))"
-		}
-		op := binaryOpToString(n.Op)
-		return "(" + left + " " + op + " " + right + ")"
-	case *nodes.UnaryExpr:
-		operand := nodeToSQLGenerated(n.Operand, charset)
-		switch n.Op {
-		case nodes.UnaryMinus:
-			return "-" + operand
-		case nodes.UnaryNot:
-			return "NOT " + operand
-		case nodes.UnaryBitNot:
-			return "~" + operand
-		default:
-			return operand
-		}
-	default:
-		return "(?)"
-	}
+// generationExpr writes a generated column's expression as TiDB stores it:
+// restored with RestoreForGeneratedColumn (pkg/ddl create_table.go), which
+// keeps the parentheses the expression was written with and gives each string
+// literal its character set.
+func generationExpr(node nodes.ExprNode) string {
+	return deparse.RestoreWith(node, deparse.RestoreForGeneratedColumn)
 }
 
 func nodeToSQL(node nodes.ExprNode) string {
