@@ -13,6 +13,10 @@ type Executor interface {
 type ExecuteOptions struct {
 	// Transaction is how the script's statements share transactions.
 	Transaction TransactionMode
+	// CreateDatabase runs script as a database-creation step: outside any
+	// transaction, idempotent where the engine checks existing databases
+	// first (pg, Redshift), or through the engine's admin API (Spanner).
+	CreateDatabase bool
 	// MaxRetries is how many times a script that failed on a lock timeout
 	// runs again; 0 never retries.
 	MaxRetries int
