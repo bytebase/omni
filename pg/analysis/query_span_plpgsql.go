@@ -1204,8 +1204,12 @@ func (a *plpgsqlAnalyzer) selectOutputColumns(sel *ast.SelectStmt, outerTables m
 	}
 	if sel.Op != ast.SETOP_NONE {
 		// A set operation's columns are named by its first branch and read
-		// what every branch puts in that position.
+		// what every branch puts in that position, except that EXCEPT
+		// returns only its left branch's rows.
 		columns := a.selectOutputColumns(sel.Larg, outerTables)
+		if sel.Op == ast.SETOP_EXCEPT {
+			return columns
+		}
 		for i, column := range a.selectOutputColumns(sel.Rarg, outerTables) {
 			if i < len(columns) {
 				maps.Copy(columns[i].SourceColumns, column.SourceColumns)
@@ -1218,7 +1222,9 @@ func (a *plpgsqlAnalyzer) selectOutputColumns(sel *ast.SelectStmt, outerTables m
 	}
 	restore, _ := a.pushMarkerScope()
 	defer restore()
-	a.fromItems = make(map[string]ast.Node)
+	if outerTables == nil {
+		a.fromItems = make(map[string]ast.Node)
+	}
 	tables := a.collectFromTables(sel)
 	for k, v := range outerTables {
 		if _, exists := tables[k]; !exists {
@@ -1531,15 +1537,17 @@ func (a *plpgsqlAnalyzer) extractColumnRefsFromExpr(node ast.Node, fromTables ma
 }
 
 // extractSubqueryRefs adds what the outputs of a subquery in an expression
-// read, from every branch of a set operation, and collects its WHERE
-// columns as predicates.
+// read, from each branch of a set operation that returns rows, and collects
+// its WHERE columns as predicates.
 func (a *plpgsqlAnalyzer) extractSubqueryRefs(subSel *ast.SelectStmt, fromTables map[string]ColumnResource, result ColumnSet) {
 	if subSel == nil {
 		return
 	}
 	if subSel.Op != ast.SETOP_NONE {
 		a.extractSubqueryRefs(subSel.Larg, fromTables, result)
-		a.extractSubqueryRefs(subSel.Rarg, fromTables, result)
+		if subSel.Op != ast.SETOP_EXCEPT {
+			a.extractSubqueryRefs(subSel.Rarg, fromTables, result)
+		}
 		return
 	}
 	// The subquery's qualification markers apply only within its own
@@ -1554,9 +1562,17 @@ func (a *plpgsqlAnalyzer) extractSubqueryRefs(subSel *ast.SelectStmt, fromTables
 	}
 	if subSel.TargetList != nil {
 		for _, item := range subSel.TargetList.Items {
-			if rt, ok := item.(*ast.ResTarget); ok {
-				a.extractColumnRefsFromExpr(rt.Val, subTables, result)
+			rt, ok := item.(*ast.ResTarget)
+			if !ok {
+				continue
 			}
+			if isStarTarget(rt) {
+				for _, column := range a.starColumns(subSel, starTableName(rt), subTables) {
+					maps.Copy(result, column.SourceColumns)
+				}
+				continue
+			}
+			a.extractColumnRefsFromExpr(rt.Val, subTables, result)
 		}
 	}
 	if subSel.WhereClause != nil {
