@@ -124,3 +124,21 @@ func TestOracle_DiffMatchesServer(t *testing.T) {
 		})
 	}
 }
+
+func TestLoadSDLRestoresSessionPerStatement(t *testing.T) {
+	c := loadCat(t, dbDDL+"SET explicit_defaults_for_timestamp = OFF; CREATE TABLE t (a TIMESTAMP); SET explicit_defaults_for_timestamp = ON; CREATE TABLE u (a TIMESTAMP);")
+	if got := c.ShowCreateTable("app", "t"); !strings.Contains(got, "`a` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()") {
+		t.Errorf("t loaded without the session its SET gave it:\n%s", got)
+	}
+	if got := c.ShowCreateTable("app", "u"); !strings.Contains(got, "`a` timestamp NULL DEFAULT NULL") {
+		t.Errorf("u loaded without the session its SET gave it:\n%s", got)
+	}
+}
+
+func TestCanonicalTableOptionsKeepsCommentSpacing(t *testing.T) {
+	a := loadCat(t, dbDDL+"CREATE TABLE t (a INT) COMMENT 'a  b';")
+	b := loadCat(t, dbDDL+"CREATE TABLE t (a INT) COMMENT 'a b';")
+	if Diff(a, b).IsEmpty() {
+		t.Error("comments differing in spacing must diff")
+	}
+}
