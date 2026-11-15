@@ -28,7 +28,7 @@
 | SET @saved_cs_client = @@character_set_client;
 | SET character_set_client = utf8mb4;
 | SET @saved_coll_conn = @@collation_connection;
-| SET collation_connection = utf8mb4_0900_ai_ci;
+| SET collation_connection = utf8mb4_general_ci;
 | CREATE FUNCTION `byt9832_sc_apply_rtn`.`f`(`a` INT) RETURNS int
 |     DETERMINISTIC
 | RETURN a + 2;

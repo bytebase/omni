@@ -231,4 +231,4 @@ func eventSQLModeTZ(t testing.TB, conn oracleSession, ctx context.Context, db, n
 
 // defaultCollationForServerCharset returns a plausible default collation for the server
 // charset of a version, used only to populate a realistic synced context in these tests.
-func defaultCollationForServerCharset(Version) string { return "utf8mb4_0900_ai_ci" }
+func defaultCollationForServerCharset(Version) string { return "utf8mb4_general_ci" }

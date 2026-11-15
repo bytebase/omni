@@ -38,8 +38,8 @@ type Version int
 
 const (
 	// MySQL80 reproduces MySQL 8.0's stored form (display widths dropped except
-	// tinyint(1)/zerofill, utf8mb3 spelling, utf8mb4_0900_ai_ci default, descending
-	// indexes, CHECK kept, functional defaults, _latin1 expression introducer).
+	// tinyint(1)/zerofill, utf8mb3 spelling, descending indexes, CHECK kept,
+	// functional defaults, _latin1 expression introducer).
 	MySQL80 Version = iota
 )
 
@@ -89,7 +89,7 @@ func foldCollation(coll string) string {
 }
 
 // defaultCollationFor returns the default collation for a charset, already folded:
-// utf8mb4_0900_ai_ci for utf8mb4. (entry utf8mb4-default-collation)
+// utf8mb4_general_ci for utf8mb4, OceanBase's default. (entry utf8mb4-default-collation)
 func (n *Normalizer) defaultCollationFor(charset string) string {
 	cs := foldCharset(charset)
 	if dc, ok := defaultCollationForCharset[cs]; ok {

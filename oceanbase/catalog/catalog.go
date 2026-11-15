@@ -57,7 +57,7 @@ func New() *Catalog {
 	return &Catalog{
 		databases:        make(map[string]*Database),
 		defaultCharset:   "utf8mb4",
-		defaultCollation: "utf8mb4_0900_ai_ci",
+		defaultCollation: defaultCollationForCharset["utf8mb4"],
 		charsetClient:    session.CharsetClient,
 		collationConn:    session.CollationConnection,
 		foreignKeyChecks: session.ForeignKeyChecks,
@@ -69,7 +69,7 @@ func defaultSessionState() SessionState {
 	return SessionState{
 		ForeignKeyChecks:             true,
 		CharsetClient:                "utf8mb4",
-		CollationConnection:          "utf8mb4_0900_ai_ci",
+		CollationConnection:          defaultCollationForCharset["utf8mb4"],
 		ExplicitDefaultsForTimestamp: true,
 		SQLMode:                      "DEFAULT",
 		Version:                      MySQL80,

@@ -3,7 +3,37 @@ package catalog
 import (
 	"strings"
 	"testing"
+
+	"github.com/bytebase/omni/oceanbase/internal/testcontainer"
 )
+
+func TestDefaultCollationsMatchOceanBase(t *testing.T) {
+	rows, err := testcontainer.Open(t).Query("SHOW CHARACTER SET")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	reported := map[string]bool{}
+	for rows.Next() {
+		var charset, description, collation string
+		var maxLen int
+		if err := rows.Scan(&charset, &description, &collation, &maxLen); err != nil {
+			t.Fatal(err)
+		}
+		reported[charset] = true
+		if got := defaultCollationForCharset[charset]; got != collation {
+			t.Errorf("default collation of %s: catalog has %q, OceanBase %q", charset, got, collation)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	for charset := range defaultCollationForCharset {
+		if !reported[charset] && charset != "utf8" && charset != "utf8mb3" {
+			t.Errorf("catalog has a default collation for %s, which OceanBase does not have", charset)
+		}
+	}
+}
 
 func TestShowCreateTableBasic(t *testing.T) {
 	c := setupWithDB(t)
@@ -22,8 +52,7 @@ func TestShowCreateTableBasic(t *testing.T) {
 	assertContains(t, got, "KEY `idx_name` (`name`)")
 	assertContains(t, got, "ENGINE=InnoDB")
 	assertContains(t, got, "DEFAULT CHARSET=utf8mb4")
-	// MySQL 8.0 always shows COLLATE in SHOW CREATE TABLE.
-	assertContains(t, got, "COLLATE=utf8mb4_0900_ai_ci")
+	assertNotContains(t, got, "COLLATE")
 }
 
 func TestShowCreateTableUniqueKey(t *testing.T) {
