@@ -795,16 +795,16 @@ func setTxSearchPath(txn *sql.Tx, searchPath string) error {
 func getListColumnQuery(isAtLeastPG12 bool) string {
 	// pg_attribute.attgenerated only exists on PostgreSQL >= 12. On older versions
 	// information_schema.columns.column_default has no generated-column exclusion either,
-	// so this matches the per-version information_schema behavior. is_generated and
-	// generation_expression follow information_schema.columns, which reports a
-	// generated column as 'ALWAYS' with its expression and every other column as
-	// 'NEVER' with none.
+	// so this matches the per-version information_schema behavior. generation_kind is
+	// pg_attribute.attgenerated ('s' STORED, 'v' PG18 VIRTUAL, '' not generated), kept
+	// apart from generation_expression so the stored and virtual forms are not merged;
+	// information_schema.columns gives the expression but not the kind.
 	columnDefault := "pg_catalog.pg_get_expr(ad.adbin, ad.adrelid)"
-	isGenerated := "'NEVER'"
+	generationKind := "''"
 	generationExpression := "NULL"
 	if isAtLeastPG12 {
 		columnDefault = "CASE WHEN a.attgenerated = '' THEN pg_catalog.pg_get_expr(ad.adbin, ad.adrelid) END"
-		isGenerated = "CASE WHEN a.attgenerated <> '' THEN 'ALWAYS' ELSE 'NEVER' END"
+		generationKind = "a.attgenerated"
 		generationExpression = "CASE WHEN a.attgenerated <> '' THEN pg_catalog.pg_get_expr(ad.adbin, ad.adrelid) END"
 	}
 	return fmt.Sprintf(`
@@ -832,7 +832,7 @@ SELECT
 	information_schema._pg_datetime_precision(information_schema._pg_truetypid(a.*, t.*), information_schema._pg_truetypmod(a.*, t.*)) AS datetime_precision,
 	a.attnum AS ordinal_position,
 	%s AS column_default,
-	%s AS is_generated,
+	%s AS generation_kind,
 	%s AS generation_expression,
 	CASE WHEN a.attnotnull OR (t.typtype = 'd' AND t.typnotnull) THEN 'NO' ELSE 'YES' END AS is_nullable,
 	co.collname AS collation_name,
@@ -856,7 +856,7 @@ WHERE a.attnum > 0
 	AND nc.nspname NOT IN (%s)
 	AND nc.nspname NOT LIKE 'pg_temp%%'
 	AND nc.nspname NOT LIKE 'pg_toast%%'
-ORDER BY nc.nspname, c.relname, a.attnum;`, columnDefault, isGenerated, generationExpression, pganalysis.SystemSchemaWhereClause)
+ORDER BY nc.nspname, c.relname, a.attnum;`, columnDefault, generationKind, generationExpression, pganalysis.SystemSchemaWhereClause)
 }
 
 // getTableColumns gets the columns of a table.
@@ -869,18 +869,19 @@ func getTableColumns(txn *sql.Tx, isAtLeastPG12 bool) (map[tableKey][]*metadatap
 	defer rows.Close()
 	for rows.Next() {
 		column := &metadatapb.ColumnMetadata{}
-		var schemaName, tableName, nullable, isGenerated string
+		var schemaName, tableName, nullable, generationKind string
 		var characterMaxLength, numericPrecision, numericScale, datetimePrecision, defaultStr, generationExpression, collation, udtSchema, udtName, identityGeneration, comment sql.NullString
-		if err := rows.Scan(&schemaName, &tableName, &column.Name, &column.Type, &characterMaxLength, &numericPrecision, &numericScale, &datetimePrecision, &column.Position, &defaultStr, &isGenerated, &generationExpression, &nullable, &collation, &udtSchema, &udtName, &identityGeneration, &comment); err != nil {
+		if err := rows.Scan(&schemaName, &tableName, &column.Name, &column.Type, &characterMaxLength, &numericPrecision, &numericScale, &datetimePrecision, &column.Position, &defaultStr, &generationKind, &generationExpression, &nullable, &collation, &udtSchema, &udtName, &identityGeneration, &comment); err != nil {
 			return nil, err
 		}
-		// A generated column carries its expression instead of a default.
-		// PostgreSQL stores generated columns STORED; information_schema does
-		// not distinguish the PG18 VIRTUAL form, and the corpus has none.
-		if isGenerated == "ALWAYS" && generationExpression.Valid {
-			column.Generation = &metadatapb.GenerationMetadata{
-				Type:       metadatapb.GenerationMetadata_TYPE_STORED,
-				Expression: generationExpression.String,
+		// A generated column carries its expression instead of a default, and
+		// attgenerated gives its storage: 's' STORED or 'v' PG18 VIRTUAL.
+		if generationExpression.Valid {
+			switch generationKind {
+			case "s":
+				column.Generation = &metadatapb.GenerationMetadata{Type: metadatapb.GenerationMetadata_TYPE_STORED, Expression: generationExpression.String}
+			case "v":
+				column.Generation = &metadatapb.GenerationMetadata{Type: metadatapb.GenerationMetadata_TYPE_VIRTUAL, Expression: generationExpression.String}
 			}
 		}
 		// Store schema-qualified default in the Default field for Step 4 of column default migration

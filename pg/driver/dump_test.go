@@ -70,6 +70,18 @@ func TestDumpRestores(t *testing.T) {
 	}
 }
 
+// TestDumpRestoresGeneratedColumnFunction checks that a STORED generated
+// column whose expression calls a user function restores: the dump must
+// create the function before the table, though the table's name sorts first.
+func TestDumpRestoresGeneratedColumnFunction(t *testing.T) {
+	setup := "CREATE FUNCTION public.zz_double(n integer) RETURNS integer LANGUAGE sql IMMUTABLE AS $$ SELECT n * 2 $$;\n" +
+		"CREATE TABLE public.aa_gen (base integer, doubled integer GENERATED ALWAYS AS (public.zz_double(base)) STORED);"
+	source, restored := restoreDump(t, testcontainer.Default, "omni_gen_fn", setup)
+	if diff := restoreDiff(source, restored); diff != "" {
+		t.Errorf("the restored database differs from the source (-source +restored):\n%s", diff)
+	}
+}
+
 // restoreDiff compares a source database and its dump's restore, ignoring
 // what a restore cannot carry: the database name, a table's physical sizes
 // and row estimate, and the column positions the source's dropped columns

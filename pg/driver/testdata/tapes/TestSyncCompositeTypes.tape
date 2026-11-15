@@ -162,7 +162,7 @@
 | 	information_schema._pg_datetime_precision(information_schema._pg_truetypid(a.*, t.*), information_schema._pg_truetypmod(a.*, t.*)) AS datetime_precision,
 | 	a.attnum AS ordinal_position,
 | 	CASE WHEN a.attgenerated = '' THEN pg_catalog.pg_get_expr(ad.adbin, ad.adrelid) END AS column_default,
-| 	CASE WHEN a.attgenerated <> '' THEN 'ALWAYS' ELSE 'NEVER' END AS is_generated,
+| 	a.attgenerated AS generation_kind,
 | 	CASE WHEN a.attgenerated <> '' THEN pg_catalog.pg_get_expr(ad.adbin, ad.adrelid) END AS generation_expression,
 | 	CASE WHEN a.attnotnull OR (t.typtype = 'd' AND t.typnotnull) THEN 'NO' ELSE 'YES' END AS is_nullable,
 | 	co.collname AS collation_name,
@@ -198,7 +198,7 @@
 < column "datetime_precision" "INT4"
 < column "ordinal_position" "INT2"
 < column "column_default" "TEXT"
-< column "is_generated" "TEXT"
+< column "generation_kind" "CHAR"
 < column "generation_expression" "TEXT"
 < column "is_nullable" "TEXT"
 < column "collation_name" "NAME"
@@ -222,7 +222,7 @@
 : int64 1
 : null
 : string
-| NEVER
+|
 : null
 : string
 | YES

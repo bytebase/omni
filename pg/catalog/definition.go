@@ -113,6 +113,7 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 	materializedViewMap := make(map[string]*metadatapb.MaterializedViewMetadata)
 
 	// Construct functions.
+	functionIDsByName := make(map[string][]string)
 	for _, schema := range metadata.Schemas {
 		for _, function := range schema.Functions {
 			if function.SkipDump {
@@ -120,6 +121,8 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 			}
 			funcID := getObjectID(schema.Name, metadataFuncIdentity(function))
 			functionMap[funcID] = function
+			qualified := schema.Name + "." + function.Name
+			functionIDsByName[qualified] = append(functionIDsByName[qualified], funcID)
 			graph.AddNode(funcID)
 			for _, dependency := range function.DependencyTables {
 				dependencyID := getObjectID(dependency.Schema, dependency.Table)
@@ -176,6 +179,7 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 			tableID := getObjectID(schema.Name, table.Name)
 			tableMap[tableID] = table
 			graph.AddNode(tableID)
+			addColumnFunctionEdges(graph, functionIDsByName, tableID, table.Columns)
 		}
 
 		for _, view := range schema.Views {
@@ -836,6 +840,12 @@ func writeEnum(out io.Writer, schema string, enum *metadatapb.EnumTypeMetadata) 
 
 func escapeSingleQuote(s string) string {
 	return strings.ReplaceAll(s, "'", "''")
+}
+
+// escapeIdentifier doubles the double quotes in a name so it is safe inside a
+// quoted identifier, as a role name with a double quote would otherwise be.
+func escapeIdentifier(s string) string {
+	return strings.ReplaceAll(s, `"`, `""`)
 }
 
 func writeCompositeType(out io.Writer, schema string, composite *metadatapb.CompositeTypeMetadata) error {
@@ -1588,6 +1598,37 @@ func metadataFuncIdentity(f *metadatapb.FunctionMetadata) string {
 	return f.Name
 }
 
+// addColumnFunctionEdges adds an edge from each user function a column's
+// default or generation expression calls to the column's table, so the
+// function is created first. A STORED generated column's expression and a
+// column default are validated against their functions at CREATE TABLE time,
+// and TopologicalSort otherwise orders a table before a function it needs
+// whenever the table's id sorts first. Built-in functions and unparsable
+// expressions add no edge.
+func addColumnFunctionEdges(graph *definitionGraph, functionIDsByName map[string][]string, tableID string, columns []*metadatapb.ColumnMetadata) {
+	for _, column := range columns {
+		var exprs []string
+		if column.Default != "" {
+			exprs = append(exprs, column.Default)
+		}
+		if column.Generation != nil && column.Generation.Expression != "" {
+			exprs = append(exprs, column.Generation.Expression)
+		}
+		for _, expr := range exprs {
+			node, err := parseScalar("SELECT " + expr)
+			if err != nil {
+				continue
+			}
+			funcRefs, _, _ := collectExprDeps(node)
+			for _, ref := range funcRefs {
+				for _, funcID := range functionIDsByName[ref] {
+					graph.AddEdge(funcID, tableID)
+				}
+			}
+		}
+	}
+}
+
 func getObjectID(schema string, object string) string {
 	var buf strings.Builder
 	_, _ = buf.WriteString(schema)
@@ -1950,7 +1991,7 @@ func writeTable(out io.Writer, schema string, table *metadatapb.TableMetadata, s
 	// to them: PostgreSQL requires an owned sequence to share its table's
 	// owner. Identity sequences are created below, under this owner.
 	if table.Owner != "" {
-		if _, err := fmt.Fprintf(out, "ALTER TABLE \"%s\".\"%s\" OWNER TO \"%s\";\n\n", schema, table.Name, table.Owner); err != nil {
+		if _, err := fmt.Fprintf(out, "ALTER TABLE \"%s\".\"%s\" OWNER TO \"%s\";\n\n", escapeIdentifier(schema), escapeIdentifier(table.Name), escapeIdentifier(table.Owner)); err != nil {
 			return err
 		}
 	}
@@ -2914,7 +2955,7 @@ func writeSchema(out io.Writer, schema *metadatapb.SchemaMetadata) error {
 // is written.
 func writeSchemaOwnerAndComment(out io.Writer, schema *metadatapb.SchemaMetadata) error {
 	if schema.Name != "public" && schema.Owner != "" {
-		if _, err := fmt.Fprintf(out, "ALTER SCHEMA \"%s\" OWNER TO \"%s\";\n\n", schema.Name, schema.Owner); err != nil {
+		if _, err := fmt.Fprintf(out, "ALTER SCHEMA \"%s\" OWNER TO \"%s\";\n\n", escapeIdentifier(schema.Name), escapeIdentifier(schema.Owner)); err != nil {
 			return err
 		}
 	}
@@ -2974,9 +3015,12 @@ func extractIndexClauses(definition string) (includeClause, whereClause string) 
 }
 
 // extractIndexWith returns the storage-parameter clause of a CREATE INDEX
-// definition, such as `WITH (pages_per_range='16')`, or "" when the index
-// has none. It reads the clause verbatim from the definition, which
-// pg_get_indexdef writes between the key list and any WHERE clause.
+// definition, such as `WITH (pages_per_range='16')`, or "" when the index has
+// none. It reads the clause verbatim from the definition, which
+// pg_get_indexdef writes between the key list and any WHERE clause. The clause
+// is the `WITH (` keyword at bracket depth zero and outside any quotes, so a
+// `WITH (` inside the quoted index name, a key expression, or an INCLUDE
+// column is not mistaken for it.
 func extractIndexWith(definition string) string {
 	stmts, err := parseDefinition(definition)
 	if err != nil || len(stmts) == 0 {
@@ -2986,21 +3030,55 @@ func extractIndexWith(definition string) string {
 	if !ok || idx == nil || idx.Options == nil || len(idx.Options.Items) == 0 {
 		return ""
 	}
-	const marker = " WITH ("
-	i := strings.Index(definition, marker)
-	if i < 0 {
-		return ""
-	}
-	open := i + len(marker) - 1 // the '(' of the clause
-	depth := 0
-	for j := open; j < len(definition); j++ {
-		switch definition[j] {
-		case '(':
+	inSingle, inDouble, depth := false, false, 0
+	for i := 0; i < len(definition); i++ {
+		c := definition[i]
+		switch {
+		case inSingle:
+			if c == '\'' {
+				inSingle = false
+			}
+		case inDouble:
+			if c == '"' {
+				inDouble = false
+			}
+		case c == '\'':
+			inSingle = true
+		case c == '"':
+			inDouble = true
+		case c == '(':
 			depth++
-		case ')':
+		case c == ')':
+			if depth > 0 {
+				depth--
+			}
+		case depth == 0 && (c == 'W' || c == 'w') && (i == 0 || definition[i-1] == ' ') && strings.HasPrefix(definition[i:], "WITH ("):
+			return indexWithClause(definition, i)
+		}
+	}
+	return ""
+}
+
+// indexWithClause returns the `WITH (...)` clause of definition that begins at
+// start, with its parentheses balanced and single-quoted values skipped.
+func indexWithClause(definition string, start int) string {
+	open := start + len("WITH ") // the '(' of the clause
+	depth, inSingle := 0, false
+	for j := open; j < len(definition); j++ {
+		c := definition[j]
+		switch {
+		case inSingle:
+			if c == '\'' {
+				inSingle = false
+			}
+		case c == '\'':
+			inSingle = true
+		case c == '(':
+			depth++
+		case c == ')':
 			depth--
 			if depth == 0 {
-				return "WITH " + definition[open:j+1]
+				return definition[start : j+1]
 			}
 		}
 	}
