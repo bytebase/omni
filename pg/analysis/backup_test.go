@@ -1,6 +1,7 @@
 package analysis
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/bytebase/omni/metadata"
@@ -98,10 +99,10 @@ func TestRestoreSQL(t *testing.T) {
 		PrimaryKey:     table.Indexes[0],
 		OriginalSQL:    "DELETE FROM t",
 	}
-	script := "SET search_path = public; DELETE FROM t; UPDATE t SET a = 1; UPDATE t SET id = 2, t.a = 3"
+	script := "SET search_path = public; DELETE FROM t; UPDATE t SET a = 1; UPDATE t SET id = 2, a = 3; UPDATE t SET a.x = 1, a.y = 2"
 	stmts := parseScript(t, script)
 	dmls := BackedUpDMLs(stmts)
-	require.Len(t, dmls, 3)
+	require.Len(t, dmls, 4)
 	require.Equal(t, "SET search_path = public", PrependStatements(stmts))
 
 	got, err := RestoreSQL(dmls[0].Node, options)
@@ -116,6 +117,11 @@ func TestRestoreSQL(t *testing.T) {
 	// An UPDATE of every unique key cannot be restored.
 	_, err = RestoreSQL(dmls[2].Node, options)
 	require.EqualError(t, err, "no disjoint unique key found for table")
+
+	// Assigning fields of a composite column restores the column, once.
+	got, err = RestoreSQL(dmls[3].Node, options)
+	require.NoError(t, err)
+	require.True(t, strings.HasSuffix(got, ` ON CONFLICT ON CONSTRAINT "t_pkey" DO UPDATE SET "a" = EXCLUDED."a";`), got)
 }
 
 func TestRestoreSQLConflictTarget(t *testing.T) {

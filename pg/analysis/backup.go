@@ -178,12 +178,13 @@ func generateSQLForTable(statementInfoList []statementInfo, targetSchema string,
 				return nil, fmt.Errorf("failed to write to buffer: %w", err)
 			}
 		}
-		if table.Alias != "" {
-			if _, err := fmt.Fprintf(&buf, "  SELECT %s.* ", quoteIdentifier(table.Alias)); err != nil {
+		// Each arm selects through its own statement's name for the table.
+		if item.table.Alias != "" {
+			if _, err := fmt.Fprintf(&buf, "  SELECT %s.* ", quoteIdentifier(item.table.Alias)); err != nil {
 				return nil, fmt.Errorf("failed to write to buffer: %w", err)
 			}
 		} else {
-			if _, err := fmt.Fprintf(&buf, `  SELECT %s.* `, table.String()); err != nil {
+			if _, err := fmt.Fprintf(&buf, `  SELECT %s.* `, item.table.String()); err != nil {
 				return nil, fmt.Errorf("failed to write to buffer: %w", err)
 			}
 		}

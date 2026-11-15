@@ -2,6 +2,7 @@ package analysis
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/bytebase/omni/metadata"
@@ -130,7 +131,10 @@ func quotePGColumns(columns []string) string {
 	return strings.Join(quotedColumns, ", ")
 }
 
-// extractSetFieldNames extracts the target column names from an UPDATE SET clause.
+// extractSetFieldNames returns the columns an UPDATE's SET clause assigns,
+// each once. PostgreSQL does not allow a SET target qualified by its table, so
+// in "SET fn.first = 1" and "SET arr[1] = 1" the column is the first name, fn
+// or arr; the rest picks a field or element of it.
 func extractSetFieldNames(stmt *ast.UpdateStmt) []string {
 	if stmt.TargetList == nil {
 		return nil
@@ -138,25 +142,8 @@ func extractSetFieldNames(stmt *ast.UpdateStmt) []string {
 	var fields []string
 	for _, item := range stmt.TargetList.Items {
 		rt, ok := item.(*ast.ResTarget)
-		if !ok || rt.Name == "" {
+		if !ok || rt.Name == "" || slices.Contains(fields, rt.Name) {
 			continue
-		}
-		// Take the last name component (the actual column name).
-		// For "SET test.c1 = 1", Name="test", Indirection=["c1"] → want "c1".
-		// For "SET c1 = 1", Name="c1", Indirection=nil → want "c1".
-		// For "SET schema.col[1] = val", Indirection=["col", integer] → want "col".
-		if rt.Indirection != nil && rt.Indirection.Len() > 0 {
-			found := false
-			for j := rt.Indirection.Len() - 1; j >= 0; j-- {
-				if s, ok := rt.Indirection.Items[j].(*ast.String); ok {
-					fields = append(fields, s.Str)
-					found = true
-					break
-				}
-			}
-			if found {
-				continue
-			}
 		}
 		fields = append(fields, rt.Name)
 	}
