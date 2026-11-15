@@ -30,8 +30,8 @@ type Normalizer struct {
 	Version                      Version
 	ExplicitDefaultsForTimestamp bool
 
-	// checks caches columnChecks per table: a comparison renders every
-	// column of a table, and the map is the table's whole constraint list.
+	// checks caches columnChecks per table for one comparison, which renders
+	// every column of a table: the map is the table's whole constraint list.
 	checks map[*Table]map[string]*Constraint
 }
 
@@ -52,7 +52,15 @@ func (c *Catalog) SetVersion(v Version) { c.session.Version = v }
 // it carries: MariaDB writes a column's check on the column, and it changes
 // only with the column's definition.
 func (n *Normalizer) CanonicalColumn(table *Table, c *Column) string {
-	return showColumnWithTable(c, table, n.columnChecks(table), false)
+	// The column's character set and collation are written out: a table's
+	// default changes the default of columns added later and leaves the
+	// existing ones as they were.
+	context := Table{}
+	if table != nil {
+		context = *table
+	}
+	context.Charset, context.Collation = "", ""
+	return showColumnWithTable(c, &context, n.columnChecks(table), false)
 }
 
 func (n *Normalizer) columnChecks(t *Table) map[string]*Constraint {
