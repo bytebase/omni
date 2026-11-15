@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 
 	nodes "github.com/bytebase/omni/mariadb/ast"
@@ -323,7 +324,7 @@ func (c *Catalog) installMetadataObject(o *metadataObject) error {
 		if err != nil {
 			return err
 		}
-		return c.createSequence(stmt)
+		return c.createSequence(stmt, "")
 	case metadataTable:
 		stmt, omitted, err := metadataTableStmt(o.table, o.snapshotDatabase, o.database)
 		if err != nil {
@@ -377,6 +378,24 @@ func (c *Catalog) installMetadataObject(o *metadataObject) error {
 // AUTO_INCREMENT column.
 const autoIncrementDefault = "AUTO_INCREMENT"
 
+// sequenceLiteral is a sequence option value as the parser builds it, its
+// digits kept whole where they pass int64, as BIGINT UNSIGNED limits do.
+func sequenceLiteral(text string) (nodes.ExprNode, error) {
+	text = strings.TrimSpace(text)
+	digits, negative := strings.CutPrefix(text, "-")
+	if digits == "" || strings.Trim(digits, "0123456789") != "" {
+		return nil, fmt.Errorf("sequence value %q is no integer", text)
+	}
+	var lit nodes.ExprNode = &nodes.FloatLit{Value: digits}
+	if n, err := strconv.ParseInt(digits, 10, 64); err == nil {
+		lit = &nodes.IntLit{Value: n}
+	}
+	if negative {
+		return &nodes.UnaryExpr{Op: nodes.UnaryMinus, Operand: lit}, nil
+	}
+	return lit, nil
+}
+
 // metadataSequenceStmt builds a sequence from the attributes sync reads off
 // its own row.
 func metadataSequenceStmt(seq *metadata.SequenceMetadata) (*nodes.CreateSequenceStmt, error) {
@@ -398,7 +417,7 @@ func metadataSequenceStmt(seq *metadata.SequenceMetadata) (*nodes.CreateSequence
 		if v.text == "" {
 			continue
 		}
-		expr, err := parseExpr(v.text)
+		expr, err := sequenceLiteral(v.text)
 		if err != nil {
 			return nil, err
 		}
