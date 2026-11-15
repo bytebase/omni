@@ -106,7 +106,10 @@ func (p *Parser) parseWithClause() ([]*nodes.CommonTableExpr, error) {
 	return ctes, nil
 }
 
-// parseWithStmt parses a statement starting with WITH: WITH ... SELECT, WITH ... UPDATE, WITH ... DELETE.
+// parseWithStmt parses a statement starting with WITH, which MariaDB allows
+// only before a query: WITH ... SELECT, WITH ... VALUES, WITH ... (query).
+// sql_yacc.yy puts with_clause in query_expression alone, and MariaDB 11.8
+// rejects it before INSERT, REPLACE, UPDATE and DELETE.
 func (p *Parser) parseWithStmt() (nodes.Node, error) {
 	start := p.pos()
 	ctes, err := p.parseWithClause()
@@ -130,36 +133,8 @@ func (p *Parser) parseWithStmt() (nodes.Node, error) {
 		}
 		return sel, nil
 
-	case kwINSERT, kwREPLACE:
-		isReplace := p.cur.Type == kwREPLACE
-		stmt, err := p.parseInsertOrReplace(isReplace)
-		if err != nil {
-			return nil, err
-		}
-		stmt.Loc.Start = start
-		return stmt, nil
-
-	case kwUPDATE:
-		stmt, err := p.parseUpdateStmt()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Loc.Start = start
-		return stmt, nil
-
-	case kwDELETE:
-		stmt, err := p.parseDeleteStmt()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Loc.Start = start
-		return stmt, nil
-
 	default:
-		return nil, &ParseError{
-			Message:  "expected SELECT, VALUES, INSERT, UPDATE, DELETE, or '(' after WITH clause",
-			Position: p.cur.Loc,
-		}
+		return nil, p.syntaxErrorAtCur()
 	}
 }
 

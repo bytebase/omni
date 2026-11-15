@@ -4,6 +4,69 @@
 > exec
 | PREPARE omni_parses_stmt FROM ?
 : string
+| WITH cte AS (SELECT id FROM t2) UPDATE t1 SET col1 = 1 WHERE id IN (SELECT id FROM cte)
+< error
+| 1064 42000 …near 'UPDATE t1 SET col1 = 1 WHERE id IN (SELECT id FROM cte)' at line 1
+> exec ^
+: string
+| WITH cte AS (SELECT id, val FROM t2) UPDATE t1 JOIN cte ON t1.id = cte.id SET t1.val = cte.val
+< error
+| 1064 42000 …near 'UPDATE t1 JOIN cte ON t1.id = cte.id SET t1.val = cte.val' at line 1
+> exec ^
+: string
+| WITH cte AS (SELECT id FROM t2) DELETE FROM t1 WHERE id IN (SELECT id FROM cte)
+< error
+| 1064 42000 …near 'DELETE FROM t1 WHERE id IN (SELECT id FROM cte)' at line 1
+> exec ^
+: string
+| WITH cte AS (SELECT id FROM t2) DELETE t1 FROM t1 JOIN cte ON t1.id = cte.id
+< error
+| 1064 42000 …near 'DELETE t1 FROM t1 JOIN cte ON t1.id = cte.id' at line 1
+> exec ^
+: string
+| WITH cte AS (SELECT 1 AS x) INSERT INTO t SELECT * FROM cte
+< error
+| 1064 42000 …near 'INSERT INTO t SELECT * FROM cte' at line 1
+> exec ^
+: string
+| WITH cte AS (SELECT 1 AS x) REPLACE INTO t SELECT * FROM cte
+< error
+| 1064 42000 …near 'REPLACE INTO t SELECT * FROM cte' at line 1
+> exec ^
+: string
+| INSERT INTO t WITH cte AS (SELECT 1 AS x) SELECT * FROM cte
+< error
+| 1146 42S02 Table 'test.t' doesn't exist
+> exec ^
+: string
+| INSERT INTO t WITH cte AS (SELECT 1 AS x) SELECT * FROM cte
+| ; SELECT FROM
+< error
+| 1064 42000 …near 'SELECT FROM' at line 2
+> exec ^
+: string
+| DELETE FROM t1 WHERE id IN (WITH cte AS (SELECT id FROM t2) SELECT id FROM cte)
+< error
+| 1146 42S02 Table 'test.t1' doesn't exist
+> exec ^
+: string
+| DELETE FROM t1 WHERE id IN (WITH cte AS (SELECT id FROM t2) SELECT id FROM cte)
+| ; SELECT FROM
+< error
+| 1064 42000 …near 'SELECT FROM' at line 2
+> exec ^
+: string
+| UPDATE t1 SET col1 = 1 WHERE id IN (WITH cte AS (SELECT id FROM t2) SELECT id FROM cte)
+< error
+| 1146 42S02 Table 'test.t1' doesn't exist
+> exec ^
+: string
+| UPDATE t1 SET col1 = 1 WHERE id IN (WITH cte AS (SELECT id FROM t2) SELECT id FROM cte)
+| ; SELECT FROM
+< error
+| 1064 42000 …near 'SELECT FROM' at line 2
+> exec ^
+: string
 | CREATE TRIGGER tr BEFORE INSERT ON src FOR EACH ROW UPDATE old.t SET old.t.id = 1
 < ok 0 0
 > exec ^
