@@ -996,3 +996,14 @@ func TestLoadMetadataReadsBackquotedColumnNamesAsColumns(t *testing.T) {
 		t.Errorf("want the keys on the column named `id` in backquotes:\n%s", got)
 	}
 }
+
+func TestLoadMetadataKeepsUnsignedSequenceValues(t *testing.T) {
+	c, report := loadMySQLSnapshot(t, snapshot(&metadata.SchemaMetadata{Sequences: []*metadata.SequenceMetadata{{
+		Name: "su", DataType: "bigint unsigned", Start: "18446744073709551600", Increment: "1", MinValue: "1", MaxValue: "18446744073709551614", CacheSize: "1000",
+	}}}))
+	requireReport(t, report, nil, nil)
+	want := "CREATE SEQUENCE `su` as bigint unsigned start with 18446744073709551600 minvalue 1 maxvalue 18446744073709551614 increment by 1 cache 1000 nocycle ENGINE=InnoDB"
+	if got := c.ShowCreateSequence(snapshotDB, "su"); got != want {
+		t.Errorf("got  %s\nwant %s", got, want)
+	}
+}
