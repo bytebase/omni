@@ -52,6 +52,15 @@ var roundTrips = []roundTrip{
 		table:  "plain_update",
 	},
 	{
+		// Each statement's WITH clause decides its own rows.
+		name:  "cte_per_statement",
+		setup: "CREATE TABLE cte_t (id INT PRIMARY KEY); INSERT INTO cte_t VALUES (1), (2), (3)",
+		script: "WITH x AS (SELECT 1 AS id) DELETE FROM cte_t USING x WHERE cte_t.id = x.id;" +
+			"WITH x AS (SELECT 2 AS id) DELETE FROM cte_t USING x WHERE cte_t.id = x.id",
+		schema: "public",
+		table:  "cte_t",
+	},
+	{
 		// Every name the backup and restore write holds a '"'.
 		name: "quoted_delete",
 		setup: `CREATE SCHEMA "s""q"; CREATE TABLE "s""q"."t""q" ("i""d" INT CONSTRAINT "p""k" PRIMARY KEY, "a""b" INT);` +
@@ -95,8 +104,9 @@ func TestBackupRestoreRoundTrip(t *testing.T) {
 		exec(t, db, rt.script)
 		require.NotEqual(t, before, tableRows(t, db, rt.schema, rt.table), rt.name)
 
+		// Bytebase restores a backup by its first statement's type.
 		dmls := analysis.BackedUpDMLs(stmts)
-		require.Len(t, dmls, 1, rt.name)
+		require.NotEmpty(t, dmls, rt.name)
 		table, primaryKey := tableMetadata(t, db, rt.schema, rt.table)
 		restore, err := analysis.RestoreSQL(dmls[0].Node, analysis.RestoreOptions{
 			OriginalSchema: rt.schema,
