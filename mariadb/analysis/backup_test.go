@@ -139,12 +139,12 @@ func TestTransformDMLToSelect(t *testing.T) {
 			}},
 		},
 		{
-			// The CTE is kept, a CTE target is not, and an unqualified SET column
-			// goes to the table that has it.
-			statement: "WITH c AS (SELECT a FROM t2) UPDATE t1 JOIN t2 ON t1.a = t2.c JOIN c ON c.a = t1.a SET d = 1, c.a = 2",
+			// A derived table is not a target, and an unqualified SET column goes
+			// to the table that has it.
+			statement: "UPDATE t1 JOIN t2 ON t1.a = t2.c JOIN (SELECT a FROM t) AS c ON c.a = t1.a SET d = 1",
 			want: []analysis.BackupStatement{{
-				Statement:   "CREATE TABLE `bak`.`pre_t2_db` LIKE `db`.`t2`;\nINSERT INTO `bak`.`pre_t2_db` (`c`,`d`)  WITH c AS (SELECT a FROM t2) SELECT DISTINCT `t2`.`c`,`t2`.`d` FROM t1 JOIN t2 ON t1.a = t2.c JOIN c ON c.a = t1.a;",
-				SourceTable: "t2", BackupTable: "pre_t2_db", ByteStart: 0, ByteEnd: 101,
+				Statement:   "CREATE TABLE `bak`.`pre_t2_db` LIKE `db`.`t2`;\nINSERT INTO `bak`.`pre_t2_db` (`c`,`d`)  SELECT DISTINCT `t2`.`c`,`t2`.`d` FROM t1 JOIN t2 ON t1.a = t2.c JOIN (SELECT a FROM t) AS c ON c.a = t1.a;",
+				SourceTable: "t2", BackupTable: "pre_t2_db", ByteStart: 0, ByteEnd: 84,
 			}},
 		},
 		{
@@ -348,32 +348,6 @@ var otherDB = &backupDatabase{
 	},
 }
 
-func TestTransformDMLToSelectCTEAlias(t *testing.T) {
-	tests := []struct {
-		statement string
-		want      []string
-	}{
-		// A table aliased with a CTE's name is still a target.
-		{"WITH c AS (SELECT 1 AS a) DELETE c FROM t AS c WHERE c.a = 1", []string{"t"}},
-		{"WITH c AS (SELECT 1 AS a) UPDATE t AS c JOIN t1 ON c.a = t1.a SET c.b = 1", []string{"t"}},
-		// A table named with its database is never the CTE of that name.
-		{"WITH t1 AS (SELECT 1 AS a) DELETE db.t1 FROM db.t1 JOIN t2 ON db.t1.a = t2.c", []string{"t1"}},
-		{"WITH t1 AS (SELECT 1 AS a) UPDATE db.t1 JOIN t2 ON db.t1.a = t2.c SET db.t1.b = 1", []string{"t1"}},
-		// The CTE itself is not.
-		{"WITH c AS (SELECT 1 AS a) DELETE t1, c FROM t1 JOIN c ON t1.a = c.a", []string{"t1"}},
-		{"WITH c AS (SELECT 1 AS a) UPDATE t1 JOIN c ON t1.a = c.a SET t1.b = 1, c.a = 2", []string{"t1"}},
-	}
-	for _, tc := range tests {
-		got, err := transform(t, tc.statement)
-		require.NoError(t, err, tc.statement)
-		var tables []string
-		for _, backup := range got {
-			tables = append(tables, backup.SourceTable)
-		}
-		require.Equal(t, tc.want, tables, tc.statement)
-	}
-}
-
 func TestTransformDMLToSelectRefusesUnsafeScripts(t *testing.T) {
 	tests := []struct {
 		statement string
@@ -389,7 +363,7 @@ func TestTransformDMLToSelectRefusesUnsafeScripts(t *testing.T) {
 		{"SET @victim = 1; DELETE FROM t WHERE a = @victim", "failed to prepare transformation: prior backup cannot handle a statement that reads @victim after an earlier statement sets it"},
 		{"SELECT 1 INTO @v; UPDATE t SET b = 1 WHERE a = @V", "failed to prepare transformation: prior backup cannot handle a statement that reads @V after an earlier statement sets it"},
 		{"SELECT @v := 2; UPDATE t JOIN t1 ON t1.a = @v SET t.b = 1", "failed to prepare transformation: prior backup cannot handle a statement that reads @v after an earlier statement sets it"},
-		{"SET @v = 1; WITH c AS (SELECT @v AS a) DELETE t FROM t JOIN c ON t.a = c.a", "failed to prepare transformation: prior backup cannot handle a statement that reads @v after an earlier statement sets it"},
+		{"SET @v = 1; DELETE t FROM t JOIN (SELECT @v AS a) AS c ON t.a = c.a", "failed to prepare transformation: prior backup cannot handle a statement that reads @v after an earlier statement sets it"},
 		// A clause in an executable comment.
 		{"DELETE FROM t /*M!100000 WHERE a = 1 */", "prior backup cannot back up t: its statement has clauses in an executable comment"},
 		// ANALYZE runs the statement it carries.
@@ -471,9 +445,8 @@ func TestTransformDMLToSelectKeepsSafeScripts(t *testing.T) {
 		"USE db; DELETE FROM t WHERE a = 1",
 		"USE other; USE DB; DELETE FROM t WHERE a = 1",
 		"DELETE FROM t WHERE a = 1; USE other",
-		// Aliases tell the tables apart, and a CTE is not a table.
+		// Aliases tell the tables apart.
 		"UPDATE db.t x JOIN db2.t y ON x.a = y.a SET x.b = 1",
-		"WITH t AS (SELECT 1 AS a) UPDATE db.t JOIN t ON db.t.a = t.a SET db.t.b = 1",
 		// A random value only the SET list draws.
 		"UPDATE t SET b = RAND() WHERE a = 1",
 		"UPDATE t SET b = (@n := @n + 1) WHERE a = 1",

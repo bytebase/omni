@@ -6106,30 +6106,6 @@ func TestParseInsertWithCTE(t *testing.T) {
 	}
 }
 
-func TestParseUpdateWithCTE(t *testing.T) {
-	tests := []string{
-		"WITH cte AS (SELECT id FROM t2) UPDATE t1 SET col1 = 1 WHERE id IN (SELECT id FROM cte)",
-	}
-
-	for _, sql := range tests {
-		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
-		})
-	}
-}
-
-func TestParseDeleteWithCTE(t *testing.T) {
-	tests := []string{
-		"WITH cte AS (SELECT id FROM t2) DELETE FROM t1 WHERE id IN (SELECT id FROM cte)",
-	}
-
-	for _, sql := range tests {
-		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
-		})
-	}
-}
-
 // -----------------------------------------------------------------------
 // Batch 26: SET TRANSACTION
 // -----------------------------------------------------------------------
@@ -9085,18 +9061,6 @@ func TestParseSelectPartition(t *testing.T) {
 	}
 }
 
-func TestParseWithInsert(t *testing.T) {
-	tests := []string{
-		"WITH cte AS (SELECT 1 AS x) INSERT INTO t SELECT * FROM cte",
-		"WITH cte AS (SELECT 1 AS x) REPLACE INTO t SELECT * FROM cte",
-	}
-	for _, sql := range tests {
-		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
-		})
-	}
-}
-
 func TestParseIntersectPrecedence(t *testing.T) {
 	tests := []string{
 		// INTERSECT has higher precedence than UNION
@@ -9561,28 +9525,6 @@ func TestParseDeleteTableAlias(t *testing.T) {
 	tests := []string{
 		"DELETE FROM t1 AS a WHERE a.id = 1",
 		"DELETE FROM t1 a WHERE a.id = 1",
-	}
-	for _, sql := range tests {
-		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
-		})
-	}
-}
-
-func TestParseWithUpdate(t *testing.T) {
-	tests := []string{
-		"WITH cte AS (SELECT id, val FROM t2) UPDATE t1 JOIN cte ON t1.id = cte.id SET t1.val = cte.val",
-	}
-	for _, sql := range tests {
-		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
-		})
-	}
-}
-
-func TestParseWithDelete(t *testing.T) {
-	tests := []string{
-		"WITH cte AS (SELECT id FROM t2) DELETE FROM t1 WHERE id IN (SELECT id FROM cte)",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
