@@ -8,13 +8,13 @@ import (
 // An application-time period is dropped after the keys WITHOUT OVERLAPS over it
 // and ahead of the columns it covers, and added after the columns, ahead of the
 // keys. Measured on mariadb:11.8.8: DROP PERIOD while such a key holds it is
-// 4156. System
-// versioning is added once the table's columns are in place and dropped ahead
-// of column changes.
+// 4156. System versioning is added once the table's columns are in place, and
+// dropped after the keys and checks the plan drops, which may cover the ROW
+// START and ROW END columns it takes with it, and ahead of the column changes.
 const (
 	priorityPeriodDrop     = priorityColumn - 2
 	priorityPeriodAdd      = priorityIndex - 1
-	priorityVersioningDrop = priorityColumn - 7
+	priorityVersioningDrop = priorityIndexDrop + 1
 	priorityVersioningAdd  = priorityIndex - 2
 )
 
