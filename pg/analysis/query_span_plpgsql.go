@@ -1229,6 +1229,7 @@ func (a *plpgsqlAnalyzer) selectOutputColumns(sel *ast.SelectStmt, outerTables m
 	}
 	restore, _ := a.pushMarkerScope()
 	defer restore()
+	defer a.pushCTEs(sel)()
 	if outerTables == nil {
 		a.fromItems = make(map[string]fromItem)
 	}
@@ -1319,16 +1320,14 @@ func (a *plpgsqlAnalyzer) fromItemColumn(item fromItem, colName string, result C
 	for _, column := range a.fromItemColumns(item.node, item.tables) {
 		if column.Name == colName {
 			maps.Copy(result, column.SourceColumns)
-			if len(column.SourceColumns) > 0 {
-				return true
-			}
 			found = true
 			break
 		}
 	}
 	// Outputs resolved from the parse tree can miss what an expression
-	// reads, so a subquery's column that reads nothing, or is not found,
-	// also reads its tables' columns of that name, as a failsafe.
+	// reads, so a subquery's column also reads its tables' columns of that
+	// name, as a failsafe: what the fallback reported before it resolved
+	// outputs.
 	if rs, ok := item.node.(*ast.RangeSubselect); ok {
 		if sel, ok := rs.Subquery.(*ast.SelectStmt); ok {
 			before := len(result)
@@ -1337,6 +1336,27 @@ func (a *plpgsqlAnalyzer) fromItemColumn(item fromItem, colName string, result C
 		}
 	}
 	return found
+}
+
+// pushCTEs makes the CTEs of sel's WITH clause visible to the fallback
+// until the returned function restores the enclosing ones.
+func (a *plpgsqlAnalyzer) pushCTEs(sel *ast.SelectStmt) func() {
+	local := collectCTEDefinitions(sel)
+	if len(local) == 0 {
+		return func() {}
+	}
+	outer, outerFallback := a.cteMap, a.extractor.fallbackCTEMap
+	a.cteMap = maps.Clone(outer)
+	a.extractor.fallbackCTEMap = maps.Clone(outerFallback)
+	if a.cteMap == nil {
+		a.cteMap = make(map[string]*ast.SelectStmt)
+	}
+	if a.extractor.fallbackCTEMap == nil {
+		a.extractor.fallbackCTEMap = make(map[string]*ast.SelectStmt)
+	}
+	maps.Copy(a.cteMap, local)
+	maps.Copy(a.extractor.fallbackCTEMap, local)
+	return func() { a.cteMap, a.extractor.fallbackCTEMap = outer, outerFallback }
 }
 
 // innerColumnsNamed adds the columns named colName of the tables that sel,
@@ -1352,6 +1372,7 @@ func (a *plpgsqlAnalyzer) innerColumnsNamed(sel *ast.SelectStmt, colName string,
 	}
 	restore, _ := a.pushMarkerScope()
 	defer restore()
+	defer a.pushCTEs(sel)()
 	a.fromItems = make(map[string]fromItem)
 	tables := a.collectFromTables(sel)
 	a.resolveColumnRef(&ast.ColumnRef{Fields: &ast.List{Items: []ast.Node{&ast.String{Str: colName}}}}, tables, result)
@@ -1594,6 +1615,7 @@ func (a *plpgsqlAnalyzer) extractSubqueryRefs(subSel *ast.SelectStmt, fromTables
 	// resolution scope.
 	restore, _ := a.pushMarkerScope()
 	defer restore()
+	defer a.pushCTEs(subSel)()
 	subTables := a.collectFromTables(subSel)
 	for k, val := range fromTables {
 		if _, exists := subTables[k]; !exists {

@@ -308,6 +308,8 @@ func TestResolveQuerySpanColumnAliases(t *testing.T) {
 		{statement: "SELECT *, v.ssn FROM (SELECT public.t.ssn FROM t) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"ssn", []string{"db.public.t.ssn"}}}},
 		{statement: "SELECT *, v.ssn FROM (SELECT ssn::text FROM t) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"ssn", []string{"db.public.t.ssn"}}}},
 		{statement: "SELECT *, ssn::text, 1::int4 FROM t CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"ssn", []string{"db.public.t.ssn"}}, {"int4", []string{}}}},
+		{statement: "SELECT *, v.ssn FROM (SELECT (WITH c AS (SELECT ssn FROM t) SELECT c.ssn FROM c) AS ssn FROM t) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"ssn", []string{"db.public.t.ssn"}}}},
+		{statement: "SELECT *, v.x FROM (WITH c AS (SELECT ssn FROM t) SELECT * FROM c) v(x) CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"x", []string{"db.public.t.ssn"}}}},
 		{statement: "SELECT * FROM t AS v(x) CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"x", []string{"db.public.t.id"}}, {"email", []string{"db.public.t.email"}}, {"ssn", []string{"db.public.t.ssn"}}, {"unknown_rows", []string{}}}},
 	} {
 		t.Run(tc.statement, func(t *testing.T) {
