@@ -3,6 +3,7 @@ package analysis
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -126,13 +127,14 @@ func (q *querySpanExtractor) getAllTableColumnSources(databaseName, tableName st
 		return tableSource.GetQuerySpanResult(), true
 	}
 
-	for i := len(q.outerTableSources) - 1; i >= 0; i-- {
-		if querySpanResult, ok := findInTableSource(q.outerTableSources[i]); ok {
+	// The subquery's own FROM first, then enclosing queries, nearest first.
+	for i := len(q.tableSourceFrom) - 1; i >= 0; i-- {
+		if querySpanResult, ok := findInTableSource(q.tableSourceFrom[i]); ok {
 			return querySpanResult, true
 		}
 	}
-	for i := len(q.tableSourceFrom) - 1; i >= 0; i-- {
-		if querySpanResult, ok := findInTableSource(q.tableSourceFrom[i]); ok {
+	for i := len(q.outerTableSources) - 1; i >= 0; i-- {
+		if querySpanResult, ok := findInTableSource(q.outerTableSources[i]); ok {
 			return querySpanResult, true
 		}
 	}
@@ -164,11 +166,8 @@ func (q *querySpanExtractor) getFieldColumnSource(databaseName, tableName, field
 		return QuerySpanResult{}, false
 	}
 
-	for i := len(q.outerTableSources) - 1; i >= 0; i-- {
-		if source, ok := findInTableSource(q.outerTableSources[i]); ok {
-			return source, nil
-		}
-	}
+	// A column resolves in the subquery's own FROM first, then in enclosing
+	// queries, nearest first, as a correlated reference.
 	for i := len(q.tableSourceFrom) - 1; i >= 0; i-- {
 		if source, ok := findInTableSource(q.tableSourceFrom[i]); ok {
 			return source, nil
@@ -176,6 +175,11 @@ func (q *querySpanExtractor) getFieldColumnSource(databaseName, tableName, field
 	}
 	for i := len(q.priorTableInFrom) - 1; i >= 0; i-- {
 		if source, ok := findInTableSource(q.priorTableInFrom[i]); ok {
+			return source, nil
+		}
+	}
+	for i := len(q.outerTableSources) - 1; i >= 0; i-- {
+		if source, ok := findInTableSource(q.outerTableSources[i]); ok {
 			return source, nil
 		}
 	}
@@ -816,7 +820,7 @@ func (q *querySpanExtractor) cloneForSubquery() *querySpanExtractor {
 		defaultDatabase:     q.defaultDatabase,
 		catalog:             q.catalog,
 		ctes:                q.ctes,
-		outerTableSources:   append(q.outerTableSources, q.tableSourceFrom...),
+		outerTableSources:   append(slices.Clone(q.outerTableSources), q.tableSourceFrom...),
 		tableSourceFrom:     []tableSource{},
 		ignoreCaseSensitive: q.ignoreCaseSensitive,
 		viewResolutionStack: cloneViewResolutionStack(q.viewResolutionStack),
