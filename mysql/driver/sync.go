@@ -16,6 +16,8 @@ import (
 
 	"github.com/bytebase/omni/driver"
 	metadatapb "github.com/bytebase/omni/metadata"
+	mysqlast "github.com/bytebase/omni/mysql/ast"
+	mysqlparser "github.com/bytebase/omni/mysql/parser"
 	gomysql "github.com/go-sql-driver/mysql"
 )
 
@@ -75,9 +77,8 @@ var (
 		"dec":            "decimal",
 	}
 
-	partitionRegexp    = regexp.MustCompile(`[^B]PARTITIONS (\d+)`)
-	subPartitionRegexp = regexp.MustCompile(`SUBPARTITIONS (\d+)`)
-	currentTSPrecision = regexp.MustCompile(`CURRENT_TIMESTAMP\((\d+)\)`)
+	temporalKeywordDefaultRe = regexp.MustCompile(`^(?i)CURRENT_(?:TIMESTAMP|DATE|TIME)(?:\(\d+\))?$`)
+	currentTSPrecision       = regexp.MustCompile(`CURRENT_TIMESTAMP\((\d+)\)`)
 )
 
 type semverTriple struct {
@@ -963,14 +964,7 @@ func (d *Driver) listPartitionTables(ctx context.Context, databaseName string) (
 				_ = showRows.Close()
 				return nil, fmt.Errorf("failed to scan row for %q: %w", showQuery, err)
 			}
-			partitionNum := 0
-			subPartitionNum := 0
-			if m := partitionRegexp.FindStringSubmatch(createTable); len(m) > 1 {
-				partitionNum, _ = strconv.Atoi(m[1])
-			}
-			if m := subPartitionRegexp.FindStringSubmatch(createTable); len(m) > 1 {
-				subPartitionNum, _ = strconv.Atoi(m[1])
-			}
+			partitionNum, subPartitionNum := parsePartitionCounts(createTable)
 			for _, p := range partitions {
 				if partitionNum != 0 {
 					p.UseDefault = strconv.Itoa(partitionNum)
@@ -989,6 +983,21 @@ func (d *Driver) listPartitionTables(ctx context.Context, databaseName string) (
 		_ = showRows.Close()
 	}
 	return result, nil
+}
+
+// parsePartitionCounts extracts explicit PARTITIONS N and SUBPARTITIONS N
+// counts from a SHOW CREATE TABLE definition the server already accepted; a
+// definition the parser cannot read leaves both counts unset.
+func parsePartitionCounts(createTable string) (partitions, subpartitions int) {
+	list, err := mysqlparser.Parse(createTable)
+	if err != nil || list == nil || len(list.Items) != 1 {
+		return 0, 0
+	}
+	stmt, ok := list.Items[0].(*mysqlast.CreateTableStmt)
+	if !ok || stmt.Partitions == nil {
+		return 0, 0
+	}
+	return stmt.Partitions.NumParts, stmt.Partitions.NumSubParts
 }
 
 func convertPartitionType(tp string) metadatapb.TablePartitionMetadata_Type {
@@ -1158,7 +1167,7 @@ func setColumnMetadataDefault(column *metadatapb.ColumnMetadata, defaultStr sql.
 		unquotedDefault := unquoteMySQLString(defaultStr.String)
 		isBinaryDefault := binaryFormat != binaryDefaultVerbatim && isBinaryFamilyColumnType(column.Type)
 		switch {
-		case isCurrentTimestampLike(unquotedDefault) && !isBinaryDefault:
+		case isTemporalColumnType(column.Type) && temporalKeywordDefaultRe.MatchString(unquotedDefault):
 			column.Default = unquotedDefault
 		case strings.Contains(extra, "DEFAULT_GENERATED"):
 			column.Default = fmt.Sprintf("(%s)", unescapeExpressionDefault(unquotedDefault))
@@ -1265,9 +1274,14 @@ func unescapeExpressionDefault(s string) string {
 	return s
 }
 
-func isCurrentTimestampLike(s string) bool {
-	upper := strings.ToUpper(s)
-	return strings.HasPrefix(upper, "CURRENT_TIMESTAMP") || strings.HasPrefix(upper, "CURRENT_DATE")
+func isTemporalColumnType(columnType string) bool {
+	lower := strings.ToLower(strings.TrimSpace(columnType))
+	for _, prefix := range []string{"timestamp", "datetime", "date", "time"} {
+		if lower == prefix || strings.HasPrefix(lower, prefix+"(") {
+			return true
+		}
+	}
+	return false
 }
 
 func containsInvisibleChars(data []byte) bool {

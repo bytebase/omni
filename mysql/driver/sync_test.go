@@ -269,6 +269,8 @@ func TestColumnDefaultsAndHelpers(t *testing.T) {
 		{"not null no default", "int", sql.NullString{}, false, "", binaryDefaultHexNotation, "", ""},
 		{"quoted string", "varchar(20)", sql.NullString{Valid: true, String: "'hello'"}, true, "", binaryDefaultHexNotation, "'hello'", ""},
 		{"current_timestamp(6) on update", "datetime(6)", sql.NullString{Valid: true, String: "'CURRENT_TIMESTAMP(6)'"}, false, "DEFAULT_GENERATED on update CURRENT_TIMESTAMP(6)", binaryDefaultHexNotation, "CURRENT_TIMESTAMP(6)", "CURRENT_TIMESTAMP(6)"},
+		{"varchar literal CURRENT_TIMESTAMP keeps quotes", "varchar(40)", sql.NullString{Valid: true, String: "'CURRENT_TIMESTAMP'"}, false, "", binaryDefaultHexNotation, "'CURRENT_TIMESTAMP'", ""},
+		{"varchar literal current_date_label keeps quotes", "varchar(40)", sql.NullString{Valid: true, String: "'current_date_label'"}, false, "", binaryDefaultHexNotation, "'current_date_label'", ""},
 		{"expression default", "varchar(36)", sql.NullString{Valid: true, String: `'json_object(\\'k\\',1)'`}, true, "DEFAULT_GENERATED", binaryDefaultHexNotation, "(json_object('k',1))", ""},
 		{"8.0 binary printable", "binary(4)", sql.NullString{Valid: true, String: "'0x6162'"}, false, "", binaryDefaultHexNotation, "'ab'", ""},
 		{"8.0 varbinary non-printable", "varbinary(8)", sql.NullString{Valid: true, String: "'0x0100fe'"}, false, "", binaryDefaultHexNotation, "0x0100fe", ""},
@@ -295,5 +297,24 @@ func TestColumnDefaultsAndHelpers(t *testing.T) {
 	}
 	if _, err := utf8ToISO88591("日本語"); err == nil {
 		t.Error("utf8ToISO88591 accepted non-Latin-1 rune")
+	}
+
+	// Comments mentioning PARTITIONS / SUBPARTITIONS must not override actual partition counts.
+	parts, subparts := parsePartitionCounts("CREATE TABLE `t` (\n" +
+		"  `id` int NOT NULL COMMENT 'PARTITIONS 9 SUBPARTITIONS 7',\n" +
+		"  PRIMARY KEY (`id`)\n" +
+		") ENGINE=InnoDB COMMENT='PARTITIONS 11'\n" +
+		"/*!50100 PARTITION BY HASH (`id`)\nPARTITIONS 2 */")
+	if parts != 2 || subparts != 0 {
+		t.Errorf("parsePartitionCounts hash = (%d, %d), want (2, 0)", parts, subparts)
+	}
+	parts, subparts = parsePartitionCounts("CREATE TABLE `r` (\n" +
+		"  `id` int NOT NULL,\n" +
+		"  PRIMARY KEY (`id`)\n" +
+		") ENGINE=InnoDB COMMENT='PARTITIONS 9'\n" +
+		"/*!50100 PARTITION BY RANGE (`id`)\nSUBPARTITION BY HASH (`id`)\nSUBPARTITIONS 3\n" +
+		"(PARTITION p0 VALUES LESS THAN (10)) */")
+	if parts != 0 || subparts != 3 {
+		t.Errorf("parsePartitionCounts range = (%d, %d), want (0, 3)", parts, subparts)
 	}
 }
