@@ -632,11 +632,16 @@ func dropLastColumnsAfterAdds(ops []MigrationOp, e *TableDiffEntry) []MigrationO
 		return ops
 	}
 	if len(dropped) < len(diffableColumns(e.From)) {
-		// A table keeps a versioned (4123) and a visible (1113) column.
-		if e.From.SystemVersioned && e.To.SystemVersioned && everyDropped(e, dropped, isVersionedColumn) && !addFirst(ops, e, dropped, isVersionedColumn) {
+		// A table keeps a versioned (4123) and a visible (1113) column: a
+		// column the plan only adds goes first, else a MODIFY that makes a
+		// retained one qualify runs before the drops, else the last such
+		// column is replaced in one statement.
+		if e.From.SystemVersioned && e.To.SystemVersioned && everyDropped(e, dropped, isVersionedColumn) &&
+			!addFirst(ops, e, dropped, isVersionedColumn) && !qualifyingModifyFirst(ops, e, becomesVersioned) {
 			return atomicReplaceLast(ops, e, isVersionedColumn)
 		}
-		if everyDropped(e, dropped, isVisibleColumn) && !addFirst(ops, e, dropped, isVisibleColumn) {
+		if everyDropped(e, dropped, isVisibleColumn) &&
+			!addFirst(ops, e, dropped, isVisibleColumn) && !qualifyingModifyFirst(ops, e, becomesVisible) {
 			return atomicReplaceLast(ops, e, isVisibleColumn)
 		}
 		return ops
@@ -1026,7 +1031,19 @@ func reorderAddsAfterMerge(ops []MigrationOp, diff *SchemaDiff) []MigrationOp {
 			}
 		}
 		for j := range ops {
-			if (ops[j].Type == OpAddColumn || ops[j].Type == OpModifyColumn) && opOfTable(ops[j], e) && ops[j].alterParts == nil {
+			if !opOfTable(ops[j], e) {
+				continue
+			}
+			// A grouped statement takes the latest priority of its columns.
+			if ops[j].alterParts != nil {
+				for _, part := range ops[j].alterParts {
+					if p, ok := priority[part.addsColumn]; ok && p > ops[j].Priority {
+						ops[j].Priority = p
+					}
+				}
+				continue
+			}
+			if ops[j].Type == OpAddColumn || ops[j].Type == OpModifyColumn {
 				if p, ok := priority[ops[j].column]; ok && p > ops[j].Priority {
 					ops[j].Priority = p
 				}
@@ -1069,4 +1086,29 @@ func reorderAddsAfterMerge(ops []MigrationOp, diff *SchemaDiff) []MigrationOp {
 		}
 	}
 	return ops
+}
+
+// qualifyingModifyFirst runs a MODIFY that makes a retained column satisfy
+// becomes (visible, or versioned) before the drops, so a column of that kind
+// remains throughout. It reports whether it moved one.
+func qualifyingModifyFirst(ops []MigrationOp, e *TableDiffEntry, becomes func(from, to *Column) bool) bool {
+	moved := false
+	for i := range ops {
+		if ops[i].Type != OpModifyColumn || !opOfTable(ops[i], e) || ops[i].column == "" || ops[i].alterParts != nil {
+			continue
+		}
+		from, to := e.From.GetColumn(ops[i].column), e.To.GetColumn(ops[i].column)
+		if from != nil && to != nil && becomes(from, to) {
+			// Below the column drops (priorityColumn-1) so it runs before them,
+			// keeping a qualifying column throughout (1113/4123).
+			ops[i].Phase, ops[i].Priority = PhasePre, priorityColumn-2
+			moved = true
+		}
+	}
+	return moved
+}
+
+func becomesVisible(from, to *Column) bool { return from.Invisible && !to.Invisible }
+func becomesVersioned(from, to *Column) bool {
+	return !isVersionedColumn(from) && isVersionedColumn(to)
 }

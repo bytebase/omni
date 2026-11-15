@@ -184,6 +184,8 @@ var diffPairs = []struct{ name, a, b string }{
 	{"two new triggers before a kept one", "CREATE TABLE t (x INT); CREATE TRIGGER c BEFORE INSERT ON t FOR EACH ROW SET NEW.x = NEW.x + 3", "CREATE TABLE t (x INT); CREATE TRIGGER a BEFORE INSERT ON t FOR EACH ROW PRECEDES c SET NEW.x = NEW.x + 1; CREATE TRIGGER b BEFORE INSERT ON t FOR EACH ROW PRECEDES c SET NEW.x = NEW.x * 2; CREATE TRIGGER c BEFORE INSERT ON t FOR EACH ROW SET NEW.x = NEW.x + 3"},
 	{"new table auto column with an ignored key", "CREATE TABLE x (i INT)", "CREATE TABLE x (i INT); CREATE TABLE t (a INT NOT NULL, b INT AUTO_INCREMENT, UNIQUE KEY u (a), UNIQUE KEY v (b) IGNORED)"},
 	{"secondary key replaced with an ignored key kept", "CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, UNIQUE KEY v (b), UNIQUE KEY w (a) IGNORED)", "CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, UNIQUE KEY v (b) COMMENT 'x', UNIQUE KEY w (a) IGNORED)"},
+	{"last visible dropped as another becomes visible", "CREATE TABLE t (a INT, z INT INVISIBLE)", "CREATE TABLE t (z INT)"},
+	{"grouped readers after merge", "CREATE TABLE t (x INT)", "CREATE TABLE t (x INT, id INT AUTO_INCREMENT, b INT, a INT CHECK (a > z AND a > b), z INT CHECK (z > a), KEY k (id, b))"},
 	{"timestamps without defaults", "CREATE TABLE x (i INT)", "CREATE TABLE x (i INT, ts TIMESTAMP NOT NULL); CREATE TABLE t (u TIMESTAMP NOT NULL)"},
 	{"sequence limits leaving out the start", "CREATE SEQUENCE s", "CREATE SEQUENCE s START WITH 100 MINVALUE 10"},
 }
