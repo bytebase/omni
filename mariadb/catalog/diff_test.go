@@ -114,6 +114,12 @@ var diffPairs = []struct{ name, a, b string }{
 	{"system period moved", "CREATE TABLE t (x INT, s TIMESTAMP(6) AS ROW START, e TIMESTAMP(6) AS ROW END, PERIOD FOR SYSTEM_TIME (s, e)) WITH SYSTEM VERSIONING", "CREATE TABLE t (x INT, s2 TIMESTAMP(6) AS ROW START, e2 TIMESTAMP(6) AS ROW END, PERIOD FOR SYSTEM_TIME (s2, e2)) WITH SYSTEM VERSIONING"},
 	{"two dependent replacements", "CREATE TABLE t (x INT, a INT AS (x + 1) VIRTUAL, b INT AS (a + 1) VIRTUAL)", "CREATE TABLE t (x INT, a INT AS (x + 1) STORED, b INT AS (a + 1) STORED)"},
 	{"column check reading a later column", "CREATE TABLE t (x INT)", "CREATE TABLE t (x INT, a INT CHECK (a > b), b INT)"},
+	{"foreign key over a replaced column", "CREATE TABLE p (id INT PRIMARY KEY); CREATE TABLE ch (x INT, pid INT AS (x + 1) STORED, KEY k (pid), CONSTRAINT f FOREIGN KEY (pid) REFERENCES p (id))", "CREATE TABLE p (id INT PRIMARY KEY); CREATE TABLE ch (x INT, pid INT, KEY k (pid), CONSTRAINT f FOREIGN KEY (pid) REFERENCES p (id))"},
+	{"versioning with a column left out", "CREATE TABLE t (a INT, c INT)", "CREATE TABLE t (a INT, c INT WITHOUT SYSTEM VERSIONING, b INT WITHOUT SYSTEM VERSIONING) WITH SYSTEM VERSIONING"},
+	{"period bound types changed", "CREATE TABLE t (id INT, s DATE NOT NULL, e DATE NOT NULL, PERIOD FOR app_time (s, e))", "CREATE TABLE t (id INT, s DATETIME NOT NULL, e DATETIME NOT NULL, PERIOD FOR app_time (s, e))"},
+	{"every column replaced with a reader", "CREATE TABLE t (a INT)", "CREATE TABLE t (a INT AS (1) VIRTUAL, b INT AS (a) VIRTUAL)"},
+	{"new table with page checksum and a key", "CREATE TABLE x (i INT)", "CREATE TABLE x (i INT); CREATE TABLE t (a INT, KEY k (a)) PAGE_CHECKSUM=1"},
+	{"foreign key losing a column", "CREATE TABLE p (a INT, b INT, PRIMARY KEY (a, b)); CREATE TABLE ch (a INT, b INT, CONSTRAINT f FOREIGN KEY (a, b) REFERENCES p (a, b))", "CREATE TABLE p (a INT, b INT, PRIMARY KEY (a, b)); CREATE TABLE ch (a INT, b INT, CONSTRAINT f FOREIGN KEY (a) REFERENCES p (a))"},
 	{"timestamps without defaults", "CREATE TABLE x (i INT)", "CREATE TABLE x (i INT, ts TIMESTAMP NOT NULL); CREATE TABLE t (u TIMESTAMP NOT NULL)"},
 	{"sequence limits leaving out the start", "CREATE SEQUENCE s", "CREATE SEQUENCE s START WITH 100 MINVALUE 10"},
 }
@@ -176,6 +182,37 @@ func TestDiffLeavesTemporarySequencesOut(t *testing.T) {
 	}
 	if d := Diff(a, b); !d.IsEmpty() {
 		t.Errorf("a temporary sequence diffs:\n%s", describeDiff(d))
+	}
+}
+
+func TestDiffComparesRoutinesWithNonASCIITypes(t *testing.T) {
+	c := loadCat(t, dbDDL+"CREATE PROCEDURE p(IN r ROW(`\u212a` INT)) SELECT 1;")
+	if d := Diff(c, c); !d.IsEmpty() {
+		t.Errorf("a catalog diffs against itself:\n%s", describeDiff(d))
+	}
+}
+
+func TestDiffComparesKnownSQLModes(t *testing.T) {
+	text := dbDDL + "CREATE TABLE t (a VARCHAR(10)); CREATE FUNCTION f() RETURNS VARCHAR(10) DETERMINISTIC RETURN 'a' || 'b'; CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 'x' || 'y'; CREATE EVENT e ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DO SELECT 'a' || 'b';"
+	load := func(mode string) *Catalog {
+		c := loadCat(t, text)
+		ctx := SessionContext{SQLMode: mode}
+		c.ApplySessionContext(SessionContextMap{
+			Functions: map[string]SessionContext{"f": ctx},
+			Triggers:  map[string]SessionContext{"tr": ctx},
+			Events:    map[string]SessionContext{"e": ctx},
+		})
+		return c
+	}
+	d := Diff(load("STRICT_TRANS_TABLES"), load("PIPES_AS_CONCAT,STRICT_TRANS_TABLES"))
+	if len(d.Functions) != 1 || len(d.Triggers) != 1 || len(d.Events) != 1 {
+		t.Errorf("want the function, trigger and event changed:\n%s", describeDiff(d))
+	}
+	if d := Diff(load("STRICT_TRANS_TABLES,PIPES_AS_CONCAT"), load("pipes_as_concat,STRICT_TRANS_TABLES")); !d.IsEmpty() {
+		t.Errorf("one mode spelled two ways diffs:\n%s", describeDiff(d))
+	}
+	if d := Diff(loadCat(t, text), load("PIPES_AS_CONCAT")); !d.IsEmpty() {
+		t.Errorf("an unknown mode diffs against a known one:\n%s", describeDiff(d))
 	}
 }
 

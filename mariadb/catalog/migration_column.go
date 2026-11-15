@@ -52,6 +52,9 @@ func generateColumnDDL(_, to *Catalog, diff *SchemaDiff, n *Normalizer) []Migrat
 					}
 					continue
 				}
+				if addedWithVersioning(entry, col.To) {
+					continue
+				}
 				clause := fmt.Sprintf("MODIFY COLUMN %s", formatColumnDefinition(entry.To, col.To, n))
 				ops = append(ops, MigrationOp{
 					Type:         OpModifyColumn,

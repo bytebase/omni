@@ -387,7 +387,7 @@ func migrationQuoteIdent(name string) string {
 func restatePageChecksum(ops []MigrationOp, diff *SchemaDiff) []MigrationOp {
 	for i := range diff.Tables {
 		e := &diff.Tables[i]
-		if e.Action != DiffModify || e.To == nil || e.To.PageChecksum == "" || eqFoldStr(e.To.Engine, "Aria") {
+		if e.Action == DiffDrop || e.To == nil || e.To.PageChecksum == "" || eqFoldStr(e.To.Engine, "Aria") {
 			continue
 		}
 		table := tableIdent(e.To)

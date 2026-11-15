@@ -45,7 +45,8 @@ func diffEvents(from, to *Catalog, n *Normalizer) []EventDiffEntry {
 			})
 			continue
 		}
-		if eventCanonicalKey(fromEvent, n) != eventCanonicalKey(toEvent, n) {
+		if eventCanonicalKey(fromEvent, n) != eventCanonicalKey(toEvent, n) ||
+			fromEvent.HasSessionContext && toEvent.HasSessionContext && !sameSQLMode(fromEvent.SQLMode, toEvent.SQLMode) {
 			result = append(result, EventDiffEntry{
 				Action:   DiffModify,
 				Database: key.db,

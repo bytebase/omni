@@ -94,7 +94,7 @@ type triggerKey struct {
 }
 
 // triggersChanged reports whether two same-identity triggers differ in Timing,
-// Event, Table or Body. Any difference is a drop and a create.
+// Event, Table, Body or a known sql_mode. Any difference is a drop and a create.
 func triggersChanged(from, to *Trigger, n *Normalizer) bool {
 	if !strings.EqualFold(from.Timing, to.Timing) {
 		return true
@@ -103,6 +103,9 @@ func triggersChanged(from, to *Trigger, n *Normalizer) bool {
 		return true
 	}
 	if !strings.EqualFold(from.Table, to.Table) {
+		return true
+	}
+	if from.HasSessionContext && to.HasSessionContext && !sameSQLMode(from.SQLMode, to.SQLMode) {
 		return true
 	}
 	return canonicalTriggerBody(from.Body, n) != canonicalTriggerBody(to.Body, n)

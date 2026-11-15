@@ -23,7 +23,15 @@ const (
 // only in the ALTER that adds SYSTEM VERSIONING (4124 otherwise), so that ALTER
 // adds it. Measured on mariadb:11.8.8.
 func addedWithVersioning(e *TableDiffEntry, col *Column) bool {
-	return col.Generated != nil && col.Generated.RowBound != "" && e.From != nil && e.To != nil && e.To.SystemVersioned && (!e.From.SystemVersioned || systemPeriodReplaced(e))
+	if e.From == nil || e.To == nil || !e.To.SystemVersioned {
+		return false
+	}
+	if col.Generated != nil && col.Generated.RowBound != "" {
+		return !e.From.SystemVersioned || systemPeriodReplaced(e)
+	}
+	// A column WITH or WITHOUT SYSTEM VERSIONING takes the attribute only on a
+	// versioned table (4124).
+	return col.SystemVersioning != "" && !e.From.SystemVersioned
 }
 
 // systemPeriodReplaced reports whether a table that stays system-versioned
@@ -75,7 +83,7 @@ func generateVersioningDDL(diff *SchemaDiff, n *Normalizer) []MigrationOp {
 				}
 			}
 			op(fmt.Sprintf("ALTER TABLE %s %s", table, strings.Join(clauses, ", ")), PhasePre, priorityVersioningDrop)
-			ops[len(ops)-1].dropsVersionedColumns = len(clauses) > 1
+			ops[len(ops)-1].changesVersionedColumns = len(clauses) > 1
 			if replaced {
 				ops[len(ops)-1].Warning = fmt.Sprintf("changing the system-time period of %s drops its system versioning and adds it again, which deletes the history rows", table)
 			}
@@ -89,9 +97,26 @@ func generateVersioningDDL(diff *SchemaDiff, n *Normalizer) []MigrationOp {
 					added[toLower(ce.Name)] = true
 				}
 			}
-			var clauses []string
+			modified := make(map[string]bool)
+			for _, ce := range e.Columns {
+				if ce.Action == DiffModify && !generatedShapeChanged(ce.From, ce.To) {
+					modified[toLower(ce.Name)] = true
+				}
+			}
+			// A column's WITH or WITHOUT SYSTEM VERSIONING follows in an ALTER
+			// of its own: not even the ALTER that adds the versioning takes it.
+			var clauses, attributed []string
 			for _, col := range to.Columns {
-				if added[toLower(col.Name)] && addedWithVersioning(e, col) {
+				name := toLower(col.Name)
+				switch {
+				case !addedWithVersioning(e, col):
+				case col.SystemVersioning != "" && (added[name] || modified[name]):
+					verb := "ADD"
+					if modified[name] {
+						verb = "MODIFY"
+					}
+					attributed = append(attributed, verb+" COLUMN "+formatColumnDefinition(to, col, n))
+				case added[name]:
 					clauses = append(clauses, "ADD COLUMN "+formatColumnDefinition(to, col, n))
 				}
 			}
@@ -100,6 +125,10 @@ func generateVersioningDDL(diff *SchemaDiff, n *Normalizer) []MigrationOp {
 			}
 			clauses = append(clauses, "ADD SYSTEM VERSIONING")
 			op(fmt.Sprintf("ALTER TABLE %s %s", table, strings.Join(clauses, ", ")), PhaseMain, priorityVersioningAdd)
+			if len(attributed) > 0 {
+				op(fmt.Sprintf("ALTER TABLE %s %s", table, strings.Join(attributed, ", ")), PhaseMain, priorityVersioningAdd)
+				ops[len(ops)-1].changesVersionedColumns = true
+			}
 		}
 	}
 	return ops
@@ -118,10 +147,10 @@ func keepVersionedHistory(ops []MigrationOp, diff *SchemaDiff) []MigrationOp {
 	}
 	for _, op := range ops {
 		switch {
-		case op.Type == OpAlterVersioning && !op.dropsVersionedColumns, op.Type == OpDropTable, op.Type == OpCreateTable:
+		case op.Type == OpAlterVersioning && !op.changesVersionedColumns, op.Type == OpDropTable, op.Type == OpCreateTable:
 			continue
 		}
-		if op.ParentObject != "" && versioned[op.Database+"."+toLower(op.ParentObject)] {
+		if op.changesVersionedColumns || op.ParentObject != "" && versioned[op.Database+"."+toLower(op.ParentObject)] {
 			keep := MigrationOp{Type: OpAlterVersioning, SQL: "SET @@system_versioning_alter_history = KEEP", Phase: PhasePre}
 			return append([]MigrationOp{keep}, ops...)
 		}
