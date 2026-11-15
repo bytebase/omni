@@ -66,6 +66,37 @@ func connConfig(cfg driver.Config) (*gomysql.Config, error) {
 		return nil, err
 	}
 
+	host := strings.TrimSpace(cfg.Host)
+	if strings.HasPrefix(host, "[") && strings.HasSuffix(host, "]") {
+		host = host[1 : len(host)-1]
+	}
+	port := strings.TrimSpace(cfg.Port)
+	var netName, addr string
+	switch {
+	case cfg.Dial != nil:
+		netName = "tcp"
+		switch {
+		case host != "" && port != "":
+			addr = net.JoinHostPort(host, port)
+		case host != "":
+			addr = host
+		default:
+			addr = "dial"
+		}
+	case strings.HasPrefix(host, "/"):
+		netName = "unix"
+		addr = host
+	default:
+		if host == "" {
+			return nil, errors.New("host must be set")
+		}
+		if port == "" {
+			return nil, errors.New("port must be set")
+		}
+		netName = "tcp"
+		addr = net.JoinHostPort(host, port)
+	}
+
 	params := []string{"multiStatements=true", "maxAllowedPacket=0"}
 	keys := make([]string, 0, len(cfg.Params))
 	for k := range cfg.Params {
@@ -76,7 +107,7 @@ func connConfig(cfg driver.Config) (*gomysql.Config, error) {
 		params = append(params, fmt.Sprintf("%s=%s", k, cfg.Params[k]))
 	}
 
-	mc, err := gomysql.ParseDSN("u@tcp(127.0.0.1:3306)/?" + strings.Join(params, "&"))
+	mc, err := gomysql.ParseDSN("u@tcp(placeholder:3306)/?" + strings.Join(params, "&"))
 	if err != nil {
 		return nil, err
 	}
@@ -87,33 +118,17 @@ func connConfig(cfg driver.Config) (*gomysql.Config, error) {
 	mc.User = cfg.User
 	mc.Passwd = cfg.Password
 	mc.DBName = cfg.Database
-
-	host := strings.TrimSpace(cfg.Host)
-	port := strings.TrimSpace(cfg.Port)
-	switch {
-	case cfg.Dial != nil:
+	mc.Net = netName
+	mc.Addr = addr
+	if cfg.Dial != nil {
 		mc.DialFunc = cfg.Dial
-		mc.Net = "tcp"
-		switch {
-		case host != "" && port != "":
-			mc.Addr = net.JoinHostPort(host, port)
-		case host != "":
-			mc.Addr = host
-		default:
-			mc.Addr = "dial"
+	}
+	if cfg.TLS == nil && mc.TLS != nil && mc.TLS.ServerName == "placeholder" {
+		if netName == "tcp" {
+			mc.TLS.ServerName = host
+		} else {
+			mc.TLS.ServerName = ""
 		}
-	case strings.HasPrefix(host, "/"):
-		mc.Net = "unix"
-		mc.Addr = host
-	default:
-		if host == "" {
-			return nil, errors.New("host must be set")
-		}
-		if port == "" {
-			return nil, errors.New("port must be set")
-		}
-		mc.Net = "tcp"
-		mc.Addr = net.JoinHostPort(host, port)
 	}
 
 	if cfg.TLS != nil {

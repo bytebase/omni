@@ -84,6 +84,17 @@ func TestConnConfigTLSCannotBeDowngraded(t *testing.T) {
 	if gotHost != "db.example.com" || mc.TLS == nil || mc.TLS.ServerName != "db.example.com" || mc.AllowFallbackToPlaintext {
 		t.Fatalf("gotHost=%q TLS=%v AllowFallbackToPlaintext=%v", gotHost, mc.TLS, mc.AllowFallbackToPlaintext)
 	}
+
+	// With cfg.TLS nil, tls=true in Params infers ServerName from cfg.Host.
+	paramTLS := baseConfig()
+	paramTLS.Params = map[string]string{"tls": "true"}
+	mcParam, err := connConfig(paramTLS)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mcParam.TLS == nil || mcParam.TLS.ServerName != "db.example.com" {
+		t.Fatalf("Params tls=true ServerName = %+v, want db.example.com", mcParam.TLS)
+	}
 }
 
 func TestConnConfigDialWithoutHost(t *testing.T) {
