@@ -91,8 +91,8 @@ func TestOracle_MetadataMigrationApplyCorrectness(t *testing.T) {
 		}
 		t.Run(tc.Description, func(t *testing.T) {
 			applyDB := applyDBName(t, "mm")
-			from := loadSyncedFixtureInto(t, tc.Description, metadataFixture(t, tc.OldMetadata), applyDB)
-			to := loadSyncedFixtureInto(t, tc.Description, metadataFixture(t, tc.NewMetadata), applyDB)
+			from := loadSyncedFixtureInto(t, tc.Description+" (old)", metadataFixture(t, tc.OldMetadata), applyDB)
+			to := loadSyncedFixtureInto(t, tc.Description+" (new)", metadataFixture(t, tc.NewMetadata), applyDB)
 			plan := GenerateMigration(from, to, Diff(from, to))
 
 			setUpMetadataMigrationDB(t, conn, applyDB, tc.OldSchema)

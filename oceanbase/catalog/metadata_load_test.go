@@ -942,8 +942,8 @@ func TestMetadataMigration(t *testing.T) {
 	}
 	for i, tc := range cases {
 		t.Run(tc.Description, func(t *testing.T) {
-			from := loadSyncedFixture(t, tc.Description, tc.OldMetadata)
-			to := loadSyncedFixture(t, tc.Description, tc.NewMetadata)
+			from := loadSyncedFixture(t, tc.Description+" (old)", tc.OldMetadata)
+			to := loadSyncedFixture(t, tc.Description+" (new)", tc.NewMetadata)
 			got := GenerateMigration(from, to, Diff(from, to)).SQL()
 			if record {
 				cases[i].Expected = got
@@ -967,38 +967,47 @@ func TestMetadataMigration(t *testing.T) {
 	}
 }
 
-// syncedSnapshotGaps lists, by fixture, the tables Bytebase's OceanBase sync reports
+// syncedSnapshotGaps lists, by fixture and snapshot, the tables Bytebase's OceanBase sync reports
 // in a form LoadMetadata cannot install as defined. A listed table that installs fails,
 // so a sync fix removes its entry.
 var syncedSnapshotGaps = map[string][]string{
 	// Index key parts name the hidden columns OceanBase builds the index on.
-	"FULLTEXT and SPATIAL indexes":               {"table:articles", "table:locations"},
-	"Reverse: Drop FULLTEXT and SPATIAL indexes": {"table:articles", "table:locations"},
-	"JSON columns and functional indexes":        {"table:products"},
-	"Reverse: Drop JSON columns and indexes":     {"table:products"},
+	"FULLTEXT and SPATIAL indexes (old)":               {"table:articles", "table:locations"},
+	"Reverse: Drop FULLTEXT and SPATIAL indexes (new)": {"table:articles", "table:locations"},
+	"JSON columns and functional indexes (old)":        {"table:products"},
+	"Reverse: Drop JSON columns and indexes (new)":     {"table:products"},
 }
 
 // loadSyncedFixture is loadMetadataFixture for a snapshot synced from OceanBase. Events
 // stand in by name, since the sync never reads their definition, and the tables
-// syncedSnapshotGaps lists for the fixture are degraded.
-func loadSyncedFixture(t *testing.T, description string, m map[string]any) *Catalog {
+// syncedSnapshotGaps lists under label (the fixture's description and which
+// snapshot) must degrade.
+func loadSyncedFixture(t *testing.T, label string, m map[string]any) *Catalog {
 	t.Helper()
 	meta := metadataFixture(t, m)
-	return loadSyncedFixtureInto(t, description, meta, meta.GetName())
+	return loadSyncedFixtureInto(t, label, meta, meta.GetName())
 }
 
 // loadSyncedFixtureInto is loadSyncedFixture into the database named database.
-func loadSyncedFixtureInto(t *testing.T, description string, meta *metadata.DatabaseSchemaMetadata, database string) *Catalog {
+func loadSyncedFixtureInto(t *testing.T, label string, meta *metadata.DatabaseSchemaMetadata, database string) *Catalog {
 	t.Helper()
 	c := New()
 	report, err := c.LoadMetadataInto(context.Background(), meta, database)
 	if err != nil {
 		t.Fatal(err)
 	}
-	gaps := syncedSnapshotGaps[description]
+	gaps := syncedSnapshotGaps[label]
 	for key := range report.Degraded {
 		if !strings.HasPrefix(key, "event:") && !slices.Contains(gaps, key) {
 			t.Errorf("%s did not load as defined: %v", key, report.Degraded[key])
+		}
+	}
+	for _, s := range meta.GetSchemas() {
+		for _, table := range s.GetTables() {
+			key := "table:" + table.GetName()
+			if _, degraded := report.Degraded[key]; slices.Contains(gaps, key) && !degraded {
+				t.Errorf("%s is listed in syncedSnapshotGaps but loads as defined: remove the entry", key)
+			}
 		}
 	}
 	if len(report.Missing)+len(report.Incomplete) > 0 {

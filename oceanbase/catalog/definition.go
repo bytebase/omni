@@ -1708,7 +1708,7 @@ func writeViewSDL(buf *strings.Builder, dbName string, view *metadata.ViewMetada
 // would differ from the user's forever. The body is parsed so that only a qualifier in the database
 // position goes: a table alias or table spelled like the database is a qualifier of
 // its columns and stays. A body that does not parse is returned unchanged. A table
-// whose name a CTE, another table's alias or another database's table also has keeps its
+// whose name a CTE, another table's or a derived table's alias or another database's table also has keeps its
 // qualifier, since without one a reference to it would resolve to the CTE or the
 // alias, or be ambiguous.
 func stripViewBodyDatabaseQualifier(body, dbName string) string {
@@ -1732,7 +1732,7 @@ func rebaseViewBodyDatabaseQualifier(body, dbName, target string) string {
 	if err != nil || len(list.Items) != 1 {
 		return body
 	}
-	// A name a CTE, another table's alias or another database's table also has stays
+	// A name a CTE, another table's or a derived table's alias or another database's table also has stays
 	// qualified: without the qualifier a reference would resolve to the CTE or the
 	// alias, or be ambiguous.
 	keep := map[string]bool{}
@@ -1748,6 +1748,14 @@ func rebaseViewBodyDatabaseQualifier(body, dbName, target string) string {
 			} else {
 				local[strings.ToLower(n.Name)] = true
 			}
+			if n.Alias != "" {
+				aliases = append(aliases, strings.ToLower(n.Alias))
+			}
+		case *nodes.SubqueryExpr:
+			if n.Alias != "" {
+				aliases = append(aliases, strings.ToLower(n.Alias))
+			}
+		case *nodes.JsonTableExpr:
 			if n.Alias != "" {
 				aliases = append(aliases, strings.ToLower(n.Alias))
 			}

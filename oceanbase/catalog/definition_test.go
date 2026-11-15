@@ -281,6 +281,18 @@ func TestStripViewBodyDatabaseQualifier(t *testing.T) {
 			want:   "select `db`.`t`.`id` AS `id` from `db`.`t` where exists(select 1 from `ext`.`u` `t` where (`t`.`id` = `db`.`t`.`id`))",
 		},
 		{
+			name:   "table_named_like_a_derived_tables_alias_keeps_qualifier",
+			body:   "select `db`.`t`.`id` AS `id` from `db`.`t` where exists(select 1 from (select 2 AS `id`) `t` where (`t`.`id` = `db`.`t`.`id`))",
+			dbName: "db",
+			want:   "select `db`.`t`.`id` AS `id` from `db`.`t` where exists(select 1 from (select 2 AS `id`) `t` where (`t`.`id` = `db`.`t`.`id`))",
+		},
+		{
+			name:   "table_named_like_a_json_tables_alias_keeps_qualifier",
+			body:   "select `db`.`t`.`id` AS `id` from `db`.`t` where exists(select 1 from json_table('[1]', '$[*]' columns (`id` int path '$')) `t` where (`t`.`id` = `db`.`t`.`id`))",
+			dbName: "db",
+			want:   "select `db`.`t`.`id` AS `id` from `db`.`t` where exists(select 1 from json_table('[1]', '$[*]' columns (`id` int path '$')) `t` where (`t`.`id` = `db`.`t`.`id`))",
+		},
+		{
 			name:   "table_named_like_database_keeps_table_qualifier",
 			body:   "select `db`.`db`.`col` AS `col` from `db`.`db`",
 			dbName: "db",
