@@ -287,3 +287,18 @@ func TestSyncForeignKeyReferencedDatabase(t *testing.T) {
 		t.Errorf("foreign keys diff (-want +got):\n%s", diff)
 	}
 }
+
+func TestSetColumnMetadataDefaultKeepsStringLiteralsQuoted(t *testing.T) {
+	for _, lit := range []string{"'CURRENT_TIMESTAMP'", "'CURRENT_DATE'", "'CURRENT_TIME'", "'current_date_label'"} {
+		col := &metadatapb.ColumnMetadata{Type: "varchar(32)"}
+		setColumnMetadataDefault(col, sql.NullString{Valid: true, String: lit}, false, "")
+		if col.Default != lit {
+			t.Errorf("varchar default %s -> %q, want %s", lit, col.Default, lit)
+		}
+	}
+	dt := &metadatapb.ColumnMetadata{Type: "datetime(6)"}
+	setColumnMetadataDefault(dt, sql.NullString{Valid: true, String: "'current_timestamp(6)'"}, false, "on update current_timestamp(6)")
+	if dt.Default != "current_timestamp(6)" || dt.OnUpdate != "CURRENT_TIMESTAMP(6)" {
+		t.Errorf("datetime(6) default=%q onUpdate=%q", dt.Default, dt.OnUpdate)
+	}
+}

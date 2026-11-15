@@ -1141,7 +1141,7 @@ func setColumnMetadataDefault(column *metadatapb.ColumnMetadata, defaultStr sql.
 	if defaultStr.Valid {
 		unquotedDefault := unquoteMySQLString(defaultStr.String)
 		switch {
-		case temporalKeywordDefaultRe.MatchString(unquotedDefault) && !isBinaryFamilyColumnType(column.Type):
+		case isTemporalColumnType(column.Type) && temporalKeywordDefaultRe.MatchString(unquotedDefault):
 			column.Default = unquotedDefault
 		case strings.Contains(extra, "DEFAULT_GENERATED"):
 			column.Default = fmt.Sprintf("(%s)", unescapeExpressionDefault(unquotedDefault))
@@ -1163,20 +1163,14 @@ func setColumnMetadataDefault(column *metadatapb.ColumnMetadata, defaultStr sql.
 	}
 }
 
-func isBinaryFamilyColumnType(columnType string) bool {
+func isTemporalColumnType(columnType string) bool {
 	lower := strings.ToLower(strings.TrimSpace(columnType))
-	switch {
-	case lower == "binary" || strings.HasPrefix(lower, "binary("):
-		return true
-	case lower == "varbinary" || strings.HasPrefix(lower, "varbinary("):
-		return true
-	case lower == "tinyblob" || lower == "mediumblob" || lower == "longblob":
-		return true
-	case lower == "blob" || strings.HasPrefix(lower, "blob("):
-		return true
-	default:
-		return false
+	for _, prefix := range []string{"timestamp", "datetime", "date", "time"} {
+		if lower == prefix || strings.HasPrefix(lower, prefix+"(") {
+			return true
+		}
 	}
+	return false
 }
 
 func unescapeExpressionDefault(s string) string {
