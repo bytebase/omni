@@ -48,8 +48,9 @@ func TestCompatibility(t *testing.T) {
 		// 1: a probe the lexer refuses at the tail says nothing, since
 		// Oracle lexes some statements whole before it parses them, and an
 		// error past the last token is a missing token. 2: the statement
-		// parsers' own errors are syntax errors.
-		JudgeRevision: 2,
+		// parsers' own errors are syntax errors. 3: ALTER TABLE a and ALTER
+		// MATERIALIZED VIEW a are asked again on the fixture's t and v.
+		JudgeRevision: 3,
 	})
 }
 
