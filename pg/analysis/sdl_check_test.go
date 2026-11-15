@@ -121,6 +121,7 @@ func TestCheckSDLStyleSyntaxError(t *testing.T) {
 		// ignores backslash escapes and does not nest block comments.
 		{"CREATE TABLE public.t (a text DEFAULT E'\\'(');", "syntax error: unmatched opening parenthesis", 42},
 		{"/* /* */ ( */ CREATE TABLE public.t (a int);", "syntax error: unmatched opening parenthesis", 9},
+		{`CREATE TABLE public."t(" (id int);`, "syntax error: unmatched opening parenthesis", 22},
 		{"CREATE TABLE public.t (a text DEFAULT '(', b text DEFAULT $x$)$x$); -- (", "", 0},
 		{"CREATE TABLEX public.t (a int);", `syntax error at or near "TABLEX"`, 7},
 	}

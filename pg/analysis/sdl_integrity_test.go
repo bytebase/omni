@@ -108,6 +108,11 @@ func TestCheckSDLIntegrityFile(t *testing.T) {
 			name: "system schemas, and system table and view names in any schema, are skipped",
 			sql:  "CREATE VIEW v AS SELECT * FROM s.pg_class, s.pg_tables, pg_temp_3.x, pg_toast.y, information_schema.tables;",
 		},
+		{
+			name: "qualified names are joined with a dot, so quoted dots collide",
+			sql:  "CREATE TABLE \"a.b\".c (id int);\nCREATE TABLE a.\"b.c\" (id int);",
+			want: []SDLFinding{{Code: SDLDuplicateTable, Start: 2, Schema: "a", Table: "b.c", First: &SDLDefinition{Start: 1}}},
+		},
 		{name: "empty", sql: "", want: nil},
 	}
 	for _, tc := range tests {
