@@ -467,9 +467,15 @@ func (a *plpgsqlAnalyzer) walkStmt(node plpgsqlast.Node) {
 		a.handleCondition(stmt.Lower)
 		a.handleCondition(stmt.Upper)
 		a.handleCondition(stmt.Step)
+		// The loop declares its integer variable, which shadows any other
+		// of its name inside the loop.
+		a.scope = newVariableScope(a.scope)
+		a.scope.set(stmt.Var, make(ColumnSet))
+		a.scope.declared[strings.ToLower(stmt.Var)] = ""
 		for _, s := range stmt.Body {
 			a.walkStmt(s)
 		}
+		a.scope = a.scope.parent
 	case *plpgsqlast.PLForS:
 		a.handleForS(stmt)
 	case *plpgsqlast.PLForC:
@@ -744,13 +750,21 @@ func constantString(node ast.Node) (string, bool) {
 
 func (a *plpgsqlAnalyzer) handleForS(stmt *plpgsqlast.PLForS) {
 	results := a.analyzeEmbeddedSQL(stmt.Query)
-	merged := make(ColumnSet)
-	for _, colSet := range results {
-		for k, v := range colSet {
-			merged[k] = v
+	// A list of scalar targets takes the columns in order; a single record
+	// or row target takes them all.
+	if targets := strings.Split(stmt.Var, ","); len(targets) > 1 {
+		for i, target := range targets {
+			if i < len(results) {
+				a.assign(strings.TrimSpace(target), results[i])
+			}
 		}
+	} else {
+		merged := make(ColumnSet)
+		for _, colSet := range results {
+			mergeSourceColumnSetInto(merged, colSet)
+		}
+		a.assign(stmt.Var, merged)
 	}
-	a.assign(stmt.Var, merged)
 	for _, s := range stmt.Body {
 		a.walkStmt(s)
 	}

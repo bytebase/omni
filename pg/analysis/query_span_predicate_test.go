@@ -356,6 +356,10 @@ func TestGetQuerySpanOutputParameterLineage(t *testing.T) {
 		{Name: "srf_return", Definition: "CREATE FUNCTION public.srf_return() RETURNS TABLE(value text) LANGUAGE plpgsql AS $$ BEGIN SELECT ssn INTO value FROM t LIMIT 1; RETURN; END; $$"},
 		{Name: "next_shadowed", Definition: "CREATE FUNCTION public.next_shadowed() RETURNS TABLE(value text) LANGUAGE plpgsql AS $$ BEGIN value := 'public'; DECLARE value text; BEGIN SELECT ssn INTO value FROM t LIMIT 1; END; RETURN NEXT; END; $$"},
 		{Name: "next_alias", Definition: "CREATE FUNCTION public.next_alias() RETURNS TABLE(value text) LANGUAGE plpgsql AS $$ DECLARE v ALIAS FOR value; BEGIN SELECT ssn INTO v FROM t LIMIT 1; RETURN NEXT; END; $$"},
+		{Name: "next_targets", Definition: "CREATE FUNCTION public.next_targets() RETURNS TABLE(a text, b text) LANGUAGE plpgsql AS $$ BEGIN FOR a, b IN SELECT email, ssn FROM t LOOP RETURN NEXT; END LOOP; END; $$"},
+		{Name: "next_int_loop", Definition: "CREATE FUNCTION public.next_int_loop() RETURNS TABLE(value int) LANGUAGE plpgsql AS $$ BEGIN value := 0; FOR value IN 1..1 LOOP value := (SELECT id FROM t LIMIT 1); END LOOP; RETURN NEXT; END; $$"},
+		// The second iteration returns the value the first assigned.
+		{Name: "next_before_assign", Definition: "CREATE FUNCTION public.next_before_assign() RETURNS TABLE(value text) LANGUAGE plpgsql AS $$ BEGIN FOR i IN 1..2 LOOP RETURN NEXT; SELECT ssn INTO value FROM t LIMIT 1; END LOOP; END; $$"},
 		{Name: "out_implicit", Definition: "CREATE FUNCTION public.out_implicit(OUT a text, OUT b text) LANGUAGE plpgsql AS $$ BEGIN SELECT email, ssn INTO a, b FROM t LIMIT 1; END; $$"},
 		{Name: "out_return", Definition: "CREATE FUNCTION public.out_return(OUT a text, OUT b text) RETURNS record LANGUAGE plpgsql AS $$ BEGIN SELECT email, ssn INTO a, b FROM t LIMIT 1; RETURN; END; $$"},
 	}
@@ -369,6 +373,9 @@ func TestGetQuerySpanOutputParameterLineage(t *testing.T) {
 		{"SELECT value FROM srf_return()", [][]string{{}}},
 		{"SELECT value FROM next_shadowed()", [][]string{{}}},
 		{"SELECT value FROM next_alias()", [][]string{{"t.ssn"}}},
+		{"SELECT a, b FROM next_targets()", [][]string{{"t.email"}, {"t.ssn"}}},
+		{"SELECT value FROM next_int_loop()", [][]string{{}}},
+		{"SELECT value FROM next_before_assign()", [][]string{{"t.ssn"}}},
 		{"SELECT a, b FROM out_implicit()", [][]string{{"t.email"}, {"t.ssn"}}},
 		{"SELECT a, b FROM out_return()", [][]string{{"t.email"}, {"t.ssn"}}},
 	}
