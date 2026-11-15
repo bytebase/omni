@@ -44,6 +44,7 @@ func reorderTableChanges(ops []MigrationOp, from, to *Catalog, diff *SchemaDiff,
 		ops = orderColumnDrops(ops, e)
 		ops = orderColumnAdds(ops, e)
 		ops = dropLastColumnsAfterAdds(ops, e)
+		ops = hideColumnsLast(ops, e)
 		ops = releaseForeignKeysOfReplacedKeys(ops, e)
 	}
 	return releaseForeignKeysAcrossTables(ops, from, to, diff)
@@ -256,14 +257,19 @@ func rebuildReadersOfReplacedColumns(ops []MigrationOp, e *TableDiffEntry, n *No
 		drop, add := dropColumnOp(e, table, col.Name, col), addColumnOp(e, table, e.To.GetColumn(col.Name), n)
 		ops = append(ops, drop, add)
 	}
-	// A column's own CHECK cannot be dropped by name (1091): a column whose
-	// check reads a replaced column is modified without it first and back to
-	// its target definition after the adds.
+	// A column whose own CHECK or expression DEFAULT reads a replaced column
+	// is modified without them first, a column CHECK having no name to drop by
+	// (1091), and back to its target definition after the adds.
 	columnCheck := columnChecks(e.From)
 	for _, col := range e.From.Columns {
 		name := toLower(col.Name)
+		if _, replaced := gone[name]; replaced {
+			continue
+		}
 		con := columnCheck[name]
-		if _, replaced := gone[name]; replaced || con == nil || !checkReadsAny(con, gone) {
+		checkReads := con != nil && checkReadsAny(con, gone)
+		defaultReads := col.Default != nil && col.DefaultKind == ColumnDefaultExpression && exprReadsAny(*col.Default, gone)
+		if !checkReads && !defaultReads {
 			continue
 		}
 		target := e.To.GetColumn(col.Name)
@@ -272,7 +278,15 @@ func rebuildReadersOfReplacedColumns(ops []MigrationOp, e *TableDiffEntry, n *No
 		}
 		context := *e.From
 		context.Charset, context.Collation = "", ""
-		strip := "MODIFY COLUMN " + showColumnWithTable(col, &context, nil, false)
+		released := *col
+		if defaultReads {
+			released.Default, released.DefaultKind = nil, ColumnDefaultNone
+		}
+		keep := map[string]*Constraint{}
+		if con != nil && !checkReads {
+			keep[name] = con
+		}
+		strip := "MODIFY COLUMN " + showColumnWithTable(&released, &context, keep, false)
 		ops = append(ops, MigrationOp{
 			Type: OpModifyColumn, Database: e.Database, ObjectName: e.Name, ParentObject: e.Name,
 			SQL: "ALTER TABLE " + table + " " + strip, Phase: PhasePre, Priority: priorityCheckDrop,
@@ -305,7 +319,11 @@ func rebuildReadersOfReplacedColumns(ops []MigrationOp, e *TableDiffEntry, n *No
 }
 
 func checkReadsAny(con *Constraint, columns map[string]int) bool {
-	for _, ref := range exprColumnRefs(con.CheckExpr) {
+	return exprReadsAny(con.CheckExpr, columns)
+}
+
+func exprReadsAny(expr string, columns map[string]int) bool {
+	for _, ref := range exprColumnRefs(expr) {
 		if _, gone := columns[toLower(ref)]; gone {
 			return true
 		}
@@ -916,4 +934,20 @@ func sharesColumn(drops, adds []alterPart) bool {
 		}
 	}
 	return false
+}
+
+// hideColumnsLast runs a MODIFY that makes a column INVISIBLE after the table's
+// other column changes, the one that makes another visible among them: a
+// table keeps a visible column (1113).
+func hideColumnsLast(ops []MigrationOp, e *TableDiffEntry) []MigrationOp {
+	for i := range ops {
+		if ops[i].Type != OpModifyColumn || !opOfTable(ops[i], e) || ops[i].column == "" {
+			continue
+		}
+		from, to := e.From.GetColumn(ops[i].column), e.To.GetColumn(ops[i].column)
+		if from != nil && to != nil && !from.Invisible && to.Invisible && ops[i].Phase == PhaseMain {
+			ops[i].Priority = max(ops[i].Priority, priorityColumn+3)
+		}
+	}
+	return ops
 }
