@@ -100,6 +100,7 @@ func RestoreSQL(node ast.Node, opts RestoreOptions) (string, error) {
 		return "", fmt.Errorf("unexpected statement type: %T", node)
 	}
 
+	sqlForComment = commentText(sqlForComment)
 	if len(prependStatements) > 0 {
 		// Ensure prependStatements ends with semicolon
 		if !strings.HasSuffix(prependStatements, ";") {
@@ -215,4 +216,18 @@ func PrependStatements(stmts []omnipg.Statement) string {
 	}
 
 	return ""
+}
+
+// commentText returns s for the inside of a block comment: a space goes
+// between every adjacent "/*" and "*/", since the engine nests block comments
+// and either would move where the comment ends.
+func commentText(s string) string {
+	var b strings.Builder
+	for i := 0; i < len(s); i++ {
+		b.WriteByte(s[i])
+		if i+1 < len(s) && (s[i] == '/' && s[i+1] == '*' || s[i] == '*' && s[i+1] == '/') {
+			b.WriteByte(' ')
+		}
+	}
+	return b.String()
 }

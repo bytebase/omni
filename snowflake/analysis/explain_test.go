@@ -23,6 +23,10 @@ func TestExplainStatement(t *testing.T) {
 		{"EXPLAIN USING JSON SELECT 1", false, "EXPLAIN SELECT 1"},
 		{"EXPLAIN SELECT 1", true, "EXPLAIN USING JSON SELECT 1"},
 		{"  explain select 1", false, "EXPLAIN select 1"},
+		// Empty statements around the one planned are left out.
+		{"; EXPLAIN SELECT 1", true, "EXPLAIN USING JSON SELECT 1"},
+		{";; EXPLAIN USING JSON SELECT 1;", false, "EXPLAIN SELECT 1"},
+		{"; SELECT 1", false, "EXPLAIN  SELECT 1"},
 	}
 	for _, tc := range tests {
 		got, err := analysis.ExplainStatement(tc.statement, tc.json)
