@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -378,4 +379,31 @@ func tableSortName(database, table string) string {
 // migrationQuoteIdent backtick-quotes an identifier, doubling any embedded backtick.
 func migrationQuoteIdent(name string) string {
 	return "`" + strings.ReplaceAll(name, "`", "``") + "`"
+}
+
+// restatePageChecksum sets PAGE_CHECKSUM again after the last ALTER of a table
+// that keeps it: MariaDB drops it in an ALTER that rebuilds an InnoDB or MyISAM
+// table without naming it (see alterTableKeepingOptions).
+func restatePageChecksum(ops []MigrationOp, diff *SchemaDiff) []MigrationOp {
+	for i := range diff.Tables {
+		e := &diff.Tables[i]
+		if e.Action != DiffModify || e.To == nil || e.To.PageChecksum == "" || eqFoldStr(e.To.Engine, "Aria") {
+			continue
+		}
+		table := tableIdent(e.To)
+		last := -1
+		for j, op := range ops {
+			if op.Database == e.Database && toLower(op.ObjectName) == toLower(e.Name) && strings.HasPrefix(op.SQL, "ALTER TABLE "+table+" ") {
+				last = j
+			}
+		}
+		if last < 0 || strings.Contains(ops[last].SQL, "PAGE_CHECKSUM=") {
+			continue
+		}
+		restate := ops[last]
+		restate.Type, restate.SQL, restate.Warning = OpAlterTable, fmt.Sprintf("ALTER TABLE %s PAGE_CHECKSUM=%s", table, e.To.PageChecksum), ""
+		restate.alterClause, restate.alterParts, restate.addsIndex, restate.dropsIndex, restate.column = "", nil, nil, "", ""
+		ops = slices.Insert(ops, last+1, restate)
+	}
+	return ops
 }

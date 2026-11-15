@@ -23,14 +23,22 @@ const (
 // only in the ALTER that adds SYSTEM VERSIONING (4124 otherwise), so that ALTER
 // adds it. Measured on mariadb:11.8.8.
 func addedWithVersioning(e *TableDiffEntry, col *Column) bool {
-	return col.Generated != nil && col.Generated.RowBound != "" && e.From != nil && e.To != nil && !e.From.SystemVersioned && e.To.SystemVersioned
+	return col.Generated != nil && col.Generated.RowBound != "" && e.From != nil && e.To != nil && e.To.SystemVersioned && (!e.From.SystemVersioned || systemPeriodReplaced(e))
+}
+
+// systemPeriodReplaced reports whether a table that stays system-versioned
+// changes the columns of its PERIOD FOR SYSTEM_TIME, which MariaDB changes only
+// with the versioning: the plan drops and adds it again.
+func systemPeriodReplaced(e *TableDiffEntry) bool {
+	return e.From.SystemVersioned && e.To.SystemVersioned &&
+		(!eqFoldStr(e.From.PeriodStartCol, e.To.PeriodStartCol) || !eqFoldStr(e.From.PeriodEndCol, e.To.PeriodEndCol))
 }
 
 // droppedWithVersioning is addedWithVersioning for the ALTER that drops SYSTEM
 // VERSIONING, which has to drop the table's ROW START and ROW END columns with
 // it (4125 otherwise).
 func droppedWithVersioning(e *TableDiffEntry, col *Column) bool {
-	return col.Generated != nil && col.Generated.RowBound != "" && e.From != nil && e.To != nil && e.From.SystemVersioned && !e.To.SystemVersioned
+	return col.Generated != nil && col.Generated.RowBound != "" && e.From != nil && e.To != nil && e.From.SystemVersioned && (!e.To.SystemVersioned || systemPeriodReplaced(e))
 }
 
 func generateVersioningDDL(diff *SchemaDiff, n *Normalizer) []MigrationOp {
@@ -56,8 +64,8 @@ func generateVersioningDDL(diff *SchemaDiff, n *Normalizer) []MigrationOp {
 				op(fmt.Sprintf("ALTER TABLE %s ADD PERIOD FOR %s (%s, %s)", table, backtickIDQ(to.AppPeriodName), backtickIDQ(to.AppPeriodStartCol), backtickIDQ(to.AppPeriodEndCol)), PhaseMain, priorityPeriodAdd)
 			}
 		}
-		switch {
-		case from.SystemVersioned && !to.SystemVersioned:
+		replaced := systemPeriodReplaced(e)
+		if from.SystemVersioned && (!to.SystemVersioned || replaced) {
 			clauses := []string{"DROP SYSTEM VERSIONING"}
 			// A ROW START or ROW END column kept as a plain one is dropped
 			// here and added again by the column generator.
@@ -68,7 +76,11 @@ func generateVersioningDDL(diff *SchemaDiff, n *Normalizer) []MigrationOp {
 			}
 			op(fmt.Sprintf("ALTER TABLE %s %s", table, strings.Join(clauses, ", ")), PhasePre, priorityVersioningDrop)
 			ops[len(ops)-1].dropsVersionedColumns = len(clauses) > 1
-		case !from.SystemVersioned && to.SystemVersioned:
+			if replaced {
+				ops[len(ops)-1].Warning = fmt.Sprintf("changing the system-time period of %s drops its system versioning and adds it again, which deletes the history rows", table)
+			}
+		}
+		if to.SystemVersioned && (!from.SystemVersioned || replaced) {
 			// A column that becomes ROW START or ROW END is added here too,
 			// after its plain self is dropped.
 			added := make(map[string]bool)

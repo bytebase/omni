@@ -108,6 +108,15 @@ var diffPairs = []struct{ name, a, b string }{
 	{"flipped column with a modified reader", "CREATE TABLE t (x INT, h INT AS (x + 1) VIRTUAL, g INT AS (h + 1) VIRTUAL)", "CREATE TABLE t (x INT, h INT AS (x + 1) STORED, g INT AS (h + 2) VIRTUAL)"},
 	{"versioning dropped with indexed period columns", "CREATE TABLE t (x INT, s TIMESTAMP(6) AS ROW START, e TIMESTAMP(6) AS ROW END, PERIOD FOR SYSTEM_TIME (s, e), KEY k (e)) WITH SYSTEM VERSIONING", "CREATE TABLE t (x INT)"},
 	{"versioning dropped with its period columns kept", "CREATE TABLE t (x INT, s TIMESTAMP(6) AS ROW START, e TIMESTAMP(6) AS ROW END, PERIOD FOR SYSTEM_TIME (s, e)) WITH SYSTEM VERSIONING", "CREATE TABLE t (x INT, s TIMESTAMP(6) NULL, e TIMESTAMP(6) NULL)"},
+	{"removed reader of a rebuilt column", "CREATE TABLE t (x INT, h INT AS (x + 1) VIRTUAL, g INT AS (h + 1) VIRTUAL, k INT AS (g + 1) VIRTUAL)", "CREATE TABLE t (x INT, h INT AS (x + 1) STORED, g INT AS (h + 1) VIRTUAL)"},
+	{"replaced column read by a removed one", "CREATE TABLE t (base INT, a INT AS (base) VIRTUAL, z INT AS (a) VIRTUAL)", "CREATE TABLE t (base INT, a INT AS (base) STORED)"},
+	{"every column replaced", "CREATE TABLE t (a INT)", "CREATE TABLE t (a INT AS (1) VIRTUAL, b INT)"},
+	{"the only column replaced", "CREATE TABLE t (a INT)", "CREATE TABLE t (a INT AS (1) VIRTUAL)"},
+	{"page checksum kept", "CREATE TABLE t (a INT) PAGE_CHECKSUM=1", "CREATE TABLE t (a INT, b INT) PAGE_CHECKSUM=1"},
+	{"system period moved", "CREATE TABLE t (x INT, s TIMESTAMP(6) AS ROW START, e TIMESTAMP(6) AS ROW END, PERIOD FOR SYSTEM_TIME (s, e)) WITH SYSTEM VERSIONING", "CREATE TABLE t (x INT, s2 TIMESTAMP(6) AS ROW START, e2 TIMESTAMP(6) AS ROW END, PERIOD FOR SYSTEM_TIME (s2, e2)) WITH SYSTEM VERSIONING"},
+	{"two dependent replacements", "CREATE TABLE t (x INT, a INT AS (x + 1) VIRTUAL, b INT AS (a + 1) VIRTUAL)", "CREATE TABLE t (x INT, a INT AS (x + 1) STORED, b INT AS (a + 1) STORED)"},
+	{"column check reading a later column", "CREATE TABLE t (x INT)", "CREATE TABLE t (x INT, a INT CHECK (a > b), b INT)"},
+	{"timestamps without defaults", "CREATE TABLE x (i INT)", "CREATE TABLE x (i INT, ts TIMESTAMP NOT NULL); CREATE TABLE t (u TIMESTAMP NOT NULL)"},
 	{"sequence limits leaving out the start", "CREATE SEQUENCE s", "CREATE SEQUENCE s START WITH 100 MINVALUE 10"},
 }
 

@@ -234,7 +234,9 @@ func GenerateMigrationWithNormalizer(from, to *Catalog, diff *SchemaDiff, n *Nor
 
 	ops = sortMigrationOps(ops)
 	ops = positionColumnAdds(ops, diff)
+	ops = restatePageChecksum(ops, diff)
 	ops = keepVersionedHistory(ops, diff)
+	ops = explicitTimestampDefaults(ops, diff)
 
 	return &MigrationPlan{Ops: ops}
 }

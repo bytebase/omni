@@ -10,37 +10,35 @@ import (
 
 // reorderTableChanges adjusts the ops of each modified table for what MariaDB
 // refuses or loses otherwise:
-//   - a generated column read by another one that is dropped too drops after it
-//     (1054 otherwise);
-//   - a key over a column the plan drops and adds again, to flip VIRTUAL and
-//     STORED, is dropped and added around it, since the drop takes the column
-//     out of the key, and so are the kept generated columns and checks that
-//     read the column (1054, 4029);
-//   - where every column of a table is dropped, the drops run after the adds,
-//     since a table cannot lose its last column (1090);
-//   - a column read by a generated column the plan keeps drops after that
-//     column's new expression is in place (1054 otherwise);
-//   - a foreign key whose only supporting key is dropped or replaced is dropped
-//     first and added again at the end (1553 otherwise);
-//   - so is a foreign key the plan keeps over a column whose type it changes,
-//     on either side (1832, 1833), and one in another table whose referenced
-//     key the plan drops or replaces;
+//   - a column read by a generated column the plan modifies drops after the
+//     modify, where the plan removes it for good (1054);
 //   - a generated column whose new expression reads a generated column the
-//     plan adds is modified after the add (1054 otherwise);
+//     plan adds is modified after the add (1054);
 //   - a key the plan keeps over an application-time period it replaces is
-//     dropped before the period and added after it (4156 otherwise).
+//     dropped before the period and added after it (4156);
+//   - a column the plan replaces, to flip VIRTUAL, STORED or plain, takes the
+//     keys over it and the generated columns and checks that read it out
+//     first and back after (1054, 4029);
+//   - every column drop runs after the dropped generated columns that read
+//     it, and every add after the added columns its expression or CHECK reads
+//     (1054, 4029);
+//   - a table that loses every column it has keeps one until the end (1090);
+//   - a foreign key whose only supporting key is dropped or replaced, on
+//     either side, or that the plan keeps over a column whose type it
+//     changes, is dropped first and added again at the end (1553, 1832, 1833).
 func reorderTableChanges(ops []MigrationOp, from, to *Catalog, diff *SchemaDiff, n *Normalizer) []MigrationOp {
 	for i := range diff.Tables {
 		e := &diff.Tables[i]
 		if e.Action != DiffModify || e.From == nil || e.To == nil {
 			continue
 		}
-		ops = orderGeneratedDrops(ops, e)
 		ops = dropColumnsAfterGeneratedReads(ops, e)
 		ops = modifyGeneratedAfterAddedReads(ops, e)
 		ops = rebuildKeysOverReplacedPeriod(ops, e, n)
 		ops = rebuildKeysOverFlippedColumns(ops, e, n)
 		ops = rebuildReadersOfReplacedColumns(ops, e, n)
+		ops = orderColumnDrops(ops, e)
+		ops = orderColumnAdds(ops, e)
 		ops = dropLastColumnsAfterAdds(ops, e)
 		ops = releaseForeignKeysOfReplacedKeys(ops, e)
 	}
@@ -49,49 +47,6 @@ func reorderTableChanges(ops []MigrationOp, from, to *Catalog, diff *SchemaDiff,
 
 func opOfTable(op MigrationOp, e *TableDiffEntry) bool {
 	return op.Database == e.Database && toLower(op.ParentObject) == toLower(e.Name)
-}
-
-func orderGeneratedDrops(ops []MigrationOp, e *TableDiffEntry) []MigrationOp {
-	dropped := make(map[string]*Column)
-	for _, ce := range e.Columns {
-		if ce.Action == DiffDrop && ce.From != nil && ce.From.Generated != nil {
-			dropped[toLower(ce.Name)] = ce.From
-		}
-	}
-	if len(dropped) < 2 {
-		return ops
-	}
-	// rank counts the dropped generated columns that read a column, directly or
-	// through another; a column drops after every one that reads it.
-	var rank func(name string, seen map[string]bool) int
-	rank = func(name string, seen map[string]bool) int {
-		if seen[name] {
-			return 0
-		}
-		seen[name] = true
-		r := 0
-		for other, col := range dropped {
-			for _, ref := range col.Generated.Refs {
-				if toLower(ref) == name {
-					if d := rank(other, seen) + 1; d > r {
-						r = d
-					}
-				}
-			}
-		}
-		return r
-	}
-	for i := range ops {
-		if ops[i].Type != OpDropColumn || !opOfTable(ops[i], e) {
-			continue
-		}
-		if _, ok := dropped[ops[i].column]; ok {
-			// The rank orders the drops within their priority, which stays
-			// above the index drops (a drop takes the column out of its keys).
-			ops[i].sortName = rankedColumnSortName(e, rank(ops[i].column, map[string]bool{}), ops[i].column)
-		}
-	}
-	return ops
 }
 
 func dropColumnsAfterGeneratedReads(ops []MigrationOp, e *TableDiffEntry) []MigrationOp {
@@ -233,19 +188,12 @@ func rebuildReadersOfReplacedColumns(ops []MigrationOp, e *TableDiffEntry, n *No
 		return ok && d > 0 && op.Type == OpModifyColumn && opOfTable(op, e)
 	})
 	table := tableIdent(e.To)
-	maxDepth := 0
-	for _, d := range gone {
-		maxDepth = max(maxDepth, d)
-	}
 	for _, col := range e.From.Columns {
 		depth := gone[toLower(col.Name)]
 		if depth == 0 {
 			continue
 		}
 		drop, add := dropColumnOp(e, table, col.Name, col), addColumnOp(e, table, e.To.GetColumn(col.Name), n)
-		drop.Priority, add.Priority = priorityColumn-2, priorityColumn+2
-		drop.sortName = rankedColumnSortName(e, maxDepth-depth, col.Name)
-		add.sortName = rankedColumnSortName(e, depth, fmt.Sprintf("%04d", columnPosition(e.To, col.Name)))
 		ops = append(ops, drop, add)
 	}
 	changedChecks := make(map[string]bool)
@@ -266,20 +214,12 @@ func rebuildReadersOfReplacedColumns(ops []MigrationOp, e *TableDiffEntry, n *No
 }
 
 func checkReadsAny(con *Constraint, columns map[string]int) bool {
-	expr, err := parseExpr(con.CheckExpr)
-	if err != nil {
-		return false
-	}
-	found := false
-	nodes.Inspect(expr, func(node nodes.Node) bool {
-		if ref, ok := node.(*nodes.ColumnRef); ok {
-			if _, gone := columns[toLower(ref.Column)]; gone {
-				found = true
-			}
+	for _, ref := range exprColumnRefs(con.CheckExpr) {
+		if _, gone := columns[toLower(ref)]; gone {
+			return true
 		}
-		return !found
-	})
-	return found
+	}
+	return false
 }
 
 func rebuildKeysOverFlippedColumns(ops []MigrationOp, e *TableDiffEntry, n *Normalizer) []MigrationOp {
@@ -317,19 +257,176 @@ func indexReadsAny(idx *Index, columns map[string]bool) bool {
 	return false
 }
 
-func dropLastColumnsAfterAdds(ops []MigrationOp, e *TableDiffEntry) []MigrationOp {
-	drops := 0
-	for _, ce := range e.Columns {
-		if ce.Action == DiffDrop {
-			drops++
+// orderColumnDrops runs the column drops of a table that precede its adds
+// after every dropped generated column that reads them, directly or through
+// another: MariaDB drops no column a generated one still reads (1054, 4029).
+// The order holds across permanent drops, replaced columns and their rebuilt
+// readers, within one priority above the key drops.
+func orderColumnDrops(ops []MigrationOp, e *TableDiffEntry) []MigrationOp {
+	dropped := make(map[string]bool)
+	for _, op := range ops {
+		if op.Type == OpDropColumn && op.Phase == PhasePre && opOfTable(op, e) {
+			dropped[op.column] = true
 		}
 	}
-	if drops == 0 || drops < len(diffableColumns(e.From)) {
-		return ops
+	readers := make(map[string][]string)
+	for name := range dropped {
+		if col := e.From.GetColumn(name); col != nil && col.Generated != nil {
+			for _, ref := range col.Generated.Refs {
+				if r := toLower(ref); dropped[r] && r != name {
+					readers[r] = append(readers[r], name)
+				}
+			}
+		}
+	}
+	// rank is the length of the longest chain of dropped readers above name.
+	ranks := make(map[string]int)
+	var rank func(name string, seen map[string]bool) int
+	rank = func(name string, seen map[string]bool) int {
+		if r, ok := ranks[name]; ok {
+			return r
+		}
+		if seen[name] {
+			return 0
+		}
+		seen[name] = true
+		r := 0
+		for _, reader := range readers[name] {
+			r = max(r, rank(reader, seen)+1)
+		}
+		ranks[name] = r
+		return r
 	}
 	for i := range ops {
-		if ops[i].Type == OpDropColumn && opOfTable(ops[i], e) {
-			ops[i].Phase, ops[i].Priority = PhaseMain, priorityColumn+1
+		if ops[i].Type == OpDropColumn && ops[i].Phase == PhasePre && opOfTable(ops[i], e) {
+			ops[i].Priority = priorityColumn - 1
+			ops[i].sortName = rankedColumnSortName(e, rank(ops[i].column, map[string]bool{}), ops[i].column)
+		}
+	}
+	return ops
+}
+
+// orderColumnAdds adds a table's columns after the added columns their
+// generated expression or column CHECK reads (1054 otherwise): a column CHECK
+// may read a column the target places after it. Otherwise the adds keep their
+// priority and the target's column order.
+func orderColumnAdds(ops []MigrationOp, e *TableDiffEntry) []MigrationOp {
+	priority := make(map[string]int)
+	for _, op := range ops {
+		if op.Type == OpAddColumn && opOfTable(op, e) && op.Phase == PhaseMain {
+			priority[op.column] = op.Priority
+		}
+	}
+	reads := make(map[string][]string)
+	checks := columnChecks(e.To)
+	for name := range priority {
+		col := e.To.GetColumn(name)
+		if col == nil {
+			continue
+		}
+		var refs []string
+		if col.Generated != nil {
+			refs = append(refs, col.Generated.Refs...)
+		}
+		if con := checks[name]; con != nil {
+			refs = append(refs, exprColumnRefs(con.CheckExpr)...)
+		}
+		for _, ref := range refs {
+			if ref := toLower(ref); ref != name {
+				if _, ok := priority[ref]; ok {
+					reads[name] = append(reads[name], ref)
+				}
+			}
+		}
+	}
+	if len(reads) == 0 {
+		return ops
+	}
+	// rank is the longest chain of added columns name reads; a column takes
+	// the latest priority among them.
+	ranks, final := make(map[string]int), make(map[string]int)
+	var walk func(name string, seen map[string]bool) (int, int)
+	walk = func(name string, seen map[string]bool) (int, int) {
+		if r, ok := ranks[name]; ok {
+			return r, final[name]
+		}
+		r, p := 0, priority[name]
+		if !seen[name] {
+			seen[name] = true
+			for _, ref := range reads[name] {
+				rr, rp := walk(ref, seen)
+				r, p = max(r, rr+1), max(p, rp)
+			}
+		}
+		ranks[name], final[name] = r, p
+		return r, p
+	}
+	for i := range ops {
+		if ops[i].Type != OpAddColumn || !opOfTable(ops[i], e) || ops[i].Phase != PhaseMain {
+			continue
+		}
+		if _, ok := priority[ops[i].column]; !ok {
+			continue
+		}
+		r, p := walk(ops[i].column, map[string]bool{})
+		ops[i].Priority = p
+		ops[i].sortName = rankedColumnSortName(e, r, fmt.Sprintf("%04d", columnPosition(e.To, ops[i].column)))
+	}
+	return ops
+}
+
+// exprColumnRefs returns the columns an expression names.
+func exprColumnRefs(text string) []string {
+	expr, err := parseExpr(text)
+	if err != nil {
+		return nil
+	}
+	var refs []string
+	nodes.Inspect(expr, func(node nodes.Node) bool {
+		if ref, ok := node.(*nodes.ColumnRef); ok {
+			refs = append(refs, ref.Column)
+		}
+		return true
+	})
+	return refs
+}
+
+// dropLastColumnsAfterAdds keeps a table from losing its last column (1090)
+// where the plan drops every column it has, permanently or to add it again.
+// The columns it only adds go first; where there are none, the first replaced
+// column is dropped and added in one statement.
+func dropLastColumnsAfterAdds(ops []MigrationOp, e *TableDiffEntry) []MigrationOp {
+	dropped := make(map[string]bool)
+	for _, op := range ops {
+		if op.Type == OpDropColumn && opOfTable(op, e) {
+			dropped[op.column] = true
+		}
+	}
+	if len(dropped) == 0 || len(dropped) < len(diffableColumns(e.From)) {
+		return ops
+	}
+	fresh := false
+	for i := range ops {
+		if ops[i].Type == OpAddColumn && opOfTable(ops[i], e) && !dropped[ops[i].column] {
+			// Ahead of the drops, whose sort names rankedColumnSortName starts
+			// after an add's.
+			ops[i].Phase, ops[i].Priority = PhasePre, priorityColumn-1
+			fresh = true
+		}
+	}
+	if fresh {
+		return ops
+	}
+	for d := range ops {
+		if ops[d].Type != OpDropColumn || !opOfTable(ops[d], e) {
+			continue
+		}
+		for a := range ops {
+			if ops[a].Type == OpAddColumn && opOfTable(ops[a], e) && ops[a].column == ops[d].column && ops[a].alterParts == nil {
+				ops[a].alterParts = []alterPart{{clause: ops[d].alterClause}, {clause: ops[a].alterClause, addsColumn: ops[a].column}}
+				ops[a].SQL = "ALTER TABLE " + tableIdent(e.To) + " " + joinAlterParts(ops[a].alterParts)
+				return slices.Delete(ops, d, d+1)
+			}
 		}
 	}
 	return ops
@@ -507,5 +604,5 @@ func foreignKeyOverRetyped(con *Constraint, db, table string, retyped map[string
 // rankedColumnSortName orders a table's column ops of one priority by rank, then
 // by key.
 func rankedColumnSortName(e *TableDiffEntry, rank int, key string) string {
-	return columnSortName(e.Database, e.Name, fmt.Sprintf("\x00%04d\x00%s", rank, toLower(key)))
+	return columnSortName(e.Database, e.Name, fmt.Sprintf("\x01%04d\x00%s", rank, toLower(key)))
 }

@@ -141,9 +141,12 @@ func TestOracle_MigrationConverges(t *testing.T) {
 				resetDatabase(t, conn, database)
 				applySchema(t, conn, m.from.schema)
 				// The plan names each object with its database, so it runs
-				// from another one.
+				// from another one, and with explicit_defaults_for_timestamp
+				// OFF, which the plan sets for itself where it matters.
 				useDatabase(t, conn, otherDatabase)
+				setSession(t, conn, "explicit_defaults_for_timestamp = OFF")
 				applyErr := applyPlan(conn, plan)
+				setSession(t, conn, "explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp")
 				useDatabase(t, conn, database)
 				var got map[string]string
 				if applyErr == nil {
@@ -274,6 +277,13 @@ func migrationObjects(t *testing.T, conn *sql.Conn, startsWritten bool) map[stri
 func useDatabase(t *testing.T, conn *sql.Conn, database string) {
 	t.Helper()
 	if _, err := conn.ExecContext(context.Background(), "USE "+quoteIdent(database)); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func setSession(t *testing.T, conn *sql.Conn, assignment string) {
+	t.Helper()
+	if _, err := conn.ExecContext(context.Background(), "SET "+assignment); err != nil {
 		t.Fatal(err)
 	}
 }
