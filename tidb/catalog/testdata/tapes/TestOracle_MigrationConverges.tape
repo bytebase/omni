@@ -41908,6 +41908,2908 @@
 | SET foreign_key_checks = 0
 < ok 0 0
 > exec
+| CREATE TABLE t (c int, d int)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_mig_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| DROP DATABASE IF EXISTS omni_mig_a
+< ok 0 0
+> exec
+| CREATE DATABASE omni_mig_a
+< ok 0 0
+> exec
+| USE omni_mig_a
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a int, b int)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
+| 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "KEY_NAME" "VARCHAR"
+< column "COLUMN_NAME" "VARCHAR"
+< column "NON_UNIQUE" "BIGINT"
+< column "INDEX_COMMENT" "VARCHAR"
+< column "SUB_PART" "BIGINT"
+< column "EXPRESSION" "VARCHAR"
+> query
+| SELECT TABLE_NAME, IFNULL(COLUMN_NAME, ''), ORDINAL_POSITION,
+| 			CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END,
+| 			IS_NULLABLE, COLUMN_TYPE, IFNULL(CHARACTER_SET_NAME, ''), IFNULL(COLLATION_NAME, ''),
+| 			QUOTE(COLUMN_COMMENT), GENERATION_EXPRESSION, EXTRA
+| 		FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, ORDINAL_POSITION
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "ORDINAL_POSITION" "BIGINT"
+< column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
+< column "IS_NULLABLE" "VARCHAR"
+< column "COLUMN_TYPE" "TEXT"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
+< column "GENERATION_EXPRESSION" "TEXT"
+< column "EXTRA" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| a
+: int64 1
+: null
+: bytes
+| YES
+: bytes
+| int
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+< row
+: bytes
+| t
+: bytes
+| b
+: int64 2
+: null
+: bytes
+| YES
+: bytes
+| int
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+> query
+| SELECT TABLE_NAME, VIEW_DEFINITION FROM information_schema.VIEWS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "VIEW_DEFINITION" "TEXT"
+> query
+| SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
+| 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
+| 		FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS fks
+| 			JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu
+| 			ON fks.CONSTRAINT_SCHEMA = kcu.TABLE_SCHEMA AND fks.TABLE_NAME = kcu.TABLE_NAME AND fks.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
+| 		WHERE kcu.POSITION_IN_UNIQUE_CONSTRAINT IS NOT NULL AND fks.CONSTRAINT_SCHEMA = ?
+| 		ORDER BY fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.ORDINAL_POSITION
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR"
+< column "COLUMN_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_COLUMN_NAME" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR"
+< column "UPDATE_RULE" "VARCHAR"
+< column "MATCH_OPTION" "VARCHAR"
+> query
+| SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
+| 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CHECK_CLAUSE" "TEXT"
+> query
+| SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
+| 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
+| 		ORDER BY TABLE_NAME, PARTITION_ORDINAL_POSITION
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "PARTITION_NAME" "VARCHAR"
+< column "PARTITION_METHOD" "VARCHAR"
+< column "PARTITION_EXPRESSION" "TEXT"
+< column "PARTITION_DESCRIPTION" "TEXT"
+> query
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TABLE_COLLATION, ''), QUOTE(IFNULL(TABLE_COMMENT, '')),
+| 			IFNULL(TIDB_ROW_ID_SHARDING_INFO, ''), IFNULL(TIDB_PK_TYPE, '')
+| 		FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_bin
+: bytes
+| ''
+: bytes
+| NOT_SHARDED
+: bytes
+| NONCLUSTERED
+> query
+| SELECT DEFAULT_CHARACTER_SET_NAME, DEFAULT_COLLATION_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = ?
+: string
+| omni_mig_a
+< result
+< column "DEFAULT_CHARACTER_SET_NAME" "VARCHAR"
+< column "DEFAULT_COLLATION_NAME" "VARCHAR"
+< row
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_bin
+> query
+| SELECT SEQUENCE_NAME, START, MIN_VALUE, MAX_VALUE, INCREMENT, CYCLE, CACHE_VALUE, IFNULL(COMMENT, '')
+| 		FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
+: string
+| omni_mig_a
+< result
+< column "SEQUENCE_NAME" "VARCHAR"
+< column "START" "BIGINT"
+< column "MIN_VALUE" "BIGINT"
+< column "MAX_VALUE" "BIGINT"
+< column "INCREMENT" "BIGINT"
+< column "CYCLE" "TINYINT"
+< column "CACHE_VALUE" "BIGINT"
+< column "IFNULL(COMMENT, '')" "VARCHAR"
+> query
+| SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
+| 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
+: string
+| omni_mig_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "KEY_NAME" "VARCHAR"
+< column "COLUMN_NAME" "VARCHAR"
+< column "NON_UNIQUE" "BIGINT"
+< column "INDEX_COMMENT" "VARCHAR"
+< column "SUB_PART" "BIGINT"
+< column "EXPRESSION" "VARCHAR"
+> query
+| SELECT TABLE_NAME, IFNULL(COLUMN_NAME, ''), ORDINAL_POSITION,
+| 			CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END,
+| 			IS_NULLABLE, COLUMN_TYPE, IFNULL(CHARACTER_SET_NAME, ''), IFNULL(COLLATION_NAME, ''),
+| 			QUOTE(COLUMN_COMMENT), GENERATION_EXPRESSION, EXTRA
+| 		FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, ORDINAL_POSITION
+: string
+| omni_mig_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "ORDINAL_POSITION" "BIGINT"
+< column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
+< column "IS_NULLABLE" "VARCHAR"
+< column "COLUMN_TYPE" "TEXT"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
+< column "GENERATION_EXPRESSION" "TEXT"
+< column "EXTRA" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| c
+: int64 1
+: null
+: bytes
+| YES
+: bytes
+| int
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+< row
+: bytes
+| t
+: bytes
+| d
+: int64 2
+: null
+: bytes
+| YES
+: bytes
+| int
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+> query
+| SELECT TABLE_NAME, VIEW_DEFINITION FROM information_schema.VIEWS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_mig_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "VIEW_DEFINITION" "TEXT"
+> query
+| SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
+| 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
+| 		FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS fks
+| 			JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu
+| 			ON fks.CONSTRAINT_SCHEMA = kcu.TABLE_SCHEMA AND fks.TABLE_NAME = kcu.TABLE_NAME AND fks.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
+| 		WHERE kcu.POSITION_IN_UNIQUE_CONSTRAINT IS NOT NULL AND fks.CONSTRAINT_SCHEMA = ?
+| 		ORDER BY fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.ORDINAL_POSITION
+: string
+| omni_mig_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR"
+< column "COLUMN_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_COLUMN_NAME" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR"
+< column "UPDATE_RULE" "VARCHAR"
+< column "MATCH_OPTION" "VARCHAR"
+> query
+| SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
+| 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
+: string
+| omni_mig_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CHECK_CLAUSE" "TEXT"
+> query
+| SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
+| 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
+| 		ORDER BY TABLE_NAME, PARTITION_ORDINAL_POSITION
+: string
+| omni_mig_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "PARTITION_NAME" "VARCHAR"
+< column "PARTITION_METHOD" "VARCHAR"
+< column "PARTITION_EXPRESSION" "TEXT"
+< column "PARTITION_DESCRIPTION" "TEXT"
+> query
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TABLE_COLLATION, ''), QUOTE(IFNULL(TABLE_COMMENT, '')),
+| 			IFNULL(TIDB_ROW_ID_SHARDING_INFO, ''), IFNULL(TIDB_PK_TYPE, '')
+| 		FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_mig_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_bin
+: bytes
+| ''
+: bytes
+| NOT_SHARDED
+: bytes
+| NONCLUSTERED
+> query
+| SELECT DEFAULT_CHARACTER_SET_NAME, DEFAULT_COLLATION_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = ?
+: string
+| omni_mig_b
+< result
+< column "DEFAULT_CHARACTER_SET_NAME" "VARCHAR"
+< column "DEFAULT_COLLATION_NAME" "VARCHAR"
+< row
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_bin
+> query
+| SELECT SEQUENCE_NAME, START, MIN_VALUE, MAX_VALUE, INCREMENT, CYCLE, CACHE_VALUE, IFNULL(COMMENT, '')
+| 		FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
+: string
+| omni_mig_b
+< result
+< column "SEQUENCE_NAME" "VARCHAR"
+< column "START" "BIGINT"
+< column "MIN_VALUE" "BIGINT"
+< column "MAX_VALUE" "BIGINT"
+< column "INCREMENT" "BIGINT"
+< column "CYCLE" "TINYINT"
+< column "CACHE_VALUE" "BIGINT"
+< column "IFNULL(COMMENT, '')" "VARCHAR"
+> exec
+| USE omni_mig_a
+< ok 0 0
+> exec
+| ALTER TABLE `omni_mig_a`.`t` DROP COLUMN `a`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_mig_a`.`t` ADD COLUMN `c` int DEFAULT NULL FIRST
+< ok 0 0
+> exec
+| ALTER TABLE `omni_mig_a`.`t` ADD COLUMN `d` int DEFAULT NULL AFTER `c`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_mig_a`.`t` DROP COLUMN `b`
+< ok 0 0
+> query
+| SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| DROP DATABASE IF EXISTS omni_mig_a
+< ok 0 0
+> exec
+| CREATE DATABASE omni_mig_a
+< ok 0 0
+> exec
+| USE omni_mig_a
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a int, b int)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE omni_mig_a
+< ok 0 0
+> exec
+| ALTER TABLE `omni_mig_a`.`t` DROP COLUMN `a`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_mig_a`.`t` ADD COLUMN `c` int DEFAULT NULL FIRST
+< ok 0 0
+> exec
+| ALTER TABLE `omni_mig_a`.`t` ADD COLUMN `d` int DEFAULT NULL AFTER `c`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_mig_a`.`t` DROP COLUMN `b`
+< ok 0 0
+> query
+| SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| DROP DATABASE IF EXISTS omni_mig_b
+< ok 0 0
+> exec
+| CREATE DATABASE omni_mig_b
+< ok 0 0
+> exec
+| USE omni_mig_b
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (keep int)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_mig_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `keep` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| DROP DATABASE IF EXISTS omni_mig_a
+< ok 0 0
+> exec
+| CREATE DATABASE omni_mig_a
+< ok 0 0
+> exec
+| USE omni_mig_a
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a int, z int AS (a + 1) VIRTUAL, y int AS (z + 1) VIRTUAL, keep int)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
+| 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "KEY_NAME" "VARCHAR"
+< column "COLUMN_NAME" "VARCHAR"
+< column "NON_UNIQUE" "BIGINT"
+< column "INDEX_COMMENT" "VARCHAR"
+< column "SUB_PART" "BIGINT"
+< column "EXPRESSION" "VARCHAR"
+> query
+| SELECT TABLE_NAME, IFNULL(COLUMN_NAME, ''), ORDINAL_POSITION,
+| 			CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END,
+| 			IS_NULLABLE, COLUMN_TYPE, IFNULL(CHARACTER_SET_NAME, ''), IFNULL(COLLATION_NAME, ''),
+| 			QUOTE(COLUMN_COMMENT), GENERATION_EXPRESSION, EXTRA
+| 		FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, ORDINAL_POSITION
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "ORDINAL_POSITION" "BIGINT"
+< column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
+< column "IS_NULLABLE" "VARCHAR"
+< column "COLUMN_TYPE" "TEXT"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
+< column "GENERATION_EXPRESSION" "TEXT"
+< column "EXTRA" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| a
+: int64 1
+: null
+: bytes
+| YES
+: bytes
+| int
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+< row
+: bytes
+| t
+: bytes
+| z
+: int64 2
+: null
+: bytes
+| YES
+: bytes
+| int
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+| `a` + 1
+: bytes
+| VIRTUAL GENERATED
+< row
+: bytes
+| t
+: bytes
+| y
+: int64 3
+: null
+: bytes
+| YES
+: bytes
+| int
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+| `z` + 1
+: bytes
+| VIRTUAL GENERATED
+< row
+: bytes
+| t
+: bytes
+| keep
+: int64 4
+: null
+: bytes
+| YES
+: bytes
+| int
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+> query
+| SELECT TABLE_NAME, VIEW_DEFINITION FROM information_schema.VIEWS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "VIEW_DEFINITION" "TEXT"
+> query
+| SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
+| 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
+| 		FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS fks
+| 			JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu
+| 			ON fks.CONSTRAINT_SCHEMA = kcu.TABLE_SCHEMA AND fks.TABLE_NAME = kcu.TABLE_NAME AND fks.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
+| 		WHERE kcu.POSITION_IN_UNIQUE_CONSTRAINT IS NOT NULL AND fks.CONSTRAINT_SCHEMA = ?
+| 		ORDER BY fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.ORDINAL_POSITION
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR"
+< column "COLUMN_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_COLUMN_NAME" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR"
+< column "UPDATE_RULE" "VARCHAR"
+< column "MATCH_OPTION" "VARCHAR"
+> query
+| SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
+| 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CHECK_CLAUSE" "TEXT"
+> query
+| SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
+| 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
+| 		ORDER BY TABLE_NAME, PARTITION_ORDINAL_POSITION
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "PARTITION_NAME" "VARCHAR"
+< column "PARTITION_METHOD" "VARCHAR"
+< column "PARTITION_EXPRESSION" "TEXT"
+< column "PARTITION_DESCRIPTION" "TEXT"
+> query
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TABLE_COLLATION, ''), QUOTE(IFNULL(TABLE_COMMENT, '')),
+| 			IFNULL(TIDB_ROW_ID_SHARDING_INFO, ''), IFNULL(TIDB_PK_TYPE, '')
+| 		FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_bin
+: bytes
+| ''
+: bytes
+| NOT_SHARDED
+: bytes
+| NONCLUSTERED
+> query
+| SELECT DEFAULT_CHARACTER_SET_NAME, DEFAULT_COLLATION_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = ?
+: string
+| omni_mig_a
+< result
+< column "DEFAULT_CHARACTER_SET_NAME" "VARCHAR"
+< column "DEFAULT_COLLATION_NAME" "VARCHAR"
+< row
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_bin
+> query
+| SELECT SEQUENCE_NAME, START, MIN_VALUE, MAX_VALUE, INCREMENT, CYCLE, CACHE_VALUE, IFNULL(COMMENT, '')
+| 		FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
+: string
+| omni_mig_a
+< result
+< column "SEQUENCE_NAME" "VARCHAR"
+< column "START" "BIGINT"
+< column "MIN_VALUE" "BIGINT"
+< column "MAX_VALUE" "BIGINT"
+< column "INCREMENT" "BIGINT"
+< column "CYCLE" "TINYINT"
+< column "CACHE_VALUE" "BIGINT"
+< column "IFNULL(COMMENT, '')" "VARCHAR"
+> query
+| SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
+| 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
+: string
+| omni_mig_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "KEY_NAME" "VARCHAR"
+< column "COLUMN_NAME" "VARCHAR"
+< column "NON_UNIQUE" "BIGINT"
+< column "INDEX_COMMENT" "VARCHAR"
+< column "SUB_PART" "BIGINT"
+< column "EXPRESSION" "VARCHAR"
+> query
+| SELECT TABLE_NAME, IFNULL(COLUMN_NAME, ''), ORDINAL_POSITION,
+| 			CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END,
+| 			IS_NULLABLE, COLUMN_TYPE, IFNULL(CHARACTER_SET_NAME, ''), IFNULL(COLLATION_NAME, ''),
+| 			QUOTE(COLUMN_COMMENT), GENERATION_EXPRESSION, EXTRA
+| 		FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, ORDINAL_POSITION
+: string
+| omni_mig_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "ORDINAL_POSITION" "BIGINT"
+< column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
+< column "IS_NULLABLE" "VARCHAR"
+< column "COLUMN_TYPE" "TEXT"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
+< column "GENERATION_EXPRESSION" "TEXT"
+< column "EXTRA" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| keep
+: int64 1
+: null
+: bytes
+| YES
+: bytes
+| int
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+> query
+| SELECT TABLE_NAME, VIEW_DEFINITION FROM information_schema.VIEWS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_mig_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "VIEW_DEFINITION" "TEXT"
+> query
+| SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
+| 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
+| 		FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS fks
+| 			JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu
+| 			ON fks.CONSTRAINT_SCHEMA = kcu.TABLE_SCHEMA AND fks.TABLE_NAME = kcu.TABLE_NAME AND fks.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
+| 		WHERE kcu.POSITION_IN_UNIQUE_CONSTRAINT IS NOT NULL AND fks.CONSTRAINT_SCHEMA = ?
+| 		ORDER BY fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.ORDINAL_POSITION
+: string
+| omni_mig_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR"
+< column "COLUMN_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_COLUMN_NAME" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR"
+< column "UPDATE_RULE" "VARCHAR"
+< column "MATCH_OPTION" "VARCHAR"
+> query
+| SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
+| 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
+: string
+| omni_mig_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CHECK_CLAUSE" "TEXT"
+> query
+| SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
+| 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
+| 		ORDER BY TABLE_NAME, PARTITION_ORDINAL_POSITION
+: string
+| omni_mig_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "PARTITION_NAME" "VARCHAR"
+< column "PARTITION_METHOD" "VARCHAR"
+< column "PARTITION_EXPRESSION" "TEXT"
+< column "PARTITION_DESCRIPTION" "TEXT"
+> query
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TABLE_COLLATION, ''), QUOTE(IFNULL(TABLE_COMMENT, '')),
+| 			IFNULL(TIDB_ROW_ID_SHARDING_INFO, ''), IFNULL(TIDB_PK_TYPE, '')
+| 		FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_mig_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_bin
+: bytes
+| ''
+: bytes
+| NOT_SHARDED
+: bytes
+| NONCLUSTERED
+> query
+| SELECT DEFAULT_CHARACTER_SET_NAME, DEFAULT_COLLATION_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = ?
+: string
+| omni_mig_b
+< result
+< column "DEFAULT_CHARACTER_SET_NAME" "VARCHAR"
+< column "DEFAULT_COLLATION_NAME" "VARCHAR"
+< row
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_bin
+> query
+| SELECT SEQUENCE_NAME, START, MIN_VALUE, MAX_VALUE, INCREMENT, CYCLE, CACHE_VALUE, IFNULL(COMMENT, '')
+| 		FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
+: string
+| omni_mig_b
+< result
+< column "SEQUENCE_NAME" "VARCHAR"
+< column "START" "BIGINT"
+< column "MIN_VALUE" "BIGINT"
+< column "MAX_VALUE" "BIGINT"
+< column "INCREMENT" "BIGINT"
+< column "CYCLE" "TINYINT"
+< column "CACHE_VALUE" "BIGINT"
+< column "IFNULL(COMMENT, '')" "VARCHAR"
+> exec
+| USE omni_mig_a
+< ok 0 0
+> exec
+| ALTER TABLE `omni_mig_a`.`t` DROP COLUMN `y`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_mig_a`.`t` DROP COLUMN `z`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_mig_a`.`t` DROP COLUMN `a`
+< ok 0 0
+> query
+| SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `keep` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| DROP DATABASE IF EXISTS omni_mig_a
+< ok 0 0
+> exec
+| CREATE DATABASE omni_mig_a
+< ok 0 0
+> exec
+| USE omni_mig_a
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a int, z int AS (a + 1) VIRTUAL, y int AS (z + 1) VIRTUAL, keep int)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE omni_mig_a
+< ok 0 0
+> exec
+| ALTER TABLE `omni_mig_a`.`t` DROP COLUMN `y`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_mig_a`.`t` DROP COLUMN `z`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_mig_a`.`t` DROP COLUMN `a`
+< ok 0 0
+> query
+| SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `keep` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| DROP DATABASE IF EXISTS omni_mig_b
+< ok 0 0
+> exec
+| CREATE DATABASE omni_mig_b
+< ok 0 0
+> exec
+| USE omni_mig_b
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a int)
+< ok 0 0
+> exec
+| CREATE VIEW vb AS SELECT a AS va FROM t
+< ok 0 0
+> exec
+| CREATE VIEW va AS SELECT va FROM vb
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_mig_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+< row
+: bytes
+| va
+: bytes
+| VIEW
+< row
+: bytes
+| vb
+: bytes
+| VIEW
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> query
+| SELECT CHECK_OPTION FROM information_schema.VIEWS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
+: string
+| omni_mig_b
+: string
+| va
+< result
+< column "CHECK_OPTION" "VARCHAR"
+< row
+: bytes
+| CASCADED
+> query
+| SHOW CREATE VIEW `va`
+< result
+< column "View" "VARCHAR"
+< column "Create View" "VARCHAR"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< row
+: bytes
+| va
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `va` (`va`) AS SELECT `va` AS `va` FROM `omni_mig_b`.`vb`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SELECT CHECK_OPTION FROM information_schema.VIEWS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
+: string
+| omni_mig_b
+: string
+| vb
+< result
+< column "CHECK_OPTION" "VARCHAR"
+< row
+: bytes
+| CASCADED
+> query
+| SHOW CREATE VIEW `vb`
+< result
+< column "View" "VARCHAR"
+< column "Create View" "VARCHAR"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< row
+: bytes
+| vb
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `vb` (`va`) AS SELECT `a` AS `va` FROM `omni_mig_b`.`t`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> exec
+| DROP DATABASE IF EXISTS omni_mig_a
+< ok 0 0
+> exec
+| CREATE DATABASE omni_mig_a
+< ok 0 0
+> exec
+| USE omni_mig_a
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a int)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
+| 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "KEY_NAME" "VARCHAR"
+< column "COLUMN_NAME" "VARCHAR"
+< column "NON_UNIQUE" "BIGINT"
+< column "INDEX_COMMENT" "VARCHAR"
+< column "SUB_PART" "BIGINT"
+< column "EXPRESSION" "VARCHAR"
+> query
+| SELECT TABLE_NAME, IFNULL(COLUMN_NAME, ''), ORDINAL_POSITION,
+| 			CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END,
+| 			IS_NULLABLE, COLUMN_TYPE, IFNULL(CHARACTER_SET_NAME, ''), IFNULL(COLLATION_NAME, ''),
+| 			QUOTE(COLUMN_COMMENT), GENERATION_EXPRESSION, EXTRA
+| 		FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, ORDINAL_POSITION
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "ORDINAL_POSITION" "BIGINT"
+< column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
+< column "IS_NULLABLE" "VARCHAR"
+< column "COLUMN_TYPE" "TEXT"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
+< column "GENERATION_EXPRESSION" "TEXT"
+< column "EXTRA" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| a
+: int64 1
+: null
+: bytes
+| YES
+: bytes
+| int
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+> query
+| SELECT TABLE_NAME, VIEW_DEFINITION FROM information_schema.VIEWS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "VIEW_DEFINITION" "TEXT"
+> query
+| SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
+| 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
+| 		FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS fks
+| 			JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu
+| 			ON fks.CONSTRAINT_SCHEMA = kcu.TABLE_SCHEMA AND fks.TABLE_NAME = kcu.TABLE_NAME AND fks.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
+| 		WHERE kcu.POSITION_IN_UNIQUE_CONSTRAINT IS NOT NULL AND fks.CONSTRAINT_SCHEMA = ?
+| 		ORDER BY fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.ORDINAL_POSITION
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR"
+< column "COLUMN_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_COLUMN_NAME" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR"
+< column "UPDATE_RULE" "VARCHAR"
+< column "MATCH_OPTION" "VARCHAR"
+> query
+| SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
+| 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CHECK_CLAUSE" "TEXT"
+> query
+| SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
+| 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
+| 		ORDER BY TABLE_NAME, PARTITION_ORDINAL_POSITION
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "PARTITION_NAME" "VARCHAR"
+< column "PARTITION_METHOD" "VARCHAR"
+< column "PARTITION_EXPRESSION" "TEXT"
+< column "PARTITION_DESCRIPTION" "TEXT"
+> query
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TABLE_COLLATION, ''), QUOTE(IFNULL(TABLE_COMMENT, '')),
+| 			IFNULL(TIDB_ROW_ID_SHARDING_INFO, ''), IFNULL(TIDB_PK_TYPE, '')
+| 		FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_bin
+: bytes
+| ''
+: bytes
+| NOT_SHARDED
+: bytes
+| NONCLUSTERED
+> query
+| SELECT DEFAULT_CHARACTER_SET_NAME, DEFAULT_COLLATION_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = ?
+: string
+| omni_mig_a
+< result
+< column "DEFAULT_CHARACTER_SET_NAME" "VARCHAR"
+< column "DEFAULT_COLLATION_NAME" "VARCHAR"
+< row
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_bin
+> query
+| SELECT SEQUENCE_NAME, START, MIN_VALUE, MAX_VALUE, INCREMENT, CYCLE, CACHE_VALUE, IFNULL(COMMENT, '')
+| 		FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
+: string
+| omni_mig_a
+< result
+< column "SEQUENCE_NAME" "VARCHAR"
+< column "START" "BIGINT"
+< column "MIN_VALUE" "BIGINT"
+< column "MAX_VALUE" "BIGINT"
+< column "INCREMENT" "BIGINT"
+< column "CYCLE" "TINYINT"
+< column "CACHE_VALUE" "BIGINT"
+< column "IFNULL(COMMENT, '')" "VARCHAR"
+> query
+| SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
+| 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
+: string
+| omni_mig_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "KEY_NAME" "VARCHAR"
+< column "COLUMN_NAME" "VARCHAR"
+< column "NON_UNIQUE" "BIGINT"
+< column "INDEX_COMMENT" "VARCHAR"
+< column "SUB_PART" "BIGINT"
+< column "EXPRESSION" "VARCHAR"
+> query
+| SELECT TABLE_NAME, IFNULL(COLUMN_NAME, ''), ORDINAL_POSITION,
+| 			CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END,
+| 			IS_NULLABLE, COLUMN_TYPE, IFNULL(CHARACTER_SET_NAME, ''), IFNULL(COLLATION_NAME, ''),
+| 			QUOTE(COLUMN_COMMENT), GENERATION_EXPRESSION, EXTRA
+| 		FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, ORDINAL_POSITION
+: string
+| omni_mig_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "ORDINAL_POSITION" "BIGINT"
+< column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
+< column "IS_NULLABLE" "VARCHAR"
+< column "COLUMN_TYPE" "TEXT"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
+< column "GENERATION_EXPRESSION" "TEXT"
+< column "EXTRA" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| a
+: int64 1
+: null
+: bytes
+| YES
+: bytes
+| int
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+< row
+: bytes
+| va
+: bytes
+| va
+: int64 1
+: null
+: bytes
+| YES
+: bytes
+| int
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+< row
+: bytes
+| vb
+: bytes
+| va
+: int64 1
+: null
+: bytes
+| YES
+: bytes
+| int
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+> query
+| SELECT TABLE_NAME, VIEW_DEFINITION FROM information_schema.VIEWS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_mig_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "VIEW_DEFINITION" "TEXT"
+< row
+: bytes
+| va
+: bytes
+| SELECT `va` AS `va` FROM `omni_mig_b`.`vb`
+< row
+: bytes
+| vb
+: bytes
+| SELECT `a` AS `va` FROM `omni_mig_b`.`t`
+> query
+| SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
+| 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
+| 		FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS fks
+| 			JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu
+| 			ON fks.CONSTRAINT_SCHEMA = kcu.TABLE_SCHEMA AND fks.TABLE_NAME = kcu.TABLE_NAME AND fks.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
+| 		WHERE kcu.POSITION_IN_UNIQUE_CONSTRAINT IS NOT NULL AND fks.CONSTRAINT_SCHEMA = ?
+| 		ORDER BY fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.ORDINAL_POSITION
+: string
+| omni_mig_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR"
+< column "COLUMN_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_COLUMN_NAME" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR"
+< column "UPDATE_RULE" "VARCHAR"
+< column "MATCH_OPTION" "VARCHAR"
+> query
+| SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
+| 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
+: string
+| omni_mig_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CHECK_CLAUSE" "TEXT"
+> query
+| SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
+| 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
+| 		ORDER BY TABLE_NAME, PARTITION_ORDINAL_POSITION
+: string
+| omni_mig_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "PARTITION_NAME" "VARCHAR"
+< column "PARTITION_METHOD" "VARCHAR"
+< column "PARTITION_EXPRESSION" "TEXT"
+< column "PARTITION_DESCRIPTION" "TEXT"
+> query
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TABLE_COLLATION, ''), QUOTE(IFNULL(TABLE_COMMENT, '')),
+| 			IFNULL(TIDB_ROW_ID_SHARDING_INFO, ''), IFNULL(TIDB_PK_TYPE, '')
+| 		FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_mig_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_bin
+: bytes
+| ''
+: bytes
+| NOT_SHARDED
+: bytes
+| NONCLUSTERED
+< row
+: bytes
+| va
+: bytes
+| VIEW
+: bytes
+|
+: bytes
+|
+: bytes
+| 'VIEW'
+: bytes
+|
+: bytes
+| NONCLUSTERED
+< row
+: bytes
+| vb
+: bytes
+| VIEW
+: bytes
+|
+: bytes
+|
+: bytes
+| 'VIEW'
+: bytes
+|
+: bytes
+| NONCLUSTERED
+> query
+| SELECT DEFAULT_CHARACTER_SET_NAME, DEFAULT_COLLATION_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = ?
+: string
+| omni_mig_b
+< result
+< column "DEFAULT_CHARACTER_SET_NAME" "VARCHAR"
+< column "DEFAULT_COLLATION_NAME" "VARCHAR"
+< row
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_bin
+> query
+| SELECT SEQUENCE_NAME, START, MIN_VALUE, MAX_VALUE, INCREMENT, CYCLE, CACHE_VALUE, IFNULL(COMMENT, '')
+| 		FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
+: string
+| omni_mig_b
+< result
+< column "SEQUENCE_NAME" "VARCHAR"
+< column "START" "BIGINT"
+< column "MIN_VALUE" "BIGINT"
+< column "MAX_VALUE" "BIGINT"
+< column "INCREMENT" "BIGINT"
+< column "CYCLE" "TINYINT"
+< column "CACHE_VALUE" "BIGINT"
+< column "IFNULL(COMMENT, '')" "VARCHAR"
+> exec
+| USE omni_mig_a
+< ok 0 0
+> exec
+| CREATE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_mig_a`.`vb` (`va`) AS SELECT `a` AS `va` FROM `omni_mig_a`.`t`
+< ok 0 0
+> exec
+| CREATE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_mig_a`.`va` (`va`) AS SELECT `va` AS `va` FROM `omni_mig_a`.`vb`
+< ok 0 0
+> query
+| SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+< row
+: bytes
+| va
+: bytes
+| VIEW
+< row
+: bytes
+| vb
+: bytes
+| VIEW
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> query
+| SELECT CHECK_OPTION FROM information_schema.VIEWS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
+: string
+| omni_mig_a
+: string
+| va
+< result
+< column "CHECK_OPTION" "VARCHAR"
+< row
+: bytes
+| CASCADED
+> query
+| SHOW CREATE VIEW `va`
+< result
+< column "View" "VARCHAR"
+< column "Create View" "VARCHAR"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< row
+: bytes
+| va
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `va` (`va`) AS SELECT `va` AS `va` FROM `omni_mig_a`.`vb`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SELECT CHECK_OPTION FROM information_schema.VIEWS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
+: string
+| omni_mig_a
+: string
+| vb
+< result
+< column "CHECK_OPTION" "VARCHAR"
+< row
+: bytes
+| CASCADED
+> query
+| SHOW CREATE VIEW `vb`
+< result
+< column "View" "VARCHAR"
+< column "Create View" "VARCHAR"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< row
+: bytes
+| vb
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `vb` (`va`) AS SELECT `a` AS `va` FROM `omni_mig_a`.`t`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> exec
+| DROP DATABASE IF EXISTS omni_mig_a
+< ok 0 0
+> exec
+| CREATE DATABASE omni_mig_a
+< ok 0 0
+> exec
+| USE omni_mig_a
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a int)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE omni_mig_a
+< ok 0 0
+> exec
+| CREATE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_mig_a`.`vb` (`va`) AS SELECT `a` AS `va` FROM `omni_mig_a`.`t`
+< ok 0 0
+> exec
+| CREATE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_mig_a`.`va` (`va`) AS SELECT `va` AS `va` FROM `omni_mig_a`.`vb`
+< ok 0 0
+> query
+| SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+< row
+: bytes
+| va
+: bytes
+| VIEW
+< row
+: bytes
+| vb
+: bytes
+| VIEW
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> query
+| SELECT CHECK_OPTION FROM information_schema.VIEWS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
+: string
+| omni_mig_a
+: string
+| va
+< result
+< column "CHECK_OPTION" "VARCHAR"
+< row
+: bytes
+| CASCADED
+> query
+| SHOW CREATE VIEW `va`
+< result
+< column "View" "VARCHAR"
+< column "Create View" "VARCHAR"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< row
+: bytes
+| va
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `va` (`va`) AS SELECT `va` AS `va` FROM `omni_mig_a`.`vb`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SELECT CHECK_OPTION FROM information_schema.VIEWS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
+: string
+| omni_mig_a
+: string
+| vb
+< result
+< column "CHECK_OPTION" "VARCHAR"
+< row
+: bytes
+| CASCADED
+> query
+| SHOW CREATE VIEW `vb`
+< result
+< column "View" "VARCHAR"
+< column "Create View" "VARCHAR"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< row
+: bytes
+| vb
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `vb` (`va`) AS SELECT `a` AS `va` FROM `omni_mig_a`.`t`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> exec
+| DROP DATABASE IF EXISTS omni_mig_b
+< ok 0 0
+> exec
+| CREATE DATABASE omni_mig_b
+< ok 0 0
+> exec
+| USE omni_mig_b
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a int, b int, UNIQUE KEY uk (b))
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_mig_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int DEFAULT NULL,
+|   `b` int DEFAULT NULL,
+|   UNIQUE KEY `uk` (`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| DROP DATABASE IF EXISTS omni_mig_a
+< ok 0 0
+> exec
+| CREATE DATABASE omni_mig_a
+< ok 0 0
+> exec
+| USE omni_mig_a
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a int, b int) PARTITION BY HASH (a) PARTITIONS 2
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
+| 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "KEY_NAME" "VARCHAR"
+< column "COLUMN_NAME" "VARCHAR"
+< column "NON_UNIQUE" "BIGINT"
+< column "INDEX_COMMENT" "VARCHAR"
+< column "SUB_PART" "BIGINT"
+< column "EXPRESSION" "VARCHAR"
+> query
+| SELECT TABLE_NAME, IFNULL(COLUMN_NAME, ''), ORDINAL_POSITION,
+| 			CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END,
+| 			IS_NULLABLE, COLUMN_TYPE, IFNULL(CHARACTER_SET_NAME, ''), IFNULL(COLLATION_NAME, ''),
+| 			QUOTE(COLUMN_COMMENT), GENERATION_EXPRESSION, EXTRA
+| 		FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, ORDINAL_POSITION
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "ORDINAL_POSITION" "BIGINT"
+< column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
+< column "IS_NULLABLE" "VARCHAR"
+< column "COLUMN_TYPE" "TEXT"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
+< column "GENERATION_EXPRESSION" "TEXT"
+< column "EXTRA" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| a
+: int64 1
+: null
+: bytes
+| YES
+: bytes
+| int
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+< row
+: bytes
+| t
+: bytes
+| b
+: int64 2
+: null
+: bytes
+| YES
+: bytes
+| int
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+> query
+| SELECT TABLE_NAME, VIEW_DEFINITION FROM information_schema.VIEWS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "VIEW_DEFINITION" "TEXT"
+> query
+| SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
+| 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
+| 		FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS fks
+| 			JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu
+| 			ON fks.CONSTRAINT_SCHEMA = kcu.TABLE_SCHEMA AND fks.TABLE_NAME = kcu.TABLE_NAME AND fks.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
+| 		WHERE kcu.POSITION_IN_UNIQUE_CONSTRAINT IS NOT NULL AND fks.CONSTRAINT_SCHEMA = ?
+| 		ORDER BY fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.ORDINAL_POSITION
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR"
+< column "COLUMN_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_COLUMN_NAME" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR"
+< column "UPDATE_RULE" "VARCHAR"
+< column "MATCH_OPTION" "VARCHAR"
+> query
+| SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
+| 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CHECK_CLAUSE" "TEXT"
+> query
+| SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
+| 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
+| 		ORDER BY TABLE_NAME, PARTITION_ORDINAL_POSITION
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "PARTITION_NAME" "VARCHAR"
+< column "PARTITION_METHOD" "VARCHAR"
+< column "PARTITION_EXPRESSION" "TEXT"
+< column "PARTITION_DESCRIPTION" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| p0
+: bytes
+| HASH
+: bytes
+| `a`
+: bytes
+|
+< row
+: bytes
+| t
+: bytes
+| p1
+: bytes
+| HASH
+: bytes
+| `a`
+: bytes
+|
+> query
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TABLE_COLLATION, ''), QUOTE(IFNULL(TABLE_COMMENT, '')),
+| 			IFNULL(TIDB_ROW_ID_SHARDING_INFO, ''), IFNULL(TIDB_PK_TYPE, '')
+| 		FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_bin
+: bytes
+| ''
+: bytes
+| NOT_SHARDED
+: bytes
+| NONCLUSTERED
+> query
+| SELECT DEFAULT_CHARACTER_SET_NAME, DEFAULT_COLLATION_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = ?
+: string
+| omni_mig_a
+< result
+< column "DEFAULT_CHARACTER_SET_NAME" "VARCHAR"
+< column "DEFAULT_COLLATION_NAME" "VARCHAR"
+< row
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_bin
+> query
+| SELECT SEQUENCE_NAME, START, MIN_VALUE, MAX_VALUE, INCREMENT, CYCLE, CACHE_VALUE, IFNULL(COMMENT, '')
+| 		FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
+: string
+| omni_mig_a
+< result
+< column "SEQUENCE_NAME" "VARCHAR"
+< column "START" "BIGINT"
+< column "MIN_VALUE" "BIGINT"
+< column "MAX_VALUE" "BIGINT"
+< column "INCREMENT" "BIGINT"
+< column "CYCLE" "TINYINT"
+< column "CACHE_VALUE" "BIGINT"
+< column "IFNULL(COMMENT, '')" "VARCHAR"
+> query
+| SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
+| 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
+: string
+| omni_mig_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "KEY_NAME" "VARCHAR"
+< column "COLUMN_NAME" "VARCHAR"
+< column "NON_UNIQUE" "BIGINT"
+< column "INDEX_COMMENT" "VARCHAR"
+< column "SUB_PART" "BIGINT"
+< column "EXPRESSION" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| uk
+: bytes
+| b
+: int64 0
+: bytes
+|
+: null
+: null
+> query
+| SELECT TABLE_NAME, IFNULL(COLUMN_NAME, ''), ORDINAL_POSITION,
+| 			CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END,
+| 			IS_NULLABLE, COLUMN_TYPE, IFNULL(CHARACTER_SET_NAME, ''), IFNULL(COLLATION_NAME, ''),
+| 			QUOTE(COLUMN_COMMENT), GENERATION_EXPRESSION, EXTRA
+| 		FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, ORDINAL_POSITION
+: string
+| omni_mig_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "ORDINAL_POSITION" "BIGINT"
+< column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
+< column "IS_NULLABLE" "VARCHAR"
+< column "COLUMN_TYPE" "TEXT"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
+< column "GENERATION_EXPRESSION" "TEXT"
+< column "EXTRA" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| a
+: int64 1
+: null
+: bytes
+| YES
+: bytes
+| int
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+< row
+: bytes
+| t
+: bytes
+| b
+: int64 2
+: null
+: bytes
+| YES
+: bytes
+| int
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+> query
+| SELECT TABLE_NAME, VIEW_DEFINITION FROM information_schema.VIEWS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_mig_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "VIEW_DEFINITION" "TEXT"
+> query
+| SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
+| 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
+| 		FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS fks
+| 			JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu
+| 			ON fks.CONSTRAINT_SCHEMA = kcu.TABLE_SCHEMA AND fks.TABLE_NAME = kcu.TABLE_NAME AND fks.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
+| 		WHERE kcu.POSITION_IN_UNIQUE_CONSTRAINT IS NOT NULL AND fks.CONSTRAINT_SCHEMA = ?
+| 		ORDER BY fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.ORDINAL_POSITION
+: string
+| omni_mig_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR"
+< column "COLUMN_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_COLUMN_NAME" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR"
+< column "UPDATE_RULE" "VARCHAR"
+< column "MATCH_OPTION" "VARCHAR"
+> query
+| SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
+| 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
+: string
+| omni_mig_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CHECK_CLAUSE" "TEXT"
+> query
+| SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
+| 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
+| 		ORDER BY TABLE_NAME, PARTITION_ORDINAL_POSITION
+: string
+| omni_mig_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "PARTITION_NAME" "VARCHAR"
+< column "PARTITION_METHOD" "VARCHAR"
+< column "PARTITION_EXPRESSION" "TEXT"
+< column "PARTITION_DESCRIPTION" "TEXT"
+> query
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TABLE_COLLATION, ''), QUOTE(IFNULL(TABLE_COMMENT, '')),
+| 			IFNULL(TIDB_ROW_ID_SHARDING_INFO, ''), IFNULL(TIDB_PK_TYPE, '')
+| 		FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_mig_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_bin
+: bytes
+| ''
+: bytes
+| NOT_SHARDED
+: bytes
+| NONCLUSTERED
+> query
+| SELECT DEFAULT_CHARACTER_SET_NAME, DEFAULT_COLLATION_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = ?
+: string
+| omni_mig_b
+< result
+< column "DEFAULT_CHARACTER_SET_NAME" "VARCHAR"
+< column "DEFAULT_COLLATION_NAME" "VARCHAR"
+< row
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_bin
+> query
+| SELECT SEQUENCE_NAME, START, MIN_VALUE, MAX_VALUE, INCREMENT, CYCLE, CACHE_VALUE, IFNULL(COMMENT, '')
+| 		FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
+: string
+| omni_mig_b
+< result
+< column "SEQUENCE_NAME" "VARCHAR"
+< column "START" "BIGINT"
+< column "MIN_VALUE" "BIGINT"
+< column "MAX_VALUE" "BIGINT"
+< column "INCREMENT" "BIGINT"
+< column "CYCLE" "TINYINT"
+< column "CACHE_VALUE" "BIGINT"
+< column "IFNULL(COMMENT, '')" "VARCHAR"
+> exec
+| USE omni_mig_a
+< ok 0 0
+> exec
+| ALTER TABLE `omni_mig_a`.`t` REMOVE PARTITIONING
+< ok 0 0
+> exec
+| ALTER TABLE `omni_mig_a`.`t` ADD UNIQUE KEY `uk` (`b`)
+< ok 0 0
+> query
+| SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int DEFAULT NULL,
+|   `b` int DEFAULT NULL,
+|   UNIQUE KEY `uk` (`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| DROP DATABASE IF EXISTS omni_mig_a
+< ok 0 0
+> exec
+| CREATE DATABASE omni_mig_a
+< ok 0 0
+> exec
+| USE omni_mig_a
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a int, b int) PARTITION BY HASH (a) PARTITIONS 2
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE omni_mig_a
+< ok 0 0
+> exec
+| ALTER TABLE `omni_mig_a`.`t` REMOVE PARTITIONING
+< ok 0 0
+> exec
+| ALTER TABLE `omni_mig_a`.`t` ADD UNIQUE KEY `uk` (`b`)
+< ok 0 0
+> query
+| SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int DEFAULT NULL,
+|   `b` int DEFAULT NULL,
+|   UNIQUE KEY `uk` (`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| DROP DATABASE IF EXISTS omni_mig_b
+< ok 0 0
+> exec
+| CREATE DATABASE omni_mig_b
+< ok 0 0
+> exec
+| USE omni_mig_b
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a int, b int, UNIQUE KEY uk (b)) PARTITION BY HASH (b) PARTITIONS 3
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_mig_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int DEFAULT NULL,
+|   `b` int DEFAULT NULL,
+|   UNIQUE KEY `uk` (`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+| PARTITION BY HASH (`b`) PARTITIONS 3
+> exec
+| DROP DATABASE IF EXISTS omni_mig_a
+< ok 0 0
+> exec
+| CREATE DATABASE omni_mig_a
+< ok 0 0
+> exec
+| USE omni_mig_a
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a int, b int) PARTITION BY HASH (a) PARTITIONS 2
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
+| 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "KEY_NAME" "VARCHAR"
+< column "COLUMN_NAME" "VARCHAR"
+< column "NON_UNIQUE" "BIGINT"
+< column "INDEX_COMMENT" "VARCHAR"
+< column "SUB_PART" "BIGINT"
+< column "EXPRESSION" "VARCHAR"
+> query
+| SELECT TABLE_NAME, IFNULL(COLUMN_NAME, ''), ORDINAL_POSITION,
+| 			CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END,
+| 			IS_NULLABLE, COLUMN_TYPE, IFNULL(CHARACTER_SET_NAME, ''), IFNULL(COLLATION_NAME, ''),
+| 			QUOTE(COLUMN_COMMENT), GENERATION_EXPRESSION, EXTRA
+| 		FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, ORDINAL_POSITION
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "ORDINAL_POSITION" "BIGINT"
+< column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
+< column "IS_NULLABLE" "VARCHAR"
+< column "COLUMN_TYPE" "TEXT"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
+< column "GENERATION_EXPRESSION" "TEXT"
+< column "EXTRA" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| a
+: int64 1
+: null
+: bytes
+| YES
+: bytes
+| int
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+< row
+: bytes
+| t
+: bytes
+| b
+: int64 2
+: null
+: bytes
+| YES
+: bytes
+| int
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+> query
+| SELECT TABLE_NAME, VIEW_DEFINITION FROM information_schema.VIEWS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "VIEW_DEFINITION" "TEXT"
+> query
+| SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
+| 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
+| 		FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS fks
+| 			JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu
+| 			ON fks.CONSTRAINT_SCHEMA = kcu.TABLE_SCHEMA AND fks.TABLE_NAME = kcu.TABLE_NAME AND fks.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
+| 		WHERE kcu.POSITION_IN_UNIQUE_CONSTRAINT IS NOT NULL AND fks.CONSTRAINT_SCHEMA = ?
+| 		ORDER BY fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.ORDINAL_POSITION
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR"
+< column "COLUMN_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_COLUMN_NAME" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR"
+< column "UPDATE_RULE" "VARCHAR"
+< column "MATCH_OPTION" "VARCHAR"
+> query
+| SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
+| 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CHECK_CLAUSE" "TEXT"
+> query
+| SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
+| 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
+| 		ORDER BY TABLE_NAME, PARTITION_ORDINAL_POSITION
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "PARTITION_NAME" "VARCHAR"
+< column "PARTITION_METHOD" "VARCHAR"
+< column "PARTITION_EXPRESSION" "TEXT"
+< column "PARTITION_DESCRIPTION" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| p0
+: bytes
+| HASH
+: bytes
+| `a`
+: bytes
+|
+< row
+: bytes
+| t
+: bytes
+| p1
+: bytes
+| HASH
+: bytes
+| `a`
+: bytes
+|
+> query
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TABLE_COLLATION, ''), QUOTE(IFNULL(TABLE_COMMENT, '')),
+| 			IFNULL(TIDB_ROW_ID_SHARDING_INFO, ''), IFNULL(TIDB_PK_TYPE, '')
+| 		FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_bin
+: bytes
+| ''
+: bytes
+| NOT_SHARDED
+: bytes
+| NONCLUSTERED
+> query
+| SELECT DEFAULT_CHARACTER_SET_NAME, DEFAULT_COLLATION_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = ?
+: string
+| omni_mig_a
+< result
+< column "DEFAULT_CHARACTER_SET_NAME" "VARCHAR"
+< column "DEFAULT_COLLATION_NAME" "VARCHAR"
+< row
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_bin
+> query
+| SELECT SEQUENCE_NAME, START, MIN_VALUE, MAX_VALUE, INCREMENT, CYCLE, CACHE_VALUE, IFNULL(COMMENT, '')
+| 		FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
+: string
+| omni_mig_a
+< result
+< column "SEQUENCE_NAME" "VARCHAR"
+< column "START" "BIGINT"
+< column "MIN_VALUE" "BIGINT"
+< column "MAX_VALUE" "BIGINT"
+< column "INCREMENT" "BIGINT"
+< column "CYCLE" "TINYINT"
+< column "CACHE_VALUE" "BIGINT"
+< column "IFNULL(COMMENT, '')" "VARCHAR"
+> query
+| SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
+| 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
+: string
+| omni_mig_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "KEY_NAME" "VARCHAR"
+< column "COLUMN_NAME" "VARCHAR"
+< column "NON_UNIQUE" "BIGINT"
+< column "INDEX_COMMENT" "VARCHAR"
+< column "SUB_PART" "BIGINT"
+< column "EXPRESSION" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| uk
+: bytes
+| b
+: int64 0
+: bytes
+|
+: null
+: null
+> query
+| SELECT TABLE_NAME, IFNULL(COLUMN_NAME, ''), ORDINAL_POSITION,
+| 			CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END,
+| 			IS_NULLABLE, COLUMN_TYPE, IFNULL(CHARACTER_SET_NAME, ''), IFNULL(COLLATION_NAME, ''),
+| 			QUOTE(COLUMN_COMMENT), GENERATION_EXPRESSION, EXTRA
+| 		FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, ORDINAL_POSITION
+: string
+| omni_mig_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "ORDINAL_POSITION" "BIGINT"
+< column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
+< column "IS_NULLABLE" "VARCHAR"
+< column "COLUMN_TYPE" "TEXT"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
+< column "GENERATION_EXPRESSION" "TEXT"
+< column "EXTRA" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| a
+: int64 1
+: null
+: bytes
+| YES
+: bytes
+| int
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+< row
+: bytes
+| t
+: bytes
+| b
+: int64 2
+: null
+: bytes
+| YES
+: bytes
+| int
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+> query
+| SELECT TABLE_NAME, VIEW_DEFINITION FROM information_schema.VIEWS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_mig_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "VIEW_DEFINITION" "TEXT"
+> query
+| SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
+| 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
+| 		FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS fks
+| 			JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu
+| 			ON fks.CONSTRAINT_SCHEMA = kcu.TABLE_SCHEMA AND fks.TABLE_NAME = kcu.TABLE_NAME AND fks.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
+| 		WHERE kcu.POSITION_IN_UNIQUE_CONSTRAINT IS NOT NULL AND fks.CONSTRAINT_SCHEMA = ?
+| 		ORDER BY fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.ORDINAL_POSITION
+: string
+| omni_mig_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR"
+< column "COLUMN_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_COLUMN_NAME" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR"
+< column "UPDATE_RULE" "VARCHAR"
+< column "MATCH_OPTION" "VARCHAR"
+> query
+| SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
+| 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
+: string
+| omni_mig_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CHECK_CLAUSE" "TEXT"
+> query
+| SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
+| 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
+| 		ORDER BY TABLE_NAME, PARTITION_ORDINAL_POSITION
+: string
+| omni_mig_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "PARTITION_NAME" "VARCHAR"
+< column "PARTITION_METHOD" "VARCHAR"
+< column "PARTITION_EXPRESSION" "TEXT"
+< column "PARTITION_DESCRIPTION" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| p0
+: bytes
+| HASH
+: bytes
+| `b`
+: bytes
+|
+< row
+: bytes
+| t
+: bytes
+| p1
+: bytes
+| HASH
+: bytes
+| `b`
+: bytes
+|
+< row
+: bytes
+| t
+: bytes
+| p2
+: bytes
+| HASH
+: bytes
+| `b`
+: bytes
+|
+> query
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TABLE_COLLATION, ''), QUOTE(IFNULL(TABLE_COMMENT, '')),
+| 			IFNULL(TIDB_ROW_ID_SHARDING_INFO, ''), IFNULL(TIDB_PK_TYPE, '')
+| 		FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_mig_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_bin
+: bytes
+| ''
+: bytes
+| NOT_SHARDED
+: bytes
+| NONCLUSTERED
+> query
+| SELECT DEFAULT_CHARACTER_SET_NAME, DEFAULT_COLLATION_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = ?
+: string
+| omni_mig_b
+< result
+< column "DEFAULT_CHARACTER_SET_NAME" "VARCHAR"
+< column "DEFAULT_COLLATION_NAME" "VARCHAR"
+< row
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_bin
+> query
+| SELECT SEQUENCE_NAME, START, MIN_VALUE, MAX_VALUE, INCREMENT, CYCLE, CACHE_VALUE, IFNULL(COMMENT, '')
+| 		FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
+: string
+| omni_mig_b
+< result
+< column "SEQUENCE_NAME" "VARCHAR"
+< column "START" "BIGINT"
+< column "MIN_VALUE" "BIGINT"
+< column "MAX_VALUE" "BIGINT"
+< column "INCREMENT" "BIGINT"
+< column "CYCLE" "TINYINT"
+< column "CACHE_VALUE" "BIGINT"
+< column "IFNULL(COMMENT, '')" "VARCHAR"
+> exec
+| USE omni_mig_a
+< ok 0 0
+> exec
+| ALTER TABLE `omni_mig_a`.`t` REMOVE PARTITIONING
+< ok 0 0
+> exec
+| ALTER TABLE `omni_mig_a`.`t` ADD UNIQUE KEY `uk` (`b`)
+< ok 0 0
+> exec
+| ALTER TABLE `omni_mig_a`.`t` PARTITION BY HASH (`b`) PARTITIONS 3
+< ok 0 0
+> query
+| SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int DEFAULT NULL,
+|   `b` int DEFAULT NULL,
+|   UNIQUE KEY `uk` (`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+| PARTITION BY HASH (`b`) PARTITIONS 3
+> exec
+| DROP DATABASE IF EXISTS omni_mig_a
+< ok 0 0
+> exec
+| CREATE DATABASE omni_mig_a
+< ok 0 0
+> exec
+| USE omni_mig_a
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a int, b int) PARTITION BY HASH (a) PARTITIONS 2
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE omni_mig_a
+< ok 0 0
+> exec
+| ALTER TABLE `omni_mig_a`.`t` REMOVE PARTITIONING
+< ok 0 0
+> exec
+| ALTER TABLE `omni_mig_a`.`t` ADD UNIQUE KEY `uk` (`b`)
+< ok 0 0
+> exec
+| ALTER TABLE `omni_mig_a`.`t` PARTITION BY HASH (`b`) PARTITIONS 3
+< ok 0 0
+> query
+| SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int DEFAULT NULL,
+|   `b` int DEFAULT NULL,
+|   UNIQUE KEY `uk` (`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+| PARTITION BY HASH (`b`) PARTITIONS 3
+> exec
+| DROP DATABASE IF EXISTS omni_mig_b
+< ok 0 0
+> exec
+| CREATE DATABASE omni_mig_b
+< ok 0 0
+> exec
+| USE omni_mig_b
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
 | CREATE TABLE t (a int, b int AS (a * 2) VIRTUAL, KEY kb (b))
 < ok 0 0
 > exec

@@ -43,6 +43,11 @@ var migrationOraclePairs = []struct{ name, a, b, syncDrops string }{
 	{"checks replaced", "CREATE TABLE t (a int, b int, CONSTRAINT c1 CHECK (a > 0))", "CREATE TABLE t (a int, b int, CONSTRAINT c1 CHECK (a > 1), CONSTRAINT c2 CHECK (b > 0), CONSTRAINT c3 CHECK (b < 10))", ""},
 	{"column defaults and comments", "CREATE TABLE t (a int, b varchar(10), c timestamp)",
 		"CREATE TABLE t (a int NOT NULL DEFAULT 7 COMMENT 'it''s', b varchar(10) DEFAULT 'x''y\\\\z', c timestamp(3) DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3))", ""},
+	{"every column replaced", "CREATE TABLE t (a int, b int)", "CREATE TABLE t (c int, d int)", ""},
+	{"generated column dropped with its input", "CREATE TABLE t (a int, z int AS (a + 1) VIRTUAL, y int AS (z + 1) VIRTUAL, keep int)", "CREATE TABLE t (keep int)", ""},
+	{"view aliased like the view that reads it", "CREATE TABLE t (a int)", "CREATE TABLE t (a int); CREATE VIEW vb AS SELECT a AS va FROM t; CREATE VIEW va AS SELECT va FROM vb", ""},
+	{"partitioning removed for a unique key", "CREATE TABLE t (a int, b int) PARTITION BY HASH (a) PARTITIONS 2", "CREATE TABLE t (a int, b int, UNIQUE KEY uk (b))", ""},
+	{"partitioning replaced with a unique key", "CREATE TABLE t (a int, b int) PARTITION BY HASH (a) PARTITIONS 2", "CREATE TABLE t (a int, b int, UNIQUE KEY uk (b)) PARTITION BY HASH (b) PARTITIONS 3", ""},
 	{"generated column added", "CREATE TABLE t (a int)", "CREATE TABLE t (a int, b int AS (a * 2) VIRTUAL, KEY kb (b))", ""},
 
 	// Changes TiDB makes only by rebuilding the table.

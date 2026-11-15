@@ -45,9 +45,13 @@ func (g *generator) views(diff *SchemaDiff) {
 	}
 }
 
+// namesAnyOf reports whether v's body reads another pending view. The
+// catalog writes every relation a body reads with its database, `db`.`v`,
+// and no alias or column with one, so the qualified name tells a view apart
+// from an alias or column spelled like it.
 func namesAnyOf(v *View, pending []ViewDiffEntry, self int) bool {
 	for i, e := range pending {
-		if i != self && strings.Contains(v.Definition, quoteIdent(e.To.Name)) {
+		if i != self && strings.Contains(v.Definition, qualifiedIdent(e.To.Database, e.To.Name)) {
 			return true
 		}
 	}

@@ -185,11 +185,53 @@ func (g *generator) dropTableParts(e *TableDiffEntry) {
 	for _, idx := range rebuiltIndexes(e) {
 		g.dropIndex(e.From, e.From.indexNamed(idx.Name))
 	}
+	dropped, _ := droppedColumns(e)
+	for _, col := range dropped {
+		g.add(OpDropColumn, e.From, alterTable(e.From, "DROP COLUMN "+quoteIdent(col.Name)), "")
+	}
+	if e.PartitionChanged && e.From.Partitioning != nil && (e.To.Partitioning == nil || addsUniqueKey(e) && !appendsPartitions(e.From.Partitioning, e.To.Partitioning)) {
+		// A new unique key must cover the partitioning in force when it is
+		// added (8264), so the old partitioning goes first.
+		g.add(OpAlterTable, e.From, alterTable(e.From, "REMOVE PARTITIONING"), "")
+	}
+}
+
+// droppedColumns lists the columns a changed table loses, in the order they
+// can go: generated columns first, latest first, since a generated column may
+// read the columns before it (3108 otherwise). When the table loses every
+// column, the last one is held back as last: TiDB refuses to drop a table's
+// last column (1090), so it goes once the new columns are in.
+func droppedColumns(e *TableDiffEntry) (now []*Column, last *Column) {
+	drop := make(map[string]bool)
 	for _, c := range e.Columns {
 		if c.Action == DiffDrop {
-			g.add(OpDropColumn, e.From, alterTable(e.From, "DROP COLUMN "+quoteIdent(c.Name)), "")
+			drop[toLower(c.Name)] = true
 		}
 	}
+	var generated, plain []*Column
+	for _, col := range e.From.Columns {
+		switch {
+		case !drop[toLower(col.Name)]:
+		case col.Generated != nil:
+			generated = append([]*Column{col}, generated...)
+		default:
+			plain = append(plain, col)
+		}
+	}
+	now = append(generated, plain...)
+	if len(now) > 0 && len(now) == len(e.From.Columns) {
+		return now[:len(now)-1], now[len(now)-1]
+	}
+	return now, nil
+}
+
+func addsUniqueKey(e *TableDiffEntry) bool {
+	for _, idx := range e.Indexes {
+		if idx.To != nil && (idx.To.Unique || idx.To.Primary) {
+			return true
+		}
+	}
+	return false
 }
 
 func (g *generator) dropIndex(tbl *Table, idx *Index) {
@@ -256,6 +298,9 @@ func (g *generator) alterTable(e *TableDiffEntry) {
 		g.alterTableOptions(from, to)
 	}
 	g.addColumns(e)
+	if _, last := droppedColumns(e); last != nil {
+		g.add(OpDropColumn, from, alterTable(from, "DROP COLUMN "+quoteIdent(last.Name)), "")
+	}
 	for _, c := range e.Columns {
 		if c.Action == DiffModify {
 			g.add(OpModifyColumn, to, alterTable(to, "MODIFY COLUMN "+canonicalColumn(c.To)), modifyColumnWarning(from, to, c.From, c.To))
@@ -274,7 +319,12 @@ func (g *generator) alterTable(e *TableDiffEntry) {
 			g.add(OpAddCheck, to, alterTable(to, "ADD "+checkDefinition(c.To)), "")
 		}
 	}
-	if e.PartitionChanged {
+	switch {
+	case !e.PartitionChanged || to.Partitioning == nil && from.Partitioning != nil:
+		// Unchanged, or removed in dropTableParts.
+	case from.Partitioning != nil && addsUniqueKey(e) && !appendsPartitions(from.Partitioning, to.Partitioning):
+		g.add(OpAlterTable, to, alterTable(to, partitionChange(nil, to.Partitioning)), "")
+	default:
 		g.add(OpAlterTable, to, alterTable(to, partitionChange(from.Partitioning, to.Partitioning)), "")
 	}
 }
