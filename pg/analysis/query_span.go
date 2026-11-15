@@ -423,10 +423,13 @@ func outputColumn(q *catalog.Query, attNum int) *catalog.TargetEntry {
 // selStmt is the original parse tree, used to determine IsPlainField
 // (which is true only for columns that came from * expansion).
 func (e *querySpanExtractor) extractLineage(q *catalog.Query, selStmt *ast.SelectStmt) []QuerySpanResult {
-	return e.extractLineageWithVisited(q, selStmt, make(map[*catalog.Query]bool))
+	return e.extractLineageWithVisited(nil, q, selStmt, make(map[*catalog.Query]bool))
 }
 
-func (e *querySpanExtractor) extractLineageWithVisited(q *catalog.Query, selStmt *ast.SelectStmt, visited map[*catalog.Query]bool) []QuerySpanResult {
+// extractLineageWithVisited extracts the lineage of q, nested in the queries
+// of parents, the set operations whose branch it is, which may define the
+// CTEs it reads.
+func (e *querySpanExtractor) extractLineageWithVisited(parents []*catalog.Query, q *catalog.Query, selStmt *ast.SelectStmt, visited map[*catalog.Query]bool) []QuerySpanResult {
 	if q == nil {
 		return nil
 	}
@@ -438,7 +441,7 @@ func (e *querySpanExtractor) extractLineageWithVisited(q *catalog.Query, selStmt
 
 	// Handle set operations (UNION/INTERSECT/EXCEPT).
 	if q.SetOp != catalog.SetOpNone {
-		return e.extractSetOpLineageWithVisited(q, selStmt, visited)
+		return e.extractSetOpLineageWithVisited(parents, q, selStmt, visited)
 	}
 
 	// Build a plain-field mask from the parse tree's target list.
@@ -470,7 +473,7 @@ func (e *querySpanExtractor) extractLineageWithVisited(q *catalog.Query, selStmt
 			continue
 		}
 		sourceColSet := make(ColumnSet)
-		e.walkExpr(q, te.Expr, sourceColSet)
+		e.walkExprWithVisited(pushQuery(parents, q), te.Expr, sourceColSet, make(map[queryExprKey]bool))
 		isPlain := idx < len(plainMask) && plainMask[idx]
 		// Even if the parse tree says this came from *, the underlying
 		// expression through CTEs/subqueries may not be a simple column ref.
@@ -540,7 +543,9 @@ func isUltimatelyPlainColumnWithVisited(q *catalog.Query, expr catalog.AnalyzedE
 			return isUltimatelyPlainColumnWithVisited(rte.Subquery, te.Expr, visited)
 		}
 	case catalog.RTECTE:
-		if rte.CTEIndex >= 0 && rte.CTEIndex < len(q.CTEList) {
+		// Without the enclosing queries a CTE defined outside q is unknown,
+		// so its columns are not plain.
+		if rte.CTEIndex >= 0 && rte.CTEIndex < len(q.CTEList) && q.CTEList[rte.CTEIndex].Name == rte.CTEName {
 			cte := q.CTEList[rte.CTEIndex]
 			if te := outputColumn(cte.Query, int(v.AttNum)); te != nil {
 				return isUltimatelyPlainColumnWithVisited(cte.Query, te.Expr, visited)
@@ -703,7 +708,7 @@ func countStarColumnsFromRTE(q *catalog.Query, targets []*catalog.TargetEntry, s
 	return count
 }
 
-func (e *querySpanExtractor) extractSetOpLineageWithVisited(q *catalog.Query, selStmt *ast.SelectStmt, visited map[*catalog.Query]bool) []QuerySpanResult {
+func (e *querySpanExtractor) extractSetOpLineageWithVisited(parents []*catalog.Query, q *catalog.Query, selStmt *ast.SelectStmt, visited map[*catalog.Query]bool) []QuerySpanResult {
 	if q.LArg == nil || q.RArg == nil {
 		return nil
 	}
@@ -712,8 +717,9 @@ func (e *querySpanExtractor) extractSetOpLineageWithVisited(q *catalog.Query, se
 		lSelStmt = selStmt.Larg
 		rSelStmt = selStmt.Rarg
 	}
-	lResults := e.extractLineageWithVisited(q.LArg, lSelStmt, visited)
-	rResults := e.extractLineageWithVisited(q.RArg, rSelStmt, visited)
+	branchParents := pushQuery(parents, q)
+	lResults := e.extractLineageWithVisited(branchParents, q.LArg, lSelStmt, visited)
+	rResults := e.extractLineageWithVisited(branchParents, q.RArg, rSelStmt, visited)
 
 	// For EXCEPT, output rows come only from the left branch — do not
 	// merge right-side lineage into the result columns.
@@ -811,6 +817,13 @@ func currentQuery(queryStack []*catalog.Query) *catalog.Query {
 	return queryStack[len(queryStack)-1]
 }
 
+// pushQuery returns queryStack with q appended, reusing its array. The caller
+// passes its whole stack and is done with the result before it pushes
+// another query, so no stack in use shares the slot q takes.
+func pushQuery(queryStack []*catalog.Query, q *catalog.Query) []*catalog.Query {
+	return append(queryStack, q)
+}
+
 func appendQuery(queryStack []*catalog.Query, q *catalog.Query) []*catalog.Query {
 	nextStack := make([]*catalog.Query, 0, len(queryStack)+1)
 	nextStack = append(nextStack, queryStack...)
@@ -869,9 +882,10 @@ func (e *querySpanExtractor) resolveVar(queryStack []*catalog.Query, v *catalog.
 		}
 
 	case catalog.RTECTE:
-		if cte := findCTEForRangeTableEntry(effectiveStack, rte); cte != nil {
+		if cte, level := findCTEForRangeTableEntry(effectiveStack, rte); cte != nil {
 			if te := outputColumn(cte.Query, int(v.AttNum)); te != nil {
-				e.walkExprWithVisited(appendQuery(effectiveStack, cte.Query), te.Expr, result, visited)
+				// The CTE's query sees the scopes of the query that defines it.
+				e.walkExprWithVisited(appendQuery(effectiveStack[:level+1], cte.Query), te.Expr, result, visited)
 			}
 		}
 
@@ -930,27 +944,26 @@ func functionColumn(rte *catalog.RangeTableEntry, colIdx int) (*catalog.FuncCall
 	return nil, -1
 }
 
-func findCTEForRangeTableEntry(queryStack []*catalog.Query, rte *catalog.RangeTableEntry) *catalog.CommonTableExprQ {
-	if len(queryStack) == 0 || rte == nil {
-		return nil
-	}
-
-	current := currentQuery(queryStack)
-	if current != nil && rte.CTEIndex >= 0 && rte.CTEIndex < len(current.CTEList) {
-		return current.CTEList[rte.CTEIndex]
-	}
-
-	if rte.CTEName == "" {
-		return nil
+// findCTEForRangeTableEntry returns the CTE that rte, an entry of the last
+// query of queryStack, references, and the stack index of the query that
+// defines it. rte.CTEIndex indexes the defining query's list, which may be an
+// enclosing query's, so the name is matched from the innermost query out, as
+// PostgreSQL scopes WITH names.
+func findCTEForRangeTableEntry(queryStack []*catalog.Query, rte *catalog.RangeTableEntry) (*catalog.CommonTableExprQ, int) {
+	if rte == nil || rte.CTEName == "" {
+		return nil, -1
 	}
 	for i := len(queryStack) - 1; i >= 0; i-- {
+		if queryStack[i] == nil {
+			continue
+		}
 		for _, cte := range queryStack[i].CTEList {
-			if strings.EqualFold(cte.Name, rte.CTEName) {
-				return cte
+			if cte != nil && cte.Name == rte.CTEName {
+				return cte, i
 			}
 		}
 	}
-	return nil
+	return nil, -1
 }
 
 // extractFallbackColumns attempts to extract column names and lineage from the parse tree
